@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumina - フェーズ1: パーティステータスUI</title>
+<style>
+/* =========================================================
+   Lumina フェーズ1: 画面左下 3人パーティステータスUI モック
+   - 画像素材なし。全てCSS(グラデーション/発光)で表現
+   - 横画面16:9のステージ内に配置
+   - モックデータはJS側の PARTY 配列で管理
+   ========================================================= */
+
+/* ---------- デザイントークン ---------- */
+:root{
+  --bg-deep:   #0d0a1a;   /* 最奥の闇 */
+  --bg-mid:    #1a1430;   /* 紫がかった中景 */
+  --gold:      #d9b56a;   /* 金装飾 */
+  --gold-hi:   #f6e3a8;   /* 金ハイライト */
+  --crystal:   #8fd8ff;   /* クリスタル青 */
+  --hp-a:      #7be08a;   /* HP緑 */
+  --hp-b:      #d9f27a;   /* HP黄緑 */
+  --mp-a:      #5aa8ff;   /* MP青 */
+  --mp-b:      #9fd8ff;   /* MP水色 */
+  --text:      #f2ecdf;
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+html,body{
+  width:100%; height:100%;
+  background:#000;
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  color:var(--text);
+  overflow:hidden;
+}
+
+/* ---------- 16:9ステージ(スマホ横画面想定) ---------- */
+/* 画面サイズに関わらず16:9を維持して中央配置 */
+.stage{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  aspect-ratio:16/9;
+  width:100vw; max-height:100vh;
+  max-width:calc(100vh * 16 / 9);
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 35%, rgba(120,80,200,.25), transparent 70%),
+    radial-gradient(ellipse 50% 60% at 20% 80%, rgba(60,40,120,.3), transparent 70%),
+    linear-gradient(160deg, var(--bg-mid) 0%, var(--bg-deep) 60%, #070510 100%);
+  overflow:hidden;
+}
+
+/* 背景の浮遊光粒子(軽量: 3つのぼかし玉をアニメーション) */
+.mote{
+  position:absolute; border-radius:50%;
+  background:radial-gradient(circle, rgba(170,140,255,.5), transparent 70%);
+  filter:blur(2px);
+  animation:float 9s ease-in-out infinite;
+}
+.mote:nth-child(1){ width:8px;  height:8px;  left:30%; top:40%; animation-delay:0s; }
+.mote:nth-child(2){ width:5px;  height:5px;  left:55%; top:25%; animation-delay:3s; }
+.mote:nth-child(3){ width:10px; height:10px; left:75%; top:60%; animation-delay:6s; }
+@keyframes float{
+  0%,100%{ transform:translateY(0);    opacity:.5; }
+  50%    { transform:translateY(-26px); opacity:1;  }
+}
+
+/* ---------- パーティステータス(画面左下) ---------- */
+.party{
+  position:absolute;
+  left:1.5%; bottom:3%;
+  width:24%;               /* 画像の比率に合わせた幅 */
+  display:flex; flex-direction:column;
+  gap:4.5%;
+}
+
+/* 1人分のプレート */
+.member{
+  position:relative;
+  display:flex; align-items:center;
+  gap:6px;
+  padding:4% 5%;
+  background:linear-gradient(100deg, rgba(20,15,40,.85) 0%, rgba(30,22,55,.55) 70%, transparent 100%);
+  border:1px solid rgba(217,181,106,.35);
+  border-right:none;
+  border-radius:6px 14px 14px 6px;
+  backdrop-filter:blur(2px);
+  transition:box-shadow .3s, border-color .3s;
+}
+
+/* 行動中キャラの強調(activeクラスをJSで付け替え) */
+.member.active{
+  border-color:var(--gold-hi);
+  box-shadow:
+    0 0 12px rgba(246,227,168,.45),
+    inset 0 0 18px rgba(217,181,106,.18);
+}
+.member.active::before{     /* 左端の光る縦ライン */
+  content:"";
+  position:absolute; left:-1px; top:10%; bottom:10%;
+  width:3px; border-radius:3px;
+  background:linear-gradient(180deg, transparent, var(--gold-hi), transparent);
+  animation:pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{ opacity:.5; } 50%{ opacity:1; }
+}
+
+/* 属性ダイヤ型アイコン(画像のクラスマーク相当) */
+.classgem{
+  flex:none;
+  width:14%; aspect-ratio:1;
+  transform:rotate(45deg);
+  border:1px solid var(--gold);
+  border-radius:3px;
+  box-shadow:0 0 8px rgba(217,181,106,.4), inset 0 0 6px rgba(255,255,255,.3);
+}
+.classgem.chaos{ background:linear-gradient(135deg,#f6e3a8,#c98a3a); }
+.classgem.ice  { background:linear-gradient(135deg,#9fd8ff,#3a6ac9); }
+.classgem.light{ background:linear-gradient(135deg,#fff6d8,#d9b56a); }
+
+/* 名前+ゲージ部 */
+.info{ flex:1; min-width:0; }
+.name{
+  font-size:clamp(9px, 1.3vw, 15px);
+  letter-spacing:.08em;
+  color:var(--gold-hi);
+  text-shadow:0 1px 3px rgba(0,0,0,.8);
+  white-space:nowrap; overflow:hidden;
+  margin-bottom:6%;
+}
+
+/* ゲージ行(ラベル+バー+数値) */
+.gaugerow{
+  display:flex; align-items:center; gap:5px;
+  margin-top:4%;
+}
+.gaugelabel{
+  flex:none; width:2.2em;
+  font-family:Georgia,serif;
+  font-size:clamp(7px, .9vw, 11px);
+  letter-spacing:.15em;
+  color:var(--gold);
+}
+.gauge{
+  flex:1; height:clamp(5px, .7vw, 9px);
+  background:rgba(0,0,0,.6);
+  border:1px solid rgba(217,181,106,.3);
+  border-radius:99px;
+  overflow:hidden;
+}
+.gauge>i{
+  display:block; height:100%;
+  border-radius:99px;
+  transition:width .6s ease;   /* ダメージ/回復時に滑らかに変化 */
+}
+.gauge.hp>i{ background:linear-gradient(90deg,var(--hp-a),var(--hp-b)); box-shadow:0 0 6px rgba(123,224,138,.6); }
+.gauge.mp>i{ background:linear-gradient(90deg,var(--mp-a),var(--mp-b)); box-shadow:0 0 6px rgba(90,168,255,.6); }
+.gaugeval{
+  flex:none; width:3.6em; text-align:right;
+  font-family:Georgia,serif;
+  font-size:clamp(7px, .95vw, 12px);
+  color:var(--text);
+  text-shadow:0 1px 2px rgba(0,0,0,.9);
+  font-variant-numeric:tabular-nums;
+}
+
+/* =========================================================
+   フェーズ2: タイムライン型ATB(画面上中央 TURN ORDER)
+   ========================================================= */
+.turnorder{
+  position:absolute; top:2.5%; left:50%;
+  transform:translateX(-50%);
+  width:40%;
+  text-align:center;
+}
+.turnorder .toplabel{
+  font-family:Georgia,serif;
+  font-size:clamp(8px, 1vw, 12px);
+  letter-spacing:.5em;
+  color:var(--gold);
+  text-shadow:0 0 6px rgba(217,181,106,.5);
+  margin-bottom:2%;
+}
+/* 装飾ライン(ラベル左右) */
+.turnorder .toplabel::before,
+.turnorder .toplabel::after{
+  content:"";
+  display:inline-block;
+  width:18%; height:1px;
+  background:linear-gradient(90deg, transparent, var(--gold));
+  vertical-align:middle;
+  margin:0 .8em;
+}
+.turnorder .toplabel::after{
+  background:linear-gradient(90deg, var(--gold), transparent);
+}
+
+/* アイコンの入るトラック。スロットは絶対配置で左右にスライド */
+.totrack{
+  position:relative;
+  height:clamp(34px, 5.2vw, 62px);
+}
+.toicon{
+  position:absolute; top:0;
+  width:clamp(28px, 4.2vw, 52px);
+  aspect-ratio:1;
+  transform:rotate(45deg);          /* ダイヤ型 */
+  border:1px solid var(--gold);
+  border-radius:6px;
+  overflow:hidden;
+  transition:left .5s ease, box-shadow .3s, border-color .3s;
+  box-shadow:0 0 6px rgba(0,0,0,.6);
+}
+.toicon .fill{                       /* ATBゲージ: 下から満ちる光 */
+  position:absolute; left:0; right:0; bottom:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.15), rgba(246,227,168,.45));
+  transition:height .12s linear;
+}
+.toicon .glyph{                      /* キャラ識別(頭文字) */
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  transform:rotate(-45deg);          /* 文字は水平に戻す */
+  font-size:clamp(10px, 1.4vw, 18px);
+  color:var(--text);
+  text-shadow:0 1px 3px rgba(0,0,0,.9);
+}
+.toicon.chaos{ background:linear-gradient(135deg,#6a5220,#2a1f0c); }
+.toicon.ice  { background:linear-gradient(135deg,#2a4a7a,#101c33); }
+.toicon.light{ background:linear-gradient(135deg,#7a6a3a,#332a10); }
+.toicon.enemy{
+  background:linear-gradient(135deg,#4a1a5a,#1c0a24);
+  border-color:#b45aff;
+}
+/* 先頭(NEXT)の強調 */
+.toicon.next{
+  border-color:var(--gold-hi);
+  box-shadow:0 0 14px rgba(246,227,168,.7);
+}
+/* 行動した瞬間のフラッシュ */
+.toicon.acting{
+  box-shadow:0 0 22px rgba(255,255,255,.9);
+}
+.nextlabel{
+  position:absolute;
+  font-family:Georgia,serif;
+  font-size:clamp(7px, .8vw, 10px);
+  letter-spacing:.3em;
+  color:var(--gold-hi);
+  text-shadow:0 0 6px rgba(246,227,168,.8);
+  transition:left .5s ease;
+}
+
+/* =========================================================
+   フェーズ3: 手札カード(下中央)+共有コスト(COST n/10)
+   ========================================================= */
+.hand{
+  position:absolute;
+  left:50%; bottom:14%;
+  transform:translateX(-50%);
+  display:flex; gap:2.2%;
+  width:34%;
+}
+.card{
+  position:relative;
+  flex:1; aspect-ratio:3/4.2;
+  border-radius:8px;
+  cursor:pointer;
+  /* レアリティ枠: 金の多層グロー */
+  border:2px solid var(--gold);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.8),
+    0 0 10px rgba(217,181,106,.45),
+    inset 0 0 0 1px rgba(246,227,168,.5);
+  overflow:hidden;
+  transition:transform .2s ease, box-shadow .2s ease, filter .3s;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+/* キャライラスト部(フェーズ3では属性色グラデで代用。後で画像に差し替え) */
+.card .art{ position:absolute; inset:0; }
+.card.chaos .art{ background:linear-gradient(160deg,#f0d9a0 0%,#8a5a9a 55%,#241430 100%); }
+.card.ice   .art{ background:linear-gradient(160deg,#bfe4ff 0%,#3a6ac9 55%,#101c33 100%); }
+.card.light .art{ background:linear-gradient(160deg,#fff6d8 0%,#d9a95a 55%,#332208 100%); }
+
+/* コストバッジ(左上ダイヤ) */
+.card .cost{
+  position:absolute; left:5%; top:4%;
+  width:24%; aspect-ratio:1;
+  transform:rotate(45deg);
+  background:linear-gradient(135deg,#2a2040,#0d0a1a);
+  border:1px solid var(--gold-hi);
+  border-radius:4px;
+  box-shadow:0 0 8px rgba(246,227,168,.6);
+}
+.card .cost span{
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  transform:rotate(-45deg);
+  font-family:Georgia,serif;
+  font-size:clamp(11px, 1.5vw, 20px);
+  color:var(--gold-hi);
+  text-shadow:0 0 4px rgba(0,0,0,.9);
+}
+
+/* カード下部: 使用キャラ名+スキル名 */
+.card .owner{
+  position:absolute; left:8%; right:8%; bottom:16%;
+  text-align:center;
+  font-size:clamp(6px, .75vw, 10px);
+  letter-spacing:.1em;
+  color:rgba(242,236,223,.85);
+  background:rgba(10,6,20,.65);
+  border-radius:99px;
+  padding:.2em 0;
+}
+.card .skillname{
+  position:absolute; left:0; right:0; bottom:3%;
+  text-align:center;
+  font-size:clamp(8px, 1vw, 14px);
+  letter-spacing:.06em;
+  color:var(--text);
+  text-shadow:0 1px 3px #000, 0 0 8px rgba(217,181,106,.5);
+}
+
+/* コスト不足: 暗転+使用不可 */
+.card.disabled{
+  filter:grayscale(.7) brightness(.45);
+  cursor:not-allowed;
+}
+/* 使用可能カードのホバー/タップ: 浮き上がり+発光 */
+.card:not(.disabled):hover,
+.card:not(.disabled):active{
+  transform:translateY(-6%) scale(1.03);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.8),
+    0 10px 24px rgba(0,0,0,.6),
+    0 0 22px rgba(246,227,168,.8),
+    inset 0 0 0 1px rgba(246,227,168,.9);
+}
+/* 発動フラッシュ */
+.card.played{ animation:cardplay .45s ease; }
+@keyframes cardplay{
+  0%  { transform:translateY(-10%) scale(1.08); filter:brightness(2.2); }
+  100%{ transform:none; filter:none; }
+}
+
+/* 発動時のフロートテキスト */
+.floattext{
+  position:absolute;
+  font-size:clamp(11px, 1.4vw, 18px);
+  color:var(--gold-hi);
+  text-shadow:0 0 8px rgba(246,227,168,.9), 0 1px 3px #000;
+  pointer-events:none;
+  animation:floatup 1s ease forwards;
+  white-space:nowrap;
+}
+@keyframes floatup{
+  0%  { opacity:0; transform:translate(-50%, 0); }
+  15% { opacity:1; }
+  100%{ opacity:0; transform:translate(-50%, -46px); }
+}
+
+/* ---------- 共有コスト表示 ---------- */
+.costbar{
+  position:absolute;
+  left:50%; bottom:4.5%;
+  transform:translateX(-50%);
+  display:flex; align-items:center; gap:1.2%;
+  width:38%;
+}
+.costlabel{
+  font-family:Georgia,serif;
+  font-size:clamp(9px, 1.1vw, 14px);
+  letter-spacing:.2em;
+  color:var(--gold);
+}
+.costnum{
+  font-family:Georgia,serif;
+  font-size:clamp(13px, 1.8vw, 24px);
+  color:var(--text);
+  text-shadow:0 0 6px rgba(246,227,168,.6);
+  font-variant-numeric:tabular-nums;
+}
+.costnum small{ font-size:.6em; color:var(--gold); }
+.gems{ display:flex; gap:2.5%; flex:1; }
+.gem{
+  flex:1; aspect-ratio:1;
+  transform:rotate(45deg);
+  border-radius:3px;
+  border:1px solid rgba(217,181,106,.4);
+  background:#14101f;                 /* 空スロット */
+  transition:background .3s, box-shadow .3s, transform .3s;
+}
+/* 満ちている宝石: 画像同様に虹色の並び */
+.gem.on{
+  border-color:var(--gold-hi);
+  box-shadow:0 0 8px currentColor, inset 0 0 5px rgba(255,255,255,.6);
+}
+.gem.on:nth-child(1){ color:#ff5a5a; background:linear-gradient(135deg,#ffb0a0,#c92a2a); }
+.gem.on:nth-child(2){ color:#ffc93a; background:linear-gradient(135deg,#ffe9a0,#c9862a); }
+.gem.on:nth-child(3){ color:#e8e8e8; background:linear-gradient(135deg,#ffffff,#9a9ab0); }
+.gem.on:nth-child(4){ color:#5aff8a; background:linear-gradient(135deg,#b0ffc9,#2a9a4a); }
+.gem.on:nth-child(5){ color:#b45aff; background:linear-gradient(135deg,#d9b0ff,#6a2ac9) }
+.gem.on:nth-child(6){ color:#b45aff; background:linear-gradient(135deg,#c9a0ff,#5a2aaa); }
+.gem.on:nth-child(7){ color:#5aa8ff; background:linear-gradient(135deg,#a0d9ff,#2a5ac9); }
+.gem.on:nth-child(8){ color:#5ad8ff; background:linear-gradient(135deg,#c9f2ff,#2a8ac9); }
+.gem.on:nth-child(9){ color:#ffc93a; background:linear-gradient(135deg,#fff2c9,#c9a02a); }
+.gem.on:nth-child(10){ color:#ff8ac9; background:linear-gradient(135deg,#ffd9f0,#c92a8a); }
+/* 消費した瞬間: 砕けるイメージで縮小 */
+.gem.burst{ animation:gemburst .4s ease; }
+@keyframes gemburst{
+  0%  { transform:rotate(45deg) scale(1.4); filter:brightness(2.5); }
+  100%{ transform:rotate(45deg) scale(1); }
+}
+
+/* =========================================================
+   フェーズ4: 敵ステータス(右上)+BREAK+勝敗リザルト
+   ========================================================= */
+.enemy-panel{
+  position:absolute;
+  right:2%; top:3%;
+  width:30%;
+  text-align:right;
+}
+.enemy-name{
+  font-size:clamp(10px, 1.3vw, 16px);
+  letter-spacing:.12em;
+  color:var(--text);
+  text-shadow:0 0 8px rgba(180,90,255,.7), 0 1px 3px #000;
+  margin-bottom:2%;
+}
+/* ボスHPバー(赤の多層グラデ+金枠) */
+.enemy-hp{
+  height:clamp(8px, 1.1vw, 14px);
+  background:rgba(0,0,0,.7);
+  border:1px solid var(--gold);
+  border-radius:3px;
+  overflow:hidden;
+  box-shadow:0 0 8px rgba(0,0,0,.8);
+}
+.enemy-hp>i{
+  display:block; height:100%;
+  background:linear-gradient(180deg,#ff6a5a 0%,#c9202a 50%,#8a0a14 100%);
+  box-shadow:0 0 8px rgba(255,90,90,.7);
+  transition:width .5s ease;
+}
+.enemy-hpval{
+  font-family:Georgia,serif;
+  font-size:clamp(8px, 1vw, 13px);
+  color:var(--text);
+  text-shadow:0 1px 2px #000;
+  font-variant-numeric:tabular-nums;
+  margin-top:1%;
+}
+/* BREAKゲージ(紫) */
+.breakrow{
+  display:flex; align-items:center; gap:6px;
+  margin-top:2%;
+  justify-content:flex-end;
+}
+.breaklabel{
+  font-family:Georgia,serif;
+  font-size:clamp(7px, .85vw, 11px);
+  letter-spacing:.25em;
+  color:#d9a0ff;
+  background:linear-gradient(90deg,#4a1a6a,#2a0a3a);
+  border:1px solid #b45aff;
+  border-radius:3px;
+  padding:.1em .6em;
+}
+.breakgauge{
+  width:55%;
+  height:clamp(5px, .7vw, 9px);
+  background:rgba(0,0,0,.7);
+  border:1px solid rgba(180,90,255,.5);
+  border-radius:99px;
+  overflow:hidden;
+}
+.breakgauge>i{
+  display:block; height:100%;
+  background:linear-gradient(90deg,#b45aff,#7a2ad9);
+  box-shadow:0 0 6px rgba(180,90,255,.8);
+  transition:width .4s ease;
+}
+/* ブレイク状態: パネル全体が紫に明滅 */
+.enemy-panel.broken .enemy-name{
+  color:#e8c9ff;
+  animation:brokenpulse 1s ease-in-out infinite;
+}
+@keyframes brokenpulse{
+  0%,100%{ text-shadow:0 0 8px rgba(180,90,255,.7); }
+  50%    { text-shadow:0 0 20px rgba(220,160,255,1); }
+}
+.breakstatus{
+  display:none;
+  font-family:Georgia,serif;
+  font-size:clamp(9px, 1.1vw, 14px);
+  letter-spacing:.3em;
+  color:#e8c9ff;
+  text-shadow:0 0 12px rgba(180,90,255,1);
+  margin-top:1%;
+}
+.enemy-panel.broken .breakstatus{ display:block; }
+
+/* ダメージ数字(赤系は被ダメ、白金は与ダメ) */
+.floattext.dmg { color:#ffd9a0; font-size:clamp(13px, 1.8vw, 26px); font-family:Georgia,serif; }
+.floattext.heal{ color:#a0ffc9; }
+.floattext.brk { color:#d9a0ff; }
+
+/* 勝敗リザルト(全画面オーバーレイ) */
+.result{
+  position:absolute; inset:0;
+  display:none;
+  align-items:center; justify-content:center;
+  flex-direction:column;
+  background:rgba(5,3,12,.75);
+  backdrop-filter:blur(3px);
+  z-index:10;
+}
+.result.show{ display:flex; }
+.result .word{
+  font-family:Georgia,serif;
+  font-size:clamp(30px, 6vw, 80px);
+  letter-spacing:.3em;
+  animation:resultin .8s ease;
+}
+.result.win .word{
+  color:var(--gold-hi);
+  text-shadow:0 0 30px rgba(246,227,168,.9), 0 0 60px rgba(217,181,106,.5);
+}
+.result.lose .word{
+  color:#8a8aa0;
+  text-shadow:0 0 20px rgba(100,100,140,.8);
+}
+@keyframes resultin{
+  0%{ opacity:0; transform:scale(1.6); }
+  100%{ opacity:1; transform:scale(1); }
+}
+.result button{
+  margin-top:4%;
+  font-family:inherit;
+  font-size:clamp(11px, 1.3vw, 16px);
+  color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.95), rgba(30,22,10,.95));
+  border:1px solid var(--gold);
+  border-radius:99px;
+  padding:.7em 2.5em;
+  letter-spacing:.2em;
+  cursor:pointer;
+}
+
+/* =========================================================
+   フェーズA: 画像レイヤー(背景/キャラ/敵)+戦闘アニメ
+   - 同じフォルダの img/ に画像を置くと自動表示
+   - 画像が無い場合はCSS背景のまま動く(フォールバック)
+   ========================================================= */
+.bglayer{ position:absolute; inset:0; z-index:0; }
+.bglayer img{ width:100%; height:100%; object-fit:cover; opacity:.92; }
+
+.sprites{ position:absolute; inset:0; z-index:1; pointer-events:none; }
+.sprite{
+  position:absolute; bottom:18%;
+  transform-origin:bottom center;
+  animation:idle 3.2s ease-in-out infinite;   /* 待機中のゆらぎ */
+}
+.sprite img{
+  height:100%; width:auto;
+  filter:drop-shadow(0 12px 16px rgba(0,0,0,.55));
+}
+/* 立ち位置(参考画像の構図に合わせて中央〜左に味方、右に敵) */
+.sprite.ally1{ left:26%; height:52%; }
+.sprite.ally2{ left:15%; height:46%; animation-delay:.9s; }
+.sprite.ally3{ left:40%; height:44%; animation-delay:1.7s; }
+.sprite.foe  { right:4%; bottom:22%; height:62%; animation-delay:.5s; }
+
+@keyframes idle{
+  0%,100%{ transform:translateY(0); }
+  50%    { transform:translateY(-1.4%); }
+}
+/* 攻撃: 前に踏み込む */
+.sprite.attack{ animation:lungeR .5s ease; }
+@keyframes lungeR{
+  0%  { transform:translateX(0); }
+  35% { transform:translateX(6vw) scale(1.05); }
+  100%{ transform:translateX(0); }
+}
+.sprite.foe.attack{ animation:lungeL .5s ease; }
+@keyframes lungeL{
+  0%  { transform:translateX(0); }
+  35% { transform:translateX(-6vw) scale(1.05); }
+  100%{ transform:translateX(0); }
+}
+/* 被弾: 白く光って震える */
+.sprite.hitshake{ animation:hitshake .45s ease; }
+@keyframes hitshake{
+  0%,100%{ transform:translateX(0); filter:none; }
+  20%    { transform:translateX(-2.5%); filter:brightness(2.4); }
+  45%    { transform:translateX(2.5%); }
+  70%    { transform:translateX(-1.5%); }
+}
+
+/* UIレイヤーをスプライトより手前に固定 */
+.turnorder, .party, .hand, .costbar, .enemy-panel, .debug, .phase-tag{ z-index:2; }
+
+/* カードイラスト画像(無ければ属性色グラデのまま) */
+.card .art img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+
+/* =========================================================
+   管理者ページ(画像差し替え)
+   - タイトルロゴ(左上)を5回連続タップ→PIN入力で開く
+   - 画像はブラウザ内DB(IndexedDB)に保存され、次回起動時も有効
+   ========================================================= */
+.noimg{ display:none; }
+
+.admin{
+  position:absolute; inset:0; z-index:20;
+  display:none;
+  background:rgba(5,3,12,.94);
+  backdrop-filter:blur(4px);
+  overflow-y:auto;
+  padding:3% 5%;
+}
+.admin.show{ display:block; }
+.admin h2{
+  font-size:clamp(13px, 1.6vw, 20px);
+  letter-spacing:.2em;
+  color:var(--gold-hi);
+  margin-bottom:1%;
+}
+.admin .note{
+  font-size:clamp(9px, 1vw, 12px);
+  color:rgba(242,236,223,.6);
+  margin-bottom:2%;
+}
+.admin-row{
+  display:flex; align-items:center; gap:10px;
+  padding:1.2% 0;
+  border-bottom:1px solid rgba(217,181,106,.2);
+}
+.admin-row .slotname{
+  width:9em;
+  font-size:clamp(10px, 1.1vw, 14px);
+  color:var(--text);
+}
+.admin-row .thumb{
+  width:clamp(32px, 4vw, 48px);
+  height:clamp(32px, 4vw, 48px);
+  object-fit:cover;
+  border:1px solid var(--gold);
+  border-radius:6px;
+  background:#14101f;
+}
+.admin-row .upload,
+.admin-row .del,
+.admin .closebtn{
+  font-family:inherit;
+  font-size:clamp(9px, 1vw, 13px);
+  color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+  border:1px solid var(--gold);
+  border-radius:8px;
+  padding:.5em 1.1em;
+  cursor:pointer;
+  letter-spacing:.08em;
+}
+.admin-row .del{ color:#ff9a9a; border-color:#a05050; }
+.admin-row input[type=file]{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }  /* display:noneはclick()を無視する環境があるため不可視化で対応 */
+.admin .closebtn{ margin-top:2.5%; padding:.7em 2em; }
+.phase-tag{ cursor:pointer; user-select:none; }
+
+/* PIN入力モーダル(prompt()はスマホ/アプリ内で動かない環境があるため自前実装) */
+.pinmodal{
+  position:absolute; inset:0; z-index:30;
+  display:none;
+  align-items:center; justify-content:center;
+  background:rgba(5,3,12,.85);
+  backdrop-filter:blur(3px);
+}
+.pinmodal.show{ display:flex; }
+.pinbox{
+  background:linear-gradient(160deg, rgba(30,22,55,.95), rgba(13,10,26,.95));
+  border:1px solid var(--gold);
+  border-radius:14px;
+  padding:2.5% 4%;
+  text-align:center;
+  box-shadow:0 0 30px rgba(217,181,106,.25);
+}
+.pinbox .pintitle{
+  font-size:clamp(11px, 1.3vw, 16px);
+  letter-spacing:.2em;
+  color:var(--gold-hi);
+  margin-bottom:6%;
+}
+.pinbox input{
+  font-family:Georgia,serif;
+  font-size:clamp(16px, 2.2vw, 28px);
+  letter-spacing:.5em;
+  text-align:center;
+  width:7em;
+  color:var(--text);
+  background:rgba(0,0,0,.5);
+  border:1px solid rgba(217,181,106,.5);
+  border-radius:8px;
+  padding:.4em 0 .4em .5em;
+  outline:none;
+}
+.pinbox input:focus{ border-color:var(--gold-hi); box-shadow:0 0 10px rgba(246,227,168,.4); }
+.pinbox .pinerr{
+  height:1.4em;
+  font-size:clamp(9px, 1vw, 12px);
+  color:#ff9a9a;
+  margin-top:3%;
+}
+.pinbox .pinbtns{ display:flex; gap:10px; justify-content:center; margin-top:4%; }
+.pinbox button{
+  font-family:inherit;
+  font-size:clamp(10px, 1.1vw, 14px);
+  color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+  border:1px solid var(--gold);
+  border-radius:8px;
+  padding:.6em 1.6em;
+  letter-spacing:.1em;
+  cursor:pointer;
+}
+
+/* トースト通知(alert代替) */
+.toast{
+  position:absolute; left:50%; top:12%;
+  transform:translateX(-50%);
+  z-index:40;
+  font-size:clamp(10px, 1.2vw, 14px);
+  color:var(--text);
+  background:rgba(20,15,40,.92);
+  border:1px solid var(--gold);
+  border-radius:99px;
+  padding:.6em 1.6em;
+  pointer-events:none;
+  animation:floatup 1.8s ease forwards;
+}
+
+/* ---------- 動作確認用ボタン(モック専用・製品では削除) ---------- */
+.debug{
+  position:absolute; right:2%; bottom:3%;
+  display:flex; gap:8px;
+}
+.debug button{
+  font-family:inherit;
+  font-size:clamp(9px, 1vw, 13px);
+  color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+  border:1px solid var(--gold);
+  border-radius:8px;
+  padding:.6em 1.2em;
+  letter-spacing:.1em;
+  cursor:pointer;
+  box-shadow:0 0 8px rgba(217,181,106,.25);
+}
+.debug button:active{ transform:scale(.96); }
+
+/* タイトル(モック識別用) */
+.phase-tag{
+  position:absolute; left:2%; top:3%;
+  font-size:clamp(8px, 1vw, 12px);
+  letter-spacing:.2em;
+  color:rgba(217,181,106,.7);
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <!-- 背景の浮遊光 -->
+  <div class="mote"></div><div class="mote"></div><div class="mote"></div>
+
+  <!-- フェーズA: 画像レイヤー
+       同じフォルダに img/ を作って以下のファイル名で置くと自動表示:
+       bg.png(背景16:9) chara1〜3.png(味方・透過PNG) enemy.png(敵・透過PNG)
+       card1〜3.png(カードイラスト)。無ければCSSの見た目のまま動く -->
+  <div class="bglayer"><img src="img/bg.png" alt="" onerror="this.classList.add('noimg')"></div>
+  <div class="sprites">
+    <div class="sprite ally1" id="sp0"><img src="img/chara1.png" alt="" onerror="this.classList.add('noimg')"></div>
+    <div class="sprite ally2" id="sp1"><img src="img/chara2.png" alt="" onerror="this.classList.add('noimg')"></div>
+    <div class="sprite ally3" id="sp2"><img src="img/chara3.png" alt="" onerror="this.classList.add('noimg')"></div>
+    <div class="sprite foe"   id="spE"><img src="img/enemy.png"  alt="" onerror="this.classList.add('noimg')"></div>
+  </div>
+
+  <div class="phase-tag">LUMINA — PHASE 4 MOCK</div>
+
+  <!-- フェーズ4: 敵ステータス(右上) -->
+  <div class="enemy-panel" id="enemypanel">
+    <div class="enemy-name" id="enemyname"></div>
+    <div class="enemy-hp"><i id="enemyhpbar"></i></div>
+    <div class="enemy-hpval" id="enemyhpval"></div>
+    <div class="breakrow">
+      <span class="breaklabel">BREAK</span>
+      <div class="breakgauge"><i id="breakbar"></i></div>
+    </div>
+    <div class="breakstatus">— BREAK！被ダメージ2倍 —</div>
+  </div>
+
+  <!-- フェーズ4: 勝敗リザルト -->
+  <div class="result" id="result">
+    <div class="word" id="resultword"></div>
+    <button onclick="restart()">もう一度</button>
+  </div>
+
+  <!-- PIN入力モーダル(prompt代替) -->
+  <div class="pinmodal" id="pinmodal">
+    <div class="pinbox">
+      <div class="pintitle">管理者PIN</div>
+      <input type="password" inputmode="numeric" maxlength="8" id="pininput" autocomplete="off">
+      <div class="pinerr" id="pinerr"></div>
+      <div class="pinbtns">
+        <button onclick="closePinModal()">キャンセル</button>
+        <button onclick="confirmPin()">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理者ページ(タイトル5回タップ+PINで開く) -->
+  <div class="admin" id="admin">
+    <h2>画像管理</h2>
+    <div class="note">この端末のブラウザに保存されます(推奨: 透過PNG / 背景は16:9)。反映は即時、次回起動時も有効。</div>
+    <div id="adminrows"></div>
+    <button class="closebtn" onclick="closeAdmin()">閉じてバトルに戻る</button>
+  </div>
+
+  <!-- フェーズ2: タイムライン型ATB(JSで生成) -->
+  <div class="turnorder">
+    <div class="toplabel">TURN ORDER</div>
+    <div class="totrack" id="totrack"></div>
+  </div>
+
+  <!-- フェーズ3: 手札カード(JSで生成) -->
+  <div class="hand" id="hand"></div>
+
+  <!-- フェーズ3: 共有コスト -->
+  <div class="costbar">
+    <span class="costlabel">COST</span>
+    <span class="costnum" id="costnum"></span>
+    <div class="gems" id="gems"></div>
+  </div>
+
+  <!-- 3人パーティステータス(JSで生成) -->
+  <div class="party" id="party"></div>
+
+  <!-- 動作確認ボタン: ダメージ/回復/ATB停止をテスト -->
+  <div class="debug">
+    <button onclick="testDamage()">被ダメージ</button>
+    <button onclick="testHeal()">回復</button>
+    <button onclick="togglePause()" id="pausebtn">一時停止</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   モックデータ(フェーズ2以降でバトルロジックと接続する)
+   ========================================================= */
+/* speed: 大きいほどATBゲージが速く溜まる / atb: 0〜100 */
+const PARTY = [
+  { name:"カオスちゃん",     glyph:"カ", cls:"chaos", hp:8512, maxHp:8512, mp:156, maxMp:200, speed:32, atb:40 },
+  { name:"イリス＝ブレード", glyph:"イ", cls:"ice",   hp:7312, maxHp:7312, mp:129, maxMp:180, speed:40, atb:10 },
+  { name:"ルミエル",         glyph:"ル", cls:"light", hp:6842, maxHp:6842, mp:189, maxMp:220, speed:26, atb:70 },
+];
+const ENEMY = {
+  name:"キャンバス・コロージョン", glyph:"敵", cls:"enemy",
+  hp:1248000, maxHp:1248000, speed:22, atb:25,
+  atk:700,                     // 敵の攻撃力(1分前後で決着がつくバランス)
+  brk:100, maxBrk:100,         // BREAKゲージ
+  broken:false                 // ブレイク状態フラグ
+};
+
+/* ATB処理は味方+敵を同じ配列で回す(フェーズ2の中核) */
+const UNITS = [...PARTY, ENEMY];
+let activeIndex = 0;   // 現在行動中の味方(左下UIの強調用)
+
+/* ---------- 描画 ---------- */
+function render(){
+  const root = document.getElementById("party");
+  root.innerHTML = "";   // 3件のみなので毎回全描画でも軽量
+
+  PARTY.forEach((c, i) => {
+    const el = document.createElement("div");
+    el.className = "member" + (i === activeIndex ? " active" : "");
+    el.innerHTML = `
+      <div class="classgem ${c.cls}"></div>
+      <div class="info">
+        <div class="name">${c.name}</div>
+        <div class="gaugerow">
+          <span class="gaugelabel">HP</span>
+          <div class="gauge hp"><i style="width:${pct(c.hp, c.maxHp)}%"></i></div>
+          <span class="gaugeval">${c.hp.toLocaleString()}</span>
+        </div>
+        <div class="gaugerow">
+          <span class="gaugelabel">MP</span>
+          <div class="gauge mp"><i style="width:${pct(c.mp, c.maxMp)}%"></i></div>
+          <span class="gaugeval">${c.mp}</span>
+        </div>
+      </div>`;
+    root.appendChild(el);
+  });
+}
+
+/* 割合計算(0除算とマイナスを防ぐ) */
+function pct(cur, max){
+  if(!max || max <= 0) return 0;
+  return Math.max(0, Math.min(100, (cur / max) * 100));
+}
+
+/* ---------- 動作確認用(製品版では削除) ---------- */
+function testDamage(){
+  const c = PARTY[Math.floor(Math.random() * PARTY.length)];
+  c.hp = Math.max(0, c.hp - Math.floor(500 + Math.random() * 1500));
+  render();
+  checkBattleEnd();
+}
+function testHeal(){
+  const c = PARTY[Math.floor(Math.random() * PARTY.length)];
+  c.hp = Math.min(c.maxHp, c.hp + 1000);
+  render();
+}
+/* =========================================================
+   フェーズ2: ATBエンジン
+   - 各ユニットのatbが速度に応じて0→100まで増加
+   - 100に達すると「行動」(モックでは光るだけ)してリセット
+   - TURN ORDERは「あと何秒で行動できるか」順に並べ替え
+   ========================================================= */
+let paused = false;
+let iconEls = [];        // アイコンDOMの使い回し(毎フレーム再生成しない)
+let nextLabelEl = null;
+
+/* アイコンDOMを最初に1回だけ生成 */
+function initTurnOrder(){
+  const track = document.getElementById("totrack");
+  track.innerHTML = "";
+  iconEls = UNITS.map(u => {
+    const el = document.createElement("div");
+    el.className = "toicon " + u.cls;
+    el.innerHTML = `<div class="fill"></div><div class="glyph">${u.glyph}</div>`;
+    track.appendChild(el);
+    return el;
+  });
+  nextLabelEl = document.createElement("div");
+  nextLabelEl.className = "nextlabel";
+  nextLabelEl.textContent = "NEXT";
+  track.appendChild(nextLabelEl);
+}
+
+/* 行動可能までの残り時間で並び順を決める(小さい順=先に行動) */
+function sortedOrder(){
+  return UNITS
+    .map((u, i) => ({ i, wait: u.hp <= 0 ? Infinity : (100 - u.atb) / u.speed }))
+    .sort((a, b) => a.wait - b.wait)
+    .map(o => o.i);
+}
+
+/* TURN ORDERの位置とゲージを更新 */
+function renderTurnOrder(){
+  const track = document.getElementById("totrack");
+  const w = track.clientWidth;
+  const iconW = iconEls[0].offsetWidth * 1.42;   // 回転45度分の対角幅
+  const gap = Math.max(6, (w - iconW * UNITS.length) / (UNITS.length - 1));
+  const order = sortedOrder();
+
+  order.forEach((unitIdx, pos) => {
+    const el = iconEls[unitIdx];
+    const u  = UNITS[unitIdx];
+    el.style.left = (pos * (iconW + gap) + iconW * .21) + "px";
+    el.querySelector(".fill").style.height = u.atb + "%";
+    el.classList.toggle("next", pos === 0);
+  });
+  /* NEXTラベルを先頭アイコンの下に追従させる */
+  nextLabelEl.style.left = (iconW * .21) + "px";
+  nextLabelEl.style.top = "105%";
+}
+
+/* メインループ(requestAnimationFrameで軽量に) */
+let lastTime = performance.now();
+function tick(now){
+  const dt = Math.min(0.1, (now - lastTime) / 1000);   // 秒。タブ復帰時の暴走防止
+  lastTime = now;
+
+  if(!paused){
+    UNITS.forEach((u, i) => {
+      if(u.hp <= 0) return;
+      u.atb += u.speed * dt * 4;      // ×4は体感速度の調整係数
+      if(u.atb >= 100){
+        u.atb = 0;
+        act(i);
+      }
+    });
+    renderTurnOrder();
+
+    /* フェーズ3: 共有コストの自動回復 */
+    if(cost < COST_MAX){
+      cost = Math.min(COST_MAX, cost + COST_REGEN * dt);
+      renderCost();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+/* 行動処理(フェーズ4: 実ダメージ処理を接続) */
+function act(unitIdx){
+  const el = iconEls[unitIdx];
+  el.classList.add("acting");
+  setTimeout(() => el.classList.remove("acting"), 400);
+
+  const partyIdx = PARTY.indexOf(UNITS[unitIdx]);
+  if(partyIdx >= 0){
+    /* --- 味方のATBターン: 左下強調+通常攻撃(オート) --- */
+    activeIndex = partyIdx;
+    render();
+    animateSprite("sp" + partyIdx, "attack");                  // 踏み込みアニメ
+    damageEnemy(6000 + Math.floor(Math.random() * 3000), 6);   // 通常攻撃+BREAK少量削り
+  }else{
+    /* --- 敵のターン: ブレイク中は行動不能 --- */
+    if(ENEMY.broken) return;
+    const alive = PARTY.filter(c => c.hp > 0);
+    if(alive.length === 0) return;
+    const target = alive[Math.floor(Math.random() * alive.length)];
+    const dmg = Math.floor(ENEMY.atk * (0.8 + Math.random() * 0.4));
+    target.hp = Math.max(0, target.hp - dmg);
+    render();
+    /* 敵の攻撃アニメ+被弾キャラの震え */
+    const idx = PARTY.indexOf(target);
+    animateSprite("spE", "attack");
+    setTimeout(() => animateSprite("sp" + idx, "hitshake"), 200);
+    /* 被弾キャラのプレートにダメージ表示 */
+    const plate = document.querySelectorAll(".member")[idx];
+    if(plate) showFloatText(plate, "-" + dmg.toLocaleString(), "dmg");
+    checkBattleEnd();
+  }
+}
+
+/* スプライトにアニメclassを一時付与(連続発動にも対応) */
+function animateSprite(id, cls){
+  const el = document.getElementById(id);
+  if(!el) return;                     // 画像未設置なら何もしない
+  el.classList.remove(cls);
+  void el.offsetWidth;                // reflowでアニメを再トリガー
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 500);
+}
+
+/* =========================================================
+   フェーズ4: 敵ダメージ・BREAK・勝敗判定
+   ========================================================= */
+function damageEnemy(amount, brkAmount){
+  if(ENEMY.hp <= 0) return;
+
+  /* ブレイク中は被ダメージ2倍 */
+  const finalDmg = ENEMY.broken ? amount * 2 : amount;
+  ENEMY.hp = Math.max(0, ENEMY.hp - finalDmg);
+
+  /* BREAK削り(ブレイク中はゲージ変動なし) */
+  if(!ENEMY.broken && brkAmount > 0){
+    ENEMY.brk = Math.max(0, ENEMY.brk - brkAmount);
+    if(ENEMY.brk <= 0) triggerBreak();
+  }
+
+  const panel = document.getElementById("enemypanel");
+  showFloatText(panel, "-" + finalDmg.toLocaleString(), "dmg");
+  animateSprite("spE", "hitshake");   // 敵スプライトの被弾演出
+  renderEnemy();
+  checkBattleEnd();
+}
+
+/* ブレイク発動: 6秒間、敵は行動不能+被ダメ2倍 */
+function triggerBreak(){
+  ENEMY.broken = true;
+  ENEMY.atb = 0;                      // 行動順もリセット
+  const panel = document.getElementById("enemypanel");
+  panel.classList.add("broken");
+  showFloatText(panel, "BREAK！！", "brk");
+
+  setTimeout(() => {
+    ENEMY.broken = false;
+    ENEMY.brk = ENEMY.maxBrk;         // ゲージは全回復して再スタート
+    panel.classList.remove("broken");
+    renderEnemy();
+  }, 6000);
+}
+
+/* 敵パネルの描画 */
+function renderEnemy(){
+  document.getElementById("enemyname").textContent = ENEMY.name + " Lv.??";
+  document.getElementById("enemyhpbar").style.width = pct(ENEMY.hp, ENEMY.maxHp) + "%";
+  document.getElementById("enemyhpval").textContent =
+    ENEMY.hp.toLocaleString() + " / " + ENEMY.maxHp.toLocaleString();
+  document.getElementById("breakbar").style.width = pct(ENEMY.brk, ENEMY.maxBrk) + "%";
+}
+
+/* 勝敗判定 */
+function checkBattleEnd(){
+  const result = document.getElementById("result");
+  const word   = document.getElementById("resultword");
+  if(ENEMY.hp <= 0){
+    paused = true;
+    result.className = "result show win";
+    word.textContent = "VICTORY";
+  }else if(PARTY.every(c => c.hp <= 0)){
+    paused = true;
+    result.className = "result show lose";
+    word.textContent = "DEFEAT";
+  }
+}
+
+/* リスタート(モックでは再読込が最も安全) */
+function restart(){ location.reload(); }
+
+/* =========================================================
+   管理者ページ: 画像差し替えシステム
+   - PIN認証(ADMIN_PINを変更して使用)
+   - 画像はIndexedDB(ブラウザ内DB)に保存→次回起動時も自動適用
+   - 注意: 保存されるのは「この端末のこのブラウザ」のみ。
+     全ユーザーへ配信するにはリリース時にクラウド(Supabase等)へ移行
+   ========================================================= */
+const ADMIN_PIN = "1234";   // ★必ず変更すること
+
+/* 差し替え可能スロット定義(セレクタで適用先を指定) */
+const SLOTS = [
+  { key:"bg",     label:"背景(16:9)",       sel:".bglayer img" },
+  { key:"chara1", label:"味方1(透過PNG)",   sel:"#sp0 img" },
+  { key:"chara2", label:"味方2(透過PNG)",   sel:"#sp1 img" },
+  { key:"chara3", label:"味方3(透過PNG)",   sel:"#sp2 img" },
+  { key:"enemy",  label:"敵(透過PNG)",      sel:"#spE img" },
+  { key:"card1",  label:"カード1イラスト",  sel:null },   // カードはJS生成のためkeyで解決
+  { key:"card2",  label:"カード2イラスト",  sel:null },
+  { key:"card3",  label:"カード3イラスト",  sel:null },
+];
+
+/* ---------- IndexedDBミニラッパー(エラー対策込み) ---------- */
+const DB_NAME = "lumina_assets";
+function idbOpen(){
+  return new Promise((res, rej) => {
+    if(!window.indexedDB){ rej(new Error("この環境ではIndexedDBが使えません")); return; }
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("images");
+    r.onsuccess = () => res(r.result);
+    r.onerror   = () => rej(r.error);
+  });
+}
+async function idbSet(key, blob){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("images", "readwrite");
+    tx.objectStore("images").put(blob, key);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const rq = db.transaction("images").objectStore("images").get(key);
+    rq.onsuccess = () => res(rq.result || null);
+    rq.onerror   = () => rej(rq.error);
+  });
+}
+async function idbDel(key){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("images", "readwrite");
+    tx.objectStore("images").delete(key);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* スロットの適用先<img>を取得 */
+function slotImg(slot){
+  if(slot.sel) return document.querySelector(slot.sel);
+  const n = parseInt(slot.key.replace("card", ""), 10) - 1;   // card1→cardEls[0]
+  return cardEls[n] ? cardEls[n].querySelector(".art img") : null;
+}
+
+/* 保存済み画像を画面に適用 */
+function applySlot(slot, blob){
+  const img = slotImg(slot);
+  if(!img || !blob) return;
+  img.src = URL.createObjectURL(blob);
+  img.classList.remove("noimg");
+}
+
+/* 起動時: 保存済み画像を全スロットに適用 */
+async function applyAllStored(){
+  try{
+    for(const slot of SLOTS){
+      const blob = await idbGet(slot.key);
+      if(blob) applySlot(slot, blob);
+    }
+  }catch(e){ /* IndexedDB非対応環境ではimg/フォルダ運用にフォールバック */ }
+}
+
+/* ---------- 管理画面の開閉(タイトル5回タップ→PIN) ---------- */
+let tapCount = 0, tapTimer = null;
+/* clickに加えpointerdownでも拾う(スマホ環境での取りこぼし防止) */
+const tagEl = document.querySelector(".phase-tag");
+function onTagTap(ev){
+  ev.preventDefault();
+  tapCount++;
+  clearTimeout(tapTimer);
+  tapTimer = setTimeout(() => tapCount = 0, 1800);   // 1.8秒以内に連打
+  if(tapCount >= 5){ tapCount = 0; openPinModal(); }
+}
+tagEl.addEventListener("pointerdown", onTagTap);
+
+/* PINモーダル(prompt()はアプリ内ブラウザ等でブロックされるため自前実装) */
+function openPinModal(){
+  document.getElementById("pinerr").textContent = "";
+  document.getElementById("pininput").value = "";
+  document.getElementById("pinmodal").classList.add("show");
+  paused = true;
+  document.getElementById("pausebtn").textContent = "再開";
+  setTimeout(() => document.getElementById("pininput").focus(), 100);
+}
+function closePinModal(){
+  document.getElementById("pinmodal").classList.remove("show");
+  paused = false;
+  document.getElementById("pausebtn").textContent = "一時停止";
+}
+function confirmPin(){
+  const v = document.getElementById("pininput").value;
+  if(v !== ADMIN_PIN){
+    document.getElementById("pinerr").textContent = "PINが違います";
+    document.getElementById("pininput").value = "";
+    return;
+  }
+  document.getElementById("pinmodal").classList.remove("show");
+  openAdmin();
+}
+/* Enterキーでも確認できるように */
+document.getElementById("pininput").addEventListener("keydown", (ev) => {
+  if(ev.key === "Enter") confirmPin();
+});
+
+/* トースト通知(alert代替) */
+function toast(msg){
+  const stage = document.querySelector(".stage");
+  const t = document.createElement("div");
+  t.className = "toast";
+  t.textContent = msg;
+  stage.appendChild(t);
+  setTimeout(() => t.remove(), 1800);
+}
+
+function openAdmin(){
+  buildAdminRows();
+  document.getElementById("admin").classList.add("show");
+  paused = true;   // 管理中はバトル停止
+  document.getElementById("pausebtn").textContent = "再開";
+}
+function closeAdmin(){
+  document.getElementById("admin").classList.remove("show");
+  paused = false;
+  document.getElementById("pausebtn").textContent = "一時停止";
+}
+
+/* 管理画面の行を生成(スロットごとにプレビュー+選択+削除) */
+async function buildAdminRows(){
+  const root = document.getElementById("adminrows");
+  root.innerHTML = "";
+  for(const slot of SLOTS){
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    row.innerHTML = `
+      <span class="slotname">${slot.label}</span>
+      <img class="thumb" alt="">
+      <button class="upload">画像を選択</button>
+      <input type="file" accept="image/*">
+      <button class="del">削除</button>`;
+    root.appendChild(row);
+
+    /* labelの間接クリックはWebView環境で無視されることがあるため
+       ボタンからinput.click()を直接呼ぶ(最も互換性が高い方式) */
+    const fileInput = row.querySelector("input[type=file]");
+    row.querySelector(".upload").addEventListener("click", () => fileInput.click());
+
+    const thumb = row.querySelector(".thumb");
+    try{
+      const blob = await idbGet(slot.key);
+      if(blob) thumb.src = URL.createObjectURL(blob);
+    }catch(e){}
+
+    /* 画像選択→保存→即反映 */
+    fileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if(!file) return;
+      if(file.size > 8 * 1024 * 1024){ toast("8MB以下の画像にしてください"); return; }
+      try{
+        await idbSet(slot.key, file);
+        thumb.src = URL.createObjectURL(file);
+        applySlot(slot, file);
+      }catch(e){ toast("保存に失敗しました: " + e.message); }
+    });
+
+    /* 削除→デフォルト表示に戻す */
+    row.querySelector(".del").addEventListener("click", async () => {
+      try{
+        await idbDel(slot.key);
+        thumb.removeAttribute("src");
+        const img = slotImg(slot);
+        if(img){ img.removeAttribute("src"); img.classList.add("noimg"); }
+      }catch(e){ toast("削除に失敗しました: " + e.message); }
+    });
+  }
+}
+
+/* =========================================================
+   フェーズ3: 手札カード+共有コスト
+   - コストはパーティ共有(MAX 10)。時間経過で自動回復
+   - コスト不足のカードは暗転して使用不可
+   - カード使用→コスト消費+発動演出(効果はフェーズ4で接続)
+   ========================================================= */
+const COST_MAX   = 10;
+const COST_REGEN = 0.5;   // 1秒あたりの回復量(0.5 = 2秒で1回復)
+let cost = 6;             // 現在コスト(小数で保持し、表示は切り捨て)
+
+/* 各キャラ固有のスキルカード(名前変更はここを書き換えるだけ)
+   type: "dmg"=敵に攻撃 / "heal"=HP最少の味方を回復
+   power: ダメージ量or回復量 / brk: BREAK削り量 */
+const CARDS = [
+  { owner:0, cls:"chaos", cost:5, name:"神魔切アスタリ", type:"dmg",  power:48000, brk:18 },
+  { owner:1, cls:"ice",   cost:4, name:"蒼閃・氷華斬",   type:"dmg",  power:32000, brk:25 },
+  { owner:2, cls:"light", cost:4, name:"ルミナスヒール", type:"heal", power:2500,  brk:0  },
+];
+let cardEls = [];
+
+/* カードDOMを最初に1回だけ生成 */
+function initHand(){
+  const hand = document.getElementById("hand");
+  hand.innerHTML = "";
+  cardEls = CARDS.map((c, i) => {
+    const el = document.createElement("div");
+    el.className = "card " + c.cls;
+    el.innerHTML = `
+      <div class="art"><img src="img/card${i + 1}.png" alt="" onerror="this.classList.add('noimg')"></div>
+      <div class="cost"><span>${c.cost}</span></div>
+      <div class="owner">${PARTY[c.owner].name}</div>
+      <div class="skillname">${c.name}</div>`;
+    el.addEventListener("click", () => useCard(i));
+    hand.appendChild(el);
+    return el;
+  });
+
+  /* コスト宝石10個を生成 */
+  const gems = document.getElementById("gems");
+  gems.innerHTML = "";
+  for(let i = 0; i < COST_MAX; i++){
+    const g = document.createElement("div");
+    g.className = "gem";
+    gems.appendChild(g);
+  }
+}
+
+/* コスト表示とカードの活性/非活性を更新 */
+function renderCost(){
+  const n = Math.floor(cost);
+  document.getElementById("costnum").innerHTML = `${n}<small>/${COST_MAX}</small>`;
+
+  const gems = document.getElementById("gems").children;
+  for(let i = 0; i < COST_MAX; i++){
+    gems[i].classList.toggle("on", i < n);
+  }
+  CARDS.forEach((c, i) => {
+    cardEls[i].classList.toggle("disabled", n < c.cost || PARTY[c.owner].hp <= 0);
+  });
+}
+
+/* カード使用 */
+function useCard(i){
+  const c = CARDS[i];
+  if(Math.floor(cost) < c.cost) return;          // コスト不足は無視
+  if(PARTY[c.owner].hp <= 0) return;             // 戦闘不能キャラのカードは不可
+
+  /* 消費する宝石を砕く演出(右側から消える) */
+  const gems = document.getElementById("gems").children;
+  const from = Math.floor(cost) - c.cost;
+  for(let g = from; g < Math.floor(cost); g++){
+    gems[g].classList.add("burst");
+    setTimeout(((el) => () => el.classList.remove("burst"))(gems[g]), 400);
+  }
+
+  cost -= c.cost;
+  cardEls[i].classList.add("played");
+  setTimeout(() => cardEls[i].classList.remove("played"), 450);
+
+  /* 発動テキスト(カードの上にふわっと表示) */
+  showFloatText(cardEls[i], c.name + " 発動！");
+
+  renderCost();
+
+  /* --- カード効果の発動(フェーズ4で接続) --- */
+  if(c.type === "dmg"){
+    damageEnemy(c.power, c.brk);
+  }else if(c.type === "heal"){
+    /* HPが最も減っている生存キャラを回復 */
+    const alive = PARTY.filter(p => p.hp > 0);
+    if(alive.length){
+      const target = alive.reduce((a, b) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b));
+      target.hp = Math.min(target.maxHp, target.hp + c.power);
+      render();
+      const plate = document.querySelectorAll(".member")[PARTY.indexOf(target)];
+      if(plate) showFloatText(plate, "+" + c.power.toLocaleString(), "heal");
+    }
+  }
+}
+
+/* フロートテキスト表示(kind: "dmg"/"heal"/"brk"で色分け) */
+function showFloatText(target, text, kind){
+  const stage = document.querySelector(".stage");
+  const sr = stage.getBoundingClientRect();
+  const tr = target.getBoundingClientRect();
+  const ft = document.createElement("div");
+  ft.className = "floattext" + (kind ? " " + kind : "");
+  ft.textContent = text;
+  ft.style.left = (tr.left - sr.left + tr.width / 2) + "px";
+  ft.style.top  = (tr.top  - sr.top  - 8) + "px";
+  stage.appendChild(ft);
+  setTimeout(() => ft.remove(), 1000);   // アニメ終了後にDOMを掃除
+}
+
+/* ---------- 動作確認用(製品版では削除) ---------- */
+function togglePause(){
+  paused = !paused;
+  document.getElementById("pausebtn").textContent = paused ? "再開" : "一時停止";
+}
+
+render();
+initTurnOrder();
+renderTurnOrder();
+initHand();
+renderCost();
+renderEnemy();
+applyAllStored();   // 管理者ページで保存した画像を復元
+requestAnimationFrame(tick);
+
+</script>
+</body>
+</html>
