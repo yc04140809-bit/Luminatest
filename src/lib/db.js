@@ -3,8 +3,18 @@ import { supabase } from "./supabaseClient";
 /* ============================================================
    Supabaseデータアクセス層
    - 個人データ(records / scores / user_settings)は行単位で管理
-   - shared_cases は全利用者共通(追記のみ・そのまま一覧表示)
+   - shared_cases は「同じ組織」内のみで共有(全体公開ではない)
+   - すべての重要操作を audit_log に記録(アクセスログ)
    ============================================================ */
+
+/* ---------- アクセスログ(誰が・いつ・何をしたか) ---------- */
+export async function logAudit(userId, orgId, action, meta = {}) {
+  try {
+    await supabase.from("audit_log").insert({ user_id: userId, org_id: orgId || null, action, meta });
+  } catch (e) {
+    console.error("logAudit failed:", e);
+  }
+}
 
 /* ---------- 対応記録(records) ---------- */
 export async function fetchRecords(userId) {
@@ -32,7 +42,7 @@ function rowToRecord(row) {
     status: row.status || "open",
   };
 }
-export async function insertRecord(userId, rec) {
+export async function insertRecord(userId, orgId, rec) {
   const { data, error } = await supabase
     .from("records")
     .insert({
@@ -52,17 +62,26 @@ export async function insertRecord(userId, rec) {
     console.error("insertRecord failed:", error);
     return null;
   }
+  logAudit(userId, orgId, "record_create", { record_id: data.id, situation: rec.situation });
   return rowToRecord(data);
 }
-export async function updateRecordStatus(id, status) {
+export async function updateRecordStatus(id, status, userId, orgId) {
   const { error } = await supabase.from("records").update({ status }).eq("id", id);
-  if (error) console.error("updateRecordStatus failed:", error);
-  return !error;
+  if (error) {
+    console.error("updateRecordStatus failed:", error);
+    return false;
+  }
+  logAudit(userId, orgId, "record_status_update", { record_id: id, status });
+  return true;
 }
-export async function deleteRecord(id) {
+export async function deleteRecord(id, userId, orgId) {
   const { error } = await supabase.from("records").delete().eq("id", id);
-  if (error) console.error("deleteRecord failed:", error);
-  return !error;
+  if (error) {
+    console.error("deleteRecord failed:", error);
+    return false;
+  }
+  logAudit(userId, orgId, "record_delete", { record_id: id });
+  return true;
 }
 
 /* ---------- 研修スコア(scores) ---------- */
@@ -79,7 +98,7 @@ export async function fetchScores(userId) {
   }
   return (data || []).map((r) => ({ id: r.id, date: r.occurred_at, scenario: r.scenario, level: r.level, score: r.score }));
 }
-export async function insertScore(userId, entry) {
+export async function insertScore(userId, orgId, entry) {
   const { data, error } = await supabase
     .from("scores")
     .insert({ user_id: userId, occurred_at: entry.date, scenario: entry.scenario, level: entry.level, score: entry.score })
@@ -89,6 +108,7 @@ export async function insertScore(userId, entry) {
     console.error("insertScore failed:", error);
     return null;
   }
+  logAudit(userId, orgId, "training_score", { score: entry.score, scenario: entry.scenario });
   return { id: data.id, date: data.occurred_at, scenario: data.scenario, level: data.level, score: data.score };
 }
 
@@ -99,6 +119,8 @@ const DEFAULT_SETTINGS = {
   sos_name: "",
   sos_phone: "",
   onboarded: false,
+  org_id: null,
+  is_admin: false,
   daily: { streak: 0, lastAnsweredDate: "", quizDate: "", quiz: null, answered: null },
 };
 
@@ -137,7 +159,34 @@ export async function updateSettings(userId, patch) {
   return data;
 }
 
-/* ---------- みんなのケース共有(shared_cases:全ユーザー共通・追記のみ) ---------- */
+/* ---------- 組織(契約単位):招待コードでの参加・新規作成 ---------- */
+export async function createOrganization(name, code) {
+  const { data, error } = await supabase.rpc("create_organization", { p_name: name, p_code: code });
+  if (error) {
+    console.error("createOrganization failed:", error);
+    return { error: error.message };
+  }
+  return { data: data && data[0] };
+}
+export async function joinOrganization(code) {
+  const { data, error } = await supabase.rpc("join_organization", { p_code: code });
+  if (error) {
+    console.error("joinOrganization failed:", error);
+    return { error: error.message };
+  }
+  return { data: data && data[0] };
+}
+export async function fetchOrganization(orgId) {
+  if (!orgId) return null;
+  const { data, error } = await supabase.from("organizations").select("*").eq("id", orgId).maybeSingle();
+  if (error) {
+    console.error("fetchOrganization failed:", error);
+    return null;
+  }
+  return data;
+}
+
+/* ---------- みんなのケース共有(shared_cases:同じ組織内のみ共有) ---------- */
 export async function fetchSharedCases() {
   const { data, error } = await supabase
     .from("shared_cases")
@@ -159,7 +208,7 @@ export async function fetchSharedCases() {
     by: r.by || "匿名",
   }));
 }
-export async function insertSharedCase(entry) {
+export async function insertSharedCase(entry, userId, orgId) {
   const { data, error } = await supabase
     .from("shared_cases")
     .insert({
@@ -169,6 +218,8 @@ export async function insertSharedCase(entry) {
       response: entry.response,
       result: entry.result,
       by: "匿名",
+      user_id: userId,
+      org_id: orgId,
     })
     .select()
     .single();
@@ -176,5 +227,44 @@ export async function insertSharedCase(entry) {
     console.error("insertSharedCase failed:", error);
     return null;
   }
+  logAudit(userId, orgId, "case_post", { case_id: data.id, situation: entry.situation });
   return { id: data.id, date: data.created_at, industry: data.industry, situation: data.situation, summary: data.summary, response: data.response || "", result: data.result || "", by: data.by };
+}
+export async function deleteSharedCase(id, userId, orgId) {
+  const { error } = await supabase.from("shared_cases").delete().eq("id", id);
+  if (error) {
+    console.error("deleteSharedCase failed:", error);
+    return false;
+  }
+  logAudit(userId, orgId, "case_delete", { case_id: id });
+  return true;
+}
+export async function reportCase(caseId, orgId, userId, reason) {
+  const { error } = await supabase.from("case_reports").insert({ case_id: caseId, org_id: orgId, reporter_id: userId, reason });
+  if (error) {
+    console.error("reportCase failed:", error);
+    return false;
+  }
+  logAudit(userId, orgId, "case_report", { case_id: caseId, reason });
+  return true;
+}
+export async function dismissCaseReport(reportId) {
+  const { error } = await supabase.from("case_reports").delete().eq("id", reportId);
+  if (error) {
+    console.error("dismissCaseReport failed:", error);
+    return false;
+  }
+  return true;
+}
+export async function fetchReports(orgId) {
+  const { data, error } = await supabase
+    .from("case_reports")
+    .select("id, case_id, reason, created_at, shared_cases(situation, summary)")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("fetchReports failed:", error);
+    return [];
+  }
+  return data || [];
 }

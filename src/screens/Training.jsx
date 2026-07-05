@@ -5,7 +5,7 @@ import { callClaude, parseJSON } from "../lib/claude";
 import { aiErrorMessage } from "../lib/utils";
 import { insertScore } from "../lib/db";
 
-export default function Training({ userId, scores, setScores, industry, caseDraft, clearCaseDraft }) {
+export default function Training({ userId, orgId, scores, setScores, industry, caseDraft, clearCaseDraft }) {
   const [scenario, setScenario] = useState(null);
   const [level, setLevel] = useState(LEVELS[1]);
   const [chat, setChat] = useState([]);
@@ -83,7 +83,7 @@ export default function Training({ userId, scores, setScores, industry, caseDraf
     if (fb && typeof fb.score === "number") {
       setFeedback(fb);
       const entry = { date: new Date().toISOString(), scenario: scenario.title, level: level.label, score: fb.score };
-      const saved = await insertScore(userId, entry);
+      const saved = await insertScore(userId, orgId, entry);
       if (saved) {
         setScores([saved, ...scores].slice(0, 50));
         setSaveState("ok");

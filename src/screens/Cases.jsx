@@ -3,9 +3,9 @@ import { CHAR, UI, INDUSTRIES } from "../data/constants";
 import { Spinner } from "../components/ui";
 import { callClaude, parseJSON } from "../lib/claude";
 import { aiErrorMessage } from "../lib/utils";
-import { fetchSharedCases, insertSharedCase } from "../lib/db";
+import { fetchSharedCases, insertSharedCase, deleteSharedCase, reportCase } from "../lib/db";
 
-export default function Cases({ industry, onBack, onPractice }) {
+export default function Cases({ userId, orgId, isAdmin, industry, onBack, onPractice }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("list"); // list | form | check
@@ -17,6 +17,9 @@ export default function Cases({ industry, onBack, onPractice }) {
   const [err, setErr] = useState("");
   const [posting, setPosting] = useState(false);
   const [shareWarn, setShareWarn] = useState(false);
+  const [reportedIds, setReportedIds] = useState([]);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportReason, setReportReason] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -63,7 +66,7 @@ JSONのみで回答:{"ok":true/false,"reason":"NGの場合の理由","situation"
   const post = async () => {
     setPosting(true);
     const entry = { industry: form.industry, situation: cleaned.situation, summary: cleaned.summary, response: cleaned.response || "", result: cleaned.result || "" };
-    const saved = await insertSharedCase(entry);
+    const saved = await insertSharedCase(entry, userId, orgId);
     if (saved) {
       setCases([saved, ...cases]);
       setShareWarn(false);
@@ -74,6 +77,19 @@ JSONのみで回答:{"ok":true/false,"reason":"NGの場合の理由","situation"
     setCleaned(null);
     setPosting(false);
     setView("list");
+  };
+
+  const removeCase = async (id) => {
+    const ok = await deleteSharedCase(id, userId, orgId);
+    if (ok) setCases(cases.filter((c) => c.id !== id));
+  };
+
+  const submitReport = async () => {
+    if (!reportTarget) return;
+    const ok = await reportCase(reportTarget.id, orgId, userId, reportReason.trim());
+    if (ok) setReportedIds([...reportedIds, reportTarget.id]);
+    setReportTarget(null);
+    setReportReason("");
   };
 
   const toScenario = (c) => ({
@@ -96,7 +112,7 @@ JSONのみで回答:{"ok":true/false,"reason":"NGの場合の理由","situation"
           <div className="flex items-center justify-between gap-2">
             <div>
               <h1 className="text-lg font-bold">🌐 みんなのケース共有</h1>
-              <p className="text-xs text-blue-200 mt-1">利用者の実例から学ぶ・そのまま練習できる</p>
+              <p className="text-xs text-blue-200 mt-1">同じ組織のメンバーの実例から学ぶ・そのまま練習できる</p>
             </div>
             <button onClick={() => { setErr(""); setView("form"); }} className={`${UI.btnGold} px-4 py-2 text-xs shrink-0`}>＋ 投稿する</button>
           </div>
@@ -163,10 +179,47 @@ JSONのみで回答:{"ok":true/false,"reason":"NGの場合の理由","situation"
                 <button onClick={() => onPractice(toScenario(c))} className={`${UI.btnPrimary} w-full py-2.5 text-xs mt-1`}>
                   🎓 このケースで練習する
                 </button>
+                <div className="flex justify-end gap-3 mt-2">
+                  {isAdmin && (
+                    <button onClick={() => removeCase(c.id)} className="text-xs text-red-500 font-semibold">
+                      🗑 削除(管理者)
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setReportTarget(c)}
+                    disabled={reportedIds.includes(c.id)}
+                    className="text-xs text-slate-400 font-semibold disabled:opacity-50"
+                  >
+                    {reportedIds.includes(c.id) ? "🚩 通報済み" : "🚩 通報する"}
+                  </button>
+                </div>
               </div>
             ))
           )}
         </div>
+
+        {reportTarget && (
+          <div className="fixed inset-0 z-50 bg-slate-900 bg-opacity-70 flex items-center justify-center p-6">
+            <div className="w-full max-w-xs bg-white rounded-2xl p-5 shadow-2xl">
+              <p className="text-sm font-bold text-slate-800 mb-1">🚩 この投稿を通報しますか?</p>
+              <p className="text-xs text-slate-500 mb-3">「{reportTarget.situation}」を管理者に報告します。理由があれば入力してください(任意)。</p>
+              <textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder="通報理由(任意)"
+                className="w-full bg-slate-50 rounded-xl p-3 text-sm ring-1 ring-slate-200 outline-none h-20 mb-3"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { setReportTarget(null); setReportReason(""); }} className="flex-1 bg-slate-100 text-slate-600 text-sm font-bold py-2 rounded-xl">
+                  キャンセル
+                </button>
+                <button onClick={submitReport} className="flex-1 bg-red-500 text-white text-sm font-bold py-2 rounded-xl">
+                  通報する
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
 
@@ -177,7 +230,7 @@ JSONのみで回答:{"ok":true/false,"reason":"NGの場合の理由","situation"
         <h2 className="text-base font-bold text-slate-800 mb-2">📝 ケースを投稿する</h2>
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
           <p className="text-xs text-amber-800 leading-relaxed">
-            ⚠️ 投稿は<b>本アプリの全利用者に公開</b>されます。個人名はイニシャル(Aさん等)で記入し、施設名・実名・特定できる情報は書かないでください。公開前にAIが自動で匿名化チェックを行います。
+            ⚠️ 投稿は<b>あなたと同じ組織のメンバーに公開</b>されます(組織外には公開されません)。個人名はイニシャル(Aさん等)で記入し、施設名・実名・特定できる情報は書かないでください。公開前にAIが自動で匿名化チェックを行います。
           </p>
         </div>
         {err && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-3 mb-3">{err}</p>}
@@ -234,7 +287,7 @@ JSONのみで回答:{"ok":true/false,"reason":"NGの場合の理由","situation"
     <div className="px-4 pt-4 pb-24">
       <button onClick={() => setView("form")} className="text-indigo-600 text-sm mb-3">← 修正する</button>
       <h2 className="text-base font-bold text-slate-800 mb-2">✅ 公開内容の最終確認</h2>
-      <p className="text-xs text-slate-500 mb-3">AIが匿名化済みの内容です。この形で全利用者に公開されます。</p>
+      <p className="text-xs text-slate-500 mb-3">AIが匿名化済みの内容です。この形で同じ組織のメンバーに公開されます。</p>
       <div className={`${UI.card} p-4 space-y-2 mb-4`}>
         <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">🛡️ AI匿名化チェック済み</span>
         {[["状況", cleaned.situation], ["内容", cleaned.summary], ["対応", cleaned.response], ["結果", cleaned.result]].map(([k, v]) =>

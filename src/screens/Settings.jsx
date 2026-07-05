@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CHAR, UI, INDUSTRIES } from "../data/constants";
-import { SectionTitle } from "../components/ui";
+import { SectionTitle, CopyBtn } from "../components/ui";
 import { supabase } from "../lib/supabaseClient";
-import { updateSettings } from "../lib/db";
+import { updateSettings, fetchOrganization, fetchReports, deleteSharedCase, dismissCaseReport } from "../lib/db";
 
-export default function Settings({ userId, userEmail, userName, setUserName, records, setRecords, scores, setScores, industry, setIndustry, sos, setSos }) {
+export default function Settings({ userId, userEmail, userName, setUserName, records, setRecords, scores, setScores, industry, setIndustry, sos, setSos, orgId, isAdmin }) {
   const [sosName, setSosName] = useState((sos && sos.name) || "");
   const [sosPhone, setSosPhone] = useState((sos && sos.phone) || "");
   const [sosSaved, setSosSaved] = useState(false);
@@ -12,6 +12,24 @@ export default function Settings({ userId, userEmail, userName, setUserName, rec
   const [saved, setSaved] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [wiping, setWiping] = useState(false);
+  const [org, setOrg] = useState(null);
+  const [reports, setReports] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      if (orgId) setOrg(await fetchOrganization(orgId));
+      if (orgId && isAdmin) setReports(await fetchReports(orgId));
+    })();
+  }, [orgId, isAdmin]);
+
+  const resolveReport = async (report) => {
+    await deleteSharedCase(report.case_id, userId, orgId);
+    setReports(reports.filter((r) => r.id !== report.id));
+  };
+  const dismissReport = async (reportId) => {
+    await dismissCaseReport(reportId);
+    setReports(reports.filter((r) => r.id !== reportId));
+  };
 
   const saveSos = async () => {
     const v = { name: sosName.trim(), phone: sosPhone.replace(/[^0-9+\-]/g, "") };
@@ -54,6 +72,23 @@ export default function Settings({ userId, userEmail, userName, setUserName, rec
       <div className="rounded-xl p-3 mb-4 text-xs font-bold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
         ✅ データはクラウド(Supabase)に安全に保存され、他の端末からログインしても引き継がれます。
       </div>
+
+      {org && (
+        <div className={`${UI.card} p-4 mb-4`}>
+          <p className="text-sm font-bold text-slate-700 mb-1">🏢 所属組織</p>
+          <p className="text-sm text-slate-800 mb-2">{org.name}{isAdmin && <span className="ml-2 text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">管理者</span>}</p>
+          {isAdmin && (
+            <>
+              <p className="text-xs text-slate-500 mb-2">招待コード(同僚に伝えると、この組織に参加できます):</p>
+              <div className="flex items-center gap-2">
+                <span className="flex-1 bg-slate-50 rounded-xl p-2.5 text-sm font-mono text-slate-700 ring-1 ring-slate-200">{org.invite_code}</span>
+                <CopyBtn text={org.invite_code} label="コピー" />
+              </div>
+            </>
+          )}
+          <p className="text-xs text-slate-400 mt-2">「みんなのケース共有」は、この組織のメンバーだけに公開されます。</p>
+        </div>
+      )}
 
       <div className={`${UI.card} p-4 mb-4`}>
         <p className="text-sm font-bold text-slate-700 mb-2">お名前(対応者名の初期値)</p>
@@ -129,6 +164,33 @@ export default function Settings({ userId, userEmail, userName, setUserName, rec
           </button>
         )}
       </div>
+
+      {isAdmin && (
+        <div className={`${UI.card} p-4 mb-4`}>
+          <p className="text-sm font-bold text-slate-700 mb-1">🚩 通報の管理(管理者ツール)</p>
+          <p className="text-xs text-slate-500 mb-3">組織メンバーから通報された「みんなのケース共有」の投稿です。</p>
+          {reports.length === 0 ? (
+            <p className="text-xs text-slate-400">現在、未対応の通報はありません。</p>
+          ) : (
+            <div className="space-y-2">
+              {reports.map((r) => (
+                <div key={r.id} className="bg-red-50 rounded-xl p-3 ring-1 ring-red-100">
+                  <p className="text-xs font-bold text-slate-800 mb-0.5">{r.shared_cases ? r.shared_cases.situation : "(削除済みの投稿)"}</p>
+                  {r.reason && <p className="text-xs text-slate-500 mb-2">通報理由:{r.reason}</p>}
+                  <div className="flex gap-2 mt-1">
+                    <button onClick={() => resolveReport(r)} className="flex-1 bg-red-500 text-white text-xs font-bold py-1.5 rounded-lg">
+                      投稿を削除する
+                    </button>
+                    <button onClick={() => dismissReport(r.id)} className="flex-1 bg-slate-100 text-slate-600 text-xs font-bold py-1.5 rounded-lg">
+                      問題なし(無視)
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`${UI.card} p-4 mb-4`}>
         <p className="text-sm font-bold text-slate-700 mb-1">アカウント</p>

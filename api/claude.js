@@ -41,6 +41,8 @@ export default async function handler(req, res) {
       return;
     }
     const userId = userData.user.id;
+    const { data: settingsRow } = await supabaseAdmin.from("user_settings").select("org_id").eq("user_id", userId).maybeSingle();
+    const orgId = settingsRow?.org_id || null;
 
     // ---- 2. 今月の利用回数を確認(上限を超えていたらAI呼び出し前に止める) ----
     const month = currentMonthKey();
@@ -86,6 +88,9 @@ export default async function handler(req, res) {
     // ---- 4. 呼び出しに成功した分だけカウントを加算(原子的にupsert) ----
     const { data: newCount, error: rpcErr } = await supabaseAdmin.rpc("increment_ai_usage", { p_user_id: userId, p_month: month });
     if (rpcErr) console.error("increment_ai_usage failed:", rpcErr);
+
+    // ---- 5. アクセスログに記録(誰が・いつAIを呼び出したか) ----
+    await supabaseAdmin.from("audit_log").insert({ user_id: userId, org_id: orgId, action: "ai_call", meta: { maxTokens: maxTokens || 1000 } });
 
     res.status(200).json({ text, remaining: Math.max(0, MONTHLY_LIMIT - (newCount ?? usedSoFar + 1)) });
   } catch (e) {

@@ -30,7 +30,7 @@ function recordsToCSV(records) {
   return [head, ...rows].join("\n");
 }
 
-export default function Records({ userId, records, setRecords, draft, clearDraft, userName }) {
+export default function Records({ userId, orgId, records, setRecords, draft, clearDraft, userName }) {
   const [view, setView] = useState(draft ? "form" : "list");
   const [current, setCurrent] = useState(null);
   const empty = { situation: draft ? draft.title : "", place: "", person: "", staff: userName || "", content: "", result: "", status: "open" };
@@ -58,14 +58,14 @@ export default function Records({ userId, records, setRecords, draft, clearDraft
   const save = async () => {
     if (!form.content.trim()) return;
     const rec = { ...form, date: new Date().toISOString() };
-    const saved = await insertRecord(userId, rec);
+    const saved = await insertRecord(userId, orgId, rec);
     if (saved) setRecords([saved, ...records]);
     setForm(empty);
     clearDraft();
     setView("list");
   };
   const updateStatus = async (id, status) => {
-    const ok = await updateRecordStatus(id, status);
+    const ok = await updateRecordStatus(id, status, userId, orgId);
     if (ok) {
       const next = records.map((r) => (r.id === id ? { ...r, status } : r));
       setRecords(next);
@@ -73,7 +73,7 @@ export default function Records({ userId, records, setRecords, draft, clearDraft
     }
   };
   const removeRecord = async (id) => {
-    const ok = await deleteRecord(id);
+    const ok = await deleteRecord(id, userId, orgId);
     if (ok) {
       setRecords(records.filter((r) => r.id !== id));
       setView("list");

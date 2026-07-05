@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabaseClient";
-import { fetchRecords, fetchScores, fetchSettings, updateSettings } from "./lib/db";
+import { fetchRecords, fetchScores, fetchSettings, updateSettings, logAudit } from "./lib/db";
 import { INDUSTRIES } from "./data/constants";
 
 import Login from "./screens/Login";
+import OrgJoin from "./screens/OrgJoin";
 import Onboarding from "./screens/Onboarding";
 import Home from "./screens/Home";
 import SituationDetail from "./screens/SituationDetail";
@@ -41,6 +42,9 @@ export default function App() {
   const [onboarded, setOnboarded] = useState(true);
   const [sos, setSos] = useState({ name: "", phone: "" });
   const [showSOS, setShowSOS] = useState(false);
+  const [orgId, setOrgId] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const loggedInRef = useRef(false);
 
   /* ログイン状態の監視(マジックリンクで戻ってきた場合も自動検知) */
   useEffect(() => {
@@ -64,7 +68,13 @@ export default function App() {
       setDaily(settings.daily || { streak: 0, lastAnsweredDate: "", quizDate: "", quiz: null, answered: null });
       setOnboarded(!!settings.onboarded);
       setSos({ name: settings.sos_name || "", phone: settings.sos_phone || "" });
+      setOrgId(settings.org_id || null);
+      setIsAdmin(!!settings.is_admin);
       setLoaded(true);
+      if (!loggedInRef.current) {
+        loggedInRef.current = true;
+        logAudit(userId, settings.org_id || null, "login", {});
+      }
     })();
   }, [session]);
 
@@ -110,13 +120,20 @@ export default function App() {
           ) : showDaily ? (
             <DailyChallenge userId={userId} daily={daily} setDaily={setDaily} industry={industry} onBack={() => setShowDaily(false)} />
           ) : showCases ? (
-            <Cases industry={industry} onBack={() => setShowCases(false)} onPractice={(sc) => { setCaseDraft(sc); setShowCases(false); setTab("training"); }} />
+            <Cases
+              userId={userId}
+              orgId={orgId}
+              isAdmin={isAdmin}
+              industry={industry}
+              onBack={() => setShowCases(false)}
+              onPractice={(sc) => { setCaseDraft(sc); setShowCases(false); setTab("training"); }}
+            />
           ) : tab === "home" ? (
             <Home onSelect={setSituation} userName={userName} lastScore={scores[0]} onGoTraining={() => setTab("training")} daily={daily} onDaily={() => setShowDaily(true)} onCases={() => setShowCases(true)} />
           ) : tab === "records" ? (
-            <Records userId={userId} records={records} setRecords={setRecords} draft={draft} clearDraft={() => setDraft(null)} userName={userName} />
+            <Records userId={userId} orgId={orgId} records={records} setRecords={setRecords} draft={draft} clearDraft={() => setDraft(null)} userName={userName} />
           ) : tab === "training" ? (
-            <Training userId={userId} scores={scores} setScores={setScores} industry={industry} caseDraft={caseDraft} clearCaseDraft={() => setCaseDraft(null)} />
+            <Training userId={userId} orgId={orgId} scores={scores} setScores={setScores} industry={industry} caseDraft={caseDraft} clearCaseDraft={() => setCaseDraft(null)} />
           ) : tab === "dashboard" ? (
             <Dashboard records={records} scores={scores} />
           ) : (
@@ -133,6 +150,8 @@ export default function App() {
               setIndustry={setIndustry}
               sos={sos}
               setSos={setSos}
+              orgId={orgId}
+              isAdmin={isAdmin}
             />
           )}
         </div>
@@ -156,7 +175,16 @@ export default function App() {
 
         {showSOS && <SOSOverlay sos={sos} onClose={() => setShowSOS(false)} />}
 
-        {loaded && !onboarded && (
+        {loaded && !orgId && (
+          <OrgJoin
+            onDone={(newOrgId) => {
+              setOrgId(newOrgId);
+              logAudit(userId, newOrgId, "org_join", {});
+            }}
+          />
+        )}
+
+        {loaded && orgId && !onboarded && (
           <Onboarding
             onDone={async () => {
               setOnboarded(true);
