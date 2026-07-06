@@ -1,7 +1,35 @@
+import { useState, useEffect } from "react";
 import { UI } from "../data/constants";
-import { SectionTitle } from "../components/ui";
+import { SectionTitle, Spinner } from "../components/ui";
+import { fetchOrganization } from "../lib/db";
 
-export default function Dashboard({ records, scores }) {
+export default function Dashboard({ records, scores, userName, orgId }) {
+  const [orgName, setOrgName] = useState("");
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      if (orgId) {
+        const org = await fetchOrganization(orgId);
+        if (org) setOrgName(org.name);
+      }
+    })();
+  }, [orgId]);
+
+  const downloadPdf = async () => {
+    setPdfLoading(true);
+    setPdfError("");
+    try {
+      const { generateTrainingReportPDF } = await import("../lib/pdfReport");
+      await generateTrainingReportPDF({ orgName, staffName: userName, scores });
+    } catch (e) {
+      console.error(e);
+      setPdfError("PDFの作成に失敗しました。通信環境を確認して再度お試しください。");
+    }
+    setPdfLoading(false);
+  };
+
   const now = new Date();
   const thisMonth = records.filter((r) => {
     const d = new Date(r.date);
@@ -111,6 +139,19 @@ export default function Dashboard({ records, scores }) {
           </div>
         </>
       )}
+
+      <button onClick={downloadPdf} disabled={pdfLoading} className={`w-full py-3 mb-3 flex items-center justify-center gap-2 ${UI.btnPrimary}`}>
+        {pdfLoading ? (
+          <>
+            <Spinner light /> PDFを作成中…
+          </>
+        ) : (
+          "📄 研修レポートをPDF保存"
+        )}
+      </button>
+      {pdfError && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-3 mb-3">{pdfError}</p>}
+      <p className="text-xs text-slate-400 text-center mb-2">カスタマーハラスメント対策の研修実施記録として、印刷・保管にご活用いただけます。</p>
+
       <p className="text-xs text-slate-400 text-center">記録・研修のデータが自動で集計されます</p>
     </div>
   );

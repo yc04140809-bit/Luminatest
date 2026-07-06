@@ -82,7 +82,7 @@ export default function Training({ userId, orgId, scores, setScores, industry, c
     const fb = parseJSON(text);
     if (fb && typeof fb.score === "number") {
       setFeedback(fb);
-      const entry = { date: new Date().toISOString(), scenario: scenario.title, level: level.label, score: fb.score };
+      const entry = { date: new Date().toISOString(), scenario: scenario.title, level: level.label, score: fb.score, comment: fb.comment || "" };
       const saved = await insertScore(userId, orgId, entry);
       if (saved) {
         setScores([saved, ...scores].slice(0, 50));

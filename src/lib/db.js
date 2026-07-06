@@ -96,12 +96,12 @@ export async function fetchScores(userId) {
     console.error("fetchScores failed:", error);
     return [];
   }
-  return (data || []).map((r) => ({ id: r.id, date: r.occurred_at, scenario: r.scenario, level: r.level, score: r.score }));
+  return (data || []).map((r) => ({ id: r.id, date: r.occurred_at, scenario: r.scenario, level: r.level, score: r.score, comment: r.comment || "" }));
 }
 export async function insertScore(userId, orgId, entry) {
   const { data, error } = await supabase
     .from("scores")
-    .insert({ user_id: userId, occurred_at: entry.date, scenario: entry.scenario, level: entry.level, score: entry.score })
+    .insert({ user_id: userId, occurred_at: entry.date, scenario: entry.scenario, level: entry.level, score: entry.score, comment: entry.comment || null })
     .select()
     .single();
   if (error) {
@@ -109,7 +109,7 @@ export async function insertScore(userId, orgId, entry) {
     return null;
   }
   logAudit(userId, orgId, "training_score", { score: entry.score, scenario: entry.scenario });
-  return { id: data.id, date: data.occurred_at, scenario: data.scenario, level: data.level, score: data.score };
+  return { id: data.id, date: data.occurred_at, scenario: data.scenario, level: data.level, score: data.score, comment: data.comment || "" };
 }
 
 /* ---------- ユーザー設定(user_settings:1ユーザー1行) ---------- */

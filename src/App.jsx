@@ -135,7 +135,7 @@ export default function App() {
           ) : tab === "training" ? (
             <Training userId={userId} orgId={orgId} scores={scores} setScores={setScores} industry={industry} caseDraft={caseDraft} clearCaseDraft={() => setCaseDraft(null)} />
           ) : tab === "dashboard" ? (
-            <Dashboard records={records} scores={scores} />
+            <Dashboard records={records} scores={scores} userName={userName} orgId={orgId} />
           ) : (
             <Settings
               userId={userId}
