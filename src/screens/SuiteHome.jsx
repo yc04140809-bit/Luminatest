@@ -1,23 +1,60 @@
 import { useState } from "react";
 import { AGENTS } from "../data/agents";
 
-/* AI社員1名分のカード(部署アイコン+名前+説明文) */
-function AgentCard({ agent, onOpen, onSoon }) {
-  const available = agent.status === "available";
+/* 看板機能(接遇ガードAI)専用の大きめヒーローカード */
+function FlagshipCard({ agent, onOpen }) {
+  return (
+    <div className="rounded-3xl p-5 mb-6 bg-gradient-to-br from-indigo-950 via-slate-900 to-black ring-2 ring-amber-400/60 shadow-2xl relative overflow-hidden">
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-amber-300 rounded-full blur-3xl opacity-20 pointer-events-none" />
+      <div className="relative flex items-center gap-2 mb-2">
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-400 text-slate-900">★ 看板AI社員</span>
+        <span className="text-xs text-amber-200">{agent.room}</span>
+      </div>
+      <div className="relative flex items-center gap-4 mb-3">
+        <div className="w-20 h-20 rounded-2xl shrink-0 overflow-hidden ring-2 ring-amber-300 shadow-lg">
+          {agent.avatarUrl ? (
+            <img src={agent.avatarUrl} alt={agent.character} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-slate-800 text-2xl font-bold text-slate-300">{agent.character.slice(0, 1)}</div>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="text-lg font-black text-white leading-tight">{agent.name}</p>
+          <p className="text-xs text-slate-300 mt-0.5">{agent.character}</p>
+          <p className="text-sm font-bold text-amber-300 mt-1">{agent.tagline}</p>
+        </div>
+      </div>
+      <p className="relative text-sm text-slate-200 leading-relaxed mb-3">{agent.desc}</p>
+
+      {agent.industries && (
+        <div className="relative flex flex-wrap gap-1.5 mb-4">
+          {agent.industries.map((ind) => (
+            <span key={ind} className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/10 text-slate-200 ring-1 ring-white/20">
+              {ind}
+            </span>
+          ))}
+          <span className="text-xs px-2.5 py-1 text-slate-400">でも使える</span>
+        </div>
+      )}
+
+      <button
+        onClick={onOpen}
+        className="relative w-full py-3 rounded-full text-sm font-bold text-slate-900 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-300 shadow-lg active:scale-95 transition-transform"
+      >
+        ✨ まずは接遇ガードAIから開始
+      </button>
+    </div>
+  );
+}
+
+/* 準備中のAI社員1名分のカード(部署アイコン+名前+説明文) */
+function SoonCard({ agent, onSoon }) {
   return (
     <button
-      onClick={() => (available ? onOpen() : onSoon(agent))}
-      className={`w-full text-left rounded-2xl p-4 flex items-center gap-3 ring-1 transition-transform ${
-        available
-          ? "bg-gradient-to-r from-slate-800 to-slate-900 ring-amber-400/40 active:scale-95 shadow-lg"
-          : "bg-slate-900/40 ring-slate-700 opacity-70"
-      }`}
+      onClick={() => onSoon(agent)}
+      className="w-full text-left rounded-2xl p-4 flex items-center gap-3 ring-1 bg-slate-900/40 ring-slate-700 opacity-70 transition-transform active:scale-95"
     >
-      <div
-        className={`w-14 h-14 rounded-xl shrink-0 flex items-center justify-center overflow-hidden ring-2 ${
-          available ? "ring-amber-300" : "ring-slate-600"
-        }`}
-      >
+      <div className="w-14 h-14 rounded-xl shrink-0 flex items-center justify-center overflow-hidden ring-2 ring-slate-600">
         {agent.avatarUrl ? (
           <img src={agent.avatarUrl} alt={agent.character} className="w-full h-full object-cover" />
         ) : (
@@ -28,23 +65,24 @@ function AgentCard({ agent, onOpen, onSoon }) {
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-bold text-white">{agent.name}</p>
           <span className="text-xs text-amber-300">{agent.room}</span>
-          {!available && <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">準備中</span>}
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">準備中</span>
         </div>
-        <p className="text-xs text-slate-300 mt-0.5">{agent.character} ・ {agent.tagline}</p>
+        <p className="text-xs text-slate-300 mt-0.5">
+          {agent.character} ・ {agent.tagline}
+        </p>
         <p className="text-xs text-slate-400 mt-1 leading-relaxed">{agent.desc}</p>
       </div>
-      {available && <span className="text-amber-300 text-xl shrink-0">›</span>}
     </button>
   );
 }
 
-/* Chaos AI Suite ホーム画面(複数のAI社員が並ぶ入口) */
+/* Chaos AI Suite ホーム画面(接遇ガードAIを看板機能として強調し、複数のAI社員が並ぶ入口) */
 export default function SuiteHome({ onOpenSesshoku }) {
   const [soonMsg, setSoonMsg] = useState("");
 
-  const handleOpen = (agent) => {
-    if (agent.id === "sesshoku") onOpenSesshoku();
-  };
+  const flagship = AGENTS.find((a) => a.flagship);
+  const others = AGENTS.filter((a) => !a.flagship);
+
   const handleSoon = (agent) => {
     setSoonMsg(`${agent.character}(${agent.name})は準備中です。今後追加予定です。`);
     setTimeout(() => setSoonMsg(""), 2200);
@@ -68,11 +106,12 @@ export default function SuiteHome({ onOpenSesshoku }) {
             </p>
           </div>
 
-          <p className="text-xs font-bold text-amber-300 mb-2">✨ まずは接遇ガードAIから開始</p>
+          {flagship && <FlagshipCard agent={flagship} onOpen={onOpenSesshoku} />}
 
+          <p className="text-xs font-bold text-slate-400 mb-2">その他のAI社員(準備中)</p>
           <div className="space-y-3">
-            {AGENTS.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} onOpen={() => handleOpen(agent)} onSoon={handleSoon} />
+            {others.map((agent) => (
+              <SoonCard key={agent.id} agent={agent} onSoon={handleSoon} />
             ))}
           </div>
 

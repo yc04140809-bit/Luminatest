@@ -10,9 +10,11 @@ export const AGENTS = [
     character: "ケイオスちゃん",
     room: "相談室",
     tagline: "現場を守るAI",
-    desc: "カスハラ対応・接遇改善・報告書作成をサポート",
+    desc: "カスハラ対応・接遇改善・報告書作成をAIがサポートします。",
+    industries: ["法人", "介護", "医療", "小売", "飲食"],
     avatarUrl: "/images/char-normal.jpg",
     status: "available",
+    flagship: true,
   },
   {
     id: "documents",
