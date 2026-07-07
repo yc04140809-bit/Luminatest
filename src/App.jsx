@@ -4,6 +4,7 @@ import { fetchRecords, fetchScores, fetchSettings, updateSettings, logAudit } fr
 import { INDUSTRIES } from "./data/constants";
 
 import Login from "./screens/Login";
+import SuiteHome from "./screens/SuiteHome";
 import OrgJoin from "./screens/OrgJoin";
 import Onboarding from "./screens/Onboarding";
 import Home from "./screens/Home";
@@ -44,6 +45,7 @@ export default function App() {
   const [showSOS, setShowSOS] = useState(false);
   const [orgId, setOrgId] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [suiteScreen, setSuiteScreen] = useState("home"); // "home" = Chaos AI Suite一覧 / "sesshoku" = 接遇ガードAI本体
   const loggedInRef = useRef(false);
 
   /* ログイン状態の監視(マジックリンクで戻ってきた場合も自動検知) */
@@ -96,10 +98,18 @@ export default function App() {
 
   const userId = session.user.id;
 
+  /* Chaos AI Suite ホーム画面(全データ読込・組織参加・初回案内が済んだ後に表示) */
+  if (loaded && orgId && onboarded && suiteScreen === "home") {
+    return <SuiteHome onOpenSesshoku={() => setSuiteScreen("sesshoku")} />;
+  }
+
   return (
     <div className="w-full h-screen bg-slate-200 flex justify-center font-sans">
       <div className="w-full max-w-md bg-slate-50 h-full flex flex-col relative overflow-hidden shadow-2xl">
         <div className="bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 text-white px-4 py-2.5 flex items-center gap-2 shrink-0 shadow-md">
+          <button onClick={() => setSuiteScreen("home")} className="text-amber-200 text-sm shrink-0 mr-0.5" title="Chaos AI Suiteに戻る">
+            ←
+          </button>
           <span className="text-lg">🛡️</span>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold leading-none tracking-wide">接遇ガードAI</p>
