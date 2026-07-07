@@ -552,11 +552,25 @@ function currentCharSlot(){
   return state.outfitOverride || currentMode().charSlot;
 }
 
+/* 差し替え画像が壊れている/読み込めない場合は自動で標準画像に戻す(保存データも削除) */
+function setImgWithFallback(imgEl, slotKey){
+  imgEl.onerror = null;
+  imgEl.src = getImageSrc(slotKey);
+  imgEl.onerror = () => {
+    imgEl.onerror = null;
+    if(imageOverrides[slotKey]){
+      delete imageOverrides[slotKey];
+      idbDel(slotKey).catch(() => {});
+    }
+    imgEl.src = DEFAULT_IMAGES[slotKey];
+  };
+}
+
 function renderStage(){
   const mode = currentMode();
   document.getElementById("subtitle").textContent = mode.subtitle;
-  document.getElementById("heroBgImg").src = getImageSrc(mode.bgSlot);
-  document.getElementById("heroCharImg").src = getImageSrc(currentCharSlot());
+  setImgWithFallback(document.getElementById("heroBgImg"), mode.bgSlot);
+  setImgWithFallback(document.getElementById("heroCharImg"), currentCharSlot());
 }
 
 function renderStatus(){
@@ -740,6 +754,9 @@ const ADMIN_SLOTS = [
   { key:"casual",   label:"立ち絵: カジュアル" },
 ];
 
+/* 画像はBase64のdata URL文字列として保存する(BlobのままIndexedDBに保存すると
+   一部のモバイルブラウザ/アプリ内ブラウザで再読み込み時に壊れることがあるため、
+   より互換性の高いdata URLに統一している) */
 const IDB_NAME = "kaosu_admin_images";
 function idbOpen(){
   return new Promise((resolve, reject) => {
@@ -750,11 +767,11 @@ function idbOpen(){
     r.onerror = () => reject(r.error);
   });
 }
-async function idbSet(key, blob){
+async function idbSet(key, dataUrl){
   const db = await idbOpen();
   return new Promise((resolve, reject) => {
     const tx = db.transaction("images", "readwrite");
-    tx.objectStore("images").put(blob, key);
+    tx.objectStore("images").put(dataUrl, key);
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
   });
@@ -776,17 +793,26 @@ async function idbDel(key){
     tx.onerror = () => reject(tx.error);
   });
 }
+function readFileAsDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
-/* 起動時: 保存済みの差し替え画像を全スロットに適用 */
+/* 起動時: 保存済みの差し替え画像を全スロットに適用
+   スロット単位でtry/catchするので、1件壊れていても他のスロットや標準画像の表示には影響しない */
 async function applyStoredImages(){
-  try{
-    for(const slot of ADMIN_SLOTS){
-      const blob = await idbGet(slot.key);
-      if(blob) imageOverrides[slot.key] = URL.createObjectURL(blob);
-    }
-    renderStage();
-    renderChatLog();
-  }catch(e){ /* IndexedDB非対応環境ではデフォルト画像のまま動く */ }
+  for(const slot of ADMIN_SLOTS){
+    try{
+      const stored = await idbGet(slot.key);
+      if(stored) imageOverrides[slot.key] = stored;
+    }catch(e){ console.warn("画像の読み込みに失敗しました:", slot.key, e); }
+  }
+  renderStage();
+  renderChatLog();
 }
 
 async function buildAdminRows(){
@@ -812,9 +838,10 @@ async function buildAdminRows(){
       if(!file) return;
       if(file.size > 8 * 1024 * 1024){ alert("8MB以下の画像を選んでください"); return; }
       try{
-        await idbSet(slot.key, file);
-        imageOverrides[slot.key] = URL.createObjectURL(file);
-        thumb.src = imageOverrides[slot.key];
+        const dataUrl = await readFileAsDataURL(file);
+        await idbSet(slot.key, dataUrl);
+        imageOverrides[slot.key] = dataUrl;
+        thumb.src = dataUrl;
         renderStage();
         renderChatLog();
       }catch(e){ alert("保存に失敗しました: " + e.message); }
