@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AIケイオス参謀 β</title>
+<style>
+:root{
+  --bg-deep:  #0d0a1a;
+  --bg-mid:   #1a1430;
+  --gold:     #d9b56a;
+  --gold-hi:  #f6e3a8;
+  --pink:     #ff8ac9;
+  --text:     #f2ecdf;
+  --card:     rgba(30,20,45,.82);
+  --danger:   #ff8a8a;
+  --safe:     #8affc1;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{
+  min-height:100%;
+  background:#000;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  color:var(--text);
+}
+.app{
+  max-width:480px;
+  margin:0 auto;
+  min-height:100vh;
+  background:linear-gradient(180deg, var(--bg-deep), var(--bg-mid) 60%, #05030c);
+  padding-bottom:40px;
+}
+.topbar{
+  padding:16px 16px 8px;
+  text-align:center;
+  border-bottom:1px solid rgba(217,181,106,.25);
+}
+.app-title{
+  font-size:20px; font-weight:700; color:var(--gold-hi);
+  text-shadow:0 0 10px rgba(246,227,168,.5);
+}
+.app-sub{
+  font-size:11.5px; color:rgba(242,236,223,.7); margin-top:4px;
+}
+.hero{
+  display:flex; flex-direction:column; align-items:center;
+  padding:18px 16px 6px;
+}
+.hero-img-wrap{
+  width:140px; height:140px; border-radius:50%;
+  overflow:hidden; border:2px solid var(--gold);
+  box-shadow:0 0 24px rgba(217,181,106,.35);
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.04);
+}
+.hero-img-wrap img{ width:100%; height:100%; object-fit:cover; }
+.hero-placeholder{ font-size:46px; }
+.advisor-message{
+  margin-top:12px; text-align:center; font-size:13.5px;
+  color:var(--text); background:var(--card);
+  border:1px solid rgba(217,181,106,.25);
+  border-radius:14px; padding:10px 14px; line-height:1.5;
+}
+.stats{
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:8px; padding:14px 16px;
+}
+.stat-card{
+  background:var(--card); border:1px solid rgba(217,181,106,.2);
+  border-radius:12px; padding:10px 12px;
+}
+.stat-label{ font-size:10.5px; color:rgba(242,236,223,.65); }
+.stat-value{ font-size:17px; font-weight:700; color:var(--gold-hi); margin-top:2px; }
+.actions{
+  display:flex; flex-direction:column; gap:10px; padding:6px 16px 14px;
+}
+button{
+  font-family:inherit; font-size:14px; font-weight:700;
+  padding:12px 14px; border-radius:12px; border:none; cursor:pointer;
+}
+.btn-primary{
+  background:linear-gradient(135deg, var(--gold), var(--pink));
+  color:#1a1120;
+}
+.btn-secondary{
+  background:rgba(255,255,255,.08); color:var(--text);
+  border:1px solid rgba(217,181,106,.3);
+}
+.btn-secondary:disabled, .btn-primary:disabled{
+  opacity:.5; cursor:not-allowed;
+}
+.result-card{
+  margin:6px 16px 16px; background:var(--card);
+  border:1px solid rgba(217,181,106,.25); border-radius:16px;
+  padding:16px; display:none; flex-direction:column; gap:10px;
+}
+.result-card.visible{ display:flex; }
+.strategy-title{
+  font-size:15px; font-weight:700; color:var(--pink);
+}
+.post-text{
+  white-space:pre-wrap; font-size:14px; line-height:1.6;
+  background:rgba(0,0,0,.25); border-radius:10px; padding:10px;
+}
+.hashtags{
+  display:flex; flex-wrap:wrap; gap:6px;
+}
+.hashtag-chip{
+  font-size:11.5px; background:rgba(217,181,106,.15);
+  border:1px solid rgba(217,181,106,.35);
+  color:var(--gold-hi); border-radius:999px; padding:4px 10px;
+}
+.meta-row{
+  display:flex; justify-content:space-between; font-size:12px;
+  color:rgba(242,236,223,.85);
+}
+.risk-low{ color:var(--safe); }
+.risk-medium{ color:var(--danger); }
+.risk-reason{ font-size:11.5px; color:rgba(242,236,223,.65); }
+.copy-box{
+  font-size:12px; background:rgba(0,0,0,.3); border-radius:10px;
+  padding:10px; white-space:pre-wrap; word-break:break-word;
+}
+.level-log{
+  font-size:12px; background:rgba(255,138,201,.12);
+  border:1px solid rgba(255,138,201,.3); border-radius:10px;
+  padding:8px 10px; display:none;
+}
+.level-log.visible{ display:block; }
+.status-line{
+  text-align:center; font-size:11.5px; color:rgba(242,236,223,.5);
+  padding:0 16px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="app-title" id="appTitle">AIケイオス参謀 β</div>
+    <div class="app-sub">ケイオスちゃんと一緒に、安全に伸びる投稿を考えよう</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-img-wrap" id="heroImgWrap">
+      <span class="hero-placeholder">🧚</span>
+    </div>
+    <div class="advisor-message" id="advisorMessage">読み込み中...</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">参謀レベル</div>
+      <div class="stat-value" id="statLevel">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">経験値</div>
+      <div class="stat-value" id="statXp">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">累計予測インプレッション</div>
+      <div class="stat-value" id="statImpressions">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">トレンド親和度</div>
+      <div class="stat-value" id="statAffinity">-</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" id="btnGenerate">今日の作戦を立てる</button>
+    <button class="btn-secondary" id="btnRegenerate" disabled>もう一案出す</button>
+    <button class="btn-secondary" id="btnStatus">ケイオス参謀ステータスを見る</button>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="strategy-title" id="resultStrategyTitle"></div>
+    <div class="post-text" id="resultPostText"></div>
+    <div class="hashtags" id="resultHashtags"></div>
+    <div class="meta-row">
+      <span>予測バズスコア: <strong id="resultBuzzScore">-</strong></span>
+      <span id="resultRiskLevel">-</span>
+    </div>
+    <div class="risk-reason" id="resultRiskReason"></div>
+    <div class="copy-box" id="resultCopyText"></div>
+    <button class="btn-secondary" id="btnCopy">投稿文をコピー</button>
+    <div class="level-log" id="levelLog"></div>
+  </div>
+
+  <div class="status-line" id="statusLine">API: 未接続</div>
+</div>
+
+<script>
+const API_BASE = ""; // 同一オリジン（このHTMLをFastAPIから配信している想定）
+
+const el = (id) => document.getElementById(id);
+
+function setImage(url) {
+  const wrap = el("heroImgWrap");
+  if (!url) {
+    wrap.innerHTML = '<span class="hero-placeholder">🧚</span>';
+    return;
+  }
+  wrap.innerHTML = "";
+  const img = document.createElement("img");
+  img.src = url;
+  img.alt = "ケイオスちゃん";
+  img.onerror = () => {
+    wrap.innerHTML = '<span class="hero-placeholder">🧚</span>';
+  };
+  wrap.appendChild(img);
+}
+
+function renderStatus(data) {
+  if (data.app_name) el("appTitle").textContent = data.app_name;
+  el("advisorMessage").textContent = data.chaos_advisor_message || "";
+  el("statLevel").textContent = data.growth_level ?? "-";
+  el("statXp").textContent = data.experience_points ?? "-";
+  el("statImpressions").textContent = (data.total_predicted_impressions ?? 0).toLocaleString();
+  el("statAffinity").textContent = data.current_trend_affinity ?? "-";
+  setImage(data.character_image_url);
+}
+
+async function fetchStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/persona/status`);
+    const data = await res.json();
+    renderStatus(data);
+    el("statusLine").textContent = "API: 接続中";
+  } catch (e) {
+    el("statusLine").textContent = "API: 接続できませんでした（サーバーが起動しているか確認してね）";
+  }
+}
+
+function renderResult(payload) {
+  const post = payload.post || {};
+  const growth = payload.growth_log || {};
+
+  el("advisorMessage").textContent = post.advisor_message || growth.chaos_advisor_message || "";
+  el("resultStrategyTitle").textContent = post.strategy_title || "";
+  el("resultPostText").textContent = post.post_text || "";
+
+  const tagsWrap = el("resultHashtags");
+  tagsWrap.innerHTML = "";
+  (post.hashtags || []).forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "hashtag-chip";
+    chip.textContent = tag;
+    tagsWrap.appendChild(chip);
+  });
+
+  el("resultBuzzScore").textContent = post.predicted_buzz_score ?? "-";
+  const riskEl = el("resultRiskLevel");
+  const isLow = post.risk_level === "low";
+  riskEl.textContent = "炎上リスク: " + (post.risk_level || "-");
+  riskEl.className = isLow ? "risk-low" : "risk-medium";
+  el("resultRiskReason").textContent = post.risk_reason || "";
+  el("resultCopyText").textContent = post.copy_ready_text || "";
+
+  el("resultCard").classList.add("visible");
+  el("btnRegenerate").disabled = false;
+
+  if (growth.leveled_up) {
+    const logEl = el("levelLog");
+    logEl.classList.add("visible");
+    const newVocab = (growth.new_vocabulary || []).join(" / ");
+    const newTitles = (growth.new_strategy_titles || []).join(" / ");
+    logEl.textContent =
+      `🎉 レベルアップ！ Lv.${growth.growth_level} になったよ。` +
+      (newVocab ? ` 新語彙: ${newVocab}` : "") +
+      (newTitles ? ` 新作戦: ${newTitles}` : "");
+  } else {
+    el("levelLog").classList.remove("visible");
+  }
+
+  el("statLevel").textContent = growth.growth_level ?? "-";
+  el("statXp").textContent = growth.experience_points ?? "-";
+  el("statImpressions").textContent = (growth.total_predicted_impressions ?? 0).toLocaleString();
+  el("statAffinity").textContent = growth.current_trend_affinity ?? "-";
+  setImage(payload.character_image_url);
+}
+
+async function generateStrategy() {
+  el("btnGenerate").disabled = true;
+  el("btnRegenerate").disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/chaos/generate-strategy`, { method: "POST" });
+    const data = await res.json();
+    if (data.error) {
+      el("advisorMessage").textContent = data.message || "エラーが発生したよ。";
+    } else {
+      renderResult(data);
+    }
+  } catch (e) {
+    el("advisorMessage").textContent = "通信エラーが発生したよ。サーバーの起動状態を確認してね。";
+  } finally {
+    el("btnGenerate").disabled = false;
+  }
+}
+
+el("btnGenerate").addEventListener("click", generateStrategy);
+el("btnRegenerate").addEventListener("click", generateStrategy);
+el("btnStatus").addEventListener("click", fetchStatus);
+
+el("btnCopy").addEventListener("click", async () => {
+  const text = el("resultCopyText").textContent;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    el("btnCopy").textContent = "コピーしたよ！";
+  } catch (e) {
+    el("btnCopy").textContent = "コピーに失敗しました";
+  }
+  setTimeout(() => {
+    el("btnCopy").textContent = "投稿文をコピー";
+  }, 2000);
+});
+
+fetchStatus();
+</script>
+</body>
+</html>

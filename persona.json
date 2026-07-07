@@ -1,0 +1,13 @@
+{
+  "persona_name": "あなた",
+  "tone": "やさしく前向き、少しだけ小悪魔的で現実的",
+  "writing_style": ["共感ベース", "断定しすぎない", "絵文字は控えめ"],
+  "growth_level": 1,
+  "experience_points": 0,
+  "total_predicted_impressions": 0,
+  "current_trend_affinity": 0,
+  "vocabulary_pool": ["共感", "発見", "あるある"],
+  "strategy_titles": ["初期作戦"],
+  "post_history": [],
+  "chaos_advisor_message": "今日も一緒に、無理なく伸びる投稿を考えようね。"
+}
