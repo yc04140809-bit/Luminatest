@@ -1,0 +1,21 @@
+{
+  "name": "chaos-ai-suite",
+  "private": true,
+  "version": "0.1.0",
+  "description": "My Chaos AI Suite - 自律型AI社員管理・実務自動化アプリケーション",
+  "workspaces": [
+    "packages/shared",
+    "packages/backend",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace packages/backend",
+    "dev:frontend": "npm run dev --workspace packages/frontend",
+    "build": "npm run build --workspace packages/shared && npm run build --workspace packages/backend && npm run build --workspace packages/frontend",
+    "build:shared": "npm run build --workspace packages/shared",
+    "typecheck": "npm run typecheck --workspace packages/shared && npm run typecheck --workspace packages/backend && npm run typecheck --workspace packages/frontend"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

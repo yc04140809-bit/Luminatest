@@ -1,0 +1,36 @@
+import type { Agent } from "./agent.js";
+import type { Task } from "./task.js";
+import type { Message } from "./message.js";
+
+/** 進行中の作戦会議（例: セイラちゃん×レヴィちゃんのタスク分解会議）。 */
+export interface ActiveMeeting {
+  id: string;
+  topic: string;
+  participantAgentIds: string[];
+  relatedTaskId?: string;
+  startedAt: string;
+}
+
+/**
+ * オフィス全体のスナップショット。フロントエンドはこの型をポーリング/WebSocketで受け取り
+ * オフィスビュー・タイムラインビューの両方を描画する。
+ */
+export interface OfficeState {
+  agents: Record<string, Agent>;
+  tasks: Record<string, Task>;
+  /** 直近N件の社内チャットログ（全文はページング取得を想定） */
+  messages: Message[];
+  activeMeetings: ActiveMeeting[];
+  /** 代表の承認を待っているタスクIDの一覧 */
+  pendingApprovalTaskIds: string[];
+  lastUpdated: string;
+}
+
+/** サーバー→クライアントのリアルタイム更新イベント。 */
+export type OfficeEvent =
+  | { type: "agent_updated"; agent: Agent }
+  | { type: "task_updated"; task: Task }
+  | { type: "message_created"; message: Message }
+  | { type: "meeting_started"; meeting: ActiveMeeting }
+  | { type: "meeting_ended"; meetingId: string }
+  | { type: "office_state_snapshot"; state: OfficeState };
