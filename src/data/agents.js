@@ -32,9 +32,9 @@ export const AGENTS = [
     character: "アリアちゃん",
     room: "研修室",
     tagline: "社内研修を自動設計",
-    desc: "接遇・クレーム対応・新人教育の研修資料を作成予定",
+    desc: "テーマ・業種・目的を入力すると、研修構成からロールプレイ例、確認テストまでAIが作成します。",
     avatarUrl: null,
-    status: "soon",
+    status: "available",
   },
   {
     id: "dev-spec",

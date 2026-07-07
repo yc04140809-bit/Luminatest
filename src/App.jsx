@@ -7,6 +7,7 @@ import Login from "./screens/Login";
 import SuiteHome from "./screens/SuiteHome";
 import DocumentAI from "./screens/DocumentAI";
 import BoardroomAI from "./screens/BoardroomAI";
+import TrainingMaterialAI from "./screens/TrainingMaterialAI";
 import OrgJoin from "./screens/OrgJoin";
 import Onboarding from "./screens/Onboarding";
 import Home from "./screens/Home";
@@ -113,6 +114,11 @@ export default function App() {
   /* 経営サポートAI(AI会議室・接遇ガードAIとは独立した画面) */
   if (suiteScreen === "management") {
     return <BoardroomAI onBack={() => setSuiteScreen("home")} />;
+  }
+
+  /* 研修資料AI(接遇ガードAIとは独立した画面) */
+  if (suiteScreen === "training-material") {
+    return <TrainingMaterialAI onBack={() => setSuiteScreen("home")} />;
   }
 
   return (
