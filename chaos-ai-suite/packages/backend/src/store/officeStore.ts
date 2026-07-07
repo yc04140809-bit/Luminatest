@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   buildSeedOfficeState,
+  type ActiveMeeting,
   type Agent,
   type AgentDraft,
   type Message,
@@ -71,6 +72,44 @@ export class OfficeStore {
     if (!this.state.agents[id]) return false;
     delete this.state.agents[id];
     return true;
+  }
+
+  /**
+   * オーケストレーションループ専用の状態更新。AgentDraft（GUI編集フォーム）とは別枠で、
+   * status / currentTaskId / currentTaskSummary のみを扱う。
+   */
+  setAgentStatus(
+    id: string,
+    patch: Partial<Pick<Agent, "status" | "currentTaskId" | "currentTaskSummary">>,
+  ): Agent | undefined {
+    const existing = this.state.agents[id];
+    if (!existing) return undefined;
+    const updated: Agent = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+    this.state.agents[id] = updated;
+    this.emit({ type: "agent_updated", agent: updated });
+    return updated;
+  }
+
+  startMeeting(input: {
+    topic: string;
+    participantAgentIds: string[];
+    relatedTaskId?: string;
+  }): ActiveMeeting {
+    const meeting: ActiveMeeting = {
+      id: `meeting-${randomUUID()}`,
+      startedAt: new Date().toISOString(),
+      ...input,
+    };
+    this.state.activeMeetings.push(meeting);
+    this.emit({ type: "meeting_started", meeting });
+    return meeting;
+  }
+
+  endMeeting(id: string): void {
+    const index = this.state.activeMeetings.findIndex((meeting) => meeting.id === id);
+    if (index === -1) return;
+    this.state.activeMeetings.splice(index, 1);
+    this.emit({ type: "meeting_ended", meetingId: id });
   }
 
   listTasks(): Task[] {
