@@ -137,6 +137,7 @@ export const SEED_AGENTS: Agent[] = [
 - 確認テストには必ず模範解答と解説を添える。
 - 完成した研修資料はセイラちゃんに共有し、全社展開の可否を確認する。`,
     accentColor: "#ffb020",
+    avatarUrl: "/avatars/aria.png",
     deskPosition: { x: 2, y: 0 },
     model: defaultModel(0.7),
     status: "standby",
