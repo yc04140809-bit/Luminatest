@@ -9,6 +9,7 @@ import DocumentAI from "./screens/DocumentAI";
 import BoardroomAI from "./screens/BoardroomAI";
 import TrainingMaterialAI from "./screens/TrainingMaterialAI";
 import SNSPostAI from "./screens/SNSPostAI";
+import DevSpecAI from "./screens/DevSpecAI";
 import OrgJoin from "./screens/OrgJoin";
 import Onboarding from "./screens/Onboarding";
 import Home from "./screens/Home";
@@ -125,6 +126,11 @@ export default function App() {
   /* SNS投稿AI(接遇ガードAIとは独立した画面) */
   if (suiteScreen === "sns") {
     return <SNSPostAI onBack={() => setSuiteScreen("home")} />;
+  }
+
+  /* 開発指示書AI(接遇ガードAIとは独立した画面) */
+  if (suiteScreen === "dev-spec") {
+    return <DevSpecAI onBack={() => setSuiteScreen("home")} />;
   }
 
   return (

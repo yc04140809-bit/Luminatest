@@ -42,9 +42,9 @@ export const AGENTS = [
     character: "レヴィちゃん",
     room: "開発室",
     tagline: "AI開発用の指示書を作成",
-    desc: "Manus・Claude Code・Fable5向け指示書を作成予定",
+    desc: "アプリの目的・機能などを入力すると、Manus・Claude Code・Fable5向けの完成指示書をAIが作成します。",
     avatarUrl: null,
-    status: "soon",
+    status: "available",
   },
   {
     id: "sns",
