@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Lumina - オートバトル ドット絵プロトタイプ</title>
+<title>Lumina - オートバトル プロトタイプ</title>
 <style>
 :root{
   --bg-deep:#0d0a1a;
@@ -32,8 +32,6 @@ html,body{
 #battle{
   position:absolute; inset:0;
   width:100%; height:100%;
-  image-rendering:pixelated;
-  image-rendering:crisp-edges;
   cursor:pointer;
 }
 .hint{
@@ -74,7 +72,7 @@ html,body{
 </head>
 <body>
 <div class="stage">
-  <canvas id="battle" width="320" height="180"></canvas>
+  <canvas id="battle" width="960" height="540"></canvas>
   <div class="hint" id="hint">画面をタップ: チーム必殺技を発動(タイミングでダメージが変わる)</div>
   <div class="result" id="result">
     <div id="resultText"></div>
@@ -82,36 +80,10 @@ html,body{
   </div>
 </div>
 <script>
-/* =========================================================
-   ドット絵は全てプレースホルダー(16x16の文字マトリクス)。
-   後で本物のキャラスプライトに差し替える前提の仮アセット。
-   ========================================================= */
+/* 敵はプレースホルダー(16x16の文字マトリクス)のまま。後で本物の敵スプライトに差し替え予定。 */
 const PALETTES = {
-  chaos:{ O:'#1a1020', H:'#c98a3a', S:'#f2d9b0', B:'#8a5a3a', G:'#f6e3a8' },
-  ice:  { O:'#0d1a2a', H:'#3a6ac9', S:'#e8f4ff', B:'#2a4a7a', G:'#9fd8ff' },
-  light:{ O:'#2a2010', H:'#d9b56a', S:'#fff6e0', B:'#d9a95a', G:'#fff6d8' },
   enemy:{ O:'#140816', H:'#4a1a5a', S:'#6a4a7a', B:'#2a1030', G:'#ff5050' }
 };
-
-const ALLY_SPRITE = [
-"................",
-"....OOOOOO......",
-"...OHHHHHHO.....",
-"..OHHHHHHHHO....",
-"..OHSSSSSSHO....",
-"..OHSSSSSSHO....",
-"..OOSSSSSSOO....",
-"...OOOOOOOO.....",
-"....OBBBBO......",
-"...OBBBBBBO.....",
-"..OBBBBBBBBO....",
-"..OBBGGGGBBO....",
-"..OBBGGGGBBO....",
-"..OOB....BOO....",
-"...OO....OO.....",
-"................"
-];
-
 const ENEMY_SPRITE = [
 ".O............O.",
 "..O........O....",
@@ -133,22 +105,32 @@ const ENEMY_SPRITE = [
 
 const canvas = document.getElementById('battle');
 const ctx = canvas.getContext('2d');
-ctx.imageSmoothingEnabled = false;
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = 'high';
 const CW = canvas.width, CH = canvas.height;
 
 const ULT_MAX = 100;
 const ULT_WINDOW = 3.0;
 const ULT_PERFECT_WINDOW = 1.2;
 
+function loadImg(src){
+  const img = new Image();
+  img.src = src;
+  return img;
+}
+const ICE_IMG   = loadImg('assets/chars/ice_char.png');
+const LIGHT_IMG  = loadImg('assets/chars/light_char.png');
+const CHAOS_IMG  = loadImg('assets/chars/chaos_char.png');
+
 function freshAllies(){
   return [
-    { name:'キャラA', element:'chaos', hp:150, maxHp:150, atk:14, spd:1.0,  cd:0, skillGauge:0, skillMax:100, baseX:60,  baseY:50,  scale:2, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
-    { name:'キャラB', element:'ice',   hp:150, maxHp:150, atk:13, spd:0.85, cd:0, skillGauge:0, skillMax:100, baseX:60,  baseY:95,  scale:2, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
-    { name:'キャラC', element:'light', hp:150, maxHp:150, atk:15, spd:1.15, cd:0, skillGauge:0, skillMax:100, baseX:60,  baseY:140, scale:2, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true }
+    { name:'キャラA', element:'chaos', img:CHAOS_IMG, hp:150, maxHp:150, atk:14, spd:1.0,  cd:0, skillGauge:0, skillMax:100, baseX:380, baseY:370, displayHeight:150, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
+    { name:'キャラB', element:'ice',   img:ICE_IMG,   hp:150, maxHp:150, atk:13, spd:0.85, cd:0, skillGauge:0, skillMax:100, baseX:290, baseY:400, displayHeight:165, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
+    { name:'キャラC', element:'light', img:LIGHT_IMG, hp:150, maxHp:150, atk:15, spd:1.15, cd:0, skillGauge:0, skillMax:100, baseX:195, baseY:430, displayHeight:180, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true }
   ];
 }
 function freshEnemy(){
-  return { name:'魔物', hp:1400, maxHp:1400, atk:22, spd:0.7, cd:1.0, baseX:250, baseY:110, scale:5, anim:{type:'idle',t:0}, flash:0, alive:true };
+  return { name:'魔物', hp:1400, maxHp:1400, atk:22, spd:0.7, cd:1.0, baseX:740, baseY:430, scale:16, anim:{type:'idle',t:0}, flash:0, alive:true };
 }
 
 let allies = freshAllies();
@@ -168,7 +150,7 @@ function blendWhite(hex, amt){
   const b = Math.round(c.b + (255-c.b)*amt);
   return `rgb(${r},${g},${b})`;
 }
-function drawSprite(sprite, palette, cx, cy, scale, flash, dir){
+function drawMatrixSprite(sprite, palette, cx, cy, scale, flash, dir){
   const w=16, h=16;
   const startX = cx - (w*scale)/2;
   const startY = cy - (h*scale);
@@ -185,32 +167,73 @@ function drawSprite(sprite, palette, cx, cy, scale, flash, dir){
     }
   }
 }
+function drawImageSprite(a){
+  const img = a.img;
+  if(!img || !img.complete || !img.naturalWidth) return;
+  const bob = a.anim.type==='idle' ? Math.sin(performance.now()/400 + a.bob)*6 : 0;
+  const lunge = lungeOffset(a);
+  const dh = a.displayHeight;
+  const dw = dh * (img.naturalWidth/img.naturalHeight);
+  const x = a.baseX + lunge - dw/2;
+  const y = a.baseY + bob - dh;
+  const w = Math.round(dw), h = Math.round(dh);
+
+  /* flash/dim tints must be composited on a transparent offscreen canvas first;
+     source-atop on the main canvas would tint the whole box since the background
+     beneath it is already opaque. */
+  if(!a._off || a._off.width!==w || a._off.height!==h){
+    a._off = document.createElement('canvas');
+    a._off.width = w; a._off.height = h;
+  }
+  const octx = a._off.getContext('2d');
+  octx.clearRect(0,0,w,h);
+  octx.drawImage(img, 0,0,w,h);
+  if(a.flash>0){
+    octx.save();
+    octx.globalCompositeOperation = 'source-atop';
+    octx.globalAlpha = a.flash;
+    octx.fillStyle = '#ffffff';
+    octx.fillRect(0,0,w,h);
+    octx.restore();
+  }
+  if(!a.alive){
+    octx.save();
+    octx.globalCompositeOperation = 'source-atop';
+    octx.globalAlpha = 0.6;
+    octx.fillStyle = '#000000';
+    octx.fillRect(0,0,w,h);
+    octx.restore();
+  }
+  ctx.drawImage(a._off, x, y);
+  drawHpBar(a.baseX, a.baseY - dh - 16, a.hp, a.maxHp, dw*0.8);
+}
 function drawHpBar(cx, y, hp, maxHp, width){
   const x = cx - width/2;
+  const h = 10;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(x,y,width,4);
+  ctx.fillRect(x,y,width,h);
   const pct = Math.max(0, hp/maxHp);
   ctx.fillStyle = pct>0.5 ? '#7be08a' : pct>0.2 ? '#e0c05a' : '#e05a5a';
-  ctx.fillRect(x,y,width*pct,4);
-  ctx.strokeStyle = 'rgba(217,181,106,0.5)';
-  ctx.strokeRect(x+0.5,y+0.5,width-1,3);
+  ctx.fillRect(x,y,width*pct,h);
+  ctx.strokeStyle = 'rgba(217,181,106,0.6)';
+  ctx.strokeRect(x+0.5,y+0.5,width-1,h-1);
 }
 function spawnFloater(x,y,text,color,big){
-  floaters.push({ x, y, text, color, vy:-18, life:1, maxLife: big?1.3:0.9, size: big?16:10 });
+  floaters.push({ x, y, text, color, vy:-54, life:1, maxLife: big?1.3:0.9, size: big?42:28 });
 }
 
 function damageEnemy(amount, color, label){
   if(!enemy.alive) return;
   enemy.hp = Math.max(0, enemy.hp-amount);
   enemy.flash = 1;
-  spawnFloater(enemy.baseX, enemy.baseY-72, (label?label+' ':'')+Math.round(amount), color, !!label);
+  spawnFloater(enemy.baseX, enemy.baseY - enemy.scale*16*0.8, (label?label+' ':'')+Math.round(amount), color, !!label);
   if(enemy.hp<=0){ enemy.alive=false; endBattle(true); }
 }
 function damageAlly(target, amount){
   if(!target.alive) return;
   target.hp = Math.max(0, target.hp-amount);
   target.flash = 1;
-  spawnFloater(target.baseX, target.baseY-56, Math.round(amount), '#ff6060');
+  spawnFloater(target.baseX, target.baseY - target.displayHeight*0.7, Math.round(amount), '#ff6060');
   if(target.hp<=0){
     target.alive = false;
     if(allies.every(a=>!a.alive)) endBattle(false);
@@ -228,10 +251,11 @@ function allyBasicAttack(a){
     allySkill(a);
   }
 }
+const ELEMENT_GLOW = { chaos:'#f6e3a8', ice:'#9fd8ff', light:'#fff6d8' };
 function allySkill(a){
   a.anim = { type:'skill', t:0, duration:0.5 };
   const dmg = Math.round(a.atk*2.4 + Math.random()*10);
-  damageEnemy(dmg, PALETTES[a.element].G, 'SKILL');
+  damageEnemy(dmg, ELEMENT_GLOW[a.element], 'SKILL');
   ult.gauge = Math.min(ULT_MAX, ult.gauge+18);
 }
 function enemyAttack(){
@@ -293,7 +317,7 @@ function update(dt){
 function lungeOffset(c){
   if(c.anim.type==='idle') return 0;
   const progress = Math.min(1, c.anim.t / c.anim.duration);
-  const amp = c.anim.type==='skill' ? 22 : 14;
+  const amp = c.anim.type==='skill' ? 66 : 42;
   const wave = progress<0.5 ? (progress/0.5) : (1-(progress-0.5)/0.5);
   return amp*wave;
 }
@@ -304,32 +328,23 @@ function render(){
   grad.addColorStop(0,'#1a1430'); grad.addColorStop(1,'#07050f');
   ctx.fillStyle = grad; ctx.fillRect(0,0,CW,CH);
   ctx.strokeStyle = 'rgba(217,181,106,0.25)';
-  ctx.beginPath(); ctx.moveTo(0,168); ctx.lineTo(CW,168); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,462); ctx.lineTo(CW,462); ctx.stroke();
 
-  const barX=60, barY=8, barW=200, barH=8;
+  const barX=190, barY=20, barW=580, barH=22;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY,barW,barH);
   ctx.fillStyle = ult.ready ? '#fff6a8' : '#d9b56a';
   ctx.fillRect(barX,barY, barW*(ult.gauge/ULT_MAX), barH);
   ctx.strokeStyle = '#f6e3a8'; ctx.strokeRect(barX+0.5,barY+0.5,barW-1,barH-1);
-  ctx.fillStyle = '#f2ecdf'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
-  ctx.fillText(ult.ready ? 'タップで必殺技発動!' : 'ULT', CW/2, barY-2);
+  ctx.fillStyle = '#f2ecdf'; ctx.font = '22px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(ult.ready ? 'タップで必殺技発動!' : 'ULT', CW/2, barY-6);
 
-  allies.forEach(a=>{
-    const bob = a.anim.type==='idle' ? Math.sin(performance.now()/400 + a.bob)*2 : 0;
-    const lunge = lungeOffset(a);
-    drawSprite(ALLY_SPRITE, PALETTES[a.element], a.baseX+lunge, a.baseY+bob, a.scale, a.flash, 1);
-    drawHpBar(a.baseX, a.baseY - a.scale*16 - 6, a.hp, a.maxHp, a.scale*16);
-    if(!a.alive){
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(a.baseX - a.scale*8, a.baseY - a.scale*16, a.scale*16, a.scale*16);
-    }
-  });
+  allies.forEach(a=> drawImageSprite(a));
 
   if(enemy.alive || enemy.hp<=0){
-    const ebob = enemy.anim.type==='idle' ? Math.sin(performance.now()/500)*2 : 0;
+    const ebob = enemy.anim.type==='idle' ? Math.sin(performance.now()/500)*6 : 0;
     const elunge = lungeOffset(enemy);
-    drawSprite(ENEMY_SPRITE, PALETTES.enemy, enemy.baseX-elunge, enemy.baseY+ebob, enemy.scale, enemy.flash, -1);
-    drawHpBar(enemy.baseX, enemy.baseY - enemy.scale*16 - 8, enemy.hp, enemy.maxHp, enemy.scale*16+20);
+    drawMatrixSprite(ENEMY_SPRITE, PALETTES.enemy, enemy.baseX-elunge, enemy.baseY+ebob, enemy.scale, enemy.flash, -1);
+    drawHpBar(enemy.baseX, enemy.baseY - enemy.scale*16 - 24, enemy.hp, enemy.maxHp, enemy.scale*16+60);
   }
 
   floaters.forEach(f=>{
