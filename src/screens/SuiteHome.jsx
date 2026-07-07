@@ -47,6 +47,35 @@ function FlagshipCard({ agent, onOpen }) {
   );
 }
 
+/* 利用可能なAI社員1名分のカード(看板以外・通常サイズ) */
+function AvailableCard({ agent, onOpen }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="w-full text-left rounded-2xl p-4 flex items-center gap-3 ring-1 bg-gradient-to-r from-slate-800 to-slate-900 ring-amber-400/40 shadow-lg transition-transform active:scale-95"
+    >
+      <div className="w-14 h-14 rounded-xl shrink-0 flex items-center justify-center overflow-hidden ring-2 ring-amber-300">
+        {agent.avatarUrl ? (
+          <img src={agent.avatarUrl} alt={agent.character} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-lg font-bold text-slate-300">{agent.character.slice(0, 1)}</span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-bold text-white">{agent.name}</p>
+          <span className="text-xs text-amber-300">{agent.room}</span>
+        </div>
+        <p className="text-xs text-slate-300 mt-0.5">
+          {agent.character} ・ {agent.tagline}
+        </p>
+        <p className="text-xs text-slate-400 mt-1 leading-relaxed">{agent.desc}</p>
+      </div>
+      <span className="text-amber-300 text-xl shrink-0">›</span>
+    </button>
+  );
+}
+
 /* 準備中のAI社員1名分のカード(部署アイコン+名前+説明文) */
 function SoonCard({ agent, onSoon }) {
   return (
@@ -77,11 +106,13 @@ function SoonCard({ agent, onSoon }) {
 }
 
 /* Chaos AI Suite ホーム画面(接遇ガードAIを看板機能として強調し、複数のAI社員が並ぶ入口) */
-export default function SuiteHome({ onOpenSesshoku }) {
+export default function SuiteHome({ onOpenAgent }) {
   const [soonMsg, setSoonMsg] = useState("");
 
   const flagship = AGENTS.find((a) => a.flagship);
   const others = AGENTS.filter((a) => !a.flagship);
+  const availableOthers = others.filter((a) => a.status === "available");
+  const soonOthers = others.filter((a) => a.status !== "available");
 
   const handleSoon = (agent) => {
     setSoonMsg(`${agent.character}(${agent.name})は準備中です。今後追加予定です。`);
@@ -106,11 +137,22 @@ export default function SuiteHome({ onOpenSesshoku }) {
             </p>
           </div>
 
-          {flagship && <FlagshipCard agent={flagship} onOpen={onOpenSesshoku} />}
+          {flagship && <FlagshipCard agent={flagship} onOpen={() => onOpenAgent(flagship.id)} />}
+
+          {availableOthers.length > 0 && (
+            <>
+              <p className="text-xs font-bold text-amber-300 mb-2">利用可能なAI社員</p>
+              <div className="space-y-3 mb-6">
+                {availableOthers.map((agent) => (
+                  <AvailableCard key={agent.id} agent={agent} onOpen={() => onOpenAgent(agent.id)} />
+                ))}
+              </div>
+            </>
+          )}
 
           <p className="text-xs font-bold text-slate-400 mb-2">その他のAI社員(準備中)</p>
           <div className="space-y-3">
-            {others.map((agent) => (
+            {soonOthers.map((agent) => (
               <SoonCard key={agent.id} agent={agent} onSoon={handleSoon} />
             ))}
           </div>

@@ -22,9 +22,9 @@ export const AGENTS = [
     character: "ネムリちゃん",
     room: "事務室",
     tagline: "業務文書を自動作成",
-    desc: "マニュアル・報告書・提案書などを作成予定",
+    desc: "マニュアル・報告書・提案書などをAIがその場で作成します。",
     avatarUrl: null,
-    status: "soon",
+    status: "available",
   },
   {
     id: "training-material",

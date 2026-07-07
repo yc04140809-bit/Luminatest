@@ -5,6 +5,7 @@ import { INDUSTRIES } from "./data/constants";
 
 import Login from "./screens/Login";
 import SuiteHome from "./screens/SuiteHome";
+import DocumentAI from "./screens/DocumentAI";
 import OrgJoin from "./screens/OrgJoin";
 import Onboarding from "./screens/Onboarding";
 import Home from "./screens/Home";
@@ -100,7 +101,12 @@ export default function App() {
 
   /* Chaos AI Suite ホーム画面(全データ読込・組織参加・初回案内が済んだ後に表示) */
   if (loaded && orgId && onboarded && suiteScreen === "home") {
-    return <SuiteHome onOpenSesshoku={() => setSuiteScreen("sesshoku")} />;
+    return <SuiteHome onOpenAgent={(id) => setSuiteScreen(id)} />;
+  }
+
+  /* 書類作成AI(接遇ガードAIとは独立した画面) */
+  if (suiteScreen === "documents") {
+    return <DocumentAI onBack={() => setSuiteScreen("home")} />;
   }
 
   return (
