@@ -176,7 +176,7 @@ footer{ text-align:center; font-size:11px; color:rgba(201,194,216,.5); margin-to
     <div class="avatar">補</div>
     <div>
       <h1>補助金申請書AI</h1>
-      <div class="subtitle">メグミちゃん・公募要領の型に合わせて申請書の下書きを作成します</div>
+      <div class="subtitle">メグミちゃん・Claude AIがWeb検索で最新の公募要領を確認しながら申請書の下書きを作成します</div>
       <div class="badge">PROTOTYPE</div>
     </div>
   </header>
@@ -234,7 +234,7 @@ footer{ text-align:center; font-size:11px; color:rgba(201,194,216,.5); margin-to
       <button class="ghost" id="downloadBtn">テキストとしてダウンロード</button>
     </div>
     <div class="disclaimer">
-      ⚠ これはテンプレートロジックによる下書き自動生成です。実際の申請では最新の公募要領を必ず確認し、内容の正確性については専門家（中小企業診断士・税理士・行政書士等）や事務局に確認してください。
+      ⚠ この下書きはClaude AIがWeb検索で確認した情報をもとに自動生成したものです。検索結果の精度・鮮度には限界があるため、実際の申請では必ず公式の公募要領を確認し、内容の正確性については専門家（中小企業診断士・税理士・行政書士等）や事務局に確認してください。
     </div>
   </section>
 
@@ -247,77 +247,29 @@ footer{ text-align:center; font-size:11px; color:rgba(201,194,216,.5); margin-to
 "use strict";
 
 /* =========================================================
-   補助金種別ごとの申請書テンプレート定義
-   sections: 見出しと、入力値を差し込んで文章を組み立てる関数
+   補助金種別のメタ情報(カード表示用)
+   実際の下書き生成は /api/generate (Claude API + Web検索) が行う
    ========================================================= */
 const SUBSIDIES = [
   {
     key:"jizokuka",
     name:"小規模事業者持続化補助金",
     desc:"販路開拓・生産性向上の取組を支援。汎用性が高く個人事業主にも使いやすい。",
-    sections:[
-      { title:"1. 企業概要", build:(d)=>
-        `${d.bizName}は${d.industry}を営む事業者である。主な事業内容は「${d.bizContent}」であり、地域の顧客ニーズに応える形で事業を継続してきた。` },
-      { title:"2. 顧客ニーズと市場の動向", build:(d)=>
-        `近年、${d.industry}の分野では顧客ニーズの多様化と競争環境の変化が進んでいる。こうした中、当社は既存事業の強みを活かしつつ、新たな価値提供が求められている。` },
-      { title:"3. 自社の強み", build:(d)=>
-        `当社は「${d.bizContent}」において培ったノウハウを強みとしている。一方で、現状は「${d.issue}」という課題を抱えており、この解決が今後の成長に不可欠である。` },
-      { title:"4. 経営方針・目標と今後のプラン", build:(d)=>
-        `上記課題を踏まえ、当社は「${d.goal}」ことを目標に掲げる。${d.numbers ? `具体的には${d.numbers}を目指す。` : ""}` },
-      { title:"5. 補助事業で行う事業の内容", build:(d)=>
-        `本補助事業では「${d.goal}」を実現するための取組を実施する。${d.budget ? `事業規模は${d.budget}を想定している。` : ""}` },
-      { title:"6. 補助事業の効果", build:(d)=>
-        `本事業の実施により、${d.issue.replace(/。$/,"")}という課題が解消され、${d.numbers ? d.numbers + "の効果が見込まれる。" : "販路拡大・生産性向上につながる効果が見込まれる。"}` },
-    ]
   },
   {
     key:"it",
     name:"IT導入補助金",
     desc:"ITツール導入による生産性向上を支援。SaaS・システム導入向け。",
-    sections:[
-      { title:"1. 導入の背景・現状の課題", build:(d)=>
-        `${d.bizName}（${d.industry}）では、「${d.issue}」という課題を抱えている。従来の業務プロセスでは対応に限界があり、ITツールの活用による解決が必要と考えている。` },
-      { title:"2. 事業内容", build:(d)=>
-        `当社の主な事業内容は「${d.bizContent}」である。この事業を支える基盤として、業務効率化のためのITツール導入を検討している。` },
-      { title:"3. 導入するITツールの概要・活用方法", build:(d)=>
-        `本事業では「${d.goal}」を目的としたITツールを導入する。導入後は業務フローに組み込み、日常業務での活用を徹底する。` },
-      { title:"4. 導入による効果（生産性向上）", build:(d)=>
-        `ITツール導入により、${d.numbers ? d.numbers + "の効果を見込む。" : "業務時間の削減・生産性向上が期待される。"}${d.budget ? ` 導入費用は${d.budget}を想定している。` : ""}` },
-      { title:"5. 実施体制", build:(d)=>
-        `本事業は${d.bizName}内の担当者が中心となり、必要に応じてITベンダーの支援を受けながら導入・運用を進める体制とする。` },
-    ]
   },
   {
     key:"monodukuri",
     name:"ものづくり補助金",
     desc:"革新的な設備投資・試作開発を支援。製造業・サービス業の設備投資向け。",
-    sections:[
-      { title:"1. 事業計画名（案）", build:(d)=>
-        `${d.goal.length > 20 ? d.goal.slice(0,20) + "…" : d.goal}\n─ ${d.industry}における生産性向上事業` },
-      { title:"2. 現状の課題", build:(d)=>
-        `${d.bizName}は「${d.bizContent}」を行っているが、現在「${d.issue}」という課題に直面している。市場環境の変化に対応するためには、抜本的な設備・体制の刷新が必要である。` },
-      { title:"3. 革新的な取組の具体的内容", build:(d)=>
-        `本事業では「${d.goal}」ことを目的とした設備投資・新たな取組を実施する。${d.budget ? `事業規模は${d.budget}を予定している。` : ""}` },
-      { title:"4. 課題解決の方法", build:(d)=>
-        `導入する設備・仕組みにより、従来「${d.issue}」であった状態を解消し、生産工程・提供体制の効率化を図る。` },
-      { title:"5. 補助事業の効果（数値目標）", build:(d)=>
-        `本事業により、${d.numbers ? d.numbers + "を達成目標とする。" : "付加価値額・生産性の向上を数値目標として設定する。"}併せて、給与支給総額の向上にも寄与する計画である。` },
-    ]
   },
   {
     key:"saikouchiku",
     name:"事業再構築補助金",
     desc:"新分野展開・業態転換など思い切った事業再構築を支援。",
-    sections:[
-      { title:"1. 事業再構築の必要性", build:(d)=>
-        `${d.bizName}はこれまで「${d.bizContent}」を営んできたが、「${d.issue}」という構造的な課題に直面しており、事業モデルの再構築が急務となっている。` },
-      { title:"2. 事業再構築の具体的内容", build:(d)=>
-        `本事業では「${d.goal}」ことにより、新たな事業領域への展開を図る。${d.budget ? `総事業費は${d.budget}を想定している。` : ""}` },
-      { title:"3. 市場性・優位性", build:(d)=>
-        `${d.industry}分野における当社のこれまでの実績・ノウハウを活かすことで、新事業においても優位性を発揮できると考える。` },
-      { title:"4. 事業化に向けた計画", build:(d)=>
-        `本事業の実施を通じて、${d.numbers ? d.numbers + "を数値目標とする。" : "売上・収益基盤の確立を目指す。"}` },
-    ]
   },
 ];
 
@@ -360,8 +312,9 @@ function toast(msg){
   setTimeout(() => t.classList.remove("show"), 1800);
 }
 
-/* 下書き生成 */
-document.getElementById("genBtn").addEventListener("click", () => {
+/* 下書き生成: サーバーの /api/generate 経由でClaude API(Web検索付き)を呼び出す */
+const genBtn = document.getElementById("genBtn");
+genBtn.addEventListener("click", async () => {
   const d = collectInput();
   const required = ["bizName","industry","bizContent","issue","goal"];
   const missing = required.filter(k => !d[k]);
@@ -370,18 +323,41 @@ document.getElementById("genBtn").addEventListener("click", () => {
     return;
   }
 
-  const subsidy = SUBSIDIES.find(s => s.key === selectedSubsidy);
-  const root = document.getElementById("draftBlocks");
-  root.innerHTML = "";
-  subsidy.sections.forEach(sec => {
-    const block = document.createElement("div");
-    block.className = "draft-block";
-    block.innerHTML = `<h3>${sec.title}</h3><div class="content" contenteditable="true">${sec.build(d)}</div>`;
-    root.appendChild(block);
-  });
+  const originalLabel = genBtn.textContent;
+  genBtn.disabled = true;
+  genBtn.textContent = "メグミちゃんが最新の公募要領を確認しながら作成中…(数十秒かかります)";
 
-  document.getElementById("output").style.display = "block";
-  document.getElementById("output").scrollIntoView({ behavior:"smooth", block:"start" });
+  try{
+    const res = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subsidyKey: selectedSubsidy, ...d }),
+    });
+    const data = await res.json();
+    if(!res.ok){
+      toast(data.error || "生成に失敗しました");
+      return;
+    }
+
+    const root = document.getElementById("draftBlocks");
+    root.innerHTML = "";
+    data.sections.forEach(sec => {
+      const block = document.createElement("div");
+      block.className = "draft-block";
+      block.innerHTML = `<h3></h3><div class="content" contenteditable="true"></div>`;
+      block.querySelector("h3").textContent = sec.title;
+      block.querySelector(".content").textContent = sec.content;
+      root.appendChild(block);
+    });
+
+    document.getElementById("output").style.display = "block";
+    document.getElementById("output").scrollIntoView({ behavior:"smooth", block:"start" });
+  }catch(e){
+    toast("通信エラーが発生しました");
+  }finally{
+    genBtn.disabled = false;
+    genBtn.textContent = originalLabel;
+  }
 });
 
 /* 全文コピー */

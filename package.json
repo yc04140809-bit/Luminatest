@@ -1,0 +1,9 @@
+{
+  "name": "grant-application-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "補助金申請書AI - Claude APIを使った申請書下書き生成プロトタイプ",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0"
+  }
+}
