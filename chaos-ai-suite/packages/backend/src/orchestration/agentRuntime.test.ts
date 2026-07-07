@@ -156,3 +156,25 @@ test("runTask stops after MAX_HANDOFFS to avoid infinite handoff loops", async (
   assert.equal(task?.status, "awaiting_approval");
   assert.equal(task?.approval.required, true);
 });
+
+test("dispatchMention assigns directly to one agent without a meeting", async () => {
+  const store = new OfficeStore();
+  const stubLlm: LlmClient = {
+    async callTool<T>(request: ToolCallRequest): Promise<T> {
+      assert.equal(request.toolName, "submit_task_result", "mention flow should skip decomposition");
+      return { output: "（ケイオスちゃんの回答）", action: "complete" } as T;
+    },
+  };
+
+  const runtime = createAgentRuntime(store, stubLlm);
+  await runtime.dispatchMention("agent-chaos", "このクレーム対応どう思う？");
+
+  const tasks = store.listTasks();
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0]?.assignedAgentId, "agent-chaos");
+  assert.equal(tasks[0]?.status, "completed");
+  assert.equal(store.getState().activeMeetings.length, 0);
+
+  const chaos = store.getAgent("agent-chaos");
+  assert.equal(chaos?.status, "standby");
+});

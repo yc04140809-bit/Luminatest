@@ -30,18 +30,25 @@ chaos-ai-suite/
 
 Fastify製API。永続化層は持たず、`OfficeStore`（インメモリ）がシード状態から起動する。
 
-- `REST`: `/api/agents` `/api/tasks` `/api/messages`（CRUD + 承認/差し戻しエンドポイント `/api/tasks/:id/approve` `/api/tasks/:id/reject`）、`/api/directives`（代表からの大雑把な指示の受付）
+- `REST`: `/api/agents` `/api/tasks` `/api/messages`（CRUD + 承認/差し戻しエンドポイント `/api/tasks/:id/approve` `/api/tasks/:id/reject`）、`/api/directives`（全体指示／`targetAgentId`指定で個別メンション指示）
 - `WS`: `/ws/office` — 接続時にOfficeStateのスナップショットを送信し、以後は状態変化を `OfficeEvent` としてプッシュ配信
-- `src/orchestration/` — エージェント・オーケストレーション層（Step2で実装）
+- `src/orchestration/` — エージェント・オーケストレーション層
   - `llmClient.ts` — Anthropic APIをツール強制呼び出し（`tool_choice`）でラップし、構造化レスポンスを得るクライアント。APIキー未設定でもサーバー起動は失敗させず、実際の呼び出し時にのみエラーを返す遅延初期化。
   - `agentExecutor.ts` — 1タスクを担当エージェントに実行させ、成果物本文と次アクション（`complete` / `handoff` / `request_approval`）を得る。
   - `taskDecomposer.ts` — セイラちゃん×レヴィちゃんの作戦会議として、代表の指示を実行可能なタスク群に分解する。
-  - `agentRuntime.ts` — `POST /api/directives` → 作戦会議 → タスク生成 → 担当AIへ自動配分 → 実行 → ハンドオフ連鎖 or 承認ゲート、までを結ぶイベント駆動ループ。無限ハンドオフを防ぐ上限（`MAX_HANDOFFS`）を持ち、重要な成果物は必ず`awaiting_approval`で停止させる。
-  - `agentRuntime.test.ts` — 決定論的なスタブLLMクライアントで分解→実行→ハンドオフ→承認ゲート→無限ループ防止を検証する`node:test`ベースのテスト（`npm run test --workspace packages/backend`で実行、実APIキー不要）。
+  - `agentRuntime.ts` — `dispatchDirective`（全体指示: 作戦会議→タスク生成→担当AIへ自動配分→実行→ハンドオフ連鎖 or 承認ゲート）と `dispatchMention`（個別メンション: 会議を挟まず直接1エージェントへタスク化）の2系統のイベント駆動ループ。無限ハンドオフを防ぐ上限（`MAX_HANDOFFS`）を持ち、重要な成果物は必ず`awaiting_approval`で停止させる。
+  - `agentRuntime.test.ts` — 決定論的なスタブLLMクライアントで分解→実行→ハンドオフ→承認ゲート→無限ループ防止→個別メンションを検証する`node:test`ベースのテスト（`npm run test --workspace packages/backend`で実行、実APIキー不要）。
 
 ### packages/frontend
 
-Vite + React + TypeScript + Tailwind。Step1時点では `/api/agents` を取得してカード表示するだけの疎通確認用シェル。ゲームライクな2Dオフィスビュー・社内チャットログ・代表コマンドセンターはStep3で実装する。
+Vite + React + TypeScript + Tailwind製のゲームライクなダーク/ネオンUI。`/ws/office` をリアルタイム購読し、ポーリングなしで全画面が更新される。
+
+- `hooks/useOfficeSocket.ts` — WebSocketを購読し、`OfficeEvent`を適用してOfficeStateをローカルにミラーリングするreducer。切断時は自動再接続する。
+- `api/officeApi.ts` — 指示投入・承認/差し戻しのPOSTのみを担うAPIクライアント（状態反映はWS経由）。
+- `components/OfficeBoard.tsx` + `AgentDesk.tsx` — `deskPosition`に基づく2Dオフィスビュー。ステータスアイコン（💤🤔📝💬👀）・進行中タスクの吹き出し・作戦会議中バナーを表示し、デスクをクリックするとコマンドセンターの宛先が自動で切り替わる。
+- `components/ChatTimeline.tsx` + `MessageBubble.tsx` — Slack/Discord風の社内チャットログ。メッセージ種別（指示・ハンドオフ・承認依頼・システムログ等）ごとに色分け。
+- `components/CommandCenter.tsx` — 全体指示／個別メンション指示のフォーム（`POST /api/directives`）。
+- `components/ApprovalQueue.tsx` — `awaiting_approval`のタスクを一覧表示し、承認/差し戻しボタンから`/api/tasks/:id/approve|reject`を呼ぶHuman-in-the-loopゲート。
 
 ## セットアップ
 
@@ -63,7 +70,8 @@ curl -X POST http://localhost:4000/api/directives \
 
 `202 Accepted` が即座に返り、以後は `/ws/office` のイベント（`message_created` / `task_updated` / `agent_updated`）でオーケストレーションの進捗が流れる。
 
+個別メンション指示は、コマンドセンターの宛先セレクトでAI社員を選ぶか、オフィスビューでそのデスクをクリックすると宛先が自動で入る。
+
 ## 今後のステップ
 
-- **Step3**: ゲームライクな2Dオフィスビュー（デスク配置・ステータスアイコン・吹き出し）、社内チャット風タイムライン、代表コマンドセンター（全体指示／個別メンション）をWebSocket購読で実装。
 - **Step4**: AI社員のプロンプト・役割をGUIから追加・編集・削除できる設定画面を実装。

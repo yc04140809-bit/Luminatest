@@ -13,6 +13,8 @@ const ARCHITECT_ID = "agent-levi";
 export interface AgentRuntime {
   /** 代表からの大雑把な指示を受けてタスク分解〜実行パイプラインを開始する */
   dispatchDirective(directive: string): Promise<void>;
+  /** 特定のAI社員への個別メンション指示。作戦会議を挟まず直接タスク化して実行する */
+  dispatchMention(agentId: string, directive: string): Promise<void>;
 }
 
 /**
@@ -230,5 +232,33 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient): AgentRun
     await Promise.all(createdTaskIds.map((id) => runTask(id)));
   }
 
-  return { dispatchDirective };
+  async function dispatchMention(agentId: string, directive: string): Promise<void> {
+    const agent = store.getAgent(agentId);
+    if (!agent || !agent.enabled) {
+      throw new Error(`指定されたAI社員（${agentId}）が見つからないか、無効化されています。`);
+    }
+
+    store.postMessage({
+      channel: "command_center",
+      fromAgentId: "user",
+      toAgentId: agent.id,
+      type: "directive",
+      content: directive,
+    });
+
+    const task = store.createTask({
+      title: directive.slice(0, 40),
+      description: directive,
+      priority: "medium",
+      outputType: "text",
+      createdBy: "user",
+      assignedAgentId: agent.id,
+      approval: { required: false, status: "pending" },
+      tags: [],
+    });
+
+    await runTask(task.id);
+  }
+
+  return { dispatchDirective, dispatchMention };
 }
