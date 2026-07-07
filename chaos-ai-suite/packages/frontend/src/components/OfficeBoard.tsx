@@ -1,5 +1,7 @@
 import type { ActiveMeeting, Agent } from "@chaos-ai-suite/shared";
 import { AgentDesk } from "./AgentDesk.js";
+import { useTimeOfDay } from "../hooks/useTimeOfDay.js";
+import { getDeskAnchor } from "../utils/deskAnchors.js";
 
 interface OfficeBoardProps {
   agents: Agent[];
@@ -7,15 +9,21 @@ interface OfficeBoardProps {
   onMention?: (agent: Agent) => void;
 }
 
-/** deskPosition(x,y)に基づき、6人のAI社員をオフィスのデスクに配置するゲームライクなビュー。 */
+const BACKGROUND_BY_TIME = {
+  day: "/office/office-day.png",
+  night: "/office/office-night.png",
+} as const;
+
+/** オフィス写真（昼/夜を時間帯で自動切り替え）の上に、実際のデスク位置へAI社員を重ねるビュー。 */
 export function OfficeBoard({ agents, activeMeetings, onMention }: OfficeBoardProps) {
-  const maxX = Math.max(0, ...agents.map((agent) => agent.deskPosition.x));
-  const maxY = Math.max(0, ...agents.map((agent) => agent.deskPosition.y));
+  const timeOfDay = useTimeOfDay();
 
   return (
     <section className="rounded-xl border border-office-border bg-office-panel p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-display text-lg text-office-gold">オフィス</h2>
+        <h2 className="font-display text-lg text-office-gold">
+          オフィス <span className="text-xs font-normal text-office-muted">{timeOfDay === "day" ? "☀️ 昼" : "🌙 夜"}</span>
+        </h2>
         <span className="text-xs text-office-muted">デスクをクリックすると個別メンション指示を送れます</span>
       </div>
 
@@ -26,20 +34,21 @@ export function OfficeBoard({ agents, activeMeetings, onMention }: OfficeBoardPr
       )}
 
       <div
-        className="grid justify-items-center gap-6"
-        style={{
-          gridTemplateColumns: `repeat(${maxX + 1}, minmax(0, 1fr))`,
-          gridTemplateRows: `repeat(${maxY + 1}, minmax(0, 1fr))`,
-        }}
+        className="relative w-full overflow-hidden rounded-lg bg-cover bg-center transition-[background-image] duration-1000"
+        style={{ aspectRatio: "3 / 2", backgroundImage: `url(${BACKGROUND_BY_TIME[timeOfDay]})` }}
       >
-        {agents.map((agent) => (
-          <div
-            key={agent.id}
-            style={{ gridColumnStart: agent.deskPosition.x + 1, gridRowStart: agent.deskPosition.y + 1 }}
-          >
-            <AgentDesk agent={agent} onMention={onMention} />
-          </div>
-        ))}
+        {agents.map((agent) => {
+          const anchor = getDeskAnchor(agent.id);
+          return (
+            <div
+              key={agent.id}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${anchor.xPct}%`, top: `${anchor.yPct}%` }}
+            >
+              <AgentDesk agent={agent} onMention={onMention} />
+            </div>
+          );
+        })}
       </div>
     </section>
   );

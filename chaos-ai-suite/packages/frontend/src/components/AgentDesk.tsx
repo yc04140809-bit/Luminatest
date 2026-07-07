@@ -11,7 +11,10 @@ interface AgentDeskProps {
 const ACTIVE_STATUSES: Agent["status"][] = ["thinking", "writing", "meeting", "reviewing"];
 const SPARKLE_DURATION_MS = 1100;
 
-/** オフィスビュー上の1デスク。ちびキャラ・ステータスアイコン・現在のタスクの吹き出しを表示する。 */
+/**
+ * オフィス背景写真に重ねる1AI社員分のフローティングバッジ。
+ * 位置決めは呼び出し側（OfficeBoard）がDESK_ANCHORSに基づき絶対配置で行う。
+ */
 export function AgentDesk({ agent, onMention }: AgentDeskProps) {
   const RoleIcon = getAgentIcon(agent.roleKey);
   const isActive = ACTIVE_STATUSES.includes(agent.status);
@@ -36,13 +39,13 @@ export function AgentDesk({ agent, onMention }: AgentDeskProps) {
     <button
       type="button"
       onClick={() => onMention?.(agent)}
-      className="group flex w-40 flex-col items-center gap-2 rounded-xl border border-office-border bg-office-panel/80 p-3 text-center transition hover:border-office-gold hover:shadow-neon"
+      className="group flex flex-col items-center gap-1 transition hover:scale-105"
       title={`${agent.name}に個別メンション指示を出す`}
     >
       <div className="relative">
         <div
-          className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 ${isActive ? "animate-pulse" : ""}`}
-          style={{ borderColor: agent.accentColor, backgroundColor: `${agent.accentColor}22` }}
+          className={`relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 shadow-lg ${isActive ? "animate-pulse" : ""}`}
+          style={{ borderColor: agent.accentColor, backgroundColor: `${agent.accentColor}33` }}
         >
           {agent.avatarUrl ? (
             <img
@@ -69,24 +72,21 @@ export function AgentDesk({ agent, onMention }: AgentDeskProps) {
         )}
 
         <span
-          className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-office-border bg-office-bg text-sm"
+          className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-black/40 bg-office-bg text-xs shadow"
           title={AGENT_STATUS_LABEL[agent.status]}
         >
           {AGENT_STATUS_ICON[agent.status]}
         </span>
       </div>
 
-      <div>
-        <p className="flex items-center justify-center gap-1 font-display text-sm" style={{ color: agent.accentColor }}>
-          <RoleIcon size={12} />
-          {agent.name}
-        </p>
-        <p className="text-[11px] text-office-muted">{agent.title}</p>
+      <div className="flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow backdrop-blur-sm">
+        <RoleIcon size={10} color={agent.accentColor} />
+        {agent.name}
       </div>
 
       {agent.currentTaskSummary && (
-        <div className="rounded-lg border border-office-border bg-office-bg px-2 py-1 text-[11px] text-office-text">
-          {AGENT_STATUS_LABEL[agent.status]}: {agent.currentTaskSummary}
+        <div className="max-w-[8rem] truncate rounded-full bg-black/70 px-2 py-0.5 text-[10px] text-white/90 shadow backdrop-blur-sm">
+          {agent.currentTaskSummary}
         </div>
       )}
     </button>
