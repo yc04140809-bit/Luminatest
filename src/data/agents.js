@@ -61,9 +61,9 @@ export const AGENTS = [
     name: "経営サポートAI",
     character: "セイラちゃん",
     room: "社長室",
-    tagline: "優先順位と収益化を整理",
-    desc: "今日やること・収益化アイデアを整理予定",
+    tagline: "AI会議室で意思決定を支援",
+    desc: "案を入力すると、性格の異なる5人の評議員が忖度なく批評し、セイラちゃんが議長として整理します。",
     avatarUrl: null,
-    status: "soon",
+    status: "available",
   },
 ];

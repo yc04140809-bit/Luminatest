@@ -6,6 +6,7 @@ import { INDUSTRIES } from "./data/constants";
 import Login from "./screens/Login";
 import SuiteHome from "./screens/SuiteHome";
 import DocumentAI from "./screens/DocumentAI";
+import BoardroomAI from "./screens/BoardroomAI";
 import OrgJoin from "./screens/OrgJoin";
 import Onboarding from "./screens/Onboarding";
 import Home from "./screens/Home";
@@ -107,6 +108,11 @@ export default function App() {
   /* 書類作成AI(接遇ガードAIとは独立した画面) */
   if (suiteScreen === "documents") {
     return <DocumentAI onBack={() => setSuiteScreen("home")} />;
+  }
+
+  /* 経営サポートAI(AI会議室・接遇ガードAIとは独立した画面) */
+  if (suiteScreen === "management") {
+    return <BoardroomAI onBack={() => setSuiteScreen("home")} />;
   }
 
   return (
