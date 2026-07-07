@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lumina - オートバトル ドット絵プロトタイプ</title>
+<style>
+:root{
+  --bg-deep:#0d0a1a;
+  --bg-mid:#1a1430;
+  --gold:#d9b56a;
+  --gold-hi:#f6e3a8;
+  --text:#f2ecdf;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{
+  width:100%; height:100%;
+  background:#000;
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  color:var(--text);
+  overflow:hidden;
+}
+.stage{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  aspect-ratio:16/9;
+  width:100vw; max-height:100vh;
+  max-width:calc(100vh * 16 / 9);
+  background:linear-gradient(160deg, var(--bg-mid) 0%, var(--bg-deep) 60%, #070510 100%);
+  overflow:hidden;
+}
+#battle{
+  position:absolute; inset:0;
+  width:100%; height:100%;
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  cursor:pointer;
+}
+.hint{
+  position:absolute; left:0; right:0; bottom:2%;
+  text-align:center;
+  font-size:clamp(9px,1.4vw,13px);
+  letter-spacing:.05em;
+  color:var(--gold-hi);
+  text-shadow:0 1px 3px #000;
+  pointer-events:none;
+}
+.result{
+  position:absolute; inset:0;
+  display:none;
+  flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:16px;
+  background:rgba(5,3,10,.72);
+}
+#resultText{
+  font-size:clamp(20px,5vw,40px);
+  color:var(--gold-hi);
+  text-shadow:0 0 12px rgba(246,227,168,.7);
+  letter-spacing:.1em;
+}
+#restartBtn{
+  font-family:inherit;
+  font-size:clamp(11px,1.6vw,15px);
+  padding:.6em 1.6em;
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+  border:1px solid var(--gold-hi);
+  border-radius:99px;
+  color:#1a1020;
+  letter-spacing:.1em;
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <canvas id="battle" width="320" height="180"></canvas>
+  <div class="hint" id="hint">画面をタップ: チーム必殺技を発動(タイミングでダメージが変わる)</div>
+  <div class="result" id="result">
+    <div id="resultText"></div>
+    <button id="restartBtn">もう一度</button>
+  </div>
+</div>
+<script>
+/* =========================================================
+   ドット絵は全てプレースホルダー(16x16の文字マトリクス)。
+   後で本物のキャラスプライトに差し替える前提の仮アセット。
+   ========================================================= */
+const PALETTES = {
+  chaos:{ O:'#1a1020', H:'#c98a3a', S:'#f2d9b0', B:'#8a5a3a', G:'#f6e3a8' },
+  ice:  { O:'#0d1a2a', H:'#3a6ac9', S:'#e8f4ff', B:'#2a4a7a', G:'#9fd8ff' },
+  light:{ O:'#2a2010', H:'#d9b56a', S:'#fff6e0', B:'#d9a95a', G:'#fff6d8' },
+  enemy:{ O:'#140816', H:'#4a1a5a', S:'#6a4a7a', B:'#2a1030', G:'#ff5050' }
+};
+
+const ALLY_SPRITE = [
+"................",
+"....OOOOOO......",
+"...OHHHHHHO.....",
+"..OHHHHHHHHO....",
+"..OHSSSSSSHO....",
+"..OHSSSSSSHO....",
+"..OOSSSSSSOO....",
+"...OOOOOOOO.....",
+"....OBBBBO......",
+"...OBBBBBBO.....",
+"..OBBBBBBBBO....",
+"..OBBGGGGBBO....",
+"..OBBGGGGBBO....",
+"..OOB....BOO....",
+"...OO....OO.....",
+"................"
+];
+
+const ENEMY_SPRITE = [
+".O............O.",
+"..O........O....",
+"...OHHHHHHO.....",
+"..OHHHHHHHHO....",
+"..OHSSSSSSHO....",
+"..OHSSSSSSHO....",
+"..OOSSSSSSOO....",
+"...OOOOOOOO.....",
+"....OBBBBO......",
+"...OBBBBBBO.....",
+"..OBBBBBBBBO....",
+"..OBBGGGGBBO....",
+"..OBBGGGGBBO....",
+"..OOB....BOO....",
+"...OO....OO.....",
+"................"
+];
+
+const canvas = document.getElementById('battle');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+const CW = canvas.width, CH = canvas.height;
+
+const ULT_MAX = 100;
+const ULT_WINDOW = 3.0;
+const ULT_PERFECT_WINDOW = 1.2;
+
+function freshAllies(){
+  return [
+    { name:'キャラA', element:'chaos', hp:150, maxHp:150, atk:14, spd:1.0,  cd:0, skillGauge:0, skillMax:100, baseX:60,  baseY:50,  scale:2, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
+    { name:'キャラB', element:'ice',   hp:150, maxHp:150, atk:13, spd:0.85, cd:0, skillGauge:0, skillMax:100, baseX:60,  baseY:95,  scale:2, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
+    { name:'キャラC', element:'light', hp:150, maxHp:150, atk:15, spd:1.15, cd:0, skillGauge:0, skillMax:100, baseX:60,  baseY:140, scale:2, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true }
+  ];
+}
+function freshEnemy(){
+  return { name:'魔物', hp:1400, maxHp:1400, atk:22, spd:0.7, cd:1.0, baseX:250, baseY:110, scale:5, anim:{type:'idle',t:0}, flash:0, alive:true };
+}
+
+let allies = freshAllies();
+let enemy = freshEnemy();
+let ult = { gauge:0, ready:false, readyTime:0, resolved:false };
+let floaters = [];
+let battleOver = false;
+
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  return { r:parseInt(h.substring(0,2),16), g:parseInt(h.substring(2,4),16), b:parseInt(h.substring(4,6),16) };
+}
+function blendWhite(hex, amt){
+  const c = hexToRgb(hex);
+  const r = Math.round(c.r + (255-c.r)*amt);
+  const g = Math.round(c.g + (255-c.g)*amt);
+  const b = Math.round(c.b + (255-c.b)*amt);
+  return `rgb(${r},${g},${b})`;
+}
+function drawSprite(sprite, palette, cx, cy, scale, flash, dir){
+  const w=16, h=16;
+  const startX = cx - (w*scale)/2;
+  const startY = cy - (h*scale);
+  for(let r=0;r<h;r++){
+    const row = sprite[r];
+    for(let col=0; col<w; col++){
+      const ch = row[col];
+      if(ch==='.') continue;
+      let color = palette[ch] || '#ffffff';
+      if(flash>0) color = blendWhite(color, flash);
+      const px = dir<0 ? (w-1-col) : col;
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.round(startX+px*scale), Math.round(startY+r*scale), scale, scale);
+    }
+  }
+}
+function drawHpBar(cx, y, hp, maxHp, width){
+  const x = cx - width/2;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x,y,width,4);
+  const pct = Math.max(0, hp/maxHp);
+  ctx.fillStyle = pct>0.5 ? '#7be08a' : pct>0.2 ? '#e0c05a' : '#e05a5a';
+  ctx.fillRect(x,y,width*pct,4);
+  ctx.strokeStyle = 'rgba(217,181,106,0.5)';
+  ctx.strokeRect(x+0.5,y+0.5,width-1,3);
+}
+function spawnFloater(x,y,text,color,big){
+  floaters.push({ x, y, text, color, vy:-18, life:1, maxLife: big?1.3:0.9, size: big?16:10 });
+}
+
+function damageEnemy(amount, color, label){
+  if(!enemy.alive) return;
+  enemy.hp = Math.max(0, enemy.hp-amount);
+  enemy.flash = 1;
+  spawnFloater(enemy.baseX, enemy.baseY-72, (label?label+' ':'')+Math.round(amount), color, !!label);
+  if(enemy.hp<=0){ enemy.alive=false; endBattle(true); }
+}
+function damageAlly(target, amount){
+  if(!target.alive) return;
+  target.hp = Math.max(0, target.hp-amount);
+  target.flash = 1;
+  spawnFloater(target.baseX, target.baseY-56, Math.round(amount), '#ff6060');
+  if(target.hp<=0){
+    target.alive = false;
+    if(allies.every(a=>!a.alive)) endBattle(false);
+  }
+}
+
+function allyBasicAttack(a){
+  a.anim = { type:'attack', t:0, duration:0.35 };
+  const dmg = a.atk + Math.floor(Math.random()*6);
+  damageEnemy(dmg, '#ffe27a');
+  ult.gauge = Math.min(ULT_MAX, ult.gauge+9);
+  a.skillGauge += 26;
+  if(a.skillGauge >= a.skillMax){
+    a.skillGauge = 0;
+    allySkill(a);
+  }
+}
+function allySkill(a){
+  a.anim = { type:'skill', t:0, duration:0.5 };
+  const dmg = Math.round(a.atk*2.4 + Math.random()*10);
+  damageEnemy(dmg, PALETTES[a.element].G, 'SKILL');
+  ult.gauge = Math.min(ULT_MAX, ult.gauge+18);
+}
+function enemyAttack(){
+  const aliveAllies = allies.filter(a=>a.alive);
+  if(aliveAllies.length===0) return;
+  const target = aliveAllies[Math.floor(Math.random()*aliveAllies.length)];
+  enemy.anim = { type:'attack', t:0, duration:0.4 };
+  const dmg = enemy.atk + Math.floor(Math.random()*10);
+  damageAlly(target, dmg);
+}
+function triggerUltimate(manual){
+  if(ult.resolved || !ult.ready) return;
+  ult.resolved = true;
+  const elapsed = performance.now()/1000 - ult.readyTime;
+  let mult, label;
+  if(manual && elapsed<=ULT_PERFECT_WINDOW){ mult=1.6; label='PERFECT ULTIMATE!'; }
+  else if(manual){ mult=1.2; label='ULTIMATE!'; }
+  else { mult=0.8; label='ultimate...'; }
+  const totalAtk = allies.reduce((s,a)=>s+(a.alive?a.atk:0),0);
+  const dmg = Math.round(totalAtk*3*mult);
+  allies.forEach(a=>{ if(a.alive) a.anim = { type:'skill', t:0, duration:0.6 }; });
+  damageEnemy(dmg, '#fff6a8', label);
+  ult.gauge = 0; ult.ready = false; ult.resolved = false;
+}
+
+function updateAnims(dt){
+  [...allies, enemy].forEach(c=>{
+    if(c.flash>0) c.flash = Math.max(0, c.flash - dt*4);
+    c.anim.t += dt;
+    if(c.anim.type!=='idle' && c.anim.t>=c.anim.duration) c.anim = { type:'idle', t:0 };
+  });
+}
+function updateFloaters(dt){
+  floaters.forEach(f=>{ f.y += f.vy*dt; f.life -= dt/f.maxLife; });
+  floaters = floaters.filter(f=>f.life>0);
+}
+function update(dt){
+  if(battleOver){ updateAnims(dt); updateFloaters(dt); return; }
+  allies.forEach(a=>{
+    if(!a.alive) return;
+    a.cd -= dt;
+    if(a.cd<=0){ a.cd = 1/a.spd; allyBasicAttack(a); }
+  });
+  if(enemy.alive){
+    enemy.cd -= dt;
+    if(enemy.cd<=0){ enemy.cd = 1/enemy.spd; enemyAttack(); }
+  }
+  if(!ult.ready && ult.gauge>=ULT_MAX){
+    ult.ready = true; ult.readyTime = performance.now()/1000; ult.resolved=false;
+  }
+  if(ult.ready && !ult.resolved){
+    const elapsed = performance.now()/1000 - ult.readyTime;
+    if(elapsed>=ULT_WINDOW) triggerUltimate(false);
+  }
+  updateAnims(dt);
+  updateFloaters(dt);
+}
+
+function lungeOffset(c){
+  if(c.anim.type==='idle') return 0;
+  const progress = Math.min(1, c.anim.t / c.anim.duration);
+  const amp = c.anim.type==='skill' ? 22 : 14;
+  const wave = progress<0.5 ? (progress/0.5) : (1-(progress-0.5)/0.5);
+  return amp*wave;
+}
+
+function render(){
+  ctx.clearRect(0,0,CW,CH);
+  const grad = ctx.createLinearGradient(0,0,0,CH);
+  grad.addColorStop(0,'#1a1430'); grad.addColorStop(1,'#07050f');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,CW,CH);
+  ctx.strokeStyle = 'rgba(217,181,106,0.25)';
+  ctx.beginPath(); ctx.moveTo(0,168); ctx.lineTo(CW,168); ctx.stroke();
+
+  const barX=60, barY=8, barW=200, barH=8;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(barX,barY,barW,barH);
+  ctx.fillStyle = ult.ready ? '#fff6a8' : '#d9b56a';
+  ctx.fillRect(barX,barY, barW*(ult.gauge/ULT_MAX), barH);
+  ctx.strokeStyle = '#f6e3a8'; ctx.strokeRect(barX+0.5,barY+0.5,barW-1,barH-1);
+  ctx.fillStyle = '#f2ecdf'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(ult.ready ? 'タップで必殺技発動!' : 'ULT', CW/2, barY-2);
+
+  allies.forEach(a=>{
+    const bob = a.anim.type==='idle' ? Math.sin(performance.now()/400 + a.bob)*2 : 0;
+    const lunge = lungeOffset(a);
+    drawSprite(ALLY_SPRITE, PALETTES[a.element], a.baseX+lunge, a.baseY+bob, a.scale, a.flash, 1);
+    drawHpBar(a.baseX, a.baseY - a.scale*16 - 6, a.hp, a.maxHp, a.scale*16);
+    if(!a.alive){
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(a.baseX - a.scale*8, a.baseY - a.scale*16, a.scale*16, a.scale*16);
+    }
+  });
+
+  if(enemy.alive || enemy.hp<=0){
+    const ebob = enemy.anim.type==='idle' ? Math.sin(performance.now()/500)*2 : 0;
+    const elunge = lungeOffset(enemy);
+    drawSprite(ENEMY_SPRITE, PALETTES.enemy, enemy.baseX-elunge, enemy.baseY+ebob, enemy.scale, enemy.flash, -1);
+    drawHpBar(enemy.baseX, enemy.baseY - enemy.scale*16 - 8, enemy.hp, enemy.maxHp, enemy.scale*16+20);
+  }
+
+  floaters.forEach(f=>{
+    ctx.globalAlpha = Math.max(0, f.life);
+    ctx.fillStyle = f.color;
+    ctx.font = `${f.size}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function endBattle(win){
+  battleOver = true;
+  document.getElementById('resultText').textContent = win ? 'WIN!' : 'LOSE...';
+  document.getElementById('result').style.display = 'flex';
+}
+function resetBattle(){
+  allies = freshAllies();
+  enemy = freshEnemy();
+  ult = { gauge:0, ready:false, readyTime:0, resolved:false };
+  floaters = [];
+  battleOver = false;
+  document.getElementById('result').style.display = 'none';
+}
+
+canvas.addEventListener('click', ()=>{ if(ult.ready) triggerUltimate(true); });
+canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(ult.ready) triggerUltimate(true); }, {passive:false});
+document.getElementById('restartBtn').addEventListener('click', resetBattle);
+
+let lastT = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now-lastT)/1000);
+  lastT = now;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
