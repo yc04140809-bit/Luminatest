@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumina - 管理者画面</title>
+<style>
+:root{
+  --bg-deep:#0d0a1a;
+  --bg-mid:#1a1430;
+  --gold:#d9b56a;
+  --gold-hi:#f6e3a8;
+  --text:#f2ecdf;
+  --danger:#e05a5a;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{
+  min-height:100%;
+  background:linear-gradient(160deg, var(--bg-mid) 0%, var(--bg-deep) 60%, #070510 100%);
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  color:var(--text);
+}
+.wrap{ max-width:720px; margin:0 auto; padding:32px 20px 80px; }
+h1{
+  font-size:clamp(18px,3vw,26px);
+  color:var(--gold-hi);
+  letter-spacing:.1em;
+  text-shadow:0 0 10px rgba(246,227,168,.5);
+  margin-bottom:8px;
+  text-align:center;
+}
+.sub{ text-align:center; color:var(--gold); font-size:13px; margin-bottom:32px; letter-spacing:.05em; }
+
+/* ---- ロック画面 ---- */
+#lockScreen{
+  max-width:360px; margin:80px auto 0;
+  background:rgba(20,15,35,.6);
+  border:1px solid rgba(217,181,106,.35);
+  border-radius:12px;
+  padding:32px 24px;
+  text-align:center;
+}
+#lockScreen input{
+  width:100%;
+  font-size:20px;
+  letter-spacing:.5em;
+  text-align:center;
+  padding:.6em 0;
+  margin:16px 0;
+  background:rgba(0,0,0,.4);
+  border:1px solid var(--gold);
+  border-radius:8px;
+  color:var(--text);
+}
+#lockError{ color:var(--danger); font-size:13px; min-height:1.4em; margin-bottom:8px; }
+button{
+  font-family:inherit;
+  cursor:pointer;
+  border:none;
+}
+.btn{
+  font-size:14px;
+  padding:.65em 1.8em;
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+  border:1px solid var(--gold-hi);
+  border-radius:99px;
+  color:#1a1020;
+  letter-spacing:.1em;
+}
+.btn.secondary{
+  background:transparent;
+  color:var(--gold-hi);
+  border:1px solid rgba(217,181,106,.5);
+}
+.btn.danger{
+  background:transparent;
+  color:var(--danger);
+  border:1px solid var(--danger);
+}
+
+/* ---- 管理パネル ---- */
+#panel{ display:none; }
+.slot{
+  display:flex; gap:16px; align-items:center;
+  background:rgba(20,15,35,.55);
+  border:1px solid rgba(217,181,106,.3);
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:16px;
+}
+.thumb{
+  flex:none;
+  width:88px; height:88px;
+  border-radius:8px;
+  border:1px solid rgba(217,181,106,.4);
+  background:
+    linear-gradient(45deg,#2a2438 25%,transparent 25%) 0 0/16px 16px,
+    linear-gradient(-45deg,#2a2438 25%,transparent 25%) 0 0/16px 16px,
+    linear-gradient(45deg,transparent 75%,#2a2438 75%) 0 0/16px 16px,
+    linear-gradient(-45deg,transparent 75%,#2a2438 75%) 0 0/16px 16px,
+    #382f4a;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+}
+.thumb img{ max-width:100%; max-height:100%; object-fit:contain; }
+.thumb .none{ font-size:10px; color:var(--gold); text-align:center; padding:4px; }
+.slot .info{ flex:1; min-width:0; }
+.slot .label{ color:var(--gold-hi); font-size:14px; letter-spacing:.05em; margin-bottom:4px; }
+.slot .status{ font-size:11px; color:rgba(242,236,223,.6); margin-bottom:10px; }
+.slot .actions{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.fileLabel{
+  font-size:12px;
+  padding:.5em 1.2em;
+  background:rgba(217,181,106,.15);
+  border:1px solid var(--gold);
+  border-radius:99px;
+  color:var(--gold-hi);
+  display:inline-block;
+}
+.fileLabel input{ display:none; }
+
+.footerBar{
+  position:sticky; bottom:0;
+  display:flex; justify-content:center; gap:12px;
+  padding:16px 0 0;
+  margin-top:8px;
+}
+#saveMsg{
+  text-align:center; color:#7be08a; font-size:13px; height:1.4em; margin-top:10px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Lumina 管理者画面</h1>
+  <div class="sub">味方・敵キャラの画像をあとから差し替えるための管理ツール</div>
+
+  <div id="lockScreen">
+    <div>ロックナンバーを入力してください</div>
+    <input id="lockInput" type="password" inputmode="numeric" maxlength="4" placeholder="****">
+    <div id="lockError"></div>
+    <button class="btn" id="unlockBtn">ロック解除</button>
+  </div>
+
+  <div id="panel">
+    <div id="slots"></div>
+    <div class="footerBar">
+      <button class="btn secondary" id="openBattleBtn">バトル画面を開いて確認</button>
+      <button class="btn" id="saveBtn">保存する</button>
+      <button class="btn danger" id="resetAllBtn">全て初期化</button>
+    </div>
+    <div id="saveMsg"></div>
+  </div>
+</div>
+
+<script>
+const LOCK_CODE = '0809';
+const STORAGE_KEY = 'lumina_char_overrides_v1';
+const UNLOCK_FLAG = 'lumina_admin_unlocked';
+const MAX_DIM = 700;
+
+const SLOTS = [
+  { key:'chaos', label:'味方A(混沌属性)', defaultSrc:'assets/chars/chaos_char.png' },
+  { key:'ice',   label:'味方B(氷結属性)', defaultSrc:'assets/chars/ice_char.png' },
+  { key:'light', label:'味方C(光輝属性)', defaultSrc:'assets/chars/light_char.png' },
+  { key:'enemy', label:'敵キャラ',        defaultSrc:null }
+];
+
+function loadOverrides(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  }catch(e){ return {}; }
+}
+function saveOverrides(obj){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+}
+
+let overrides = loadOverrides();
+
+function renderSlots(){
+  const root = document.getElementById('slots');
+  root.innerHTML = '';
+  SLOTS.forEach(slot=>{
+    const custom = overrides[slot.key];
+    const el = document.createElement('div');
+    el.className = 'slot';
+    el.innerHTML = `
+      <div class="thumb" id="thumb-${slot.key}"></div>
+      <div class="info">
+        <div class="label">${slot.label}</div>
+        <div class="status" id="status-${slot.key}"></div>
+        <div class="actions">
+          <label class="fileLabel">画像を選択
+            <input type="file" accept="image/*" data-key="${slot.key}">
+          </label>
+          <button class="btn secondary" data-reset="${slot.key}">${slot.defaultSrc ? '標準に戻す' : 'クリア'}</button>
+        </div>
+      </div>
+    `;
+    root.appendChild(el);
+    updateThumb(slot);
+  });
+
+  root.querySelectorAll('input[type=file]').forEach(input=>{
+    input.addEventListener('change', e=>{
+      const key = e.target.getAttribute('data-key');
+      const file = e.target.files[0];
+      if(!file) return;
+      resizeToDataURL(file, MAX_DIM, dataUrl=>{
+        overrides[key] = dataUrl;
+        updateThumb(SLOTS.find(s=>s.key===key));
+        setSaveMsg('');
+      });
+    });
+  });
+  root.querySelectorAll('[data-reset]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.getAttribute('data-reset');
+      delete overrides[key];
+      updateThumb(SLOTS.find(s=>s.key===key));
+      setSaveMsg('');
+    });
+  });
+}
+
+function updateThumb(slot){
+  const thumb = document.getElementById('thumb-'+slot.key);
+  const status = document.getElementById('status-'+slot.key);
+  const custom = overrides[slot.key];
+  thumb.innerHTML = '';
+  if(custom){
+    const img = document.createElement('img');
+    img.src = custom;
+    thumb.appendChild(img);
+    status.textContent = 'カスタム画像を使用中';
+  } else if(slot.defaultSrc){
+    const img = document.createElement('img');
+    img.src = slot.defaultSrc;
+    thumb.appendChild(img);
+    status.textContent = '標準アセットを使用中';
+  } else {
+    const none = document.createElement('div');
+    none.className = 'none';
+    none.textContent = '未設定\n(仮ドット絵を使用)';
+    thumb.appendChild(none);
+    status.textContent = '未設定 - バトル画面ではプレースホルダー表示';
+  }
+}
+
+function resizeToDataURL(file, maxDim, cb){
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const img = new Image();
+    img.onload = ()=>{
+      let w = img.naturalWidth, h = img.naturalHeight;
+      const scale = Math.min(1, maxDim / Math.max(w,h));
+      w = Math.max(1, Math.round(w*scale));
+      h = Math.max(1, Math.round(h*scale));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const cctx = c.getContext('2d');
+      cctx.drawImage(img, 0, 0, w, h);
+      let dataUrl;
+      try{ dataUrl = c.toDataURL('image/webp', 0.92); }
+      catch(err){ dataUrl = c.toDataURL('image/png'); }
+      cb(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setSaveMsg(msg){
+  document.getElementById('saveMsg').textContent = msg;
+}
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  try{
+    saveOverrides(overrides);
+    setSaveMsg('保存しました。バトル画面をリロードすると反映されます。');
+  }catch(e){
+    setSaveMsg('保存に失敗しました(容量オーバーの可能性があります)。');
+  }
+});
+document.getElementById('resetAllBtn').addEventListener('click', ()=>{
+  if(!confirm('全てのカスタム画像設定を消去して標準に戻しますか?')) return;
+  overrides = {};
+  saveOverrides(overrides);
+  renderSlots();
+  setSaveMsg('初期化しました。');
+});
+document.getElementById('openBattleBtn').addEventListener('click', ()=>{
+  window.open('autobattle-prototype.html', '_blank');
+});
+
+// ---- ロック ----
+function unlock(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('panel').style.display = 'block';
+  renderSlots();
+}
+document.getElementById('unlockBtn').addEventListener('click', ()=>{
+  const val = document.getElementById('lockInput').value;
+  if(val === LOCK_CODE){
+    sessionStorage.setItem(UNLOCK_FLAG, '1');
+    unlock();
+  } else {
+    document.getElementById('lockError').textContent = 'ロックナンバーが違います';
+  }
+});
+document.getElementById('lockInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') document.getElementById('unlockBtn').click();
+});
+
+if(sessionStorage.getItem(UNLOCK_FLAG) === '1'){
+  unlock();
+}
+</script>
+</body>
+</html>

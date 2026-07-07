@@ -118,9 +118,21 @@ function loadImg(src){
   img.src = src;
   return img;
 }
-const ICE_IMG   = loadImg('assets/chars/ice_char.png');
-const LIGHT_IMG  = loadImg('assets/chars/light_char.png');
-const CHAOS_IMG  = loadImg('assets/chars/chaos_char.png');
+/* 管理者画面(admin.html)で保存したカスタム画像があればそれを、なければ標準アセットを使う */
+const CHAR_OVERRIDES_KEY = 'lumina_char_overrides_v1';
+function loadOverrides(){
+  try{ return JSON.parse(localStorage.getItem(CHAR_OVERRIDES_KEY) || '{}'); }
+  catch(e){ return {}; }
+}
+const CHAR_OVERRIDES = loadOverrides();
+function loadCharImg(key, defaultPath){
+  const src = CHAR_OVERRIDES[key] || defaultPath;
+  return src ? loadImg(src) : new Image();
+}
+const CHAOS_IMG = loadCharImg('chaos', 'assets/chars/chaos_char.png');
+const ICE_IMG   = loadCharImg('ice',   'assets/chars/ice_char.png');
+const LIGHT_IMG = loadCharImg('light', 'assets/chars/light_char.png');
+const ENEMY_IMG = loadCharImg('enemy', null);
 
 function freshAllies(){
   return [
@@ -130,7 +142,7 @@ function freshAllies(){
   ];
 }
 function freshEnemy(){
-  return { name:'魔物', hp:1400, maxHp:1400, atk:22, spd:0.7, cd:1.0, baseX:740, baseY:430, scale:16, anim:{type:'idle',t:0}, flash:0, alive:true };
+  return { name:'魔物', hp:1400, maxHp:1400, atk:22, spd:0.7, cd:1.0, baseX:740, baseY:430, scale:16, displayHeight:300, img:ENEMY_IMG, flip:true, bob:0, anim:{type:'idle',t:0}, flash:0, alive:true };
 }
 
 let allies = freshAllies();
@@ -170,7 +182,7 @@ function drawMatrixSprite(sprite, palette, cx, cy, scale, flash, dir){
 function drawImageSprite(a){
   const img = a.img;
   if(!img || !img.complete || !img.naturalWidth) return;
-  const bob = a.anim.type==='idle' ? Math.sin(performance.now()/400 + a.bob)*6 : 0;
+  const bob = a.anim.type==='idle' ? Math.sin(performance.now()/400 + (a.bob||0))*6 : 0;
   const lunge = lungeOffset(a);
   const dh = a.displayHeight;
   const dw = dh * (img.naturalWidth/img.naturalHeight);
@@ -204,7 +216,15 @@ function drawImageSprite(a){
     octx.fillRect(0,0,w,h);
     octx.restore();
   }
-  ctx.drawImage(a._off, x, y);
+  if(a.flip){
+    ctx.save();
+    ctx.translate(x+dw, y);
+    ctx.scale(-1,1);
+    ctx.drawImage(a._off, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.drawImage(a._off, x, y);
+  }
   drawHpBar(a.baseX, a.baseY - dh - 16, a.hp, a.maxHp, dw*0.8);
 }
 function drawHpBar(cx, y, hp, maxHp, width){
@@ -226,7 +246,7 @@ function damageEnemy(amount, color, label){
   if(!enemy.alive) return;
   enemy.hp = Math.max(0, enemy.hp-amount);
   enemy.flash = 1;
-  spawnFloater(enemy.baseX, enemy.baseY - enemy.scale*16*0.8, (label?label+' ':'')+Math.round(amount), color, !!label);
+  spawnFloater(enemy.baseX, enemy.baseY - enemy.displayHeight*0.8, (label?label+' ':'')+Math.round(amount), color, !!label);
   if(enemy.hp<=0){ enemy.alive=false; endBattle(true); }
 }
 function damageAlly(target, amount){
@@ -341,10 +361,14 @@ function render(){
   allies.forEach(a=> drawImageSprite(a));
 
   if(enemy.alive || enemy.hp<=0){
-    const ebob = enemy.anim.type==='idle' ? Math.sin(performance.now()/500)*6 : 0;
-    const elunge = lungeOffset(enemy);
-    drawMatrixSprite(ENEMY_SPRITE, PALETTES.enemy, enemy.baseX-elunge, enemy.baseY+ebob, enemy.scale, enemy.flash, -1);
-    drawHpBar(enemy.baseX, enemy.baseY - enemy.scale*16 - 24, enemy.hp, enemy.maxHp, enemy.scale*16+60);
+    if(enemy.img && enemy.img.complete && enemy.img.naturalWidth){
+      drawImageSprite(enemy);
+    } else {
+      const ebob = enemy.anim.type==='idle' ? Math.sin(performance.now()/500)*6 : 0;
+      const elunge = lungeOffset(enemy);
+      drawMatrixSprite(ENEMY_SPRITE, PALETTES.enemy, enemy.baseX-elunge, enemy.baseY+ebob, enemy.scale, enemy.flash, -1);
+      drawHpBar(enemy.baseX, enemy.baseY - enemy.scale*16 - 24, enemy.hp, enemy.maxHp, enemy.scale*16+60);
+    }
   }
 
   floaters.forEach(f=>{
