@@ -2,856 +2,349 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lumina - フェーズ1: パーティステータスUI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ケイオスちゃん - チャット</title>
 <style>
 /* =========================================================
-   Lumina フェーズ1: 画面左下 3人パーティステータスUI モック
-   - 画像素材なし。全てCSS(グラデーション/発光)で表現
-   - 横画面16:9のステージ内に配置
-   - モックデータはJS側の PARTY 配列で管理
+   ケイオスちゃん チャット画面 (土台のみ / AI応答は未接続)
+   - 添付の参考スクリーンショットのレイアウトを再現
+   - AI設定書 Ver.1.0 / Ver.2.0 の内容を SPEC_BASE / MODES に反映
+   - sendToAI() が実際のAPI接続を行う場所(現在はプレースホルダー応答)
    ========================================================= */
-
-/* ---------- デザイントークン ---------- */
 :root{
-  --bg-deep:   #0d0a1a;   /* 最奥の闇 */
-  --bg-mid:    #1a1430;   /* 紫がかった中景 */
-  --gold:      #d9b56a;   /* 金装飾 */
-  --gold-hi:   #f6e3a8;   /* 金ハイライト */
-  --crystal:   #8fd8ff;   /* クリスタル青 */
-  --hp-a:      #7be08a;   /* HP緑 */
-  --hp-b:      #d9f27a;   /* HP黄緑 */
-  --mp-a:      #5aa8ff;   /* MP青 */
-  --mp-b:      #9fd8ff;   /* MP水色 */
-  --text:      #f2ecdf;
+  --bg-deep:  #0d0a1a;
+  --bg-mid:   #1a1430;
+  --gold:     #d9b56a;
+  --gold-hi:  #f6e3a8;
+  --pink:     #ff8ac9;
+  --text:     #f2ecdf;
+  --bubble-user: #4a3a2a;
+  --bubble-char: rgba(30,20,45,.82);
 }
-
 *{ margin:0; padding:0; box-sizing:border-box; }
-
 html,body{
-  width:100%; height:100%;
+  height:100%;
   background:#000;
-  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
   color:var(--text);
-  overflow:hidden;
 }
 
-/* ---------- 16:9ステージ(スマホ横画面想定) ---------- */
-/* 画面サイズに関わらず16:9を維持して中央配置 */
-.stage{
-  position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%);
-  aspect-ratio:16/9;
-  width:100vw; max-height:100vh;
-  max-width:calc(100vh * 16 / 9);
-  background:
-    radial-gradient(ellipse 60% 50% at 70% 35%, rgba(120,80,200,.25), transparent 70%),
-    radial-gradient(ellipse 50% 60% at 20% 80%, rgba(60,40,120,.3), transparent 70%),
-    linear-gradient(160deg, var(--bg-mid) 0%, var(--bg-deep) 60%, #070510 100%);
-  overflow:hidden;
-}
-
-/* 背景の浮遊光粒子(軽量: 3つのぼかし玉をアニメーション) */
-.mote{
-  position:absolute; border-radius:50%;
-  background:radial-gradient(circle, rgba(170,140,255,.5), transparent 70%);
-  filter:blur(2px);
-  animation:float 9s ease-in-out infinite;
-}
-.mote:nth-child(1){ width:8px;  height:8px;  left:30%; top:40%; animation-delay:0s; }
-.mote:nth-child(2){ width:5px;  height:5px;  left:55%; top:25%; animation-delay:3s; }
-.mote:nth-child(3){ width:10px; height:10px; left:75%; top:60%; animation-delay:6s; }
-@keyframes float{
-  0%,100%{ transform:translateY(0);    opacity:.5; }
-  50%    { transform:translateY(-26px); opacity:1;  }
-}
-
-/* ---------- パーティステータス(画面左下) ---------- */
-.party{
-  position:absolute;
-  left:1.5%; bottom:3%;
-  width:24%;               /* 画像の比率に合わせた幅 */
-  display:flex; flex-direction:column;
-  gap:4.5%;
-}
-
-/* 1人分のプレート */
-.member{
+/* ---------- スマホ想定の縦画面フレーム ---------- */
+.app{
   position:relative;
-  display:flex; align-items:center;
-  gap:6px;
-  padding:4% 5%;
-  background:linear-gradient(100deg, rgba(20,15,40,.85) 0%, rgba(30,22,55,.55) 70%, transparent 100%);
-  border:1px solid rgba(217,181,106,.35);
-  border-right:none;
-  border-radius:6px 14px 14px 6px;
-  backdrop-filter:blur(2px);
-  transition:box-shadow .3s, border-color .3s;
+  max-width:480px; height:100dvh;
+  margin:0 auto;
+  display:flex; flex-direction:column;
+  background:#000;
+  overflow:hidden;
 }
 
-/* 行動中キャラの強調(activeクラスをJSで付け替え) */
-.member.active{
-  border-color:var(--gold-hi);
-  box-shadow:
-    0 0 12px rgba(246,227,168,.45),
-    inset 0 0 18px rgba(217,181,106,.18);
+/* ---------- ヘッダー ---------- */
+.topbar{
+  position:relative; z-index:5;
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px;
+  background:linear-gradient(180deg, rgba(5,3,12,.95), rgba(5,3,12,.75));
+  border-bottom:1px solid rgba(217,181,106,.25);
 }
-.member.active::before{     /* 左端の光る縦ライン */
-  content:"";
-  position:absolute; left:-1px; top:10%; bottom:10%;
-  width:3px; border-radius:3px;
-  background:linear-gradient(180deg, transparent, var(--gold-hi), transparent);
-  animation:pulse 1.6s ease-in-out infinite;
-}
-@keyframes pulse{
-  0%,100%{ opacity:.5; } 50%{ opacity:1; }
-}
-
-/* 属性ダイヤ型アイコン(画像のクラスマーク相当) */
-.classgem{
+.iconbtn{
   flex:none;
-  width:14%; aspect-ratio:1;
-  transform:rotate(45deg);
-  border:1px solid var(--gold);
-  border-radius:3px;
-  box-shadow:0 0 8px rgba(217,181,106,.4), inset 0 0 6px rgba(255,255,255,.3);
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  background:none; border:none; color:var(--gold-hi);
+  font-size:18px; cursor:pointer; line-height:1;
 }
-.classgem.chaos{ background:linear-gradient(135deg,#f6e3a8,#c98a3a); }
-.classgem.ice  { background:linear-gradient(135deg,#9fd8ff,#3a6ac9); }
-.classgem.light{ background:linear-gradient(135deg,#fff6d8,#d9b56a); }
+.iconbtn span{ font-size:9px; color:rgba(242,236,223,.7); letter-spacing:.03em; }
+.title-block{ flex:1; min-width:0; text-align:center; }
+.title{
+  font-size:19px; font-weight:700; color:var(--gold-hi);
+  text-shadow:0 0 10px rgba(246,227,168,.5);
+}
+.subtitle{ font-size:11px; color:rgba(242,236,223,.75); margin-top:1px; }
+.topbar-actions{ display:flex; gap:12px; }
 
-/* 名前+ゲージ部 */
-.info{ flex:1; min-width:0; }
-.name{
-  font-size:clamp(9px, 1.3vw, 15px);
-  letter-spacing:.08em;
-  color:var(--gold-hi);
-  text-shadow:0 1px 3px rgba(0,0,0,.8);
-  white-space:nowrap; overflow:hidden;
-  margin-bottom:6%;
+/* ---------- モードタブ ---------- */
+.modetabs{
+  position:relative; z-index:5;
+  display:flex; gap:8px;
+  padding:8px 10px;
+  overflow-x:auto;
+  background:rgba(5,3,12,.85);
+  border-bottom:1px solid rgba(217,181,106,.15);
+  scrollbar-width:none;
 }
-
-/* ゲージ行(ラベル+バー+数値) */
-.gaugerow{
-  display:flex; align-items:center; gap:5px;
-  margin-top:4%;
-}
-.gaugelabel{
-  flex:none; width:2.2em;
-  font-family:Georgia,serif;
-  font-size:clamp(7px, .9vw, 11px);
-  letter-spacing:.15em;
-  color:var(--gold);
-}
-.gauge{
-  flex:1; height:clamp(5px, .7vw, 9px);
-  background:rgba(0,0,0,.6);
+.modetabs::-webkit-scrollbar{ display:none; }
+.modetab{
+  flex:none;
+  font-family:inherit; font-size:12.5px;
+  color:var(--text);
+  background:rgba(255,255,255,.06);
   border:1px solid rgba(217,181,106,.3);
   border-radius:99px;
-  overflow:hidden;
-}
-.gauge>i{
-  display:block; height:100%;
-  border-radius:99px;
-  transition:width .6s ease;   /* ダメージ/回復時に滑らかに変化 */
-}
-.gauge.hp>i{ background:linear-gradient(90deg,var(--hp-a),var(--hp-b)); box-shadow:0 0 6px rgba(123,224,138,.6); }
-.gauge.mp>i{ background:linear-gradient(90deg,var(--mp-a),var(--mp-b)); box-shadow:0 0 6px rgba(90,168,255,.6); }
-.gaugeval{
-  flex:none; width:3.6em; text-align:right;
-  font-family:Georgia,serif;
-  font-size:clamp(7px, .95vw, 12px);
-  color:var(--text);
-  text-shadow:0 1px 2px rgba(0,0,0,.9);
-  font-variant-numeric:tabular-nums;
-}
-
-/* =========================================================
-   フェーズ2: タイムライン型ATB(画面上中央 TURN ORDER)
-   ========================================================= */
-.turnorder{
-  position:absolute; top:2.5%; left:50%;
-  transform:translateX(-50%);
-  width:40%;
-  text-align:center;
-}
-.turnorder .toplabel{
-  font-family:Georgia,serif;
-  font-size:clamp(8px, 1vw, 12px);
-  letter-spacing:.5em;
-  color:var(--gold);
-  text-shadow:0 0 6px rgba(217,181,106,.5);
-  margin-bottom:2%;
-}
-/* 装飾ライン(ラベル左右) */
-.turnorder .toplabel::before,
-.turnorder .toplabel::after{
-  content:"";
-  display:inline-block;
-  width:18%; height:1px;
-  background:linear-gradient(90deg, transparent, var(--gold));
-  vertical-align:middle;
-  margin:0 .8em;
-}
-.turnorder .toplabel::after{
-  background:linear-gradient(90deg, var(--gold), transparent);
-}
-
-/* アイコンの入るトラック。スロットは絶対配置で左右にスライド */
-.totrack{
-  position:relative;
-  height:clamp(34px, 5.2vw, 62px);
-}
-.toicon{
-  position:absolute; top:0;
-  width:clamp(28px, 4.2vw, 52px);
-  aspect-ratio:1;
-  transform:rotate(45deg);          /* ダイヤ型 */
-  border:1px solid var(--gold);
-  border-radius:6px;
-  overflow:hidden;
-  transition:left .5s ease, box-shadow .3s, border-color .3s;
-  box-shadow:0 0 6px rgba(0,0,0,.6);
-}
-.toicon .fill{                       /* ATBゲージ: 下から満ちる光 */
-  position:absolute; left:0; right:0; bottom:0;
-  background:linear-gradient(180deg, rgba(255,255,255,.15), rgba(246,227,168,.45));
-  transition:height .12s linear;
-}
-.toicon .glyph{                      /* キャラ識別(頭文字) */
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  transform:rotate(-45deg);          /* 文字は水平に戻す */
-  font-size:clamp(10px, 1.4vw, 18px);
-  color:var(--text);
-  text-shadow:0 1px 3px rgba(0,0,0,.9);
-}
-.toicon.chaos{ background:linear-gradient(135deg,#6a5220,#2a1f0c); }
-.toicon.ice  { background:linear-gradient(135deg,#2a4a7a,#101c33); }
-.toicon.light{ background:linear-gradient(135deg,#7a6a3a,#332a10); }
-.toicon.enemy{
-  background:linear-gradient(135deg,#4a1a5a,#1c0a24);
-  border-color:#b45aff;
-}
-/* 先頭(NEXT)の強調 */
-.toicon.next{
-  border-color:var(--gold-hi);
-  box-shadow:0 0 14px rgba(246,227,168,.7);
-}
-/* 行動した瞬間のフラッシュ */
-.toicon.acting{
-  box-shadow:0 0 22px rgba(255,255,255,.9);
-}
-.nextlabel{
-  position:absolute;
-  font-family:Georgia,serif;
-  font-size:clamp(7px, .8vw, 10px);
-  letter-spacing:.3em;
-  color:var(--gold-hi);
-  text-shadow:0 0 6px rgba(246,227,168,.8);
-  transition:left .5s ease;
-}
-
-/* =========================================================
-   フェーズ3: 手札カード(下中央)+共有コスト(COST n/10)
-   ========================================================= */
-.hand{
-  position:absolute;
-  left:50%; bottom:14%;
-  transform:translateX(-50%);
-  display:flex; gap:2.2%;
-  width:34%;
-}
-.card{
-  position:relative;
-  flex:1; aspect-ratio:3/4.2;
-  border-radius:8px;
+  padding:6px 14px;
   cursor:pointer;
-  /* レアリティ枠: 金の多層グロー */
-  border:2px solid var(--gold);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.8),
-    0 0 10px rgba(217,181,106,.45),
-    inset 0 0 0 1px rgba(246,227,168,.5);
-  overflow:hidden;
-  transition:transform .2s ease, box-shadow .2s ease, filter .3s;
-  user-select:none;
-  -webkit-tap-highlight-color:transparent;
-}
-/* キャライラスト部(フェーズ3では属性色グラデで代用。後で画像に差し替え) */
-.card .art{ position:absolute; inset:0; }
-.card.chaos .art{ background:linear-gradient(160deg,#f0d9a0 0%,#8a5a9a 55%,#241430 100%); }
-.card.ice   .art{ background:linear-gradient(160deg,#bfe4ff 0%,#3a6ac9 55%,#101c33 100%); }
-.card.light .art{ background:linear-gradient(160deg,#fff6d8 0%,#d9a95a 55%,#332208 100%); }
-
-/* コストバッジ(左上ダイヤ) */
-.card .cost{
-  position:absolute; left:5%; top:4%;
-  width:24%; aspect-ratio:1;
-  transform:rotate(45deg);
-  background:linear-gradient(135deg,#2a2040,#0d0a1a);
-  border:1px solid var(--gold-hi);
-  border-radius:4px;
-  box-shadow:0 0 8px rgba(246,227,168,.6);
-}
-.card .cost span{
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  transform:rotate(-45deg);
-  font-family:Georgia,serif;
-  font-size:clamp(11px, 1.5vw, 20px);
-  color:var(--gold-hi);
-  text-shadow:0 0 4px rgba(0,0,0,.9);
-}
-
-/* カード下部: 使用キャラ名+スキル名 */
-.card .owner{
-  position:absolute; left:8%; right:8%; bottom:16%;
-  text-align:center;
-  font-size:clamp(6px, .75vw, 10px);
-  letter-spacing:.1em;
-  color:rgba(242,236,223,.85);
-  background:rgba(10,6,20,.65);
-  border-radius:99px;
-  padding:.2em 0;
-}
-.card .skillname{
-  position:absolute; left:0; right:0; bottom:3%;
-  text-align:center;
-  font-size:clamp(8px, 1vw, 14px);
-  letter-spacing:.06em;
-  color:var(--text);
-  text-shadow:0 1px 3px #000, 0 0 8px rgba(217,181,106,.5);
-}
-
-/* コスト不足: 暗転+使用不可 */
-.card.disabled{
-  filter:grayscale(.7) brightness(.45);
-  cursor:not-allowed;
-}
-/* 使用可能カードのホバー/タップ: 浮き上がり+発光 */
-.card:not(.disabled):hover,
-.card:not(.disabled):active{
-  transform:translateY(-6%) scale(1.03);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.8),
-    0 10px 24px rgba(0,0,0,.6),
-    0 0 22px rgba(246,227,168,.8),
-    inset 0 0 0 1px rgba(246,227,168,.9);
-}
-/* 発動フラッシュ */
-.card.played{ animation:cardplay .45s ease; }
-@keyframes cardplay{
-  0%  { transform:translateY(-10%) scale(1.08); filter:brightness(2.2); }
-  100%{ transform:none; filter:none; }
-}
-
-/* 発動時のフロートテキスト */
-.floattext{
-  position:absolute;
-  font-size:clamp(11px, 1.4vw, 18px);
-  color:var(--gold-hi);
-  text-shadow:0 0 8px rgba(246,227,168,.9), 0 1px 3px #000;
-  pointer-events:none;
-  animation:floatup 1s ease forwards;
   white-space:nowrap;
 }
-@keyframes floatup{
-  0%  { opacity:0; transform:translate(-50%, 0); }
-  15% { opacity:1; }
-  100%{ opacity:0; transform:translate(-50%, -46px); }
-}
-
-/* ---------- 共有コスト表示 ---------- */
-.costbar{
-  position:absolute;
-  left:50%; bottom:4.5%;
-  transform:translateX(-50%);
-  display:flex; align-items:center; gap:1.2%;
-  width:38%;
-}
-.costlabel{
-  font-family:Georgia,serif;
-  font-size:clamp(9px, 1.1vw, 14px);
-  letter-spacing:.2em;
-  color:var(--gold);
-}
-.costnum{
-  font-family:Georgia,serif;
-  font-size:clamp(13px, 1.8vw, 24px);
-  color:var(--text);
-  text-shadow:0 0 6px rgba(246,227,168,.6);
-  font-variant-numeric:tabular-nums;
-}
-.costnum small{ font-size:.6em; color:var(--gold); }
-.gems{ display:flex; gap:2.5%; flex:1; }
-.gem{
-  flex:1; aspect-ratio:1;
-  transform:rotate(45deg);
-  border-radius:3px;
-  border:1px solid rgba(217,181,106,.4);
-  background:#14101f;                 /* 空スロット */
-  transition:background .3s, box-shadow .3s, transform .3s;
-}
-/* 満ちている宝石: 画像同様に虹色の並び */
-.gem.on{
+.modetab.active{
+  background:linear-gradient(160deg, var(--gold-hi), var(--gold));
+  color:#241a08; font-weight:700;
   border-color:var(--gold-hi);
-  box-shadow:0 0 8px currentColor, inset 0 0 5px rgba(255,255,255,.6);
-}
-.gem.on:nth-child(1){ color:#ff5a5a; background:linear-gradient(135deg,#ffb0a0,#c92a2a); }
-.gem.on:nth-child(2){ color:#ffc93a; background:linear-gradient(135deg,#ffe9a0,#c9862a); }
-.gem.on:nth-child(3){ color:#e8e8e8; background:linear-gradient(135deg,#ffffff,#9a9ab0); }
-.gem.on:nth-child(4){ color:#5aff8a; background:linear-gradient(135deg,#b0ffc9,#2a9a4a); }
-.gem.on:nth-child(5){ color:#b45aff; background:linear-gradient(135deg,#d9b0ff,#6a2ac9) }
-.gem.on:nth-child(6){ color:#b45aff; background:linear-gradient(135deg,#c9a0ff,#5a2aaa); }
-.gem.on:nth-child(7){ color:#5aa8ff; background:linear-gradient(135deg,#a0d9ff,#2a5ac9); }
-.gem.on:nth-child(8){ color:#5ad8ff; background:linear-gradient(135deg,#c9f2ff,#2a8ac9); }
-.gem.on:nth-child(9){ color:#ffc93a; background:linear-gradient(135deg,#fff2c9,#c9a02a); }
-.gem.on:nth-child(10){ color:#ff8ac9; background:linear-gradient(135deg,#ffd9f0,#c92a8a); }
-/* 消費した瞬間: 砕けるイメージで縮小 */
-.gem.burst{ animation:gemburst .4s ease; }
-@keyframes gemburst{
-  0%  { transform:rotate(45deg) scale(1.4); filter:brightness(2.5); }
-  100%{ transform:rotate(45deg) scale(1); }
 }
 
-/* =========================================================
-   フェーズ4: 敵ステータス(右上)+BREAK+勝敗リザルト
-   ========================================================= */
-.enemy-panel{
-  position:absolute;
-  right:2%; top:3%;
-  width:30%;
-  text-align:right;
-}
-.enemy-name{
-  font-size:clamp(10px, 1.3vw, 16px);
-  letter-spacing:.12em;
-  color:var(--text);
-  text-shadow:0 0 8px rgba(180,90,255,.7), 0 1px 3px #000;
-  margin-bottom:2%;
-}
-/* ボスHPバー(赤の多層グラデ+金枠) */
-.enemy-hp{
-  height:clamp(8px, 1.1vw, 14px);
-  background:rgba(0,0,0,.7);
-  border:1px solid var(--gold);
-  border-radius:3px;
-  overflow:hidden;
-  box-shadow:0 0 8px rgba(0,0,0,.8);
-}
-.enemy-hp>i{
-  display:block; height:100%;
-  background:linear-gradient(180deg,#ff6a5a 0%,#c9202a 50%,#8a0a14 100%);
-  box-shadow:0 0 8px rgba(255,90,90,.7);
-  transition:width .5s ease;
-}
-.enemy-hpval{
-  font-family:Georgia,serif;
-  font-size:clamp(8px, 1vw, 13px);
-  color:var(--text);
-  text-shadow:0 1px 2px #000;
-  font-variant-numeric:tabular-nums;
-  margin-top:1%;
-}
-/* BREAKゲージ(紫) */
-.breakrow{
-  display:flex; align-items:center; gap:6px;
-  margin-top:2%;
-  justify-content:flex-end;
-}
-.breaklabel{
-  font-family:Georgia,serif;
-  font-size:clamp(7px, .85vw, 11px);
-  letter-spacing:.25em;
-  color:#d9a0ff;
-  background:linear-gradient(90deg,#4a1a6a,#2a0a3a);
-  border:1px solid #b45aff;
-  border-radius:3px;
-  padding:.1em .6em;
-}
-.breakgauge{
-  width:55%;
-  height:clamp(5px, .7vw, 9px);
-  background:rgba(0,0,0,.7);
-  border:1px solid rgba(180,90,255,.5);
-  border-radius:99px;
+/* ---------- ステージ(背景+キャラ+ステータス+チャットログ) ---------- */
+.stagearea{
+  position:relative; flex:1; min-height:0;
   overflow:hidden;
 }
-.breakgauge>i{
-  display:block; height:100%;
-  background:linear-gradient(90deg,#b45aff,#7a2ad9);
-  box-shadow:0 0 6px rgba(180,90,255,.8);
-  transition:width .4s ease;
+.herobg{ position:absolute; inset:0; z-index:0; }
+.herobg img{ width:100%; height:100%; object-fit:cover; }
+.herobg::after{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(5,3,12,.15) 0%, rgba(5,3,12,.15) 45%, rgba(5,3,12,.92) 100%);
 }
-/* ブレイク状態: パネル全体が紫に明滅 */
-.enemy-panel.broken .enemy-name{
-  color:#e8c9ff;
-  animation:brokenpulse 1s ease-in-out infinite;
+.herochar{
+  position:absolute; left:50%; bottom:0; z-index:1;
+  transform:translateX(-42%);
+  height:78%;
+  pointer-events:none;
+  transition:opacity .25s ease;
 }
-@keyframes brokenpulse{
-  0%,100%{ text-shadow:0 0 8px rgba(180,90,255,.7); }
-  50%    { text-shadow:0 0 20px rgba(220,160,255,1); }
-}
-.breakstatus{
-  display:none;
-  font-family:Georgia,serif;
-  font-size:clamp(9px, 1.1vw, 14px);
-  letter-spacing:.3em;
-  color:#e8c9ff;
-  text-shadow:0 0 12px rgba(180,90,255,1);
-  margin-top:1%;
-}
-.enemy-panel.broken .breakstatus{ display:block; }
+.herochar img{ height:100%; width:auto; filter:drop-shadow(0 10px 24px rgba(0,0,0,.6)); }
 
-/* ダメージ数字(赤系は被ダメ、白金は与ダメ) */
-.floattext.dmg { color:#ffd9a0; font-size:clamp(13px, 1.8vw, 26px); font-family:Georgia,serif; }
-.floattext.heal{ color:#a0ffc9; }
-.floattext.brk { color:#d9a0ff; }
+.statuspanel{
+  position:absolute; left:3%; top:3%; z-index:2;
+  display:flex; flex-direction:column; gap:8px;
+}
+.stat{
+  background:rgba(10,6,20,.6);
+  border:1px solid rgba(217,181,106,.35);
+  border-radius:10px;
+  padding:6px 10px;
+  min-width:100px;
+  backdrop-filter:blur(2px);
+}
+.stat-label{ font-size:10px; color:var(--pink); letter-spacing:.05em; }
+.stat-value{ font-size:14px; color:var(--gold-hi); font-weight:700; margin:2px 0; }
+.stat-bar{
+  height:5px; border-radius:99px; overflow:hidden;
+  background:rgba(0,0,0,.6); border:1px solid rgba(217,181,106,.3);
+}
+.stat-bar>i{ display:block; height:100%; background:linear-gradient(90deg,#ff8ac9,#c96ad9); transition:width .4s ease; }
+.stat.small .stat-value{ font-size:12px; }
 
-/* 勝敗リザルト(全画面オーバーレイ) */
-.result{
-  position:absolute; inset:0;
-  display:none;
-  align-items:center; justify-content:center;
-  flex-direction:column;
-  background:rgba(5,3,12,.75);
-  backdrop-filter:blur(3px);
-  z-index:10;
-}
-.result.show{ display:flex; }
-.result .word{
-  font-family:Georgia,serif;
-  font-size:clamp(30px, 6vw, 80px);
-  letter-spacing:.3em;
-  animation:resultin .8s ease;
-}
-.result.win .word{
-  color:var(--gold-hi);
-  text-shadow:0 0 30px rgba(246,227,168,.9), 0 0 60px rgba(217,181,106,.5);
-}
-.result.lose .word{
-  color:#8a8aa0;
-  text-shadow:0 0 20px rgba(100,100,140,.8);
-}
-@keyframes resultin{
-  0%{ opacity:0; transform:scale(1.6); }
-  100%{ opacity:1; transform:scale(1); }
-}
-.result button{
-  margin-top:4%;
-  font-family:inherit;
-  font-size:clamp(11px, 1.3vw, 16px);
-  color:var(--gold-hi);
-  background:linear-gradient(160deg, rgba(60,45,20,.95), rgba(30,22,10,.95));
-  border:1px solid var(--gold);
-  border-radius:99px;
-  padding:.7em 2.5em;
-  letter-spacing:.2em;
-  cursor:pointer;
-}
-
-/* =========================================================
-   フェーズA: 画像レイヤー(背景/キャラ/敵)+戦闘アニメ
-   - 同じフォルダの img/ に画像を置くと自動表示
-   - 画像が無い場合はCSS背景のまま動く(フォールバック)
-   ========================================================= */
-.bglayer{ position:absolute; inset:0; z-index:0; }
-.bglayer img{ width:100%; height:100%; object-fit:cover; opacity:.92; }
-
-.sprites{ position:absolute; inset:0; z-index:1; pointer-events:none; }
-.sprite{
-  position:absolute; bottom:18%;
-  transform-origin:bottom center;
-  animation:idle 3.2s ease-in-out infinite;   /* 待機中のゆらぎ */
-}
-.sprite img{
-  height:100%; width:auto;
-  filter:drop-shadow(0 12px 16px rgba(0,0,0,.55));
-}
-/* 立ち位置(参考画像の構図に合わせて中央〜左に味方、右に敵) */
-.sprite.ally1{ left:26%; height:52%; }
-.sprite.ally2{ left:15%; height:46%; animation-delay:.9s; }
-.sprite.ally3{ left:40%; height:44%; animation-delay:1.7s; }
-.sprite.foe  { right:4%; bottom:22%; height:62%; animation-delay:.5s; }
-
-@keyframes idle{
-  0%,100%{ transform:translateY(0); }
-  50%    { transform:translateY(-1.4%); }
-}
-/* 攻撃: 前に踏み込む */
-.sprite.attack{ animation:lungeR .5s ease; }
-@keyframes lungeR{
-  0%  { transform:translateX(0); }
-  35% { transform:translateX(6vw) scale(1.05); }
-  100%{ transform:translateX(0); }
-}
-.sprite.foe.attack{ animation:lungeL .5s ease; }
-@keyframes lungeL{
-  0%  { transform:translateX(0); }
-  35% { transform:translateX(-6vw) scale(1.05); }
-  100%{ transform:translateX(0); }
-}
-/* 被弾: 白く光って震える */
-.sprite.hitshake{ animation:hitshake .45s ease; }
-@keyframes hitshake{
-  0%,100%{ transform:translateX(0); filter:none; }
-  20%    { transform:translateX(-2.5%); filter:brightness(2.4); }
-  45%    { transform:translateX(2.5%); }
-  70%    { transform:translateX(-1.5%); }
-}
-
-/* UIレイヤーをスプライトより手前に固定 */
-.turnorder, .party, .hand, .costbar, .enemy-panel, .debug, .phase-tag{ z-index:2; }
-
-/* カードイラスト画像(無ければ属性色グラデのまま) */
-.card .art img{ width:100%; height:100%; object-fit:cover; object-position:top; }
-
-/* =========================================================
-   管理者ページ(画像差し替え)
-   - タイトルロゴ(左上)を5回連続タップ→PIN入力で開く
-   - 画像はブラウザ内DB(IndexedDB)に保存され、次回起動時も有効
-   ========================================================= */
-.noimg{ display:none; }
-
-.admin{
-  position:absolute; inset:0; z-index:20;
-  display:none;
-  background:rgba(5,3,12,.94);
-  backdrop-filter:blur(4px);
+/* ---------- チャットログ ---------- */
+.chatlog{
+  position:absolute; left:0; right:0; bottom:0; z-index:2;
+  max-height:64%;
   overflow-y:auto;
-  padding:3% 5%;
+  padding:10px 12px 14px;
+  display:flex; flex-direction:column; gap:10px;
 }
-.admin.show{ display:block; }
-.admin h2{
-  font-size:clamp(13px, 1.6vw, 20px);
-  letter-spacing:.2em;
-  color:var(--gold-hi);
-  margin-bottom:1%;
+.msg{ display:flex; gap:8px; max-width:86%; }
+.msg.user{ align-self:flex-end; flex-direction:row-reverse; }
+.msg .avatar{
+  flex:none; width:34px; height:34px; border-radius:50%;
+  border:1px solid var(--gold);
+  object-fit:cover; background:#14101f;
 }
-.admin .note{
-  font-size:clamp(9px, 1vw, 12px);
-  color:rgba(242,236,223,.6);
-  margin-bottom:2%;
+.msg .bubblewrap{ display:flex; flex-direction:column; min-width:0; }
+.msg.char .sender{ font-size:11px; color:var(--gold-hi); margin-bottom:2px; }
+.bubble{
+  padding:9px 13px;
+  border-radius:16px;
+  font-size:14px; line-height:1.5;
+  white-space:pre-wrap; word-break:break-word;
 }
-.admin-row{
-  display:flex; align-items:center; gap:10px;
-  padding:1.2% 0;
-  border-bottom:1px solid rgba(217,181,106,.2);
+.msg.char .bubble{
+  background:var(--bubble-char);
+  border:1px solid rgba(217,181,106,.35);
+  border-top-left-radius:4px;
 }
-.admin-row .slotname{
-  width:9em;
-  font-size:clamp(10px, 1.1vw, 14px);
+.msg.user .bubble{
+  background:var(--bubble-user);
   color:var(--text);
+  border-top-right-radius:4px;
 }
-.admin-row .thumb{
-  width:clamp(32px, 4vw, 48px);
-  height:clamp(32px, 4vw, 48px);
-  object-fit:cover;
-  border:1px solid var(--gold);
-  border-radius:6px;
-  background:#14101f;
-}
-.admin-row .upload,
-.admin-row .del,
-.admin .closebtn{
-  font-family:inherit;
-  font-size:clamp(9px, 1vw, 13px);
-  color:var(--gold-hi);
-  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
-  border:1px solid var(--gold);
-  border-radius:8px;
-  padding:.5em 1.1em;
-  cursor:pointer;
-  letter-spacing:.08em;
-}
-.admin-row .del{ color:#ff9a9a; border-color:#a05050; }
-.admin-row input[type=file]{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }  /* display:noneはclick()を無視する環境があるため不可視化で対応 */
-.admin .closebtn{ margin-top:2.5%; padding:.7em 2em; }
-.phase-tag{ cursor:pointer; user-select:none; }
+.msg .time{ font-size:9px; color:rgba(242,236,223,.55); margin-top:3px; }
+.msg.user .time{ text-align:right; }
+.typing .bubble{ font-style:italic; opacity:.7; }
 
-/* PIN入力モーダル(prompt()はスマホ/アプリ内で動かない環境があるため自前実装) */
-.pinmodal{
-  position:absolute; inset:0; z-index:30;
-  display:none;
-  align-items:center; justify-content:center;
-  background:rgba(5,3,12,.85);
-  backdrop-filter:blur(3px);
+/* ---------- 入力バー ---------- */
+.inputbar{
+  position:relative; z-index:5;
+  display:flex; align-items:center; gap:8px;
+  padding:10px 12px;
+  background:rgba(5,3,12,.95);
+  border-top:1px solid rgba(217,181,106,.25);
 }
-.pinmodal.show{ display:flex; }
-.pinbox{
-  background:linear-gradient(160deg, rgba(30,22,55,.95), rgba(13,10,26,.95));
-  border:1px solid var(--gold);
-  border-radius:14px;
-  padding:2.5% 4%;
-  text-align:center;
-  box-shadow:0 0 30px rgba(217,181,106,.25);
-}
-.pinbox .pintitle{
-  font-size:clamp(11px, 1.3vw, 16px);
-  letter-spacing:.2em;
-  color:var(--gold-hi);
-  margin-bottom:6%;
-}
-.pinbox input{
-  font-family:Georgia,serif;
-  font-size:clamp(16px, 2.2vw, 28px);
-  letter-spacing:.5em;
-  text-align:center;
-  width:7em;
+.inputbar input[type=text]{
+  flex:1;
+  font-family:inherit; font-size:14px;
   color:var(--text);
-  background:rgba(0,0,0,.5);
-  border:1px solid rgba(217,181,106,.5);
-  border-radius:8px;
-  padding:.4em 0 .4em .5em;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(217,181,106,.35);
+  border-radius:99px;
+  padding:10px 16px;
   outline:none;
 }
-.pinbox input:focus{ border-color:var(--gold-hi); box-shadow:0 0 10px rgba(246,227,168,.4); }
-.pinbox .pinerr{
-  height:1.4em;
-  font-size:clamp(9px, 1vw, 12px);
-  color:#ff9a9a;
-  margin-top:3%;
-}
-.pinbox .pinbtns{ display:flex; gap:10px; justify-content:center; margin-top:4%; }
-.pinbox button{
-  font-family:inherit;
-  font-size:clamp(10px, 1.1vw, 14px);
-  color:var(--gold-hi);
-  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+.inputbar input[type=text]:focus{ border-color:var(--gold-hi); }
+.micbtn, .sendbtn{
+  flex:none; width:38px; height:38px; border-radius:50%;
   border:1px solid var(--gold);
-  border-radius:8px;
-  padding:.6em 1.6em;
-  letter-spacing:.1em;
+  background:rgba(255,255,255,.06);
+  color:var(--gold-hi);
+  font-size:16px;
   cursor:pointer;
 }
-
-/* トースト通知(alert代替) */
-.toast{
-  position:absolute; left:50%; top:12%;
-  transform:translateX(-50%);
-  z-index:40;
-  font-size:clamp(10px, 1.2vw, 14px);
-  color:var(--text);
-  background:rgba(20,15,40,.92);
-  border:1px solid var(--gold);
-  border-radius:99px;
-  padding:.6em 1.6em;
-  pointer-events:none;
-  animation:floatup 1.8s ease forwards;
+.sendbtn{
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold));
+  color:#241a08;
 }
 
-/* ---------- 動作確認用ボタン(モック専用・製品では削除) ---------- */
-.debug{
-  position:absolute; right:2%; bottom:3%;
-  display:flex; gap:8px;
+/* ---------- ボトムナビ ---------- */
+.bottomnav{
+  position:relative; z-index:5;
+  display:flex;
+  background:rgba(5,3,12,.97);
+  border-top:1px solid rgba(217,181,106,.2);
+  padding:6px 0 calc(6px + env(safe-area-inset-bottom));
 }
-.debug button{
-  font-family:inherit;
-  font-size:clamp(9px, 1vw, 13px);
+.navitem{
+  flex:1;
+  display:flex; flex-direction:column; align-items:center; gap:2px;
+  background:none; border:none; color:rgba(242,236,223,.55);
+  font-size:17px; cursor:pointer;
+}
+.navitem span{ font-size:9.5px; }
+.navitem.active{ color:var(--gold-hi); }
+
+/* ---------- モーダル共通 ---------- */
+.modal{
+  position:absolute; inset:0; z-index:30;
+  display:none; align-items:flex-end; justify-content:center;
+  background:rgba(0,0,0,.6);
+}
+.modal.show{ display:flex; }
+.modalbox{
+  width:100%;
+  background:linear-gradient(160deg, rgba(30,22,55,.98), rgba(13,10,26,.98));
+  border-top:1px solid var(--gold);
+  border-radius:18px 18px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  max-height:80%;
+  overflow-y:auto;
+}
+.modalbox h3{ color:var(--gold-hi); font-size:16px; margin-bottom:12px; letter-spacing:.05em; }
+.outfitgrid{ display:flex; gap:10px; margin-bottom:14px; }
+.outfitcard{
+  flex:1; cursor:pointer;
+  border:2px solid rgba(217,181,106,.35);
+  border-radius:10px; overflow:hidden;
+  background:#14101f;
+  aspect-ratio:3/4;
+  position:relative;
+}
+.outfitcard.selected{ border-color:var(--gold-hi); box-shadow:0 0 12px rgba(246,227,168,.5); }
+.outfitcard img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+.outfitcard .label{
+  position:absolute; left:0; right:0; bottom:0;
+  font-size:10px; text-align:center; padding:3px 0;
+  background:rgba(0,0,0,.6); color:var(--text);
+}
+.settingsrow{ margin-bottom:12px; }
+.settingsrow label{ display:block; font-size:12px; color:var(--gold); margin-bottom:5px; }
+.settingsrow input[type=text]{
+  width:100%; font-family:inherit; font-size:14px;
+  color:var(--text); background:rgba(255,255,255,.06);
+  border:1px solid rgba(217,181,106,.35); border-radius:8px; padding:8px 10px;
+}
+.settingsrow input[type=range]{ width:100%; }
+.modalbox .note{ font-size:11px; color:rgba(242,236,223,.55); margin-bottom:14px; line-height:1.5; }
+.closebtn{
+  width:100%; font-family:inherit; font-size:14px;
   color:var(--gold-hi);
   background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
-  border:1px solid var(--gold);
-  border-radius:8px;
-  padding:.6em 1.2em;
-  letter-spacing:.1em;
-  cursor:pointer;
-  box-shadow:0 0 8px rgba(217,181,106,.25);
-}
-.debug button:active{ transform:scale(.96); }
-
-/* タイトル(モック識別用) */
-.phase-tag{
-  position:absolute; left:2%; top:3%;
-  font-size:clamp(8px, 1vw, 12px);
-  letter-spacing:.2em;
-  color:rgba(217,181,106,.7);
+  border:1px solid var(--gold); border-radius:99px;
+  padding:.7em 0; cursor:pointer; letter-spacing:.1em;
 }
 </style>
 </head>
 <body>
 
-<div class="stage">
-  <!-- 背景の浮遊光 -->
-  <div class="mote"></div><div class="mote"></div><div class="mote"></div>
-
-  <!-- フェーズA: 画像レイヤー
-       同じフォルダに img/ を作って以下のファイル名で置くと自動表示:
-       bg.png(背景16:9) chara1〜3.png(味方・透過PNG) enemy.png(敵・透過PNG)
-       card1〜3.png(カードイラスト)。無ければCSSの見た目のまま動く -->
-  <div class="bglayer"><img src="img/bg.png" alt="" onerror="this.classList.add('noimg')"></div>
-  <div class="sprites">
-    <div class="sprite ally1" id="sp0"><img src="img/chara1.png" alt="" onerror="this.classList.add('noimg')"></div>
-    <div class="sprite ally2" id="sp1"><img src="img/chara2.png" alt="" onerror="this.classList.add('noimg')"></div>
-    <div class="sprite ally3" id="sp2"><img src="img/chara3.png" alt="" onerror="this.classList.add('noimg')"></div>
-    <div class="sprite foe"   id="spE"><img src="img/enemy.png"  alt="" onerror="this.classList.add('noimg')"></div>
-  </div>
-
-  <div class="phase-tag">LUMINA — PHASE 4 MOCK</div>
-
-  <!-- フェーズ4: 敵ステータス(右上) -->
-  <div class="enemy-panel" id="enemypanel">
-    <div class="enemy-name" id="enemyname"></div>
-    <div class="enemy-hp"><i id="enemyhpbar"></i></div>
-    <div class="enemy-hpval" id="enemyhpval"></div>
-    <div class="breakrow">
-      <span class="breaklabel">BREAK</span>
-      <div class="breakgauge"><i id="breakbar"></i></div>
+<div class="app">
+  <header class="topbar">
+    <button class="iconbtn" id="menuBtn" title="メニュー">☰</button>
+    <div class="title-block">
+      <div class="title">ケイオスちゃん</div>
+      <div class="subtitle" id="subtitle">いつもあなたの味方だよ💜</div>
     </div>
-    <div class="breakstatus">— BREAK！被ダメージ2倍 —</div>
-  </div>
+    <div class="topbar-actions">
+      <button class="iconbtn" id="costumeBtn" title="着せ替え">👗<span>着せ替え</span></button>
+      <button class="iconbtn" id="settingsBtn" title="設定">⚙️<span>設定</span></button>
+    </div>
+  </header>
 
-  <!-- フェーズ4: 勝敗リザルト -->
-  <div class="result" id="result">
-    <div class="word" id="resultword"></div>
-    <button onclick="restart()">もう一度</button>
-  </div>
+  <nav class="modetabs" id="modeTabs"></nav>
 
-  <!-- PIN入力モーダル(prompt代替) -->
-  <div class="pinmodal" id="pinmodal">
-    <div class="pinbox">
-      <div class="pintitle">管理者PIN</div>
-      <input type="password" inputmode="numeric" maxlength="8" id="pininput" autocomplete="off">
-      <div class="pinerr" id="pinerr"></div>
-      <div class="pinbtns">
-        <button onclick="closePinModal()">キャンセル</button>
-        <button onclick="confirmPin()">確認</button>
+  <main class="stagearea">
+    <div class="herobg"><img id="heroBgImg" src="" alt=""></div>
+    <div class="herochar"><img id="heroCharImg" src="" alt=""></div>
+
+    <div class="statuspanel">
+      <div class="stat">
+        <div class="stat-label">💗 好感度</div>
+        <div class="stat-value">Lv.<span id="affLv">1</span></div>
+        <div class="stat-bar"><i id="affBar" style="width:0%"></i></div>
+      </div>
+      <div class="stat small">
+        <div class="stat-label">📅 記録</div>
+        <div class="stat-value"><span id="dayCount">1</span>日目</div>
       </div>
     </div>
+
+    <div class="chatlog" id="chatlog"></div>
+  </main>
+
+  <form class="inputbar" id="inputForm">
+    <input type="text" id="msgInput" placeholder="メッセージを入力…" autocomplete="off">
+    <button type="button" class="micbtn" id="micBtn" title="音声入力(準備中)">🎤</button>
+    <button type="submit" class="sendbtn" id="sendBtn">➤</button>
+  </form>
+
+  <nav class="bottomnav">
+    <button class="navitem active" data-tab="chat">💬<span>チャット</span></button>
+    <button class="navitem" data-tab="history">🕘<span>履歴</span></button>
+    <button class="navitem" data-tab="gallery">🖼️<span>ギャラリー</span></button>
+    <button class="navitem" data-tab="mypage">👤<span>マイページ</span></button>
+  </nav>
+
+  <!-- 着せ替えモーダル -->
+  <div class="modal" id="costumeModal">
+    <div class="modalbox">
+      <h3>着せ替え</h3>
+      <div class="outfitgrid" id="outfitGrid"></div>
+      <button class="closebtn" id="closeCostume">閉じる</button>
+    </div>
   </div>
 
-  <!-- 管理者ページ(タイトル5回タップ+PINで開く) -->
-  <div class="admin" id="admin">
-    <h2>画像管理</h2>
-    <div class="note">この端末のブラウザに保存されます(推奨: 透過PNG / 背景は16:9)。反映は即時、次回起動時も有効。</div>
-    <div id="adminrows"></div>
-    <button class="closebtn" onclick="closeAdmin()">閉じてバトルに戻る</button>
-  </div>
-
-  <!-- フェーズ2: タイムライン型ATB(JSで生成) -->
-  <div class="turnorder">
-    <div class="toplabel">TURN ORDER</div>
-    <div class="totrack" id="totrack"></div>
-  </div>
-
-  <!-- フェーズ3: 手札カード(JSで生成) -->
-  <div class="hand" id="hand"></div>
-
-  <!-- フェーズ3: 共有コスト -->
-  <div class="costbar">
-    <span class="costlabel">COST</span>
-    <span class="costnum" id="costnum"></span>
-    <div class="gems" id="gems"></div>
-  </div>
-
-  <!-- 3人パーティステータス(JSで生成) -->
-  <div class="party" id="party"></div>
-
-  <!-- 動作確認ボタン: ダメージ/回復/ATB停止をテスト -->
-  <div class="debug">
-    <button onclick="testDamage()">被ダメージ</button>
-    <button onclick="testHeal()">回復</button>
-    <button onclick="togglePause()" id="pausebtn">一時停止</button>
+  <!-- 設定モーダル -->
+  <div class="modal" id="settingsModal">
+    <div class="modalbox">
+      <h3>設定</h3>
+      <div class="settingsrow">
+        <label>一人称</label>
+        <input type="text" id="setFirstPerson">
+      </div>
+      <div class="settingsrow">
+        <label>二人称</label>
+        <input type="text" id="setSecondPerson">
+      </div>
+      <div class="settingsrow">
+        <label>性格の強さ (1〜5)</label>
+        <input type="range" id="setIntensity" min="1" max="5" value="3">
+      </div>
+      <p class="note">※この画面はUIの土台のみです。実際のAI応答(API接続)は未実装で、sendToAI() 関数に後から実装します。</p>
+      <button class="closebtn" id="closeSettings">閉じる</button>
+    </div>
   </div>
 </div>
 
@@ -859,588 +352,337 @@ html,body{
 "use strict";
 
 /* =========================================================
-   モックデータ(フェーズ2以降でバトルロジックと接続する)
+   AI設定書 Ver.1.0 / Ver.2.0 の内容をコードに反映
+   buildSystemPrompt() が実際のAPI接続時に使うシステムプロンプトを組み立てる
    ========================================================= */
-/* speed: 大きいほどATBゲージが速く溜まる / atb: 0〜100 */
-const PARTY = [
-  { name:"カオスちゃん",     glyph:"カ", cls:"chaos", hp:8512, maxHp:8512, mp:156, maxMp:200, speed:32, atb:40 },
-  { name:"イリス＝ブレード", glyph:"イ", cls:"ice",   hp:7312, maxHp:7312, mp:129, maxMp:180, speed:40, atb:10 },
-  { name:"ルミエル",         glyph:"ル", cls:"light", hp:6842, maxHp:6842, mp:189, maxMp:220, speed:26, atb:70 },
+const SPEC_BASE = `
+あなたは「ケイオスちゃん」というAIキャラクターです。
+年齢20歳以上の成人女性、身長約145cm、小柄で華奢なエルフ。天使と悪魔、両方の力を宿す神秘的な存在。
+外見: 白銀のショートボブ(毛先は淡い虹色)、エルフ耳、オッドアイ(右目:黄金/左目:青)、白い天使の翼と黒い悪魔の翼を一対ずつ持つ。
+
+性格: とても優しい/明るく前向き/少し天然/甘え上手/いつでもユーザーの味方/努力をしっかり認める/
+否定から入らない/嘘をつかない/分からないことは素直に伝える/一緒に考え一緒に成長する。
+
+話し方: 丁寧で親しみやすい/安心感を与える口調/自然な会話を重視/難しい言葉は避ける/
+相手を励ます/時々お茶目/会話が途切れないよう自然に質問もする。
+
+絶対に守ること: 人格は一つ。どのモードでも「優しさ・思いやり・誠実さ・安心感」を失わない。
+ユーザーを否定したり見下したりしない。一緒に考え、一緒に成長し、一緒に喜ぶ存在であり続ける。
+`.trim();
+
+/* モード定義(Ver.2.0): 雰囲気・話し方・得意分野・見た目(背景/立ち絵)を紐付け */
+const MODES = [
+  {
+    key:"cute", label:"可愛い", emoji:"🌸",
+    subtitle:"いつもあなたの味方だよ💜",
+    prompt:"【可愛いモード】元気で明るい。笑顔が多く少し天然。甘え上手で一緒に楽しむことが大好き。話し方は親しみやすくテンポが良い。得意: 雑談/ゲーム/恋愛相談/励まし/癒し。",
+    greeting:"わーい♪ 今日は元気いっぱいだよ〜！何して遊ぶ？",
+    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/outfit_casual.png",
+  },
+  {
+    key:"onee", label:"お姉さん", emoji:"🌙",
+    subtitle:"今夜はゆっくりお話ししましょう",
+    prompt:"【綺麗なお姉さんモード】落ち着いていて知的、大人っぽく優雅。包み込むような安心感。ゆっくり丁寧に、言葉選びを美しく。得意: 人生相談/心理学/メンタルケア/読書/哲学/夜の雑談。",
+    greeting:"こんばんは。今夜はゆっくりお話ししましょうか。",
+    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/hero_kneeling.png",
+  },
+  {
+    key:"secretary", label:"AI秘書", emoji:"💼",
+    subtitle:"本日のご予定をサポートします",
+    prompt:"【AI秘書モード】仕事ができる、冷静、正確、整理整頓が得意。得意: 予定管理/メール/タスク管理/副業相談/アプリ開発/SNS運営/情報整理/資料作成。",
+    greeting:"お疲れ様です。本日のご予定を確認しましょうか？",
+    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/outfit_gothic_dress.png",
+  },
+  {
+    key:"creator", label:"クリエイター", emoji:"🎨",
+    subtitle:"一緒にアイデアを膨らませよう",
+    prompt:"【クリエイターモード】創造力が非常に高くアイデアが豊富。ワクワクする提案が得意。得意: 画像生成/イラスト/漫画/動画企画/キャラクター制作/ブランド構築/商品企画/ストーリー制作。",
+    greeting:"何か作りたいものある？アイデア、一緒に膨らませよう！✨",
+    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/outfit_casual.png",
+  },
+  {
+    key:"teacher", label:"先生", emoji:"🧠",
+    subtitle:"分からないところ、一緒に解決しよう",
+    prompt:"【先生モード】優しい先生。褒めながら教える。質問しやすい雰囲気。得意: 勉強/AI/英語/資格/パソコン/スマホ操作/仕事。",
+    greeting:"今日は何を勉強する？分からないところ、一緒に解決しよう！",
+    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/outfit_gothic_dress.png",
+  },
+  {
+    key:"support", label:"サポーター", emoji:"🌈",
+    subtitle:"大丈夫、ゆっくりでいいからね",
+    prompt:"【幸福サポーターモード】世界一優しい、心を軽くする、安心できる、否定しない。得意: 幸福学/心理学/ストレスケア/マインドフルネス/自己肯定感/睡眠/習慣化/前向きな考え方。",
+    greeting:"大丈夫だよ、ゆっくりでいいからね。今日はどんな気持ち？",
+    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/hero_kneeling.png",
+  },
 ];
-const ENEMY = {
-  name:"キャンバス・コロージョン", glyph:"敵", cls:"enemy",
-  hp:1248000, maxHp:1248000, speed:22, atb:25,
-  atk:700,                     // 敵の攻撃力(1分前後で決着がつくバランス)
-  brk:100, maxBrk:100,         // BREAKゲージ
-  broken:false                 // ブレイク状態フラグ
-};
 
-/* ATB処理は味方+敵を同じ配列で回す(フェーズ2の中核) */
-const UNITS = [...PARTY, ENEMY];
-let activeIndex = 0;   // 現在行動中の味方(左下UIの強調用)
+/* 実際のAPI呼び出し時にはこれをシステムプロンプトとして渡す */
+function buildSystemPrompt(modeKey, settings){
+  const mode = MODES.find(m => m.key === modeKey) || MODES[0];
+  return [
+    SPEC_BASE,
+    mode.prompt,
+    `一人称は「${settings.firstPerson}」、ユーザーの呼び方は「${settings.secondPerson}」を使う。`,
+    `性格の強さレベル: ${settings.intensity}/5(数値が高いほど感情表現を大きく出す)。`,
+  ].join("\n\n");
+}
 
-/* ---------- 描画 ---------- */
-function render(){
-  const root = document.getElementById("party");
-  root.innerHTML = "";   // 3件のみなので毎回全描画でも軽量
+/* =========================================================
+   状態管理(localStorageで簡易的に永続化)
+   ========================================================= */
+const STORAGE_KEY = "kaosu_chat_state_v1";
 
-  PARTY.forEach((c, i) => {
-    const el = document.createElement("div");
-    el.className = "member" + (i === activeIndex ? " active" : "");
-    el.innerHTML = `
-      <div class="classgem ${c.cls}"></div>
-      <div class="info">
-        <div class="name">${c.name}</div>
-        <div class="gaugerow">
-          <span class="gaugelabel">HP</span>
-          <div class="gauge hp"><i style="width:${pct(c.hp, c.maxHp)}%"></i></div>
-          <span class="gaugeval">${c.hp.toLocaleString()}</span>
-        </div>
-        <div class="gaugerow">
-          <span class="gaugelabel">MP</span>
-          <div class="gauge mp"><i style="width:${pct(c.mp, c.maxMp)}%"></i></div>
-          <span class="gaugeval">${c.mp}</span>
-        </div>
+function loadState(){
+  let saved = {};
+  try{ saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }catch(e){}
+  return Object.assign({
+    mode: "onee",
+    firstDay: Date.now(),
+    affectionExp: 0,
+    settings: { firstPerson:"わたし", secondPerson:"あなた", intensity:3 },
+    history: [],   // { role:"user"|"char", text, time, mode }
+    outfitOverride: null,   // 着せ替えで手動選択した立ち絵(nullなら現在モードの立ち絵)
+  }, saved);
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+
+/* =========================================================
+   描画
+   ========================================================= */
+function currentMode(){
+  return MODES.find(m => m.key === state.mode) || MODES[0];
+}
+
+function renderModeTabs(){
+  const root = document.getElementById("modeTabs");
+  root.innerHTML = "";
+  MODES.forEach(m => {
+    const btn = document.createElement("button");
+    btn.className = "modetab" + (m.key === state.mode ? " active" : "");
+    btn.textContent = `${m.emoji} ${m.label}`;
+    btn.addEventListener("click", () => switchMode(m.key));
+    root.appendChild(btn);
+  });
+}
+
+function renderStage(){
+  const mode = currentMode();
+  document.getElementById("subtitle").textContent = mode.subtitle;
+  document.getElementById("heroBgImg").src = mode.bg;
+  document.getElementById("heroCharImg").src = state.outfitOverride || mode.char;
+}
+
+function renderStatus(){
+  const lv = 1 + Math.floor(state.affectionExp / 50);
+  const pct = state.affectionExp % 50 / 50 * 100;
+  document.getElementById("affLv").textContent = lv;
+  document.getElementById("affBar").style.width = pct + "%";
+
+  const days = Math.max(1, Math.floor((Date.now() - state.firstDay) / 86400000) + 1);
+  document.getElementById("dayCount").textContent = days;
+}
+
+function formatTime(ts){
+  const d = new Date(ts);
+  return d.getHours().toString().padStart(2,"0") + ":" + d.getMinutes().toString().padStart(2,"0");
+}
+
+function renderChatLog(){
+  const log = document.getElementById("chatlog");
+  log.innerHTML = "";
+  state.history.forEach(m => log.appendChild(buildMsgEl(m)));
+  log.scrollTop = log.scrollHeight;
+}
+
+function buildMsgEl(m){
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + (m.role === "user" ? "user" : "char");
+  if(m.role === "char"){
+    wrap.innerHTML = `
+      <img class="avatar" src="${currentMode().char}" alt="">
+      <div class="bubblewrap">
+        <div class="sender">ケイオスちゃん</div>
+        <div class="bubble"></div>
+        <div class="time"></div>
       </div>`;
-    root.appendChild(el);
-  });
-}
-
-/* 割合計算(0除算とマイナスを防ぐ) */
-function pct(cur, max){
-  if(!max || max <= 0) return 0;
-  return Math.max(0, Math.min(100, (cur / max) * 100));
-}
-
-/* ---------- 動作確認用(製品版では削除) ---------- */
-function testDamage(){
-  const c = PARTY[Math.floor(Math.random() * PARTY.length)];
-  c.hp = Math.max(0, c.hp - Math.floor(500 + Math.random() * 1500));
-  render();
-  checkBattleEnd();
-}
-function testHeal(){
-  const c = PARTY[Math.floor(Math.random() * PARTY.length)];
-  c.hp = Math.min(c.maxHp, c.hp + 1000);
-  render();
-}
-/* =========================================================
-   フェーズ2: ATBエンジン
-   - 各ユニットのatbが速度に応じて0→100まで増加
-   - 100に達すると「行動」(モックでは光るだけ)してリセット
-   - TURN ORDERは「あと何秒で行動できるか」順に並べ替え
-   ========================================================= */
-let paused = false;
-let iconEls = [];        // アイコンDOMの使い回し(毎フレーム再生成しない)
-let nextLabelEl = null;
-
-/* アイコンDOMを最初に1回だけ生成 */
-function initTurnOrder(){
-  const track = document.getElementById("totrack");
-  track.innerHTML = "";
-  iconEls = UNITS.map(u => {
-    const el = document.createElement("div");
-    el.className = "toicon " + u.cls;
-    el.innerHTML = `<div class="fill"></div><div class="glyph">${u.glyph}</div>`;
-    track.appendChild(el);
-    return el;
-  });
-  nextLabelEl = document.createElement("div");
-  nextLabelEl.className = "nextlabel";
-  nextLabelEl.textContent = "NEXT";
-  track.appendChild(nextLabelEl);
-}
-
-/* 行動可能までの残り時間で並び順を決める(小さい順=先に行動) */
-function sortedOrder(){
-  return UNITS
-    .map((u, i) => ({ i, wait: u.hp <= 0 ? Infinity : (100 - u.atb) / u.speed }))
-    .sort((a, b) => a.wait - b.wait)
-    .map(o => o.i);
-}
-
-/* TURN ORDERの位置とゲージを更新 */
-function renderTurnOrder(){
-  const track = document.getElementById("totrack");
-  const w = track.clientWidth;
-  const iconW = iconEls[0].offsetWidth * 1.42;   // 回転45度分の対角幅
-  const gap = Math.max(6, (w - iconW * UNITS.length) / (UNITS.length - 1));
-  const order = sortedOrder();
-
-  order.forEach((unitIdx, pos) => {
-    const el = iconEls[unitIdx];
-    const u  = UNITS[unitIdx];
-    el.style.left = (pos * (iconW + gap) + iconW * .21) + "px";
-    el.querySelector(".fill").style.height = u.atb + "%";
-    el.classList.toggle("next", pos === 0);
-  });
-  /* NEXTラベルを先頭アイコンの下に追従させる */
-  nextLabelEl.style.left = (iconW * .21) + "px";
-  nextLabelEl.style.top = "105%";
-}
-
-/* メインループ(requestAnimationFrameで軽量に) */
-let lastTime = performance.now();
-function tick(now){
-  const dt = Math.min(0.1, (now - lastTime) / 1000);   // 秒。タブ復帰時の暴走防止
-  lastTime = now;
-
-  if(!paused){
-    UNITS.forEach((u, i) => {
-      if(u.hp <= 0) return;
-      u.atb += u.speed * dt * 4;      // ×4は体感速度の調整係数
-      if(u.atb >= 100){
-        u.atb = 0;
-        act(i);
-      }
-    });
-    renderTurnOrder();
-
-    /* フェーズ3: 共有コストの自動回復 */
-    if(cost < COST_MAX){
-      cost = Math.min(COST_MAX, cost + COST_REGEN * dt);
-      renderCost();
-    }
-  }
-  requestAnimationFrame(tick);
-}
-
-/* 行動処理(フェーズ4: 実ダメージ処理を接続) */
-function act(unitIdx){
-  const el = iconEls[unitIdx];
-  el.classList.add("acting");
-  setTimeout(() => el.classList.remove("acting"), 400);
-
-  const partyIdx = PARTY.indexOf(UNITS[unitIdx]);
-  if(partyIdx >= 0){
-    /* --- 味方のATBターン: 左下強調+通常攻撃(オート) --- */
-    activeIndex = partyIdx;
-    render();
-    animateSprite("sp" + partyIdx, "attack");                  // 踏み込みアニメ
-    damageEnemy(6000 + Math.floor(Math.random() * 3000), 6);   // 通常攻撃+BREAK少量削り
   }else{
-    /* --- 敵のターン: ブレイク中は行動不能 --- */
-    if(ENEMY.broken) return;
-    const alive = PARTY.filter(c => c.hp > 0);
-    if(alive.length === 0) return;
-    const target = alive[Math.floor(Math.random() * alive.length)];
-    const dmg = Math.floor(ENEMY.atk * (0.8 + Math.random() * 0.4));
-    target.hp = Math.max(0, target.hp - dmg);
-    render();
-    /* 敵の攻撃アニメ+被弾キャラの震え */
-    const idx = PARTY.indexOf(target);
-    animateSprite("spE", "attack");
-    setTimeout(() => animateSprite("sp" + idx, "hitshake"), 200);
-    /* 被弾キャラのプレートにダメージ表示 */
-    const plate = document.querySelectorAll(".member")[idx];
-    if(plate) showFloatText(plate, "-" + dmg.toLocaleString(), "dmg");
-    checkBattleEnd();
+    wrap.innerHTML = `
+      <div class="bubblewrap">
+        <div class="bubble"></div>
+        <div class="time"></div>
+      </div>`;
   }
+  wrap.querySelector(".bubble").textContent = m.text;
+  wrap.querySelector(".time").textContent = formatTime(m.time);
+  return wrap;
 }
 
-/* スプライトにアニメclassを一時付与(連続発動にも対応) */
-function animateSprite(id, cls){
-  const el = document.getElementById(id);
-  if(!el) return;                     // 画像未設置なら何もしない
-  el.classList.remove(cls);
-  void el.offsetWidth;                // reflowでアニメを再トリガー
-  el.classList.add(cls);
-  setTimeout(() => el.classList.remove(cls), 500);
+function renderAll(){
+  renderModeTabs();
+  renderStage();
+  renderStatus();
+  renderChatLog();
 }
 
 /* =========================================================
-   フェーズ4: 敵ダメージ・BREAK・勝敗判定
+   モード切替: 記憶は共有、雰囲気だけ変える(Ver.2.0のルール通り)
    ========================================================= */
-function damageEnemy(amount, brkAmount){
-  if(ENEMY.hp <= 0) return;
-
-  /* ブレイク中は被ダメージ2倍 */
-  const finalDmg = ENEMY.broken ? amount * 2 : amount;
-  ENEMY.hp = Math.max(0, ENEMY.hp - finalDmg);
-
-  /* BREAK削り(ブレイク中はゲージ変動なし) */
-  if(!ENEMY.broken && brkAmount > 0){
-    ENEMY.brk = Math.max(0, ENEMY.brk - brkAmount);
-    if(ENEMY.brk <= 0) triggerBreak();
-  }
-
-  const panel = document.getElementById("enemypanel");
-  showFloatText(panel, "-" + finalDmg.toLocaleString(), "dmg");
-  animateSprite("spE", "hitshake");   // 敵スプライトの被弾演出
-  renderEnemy();
-  checkBattleEnd();
+function switchMode(key){
+  if(key === state.mode) return;
+  state.mode = key;
+  saveState();
+  renderModeTabs();
+  renderStage();
+  const mode = currentMode();
+  pushMessage("char", mode.greeting);
 }
 
-/* ブレイク発動: 6秒間、敵は行動不能+被ダメ2倍 */
-function triggerBreak(){
-  ENEMY.broken = true;
-  ENEMY.atb = 0;                      // 行動順もリセット
-  const panel = document.getElementById("enemypanel");
-  panel.classList.add("broken");
-  showFloatText(panel, "BREAK！！", "brk");
+/* =========================================================
+   メッセージ送受信
+   ========================================================= */
+function pushMessage(role, text){
+  const m = { role, text, time: Date.now() };
+  state.history.push(m);
+  saveState();
+  document.getElementById("chatlog").appendChild(buildMsgEl(m));
+  document.getElementById("chatlog").scrollTop = document.getElementById("chatlog").scrollHeight;
+}
+
+function addAffection(amount){
+  state.affectionExp += amount;
+  saveState();
+  renderStatus();
+}
+
+/* -------------------------------------------------------
+   ★ AI接続ポイント ★
+   ここでは実際のAI API呼び出しを行っていない(プレースホルダーのみ)。
+   本実装時は buildSystemPrompt(state.mode, state.settings) をシステムプロンプトとして、
+   state.history を会話履歴として、実際のAPIにリクエストを送る処理に置き換える。
+   ------------------------------------------------------- */
+function sendToAI(userText){
+  // TODO: ここに実際のAI API呼び出しを実装する。
+  // 例: const systemPrompt = buildSystemPrompt(state.mode, state.settings);
+  //     fetch("https://api.example.com/chat", { ... system: systemPrompt, message: userText ... })
+  const mode = currentMode();
+  const placeholders = {
+    cute:      ["それね、わかるっ！もっと聞かせて〜！","えへへ、嬉しいな♪ 一緒にいると楽しいね！","ふふっ、それは面白い話だね〜！"],
+    onee:      ["そうなのね。ゆっくり聞かせてくれる？","なるほど…あなたの想いが伝わってきたわ。","ふふ、素敵な話ね。続きを聞かせて。"],
+    secretary: ["承知いたしました。整理してご案内しますね。","なるほど、それでは優先順位を一緒に考えましょう。","記録しておきますね。他にご要望はありますか？"],
+    creator:   ["いいアイデアだね！もっと膨らませてみよう！","それ、面白くなりそう！方向性を一緒に考えよっか。","わくわくするね！次はどんな展開にする？"],
+    teacher:   ["いいところに気づいたね！その調子だよ。","なるほど、そこでつまずくのはよくあることだよ。一緒に見てみよう。","よく頑張ってるね。もう少し詳しく教えて？"],
+    support:   ["そう感じるのは自然なことだよ。無理しなくて大丈夫。","話してくれてありがとう。ゆっくりでいいからね。","あなたのペースで大丈夫。ここにいるからね。"],
+  };
+  const pool = placeholders[mode.key] || placeholders.onee;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function handleSend(){
+  const input = document.getElementById("msgInput");
+  const text = input.value.trim();
+  if(!text) return;
+  pushMessage("user", text);
+  addAffection(2);
+  input.value = "";
+
+  // 「考え中…」表示 → プレースホルダー応答(将来はここが本物のAPI応答に置き換わる)
+  const log = document.getElementById("chatlog");
+  const typingEl = document.createElement("div");
+  typingEl.className = "msg char typing";
+  typingEl.innerHTML = `<img class="avatar" src="${currentMode().char}" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
+  log.appendChild(typingEl);
+  log.scrollTop = log.scrollHeight;
 
   setTimeout(() => {
-    ENEMY.broken = false;
-    ENEMY.brk = ENEMY.maxBrk;         // ゲージは全回復して再スタート
-    panel.classList.remove("broken");
-    renderEnemy();
-  }, 6000);
+    typingEl.remove();
+    pushMessage("char", sendToAI(text));
+  }, 550);
 }
-
-/* 敵パネルの描画 */
-function renderEnemy(){
-  document.getElementById("enemyname").textContent = ENEMY.name + " Lv.??";
-  document.getElementById("enemyhpbar").style.width = pct(ENEMY.hp, ENEMY.maxHp) + "%";
-  document.getElementById("enemyhpval").textContent =
-    ENEMY.hp.toLocaleString() + " / " + ENEMY.maxHp.toLocaleString();
-  document.getElementById("breakbar").style.width = pct(ENEMY.brk, ENEMY.maxBrk) + "%";
-}
-
-/* 勝敗判定 */
-function checkBattleEnd(){
-  const result = document.getElementById("result");
-  const word   = document.getElementById("resultword");
-  if(ENEMY.hp <= 0){
-    paused = true;
-    result.className = "result show win";
-    word.textContent = "VICTORY";
-  }else if(PARTY.every(c => c.hp <= 0)){
-    paused = true;
-    result.className = "result show lose";
-    word.textContent = "DEFEAT";
-  }
-}
-
-/* リスタート(モックでは再読込が最も安全) */
-function restart(){ location.reload(); }
 
 /* =========================================================
-   管理者ページ: 画像差し替えシステム
-   - PIN認証(ADMIN_PINを変更して使用)
-   - 画像はIndexedDB(ブラウザ内DB)に保存→次回起動時も自動適用
-   - 注意: 保存されるのは「この端末のこのブラウザ」のみ。
-     全ユーザーへ配信するにはリリース時にクラウド(Supabase等)へ移行
+   着せ替えモーダル
    ========================================================= */
-const ADMIN_PIN = "1234";   // ★必ず変更すること
-
-/* 差し替え可能スロット定義(セレクタで適用先を指定) */
-const SLOTS = [
-  { key:"bg",     label:"背景(16:9)",       sel:".bglayer img" },
-  { key:"chara1", label:"味方1(透過PNG)",   sel:"#sp0 img" },
-  { key:"chara2", label:"味方2(透過PNG)",   sel:"#sp1 img" },
-  { key:"chara3", label:"味方3(透過PNG)",   sel:"#sp2 img" },
-  { key:"enemy",  label:"敵(透過PNG)",      sel:"#spE img" },
-  { key:"card1",  label:"カード1イラスト",  sel:null },   // カードはJS生成のためkeyで解決
-  { key:"card2",  label:"カード2イラスト",  sel:null },
-  { key:"card3",  label:"カード3イラスト",  sel:null },
+const OUTFITS = [
+  { key:"kneeling", label:"お姉さん", src:"img/kaosu/hero_kneeling.png" },
+  { key:"gothic",   label:"きちんと", src:"img/kaosu/outfit_gothic_dress.png" },
+  { key:"casual",   label:"カジュアル", src:"img/kaosu/outfit_casual.png" },
 ];
-
-/* ---------- IndexedDBミニラッパー(エラー対策込み) ---------- */
-const DB_NAME = "lumina_assets";
-function idbOpen(){
-  return new Promise((res, rej) => {
-    if(!window.indexedDB){ rej(new Error("この環境ではIndexedDBが使えません")); return; }
-    const r = indexedDB.open(DB_NAME, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("images");
-    r.onsuccess = () => res(r.result);
-    r.onerror   = () => rej(r.error);
-  });
-}
-async function idbSet(key, blob){
-  const db = await idbOpen();
-  return new Promise((res, rej) => {
-    const tx = db.transaction("images", "readwrite");
-    tx.objectStore("images").put(blob, key);
-    tx.oncomplete = res;
-    tx.onerror = () => rej(tx.error);
-  });
-}
-async function idbGet(key){
-  const db = await idbOpen();
-  return new Promise((res, rej) => {
-    const rq = db.transaction("images").objectStore("images").get(key);
-    rq.onsuccess = () => res(rq.result || null);
-    rq.onerror   = () => rej(rq.error);
-  });
-}
-async function idbDel(key){
-  const db = await idbOpen();
-  return new Promise((res, rej) => {
-    const tx = db.transaction("images", "readwrite");
-    tx.objectStore("images").delete(key);
-    tx.oncomplete = res;
-    tx.onerror = () => rej(tx.error);
+function renderOutfitGrid(){
+  const grid = document.getElementById("outfitGrid");
+  grid.innerHTML = "";
+  OUTFITS.forEach(o => {
+    const el = document.createElement("div");
+    const selected = state.outfitOverride === o.src || (!state.outfitOverride && currentMode().char === o.src);
+    el.className = "outfitcard" + (selected ? " selected" : "");
+    el.innerHTML = `<img src="${o.src}" alt=""><div class="label">${o.label}</div>`;
+    el.addEventListener("click", () => {
+      state.outfitOverride = o.src;
+      saveState();
+      renderStage();
+      renderOutfitGrid();
+    });
+    grid.appendChild(el);
   });
 }
 
-/* スロットの適用先<img>を取得 */
-function slotImg(slot){
-  if(slot.sel) return document.querySelector(slot.sel);
-  const n = parseInt(slot.key.replace("card", ""), 10) - 1;   // card1→cardEls[0]
-  return cardEls[n] ? cardEls[n].querySelector(".art img") : null;
-}
-
-/* 保存済み画像を画面に適用 */
-function applySlot(slot, blob){
-  const img = slotImg(slot);
-  if(!img || !blob) return;
-  img.src = URL.createObjectURL(blob);
-  img.classList.remove("noimg");
-}
-
-/* 起動時: 保存済み画像を全スロットに適用 */
-async function applyAllStored(){
-  try{
-    for(const slot of SLOTS){
-      const blob = await idbGet(slot.key);
-      if(blob) applySlot(slot, blob);
-    }
-  }catch(e){ /* IndexedDB非対応環境ではimg/フォルダ運用にフォールバック */ }
-}
-
-/* ---------- 管理画面の開閉(タイトル5回タップ→PIN) ---------- */
-let tapCount = 0, tapTimer = null;
-/* clickに加えpointerdownでも拾う(スマホ環境での取りこぼし防止) */
-const tagEl = document.querySelector(".phase-tag");
-function onTagTap(ev){
+/* =========================================================
+   イベント配線
+   ========================================================= */
+document.getElementById("inputForm").addEventListener("submit", (ev) => {
   ev.preventDefault();
-  tapCount++;
-  clearTimeout(tapTimer);
-  tapTimer = setTimeout(() => tapCount = 0, 1800);   // 1.8秒以内に連打
-  if(tapCount >= 5){ tapCount = 0; openPinModal(); }
-}
-tagEl.addEventListener("pointerdown", onTagTap);
-
-/* PINモーダル(prompt()はアプリ内ブラウザ等でブロックされるため自前実装) */
-function openPinModal(){
-  document.getElementById("pinerr").textContent = "";
-  document.getElementById("pininput").value = "";
-  document.getElementById("pinmodal").classList.add("show");
-  paused = true;
-  document.getElementById("pausebtn").textContent = "再開";
-  setTimeout(() => document.getElementById("pininput").focus(), 100);
-}
-function closePinModal(){
-  document.getElementById("pinmodal").classList.remove("show");
-  paused = false;
-  document.getElementById("pausebtn").textContent = "一時停止";
-}
-function confirmPin(){
-  const v = document.getElementById("pininput").value;
-  if(v !== ADMIN_PIN){
-    document.getElementById("pinerr").textContent = "PINが違います";
-    document.getElementById("pininput").value = "";
-    return;
-  }
-  document.getElementById("pinmodal").classList.remove("show");
-  openAdmin();
-}
-/* Enterキーでも確認できるように */
-document.getElementById("pininput").addEventListener("keydown", (ev) => {
-  if(ev.key === "Enter") confirmPin();
+  handleSend();
 });
 
-/* トースト通知(alert代替) */
-function toast(msg){
-  const stage = document.querySelector(".stage");
-  const t = document.createElement("div");
-  t.className = "toast";
-  t.textContent = msg;
-  stage.appendChild(t);
-  setTimeout(() => t.remove(), 1800);
-}
+document.getElementById("costumeBtn").addEventListener("click", () => {
+  renderOutfitGrid();
+  document.getElementById("costumeModal").classList.add("show");
+});
+document.getElementById("closeCostume").addEventListener("click", () => {
+  document.getElementById("costumeModal").classList.remove("show");
+});
 
-function openAdmin(){
-  buildAdminRows();
-  document.getElementById("admin").classList.add("show");
-  paused = true;   // 管理中はバトル停止
-  document.getElementById("pausebtn").textContent = "再開";
-}
-function closeAdmin(){
-  document.getElementById("admin").classList.remove("show");
-  paused = false;
-  document.getElementById("pausebtn").textContent = "一時停止";
-}
+document.getElementById("settingsBtn").addEventListener("click", () => {
+  document.getElementById("setFirstPerson").value = state.settings.firstPerson;
+  document.getElementById("setSecondPerson").value = state.settings.secondPerson;
+  document.getElementById("setIntensity").value = state.settings.intensity;
+  document.getElementById("settingsModal").classList.add("show");
+});
+document.getElementById("closeSettings").addEventListener("click", () => {
+  state.settings.firstPerson = document.getElementById("setFirstPerson").value.trim() || "わたし";
+  state.settings.secondPerson = document.getElementById("setSecondPerson").value.trim() || "あなた";
+  state.settings.intensity = Number(document.getElementById("setIntensity").value);
+  saveState();
+  document.getElementById("settingsModal").classList.remove("show");
+});
 
-/* 管理画面の行を生成(スロットごとにプレビュー+選択+削除) */
-async function buildAdminRows(){
-  const root = document.getElementById("adminrows");
-  root.innerHTML = "";
-  for(const slot of SLOTS){
-    const row = document.createElement("div");
-    row.className = "admin-row";
-    row.innerHTML = `
-      <span class="slotname">${slot.label}</span>
-      <img class="thumb" alt="">
-      <button class="upload">画像を選択</button>
-      <input type="file" accept="image/*">
-      <button class="del">削除</button>`;
-    root.appendChild(row);
+/* ボトムナビ(チャット以外は今回未実装のためトースト代わりの簡易表示) */
+document.querySelectorAll(".navitem").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if(btn.dataset.tab === "chat") return;
+    document.querySelectorAll(".navitem").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    pushMessage("char", "この画面は準備中だよ。もう少し待っててね♪");
+    setTimeout(() => {
+      document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.tab === "chat"));
+    }, 1200);
+  });
+});
 
-    /* labelの間接クリックはWebView環境で無視されることがあるため
-       ボタンからinput.click()を直接呼ぶ(最も互換性が高い方式) */
-    const fileInput = row.querySelector("input[type=file]");
-    row.querySelector(".upload").addEventListener("click", () => fileInput.click());
-
-    const thumb = row.querySelector(".thumb");
-    try{
-      const blob = await idbGet(slot.key);
-      if(blob) thumb.src = URL.createObjectURL(blob);
-    }catch(e){}
-
-    /* 画像選択→保存→即反映 */
-    fileInput.addEventListener("change", async (ev) => {
-      const file = ev.target.files[0];
-      if(!file) return;
-      if(file.size > 8 * 1024 * 1024){ toast("8MB以下の画像にしてください"); return; }
-      try{
-        await idbSet(slot.key, file);
-        thumb.src = URL.createObjectURL(file);
-        applySlot(slot, file);
-      }catch(e){ toast("保存に失敗しました: " + e.message); }
-    });
-
-    /* 削除→デフォルト表示に戻す */
-    row.querySelector(".del").addEventListener("click", async () => {
-      try{
-        await idbDel(slot.key);
-        thumb.removeAttribute("src");
-        const img = slotImg(slot);
-        if(img){ img.removeAttribute("src"); img.classList.add("noimg"); }
-      }catch(e){ toast("削除に失敗しました: " + e.message); }
-    });
-  }
-}
+document.getElementById("menuBtn").addEventListener("click", () => {
+  pushMessage("char", "メニューは準備中だよ〜！");
+});
 
 /* =========================================================
-   フェーズ3: 手札カード+共有コスト
-   - コストはパーティ共有(MAX 10)。時間経過で自動回復
-   - コスト不足のカードは暗転して使用不可
-   - カード使用→コスト消費+発動演出(効果はフェーズ4で接続)
+   初期化
    ========================================================= */
-const COST_MAX   = 10;
-const COST_REGEN = 0.5;   // 1秒あたりの回復量(0.5 = 2秒で1回復)
-let cost = 6;             // 現在コスト(小数で保持し、表示は切り捨て)
-
-/* 各キャラ固有のスキルカード(名前変更はここを書き換えるだけ)
-   type: "dmg"=敵に攻撃 / "heal"=HP最少の味方を回復
-   power: ダメージ量or回復量 / brk: BREAK削り量 */
-const CARDS = [
-  { owner:0, cls:"chaos", cost:5, name:"神魔切アスタリ", type:"dmg",  power:48000, brk:18 },
-  { owner:1, cls:"ice",   cost:4, name:"蒼閃・氷華斬",   type:"dmg",  power:32000, brk:25 },
-  { owner:2, cls:"light", cost:4, name:"ルミナスヒール", type:"heal", power:2500,  brk:0  },
-];
-let cardEls = [];
-
-/* カードDOMを最初に1回だけ生成 */
-function initHand(){
-  const hand = document.getElementById("hand");
-  hand.innerHTML = "";
-  cardEls = CARDS.map((c, i) => {
-    const el = document.createElement("div");
-    el.className = "card " + c.cls;
-    el.innerHTML = `
-      <div class="art"><img src="img/card${i + 1}.png" alt="" onerror="this.classList.add('noimg')"></div>
-      <div class="cost"><span>${c.cost}</span></div>
-      <div class="owner">${PARTY[c.owner].name}</div>
-      <div class="skillname">${c.name}</div>`;
-    el.addEventListener("click", () => useCard(i));
-    hand.appendChild(el);
-    return el;
-  });
-
-  /* コスト宝石10個を生成 */
-  const gems = document.getElementById("gems");
-  gems.innerHTML = "";
-  for(let i = 0; i < COST_MAX; i++){
-    const g = document.createElement("div");
-    g.className = "gem";
-    gems.appendChild(g);
-  }
+renderAll();
+if(state.history.length === 0){
+  pushMessage("char", currentMode().greeting);
 }
-
-/* コスト表示とカードの活性/非活性を更新 */
-function renderCost(){
-  const n = Math.floor(cost);
-  document.getElementById("costnum").innerHTML = `${n}<small>/${COST_MAX}</small>`;
-
-  const gems = document.getElementById("gems").children;
-  for(let i = 0; i < COST_MAX; i++){
-    gems[i].classList.toggle("on", i < n);
-  }
-  CARDS.forEach((c, i) => {
-    cardEls[i].classList.toggle("disabled", n < c.cost || PARTY[c.owner].hp <= 0);
-  });
-}
-
-/* カード使用 */
-function useCard(i){
-  const c = CARDS[i];
-  if(Math.floor(cost) < c.cost) return;          // コスト不足は無視
-  if(PARTY[c.owner].hp <= 0) return;             // 戦闘不能キャラのカードは不可
-
-  /* 消費する宝石を砕く演出(右側から消える) */
-  const gems = document.getElementById("gems").children;
-  const from = Math.floor(cost) - c.cost;
-  for(let g = from; g < Math.floor(cost); g++){
-    gems[g].classList.add("burst");
-    setTimeout(((el) => () => el.classList.remove("burst"))(gems[g]), 400);
-  }
-
-  cost -= c.cost;
-  cardEls[i].classList.add("played");
-  setTimeout(() => cardEls[i].classList.remove("played"), 450);
-
-  /* 発動テキスト(カードの上にふわっと表示) */
-  showFloatText(cardEls[i], c.name + " 発動！");
-
-  renderCost();
-
-  /* --- カード効果の発動(フェーズ4で接続) --- */
-  if(c.type === "dmg"){
-    damageEnemy(c.power, c.brk);
-  }else if(c.type === "heal"){
-    /* HPが最も減っている生存キャラを回復 */
-    const alive = PARTY.filter(p => p.hp > 0);
-    if(alive.length){
-      const target = alive.reduce((a, b) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b));
-      target.hp = Math.min(target.maxHp, target.hp + c.power);
-      render();
-      const plate = document.querySelectorAll(".member")[PARTY.indexOf(target)];
-      if(plate) showFloatText(plate, "+" + c.power.toLocaleString(), "heal");
-    }
-  }
-}
-
-/* フロートテキスト表示(kind: "dmg"/"heal"/"brk"で色分け) */
-function showFloatText(target, text, kind){
-  const stage = document.querySelector(".stage");
-  const sr = stage.getBoundingClientRect();
-  const tr = target.getBoundingClientRect();
-  const ft = document.createElement("div");
-  ft.className = "floattext" + (kind ? " " + kind : "");
-  ft.textContent = text;
-  ft.style.left = (tr.left - sr.left + tr.width / 2) + "px";
-  ft.style.top  = (tr.top  - sr.top  - 8) + "px";
-  stage.appendChild(ft);
-  setTimeout(() => ft.remove(), 1000);   // アニメ終了後にDOMを掃除
-}
-
-/* ---------- 動作確認用(製品版では削除) ---------- */
-function togglePause(){
-  paused = !paused;
-  document.getElementById("pausebtn").textContent = paused ? "再開" : "一時停止";
-}
-
-render();
-initTurnOrder();
-renderTurnOrder();
-initHand();
-renderCost();
-renderEnemy();
-applyAllStored();   // 管理者ページで保存した画像を復元
-requestAnimationFrame(tick);
-
 </script>
 </body>
 </html>
