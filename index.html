@@ -1588,14 +1588,19 @@ const DB_NAME = "lumina_assets";
 function idbOpen(){
   return new Promise((res, rej) => {
     if(!window.indexedDB){ rej(new Error("この環境ではIndexedDBが使えません")); return; }
-    const r = indexedDB.open(DB_NAME, 2);   // v2: キャラクター保存用ストアを追加
-    r.onupgradeneeded = () => {
-      const db = r.result;
-      if(!db.objectStoreNames.contains("images")) db.createObjectStore("images");
-      if(!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath:"id", autoIncrement:true });
-    };
-    r.onsuccess = () => res(r.result);
-    r.onerror   = () => rej(r.error);
+    try{
+      const r = indexedDB.open(DB_NAME, 2);   // v2: キャラクター保存用ストアを追加
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if(!db.objectStoreNames.contains("images")) db.createObjectStore("images");
+        if(!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath:"id", autoIncrement:true });
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror   = () => rej(r.error);
+    }catch(e){
+      /* サンドボックス化されたiframe等ではindexedDB.open自体が同期的に例外を投げる場合がある */
+      rej(e);
+    }
   });
 }
 
@@ -1634,8 +1639,16 @@ async function idbDeleteCharacter(id){
      決済成功のコールバック内で setUnlockedExtra() を呼ぶ形にする。
    ========================================================= */
 const FREE_SLOTS = 3;
-function getUnlockedExtra(){ return parseInt(localStorage.getItem("lumina_extraSlots") || "0", 10) || 0; }
-function setUnlockedExtra(n){ localStorage.setItem("lumina_extraSlots", String(n)); }
+let memoryExtraSlots = 0;   // localStorageが使えないサンドボックス環境向けのフォールバック
+function getUnlockedExtra(){
+  try{ return parseInt(localStorage.getItem("lumina_extraSlots") || "0", 10) || 0; }
+  catch(e){ return memoryExtraSlots; }
+}
+function setUnlockedExtra(n){
+  memoryExtraSlots = n;
+  try{ localStorage.setItem("lumina_extraSlots", String(n)); }
+  catch(e){ /* 保存できない環境ではメモリ上の値のみ有効(リロードで消える) */ }
+}
 function getMaxSlots(){ return FREE_SLOTS + getUnlockedExtra(); }
 
 const SHOP_ITEMS = [
@@ -2358,12 +2371,19 @@ function togglePause(){
   document.getElementById("pausebtn").textContent = paused ? "再開" : "一時停止";
 }
 
-/* 起動処理: バトルはまだ開始せず、まずホーム画面を表示する */
+/* 起動処理: バトルはまだ開始せず、まずホーム画面を表示する
+   (サンドボックス化された環境でストレージ系APIが例外を投げても
+    画面が真っ白のまま止まらないよう、必ずホーム表示とループ開始まで行う) */
 (async function boot(){
-  await loadRoster();
-  renderHomeCounts();
-  showScreen("screen-home");
-  applyAllStored();   // 管理者ページで保存した背景/敵/カード画像を復元
+  try{
+    await loadRoster();
+  }catch(e){ roster = []; }
+  try{
+    showScreen("screen-home");
+  }catch(e){ console.error("showScreen failed", e); }
+  try{
+    applyAllStored();   // 管理者ページで保存した背景/敵/カード画像を復元
+  }catch(e){ /* 未対応環境ではデフォルト画像のまま動作する */ }
   requestAnimationFrame(tick);
 })();
 
