@@ -266,6 +266,42 @@ html,body{
   border:1px solid var(--gold); border-radius:99px;
   padding:.7em 0; cursor:pointer; letter-spacing:.1em;
 }
+.closebtn.ghost{ background:transparent; color:rgba(242,236,223,.7); border-color:rgba(217,181,106,.4); }
+.adminlink{
+  display:block; width:100%; text-align:center;
+  font-family:inherit; font-size:11.5px;
+  color:rgba(242,236,223,.5);
+  background:none; border:none;
+  padding:.6em 0; margin-bottom:8px; cursor:pointer; letter-spacing:.05em;
+}
+.pinerr{ min-height:1.3em; font-size:11px; color:#ff9a9a; text-align:center; margin:-6px 0 10px; }
+.pinbtnrow{ display:flex; gap:10px; }
+.pinbtnrow .closebtn{ flex:1; }
+#adminPinInput{
+  width:100%; text-align:center;
+  font-family:Georgia,serif; font-size:22px; letter-spacing:.5em;
+  color:var(--text); background:rgba(255,255,255,.06);
+  border:1px solid rgba(217,181,106,.35); border-radius:8px;
+  padding:8px 0 8px 10px; outline:none;
+}
+#adminPinInput:focus{ border-color:var(--gold-hi); }
+.admin-row{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 0; border-bottom:1px solid rgba(217,181,106,.2);
+}
+.admin-row .slotname{ flex:1; font-size:12.5px; color:var(--text); }
+.admin-row .thumb{
+  width:42px; height:42px; object-fit:cover; object-position:top;
+  border:1px solid var(--gold); border-radius:6px; background:#14101f; flex:none;
+}
+.admin-row .upload, .admin-row .del{
+  font-family:inherit; font-size:11px; color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+  border:1px solid var(--gold); border-radius:8px;
+  padding:.5em .9em; cursor:pointer; letter-spacing:.03em; flex:none;
+}
+.admin-row .del{ color:#ff9a9a; border-color:#a05050; }
+.admin-row input[type=file]{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -343,7 +379,33 @@ html,body{
         <input type="range" id="setIntensity" min="1" max="5" value="3">
       </div>
       <p class="note">※AI応答はClaude API(/api/chat)に接続されています。Vercel側にANTHROPIC_API_KEYが未設定の場合は、簡易的なプレースホルダー応答になります。</p>
+      <button class="adminlink" id="adminEntryBtn">🔒 管理者画面</button>
       <button class="closebtn" id="closeSettings">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 管理者PIN入力モーダル -->
+  <div class="modal" id="adminPinModal">
+    <div class="modalbox">
+      <h3>管理者PIN</h3>
+      <div class="settingsrow">
+        <input type="password" inputmode="numeric" maxlength="4" id="adminPinInput" autocomplete="off">
+      </div>
+      <p class="pinerr" id="adminPinErr"></p>
+      <div class="pinbtnrow">
+        <button class="closebtn ghost" id="cancelAdminPin">キャンセル</button>
+        <button class="closebtn" id="confirmAdminPin">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理者画面: 画像差し替え -->
+  <div class="modal" id="adminModal">
+    <div class="modalbox">
+      <h3>画像差し替え</h3>
+      <p class="note">この端末のブラウザに保存され、次回起動時も有効です(全ユーザー配信には別途対応が必要)。</p>
+      <div id="adminRows"></div>
+      <button class="closebtn" id="closeAdmin">閉じてチャットに戻る</button>
     </div>
   </div>
 </div>
@@ -377,44 +439,61 @@ const MODES = [
     subtitle:"いつもあなたの味方だよ💜",
     prompt:"【可愛いモード】元気で明るい。笑顔が多く少し天然。甘え上手で一緒に楽しむことが大好き。話し方は親しみやすくテンポが良い。得意: 雑談/ゲーム/恋愛相談/励まし/癒し。",
     greeting:"わーい♪ 今日は元気いっぱいだよ〜！何して遊ぶ？",
-    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/outfit_casual.png",
+    bgSlot:"bg_pink", charSlot:"casual",
   },
   {
     key:"onee", label:"お姉さん", emoji:"🌙",
     subtitle:"今夜はゆっくりお話ししましょう",
     prompt:"【綺麗なお姉さんモード】落ち着いていて知的、大人っぽく優雅。包み込むような安心感。ゆっくり丁寧に、言葉選びを美しく。得意: 人生相談/心理学/メンタルケア/読書/哲学/夜の雑談。",
     greeting:"こんばんは。今夜はゆっくりお話ししましょうか。",
-    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/hero_kneeling.png",
+    bgSlot:"bg_night", charSlot:"kneeling",
   },
   {
     key:"secretary", label:"AI秘書", emoji:"💼",
     subtitle:"本日のご予定をサポートします",
     prompt:"【AI秘書モード】仕事ができる、冷静、正確、整理整頓が得意。得意: 予定管理/メール/タスク管理/副業相談/アプリ開発/SNS運営/情報整理/資料作成。",
     greeting:"お疲れ様です。本日のご予定を確認しましょうか？",
-    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/outfit_gothic_dress.png",
+    bgSlot:"bg_night", charSlot:"gothic",
   },
   {
     key:"creator", label:"クリエイター", emoji:"🎨",
     subtitle:"一緒にアイデアを膨らませよう",
     prompt:"【クリエイターモード】創造力が非常に高くアイデアが豊富。ワクワクする提案が得意。得意: 画像生成/イラスト/漫画/動画企画/キャラクター制作/ブランド構築/商品企画/ストーリー制作。",
     greeting:"何か作りたいものある？アイデア、一緒に膨らませよう！✨",
-    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/outfit_casual.png",
+    bgSlot:"bg_pink", charSlot:"casual",
   },
   {
     key:"teacher", label:"先生", emoji:"🧠",
     subtitle:"分からないところ、一緒に解決しよう",
     prompt:"【先生モード】優しい先生。褒めながら教える。質問しやすい雰囲気。得意: 勉強/AI/英語/資格/パソコン/スマホ操作/仕事。",
     greeting:"今日は何を勉強する？分からないところ、一緒に解決しよう！",
-    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/outfit_gothic_dress.png",
+    bgSlot:"bg_night", charSlot:"gothic",
   },
   {
     key:"support", label:"サポーター", emoji:"🌈",
     subtitle:"大丈夫、ゆっくりでいいからね",
     prompt:"【幸福サポーターモード】世界一優しい、心を軽くする、安心できる、否定しない。得意: 幸福学/心理学/ストレスケア/マインドフルネス/自己肯定感/睡眠/習慣化/前向きな考え方。",
     greeting:"大丈夫だよ、ゆっくりでいいからね。今日はどんな気持ち？",
-    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/hero_kneeling.png",
+    bgSlot:"bg_pink", charSlot:"kneeling",
   },
 ];
+
+/* =========================================================
+   画像スロット(管理者画面で差し替え可能)
+   - キー: bg_night/bg_pink/kneeling/gothic/casual
+   - IndexedDBに保存された画像があればそちらを優先表示
+   ========================================================= */
+const DEFAULT_IMAGES = {
+  bg_night: "img/kaosu/bg_night_room.png",
+  bg_pink:  "img/kaosu/bg_pink_room.png",
+  kneeling: "img/kaosu/hero_kneeling.png",
+  gothic:   "img/kaosu/outfit_gothic_dress.png",
+  casual:   "img/kaosu/outfit_casual.png",
+};
+const imageOverrides = {};   // slotKey -> objectURL(差し替え画像がある場合のみ)
+function getImageSrc(slotKey){
+  return imageOverrides[slotKey] || DEFAULT_IMAGES[slotKey];
+}
 
 /* 実際のAPI呼び出し時にはこれをシステムプロンプトとして渡す */
 function buildSystemPrompt(modeKey, settings){
@@ -441,7 +520,7 @@ function loadState(){
     affectionExp: 0,
     settings: { firstPerson:"わたし", secondPerson:"あなた", intensity:3 },
     history: [],   // { role:"user"|"char", text, time, mode }
-    outfitOverride: null,   // 着せ替えで手動選択した立ち絵(nullなら現在モードの立ち絵)
+    outfitOverride: null,   // 着せ替えで手動選択した立ち絵スロットキー(nullなら現在モードの立ち絵)
   }, saved);
 }
 function saveState(){
@@ -469,11 +548,15 @@ function renderModeTabs(){
   });
 }
 
+function currentCharSlot(){
+  return state.outfitOverride || currentMode().charSlot;
+}
+
 function renderStage(){
   const mode = currentMode();
   document.getElementById("subtitle").textContent = mode.subtitle;
-  document.getElementById("heroBgImg").src = mode.bg;
-  document.getElementById("heroCharImg").src = state.outfitOverride || mode.char;
+  document.getElementById("heroBgImg").src = getImageSrc(mode.bgSlot);
+  document.getElementById("heroCharImg").src = getImageSrc(currentCharSlot());
 }
 
 function renderStatus(){
@@ -503,7 +586,7 @@ function buildMsgEl(m){
   wrap.className = "msg " + (m.role === "user" ? "user" : "char");
   if(m.role === "char"){
     wrap.innerHTML = `
-      <img class="avatar" src="${currentMode().char}" alt="">
+      <img class="avatar" src="${getImageSrc(currentCharSlot())}" alt="">
       <div class="bubblewrap">
         <div class="sender">ケイオスちゃん</div>
         <div class="bubble"></div>
@@ -609,7 +692,7 @@ async function handleSend(){
   const log = document.getElementById("chatlog");
   const typingEl = document.createElement("div");
   typingEl.className = "msg char typing";
-  typingEl.innerHTML = `<img class="avatar" src="${currentMode().char}" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
+  typingEl.innerHTML = `<img class="avatar" src="${getImageSrc(currentCharSlot())}" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
   log.appendChild(typingEl);
   log.scrollTop = log.scrollHeight;
 
@@ -622,26 +705,152 @@ async function handleSend(){
    着せ替えモーダル
    ========================================================= */
 const OUTFITS = [
-  { key:"kneeling", label:"お姉さん", src:"img/kaosu/hero_kneeling.png" },
-  { key:"gothic",   label:"きちんと", src:"img/kaosu/outfit_gothic_dress.png" },
-  { key:"casual",   label:"カジュアル", src:"img/kaosu/outfit_casual.png" },
+  { key:"kneeling", label:"お姉さん" },
+  { key:"gothic",   label:"きちんと" },
+  { key:"casual",   label:"カジュアル" },
 ];
 function renderOutfitGrid(){
   const grid = document.getElementById("outfitGrid");
   grid.innerHTML = "";
   OUTFITS.forEach(o => {
     const el = document.createElement("div");
-    const selected = state.outfitOverride === o.src || (!state.outfitOverride && currentMode().char === o.src);
+    const selected = currentCharSlot() === o.key;
     el.className = "outfitcard" + (selected ? " selected" : "");
-    el.innerHTML = `<img src="${o.src}" alt=""><div class="label">${o.label}</div>`;
+    el.innerHTML = `<img src="${getImageSrc(o.key)}" alt=""><div class="label">${o.label}</div>`;
     el.addEventListener("click", () => {
-      state.outfitOverride = o.src;
+      state.outfitOverride = o.key;
       saveState();
       renderStage();
       renderOutfitGrid();
     });
     grid.appendChild(el);
   });
+}
+
+/* =========================================================
+   管理者画面: 画像差し替え(設定画面 → PIN "0809" → 画像差し替え)
+   - 画像はIndexedDB(この端末のブラウザ内)に保存され、次回起動時も有効
+   ========================================================= */
+const ADMIN_PIN = "0809";
+const ADMIN_SLOTS = [
+  { key:"bg_night", label:"背景(夜・紫)" },
+  { key:"bg_pink",  label:"背景(ピンク)" },
+  { key:"kneeling", label:"立ち絵: お姉さん" },
+  { key:"gothic",   label:"立ち絵: きちんと" },
+  { key:"casual",   label:"立ち絵: カジュアル" },
+];
+
+const IDB_NAME = "kaosu_admin_images";
+function idbOpen(){
+  return new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error("この環境ではIndexedDBが使えません")); return; }
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("images");
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbSet(key, blob){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("images", "readwrite");
+    tx.objectStore("images").put(blob, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const rq = db.transaction("images").objectStore("images").get(key);
+    rq.onsuccess = () => resolve(rq.result || null);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+async function idbDel(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("images", "readwrite");
+    tx.objectStore("images").delete(key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/* 起動時: 保存済みの差し替え画像を全スロットに適用 */
+async function applyStoredImages(){
+  try{
+    for(const slot of ADMIN_SLOTS){
+      const blob = await idbGet(slot.key);
+      if(blob) imageOverrides[slot.key] = URL.createObjectURL(blob);
+    }
+    renderStage();
+    renderChatLog();
+  }catch(e){ /* IndexedDB非対応環境ではデフォルト画像のまま動く */ }
+}
+
+async function buildAdminRows(){
+  const root = document.getElementById("adminRows");
+  root.innerHTML = "";
+  for(const slot of ADMIN_SLOTS){
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    row.innerHTML = `
+      <img class="thumb" src="${getImageSrc(slot.key)}" alt="">
+      <span class="slotname">${slot.label}</span>
+      <button class="upload">選択</button>
+      <input type="file" accept="image/*">
+      <button class="del">削除</button>`;
+    root.appendChild(row);
+
+    const thumb = row.querySelector(".thumb");
+    const fileInput = row.querySelector("input[type=file]");
+    row.querySelector(".upload").addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if(!file) return;
+      if(file.size > 8 * 1024 * 1024){ alert("8MB以下の画像を選んでください"); return; }
+      try{
+        await idbSet(slot.key, file);
+        imageOverrides[slot.key] = URL.createObjectURL(file);
+        thumb.src = imageOverrides[slot.key];
+        renderStage();
+        renderChatLog();
+      }catch(e){ alert("保存に失敗しました: " + e.message); }
+    });
+
+    row.querySelector(".del").addEventListener("click", async () => {
+      try{
+        await idbDel(slot.key);
+        delete imageOverrides[slot.key];
+        thumb.src = getImageSrc(slot.key);
+        renderStage();
+        renderChatLog();
+      }catch(e){ alert("削除に失敗しました: " + e.message); }
+    });
+  }
+}
+
+function openAdminPin(){
+  document.getElementById("adminPinErr").textContent = "";
+  document.getElementById("adminPinInput").value = "";
+  document.getElementById("adminPinModal").classList.add("show");
+  setTimeout(() => document.getElementById("adminPinInput").focus(), 100);
+}
+function closeAdminPin(){
+  document.getElementById("adminPinModal").classList.remove("show");
+}
+function confirmAdminPin(){
+  const v = document.getElementById("adminPinInput").value;
+  if(v !== ADMIN_PIN){
+    document.getElementById("adminPinErr").textContent = "PINが違います";
+    document.getElementById("adminPinInput").value = "";
+    return;
+  }
+  closeAdminPin();
+  buildAdminRows();
+  document.getElementById("adminModal").classList.add("show");
 }
 
 /* =========================================================
@@ -674,6 +883,19 @@ document.getElementById("closeSettings").addEventListener("click", () => {
   document.getElementById("settingsModal").classList.remove("show");
 });
 
+document.getElementById("adminEntryBtn").addEventListener("click", () => {
+  document.getElementById("settingsModal").classList.remove("show");
+  openAdminPin();
+});
+document.getElementById("cancelAdminPin").addEventListener("click", closeAdminPin);
+document.getElementById("confirmAdminPin").addEventListener("click", confirmAdminPin);
+document.getElementById("adminPinInput").addEventListener("keydown", (ev) => {
+  if(ev.key === "Enter") confirmAdminPin();
+});
+document.getElementById("closeAdmin").addEventListener("click", () => {
+  document.getElementById("adminModal").classList.remove("show");
+});
+
 /* ボトムナビ(チャット以外は今回未実装のためトースト代わりの簡易表示) */
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -698,6 +920,7 @@ renderAll();
 if(state.history.length === 0){
   pushMessage("char", currentMode().greeting);
 }
+applyStoredImages();
 </script>
 </body>
 </html>
