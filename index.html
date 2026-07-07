@@ -253,98 +253,58 @@ html,body{
 }
 
 /* =========================================================
-   フェーズ3: 手札カード(下中央)+共有コスト(COST n/10)
+   フェーズ3: コマンドメニュー(こうげき/スキル/どうぐ)
+   - ATBが満タンになったキャラの番で表示。選択until待機(paused)
    ========================================================= */
-.hand{
+.cmdmenu{
   position:absolute;
-  left:50%; bottom:14%;
+  left:50%; bottom:4%;
   transform:translateX(-50%);
-  display:flex; gap:2.2%;
-  width:34%;
+  width:46%;
+  min-width:220px;
+  display:none;
+  background:linear-gradient(100deg, rgba(20,15,40,.92) 0%, rgba(30,22,55,.85) 100%);
+  border:1px solid var(--gold);
+  border-radius:12px;
+  padding:2.5% 3%;
+  box-shadow:0 0 20px rgba(217,181,106,.3);
 }
-.card{
-  position:relative;
-  flex:1; aspect-ratio:3/4.2;
-  border-radius:8px;
-  cursor:pointer;
-  /* レアリティ枠: 金の多層グロー */
-  border:2px solid var(--gold);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.8),
-    0 0 10px rgba(217,181,106,.45),
-    inset 0 0 0 1px rgba(246,227,168,.5);
-  overflow:hidden;
-  transition:transform .2s ease, box-shadow .2s ease, filter .3s;
-  user-select:none;
-  -webkit-tap-highlight-color:transparent;
-}
-/* キャライラスト部(フェーズ3では属性色グラデで代用。後で画像に差し替え) */
-.card .art{ position:absolute; inset:0; }
-.card.chaos .art{ background:linear-gradient(160deg,#f0d9a0 0%,#8a5a9a 55%,#241430 100%); }
-.card.ice   .art{ background:linear-gradient(160deg,#bfe4ff 0%,#3a6ac9 55%,#101c33 100%); }
-.card.light .art{ background:linear-gradient(160deg,#fff6d8 0%,#d9a95a 55%,#332208 100%); }
-
-/* コストバッジ(左上ダイヤ) */
-.card .cost{
-  position:absolute; left:5%; top:4%;
-  width:24%; aspect-ratio:1;
-  transform:rotate(45deg);
-  background:linear-gradient(135deg,#2a2040,#0d0a1a);
-  border:1px solid var(--gold-hi);
-  border-radius:4px;
-  box-shadow:0 0 8px rgba(246,227,168,.6);
-}
-.card .cost span{
-  position:absolute; inset:0;
-  display:flex; align-items:center; justify-content:center;
-  transform:rotate(-45deg);
-  font-family:Georgia,serif;
-  font-size:clamp(11px, 1.5vw, 20px);
+.cmdmenu.show{ display:block; }
+.cmdheader{
+  font-size:clamp(10px, 1.2vw, 13px);
+  letter-spacing:.12em;
   color:var(--gold-hi);
-  text-shadow:0 0 4px rgba(0,0,0,.9);
-}
-
-/* カード下部: 使用キャラ名+スキル名 */
-.card .owner{
-  position:absolute; left:8%; right:8%; bottom:16%;
   text-align:center;
-  font-size:clamp(6px, .75vw, 10px);
-  letter-spacing:.1em;
-  color:rgba(242,236,223,.85);
-  background:rgba(10,6,20,.65);
-  border-radius:99px;
-  padding:.2em 0;
+  margin-bottom:2.5%;
+  text-shadow:0 0 6px rgba(246,227,168,.5);
 }
-.card .skillname{
-  position:absolute; left:0; right:0; bottom:3%;
-  text-align:center;
-  font-size:clamp(8px, 1vw, 14px);
-  letter-spacing:.06em;
+.cmdlist{ display:flex; flex-direction:column; gap:1.6%; }
+.cmdlist.hidden{ display:none; }
+.cmdlist.cmdmain{ flex-direction:row; gap:2.5%; }
+.cmdbtn{
+  font-family:inherit;
+  font-size:clamp(10px, 1.2vw, 14px);
   color:var(--text);
-  text-shadow:0 1px 3px #000, 0 0 8px rgba(217,181,106,.5);
+  background:rgba(10,6,20,.6);
+  border:1px solid rgba(217,181,106,.4);
+  border-radius:8px;
+  padding:.6em 1em;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  letter-spacing:.04em;
+  transition:box-shadow .15s, border-color .15s;
 }
-
-/* コスト不足: 暗転+使用不可 */
-.card.disabled{
-  filter:grayscale(.7) brightness(.45);
-  cursor:not-allowed;
+.cmdlist.cmdmain .cmdbtn{ flex:1; justify-content:center; }
+.cmdbtn:not(:disabled):hover, .cmdbtn:not(:disabled):active{
+  border-color:var(--gold-hi);
+  box-shadow:0 0 10px rgba(246,227,168,.5);
+  color:var(--gold-hi);
 }
-/* 使用可能カードのホバー/タップ: 浮き上がり+発光 */
-.card:not(.disabled):hover,
-.card:not(.disabled):active{
-  transform:translateY(-6%) scale(1.03);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.8),
-    0 10px 24px rgba(0,0,0,.6),
-    0 0 22px rgba(246,227,168,.8),
-    inset 0 0 0 1px rgba(246,227,168,.9);
-}
-/* 発動フラッシュ */
-.card.played{ animation:cardplay .45s ease; }
-@keyframes cardplay{
-  0%  { transform:translateY(-10%) scale(1.08); filter:brightness(2.2); }
-  100%{ transform:none; filter:none; }
-}
+.cmdbtn:disabled{ opacity:.35; cursor:not-allowed; }
+.cmdbtn.ultimate{ border-color:#b45aff; }
+.cmdbtn.ultimate:not(:disabled):hover, .cmdbtn.ultimate:not(:disabled):active{ border-color:#d9a0ff; box-shadow:0 0 10px rgba(180,90,255,.6); }
+.cmdbtn .sk-mp{ font-size:.85em; color:var(--gold); white-space:nowrap; }
+.cmdbtn.backbtn{ justify-content:center; color:rgba(242,236,223,.7); }
 
 /* 発動時のフロートテキスト */
 .floattext{
@@ -362,57 +322,13 @@ html,body{
   100%{ opacity:0; transform:translate(-50%, -46px); }
 }
 
-/* ---------- 共有コスト表示 ---------- */
-.costbar{
-  position:absolute;
-  left:50%; bottom:4.5%;
-  transform:translateX(-50%);
-  display:flex; align-items:center; gap:1.2%;
-  width:38%;
-}
-.costlabel{
-  font-family:Georgia,serif;
-  font-size:clamp(9px, 1.1vw, 14px);
-  letter-spacing:.2em;
-  color:var(--gold);
-}
-.costnum{
-  font-family:Georgia,serif;
-  font-size:clamp(13px, 1.8vw, 24px);
-  color:var(--text);
-  text-shadow:0 0 6px rgba(246,227,168,.6);
-  font-variant-numeric:tabular-nums;
-}
-.costnum small{ font-size:.6em; color:var(--gold); }
-.gems{ display:flex; gap:2.5%; flex:1; }
-.gem{
-  flex:1; aspect-ratio:1;
-  transform:rotate(45deg);
-  border-radius:3px;
-  border:1px solid rgba(217,181,106,.4);
-  background:#14101f;                 /* 空スロット */
-  transition:background .3s, box-shadow .3s, transform .3s;
-}
-/* 満ちている宝石: 画像同様に虹色の並び */
-.gem.on{
-  border-color:var(--gold-hi);
-  box-shadow:0 0 8px currentColor, inset 0 0 5px rgba(255,255,255,.6);
-}
-.gem.on:nth-child(1){ color:#ff5a5a; background:linear-gradient(135deg,#ffb0a0,#c92a2a); }
-.gem.on:nth-child(2){ color:#ffc93a; background:linear-gradient(135deg,#ffe9a0,#c9862a); }
-.gem.on:nth-child(3){ color:#e8e8e8; background:linear-gradient(135deg,#ffffff,#9a9ab0); }
-.gem.on:nth-child(4){ color:#5aff8a; background:linear-gradient(135deg,#b0ffc9,#2a9a4a); }
-.gem.on:nth-child(5){ color:#b45aff; background:linear-gradient(135deg,#d9b0ff,#6a2ac9) }
-.gem.on:nth-child(6){ color:#b45aff; background:linear-gradient(135deg,#c9a0ff,#5a2aaa); }
-.gem.on:nth-child(7){ color:#5aa8ff; background:linear-gradient(135deg,#a0d9ff,#2a5ac9); }
-.gem.on:nth-child(8){ color:#5ad8ff; background:linear-gradient(135deg,#c9f2ff,#2a8ac9); }
-.gem.on:nth-child(9){ color:#ffc93a; background:linear-gradient(135deg,#fff2c9,#c9a02a); }
-.gem.on:nth-child(10){ color:#ff8ac9; background:linear-gradient(135deg,#ffd9f0,#c92a8a); }
-/* 消費した瞬間: 砕けるイメージで縮小 */
-.gem.burst{ animation:gemburst .4s ease; }
-@keyframes gemburst{
-  0%  { transform:rotate(45deg) scale(1.4); filter:brightness(2.5); }
-  100%{ transform:rotate(45deg) scale(1); }
+/* シールド(バリア)残量バッジ */
+.shieldbadge{
+  display:inline-block;
+  margin-left:.5em;
+  font-size:.85em;
+  color:#9fd8ff;
+  text-shadow:0 0 6px rgba(90,168,255,.7);
 }
 
 /* =========================================================
@@ -602,10 +518,7 @@ html,body{
 }
 
 /* UIレイヤーをスプライトより手前に固定 */
-.turnorder, .party, .hand, .costbar, .enemy-panel, .debug, .phase-tag{ z-index:2; }
-
-/* カードイラスト画像(無ければ属性色グラデのまま) */
-.card .art img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+.turnorder, .party, .cmdmenu, .enemy-panel, .debug, .phase-tag{ z-index:2; }
 
 /* =========================================================
    管理者ページ(画像差し替え)
@@ -767,11 +680,179 @@ html,body{
   letter-spacing:.2em;
   color:rgba(217,181,106,.7);
 }
+
+/* =========================================================
+   ホーム / キャラクター作成 / パーティ編成 画面
+   - バトル(.stage)とは独立した通常スクロール画面
+   ========================================================= */
+.stage{ display:none; }
+.stage.show{ display:block; }
+
+.menu-screen{
+  position:fixed; inset:0; z-index:5;
+  display:none;
+  overflow-y:auto;
+  background:
+    radial-gradient(ellipse 60% 50% at 70% 20%, rgba(120,80,200,.22), transparent 70%),
+    linear-gradient(160deg, var(--bg-mid) 0%, var(--bg-deep) 60%, #070510 100%);
+  color:var(--text);
+  font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;
+}
+.menu-screen.show{ display:block; }
+.menu-inner{ max-width:520px; margin:0 auto; padding:8vh 6% 8%; text-align:center; }
+.menu-logo{
+  font-size:clamp(28px,6vw,44px); letter-spacing:.35em;
+  color:var(--gold-hi); text-shadow:0 0 20px rgba(246,227,168,.6);
+  cursor:pointer; user-select:none;
+}
+.menu-sub{ margin-top:2%; font-size:clamp(11px,1.4vw,14px); color:rgba(242,236,223,.75); letter-spacing:.08em; }
+.menu-count{ margin-top:6%; font-size:clamp(11px,1.3vw,14px); color:var(--gold); }
+.menu-btn{
+  display:block; width:100%; margin-top:4%;
+  font-family:inherit; font-size:clamp(12px,1.6vw,16px);
+  color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+  border:1px solid var(--gold); border-radius:12px;
+  padding:1em 1em; letter-spacing:.08em; cursor:pointer;
+}
+.menu-btn.primary{ background:linear-gradient(160deg, rgba(217,181,106,.9), rgba(140,105,40,.9)); color:#20160a; }
+.menu-btn.ghost{ background:rgba(20,15,40,.5); }
+.menu-btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+.step-title{ text-align:left; margin-top:8%; margin-bottom:3%; font-size:clamp(12px,1.4vw,15px); color:var(--gold-hi); letter-spacing:.12em; }
+.hidden{ display:none !important; }
+#createPhotoInput{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+
+.cropwrap{ display:flex; flex-direction:column; align-items:center; gap:4%; }
+#cropCanvas{ width:min(60vw,220px); height:min(60vw,220px); border-radius:50%; border:2px solid var(--gold); touch-action:none; background:#000; }
+.zoomrow{ display:flex; align-items:center; gap:8px; width:80%; font-size:clamp(9px,1vw,12px); }
+.zoomrow input[type=range]{ flex:1; }
+
+.previewrow{ display:flex; justify-content:center; align-items:center; gap:6%; margin-top:4%; }
+.previewrow img{ height:clamp(90px,18vw,140px); border:1px solid var(--gold); border-radius:8px; background:#0d0a1a; }
+#portraitPreview{ border-radius:50%; height:clamp(70px,14vw,110px); }
+
+.jobrow{ display:flex; gap:2.5%; margin-top:4%; flex-wrap:wrap; justify-content:center; }
+.jobBtn{
+  flex:1 1 40%; font-family:inherit; font-size:clamp(11px,1.3vw,14px);
+  color:var(--text); background:rgba(20,15,40,.7); border:1px solid rgba(217,181,106,.4);
+  border-radius:10px; padding:.8em; cursor:pointer;
+}
+.jobBtn.active{ border-color:var(--gold-hi); box-shadow:0 0 10px rgba(246,227,168,.5); color:var(--gold-hi); }
+#jobSkillPreview{ margin-top:3%; font-size:clamp(10px,1.1vw,13px); color:rgba(242,236,223,.8); }
+
+#createName{
+  width:100%; margin-top:4%; font-family:inherit; font-size:clamp(12px,1.4vw,15px);
+  padding:.7em; border-radius:8px; border:1px solid rgba(217,181,106,.5);
+  background:rgba(0,0,0,.4); color:var(--text); text-align:center;
+}
+
+.rostergrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:3%; margin-top:5%; }
+.rostercard{
+  background:rgba(20,15,40,.7); border:1px solid rgba(217,181,106,.35); border-radius:12px;
+  padding:5%; text-align:center; cursor:pointer; transition:box-shadow .2s,border-color .2s;
+}
+.rostercard.selected{ border-color:var(--gold-hi); box-shadow:0 0 14px rgba(246,227,168,.55); }
+.rp-thumb{ width:70%; aspect-ratio:1; border-radius:50%; object-fit:cover; border:1px solid var(--gold); }
+.rp-name{ margin-top:6%; font-size:clamp(10px,1.2vw,13px); color:var(--gold-hi); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rp-job{ font-size:clamp(9px,1vw,11px); color:var(--gold); }
+.rp-stats{ font-size:clamp(8px,.9vw,10px); color:rgba(242,236,223,.7); margin-top:2%; }
+.rp-del{
+  margin-top:4%; font-family:inherit; font-size:clamp(8px,.9vw,10px); color:#ff9a9a;
+  background:rgba(60,20,20,.6); border:1px solid #a05050; border-radius:8px; padding:.3em .8em; cursor:pointer;
+}
+
+.result-btns{ display:flex; gap:10px; margin-top:4%; }
+
+.classgem.nature{ background:linear-gradient(135deg,#b0e08a,#3a7a2a); }
+.toicon.nature{ background:linear-gradient(135deg,#2a5a1a,#0c2408); }
+
+/* モーダル類はどの画面の上にも表示できるよう画面(viewport)固定 */
+.pinmodal, .admin, .paywall, .toast{ position:fixed !important; }
+
+.paywall{ inset:0; z-index:35; display:none; align-items:center; justify-content:center; background:rgba(5,3,12,.85); backdrop-filter:blur(3px); }
+.paywall.show{ display:flex; }
+.paywall-box{ background:linear-gradient(160deg, rgba(30,22,55,.95), rgba(13,10,26,.95)); border:1px solid var(--gold); border-radius:14px; padding:6%; max-width:360px; width:86%; text-align:center; }
+.paywall-box h3{ color:var(--gold-hi); letter-spacing:.12em; font-size:clamp(13px,1.5vw,17px); margin-bottom:3%; }
+.paywall-box p{ font-size:clamp(10px,1.1vw,13px); color:rgba(242,236,223,.8); margin-bottom:2%; }
+.shop-item{ display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid rgba(217,181,106,.35); border-radius:10px; padding:.8em 1em; margin-top:3%; text-align:left; }
+.shop-item .si-label b{ color:var(--gold-hi); display:block; font-size:clamp(11px,1.2vw,14px); }
+.shop-item .si-label span{ font-size:clamp(9px,1vw,11px); color:rgba(242,236,223,.7); }
+.shop-item button{ font-family:inherit; color:#20160a; background:linear-gradient(160deg, rgba(217,181,106,.9), rgba(140,105,40,.9)); border:1px solid var(--gold); border-radius:8px; padding:.5em 1em; cursor:pointer; white-space:nowrap; }
+.paywall .closebtn{ margin-top:5%; }
 </style>
 </head>
 <body>
 
-<div class="stage">
+<!-- ホーム画面 -->
+<div class="menu-screen" id="screen-home">
+  <div class="menu-inner">
+    <div class="menu-logo" id="homeLogo">LUMINA</div>
+    <div class="menu-sub">〜 きみの写真から仲間が生まれる ATBバトル 〜</div>
+    <div class="menu-count">キャラクター所持数: <span id="homeSlotCount">0 / 3</span></div>
+    <button class="menu-btn primary" id="btnGoCreate">📷 写真からキャラクターを作る</button>
+    <button class="menu-btn" id="btnGoRoster">⚔️ パーティを編成してバトル</button>
+    <button class="menu-btn ghost" id="btnDemoBattle">🎮 サンプルキャラですぐ遊ぶ</button>
+    <button class="menu-btn ghost" id="btnGoShop">💎 キャラ枠を増やす</button>
+  </div>
+</div>
+
+<!-- キャラクター作成画面 -->
+<div class="menu-screen" id="screen-create">
+  <div class="menu-inner">
+    <div class="step-title">① 写真を選ぶ</div>
+    <input type="file" id="createPhotoInput" accept="image/*">
+    <button class="menu-btn" id="btnPickPhoto">📷 写真を選択（スマホ／PC）</button>
+
+    <div id="createStep2" class="hidden">
+      <div class="step-title">② 顔の位置を合わせて生成</div>
+      <div class="cropwrap">
+        <canvas id="cropCanvas" width="220" height="220"></canvas>
+        <div class="zoomrow">
+          <span>拡大</span>
+          <input type="range" id="cropZoom" min="1" max="2.5" step="0.01" value="1">
+        </div>
+        <button class="menu-btn primary" id="btnGeneratePoly">✨ ポリゴン化する</button>
+      </div>
+    </div>
+
+    <div id="createStep3" class="hidden">
+      <div class="step-title">③ 職業を選んで保存</div>
+      <div class="previewrow">
+        <img id="portraitPreview" alt="生成された顔">
+        <img id="spritePreview" alt="生成されたキャラクター">
+      </div>
+      <div class="jobrow">
+        <button class="jobBtn active" data-job="sword">⚔️ 剣士</button>
+        <button class="jobBtn" data-job="mage">🔮 魔導士</button>
+        <button class="jobBtn" data-job="healer">✨ 聖女</button>
+        <button class="jobBtn" data-job="archer">🏹 狩人</button>
+      </div>
+      <div id="jobSkillPreview"></div>
+      <input type="text" id="createName" placeholder="なまえを入力" maxlength="10">
+      <button class="menu-btn primary" id="btnSaveCharacter">💾 仲間にする</button>
+    </div>
+
+    <button class="menu-btn ghost" onclick="showScreen('screen-home')">← もどる</button>
+  </div>
+</div>
+
+<!-- パーティ編成画面 -->
+<div class="menu-screen" id="screen-roster">
+  <div class="menu-inner">
+    <div class="step-title">パーティ編成（最大3人まで選択）</div>
+    <div class="menu-count">キャラクター所持数: <span id="rosterSlotCount">0 / 3</span></div>
+    <div id="rosterEmptyMsg" style="margin-top:6%;font-size:clamp(11px,1.2vw,13px);color:rgba(242,236,223,.7);">
+      まだキャラクターがいません。「写真からキャラクターを作る」から仲間を作りましょう。
+    </div>
+    <div class="rostergrid" id="rosterGrid"></div>
+    <button class="menu-btn primary" id="btnStartFromRoster" disabled>⚔️ このパーティでバトル開始</button>
+    <button class="menu-btn" id="btnGoCreateFromRoster">＋ 新しいキャラクターを作る</button>
+    <button class="menu-btn ghost" onclick="showScreen('screen-home')">← もどる</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
   <!-- 背景の浮遊光 -->
   <div class="mote"></div><div class="mote"></div><div class="mote"></div>
 
@@ -804,28 +885,10 @@ html,body{
   <!-- フェーズ4: 勝敗リザルト -->
   <div class="result" id="result">
     <div class="word" id="resultword"></div>
-    <button onclick="restart()">もう一度</button>
-  </div>
-
-  <!-- PIN入力モーダル(prompt代替) -->
-  <div class="pinmodal" id="pinmodal">
-    <div class="pinbox">
-      <div class="pintitle">管理者PIN</div>
-      <input type="password" inputmode="numeric" maxlength="8" id="pininput" autocomplete="off">
-      <div class="pinerr" id="pinerr"></div>
-      <div class="pinbtns">
-        <button onclick="closePinModal()">キャンセル</button>
-        <button onclick="confirmPin()">確認</button>
-      </div>
+    <div class="result-btns">
+      <button onclick="restart()">もう一度(リロード)</button>
+      <button onclick="backToRoster()">パーティ編成に戻る</button>
     </div>
-  </div>
-
-  <!-- 管理者ページ(タイトル5回タップ+PINで開く) -->
-  <div class="admin" id="admin">
-    <h2>画像管理</h2>
-    <div class="note">この端末のブラウザに保存されます(推奨: 透過PNG / 背景は16:9)。反映は即時、次回起動時も有効。</div>
-    <div id="adminrows"></div>
-    <button class="closebtn" onclick="closeAdmin()">閉じてバトルに戻る</button>
   </div>
 
   <!-- フェーズ2: タイムライン型ATB(JSで生成) -->
@@ -834,14 +897,16 @@ html,body{
     <div class="totrack" id="totrack"></div>
   </div>
 
-  <!-- フェーズ3: 手札カード(JSで生成) -->
-  <div class="hand" id="hand"></div>
-
-  <!-- フェーズ3: 共有コスト -->
-  <div class="costbar">
-    <span class="costlabel">COST</span>
-    <span class="costnum" id="costnum"></span>
-    <div class="gems" id="gems"></div>
+  <!-- フェーズ3: コマンドメニュー(こうげき/スキル/どうぐ) -->
+  <div class="cmdmenu" id="cmdmenu">
+    <div class="cmdheader"><span id="cmdActorName"></span> の番</div>
+    <div class="cmdlist cmdmain" id="cmdMain">
+      <button class="cmdbtn" data-cmd="attack">⚔️ こうげき</button>
+      <button class="cmdbtn" data-cmd="skill">✨ スキル</button>
+      <button class="cmdbtn" data-cmd="item">🎒 どうぐ</button>
+    </div>
+    <div class="cmdlist hidden" id="cmdSkillList"></div>
+    <div class="cmdlist hidden" id="cmdItemList"></div>
   </div>
 
   <!-- 3人パーティステータス(JSで生成) -->
@@ -852,6 +917,38 @@ html,body{
     <button onclick="testDamage()">被ダメージ</button>
     <button onclick="testHeal()">回復</button>
     <button onclick="togglePause()" id="pausebtn">一時停止</button>
+    <button onclick="backToRoster()">編成に戻る</button>
+  </div>
+</div>
+
+<!-- PIN入力モーダル(prompt代替)。画面固定でどのスクリーンの上にも表示可能 -->
+<div class="pinmodal" id="pinmodal">
+  <div class="pinbox">
+    <div class="pintitle">管理者PIN</div>
+    <input type="password" inputmode="numeric" maxlength="8" id="pininput" autocomplete="off">
+    <div class="pinerr" id="pinerr"></div>
+    <div class="pinbtns">
+      <button onclick="closePinModal()">キャンセル</button>
+      <button onclick="confirmPin()">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理者ページ(ホーム画面のロゴ5回タップ+PINで開く) -->
+<div class="admin" id="admin">
+  <h2>画像管理</h2>
+  <div class="note">この端末のブラウザに保存されます(推奨: 透過PNG / 背景は16:9)。反映は即時、次回起動時も有効。</div>
+  <div id="adminrows"></div>
+  <button class="closebtn" onclick="closeAdmin()">閉じる</button>
+</div>
+
+<!-- キャラ枠の課金モーダル(デモ購入。実決済は未実装) -->
+<div class="paywall" id="paywall">
+  <div class="paywall-box">
+    <h3>キャラクター枠が上限です</h3>
+    <p id="paywallStatus">0 / 3</p>
+    <div id="shopItems"></div>
+    <button class="closebtn" onclick="closePaywall()">閉じる</button>
   </div>
 </div>
 
@@ -862,12 +959,30 @@ html,body{
    モックデータ(フェーズ2以降でバトルロジックと接続する)
    ========================================================= */
 /* speed: 大きいほどATBゲージが速く溜まる / atb: 0〜100 */
-const PARTY = [
-  { name:"カオスちゃん",     glyph:"カ", cls:"chaos", hp:8512, maxHp:8512, mp:156, maxMp:200, speed:32, atb:40 },
-  { name:"イリス＝ブレード", glyph:"イ", cls:"ice",   hp:7312, maxHp:7312, mp:129, maxMp:180, speed:40, atb:10 },
-  { name:"ルミエル",         glyph:"ル", cls:"light", hp:6842, maxHp:6842, mp:189, maxMp:220, speed:26, atb:70 },
+const DEMO_PARTY_SRC = [
+  { name:"カオスちゃん",     glyph:"カ", cls:"chaos", hp:8512, maxHp:8512, mp:156, maxMp:200, speed:32, atb:40, skills:[
+    { name:"紅蓮爆撃",         type:"dmg", ultimate:false, pct:0.11, brk:16, mpCost:20 },
+    { name:"業火乱舞",         type:"dmg", ultimate:false, pct:0.13, brk:18, mpCost:22 },
+    { name:"灼熱の一撃",       type:"dmg", ultimate:false, pct:0.10, brk:14, mpCost:18 },
+    { name:"熾火の加護",       type:"barrier", ultimate:false, pct:0.18, brk:0, mpCost:20 },
+    { name:"秘奥義・獄炎滅殺", type:"dmg", ultimate:true,  pct:0.28, brk:45, mpCost:100 },
+  ]},
+  { name:"イリス＝ブレード", glyph:"イ", cls:"ice",   hp:7312, maxHp:7312, mp:129, maxMp:180, speed:40, atb:10, skills:[
+    { name:"蒼氷斬",           type:"dmg", ultimate:false, pct:0.12, brk:20, mpCost:20 },
+    { name:"氷結の牙",         type:"dmg", ultimate:false, pct:0.10, brk:16, mpCost:17 },
+    { name:"凍界破",           type:"dmg", ultimate:false, pct:0.13, brk:22, mpCost:23 },
+    { name:"清流の癒し",       type:"heal", ultimate:false, pct:0.24, brk:0, mpCost:22 },
+    { name:"絶技・氷華絶唱",   type:"dmg", ultimate:true,  pct:0.27, brk:40, mpCost:100 },
+  ]},
+  { name:"ルミエル",         glyph:"ル", cls:"light", hp:6842, maxHp:6842, mp:189, maxMp:220, speed:26, atb:70, skills:[
+    { name:"聖なる光",         type:"heal", ultimate:false, pct:0.26, brk:0, mpCost:20 },
+    { name:"恵みの調べ",       type:"heal", ultimate:false, pct:0.22, brk:0, mpCost:18 },
+    { name:"聖域の加護",       type:"barrier", ultimate:false, pct:0.20, brk:0, mpCost:20 },
+    { name:"光矢裁断",         type:"dmg", ultimate:false, pct:0.09, brk:12, mpCost:16 },
+    { name:"ルミエル・真骨頂「天啓の福音」", type:"heal", ultimate:true, partyWide:true, pct:0.50, brk:0, mpCost:100 },
+  ]},
 ];
-const ENEMY = {
+const ENEMY_TEMPLATE = {
   name:"キャンバス・コロージョン", glyph:"敵", cls:"enemy",
   hp:1248000, maxHp:1248000, speed:22, atb:25,
   atk:700,                     // 敵の攻撃力(1分前後で決着がつくバランス)
@@ -875,8 +990,11 @@ const ENEMY = {
   broken:false                 // ブレイク状態フラグ
 };
 
-/* ATB処理は味方+敵を同じ配列で回す(フェーズ2の中核) */
-const UNITS = [...PARTY, ENEMY];
+/* バトル中に差し替わる可変状態(キャラ作成/パーティ編成 導入により固定配列から変更) */
+let PARTY = [];
+let UNITS = [];
+let ENEMY = null;
+let battleActive = false;   // ホーム/作成/編成画面ではATBを進めない
 let activeIndex = 0;   // 現在行動中の味方(左下UIの強調用)
 
 /* ---------- 描画 ---------- */
@@ -894,7 +1012,7 @@ function render(){
         <div class="gaugerow">
           <span class="gaugelabel">HP</span>
           <div class="gauge hp"><i style="width:${pct(c.hp, c.maxHp)}%"></i></div>
-          <span class="gaugeval">${c.hp.toLocaleString()}</span>
+          <span class="gaugeval">${c.hp.toLocaleString()}${c.shield > 0 ? `<span class="shieldbadge">🛡${Math.round(c.shield).toLocaleString()}</span>` : ""}</span>
         </div>
         <div class="gaugerow">
           <span class="gaugelabel">MP</span>
@@ -910,6 +1028,326 @@ function render(){
 function pct(cur, max){
   if(!max || max <= 0) return 0;
   return Math.max(0, Math.min(100, (cur / max) * 100));
+}
+
+/* =========================================================
+   キャラクター生成エンジン
+   - 写真→低ポリ(三角形分割)ポートレート→立ち絵スプライトを
+     すべて端末内(Canvas)だけで生成する。外部AI/課金APIは不使用。
+   ========================================================= */
+const JOBS = {
+  sword:  { key:"sword",  label:"剣士",   cls:"chaos",  accent:"#c98a3a", accent2:"#8a4a1a", baseHp:7200, baseMp:120, baseSpeed:34 },
+  mage:   { key:"mage",   label:"魔導士", cls:"ice",    accent:"#3a6ac9", accent2:"#1a3a7a", baseHp:5600, baseMp:220, baseSpeed:30 },
+  healer: { key:"healer", label:"聖女",   cls:"light",  accent:"#d9b56a", accent2:"#8a6a2a", baseHp:6000, baseMp:200, baseSpeed:28 },
+  archer: { key:"archer", label:"狩人",   cls:"nature", accent:"#5a9a4a", accent2:"#2a5a1a", baseHp:6600, baseMp:140, baseSpeed:38 },
+};
+
+/* 画像から輪郭(勾配)を重み付けしてポイントをサンプリング */
+function samplePoints(imgData, w, h, count){
+  const d = imgData.data;
+  const gray = new Float32Array(w * h);
+  for(let i = 0; i < w * h; i++){
+    gray[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+  }
+  const weight = new Float32Array(w * h);
+  for(let y = 0; y < h; y++){
+    for(let x = 0; x < w; x++){
+      const i = y * w + x;
+      const gx = gray[i] - gray[y*w + Math.max(0, x-1)];
+      const gy = gray[i] - gray[Math.max(0, y-1)*w + x];
+      weight[i] = Math.sqrt(gx*gx + gy*gy) + 2;   // +2で平坦部にも最低限の点を確保
+    }
+  }
+  const cum = new Float32Array(w * h);
+  let acc = 0;
+  for(let i = 0; i < w * h; i++){ acc += weight[i]; cum[i] = acc; }
+
+  const pts = [];
+  for(let n = 0; n < count; n++){
+    const r = Math.random() * acc;
+    let lo = 0, hi = w*h - 1;
+    while(lo < hi){ const mid = (lo + hi) >> 1; if(cum[mid] < r) lo = mid + 1; else hi = mid; }
+    const x = lo % w, y = Math.floor(lo / w);
+    pts.push([
+      Math.min(w-1, Math.max(0, x + (Math.random()-0.5))),
+      Math.min(h-1, Math.max(0, y + (Math.random()-0.5))),
+    ]);
+  }
+  /* 外周・端も点を置いてキャンバス全体を埋める */
+  pts.push([0,0],[w-1,0],[0,h-1],[w-1,h-1],[w/2,0],[w/2,h-1],[0,h/2],[w-1,h/2]);
+  return pts;
+}
+
+/* ドロネー三角形分割(Bowyer-Watson法。外部ライブラリ不使用) */
+function delaunay(points){
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  points.forEach(p => {
+    minX = Math.min(minX, p[0]); minY = Math.min(minY, p[1]);
+    maxX = Math.max(maxX, p[0]); maxY = Math.max(maxY, p[1]);
+  });
+  const dmax = Math.max(maxX-minX, maxY-minY) * 10 + 10;
+  const midx = (minX+maxX)/2, midy = (minY+maxY)/2;
+  const superTri = [[midx-dmax, midy-dmax], [midx, midy+dmax], [midx+dmax, midy-dmax]];
+  const pts = points.concat(superTri);
+
+  function circumcircle(a,b,c){
+    const ax=a[0],ay=a[1],bx=b[0],by=b[1],cx=c[0],cy=c[1];
+    const d = 2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));
+    if(Math.abs(d) < 1e-10) return null;
+    const ux = ((ax*ax+ay*ay)*(by-cy)+(bx*bx+by*by)*(cy-ay)+(cx*cx+cy*cy)*(ay-by))/d;
+    const uy = ((ax*ax+ay*ay)*(cx-bx)+(bx*bx+by*by)*(ax-cx)+(cx*cx+cy*cy)*(bx-ax))/d;
+    return { x:ux, y:uy, r2:(ax-ux)**2 + (ay-uy)**2 };
+  }
+
+  let triangles = [[pts.length-3, pts.length-2, pts.length-1]];
+
+  for(let pi = 0; pi < points.length; pi++){
+    const p = pts[pi];
+    const bad = [];
+    for(const t of triangles){
+      const cc = circumcircle(pts[t[0]], pts[t[1]], pts[t[2]]);
+      if(cc && ((p[0]-cc.x)**2 + (p[1]-cc.y)**2) < cc.r2 + 1e-7) bad.push(t);
+    }
+    const edgeCount = new Map();
+    const key = (a,b) => a < b ? a+"_"+b : b+"_"+a;
+    for(const t of bad){
+      [[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e => {
+        const k = key(e[0],e[1]);
+        edgeCount.set(k, (edgeCount.get(k)||0) + 1);
+      });
+    }
+    triangles = triangles.filter(t => !bad.includes(t));
+    for(const t of bad){
+      [[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e => {
+        if(edgeCount.get(key(e[0],e[1])) === 1) triangles.push([e[0], e[1], pi]);
+      });
+    }
+  }
+  triangles = triangles.filter(t => t.every(i => i < points.length));
+  return { triangles, points: pts };
+}
+
+/* 三角形ごとの平均色でキャンバスに描画→低ポリ画像を返す */
+function renderLowPoly(srcCanvas, triData){
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const sctx = srcCanvas.getContext("2d");
+  const imgData = sctx.getImageData(0, 0, w, h).data;
+  const out = document.createElement("canvas");
+  out.width = w; out.height = h;
+  const octx = out.getContext("2d");
+
+  function colorAt(x, y){
+    x = Math.max(0, Math.min(w-1, Math.round(x)));
+    y = Math.max(0, Math.min(h-1, Math.round(y)));
+    const i = (y*w + x) * 4;
+    return [imgData[i], imgData[i+1], imgData[i+2]];
+  }
+  for(const t of triData.triangles){
+    const [p0,p1,p2] = t.map(i => triData.points[i]);
+    const cx = (p0[0]+p1[0]+p2[0])/3, cy = (p0[1]+p1[1]+p2[1])/3;
+    const [r,g,b] = colorAt(cx, cy);
+    const col = `rgb(${r},${g},${b})`;
+    octx.beginPath();
+    octx.moveTo(p0[0], p0[1]); octx.lineTo(p1[0], p1[1]); octx.lineTo(p2[0], p2[1]);
+    octx.closePath();
+    octx.fillStyle = col; octx.fill();
+    octx.strokeStyle = col; octx.lineWidth = 1; octx.stroke();   // 継ぎ目の隙間を隠す
+  }
+  return out;
+}
+
+/* 肌色/髪色をざっくり抽出(顔中央/頭頂帯の平均色) */
+function extractPalette(srcCanvas){
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const ctx = srcCanvas.getContext("2d");
+  function avgRect(x0,y0,x1,y1){
+    const data = ctx.getImageData(x0, y0, x1-x0, y1-y0).data;
+    let r=0,g=0,b=0,n=0;
+    for(let i=0;i<data.length;i+=4){ r+=data[i]; g+=data[i+1]; b+=data[i+2]; n++; }
+    if(n===0) return "rgb(200,160,130)";
+    return `rgb(${Math.round(r/n)},${Math.round(g/n)},${Math.round(b/n)})`;
+  }
+  return {
+    skin: avgRect(Math.round(w*0.35), Math.round(h*0.45), Math.round(w*0.65), Math.round(h*0.68)),
+    hair: avgRect(Math.round(w*0.25), Math.round(h*0.03), Math.round(w*0.75), Math.round(h*0.18)),
+  };
+}
+
+/* =========================================================
+   スキル自動生成エンジン
+   - 写真の髪色から「属性」を推定し、日本のアニメ/漫画/ゲームで
+     よく見る言葉の組み合わせで必殺技風の名前を自動生成する。
+   - ダメージ/回復/バリアはすべて対象の最大HPに対する「割合(%)」で
+     算出する(固定数値を持たせない)。MPコストも最大MPの割合。
+   ========================================================= */
+const ELEMENT_WORDS = {
+  fire:   { kanji:["紅蓮","業火","灼熱","炎獄","赫炎","焦熱"], dmgFx:["斬","撃","破","焼滅","裂空"],      healFx:["再生の","蘇りの","陽炎の"], barrierFx:["火の","灼盾の","熾火の"] },
+  ice:    { kanji:["氷結","蒼氷","極寒","氷華","凍界","碧氷"], dmgFx:["斬","撃","牙","凍破","裂"],        healFx:["清流の","氷雨の","浄化の"], barrierFx:["氷壁の","蒼氷の","凍結の"] },
+  light:  { kanji:["聖光","白光","天啓","光輝","神威","蒼穹"], dmgFx:["裁き","誅伐","光矢","断罪","一閃"], healFx:["聖なる","恵みの","慈愛の"], barrierFx:["聖域の","加護の","光壁の"] },
+  dark:   { kanji:["深淵","漆黒","冥府","暗黒","黒炎","虚無"], dmgFx:["喰らい","侵蝕","滅殺","呪縛","裂"], healFx:["夜陰の","静寂の","鎮魂の"], barrierFx:["闇の","冥界の","呪縛の"] },
+  nature: { kanji:["疾風","翠嵐","緑風","森羅","碧風","風花"], dmgFx:["連射","乱れ撃ち","一矢","疾駆","裂空撃"], healFx:["安らぎの","木漏れ日の","恵みの"], barrierFx:["風壁の","結界の","翠の"] },
+  earth:  { kanji:["剛地","大地","岩戦","鋼鉄","地裂","金剛"], dmgFx:["撃","破砕","粉砕","地割れ","豪撃"], healFx:["大地の","再生の","母なる"], barrierFx:["岩盾の","金剛の","堅陣の"] },
+};
+
+function pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }
+function randRange(a, b){ return a + Math.random() * (b - a); }
+
+/* rgb(r,g,b)文字列 → HSL(色相のみ厳密でよい簡易変換) */
+function rgbStringToHsl(rgbStr){
+  const m = (rgbStr || "").match(/\d+/g);
+  if(!m || m.length < 3) return { h:0, s:0, l:0.5 };
+  const [r,g,b] = m.map(v => Number(v) / 255);
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h = 0, s = 0;
+  const l = (max + min) / 2;
+  if(max !== min){
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if(max === r) h = (g - b) / d + (g < b ? 6 : 0);
+    else if(max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+  }
+  return { h, s, l };
+}
+
+/* 髪色から属性を推定(彩度が低い黒髪/白髪は光/闇にフォールバック) */
+function elementFromColor(rgbStr, fallback){
+  if(!rgbStr) return fallback;
+  const { h, s, l } = rgbStringToHsl(rgbStr);
+  if(s < 0.12) return l < 0.4 ? "dark" : "light";
+  if(h < 20 || h >= 345) return "fire";
+  if(h < 55) return "earth";
+  if(h < 100) return "nature";
+  if(h < 200) return "ice";
+  return "dark";
+}
+
+/* 必殺技風の名前を生成(アルティメットは仰々しいテンプレートを追加) */
+function generateSkillName(type, element, ultimate, charName){
+  const w = ELEMENT_WORDS[element] || ELEMENT_WORDS.fire;
+  let base;
+  if(type === "dmg") base = `${pick(w.kanji)}${pick(w.dmgFx)}`;
+  else if(type === "heal") base = `${pick(w.healFx)}${pick(["光","波動","祈り","加護","調べ"])}`;
+  else base = `${pick(w.barrierFx)}${pick(["障壁","守護陣","結界","盾"])}`;
+
+  if(!ultimate) return base;
+  const ultTemplates = [
+    `秘奥義・${base}`,
+    `${charName}・真骨頂「${base}」`,
+    `絶技・${base}`,
+    `限界突破——${base}`,
+  ];
+  return pick(ultTemplates);
+}
+
+/* 職業ごとのノーマルスキル4種の型(dmg/heal/barrier)とアルティメットの型・基本属性 */
+const JOB_SKILL_PATTERN  = { sword:["dmg","dmg","dmg","barrier"], mage:["dmg","dmg","barrier","heal"], healer:["heal","heal","barrier","dmg"], archer:["dmg","dmg","dmg","heal"] };
+const JOB_ULTIMATE_TYPE  = { sword:"dmg", mage:"dmg", healer:"heal", archer:"dmg" };
+const JOB_DEFAULT_ELEMENT= { sword:"fire", mage:"ice", healer:"light", archer:"nature" };
+
+/* 1つのスキルを生成。dmg/healは対象最大HPの割合、barrierは自身最大HPの割合で威力を決める */
+function makeSkill(type, element, ultimate, charName){
+  const name = generateSkillName(type, element, ultimate, charName);
+  if(type === "dmg"){
+    return { name, type, ultimate,
+      pct: ultimate ? randRange(0.22,0.32) : randRange(0.09,0.14),
+      brk: Math.round(ultimate ? randRange(35,50) : randRange(14,22)),
+      mpCost: ultimate ? 100 : Math.round(randRange(15,25)) };
+  }
+  if(type === "heal"){
+    return { name, type, ultimate, partyWide: ultimate,
+      pct: ultimate ? randRange(0.45,0.60) : randRange(0.20,0.30),
+      brk: 0,
+      mpCost: ultimate ? 100 : Math.round(randRange(18,26)) };
+  }
+  return { name, type, ultimate, partyWide: ultimate,   // barrier
+    pct: ultimate ? randRange(0.35,0.45) : randRange(0.15,0.22),
+    brk: 0,
+    mpCost: ultimate ? 100 : Math.round(randRange(18,26)) };
+}
+
+/* キャラクター1人分のスキルセット(ノーマル4+アルティメット1)を生成 */
+function generateSkillSet(jobKey, palette, charName){
+  const element = elementFromColor(palette && palette.hair, JOB_DEFAULT_ELEMENT[jobKey] || "fire");
+  const pattern = JOB_SKILL_PATTERN[jobKey] || JOB_SKILL_PATTERN.sword;
+  const skills = pattern.map(type => makeSkill(type, element, false, charName));
+  skills.push(makeSkill(JOB_ULTIMATE_TYPE[jobKey] || "dmg", element, true, charName));
+  return skills;
+}
+
+/* 職業ごとの武器シルエット(手元の座標基準。すべて自前のオリジナル形状) */
+function drawWeapon(ctx, jobKey, accent, fillPoly){
+  if(jobKey === "sword"){
+    fillPoly([[150,116],[145,196],[155,196]], "#dcdce6");
+    fillPoly([[141,192],[159,192],[150,208]], accent);
+  }else if(jobKey === "mage"){
+    fillPoly([[148,86],[152,86],[151,198],[147,198]], "#8a6a3a");
+    fillPoly([[150,70],[161,86],[150,102],[139,86]], accent);
+  }else if(jobKey === "healer"){
+    fillPoly([[149,96],[151,96],[150,198],[148,198]], "#d9b56a");
+    fillPoly([[150,82],[159,96],[150,110],[141,96]], "#fff6d8");
+  }else if(jobKey === "archer"){
+    fillPoly([[168,108],[178,150],[168,122]], accent);
+    fillPoly([[168,192],[178,150],[168,178]], accent);
+  }
+}
+
+/* 低ポリ肖像+パレットから立ち絵(バトル用スプライト)を生成。dataURLを返す */
+function buildCharacterSprite(character){
+  const cv = document.createElement("canvas");
+  cv.width = 200; cv.height = 320;
+  const ctx = cv.getContext("2d");
+  const job = JOBS[character.jobKey] || JOBS.sword;
+  const skin = (character.colors && character.colors.skin) || "#e0b090";
+  const hair = (character.colors && character.colors.hair) || "#3a2a1a";
+  const cloth1 = job.accent, cloth2 = job.accent2;
+
+  function fillPoly(pts, color){
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = color; ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  /* 脚 */
+  fillPoly([[82,190],[118,190],[116,300]], cloth2);
+  fillPoly([[82,190],[116,300],[84,300]], cloth2);
+  /* 胴 */
+  fillPoly([[66,110],[134,110],[118,190]], cloth1);
+  fillPoly([[66,110],[118,190],[82,190]], cloth1);
+  /* 腕(肌色) */
+  fillPoly([[66,110],[44,150],[50,196]], skin);
+  fillPoly([[134,110],[156,150],[150,196]], skin);
+  /* 武器 */
+  drawWeapon(ctx, character.jobKey, job.accent, fillPoly);
+
+  /* 頭部(ひし形): 上半分=髪色、下半分=生成した低ポリ肖像をクリップ表示 */
+  const top=[100,26], right=[134,60], bottom=[100,94], left=[66,60], center=[100,60];
+  fillPoly([top,right,center], hair);
+  fillPoly([left,top,center], hair);
+
+  if(character.portraitCanvas){
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(right[0],right[1]); ctx.lineTo(bottom[0],bottom[1]); ctx.lineTo(center[0],center[1]); ctx.closePath();
+    ctx.moveTo(bottom[0],bottom[1]); ctx.lineTo(left[0],left[1]); ctx.lineTo(center[0],center[1]); ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(character.portraitCanvas, 66, 26, 68, 68);
+    ctx.restore();
+  }else{
+    fillPoly([right,bottom,center], skin);
+    fillPoly([bottom,left,center], skin);
+  }
+
+  ctx.strokeStyle = "rgba(0,0,0,.3)"; ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(top[0],top[1]); ctx.lineTo(right[0],right[1]); ctx.lineTo(bottom[0],bottom[1]); ctx.lineTo(left[0],left[1]);
+  ctx.closePath(); ctx.stroke();
+
+  return cv.toDataURL("image/png");
 }
 
 /* ---------- 動作確認用(製品版では削除) ---------- */
@@ -985,8 +1423,9 @@ function tick(now){
   const dt = Math.min(0.1, (now - lastTime) / 1000);   // 秒。タブ復帰時の暴走防止
   lastTime = now;
 
-  if(!paused){
+  if(battleActive && !paused){
     UNITS.forEach((u, i) => {
+      if(awaitingCommand) return;     // 誰かがコマンド選択中は他のATB消化も行わない
       if(u.hp <= 0) return;
       u.atb += u.speed * dt * 4;      // ×4は体感速度の調整係数
       if(u.atb >= 100){
@@ -995,37 +1434,41 @@ function tick(now){
       }
     });
     renderTurnOrder();
-
-    /* フェーズ3: 共有コストの自動回復 */
-    if(cost < COST_MAX){
-      cost = Math.min(COST_MAX, cost + COST_REGEN * dt);
-      renderCost();
-    }
   }
   requestAnimationFrame(tick);
 }
 
-/* 行動処理(フェーズ4: 実ダメージ処理を接続) */
+/* ダメージを与える(シールドがあれば先に減らす) */
+function applyDamageToUnit(unit, dmg){
+  let remaining = dmg;
+  if(unit.shield > 0){
+    const absorbed = Math.min(unit.shield, remaining);
+    unit.shield -= absorbed;
+    remaining -= absorbed;
+  }
+  unit.hp = Math.max(0, unit.hp - remaining);
+  return remaining;   // シールドを貫通して実際にHPへ入った量
+}
+
+/* 行動処理: 味方はコマンドメニューを開いて選択を待つ。敵は自動行動 */
 function act(unitIdx){
+  if(awaitingCommand) return;
   const el = iconEls[unitIdx];
   el.classList.add("acting");
   setTimeout(() => el.classList.remove("acting"), 400);
 
   const partyIdx = PARTY.indexOf(UNITS[unitIdx]);
   if(partyIdx >= 0){
-    /* --- 味方のATBターン: 左下強調+通常攻撃(オート) --- */
-    activeIndex = partyIdx;
-    render();
-    animateSprite("sp" + partyIdx, "attack");                  // 踏み込みアニメ
-    damageEnemy(6000 + Math.floor(Math.random() * 3000), 6);   // 通常攻撃+BREAK少量削り
+    /* --- 味方のATBターン: コマンドメニュー(こうげき/スキル/どうぐ)を開く --- */
+    openCommandMenu(partyIdx);
   }else{
     /* --- 敵のターン: ブレイク中は行動不能 --- */
     if(ENEMY.broken) return;
     const alive = PARTY.filter(c => c.hp > 0);
     if(alive.length === 0) return;
     const target = alive[Math.floor(Math.random() * alive.length)];
-    const dmg = Math.floor(ENEMY.atk * (0.8 + Math.random() * 0.4));
-    target.hp = Math.max(0, target.hp - dmg);
+    const dmg = Math.round(target.maxHp * (0.14 + Math.random() * 0.08));   // 対象最大HPの14〜22%
+    const actualDmg = applyDamageToUnit(target, dmg);
     render();
     /* 敵の攻撃アニメ+被弾キャラの震え */
     const idx = PARTY.indexOf(target);
@@ -1033,7 +1476,7 @@ function act(unitIdx){
     setTimeout(() => animateSprite("sp" + idx, "hitshake"), 200);
     /* 被弾キャラのプレートにダメージ表示 */
     const plate = document.querySelectorAll(".member")[idx];
-    if(plate) showFloatText(plate, "-" + dmg.toLocaleString(), "dmg");
+    if(plate) showFloatText(plate, "-" + dmg.toLocaleString() + (actualDmg < dmg ? "(盾)" : ""), "dmg");
     checkBattleEnd();
   }
 }
@@ -1101,11 +1544,11 @@ function checkBattleEnd(){
   const result = document.getElementById("result");
   const word   = document.getElementById("resultword");
   if(ENEMY.hp <= 0){
-    paused = true;
+    paused = true; battleActive = false;
     result.className = "result show win";
     word.textContent = "VICTORY";
   }else if(PARTY.every(c => c.hp <= 0)){
-    paused = true;
+    paused = true; battleActive = false;
     result.className = "result show lose";
     word.textContent = "DEFEAT";
   }
@@ -1113,6 +1556,14 @@ function checkBattleEnd(){
 
 /* リスタート(モックでは再読込が最も安全) */
 function restart(){ location.reload(); }
+
+/* リザルトからパーティ編成へ戻る(再読込せずに続けて遊べる) */
+function backToRoster(){
+  document.getElementById("result").classList.remove("show");
+  battleActive = false;
+  paused = true;
+  showScreen("screen-roster");
+}
 
 /* =========================================================
    管理者ページ: 画像差し替えシステム
@@ -1130,9 +1581,6 @@ const SLOTS = [
   { key:"chara2", label:"味方2(透過PNG)",   sel:"#sp1 img" },
   { key:"chara3", label:"味方3(透過PNG)",   sel:"#sp2 img" },
   { key:"enemy",  label:"敵(透過PNG)",      sel:"#spE img" },
-  { key:"card1",  label:"カード1イラスト",  sel:null },   // カードはJS生成のためkeyで解決
-  { key:"card2",  label:"カード2イラスト",  sel:null },
-  { key:"card3",  label:"カード3イラスト",  sel:null },
 ];
 
 /* ---------- IndexedDBミニラッパー(エラー対策込み) ---------- */
@@ -1140,11 +1588,419 @@ const DB_NAME = "lumina_assets";
 function idbOpen(){
   return new Promise((res, rej) => {
     if(!window.indexedDB){ rej(new Error("この環境ではIndexedDBが使えません")); return; }
-    const r = indexedDB.open(DB_NAME, 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("images");
-    r.onsuccess = () => res(r.result);
-    r.onerror   = () => rej(r.error);
+    try{
+      const r = indexedDB.open(DB_NAME, 2);   // v2: キャラクター保存用ストアを追加
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if(!db.objectStoreNames.contains("images")) db.createObjectStore("images");
+        if(!db.objectStoreNames.contains("characters")) db.createObjectStore("characters", { keyPath:"id", autoIncrement:true });
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror   = () => rej(r.error);
+    }catch(e){
+      /* サンドボックス化されたiframe等ではindexedDB.open自体が同期的に例外を投げる場合がある */
+      rej(e);
+    }
   });
+}
+
+/* ---------- キャラクター(生成した仲間)のCRUD ---------- */
+async function idbAddCharacter(character){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("characters", "readwrite");
+    const rq = tx.objectStore("characters").add(character);
+    rq.onsuccess = () => res(rq.result);
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGetAllCharacters(){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const rq = db.transaction("characters").objectStore("characters").getAll();
+    rq.onsuccess = () => res(rq.result || []);
+    rq.onerror   = () => rej(rq.error);
+  });
+}
+async function idbDeleteCharacter(id){
+  const db = await idbOpen();
+  return new Promise((res, rej) => {
+    const tx = db.transaction("characters", "readwrite");
+    tx.objectStore("characters").delete(id);
+    tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+/* =========================================================
+   キャラ枠(課金)ロジック
+   - 無料枠3体+購入で追加解放。ここではUIと上限判定のみ実装。
+   - 本番でStripe/Google Play Billing/App内課金と接続する場合は
+     決済成功のコールバック内で setUnlockedExtra() を呼ぶ形にする。
+   ========================================================= */
+const FREE_SLOTS = 3;
+let memoryExtraSlots = 0;   // localStorageが使えないサンドボックス環境向けのフォールバック
+function getUnlockedExtra(){
+  try{ return parseInt(localStorage.getItem("lumina_extraSlots") || "0", 10) || 0; }
+  catch(e){ return memoryExtraSlots; }
+}
+function setUnlockedExtra(n){
+  memoryExtraSlots = n;
+  try{ localStorage.setItem("lumina_extraSlots", String(n)); }
+  catch(e){ /* 保存できない環境ではメモリ上の値のみ有効(リロードで消える) */ }
+}
+function getMaxSlots(){ return FREE_SLOTS + getUnlockedExtra(); }
+
+const SHOP_ITEMS = [
+  { id:"slot1", label:"キャラ枠 +1", desc:"キャラクターをもう1体作成できます", price:"¥360(デモ)", extra:1 },
+  { id:"slot3", label:"キャラ枠 +3", desc:"お得な3枠セット",                 price:"¥880(デモ)", extra:3 },
+];
+
+function renderShopItems(){
+  const root = document.getElementById("shopItems");
+  root.innerHTML = "";
+  SHOP_ITEMS.forEach(item => {
+    const el = document.createElement("div");
+    el.className = "shop-item";
+    el.innerHTML = `<div class="si-label"><b>${item.label}</b><span>${item.desc}</span></div><button>${item.price}</button>`;
+    el.querySelector("button").addEventListener("click", () => demoPurchase(item.extra));
+    root.appendChild(el);
+  });
+}
+function openPaywall(){
+  document.getElementById("paywallStatus").textContent = `${roster.length} / ${getMaxSlots()}`;
+  renderShopItems();
+  document.getElementById("paywall").classList.add("show");
+}
+function closePaywall(){ document.getElementById("paywall").classList.remove("show"); }
+
+/* デモ購入(実決済なし): 押した瞬間に枠を解放する。本番導入時はここを差し替える */
+async function demoPurchase(extra){
+  toast("決済処理中…（デモ）");
+  await new Promise(r => setTimeout(r, 600));
+  setUnlockedExtra(getUnlockedExtra() + extra);
+  toast(`🎉 キャラ枠を +${extra} 解放しました（デモ購入）`);
+  closePaywall();
+  renderHomeCounts();
+  if(document.getElementById("screen-roster").classList.contains("show")) renderRosterScreen();
+}
+
+/* =========================================================
+   キャラクター作成ウィザード(写真選択→クロップ→ポリゴン生成→職業選択→保存)
+   ========================================================= */
+const CROP_SIZE = 220;
+let createState = null;
+
+function openCreateScreen(){
+  if(roster.length >= getMaxSlots()){ openPaywall(); return; }
+  createState = { photoImg:null, scale:1, offX:0, offY:0, portraitCanvas:null, palette:null, jobKey:"sword" };
+  document.getElementById("createPhotoInput").value = "";
+  document.getElementById("createStep2").classList.add("hidden");
+  document.getElementById("createStep3").classList.add("hidden");
+  document.getElementById("createName").value = "";
+  document.querySelectorAll(".jobBtn").forEach(b => b.classList.toggle("active", b.dataset.job === "sword"));
+  showScreen("screen-create");
+}
+
+function baseScale(img){ return Math.max(CROP_SIZE/img.width, CROP_SIZE/img.height); }
+
+function clampCropOffsets(){
+  const img = createState.photoImg;
+  const s = baseScale(img) * createState.scale;
+  const maxOffX = Math.max(0, (img.width*s)/2 - CROP_SIZE/2);
+  const maxOffY = Math.max(0, (img.height*s)/2 - CROP_SIZE/2);
+  createState.offX = Math.max(-maxOffX, Math.min(maxOffX, createState.offX));
+  createState.offY = Math.max(-maxOffY, Math.min(maxOffY, createState.offY));
+}
+
+function drawCropPreview(){
+  const cv = document.getElementById("cropCanvas");
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
+  const img = createState.photoImg;
+  if(!img) return;
+  clampCropOffsets();
+  const s = baseScale(img) * createState.scale;
+  ctx.save();
+  ctx.translate(CROP_SIZE/2 + createState.offX, CROP_SIZE/2 + createState.offY);
+  ctx.scale(s, s);
+  ctx.drawImage(img, -img.width/2, -img.height/2);
+  ctx.restore();
+}
+
+/* 写真選択 */
+document.getElementById("btnPickPhoto").addEventListener("click", () => document.getElementById("createPhotoInput").click());
+document.getElementById("createPhotoInput").addEventListener("change", (ev) => {
+  const file = ev.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  img.onload = () => {
+    createState.photoImg = img;
+    createState.scale = 1; createState.offX = 0; createState.offY = 0;
+    document.getElementById("cropZoom").value = "1";
+    document.getElementById("createStep2").classList.remove("hidden");
+    document.getElementById("createStep3").classList.add("hidden");
+    drawCropPreview();
+  };
+  img.onerror = () => toast("画像を読み込めませんでした");
+  img.src = URL.createObjectURL(file);
+});
+
+/* クロップのドラッグ操作(スマホ/PC両対応のPointer Events) */
+(() => {
+  const cv = document.getElementById("cropCanvas");
+  let dragging = false, lastX = 0, lastY = 0;
+  cv.addEventListener("pointerdown", (e) => {
+    if(!createState || !createState.photoImg) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", (e) => {
+    if(!dragging) return;
+    const rect = cv.getBoundingClientRect();
+    const ratio = CROP_SIZE / rect.width;
+    createState.offX += (e.clientX - lastX) * ratio;
+    createState.offY += (e.clientY - lastY) * ratio;
+    lastX = e.clientX; lastY = e.clientY;
+    drawCropPreview();
+  });
+  cv.addEventListener("pointerup", () => dragging = false);
+  cv.addEventListener("pointercancel", () => dragging = false);
+})();
+document.getElementById("cropZoom").addEventListener("input", (e) => {
+  createState.scale = parseFloat(e.target.value);
+  drawCropPreview();
+});
+
+/* ポリゴン生成 */
+document.getElementById("btnGeneratePoly").addEventListener("click", () => {
+  toast("生成中…");
+  setTimeout(() => {
+    const OUT = 180;
+    const src = document.createElement("canvas");
+    src.width = OUT; src.height = OUT;
+    const sctx = src.getContext("2d");
+    const img = createState.photoImg;
+    const ratio = OUT / CROP_SIZE;
+    const s = baseScale(img) * createState.scale;
+    sctx.save();
+    sctx.translate(OUT/2 + createState.offX*ratio, OUT/2 + createState.offY*ratio);
+    sctx.scale(s*ratio, s*ratio);
+    sctx.drawImage(img, -img.width/2, -img.height/2);
+    sctx.restore();
+
+    const palette = extractPalette(src);
+    const imgData = sctx.getImageData(0, 0, OUT, OUT);
+    const pts = samplePoints(imgData, OUT, OUT, 140);
+    const tri = delaunay(pts);
+    const lowPoly = renderLowPoly(src, tri);
+
+    createState.portraitCanvas = lowPoly;
+    createState.palette = palette;
+
+    document.getElementById("portraitPreview").src = lowPoly.toDataURL("image/png");
+    document.getElementById("createStep3").classList.remove("hidden");
+    updateSpritePreview();
+  }, 30);
+});
+
+/* 職業選択 */
+document.querySelectorAll(".jobBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".jobBtn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    createState.jobKey = btn.dataset.job;
+    updateSpritePreview();
+  });
+});
+function currentNameOrJobLabel(){
+  const job = JOBS[createState.jobKey];
+  return document.getElementById("createName").value.trim() || job.label;
+}
+
+function updateSpritePreview(){
+  const job = JOBS[createState.jobKey];
+  const spriteURL = buildCharacterSprite({ portraitCanvas:createState.portraitCanvas, colors:createState.palette, jobKey:createState.jobKey });
+  document.getElementById("spritePreview").src = spriteURL;
+
+  /* 保存時と同じ内容を確認できるよう、この時点でスキルセットを確定して保持する */
+  createState.previewSkills = generateSkillSet(createState.jobKey, createState.palette, currentNameOrJobLabel());
+  document.getElementById("jobSkillPreview").innerHTML =
+    `<div>${job.label}</div>` +
+    createState.previewSkills.map(sk => `<div>${sk.ultimate ? "💥" : "・"} ${sk.name}</div>`).join("");
+}
+document.getElementById("createName").addEventListener("input", () => {
+  if(createState && createState.portraitCanvas) updateSpritePreview();
+});
+
+/* 保存 */
+document.getElementById("btnSaveCharacter").addEventListener("click", async () => {
+  if(roster.length >= getMaxSlots()){ openPaywall(); return; }
+  const job = JOBS[createState.jobKey];
+  const name = document.getElementById("createName").value.trim() || (job.label + (roster.length + 1));
+  const jitter = (r) => Math.floor((Math.random()-0.5) * r);
+  const character = {
+    name,
+    jobKey: createState.jobKey,
+    portraitDataURL: createState.portraitCanvas.toDataURL("image/png"),
+    spriteDataURL: buildCharacterSprite({ portraitCanvas:createState.portraitCanvas, colors:createState.palette, jobKey:createState.jobKey }),
+    colors: createState.palette,
+    stats: { hp: job.baseHp + jitter(400), mp: job.baseMp + jitter(60), speed: job.baseSpeed + jitter(6) },
+    skills: createState.previewSkills || generateSkillSet(createState.jobKey, createState.palette, name),
+    createdAt: Date.now(),
+  };
+  try{
+    await idbAddCharacter(character);
+    toast(`${name} を仲間に加えた！`);
+    await loadRoster();
+    showScreen("screen-home");
+  }catch(e){
+    toast("保存に失敗しました: " + e.message);
+  }
+});
+
+/* =========================================================
+   ホーム / パーティ編成 画面と、バトル開始への橋渡し
+   ========================================================= */
+let roster = [];
+let selectedIds = [];
+
+async function loadRoster(){
+  try{ roster = await idbGetAllCharacters(); }
+  catch(e){ roster = []; }
+}
+
+function renderHomeCounts(){
+  document.getElementById("homeSlotCount").textContent = `${roster.length} / ${getMaxSlots()}`;
+}
+
+function showScreen(name){
+  document.getElementById("screen-home").classList.toggle("show", name === "screen-home");
+  document.getElementById("screen-create").classList.toggle("show", name === "screen-create");
+  document.getElementById("screen-roster").classList.toggle("show", name === "screen-roster");
+  document.querySelector(".stage").classList.toggle("show", name === "battle");
+  if(name === "screen-home") renderHomeCounts();
+  if(name === "screen-roster") renderRosterScreen();
+}
+
+function toggleSelect(id){
+  if(selectedIds.includes(id)){
+    selectedIds = selectedIds.filter(x => x !== id);
+  }else{
+    if(selectedIds.length >= 3){ toast("パーティは最大3人までです"); return; }
+    selectedIds.push(id);
+  }
+  renderRosterScreen();
+}
+
+function renderRosterScreen(){
+  document.getElementById("rosterSlotCount").textContent = `${roster.length} / ${getMaxSlots()}`;
+  document.getElementById("rosterEmptyMsg").classList.toggle("hidden", roster.length > 0);
+
+  const root = document.getElementById("rosterGrid");
+  root.innerHTML = "";
+  roster.forEach(c => {
+    const job = JOBS[c.jobKey];
+    const el = document.createElement("div");
+    el.className = "rostercard" + (selectedIds.includes(c.id) ? " selected" : "");
+    el.innerHTML = `
+      <img class="rp-thumb" src="${c.portraitDataURL}" alt="">
+      <div class="rp-name">${c.name}</div>
+      <div class="rp-job">${job ? job.label : ""}</div>
+      <div class="rp-stats">HP ${c.stats.hp.toLocaleString()} / MP ${c.stats.mp}</div>
+      <button class="rp-del">削除</button>`;
+    el.addEventListener("click", (ev) => {
+      if(ev.target.classList.contains("rp-del")) return;
+      toggleSelect(c.id);
+    });
+    el.querySelector(".rp-del").addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      await idbDeleteCharacter(c.id);
+      selectedIds = selectedIds.filter(id => id !== c.id);
+      await loadRoster();
+      renderRosterScreen();
+      renderHomeCounts();
+      toast(`${c.name} を削除しました`);
+    });
+    root.appendChild(el);
+  });
+
+  document.getElementById("btnStartFromRoster").disabled = selectedIds.length === 0;
+}
+
+document.getElementById("btnGoCreate").addEventListener("click", openCreateScreen);
+document.getElementById("btnGoCreateFromRoster").addEventListener("click", openCreateScreen);
+document.getElementById("btnGoRoster").addEventListener("click", () => showScreen("screen-roster"));
+document.getElementById("btnGoShop").addEventListener("click", openPaywall);
+document.getElementById("btnDemoBattle").addEventListener("click", startDemoBattle);
+document.getElementById("btnStartFromRoster").addEventListener("click", () => {
+  const chars = selectedIds.map(id => roster.find(c => c.id === id)).filter(Boolean);
+  if(chars.length === 0) return;
+  startBattleWithRoster(chars);
+});
+
+/* バトル画面の共通セットアップ(デモ/自作パーティ共通) */
+async function finishBattleSetup(spriteAssignments){
+  ENEMY = JSON.parse(JSON.stringify(ENEMY_TEMPLATE));
+  UNITS = [...PARTY, ENEMY];
+  activeIndex = 0;
+  paused = false;
+  battleActive = true;
+  awaitingCommand = false;
+  resetInventory();
+
+  document.getElementById("result").classList.remove("show", "win", "lose");
+  document.getElementById("cmdmenu").classList.remove("show");
+  document.querySelector(".enemy-panel").classList.remove("broken");
+
+  render();
+  initTurnOrder();
+  renderTurnOrder();
+  renderEnemy();
+
+  /* 立ち絵をデフォルトへ一旦戻してから、管理者保存分→自作キャラの順で上書き */
+  for(let i=0;i<3;i++){
+    const img = document.getElementById("sp"+i).querySelector("img");
+    img.src = "img/chara" + (i+1) + ".png";
+    img.classList.remove("noimg");
+  }
+  await applyAllStored();
+
+  for(let i=0;i<3;i++){
+    const wrap = document.getElementById("sp"+i);
+    const img = wrap.querySelector("img");
+    if(i < PARTY.length){
+      wrap.style.display = "";
+      const url = spriteAssignments && spriteAssignments[i];
+      if(url){ img.src = url; img.classList.remove("noimg"); }
+    }else{
+      wrap.style.display = "none";
+    }
+  }
+
+  showScreen("battle");
+}
+
+/* サンプルキャラでそのまま遊ぶ(お試しプレイ用) */
+async function startDemoBattle(){
+  PARTY = JSON.parse(JSON.stringify(DEMO_PARTY_SRC)).map(c => ({ ...c, shield: 0 }));
+  await finishBattleSetup(null);
+}
+
+/* 自作キャラのパーティでバトル開始 */
+async function startBattleWithRoster(chars){
+  PARTY = chars.map(c => ({
+    name: c.name,
+    glyph: c.name.slice(0,1) || "?",
+    cls: (JOBS[c.jobKey] ? JOBS[c.jobKey].cls : "chaos"),
+    hp: c.stats.hp, maxHp: c.stats.hp,
+    mp: c.stats.mp, maxMp: c.stats.mp,
+    speed: c.stats.speed,
+    atb: Math.random() * 30,
+    shield: 0,
+    skills: c.skills,
+  }));
+  await finishBattleSetup(chars.map(c => c.spriteDataURL));
 }
 async function idbSet(key, blob){
   const db = await idbOpen();
@@ -1175,9 +2031,7 @@ async function idbDel(key){
 
 /* スロットの適用先<img>を取得 */
 function slotImg(slot){
-  if(slot.sel) return document.querySelector(slot.sel);
-  const n = parseInt(slot.key.replace("card", ""), 10) - 1;   // card1→cardEls[0]
-  return cardEls[n] ? cardEls[n].querySelector(".art img") : null;
+  return document.querySelector(slot.sel);
 }
 
 /* 保存済み画像を画面に適用 */
@@ -1201,7 +2055,7 @@ async function applyAllStored(){
 /* ---------- 管理画面の開閉(タイトル5回タップ→PIN) ---------- */
 let tapCount = 0, tapTimer = null;
 /* clickに加えpointerdownでも拾う(スマホ環境での取りこぼし防止) */
-const tagEl = document.querySelector(".phase-tag");
+const tagEl = document.getElementById("homeLogo");
 function onTagTap(ev){
   ev.preventDefault();
   tapCount++;
@@ -1242,11 +2096,10 @@ document.getElementById("pininput").addEventListener("keydown", (ev) => {
 
 /* トースト通知(alert代替) */
 function toast(msg){
-  const stage = document.querySelector(".stage");
   const t = document.createElement("div");
   t.className = "toast";
   t.textContent = msg;
-  stage.appendChild(t);
+  document.body.appendChild(t);
   setTimeout(() => t.remove(), 1800);
 }
 
@@ -1313,103 +2166,189 @@ async function buildAdminRows(){
 }
 
 /* =========================================================
-   フェーズ3: 手札カード+共有コスト
-   - コストはパーティ共有(MAX 10)。時間経過で自動回復
-   - コスト不足のカードは暗転して使用不可
-   - カード使用→コスト消費+発動演出(効果はフェーズ4で接続)
+   フェーズ3: コマンドメニュー(こうげき/スキル/どうぐ)
+   - ATB満タン時に対象キャラのコマンドを待つ(paused=trueで全体停止)
+   - ダメージ/回復/バリアは全て「割合(%)」で算出し、固定数値は使わない
    ========================================================= */
-const COST_MAX   = 10;
-const COST_REGEN = 0.5;   // 1秒あたりの回復量(0.5 = 2秒で1回復)
-let cost = 6;             // 現在コスト(小数で保持し、表示は切り捨て)
+let pendingActor = -1;     // コマンド選択中の PARTY インデックス
+let awaitingCommand = false;
 
-/* 各キャラ固有のスキルカード(名前変更はここを書き換えるだけ)
-   type: "dmg"=敵に攻撃 / "heal"=HP最少の味方を回復
-   power: ダメージ量or回復量 / brk: BREAK削り量 */
-const CARDS = [
-  { owner:0, cls:"chaos", cost:5, name:"神魔切アスタリ", type:"dmg",  power:48000, brk:18 },
-  { owner:1, cls:"ice",   cost:4, name:"蒼閃・氷華斬",   type:"dmg",  power:32000, brk:25 },
-  { owner:2, cls:"light", cost:4, name:"ルミナスヒール", type:"heal", power:2500,  brk:0  },
+/* 共有アイテム(HP/MPも割合回復。数はバトル開始時にリセット) */
+const ITEM_TEMPLATE = [
+  { key:"potion",  name:"ポーション",           desc:"HPを25%回復",           type:"heal",   pct:0.25, maxUses:5 },
+  { key:"ether",   name:"エーテル",             desc:"MPを30%回復",           type:"mp",     pct:0.30, maxUses:3 },
+  { key:"phoenix", name:"フェニックスの尾",     desc:"戦闘不能を40%HPで復活", type:"revive", pct:0.40, maxUses:2 },
 ];
-let cardEls = [];
+let inventory = [];
+function resetInventory(){ inventory = ITEM_TEMPLATE.map(it => ({ ...it, uses: it.maxUses })); }
 
-/* カードDOMを最初に1回だけ生成 */
-function initHand(){
-  const hand = document.getElementById("hand");
-  hand.innerHTML = "";
-  cardEls = CARDS.map((c, i) => {
-    const el = document.createElement("div");
-    el.className = "card " + c.cls;
-    el.innerHTML = `
-      <div class="art"><img src="img/card${i + 1}.png" alt="" onerror="this.classList.add('noimg')"></div>
-      <div class="cost"><span>${c.cost}</span></div>
-      <div class="owner">${PARTY[c.owner].name}</div>
-      <div class="skillname">${c.name}</div>`;
-    el.addEventListener("click", () => useCard(i));
-    hand.appendChild(el);
-    return el;
-  });
-
-  /* コスト宝石10個を生成 */
-  const gems = document.getElementById("gems");
-  gems.innerHTML = "";
-  for(let i = 0; i < COST_MAX; i++){
-    const g = document.createElement("div");
-    g.className = "gem";
-    gems.appendChild(g);
-  }
+/* HP割合が最も低い生存キャラを返す */
+function lowestHpAlly(){
+  const alive = PARTY.filter(p => p.hp > 0);
+  if(!alive.length) return null;
+  return alive.reduce((a, b) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b));
 }
 
-/* コスト表示とカードの活性/非活性を更新 */
-function renderCost(){
-  const n = Math.floor(cost);
-  document.getElementById("costnum").innerHTML = `${n}<small>/${COST_MAX}</small>`;
+function openCommandMenu(partyIdx){
+  pendingActor = partyIdx;
+  awaitingCommand = true;
+  paused = true;
+  activeIndex = partyIdx;
+  render();
 
-  const gems = document.getElementById("gems").children;
-  for(let i = 0; i < COST_MAX; i++){
-    gems[i].classList.toggle("on", i < n);
-  }
-  CARDS.forEach((c, i) => {
-    cardEls[i].classList.toggle("disabled", n < c.cost || PARTY[c.owner].hp <= 0);
-  });
+  document.getElementById("cmdActorName").textContent = PARTY[partyIdx].name;
+  document.getElementById("cmdMain").classList.remove("hidden");
+  document.getElementById("cmdSkillList").classList.add("hidden");
+  document.getElementById("cmdItemList").classList.add("hidden");
+  document.getElementById("cmdmenu").classList.add("show");
 }
 
-/* カード使用 */
-function useCard(i){
-  const c = CARDS[i];
-  if(Math.floor(cost) < c.cost) return;          // コスト不足は無視
-  if(PARTY[c.owner].hp <= 0) return;             // 戦闘不能キャラのカードは不可
+function closeCommandMenu(){
+  document.getElementById("cmdmenu").classList.remove("show");
+  awaitingCommand = false;
+  paused = false;
+  pendingActor = -1;
+}
 
-  /* 消費する宝石を砕く演出(右側から消える) */
-  const gems = document.getElementById("gems").children;
-  const from = Math.floor(cost) - c.cost;
-  for(let g = from; g < Math.floor(cost); g++){
-    gems[g].classList.add("burst");
-    setTimeout(((el) => () => el.classList.remove("burst"))(gems[g]), 400);
+function backToMain(){
+  document.getElementById("cmdSkillList").classList.add("hidden");
+  document.getElementById("cmdItemList").classList.add("hidden");
+  document.getElementById("cmdMain").classList.remove("hidden");
+}
+
+/* コマンド確定後の共通後処理 */
+function finishCommand(){
+  const idx = pendingActor;
+  closeCommandMenu();
+  if(idx >= 0 && PARTY[idx]) PARTY[idx].atb = 0;
+  checkBattleEnd();
+}
+
+document.getElementById("cmdMain").addEventListener("click", (ev) => {
+  const btn = ev.target.closest(".cmdbtn");
+  if(!btn) return;
+  const cmd = btn.dataset.cmd;
+  if(cmd === "attack") doAttackCommand();
+  else if(cmd === "skill") openSkillList();
+  else if(cmd === "item") openItemList();
+});
+
+/* こうげき: 対象最大HPの7〜10%を通常ダメージとして与える */
+function doAttackCommand(){
+  const unit = PARTY[pendingActor];
+  animateSprite("sp" + pendingActor, "attack");
+  const dmg = Math.round(ENEMY.maxHp * (0.07 + Math.random() * 0.03));
+  damageEnemy(dmg, 6);
+  finishCommand();
+}
+
+/* スキル一覧(ノーマル4+アルティメット1)を表示 */
+function openSkillList(){
+  const unit = PARTY[pendingActor];
+  const root = document.getElementById("cmdSkillList");
+  root.innerHTML = "";
+  (unit.skills || []).forEach((sk, i) => {
+    const mpNeed = Math.round(unit.maxMp * sk.mpCost / 100);
+    const btn = document.createElement("button");
+    btn.className = "cmdbtn skillbtn" + (sk.ultimate ? " ultimate" : "");
+    btn.disabled = unit.mp < mpNeed;
+    btn.innerHTML = `<span class="sk-name">${sk.ultimate ? "💥 " : "・"}${sk.name}</span><span class="sk-mp">MP ${mpNeed}</span>`;
+    btn.addEventListener("click", () => useSkill(i));
+    root.appendChild(btn);
+  });
+  const back = document.createElement("button");
+  back.className = "cmdbtn backbtn";
+  back.textContent = "← もどる";
+  back.addEventListener("click", backToMain);
+  root.appendChild(back);
+
+  document.getElementById("cmdMain").classList.add("hidden");
+  root.classList.remove("hidden");
+}
+
+/* アイテム一覧を表示 */
+function openItemList(){
+  const root = document.getElementById("cmdItemList");
+  root.innerHTML = "";
+  inventory.forEach((it, i) => {
+    const btn = document.createElement("button");
+    btn.className = "cmdbtn itembtn";
+    btn.disabled = it.uses <= 0;
+    btn.innerHTML = `<span class="sk-name">${it.name} ×${it.uses}</span><span class="sk-mp">${it.desc}</span>`;
+    btn.addEventListener("click", () => useItem(i));
+    root.appendChild(btn);
+  });
+  const back = document.createElement("button");
+  back.className = "cmdbtn backbtn";
+  back.textContent = "← もどる";
+  back.addEventListener("click", backToMain);
+  root.appendChild(back);
+
+  document.getElementById("cmdMain").classList.add("hidden");
+  root.classList.remove("hidden");
+}
+
+/* スキル発動: ダメージ/回復/バリアは全て対象の最大HPに対する割合で算出 */
+function useSkill(i){
+  const unit = PARTY[pendingActor];
+  const sk = unit.skills[i];
+  const mpNeed = Math.round(unit.maxMp * sk.mpCost / 100);
+  if(unit.mp < mpNeed) return;
+  unit.mp -= mpNeed;
+  animateSprite("sp" + pendingActor, "attack");
+
+  if(sk.type === "dmg"){
+    const dmg = Math.round(ENEMY.maxHp * sk.pct);
+    damageEnemy(dmg, sk.brk);
+  }else if(sk.type === "heal"){
+    const targets = sk.partyWide ? PARTY.filter(p => p.hp > 0) : [lowestHpAlly()].filter(Boolean);
+    targets.forEach(t => {
+      const amt = Math.round(t.maxHp * sk.pct);
+      t.hp = Math.min(t.maxHp, t.hp + amt);
+      const plate = document.querySelectorAll(".member")[PARTY.indexOf(t)];
+      if(plate) showFloatText(plate, "+" + amt.toLocaleString(), "heal");
+    });
+    render();
+  }else if(sk.type === "barrier"){
+    const targets = sk.partyWide ? PARTY.filter(p => p.hp > 0) : [unit];
+    targets.forEach(t => {
+      const amt = Math.round(t.maxHp * sk.pct);
+      t.shield = (t.shield || 0) + amt;
+      const plate = document.querySelectorAll(".member")[PARTY.indexOf(t)];
+      if(plate) showFloatText(plate, "🛡+" + amt.toLocaleString(), "heal");
+    });
+    render();
   }
+  showFloatText(document.getElementById("cmdmenu"), sk.name + "！", sk.ultimate ? "brk" : undefined);
+  finishCommand();
+}
 
-  cost -= c.cost;
-  cardEls[i].classList.add("played");
-  setTimeout(() => cardEls[i].classList.remove("played"), 450);
+/* どうぐ使用: 効果量も割合ベース */
+function useItem(i){
+  const it = inventory[i];
+  if(it.uses <= 0) return;
 
-  /* 発動テキスト(カードの上にふわっと表示) */
-  showFloatText(cardEls[i], c.name + " 発動！");
-
-  renderCost();
-
-  /* --- カード効果の発動(フェーズ4で接続) --- */
-  if(c.type === "dmg"){
-    damageEnemy(c.power, c.brk);
-  }else if(c.type === "heal"){
-    /* HPが最も減っている生存キャラを回復 */
+  if(it.type === "heal"){
+    const t = lowestHpAlly();
+    if(t){
+      const amt = Math.round(t.maxHp * it.pct);
+      t.hp = Math.min(t.maxHp, t.hp + amt);
+      const plate = document.querySelectorAll(".member")[PARTY.indexOf(t)];
+      if(plate) showFloatText(plate, "+" + amt.toLocaleString(), "heal");
+    }
+  }else if(it.type === "mp"){
     const alive = PARTY.filter(p => p.hp > 0);
     if(alive.length){
-      const target = alive.reduce((a, b) => (a.hp / a.maxHp < b.hp / b.maxHp ? a : b));
-      target.hp = Math.min(target.maxHp, target.hp + c.power);
-      render();
-      const plate = document.querySelectorAll(".member")[PARTY.indexOf(target)];
-      if(plate) showFloatText(plate, "+" + c.power.toLocaleString(), "heal");
+      const t = alive.reduce((a, b) => (a.mp / a.maxMp < b.mp / b.maxMp ? a : b));
+      t.mp = Math.min(t.maxMp, t.mp + Math.round(t.maxMp * it.pct));
     }
+  }else if(it.type === "revive"){
+    const ko = PARTY.find(p => p.hp <= 0);
+    if(ko) ko.hp = Math.round(ko.maxHp * it.pct);
   }
+  it.uses--;
+  render();
+  finishCommand();
 }
 
 /* フロートテキスト表示(kind: "dmg"/"heal"/"brk"で色分け) */
@@ -1432,14 +2371,21 @@ function togglePause(){
   document.getElementById("pausebtn").textContent = paused ? "再開" : "一時停止";
 }
 
-render();
-initTurnOrder();
-renderTurnOrder();
-initHand();
-renderCost();
-renderEnemy();
-applyAllStored();   // 管理者ページで保存した画像を復元
-requestAnimationFrame(tick);
+/* 起動処理: バトルはまだ開始せず、まずホーム画面を表示する
+   (サンドボックス化された環境でストレージ系APIが例外を投げても
+    画面が真っ白のまま止まらないよう、必ずホーム表示とループ開始まで行う) */
+(async function boot(){
+  try{
+    await loadRoster();
+  }catch(e){ roster = []; }
+  try{
+    showScreen("screen-home");
+  }catch(e){ console.error("showScreen failed", e); }
+  try{
+    applyAllStored();   // 管理者ページで保存した背景/敵/カード画像を復元
+  }catch(e){ /* 未対応環境ではデフォルト画像のまま動作する */ }
+  requestAnimationFrame(tick);
+})();
 
 </script>
 </body>
