@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>研修資料作成AI ケアちゃん</title>
+<style>
+/* =========================================================
+   研修資料作成AI「ケアちゃん」
+   看護・介護施設向けの研修資料(①図解②アンケート③穴埋め問題④ロープレ)を
+   テーマボタン選択だけで自動生成するツール。
+   - キャラ画像/アイコンは img/care/ に置くと自動反映(無ければ絵文字で代用)
+   - 印刷ボタンで各資料をA4印刷/PDF保存に対応
+   ========================================================= */
+:root{
+  --teal:#1f7a72;
+  --teal-dark:#155a54;
+  --teal-light:#e6f3f1;
+  --accent:#f28c38;
+  --accent-dark:#d8721f;
+  --bg:#f4f7f7;
+  --card:#ffffff;
+  --text:#233531;
+  --text-sub:#5c6f6b;
+  --border:#d8e6e3;
+  --danger:#c9463c;
+  --legal:#c9463c;
+  --other:#3a7bd5;
+  --radius:14px;
+  --shadow:0 2px 10px rgba(31,122,114,.08);
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  line-height:1.65;
+}
+img{ max-width:100%; display:block; }
+button{ font-family:inherit; cursor:pointer; }
+.app{ max-width:960px; margin:0 auto; padding:0 0 60px; }
+
+/* ---------- ヘッダー ---------- */
+.appheader{
+  display:flex; align-items:center; gap:14px;
+  padding:16px 18px;
+  background:linear-gradient(120deg, var(--teal), var(--teal-dark));
+  color:#fff;
+  position:sticky; top:0; z-index:20;
+  box-shadow:0 2px 10px rgba(0,0,0,.12);
+}
+.charavatar{
+  flex:none; width:52px; height:52px; border-radius:50%;
+  background:rgba(255,255,255,.18);
+  border:2px solid rgba(255,255,255,.6);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; overflow:hidden;
+}
+.charavatar img{ width:100%; height:100%; object-fit:cover; }
+.charavatar img.noimg{ display:none; }
+.headertext{ flex:1; min-width:0; }
+.headertext h1{ font-size:19px; letter-spacing:.02em; }
+.headertext p{ font-size:12px; opacity:.9; margin-top:2px; }
+.headernav{ display:flex; gap:6px; }
+.headernav button{
+  background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.4);
+  color:#fff; border-radius:99px; font-size:12.5px;
+  padding:7px 13px;
+}
+.headernav button.active{ background:#fff; color:var(--teal-dark); font-weight:700; }
+
+main{ padding:18px; }
+.hidden{ display:none !important; }
+
+/* ---------- カード共通 ---------- */
+.panel{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:18px;
+  margin-bottom:18px;
+}
+.panel h2{ font-size:15.5px; color:var(--teal-dark); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+.panel .desc{ font-size:12.5px; color:var(--text-sub); margin-bottom:10px; }
+
+/* ---------- オプション ---------- */
+.optionsgrid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:12px; }
+.optfield label{ display:block; font-size:12px; color:var(--text-sub); margin-bottom:4px; }
+.optfield select{
+  width:100%; font-family:inherit; font-size:13.5px;
+  padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+  background:#fff; color:var(--text);
+}
+
+/* ---------- テーマカテゴリタブ ---------- */
+.cattabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.cattab{
+  border:1px solid var(--border); background:#fff; color:var(--text-sub);
+  border-radius:99px; padding:8px 16px; font-size:13px; font-weight:700;
+}
+.cattab.active.legal{ background:var(--legal); border-color:var(--legal); color:#fff; }
+.cattab.active.other{ background:var(--other); border-color:var(--other); color:#fff; }
+
+/* ---------- テーマボタン ---------- */
+.themegrid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+  gap:12px;
+}
+.themebtn{
+  position:relative;
+  display:flex; flex-direction:column; align-items:flex-start; gap:6px;
+  text-align:left;
+  border:1.5px solid var(--border);
+  background:#fff;
+  border-radius:12px;
+  padding:14px 14px 12px;
+  transition:box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.themebtn:hover{ border-color:var(--teal); box-shadow:0 4px 14px rgba(31,122,114,.18); transform:translateY(-2px); }
+.themebtn .icon{ font-size:24px; }
+.themebtn .ttitle{ font-size:14px; font-weight:700; color:var(--text); }
+.themebtn .badge{
+  position:absolute; top:10px; right:10px;
+  font-size:9.5px; font-weight:700; letter-spacing:.03em;
+  padding:2px 7px; border-radius:99px; color:#fff;
+}
+.themebtn .badge.legal{ background:var(--legal); }
+.themebtn .badge.other{ background:var(--other); }
+
+/* ---------- カスタムテーマ入力 ---------- */
+.custombox{
+  display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;
+}
+.custombox input[type=text]{
+  flex:1; min-width:200px;
+  font-family:inherit; font-size:13.5px;
+  padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+}
+.btn{
+  border:none; border-radius:8px; padding:10px 18px;
+  font-size:13.5px; font-weight:700; color:#fff;
+  background:var(--teal); white-space:nowrap;
+}
+.btn:hover{ background:var(--teal-dark); }
+.btn.accent{ background:var(--accent); }
+.btn.accent:hover{ background:var(--accent-dark); }
+.btn.ghost{ background:#fff; color:var(--teal-dark); border:1px solid var(--teal); }
+.btn.ghost:hover{ background:var(--teal-light); }
+.btn.small{ padding:6px 12px; font-size:12px; }
+
+/* ---------- 結果画面 ---------- */
+.resultheader{
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  margin-bottom:14px;
+}
+.resultheader h2{ font-size:17px; color:var(--teal-dark); }
+.resultmeta{ font-size:12px; color:var(--text-sub); margin-top:4px; }
+.resultmeta span{ display:inline-block; margin-right:10px; }
+.lawnote{
+  background:#fff6ea; border:1px solid #f0d9ad; color:#7a5a12;
+  border-radius:10px; padding:10px 12px; font-size:12.5px; margin-bottom:16px;
+}
+.disclaimer{
+  background:#f1f6ff; border:1px solid #c8dcfb; color:#2a4d7a;
+  border-radius:10px; padding:10px 12px; font-size:12px; margin-top:18px;
+}
+
+.doctabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.doctab{
+  border:1.5px solid var(--border); background:#fff; color:var(--text-sub);
+  border-radius:99px; padding:9px 16px; font-size:13px; font-weight:700;
+}
+.doctab.active{ background:var(--teal); border-color:var(--teal); color:#fff; }
+
+.docpane{ display:none; }
+.docpane.active{ display:block; }
+.docactions{ display:flex; gap:8px; margin:14px 0 4px; flex-wrap:wrap; }
+
+/* ---------- ①図解資料 ---------- */
+.overviewbox{
+  background:var(--teal-light); border-left:4px solid var(--teal);
+  border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:13.5px;
+}
+.imgslot{
+  width:100%; aspect-ratio:16/7; border-radius:10px; overflow:hidden;
+  background:linear-gradient(135deg,#eef7f6,#dcefeb);
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:14px; border:1px dashed var(--border);
+}
+.imgslot img{ width:100%; height:100%; object-fit:cover; }
+.imgslot img.noimg{ display:none; }
+.imgslot .fallback{ font-size:40px; opacity:.5; }
+.sectioncard{
+  border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:14px;
+  background:#fff;
+}
+.sectioncard h3{
+  font-size:14.5px; color:var(--teal-dark); margin-bottom:10px;
+  display:flex; align-items:center; gap:8px;
+}
+.sectioncard h3 .num{
+  flex:none; width:22px; height:22px; border-radius:50%;
+  background:var(--teal); color:#fff; font-size:12px;
+  display:flex; align-items:center; justify-content:center;
+}
+.pointgrid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; }
+.pointcard{
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:9px 11px; font-size:13px; display:flex; gap:7px;
+}
+.pointcard .bullet{ flex:none; color:var(--accent); font-weight:900; }
+.flowwrap{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:10px; }
+.flowstep{
+  background:var(--teal-dark); color:#fff; font-size:12px; font-weight:700;
+  border-radius:8px; padding:8px 12px; text-align:center;
+}
+.flowarrow{ color:var(--teal); font-size:16px; font-weight:900; }
+
+/* ---------- ②アンケート ---------- */
+.surveyq{ border-bottom:1px solid var(--border); padding:14px 0; }
+.surveyq:first-child{ padding-top:0; }
+.surveyq .qtext{ font-size:13.5px; font-weight:700; margin-bottom:8px; }
+.likertrow{ display:flex; gap:6px; flex-wrap:wrap; }
+.likertopt{
+  border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:11.5px;
+  color:var(--text-sub); text-align:center; min-width:70px;
+}
+.freebox{
+  border:1px solid var(--border); border-radius:8px; height:56px; background:#fbfcfc;
+}
+
+/* ---------- ③穴埋め問題 ---------- */
+.blankitem{ font-size:13.5px; margin-bottom:12px; padding-left:22px; position:relative; }
+.blankitem .qn{ position:absolute; left:0; color:var(--accent); font-weight:900; }
+.blankfill{
+  display:inline-block; min-width:90px; border-bottom:2px solid var(--teal); text-align:center;
+  font-weight:700; color:var(--teal-dark); padding:0 4px;
+}
+.answerbox{
+  margin-top:18px; background:var(--teal-light); border-radius:10px; padding:12px 14px;
+}
+.answerbox h4{ font-size:13px; color:var(--teal-dark); margin-bottom:8px; }
+.answerbox.hiddenans .ansbody{ display:none; }
+.toggleans{ font-size:12px; }
+.tfitem{ font-size:13.5px; margin-bottom:10px; display:flex; gap:8px; align-items:flex-start; }
+.tfitem .qn{ color:var(--accent); font-weight:900; flex:none; }
+.tfmark{ flex:none; display:inline-flex; gap:6px; }
+.tfmark span{ border:1px solid var(--border); border-radius:50%; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-size:11px; }
+
+/* ---------- ④ロープレ ---------- */
+.roleplaysituation{
+  background:#fff6ea; border:1px solid #f0d9ad; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:13.5px;
+}
+.roleboxes{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:16px; }
+.rolebox{ border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+.rolebox .rname{ font-size:13.5px; font-weight:700; color:var(--teal-dark); margin-bottom:4px; }
+.rolebox .rdesc{ font-size:12.5px; color:var(--text-sub); }
+.promptlist{ list-style:none; }
+.promptlist li{
+  background:var(--bg); border:1px solid var(--border); border-radius:8px;
+  padding:9px 12px; margin-bottom:8px; font-size:13px;
+}
+.reflectlist{ margin-top:14px; }
+.reflectlist li{ font-size:13px; margin-bottom:8px; padding-left:18px; position:relative; }
+.reflectlist li::before{ content:"💬"; position:absolute; left:0; }
+
+/* ---------- 履歴 ---------- */
+.historyitem{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:10px;
+}
+.historyitem .hinfo{ min-width:0; }
+.historyitem .htitle{ font-size:13.5px; font-weight:700; }
+.historyitem .hmeta{ font-size:11.5px; color:var(--text-sub); margin-top:2px; }
+.historyitem .hactions{ display:flex; gap:6px; flex:none; }
+.emptystate{ text-align:center; color:var(--text-sub); font-size:13px; padding:30px 10px; }
+
+/* ---------- 印刷対応 ---------- */
+@media print{
+  .appheader, .headernav, .no-print, .doctabs, .docactions, .cattabs, #view-home, #view-history{ display:none !important; }
+  body{ background:#fff; }
+  .app{ max-width:none; padding:0; }
+  main{ padding:0; }
+  .panel{ box-shadow:none; border:none; padding:0; }
+  body.print-mode #view-result{ display:block !important; }
+  body.print-mode .docpane{ display:none !important; }
+  body.print-mode .docpane.print-target{ display:block !important; }
+  body.print-mode.print-all .docpane{ display:block !important; page-break-after:always; }
+  .sectioncard, .imgslot{ break-inside:avoid; }
+}
+body:not(.print-mode) #printOnlyRoot{ display:contents; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="appheader">
+    <div class="charavatar">
+      <img id="charAvatarImg" src="img/care/avatar.png" alt="" onerror="this.classList.add('noimg')">
+      <span id="charAvatarFallback">🧑‍⚕️</span>
+    </div>
+    <div class="headertext">
+      <h1>研修資料作成AI ケアちゃん</h1>
+      <p>テーマを選ぶだけで、図解・アンケート・穴埋め問題・ロープレ資料を自動作成</p>
+    </div>
+    <nav class="headernav no-print">
+      <button id="navHome" class="active">作成</button>
+      <button id="navHistory">履歴</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ ホーム画面(テーマ選択) ============ -->
+    <section id="view-home">
+      <div class="panel">
+        <h2>📋 研修の条件を設定</h2>
+        <div class="optionsgrid">
+          <div class="optfield">
+            <label>対象事業所種別</label>
+            <select id="optFacility">
+              <option value="施設系(特養・老健等)">施設系(特養・老健等)</option>
+              <option value="通所系(デイサービス等)">通所系(デイサービス等)</option>
+              <option value="訪問系(訪問介護・看護等)">訪問系(訪問介護・看護等)</option>
+              <option value="障害福祉サービス事業所">障害福祉サービス事業所</option>
+              <option value="その他">その他</option>
+            </select>
+          </div>
+          <div class="optfield">
+            <label>研修対象</label>
+            <select id="optAudience">
+              <option value="全職員向け">全職員向け</option>
+              <option value="新人職員向け">新人職員向け</option>
+              <option value="リーダー・管理者向け">リーダー・管理者向け</option>
+            </select>
+          </div>
+          <div class="optfield">
+            <label>研修時間の目安</label>
+            <select id="optDuration">
+              <option value="15">15分(要点のみ)</option>
+              <option value="30" selected>30分(標準)</option>
+              <option value="60">60分(全項目)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>🗂 研修テーマを選択</h2>
+        <p class="desc">テーマボタンを押すと、①図解資料 ②アンケート ③穴埋め問題と解答 ④ロープレ資料の4点セットを自動作成します。</p>
+        <div class="cattabs">
+          <button class="cattab legal active" data-cat="legal">⚖️ 法定研修</button>
+          <button class="cattab other" data-cat="other">📚 その他の研修</button>
+        </div>
+        <div class="themegrid" id="themeGrid"></div>
+
+        <div class="custombox">
+          <input type="text" id="customThemeInput" placeholder="上記にないテーマを入力(例:虐待防止フォローアップ研修 など)">
+          <button class="btn accent" id="customThemeBtn">このテーマで作成</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 結果画面 ============ -->
+    <section id="view-result" class="hidden">
+      <div class="panel">
+        <div class="resultheader">
+          <div>
+            <h2 id="resultTitle">-</h2>
+            <div class="resultmeta" id="resultMeta"></div>
+          </div>
+          <div class="docactions no-print">
+            <button class="btn ghost small" id="backHomeBtn">← テーマ選択に戻る</button>
+            <button class="btn small" id="saveHistoryBtn">💾 履歴に保存</button>
+          </div>
+        </div>
+        <div class="lawnote hidden" id="lawNoteBox"></div>
+
+        <div class="doctabs no-print">
+          <button class="doctab active" data-pane="pane-illustrated">① 図解資料</button>
+          <button class="doctab" data-pane="pane-survey">② アンケート</button>
+          <button class="doctab" data-pane="pane-fillblank">③ 穴埋め問題</button>
+          <button class="doctab" data-pane="pane-roleplay">④ ロープレ資料</button>
+        </div>
+
+        <div class="docactions no-print">
+          <button class="btn small" id="printCurrentBtn">🖨️ この資料を印刷/PDF保存</button>
+          <button class="btn ghost small" id="printAllBtn">🖨️ 4点まとめて印刷/PDF保存</button>
+          <button class="btn ghost small" id="downloadTxtBtn">📄 テキストで保存(.txt)</button>
+        </div>
+
+        <div id="pane-illustrated" class="docpane active"></div>
+        <div id="pane-survey" class="docpane"></div>
+        <div id="pane-fillblank" class="docpane"></div>
+        <div id="pane-roleplay" class="docpane"></div>
+
+        <div class="disclaimer no-print">
+          ⚠️ 本資料はAIが一般的な情報をもとに作成した下書き(たたき台)です。法令・通知は改正されることがあるため、実際の研修実施前に必ず最新の法令・自治体の指導内容・貴事業所の規程と照らし合わせてご確認・加筆修正のうえご活用ください。
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 履歴画面 ============ -->
+    <section id="view-history" class="hidden">
+      <div class="panel">
+        <h2>🕘 作成履歴</h2>
+        <p class="desc">保存した研修資料セットです。もう一度開いて印刷・編集の参考にできます(この端末のブラウザ内に保存されます)。</p>
+        <div id="historyList"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   1. テーマデータ(法定研修 / その他の研修)
+   各テーマは ①図解の元になる sections、③の blanks(穴埋め)と
+   trueFalse(○×確認問題)、④の roleplay を保持する。
+   blanks は "{正解}" の書式で埋め込み、自動でクローズ問題化する。
+   ========================================================= */
+const THEMES = {
+
+infection: { category:"legal", icon:"🦠", title:"感染症及び食中毒の予防・まん延防止",
+  lawNote:"介護保険法の指定基準により、感染対策委員会の設置・指針の整備に加え、年2回以上の研修及び訓練(シミュレーション)の実施が義務付けられています。",
+  overview:"介護・看護現場では抵抗力の低下した利用者が多く、ひとたび感染症が発生すると重症化やクラスターにつながりやすいため、標準予防策の徹底と早期対応が重要です。",
+  sections:[
+    { heading:"標準予防策(スタンダードプリコーション)の基本", points:[
+      "手指衛生(流水と石けん・アルコール消毒)を、ケアの前後・排泄物や体液に触れた後に必ず実施する",
+      "すべての血液・体液・分泌物・排泄物は感染性があるものとして扱う",
+      "利用者ごと・処置ごとに使い捨て手袋・エプロン・マスクを適切に交換する",
+      "咳エチケット(マスク着用、咳やくしゃみを袖で覆う)を職員・利用者双方に徹底する" ] },
+    { heading:"主な感染経路と代表的な感染症", points:[
+      "接触感染: ノロウイルス、疥癬、MRSA など。手指・器具を介して伝播する",
+      "飛沫感染: インフルエンザ、新型コロナウイルス感染症など。咳・くしゃみで1〜2m飛散する",
+      "空気感染: 結核、麻しん、水痘など。空気中を長時間浮遊し広範囲に伝播する",
+      "経口感染: ノロウイルス、腸管出血性大腸菌(O157)など。汚染された食品・水を介して感染する" ] },
+    { heading:"施設内で感染(疑い)が発生したときの対応", points:[
+      "第一発見者はすぐに看護職・管理者へ報告し、対象者を可能な範囲で個室対応・動線を分離する",
+      "嘔吐物・排泄物は適切な防護具を着用し、次亜塩素酸ナトリウム等で速やかに処理する",
+      "同一時期の有症状者数を記録し、集団発生(クラスター)の兆候を早期に把握する",
+      "行政(保健所)への報告基準を事前に確認し、該当したら速やかに報告する" ],
+      flow:["体調不良者を発見","個室化・動線分離","看護職/管理者へ報告","消毒・防護具で対応","記録・保健所報告基準を確認","再発防止策を共有"] },
+    { heading:"平常時の備えと訓練", points:[
+      "感染対策委員会を定期的に開催し、指針・マニュアルを年1回以上見直す",
+      "年2回以上の研修に加え、発生を想定した訓練(シミュレーション)を実施する",
+      "職員の健康管理(検温・体調報告)とワクチン接種の情報提供を行う",
+      "防護具・消毒液等の備蓄を定期的に確認する" ] } ],
+  blanks:[
+    "すべての利用者の血液・体液・排泄物等を感染性があるものとして扱う考え方を{標準予防策}(スタンダードプリコーション)という。",
+    "咳やくしゃみで1〜2m飛散して感染するインフルエンザなどの感染経路を{飛沫感染}という。",
+    "空気中を漂う微粒子を吸い込むことで感染する結核などの経路を{空気感染}という。",
+    "嘔吐物の処理には{次亜塩素酸ナトリウム}系の消毒剤を用いる。",
+    "感染対策に関する研修・訓練は年{2}回以上実施することが基準で定められている。" ],
+  trueFalse:[
+    { text:"標準予防策は、症状のある利用者だけに実施すればよい。", answer:false, note:"すべての利用者が対象です。" },
+    { text:"嘔吐物の処理はすぐに素手で片付けてよい。", answer:false, note:"必ず防護具を着用します。" },
+    { text:"感染症が疑われる場合は、まず様子を見てから報告する。", answer:false, note:"速やかに報告することが基本です。" } ],
+  roleplay:{ situation:"夜勤中、利用者Aさんが嘔吐した。Aさんの居室には他に1名の利用者(Bさん)が同室している。",
+    roleA:{ name:"介護職員役(発見者)", desc:"防護具を着用し、初期対応と報告を行う。" },
+    roleB:{ name:"同僚(応援)役", desc:"応援に入り、Bさんの安全確保と記録を担当する。" },
+    prompts:["① 発見時の第一声・初期対応(周囲への声かけ、防護具の準備)","② 同僚への応援要請と役割分担の伝え方","③ Bさんへの説明と安全な場所への案内","④ 管理者・看護職への報告(何を・いつ・どう伝えるか)","⑤ 消毒・清掃の手順確認","⑥ 記録に残す内容の確認"],
+    reflection:["初期対応でヒヤリとした点はありましたか。","報告・連絡の内容は十分でしたか。","もし日中(職員が多い時間帯)だったら対応はどう変わりますか。"] } },
+
+accident: { category:"legal", icon:"⚠️", title:"事故防止・安全対策(リスクマネジメント)",
+  lawNote:"指定基準により、事故発生防止のための指針整備、事故防止検討委員会の設置、担当者の配置、及び職員への研修の定期的な実施(目安として年1回以上)が義務付けられています。",
+  overview:"介護現場での転倒・誤嚥・誤薬などの事故は利用者の生命・尊厳に直結します。ヒヤリハット事例を活かした予防と、発生時の迅速な対応体制が求められます。",
+  sections:[
+    { heading:"介護事故の主な種類", points:["転倒・転落(発生件数が最も多い)","誤嚥・窒息","誤薬・与薬ミス","異食・誤飲","送迎・外出時の事故"] },
+    { heading:"ヒヤリハット報告とKYT(危険予知トレーニング)", points:[
+      "ヒヤリハットは『気づいた人がすぐ報告する』文化をつくる",
+      "報告を責めるのではなく、仕組みの改善に活かす",
+      "事例を分析し、同様の環境・利用者への予防策に展開する",
+      "定期的にKYTを行い、危険への感度を高める" ] },
+    { heading:"事故発生時の初期対応", points:[
+      "まず利用者の安全確保・状態観察(意識・呼吸・出血等)を行う",
+      "必要に応じて救急要請・医療機関への連絡を行う",
+      "家族への連絡は事実を正確に、憶測を交えずに伝える",
+      "事故の状況を時系列で記録に残す" ] },
+    { heading:"再発防止のPDCA", points:[
+      "事故報告書をもとに委員会で原因分析(なぜなぜ分析等)を行う",
+      "個人の責任追及ではなく、環境・仕組みの改善に焦点を当てる",
+      "対応策を実行し、一定期間後に効果を検証する",
+      "職員間で事例と対策を共有し、施設全体の学びにする" ],
+      flow:["事故発生","初期対応・記録","委員会で原因分析","再発防止策を実行","一定期間後に効果検証","職員間で共有"] } ],
+  blanks:[
+    "介護事故の中で最も件数が多いのは{転倒}・転落事故である。",
+    "事故には至らなかったが、ヒヤリとした・ハッとした事例を{ヒヤリハット}という。",
+    "危険を予測し感度を高めるための訓練を{KYT}(危険予知トレーニング)という。",
+    "事故後の分析では個人の責任追及ではなく、{仕組み}や環境の改善に焦点を当てる。",
+    "計画・実行・評価・改善を繰り返す手法を{PDCA}サイクルという。" ],
+  trueFalse:[
+    { text:"ヒヤリハットは報告すると評価が下がるので黙っておく方がよい。", answer:false, note:"報告する文化が予防につながります。" },
+    { text:"事故後は家族へ事実を正確に伝える。", answer:true, note:"憶測を交えず事実を伝えます。" },
+    { text:"再発防止は個人の注意力向上だけで十分である。", answer:false, note:"仕組み・環境面の見直しも必要です。" } ],
+  roleplay:{ situation:"利用者Cさんが自室で転倒しているのを職員が発見した。",
+    roleA:{ name:"発見者役", desc:"状態確認と初期対応を行う。" },
+    roleB:{ name:"応援職員/看護師役", desc:"バイタル確認と医療連携を担当する。" },
+    prompts:["発見時の声かけと安全確保","応援要請の伝え方","状態観察とバイタルチェックの共有","家族への連絡内容の検討","事故報告書に書くべき情報の整理"],
+    reflection:["初期対応の優先順位は適切でしたか。","記録すべき情報に漏れはありませんでしたか。"] } },
+
+abuse: { category:"legal", icon:"🛡️", title:"高齢者虐待防止・権利擁護",
+  lawNote:"高齢者虐待防止法及び介護保険法の指定基準により、虐待防止委員会の設置・指針整備・担当者配置、及び全職員への研修(年1回以上)の実施が義務付けられています。",
+  overview:"虐待は身体的・心理的・性的・経済的虐待、介護放棄(ネグレクト)の5類型に分類され、『しつけ』『指導』のつもりの言動も虐待に該当し得ることを理解する必要があります。",
+  sections:[
+    { heading:"虐待の5類型", points:["身体的虐待(暴力・身体拘束を含む)","心理的虐待(暴言・無視・脅し)","性的虐待","経済的虐待(財産の不正使用)","介護・世話の放棄(ネグレクト)"] },
+    { heading:"虐待につながりやすい要因", points:[
+      "職員の知識・介護技術不足によるストレス",
+      "人員不足・多忙による余裕のなさ",
+      "閉鎖的な職場環境で相談しづらい雰囲気",
+      "利用者の認知症や行動・心理症状(BPSD)への対応困難感" ] },
+    { heading:"『不適切なケア』への気づき", points:[
+      "『どうせわからないから』という言葉かけや対応をしていないか",
+      "本人の意思を確認せず介助を進めていないか",
+      "職員の都合を優先したスケジュール管理になっていないか",
+      "スピーチロック(『ちょっと待って!』等、言葉での行動制限)がないか" ] },
+    { heading:"発見時の対応と通報", points:[
+      "虐待を発見した、またはその疑いがある場合は速やかに施設内で報告する",
+      "高齢者虐待防止法により、発見者には市町村への通報の努力義務(生命・身体に重大な危険がある場合は義務)がある",
+      "通報者が不利益な扱いを受けないよう法律で保護される",
+      "事実確認は本人の尊厳に配慮し、複数人・客観的に行う" ] } ],
+  blanks:[
+    "高齢者虐待防止法では、虐待を身体的・心理的・性的・経済的虐待と{介護放棄}(ネグレクト)の5類型に分類している。",
+    "『ちょっと待って!』などの言葉で行動を制限することを{スピーチロック}という。",
+    "虐待(疑い含む)を発見した者には、市町村への{通報}の努力義務(重大な場合は義務)がある。",
+    "通報を行った職員は、そのことを理由に{不利益}な扱いを受けないよう法律で保護されている。",
+    "虐待防止のため、事業所には虐待防止{委員会}の設置と担当者の配置が義務付けられている。" ],
+  trueFalse:[
+    { text:"利用者のためを思って強い口調で注意することは虐待にあたらない。", answer:false, note:"心理的虐待になり得ます。" },
+    { text:"虐待の疑いは確証が持てるまで様子を見るべきである。", answer:false, note:"疑いの段階で速やかに報告します。" },
+    { text:"通報したことで職員が不利益を受けることは法律で禁止されている。", answer:true, note:"通報者は法律で保護されます。" } ],
+  roleplay:{ situation:"認知症のある利用者Dさんが同じ質問を繰り返すため、職員が『さっきも言いましたよね!』と強い口調で返してしまった場面を振り返る。",
+    roleA:{ name:"当該職員役", desc:"自分の言動を振り返る。" },
+    roleB:{ name:"先輩職員役", desc:"責めずに気づきを促すフィードバックをする。" },
+    prompts:["Dさんの言動の背景(不安・見当識障害)を考える","適切な言葉かけへの言い換えを一緒に考える","先輩からのフィードバックの伝え方","再発防止のためチームでできる工夫"],
+    reflection:["自分にも同じような対応をした経験はないか。","忙しい時こそ気をつけたい点は何か。"] } },
+
+restraint: { category:"legal", icon:"🔓", title:"身体的拘束等の適正化",
+  lawNote:"介護保険法の指定基準により、身体拘束は原則禁止とされ、やむを得ず実施する場合の要件、記録義務、及び年2回以上の研修実施、委員会の設置が義務付けられています。",
+  overview:"身体拘束は利用者の自由と尊厳を奪い、身体機能の低下や心理的苦痛を招きます。『緊急やむを得ない場合』の3要件を満たさない限り、身体拘束は行ってはなりません。",
+  sections:[
+    { heading:"身体拘束にあたる具体的な行為", points:[
+      "ベッド柵(4点柵)で囲む","車椅子・椅子からずり落ちないようY字拘束帯等を使用する",
+      "脱衣やおむつはずしを防ぐためのつなぎ服を着せる","向精神薬を過剰に投与し行動を抑制する(薬物的拘束)","居室に鍵をかけて閉じ込める" ] },
+    { heading:"『緊急やむを得ない場合』の3要件", points:[
+      "切迫性: 本人または他の利用者の生命・身体が危険にさらされる可能性が著しく高い",
+      "非代替性: 身体拘束以外に代替する介護方法がない",
+      "一時性: 身体拘束が一時的なものである" ] },
+    { heading:"3要件を満たす場合の手続き", points:[
+      "組織として(個人の判断でなく)委員会等で検討・決定する",
+      "本人・家族に説明し同意を得る",
+      "態様・時間・心身の状況・やむを得ない理由を記録する",
+      "要件に該当しなくなり次第、速やかに解除する" ],
+      flow:["切迫性・非代替性・一時性を確認","委員会等で組織的に検討","本人・家族へ説明し同意を得る","態様・理由を記録","要件消失後は速やかに解除"] },
+    { heading:"身体拘束をしないケアへの視点", points:[
+      "転倒・転落の原因(環境・体調・薬剤等)をアセスメントし取り除く",
+      "離床センサーや低床ベッドなど拘束によらない方法を検討する",
+      "職員間で情報共有し、見守りの工夫をチームで行う",
+      "本人の生活リズムやADLに合わせた環境調整を行う" ] } ],
+  blanks:[
+    "身体拘束が例外的に許容されるのは{緊急やむを得ない}場合の3要件を満たすときに限られる。",
+    "3要件とは、切迫性・非代替性・{一時性}である。",
+    "身体拘束を行う場合は、その態様や時間、{やむを得ない理由}を記録しなければならない。",
+    "身体拘束の要否は個人ではなく{委員会}などの組織で検討・決定する。",
+    "つなぎ服の着用や向精神薬の過剰投与も、身体的{拘束}・薬物的拘束に該当し得る。" ],
+  trueFalse:[
+    { text:"転倒が心配なので、家族の同意なく職員の判断でベッド柵を4点にした。", answer:false, note:"組織的検討と説明・同意が必要です。" },
+    { text:"身体拘束を行った場合は記録が必要である。", answer:true, note:"態様・時間・理由等の記録が義務です。" },
+    { text:"身体拘束は一度実施したら解除する必要はない。", answer:false, note:"要件消失後は速やかに解除します。" } ],
+  roleplay:{ situation:"車椅子からずり落ちる利用者Eさんについて、家族から『縛ってでも安全を守ってほしい』と要望があった。",
+    roleA:{ name:"介護職員/相談員役", desc:"家族の不安を受け止めつつ説明を行う。" },
+    roleB:{ name:"家族役", desc:"安全への不安を訴える。" },
+    prompts:["家族の不安な気持ちをまず受け止める","身体拘束の弊害と3要件について説明する","拘束によらない代替案(クッション・姿勢調整・見守り強化等)を提案する","今後の相談・報告の約束をする"],
+    reflection:["家族の思いにどう寄り添いながら説明できたか。","代替案は具体的で現実的だったか。"] } },
+
+bcp: { category:"legal", icon:"🚨", title:"業務継続計画(BCP)研修・訓練",
+  lawNote:"2021年度介護報酬改定で全ての介護サービス事業者にBCP(感染症・自然災害)の策定、研修・訓練の年1回以上の実施が義務付けられ、2024年3月末で経過措置が終了しています。",
+  overview:"BCP(Business Continuity Plan)は、感染症のまん延や大規模災害が発生してもサービスを止めない・早期に再開するための計画です。『作って終わり』ではなく、研修と訓練で実効性を高めることが重要です。",
+  sections:[
+    { heading:"BCPの目的と対象", points:["自然災害BCP(地震・水害・土砂災害等)","感染症BCP(新興感染症のまん延等)","目的は『命を守る』と『サービスを止めない・早く再開する』の両立"] },
+    { heading:"BCP策定・運用の基本要素", points:[
+      "優先すべき業務(生命維持に不可欠な介護等)の特定",
+      "必要な人員・物資(水・食料・燃料等)の備蓄基準の確認",
+      "職員の参集基準と連絡体制(安否確認方法)",
+      "地域・関係機関(自治体、他事業所、医療機関)との連携体制" ] },
+    { heading:"研修・訓練の実施方法", points:[
+      "机上訓練(BCPの内容を読み合わせ、対応をシミュレーションする)",
+      "実地訓練(避難誘導、安否確認連絡等を実際に動いて確認する)",
+      "訓練後は気づいた課題をBCPの見直しに反映する",
+      "年1回以上の研修・訓練の実施と記録が必要" ] },
+    { heading:"発災・発生時の初動対応", points:[
+      "まず利用者・職員の安否と安全を確認する",
+      "被害状況を把握し、必要に応じて自治体・家族へ報告する",
+      "BCPに定めた優先業務から再開し、通常業務への復旧を図る",
+      "記録を残し、事後の振り返りを行う" ],
+      flow:["発災・発生","利用者・職員の安否確認","優先業務から再開","自治体・家族へ報告","事後の振り返り・BCP見直し"] } ],
+  blanks:[
+    "BCPとは{業務継続計画}の略で、災害時等でもサービスを止めない・早く再開するための計画である。",
+    "BCPには自然災害BCPと{感染症}BCPの2種類がある。",
+    "BCPに関する研修・訓練は年{1}回以上実施することが義務付けられている。",
+    "実際に体を動かして避難誘導等を確認する訓練を{実地}訓練という。",
+    "発災時はまず利用者・職員の{安否}確認と安全確保を最優先で行う。" ],
+  trueFalse:[
+    { text:"BCPは一度作成すれば見直す必要はない。", answer:false, note:"訓練を通じて定期的に見直します。" },
+    { text:"感染症BCPと自然災害BCPは同じ内容でよい。", answer:false, note:"想定するリスクが異なるため別に整備します。" },
+    { text:"BCP研修・訓練の実施は義務ではなく努力義務である。", answer:false, note:"実施が義務化されています。" } ],
+  roleplay:{ situation:"大規模地震が発生し、施設は停電。複数の利用者と職員が施設内に取り残されている状況を想定する。",
+    roleA:{ name:"リーダー(管理者)役", desc:"全体の指揮・判断を行う。" },
+    roleB:{ name:"現場職員役", desc:"利用者対応と情報共有を行う。" },
+    prompts:["利用者・職員の安否確認の進め方","停電下での優先業務(医療的ケア・食事・排泄等)の判断","家族・自治体への連絡の要否と内容","不安を感じている利用者への声かけ"],
+    reflection:["普段からの備え(備蓄・連絡網)で不足していると感じた点は。","自分の役割が分からなくなったとき、どう動けばよいか。"] } },
+
+dementia: { category:"legal", icon:"🧠", title:"認知症介護基礎研修・認知症ケア",
+  lawNote:"2021年度介護報酬改定により、介護に直接携わる無資格の職員に対し『認知症介護基礎研修』の受講が義務化されました(2024年3月末で経過措置終了)。",
+  overview:"認知症の中核症状と行動・心理症状(BPSD)を正しく理解し、本人の視点に立った『パーソン・センタード・ケア』を実践することが、本人の安心と職員の負担軽減の両方につながります。",
+  sections:[
+    { heading:"中核症状とBPSD", points:[
+      "中核症状: 記憶障害、見当識障害、理解・判断力の低下、実行機能障害など脳の障害による直接的な症状",
+      "BPSD(行動・心理症状): 徘徊、暴言・暴力、抑うつ、不眠、幻覚・妄想など",
+      "BPSDは中核症状に、身体的・心理的・環境的要因が加わって現れることが多い",
+      "BPSDの背景にある『本人なりの理由』を探る視点が重要" ] },
+    { heading:"パーソン・センタード・ケアの視点", points:[
+      "『問題行動』ではなく『困っているサイン』として捉える",
+      "本人の生活歴・価値観・習慣を知り、ケアに活かす",
+      "本人のペースを尊重し、急がせない・否定しない対応をする",
+      "できることに目を向け、役割や生きがいを支える" ] },
+    { heading:"よくある場面への対応の工夫", points:[
+      "同じ話を繰り返す: 否定せず、初めて聞くように穏やかに応じる",
+      "物盗られ妄想: 一緒に探す姿勢を見せ、本人の不安に寄り添う",
+      "帰宅願望・徘徊: 理由(不安・目的)を探り、安心できる声かけと環境調整を行う",
+      "介護拒否: タイミングを変える、声かけの方法を工夫する、無理強いしない" ] },
+    { heading:"チームでの情報共有", points:[
+      "本人の状態や有効だった対応をケア記録・申し送りで共有する",
+      "家族から生活歴や好み・習慣の情報を積極的に得る",
+      "医療職(医師・看護師)と連携し体調不良によるBPSD悪化を見逃さない",
+      "職員自身のストレスケアも組織として支える" ] } ],
+  blanks:[
+    "記憶障害や見当識障害など、脳の障害によって直接起こる症状を{中核症状}という。",
+    "徘徊や暴言など、周囲の対応や環境が影響して現れる症状を{BPSD}(行動・心理症状)という。",
+    "本人の個性や生活歴を尊重してケアを行う考え方を{パーソン・センタード・ケア}という。",
+    "物盗られ妄想が見られる場合は、否定せず{一緒に探す}姿勢を示すことが有効である。",
+    "2021年度介護報酬改定により、無資格の介護職員には{認知症介護基礎研修}の受講が義務化された。" ],
+  trueFalse:[
+    { text:"同じ話を繰り返すのですぐに話を切り上げるべきである。", answer:false, note:"穏やかに応じることが基本です。" },
+    { text:"BPSDは本人の性格の問題であり対応方法はない。", answer:false, note:"背景要因への対応で軽減できます。" },
+    { text:"帰宅願望には理由を探り安心できる声かけが有効である。", answer:true, note:"不安の背景を探ることが大切です。" } ],
+  roleplay:{ situation:"夕方になると『家に帰らないと』と落ち着かなくなる利用者Fさんへの対応を考える。",
+    roleA:{ name:"介護職員役", desc:"Fさんの不安に寄り添う対応をする。" },
+    roleB:{ name:"利用者Fさん役", desc:"帰宅への焦りを表現する。" },
+    prompts:["Fさんの不安な気持ちに寄り添う声かけ","帰宅願望の背景(夕方症候群等)を意識した対応","無理に止めず気持ちを切り替える工夫","対応後のチームへの共有内容"],
+    reflection:["Fさん役をやってみてどう感じたか。","効果的だった声かけはどれだったか。"] } },
+
+harassment: { category:"legal", icon:"🚫", title:"ハラスメント対策(カスタマーハラスメント含む)",
+  lawNote:"労働施策総合推進法等に基づく職場のハラスメント防止措置に加え、介護現場では利用者・家族等からのハラスメント(カスタマーハラスメント)への対応も介護報酬改定の運営基準で明確化されています。",
+  overview:"ハラスメントには職員間のパワハラ・セクハラだけでなく、利用者・家族からの著しい迷惑行為(カスタマーハラスメント)も含まれます。組織として『一人で抱え込ませない』体制を作ることが重要です。",
+  sections:[
+    { heading:"ハラスメントの種類", points:[
+      "パワーハラスメント(職場の優位性を背景にした言動)","セクシュアルハラスメント",
+      "利用者・家族等によるカスタマーハラスメント(暴言・過度な要求・身体的暴力等)",
+      "マタニティハラスメント・ケアハラスメント(妊娠・介護休業等に関する不利益扱い)" ] },
+    { heading:"カスタマーハラスメントの具体例", points:[
+      "職員への暴言・威圧的態度、土下座の要求","業務範囲を超えた過度な要求(契約にないサービスの強要)",
+      "職員への身体的暴力やセクシュアルハラスメント","SNS等での誹謗中傷" ] },
+    { heading:"現場での初期対応", points:[
+      "一人で対応せず、複数人・上司に速やかに共有する",
+      "危険を感じた場合は無理に対応を続けず、その場を離れる・応援を呼ぶ",
+      "事実関係(日時・内容・状況)を記録する",
+      "身体的な危険がある場合は躊躇せず警察等へ通報する" ] },
+    { heading:"組織としての体制づくり", points:[
+      "相談窓口を設置し、相談しやすい雰囲気をつくる",
+      "対応マニュアル・対応指針を整備し、全職員に周知する",
+      "被害を受けた職員のケア(メンタルサポート)を行う",
+      "悪質なケースは契約解除や関係機関との連携も検討する" ] } ],
+  blanks:[
+    "利用者や家族等から職員への著しい迷惑行為を{カスタマーハラスメント}という。",
+    "ハラスメントを受けた場合、まず{一人で抱え込まず}上司や相談窓口に共有することが重要である。",
+    "身体的な危険を感じた場合は、ためらわず{警察}等へ通報する。",
+    "ハラスメント対応では、日時・内容・状況を{記録}に残すことが重要である。",
+    "組織は職員が安心して相談できる{相談窓口}を設置する必要がある。" ],
+  trueFalse:[
+    { text:"利用者からの理不尽な要求でも、職員は個人で我慢して対応すべきである。", answer:false, note:"組織で対応することが基本です。" },
+    { text:"危険を感じたら無理せずその場を離れてよい。", answer:true, note:"安全確保を優先します。" },
+    { text:"ハラスメント対応の記録は不要である。", answer:false, note:"事実関係の記録が重要です。" } ],
+  roleplay:{ situation:"訪問先で利用者の家族から大声で威圧的な要求(契約にないサービスの強要)をされた。",
+    roleA:{ name:"訪問職員役", desc:"冷静に対応し、事業所へ報告する。" },
+    roleB:{ name:"家族役", desc:"威圧的な要求をする。" },
+    prompts:["冷静に一旦距離を取る対応","できないことを明確に、かつ丁寧に伝える","事業所への報告のタイミングと内容","再訪問時の対応方針の確認"],
+    reflection:["一人で抱え込まずに済んだか。","組織にどう共有すれば次に活かせるか。"] } },
+
+fire: { category:"legal", icon:"🔥", title:"防災・防火・避難訓練",
+  lawNote:"消防法により、社会福祉施設等では消防計画の作成、及び年2回以上の消火訓練・避難訓練の実施が義務付けられています(施設種別により回数の定めが異なる場合があります)。",
+  overview:"火災や地震はいつ発生するか分かりません。特に夜間は職員数が少なく、要介護者の避難に時間を要するため、日頃からの訓練と役割分担の明確化が命を守ります。",
+  sections:[
+    { heading:"消防計画と訓練の基本", points:[
+      "消防計画に基づき、自衛消防隊(初期消火・通報・避難誘導等の役割)を編成する",
+      "年2回以上の消火訓練・避難訓練を実施する(施設により回数規定あり)",
+      "夜間・少人数を想定した訓練も行う",
+      "訓練後は反省点を消防計画・マニュアルに反映する" ] },
+    { heading:"火災発生時の初動対応(3原則)", points:[
+      "『通報』: 119番通報と館内への周知(非常放送・大声での知らせ)",
+      "『初期消火』: 消火器等での初期消火(天井に火が回る前まで)",
+      "『避難誘導』: 利用者を安全な場所(防火区画・屋外)へ誘導する",
+      "無理な初期消火は行わず、危険な場合は速やかに避難を優先する" ],
+      flow:["火災発見","119番通報・館内周知","初期消火(可能な範囲で)","避難誘導","人数確認(点呼)"] },
+    { heading:"要介護者の避難誘導の工夫", points:[
+      "自力歩行が難しい利用者は車椅子やシーツ、避難用具を活用する",
+      "優先順位(重症度・居室位置)を事前に決めておく",
+      "職員の役割分担(誘導、人数確認、要配慮者対応)を明確にする",
+      "避難後は必ず利用者・職員の人数確認(点呼)を行う" ] },
+    { heading:"平常時の備え", points:[
+      "避難経路・防火扉付近に物を置かない",
+      "消火器・自動火災報知設備の位置と使い方を全職員が把握する",
+      "夜間想定の職員配置・緊急連絡網を整備する",
+      "地域の消防署・自主防災組織との連携訓練に参加する" ] } ],
+  blanks:[
+    "火災時の初動対応の3原則は、通報・初期消火・{避難誘導}である。",
+    "初期消火は{天井}に火が回る前までを目安とし、それ以降は避難を優先する。",
+    "避難後は必ず利用者・職員の{人数確認}(点呼)を行う。",
+    "消防法により、社会福祉施設等では年{2}回以上の消火訓練・避難訓練が義務付けられている。",
+    "自力歩行が難しい利用者の避難には、車椅子や{シーツ}等の避難用具を活用する。" ],
+  trueFalse:[
+    { text:"天井まで火が回っていても初期消火を続けるべきである。", answer:false, note:"危険な場合は避難を優先します。" },
+    { text:"避難後の人数確認は不要である。", answer:false, note:"必ず点呼を行います。" },
+    { text:"夜間を想定した訓練も必要である。", answer:true, note:"少人数体制を想定した訓練が重要です。" } ],
+  roleplay:{ situation:"夜間、厨房付近から出火。夜勤者は2名のみで、利用者10名の避難誘導が必要な状況。",
+    roleA:{ name:"夜勤リーダー役", desc:"全体の指揮・通報を担当する。" },
+    roleB:{ name:"夜勤職員役", desc:"避難誘導を担当する。" },
+    prompts:["通報(119番)と館内周知の役割分担","避難優先順位の判断(重症度・居室位置)","車椅子・避難用具を使った誘導","避難後の人数確認と再発防止の振り返り"],
+    reflection:["少人数でも動ける役割分担ができていたか。","実際の建物・利用者構成に照らして課題はないか。"] } },
+
+privacy: { category:"other", icon:"🔒", title:"個人情報保護・情報セキュリティ",
+  overview:"介護記録や医療情報など、利用者の機微な個人情報を多く扱う介護現場では、個人情報保護法の理解と日常的な情報管理の徹底が欠かせません。",
+  sections:[
+    { heading:"個人情報保護の基本", points:[
+      "氏名・住所だけでなく、病歴・要介護度・家族状況等も個人情報である",
+      "要配慮個人情報(病歴等)は特に慎重な取り扱いが必要",
+      "利用目的を明確にし、目的外利用は行わない",
+      "第三者提供には原則本人(または家族)の同意が必要" ] },
+    { heading:"日常業務での注意点", points:[
+      "申し送りやカンファレンスは、内容が漏れない場所・声量で行う",
+      "記録用紙・タブレット等を放置しない、離席時は画面をロックする",
+      "SNSやプライベートの会話で利用者の情報を話題にしない",
+      "写真・動画の撮影・共有は施設のルールと同意の範囲内で行う" ] },
+    { heading:"情報セキュリティの基本", points:[
+      "パスワードを他人と共有しない、定期的に変更する",
+      "不審なメール・添付ファイルを開かない(フィッシング対策)",
+      "私物のUSBメモリ等に利用者情報を保存しない",
+      "情報端末の紛失・盗難時は速やかに管理者へ報告する" ] },
+    { heading:"漏えいが起きてしまった場合", points:[
+      "速やかに管理者・情報管理担当者へ報告する",
+      "被害の範囲(誰の情報がどこまで漏れたか)を確認する",
+      "必要に応じて本人・家族への説明と謝罪を行う",
+      "再発防止策を検討し、全職員に周知する" ] } ],
+  blanks:[
+    "病歴など特に配慮が必要な個人情報を{要配慮個人情報}という。",
+    "個人情報を第三者に提供する場合は、原則として本人の{同意}が必要である。",
+    "離席する際は画面を{ロック}し、書類は放置しない。",
+    "情報端末を紛失した場合は速やかに{管理者}へ報告する。",
+    "SNS等でも利用者の個人情報を話題にすることは{禁止}される。" ],
+  trueFalse:[
+    { text:"業務が忙しいときは記録用紙を机の上に置いたままでもよい。", answer:false, note:"放置せず適切に管理します。" },
+    { text:"第三者への情報提供には原則本人の同意が必要。", answer:true, note:"原則として同意が必要です。" },
+    { text:"パスワードは覚えやすいよう同僚と共有してよい。", answer:false, note:"共有はしません。" } ],
+  roleplay:{ situation:"エレベーター内で職員同士が利用者の病状について話しているのを、別の利用者の家族が聞いてしまった。",
+    roleA:{ name:"当事者職員役", desc:"指摘を受けて振り返る。" },
+    roleB:{ name:"気づいた先輩職員役", desc:"指摘とフォローを行う。" },
+    prompts:["先輩からの指摘の伝え方","当事者としての振り返りと謝罪","再発防止のための職場ルールの確認"],
+    reflection:["どんな場所・場面で情報が漏れやすいか。","自分の職場でヒヤリとした経験はないか。"] } },
+
+aspiration: { category:"other", icon:"🍚", title:"誤嚥・窒息事故予防",
+  overview:"誤嚥・窒息は命に直結する事故であり、食事介助の場面だけでなく、口腔ケアや姿勢管理など日常のケア全体での予防意識が求められます。",
+  sections:[
+    { heading:"誤嚥が起こりやすい要因", points:[
+      "加齢や疾患による嚥下機能の低下","食事中の姿勢不良(顎が上がっている等)",
+      "一口量が多い、早食い、ながら食べ","口腔内の乾燥・清潔不良、義歯の不具合" ] },
+    { heading:"安全な食事介助のポイント", points:[
+      "座位姿勢を整え、顎を軽く引いた姿勢で食事をする",
+      "一口量を少なめにし、飲み込みを確認してから次を勧める",
+      "食事中・食後すぐに横にならず、しばらく座位を保つ",
+      "本人のペースに合わせ、急がせない" ] },
+    { heading:"窒息時の対応", points:[
+      "まず反応の有無・咳ができるかを確認する",
+      "咳ができる場合は無理に背中を叩かず、咳を促す",
+      "咳ができない・呼吸できない場合は背部叩打法・腹部突き上げ法を実施する",
+      "改善しない場合はためらわず救急要請する" ],
+      flow:["窒息を発見","反応・咳の有無を確認","咳を促す/背部叩打法","改善なければ救急要請"] },
+    { heading:"口腔ケアと日常の予防", points:[
+      "毎食後の口腔ケアで細菌数を減らし、誤嚥性肺炎を予防する",
+      "義歯の適合状態を定期的に確認する",
+      "嚥下機能の変化(むせの増加等)に気づいたら早めに医療職へ相談する",
+      "水分・とろみの調整など個別の食形態を守る" ] } ],
+  blanks:[
+    "食事の姿勢は顎を軽く{引いた}姿勢が誤嚥予防に適している。",
+    "窒息時、咳ができる場合は無理に叩かず{咳}を促す。",
+    "咳もできず呼吸ができない場合は{背部叩打法}や腹部突き上げ法を行う。",
+    "毎食後の{口腔ケア}は誤嚥性肺炎の予防につながる。",
+    "食後すぐに横にならず、しばらく{座位}を保つことが望ましい。" ],
+  trueFalse:[
+    { text:"むせが増えても本人の様子を見ながら今まで通りでよい。", answer:false, note:"早めに医療職へ相談します。" },
+    { text:"窒息時、咳ができるなら咳を促すのが基本。", answer:true, note:"無理に叩かず咳を促します。" },
+    { text:"食後すぐに臥床させてよい。", answer:false, note:"しばらく座位を保ちます。" } ],
+  roleplay:{ situation:"昼食中、利用者Gさんが急にむせ込み、顔色が悪くなった。",
+    roleA:{ name:"介護職員役", desc:"初期対応と応援要請を行う。" },
+    roleB:{ name:"応援職員役", desc:"看護職への連絡と補助を行う。" },
+    prompts:["Gさんの反応・呼吸の確認","初期対応(咳を促す/背部叩打法)の判断","応援要請と看護職への連絡","救急要請の判断基準"],
+    reflection:["対応の優先順位は適切だったか。","日頃の姿勢管理で防げた可能性はないか。"] } },
+
+pressure: { category:"other", icon:"🩹", title:"褥瘡(床ずれ)予防",
+  overview:"褥瘡(床ずれ)は、同一部位への圧迫や摩擦、栄養状態・皮膚の湿潤などが要因となって発生します。早期発見と日常的な体位変換・スキンケアが予防の基本です。",
+  sections:[
+    { heading:"褥瘡ができやすい部位と要因", points:[
+      "仙骨部、踵部、肩甲骨部など骨が突出した部位にできやすい",
+      "長時間の同一体位による圧迫","栄養状態の低下(低栄養・脱水)",
+      "皮膚の湿潤(失禁・発汗)や摩擦・ずれ" ] },
+    { heading:"日常のケアでの予防", points:[
+      "定期的な体位変換(概ね2時間ごとが目安、体圧分散寝具の状況で調整)",
+      "除圧マットレス・クッション等の体圧分散用具を活用する",
+      "皮膚を清潔・保湿に保ち、摩擦やずれを避ける介助方法を用いる",
+      "栄養状態を把握し、必要に応じて栄養士・医療職と連携する" ] },
+    { heading:"早期発見のポイント", points:[
+      "入浴・清拭の際に皮膚の発赤・熱感・ただれの有無を観察する",
+      "発赤が見られたら圧迫を取り除き、悪化していないか経過を追う",
+      "痛みを訴えられない利用者では、機嫌や体動の変化にも注意する",
+      "気づいた変化はすぐに看護職・医療職へ報告する" ] },
+    { heading:"発生してしまった場合の対応", points:[
+      "医療職の指示のもと、創部の処置・ドレッシング材の使用を行う",
+      "原因(圧迫・栄養・湿潤等)を分析し、ケア計画を見直す",
+      "悪化を防ぐため、より頻回な体位変換や除圧を徹底する",
+      "本人・家族へ状況を説明し、経過を共有する" ] } ],
+  blanks:[
+    "褥瘡は骨が突出した部位にできやすく、代表例が{仙骨}部である。",
+    "体位変換の目安は、体圧分散用具の状況にもよるがおおむね{2}時間ごとである。",
+    "皮膚の観察は{入浴}・清拭の際に行うと発見しやすい。",
+    "褥瘡の初期兆候として{発赤}(赤み)が見られることが多い。",
+    "褥瘡予防には体圧分散だけでなく{栄養}状態の管理も重要である。" ],
+  trueFalse:[
+    { text:"褥瘡は骨が出ていない部位にはできない。", answer:false, note:"湿潤や摩擦でも発生し得ます。" },
+    { text:"発赤に気づいたらまず圧迫を取り除く。", answer:true, note:"早期対応が悪化を防ぎます。" },
+    { text:"体位変換の頻度は利用者の状態に関わらず一律でよい。", answer:false, note:"個別に調整します。" } ],
+  roleplay:{ situation:"入浴介助中に利用者Hさんの仙骨部に発赤を発見した。",
+    roleA:{ name:"介護職員役", desc:"発見内容を看護職へ報告する。" },
+    roleB:{ name:"看護職役", desc:"報告を受け指示を出す。" },
+    prompts:["発見時の観察内容の伝え方(部位・大きさ・色調)","看護職への報告と指示の確認","体位変換計画の見直しの相談","記録すべき内容の整理"],
+    reflection:["観察内容を的確に伝えられたか。","日頃の体位変換で見直せる点はないか。"] } },
+
+bodymechanics: { category:"other", icon:"🏋️", title:"腰痛予防とボディメカニクス",
+  overview:"介護職員の腰痛は離職理由の上位に挙がる職業性疾病です。ボディメカニクス(身体力学)を活用した介助技術と、福祉用具の活用で身体への負担を減らすことができます。",
+  sections:[
+    { heading:"ボディメカニクスの基本原則", points:[
+      "支持基底面を広くとり、重心を低くして安定させる",
+      "利用者の身体を大きな筋群(体幹に近い部分)でまとめて動かす",
+      "てこの原理を活用し、小さな力で大きな動きを生み出す",
+      "相手との重心を近づけ、密着することで負担を減らす" ] },
+    { heading:"腰に負担をかけない介助のコツ", points:[
+      "中腰・前かがみの姿勢を避け、膝を使って腰を落とす",
+      "急な体勢・ひねり動作を避け、身体全体の向きを変える",
+      "一人で無理に抱え上げず、必要に応じて複数人・福祉用具を使う",
+      "声かけを行い、利用者にも協力してもらう動きを引き出す" ] },
+    { heading:"福祉用具の活用", points:[
+      "スライディングシート・ボードで摩擦を減らし移乗負担を軽減する",
+      "リフト機器を活用し、抱え上げない介助を基本とする",
+      "電動ベッドの高さ調整で自分の腰の高さに合わせて介助する",
+      "用具の点検・正しい使用方法を定期的に確認する" ] },
+    { heading:"職員自身の健康管理", points:[
+      "腰痛体操やストレッチを日常的に取り入れる",
+      "痛みを感じたら我慢せず早めに相談・受診する",
+      "一人に負担が偏らないよう、業務分担・シフトを工夫する",
+      "職場全体で『ノーリフトケア』の考え方を共有する" ] } ],
+  blanks:[
+    "支持基底面を広く取り重心を{低く}することがボディメカニクスの基本である。",
+    "抱え上げない介護の考え方を{ノーリフトケア}という。",
+    "移乗時の摩擦を減らす福祉用具の一つに{スライディングシート}がある。",
+    "急なひねり動作は{腰}に負担をかけるため避けるべきである。",
+    "痛みを感じたら我慢せず早めに{相談}・受診することが重要である。" ],
+  trueFalse:[
+    { text:"中腰で長時間作業しても問題ない。", answer:false, note:"腰への負担が大きくなります。" },
+    { text:"一人で抱え上げるのが早くて良い介助である。", answer:false, note:"複数人や用具の活用が望ましいです。" },
+    { text:"福祉用具の活用は職員の負担軽減につながる。", answer:true, note:"積極的な活用が推奨されます。" } ],
+  roleplay:{ situation:"車椅子からベッドへの移乗介助で、新人職員が一人で抱え上げようとしている場面。",
+    roleA:{ name:"新人職員役", desc:"一人で抱え上げようとする。" },
+    roleB:{ name:"先輩職員役", desc:"安全な方法を指導する。" },
+    prompts:["先輩からの安全な声かけと制止","ボディメカニクスを使った移乗方法の説明","スライディングシート等用具の紹介","新人からの質問への回答"],
+    reflection:["自分の介助方法で腰に負担がかかっていないか振り返る。","職場で活用できていない福祉用具はないか。"] } },
+
+manners: { category:"other", icon:"🙇", title:"接遇・コミュニケーションマナー",
+  overview:"利用者・家族にとって、介護職員の言葉遣いや態度は安心感やサービスへの信頼に直結します。専門職としての接遇マナーを身につけることが、より良い関係づくりの土台になります。",
+  sections:[
+    { heading:"接遇の基本姿勢", points:[
+      "挨拶・身だしなみ・言葉遣いは信頼関係の第一歩",
+      "『友達言葉』ではなく、敬意を持った丁寧な言葉遣いを基本とする",
+      "利用者を『さん付け』で呼び、あだ名や『ちゃん付け』は避ける",
+      "忙しくても表情・態度に余裕を持つよう意識する" ] },
+    { heading:"コミュニケーションの技術", points:[
+      "傾聴(相手の話を遮らず最後まで聴く)を意識する",
+      "視線を合わせ、ゆっくり・はっきりと話す(高齢者・難聴への配慮)",
+      "タッチング(手を握る等)は状況と本人の受け止め方に配慮して行う",
+      "非言語コミュニケーション(表情・声のトーン)も意識する" ] },
+    { heading:"クレーム・要望への対応", points:[
+      "まず相手の話を最後まで聴き、気持ちを受け止める",
+      "事実確認を丁寧に行い、憶測で回答しない",
+      "自分の判断で即答できない場合は持ち帰り、上司へ相談する",
+      "対応結果は必ず本人・家族へフィードバックする" ] },
+    { heading:"家族対応の基本", points:[
+      "日々の様子をこまめに伝え、信頼関係を築く",
+      "良い変化だけでなく、気になる変化も適切なタイミングで共有する",
+      "専門用語を避け、わかりやすい言葉で説明する",
+      "家族の介護負担・不安にも配慮した声かけを行う" ] } ],
+  blanks:[
+    "利用者を呼ぶ際は{さん付け}を基本とし、あだ名は避ける。",
+    "相手の話を遮らず最後まで聴く姿勢を{傾聴}という。",
+    "クレーム対応では、まず相手の{気持ち}を受け止めることが大切である。",
+    "自分で判断できない要望は、その場で即答せず{上司}に相談する。",
+    "家族への説明では{専門用語}を避け、わかりやすい言葉を使う。" ],
+  trueFalse:[
+    { text:"親しみを込めてあだ名で呼ぶのはよいことである。", answer:false, note:"さん付けが基本です。" },
+    { text:"クレームにはまず気持ちを受け止めることが大切である。", answer:true, note:"傾聴が信頼関係の基本です。" },
+    { text:"家族には良い報告だけしていればよい。", answer:false, note:"気になる変化も共有します。" } ],
+  roleplay:{ situation:"家族から『最近の対応に不満がある』と電話でクレームを受けた。",
+    roleA:{ name:"電話対応職員役", desc:"傾聴し、事実確認を行う。" },
+    roleB:{ name:"家族役", desc:"不満を伝える。" },
+    prompts:["まず気持ちを受け止める言葉かけ","事実確認の質問の仕方","即答できない内容の持ち帰り方","折り返し連絡の約束"],
+    reflection:["感情的にならず対応できたか。","次に活かせる改善点は何か。"] } },
+
+terminal: { category:"other", icon:"🕊️", title:"看取り・ターミナルケア",
+  overview:"終末期にある利用者とその家族に対し、身体的苦痛の緩和だけでなく、その人らしい最期を支える『看取りケア』の考え方と多職種連携の重要性を理解します。",
+  sections:[
+    { heading:"看取りケアの基本的な考え方", points:[
+      "本人の意思(アドバンス・ケア・プランニング/ACP)を尊重する",
+      "『治す医療』から『支える・寄り添うケア』への視点の転換",
+      "身体的・精神的・社会的・スピリチュアルな痛みを含めた全人的なケア(トータルペイン)",
+      "家族もケアの対象として捉える" ] },
+    { heading:"終末期に見られる身体変化", points:[
+      "食事・水分摂取量の減少","傾眠傾向が強まり、覚醒時間が短くなる",
+      "呼吸パターンの変化(下顎呼吸、チェーンストークス呼吸等)","四肢冷感、皮膚色の変化(チアノーゼ等)" ] },
+    { heading:"本人・家族への関わり", points:[
+      "苦痛の緩和(体位、口腔ケア、環境調整)を最優先する",
+      "本人が安心できる声かけ・タッチングを続ける(聴覚は最後まで残るとされる)",
+      "家族の気持ちに寄り添い、そばにいることの大切さを伝える",
+      "家族が後悔しないよう、面会や関わりの機会を大切にする" ] },
+    { heading:"多職種連携と職員のケア", points:[
+      "医師・看護師と密に連携し、状態変化を速やかに共有する",
+      "急変時の対応方針(事前の取り決め)を多職種・家族と確認しておく",
+      "看取り後は職員間でデスカンファレンス等を行い振り返る",
+      "関わった職員自身のグリーフケア(悲嘆へのケア)も大切にする" ] } ],
+  blanks:[
+    "本人の意思を尊重した終末期の話し合いのプロセスを{ACP}(アドバンス・ケア・プランニング)という。",
+    "終末期には{下顎呼吸}など呼吸パターンの変化が見られることがある。",
+    "身体的・精神的・社会的・スピリチュアルな痛みを合わせて{トータルペイン}という。",
+    "聴覚は最期まで残るとされるため、{声かけ}を続けることが大切である。",
+    "看取り後に行う振り返りの場を{デスカンファレンス}という。" ],
+  trueFalse:[
+    { text:"終末期は反応がないので声かけは不要である。", answer:false, note:"聴覚は残るとされ声かけを続けます。" },
+    { text:"看取りケアでは家族もケアの対象に含まれる。", answer:true, note:"家族への支援も重要です。" },
+    { text:"急変時の対応方針は事前に確認しておく必要はない。", answer:false, note:"事前に多職種・家族と確認します。" } ],
+  roleplay:{ situation:"終末期にある利用者Iさんの家族が『何もしてあげられなくてつらい』と話している。",
+    roleA:{ name:"介護職員役", desc:"家族の気持ちに寄り添う。" },
+    roleB:{ name:"家族役", desc:"無力感やつらさを表現する。" },
+    prompts:["家族の気持ちを受け止める声かけ","そばにいること・声をかけることの意味を伝える","できるケア(手を握る、好きな音楽をかける等)の提案","今後の関わり方について一緒に考える"],
+    reflection:["家族の気持ちにどう寄り添えたか。","自分自身が経験した『看取り』への思いは。"] } },
+};
+
+const THEME_ORDER_LEGAL = ["infection","accident","abuse","restraint","bcp","dementia","harassment","fire"];
+const THEME_ORDER_OTHER = ["privacy","aspiration","pressure","bodymechanics","manners","terminal"];
+
+/* =========================================================
+   2. 状態・要素参照
+   ========================================================= */
+let currentCategory = "legal";
+let currentModel = null;   // 生成済みの資料データ(印刷・保存で使う)
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+/* =========================================================
+   3. テーマ選択画面
+   ========================================================= */
+function renderThemeGrid(){
+  const grid = $("#themeGrid");
+  grid.innerHTML = "";
+  const order = currentCategory === "legal" ? THEME_ORDER_LEGAL : THEME_ORDER_OTHER;
+  order.forEach(key => {
+    const t = THEMES[key];
+    const btn = document.createElement("button");
+    btn.className = "themebtn";
+    btn.innerHTML = `
+      <span class="badge ${t.category}">${t.category === "legal" ? "法定研修" : "推奨研修"}</span>
+      <span class="icon">${t.icon}</span>
+      <span class="ttitle">${t.title}</span>`;
+    btn.addEventListener("click", () => generateAndShow(key));
+    grid.appendChild(btn);
+  });
+}
+
+$$(".cattab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    currentCategory = tab.dataset.cat;
+    $$(".cattab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    renderThemeGrid();
+  });
+});
+
+$("#customThemeBtn").addEventListener("click", () => {
+  const name = $("#customThemeInput").value.trim();
+  if(!name){ alert("テーマを入力してください。"); return; }
+  generateAndShow(null, name);
+});
+
+/* =========================================================
+   4. 汎用テーマ(未登録のテーマ)のたたき台生成
+   本番でAI APIと接続する場合は、ここを実際のAI生成呼び出しに
+   置き換えることで、入力テーマに応じた内容をリアルタイム生成できる。
+   ========================================================= */
+function buildGenericThemeData(name){
+  return {
+    category:"other", icon:"📝", title:name, custom:true,
+    overview:`「${name}」に関する研修のたたき台です。事業所の実情に合わせて具体的な事例・数値・手順を追記してご活用ください。`,
+    sections:[
+      { heading:"研修の目的を共有する", points:[
+        `「${name}」がなぜ必要なのか、利用者への影響を含めて職員間で目的を共有する`,
+        "研修のゴール(何ができるようになってほしいか)を最初に伝える",
+        "関連する法令・指針・事業所の規程があれば併せて確認する" ] },
+      { heading:"基本知識・押さえるべきポイント", points:[
+        `「${name}」に関する基本的な考え方・用語を整理する`,
+        "現場でよくある事例やヒヤリハットを共有する",
+        "5W1H(いつ・どこで・誰が・何を・なぜ・どのように)で手順を整理する" ] },
+      { heading:"現場での実践・注意点", points:[
+        "職種・経験年数によって理解度に差が出やすい点に配慮する",
+        "『わかっているつもり』になりやすい部分を確認質問で洗い出す",
+        "報告・連絡・相談(ホウレンソウ)の流れを明確にしておく" ] },
+      { heading:"まとめと今後のアクション", points:[
+        "研修で学んだことを、明日から実践できる行動レベルに落とし込む",
+        "定期的な振り返り・フォローアップの機会を設ける",
+        "PDCAサイクルで継続的に改善する" ] } ],
+    blanks:[
+      `「${name}」の研修は、利用者の安全・尊厳を守り質の高いケアを提供するために実施する。`.replace("実施する", "{実施}する"),
+      "研修の効果を高めるためには、知識だけでなく{実践}につなげる工夫が重要である。",
+      "気づいたことをすぐ共有する報告・連絡・相談を、略して{ホウレンソウ}という。",
+      "計画・実行・評価・改善を繰り返す手法を{PDCA}サイクルという。",
+      "研修内容は一度で終わらせず、定期的な{振り返り}を行うことが大切である。" ],
+    trueFalse:[
+      { text:"研修は一度受ければ、その後の振り返りは不要である。", answer:false, note:"定期的な振り返りが定着につながります。" },
+      { text:"現場での気づきは、すぐに報告・共有することが望ましい。", answer:true, note:"早期共有がリスク低減につながります。" },
+      { text:"研修内容は職種・経験年数に関わらず全員同じ理解度になる。", answer:false, note:"理解度に差が出やすいため配慮が必要です。" } ],
+    roleplay:{ situation:`「${name}」に関連する場面を職員間で具体的に想定し、以下の役割でロールプレイを行いましょう。`,
+      roleA:{ name:"介護・看護職員役", desc:"実際の対応を演じる。" },
+      roleB:{ name:"利用者/家族役 または 同僚・観察者役", desc:"相手側の立場・気持ちを演じる、または対応を観察する。" },
+      prompts:["場面設定(いつ・どこで・どんな状況か)を具体的に決める","職員役がどのように声かけ・対応するかを演じる","観察者役が良かった点・改善点をフィードバックする","出た気づきをチームで共有する"],
+      reflection:["実際の現場で同じ場面に出会ったことはあるか。","今日の気づきを明日からどう活かせるか。"] } };
+}
+
+/* =========================================================
+   5. 資料生成(①〜④のモデルを組み立てる)
+   ========================================================= */
+function parseBlank(sentence, idx){
+  const m = sentence.match(/\{([^}]+)\}/);
+  const answer = m ? m[1] : "";
+  const problem = sentence.replace(/\{[^}]+\}/, `<span class="blankfill">(${idx})</span>`);
+  return { problem, answer };
+}
+
+function durationSectionCount(duration){
+  if(duration === "15") return 2;
+  if(duration === "30") return 3;
+  return 4;
+}
+
+function generateAndShow(themeKey, customName){
+  const facility = $("#optFacility").value;
+  const audience = $("#optAudience").value;
+  const duration = $("#optDuration").value;
+
+  const base = themeKey ? THEMES[themeKey] : buildGenericThemeData(customName);
+  const sectionCount = Math.min(base.sections.length, durationSectionCount(duration));
+
+  currentModel = {
+    key: themeKey || ("custom-" + Date.now()),
+    title: base.title,
+    icon: base.icon,
+    category: base.category,
+    lawNote: base.lawNote || "",
+    overview: base.overview,
+    sections: base.sections.slice(0, sectionCount),
+    blanks: base.blanks,
+    trueFalse: base.trueFalse,
+    roleplay: base.roleplay,
+    options: { facility, audience, duration },
+    createdAt: new Date().toISOString(),
+  };
+
+  renderResult(currentModel);
+  $("#view-home").classList.add("hidden");
+  $("#view-history").classList.add("hidden");
+  $("#view-result").classList.remove("hidden");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* =========================================================
+   6. 各資料のレンダリング
+   ========================================================= */
+function renderResult(model){
+  $("#resultTitle").textContent = `${model.icon} ${model.title}`;
+  $("#resultMeta").innerHTML =
+    `<span>🏢 ${model.options.facility}</span><span>👥 ${model.options.audience}</span><span>⏱ 目安${model.options.duration}分</span>`;
+
+  const lawBox = $("#lawNoteBox");
+  if(model.lawNote){
+    lawBox.textContent = "⚖️ " + model.lawNote;
+    lawBox.classList.remove("hidden");
+  }else{
+    lawBox.classList.add("hidden");
+  }
+
+  renderIllustrated(model);
+  renderSurvey(model);
+  renderFillBlank(model);
+  renderRoleplay(model);
+
+  $$(".doctab").forEach((t,i) => t.classList.toggle("active", i===0));
+  $$(".docpane").forEach((p,i) => p.classList.toggle("active", i===0));
+}
+
+function renderIllustrated(model){
+  const root = $("#pane-illustrated");
+  const imgKey = model.key.startsWith("custom") ? "custom" : model.key;
+  let html = `
+    <div class="overviewbox"><strong>${model.title}</strong><br>${model.overview}</div>
+    <div class="imgslot">
+      <img src="img/care/${imgKey}_main.png" alt="" onerror="this.classList.add('noimg')">
+      <span class="fallback">${model.icon}</span>
+    </div>`;
+  model.sections.forEach((s, i) => {
+    html += `<div class="sectioncard">
+      <h3><span class="num">${i+1}</span>${s.heading}</h3>
+      <div class="pointgrid">${s.points.map(p => `<div class="pointcard"><span class="bullet">●</span>${p}</div>`).join("")}</div>`;
+    if(s.flow){
+      html += `<div class="flowwrap">${s.flow.map((f,fi) => (fi>0 ? `<span class="flowarrow">→</span>` : "") + `<span class="flowstep">${f}</span>`).join("")}</div>`;
+    }
+    html += `</div>`;
+  });
+  root.innerHTML = html;
+}
+
+function renderSurvey(model){
+  const root = $("#pane-survey");
+  const likert = ["よく理解できた","理解できた","どちらとも言えない","あまり理解できなかった","理解できなかった"];
+  let html = `<div class="overviewbox">研修「${model.title}」を振り返るアンケートです。今後の研修改善のためご協力をお願いします。</div>`;
+
+  model.sections.forEach((s,i) => {
+    html += `<div class="surveyq"><div class="qtext">Q${i+1}. 「${s.heading}」について理解できましたか。</div>
+      <div class="likertrow">${likert.map(l => `<span class="likertopt">${l}</span>`).join("")}</div></div>`;
+  });
+  const qn = model.sections.length + 1;
+  html += `<div class="surveyq"><div class="qtext">Q${qn}. 研修の時間・分量は適切でしたか。</div>
+    <div class="likertrow">${["ちょうどよい","やや長い/多い","やや短い/少ない"].map(l => `<span class="likertopt">${l}</span>`).join("")}</div></div>`;
+  html += `<div class="surveyq"><div class="qtext">Q${qn+1}. 今日学んだことを、明日からの業務でどのように活かせそうですか。</div><div class="freebox"></div></div>`;
+  html += `<div class="surveyq"><div class="qtext">Q${qn+2}. ご質問・ご感想があればご記入ください。</div><div class="freebox"></div></div>`;
+  root.innerHTML = html;
+}
+
+function renderFillBlank(model){
+  const root = $("#pane-fillblank");
+  let html = `<div class="overviewbox">研修内容を振り返る穴埋め問題です。空欄に当てはまる言葉を書きましょう。</div><h3 style="margin-bottom:10px;color:var(--teal-dark);font-size:14px;">■ 穴埋め問題</h3>`;
+  const answers = [];
+  model.blanks.forEach((sentence, i) => {
+    const { problem, answer } = parseBlank(sentence, i+1);
+    answers.push(answer);
+    html += `<div class="blankitem"><span class="qn">(${i+1})</span>${problem}</div>`;
+  });
+
+  html += `<h3 style="margin:18px 0 10px;color:var(--teal-dark);font-size:14px;">■ ○×確認問題</h3>`;
+  model.trueFalse.forEach((tf, i) => {
+    html += `<div class="tfitem"><span class="qn">${i+1}.</span><span>${tf.text}</span>
+      <span class="tfmark"><span>○</span><span>×</span></span></div>`;
+  });
+
+  html += `<div class="answerbox hiddenans" id="answerBoxWrap">
+    <h4>📖 解答 <button class="btn ghost small toggleans no-print" id="toggleAnsBtn">解答を表示</button></h4>
+    <div class="ansbody">
+      <p><strong>穴埋め問題の解答:</strong> ${answers.map((a,i) => `(${i+1}) ${a}`).join(" / ")}</p>
+      <p style="margin-top:8px;"><strong>○×問題の解答:</strong> ${model.trueFalse.map((tf,i) => `${i+1}. ${tf.answer ? "○" : "×"}(${tf.note})`).join(" / ")}</p>
+    </div>
+  </div>`;
+  root.innerHTML = html;
+
+  $("#toggleAnsBtn").addEventListener("click", (ev) => {
+    const wrap = $("#answerBoxWrap");
+    wrap.classList.toggle("hiddenans");
+    ev.target.textContent = wrap.classList.contains("hiddenans") ? "解答を表示" : "解答を隠す";
+  });
+}
+
+function renderRoleplay(model){
+  const root = $("#pane-roleplay");
+  const rp = model.roleplay;
+  let html = `
+    <div class="roleplaysituation"><strong>【シチュエーション】</strong><br>${rp.situation}</div>
+    <div class="roleboxes">
+      <div class="rolebox"><div class="rname">🎭 ${rp.roleA.name}</div><div class="rdesc">${rp.roleA.desc}</div></div>
+      <div class="rolebox"><div class="rname">🎭 ${rp.roleB.name}</div><div class="rdesc">${rp.roleB.desc}</div></div>
+    </div>
+    <h3 style="margin-bottom:8px;color:var(--teal-dark);font-size:14px;">■ 進行の流れ(アドリブで演じてみましょう)</h3>
+    <ul class="promptlist">${rp.prompts.map(p => `<li>${p}</li>`).join("")}</ul>
+    <h3 style="margin:16px 0 6px;color:var(--teal-dark);font-size:14px;">■ 振り返り(ロールプレイ後にチームで話し合う)</h3>
+    <ul class="reflectlist">${rp.reflection.map(r => `<li>${r}</li>`).join("")}</ul>`;
+  root.innerHTML = html;
+}
+
+/* =========================================================
+   7. タブ切り替え
+   ========================================================= */
+$$(".doctab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    $$(".doctab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    $$(".docpane").forEach(p => p.classList.remove("active"));
+    $("#" + tab.dataset.pane).classList.add("active");
+  });
+});
+
+/* =========================================================
+   8. 印刷/PDF保存・テキスト保存
+   ========================================================= */
+$("#printCurrentBtn").addEventListener("click", () => {
+  const activePane = $(".docpane.active");
+  document.body.classList.add("print-mode");
+  $$(".docpane").forEach(p => p.classList.remove("print-target"));
+  activePane.classList.add("print-target");
+  window.print();
+});
+$("#printAllBtn").addEventListener("click", () => {
+  document.body.classList.add("print-mode","print-all");
+  window.print();
+});
+window.addEventListener("afterprint", () => {
+  document.body.classList.remove("print-mode","print-all");
+  $$(".docpane").forEach(p => p.classList.remove("print-target"));
+});
+
+$("#downloadTxtBtn").addEventListener("click", () => {
+  if(!currentModel) return;
+  const m = currentModel;
+  let text = `【研修資料】${m.title}\n作成日: ${new Date(m.createdAt).toLocaleString("ja-JP")}\n対象事業所: ${m.options.facility} / 研修対象: ${m.options.audience} / 目安時間: ${m.options.duration}分\n`;
+  if(m.lawNote) text += `\n[法定研修メモ]\n${m.lawNote}\n`;
+  text += `\n===== ① 図解資料 =====\n${m.overview}\n`;
+  m.sections.forEach((s,i) => {
+    text += `\n${i+1}. ${s.heading}\n` + s.points.map(p => "  - " + p).join("\n") + "\n";
+    if(s.flow) text += "  流れ: " + s.flow.join(" → ") + "\n";
+  });
+  text += `\n===== ② アンケート =====\n`;
+  m.sections.forEach((s,i) => text += `Q${i+1}. 「${s.heading}」について理解できましたか。(よく理解できた〜理解できなかった)\n`);
+  text += `Q${m.sections.length+1}. 研修の時間・分量は適切でしたか。\nQ${m.sections.length+2}. 今日学んだことをどう活かせそうですか。(自由記述)\nQ${m.sections.length+3}. ご質問・ご感想(自由記述)\n`;
+  text += `\n===== ③ 穴埋め問題と解答 =====\n`;
+  const answers = [];
+  m.blanks.forEach((sentence, i) => {
+    const { problem, answer } = parseBlank(sentence, i+1);
+    answers.push(answer);
+    text += `(${i+1}) ${sentence.replace(/\{[^}]+\}/, "＿＿＿＿＿")}\n`;
+  });
+  text += `\n[○×確認問題]\n`;
+  m.trueFalse.forEach((tf,i) => text += `${i+1}. ${tf.text} ( ○ / × )\n`);
+  text += `\n[解答]\n穴埋め: ${answers.map((a,i)=>`(${i+1})${a}`).join(" / ")}\n○×: ${m.trueFalse.map((tf,i)=>`${i+1}.${tf.answer?"○":"×"}(${tf.note})`).join(" / ")}\n`;
+  text += `\n===== ④ ロープレ資料 =====\nシチュエーション: ${m.roleplay.situation}\n役割A: ${m.roleplay.roleA.name} - ${m.roleplay.roleA.desc}\n役割B: ${m.roleplay.roleB.name} - ${m.roleplay.roleB.desc}\n進行の流れ:\n${m.roleplay.prompts.map(p=>"  "+p).join("\n")}\n振り返り:\n${m.roleplay.reflection.map(r=>"  - "+r).join("\n")}\n`;
+  text += `\n※本資料はAIが作成した下書きです。実施前に最新の法令・自治体指導内容・事業所規程を必ずご確認ください。\n`;
+
+  const blob = new Blob([text], { type:"text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `研修資料_${m.title}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* =========================================================
+   9. 履歴(localStorage)
+   ========================================================= */
+const HISTORY_KEY = "careTrainingHistory_v1";
+function loadHistory(){
+  try{ return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }catch(e){ return []; }
+}
+function saveHistoryList(list){
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+}
+
+$("#saveHistoryBtn").addEventListener("click", () => {
+  if(!currentModel) return;
+  const list = loadHistory();
+  list.unshift({ id: Date.now(), ...currentModel });
+  saveHistoryList(list.slice(0, 50));
+  alert("履歴に保存しました。");
+});
+
+function renderHistory(){
+  const list = loadHistory();
+  const root = $("#historyList");
+  if(list.length === 0){
+    root.innerHTML = `<div class="emptystate">まだ保存された資料はありません。「作成」画面からテーマを選んで生成し、「💾 履歴に保存」を押してください。</div>`;
+    return;
+  }
+  root.innerHTML = "";
+  list.forEach(item => {
+    const el = document.createElement("div");
+    el.className = "historyitem";
+    el.innerHTML = `
+      <div class="hinfo">
+        <div class="htitle">${item.icon} ${item.title}</div>
+        <div class="hmeta">${new Date(item.createdAt).toLocaleString("ja-JP")} ・ ${item.options.facility} ・ ${item.options.audience}</div>
+      </div>
+      <div class="hactions">
+        <button class="btn small" data-act="open">開く</button>
+        <button class="btn ghost small" data-act="del">削除</button>
+      </div>`;
+    el.querySelector('[data-act="open"]').addEventListener("click", () => {
+      currentModel = item;
+      renderResult(item);
+      $("#view-home").classList.add("hidden");
+      $("#view-history").classList.add("hidden");
+      $("#view-result").classList.remove("hidden");
+      window.scrollTo({top:0, behavior:"smooth"});
+    });
+    el.querySelector('[data-act="del"]').addEventListener("click", () => {
+      const updated = loadHistory().filter(h => h.id !== item.id);
+      saveHistoryList(updated);
+      renderHistory();
+    });
+    root.appendChild(el);
+  });
+}
+
+/* =========================================================
+   10. 画面ナビゲーション
+   ========================================================= */
+$("#navHome").addEventListener("click", () => {
+  $("#view-home").classList.remove("hidden");
+  $("#view-result").classList.add("hidden");
+  $("#view-history").classList.add("hidden");
+  $("#navHome").classList.add("active");
+  $("#navHistory").classList.remove("active");
+});
+$("#navHistory").addEventListener("click", () => {
+  renderHistory();
+  $("#view-history").classList.remove("hidden");
+  $("#view-home").classList.add("hidden");
+  $("#view-result").classList.add("hidden");
+  $("#navHistory").classList.add("active");
+  $("#navHome").classList.remove("active");
+});
+$("#backHomeBtn").addEventListener("click", () => $("#navHome").click());
+
+/* =========================================================
+   初期化
+   ========================================================= */
+renderThemeGrid();
+</script>
+</body>
+</html>
