@@ -160,10 +160,11 @@ const UNLOCK_FLAG = 'lumina_admin_unlocked';
 const MAX_DIM = 700;
 
 const SLOTS = [
-  { key:'chaos', label:'味方A(混沌属性)', defaultSrc:'assets/chars/chaos_char.png' },
-  { key:'ice',   label:'味方B(氷結属性)', defaultSrc:'assets/chars/ice_char.png' },
-  { key:'light', label:'味方C(光輝属性)', defaultSrc:'assets/chars/light_char.png' },
-  { key:'enemy', label:'敵キャラ',        defaultSrc:null }
+  { key:'chaos', label:'味方A(混沌属性)', defaultSrc:'assets/chars/chaos_char.png', maxDim:700 },
+  { key:'ice',   label:'味方B(氷結属性)', defaultSrc:'assets/chars/ice_char.png',   maxDim:700 },
+  { key:'light', label:'味方C(光輝属性)', defaultSrc:'assets/chars/light_char.png', maxDim:700 },
+  { key:'enemy', label:'敵キャラ',        defaultSrc:null, maxDim:700, emptyText:'未設定\n(仮ドット絵を使用)', emptyStatus:'未設定 - バトル画面ではプレースホルダー表示' },
+  { key:'background', label:'戦闘背景',   defaultSrc:null, maxDim:1400, emptyText:'未設定\n(標準の背景)', emptyStatus:'未設定 - 標準の背景グラデーションを使用中' }
 ];
 
 function loadOverrides(){
@@ -206,9 +207,10 @@ function renderSlots(){
       const key = e.target.getAttribute('data-key');
       const file = e.target.files[0];
       if(!file) return;
-      resizeToDataURL(file, MAX_DIM, dataUrl=>{
+      const slot = SLOTS.find(s=>s.key===key);
+      resizeToDataURL(file, slot.maxDim || MAX_DIM, dataUrl=>{
         overrides[key] = dataUrl;
-        updateThumb(SLOTS.find(s=>s.key===key));
+        updateThumb(slot);
         setSaveMsg('');
       });
     });
@@ -241,9 +243,9 @@ function updateThumb(slot){
   } else {
     const none = document.createElement('div');
     none.className = 'none';
-    none.textContent = '未設定\n(仮ドット絵を使用)';
+    none.textContent = slot.emptyText || '未設定';
     thumb.appendChild(none);
-    status.textContent = '未設定 - バトル画面ではプレースホルダー表示';
+    status.textContent = slot.emptyStatus || '未設定';
   }
 }
 

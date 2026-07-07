@@ -133,12 +133,14 @@ const CHAOS_IMG = loadCharImg('chaos', 'assets/chars/chaos_char.png');
 const ICE_IMG   = loadCharImg('ice',   'assets/chars/ice_char.png');
 const LIGHT_IMG = loadCharImg('light', 'assets/chars/light_char.png');
 const ENEMY_IMG = loadCharImg('enemy', null);
+const BG_IMG    = loadCharImg('background', null);
 
+/* 上・中・下にずらして配置し、それぞれの絵がなるべく隠れないようにする */
 function freshAllies(){
   return [
-    { name:'キャラA', element:'chaos', img:CHAOS_IMG, hp:150, maxHp:150, atk:14, spd:1.0,  cd:0, skillGauge:0, skillMax:100, baseX:380, baseY:370, displayHeight:150, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
-    { name:'キャラB', element:'ice',   img:ICE_IMG,   hp:150, maxHp:150, atk:13, spd:0.85, cd:0, skillGauge:0, skillMax:100, baseX:290, baseY:400, displayHeight:165, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
-    { name:'キャラC', element:'light', img:LIGHT_IMG, hp:150, maxHp:150, atk:15, spd:1.15, cd:0, skillGauge:0, skillMax:100, baseX:195, baseY:430, displayHeight:180, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true }
+    { name:'キャラA', element:'chaos', img:CHAOS_IMG, hp:150, maxHp:150, atk:14, spd:1.0,  cd:0, skillGauge:0, skillMax:100, baseX:250, baseY:465, displayHeight:150, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
+    { name:'キャラB', element:'ice',   img:ICE_IMG,   hp:150, maxHp:150, atk:13, spd:0.85, cd:0, skillGauge:0, skillMax:100, baseX:130, baseY:320, displayHeight:125, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true },
+    { name:'キャラC', element:'light', img:LIGHT_IMG, hp:150, maxHp:150, atk:15, spd:1.15, cd:0, skillGauge:0, skillMax:100, baseX:250, baseY:185, displayHeight:110, anim:{type:'idle',t:0}, flash:0, bob:Math.random()*10, alive:true }
   ];
 }
 function freshEnemy(){
@@ -342,11 +344,25 @@ function lungeOffset(c){
   return amp*wave;
 }
 
+function drawCover(img, cw, ch){
+  const ir = img.naturalWidth / img.naturalHeight;
+  const cr = cw / ch;
+  let sw, sh, sx, sy;
+  if(ir > cr){ sh = img.naturalHeight; sw = sh*cr; sx = (img.naturalWidth-sw)/2; sy = 0; }
+  else { sw = img.naturalWidth; sh = sw/cr; sx = 0; sy = (img.naturalHeight-sh)/2; }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+}
 function render(){
   ctx.clearRect(0,0,CW,CH);
-  const grad = ctx.createLinearGradient(0,0,0,CH);
-  grad.addColorStop(0,'#1a1430'); grad.addColorStop(1,'#07050f');
-  ctx.fillStyle = grad; ctx.fillRect(0,0,CW,CH);
+  if(BG_IMG && BG_IMG.complete && BG_IMG.naturalWidth){
+    drawCover(BG_IMG, CW, CH);
+    ctx.fillStyle = 'rgba(5,3,10,0.28)';
+    ctx.fillRect(0,0,CW,CH);
+  } else {
+    const grad = ctx.createLinearGradient(0,0,0,CH);
+    grad.addColorStop(0,'#1a1430'); grad.addColorStop(1,'#07050f');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,CW,CH);
+  }
   ctx.strokeStyle = 'rgba(217,181,106,0.25)';
   ctx.beginPath(); ctx.moveTo(0,462); ctx.lineTo(CW,462); ctx.stroke();
 
