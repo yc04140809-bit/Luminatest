@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
-        name: "接遇ガードAI",
-        short_name: "接遇ガードAI",
-        description: "クレーム・カスハラ対応をAIが支援するアプリ",
+        name: "Chaos AI Suite",
+        short_name: "Chaos AI Suite",
+        description: "接遇ガードAIをはじめ、複数のAI社員が業務を支援するAIスイート",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",
