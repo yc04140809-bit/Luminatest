@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Settings } from "lucide-react";
-import type { Agent } from "@chaos-ai-suite/shared";
+import type { Agent, Task } from "@chaos-ai-suite/shared";
 import { useOfficeSocket } from "./hooks/useOfficeSocket.js";
 import { useApplyTheme } from "./hooks/useApplyTheme.js";
 import { OfficeBoard } from "./components/OfficeBoard.js";
@@ -8,6 +8,7 @@ import { ChatTimeline } from "./components/ChatTimeline.js";
 import { CommandCenter } from "./components/CommandCenter.js";
 import { ApprovalQueue } from "./components/ApprovalQueue.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
+import { ToolApprovalModal } from "./components/ToolApprovalModal.js";
 
 const STATUS_LABEL = {
   connecting: "接続中...",
@@ -19,7 +20,19 @@ export default function App() {
   const { office, status } = useOfficeSocket();
   const [mentionTarget, setMentionTarget] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [toolApprovalTask, setToolApprovalTask] = useState<Task | null>(null);
+  const seenToolCallIds = useRef<Set<string>>(new Set());
   useApplyTheme(office?.theme);
+
+  useEffect(() => {
+    if (!office) return;
+    const pendingToolCalls = Object.values(office.tasks).filter(
+      (task) => task.pendingToolCall && task.status === "awaiting_approval",
+    );
+    const unseen = pendingToolCalls.find((task) => !seenToolCallIds.current.has(task.id));
+    if (unseen) setToolApprovalTask(unseen);
+    for (const task of pendingToolCalls) seenToolCallIds.current.add(task.id);
+  }, [office]);
 
   if (!office) {
     return (
@@ -68,6 +81,14 @@ export default function App() {
 
       {settingsOpen && (
         <SettingsPanel theme={office.theme} agents={agents} onClose={() => setSettingsOpen(false)} />
+      )}
+
+      {toolApprovalTask && (
+        <ToolApprovalModal
+          task={toolApprovalTask}
+          agent={toolApprovalTask.assignedAgentId ? office.agents[toolApprovalTask.assignedAgentId] : undefined}
+          onClose={() => setToolApprovalTask(null)}
+        />
       )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">

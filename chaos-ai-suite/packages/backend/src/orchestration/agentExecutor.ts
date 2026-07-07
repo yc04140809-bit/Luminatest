@@ -1,12 +1,16 @@
-import type { Agent, AgentStatus, Task, TaskOutputType } from "@chaos-ai-suite/shared";
+import type { Agent, AgentStatus, Task, TaskOutputType, ToolDefinition } from "@chaos-ai-suite/shared";
 import type { LlmClient } from "./llmClient.js";
 
 /** 1タスク実行の結果。成果物本文と、次に取るべきアクションの判断。 */
 export interface ExecutionResult {
   output: string;
-  action: "complete" | "handoff" | "request_approval";
+  action: "complete" | "handoff" | "request_approval" | "tool_call";
   targetAgentId?: string;
   note?: string;
+  /** action=tool_call の場合に呼び出す外部ツールのID（ToolDefinition.id） */
+  toolId?: string;
+  /** action=tool_call の場合の、そのツールのinputSchemaに沿った入力値 */
+  toolInput?: Record<string, unknown>;
 }
 
 const WRITING_OUTPUT_TYPES: TaskOutputType[] = [
@@ -21,6 +25,24 @@ export function statusForOutputType(outputType: TaskOutputType): AgentStatus {
   return WRITING_OUTPUT_TYPES.includes(outputType) ? "writing" : "thinking";
 }
 
+function describeTools(tools: ToolDefinition[]): string {
+  if (tools.length === 0) return "（利用できる外部ツールはありません）";
+  return tools
+    .map((tool) => {
+      const fields = Object.entries(tool.inputSchema.properties)
+        .map(([key, schema]) => {
+          const description = typeof schema === "object" && schema && "description" in schema
+            ? String((schema as { description?: unknown }).description ?? "")
+            : "";
+          const required = tool.inputSchema.required.includes(key) ? "必須" : "任意";
+          return `    - ${key}（${required}）: ${description}`;
+        })
+        .join("\n");
+      return `- toolId: "${tool.id}"（${tool.name}） — ${tool.description}\n  入力項目:\n${fields}`;
+    })
+    .join("\n");
+}
+
 /**
  * 1件のタスクを担当エージェントに実行させ、成果物と次アクションを得る。
  * LLMには`submit_task_result`ツールの呼び出しを強制し、構造化レスポンスとして受け取る。
@@ -29,9 +51,10 @@ export async function executeAgentTask(params: {
   agent: Agent;
   task: Task;
   roster: Agent[];
+  availableTools: ToolDefinition[];
   llm: LlmClient;
 }): Promise<ExecutionResult> {
-  const { agent, task, roster, llm } = params;
+  const { agent, task, roster, availableTools, llm } = params;
 
   const rosterText = roster
     .filter((candidate) => candidate.id !== agent.id && candidate.enabled)
@@ -53,12 +76,18 @@ ${handoffHistory ? `\n# これまでの引き継ぎ履歴\n${handoffHistory}\n` 
 # 社内の他のAI社員
 ${rosterText || "（他に稼働中のAI社員はいません）"}
 
+# あなたが実行を申請できる外部ツール
+${describeTools(availableTools)}
+
 # 指示
 あなたの専門知識・性格・口調に沿って、このタスクを実際に遂行し、成果物本文を作成してください。
 その上で、次に取るべきアクションを判断してください。
 - complete: このタスクはあなたの手で完結し、他の確認は不要
 - handoff: 別のAI社員に引き継ぐべき（上記の一覧からagentIdを選びtargetAgentIdに指定し、noteに引き継ぎ理由を書く）
-- request_approval: 代表（人間）の最終承認が必要な重要な成果物（契約書・対外SNS投稿・重大な意思決定など）`;
+- request_approval: 代表（人間）の最終承認が必要な重要な成果物（外部ツールを使わないもの。契約書の最終確認など）
+- tool_call: 上記の外部ツールを使って実際にNotion保存・SNS投稿・カレンダー登録等を行うべき場合。
+  toolIdとtoolInput（そのツールの入力項目に沿ったオブジェクト）を指定すること。
+  ツール実行は必ず代表の承認を経てから行われるため、ここでは「申請」するだけでよい。`;
 
   return llm.callTool<ExecutionResult>({
     systemPrompt: agent.systemPrompt,
@@ -73,16 +102,24 @@ ${rosterText || "（他に稼働中のAI社員はいません）"}
         output: { type: "string", description: "成果物本文" },
         action: {
           type: "string",
-          enum: ["complete", "handoff", "request_approval"],
+          enum: ["complete", "handoff", "request_approval", "tool_call"],
           description: "次に取るべきアクション",
         },
         targetAgentId: {
           type: "string",
           description: "action=handoffの場合の引き継ぎ先エージェントID",
         },
+        toolId: {
+          type: "string",
+          description: "action=tool_callの場合に実行を申請する外部ツールのID",
+        },
+        toolInput: {
+          type: "object",
+          description: "action=tool_callの場合の、そのツールの入力項目に沿ったオブジェクト",
+        },
         note: {
           type: "string",
-          description: "引き継ぎ理由、または承認依頼の理由",
+          description: "引き継ぎ理由、承認依頼の理由、またはツール実行申請の理由",
         },
       },
       required: ["output", "action"],

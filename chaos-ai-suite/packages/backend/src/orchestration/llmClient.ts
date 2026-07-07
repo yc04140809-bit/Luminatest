@@ -24,17 +24,24 @@ export interface LlmClient {
 /**
  * Anthropic APIを使い、指定ツールの呼び出しを強制して構造化レスポンスを得るクライアント。
  * APIキー未設定でもサーバー起動自体は失敗させず、実際に呼び出された時点でエラーを投げる。
+ * getApiKeyはコール毎に評価するコールバック——設定画面からキーが更新された場合、
+ * 再起動なしで次回呼び出しから新しいキーが使われる。
  */
-export function createAnthropicClient(apiKey: string | undefined): LlmClient {
+export function createAnthropicClient(getApiKey: () => string | undefined): LlmClient {
   let client: Anthropic | undefined;
+  let clientKey: string | undefined;
 
   function getClient(): Anthropic {
+    const apiKey = getApiKey();
     if (!apiKey) {
       throw new Error(
         "ANTHROPIC_API_KEY is not configured. Set it in the backend environment to let AI employees run.",
       );
     }
-    if (!client) client = new Anthropic({ apiKey });
+    if (!client || clientKey !== apiKey) {
+      client = new Anthropic({ apiKey });
+      clientKey = apiKey;
+    }
     return client;
   }
 

@@ -138,6 +138,10 @@ export class OfficeStore {
     return task;
   }
 
+  getTask(id: string): Task | undefined {
+    return this.state.tasks[id];
+  }
+
   updateTask(id: string, patch: Partial<Task>): Task | undefined {
     const existing = this.state.tasks[id];
     if (!existing) return undefined;

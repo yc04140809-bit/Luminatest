@@ -1,7 +1,7 @@
 /** 代表からの指示投入・承認操作・設定変更用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
 import type { AgentDraft, ThemeUpdateInput } from "@chaos-ai-suite/shared";
 
-async function sendJson(method: "POST" | "PATCH", path: string, body: unknown): Promise<void> {
+async function sendJson(method: "POST" | "PATCH" | "PUT", path: string, body: unknown): Promise<void> {
   const res = await fetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
@@ -19,6 +19,15 @@ async function sendDelete(path: string): Promise<void> {
     const detail = await res.json().catch(() => ({}));
     throw new Error((detail as { error?: string }).error ?? `request failed: ${res.status}`);
   }
+}
+
+async function getJson<T>(path: string): Promise<T> {
+  const res = await fetch(path);
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error((detail as { error?: string }).error ?? `request failed: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
 }
 
 /** 全体指示。targetAgentIdを指定すると、その社員への個別メンション指示になる。 */
@@ -49,4 +58,24 @@ export function createAgent(draft: AgentDraft): Promise<void> {
 
 export function deleteAgent(agentId: string): Promise<void> {
   return sendDelete(`/api/agents/${agentId}`);
+}
+
+/** 外部連携用APIキーの設定状態（値そのものは含まれない）。 */
+export interface SecretStatus {
+  key: string;
+  label: string;
+  group: string;
+  configured: boolean;
+}
+
+export function getSecretsStatus(): Promise<SecretStatus[]> {
+  return getJson<SecretStatus[]>("/api/secrets");
+}
+
+export function setSecret(key: string, value: string): Promise<void> {
+  return sendJson("PUT", `/api/secrets/${key}`, { value });
+}
+
+export function clearSecret(key: string): Promise<void> {
+  return sendDelete(`/api/secrets/${key}`);
 }

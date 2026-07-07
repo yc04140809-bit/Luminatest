@@ -1,3 +1,5 @@
+import type { PendingToolCall } from "./tool.js";
+
 /** タスクの進行状況。承認ゲート(awaiting_approval)は人間参加型フローの要。 */
 export type TaskStatus =
   | "pending" // 未着手（次の担当待ち）
@@ -60,6 +62,12 @@ export interface Task {
   approval: TaskApproval;
   /** AIが生成した成果物本文（プレビュー・承認対象） */
   output?: string;
+  /**
+   * AI社員が外部ツールの実行を申請している場合に設定される。
+   * status="awaiting_approval"かつこれが設定されているタスクは、
+   * 承認されると実際にToolExecutorが実行され、拒否されると何も実行されない。
+   */
+  pendingToolCall?: PendingToolCall;
   tags: string[];
   createdAt: string;
   updatedAt: string;

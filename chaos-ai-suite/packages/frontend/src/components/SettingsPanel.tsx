@@ -4,6 +4,7 @@ import { THEME_PRESETS, resolveThemeTokens, type Agent, type ThemeSettings, type
 import { updateAgent, updateTheme } from "../api/officeApi.js";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback.js";
 import { AgentManagerPanel } from "./AgentManagerPanel.js";
+import { IntegrationsPanel } from "./IntegrationsPanel.js";
 
 interface SettingsPanelProps {
   theme: ThemeSettings;
@@ -11,7 +12,7 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-type SettingsTab = "theme" | "agents";
+type SettingsTab = "theme" | "agents" | "integrations";
 
 const TOKEN_LABELS: Record<keyof ThemeTokens, string> = {
   bg: "背景",
@@ -79,9 +80,19 @@ export function SettingsPanel({ theme, agents, onClose }: SettingsPanelProps) {
           >
             AI社員管理
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("integrations")}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              tab === "integrations" ? "bg-office-accent text-white" : "text-office-muted hover:text-office-text"
+            }`}
+          >
+            外部連携
+          </button>
         </div>
 
         {tab === "agents" && <AgentManagerPanel agents={agents} />}
+        {tab === "integrations" && <IntegrationsPanel />}
 
         {tab === "theme" && (
           <>

@@ -1,4 +1,5 @@
 import type { OfficeStore } from "../store/officeStore.js";
+import type { ToolRegistry } from "../tools/toolRegistry.js";
 import { executeAgentTask, statusForOutputType } from "./agentExecutor.js";
 import { decomposeDirective } from "./taskDecomposer.js";
 import type { LlmClient } from "./llmClient.js";
@@ -22,7 +23,7 @@ export interface AgentRuntime {
  * 「タスク実行 → 次の担当エージェントの指名 → 状態更新」を1タスクずつ処理し、
  * 承認が必要な成果物は awaiting_approval で必ず停止させる（人間参加型ゲート）。
  */
-export function createAgentRuntime(store: OfficeStore, llm: LlmClient): AgentRuntime {
+export function createAgentRuntime(store: OfficeStore, llm: LlmClient, toolRegistry: ToolRegistry): AgentRuntime {
   function clearAgent(agentId: string): void {
     store.setAgentStatus(agentId, {
       status: "standby",
@@ -62,7 +63,13 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient): AgentRun
 
     let result;
     try {
-      result = await executeAgentTask({ agent, task, roster: store.listAgents(), llm });
+      result = await executeAgentTask({
+        agent,
+        task,
+        roster: store.listAgents(),
+        availableTools: toolRegistry.listForAgent(agent.id),
+        llm,
+      });
     } catch (error) {
       clearAgent(agent.id);
       store.updateTask(taskId, { status: "blocked" });
@@ -104,6 +111,48 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient): AgentRun
         fromAgentId: agent.id,
         type: "approval_request",
         content: result.note ?? `「${task.title}」の成果物について承認をお願いします。`,
+        relatedTaskId: taskId,
+      });
+      return;
+    }
+
+    if (result.action === "tool_call") {
+      const toolDef = result.toolId ? toolRegistry.get(result.toolId)?.definition : undefined;
+      const canUse = result.toolId ? toolRegistry.canUse(agent.id, result.toolId) : false;
+
+      if (!toolDef || !canUse) {
+        store.updateTask(taskId, {
+          status: "awaiting_approval",
+          output: result.output,
+          approval: { required: true, status: "pending" },
+        });
+        clearAgent(agent.id);
+        store.postMessage({
+          channel: "command_center",
+          fromAgentId: agent.id,
+          type: "approval_request",
+          content: `外部ツール（${result.toolId ?? "不明"}）の指定が不正だったため、代表の確認をお願いします。${
+            result.note ? `（${result.note}）` : ""
+          }`,
+          relatedTaskId: taskId,
+        });
+        return;
+      }
+
+      store.updateTask(taskId, {
+        status: "awaiting_approval",
+        output: result.output,
+        approval: { required: true, status: "pending" },
+        pendingToolCall: { toolId: toolDef.id, input: result.toolInput ?? {}, note: result.note },
+      });
+      clearAgent(agent.id);
+      store.postMessage({
+        channel: "command_center",
+        fromAgentId: agent.id,
+        type: "approval_request",
+        content: `${agent.name}が外部連携（${toolDef.name}）の実行を申請しています。承認しますか？${
+          result.note ? `\n${result.note}` : ""
+        }`,
         relatedTaskId: taskId,
       });
       return;

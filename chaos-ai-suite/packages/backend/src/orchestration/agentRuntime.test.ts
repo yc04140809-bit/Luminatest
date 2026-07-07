@@ -2,7 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { LlmClient, ToolCallRequest } from "./llmClient.js";
 import { createAgentRuntime } from "./agentRuntime.js";
+import { executeApprovedToolCall } from "./toolApproval.js";
 import { OfficeStore } from "../store/officeStore.js";
+import { ToolRegistry } from "../tools/toolRegistry.js";
+import type { ToolExecutor } from "../tools/types.js";
+
+function emptyToolRegistry(): ToolRegistry {
+  return new ToolRegistry();
+}
 
 /**
  * 決定論的なスタブLLM。
@@ -77,7 +84,7 @@ function createStubLlm(): LlmClient {
 
 test("dispatchDirective decomposes, executes, hands off, and gates approval", async () => {
   const store = new OfficeStore();
-  const runtime = createAgentRuntime(store, createStubLlm());
+  const runtime = createAgentRuntime(store, createStubLlm(), emptyToolRegistry());
 
   await runtime.dispatchDirective("新サービスを立ち上げたい");
 
@@ -149,7 +156,7 @@ test("runTask stops after MAX_HANDOFFS to avoid infinite handoff loops", async (
     },
   };
 
-  const runtime = createAgentRuntime(store, pingPongLlm);
+  const runtime = createAgentRuntime(store, pingPongLlm, emptyToolRegistry());
   await runtime.dispatchDirective("無限ループになりそうな指示");
 
   const task = store.listTasks()[0];
@@ -166,7 +173,7 @@ test("dispatchMention assigns directly to one agent without a meeting", async ()
     },
   };
 
-  const runtime = createAgentRuntime(store, stubLlm);
+  const runtime = createAgentRuntime(store, stubLlm, emptyToolRegistry());
   await runtime.dispatchMention("agent-chaos", "このクレーム対応どう思う？");
 
   const tasks = store.listTasks();
@@ -177,4 +184,112 @@ test("dispatchMention assigns directly to one agent without a meeting", async ()
 
   const chaos = store.getAgent("agent-chaos");
   assert.equal(chaos?.status, "standby");
+});
+
+function fakeToolExecutor(): ToolExecutor {
+  return {
+    definition: {
+      id: "fake_tool",
+      name: "フェイクツール",
+      description: "テスト用の外部ツール",
+      allowedAgentIds: ["agent-mirai"],
+      inputSchema: { properties: { text: { type: "string" } }, required: ["text"] },
+    },
+    async execute({ input }) {
+      return { summary: `フェイク実行: ${input.text}` };
+    },
+  };
+}
+
+test("tool_call action pauses the task for approval, and approving it actually runs the tool", async () => {
+  const store = new OfficeStore();
+  const registry = new ToolRegistry();
+  registry.register(fakeToolExecutor());
+
+  const stubLlm: LlmClient = {
+    async callTool<T>(request: ToolCallRequest): Promise<T> {
+      return {
+        output: "（投稿文案）",
+        action: "tool_call",
+        toolId: "fake_tool",
+        toolInput: { text: "hello" },
+        note: "外部連携したいです",
+      } as T;
+    },
+  };
+
+  const runtime = createAgentRuntime(store, stubLlm, registry);
+  await runtime.dispatchMention("agent-mirai", "これを投稿して");
+
+  const task = store.listTasks()[0]!;
+  assert.equal(task.status, "awaiting_approval");
+  assert.deepEqual(task.pendingToolCall, { toolId: "fake_tool", input: { text: "hello" }, note: "外部連携したいです" });
+  assert.ok(store.getState().pendingApprovalTaskIds.includes(task.id));
+  assert.ok(
+    store.listMessages().some((m) => m.type === "approval_request" && m.content.includes("フェイクツール")),
+    "should announce the tool name in the approval request",
+  );
+
+  const approved = await executeApprovedToolCall(store, registry, task, "承認します");
+
+  assert.equal(approved?.status, "completed");
+  assert.equal(approved?.pendingToolCall, undefined);
+  assert.ok(approved?.output?.includes("フェイク実行: hello"));
+  assert.equal(approved?.approval.status, "approved");
+  assert.ok(store.listMessages().some((m) => m.type === "status_update" && m.content.includes("フェイク実行")));
+});
+
+test("tool_call with an unregistered or disallowed toolId falls back to a generic approval request", async () => {
+  const store = new OfficeStore();
+  const registry = new ToolRegistry();
+  registry.register(fakeToolExecutor()); // allowed for agent-mirai only
+
+  const stubLlm: LlmClient = {
+    async callTool<T>(request: ToolCallRequest): Promise<T> {
+      return { output: "（下書き）", action: "tool_call", toolId: "not_a_real_tool", note: "存在しないツール" } as T;
+    },
+  };
+
+  const runtime = createAgentRuntime(store, stubLlm, registry);
+  await runtime.dispatchMention("agent-mirai", "これを投稿して");
+
+  const task = store.listTasks()[0]!;
+  assert.equal(task.status, "awaiting_approval");
+  assert.equal(task.pendingToolCall, undefined, "should not attach a pendingToolCall for an invalid tool");
+  assert.ok(store.listMessages().some((m) => m.content.includes("指定が不正")));
+});
+
+test("executeApprovedToolCall marks the task blocked when the tool throws", async () => {
+  const store = new OfficeStore();
+  const registry = new ToolRegistry();
+  registry.register({
+    definition: {
+      id: "failing_tool",
+      name: "失敗するツール",
+      description: "テスト用",
+      allowedAgentIds: ["agent-mirai"],
+      inputSchema: { properties: {}, required: [] },
+    },
+    async execute() {
+      throw new Error("network unreachable");
+    },
+  });
+
+  const task = store.createTask({
+    title: "失敗するはずのタスク",
+    description: "テスト用",
+    priority: "low",
+    outputType: "sns_post",
+    createdBy: "user",
+    assignedAgentId: "agent-mirai",
+    approval: { required: true, status: "pending" },
+    pendingToolCall: { toolId: "failing_tool", input: {} },
+    tags: [],
+  });
+
+  const result = await executeApprovedToolCall(store, registry, task, undefined);
+
+  assert.equal(result?.status, "blocked");
+  assert.equal(result?.pendingToolCall, undefined);
+  assert.ok(store.listMessages().some((m) => m.type === "system_log" && m.content.includes("network unreachable")));
 });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, Plug, X } from "lucide-react";
 import type { Agent, Task } from "@chaos-ai-suite/shared";
 import { approveTask, rejectTask } from "../api/officeApi.js";
 
@@ -8,7 +8,7 @@ interface ApprovalQueueProps {
   agents: Record<string, Agent>;
 }
 
-/** Human-in-the-loopの承認ゲート。重要な成果物はここで代表の承認/差し戻しを待つ。 */
+/** Human-in-the-loopの承認ゲート。重要な成果物・外部ツール実行の申請はここで代表の承認/差し戻しを待つ。 */
 export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -36,6 +36,7 @@ export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
       <div className="mt-3 space-y-3">
         {tasks.map((task) => {
           const agent = task.assignedAgentId ? agents[task.assignedAgentId] : undefined;
+          const isToolCall = Boolean(task.pendingToolCall);
           return (
             <div key={task.id} className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
               <div className="flex items-center justify-between">
@@ -46,6 +47,19 @@ export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
                   </span>
                 )}
               </div>
+
+              {isToolCall && task.pendingToolCall && (
+                <div className="mt-2 rounded border border-amber-500/40 bg-office-bg p-2 text-xs">
+                  <p className="flex items-center gap-1 font-semibold text-amber-400">
+                    <Plug size={12} /> 外部連携の実行申請: {task.pendingToolCall.toolId}
+                  </p>
+                  {task.pendingToolCall.note && <p className="mt-1 text-office-muted">{task.pendingToolCall.note}</p>}
+                  <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-all text-[10px] text-office-muted">
+                    {JSON.stringify(task.pendingToolCall.input, null, 2)}
+                  </pre>
+                </div>
+              )}
+
               {task.output && (
                 <p className="mt-2 whitespace-pre-wrap rounded bg-office-bg p-2 text-xs text-office-text">
                   {task.output}
@@ -58,7 +72,7 @@ export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
                   disabled={busyId === task.id}
                   className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
                 >
-                  <Check size={14} /> 承認
+                  <Check size={14} /> {isToolCall ? "承認して実行" : "承認"}
                 </button>
                 <button
                   type="button"
