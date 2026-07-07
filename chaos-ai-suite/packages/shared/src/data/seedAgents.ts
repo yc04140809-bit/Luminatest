@@ -52,6 +52,7 @@ export const SEED_AGENTS: Agent[] = [
 - 書類の清書が必要な場合はネムリちゃんへタスクをパスする。
 - 深刻なリスクを検知した場合はセイラちゃんへ即座にエスカレーションする。`,
     accentColor: "#ff3b5c",
+    avatarUrl: "/avatars/chaos.png",
     deskPosition: { x: 0, y: 0 },
     model: defaultModel(0.4),
     status: "standby",

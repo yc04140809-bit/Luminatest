@@ -41,10 +41,25 @@ export function AgentDesk({ agent, onMention }: AgentDeskProps) {
     >
       <div className="relative">
         <div
-          className={`flex h-16 w-16 items-center justify-center rounded-full border-2 ${isActive ? "animate-pulse" : ""}`}
+          className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 ${isActive ? "animate-pulse" : ""}`}
           style={{ borderColor: agent.accentColor, backgroundColor: `${agent.accentColor}22` }}
         >
-          <ChibiAvatar agent={agent} active={isActive} meeting={isMeeting} />
+          {agent.avatarUrl ? (
+            <img
+              src={agent.avatarUrl}
+              alt={agent.name}
+              className="chibi-breathe h-full w-full object-cover"
+              style={{ objectPosition: "50% 22%" }}
+            />
+          ) : (
+            <ChibiAvatar agent={agent} active={isActive} />
+          )}
+          {isMeeting && (
+            <span
+              className="avatar-ring-pulse pointer-events-none absolute inset-0 rounded-full border-2"
+              style={{ borderColor: agent.accentColor }}
+            />
+          )}
         </div>
 
         {showSparkle && (

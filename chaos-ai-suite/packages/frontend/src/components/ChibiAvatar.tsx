@@ -4,8 +4,6 @@ interface ChibiAvatarProps {
   agent: Agent;
   /** タイピング/思考など「作業中」を示すハンドモーションを有効にするか */
   active: boolean;
-  /** 作戦会議中の金色パルスリングを表示するか */
-  meeting: boolean;
 }
 
 const SKIN_TONE = "#ffdfc4";
@@ -14,16 +12,13 @@ const UNIFORM_COLOR = "#1c1b28";
 /**
  * コードだけで描画する、呼吸・まばたき・タイピング動作を持つちびキャラクター。
  * 髪と襟元の色はagent.accentColorに追従し、管理画面でのカラー変更にも即座に反応する。
+ * agent.avatarUrlが設定されている場合はAgentDesk側でこちらの代わりに実イラストを表示する。
  */
-export function ChibiAvatar({ agent, active, meeting }: ChibiAvatarProps) {
+export function ChibiAvatar({ agent, active }: ChibiAvatarProps) {
   const accent = agent.accentColor;
 
   return (
     <svg viewBox="0 0 64 64" width={46} height={46} className="overflow-visible">
-      {meeting && (
-        <circle cx={32} cy={34} r={26} fill="none" stroke={agent.accentColor} strokeWidth={2} className="chibi-ring" />
-      )}
-
       <g className="chibi-breathe">
         {/* 後ろ髪 */}
         <path d="M14 26 Q12 10 32 8 Q52 10 50 26 Q50 34 44 34 L20 34 Q14 34 14 26 Z" fill={accent} />

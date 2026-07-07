@@ -102,9 +102,7 @@ body,
   animation-delay: 0.27s;
 }
 
-.chibi-ring {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
+.avatar-ring-pulse {
   animation: chibi-ring-pulse 1.6s ease-in-out infinite;
 }
 
