@@ -129,6 +129,10 @@ export default function SuiteHome({ onOpenAgent }) {
           </h1>
           <p className="text-xs text-slate-400 mb-4">仕事を自動化するAIエージェント集</p>
 
+          <div className="rounded-2xl overflow-hidden mb-4 ring-1 ring-purple-500/30 shadow-lg">
+            <img src="/images/suite-team.jpg" alt="Chaos AI Suite 6人のAI社員" className="w-full h-40 object-cover object-top" />
+          </div>
+
           <div className="rounded-2xl p-4 mb-6 bg-gradient-to-r from-purple-900/40 to-slate-900/40 ring-1 ring-purple-500/30">
             <p className="text-sm text-slate-200 leading-relaxed">
               接遇・書類・研修・開発・SNS・経営を、ひとつのアプリでサポート。
