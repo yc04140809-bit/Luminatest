@@ -6,10 +6,10 @@
 <title>ケイオスちゃん - チャット</title>
 <style>
 /* =========================================================
-   ケイオスちゃん チャット画面 (土台のみ / AI応答は未接続)
+   ケイオスちゃん チャット画面
    - 添付の参考スクリーンショットのレイアウトを再現
    - AI設定書 Ver.1.0 / Ver.2.0 の内容を SPEC_BASE / MODES に反映
-   - sendToAI() が実際のAPI接続を行う場所(現在はプレースホルダー応答)
+   - sendToAI() が /api/chat (Claude API) を呼び出す。APIキー未設定時はプレースホルダー応答にフォールバック
    ========================================================= */
 :root{
   --bg-deep:  #0d0a1a;
@@ -342,7 +342,7 @@ html,body{
         <label>性格の強さ (1〜5)</label>
         <input type="range" id="setIntensity" min="1" max="5" value="3">
       </div>
-      <p class="note">※この画面はUIの土台のみです。実際のAI応答(API接続)は未実装で、sendToAI() 関数に後から実装します。</p>
+      <p class="note">※AI応答はClaude API(/api/chat)に接続されています。Vercel側にANTHROPIC_API_KEYが未設定の場合は、簡易的なプレースホルダー応答になります。</p>
       <button class="closebtn" id="closeSettings">閉じる</button>
     </div>
   </div>
@@ -560,15 +560,11 @@ function addAffection(amount){
 
 /* -------------------------------------------------------
    ★ AI接続ポイント ★
-   ここでは実際のAI API呼び出しを行っていない(プレースホルダーのみ)。
-   本実装時は buildSystemPrompt(state.mode, state.settings) をシステムプロンプトとして、
-   state.history を会話履歴として、実際のAPIにリクエストを送る処理に置き換える。
+   /api/chat (Vercelサーバーレス関数、api/chat.js) に
+   システムプロンプトと会話履歴を送り、Claude APIの応答を受け取る。
+   APIキー未設定時やネットワークエラー時は、プレースホルダー応答にフォールバックする。
    ------------------------------------------------------- */
-function sendToAI(userText){
-  // TODO: ここに実際のAI API呼び出しを実装する。
-  // 例: const systemPrompt = buildSystemPrompt(state.mode, state.settings);
-  //     fetch("https://api.example.com/chat", { ... system: systemPrompt, message: userText ... })
-  const mode = currentMode();
+function placeholderReply(modeKey){
   const placeholders = {
     cute:      ["それね、わかるっ！もっと聞かせて〜！","えへへ、嬉しいな♪ 一緒にいると楽しいね！","ふふっ、それは面白い話だね〜！"],
     onee:      ["そうなのね。ゆっくり聞かせてくれる？","なるほど…あなたの想いが伝わってきたわ。","ふふ、素敵な話ね。続きを聞かせて。"],
@@ -577,11 +573,32 @@ function sendToAI(userText){
     teacher:   ["いいところに気づいたね！その調子だよ。","なるほど、そこでつまずくのはよくあることだよ。一緒に見てみよう。","よく頑張ってるね。もう少し詳しく教えて？"],
     support:   ["そう感じるのは自然なことだよ。無理しなくて大丈夫。","話してくれてありがとう。ゆっくりでいいからね。","あなたのペースで大丈夫。ここにいるからね。"],
   };
-  const pool = placeholders[mode.key] || placeholders.onee;
+  const pool = placeholders[modeKey] || placeholders.onee;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function handleSend(){
+async function sendToAI(userText){
+  const mode = currentMode();
+  const systemPrompt = buildSystemPrompt(state.mode, state.settings);
+  const history = state.history.slice(-20).map(m => ({ role: m.role, text: m.text }));
+
+  try{
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ systemPrompt, history, message: userText }),
+    });
+    if(!res.ok) throw new Error("API error " + res.status);
+    const data = await res.json();
+    if(!data.reply) throw new Error("empty reply");
+    return data.reply;
+  }catch(e){
+    console.warn("sendToAI: falling back to placeholder reply.", e);
+    return placeholderReply(mode.key);
+  }
+}
+
+async function handleSend(){
   const input = document.getElementById("msgInput");
   const text = input.value.trim();
   if(!text) return;
@@ -589,7 +606,6 @@ function handleSend(){
   addAffection(2);
   input.value = "";
 
-  // 「考え中…」表示 → プレースホルダー応答(将来はここが本物のAPI応答に置き換わる)
   const log = document.getElementById("chatlog");
   const typingEl = document.createElement("div");
   typingEl.className = "msg char typing";
@@ -597,10 +613,9 @@ function handleSend(){
   log.appendChild(typingEl);
   log.scrollTop = log.scrollHeight;
 
-  setTimeout(() => {
-    typingEl.remove();
-    pushMessage("char", sendToAI(text));
-  }, 550);
+  const reply = await sendToAI(text);
+  typingEl.remove();
+  pushMessage("char", reply);
 }
 
 /* =========================================================
