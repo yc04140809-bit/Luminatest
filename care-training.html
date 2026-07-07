@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>研修資料作成AI ケアちゃん</title>
+<link rel="icon" type="image/png" href="img/care/avatar.png">
 <style>
 /* =========================================================
    研修資料作成AI「ケアちゃん」
@@ -72,6 +73,42 @@ button{ font-family:inherit; cursor:pointer; }
 
 main{ padding:18px; }
 .hidden{ display:none !important; }
+
+/* ---------- ケアちゃんマスコット(ホーム見出し・ロープレのヒント等で流用) ---------- */
+.mascotgreet{
+  display:flex; align-items:center; gap:14px;
+  background:linear-gradient(120deg, var(--teal-light), #fff);
+  border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 18px; margin-bottom:18px;
+}
+.mascotgreet .mimg{
+  flex:none; width:64px; height:64px; border-radius:50%;
+  border:2px solid var(--teal); overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  background:#fff; font-size:30px;
+}
+.mascotgreet .mimg img{ width:100%; height:100%; object-fit:cover; }
+.mascotgreet .mimg img.noimg{ display:none; }
+.mascotgreet .mtext{ font-size:13.5px; color:var(--text); }
+.mascotgreet .mtext strong{ color:var(--teal-dark); }
+
+.mascottip{
+  display:flex; align-items:flex-start; gap:10px;
+  background:var(--teal-light); border:1px solid var(--border);
+  border-radius:10px; padding:10px 12px; margin-top:16px;
+}
+.mascottip .mimg{
+  flex:none; width:36px; height:36px; border-radius:50%;
+  border:1.5px solid var(--teal); overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  background:#fff; font-size:18px;
+}
+.mascottip .mimg img{ width:100%; height:100%; object-fit:cover; }
+.mascottip .mimg img.noimg{ display:none; }
+.mascottip .mtext{ font-size:12.5px; color:var(--text); }
+
+/* ---------- 印刷時のみ表示するブランド見出し ---------- */
+.printheader{ display:none; }
 
 /* ---------- カード共通 ---------- */
 .panel{
@@ -289,6 +326,18 @@ main{ padding:18px; }
   body.print-mode .docpane.print-target{ display:block !important; }
   body.print-mode.print-all .docpane{ display:block !important; page-break-after:always; }
   .sectioncard, .imgslot{ break-inside:avoid; }
+  .mascotgreet{ display:none !important; }
+  body.print-mode .printheader{
+    display:flex !important; align-items:center; gap:12px;
+    border-bottom:2px solid var(--teal); padding-bottom:10px; margin-bottom:16px;
+  }
+  .printheader .pimg{
+    flex:none; width:44px; height:44px; border-radius:50%; overflow:hidden;
+    border:1.5px solid var(--teal);
+  }
+  .printheader .pimg img{ width:100%; height:100%; object-fit:cover; }
+  .printheader .ptext{ font-size:12px; color:var(--text-sub); }
+  .printheader .ptext strong{ display:block; font-size:15px; color:var(--teal-dark); }
 }
 body:not(.print-mode) #printOnlyRoot{ display:contents; }
 </style>
@@ -314,6 +363,13 @@ body:not(.print-mode) #printOnlyRoot{ display:contents; }
   <main>
     <!-- ============ ホーム画面(テーマ選択) ============ -->
     <section id="view-home">
+      <div class="mascotgreet">
+        <div class="mimg">
+          <img src="img/care/avatar.png" alt="" onerror="this.classList.add('noimg')">
+          <span class="mascotfallback">🧑‍⚕️</span>
+        </div>
+        <div class="mtext"><strong>ケアちゃんだよ!</strong><br>研修テーマを選んでくれれば、資料一式をすぐに作るよ。まずは条件を確認してね。</div>
+      </div>
       <div class="panel">
         <h2>📋 研修の条件を設定</h2>
         <div class="optionsgrid">
@@ -365,6 +421,10 @@ body:not(.print-mode) #printOnlyRoot{ display:contents; }
     <!-- ============ 結果画面 ============ -->
     <section id="view-result" class="hidden">
       <div class="panel">
+        <div class="printheader">
+          <div class="pimg"><img src="img/care/avatar.png" alt=""></div>
+          <div class="ptext">研修資料作成AI ケアちゃん<strong id="printHeaderTitle"></strong></div>
+        </div>
         <div class="resultheader">
           <div>
             <h2 id="resultTitle">-</h2>
@@ -1102,6 +1162,7 @@ function generateAndShow(themeKey, customName){
    ========================================================= */
 function renderResult(model){
   $("#resultTitle").textContent = `${model.icon} ${model.title}`;
+  $("#printHeaderTitle").textContent = `${model.icon} ${model.title}`;
   $("#resultMeta").innerHTML =
     `<span>🏢 ${model.options.facility}</span><span>👥 ${model.options.audience}</span><span>⏱ 目安${model.options.duration}分</span>`;
 
@@ -1204,7 +1265,11 @@ function renderRoleplay(model){
     <h3 style="margin-bottom:8px;color:var(--teal-dark);font-size:14px;">■ 進行の流れ(アドリブで演じてみましょう)</h3>
     <ul class="promptlist">${rp.prompts.map(p => `<li>${p}</li>`).join("")}</ul>
     <h3 style="margin:16px 0 6px;color:var(--teal-dark);font-size:14px;">■ 振り返り(ロールプレイ後にチームで話し合う)</h3>
-    <ul class="reflectlist">${rp.reflection.map(r => `<li>${r}</li>`).join("")}</ul>`;
+    <ul class="reflectlist">${rp.reflection.map(r => `<li>${r}</li>`).join("")}</ul>
+    <div class="mascottip no-print">
+      <div class="mimg"><img src="img/care/avatar.png" alt="" onerror="this.classList.add('noimg')"><span>🧑‍⚕️</span></div>
+      <div class="mtext">ロープレは「正解を演じる」ことより「気づきを得る」ことが目的だよ。恥ずかしがらずに、実際に声に出して演じてみてね!</div>
+    </div>`;
   root.innerHTML = html;
 }
 
