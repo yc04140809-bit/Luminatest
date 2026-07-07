@@ -1,5 +1,6 @@
 import type { OfficeState } from "../types/officeState.js";
 import { SEED_AGENTS } from "./seedAgents.js";
+import { DEFAULT_THEME_SETTINGS } from "./themePresets.js";
 
 /** バックエンド起動時の初期OfficeState。タスク・メッセージは空の状態から開始する。 */
 export function buildSeedOfficeState(): OfficeState {
@@ -10,6 +11,7 @@ export function buildSeedOfficeState(): OfficeState {
     messages: [],
     activeMeetings: [],
     pendingApprovalTaskIds: [],
+    theme: { ...DEFAULT_THEME_SETTINGS, overrides: {} },
     lastUpdated: new Date().toISOString(),
   };
 }

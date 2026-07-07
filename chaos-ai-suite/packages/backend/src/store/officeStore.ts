@@ -10,6 +10,8 @@ import {
   type OfficeState,
   type Task,
   type TaskDraft,
+  type ThemeSettings,
+  type ThemeUpdateInput,
 } from "@chaos-ai-suite/shared";
 
 type Listener = (event: OfficeEvent) => void;
@@ -147,6 +149,28 @@ export class OfficeStore {
     if (!stillPending && pendingIdx !== -1) this.state.pendingApprovalTaskIds.splice(pendingIdx, 1);
 
     this.emit({ type: "task_updated", task: updated });
+    return updated;
+  }
+
+  getTheme(): ThemeSettings {
+    return this.state.theme;
+  }
+
+  /**
+   * presetIdの切り替えは個別上書き(overrides)をリセットする（新テーマを素の状態で見せるため）。
+   * 同じ呼び出しでoverridesも渡せば、切り替え直後にそのまま上書きを適用できる。
+   */
+  updateTheme(patch: ThemeUpdateInput): ThemeSettings {
+    const current = this.state.theme;
+    let overrides = current.overrides;
+
+    if (patch.presetId && patch.presetId !== current.presetId) overrides = {};
+    if (patch.resetOverrides) overrides = {};
+    if (patch.overrides) overrides = { ...overrides, ...patch.overrides };
+
+    const updated: ThemeSettings = { presetId: patch.presetId ?? current.presetId, overrides };
+    this.state.theme = updated;
+    this.emit({ type: "theme_updated", theme: updated });
     return updated;
   }
 

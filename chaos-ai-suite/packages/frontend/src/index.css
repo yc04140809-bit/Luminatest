@@ -2,8 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
+/* useApplyThemeがサーバーのThemeSettingsで上書きするまでの既定値（cyber-neonプリセットと同じ）。 */
+:root {
+  --office-bg: #0a0a12;
+  --office-panel: #12121e;
+  --office-border: #23233a;
+  --office-text: #e6e6f0;
+  --office-muted: #8888a8;
+  --office-accent: #ff3b5c;
+  --office-gold: #d4af37;
+}
+
 html,
 body,
 #root {
   height: 100%;
+}
+
+/* ちびキャラのアイドルアニメーション */
+@keyframes chibi-breathe {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(1.02);
+  }
+}
+
+@keyframes chibi-blink {
+  0%,
+  90%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes chibi-type {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.5px);
+  }
+}
+
+@keyframes chibi-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes chibi-sparkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(0);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1) translateY(-14px);
+  }
+}
+
+.chibi-breathe {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: chibi-breathe 3.2s ease-in-out infinite;
+}
+
+.chibi-eyes {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: chibi-blink 4.5s ease-in-out infinite;
+}
+
+.chibi-hand-left {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: chibi-type 0.55s ease-in-out infinite;
+}
+
+.chibi-hand-right {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: chibi-type 0.55s ease-in-out infinite;
+  animation-delay: 0.27s;
+}
+
+.chibi-ring {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: chibi-ring-pulse 1.6s ease-in-out infinite;
+}
+
+.chibi-sparkle {
+  animation: chibi-sparkle 1.1s ease-out forwards;
 }

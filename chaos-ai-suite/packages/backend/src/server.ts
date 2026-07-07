@@ -6,6 +6,7 @@ import { agentRoutes } from "./routes/agents.js";
 import { taskRoutes } from "./routes/tasks.js";
 import { messageRoutes } from "./routes/messages.js";
 import { directiveRoutes } from "./routes/directives.js";
+import { themeRoutes } from "./routes/theme.js";
 import { registerOfficeSocket } from "./ws/officeSocket.js";
 import { officeStore } from "./store/officeStore.js";
 import { createAnthropicClient } from "./orchestration/llmClient.js";
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   await app.register(taskRoutes);
   await app.register(messageRoutes);
   await app.register(directiveRoutes(runtime));
+  await app.register(themeRoutes);
   await app.register(registerOfficeSocket);
 
   await app.listen({ port: env.port, host: env.host });

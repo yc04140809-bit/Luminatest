@@ -26,8 +26,12 @@ function applyEvent(office: OfficeState, event: Exclude<OfficeEvent, { type: "of
         ...office,
         activeMeetings: office.activeMeetings.filter((meeting) => meeting.id !== event.meetingId),
       };
-    default:
-      return office;
+    case "theme_updated":
+      return { ...office, theme: event.theme };
+    default: {
+      const exhaustiveCheck: never = event;
+      return exhaustiveCheck;
+    }
   }
 }
 

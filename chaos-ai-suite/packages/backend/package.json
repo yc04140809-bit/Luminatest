@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test src/orchestration/agentRuntime.test.ts"
+    "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

@@ -1,8 +1,9 @@
-/** 代表からの指示投入・承認操作用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
+/** 代表からの指示投入・承認操作・設定変更用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
+import type { AgentDraft, ThemeUpdateInput } from "@chaos-ai-suite/shared";
 
-async function postJson(path: string, body: unknown): Promise<void> {
+async function sendJson(method: "POST" | "PATCH", path: string, body: unknown): Promise<void> {
   const res = await fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -14,13 +15,22 @@ async function postJson(path: string, body: unknown): Promise<void> {
 
 /** 全体指示。targetAgentIdを指定すると、その社員への個別メンション指示になる。 */
 export function postDirective(directive: string, targetAgentId?: string): Promise<void> {
-  return postJson("/api/directives", targetAgentId ? { directive, targetAgentId } : { directive });
+  return sendJson("POST", "/api/directives", targetAgentId ? { directive, targetAgentId } : { directive });
 }
 
 export function approveTask(taskId: string, comment?: string): Promise<void> {
-  return postJson(`/api/tasks/${taskId}/approve`, { comment });
+  return sendJson("POST", `/api/tasks/${taskId}/approve`, { comment });
 }
 
 export function rejectTask(taskId: string, comment?: string): Promise<void> {
-  return postJson(`/api/tasks/${taskId}/reject`, { comment });
+  return sendJson("POST", `/api/tasks/${taskId}/reject`, { comment });
+}
+
+/** 管理画面からのプリセット切り替え・カラー上書き。 */
+export function updateTheme(patch: ThemeUpdateInput): Promise<void> {
+  return sendJson("PATCH", "/api/theme", patch);
+}
+
+export function updateAgent(agentId: string, patch: Partial<AgentDraft>): Promise<void> {
+  return sendJson("PATCH", `/api/agents/${agentId}`, patch);
 }

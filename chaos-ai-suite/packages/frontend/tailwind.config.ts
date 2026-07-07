@@ -1,8 +1,8 @@
 import type { Config } from "tailwindcss";
 
 /**
- * サイバーパンク/高級感のあるダークモードUIのベース設定。
- * Step3のオフィスビュー実装時に、エージェントごとのaccentColorと組み合わせて使う。
+ * office.* の色はすべてCSS変数（index.cssで既定値を宣言、useApplyThemeで実行時に上書き）を参照する。
+ * これにより管理画面のテーマ切り替え・カスタムカラーがビルド不要で全画面に即時反映される。
  */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -11,20 +11,20 @@ export default {
     extend: {
       colors: {
         office: {
-          bg: "#0a0a12",
-          panel: "#12121e",
-          border: "#23233a",
-          text: "#e6e6f0",
-          muted: "#8888a8",
-          accent: "#ff3b5c",
-          gold: "#d4af37",
+          bg: "var(--office-bg)",
+          panel: "var(--office-panel)",
+          border: "var(--office-border)",
+          text: "var(--office-text)",
+          muted: "var(--office-muted)",
+          accent: "var(--office-accent)",
+          gold: "var(--office-gold)",
         },
       },
       fontFamily: {
         display: ["'Orbitron'", "sans-serif"],
       },
       boxShadow: {
-        neon: "0 0 12px rgba(255, 59, 92, 0.5)",
+        neon: "0 0 16px color-mix(in srgb, var(--office-accent) 55%, transparent)",
       },
     },
   },
