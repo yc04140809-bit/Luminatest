@@ -32,6 +32,7 @@ export interface OfficeState {
 /** サーバー→クライアントのリアルタイム更新イベント。 */
 export type OfficeEvent =
   | { type: "agent_updated"; agent: Agent }
+  | { type: "agent_deleted"; agentId: string }
   | { type: "task_updated"; task: Task }
   | { type: "message_created"; message: Message }
   | { type: "meeting_started"; meeting: ActiveMeeting }

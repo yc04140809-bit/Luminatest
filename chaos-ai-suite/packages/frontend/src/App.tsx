@@ -45,7 +45,7 @@ export default function App() {
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl text-office-gold">My Chaos AI Suite</h1>
-          <p className="text-sm text-office-muted">6人のAI社員があなたのオフィスで待機しています。</p>
+          <p className="text-sm text-office-muted">{agents.length}人のAI社員があなたのオフィスで待機しています。</p>
         </div>
         <div className="flex items-center gap-3">
           <span

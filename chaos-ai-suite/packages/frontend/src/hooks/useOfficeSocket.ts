@@ -15,6 +15,11 @@ function applyEvent(office: OfficeState, event: Exclude<OfficeEvent, { type: "of
   switch (event.type) {
     case "agent_updated":
       return { ...office, agents: { ...office.agents, [event.agent.id]: event.agent } };
+    case "agent_deleted": {
+      const remainingAgents = { ...office.agents };
+      delete remainingAgents[event.agentId];
+      return { ...office, agents: remainingAgents };
+    }
     case "task_updated":
       return { ...office, tasks: { ...office.tasks, [event.task.id]: event.task } };
     case "message_created":

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { THEME_PRESETS } from "@chaos-ai-suite/shared";
+import { THEME_PRESETS, type OfficeEvent } from "@chaos-ai-suite/shared";
 import { OfficeStore } from "./officeStore.js";
 
 test("updateTheme: switching preset resets custom overrides", () => {
@@ -43,4 +43,45 @@ test("updateTheme: preset switch plus overrides in the same call applies both", 
   const theme = store.getTheme();
   assert.equal(theme.presetId, target.id);
   assert.equal(theme.overrides.bg, "#000000");
+});
+
+test("deleteAgent emits agent_deleted so subscribers can drop it from local state", () => {
+  const store = new OfficeStore();
+  const created = store.createAgent({
+    name: "テストくん",
+    title: "テスト担当AI",
+    roleKey: "test-role",
+    description: "テスト用エージェント",
+    responsibilities: [],
+    triggers: [],
+    systemPrompt: "テスト用",
+    accentColor: "#ffffff",
+    deskPosition: { x: 0, y: 0 },
+    model: { provider: "anthropic", model: "claude-sonnet-5", temperature: 0.5, maxOutputTokens: 1536 },
+    enabled: true,
+    isEditable: true,
+  });
+
+  const events: OfficeEvent[] = [];
+  store.subscribe((event) => events.push(event));
+
+  const deleted = store.deleteAgent(created.id);
+
+  assert.equal(deleted, true);
+  assert.equal(store.getAgent(created.id), undefined);
+  assert.ok(
+    events.some((event) => event.type === "agent_deleted" && event.agentId === created.id),
+    "should emit agent_deleted with the deleted agent's id",
+  );
+});
+
+test("deleteAgent returns false and emits nothing for an unknown id", () => {
+  const store = new OfficeStore();
+  const events: OfficeEvent[] = [];
+  store.subscribe((event) => events.push(event));
+
+  const deleted = store.deleteAgent("agent-does-not-exist");
+
+  assert.equal(deleted, false);
+  assert.equal(events.length, 0);
 });

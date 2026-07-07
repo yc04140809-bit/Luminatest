@@ -73,6 +73,7 @@ export class OfficeStore {
   deleteAgent(id: string): boolean {
     if (!this.state.agents[id]) return false;
     delete this.state.agents[id];
+    this.emit({ type: "agent_deleted", agentId: id });
     return true;
   }
 

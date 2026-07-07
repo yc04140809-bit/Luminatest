@@ -13,6 +13,14 @@ async function sendJson(method: "POST" | "PATCH", path: string, body: unknown): 
   }
 }
 
+async function sendDelete(path: string): Promise<void> {
+  const res = await fetch(path, { method: "DELETE" });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error((detail as { error?: string }).error ?? `request failed: ${res.status}`);
+  }
+}
+
 /** 全体指示。targetAgentIdを指定すると、その社員への個別メンション指示になる。 */
 export function postDirective(directive: string, targetAgentId?: string): Promise<void> {
   return sendJson("POST", "/api/directives", targetAgentId ? { directive, targetAgentId } : { directive });
@@ -33,4 +41,12 @@ export function updateTheme(patch: ThemeUpdateInput): Promise<void> {
 
 export function updateAgent(agentId: string, patch: Partial<AgentDraft>): Promise<void> {
   return sendJson("PATCH", `/api/agents/${agentId}`, patch);
+}
+
+export function createAgent(draft: AgentDraft): Promise<void> {
+  return sendJson("POST", "/api/agents", draft);
+}
+
+export function deleteAgent(agentId: string): Promise<void> {
+  return sendDelete(`/api/agents/${agentId}`);
 }
