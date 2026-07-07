@@ -52,9 +52,9 @@ export const AGENTS = [
     character: "ミライちゃん",
     room: "広報室",
     tagline: "発信文を自動作成",
-    desc: "Threads・X・Instagram・note向け投稿文を作成予定",
+    desc: "テーマと伝えたい内容を入力すると、Threads・X・Instagram・note向けの投稿文をAIが作成します。",
     avatarUrl: null,
-    status: "soon",
+    status: "available",
   },
   {
     id: "management",
