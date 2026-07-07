@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>補助金申請書AI - メグミちゃん（プロトタイプ）</title>
+<style>
+:root{
+  --bg-deep:#0d0a1a;
+  --bg-mid:#1a1430;
+  --gold:#d9b56a;
+  --gold-hi:#f6e3a8;
+  --text:#f2ecdf;
+  --sub:#c9c2d8;
+  --card:#181229;
+  --line:rgba(217,181,106,.28);
+  --accent:#8fd8ff;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+html,body{
+  min-height:100%;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 0%, rgba(120,80,200,.18), transparent 70%),
+    linear-gradient(160deg, var(--bg-mid) 0%, var(--bg-deep) 60%, #070510 100%);
+  color:var(--text);
+  font-family:"Hiragino Sans","Yu Gothic","Noto Sans JP",sans-serif;
+  line-height:1.7;
+}
+.wrap{ max-width:960px; margin:0 auto; padding:5% 5% 10%; }
+
+/* ヘッダー: キャラ紹介 */
+header{
+  display:flex; align-items:center; gap:16px;
+  padding:5% 0 4%;
+  border-bottom:1px solid var(--line);
+  margin-bottom:6%;
+}
+.avatar{
+  flex:none; width:64px; height:64px; border-radius:50%;
+  background:linear-gradient(135deg,#f6e3a8,#8a5a9a);
+  border:2px solid var(--gold-hi);
+  box-shadow:0 0 16px rgba(217,181,106,.5);
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; font-weight:bold; color:#241430;
+}
+h1{ font-size:clamp(18px,2.4vw,26px); color:var(--gold-hi); letter-spacing:.03em; }
+.subtitle{ font-size:clamp(11px,1.3vw,13px); color:var(--sub); margin-top:4px; }
+.badge{
+  display:inline-block; font-size:11px; color:var(--gold-hi);
+  border:1px solid var(--gold); border-radius:99px; padding:.2em .8em;
+  margin-top:6px; letter-spacing:.1em;
+}
+
+section{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:5%;
+  margin-bottom:5%;
+}
+h2{
+  font-size:clamp(14px,1.6vw,18px);
+  color:var(--gold-hi);
+  margin-bottom:4%;
+  display:flex; align-items:center; gap:8px;
+}
+h2 .num{
+  flex:none; width:1.6em; height:1.6em; border-radius:50%;
+  background:linear-gradient(135deg,var(--gold-hi),var(--gold));
+  color:#241430; font-weight:bold; font-size:.8em;
+  display:flex; align-items:center; justify-content:center;
+}
+
+.field{ margin-bottom:4%; }
+.field label{
+  display:block; font-size:13px; color:var(--sub); margin-bottom:.4em;
+}
+.field label .req{ color:#ff9a9a; margin-left:.3em; }
+.field input,
+.field textarea,
+.field select{
+  width:100%;
+  font-family:inherit; font-size:14px; color:var(--text);
+  background:rgba(0,0,0,.35);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:.7em .8em;
+  outline:none;
+}
+.field textarea{ resize:vertical; min-height:4.5em; }
+.field input:focus,
+.field textarea:focus,
+.field select:focus{ border-color:var(--gold-hi); box-shadow:0 0 0 2px rgba(246,227,168,.15); }
+.field .hint{ font-size:11px; color:rgba(201,194,216,.65); margin-top:.35em; }
+
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:0 4%; }
+@media (max-width:640px){ .grid2{ grid-template-columns:1fr; } }
+
+.subsidy-cards{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:3%; margin-bottom:4%;
+}
+.subsidy-card{
+  border:1px solid var(--line); border-radius:10px; padding:4%;
+  cursor:pointer; transition:border-color .2s, box-shadow .2s;
+  background:rgba(0,0,0,.2);
+}
+.subsidy-card:hover{ border-color:var(--gold); }
+.subsidy-card.selected{
+  border-color:var(--gold-hi);
+  box-shadow:0 0 12px rgba(246,227,168,.35);
+  background:rgba(217,181,106,.08);
+}
+.subsidy-card .name{ font-size:14px; color:var(--gold-hi); font-weight:bold; margin-bottom:.3em; }
+.subsidy-card .desc{ font-size:12px; color:var(--sub); }
+
+.btnrow{ display:flex; gap:12px; flex-wrap:wrap; margin-top:2%; }
+button.primary{
+  font-family:inherit; font-size:14px; letter-spacing:.08em;
+  color:#241430; font-weight:bold;
+  background:linear-gradient(160deg, var(--gold-hi), var(--gold));
+  border:none; border-radius:99px; padding:.9em 2.4em;
+  cursor:pointer; box-shadow:0 4px 14px rgba(217,181,106,.35);
+}
+button.primary:disabled{ opacity:.4; cursor:not-allowed; box-shadow:none; }
+button.ghost{
+  font-family:inherit; font-size:13px; color:var(--gold-hi);
+  background:transparent; border:1px solid var(--gold);
+  border-radius:99px; padding:.8em 1.8em; cursor:pointer;
+}
+button.ghost:hover{ background:rgba(217,181,106,.1); }
+
+.mochi{ font-size:12px; color:var(--accent); }
+
+/* 出力エリア */
+#output{ display:none; }
+.draft-block{
+  border:1px solid var(--line); border-radius:10px;
+  padding:4%; margin-bottom:3%;
+  background:rgba(0,0,0,.25);
+}
+.draft-block h3{
+  font-size:13px; color:var(--gold-hi); margin-bottom:.6em;
+  letter-spacing:.05em;
+}
+.draft-block .content{
+  font-size:14px; color:var(--text);
+  white-space:pre-wrap;
+  outline:none;
+  border-left:2px solid var(--line);
+  padding-left:1em;
+}
+.draft-block .content:focus{ border-left-color:var(--gold-hi); }
+
+.disclaimer{
+  font-size:12px; color:rgba(255,154,154,.9);
+  border:1px solid rgba(255,154,154,.35);
+  border-radius:8px; padding:3%; margin-top:4%;
+  background:rgba(255,154,154,.06);
+}
+.toast{
+  position:fixed; left:50%; bottom:6%; transform:translateX(-50%);
+  background:rgba(20,15,40,.95); border:1px solid var(--gold);
+  color:var(--text); padding:.7em 1.6em; border-radius:99px;
+  font-size:13px; opacity:0; pointer-events:none; transition:opacity .3s;
+  z-index:50;
+}
+.toast.show{ opacity:1; }
+footer{ text-align:center; font-size:11px; color:rgba(201,194,216,.5); margin-top:6%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="avatar">補</div>
+    <div>
+      <h1>補助金申請書AI</h1>
+      <div class="subtitle">メグミちゃん・公募要領の型に合わせて申請書の下書きを作成します</div>
+      <div class="badge">PROTOTYPE</div>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="num">1</span>補助金の種類を選ぶ</h2>
+    <div class="subsidy-cards" id="subsidyCards"></div>
+  </section>
+
+  <section>
+    <h2><span class="num">2</span>事業の情報を入力する</h2>
+    <div class="grid2">
+      <div class="field">
+        <label>事業者名 / 屋号<span class="req">必須</span></label>
+        <input type="text" id="bizName" placeholder="例：山田製作所">
+      </div>
+      <div class="field">
+        <label>業種<span class="req">必須</span></label>
+        <input type="text" id="industry" placeholder="例：金属加工業">
+      </div>
+    </div>
+    <div class="field">
+      <label>事業内容<span class="req">必須</span></label>
+      <textarea id="bizContent" placeholder="現在行っている事業の内容を具体的に。例：自動車部品向け精密切削加工の受託製造"></textarea>
+    </div>
+    <div class="field">
+      <label>現在の課題・困っていること<span class="req">必須</span></label>
+      <textarea id="issue" placeholder="例：熟練職人の高齢化で生産性が頭打ちになっている、新規顧客の開拓ができていない など"></textarea>
+    </div>
+    <div class="field">
+      <label>補助金で実現したいこと<span class="req">必須</span></label>
+      <textarea id="goal" placeholder="例：CNC加工機を導入して加工精度と生産量を向上させたい"></textarea>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>期待する効果・数値目標（任意）</label>
+        <input type="text" id="numbers" placeholder="例：生産性20%向上、売上10%増">
+        <div class="hint">具体的な数字があるほど説得力のある下書きになります</div>
+      </div>
+      <div class="field">
+        <label>想定予算・希望補助額（任意）</label>
+        <input type="text" id="budget" placeholder="例：総事業費300万円（補助率2/3）">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="primary" id="genBtn">メグミちゃんに下書きを作ってもらう</button>
+    </div>
+  </section>
+
+  <section id="output">
+    <h2><span class="num">3</span>生成された下書き（クリックして編集できます）</h2>
+    <div id="draftBlocks"></div>
+    <div class="btnrow">
+      <button class="ghost" id="copyBtn">全文をコピー</button>
+      <button class="ghost" id="downloadBtn">テキストとしてダウンロード</button>
+    </div>
+    <div class="disclaimer">
+      ⚠ これはテンプレートロジックによる下書き自動生成です。実際の申請では最新の公募要領を必ず確認し、内容の正確性については専門家（中小企業診断士・税理士・行政書士等）や事務局に確認してください。
+    </div>
+  </section>
+
+  <footer>Chaos AI Suite プロトタイプ — 補助金申請書AI「メグミちゃん」</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   補助金種別ごとの申請書テンプレート定義
+   sections: 見出しと、入力値を差し込んで文章を組み立てる関数
+   ========================================================= */
+const SUBSIDIES = [
+  {
+    key:"jizokuka",
+    name:"小規模事業者持続化補助金",
+    desc:"販路開拓・生産性向上の取組を支援。汎用性が高く個人事業主にも使いやすい。",
+    sections:[
+      { title:"1. 企業概要", build:(d)=>
+        `${d.bizName}は${d.industry}を営む事業者である。主な事業内容は「${d.bizContent}」であり、地域の顧客ニーズに応える形で事業を継続してきた。` },
+      { title:"2. 顧客ニーズと市場の動向", build:(d)=>
+        `近年、${d.industry}の分野では顧客ニーズの多様化と競争環境の変化が進んでいる。こうした中、当社は既存事業の強みを活かしつつ、新たな価値提供が求められている。` },
+      { title:"3. 自社の強み", build:(d)=>
+        `当社は「${d.bizContent}」において培ったノウハウを強みとしている。一方で、現状は「${d.issue}」という課題を抱えており、この解決が今後の成長に不可欠である。` },
+      { title:"4. 経営方針・目標と今後のプラン", build:(d)=>
+        `上記課題を踏まえ、当社は「${d.goal}」ことを目標に掲げる。${d.numbers ? `具体的には${d.numbers}を目指す。` : ""}` },
+      { title:"5. 補助事業で行う事業の内容", build:(d)=>
+        `本補助事業では「${d.goal}」を実現するための取組を実施する。${d.budget ? `事業規模は${d.budget}を想定している。` : ""}` },
+      { title:"6. 補助事業の効果", build:(d)=>
+        `本事業の実施により、${d.issue.replace(/。$/,"")}という課題が解消され、${d.numbers ? d.numbers + "の効果が見込まれる。" : "販路拡大・生産性向上につながる効果が見込まれる。"}` },
+    ]
+  },
+  {
+    key:"it",
+    name:"IT導入補助金",
+    desc:"ITツール導入による生産性向上を支援。SaaS・システム導入向け。",
+    sections:[
+      { title:"1. 導入の背景・現状の課題", build:(d)=>
+        `${d.bizName}（${d.industry}）では、「${d.issue}」という課題を抱えている。従来の業務プロセスでは対応に限界があり、ITツールの活用による解決が必要と考えている。` },
+      { title:"2. 事業内容", build:(d)=>
+        `当社の主な事業内容は「${d.bizContent}」である。この事業を支える基盤として、業務効率化のためのITツール導入を検討している。` },
+      { title:"3. 導入するITツールの概要・活用方法", build:(d)=>
+        `本事業では「${d.goal}」を目的としたITツールを導入する。導入後は業務フローに組み込み、日常業務での活用を徹底する。` },
+      { title:"4. 導入による効果（生産性向上）", build:(d)=>
+        `ITツール導入により、${d.numbers ? d.numbers + "の効果を見込む。" : "業務時間の削減・生産性向上が期待される。"}${d.budget ? ` 導入費用は${d.budget}を想定している。` : ""}` },
+      { title:"5. 実施体制", build:(d)=>
+        `本事業は${d.bizName}内の担当者が中心となり、必要に応じてITベンダーの支援を受けながら導入・運用を進める体制とする。` },
+    ]
+  },
+  {
+    key:"monodukuri",
+    name:"ものづくり補助金",
+    desc:"革新的な設備投資・試作開発を支援。製造業・サービス業の設備投資向け。",
+    sections:[
+      { title:"1. 事業計画名（案）", build:(d)=>
+        `${d.goal.length > 20 ? d.goal.slice(0,20) + "…" : d.goal}\n─ ${d.industry}における生産性向上事業` },
+      { title:"2. 現状の課題", build:(d)=>
+        `${d.bizName}は「${d.bizContent}」を行っているが、現在「${d.issue}」という課題に直面している。市場環境の変化に対応するためには、抜本的な設備・体制の刷新が必要である。` },
+      { title:"3. 革新的な取組の具体的内容", build:(d)=>
+        `本事業では「${d.goal}」ことを目的とした設備投資・新たな取組を実施する。${d.budget ? `事業規模は${d.budget}を予定している。` : ""}` },
+      { title:"4. 課題解決の方法", build:(d)=>
+        `導入する設備・仕組みにより、従来「${d.issue}」であった状態を解消し、生産工程・提供体制の効率化を図る。` },
+      { title:"5. 補助事業の効果（数値目標）", build:(d)=>
+        `本事業により、${d.numbers ? d.numbers + "を達成目標とする。" : "付加価値額・生産性の向上を数値目標として設定する。"}併せて、給与支給総額の向上にも寄与する計画である。` },
+    ]
+  },
+  {
+    key:"saikouchiku",
+    name:"事業再構築補助金",
+    desc:"新分野展開・業態転換など思い切った事業再構築を支援。",
+    sections:[
+      { title:"1. 事業再構築の必要性", build:(d)=>
+        `${d.bizName}はこれまで「${d.bizContent}」を営んできたが、「${d.issue}」という構造的な課題に直面しており、事業モデルの再構築が急務となっている。` },
+      { title:"2. 事業再構築の具体的内容", build:(d)=>
+        `本事業では「${d.goal}」ことにより、新たな事業領域への展開を図る。${d.budget ? `総事業費は${d.budget}を想定している。` : ""}` },
+      { title:"3. 市場性・優位性", build:(d)=>
+        `${d.industry}分野における当社のこれまでの実績・ノウハウを活かすことで、新事業においても優位性を発揮できると考える。` },
+      { title:"4. 事業化に向けた計画", build:(d)=>
+        `本事業の実施を通じて、${d.numbers ? d.numbers + "を数値目標とする。" : "売上・収益基盤の確立を目指す。"}` },
+    ]
+  },
+];
+
+let selectedSubsidy = SUBSIDIES[0].key;
+
+/* 補助金カードを描画 */
+function renderSubsidyCards(){
+  const root = document.getElementById("subsidyCards");
+  root.innerHTML = "";
+  SUBSIDIES.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "subsidy-card" + (s.key === selectedSubsidy ? " selected" : "");
+    el.innerHTML = `<div class="name">${s.name}</div><div class="desc">${s.desc}</div>`;
+    el.addEventListener("click", () => {
+      selectedSubsidy = s.key;
+      renderSubsidyCards();
+    });
+    root.appendChild(el);
+  });
+}
+renderSubsidyCards();
+
+/* 入力値を集める */
+function collectInput(){
+  return {
+    bizName:  document.getElementById("bizName").value.trim(),
+    industry: document.getElementById("industry").value.trim(),
+    bizContent: document.getElementById("bizContent").value.trim(),
+    issue:    document.getElementById("issue").value.trim(),
+    goal:     document.getElementById("goal").value.trim(),
+    numbers:  document.getElementById("numbers").value.trim(),
+    budget:   document.getElementById("budget").value.trim(),
+  };
+}
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+/* 下書き生成 */
+document.getElementById("genBtn").addEventListener("click", () => {
+  const d = collectInput();
+  const required = ["bizName","industry","bizContent","issue","goal"];
+  const missing = required.filter(k => !d[k]);
+  if(missing.length){
+    toast("必須項目（*）を入力してください");
+    return;
+  }
+
+  const subsidy = SUBSIDIES.find(s => s.key === selectedSubsidy);
+  const root = document.getElementById("draftBlocks");
+  root.innerHTML = "";
+  subsidy.sections.forEach(sec => {
+    const block = document.createElement("div");
+    block.className = "draft-block";
+    block.innerHTML = `<h3>${sec.title}</h3><div class="content" contenteditable="true">${sec.build(d)}</div>`;
+    root.appendChild(block);
+  });
+
+  document.getElementById("output").style.display = "block";
+  document.getElementById("output").scrollIntoView({ behavior:"smooth", block:"start" });
+});
+
+/* 全文コピー */
+document.getElementById("copyBtn").addEventListener("click", async () => {
+  const blocks = document.querySelectorAll("#draftBlocks .draft-block");
+  const text = Array.from(blocks).map(b =>
+    b.querySelector("h3").textContent + "\n" + b.querySelector(".content").innerText
+  ).join("\n\n");
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("コピーしました");
+  }catch(e){
+    toast("コピーに失敗しました");
+  }
+});
+
+/* テキストダウンロード */
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  const blocks = document.querySelectorAll("#draftBlocks .draft-block");
+  const text = Array.from(blocks).map(b =>
+    b.querySelector("h3").textContent + "\n" + b.querySelector(".content").innerText
+  ).join("\n\n");
+  const bizName = document.getElementById("bizName").value.trim() || "draft";
+  const blob = new Blob([text], { type:"text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `補助金申請書下書き_${bizName}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
