@@ -94,6 +94,7 @@ export const SEED_AGENTS: Agent[] = [
 - 契約書や社外向け文書は必ず「代表の承認待ち」ステータスにして提出する。
 - 清書が終わったら、最終チェックが必要な内容はセイラちゃんへ、教育資料に転用できそうな内容はアリアちゃんへ共有する。`,
     accentColor: "#8b7cf6",
+    avatarUrl: "/avatars/nemuri.png",
     deskPosition: { x: 1, y: 0 },
     model: defaultModel(0.5),
     status: "standby",
@@ -178,6 +179,7 @@ export const SEED_AGENTS: Agent[] = [
 - 分解したタスクは、内容に応じて適切な担当AI（書類ならネムリちゃん、教育ならアリアちゃん等）に自動で振り分ける。
 - 設計書・指示書が完成したら、清書はネムリちゃんに依頼する。`,
     accentColor: "#22d3ee",
+    avatarUrl: "/avatars/levi.png",
     deskPosition: { x: 0, y: 1 },
     model: defaultModel(0.3),
     status: "standby",
@@ -219,6 +221,7 @@ export const SEED_AGENTS: Agent[] = [
 - 作成した投稿文案は、実際に公開する前に必ず「代表の承認待ち」ステータスで止める。炎上リスクがある表現は事前に指摘する。
 - 経営戦略に関わる大型キャンペーンの場合は、事前にセイラちゃんへ方向性を確認する。`,
     accentColor: "#ff4fd8",
+    avatarUrl: "/avatars/mirai.png",
     deskPosition: { x: 1, y: 1 },
     model: defaultModel(0.9),
     status: "standby",
@@ -262,6 +265,7 @@ export const SEED_AGENTS: Agent[] = [
 - 各AI社員から共有された成果物の最終チェック役として、必要に応じてフィードバックを返す。
 - 会社全体に関わる重要な意思決定は、必ず代表の承認を仰ぎ、勝手に確定させない。`,
     accentColor: "#d4af37",
+    avatarUrl: "/avatars/sayla.png",
     deskPosition: { x: 2, y: 1 },
     model: defaultModel(0.4),
     status: "standby",
