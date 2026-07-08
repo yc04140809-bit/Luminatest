@@ -130,7 +130,7 @@ curl -X POST http://localhost:4000/api/directives \
 | ツール | 必要な値 | 備考 |
 | --- | --- | --- |
 | Notion保存（ネムリ） | `NOTION_API_KEY` `NOTION_DATABASE_ID` | Integrationを対象データベースに共有しておく |
-| Google Drive保存（ネムリ） | `GOOGLE_SERVICE_ACCOUNT_EMAIL` `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` `GOOGLE_DRIVE_FOLDER_ID` | 保存先フォルダをサービスアカウントのメールアドレスと共有しておく |
+| Google Drive保存（ネムリ） | `GOOGLE_SERVICE_ACCOUNT_EMAIL` `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` `GOOGLE_DRIVE_FOLDER_ID` | 保存先フォルダをサービスアカウントのメールアドレスと共有しておく。**個人のGmailアカウントの通常フォルダでは`storageQuotaExceeded`エラーになり保存できない**（サービスアカウント自体のDrive容量は0GBのため）。共有ドライブ（Google Workspaceの機能）の`driveId`を使う実装への変更が必要 |
 | Googleカレンダー登録（セイラ） | 上記Google2点 + `GOOGLE_CALENDAR_ID` | 対象カレンダーもサービスアカウントと共有しておく |
 | Slack通知（セイラ） | `SLACK_WEBHOOK_URL` | Incoming Webhookを作成して発行されるURL |
 | X (Twitter) 投稿（ミライ） | `TWITTER_API_KEY` `TWITTER_API_SECRET` `TWITTER_ACCESS_TOKEN` `TWITTER_ACCESS_TOKEN_SECRET` | **単体のBearer Token（App-onlyトークン）では投稿できない**。ユーザーコンテキストのOAuth 1.0aクレデンシャル4点が必要（X Developer Portalでアプリに投稿権限を与えたうえでAccess Token/Secretを発行する） |
