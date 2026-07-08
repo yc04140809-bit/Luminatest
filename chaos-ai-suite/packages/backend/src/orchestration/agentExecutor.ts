@@ -25,6 +25,19 @@ export function statusForOutputType(outputType: TaskOutputType): AgentStatus {
   return WRITING_OUTPUT_TYPES.includes(outputType) ? "writing" : "thinking";
 }
 
+/** 「来週月曜」等の相対日付表現をAIが正しく解決できるよう、現在の日本時間を明示する。 */
+function currentDateTimeText(): string {
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date());
+}
+
 function describeTools(tools: ToolDefinition[]): string {
   if (tools.length === 0) return "（利用できる外部ツールはありません）";
   return tools
@@ -65,7 +78,10 @@ export async function executeAgentTask(params: {
     .map((handoff) => `${handoff.fromAgentId} → ${handoff.toAgentId}${handoff.note ? `（${handoff.note}）` : ""}`)
     .join("\n");
 
-  const userPrompt = `# タスク
+  const userPrompt = `# 現在日時（日本時間）
+${currentDateTimeText()}
+
+# タスク
 タイトル: ${task.title}
 内容: ${task.description}
 優先度: ${task.priority}
@@ -87,7 +103,8 @@ ${describeTools(availableTools)}
 - request_approval: 代表（人間）の最終承認が必要な重要な成果物（外部ツールを使わないもの。契約書の最終確認など）
 - tool_call: 上記の外部ツールを使って実際にNotion保存・SNS投稿・カレンダー登録等を行うべき場合。
   toolIdとtoolInput（そのツールの入力項目に沿ったオブジェクト）を指定すること。
-  ツール実行は必ず代表の承認を経てから行われるため、ここでは「申請」するだけでよい。`;
+  ツール実行は必ず代表の承認を経てから行われるため、ここでは「申請」するだけでよい。
+  「来週月曜」「明日」等の相対的な日付表現は、冒頭の「現在日時」を基準に正確な日付へ変換すること。`;
 
   return llm.callTool<ExecutionResult>({
     systemPrompt: agent.systemPrompt,
