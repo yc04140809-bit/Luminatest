@@ -72,9 +72,14 @@ ${instruction}
   return result.content;
 }
 
+const BULLET_PREFIX = /^[-*・]|^\d+[.)]/;
+
+/** 箇条書き行のみを抽出する。頭に「ありがとうございます」等の前置き文（マーカーなし）は捨てる。 */
 function parseBulletList(text: string): string[] {
   return text
     .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => BULLET_PREFIX.test(line))
     .map((line) => line.replace(/^[-*・\d.)\s]+/, "").trim())
     .filter(Boolean);
 }
