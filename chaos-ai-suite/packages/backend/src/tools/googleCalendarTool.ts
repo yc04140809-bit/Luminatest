@@ -58,7 +58,7 @@ export const googleCalendarTool: ToolExecutor = {
 
     const body = (await response.json()) as { htmlLink?: string };
     return {
-      summary: `Googleカレンダーに「${title}」を登録しました（${startAt.toLocaleString("ja-JP")}）。${body.htmlLink ?? ""}`.trim(),
+      summary: `Googleカレンダーに「${title}」を登録しました（${startAt.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}）。${body.htmlLink ?? ""}`.trim(),
       data: body,
     };
   },
