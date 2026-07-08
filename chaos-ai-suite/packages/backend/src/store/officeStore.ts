@@ -245,6 +245,15 @@ export class OfficeStore {
     this.emit({ type: "message_created", message });
     return message;
   }
+
+  getLastBriefingDate(): string | undefined {
+    return this.state.lastBriefingDate;
+  }
+
+  recordBriefing(date: string): void {
+    this.state.lastBriefingDate = date;
+    this.emit({ type: "briefing_completed", date });
+  }
 }
 
 export const officeStore = new OfficeStore();

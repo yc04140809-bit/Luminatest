@@ -29,6 +29,8 @@ export interface OfficeState {
   theme: ThemeSettings;
   /** 自律型・戦略経営会議のセッション記録（フェーズ・発言ログ・議事録・提案） */
   strategyMeetings: Record<string, StrategyMeeting>;
+  /** 朝会ブリーフィングを最後に実施した日付（"YYYY-MM-DD"、日本時間）。未実施ならundefined。 */
+  lastBriefingDate?: string;
   lastUpdated: string;
 }
 
@@ -42,4 +44,5 @@ export type OfficeEvent =
   | { type: "meeting_ended"; meetingId: string }
   | { type: "theme_updated"; theme: ThemeSettings }
   | { type: "strategy_meeting_updated"; meeting: StrategyMeeting }
+  | { type: "briefing_completed"; date: string }
   | { type: "office_state_snapshot"; state: OfficeState };

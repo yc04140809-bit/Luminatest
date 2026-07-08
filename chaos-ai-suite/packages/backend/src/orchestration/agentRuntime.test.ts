@@ -77,6 +77,10 @@ function createStubLlm(): LlmClient {
         }
       }
 
+      if (request.toolName === "submit_risk_review") {
+        return { hasConcern: false, content: "" } as T;
+      }
+
       throw new Error(`unexpected tool call in stub: ${request.toolName}`);
     },
   };
@@ -292,4 +296,62 @@ test("executeApprovedToolCall marks the task blocked when the tool throws", asyn
   assert.equal(result?.status, "blocked");
   assert.equal(result?.pendingToolCall, undefined);
   assert.ok(store.listMessages().some((m) => m.type === "system_log" && m.content.includes("network unreachable")));
+});
+
+function stubLlmWithRiskReview(hasConcern: boolean): LlmClient {
+  return {
+    async callTool<T>(request: ToolCallRequest): Promise<T> {
+      if (request.toolName === "record_task_plan") {
+        return {
+          meetingSummary: "1件のタスクに分解しました。",
+          subtasks: [
+            {
+              title: "SNSキャンペーンの実施",
+              description: "過去に炎上した施策と似た内容のキャンペーンを打つ",
+              outputType: "sns_post",
+              assignedAgentId: "agent-mirai",
+              priority: "high",
+              requiresApprovalHint: true,
+            },
+          ],
+        } as T;
+      }
+      if (request.toolName === "submit_risk_review") {
+        return (
+          hasConcern
+            ? { hasConcern: true, content: "以前似た施策で炎上したので再検討を推奨します。" }
+            : { hasConcern: false, content: "" }
+        ) as T;
+      }
+      if (request.toolName === "submit_task_result") {
+        return { output: "（投稿文案）", action: "request_approval", note: "確認をお願いします。" } as T;
+      }
+      throw new Error(`unexpected tool call in stub: ${request.toolName}`);
+    },
+  };
+}
+
+test("risk reviewer posts an unsolicited pushback message when it has a genuine concern", async () => {
+  const store = new OfficeStore();
+  const runtime = createAgentRuntime(store, stubLlmWithRiskReview(true), emptyToolRegistry());
+
+  await runtime.dispatchDirective("過去に炎上した施策と似たSNSキャンペーンをやりたい");
+
+  const pushback = store.listMessages().find((m) => m.type === "pushback");
+  assert.ok(pushback, "should post a pushback message when the reviewer has a concern");
+  assert.equal(pushback?.fromAgentId, "agent-chaos");
+  assert.ok(pushback?.content.includes("炎上"));
+
+  // 物申しはあくまで助言であり、タスクの生成・実行自体は止めない
+  assert.equal(store.listTasks().length, 1);
+});
+
+test("risk reviewer stays silent (no pushback message) when it has no concern", async () => {
+  const store = new OfficeStore();
+  const runtime = createAgentRuntime(store, stubLlmWithRiskReview(false), emptyToolRegistry());
+
+  await runtime.dispatchDirective("特に問題のなさそうな指示");
+
+  assert.equal(store.listMessages().some((m) => m.type === "pushback"), false);
+  assert.equal(store.listTasks().length, 1);
 });

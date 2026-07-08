@@ -10,11 +10,15 @@ import { directiveRoutes } from "./routes/directives.js";
 import { themeRoutes } from "./routes/theme.js";
 import { secretsRoutes } from "./routes/secrets.js";
 import { meetingRoutes } from "./routes/meetings.js";
+import { briefingRoutes } from "./routes/briefing.js";
+import { banterRoutes } from "./routes/banter.js";
 import { registerOfficeSocket } from "./ws/officeSocket.js";
 import { officeStore } from "./store/officeStore.js";
 import { createAnthropicClient } from "./orchestration/llmClient.js";
 import { createAgentRuntime } from "./orchestration/agentRuntime.js";
 import { createMeetingRuntime } from "./orchestration/meetingRuntime.js";
+import { createMorningBriefingRuntime } from "./orchestration/morningBriefing.js";
+import { createOfficeBanterRuntime } from "./orchestration/officeBanter.js";
 import { buildToolRegistry } from "./tools/index.js";
 
 async function main(): Promise<void> {
@@ -27,6 +31,8 @@ async function main(): Promise<void> {
   const llm = createAnthropicClient(() => secretsStore.get("ANTHROPIC_API_KEY"));
   const runtime = createAgentRuntime(officeStore, llm, toolRegistry);
   const meetingRuntime = createMeetingRuntime(officeStore, llm);
+  const briefingRuntime = createMorningBriefingRuntime(officeStore, llm);
+  const banterRuntime = createOfficeBanterRuntime(officeStore, llm);
 
   app.get("/api/health", async () => ({ status: "ok", service: "chaos-ai-suite-backend" }));
 
@@ -37,6 +43,8 @@ async function main(): Promise<void> {
   await app.register(themeRoutes);
   await app.register(secretsRoutes);
   await app.register(meetingRoutes(meetingRuntime));
+  await app.register(briefingRoutes(briefingRuntime));
+  await app.register(banterRoutes(banterRuntime));
   await app.register(registerOfficeSocket);
 
   await app.listen({ port: env.port, host: env.host });

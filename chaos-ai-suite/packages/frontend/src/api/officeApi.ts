@@ -86,3 +86,13 @@ export function clearSecret(key: string): Promise<void> {
 export function startMeeting(topic: string): Promise<void> {
   return sendJson("POST", "/api/meetings", { topic });
 }
+
+/** 朝会ブリーフィングを実行する。本日実施済みの場合はエラーになる。 */
+export function postBriefing(): Promise<void> {
+  return sendJson("POST", "/api/briefing", {});
+}
+
+/** オフィス雑談タイムを開始する。既に進行中の場合はエラーになる。 */
+export function postBanter(): Promise<void> {
+  return sendJson("POST", "/api/banter", {});
+}

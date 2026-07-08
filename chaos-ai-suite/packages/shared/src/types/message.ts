@@ -12,7 +12,10 @@ export type MessageType =
   | "status_update" // ステータス変化の共有
   | "approval_request" // 代表への承認依頼
   | "directive" // 代表からの指示
-  | "system_log"; // システムログ（エラー等）
+  | "system_log" // システムログ（エラー等）
+  | "briefing" // 朝会ブリーフィング（セイラちゃんによる日次ダイジェスト）
+  | "banter" // オフィス雑談タイム（業務外の軽い会話）
+  | "pushback"; // AI社員からの自発的な物申し（リスク・懸念の指摘）
 
 /**
  * 社内チャット（Slack/Discord風ログ）の1メッセージ。

@@ -1,7 +1,8 @@
 import type { OfficeStore } from "../store/officeStore.js";
 import type { ToolRegistry } from "../tools/toolRegistry.js";
 import { executeAgentTask, statusForOutputType } from "./agentExecutor.js";
-import { decomposeDirective } from "./taskDecomposer.js";
+import { decomposeDirective, type DecompositionPlan } from "./taskDecomposer.js";
+import { reviewDirectiveRisk } from "./riskReview.js";
 import type { LlmClient } from "./llmClient.js";
 
 /** 同一タスクが引き継がれ続けることによる無限ループを防ぐ上限。 */
@@ -10,6 +11,8 @@ const MAX_HANDOFFS = 6;
 /** タスク分解の作戦会議を主催する2名（固定シードのID）。 */
 const STRATEGIST_ID = "agent-sayla";
 const ARCHITECT_ID = "agent-levi";
+/** 自発的なリスクレビュー（物申し機能）を担当するAI社員。 */
+const RISK_REVIEWER_ID = "agent-chaos";
 
 export interface AgentRuntime {
   /** 代表からの大雑把な指示を受けてタスク分解〜実行パイプラインを開始する */
@@ -200,6 +203,41 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient, toolRegis
     await runTask(taskId, hops + 1);
   }
 
+  /**
+   * リスク担当AI社員（ケイオスちゃん）による自発的な物申し。
+   * あくまで助言であり、タスクの実行を止めない。懸念がなければ何も投稿しない。
+   * レビュー自体が失敗しても本来のディスパッチ処理には影響させない。
+   */
+  async function runRiskReviewIfAvailable(directive: string, plan: DecompositionPlan): Promise<void> {
+    const reviewer = store.getAgent(RISK_REVIEWER_ID);
+    if (!reviewer || !reviewer.enabled) return;
+
+    const planSummary = `${plan.meetingSummary}\n\nタスク一覧:\n${plan.subtasks
+      .map((subtask) => `- ${subtask.title}`)
+      .join("\n")}`;
+
+    try {
+      const review = await reviewDirectiveRisk({
+        reviewer,
+        directive,
+        planSummary,
+        recentMessages: store.listMessages(30),
+        roster: store.listAgents(),
+        llm,
+      });
+      if (review.hasConcern) {
+        store.postMessage({
+          channel: "general",
+          fromAgentId: reviewer.id,
+          type: "pushback",
+          content: review.content,
+        });
+      }
+    } catch {
+      // 物申し機能はあくまで付加価値のため、失敗しても本来のディスパッチ処理は継続する
+    }
+  }
+
   async function dispatchDirective(directive: string): Promise<void> {
     store.postMessage({
       channel: "command_center",
@@ -253,6 +291,8 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient, toolRegis
       type: "chat",
       content: plan.meetingSummary,
     });
+
+    await runRiskReviewIfAvailable(directive, plan);
 
     const createdTaskIds: string[] = [];
     for (const subtask of plan.subtasks) {

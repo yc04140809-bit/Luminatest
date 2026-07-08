@@ -11,6 +11,9 @@ import { SettingsPanel } from "./components/SettingsPanel.js";
 import { ToolApprovalModal } from "./components/ToolApprovalModal.js";
 import { MeetingLauncher } from "./components/MeetingLauncher.js";
 import { MeetingRoom } from "./components/MeetingRoom.js";
+import { BanterLauncher } from "./components/BanterLauncher.js";
+import { postBriefing } from "./api/officeApi.js";
+import { todayInTokyo } from "./utils/dateUtil.js";
 
 const STATUS_LABEL = {
   connecting: "接続中...",
@@ -26,7 +29,17 @@ export default function App() {
   const seenToolCallIds = useRef<Set<string>>(new Set());
   const [meetingRoomOpen, setMeetingRoomOpen] = useState(false);
   const seenMeetingIds = useRef<Set<string>>(new Set());
+  const briefingRequested = useRef(false);
   useApplyTheme(office?.theme);
+
+  useEffect(() => {
+    if (!office || briefingRequested.current) return;
+    if (office.lastBriefingDate === todayInTokyo()) return;
+    briefingRequested.current = true;
+    postBriefing().catch(() => {
+      // 本日実施済み（他タブ等）や一時的な失敗はここでは無視する。手動実行の導線は今後の課題。
+    });
+  }, [office]);
 
   useEffect(() => {
     if (!office) return;
@@ -128,6 +141,7 @@ export default function App() {
 
         <div className="flex flex-col gap-6">
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
+          <BanterLauncher />
           <CommandCenter agents={agents} prefillTargetId={mentionTarget} />
           <ApprovalQueue tasks={pendingApprovalTasks} agents={office.agents} />
         </div>

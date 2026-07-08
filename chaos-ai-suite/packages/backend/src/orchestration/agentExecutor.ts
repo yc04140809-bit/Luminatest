@@ -1,5 +1,6 @@
 import type { Agent, AgentStatus, Task, TaskOutputType, ToolDefinition } from "@chaos-ai-suite/shared";
 import type { LlmClient } from "./llmClient.js";
+import { currentDateTimeText } from "./dateUtil.js";
 
 /** 1タスク実行の結果。成果物本文と、次に取るべきアクションの判断。 */
 export interface ExecutionResult {
@@ -23,19 +24,6 @@ const WRITING_OUTPUT_TYPES: TaskOutputType[] = [
 /** オフィスビューのステータスアイコンを成果物タイプから決める（📝 vs 🤔）。 */
 export function statusForOutputType(outputType: TaskOutputType): AgentStatus {
   return WRITING_OUTPUT_TYPES.includes(outputType) ? "writing" : "thinking";
-}
-
-/** 「来週月曜」等の相対日付表現をAIが正しく解決できるよう、現在の日本時間を明示する。 */
-function currentDateTimeText(): string {
-  return new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date());
 }
 
 function describeTools(tools: ToolDefinition[]): string {

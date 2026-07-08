@@ -19,6 +19,9 @@ const TYPE_STYLE: Record<Message["type"], string> = {
   approval_request: "border-amber-500/60 bg-amber-500/5",
   directive: "border-office-gold/60 bg-office-gold/5",
   system_log: "border-red-500/50 bg-red-500/5",
+  briefing: "border-sky-500/50 bg-sky-500/5",
+  banter: "border-pink-500/40 bg-pink-500/5",
+  pushback: "border-orange-500/60 bg-orange-500/10",
 };
 
 export function MessageBubble({ message, agents }: MessageBubbleProps) {
@@ -38,7 +41,9 @@ export function MessageBubble({ message, agents }: MessageBubbleProps) {
         {toName && <span>→ {toName}</span>}
         <span className="ml-auto">{time}</span>
       </div>
-      <p className="mt-1 whitespace-pre-wrap text-sm text-office-text">{message.content}</p>
+      <p className={`mt-1 whitespace-pre-wrap text-sm text-office-text ${message.type === "banter" ? "italic" : ""}`}>
+        {message.content}
+      </p>
     </div>
   );
 }
