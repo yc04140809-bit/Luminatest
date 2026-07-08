@@ -150,7 +150,7 @@ test("runTask stops after MAX_HANDOFFS to avoid infinite handoff loops", async (
         } as T;
       }
       // 常にネムリ⇔アリアの間でハンドオフし続ける
-      const toAria = request.systemPrompt.includes("ネムリちゃん");
+      const toAria = request.systemPrompt.includes("ネムリ");
       return {
         output: "（作業中）",
         action: "handoff",

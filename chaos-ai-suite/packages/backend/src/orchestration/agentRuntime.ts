@@ -204,7 +204,7 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient, toolRegis
   }
 
   /**
-   * リスク担当AI社員（ケイオスちゃん）による自発的な物申し。
+   * リスク担当AI社員（ケイオス）による自発的な物申し。
    * あくまで助言であり、タスクの実行を止めない。懸念がなければ何も投稿しない。
    * レビュー自体が失敗しても本来のディスパッチ処理には影響させない。
    */
@@ -249,7 +249,7 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient, toolRegis
     const strategist = store.getAgent(STRATEGIST_ID);
     const architect = store.getAgent(ARCHITECT_ID);
     if (!strategist || !architect) {
-      throw new Error("セイラちゃん / レヴィちゃんが見つかりません。エージェント構成を確認してください。");
+      throw new Error("セイラ / レヴィが見つかりません。エージェント構成を確認してください。");
     }
 
     const meeting = store.startMeeting({

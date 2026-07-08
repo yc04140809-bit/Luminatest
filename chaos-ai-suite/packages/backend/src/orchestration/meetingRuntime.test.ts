@@ -5,9 +5,9 @@ import { createMeetingRuntime } from "./meetingRuntime.js";
 import { OfficeStore } from "../store/officeStore.js";
 
 /**
- * 決定論的なスタブLLM。各エージェントのsystemPromptは冒頭で必ず「あなたは「XXちゃん」、...」と
+ * 決定論的なスタブLLM。各エージェントのsystemPromptは冒頭で必ず「あなたは「XX」、...」と
  * 自己紹介するので、その厳密なフレーズで発言者を特定する（単純な部分一致だと、他エージェントへの
- * 言及—例えば全員の振る舞いルールに登場する「セイラちゃんへ報告する」等—と誤マッチしてしまうため）。
+ * 言及—例えば全員の振る舞いルールに登場する「セイラへ報告する」等—と誤マッチしてしまうため）。
  */
 function createStubLlm(options?: { failOn?: (speakerName: string) => boolean }): LlmClient {
   function speakerName(systemPrompt: string): string {
@@ -23,20 +23,20 @@ function createStubLlm(options?: { failOn?: (speakerName: string) => boolean }):
         throw new Error("stub llm failure");
       }
       switch (name) {
-        case "セイラちゃん":
+        case "セイラ":
           if (request.userPrompt.includes("最終提案")) {
             return { content: "代表、会議の結果、以下のプランを提案します。（テスト提案）" } as T;
           }
           return { content: "会議の目的を定義しました。皆さん意見をお願いします。" } as T;
-        case "レヴィちゃん":
+        case "レヴィ":
           return { content: "開発視点の意見です。" } as T;
-        case "ミライちゃん":
+        case "ミライ":
           return { content: "拡散・トレンド視点の意見です。" } as T;
-        case "ケイオスちゃん":
+        case "ケイオス":
           return { content: "リスク・顧客対応視点の意見です。" } as T;
-        case "ネムリちゃん":
+        case "ネムリ":
           return { content: "議事録: 3名から意見が出ました。" } as T;
-        case "アリアちゃん":
+        case "アリア":
           return { content: "- タスク1を実施する\n- タスク2を実施する\n- タスク3を実施する" } as T;
         default:
           throw new Error(`unexpected speaker in stub: ${name}`);
@@ -125,7 +125,7 @@ test("a failure mid-discussion marks the meeting failed and resets all participa
   const store = new OfficeStore();
   const runtime = createMeetingRuntime(
     store,
-    createStubLlm({ failOn: (name) => name === "ミライちゃん" }),
+    createStubLlm({ failOn: (name) => name === "ミライ" }),
   );
 
   await runtime.startMeeting("失敗するはずのお題");
