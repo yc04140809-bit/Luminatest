@@ -1,26 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import type { Agent } from "@chaos-ai-suite/shared";
 import { postDirective } from "../api/officeApi.js";
 
 interface CommandCenterProps {
   agents: Agent[];
-  /** オフィスビューでデスクをクリックした際に、そのAI社員を宛先として反映する */
-  prefillTargetId?: string | null;
+  /** オフィスビューでデスクをクリックした際に、そのAI社員を宛先として反映する（nonceは同じ相手への再クリックでも毎回発火させるため） */
+  prefillTarget?: { agentId: string; nonce: number } | null;
 }
 
 const ALL_TARGET = "";
+const HIGHLIGHT_DURATION_MS = 1400;
 
 /** 代表からの全体指示・個別メンション指示を送るコマンドセンター。 */
-export function CommandCenter({ agents, prefillTargetId }: CommandCenterProps) {
+export function CommandCenter({ agents, prefillTarget }: CommandCenterProps) {
   const [directive, setDirective] = useState("");
   const [target, setTarget] = useState<string>(ALL_TARGET);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (prefillTargetId) setTarget(prefillTargetId);
-  }, [prefillTargetId]);
+    if (!prefillTarget) return;
+    setTarget(prefillTarget.agentId);
+    sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    textareaRef.current?.focus();
+    setHighlight(true);
+    const timer = setTimeout(() => setHighlight(false), HIGHLIGHT_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [prefillTarget]);
 
   async function handleSubmit(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -39,7 +49,12 @@ export function CommandCenter({ agents, prefillTargetId }: CommandCenterProps) {
   }
 
   return (
-    <section className="rounded-xl border border-office-border bg-office-panel p-4">
+    <section
+      ref={sectionRef}
+      className={`rounded-xl border bg-office-panel p-4 transition-colors duration-300 ${
+        highlight ? "border-office-gold ring-2 ring-office-gold/60" : "border-office-border"
+      }`}
+    >
       <h2 className="mb-3 font-display text-lg text-office-gold">コマンドセンター</h2>
       <form onSubmit={handleSubmit} className="space-y-3">
         <select
@@ -56,6 +71,7 @@ export function CommandCenter({ agents, prefillTargetId }: CommandCenterProps) {
         </select>
 
         <textarea
+          ref={textareaRef}
           value={directive}
           onChange={(event) => setDirective(event.target.value)}
           placeholder="例）新サービスを立ち上げたい / このクレーム対応どう思う？"

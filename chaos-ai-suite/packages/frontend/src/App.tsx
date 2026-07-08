@@ -23,7 +23,7 @@ const STATUS_LABEL = {
 
 export default function App() {
   const { office, status } = useOfficeSocket();
-  const [mentionTarget, setMentionTarget] = useState<string | null>(null);
+  const [mentionTarget, setMentionTarget] = useState<{ agentId: string; nonce: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toolApprovalTask, setToolApprovalTask] = useState<Task | null>(null);
   const seenToolCallIds = useRef<Set<string>>(new Set());
@@ -81,7 +81,7 @@ export default function App() {
   const latestMeeting = strategyMeetings[0];
 
   function handleMention(agent: Agent): void {
-    setMentionTarget(agent.id);
+    setMentionTarget({ agentId: agent.id, nonce: Date.now() });
   }
 
   return (
@@ -142,7 +142,7 @@ export default function App() {
         <div className="flex flex-col gap-6">
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
           <BanterLauncher />
-          <CommandCenter agents={agents} prefillTargetId={mentionTarget} />
+          <CommandCenter agents={agents} prefillTarget={mentionTarget} />
           <ApprovalQueue tasks={pendingApprovalTasks} agents={office.agents} />
         </div>
       </div>

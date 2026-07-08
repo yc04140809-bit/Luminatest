@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Pencil, Plus, Power, PowerOff, Trash2 } from "lucide-react";
 import type { Agent } from "@chaos-ai-suite/shared";
 import { deleteAgent, updateAgent } from "../api/officeApi.js";
 import { AgentEditorModal } from "./AgentEditorModal.js";
@@ -12,6 +12,7 @@ interface AgentManagerPanelProps {
 export function AgentManagerPanel({ agents }: AgentManagerPanelProps) {
   const [editingAgent, setEditingAgent] = useState<Agent | "new" | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function handleToggleEnabled(agent: Agent): Promise<void> {
     setBusyId(agent.id);
@@ -46,50 +47,79 @@ export function AgentManagerPanel({ agents }: AgentManagerPanelProps) {
       </div>
 
       <div className="space-y-2">
-        {agents.map((agent) => (
-          <div
-            key={agent.id}
-            className={`flex items-center gap-3 rounded-lg border border-office-border bg-office-bg px-3 py-2 ${
-              agent.enabled ? "" : "opacity-50"
-            }`}
-          >
-            <span
-              className="h-3 w-3 shrink-0 rounded-full"
-              style={{ backgroundColor: agent.accentColor }}
-              title={agent.accentColor}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-office-text">{agent.name}</p>
-              <p className="truncate text-xs text-office-muted">{agent.title}</p>
+        {agents.map((agent) => {
+          const expanded = expandedId === agent.id;
+          return (
+            <div
+              key={agent.id}
+              className={`rounded-lg border border-office-border bg-office-bg px-3 py-2 ${agent.enabled ? "" : "opacity-50"}`}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : agent.id)}
+                  title={expanded ? "詳細を閉じる" : "できることを見る"}
+                  className="shrink-0 text-office-muted hover:text-office-text"
+                >
+                  {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: agent.accentColor }}
+                  title={agent.accentColor}
+                />
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : agent.id)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <p className="truncate text-sm font-semibold text-office-text">{agent.name}</p>
+                  <p className="truncate text-xs text-office-muted">{agent.title}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleEnabled(agent)}
+                  disabled={busyId === agent.id}
+                  title={agent.enabled ? "無効化する" : "有効化する"}
+                  className="text-office-muted hover:text-office-text disabled:opacity-40"
+                >
+                  {agent.enabled ? <Power size={16} /> : <PowerOff size={16} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingAgent(agent)}
+                  title="編集"
+                  className="text-office-muted hover:text-office-text"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(agent)}
+                  disabled={busyId === agent.id}
+                  title="削除"
+                  className="text-office-muted hover:text-red-400 disabled:opacity-40"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+
+              {expanded && (
+                <div className="mt-2 border-t border-office-border pt-2 pl-6">
+                  <p className="mb-2 text-xs leading-relaxed text-office-muted">{agent.description}</p>
+                  <ul className="space-y-1">
+                    {agent.responsibilities.map((item) => (
+                      <li key={item} className="flex items-start gap-1.5 text-xs text-office-text">
+                        <Check size={12} className="mt-0.5 shrink-0 text-office-gold" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => handleToggleEnabled(agent)}
-              disabled={busyId === agent.id}
-              title={agent.enabled ? "無効化する" : "有効化する"}
-              className="text-office-muted hover:text-office-text disabled:opacity-40"
-            >
-              {agent.enabled ? <Power size={16} /> : <PowerOff size={16} />}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditingAgent(agent)}
-              title="編集"
-              className="text-office-muted hover:text-office-text"
-            >
-              <Pencil size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDelete(agent)}
-              disabled={busyId === agent.id}
-              title="削除"
-              className="text-office-muted hover:text-red-400 disabled:opacity-40"
-            >
-              <Trash2 size={16} />
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {editingAgent && (

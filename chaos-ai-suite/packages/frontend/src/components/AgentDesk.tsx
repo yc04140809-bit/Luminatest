@@ -83,7 +83,7 @@ export function AgentDesk({ agent, onMention, speechText }: AgentDeskProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow backdrop-blur-sm">
+      <div className="flex items-center gap-1 whitespace-nowrap rounded-full bg-black/70 px-2 py-0.5 text-[11px] font-semibold text-white shadow backdrop-blur-sm">
         <RoleIcon size={10} color={agent.accentColor} />
         {agent.name}
       </div>
