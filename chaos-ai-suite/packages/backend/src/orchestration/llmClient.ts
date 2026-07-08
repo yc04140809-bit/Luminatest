@@ -51,7 +51,8 @@ export function createAnthropicClient(getApiKey: () => string | undefined): LlmC
       const response = await anthropic.messages.create({
         model: request.model,
         max_tokens: request.maxTokens,
-        temperature: request.temperature,
+        // claude-sonnet-5以降は非デフォルトのtemperatureを送ると400になるため送らない。
+        // Agent.model.temperatureは将来的な他プロバイダ対応・UI表示用に型としては残す。
         system: request.systemPrompt,
         messages: [{ role: "user", content: request.userPrompt }],
         tools: [
