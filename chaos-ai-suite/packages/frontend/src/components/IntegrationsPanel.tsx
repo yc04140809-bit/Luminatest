@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Circle, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, Save, Trash2 } from "lucide-react";
 import { clearSecret, getSecretsStatus, setSecret, type SecretStatus } from "../api/officeApi.js";
 
 function groupByCategory(items: SecretStatus[]): Map<string, SecretStatus[]> {
@@ -92,6 +92,12 @@ function SecretField({ secret, onChanged }: SecretFieldProps) {
         )}
       </div>
       {error && <p className="text-[11px] text-red-400">{error}</p>}
+      {secret.knownLimitation && (
+        <p className="flex items-start gap-1 text-[11px] text-amber-400">
+          <AlertTriangle size={12} className="mt-0.5 shrink-0" />
+          <span>{secret.knownLimitation}</span>
+        </p>
+      )}
     </div>
   );
 }

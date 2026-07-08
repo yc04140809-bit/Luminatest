@@ -66,6 +66,8 @@ export interface SecretStatus {
   label: string;
   group: string;
   configured: boolean;
+  /** キーを設定しても既知の理由で機能が使えない場合の注記。 */
+  knownLimitation?: string;
 }
 
 export function getSecretsStatus(): Promise<SecretStatus[]> {

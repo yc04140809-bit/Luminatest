@@ -10,6 +10,8 @@ export interface SecretMeta {
   key: string;
   label: string;
   group: string;
+  /** キーを設定しても既知の理由で機能が使えない場合の注記（GUIに警告として表示）。 */
+  knownLimitation?: string;
 }
 
 /**
@@ -23,7 +25,14 @@ export const SECRET_DEFINITIONS: SecretMeta[] = [
   { key: "GOOGLE_SERVICE_ACCOUNT_EMAIL", label: "サービスアカウント メールアドレス", group: "Google" },
   { key: "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY", label: "サービスアカウント 秘密鍵（PEM形式）", group: "Google" },
   { key: "GOOGLE_CALENDAR_ID", label: "GoogleカレンダーID", group: "Google" },
-  { key: "GOOGLE_DRIVE_FOLDER_ID", label: "Google Drive 保存先フォルダID", group: "Google" },
+  {
+    key: "GOOGLE_DRIVE_FOLDER_ID",
+    label: "Google Drive 保存先フォルダID",
+    group: "Google",
+    knownLimitation:
+      "既知の制約: 個人のGmailアカウント（Google Workspace非契約）では、サービスアカウント自体のDrive容量が0GBのため" +
+      " storageQuotaExceeded エラーで保存できません。共有ドライブ（Workspace機能）対応の実装が必要です。",
+  },
   { key: "SLACK_WEBHOOK_URL", label: "Slack Incoming Webhook URL", group: "Slack" },
   { key: "TWITTER_API_KEY", label: "X (Twitter) API Key", group: "X (Twitter)" },
   { key: "TWITTER_API_SECRET", label: "X (Twitter) API Secret", group: "X (Twitter)" },
