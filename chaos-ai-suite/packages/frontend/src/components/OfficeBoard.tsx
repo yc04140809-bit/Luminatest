@@ -16,6 +16,11 @@ const BACKGROUND_BY_TIME = {
   night: "/office/office-night.png",
 } as const;
 
+/** 「接遇ガードAI担当」のような肩書きから「AI担当」を落として一言ラベルにする。 */
+function shortRole(title: string): string {
+  return title.replace(/AI担当$/, "");
+}
+
 /** オフィス写真（昼/夜を時間帯で自動切り替え）の上に、実際のデスク位置へAI社員を重ねるビュー。 */
 export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention }: OfficeBoardProps) {
   const timeOfDay = useTimeOfDay();
@@ -56,6 +61,16 @@ export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention 
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
+        {agents.map((agent) => (
+          <span key={agent.id} className="flex items-center gap-1 text-xs text-office-muted">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: agent.accentColor }} />
+            <span className="font-semibold text-office-text">{agent.name}</span>
+            {shortRole(agent.title)}
+          </span>
+        ))}
       </div>
     </section>
   );
