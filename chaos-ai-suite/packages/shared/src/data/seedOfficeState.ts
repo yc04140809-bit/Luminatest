@@ -12,6 +12,7 @@ export function buildSeedOfficeState(): OfficeState {
     activeMeetings: [],
     pendingApprovalTaskIds: [],
     theme: { ...DEFAULT_THEME_SETTINGS, overrides: {} },
+    strategyMeetings: {},
     lastUpdated: new Date().toISOString(),
   };
 }

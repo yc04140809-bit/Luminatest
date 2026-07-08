@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { AGENT_STATUS_ICON, AGENT_STATUS_LABEL, type Agent } from "@chaos-ai-suite/shared";
 import { getAgentIcon } from "../utils/agentIcons.js";
 import { ChibiAvatar } from "./ChibiAvatar.js";
+import { SpeechBubble } from "./SpeechBubble.js";
 
 interface AgentDeskProps {
   agent: Agent;
   onMention?: (agent: Agent) => void;
+  /** 戦略経営会議で現在この社員が発言中の場合、その発言内容（吹き出しにタイピング表示する） */
+  speechText?: string;
 }
 
 const ACTIVE_STATUSES: Agent["status"][] = ["thinking", "writing", "meeting", "reviewing"];
@@ -15,7 +18,7 @@ const SPARKLE_DURATION_MS = 1100;
  * オフィス背景写真に重ねる1AI社員分のフローティングバッジ。
  * 位置決めは呼び出し側（OfficeBoard）がDESK_ANCHORSに基づき絶対配置で行う。
  */
-export function AgentDesk({ agent, onMention }: AgentDeskProps) {
+export function AgentDesk({ agent, onMention, speechText }: AgentDeskProps) {
   const RoleIcon = getAgentIcon(agent.roleKey);
   const isActive = ACTIVE_STATUSES.includes(agent.status);
   const isMeeting = agent.status === "meeting";
@@ -43,6 +46,7 @@ export function AgentDesk({ agent, onMention }: AgentDeskProps) {
       title={`${agent.name}に個別メンション指示を出す`}
     >
       <div className="relative">
+        {speechText && <SpeechBubble text={speechText} accentColor={agent.accentColor} />}
         <div
           className={`relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 shadow-lg ${isActive ? "animate-pulse" : ""}`}
           style={{ borderColor: agent.accentColor, backgroundColor: `${agent.accentColor}33` }}

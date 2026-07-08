@@ -4,3 +4,4 @@ export * from "./message.js";
 export * from "./officeState.js";
 export * from "./theme.js";
 export * from "./tool.js";
+export * from "./meeting.js";

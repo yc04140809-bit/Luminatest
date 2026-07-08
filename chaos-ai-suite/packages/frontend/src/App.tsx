@@ -9,6 +9,8 @@ import { CommandCenter } from "./components/CommandCenter.js";
 import { ApprovalQueue } from "./components/ApprovalQueue.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { ToolApprovalModal } from "./components/ToolApprovalModal.js";
+import { MeetingLauncher } from "./components/MeetingLauncher.js";
+import { MeetingRoom } from "./components/MeetingRoom.js";
 
 const STATUS_LABEL = {
   connecting: "接続中...",
@@ -22,6 +24,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toolApprovalTask, setToolApprovalTask] = useState<Task | null>(null);
   const seenToolCallIds = useRef<Set<string>>(new Set());
+  const [meetingRoomOpen, setMeetingRoomOpen] = useState(false);
+  const seenMeetingIds = useRef<Set<string>>(new Set());
   useApplyTheme(office?.theme);
 
   useEffect(() => {
@@ -32,6 +36,14 @@ export default function App() {
     const unseen = pendingToolCalls.find((task) => !seenToolCallIds.current.has(task.id));
     if (unseen) setToolApprovalTask(unseen);
     for (const task of pendingToolCalls) seenToolCallIds.current.add(task.id);
+  }, [office]);
+
+  useEffect(() => {
+    if (!office) return;
+    const runningMeetings = Object.values(office.strategyMeetings).filter((meeting) => meeting.status === "running");
+    const unseen = runningMeetings.find((meeting) => !seenMeetingIds.current.has(meeting.id));
+    if (unseen) setMeetingRoomOpen(true);
+    for (const meeting of runningMeetings) seenMeetingIds.current.add(meeting.id);
   }, [office]);
 
   if (!office) {
@@ -48,6 +60,12 @@ export default function App() {
   const pendingApprovalTasks = office.pendingApprovalTaskIds
     .map((id) => office.tasks[id])
     .filter((task): task is NonNullable<typeof task> => Boolean(task));
+
+  const strategyMeetings = Object.values(office.strategyMeetings).sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+  );
+  const runningMeeting = strategyMeetings.find((meeting) => meeting.status === "running");
+  const latestMeeting = strategyMeetings[0];
 
   function handleMention(agent: Agent): void {
     setMentionTarget(agent.id);
@@ -91,15 +109,25 @@ export default function App() {
         />
       )}
 
+      {meetingRoomOpen && latestMeeting && (
+        <MeetingRoom meeting={latestMeeting} agents={office.agents} onClose={() => setMeetingRoomOpen(false)} />
+      )}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
-          <OfficeBoard agents={agents} activeMeetings={office.activeMeetings} onMention={handleMention} />
+          <OfficeBoard
+            agents={agents}
+            activeMeetings={office.activeMeetings}
+            runningMeeting={runningMeeting}
+            onMention={handleMention}
+          />
           <div className="h-[420px]">
             <ChatTimeline messages={office.messages} agents={office.agents} />
           </div>
         </div>
 
         <div className="flex flex-col gap-6">
+          <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
           <CommandCenter agents={agents} prefillTargetId={mentionTarget} />
           <ApprovalQueue tasks={pendingApprovalTasks} agents={office.agents} />
         </div>

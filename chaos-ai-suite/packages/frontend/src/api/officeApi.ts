@@ -79,3 +79,8 @@ export function setSecret(key: string, value: string): Promise<void> {
 export function clearSecret(key: string): Promise<void> {
   return sendDelete(`/api/secrets/${key}`);
 }
+
+/** 戦略経営会議を開始する。既に会議が進行中の場合はエラーになる。 */
+export function startMeeting(topic: string): Promise<void> {
+  return sendJson("POST", "/api/meetings", { topic });
+}

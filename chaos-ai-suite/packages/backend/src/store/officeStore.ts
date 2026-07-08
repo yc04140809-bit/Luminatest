@@ -6,8 +6,10 @@ import {
   type AgentDraft,
   type Message,
   type MessageDraft,
+  type MeetingStatement,
   type OfficeEvent,
   type OfficeState,
+  type StrategyMeeting,
   type Task,
   type TaskDraft,
   type ThemeSettings,
@@ -113,6 +115,56 @@ export class OfficeStore {
     if (index === -1) return;
     this.state.activeMeetings.splice(index, 1);
     this.emit({ type: "meeting_ended", meetingId: id });
+  }
+
+  listStrategyMeetings(): StrategyMeeting[] {
+    return Object.values(this.state.strategyMeetings);
+  }
+
+  getStrategyMeeting(id: string): StrategyMeeting | undefined {
+    return this.state.strategyMeetings[id];
+  }
+
+  createStrategyMeeting(input: { topic: string; participantAgentIds: string[] }): StrategyMeeting {
+    const now = new Date().toISOString();
+    const meeting: StrategyMeeting = {
+      id: `strategy-meeting-${randomUUID()}`,
+      topic: input.topic,
+      status: "running",
+      phase: "opening",
+      participantAgentIds: input.participantAgentIds,
+      statements: [],
+      startedAt: now,
+    };
+    this.state.strategyMeetings[meeting.id] = meeting;
+    this.emit({ type: "strategy_meeting_updated", meeting });
+    return meeting;
+  }
+
+  updateStrategyMeeting(id: string, patch: Partial<StrategyMeeting>): StrategyMeeting | undefined {
+    const existing = this.state.strategyMeetings[id];
+    if (!existing) return undefined;
+    const updated: StrategyMeeting = { ...existing, ...patch };
+    this.state.strategyMeetings[id] = updated;
+    this.emit({ type: "strategy_meeting_updated", meeting: updated });
+    return updated;
+  }
+
+  appendStrategyMeetingStatement(
+    id: string,
+    statement: Omit<MeetingStatement, "id" | "timestamp">,
+  ): StrategyMeeting | undefined {
+    const existing = this.state.strategyMeetings[id];
+    if (!existing) return undefined;
+    const fullStatement: MeetingStatement = {
+      ...statement,
+      id: `meeting-statement-${randomUUID()}`,
+      timestamp: new Date().toISOString(),
+    };
+    const updated: StrategyMeeting = { ...existing, statements: [...existing.statements, fullStatement] };
+    this.state.strategyMeetings[id] = updated;
+    this.emit({ type: "strategy_meeting_updated", meeting: updated });
+    return updated;
   }
 
   listTasks(): Task[] {

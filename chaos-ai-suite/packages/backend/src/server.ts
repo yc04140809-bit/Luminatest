@@ -9,10 +9,12 @@ import { messageRoutes } from "./routes/messages.js";
 import { directiveRoutes } from "./routes/directives.js";
 import { themeRoutes } from "./routes/theme.js";
 import { secretsRoutes } from "./routes/secrets.js";
+import { meetingRoutes } from "./routes/meetings.js";
 import { registerOfficeSocket } from "./ws/officeSocket.js";
 import { officeStore } from "./store/officeStore.js";
 import { createAnthropicClient } from "./orchestration/llmClient.js";
 import { createAgentRuntime } from "./orchestration/agentRuntime.js";
+import { createMeetingRuntime } from "./orchestration/meetingRuntime.js";
 import { buildToolRegistry } from "./tools/index.js";
 
 async function main(): Promise<void> {
@@ -24,6 +26,7 @@ async function main(): Promise<void> {
   const toolRegistry = buildToolRegistry();
   const llm = createAnthropicClient(() => secretsStore.get("ANTHROPIC_API_KEY"));
   const runtime = createAgentRuntime(officeStore, llm, toolRegistry);
+  const meetingRuntime = createMeetingRuntime(officeStore, llm);
 
   app.get("/api/health", async () => ({ status: "ok", service: "chaos-ai-suite-backend" }));
 
@@ -33,6 +36,7 @@ async function main(): Promise<void> {
   await app.register(directiveRoutes(runtime));
   await app.register(themeRoutes);
   await app.register(secretsRoutes);
+  await app.register(meetingRoutes(meetingRuntime));
   await app.register(registerOfficeSocket);
 
   await app.listen({ port: env.port, host: env.host });

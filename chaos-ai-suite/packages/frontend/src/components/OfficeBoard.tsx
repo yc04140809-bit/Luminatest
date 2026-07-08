@@ -1,4 +1,4 @@
-import type { ActiveMeeting, Agent } from "@chaos-ai-suite/shared";
+import type { ActiveMeeting, Agent, StrategyMeeting } from "@chaos-ai-suite/shared";
 import { AgentDesk } from "./AgentDesk.js";
 import { useTimeOfDay } from "../hooks/useTimeOfDay.js";
 import { getDeskAnchor } from "../utils/deskAnchors.js";
@@ -6,6 +6,8 @@ import { getDeskAnchor } from "../utils/deskAnchors.js";
 interface OfficeBoardProps {
   agents: Agent[];
   activeMeetings: ActiveMeeting[];
+  /** 進行中の戦略経営会議。発言中のAI社員の頭上に吹き出しを表示するために使う。 */
+  runningMeeting?: StrategyMeeting;
   onMention?: (agent: Agent) => void;
 }
 
@@ -15,8 +17,13 @@ const BACKGROUND_BY_TIME = {
 } as const;
 
 /** オフィス写真（昼/夜を時間帯で自動切り替え）の上に、実際のデスク位置へAI社員を重ねるビュー。 */
-export function OfficeBoard({ agents, activeMeetings, onMention }: OfficeBoardProps) {
+export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention }: OfficeBoardProps) {
   const timeOfDay = useTimeOfDay();
+
+  const speakerId = runningMeeting?.currentSpeakerId;
+  const speechText = speakerId
+    ? [...(runningMeeting?.statements ?? [])].reverse().find((statement) => statement.agentId === speakerId)?.content
+    : undefined;
 
   return (
     <section className="rounded-xl border border-office-border bg-office-panel p-6">
@@ -45,7 +52,7 @@ export function OfficeBoard({ agents, activeMeetings, onMention }: OfficeBoardPr
               className="absolute -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${anchor.xPct}%`, top: `${anchor.yPct}%` }}
             >
-              <AgentDesk agent={agent} onMention={onMention} />
+              <AgentDesk agent={agent} onMention={onMention} speechText={agent.id === speakerId ? speechText : undefined} />
             </div>
           );
         })}

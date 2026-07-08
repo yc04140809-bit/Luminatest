@@ -33,6 +33,8 @@ function applyEvent(office: OfficeState, event: Exclude<OfficeEvent, { type: "of
       };
     case "theme_updated":
       return { ...office, theme: event.theme };
+    case "strategy_meeting_updated":
+      return { ...office, strategyMeetings: { ...office.strategyMeetings, [event.meeting.id]: event.meeting } };
     default: {
       const exhaustiveCheck: never = event;
       return exhaustiveCheck;
