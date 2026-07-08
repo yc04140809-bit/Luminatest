@@ -1,6 +1,10 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
+import fastifyStatic from "@fastify/static";
 import { env } from "./config/env.js";
 import { secretsStore } from "./config/secretsStore.js";
 import { agentRoutes } from "./routes/agents.js";
@@ -46,6 +50,22 @@ async function main(): Promise<void> {
   await app.register(briefingRoutes(briefingRuntime));
   await app.register(banterRoutes(banterRuntime));
   await app.register(registerOfficeSocket);
+
+  // 本番デプロイ用: フロントエンドのビルド成果物を同じサーバー・同一originから配信する
+  // （開発時はVite devサーバーが別途/api・/wsをこのバックエンドへプロキシするため未使用）。
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const frontendDist = path.resolve(currentDir, "../../frontend/dist");
+  if (existsSync(frontendDist)) {
+    await app.register(fastifyStatic, { root: frontendDist });
+    app.setNotFoundHandler((request, reply) => {
+      if (request.raw.method !== "GET" || request.url.startsWith("/api") || request.url.startsWith("/ws")) {
+        return reply.code(404).send({ error: "not found" });
+      }
+      return reply.sendFile("index.html");
+    });
+  } else {
+    app.log.warn(`frontend build not found at ${frontendDist}; static serving disabled (dev mode?)`);
+  }
 
   await app.listen({ port: env.port, host: env.host });
 }

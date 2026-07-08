@@ -13,7 +13,8 @@
     "dev:frontend": "npm run dev --workspace packages/frontend",
     "build": "npm run build --workspace packages/shared && npm run build --workspace packages/backend && npm run build --workspace packages/frontend",
     "build:shared": "npm run build --workspace packages/shared",
-    "typecheck": "npm run typecheck --workspace packages/shared && npm run typecheck --workspace packages/backend && npm run typecheck --workspace packages/frontend"
+    "typecheck": "npm run typecheck --workspace packages/shared && npm run typecheck --workspace packages/backend && npm run typecheck --workspace packages/frontend",
+    "start": "npm run start --workspace packages/backend"
   },
   "engines": {
     "node": ">=20"
