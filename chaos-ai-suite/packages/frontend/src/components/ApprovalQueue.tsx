@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Plug, X } from "lucide-react";
 import type { Agent, Task } from "@chaos-ai-suite/shared";
 import { approveTask, rejectTask } from "../api/officeApi.js";
+import { saveDocument } from "../utils/savedDocuments.js";
 
 interface ApprovalQueueProps {
   tasks: Task[];
@@ -11,6 +12,7 @@ interface ApprovalQueueProps {
 /** Human-in-the-loopの承認ゲート。重要な成果物・外部ツール実行の申請はここで代表の承認/差し戻しを待つ。 */
 export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [archiveDecision, setArchiveDecision] = useState<Record<string, "saved" | "dismissed">>({});
 
   async function handle(taskId: string, action: "approve" | "reject"): Promise<void> {
     setBusyId(taskId);
@@ -19,6 +21,12 @@ export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
     } finally {
       setBusyId(null);
     }
+  }
+
+  function handleSaveDocument(task: Task): void {
+    const agent = task.assignedAgentId ? agents[task.assignedAgentId] : undefined;
+    saveDocument({ title: task.title, agentName: agent?.name, content: task.output ?? "" });
+    setArchiveDecision((decisions) => ({ ...decisions, [task.id]: "saved" }));
   }
 
   if (tasks.length === 0) {
@@ -61,9 +69,36 @@ export function ApprovalQueue({ tasks, agents }: ApprovalQueueProps) {
               )}
 
               {task.output && (
-                <p className="mt-2 whitespace-pre-wrap rounded bg-office-bg p-2 text-xs text-office-text">
-                  {task.output}
-                </p>
+                <>
+                  <p className="mt-2 whitespace-pre-wrap rounded bg-office-bg p-2 text-xs text-office-text">
+                    {task.output}
+                  </p>
+                  {archiveDecision[task.id] === "saved" ? (
+                    <p className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-400">
+                      <Check size={11} /> 書類保管庫に保管しました
+                    </p>
+                  ) : (
+                    archiveDecision[task.id] !== "dismissed" && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className="text-office-muted">書類保管庫に保管しますか？</span>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveDocument(task)}
+                          className="rounded-full bg-office-gold/20 px-2 py-0.5 font-semibold text-office-gold"
+                        >
+                          保管する
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setArchiveDecision((decisions) => ({ ...decisions, [task.id]: "dismissed" }))}
+                          className="text-office-muted underline"
+                        >
+                          不要
+                        </button>
+                      </div>
+                    )
+                  )}
+                </>
               )}
               <div className="mt-3 flex gap-2">
                 <button
