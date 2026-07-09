@@ -2,6 +2,7 @@ import type { ActiveMeeting, Agent, StrategyMeeting } from "@chaos-ai-suite/shar
 import { AgentDesk } from "./AgentDesk.js";
 import { useTimeOfDay } from "../hooks/useTimeOfDay.js";
 import { getDeskAnchor } from "../utils/deskAnchors.js";
+import { shortRole } from "../utils/agentRole.js";
 
 interface OfficeBoardProps {
   agents: Agent[];
@@ -15,11 +16,6 @@ const BACKGROUND_BY_TIME = {
   day: "/office/office-day.png",
   night: "/office/office-night.png",
 } as const;
-
-/** 「接遇ガードAI担当」のような肩書きから「AI担当」を落として一言ラベルにする。 */
-function shortRole(title: string): string {
-  return title.replace(/AI担当$/, "");
-}
 
 /** オフィス写真（昼/夜を時間帯で自動切り替え）の上に、実際のデスク位置へAI社員を重ねるビュー。 */
 export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention }: OfficeBoardProps) {

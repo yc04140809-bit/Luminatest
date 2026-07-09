@@ -4,6 +4,8 @@ import { getMessageIcon } from "../utils/messageIcons.js";
 interface MessageBubbleProps {
   message: Message;
   agents: Record<string, Agent>;
+  /** 拡大表示モード用に文字・アイコンを大きくする。 */
+  large?: boolean;
 }
 
 function resolveName(id: string, agents: Record<string, Agent>): string {
@@ -24,7 +26,7 @@ const TYPE_STYLE: Record<Message["type"], string> = {
   pushback: "border-orange-500/60 bg-orange-500/10",
 };
 
-export function MessageBubble({ message, agents }: MessageBubbleProps) {
+export function MessageBubble({ message, agents, large }: MessageBubbleProps) {
   const Icon = getMessageIcon(message.type);
   const fromName = resolveName(message.fromAgentId, agents);
   const toName = message.toAgentId ? resolveName(message.toAgentId, agents) : undefined;
@@ -32,16 +34,18 @@ export function MessageBubble({ message, agents }: MessageBubbleProps) {
   const time = new Date(message.timestamp).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className={`rounded-lg border ${TYPE_STYLE[message.type]} bg-office-panel px-3 py-2`}>
-      <div className="flex items-center gap-2 text-xs text-office-muted">
-        <Icon size={14} />
+    <div className={`rounded-lg border ${TYPE_STYLE[message.type]} bg-office-panel ${large ? "px-4 py-3" : "px-3 py-2"}`}>
+      <div className={`flex items-center gap-2 text-office-muted ${large ? "text-sm" : "text-xs"}`}>
+        <Icon size={large ? 18 : 14} />
         <span className="font-semibold" style={{ color: accentColor }}>
           {fromName}
         </span>
         {toName && <span>→ {toName}</span>}
         <span className="ml-auto">{time}</span>
       </div>
-      <p className={`mt-1 whitespace-pre-wrap text-sm text-office-text ${message.type === "banter" ? "italic" : ""}`}>
+      <p
+        className={`mt-1 whitespace-pre-wrap text-office-text ${large ? "text-lg leading-relaxed" : "text-sm"} ${message.type === "banter" ? "italic" : ""}`}
+      >
         {message.content}
       </p>
     </div>

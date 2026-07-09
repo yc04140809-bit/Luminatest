@@ -1,6 +1,8 @@
-import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Download, Maximize2, Minimize2, X } from "lucide-react";
 import type { Agent, MeetingPhase, StrategyMeeting } from "@chaos-ai-suite/shared";
+import { downloadText } from "../utils/downloadText.js";
+import { meetingFileName, meetingToText } from "../utils/meetingText.js";
 
 interface MeetingRoomProps {
   meeting: StrategyMeeting;
@@ -37,12 +39,14 @@ function isPhaseDone(step: MeetingPhase, currentPhase: MeetingPhase): boolean {
  */
 export function MeetingRoom({ meeting, agents, onClose }: MeetingRoomProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [large, setLarge] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [meeting.statements.length]);
 
   const visiblePhases = PHASE_ORDER.filter((phase) => phase !== "concluded");
+  const textSize = large ? "text-lg leading-relaxed" : "text-sm";
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
@@ -52,14 +56,34 @@ export function MeetingRoom({ meeting, agents, onClose }: MeetingRoomProps) {
             <h2 className="font-display text-lg text-office-gold">戦略経営会議</h2>
             <p className="text-sm text-office-text">{meeting.topic}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
-            title="閉じる（会議は裏で進行し続けます）"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {meeting.status === "concluded" && (
+              <button
+                type="button"
+                onClick={() => downloadText(meetingFileName(meeting), meetingToText(meeting))}
+                title="この端末にダウンロード"
+                className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
+              >
+                <Download size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setLarge((v) => !v)}
+              title={large ? "通常の文字サイズに戻す" : "文字を拡大表示する"}
+              className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
+            >
+              {large ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
+              title="閉じる（会議は裏で進行し続けます）"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-1 border-b border-office-border px-5 py-3 text-[11px]">
@@ -100,7 +124,7 @@ export function MeetingRoom({ meeting, agents, onClose }: MeetingRoomProps) {
                 </span>
                 <span className="text-office-muted">{PHASE_LABEL[statement.phase]}</span>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-office-text">{statement.content}</p>
+              <p className={`whitespace-pre-wrap text-office-text ${textSize}`}>{statement.content}</p>
             </div>
           ))}
 
@@ -118,13 +142,13 @@ export function MeetingRoom({ meeting, agents, onClose }: MeetingRoomProps) {
             {meeting.minutes && (
               <div>
                 <h3 className="mb-1 text-xs font-semibold text-office-gold">📝 議事録</h3>
-                <p className="whitespace-pre-wrap text-sm text-office-text">{meeting.minutes}</p>
+                <p className={`whitespace-pre-wrap text-office-text ${textSize}`}>{meeting.minutes}</p>
               </div>
             )}
             {meeting.actionItems && meeting.actionItems.length > 0 && (
               <div>
                 <h3 className="mb-1 text-xs font-semibold text-office-gold">✅ タスク案</h3>
-                <ul className="list-inside list-disc text-sm text-office-text">
+                <ul className={`list-inside list-disc text-office-text ${textSize}`}>
                   {meeting.actionItems.map((item, index) => (
                     <li key={index}>{item}</li>
                   ))}
@@ -134,7 +158,7 @@ export function MeetingRoom({ meeting, agents, onClose }: MeetingRoomProps) {
             {meeting.proposal && (
               <div className="rounded-lg border border-office-gold/50 bg-office-gold/10 px-3 py-2">
                 <h3 className="mb-1 text-xs font-semibold text-office-gold">📣 最終提案</h3>
-                <p className="whitespace-pre-wrap text-sm text-office-text">{meeting.proposal}</p>
+                <p className={`whitespace-pre-wrap text-office-text ${textSize}`}>{meeting.proposal}</p>
               </div>
             )}
           </div>

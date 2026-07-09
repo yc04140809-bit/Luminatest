@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Settings } from "lucide-react";
+import { Archive, Music, Settings, VolumeX } from "lucide-react";
 import type { Agent, Task } from "@chaos-ai-suite/shared";
 import { useOfficeSocket } from "./hooks/useOfficeSocket.js";
 import { useApplyTheme } from "./hooks/useApplyTheme.js";
+import { useBgm } from "./hooks/useBgm.js";
 import { OfficeBoard } from "./components/OfficeBoard.js";
 import { ChatTimeline } from "./components/ChatTimeline.js";
 import { CommandCenter } from "./components/CommandCenter.js";
@@ -12,6 +13,7 @@ import { ToolApprovalModal } from "./components/ToolApprovalModal.js";
 import { MeetingLauncher } from "./components/MeetingLauncher.js";
 import { MeetingRoom } from "./components/MeetingRoom.js";
 import { BanterLauncher } from "./components/BanterLauncher.js";
+import { ArchivePanel } from "./components/ArchivePanel.js";
 import { postBriefing } from "./api/officeApi.js";
 import { todayInTokyo } from "./utils/dateUtil.js";
 
@@ -29,7 +31,9 @@ export default function App() {
   const seenToolCallIds = useRef<Set<string>>(new Set());
   const [meetingRoomOpen, setMeetingRoomOpen] = useState(false);
   const seenMeetingIds = useRef<Set<string>>(new Set());
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const briefingRequested = useRef(false);
+  const bgm = useBgm();
   useApplyTheme(office?.theme);
 
   useEffect(() => {
@@ -101,6 +105,24 @@ export default function App() {
           </span>
           <button
             type="button"
+            onClick={bgm.toggle}
+            title={bgm.enabled ? "BGMを止める" : "BGMを流す"}
+            className={`rounded-full border p-2 transition hover:border-office-gold hover:text-office-gold ${
+              bgm.enabled ? "border-office-gold text-office-gold" : "border-office-border text-office-muted"
+            }`}
+          >
+            {bgm.enabled ? <Music size={16} /> : <VolumeX size={16} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setArchiveOpen(true)}
+            title="書類保管庫"
+            className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
+          >
+            <Archive size={16} />
+          </button>
+          <button
+            type="button"
             onClick={() => setSettingsOpen(true)}
             title="設定"
             className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
@@ -112,6 +134,10 @@ export default function App() {
 
       {settingsOpen && (
         <SettingsPanel theme={office.theme} agents={agents} onClose={() => setSettingsOpen(false)} />
+      )}
+
+      {archiveOpen && (
+        <ArchivePanel meetings={Object.values(office.strategyMeetings)} onClose={() => setArchiveOpen(false)} />
       )}
 
       {toolApprovalTask && (

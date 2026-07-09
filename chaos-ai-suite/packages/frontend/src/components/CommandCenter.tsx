@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import type { Agent } from "@chaos-ai-suite/shared";
 import { postDirective } from "../api/officeApi.js";
+import { shortRole } from "../utils/agentRole.js";
 
 interface CommandCenterProps {
   agents: Agent[];
@@ -65,7 +66,7 @@ export function CommandCenter({ agents, prefillTarget }: CommandCenterProps) {
           <option value={ALL_TARGET}>全員へ（作戦会議からタスク分解）</option>
           {agents.map((agent) => (
             <option key={agent.id} value={agent.id}>
-              {agent.name} 宛（個別メンション）
+              {agent.name}（{shortRole(agent.title)}）宛
             </option>
           ))}
         </select>
