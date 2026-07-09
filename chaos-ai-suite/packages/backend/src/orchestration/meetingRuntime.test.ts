@@ -5,13 +5,14 @@ import { createMeetingRuntime } from "./meetingRuntime.js";
 import { OfficeStore } from "../store/officeStore.js";
 
 /**
- * 決定論的なスタブLLM。各エージェントのsystemPromptは冒頭で必ず「あなたは「XX」、...」と
- * 自己紹介するので、その厳密なフレーズで発言者を特定する（単純な部分一致だと、他エージェントへの
- * 言及—例えば全員の振る舞いルールに登場する「セイラへ報告する」等—と誤マッチしてしまうため）。
+ * 決定論的なスタブLLM。各エージェントのsystemPromptは冒頭で必ず「あなたは...「XX」...」と
+ * 自己紹介するので、冒頭付近のその名乗りで発言者を特定する（単純な部分一致だと、他エージェントへの
+ * 言及—例えば全員の振る舞いルールに登場する「セイラへ報告する」等—と誤マッチしてしまうため、
+ * 最初の「あなたは」直後に現れる最初の鉤括弧、という位置で特定している）。
  */
 function createStubLlm(options?: { failOn?: (speakerName: string) => boolean }): LlmClient {
   function speakerName(systemPrompt: string): string {
-    const match = systemPrompt.match(/あなたは「(.+?)」/);
+    const match = systemPrompt.match(/あなたは[\s\S]*?「(.+?)」/);
     if (!match) throw new Error(`could not identify speaker from systemPrompt: ${systemPrompt.slice(0, 50)}`);
     return match[1]!;
   }
