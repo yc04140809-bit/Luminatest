@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  ClipboardCheck,
   Copy,
   Download,
   History,
+  LayoutTemplate,
+  Megaphone,
   PenLine,
   Redo2,
   RotateCcw,
@@ -13,17 +16,22 @@ import {
   X,
 } from "lucide-react";
 import {
+  NOTE_CHECKLIST_STATUS_LABELS,
   NOTE_EDIT_LEVELS,
   NOTE_EDIT_MODES,
   NOTE_SCORE_KEYS,
   NOTE_SCORE_LABELS,
   NOTE_SECTION_INSTRUCTIONS,
+  NOTE_STRUCTURE_TEMPLATES,
   type NoteAnalysisResult,
+  type NoteChecklistStatus,
   type NoteEditLevelId,
   type NoteEditModeId,
   type NoteEditResult,
+  type NotePromoPack,
+  type NoteStructureTemplateId,
 } from "@chaos-ai-suite/shared";
-import { analyzeNoteArticle, editNoteArticle, editNoteSection } from "../api/officeApi.js";
+import { analyzeNoteArticle, editNoteArticle, editNoteSection, generateNotePromoPack } from "../api/officeApi.js";
 import { renderNotePreviewHtml } from "../utils/markdownPreview.js";
 import { clearNoteDraft, loadNoteDraft, newVersion, saveNoteDraft, type NoteVersion } from "../utils/noteDraft.js";
 import { toNotePasteText, toPlainText } from "../utils/noteCopy.js";
@@ -44,6 +52,12 @@ function overallColor(score: number): string {
   if (score >= 50) return "text-office-gold";
   return "text-red-400";
 }
+
+const CHECK_STATUS_STYLE: Record<NoteChecklistStatus, { badge: string; icon: string }> = {
+  ok: { badge: "bg-emerald-500/15 text-emerald-400", icon: "✓" },
+  caution: { badge: "bg-amber-500/15 text-amber-400", icon: "△" },
+  fix: { badge: "bg-red-500/15 text-red-400", icon: "！" },
+};
 
 /** 折りたたみセクションの共通見出し。 */
 function Collapsible({
@@ -102,6 +116,12 @@ export function NoteEditorStudio() {
   const [sectionInstruction, setSectionInstruction] = useState<string>(NOTE_SECTION_INSTRUCTIONS[0]);
   const [sectionBusy, setSectionBusy] = useState(false);
 
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templateId, setTemplateId] = useState<NoteStructureTemplateId | null>(null);
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoPack, setPromoPack] = useState<NotePromoPack | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
+
   const restored = useRef(false);
 
   const currentMarkdown = versions[versionIndex]?.markdown ?? null;
@@ -117,6 +137,7 @@ export function NoteEditorStudio() {
     if (draft.levelId) setLevelId(draft.levelId);
     if (draft.editResult) setEditResult(draft.editResult);
     setAnalysis(draft.analysisResult ?? null);
+    setPromoPack(draft.promoPack ?? null);
     if (draft.versions && draft.versions.length > 0) {
       setVersions(draft.versions);
       setVersionIndex(Math.min(draft.versionIndex ?? draft.versions.length - 1, draft.versions.length - 1));
@@ -135,8 +156,9 @@ export function NoteEditorStudio() {
       analysisResult: analysis ?? undefined,
       versions,
       versionIndex,
+      promoPack: promoPack ?? undefined,
     });
-  }, [content, modeId, levelId, editResult, analysis, versions, versionIndex]);
+  }, [content, modeId, levelId, editResult, analysis, versions, versionIndex, promoPack]);
 
   // 表示中の版が変わったら手動編集テキストを同期する
   useEffect(() => {
@@ -172,7 +194,12 @@ export function NoteEditorStudio() {
     setAnalysis(null);
     setPhase("editing");
     try {
-      const edited = await editNoteArticle({ content: content.trim(), mode: modeId, level: levelId });
+      const edited = await editNoteArticle({
+        content: content.trim(),
+        mode: modeId,
+        level: levelId,
+        template: templateId ?? undefined,
+      });
       setEditResult(edited);
       pushVersion(`AI編集（${selectedLevel.label}）`, edited.editedMarkdown);
       setResultTab("after");
@@ -214,6 +241,28 @@ export function NoteEditorStudio() {
     pushVersion("手動修正", manualText);
   }
 
+  async function handlePromoGenerate(): Promise<void> {
+    if (!currentMarkdown || promoBusy) return;
+    setPromoBusy(true);
+    setError(null);
+    try {
+      const pack = await generateNotePromoPack({ content: currentMarkdown });
+      setPromoPack(pack);
+    } catch (promoError) {
+      setError(`宣伝パックの生成に失敗しました: ${(promoError as Error).message}`);
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
+  /** 参考構成の骨組み（見出しだけの下書き）を本文欄の末尾に挿入する。 */
+  function insertTemplateSkeleton(): void {
+    const template = NOTE_STRUCTURE_TEMPLATES.find((entry) => entry.id === templateId);
+    if (!template) return;
+    const skeleton = template.outline.map((item) => `## ${item}\n\n（ここに書く）`).join("\n\n");
+    setContent((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${skeleton}` : skeleton));
+  }
+
   async function copyWith(label: string, text: string): Promise<void> {
     try {
       await navigator.clipboard.writeText(text);
@@ -231,6 +280,8 @@ export function NoteEditorStudio() {
     setAnalysis(null);
     setVersions([]);
     setVersionIndex(0);
+    setPromoPack(null);
+    setTemplateId(null);
     setPhase("idle");
     setError(null);
     clearNoteDraft();
@@ -335,6 +386,50 @@ export function NoteEditorStudio() {
                   </button>
                 ))}
               </div>
+            </Collapsible>
+
+            {/* 参考構成モード */}
+            <Collapsible
+              icon={<LayoutTemplate size={14} className="text-office-gold" />}
+              title={`参考構成${templateId ? `（${NOTE_STRUCTURE_TEMPLATES.find((entry) => entry.id === templateId)?.label}）` : ""}`}
+              open={templateOpen}
+              onToggle={() => setTemplateOpen((value) => !value)}
+            >
+              <p className="mb-2 text-xs text-office-muted">
+                記事ジャンルの一般的な構成パターンです。選ぶとAI編集時に構成の指針として使われます。骨組みだけ本文欄に挿入して、ゼロから書き始めることもできます。
+              </p>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {NOTE_STRUCTURE_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => setTemplateId(templateId === template.id ? null : template.id)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                      templateId === template.id
+                        ? "bg-office-gold/20 text-office-gold"
+                        : "border border-office-border text-office-muted hover:text-office-text"
+                    }`}
+                  >
+                    {template.label}
+                  </button>
+                ))}
+              </div>
+              {templateId && (
+                <div className="space-y-2">
+                  <ol className="list-inside list-decimal rounded-lg bg-office-bg px-3 py-2 text-xs text-office-text">
+                    {NOTE_STRUCTURE_TEMPLATES.find((entry) => entry.id === templateId)?.outline.map((item, index) => (
+                      <li key={index}>{item}</li>
+                    ))}
+                  </ol>
+                  <button
+                    type="button"
+                    onClick={insertTemplateSkeleton}
+                    className="w-full rounded-lg border border-office-border px-3 py-2 text-xs font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
+                  >
+                    この構成の骨組みを本文欄に挿入
+                  </button>
+                </div>
+              )}
             </Collapsible>
 
             {/* ③ AI編集ボタン */}
@@ -672,6 +767,113 @@ export function NoteEditorStudio() {
                   </div>
                 )}
               </section>
+            )}
+
+            {/* 投稿前チェックリスト（診断呼び出しに相乗り・エクスポートの直前に表示） */}
+            {analysis?.checklist && analysis.checklist.length > 0 && (
+              <section>
+                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-office-text">
+                  <ClipboardCheck size={15} className="text-office-gold" /> 投稿前チェック
+                </h3>
+                <div className="space-y-1.5 rounded-xl border border-office-border bg-office-panel p-3">
+                  {analysis.checklist.map((entry, index) => (
+                    <div key={index} className="flex items-start gap-2 text-xs">
+                      <span
+                        className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 font-semibold ${CHECK_STATUS_STYLE[entry.status].badge}`}
+                      >
+                        {CHECK_STATUS_STYLE[entry.status].icon} {NOTE_CHECKLIST_STATUS_LABELS[entry.status]}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-office-text">{entry.item}</p>
+                        <p className="text-office-muted">{entry.comment}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* 宣伝パック（折りたたみ・生成時のみAI呼び出し） */}
+            {currentMarkdown && (
+              <Collapsible
+                icon={<Megaphone size={14} className="text-office-gold" />}
+                title={`宣伝パック${promoPack ? "（生成済み）" : ""}`}
+                open={promoOpen}
+                onToggle={() => setPromoOpen((value) => !value)}
+              >
+                <p className="mb-2 text-xs text-office-muted">
+                  記事完成後に、Threads/X/Instagramなどの宣伝投稿一式をミライ（AIマーケティング責任者）がまとめて作ります。
+                </p>
+                <button
+                  type="button"
+                  onClick={handlePromoGenerate}
+                  disabled={promoBusy}
+                  className="mb-3 w-full rounded-lg bg-office-accent px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {promoBusy ? "ミライが作成中...（30秒〜1分ほどかかります）" : promoPack ? "宣伝パックを作り直す" : "宣伝パックを生成"}
+                </button>
+
+                {promoPack && (
+                  <div className="space-y-3">
+                    {(
+                      [
+                        ["Threads投稿（10本）", promoPack.threads],
+                        ["X投稿（5本）", promoPack.x],
+                        ["Instagramキャプション（3本）", promoPack.instagram],
+                      ] as const
+                    ).map(([label, posts]) => (
+                      <div key={label}>
+                        <h4 className="mb-1.5 text-xs font-semibold text-office-gold">{label}</h4>
+                        <div className="space-y-1.5">
+                          {posts.map((post, index) => (
+                            <div key={index} className="rounded-lg border border-office-border bg-office-bg p-2.5">
+                              <div className="mb-1 flex items-center justify-between">
+                                <span className="rounded-full bg-office-gold/15 px-2 py-0.5 text-[10px] font-semibold text-office-gold">
+                                  {post.type}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyWith("コピーしました", post.text)}
+                                  className="flex items-center gap-1 rounded-full border border-office-border px-2 py-0.5 text-[10px] text-office-muted hover:border-office-gold hover:text-office-gold"
+                                >
+                                  <Copy size={10} /> コピー
+                                </button>
+                              </div>
+                              <p className="whitespace-pre-wrap text-xs text-office-text">{post.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+
+                    {(
+                      [
+                        ["短い告知文", promoPack.shortAnnouncements.join("\n\n")],
+                        ["記事紹介文", promoPack.articleIntro],
+                        ["プロフィール誘導文", promoPack.profileLead],
+                        ["販売note用CTA", promoPack.paidCta],
+                        ["無料note用CTA", promoPack.freeCta],
+                      ] as const
+                    ).map(([label, text]) =>
+                      text ? (
+                        <div key={label} className="rounded-lg border border-office-border bg-office-bg p-2.5">
+                          <div className="mb-1 flex items-center justify-between">
+                            <h4 className="text-xs font-semibold text-office-gold">{label}</h4>
+                            <button
+                              type="button"
+                              onClick={() => copyWith("コピーしました", text)}
+                              className="flex items-center gap-1 rounded-full border border-office-border px-2 py-0.5 text-[10px] text-office-muted hover:border-office-gold hover:text-office-gold"
+                            >
+                              <Copy size={10} /> コピー
+                            </button>
+                          </div>
+                          <p className="whitespace-pre-wrap text-xs text-office-text">{text}</p>
+                        </div>
+                      ) : null,
+                    )}
+                  </div>
+                )}
+              </Collapsible>
             )}
 
             {/* ⑥ コピー・エクスポート */}

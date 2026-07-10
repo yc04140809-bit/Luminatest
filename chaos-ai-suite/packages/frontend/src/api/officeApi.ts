@@ -5,6 +5,8 @@ import type {
   NoteEditLevelId,
   NoteEditModeId,
   NoteEditResult,
+  NotePromoPack,
+  NoteStructureTemplateId,
   SnsAnalysisResult,
   SnsMetrics,
   ThemeUpdateInput,
@@ -133,8 +135,14 @@ export function editNoteArticle(input: {
   content: string;
   mode: NoteEditModeId;
   level: NoteEditLevelId;
+  template?: NoteStructureTemplateId;
 }): Promise<NoteEditResult> {
   return postJson<NoteEditResult>("/api/note/edit", input);
+}
+
+/** 完成した記事から宣伝パック（Threads/X/Instagram導線・CTA一式）を生成する。担当はミライ。 */
+export function generateNotePromoPack(input: { content: string }): Promise<NotePromoPack> {
+  return postJson<NotePromoPack>("/api/note/promo", input);
 }
 
 /** 選択した部分だけを指示に従って書き直す（選択範囲のみ送信・小さい呼び出し）。 */

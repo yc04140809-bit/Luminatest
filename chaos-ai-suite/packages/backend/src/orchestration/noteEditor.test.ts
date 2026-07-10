@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { NOTE_SCORE_KEYS, SEED_AGENTS } from "@chaos-ai-suite/shared";
+import { NOTE_CHECKLIST_ITEMS, NOTE_SCORE_KEYS, SEED_AGENTS } from "@chaos-ai-suite/shared";
 import type { LlmClient, ToolCallRequest } from "./llmClient.js";
-import { analyzeNoteArticle, editNoteArticle, editNoteSection } from "./noteEditor.js";
+import { analyzeNoteArticle, editNoteArticle, editNoteSection, generateNotePromoPack } from "./noteEditor.js";
 
 const nemuri = SEED_AGENTS.find((agent) => agent.id === "agent-nemuri")!;
+const mirai = SEED_AGENTS.find((agent) => agent.id === "agent-mirai")!;
 
 function stubLlm(response: Record<string, unknown>, capture?: { request?: ToolCallRequest }): LlmClient {
   return {
@@ -98,4 +99,79 @@ test("analyzeNoteArticle clamps scores into 0..100 and averages overallScore", a
   assert.equal(result.overallScore, 71);
   assert.equal(result.dropoffPoints.length, 1);
   assert.equal(result.titleCandidates[0]!.title, "案1");
+});
+
+test("analyzeNoteArticle normalizes checklist to the fixed 10 items", async () => {
+  const scores = Object.fromEntries(NOTE_SCORE_KEYS.map((key) => [key, 60]));
+  // AIが8個しか返さず、statusが不正なものも混ざっているケース
+  const partialChecklist = [
+    { status: "ok", comment: "良い" },
+    { status: "fix", comment: "直す" },
+    { status: "unknown", comment: "変な値" },
+    { status: "caution", comment: "注意" },
+    { status: "ok", comment: "良い" },
+    { status: "ok", comment: "良い" },
+    { status: "ok", comment: "良い" },
+    { status: "ok", comment: "良い" },
+  ];
+  const llm = stubLlm({
+    scores,
+    improvements: [],
+    dropoffPoints: [],
+    titleCandidates: [],
+    ctaSuggestions: [],
+    checklist: partialChecklist,
+  });
+
+  const result = await analyzeNoteArticle({ editor: nemuri, content: "記事", llm });
+
+  assert.equal(result.checklist!.length, NOTE_CHECKLIST_ITEMS.length, "常に固定10項目");
+  assert.equal(result.checklist![0]!.item, NOTE_CHECKLIST_ITEMS[0], "項目名は固定リストから");
+  assert.equal(result.checklist![1]!.status, "fix");
+  assert.equal(result.checklist![2]!.status, "caution", "不正なstatusはcautionに正規化");
+  assert.equal(result.checklist![9]!.status, "caution", "欠損項目はcaution扱い");
+});
+
+test("editNoteArticle appends the structure template guide when specified", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm({ editedMarkdown: "本文", changeSummary: [], highlights: [] }, capture);
+
+  await editNoteArticle({
+    editor: nemuri,
+    content: "元",
+    modeId: "experience",
+    levelId: "readable",
+    structureTemplateId: "failure",
+    llm,
+  });
+  assert.ok(capture.request!.userPrompt.includes("参考構成: 失敗談"));
+  assert.ok(capture.request!.userPrompt.includes("何をやらかしたか"));
+
+  await editNoteArticle({ editor: nemuri, content: "元", modeId: "experience", levelId: "readable", llm });
+  assert.ok(!capture.request!.userPrompt.includes("参考構成:"), "未指定なら構成ガイドは入らない");
+});
+
+test("generateNotePromoPack uses the marketer persona and normalizes posts", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm(
+    {
+      threads: [{ type: "共感型", text: "投稿1" }],
+      x: [{ type: "気づき型", text: "X投稿" }],
+      instagram: [{ text: "キャプション" }], // typeが欠けているケース
+      shortAnnouncements: ["告知"],
+      articleIntro: "紹介文",
+      profileLead: "プロフから読めます",
+      paidCta: "購入CTA",
+      freeCta: "フォローCTA",
+    },
+    capture,
+  );
+
+  const pack = await generateNotePromoPack({ marketer: mirai, content: "完成記事", llm });
+
+  assert.equal(capture.request!.systemPrompt, mirai.systemPrompt, "宣伝はミライの人格で行う");
+  assert.equal(pack.threads[0]!.text, "投稿1");
+  assert.equal(pack.instagram[0]!.type, "", "type欠損は空文字に正規化");
+  assert.equal(pack.paidCta, "購入CTA");
+  assert.ok(capture.request!.userPrompt.includes("本文をそのまま繰り返さない"));
 });

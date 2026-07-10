@@ -1,4 +1,10 @@
-import type { NoteAnalysisResult, NoteEditLevelId, NoteEditModeId, NoteEditResult } from "@chaos-ai-suite/shared";
+import type {
+  NoteAnalysisResult,
+  NoteEditLevelId,
+  NoteEditModeId,
+  NoteEditResult,
+  NotePromoPack,
+} from "@chaos-ai-suite/shared";
 
 /**
  * AI Note Editorの作業状態をこの端末(localStorage)に自動保存する。
@@ -27,6 +33,8 @@ export interface NoteDraft {
   /** 版の履歴（古い順）。現在表示中の版は versionIndex が指す。 */
   versions?: NoteVersion[];
   versionIndex?: number;
+  /** 宣伝パック（生成済みの場合のみ） */
+  promoPack?: NotePromoPack;
   updatedAt: string;
 }
 

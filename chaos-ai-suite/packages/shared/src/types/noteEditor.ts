@@ -123,6 +123,34 @@ export interface NoteTitleCandidate {
   appeal: string;
 }
 
+/** note投稿前チェックリストの項目（固定10項目）。 */
+export const NOTE_CHECKLIST_ITEMS = [
+  "タイトルは内容と合っているか",
+  "冒頭で読む理由が伝わっているか",
+  "見出しが多すぎないか",
+  "長すぎる段落がないか",
+  "同じ内容の繰り返しがないか",
+  "CTAが自然か",
+  "誇大表現がないか",
+  "根拠のない断定がないか",
+  "有料部分への導線が自然か",
+  "スマホで読みやすいか",
+] as const;
+
+export type NoteChecklistStatus = "ok" | "caution" | "fix";
+
+export const NOTE_CHECKLIST_STATUS_LABELS: Record<NoteChecklistStatus, string> = {
+  ok: "問題なし",
+  caution: "注意",
+  fix: "改善推奨",
+};
+
+export interface NoteChecklistEntry {
+  item: string;
+  status: NoteChecklistStatus;
+  comment: string;
+}
+
 /** 読みやすさ診断＋改善提案の結果。 */
 export interface NoteAnalysisResult {
   /** 各項目0〜100点。記事構成をもとにした参考指標であり、実際の成果を保証するものではない。 */
@@ -135,4 +163,62 @@ export interface NoteAnalysisResult {
   titleCandidates: NoteTitleCandidate[];
   /** 記事内容に合う自然なCTA提案（フォロー・スキ・次の記事など） */
   ctaSuggestions: string[];
+  /** 投稿前チェックリスト（固定10項目、診断呼び出しに相乗りして生成） */
+  checklist?: NoteChecklistEntry[];
 }
+
+/** 宣伝投稿の切り口タイプ。 */
+export const NOTE_PROMO_TYPES = [
+  "共感型",
+  "気づき型",
+  "体験談型",
+  "ノウハウ型",
+  "実は型",
+  "失敗談型",
+  "続きはnote型",
+] as const;
+
+export interface NotePromoPost {
+  /** 切り口タイプ（NOTE_PROMO_TYPESのいずれか） */
+  type: string;
+  text: string;
+}
+
+/** 宣伝パック。記事完成後にSNS導線をまとめて生成する。 */
+export interface NotePromoPack {
+  /** Threads投稿10本 */
+  threads: NotePromoPost[];
+  /** X投稿5本 */
+  x: NotePromoPost[];
+  /** Instagramキャプション3本 */
+  instagram: NotePromoPost[];
+  /** 短い告知文3本 */
+  shortAnnouncements: string[];
+  /** 記事紹介文 */
+  articleIntro: string;
+  /** プロフィール誘導文 */
+  profileLead: string;
+  /** 販売note用CTA */
+  paidCta: string;
+  /** 無料note用CTA */
+  freeCta: string;
+}
+
+/**
+ * 参考構成テンプレート（一般的な構成パターン。特定の記事・他人の文章のコピーではない）。
+ * クライアント側で骨組み挿入に使うほか、AI編集時に構成の指針としてプロンプトへ渡す。
+ */
+export const NOTE_STRUCTURE_TEMPLATES = [
+  { id: "taiken", label: "体験談", outline: ["書き出し: 結果を先に見せる", "挑戦した理由・当時の状況", "実際にやったこと（時系列）", "うまくいったこと・数字", "失敗・想定外だったこと", "得た学び", "読者へのアドバイス"] },
+  { id: "sidejob", label: "AI副業", outline: ["結論: 何で・どんな成果が出たか", "始めた理由", "具体的な手順（ステップ）", "必要な道具・費用", "つまずきポイントと回避策", "収益化までの現実的な期間", "最初の一歩の提案"] },
+  { id: "knowhow", label: "ノウハウ", outline: ["この記事で出来るようになること", "前提・準備", "手順（見出しを分けて順番に）", "よくある失敗と対処", "応用・時短のコツ", "まとめとチェックリスト"] },
+  { id: "review", label: "ツールレビュー", outline: ["結論: おすすめ度と一言評価", "ツールの概要（初心者向けに）", "良かった点（具体例つき）", "イマイチな点・注意点", "他ツールとの違い", "おすすめする人・しない人", "導入手順"] },
+  { id: "failure", label: "失敗談", outline: ["何をやらかしたか（結論）", "当時の状況と判断", "失敗の経過", "原因の分析", "同じ失敗を避ける方法", "失敗から得たもの"] },
+  { id: "compare", label: "比較記事", outline: ["結論: どちらがどんな人向けか", "比較対象の概要", "比較表（価格・機能・使いやすさ等）", "項目ごとの詳細比較", "使い分けの提案", "まとめ"] },
+  { id: "beginner", label: "初心者向け解説", outline: ["これは何か（例え話で）", "なぜ今知っておくべきか", "基本の仕組み（専門用語なし）", "よくある誤解", "最初にやってみること", "つまずいた時の調べ方"] },
+  { id: "paid", label: "有料note販売", outline: ["読者の悩みの言語化", "この記事で得られるもの（具体的に）", "著者の実績・根拠", "無料部分: 価値の一部を先に見せる", "（ここから有料）", "本編: 手順・データ・テンプレート", "購入者特典", "まとめとCTA"] },
+  { id: "free2paid", label: "無料→有料導線", outline: ["無料で全部使える内容を1つ提供", "実際の結果・実例", "「ここから先はさらに深い内容」の予告", "有料noteで得られるものの明示", "読者の背中を押す一言（煽らない）"] },
+  { id: "story", label: "ストーリー型", outline: ["場面から始める（情景描写）", "課題・葛藤の提示", "転機となった出来事", "変化の過程", "現在の状態", "読者への問いかけ・余韻"] },
+] as const;
+
+export type NoteStructureTemplateId = (typeof NOTE_STRUCTURE_TEMPLATES)[number]["id"];

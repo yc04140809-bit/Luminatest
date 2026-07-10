@@ -1,13 +1,21 @@
 import {
+  NOTE_CHECKLIST_ITEMS,
   NOTE_EDIT_MODES,
+  NOTE_PROMO_TYPES,
   NOTE_SCORE_KEYS,
   NOTE_SCORE_LABELS,
+  NOTE_STRUCTURE_TEMPLATES,
   type Agent,
   type NoteAnalysisResult,
+  type NoteChecklistEntry,
+  type NoteChecklistStatus,
   type NoteEditLevelId,
   type NoteEditModeId,
   type NoteEditResult,
+  type NotePromoPack,
+  type NotePromoPost,
   type NoteScoreKey,
+  type NoteStructureTemplateId,
 } from "@chaos-ai-suite/shared";
 import type { LlmClient } from "./llmClient.js";
 
@@ -24,8 +32,8 @@ import type { LlmClient } from "./llmClient.js";
 
 /** 編集呼び出しの出力上限。記事全文（数千字）＋要約が収まるサイズ。 */
 const EDIT_MAX_TOKENS = 8192;
-/** 診断呼び出しの出力上限。 */
-const ANALYZE_MAX_TOKENS = 3000;
+/** 診断呼び出しの出力上限（チェックリスト10項目分を含む）。 */
+const ANALYZE_MAX_TOKENS = 4200;
 
 function modePolicy(modeId: NoteEditModeId): string {
   const mode = NOTE_EDIT_MODES.find((entry) => entry.id === modeId);
@@ -76,11 +84,24 @@ function clampScore(value: unknown): number {
   return Math.max(0, Math.min(100, Math.round(num)));
 }
 
+/** 参考構成テンプレートをプロンプト用テキストにする。 */
+function structureGuide(templateId: NoteStructureTemplateId | undefined): string {
+  if (!templateId) return "";
+  const template = NOTE_STRUCTURE_TEMPLATES.find((entry) => entry.id === templateId);
+  if (!template) return "";
+  return `
+【参考構成: ${template.label}】
+以下は一般的な構成パターンです。この流れを参考に構成を整えてください
+（あくまで型であり、記事の実際の内容・体験に合わせて柔軟に。他人の記事の文章表現をコピーしないこと）:
+${template.outline.map((item, index) => `${index + 1}. ${item}`).join("\n")}`;
+}
+
 export async function editNoteArticle(params: {
   editor: Agent;
   content: string;
   modeId: NoteEditModeId;
   levelId?: NoteEditLevelId;
+  structureTemplateId?: NoteStructureTemplateId;
   llm: LlmClient;
 }): Promise<NoteEditResult> {
   const { editor, content, modeId, llm } = params;
@@ -94,6 +115,7 @@ ${content}
 ${modePolicy(modeId)}
 
 ${LEVEL_RULES[levelId]}
+${structureGuide(params.structureTemplateId)}
 
 全レベル共通の絶対ルール:
 - 著者の声を消さない: 一次体験・感情・口癖はそのまま残す。AIっぽい無機質な文体にしない
@@ -219,7 +241,12 @@ ${scoreItemList}
 
 4. titleCandidates: この記事のタイトル候補を10案。それぞれ「どの読者心理に効くか」の根拠を1行で添える
 
-5. ctaSuggestions: 記事の内容に自然につながるCTA（行動喚起）の文面を3〜5個。フォロー・スキ・コメント・次の記事・有料note等から記事に合うものを選ぶ。押し付けがましくない文面にする`;
+5. ctaSuggestions: 記事の内容に自然につながるCTA（行動喚起）の文面を3〜5個。フォロー・スキ・コメント・次の記事・有料note等から記事に合うものを選ぶ。押し付けがましくない文面にする
+
+6. checklist: 以下の投稿前チェック10項目を、この順番どおりに1つずつ評価する。
+statusは "ok"（問題なし）/ "caution"（注意）/ "fix"（改善推奨）の3段階。commentは1文で理由か直し方を書く。
+該当しない項目（例: 無料記事に有料導線がない）は "ok" とし、その旨をcommentに書く。
+${NOTE_CHECKLIST_ITEMS.map((item, index) => `${index + 1}. ${item}`).join("\n")}`;
 
   const result = await llm.callTool<{
     scores: Record<string, unknown>;
@@ -227,6 +254,7 @@ ${scoreItemList}
     dropoffPoints: { excerpt: string; reason: string; fix: string }[];
     titleCandidates: { title: string; appeal: string }[];
     ctaSuggestions: string[];
+    checklist: { status: string; comment: string }[];
   }>({
     systemPrompt: editor.systemPrompt,
     userPrompt,
@@ -272,8 +300,20 @@ ${scoreItemList}
           },
         },
         ctaSuggestions: { type: "array", items: { type: "string" }, description: "CTA文面3〜5個" },
+        checklist: {
+          type: "array",
+          description: "投稿前チェック10項目の評価（提示された順番どおりに10個）",
+          items: {
+            type: "object",
+            properties: {
+              status: { type: "string", enum: ["ok", "caution", "fix"], description: "3段階評価" },
+              comment: { type: "string", description: "理由か直し方（1文）" },
+            },
+            required: ["status", "comment"],
+          },
+        },
       },
-      required: ["scores", "improvements", "dropoffPoints", "titleCandidates", "ctaSuggestions"],
+      required: ["scores", "improvements", "dropoffPoints", "titleCandidates", "ctaSuggestions", "checklist"],
     },
   });
 
@@ -281,6 +321,15 @@ ${scoreItemList}
     NOTE_SCORE_KEYS.map((key) => [key, clampScore(result.scores?.[key])]),
   ) as Record<NoteScoreKey, number>;
   const overallScore = Math.round(NOTE_SCORE_KEYS.reduce((sum, key) => sum + scores[key], 0) / NOTE_SCORE_KEYS.length);
+
+  // チェックリストは固定10項目に正規化する（AIの出力数・statusの揺れを吸収）
+  const rawChecklist = Array.isArray(result.checklist) ? result.checklist : [];
+  const checklist: NoteChecklistEntry[] = NOTE_CHECKLIST_ITEMS.map((item, index) => {
+    const entry = rawChecklist[index];
+    const status: NoteChecklistStatus =
+      entry?.status === "ok" || entry?.status === "caution" || entry?.status === "fix" ? entry.status : "caution";
+    return { item, status, comment: entry?.comment ?? "評価を取得できませんでした。目視で確認してください。" };
+  });
 
   return {
     scores,
@@ -296,5 +345,124 @@ ${scoreItemList}
       appeal: entry.appeal ?? "",
     })),
     ctaSuggestions: Array.isArray(result.ctaSuggestions) ? result.ctaSuggestions : [],
+    checklist,
+  };
+}
+
+/** 宣伝パックの出力上限（Threads10本+X5本+Instagram3本+各種文面）。 */
+const PROMO_MAX_TOKENS = 5000;
+
+/**
+ * 宣伝パック生成。完成した記事から、SNS導線（Threads/X/Instagram/告知文/CTA）をまとめて作る。
+ * 宣伝はマーケティング領域のため、担当はミライ（AIマーケティング責任者）を想定。
+ */
+export async function generateNotePromoPack(params: {
+  marketer: Agent;
+  content: string;
+  llm: LlmClient;
+}): Promise<NotePromoPack> {
+  const { marketer, content, llm } = params;
+
+  const userPrompt = `# 宣伝対象のnote記事（完成版）
+${content}
+
+# 指示
+この記事への導線となる宣伝パックを作ってください。
+
+絶対ルール:
+- 記事本文をそのまま繰り返さない。読者が「本文を読みたくなる」入口を作る
+- 誇大表現・煽りすぎは禁止。記事に書いてある事実の範囲で書く
+- 切り口タイプは次から使う: ${NOTE_PROMO_TYPES.join(" / ")}
+
+生成するもの:
+1. threads: Threads投稿10本。タイプを分散させる（同じ切り口ばかりにしない）。各投稿は本文150〜300字程度
+2. x: X投稿5本。各140字以内
+3. instagram: Instagramキャプション3本。改行を活かした読みやすい形式
+4. shortAnnouncements: 1〜2文の短い告知文3本（ストーリーズやコメント返信で使える）
+5. articleIntro: 記事紹介文（noteの販売ページやSNSプロフィールリンク先で使える100〜200字）
+6. profileLead: プロフィール誘導文（「プロフィールのリンクから読めます」系の自然な一文）
+7. paidCta: 販売note用CTA（有料記事の購入を自然に促す2〜3文）
+8. freeCta: 無料note用CTA（スキ・フォロー・次の記事を自然に促す2〜3文）`;
+
+  const result = await llm.callTool<{
+    threads: { type: string; text: string }[];
+    x: { type: string; text: string }[];
+    instagram: { type: string; text: string }[];
+    shortAnnouncements: string[];
+    articleIntro: string;
+    profileLead: string;
+    paidCta: string;
+    freeCta: string;
+  }>({
+    systemPrompt: marketer.systemPrompt,
+    userPrompt,
+    model: marketer.model.model,
+    temperature: marketer.model.temperature,
+    maxTokens: PROMO_MAX_TOKENS,
+    toolName: "submit_promo_pack",
+    toolDescription: "note記事の宣伝パック（SNS導線一式）を記録する",
+    toolSchema: {
+      properties: {
+        threads: {
+          type: "array",
+          description: "Threads投稿10本",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", description: "切り口タイプ" },
+              text: { type: "string", description: "投稿本文" },
+            },
+            required: ["type", "text"],
+          },
+        },
+        x: {
+          type: "array",
+          description: "X投稿5本（各140字以内）",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", description: "切り口タイプ" },
+              text: { type: "string", description: "投稿本文" },
+            },
+            required: ["type", "text"],
+          },
+        },
+        instagram: {
+          type: "array",
+          description: "Instagramキャプション3本",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", description: "切り口タイプ" },
+              text: { type: "string", description: "キャプション本文" },
+            },
+            required: ["type", "text"],
+          },
+        },
+        shortAnnouncements: { type: "array", items: { type: "string" }, description: "短い告知文3本" },
+        articleIntro: { type: "string", description: "記事紹介文" },
+        profileLead: { type: "string", description: "プロフィール誘導文" },
+        paidCta: { type: "string", description: "販売note用CTA" },
+        freeCta: { type: "string", description: "無料note用CTA" },
+      },
+      required: ["threads", "x", "instagram", "shortAnnouncements", "articleIntro", "profileLead", "paidCta", "freeCta"],
+    },
+  });
+
+  const normalizePosts = (posts: unknown): NotePromoPost[] =>
+    (Array.isArray(posts) ? posts : []).map((entry) => ({
+      type: (entry as NotePromoPost).type ?? "",
+      text: (entry as NotePromoPost).text ?? "",
+    }));
+
+  return {
+    threads: normalizePosts(result.threads),
+    x: normalizePosts(result.x),
+    instagram: normalizePosts(result.instagram),
+    shortAnnouncements: Array.isArray(result.shortAnnouncements) ? result.shortAnnouncements : [],
+    articleIntro: result.articleIntro ?? "",
+    profileLead: result.profileLead ?? "",
+    paidCta: result.paidCta ?? "",
+    freeCta: result.freeCta ?? "",
   };
 }
