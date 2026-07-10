@@ -90,6 +90,15 @@ Fastify製API。永続化層は持たず、`OfficeStore`（インメモリ）が
 - **忖度なしの物申し（驚き）** — `src/orchestration/riskReview.ts`。`agentRuntime.dispatchDirective`の中で、タスク分解の直後にケイオスちゃん（`agent-chaos`）へ「代表の指示・実行計画・直近のチャット履歴」を渡し、看過できない具体的な懸念があるときだけ`hasConcern: true`で理由付きの物申し（`type: "pushback"`）を投稿させる。懸念がなければ何も投稿しない（LLMの判断に任せることで「たまに」の頻度が自然に生まれる）。あくまで助言でありタスクの実行自体は止めない。レビュー自体が失敗してもディスパッチ全体には影響させない（try/catchで隔離）。
 - いずれも`morningBriefing.test.ts` / `officeBanter.test.ts` / `agentRuntime.test.ts`（物申し用の2ケース）でカバーし、実際のAnthropic APIでも一連の動作を確認済み。
 
+#### SNS分析AI（MVP）と将来のAI社員チーム拡張
+
+「My Chaos AI SITE 全体イメージ」のうち、中核の**SNS分析AI**だけを先行実装したMVP。分析役はミライ（AIマーケティング責任者）のsystemPromptをそのまま使うため、GUIでミライの人格・方針を編集すると分析の観点も追従する。
+
+- `src/orchestration/snsAnalyst.ts` — 投稿本文＋実績データ（閲覧数・いいね数・返信数・保存数・クリック数。閲覧数があればいいね率などの参考レートも自動計算してプロンプトに添付）を受け取り、10項目採点（各0〜10点、合計100点）・強み・改善点・コピペ可能なリライト案・総評を構造化して返す。採点キーとラベルは`shared/src/types/snsAnalysis.ts`で一元定義。範囲外・欠損スコアは0〜10にクランプ（`snsAnalyst.test.ts`でカバー）。
+- `src/routes/sns.ts` — `POST /api/sns/analyze`。分析中はミライのステータスを「thinking」にし、完了時に社内チャットへ総合スコアを一言投稿する。
+- フロントエンドは`components/SnsAnalysisLab.tsx`（サイドバーの「SNS分析ラボ」）。「新規分析」タブで投稿・実績を入力して分析、結果は端末のlocalStorage（`utils/snsPosts.ts`）に自動保存され、「過去の投稿」タブで一覧・展開・削除・**2件選択での項目別比較**ができる。Render無料プランはサーバー側ディスクが再デプロイで消えるため、書類保管庫と同じくlocalStorage保存を採用。
+- **拡張設計**: 全体イメージの残りのAI社員（トレンド分析AI・投稿生成AI・A/BテストAI・note導線AI・データ分析AI）は、①`orchestration/`に「入力→ツール強制呼び出し→構造化結果」の分析モジュールを1ファイル追加、②`routes/sns.ts`に`/api/sns/*`エンドポイントを追加、③`SnsAnalysisLab`にタブを追加、の3ステップで同じパターンのまま増やせる。
+
 ### packages/frontend
 
 Vite + React + TypeScript + Tailwind製のゲームライクなダーク/ネオンUI。`/ws/office` をリアルタイム購読し、ポーリングなしで全画面が更新される。

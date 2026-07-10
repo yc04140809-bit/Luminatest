@@ -1,5 +1,5 @@
 /** 代表からの指示投入・承認操作・設定変更用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
-import type { AgentDraft, ThemeUpdateInput } from "@chaos-ai-suite/shared";
+import type { AgentDraft, SnsAnalysisResult, SnsMetrics, ThemeUpdateInput } from "@chaos-ai-suite/shared";
 
 async function sendJson(method: "POST" | "PATCH" | "PUT", path: string, body: unknown): Promise<void> {
   const res = await fetch(path, {
@@ -95,4 +95,22 @@ export function postBriefing(): Promise<void> {
 /** オフィス雑談タイムを開始する。既に進行中の場合はエラーになる。 */
 export function postBanter(): Promise<void> {
   return sendJson("POST", "/api/banter", {});
+}
+
+/** SNS投稿をミライ（SNS分析AI）に分析させる。LLM呼び出しのため完了まで10〜30秒程度かかる。 */
+export async function analyzeSnsPost(input: {
+  content: string;
+  platform: string;
+  metrics: SnsMetrics;
+}): Promise<SnsAnalysisResult> {
+  const res = await fetch("/api/sns/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error((detail as { error?: string }).error ?? `request failed: ${res.status}`);
+  }
+  return res.json() as Promise<SnsAnalysisResult>;
 }
