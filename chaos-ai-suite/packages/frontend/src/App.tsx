@@ -16,6 +16,7 @@ import { BanterLauncher } from "./components/BanterLauncher.js";
 import { SnsAnalysisLab } from "./components/SnsAnalysisLab.js";
 import { NoteEditorStudio } from "./components/NoteEditorStudio.js";
 import { CaseWorkshop } from "./components/CaseWorkshop.js";
+import { TrendNoteStudio } from "./components/TrendNoteStudio.js";
 import { ArchivePanel } from "./components/ArchivePanel.js";
 import { postBriefing } from "./api/officeApi.js";
 import { todayInTokyo } from "./utils/dateUtil.js";
@@ -173,6 +174,7 @@ export default function App() {
           <CaseWorkshop agents={agents} />
           <SnsAnalysisLab />
           <NoteEditorStudio />
+          <TrendNoteStudio />
           <BanterLauncher />
           <CommandCenter agents={agents} prefillTarget={mentionTarget} />
           <ApprovalQueue tasks={pendingApprovalTasks} agents={office.agents} />

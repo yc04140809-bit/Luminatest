@@ -54,8 +54,8 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
   {
     id: "note",
     label: "note編集データ",
-    description: "下書き・編集履歴・複製・宣伝パック",
-    keys: ["chaos-ai-suite:note-draft"],
+    description: "下書き・編集履歴・複製・宣伝パック・トレンドnote生成履歴",
+    keys: ["chaos-ai-suite:note-draft", "chaos-ai-suite:trend-notes"],
   },
   {
     id: "cases",

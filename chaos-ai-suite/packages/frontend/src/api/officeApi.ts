@@ -15,6 +15,10 @@ import type {
   SnsAnalysisResult,
   SnsMetrics,
   ThemeUpdateInput,
+  TrendArticleResult,
+  TrendResearchResult,
+  TrendSource,
+  TrendTheme,
 } from "@chaos-ai-suite/shared";
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
@@ -206,6 +210,25 @@ export function generateCaseDeliveryPack(input: {
   deliverablesSummary: string;
 }): Promise<DeliveryPack> {
   return postJson<DeliveryPack>("/api/cases/delivery-pack", input);
+}
+
+/** トレンドnote: Web検索つきリサーチ（ミライ・1回呼び出し。30秒〜2分程度かかる）。 */
+export function researchTrendTopics(input: { genre: string; audience: string; period: string }): Promise<TrendResearchResult> {
+  return postJson<TrendResearchResult>("/api/trend/research", input);
+}
+
+/** トレンドnote: 選択テーマから記事・SNS告知・タイトル案・ファクトチェックを一括生成（ネムリ・1回呼び出し）。 */
+export function generateTrendArticle(input: {
+  theme: TrendTheme;
+  sources: TrendSource[];
+  researchDate: string;
+  genre: string;
+  audience: string;
+  format: string;
+  length: string;
+  style: string;
+}): Promise<TrendArticleResult> {
+  return postJson<TrendArticleResult>("/api/trend/generate", input);
 }
 
 /** 選択した部分だけを指示に従って書き直す（選択範囲のみ送信・小さい呼び出し）。 */
