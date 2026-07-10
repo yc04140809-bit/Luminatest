@@ -10,6 +10,7 @@ import {
   generateDeliveryPack,
   organizeCaseRequirements,
 } from "../orchestration/caseWorkshop.js";
+import { analyzeScoutCase } from "../orchestration/caseScout.js";
 
 const MAX_TEXT_LENGTH = 20000;
 
@@ -51,6 +52,44 @@ export function caseRoutes(llm: LlmClient) {
       try {
         return await withAgentStatus(agent, "案件の要件を整理中...", () =>
           organizeCaseRequirements({ agent, requestText: body.requestText!.trim(), llm }),
+        );
+      } catch (error) {
+        return reply.code(502).send({ error: (error as Error).message });
+      }
+    });
+
+    app.post("/api/cases/scout", async (request, reply) => {
+      const body = (request.body ?? {}) as {
+        title?: string;
+        body?: string;
+        price?: number;
+        applyDeadline?: string;
+        deliveryDeadline?: string;
+        source?: string;
+        category?: string;
+      };
+      if (!body.body?.trim()) {
+        return reply.code(400).send({ error: "案件内容が入力されていません。募集文または依頼文を貼り付けてください。" });
+      }
+      if (body.body.length > MAX_TEXT_LENGTH) {
+        return reply.code(400).send({ error: `案件本文が長すぎます（${MAX_TEXT_LENGTH}字以内にしてください）` });
+      }
+      const agent = pickAgent("agent-sayla", reply);
+      if (!agent) return;
+      try {
+        return await withAgentStatus(agent, "募集案件を審査中...", () =>
+          analyzeScoutCase({
+            agent,
+            title: body.title?.trim() ?? "",
+            body: body.body!.trim(),
+            price: typeof body.price === "number" && Number.isFinite(body.price) ? body.price : undefined,
+            applyDeadline: body.applyDeadline,
+            deliveryDeadline: body.deliveryDeadline,
+            source: body.source,
+            category: body.category,
+            roster: officeStore.listAgents(),
+            llm,
+          }),
         );
       } catch (error) {
         return reply.code(502).send({ error: (error as Error).message });

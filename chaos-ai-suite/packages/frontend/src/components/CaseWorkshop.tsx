@@ -11,6 +11,7 @@ import {
   FileText,
   PackageCheck,
   Plus,
+  Radar,
   Trash2,
   X,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import {
 } from "../api/officeApi.js";
 import { calcProfit, listCases, newId, newProjectCase, removeCase, saveCase } from "../utils/cases.js";
 import { saveDocument } from "../utils/savedDocuments.js";
+import { CaseScout } from "./CaseScout.js";
 
 const REVISION_PRESETS = [
   "もっと短く",
@@ -151,6 +153,7 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
   const [confirm, setConfirm] = useState<{ message: string; danger?: boolean; onOk: () => void } | null>(null);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["basic", "request"]));
   const [copied, setCopied] = useState<string | null>(null);
+  const [scoutOpen, setScoutOpen] = useState(false);
 
   const [revisionTarget, setRevisionTarget] = useState<string | null>(null);
   const [revisionInstruction, setRevisionInstruction] = useState<string>(REVISION_PRESETS[0]);
@@ -449,6 +452,14 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
                   className={`${btnPrimary} flex items-center justify-center gap-2`}
                 >
                   <Plus size={16} /> 新しい案件を作成
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setScoutOpen(true)}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-office-gold/50 bg-office-gold/10 px-3 py-2.5 text-sm font-semibold text-office-gold transition hover:bg-office-gold/20"
+                >
+                  <Radar size={16} /> 案件スカウター（応募前の受注判定）
                 </button>
 
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="案件名・クライアント名・種別で検索" className={inputCls} />
@@ -871,6 +882,19 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
               </div>
             </div>
           )}
+
+          {/* 案件スカウター（応募前の受注判定）。登録された案件はそのまま工房の詳細画面へ */}
+          <CaseScout
+            agents={agents}
+            open={scoutOpen}
+            onClose={() => setScoutOpen(false)}
+            onOpenCase={(caseId) => {
+              setScoutOpen(false);
+              setCases(listCases());
+              setActiveId(caseId);
+              setOpenSections(new Set(["basic", "request", "tasks"]));
+            }}
+          />
         </div>
       )}
     </>

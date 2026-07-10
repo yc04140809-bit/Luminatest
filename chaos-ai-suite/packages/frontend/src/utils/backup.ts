@@ -60,8 +60,8 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
   {
     id: "cases",
     label: "案件工房データ",
-    description: "案件・要件整理・工程・成果物・納品文・利益・振り返り",
-    keys: ["chaos-ai-suite:cases"],
+    description: "案件・要件整理・工程・成果物・納品文・利益・振り返り・案件スカウター履歴",
+    keys: ["chaos-ai-suite:cases", "chaos-ai-suite:scouts"],
   },
   {
     id: "media",

@@ -8,3 +8,4 @@ export * from "./meeting.js";
 export * from "./snsAnalysis.js";
 export * from "./noteEditor.js";
 export * from "./caseWorkshop.js";
+export * from "./caseScout.js";

@@ -11,6 +11,7 @@ import type {
   NoteEditResult,
   NotePromoPack,
   NoteStructureTemplateId,
+  ScoutAnalysis,
   SnsAnalysisResult,
   SnsMetrics,
   ThemeUpdateInput,
@@ -147,6 +148,19 @@ export function editNoteArticle(input: {
 /** 完成した記事から宣伝パック（Threads/X/Instagram導線・CTA一式）を生成する。担当はミライ。 */
 export function generateNotePromoPack(input: { content: string }): Promise<NotePromoPack> {
   return postJson<NotePromoPack>("/api/note/promo", input);
+}
+
+/** 案件スカウター: 募集案件の受注可否分析（セイラ・判定〜応募文まで1回呼び出し）。 */
+export function analyzeScoutCase(input: {
+  title: string;
+  body: string;
+  price?: number;
+  applyDeadline?: string;
+  deliveryDeadline?: string;
+  source?: string;
+  category?: string;
+}): Promise<ScoutAnalysis> {
+  return postJson<ScoutAnalysis>("/api/cases/scout", input);
 }
 
 /** 案件工房: 依頼文の要件整理（セイラ・1回呼び出し）。 */
