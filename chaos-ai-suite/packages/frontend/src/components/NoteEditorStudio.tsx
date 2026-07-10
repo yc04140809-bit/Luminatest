@@ -846,6 +846,37 @@ export function NoteEditorStudio() {
                       </div>
                     ))}
 
+                    {(promoPack.thumbnails ?? []).length > 0 && (
+                      <div>
+                        <h4 className="mb-1.5 text-xs font-semibold text-office-gold">サムネイル案（3案・Canva等で再現用）</h4>
+                        <div className="space-y-1.5">
+                          {(promoPack.thumbnails ?? []).map((idea, index) => (
+                            <div key={index} className="rounded-lg border border-office-border bg-office-bg p-2.5">
+                              <div className="mb-1 flex items-center justify-between">
+                                <span className="rounded-full bg-office-gold/15 px-2 py-0.5 text-[10px] font-semibold text-office-gold">案{index + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    copyWith(
+                                      "サムネイル案をコピーしました",
+                                      `タイトル: ${idea.title}\nキャッチコピー: ${idea.catchCopy}\nデザイン構成: ${idea.layout}\n配色: ${idea.colorScheme}`,
+                                    )
+                                  }
+                                  className="flex items-center gap-1 rounded-full border border-office-border px-2 py-0.5 text-[10px] text-office-muted hover:border-office-gold hover:text-office-gold"
+                                >
+                                  <Copy size={10} /> コピー
+                                </button>
+                              </div>
+                              <p className="text-sm font-semibold text-office-text">{idea.title}</p>
+                              <p className="mb-1 text-xs text-office-text">{idea.catchCopy}</p>
+                              <p className="text-[11px] text-office-muted">構成: {idea.layout}</p>
+                              <p className="text-[11px] text-office-muted">配色: {idea.colorScheme}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {(
                       [
                         ["短い告知文", promoPack.shortAnnouncements.join("\n\n")],

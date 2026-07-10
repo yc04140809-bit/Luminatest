@@ -184,6 +184,18 @@ export interface NotePromoPost {
   text: string;
 }
 
+/** サムネイル案。スマホのデザインアプリ（Canva等）でそのまま再現できる言葉で提案する。 */
+export interface NoteThumbnailIdea {
+  /** サムネイルに載せる短いタイトル（13字前後） */
+  title: string;
+  /** 添えるキャッチコピー */
+  catchCopy: string;
+  /** デザイン構成（文字配置・背景イメージ） */
+  layout: string;
+  /** 配色（色の組み合わせと使いどころ） */
+  colorScheme: string;
+}
+
 /** 宣伝パック。記事完成後にSNS導線をまとめて生成する。 */
 export interface NotePromoPack {
   /** Threads投稿10本 */
@@ -202,6 +214,8 @@ export interface NotePromoPack {
   paidCta: string;
   /** 無料note用CTA */
   freeCta: string;
+  /** サムネイル案3案（旧バージョンで保存したパックには無いことがある） */
+  thumbnails?: NoteThumbnailIdea[];
 }
 
 /**

@@ -349,8 +349,8 @@ ${NOTE_CHECKLIST_ITEMS.map((item, index) => `${index + 1}. ${item}`).join("\n")}
   };
 }
 
-/** 宣伝パックの出力上限（Threads10本+X5本+Instagram3本+各種文面）。 */
-const PROMO_MAX_TOKENS = 5000;
+/** 宣伝パックの出力上限（Threads10本+X5本+Instagram3本+各種文面+サムネイル案3案）。 */
+const PROMO_MAX_TOKENS = 6000;
 
 /**
  * 宣伝パック生成。完成した記事から、SNS導線（Threads/X/Instagram/告知文/CTA）をまとめて作る。
@@ -382,7 +382,12 @@ ${content}
 5. articleIntro: 記事紹介文（noteの販売ページやSNSプロフィールリンク先で使える100〜200字）
 6. profileLead: プロフィール誘導文（「プロフィールのリンクから読めます」系の自然な一文）
 7. paidCta: 販売note用CTA（有料記事の購入を自然に促す2〜3文）
-8. freeCta: 無料note用CTA（スキ・フォロー・次の記事を自然に促す2〜3文）`;
+8. freeCta: 無料note用CTA（スキ・フォロー・次の記事を自然に促す2〜3文）
+9. thumbnails: サムネイル案3案。方向性を変える（例: 文字メイン/数字訴求/ビフォーアフター）。各案は
+   - title: サムネイル画像に載せる短いタイトル（13字前後、記事タイトルの縮約でよい）
+   - catchCopy: 添えるキャッチコピー（15字以内）
+   - layout: デザイン構成。スマホのCanva等で再現できる言葉で（例: 中央に白抜き大文字、下部に小さくキャッチコピー、背景は手元のスマホ写真）
+   - colorScheme: 配色。色の組み合わせと使いどころ（例: 濃紺の背景×黄色の文字、アクセントに白）`;
 
   const result = await llm.callTool<{
     threads: { type: string; text: string }[];
@@ -393,6 +398,7 @@ ${content}
     profileLead: string;
     paidCta: string;
     freeCta: string;
+    thumbnails: { title: string; catchCopy: string; layout: string; colorScheme: string }[];
   }>({
     systemPrompt: marketer.systemPrompt,
     userPrompt,
@@ -444,8 +450,22 @@ ${content}
         profileLead: { type: "string", description: "プロフィール誘導文" },
         paidCta: { type: "string", description: "販売note用CTA" },
         freeCta: { type: "string", description: "無料note用CTA" },
+        thumbnails: {
+          type: "array",
+          description: "サムネイル案3案",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "サムネイルに載せる短いタイトル" },
+              catchCopy: { type: "string", description: "キャッチコピー" },
+              layout: { type: "string", description: "デザイン構成（文字配置・背景）" },
+              colorScheme: { type: "string", description: "配色（色の組み合わせと使いどころ）" },
+            },
+            required: ["title", "catchCopy", "layout", "colorScheme"],
+          },
+        },
       },
-      required: ["threads", "x", "instagram", "shortAnnouncements", "articleIntro", "profileLead", "paidCta", "freeCta"],
+      required: ["threads", "x", "instagram", "shortAnnouncements", "articleIntro", "profileLead", "paidCta", "freeCta", "thumbnails"],
     },
   });
 
@@ -464,5 +484,11 @@ ${content}
     profileLead: result.profileLead ?? "",
     paidCta: result.paidCta ?? "",
     freeCta: result.freeCta ?? "",
+    thumbnails: (Array.isArray(result.thumbnails) ? result.thumbnails : []).map((entry) => ({
+      title: entry.title ?? "",
+      catchCopy: entry.catchCopy ?? "",
+      layout: entry.layout ?? "",
+      colorScheme: entry.colorScheme ?? "",
+    })),
   };
 }

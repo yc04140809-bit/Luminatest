@@ -163,6 +163,10 @@ test("generateNotePromoPack uses the marketer persona and normalizes posts", asy
       profileLead: "プロフから読めます",
       paidCta: "購入CTA",
       freeCta: "フォローCTA",
+      thumbnails: [
+        { title: "サムネタイトル", catchCopy: "コピー", layout: "中央に白抜き", colorScheme: "濃紺×黄" },
+        { title: "欠損あり" }, // catchCopy等が欠けているケース
+      ],
     },
     capture,
   );
@@ -174,4 +178,23 @@ test("generateNotePromoPack uses the marketer persona and normalizes posts", asy
   assert.equal(pack.instagram[0]!.type, "", "type欠損は空文字に正規化");
   assert.equal(pack.paidCta, "購入CTA");
   assert.ok(capture.request!.userPrompt.includes("本文をそのまま繰り返さない"));
+  assert.equal(pack.thumbnails!.length, 2);
+  assert.equal(pack.thumbnails![0]!.colorScheme, "濃紺×黄");
+  assert.equal(pack.thumbnails![1]!.catchCopy, "", "サムネ案の欠損フィールドは空文字に正規化");
+  assert.ok(capture.request!.userPrompt.includes("サムネイル案3案"), "サムネ案の指示がプロンプトに含まれる");
+});
+
+test("generateNotePromoPack tolerates a pack without thumbnails (旧レスポンス互換)", async () => {
+  const llm = stubLlm({
+    threads: [],
+    x: [],
+    instagram: [],
+    shortAnnouncements: [],
+    articleIntro: "",
+    profileLead: "",
+    paidCta: "",
+    freeCta: "",
+  });
+  const pack = await generateNotePromoPack({ marketer: mirai, content: "記事", llm });
+  assert.deepEqual(pack.thumbnails, [], "thumbnails欠損は空配列に正規化");
 });
