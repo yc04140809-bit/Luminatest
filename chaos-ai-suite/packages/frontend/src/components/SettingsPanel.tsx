@@ -1,18 +1,20 @@
-import { useMemo, useState } from "react";
-import { RotateCcw, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Music, RotateCcw, X } from "lucide-react";
 import { THEME_PRESETS, resolveThemeTokens, type Agent, type ThemeSettings, type ThemeTokens } from "@chaos-ai-suite/shared";
 import { updateAgent, updateTheme } from "../api/officeApi.js";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback.js";
+import type { BgmControls } from "../hooks/useBgm.js";
 import { AgentManagerPanel } from "./AgentManagerPanel.js";
 import { IntegrationsPanel } from "./IntegrationsPanel.js";
 
 interface SettingsPanelProps {
   theme: ThemeSettings;
   agents: Agent[];
+  bgm: BgmControls;
   onClose: () => void;
 }
 
-type SettingsTab = "theme" | "agents" | "integrations";
+type SettingsTab = "theme" | "agents" | "integrations" | "sound";
 
 const TOKEN_LABELS: Record<keyof ThemeTokens, string> = {
   bg: "背景",
@@ -30,10 +32,26 @@ function previewCssVar(token: keyof ThemeTokens, value: string): void {
   document.documentElement.style.setProperty(`--office-${token}`, value);
 }
 
-/** 配色管理画面。プリセット切り替え・トークン単位のカスタムカラー・AI社員ごとのアクセントカラーを編集する。 */
-export function SettingsPanel({ theme, agents, onClose }: SettingsPanelProps) {
+/** 配色管理画面。プリセット切り替え・トークン単位のカスタムカラー・AI社員ごとのアクセントカラー・BGMを編集する。 */
+export function SettingsPanel({ theme, agents, bgm, onClose }: SettingsPanelProps) {
   const [tab, setTab] = useState<SettingsTab>("theme");
   const tokens = useMemo(() => resolveThemeTokens(theme), [theme]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [bgmBusy, setBgmBusy] = useState(false);
+  const [bgmError, setBgmError] = useState<string | null>(null);
+
+  async function handleBgmFile(file: File | undefined): Promise<void> {
+    if (!file || bgmBusy) return;
+    setBgmBusy(true);
+    setBgmError(null);
+    try {
+      await bgm.setTrackFile(file);
+    } catch (error) {
+      setBgmError(`保存に失敗しました: ${(error as Error).message}`);
+    } finally {
+      setBgmBusy(false);
+    }
+  }
 
   const commitThemeOverride = useDebouncedCallback((token: keyof ThemeTokens, value: string) => {
     void updateTheme({ overrides: { [token]: value } });
@@ -89,10 +107,82 @@ export function SettingsPanel({ theme, agents, onClose }: SettingsPanelProps) {
           >
             外部連携
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("sound")}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              tab === "sound" ? "bg-office-accent text-white" : "text-office-muted hover:text-office-text"
+            }`}
+          >
+            サウンド
+          </button>
         </div>
 
         {tab === "agents" && <AgentManagerPanel agents={agents} />}
         {tab === "integrations" && <IntegrationsPanel />}
+
+        {tab === "sound" && (
+          <section className="space-y-4">
+            <div>
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-office-text">
+                <Music size={14} /> BGM
+              </h3>
+              <p className="mb-3 text-xs text-office-muted">
+                スマホやPCの音楽ファイル（mp3など）をBGMとして流せます。ファイルはこの端末のブラウザ内に保存され、次回起動時も引き継がれます。未設定の間は内蔵のアンビエント音が流れます。
+              </p>
+
+              <div className="mb-3 rounded-lg border border-office-border bg-office-bg px-3 py-2.5">
+                <p className="text-xs text-office-muted">現在のBGM</p>
+                <p className="truncate text-sm font-semibold text-office-text">
+                  {bgm.trackName ?? "内蔵アンビエント（デフォルト）"}
+                </p>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={(event) => {
+                  void handleBgmFile(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={bgmBusy}
+                  className="w-full rounded-lg bg-office-accent px-3 py-2 text-sm font-semibold text-white transition disabled:opacity-40"
+                >
+                  {bgmBusy ? "保存中..." : "音楽ファイルを選ぶ"}
+                </button>
+                <button
+                  type="button"
+                  onClick={bgm.toggle}
+                  className="w-full rounded-lg border border-office-border px-3 py-2 text-sm font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
+                >
+                  {bgm.enabled ? "⏸ BGMを止める" : "▶ BGMを流す"}
+                </button>
+                {bgm.trackName && (
+                  <button
+                    type="button"
+                    onClick={() => void bgm.clearTrackFile()}
+                    className="w-full rounded-lg border border-office-border px-3 py-2 text-xs text-office-muted transition hover:border-red-400 hover:text-red-400"
+                  >
+                    ファイルを解除して内蔵BGMに戻す
+                  </button>
+                )}
+              </div>
+
+              {bgmError && <p className="mt-2 text-xs text-red-400">{bgmError}</p>}
+              <p className="mt-3 text-[11px] text-office-muted">
+                ※ ヘッダーの♪ボタンでもいつでも再生/停止できます。ご自身で権利を持つ音源・利用許諾のある音源をお使いください。
+              </p>
+            </div>
+          </section>
+        )}
 
         {tab === "theme" && (
           <>
