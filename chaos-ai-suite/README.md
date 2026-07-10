@@ -99,6 +99,15 @@ Fastify製API。永続化層は持たず、`OfficeStore`（インメモリ）が
 - フロントエンドは`components/SnsAnalysisLab.tsx`（サイドバーの「SNS分析ラボ」）。「新規分析」タブで投稿・実績を入力して分析、結果は端末のlocalStorage（`utils/snsPosts.ts`）に自動保存され、「過去の投稿」タブで一覧・展開・削除・**2件選択での項目別比較**ができる。Render無料プランはサーバー側ディスクが再デプロイで消えるため、書類保管庫と同じくlocalStorage保存を採用。
 - **拡張設計**: 全体イメージの残りのAI社員（トレンド分析AI・投稿生成AI・A/BテストAI・note導線AI・データ分析AI）は、①`orchestration/`に「入力→ツール強制呼び出し→構造化結果」の分析モジュールを1ファイル追加、②`routes/sns.ts`に`/api/sns/*`エンドポイントを追加、③`SnsAnalysisLab`にタブを追加、の3ステップで同じパターンのまま増やせる。
 
+#### AI Note Editor（売れるnote編集AI・MVP）
+
+AIで書いた記事の下書きを貼るだけで、noteにそのまま投稿できる品質へ自動編集するスタジオ。編集役はネムリ（書類作成AI）のsystemPromptを使う。
+
+- `src/orchestration/noteEditor.ts` — 「編集」と「診断」を別々のLLM呼び出しに分離（長文記事で出力上限に達するのを防ぎ、編集結果を先に表示できる）。編集は構成整理・見出し生成・スマホ向け改行・太字/引用の強調・箇条書き変換を行い、著者の口調と事実は変えないルール。診断は7項目採点（読みやすさ・冒頭の引き込み・完読可能性・共感性・保存されやすさ・分かりやすさ・CTAの強さ、各0〜100点）＋改善案＋離脱ポイント＋タイトル10案＋CTA提案を返す。9種類の編集モード（AI副業/初心者/ビジネス/ストーリー/体験談/教育/販売/SEO/ファン化）は`shared/src/types/noteEditor.ts`で方針テキストとして定義し、プロンプトに注入する。
+- `src/routes/note.ts` — `POST /api/note/edit` / `POST /api/note/analyze`。入力は2万字上限（コスト暴走防止）。
+- フロントエンドは`components/NoteEditorStudio.tsx`（サイドバーの「note編集スタジオ」）。①記事貼り付け＋モード選択→②AI編集→③noteプレビュー（`utils/markdownPreview.ts`の依存ゼロ・XSS対策済みレンダラー＋白背景の`note-preview` CSS）/Markdown切り替え→④診断→⑤エクスポート（コピー/.md保存）の縦1画面フロー。作業状態は`utils/noteDraft.ts`でlocalStorageに自動保存され、リロードしても復元される。
+- 将来機能（サムネ案・Threads/X/Instagram導線・WordPress/PDF等の出力）は`/api/note/*`にエンドポイントを足し、スタジオにセクションを追加する同パターンで拡張する。テストは`noteEditor.test.ts`（モード注入・スコアのクランプ・平均点計算）。
+
 ### packages/frontend
 
 Vite + React + TypeScript + Tailwind製のゲームライクなダーク/ネオンUI。`/ws/office` をリアルタイム購読し、ポーリングなしで全画面が更新される。

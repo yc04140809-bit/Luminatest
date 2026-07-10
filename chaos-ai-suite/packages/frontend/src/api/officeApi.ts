@@ -1,5 +1,26 @@
 /** 代表からの指示投入・承認操作・設定変更用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
-import type { AgentDraft, SnsAnalysisResult, SnsMetrics, ThemeUpdateInput } from "@chaos-ai-suite/shared";
+import type {
+  AgentDraft,
+  NoteAnalysisResult,
+  NoteEditModeId,
+  NoteEditResult,
+  SnsAnalysisResult,
+  SnsMetrics,
+  ThemeUpdateInput,
+} from "@chaos-ai-suite/shared";
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error((detail as { error?: string }).error ?? `request failed: ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
 
 async function sendJson(method: "POST" | "PATCH" | "PUT", path: string, body: unknown): Promise<void> {
   const res = await fetch(path, {
@@ -98,19 +119,20 @@ export function postBanter(): Promise<void> {
 }
 
 /** SNS投稿をミライ（SNS分析AI）に分析させる。LLM呼び出しのため完了まで10〜30秒程度かかる。 */
-export async function analyzeSnsPost(input: {
+export function analyzeSnsPost(input: {
   content: string;
   platform: string;
   metrics: SnsMetrics;
 }): Promise<SnsAnalysisResult> {
-  const res = await fetch("/api/sns/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) {
-    const detail = await res.json().catch(() => ({}));
-    throw new Error((detail as { error?: string }).error ?? `request failed: ${res.status}`);
-  }
-  return res.json() as Promise<SnsAnalysisResult>;
+  return postJson<SnsAnalysisResult>("/api/sns/analyze", input);
+}
+
+/** 記事をネムリ（note編集AI）に編集させる。長文記事では30〜60秒程度かかる。 */
+export function editNoteArticle(input: { content: string; mode: NoteEditModeId }): Promise<NoteEditResult> {
+  return postJson<NoteEditResult>("/api/note/edit", input);
+}
+
+/** 編集済み記事の読みやすさ診断・離脱ポイント・タイトル案・CTA案を取得する。 */
+export function analyzeNoteArticle(input: { content: string }): Promise<NoteAnalysisResult> {
+  return postJson<NoteAnalysisResult>("/api/note/analyze", input);
 }

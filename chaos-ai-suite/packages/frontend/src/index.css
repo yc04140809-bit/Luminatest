@@ -109,3 +109,50 @@ body,
 .chibi-sparkle {
   animation: chibi-sparkle 1.1s ease-out forwards;
 }
+
+/* AI Note Editor: 実際のnoteに近い白背景プレビュー */
+.note-preview {
+  background: #ffffff;
+  color: #1f1f1f;
+  font-size: 16px;
+  line-height: 1.9;
+  padding: 20px 18px;
+  border-radius: 12px;
+}
+.note-preview h2 {
+  font-size: 1.3em;
+  font-weight: 700;
+  margin: 1.6em 0 0.6em;
+  border-bottom: 2px solid #e5e5e5;
+  padding-bottom: 0.3em;
+}
+.note-preview h3 {
+  font-size: 1.15em;
+  font-weight: 700;
+  margin: 1.4em 0 0.5em;
+}
+.note-preview h4 {
+  font-size: 1.05em;
+  font-weight: 700;
+  margin: 1.2em 0 0.4em;
+}
+.note-preview p {
+  margin: 0 0 1.1em;
+}
+.note-preview ul {
+  margin: 0 0 1.1em;
+  padding-left: 1.4em;
+  list-style: disc;
+}
+.note-preview li {
+  margin-bottom: 0.35em;
+}
+.note-preview blockquote {
+  border-left: 4px solid #c9c9c9;
+  color: #555555;
+  padding: 0.2em 0 0.2em 1em;
+  margin: 0 0 1.1em;
+}
+.note-preview strong {
+  font-weight: 700;
+}

@@ -14,6 +14,7 @@ import { MeetingLauncher } from "./components/MeetingLauncher.js";
 import { MeetingRoom } from "./components/MeetingRoom.js";
 import { BanterLauncher } from "./components/BanterLauncher.js";
 import { SnsAnalysisLab } from "./components/SnsAnalysisLab.js";
+import { NoteEditorStudio } from "./components/NoteEditorStudio.js";
 import { ArchivePanel } from "./components/ArchivePanel.js";
 import { postBriefing } from "./api/officeApi.js";
 import { todayInTokyo } from "./utils/dateUtil.js";
@@ -169,6 +170,7 @@ export default function App() {
         <div className="flex flex-col gap-6">
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
           <SnsAnalysisLab />
+          <NoteEditorStudio />
           <BanterLauncher />
           <CommandCenter agents={agents} prefillTarget={mentionTarget} />
           <ApprovalQueue tasks={pendingApprovalTasks} agents={office.agents} />
