@@ -22,7 +22,7 @@ const APP_KEY_PREFIX = "chaos-ai-suite:";
 /** これを超えるバックアップファイルは読み込まない（BGM音源込みでも通常は数十MB以下） */
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
 
-export type BackupCategoryId = "agents" | "documents" | "sns" | "note" | "media" | "other";
+export type BackupCategoryId = "agents" | "documents" | "sns" | "note" | "cases" | "media" | "other";
 
 export interface BackupCategory {
   id: BackupCategoryId;
@@ -56,6 +56,12 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     label: "note編集データ",
     description: "下書き・編集履歴・複製・宣伝パック",
     keys: ["chaos-ai-suite:note-draft"],
+  },
+  {
+    id: "cases",
+    label: "案件工房データ",
+    description: "案件・要件整理・工程・成果物・納品文・利益・振り返り",
+    keys: ["chaos-ai-suite:cases"],
   },
   {
     id: "media",

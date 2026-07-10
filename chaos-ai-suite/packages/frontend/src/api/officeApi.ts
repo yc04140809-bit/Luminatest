@@ -1,6 +1,10 @@
 /** 代表からの指示投入・承認操作・設定変更用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
 import type {
   AgentDraft,
+  CaseQualityResult,
+  CaseRequirements,
+  ClientQuestions,
+  DeliveryPack,
   NoteAnalysisResult,
   NoteEditLevelId,
   NoteEditModeId,
@@ -143,6 +147,51 @@ export function editNoteArticle(input: {
 /** 完成した記事から宣伝パック（Threads/X/Instagram導線・CTA一式）を生成する。担当はミライ。 */
 export function generateNotePromoPack(input: { content: string }): Promise<NotePromoPack> {
   return postJson<NotePromoPack>("/api/note/promo", input);
+}
+
+/** 案件工房: 依頼文の要件整理（セイラ・1回呼び出し）。 */
+export function organizeCaseRequirements(input: { requestText: string }): Promise<CaseRequirements> {
+  return postJson<CaseRequirements>("/api/cases/requirements", input);
+}
+
+/** 案件工房: クライアント確認文3種（ネムリ・1回呼び出し）。 */
+export function generateCaseQuestions(input: { missingInfo: string[]; questions: string[] }): Promise<ClientQuestions> {
+  return postJson<ClientQuestions>("/api/cases/questions", input);
+}
+
+/** 案件工房: 作業工程の自動生成（レヴィ・1回呼び出し）。 */
+export function generateCaseTasks(input: { requirementsText: string }): Promise<{
+  tasks: { title: string; assignedAgentId: string; description: string; completionCriteria: string }[];
+}> {
+  return postJson("/api/cases/tasks", input);
+}
+
+/** 案件工房: 工程1件分の成果物作成・修正（担当AI社員の人格で実行）。 */
+export function generateCaseDeliverable(input: {
+  agentId?: string;
+  caseTitle: string;
+  requirementsText: string;
+  taskTitle: string;
+  taskDescription: string;
+  completionCriteria: string;
+  currentDraft?: string;
+  instruction?: string;
+}): Promise<{ title: string; content: string }> {
+  return postJson("/api/cases/deliverable", input);
+}
+
+/** 案件工房: 案件全体の品質チェック（ケイオス・1回呼び出し）。 */
+export function checkCaseQuality(input: { requirementsText: string; deliverablesText: string }): Promise<CaseQualityResult> {
+  return postJson<CaseQualityResult>("/api/cases/quality", input);
+}
+
+/** 案件工房: 納品パック3種（ネムリ・1回呼び出し）。 */
+export function generateCaseDeliveryPack(input: {
+  caseTitle: string;
+  clientName: string;
+  deliverablesSummary: string;
+}): Promise<DeliveryPack> {
+  return postJson<DeliveryPack>("/api/cases/delivery-pack", input);
 }
 
 /** 選択した部分だけを指示に従って書き直す（選択範囲のみ送信・小さい呼び出し）。 */

@@ -18,6 +18,7 @@ import { briefingRoutes } from "./routes/briefing.js";
 import { banterRoutes } from "./routes/banter.js";
 import { snsRoutes } from "./routes/sns.js";
 import { noteRoutes } from "./routes/note.js";
+import { caseRoutes } from "./routes/cases.js";
 import { registerOfficeSocket } from "./ws/officeSocket.js";
 import { officeStore } from "./store/officeStore.js";
 import { createAnthropicClient } from "./orchestration/llmClient.js";
@@ -53,6 +54,7 @@ async function main(): Promise<void> {
   await app.register(banterRoutes(banterRuntime));
   await app.register(snsRoutes(llm));
   await app.register(noteRoutes(llm));
+  await app.register(caseRoutes(llm));
   await app.register(registerOfficeSocket);
 
   // 本番デプロイ用: フロントエンドのビルド成果物を同じサーバー・同一originから配信する
