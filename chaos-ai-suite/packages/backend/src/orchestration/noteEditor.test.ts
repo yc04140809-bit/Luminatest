@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NOTE_SCORE_KEYS, SEED_AGENTS } from "@chaos-ai-suite/shared";
 import type { LlmClient, ToolCallRequest } from "./llmClient.js";
-import { analyzeNoteArticle, editNoteArticle } from "./noteEditor.js";
+import { analyzeNoteArticle, editNoteArticle, editNoteSection } from "./noteEditor.js";
 
 const nemuri = SEED_AGENTS.find((agent) => agent.id === "agent-nemuri")!;
 
@@ -42,6 +42,42 @@ test("editNoteArticle normalizes unknown highlight kinds to bold", async () => {
   });
   const result = await editNoteArticle({ editor: nemuri, content: "元", modeId: "beginner", llm });
   assert.equal(result.highlights[0]!.kind, "bold");
+});
+
+test("editNoteArticle injects level-specific rules (layout level forbids text changes)", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm(
+    { editedMarkdown: "本文", changeSummary: [], highlights: [] },
+    capture,
+  );
+
+  await editNoteArticle({ editor: nemuri, content: "元", modeId: "experience", levelId: "layout", llm });
+  assert.ok(capture.request!.userPrompt.includes("レイアウトのみ"));
+  assert.ok(capture.request!.userPrompt.includes("一切変更しないこと"));
+
+  await editNoteArticle({ editor: nemuri, content: "元", modeId: "experience", levelId: "pro", llm });
+  assert.ok(capture.request!.userPrompt.includes("プロ編集者モード"));
+
+  // levelId未指定は従来どおり「読みやすくする」で後方互換
+  await editNoteArticle({ editor: nemuri, content: "元", modeId: "experience", llm });
+  assert.ok(capture.request!.userPrompt.includes("読みやすくする"));
+});
+
+test("editNoteSection sends only the selected section with the instruction", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm({ revisedText: "短くした文" }, capture);
+
+  const result = await editNoteSection({
+    editor: nemuri,
+    sectionText: "とても長い段落の文章です。",
+    instruction: "もっと短く",
+    llm,
+  });
+
+  assert.equal(result.revisedText, "短くした文");
+  assert.ok(capture.request!.userPrompt.includes("もっと短く"));
+  assert.ok(capture.request!.userPrompt.includes("とても長い段落の文章です。"));
+  assert.ok(capture.request!.maxTokens <= 2000, "部分編集は小さい呼び出しに抑える");
 });
 
 test("analyzeNoteArticle clamps scores into 0..100 and averages overallScore", async () => {

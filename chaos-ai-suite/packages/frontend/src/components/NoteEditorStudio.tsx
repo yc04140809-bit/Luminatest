@@ -1,19 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Copy, Download, PenLine, RotateCcw, X } from "lucide-react";
 import {
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Download,
+  History,
+  PenLine,
+  Redo2,
+  RotateCcw,
+  Scissors,
+  Undo2,
+  X,
+} from "lucide-react";
+import {
+  NOTE_EDIT_LEVELS,
   NOTE_EDIT_MODES,
   NOTE_SCORE_KEYS,
   NOTE_SCORE_LABELS,
+  NOTE_SECTION_INSTRUCTIONS,
   type NoteAnalysisResult,
+  type NoteEditLevelId,
   type NoteEditModeId,
   type NoteEditResult,
 } from "@chaos-ai-suite/shared";
-import { analyzeNoteArticle, editNoteArticle } from "../api/officeApi.js";
+import { analyzeNoteArticle, editNoteArticle, editNoteSection } from "../api/officeApi.js";
 import { renderNotePreviewHtml } from "../utils/markdownPreview.js";
-import { clearNoteDraft, loadNoteDraft, saveNoteDraft } from "../utils/noteDraft.js";
+import { clearNoteDraft, loadNoteDraft, newVersion, saveNoteDraft, type NoteVersion } from "../utils/noteDraft.js";
+import { toNotePasteText, toPlainText } from "../utils/noteCopy.js";
+import { diffSentences } from "../utils/textDiff.js";
 import { downloadText } from "../utils/downloadText.js";
 
 type Phase = "idle" | "editing" | "analyzing" | "done";
+type ResultTab = "before" | "after" | "diff";
 
 function scoreColor(score: number): string {
   if (score >= 75) return "#34d399";
@@ -27,22 +45,66 @@ function overallColor(score: number): string {
   return "text-red-400";
 }
 
+/** 折りたたみセクションの共通見出し。 */
+function Collapsible({
+  icon,
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-office-border bg-office-panel">
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
+        {open ? <ChevronDown size={14} className="text-office-muted" /> : <ChevronRight size={14} className="text-office-muted" />}
+        {icon}
+        <span className="text-sm font-semibold text-office-text">{title}</span>
+      </button>
+      {open && <div className="border-t border-office-border px-3 py-3">{children}</div>}
+    </div>
+  );
+}
+
 /**
- * AI Note Editor（売れるnote編集AI）のMVPスタジオ。
- * 流れ: 記事入力 → AI編集 → noteプレビュー/診断 → エクスポート（スマホ縦1画面で完結）。
- * 作業状態はlocalStorageに自動保存され、リロードしても復元される。
+ * AI Note Editor（売れるnote編集AI）スタジオ。
+ * 流れ: 記事入力 → 編集レベル選択 → AI編集 → 比較（編集前/編集後/変更点）→ 診断 → コピー/エクスポート。
+ * 部分編集・履歴は折りたたみに収納し、通常画面をシンプルに保つ（スマホファースト）。
+ * 比較・コピー・履歴はすべてクライアント処理でAIを呼ばない。
  */
 export function NoteEditorStudio() {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
   const [modeId, setModeId] = useState<NoteEditModeId>("experience");
+  const [levelId, setLevelId] = useState<NoteEditLevelId>("readable");
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [editResult, setEditResult] = useState<NoteEditResult | null>(null);
   const [analysis, setAnalysis] = useState<NoteAnalysisResult | null>(null);
-  const [view, setView] = useState<"preview" | "markdown">("preview");
-  const [copied, setCopied] = useState(false);
+
+  const [versions, setVersions] = useState<NoteVersion[]>([]);
+  const [versionIndex, setVersionIndex] = useState(0);
+
+  const [resultTab, setResultTab] = useState<ResultTab>("after");
+  const [afterView, setAfterView] = useState<"preview" | "markdown">("preview");
+  const [manualText, setManualText] = useState("");
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
+  const [sectionInstruction, setSectionInstruction] = useState<string>(NOTE_SECTION_INSTRUCTIONS[0]);
+  const [sectionBusy, setSectionBusy] = useState(false);
+
   const restored = useRef(false);
+
+  const currentMarkdown = versions[versionIndex]?.markdown ?? null;
 
   // 初回オープン時に前回の作業を復元する
   useEffect(() => {
@@ -52,35 +114,69 @@ export function NoteEditorStudio() {
     if (!draft) return;
     setContent(draft.content);
     setModeId(draft.modeId);
-    if (draft.editResult) {
-      setEditResult(draft.editResult);
-      setAnalysis(draft.analysisResult ?? null);
+    if (draft.levelId) setLevelId(draft.levelId);
+    if (draft.editResult) setEditResult(draft.editResult);
+    setAnalysis(draft.analysisResult ?? null);
+    if (draft.versions && draft.versions.length > 0) {
+      setVersions(draft.versions);
+      setVersionIndex(Math.min(draft.versionIndex ?? draft.versions.length - 1, draft.versions.length - 1));
       setPhase("done");
     }
   }, [open]);
 
-  // 作業状態の自動保存
+  // 作業状態の自動保存（AIを呼ばない）
   useEffect(() => {
     if (!restored.current) return;
-    saveNoteDraft({ content, modeId, editResult: editResult ?? undefined, analysisResult: analysis ?? undefined });
-  }, [content, modeId, editResult, analysis]);
+    saveNoteDraft({
+      content,
+      modeId,
+      levelId,
+      editResult: editResult ?? undefined,
+      analysisResult: analysis ?? undefined,
+      versions,
+      versionIndex,
+    });
+  }, [content, modeId, levelId, editResult, analysis, versions, versionIndex]);
+
+  // 表示中の版が変わったら手動編集テキストを同期する
+  useEffect(() => {
+    setManualText(currentMarkdown ?? "");
+    setSelectedBlock(null);
+  }, [currentMarkdown]);
 
   const previewHtml = useMemo(
-    () => (editResult ? renderNotePreviewHtml(editResult.editedMarkdown) : ""),
-    [editResult],
+    () => (currentMarkdown ? renderNotePreviewHtml(currentMarkdown) : ""),
+    [currentMarkdown],
   );
 
+  const diffSegments = useMemo(
+    () => (currentMarkdown && resultTab === "diff" ? diffSentences(content, currentMarkdown) : []),
+    [content, currentMarkdown, resultTab],
+  );
+
+  const blocks = useMemo(() => (currentMarkdown ? currentMarkdown.split(/\n{2,}/) : []), [currentMarkdown]);
+
+  const selectedLevel = NOTE_EDIT_LEVELS.find((level) => level.id === levelId)!;
+  const busy = phase === "editing" || phase === "analyzing" || sectionBusy;
+
+  /** 新しい版を積む。表示位置より先の履歴（やり直し分）は破棄する標準的なUndoモデル。 */
+  function pushVersion(label: string, markdown: string): void {
+    const next = [...versions.slice(0, versionIndex + 1), newVersion(label, markdown)];
+    setVersions(next);
+    setVersionIndex(next.length - 1);
+  }
+
   async function handleEdit(): Promise<void> {
-    if (!content.trim() || phase === "editing" || phase === "analyzing") return;
+    if (!content.trim() || busy) return;
     setError(null);
-    setEditResult(null);
     setAnalysis(null);
     setPhase("editing");
     try {
-      const edited = await editNoteArticle({ content: content.trim(), mode: modeId });
+      const edited = await editNoteArticle({ content: content.trim(), mode: modeId, level: levelId });
       setEditResult(edited);
+      pushVersion(`AI編集（${selectedLevel.label}）`, edited.editedMarkdown);
+      setResultTab("after");
       setPhase("analyzing");
-      // 診断は編集後の記事に対して行う。診断だけ失敗しても編集結果は残す。
       try {
         const diagnosed = await analyzeNoteArticle({ content: edited.editedMarkdown });
         setAnalysis(diagnosed);
@@ -90,18 +186,42 @@ export function NoteEditorStudio() {
       setPhase("done");
     } catch (editError) {
       setError((editError as Error).message);
-      setPhase("idle");
+      setPhase(versions.length > 0 ? "done" : "idle");
     }
   }
 
-  async function handleCopy(): Promise<void> {
-    if (!editResult) return;
+  async function handleSectionEdit(): Promise<void> {
+    if (selectedBlock === null || !currentMarkdown || sectionBusy) return;
+    const target = blocks[selectedBlock];
+    if (!target?.trim()) return;
+    setSectionBusy(true);
+    setError(null);
     try {
-      await navigator.clipboard.writeText(editResult.editedMarkdown);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
+      const { revisedText } = await editNoteSection({ section: target, instruction: sectionInstruction });
+      const nextBlocks = [...blocks];
+      nextBlocks[selectedBlock] = revisedText.trim();
+      pushVersion(`部分編集: ${sectionInstruction}`, nextBlocks.join("\n\n"));
+      setSelectedBlock(null);
+    } catch (sectionError) {
+      setError(`部分編集に失敗しました: ${(sectionError as Error).message}`);
+    } finally {
+      setSectionBusy(false);
+    }
+  }
+
+  function handleManualSave(): void {
+    if (!currentMarkdown || manualText === currentMarkdown) return;
+    pushVersion("手動修正", manualText);
+  }
+
+  async function copyWith(label: string, text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMessage(label);
+      setTimeout(() => setCopyMessage(null), 2200);
     } catch {
-      // クリップボード非対応環境ではMarkdown表示から手動コピーしてもらう
+      setCopyMessage("コピーできませんでした。Markdown表示から手動でコピーしてください");
+      setTimeout(() => setCopyMessage(null), 3000);
     }
   }
 
@@ -109,12 +229,12 @@ export function NoteEditorStudio() {
     setContent("");
     setEditResult(null);
     setAnalysis(null);
+    setVersions([]);
+    setVersionIndex(0);
     setPhase("idle");
     setError(null);
     clearNoteDraft();
   }
-
-  const busy = phase === "editing" || phase === "analyzing";
 
   return (
     <>
@@ -124,7 +244,7 @@ export function NoteEditorStudio() {
           note編集スタジオ
         </h2>
         <p className="mb-3 text-xs text-office-muted">
-          AIで書いた下書きを貼るだけで、ネムリ（書類作成AI）がnoteにそのまま投稿できる品質へ編集。診断・タイトル案・CTA提案つき。
+          AIで書いた下書きを貼るだけで、ネムリ（書類作成AI）がnoteにそのまま投稿できる品質へ編集。診断・比較・部分編集・履歴つき。
         </p>
         <button
           type="button"
@@ -151,11 +271,54 @@ export function NoteEditorStudio() {
             </button>
           </div>
 
-          <div className="mx-auto w-full max-w-3xl flex-1 space-y-5 overflow-y-auto px-5 py-4">
-            {/* Step 1: 記事入力 */}
+          <div className="mx-auto w-full max-w-3xl flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            {/* ① 記事入力 */}
             <section>
               <h3 className="mb-2 text-sm font-semibold text-office-text">① 記事を貼り付ける</h3>
+              <textarea
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                placeholder="ChatGPT・Claude・Geminiなどで作った記事の下書きをここに貼り付けてください（Markdownでも普通の文章でもOK）"
+                rows={7}
+                className="w-full resize-y rounded-lg border border-office-border bg-office-panel px-3 py-2 text-sm text-office-text placeholder:text-office-muted"
+              />
+              <p className="mt-1 text-right text-[11px] text-office-muted">{content.length.toLocaleString()}字 / 20,000字</p>
+            </section>
+
+            {/* 編集レベル */}
+            <section>
+              <h3 className="mb-2 text-sm font-semibold text-office-text">② 編集レベルを選ぶ</h3>
               <div className="mb-2 flex flex-wrap gap-1.5">
+                {NOTE_EDIT_LEVELS.map((level) => (
+                  <button
+                    key={level.id}
+                    type="button"
+                    onClick={() => setLevelId(level.id)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      levelId === level.id
+                        ? "bg-office-gold/20 text-office-gold"
+                        : "border border-office-border text-office-muted hover:text-office-text"
+                    }`}
+                  >
+                    {level.label}
+                  </button>
+                ))}
+              </div>
+              <p className="rounded-lg bg-office-panel px-3 py-2 text-xs text-office-muted">
+                {selectedLevel.description}
+                <span className="ml-1 font-semibold text-office-text">（{selectedLevel.changeAmount}）</span>
+              </p>
+            </section>
+
+            {/* 詳細編集（編集モード9種） */}
+            <Collapsible
+              icon={<PenLine size={14} className="text-office-gold" />}
+              title={`詳細編集（記事のジャンル: ${NOTE_EDIT_MODES.find((mode) => mode.id === modeId)?.label}）`}
+              open={detailOpen}
+              onToggle={() => setDetailOpen((value) => !value)}
+            >
+              <p className="mb-2 text-xs text-office-muted">記事のジャンルに合わせて編集の方向性を変えられます。</p>
+              <div className="flex flex-wrap gap-1.5">
                 {NOTE_EDIT_MODES.map((mode) => (
                   <button
                     key={mode.id}
@@ -172,17 +335,9 @@ export function NoteEditorStudio() {
                   </button>
                 ))}
               </div>
-              <textarea
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                placeholder="ChatGPT・Claude・Geminiなどで作った記事の下書きをここに貼り付けてください（Markdownでも普通の文章でもOK）"
-                rows={8}
-                className="w-full resize-y rounded-lg border border-office-border bg-office-panel px-3 py-2 text-sm text-office-text placeholder:text-office-muted"
-              />
-              <p className="mt-1 text-right text-[11px] text-office-muted">{content.length.toLocaleString()}字 / 20,000字</p>
-            </section>
+            </Collapsible>
 
-            {/* Step 2: AI編集ボタン */}
+            {/* ③ AI編集ボタン */}
             {error && <p className="text-sm text-red-400">{error}</p>}
             <button
               type="button"
@@ -194,61 +349,252 @@ export function NoteEditorStudio() {
                 ? "ネムリが編集中...（長い記事は1分ほどかかります）"
                 : phase === "analyzing"
                   ? "編集完了。診断中..."
-                  : "② AI編集する"}
+                  : `③ AI編集する（${selectedLevel.label}）`}
             </button>
 
-            {/* Step 3: 編集後プレビュー */}
-            {editResult && (
+            {/* ④ 比較タブ: 編集前 / 編集後 / 変更点 */}
+            {currentMarkdown && (
               <section>
                 <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-office-text">③ 編集後の記事</h3>
-                  <div className="flex gap-1.5">
+                  <h3 className="text-sm font-semibold text-office-text">④ 結果を確認する</h3>
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => setView("preview")}
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                        view === "preview" ? "bg-office-gold/20 text-office-gold" : "border border-office-border text-office-muted"
-                      }`}
+                      onClick={() => setVersionIndex((index) => Math.max(0, index - 1))}
+                      disabled={versionIndex === 0}
+                      title="元に戻す"
+                      className="rounded-full border border-office-border p-1.5 text-office-muted disabled:opacity-30"
                     >
-                      noteプレビュー
+                      <Undo2 size={13} />
                     </button>
                     <button
                       type="button"
-                      onClick={() => setView("markdown")}
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                        view === "markdown" ? "bg-office-gold/20 text-office-gold" : "border border-office-border text-office-muted"
-                      }`}
+                      onClick={() => setVersionIndex((index) => Math.min(versions.length - 1, index + 1))}
+                      disabled={versionIndex >= versions.length - 1}
+                      title="やり直す"
+                      className="rounded-full border border-office-border p-1.5 text-office-muted disabled:opacity-30"
                     >
-                      Markdown
+                      <Redo2 size={13} />
                     </button>
                   </div>
                 </div>
 
-                {view === "preview" ? (
-                  <div className="note-preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                ) : (
-                  <pre className="whitespace-pre-wrap rounded-lg border border-office-border bg-office-panel p-3 text-xs text-office-text">
-                    {editResult.editedMarkdown}
+                <div className="mb-2 flex gap-1.5">
+                  {(
+                    [
+                      { id: "before", label: "編集前" },
+                      { id: "after", label: "編集後" },
+                      { id: "diff", label: "変更点" },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setResultTab(tab.id)}
+                      className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        resultTab === tab.id
+                          ? "bg-office-gold/20 text-office-gold"
+                          : "border border-office-border text-office-muted"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {resultTab === "before" && (
+                  <pre className="whitespace-pre-wrap rounded-lg border border-office-border bg-office-panel p-3 text-xs text-office-muted">
+                    {content || "（編集前の本文がありません）"}
                   </pre>
                 )}
 
-                {editResult.changeSummary.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-office-border bg-office-panel p-3">
-                    <h4 className="mb-1 text-xs font-semibold text-office-gold">✂️ 編集内容</h4>
-                    <ul className="list-inside list-disc space-y-0.5 text-xs text-office-text">
-                      {editResult.changeSummary.map((item, index) => (
-                        <li key={index}>{item}</li>
-                      ))}
-                    </ul>
+                {resultTab === "after" && (
+                  <div>
+                    <div className="mb-2 flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setAfterView("preview")}
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          afterView === "preview" ? "bg-office-gold/20 text-office-gold" : "border border-office-border text-office-muted"
+                        }`}
+                      >
+                        noteプレビュー
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAfterView("markdown")}
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          afterView === "markdown" ? "bg-office-gold/20 text-office-gold" : "border border-office-border text-office-muted"
+                        }`}
+                      >
+                        Markdown（手動修正）
+                      </button>
+                    </div>
+                    {afterView === "preview" ? (
+                      <div className="note-preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
+                    ) : (
+                      <div>
+                        <textarea
+                          value={manualText}
+                          onChange={(event) => setManualText(event.target.value)}
+                          rows={14}
+                          className="w-full resize-y rounded-lg border border-office-border bg-office-panel px-3 py-2 font-mono text-xs text-office-text"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleManualSave}
+                          disabled={manualText === currentMarkdown}
+                          className="mt-1 w-full rounded-lg border border-office-border px-3 py-2 text-xs font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold disabled:opacity-30"
+                        >
+                          手動修正を保存（履歴に追加）
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {resultTab === "diff" && (
+                  <div className="space-y-3">
+                    {editResult && editResult.changeSummary.length > 0 && (
+                      <div className="rounded-lg border border-office-border bg-office-panel p-3">
+                        <h4 className="mb-1 text-xs font-semibold text-office-gold">✂️ AIによる編集内容</h4>
+                        <ul className="list-inside list-disc space-y-0.5 text-xs text-office-text">
+                          {editResult.changeSummary.map((item, index) => (
+                            <li key={index}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <div className="rounded-lg border border-office-border bg-office-panel p-3">
+                      <h4 className="mb-2 text-xs font-semibold text-office-gold">📄 本文の差分（文単位）</h4>
+                      <p className="mb-2 text-[10px] text-office-muted">
+                        <span className="text-emerald-400">緑=追加</span> / <span className="text-red-400 line-through">赤=削除</span> /
+                        グレー=変更なし。改行・見出しなどレイアウトだけの変更は差分に出ません（上の編集内容を参照）。
+                      </p>
+                      <div className="space-y-0.5 text-xs leading-relaxed">
+                        {diffSegments.map((segment, index) =>
+                          segment.type === "same" ? (
+                            <span key={index} className="text-office-muted">
+                              {segment.text}{" "}
+                            </span>
+                          ) : segment.type === "added" ? (
+                            <span key={index} className="rounded bg-emerald-500/15 px-0.5 text-emerald-300">
+                              {segment.text}{" "}
+                            </span>
+                          ) : (
+                            <span key={index} className="rounded bg-red-500/10 px-0.5 text-red-400 line-through">
+                              {segment.text}{" "}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </section>
             )}
 
-            {/* Step 4: 改善ポイント（診断） */}
+            {/* 部分編集（折りたたみ） */}
+            {currentMarkdown && (
+              <Collapsible
+                icon={<Scissors size={14} className="text-office-gold" />}
+                title="部分編集（選んだ段落だけやり直す）"
+                open={sectionOpen}
+                onToggle={() => setSectionOpen((value) => !value)}
+              >
+                <p className="mb-2 text-xs text-office-muted">直したい段落をタップ → 指示を選んで実行。記事全体は変わりません（履歴から戻せます）。</p>
+                <div className="mb-3 max-h-60 space-y-1.5 overflow-y-auto">
+                  {blocks.map((block, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setSelectedBlock(selectedBlock === index ? null : index)}
+                      className={`block w-full rounded-lg border px-2.5 py-2 text-left text-xs transition ${
+                        selectedBlock === index
+                          ? "border-office-gold bg-office-gold/10 text-office-text"
+                          : "border-office-border text-office-muted hover:text-office-text"
+                      }`}
+                    >
+                      {block.length > 80 ? `${block.slice(0, 80)}…` : block}
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {NOTE_SECTION_INSTRUCTIONS.map((instruction) => (
+                    <button
+                      key={instruction}
+                      type="button"
+                      onClick={() => setSectionInstruction(instruction)}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                        sectionInstruction === instruction
+                          ? "bg-office-gold/20 text-office-gold"
+                          : "border border-office-border text-office-muted"
+                      }`}
+                    >
+                      {instruction}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSectionEdit}
+                  disabled={selectedBlock === null || sectionBusy}
+                  className="w-full rounded-lg bg-office-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {sectionBusy ? "ネムリが書き直し中..." : `選んだ段落を「${sectionInstruction}」で書き直す`}
+                </button>
+              </Collapsible>
+            )}
+
+            {/* 履歴（折りたたみ） */}
+            {versions.length > 0 && (
+              <Collapsible
+                icon={<History size={14} className="text-office-gold" />}
+                title={`履歴（${versions.length}版）`}
+                open={historyOpen}
+                onToggle={() => setHistoryOpen((value) => !value)}
+              >
+                <div className="space-y-1.5">
+                  {versions.map((version, index) => (
+                    <div
+                      key={version.id}
+                      className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs ${
+                        index === versionIndex ? "border-office-gold bg-office-gold/10" : "border-office-border"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-office-text">
+                          {index + 1}. {version.label}
+                          {index === versionIndex && <span className="ml-1 text-office-gold">（表示中）</span>}
+                        </p>
+                        <p className="text-[10px] text-office-muted">{new Date(version.createdAt).toLocaleString("ja-JP")}</p>
+                      </div>
+                      {index !== versionIndex && (
+                        <button
+                          type="button"
+                          onClick={() => setVersionIndex(index)}
+                          className="shrink-0 rounded-full border border-office-border px-2 py-0.5 text-[11px] text-office-muted hover:border-office-gold hover:text-office-gold"
+                        >
+                          復元
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => pushVersion(`複製: ${version.label}`, version.markdown)}
+                        className="shrink-0 rounded-full border border-office-border px-2 py-0.5 text-[11px] text-office-muted hover:border-office-gold hover:text-office-gold"
+                      >
+                        複製
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </Collapsible>
+            )}
+
+            {/* ⑤ 診断 */}
             {analysis && (
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold text-office-text">④ 読みやすさ診断</h3>
+                <h3 className="text-sm font-semibold text-office-text">⑤ 読みやすさ診断</h3>
                 <div className="rounded-xl border border-office-border bg-office-panel p-4">
                   <div className="mb-3 flex items-baseline gap-2">
                     <span className={`font-display text-4xl ${overallColor(analysis.overallScore)}`}>{analysis.overallScore}</span>
@@ -269,7 +615,7 @@ export function NoteEditorStudio() {
                     ))}
                   </div>
                   <p className="mt-2 text-[10px] text-office-muted">
-                    ※ 記事構成をもとにした参考指標です。実際の閲覧数・売上を保証するものではありません。
+                    ※ 最後のAI編集時点の内容に対する参考指標です。実際の閲覧数・売上を保証するものではありません。
                   </p>
                 </div>
 
@@ -328,20 +674,41 @@ export function NoteEditorStudio() {
               </section>
             )}
 
-            {/* Step 5: エクスポート */}
-            {editResult && (
+            {/* ⑥ コピー・エクスポート */}
+            {currentMarkdown && (
               <section className="space-y-2 pb-8">
-                <h3 className="text-sm font-semibold text-office-text">⑤ エクスポート</h3>
+                <h3 className="text-sm font-semibold text-office-text">⑥ コピー・エクスポート</h3>
+                {copyMessage && (
+                  <p className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">
+                    ✓ {copyMessage}
+                  </p>
+                )}
                 <button
                   type="button"
-                  onClick={handleCopy}
+                  onClick={() => copyWith("note貼り付け用テキストをコピーしました", toNotePasteText(currentMarkdown))}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-office-accent px-3 py-2.5 text-sm font-semibold text-white"
                 >
-                  <Copy size={15} /> {copied ? "コピーしました！noteに貼り付けてください" : "記事をコピー（note貼り付け用）"}
+                  <Copy size={15} /> note用にコピー
                 </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => copyWith("Markdownをコピーしました", currentMarkdown)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-office-border px-3 py-2 text-xs font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
+                  >
+                    <Copy size={13} /> Markdownでコピー
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => copyWith("プレーンテキストをコピーしました", toPlainText(currentMarkdown))}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-office-border px-3 py-2 text-xs font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
+                  >
+                    <Copy size={13} /> プレーンでコピー
+                  </button>
+                </div>
                 <button
                   type="button"
-                  onClick={() => downloadText(`note原稿_${new Date().toISOString().slice(0, 10)}.md`, editResult.editedMarkdown)}
+                  onClick={() => downloadText(`note原稿_${new Date().toISOString().slice(0, 10)}.md`, currentMarkdown)}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-office-border px-3 py-2.5 text-sm font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
                 >
                   <Download size={15} /> ファイルとして保存（.md）
@@ -351,7 +718,7 @@ export function NoteEditorStudio() {
                   onClick={handleReset}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-office-border px-3 py-2 text-xs text-office-muted transition hover:border-red-400 hover:text-red-400"
                 >
-                  <RotateCcw size={13} /> 新しい記事を書く（現在の作業をクリア）
+                  <RotateCcw size={13} /> 新しい記事を書く（現在の作業と履歴をクリア）
                 </button>
               </section>
             )}

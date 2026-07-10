@@ -21,6 +21,60 @@ export const NOTE_EDIT_MODES = [
 
 export type NoteEditModeId = (typeof NOTE_EDIT_MODES)[number]["id"];
 
+/**
+ * AI編集レベル。どの程度文章に手を入れるかをユーザーが選ぶ。
+ * layoutは「改行・見出し調整専用モード」（本文の意味・表現を一切変えない）を兼ねる。
+ */
+export const NOTE_EDIT_LEVELS = [
+  {
+    id: "layout",
+    label: "レイアウトのみ",
+    description: "文章は一切変えません。改行・見出し・箇条書き・強調だけ整えます。",
+    changeAmount: "本文の変更: なし",
+  },
+  {
+    id: "light",
+    label: "軽く整える",
+    description: "誤字脱字・句読点・改行・表現の微調整のみ。内容はほぼそのままです。",
+    changeAmount: "本文の変更: ごくわずか",
+  },
+  {
+    id: "readable",
+    label: "読みやすくする",
+    description: "見出し追加・改行最適化・文章分割・重複削除・箇条書き化を行います。",
+    changeAmount: "本文の変更: 少なめ（標準）",
+  },
+  {
+    id: "sellable",
+    label: "売れる構成へ改善",
+    description: "冒頭の引き込み・悩みの明確化・結論整理・CTA改善など構成に踏み込みます。",
+    changeAmount: "本文の変更: 多め",
+  },
+  {
+    id: "pro",
+    label: "プロ編集者モード",
+    description: "ストーリー設計・読者心理・離脱防止・販売導線まで全面的に再構成します。",
+    changeAmount: "本文の変更: 大幅（原型が変わることがあります）",
+  },
+] as const;
+
+export type NoteEditLevelId = (typeof NOTE_EDIT_LEVELS)[number]["id"];
+
+/** 部分やり直し編集で選べる指示のプリセット。 */
+export const NOTE_SECTION_INSTRUCTIONS = [
+  "もっと短く",
+  "もっと分かりやすく",
+  "もっと感情を込める",
+  "もっと具体的に",
+  "もっと初心者向けに",
+  "もっと販売向けに",
+  "もっと自然な日本語に",
+  "言い切りを弱める",
+  "煽りすぎを抑える",
+] as const;
+
+export type NoteSectionInstruction = (typeof NOTE_SECTION_INSTRUCTIONS)[number];
+
 /** AI編集の結果。 */
 export interface NoteEditResult {
   /** note向けに整形済みのMarkdown本文（見出し・改行・太字・箇条書き適用済み） */

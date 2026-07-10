@@ -2,6 +2,7 @@
 import type {
   AgentDraft,
   NoteAnalysisResult,
+  NoteEditLevelId,
   NoteEditModeId,
   NoteEditResult,
   SnsAnalysisResult,
@@ -128,8 +129,17 @@ export function analyzeSnsPost(input: {
 }
 
 /** 記事をネムリ（note編集AI）に編集させる。長文記事では30〜60秒程度かかる。 */
-export function editNoteArticle(input: { content: string; mode: NoteEditModeId }): Promise<NoteEditResult> {
+export function editNoteArticle(input: {
+  content: string;
+  mode: NoteEditModeId;
+  level: NoteEditLevelId;
+}): Promise<NoteEditResult> {
   return postJson<NoteEditResult>("/api/note/edit", input);
+}
+
+/** 選択した部分だけを指示に従って書き直す（選択範囲のみ送信・小さい呼び出し）。 */
+export function editNoteSection(input: { section: string; instruction: string }): Promise<{ revisedText: string }> {
+  return postJson<{ revisedText: string }>("/api/note/edit-section", input);
 }
 
 /** 編集済み記事の読みやすさ診断・離脱ポイント・タイトル案・CTA案を取得する。 */
