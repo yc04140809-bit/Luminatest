@@ -35,9 +35,13 @@ function requestToPromise<T>(request: IDBRequest<T>): Promise<T> {
 }
 
 export async function saveBgmTrack(file: File): Promise<void> {
+  await saveBgmTrackRaw({ name: file.name, type: file.type, blob: file });
+}
+
+/** バックアップからの復元など、File以外のBlobで直接保存する場合に使う。 */
+export async function saveBgmTrackRaw(track: StoredBgmTrack): Promise<void> {
   const db = await openDb();
   const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
-  const track: StoredBgmTrack = { name: file.name, type: file.type, blob: file };
   await requestToPromise(store.put(track, TRACK_KEY));
   db.close();
 }

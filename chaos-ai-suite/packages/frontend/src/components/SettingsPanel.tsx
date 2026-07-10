@@ -6,6 +6,7 @@ import { useDebouncedCallback } from "../hooks/useDebouncedCallback.js";
 import type { BgmControls } from "../hooks/useBgm.js";
 import { AgentManagerPanel } from "./AgentManagerPanel.js";
 import { IntegrationsPanel } from "./IntegrationsPanel.js";
+import { BackupCenter } from "./BackupCenter.js";
 
 interface SettingsPanelProps {
   theme: ThemeSettings;
@@ -14,7 +15,7 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
-type SettingsTab = "theme" | "agents" | "integrations" | "sound";
+type SettingsTab = "theme" | "agents" | "integrations" | "sound" | "backup";
 
 const TOKEN_LABELS: Record<keyof ThemeTokens, string> = {
   bg: "背景",
@@ -79,7 +80,7 @@ export function SettingsPanel({ theme, agents, bgm, onClose }: SettingsPanelProp
           </button>
         </div>
 
-        <div className="flex gap-2 border-b border-office-border pb-2">
+        <div className="flex flex-wrap gap-2 border-b border-office-border pb-2">
           <button
             type="button"
             onClick={() => setTab("theme")}
@@ -116,10 +117,20 @@ export function SettingsPanel({ theme, agents, bgm, onClose }: SettingsPanelProp
           >
             サウンド
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("backup")}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              tab === "backup" ? "bg-office-accent text-white" : "text-office-muted hover:text-office-text"
+            }`}
+          >
+            バックアップ
+          </button>
         </div>
 
         {tab === "agents" && <AgentManagerPanel agents={agents} />}
         {tab === "integrations" && <IntegrationsPanel />}
+        {tab === "backup" && <BackupCenter agents={agents} />}
 
         {tab === "sound" && (
           <section className="space-y-4">
