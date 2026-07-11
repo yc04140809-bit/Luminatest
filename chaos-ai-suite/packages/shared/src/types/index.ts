@@ -10,3 +10,4 @@ export * from "./noteEditor.js";
 export * from "./caseWorkshop.js";
 export * from "./caseScout.js";
 export * from "./trendNote.js";
+export * from "./videoStudio.js";

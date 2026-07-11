@@ -13,6 +13,7 @@
   "dependencies": {
     "@chaos-ai-suite/shared": "*",
     "lucide-react": "^0.454.0",
+    "mp4-muxer": "^5.2.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
