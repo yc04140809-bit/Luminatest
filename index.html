@@ -4,12 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ケイオスちゃん - チャット</title>
+<link rel="icon" type="image/png" sizes="32x32" href="img/kaosu/favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="img/kaosu/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="img/kaosu/icon-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d0a1a">
 <style>
 /* =========================================================
-   ケイオスちゃん チャット画面 (土台のみ / AI応答は未接続)
+   ケイオスちゃん チャット画面
    - 添付の参考スクリーンショットのレイアウトを再現
    - AI設定書 Ver.1.0 / Ver.2.0 の内容を SPEC_BASE / MODES に反映
-   - sendToAI() が実際のAPI接続を行う場所(現在はプレースホルダー応答)
+   - sendToAI() が /api/chat (Claude API) を呼び出す。APIキー未設定時はプレースホルダー応答にフォールバック
    ========================================================= */
 :root{
   --bg-deep:  #0d0a1a;
@@ -19,7 +24,7 @@
   --pink:     #ff8ac9;
   --text:     #f2ecdf;
   --bubble-user: #4a3a2a;
-  --bubble-char: rgba(30,20,45,.82);
+  --bubble-char: rgba(24,16,38,.88);
 }
 *{ margin:0; padding:0; box-sizing:border-box; }
 html,body{
@@ -63,10 +68,17 @@ html,body{
 .topbar-actions{ display:flex; gap:12px; }
 
 /* ---------- モードタブ ---------- */
+.modetabs-wrap{ position:relative; z-index:5; }
+.modetabs-wrap::after{
+  content:"";
+  position:absolute; top:0; right:0; bottom:0;
+  width:28px;
+  background:linear-gradient(90deg, transparent, rgba(5,3,12,.85));
+  pointer-events:none;
+}
 .modetabs{
-  position:relative; z-index:5;
   display:flex; gap:8px;
-  padding:8px 10px;
+  padding:8px 26px 8px 10px;
   overflow-x:auto;
   background:rgba(5,3,12,.85);
   border-bottom:1px solid rgba(217,181,106,.15);
@@ -147,12 +159,17 @@ html,body{
   object-fit:cover; background:#14101f;
 }
 .msg .bubblewrap{ display:flex; flex-direction:column; min-width:0; }
-.msg.char .sender{ font-size:11px; color:var(--gold-hi); margin-bottom:2px; }
+.msg.char .sender{
+  font-size:11px; color:var(--gold-hi); margin-bottom:2px;
+  text-shadow:0 1px 3px rgba(0,0,0,.85);
+}
 .bubble{
   padding:9px 13px;
   border-radius:16px;
   font-size:14px; line-height:1.5;
   white-space:pre-wrap; word-break:break-word;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
+  backdrop-filter:blur(3px);
 }
 .msg.char .bubble{
   background:var(--bubble-char);
@@ -164,7 +181,7 @@ html,body{
   color:var(--text);
   border-top-right-radius:4px;
 }
-.msg .time{ font-size:9px; color:rgba(242,236,223,.55); margin-top:3px; }
+.msg .time{ font-size:9px; color:rgba(242,236,223,.7); margin-top:3px; text-shadow:0 1px 2px rgba(0,0,0,.7); }
 .msg.user .time{ text-align:right; }
 .typing .bubble{ font-style:italic; opacity:.7; }
 
@@ -198,6 +215,41 @@ html,body{
 .sendbtn{
   background:linear-gradient(160deg,var(--gold-hi),var(--gold));
   color:#241a08;
+}
+
+/* ---------- 仕事ショートカット ---------- */
+.shortcuts-wrap{ position:relative; z-index:5; }
+.shortcuts-wrap::after{
+  content:"";
+  position:absolute; top:0; right:0; bottom:0;
+  width:24px;
+  background:linear-gradient(90deg, transparent, rgba(5,3,12,.92));
+  pointer-events:none;
+}
+.shortcuts{
+  display:flex; gap:8px;
+  padding:8px 22px 8px 12px;
+  overflow-x:auto;
+  background:rgba(5,3,12,.92);
+  border-top:1px solid rgba(217,181,106,.15);
+  scrollbar-width:none;
+}
+.shortcuts::-webkit-scrollbar{ display:none; }
+.shortcut-btn{
+  flex:none;
+  font-family:inherit; font-size:12px;
+  color:var(--gold-hi);
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(217,181,106,.3);
+  border-radius:99px;
+  padding:6px 12px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:transform .12s ease, background .12s ease;
+}
+.shortcut-btn:active{
+  transform:scale(.95);
+  background:rgba(246,227,168,.18);
 }
 
 /* ---------- ボトムナビ ---------- */
@@ -266,13 +318,49 @@ html,body{
   border:1px solid var(--gold); border-radius:99px;
   padding:.7em 0; cursor:pointer; letter-spacing:.1em;
 }
+.closebtn.ghost{ background:transparent; color:rgba(242,236,223,.7); border-color:rgba(217,181,106,.4); }
+.adminlink{
+  display:block; width:100%; text-align:center;
+  font-family:inherit; font-size:11.5px;
+  color:rgba(242,236,223,.5);
+  background:none; border:none;
+  padding:.6em 0; margin-bottom:8px; cursor:pointer; letter-spacing:.05em;
+}
+.pinerr{ min-height:1.3em; font-size:11px; color:#ff9a9a; text-align:center; margin:-6px 0 10px; }
+.pinbtnrow{ display:flex; gap:10px; }
+.pinbtnrow .closebtn{ flex:1; }
+#adminPinInput{
+  width:100%; text-align:center;
+  font-family:Georgia,serif; font-size:22px; letter-spacing:.5em;
+  color:var(--text); background:rgba(255,255,255,.06);
+  border:1px solid rgba(217,181,106,.35); border-radius:8px;
+  padding:8px 0 8px 10px; outline:none;
+}
+#adminPinInput:focus{ border-color:var(--gold-hi); }
+.admin-row{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 0; border-bottom:1px solid rgba(217,181,106,.2);
+}
+.admin-row .slotname{ flex:1; font-size:12.5px; color:var(--text); }
+.admin-row .thumb{
+  width:42px; height:42px; object-fit:cover; object-position:top;
+  border:1px solid var(--gold); border-radius:6px; background:#14101f; flex:none;
+}
+.admin-row .upload, .admin-row .del{
+  font-family:inherit; font-size:11px; color:var(--gold-hi);
+  background:linear-gradient(160deg, rgba(60,45,20,.9), rgba(30,22,10,.9));
+  border:1px solid var(--gold); border-radius:8px;
+  padding:.5em .9em; cursor:pointer; letter-spacing:.03em; flex:none;
+}
+.admin-row .del{ color:#ff9a9a; border-color:#a05050; }
+.admin-row input[type=file]{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
 </style>
 </head>
 <body>
 
 <div class="app">
   <header class="topbar">
-    <button class="iconbtn" id="menuBtn" title="メニュー">☰</button>
+    <button class="iconbtn" id="menuBtn" title="メニュー(準備中)">☰</button>
     <div class="title-block">
       <div class="title">ケイオスちゃん</div>
       <div class="subtitle" id="subtitle">いつもあなたの味方だよ💜</div>
@@ -283,7 +371,9 @@ html,body{
     </div>
   </header>
 
-  <nav class="modetabs" id="modeTabs"></nav>
+  <div class="modetabs-wrap">
+    <nav class="modetabs" id="modeTabs"></nav>
+  </div>
 
   <main class="stagearea">
     <div class="herobg"><img id="heroBgImg" src="" alt=""></div>
@@ -304,6 +394,10 @@ html,body{
     <div class="chatlog" id="chatlog"></div>
   </main>
 
+  <div class="shortcuts-wrap">
+    <nav class="shortcuts" id="shortcutsBar"></nav>
+  </div>
+
   <form class="inputbar" id="inputForm">
     <input type="text" id="msgInput" placeholder="メッセージを入力…" autocomplete="off">
     <button type="button" class="micbtn" id="micBtn" title="音声入力(準備中)">🎤</button>
@@ -312,9 +406,9 @@ html,body{
 
   <nav class="bottomnav">
     <button class="navitem active" data-tab="chat">💬<span>チャット</span></button>
-    <button class="navitem" data-tab="history">🕘<span>履歴</span></button>
-    <button class="navitem" data-tab="gallery">🖼️<span>ギャラリー</span></button>
-    <button class="navitem" data-tab="mypage">👤<span>マイページ</span></button>
+    <button class="navitem" data-tab="history" title="準備中">🕘<span>履歴</span></button>
+    <button class="navitem" data-tab="gallery" title="準備中">🖼️<span>ギャラリー</span></button>
+    <button class="navitem" data-tab="mypage" title="準備中">👤<span>マイページ</span></button>
   </nav>
 
   <!-- 着せ替えモーダル -->
@@ -342,8 +436,34 @@ html,body{
         <label>性格の強さ (1〜5)</label>
         <input type="range" id="setIntensity" min="1" max="5" value="3">
       </div>
-      <p class="note">※この画面はUIの土台のみです。実際のAI応答(API接続)は未実装で、sendToAI() 関数に後から実装します。</p>
+      <p class="note">※AI応答はClaude API(/api/chat)に接続されています。Vercel側にANTHROPIC_API_KEYが未設定の場合は、簡易的なプレースホルダー応答になります。</p>
+      <button class="adminlink" id="adminEntryBtn">🔒 管理者画面</button>
       <button class="closebtn" id="closeSettings">閉じる</button>
+    </div>
+  </div>
+
+  <!-- 管理者PIN入力モーダル -->
+  <div class="modal" id="adminPinModal">
+    <div class="modalbox">
+      <h3>管理者PIN</h3>
+      <div class="settingsrow">
+        <input type="password" inputmode="numeric" maxlength="4" id="adminPinInput" autocomplete="off">
+      </div>
+      <p class="pinerr" id="adminPinErr"></p>
+      <div class="pinbtnrow">
+        <button class="closebtn ghost" id="cancelAdminPin">キャンセル</button>
+        <button class="closebtn" id="confirmAdminPin">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理者画面: 画像差し替え -->
+  <div class="modal" id="adminModal">
+    <div class="modalbox">
+      <h3>画像差し替え</h3>
+      <p class="note">この端末のブラウザに保存され、次回起動時も有効です(全ユーザー配信には別途対応が必要)。</p>
+      <div id="adminRows"></div>
+      <button class="closebtn" id="closeAdmin">閉じてチャットに戻る</button>
     </div>
   </div>
 </div>
@@ -377,44 +497,61 @@ const MODES = [
     subtitle:"いつもあなたの味方だよ💜",
     prompt:"【可愛いモード】元気で明るい。笑顔が多く少し天然。甘え上手で一緒に楽しむことが大好き。話し方は親しみやすくテンポが良い。得意: 雑談/ゲーム/恋愛相談/励まし/癒し。",
     greeting:"わーい♪ 今日は元気いっぱいだよ〜！何して遊ぶ？",
-    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/outfit_casual.png",
+    bgSlot:"bg_pink", charSlot:"casual",
   },
   {
     key:"onee", label:"お姉さん", emoji:"🌙",
     subtitle:"今夜はゆっくりお話ししましょう",
     prompt:"【綺麗なお姉さんモード】落ち着いていて知的、大人っぽく優雅。包み込むような安心感。ゆっくり丁寧に、言葉選びを美しく。得意: 人生相談/心理学/メンタルケア/読書/哲学/夜の雑談。",
     greeting:"こんばんは。今夜はゆっくりお話ししましょうか。",
-    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/hero_kneeling.png",
+    bgSlot:"bg_night", charSlot:"kneeling",
   },
   {
     key:"secretary", label:"AI秘書", emoji:"💼",
     subtitle:"本日のご予定をサポートします",
     prompt:"【AI秘書モード】仕事ができる、冷静、正確、整理整頓が得意。得意: 予定管理/メール/タスク管理/副業相談/アプリ開発/SNS運営/情報整理/資料作成。",
     greeting:"お疲れ様です。本日のご予定を確認しましょうか？",
-    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/outfit_gothic_dress.png",
+    bgSlot:"bg_night", charSlot:"gothic",
   },
   {
     key:"creator", label:"クリエイター", emoji:"🎨",
     subtitle:"一緒にアイデアを膨らませよう",
     prompt:"【クリエイターモード】創造力が非常に高くアイデアが豊富。ワクワクする提案が得意。得意: 画像生成/イラスト/漫画/動画企画/キャラクター制作/ブランド構築/商品企画/ストーリー制作。",
     greeting:"何か作りたいものある？アイデア、一緒に膨らませよう！✨",
-    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/outfit_casual.png",
+    bgSlot:"bg_pink", charSlot:"casual",
   },
   {
     key:"teacher", label:"先生", emoji:"🧠",
     subtitle:"分からないところ、一緒に解決しよう",
     prompt:"【先生モード】優しい先生。褒めながら教える。質問しやすい雰囲気。得意: 勉強/AI/英語/資格/パソコン/スマホ操作/仕事。",
     greeting:"今日は何を勉強する？分からないところ、一緒に解決しよう！",
-    bg:"img/kaosu/bg_night_room.png", char:"img/kaosu/outfit_gothic_dress.png",
+    bgSlot:"bg_night", charSlot:"gothic",
   },
   {
     key:"support", label:"サポーター", emoji:"🌈",
     subtitle:"大丈夫、ゆっくりでいいからね",
     prompt:"【幸福サポーターモード】世界一優しい、心を軽くする、安心できる、否定しない。得意: 幸福学/心理学/ストレスケア/マインドフルネス/自己肯定感/睡眠/習慣化/前向きな考え方。",
     greeting:"大丈夫だよ、ゆっくりでいいからね。今日はどんな気持ち？",
-    bg:"img/kaosu/bg_pink_room.png", char:"img/kaosu/hero_kneeling.png",
+    bgSlot:"bg_pink", charSlot:"kneeling",
   },
 ];
+
+/* =========================================================
+   画像スロット(管理者画面で差し替え可能)
+   - キー: bg_night/bg_pink/kneeling/gothic/casual
+   - IndexedDBに保存された画像があればそちらを優先表示
+   ========================================================= */
+const DEFAULT_IMAGES = {
+  bg_night: "img/kaosu/bg_night_room.png",
+  bg_pink:  "img/kaosu/bg_pink_room.png",
+  kneeling: "img/kaosu/hero_kneeling.png",
+  gothic:   "img/kaosu/outfit_gothic_dress.png",
+  casual:   "img/kaosu/outfit_casual.png",
+};
+const imageOverrides = {};   // slotKey -> objectURL(差し替え画像がある場合のみ)
+function getImageSrc(slotKey){
+  return imageOverrides[slotKey] || DEFAULT_IMAGES[slotKey];
+}
 
 /* 実際のAPI呼び出し時にはこれをシステムプロンプトとして渡す */
 function buildSystemPrompt(modeKey, settings){
@@ -441,7 +578,9 @@ function loadState(){
     affectionExp: 0,
     settings: { firstPerson:"わたし", secondPerson:"あなた", intensity:3 },
     history: [],   // { role:"user"|"char", text, time, mode }
-    outfitOverride: null,   // 着せ替えで手動選択した立ち絵(nullなら現在モードの立ち絵)
+    outfitOverride: null,   // 着せ替えで手動選択した立ち絵スロットキー(nullなら現在モードの立ち絵)
+    shortcutsHintSeen: false,   // 仕事ショートカットの初回案内を表示済みか
+    lastShortcutUsed: null,     // 最後に使用したショートカットのkey
   }, saved);
 }
 function saveState(){
@@ -469,11 +608,29 @@ function renderModeTabs(){
   });
 }
 
+function currentCharSlot(){
+  return state.outfitOverride || currentMode().charSlot;
+}
+
+/* 差し替え画像が壊れている/読み込めない場合は自動で標準画像に戻す(保存データも削除) */
+function setImgWithFallback(imgEl, slotKey){
+  imgEl.onerror = null;
+  imgEl.src = getImageSrc(slotKey);
+  imgEl.onerror = () => {
+    imgEl.onerror = null;
+    if(imageOverrides[slotKey]){
+      delete imageOverrides[slotKey];
+      idbDel(slotKey).catch(() => {});
+    }
+    imgEl.src = DEFAULT_IMAGES[slotKey];
+  };
+}
+
 function renderStage(){
   const mode = currentMode();
   document.getElementById("subtitle").textContent = mode.subtitle;
-  document.getElementById("heroBgImg").src = mode.bg;
-  document.getElementById("heroCharImg").src = state.outfitOverride || mode.char;
+  setImgWithFallback(document.getElementById("heroBgImg"), mode.bgSlot);
+  setImgWithFallback(document.getElementById("heroCharImg"), currentCharSlot());
 }
 
 function renderStatus(){
@@ -503,12 +660,13 @@ function buildMsgEl(m){
   wrap.className = "msg " + (m.role === "user" ? "user" : "char");
   if(m.role === "char"){
     wrap.innerHTML = `
-      <img class="avatar" src="${currentMode().char}" alt="">
+      <img class="avatar" alt="">
       <div class="bubblewrap">
         <div class="sender">ケイオスちゃん</div>
         <div class="bubble"></div>
         <div class="time"></div>
       </div>`;
+    setImgWithFallback(wrap.querySelector(".avatar"), currentCharSlot());
   }else{
     wrap.innerHTML = `
       <div class="bubblewrap">
@@ -542,6 +700,133 @@ function switchMode(key){
 }
 
 /* =========================================================
+   仕事ショートカット: 入力欄へ依頼文のひな形を入れるだけ(自動送信しない)
+   ========================================================= */
+const SHORTCUTS = [
+  { key:"schedule", icon:"📅", label:"今日の予定", mode:"secretary", template:
+`今日やることを整理したいです。
+
+やること：
+・
+
+締切：
+・
+
+使える時間：
+・
+
+優先順位と、最初に取りかかることを分かりやすく整理してください。` },
+  { key:"task", icon:"✅", label:"タスク整理", mode:"secretary", template:
+`以下の作業を、実行しやすい小さなタスクに分けてください。
+
+やりたいこと：
+・
+
+期限：
+・
+
+現在困っていること：
+・
+
+優先順位と、最初の一歩も提案してください。` },
+  { key:"email", icon:"✉️", label:"メール返信", mode:"secretary", template:
+`以下のメールへの返信文を作ってください。
+
+相手：
+・
+
+相手からの内容：
+・
+
+こちらが伝えたいこと：
+・
+
+希望する雰囲気：
+丁寧で自然な文章
+
+そのままコピーして送れる完成文にしてください。` },
+  { key:"sns", icon:"📱", label:"SNS投稿", mode:"creator", template:
+`以下の内容でSNS投稿を作ってください。
+
+投稿先：
+Threads
+
+テーマ：
+・
+
+伝えたいこと：
+・
+
+投稿の目的：
+共感、保存、反応の獲得
+
+自然で読みやすく、そのまま投稿できる文章にしてください。` },
+  { key:"writing", icon:"✍️", label:"文章修正", mode:"creator", template:
+`以下の文章を、意味を変えずに読みやすく修正してください。
+
+修正したい文章：
+・
+
+希望する雰囲気：
+自然、やさしい、分かりやすい
+
+修正後の完成文だけを出してください。` },
+  { key:"idea", icon:"💡", label:"アイデア整理", mode:"creator", template:
+`以下のアイデアを整理してください。
+
+考えていること：
+・
+
+目的：
+・
+
+困っていること：
+・
+
+実現しやすい形に整理し、次にやることまで提案してください。` },
+];
+
+function renderShortcuts(){
+  const root = document.getElementById("shortcutsBar");
+  root.innerHTML = "";
+  SHORTCUTS.forEach(s => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "shortcut-btn";
+    btn.textContent = `${s.icon} ${s.label}`;
+    btn.setAttribute("aria-label", `${s.label}のひな形を入力欄に追加`);
+    btn.addEventListener("click", () => useShortcut(s));
+    root.appendChild(btn);
+  });
+}
+
+/* 短時間の連打で同じひな形が重複挿入されるのを防ぐ */
+let lastShortcutKey = null;
+let lastShortcutAt = 0;
+function useShortcut(shortcut){
+  const now = Date.now();
+  if(shortcut.key === lastShortcutKey && now - lastShortcutAt < 800) return;
+  lastShortcutKey = shortcut.key;
+  lastShortcutAt = now;
+
+  const input = document.getElementById("msgInput");
+  input.value = input.value.trim()
+    ? input.value.replace(/\n+$/, "") + "\n\n" + shortcut.template
+    : shortcut.template;
+
+  state.lastShortcutUsed = shortcut.key;
+  saveState();
+
+  if(shortcut.mode && shortcut.mode !== state.mode){
+    switchMode(shortcut.mode);
+  }
+
+  input.focus();
+  const end = input.value.length;
+  input.setSelectionRange(end, end);
+}
+
+/* =========================================================
    メッセージ送受信
    ========================================================= */
 function pushMessage(role, text){
@@ -552,6 +837,18 @@ function pushMessage(role, text){
   document.getElementById("chatlog").scrollTop = document.getElementById("chatlog").scrollHeight;
 }
 
+/* 「準備中」系メッセージの連投防止(同一文言の短時間重複 + 連打)。通常のチャット送信は対象外 */
+let lastPlaceholderText = null;
+let lastPlaceholderAt = 0;
+function pushPlaceholderMessage(text){
+  const now = Date.now();
+  if(now - lastPlaceholderAt < 600) return;                       // 連打防止
+  if(text === lastPlaceholderText && now - lastPlaceholderAt < 3000) return; // 同一文言の連続表示防止
+  lastPlaceholderText = text;
+  lastPlaceholderAt = now;
+  pushMessage("char", text);
+}
+
 function addAffection(amount){
   state.affectionExp += amount;
   saveState();
@@ -560,15 +857,11 @@ function addAffection(amount){
 
 /* -------------------------------------------------------
    ★ AI接続ポイント ★
-   ここでは実際のAI API呼び出しを行っていない(プレースホルダーのみ)。
-   本実装時は buildSystemPrompt(state.mode, state.settings) をシステムプロンプトとして、
-   state.history を会話履歴として、実際のAPIにリクエストを送る処理に置き換える。
+   /api/chat (Vercelサーバーレス関数、api/chat.js) に
+   システムプロンプトと会話履歴を送り、Claude APIの応答を受け取る。
+   APIキー未設定時やネットワークエラー時は、プレースホルダー応答にフォールバックする。
    ------------------------------------------------------- */
-function sendToAI(userText){
-  // TODO: ここに実際のAI API呼び出しを実装する。
-  // 例: const systemPrompt = buildSystemPrompt(state.mode, state.settings);
-  //     fetch("https://api.example.com/chat", { ... system: systemPrompt, message: userText ... })
-  const mode = currentMode();
+function placeholderReply(modeKey){
   const placeholders = {
     cute:      ["それね、わかるっ！もっと聞かせて〜！","えへへ、嬉しいな♪ 一緒にいると楽しいね！","ふふっ、それは面白い話だね〜！"],
     onee:      ["そうなのね。ゆっくり聞かせてくれる？","なるほど…あなたの想いが伝わってきたわ。","ふふ、素敵な話ね。続きを聞かせて。"],
@@ -577,11 +870,32 @@ function sendToAI(userText){
     teacher:   ["いいところに気づいたね！その調子だよ。","なるほど、そこでつまずくのはよくあることだよ。一緒に見てみよう。","よく頑張ってるね。もう少し詳しく教えて？"],
     support:   ["そう感じるのは自然なことだよ。無理しなくて大丈夫。","話してくれてありがとう。ゆっくりでいいからね。","あなたのペースで大丈夫。ここにいるからね。"],
   };
-  const pool = placeholders[mode.key] || placeholders.onee;
+  const pool = placeholders[modeKey] || placeholders.onee;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function handleSend(){
+async function sendToAI(userText){
+  const mode = currentMode();
+  const systemPrompt = buildSystemPrompt(state.mode, state.settings);
+  const history = state.history.slice(-20).map(m => ({ role: m.role, text: m.text }));
+
+  try{
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ systemPrompt, history, message: userText }),
+    });
+    if(!res.ok) throw new Error("API error " + res.status);
+    const data = await res.json();
+    if(!data.reply) throw new Error("empty reply");
+    return data.reply;
+  }catch(e){
+    console.warn("sendToAI: falling back to placeholder reply.", e);
+    return placeholderReply(mode.key);
+  }
+}
+
+async function handleSend(){
   const input = document.getElementById("msgInput");
   const text = input.value.trim();
   if(!text) return;
@@ -589,44 +903,191 @@ function handleSend(){
   addAffection(2);
   input.value = "";
 
-  // 「考え中…」表示 → プレースホルダー応答(将来はここが本物のAPI応答に置き換わる)
   const log = document.getElementById("chatlog");
   const typingEl = document.createElement("div");
   typingEl.className = "msg char typing";
-  typingEl.innerHTML = `<img class="avatar" src="${currentMode().char}" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
+  typingEl.innerHTML = `<img class="avatar" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
+  setImgWithFallback(typingEl.querySelector(".avatar"), currentCharSlot());
   log.appendChild(typingEl);
   log.scrollTop = log.scrollHeight;
 
-  setTimeout(() => {
-    typingEl.remove();
-    pushMessage("char", sendToAI(text));
-  }, 550);
+  const reply = await sendToAI(text);
+  typingEl.remove();
+  pushMessage("char", reply);
 }
 
 /* =========================================================
    着せ替えモーダル
    ========================================================= */
 const OUTFITS = [
-  { key:"kneeling", label:"お姉さん", src:"img/kaosu/hero_kneeling.png" },
-  { key:"gothic",   label:"きちんと", src:"img/kaosu/outfit_gothic_dress.png" },
-  { key:"casual",   label:"カジュアル", src:"img/kaosu/outfit_casual.png" },
+  { key:"kneeling", label:"お姉さん" },
+  { key:"gothic",   label:"きちんと" },
+  { key:"casual",   label:"カジュアル" },
 ];
 function renderOutfitGrid(){
   const grid = document.getElementById("outfitGrid");
   grid.innerHTML = "";
   OUTFITS.forEach(o => {
     const el = document.createElement("div");
-    const selected = state.outfitOverride === o.src || (!state.outfitOverride && currentMode().char === o.src);
+    const selected = currentCharSlot() === o.key;
     el.className = "outfitcard" + (selected ? " selected" : "");
-    el.innerHTML = `<img src="${o.src}" alt=""><div class="label">${o.label}</div>`;
+    el.innerHTML = `<img alt=""><div class="label">${o.label}</div>`;
+    setImgWithFallback(el.querySelector("img"), o.key);
     el.addEventListener("click", () => {
-      state.outfitOverride = o.src;
+      state.outfitOverride = o.key;
       saveState();
       renderStage();
       renderOutfitGrid();
     });
     grid.appendChild(el);
   });
+}
+
+/* =========================================================
+   管理者画面: 画像差し替え(設定画面 → PIN "0809" → 画像差し替え)
+   - 画像はIndexedDB(この端末のブラウザ内)に保存され、次回起動時も有効
+   ========================================================= */
+const ADMIN_PIN = "0809";
+const ADMIN_SLOTS = [
+  { key:"bg_night", label:"背景(夜・紫)" },
+  { key:"bg_pink",  label:"背景(ピンク)" },
+  { key:"kneeling", label:"立ち絵: お姉さん" },
+  { key:"gothic",   label:"立ち絵: きちんと" },
+  { key:"casual",   label:"立ち絵: カジュアル" },
+];
+
+/* 画像はBase64のdata URL文字列として保存する(BlobのままIndexedDBに保存すると
+   一部のモバイルブラウザ/アプリ内ブラウザで再読み込み時に壊れることがあるため、
+   より互換性の高いdata URLに統一している) */
+const IDB_NAME = "kaosu_admin_images";
+function idbOpen(){
+  return new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error("この環境ではIndexedDBが使えません")); return; }
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("images");
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbSet(key, dataUrl){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("images", "readwrite");
+    tx.objectStore("images").put(dataUrl, key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const rq = db.transaction("images").objectStore("images").get(key);
+    rq.onsuccess = () => resolve(rq.result || null);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+async function idbDel(key){
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("images", "readwrite");
+    tx.objectStore("images").delete(key);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+}
+function readFileAsDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+/* 起動時: 保存済みの差し替え画像を全スロットに適用
+   スロット単位でtry/catchするので、1件壊れていても他のスロットや標準画像の表示には影響しない。
+   data URL文字列に統一する前(Blobをそのまま保存していた旧バージョン)のデータが
+   残っている場合は、有効なdata URLとして使えないので破棄して標準画像に戻す。 */
+async function applyStoredImages(){
+  for(const slot of ADMIN_SLOTS){
+    try{
+      const stored = await idbGet(slot.key);
+      if(typeof stored === "string" && stored.startsWith("data:")){
+        imageOverrides[slot.key] = stored;
+      }else if(stored){
+        console.warn("古い形式の画像データを検出したため破棄します:", slot.key);
+        await idbDel(slot.key).catch(() => {});
+      }
+    }catch(e){ console.warn("画像の読み込みに失敗しました:", slot.key, e); }
+  }
+  renderStage();
+  renderChatLog();
+}
+
+async function buildAdminRows(){
+  const root = document.getElementById("adminRows");
+  root.innerHTML = "";
+  for(const slot of ADMIN_SLOTS){
+    const row = document.createElement("div");
+    row.className = "admin-row";
+    row.innerHTML = `
+      <img class="thumb" alt="">
+      <span class="slotname">${slot.label}</span>
+      <button class="upload">選択</button>
+      <input type="file" accept="image/*">
+      <button class="del">削除</button>`;
+    root.appendChild(row);
+
+    const thumb = row.querySelector(".thumb");
+    setImgWithFallback(thumb, slot.key);
+    const fileInput = row.querySelector("input[type=file]");
+    row.querySelector(".upload").addEventListener("click", () => fileInput.click());
+
+    fileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if(!file) return;
+      if(file.size > 8 * 1024 * 1024){ alert("8MB以下の画像を選んでください"); return; }
+      try{
+        const dataUrl = await readFileAsDataURL(file);
+        await idbSet(slot.key, dataUrl);
+        imageOverrides[slot.key] = dataUrl;
+        thumb.src = dataUrl;
+        renderStage();
+        renderChatLog();
+      }catch(e){ alert("保存に失敗しました: " + e.message); }
+    });
+
+    row.querySelector(".del").addEventListener("click", async () => {
+      try{
+        await idbDel(slot.key);
+        delete imageOverrides[slot.key];
+        thumb.src = getImageSrc(slot.key);
+        renderStage();
+        renderChatLog();
+      }catch(e){ alert("削除に失敗しました: " + e.message); }
+    });
+  }
+}
+
+function openAdminPin(){
+  document.getElementById("adminPinErr").textContent = "";
+  document.getElementById("adminPinInput").value = "";
+  document.getElementById("adminPinModal").classList.add("show");
+  setTimeout(() => document.getElementById("adminPinInput").focus(), 100);
+}
+function closeAdminPin(){
+  document.getElementById("adminPinModal").classList.remove("show");
+}
+function confirmAdminPin(){
+  const v = document.getElementById("adminPinInput").value;
+  if(v !== ADMIN_PIN){
+    document.getElementById("adminPinErr").textContent = "PINが違います";
+    document.getElementById("adminPinInput").value = "";
+    return;
+  }
+  closeAdminPin();
+  buildAdminRows();
+  document.getElementById("adminModal").classList.add("show");
 }
 
 /* =========================================================
@@ -659,13 +1120,26 @@ document.getElementById("closeSettings").addEventListener("click", () => {
   document.getElementById("settingsModal").classList.remove("show");
 });
 
+document.getElementById("adminEntryBtn").addEventListener("click", () => {
+  document.getElementById("settingsModal").classList.remove("show");
+  openAdminPin();
+});
+document.getElementById("cancelAdminPin").addEventListener("click", closeAdminPin);
+document.getElementById("confirmAdminPin").addEventListener("click", confirmAdminPin);
+document.getElementById("adminPinInput").addEventListener("keydown", (ev) => {
+  if(ev.key === "Enter") confirmAdminPin();
+});
+document.getElementById("closeAdmin").addEventListener("click", () => {
+  document.getElementById("adminModal").classList.remove("show");
+});
+
 /* ボトムナビ(チャット以外は今回未実装のためトースト代わりの簡易表示) */
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => {
     if(btn.dataset.tab === "chat") return;
     document.querySelectorAll(".navitem").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-    pushMessage("char", "この画面は準備中だよ。もう少し待っててね♪");
+    pushPlaceholderMessage("この画面は準備中だよ。もう少し待っててね♪");
     setTimeout(() => {
       document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.tab === "chat"));
     }, 1200);
@@ -673,16 +1147,27 @@ document.querySelectorAll(".navitem").forEach(btn => {
 });
 
 document.getElementById("menuBtn").addEventListener("click", () => {
-  pushMessage("char", "メニューは準備中だよ〜！");
+  pushPlaceholderMessage("メニューは準備中だよ〜！");
+});
+
+document.getElementById("micBtn").addEventListener("click", () => {
+  pushPlaceholderMessage("音声入力は準備中だよ〜！");
 });
 
 /* =========================================================
    初期化
    ========================================================= */
 renderAll();
+renderShortcuts();
 if(state.history.length === 0){
   pushMessage("char", currentMode().greeting);
 }
+if(!state.shortcutsHintSeen){
+  pushMessage("char", "下の仕事ボタンを押すと、ケイオスちゃんに頼む内容を簡単に入力できるよ♪");
+  state.shortcutsHintSeen = true;
+  saveState();
+}
+applyStoredImages();
 </script>
 </body>
 </html>
