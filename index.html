@@ -217,6 +217,41 @@ html,body{
   color:#241a08;
 }
 
+/* ---------- 仕事ショートカット ---------- */
+.shortcuts-wrap{ position:relative; z-index:5; }
+.shortcuts-wrap::after{
+  content:"";
+  position:absolute; top:0; right:0; bottom:0;
+  width:24px;
+  background:linear-gradient(90deg, transparent, rgba(5,3,12,.92));
+  pointer-events:none;
+}
+.shortcuts{
+  display:flex; gap:8px;
+  padding:8px 22px 8px 12px;
+  overflow-x:auto;
+  background:rgba(5,3,12,.92);
+  border-top:1px solid rgba(217,181,106,.15);
+  scrollbar-width:none;
+}
+.shortcuts::-webkit-scrollbar{ display:none; }
+.shortcut-btn{
+  flex:none;
+  font-family:inherit; font-size:12px;
+  color:var(--gold-hi);
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(217,181,106,.3);
+  border-radius:99px;
+  padding:6px 12px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:transform .12s ease, background .12s ease;
+}
+.shortcut-btn:active{
+  transform:scale(.95);
+  background:rgba(246,227,168,.18);
+}
+
 /* ---------- ボトムナビ ---------- */
 .bottomnav{
   position:relative; z-index:5;
@@ -358,6 +393,10 @@ html,body{
 
     <div class="chatlog" id="chatlog"></div>
   </main>
+
+  <div class="shortcuts-wrap">
+    <nav class="shortcuts" id="shortcutsBar"></nav>
+  </div>
 
   <form class="inputbar" id="inputForm">
     <input type="text" id="msgInput" placeholder="メッセージを入力…" autocomplete="off">
@@ -540,6 +579,8 @@ function loadState(){
     settings: { firstPerson:"わたし", secondPerson:"あなた", intensity:3 },
     history: [],   // { role:"user"|"char", text, time, mode }
     outfitOverride: null,   // 着せ替えで手動選択した立ち絵スロットキー(nullなら現在モードの立ち絵)
+    shortcutsHintSeen: false,   // 仕事ショートカットの初回案内を表示済みか
+    lastShortcutUsed: null,     // 最後に使用したショートカットのkey
   }, saved);
 }
 function saveState(){
@@ -656,6 +697,133 @@ function switchMode(key){
   renderStage();
   const mode = currentMode();
   pushMessage("char", mode.greeting);
+}
+
+/* =========================================================
+   仕事ショートカット: 入力欄へ依頼文のひな形を入れるだけ(自動送信しない)
+   ========================================================= */
+const SHORTCUTS = [
+  { key:"schedule", icon:"📅", label:"今日の予定", mode:"secretary", template:
+`今日やることを整理したいです。
+
+やること：
+・
+
+締切：
+・
+
+使える時間：
+・
+
+優先順位と、最初に取りかかることを分かりやすく整理してください。` },
+  { key:"task", icon:"✅", label:"タスク整理", mode:"secretary", template:
+`以下の作業を、実行しやすい小さなタスクに分けてください。
+
+やりたいこと：
+・
+
+期限：
+・
+
+現在困っていること：
+・
+
+優先順位と、最初の一歩も提案してください。` },
+  { key:"email", icon:"✉️", label:"メール返信", mode:"secretary", template:
+`以下のメールへの返信文を作ってください。
+
+相手：
+・
+
+相手からの内容：
+・
+
+こちらが伝えたいこと：
+・
+
+希望する雰囲気：
+丁寧で自然な文章
+
+そのままコピーして送れる完成文にしてください。` },
+  { key:"sns", icon:"📱", label:"SNS投稿", mode:"creator", template:
+`以下の内容でSNS投稿を作ってください。
+
+投稿先：
+Threads
+
+テーマ：
+・
+
+伝えたいこと：
+・
+
+投稿の目的：
+共感、保存、反応の獲得
+
+自然で読みやすく、そのまま投稿できる文章にしてください。` },
+  { key:"writing", icon:"✍️", label:"文章修正", mode:"creator", template:
+`以下の文章を、意味を変えずに読みやすく修正してください。
+
+修正したい文章：
+・
+
+希望する雰囲気：
+自然、やさしい、分かりやすい
+
+修正後の完成文だけを出してください。` },
+  { key:"idea", icon:"💡", label:"アイデア整理", mode:"creator", template:
+`以下のアイデアを整理してください。
+
+考えていること：
+・
+
+目的：
+・
+
+困っていること：
+・
+
+実現しやすい形に整理し、次にやることまで提案してください。` },
+];
+
+function renderShortcuts(){
+  const root = document.getElementById("shortcutsBar");
+  root.innerHTML = "";
+  SHORTCUTS.forEach(s => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "shortcut-btn";
+    btn.textContent = `${s.icon} ${s.label}`;
+    btn.setAttribute("aria-label", `${s.label}のひな形を入力欄に追加`);
+    btn.addEventListener("click", () => useShortcut(s));
+    root.appendChild(btn);
+  });
+}
+
+/* 短時間の連打で同じひな形が重複挿入されるのを防ぐ */
+let lastShortcutKey = null;
+let lastShortcutAt = 0;
+function useShortcut(shortcut){
+  const now = Date.now();
+  if(shortcut.key === lastShortcutKey && now - lastShortcutAt < 800) return;
+  lastShortcutKey = shortcut.key;
+  lastShortcutAt = now;
+
+  const input = document.getElementById("msgInput");
+  input.value = input.value.trim()
+    ? input.value.replace(/\n+$/, "") + "\n\n" + shortcut.template
+    : shortcut.template;
+
+  state.lastShortcutUsed = shortcut.key;
+  saveState();
+
+  if(shortcut.mode && shortcut.mode !== state.mode){
+    switchMode(shortcut.mode);
+  }
+
+  input.focus();
+  const end = input.value.length;
+  input.setSelectionRange(end, end);
 }
 
 /* =========================================================
@@ -990,8 +1158,14 @@ document.getElementById("micBtn").addEventListener("click", () => {
    初期化
    ========================================================= */
 renderAll();
+renderShortcuts();
 if(state.history.length === 0){
   pushMessage("char", currentMode().greeting);
+}
+if(!state.shortcutsHintSeen){
+  pushMessage("char", "下の仕事ボタンを押すと、ケイオスちゃんに頼む内容を簡単に入力できるよ♪");
+  state.shortcutsHintSeen = true;
+  saveState();
 }
 applyStoredImages();
 </script>
