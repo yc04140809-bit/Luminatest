@@ -143,6 +143,8 @@ test("generateTrendArticle passes rules and normalizes fact checks", async () =>
   assert.ok(prompt.includes("可能性があります"));
   assert.ok(prompt.includes("コピーしない"));
   assert.ok(prompt.includes("2026-07-10時点の調査"), "調査日を冒頭に入れる指示を含む");
+  assert.ok(prompt.includes("自分ごと化しやすいか"), "タイトルは自分ごと化しやすさ基準で比較する指示を含む");
+  assert.ok(prompt.includes("抽象的で一般的なタイトルは禁止"), "抽象的なタイトルを禁止する指示を含む");
 });
 
 test("generateTrendArticle rejects an empty body", async () => {

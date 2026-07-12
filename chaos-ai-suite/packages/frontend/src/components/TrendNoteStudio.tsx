@@ -88,7 +88,7 @@ function Section({ title, open, onToggle, children }: { title: string; open: boo
 
 /**
  * トレンドnote生成AI。設定を選んでボタンを押すと、①Web検索つきリサーチ（1回のAI呼び出し）で
- * テーマ3件＋情報源を取得 → ②テーマを1つ選ぶと記事本文・SNS告知・タイトル10案・
+ * テーマ3件＋情報源を取得 → ②テーマを1つ選ぶと記事本文・SNS告知・推奨タイトル+別候補4案・
  * ファクトチェックを1回の呼び出しでまとめて生成する。履歴・重複判定・コピーはAI不使用。
  * 自動投稿は行わない（コピーしてnoteへ貼り付ける）。
  */
@@ -263,7 +263,7 @@ export function TrendNoteStudio() {
       return;
     }
     setConfirm({
-      message: `Claude APIを1回使用して、テーマ「${theme.title}」のnote本文・SNS告知・タイトル10案をまとめて生成します。よろしいですか？`,
+      message: `Claude APIを1回使用して、テーマ「${theme.title}」のnote本文・SNS告知・タイトル案をまとめて生成します。よろしいですか？`,
       onOk: exec,
     });
   }
@@ -575,7 +575,7 @@ export function TrendNoteStudio() {
                 {/* タブ4: タイトル案 */}
                 {tab === "titles" && (
                   !article ? (
-                    <p className="py-6 text-center text-sm text-office-muted">記事を生成するとタイトル案10案が表示されます。</p>
+                    <p className="py-6 text-center text-sm text-office-muted">記事を生成すると、推奨タイトルに加えて別のタイトル候補4案が表示されます。</p>
                   ) : (
                     <div className="space-y-1.5">
                       {article.titleIdeas.map((idea, index) => (
