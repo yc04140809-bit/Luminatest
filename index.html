@@ -605,12 +605,13 @@ function buildMsgEl(m){
   wrap.className = "msg " + (m.role === "user" ? "user" : "char");
   if(m.role === "char"){
     wrap.innerHTML = `
-      <img class="avatar" src="${getImageSrc(currentCharSlot())}" alt="">
+      <img class="avatar" alt="">
       <div class="bubblewrap">
         <div class="sender">ケイオスちゃん</div>
         <div class="bubble"></div>
         <div class="time"></div>
       </div>`;
+    setImgWithFallback(wrap.querySelector(".avatar"), currentCharSlot());
   }else{
     wrap.innerHTML = `
       <div class="bubblewrap">
@@ -711,7 +712,8 @@ async function handleSend(){
   const log = document.getElementById("chatlog");
   const typingEl = document.createElement("div");
   typingEl.className = "msg char typing";
-  typingEl.innerHTML = `<img class="avatar" src="${getImageSrc(currentCharSlot())}" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
+  typingEl.innerHTML = `<img class="avatar" alt=""><div class="bubblewrap"><div class="bubble">考え中…</div></div>`;
+  setImgWithFallback(typingEl.querySelector(".avatar"), currentCharSlot());
   log.appendChild(typingEl);
   log.scrollTop = log.scrollHeight;
 
@@ -808,12 +810,19 @@ function readFileAsDataURL(file){
 }
 
 /* 起動時: 保存済みの差し替え画像を全スロットに適用
-   スロット単位でtry/catchするので、1件壊れていても他のスロットや標準画像の表示には影響しない */
+   スロット単位でtry/catchするので、1件壊れていても他のスロットや標準画像の表示には影響しない。
+   data URL文字列に統一する前(Blobをそのまま保存していた旧バージョン)のデータが
+   残っている場合は、有効なdata URLとして使えないので破棄して標準画像に戻す。 */
 async function applyStoredImages(){
   for(const slot of ADMIN_SLOTS){
     try{
       const stored = await idbGet(slot.key);
-      if(stored) imageOverrides[slot.key] = stored;
+      if(typeof stored === "string" && stored.startsWith("data:")){
+        imageOverrides[slot.key] = stored;
+      }else if(stored){
+        console.warn("古い形式の画像データを検出したため破棄します:", slot.key);
+        await idbDel(slot.key).catch(() => {});
+      }
     }catch(e){ console.warn("画像の読み込みに失敗しました:", slot.key, e); }
   }
   renderStage();
