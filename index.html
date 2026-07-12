@@ -24,7 +24,7 @@
   --pink:     #ff8ac9;
   --text:     #f2ecdf;
   --bubble-user: #4a3a2a;
-  --bubble-char: rgba(30,20,45,.82);
+  --bubble-char: rgba(24,16,38,.88);
 }
 *{ margin:0; padding:0; box-sizing:border-box; }
 html,body{
@@ -68,10 +68,17 @@ html,body{
 .topbar-actions{ display:flex; gap:12px; }
 
 /* ---------- モードタブ ---------- */
+.modetabs-wrap{ position:relative; z-index:5; }
+.modetabs-wrap::after{
+  content:"";
+  position:absolute; top:0; right:0; bottom:0;
+  width:28px;
+  background:linear-gradient(90deg, transparent, rgba(5,3,12,.85));
+  pointer-events:none;
+}
 .modetabs{
-  position:relative; z-index:5;
   display:flex; gap:8px;
-  padding:8px 10px;
+  padding:8px 26px 8px 10px;
   overflow-x:auto;
   background:rgba(5,3,12,.85);
   border-bottom:1px solid rgba(217,181,106,.15);
@@ -152,12 +159,17 @@ html,body{
   object-fit:cover; background:#14101f;
 }
 .msg .bubblewrap{ display:flex; flex-direction:column; min-width:0; }
-.msg.char .sender{ font-size:11px; color:var(--gold-hi); margin-bottom:2px; }
+.msg.char .sender{
+  font-size:11px; color:var(--gold-hi); margin-bottom:2px;
+  text-shadow:0 1px 3px rgba(0,0,0,.85);
+}
 .bubble{
   padding:9px 13px;
   border-radius:16px;
   font-size:14px; line-height:1.5;
   white-space:pre-wrap; word-break:break-word;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);
+  backdrop-filter:blur(3px);
 }
 .msg.char .bubble{
   background:var(--bubble-char);
@@ -169,7 +181,7 @@ html,body{
   color:var(--text);
   border-top-right-radius:4px;
 }
-.msg .time{ font-size:9px; color:rgba(242,236,223,.55); margin-top:3px; }
+.msg .time{ font-size:9px; color:rgba(242,236,223,.7); margin-top:3px; text-shadow:0 1px 2px rgba(0,0,0,.7); }
 .msg.user .time{ text-align:right; }
 .typing .bubble{ font-style:italic; opacity:.7; }
 
@@ -313,7 +325,7 @@ html,body{
 
 <div class="app">
   <header class="topbar">
-    <button class="iconbtn" id="menuBtn" title="メニュー">☰</button>
+    <button class="iconbtn" id="menuBtn" title="メニュー(準備中)">☰</button>
     <div class="title-block">
       <div class="title">ケイオスちゃん</div>
       <div class="subtitle" id="subtitle">いつもあなたの味方だよ💜</div>
@@ -324,7 +336,9 @@ html,body{
     </div>
   </header>
 
-  <nav class="modetabs" id="modeTabs"></nav>
+  <div class="modetabs-wrap">
+    <nav class="modetabs" id="modeTabs"></nav>
+  </div>
 
   <main class="stagearea">
     <div class="herobg"><img id="heroBgImg" src="" alt=""></div>
@@ -353,9 +367,9 @@ html,body{
 
   <nav class="bottomnav">
     <button class="navitem active" data-tab="chat">💬<span>チャット</span></button>
-    <button class="navitem" data-tab="history">🕘<span>履歴</span></button>
-    <button class="navitem" data-tab="gallery">🖼️<span>ギャラリー</span></button>
-    <button class="navitem" data-tab="mypage">👤<span>マイページ</span></button>
+    <button class="navitem" data-tab="history" title="準備中">🕘<span>履歴</span></button>
+    <button class="navitem" data-tab="gallery" title="準備中">🖼️<span>ギャラリー</span></button>
+    <button class="navitem" data-tab="mypage" title="準備中">👤<span>マイページ</span></button>
   </nav>
 
   <!-- 着せ替えモーダル -->
@@ -655,6 +669,18 @@ function pushMessage(role, text){
   document.getElementById("chatlog").scrollTop = document.getElementById("chatlog").scrollHeight;
 }
 
+/* 「準備中」系メッセージの連投防止(同一文言の短時間重複 + 連打)。通常のチャット送信は対象外 */
+let lastPlaceholderText = null;
+let lastPlaceholderAt = 0;
+function pushPlaceholderMessage(text){
+  const now = Date.now();
+  if(now - lastPlaceholderAt < 600) return;                       // 連打防止
+  if(text === lastPlaceholderText && now - lastPlaceholderAt < 3000) return; // 同一文言の連続表示防止
+  lastPlaceholderText = text;
+  lastPlaceholderAt = now;
+  pushMessage("char", text);
+}
+
 function addAffection(amount){
   state.affectionExp += amount;
   saveState();
@@ -737,7 +763,8 @@ function renderOutfitGrid(){
     const el = document.createElement("div");
     const selected = currentCharSlot() === o.key;
     el.className = "outfitcard" + (selected ? " selected" : "");
-    el.innerHTML = `<img src="${getImageSrc(o.key)}" alt=""><div class="label">${o.label}</div>`;
+    el.innerHTML = `<img alt=""><div class="label">${o.label}</div>`;
+    setImgWithFallback(el.querySelector("img"), o.key);
     el.addEventListener("click", () => {
       state.outfitOverride = o.key;
       saveState();
@@ -836,7 +863,7 @@ async function buildAdminRows(){
     const row = document.createElement("div");
     row.className = "admin-row";
     row.innerHTML = `
-      <img class="thumb" src="${getImageSrc(slot.key)}" alt="">
+      <img class="thumb" alt="">
       <span class="slotname">${slot.label}</span>
       <button class="upload">選択</button>
       <input type="file" accept="image/*">
@@ -844,6 +871,7 @@ async function buildAdminRows(){
     root.appendChild(row);
 
     const thumb = row.querySelector(".thumb");
+    setImgWithFallback(thumb, slot.key);
     const fileInput = row.querySelector("input[type=file]");
     row.querySelector(".upload").addEventListener("click", () => fileInput.click());
 
@@ -943,7 +971,7 @@ document.querySelectorAll(".navitem").forEach(btn => {
     if(btn.dataset.tab === "chat") return;
     document.querySelectorAll(".navitem").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
-    pushMessage("char", "この画面は準備中だよ。もう少し待っててね♪");
+    pushPlaceholderMessage("この画面は準備中だよ。もう少し待っててね♪");
     setTimeout(() => {
       document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.tab === "chat"));
     }, 1200);
@@ -951,7 +979,11 @@ document.querySelectorAll(".navitem").forEach(btn => {
 });
 
 document.getElementById("menuBtn").addEventListener("click", () => {
-  pushMessage("char", "メニューは準備中だよ〜！");
+  pushPlaceholderMessage("メニューは準備中だよ〜！");
+});
+
+document.getElementById("micBtn").addEventListener("click", () => {
+  pushPlaceholderMessage("音声入力は準備中だよ〜！");
 });
 
 /* =========================================================
