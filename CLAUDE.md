@@ -40,6 +40,7 @@
 7. テスト・品質確認・完了報告の形式: `.claude/rules/testing.md`
 8. プロジェクトの構成・現在の機能一覧の参照先: `.claude/rules/project-context.md`
 9. 過去の重要な決定事項の記録: `.claude/rules/decisions.md`（新しい決定はここに追記していく）
+10. 自動品質保証レイヤー（Hooks・Subagents・Skills）の詳細: `.claude/rules/quality-automation.md`
 
 ## 報告のしかた
 
