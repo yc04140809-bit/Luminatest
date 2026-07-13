@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Gavel, Square, X } from "lucide-react";
 import { COUNCIL_CATEGORIES, COUNCIL_PHASE_LABELS, type Agent, type CouncilSession } from "@chaos-ai-suite/shared";
 import { approveCouncil, discardCouncil, reviseCouncil, stopCouncil } from "../api/officeApi.js";
@@ -43,6 +43,16 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revisionInstruction, setRevisionInstruction] = useState("");
+  const savedHistoryForId = useRef<string | null>(null);
+
+  // 承認直後のsessionはpropsとして古いスナップショット（concludedAt未設定など）を参照している
+  // おそれがあるため、承認保存はここでWebSocket経由の最新session（実際に更新された値）を待って行う。
+  useEffect(() => {
+    if (session.status === "approved" && savedHistoryForId.current !== session.id) {
+      saveCouncilHistory(session);
+      savedHistoryForId.current = session.id;
+    }
+  }, [session]);
 
   function toggle(id: string): void {
     setOpen((prev) => {
@@ -66,10 +76,9 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
   }
 
   function handleApprove(): void {
-    void runAction("approve", async () => {
-      await approveCouncil(session.id);
-      saveCouncilHistory({ ...session, status: "approved" });
-    });
+    // 保存はuseEffect側で行う（このsessionは承認前のスナップショットのため、
+    // ここで直接保存するとconcludedAt等がサーバーの実際の更新値と食い違う）。
+    void runAction("approve", () => approveCouncil(session.id));
   }
 
   function handleDiscard(): void {

@@ -127,6 +127,10 @@ test("reviseCouncil skips the draft call and reuses the previous finalDraft", as
   assert.equal(session.draft, "統合済みの最終案です。", "前回の完成案を土台の作成案として引き継ぐ");
   assert.equal(session.calls.length, 2, "作成役の呼び出しを省略し、検証・統合の2回のみ");
   assert.deepEqual(session.calls.map((c) => c.role), ["verify", "integrate"]);
+  assert.equal(session.maxCalls, 2, "表示上の上限も実際の呼び出し回数（検証+統合の2回）に合わせる");
+
+  const original = store.getCouncilSession(first.id);
+  assert.equal(original?.status, "changes_requested", "元セッションはawaiting_approvalのまま残さない（表示対象を新セッションだけにする）");
 });
 
 test("setApproval approves an awaiting_approval session and rejects when not awaiting approval", async () => {

@@ -334,7 +334,8 @@ ${(verification?.risks.length ?? 0) > 0 ? verification!.risks.map((item) => `- $
       drafterAgentId: previous.drafterAgentId,
       verifierAgentId: verifier.id,
       integratorAgentId: integrator.id,
-      maxCalls: COUNCIL_MAX_CALLS,
+      // 作成役の呼び出しを省略するため、この上限は検証+統合の2回（3回固定ルールの範囲内）
+      maxCalls: COUNCIL_MAX_CALLS - 1,
       costCapUsd: previous.costCapUsd,
       parentSessionId: previous.id,
       revisionInstruction: input.instruction,

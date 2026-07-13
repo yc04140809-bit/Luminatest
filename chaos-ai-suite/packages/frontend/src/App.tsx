@@ -41,6 +41,7 @@ export default function App() {
   const [meetingRoomOpen, setMeetingRoomOpen] = useState(false);
   const seenMeetingIds = useRef<Set<string>>(new Set());
   const [councilRoomOpen, setCouncilRoomOpen] = useState(false);
+  const [openCouncilSessionId, setOpenCouncilSessionId] = useState<string | null>(null);
   const seenCouncilIds = useRef<Set<string>>(new Set());
   const [archiveOpen, setArchiveOpen] = useState(false);
   const briefingRequested = useRef(false);
@@ -80,7 +81,13 @@ export default function App() {
       (session) => session.status === "running" || session.status === "awaiting_approval",
     );
     const unseen = activeSessions.find((session) => !seenCouncilIds.current.has(session.id));
-    if (unseen) setCouncilRoomOpen(true);
+    if (unseen) {
+      setCouncilRoomOpen(true);
+      // 表示するセッションはIDで固定する。承認/破棄/失敗でstatusが変わっても
+      // （running/awaiting_approvalの絞り込みから外れても）同じセッションを表示し続け、
+      // 結果確認メッセージが一瞬で消えてしまわないようにする。
+      setOpenCouncilSessionId(unseen.id);
+    }
     for (const session of activeSessions) seenCouncilIds.current.add(session.id);
   }, [office]);
 
@@ -108,9 +115,10 @@ export default function App() {
   const councilSessions = Object.values(office.councilSessions).sort(
     (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
   );
-  const activeCouncilSession = councilSessions.find(
-    (session) => session.status === "running" || session.status === "awaiting_approval",
-  );
+  // ランチャーの入力可否だけに使う（実行中/承認待ちが1件でもあれば新規開始を止める）
+  const councilRunning = councilSessions.some((session) => session.status === "running" || session.status === "awaiting_approval");
+  // モーダルに表示するセッションはID固定。承認/破棄/失敗でstatusが変わっても表示し続ける
+  const displayedCouncilSession = openCouncilSessionId ? office.councilSessions[openCouncilSessionId] : undefined;
 
   function handleMention(agent: Agent): void {
     setMentionTarget({ agentId: agent.id, nonce: Date.now() });
@@ -186,8 +194,8 @@ export default function App() {
         <MeetingRoom meeting={latestMeeting} agents={office.agents} onClose={() => setMeetingRoomOpen(false)} />
       )}
 
-      {councilRoomOpen && activeCouncilSession && (
-        <CouncilRoom session={activeCouncilSession} agents={office.agents} onClose={() => setCouncilRoomOpen(false)} />
+      {councilRoomOpen && displayedCouncilSession && (
+        <CouncilRoom session={displayedCouncilSession} agents={office.agents} onClose={() => setCouncilRoomOpen(false)} />
       )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
@@ -205,7 +213,7 @@ export default function App() {
 
         <div className="flex flex-col gap-6">
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
-          <CouncilLauncher councilRunning={Boolean(activeCouncilSession)} />
+          <CouncilLauncher councilRunning={councilRunning} />
           <CaseWorkshop agents={agents} />
           <SnsAnalysisLab />
           <MarketingCopyStudio />
