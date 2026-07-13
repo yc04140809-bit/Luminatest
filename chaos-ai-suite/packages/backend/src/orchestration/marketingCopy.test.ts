@@ -1,0 +1,98 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { SEED_AGENTS } from "@chaos-ai-suite/shared";
+import type { LlmClient, ToolCallRequest } from "./llmClient.js";
+import { generateMarketingCopy } from "./marketingCopy.js";
+
+const mirai = SEED_AGENTS.find((agent) => agent.id === "agent-mirai")!;
+
+function stubLlm(response: Record<string, unknown>, capture?: { request?: ToolCallRequest }): LlmClient {
+  return {
+    async callTool<T>(request: ToolCallRequest): Promise<T> {
+      if (capture) capture.request = request;
+      return response as T;
+    },
+  };
+}
+
+test("generateMarketingCopy uses ミライ's persona, normalizes output, and respects user 8-layer input", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm(
+    {
+      targetReader: "既存アプリを壊すのが怖い初心者",
+      writingGoal: "安全に改善できると伝える",
+      hookPoints: ["同じ悩みを持つ読者の共感", "具体的な戻し方の提示"],
+      eightLayers: {
+        surfaceProblem: "Claude Codeを開いても指示が出せない",
+        realScene: "画面を開いて閉じるだけになる",
+        emotion: "焦り",
+        hiddenTruth: "", // 欠けているキーは正規化で空文字になることを確認する
+        futureIfIgnored: "別のツールを買い続ける",
+        trueDesire: "今日中に1つ完成させたい",
+        blockers: "難しそう",
+        firstStep: "テンプレを1つコピーする",
+      },
+      finalCopy: "Claude Codeを開いたけど、既存アプリを壊しそうで指示できない。",
+      cta: "詳しい内容は固定投稿にまとめています。",
+    },
+    capture,
+  );
+
+  const result = await generateMarketingCopy({
+    marketer: mirai,
+    request: {
+      copyType: "threads",
+      mode: "chaos_style",
+      theme: "Claude Code初心者向け安全改良テンプレ",
+      audience: "既存アプリを壊すのが怖くて改善できない初心者",
+      audienceProblem: "Claude Codeを開いても指示が出せない",
+      offer: "既存アプリを壊さない安全改良テンプレ集",
+      eightLayers: { surfaceProblem: "Claude Codeを開いても指示が出せない" },
+      experience: "アプリを壊すのが怖くて何度も作業を止めた",
+    },
+    llm,
+  });
+
+  assert.equal(result.eightLayers.hiddenTruth, "", "欠けているキーは空文字に正規化される");
+  assert.equal(result.eightLayers.surfaceProblem, "Claude Codeを開いても指示が出せない");
+  assert.equal(result.hookPoints.length, 2);
+  assert.equal(capture.request!.systemPrompt, mirai.systemPrompt, "マーケティング人格はミライで行う");
+
+  const prompt = capture.request!.userPrompt;
+  assert.ok(prompt.includes("Claude Code初心者向け安全改良テンプレ"), "テーマが渡っている");
+  assert.ok(prompt.includes("ユーザー入力・尊重する"), "ユーザー入力済みの8層項目は尊重する指示を含む");
+  assert.ok(prompt.includes("AIが読者・テーマから自然に補完する"), "未入力の8層項目はAI補完する指示を含む");
+  assert.ok(prompt.includes("誰でも必ず稼げる"), "NG表現の安全ルールを含む");
+  assert.ok(prompt.includes("アプリを壊すのが怖くて何度も作業を止めた"), "体験談は任意情報として渡る");
+});
+
+test("generateMarketingCopy injects brandContext only when provided", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm(
+    {
+      targetReader: "読者",
+      writingGoal: "狙い",
+      hookPoints: [],
+      eightLayers: {},
+      finalCopy: "完成文章",
+      cta: "",
+    },
+    capture,
+  );
+
+  await generateMarketingCopy({
+    marketer: mirai,
+    request: {
+      copyType: "profile",
+      mode: "gentle",
+      theme: "テーマ",
+      audience: "読者",
+      audienceProblem: "悩み",
+      offer: "行動",
+    },
+    brandContext: "# ケイオス師匠ブランド設定（テスト用ダミー）",
+    llm,
+  });
+
+  assert.ok(capture.request!.userPrompt.includes("# ケイオス師匠ブランド設定（テスト用ダミー）"));
+});

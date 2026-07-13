@@ -15,6 +15,7 @@ import { MeetingRoom } from "./components/MeetingRoom.js";
 import { BanterLauncher } from "./components/BanterLauncher.js";
 import { SnsAnalysisLab } from "./components/SnsAnalysisLab.js";
 import { NoteEditorStudio } from "./components/NoteEditorStudio.js";
+import { MarketingCopyStudio } from "./components/MarketingCopyStudio.js";
 import { CaseWorkshop } from "./components/CaseWorkshop.js";
 import { TrendNoteStudio } from "./components/TrendNoteStudio.js";
 import { VideoStudio } from "./components/VideoStudio.js";
@@ -181,6 +182,7 @@ export default function App() {
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
           <CaseWorkshop agents={agents} />
           <SnsAnalysisLab />
+          <MarketingCopyStudio />
           <NoteEditorStudio />
           <TrendNoteStudio />
           <VideoStudio />

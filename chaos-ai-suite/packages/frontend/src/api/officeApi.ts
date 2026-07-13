@@ -6,6 +6,8 @@ import type {
   CaseRequirements,
   ClientQuestions,
   DeliveryPack,
+  MarketingCopyRequest,
+  MarketingCopyResult,
   NoteAnalysisResult,
   NoteEditLevelId,
   NoteEditModeId,
@@ -252,4 +254,9 @@ export function editNoteSection(input: { section: string; instruction: string })
 /** 編集済み記事の読みやすさ診断・離脱ポイント・タイトル案・CTA案を取得する。 */
 export function analyzeNoteArticle(input: { content: string }): Promise<NoteAnalysisResult> {
   return postJson<NoteAnalysisResult>("/api/note/analyze", input);
+}
+
+/** 刺さるマーケティング生成: 文章タイプ・モード・8層入力から完成文章を1回で生成する（担当はミライ）。 */
+export function generateMarketingCopy(input: MarketingCopyRequest): Promise<MarketingCopyResult> {
+  return postJson<MarketingCopyResult>("/api/marketing-copy/generate", input);
 }

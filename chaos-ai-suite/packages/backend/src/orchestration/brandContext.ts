@@ -82,3 +82,54 @@ ${bullets(profile.prohibitedExpressions)}
 
 商品機能の説明より先に読者の悩みを示すこと。実績がない場合は誇張せず、制作背景や用途を正直に説明すること。`;
 }
+
+/**
+ * 刺さるマーケティング生成専用: この機能自体がケイオス師匠のブランドを体現する文章を作るための機能のため、
+ * 他の3関数より広い範囲（信じること・避けること・世界観・買われる心理の流れも含む）を渡す。
+ */
+export function brandContextForMarketingCopy(profile: BrandProfile): string {
+  return `# ケイオス師匠ブランド設定（この文章に反映すること）
+【ブランド軸】
+${profile.brandStatement}
+
+【ブランドタイプ】
+${profile.brandTypes}
+
+【世界観】
+${profile.worldview}
+
+【主な読者】
+${bullets(profile.targetAudience)}
+
+【読者の悩み】
+${bullets(profile.audienceProblems)}
+
+【提供する価値】
+${bullets(profile.providedValue)}
+
+【信じること】
+${bullets(profile.beliefs)}
+
+【避けること（スタンス）】
+${bullets(profile.enemies)}
+
+【文章トーン】
+${bullets(profile.toneRules)}
+
+【投稿生成の基本構造（無理にすべて詰め込まず自然に）】
+${profile.postStructure.map((step, index) => `${index + 1}. ${step}`).join("\n")}
+
+【買われる心理の流れ（参考にする。機械的になぞらない）】
+${profile.trustFlow.map((step, index) => `${index + 1}. ${step}`).join("\n")}
+
+【売り込まずに売れる導線（テーマと関係がある場合のみ）】
+${profile.salesFlow.map((step, index) => `${index + 1}. ${step}`).join("\n")}
+
+【必要な場合のみ使う弱い導線の例】
+${bullets(profile.softCtaExamples)}
+
+【避けるべき強い表現（絶対に使わない）】
+${bullets(profile.prohibitedExpressions)}
+
+毎回商品を案内しないこと。テーマと関係がある場合のみ、上記のような弱い導線を自然に添えること。`;
+}
