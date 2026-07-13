@@ -12,6 +12,8 @@ import { SettingsPanel } from "./components/SettingsPanel.js";
 import { ToolApprovalModal } from "./components/ToolApprovalModal.js";
 import { MeetingLauncher } from "./components/MeetingLauncher.js";
 import { MeetingRoom } from "./components/MeetingRoom.js";
+import { CouncilLauncher } from "./components/CouncilLauncher.js";
+import { CouncilRoom } from "./components/CouncilRoom.js";
 import { BanterLauncher } from "./components/BanterLauncher.js";
 import { SnsAnalysisLab } from "./components/SnsAnalysisLab.js";
 import { NoteEditorStudio } from "./components/NoteEditorStudio.js";
@@ -38,6 +40,8 @@ export default function App() {
   const seenToolCallIds = useRef<Set<string>>(new Set());
   const [meetingRoomOpen, setMeetingRoomOpen] = useState(false);
   const seenMeetingIds = useRef<Set<string>>(new Set());
+  const [councilRoomOpen, setCouncilRoomOpen] = useState(false);
+  const seenCouncilIds = useRef<Set<string>>(new Set());
   const [archiveOpen, setArchiveOpen] = useState(false);
   const briefingRequested = useRef(false);
   const bgm = useBgm();
@@ -70,6 +74,16 @@ export default function App() {
     for (const meeting of runningMeetings) seenMeetingIds.current.add(meeting.id);
   }, [office]);
 
+  useEffect(() => {
+    if (!office) return;
+    const activeSessions = Object.values(office.councilSessions).filter(
+      (session) => session.status === "running" || session.status === "awaiting_approval",
+    );
+    const unseen = activeSessions.find((session) => !seenCouncilIds.current.has(session.id));
+    if (unseen) setCouncilRoomOpen(true);
+    for (const session of activeSessions) seenCouncilIds.current.add(session.id);
+  }, [office]);
+
   if (!office) {
     return (
       <div className="flex min-h-full items-center justify-center bg-office-bg">
@@ -90,6 +104,13 @@ export default function App() {
   );
   const runningMeeting = strategyMeetings.find((meeting) => meeting.status === "running");
   const latestMeeting = strategyMeetings[0];
+
+  const councilSessions = Object.values(office.councilSessions).sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+  );
+  const activeCouncilSession = councilSessions.find(
+    (session) => session.status === "running" || session.status === "awaiting_approval",
+  );
 
   function handleMention(agent: Agent): void {
     setMentionTarget({ agentId: agent.id, nonce: Date.now() });
@@ -165,6 +186,10 @@ export default function App() {
         <MeetingRoom meeting={latestMeeting} agents={office.agents} onClose={() => setMeetingRoomOpen(false)} />
       )}
 
+      {councilRoomOpen && activeCouncilSession && (
+        <CouncilRoom session={activeCouncilSession} agents={office.agents} onClose={() => setCouncilRoomOpen(false)} />
+      )}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
           <OfficeBoard
@@ -180,6 +205,7 @@ export default function App() {
 
         <div className="flex flex-col gap-6">
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
+          <CouncilLauncher councilRunning={Boolean(activeCouncilSession)} />
           <CaseWorkshop agents={agents} />
           <SnsAnalysisLab />
           <MarketingCopyStudio />

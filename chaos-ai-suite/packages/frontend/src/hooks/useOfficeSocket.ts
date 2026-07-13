@@ -39,6 +39,8 @@ function applyEvent(office: OfficeState, event: Exclude<OfficeEvent, { type: "of
       return { ...office, lastBriefingDate: event.date };
     case "brand_profile_updated":
       return { ...office, brandProfile: event.brandProfile };
+    case "council_session_updated":
+      return { ...office, councilSessions: { ...office.councilSessions, [event.session.id]: event.session } };
     default: {
       const exhaustiveCheck: never = event;
       return exhaustiveCheck;

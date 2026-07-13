@@ -7,6 +7,8 @@ import {
   type AgentDraft,
   type BrandProfile,
   type BrandProfileUpdateInput,
+  type CouncilCallLog,
+  type CouncilSession,
   type Message,
   type MessageDraft,
   type MeetingStatement,
@@ -167,6 +169,83 @@ export class OfficeStore {
     const updated: StrategyMeeting = { ...existing, statements: [...existing.statements, fullStatement] };
     this.state.strategyMeetings[id] = updated;
     this.emit({ type: "strategy_meeting_updated", meeting: updated });
+    return updated;
+  }
+
+  listCouncilSessions(): CouncilSession[] {
+    return Object.values(this.state.councilSessions);
+  }
+
+  getCouncilSession(id: string): CouncilSession | undefined {
+    return this.state.councilSessions[id];
+  }
+
+  /** 実行中、または人間の承認待ちのセッションが1件でもあればtrue（同時に扱えるAI会議は常に1件まで）。 */
+  hasRunningCouncilSession(): boolean {
+    return Object.values(this.state.councilSessions).some(
+      (session) => session.status === "running" || session.status === "awaiting_approval",
+    );
+  }
+
+  createCouncilSession(input: {
+    requestText: string;
+    category: CouncilSession["category"];
+    drafterAgentId: string;
+    verifierAgentId: string;
+    integratorAgentId: string;
+    maxCalls: number;
+    costCapUsd?: number;
+    parentSessionId?: string;
+    revisionInstruction?: string;
+    /** 「修正を依頼」「もう一度検証」時、作成役の呼び出しを省略して直前の完成案を土台にする場合に渡す。 */
+    draft?: string;
+  }): CouncilSession {
+    const now = new Date().toISOString();
+    const session: CouncilSession = {
+      id: `council-${randomUUID()}`,
+      requestText: input.requestText,
+      category: input.category,
+      status: "running",
+      phase: input.draft ? "verifying" : "drafting",
+      drafterAgentId: input.drafterAgentId,
+      verifierAgentId: input.verifierAgentId,
+      integratorAgentId: input.integratorAgentId,
+      draft: input.draft,
+      draftAssumptions: [],
+      remainingRisks: [],
+      calls: [],
+      maxCalls: input.maxCalls,
+      costCapUsd: input.costCapUsd,
+      estimatedCostUsd: 0,
+      stopRequested: false,
+      parentSessionId: input.parentSessionId,
+      revisionInstruction: input.revisionInstruction,
+      startedAt: now,
+    };
+    this.state.councilSessions[session.id] = session;
+    this.emit({ type: "council_session_updated", session });
+    return session;
+  }
+
+  updateCouncilSession(id: string, patch: Partial<CouncilSession>): CouncilSession | undefined {
+    const existing = this.state.councilSessions[id];
+    if (!existing) return undefined;
+    const updated: CouncilSession = { ...existing, ...patch };
+    this.state.councilSessions[id] = updated;
+    this.emit({ type: "council_session_updated", session: updated });
+    return updated;
+  }
+
+  appendCouncilCallLog(id: string, log: CouncilCallLog): CouncilSession | undefined {
+    const existing = this.state.councilSessions[id];
+    if (!existing) return undefined;
+    const updated: CouncilSession = {
+      ...existing,
+      calls: [...existing.calls, log],
+      estimatedCostUsd: existing.estimatedCostUsd + log.estimatedCostUsd,
+    };
+    this.state.councilSessions[id] = updated;
+    this.emit({ type: "council_session_updated", session: updated });
     return updated;
   }
 

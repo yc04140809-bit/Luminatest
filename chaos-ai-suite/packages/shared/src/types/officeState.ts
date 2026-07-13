@@ -4,6 +4,7 @@ import type { Message } from "./message.js";
 import type { ThemeSettings } from "./theme.js";
 import type { StrategyMeeting } from "./meeting.js";
 import type { BrandProfile } from "./brandProfile.js";
+import type { CouncilSession } from "./council.js";
 
 /** 進行中の作戦会議（例: セイラちゃん×レヴィちゃんのタスク分解会議）。 */
 export interface ActiveMeeting {
@@ -32,6 +33,8 @@ export interface OfficeState {
   strategyMeetings: Record<string, StrategyMeeting>;
   /** ケイオス師匠ブランド設定（SNS投稿・note記事・商品紹介文などの生成時に反映） */
   brandProfile: BrandProfile;
+  /** AI会議モード（作成役→検証役→統合役→人間承認）のセッション記録 */
+  councilSessions: Record<string, CouncilSession>;
   /** 朝会ブリーフィングを最後に実施した日付（"YYYY-MM-DD"、日本時間）。未実施ならundefined。 */
   lastBriefingDate?: string;
   lastUpdated: string;
@@ -49,4 +52,5 @@ export type OfficeEvent =
   | { type: "strategy_meeting_updated"; meeting: StrategyMeeting }
   | { type: "briefing_completed"; date: string }
   | { type: "brand_profile_updated"; brandProfile: BrandProfile }
+  | { type: "council_session_updated"; session: CouncilSession }
   | { type: "office_state_snapshot"; state: OfficeState };

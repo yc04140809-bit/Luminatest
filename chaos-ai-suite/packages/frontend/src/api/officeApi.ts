@@ -5,6 +5,7 @@ import type {
   CaseQualityResult,
   CaseRequirements,
   ClientQuestions,
+  CouncilRequestCategory,
   DeliveryPack,
   MarketingCopyDiagnoseRequest,
   MarketingCopyDiagnosis,
@@ -134,6 +135,31 @@ export function clearSecret(key: string): Promise<void> {
 /** 戦略経営会議を開始する。既に会議が進行中の場合はエラーになる。 */
 export function startMeeting(topic: string): Promise<void> {
   return sendJson("POST", "/api/meetings", { topic });
+}
+
+/** AI会議モード: 作成役→検証役→統合役の3回呼び出しを開始する。既に進行中の場合はエラーになる。 */
+export function startCouncil(input: { requestText: string; category: CouncilRequestCategory; costCapUsd?: number }): Promise<void> {
+  return sendJson("POST", "/api/council/start", input);
+}
+
+/** AI会議モード: 「修正を依頼」「もう一度検証」。直前の完成案を土台に検証・統合の2回だけ再実行する。 */
+export function reviseCouncil(sessionId: string, instruction?: string): Promise<void> {
+  return sendJson("POST", `/api/council/${sessionId}/revise`, { instruction });
+}
+
+/** AI会議モード: 処理停止。実行中の呼び出しは完了させ、次の段階には進まない。 */
+export function stopCouncil(sessionId: string): Promise<void> {
+  return sendJson("POST", `/api/council/${sessionId}/stop`, {});
+}
+
+/** AI会議モード: 人間承認。 */
+export function approveCouncil(sessionId: string): Promise<void> {
+  return sendJson("POST", `/api/council/${sessionId}/approve`, {});
+}
+
+/** AI会議モード: 破棄。 */
+export function discardCouncil(sessionId: string): Promise<void> {
+  return sendJson("POST", `/api/council/${sessionId}/discard`, {});
 }
 
 /** 朝会ブリーフィングを実行する。本日実施済みの場合はエラーになる。 */

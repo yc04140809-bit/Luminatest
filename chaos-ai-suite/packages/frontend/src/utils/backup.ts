@@ -22,7 +22,7 @@ const APP_KEY_PREFIX = "chaos-ai-suite:";
 /** これを超えるバックアップファイルは読み込まない（BGM音源込みでも通常は数十MB以下） */
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
 
-export type BackupCategoryId = "agents" | "documents" | "sns" | "note" | "cases" | "media" | "usage" | "other";
+export type BackupCategoryId = "agents" | "documents" | "sns" | "note" | "cases" | "media" | "usage" | "council" | "other";
 
 export interface BackupCategory {
   id: BackupCategoryId;
@@ -74,6 +74,12 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     label: "AI利用・成果ダッシュボードデータ",
     description: "チャットのAI利用ログ・トークン数・概算費用・成果記録",
     keys: ["chaos-ai-suite:usage-log"],
+  },
+  {
+    id: "council",
+    label: "AI会議モードの承認済み成果物",
+    description: "作成役→検証役→統合役→人間承認を経て承認した成果物の履歴（承認前のものは含まない）",
+    keys: ["chaos-ai-suite:council-history"],
   },
   {
     id: "other",

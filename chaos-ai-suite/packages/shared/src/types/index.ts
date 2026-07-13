@@ -14,3 +14,4 @@ export * from "./videoStudio.js";
 export * from "./usage.js";
 export * from "./brandProfile.js";
 export * from "./marketingCopy.js";
+export * from "./council.js";

@@ -15,6 +15,7 @@ export function buildSeedOfficeState(): OfficeState {
     theme: { ...DEFAULT_THEME_SETTINGS, overrides: {} },
     strategyMeetings: {},
     brandProfile: buildDefaultBrandProfile(),
+    councilSessions: {},
     lastUpdated: new Date().toISOString(),
   };
 }
