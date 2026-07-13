@@ -22,7 +22,7 @@ const APP_KEY_PREFIX = "chaos-ai-suite:";
 /** これを超えるバックアップファイルは読み込まない（BGM音源込みでも通常は数十MB以下） */
 const MAX_FILE_BYTES = 200 * 1024 * 1024;
 
-export type BackupCategoryId = "agents" | "documents" | "sns" | "note" | "cases" | "media" | "other";
+export type BackupCategoryId = "agents" | "documents" | "sns" | "note" | "cases" | "media" | "usage" | "other";
 
 export interface BackupCategory {
   id: BackupCategoryId;
@@ -68,6 +68,12 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     label: "BGM・表示設定",
     description: "BGMのON/OFFと読み込んだ音楽ファイル",
     keys: ["chaos-ai-suite:bgm-enabled"],
+  },
+  {
+    id: "usage",
+    label: "AI利用・成果ダッシュボードデータ",
+    description: "チャットのAI利用ログ・トークン数・概算費用・成果記録",
+    keys: ["chaos-ai-suite:usage-log"],
   },
   {
     id: "other",

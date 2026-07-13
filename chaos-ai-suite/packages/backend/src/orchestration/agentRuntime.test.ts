@@ -190,6 +190,28 @@ test("dispatchMention assigns directly to one agent without a meeting", async ()
   assert.equal(chaos?.status, "standby");
 });
 
+test("completed task carries tokenUsage reported by the LLM client (AI利用ダッシュボード用)", async () => {
+  const store = new OfficeStore();
+  const stubLlm: LlmClient = {
+    async callTool<T>(request: ToolCallRequest): Promise<T> {
+      request.onUsage?.({ inputTokens: 123, outputTokens: 45 });
+      return { output: "（回答）", action: "complete" } as T;
+    },
+  };
+
+  const runtime = createAgentRuntime(store, stubLlm, emptyToolRegistry());
+  await runtime.dispatchMention("agent-chaos", "この件どう思う？");
+
+  const tasks = store.listTasks();
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0]?.status, "completed");
+  assert.deepEqual(tasks[0]?.tokenUsage, {
+    model: store.getAgent("agent-chaos")?.model.model,
+    inputTokens: 123,
+    outputTokens: 45,
+  });
+});
+
 function fakeToolExecutor(): ToolExecutor {
   return {
     definition: {

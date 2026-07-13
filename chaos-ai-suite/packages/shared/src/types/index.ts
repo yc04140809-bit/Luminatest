@@ -11,3 +11,4 @@ export * from "./caseWorkshop.js";
 export * from "./caseScout.js";
 export * from "./trendNote.js";
 export * from "./videoStudio.js";
+export * from "./usage.js";

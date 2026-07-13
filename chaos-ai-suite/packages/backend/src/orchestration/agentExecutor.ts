@@ -1,4 +1,4 @@
-import type { Agent, AgentStatus, Task, TaskOutputType, ToolDefinition } from "@chaos-ai-suite/shared";
+import type { Agent, AgentStatus, Task, TaskOutputType, ToolDefinition, TokenUsage } from "@chaos-ai-suite/shared";
 import type { LlmClient } from "./llmClient.js";
 import { currentDateTimeText } from "./dateUtil.js";
 
@@ -12,6 +12,8 @@ export interface ExecutionResult {
   toolId?: string;
   /** action=tool_call の場合の、そのツールのinputSchemaに沿った入力値 */
   toolInput?: Record<string, unknown>;
+  /** このタスクのAI呼び出しで使用したトークン数（AI利用・成果ダッシュボード用） */
+  tokenUsage?: TokenUsage;
 }
 
 const WRITING_OUTPUT_TYPES: TaskOutputType[] = [
@@ -94,7 +96,8 @@ ${describeTools(availableTools)}
   ツール実行は必ず代表の承認を経てから行われるため、ここでは「申請」するだけでよい。
   「来週月曜」「明日」等の相対的な日付表現は、冒頭の「現在日時」を基準に正確な日付へ変換すること。`;
 
-  return llm.callTool<ExecutionResult>({
+  let tokenUsage: TokenUsage | undefined;
+  const result = await llm.callTool<ExecutionResult>({
     systemPrompt: agent.systemPrompt,
     userPrompt,
     model: agent.model.model,
@@ -102,6 +105,9 @@ ${describeTools(availableTools)}
     maxTokens: agent.model.maxOutputTokens,
     toolName: "submit_task_result",
     toolDescription: "タスクの成果物本文と次に取るべきアクションを記録する",
+    onUsage: (usage) => {
+      tokenUsage = { model: agent.model.model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
+    },
     toolSchema: {
       properties: {
         output: { type: "string", description: "成果物本文" },
@@ -130,4 +136,6 @@ ${describeTools(availableTools)}
       required: ["output", "action"],
     },
   });
+
+  return { ...result, tokenUsage };
 }

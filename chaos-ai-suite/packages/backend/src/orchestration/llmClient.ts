@@ -1,5 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+/** 使用トークン数。AI利用・成果ダッシュボードの記録用（ログへの保存はフロントエンド側の責務）。 */
+export interface UsageInfo {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 /** ツール強制呼び出しの1リクエスト分のパラメータ。 */
 export interface ToolCallRequest {
   systemPrompt: string;
@@ -11,6 +17,8 @@ export interface ToolCallRequest {
   toolDescription: string;
   /** JSON Schemaの `properties` / `required`（`type: "object"`は自動付与） */
   toolSchema: { properties: Record<string, unknown>; required: string[] };
+  /** 呼び出し成功後、使用トークン数を受け取る任意のコールバック（省略可・呼び出し自体の挙動には影響しない） */
+  onUsage?: (usage: UsageInfo) => void;
 }
 
 /** Web検索つき呼び出しのパラメータ。検索回数上限でコストを抑える。 */
@@ -85,6 +93,7 @@ export function createAnthropicClient(getApiKey: () => string | undefined): LlmC
       if (!toolUse || toolUse.type !== "tool_use") {
         throw new Error(`LLM did not return a tool_use block for "${request.toolName}"`);
       }
+      request.onUsage?.({ inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens });
       return toolUse.input as T;
     },
 
@@ -113,10 +122,14 @@ export function createAnthropicClient(getApiKey: () => string | undefined): LlmC
 
       // サーバー側検索ループが上限に達すると pause_turn で返るため、続きを再送して完走させる。
       let response = await anthropic.messages.create({ ...params, messages });
+      let totalInputTokens = response.usage.input_tokens;
+      let totalOutputTokens = response.usage.output_tokens;
       let continuations = 0;
       while (response.stop_reason === "pause_turn" && continuations < 4) {
         messages.push({ role: "assistant", content: response.content });
         response = await anthropic.messages.create({ ...params, messages });
+        totalInputTokens += response.usage.input_tokens;
+        totalOutputTokens += response.usage.output_tokens;
         continuations += 1;
       }
 
@@ -130,6 +143,7 @@ export function createAnthropicClient(getApiKey: () => string | undefined): LlmC
           `LLM did not submit results via "${request.toolName}" after web search (stop_reason: ${response.stop_reason})`,
         );
       }
+      request.onUsage?.({ inputTokens: totalInputTokens, outputTokens: totalOutputTokens });
       return toolUse.input as T;
     },
   };

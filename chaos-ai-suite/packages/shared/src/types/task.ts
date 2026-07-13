@@ -1,4 +1,5 @@
 import type { PendingToolCall } from "./tool.js";
+import type { TokenUsage } from "./usage.js";
 
 /** タスクの進行状況。承認ゲート(awaiting_approval)は人間参加型フローの要。 */
 export type TaskStatus =
@@ -72,6 +73,8 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   dueAt?: string;
+  /** このタスクを実行したAI呼び出しのトークン使用量（AI利用・成果ダッシュボード用。取得できなかった場合は未設定） */
+  tokenUsage?: TokenUsage;
 }
 
 export type TaskDraft = Omit<

@@ -86,6 +86,10 @@ export function createAgentRuntime(store: OfficeStore, llm: LlmClient, toolRegis
       return;
     }
 
+    if (result.tokenUsage) {
+      store.updateTask(taskId, { tokenUsage: result.tokenUsage });
+    }
+
     store.postMessage({
       channel: "general",
       fromAgentId: agent.id,
