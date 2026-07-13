@@ -112,7 +112,7 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
         {error && <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>}
 
         <div className="rounded-lg border border-office-border bg-office-panel p-3 text-xs text-office-text">
-          <p className="mb-1"><span className="font-semibold text-office-muted">依頼内容:</span> {session.requestText}</p>
+          <p className="mb-1 whitespace-pre-wrap break-words"><span className="font-semibold text-office-muted">依頼内容:</span> {session.requestText}</p>
           <p className="mb-1"><span className="font-semibold text-office-muted">種類:</span> {categoryLabel(session.category)}</p>
           <p className="mb-1">
             <span className="font-semibold text-office-muted">現在の処理段階:</span>{" "}
