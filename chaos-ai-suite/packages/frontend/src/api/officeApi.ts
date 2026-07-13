@@ -6,8 +6,11 @@ import type {
   CaseRequirements,
   ClientQuestions,
   DeliveryPack,
+  MarketingCopyDiagnoseRequest,
+  MarketingCopyDiagnosis,
   MarketingCopyRequest,
   MarketingCopyResult,
+  MarketingCopyRevisionRequest,
   NoteAnalysisResult,
   NoteEditLevelId,
   NoteEditModeId,
@@ -259,4 +262,14 @@ export function analyzeNoteArticle(input: { content: string }): Promise<NoteAnal
 /** 刺さるマーケティング生成: 文章タイプ・モード・8層入力から完成文章を1回で生成する（担当はミライ）。 */
 export function generateMarketingCopy(input: MarketingCopyRequest): Promise<MarketingCopyResult> {
   return postJson<MarketingCopyResult>("/api/marketing-copy/generate", input);
+}
+
+/** 刺さるマーケティング生成: プリセット/自由入力の指示で直前の完成文章を再生成する（担当はミライ）。 */
+export function reviseMarketingCopy(input: MarketingCopyRevisionRequest & { useBrandProfile?: boolean }): Promise<MarketingCopyResult> {
+  return postJson<MarketingCopyResult>("/api/marketing-copy/revise", input);
+}
+
+/** 刺さるマーケティング生成: 完成文章を10項目×10点で採点し、改善案まで返す（担当はミライ）。 */
+export function diagnoseMarketingCopy(input: MarketingCopyDiagnoseRequest): Promise<MarketingCopyDiagnosis> {
+  return postJson<MarketingCopyDiagnosis>("/api/marketing-copy/diagnose", input);
 }

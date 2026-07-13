@@ -2,22 +2,31 @@ import {
   EIGHT_LAYER_FIELDS,
   MARKETING_COPY_MODES,
   MARKETING_COPY_TYPES,
+  MARKETING_SCORE_FIELDS,
   type Agent,
   type EightLayerKey,
+  type MarketingCopyDiagnoseRequest,
+  type MarketingCopyDiagnosis,
   type MarketingCopyRequest,
   type MarketingCopyResult,
+  type MarketingCopyRevisionRequest,
+  type MarketingScoreKey,
 } from "@chaos-ai-suite/shared";
 import type { LlmClient } from "./llmClient.js";
 
 /**
- * 刺さるマーケティング生成AIのフェーズ1オーケストレーション。
- * 1回のツール強制呼び出しで「対象読者・狙い・刺さるポイント・8層分析・完成文章・CTA」までをまとめて生成する。
+ * 刺さるマーケティング生成AIのオーケストレーション。
+ * generateMarketingCopy: 1回のツール強制呼び出しで「対象読者・狙い・刺さるポイント・8層分析・完成文章・CTA」を生成。
+ * reviseMarketingCopy: 直前の完成文章と編集済み8層・指示から、同じ結果形式で再生成（1回呼び出し）。
+ * diagnoseMarketingCopy: 完成文章を10項目×10点で採点し、良い点・原因・改善版まで返す（1回呼び出し）。
  * 8層の内部分析（読者→場面→感情→本音→放置未来→願望→動けない理由→最初の一歩）は
  * プロンプト内の生成フロー指示としてAIに内部で実行させ、結果を構造化データとして受け取る。
- * 診断（採点）・添削改善・保存履歴はフェーズ2以降で別関数として追加する。
+ * 保存履歴（フロントエンドのlocalStorage）はorchestration層の関知するところではない。
  */
 
 const GENERATE_MAX_TOKENS = 8000;
+const REVISE_MAX_TOKENS = 8000;
+const DIAGNOSE_MAX_TOKENS = 4000;
 
 function str(value: unknown, fallback = ""): string {
   return typeof value === "string" && value.trim() ? value : fallback;
@@ -25,6 +34,12 @@ function str(value: unknown, fallback = ""): string {
 
 function arr(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim() !== "") : [];
+}
+
+/** 0〜10点にクランプする（採点値が不正・範囲外でも安全側に丸める）。 */
+function clampScore10(value: unknown): number {
+  const num = typeof value === "number" && Number.isFinite(value) ? Math.round(value) : 5;
+  return Math.max(0, Math.min(10, num));
 }
 
 /** ケイオス師匠の基本姿勢。ブランド設定の反映がOFFでも常に守られる最低限の事実。 */
@@ -189,5 +204,196 @@ ${params.brandContext ? `\n${params.brandContext}\n` : ""}
     eightLayers,
     finalCopy: str(result.finalCopy),
     cta: str(result.cta),
+  };
+}
+
+/** 「もっと深く刺す」「やさしくする」等のプリセット・自由入力から、直前の完成文章を再生成する。 */
+export async function reviseMarketingCopy(params: {
+  marketer: Agent;
+  request: MarketingCopyRevisionRequest;
+  brandContext?: string;
+  llm: LlmClient;
+}): Promise<MarketingCopyResult> {
+  const { marketer, request, llm } = params;
+
+  const eightLayerLines = EIGHT_LAYER_FIELDS.map(
+    (field) => `${field.label}: ${request.eightLayers[field.key] || "（未設定）"}`,
+  ).join("\n");
+
+  const userPrompt = `${BASELINE_POSITION}
+
+${SAFETY_RULES}
+
+# 直前の完成文章（これを指示に沿って書き直す）
+${request.previousCopy}
+
+# 8層マーケティング分析（ユーザーが編集済みの場合はその内容を優先する）
+${eightLayerLines}
+
+# 元の依頼内容（参考）
+文章タイプ: ${typeGuidance(request.copyType)}
+生成モード: ${modeGuidance(request.mode)}
+テーマ: ${request.theme}
+読者: ${request.audience}
+読者の悩み: ${request.audienceProblem}
+紹介したい商品または行動: ${request.offer}
+${params.brandContext ? `\n${params.brandContext}\n` : ""}
+# 修正指示
+${request.instruction}
+
+絶対ルール:
+- ゼロから書き直さず、直前の完成文章をベースに指示された方向へ調整する
+- 指示にない要素（読者・テーマ・商品）を勝手に変えない
+- 8層分析は編集済みの内容を優先して活かす
+
+# 出力形式
+1. targetReader: 対象読者を一言で
+2. writingGoal: この文章の狙いを一言で
+3. hookPoints: 刺さるポイント（箇条書き2〜4個）
+4. eightLayers: 8層それぞれの分析結果（更新があれば反映する）
+5. finalCopy: そのままコピペして使える完成文章のみ（見出し・解説・点数を含めない）
+6. cta: 必要な場合のみの導線文（不要な文章タイプの場合は空文字でよい）`;
+
+  const result = await llm.callTool<{
+    targetReader: string;
+    writingGoal: string;
+    hookPoints: string[];
+    eightLayers: Record<string, string>;
+    finalCopy: string;
+    cta: string;
+  }>({
+    systemPrompt: marketer.systemPrompt,
+    userPrompt,
+    model: marketer.model.model,
+    temperature: marketer.model.temperature,
+    maxTokens: REVISE_MAX_TOKENS,
+    toolName: "submit_marketing_copy",
+    toolDescription: "修正指示を反映したマーケティング文章と8層分析を記録する",
+    toolSchema: {
+      properties: {
+        targetReader: { type: "string", description: "対象読者" },
+        writingGoal: { type: "string", description: "文章の狙い" },
+        hookPoints: { type: "array", items: { type: "string" }, description: "刺さるポイント（2〜4個）" },
+        eightLayers: {
+          type: "object",
+          description: "8層マーケティング分析",
+          properties: Object.fromEntries(
+            EIGHT_LAYER_FIELDS.map((field) => [field.key, { type: "string", description: field.label }]),
+          ),
+          required: EIGHT_LAYER_FIELDS.map((field) => field.key),
+        },
+        finalCopy: { type: "string", description: "そのままコピペできる完成文章" },
+        cta: { type: "string", description: "必要な場合のみのCTA（不要なら空文字）" },
+      },
+      required: ["targetReader", "writingGoal", "hookPoints", "eightLayers", "finalCopy", "cta"],
+    },
+  });
+
+  const eightLayers = Object.fromEntries(
+    EIGHT_LAYER_FIELDS.map((field) => [field.key, str(result.eightLayers?.[field.key], request.eightLayers[field.key])]),
+  ) as Record<EightLayerKey, string>;
+
+  return {
+    targetReader: str(result.targetReader),
+    writingGoal: str(result.writingGoal),
+    hookPoints: arr(result.hookPoints),
+    eightLayers,
+    finalCopy: str(result.finalCopy),
+    cta: str(result.cta),
+  };
+}
+
+/** 完成文章を10項目×10点で採点し、良い点・原因・改善優先順位・改善版まで返す（点数だけで終わらせない）。 */
+export async function diagnoseMarketingCopy(params: {
+  reviewer: Agent;
+  request: MarketingCopyDiagnoseRequest;
+  llm: LlmClient;
+}): Promise<MarketingCopyDiagnosis> {
+  const { reviewer, request, llm } = params;
+
+  const userPrompt = `${SAFETY_RULES}
+
+# 診断対象の文章
+${request.finalCopy}
+
+# 文脈
+文章タイプ: ${typeGuidance(request.copyType)}
+読者: ${request.audience}
+読者の悩み: ${request.audienceProblem}
+
+# 指示
+上記の文章を、次の10項目で各0〜10点で採点してください。
+${MARKETING_SCORE_FIELDS.map((field, index) => `${index + 1}. ${field.label}`).join("\n")}
+
+点数だけで終わらせず、次も返してください。
+- goodPoints: 良い点（箇条書き1〜3個）
+- problems: 刺さらない原因（箇条書き1〜4個。なければ空配列でよい）
+- priorityFixes: 改善優先順位（直すべき順に箇条書き）
+- beforeAfter: 最も弱い一文（before）と、その改善案（after）
+- improvedCopy: 指摘を反映した完成版の文章全体（そのままコピペできる形。元の文章の意図・読者・テーマは変えない）
+- extraTip: さらに強くするための追加の1提案`;
+
+  const result = await llm.callTool<{
+    scores: Record<string, number>;
+    goodPoints: string[];
+    problems: string[];
+    priorityFixes: string[];
+    beforeAfter: { before: string; after: string };
+    improvedCopy: string;
+    extraTip: string;
+  }>({
+    systemPrompt: reviewer.systemPrompt,
+    userPrompt,
+    model: reviewer.model.model,
+    temperature: reviewer.model.temperature,
+    maxTokens: DIAGNOSE_MAX_TOKENS,
+    toolName: "submit_copy_diagnosis",
+    toolDescription: "マーケティング文章の刺さり診断（採点・良い点・改善案）を記録する",
+    toolSchema: {
+      properties: {
+        scores: {
+          type: "object",
+          description: "10項目の採点（各0〜10）",
+          properties: Object.fromEntries(
+            MARKETING_SCORE_FIELDS.map((field) => [field.key, { type: "number", description: `${field.label}（0〜10）` }]),
+          ),
+          required: MARKETING_SCORE_FIELDS.map((field) => field.key),
+        },
+        goodPoints: { type: "array", items: { type: "string" }, description: "良い点" },
+        problems: { type: "array", items: { type: "string" }, description: "刺さらない原因" },
+        priorityFixes: { type: "array", items: { type: "string" }, description: "改善優先順位" },
+        beforeAfter: {
+          type: "object",
+          properties: {
+            before: { type: "string", description: "最も弱い一文" },
+            after: { type: "string", description: "改善案" },
+          },
+          required: ["before", "after"],
+        },
+        improvedCopy: { type: "string", description: "指摘を反映した完成版の文章全体" },
+        extraTip: { type: "string", description: "さらに強くするための追加の1提案" },
+      },
+      required: ["scores", "goodPoints", "problems", "priorityFixes", "beforeAfter", "improvedCopy", "extraTip"],
+    },
+  });
+
+  const scores = Object.fromEntries(
+    MARKETING_SCORE_FIELDS.map((field) => [field.key, clampScore10(result.scores?.[field.key])]),
+  ) as Record<MarketingScoreKey, number>;
+  // 10項目×0〜10点なので、単純合計がそのまま100点満点のtotalScoreになる。
+  const totalScore = Object.values(scores).reduce((sum, value) => sum + value, 0);
+
+  return {
+    scores,
+    totalScore,
+    goodPoints: arr(result.goodPoints),
+    problems: arr(result.problems),
+    priorityFixes: arr(result.priorityFixes),
+    beforeAfter: {
+      before: str(result.beforeAfter?.before),
+      after: str(result.beforeAfter?.after),
+    },
+    improvedCopy: str(result.improvedCopy, request.finalCopy),
+    extraTip: str(result.extraTip),
   };
 }

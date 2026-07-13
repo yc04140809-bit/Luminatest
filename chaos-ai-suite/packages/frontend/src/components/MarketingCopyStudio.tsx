@@ -1,21 +1,27 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, Copy, Megaphone, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, Megaphone, Sparkles, Trash2, X } from "lucide-react";
 import {
   EIGHT_LAYER_FIELDS,
   MARKETING_COPY_MODES,
+  MARKETING_COPY_REVISION_PRESETS,
   MARKETING_COPY_TYPES,
+  MARKETING_SCORE_FIELDS,
   type EightLayerKey,
   type EightLayerValues,
+  type MarketingCopyDiagnosis,
+  type MarketingCopyHistoryEntry,
   type MarketingCopyModeId,
   type MarketingCopyResult,
   type MarketingCopyTypeId,
 } from "@chaos-ai-suite/shared";
-import { generateMarketingCopy } from "../api/officeApi.js";
+import { diagnoseMarketingCopy, generateMarketingCopy, reviseMarketingCopy } from "../api/officeApi.js";
+import { listMarketingCopyHistory, removeMarketingCopyHistory, saveMarketingCopyHistory } from "../utils/marketingCopyHistory.js";
 
 /**
- * 刺さるマーケティング生成・改善システムのフェーズ1。
- * 文章タイプ・生成モード・基本入力・8層入力から、1回のAI呼び出しで完成文章を生成する。
- * 刺さり診断（採点）・添削改善モード・保存履歴・テンプレートはフェーズ2以降で追加予定。
+ * 刺さるマーケティング生成・改善システム。
+ * フェーズ1: 文章タイプ・生成モード・基本入力・8層入力から、1回のAI呼び出しで完成文章を生成。
+ * フェーズ2: 生成履歴の保存（localStorage）・刺さり診断（採点+改善案）・8層編集からの再生成。
+ * テンプレート機能・投稿結果分析はフェーズ3以降で追加予定。
  */
 
 function Section({
@@ -41,6 +47,24 @@ const btnPrimary = "w-full rounded-lg bg-office-accent px-3 py-2.5 text-sm font-
 const btnSub = "rounded-lg border border-office-border px-3 py-2 text-xs font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold disabled:opacity-40";
 
 const EMPTY_EIGHT_LAYERS: EightLayerValues = {};
+
+function copyTypeLabel(id: string): string {
+  return MARKETING_COPY_TYPES.find((entry) => entry.id === id)?.label ?? id;
+}
+
+function formatDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("ja-JP", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
+function scoreColor(score: number): string {
+  if (score >= 8) return "bg-emerald-500";
+  if (score >= 5) return "bg-office-gold";
+  return "bg-red-500";
+}
 
 export function MarketingCopyStudio() {
   const [open, setOpen] = useState(false);
@@ -72,6 +96,19 @@ export function MarketingCopyStudio() {
   const [result, setResult] = useState<MarketingCopyResult | null>(null);
   const [editedLayers, setEditedLayers] = useState<Record<EightLayerKey, string> | null>(null);
 
+  const [history, setHistory] = useState<MarketingCopyHistoryEntry[]>([]);
+
+  const [revisionPreset, setRevisionPreset] = useState<string>(MARKETING_COPY_REVISION_PRESETS[0]);
+  const [revisionFree, setRevisionFree] = useState("");
+  const [reviseBusy, setReviseBusy] = useState(false);
+
+  const [diagnosis, setDiagnosis] = useState<MarketingCopyDiagnosis | null>(null);
+  const [diagnoseBusy, setDiagnoseBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setHistory(listMarketingCopyHistory());
+  }, [open]);
+
   useEffect(() => {
     if (result) setEditedLayers(result.eightLayers);
   }, [result]);
@@ -94,6 +131,17 @@ export function MarketingCopyStudio() {
     }
   }
 
+  function buildRequestFields() {
+    return {
+      copyType,
+      mode,
+      theme: theme.trim(),
+      audience: audience.trim(),
+      audienceProblem: audienceProblem.trim(),
+      offer: offer.trim(),
+    };
+  }
+
   async function handleGenerate(): Promise<void> {
     if (busy) return;
     if (!theme.trim() || !audience.trim() || !audienceProblem.trim() || !offer.trim()) {
@@ -102,14 +150,10 @@ export function MarketingCopyStudio() {
     }
     setBusy(true);
     setError(null);
+    setDiagnosis(null);
     try {
-      const generated = await generateMarketingCopy({
-        copyType,
-        mode,
-        theme: theme.trim(),
-        audience: audience.trim(),
-        audienceProblem: audienceProblem.trim(),
-        offer: offer.trim(),
+      const requestPayload = {
+        ...buildRequestFields(),
         eightLayers,
         experience: experience.trim() || undefined,
         charLength: charLength.trim() || undefined,
@@ -123,14 +167,90 @@ export function MarketingCopyStudio() {
         keywords: keywords.trim() || undefined,
         avoidPhrases: avoidPhrases.trim() || undefined,
         useBrandProfile,
-      });
+      };
+      const generated = await generateMarketingCopy(requestPayload);
       setResult(generated);
       setOpenSections(new Set(["result"]));
+
+      const entry: MarketingCopyHistoryEntry = {
+        id: `mc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: new Date().toISOString(),
+        request: requestPayload,
+        result: generated,
+      };
+      setHistory(saveMarketingCopyHistory(entry));
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleRevise(): Promise<void> {
+    if (reviseBusy || !result || !editedLayers) return;
+    const instruction = revisionFree.trim() || revisionPreset;
+    setReviseBusy(true);
+    setError(null);
+    try {
+      const revised = await reviseMarketingCopy({
+        ...buildRequestFields(),
+        previousCopy: result.finalCopy,
+        eightLayers: editedLayers,
+        instruction,
+        useBrandProfile,
+      });
+      setResult(revised);
+      setDiagnosis(null);
+      const entry: MarketingCopyHistoryEntry = {
+        id: `mc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        createdAt: new Date().toISOString(),
+        request: { ...buildRequestFields(), eightLayers: editedLayers, useBrandProfile },
+        result: revised,
+      };
+      setHistory(saveMarketingCopyHistory(entry));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setReviseBusy(false);
+    }
+  }
+
+  async function handleDiagnose(): Promise<void> {
+    if (diagnoseBusy || !result) return;
+    setDiagnoseBusy(true);
+    setError(null);
+    try {
+      const diagnosed = await diagnoseMarketingCopy({
+        copyType,
+        audience: audience.trim(),
+        audienceProblem: audienceProblem.trim(),
+        finalCopy: result.finalCopy,
+      });
+      setDiagnosis(diagnosed);
+      setOpenSections((prev) => new Set(prev).add("diagnosis"));
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setDiagnoseBusy(false);
+    }
+  }
+
+  function loadFromHistory(entry: MarketingCopyHistoryEntry): void {
+    setCopyType(entry.request.copyType);
+    setMode(entry.request.mode);
+    setTheme(entry.request.theme);
+    setAudience(entry.request.audience);
+    setAudienceProblem(entry.request.audienceProblem);
+    setOffer(entry.request.offer);
+    setEightLayers(entry.request.eightLayers ?? {});
+    setResult(entry.result);
+    setDiagnosis(entry.diagnosis ?? null);
+    setOpenSections(new Set(["result"]));
+  }
+
+  function deleteFromHistory(id: string): void {
+    if (!window.confirm("この生成履歴を削除します。よろしいですか？")) return;
+    setHistory(removeMarketingCopyHistory(id));
   }
 
   return (
@@ -171,6 +291,36 @@ export function MarketingCopyStudio() {
           <div className="mx-auto w-full max-w-3xl flex-1 space-y-3 overflow-y-auto px-5 py-4">
             {error && <p className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>}
             {copied && <p className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">✓ コピーしました</p>}
+
+            <Section
+              title="生成履歴"
+              open={openSections.has("history")}
+              onToggle={() => toggleSection("history")}
+              badge={history.length > 0 ? String(history.length) : undefined}
+            >
+              {history.length === 0 ? (
+                <p className="text-xs text-office-muted">まだ生成履歴がありません。</p>
+              ) : (
+                <div className="space-y-2">
+                  {history.map((entry) => (
+                    <div key={entry.id} className="rounded-lg border border-office-border bg-office-bg px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-office-text">{copyTypeLabel(entry.request.copyType)}｜{entry.request.theme}</p>
+                          <p className="text-[10px] text-office-muted">{formatDateTime(entry.createdAt)}</p>
+                        </div>
+                        <button type="button" onClick={() => deleteFromHistory(entry.id)} className="shrink-0 rounded-full border border-office-border p-1.5 text-office-muted hover:border-red-400 hover:text-red-400">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                      <button type="button" onClick={() => loadFromHistory(entry)} className={`${btnSub} mt-2 w-full`}>
+                        呼び出して編集する
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
 
             <Section title="基本設定" open={openSections.has("basic")} onToggle={() => toggleSection("basic")}>
               <div className="space-y-3">
@@ -345,6 +495,119 @@ export function MarketingCopyStudio() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg border border-office-border bg-office-bg px-3 py-3">
+                    <p className={labelCls}>この完成文章を改善する</p>
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      {MARKETING_COPY_REVISION_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setRevisionPreset(preset)}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                            revisionPreset === preset && !revisionFree.trim()
+                              ? "border-office-gold bg-office-gold/15 text-office-gold"
+                              : "border-office-border text-office-muted hover:border-office-gold hover:text-office-gold"
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      value={revisionFree}
+                      onChange={(event) => setRevisionFree(event.target.value)}
+                      placeholder="自由入力の指示（入力するとプリセットより優先されます）"
+                      className={`${inputCls} mb-2`}
+                    />
+                    <button type="button" onClick={() => void handleRevise()} disabled={reviseBusy} className={btnPrimary}>
+                      {reviseBusy ? "修正中..." : "この内容で再生成する"}
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleDiagnose()}
+                    disabled={diagnoseBusy}
+                    className={`${btnPrimary} flex items-center justify-center gap-2 bg-office-gold text-office-bg`}
+                  >
+                    <Sparkles size={14} />
+                    {diagnoseBusy ? "診断中..." : "刺さり診断をする"}
+                  </button>
+                </div>
+              </Section>
+            )}
+
+            {diagnosis && (
+              <Section title="刺さり診断" open={openSections.has("diagnosis")} onToggle={() => toggleSection("diagnosis")} badge={`${diagnosis.totalScore}点`}>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    {MARKETING_SCORE_FIELDS.map((field) => (
+                      <div key={field.key}>
+                        <div className="flex items-center justify-between text-[11px] text-office-muted">
+                          <span>{field.label}</span>
+                          <span>{diagnosis.scores[field.key]}/10</span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-office-border">
+                          <div className={`h-full ${scoreColor(diagnosis.scores[field.key])}`} style={{ width: `${diagnosis.scores[field.key] * 10}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {diagnosis.goodPoints.length > 0 && (
+                    <div>
+                      <p className={labelCls}>良い点</p>
+                      <ul className="list-inside list-disc space-y-1 text-xs text-office-text">
+                        {diagnosis.goodPoints.map((point, index) => <li key={index}>{point}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {diagnosis.problems.length > 0 && (
+                    <div>
+                      <p className={labelCls}>刺さらない原因</p>
+                      <ul className="list-inside list-disc space-y-1 text-xs text-office-text">
+                        {diagnosis.problems.map((point, index) => <li key={index}>{point}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {diagnosis.priorityFixes.length > 0 && (
+                    <div>
+                      <p className={labelCls}>改善優先順位</p>
+                      <ol className="list-inside list-decimal space-y-1 text-xs text-office-text">
+                        {diagnosis.priorityFixes.map((point, index) => <li key={index}>{point}</li>)}
+                      </ol>
+                    </div>
+                  )}
+
+                  {(diagnosis.beforeAfter.before || diagnosis.beforeAfter.after) && (
+                    <div>
+                      <p className={labelCls}>修正前後の比較</p>
+                      <p className="rounded-lg border border-office-border bg-office-bg px-3 py-2 text-xs text-office-muted">修正前: {diagnosis.beforeAfter.before}</p>
+                      <p className="mt-1 rounded-lg border border-office-gold/40 bg-office-gold/5 px-3 py-2 text-xs text-office-text">修正後: {diagnosis.beforeAfter.after}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <p className={labelCls}>改善版の完成文章</p>
+                      <button type="button" onClick={() => void copyText(diagnosis.improvedCopy)} className={`${btnSub} flex items-center gap-1`}>
+                        <Copy size={12} /> コピー
+                      </button>
+                    </div>
+                    <p className="whitespace-pre-wrap rounded-lg border border-office-gold/40 bg-office-gold/5 px-3 py-3 text-sm leading-relaxed text-office-text">
+                      {diagnosis.improvedCopy}
+                    </p>
+                  </div>
+
+                  {diagnosis.extraTip && (
+                    <div>
+                      <p className={labelCls}>さらに強くするための提案</p>
+                      <p className="rounded-lg border border-office-border bg-office-bg px-3 py-2.5 text-xs text-office-text">{diagnosis.extraTip}</p>
                     </div>
                   )}
                 </div>

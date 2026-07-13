@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SEED_AGENTS } from "@chaos-ai-suite/shared";
 import type { LlmClient, ToolCallRequest } from "./llmClient.js";
-import { generateMarketingCopy } from "./marketingCopy.js";
+import { diagnoseMarketingCopy, generateMarketingCopy, reviseMarketingCopy } from "./marketingCopy.js";
 
 const mirai = SEED_AGENTS.find((agent) => agent.id === "agent-mirai")!;
 
@@ -95,4 +95,92 @@ test("generateMarketingCopy injects brandContext only when provided", async () =
   });
 
   assert.ok(capture.request!.userPrompt.includes("# ケイオス師匠ブランド設定（テスト用ダミー）"));
+});
+
+test("reviseMarketingCopy passes the previous copy and edited 8-layer values, falls back eightLayers on missing keys", async () => {
+  const capture: { request?: ToolCallRequest } = {};
+  const llm = stubLlm(
+    {
+      targetReader: "読者",
+      writingGoal: "狙い",
+      hookPoints: ["ポイント1"],
+      eightLayers: { surfaceProblem: "更新後の悩み" }, // 他のキーは欠けている
+      finalCopy: "修正後の完成文章",
+      cta: "",
+    },
+    capture,
+  );
+
+  const result = await reviseMarketingCopy({
+    marketer: mirai,
+    request: {
+      copyType: "threads",
+      mode: "deep",
+      theme: "テーマ",
+      audience: "読者",
+      audienceProblem: "悩み",
+      offer: "行動",
+      previousCopy: "修正前の完成文章",
+      eightLayers: {
+        surfaceProblem: "元の悩み",
+        realScene: "元の場面",
+        emotion: "元の感情",
+        hiddenTruth: "元の本音",
+        futureIfIgnored: "元の未来",
+        trueDesire: "元の願望",
+        blockers: "元の理由",
+        firstStep: "元の一歩",
+      },
+      instruction: "もっと深く刺す",
+    },
+    llm,
+  });
+
+  assert.equal(result.eightLayers.surfaceProblem, "更新後の悩み", "AIが更新した値を優先する");
+  assert.equal(result.eightLayers.realScene, "元の場面", "AIが返さなかったキーは編集済みの値にフォールバックする");
+  assert.equal(result.finalCopy, "修正後の完成文章");
+
+  const prompt = capture.request!.userPrompt;
+  assert.ok(prompt.includes("修正前の完成文章"), "直前の完成文章を渡している");
+  assert.ok(prompt.includes("もっと深く刺す"), "修正指示を渡している");
+  assert.ok(prompt.includes("元の場面"), "編集済みの8層分析を渡している");
+});
+
+test("diagnoseMarketingCopy clamps scores to 0-10 and sums to totalScore", async () => {
+  const llm = stubLlm({
+    scores: {
+      audienceClarity: 8,
+      sceneVividness: 7,
+      emotionalResonance: 9,
+      hiddenTruthDepth: 6,
+      noBlame: 10,
+      trueDesireClarity: 7,
+      blockerResolution: 5,
+      firstStepConcrete: 8,
+      chaosStyle: 9,
+      uniqueness: 999, // 範囲外の値は10にクランプされることを確認する
+    },
+    goodPoints: ["体験談が具体的"],
+    problems: ["CTAがやや弱い"],
+    priorityFixes: ["CTAを明確にする"],
+    beforeAfter: { before: "元の一文", after: "改善後の一文" },
+    improvedCopy: "改善版の完成文章",
+    extraTip: "もう1つ具体例を足すとさらに刺さる",
+  });
+
+  const result = await diagnoseMarketingCopy({
+    reviewer: mirai,
+    request: {
+      copyType: "threads",
+      audience: "読者",
+      audienceProblem: "悩み",
+      finalCopy: "診断対象の文章",
+    },
+    llm,
+  });
+
+  assert.equal(result.scores.uniqueness, 10, "範囲外の点数は10にクランプされる");
+  assert.equal(result.totalScore, 8 + 7 + 9 + 6 + 10 + 7 + 5 + 8 + 9 + 10, "10項目の合計がtotalScoreになる");
+  assert.equal(result.improvedCopy, "改善版の完成文章");
+  assert.equal(result.beforeAfter.after, "改善後の一文");
 });

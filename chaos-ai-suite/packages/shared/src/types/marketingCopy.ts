@@ -1,7 +1,8 @@
 /**
  * 刺さるマーケティング生成・改善システムの型定義。
- * フェーズ1は「文章タイプ選択・生成モード選択・基本入力・8層入力・AI生成・コピー」までを扱う。
- * 刺さり診断（採点）・添削改善モード・保存履歴・テンプレートはフェーズ2以降で追加する。
+ * フェーズ1: 文章タイプ選択・生成モード選択・基本入力・8層入力・AI生成・コピー。
+ * フェーズ2: 生成履歴の保存・刺さり診断（採点）・8層編集からの再生成。
+ * テンプレート機能・投稿結果分析はフェーズ3以降で追加する。
  */
 
 /** 生成できる文章タイプ。プロンプトへの長さ・形式ガイダンスを併記する。 */
@@ -98,4 +99,73 @@ export interface MarketingCopyResult {
   finalCopy: string;
   cta: string;
   eightLayers: Record<EightLayerKey, string>;
+}
+
+/** 再生成（改善ボタン）のプリセット指示。自由入力との併用も可能。 */
+export const MARKETING_COPY_REVISION_PRESETS = [
+  "もっと深く刺す",
+  "やさしくする",
+  "売り込みを弱くする",
+  "販売力を強くする",
+  "短くする",
+  "長くする",
+] as const;
+
+/** 再生成リクエスト。直前の完成文章・編集済み8層・指示を渡し、同じ結果形式で受け取る。 */
+export interface MarketingCopyRevisionRequest {
+  copyType: MarketingCopyTypeId;
+  mode: MarketingCopyModeId;
+  theme: string;
+  audience: string;
+  audienceProblem: string;
+  offer: string;
+  previousCopy: string;
+  eightLayers: Record<EightLayerKey, string>;
+  instruction: string;
+  useBrandProfile?: boolean;
+}
+
+/** 刺さり診断の採点項目。各0〜10点、合計100点満点。 */
+export const MARKETING_SCORE_FIELDS = [
+  { key: "audienceClarity", label: "誰向けか明確か" },
+  { key: "sceneVividness", label: "日常の場面が見えるか" },
+  { key: "emotionalResonance", label: "感情が伝わるか" },
+  { key: "hiddenTruthDepth", label: "認めたくない本音まで届いているか" },
+  { key: "noBlame", label: "読者を責めていないか" },
+  { key: "trueDesireClarity", label: "本当の願望が見えるか" },
+  { key: "blockerResolution", label: "行動できない理由を解消しているか" },
+  { key: "firstStepConcrete", label: "最初の一歩が具体的か" },
+  { key: "chaosStyle", label: "ケイオス師匠らしさがあるか" },
+  { key: "uniqueness", label: "他の人でも書ける文章になっていないか" },
+] as const;
+
+export type MarketingScoreKey = (typeof MARKETING_SCORE_FIELDS)[number]["key"];
+
+/** 刺さり診断リクエスト。診断対象の文章と、診断の手がかりになる文脈を渡す。 */
+export interface MarketingCopyDiagnoseRequest {
+  copyType: MarketingCopyTypeId;
+  audience: string;
+  audienceProblem: string;
+  finalCopy: string;
+}
+
+/** 刺さり診断結果。点数だけで終わらせず、良い点・原因・優先順位・改善版まで返す。 */
+export interface MarketingCopyDiagnosis {
+  scores: Record<MarketingScoreKey, number>;
+  totalScore: number;
+  goodPoints: string[];
+  problems: string[];
+  priorityFixes: string[];
+  beforeAfter: { before: string; after: string };
+  improvedCopy: string;
+  extraTip: string;
+}
+
+/** 生成履歴1件分。localStorageへ保存する（サーバーには保存しない）。 */
+export interface MarketingCopyHistoryEntry {
+  id: string;
+  createdAt: string;
+  request: MarketingCopyRequest;
+  result: MarketingCopyResult;
+  diagnosis?: MarketingCopyDiagnosis;
 }
