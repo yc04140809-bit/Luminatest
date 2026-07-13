@@ -139,7 +139,13 @@ export default function App() {
       </header>
 
       {settingsOpen && (
-        <SettingsPanel theme={office.theme} agents={agents} bgm={bgm} onClose={() => setSettingsOpen(false)} />
+        <SettingsPanel
+          theme={office.theme}
+          agents={agents}
+          brandProfile={office.brandProfile}
+          bgm={bgm}
+          onClose={() => setSettingsOpen(false)}
+        />
       )}
 
       {archiveOpen && (

@@ -152,6 +152,7 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirm, setConfirm] = useState<{ message: string; danger?: boolean; onOk: () => void } | null>(null);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(["basic", "request"]));
+  const [useBrandProfile, setUseBrandProfile] = useState(true);
   const [copied, setCopied] = useState<string | null>(null);
   const [scoutOpen, setScoutOpen] = useState(false);
 
@@ -282,6 +283,7 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
             taskTitle: task.title,
             taskDescription: task.description,
             completionCriteria: task.completionCriteria,
+            useBrandProfile,
           });
           const now = new Date().toISOString();
           const deliverable: CaseDeliverable = {
@@ -325,6 +327,7 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
             completionCriteria: task?.completionCriteria ?? "",
             currentDraft: deliverable.content,
             instruction,
+            useBrandProfile,
           });
           update({
             deliverables: (active.deliverables ?? []).map((entry) =>
@@ -658,6 +661,10 @@ export function CaseWorkshop({ agents }: { agents: Agent[] }) {
                         工程を手動で追加
                       </button>
                     </div>
+                    <label className="flex items-center gap-1.5 text-xs text-office-text">
+                      <input type="checkbox" checked={useBrandProfile} onChange={(event) => setUseBrandProfile(event.target.checked)} />
+                      成果物作成にケイオス師匠ブランド設定を反映する
+                    </label>
 
                     {(active.tasks ?? []).map((task) => (
                       <div key={task.id} className="rounded-lg border border-office-border bg-office-bg p-2.5">

@@ -3,6 +3,7 @@ import { TREND_LENGTHS, TREND_PERIODS, type Agent, type TrendSource, type TrendT
 import { officeStore } from "../store/officeStore.js";
 import type { LlmClient } from "../orchestration/llmClient.js";
 import { generateTrendArticle, researchTrendTopics } from "../orchestration/trendNote.js";
+import { brandContextForNote } from "../orchestration/brandContext.js";
 
 /**
  * トレンドnote生成AIのエンドポイント。
@@ -66,6 +67,7 @@ export function trendRoutes(llm: LlmClient) {
         format?: string;
         length?: string;
         style?: string;
+        useBrandProfile?: boolean;
       };
       if (!body.theme?.title || !Array.isArray(body.sources) || body.sources.length === 0) {
         return reply.code(400).send({ error: "先に調査を実行してテーマを選択してください。" });
@@ -73,6 +75,8 @@ export function trendRoutes(llm: LlmClient) {
       const length = TREND_LENGTHS.find((entry) => entry.id === body.length) ?? TREND_LENGTHS[1];
       const agent = pickAgent("agent-nemuri", reply);
       if (!agent) return;
+      const brandProfile = officeStore.getBrandProfile();
+      const brandContext = body.useBrandProfile && brandProfile.enabled ? brandContextForNote(brandProfile) : undefined;
       try {
         return await withAgentStatus(agent, "トレンドnote記事を作成中...", () =>
           generateTrendArticle({
@@ -85,6 +89,7 @@ export function trendRoutes(llm: LlmClient) {
             format: body.format?.trim() || "初心者向け解説",
             lengthChars: length.chars,
             style: body.style?.trim() || "親しみやすい",
+            brandContext,
             llm,
           }),
         );

@@ -207,13 +207,15 @@ export async function generateTrendArticle(params: {
   format: string;
   lengthChars: number;
   style: string;
+  /** ケイオス師匠ブランド設定の反映が有効な場合のみ渡す（brandContextForNote() の出力） */
+  brandContext?: string;
   llm: LlmClient;
 }): Promise<TrendArticleResult> {
   const { agent, theme, llm } = params;
 
   const userPrompt = `以下の調査結果をもとに、noteへそのまま投稿できる記事一式を作ってください。
 
-# 記事テーマ
+${params.brandContext ? `${params.brandContext}\n\n` : ""}# 記事テーマ
 ${theme.title}
 - 注目されている理由: ${theme.reason}
 - 切り口: ${theme.angle}

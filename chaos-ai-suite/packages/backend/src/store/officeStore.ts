@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
 import {
+  buildDefaultBrandProfile,
   buildSeedOfficeState,
   type ActiveMeeting,
   type Agent,
   type AgentDraft,
+  type BrandProfile,
+  type BrandProfileUpdateInput,
   type Message,
   type MessageDraft,
   type MeetingStatement,
@@ -229,6 +232,26 @@ export class OfficeStore {
     this.state.theme = updated;
     this.emit({ type: "theme_updated", theme: updated });
     return updated;
+  }
+
+  getBrandProfile(): BrandProfile {
+    return this.state.brandProfile;
+  }
+
+  /** ブランド設定を部分更新する。id/createdAtは変更しない。 */
+  updateBrandProfile(patch: BrandProfileUpdateInput): BrandProfile {
+    const updated: BrandProfile = { ...this.state.brandProfile, ...patch, updatedAt: new Date().toISOString() };
+    this.state.brandProfile = updated;
+    this.emit({ type: "brand_profile_updated", brandProfile: updated });
+    return updated;
+  }
+
+  /** ブランド設定を初期値（ケイオス師匠ブランド）へ戻す。idは維持する。 */
+  resetBrandProfile(): BrandProfile {
+    const reset: BrandProfile = { ...buildDefaultBrandProfile(), id: this.state.brandProfile.id };
+    this.state.brandProfile = reset;
+    this.emit({ type: "brand_profile_updated", brandProfile: reset });
+    return reset;
   }
 
   listMessages(limit = 100): Message[] {

@@ -1,21 +1,23 @@
 import { useMemo, useRef, useState } from "react";
 import { Music, RotateCcw, X } from "lucide-react";
-import { THEME_PRESETS, resolveThemeTokens, type Agent, type ThemeSettings, type ThemeTokens } from "@chaos-ai-suite/shared";
+import { THEME_PRESETS, resolveThemeTokens, type Agent, type BrandProfile, type ThemeSettings, type ThemeTokens } from "@chaos-ai-suite/shared";
 import { updateAgent, updateTheme } from "../api/officeApi.js";
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback.js";
 import type { BgmControls } from "../hooks/useBgm.js";
 import { AgentManagerPanel } from "./AgentManagerPanel.js";
 import { IntegrationsPanel } from "./IntegrationsPanel.js";
 import { BackupCenter } from "./BackupCenter.js";
+import { BrandProfilePanel } from "./BrandProfilePanel.js";
 
 interface SettingsPanelProps {
   theme: ThemeSettings;
   agents: Agent[];
+  brandProfile: BrandProfile;
   bgm: BgmControls;
   onClose: () => void;
 }
 
-type SettingsTab = "theme" | "agents" | "integrations" | "sound" | "backup";
+type SettingsTab = "theme" | "agents" | "integrations" | "sound" | "backup" | "brand";
 
 const TOKEN_LABELS: Record<keyof ThemeTokens, string> = {
   bg: "背景",
@@ -34,7 +36,7 @@ function previewCssVar(token: keyof ThemeTokens, value: string): void {
 }
 
 /** 配色管理画面。プリセット切り替え・トークン単位のカスタムカラー・AI社員ごとのアクセントカラー・BGMを編集する。 */
-export function SettingsPanel({ theme, agents, bgm, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ theme, agents, brandProfile, bgm, onClose }: SettingsPanelProps) {
   const [tab, setTab] = useState<SettingsTab>("theme");
   const tokens = useMemo(() => resolveThemeTokens(theme), [theme]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,11 +128,21 @@ export function SettingsPanel({ theme, agents, bgm, onClose }: SettingsPanelProp
           >
             バックアップ
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("brand")}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              tab === "brand" ? "bg-office-accent text-white" : "text-office-muted hover:text-office-text"
+            }`}
+          >
+            ブランド設定
+          </button>
         </div>
 
         {tab === "agents" && <AgentManagerPanel agents={agents} />}
         {tab === "integrations" && <IntegrationsPanel />}
         {tab === "backup" && <BackupCenter agents={agents} />}
+        {tab === "brand" && <BrandProfilePanel brandProfile={brandProfile} />}
 
         {tab === "sound" && (
           <section className="space-y-4">

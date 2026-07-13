@@ -12,3 +12,4 @@ export * from "./caseScout.js";
 export * from "./trendNote.js";
 export * from "./videoStudio.js";
 export * from "./usage.js";
+export * from "./brandProfile.js";

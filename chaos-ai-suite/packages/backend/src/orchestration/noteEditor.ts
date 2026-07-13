@@ -359,6 +359,8 @@ const PROMO_MAX_TOKENS = 6000;
 export async function generateNotePromoPack(params: {
   marketer: Agent;
   content: string;
+  /** ケイオス師匠ブランド設定の反映が有効な場合のみ渡す（brandContextForSns() の出力） */
+  brandContext?: string;
   llm: LlmClient;
 }): Promise<NotePromoPack> {
   const { marketer, content, llm } = params;
@@ -366,7 +368,7 @@ export async function generateNotePromoPack(params: {
   const userPrompt = `# 宣伝対象のnote記事（完成版）
 ${content}
 
-# 指示
+${params.brandContext ? `${params.brandContext}\n\n` : ""}# 指示
 この記事への導線となる宣伝パックを作ってください。
 
 絶対ルール:

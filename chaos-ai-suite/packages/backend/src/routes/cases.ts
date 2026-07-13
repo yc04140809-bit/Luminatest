@@ -11,6 +11,7 @@ import {
   organizeCaseRequirements,
 } from "../orchestration/caseWorkshop.js";
 import { analyzeScoutCase } from "../orchestration/caseScout.js";
+import { brandContextForProduct } from "../orchestration/brandContext.js";
 
 const MAX_TEXT_LENGTH = 20000;
 
@@ -139,10 +140,13 @@ export function caseRoutes(llm: LlmClient) {
         completionCriteria?: string;
         currentDraft?: string;
         instruction?: string;
+        useBrandProfile?: boolean;
       };
       if (!body.taskTitle?.trim()) return reply.code(400).send({ error: "taskTitle is required" });
       const agent = pickAgent(body.agentId, reply);
       if (!agent) return;
+      const brandProfile = officeStore.getBrandProfile();
+      const brandContext = body.useBrandProfile && brandProfile.enabled ? brandContextForProduct(brandProfile) : undefined;
       try {
         return await withAgentStatus(agent, `「${body.taskTitle}」の成果物を作成中...`, () =>
           generateCaseDeliverable({
@@ -154,6 +158,7 @@ export function caseRoutes(llm: LlmClient) {
             completionCriteria: body.completionCriteria?.trim() || "",
             currentDraft: body.currentDraft,
             instruction: body.instruction?.trim().slice(0, 200),
+            brandContext,
             llm,
           }),
         );

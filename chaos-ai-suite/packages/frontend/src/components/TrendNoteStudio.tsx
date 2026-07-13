@@ -106,6 +106,7 @@ export function TrendNoteStudio() {
   const [style, setStyle] = useState<string>(TREND_STYLES[0]);
 
   const [phase, setPhase] = useState<"idle" | "researching" | "generating">("idle");
+  const [useBrandProfile, setUseBrandProfile] = useState(true);
   const [stepIndex, setStepIndex] = useState(0);
   const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +226,7 @@ export function TrendNoteStudio() {
             format: record.format,
             length: record.length,
             style: record.style,
+            useBrandProfile,
           });
           update({ ...record, selectedThemeIndex: themeIndex, article, userEdits: undefined });
           setTab("article");
@@ -425,6 +427,10 @@ export function TrendNoteStudio() {
                 {/* テーマ選択（記事未生成 or 再選択用） */}
                 {active.research && (
                   <Section title={`テーマ候補（${active.research.themes.length}件）`} open={openSections.has("themes")} onToggle={() => toggleSection("themes")}>
+                    <label className="mb-2 flex items-center gap-1.5 text-xs text-office-text">
+                      <input type="checkbox" checked={useBrandProfile} onChange={(event) => setUseBrandProfile(event.target.checked)} />
+                      ケイオス師匠ブランド設定を反映する
+                    </label>
                     <div className="space-y-2">
                       {active.research.themes.map((theme, index) => (
                         <ThemeCard

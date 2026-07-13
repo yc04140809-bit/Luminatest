@@ -10,6 +10,7 @@ import {
 import { officeStore } from "../store/officeStore.js";
 import type { LlmClient } from "../orchestration/llmClient.js";
 import { analyzeNoteArticle, editNoteArticle, editNoteSection, generateNotePromoPack } from "../orchestration/noteEditor.js";
+import { brandContextForSns } from "../orchestration/brandContext.js";
 
 const EDITOR_AGENT_ID = "agent-nemuri";
 const MARKETER_AGENT_ID = "agent-mirai";
@@ -64,7 +65,7 @@ export function noteRoutes(llm: LlmClient) {
     });
 
     app.post("/api/note/promo", async (request, reply) => {
-      const body = (request.body ?? {}) as { content?: string };
+      const body = (request.body ?? {}) as { content?: string; useBrandProfile?: boolean };
       if (!body.content?.trim()) {
         return reply.code(400).send({ error: "content is required" });
       }
@@ -75,10 +76,12 @@ export function noteRoutes(llm: LlmClient) {
       if (!marketer) {
         return reply.code(500).send({ error: "宣伝担当のAI社員（ミライ）が見つかりません。エージェント構成を確認してください。" });
       }
+      const brandProfile = officeStore.getBrandProfile();
+      const brandContext = body.useBrandProfile && brandProfile.enabled ? brandContextForSns(brandProfile) : undefined;
 
       officeStore.setAgentStatus(marketer.id, { status: "writing", currentTaskSummary: "宣伝パックを作成中..." });
       try {
-        return await generateNotePromoPack({ marketer, content: body.content.trim(), llm });
+        return await generateNotePromoPack({ marketer, content: body.content.trim(), brandContext, llm });
       } catch (error) {
         return reply.code(502).send({ error: (error as Error).message });
       } finally {

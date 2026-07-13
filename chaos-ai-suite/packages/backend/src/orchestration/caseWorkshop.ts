@@ -234,6 +234,8 @@ export async function generateCaseDeliverable(params: {
   completionCriteria: string;
   currentDraft?: string;
   instruction?: string;
+  /** ケイオス師匠ブランド設定の反映が有効な場合のみ渡す（brandContextForProduct() の出力） */
+  brandContext?: string;
   llm: LlmClient;
 }): Promise<{ title: string; content: string }> {
   const { agent, llm } = params;
@@ -256,7 +258,7 @@ ${params.requirementsText}
 完了条件: ${params.completionCriteria}
 
 ${revisionBlock}
-# 指示
+${params.brandContext ? `${params.brandContext}\n\n` : ""}# 指示
 ${
   params.currentDraft
     ? `現在の成果物を「${params.instruction ?? "改善"}」の方針で修正した完成版を出力してください。修正方針に関係ない部分は変えないこと。`

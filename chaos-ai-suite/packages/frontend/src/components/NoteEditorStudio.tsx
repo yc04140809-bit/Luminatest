@@ -121,6 +121,7 @@ export function NoteEditorStudio() {
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoPack, setPromoPack] = useState<NotePromoPack | null>(null);
   const [promoBusy, setPromoBusy] = useState(false);
+  const [useBrandProfile, setUseBrandProfile] = useState(true);
 
   const restored = useRef(false);
 
@@ -246,7 +247,7 @@ export function NoteEditorStudio() {
     setPromoBusy(true);
     setError(null);
     try {
-      const pack = await generateNotePromoPack({ content: currentMarkdown });
+      const pack = await generateNotePromoPack({ content: currentMarkdown, useBrandProfile });
       setPromoPack(pack);
     } catch (promoError) {
       setError(`宣伝パックの生成に失敗しました: ${(promoError as Error).message}`);
@@ -804,6 +805,10 @@ export function NoteEditorStudio() {
                 <p className="mb-2 text-xs text-office-muted">
                   記事完成後に、Threads/X/Instagramなどの宣伝投稿一式をミライ（AIマーケティング責任者）がまとめて作ります。
                 </p>
+                <label className="mb-2 flex items-center gap-1.5 text-xs text-office-text">
+                  <input type="checkbox" checked={useBrandProfile} onChange={(event) => setUseBrandProfile(event.target.checked)} />
+                  ケイオス師匠ブランド設定を反映する
+                </label>
                 <button
                   type="button"
                   onClick={handlePromoGenerate}

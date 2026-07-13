@@ -1,6 +1,7 @@
 /** 代表からの指示投入・承認操作・設定変更用のAPIクライアント。状態そのものは /ws/office 経由で反映される。 */
 import type {
   AgentDraft,
+  BrandProfileUpdateInput,
   CaseQualityResult,
   CaseRequirements,
   ClientQuestions,
@@ -81,6 +82,16 @@ export function updateTheme(patch: ThemeUpdateInput): Promise<void> {
   return sendJson("PATCH", "/api/theme", patch);
 }
 
+/** ブランド設定画面からの部分更新。反映結果はWebSocket経由で届く。 */
+export function updateBrandProfile(patch: BrandProfileUpdateInput): Promise<void> {
+  return sendJson("PATCH", "/api/brand-profile", patch);
+}
+
+/** ブランド設定を初期値（ケイオス師匠ブランド）へ戻す。 */
+export function resetBrandProfile(): Promise<void> {
+  return sendJson("POST", "/api/brand-profile/reset", {});
+}
+
 export function updateAgent(agentId: string, patch: Partial<AgentDraft>): Promise<void> {
   return sendJson("PATCH", `/api/agents/${agentId}`, patch);
 }
@@ -150,7 +161,7 @@ export function editNoteArticle(input: {
 }
 
 /** 完成した記事から宣伝パック（Threads/X/Instagram導線・CTA一式）を生成する。担当はミライ。 */
-export function generateNotePromoPack(input: { content: string }): Promise<NotePromoPack> {
+export function generateNotePromoPack(input: { content: string; useBrandProfile?: boolean }): Promise<NotePromoPack> {
   return postJson<NotePromoPack>("/api/note/promo", input);
 }
 
@@ -194,6 +205,7 @@ export function generateCaseDeliverable(input: {
   completionCriteria: string;
   currentDraft?: string;
   instruction?: string;
+  useBrandProfile?: boolean;
 }): Promise<{ title: string; content: string }> {
   return postJson("/api/cases/deliverable", input);
 }
@@ -227,6 +239,7 @@ export function generateTrendArticle(input: {
   format: string;
   length: string;
   style: string;
+  useBrandProfile?: boolean;
 }): Promise<TrendArticleResult> {
   return postJson<TrendArticleResult>("/api/trend/generate", input);
 }
