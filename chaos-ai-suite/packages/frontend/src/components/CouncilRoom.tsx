@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Gavel, Square, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Gavel, Square, X } from "lucide-react";
 import { COUNCIL_CATEGORIES, COUNCIL_PHASE_LABELS, type Agent, type CouncilSession } from "@chaos-ai-suite/shared";
 import { approveCouncil, discardCouncil, reviseCouncil, stopCouncil } from "../api/officeApi.js";
 import { saveCouncilHistory } from "../utils/councilHistory.js";
+import { detectSuspiciousUnicode } from "../utils/suspiciousUnicode.js";
 
 interface CouncilRoomProps {
   session: CouncilSession;
@@ -43,6 +44,7 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revisionInstruction, setRevisionInstruction] = useState("");
+  const [ackFinalDraft, setAckFinalDraft] = useState(false);
   const savedHistoryForId = useRef<string | null>(null);
 
   // 承認直後のsessionはpropsとして古いスナップショット（concludedAt未設定など）を参照している
@@ -53,6 +55,11 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
       savedHistoryForId.current = session.id;
     }
   }, [session]);
+
+  // セッションが変わったら不可視文字の確認状態をリセットする（別の会議の確認を引き継がない）。
+  useEffect(() => {
+    setAckFinalDraft(false);
+  }, [session.id]);
 
   function toggle(id: string): void {
     setOpen((prev) => {
@@ -100,6 +107,10 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
   const isRunning = session.status === "running";
   const isAwaitingApproval = session.status === "awaiting_approval";
   const costText = session.estimatedCostUsd < 0.01 ? `$${session.estimatedCostUsd.toFixed(4)}` : `$${session.estimatedCostUsd.toFixed(2)}`;
+
+  const suspiciousFinal = session.finalDraft ? detectSuspiciousUnicode(session.finalDraft) : { found: false, matches: [] };
+  const uniqueFinalCodePoints = [...new Set(suspiciousFinal.matches.map((m) => m.codePoint))];
+  const approveBlocked = suspiciousFinal.found && !ackFinalDraft;
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-office-bg">
@@ -223,6 +234,26 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
 
       {isAwaitingApproval && (
         <div className="sticky bottom-0 border-t border-office-border bg-office-panel px-5 py-4">
+          {suspiciousFinal.found && (
+            <div className="mb-3 rounded-lg border border-red-500/60 bg-red-500/10 p-3 text-xs text-red-300">
+              <p className="flex items-center gap-1.5 font-semibold">
+                <AlertTriangle size={14} /> 統合役の最終案に、画面に見えない特殊な文字が含まれています
+              </p>
+              <p className="mt-1 text-red-300/90">
+                検出コード: {uniqueFinalCodePoints.join(", ")}
+                （ゼロ幅文字・双方向制御文字など）。承認前に内容をよく確認してください。
+              </p>
+              <label className="mt-2 flex items-start gap-2 text-red-200">
+                <input
+                  type="checkbox"
+                  checked={ackFinalDraft}
+                  onChange={(event) => setAckFinalDraft(event.target.checked)}
+                  className="mt-0.5 h-4 w-4"
+                />
+                内容を確認しました。それでも承認する
+              </label>
+            </div>
+          )}
           <textarea
             value={revisionInstruction}
             onChange={(event) => setRevisionInstruction(event.target.value)}
@@ -231,7 +262,13 @@ export function CouncilRoom({ session, agents, onClose }: CouncilRoomProps) {
             className="mb-3 w-full resize-none rounded-lg border border-office-border bg-office-bg px-3 py-2 text-sm text-office-text placeholder:text-office-muted"
           />
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={handleApprove} disabled={busy !== null} className={`${btnAction} col-span-2 bg-office-gold text-office-bg`}>
+            <button
+              type="button"
+              onClick={handleApprove}
+              disabled={busy !== null || approveBlocked}
+              title={approveBlocked ? "不可視文字の内容を確認してからでないと承認できません" : undefined}
+              className={`${btnAction} col-span-2 bg-office-gold text-office-bg`}
+            >
               {busy === "approve" ? "承認中..." : "承認する"}
             </button>
             <button
