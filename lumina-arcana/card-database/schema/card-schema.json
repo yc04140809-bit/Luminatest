@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumina-arcana.example/schemas/card.json",
+  "title": "Lumina Arcana Card",
+  "description": "1枚のカードのデータ構造。card-database の Markdown から変換して生成する。アプリ・Web・API 共通。",
+  "type": "object",
+  "required": [
+    "card_id",
+    "title_ja",
+    "title_en",
+    "arcana",
+    "attribute",
+    "keywords",
+    "messages",
+    "status",
+    "version"
+  ],
+  "properties": {
+    "card_id": {
+      "type": "string",
+      "pattern": "^LA-(M|S[1-4])-\\d{2}$",
+      "description": "不変の一意キー。例: LA-M-00, LA-S1-01"
+    },
+    "title_ja": { "type": "string", "description": "日本語タイトル" },
+    "title_en": { "type": "string", "description": "英語タイトル" },
+    "arcana": { "type": "string", "enum": ["major", "minor"] },
+    "suit": {
+      "type": ["string", "null"],
+      "description": "マイナーのスート名。メジャーは null。スート名確定後に enum 化する"
+    },
+    "attribute": { "type": "string", "description": "属性(4属性・世界観と整合)" },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 8
+    },
+    "symbols": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "象徴モチーフ。キャラクターは CHR-xxx 形式のIDで参照"
+    },
+    "story": { "type": "string", "description": "ストーリー(100〜200字目安)" },
+    "messages": {
+      "type": "object",
+      "required": ["base", "love", "work", "money", "relationships", "action", "caution"],
+      "properties": {
+        "base": { "type": "string", "description": "基本メッセージ" },
+        "love": { "type": "string", "description": "恋愛" },
+        "work": { "type": "string", "description": "仕事" },
+        "money": { "type": "string", "description": "金運" },
+        "relationships": { "type": "string", "description": "人間関係" },
+        "action": { "type": "string", "description": "今日の行動" },
+        "caution": { "type": "string", "description": "注意点" }
+      }
+    },
+    "lucky_color": { "type": "string" },
+    "lucky_number": { "type": ["integer", "string", "null"] },
+    "image": {
+      "type": "object",
+      "properties": {
+        "prompt_ref": { "type": "string", "description": "Prompt Library 内の履歴フォルダへの相対パス" },
+        "adopted_prompt_version": { "type": "string", "description": "採用プロンプト版。例: v001" },
+        "adopted_image": { "type": "string", "description": "採用画像ファイル名" }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "draft", "review", "released", "revising"]
+    },
+    "version": { "type": "string", "description": "カードデータの版。例: 1.0" },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" }
+  }
+}
