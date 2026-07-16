@@ -6,8 +6,9 @@
 
 | 種類 | 形式 | 例 | 発番台帳 |
 |---|---|---|---|
-| カード(メジャー) | `LA-M-{00-21}` | `LA-M-00` | [master-library/06](../master-library/06_card-master.md) |
+| カード(メジャー) | `LA-M-{01-22}` | `LA-M-01` | [master-library/06](../master-library/06_card-master.md) |
 | カード(マイナー) | `LA-S{1-4}-{01-14}` | `LA-S1-01` | 同上 |
+| カード(予約ID) | `LA-M-00` | `LA-M-00` | テンプレート専用(記入見本)。正式カード番号には使用しない |
 | キャラクター | `CHR-{001〜}` | `CHR-001` | [master-library/04](../master-library/04_characters.md) |
 | 建物・場所 | `LOC-{001〜}` | `LOC-001` | world-bible/locations/ |
 | 精霊 | `SPR-{001〜}` | `SPR-001` | world-bible/spirits/ |
@@ -21,7 +22,7 @@
 
 - **英小文字+ハイフン**(kebab-case): `chaos-chan.md` `world-map.md`
 - 日本語ファイル名は使わない(環境間の互換性のため)
-- カードファイル: `{card-id}_{slug}.md` → `LA-M-00_hajimari-no-hikari.md`
+- カードファイル: `{card-id}_{slug}.md` → `LA-M-00_hajimari-no-hikari.md`(テンプレート使用例。LA-M-00 は予約ID)
   - slug はタイトルのローマ字またはシンプルな英訳。ID部分が正なので slug は変更可
 - 番号付きドキュメントは2桁ゼロ埋め: `00_brand-philosophy.md` 〜 `14_changelog.md`
 - テンプレートフォルダは `_templates/`(先頭アンダースコアで一般データと区別)
@@ -47,4 +48,5 @@
 
 | 日付 | 内容 |
 |---|---|
+| 2026-07-16 | ユーザー決定により LA-M-00 をテンプレート専用予約IDとして追記。メジャーの正式範囲を LA-M-01〜LA-M-22 に改訂 |
 | 2026-07-16 | 初版作成 |

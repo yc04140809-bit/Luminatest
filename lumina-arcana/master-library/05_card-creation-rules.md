@@ -9,8 +9,9 @@
 
 | 区分 | 枚数 | Card ID 範囲 | 内容 |
 |---|---|---|---|
-| メジャー(大アルカナ相当) | 22枚 | `LA-M-00` 〜 `LA-M-21` | 世界の大きなテーマ・キャラクター |
+| メジャー(大アルカナ相当) | 22枚 | `LA-M-01` 〜 `LA-M-22` | 世界の大きなテーマ・キャラクター |
 | マイナー(小アルカナ相当) | 56枚 | `LA-S1-01` 〜 `LA-S4-14` | 4スート × 14枚。日常の心の風景 |
+| (予約) | - | `LA-M-00` | **テンプレート専用**。記入見本([サンプル](../card-database/cards/major/LA-M-00_hajimari-no-hikari.md))のための予約IDであり、正式カード番号には使用しない |
 
 - スート名(S1〜S4)は【未設定】。世界観に合わせた4属性を [01_世界観](./01_worldview.md) と整合させて決定する
 - Card ID は一度発番したら**永久に変更しない**(画像・プロンプト・アプリのキーになるため)
@@ -18,12 +19,13 @@
 ## Card ID 規則
 
 ```
-LA-M-00   … メジャー 0番
+LA-M-01   … メジャー 1番(正式カードは 01 から)
 LA-S1-01  … スート1の1番
+LA-M-00   … テンプレート専用の予約ID(正式カードには使用しない)
 ```
 
 - 番号は2桁ゼロ埋め
-- ファイル名は `{card-id}_{slug}.md`(例: `LA-M-00_hajimari-no-hikari.md`)
+- ファイル名は `{card-id}_{slug}.md`(記入見本: `LA-M-00_hajimari-no-hikari.md`)
 - slug は英小文字とハイフンのみ(→ [development-rules/02_naming-conventions.md](../development-rules/02_naming-conventions.md))
 
 ## 1枚のカードが持つ項目
@@ -36,7 +38,7 @@ Card Database のテンプレート([card-template.md](../card-database/_templat
 ## 制作フロー
 
 1. **発番**: [06_カードマスター](./06_card-master.md) の一覧に行を追加し、Card ID を確定
-2. **下書き**: テンプレートからカードファイルを作成(status: draft)
+2. **下書き**: テンプレート([card-template.md](../card-database/_templates/card-template.md))を複製してカードファイルを作成(status: draft)。書き方はテンプレート使用例 [LA-M-00](../card-database/cards/major/LA-M-00_hajimari-no-hikari.md) を参照する(LA-M-00 の内容自体は仮設定であり流用しない)
 3. **文章**: [08_ライティングガイドライン](./08_writing-guidelines.md) に従い全項目を執筆
 4. **画像**: [07_画像生成ガイドライン](./07_image-generation-guidelines.md) に従いプロンプトを Prompt Library に登録 → 生成 → 採用画像を記録
 5. **レビュー**: ブランド理念・世界観・用語集との整合を確認
@@ -54,4 +56,5 @@ Card Database のテンプレート([card-template.md](../card-database/_templat
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-16 | v1.1 | ユーザー決定により LA-M-00 をテンプレート専用予約IDに変更。メジャーの正式範囲を LA-M-01〜LA-M-22 に改訂 |
 | 2026-07-16 | v1.0 | 初版作成(スート名は未確定のまま枠組みを確定) |

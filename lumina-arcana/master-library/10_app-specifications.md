@@ -26,7 +26,7 @@
 
 1. カードデータの正は Card Database の Markdown(YAMLフロントマター+本文)
 2. アプリ用には [card-schema.json](../card-database/schema/card-schema.json) 準拠の JSON へ変換して配信する
-3. Card ID(例: `LA-M-00`)を全システム共通の不変キーとする
+3. Card ID(例: `LA-M-01`)を全システム共通の不変キーとする(`LA-M-00` はテンプレート専用予約IDのため配信データに含めない)
 4. 画像はファイル名に Card ID と版番号を含め、テキストとは独立に差し替え可能にする
 
 ```
