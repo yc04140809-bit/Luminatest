@@ -7,16 +7,25 @@ Lumina Arcana は単なるオラクルカード制作プロジェクトではあ
 
 このリポジトリは、その **唯一の正式な設定資料・制作基盤(Single Source of Truth)** です。
 
+## 標準構成(ユーザー決定 2026-07-16)
+
+このプロジェクトは2つの正典を分離して管理します。両者は分離したまま運用し、必要に応じて相互参照します。
+
+| 正典 | 場所 | 管理する内容 |
+|---|---|---|
+| **世界の正典** | [`master-library/`](./master-library/) | 作品・ブランド・世界観・キャラクター・カード設定など、作品世界に関する正式設定 |
+| **運営の正典** | [`development-rules/`](./development-rules/) | 開発・運営・AI役割・命名規則・タグ運用・品質管理など、プロジェクト運営ルール(Project Rules / AI Role Definition を含む) |
+
 ## ディレクトリ構成
 
 | ディレクトリ | 役割 |
 |---|---|
-| [`master-library/`](./master-library/) | ブランドの唯一の正式設定資料。全15章。迷ったらここが正 |
+| [`master-library/`](./master-library/) | 【世界の正典】ブランドの唯一の正式設定資料。全15章。世界観・設定で迷ったらここが正 |
 | [`card-database/`](./card-database/) | 全78枚のカードデータ。1カード=1ファイルで管理 |
 | [`prompt-library/`](./prompt-library/) | 画像生成プロンプト。カード・キャラごとに履歴管理 |
 | [`character-bible/`](./character-bible/) | ルミナ、ケイオスちゃん、アリア、レヴィ等のキャラクター設定 |
 | [`world-bible/`](./world-bible/) | 「時のゆりかご」を中心とした世界設定(地図・歴史・神話・建物・精霊・神獣・用語) |
-| [`development-rules/`](./development-rules/) | 開発ルール・命名規則・更新ルール。人間もAIもここに従う |
+| [`development-rules/`](./development-rules/) | 【運営の正典】開発・運営・AI役割・命名規則・タグ運用・品質管理のルール。人間もAIもここに従う |
 
 ## はじめて触れる人(またはAI)へ
 
@@ -38,8 +47,15 @@ Lumina Arcana は単なるオラクルカード制作プロジェクトではあ
 
 ## 情報の優先順位(Single Source of Truth)
 
-1. `master-library/` — 正式設定。ここと矛盾する記述は誤り
+**世界観・設定について:**
+
+1. `master-library/` — 世界の正典。ここと矛盾する記述は誤り
 2. `card-database/` `character-bible/` `world-bible/` — 詳細データ。Master Library の各章から参照される
 3. その他のメモ・SNS投稿・アプリ内文言 — すべて上記から派生させる
+
+**運営ルールについて:**
+
+1. `development-rules/00_project-rules.md`・`06_ai-role-definition.md` — ユーザー制定の最上位ルール
+2. `development-rules/` のその他ファイル — 上記を実務に落とし込んだ運用規範
 
 設定を変更する場合は、必ず Master Library を先に更新し、`14_changelog.md` に記録してください。

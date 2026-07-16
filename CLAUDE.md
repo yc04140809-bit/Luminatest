@@ -35,9 +35,11 @@
 
 安心 / 癒し / 優しさ / 希望 / 心を整理する時間 / 依存させない / 恐怖で煽らない / 未来を断定しない / 自分で答えを見つけられる設計
 
-## Single Source of Truth
+## Single Source of Truth(標準構成: 二正典の分離)
 
-- 設定の正は [lumina-arcana/master-library/](./lumina-arcana/master-library/)(全15章)。矛盾したらそちらに合わせる
+- **世界の正典** = [lumina-arcana/master-library/](./lumina-arcana/master-library/)(全15章): 作品・ブランド・世界観・キャラクター・カード設定のみを管理。世界観で矛盾したらそちらに合わせる
+- **運営の正典** = [lumina-arcana/development-rules/](./lumina-arcana/development-rules/): 開発・運営・AI役割・命名規則・タグ運用・品質管理を管理。Project Rules はここ配下の正式ルール
+- 両者は分離したまま運用し、必要に応じて相互参照する(ユーザー決定 2026-07-16)
 - 勝手に別設定を作らない
 
 ## 更新ルール
