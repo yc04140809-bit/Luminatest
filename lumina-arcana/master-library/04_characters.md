@@ -10,10 +10,10 @@
 
 | ID | 名前 | 英語名 | 役割 | ステータス | 詳細 |
 |---|---|---|---|---|---|
-| CHR-001 | ルミナ | Lumina | ブランドの象徴。光の案内役(仮) | 設定中 | [lumina.md](../character-bible/characters/lumina.md) |
-| CHR-002 | ケイオスちゃん | Chaos-chan | 混沌・揺らぎの担当(仮) | 設定中 | [chaos-chan.md](../character-bible/characters/chaos-chan.md) |
-| CHR-003 | アリア | Aria | (未設定) | 設定中 | [aria.md](../character-bible/characters/aria.md) |
-| CHR-004 | レヴィ | Levi | (未設定) | 設定中 | [levi.md](../character-bible/characters/levi.md) |
+| CHR-001 | ルミナ | Lumina | ブランドの象徴。光の案内役【仮設定】 | 設定中 | [lumina.md](../character-bible/characters/lumina.md) |
+| CHR-002 | ケイオスちゃん | Chaos-chan | 混沌・揺らぎの担当【仮設定】 | 設定中 | [chaos-chan.md](../character-bible/characters/chaos-chan.md) |
+| CHR-003 | アリア | Aria | 【未設定】 | 設定中 | [aria.md](../character-bible/characters/aria.md) |
+| CHR-004 | レヴィ | Levi | 【未設定】 | 設定中 | [levi.md](../character-bible/characters/levi.md) |
 
 新キャラクターは CHR-005 以降の ID を割り当て、この表に必ず追記する。
 
@@ -36,7 +36,7 @@ graph TD
     L --- V[レヴィ]
 ```
 
-(仮: 関係性の線の意味は未定義)
+【仮設定】関係性の線の意味は未定義
 
 ## カードとの関係
 

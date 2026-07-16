@@ -20,9 +20,12 @@ Lumina Arcana は単なるオラクルカード制作プロジェクトではあ
 
 ## はじめて触れる人(またはAI)へ
 
-1. まず [`master-library/00_brand-philosophy.md`](./master-library/00_brand-philosophy.md) を読む
-2. 次に [`development-rules/`](./development-rules/) の全ファイルを読む
+1. まず [`development-rules/00_project-rules.md`](./development-rules/00_project-rules.md)(最上位ルール・Project Rules v1.0)を読む
+2. 次に [`master-library/00_brand-philosophy.md`](./master-library/00_brand-philosophy.md) と [`development-rules/`](./development-rules/) の全ファイルを読む
 3. 作業対象のディレクトリの `README.md` を読んでから編集する
+
+未確定事項は【未設定】【要確認】【仮設定】、AIからの改善案は【提案】のタグで管理します。
+タグ付きの項目を確定できるのはユーザーだけです。
 
 ## 最重要ルール
 

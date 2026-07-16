@@ -21,28 +21,28 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | Card ID | 日本語タイトル | 英語タイトル | ステータス | ファイル |
 |---|---|---|---|---|
-| LA-M-00 | はじまりの光(仮) | The First Light | draft | [LA-M-00](../card-database/cards/major/LA-M-00_hajimari-no-hikari.md) |
-| LA-M-01 | (未定) | | planned | |
-| LA-M-02 | (未定) | | planned | |
-| LA-M-03 | (未定) | | planned | |
-| LA-M-04 | (未定) | | planned | |
-| LA-M-05 | (未定) | | planned | |
-| LA-M-06 | (未定) | | planned | |
-| LA-M-07 | (未定) | | planned | |
-| LA-M-08 | (未定) | | planned | |
-| LA-M-09 | (未定) | | planned | |
-| LA-M-10 | (未定) | | planned | |
-| LA-M-11 | (未定) | | planned | |
-| LA-M-12 | (未定) | | planned | |
-| LA-M-13 | (未定) | | planned | |
-| LA-M-14 | (未定) | | planned | |
-| LA-M-15 | (未定) | | planned | |
-| LA-M-16 | (未定) | | planned | |
-| LA-M-17 | (未定) | | planned | |
-| LA-M-18 | (未定) | | planned | |
-| LA-M-19 | (未定) | | planned | |
-| LA-M-20 | (未定) | | planned | |
-| LA-M-21 | (未定) | | planned | |
+| LA-M-00 | はじまりの光【仮設定】 | The First Light | draft | [LA-M-00](../card-database/cards/major/LA-M-00_hajimari-no-hikari.md) |
+| LA-M-01 | 【未設定】 | | planned | |
+| LA-M-02 | 【未設定】 | | planned | |
+| LA-M-03 | 【未設定】 | | planned | |
+| LA-M-04 | 【未設定】 | | planned | |
+| LA-M-05 | 【未設定】 | | planned | |
+| LA-M-06 | 【未設定】 | | planned | |
+| LA-M-07 | 【未設定】 | | planned | |
+| LA-M-08 | 【未設定】 | | planned | |
+| LA-M-09 | 【未設定】 | | planned | |
+| LA-M-10 | 【未設定】 | | planned | |
+| LA-M-11 | 【未設定】 | | planned | |
+| LA-M-12 | 【未設定】 | | planned | |
+| LA-M-13 | 【未設定】 | | planned | |
+| LA-M-14 | 【未設定】 | | planned | |
+| LA-M-15 | 【未設定】 | | planned | |
+| LA-M-16 | 【未設定】 | | planned | |
+| LA-M-17 | 【未設定】 | | planned | |
+| LA-M-18 | 【未設定】 | | planned | |
+| LA-M-19 | 【未設定】 | | planned | |
+| LA-M-20 | 【未設定】 | | planned | |
+| LA-M-21 | 【未設定】 | | planned | |
 
 ## マイナーアルカナ(56枚 = 4スート × 14枚)
 

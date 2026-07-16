@@ -17,12 +17,12 @@ Lumina Arcana の公式用語の一覧です。
 
 | 正式表記 | 英語表記 | 読み | ひとこと定義 | 詳細 |
 |---|---|---|---|---|
-| アリア | Aria | ありあ | (未設定)主要キャラクターの一人 | [character-bible](../character-bible/characters/aria.md) |
-| ケイオスちゃん | Chaos-chan | けいおすちゃん | (未設定)混沌を司る主要キャラクター | [character-bible](../character-bible/characters/chaos-chan.md) |
+| アリア | Aria | ありあ | 【未設定】主要キャラクターの一人 | [character-bible](../character-bible/characters/aria.md) |
+| ケイオスちゃん | Chaos-chan | けいおすちゃん | 【未設定】混沌を司る主要キャラクター | [character-bible](../character-bible/characters/chaos-chan.md) |
 | 時のゆりかご | Cradle of Time | ときのゆりかご | 世界の中心にある、心を整える聖域 | [02_時のゆりかご](./02_cradle-of-time.md) |
-| ルミナ | Lumina | るみな | (未設定)ブランドを象徴する主要キャラクター | [character-bible](../character-bible/characters/lumina.md) |
+| ルミナ | Lumina | るみな | 【未設定】ブランドを象徴する主要キャラクター | [character-bible](../character-bible/characters/lumina.md) |
 | ルミナ・アルカナ | Lumina Arcana | るみな・あるかな | ブランド名。本プロジェクトの総称 | [00_ブランド理念](./00_brand-philosophy.md) |
-| レヴィ | Levi | れゔぃ | (未設定)主要キャラクターの一人 | [character-bible](../character-bible/characters/levi.md) |
+| レヴィ | Levi | れゔぃ | 【未設定】主要キャラクターの一人 | [character-bible](../character-bible/characters/levi.md) |
 
 <!-- 用語追加時は上の行をコピーして使う -->
 
