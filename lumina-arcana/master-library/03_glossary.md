@@ -18,7 +18,9 @@ Lumina Arcana の公式用語の一覧です。
 | 正式表記 | 英語表記 | 読み | ひとこと定義 | 詳細 |
 |---|---|---|---|---|
 | アリア | Aria | ありあ | 【未設定】主要キャラクターの一人 | [character-bible](../character-bible/characters/aria.md) |
+| Card Ceremony | Card Ceremony | かーどせれもにー | アプリでカードが「訪れる」体験として設計された、今日のカードの静かな儀式演出 | [10_アプリ仕様](./10_app-specifications.md) |
 | ケイオスちゃん | Chaos-chan | けいおすちゃん | 【未設定】混沌を司る主要キャラクター | [character-bible](../character-bible/characters/chaos-chan.md) |
+| ジャーナル | Journal | じゃーなる | アプリ内の「心を整理する場所」。今日感じたこと・気付きを書き留める機能 | [10_アプリ仕様](./10_app-specifications.md) |
 | 時のゆりかご | Cradle of Time | ときのゆりかご | 世界の中心にある、心を整える聖域 | [02_時のゆりかご](./02_cradle-of-time.md) |
 | ルミナ | Lumina | るみな | 【未設定】ブランドを象徴する主要キャラクター | [character-bible](../character-bible/characters/lumina.md) |
 | ルミナ・アルカナ | Lumina Arcana | るみな・あるかな | ブランド名。本プロジェクトの総称 | [00_ブランド理念](./00_brand-philosophy.md) |
@@ -36,4 +38,5 @@ Lumina Arcana の公式用語の一覧です。
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-17 | v0.2 | UX Master Specification v1.0 の公式用語「Card Ceremony」「ジャーナル」を登録 |
 | 2026-07-16 | v0.1 | 初期用語(ブランド名・キャラ4名・時のゆりかご)を登録 |
