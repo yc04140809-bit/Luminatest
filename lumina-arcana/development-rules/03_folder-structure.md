@@ -8,6 +8,7 @@
 lumina-arcana/
 ├── README.md                 # プロジェクト入口。最初に読む
 ├── master-library/           # 【正】ブランドの唯一の正式設定資料(00〜14章)
+│   └── specs/                # 章から参照される付属正典(ui-master.md 等)。親章: 10_アプリ仕様
 ├── card-database/
 │   ├── _templates/           # カードテンプレート
 │   ├── schema/               # アプリ用 JSON Schema
