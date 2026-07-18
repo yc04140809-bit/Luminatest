@@ -7,8 +7,9 @@
 ```
 lumina-arcana/
 ├── README.md                 # プロジェクト入口。最初に読む
+├── assets/                   # 採用画像・マスターデザイン(card-frame/ 等)。版番号付きで保存し旧版は削除しない
 ├── master-library/           # 【正】ブランドの唯一の正式設定資料(00〜14章)
-│   └── specs/                # 章から参照される付属正典(ui-master.md 等)。親章: 10_アプリ仕様
+│   └── specs/                # 章から参照される付属正典(ui-master.md, card-frame-master.md 等)
 ├── card-database/
 │   ├── _templates/           # カードテンプレート
 │   ├── schema/               # アプリ用 JSON Schema
@@ -45,7 +46,7 @@ lumina-arcana/
 
 | ディレクトリ(予定) | 用途 | 追加時期の目安 |
 |---|---|---|
-| `assets/` | 採用画像・地図・ロゴ(容量増大時は外部ストレージ+リンク管理へ移行) | 画像制作開始時 |
+| `assets/` | 採用画像・地図・ロゴ(容量増大時は外部ストレージ+リンク管理へ移行) | **追加済み(2026-07-18)** |
 | `sns/` | SNS投稿ストック・投稿ログ | SNS運用開始時(Phase 2) |
 | `app/` | アプリのソースコード | アプリ開発開始時(Phase 3) |
 | `scripts/` | Markdown→JSON 変換などの自動化スクリプト | アプリ開発開始時 |

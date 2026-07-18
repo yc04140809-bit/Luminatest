@@ -34,7 +34,7 @@ dreamy atmosphere, warm and safe feeling, high detail, no text
 | アスペクト比 | 【未設定】紙カード印刷を見据え実寸比を決定する(候補: 2:3) |
 | 解像度 | 印刷用マスター: 高解像度で保存。SNS/アプリ用は派生書き出し |
 | 文字 | 画像内にタイトル文字を焼き込まない(多言語展開・アプリ表示のため) |
-| 枠 | 共通フレームは後工程で合成(フレームデザインは未確定) |
+| 枠 | 共通フレームは後工程で合成。デザインは【正式設定】[Card Frame Master v1.0](./specs/card-frame-master.md) が正(表裏・パレット・質感・季節バリエーション含む) |
 
 ## 生成〜採用のワークフロー
 
@@ -61,4 +61,5 @@ dreamy atmosphere, warm and safe feeling, high detail, no text
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-18 | v0.2 | Card Frame Master v1.0(specs/card-frame-master.md)の採用を反映。カード枠デザインが【正式設定】に |
 | 2026-07-16 | v0.1 | 初版骨組み。スタイル核と運用フローを定義 |
