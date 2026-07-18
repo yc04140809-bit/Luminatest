@@ -21,7 +21,7 @@ Lumina Arcana の公式用語の一覧です。
 | Card Ceremony | Card Ceremony | かーどせれもにー | アプリでカードが「訪れる」体験として設計された、今日のカードの静かな儀式演出 | [10_アプリ仕様](./10_app-specifications.md) |
 | ケイオスちゃん | Chaos-chan | けいおすちゃん | 【未設定】混沌を司る主要キャラクター | [character-bible](../character-bible/characters/chaos-chan.md) |
 | ジャーナル | Journal | じゃーなる | アプリ内の「心を整理する場所」。今日感じたこと・気付きを書き留める機能 | [10_アプリ仕様](./10_app-specifications.md) |
-| 世界樹 | 【未設定】 | せかいじゅ | 世界「時のゆりかご」にある存在の一つ。詳細【未設定】 | [01_世界観](./01_worldview.md) |
+| 世界樹 | 【未設定】 | せかいじゅ | 世界の中心に立つ大樹。その枝葉が絡み合って生命の揺り籠を形づくり、抱いている(世界設計 v1.0) | [02_時のゆりかご](./02_time-cradle.md) |
 | 生命の揺り籠 | Cradle of Life | せいめいのゆりかご | 【正式設定】世界の中心に存在する聖域。カードが静かに生まれ、光が集まり、生命と希望が育まれる神聖な場所。Card Ceremony の起点 | [02_時のゆりかご](./02_time-cradle.md) |
 | 時のゆりかご | Time Cradle | ときのゆりかご | 【正式設定】Lumina Arcana の世界全体の名前。すべての心が帰ってこられる世界 | [02_時のゆりかご](./02_time-cradle.md) |
 | ルミナ | Lumina | るみな | 【未設定】ブランドを象徴する主要キャラクター | [character-bible](../character-bible/characters/lumina.md) |
