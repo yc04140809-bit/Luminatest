@@ -26,7 +26,7 @@ lumina-arcana/
 │   └── characters/           # 1キャラ1ファイル
 ├── world-bible/
 │   ├── _templates/
-│   ├── cradle-of-time.md     # 時のゆりかご詳細
+│   ├── time-cradle.md     # 時のゆりかご詳細
 │   ├── world-map.md / history.md / mythology.md
 │   ├── locations/ spirits/ sacred-beasts/ terms/   # 1件1ファイル
 └── development-rules/        # このルール群

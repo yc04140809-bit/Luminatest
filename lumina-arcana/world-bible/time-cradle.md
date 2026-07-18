@@ -1,11 +1,11 @@
 # 時のゆりかご(詳細設定)
 
 - **ステータス**: ドラフト(最優先で設定を固める)
-- **公式サマリー**: [master-library/02_cradle-of-time.md](../master-library/02_cradle-of-time.md)
+- **公式サマリー**: [master-library/02_time-cradle.md](../master-library/02_time-cradle.md)
 - **最終更新**: 2026-07-16
 
 世界「時のゆりかご」と、その中心の聖域「生命の揺り籠」の詳細設定を積み上げる場所です(世界=時のゆりかご/聖域=生命の揺り籠。ユーザー決定 2026-07-18)。
-公式定義・禁則は Master Library [02章](../master-library/02_cradle-of-time.md) が正であり、ここでは描写・構造・暮らしのディテールを育てます。
+公式定義・禁則は Master Library [02章](../master-library/02_time-cradle.md) が正であり、ここでは描写・構造・暮らしのディテールを育てます。
 
 ## 聖域「生命の揺り籠」
 
