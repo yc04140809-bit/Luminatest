@@ -250,7 +250,7 @@ UX Master Specification v1.0 への追加仕様。
 
 1. カードデータの正は Card Database の Markdown(YAMLフロントマター+本文)
 2. アプリ用には [card-schema.json](../card-database/schema/card-schema.json) 準拠の JSON へ変換して配信する
-3. Card ID(例: `LA-M-01`)を全システム共通の不変キーとする(`LA-M-00` はテンプレート専用予約IDのため配信データに含めない)
+3. Card ID(例: `LA-M-00`)を全システム共通の不変キーとする。メジャーは `LA-M-00`〜`LA-M-21`(0始まり・22枚)
 4. 画像はファイル名に Card ID と版番号を含め、テキストとは独立に差し替え可能にする
 5. カード画像はアニメ版/リアル版の2系統を同一 Card ID に紐づけられる構造とする(UX仕様「カード画像(将来)」対応)
 

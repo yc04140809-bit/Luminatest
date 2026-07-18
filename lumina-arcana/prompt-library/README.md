@@ -14,7 +14,7 @@ prompt-library/
 │   └── prompt-template.md
 └── prompts/
     ├── cards/           ← カード用。Card ID ごとに1フォルダ
-    │   └── LA-M-00/
+    │   └── LA-M-03/
     │       ├── v001.md  ← 1バージョン = 1ファイル
     │       └── v002.md
     └── characters/      ← キャラクター用。キャラslugごとに1フォルダ

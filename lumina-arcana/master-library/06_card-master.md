@@ -1,7 +1,7 @@
 # 06 カードマスター
 
 - **ステータス**: 運用中(78枚の進捗管理台帳)
-- **最終更新**: 2026-07-16
+- **最終更新**: 2026-07-18
 
 全78枚のカードの**唯一の正式な一覧表**です。
 Card ID の発番・タイトル・制作ステータスはこの表で管理します。
@@ -12,43 +12,47 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | ステータス | 意味 |
 |---|---|
 | `planned` | 発番のみ。内容未着手 |
-| `draft` | 執筆・制作中 |
+| `draft` | 執筆・制作中(画像のみ確定=Version 0.9 を含む) |
 | `review` | レビュー待ち |
 | `released` | 正式版。アプリ・SNS等で使用可 |
 | `revising` | 公開後の改訂作業中 |
 
-## 予約ID(正式カードには使用しない)
+## テンプレート識別子(正式カードには使用しない)
 
-| Card ID | 用途 | 備考 |
+| 識別子 | 用途 | 備考 |
 |---|---|---|
-| LA-M-00 | テンプレート専用(記入見本) | [サンプルファイル](../card-database/cards/major/LA-M-00_hajimari-no-hikari.md)。内容は仮設定であり正式設定ではない。この台帳の正式一覧には登録しない |
+| LA-TEMPLATE-00 | テンプレート専用(記入見本) | [card-template-filled-example.md](../card-database/_templates/card-template-filled-example.md)。内容は仮設定であり正式設定ではない。この台帳には登録しない |
 
-## メジャーアルカナ(22枚: LA-M-01〜LA-M-22)
+## メジャーアルカナ(22枚: LA-M-00〜LA-M-21・0始まり)
+
+⚠️ 2026-07-18: 実際のカード画像に0〜21の番号が焼き込まれているため、**0始まり**の番号体系を正式採用(伝統的な大アルカナと同じ)。以前の「LA-M-01〜LA-M-22」表記は撤回。
 
 | Card ID | 日本語タイトル | 英語タイトル | ステータス | ファイル |
 |---|---|---|---|---|
-| LA-M-01 | 【未設定】 | | planned | |
-| LA-M-02 | 【未設定】 | | planned | |
-| LA-M-03 | 【未設定】 | | planned | |
-| LA-M-04 | 【未設定】 | | planned | |
-| LA-M-05 | 【未設定】 | | planned | |
-| LA-M-06 | 【未設定】 | | planned | |
-| LA-M-07 | 【未設定】 | | planned | |
-| LA-M-08 | 【未設定】 | | planned | |
-| LA-M-09 | 【未設定】 | | planned | |
-| LA-M-10 | 【未設定】 | | planned | |
-| LA-M-11 | 【未設定】 | | planned | |
-| LA-M-12 | 【未設定】 | | planned | |
-| LA-M-13 | 【未設定】 | | planned | |
-| LA-M-14 | 【未設定】 | | planned | |
-| LA-M-15 | 【未設定】 | | planned | |
-| LA-M-16 | 【未設定】 | | planned | |
-| LA-M-17 | 【未設定】 | | planned | |
-| LA-M-18 | 【未設定】 | | planned | |
-| LA-M-19 | 【未設定】 | | planned | |
-| LA-M-20 | 【未設定】 | | planned | |
-| LA-M-21 | 【未設定】 | | planned | |
-| LA-M-22 | 【未設定】 | | planned | |
+| LA-M-00 | 生命の揺り籠 | Cradle of Life | draft (v0.9) | [LA-M-00](../card-database/cards/major/LA-M-00_cradle-of-life.md) |
+| LA-M-01 | はじまりの灯 | The First Light | draft (v0.9) | [LA-M-01](../card-database/cards/major/LA-M-01_the-first-light.md) |
+| LA-M-02 | 導きの月 | Guiding Moon | draft (v0.9) | [LA-M-02](../card-database/cards/major/LA-M-02_guiding-moon.md) |
+| LA-M-03 | 育みの森 | Forest of Nurture | draft (v0.9) | [LA-M-03](../card-database/cards/major/LA-M-03_forest-of-nurture.md) |
+| LA-M-04 | 世界樹 | World Tree | draft (v0.9) | [LA-M-04](../card-database/cards/major/LA-M-04_world-tree.md) |
+| LA-M-05 | 星の約束 | Promise of the Stars | draft (v0.9) | [LA-M-05](../card-database/cards/major/LA-M-05_promise-of-the-stars.md) |
+| LA-M-06 | 静寂の鏡 | Mirror of Serenity | draft (v0.9) | [LA-M-06](../card-database/cards/major/LA-M-06_mirror-of-serenity.md) |
+| LA-M-07 | 再生の光 | Light of Rebirth | draft (v0.9) | [LA-M-07](../card-database/cards/major/LA-M-07_light-of-rebirth.md) |
+| LA-M-08 | 希望の扉 | Door of Hope | draft (v0.9) | [LA-M-08](../card-database/cards/major/LA-M-08_door-of-hope.md) |
+| LA-M-09 | 未来への道 | Path to the Future | draft (v0.9) | [LA-M-09](../card-database/cards/major/LA-M-09_path-to-the-future.md) |
+| LA-M-10 | 魂の神殿 | Temple of the Soul | draft (v0.9) | [LA-M-10](../card-database/cards/major/LA-M-10_temple-of-the-soul.md) |
+| LA-M-11 | 真実の水晶洞 | Crystal Cave of Truth | draft (v0.9) | [LA-M-11](../card-database/cards/major/LA-M-11_crystal-cave-of-truth.md) |
+| LA-M-12 | 最初の旅人 | The First Traveler | draft (v0.9) | [LA-M-12](../card-database/cards/major/LA-M-12_the-first-traveler.md) |
+| LA-M-13 | 出会い | The Encounter | draft (v0.9) | [LA-M-13](../card-database/cards/major/LA-M-13_the-encounter.md) |
+| LA-M-14 | 試練の橋 | The Bridge of Trials | draft (v0.9) | [LA-M-14](../card-database/cards/major/LA-M-14_the-bridge-of-trials.md) |
+| LA-M-15 | 勇気の灯火 | The Light of Courage | draft (v0.9) | [LA-M-15](../card-database/cards/major/LA-M-15_the-light-of-courage.md) |
+| LA-M-16 | 信頼の手 | The Hand of Trust | draft (v0.9) | [LA-M-16](../card-database/cards/major/LA-M-16_the-hand-of-trust.md) |
+| LA-M-17 | 聖域の静寂 | The Sanctuary of Silence | draft (v0.9) | [LA-M-17](../card-database/cards/major/LA-M-17_the-sanctuary-of-silence.md) |
+| LA-M-18 | 光の結晶 | The Crystal of Light | draft (v0.9) | [LA-M-18](../card-database/cards/major/LA-M-18_the-crystal-of-light.md) |
+| LA-M-19 | 世界樹の根 | The Roots of the World Tree | draft (v0.9) | [LA-M-19](../card-database/cards/major/LA-M-19_the-roots-of-the-world-tree.md) |
+| LA-M-20 | 【未設定】 | | planned | (画像未着) |
+| LA-M-21 | おかえりなさい | Welcome Home | draft (v0.9) | [LA-M-21](../card-database/cards/major/LA-M-21_welcome-home.md) |
+
+**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。全21枚とも文章(ストーリー・各運勢メッセージ・今日の行動・注意点)は【未設定】で、Lumina/ケイオス師匠の執筆待ち。**
 
 ## マイナーアルカナ(56枚 = 4スート × 14枚)
 
@@ -83,5 +87,6 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | 日付 | 版 | 内容 |
 |---|---|---|
-| 2026-07-16 | v0.2 | ユーザー決定により LA-M-00 をテンプレート専用の予約IDとし、正式一覧から除外。メジャーの正式番号を LA-M-01〜LA-M-22 に変更 |
+| 2026-07-18 | v0.3 | ⚠️ Card ID 体系を LA-M-00〜LA-M-21(0始まり)に確定(2026-07-16決定を撤回)。実際に受領した21枚(LA-M-20を除く)の画像・タイトルを Version 0.9 として正式登録。テンプレート識別子を LA-TEMPLATE-00 に変更 |
+| 2026-07-16 | v0.2 | (撤回済み)ユーザー決定により LA-M-00 をテンプレート専用の予約IDとし、正式一覧から除外。メジャーの正式番号を LA-M-01〜LA-M-22 に変更 |
 | 2026-07-16 | v0.1 | 台帳を作成。LA-M-00 をサンプルとして発番 |

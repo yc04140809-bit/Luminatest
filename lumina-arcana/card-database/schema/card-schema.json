@@ -19,7 +19,7 @@
     "card_id": {
       "type": "string",
       "pattern": "^LA-(M|S[1-4])-\\d{2}$",
-      "description": "不変の一意キー。例: LA-M-01, LA-S1-01。LA-M-00 はテンプレート専用の予約IDであり正式カードには使用しない"
+      "description": "不変の一意キー。メジャーは LA-M-00〜LA-M-21(0始まり・22枚)。例: LA-M-00, LA-S1-01"
     },
     "title_ja": { "type": "string", "description": "日本語タイトル" },
     "title_en": { "type": "string", "description": "英語タイトル" },

@@ -1,6 +1,6 @@
 ---
 # ===== 機械可読データ(アプリ用)=====
-card_id: "LA-X-00"            # 例: LA-M-01 / LA-S1-01。発番は master-library/06 で行う(LA-M-00 はテンプレート専用予約)
+card_id: "LA-X-00"            # 例: LA-M-00(メジャーは00〜21) / LA-S1-01。発番は master-library/06 で行う
 title_ja: ""                  # 日本語タイトル
 title_en: ""                  # 英語タイトル
 arcana: ""                    # major / minor

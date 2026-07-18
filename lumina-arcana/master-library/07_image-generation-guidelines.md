@@ -46,7 +46,7 @@ dreamy atmosphere, warm and safe feeling, high detail, no text
 ## 画像ファイルの命名
 
 ```
-{card-id}_v{版}.png      例: LA-M-01_v001.png
+{card-id}_v{版}.png      例: LA-M-00_v001.png
 {card-id}_print_v{版}.png(印刷用マスター)
 ```
 
