@@ -40,18 +40,15 @@
       "items": { "type": "string" },
       "description": "象徴モチーフ。キャラクターは CHR-xxx 形式のIDで参照"
     },
-    "story": { "type": "string", "description": "ストーリー(100〜200字目安)" },
     "messages": {
       "type": "object",
-      "required": ["base", "love", "work", "money", "relationships", "action", "caution"],
+      "description": "Lumina Arcana 共通フォーマット(2026-07-18 確定)。カード本文の正式構造",
+      "required": ["message", "meaning", "reflection", "affirmation"],
       "properties": {
-        "base": { "type": "string", "description": "基本メッセージ" },
-        "love": { "type": "string", "description": "恋愛" },
-        "work": { "type": "string", "description": "仕事" },
-        "money": { "type": "string", "description": "金運" },
-        "relationships": { "type": "string", "description": "人間関係" },
-        "action": { "type": "string", "description": "今日の行動" },
-        "caution": { "type": "string", "description": "注意点" }
+        "message": { "type": "string", "description": "Message — 今日のあなたへ、短く手渡す言葉(画面①に表示)" },
+        "meaning": { "type": "string", "description": "Meaning — カードの意味・象徴の解説(画面②に表示)" },
+        "reflection": { "type": "string", "description": "Reflection — 静かに自分と向き合うための問いかけ。ジャーナルへの橋渡し" },
+        "affirmation": { "type": "string", "description": "Affirmation — 一人称の短い宣言文" }
       }
     },
     "lucky_color": { "type": "string" },
