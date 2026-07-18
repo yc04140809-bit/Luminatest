@@ -10,7 +10,7 @@ world-bible/
 ├── README.md
 ├── _templates/
 │   └── world-entry-template.md   ← 建物・精霊・神獣・用語の個別エントリ用
-├── cradle-of-time.md    ← 時のゆりかご(世界の中心)の詳細設定
+├── cradle-of-time.md    ← 世界「時のゆりかご」と聖域「生命の揺り籠」の詳細設定
 ├── world-map.md         ← 世界地図・土地
 ├── history.md           ← 歴史・年表
 ├── mythology.md         ← 神話
