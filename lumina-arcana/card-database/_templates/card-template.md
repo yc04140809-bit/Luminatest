@@ -23,12 +23,12 @@ updated: "YYYY-MM-DD"
 # LA-X-00 タイトル(日本語) / Title (English)
 
 <!--
-  Lumina Arcana 共通フォーマット(2026-07-18 確定・改訂)
+  Lumina Arcana 共通フォーマット Version 1.0(2026-07-18 正式採用)
   カード本文は以下5項目で統一する: Card Message / Reading / Reflection / Today's Light / Keywords
-  (旧名 Meaning / Affirmation は廃止)
+  (旧名 Meaning / Affirmation は廃止。既存22枚・今後追加される全カード・アプリUI・JSON・DB共通仕様)
   Reading は「カード自身が語りかける形式」を正式仕様とする
   Design Philosophy(カード固有の特別な意味合いの注釈)はカードデータに含めない。
-    必要な場合は development-rules 側や本ファイルの HTML コメントで管理する
+    05_card-creation-rules.md(開発ドキュメント側)でのみ管理する
   執筆ガイドラインは master-library/08_writing-guidelines.md を参照
 -->
 

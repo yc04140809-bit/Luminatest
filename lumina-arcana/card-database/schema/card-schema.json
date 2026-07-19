@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lumina-arcana.example/schemas/card.json",
   "title": "Lumina Arcana Card",
-  "description": "1枚のカードのデータ構造。card-database の Markdown から変換して生成する。アプリ・Web・API 共通。",
+  "description": "1枚のカードのデータ構造。card-database の Markdown から変換して生成する。アプリ・Web・API 共通。本文構造は Lumina Arcana 共通フォーマット Version 1.0(Card Message / Reading / Reflection / Today's Light / Keywords。2026-07-18 正式採用)に準拠する。",
   "type": "object",
   "required": [
     "card_id",
@@ -43,7 +43,7 @@
     },
     "messages": {
       "type": "object",
-      "description": "Lumina Arcana 共通フォーマット(2026-07-18 確定・改訂)。カード本文の正式構造。全22枚・アプリUI・JSON・データベース共通仕様",
+      "description": "Lumina Arcana 共通フォーマット Version 1.0(2026-07-18 正式採用)。カード本文の正式構造。既存22枚および今後追加されるすべてのカード・アプリUI・JSON・データベース共通仕様",
       "required": ["card_message", "reading", "reflection", "todays_light"],
       "properties": {
         "card_message": { "type": "string", "description": "Card Message — 今日のあなたへ、短く手渡す言葉(画面①に表示)" },
