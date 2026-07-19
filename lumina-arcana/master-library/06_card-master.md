@@ -7,6 +7,8 @@
 Card ID の発番・タイトル・制作ステータスはこの表で管理します。
 カード本体のデータは [Card Database](../card-database/) の個別ファイルが正です。
 
+⚠️ **タイトルの正式基準(2026-07-18 確定)**: メジャーアルカナのタイトルは、**採用済みの Version 0.9 画像に焼き込まれている文字を正式タイトルとする**(ユーザー決定)。画像と異なるタイトル一覧・文章コンテンツが届いた場合は、画像側を優先し、登録前に必ずユーザーに確認する。
+
 ## ステータス定義
 
 | ステータス | 意味 |
@@ -89,6 +91,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-18 | v0.12 | ⚠️ ユーザー決定: メジャーアルカナのタイトルは「Version 0.9 画像に焼き込まれた文字」を正式基準とする。届いた「Card No.7: 時の砂時計」の文章コンテンツは、画像タイトル(再生の光)と不一致のため登録せず保留。また届いた「Official Card Titles v1.0」一覧(No.8〜18のタイトルが画像と不一致)は不採用とし、画像タイトルを基準に一覧を再作成する方針とした |
 | 2026-07-18 | v0.11 | LA-M-06「静寂の鏡」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。英語タイトルを Mirror of Silence へ更新。status を review に更新 |
 | 2026-07-18 | v0.10 | LA-M-05「星の約束」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。status を review に更新 |
 | 2026-07-18 | v0.9 | LA-M-04「世界樹」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。status を review に更新 |
