@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lumina-arcana.example/schemas/card.json",
+  "title": "Lumina Arcana Card",
+  "description": "1枚のカードのデータ構造。card-database の Markdown から変換して生成する。アプリ・Web・API 共通。本文構造は Lumina Arcana 共通フォーマット Version 1.0(Card Message / Reading / Reflection / Today's Light / Keywords。2026-07-18 正式採用)に準拠する。",
+  "type": "object",
+  "required": [
+    "card_id",
+    "title_ja",
+    "title_en",
+    "arcana",
+    "attribute",
+    "keywords",
+    "messages",
+    "status",
+    "version"
+  ],
+  "properties": {
+    "card_id": {
+      "type": "string",
+      "pattern": "^LA-(M|S[1-4])-\\d{2}$",
+      "description": "不変の一意キー。メジャーは LA-M-00〜LA-M-21(0始まり・22枚)。例: LA-M-00, LA-S1-01"
+    },
+    "title_ja": { "type": "string", "description": "日本語タイトル" },
+    "title_en": { "type": "string", "description": "英語タイトル" },
+    "arcana": { "type": "string", "enum": ["major", "minor"] },
+    "suit": {
+      "type": ["string", "null"],
+      "description": "マイナーのスート名。メジャーは null。スート名確定後に enum 化する"
+    },
+    "attribute": { "type": "string", "description": "属性(4属性・世界観と整合)" },
+    "keywords": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "maxItems": 12,
+      "description": "目安3〜5語。特別な意味を持つカード(例: LA-M-00)は増やしてよい"
+    },
+    "symbols": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "象徴モチーフ。キャラクターは CHR-xxx 形式のIDで参照"
+    },
+    "messages": {
+      "type": "object",
+      "description": "Lumina Arcana 共通フォーマット Version 1.0(2026-07-18 正式採用)。カード本文の正式構造。既存22枚および今後追加されるすべてのカード・アプリUI・JSON・データベース共通仕様",
+      "required": ["card_message", "reading", "reflection", "todays_light"],
+      "properties": {
+        "card_message": { "type": "string", "description": "Card Message — 今日のあなたへ、短く手渡す言葉(画面①に表示)" },
+        "reading": { "type": "string", "description": "Reading — カード自身が一人称で語りかける、意味・象徴の解説(画面②に表示)。旧名 Meaning は廃止" },
+        "reflection": { "type": "string", "description": "Reflection — 静かに自分と向き合うための問いかけ。ジャーナルへの橋渡し" },
+        "todays_light": { "type": "string", "description": "Today's Light — 一人称の短い宣言文。旧名 Affirmation は廃止" }
+      }
+    },
+    "lucky_color": { "type": "string" },
+    "lucky_number": { "type": ["integer", "string", "null"] },
+    "image": {
+      "type": "object",
+      "properties": {
+        "prompt_ref": { "type": "string", "description": "Prompt Library 内の履歴フォルダへの相対パス" },
+        "adopted_prompt_version": { "type": "string", "description": "採用プロンプト版。例: v001" },
+        "adopted_image": { "type": "string", "description": "採用画像ファイル名" }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planned", "draft", "review", "released", "revising"]
+    },
+    "version": { "type": "string", "description": "カードデータの版。例: 1.0" },
+    "created": { "type": "string", "format": "date" },
+    "updated": { "type": "string", "format": "date" }
+  }
+}
