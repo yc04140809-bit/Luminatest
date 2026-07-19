@@ -38,7 +38,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-04 | 世界樹 | World Tree | **review (v1.0・文章完了)** | [LA-M-04](../card-database/cards/major/LA-M-04_world-tree.md) |
 | LA-M-05 | 星の約束 | Promise of the Stars | **review (v1.0・文章完了)** | [LA-M-05](../card-database/cards/major/LA-M-05_promise-of-the-stars.md) |
 | LA-M-06 | 静寂の鏡 | Mirror of Silence | **review (v1.0・文章完了)** | [LA-M-06](../card-database/cards/major/LA-M-06_mirror-of-serenity.md) |
-| LA-M-07 | 再生の光 | Light of Rebirth | draft (v0.9) | [LA-M-07](../card-database/cards/major/LA-M-07_light-of-rebirth.md) |
+| LA-M-07 | 再生の光 | Light of Rebirth | **review (v1.0・文章完了)** | [LA-M-07](../card-database/cards/major/LA-M-07_light-of-rebirth.md) |
 | LA-M-08 | 希望の扉 | Door of Hope | draft (v0.9) | [LA-M-08](../card-database/cards/major/LA-M-08_door-of-hope.md) |
 | LA-M-09 | 未来への道 | Path to the Future | draft (v0.9) | [LA-M-09](../card-database/cards/major/LA-M-09_path-to-the-future.md) |
 | LA-M-10 | 魂の神殿 | Temple of the Soul | draft (v0.9) | [LA-M-10](../card-database/cards/major/LA-M-10_temple-of-the-soul.md) |
@@ -54,7 +54,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-20 | 【未設定】 | | planned | (画像未着) |
 | LA-M-21 | おかえりなさい | Welcome Home | draft (v0.9) | [LA-M-21](../card-database/cards/major/LA-M-21_welcome-home.md) |
 
-**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00〜LA-M-06 の7枚完了(review)。残り14枚は Lumina/ケイオス師匠の執筆待ち。**
+**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00〜LA-M-07 の8枚完了(review)。残り13枚は Lumina/ケイオス師匠の執筆待ち。**
 
 **登場人物の正式設定(2026-07-18)**: LA-M-12〜LA-M-20 に描かれる人物は「旅人」(ユーザー自身を投影する存在。固有名・設定・性別・年齢を持たない)。**LA-M-21 のみ CHR-002 ケイオス(混沌の女神)が本編正式初登場**。
 
@@ -91,6 +91,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-18 | v0.13 | LA-M-07「再生の光」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。タイトルが画像と一致することを確認。status を review に更新 |
 | 2026-07-18 | v0.12 | ⚠️ ユーザー決定: メジャーアルカナのタイトルは「Version 0.9 画像に焼き込まれた文字」を正式基準とする。届いた「Card No.7: 時の砂時計」の文章コンテンツは、画像タイトル(再生の光)と不一致のため登録せず保留。また届いた「Official Card Titles v1.0」一覧(No.8〜18のタイトルが画像と不一致)は不採用とし、画像タイトルを基準に一覧を再作成する方針とした |
 | 2026-07-18 | v0.11 | LA-M-06「静寂の鏡」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。英語タイトルを Mirror of Silence へ更新。status を review に更新 |
 | 2026-07-18 | v0.10 | LA-M-05「星の約束」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。status を review に更新 |
