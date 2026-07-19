@@ -32,7 +32,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-00 | 生命の揺り籠 | Cradle of Life | **review (v1.0・文章完了)** | [LA-M-00](../card-database/cards/major/LA-M-00_cradle-of-life.md) |
 | LA-M-01 | はじまりの灯 | The First Light | **review (v1.0・文章完了)** | [LA-M-01](../card-database/cards/major/LA-M-01_the-first-light.md) |
 | LA-M-02 | 導きの月 | Guiding Moon | **review (v1.0・文章完了)** | [LA-M-02](../card-database/cards/major/LA-M-02_guiding-moon.md) |
-| LA-M-03 | 育みの森 | Forest of Nurture | draft (v0.9) | [LA-M-03](../card-database/cards/major/LA-M-03_forest-of-nurture.md) |
+| LA-M-03 | 育みの森 | Forest of Growth | **review (v1.0・文章完了)** | [LA-M-03](../card-database/cards/major/LA-M-03_forest-of-nurture.md) |
 | LA-M-04 | 世界樹 | World Tree | draft (v0.9) | [LA-M-04](../card-database/cards/major/LA-M-04_world-tree.md) |
 | LA-M-05 | 星の約束 | Promise of the Stars | draft (v0.9) | [LA-M-05](../card-database/cards/major/LA-M-05_promise-of-the-stars.md) |
 | LA-M-06 | 静寂の鏡 | Mirror of Serenity | draft (v0.9) | [LA-M-06](../card-database/cards/major/LA-M-06_mirror-of-serenity.md) |
@@ -52,7 +52,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-20 | 【未設定】 | | planned | (画像未着) |
 | LA-M-21 | おかえりなさい | Welcome Home | draft (v0.9) | [LA-M-21](../card-database/cards/major/LA-M-21_welcome-home.md) |
 
-**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00・LA-M-01・LA-M-02 の3枚完了(review)。残り18枚は Lumina/ケイオス師匠の執筆待ち。**
+**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00〜LA-M-03 の4枚完了(review)。残り17枚は Lumina/ケイオス師匠の執筆待ち。**
 
 **登場人物の正式設定(2026-07-18)**: LA-M-12〜LA-M-20 に描かれる人物は「旅人」(ユーザー自身を投影する存在。固有名・設定・性別・年齢を持たない)。**LA-M-21 のみ CHR-002 ケイオス(混沌の女神)が本編正式初登場**。
 
@@ -89,6 +89,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-18 | v0.8 | LA-M-03「育みの森」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。英語タイトルを Forest of Growth へ更新。status を review に更新 |
 | 2026-07-18 | v0.7 | LA-M-02「導きの月」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。status を review に更新 |
 | 2026-07-18 | v0.6 | LA-M-01「はじまりの灯」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。status を review に更新 |
 | 2026-07-18 | v0.5 | LA-M-00「生命の揺り籠」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。全カード中最初の文章完成カードとして status を review に更新 |
