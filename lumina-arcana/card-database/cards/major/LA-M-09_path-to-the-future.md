@@ -5,7 +5,7 @@ title_en: "Path to the Future"
 arcana: "major"
 suit: null
 attribute: "【未設定】"
-keywords: ["【未設定】"]
+keywords: ["未来", "道", "光", "前進", "希望", "選択", "歩み", "可能性", "挑戦", "成長"]
 symbols: ["道", "星", "灯り"]
 lucky_color: "【未設定】"
 lucky_number: null
@@ -13,32 +13,60 @@ image:
   prompt_ref: "../../../prompt-library/prompts/cards/LA-M-09/"
   adopted_prompt_version: ""
   adopted_image: "LA-M-09_v001.png"
-status: "draft"
-version: "0.9"
+status: "review"
+version: "1.0"
 created: "2026-07-18"
 updated: "2026-07-18"
 ---
 
-> 画像は Version 0.9 の正式採用アセット。Reading・Reflection・Today's Light は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
-> 画像内に基本メッセージの表示は確認できなかったため【未設定】。
+> 画像は Version 0.9 の正式採用アセット。文章コンテンツは Lumina/ケイオス師匠より正式受領・登録済み(2026-07-18)。タイトルは画像と一致(未来への道 / Path to the Future)。
 
 # LA-M-09 未来への道 / Path to the Future
 
 ## Card Message(メッセージ)
 
-【未設定】
+私は、あなたの未来へ続く光の道です。
 
 ## Reading(リーディング)
 
-【未設定】
+私は、未来への道。
+
+私の先に何が待っているのか、
+今はまだ誰にも分かりません。
+
+だからこそ、
+一歩一歩が未来を描いていくのです。
+
+遠回りをした日も、
+立ち止まった日も、
+そのすべてが、
+あなたの歩んだ道になります。
+
+未来は、
+誰かに与えられるものではありません。
+
+あなたが今日選んだ一歩が、
+少しずつ形にしていくものです。
+
+どうか足元を見失わないでください。
+
+私の光は、
+あなたが歩み続ける限り、
+決して途切れることはありません。
 
 ## Reflection(問いかけ)
 
-【未設定】
+あなたが今、
+
+目指している未来はどんな景色ですか。
+
+その未来へ近づくために、
+
+今日できる小さな一歩は何でしょう。
 
 ## Today's Light(今日の光)
 
-【未設定】
+私は、自分の未来を信じ、一歩ずつ歩み続けます。
 
 ## Keywords(キーワード)
 
@@ -54,5 +82,6 @@ updated: "2026-07-18"
 
 | 日付 | 版 | 内容 |
 |---|---|---|
-| 2026-07-18 | v0.9.2 | Lumina Arcana 共通フォーマット(Message/Meaning/Reflection/Keywords/Affirmation)へ本文構造を移行 |
+| 2026-07-18 | v1.0 | Lumina より Card Message / Reading / Reflection / Today's Light / Keywords(10語)を正式受領・登録。status を review へ更新。タイトルが画像と一致することを確認済み。Card Message は今回が初登録(画像内に基本メッセージの表示は確認できなかったため) |
+| 2026-07-18 | v0.9.2 | Lumina Arcana 共通フォーマットへ本文構造を移行 |
 | 2026-07-18 | v0.9 | 正式画像(Version 0.9)を受領・登録。文章は未着手 |
