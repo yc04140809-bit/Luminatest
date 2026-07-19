@@ -1,11 +1,11 @@
 ---
 card_id: "LA-M-06"
 title_ja: "静寂の鏡"
-title_en: "Mirror of Serenity"
+title_en: "Mirror of Silence"
 arcana: "major"
 suit: null
 attribute: "【未設定】"
-keywords: ["【未設定】"]
+keywords: ["鏡", "静寂", "自己理解", "受容", "心", "内省", "優しさ", "真実", "癒し", "調和"]
 symbols: ["湖", "満月", "水面"]
 lucky_color: "【未設定】"
 lucky_number: null
@@ -13,32 +13,68 @@ image:
   prompt_ref: "../../../prompt-library/prompts/cards/LA-M-06/"
   adopted_prompt_version: ""
   adopted_image: "LA-M-06_v001.png"
-status: "draft"
-version: "0.9"
+status: "review"
+version: "1.0"
 created: "2026-07-18"
 updated: "2026-07-18"
 ---
 
-> 画像は Version 0.9 の正式採用アセット。Reading・Reflection・Today's Light は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
-> 画像内に基本メッセージの表示は確認できなかったため【未設定】。
+> 画像は Version 0.9 の正式採用アセット。文章コンテンツは Lumina/ケイオス師匠より正式受領・登録済み(2026-07-18)。
+> ファイル名の slug(mirror-of-serenity)は旧英語タイトルに基づく表記です。Card ID が正のため、slug は変更せず維持しています(→ [development-rules/02_naming-conventions.md](../../../development-rules/02_naming-conventions.md))。
 
-# LA-M-06 静寂の鏡 / Mirror of Serenity
+# LA-M-06 静寂の鏡 / Mirror of Silence
 
 ## Card Message(メッセージ)
 
-【未設定】
+私は、ありのままのあなたを映します。
 
 ## Reading(リーディング)
 
-【未設定】
+私は、静寂の鏡。
+
+私に映るのは、
+飾られた姿でも、
+誰かが望むあなたでもありません。
+
+喜びも、
+悲しみも、
+迷いも、
+弱さも。
+
+そのすべてを抱えた、
+本当のあなたです。
+
+自分の弱さを知ることは、
+自分を否定することではありません。
+
+それは、
+自分を理解し、
+優しく受け入れるための始まりです。
+
+どうか、
+映る姿から目をそらさないでください。
+
+あなたは、
+今のあなたのままで、
+かけがえのない存在なのです。
 
 ## Reflection(問いかけ)
 
-【未設定】
+あなたは最近、
+
+自分にどんな言葉をかけていますか。
+
+もし大切な人が同じことで悩んでいたら、
+
+あなたはどんな言葉を贈るでしょう。
+
+その優しさを、
+
+今日は自分自身にも向けてみませんか。
 
 ## Today's Light(今日の光)
 
-【未設定】
+私は、ありのままの自分を受け入れます。
 
 ## Keywords(キーワード)
 
@@ -54,5 +90,6 @@ updated: "2026-07-18"
 
 | 日付 | 版 | 内容 |
 |---|---|---|
-| 2026-07-18 | v0.9.2 | Lumina Arcana 共通フォーマット(Message/Meaning/Reflection/Keywords/Affirmation)へ本文構造を移行 |
+| 2026-07-18 | v1.0 | Lumina より Card Message / Reading / Reflection / Today's Light / Keywords(10語)を正式受領・登録。status を review へ更新。英語タイトルを正式文言へ更新(旧: 「Mirror of Serenity」→新: 「Mirror of Silence」) |
+| 2026-07-18 | v0.9.2 | Lumina Arcana 共通フォーマットへ本文構造を移行 |
 | 2026-07-18 | v0.9 | 正式画像(Version 0.9)を受領・登録。文章は未着手 |
