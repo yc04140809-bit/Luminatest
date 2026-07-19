@@ -19,16 +19,16 @@ created: "2026-07-18"
 updated: "2026-07-18"
 ---
 
-> 画像は Version 0.9 の正式採用アセット。Meaning・Reflection・Affirmation は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
+> 画像は Version 0.9 の正式採用アセット。Reading・Reflection・Today's Light は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
 > 画像内に基本メッセージの表示は確認できなかったため【未設定】。
 
 # LA-M-09 未来への道 / Path to the Future
 
-## Message(メッセージ)
+## Card Message(メッセージ)
 
 【未設定】
 
-## Meaning(意味)
+## Reading(リーディング)
 
 【未設定】
 
@@ -36,7 +36,7 @@ updated: "2026-07-18"
 
 【未設定】
 
-## Affirmation(アファメーション)
+## Today's Light(今日の光)
 
 【未設定】
 

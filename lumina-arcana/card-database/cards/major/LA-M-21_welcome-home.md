@@ -19,17 +19,17 @@ created: "2026-07-18"
 updated: "2026-07-18"
 ---
 
-> 画像は Version 0.9 の正式採用アセット。Meaning・Reflection・Affirmation は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
+> 画像は Version 0.9 の正式採用アセット。Reading・Reflection・Today's Light は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
 > 【正式仕様】(2026-07-18)画像に描かれる、光と影両方の翼を持つ人物は **CHR-002「ケイオス(Chaos)・混沌の女神」**(愛称: ケイオスちゃん)。**本カードが Lumina Arcana 本編におけるケイオスの正式初登場**として扱う(→ [character-bible/chaos-chan.md](../../../character-bible/characters/chaos-chan.md))
 > 最終番(21番)。デッキの締めくくりとして「おかえりなさい」「いってらっしゃい」の感情設計([02_時のゆりかご](../../../master-library/02_time-cradle.md))と強く呼応する
 
 # LA-M-21 おかえりなさい / Welcome Home
 
-## Message(メッセージ)
+## Card Message(メッセージ)
 
 あなたは、よくここまで来ました。たくさんの出会いと別れを経て、あなたは強く優しくなりました。ここは、あなたがいつでも帰ってこられる場所です。おかえりなさい。あなたの未来は、いつもあなたのそばにあります。さあ、また新しい旅を始めましょう。
 
-## Meaning(意味)
+## Reading(リーディング)
 
 【未設定】
 
@@ -37,7 +37,7 @@ updated: "2026-07-18"
 
 【未設定】
 
-## Affirmation(アファメーション)
+## Today's Light(今日の光)
 
 【未設定】
 

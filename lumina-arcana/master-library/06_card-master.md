@@ -29,7 +29,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | Card ID | 日本語タイトル | 英語タイトル | ステータス | ファイル |
 |---|---|---|---|---|
-| LA-M-00 | 生命の揺り籠 | Cradle of Life | draft (v0.9) | [LA-M-00](../card-database/cards/major/LA-M-00_cradle-of-life.md) |
+| LA-M-00 | 生命の揺り籠 | Cradle of Life | **review (v1.0・文章完了)** | [LA-M-00](../card-database/cards/major/LA-M-00_cradle-of-life.md) |
 | LA-M-01 | はじまりの灯 | The First Light | draft (v0.9) | [LA-M-01](../card-database/cards/major/LA-M-01_the-first-light.md) |
 | LA-M-02 | 導きの月 | Guiding Moon | draft (v0.9) | [LA-M-02](../card-database/cards/major/LA-M-02_guiding-moon.md) |
 | LA-M-03 | 育みの森 | Forest of Nurture | draft (v0.9) | [LA-M-03](../card-database/cards/major/LA-M-03_forest-of-nurture.md) |
@@ -52,7 +52,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-20 | 【未設定】 | | planned | (画像未着) |
 | LA-M-21 | おかえりなさい | Welcome Home | draft (v0.9) | [LA-M-21](../card-database/cards/major/LA-M-21_welcome-home.md) |
 
-**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。全21枚とも文章(ストーリー・各運勢メッセージ・今日の行動・注意点)は【未設定】で、Lumina/ケイオス師匠の執筆待ち。**
+**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00 のみ完了(review)。残り20枚は Lumina/ケイオス師匠の執筆待ち。**
 
 **登場人物の正式設定(2026-07-18)**: LA-M-12〜LA-M-20 に描かれる人物は「旅人」(ユーザー自身を投影する存在。固有名・設定・性別・年齢を持たない)。**LA-M-21 のみ CHR-002 ケイオス(混沌の女神)が本編正式初登場**。
 
@@ -89,6 +89,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-18 | v0.5 | LA-M-00「生命の揺り籠」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。全カード中最初の文章完成カードとして status を review に更新 |
 | 2026-07-18 | v0.4 | ユーザー決定: LA-M-12〜LA-M-20 の人物は「旅人」(既存キャラクターではない)、LA-M-21 のみ CHR-002 ケイオス(混沌の女神)が本編正式初登場と確定 |
 | 2026-07-18 | v0.3 | ⚠️ Card ID 体系を LA-M-00〜LA-M-21(0始まり)に確定(2026-07-16決定を撤回)。実際に受領した21枚(LA-M-20を除く)の画像・タイトルを Version 0.9 として正式登録。テンプレート識別子を LA-TEMPLATE-00 に変更 |
 | 2026-07-16 | v0.2 | (撤回済み)ユーザー決定により LA-M-00 をテンプレート専用の予約IDとし、正式一覧から除外。メジャーの正式番号を LA-M-01〜LA-M-22 に変更 |

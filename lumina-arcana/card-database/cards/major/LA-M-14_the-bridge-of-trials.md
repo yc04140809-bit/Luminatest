@@ -19,16 +19,16 @@ created: "2026-07-18"
 updated: "2026-07-18"
 ---
 
-> 画像は Version 0.9 の正式採用アセット。Meaning・Reflection・Affirmation は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
+> 画像は Version 0.9 の正式採用アセット。Reading・Reflection・Today's Light は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
 > 【正式仕様】(2026-07-18)画像の人物は「旅人」。ユーザー自身を投影するための存在であり、固有名・設定・性別・年齢を持たない。既存キャラクターではない(No.12〜20共通)
 
 # LA-M-14 試練の橋 / The Bridge of Trials
 
-## Message(メッセージ)
+## Card Message(メッセージ)
 
 試練は、あなたを折るためではなく、あなたを強くするためにあります。恐れずに、一歩ずつ進みましょう。
 
-## Meaning(意味)
+## Reading(リーディング)
 
 【未設定】
 
@@ -36,7 +36,7 @@ updated: "2026-07-18"
 
 【未設定】
 
-## Affirmation(アファメーション)
+## Today's Light(今日の光)
 
 【未設定】
 

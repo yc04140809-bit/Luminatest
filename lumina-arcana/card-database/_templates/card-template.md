@@ -6,7 +6,7 @@ title_en: ""                  # 英語タイトル
 arcana: ""                    # major / minor
 suit: ""                      # メジャーは null。マイナーはスート名(確定後)
 attribute: ""                 # 属性(4属性は 01_worldview と整合させる)
-keywords: []                  # キーワード(3〜5個) 例: ["はじまり", "光", "一歩"]
+keywords: []                  # キーワード(目安3〜5個。特別な意味を持つカードは増やしてよい) 例: ["はじまり", "光", "一歩"]
 symbols: []                   # 象徴(モチーフ・登場キャラID) 例: ["朝の光", "CHR-001"]
 lucky_color: ""               # ラッキーカラー
 lucky_number: null            # ラッキーナンバー
@@ -23,24 +23,28 @@ updated: "YYYY-MM-DD"
 # LA-X-00 タイトル(日本語) / Title (English)
 
 <!--
-  Lumina Arcana 共通フォーマット(2026-07-18 確定)
-  カード本文は以下5項目で統一する: Message / Meaning / Reflection / Keywords / Affirmation
+  Lumina Arcana 共通フォーマット(2026-07-18 確定・改訂)
+  カード本文は以下5項目で統一する: Card Message / Reading / Reflection / Today's Light / Keywords
+  (旧名 Meaning / Affirmation は廃止)
+  Reading は「カード自身が語りかける形式」を正式仕様とする
+  Design Philosophy(カード固有の特別な意味合いの注釈)はカードデータに含めない。
+    必要な場合は development-rules 側や本ファイルの HTML コメントで管理する
   執筆ガイドラインは master-library/08_writing-guidelines.md を参照
 -->
 
-## Message(メッセージ)
+## Card Message(メッセージ)
 
 <!-- 1文、50字前後。今日のあなたへ、短く手渡す言葉。アプリ画面①に表示される -->
 
-## Meaning(意味)
+## Reading(リーディング)
 
-<!-- 2〜4文。カードの象徴・情景の意味を説明する。アプリ画面②に表示される -->
+<!-- カードが一人称(「私は〜」)で語りかける形式。詩的な複数行。アプリ画面②に表示される -->
 
 ## Reflection(問いかけ)
 
 <!-- 1つの問い。静かに自分と向き合うための問いかけ。Yes/Noで終わらない開いた問いにする。ジャーナルへの橋渡し -->
 
-## Affirmation(アファメーション)
+## Today's Light(今日の光)
 
 <!-- 一人称の短い宣言文。例: 「私は、今日の小さな一歩を信じます。」 -->
 

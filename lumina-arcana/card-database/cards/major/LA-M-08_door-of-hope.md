@@ -19,15 +19,15 @@ created: "2026-07-18"
 updated: "2026-07-18"
 ---
 
-> 画像は Version 0.9 の正式採用アセット。Meaning・Reflection・Affirmation は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
+> 画像は Version 0.9 の正式採用アセット。Reading・Reflection・Today's Light は【未設定】(Lumina/ケイオス師匠の執筆待ち。共通フォーマットは05章参照)。
 
 # LA-M-08 希望の扉 / Door of Hope
 
-## Message(メッセージ)
+## Card Message(メッセージ)
 
 扉の向こうには、あなたが信じてきた未来が待っています。
 
-## Meaning(意味)
+## Reading(リーディング)
 
 【未設定】
 
@@ -35,7 +35,7 @@ updated: "2026-07-18"
 
 【未設定】
 
-## Affirmation(アファメーション)
+## Today's Light(今日の光)
 
 【未設定】
 
