@@ -41,7 +41,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-07 | 再生の光 | Light of Rebirth | **review (v1.0・文章完了)** | [LA-M-07](../card-database/cards/major/LA-M-07_light-of-rebirth.md) |
 | LA-M-08 | 希望の扉 | Door of Hope | **review (v1.0・文章完了)** | [LA-M-08](../card-database/cards/major/LA-M-08_door-of-hope.md) |
 | LA-M-09 | 未来への道 | Path to the Future | **review (v1.0・文章完了)** | [LA-M-09](../card-database/cards/major/LA-M-09_path-to-the-future.md) |
-| LA-M-10 | 魂の神殿 | Temple of the Soul | draft (v0.9) | [LA-M-10](../card-database/cards/major/LA-M-10_temple-of-the-soul.md) |
+| LA-M-10 | 魂の神殿 | Temple of the Soul | **review (v1.0・文章完了)** | [LA-M-10](../card-database/cards/major/LA-M-10_temple-of-the-soul.md) |
 | LA-M-11 | 真実の水晶洞 | Crystal Cave of Truth | draft (v0.9) | [LA-M-11](../card-database/cards/major/LA-M-11_crystal-cave-of-truth.md) |
 | LA-M-12 | 最初の旅人 | The First Traveler | draft (v0.9) | [LA-M-12](../card-database/cards/major/LA-M-12_the-first-traveler.md) |
 | LA-M-13 | 出会い | The Encounter | draft (v0.9) | [LA-M-13](../card-database/cards/major/LA-M-13_the-encounter.md) |
@@ -54,7 +54,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 | LA-M-20 | 【未設定】 | | planned | (画像未着) |
 | LA-M-21 | おかえりなさい | Welcome Home | draft (v0.9) | [LA-M-21](../card-database/cards/major/LA-M-21_welcome-home.md) |
 
-**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00〜LA-M-09 の10枚完了(review)。残り11枚は Lumina/ケイオス師匠の執筆待ち。**
+**進捗: 21/22枚が Version 0.9(画像確定)。LA-M-20 のみ画像未着。文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)は LA-M-00〜LA-M-10 の11枚完了(review)。残り10枚は Lumina/ケイオス師匠の執筆待ち。**
 
 **登場人物の正式設定(2026-07-18)**: LA-M-12〜LA-M-20 に描かれる人物は「旅人」(ユーザー自身を投影する存在。固有名・設定・性別・年齢を持たない)。**LA-M-21 のみ CHR-002 ケイオス(混沌の女神)が本編正式初登場**。
 
@@ -91,6 +91,7 @@ Card ID の発番・タイトル・制作ステータスはこの表で管理し
 
 | 日付 | 版 | 内容 |
 |---|---|---|
+| 2026-07-18 | v0.16 | LA-M-10「魂の神殿」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。タイトルが画像と一致することを確認。status を review に更新 |
 | 2026-07-18 | v0.15 | LA-M-09「未来への道」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。タイトルが画像と一致することを確認。status を review に更新 |
 | 2026-07-18 | v0.14 | LA-M-08「希望の扉」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。タイトルが画像と一致することを確認。status を review に更新 |
 | 2026-07-18 | v0.13 | LA-M-07「再生の光」の文章コンテンツ(Card Message/Reading/Reflection/Today's Light/Keywords)をLuminaより正式受領。タイトルが画像と一致することを確認。status を review に更新 |
