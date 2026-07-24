@@ -23,6 +23,7 @@ import { TrendNoteStudio } from "./components/TrendNoteStudio.js";
 import { VideoStudio } from "./components/VideoStudio.js";
 import { UsageDashboard } from "./components/UsageDashboard.js";
 import { ArchivePanel } from "./components/ArchivePanel.js";
+import { LuminaBrainScreen } from "./components/luminaBrain/LuminaBrainScreen.js";
 import { postBriefing } from "./api/officeApi.js";
 import { todayInTokyo } from "./utils/dateUtil.js";
 
@@ -44,6 +45,7 @@ export default function App() {
   const [openCouncilSessionId, setOpenCouncilSessionId] = useState<string | null>(null);
   const seenCouncilIds = useRef<Set<string>>(new Set());
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [luminaBrainOpen, setLuminaBrainOpen] = useState(false);
   const briefingRequested = useRef(false);
   const bgm = useBgm();
   useApplyTheme(office?.theme);
@@ -198,6 +200,8 @@ export default function App() {
         <CouncilRoom session={displayedCouncilSession} agents={office.agents} onClose={() => setCouncilRoomOpen(false)} />
       )}
 
+      {luminaBrainOpen && <LuminaBrainScreen onClose={() => setLuminaBrainOpen(false)} />}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
           <OfficeBoard
@@ -205,6 +209,7 @@ export default function App() {
             activeMeetings={office.activeMeetings}
             runningMeeting={runningMeeting}
             onMention={handleMention}
+            onOpenLuminaBrain={() => setLuminaBrainOpen(true)}
           />
           <div className="h-[420px]">
             <ChatTimeline messages={office.messages} agents={office.agents} />

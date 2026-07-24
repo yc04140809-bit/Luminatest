@@ -1,5 +1,6 @@
 import type { ActiveMeeting, Agent, StrategyMeeting } from "@chaos-ai-suite/shared";
 import { AgentDesk } from "./AgentDesk.js";
+import { LuminaBrainPc } from "./luminaBrain/LuminaBrainPc.js";
 import { useTimeOfDay } from "../hooks/useTimeOfDay.js";
 import { getDeskAnchor } from "../utils/deskAnchors.js";
 import { shortRole } from "../utils/agentRole.js";
@@ -10,6 +11,8 @@ interface OfficeBoardProps {
   /** 進行中の戦略経営会議。発言中のAI社員の頭上に吹き出しを表示するために使う。 */
   runningMeeting?: StrategyMeeting;
   onMention?: (agent: Agent) => void;
+  /** 指定時のみオフィス内にLumina Brainへの入口（共有PC）を表示する。 */
+  onOpenLuminaBrain?: () => void;
 }
 
 const BACKGROUND_BY_TIME = {
@@ -18,7 +21,7 @@ const BACKGROUND_BY_TIME = {
 } as const;
 
 /** オフィス写真（昼/夜を時間帯で自動切り替え）の上に、実際のデスク位置へAI社員を重ねるビュー。 */
-export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention }: OfficeBoardProps) {
+export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention, onOpenLuminaBrain }: OfficeBoardProps) {
   const timeOfDay = useTimeOfDay();
 
   const speakerId = runningMeeting?.currentSpeakerId;
@@ -57,6 +60,8 @@ export function OfficeBoard({ agents, activeMeetings, runningMeeting, onMention 
             </div>
           );
         })}
+
+        {onOpenLuminaBrain && <LuminaBrainPc onOpen={onOpenLuminaBrain} />}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1.5">
