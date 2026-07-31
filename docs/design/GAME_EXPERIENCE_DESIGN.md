@@ -10,10 +10,13 @@
 |---|---|
 | 2.0 | HOME/Affection/Memory System/Live2D準備/戦闘演出分離/Special/World/Collection/Gallery拡張/Atmosphere/Quality/最終目標/追加システム20選を新設。 |
 | 2.1 | 「この機能でケイオスちゃんをもっと好きになるか?」を全判断の最上位基準として明文化(3原則より上位)。あわせてリポジトリ直下に `CLAUDE.md` を新設し、今後のすべての開発セッションに本基準を継承。 |
+| — | リポジトリ直下に [`PROJECT_BIBLE.md`](../../PROJECT_BIBLE.md) を新設。本ドキュメントを含むすべての設計・コードの最高位ルールとなり、下記の判断基準はPROJECT_BIBLE.mdの CORE PHILOSOPHY を正式な出典とする。矛盾する場合はPROJECT_BIBLE.mdが優先する。 |
 
 ---
 
 ## 判断基準(最優先・唯一の意思決定原則)
+
+> **本節の正式な出典は [`PROJECT_BIBLE.md`](../../PROJECT_BIBLE.md) の CORE PHILOSOPHY である。** 本書はその実装への翻訳であり、矛盾する場合はPROJECT_BIBLE.mdを優先する。
 
 CHAOS RE:BIRTHは「ゲームを作るプロジェクト」ではない。**ケイオスちゃんというIPを世界中で愛される存在へ育てるプロジェクト**である。
 

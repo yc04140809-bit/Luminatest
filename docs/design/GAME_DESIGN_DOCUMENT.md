@@ -2,6 +2,8 @@
 
 Episode0 開発用マスタードキュメント / 長期IP前提の拡張設計
 
+**最高位ルール**: [`PROJECT_BIBLE.md`](../../PROJECT_BIBLE.md) がこのプロジェクトの最高位ルールであり、本書を含むすべての設計・コードより優先する。矛盾する場合は必ずPROJECT_BIBLE.mdに従う。
+
 **関連ドキュメント**: 「プレイヤーがケイオスちゃんを好きになる体験」を定義する体験設計書 → [`GAME_EXPERIENCE_DESIGN.md`](./GAME_EXPERIENCE_DESIGN.md)(HOME/親密度/Memory System/Live2D準備/戦闘演出分離/ワールド/図鑑等)。本書(技術設計書)はアーキテクチャ・データ構造を、体験設計書は何を・なぜ作るかを定義する。
 
 ---

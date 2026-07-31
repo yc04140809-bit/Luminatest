@@ -1,26 +1,27 @@
 # CHAOS RE:BIRTH
 
-## このプロジェクトについて
+## 最高位ルール: PROJECT_BIBLE.md
 
-CHAOS RE:BIRTHは「ゲームを作るプロジェクト」ではない。**ケイオスちゃんというIPを世界中で愛される存在へ育てるプロジェクト**である。ゲームシステムはそのための手段であり、目的ではない。
+[`PROJECT_BIBLE.md`](PROJECT_BIBLE.md) が、このプロジェクトの**最高位ルール**である。コードより、設計より、新機能より優先する。本ファイルを含む他のすべての文書・設計・コードはこれに従属し、矛盾する場合は必ず `PROJECT_BIBLE.md` に立ち返って判断する。
 
-## 最優先の判断基準(すべての実装判断に適用する)
-
-新機能・仕様変更・実装方針・優先順位に迷ったときは、技術的な面白さ・機能の豪華さ・工数の少なさで判断しない。判断基準はただ一つ。
+作業を始める前に `PROJECT_BIBLE.md` を読むこと。特に **CORE PHILOSOPHY**(最優先判断基準)は、迷ったときに必ず適用する。
 
 > **この機能でケイオスちゃんをもっと好きになるか?**
+>
+> YES(シンプルでも愛着が深まる) → 採用する。
+> NO(豪華でも魅力を損なう、あるいは愛着と無関係) → 採用しない。
 
-- YES(シンプルでも愛着が深まる) → 採用する。
-- NO(豪華でも魅力を損なう、あるいは愛着と無関係) → 採用しない。
+機能を「増やす」こと自体には価値がない。迷ったら機能を削る側に倒す。この基準は他のすべての設計原則(アーキテクチャの美しさ・拡張性・パフォーマンス等)より優先する。
 
-機能を「増やす」こと自体には価値がない。迷ったら機能を削る側に倒す。この基準は他のすべての設計原則(アーキテクチャの美しさ・拡張性・パフォーマンス等)より優先する。矛盾する場合はこの基準が勝つ。
+`PROJECT_BIBLE.md` の他の柱(PLAYER=プレイヤーは相棒、CHAOS-CHAN=案内人/親友/家族、EMOTION=届けたい感情のリスト、SOUL=善悪でなく二人だけの物語、TIME=時間は嘘をつかない、MEMORY=データではなく思い出を保存する)は、機能設計・シナリオ執筆・UI/UX判断すべてに適用される前提として扱う。
 
 ## 設計ドキュメント
 
+- [`PROJECT_BIBLE.md`](PROJECT_BIBLE.md) — 最高位ルール(このプロジェクトが何であり、何でないか)
 - [`docs/design/GAME_DESIGN_DOCUMENT.md`](docs/design/GAME_DESIGN_DOCUMENT.md) — 技術設計書(エンジン選定、フォルダ構成、データ構造、Character/Story/Battle/Save/Localization/Plugin化、Character Gallery System 等)
-- [`docs/design/GAME_EXPERIENCE_DESIGN.md`](docs/design/GAME_EXPERIENCE_DESIGN.md) — 体験設計書(HOME、親密度、Memory System、Live2D準備、戦闘演出分離、World、Collection、Atmosphere、そして上記の判断基準そのもの)
+- [`docs/design/GAME_EXPERIENCE_DESIGN.md`](docs/design/GAME_EXPERIENCE_DESIGN.md) — 体験設計書(HOME、親密度、Memory System、Live2D準備、戦闘演出分離、World、Collection、Atmosphere 等。PROJECT_BIBLEの理念を実装可能な設計へ翻訳したもの)
 
-新しい章・仕様を追加する際は、まずこの2文書のどちらに属するかを判断し(「何を・なぜ作るか」は体験設計書、「どう実装するか」は技術設計書)、既存の章番号を踏まえて追記する。ゼロから書き直さない。
+新しい章・仕様を追加する際は、まず `PROJECT_BIBLE.md` に反するものでないか確認したうえで、技術設計書と体験設計書のどちらに属するかを判断し(「何を・なぜ作るか」は体験設計書、「どう実装するか」は技術設計書)、既存の章番号を踏まえて追記する。ゼロから書き直さない。
 
 ## 実装
 
