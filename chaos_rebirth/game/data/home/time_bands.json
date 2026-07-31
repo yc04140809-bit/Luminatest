@@ -1,0 +1,9 @@
+{
+  "bands": [
+    { "id": "morning",  "start_hour": 5,  "end_hour": 9,  "background": "backgrounds/bg_pink_room.png",  "bgm": "bgm_home_morning",  "greeting_key": "home_greeting_morning" },
+    { "id": "noon",     "start_hour": 9,  "end_hour": 16, "background": "backgrounds/bg_pink_room.png",  "bgm": "bgm_home_noon",     "greeting_key": "home_greeting_noon" },
+    { "id": "evening",  "start_hour": 16, "end_hour": 19, "background": "backgrounds/bg_night_room.png", "bgm": "bgm_home_evening",  "greeting_key": "home_greeting_evening" },
+    { "id": "night",    "start_hour": 19, "end_hour": 24, "background": "backgrounds/bg_night_room.png", "bgm": "bgm_home_night",    "greeting_key": "home_greeting_night" },
+    { "id": "midnight", "start_hour": 0,  "end_hour": 5,  "background": "backgrounds/bg_night_room.png", "bgm": "bgm_home_midnight", "greeting_key": "home_greeting_midnight" }
+  ]
+}

@@ -1,0 +1,94 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/scenes/battle/BattleMock.gd" id="1"]
+
+[node name="BattleMock" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.039, 0.102, 1)
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 40.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 16
+
+[node name="EnemyRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="EnemyNameLabel" type="Label" parent="VBox/EnemyRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 0)
+theme_override_colors/font_color = Color(0.847, 0.71, 0.416, 1)
+text = "Enemy"
+
+[node name="EnemyHpBar" type="ProgressBar" parent="VBox/EnemyRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 24)
+show_percentage = false
+
+[node name="PlayerRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PlayerNameLabel" type="Label" parent="VBox/PlayerRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 0)
+theme_override_colors/font_color = Color(1, 0.541, 0.788, 1)
+text = "ケイオス"
+
+[node name="PlayerHpBar" type="ProgressBar" parent="VBox/PlayerRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 24)
+show_percentage = false
+
+[node name="LogScroll" type="ScrollContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="LogLabel" type="RichTextLabel" parent="VBox/LogScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+
+[node name="CommandRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="AttackButton" type="Button" parent="VBox/CommandRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 60)
+text = "攻撃"
+
+[node name="BackButton" type="Button" parent="VBox/CommandRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 60)
+text = "戻る"

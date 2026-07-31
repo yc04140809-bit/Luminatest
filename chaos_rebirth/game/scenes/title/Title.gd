@@ -26,7 +26,7 @@ func _on_start_pressed() -> void:
 
 func _on_continue_pressed() -> void:
 	SaveManager.load_game(SAVE_SLOT)
-	GameManager.goto_story_scene(TEST_SCENE_PATH)
+	GameManager.goto_home()
 
 
 func _on_gallery_pressed() -> void:

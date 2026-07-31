@@ -1,0 +1,7 @@
+{
+  "battle_mock_start_line": "%sが現れた!",
+  "battle_mock_player_attack_line": "ケイオスの攻撃! %dダメージ!",
+  "battle_mock_enemy_attack_line": "反撃を受けた…… %dダメージ",
+  "battle_mock_victory_line": "勝った……! やったね。",
+  "battle_mock_defeat_line": "やられちゃった……。でも、大丈夫。"
+}

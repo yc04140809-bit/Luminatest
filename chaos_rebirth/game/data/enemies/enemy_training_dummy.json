@@ -1,0 +1,14 @@
+{
+  "id": "enemy_training_dummy",
+  "name_key": "enemy_training_dummy_name",
+  "max_hp": 80,
+  "attack": 12,
+  "defense": 4,
+  "speed": 8,
+  "element": "neutral",
+  "skill_ids": [],
+  "exp_reward": 20,
+  "drop_item_ids": [],
+  "is_boss": false,
+  "sprite": "enemies/training_dummy.png"
+}

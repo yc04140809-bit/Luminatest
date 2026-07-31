@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.3", "Mobile")
 
 LocalizationManager="*res://core/localization_core/LocalizationManager.gd"
 Flags="*res://game/autoload/Flags.gd"
+MemoryManager="*res://game/memory/MemoryManager.gd"
 SaveManager="*res://game/autoload/SaveManager.gd"
 AudioManager="*res://game/autoload/AudioManager.gd"
 GameManager="*res://game/autoload/GameManager.gd"

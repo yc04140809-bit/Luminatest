@@ -1,0 +1,44 @@
+{
+  "memories": [
+    {
+      "id": "mem_met_kaosu",
+      "category": "milestone",
+      "tags": ["story", "beginning"],
+      "importance": 7,
+      "trigger": { "type": "story_flag", "flag": "met_kaosu" },
+      "text_key": "memory_met_kaosu_line",
+      "reference_cooldown_days": 2,
+      "max_references": null
+    },
+    {
+      "id": "mem_first_login",
+      "category": "daily",
+      "tags": ["login", "beginning"],
+      "importance": 6,
+      "trigger": { "type": "story_flag", "flag": "first_home_visit" },
+      "text_key": "memory_first_login_line",
+      "reference_cooldown_days": 3,
+      "max_references": null
+    },
+    {
+      "id": "mem_first_battle_win",
+      "category": "milestone",
+      "tags": ["battle", "temple"],
+      "importance": 8,
+      "trigger": { "type": "story_flag", "flag": "ep0_first_battle_won" },
+      "text_key": "memory_first_battle_win_line",
+      "reference_cooldown_days": 3,
+      "max_references": null
+    },
+    {
+      "id": "mem_first_battle_loss",
+      "category": "milestone",
+      "tags": ["battle", "setback"],
+      "importance": 5,
+      "trigger": { "type": "story_flag", "flag": "ep0_first_battle_lost" },
+      "text_key": "memory_first_battle_loss_line",
+      "reference_cooldown_days": 3,
+      "max_references": null
+    }
+  ]
+}
