@@ -2,6 +2,8 @@
 
 Episode0 開発用マスタードキュメント / 長期IP前提の拡張設計
 
+**関連ドキュメント**: 「プレイヤーがケイオスちゃんを好きになる体験」を定義する体験設計書 → [`GAME_EXPERIENCE_DESIGN.md`](./GAME_EXPERIENCE_DESIGN.md)(HOME/親密度/Memory System/Live2D準備/戦闘演出分離/ワールド/図鑑等)。本書(技術設計書)はアーキテクチャ・データ構造を、体験設計書は何を・なぜ作るかを定義する。
+
 ---
 
 ## 改訂履歴
@@ -11,6 +13,7 @@ Episode0 開発用マスタードキュメント / 長期IP前提の拡張設計
 | 1.0 | Episode0を完成させるための最小設計(技術選定〜MVP定義) |
 | 1.1 | 長期IPとして育てる前提で、Asset管理/Character System/Story System/Battle System/Save System/Localization/Plugin化 の拡張設計を追加(第10〜16章)。あわせて会話パートの技術方針を自社製StoryEngine(JSON駆動)に更新。 |
 | 1.2 | Character Gallery System(キャラクターギャラリー)の設計を追加(第18章)し、Godotプロジェクトへ実装。 |
+| — | 体験設計書 `GAME_EXPERIENCE_DESIGN.md` Ver.2.0 を新設(HOME/Affection/Memory System等)。第18章Galleryの拡張要件(Memory一覧・お気に入り)は体験設計書 第10章を参照。 |
 
 ---
 
