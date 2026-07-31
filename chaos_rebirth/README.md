@@ -29,6 +29,15 @@
 - セーブは `story_progress.json` に加えて `memory.json` を保存/復元する(第14章のモジュール分割セーブを踏襲)。
 - Title「はじめから」→ 会話(JSON) → Home。「つづきから」→ Home へ直接。
 
+### Golden Slice Review 改善(1周目)
+
+CLAUDE.md記載の7項目レビューを実施した結果、BattleMockが「ケイオスちゃんが目立っていない」「気持ちよくない」「テンポが悪い」「PROJECT_BIBLEのDESIGN原則に反する」でNOと判定し、以下を改善した。
+
+- `core/ui_kit/SceneFader.gd` : 画面遷移フェード(IP非依存、autoload)。すべてのシーン遷移(`GameManager.goto_*`)を0.45秒フェードに統一し、瞬間切り替えを排除。
+- `game/scenes/battle/BattleMock.tscn` : ケイオスちゃんの立ち絵を常時表示し、攻撃のたびに軽いパンチ演出(伸縮tween)を追加。プレイヤー/敵の攻撃応酬に0.35秒の間を入れ、テンポを調整。
+
+再レビューで7項目すべてYESとなったため次工程へ進行。
+
 ## 動作確認方法
 
 Godot 4.3 (stable) の実行ファイルがあれば、GUIなしで動作確認できる。
