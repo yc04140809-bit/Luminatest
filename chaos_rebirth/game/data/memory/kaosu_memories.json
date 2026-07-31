@@ -8,7 +8,8 @@
       "trigger": { "type": "story_flag", "flag": "met_kaosu" },
       "text_key": "memory_met_kaosu_line",
       "reference_cooldown_days": 2,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "HAPPY", "priority": 30, "duration_sec": 600 }
     },
     {
       "id": "mem_first_login",
@@ -28,7 +29,8 @@
       "trigger": { "type": "story_flag", "flag": "ep0_first_battle_won" },
       "text_key": "memory_first_battle_win_line",
       "reference_cooldown_days": 3,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "HAPPY", "priority": 30, "duration_sec": 600 }
     },
     {
       "id": "mem_first_battle_loss",
@@ -38,7 +40,8 @@
       "trigger": { "type": "story_flag", "flag": "ep0_first_battle_lost" },
       "text_key": "memory_first_battle_loss_line",
       "reference_cooldown_days": 3,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "SAD", "priority": 30, "duration_sec": 600 }
     },
     {
       "id": "mem_returned_next_day",
@@ -48,7 +51,8 @@
       "trigger": { "type": "login_streak", "days": 2 },
       "text_key": "memory_returned_next_day_line",
       "reference_cooldown_days": 5,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "HAPPY", "priority": 25, "duration_sec": 400 }
     },
     {
       "id": "mem_login_streak_7",
@@ -58,7 +62,8 @@
       "trigger": { "type": "login_streak", "days": 7 },
       "text_key": "memory_login_streak_7_line",
       "reference_cooldown_days": 5,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "HAPPY", "priority": 25, "duration_sec": 400 }
     },
     {
       "id": "mem_absence_return",
@@ -68,7 +73,8 @@
       "trigger": { "type": "absence_return", "min_days": 7 },
       "text_key": "memory_absence_return_line",
       "reference_cooldown_days": 3,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "SAD", "priority": 35, "duration_sec": 600 }
     },
     {
       "id": "mem_anniversary_30days",
@@ -78,7 +84,8 @@
       "trigger": { "type": "date_special", "kind": "anniversary", "unit": "day", "count": 30 },
       "text_key": "memory_anniversary_30days_line",
       "reference_cooldown_days": 10,
-      "max_references": null
+      "max_references": null,
+      "emotion_bias": { "emotion": "SPECIAL", "priority": 45, "duration_sec": 900 }
     }
   ]
 }

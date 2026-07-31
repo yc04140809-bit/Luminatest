@@ -18,6 +18,7 @@ const RECENT_TAGS_WINDOW := 3
 var _definitions: Dictionary = {}   # id -> definition dict
 var _records: Dictionary = {}       # id -> { occurred_at, reference_count, last_referenced_at }
 var _recent_tags: Array = []
+var _last_picked_emotion_bias: Dictionary = {}
 
 ## ログイン記録(連続ログイン/久しぶり/記念日判定に使う)
 var _attendance: Dictionary = { "first_login_date": "", "last_login_date": "", "streak": 0 }
@@ -104,6 +105,7 @@ func pick_reaction_text_key() -> String:
 
 	var chosen := MemorySelector.select(candidates, _recent_tags)
 	if chosen.is_empty():
+		_last_picked_emotion_bias = {}
 		return ""
 
 	var id: String = chosen["id"]
@@ -114,7 +116,19 @@ func pick_reaction_text_key() -> String:
 	while _recent_tags.size() > RECENT_TAGS_WINDOW:
 		_recent_tags.pop_front()
 
+	# Emotion Engine連携用。MemoryManagerはEmotionManagerを一切呼び出さない
+	# (責務分離)。「今選ばれたMemoryにemotion_biasが付いているか」を
+	# 問い合わせられるようにするだけで、実際にEmotionManagerへ渡すかどうかは
+	# 呼び出し元(Home.gd等)の判断に委ねる。
+	_last_picked_emotion_bias = _definitions.get(id, {}).get("emotion_bias", {})
+
 	return chosen.get("text_key", "")
+
+
+## 直近の pick_reaction_text_key() で選ばれたMemoryのemotion_bias
+## (無ければ空Dictionary)。Emotion Engineへ橋渡しする際に使う。
+func get_last_picked_emotion_bias() -> Dictionary:
+	return _last_picked_emotion_bias.duplicate(true)
 
 
 ## 「前回話題」用: 直近で実際に参照されたMemoryのID(無ければ空文字)。

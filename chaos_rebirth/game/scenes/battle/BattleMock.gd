@@ -8,6 +8,7 @@ extends Control
 ## 演出中はCharacterPortraitViewのアイドルモーションを一時停止する。
 ## 勝敗はFlagsに記録し、Memory Systemの初勝利/初敗北Memoryのトリガーとなる。
 ## 戦闘直後のHome挨拶(リキャップ)用に、直近の勝敗を一時フラグとして渡す。
+## Emotion Engineへ瀕死・勝敗を通知し、ケイオスちゃんの表情に即反映する。
 
 const PLAYER_DATA_PATH := "res://game/data/characters/kaosu.json"
 const ENEMY_DATA_PATH := "res://game/data/enemies/enemy_training_dummy.json"
@@ -50,7 +51,7 @@ func _ready() -> void:
 	_enemy_name = LocalizationManager.t(enemy_data.get("name_key", ""))
 
 	kaosu_portrait.set_character(CHARACTER_ID)
-	kaosu_portrait.set_expression("normal")
+	kaosu_portrait.set_expression(EmotionManager.get_portrait_expression(CHARACTER_ID))
 
 	enemy_name_label.text = _enemy_name
 	player_hp_bar.max_value = _player_max_hp
@@ -92,6 +93,10 @@ func _on_attack_pressed() -> void:
 		_end_battle(false)
 		return
 
+	if _player_hp <= _player_max_hp * 0.25:
+		EmotionManager.notify_near_death(CHARACTER_ID)
+		kaosu_portrait.set_expression(EmotionManager.get_portrait_expression(CHARACTER_ID))
+
 	_busy = false
 	attack_button.disabled = false
 
@@ -119,6 +124,9 @@ func _end_battle(won: bool) -> void:
 	else:
 		Flags.set_flag(LOSE_FLAG, true)
 		_log(LocalizationManager.t("battle_mock_defeat_line"))
+
+	EmotionManager.notify_battle_result(CHARACTER_ID, won, false)
+	kaosu_portrait.set_expression(EmotionManager.get_portrait_expression(CHARACTER_ID))
 
 
 func _on_back_pressed() -> void:

@@ -1,0 +1,15 @@
+{
+  "states": [
+    { "id": "NORMAL",    "portrait_expression": "normal",    "default_duration_sec": 0 },
+    { "id": "HAPPY",     "portrait_expression": "smile",     "default_duration_sec": 900 },
+    { "id": "SHY",       "portrait_expression": "shy",       "default_duration_sec": 600 },
+    { "id": "SAD",       "portrait_expression": "sad",       "default_duration_sec": 1200 },
+    { "id": "ANGRY",     "portrait_expression": "angry",     "default_duration_sec": 900 },
+    { "id": "SURPRISED", "portrait_expression": "surprised", "default_duration_sec": 300 },
+    { "id": "THINKING",  "portrait_expression": "thinking",  "default_duration_sec": 400 },
+    { "id": "SLEEPY",    "portrait_expression": "sleepy",    "default_duration_sec": 1800 },
+    { "id": "EXCITED",   "portrait_expression": "smile",     "default_duration_sec": 900 },
+    { "id": "TIRED",     "portrait_expression": "sleepy",    "default_duration_sec": 900 },
+    { "id": "SPECIAL",   "portrait_expression": "smile",     "default_duration_sec": 1800 }
+  ]
+}

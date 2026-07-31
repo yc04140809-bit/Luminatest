@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "battle_win":            { "emotion": "HAPPY",     "priority": 60, "duration_sec": 900 },
+    "battle_win_boss":       { "emotion": "EXCITED",   "priority": 70, "duration_sec": 1200 },
+    "battle_loss":           { "emotion": "SAD",       "priority": 60, "duration_sec": 900 },
+    "near_death":            { "emotion": "SURPRISED", "priority": 55, "duration_sec": 120 },
+    "level_up":               { "emotion": "EXCITED",   "priority": 65, "duration_sec": 600 },
+    "ultimate_used":          { "emotion": "EXCITED",   "priority": 65, "duration_sec": 300 },
+
+    "login_return_long_absence": { "emotion": "HAPPY", "priority": 40, "duration_sec": 600 },
+    "long_session":               { "emotion": "TIRED", "priority": 20, "duration_sec": 600 },
+
+    "time_band_morning":  { "emotion": "NORMAL", "priority": 4,  "duration_sec": 300 },
+    "time_band_noon":     { "emotion": "NORMAL", "priority": 4,  "duration_sec": 300 },
+    "time_band_evening":  { "emotion": "NORMAL", "priority": 4,  "duration_sec": 300 },
+    "time_band_night":    { "emotion": "NORMAL", "priority": 4,  "duration_sec": 300 },
+    "time_band_midnight": { "emotion": "SLEEPY", "priority": 10, "duration_sec": 300 },
+
+    "relationship_baseline_stranger":     { "emotion": "NORMAL", "priority": 2, "duration_sec": 60 },
+    "relationship_baseline_acquaintance": { "emotion": "NORMAL", "priority": 2, "duration_sec": 60 },
+    "relationship_baseline_friend":       { "emotion": "HAPPY",  "priority": 2, "duration_sec": 60 },
+    "relationship_baseline_best_friend":  { "emotion": "HAPPY",  "priority": 3, "duration_sec": 90 },
+    "relationship_baseline_family":       { "emotion": "HAPPY",  "priority": 4, "duration_sec": 120 },
+
+    "player_choice_friendly_choice":   { "emotion": "HAPPY",    "priority": 50, "duration_sec": 400 },
+    "player_choice_suspicious_choice": { "emotion": "THINKING", "priority": 50, "duration_sec": 400 }
+  }
+}

@@ -7,8 +7,8 @@
     { "type": "expression_change", "id": "kaosu", "expression": "smile" },
     { "type": "say", "speaker": "kaosu", "text_key": "ep0_000_line002" },
     { "type": "choice", "options": [
-      { "text_key": "ep0_000_choice_a" },
-      { "text_key": "ep0_000_choice_b" }
+      { "text_key": "ep0_000_choice_a", "emotion_tag": "friendly_choice" },
+      { "text_key": "ep0_000_choice_b", "emotion_tag": "suspicious_choice" }
     ]},
     { "type": "set_flag", "flag": "met_kaosu", "value": true },
     { "type": "say", "speaker": "kaosu", "text_key": "ep0_000_line003" }

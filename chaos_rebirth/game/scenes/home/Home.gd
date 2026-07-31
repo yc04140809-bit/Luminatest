@@ -4,9 +4,13 @@ extends Control
 ## ゲーム起動後・各コンテンツ終了後は必ずここへ戻る「居場所」。
 ## PROJECT_BIBLE: 主役は常にケイオスちゃん。UIは目立たない。時間は嘘をつかない。
 ##
+## Emotion Engine(game/emotion)のオーケストレーション拠点。Home自身は
+## MemoryManager/AffectionManager/EmotionManagerそれぞれの単体API(読み取り・
+## 通知)だけを呼び、3者の間を橋渡しする(各Managerは互いを直接知らない)。
+##
 ## 挨拶の優先順位: ①戦闘直後のリキャップ(一度きり) > ②Memory Systemの
-## リアクション > ③時間帯の通常挨拶。呼び方・口調はRelationshipStage
-## (AffectionManager)に応じて自動的に変化する。
+## リアクション > ③時間帯の通常挨拶。文言は Emotion → RelationshipStage の
+## 順で言い回しを差し替え、表情もEmotionに追従する。
 
 const TIME_BANDS_PATH := "res://game/data/home/time_bands.json"
 const ASSET_ROOT := "res://game/assets/"
@@ -34,6 +38,7 @@ func _ready() -> void:
 
 	_apply_time_band()
 	kaosu_portrait.set_character(CHARACTER_ID)
+	_evaluate_ambient_emotion()
 	_on_kaosu_tapped()
 
 	story_button.text = LocalizationManager.t("home_nav_story")
@@ -80,16 +85,21 @@ func _hour_in_band(hour: int, band: Dictionary) -> bool:
 	return hour >= start or hour < end
 
 
-## ケイオスちゃんをタップするたび、表情(親密度による笑顔頻度)と
-## 挨拶(戦闘リキャップ > Memory > 通常挨拶の優先順位)を再抽選する。
+## Emotion Engineへ「今この瞬間の環境要因」を通知する(Home連携・Battle連携とは
+## 別枠の、常時ゆるく効くアンビエント要因)。優先度は低いため、戦闘結果等の
+## 強い出来事があればそちらが優先される(core/emotion_engineの優先度解決による)。
+func _evaluate_ambient_emotion() -> void:
+	EmotionManager.notify_time_band(CHARACTER_ID, String(_current_band.get("id", "")))
+	EmotionManager.notify_relationship_baseline(CHARACTER_ID, AffectionManager.get_stage(CHARACTER_ID))
+	EmotionManager.notify_login(CHARACTER_ID, MemoryManager.get_last_login_gap_days())
+	EmotionManager.check_long_session(CHARACTER_ID)
+
+
+## ケイオスちゃんをタップするたび、挨拶(戦闘リキャップ > Memory > 通常挨拶の
+## 優先順位)とEmotionに応じた表情を再抽選する。
 func _on_kaosu_tapped() -> void:
-	kaosu_portrait.set_expression(_pick_idle_expression())
 	_refresh_greeting()
-
-
-func _pick_idle_expression() -> String:
-	var smile_bias := AffectionManager.get_smile_bias(CHARACTER_ID)
-	return "smile" if randf() < smile_bias else "normal"
+	kaosu_portrait.set_expression(EmotionManager.get_portrait_expression(CHARACTER_ID))
 
 
 func _refresh_greeting() -> void:
@@ -97,12 +107,19 @@ func _refresh_greeting() -> void:
 
 	var recap_key := _consume_battle_recap_key()
 	if recap_key != "":
-		greeting_label.text = LocalizationManager.t_for_context(recap_key, stage)
+		var emotion := EmotionManager.get_current_emotion(CHARACTER_ID)
+		greeting_label.text = LocalizationManager.t_for_contexts(recap_key, [emotion, stage])
 		return
 
 	var memory_key := MemoryManager.pick_reaction_text_key()
+	if memory_key != "":
+		# Memoryが持つ感情バイアスをEmotion Engineへ橋渡しする(MemoryManagerと
+		# EmotionManagerは互いを直接知らないため、この画面が仲介する)。
+		EmotionManager.notify_bias(CHARACTER_ID, MemoryManager.get_last_picked_emotion_bias())
+
+	var emotion := EmotionManager.get_current_emotion(CHARACTER_ID)
 	var text_key: String = memory_key if memory_key != "" else String(_current_band.get("greeting_key", ""))
-	greeting_label.text = LocalizationManager.t_for_context(text_key, stage)
+	greeting_label.text = LocalizationManager.t_for_contexts(text_key, [emotion, stage])
 
 
 ## 戦闘直後の一度きりのリキャップ。表示したら即フラグを消費するので、

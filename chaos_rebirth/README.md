@@ -52,6 +52,21 @@ CLAUDE.md記載の7項目レビューを実施した結果、BattleMockが「ケ
 - 親密度ポイントの付与: Home初回訪問+10、会話シーン終了+5、戦闘勝利+20(いずれも仮の値、バランス調整は今後)。
 - セーブに `affection.json` モジュールを追加。
 
+## Emotion Engine(瞬間の感情。Memory/RelationshipStage/Story/Battle/Homeが共有する共通エンジン)
+
+新規設計章は追加せず、既存4システムから呼べる共通エンジンとして統合。「ケイオスちゃんが毎回同じ反応ではなく、今この瞬間の感情で自然に話す」ことが目的。
+
+- `core/emotion_engine/EmotionEngine.gd` : 候補(候補: emotion/priority/duration_sec)から優先度最大のものを選ぶ純粋関数と、持続時間の経過判定(IP非依存)。
+- `game/emotion/EmotionManager.gd` : Emotionのgame層実装(autoload)。状態一覧・イベント→感情の対応表は一切コードへ書かず `game/data/emotion/emotion_states.json`(状態: NORMAL/HAPPY/SHY/SAD/ANGRY/SURPRISED/THINKING/SLEEPY/EXCITED/TIRED/SPECIAL の11種、将来100種以上追加可能)と `emotion_rules.json`(イベントID→感情の対応表)から解決する。**MemoryManager・AffectionManagerを直接呼び出さない**(責務分離。橋渡しはHome.gd/StoryPlayer.gd/BattleMock.gdといった各画面のオーケストレーションコードが担う)。
+- Emotion Priority: 新しい候補と、まだ持続時間内の現在の感情を比較し優先度が高い方を採用。弱いアンビエント信号(時間帯・RelationshipStage基準)は強い出来事(戦闘結果等)を上書きしない。Emotion Duration: 持続時間が経過すると自動的にNORMAL等へ戻る(次に問い合わせた時点で遅延評価、常時ticking不要)。
+- `core/ui_kit/CharacterPortraitView.gd` に表情クロスフェード(0.12秒×2)を追加し、瞬間切替を禁止(初回表示のみ即時)。
+- `core/story_engine/StoryEngine.gd` に `choice_selected` シグナルを追加。選択肢JSONの任意フィールド `emotion_tag` をそのまま通知し、StoryPlayerがEmotionManagerへ橋渡しする(プレイヤー選択肢→Emotion)。
+- `core/localization_core/LocalizationManager.gd` に `t_for_contexts(base_key, [emotion, stage])` を追加。Emotion別の言い回しをRelationshipStage別より優先して探し、無ければ元のキーへフォールバックする。
+- Memory連携: Memory定義に任意の `emotion_bias` を追加可能にし(例: 初敗北→SAD、久しぶり→SAD、30日記念日→SPECIAL)、`MemoryManager.get_last_picked_emotion_bias()` で取得できるようにした。MemoryManager自体はEmotionの存在を知らない。
+- Battle連携: `BattleMock` が勝利/敗北/瀕死(HP25%以下)でEmotionManagerへ通知し、表情へ即反映。ボス撃破→EXCITED、レベルアップ・必殺技使用のAPIも用意(実システム未実装のため現状未接続)。
+- Home連携: 時間帯(深夜→SLEEPY等)・RelationshipStage基準・久しぶりログイン(→HAPPY)・長時間プレイ(45分→TIRED)をアンビエント信号として通知。
+- セーブに `emotion.json` モジュールを追加。
+
 ## 動作確認方法
 
 Godot 4.3 (stable) の実行ファイルがあれば、GUIなしで動作確認できる。
@@ -71,6 +86,9 @@ godot --headless --script res://tools/phase2_smoke_test.gd
 
 # 表情/アイドルモーション/Memoryリアクション/Affectionテスト
 godot --headless --script res://tools/expression_memory_affection_smoke_test.gd
+
+# Emotion Engineテスト: 優先度解決・持続時間・Battle/Home/Memory/Story連携・セーブ往復
+godot --headless --script res://tools/emotion_engine_smoke_test.gd
 ```
 
 いずれも最後に `..._RESULT: PASS` が出力されれば正常(exit code 0)。
@@ -86,5 +104,6 @@ godot --headless --script res://tools/expression_memory_affection_smoke_test.gd
 - 仮戦闘は属性・状態異常・スキル・必殺技を持たない最小構成(第13章のBattle Systemは未実装)。
 - 表情差分は現在 normal/smile の2種類のみ実データがあり、他6種(照れ/怒り/悲しい/驚き/考え中/眠い)はCharacterPortraitView側で正しくnormalへフォールバックする(コードは完成、アセット待ち)。
 - アイドルモーションは瞬き・呼吸のみ実装(1枚絵のため)。髪揺れ・翼揺れはLive2D導入時に備えたモーションパラメータチャンネルとしてAPIのみ用意し、現状は見た目に反映しないダミー実装(体験設計書 第5.2節の想定どおり)。
-- Affectionの口調変化は `t_for_context` の仕組みが機能することを確認できる代表例(挨拶数点)のみ用意。全キー・全ステージの言い回しは今後拡充する。
+- Affection/Emotionの口調変化は `t_for_contexts` の仕組みが機能することを確認できる代表例(「おかえり」等)のみ用意。全キー・全パターンの言い回しは今後拡充する。
+- Emotionのレベルアップ・必殺技使用は将来のBattle System本実装向けのAPI(`notify_level_up`/`notify_ultimate_used`)のみ用意し、実際のゲームプレイからは未接続(対応するシステム自体が未実装のため)。
 - World/Collectionは体験設計書に設計済みだが未着手。

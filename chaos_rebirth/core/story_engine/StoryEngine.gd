@@ -13,6 +13,7 @@ signal character_expression_changed(id: String, expression: String)
 signal say_requested(speaker_id: String, text_key: String)
 signal memory_say_requested(speaker_id: String)
 signal choice_requested(options: Array)
+signal choice_selected(option: Dictionary)
 signal flag_changed(flag: String, value: Variant)
 signal scene_finished()
 
@@ -54,6 +55,9 @@ func choose(option_index: int) -> void:
 	if option_index < 0 or option_index >= options.size():
 		_advance()
 		return
+	# 選んだ選択肢そのものをそのまま通知する(内容の意味はgame層が解釈する。
+	# 例: "emotion_tag" フィールドをEmotion Engineへ橋渡しする等)。
+	choice_selected.emit(options[option_index])
 	var goto_target: String = options[option_index].get("goto", "")
 	if goto_target != "":
 		load_scene(_base_dir.path_join(goto_target + ".json"))

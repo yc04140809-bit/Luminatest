@@ -19,6 +19,10 @@ const BLINK_MAX_INTERVAL := 6.0
 const BREATH_AMPLITUDE := 4.0
 const BREATH_PERIOD := 3.2
 
+## Emotion Engine等による表情切り替えは瞬間切替を禁止し、必ず短いクロス
+## フェードで自然に遷移させる(PROJECT_BIBLE「瞬間切替は禁止」)。
+const EXPRESSION_FADE_DURATION := 0.12
+
 @export var motion_enabled: bool = true
 
 var _character_id: String = ""
@@ -90,8 +94,22 @@ func _refresh_texture() -> void:
 	var path := _expression_path(_expression)
 	if not ResourceLoader.exists(path):
 		path = _expression_path(DEFAULT_EXPRESSION)
-	if ResourceLoader.exists(path):
-		texture_rect.texture = load(path)
+	if not ResourceLoader.exists(path):
+		return
+
+	var new_texture: Texture2D = load(path)
+	if new_texture == texture_rect.texture:
+		return
+
+	if texture_rect.texture == null:
+		# 初回表示はフェードの必要がない(何も無い状態からの出現は「切替」ではない)。
+		texture_rect.texture = new_texture
+		return
+
+	var tween := create_tween()
+	tween.tween_property(texture_rect, "modulate:a", 0.0, EXPRESSION_FADE_DURATION)
+	tween.tween_callback(func(): texture_rect.texture = new_texture)
+	tween.tween_property(texture_rect, "modulate:a", 1.0, EXPRESSION_FADE_DURATION)
 
 
 func _expression_path(expression: String) -> String:
