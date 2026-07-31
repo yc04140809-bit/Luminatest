@@ -1,6 +1,15 @@
-# CHAOS RE:BIRTH ゲーム設計書 Ver.1.0
+# CHAOS RE:BIRTH ゲーム設計書 Ver.1.1
 
-Episode0 開発用マスタードキュメント
+Episode0 開発用マスタードキュメント / 長期IP前提の拡張設計
+
+---
+
+## 改訂履歴
+
+| Ver | 内容 |
+|---|---|
+| 1.0 | Episode0を完成させるための最小設計(技術選定〜MVP定義) |
+| 1.1 | 長期IPとして育てる前提で、Asset管理/Character System/Story System/Battle System/Save System/Localization/Plugin化 の拡張設計を追加(第10〜16章)。あわせて会話パートの技術方針を自社製StoryEngine(JSON駆動)に更新。 |
 
 ---
 
@@ -20,10 +29,12 @@ Episode0 開発用マスタードキュメント
 | レイヤー | 採用技術 |
 |---|---|
 | ゲームエンジン | **Godot Engine 4.x**(GDScript) |
-| 会話・ノベルパート | Godot アドオン **Dialogic 2** |
+| 会話・ノベルパート | **自社製 StoryEngine**(JSON駆動、`core/story_engine/` に実装。Dialogicは不採用) |
 | 対象プラットフォーム | Android(APK/AAB, Godot標準Androidエクスポート) |
-| データ形式 | Godot `Resource`(.tres) ＋ 一部 JSON(バランス調整用マスタデータ) |
-| セーブ | Godot `FileAccess` + 独自SaveDataResourceのシリアライズ(暗号化オプション有) |
+| データ形式 | シナリオ・キャラ・スキル等の**マスタデータはJSON**で外部化。実行時はGodot `Resource`にロードしてキャッシュ |
+| セーブ | Godot `FileAccess` + モジュール分割セーブ(第14章)。将来の課金・ガチャ等に対応 |
+| ローカライズ | テキストキー方式 + Godot Translation(CSV)/JSON併用(第15章) |
+| アーキテクチャ | `core/`(汎用フレームワーク)と `game/`(IP固有コンテンツ)を分離するプラグイン構造(第16章) |
 | バージョン管理 | Git / GitHub(本リポジトリ) |
 
 ### 1.2 選定理由
@@ -38,94 +49,101 @@ Episode0 開発用マスタードキュメント
 | Ren'Py | 無料 | ノベルパートは強いが戦闘システムは自作が重い | Python学習必要 | バトルUIは弱い | ノベル特化 | 見送り(参考採用: 会話演出の思想のみ) |
 | Web(HTML/CSS/JS + Capacitor) | 無料 | 実装済み資産(index.html)が流用できる | 現状のプロトタイプがそのまま活きる | ライブラリ選定が分散しがち | 長期的にアプリらしい挙動(オフライン/アセット管理)の保守が難しくなる | 見送り(UI/配色のリファレンスとして活用) |
 
-**結論**: Episode0は立ち絵・背景・会話・ターン制バトル・探索・セーブロードをすべて含む「小規模だが本格的なRPG」であり、これを**無料でAndroidネイティブに書き出せ、かつ2D特化で軽量・保守しやすい**Godot 4が最適。会話パートは自作せず、実績のあるアドオン **Dialogic 2** を使うことで、FGOのような「立ち絵＋背景＋テキストボックス＋選択肢」の会話システムを低コストで実現する。
+**結論**: Episode0は立ち絵・背景・会話・ターン制バトル・探索・セーブロードをすべて含む「小規模だが本格的なRPG」であり、これを**無料でAndroidネイティブに書き出せ、かつ2D特化で軽量・保守しやすい**Godot 4が最適。
 
 既存の `index.html` は破棄せず、**UIの配色・レイアウト・世界観のリファレンス**として扱う(ゴールド×ダークパープルの高級感あるトーン、丸みのあるチャットUIなど)。
+
+**Ver.1.1での方針変更(会話パート)**: Ver.1.0ではDialogic 2の採用を提案していたが、本プロジェクトを**長期IPとして育てる**前提に立つと、シナリオという最も価値の高い資産を**サードパーティ製アドオンの内部フォーマットに閉じ込めるのはリスク**と判断した(Godotのメジャーバージョン更新でアドオンが追随しない可能性、フォーマットがgit差分で読みにくい、非エンジニア(シナリオライター)が編集しづらい等)。
+そのため、会話パートは**JSON駆動の自社製StoryEngine**(第12章)を実装する方針に変更する。UI描画コンポーネント(テキストボックス・選択肢ボタン等)自体は元々自作の想定(第5.3節)だったため、実装コストの増分は限定的である。
 
 ### 1.3 バージョン方針
 
 - Godot 4.3以降の安定版(LTS的に使える最新の stable)を使用。
-- Dialogicはリリースされている安定版タグを固定して利用し、破壊的アップデートを避ける。
+- 外部アドオンへの依存は最小限にとどめ、コア機能(会話・戦闘・セーブ)は自社実装で内製化する(第16章のプラグイン方針を参照)。
 
 ---
 
 ## 2. フォルダ構成
 
-Godotプロジェクトとして以下の構成を採用する(`res://` = プロジェクトルート)。
+Godotプロジェクトとして以下の構成を採用する(`res://` = プロジェクトルート)。**Ver.1.1では「他作品にも流用できる汎用フレームワーク層(`core/`)」と「CHAOS RE:BIRTH固有のコンテンツ層(`game/`)」を分離する**(詳細方針は第16章)。
 
 ```
-CHAOS_ReBirth/                      # Godotプロジェクトルート
+CHAOS_ReBirth/                        # Godotプロジェクトルート
 ├─ project.godot
-├─ autoload/                        # シングルトン(オートロード)
-│   ├─ GameManager.gd               # ゲーム全体の状態管理・シーン遷移
-│   ├─ SaveManager.gd               # セーブ/ロード
-│   ├─ AudioManager.gd              # BGM/SE再生・フェード制御
-│   ├─ PartyManager.gd              # パーティ・所持品・レベル管理
-│   └─ Flags.gd                     # シナリオフラグ・進行状態
 │
-├─ scenes/
-│   ├─ title/
-│   │   └─ Title.tscn
-│   ├─ story/
-│   │   └─ StoryPlayer.tscn         # Dialogicを呼び出すノベル再生画面
-│   ├─ map/
-│   │   ├─ TownMap.tscn             # 街(拠点)
-│   │   └─ FieldMap.tscn            # 探索エリア
-│   ├─ battle/
-│   │   ├─ Battle.tscn
-│   │   └─ components/
-│   │       ├─ BattleUI.tscn
-│   │       ├─ HpBar.tscn
-│   │       ├─ CommandPanel.tscn
-│   │       └─ SkillList.tscn
-│   ├─ menu/
-│   │   ├─ MainMenu.tscn            # ステータス/アイテム/スキル/セーブ/設定 の入口
-│   │   ├─ StatusScreen.tscn
-│   │   ├─ ItemScreen.tscn
-│   │   ├─ SkillScreen.tscn
-│   │   ├─ SaveLoadScreen.tscn
-│   │   └─ SettingsScreen.tscn
-│   ├─ result/
-│   │   └─ BattleResult.tscn
-│   └─ common/
-│       ├─ SceneTransition.tscn     # フェード等の画面遷移演出
-│       └─ ConfirmDialog.tscn       # 共通確認ダイアログ
+├─ core/                              # ★汎用フレームワーク層(IPに依存しない・他作品へ流用可能)
+│   ├─ story_engine/                  # 会話・ノベルパートエンジン(第12章)
+│   │   ├─ StoryEngine.gd             # JSONシナリオを解釈・再生するコア
+│   │   ├─ commands/                  # コマンド実装(say, choice, bgm, fx等。追加=ファイル追加のみ)
+│   │   └─ StoryPlayer.tscn           # ノベル再生画面(UI)
+│   ├─ battle_engine/                 # ターン制バトルフレームワーク(第13章)
+│   │   ├─ BattleSystem.gd
+│   │   ├─ BattleUnit.gd              # 戦闘中の1ユニット(HP/状態/ゲージ等)
+│   │   ├─ effects/                   # DamageEffect, HealEffect, StatusEffect等(拡張ポイント)
+│   │   └─ ElementChart.gd            # 属性相性計算
+│   ├─ ui_kit/                        # 共通UIコンポーネント(第5.3節のパーツ群)
+│   │   ├─ DialogueBox.tscn
+│   │   ├─ ChoiceButton.tscn
+│   │   ├─ HpBar.tscn
+│   │   ├─ CommandButton.tscn
+│   │   └─ PanelFrame.tscn
+│   ├─ fx_engine/                     # 演出(トランジション/カメラ/パーティクル)
+│   │   └─ SceneTransition.tscn
+│   ├─ save_core/                     # セーブ基盤(モジュール分割・バージョン管理。第14章)
+│   │   └─ SaveModule.gd              # 各セーブモジュールの基底クラス
+│   └─ localization_core/             # ローカライズ基盤(第15章)
+│       └─ LocalizationManager.gd
 │
-├─ scripts/
-│   ├─ battle/                      # BattleSystem, Turn計算, DamageFormula 等
-│   ├─ data/                        # Character, Enemy, Skill, Item の Resourceクラス定義(.gd)
-│   ├─ save/                        # SaveData Resourceクラス
-│   └─ utils/                       # 共通ユーティリティ
-│
-├─ data/                            # マスタデータ本体(.tres / .json)
-│   ├─ characters/                  # 味方キャラ定義
-│   ├─ enemies/                     # 敵キャラ定義
-│   ├─ skills/                      # スキル定義
-│   ├─ items/                       # アイテム定義
-│   └─ story/
-│       └─ episode0/                # Dialogicのタイムライン(章・シーン単位)
-│
-├─ assets/
-│   ├─ characters/                  # 立ち絵(表情差分含む)
-│   │   └─ kaosu/                   # 例: img/kaosu を移植・再エクスポート
-│   ├─ backgrounds/                 # 背景CG
-│   ├─ cg/                          # イベントCG(スチル)
-│   ├─ ui/                          # UIパーツ(ボタン・枠・アイコン)
-│   ├─ bgm/
-│   ├─ se/
-│   └─ fx/                          # エフェクト(パーティクル/スプライトシート)
-│
-├─ addons/
-│   └─ dialogic/                    # 会話システムアドオン
+├─ game/                              # ★CHAOS RE:BIRTH 固有層(coreに依存するが、逆方向の依存は禁止)
+│   ├─ autoload/                      # シングルトン(オートロード)
+│   │   ├─ GameManager.gd             # 全体の状態管理・シーン遷移
+│   │   ├─ SaveManager.gd             # save_core を用いたセーブ/ロード制御
+│   │   ├─ AudioManager.gd            # BGM/SE再生・フェード制御
+│   │   ├─ PartyManager.gd            # 所持キャラ・パーティ編成・所持品
+│   │   └─ Flags.gd                   # シナリオフラグ・進行状態
+│   │
+│   ├─ scenes/
+│   │   ├─ title/Title.tscn
+│   │   ├─ map/
+│   │   │   ├─ TownMap.tscn
+│   │   │   └─ FieldMap.tscn
+│   │   ├─ battle/Battle.tscn         # core/battle_engine を利用する画面
+│   │   ├─ menu/                      # StatusScreen / ItemScreen / SkillScreen / SaveLoadScreen / SettingsScreen
+│   │   └─ result/BattleResult.tscn
+│   │
+│   ├─ data/                          # ★マスタデータ本体(JSON中心。第11・12章)
+│   │   ├─ characters/                # 1キャラ=1JSON(character_index.jsonで一覧管理)
+│   │   ├─ enemies/
+│   │   ├─ skills/
+│   │   ├─ items/
+│   │   ├─ elements/                  # 属性定義・相性表
+│   │   ├─ status_effects/            # 状態異常・バフ/デバフ定義
+│   │   └─ story/
+│   │       └─ episode0/              # シーン単位のJSON(第12章)
+│   │
+│   ├─ localization/                  # 言語別テキスト(第15章)
+│   │   ├─ ja/ ・en/ ・zh-CN/ ・ko/
+│   │   └─ ui_strings/                # UI共通文言(CSV, Godot Translation用)
+│   │
+│   └─ assets/                        # ★素材本体(第10章のAsset管理ルールに従う)
+│       ├─ characters/
+│       │   └─ kaosu/                 # 例: img/kaosu を移植・再構成
+│       ├─ backgrounds/
+│       ├─ cg/
+│       ├─ ui/
+│       ├─ bgm/
+│       ├─ se/
+│       └─ fx/
 │
 └─ docs/
     └─ design/
-        └─ GAME_DESIGN_DOCUMENT.md  # 本ファイル
+        └─ GAME_DESIGN_DOCUMENT.md    # 本ファイル
 ```
 
 **設計方針**:
-- `scenes/` は「画面」単位、`scripts/` は「ロジック」単位、`data/` は「データ」単位で分離。
-- バトルUIは `components/` 以下に細分化し、他画面でも再利用可能なパーツ(HPバー、確認ダイアログ等)は `common/` に集約。
+- `core/` は CHAOS RE:BIRTH 固有の名称・データを一切参照しない(例: `core/battle_engine/` は `EnemyData` のようなIP固有クラス名ではなく、汎用インターフェースのみに依存する)。これにより将来別タイトルを作る際は `core/` を丸ごとコピーし、`game/` だけを作り直せばよい。
+- `game/` は `core/` の公開APIのみを利用し、`core/` の内部実装に直接依存しない。
+- `scenes/` は「画面」単位、`data/` は「データ」単位で分離。バトルUIやダイアログ等の再利用パーツは `core/ui_kit/` に集約する。
 - キャラ・敵・スキル・アイテムはすべて Godot の `Resource` (カスタムクラス)として定義し、Inspector上で編集可能にする(エンジニア以外でも調整しやすい=保守性)。
 
 ---
@@ -252,121 +270,83 @@ Episode1 予告 → タイトルへ戻る
 
 ---
 
-## 6. データ構造
+## 6. データ構造(Episode0 MVP時点の要点)
 
-Godotの `Resource`(カスタムクラス)としてマスタデータを定義する。バランス調整は非エンジニアでも `.tres` をInspectorで編集できるようにする。
+マスタデータは**JSONを正データ**とし、実行時にGodotの `RefCounted`/`Resource` オブジェクトへパースしてキャッシュする(バランス調整は非エンジニアでもJSONやスプレッドシート→JSON変換で編集できる)。詳細なスケーラブル設計は以下の章に分割して定義する。
 
-### 6.1 CharacterData(味方キャラ)
+- キャラクター関連の詳細設計 → **第11章 Character System**
+- シナリオ・会話の詳細設計 → **第12章 Story System**
+- 戦闘・属性・状態異常の詳細設計 → **第13章 Battle System**
+- セーブデータの詳細設計 → **第14章 Save System**
 
-```gdscript
-class_name CharacterData
-extends Resource
+以下はEpisode0で最低限必要な項目の要点のみ示す(実際のフィールド定義は各章を正とする)。
 
-@export var id: String
-@export var display_name: String
-@export var max_hp: int
-@export var attack: int
-@export var defense: int
-@export var speed: int
-@export var skill_ids: Array[String]
-@export var portrait_variants: Dictionary   # 例: {"normal": Texture2D, "smile": Texture2D, "sad": Texture2D}
-@export var battle_sprite: Texture2D
-```
+### 6.1 CharacterData(味方キャラ)の要点
+
+id / display_name(ローカライズキー) / ステータス(HP・攻撃・防御・素早さ) / 属性(element_id) / skill_ids / レアリティ / 立ち絵参照(表情キー→ファイルパスは第10章の命名規則で自動解決)。→ 詳細は第11章。
 
 ### 6.2 EnemyData(敵)
 
-```gdscript
-class_name EnemyData
-extends Resource
-
-@export var id: String
-@export var display_name: String
-@export var max_hp: int
-@export var attack: int
-@export var defense: int
-@export var speed: int
-@export var skill_ids: Array[String]
-@export var exp_reward: int
-@export var drop_item_ids: Array[String]
-@export var is_boss: bool = false
-@export var sprite: Texture2D
+```json
+{
+  "id": "enemy_slime_dark",
+  "name_key": "enemy_slime_dark_name",
+  "max_hp": 120,
+  "attack": 18,
+  "defense": 8,
+  "speed": 10,
+  "element": "dark",
+  "skill_ids": ["skill_dark_bite"],
+  "exp_reward": 30,
+  "drop_item_ids": ["item_herb"],
+  "is_boss": false,
+  "sprite": "enemies/slime_dark.png"
+}
 ```
 
-### 6.3 SkillData(スキル)
+### 6.3 SkillData(スキル)の要点
 
-```gdscript
-class_name SkillData
-extends Resource
-
-@export var id: String
-@export var display_name: String
-@export var description: String
-@export var power: int
-@export var mp_cost: int
-@export var target_type: String   # "single_enemy" / "all_enemies" / "self" / "ally"
-@export var effect_type: String   # "damage" / "heal" / "buff" / "debuff"
-@export var animation_id: String
-```
+id / 名前・説明(ローカライズキー) / power / mp_cost / target_type / **effect_list(複数エフェクトを配列で保持し、ダメージ+状態異常付与のような複合効果に対応)** / 属性 / 必殺技フラグ・ゲージ消費量。→ 詳細は第13章。
 
 ### 6.4 ItemData(アイテム)
 
-```gdscript
-class_name ItemData
-extends Resource
-
-@export var id: String
-@export var display_name: String
-@export var description: String
-@export var item_type: String     # "consumable" / "key_item" / "equipment"
-@export var effect_type: String
-@export var effect_value: int
-@export var icon: Texture2D
+```json
+{
+  "id": "item_herb",
+  "name_key": "item_herb_name",
+  "description_key": "item_herb_desc",
+  "item_type": "consumable",
+  "effect_type": "heal",
+  "effect_value": 50,
+  "icon": "ui/icons/item_herb.png"
+}
 ```
 
-### 6.5 StorySceneData(会話・シナリオ)
+### 6.5 StorySceneData(会話・シナリオ)の要点
 
-Dialogicのタイムライン(`.dtl`)を基本フォーマットとして採用し、以下の要素を1シーン単位で管理する:
+シーン単位のJSONで、背景・BGM・登場キャラ・表情・セリフ(ローカライズキー参照)・選択肢・分岐・フラグ操作・戦闘トリガーを表現する。ゲーム本体のコードを書き換えずにJSONファイルを追加するだけでシナリオを追加できる。→ 詳細は第12章。
 
-- 背景指定(background_id)
-- 登場キャラと立ち絵差分(character_id, expression)
-- BGM/SE指定
-- セリフ・ナレーション
-- 選択肢と分岐先タイムラインID
-- シーン終了時に立てる `Flags`(進行フラグ)
+### 6.6 SaveData(セーブデータ)の要点
 
-### 6.6 SaveData(セーブデータ)
+Episode0時点で最低限必要なのは「進行状況・パーティ状態・所持品・フラグ」のみだが、**将来のガチャ・実績・課金等を見据えてモジュール分割**した構造で最初から実装する(単一の巨大セーブファイルにしない)。→ 詳細は第14章。
 
-```gdscript
-class_name SaveData
-extends Resource
-
-@export var save_slot: int
-@export var save_timestamp: String
-@export var current_scene_id: String
-@export var play_time_seconds: int
-@export var party_state: Array[Dictionary]   # 各キャラのHP/レベル/EXP/装備
-@export var inventory: Dictionary            # item_id -> 所持数
-@export var story_flags: Dictionary          # flag_id -> bool/int
-@export var chapter_progress: String         # 例: "episode0_midboss_cleared"
-```
-
-- 保存先: `user://saves/slot_{n}.tres`(Godot標準のユーザーデータ領域、Android上ではアプリ内部ストレージ)。
-- 将来的なチート対策として軽量な整合性チェック(簡易ハッシュ)を付与可能な設計にしておくが、Episode0時点では必須としない(過剰実装を避ける)。
+- 保存先: `user://saves/slot_{n}/` 以下にモジュールごとのファイルを分割保存(Godot標準のユーザーデータ領域、Android上ではアプリ内部ストレージ)。
 
 ---
 
 ## 7. 将来拡張案(Episode0時点では未実装、設計のみ考慮)
 
-| 拡張要素 | 設計上の配慮 |
-|---|---|
-| **ガチャ** | `CharacterData` に排出率グループ・レアリティ属性を後付け可能な設計(現状のフィールドは追加のみで破壊的変更が不要な形にする)。ガチャ演出画面は `scenes/` に独立追加。 |
-| **課金** | Google Play Billing連携用のプラグイン層を `autoload/` に `BillingManager.gd` として後日追加できるよう、決済ロジックとゲームロジックを分離しておく。 |
-| **イベント(期間限定)** | `data/story/` にepisode0と並列で `event_xxxx/` フォルダを追加するだけで拡張できる構造。 |
-| **新章(Episode1〜)** | `data/story/episode1/` を追加し、`Flags` の `chapter_progress` で章の切り替えを行う。シナリオ側の作業のみで拡張可能にする。 |
-| **新キャラ追加** | `CharacterData` をリソースとして追加するだけでパーティ編成候補に追加できる(コード変更最小化)。 |
-| **パーティ編成/仲間システム** | `PartyManager` を最初から「複数キャラを保持できる」設計にしておき、Episode0では固定パーティでも内部的には拡張可能な配列構造で扱う。 |
+| 拡張要素 | 設計上の配慮 | 詳細章 |
+|---|---|---|
+| **ガチャ** | キャラクターにレアリティ・排出グループを持たせ、セーブ側にガチャ履歴・天井カウンタを保持できるモジュールを用意。 | 第11章・第14章 |
+| **課金** | Google Play Billing連携用のプラグイン層を `game/autoload/` に `BillingManager.gd` として後日追加できるよう、決済ロジックとゲームロジックを分離。 | 第14章 |
+| **イベント(期間限定)** | `game/data/story/` にepisode0と並列で `event_xxxx/` フォルダを追加するだけで拡張できる構造。 | 第12章 |
+| **新章(Episode1〜)** | `game/data/story/episode1/` を追加し、`Flags` の `chapter_progress` で章の切り替えを行う。シナリオ側の作業のみで拡張可能にする。 | 第12章 |
+| **新キャラ追加(100人以上を想定)** | 1キャラ=1JSONで追加するだけでパーティ編成候補に追加できる(コード変更不要)。 | 第11章 |
+| **多言語展開** | テキストキー方式で全文言を外部化済みのため、翻訳ファイルの追加のみで対応。 | 第15章 |
+| **他タイトルへの流用** | `core/` 層(会話・戦闘・UI・演出)はIP非依存のため、新規プロジェクトへそのまま移植可能。 | 第16章 |
 
-**重要方針**: Episode0では上記機能を「実装しない」が、後から追加してもコアシステム(会話・戦闘・セーブ)を壊さないよう、**データ駆動設計**(コードにハードコードせず `.tres` / タイムラインデータで完結させる)を徹底する。
+**重要方針**: Episode0では上記機能を「実装しない」が、後から追加してもコアシステム(会話・戦闘・セーブ)を壊さないよう、**データ駆動設計**(コードにハードコードせずJSON/セーブモジュールの追加のみで完結させる)を徹底する。上記の詳細な設計は第10〜16章に記載する。
 
 ---
 
@@ -375,11 +355,11 @@ extends Resource
 個人開発・並行作業なしを前提に、目安の作業ボリュームで区切る(カレンダー日数ではなく「やることの区切り」を優先する)。
 
 ### Phase 1: 基盤構築
-- Godotプロジェクト作成、フォルダ構成の初期化
-- Dialogicアドオン導入、テスト会話シーン1本(立ち絵・背景・テキスト送り・選択肢)
+- Godotプロジェクト作成、`core/` / `game/` のフォルダ構成初期化
+- `core/story_engine/` の最小実装(JSON1本を読み込み、立ち絵・背景・テキスト送り・選択肢を再生できること)
 - `GameManager` / `SaveManager` / `AudioManager` の最小実装
 - タイトル画面 → 会話シーン → タイトルに戻る、の一連が動くこと
-- セーブ/ロードの最小動作確認(1スロットでよい)
+- セーブ/ロードの最小動作確認(モジュール分割セーブの土台のみでよい)
 
 ✅ Phase1完了条件: 「タイトルから会話パートに入り、セーブ/ロードができる」ことを実機(またはエディタ)で確認。
 
@@ -392,7 +372,7 @@ extends Resource
 ✅ Phase2完了条件: 「街→探索→戦闘→リザルト→街」のループが最初から最後まで通しでプレイできる(仮素材でも可)。
 
 ### Phase 3: Episode0シナリオ実装・仕上げ
-- Episode0の全シナリオ(オープニング〜エンディング)をDialogicタイムラインとして流し込み
+- Episode0の全シナリオ(オープニング〜エンディング)をJSONシナリオデータとして流し込み
 - 中ボス・ラスボスのバランス調整
 - BGM/SE/エフェクトの本組み込み
 - UI/演出のブラッシュアップ(トランジション、ボタンタップ時のフィードバック等)
@@ -428,7 +408,409 @@ Episode0における「これが揃えば完成と呼べる」最小ラインを
 
 ---
 
-## 10. 次のアクション
+## 10. Asset管理設計
+
+長期運用でアセット数が数百〜数千に膨れ上がっても破綻しないよう、**「フォルダ階層 = 検索の主軸」「ファイル名 = 一意な識別子」**をルール化する。
+
+### 10.1 共通ルール
+
+- ファイル名は **すべて半角英数字と `_`(アンダースコア)のみ**。日本語・スペース・全角文字は使用しない(クロスプラットフォームビルド時の事故防止)。
+- 命名は `<種別>_<ID>_<バリエーション>.<拡張子>` を基本形とする。
+- 1アセット1IDを徹底し、IDは `game/data/` 側のJSONが参照する識別子と完全一致させる(命名規則が一致していれば、コード側は**規約に基づき自動でパスを解決**でき、Inspectorで1体ずつ手動リンクする必要がない → 100人以上のキャラクターでも運用可能)。
+- 元データ(psd/clip studio等の編集用ファイル)はゲームリポジトリに含めず、別途アセット管理(Google Drive等)で保管し、書き出し済みの最終ファイルのみをリポジトリに入れる(リポジトリの肥大化防止)。
+
+### 10.2 種別ごとのフォルダ・命名ルール
+
+| 種別 | 配置 | 命名例 | 補足 |
+|---|---|---|---|
+| **立ち絵(ベース)** | `game/assets/characters/<character_id>/base/` | `kaosu_base.png` | 表情差分の土台となる全身/バスト絵 |
+| **表情差分** | `game/assets/characters/<character_id>/expressions/` | `kaosu_smile.png` / `kaosu_sad.png` / `kaosu_angry.png` | 差分キー(`smile`等)は全キャラ共通のボキャブラリーで統一し、StoryEngineから `character_id + expression_key` で自動解決する |
+| **衣装差分** | `game/assets/characters/<character_id>/outfits/<outfit_id>/` | `kaosu_gothic_normal.png` | 衣装追加(ガチャ等)を見据え、衣装ごとにサブフォルダを切る |
+| **背景** | `game/assets/backgrounds/<location_id>/` | `bg_town_day.png` / `bg_town_night.png` | 時間帯・天候等のバリエーションは同フォルダ内でsuffix管理 |
+| **イベントCG** | `game/assets/cg/<episode_id>/` | `cg_ep0_001.png` / `cg_ep0_001_diff_a.png` | CG番号は各エピソード内で連番。差分(表情違い等)は `_diff_*` サフィックス |
+| **BGM** | `game/assets/bgm/` | `bgm_battle_normal.ogg` / `bgm_town_day.ogg` | ループ用メタ情報(ループ開始/終了サンプル位置)は同名の `.json` を併置(例: `bgm_battle_normal.json`) |
+| **SE** | `game/assets/se/<category>/` | `se/ui/button_tap.wav`, `se/battle/hit_normal.wav` | カテゴリ分けにより音量バス(UI/battle/system)をグループ管理しやすくする |
+| **UI素材** | `game/assets/ui/<screen>/` | `ui/battle/hp_bar_frame.png`, `ui/common/panel_frame.png` | 画面横断で使う共通パーツは `ui/common/` に集約 |
+
+### 10.3 インポート設定の方針(スマホ最適化)
+
+- 立ち絵・背景・CG: モバイル向けに圧縮設定(Godotの `VRAM圧縮` + 必要に応じてミップマップ)を適用し、端末メモリを圧迫しない解像度を上限として定義する(例: 縦解像度2048px程度を上限)。
+- UIアイコン等の小型素材はテクスチャアトラス化し、ドローコール数を抑える。
+- BGMは `ogg vorbis`、短いSEは `wav` を基本とする(ループ性能と読み込み速度のバランス)。
+
+### 10.4 アセット追加フロー
+
+1. 命名規則に従いファイルを配置。
+2. 対応するJSON(キャラ/背景/CG/BGM等のマスタデータ)にIDを追記。
+3. コード変更なしでゲーム内から参照可能になる(規約に基づくパス自動解決のため)。
+
+---
+
+## 11. Character System(スケーラブル設計・100人以上対応)
+
+### 11.1 設計方針
+
+- **1キャラクター = 1データファイル(JSON)** とし、全キャラクターを常時メモリに載せない。`CharacterDatabase`(`game/autoload/`)が **IDベースで遅延ロード＋キャッシュ** する設計にすることで、キャラクター数が増えても起動時間・メモリ使用量が線形に悪化しない。
+- キャラクター一覧の索引として `game/data/characters/character_index.json`(id・レアリティ・実装日等の軽量メタ情報のみ)を持ち、キャラ一覧UI(将来のガチャ結果画面・図鑑等)はこの索引だけを読み込めば済むようにする(詳細データは選択時に遅延ロード)。
+
+### 11.2 CharacterData スキーマ(JSON)
+
+```json
+{
+  "id": "kaosu",
+  "name_key": "chara_kaosu_name",
+  "profile_key": "chara_kaosu_profile",
+  "rarity": 5,
+  "element": "chaos",
+  "voice_id": "va_001",
+  "base_stats": { "hp": 320, "attack": 45, "defense": 28, "speed": 60 },
+  "growth_curve_id": "growth_standard_a",
+  "skill_ids": ["skill_kaosu_normal", "skill_kaosu_special"],
+  "ultimate_skill_id": "skill_kaosu_ultimate",
+  "tags": ["main_character", "episode0"],
+  "gacha_pool_ids": [],
+  "portrait": {
+    "base": "characters/kaosu/base/kaosu_base.png",
+    "expressions": ["normal", "smile", "sad", "angry", "surprised"],
+    "default_expression": "normal"
+  },
+  "battle_sprite": "characters/kaosu/battle/kaosu_battle.png",
+  "release_date": "2026-08-01"
+}
+```
+
+- `name_key` / `profile_key` は第15章のローカライズキーを参照する(名前・プロフィール文も多言語対応)。
+- `portrait.expressions` は表情キーのリストのみを持ち、実ファイルパスは第10章の命名規則(`characters/<id>/expressions/<id>_<expression>.png`)から自動解決する(1体ごとにパスを手打ちしない → 100人以上でも運用コストが増えない)。
+- `voice_id` はボイス素材(将来追加)への参照。Episode0時点でボイス未収録でも欠番として問題なくロードできるようにNull許容にする。
+
+### 11.3 CharacterDatabase(ランタイム)
+
+```gdscript
+# game/autoload/CharacterDatabase.gd
+extends Node
+
+var _cache: Dictionary = {}   # id -> CharacterRuntimeData
+var _index: Array = []        # character_index.json の内容
+
+func get_character(id: String) -> CharacterRuntimeData:
+    if _cache.has(id):
+        return _cache[id]
+    var data = _load_character_json(id)
+    _cache[id] = data
+    return data
+```
+
+- 図鑑・ガチャ結果一覧など「大量のキャラを並べて表示する画面」は `_index` の軽量メタ情報のみでリスト描画し、詳細画面に遷移したタイミングで初めて `get_character()` を呼んでフルデータをロードする。
+
+### 11.4 所持キャラクター(ロースター)との関係
+
+- `CharacterData` は「マスタデータ(不変)」。プレイヤーが所持する個体差(レベル・経験値・凸/重複・お気に入り等)は別データ `CharacterInstance` として **セーブ側(第14章 RosterData)** に保持し、マスタデータと分離する。これにより同一キャラを複数体所持する将来のガチャ仕様にも対応できる。
+
+---
+
+## 12. Story System(外部データ化・JSON駆動)
+
+### 12.1 設計方針
+
+シナリオは **JSON外部データ** として管理し、`core/story_engine/StoryEngine.gd` がそれを解釈・再生する。**ゲーム本体(エンジン側コード)を書き換えることなく、シーンJSONファイルを追加するだけでシナリオを追加できる** ことを最重要要件とする。
+
+### 12.2 フォルダ構成
+
+```
+game/data/story/
+├─ episode0/
+│   ├─ scene_index.json       # このエピソードのシーン一覧・遷移順(フラグ分岐も表現可)
+│   ├─ ep0_001_opening.json
+│   ├─ ep0_002_kaosu_meet.json
+│   ├─ ep0_003_town.json
+│   └─ ...
+├─ episode1/                  # 将来追加。episode0と同構造を複製するだけでよい
+└─ event_xxxx/                # 期間限定イベント。同様に並列追加
+```
+
+### 12.3 シーンJSONスキーマ
+
+```json
+{
+  "scene_id": "ep0_002_kaosu_meet",
+  "commands": [
+    { "type": "background", "value": "bg_night_room" },
+    { "type": "bgm", "value": "bgm_mystery", "fade_sec": 1.5 },
+    { "type": "character_enter", "id": "kaosu", "position": "center", "expression": "normal" },
+    { "type": "say", "speaker": "kaosu", "text_key": "ep0_002_line001" },
+    { "type": "expression_change", "id": "kaosu", "expression": "smile" },
+    { "type": "say", "speaker": "kaosu", "text_key": "ep0_002_line002" },
+    { "type": "choice", "options": [
+      { "text_key": "ep0_002_choice_a", "goto": "ep0_002_branch_a" },
+      { "text_key": "ep0_002_choice_b", "goto": "ep0_002_branch_b" }
+    ]},
+    { "type": "set_flag", "flag": "met_kaosu", "value": true },
+    { "type": "jump", "target": "ep0_003_town" }
+  ]
+}
+```
+
+### 12.4 コマンド一覧(拡張ポイント)
+
+| type | 内容 |
+|---|---|
+| `background` | 背景切り替え |
+| `bgm` / `se` | 音再生 |
+| `character_enter` / `character_exit` | 立ち絵の表示/退場 |
+| `expression_change` | 表情差分の切り替え |
+| `say` / `narration` | セリフ・地の文表示(`text_key`でローカライズ参照) |
+| `choice` | 選択肢分岐 |
+| `set_flag` / `if_flag` | フラグ操作・条件分岐 |
+| `cg_show` | イベントCG表示 |
+| `battle` | 指定の戦闘データへ遷移 |
+| `wait` | 演出待機 |
+| `jump` | 別シーンJSONへ遷移 |
+
+新しい演出コマンドが必要になった場合も、`core/story_engine/commands/` に**新しいコマンドクラスを1つ追加するだけ**で対応でき、既存シーンJSON・既存コマンドには影響しない(オープン・クローズド原則)。
+
+### 12.5 テキストの扱い
+
+シーンJSON内のセリフは生の文字列を直接埋め込まず、必ず `text_key` でローカライズテーブル(第15章)を参照する。これによりシナリオ本体はテキスト非依存になり、翻訳追加時にJSON自体を変更する必要がない。
+
+---
+
+## 13. Battle System(拡張設計: 属性 / 状態異常 / 必殺技 / バフ・デバフ)
+
+### 13.1 設計方針
+
+Episode0時点のバトルロジック(第4.2節のミクロループ)はそのままに、**「効果(Effect)」を差し替え可能な部品として扱う**ことで、将来の要素追加時に既存コードを変更せず拡張できるようにする(Strategy パターン)。
+
+### 13.2 属性システム
+
+```json
+// game/data/elements/element_chart.json
+{
+  "elements": ["fire", "water", "wind", "light", "dark", "chaos", "neutral"],
+  "chart": {
+    "fire":  { "weak_to": ["water"], "strong_against": ["wind"] },
+    "water": { "weak_to": ["wind"],  "strong_against": ["fire"] },
+    "light": { "weak_to": ["dark"],  "strong_against": ["dark"] },
+    "dark":  { "weak_to": ["light"], "strong_against": ["light"] }
+  }
+}
+```
+
+`core/battle_engine/ElementChart.gd` がこの表を読み込み、`attacker_element` と `defender_element` からダメージ倍率(弱点1.5倍、耐性0.5倍等)を算出する。属性を追加したい場合はJSONに1行追加するだけでよい。
+
+### 13.3 状態異常・バフ/デバフ(StatusEffect)
+
+バフ・デバフ・状態異常(毒/麻痺/睡眠等)を **同一の基底構造 `StatusEffectData`** として統一的に扱う。
+
+```json
+{
+  "id": "status_poison",
+  "category": "ailment",            
+  "name_key": "status_poison_name",
+  "icon": "ui/status/poison.png",
+  "duration_turns": 3,
+  "stack_rule": "refresh",          
+  "tick_timing": "turn_end",
+  "tick_effect": { "type": "damage", "value_percent_max_hp": 5 }
+}
+```
+
+```json
+{
+  "id": "buff_attack_up",
+  "category": "buff",
+  "name_key": "status_attack_up_name",
+  "icon": "ui/status/atk_up.png",
+  "duration_turns": 3,
+  "stack_rule": "stack",
+  "stat_modifier": { "stat": "attack", "percent": 20 }
+}
+```
+
+- `category`: `"buff"` / `"debuff"` / `"ailment"` の3種を同一スキーマで表現。
+- `stack_rule`: `"refresh"`(上書き延長) / `"stack"`(重複加算) / `"ignore"`(付与不可)を選択でき、新しい状態異常を追加する際もこの3種の組み合わせで表現できる。
+- 新しい状態異常タイプが必要になった場合は `tick_effect.type` に新しいエフェクト種別を追加するだけでよい(後述のBattleEffect拡張ポイントに準拠)。
+
+### 13.4 BattleEffect(拡張ポイント)
+
+```gdscript
+# core/battle_engine/effects/BattleEffect.gd (基底クラス)
+class_name BattleEffect
+extends RefCounted
+
+func apply(source: BattleUnit, target: BattleUnit, context: BattleContext) -> void:
+    pass  # サブクラスでオーバーライド
+```
+
+サブクラス例: `DamageEffect` / `HealEffect` / `ApplyStatusEffect` / `StatModifierEffect` / `GaugeChargeEffect`。
+`SkillData.effect_list` に **複数のBattleEffectを配列で指定**できるようにすることで、「ダメージを与えつつ状態異常を付与する」のような複合スキルも既存コード変更なしで表現できる。
+
+```json
+{
+  "id": "skill_kaosu_special",
+  "power": 80,
+  "element": "chaos",
+  "target_type": "single_enemy",
+  "effect_list": [
+    { "type": "damage" },
+    { "type": "apply_status", "status_id": "status_poison", "chance_percent": 40 }
+  ],
+  "gauge_cost": 0,
+  "is_ultimate": false
+}
+```
+
+### 13.5 必殺技(アルティメット)ゲージ
+
+- `BattleUnit` に `ultimate_gauge: int`(0〜100)を持たせ、通常攻撃を受ける/与えるごとに一定量チャージする(`GaugeChargeEffect`)。
+- ゲージが満タンになると `ultimate_skill_id` で指定された必殺技が選択可能になり、使用後はゲージが `gauge_cost` 分消費される。
+- 必殺技もスキルデータの一種(`is_ultimate: true`)として扱うため、通常スキルと同じ `effect_list` 拡張機構をそのまま使える。
+
+### 13.6 拡張時に変更が不要な範囲
+
+- `BattleSystem.gd` のターン進行ロジック本体。
+- 既存スキル・敵データ(新しい属性/状態異常を使わない限り無改修)。
+
+新しい属性・状態異常・必殺技演出を追加する際は、**JSONデータの追加 と 該当する場合のみ新規Effectクラスの追加** で完結し、既存のバトルフロー実装には触れない。
+
+---
+
+## 14. Save System(将来要素対応・モジュール分割設計)
+
+### 14.1 設計方針
+
+単一の巨大なセーブファイルにせず、**機能ごとにモジュール分割**し、モジュール単位でスキーマバージョンを持たせる。これにより将来「ガチャモジュールを追加」しても、既存のセーブファイル(古いバージョン)を破壊せずに読み込め、不足分はデフォルト値で補完(マイグレーション)できる。
+
+### 14.2 セーブファイル構成
+
+```
+user://saves/slot_{n}/
+├─ meta.json          # スロット一覧表示用の軽量サマリ(最終セーブ日時・プレイ時間・直近シーン名等)
+├─ profile.json        # プレイヤー名・総プレイ時間・設定連動情報
+├─ story_progress.json # story_flags, current_scene_id, chapter_progress
+├─ roster.json          # ★所持キャラ一覧(CharacterInstance配列)
+├─ inventory.json       # 所持アイテム
+├─ achievements.json    # ★実績の解放状況・進捗
+├─ gacha.json           # ★ガチャ通貨残高・天井カウンタ・排出履歴(要約)
+├─ events.json          # ★参加中/参加済みイベントの進捗・期限・報酬受取状況
+└─ billing.json         # ★購入済みプロダクトID・課金通貨台帳の参照
+```
+
+- `meta.json` のみをセーブスロット選択画面で読み込むことで、スロット一覧表示のために全モジュールをパースする無駄を避ける。
+- 各JSONの先頭に `"schema_version": 1` を持たせ、ロード時にバージョンが古ければ不足フィールドをデフォルト値で補完してから最新バージョンとして扱う(**Episode0で存在しなかった `gacha.json` 等が後日追加されても、既存セーブが壊れない**)。
+
+### 14.3 RosterData(所持キャラ)の例
+
+```json
+{
+  "schema_version": 1,
+  "owned_characters": [
+    { "character_id": "kaosu", "level": 12, "exp": 3200, "duplicate_count": 1, "favorite": true, "equipped_skill_ids": ["skill_kaosu_normal"] }
+  ]
+}
+```
+
+`CharacterData`(マスタ、第11章)と `CharacterInstance`(所持個体、ここ)を分離しているため、キャラクターマスタを何百人分追加しても、セーブデータ側は「プレイヤーが実際に所持している分だけ」を保持すればよく、セーブファイルサイズが不必要に肥大化しない。
+
+### 14.4 課金(billing.json)についての留意事項
+
+- Episode0時点では課金機能自体を実装しないが、将来Google Play Billingと連携する際は**購入検証をクライアント側の値だけで信頼しない**(サーバーサイド検証 or 少なくともレシート情報の保持)方針を設計メモとして残す。`billing.json` はローカルの利便性キャッシュ(所持プロダクトの一覧)にとどめ、真の所有権の正はストア側レシートとする前提を崩さない。
+
+---
+
+## 15. Localization(多言語対応: 日本語 / 英語 / 中国語 / 韓国語)
+
+### 15.1 設計方針
+
+**すべてのユーザー向けテキストをキー化**し、生文字列をコード・シナリオJSON・マスタデータに直接埋め込まない。対象は以下の全種類:
+
+- シナリオのセリフ・ナレーション・選択肢(第12章 `text_key`)
+- キャラクター名・プロフィール(第11章 `name_key` / `profile_key`)
+- スキル名・アイテム名・説明文・敵名
+- UI固定文言(ボタン名、メニュー項目、システムメッセージ)
+- 実績名・イベント名(第14章関連)
+
+### 15.2 フォルダ構成
+
+```
+game/localization/
+├─ ui_strings/            # UI固定文言(Godot Translation用CSV。tr()で参照)
+│   └─ ui_strings.csv      # 1行1キー、列がja/en/zh-CN/ko
+├─ ja/
+│   ├─ story/episode0/ep0_001_opening.json   # シナリオと同じ構造をミラーリング
+│   ├─ characters.json
+│   ├─ skills.json
+│   ├─ items.json
+│   └─ enemies.json
+├─ en/    (jaと同構造)
+├─ zh-CN/ (jaと同構造)
+└─ ko/    (jaと同構造)
+```
+
+- **UI固定文言**はGodot標準の翻訳機構(CSV → Translationリソースの自動インポート、`tr("KEY")`)をそのまま利用する(実装コストが低く枯れている)。
+- **シナリオ・マスタデータのテキスト**は分量が多く、翻訳者(ライター)が言語ごとに作業しやすいよう、`game/data/` のフォルダ構造をそのまま `game/localization/<lang>/` にミラーリングしたJSON群として管理する。
+
+### 15.3 テキスト解決の仕組み
+
+```gdscript
+# core/localization_core/LocalizationManager.gd
+extends Node
+
+var current_locale: String = "ja"
+
+func t(key: String) -> String:
+    # game/localization/<current_locale>/ 以下のロードキャッシュから引く
+    # 未翻訳キーが見つからない場合は "ja" にフォールバックする
+    ...
+```
+
+- 未翻訳のテキストキーがあっても**日本語へ自動フォールバック**することで、翻訳が追いつかない言語でもゲームが崩壊しない。
+- 設定画面(第3章の画面一覧)に言語切り替えを追加し、選択言語は**セーブスロットではなく端末単位の設定**(`user://settings.cfg`)として保持する(進行データと切り離す)。
+
+### 15.4 その他の考慮事項
+
+- **フォント**: 日本語フォントだけでは中国語(簡体字)・韓国語のグリフをカバーできないため、Godotのフォントフォールバック機構で言語別フォントを切り替える。
+- **UIレイアウト**: 英語・中国語は文字数が日本語と大きく異なる(英語は長くなりがち)ため、テキストボックス・ボタンは**可変長を前提としたオートリサイズ**で設計する(固定幅に文字列を無理やり収めない)。
+- **画像内テキスト禁止**: CG・背景・UI画像に文字を直接焼き込まない。文字表示は必ずUIのテキストノード側で行い、ローカライズ対象から漏れないようにする。
+- **ボイス**: Episode0では日本語ボイスのみを想定。`voice_id` は言語非依存の識別子とし、将来多言語ボイスを追加する場合は `voice_id + locale` で解決する設計にしておく(未収録言語は無音でフォールバック)。
+
+---
+
+## 16. Plugin化(コア・フレームワークの分離設計)
+
+### 16.1 目的
+
+会話・戦闘・UI・演出を「CHAOS RE:BIRTHというIP」から切り離し、**将来別のゲームタイトルでも流用できる資産**として設計する。
+
+### 16.2 レイヤー分離ルール(第2章フォルダ構成の再掲・詳細化)
+
+| レイヤー | 内容 | IPへの依存 |
+|---|---|---|
+| `core/story_engine/` | JSONシナリオ再生エンジン | なし。`text_key` や `character_id` はただの文字列として扱い、CHAOS RE:BIRTH固有の意味を持たせない |
+| `core/battle_engine/` | ターン制バトルフレームワーク、属性/状態異常/エフェクト機構 | なし。`BattleUnit` は汎用ステータス構造のみを持つ |
+| `core/ui_kit/` | ダイアログボックス、選択肢ボタン、HPバー等の共通UI部品 | 配色・フォントはテーマ設定(Theme Resource)として外部化し、`core/`側にIP固有の配色をハードコードしない |
+| `core/fx_engine/` | 画面遷移・カメラ・パーティクル等の演出 | なし |
+| `core/save_core/` | セーブのモジュール分割・バージョン管理基盤 | なし。保存する中身(RosterData等)は `game/` 側が定義 |
+| `core/localization_core/` | テキストキー解決・言語切り替え基盤 | なし |
+| `game/` | データ(キャラ/敵/スキル/シナリオ)、素材、CHAOS RE:BIRTH固有のシーン構成 | すべてここに閉じ込める |
+
+### 16.3 依存方向のルール
+
+- **`core/` → `game/` への参照は禁止**(一方向依存)。`core/` 内のスクリプトから `game/` 配下のクラス名・ファイルパスを直接参照してはならない。
+- `core/` の各モジュールは、必要なデータを **引数・インターフェース経由で受け取る**(例: `StoryEngine.play(scene_json_path: String)`、`BattleSystem.start(battle_config: BattleConfig)`)。
+- 新規タイトルを作る際は `core/` ディレクトリをそのままコピーし、`game/` のみを新規作成すれば、会話・戦闘・UI・演出の基盤をゼロから作り直す必要がない。
+
+### 16.4 テーマ(配色・見た目)の外部化
+
+第5章で定義した「高級感・アニメRPG風・透明感・神秘的・未来感」のトーンはCHAOS RE:BIRTH固有の演出方針であるため、Godotの `Theme` リソースとして `game/` 側に定義し、`core/ui_kit/` のコンポーネントはこのThemeを外部から注入される形にする(コンポーネント自体に色をハードコードしない)。これにより将来別タイトルでは配色を差し替えるだけで同じUI部品を使い回せる。
+
+### 16.5 運用ルール
+
+- `core/` 配下のコードレビュー時は「`game/` への依存が紛れ込んでいないか」を確認ポイントとする。
+- 可能であれば、CIまたはpre-commitで `core/` 配下から `game/` を参照する `preload`/`load` 呼び出しがないかを簡易チェックするスクリプトを将来的に追加する(Episode0時点では手動レビューで代替し、過剰実装は避ける)。
+
+---
+
+## 17. 次のアクション
 
 本設計書の内容で問題なければ、**Phase1(基盤構築)から実装を開始**する。
 実装開始前に以下を確認したい:
