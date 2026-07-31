@@ -1,0 +1,21 @@
+{
+  "id": "kaosu",
+  "name_key": "chara_kaosu_name",
+  "profile_key": "chara_kaosu_profile",
+  "rarity": 5,
+  "element": "chaos",
+  "voice_id": null,
+  "base_stats": { "hp": 320, "attack": 45, "defense": 28, "speed": 60 },
+  "growth_curve_id": "growth_standard_a",
+  "skill_ids": [],
+  "ultimate_skill_id": null,
+  "tags": ["main_character", "episode0"],
+  "gacha_pool_ids": [],
+  "portrait": {
+    "base": "characters/kaosu/base/kaosu_base.png",
+    "expressions": ["normal", "smile"],
+    "default_expression": "normal"
+  },
+  "battle_sprite": "characters/kaosu/battle/kaosu_battle.png",
+  "release_date": "2026-07-31"
+}

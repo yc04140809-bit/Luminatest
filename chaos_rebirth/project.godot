@@ -1,0 +1,36 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="CHAOS RE:BIRTH"
+run/main_scene="res://game/scenes/title/Title.tscn"
+config/features=PackedStringArray("4.3", "Mobile")
+
+[autoload]
+
+LocalizationManager="*res://core/localization_core/LocalizationManager.gd"
+Flags="*res://game/autoload/Flags.gd"
+SaveManager="*res://game/autoload/SaveManager.gd"
+AudioManager="*res://game/autoload/AudioManager.gd"
+GameManager="*res://game/autoload/GameManager.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/handheld/orientation="portrait"
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"

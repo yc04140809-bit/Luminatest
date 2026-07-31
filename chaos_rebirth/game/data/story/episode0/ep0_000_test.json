@@ -1,0 +1,16 @@
+{
+  "scene_id": "ep0_000_test",
+  "commands": [
+    { "type": "background", "value": "bg_night_room" },
+    { "type": "character_enter", "id": "kaosu", "position": "center", "expression": "normal" },
+    { "type": "say", "speaker": "kaosu", "text_key": "ep0_000_line001" },
+    { "type": "expression_change", "id": "kaosu", "expression": "smile" },
+    { "type": "say", "speaker": "kaosu", "text_key": "ep0_000_line002" },
+    { "type": "choice", "options": [
+      { "text_key": "ep0_000_choice_a" },
+      { "text_key": "ep0_000_choice_b" }
+    ]},
+    { "type": "set_flag", "flag": "met_kaosu", "value": true },
+    { "type": "say", "speaker": "kaosu", "text_key": "ep0_000_line003" }
+  ]
+}
