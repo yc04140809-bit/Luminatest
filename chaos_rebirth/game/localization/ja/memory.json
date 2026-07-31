@@ -1,6 +1,11 @@
 {
   "memory_met_kaosu_line": "あなたと出会った日のこと、ちゃんと覚えてるよ。",
   "memory_first_login_line": "また会えたね。えへへ、ちょっと嬉しい。",
+  "memory_first_login_line_family": "また会えたね!待ってたよ!",
   "memory_first_battle_win_line": "あの時、一緒に戦って勝ったよね。あれ、ちょっとドキドキした。",
-  "memory_first_battle_loss_line": "負けちゃったこと、ちゃんと覚えてる。次は一緒に頑張ろう。"
+  "memory_first_battle_loss_line": "負けちゃったこと、ちゃんと覚えてる。次は一緒に頑張ろう。",
+  "memory_returned_next_day_line": "昨日も来てくれたね。嬉しいな。",
+  "memory_login_streak_7_line": "7日連続だね! すごいよ、頑張ってるね。",
+  "memory_absence_return_line": "……久しぶり。ちょっと心配してた。",
+  "memory_anniversary_30days_line": "今日でちょうど30日だね。あっという間だった。"
 }

@@ -39,6 +39,46 @@
       "text_key": "memory_first_battle_loss_line",
       "reference_cooldown_days": 3,
       "max_references": null
+    },
+    {
+      "id": "mem_returned_next_day",
+      "category": "daily",
+      "tags": ["login", "continuity"],
+      "importance": 5,
+      "trigger": { "type": "login_streak", "days": 2 },
+      "text_key": "memory_returned_next_day_line",
+      "reference_cooldown_days": 5,
+      "max_references": null
+    },
+    {
+      "id": "mem_login_streak_7",
+      "category": "daily",
+      "tags": ["login", "streak"],
+      "importance": 7,
+      "trigger": { "type": "login_streak", "days": 7 },
+      "text_key": "memory_login_streak_7_line",
+      "reference_cooldown_days": 5,
+      "max_references": null
+    },
+    {
+      "id": "mem_absence_return",
+      "category": "daily",
+      "tags": ["login", "absence"],
+      "importance": 8,
+      "trigger": { "type": "absence_return", "min_days": 7 },
+      "text_key": "memory_absence_return_line",
+      "reference_cooldown_days": 3,
+      "max_references": null
+    },
+    {
+      "id": "mem_anniversary_30days",
+      "category": "anniversary",
+      "tags": ["anniversary"],
+      "importance": 9,
+      "trigger": { "type": "date_special", "kind": "anniversary", "unit": "day", "count": 30 },
+      "text_key": "memory_anniversary_30days_line",
+      "reference_cooldown_days": 10,
+      "max_references": null
     }
   ]
 }

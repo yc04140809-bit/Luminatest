@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/home/Home.gd" id="1"]
+[ext_resource type="PackedScene" path="res://core/ui_kit/CharacterPortraitView.tscn" id="2"]
 
 [node name="Home" type="Control"]
 layout_mode = 3
@@ -37,16 +38,13 @@ grow_vertical = 2
 flat = true
 text = ""
 
-[node name="Portrait" type="TextureRect" parent="KaosuButton"]
+[node name="Portrait" parent="KaosuButton" instance=ExtResource("2")]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
 
 [node name="GreetingBox" type="Panel" parent="."]
 layout_mode = 1

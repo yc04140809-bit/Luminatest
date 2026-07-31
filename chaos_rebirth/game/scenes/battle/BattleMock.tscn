@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/battle/BattleMock.gd" id="1"]
+[ext_resource type="PackedScene" path="res://core/ui_kit/CharacterPortraitView.tscn" id="2"]
 
 [node name="BattleMock" type="Control"]
 layout_mode = 3
@@ -20,7 +21,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.05, 0.039, 0.102, 1)
 
-[node name="KaosuPortrait" type="TextureRect" parent="."]
+[node name="KaosuPortrait" parent="." instance=ExtResource("2")]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -34,8 +35,6 @@ offset_bottom = 140.0
 grow_horizontal = 2
 grow_vertical = 2
 pivot_offset = Vector2(240, 300)
-expand_mode = 1
-stretch_mode = 5
 
 [node name="Panel" type="Panel" parent="."]
 layout_mode = 1

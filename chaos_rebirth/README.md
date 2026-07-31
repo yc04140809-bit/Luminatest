@@ -38,6 +38,20 @@ CLAUDE.md記載の7項目レビューを実施した結果、BattleMockが「ケ
 
 再レビューで7項目すべてYESとなったため次工程へ進行。
 
+## 表情システム / アイドルモーション / Memoryリアクション / Affection(RelationshipStage)
+
+体験設計書 第2・3・5章の設計を実装に統合(新規設計章は追加せず)。
+
+- `core/ui_kit/CharacterPortraitView.gd` : 立ち絵表示の共通コンポーネント(IP非依存)。表情差分の解決(未整備の表情はnormalへ自動フォールバック)、瞬き・呼吸のアイドルモーション、演出中の一時停止(`set_motion_enabled`)、将来Live2D差し替え用のモーションパラメータチャンネルを1箇所に集約。Home/Story/Battleすべての立ち絵表示をこれに統一した。
+- `core/affection_engine/AffectionEvaluator.gd` : ポイント→レベル→RelationshipStageの変換ロジック(IP非依存の純粋関数)。
+- `game/affection/AffectionManager.gd` : Affectionのgame層実装(autoload)。内部ではポイントを保持するが、外部公開APIは必ず `RelationshipStage`(stranger/acquaintance/friend/best_friend/family の文字列)を介す。数値を直接見て挙動分岐することを禁止する設計。
+- `game/memory/MemoryManager.gd` を拡張: `story_flag` に加え `login_streak` / `absence_return` / `date_special`(anniversary/birthday)のトリガー種別を追加。「昨日来てくれたね」「連続ログイン」「久しぶり」「記念日」を実際に検知できる。会話側APIとして `pick_reaction_text_key()`(旧`pick_greeting_text_key`から改称・汎用化)と `get_last_referenced_id()`(前回話題)を整理。
+- `core/story_engine/StoryEngine.gd` に `say_memory` コマンドを追加。シナリオJSONから「今言えることを1つ話す」をMemory Systemに委譲できる(該当なしなら自動で読み飛ばす)。
+- `core/localization_core/LocalizationManager.gd` に `t_for_context(base_key, context)` を追加。`<key>_<stage>` があれば使い、無ければ元のキーへ自動フォールバックするため、全パターンのテキストを用意しなくてもRelationshipStage別の口調変化が破綻しない。
+- Home画面: タップのたびにRelationshipStageの`smile_bias`に応じて表情(笑顔/通常)を再抽選。挨拶は「戦闘直後のリキャップ(一度きり)→Memoryリアクション→時間帯の通常挨拶」の優先順位で合成し、すべてRelationshipStage別の言い回しに対応。
+- 親密度ポイントの付与: Home初回訪問+10、会話シーン終了+5、戦闘勝利+20(いずれも仮の値、バランス調整は今後)。
+- セーブに `affection.json` モジュールを追加。
+
 ## 動作確認方法
 
 Godot 4.3 (stable) の実行ファイルがあれば、GUIなしで動作確認できる。
@@ -54,6 +68,9 @@ godot --headless --script res://tools/gallery_smoke_test.gd
 
 # Phase2 MVPテスト: Home初回訪問Memory記録・挨拶合成・仮戦闘勝敗・セーブ/ロード往復
 godot --headless --script res://tools/phase2_smoke_test.gd
+
+# 表情/アイドルモーション/Memoryリアクション/Affectionテスト
+godot --headless --script res://tools/expression_memory_affection_smoke_test.gd
 ```
 
 いずれも最後に `..._RESULT: PASS` が出力されれば正常(exit code 0)。
@@ -64,6 +81,10 @@ godot --headless --script res://tools/phase2_smoke_test.gd
 
 - 立ち絵・背景・CG・衣装は `img/kaosu/` の既存アセットを仮流用(最終アートではない)。ホーム背景も2種の既存画像を時間帯ごとに使い回している。
 - BGM/SEは未組み込み(`AudioManager` はスタブのみ)。
-- ギャラリーの解放条件(`event_clear` / `party_join` / `item_owned`)、Memoryの発生条件(`first_time` / `login_streak` / `absence_return` / `date_special` 等)は、体験設計書で定義済みだが、Phase2 MVPでは `story_flag` のみ実装。InventoryやPartyManager、日付演算を伴うトリガーはPhase3以降で追加する。
+- ギャラリーの解放条件(`event_clear` / `party_join` / `item_owned`)は、体験設計書で定義済みだが、Phase2 MVPでは `Flags` の規約キーで暫定判定(InventoryやPartyManager実装後に差し替え予定)。
+- Memoryの `first_time`(初勝利以外の初回系: 初レベルアップ・初ボス撃破・初衣装変更・初スキル習得等)、誕生日(ケイオスちゃんの誕生日は本編で明かされる伏線のため、トリガーの型のみ実装しデータは未設定)は未着手。
 - 仮戦闘は属性・状態異常・スキル・必殺技を持たない最小構成(第13章のBattle Systemは未実装)。
-- Live2D抽象化(`CharacterPortraitView`)、Affection(親密度)、World/Collectionは体験設計書に設計済みだが未着手。
+- 表情差分は現在 normal/smile の2種類のみ実データがあり、他6種(照れ/怒り/悲しい/驚き/考え中/眠い)はCharacterPortraitView側で正しくnormalへフォールバックする(コードは完成、アセット待ち)。
+- アイドルモーションは瞬き・呼吸のみ実装(1枚絵のため)。髪揺れ・翼揺れはLive2D導入時に備えたモーションパラメータチャンネルとしてAPIのみ用意し、現状は見た目に反映しないダミー実装(体験設計書 第5.2節の想定どおり)。
+- Affectionの口調変化は `t_for_context` の仕組みが機能することを確認できる代表例(挨拶数点)のみ用意。全キー・全ステージの言い回しは今後拡充する。
+- World/Collectionは体験設計書に設計済みだが未着手。

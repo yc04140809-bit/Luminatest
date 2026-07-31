@@ -29,6 +29,24 @@ func set_locale(locale: String) -> void:
 	current_locale = locale
 
 
+## RelationshipStage等の「文脈」で言い回しを変えたい場合に使う。
+## "<base_key>_<context>" が存在すればそれを、無ければ base_key へ
+## 自動フォールバックする(体験設計書 第2.3節: 親密度と口調変化)。
+## 個々のキーに全パターンを用意しなくても破綻しない。
+func t_for_context(base_key: String, context: String) -> String:
+	if context == "":
+		return t(base_key)
+	var staged_key := "%s_%s" % [base_key, context]
+	var table := _get_table(current_locale)
+	if table.has(staged_key):
+		return table[staged_key]
+	if current_locale != FALLBACK_LOCALE:
+		var fallback_table := _get_table(FALLBACK_LOCALE)
+		if fallback_table.has(staged_key):
+			return fallback_table[staged_key]
+	return t(base_key)
+
+
 func _get_table(locale: String) -> Dictionary:
 	if not _cache_by_locale.has(locale):
 		var table := {}

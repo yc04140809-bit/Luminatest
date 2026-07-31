@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/scenes/story/StoryPlayer.gd" id="1"]
+[ext_resource type="PackedScene" path="res://core/ui_kit/CharacterPortraitView.tscn" id="2"]
 
 [node name="StoryPlayer" type="Control"]
 layout_mode = 3
@@ -21,7 +22,7 @@ grow_vertical = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="CharacterSprite" type="TextureRect" parent="."]
+[node name="CharacterSprite" parent="." instance=ExtResource("2")]
 visible = false
 layout_mode = 1
 anchors_preset = 8
@@ -35,8 +36,6 @@ offset_right = 280.0
 offset_bottom = 80.0
 grow_horizontal = 2
 grow_vertical = 2
-expand_mode = 1
-stretch_mode = 5
 
 [node name="DialogueBox" type="Panel" parent="."]
 visible = false

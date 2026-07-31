@@ -1,0 +1,17 @@
+{
+  "character_id": "kaosu",
+  "levels": [
+    { "level": 1, "required_points": 0 },
+    { "level": 2, "required_points": 20 },
+    { "level": 3, "required_points": 50 },
+    { "level": 4, "required_points": 100 },
+    { "level": 5, "required_points": 200 }
+  ],
+  "stages": [
+    { "stage": "stranger",     "min_level": 1, "smile_bias": 0.10 },
+    { "stage": "acquaintance", "min_level": 2, "smile_bias": 0.25 },
+    { "stage": "friend",       "min_level": 3, "smile_bias": 0.40 },
+    { "stage": "best_friend",  "min_level": 4, "smile_bias": 0.55 },
+    { "stage": "family",       "min_level": 5, "smile_bias": 0.70 }
+  ]
+}

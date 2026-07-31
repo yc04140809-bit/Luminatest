@@ -51,8 +51,8 @@ func _run_test() -> void:
 	_assert(_memory.is_recorded("mem_met_kaosu"), "mem_met_kaosu should be recorded once met_kaosu flag is true")
 
 	# --- 同じMemoryばかりにならないこと(選定のたびにreference_countが伸びる) ---
-	var first_pick: String = _memory.pick_greeting_text_key()
-	_assert(first_pick != "", "pick_greeting_text_key should return something once memories exist")
+	var first_pick: String = _memory.pick_reaction_text_key()
+	_assert(first_pick != "", "pick_reaction_text_key should return something once memories exist")
 
 	home.queue_free()
 

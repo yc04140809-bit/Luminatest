@@ -2,13 +2,15 @@ extends Control
 
 ## core/story_engine/StoryEngine を再生するノベル画面(game層)
 ## StoryEngineのシグナルを購読し、テクスチャ解決・テキスト解決・セーブ連携のみを担当する。
+## 立ち絵表示は core/ui_kit/CharacterPortraitView に一本化する(表情差分・
+## アイドルモーション・将来のLive2D差し替えは同コンポーネント側で扱う)。
 
 var scene_json_path: String = ""
 
 var _engine: StoryEngine
 
 @onready var background: TextureRect = $Background
-@onready var character_sprite: TextureRect = $CharacterSprite
+@onready var character_sprite: CharacterPortraitView = $CharacterSprite
 @onready var dialogue_box: Control = $DialogueBox
 @onready var speaker_label: Label = $DialogueBox/SpeakerLabel
 @onready var body_label: RichTextLabel = $DialogueBox/BodyLabel
@@ -24,6 +26,7 @@ func _ready() -> void:
 	_engine.character_exited.connect(_on_character_exited)
 	_engine.character_expression_changed.connect(_on_character_expression_changed)
 	_engine.say_requested.connect(_on_say_requested)
+	_engine.memory_say_requested.connect(_on_memory_say_requested)
 	_engine.choice_requested.connect(_on_choice_requested)
 	_engine.flag_changed.connect(_on_flag_changed)
 	_engine.scene_finished.connect(_on_scene_finished)
@@ -58,7 +61,8 @@ func _on_se_requested(se_id: String) -> void:
 
 func _on_character_entered(id: String, _position: String, expression: String) -> void:
 	character_sprite.visible = true
-	_set_character_expression(id, expression)
+	character_sprite.set_character(id)
+	character_sprite.set_expression(expression)
 
 
 func _on_character_exited(_id: String) -> void:
@@ -66,19 +70,25 @@ func _on_character_exited(_id: String) -> void:
 
 
 func _on_character_expression_changed(id: String, expression: String) -> void:
-	_set_character_expression(id, expression)
-
-
-func _set_character_expression(id: String, expression: String) -> void:
-	var path := "res://game/assets/characters/%s/expressions/%s_%s.png" % [id, id, expression]
-	if ResourceLoader.exists(path):
-		character_sprite.texture = load(path)
+	character_sprite.set_character(id)
+	character_sprite.set_expression(expression)
 
 
 func _on_say_requested(speaker_id: String, text_key: String) -> void:
+	var stage := AffectionManager.get_stage(speaker_id) if speaker_id != "" else ""
 	speaker_label.text = LocalizationManager.t("chara_%s_name" % speaker_id) if speaker_id != "" else ""
-	body_label.text = LocalizationManager.t(text_key)
+	body_label.text = LocalizationManager.t_for_context(text_key, stage)
 	dialogue_box.show()
+
+
+## Memory Systemから「今言えること」を1つ話す(say_memoryコマンド)。
+## 何も該当がなければシナリオを止めずに読み飛ばす。
+func _on_memory_say_requested(speaker_id: String) -> void:
+	var text_key: String = MemoryManager.pick_reaction_text_key()
+	if text_key == "":
+		_engine.advance()
+		return
+	_on_say_requested(speaker_id, text_key)
 
 
 func _on_choice_requested(options: Array) -> void:
@@ -107,5 +117,6 @@ func _on_flag_changed(flag: String, value: Variant) -> void:
 func _on_scene_finished() -> void:
 	dialogue_box.hide()
 	choice_container.hide()
+	AffectionManager.add_points("kaosu", 5)
 	SaveManager.save_game(0)
 	GameManager.on_story_scene_finished()

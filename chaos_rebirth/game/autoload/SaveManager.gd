@@ -1,7 +1,7 @@
 extends Node
 
 ## セーブ/ロード制御(第14章: モジュール分割セーブの土台)
-## Phase2時点では story_progress / memory の2モジュール。
+## story_progress / memory / affection の3モジュール。
 
 const SAVE_DIR_FORMAT := "user://saves/slot_%d/"
 const SCHEMA_VERSION := 1
@@ -23,6 +23,7 @@ func save_game(slot: int) -> void:
 		"story_flags": Flags.get_all(),
 	})
 	_write_json(dir_path + "memory.json", MemoryManager.get_state())
+	_write_json(dir_path + "affection.json", AffectionManager.get_state())
 
 
 func load_game(slot: int) -> void:
@@ -30,6 +31,7 @@ func load_game(slot: int) -> void:
 	var progress := _read_json(dir_path + "story_progress.json")
 	Flags.set_all(progress.get("story_flags", {}))
 	MemoryManager.load_state(_read_json(dir_path + "memory.json"))
+	AffectionManager.load_state(_read_json(dir_path + "affection.json"))
 
 
 func _dir(slot: int) -> String:

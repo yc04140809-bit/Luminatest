@@ -11,6 +11,7 @@ signal character_entered(id: String, position: String, expression: String)
 signal character_exited(id: String)
 signal character_expression_changed(id: String, expression: String)
 signal say_requested(speaker_id: String, text_key: String)
+signal memory_say_requested(speaker_id: String)
 signal choice_requested(options: Array)
 signal flag_changed(flag: String, value: Variant)
 signal scene_finished()
@@ -91,6 +92,11 @@ func _execute(cmd: Dictionary) -> void:
 		"say", "narration":
 			_waiting_for_advance = true
 			say_requested.emit(cmd.get("speaker", ""), cmd.get("text_key", ""))
+		"say_memory":
+			# Memory Systemから「今言えること」を1つ取り出して話す(game層のMemoryManagerが
+			# text_keyを解決する。何も無ければgame層が自動で読み飛ばす)。
+			_waiting_for_advance = true
+			memory_say_requested.emit(cmd.get("speaker", ""))
 		"choice":
 			_waiting_for_choice = true
 			choice_requested.emit(cmd.get("options", []))

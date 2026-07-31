@@ -1,0 +1,7 @@
+{
+  "scene_id": "ep0_test_memory_say",
+  "commands": [
+    { "type": "say_memory", "speaker": "kaosu" },
+    { "type": "say", "speaker": "kaosu", "text_key": "ep0_000_line001" }
+  ]
+}

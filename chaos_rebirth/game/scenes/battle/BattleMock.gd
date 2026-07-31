@@ -3,16 +3,19 @@ extends Control
 
 ## 仮戦闘(Phase2 MVP)。本格的なターン制バトルシステム(第13章)は将来実装し、
 ## ここでは「攻撃し合って勝敗がつく」最小構成のみを実装する。
-## Golden Slice Review改善: ケイオスちゃんを画面に常時表示し、
+## ケイオスちゃんを画面に常時表示し(core/ui_kit/CharacterPortraitView)、
 ## 攻撃のたびに軽いパンチ演出と間(テンポ)を入れる(PROJECT_BIBLE「主役は常にケイオスちゃん」)。
+## 演出中はCharacterPortraitViewのアイドルモーションを一時停止する。
 ## 勝敗はFlagsに記録し、Memory Systemの初勝利/初敗北Memoryのトリガーとなる。
+## 戦闘直後のHome挨拶(リキャップ)用に、直近の勝敗を一時フラグとして渡す。
 
 const PLAYER_DATA_PATH := "res://game/data/characters/kaosu.json"
 const ENEMY_DATA_PATH := "res://game/data/enemies/enemy_training_dummy.json"
+const CHARACTER_ID := "kaosu"
 const WIN_FLAG := "ep0_first_battle_won"
 const LOSE_FLAG := "ep0_first_battle_lost"
-const ASSET_ROOT := "res://game/assets/"
 const BEAT_DELAY := 0.35
+const WIN_AFFECTION_POINTS := 20
 
 var _player_hp: int
 var _player_max_hp: int
@@ -23,8 +26,9 @@ var _enemy_attack: int
 var _enemy_name: String
 var _battle_over: bool = false
 var _busy: bool = false
+var _won_last: bool = false
 
-@onready var kaosu_portrait: TextureRect = $KaosuPortrait
+@onready var kaosu_portrait: CharacterPortraitView = $KaosuPortrait
 @onready var player_hp_bar: ProgressBar = $Panel/VBox/PlayerRow/PlayerHpBar
 @onready var enemy_hp_bar: ProgressBar = $Panel/VBox/EnemyRow/EnemyHpBar
 @onready var enemy_name_label: Label = $Panel/VBox/EnemyRow/EnemyNameLabel
@@ -45,9 +49,8 @@ func _ready() -> void:
 	_enemy_attack = enemy_data.get("attack", 5)
 	_enemy_name = LocalizationManager.t(enemy_data.get("name_key", ""))
 
-	var portrait_path := ASSET_ROOT + "characters/kaosu/expressions/kaosu_normal.png"
-	if ResourceLoader.exists(portrait_path):
-		kaosu_portrait.texture = load(portrait_path)
+	kaosu_portrait.set_character(CHARACTER_ID)
+	kaosu_portrait.set_expression("normal")
 
 	enemy_name_label.text = _enemy_name
 	player_hp_bar.max_value = _player_max_hp
@@ -94,19 +97,24 @@ func _on_attack_pressed() -> void:
 
 
 ## 攻撃のたびにケイオスちゃんへ軽くパンチのような伸縮を入れ、手応えを出す。
-func _punch(node: Control) -> void:
+## 演出中はアイドルモーション(呼吸)を止め、終わったら再開する。
+func _punch(node: CharacterPortraitView) -> void:
+	node.set_motion_enabled(false)
 	var tween := create_tween()
 	tween.tween_property(node, "scale", Vector2(1.06, 0.94), 0.08)
 	tween.tween_property(node, "scale", Vector2(1.0, 1.0), 0.12)
+	tween.finished.connect(func(): node.set_motion_enabled(true))
 
 
 func _end_battle(won: bool) -> void:
 	_battle_over = true
 	_busy = false
+	_won_last = won
 	attack_button.disabled = true
 	back_button.disabled = false
 	if won:
 		Flags.set_flag(WIN_FLAG, true)
+		AffectionManager.add_points(CHARACTER_ID, WIN_AFFECTION_POINTS)
 		_log(LocalizationManager.t("battle_mock_victory_line"))
 	else:
 		Flags.set_flag(LOSE_FLAG, true)
@@ -114,6 +122,8 @@ func _end_battle(won: bool) -> void:
 
 
 func _on_back_pressed() -> void:
+	Flags.set_flag("just_returned_from_battle", true)
+	Flags.set_flag("last_battle_result", "won" if _won_last else "lost")
 	GameManager.goto_home()
 
 
