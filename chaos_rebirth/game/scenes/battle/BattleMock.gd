@@ -117,16 +117,47 @@ func _end_battle(won: bool) -> void:
 	_won_last = won
 	attack_button.disabled = true
 	back_button.disabled = false
+
+	var is_first_win: bool = won and Flags.get_flag(WIN_FLAG, false) != true
+
 	if won:
 		Flags.set_flag(WIN_FLAG, true)
 		AffectionManager.add_points(CHARACTER_ID, WIN_AFFECTION_POINTS)
-		_log(LocalizationManager.t("battle_mock_victory_line"))
 	else:
 		Flags.set_flag(LOSE_FLAG, true)
-		_log(LocalizationManager.t("battle_mock_defeat_line"))
 
 	EmotionManager.notify_battle_result(CHARACTER_ID, won, false)
 	kaosu_portrait.set_expression(EmotionManager.get_portrait_expression(CHARACTER_ID))
+
+	_log(_pick_battle_result_line(won, is_first_win))
+
+
+## 勝敗の台詞はCharacter Voice & Dialogue Databaseから選ぶ(初勝利は専用の
+## 高優先度エントリが自然に優先される)。該当データが無ければ既存の固定文言へ
+## フォールバックする(既存機能非破壊)。
+func _pick_battle_result_line(won: bool, is_first_win: bool) -> String:
+	var stage := AffectionManager.get_stage(CHARACTER_ID)
+	var emotion := EmotionManager.get_current_emotion(CHARACTER_ID)
+	var context := {
+		"relationship_stage": stage,
+		"emotion": emotion,
+		"battle_result": "win" if won else "loss",
+		"story_chapter": "episode0",
+		"location": "battle",
+		"affection_level": AffectionManager.get_level(CHARACTER_ID),
+		"recorded_memory_ids": MemoryManager.get_recorded_ids(),
+		"memory_importance_by_id": MemoryManager.get_importance_map(),
+	}
+	if is_first_win:
+		context["event_type"] = "first_battle_win"
+
+	var recent_ids: Array = MemoryManager.get_recent_dialogue_ids(CHARACTER_ID)
+	var result := DialogueDatabase.pick_dialogue(CHARACTER_ID, context, recent_ids)
+	if result.is_valid():
+		MemoryManager.record_dialogue_used(CHARACTER_ID, result.entry_id)
+		return LocalizationManager.t_for_contexts(result.text_key, [emotion, stage])
+
+	return LocalizationManager.t("battle_mock_victory_line") if won else LocalizationManager.t("battle_mock_defeat_line")
 
 
 func _on_back_pressed() -> void:

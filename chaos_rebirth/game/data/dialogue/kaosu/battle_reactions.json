@@ -1,0 +1,28 @@
+{
+  "dialogues": [
+    {
+      "id": "kaosu_battle_first_win",
+      "character_id": "kaosu",
+      "text_key": "dlg_battle_first_win",
+      "priority": 50,
+      "conditions": { "event_type": "first_battle_win", "location": "battle" },
+      "tags": ["battle", "victory"]
+    },
+    {
+      "id": "kaosu_battle_win_generic",
+      "character_id": "kaosu",
+      "text_key": "dlg_battle_win_generic",
+      "priority": 20,
+      "conditions": { "battle_result": "win", "location": "battle" },
+      "tags": ["battle", "victory"]
+    },
+    {
+      "id": "kaosu_battle_loss_generic",
+      "character_id": "kaosu",
+      "text_key": "dlg_battle_loss_generic",
+      "priority": 20,
+      "conditions": { "battle_result": "loss", "location": "battle" },
+      "tags": ["battle", "defeat"]
+    }
+  ]
+}

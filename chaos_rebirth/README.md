@@ -67,6 +67,20 @@ CLAUDE.md記載の7項目レビューを実施した結果、BattleMockが「ケ
 - Home連携: 時間帯(深夜→SLEEPY等)・RelationshipStage基準・久しぶりログイン(→HAPPY)・長時間プレイ(45分→TIRED)をアンビエント信号として通知。
 - セーブに `emotion.json` モジュールを追加。
 
+## Character Voice & Dialogue Database(Memory/Emotion/Relationship/Story/Time/Locationから最も自然な台詞を選ぶ)
+
+新規設計章は追加せず、既存4システム(Memory/Emotion/RelationshipStage/Story/Battle/Home)から呼べる共通エンジンとして統合。台詞は一切コードへ書かず、`game/data/dialogue/<character_id>/*.json` に完全データ化。
+
+- `core/dialogue_engine/DialogueResult.gd` : 選定結果の値オブジェクト(entry_id/text_key/score/fallback_tier)。
+- `core/dialogue_engine/DialogueCondition.gd` : 条件一致判定(IP非依存の純粋関数)。character_id・AffectionRange(affection_min/max_level)・MemoryFlagは常に必須(緩められない)。relationship_stage/emotion/time_of_day/season/weather/story_chapter/location/login_type/battle_result/event_typeは段階に応じて必須/加点を切り替え可能。
+- `core/dialogue_engine/DialogueSelector.gd` : 段階的フォールバック(`full` → `core_context` → `relationship_only` → `any`)で、データがある限り必ず何か返す。重み付けは Priority + Condition一致率 + Emotion一致 + Relationship一致 + Memory重要度 − 直近使用ペナルティ + 僅かなジッター。
+- `game/dialogue/DialogueDatabase.gd` : game層のデータアクセス+公開API(autoload)。`game/data/dialogue/<character_id>/` フォルダをキャラ単位で遅延ロード+キャッシュ(第11章CharacterDatabaseと同じ思想、100キャラ以上でも起動時に全員分を読まない)。**MemoryManager・AffectionManager・EmotionManagerを直接呼び出さない**(責務分離。文脈の組み立てと重複防止用の直近使用ID受け渡しはHome.gd/BattleMock.gdが担う)。
+- 重複防止: `MemoryManager` に `record_dialogue_used()` / `get_recent_dialogue_ids()` を追加し、`last_dialogues` を `memory.json` へ保存(MemoryManagerはDialogue Databaseの存在を知らず、単なる「直近使用ID台帳」として提供するだけ)。
+- Memory連携: Memory定義の `memory_flags` 条件でゲート(例: 「歌が好き」Memoryが記録済みなら「最近歌ってる?」が候補に入る)。スコアリングにはMemoryManagerの `get_importance_map()` を使う。
+- Home連携: 特別な出来事が無い「いつもの一言」をDialogue Databaseから選ぶよう更新(戦闘直後のリキャップ・Memoryリアクションは既存実装のまま変更なし、既存機能非破壊)。
+- Battle連携: 勝敗の台詞をDialogue Databaseから選定(初勝利は専用の高優先度エントリが自然に優先される)。該当データが無ければ既存の固定文言へフォールバック。
+- スペック記載の全例(HOME朝Happy+Friend、夜Sleepy、久しぶりログイン、初勝利、親友、家族、Memory「歌が好き」)をそのまま `game/data/dialogue/kaosu/*.json` にデータ化して再現。
+
 ## 動作確認方法
 
 Godot 4.3 (stable) の実行ファイルがあれば、GUIなしで動作確認できる。
@@ -89,6 +103,9 @@ godot --headless --script res://tools/expression_memory_affection_smoke_test.gd
 
 # Emotion Engineテスト: 優先度解決・持続時間・Battle/Home/Memory/Story連携・セーブ往復
 godot --headless --script res://tools/emotion_engine_smoke_test.gd
+
+# Dialogue Databaseテスト: 条件一致・段階的フォールバック・重複防止・Memory連携・Home/Battle統合
+godot --headless --script res://tools/dialogue_database_smoke_test.gd
 ```
 
 いずれも最後に `..._RESULT: PASS` が出力されれば正常(exit code 0)。
@@ -106,4 +123,7 @@ godot --headless --script res://tools/emotion_engine_smoke_test.gd
 - アイドルモーションは瞬き・呼吸のみ実装(1枚絵のため)。髪揺れ・翼揺れはLive2D導入時に備えたモーションパラメータチャンネルとしてAPIのみ用意し、現状は見た目に反映しないダミー実装(体験設計書 第5.2節の想定どおり)。
 - Affection/Emotionの口調変化は `t_for_contexts` の仕組みが機能することを確認できる代表例(「おかえり」等)のみ用意。全キー・全パターンの言い回しは今後拡充する。
 - Emotionのレベルアップ・必殺技使用は将来のBattle System本実装向けのAPI(`notify_level_up`/`notify_ultimate_used`)のみ用意し、実際のゲームプレイからは未接続(対応するシステム自体が未実装のため)。
+- Dialogue Databaseのデータ量はkaosu用に11件のみ(スペック記載の全例を再現する分)。100万行規模での性能検証(インデックス化・線形走査の最適化)は未着手で、現状は候補配列を毎回全走査する素朴な実装(データ量が実際に増えてから最適化する方針)。
+- Dialogue Databaseの「歌が好き」Memoryは、対応する story_flag をまだどのシナリオも立てていないため、実際のプレイでは自然発生しない(テストでは直接フラグを立てて確認)。
+- Story連携(StoryEngineへの `say_dialogue` コマンド追加)は `say_memory` と同じパターンで容易に追加できるが、今回はHome/Battleの2箇所に絞って統合(スコープを広げすぎない判断)。
 - World/Collectionは体験設計書に設計済みだが未着手。

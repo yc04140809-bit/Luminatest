@@ -9,16 +9,25 @@ extends Node
 ##   pick_reaction_text_key()     … 「今なにを話すか」を1つ選ぶ(Home挨拶にもStoryEngineの
 ##                                   say_memoryコマンドにも共通で使う唯一の入口)
 ##   get_last_referenced_id()     … 直近参照したMemoryID(「前回話題」の参照に使う)
+##   record_dialogue_used() /
+##   get_recent_dialogue_ids()    … Character Voice & Dialogue Database の重複防止用
+##                                   「直近使用した台詞」台帳(Memoryへ保存)。
+##                                   MemoryManagerはDialogueDatabaseの存在を知らない
+##                                   (単なる汎用的な「直近使用ID」台帳として提供するだけ)。
 ##
 ## トリガー種別: story_flag / login_streak / absence_return / date_special
 
 const MEMORY_DIR := "res://game/data/memory"
 const RECENT_TAGS_WINDOW := 3
+const RECENT_DIALOGUES_MAX := 50
 
 var _definitions: Dictionary = {}   # id -> definition dict
 var _records: Dictionary = {}       # id -> { occurred_at, reference_count, last_referenced_at }
 var _recent_tags: Array = []
 var _last_picked_emotion_bias: Dictionary = {}
+
+## character_id -> Array[{ id, used_at }]。Dialogue Databaseの重複防止台帳。
+var _last_dialogues: Dictionary = {}
 
 ## ログイン記録(連続ログイン/久しぶり/記念日判定に使う)
 var _attendance: Dictionary = { "first_login_date": "", "last_login_date": "", "streak": 0 }
@@ -151,17 +160,51 @@ func get_recorded_ids() -> Array:
 	return _records.keys()
 
 
+## 全Memory定義の重要度マップ(id -> importance)。Dialogue Databaseが
+## memory_flags条件のスコアリングに使う(MemoryManager自体はDialogueの
+## 概念を一切知らない、単なるデータ提供)。
+func get_importance_map() -> Dictionary:
+	var map: Dictionary = {}
+	for id in _definitions.keys():
+		map[id] = _definitions[id].get("importance", 1)
+	return map
+
+
+## Dialogue Databaseで実際に使われた台詞IDを記録する(重複防止用の台帳)。
+## MemoryManagerはDialogue Databaseの存在を知らず、単にIDを覚えるだけ。
+func record_dialogue_used(character_id: String, dialogue_id: String) -> void:
+	if dialogue_id == "":
+		return
+	if not _last_dialogues.has(character_id):
+		_last_dialogues[character_id] = []
+	var list: Array = _last_dialogues[character_id]
+	list.append({ "id": dialogue_id, "used_at": Time.get_datetime_string_from_system() })
+	while list.size() > RECENT_DIALOGUES_MAX:
+		list.pop_front()
+
+
+## 直近使用した台詞IDの一覧(古い順)。重複防止のスコアリングに使う。
+func get_recent_dialogue_ids(character_id: String) -> Array:
+	var list: Array = _last_dialogues.get(character_id, [])
+	var ids: Array = []
+	for entry in list:
+		ids.append(entry.get("id", ""))
+	return ids
+
+
 func get_state() -> Dictionary:
 	return {
 		"schema_version": 1,
 		"records": _records.duplicate(true),
 		"attendance": _attendance.duplicate(true),
+		"last_dialogues": _last_dialogues.duplicate(true),
 	}
 
 
 func load_state(data: Dictionary) -> void:
 	_records = data.get("records", {}).duplicate(true)
 	_attendance = data.get("attendance", { "first_login_date": "", "last_login_date": "", "streak": 0 }).duplicate(true)
+	_last_dialogues = data.get("last_dialogues", {}).duplicate(true)
 	_recent_tags.clear()
 	_last_gap_days = 0
 

@@ -1,0 +1,12 @@
+{
+  "dialogues": [
+    {
+      "id": "kaosu_fallback_universal",
+      "character_id": "kaosu",
+      "text_key": "dlg_fallback_universal",
+      "priority": 1,
+      "conditions": {},
+      "tags": ["fallback"]
+    }
+  ]
+}

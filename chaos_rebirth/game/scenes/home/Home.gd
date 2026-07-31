@@ -9,8 +9,11 @@ extends Control
 ## 通知)だけを呼び、3者の間を橋渡しする(各Managerは互いを直接知らない)。
 ##
 ## 挨拶の優先順位: ①戦闘直後のリキャップ(一度きり) > ②Memory Systemの
-## リアクション > ③時間帯の通常挨拶。文言は Emotion → RelationshipStage の
-## 順で言い回しを差し替え、表情もEmotionに追従する。
+## リアクション > ③いつもの一言(Character Voice & Dialogue Database)。
+## 文言は Emotion → RelationshipStage の順で言い回しを差し替え、
+## 表情もEmotionに追従する。①②は既存の実装(未変更)、③のみ
+## DialogueDatabaseへ委譲する(特別な出来事が無い「いつもの雑談」を
+## データベース化し、同じ台詞の連続を避けながら選ぶ)。
 
 const TIME_BANDS_PATH := "res://game/data/home/time_bands.json"
 const ASSET_ROOT := "res://game/assets/"
@@ -116,10 +119,43 @@ func _refresh_greeting() -> void:
 		# Memoryが持つ感情バイアスをEmotion Engineへ橋渡しする(MemoryManagerと
 		# EmotionManagerは互いを直接知らないため、この画面が仲介する)。
 		EmotionManager.notify_bias(CHARACTER_ID, MemoryManager.get_last_picked_emotion_bias())
+		var emotion := EmotionManager.get_current_emotion(CHARACTER_ID)
+		greeting_label.text = LocalizationManager.t_for_contexts(memory_key, [emotion, stage])
+		return
 
+	# 特別な出来事が無い「いつもの一言」はDialogue Databaseから選ぶ。
 	var emotion := EmotionManager.get_current_emotion(CHARACTER_ID)
-	var text_key: String = memory_key if memory_key != "" else String(_current_band.get("greeting_key", ""))
-	greeting_label.text = LocalizationManager.t_for_contexts(text_key, [emotion, stage])
+	var context := _build_dialogue_context(emotion, stage)
+	var recent_ids: Array = MemoryManager.get_recent_dialogue_ids(CHARACTER_ID)
+	var result := DialogueDatabase.pick_dialogue(CHARACTER_ID, context, recent_ids)
+	if result.is_valid():
+		MemoryManager.record_dialogue_used(CHARACTER_ID, result.entry_id)
+		greeting_label.text = LocalizationManager.t_for_contexts(result.text_key, [emotion, stage])
+	else:
+		# DialogueDatabaseに該当キャラのデータが無い場合の最終防衛線。
+		var band_key: String = String(_current_band.get("greeting_key", ""))
+		greeting_label.text = LocalizationManager.t_for_contexts(band_key, [emotion, stage])
+
+
+## Dialogue Databaseへ渡す「今この瞬間の状況」。Memory/Emotion/Relationship/
+## Story/Time/Locationをひとつの文脈として組み立てる(この橋渡し自体は
+## Home画面の責務。DialogueDatabaseはMemory/Affection/Emotionを一切知らない)。
+func _build_dialogue_context(emotion: String, stage: String) -> Dictionary:
+	var context := {
+		"relationship_stage": stage,
+		"emotion": emotion,
+		"time_of_day": String(_current_band.get("id", "")),
+		"story_chapter": "episode0",
+		"location": "home",
+		"affection_level": AffectionManager.get_level(CHARACTER_ID),
+		"recorded_memory_ids": MemoryManager.get_recorded_ids(),
+		"memory_importance_by_id": MemoryManager.get_importance_map(),
+	}
+	if MemoryManager.get_last_login_gap_days() >= 7:
+		context["login_type"] = "long_absence_return"
+	elif MemoryManager.get_login_streak() >= 7:
+		context["login_type"] = "streak"
+	return context
 
 
 ## 戦闘直後の一度きりのリキャップ。表示したら即フラグを消費するので、

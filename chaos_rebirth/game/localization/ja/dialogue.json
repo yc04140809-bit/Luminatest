@@ -1,0 +1,13 @@
+{
+  "dlg_home_morning_happy_friend": "おはよう!\n今日は一緒に頑張ろう!",
+  "dlg_home_night_sleepy": "もう遅いよ。\nちゃんと寝ないと駄目だからね。",
+  "dlg_welcome_best_friend": "おかえり。\n待ってた。",
+  "dlg_welcome_family": "おかえり。\n今日も無事でよかった。",
+  "dlg_login_long_absence": "会いたかった…。",
+  "dlg_home_generic_normal": "ここにいると、なんだか落ち着くな。",
+  "dlg_battle_first_win": "やったね!!\nすごく嬉しい!",
+  "dlg_battle_win_generic": "勝ったね。お疲れさま。",
+  "dlg_battle_loss_generic": "大丈夫、次があるよ。",
+  "dlg_memory_likes_singing": "最近歌ってる?",
+  "dlg_fallback_universal": "……なに? わたしの顔、見てた?"
+}

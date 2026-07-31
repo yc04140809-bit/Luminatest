@@ -1,0 +1,12 @@
+{
+  "dialogues": [
+    {
+      "id": "kaosu_memory_likes_singing",
+      "character_id": "kaosu",
+      "text_key": "dlg_memory_likes_singing",
+      "priority": 25,
+      "conditions": { "memory_flags": ["mem_likes_singing"], "location": "home" },
+      "tags": ["memory", "preference"]
+    }
+  ]
+}

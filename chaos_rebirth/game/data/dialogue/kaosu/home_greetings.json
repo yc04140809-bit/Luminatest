@@ -1,0 +1,52 @@
+{
+  "dialogues": [
+    {
+      "id": "kaosu_home_morning_happy_friend",
+      "character_id": "kaosu",
+      "text_key": "dlg_home_morning_happy_friend",
+      "priority": 40,
+      "conditions": { "relationship_stage": "friend", "emotion": "HAPPY", "time_of_day": "morning", "location": "home" },
+      "tags": ["greeting", "morning"]
+    },
+    {
+      "id": "kaosu_home_night_sleepy",
+      "character_id": "kaosu",
+      "text_key": "dlg_home_night_sleepy",
+      "priority": 35,
+      "conditions": { "emotion": "SLEEPY", "location": "home" },
+      "tags": ["greeting", "night"]
+    },
+    {
+      "id": "kaosu_home_welcome_best_friend",
+      "character_id": "kaosu",
+      "text_key": "dlg_welcome_best_friend",
+      "priority": 30,
+      "conditions": { "relationship_stage": "best_friend", "location": "home" },
+      "tags": ["greeting", "welcome"]
+    },
+    {
+      "id": "kaosu_home_welcome_family",
+      "character_id": "kaosu",
+      "text_key": "dlg_welcome_family",
+      "priority": 30,
+      "conditions": { "relationship_stage": "family", "location": "home" },
+      "tags": ["greeting", "welcome"]
+    },
+    {
+      "id": "kaosu_home_login_long_absence",
+      "character_id": "kaosu",
+      "text_key": "dlg_login_long_absence",
+      "priority": 45,
+      "conditions": { "login_type": "long_absence_return", "location": "home" },
+      "tags": ["login"]
+    },
+    {
+      "id": "kaosu_home_generic_normal",
+      "character_id": "kaosu",
+      "text_key": "dlg_home_generic_normal",
+      "priority": 5,
+      "conditions": { "location": "home" },
+      "tags": ["greeting", "generic"]
+    }
+  ]
+}

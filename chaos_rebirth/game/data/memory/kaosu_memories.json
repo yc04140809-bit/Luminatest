@@ -86,6 +86,16 @@
       "reference_cooldown_days": 10,
       "max_references": null,
       "emotion_bias": { "emotion": "SPECIAL", "priority": 45, "duration_sec": 900 }
+    },
+    {
+      "id": "mem_likes_singing",
+      "category": "preference",
+      "tags": ["preference", "singing"],
+      "importance": 4,
+      "trigger": { "type": "story_flag", "flag": "learned_kaosu_likes_singing" },
+      "text_key": "memory_likes_singing_line",
+      "reference_cooldown_days": 5,
+      "max_references": null
     }
   ]
 }
