@@ -1,0 +1,13 @@
+{
+  "categories": [
+    { "id": "character_list", "name_key": "gallery_cat_character_list", "enabled": true },
+    { "id": "standing_art",   "name_key": "gallery_cat_standing_art",   "enabled": true },
+    { "id": "expressions",    "name_key": "gallery_cat_expressions",    "enabled": true },
+    { "id": "event_cg",       "name_key": "gallery_cat_event_cg",       "enabled": true },
+    { "id": "costumes",       "name_key": "gallery_cat_costumes",       "enabled": true },
+    { "id": "weapons",        "name_key": "gallery_cat_weapons",        "enabled": true },
+    { "id": "profile",        "name_key": "gallery_cat_profile",        "enabled": true },
+    { "id": "voice",          "name_key": "gallery_cat_voice",          "enabled": false },
+    { "id": "live2d",         "name_key": "gallery_cat_live2d",         "enabled": false }
+  ]
+}

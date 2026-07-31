@@ -1,4 +1,10 @@
 {
   "chara_kaosu_name": "ケイオス",
-  "chara_kaosu_profile": "この世界の「歪み」から生まれた少女。無邪気だが、時折見せる瞳の奥に底知れぬ何かを宿す。"
+  "chara_kaosu_alias": "歪みより生まれし者",
+  "chara_kaosu_profile": "この世界の「歪み」から生まれた少女。無邪気だが、時折見せる瞳の奥に底知れぬ何かを宿す。",
+  "chara_kaosu_world_setting": "「歪み」とは、世界の理から外れた領域に発生する現象。ケイオスはその中心で生まれたとされるが、詳細は本編で明らかになる。",
+  "chara_kaosu_affiliation": "無所属",
+  "chara_kaosu_likes": "甘いもの、静かな夜",
+  "chara_kaosu_dislikes": "嘘をつく人間",
+  "skill_kaosu_normal_name": "混沌の一撃"
 }

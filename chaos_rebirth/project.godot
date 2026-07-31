@@ -21,6 +21,7 @@ Flags="*res://game/autoload/Flags.gd"
 SaveManager="*res://game/autoload/SaveManager.gd"
 AudioManager="*res://game/autoload/AudioManager.gd"
 GameManager="*res://game/autoload/GameManager.gd"
+GalleryRepository="*res://game/gallery/GalleryRepository.gd"
 
 [display]
 

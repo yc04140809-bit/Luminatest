@@ -1,0 +1,59 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/gallery/scenes/views/GalleryCharacterListView.gd" id="1"]
+
+[node name="GalleryCharacterListView" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="FilterBar" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 8.0
+offset_bottom = 168.0
+grow_horizontal = 2
+theme_override_constants/separation = 8
+
+[node name="NameInput" type="LineEdit" parent="FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+placeholder_text = "名前で検索"
+
+[node name="ElementOption" type="OptionButton" parent="FilterBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 48)
+
+[node name="ToggleRow" type="HBoxContainer" parent="FilterBar"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="AcquiredToggle" type="CheckButton" parent="FilterBar/ToggleRow"]
+layout_mode = 2
+text = "取得済み"
+
+[node name="UnacquiredToggle" type="CheckButton" parent="FilterBar/ToggleRow"]
+layout_mode = 2
+text = "未取得"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 176.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="Grid" type="GridContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12

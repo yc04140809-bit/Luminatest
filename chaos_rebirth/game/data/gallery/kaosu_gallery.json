@@ -1,0 +1,32 @@
+{
+  "character_id": "kaosu",
+  "profile": {
+    "name_key": "chara_kaosu_name",
+    "alias_key": "chara_kaosu_alias",
+    "profile_key": "chara_kaosu_profile",
+    "world_setting_key": "chara_kaosu_world_setting",
+    "affiliation_key": "chara_kaosu_affiliation",
+    "element": "chaos",
+    "height_cm": 152,
+    "birthday": "??-??",
+    "likes_key": "chara_kaosu_likes",
+    "dislikes_key": "chara_kaosu_dislikes",
+    "rarity": 5,
+    "full_body_art": "characters/kaosu/base/kaosu_base.png",
+    "unlock_conditions": [ { "type": "story_flag", "flag": "met_kaosu" } ]
+  },
+  "standing_art": [
+    { "id": "kaosu_base", "image": "characters/kaosu/base/kaosu_base.png", "unlock_conditions": [] }
+  ],
+  "expressions": [
+    { "id": "kaosu_normal", "image": "characters/kaosu/expressions/kaosu_normal.png", "unlock_conditions": [] },
+    { "id": "kaosu_smile",  "image": "characters/kaosu/expressions/kaosu_smile.png",  "unlock_conditions": [ { "type": "story_flag", "flag": "met_kaosu" } ] }
+  ],
+  "event_cg": [
+    { "id": "cg_ep0_001", "image": "backgrounds/bg_pink_room.png", "thumbnail": "backgrounds/bg_pink_room.png", "unlock_conditions": [ { "type": "story_flag", "flag": "ep0_midboss_cleared" } ] }
+  ],
+  "costumes": [
+    { "id": "kaosu_gothic_dress", "image": "characters/kaosu/outfits/gothic_dress/kaosu_gothic_dress.png", "unlock_conditions": [ { "type": "item_owned", "item_id": "item_gothic_dress_ticket" } ] }
+  ],
+  "weapons": []
+}

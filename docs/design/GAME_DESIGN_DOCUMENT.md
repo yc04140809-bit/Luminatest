@@ -1,4 +1,4 @@
-# CHAOS RE:BIRTH ゲーム設計書 Ver.1.1
+# CHAOS RE:BIRTH ゲーム設計書 Ver.1.2
 
 Episode0 開発用マスタードキュメント / 長期IP前提の拡張設計
 
@@ -10,6 +10,7 @@ Episode0 開発用マスタードキュメント / 長期IP前提の拡張設計
 |---|---|
 | 1.0 | Episode0を完成させるための最小設計(技術選定〜MVP定義) |
 | 1.1 | 長期IPとして育てる前提で、Asset管理/Character System/Story System/Battle System/Save System/Localization/Plugin化 の拡張設計を追加(第10〜16章)。あわせて会話パートの技術方針を自社製StoryEngine(JSON駆動)に更新。 |
+| 1.2 | Character Gallery System(キャラクターギャラリー)の設計を追加(第18章)し、Godotプロジェクトへ実装。 |
 
 ---
 
@@ -810,7 +811,146 @@ func t(key: String) -> String:
 
 ---
 
-## 17. 次のアクション
+## 18. Character Gallery System(キャラクターギャラリー)
+
+### 18.1 目的・設計方針
+
+プレイヤーが集めたイラスト・立ち絵・設定資料をいつでも閲覧できる機能。**ゲーム本編(ストーリー進行・戦闘)とは独立したサブシステム**として設計し、以下のいずれのタイミングでも(タイトル画面からでも、将来のホーム画面からでも)単独で起動・終了できるようにする。
+
+新キャラクター・新衣装・イベントCG・季節イベント・コラボ・Live2Dが将来追加されても、**コードを触らずデータ追加だけで対応できる**ことを最重要要件とする。第16章のレイヤー分離方針に従い、以下のように配置する。
+
+| レイヤー | 内容 | IPへの依存 |
+|---|---|---|
+| `core/gallery_engine/` | 解放条件の判定ロジック(`GalleryUnlockEvaluator`) | なし。判定に使う実データ(フラグ/所持品/パーティ等)はCallable経由でgame層から注入される |
+| `core/ui_kit/` | サムネイル(`GalleryThumbnail`)、カテゴリタイル(`GalleryCategoryTile`)、フルスクリーン画像ビューア(`GalleryImageViewer`: タップ拡大・スワイプ送り) | なし。表示するのは画像パスと文字列のみ |
+| `game/gallery/` | ギャラリー本体の画面構成・データ読み込み(`GalleryRepository`)・画面遷移(`GalleryRoot`) | CHAOS RE:BIRTH固有のデータ配線 |
+| `game/data/gallery/` | カテゴリ定義・キャラごとのギャラリーデータ(JSON) | データそのもの |
+
+### 18.2 表示カテゴリ
+
+`game/data/gallery/gallery_categories.json` でカテゴリ一覧をデータ定義する(コード変更なしでカテゴリの追加・並び替え・無効化が可能)。
+
+```json
+{
+  "categories": [
+    { "id": "character_list", "name_key": "gallery_cat_character_list", "enabled": true },
+    { "id": "standing_art",   "name_key": "gallery_cat_standing_art",   "enabled": true },
+    { "id": "expressions",    "name_key": "gallery_cat_expressions",    "enabled": true },
+    { "id": "event_cg",       "name_key": "gallery_cat_event_cg",       "enabled": true },
+    { "id": "costumes",       "name_key": "gallery_cat_costumes",       "enabled": true },
+    { "id": "weapons",        "name_key": "gallery_cat_weapons",        "enabled": true },
+    { "id": "profile",        "name_key": "gallery_cat_profile",        "enabled": true },
+    { "id": "voice",          "name_key": "gallery_cat_voice",          "enabled": false },
+    { "id": "live2d",         "name_key": "gallery_cat_live2d",         "enabled": false }
+  ]
+}
+```
+
+`enabled: false` のカテゴリ(ボイス・Live2D)はタイル自体は表示するが、グレーアウト＋「Coming Soon」表示で非活性にする(将来実装時は `enabled: true` に変更するだけでよい)。`character_list` と `profile` はいずれもキャラクター一覧画面へ遷移する(プロフィールはキャラクター詳細画面の一部として閲覧する構成のため)。
+
+### 18.3 データ構造(1キャラ = 1ギャラリーJSON)
+
+`CharacterData`(第11章、戦闘・ロースター用)とは別に、**閲覧・収集用データを分離**した `game/data/gallery/<character_id>_gallery.json` を用意する。これにより戦闘バランス調整とギャラリー用フレーバーテキストの担当領域が混ざらない。
+
+```json
+{
+  "character_id": "kaosu",
+  "profile": {
+    "name_key": "chara_kaosu_name",
+    "alias_key": "chara_kaosu_alias",
+    "profile_key": "chara_kaosu_profile",
+    "world_setting_key": "chara_kaosu_world_setting",
+    "affiliation_key": "chara_kaosu_affiliation",
+    "element": "chaos",
+    "height_cm": 152,
+    "birthday": "??-??",
+    "likes_key": "chara_kaosu_likes",
+    "dislikes_key": "chara_kaosu_dislikes",
+    "rarity": 5,
+    "full_body_art": "characters/kaosu/gallery/kaosu_full_body.png",
+    "unlock_conditions": [ { "type": "story_flag", "flag": "met_kaosu" } ]
+  },
+  "standing_art": [
+    { "id": "kaosu_base", "image": "characters/kaosu/base/kaosu_base.png", "unlock_conditions": [] }
+  ],
+  "expressions": [
+    { "id": "kaosu_normal", "image": "characters/kaosu/expressions/kaosu_normal.png", "unlock_conditions": [] },
+    { "id": "kaosu_smile",  "image": "characters/kaosu/expressions/kaosu_smile.png",  "unlock_conditions": [ { "type": "story_flag", "flag": "met_kaosu" } ] }
+  ],
+  "event_cg": [
+    { "id": "cg_ep0_001", "image": "cg/episode0/cg_ep0_001.png", "thumbnail": "cg/episode0/cg_ep0_001_thumb.png", "unlock_conditions": [ { "type": "story_flag", "flag": "ep0_midboss_cleared" } ] }
+  ],
+  "costumes": [
+    { "id": "kaosu_gothic_dress", "image": "characters/kaosu/outfits/gothic_dress/kaosu_gothic_dress.png", "unlock_conditions": [ { "type": "item_owned", "item_id": "item_gothic_dress_ticket" } ] }
+  ],
+  "weapons": []
+}
+```
+
+新キャラクターを追加する場合は `<新ID>_gallery.json` を1ファイル追加するだけでよく、`GalleryRepository` が起動時に `game/data/gallery/` を走査して自動的に読み込む(第11章のCharacterDatabaseと同じ思想)。スキル一覧はここでは持たず、`game/data/characters/<id>.json` の `skill_ids` を参照する(単一ソースの原則)。
+
+### 18.4 解放条件
+
+初期状態はすべて未解放。`core/gallery_engine/GalleryUnlockEvaluator` が以下4種の条件タイプを判定する。
+
+| type | 条件 | 判定コンテキスト(game層から注入) |
+|---|---|---|
+| `story_flag` | 指定フラグが立っている | `Flags.get_flag(flag)` |
+| `event_clear` | 指定イベントをクリア済み | 将来の `EventManager`(現状は `Flags` の規約キーで代替) |
+| `party_join` | 指定キャラが仲間になっている | 将来の `PartyManager`(現状は `Flags` の規約キーで代替) |
+| `item_owned` | 指定アイテムを所持 | 将来の `Inventory`(現状は `Flags` の規約キーで代替) |
+
+`unlock_conditions` は配列で複数指定可能。`unlock_logic: "any"`(いずれか1つで解放、デフォルト)または `"all"`(すべて満たして解放)を選べる。**`core/gallery_engine` はFlags/Inventory/PartyManagerを直接参照せず、Callable経由でgame層から判定関数を注入される**(第16章の依存方向ルールを踏襲)。Phase2以降でInventory/PartyManager/EventManagerが実装され次第、注入するCallableの中身だけを差し替えればよく、コアロジックやギャラリーUI側の変更は不要。
+
+### 18.5 画面構成
+
+`GalleryRoot`(game層)が内部スタックで以下のビューを切り替える、独立したモーダル的サブアプリとして実装する(タイトル画面等から起動し、閉じると呼び出し元に戻る)。
+
+```
+GalleryRoot(戻る/閉じるボタン付きの共通フレーム)
+ ├─ GalleryTopView            … カテゴリ選択(9タイル)
+ ├─ GalleryCategoryGridView   … 選択カテゴリの全キャラ横断サムネイル一覧
+ ├─ GalleryCharacterListView  … キャラクター一覧 + 検索/絞り込み
+ ├─ GalleryCharacterDetailView… キャラクター詳細(プロフィール・スキル・取得済みCG)
+ └─ GalleryImageViewer(共通オーバーレイ) … タップ拡大 + スワイプで次/前へ
+```
+
+- **キャラクター詳細画面**: 全身立ち絵、名前、二つ名、プロフィール、世界設定、所属、属性、身長、誕生日、好きなもの、嫌いなもの、スキル一覧、取得済みCG一覧を1画面に集約(縦スクロール)。
+- **サムネイル → 拡大**: `GalleryThumbnail` タップで `GalleryImageViewer` をオーバーレイ表示。未解放サムネイルはシルエット表示でタップ無反応。
+- **スワイプ送り**: `GalleryImageViewer` は開いた時点のカテゴリ内の**解放済み画像のみ**を配列として保持し、左右スワイプで前後移動する(タップで閉じる)。
+
+### 18.6 検索・絞り込み
+
+`GalleryCharacterListView` に検索バーを設置し、`GalleryRepository.get_character_summaries(filter)` へ以下のフィルタ条件を渡す。
+
+- 名前(部分一致、`LineEdit`)
+- 属性(`OptionButton`、キャラデータから動的に選択肢生成)
+- 所属(同上)
+- レアリティ
+- 取得済み / 未取得(`CheckButton`、両方ON/OFFの組み合わせも許容)
+
+フィルタはすべてクライアント側の絞り込みで完結し(キャラ数が数百規模になっても軽量なDictionaryフィルタで十分なパフォーマンスが出る想定)、サーバー通信は不要。
+
+### 18.7 UI方針
+
+第5章のUIコンセプト(高級感・アニメRPG風・透明感・神秘的・未来感)を踏襲し、ゴールド×ダークパープルの配色で統一する。`ScrollContainer` + `GridContainer` によるサムネイルグリッドで快適なスクロールを実現し、タップ領域は他画面同様44dp以上を確保する。
+
+### 18.8 将来拡張
+
+| 拡張要素 | 設計上の配慮 |
+|---|---|
+| **お気に入り登録** | `RosterData`(第14章)に `favorite: bool` を追加するだけで対応可能(既に設計済みのフィールドを流用)。 |
+| **ホーム画面設定/壁紙保存** | `GalleryThumbnail` からの長押しメニュー等を追加する形で拡張。画像パス自体は既にデータとして持っているため、保存/設定処理を追加するだけでよい。 |
+| **Live2D表示** | カテゴリ定義の `live2d.enabled` を `true` に切り替え、対応する再生コンポーネントを `core/ui_kit/` に追加。ギャラリーデータの `live2d_model` フィールドを各キャラJSONに追加するだけでデータ側は対応可能。 |
+| **ボイス再生** | 同様に `voice.enabled` を `true` にし、`AudioManager.play_se` 系の仕組みを流用してボイス再生ボタンを追加。 |
+| **季節衣装切替** | `costumes` エントリに `season` タグを追加し、`GalleryCategoryGridView` 側でタグフィルタを足すだけで対応。 |
+| **人気ランキング** | 集計はサーバー/分析基盤側の話であり、クライアントは「お気に入り数」等のローカル集計値をランキングAPIに送るだけで対応可能な設計(ローカルのみでも簡易版は実装できる)。 |
+
+上記はいずれも**既存のcore/gallery_engineやGalleryRootの構造を変更せず、データ追加または注入するCallableの差し替えのみ**で実現できることを設計上の要件とする。
+
+---
+
+## 19. 次のアクション
 
 本設計書の内容で問題なければ、**Phase1(基盤構築)から実装を開始**する。
 実装開始前に以下を確認したい:

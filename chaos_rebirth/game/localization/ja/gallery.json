@@ -1,0 +1,22 @@
+{
+  "gallery_button": "ギャラリー",
+  "gallery_title_top": "ギャラリー",
+  "gallery_title_character_list": "キャラクター一覧",
+  "gallery_title_character_detail": "キャラクター詳細",
+  "gallery_cat_character_list": "キャラクター一覧",
+  "gallery_cat_standing_art": "立ち絵",
+  "gallery_cat_expressions": "表情差分",
+  "gallery_cat_event_cg": "イベントCG",
+  "gallery_cat_costumes": "衣装",
+  "gallery_cat_weapons": "武器",
+  "gallery_cat_profile": "プロフィール",
+  "gallery_cat_voice": "ボイス",
+  "gallery_cat_live2d": "Live2D",
+  "gallery_filter_all": "すべて",
+  "gallery_label_affiliation": "所属",
+  "gallery_label_element": "属性",
+  "gallery_label_height": "身長",
+  "gallery_label_birthday": "誕生日",
+  "gallery_label_likes": "好きなもの",
+  "gallery_label_dislikes": "嫌いなもの"
+}

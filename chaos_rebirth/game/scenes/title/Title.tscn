@@ -43,7 +43,7 @@ anchor_right = 0.5
 offset_left = -150.0
 offset_top = 700.0
 offset_right = 150.0
-offset_bottom = 820.0
+offset_bottom = 900.0
 grow_horizontal = 2
 theme_override_constants/separation = 20
 
@@ -56,3 +56,8 @@ text = "はじめから"
 layout_mode = 2
 custom_minimum_size = Vector2(0, 60)
 text = "つづきから"
+
+[node name="GalleryButton" type="Button" parent="VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 60)
+text = "ギャラリー"
