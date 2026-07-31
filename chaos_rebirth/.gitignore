@@ -4,8 +4,9 @@
 export.cfg
 export_credentials.cfg
 
-# Godot-specific export files (uncomment when export presets are added)
-# export_presets.cfg
+# Export presets are committed (no secrets: encrypt_pck=false, no local paths).
+# Export *output* (built binaries/html/wasm) is not committed.
+build/
 
 # Imported translations (automatically generated from CSV files)
 *.translation
