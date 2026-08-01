@@ -55,7 +55,7 @@ textarea{ font-family:inherit; }
 
 /* ---------- ビュー共通 ---------- */
 .viewport{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-.view{ display:none; padding:20px 16px calc(32px + env(safe-area-inset-bottom)); }
+.view{ display:none; padding:20px 16px calc(40px + env(safe-area-inset-bottom)); }
 .view.active{ display:block; animation:fadeIn .25s ease; }
 @keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
 .view-title{ font-size:19px; font-weight:700; letter-spacing:.02em; }
@@ -151,8 +151,14 @@ textarea{ font-family:inherit; }
 .step-actions .btn-primary, .step-actions .btn-ghost{ flex:1; }
 
 /* ---------- ワクワクBOX ---------- */
-.filter-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px; scrollbar-width:none; }
+.filter-row-wrap{ position:relative; margin-bottom:16px; }
+.filter-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
 .filter-row::-webkit-scrollbar{ display:none; }
+.filter-fade{
+  position:absolute; top:0; right:0; bottom:4px; width:30px;
+  background:linear-gradient(to right, rgba(251,251,254,0), var(--bg));
+  pointer-events:none;
+}
 .filterbtn{
   flex:none; font-size:13px; font-weight:600; color:var(--text-sub);
   background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:8px 15px; white-space:nowrap;
@@ -166,9 +172,11 @@ textarea{ font-family:inherit; }
   display:none;
 }
 .wakuwaku-card.show{ display:block; }
-.wakuwaku-card .thumb{
-  display:flex; align-items:center; justify-content:center; font-size:38px;
-}
+.wakuwaku-card .thumb{ position:relative; overflow:hidden; }
+.wakuwaku-card .thumb-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.wakuwaku-card .thumb-img.noimg{ display:none; }
+.wakuwaku-card .thumb-fallback{ display:none; width:100%; height:100%; align-items:center; justify-content:center; font-size:38px; }
+.wakuwaku-card .thumb-img.noimg + .thumb-fallback{ display:flex; }
 .wakuwaku-card .info{ padding:10px 12px 12px; }
 .wakuwaku-card .title{ font-size:13.5px; font-weight:700; margin-bottom:4px; }
 .wakuwaku-card .tag{ font-size:11px; color:var(--text-sub); }
@@ -189,10 +197,17 @@ textarea{ font-family:inherit; }
 }
 .future-toggle button.active{ background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; border-color:transparent; }
 .future-image-area{
-  height:180px; border-radius:var(--radius-lg); margin-bottom:16px;
-  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
+  position:relative; height:180px; border-radius:var(--radius-lg); margin-bottom:16px;
+  overflow:hidden;
   color:#fff; font-size:15px; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.15);
 }
+.future-image-area .future-img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.future-image-area .future-img.noimg{ display:none; }
+.future-image-area .future-fallback{
+  display:none; width:100%; height:100%;
+  align-items:center; justify-content:center; flex-direction:column; gap:6px;
+}
+.future-image-area .future-img.noimg + .future-fallback{ display:flex; }
 .future-image-area .emoji{ font-size:44px; }
 .future-paragraph{ font-size:14.5px; white-space:pre-line; margin-bottom:18px; }
 .future-tags-label{ font-size:12px; font-weight:700; color:var(--purple); margin-bottom:8px; }
@@ -206,6 +221,7 @@ textarea{ font-family:inherit; }
 .step-actions-col{ display:flex; flex-direction:column; gap:10px; }
 
 /* ---------- わたし(本心マップ) ---------- */
+.mind-note{ font-size:11.5px; color:var(--text-sub); margin:-10px 0 18px; line-height:1.5; }
 .theme-bars{ margin-bottom:20px; }
 .theme-bar-row{ margin-bottom:14px; }
 .theme-bar-row .row-top{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:6px; }
@@ -230,7 +246,8 @@ textarea{ font-family:inherit; }
   flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
   background:none; border:none; padding:8px 2px; border-radius:14px; color:#aaa7ba;
 }
-.navitem .navicon{ font-size:21px; line-height:1; }
+.navitem .navicon{ display:flex; align-items:center; justify-content:center; }
+.navitem .navicon svg{ width:22px; height:22px; display:block; }
 .navitem .navlabel{ font-size:10.5px; font-weight:700; }
 .navitem.active{ color:#8b5fd9; background:linear-gradient(180deg,#f3ecff,#ffffff); }
 
@@ -302,7 +319,10 @@ textarea{ font-family:inherit; }
     <section class="view" data-view="wakuwaku" style="position:relative;">
       <h1 class="view-title">ワクワクBOX</h1>
       <p class="view-sub">集めたワクワクを、眺めるだけでも楽しい場所</p>
-      <div class="filter-row" id="filterRow"></div>
+      <div class="filter-row-wrap">
+        <div class="filter-row" id="filterRow"></div>
+        <div class="filter-fade" aria-hidden="true"></div>
+      </div>
       <div class="wakuwaku-grid" id="wakuwakuGrid"></div>
       <button class="fab" id="fabAddWakuwaku">＋</button>
     </section>
@@ -312,7 +332,10 @@ textarea{ font-family:inherit; }
       <h1 class="view-title">未来ビジョン</h1>
       <p class="view-sub">あなたの少し未来の、ある一日</p>
       <div class="future-toggle" id="futureToggle"></div>
-      <div class="future-image-area" id="futureImageArea"></div>
+      <div class="future-image-area" id="futureImageArea">
+        <img class="future-img" id="futureImg" src="" alt="" onerror="this.classList.add('noimg')">
+        <div class="future-fallback" id="futureFallback"></div>
+      </div>
       <p class="future-paragraph" id="futureParagraph"></p>
       <div class="future-tags-label">この未来につながったワクワク</div>
       <div class="tag-row" id="futureTags"></div>
@@ -345,6 +368,7 @@ textarea{ font-family:inherit; }
     <section class="view" data-view="mind">
       <h1 class="view-title">わたしの本心マップ</h1>
       <p class="view-sub">最近よく現れるテーマ</p>
+      <p class="mind-note">※診断結果ではなく、最近の記録から見える傾向です</p>
 
       <div class="theme-bars" id="themeBars"></div>
 
@@ -366,11 +390,26 @@ textarea{ font-family:inherit; }
   </main>
 
   <nav class="bottomnav">
-    <button class="navitem active" data-view="home"><span class="navicon">🏠</span><span class="navlabel">ホーム</span></button>
-    <button class="navitem" data-view="wakuwaku"><span class="navicon">💖</span><span class="navlabel">ワクワク</span></button>
-    <button class="navitem" data-view="future"><span class="navicon">🌈</span><span class="navlabel">未来</span></button>
-    <button class="navitem" data-view="step"><span class="navicon">👣</span><span class="navlabel">一歩</span></button>
-    <button class="navitem" data-view="mind"><span class="navicon">👤</span><span class="navlabel">わたし</span></button>
+    <button class="navitem active" data-view="home">
+      <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.2 12 4l8 7.2"/><path d="M6 9.8V19a1 1 0 0 0 1 1h3.2v-5.2h3.6V20H17a1 1 0 0 0 1-1V9.8"/></svg></span>
+      <span class="navlabel">ホーム</span>
+    </button>
+    <button class="navitem" data-view="wakuwaku">
+      <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19.5s-6.6-4.1-8.9-8.2C1.6 8.4 2.6 5.3 5.4 4.6c2-.5 3.9.4 6.1 2.6 2.2-2.2 4.1-3.1 6.1-2.6 2.8.7 3.8 3.8 2.3 6.7-2.3 4.1-8.9 8.2-8.9 8.2Z"/></svg></span>
+      <span class="navlabel">ワクワク</span>
+    </button>
+    <button class="navitem" data-view="future">
+      <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M6.3 15.6a5.7 5.7 0 0 1 11.4 0"/><path d="M12 6.2v3"/><path d="M5 9.6l1.8 1.4"/><path d="M19 9.6l-1.8 1.4"/></svg></span>
+      <span class="navlabel">未来</span>
+    </button>
+    <button class="navitem" data-view="step">
+      <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.7 3.2c-2 0-3.3 2-3.1 4.3.1 1.3.6 2.1.6 3.4 0 1.6-1.7 2.7-1.7 5 0 2.1 1.6 3.6 3.7 3.6 2 0 3-1.2 3-3 0-1.9-.8-2.8-.8-4.7 0-1.7.8-2.5.8-4.4 0-2.3-1.4-4.2-2.5-4.2Z"/><circle cx="15.6" cy="5.8" r="1.05" fill="currentColor" stroke="none"/><circle cx="17.7" cy="7.7" r="1.05" fill="currentColor" stroke="none"/><circle cx="18.7" cy="10.2" r="1.05" fill="currentColor" stroke="none"/><circle cx="18.4" cy="12.8" r="0.95" fill="currentColor" stroke="none"/></svg></span>
+      <span class="navlabel">一歩</span>
+    </button>
+    <button class="navitem" data-view="mind">
+      <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.3"/><path d="M5 19.5c0-3.9 3.1-6 7-6s7 2.1 7 6"/></svg></span>
+      <span class="navlabel">わたし</span>
+    </button>
   </nav>
 
   <div class="modal" id="genericModal">
@@ -424,6 +463,7 @@ const MOCK_DATA = {
       emoji: "🌅",
       caption: "朝の光の中で",
       bg: "linear-gradient(160deg,#ffd9c2,#ffb6d0)",
+      image: "img/koufuku/future_latest.jpg",
       paragraph: "朝は好きな音で目が覚める。\n\n好きな飲み物を飲みながら、\n自分のペースで好きなことに集中。\n\n夕方には大切な人と笑って過ごす。\n\n自分の時間も、\n人との時間も、\nどちらも大切にしている毎日。",
       tags: ["海のそばに住みたい", "朝カフェ", "音楽", "創作", "自然"],
     },
@@ -432,6 +472,7 @@ const MOCK_DATA = {
       emoji: "🏙️",
       caption: "少し前に描いたイメージ",
       bg: "linear-gradient(160deg,#d3d3ff,#c9b6ff)",
+      image: "img/koufuku/future_past1.jpg",
       paragraph: "仕事の合間に、ふと窓の外を眺める。\n\n忙しい毎日だけど、\n好きな音楽をかけると少し肩の力が抜ける。\n\n週末は、気になっていた場所へ\nふらっと出かけてみる。",
       tags: ["音楽", "おでかけ", "休息", "街歩き"],
     },
@@ -543,12 +584,15 @@ function renderFilters(){
 function renderWakuwakuGrid(){
   const grid = document.getElementById("wakuwakuGrid");
   grid.innerHTML = "";
-  MOCK_DATA.wakuwakuItems.forEach(item => {
+  MOCK_DATA.wakuwakuItems.forEach((item, i) => {
     const card = document.createElement("div");
     card.className = "wakuwaku-card show";
     card.dataset.category = item.category;
     card.innerHTML = `
-      <div class="thumb" style="height:${item.h}px;background:${item.bg}">${item.emoji}</div>
+      <div class="thumb" style="height:${item.h}px">
+        <img class="thumb-img" src="img/koufuku/wakuwaku/${i + 1}.jpg" alt="" onerror="this.classList.add('noimg')">
+        <div class="thumb-fallback" style="background:${item.bg}">${item.emoji}</div>
+      </div>
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="tag">${item.tag}</div>
@@ -591,9 +635,12 @@ function renderFutureToggle(){
 
 function renderFutureContent(){
   const v = MOCK_DATA.futureVisions[currentFutureKey];
-  const imgArea = document.getElementById("futureImageArea");
-  imgArea.style.background = v.bg;
-  imgArea.innerHTML = `<span class="emoji">${v.emoji}</span><span>${v.caption}</span>`;
+  const imgEl = document.getElementById("futureImg");
+  imgEl.classList.remove("noimg");
+  imgEl.src = v.image;
+  const fallback = document.getElementById("futureFallback");
+  fallback.style.background = v.bg;
+  fallback.innerHTML = `<span class="emoji">${v.emoji}</span><span>${v.caption}</span>`;
   document.getElementById("futureParagraph").textContent = v.paragraph;
   const tagsRoot = document.getElementById("futureTags");
   tagsRoot.innerHTML = "";
