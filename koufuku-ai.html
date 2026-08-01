@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#fff8fb">
+<title>幸せ設計AI（仮）</title>
+<style>
+/* =========================================================
+   幸せ設計AI（仮称） Phase 1 UIプロトタイプ
+   - バックエンド/認証/課金/AI API接続なし。すべてモックデータ表示。
+   - MOCK_DATA / KAOSU_LINES にデータを分離(将来API/DBに差し替えやすくするため)
+   - ケイオスちゃん(伴走者キャラ)は renderKaosuAvatar() で再利用可能なコンポーネント化。
+     img/koufuku/kaosu.png を置けば自動でその画像に切り替わり、無ければ
+     やわらかいプレースホルダー(CSSの簡易フェイス)を表示する。
+   ========================================================= */
+:root{
+  --bg:#fbfbfe;
+  --surface:#ffffff;
+  --text:#33313f;
+  --text-sub:#726f83;
+  --border:#eeecf7;
+  --pink:#ff8fc7;
+  --pink-soft:#ffe3ef;
+  --purple:#a78bfa;
+  --purple-soft:#efe9ff;
+  --blue-soft:#e3f4ff;
+  --mint-soft:#e3f8ef;
+  --yellow-soft:#fff6da;
+  --peach-soft:#ffe9de;
+  --shadow:0 4px 18px rgba(140,130,190,.10);
+  --radius-lg:22px;
+  --radius-md:16px;
+  --radius-sm:12px;
+}
+*{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ height:100%; background:var(--bg); color:var(--text); }
+body{
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  line-height:1.6;
+}
+button{ font-family:inherit; cursor:pointer; -webkit-user-select:none; user-select:none; }
+button:active{ transform:scale(.97); }
+textarea{ font-family:inherit; }
+
+.app{
+  position:relative;
+  max-width:480px; height:100dvh;
+  margin:0 auto;
+  display:flex; flex-direction:column;
+  background:var(--bg);
+  overflow:hidden;
+  padding-top:env(safe-area-inset-top);
+}
+
+/* ---------- ビュー共通 ---------- */
+.viewport{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.view{ display:none; padding:20px 16px calc(32px + env(safe-area-inset-bottom)); }
+.view.active{ display:block; animation:fadeIn .25s ease; }
+@keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+.view-title{ font-size:19px; font-weight:700; letter-spacing:.02em; }
+.view-sub{ font-size:13px; color:var(--text-sub); margin-top:4px; margin-bottom:18px; }
+
+/* ---------- ケイオスちゃん(共通コンポーネント) ---------- */
+.kaosu-avatar{ position:relative; flex:none; border-radius:50%; overflow:hidden; background:#fff; box-shadow:0 3px 10px rgba(150,140,200,.18); }
+.kaosu-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
+.kaosu-avatar img.noimg{ display:none; }
+.kaosu-fallback{ display:none; position:relative; width:100%; height:100%; border-radius:50%;
+  background:radial-gradient(circle at 34% 28%, #ffffff, #ffe3f0 38%, #dcefff 72%, #efe9ff 100%); }
+.kaosu-avatar img.noimg + .kaosu-fallback{ display:block; }
+.kaosu-fallback .eyes{ position:absolute; top:45%; left:50%; transform:translate(-50%,0); display:flex; gap:16%; }
+.kaosu-fallback .eyes i{ width:9%; height:9%; min-width:4px; min-height:4px; border-radius:50%; background:#6f6a80; display:block; }
+.kaosu-fallback .mouth{ position:absolute; top:58%; left:50%; transform:translate(-50%,0); width:16%; height:9%; border-bottom:2px solid #6f6a80; border-radius:0 0 50% 50%; }
+.kaosu-fallback .blush{ position:absolute; top:52%; width:11%; height:6%; border-radius:50%; background:rgba(255,150,180,.55); }
+.kaosu-fallback .blush.l{ left:20%; } .kaosu-fallback .blush.r{ right:20%; }
+
+.speech-bubble{
+  position:relative;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  padding:12px 15px;
+  font-size:14px;
+  color:var(--text);
+  box-shadow:var(--shadow);
+}
+.kaosu-row{ display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; }
+.kaosu-row .speech-bubble{ flex:1; }
+.kaosu-row.insight .speech-bubble{ font-size:13.5px; }
+
+/* ---------- ホーム: ケイオスちゃんヒーロー ---------- */
+.kaosu-hero{
+  position:relative;
+  border-radius:var(--radius-lg);
+  padding:22px 18px 20px;
+  margin-bottom:18px;
+  overflow:hidden;
+  background:linear-gradient(120deg, #ffeef5 0%, #fff8e0 30%, #e7f5ff 62%, #efe9ff 100%);
+  border:1px solid var(--border);
+  display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px;
+}
+.kaosu-hero .kaosu-avatar{ width:104px; height:104px; }
+.kaosu-hero .speech-bubble{ width:100%; }
+.kaosu-hero .speech-bubble::before{
+  content:""; position:absolute; top:-7px; left:50%; transform:translateX(-50%) rotate(45deg);
+  width:14px; height:14px; background:var(--surface); border-left:1px solid var(--border); border-top:1px solid var(--border);
+}
+
+/* ---------- ボタン共通 ---------- */
+.btn-primary{
+  display:block; width:100%;
+  background:linear-gradient(135deg,#ff8fc7,#a78bfa);
+  color:#fff; font-weight:700; font-size:15.5px;
+  border:none; border-radius:99px;
+  padding:15px 0; text-align:center;
+  box-shadow:0 6px 16px rgba(180,140,230,.35);
+}
+.btn-primary.small{ padding:11px 0; font-size:14px; box-shadow:none; margin-top:10px; }
+.btn-outline{
+  display:block; width:100%;
+  background:var(--surface); color:#7a5fd6; font-weight:700; font-size:14.5px;
+  border:1.5px solid var(--purple); border-radius:99px; padding:13px 0; text-align:center;
+}
+.btn-outline.full{ margin-top:14px; }
+.btn-ghost{
+  display:block; width:100%;
+  background:#f4f2fb; color:var(--text-sub); font-weight:600; font-size:14px;
+  border:none; border-radius:99px; padding:13px 0; text-align:center;
+}
+.btn-text{
+  display:block; width:100%; background:none; border:none;
+  color:var(--text-sub); font-size:13px; text-decoration:underline; padding:8px 0; text-align:center;
+}
+
+/* ---------- カード共通 ---------- */
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
+  padding:18px; box-shadow:var(--shadow); margin-bottom:16px;
+}
+.card-label{ font-size:12px; font-weight:700; color:var(--purple); letter-spacing:.04em; margin-bottom:8px; }
+.question-text{ font-size:15.5px; font-weight:600; margin-bottom:14px; }
+.answer-box{ margin-top:12px; }
+.answer-box.hidden{ display:none; }
+.answer-box textarea{
+  width:100%; border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:10px 12px; font-size:14px; color:var(--text); resize:none; background:#fbfbff;
+}
+.answer-box textarea:focus{ outline:none; border-color:var(--purple); }
+.step-text{ font-size:15.5px; font-weight:600; margin-bottom:14px; white-space:pre-line; }
+.step-actions{ display:flex; gap:10px; }
+.step-actions .btn-primary, .step-actions .btn-ghost{ flex:1; }
+
+/* ---------- ワクワクBOX ---------- */
+.filter-row{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px; scrollbar-width:none; }
+.filter-row::-webkit-scrollbar{ display:none; }
+.filterbtn{
+  flex:none; font-size:13px; font-weight:600; color:var(--text-sub);
+  background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:8px 15px; white-space:nowrap;
+}
+.filterbtn.active{ background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; border-color:transparent; }
+
+.wakuwaku-grid{ column-count:2; column-gap:12px; }
+.wakuwaku-card{
+  break-inside:avoid; margin-bottom:12px; border-radius:var(--radius-md); overflow:hidden;
+  border:1px solid var(--border); background:var(--surface); box-shadow:var(--shadow);
+  display:none;
+}
+.wakuwaku-card.show{ display:block; }
+.wakuwaku-card .thumb{
+  display:flex; align-items:center; justify-content:center; font-size:38px;
+}
+.wakuwaku-card .info{ padding:10px 12px 12px; }
+.wakuwaku-card .title{ font-size:13.5px; font-weight:700; margin-bottom:4px; }
+.wakuwaku-card .tag{ font-size:11px; color:var(--text-sub); }
+
+.fab{
+  position:absolute; right:18px; bottom:calc(18px + env(safe-area-inset-bottom));
+  width:56px; height:56px; border-radius:50%;
+  background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; font-size:26px; font-weight:700;
+  border:none; box-shadow:0 8px 20px rgba(180,140,230,.4); z-index:6;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ---------- 未来ビジョン ---------- */
+.future-toggle{ display:flex; gap:8px; margin-bottom:16px; }
+.future-toggle button{
+  flex:1; font-size:13px; font-weight:700; color:var(--text-sub);
+  background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:9px 0;
+}
+.future-toggle button.active{ background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; border-color:transparent; }
+.future-image-area{
+  height:180px; border-radius:var(--radius-lg); margin-bottom:16px;
+  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;
+  color:#fff; font-size:15px; font-weight:700; text-shadow:0 2px 8px rgba(0,0,0,.15);
+}
+.future-image-area .emoji{ font-size:44px; }
+.future-paragraph{ font-size:14.5px; white-space:pre-line; margin-bottom:18px; }
+.future-tags-label{ font-size:12px; font-weight:700; color:var(--purple); margin-bottom:8px; }
+.tag-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
+.tag-chip{ font-size:12.5px; background:var(--purple-soft); color:#6a4fc2; border-radius:99px; padding:6px 13px; }
+
+/* ---------- 今日の一歩(専用画面) ---------- */
+.step-card-big{ text-align:center; padding:26px 20px; }
+.step-text-big{ font-size:17px; font-weight:700; white-space:pre-line; margin-bottom:10px; }
+.step-duration{ display:inline-block; font-size:13px; color:var(--purple); background:var(--purple-soft); border-radius:99px; padding:4px 14px; font-weight:700; }
+.step-actions-col{ display:flex; flex-direction:column; gap:10px; }
+
+/* ---------- わたし(本心マップ) ---------- */
+.theme-bars{ margin-bottom:20px; }
+.theme-bar-row{ margin-bottom:14px; }
+.theme-bar-row .row-top{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:6px; }
+.theme-bar-track{ height:10px; border-radius:99px; background:#f1eff9; overflow:hidden; }
+.theme-bar-fill{ height:100%; border-radius:99px; background:linear-gradient(90deg,#ff8fc7,#a78bfa); }
+.feedback-row{ display:flex; gap:8px; margin-top:14px; }
+.feedback-row button{
+  flex:1; font-size:13px; font-weight:600; color:var(--text-sub);
+  background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:11px 0;
+}
+.feedback-row button.selected{ background:var(--purple-soft); color:#6a4fc2; border-color:var(--purple); }
+
+/* ---------- ボトムナビ ---------- */
+.bottomnav{
+  display:flex; background:#fff;
+  border-top:1px solid var(--border);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  box-shadow:0 -2px 14px rgba(140,130,190,.07);
+  position:relative; z-index:5;
+}
+.navitem{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+  background:none; border:none; padding:8px 2px; border-radius:14px; color:#aaa7ba;
+}
+.navitem .navicon{ font-size:21px; line-height:1; }
+.navitem .navlabel{ font-size:10.5px; font-weight:700; }
+.navitem.active{ color:#8b5fd9; background:linear-gradient(180deg,#f3ecff,#ffffff); }
+
+/* ---------- モーダル(共通ボトムシート) ---------- */
+.modal{
+  position:absolute; inset:0; z-index:30; display:none;
+  align-items:flex-end; justify-content:center; background:rgba(60,50,80,.35);
+}
+.modal.show{ display:flex; }
+.modalbox{
+  width:100%; background:var(--surface); border-top:1px solid var(--border);
+  border-radius:20px 20px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+}
+.modalbox p{ font-size:14.5px; white-space:pre-line; margin-bottom:18px; color:var(--text); }
+.modalbox .closebtn{
+  display:block; width:100%; background:var(--purple-soft); color:#6a4fc2; font-weight:700;
+  font-size:14.5px; border:none; border-radius:99px; padding:13px 0;
+}
+
+/* ---------- トースト ---------- */
+.toast{
+  position:absolute; left:50%; bottom:calc(84px + env(safe-area-inset-bottom));
+  transform:translate(-50%,10px);
+  background:rgba(60,50,80,.9); color:#fff; font-size:13px;
+  padding:10px 18px; border-radius:99px; white-space:nowrap;
+  opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; z-index:40;
+}
+.toast.show{ opacity:1; transform:translate(-50%,0); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <main class="viewport" id="viewport">
+
+    <!-- ① ホーム -->
+    <section class="view active" data-view="home">
+      <div class="kaosu-hero">
+        <div class="kaosu-avatar" style="width:104px;height:104px">
+          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble">おかえり♪<br>今日、なんか心が動いたことあった？</div>
+      </div>
+
+      <button class="btn-primary" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
+
+      <div class="card">
+        <div class="card-label">今日の1問</div>
+        <p class="question-text" id="homeQuestionText"></p>
+        <button class="btn-outline" id="btnAnswerQuestion">答えてみる</button>
+        <div class="answer-box hidden" id="answerBox">
+          <textarea id="answerInput" rows="3" placeholder="思いついたことを気軽に書いてみてね"></textarea>
+          <button class="btn-primary small" id="btnSaveAnswer">この気持ちを残す</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">今日の小さな一歩</div>
+        <p class="step-text" id="homeStepText"></p>
+        <div class="step-actions">
+          <button class="btn-primary" id="btnStepDoneHome">できた！✨</button>
+          <button class="btn-ghost" id="btnStepSkipHome">今日は違う</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ② ワクワクBOX -->
+    <section class="view" data-view="wakuwaku" style="position:relative;">
+      <h1 class="view-title">ワクワクBOX</h1>
+      <p class="view-sub">集めたワクワクを、眺めるだけでも楽しい場所</p>
+      <div class="filter-row" id="filterRow"></div>
+      <div class="wakuwaku-grid" id="wakuwakuGrid"></div>
+      <button class="fab" id="fabAddWakuwaku">＋</button>
+    </section>
+
+    <!-- ④ 未来ビジョン -->
+    <section class="view" data-view="future">
+      <h1 class="view-title">未来ビジョン</h1>
+      <p class="view-sub">あなたの少し未来の、ある一日</p>
+      <div class="future-toggle" id="futureToggle"></div>
+      <div class="future-image-area" id="futureImageArea"></div>
+      <p class="future-paragraph" id="futureParagraph"></p>
+      <div class="future-tags-label">この未来につながったワクワク</div>
+      <div class="tag-row" id="futureTags"></div>
+      <button class="btn-outline full" id="btnFutureDetail">この未来をもっと詳しく見る</button>
+    </section>
+
+    <!-- ⑤ 今日の一歩 -->
+    <section class="view" data-view="step">
+      <div class="kaosu-row">
+        <div class="kaosu-avatar" style="width:48px;height:48px">
+          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble">この未来に近づくために、<br>今日はこれやってみない？</div>
+      </div>
+
+      <div class="card step-card-big">
+        <p class="step-text-big" id="stepBigText"></p>
+        <div class="step-duration" id="stepBigDuration"></div>
+      </div>
+
+      <div class="step-actions-col">
+        <button class="btn-primary" id="btnStepDone">できた！✨</button>
+        <button class="btn-ghost" id="btnStepSkip">今日は違う</button>
+        <button class="btn-text" id="btnStepAnother">別の案がほしい</button>
+      </div>
+    </section>
+
+    <!-- ③ わたし(本心マップ) -->
+    <section class="view" data-view="mind">
+      <h1 class="view-title">わたしの本心マップ</h1>
+      <p class="view-sub">最近よく現れるテーマ</p>
+
+      <div class="theme-bars" id="themeBars"></div>
+
+      <div class="kaosu-row insight">
+        <div class="kaosu-avatar" style="width:48px;height:48px">
+          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble">最近は『自由』や『創造』に<br>心が動くことが多いみたい。<br><br>自分でもそう感じる？</div>
+      </div>
+
+      <div class="feedback-row" id="feedbackRow">
+        <button data-fb="yes">そう思う</button>
+        <button data-fb="unsure">分からない</button>
+        <button data-fb="no">違う</button>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="bottomnav">
+    <button class="navitem active" data-view="home"><span class="navicon">🏠</span><span class="navlabel">ホーム</span></button>
+    <button class="navitem" data-view="wakuwaku"><span class="navicon">💖</span><span class="navlabel">ワクワク</span></button>
+    <button class="navitem" data-view="future"><span class="navicon">🌈</span><span class="navlabel">未来</span></button>
+    <button class="navitem" data-view="step"><span class="navicon">👣</span><span class="navlabel">一歩</span></button>
+    <button class="navitem" data-view="mind"><span class="navicon">👤</span><span class="navlabel">わたし</span></button>
+  </nav>
+
+  <div class="modal" id="genericModal">
+    <div class="modalbox">
+      <p id="modalText"></p>
+      <button class="closebtn" id="modalClose">閉じる</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   モックデータ(将来API/DBに差し替える際はこのオブジェクトの中身を
+   fetch結果などに置き換えればよい構造にしている)
+   ========================================================= */
+const MOCK_DATA = {
+  todaysQuestion: "もし明日、完全に自由だったら何したい？",
+
+  todaysSteps: [
+    { text: "好きな音楽を1曲\nゆっくり聴いてみる", duration: "5分" },
+    { text: "窓を開けて\n深呼吸を3回してみる", duration: "3分" },
+    { text: "気になっていたお店の写真を\n1枚だけ見てみる", duration: "3分" },
+    { text: "今日食べたいものを\nひとつ思い浮かべてみる", duration: "1分" },
+  ],
+
+  wakuwakuItems: [
+    { category: "place", emoji: "🌊", bg: "linear-gradient(160deg,#bfe4ff,#8fd0ff)", title: "海辺", tag: "場所", h: 190 },
+    { category: "music", emoji: "🎸", bg: "linear-gradient(160deg,#e3d3ff,#c9b6ff)", title: "楽器", tag: "音楽", h: 150 },
+    { category: "idea", emoji: "🛋️", bg: "linear-gradient(160deg,#d3f5e6,#a8e6cf)", title: "理想の部屋", tag: "アイデア", h: 210 },
+    { category: "word", emoji: "📝", bg: "linear-gradient(160deg,#fff2c2,#ffe28a)", title: "ノート", tag: "言葉", h: 160 },
+    { category: "place", emoji: "☕", bg: "linear-gradient(160deg,#ffe0cf,#ffc2a8)", title: "朝カフェ", tag: "場所", h: 175 },
+    { category: "image", emoji: "🌿", bg: "linear-gradient(160deg,#dcf5df,#b9e8bd)", title: "自然", tag: "画像", h: 145 },
+  ],
+
+  mindThemes: [
+    { label: "自由", value: 88 },
+    { label: "創造", value: 74 },
+    { label: "家族", value: 61 },
+    { label: "音楽", value: 69 },
+    { label: "自然", value: 58 },
+    { label: "成長", value: 52 },
+  ],
+
+  futureVisions: {
+    latest: {
+      label: "最新",
+      emoji: "🌅",
+      caption: "朝の光の中で",
+      bg: "linear-gradient(160deg,#ffd9c2,#ffb6d0)",
+      paragraph: "朝は好きな音で目が覚める。\n\n好きな飲み物を飲みながら、\n自分のペースで好きなことに集中。\n\n夕方には大切な人と笑って過ごす。\n\n自分の時間も、\n人との時間も、\nどちらも大切にしている毎日。",
+      tags: ["海のそばに住みたい", "朝カフェ", "音楽", "創作", "自然"],
+    },
+    past1: {
+      label: "過去の未来",
+      emoji: "🏙️",
+      caption: "少し前に描いたイメージ",
+      bg: "linear-gradient(160deg,#d3d3ff,#c9b6ff)",
+      paragraph: "仕事の合間に、ふと窓の外を眺める。\n\n忙しい毎日だけど、\n好きな音楽をかけると少し肩の力が抜ける。\n\n週末は、気になっていた場所へ\nふらっと出かけてみる。",
+      tags: ["音楽", "おでかけ", "休息", "街歩き"],
+    },
+  },
+};
+
+const FILTERS = [
+  { key: "all", label: "すべて" },
+  { key: "image", label: "画像" },
+  { key: "word", label: "言葉" },
+  { key: "music", label: "音楽" },
+  { key: "place", label: "場所" },
+  { key: "idea", label: "アイデア" },
+];
+
+/* =========================================================
+   ナビゲーション
+   ========================================================= */
+function switchView(view){
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
+  document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
+  document.getElementById("viewport").scrollTop = 0;
+}
+document.querySelectorAll(".navitem").forEach(btn => {
+  btn.addEventListener("click", () => switchView(btn.dataset.view));
+});
+
+/* =========================================================
+   共通モーダル / トースト
+   ========================================================= */
+function openModal(message){
+  document.getElementById("modalText").textContent = message;
+  document.getElementById("genericModal").classList.add("show");
+}
+document.getElementById("modalClose").addEventListener("click", () => {
+  document.getElementById("genericModal").classList.remove("show");
+});
+document.getElementById("genericModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "genericModal") document.getElementById("genericModal").classList.remove("show");
+});
+
+let toastTimer = null;
+function showToast(message){
+  const t = document.getElementById("toast");
+  t.textContent = message;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+/* =========================================================
+   ホーム
+   ========================================================= */
+let currentStepIndex = 0;
+
+function renderHomeQuestion(){
+  document.getElementById("homeQuestionText").textContent = MOCK_DATA.todaysQuestion;
+}
+function renderHomeStep(){
+  const step = MOCK_DATA.todaysSteps[currentStepIndex];
+  document.getElementById("homeStepText").innerHTML = step.text.replace("\n", "<br>") + `（${step.duration}）`;
+}
+
+document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
+  openModal("ワクワク追加画面は次のPhaseで実装予定だよ🌱\n\n（今はプロトタイプ画面です）");
+});
+
+document.getElementById("btnAnswerQuestion").addEventListener("click", () => {
+  document.getElementById("answerBox").classList.toggle("hidden");
+});
+document.getElementById("btnSaveAnswer").addEventListener("click", () => {
+  // TODO: 将来はユーザー回答をAPI/DBへ送信する
+  const text = document.getElementById("answerInput").value.trim();
+  document.getElementById("answerInput").value = "";
+  document.getElementById("answerBox").classList.add("hidden");
+  showToast(text ? "教えてくれてありがとう♪" : "気が向いたらでいいからね♪");
+});
+
+document.getElementById("btnStepDoneHome").addEventListener("click", () => {
+  showToast("えらい！✨ ゆっくりでいいからね");
+});
+document.getElementById("btnStepSkipHome").addEventListener("click", () => {
+  currentStepIndex = (currentStepIndex + 1) % MOCK_DATA.todaysSteps.length;
+  renderHomeStep();
+  renderStepView();
+  showToast("そんな日もあるよね♪");
+});
+
+/* =========================================================
+   ワクワクBOX
+   ========================================================= */
+function renderFilters(){
+  const root = document.getElementById("filterRow");
+  root.innerHTML = "";
+  FILTERS.forEach((f, i) => {
+    const btn = document.createElement("button");
+    btn.className = "filterbtn" + (i === 0 ? " active" : "");
+    btn.textContent = f.label;
+    btn.dataset.key = f.key;
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filterbtn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      applyWakuwakuFilter(f.key);
+    });
+    root.appendChild(btn);
+  });
+}
+
+function renderWakuwakuGrid(){
+  const grid = document.getElementById("wakuwakuGrid");
+  grid.innerHTML = "";
+  MOCK_DATA.wakuwakuItems.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "wakuwaku-card show";
+    card.dataset.category = item.category;
+    card.innerHTML = `
+      <div class="thumb" style="height:${item.h}px;background:${item.bg}">${item.emoji}</div>
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="tag">${item.tag}</div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function applyWakuwakuFilter(key){
+  document.querySelectorAll(".wakuwaku-card").forEach(card => {
+    card.classList.toggle("show", key === "all" || card.dataset.category === key);
+  });
+}
+
+document.getElementById("fabAddWakuwaku").addEventListener("click", () => {
+  openModal("ワクワク追加画面は次のPhaseで実装予定だよ🌱\n\n（今はプロトタイプ画面です）");
+});
+
+/* =========================================================
+   未来ビジョン
+   ========================================================= */
+let currentFutureKey = "latest";
+
+function renderFutureToggle(){
+  const root = document.getElementById("futureToggle");
+  root.innerHTML = "";
+  Object.keys(MOCK_DATA.futureVisions).forEach(key => {
+    const v = MOCK_DATA.futureVisions[key];
+    const btn = document.createElement("button");
+    btn.textContent = v.label;
+    btn.className = key === currentFutureKey ? "active" : "";
+    btn.addEventListener("click", () => {
+      currentFutureKey = key;
+      renderFutureToggle();
+      renderFutureContent();
+    });
+    root.appendChild(btn);
+  });
+}
+
+function renderFutureContent(){
+  const v = MOCK_DATA.futureVisions[currentFutureKey];
+  const imgArea = document.getElementById("futureImageArea");
+  imgArea.style.background = v.bg;
+  imgArea.innerHTML = `<span class="emoji">${v.emoji}</span><span>${v.caption}</span>`;
+  document.getElementById("futureParagraph").textContent = v.paragraph;
+  const tagsRoot = document.getElementById("futureTags");
+  tagsRoot.innerHTML = "";
+  v.tags.forEach(tag => {
+    const chip = document.createElement("span");
+    chip.className = "tag-chip";
+    chip.textContent = tag;
+    tagsRoot.appendChild(chip);
+  });
+}
+
+document.getElementById("btnFutureDetail").addEventListener("click", () => {
+  openModal("もっと詳しく見る機能は次のPhaseで実装予定だよ🌈");
+});
+
+/* =========================================================
+   今日の一歩(専用画面)
+   ========================================================= */
+function renderStepView(){
+  const step = MOCK_DATA.todaysSteps[currentStepIndex];
+  document.getElementById("stepBigText").innerHTML = step.text.replace("\n", "<br>");
+  document.getElementById("stepBigDuration").textContent = step.duration;
+}
+
+document.getElementById("btnStepDone").addEventListener("click", () => {
+  showToast("えらい！✨ ゆっくりでいいからね");
+});
+document.getElementById("btnStepSkip").addEventListener("click", () => {
+  showToast("そんな日もあるよね♪");
+});
+document.getElementById("btnStepAnother").addEventListener("click", () => {
+  currentStepIndex = (currentStepIndex + 1) % MOCK_DATA.todaysSteps.length;
+  renderStepView();
+  renderHomeStep();
+  showToast("こんなのはどう？");
+});
+
+/* =========================================================
+   わたし(本心マップ)
+   ========================================================= */
+function renderThemeBars(){
+  const root = document.getElementById("themeBars");
+  root.innerHTML = "";
+  MOCK_DATA.mindThemes.forEach(t => {
+    const row = document.createElement("div");
+    row.className = "theme-bar-row";
+    row.innerHTML = `
+      <div class="row-top"><span>${t.label}</span></div>
+      <div class="theme-bar-track"><div class="theme-bar-fill" style="width:${t.value}%"></div></div>`;
+    root.appendChild(row);
+  });
+}
+
+document.querySelectorAll("#feedbackRow button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#feedbackRow button").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    // TODO: 将来はこの回答をAI Insightの学習材料としてAPI/DBへ送信する
+    showToast("教えてくれてありがとう♪");
+  });
+});
+
+/* =========================================================
+   初期化
+   ========================================================= */
+renderHomeQuestion();
+renderHomeStep();
+renderFilters();
+renderWakuwakuGrid();
+renderFutureToggle();
+renderFutureContent();
+renderStepView();
+renderThemeBars();
+</script>
+</body>
+</html>
