@@ -178,7 +178,10 @@ textarea{ font-family:inherit; }
 .wakuwaku-card .thumb-fallback{ display:none; width:100%; height:100%; align-items:center; justify-content:center; font-size:38px; }
 .wakuwaku-card .thumb-img.noimg + .thumb-fallback{ display:flex; }
 .wakuwaku-card .info{ padding:10px 12px 12px; }
-.wakuwaku-card .title{ font-size:13.5px; font-weight:700; margin-bottom:4px; }
+.wakuwaku-card .title{
+  font-size:13.5px; font-weight:700; margin-bottom:4px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
 .wakuwaku-card .tag{ font-size:11px; color:var(--text-sub); }
 
 .fab{
@@ -276,6 +279,86 @@ textarea{ font-family:inherit; }
   opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; z-index:40;
 }
 .toast.show{ opacity:1; transform:translate(-50%,0); }
+
+/* ---------- ワクワク保存・詳細・削除(Phase2) ---------- */
+.privacy-note{ font-size:11px; color:var(--text-sub); margin:0 0 16px; line-height:1.6; }
+
+.wakuwaku-empty{ text-align:center; padding:30px 8px 8px; }
+.wakuwaku-empty .kaosu-avatar{ margin:0 auto 14px; }
+.wakuwaku-empty .speech-bubble{ display:inline-block; text-align:left; }
+
+.wakuwaku-card .thumb-textcard{
+  width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; padding:14px; text-align:center;
+}
+.wakuwaku-card .thumb-textcard .type-icon{ font-size:26px; }
+.wakuwaku-card .thumb-textcard .text-title{
+  font-size:13.5px; font-weight:700; color:#4a4458; line-height:1.4;
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
+}
+
+.modalbox.sheet{ display:flex; flex-direction:column; max-height:88vh; }
+.sheet-header{ flex:none; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.sheet-titles h3{ font-size:17px; font-weight:700; margin-bottom:4px; }
+.sheet-titles p{ font-size:12.5px; color:var(--text-sub); }
+.sheet-close{
+  flex:none; width:32px; height:32px; border-radius:50%; border:none;
+  background:#f4f2fb; color:var(--text-sub); font-size:16px; line-height:1;
+}
+.sheet-scroll{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+
+.form-label{ font-size:12.5px; font-weight:700; color:var(--purple); margin:16px 0 8px; }
+.form-label:first-child{ margin-top:0; }
+.chip-row{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+  font-size:13px; font-weight:600; color:var(--text-sub);
+  background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:8px 14px;
+}
+.chip.selected{ background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; border-color:transparent; }
+
+.field-input{
+  width:100%; border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:11px 13px; font-size:14.5px; color:var(--text); background:#fbfbff;
+}
+.field-input:focus{ outline:none; border-color:var(--purple); }
+textarea.field-input{ resize:none; }
+
+.image-picker{ display:flex; gap:10px; align-items:center; }
+.image-picker-btn{
+  flex:1; border:1.5px dashed var(--border); border-radius:var(--radius-md);
+  background:#fbfbff; color:var(--text-sub); font-size:13px; font-weight:600;
+  padding:16px 10px; text-align:center;
+}
+.image-preview{
+  position:relative; width:76px; height:76px; border-radius:var(--radius-md); overflow:hidden;
+  border:1px solid var(--border); flex:none; display:none;
+}
+.image-preview.show{ display:block; }
+.image-preview img{ width:100%; height:100%; object-fit:cover; display:block; }
+.image-preview .remove-img{
+  position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%;
+  background:rgba(50,45,65,.65); color:#fff; border:none; font-size:12px; line-height:1;
+}
+
+.sheet-savebtn{ margin-top:20px; }
+
+.detail-image{ width:100%; border-radius:var(--radius-lg); margin-bottom:16px; display:block; max-height:260px; object-fit:cover; }
+.detail-row{ margin-bottom:14px; }
+.detail-row .d-label{ font-size:11.5px; font-weight:700; color:var(--purple); margin-bottom:4px; }
+.detail-row .d-value{ font-size:14.5px; color:var(--text); white-space:pre-line; word-break:break-word; }
+.detail-row .d-value a{ color:#7a5fd6; word-break:break-all; }
+.detail-actions{ display:flex; gap:10px; margin-top:18px; }
+.detail-actions > *{ flex:1; }
+.btn-danger-outline{
+  display:block; width:100%; background:var(--surface); color:#e0577a; font-weight:700; font-size:14.5px;
+  border:1.5px solid #f4b9c9; border-radius:99px; padding:13px 0; text-align:center;
+}
+.btn-danger{
+  display:block; width:100%; background:linear-gradient(135deg,#ff8098,#ff6b81);
+  color:#fff; font-weight:700; font-size:14.5px; border:none; border-radius:99px; padding:13px 0; text-align:center;
+}
+.confirm-actions{ display:flex; gap:10px; margin-top:4px; }
+.confirm-actions > *{ flex:1; }
 </style>
 </head>
 <body>
@@ -319,11 +402,20 @@ textarea{ font-family:inherit; }
     <section class="view" data-view="wakuwaku" style="position:relative;">
       <h1 class="view-title">ワクワクBOX</h1>
       <p class="view-sub">集めたワクワクを、眺めるだけでも楽しい場所</p>
+      <p class="privacy-note">※現在の試作版では、ワクワクの記録はこのブラウザ内に保存されます</p>
       <div class="filter-row-wrap">
         <div class="filter-row" id="filterRow"></div>
         <div class="filter-fade" aria-hidden="true"></div>
       </div>
       <div class="wakuwaku-grid" id="wakuwakuGrid"></div>
+      <div class="wakuwaku-empty" id="wakuwakuEmpty" style="display:none;">
+        <div class="kaosu-avatar" style="width:72px;height:72px">
+          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble">まだここは真っ白♪<br><br>今日ちょっとでも<br>『これ好きかも』って思ったもの、<br>ひとつ残してみよ？</div>
+        <div style="margin-top:16px;"><button class="btn-primary" id="btnEmptyAddWakuwaku">最初のワクワクを残す</button></div>
+      </div>
       <button class="fab" id="fabAddWakuwaku">＋</button>
     </section>
 
@@ -419,6 +511,69 @@ textarea{ font-family:inherit; }
     </div>
   </div>
 
+  <!-- ワクワク追加/編集シート -->
+  <div class="modal" id="addSheetModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles">
+          <h3 id="addSheetTitle">今日、何に心が動いた？</h3>
+          <p>小さなことでも大丈夫♪</p>
+        </div>
+        <button class="sheet-close" id="addSheetClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <div class="form-label">種類（あとから変更できます）</div>
+        <div class="chip-row" id="typeChipRow"></div>
+
+        <div class="form-label">タイトル</div>
+        <input type="text" class="field-input" id="formTitle" placeholder="例: この海辺いいな" maxlength="60">
+
+        <div class="form-label">画像（任意）</div>
+        <div class="image-picker">
+          <button type="button" class="image-picker-btn" id="imagePickBtn">📷 画像を選ぶ</button>
+          <div class="image-preview" id="imagePreview">
+            <img id="imagePreviewImg" src="" alt="">
+            <button type="button" class="remove-img" id="imageRemoveBtn" aria-label="画像を削除">×</button>
+          </div>
+        </div>
+        <input type="file" accept="image/*" id="imageFileInput" style="display:none;">
+
+        <div class="form-label">URL（任意）</div>
+        <input type="url" class="field-input" id="formUrl" placeholder="https://...">
+
+        <div class="form-label">どこが好きだった？（任意）</div>
+        <textarea class="field-input" id="formNote" rows="3" placeholder="色が好き／こんな生活したい／見てると落ち着く など"></textarea>
+
+        <div class="form-label">気持ち（任意・1つだけ）</div>
+        <div class="chip-row" id="emotionChipRow"></div>
+
+        <button class="btn-primary sheet-savebtn" id="btnSaveWakuwaku">ワクワクを残す ✨</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ワクワク詳細シート -->
+  <div class="modal" id="detailSheetModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3>ワクワクの詳細</h3></div>
+        <button class="sheet-close" id="detailSheetClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll" id="detailSheetBody"></div>
+    </div>
+  </div>
+
+  <!-- 削除確認 -->
+  <div class="modal" id="deleteConfirmModal">
+    <div class="modalbox">
+      <p>このワクワクを削除しますか？</p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" id="deleteCancelBtn">キャンセル</button>
+        <button class="btn-danger" id="deleteConfirmBtn">削除する</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -437,15 +592,6 @@ const MOCK_DATA = {
     { text: "窓を開けて\n深呼吸を3回してみる", duration: "3分" },
     { text: "気になっていたお店の写真を\n1枚だけ見てみる", duration: "3分" },
     { text: "今日食べたいものを\nひとつ思い浮かべてみる", duration: "1分" },
-  ],
-
-  wakuwakuItems: [
-    { category: "place", emoji: "🌊", bg: "linear-gradient(160deg,#bfe4ff,#8fd0ff)", title: "海辺", tag: "場所", h: 190 },
-    { category: "music", emoji: "🎸", bg: "linear-gradient(160deg,#e3d3ff,#c9b6ff)", title: "楽器", tag: "音楽", h: 150 },
-    { category: "idea", emoji: "🛋️", bg: "linear-gradient(160deg,#d3f5e6,#a8e6cf)", title: "理想の部屋", tag: "アイデア", h: 210 },
-    { category: "word", emoji: "📝", bg: "linear-gradient(160deg,#fff2c2,#ffe28a)", title: "ノート", tag: "言葉", h: 160 },
-    { category: "place", emoji: "☕", bg: "linear-gradient(160deg,#ffe0cf,#ffc2a8)", title: "朝カフェ", tag: "場所", h: 175 },
-    { category: "image", emoji: "🌿", bg: "linear-gradient(160deg,#dcf5df,#b9e8bd)", title: "自然", tag: "画像", h: 145 },
   ],
 
   mindThemes: [
@@ -479,13 +625,21 @@ const MOCK_DATA = {
   },
 };
 
+/* ワクワクの種類ごとの表示情報(アイコン/ラベル/画像なしカードの背景色) */
+const TYPE_META = {
+  image: { label: "画像", icon: "🖼️", bg: "linear-gradient(160deg,#e3f4ff,#bfe4ff)" },
+  word: { label: "言葉", icon: "💬", bg: "linear-gradient(160deg,#fff6da,#ffe28a)" },
+  url: { label: "URL", icon: "🔗", bg: "linear-gradient(160deg,#e3f8ef,#b9e8bd)" },
+  music: { label: "音楽", icon: "🎵", bg: "linear-gradient(160deg,#efe9ff,#c9b6ff)" },
+  place: { label: "場所", icon: "📍", bg: "linear-gradient(160deg,#ffe9de,#ffc2a8)" },
+  idea: { label: "アイデア", icon: "💡", bg: "linear-gradient(160deg,#ffe3ef,#ffb6d0)" },
+};
+const TYPE_ORDER = ["image", "word", "url", "music", "place", "idea"];
+const EMOTIONS = ["ワクワク", "落ち着く", "憧れる", "気になる", "楽しい", "好き"];
+
 const FILTERS = [
   { key: "all", label: "すべて" },
-  { key: "image", label: "画像" },
-  { key: "word", label: "言葉" },
-  { key: "music", label: "音楽" },
-  { key: "place", label: "場所" },
-  { key: "idea", label: "アイデア" },
+  ...TYPE_ORDER.map(key => ({ key, label: TYPE_META[key].label })),
 ];
 
 /* =========================================================
@@ -537,7 +691,7 @@ function renderHomeStep(){
 }
 
 document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
-  openModal("ワクワク追加画面は次のPhaseで実装予定だよ🌱\n\n（今はプロトタイプ画面です）");
+  openAddSheet();
 });
 
 document.getElementById("btnAnswerQuestion").addEventListener("click", () => {
@@ -581,34 +735,435 @@ function renderFilters(){
   });
 }
 
-function renderWakuwakuGrid(){
-  const grid = document.getElementById("wakuwakuGrid");
-  grid.innerHTML = "";
-  MOCK_DATA.wakuwakuItems.forEach((item, i) => {
-    const card = document.createElement("div");
-    card.className = "wakuwaku-card show";
-    card.dataset.category = item.category;
-    card.innerHTML = `
-      <div class="thumb" style="height:${item.h}px">
-        <img class="thumb-img" src="img/koufuku/wakuwaku/${i + 1}.jpg" alt="" onerror="this.classList.add('noimg')">
-        <div class="thumb-fallback" style="background:${item.bg}">${item.emoji}</div>
-      </div>
-      <div class="info">
-        <div class="title">${item.title}</div>
-        <div class="tag">${item.tag}</div>
-      </div>`;
-    grid.appendChild(card);
+/* =========================================================
+   ワクワク保存(IndexedDB)
+   - 画像を扱うため、base64化してlocalStorageへ大量保存するのではなく
+     Blobのまま保存できるIndexedDBを使用する。
+   - 将来Supabase等の本番DB/Storageに差し替える際は、この
+     WakuWakuStore(add/update/remove/getAll)の中身だけ実装し直せば
+     よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
+   ========================================================= */
+const WW_DB_NAME = "koufukuAiDB";
+const WW_DB_VERSION = 1;
+const WW_STORE = "wakuwaku";
+
+function wwOpenDB(){
+  return new Promise((resolve, reject) => {
+    if(!window.indexedDB){ reject(new Error("indexedDB not supported")); return; }
+    const req = indexedDB.open(WW_DB_NAME, WW_DB_VERSION);
+    req.onupgradeneeded = (ev) => {
+      const db = ev.target.result;
+      if(!db.objectStoreNames.contains(WW_STORE)) db.createObjectStore(WW_STORE, { keyPath: "id" });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
   });
 }
 
+const WakuWakuStore = {
+  async add(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(WW_STORE, "readwrite");
+      tx.objectStore(WW_STORE).add(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async update(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(WW_STORE, "readwrite");
+      tx.objectStore(WW_STORE).put(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async remove(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(WW_STORE, "readwrite");
+      tx.objectStore(WW_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(WW_STORE, "readonly");
+      const req = tx.objectStore(WW_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+};
+
+function wwGenerateId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "w_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str == null ? "" : String(str);
+  return div.innerHTML;
+}
+
+function isSafeHttpUrl(str){
+  return typeof str === "string" && /^https?:\/\//i.test(str.trim());
+}
+
+/* スマホ写真は非常に大きい場合があるため、Canvasで長辺を縮小してJPEG圧縮してから保存する */
+function compressImageFile(file, maxSize = 1280, quality = 0.82){
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if(width > maxSize || height > maxSize){
+        const scale = maxSize / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(objectUrl);
+        if(blob) resolve(blob); else reject(new Error("compress failed"));
+      }, "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("image load failed")); };
+    img.src = objectUrl;
+  });
+}
+
+let wakuwakuEntries = [];
+let wakuwakuObjectUrls = [];
+let currentFilterKey = "all";
+
+function revokeWakuwakuObjectUrls(){
+  wakuwakuObjectUrls.forEach(u => URL.revokeObjectURL(u));
+  wakuwakuObjectUrls = [];
+}
+
+async function loadWakuwakuEntries(){
+  try{
+    const list = await WakuWakuStore.getAll();
+    list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    wakuwakuEntries = list;
+  }catch(e){
+    wakuwakuEntries = [];
+  }
+  renderWakuwakuGrid();
+}
+
+function pickThumbHeight(id){
+  const heights = [150, 175, 195, 215];
+  let hash = 0;
+  for(let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return heights[hash % heights.length];
+}
+
+function renderWakuwakuGrid(){
+  const grid = document.getElementById("wakuwakuGrid");
+  const empty = document.getElementById("wakuwakuEmpty");
+  revokeWakuwakuObjectUrls();
+  grid.innerHTML = "";
+
+  if(wakuwakuEntries.length === 0){
+    grid.style.display = "none";
+    empty.style.display = "block";
+    return;
+  }
+  grid.style.display = "";
+  empty.style.display = "none";
+
+  wakuwakuEntries.forEach(entry => {
+    const meta = TYPE_META[entry.type] || null;
+    const title = entry.title && entry.title.trim() ? entry.title.trim() : "(タイトルなし)";
+    const card = document.createElement("div");
+    card.className = "wakuwaku-card show";
+    card.dataset.category = entry.type || "";
+
+    let thumbHtml;
+    if(entry.image){
+      const url = URL.createObjectURL(entry.image);
+      wakuwakuObjectUrls.push(url);
+      thumbHtml = `<img class="thumb-img" src="${url}" alt="">`;
+    }else{
+      const bg = meta ? meta.bg : "linear-gradient(160deg,#efe9ff,#e3f4ff)";
+      const icon = meta ? meta.icon : "✨";
+      thumbHtml = `
+        <div class="thumb-textcard" style="background:${bg}">
+          <span class="type-icon">${icon}</span>
+          <span class="text-title">${escapeHtml(title)}</span>
+        </div>`;
+    }
+
+    card.innerHTML = `
+      <div class="thumb" style="height:${pickThumbHeight(entry.id)}px">${thumbHtml}</div>
+      <div class="info">
+        <div class="title">${escapeHtml(title)}</div>
+        <div class="tag">${meta ? escapeHtml(meta.label) : "未分類"}</div>
+      </div>`;
+    card.addEventListener("click", () => openDetailSheet(entry.id));
+    grid.appendChild(card);
+  });
+
+  applyWakuwakuFilter(currentFilterKey);
+}
+
 function applyWakuwakuFilter(key){
+  currentFilterKey = key;
   document.querySelectorAll(".wakuwaku-card").forEach(card => {
     card.classList.toggle("show", key === "all" || card.dataset.category === key);
   });
 }
 
 document.getElementById("fabAddWakuwaku").addEventListener("click", () => {
-  openModal("ワクワク追加画面は次のPhaseで実装予定だよ🌱\n\n（今はプロトタイプ画面です）");
+  openAddSheet();
+});
+document.getElementById("btnEmptyAddWakuwaku").addEventListener("click", () => {
+  openAddSheet();
+});
+
+/* =========================================================
+   ワクワク追加/編集シート
+   ========================================================= */
+let formState = null;
+
+function resetFormState(){
+  if(formState && formState.imagePreviewUrl) URL.revokeObjectURL(formState.imagePreviewUrl);
+  formState = { id: null, type: "", title: "", imageBlob: null, imagePreviewUrl: null, url: "", note: "", emotion: "" };
+}
+resetFormState();
+
+function renderTypeChips(){
+  const root = document.getElementById("typeChipRow");
+  root.innerHTML = "";
+  TYPE_ORDER.forEach(key => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (formState.type === key ? " selected" : "");
+    btn.textContent = TYPE_META[key].icon + " " + TYPE_META[key].label;
+    btn.addEventListener("click", () => {
+      formState.type = formState.type === key ? "" : key;
+      renderTypeChips();
+    });
+    root.appendChild(btn);
+  });
+}
+
+function renderEmotionChips(){
+  const root = document.getElementById("emotionChipRow");
+  root.innerHTML = "";
+  EMOTIONS.forEach(label => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (formState.emotion === label ? " selected" : "");
+    btn.textContent = label;
+    btn.addEventListener("click", () => {
+      formState.emotion = formState.emotion === label ? "" : label;
+      renderEmotionChips();
+    });
+    root.appendChild(btn);
+  });
+}
+
+function renderImagePreview(){
+  const preview = document.getElementById("imagePreview");
+  const img = document.getElementById("imagePreviewImg");
+  if(formState.imagePreviewUrl){
+    img.src = formState.imagePreviewUrl;
+    preview.classList.add("show");
+  }else{
+    img.src = "";
+    preview.classList.remove("show");
+  }
+}
+
+function openAddSheet(entry){
+  resetFormState();
+  if(entry){
+    formState.id = entry.id;
+    formState.type = entry.type || "";
+    formState.title = entry.title || "";
+    formState.url = entry.url || "";
+    formState.note = entry.note || "";
+    formState.emotion = entry.emotion || "";
+    formState.imageBlob = entry.image || null;
+    formState.imagePreviewUrl = entry.image ? URL.createObjectURL(entry.image) : null;
+  }
+  document.getElementById("addSheetTitle").textContent = entry ? "ワクワクを編集" : "今日、何に心が動いた？";
+  document.getElementById("formTitle").value = formState.title;
+  document.getElementById("formUrl").value = formState.url;
+  document.getElementById("formNote").value = formState.note;
+  renderTypeChips();
+  renderEmotionChips();
+  renderImagePreview();
+  document.getElementById("addSheetModal").classList.add("show");
+}
+
+function closeAddSheet(){
+  document.getElementById("addSheetModal").classList.remove("show");
+}
+
+document.getElementById("addSheetClose").addEventListener("click", closeAddSheet);
+document.getElementById("addSheetModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "addSheetModal") closeAddSheet();
+});
+
+document.getElementById("imagePickBtn").addEventListener("click", () => {
+  document.getElementById("imageFileInput").click();
+});
+document.getElementById("imageFileInput").addEventListener("change", async (ev) => {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if(!file) return;
+  try{
+    const compressed = await compressImageFile(file);
+    if(formState.imagePreviewUrl) URL.revokeObjectURL(formState.imagePreviewUrl);
+    formState.imageBlob = compressed;
+    formState.imagePreviewUrl = URL.createObjectURL(compressed);
+    renderImagePreview();
+  }catch(e){
+    showToast("この画像は読み込めなかったみたい…");
+  }
+});
+document.getElementById("imageRemoveBtn").addEventListener("click", () => {
+  if(formState.imagePreviewUrl) URL.revokeObjectURL(formState.imagePreviewUrl);
+  formState.imageBlob = null;
+  formState.imagePreviewUrl = null;
+  renderImagePreview();
+});
+
+document.getElementById("btnSaveWakuwaku").addEventListener("click", async () => {
+  const title = document.getElementById("formTitle").value.trim();
+  const url = document.getElementById("formUrl").value.trim();
+  const note = document.getElementById("formNote").value.trim();
+
+  if(!title && !formState.imageBlob && !url){
+    showToast("タイトルか画像かURL、どれかひとつだけ入れてみて♪");
+    return;
+  }
+
+  const existing = formState.id ? wakuwakuEntries.find(e => e.id === formState.id) : null;
+  const entry = {
+    id: formState.id || wwGenerateId(),
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    type: formState.type || "",
+    title,
+    image: formState.imageBlob || null,
+    url,
+    note,
+    emotion: formState.emotion || "",
+  };
+
+  try{
+    if(formState.id){
+      await WakuWakuStore.update(entry);
+    }else{
+      await WakuWakuStore.add(entry);
+    }
+  }catch(e){
+    showToast("保存できなかったみたい…もう一度試してみて");
+    return;
+  }
+
+  closeAddSheet();
+  await loadWakuwakuEntries();
+  showToast("ワクワクをひとつ残したよ ✨");
+});
+
+/* =========================================================
+   ワクワク詳細/編集/削除
+   ========================================================= */
+let detailEntryId = null;
+
+function formatSavedDate(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openDetailSheet(id){
+  const entry = wakuwakuEntries.find(e => e.id === id);
+  if(!entry) return;
+  detailEntryId = id;
+  const meta = TYPE_META[entry.type] || null;
+  const body = document.getElementById("detailSheetBody");
+
+  let html = "";
+  if(entry.image){
+    const url = URL.createObjectURL(entry.image);
+    wakuwakuObjectUrls.push(url);
+    html += `<img class="detail-image" src="${url}" alt="">`;
+  }
+  html += `<div class="detail-row"><div class="d-label">タイトル</div><div class="d-value">${escapeHtml(entry.title || "(タイトルなし)")}</div></div>`;
+  html += `<div class="detail-row"><div class="d-label">種類</div><div class="d-value">${meta ? escapeHtml(meta.label) : "未分類"}</div></div>`;
+  if(entry.url){
+    const safe = isSafeHttpUrl(entry.url);
+    html += `<div class="detail-row"><div class="d-label">URL</div><div class="d-value">${
+      safe ? `<a href="${escapeHtml(entry.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(entry.url)}</a>` : escapeHtml(entry.url)
+    }</div></div>`;
+  }
+  if(entry.note){
+    html += `<div class="detail-row"><div class="d-label">どこが好きだった？</div><div class="d-value">${escapeHtml(entry.note)}</div></div>`;
+  }
+  if(entry.emotion){
+    html += `<div class="detail-row"><div class="d-label">気持ち</div><div class="d-value">${escapeHtml(entry.emotion)}</div></div>`;
+  }
+  html += `<div class="detail-row"><div class="d-label">保存日時</div><div class="d-value">${escapeHtml(formatSavedDate(entry.createdAt))}</div></div>`;
+  html += `
+    <div class="detail-actions">
+      <button class="btn-outline" id="btnEditWakuwaku">編集</button>
+      <button class="btn-danger-outline" id="btnDeleteWakuwaku">削除</button>
+    </div>`;
+  body.innerHTML = html;
+
+  document.getElementById("btnEditWakuwaku").addEventListener("click", () => {
+    closeDetailSheet();
+    openAddSheet(entry);
+  });
+  document.getElementById("btnDeleteWakuwaku").addEventListener("click", () => {
+    openDeleteConfirm();
+  });
+
+  document.getElementById("detailSheetModal").classList.add("show");
+}
+
+function closeDetailSheet(){
+  document.getElementById("detailSheetModal").classList.remove("show");
+}
+document.getElementById("detailSheetClose").addEventListener("click", closeDetailSheet);
+document.getElementById("detailSheetModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "detailSheetModal") closeDetailSheet();
+});
+
+function openDeleteConfirm(){
+  document.getElementById("deleteConfirmModal").classList.add("show");
+}
+function closeDeleteConfirm(){
+  document.getElementById("deleteConfirmModal").classList.remove("show");
+}
+document.getElementById("deleteCancelBtn").addEventListener("click", closeDeleteConfirm);
+document.getElementById("deleteConfirmModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "deleteConfirmModal") closeDeleteConfirm();
+});
+document.getElementById("deleteConfirmBtn").addEventListener("click", async () => {
+  if(!detailEntryId) return;
+  try{
+    await WakuWakuStore.remove(detailEntryId);
+  }catch(e){ /* 削除失敗時も画面は閉じ、一覧は現状のまま保持する */ }
+  closeDeleteConfirm();
+  closeDetailSheet();
+  detailEntryId = null;
+  await loadWakuwakuEntries();
+  showToast("ワクワクを削除したよ");
 });
 
 /* =========================================================
@@ -709,7 +1264,7 @@ document.querySelectorAll("#feedbackRow button").forEach(btn => {
 renderHomeQuestion();
 renderHomeStep();
 renderFilters();
-renderWakuwakuGrid();
+loadWakuwakuEntries();
 renderFutureToggle();
 renderFutureContent();
 renderStepView();
