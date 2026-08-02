@@ -223,19 +223,16 @@ textarea{ font-family:inherit; }
 .step-duration{ display:inline-block; font-size:13px; color:var(--purple); background:var(--purple-soft); border-radius:99px; padding:4px 14px; font-weight:700; }
 .step-actions-col{ display:flex; flex-direction:column; gap:10px; }
 
-/* ---------- わたし(本心マップ) ---------- */
-.mind-note{ font-size:11.5px; color:var(--text-sub); margin:-10px 0 18px; line-height:1.5; }
-.theme-bars{ margin-bottom:20px; }
-.theme-bar-row{ margin-bottom:14px; }
-.theme-bar-row .row-top{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:6px; }
-.theme-bar-track{ height:10px; border-radius:99px; background:#f1eff9; overflow:hidden; }
-.theme-bar-fill{ height:100%; border-radius:99px; background:linear-gradient(90deg,#ff8fc7,#a78bfa); }
-.feedback-row{ display:flex; gap:8px; margin-top:14px; }
-.feedback-row button{
-  flex:1; font-size:13px; font-weight:600; color:var(--text-sub);
-  background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:11px 0;
-}
-.feedback-row button.selected{ background:var(--purple-soft); color:#6a4fc2; border-color:var(--purple); }
+/* ---------- わたし(心の地図・Phase3) ---------- */
+.mind-empty{ text-align:center; padding:30px 8px 8px; }
+.mind-empty .kaosu-avatar{ margin:0 auto 14px; }
+.mind-empty .speech-bubble{ display:inline-block; text-align:left; }
+.mind-stat-line{ font-size:14px; margin-bottom:8px; }
+.mind-stat-line:last-child{ margin-bottom:0; }
+.mind-stat-line strong{ color:#7a5fd6; }
+.mind-empty-note{ font-size:13.5px; color:var(--text-sub); line-height:1.7; }
+.mind-trend-line{ font-size:14.5px; line-height:1.75; margin-bottom:10px; }
+.mind-trend-line:last-child{ margin-bottom:0; }
 
 /* ---------- ボトムナビ ---------- */
 .bottomnav{
@@ -456,26 +453,43 @@ textarea.field-input{ resize:none; }
       </div>
     </section>
 
-    <!-- ③ わたし(本心マップ) -->
+    <!-- ③ わたし(心の地図・Phase3) -->
     <section class="view" data-view="mind">
-      <h1 class="view-title">わたしの本心マップ</h1>
-      <p class="view-sub">最近よく現れるテーマ</p>
-      <p class="mind-note">※診断結果ではなく、最近の記録から見える傾向です</p>
+      <h1 class="view-title">わたしの心の地図</h1>
+      <p class="view-sub">集めたワクワクから、<br>あなたの「好き」を少しずつ見つけます。</p>
 
-      <div class="theme-bars" id="themeBars"></div>
-
-      <div class="kaosu-row insight">
-        <div class="kaosu-avatar" style="width:48px;height:48px">
+      <div class="mind-empty" id="mindEmpty" style="display:none;">
+        <div class="kaosu-avatar" style="width:72px;height:72px">
           <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">最近は『自由』や『創造』に<br>心が動くことが多いみたい。<br><br>自分でもそう感じる？</div>
+        <div class="speech-bubble">まだ心の地図は真っ白です。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみませんか？</div>
+        <div style="margin-top:16px;"><button class="btn-primary" id="btnMindGoWakuwaku">ワクワクを集める</button></div>
       </div>
 
-      <div class="feedback-row" id="feedbackRow">
-        <button data-fb="yes">そう思う</button>
-        <button data-fb="unsure">分からない</button>
-        <button data-fb="no">違う</button>
+      <div id="mindContent" style="display:none;">
+        <div class="card">
+          <div class="card-label">今のわたし</div>
+          <div id="mindNowStats"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">心が動くキーワード</div>
+          <div id="mindKeywords"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">わたしの傾向</div>
+          <div id="mindTrends"></div>
+        </div>
+
+        <div class="kaosu-row">
+          <div class="kaosu-avatar" style="width:48px;height:48px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="mindHint"></div>
+        </div>
       </div>
     </section>
 
@@ -592,15 +606,6 @@ const MOCK_DATA = {
     { text: "窓を開けて\n深呼吸を3回してみる", duration: "3分" },
     { text: "気になっていたお店の写真を\n1枚だけ見てみる", duration: "3分" },
     { text: "今日食べたいものを\nひとつ思い浮かべてみる", duration: "1分" },
-  ],
-
-  mindThemes: [
-    { label: "自由", value: 88 },
-    { label: "創造", value: 74 },
-    { label: "家族", value: 61 },
-    { label: "音楽", value: 69 },
-    { label: "自然", value: 58 },
-    { label: "成長", value: 52 },
   ],
 
   futureVisions: {
@@ -858,6 +863,7 @@ async function loadWakuwakuEntries(){
     wakuwakuEntries = [];
   }
   renderWakuwakuGrid();
+  renderMindView();
 }
 
 function pickThumbHeight(id){
@@ -1234,29 +1240,106 @@ document.getElementById("btnStepAnother").addEventListener("click", () => {
 });
 
 /* =========================================================
-   わたし(本心マップ)
+   わたし(心の地図・Phase3)
+   - ワクワクBOXの保存データ(wakuwakuEntries)から、外部AIを使わず
+     簡易的に「登録数/よくある気持ち・種類/キーワード/傾向」を導き出す。
+   - 診断・分類はせず、断定を避けたやわらかい表現のみを使う。
    ========================================================= */
-function renderThemeBars(){
-  const root = document.getElementById("themeBars");
-  root.innerHTML = "";
-  MOCK_DATA.mindThemes.forEach(t => {
-    const row = document.createElement("div");
-    row.className = "theme-bar-row";
-    row.innerHTML = `
-      <div class="row-top"><span>${t.label}</span></div>
-      <div class="theme-bar-track"><div class="theme-bar-fill" style="width:${t.value}%"></div></div>`;
-    root.appendChild(row);
-  });
+const MIND_NOTE_STOPWORDS = new Set([
+  "の", "は", "が", "を", "に", "で", "と", "も", "な", "い", "う", "え", "お",
+  "です", "ます", "でした", "ました", "でしょう", "かも", "かもしれない",
+  "こと", "もの", "これ", "それ", "あれ", "とても", "すごく", "ちょっと",
+  "なんか", "なんとなく", "気になる", "気がする", "感じ", "理由",
+  "分からない", "わからない", "たい", "した", "する", "なる", "いる", "ある",
+  "好き", "嫌い", "という", "みたいな", "そう", "うん", "はい",
+]);
+
+function mindMostFrequent(list){
+  const freq = new Map();
+  list.forEach(v => { if(v) freq.set(v, (freq.get(v) || 0) + 1); });
+  let best = null, bestCount = 0;
+  freq.forEach((count, key) => { if(count > bestCount){ best = key; bestCount = count; } });
+  return best;
 }
 
-document.querySelectorAll("#feedbackRow button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("#feedbackRow button").forEach(b => b.classList.remove("selected"));
-    btn.classList.add("selected");
-    // TODO: 将来はこの回答をAI Insightの学習材料としてAPI/DBへ送信する
-    showToast("教えてくれてありがとう♪");
+function mindExtractKeywords(entries){
+  const freq = new Map();
+  entries.forEach(entry => {
+    const note = (entry.note || "").trim();
+    if(!note) return;
+    note.split(/[、。,.!?！？・\/\n\s]+/).forEach(raw => {
+      let frag = raw.trim();
+      if(!frag) return;
+      frag = frag.replace(/(が好き|は好き|だった|でした|ました|という感じ|な感じ|って感じ|です|ます|かもしれない|かも)$/u, "").trim();
+      if(frag.length < 2 || frag.length > 12) return;
+      if(MIND_NOTE_STOPWORDS.has(frag)) return;
+      freq.set(frag, (freq.get(frag) || 0) + 1);
+    });
   });
-});
+  return [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([word]) => word);
+}
+
+const MIND_TYPE_TREND = {
+  image: "写真や景色など、目に映るものに心が動くことが多いみたい。",
+  word: "言葉や文章に心を動かされることが多いのかもしれません。",
+  url: "気になる情報を見つけると、つい残したくなるタイプなのかもしれません。",
+  music: "音や音楽に心が動くことが多いみたい。",
+  place: "行ってみたい場所や空間に、心惹かれることが多いのかもしれません。",
+  idea: "新しいアイデアを考える時間に、ワクワクする傾向がありそうです。",
+};
+
+const MIND_TYPE_HINT = {
+  image: "気になる景色や写真を1枚、ワクワクBOXに残してみませんか？",
+  word: "最近気になった言葉を、一言だけ書き留めてみませんか？",
+  url: "気になっていたページを1つ、ワクワクBOXに保存してみませんか？",
+  music: "今日は好きな音楽を1曲、ゆっくり聴いてみませんか？",
+  place: "気になる場所の写真を1枚、ワクワクBOXに追加してみませんか？",
+  idea: "最近気になっているアイデアを、一言だけ残してみませんか？",
+};
+
+function renderMindView(){
+  const empty = document.getElementById("mindEmpty");
+  const content = document.getElementById("mindContent");
+  const entries = wakuwakuEntries || [];
+
+  if(entries.length === 0){
+    empty.style.display = "block";
+    content.style.display = "none";
+    return;
+  }
+  empty.style.display = "none";
+  content.style.display = "block";
+
+  const topEmotion = mindMostFrequent(entries.map(e => e.emotion));
+  const topType = mindMostFrequent(entries.map(e => e.type));
+  const topTypeLabel = topType && TYPE_META[topType] ? TYPE_META[topType].label : null;
+
+  let statsHtml = `<p class="mind-stat-line">今までに <strong>${entries.length}個</strong> のワクワクを集めました</p>`;
+  if(topEmotion) statsHtml += `<p class="mind-stat-line">最近多い気持ち：<strong>${escapeHtml(topEmotion)}</strong></p>`;
+  if(topTypeLabel) statsHtml += `<p class="mind-stat-line">よく集めているもの：<strong>${escapeHtml(topTypeLabel)}</strong></p>`;
+  document.getElementById("mindNowStats").innerHTML = statsHtml;
+
+  const noteCount = entries.filter(e => (e.note || "").trim()).length;
+  const keywords = mindExtractKeywords(entries);
+  const keywordsRoot = document.getElementById("mindKeywords");
+  if(noteCount < 3 || keywords.length === 0){
+    keywordsRoot.innerHTML = `<p class="mind-empty-note">もう少しワクワクを集めると、<br>あなたらしさが見えてきます</p>`;
+  }else{
+    keywordsRoot.innerHTML = `<div class="tag-row">${keywords.map(k => `<span class="tag-chip">${escapeHtml(k)}</span>`).join("")}</div>`;
+  }
+
+  const trendLines = [];
+  if(topType && MIND_TYPE_TREND[topType]) trendLines.push(MIND_TYPE_TREND[topType]);
+  if(topEmotion) trendLines.push(`「${topEmotion}」と感じる瞬間が、最近は多いようです。`);
+  if(keywords[0]) trendLines.push(`「${keywords[0]}」という言葉が、いくつかの記録に共通して現れています。`);
+  if(trendLines.length === 0) trendLines.push("少しずつ記録が集まってきています。続けていくと、傾向が見えてくるかもしれません。");
+  document.getElementById("mindTrends").innerHTML = trendLines.slice(0, 3).map(t => `<p class="mind-trend-line">${escapeHtml(t)}</p>`).join("");
+
+  document.getElementById("mindHint").textContent =
+    topType && MIND_TYPE_HINT[topType] ? MIND_TYPE_HINT[topType] : "今日、少しでも心が動いたことをひとつ残してみませんか？";
+}
+
+document.getElementById("btnMindGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
 
 /* =========================================================
    初期化
@@ -1268,7 +1351,6 @@ loadWakuwakuEntries();
 renderFutureToggle();
 renderFutureContent();
 renderStepView();
-renderThemeBars();
 </script>
 </body>
 </html>
