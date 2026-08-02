@@ -211,6 +211,15 @@ textarea{ font-family:inherit; }
 .step-text-big{ font-size:17px; font-weight:700; white-space:pre-line; margin:0; }
 .step-choice-row{ display:flex; gap:10px; margin-bottom:10px; }
 .step-choice-row .btn-outline{ flex:1; }
+.feeling-prompt-text{ font-size:14px; font-weight:600; margin:0 0 10px; }
+.feeling-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.feeling-btn{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+  padding:14px 8px; font-size:12.5px; font-weight:600; color:var(--text); text-align:center;
+}
+.feeling-btn:active{ background:var(--purple-soft); }
+.feeling-btn .fb-emoji{ font-size:26px; }
 
 /* ---------- わたし(心の地図・Phase3) ---------- */
 .mind-empty{ text-align:center; padding:30px 8px 8px; }
@@ -483,6 +492,12 @@ textarea.field-input{ resize:none; }
           <button class="btn-outline" id="btnStepAnotherP5">別の一歩</button>
         </div>
         <button class="btn-text" id="btnStepNothing">今日は何もしない</button>
+
+        <div id="stepFeelingPrompt" style="display:none; margin-top:14px;">
+          <p class="feeling-prompt-text">やってみて、どんな気持ちでしたか？</p>
+          <div class="feeling-grid" id="feelingGrid"></div>
+          <button class="btn-text" id="btnFeelingSkip">今は選ばない</button>
+        </div>
       </div>
     </section>
 
@@ -515,6 +530,11 @@ textarea.field-input{ resize:none; }
         <div class="card">
           <div class="card-label">わたしの傾向</div>
           <div id="mindTrends"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">心が喜んだもの</div>
+          <div id="mindFeelingBody"></div>
         </div>
 
         <div class="kaosu-row">
@@ -1350,7 +1370,9 @@ const STEP_TRIED_MESSAGES = [
 const STEP_KAOSU_DEFAULT = "この一歩、試してみませんか？";
 const STEP_NOTHING_MESSAGE = "今日は集めたワクワクを眺めるだけでも大丈夫です。";
 
-/* 実行記録: 既存のwakuwaku(IndexedDB)には触れず、新しい別キーにのみ保存する安全な補助ログ */
+/* 実行記録: 既存のwakuwaku(IndexedDB)には触れず、新しい別キーにのみ保存する安全な補助ログ。
+   Phase6でfeeling(気持ち)を追加したが、feelingを持たないPhase5時点の
+   古い記録もそのまま読めるよう、フィールドの有無で分岐して扱う(下記参照)。 */
 const STEP_LOG_KEY = "koufukuAiStepLogV1";
 function stepLogRead(){
   try{
@@ -1369,6 +1391,55 @@ function stepLogAppend(record){
     /* 容量超過等で記録できなくても、他の保存機能には影響させない */
   }
 }
+function stepLogUpdateFeeling(recordId, feeling){
+  if(!recordId) return;
+  try{
+    const list = stepLogRead();
+    const idx = list.findIndex(r => r.id === recordId);
+    if(idx >= 0){
+      list[idx].feeling = feeling;
+      localStorage.setItem(STEP_LOG_KEY, JSON.stringify(list));
+    }
+  }catch(e){
+    /* 気持ちの追記に失敗しても、実行記録自体は残っているので致命的ではない */
+  }
+}
+
+/* Phase6: やってみた後の「気持ち」選択肢。ネガティブ/失敗のような表現は使わない */
+const FEELING_OPTIONS = [
+  { key: "excited", emoji: "😍", label: "すごくワクワクした", feedback: "その感覚、大切にしておきましょう✨" },
+  { key: "fun", emoji: "😊", label: "楽しかった", feedback: "いい時間になったみたいですね。" },
+  { key: "calm", emoji: "😌", label: "心地よかった", feedback: "その心地よさも、大事なヒントですね。" },
+  { key: "unsure", emoji: "🤔", label: "まだ分からない", feedback: "分からないままでも大丈夫。少しずつ見つけていきましょう。" },
+  { key: "flat", emoji: "😐", label: "あまり響かなかった", feedback: "それも大切な発見ですね。違うワクワクを探してみましょう。" },
+];
+const FEELING_POSITIVE_KEYS = ["excited", "fun", "calm"];
+
+let stepPendingLogId = null;
+
+function renderFeelingGrid(){
+  const root = document.getElementById("feelingGrid");
+  root.innerHTML = "";
+  FEELING_OPTIONS.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "feeling-btn";
+    btn.innerHTML = `<span class="fb-emoji">${opt.emoji}</span><span>${escapeHtml(opt.label)}</span>`;
+    btn.addEventListener("click", () => {
+      stepLogUpdateFeeling(stepPendingLogId, opt.key);
+      stepPendingLogId = null;
+      document.getElementById("stepFeelingPrompt").style.display = "none";
+      document.getElementById("stepKaosuMessage").textContent = opt.feedback;
+      renderMindView();
+    });
+    root.appendChild(btn);
+  });
+}
+
+document.getElementById("btnFeelingSkip").addEventListener("click", () => {
+  stepPendingLogId = null;
+  document.getElementById("stepFeelingPrompt").style.display = "none";
+});
 
 let stepEntryPointer = 0;
 let stepLevel = "normal";
@@ -1385,6 +1456,11 @@ function stepPickInitialIndex(entries){
   return 0;
 }
 
+function hideFeelingPrompt(){
+  stepPendingLogId = null;
+  document.getElementById("stepFeelingPrompt").style.display = "none";
+}
+
 function renderStepChoice(){
   const entries = wakuwakuEntries || [];
   const entry = entries[stepEntryPointer] || entries[0] || null;
@@ -1394,6 +1470,7 @@ function renderStepChoice(){
     ? STEP_ACTION_TEXT[stepCurrentType][stepLevel]
     : STEP_FALLBACK_TEXT[stepLevel];
   document.getElementById("stepSuggestionText").textContent = text;
+  hideFeelingPrompt();
 }
 
 function renderStepView(){
@@ -1404,6 +1481,7 @@ function renderStepView(){
   if(entries.length === 0){
     empty.style.display = "block";
     content.style.display = "none";
+    hideFeelingPrompt();
     return;
   }
   empty.style.display = "none";
@@ -1422,13 +1500,18 @@ function renderStepView(){
 document.getElementById("btnStepGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
 
 document.getElementById("btnStepTried").addEventListener("click", () => {
-  stepLogAppend({
+  const record = {
+    id: wwGenerateId(),
     completedAt: new Date().toISOString(),
     sourceEntryId: stepCurrentSourceEntry ? stepCurrentSourceEntry.id : null,
     stepType: stepCurrentType || "",
-  });
+  };
+  stepLogAppend(record);
+  stepPendingLogId = record.id;
   const msg = STEP_TRIED_MESSAGES[Math.floor(Math.random() * STEP_TRIED_MESSAGES.length)];
   document.getElementById("stepKaosuMessage").textContent = msg;
+  renderFeelingGrid();
+  document.getElementById("stepFeelingPrompt").style.display = "block";
 });
 
 document.getElementById("btnStepSmaller").addEventListener("click", () => {
@@ -1448,6 +1531,7 @@ document.getElementById("btnStepAnotherP5").addEventListener("click", () => {
 });
 
 document.getElementById("btnStepNothing").addEventListener("click", () => {
+  hideFeelingPrompt();
   document.getElementById("stepKaosuMessage").textContent = STEP_NOTHING_MESSAGE;
 });
 
@@ -1549,6 +1633,38 @@ function renderMindView(){
 
   document.getElementById("mindHint").textContent =
     topType && MIND_TYPE_HINT[topType] ? MIND_TYPE_HINT[topType] : "今日、少しでも心が動いたことをひとつ残してみませんか？";
+
+  renderMindFeelingCard();
+}
+
+/* Phase6: 「一歩」を試した後の気持ち(feeling)の記録から、
+   心が喜んだものの傾向をやわらかく表示する。診断・断定はしない。
+   feelingを持たない(Phase5時点の)古い記録は単に集計対象から外れるだけで、
+   エラーにはならない。 */
+function renderMindFeelingCard(){
+  const root = document.getElementById("mindFeelingBody");
+  if(!root) return;
+  const logsWithFeeling = stepLogRead().filter(r => r && r.feeling);
+
+  if(logsWithFeeling.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">まだ気持ちの記録はありません。<br><br>小さな一歩を試したとき、<br>心がどう動いたか少しずつ教えてくださいね。</p>`;
+    return;
+  }
+
+  let html = "";
+  if(logsWithFeeling.length <= 2){
+    html += `<p class="mind-empty-note" style="margin-bottom:10px;">まだ小さなヒントですが——</p>`;
+  }
+
+  const positiveLogs = logsWithFeeling.filter(r => FEELING_POSITIVE_KEYS.includes(r.feeling) && r.stepType);
+  const bestType = mindMostFrequent(positiveLogs.map(r => r.stepType));
+  const bestTypeLabel = bestType && TYPE_META[bestType] ? TYPE_META[bestType].label : null;
+
+  const text = bestTypeLabel
+    ? `今の記録では、${bestTypeLabel}に関わる一歩を試したときに、<br>いい気持ちになることが多いようです。`
+    : `今の記録では、まだはっきりした傾向は見えていませんが、<br>少しずつ心の動きが集まってきています。`;
+  html += `<p class="mind-trend-line">${text}</p>`;
+  root.innerHTML = html;
 }
 
 document.getElementById("btnMindGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
