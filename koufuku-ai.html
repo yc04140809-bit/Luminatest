@@ -62,6 +62,13 @@ textarea{ font-family:inherit; }
 .view-sub{ font-size:13px; color:var(--text-sub); margin-top:4px; margin-bottom:18px; }
 
 /* ---------- ケイオスちゃん(共通コンポーネント) ---------- */
+/* Phase15: ケイオスちゃん本人の発言を示す丸アイコンは
+   img/koufuku/kaosu-face-{expression}.webp という命名規則の画像を使う。
+   imgのdata-kaosu-expression属性に現在の表情キー(例: "normal")を
+   持たせているので、将来表情を切り替える場合はこの属性とsrcの
+   ファイル名を対応させて差し替えるだけで済む(切り替えロジック自体は
+   今回実装しない)。読み込みに失敗した場合は従来通りimg.noimgが付与され、
+   隣接する.kaosu-fallback(簡易フェイス)に自動でフォールバックする。 */
 .kaosu-avatar{ position:relative; flex:none; border-radius:50%; overflow:hidden; background:#fff; box-shadow:0 3px 10px rgba(150,140,200,.18); }
 .kaosu-avatar img{ width:100%; height:100%; object-fit:cover; display:block; }
 .kaosu-avatar img.noimg{ display:none; }
@@ -426,7 +433,7 @@ textarea.field-input{ resize:none; }
         <p class="mind-trend-line" id="homeConnectionText"></p>
         <div class="kaosu-row" style="margin-top:12px; margin-bottom:10px;">
           <div class="kaosu-avatar" style="width:36px;height:36px">
-            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="homeConnectionKaosu" style="font-size:13px;"></div>
@@ -438,7 +445,7 @@ textarea.field-input{ resize:none; }
         <div class="card-label">今のあなたへ</div>
         <div class="kaosu-row" style="margin-bottom:0;">
           <div class="kaosu-avatar" style="width:36px;height:36px">
-            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="homeNowMessage" style="font-size:13.5px;"></div>
@@ -452,7 +459,7 @@ textarea.field-input{ resize:none; }
         <p class="td-row"><span class="td-icon">🌱</span><span>今日の小さな一歩：<span id="todayDesignStep"></span></span></p>
         <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
           <div class="kaosu-avatar" style="width:36px;height:36px">
-            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="todayDesignKaosu" style="font-size:13px;"></div>
@@ -469,7 +476,7 @@ textarea.field-input{ resize:none; }
         </div>
         <div class="kaosu-row" id="reflectResponseRow" style="display:none; margin-top:10px; margin-bottom:0;">
           <div class="kaosu-avatar" style="width:36px;height:36px">
-            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="reflectResponseText" style="font-size:13px;"></div>
@@ -490,7 +497,7 @@ textarea.field-input{ resize:none; }
       <div class="wakuwaku-grid" id="wakuwakuGrid"></div>
       <div class="wakuwaku-empty" id="wakuwakuEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
         <div class="speech-bubble">まだここは真っ白♪<br><br>今日ちょっとでも<br>『これ好きかも』って思ったもの、<br>ひとつ残してみよ？</div>
@@ -507,7 +514,7 @@ textarea.field-input{ resize:none; }
 
       <div class="mind-empty" id="futureEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
         <div class="speech-bubble">未来はまだ真っ白です。<br><br>まずは今日、<br>ちょっと心が動いたものを<br>ひとつ残してみませんか？</div>
@@ -530,7 +537,7 @@ textarea.field-input{ resize:none; }
           <div class="card-label">未来への小さな一歩</div>
           <div class="kaosu-row" style="margin-bottom:0;">
             <div class="kaosu-avatar" style="width:40px;height:40px">
-              <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
             <div class="speech-bubble" id="futureHint"></div>
@@ -542,7 +549,7 @@ textarea.field-input{ resize:none; }
           <div id="futureSproutBody"></div>
           <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
             <div class="kaosu-avatar" style="width:40px;height:40px">
-              <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
             <div class="speech-bubble" id="futureSproutKaosu"></div>
@@ -559,7 +566,7 @@ textarea.field-input{ resize:none; }
 
       <div class="mind-empty" id="stepEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
         <div class="speech-bubble">まだ一歩を決めなくても大丈夫です。<br><br>まずは心が少し動いたものを<br>集めてみませんか？</div>
@@ -569,7 +576,7 @@ textarea.field-input{ resize:none; }
       <div id="stepContent" style="display:none;">
         <div class="kaosu-row">
           <div class="kaosu-avatar" style="width:48px;height:48px">
-            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="stepKaosuMessage">この一歩、試してみませんか？</div>
@@ -603,7 +610,7 @@ textarea.field-input{ resize:none; }
 
       <div class="mind-empty" id="mindEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
         <div class="speech-bubble">まだ心の地図は真っ白です。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみませんか？</div>
@@ -642,7 +649,7 @@ textarea.field-input{ resize:none; }
           <div id="recentMeBody"></div>
           <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
             <div class="kaosu-avatar" style="width:36px;height:36px">
-              <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
             <div class="speech-bubble" id="recentMeKaosu" style="font-size:13px;"></div>
@@ -651,7 +658,7 @@ textarea.field-input{ resize:none; }
 
         <div class="kaosu-row">
           <div class="kaosu-avatar" style="width:48px;height:48px">
-            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="mindHint"></div>
