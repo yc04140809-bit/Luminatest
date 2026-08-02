@@ -397,6 +397,19 @@ textarea.field-input{ resize:none; }
           <button class="btn-ghost" id="btnStepSkipHome">今日は違う</button>
         </div>
       </div>
+
+      <div class="card" id="homeConnectionCard" style="display:none;">
+        <div class="card-label">今日のつながり</div>
+        <p class="mind-trend-line" id="homeConnectionText"></p>
+        <div class="kaosu-row" style="margin-top:12px; margin-bottom:10px;">
+          <div class="kaosu-avatar" style="width:36px;height:36px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="homeConnectionKaosu" style="font-size:13px;"></div>
+        </div>
+        <button class="btn-text" id="btnHomeGoStep">今日の小さな一歩を見る</button>
+      </div>
     </section>
 
     <!-- ② ワクワクBOX -->
@@ -795,8 +808,55 @@ function renderHomeKaosuGreeting(){
     return;
   }
 
-  bubble.innerHTML = logs.length === 1 ? HOME_KAOSU_MESSAGES.oneStep : HOME_KAOSU_MESSAGES.manySteps;
+  bubble.innerHTML = logs.length === 1 ? HOME_KAOSU_MESSAGES.oneStep : HOME_KAOSU_MANY_STEPS_POOL[Math.floor(Math.random() * HOME_KAOSU_MANY_STEPS_POOL.length)];
 }
+/* Phase9(実装5): 複数回実行済みの場合だけ、循環を感じさせる一言を
+   候補に1つ追加する(既存のmanyStepsの文言はそのまま残し、ランダム候補を増やすだけ)。
+   他の分岐(zero/noStep/oneStep/feeling)や判定条件は変更していない。 */
+const HOME_KAOSU_MANY_STEPS_POOL = [
+  HOME_KAOSU_MESSAGES.manySteps,
+  "前に残したワクワク、<br>今日のヒントになるかもしれへんね。",
+];
+
+/* =========================================================
+   Phase9: ホームの「今日のつながり」カード
+   - Phase7の案内文ロジック(renderHomeKaosuGreeting)とは完全に分離した
+     別関数として実装し、他画面のロジックには一切影響しない。
+   - 新しいデータ保存は行わず、既存のwakuwakuEntries(最新1件の
+     title/type)だけを読んで、ワクワクと「一歩」をやさしく結びつける。
+   ========================================================= */
+const HOME_CONNECTION_TEMPLATES = [
+  (title) => `前に残した<br>「${title}」<br><br>そこから今日できそうな<br>小さな一歩を探してみても<br>いいかもしれません。`,
+  (title) => `この前ワクワクした<br>「${title}」<br><br>その気持ち、<br>少し先の未来にも<br>つながっているかもしれません。`,
+];
+const HOME_CONNECTION_KAOSU_LINES = [
+  "前のワクワク、今日にもつながってるかもしれへんね。",
+  "小さな「好き」って、意外と未来のヒントになるんよ。",
+  "前に心が動いたこと、もう一回見てみるのもええかもね。",
+  "今日の一歩、前のワクワクから探してみよっか。",
+];
+
+function renderHomeConnectionCard(){
+  const card = document.getElementById("homeConnectionCard");
+  if(!card) return;
+
+  const entries = wakuwakuEntries || [];
+  if(entries.length === 0){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+
+  const latest = entries[0];
+  const typeLabel = TYPE_META[latest.type] ? TYPE_META[latest.type].label : "ワクワク";
+  const title = latest.title && latest.title.trim() ? latest.title.trim() : typeLabel;
+  const template = HOME_CONNECTION_TEMPLATES[Math.floor(Math.random() * HOME_CONNECTION_TEMPLATES.length)];
+  document.getElementById("homeConnectionText").innerHTML = template(escapeHtml(title));
+  document.getElementById("homeConnectionKaosu").textContent =
+    HOME_CONNECTION_KAOSU_LINES[Math.floor(Math.random() * HOME_CONNECTION_KAOSU_LINES.length)];
+}
+
+document.getElementById("btnHomeGoStep").addEventListener("click", () => switchView("step"));
 
 document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
   openAddSheet();
@@ -1010,6 +1070,7 @@ async function loadWakuwakuEntries(){
   renderFutureView();
   renderStepView();
   renderHomeKaosuGreeting();
+  renderHomeConnectionCard();
   renderWwDebugInfo(loadStatus);
 }
 
