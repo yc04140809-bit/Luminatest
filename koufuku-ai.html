@@ -432,7 +432,7 @@ textarea.field-input{ resize:none; }
         <div class="card-label">今日のつながり</div>
         <p class="mind-trend-line" id="homeConnectionText"></p>
         <div class="kaosu-row" style="margin-top:12px; margin-bottom:10px;">
-          <div class="kaosu-avatar" style="width:36px;height:36px">
+          <div class="kaosu-avatar" style="width:45px;height:45px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -444,7 +444,7 @@ textarea.field-input{ resize:none; }
       <div class="card" style="padding:14px 16px;">
         <div class="card-label">今のあなたへ</div>
         <div class="kaosu-row" style="margin-bottom:0;">
-          <div class="kaosu-avatar" style="width:36px;height:36px">
+          <div class="kaosu-avatar" style="width:45px;height:45px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -458,7 +458,7 @@ textarea.field-input{ resize:none; }
         <p class="td-row"><span class="td-icon">❤️</span><span>今日のワクワク：<span id="todayDesignWaku"></span></span></p>
         <p class="td-row"><span class="td-icon">🌱</span><span>今日の小さな一歩：<span id="todayDesignStep"></span></span></p>
         <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
-          <div class="kaosu-avatar" style="width:36px;height:36px">
+          <div class="kaosu-avatar" style="width:45px;height:45px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -475,7 +475,7 @@ textarea.field-input{ resize:none; }
           <button type="button" class="feeling-btn" data-reflect="none"><span class="fb-emoji">😌</span><span>今日は特になし</span></button>
         </div>
         <div class="kaosu-row" id="reflectResponseRow" style="display:none; margin-top:10px; margin-bottom:0;">
-          <div class="kaosu-avatar" style="width:36px;height:36px">
+          <div class="kaosu-avatar" style="width:45px;height:45px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -500,7 +500,7 @@ textarea.field-input{ resize:none; }
           <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">まだここは真っ白♪<br><br>今日ちょっとでも<br>『これ好きかも』って思ったもの、<br>ひとつ残してみよ？</div>
+        <div class="speech-bubble" id="wakuwakuEmptyMessage"></div>
         <div style="margin-top:16px;"><button class="btn-primary" id="btnEmptyAddWakuwaku">最初のワクワクを残す</button></div>
       </div>
       <button class="fab" id="fabAddWakuwaku">＋</button>
@@ -517,7 +517,7 @@ textarea.field-input{ resize:none; }
           <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">未来はまだ真っ白です。<br><br>まずは今日、<br>ちょっと心が動いたものを<br>ひとつ残してみませんか？</div>
+        <div class="speech-bubble" id="futureEmptyMessage"></div>
         <div style="margin-top:16px;"><button class="btn-primary" id="btnFutureGoWakuwaku">ワクワクを集める</button></div>
       </div>
 
@@ -536,7 +536,7 @@ textarea.field-input{ resize:none; }
         <div class="card">
           <div class="card-label">未来への小さな一歩</div>
           <div class="kaosu-row" style="margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:40px;height:40px">
+            <div class="kaosu-avatar" style="width:48px;height:48px">
               <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -548,7 +548,7 @@ textarea.field-input{ resize:none; }
           <div class="card-label">未来の芽</div>
           <div id="futureSproutBody"></div>
           <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:40px;height:40px">
+            <div class="kaosu-avatar" style="width:48px;height:48px">
               <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -569,13 +569,13 @@ textarea.field-input{ resize:none; }
           <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">まだ一歩を決めなくても大丈夫です。<br><br>まずは心が少し動いたものを<br>集めてみませんか？</div>
+        <div class="speech-bubble" id="stepEmptyMessage"></div>
         <div style="margin-top:16px;"><button class="btn-primary" id="btnStepGoWakuwaku">ワクワクを集める</button></div>
       </div>
 
       <div id="stepContent" style="display:none;">
         <div class="kaosu-row">
-          <div class="kaosu-avatar" style="width:48px;height:48px">
+          <div class="kaosu-avatar" style="width:58px;height:58px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -613,7 +613,7 @@ textarea.field-input{ resize:none; }
           <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">まだ心の地図は真っ白です。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみませんか？</div>
+        <div class="speech-bubble" id="mindEmptyMessage"></div>
         <div style="margin-top:16px;"><button class="btn-primary" id="btnMindGoWakuwaku">ワクワクを集める</button></div>
       </div>
 
@@ -648,7 +648,7 @@ textarea.field-input{ resize:none; }
           <p class="view-sub" style="margin:0 0 10px;">残してきたものから、<br>小さな傾向が見えてきたみたいです。</p>
           <div id="recentMeBody"></div>
           <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:36px;height:36px">
+            <div class="kaosu-avatar" style="width:45px;height:45px">
               <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -657,12 +657,22 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="kaosu-row">
-          <div class="kaosu-avatar" style="width:48px;height:48px">
+          <div class="kaosu-avatar" style="width:58px;height:58px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="mindHint"></div>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">ケイオスちゃんの話し方</div>
+        <div class="chip-row" id="speechStyleRow" style="flex-wrap:wrap;">
+          <button type="button" class="filterbtn" data-style="standard">標準語</button>
+          <button type="button" class="filterbtn" data-style="kansai">関西弁</button>
+          <button type="button" class="filterbtn" data-style="hakata">博多弁</button>
+        </div>
+        <p class="view-sub" style="margin:10px 0 0;">今のあなたに一番心地いい<br>ケイオスちゃんを選んでね。</p>
       </div>
     </section>
 
@@ -962,6 +972,68 @@ document.getElementById("btnEditPreferredName").addEventListener("click", () => 
 });
 
 /* =========================================================
+   Phase16: ケイオスちゃんの話し方設定
+   - 新しいIndexedDBスキーマや外部送信は行わず、localStorageに
+     ひとつだけ("koufukuAiSpeechStyleV1")、選択中の話し方キーを
+     保存する。値は "standard" | "kansai" | "hakata" のいずれか。
+   - k3(standard, kansai, hakata)で「ケイオスちゃん本人の発言」を
+     3種類まとめて保持し、sp()で現在の話し方に応じた文言を1つ選ぶ。
+     表示文言(日本語)と内部キー(standard/kansai/hakata)を分離して
+     いるので、将来「やさしい敬語」等を追加する場合もSPEECH_STYLES
+     に候補を1件足し、各k3()に4つ目の値を足すだけで拡張できる。
+   - 将来AI生成文章に切り替える場合も、speechStyleGet()が返す
+     キーをそのままプロンプトのパラメータ等に渡せる想定でよい
+     (今回はAI接続を行わないため、あくまで拡張の余地として残すのみ)。
+   ========================================================= */
+const SPEECH_STYLE_KEY = "koufukuAiSpeechStyleV1";
+const SPEECH_STYLES = [
+  { key: "standard", label: "標準語" },
+  { key: "kansai", label: "関西弁" },
+  { key: "hakata", label: "博多弁" },
+];
+function speechStyleGet(){
+  try{
+    const saved = localStorage.getItem(SPEECH_STYLE_KEY);
+    if(SPEECH_STYLES.some(s => s.key === saved)) return saved;
+  }catch(e){ /* 読めない場合は下のデフォルト判定にフォールバック */ }
+  /* 未設定時のデフォルト: 名前登録すら未経験(=完全な新規ユーザー)なら
+     ご指定通り標準語。既に名前登録を経験済み(=既存ユーザー)は、
+     これまで通りの話し方(関西弁寄りの文言)のままにして体験を変えない。 */
+  return prefNameGet() === null ? "standard" : "kansai";
+}
+function speechStyleSet(style){
+  try{ localStorage.setItem(SPEECH_STYLE_KEY, style); }
+  catch(e){ /* 保存できなくてもアプリの利用は継続できるようにする */ }
+}
+/* ケイオスちゃんの発言を3話し方ぶんまとめて保持するためのヘルパー */
+function k3(standard, kansai, hakata){
+  return { standard, kansai, hakata };
+}
+/* k3()で作った発言オブジェクトから、現在選択中の話し方の文言を1つ選ぶ */
+function sp(obj){
+  if(obj == null) return "";
+  const style = speechStyleGet();
+  return obj[style] != null ? obj[style] : obj.standard;
+}
+
+function renderSpeechStyleSetting(){
+  const root = document.getElementById("speechStyleRow");
+  if(!root) return;
+  const current = speechStyleGet();
+  root.querySelectorAll(".filterbtn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.style === current);
+  });
+}
+document.querySelectorAll("#speechStyleRow .filterbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    speechStyleSet(btn.dataset.style);
+    renderSpeechStyleSetting();
+    loadWakuwakuEntries();
+    showToast("話し方を変えたよ♪");
+  });
+});
+
+/* =========================================================
    ホーム
    ========================================================= */
 let currentStepIndex = 0;
@@ -983,17 +1055,53 @@ function renderHomeStep(){
      気分別の画像に差し替える際もここだけ触れば済むようにしている。
    ========================================================= */
 const HOME_KAOSU_MESSAGES = {
-  zero: "まだ何も決めなくて大丈夫。<br>気になったものから集めてみよっか。",
-  noStep: "気になるもの、少し集まってきたね。<br>眺めるだけでも大丈夫やで。",
-  oneStep: "この前、小さな一歩を試してみたね。<br>どんな感じやった？",
-  manySteps: "少しずつ「好き」のヒントが<br>見えてきてるかもしれへんね。",
+  zero: k3(
+    "まだ何も決めなくて大丈夫。<br>気になったものから集めてみようか。",
+    "まだ何も決めなくて大丈夫。<br>気になったものから集めてみよっか。",
+    "まだ何も決めんでも大丈夫。<br>気になったものから集めてみようか。"
+  ),
+  noStep: k3(
+    "気になるもの、少し集まってきたね。<br>眺めるだけでも大丈夫だよ。",
+    "気になるもの、少し集まってきたね。<br>眺めるだけでも大丈夫やで。",
+    "気になるもの、少し集まってきたね。<br>眺めるだけでも大丈夫やけん。"
+  ),
+  oneStep: k3(
+    "この前、小さな一歩を試してみたね。<br>どんな感じだった？",
+    "この前、小さな一歩を試してみたね。<br>どんな感じやった？",
+    "この前、小さな一歩を試してみたね。<br>どんな感じやった？"
+  ),
+  manySteps: k3(
+    "少しずつ「好き」のヒントが<br>見えてきているかもしれないね。",
+    "少しずつ「好き」のヒントが<br>見えてきてるかもしれへんね。",
+    "少しずつ「好き」のヒントが<br>見えてきとるかもしれんね。"
+  ),
 };
 const HOME_KAOSU_FEELING_MESSAGES = {
-  excited: "前に試したとき、<br>かなりワクワクしたみたいやね。",
-  fun: "前に「楽しかった」って感じたこと、<br>またヒントになるかもしれへんね。",
-  calm: "心地よかった時間って、<br>案外大事なヒントかもしれへんね。",
-  unsure: "まだ分からなくても大丈夫。<br>あとから気づくこともあるからね。",
-  flat: "やってみて違うと分かったことも、<br>ちゃんと大事な発見やで。",
+  excited: k3(
+    "前に試したとき、<br>かなりワクワクしたみたいだね。",
+    "前に試したとき、<br>かなりワクワクしたみたいやね。",
+    "前に試したとき、<br>かなりワクワクしたみたいやね。"
+  ),
+  fun: k3(
+    "前に「楽しかった」って感じたこと、<br>またヒントになるかもしれないね。",
+    "前に「楽しかった」って感じたこと、<br>またヒントになるかもしれへんね。",
+    "前に「楽しかった」って感じたこと、<br>またヒントになるかもしれんね。"
+  ),
+  calm: k3(
+    "心地よかった時間って、<br>案外大事なヒントかもしれないね。",
+    "心地よかった時間って、<br>案外大事なヒントかもしれへんね。",
+    "心地よかった時間って、<br>案外大事なヒントかもしれんね。"
+  ),
+  unsure: k3(
+    "まだ分からなくても大丈夫。<br>あとから気づくこともあるからね。",
+    "まだ分からなくても大丈夫。<br>あとから気づくこともあるからね。",
+    "まだ分からんでも大丈夫。<br>あとから気づくこともあるけんね。"
+  ),
+  flat: k3(
+    "やってみて違うと分かったことも、<br>ちゃんと大事な発見だよ。",
+    "やってみて違うと分かったことも、<br>ちゃんと大事な発見やで。",
+    "やってみて違うと分かったことも、<br>ちゃんと大事な発見ばい。"
+  ),
 };
 
 function renderHomeKaosuGreeting(){
@@ -1006,13 +1114,13 @@ function renderHomeKaosuGreeting(){
   const latest = logs.length > 0 ? stepLogSortedDesc(logs)[0] : null;
 
   if(entries.length === 0){
-    message = HOME_KAOSU_MESSAGES.zero;
+    message = sp(HOME_KAOSU_MESSAGES.zero);
   } else if(logs.length === 0){
-    message = HOME_KAOSU_MESSAGES.noStep;
+    message = sp(HOME_KAOSU_MESSAGES.noStep);
   } else if(latest && latest.feeling && HOME_KAOSU_FEELING_MESSAGES[latest.feeling]){
-    message = HOME_KAOSU_FEELING_MESSAGES[latest.feeling];
+    message = sp(HOME_KAOSU_FEELING_MESSAGES[latest.feeling]);
   } else {
-    message = logs.length === 1 ? HOME_KAOSU_MESSAGES.oneStep : HOME_KAOSU_MANY_STEPS_POOL[Math.floor(Math.random() * HOME_KAOSU_MANY_STEPS_POOL.length)];
+    message = logs.length === 1 ? sp(HOME_KAOSU_MESSAGES.oneStep) : sp(HOME_KAOSU_MANY_STEPS_POOL[Math.floor(Math.random() * HOME_KAOSU_MANY_STEPS_POOL.length)]);
   }
 
   const name = prefNameGet();
@@ -1023,7 +1131,11 @@ function renderHomeKaosuGreeting(){
    他の分岐(zero/noStep/oneStep/feeling)や判定条件は変更していない。 */
 const HOME_KAOSU_MANY_STEPS_POOL = [
   HOME_KAOSU_MESSAGES.manySteps,
-  "前に残したワクワク、<br>今日のヒントになるかもしれへんね。",
+  k3(
+    "前に残したワクワク、<br>今日のヒントになるかもしれないね。",
+    "前に残したワクワク、<br>今日のヒントになるかもしれへんね。",
+    "前に残したワクワク、<br>今日のヒントになるかもしれんね。"
+  ),
 ];
 
 /* =========================================================
@@ -1038,10 +1150,26 @@ const HOME_CONNECTION_TEMPLATES = [
   (title) => `この前ワクワクした<br>「${title}」<br><br>その気持ち、<br>少し先の未来にも<br>つながっているかもしれません。`,
 ];
 const HOME_CONNECTION_KAOSU_LINES = [
-  "前のワクワク、今日にもつながってるかもしれへんね。",
-  "小さな「好き」って、意外と未来のヒントになるんよ。",
-  "前に心が動いたこと、もう一回見てみるのもええかもね。",
-  "今日の一歩、前のワクワクから探してみよっか。",
+  k3(
+    "前のワクワク、今日にもつながっているかもしれないね。",
+    "前のワクワク、今日にもつながってるかもしれへんね。",
+    "前のワクワク、今日にもつながっとるかもしれんね。"
+  ),
+  k3(
+    "小さな「好き」って、意外と未来のヒントになるんだよ。",
+    "小さな「好き」って、意外と未来のヒントになるんよ。",
+    "小さな「好き」って、意外と未来のヒントになると。"
+  ),
+  k3(
+    "前に心が動いたこと、もう一回見てみるのもいいかもね。",
+    "前に心が動いたこと、もう一回見てみるのもええかもね。",
+    "前に心が動いたこと、もう一回見てみるのもよかね。"
+  ),
+  k3(
+    "今日の一歩、前のワクワクから探してみようか。",
+    "今日の一歩、前のワクワクから探してみよっか。",
+    "今日の一歩、前のワクワクから探してみようか。"
+  ),
 ];
 
 function renderHomeConnectionCard(){
@@ -1061,7 +1189,7 @@ function renderHomeConnectionCard(){
   const template = HOME_CONNECTION_TEMPLATES[Math.floor(Math.random() * HOME_CONNECTION_TEMPLATES.length)];
   document.getElementById("homeConnectionText").innerHTML = template(escapeHtml(title));
   document.getElementById("homeConnectionKaosu").textContent =
-    HOME_CONNECTION_KAOSU_LINES[Math.floor(Math.random() * HOME_CONNECTION_KAOSU_LINES.length)];
+    sp(HOME_CONNECTION_KAOSU_LINES[Math.floor(Math.random() * HOME_CONNECTION_KAOSU_LINES.length)]);
 }
 
 document.getElementById("btnHomeGoStep").addEventListener("click", () => switchView("step"));
@@ -1076,50 +1204,50 @@ document.getElementById("btnHomeGoStep").addEventListener("click", () => switchV
    ========================================================= */
 const HOME_NOW_MESSAGES = {
   morning: [
-    "おはよう。今日は何をひとつ楽しみにしよっか？",
-    "今日も、自分のペースでいこか。",
-    "今日はどんな「好き」に出会えるやろね。",
+    k3("おはよう。今日は何をひとつ楽しみにしようか？", "おはよう。今日は何をひとつ楽しみにしよっか？", "おはよう。今日は何をひとつ楽しみにしようか？"),
+    k3("今日も、自分のペースでいこうか。", "今日も、自分のペースでいこか。", "今日も、自分のペースでいこうか。"),
+    k3("今日はどんな「好き」に出会えるかな。", "今日はどんな「好き」に出会えるやろね。", "今日はどんな「好き」に出会えるやろか。"),
   ],
   noon: [
-    "ここまでお疲れさま。ちょっと好きなことしてもええんよ。",
-    "今の気分、ちょっとだけ見てみよっか。",
-    "今日、何か心が動いたものあった？",
+    k3("ここまでお疲れさま。ちょっと好きなことをしてもいいんだよ。", "ここまでお疲れさま。ちょっと好きなことしてもええんよ。", "ここまでお疲れさま。ちょっと好きなことしてもよかよ。"),
+    k3("今の気分、ちょっとだけ見てみようか。", "今の気分、ちょっとだけ見てみよっか。", "今の気分、ちょっとだけ見てみようか。"),
+    k3("今日、何か心が動いたものあった？", "今日、何か心が動いたものあった？", "今日、何か心が動いたものあった？"),
   ],
   night: [
-    "今日は何がちょっと良かった？",
-    "今日の中に、小さな「好き」はあったかな。",
-    "今日も一日お疲れさま。残したい気持ちがあったら覚えとこ。",
+    k3("今日は何がちょっと良かった？", "今日は何がちょっと良かった？", "今日は何がちょっと良かった？"),
+    k3("今日の中に、小さな「好き」はあったかな。", "今日の中に、小さな「好き」はあったかな。", "今日の中に、小さな「好き」はあったかな。"),
+    k3("今日も一日お疲れさま。残したい気持ちがあったら覚えておこう。", "今日も一日お疲れさま。残したい気持ちがあったら覚えとこ。", "今日も一日お疲れさま。残したい気持ちがあったら覚えとこうね。"),
   ],
   midnight: [
-    "こんな時間までお疲れさま。今日はもう何も決めんでもええよ。",
-    "夜は、答えを急がんでも大丈夫やで。",
-    "今日はここまででも十分。ゆっくりしよか。",
+    k3("こんな時間までお疲れさま。今日はもう何も決めなくてもいいよ。", "こんな時間までお疲れさま。今日はもう何も決めんでもええよ。", "こんな時間までお疲れさま。今日はもう何も決めんでもよかよ。"),
+    k3("夜は、答えを急がなくても大丈夫だよ。", "夜は、答えを急がんでも大丈夫やで。", "夜は、答えを急がんでも大丈夫やけん。"),
+    k3("今日はここまででも十分。ゆっくりしようか。", "今日はここまででも十分。ゆっくりしよか。", "今日はここまででも十分。ゆっくりしようか。"),
   ],
 };
 const HOME_NOW_CATEGORY_MESSAGES = {
   scenery: {
-    morning: "最近、景色に心が動いてるみたい。<br>今日の空も、ちょっと見てみる？",
-    noon: "最近、景色に目が行くことが多いみたい。<br>ふと見える景色も、悪くないかもね。",
-    night: "最近、景色に心惹かれることが多いみたい。<br>今日はどんな景色が心に残った？",
-    midnight: "最近、景色に心が動くことが多いみたい。<br>今夜はゆっくり、思い出してみるのもええかもね。",
+    morning: k3("最近、景色に心が動いているみたい。<br>今日の空も、ちょっと見てみる？", "最近、景色に心が動いてるみたい。<br>今日の空も、ちょっと見てみる？", "最近、景色に心が動きよるみたい。<br>今日の空も、ちょっと見てみる？"),
+    noon: k3("最近、景色に目が行くことが多いみたい。<br>ふと見える景色も、悪くないかもね。", "最近、景色に目が行くことが多いみたい。<br>ふと見える景色も、悪くないかもね。", "最近、景色に目が行くことが多いみたい。<br>ふと見える景色も、悪くなかよ。"),
+    night: k3("最近、景色に心惹かれることが多いみたい。<br>今日はどんな景色が心に残った？", "最近、景色に心惹かれることが多いみたい。<br>今日はどんな景色が心に残った？", "最近、景色に心惹かれることが多いみたい。<br>今日はどんな景色が心に残った？"),
+    midnight: k3("最近、景色に心が動くことが多いみたい。<br>今夜はゆっくり、思い出してみるのもいいかもね。", "最近、景色に心が動くことが多いみたい。<br>今夜はゆっくり、思い出してみるのもええかもね。", "最近、景色に心が動くことが多いみたい。<br>今夜はゆっくり、思い出してみるのもよかね。"),
   },
   music: {
-    morning: "最近、音に心が動くことが多いみたい。<br>好きな曲で1日を始めるのもええかもね。",
-    noon: "最近、音に心が動くことが多いみたい。<br>好きな曲を1曲だけ聴くのもええかもね。",
-    night: "最近、音に心が動くことが多いみたい。<br>今日はどんな音が心に残った？",
-    midnight: "最近、音に心が動くことが多いみたい。<br>静かな時間に、好きな音を思い出してみよっか。",
+    morning: k3("最近、音に心が動くことが多いみたい。<br>好きな曲で1日を始めるのもいいかもね。", "最近、音に心が動くことが多いみたい。<br>好きな曲で1日を始めるのもええかもね。", "最近、音に心が動くことが多いみたい。<br>好きな曲で1日を始めるのもよかね。"),
+    noon: k3("最近、音に心が動くことが多いみたい。<br>好きな曲を1曲だけ聴くのもいいかもね。", "最近、音に心が動くことが多いみたい。<br>好きな曲を1曲だけ聴くのもええかもね。", "最近、音に心が動くことが多いみたい。<br>好きな曲を1曲だけ聴くのもよかね。"),
+    night: k3("最近、音に心が動くことが多いみたい。<br>今日はどんな音が心に残った？", "最近、音に心が動くことが多いみたい。<br>今日はどんな音が心に残った？", "最近、音に心が動くことが多いみたい。<br>今日はどんな音が心に残った？"),
+    midnight: k3("最近、音に心が動くことが多いみたい。<br>静かな時間に、好きな音を思い出してみようか。", "最近、音に心が動くことが多いみたい。<br>静かな時間に、好きな音を思い出してみよっか。", "最近、音に心が動くことが多いみたい。<br>静かな時間に、好きな音を思い出してみようか。"),
   },
   creative: {
-    morning: "最近、何か作ることにワクワクしてるみたい。<br>今日、思いついたことがあったら覚えとこ。",
-    noon: "最近、考えたり作ったりする時間にワクワクしてるみたい。<br>ふと浮かんだこと、大事にしてみて。",
-    night: "最近、何か作ることにワクワクしてるみたい。<br>今日浮かんだこと、ひとつだけ残しとく？",
-    midnight: "最近、考えごとが心を動かしてるみたい。<br>今夜のアイデアも、また今度でいいからね。",
+    morning: k3("最近、何か作ることにワクワクしているみたい。<br>今日、思いついたことがあったら覚えておこう。", "最近、何か作ることにワクワクしてるみたい。<br>今日、思いついたことがあったら覚えとこ。", "最近、何か作ることにワクワクしよるみたい。<br>今日、思いついたことがあったら覚えとこうね。"),
+    noon: k3("最近、考えたり作ったりする時間にワクワクしているみたい。<br>ふと浮かんだこと、大事にしてみて。", "最近、考えたり作ったりする時間にワクワクしてるみたい。<br>ふと浮かんだこと、大事にしてみて。", "最近、考えたり作ったりする時間にワクワクしよるみたい。<br>ふと浮かんだこと、大事にしてみて。"),
+    night: k3("最近、何か作ることにワクワクしているみたい。<br>今日浮かんだこと、ひとつだけ残しておく？", "最近、何か作ることにワクワクしてるみたい。<br>今日浮かんだこと、ひとつだけ残しとく？", "最近、何か作ることにワクワクしよるみたい。<br>今日浮かんだこと、ひとつだけ残しとく？"),
+    midnight: k3("最近、考えごとが心を動かしているみたい。<br>今夜のアイデアも、また今度でいいからね。", "最近、考えごとが心を動かしてるみたい。<br>今夜のアイデアも、また今度でいいからね。", "最近、考えごとが心を動かしよるみたい。<br>今夜のアイデアも、また今度でよかよ。"),
   },
   people: {
-    morning: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日はどんな時間になるかな。",
-    noon: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日もそんな瞬間があるといいね。",
-    night: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日もそんな瞬間あったかな？",
-    midnight: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日のことも、また思い出してみよっか。",
+    morning: k3("誰かと過ごした時間が、最近よく心に残っているみたい。<br>今日はどんな時間になるかな。", "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日はどんな時間になるかな。", "誰かと過ごした時間が、最近よく心に残っとるみたい。<br>今日はどんな時間になるかね。"),
+    noon: k3("誰かと過ごした時間が、最近よく心に残っているみたい。<br>今日もそんな瞬間があるといいね。", "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日もそんな瞬間があるといいね。", "誰かと過ごした時間が、最近よく心に残っとるみたい。<br>今日もそんな瞬間があるとよかね。"),
+    night: k3("誰かと過ごした時間が、最近よく心に残っているみたい。<br>今日もそんな瞬間あったかな？", "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日もそんな瞬間あったかな？", "誰かと過ごした時間が、最近よく心に残っとるみたい。<br>今日もそんな瞬間あった？"),
+    midnight: k3("誰かと過ごした時間が、最近よく心に残っているみたい。<br>今日のことも、また思い出してみようか。", "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日のことも、また思い出してみよっか。", "誰かと過ごした時間が、最近よく心に残っとるみたい。<br>今日のことも、また思い出してみようか。"),
   },
 };
 
@@ -1140,12 +1268,12 @@ function renderHomeNowCard(){
   const category = entries.length > 0 ? computeRecentMeCategory(entries) : null;
 
   if(category && category.key && HOME_NOW_CATEGORY_MESSAGES[category.key]){
-    el.innerHTML = HOME_NOW_CATEGORY_MESSAGES[category.key][band];
+    el.innerHTML = sp(HOME_NOW_CATEGORY_MESSAGES[category.key][band]);
     return;
   }
 
   const pool = HOME_NOW_MESSAGES[band];
-  el.innerHTML = pool[Math.floor(Math.random() * pool.length)];
+  el.innerHTML = sp(pool[Math.floor(Math.random() * pool.length)]);
 }
 
 /* =========================================================
@@ -1168,24 +1296,24 @@ const TODAY_DESIGN_STEP_FALLBACK = [
 ];
 const TODAY_DESIGN_KAOSU_LINES = {
   morning: [
-    "今日は何を楽しみにしよっか。",
-    "ひとつ楽しみがあれば、それで十分やで。",
-    "今日も自分のペースでいこ。",
+    k3("今日は何を楽しみにしようか。", "今日は何を楽しみにしよっか。", "今日は何を楽しみにしようか。"),
+    k3("ひとつ楽しみがあれば、それで十分だよ。", "ひとつ楽しみがあれば、それで十分やで。", "ひとつ楽しみがあれば、それで十分やけん。"),
+    k3("今日も自分のペースでいこう。", "今日も自分のペースでいこ。", "今日も自分のペースでいこうね。"),
   ],
   noon: [
-    "ここまで来た自分、ちょっと褒めとこ。",
-    "午後も全部頑張らんでええからね。",
-    "ちょっと好きなこと、挟んでみる？",
+    k3("ここまで来た自分、ちょっと褒めておこう。", "ここまで来た自分、ちょっと褒めとこ。", "ここまで来た自分、ちょっと褒めとこうね。"),
+    k3("午後も全部頑張らなくていいからね。", "午後も全部頑張らんでええからね。", "午後も全部頑張らんでよかよ。"),
+    k3("ちょっと好きなこと、挟んでみる？", "ちょっと好きなこと、挟んでみる？", "ちょっと好きなこと、挟んでみる？"),
   ],
   night: [
-    "今日、ちょっと良かったことあった？",
-    "できたこと、ひとつだけ思い出してみよ。",
-    "今日の自分にも、おつかれさん。",
+    k3("今日、ちょっと良かったことあった？", "今日、ちょっと良かったことあった？", "今日、ちょっと良かったことあった？"),
+    k3("できたこと、ひとつだけ思い出してみよう。", "できたこと、ひとつだけ思い出してみよ。", "できたこと、ひとつだけ思い出してみようか。"),
+    k3("今日の自分にも、お疲れさま。", "今日の自分にも、おつかれさん。", "今日の自分にも、おつかれさま。"),
   ],
   midnight: [
-    "今日はもう、頑張らんでもええ時間やで。",
-    "続きは明日の自分に任せよっか。",
-    "今日もよう頑張ったね。ゆっくりしよ。",
+    k3("今日はもう、頑張らなくてもいい時間だよ。", "今日はもう、頑張らんでもええ時間やで。", "今日はもう、頑張らんでもよか時間やけん。"),
+    k3("続きは明日の自分に任せようか。", "続きは明日の自分に任せよっか。", "続きは明日の自分に任せようか。"),
+    k3("今日もよく頑張ったね。ゆっくりしよう。", "今日もよう頑張ったね。ゆっくりしよ。", "今日もよう頑張ったね。ゆっくりしよっか。"),
   ],
 };
 
@@ -1215,7 +1343,7 @@ function renderTodayDesignCard(){
 
   const band = homeGetTimeBand(new Date());
   const kaosuPool = TODAY_DESIGN_KAOSU_LINES[band];
-  kaosuEl.textContent = kaosuPool[Math.floor(Math.random() * kaosuPool.length)];
+  kaosuEl.textContent = sp(kaosuPool[Math.floor(Math.random() * kaosuPool.length)]);
 }
 
 /* =========================================================
@@ -1230,19 +1358,19 @@ function renderTodayDesignCard(){
    ========================================================= */
 const REFLECT_MESSAGES = {
   had: [
-    "ええやん。その小さい瞬間、ちゃんと今日の幸せやで。",
-    "それ、ええなぁ。心が動いた瞬間って大事やで。",
-    "ちゃんと見つけられたんやね。今日のあなたの宝物かも。",
+    k3("いいね。その小さい瞬間、ちゃんと今日の幸せだよ。", "ええやん。その小さい瞬間、ちゃんと今日の幸せやで。", "よかね。その小さい瞬間、ちゃんと今日の幸せばい。"),
+    k3("それ、いいね。心が動いた瞬間って大事だよ。", "それ、ええなぁ。心が動いた瞬間って大事やで。", "それ、よかね。心が動いた瞬間って大事ばい。"),
+    k3("ちゃんと見つけられたんだね。今日のあなたの宝物かも。", "ちゃんと見つけられたんやね。今日のあなたの宝物かも。", "ちゃんと見つけられたっちゃね。今日のあなたの宝物かも。"),
   ],
   little: [
-    "ちょっとでも十分やで。その感覚、大事にしよ。",
-    "小さく心が動いたなら、それもちゃんと今日の一歩やね。",
-    "その「ちょっと」、意外と未来につながってるかもしれへんよ。",
+    k3("ちょっとでも十分だよ。その感覚、大事にしよう。", "ちょっとでも十分やで。その感覚、大事にしよ。", "ちょっとでも十分ばい。その感覚、大事にしよう。"),
+    k3("小さく心が動いたなら、それもちゃんと今日の一歩だね。", "小さく心が動いたなら、それもちゃんと今日の一歩やね。", "小さく心が動いたなら、それもちゃんと今日の一歩やね。"),
+    k3("その「ちょっと」、意外と未来につながっているかもしれないよ。", "その「ちょっと」、意外と未来につながってるかもしれへんよ。", "その「ちょっと」、意外と未来につながっとるかもしれんよ。"),
   ],
   none: [
-    "そんな日もあるで。何も見つけんでも大丈夫。",
-    "今日はゆっくりする日やったんかもね。また明日探そ。",
-    "答えがない日も、ちゃんとあなたの一日やで。",
+    k3("そんな日もあるよ。何も見つけなくても大丈夫。", "そんな日もあるで。何も見つけんでも大丈夫。", "そんな日もあるばい。何も見つけんでも大丈夫。"),
+    k3("今日はゆっくりする日だったのかもね。また明日探そう。", "今日はゆっくりする日やったんかもね。また明日探そ。", "今日はゆっくりする日やったとかもね。また明日探そうね。"),
+    k3("答えがない日も、ちゃんとあなたの一日だよ。", "答えがない日も、ちゃんとあなたの一日やで。", "答えがない日も、ちゃんとあなたの一日ばい。"),
   ],
 };
 
@@ -1257,7 +1385,7 @@ document.querySelectorAll("#reflectGrid .feeling-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     const pool = REFLECT_MESSAGES[btn.dataset.reflect] || [];
     if(pool.length === 0) return;
-    document.getElementById("reflectResponseText").textContent = pool[Math.floor(Math.random() * pool.length)];
+    document.getElementById("reflectResponseText").textContent = sp(pool[Math.floor(Math.random() * pool.length)]);
     document.getElementById("reflectResponseRow").style.display = "flex";
   });
 });
@@ -1298,7 +1426,7 @@ function renderFilters(){
     btn.textContent = f.label;
     btn.dataset.key = f.key;
     btn.addEventListener("click", () => {
-      document.querySelectorAll(".filterbtn").forEach(b => b.classList.remove("active"));
+      root.querySelectorAll(".filterbtn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       applyWakuwakuFilter(f.key);
     });
@@ -1497,6 +1625,13 @@ function pickThumbHeight(id){
   return heights[hash % heights.length];
 }
 
+/* Phase16: 空状態の吹き出しも「ケイオスちゃん本人の発言」として話し方設定の対象にする */
+const WAKUWAKU_EMPTY_MESSAGE = k3(
+  "まだここは真っ白♪<br><br>今日ちょっとでも<br>『これ好きかも』って思ったもの、<br>ひとつ残してみようか？",
+  "まだここは真っ白♪<br><br>今日ちょっとでも<br>『これ好きかも』って思ったもの、<br>ひとつ残してみよ？",
+  "まだここは真っ白♪<br><br>今日ちょっとでも<br>『これ好きかも』って思ったもの、<br>ひとつ残してみらん？"
+);
+
 function renderWakuwakuGrid(){
   const grid = document.getElementById("wakuwakuGrid");
   const empty = document.getElementById("wakuwakuEmpty");
@@ -1506,6 +1641,7 @@ function renderWakuwakuGrid(){
   if(wakuwakuEntries.length === 0){
     grid.style.display = "none";
     empty.style.display = "block";
+    document.getElementById("wakuwakuEmptyMessage").innerHTML = sp(WAKUWAKU_EMPTY_MESSAGE);
     return;
   }
   grid.style.display = "";
@@ -1814,19 +1950,30 @@ const FUTURE_TYPE_SCENE = {
 };
 
 const FUTURE_TYPE_STEP = {
-  image: "気になる景色をもう1枚、ワクワクBOXに残してみませんか？",
-  word: "最近気になった言葉を、もう一言だけ書き留めてみませんか？",
-  url: "保存したページを1つだけ、もう一度眺めてみませんか？",
-  music: "今夜、好きな曲を1曲だけ、ゆっくり聴いてみませんか？",
-  place: "気になっている場所について、もう少し調べてみるのもよさそうです。",
-  idea: "思いついたアイデアを、一言だけメモしてみませんか？",
+  image: k3("気になる景色をもう1枚、ワクワクBOXに残してみませんか？", "気になる景色をもう1枚、ワクワクBOXに残してみよっか？", "気になる景色をもう1枚、ワクワクBOXに残してみらん？"),
+  word: k3("最近気になった言葉を、もう一言だけ書き留めてみませんか？", "最近気になった言葉を、もう一言だけ書き留めてみよっか？", "最近気になった言葉を、もう一言だけ書き留めてみらん？"),
+  url: k3("保存したページを1つだけ、もう一度眺めてみませんか？", "保存したページを1つだけ、もう一度眺めてみよっか？", "保存したページを1つだけ、もう一度眺めてみらん？"),
+  music: k3("今夜、好きな曲を1曲だけ、ゆっくり聴いてみませんか？", "今夜、好きな曲を1曲だけ、ゆっくり聴いてみよっか？", "今夜、好きな曲を1曲だけ、ゆっくり聴いてみらん？"),
+  place: k3("気になっている場所について、もう少し調べてみるのもよさそうです。", "気になっている場所について、もう少し調べてみるのもええかもね。", "気になっている場所について、もう少し調べてみるのもよかね。"),
+  idea: k3("思いついたアイデアを、一言だけメモしてみませんか？", "思いついたアイデアを、一言だけメモしてみよっか？", "思いついたアイデアを、一言だけメモしてみらん？"),
 };
+const FUTURE_HINT_FALLBACK = k3(
+  "今日、気になったことをひとつ残してみませんか？",
+  "今日、気になったことをひとつ残してみよっか？",
+  "今日、気になったことをひとつ残してみらん？"
+);
 
 function pickFutureSourceEntries(entries, topType){
   const sameType = topType ? entries.filter(e => e.type === topType) : [];
   const rest = entries.filter(e => !sameType.includes(e));
   return [...sameType, ...rest].slice(0, 3);
 }
+
+const FUTURE_EMPTY_MESSAGE = k3(
+  "未来はまだ真っ白です。<br><br>まずは今日、<br>ちょっと心が動いたものを<br>ひとつ残してみませんか？",
+  "未来はまだ真っ白やで。<br><br>まずは今日、<br>ちょっと心が動いたものを<br>ひとつ残してみよっか？",
+  "未来はまだ真っ白ばい。<br><br>まずは今日、<br>ちょっと心が動いたものを<br>ひとつ残してみらん？"
+);
 
 function renderFutureView(){
   const empty = document.getElementById("futureEmpty");
@@ -1836,6 +1983,7 @@ function renderFutureView(){
   if(entries.length === 0){
     empty.style.display = "block";
     content.style.display = "none";
+    document.getElementById("futureEmptyMessage").innerHTML = sp(FUTURE_EMPTY_MESSAGE);
     return;
   }
   empty.style.display = "none";
@@ -1874,7 +2022,7 @@ function renderFutureView(){
   });
 
   document.getElementById("futureHint").textContent =
-    topType && FUTURE_TYPE_STEP[topType] ? FUTURE_TYPE_STEP[topType] : "今日、気になったことをひとつ残してみませんか？";
+    sp(topType && FUTURE_TYPE_STEP[topType] ? FUTURE_TYPE_STEP[topType] : FUTURE_HINT_FALLBACK);
 
   renderFutureSprout();
 }
@@ -1898,9 +2046,21 @@ const FUTURE_SPROUT_TEXT = {
 };
 
 const FUTURE_SPROUT_KAOSU_LINES = [
-  "未来って、決めるものじゃなくて<br>少しずつ見つけてもええんかもね。",
-  "前にワクワクしたこと、<br>未来のヒントになるかもしれへんで。",
-  "まだ分からんでも大丈夫。<br>好きなものから見つけていこ。",
+  k3(
+    "未来って、決めるものじゃなくて<br>少しずつ見つけてもいいのかもね。",
+    "未来って、決めるものじゃなくて<br>少しずつ見つけてもええんかもね。",
+    "未来って、決めるものじゃなくて<br>少しずつ見つけてもよかとよ。"
+  ),
+  k3(
+    "前にワクワクしたこと、<br>未来のヒントになるかもしれないよ。",
+    "前にワクワクしたこと、<br>未来のヒントになるかもしれへんで。",
+    "前にワクワクしたこと、<br>未来のヒントになるかもしれんばい。"
+  ),
+  k3(
+    "まだ分からなくても大丈夫。<br>好きなものから見つけていこう。",
+    "まだ分からんでも大丈夫。<br>好きなものから見つけていこ。",
+    "まだ分からんでも大丈夫。<br>好きなものから見つけていこうね。"
+  ),
 ];
 
 function computeFutureSproutType(entries){
@@ -1919,7 +2079,7 @@ function renderFutureSprout(){
   const kaosuEl = document.getElementById("futureSproutKaosu");
   if(!body || !kaosuEl) return;
 
-  kaosuEl.innerHTML = FUTURE_SPROUT_KAOSU_LINES[Math.floor(Math.random() * FUTURE_SPROUT_KAOSU_LINES.length)];
+  kaosuEl.innerHTML = sp(FUTURE_SPROUT_KAOSU_LINES[Math.floor(Math.random() * FUTURE_SPROUT_KAOSU_LINES.length)]);
 
   const entries = wakuwakuEntries || [];
   if(entries.length < 2){
@@ -1961,12 +2121,17 @@ const STEP_FALLBACK_TEXT = {
   smaller: "集めたワクワクを、ひとつだけそっと見返してみるのはどうでしょう？",
 };
 const STEP_TRIED_MESSAGES = [
-  "いい一歩ですね。",
-  "その小さなワクワク、大切にしていきましょう。",
-  "また心が動いたら教えてくださいね。",
+  k3("いい一歩ですね。", "ええ一歩やね。", "よか一歩やね。"),
+  k3("その小さなワクワク、大切にしていきましょう。", "その小さなワクワク、大切にしていこな。", "その小さなワクワク、大切にしていこうね。"),
+  k3("また心が動いたら教えてくださいね。", "また心が動いたら教えてな。", "また心が動いたら教えてね。"),
 ];
-const STEP_KAOSU_DEFAULT = "この一歩、試してみませんか？";
-const STEP_NOTHING_MESSAGE = "今日は集めたワクワクを眺めるだけでも大丈夫です。";
+const STEP_KAOSU_DEFAULT = k3("この一歩、試してみませんか？", "この一歩、試してみよっか？", "この一歩、試してみらん？");
+const STEP_NOTHING_MESSAGE = k3("今日は集めたワクワクを眺めるだけでも大丈夫です。", "今日は集めたワクワクを眺めるだけでも大丈夫やで。", "今日は集めたワクワクを眺めるだけでも大丈夫やけん。");
+const STEP_EMPTY_MESSAGE = k3(
+  "まだ一歩を決めなくても大丈夫です。<br><br>まずは心が少し動いたものを<br>集めてみませんか？",
+  "まだ一歩を決めなくても大丈夫やで。<br><br>まずは心が少し動いたものを<br>集めてみよっか？",
+  "まだ一歩を決めんでも大丈夫ばい。<br><br>まずは心が少し動いたものを<br>集めてみらん？"
+);
 
 /* 実行記録: 既存のwakuwaku(IndexedDB)には触れず、新しい別キーにのみ保存する安全な補助ログ。
    Phase6でfeeling(気持ち)を追加したが、feelingを持たないPhase5時点の
@@ -2010,11 +2175,11 @@ function stepLogSortedDesc(list){
 
 /* Phase6: やってみた後の「気持ち」選択肢。ネガティブ/失敗のような表現は使わない */
 const FEELING_OPTIONS = [
-  { key: "excited", emoji: "😍", label: "すごくワクワクした", feedback: "その感覚、大切にしておきましょう✨" },
-  { key: "fun", emoji: "😊", label: "楽しかった", feedback: "いい時間になったみたいですね。" },
-  { key: "calm", emoji: "😌", label: "心地よかった", feedback: "その心地よさも、大事なヒントですね。" },
-  { key: "unsure", emoji: "🤔", label: "まだ分からない", feedback: "分からないままでも大丈夫。少しずつ見つけていきましょう。" },
-  { key: "flat", emoji: "😐", label: "あまり響かなかった", feedback: "それも大切な発見ですね。違うワクワクを探してみましょう。" },
+  { key: "excited", emoji: "😍", label: "すごくワクワクした", feedback: k3("その感覚、大切にしておきましょう✨", "その感覚、大切にしとこな✨", "その感覚、大切にしとこうね✨") },
+  { key: "fun", emoji: "😊", label: "楽しかった", feedback: k3("いい時間になったみたいですね。", "ええ時間になったみたいやね。", "よか時間になったみたいやね。") },
+  { key: "calm", emoji: "😌", label: "心地よかった", feedback: k3("その心地よさも、大事なヒントですね。", "その心地よさも、大事なヒントやね。", "その心地よさも、大事なヒントやね。") },
+  { key: "unsure", emoji: "🤔", label: "まだ分からない", feedback: k3("分からないままでも大丈夫。少しずつ見つけていきましょう。", "分からんままでも大丈夫。少しずつ見つけていこな。", "分からんままでも大丈夫。少しずつ見つけていこうね。") },
+  { key: "flat", emoji: "😐", label: "あまり響かなかった", feedback: k3("それも大切な発見ですね。違うワクワクを探してみましょう。", "それも大切な発見やね。違うワクワクを探してみよか。", "それも大切な発見やね。違うワクワクを探してみようか。") },
 ];
 const FEELING_POSITIVE_KEYS = ["excited", "fun", "calm"];
 
@@ -2032,7 +2197,7 @@ function renderFeelingGrid(){
       stepLogUpdateFeeling(stepPendingLogId, opt.key);
       stepPendingLogId = null;
       document.getElementById("stepFeelingPrompt").style.display = "none";
-      document.getElementById("stepKaosuMessage").textContent = opt.feedback;
+      document.getElementById("stepKaosuMessage").textContent = sp(opt.feedback);
       renderMindView();
     });
     root.appendChild(btn);
@@ -2084,6 +2249,7 @@ function renderStepView(){
   if(entries.length === 0){
     empty.style.display = "block";
     content.style.display = "none";
+    document.getElementById("stepEmptyMessage").innerHTML = sp(STEP_EMPTY_MESSAGE);
     hideFeelingPrompt();
     return;
   }
@@ -2096,7 +2262,7 @@ function renderStepView(){
   }
   if(stepEntryPointer >= entries.length) stepEntryPointer = 0;
 
-  document.getElementById("stepKaosuMessage").textContent = STEP_KAOSU_DEFAULT;
+  document.getElementById("stepKaosuMessage").textContent = sp(STEP_KAOSU_DEFAULT);
   renderStepChoice();
 }
 
@@ -2111,7 +2277,7 @@ document.getElementById("btnStepTried").addEventListener("click", () => {
   };
   stepLogAppend(record);
   stepPendingLogId = record.id;
-  const msg = STEP_TRIED_MESSAGES[Math.floor(Math.random() * STEP_TRIED_MESSAGES.length)];
+  const msg = sp(STEP_TRIED_MESSAGES[Math.floor(Math.random() * STEP_TRIED_MESSAGES.length)]);
   document.getElementById("stepKaosuMessage").textContent = msg;
   renderFeelingGrid();
   document.getElementById("stepFeelingPrompt").style.display = "block";
@@ -2119,7 +2285,7 @@ document.getElementById("btnStepTried").addEventListener("click", () => {
 
 document.getElementById("btnStepSmaller").addEventListener("click", () => {
   stepLevel = "smaller";
-  document.getElementById("stepKaosuMessage").textContent = STEP_KAOSU_DEFAULT;
+  document.getElementById("stepKaosuMessage").textContent = sp(STEP_KAOSU_DEFAULT);
   renderStepChoice();
 });
 
@@ -2129,13 +2295,13 @@ document.getElementById("btnStepAnotherP5").addEventListener("click", () => {
     stepEntryPointer = (stepEntryPointer + 1) % entries.length;
   }
   stepLevel = "normal";
-  document.getElementById("stepKaosuMessage").textContent = STEP_KAOSU_DEFAULT;
+  document.getElementById("stepKaosuMessage").textContent = sp(STEP_KAOSU_DEFAULT);
   renderStepChoice();
 });
 
 document.getElementById("btnStepNothing").addEventListener("click", () => {
   hideFeelingPrompt();
-  document.getElementById("stepKaosuMessage").textContent = STEP_NOTHING_MESSAGE;
+  document.getElementById("stepKaosuMessage").textContent = sp(STEP_NOTHING_MESSAGE);
 });
 
 /* =========================================================
@@ -2188,13 +2354,23 @@ const MIND_TYPE_TREND = {
 };
 
 const MIND_TYPE_HINT = {
-  image: "気になる景色や写真を1枚、ワクワクBOXに残してみませんか？",
-  word: "最近気になった言葉を、一言だけ書き留めてみませんか？",
-  url: "気になっていたページを1つ、ワクワクBOXに保存してみませんか？",
-  music: "今日は好きな音楽を1曲、ゆっくり聴いてみませんか？",
-  place: "気になる場所の写真を1枚、ワクワクBOXに追加してみませんか？",
-  idea: "最近気になっているアイデアを、一言だけ残してみませんか？",
+  image: k3("気になる景色や写真を1枚、ワクワクBOXに残してみませんか？", "気になる景色や写真を1枚、ワクワクBOXに残してみよっか？", "気になる景色や写真を1枚、ワクワクBOXに残してみらん？"),
+  word: k3("最近気になった言葉を、一言だけ書き留めてみませんか？", "最近気になった言葉を、一言だけ書き留めてみよっか？", "最近気になった言葉を、一言だけ書き留めてみらん？"),
+  url: k3("気になっていたページを1つ、ワクワクBOXに保存してみませんか？", "気になっていたページを1つ、ワクワクBOXに保存してみよっか？", "気になっていたページを1つ、ワクワクBOXに保存してみらん？"),
+  music: k3("今日は好きな音楽を1曲、ゆっくり聴いてみませんか？", "今日は好きな音楽を1曲、ゆっくり聴いてみよっか？", "今日は好きな音楽を1曲、ゆっくり聴いてみらん？"),
+  place: k3("気になる場所の写真を1枚、ワクワクBOXに追加してみませんか？", "気になる場所の写真を1枚、ワクワクBOXに追加してみよっか？", "気になる場所の写真を1枚、ワクワクBOXに追加してみらん？"),
+  idea: k3("最近気になっているアイデアを、一言だけ残してみませんか？", "最近気になっているアイデアを、一言だけ残してみよっか？", "最近気になっているアイデアを、一言だけ残してみらん？"),
 };
+const MIND_HINT_FALLBACK = k3(
+  "今日、少しでも心が動いたことをひとつ残してみませんか？",
+  "今日、少しでも心が動いたことをひとつ残してみよっか？",
+  "今日、少しでも心が動いたことをひとつ残してみらん？"
+);
+const MIND_EMPTY_MESSAGE = k3(
+  "まだ心の地図は真っ白です。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみませんか？",
+  "まだ心の地図は真っ白やで。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみよっか？",
+  "まだ心の地図は真っ白ばい。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみらん？"
+);
 
 function renderMindView(){
   const empty = document.getElementById("mindEmpty");
@@ -2204,6 +2380,7 @@ function renderMindView(){
   if(entries.length === 0){
     empty.style.display = "block";
     content.style.display = "none";
+    document.getElementById("mindEmptyMessage").innerHTML = sp(MIND_EMPTY_MESSAGE);
     return;
   }
   empty.style.display = "none";
@@ -2235,7 +2412,7 @@ function renderMindView(){
   document.getElementById("mindTrends").innerHTML = trendLines.slice(0, 3).map(t => `<p class="mind-trend-line">${escapeHtml(t)}</p>`).join("");
 
   document.getElementById("mindHint").textContent =
-    topType && MIND_TYPE_HINT[topType] ? MIND_TYPE_HINT[topType] : "今日、少しでも心が動いたことをひとつ残してみませんか？";
+    sp(topType && MIND_TYPE_HINT[topType] ? MIND_TYPE_HINT[topType] : MIND_HINT_FALLBACK);
 
   renderMindFeelingCard();
   renderMindRecentDiscovery();
@@ -2303,10 +2480,10 @@ const RECENT_ME_CATEGORIES = [
 ];
 const RECENT_ME_NOT_ENOUGH = "まだ、はっきりした傾向は見えていません。<br><br>でも大丈夫。<br>気になったものを少しずつ残していくと、<br>あなたらしいヒントが見えてくるかもしれません。";
 const RECENT_ME_KAOSU_LINES = [
-  "こういうの、自分では意外と気づかへんよね。",
-  "好きって、小さいところに出てくるんかもしれへんね。",
-  "まだ答えにせんでもええよ。ちょっと眺めてみよっか。",
-  "前に残したものって、ちゃんと今につながってるんやね。",
+  k3("こういうの、自分では意外と気づかないよね。", "こういうの、自分では意外と気づかへんよね。", "こういうの、自分では意外と気づかんとよね。"),
+  k3("好きって、小さいところに出てくるものかもしれないね。", "好きって、小さいところに出てくるんかもしれへんね。", "好きって、小さいところに出てくるとかもしれんね。"),
+  k3("まだ答えにしなくてもいいよ。ちょっと眺めてみようか。", "まだ答えにせんでもええよ。ちょっと眺めてみよっか。", "まだ答えにせんでもよかよ。ちょっと眺めてみようか。"),
+  k3("前に残したものって、ちゃんと今につながっているんだね。", "前に残したものって、ちゃんと今につながってるんやね。", "前に残したものって、ちゃんと今につながっとるんやね。"),
 ];
 
 function computeRecentMeCategory(entries){
@@ -2337,7 +2514,7 @@ function renderRecentMeCard(){
   body.innerHTML = category
     ? `<p class="mind-trend-line">${category.text}</p>`
     : `<p class="mind-empty-note">${RECENT_ME_NOT_ENOUGH}</p>`;
-  kaosuEl.textContent = RECENT_ME_KAOSU_LINES[Math.floor(Math.random() * RECENT_ME_KAOSU_LINES.length)];
+  kaosuEl.textContent = sp(RECENT_ME_KAOSU_LINES[Math.floor(Math.random() * RECENT_ME_KAOSU_LINES.length)]);
 }
 
 /* Phase6: 「一歩」を試した後の気持ち(feeling)の記録から、
@@ -2378,6 +2555,7 @@ document.getElementById("btnMindGoWakuwaku").addEventListener("click", () => swi
 renderHomeQuestion();
 renderHomeStep();
 renderFilters();
+renderSpeechStyleSetting();
 loadWakuwakuEntries();
 if(prefNameGet() === null) openNameModal("first");
 </script>
