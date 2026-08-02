@@ -370,7 +370,7 @@ textarea.field-input{ resize:none; }
           <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">おかえり♪<br>今日、なんか心が動いたことあった？</div>
+        <div class="speech-bubble" id="homeKaosuMessage"></div>
       </div>
 
       <button class="btn-primary" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
@@ -537,6 +537,11 @@ textarea.field-input{ resize:none; }
           <div id="mindFeelingBody"></div>
         </div>
 
+        <div class="card">
+          <div class="card-label">最近の小さな発見</div>
+          <div id="mindRecentDiscovery"></div>
+        </div>
+
         <div class="kaosu-row">
           <div class="kaosu-avatar" style="width:48px;height:48px">
             <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
@@ -688,6 +693,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
+  if(view === "home") renderHomeKaosuGreeting();
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -727,6 +733,53 @@ function renderHomeQuestion(){
 function renderHomeStep(){
   const step = MOCK_DATA.todaysSteps[currentStepIndex];
   document.getElementById("homeStepText").innerHTML = step.text.replace("\n", "<br>") + `（${step.duration}）`;
+}
+
+/* =========================================================
+   Phase7: ケイオスちゃんの案内文(ホーム)
+   - 新しいAPI/画像は追加せず、既存のワクワクBOX(wakuwakuEntries)と
+     Phase5〜6の実行記録(localStorage: stepLogRead)だけを読んで、
+     案内文をやさしく変化させる。キャラクター表示(.kaosu-avatar)は
+     一切変更せず、吹き出しの文言だけを差し替える形にして、将来
+     気分別の画像に差し替える際もここだけ触れば済むようにしている。
+   ========================================================= */
+const HOME_KAOSU_MESSAGES = {
+  zero: "まだ何も決めなくて大丈夫。<br>気になったものから集めてみよっか。",
+  noStep: "気になるもの、少し集まってきたね。<br>眺めるだけでも大丈夫やで。",
+  oneStep: "この前、小さな一歩を試してみたね。<br>どんな感じやった？",
+  manySteps: "少しずつ「好き」のヒントが<br>見えてきてるかもしれへんね。",
+};
+const HOME_KAOSU_FEELING_MESSAGES = {
+  excited: "前に試したとき、<br>かなりワクワクしたみたいやね。",
+  fun: "前に「楽しかった」って感じたこと、<br>またヒントになるかもしれへんね。",
+  calm: "心地よかった時間って、<br>案外大事なヒントかもしれへんね。",
+  unsure: "まだ分からなくても大丈夫。<br>あとから気づくこともあるからね。",
+  flat: "やってみて違うと分かったことも、<br>ちゃんと大事な発見やで。",
+};
+
+function renderHomeKaosuGreeting(){
+  const bubble = document.getElementById("homeKaosuMessage");
+  if(!bubble) return;
+
+  const entries = wakuwakuEntries || [];
+  if(entries.length === 0){
+    bubble.innerHTML = HOME_KAOSU_MESSAGES.zero;
+    return;
+  }
+
+  const logs = stepLogRead();
+  if(logs.length === 0){
+    bubble.innerHTML = HOME_KAOSU_MESSAGES.noStep;
+    return;
+  }
+
+  const latest = stepLogSortedDesc(logs)[0];
+  if(latest && latest.feeling && HOME_KAOSU_FEELING_MESSAGES[latest.feeling]){
+    bubble.innerHTML = HOME_KAOSU_FEELING_MESSAGES[latest.feeling];
+    return;
+  }
+
+  bubble.innerHTML = logs.length === 1 ? HOME_KAOSU_MESSAGES.oneStep : HOME_KAOSU_MESSAGES.manySteps;
 }
 
 document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
@@ -940,6 +993,7 @@ async function loadWakuwakuEntries(){
   renderMindView();
   renderFutureView();
   renderStepView();
+  renderHomeKaosuGreeting();
   renderWwDebugInfo(loadStatus);
 }
 
@@ -1404,6 +1458,11 @@ function stepLogUpdateFeeling(recordId, feeling){
     /* 気持ちの追記に失敗しても、実行記録自体は残っているので致命的ではない */
   }
 }
+/* 実行日時の新しい順に並べ替える。completedAtを持たない/壊れた記録は
+   後方に寄るだけで、エラーにはならない(Phase7で最新1件を取得するために使用) */
+function stepLogSortedDesc(list){
+  return (list || []).slice().sort((a, b) => String((b && b.completedAt) || "").localeCompare(String((a && a.completedAt) || "")));
+}
 
 /* Phase6: やってみた後の「気持ち」選択肢。ネガティブ/失敗のような表現は使わない */
 const FEELING_OPTIONS = [
@@ -1635,6 +1694,31 @@ function renderMindView(){
     topType && MIND_TYPE_HINT[topType] ? MIND_TYPE_HINT[topType] : "今日、少しでも心が動いたことをひとつ残してみませんか？";
 
   renderMindFeelingCard();
+  renderMindRecentDiscovery();
+}
+
+/* Phase7: 「一歩」の実行記録の中から、直近でポジティブな気持ちだった
+   ものを1件だけ振り返る非常に小さなカード。Phase6の「心が喜んだもの」
+   (全体の傾向)とは違い、こちらは最新の1件だけを扱う。断定はしない。 */
+function renderMindRecentDiscovery(){
+  const root = document.getElementById("mindRecentDiscovery");
+  if(!root) return;
+
+  const positiveLogs = stepLogRead().filter(r => r && r.feeling && r.stepType && FEELING_POSITIVE_KEYS.includes(r.feeling));
+  if(positiveLogs.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">もう少し集まると、<br>ここに小さな発見が見えてきます。</p>`;
+    return;
+  }
+
+  const latest = stepLogSortedDesc(positiveLogs)[0];
+  const meta = TYPE_META[latest.stepType] || null;
+  const feelingOpt = FEELING_OPTIONS.find(f => f.key === latest.feeling) || null;
+  const feelingLabel = feelingOpt ? feelingOpt.label : "いい気持ち";
+
+  const text = meta
+    ? `${meta.label}に関わることを試したとき、<br>${feelingLabel}と感じたようです。`
+    : `最近試したことで、<br>${feelingLabel}と感じたようです。`;
+  root.innerHTML = `<p class="mind-trend-line">${text}</p>`;
 }
 
 /* Phase6: 「一歩」を試した後の気持ち(feeling)の記録から、
