@@ -410,6 +410,17 @@ textarea.field-input{ resize:none; }
         </div>
         <button class="btn-text" id="btnHomeGoStep">今日の小さな一歩を見る</button>
       </div>
+
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-label">今のあなたへ</div>
+        <div class="kaosu-row" style="margin-bottom:0;">
+          <div class="kaosu-avatar" style="width:36px;height:36px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="homeNowMessage" style="font-size:13.5px;"></div>
+        </div>
+      </div>
     </section>
 
     <!-- ② ワクワクBOX -->
@@ -735,7 +746,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home") renderHomeKaosuGreeting();
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -870,6 +881,88 @@ function renderHomeConnectionCard(){
 }
 
 document.getElementById("btnHomeGoStep").addEventListener("click", () => switchView("step"));
+
+/* =========================================================
+   Phase11: ホームの「今のあなたへ」
+   - 現在時刻(表示判定のみ、保存しない)と、Phase10の
+     computeRecentMeCategory(既存ロジックをそのまま再利用、変更なし)
+     だけを使う。新しいデータ保存・新しいAPIは一切追加しない。
+   - Phase3「わたしの傾向」・Phase10「最近のわたし」とは役割を分け、
+     ここでは詳しい分析文は出さず、1〜2文の短い一言だけを表示する。
+   ========================================================= */
+const HOME_NOW_MESSAGES = {
+  morning: [
+    "おはよう。今日は何をひとつ楽しみにしよっか？",
+    "今日も、自分のペースでいこか。",
+    "今日はどんな「好き」に出会えるやろね。",
+  ],
+  noon: [
+    "ここまでお疲れさま。ちょっと好きなことしてもええんよ。",
+    "今の気分、ちょっとだけ見てみよっか。",
+    "今日、何か心が動いたものあった？",
+  ],
+  night: [
+    "今日は何がちょっと良かった？",
+    "今日の中に、小さな「好き」はあったかな。",
+    "今日も一日お疲れさま。残したい気持ちがあったら覚えとこ。",
+  ],
+  midnight: [
+    "こんな時間までお疲れさま。今日はもう何も決めんでもええよ。",
+    "夜は、答えを急がんでも大丈夫やで。",
+    "今日はここまででも十分。ゆっくりしよか。",
+  ],
+};
+const HOME_NOW_CATEGORY_MESSAGES = {
+  scenery: {
+    morning: "最近、景色に心が動いてるみたい。<br>今日の空も、ちょっと見てみる？",
+    noon: "最近、景色に目が行くことが多いみたい。<br>ふと見える景色も、悪くないかもね。",
+    night: "最近、景色に心惹かれることが多いみたい。<br>今日はどんな景色が心に残った？",
+    midnight: "最近、景色に心が動くことが多いみたい。<br>今夜はゆっくり、思い出してみるのもええかもね。",
+  },
+  music: {
+    morning: "最近、音に心が動くことが多いみたい。<br>好きな曲で1日を始めるのもええかもね。",
+    noon: "最近、音に心が動くことが多いみたい。<br>好きな曲を1曲だけ聴くのもええかもね。",
+    night: "最近、音に心が動くことが多いみたい。<br>今日はどんな音が心に残った？",
+    midnight: "最近、音に心が動くことが多いみたい。<br>静かな時間に、好きな音を思い出してみよっか。",
+  },
+  creative: {
+    morning: "最近、何か作ることにワクワクしてるみたい。<br>今日、思いついたことがあったら覚えとこ。",
+    noon: "最近、考えたり作ったりする時間にワクワクしてるみたい。<br>ふと浮かんだこと、大事にしてみて。",
+    night: "最近、何か作ることにワクワクしてるみたい。<br>今日浮かんだこと、ひとつだけ残しとく？",
+    midnight: "最近、考えごとが心を動かしてるみたい。<br>今夜のアイデアも、また今度でいいからね。",
+  },
+  people: {
+    morning: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日はどんな時間になるかな。",
+    noon: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日もそんな瞬間があるといいね。",
+    night: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日もそんな瞬間あったかな？",
+    midnight: "誰かと過ごした時間が、最近よく心に残ってるみたい。<br>今日のことも、また思い出してみよっか。",
+  },
+};
+
+function homeGetTimeBand(date){
+  const h = date.getHours();
+  if(h >= 5 && h <= 10) return "morning";
+  if(h >= 11 && h <= 16) return "noon";
+  if(h >= 17 && h <= 21) return "night";
+  return "midnight";
+}
+
+function renderHomeNowCard(){
+  const el = document.getElementById("homeNowMessage");
+  if(!el) return;
+
+  const band = homeGetTimeBand(new Date());
+  const entries = wakuwakuEntries || [];
+  const category = entries.length > 0 ? computeRecentMeCategory(entries) : null;
+
+  if(category && category.key && HOME_NOW_CATEGORY_MESSAGES[category.key]){
+    el.innerHTML = HOME_NOW_CATEGORY_MESSAGES[category.key][band];
+    return;
+  }
+
+  const pool = HOME_NOW_MESSAGES[band];
+  el.innerHTML = pool[Math.floor(Math.random() * pool.length)];
+}
 
 document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
   openAddSheet();
@@ -1084,6 +1177,7 @@ async function loadWakuwakuEntries(){
   renderStepView();
   renderHomeKaosuGreeting();
   renderHomeConnectionCard();
+  renderHomeNowCard();
   renderWwDebugInfo(loadStatus);
 }
 
@@ -1883,21 +1977,25 @@ function renderMindRecentDiscovery(){
    ========================================================= */
 const RECENT_ME_CATEGORIES = [
   {
+    key: "scenery",
     words: ["写真", "景色", "夕焼け", "海", "空", "星", "花", "風景", "朝日", "夜景"],
     types: ["image", "place"],
     text: "景色や目に映るものに、<br>心が動くことが多いみたい。",
   },
   {
+    key: "music",
     words: ["音楽", "曲", "音", "声", "歌", "メロディ"],
     types: ["music"],
     text: "音や音楽に触れたとき、<br>気持ちが動くことが多いみたい。",
   },
   {
+    key: "creative",
     words: ["創作", "アイデア", "作る", "書く", "考える", "デザイン", "アート"],
     types: ["idea", "word"],
     text: "何かを作ったり考えたりするとき、<br>ワクワクすることが多いみたい。",
   },
   {
+    key: "people",
     words: ["家族", "友達", "会話", "誰か", "一緒", "仲間"],
     types: [],
     text: "誰かと過ごした時間が、<br>心に残ることが多いみたい。",
