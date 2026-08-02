@@ -99,11 +99,26 @@ textarea{ font-family:inherit; }
   border:1px solid var(--border);
   display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px;
 }
-.kaosu-hero .kaosu-avatar{ width:104px; height:104px; }
 .kaosu-hero .speech-bubble{ width:100%; }
 .kaosu-hero .speech-bubble::before{
   content:""; position:absolute; top:-7px; left:50%; transform:translateX(-50%) rotate(45deg);
   width:14px; height:14px; background:var(--surface); border-left:1px solid var(--border); border-top:1px solid var(--border);
+}
+/* ホームのケイオスちゃんメインビジュアル(Phase14)
+   - 将来、時間帯などで画像を差し替える場合もこの1枚のimgのsrcを
+     変更するだけで済むよう、シンプルな構造に留めている。
+   - 画像が読み込めない場合はonerrorでこの領域自体を非表示にし、
+     吹き出しの挨拶文だけで正常に成立するようにしている(装飾要素)。 */
+.kaosu-hero-visual{
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:var(--radius-md);
+  overflow:hidden;
+  background:linear-gradient(120deg, #ffeef5 0%, #fff8e0 30%, #e7f5ff 62%, #efe9ff 100%);
+  box-shadow:0 3px 10px rgba(150,140,200,.18);
+}
+.kaosu-hero-visual .kaosu-hero-img{
+  width:100%; height:100%; object-fit:cover; object-position:center; display:block;
 }
 
 /* ---------- ボタン共通 ---------- */
@@ -378,9 +393,8 @@ textarea.field-input{ resize:none; }
     <!-- ① ホーム -->
     <section class="view active" data-view="home">
       <div class="kaosu-hero">
-        <div class="kaosu-avatar" style="width:104px;height:104px">
-          <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        <div class="kaosu-hero-visual" id="kaosuHeroVisual">
+          <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" class="kaosu-hero-img" onerror="this.closest('.kaosu-hero-visual').style.display='none'">
         </div>
         <div class="speech-bubble" id="homeKaosuMessage"></div>
       </div>
