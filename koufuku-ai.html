@@ -277,8 +277,12 @@ textarea{ font-family:inherit; }
 
 /* ---------- ワクワク保存・詳細・削除(Phase2) ---------- */
 .privacy-note{ font-size:11px; color:var(--text-sub); margin:0 0 16px; line-height:1.6; }
-.wwDebugInfo{ font-size:9.5px; color:#b8b4c9; margin:0 0 12px; line-height:1.5; word-break:break-all; }
-.wwDebugInfo:empty{ display:none; }
+.wwDebugInfo{
+  /* Phase8: 開発用デバッグ行。データ取得(renderWwDebugInfo)自体は残し、
+     一般ユーザー画面には表示しないようにする */
+  display:none;
+  font-size:9.5px; color:#b8b4c9; margin:0 0 12px; line-height:1.5; word-break:break-all;
+}
 
 .wakuwaku-empty{ text-align:center; padding:30px 8px 8px; }
 .wakuwaku-empty .kaosu-avatar{ margin:0 auto 14px; }
@@ -452,6 +456,18 @@ textarea.field-input{ resize:none; }
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
             <div class="speech-bubble" id="futureHint"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">未来の芽</div>
+          <div id="futureSproutBody"></div>
+          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:40px;height:40px">
+              <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureSproutKaosu"></div>
           </div>
         </div>
       </div>
@@ -1391,6 +1407,66 @@ function renderFutureView(){
 
   document.getElementById("futureHint").textContent =
     topType && FUTURE_TYPE_STEP[topType] ? FUTURE_TYPE_STEP[topType] : "今日、気になったことをひとつ残してみませんか？";
+
+  renderFutureSprout();
+}
+
+/* =========================================================
+   未来の芽(Phase8)
+   - 既存のワクワクBOX(wakuwakuEntries)とPhase5〜6の実行記録
+     (stepLogRead)だけを読み、新しいデータ保存は行わない。
+   - 優先1: 実行記録でポジティブな気持ちだったstepType
+     優先2: ワクワクBOXでよく選ばれているtype
+     のどちらも見つからない場合は「まだヒントが育っていない」表示にする。
+   - 診断・断定はせず、「〜みたい」「〜かもしれません」のみを使う。
+   ========================================================= */
+const FUTURE_SPROUT_TEXT = {
+  image: { now: "写真や景色など、目に映るものからワクワクが広がっているみたい。", future: "こんな時間が少し増える未来も、あなたらしいのかもしれません。" },
+  music: { now: "音楽に触れる時間が、最近のあなたの心を動かしているみたい。", future: "好きな音に囲まれる時間が、これから少し増えていくのかもしれません。" },
+  word: { now: "言葉や文章に触れたとき、心が動くことが多いみたい。", future: "好きな言葉を集めることが、これからのヒントになるかもしれません。" },
+  place: { now: "気になる場所や空間に、心が動くことが多いみたい。", future: "そんな場所で過ごす時間が、これから増えていくのかもしれません。" },
+  url: { now: "気になる情報に触れる時間が、最近のあなたの心を動かしているみたい。", future: "新しいことを知る時間が、これから少し増えていくのかもしれません。" },
+  idea: { now: "新しいアイデアを考える時間に、心が動くことが多いみたい。", future: "何かを生み出す時間が、これから少し増えていくのかもしれません。" },
+};
+
+const FUTURE_SPROUT_KAOSU_LINES = [
+  "未来って、決めるものじゃなくて<br>少しずつ見つけてもええんかもね。",
+  "前にワクワクしたこと、<br>未来のヒントになるかもしれへんで。",
+  "まだ分からんでも大丈夫。<br>好きなものから見つけていこ。",
+];
+
+function computeFutureSproutType(entries){
+  const positiveLogs = stepLogRead().filter(r => r && r.feeling && r.stepType && FEELING_POSITIVE_KEYS.includes(r.feeling));
+  const feelingType = mindMostFrequent(positiveLogs.map(r => r.stepType));
+  if(feelingType && FUTURE_SPROUT_TEXT[feelingType]) return feelingType;
+
+  const topType = mindMostFrequent(entries.map(e => e.type));
+  if(topType && FUTURE_SPROUT_TEXT[topType]) return topType;
+
+  return null;
+}
+
+function renderFutureSprout(){
+  const body = document.getElementById("futureSproutBody");
+  const kaosuEl = document.getElementById("futureSproutKaosu");
+  if(!body || !kaosuEl) return;
+
+  kaosuEl.innerHTML = FUTURE_SPROUT_KAOSU_LINES[Math.floor(Math.random() * FUTURE_SPROUT_KAOSU_LINES.length)];
+
+  const entries = wakuwakuEntries || [];
+  if(entries.length < 2){
+    body.innerHTML = `<p class="mind-empty-note">まだ未来を決めなくて大丈夫。<br><br>好きなものを少しずつ集めると、<br>ここに未来のヒントが育っていきます。</p>`;
+    return;
+  }
+
+  const type = computeFutureSproutType(entries);
+  if(!type){
+    body.innerHTML = `<p class="mind-empty-note">好きなものを少しずつ集めると、<br>ここに未来のヒントが育っていきます。</p>`;
+    return;
+  }
+
+  const t = FUTURE_SPROUT_TEXT[type];
+  body.innerHTML = `<p class="mind-trend-line">${t.now}</p><p class="mind-trend-line">${t.future}</p>`;
 }
 
 document.getElementById("btnFutureGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
