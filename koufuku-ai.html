@@ -206,11 +206,11 @@ textarea{ font-family:inherit; }
 .tag-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
 .tag-chip{ font-size:12.5px; background:var(--purple-soft); color:#6a4fc2; border-radius:99px; padding:6px 13px; }
 
-/* ---------- 今日の一歩(専用画面) ---------- */
+/* ---------- 今日の一歩(専用画面・Phase5) ---------- */
 .step-card-big{ text-align:center; padding:26px 20px; }
-.step-text-big{ font-size:17px; font-weight:700; white-space:pre-line; margin-bottom:10px; }
-.step-duration{ display:inline-block; font-size:13px; color:var(--purple); background:var(--purple-soft); border-radius:99px; padding:4px 14px; font-weight:700; }
-.step-actions-col{ display:flex; flex-direction:column; gap:10px; }
+.step-text-big{ font-size:17px; font-weight:700; white-space:pre-line; margin:0; }
+.step-choice-row{ display:flex; gap:10px; margin-bottom:10px; }
+.step-choice-row .btn-outline{ flex:1; }
 
 /* ---------- わたし(心の地図・Phase3) ---------- */
 .mind-empty{ text-align:center; padding:30px 8px 8px; }
@@ -448,25 +448,41 @@ textarea.field-input{ resize:none; }
       </div>
     </section>
 
-    <!-- ⑤ 今日の一歩 -->
+    <!-- ⑤ 今日の一歩(Phase5) -->
     <section class="view" data-view="step">
-      <div class="kaosu-row">
-        <div class="kaosu-avatar" style="width:48px;height:48px">
+      <h1 class="view-title">今日の小さな一歩</h1>
+      <p class="view-sub">集めたワクワクから、<br>今日できそうな小さな一歩を見つけます。</p>
+      <p class="wwDebugInfo"></p>
+
+      <div class="mind-empty" id="stepEmpty" style="display:none;">
+        <div class="kaosu-avatar" style="width:72px;height:72px">
           <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
           <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
         </div>
-        <div class="speech-bubble">この未来に近づくために、<br>今日はこれやってみない？</div>
+        <div class="speech-bubble">まだ一歩を決めなくても大丈夫です。<br><br>まずは心が少し動いたものを<br>集めてみませんか？</div>
+        <div style="margin-top:16px;"><button class="btn-primary" id="btnStepGoWakuwaku">ワクワクを集める</button></div>
       </div>
 
-      <div class="card step-card-big">
-        <p class="step-text-big" id="stepBigText"></p>
-        <div class="step-duration" id="stepBigDuration"></div>
-      </div>
+      <div id="stepContent" style="display:none;">
+        <div class="kaosu-row">
+          <div class="kaosu-avatar" style="width:48px;height:48px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="stepKaosuMessage">この一歩、試してみませんか？</div>
+        </div>
 
-      <div class="step-actions-col">
-        <button class="btn-primary" id="btnStepDone">できた！✨</button>
-        <button class="btn-ghost" id="btnStepSkip">今日は違う</button>
-        <button class="btn-text" id="btnStepAnother">別の案がほしい</button>
+        <div class="card step-card-big">
+          <p class="step-text-big" id="stepSuggestionText"></p>
+        </div>
+
+        <button class="btn-primary" id="btnStepTried" style="margin-bottom:14px;">やってみた</button>
+
+        <div class="step-choice-row">
+          <button class="btn-outline" id="btnStepSmaller">もっと小さく</button>
+          <button class="btn-outline" id="btnStepAnotherP5">別の一歩</button>
+        </div>
+        <button class="btn-text" id="btnStepNothing">今日は何もしない</button>
       </div>
     </section>
 
@@ -714,7 +730,6 @@ document.getElementById("btnStepDoneHome").addEventListener("click", () => {
 document.getElementById("btnStepSkipHome").addEventListener("click", () => {
   currentStepIndex = (currentStepIndex + 1) % MOCK_DATA.todaysSteps.length;
   renderHomeStep();
-  renderStepView();
   showToast("そんな日もあるよね♪");
 });
 
@@ -904,6 +919,7 @@ async function loadWakuwakuEntries(){
   renderWakuwakuGrid();
   renderMindView();
   renderFutureView();
+  renderStepView();
   renderWwDebugInfo(loadStatus);
 }
 
@@ -1306,25 +1322,133 @@ function renderFutureView(){
 document.getElementById("btnFutureGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
 
 /* =========================================================
-   今日の一歩(専用画面)
+   今日の一歩(専用画面・Phase5)
+   - ワクワクBOXの実データ(wakuwakuEntries)から、外部AIを使わず
+     簡易的に「今日できる小さな一歩」を提案する。タスク管理ではなく、
+     やらなくても否定されない軽い提案として表示する。
+   - 実行記録(やってみた)は、既存のwakuwaku IndexedDB store/versionを
+     一切変更せず、新しい別のlocalStorageキー(STEP_LOG_KEY)にのみ
+     追記する。DBバージョン変更が必要になる操作は行っていない。
    ========================================================= */
-function renderStepView(){
-  const step = MOCK_DATA.todaysSteps[currentStepIndex];
-  document.getElementById("stepBigText").innerHTML = step.text.replace("\n", "<br>");
-  document.getElementById("stepBigDuration").textContent = step.duration;
+const STEP_ACTION_TEXT = {
+  image: { normal: "気になる景色を1枚だけ探してみませんか？", smaller: "気になる景色を、頭の中で少しだけ思い浮かべてみるのはどうでしょう？" },
+  word: { normal: "心に残った言葉を、もう一度読んでみるのも良さそうです。", smaller: "心に残った言葉を、頭の中で一度だけつぶやいてみませんか？" },
+  url: { normal: "保存したページを1つだけ開いてみませんか？", smaller: "保存したページのタイトルだけ、眺めてみるのはどうでしょう？" },
+  music: { normal: "好きな曲を1曲だけ聴いてみるのも楽しそうです。", smaller: "好きな曲のワンフレーズだけ、口ずさんでみませんか？" },
+  place: { normal: "気になる場所を地図で少し眺めてみませんか？", smaller: "気になる場所の名前を、ひとつだけ思い出してみるのはどうでしょう？" },
+  idea: { normal: "思いついたことを1行だけ書いてみるのも楽しそうです。", smaller: "思いついたことを、頭の中で一言だけつぶやいてみませんか？" },
+};
+const STEP_FALLBACK_TEXT = {
+  normal: "集めたワクワクを、少しだけ眺めてみませんか？",
+  smaller: "集めたワクワクを、ひとつだけそっと見返してみるのはどうでしょう？",
+};
+const STEP_TRIED_MESSAGES = [
+  "いい一歩ですね。",
+  "その小さなワクワク、大切にしていきましょう。",
+  "また心が動いたら教えてくださいね。",
+];
+const STEP_KAOSU_DEFAULT = "この一歩、試してみませんか？";
+const STEP_NOTHING_MESSAGE = "今日は集めたワクワクを眺めるだけでも大丈夫です。";
+
+/* 実行記録: 既存のwakuwaku(IndexedDB)には触れず、新しい別キーにのみ保存する安全な補助ログ */
+const STEP_LOG_KEY = "koufukuAiStepLogV1";
+function stepLogRead(){
+  try{
+    const raw = localStorage.getItem(STEP_LOG_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    return [];
+  }
+}
+function stepLogAppend(record){
+  try{
+    const list = stepLogRead();
+    list.push(record);
+    localStorage.setItem(STEP_LOG_KEY, JSON.stringify(list));
+  }catch(e){
+    /* 容量超過等で記録できなくても、他の保存機能には影響させない */
+  }
 }
 
-document.getElementById("btnStepDone").addEventListener("click", () => {
-  showToast("えらい！✨ ゆっくりでいいからね");
+let stepEntryPointer = 0;
+let stepLevel = "normal";
+let stepInitialized = false;
+let stepCurrentType = "";
+let stepCurrentSourceEntry = null;
+
+function stepPickInitialIndex(entries){
+  const topType = mindMostFrequent(entries.map(e => e.type));
+  if(topType){
+    const idx = entries.findIndex(e => e.type === topType);
+    if(idx >= 0) return idx;
+  }
+  return 0;
+}
+
+function renderStepChoice(){
+  const entries = wakuwakuEntries || [];
+  const entry = entries[stepEntryPointer] || entries[0] || null;
+  stepCurrentSourceEntry = entry;
+  stepCurrentType = entry && entry.type ? entry.type : "";
+  const text = stepCurrentType && STEP_ACTION_TEXT[stepCurrentType]
+    ? STEP_ACTION_TEXT[stepCurrentType][stepLevel]
+    : STEP_FALLBACK_TEXT[stepLevel];
+  document.getElementById("stepSuggestionText").textContent = text;
+}
+
+function renderStepView(){
+  const empty = document.getElementById("stepEmpty");
+  const content = document.getElementById("stepContent");
+  const entries = wakuwakuEntries || [];
+
+  if(entries.length === 0){
+    empty.style.display = "block";
+    content.style.display = "none";
+    return;
+  }
+  empty.style.display = "none";
+  content.style.display = "block";
+
+  if(!stepInitialized){
+    stepEntryPointer = stepPickInitialIndex(entries);
+    stepInitialized = true;
+  }
+  if(stepEntryPointer >= entries.length) stepEntryPointer = 0;
+
+  document.getElementById("stepKaosuMessage").textContent = STEP_KAOSU_DEFAULT;
+  renderStepChoice();
+}
+
+document.getElementById("btnStepGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
+
+document.getElementById("btnStepTried").addEventListener("click", () => {
+  stepLogAppend({
+    completedAt: new Date().toISOString(),
+    sourceEntryId: stepCurrentSourceEntry ? stepCurrentSourceEntry.id : null,
+    stepType: stepCurrentType || "",
+  });
+  const msg = STEP_TRIED_MESSAGES[Math.floor(Math.random() * STEP_TRIED_MESSAGES.length)];
+  document.getElementById("stepKaosuMessage").textContent = msg;
 });
-document.getElementById("btnStepSkip").addEventListener("click", () => {
-  showToast("そんな日もあるよね♪");
+
+document.getElementById("btnStepSmaller").addEventListener("click", () => {
+  stepLevel = "smaller";
+  document.getElementById("stepKaosuMessage").textContent = STEP_KAOSU_DEFAULT;
+  renderStepChoice();
 });
-document.getElementById("btnStepAnother").addEventListener("click", () => {
-  currentStepIndex = (currentStepIndex + 1) % MOCK_DATA.todaysSteps.length;
-  renderStepView();
-  renderHomeStep();
-  showToast("こんなのはどう？");
+
+document.getElementById("btnStepAnotherP5").addEventListener("click", () => {
+  const entries = wakuwakuEntries || [];
+  if(entries.length > 1){
+    stepEntryPointer = (stepEntryPointer + 1) % entries.length;
+  }
+  stepLevel = "normal";
+  document.getElementById("stepKaosuMessage").textContent = STEP_KAOSU_DEFAULT;
+  renderStepChoice();
+});
+
+document.getElementById("btnStepNothing").addEventListener("click", () => {
+  document.getElementById("stepKaosuMessage").textContent = STEP_NOTHING_MESSAGE;
 });
 
 /* =========================================================
@@ -1436,7 +1560,6 @@ renderHomeQuestion();
 renderHomeStep();
 renderFilters();
 loadWakuwakuEntries();
-renderStepView();
 </script>
 </body>
 </html>
