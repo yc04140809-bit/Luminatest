@@ -232,6 +232,11 @@ textarea{ font-family:inherit; }
 .mind-trend-line{ font-size:14.5px; line-height:1.75; margin-bottom:10px; }
 .mind-trend-line:last-child{ margin-bottom:0; }
 
+/* ---------- ホーム: 今日の幸せ設計(Phase12・コンパクト表示) ---------- */
+.td-row{ display:flex; align-items:flex-start; gap:8px; font-size:13.5px; line-height:1.5; margin-bottom:8px; }
+.td-row:last-of-type{ margin-bottom:0; }
+.td-icon{ flex:none; }
+
 /* ---------- ボトムナビ ---------- */
 .bottomnav{
   display:flex; background:#fff;
@@ -419,6 +424,20 @@ textarea.field-input{ resize:none; }
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="homeNowMessage" style="font-size:13.5px;"></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:14px 16px;">
+        <div class="card-label">今日の幸せ設計</div>
+        <p class="view-sub" style="margin:0 0 10px;">今日を、少しだけ自分らしく。</p>
+        <p class="td-row"><span class="td-icon">❤️</span><span>今日のワクワク：<span id="todayDesignWaku"></span></span></p>
+        <p class="td-row"><span class="td-icon">🌱</span><span>今日の小さな一歩：<span id="todayDesignStep"></span></span></p>
+        <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+          <div class="kaosu-avatar" style="width:36px;height:36px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="todayDesignKaosu" style="font-size:13px;"></div>
         </div>
       </div>
     </section>
@@ -746,7 +765,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -964,6 +983,76 @@ function renderHomeNowCard(){
   el.innerHTML = pool[Math.floor(Math.random() * pool.length)];
 }
 
+/* =========================================================
+   Phase12: ホームの「今日の幸せ設計」
+   - 新しい判定ロジックは作らず、既存のcomputeRecentMeCategory(Phase10)
+     とhomeGetTimeBand(Phase11)をそのまま再利用する。
+   - IndexedDB/localStorageへの書き込みは行わず、既存データを
+     読むだけ。1日1回固定のような保存処理も実装しない。
+   ========================================================= */
+const TODAY_DESIGN_STEP_TEXT = {
+  scenery: "少しだけ外や空を眺めてみる",
+  music: "好きな音を1曲だけ聴いてみる",
+  creative: "思いついたことをひとつ残してみる",
+  people: "大切な人をひとり思い浮かべてみる",
+};
+const TODAY_DESIGN_STEP_FALLBACK = [
+  "今日ちょっと楽しみにできることを1つ決めてみる",
+  "5分だけ好きなことをしてみる",
+  "今日できたら嬉しいことを1つだけ考えてみる",
+];
+const TODAY_DESIGN_KAOSU_LINES = {
+  morning: [
+    "今日は何を楽しみにしよっか。",
+    "ひとつ楽しみがあれば、それで十分やで。",
+    "今日も自分のペースでいこ。",
+  ],
+  noon: [
+    "ここまで来た自分、ちょっと褒めとこ。",
+    "午後も全部頑張らんでええからね。",
+    "ちょっと好きなこと、挟んでみる？",
+  ],
+  night: [
+    "今日、ちょっと良かったことあった？",
+    "できたこと、ひとつだけ思い出してみよ。",
+    "今日の自分にも、おつかれさん。",
+  ],
+  midnight: [
+    "今日はもう、頑張らんでもええ時間やで。",
+    "続きは明日の自分に任せよっか。",
+    "今日もよう頑張ったね。ゆっくりしよ。",
+  ],
+};
+
+function renderTodayDesignCard(){
+  const wakuEl = document.getElementById("todayDesignWaku");
+  const stepEl = document.getElementById("todayDesignStep");
+  const kaosuEl = document.getElementById("todayDesignKaosu");
+  if(!wakuEl || !stepEl || !kaosuEl) return;
+
+  const entries = wakuwakuEntries || [];
+
+  if(entries.length > 0){
+    const latest = entries[0];
+    const title = latest.title && latest.title.trim()
+      ? latest.title.trim()
+      : (TYPE_META[latest.type] ? TYPE_META[latest.type].label : "気になっているもの");
+    wakuEl.textContent = `「${title}」`;
+  }else{
+    wakuEl.textContent = "「今日は何に心が動くかな？」";
+  }
+
+  const category = entries.length > 0 ? computeRecentMeCategory(entries) : null;
+  const stepText = (category && category.key && TODAY_DESIGN_STEP_TEXT[category.key])
+    ? TODAY_DESIGN_STEP_TEXT[category.key]
+    : TODAY_DESIGN_STEP_FALLBACK[Math.floor(Math.random() * TODAY_DESIGN_STEP_FALLBACK.length)];
+  stepEl.textContent = `「${stepText}」`;
+
+  const band = homeGetTimeBand(new Date());
+  const kaosuPool = TODAY_DESIGN_KAOSU_LINES[band];
+  kaosuEl.textContent = kaosuPool[Math.floor(Math.random() * kaosuPool.length)];
+}
+
 document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
   openAddSheet();
 });
@@ -1178,6 +1267,7 @@ async function loadWakuwakuEntries(){
   renderHomeKaosuGreeting();
   renderHomeConnectionCard();
   renderHomeNowCard();
+  renderTodayDesignCard();
   renderWwDebugInfo(loadStatus);
 }
 
