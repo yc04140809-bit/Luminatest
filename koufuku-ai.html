@@ -571,6 +571,19 @@ textarea.field-input{ resize:none; }
           <div id="mindRecentDiscovery"></div>
         </div>
 
+        <div class="card">
+          <div class="card-label">最近のわたし</div>
+          <p class="view-sub" style="margin:0 0 10px;">残してきたものから、<br>小さな傾向が見えてきたみたいです。</p>
+          <div id="recentMeBody"></div>
+          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:36px;height:36px">
+              <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="recentMeKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
         <div class="kaosu-row">
           <div class="kaosu-avatar" style="width:48px;height:48px">
             <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
@@ -1832,6 +1845,7 @@ function renderMindView(){
 
   renderMindFeelingCard();
   renderMindRecentDiscovery();
+  renderRecentMeCard();
 }
 
 /* Phase7: 「一歩」の実行記録の中から、直近でポジティブな気持ちだった
@@ -1856,6 +1870,76 @@ function renderMindRecentDiscovery(){
     ? `${meta.label}に関わることを試したとき、<br>${feelingLabel}と感じたようです。`
     : `最近試したことで、<br>${feelingLabel}と感じたようです。`;
   root.innerHTML = `<p class="mind-trend-line">${text}</p>`;
+}
+
+/* =========================================================
+   Phase10: 「最近のわたし」
+   - 既存のワクワクBOX(wakuwakuEntries)のtitle/note/typeという
+     既存フィールドと、既存のmindExtractKeywords(Phase3)をそのまま
+     再利用し、新しいデータ保存・新しいフィールドは一切追加しない。
+   - 単純な単語一致による軽いカテゴリ分類のみで、AI分析は行わない。
+   - スコアがしきい値未満(=十分な手がかりがない)場合は断定せず、
+     「まだはっきりした傾向は見えていません」と表示する。
+   ========================================================= */
+const RECENT_ME_CATEGORIES = [
+  {
+    words: ["写真", "景色", "夕焼け", "海", "空", "星", "花", "風景", "朝日", "夜景"],
+    types: ["image", "place"],
+    text: "景色や目に映るものに、<br>心が動くことが多いみたい。",
+  },
+  {
+    words: ["音楽", "曲", "音", "声", "歌", "メロディ"],
+    types: ["music"],
+    text: "音や音楽に触れたとき、<br>気持ちが動くことが多いみたい。",
+  },
+  {
+    words: ["創作", "アイデア", "作る", "書く", "考える", "デザイン", "アート"],
+    types: ["idea", "word"],
+    text: "何かを作ったり考えたりするとき、<br>ワクワクすることが多いみたい。",
+  },
+  {
+    words: ["家族", "友達", "会話", "誰か", "一緒", "仲間"],
+    types: [],
+    text: "誰かと過ごした時間が、<br>心に残ることが多いみたい。",
+  },
+];
+const RECENT_ME_NOT_ENOUGH = "まだ、はっきりした傾向は見えていません。<br><br>でも大丈夫。<br>気になったものを少しずつ残していくと、<br>あなたらしいヒントが見えてくるかもしれません。";
+const RECENT_ME_KAOSU_LINES = [
+  "こういうの、自分では意外と気づかへんよね。",
+  "好きって、小さいところに出てくるんかもしれへんね。",
+  "まだ答えにせんでもええよ。ちょっと眺めてみよっか。",
+  "前に残したものって、ちゃんと今につながってるんやね。",
+];
+
+function computeRecentMeCategory(entries){
+  // 「繰り返し現れる」ことを見るため、1件のtitle内に複数のキーワードが
+  // 偶然含まれていてもスコアは1件分としてしか数えない(1エントリ=最大1点)。
+  // 十分な件数(異なる記録2件以上)で初めて候補として採用する。
+  let best = null, bestScore = 0;
+  RECENT_ME_CATEGORIES.forEach(cat => {
+    let score = 0;
+    entries.forEach(e => {
+      const text = `${e.title || ""} ${e.note || ""}`;
+      const matched = cat.types.includes(e.type) || cat.words.some(w => text.includes(w));
+      if(matched) score += 1;
+    });
+    if(score > bestScore){ bestScore = score; best = cat; }
+  });
+  return bestScore >= 2 ? best : null;
+}
+
+function renderRecentMeCard(){
+  const body = document.getElementById("recentMeBody");
+  const kaosuEl = document.getElementById("recentMeKaosu");
+  if(!body || !kaosuEl) return;
+
+  const entries = wakuwakuEntries || [];
+  const category = entries.length > 0 ? computeRecentMeCategory(entries) : null;
+
+  body.innerHTML = category
+    ? `<p class="mind-trend-line">${category.text}</p>`
+    : `<p class="mind-empty-note">${RECENT_ME_NOT_ENOUGH}</p>`;
+  kaosuEl.textContent = RECENT_ME_KAOSU_LINES[Math.floor(Math.random() * RECENT_ME_KAOSU_LINES.length)];
 }
 
 /* Phase6: 「一歩」を試した後の気持ち(feeling)の記録から、
