@@ -384,6 +384,7 @@ textarea.field-input{ resize:none; }
         </div>
         <div class="speech-bubble" id="homeKaosuMessage"></div>
       </div>
+      <button class="btn-text" id="btnEditPreferredName" style="margin-top:-10px;">呼び方を変える</button>
 
       <button class="btn-primary" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
 
@@ -739,6 +740,32 @@ textarea.field-input{ resize:none; }
     </div>
   </div>
 
+  <!-- 呼び名(ニックネーム)登録 -->
+  <div class="modal" id="nameOnboardingModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3 id="nameOnboardingTitle">はじめまして</h3></div>
+        <button class="sheet-close" id="nameOnboardingClose" aria-label="閉じる" style="display:none;">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <div class="kaosu-row">
+          <div class="kaosu-avatar" style="width:56px;height:56px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="nameOnboardingMessage"></div>
+        </div>
+        <div id="nameOnboardingAskStep">
+          <div class="form-label">呼んでほしい名前</div>
+          <input type="text" class="field-input" id="preferredNameInput" maxlength="20" placeholder="例: ゆう、たろう、師匠 など">
+          <button class="btn-primary sheet-savebtn" id="btnSavePreferredName">この名前でよろしく！</button>
+          <button class="btn-text" id="btnSkipPreferredName">あとで決める</button>
+        </div>
+        <button class="btn-primary sheet-savebtn" id="btnClosePreferredNameConfirm" style="display:none;">はじめる</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -815,6 +842,105 @@ function showToast(message){
 }
 
 /* =========================================================
+   呼び名(ニックネーム)登録
+   - 新しいIndexedDBスキーマや外部送信は一切行わず、端末内の
+     localStorageにひとつだけ("koufukuAiPreferredNameV1")、
+     入力された呼び名の文字列だけを保存する。
+   - 値がnull  : まだ一度も聞いていない(初回起動)
+   - 値が""    : 一度聞いたが「あとで決める」を選んだ(以後は自動で聞き直さない)
+   - 値が非空文字列 : 登録された呼び名(表示時は必ずescapeHtml経由)
+   ========================================================= */
+const PREFERRED_NAME_KEY = "koufukuAiPreferredNameV1";
+function prefNameGet(){
+  try{ return localStorage.getItem(PREFERRED_NAME_KEY); }
+  catch(e){ return null; }
+}
+function prefNameSet(name){
+  try{ localStorage.setItem(PREFERRED_NAME_KEY, name); }
+  catch(e){ /* 保存できなくてもアプリ自体は使い続けられるようにする */ }
+}
+
+let nameModalMode = "first";
+
+function openNameModal(mode){
+  nameModalMode = mode;
+  const modal = document.getElementById("nameOnboardingModal");
+  const title = document.getElementById("nameOnboardingTitle");
+  const message = document.getElementById("nameOnboardingMessage");
+  const askStep = document.getElementById("nameOnboardingAskStep");
+  const input = document.getElementById("preferredNameInput");
+  const skipBtn = document.getElementById("btnSkipPreferredName");
+  const closeBtn = document.getElementById("nameOnboardingClose");
+  const confirmBtn = document.getElementById("btnClosePreferredNameConfirm");
+
+  askStep.style.display = "block";
+  confirmBtn.style.display = "none";
+
+  if(mode === "first"){
+    title.textContent = "はじめまして";
+    message.innerHTML = "はじめまして。ケイオスちゃんです。🌱<br><br>これから一緒に、<br>あなたの『好き』や『ワクワク』を<br>少しずつ集めていくね。<br><br>あなたのこと、<br>なんて呼べばいい？<br><br>本名じゃなくても、<br>ニックネームでも大丈夫だよ。";
+    input.value = "";
+    skipBtn.style.display = "block";
+    closeBtn.style.display = "none";
+  } else {
+    title.textContent = "呼び方を変える";
+    message.innerHTML = "呼んでほしい名前を、<br>変えられるよ。";
+    input.value = prefNameGet() || "";
+    skipBtn.style.display = "none";
+    closeBtn.style.display = "block";
+  }
+
+  modal.classList.add("show");
+}
+function closeNameModal(){
+  document.getElementById("nameOnboardingModal").classList.remove("show");
+}
+
+document.getElementById("btnSavePreferredName").addEventListener("click", () => {
+  const input = document.getElementById("preferredNameInput");
+  const name = input.value.trim();
+
+  if(name === ""){
+    showToast("気が向いたらでいいからね♪");
+    if(nameModalMode === "first"){
+      prefNameSet("");
+      closeNameModal();
+    }
+    return;
+  }
+
+  prefNameSet(name);
+
+  if(nameModalMode === "first"){
+    document.getElementById("nameOnboardingAskStep").style.display = "none";
+    document.getElementById("nameOnboardingMessage").innerHTML =
+      `${escapeHtml(name)}、よろしくね✨<br><br>今日から一緒に、<br>幸せの種を見つけていこ。`;
+    document.getElementById("btnClosePreferredNameConfirm").style.display = "block";
+  } else {
+    closeNameModal();
+    renderHomeKaosuGreeting();
+    showToast("呼び方を変えたよ♪");
+  }
+});
+document.getElementById("btnSkipPreferredName").addEventListener("click", () => {
+  prefNameSet("");
+  closeNameModal();
+});
+document.getElementById("btnClosePreferredNameConfirm").addEventListener("click", () => {
+  closeNameModal();
+  renderHomeKaosuGreeting();
+});
+document.getElementById("nameOnboardingClose").addEventListener("click", () => {
+  closeNameModal();
+});
+document.getElementById("nameOnboardingModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "nameOnboardingModal" && nameModalMode === "edit") closeNameModal();
+});
+document.getElementById("btnEditPreferredName").addEventListener("click", () => {
+  openNameModal("edit");
+});
+
+/* =========================================================
    ホーム
    ========================================================= */
 let currentStepIndex = 0;
@@ -853,25 +979,23 @@ function renderHomeKaosuGreeting(){
   const bubble = document.getElementById("homeKaosuMessage");
   if(!bubble) return;
 
+  let message;
   const entries = wakuwakuEntries || [];
-  if(entries.length === 0){
-    bubble.innerHTML = HOME_KAOSU_MESSAGES.zero;
-    return;
-  }
-
   const logs = stepLogRead();
-  if(logs.length === 0){
-    bubble.innerHTML = HOME_KAOSU_MESSAGES.noStep;
-    return;
+  const latest = logs.length > 0 ? stepLogSortedDesc(logs)[0] : null;
+
+  if(entries.length === 0){
+    message = HOME_KAOSU_MESSAGES.zero;
+  } else if(logs.length === 0){
+    message = HOME_KAOSU_MESSAGES.noStep;
+  } else if(latest && latest.feeling && HOME_KAOSU_FEELING_MESSAGES[latest.feeling]){
+    message = HOME_KAOSU_FEELING_MESSAGES[latest.feeling];
+  } else {
+    message = logs.length === 1 ? HOME_KAOSU_MESSAGES.oneStep : HOME_KAOSU_MANY_STEPS_POOL[Math.floor(Math.random() * HOME_KAOSU_MANY_STEPS_POOL.length)];
   }
 
-  const latest = stepLogSortedDesc(logs)[0];
-  if(latest && latest.feeling && HOME_KAOSU_FEELING_MESSAGES[latest.feeling]){
-    bubble.innerHTML = HOME_KAOSU_FEELING_MESSAGES[latest.feeling];
-    return;
-  }
-
-  bubble.innerHTML = logs.length === 1 ? HOME_KAOSU_MESSAGES.oneStep : HOME_KAOSU_MANY_STEPS_POOL[Math.floor(Math.random() * HOME_KAOSU_MANY_STEPS_POOL.length)];
+  const name = prefNameGet();
+  bubble.innerHTML = (name ? `${escapeHtml(name)}、<br>` : "") + message;
 }
 /* Phase9(実装5): 複数回実行済みの場合だけ、循環を感じさせる一言を
    候補に1つ追加する(既存のmanyStepsの文言はそのまま残し、ランダム候補を増やすだけ)。
@@ -2234,6 +2358,7 @@ renderHomeQuestion();
 renderHomeStep();
 renderFilters();
 loadWakuwakuEntries();
+if(prefNameGet() === null) openNameModal("first");
 </script>
 </body>
 </html>
