@@ -279,6 +279,8 @@ textarea{ font-family:inherit; }
 
 /* ---------- ワクワク保存・詳細・削除(Phase2) ---------- */
 .privacy-note{ font-size:11px; color:var(--text-sub); margin:0 0 16px; line-height:1.6; }
+.wwDebugInfo{ font-size:9.5px; color:#b8b4c9; margin:0 0 12px; line-height:1.5; word-break:break-all; }
+.wwDebugInfo:empty{ display:none; }
 
 .wakuwaku-empty{ text-align:center; padding:30px 8px 8px; }
 .wakuwaku-empty .kaosu-avatar{ margin:0 auto 14px; }
@@ -400,6 +402,7 @@ textarea.field-input{ resize:none; }
       <h1 class="view-title">ワクワクBOX</h1>
       <p class="view-sub">集めたワクワクを、眺めるだけでも楽しい場所</p>
       <p class="privacy-note">※現在の試作版では、ワクワクの記録はこのブラウザ内に保存されます</p>
+      <p class="wwDebugInfo"></p>
       <div class="filter-row-wrap">
         <div class="filter-row" id="filterRow"></div>
         <div class="filter-fade" aria-hidden="true"></div>
@@ -457,6 +460,7 @@ textarea.field-input{ resize:none; }
     <section class="view" data-view="mind">
       <h1 class="view-title">わたしの心の地図</h1>
       <p class="view-sub">集めたワクワクから、<br>あなたの「好き」を少しずつ見つけます。</p>
+      <p class="wwDebugInfo"></p>
 
       <div class="mind-empty" id="mindEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
@@ -751,6 +755,45 @@ function renderFilters(){
 const WW_DB_NAME = "koufukuAiDB";
 const WW_DB_VERSION = 1;
 const WW_STORE = "wakuwaku";
+/* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
+   最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
+   IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
+const WW_BACKUP_KEY = "koufukuAiWakuwakuBackupV1";
+
+function wwReadBackup(){
+  try{
+    const raw = localStorage.getItem(WW_BACKUP_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    return [];
+  }
+}
+function wwWriteBackup(list){
+  try{
+    localStorage.setItem(WW_BACKUP_KEY, JSON.stringify(list));
+  }catch(e){
+    /* 容量超過等でバックアップに失敗しても、本体の保存は継続する */
+  }
+}
+function wwBackupUpsert(entry){
+  const list = wwReadBackup();
+  const meta = {
+    id: entry.id,
+    createdAt: entry.createdAt,
+    type: entry.type || "",
+    title: entry.title || "",
+    url: entry.url || "",
+    note: entry.note || "",
+    emotion: entry.emotion || "",
+    hasImage: !!entry.image,
+  };
+  const idx = list.findIndex(e => e.id === entry.id);
+  if(idx >= 0) list[idx] = meta; else list.push(meta);
+  wwWriteBackup(list);
+}
+function wwBackupRemove(id){
+  wwWriteBackup(wwReadBackup().filter(e => e.id !== id));
+}
 
 function wwOpenDB(){
   return new Promise((resolve, reject) => {
@@ -771,7 +814,7 @@ const WakuWakuStore = {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(WW_STORE, "readwrite");
       tx.objectStore(WW_STORE).add(entry);
-      tx.oncomplete = () => resolve(entry);
+      tx.oncomplete = () => { wwBackupUpsert(entry); resolve(entry); };
       tx.onerror = () => reject(tx.error);
     });
   },
@@ -780,7 +823,7 @@ const WakuWakuStore = {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(WW_STORE, "readwrite");
       tx.objectStore(WW_STORE).put(entry);
-      tx.oncomplete = () => resolve(entry);
+      tx.oncomplete = () => { wwBackupUpsert(entry); resolve(entry); };
       tx.onerror = () => reject(tx.error);
     });
   },
@@ -789,7 +832,7 @@ const WakuWakuStore = {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(WW_STORE, "readwrite");
       tx.objectStore(WW_STORE).delete(id);
-      tx.oncomplete = () => resolve();
+      tx.oncomplete = () => { wwBackupRemove(id); resolve(); };
       tx.onerror = () => reject(tx.error);
     });
   },
@@ -855,15 +898,27 @@ function revokeWakuwakuObjectUrls(){
 }
 
 async function loadWakuwakuEntries(){
+  let loadStatus = "success";
   try{
     const list = await WakuWakuStore.getAll();
     list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
     wakuwakuEntries = list;
   }catch(e){
     wakuwakuEntries = [];
+    loadStatus = "error: " + (e && e.message ? e.message : String(e));
   }
   renderWakuwakuGrid();
   renderMindView();
+  renderWwDebugInfo(loadStatus);
+}
+
+/* Phase3.1: 一時的な調査用デバッグ表示。原因切り分けができ次第、削除して構わない。
+   使用中のDB名/store名/version、IndexedDBから読めた件数と成否、
+   localStorageバックアップの件数を画面に小さく表示する。 */
+function renderWwDebugInfo(loadStatus){
+  const backupCount = wwReadBackup().length;
+  const text = `[Debug] DB=${WW_DB_NAME} store=${WW_STORE} v${WW_DB_VERSION} / IndexedDB:${wakuwakuEntries.length}件(${loadStatus}) / backup:${backupCount}件 / origin:${location.origin || location.href}`;
+  document.querySelectorAll(".wwDebugInfo").forEach(el => { el.textContent = text; });
 }
 
 function pickThumbHeight(id){
