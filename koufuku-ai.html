@@ -237,6 +237,9 @@ textarea{ font-family:inherit; }
 .td-row:last-of-type{ margin-bottom:0; }
 .td-icon{ flex:none; }
 
+/* ---------- ホーム: 今日のふりかえり(Phase13・既存.feeling-btnを再利用) ---------- */
+.reflect-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+
 /* ---------- ボトムナビ ---------- */
 .bottomnav{
   display:flex; background:#fff;
@@ -438,6 +441,23 @@ textarea.field-input{ resize:none; }
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="todayDesignKaosu" style="font-size:13px;"></div>
+        </div>
+      </div>
+
+      <div class="card" id="homeReflectCard" style="display:none; padding:14px 16px;">
+        <div class="card-label">今日のふりかえり</div>
+        <p class="view-sub" style="margin:0 0 10px;">今日、心が動いた瞬間はあった？</p>
+        <div class="reflect-grid" id="reflectGrid">
+          <button type="button" class="feeling-btn" data-reflect="had"><span class="fb-emoji">😊</span><span>あった</span></button>
+          <button type="button" class="feeling-btn" data-reflect="little"><span class="fb-emoji">🌱</span><span>ちょっとあった</span></button>
+          <button type="button" class="feeling-btn" data-reflect="none"><span class="fb-emoji">😌</span><span>今日は特になし</span></button>
+        </div>
+        <div class="kaosu-row" id="reflectResponseRow" style="display:none; margin-top:10px; margin-bottom:0;">
+          <div class="kaosu-avatar" style="width:36px;height:36px">
+            <img src="img/koufuku/kaosu.png" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="reflectResponseText" style="font-size:13px;"></div>
         </div>
       </div>
     </section>
@@ -765,7 +785,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -1053,6 +1073,50 @@ function renderTodayDesignCard(){
   kaosuEl.textContent = kaosuPool[Math.floor(Math.random() * kaosuPool.length)];
 }
 
+/* =========================================================
+   Phase13: ホームの「今日のふりかえり」
+   - 表示判定は既存のhomeGetTimeBand(Phase11)をそのまま再利用し、
+     新しい時間帯ロジックは作らない。17:00〜04:59(night/midnight)
+     の間だけ表示する。
+   - 回答は完全に一時的なUI状態のみで、IndexedDB/localStorageへの
+     保存は一切行わない。リロードすれば未回答状態に戻る。
+   - 「あった/ちょっとあった/特になし」はすべて同じ価値として扱い、
+     点数化・達成率・連続記録のような表現は使用しない。
+   ========================================================= */
+const REFLECT_MESSAGES = {
+  had: [
+    "ええやん。その小さい瞬間、ちゃんと今日の幸せやで。",
+    "それ、ええなぁ。心が動いた瞬間って大事やで。",
+    "ちゃんと見つけられたんやね。今日のあなたの宝物かも。",
+  ],
+  little: [
+    "ちょっとでも十分やで。その感覚、大事にしよ。",
+    "小さく心が動いたなら、それもちゃんと今日の一歩やね。",
+    "その「ちょっと」、意外と未来につながってるかもしれへんよ。",
+  ],
+  none: [
+    "そんな日もあるで。何も見つけんでも大丈夫。",
+    "今日はゆっくりする日やったんかもね。また明日探そ。",
+    "答えがない日も、ちゃんとあなたの一日やで。",
+  ],
+};
+
+function renderHomeReflectCard(){
+  const card = document.getElementById("homeReflectCard");
+  if(!card) return;
+  const band = homeGetTimeBand(new Date());
+  card.style.display = (band === "night" || band === "midnight") ? "block" : "none";
+}
+
+document.querySelectorAll("#reflectGrid .feeling-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const pool = REFLECT_MESSAGES[btn.dataset.reflect] || [];
+    if(pool.length === 0) return;
+    document.getElementById("reflectResponseText").textContent = pool[Math.floor(Math.random() * pool.length)];
+    document.getElementById("reflectResponseRow").style.display = "flex";
+  });
+});
+
 document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
   openAddSheet();
 });
@@ -1268,6 +1332,7 @@ async function loadWakuwakuEntries(){
   renderHomeConnectionCard();
   renderHomeNowCard();
   renderTodayDesignCard();
+  renderHomeReflectCard();
   renderWwDebugInfo(loadStatus);
 }
 
