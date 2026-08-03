@@ -680,6 +680,33 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="card">
+          <div class="card-label">わたしの『好き』ランキング</div>
+          <div id="mindRankingBody"></div>
+        </div>
+
+        <div class="card" id="mindGrowingCard" style="display:none;">
+          <div class="card-label">最近育っている好き</div>
+          <p class="mind-trend-line" id="mindGrowingText"></p>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="mindGrowingKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
+        <div class="card" id="mindComboCard" style="display:none;">
+          <div class="card-label">こんな組み合わせも好きかも</div>
+          <div id="mindComboBody"></div>
+        </div>
+
+        <div class="card" id="mindInsightCard" style="display:none;">
+          <div class="card-label">小さな気づき</div>
+          <div id="mindInsightBody"></div>
+        </div>
+
+        <div class="card">
           <div class="card-label">わたしの傾向</div>
           <div id="mindTrends"></div>
         </div>
@@ -2598,6 +2625,185 @@ const MIND_EMPTY_MESSAGE = k3(
   "まだ心の地図は真っ白ばい。<br><br>今日ちょっと心が動いたものを<br>ひとつ集めてみらん？"
 );
 
+/* =========================================================
+   Phase20: analyzeWakuwaku(entries)
+   - Phase19で保存したentry.tagsを使い、「好きの傾向」の集計処理を
+     この1関数にまとめる。UI側はこの戻り値の形にだけ依存させ、
+     将来ここをAI分析APIの呼び出しに丸ごと置き換えられるようにする
+     (集計ロジックが変わっても呼び出し側は書き換えなくてよい構造)。
+   - 読み取り専用。wakuwakuEntries/IndexedDBの元データは一切変更・
+     削除しない。noteの中身にも触れない(将来ここも分析対象にできる
+     よう、そのまま残す)。
+   戻り値: {
+     totalEntries,
+     topTags: [{tag, count}] (出現回数の多い順、最大5件)
+     recentGrowingTags: [{tag, recentCount, olderCount}]
+       (記録を古い半分/新しい半分に分け、新しい半分で明確に増えている
+       タグ。最大3件)
+     tagCombinations: [{pair:[tagA,tagB], count}]
+       (同じワクワクに同時に付けられた組み合わせで2回以上登場したもの。
+       最大3件)
+     stage: "seed" | "sprout" | "growing" | "landscape"
+   }
+   ========================================================= */
+const WAKUWAKU_STAGES = [
+  { key: "seed", min: 0, max: 2, label: "小さな種" },
+  { key: "sprout", min: 3, max: 9, label: "芽が出てきた" },
+  { key: "growing", min: 10, max: 29, label: "好きが育ってきた" },
+  { key: "landscape", min: 30, max: Infinity, label: "あなたらしい景色" },
+];
+function wakuwakuStageFor(count){
+  return (WAKUWAKU_STAGES.find(s => count >= s.min && count <= s.max) || WAKUWAKU_STAGES[0]).key;
+}
+function analyzeWakuwaku(entries){
+  const list = entries || [];
+  const totalEntries = list.length;
+
+  const tagFreq = new Map();
+  list.forEach(e => (e.tags || []).forEach(t => { if(t) tagFreq.set(t, (tagFreq.get(t) || 0) + 1); }));
+  const topTags = [...tagFreq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([tag, count]) => ({ tag, count }));
+
+  const sorted = list.slice().sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+  const half = Math.floor(sorted.length / 2);
+  const olderFreq = new Map();
+  sorted.slice(0, half).forEach(e => (e.tags || []).forEach(t => { if(t) olderFreq.set(t, (olderFreq.get(t) || 0) + 1); }));
+  const recentFreq = new Map();
+  sorted.slice(half).forEach(e => (e.tags || []).forEach(t => { if(t) recentFreq.set(t, (recentFreq.get(t) || 0) + 1); }));
+  const recentGrowingTags = [...recentFreq.entries()]
+    .map(([tag, recentCount]) => ({ tag, recentCount, olderCount: olderFreq.get(tag) || 0 }))
+    .filter(r => r.recentCount >= 2 && r.recentCount > r.olderCount)
+    .sort((a, b) => (b.recentCount - b.olderCount) - (a.recentCount - a.olderCount))
+    .slice(0, 3);
+
+  const comboFreq = new Map();
+  list.forEach(e => {
+    const tags = Array.from(new Set((e.tags || []).filter(Boolean)));
+    for(let i = 0; i < tags.length; i++){
+      for(let j = i + 1; j < tags.length; j++){
+        const pair = [tags[i], tags[j]].sort();
+        const key = pair.join("×");
+        comboFreq.set(key, (comboFreq.get(key) || 0) + 1);
+      }
+    }
+  });
+  const tagCombinations = [...comboFreq.entries()]
+    .map(([key, count]) => ({ pair: key.split("×"), count }))
+    .filter(c => c.count >= 2)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+
+  return { totalEntries, topTags, recentGrowingTags, tagCombinations, stage: wakuwakuStageFor(totalEntries) };
+}
+const WAKUWAKU_STAGE_LABELS = Object.fromEntries(WAKUWAKU_STAGES.map(s => [s.key, s.label]));
+
+const MIND_RANKING_MEDALS = ["🥇", "🥈", "🥉", "✨", "🌱"];
+const MIND_RANKING_EMPTY = k3(
+  "まだ始まったばかり。<br>これから一緒に、あなたの『好き』を<br>見つけていこう。",
+  "まだ始まったばっかりやで。<br>これから一緒に、あなたの『好き』を<br>見つけていこな。",
+  "まだ始まったばっかりたい。<br>これから一緒に、あなたの『好き』を<br>見つけていこうね。"
+);
+function renderMindRankingCard(analysis){
+  const root = document.getElementById("mindRankingBody");
+  if(!root) return;
+  if(analysis.topTags.length < 3){
+    root.innerHTML = `<p class="mind-empty-note">${sp(MIND_RANKING_EMPTY)}</p>`;
+    return;
+  }
+  const rows = analysis.topTags.map((t, i) =>
+    `<p class="mind-stat-line">${MIND_RANKING_MEDALS[i] || "・"} ${escapeHtml(tagIcon(t.tag))} ${escapeHtml(t.tag)}　<strong>${t.count}</strong></p>`
+  ).join("");
+  root.innerHTML = `<p class="mind-trend-line">最近のあなたは…</p>${rows}`;
+}
+
+function k3GrowingLine(tag){
+  return k3(
+    `最近、「${tag}」に心が動くことが増えてきたみたいです✨`,
+    `最近、「${tag}」に心が動くこと増えてきたみたいやね✨`,
+    `最近、「${tag}」に心が動くこと増えてきたみたいたい✨`
+  );
+}
+function renderMindGrowingCard(analysis){
+  const card = document.getElementById("mindGrowingCard");
+  if(!card) return;
+  const top = analysis.recentGrowingTags[0];
+  if(!top){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "";
+  document.getElementById("mindGrowingText").textContent = `「${top.tag}」が少しずつ増えています。`;
+  document.getElementById("mindGrowingKaosu").textContent = sp(k3GrowingLine(top.tag));
+}
+
+function renderMindComboCard(analysis){
+  const card = document.getElementById("mindComboCard");
+  const body = document.getElementById("mindComboBody");
+  if(!card || !body) return;
+  if(analysis.tagCombinations.length === 0){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "";
+  body.innerHTML = analysis.tagCombinations.map(c => {
+    const [a, b] = c.pair;
+    return `<p class="mind-trend-line">${escapeHtml(tagIcon(a))} ${escapeHtml(a)} ✕ ${escapeHtml(tagIcon(b))} ${escapeHtml(b)}</p>`;
+  }).join("");
+}
+
+/* Phase20: 「小さな気づき」用のルールベース文言。
+   断定を避け、「〜かも」「〜みたい」で必ず終える。プリセットタグ12種+
+   代表的な組み合わせ3種だけ具体的な文言を持ち、それ以外(自由入力タグ
+   や未登録の組み合わせ)はタグ名を差し込んだ汎用文言にフォールバックする。 */
+const TAG_INSIGHT = {
+  "旅行": k3("知らない景色に出会う時間が、今のあなたを支えているのかもしれません✨", "知らん景色に出会う時間が、今のあなたを支えとるんかもね✨", "知らん景色に出会う時間が、今のあなたを支えとーとかもしれんたい✨"),
+  "食べ物": k3("美味しいものを見つける瞬間が、小さな幸せになっているのかも🍙", "美味しいもん見つける瞬間が、小さな幸せになっとるんかもね🍙", "美味しかもん見つける瞬間が、小さか幸せになっとーとかもしれんたい🍙"),
+  "音楽": k3("音のある時間が、今のあなたをちょっと幸せにしてるのかもしれません🎵", "音のある時間が、今のあなたをちょっと幸せにしてるんかもね🎵", "音のある時間が、今のあなたをちょっと幸せにしとーとかもしれんたい🎵"),
+  "暮らし": k3("日々の暮らしそのものに、心が動く瞬間があるのかもしれません🏡", "日々の暮らしそのものに、心が動く瞬間があるんかもね🏡", "日々の暮らしそのものに、心が動く瞬間があるとかもしれんたい🏡"),
+  "仕事": k3("取り組んでいることの中に、ワクワクの種があるのかもしれません💼", "やってることの中に、ワクワクの種があるんかもね💼", "やっとることの中に、ワクワクの種があるとかもしれんたい💼"),
+  "人": k3("誰かと過ごす時間に、心が動くことが多いのかもしれません👥", "誰かと過ごす時間に、心が動くことが多いんかもね👥", "誰かと過ごす時間に、心が動くことが多かとかもしれんたい👥"),
+  "場所": k3("心惹かれる場所を見つけるのが、好きなのかもしれません📍", "心惹かれる場所を見つけるのが、好きなんかもね📍", "心惹かれる場所ば見つけるとが、好きなとかもしれんたい📍"),
+  "ファッション": k3("自分らしい見た目や雰囲気に、心が動いているのかもしれません👗", "自分らしい見た目や雰囲気に、心が動いとるんかもね👗", "自分らしか見た目や雰囲気に、心が動いとーとかもしれんたい👗"),
+  "創作": k3("何かを作り出す時間に、心が動いているのかもしれません🎨", "何かを作り出す時間に、心が動いとるんかもね🎨", "何かば作り出す時間に、心が動いとーとかもしれんたい🎨"),
+  "癒し": k3("ほっとできる時間を、大切にしているのかもしれません🌿", "ほっとできる時間を、大事にしとるんかもね🌿", "ほっとできる時間ば、大事にしとーとかもしれんたい🌿"),
+  "挑戦": k3("新しいことに挑む瞬間に、心が動くタイプなのかもしれません🔥", "新しいことに挑む瞬間に、心が動くタイプなんかもね🔥", "新しかことに挑む瞬間に、心が動くタイプなとかもしれんたい🔥"),
+  "その他": k3("ひとことでは言えない好きが、いろいろあるのかもしれません✨", "ひとことでは言えん好きが、いろいろあるんかもね✨", "ひとことでは言えん好きが、いろいろあるとかもしれんたい✨"),
+};
+const TAG_COMBO_INSIGHT = {
+  "旅行×食べ物": k3("知らない場所で美味しいものを見つける時間、けっこう心が動いてるみたいです✨", "知らん場所で美味しいもん見つける時間、けっこう心動いてるみたいやね✨", "知らん場所で美味しかもん見つける時間、けっこう心動いとーとみたいたい✨"),
+  "癒し×音楽": k3("音を聴きながらほっとする時間が、あなたには合っているのかもしれません🎵", "音聴きながらほっとする時間が、あなたには合ってるんかもね🎵", "音ば聴きながらほっとする時間が、あなたには合っとーとかもしれんたい🎵"),
+  "ファッション×創作": k3("自分らしさを形にする時間に、心が動いているのかもしれません🎨", "自分らしさを形にする時間に、心が動いとるんかもね🎨", "自分らしさば形にする時間に、心が動いとーとかもしれんたい🎨"),
+};
+function k3TagInsightFallback(tag){
+  return k3(`「${tag}」に、最近よく心が動いているのかもしれません。`, `「${tag}」に、最近よう心動いとるんかもね。`, `「${tag}」に、最近よう心動いとーとかもしれんたい。`);
+}
+function k3ComboInsightFallback(a, b){
+  return k3(`「${a}」と「${b}」の組み合わせに、心が動くことが多いようです。`, `「${a}」と「${b}」の組み合わせに、心が動くことが多いみたいやね。`, `「${a}」と「${b}」の組み合わせに、心が動くことが多かみたいたい。`);
+}
+function renderMindInsightCard(analysis){
+  const card = document.getElementById("mindInsightCard");
+  const body = document.getElementById("mindInsightBody");
+  if(!card || !body) return;
+
+  let insight = null;
+  if(analysis.tagCombinations.length){
+    const [a, b] = analysis.tagCombinations[0].pair;
+    insight = TAG_COMBO_INSIGHT[[a, b].sort().join("×")] || k3ComboInsightFallback(a, b);
+  }else if(analysis.topTags.length){
+    const tag = analysis.topTags[0].tag;
+    insight = TAG_INSIGHT[tag] || k3TagInsightFallback(tag);
+  }
+
+  if(!insight){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "";
+  body.innerHTML = `<p class="mind-trend-line">${escapeHtml(sp(insight))}</p>`;
+}
+
 function renderMindView(){
   const empty = document.getElementById("mindEmpty");
   const content = document.getElementById("mindContent");
@@ -2615,10 +2821,12 @@ function renderMindView(){
   const topEmotion = mindMostFrequent(entries.map(e => e.emotion));
   const topType = mindMostFrequent(entries.map(e => e.type));
   const topTypeLabel = topType && TYPE_META[topType] ? TYPE_META[topType].label : null;
+  const analysis = analyzeWakuwaku(entries);
 
   let statsHtml = `<p class="mind-stat-line">今までに <strong>${entries.length}個</strong> のワクワクを集めました</p>`;
   if(topEmotion) statsHtml += `<p class="mind-stat-line">最近多い気持ち：<strong>${escapeHtml(topEmotion)}</strong></p>`;
   if(topTypeLabel) statsHtml += `<p class="mind-stat-line">よく集めているもの：<strong>${escapeHtml(topTypeLabel)}</strong></p>`;
+  statsHtml += `<p class="mind-stat-line">今の段階：<strong>${escapeHtml(WAKUWAKU_STAGE_LABELS[analysis.stage])}</strong></p>`;
   document.getElementById("mindNowStats").innerHTML = statsHtml;
 
   const noteCount = entries.filter(e => (e.note || "").trim()).length;
@@ -2644,6 +2852,10 @@ function renderMindView(){
   renderMindRecentDiscovery();
   renderRecentMeCard();
   renderMindTagDiscoveryCard();
+  renderMindRankingCard(analysis);
+  renderMindGrowingCard(analysis);
+  renderMindComboCard(analysis);
+  renderMindInsightCard(analysis);
 }
 
 /* =========================================================
