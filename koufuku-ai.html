@@ -305,6 +305,35 @@ textarea{ font-family:inherit; }
 }
 .toast.show{ opacity:1; transform:translate(-50%,0); }
 
+/* ---------- Phase18: ケイオスちゃんリアクション(Kaosu Reaction) ----------
+   重要な操作の直後に、既存のトーストより少し目立つ「顔+短い言葉」の
+   カプセルを画面下部(ナビの少し上)に一時表示する。自動で消え、
+   タップや画面操作の妨げにはならない(pointer-events:none)。
+   落ち着いた印象を優先し、派手な点滅・大きな移動は使わない。 */
+.kaosu-reaction{
+  position:absolute; left:50%; bottom:calc(112px + env(safe-area-inset-bottom));
+  transform:translate(-50%,10px) scale(.96);
+  width:calc(100% - 32px); max-width:340px;
+  display:flex; align-items:center; gap:12px;
+  background:rgba(255,255,255,.97); border:1px solid var(--border);
+  border-radius:22px; padding:8px 16px 8px 8px;
+  box-shadow:0 10px 26px rgba(140,130,190,.22);
+  opacity:0; pointer-events:none; z-index:41;
+  transition:opacity .28s ease, transform .28s ease;
+}
+.kaosu-reaction.show{ opacity:1; transform:translate(-50%,0) scale(1); }
+.kaosu-reaction-face{ width:56px; height:56px; }
+.kaosu-reaction-text{ font-size:13.5px; font-weight:700; color:var(--text); line-height:1.4; }
+.kaosu-reaction.bump .kaosu-reaction-face{ animation:kaosuReactionBump .5s ease; }
+@keyframes kaosuReactionBump{
+  0%{ transform:scale(1); } 35%{ transform:scale(1.08); } 60%{ transform:scale(.97); } 100%{ transform:scale(1); }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-reaction{ transition:opacity .15s linear; }
+  .kaosu-reaction.show{ transform:translate(-50%,0) scale(1); }
+  .kaosu-reaction.bump .kaosu-reaction-face{ animation:none; }
+}
+
 /* ---------- ワクワク保存・詳細・削除(Phase2) ---------- */
 .privacy-note{ font-size:11px; color:var(--text-sub); margin:0 0 16px; line-height:1.6; }
 .wwDebugInfo{
@@ -432,7 +461,7 @@ textarea.field-input{ resize:none; }
         <div class="card-label">今日のつながり</div>
         <p class="mind-trend-line" id="homeConnectionText"></p>
         <div class="kaosu-row" style="margin-top:12px; margin-bottom:10px;">
-          <div class="kaosu-avatar" style="width:45px;height:45px">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -444,7 +473,7 @@ textarea.field-input{ resize:none; }
       <div class="card" style="padding:14px 16px;">
         <div class="card-label">今のあなたへ</div>
         <div class="kaosu-row" style="margin-bottom:0;">
-          <div class="kaosu-avatar" style="width:45px;height:45px">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -458,7 +487,7 @@ textarea.field-input{ resize:none; }
         <p class="td-row"><span class="td-icon">❤️</span><span>今日のワクワク：<span id="todayDesignWaku"></span></span></p>
         <p class="td-row"><span class="td-icon">🌱</span><span>今日の小さな一歩：<span id="todayDesignStep"></span></span></p>
         <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
-          <div class="kaosu-avatar" style="width:45px;height:45px">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -475,7 +504,7 @@ textarea.field-input{ resize:none; }
           <button type="button" class="feeling-btn" data-reflect="none"><span class="fb-emoji">😌</span><span>今日は特になし</span></button>
         </div>
         <div class="kaosu-row" id="reflectResponseRow" style="display:none; margin-top:10px; margin-bottom:0;">
-          <div class="kaosu-avatar" style="width:45px;height:45px">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -536,7 +565,7 @@ textarea.field-input{ resize:none; }
         <div class="card">
           <div class="card-label">未来への小さな一歩</div>
           <div class="kaosu-row" style="margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:48px;height:48px">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
               <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -548,7 +577,7 @@ textarea.field-input{ resize:none; }
           <div class="card-label">未来の芽</div>
           <div id="futureSproutBody"></div>
           <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:48px;height:48px">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
               <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -575,7 +604,7 @@ textarea.field-input{ resize:none; }
 
       <div id="stepContent" style="display:none;">
         <div class="kaosu-row">
-          <div class="kaosu-avatar" style="width:58px;height:58px">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -648,7 +677,7 @@ textarea.field-input{ resize:none; }
           <p class="view-sub" style="margin:0 0 10px;">残してきたものから、<br>小さな傾向が見えてきたみたいです。</p>
           <div id="recentMeBody"></div>
           <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:45px;height:45px">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
               <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -657,7 +686,7 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="kaosu-row">
-          <div class="kaosu-avatar" style="width:58px;height:58px">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
@@ -798,6 +827,15 @@ textarea.field-input{ resize:none; }
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Phase18: ケイオスちゃんリアクション -->
+  <div class="kaosu-reaction" id="kaosuReaction" aria-live="polite">
+    <div class="kaosu-avatar kaosu-reaction-face">
+      <img id="kaosuReactionImg" src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+      <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+    </div>
+    <div class="kaosu-reaction-text" id="kaosuReactionText"></div>
+  </div>
 </div>
 
 <script>
@@ -1040,6 +1078,36 @@ function setKaosuExpressionNear(textElId, expression){
   const img = row && row.querySelector("img[data-kaosu-expression]");
   setKaosuExpression(img, expression);
 }
+
+/* =========================================================
+   Phase18: ケイオスちゃんリアクション(Kaosu Reaction)
+   - 「重要な操作の直後」だけ、既存のトーストに代えて顔+短い言葉の
+     カプセルを一時表示する。Phase17のsetKaosuExpression()と
+     KAOSU_EXPRESSIONSをそのまま再利用し、表情切り替えの仕組みを
+     重複実装しない。話し方(k3/sp)もPhase16のヘルパーをそのまま使う。
+   - IndexedDB/localStorageへの書き込みは行わず、あくまで一時的な
+     UI状態(表示→自動非表示)のみ。
+   ========================================================= */
+const KAOSU_REACTION_DURATION_MS = 3200;
+let kaosuReactionTimer = null;
+function showKaosuReaction(message, expression){
+  const box = document.getElementById("kaosuReaction");
+  const img = document.getElementById("kaosuReactionImg");
+  if(!box || !img || !message) return;
+  document.getElementById("kaosuReactionText").textContent = message;
+  setKaosuExpression(img, expression);
+  clearTimeout(kaosuReactionTimer);
+  box.classList.remove("bump");
+  void box.offsetWidth; /* バウンス演出を再生し直すための強制リフロー */
+  box.classList.add("show", "bump");
+  kaosuReactionTimer = setTimeout(() => box.classList.remove("show", "bump"), KAOSU_REACTION_DURATION_MS);
+}
+
+const KAOSU_REACTION_THINK = k3("ゆっくり考えてみましょうか", "ゆっくり考えてみよっか", "ゆっくり考えてみようね");
+const KAOSU_REACTION_STEP_DONE_HOME = k3("えらい！✨ ちゃんと一歩進んだね", "えらい！✨ ちゃんと一歩進んだやん", "えらい！✨ ちゃんと一歩進んだばい");
+const KAOSU_REACTION_STEP_SKIP_HOME = k3("うん、今日はそれでいいよ🌱", "うん、今日はそれでええで🌱", "うん、今日はそれでよかよ🌱");
+const KAOSU_REACTION_WAKUWAKU_ADD = k3("いいね✨ ひとつ楽しみが増えたね", "ええやん✨ ひとつ楽しみが増えたな", "よかね✨ ひとつ楽しみが増えたばい");
+const KAOSU_REACTION_STEP_TRIED = k3("できたね！小さな一歩、ちゃんと前進だよ✨", "できたやん！小さな一歩、ちゃんと前進やで✨", "できたばい！小さな一歩、ちゃんと前進たい✨");
 
 function renderSpeechStyleSetting(){
   const root = document.getElementById("speechStyleRow");
@@ -1425,7 +1493,11 @@ document.getElementById("btnAddWakuwaku").addEventListener("click", () => {
 });
 
 document.getElementById("btnAnswerQuestion").addEventListener("click", () => {
-  document.getElementById("answerBox").classList.toggle("hidden");
+  const box = document.getElementById("answerBox");
+  box.classList.toggle("hidden");
+  if(!box.classList.contains("hidden")){
+    showKaosuReaction(sp(KAOSU_REACTION_THINK), "thinking");
+  }
 });
 document.getElementById("btnSaveAnswer").addEventListener("click", () => {
   // TODO: 将来はユーザー回答をAPI/DBへ送信する
@@ -1436,12 +1508,12 @@ document.getElementById("btnSaveAnswer").addEventListener("click", () => {
 });
 
 document.getElementById("btnStepDoneHome").addEventListener("click", () => {
-  showToast("えらい！✨ ゆっくりでいいからね");
+  showKaosuReaction(sp(KAOSU_REACTION_STEP_DONE_HOME), "cheer");
 });
 document.getElementById("btnStepSkipHome").addEventListener("click", () => {
   currentStepIndex = (currentStepIndex + 1) % MOCK_DATA.todaysSteps.length;
   renderHomeStep();
-  showToast("そんな日もあるよね♪");
+  showKaosuReaction(sp(KAOSU_REACTION_STEP_SKIP_HOME), "relax");
 });
 
 /* =========================================================
@@ -1871,7 +1943,7 @@ document.getElementById("btnSaveWakuwaku").addEventListener("click", async () =>
 
   closeAddSheet();
   await loadWakuwakuEntries();
-  showToast("ワクワクをひとつ残したよ ✨");
+  showKaosuReaction(sp(KAOSU_REACTION_WAKUWAKU_ADD), "smile");
 });
 
 /* =========================================================
@@ -2314,6 +2386,7 @@ document.getElementById("btnStepTried").addEventListener("click", () => {
   setKaosuExpressionNear("stepKaosuMessage", "cheer");
   renderFeelingGrid();
   document.getElementById("stepFeelingPrompt").style.display = "block";
+  showKaosuReaction(sp(KAOSU_REACTION_STEP_TRIED), "cheer");
 });
 
 document.getElementById("btnStepSmaller").addEventListener("click", () => {
