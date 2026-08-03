@@ -3,15 +3,17 @@ import { ConceptReveal } from './components/ConceptReveal'
 import { ErrorBanner } from './components/ErrorBanner'
 import { GachaButton } from './components/GachaButton'
 import { ModeSelector } from './components/ModeSelector'
+import { MutationDirectionSheet } from './components/MutationDirectionSheet'
 import { ResultCard } from './components/ResultCard'
 import { SavedList } from './components/SavedList'
-import { drawConcepts } from './utils/combine'
+import { drawConcepts, drawMutationCatalysts } from './utils/combine'
 import { computeTotalScore } from './utils/scoring'
-import { generateIdea, isDemoMode } from './services/ideaGenerator'
+import { generateIdea, generateMutation, isDemoMode } from './services/ideaGenerator'
 import { useSavedIdeas } from './hooks/useSavedIdeas'
-import type { Concept, GachaMode, Idea, SavedIdea } from './types'
+import { useEvolutionHistory } from './hooks/useEvolutionHistory'
+import type { Concept, GachaMode, Idea, MutationDirectionId, SavedIdea } from './types'
 
-type Phase = 'idle' | 'spinning' | 'result' | 'error'
+type Phase = 'idle' | 'spinning' | 'mutating' | 'result' | 'error'
 type View = 'gacha' | 'saved'
 
 function newId(): string {
@@ -30,17 +32,21 @@ function App() {
   const [savedCurrent, setSavedCurrent] = useState(false)
   const [prototypedCurrent, setPrototypedCurrent] = useState(false)
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
+  const [showDirectionSheet, setShowDirectionSheet] = useState(false)
+  const [retryAction, setRetryAction] = useState<() => void>(() => () => {})
 
   const { savedIdeas, addIdea, removeIdea } = useSavedIdeas()
+  const { history, startLineage, pushRecord } = useEvolutionHistory()
 
-  const isSpinning = phase === 'spinning'
+  const isBusy = phase === 'spinning' || phase === 'mutating'
 
   async function handleGacha() {
-    if (isSpinning) return
+    if (isBusy) return
     setPhase('spinning')
     setErrorMessage(undefined)
     setSavedCurrent(false)
     setPrototypedCurrent(false)
+    setRetryAction(() => handleGacha)
 
     const drawn = drawConcepts()
     setConcepts(drawn)
@@ -49,6 +55,39 @@ function App() {
       const result = await generateIdea(drawn, mode)
       setConcepts(result.concepts)
       setIdea(result.idea)
+      startLineage({
+        generation: result.idea.generation ?? 1,
+        name: result.idea.name,
+        oneLiner: result.idea.oneLiner,
+      })
+      setPhase('result')
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : undefined)
+      setPhase('error')
+    }
+  }
+
+  async function handleMutate(direction: MutationDirectionId) {
+    if (isBusy || !idea) return
+    setShowDirectionSheet(false)
+    setPhase('mutating')
+    setErrorMessage(undefined)
+    setSavedCurrent(false)
+    setPrototypedCurrent(false)
+    setRetryAction(() => () => handleMutate(direction))
+
+    const catalysts = drawMutationCatalysts(2)
+    setConcepts(catalysts)
+
+    try {
+      const result = await generateMutation(idea, catalysts, direction, mode)
+      setConcepts(result.concepts)
+      setIdea(result.idea)
+      pushRecord({
+        generation: result.idea.generation ?? (idea.generation ?? 1) + 1,
+        name: result.idea.name,
+        oneLiner: result.idea.oneLiner,
+      })
       setPhase('result')
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : undefined)
@@ -117,26 +156,33 @@ function App() {
 
       {view === 'gacha' ? (
         <main className="flex flex-col gap-6">
-          <ModeSelector value={mode} onChange={setMode} disabled={isSpinning} />
+          <ModeSelector value={mode} onChange={setMode} disabled={isBusy} />
 
           {phase === 'idle' && (
             <div className="glass-card rounded-2xl p-6 flex flex-col items-center gap-6">
               <ConceptReveal spinning={false} concepts={null} />
-              <GachaButton onPress={handleGacha} disabled={isSpinning} spinning={false} />
+              <GachaButton onPress={handleGacha} disabled={isBusy} spinning={false} />
             </div>
           )}
 
           {phase === 'spinning' && (
             <div className="glass-card rounded-2xl p-6 flex flex-col items-center gap-6">
               <ConceptReveal spinning concepts={concepts} />
-              <GachaButton onPress={handleGacha} disabled={isSpinning} spinning />
+              <GachaButton onPress={handleGacha} disabled={isBusy} spinning />
               <p className="text-xs text-slate-400 animate-pulse">
                 概念を衝突させています…
               </p>
             </div>
           )}
 
-          {phase === 'error' && <ErrorBanner message={errorMessage} onRetry={handleGacha} />}
+          {phase === 'mutating' && (
+            <div className="glass-card rounded-2xl p-6 flex flex-col items-center gap-4">
+              <ConceptReveal spinning concepts={concepts} />
+              <p className="text-sm font-bold text-neon-violet animate-pulse">🧬 変異中…</p>
+            </div>
+          )}
+
+          {phase === 'error' && <ErrorBanner message={errorMessage} onRetry={retryAction} />}
 
           {phase === 'result' && idea && concepts && (
             <ResultCard
@@ -148,6 +194,8 @@ function App() {
               onSave={() => persistCurrent('saved')}
               onPrototype={() => persistCurrent('prototype')}
               onReroll={handleGacha}
+              onMutate={() => setShowDirectionSheet(true)}
+              evolutionHistory={history}
             />
           )}
         </main>
@@ -178,6 +226,12 @@ function App() {
           )}
         </main>
       )}
+
+      <MutationDirectionSheet
+        open={showDirectionSheet}
+        onSelect={handleMutate}
+        onClose={() => setShowDirectionSheet(false)}
+      />
     </div>
   )
 }

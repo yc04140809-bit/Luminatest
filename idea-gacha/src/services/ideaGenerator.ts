@@ -1,8 +1,9 @@
-import { DEMO_IDEAS } from '../data/demoIdeas'
-import type { Concept, GachaMode, Idea } from '../types'
+import { DEMO_IDEAS, pickDemoMutation } from '../data/demoIdeas'
+import { finalizeIdea } from '../utils/finalizeIdea'
+import type { Concept, GachaMode, Idea, MutationDirectionId } from '../types'
 import { claudeProvider } from './providers/claudeProvider'
 import type { AIProvider } from './providers/types'
-import { buildSystemPrompt, buildUserPrompt } from './prompt'
+import { buildMutationUserPrompt, buildSystemPrompt, buildUserPrompt } from './prompt'
 
 // Swap this line to change AI provider (e.g. openaiProvider, geminiProvider)
 // once those are implemented behind the same AIProvider interface.
@@ -40,6 +41,8 @@ function extractJson(raw: string): unknown {
 const REQUIRED_STRING_FIELDS = [
   'name',
   'oneLiner',
+  'invention',
+  'product',
   'whatIsIt',
   'whyInteresting',
   'target',
@@ -59,12 +62,31 @@ const REQUIRED_SCORE_FIELDS = [
   'future',
 ] as const
 
+const REQUIRED_MUTATION_NUMBER_FIELDS = ['mutationScore', 'businessScore', 'familiarityPenalty'] as const
+
 function isValidIdea(value: unknown): value is Idea {
   if (!value || typeof value !== 'object') return false
   const v = value as Record<string, unknown>
 
   if (!REQUIRED_STRING_FIELDS.every((k) => typeof v[k] === 'string')) return false
-  if (!Array.isArray(v.concepts) || v.concepts.some((c) => typeof c !== 'string')) return false
+  if (!Array.isArray(v.usedConcepts) || v.usedConcepts.some((c) => typeof c !== 'string')) {
+    return false
+  }
+  if (
+    v.discardedConcepts !== undefined &&
+    (!Array.isArray(v.discardedConcepts) || v.discardedConcepts.some((c) => typeof c !== 'string'))
+  ) {
+    return false
+  }
+  if (v.usedConcepts.length < 2) return false
+
+  if (
+    !REQUIRED_MUTATION_NUMBER_FIELDS.every(
+      (k) => typeof v[k] === 'number' && Number.isFinite(v[k] as number),
+    )
+  ) {
+    return false
+  }
 
   if (!v.scores || typeof v.scores !== 'object') return false
   const scores = v.scores as Record<string, unknown>
@@ -77,21 +99,6 @@ function isValidIdea(value: unknown): value is Idea {
   }
 
   return true
-}
-
-function clampScores(idea: Idea): Idea {
-  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)))
-  return {
-    ...idea,
-    scores: {
-      surprise: clamp(idea.scores.surprise),
-      demand: clamp(idea.scores.demand),
-      monetization: clamp(idea.scores.monetization),
-      feasibility: clamp(idea.scores.feasibility),
-      differentiation: clamp(idea.scores.differentiation),
-      future: clamp(idea.scores.future),
-    },
-  }
 }
 
 async function withTimeout<T>(
@@ -116,10 +123,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function generateFromAPI(concepts: Concept[], mode: GachaMode): Promise<Idea> {
-  const systemPrompt = buildSystemPrompt()
-  const userPrompt = buildUserPrompt(concepts, mode)
-
+async function callAndValidate(systemPrompt: string, userPrompt: string): Promise<Idea> {
   let lastError: unknown
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -131,7 +135,7 @@ async function generateFromAPI(concepts: Concept[], mode: GachaMode): Promise<Id
       if (!isValidIdea(parsed)) {
         throw new IdeaGenerationError('AIの応答形式が不正でした')
       }
-      return clampScores(parsed)
+      return parsed
     } catch (err) {
       lastError = err
       if (attempt < MAX_RETRIES) {
@@ -156,6 +160,28 @@ export async function generateIdea(concepts: Concept[], mode: GachaMode): Promis
     return pickDemoIdea()
   }
 
-  const idea = await generateFromAPI(concepts, mode)
+  const systemPrompt = buildSystemPrompt()
+  const userPrompt = buildUserPrompt(concepts, mode)
+  const parsed = await callAndValidate(systemPrompt, userPrompt)
+  const idea = finalizeIdea(parsed, concepts, 1, null)
   return { idea, concepts }
+}
+
+export async function generateMutation(
+  parentIdea: Idea,
+  catalystConcepts: Concept[],
+  direction: MutationDirectionId,
+  mode: GachaMode,
+): Promise<GenerateResult> {
+  if (isDemoMode) {
+    await sleep(900)
+    return pickDemoMutation(parentIdea, catalystConcepts, direction)
+  }
+
+  const systemPrompt = buildSystemPrompt()
+  const userPrompt = buildMutationUserPrompt(parentIdea, catalystConcepts, direction, mode)
+  const parsed = await callAndValidate(systemPrompt, userPrompt)
+  const nextGeneration = (parentIdea.generation ?? 1) + 1
+  const idea = finalizeIdea(parsed, catalystConcepts, nextGeneration, parentIdea)
+  return { idea, concepts: catalystConcepts }
 }

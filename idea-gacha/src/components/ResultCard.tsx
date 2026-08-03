@@ -1,8 +1,11 @@
 import { Accordion } from './Accordion'
 import { ConceptReveal } from './ConceptReveal'
+import { EvolutionHistory } from './EvolutionHistory'
+import { MaterialsFlow } from './MaterialsFlow'
+import { MutationScorePanel } from './MutationScorePanel'
 import { ScorePanel } from './ScorePanel'
 import { VerdictBadge } from './VerdictBadge'
-import type { Concept, GachaMode, Idea } from '../types'
+import type { Concept, EvolutionRecord, GachaMode, Idea } from '../types'
 
 interface Props {
   idea: Idea
@@ -11,6 +14,8 @@ interface Props {
   onPrototype?: () => void
   onSave?: () => void
   onReroll?: () => void
+  onMutate?: () => void
+  evolutionHistory?: EvolutionRecord[]
   saved?: boolean
   prototyped?: boolean
   readOnly?: boolean
@@ -23,16 +28,27 @@ export function ResultCard({
   onPrototype,
   onSave,
   onReroll,
+  onMutate,
+  evolutionHistory,
   saved,
   prototyped,
   readOnly,
 }: Props) {
+  const hasMaterialsFlow = Boolean(idea.invention && idea.product)
+  const hasMutationScores =
+    idea.mutationScore !== undefined && idea.businessScore !== undefined && idea.chaosScore !== undefined
+
   return (
     <div className="animate-card-flip-in glass-card rounded-3xl p-5 space-y-5">
       <div className="text-center">
-        <p className="text-xs uppercase tracking-widest text-neon-cyan neon-text font-semibold">
-          🧬 今回の突然変異
-        </p>
+        <div className="flex items-center justify-center gap-2">
+          <p className="text-xs uppercase tracking-widest text-neon-cyan neon-text font-semibold">
+            🧬 今回の突然変異
+          </p>
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+            GEN {idea.generation ?? 1}
+          </span>
+        </div>
         <div className="mt-3">
           <ConceptReveal spinning={false} concepts={concepts} />
         </div>
@@ -50,7 +66,25 @@ export function ResultCard({
         <VerdictBadge verdict={idea.verdict} />
       </div>
 
+      {hasMaterialsFlow && (
+        <MaterialsFlow
+          materials={concepts}
+          usedConcepts={idea.usedConcepts ?? idea.concepts}
+          discardedConcepts={idea.discardedConcepts ?? []}
+          invention={idea.invention as string}
+          product={idea.product as string}
+        />
+      )}
+
       <ScorePanel scores={idea.scores} mode={mode} />
+
+      {hasMutationScores && (
+        <MutationScorePanel
+          mutationScore={idea.mutationScore as number}
+          businessScore={idea.businessScore as number}
+          chaosScore={idea.chaosScore as number}
+        />
+      )}
 
       <div className="space-y-2">
         <Accordion title="これは何？" emoji="🔍" defaultOpen>
@@ -77,7 +111,7 @@ export function ResultCard({
       </div>
 
       {!readOnly && (
-        <div className="grid grid-cols-3 gap-2 pt-2">
+        <div className="grid grid-cols-2 gap-2 pt-2">
           <button
             type="button"
             onClick={onPrototype}
@@ -101,8 +135,17 @@ export function ResultCard({
           >
             🔄 もう一回
           </button>
+          <button
+            type="button"
+            onClick={onMutate}
+            className="rounded-xl py-3 text-xs font-bold bg-neon-violet/15 text-neon-violet border border-neon-violet/40"
+          >
+            🧬 さらに変異
+          </button>
         </div>
       )}
+
+      {evolutionHistory && <EvolutionHistory history={evolutionHistory} />}
     </div>
   )
 }

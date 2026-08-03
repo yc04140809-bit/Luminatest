@@ -31,3 +31,15 @@ export function drawConcepts(): Concept[] {
 
   return picked
 }
+
+// For "さらに変異" (further mutation): draw a couple of fresh catalyst
+// concepts to collide with a parent idea, rather than a full new set of 4.
+export function drawMutationCatalysts(count = 2): Concept[] {
+  const shuffled = [...ALL_CATEGORIES].sort(() => Math.random() - 0.5)
+  const categories = shuffled.slice(0, count)
+  const picked = categories.map(pickFrom)
+
+  recentLabels = [...recentLabels, ...picked.map((c) => c.label)].slice(-HISTORY_SIZE)
+
+  return picked
+}
