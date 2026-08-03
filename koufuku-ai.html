@@ -35,6 +35,10 @@
 }
 *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body{ height:100%; background:var(--bg); color:var(--text); }
+/* 一部のAndroid端末で、画像上から始めた縦スワイプが画像のドラッグ/コールアウト
+   操作として扱われ、下に控えているスクロール可能領域へジェスチャーが伝わらない
+   ことがあるため、画像は常に縦方向のページスクロールを優先させる。 */
+img{ touch-action:pan-y; -webkit-user-drag:none; -webkit-touch-callout:none; }
 body{
   font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
   line-height:1.6;
@@ -54,8 +58,13 @@ textarea{ font-family:inherit; }
 }
 
 /* ---------- ビュー共通 ---------- */
-.viewport{ flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-.view{ display:none; padding:20px 16px calc(40px + env(safe-area-inset-bottom)); }
+.viewport{
+  flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  touch-action:pan-y; overscroll-behavior-y:contain;
+}
+/* 下部固定ナビ(.bottomnav)の実高さ+余白ぶんを必ず確保し、
+   最後のカードがナビに隠れず最後まで見えるようにする */
+.view{ display:none; padding:20px 16px calc(96px + env(safe-area-inset-bottom)); }
 .view.active{ display:block; animation:fadeIn .25s ease; }
 @keyframes fadeIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
 .view-title{ font-size:19px; font-weight:700; letter-spacing:.02em; }
