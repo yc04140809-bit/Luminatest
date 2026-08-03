@@ -385,6 +385,14 @@ textarea{ font-family:inherit; }
 }
 .chip.selected{ background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; border-color:transparent; }
 
+/* ---------- Phase19: ワクワクタグの自由追加 ---------- */
+.tag-add-row{ display:flex; gap:8px; margin-top:8px; }
+.tag-add-row .field-input{ flex:1; }
+.tag-add-btn{
+  flex:none; font-size:13px; font-weight:700; color:#fff;
+  background:linear-gradient(135deg,#ff8fc7,#a78bfa); border:none; border-radius:99px; padding:0 18px;
+}
+
 .field-input{
   width:100%; border:1px solid var(--border); border-radius:var(--radius-sm);
   padding:11px 13px; font-size:14.5px; color:var(--text); background:#fbfbff;
@@ -667,6 +675,11 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="card">
+          <div class="card-label">最近見つかったあなたの好き</div>
+          <div id="mindTagDiscoveryBody"></div>
+        </div>
+
+        <div class="card">
           <div class="card-label">わたしの傾向</div>
           <div id="mindTrends"></div>
         </div>
@@ -779,6 +792,13 @@ textarea.field-input{ resize:none; }
         <div class="form-label">どこが好きだった？（任意）</div>
         <textarea class="field-input" id="formNote" rows="3" placeholder="色が好き／こんな生活したい／見てると落ち着く など"></textarea>
 
+        <div class="form-label">気になるタグ（任意・複数選べます）</div>
+        <div class="chip-row" id="tagChipRow"></div>
+        <div class="tag-add-row">
+          <input type="text" class="field-input" id="customTagInput" maxlength="12" placeholder="自分だけのタグを追加">
+          <button type="button" class="tag-add-btn" id="btnAddCustomTag">追加</button>
+        </div>
+
         <div class="form-label">気持ち（任意・1つだけ）</div>
         <div class="chip-row" id="emotionChipRow"></div>
 
@@ -882,6 +902,21 @@ const FILTERS = [
   { key: "all", label: "すべて" },
   ...TYPE_ORDER.map(key => ({ key, label: TYPE_META[key].label })),
 ];
+
+/* =========================================================
+   Phase19: ワクワクタグ
+   - ワクワク1件に複数付けられる自由なタグ。プリセット+ユーザーの
+     自由入力タグを同じ`entry.tags`(文字列配列)に保存するだけで、
+     新しいIndexedDBスキーマ/store追加は行わない(既存のwakuwaku
+     storeのレコードに"tags"フィールドが増えるだけ)。
+   - TAG_ICONにない(=ユーザーが自由入力した)タグは"✨"を使う。
+   ========================================================= */
+const TAG_PRESET = ["旅行", "食べ物", "音楽", "暮らし", "仕事", "人", "場所", "ファッション", "創作", "癒し", "挑戦", "その他"];
+const TAG_ICON = {
+  "旅行": "✈️", "食べ物": "🍙", "音楽": "🎵", "暮らし": "🏡", "仕事": "💼", "人": "👥",
+  "場所": "📍", "ファッション": "👗", "創作": "🎨", "癒し": "🌿", "挑戦": "🔥", "その他": "✨",
+};
+function tagIcon(tag){ return TAG_ICON[tag] || "✨"; }
 
 /* =========================================================
    ナビゲーション
@@ -1115,8 +1150,25 @@ function showKaosuReaction(message, expression){
 const KAOSU_REACTION_THINK = k3("ゆっくり考えてみましょうか", "ゆっくり考えてみよっか", "ゆっくり考えてみようね");
 const KAOSU_REACTION_STEP_DONE_HOME = k3("えらい！✨ ちゃんと一歩進んだね", "えらい！✨ ちゃんと一歩進んだやん", "えらい！✨ ちゃんと一歩進んだばい");
 const KAOSU_REACTION_STEP_SKIP_HOME = k3("うん、今日はそれでいいよ🌱", "うん、今日はそれでええで🌱", "うん、今日はそれでよかよ🌱");
-const KAOSU_REACTION_WAKUWAKU_ADD = k3("いいね✨ ひとつ楽しみが増えたね", "ええやん✨ ひとつ楽しみが増えたな", "よかね✨ ひとつ楽しみが増えたばい");
 const KAOSU_REACTION_STEP_TRIED = k3("できたね！小さな一歩、ちゃんと前進だよ✨", "できたやん！小さな一歩、ちゃんと前進やで✨", "できたばい！小さな一歩、ちゃんと前進たい✨");
+
+/* Phase19: ワクワク保存直後の一言は毎回同じにならないよう数種類から
+   ランダムに1つ選ぶ。KAOSU_REACTION_DURATION_MS/showKaosuReaction()は
+   Phase18のものをそのまま再利用し、表示の仕組みは重複実装しない。 */
+const KAOSU_REACTION_WAKUWAKU_ADD_VARIANTS = [
+  k3("いいね✨ ひとつ楽しみが増えたね", "ええやん✨ ひとつ楽しみが増えたな", "よかね✨ ひとつ楽しみが増えたばい"),
+  k3("これ、好きなんだね♪", "これ、好きなんやね♪", "これ、好いとーとね♪"),
+  k3("またひとつ見つけたね✨", "またひとつ見つかったな✨", "またひとつ見つかったばい✨"),
+  k3("理由が分からなくても大丈夫。心が動いたことが大事だよ。", "理由なんて分からんでもええよ。心が動いたことが大事や。", "理由が分からんでも大丈夫。心が動いたことが大事たい。"),
+];
+/* Phase19: 3個/5個/10個の節目だけ、通常の一言の代わりに表示する
+   小さな発見メッセージ。実績解除のような演出にはせず、通常のKaosu
+   Reactionと同じ見た目・同じ長さの表示にとどめる。 */
+const WAKUWAKU_MILESTONE_MESSAGES = {
+  3: k3("少しずつ、あなたの『好き』が見えてきたね。", "少しずつ、あなたの『好き』が見えてきたな。", "少しずつ、あなたの『好き』が見えてきたばい。"),
+  5: k3("なんとなく共通しているものがありそう。", "なんとなく共通しとるものがありそうやな。", "なんとなく共通しとるもんがありそうばい。"),
+  10: k3("最初より、自分の心が少し見えてきたと思わない？", "最初より、自分の心が少し見えてきたと思わへん？", "最初より、自分の心が少し見えてきたっちゃない？"),
+};
 
 function renderSpeechStyleSetting(){
   const root = document.getElementById("speechStyleRow");
@@ -1814,9 +1866,48 @@ let formState = null;
 
 function resetFormState(){
   if(formState && formState.imagePreviewUrl) URL.revokeObjectURL(formState.imagePreviewUrl);
-  formState = { id: null, type: "", title: "", imageBlob: null, imagePreviewUrl: null, url: "", note: "", emotion: "" };
+  formState = { id: null, type: "", title: "", imageBlob: null, imagePreviewUrl: null, url: "", note: "", emotion: "", tags: [] };
 }
 resetFormState();
+
+/* Phase19: プリセットタグ+これまでに使われたタグ+今回入力中のタグをまとめて
+   選択肢にする。過去に自由入力したタグも次回から選び直せるようにするための
+   もので、新しい保存先は作らずwakuwakuEntriesから毎回組み立てるだけ。 */
+function collectKnownTags(){
+  const set = new Set(TAG_PRESET);
+  (wakuwakuEntries || []).forEach(e => (e.tags || []).forEach(t => { if(t) set.add(t); }));
+  (formState.tags || []).forEach(t => { if(t) set.add(t); });
+  return Array.from(set);
+}
+function renderTagChips(){
+  const root = document.getElementById("tagChipRow");
+  root.innerHTML = "";
+  collectKnownTags().forEach(tag => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (formState.tags.includes(tag) ? " selected" : "");
+    btn.textContent = tag;
+    btn.addEventListener("click", () => {
+      const idx = formState.tags.indexOf(tag);
+      if(idx >= 0) formState.tags.splice(idx, 1);
+      else formState.tags.push(tag);
+      renderTagChips();
+    });
+    root.appendChild(btn);
+  });
+}
+function addCustomTag(){
+  const input = document.getElementById("customTagInput");
+  const val = input.value.trim();
+  if(!val) return;
+  if(!formState.tags.includes(val)) formState.tags.push(val);
+  input.value = "";
+  renderTagChips();
+}
+document.getElementById("btnAddCustomTag").addEventListener("click", addCustomTag);
+document.getElementById("customTagInput").addEventListener("keydown", (ev) => {
+  if(ev.key === "Enter"){ ev.preventDefault(); addCustomTag(); }
+});
 
 function renderTypeChips(){
   const root = document.getElementById("typeChipRow");
@@ -1871,6 +1962,7 @@ function openAddSheet(entry){
     formState.url = entry.url || "";
     formState.note = entry.note || "";
     formState.emotion = entry.emotion || "";
+    formState.tags = entry.tags ? [...entry.tags] : [];
     formState.imageBlob = entry.image || null;
     formState.imagePreviewUrl = entry.image ? URL.createObjectURL(entry.image) : null;
   }
@@ -1878,8 +1970,10 @@ function openAddSheet(entry){
   document.getElementById("formTitle").value = formState.title;
   document.getElementById("formUrl").value = formState.url;
   document.getElementById("formNote").value = formState.note;
+  document.getElementById("customTagInput").value = "";
   renderTypeChips();
   renderEmotionChips();
+  renderTagChips();
   renderImagePreview();
   document.getElementById("addSheetModal").classList.add("show");
 }
@@ -1927,6 +2021,7 @@ document.getElementById("btnSaveWakuwaku").addEventListener("click", async () =>
     return;
   }
 
+  const isNewEntry = !formState.id;
   const existing = formState.id ? wakuwakuEntries.find(e => e.id === formState.id) : null;
   const entry = {
     id: formState.id || wwGenerateId(),
@@ -1937,6 +2032,7 @@ document.getElementById("btnSaveWakuwaku").addEventListener("click", async () =>
     url,
     note,
     emotion: formState.emotion || "",
+    tags: [...formState.tags],
   };
 
   try{
@@ -1952,7 +2048,14 @@ document.getElementById("btnSaveWakuwaku").addEventListener("click", async () =>
 
   closeAddSheet();
   await loadWakuwakuEntries();
-  showKaosuReaction(sp(KAOSU_REACTION_WAKUWAKU_ADD), "smile");
+
+  const milestoneMsg = isNewEntry ? WAKUWAKU_MILESTONE_MESSAGES[wakuwakuEntries.length] : null;
+  if(milestoneMsg){
+    showKaosuReaction(sp(milestoneMsg), "cheer");
+  }else{
+    const variant = KAOSU_REACTION_WAKUWAKU_ADD_VARIANTS[Math.floor(Math.random() * KAOSU_REACTION_WAKUWAKU_ADD_VARIANTS.length)];
+    showKaosuReaction(sp(variant), "smile");
+  }
 });
 
 /* =========================================================
@@ -1993,6 +2096,11 @@ function openDetailSheet(id){
   }
   if(entry.emotion){
     html += `<div class="detail-row"><div class="d-label">気持ち</div><div class="d-value">${escapeHtml(entry.emotion)}</div></div>`;
+  }
+  if(entry.tags && entry.tags.length){
+    html += `<div class="detail-row"><div class="d-label">タグ</div><div class="tag-row">${
+      entry.tags.map(t => `<span class="tag-chip">${escapeHtml(tagIcon(t))} ${escapeHtml(t)}</span>`).join("")
+    }</div></div>`;
   }
   html += `<div class="detail-row"><div class="d-label">保存日時</div><div class="d-value">${escapeHtml(formatSavedDate(entry.createdAt))}</div></div>`;
   html += `
@@ -2535,6 +2643,47 @@ function renderMindView(){
   renderMindFeelingCard();
   renderMindRecentDiscovery();
   renderRecentMeCard();
+  renderMindTagDiscoveryCard();
+}
+
+/* =========================================================
+   Phase19: 「最近見つかったあなたの好き」
+   - ワクワクに付けたタグ(entry.tags)の出現回数だけを数える簡易集計。
+     外部AI APIは使わず、上位3つのタグをそのまま見せるだけにとどめ、
+     「あなたは◯◯な人です」と断定する言い方は避ける。
+   - タグを付けたワクワクがまだ無い場合は、判定せずに
+     「もう少し集めてみよう」という導線だけを出す。
+   ========================================================= */
+const MIND_TAG_DISCOVERY_CLOSING = k3(
+  "まだ決めつける必要はありません。<br>ケイオスちゃんと一緒に、<br>もう少し集めてみよう。",
+  "まだ決めつけんでも大丈夫。<br>ケイオスちゃんと一緒に、<br>もう少し集めてみよっか。",
+  "まだ決めつけんでも大丈夫ばい。<br>ケイオスちゃんと一緒に、<br>もう少し集めてみらん？"
+);
+const MIND_TAG_DISCOVERY_EMPTY = k3(
+  "タグを付けてワクワクを残すと、<br>少しずつあなたの『好き』が<br>見えてくるかもしれません。",
+  "タグを付けてワクワクを残すと、<br>少しずつあなたの『好き』が<br>見えてくるかもしれへんで。",
+  "タグを付けてワクワクを残すと、<br>少しずつあなたの『好き』が<br>見えてくるかもしれんばい。"
+);
+function renderMindTagDiscoveryCard(){
+  const root = document.getElementById("mindTagDiscoveryBody");
+  if(!root) return;
+  const entries = wakuwakuEntries || [];
+  const freq = new Map();
+  entries.forEach(e => (e.tags || []).forEach(t => { if(t) freq.set(t, (freq.get(t) || 0) + 1); }));
+  const top = [...freq.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tag]) => tag);
+
+  if(top.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">${sp(MIND_TAG_DISCOVERY_EMPTY)}</p>`;
+    return;
+  }
+
+  const tagLine = top.map(t => `<span class="tag-chip">${escapeHtml(tagIcon(t))} ${escapeHtml(t)}</span>`).join(" ");
+  root.innerHTML = `
+    <p class="mind-trend-line">最近のあなたは…</p>
+    <div class="tag-row" style="margin-bottom:10px;">${tagLine}</div>
+    <p class="mind-trend-line">に心が動いているみたい。</p>
+    <p class="mind-empty-note" style="margin-top:8px;">${sp(MIND_TAG_DISCOVERY_CLOSING)}</p>
+  `;
 }
 
 /* Phase7: 「一歩」の実行記録の中から、直近でポジティブな気持ちだった
