@@ -1,0 +1,129 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-lab-bg: #06070d;
+  --color-lab-panel: #10131f;
+  --color-lab-border: #262b40;
+  --color-neon-cyan: #5ef7ff;
+  --color-neon-magenta: #ff5ef0;
+  --color-neon-violet: #8b6bff;
+  --color-neon-amber: #ffcf5e;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20% -10%, rgba(139, 107, 255, 0.25), transparent 45%),
+    radial-gradient(circle at 90% 0%, rgba(94, 247, 255, 0.15), transparent 40%),
+    var(--color-lab-bg);
+  color: #eef1ff;
+  font-family: system-ui, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer utilities {
+  .glass-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--color-lab-border);
+    backdrop-filter: blur(10px);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 12px currentColor;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes gacha-spin {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.04) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes word-cycle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  10%,
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(94, 247, 255, 0.35), 0 0 0 rgba(255, 94, 240, 0);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(94, 247, 255, 0.55), 0 0 24px rgba(255, 94, 240, 0.35);
+  }
+}
+
+@keyframes card-flip-in {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-gacha-spin {
+  animation: gacha-spin 0.5s ease-in-out infinite;
+}
+
+.animate-word-cycle {
+  animation: word-cycle 0.5s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 1.8s ease-in-out infinite;
+}
+
+.animate-card-flip-in {
+  animation: card-flip-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
