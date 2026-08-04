@@ -263,6 +263,12 @@ textarea{ font-family:inherit; }
 .mind-trend-line{ font-size:14.5px; line-height:1.75; margin-bottom:10px; }
 .mind-trend-line:last-child{ margin-bottom:0; }
 
+/* ---------- Phase21: 好きの大きさ(ランキングを競争的に見せない星ゲージ) ---------- */
+.mind-rank-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; }
+.mind-rank-row:not(:last-child){ border-bottom:1px solid var(--border); }
+.mind-rank-tag{ font-size:14px; font-weight:600; color:var(--text); }
+.mind-rank-stars{ font-size:15px; letter-spacing:1px; color:var(--purple); flex:none; }
+
 /* ---------- ホーム: 今日の幸せ設計(Phase12・コンパクト表示) ---------- */
 .td-row{ display:flex; align-items:flex-start; gap:8px; font-size:13.5px; line-height:1.5; margin-bottom:8px; }
 .td-row:last-of-type{ margin-bottom:0; }
@@ -665,6 +671,11 @@ textarea.field-input{ resize:none; }
 
       <div id="mindContent" style="display:none;">
         <div class="card">
+          <div class="card-label">わたしの心の地図</div>
+          <div id="mindMapSummaryBody"></div>
+        </div>
+
+        <div class="card">
           <div class="card-label">今のわたし</div>
           <div id="mindNowStats"></div>
         </div>
@@ -686,7 +697,7 @@ textarea.field-input{ resize:none; }
 
         <div class="card" id="mindGrowingCard" style="display:none;">
           <div class="card-label">最近育っている好き</div>
-          <p class="mind-trend-line" id="mindGrowingText"></p>
+          <div class="mind-trend-line" id="mindGrowingText"></div>
           <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
             <div class="kaosu-avatar" style="width:68px;height:68px">
               <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
@@ -699,11 +710,23 @@ textarea.field-input{ resize:none; }
         <div class="card" id="mindComboCard" style="display:none;">
           <div class="card-label">こんな組み合わせも好きかも</div>
           <div id="mindComboBody"></div>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="mindComboKaosu" style="font-size:13px;"></div>
+          </div>
         </div>
 
         <div class="card" id="mindInsightCard" style="display:none;">
           <div class="card-label">小さな気づき</div>
           <div id="mindInsightBody"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">あなたらしさの種</div>
+          <div id="mindSeedBody"></div>
         </div>
 
         <div class="card">
@@ -2647,10 +2670,10 @@ const MIND_EMPTY_MESSAGE = k3(
    }
    ========================================================= */
 const WAKUWAKU_STAGES = [
-  { key: "seed", min: 0, max: 2, label: "小さな種" },
-  { key: "sprout", min: 3, max: 9, label: "芽が出てきた" },
-  { key: "growing", min: 10, max: 29, label: "好きが育ってきた" },
-  { key: "landscape", min: 30, max: Infinity, label: "あなたらしい景色" },
+  { key: "seed", min: 0, max: 2, label: "🌱 小さな種" },
+  { key: "sprout", min: 3, max: 9, label: "🌱 芽が出てきた" },
+  { key: "growing", min: 10, max: 29, label: "🌿 好きが育ってきた" },
+  { key: "landscape", min: 30, max: Infinity, label: "🌸 あなたらしい景色" },
 ];
 function wakuwakuStageFor(count){
   return (WAKUWAKU_STAGES.find(s => count >= s.min && count <= s.max) || WAKUWAKU_STAGES[0]).key;
@@ -2695,16 +2718,25 @@ function analyzeWakuwaku(entries){
     .sort((a, b) => b.count - a.count)
     .slice(0, 3);
 
-  return { totalEntries, topTags, recentGrowingTags, tagCombinations, stage: wakuwakuStageFor(totalEntries) };
+  return {
+    totalEntries, topTags, recentGrowingTags, tagCombinations,
+    stage: wakuwakuStageFor(totalEntries),
+    distinctTagCount: tagFreq.size,
+  };
 }
 const WAKUWAKU_STAGE_LABELS = Object.fromEntries(WAKUWAKU_STAGES.map(s => [s.key, s.label]));
 
-const MIND_RANKING_MEDALS = ["🥇", "🥈", "🥉", "✨", "🌱"];
 const MIND_RANKING_EMPTY = k3(
-  "まだ始まったばかり。<br>これから一緒に、あなたの『好き』を<br>見つけていこう。",
-  "まだ始まったばっかりやで。<br>これから一緒に、あなたの『好き』を<br>見つけていこな。",
-  "まだ始まったばっかりたい。<br>これから一緒に、あなたの『好き』を<br>見つけていこうね。"
+  "好きがもう少し集まると、<br>ここにあなたらしい景色が<br>見えてくるよ。",
+  "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるで。",
+  "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるばい。"
 );
+/* Phase21: 件数の代わりに「好きの大きさ」を星ゲージで表す。
+   一番多いタグを★5つ基準にした相対比率で、順位を競わせない見せ方にする。 */
+function starGauge(count, maxCount){
+  const filled = maxCount > 0 ? Math.max(1, Math.round((count / maxCount) * 5)) : 0;
+  return "★".repeat(filled) + "☆".repeat(5 - filled);
+}
 function renderMindRankingCard(analysis){
   const root = document.getElementById("mindRankingBody");
   if(!root) return;
@@ -2712,10 +2744,14 @@ function renderMindRankingCard(analysis){
     root.innerHTML = `<p class="mind-empty-note">${sp(MIND_RANKING_EMPTY)}</p>`;
     return;
   }
-  const rows = analysis.topTags.map((t, i) =>
-    `<p class="mind-stat-line">${MIND_RANKING_MEDALS[i] || "・"} ${escapeHtml(tagIcon(t.tag))} ${escapeHtml(t.tag)}　<strong>${t.count}</strong></p>`
+  const maxCount = analysis.topTags[0].count;
+  const rows = analysis.topTags.map(t => `
+    <div class="mind-rank-row">
+      <span class="mind-rank-tag">${escapeHtml(tagIcon(t.tag))} ${escapeHtml(t.tag)}</span>
+      <span class="mind-rank-stars">${starGauge(t.count, maxCount)}</span>
+    </div>`
   ).join("");
-  root.innerHTML = `<p class="mind-trend-line">最近のあなたは…</p>${rows}`;
+  root.innerHTML = `<p class="mind-trend-line">あなたの「好き」</p>${rows}`;
 }
 
 function k3GrowingLine(tag){
@@ -2728,19 +2764,21 @@ function k3GrowingLine(tag){
 function renderMindGrowingCard(analysis){
   const card = document.getElementById("mindGrowingCard");
   if(!card) return;
-  const top = analysis.recentGrowingTags[0];
-  if(!top){
+  const list = analysis.recentGrowingTags;
+  if(!list.length){
     card.style.display = "none";
     return;
   }
   card.style.display = "";
-  document.getElementById("mindGrowingText").textContent = `「${top.tag}」が少しずつ増えています。`;
-  document.getElementById("mindGrowingKaosu").textContent = sp(k3GrowingLine(top.tag));
+  const chips = list.map(t => `<span class="tag-chip">${escapeHtml(tagIcon(t.tag))} ${escapeHtml(t.tag)}</span>`).join("");
+  document.getElementById("mindGrowingText").innerHTML = `<div class="tag-row">${chips}</div>`;
+  document.getElementById("mindGrowingKaosu").textContent = sp(k3GrowingLine(list[0].tag));
 }
 
 function renderMindComboCard(analysis){
   const card = document.getElementById("mindComboCard");
   const body = document.getElementById("mindComboBody");
+  const kaosuEl = document.getElementById("mindComboKaosu");
   if(!card || !body) return;
   if(analysis.tagCombinations.length === 0){
     card.style.display = "none";
@@ -2751,6 +2789,10 @@ function renderMindComboCard(analysis){
     const [a, b] = c.pair;
     return `<p class="mind-trend-line">${escapeHtml(tagIcon(a))} ${escapeHtml(a)} ✕ ${escapeHtml(tagIcon(b))} ${escapeHtml(b)}</p>`;
   }).join("");
+  if(kaosuEl){
+    const [a, b] = analysis.tagCombinations[0].pair;
+    kaosuEl.textContent = sp(TAG_COMBO_INSIGHT[[a, b].sort().join("×")] || k3ComboInsightFallback(a, b));
+  }
 }
 
 /* Phase20: 「小さな気づき」用のルールベース文言。
@@ -2804,6 +2846,71 @@ function renderMindInsightCard(analysis){
   body.innerHTML = `<p class="mind-trend-line">${escapeHtml(sp(insight))}</p>`;
 }
 
+/* =========================================================
+   Phase21: 「わたしの心の地図」サマリー
+   - analyzeWakuwaku()の戻り値をそのまま使い、新しい集計は行わない。
+   - 登録数が少ないうち(1〜2件、またはタグがまだ1つも無い)は
+     数字の要約を出さず、優しい一言だけにとどめる。
+   ========================================================= */
+const MIND_MAP_SUMMARY_LITTLE = k3(
+  "少しずつ、あなたの『好き』が見えてきます。",
+  "少しずつ、あなたの『好き』が見えてくるで。",
+  "少しずつ、あなたの『好き』が見えてくるばい。"
+);
+function renderMindMapSummaryCard(analysis, entries){
+  const root = document.getElementById("mindMapSummaryBody");
+  if(!root) return;
+  if(entries.length < 3 || analysis.topTags.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">${sp(MIND_MAP_SUMMARY_LITTLE)}</p>`;
+    return;
+  }
+  const top = analysis.topTags[0];
+  const growing = analysis.recentGrowingTags[0];
+  let html = `<p class="mind-trend-line">🌱 ${entries.length}個のワクワクから<br>${analysis.distinctTagCount}つの「好き」が見つかっています。</p>`;
+  html += `<p class="mind-stat-line" style="margin-top:8px;">いちばん大きな「好き」<br><strong>${escapeHtml(tagIcon(top.tag))} ${escapeHtml(top.tag)}</strong></p>`;
+  if(growing){
+    html += `<p class="mind-stat-line" style="margin-top:8px;">最近育っている「好き」<br><strong>${escapeHtml(tagIcon(growing.tag))} ${escapeHtml(growing.tag)}</strong></p>`;
+  }
+  root.innerHTML = html;
+}
+
+/* =========================================================
+   Phase21: 「あなたらしさの種」
+   - ランキング/最近育っている好き/組み合わせの結果から、ルール
+     ベースで一言だけを選ぶ。心理診断ではないので、該当ルールが
+     無いときも(データが少ないときも)フォールバック文で必ず何か
+     優しい一言を返し、カード自体は非表示にしない。
+   ========================================================= */
+const SEED_COMBO_RULES = {
+  "一人時間×音楽": k3("音やリズムに包まれるひとりの時間が、あなたにとって大切なのかも。", "音やリズムに包まれるひとりの時間が、あなたにとって大事なんかもね。", "音やリズムに包まれるひとりの時間が、あなたにとって大事なとかもしれんたい。"),
+  "AI×創作": k3("何かを作ったり、新しい方法を試したりすることに心が動いているのかも。", "何か作ったり、新しいやり方を試したりすることに心が動いとるんかもね。", "何か作ったり、新しかやり方ば試したりすることに心が動いとーとかもしれんたい。"),
+  "ゲーム×世界観": k3("物語や世界に入り込む時間が、あなたにとって大切なのかも。", "物語や世界に入り込む時間が、あなたにとって大事なんかもね。", "物語や世界に入り込む時間が、あなたにとって大事なとかもしれんたい。"),
+};
+const SEED_TAG_RULES = {
+  "音楽": k3("音やリズムに触れる時間が、あなたのワクワクにつながっているのかも。", "音やリズムに触れる時間が、あなたのワクワクにつながっとるんかもね。", "音やリズムに触れる時間が、あなたのワクワクにつながっとーとかもしれんたい。"),
+};
+const SEED_FALLBACK = k3(
+  "まだ名前のついていない『好き』が、少しずつ集まってきています。",
+  "まだ名前のついてへん『好き』が、少しずつ集まってきてるで。",
+  "まだ名前のついとらん『好き』が、少しずつ集まってきとーばい。"
+);
+function renderMindSeedCard(analysis){
+  const root = document.getElementById("mindSeedBody");
+  if(!root) return;
+
+  let seed = null;
+  for(const combo of analysis.tagCombinations){
+    const key = combo.pair.slice().sort().join("×");
+    if(SEED_COMBO_RULES[key]){ seed = SEED_COMBO_RULES[key]; break; }
+  }
+  if(!seed && analysis.topTags.length){
+    seed = SEED_TAG_RULES[analysis.topTags[0].tag] || null;
+  }
+  if(!seed) seed = SEED_FALLBACK;
+
+  root.innerHTML = `<p class="mind-trend-line">${escapeHtml(sp(seed))}</p>`;
+}
+
 function renderMindView(){
   const empty = document.getElementById("mindEmpty");
   const content = document.getElementById("mindContent");
@@ -2852,10 +2959,12 @@ function renderMindView(){
   renderMindRecentDiscovery();
   renderRecentMeCard();
   renderMindTagDiscoveryCard();
+  renderMindMapSummaryCard(analysis, entries);
   renderMindRankingCard(analysis);
   renderMindGrowingCard(analysis);
   renderMindComboCard(analysis);
   renderMindInsightCard(analysis);
+  renderMindSeedCard(analysis);
 }
 
 /* =========================================================
