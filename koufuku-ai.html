@@ -237,6 +237,19 @@ textarea{ font-family:inherit; }
 .tag-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6px; }
 .tag-chip{ font-size:12.5px; background:var(--purple-soft); color:#6a4fc2; border-radius:99px; padding:6px 13px; }
 
+/* ---------- Phase22/23: 未来の景色・今日の一歩候補(共通カード) ---------- */
+.candidate-item{
+  background:#fbfbff; border:1px solid var(--border); border-radius:var(--radius-sm);
+  padding:12px 13px; margin-bottom:10px;
+}
+.candidate-item:last-child{ margin-bottom:0; }
+.candidate-text{ font-size:14px; line-height:1.7; margin:0 0 10px; }
+.candidate-btn{
+  display:inline-block; font-size:12.5px; font-weight:700; color:#fff;
+  background:linear-gradient(135deg,#ff8fc7,#a78bfa); border:none; border-radius:99px; padding:8px 16px;
+}
+.candidate-btn:disabled{ opacity:.55; }
+
 /* ---------- 今日の一歩(専用画面・Phase5) ---------- */
 .step-card-big{ text-align:center; padding:26px 20px; }
 .step-text-big{ font-size:17px; font-weight:700; white-space:pre-line; margin:0; }
@@ -574,6 +587,23 @@ textarea.field-input{ resize:none; }
       </div>
 
       <div id="futureContent" style="display:none;">
+        <div class="card">
+          <div class="card-label">未来のかけら</div>
+          <div id="futureFragmentBody"></div>
+        </div>
+
+        <div class="card" id="futureCandidateCard" style="display:none;">
+          <div class="card-label">未来の景色</div>
+          <div id="futureCandidateList"></div>
+          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureCandidateKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
         <div class="card future-scene-card">
           <div class="card-label">未来の風景</div>
           <p class="mind-empty-note" id="futureLowDataNote" style="display:none;"></p>
@@ -2244,6 +2274,144 @@ const FUTURE_EMPTY_MESSAGE = k3(
   "未来はまだ真っ白ばい。<br><br>まずは今日、<br>ちょっと心が動いたものを<br>ひとつ残してみらん？"
 );
 
+/* =========================================================
+   Phase22: 「未来のかけら」「未来の景色」
+   - Phase20/21のanalyzeWakuwaku(entries)をそのまま利用し、新しい
+     集計は行わない。topTags/recentGrowingTags/tagCombinationsから
+     文章をルールベースで組み立てるだけ。未来予測ではなく、あくまで
+     「こんな未来も好きかも」という可能性の提示にとどめる。
+   - 件数が少ない(3件未満、またはタグが1つも無い)うちは無理に
+     生成せず、既存のfutureEmpty(0件)とは別に、この2枚のカードだけ
+     優しい一言に留める。
+   - 文章の本体(かけら/景色の情景描写)は既存のFUTURE_TYPE_SCENEと
+     同じく話し方を分けない(タグ組み合わせの数だけ文言が増えるため)。
+     ケイオスちゃんのセリフ部分だけk3()/sp()で話し方に対応する。
+   ========================================================= */
+const FUTURE_FRAGMENT_EMPTY = k3(
+  "まだ未来を描かなくても大丈夫。<br>もう少し『好き』を集めてみよっか。",
+  "まだ未来を描かんでも大丈夫。<br>もう少し『好き』を集めてみよっか。",
+  "まだ未来を描かんでも大丈夫。<br>もう少し『好き』を集めてみらんね。"
+);
+const FUTURE_SCENE_BY_TAG = {
+  "音楽": "好きな音に囲まれて過ごす時間が、今より少し増えている未来",
+  "旅行": "行ってみたかった場所を、ゆっくり歩いている未来",
+};
+const FUTURE_SCENE_BY_COMBO = {
+  "旅行×音楽": "好きな音楽と一緒に、まだ知らない景色に出会う未来",
+};
+function futureSceneForTag(tag){
+  return FUTURE_SCENE_BY_TAG[tag] || `「${tag}」を大切にする時間が、今より少し増えている未来`;
+}
+function futureSceneForCombo(a, b){
+  return FUTURE_SCENE_BY_COMBO[[a, b].sort().join("×")] || `「${a}」と「${b}」、どちらも大事にしている未来`;
+}
+function futureHasEnoughData(analysis, entries){
+  return entries.length >= 3 && (analysis.topTags.length > 0 || analysis.tagCombinations.length > 0);
+}
+function renderFutureFragmentCard(analysis, entries){
+  const root = document.getElementById("futureFragmentBody");
+  if(!root) return;
+  if(!futureHasEnoughData(analysis, entries)){
+    root.innerHTML = `<p class="mind-empty-note">${sp(FUTURE_FRAGMENT_EMPTY)}</p>`;
+    return;
+  }
+  let introText, sceneText;
+  if(analysis.tagCombinations.length){
+    const [a, b] = analysis.tagCombinations[0].pair;
+    introText = `「${a}」と「${b}」が、よく一緒に心を動かしているみたい。`;
+    sceneText = futureSceneForCombo(a, b);
+  }else{
+    const tag = analysis.topTags[0].tag;
+    introText = `「${tag}」に、最近よく心が動いているみたい。`;
+    sceneText = futureSceneForTag(tag);
+  }
+  root.innerHTML = `
+    <p class="mind-trend-line">${escapeHtml(introText)}</p>
+    <p class="mind-trend-line" style="margin-top:8px;">${escapeHtml(sceneText)}。<br>そんな未来も、ちょっと好きかも。</p>
+  `;
+}
+
+const FUTURE_CANDIDATE_KAOSU = k3(
+  "未来を決めなくても大丈夫だよ。『こんなの好きかも』って思える景色を、少しずつ集めていこ。",
+  "未来なんて今決めんでもええよ。『こんなん好きかも』って景色を、ちょっとずつ集めていこな。",
+  "未来は今決めんでもよかよ。『こんなの好きかも』って景色を、少しずつ集めていこ。"
+);
+function buildFutureCandidates(analysis){
+  const candidates = [];
+  const usedTags = new Set();
+
+  analysis.tagCombinations.forEach(c => {
+    if(candidates.length >= 3) return;
+    const [a, b] = c.pair;
+    candidates.push({ text: futureSceneForCombo(a, b), tags: [a, b] });
+    usedTags.add(a); usedTags.add(b);
+  });
+
+  analysis.topTags.forEach(t => {
+    if(candidates.length >= 3) return;
+    if(usedTags.has(t.tag)) return;
+    usedTags.add(t.tag);
+    candidates.push({ text: futureSceneForTag(t.tag), tags: [t.tag] });
+  });
+
+  return candidates.slice(0, 3);
+}
+function renderFutureCandidateCard(analysis, entries){
+  const card = document.getElementById("futureCandidateCard");
+  const list = document.getElementById("futureCandidateList");
+  if(!card || !list) return;
+
+  if(!futureHasEnoughData(analysis, entries)){
+    card.style.display = "none";
+    return;
+  }
+  const candidates = buildFutureCandidates(analysis);
+  if(candidates.length === 0){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "";
+  list.innerHTML = "";
+  candidates.forEach((c, i) => {
+    const item = document.createElement("div");
+    item.className = "candidate-item";
+    item.innerHTML = `
+      <p class="candidate-text">${escapeHtml(c.text)}</p>
+      <button type="button" class="candidate-btn" data-idx="${i}">♡ これ、ちょっと好きかも</button>
+    `;
+    list.appendChild(item);
+  });
+  document.getElementById("futureCandidateKaosu").textContent = sp(FUTURE_CANDIDATE_KAOSU);
+
+  list.querySelectorAll(".candidate-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if(btn.disabled) return;
+      btn.disabled = true;
+      const c = candidates[Number(btn.dataset.idx)];
+      try{
+        await WakuWakuStore.add({
+          id: wwGenerateId(),
+          createdAt: new Date().toISOString(),
+          type: "word",
+          title: c.text,
+          image: null,
+          url: "",
+          note: "",
+          emotion: "",
+          tags: c.tags || [],
+        });
+      }catch(e){
+        showToast("保存できなかったみたい…もう一度試してみて");
+        btn.disabled = false;
+        return;
+      }
+      await loadWakuwakuEntries();
+      const variant = KAOSU_REACTION_WAKUWAKU_ADD_VARIANTS[Math.floor(Math.random() * KAOSU_REACTION_WAKUWAKU_ADD_VARIANTS.length)];
+      showKaosuReaction(sp(variant), "smile");
+    });
+  });
+}
+
 function renderFutureView(){
   const empty = document.getElementById("futureEmpty");
   const content = document.getElementById("futureContent");
@@ -2257,6 +2425,10 @@ function renderFutureView(){
   }
   empty.style.display = "none";
   content.style.display = "block";
+
+  const analysis = analyzeWakuwaku(entries);
+  renderFutureFragmentCard(analysis, entries);
+  renderFutureCandidateCard(analysis, entries);
 
   const topType = mindMostFrequent(entries.map(e => e.type));
   const topEmotion = mindMostFrequent(entries.map(e => e.emotion));
