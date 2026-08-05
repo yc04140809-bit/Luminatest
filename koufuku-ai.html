@@ -507,6 +507,20 @@ textarea.field-input{ resize:none; }
           </div>
           <div class="speech-bubble" id="homeExperimentKaosu" style="font-size:13px;"></div>
         </div>
+
+        <p class="view-sub" style="margin:12px 0 8px;">試してみたら、どんな感じだった？</p>
+        <div class="chip-row" id="experimentFeedbackRow" style="flex-wrap:wrap;">
+          <button type="button" class="filterbtn" data-feedback="good">なんかよかった</button>
+          <button type="button" class="filterbtn" data-feedback="neutral">ふつう</button>
+          <button type="button" class="filterbtn" data-feedback="different">今は違ったかも</button>
+        </div>
+        <div class="kaosu-row" id="experimentFeedbackKaosuRow" style="display:none; margin-top:10px; margin-bottom:0;">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
+            <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="experimentFeedbackKaosuText" style="font-size:13px;"></div>
+        </div>
       </div>
 
       <div class="card" id="homeConnectionCard" style="display:none;">
@@ -1780,11 +1794,73 @@ function renderHomeExperimentCard(){
   textEl.textContent = homeExperimentList[homeExperimentIndex] || "";
   if(kaosuEl) kaosuEl.textContent = sp(HOME_EXPERIMENT_KAOSU);
   if(anotherBtn) anotherBtn.style.display = homeExperimentList.length > 1 ? "block" : "none";
+  resetExperimentFeedbackUI();
 }
 document.getElementById("btnHomeExperimentAnother").addEventListener("click", () => {
   if(homeExperimentList.length <= 1) return;
   homeExperimentIndex = (homeExperimentIndex + 1) % homeExperimentList.length;
   document.getElementById("homeExperimentText").textContent = homeExperimentList[homeExperimentIndex];
+  resetExperimentFeedbackUI();
+});
+
+/* =========================================================
+   Phase30: 「試してみたら、どんな感じだった？」
+   - 評価・採点・達成管理ではなく、心の反応を軽く残すだけの機能。
+     既存のwakuwaku(IndexedDB)には一切触れず、Phase5/6のSTEP_LOG_KEY
+     と全く同じ設計思想で、新しいlocalStorageキーをひとつだけ追加する
+     (既存4キー: koufukuAiPreferredNameV1/koufukuAiSpeechStyleV1/
+     koufukuAiWakuwakuBackupV1/koufukuAiStepLogV1 のいずれとも重複しない)。
+   - 保存する情報は最小限(どの実験文言だったか/選んだ反応/日時)のみ。
+     個人情報や分析用の追加値は保存しない。件数は直近30件までに制限し、
+     古いものから自動的に捨てる。
+   ========================================================= */
+const EXPERIMENT_FEEDBACK_KEY = "koufukuAiExperimentFeedbackV1";
+const EXPERIMENT_FEEDBACK_MAX = 30;
+function experimentFeedbackRead(){
+  try{
+    const raw = localStorage.getItem(EXPERIMENT_FEEDBACK_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){
+    return [];
+  }
+}
+function experimentFeedbackAppend(record){
+  try{
+    const list = experimentFeedbackRead();
+    list.push(record);
+    while(list.length > EXPERIMENT_FEEDBACK_MAX) list.shift();
+    localStorage.setItem(EXPERIMENT_FEEDBACK_KEY, JSON.stringify(list));
+  }catch(e){
+    /* 保存できなくても実験カード自体の表示・利用には影響させない */
+  }
+}
+/* この実験文言がTINY_EXPERIMENT_BY_PATTERNのどの組み合わせ由来かを逆引きする。
+   汎用(TINY_EXPERIMENT_GENERIC)由来の場合はnullを返す。 */
+function findPatternKeyForExperimentText(text){
+  for(const key of Object.keys(TINY_EXPERIMENT_BY_PATTERN)){
+    if(TINY_EXPERIMENT_BY_PATTERN[key].includes(text)) return key;
+  }
+  return null;
+}
+function resetExperimentFeedbackUI(){
+  document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(b => b.classList.remove("active"));
+  const kaosuRow = document.getElementById("experimentFeedbackKaosuRow");
+  if(kaosuRow) kaosuRow.style.display = "none";
+}
+document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const reaction = btn.dataset.feedback;
+    const experimentText = homeExperimentList[homeExperimentIndex] || "";
+    experimentFeedbackAppend({
+      id: wwGenerateId(),
+      experimentText,
+      patternKey: findPatternKeyForExperimentText(experimentText),
+      reaction,
+      createdAt: new Date().toISOString(),
+    });
+    document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(b => b.classList.toggle("active", b === btn));
+    showToast("教えてくれてありがとう♪");
+  });
 });
 
 /* =========================================================
