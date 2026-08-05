@@ -842,6 +842,11 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="card">
+          <div class="card-label">最近の幸せの変化</div>
+          <div id="mindRecentChangeBody"></div>
+        </div>
+
+        <div class="card">
           <div class="card-label">好きの時間軸</div>
           <div id="mindTimelineBody"></div>
           <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
@@ -1920,6 +1925,7 @@ document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(btn => {
       kaosuText.textContent = sp(response);
       kaosuRow.style.display = "flex";
     }
+    renderMindView();
   });
 });
 
@@ -3586,6 +3592,82 @@ function generateTinyHappinessExperiments(patterns){
   return collected.length > 0 ? collected : TINY_EXPERIMENT_GENERIC.slice();
 }
 
+/* =========================================================
+   Phase32: analyzeRecentHappinessChanges(entries, timeline, valueSeeds, patterns, feedbackHistory)
+   - 新しい集計は行わず、既に計算済みの
+     analyzeWakuwakuTimeline()(Phase24)/analyzeValueSeeds()(Phase26)/
+     analyzeHappinessPatterns()(Phase28)/Phase30の反応履歴(読み取りのみ)
+     を受け取って組み合わせるだけの読み取り専用の純粋関数。DOM操作・
+     DB/localStorage書き込みは一切行わない。
+   - 「診断」ではなく「気づきの材料」として、最大3件を優先順位
+     (①最近変化したタグ ②価値観の芽 ③幸せパターン(タグの組み合わせ)
+     ④小さな実験で「なんかよかった」があったこと)で選ぶ。
+     データから確認できないものは生成しない(該当が無ければその
+     優先枠はスキップするだけ)。
+   戻り値: { enoughData: boolean, insights: [{ type, text }] } (最大3件)
+   ========================================================= */
+function analyzeRecentHappinessChanges(entries, timeline, valueSeeds, patterns, feedbackHistory){
+  const insights = [];
+
+  if(timeline && timeline.enoughData){
+    const changed = [...timeline.newInterests, ...timeline.growing]
+      .sort((a, b) => (b.recentCount - (b.oldCount || 0)) - (a.recentCount - (a.oldCount || 0)));
+    if(changed[0]){
+      insights.push({ type: "tag", text: `最近は「${changed[0].tag}」に心が動くことが多いみたい。` });
+    }
+  }
+
+  if(insights.length < 3 && valueSeeds && valueSeeds.enoughData && valueSeeds.seeds[0]){
+    const group = VALUE_SEED_GROUPS[valueSeeds.seeds[0].seedKey];
+    if(group){
+      insights.push({ type: "value", text: `「${group.label}」が、ちょっと大事になってきたかもしれないね。` });
+    }
+  }
+
+  if(insights.length < 3 && patterns && patterns.enoughData && patterns.patterns[0]){
+    const [a, b] = patterns.patterns[0].groups;
+    const groupA = VALUE_SEED_GROUPS[a], groupB = VALUE_SEED_GROUPS[b];
+    if(groupA && groupB){
+      insights.push({ type: "combo", text: `「${groupA.label}」と「${groupB.label}」が、一緒に出てくることが増えてるね。` });
+    }
+  }
+
+  if(insights.length < 3 && feedbackHistory && feedbackHistory.length){
+    const good = feedbackHistory.filter(f => f && f.reaction === "good");
+    if(good.length){
+      const withPattern = good.find(f => f.patternKey);
+      let text;
+      if(withPattern){
+        const [a, b] = withPattern.patternKey.split("×");
+        const group = VALUE_SEED_GROUPS[a];
+        text = group
+          ? `小さく試してみたことの中では、「${group.label}」に近いものの反応がよかったみたい。`
+          : `小さく試してみたことの中にも、なんかよかったと感じたものがあったみたい。`;
+      }else{
+        text = `小さく試してみたことの中にも、なんかよかったと感じたものがあったみたい。`;
+      }
+      insights.push({ type: "experiment", text });
+    }
+  }
+
+  return { enoughData: insights.length > 0, insights: insights.slice(0, 3) };
+}
+const RECENT_CHANGE_EMPTY = k3(
+  "まだ分からないこともいっぱい。<br>これから一緒に見つけていこう。",
+  "まだ分からへんこともいっぱい。<br>これから一緒に見つけていこな。",
+  "まだ分からんこともいっぱい。<br>これから一緒に見つけていこうね。"
+);
+function renderMindRecentChangeCard(entries, timeline, valueSeeds, patterns, feedbackHistory){
+  const root = document.getElementById("mindRecentChangeBody");
+  if(!root) return;
+  const result = analyzeRecentHappinessChanges(entries, timeline, valueSeeds, patterns, feedbackHistory);
+  if(!result.enoughData){
+    root.innerHTML = `<p class="mind-empty-note">${sp(RECENT_CHANGE_EMPTY)}</p>`;
+    return;
+  }
+  root.innerHTML = result.insights.map(i => `<p class="mind-trend-line">${escapeHtml(i.text)}</p>`).join("");
+}
+
 const MIND_RANKING_EMPTY = k3(
   "好きがもう少し集まると、<br>ここにあなたらしい景色が<br>見えてくるよ。",
   "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるで。",
@@ -4043,6 +4125,7 @@ function renderMindView(){
   const timeline = analyzeWakuwakuTimeline(entries);
   const valueSeeds = analyzeValueSeeds(entries);
   const happinessPatterns = analyzeHappinessPatterns(entries);
+  const experimentFeedbackHistory = experimentFeedbackRead();
 
   let statsHtml = `<p class="mind-stat-line">今までに <strong>${entries.length}個</strong> のワクワクを集めました</p>`;
   if(topEmotion) statsHtml += `<p class="mind-stat-line">最近多い気持ち：<strong>${escapeHtml(topEmotion)}</strong></p>`;
@@ -4081,6 +4164,7 @@ function renderMindView(){
   renderMindSeedCard(analysis);
   renderMindValueSeedCard(valueSeeds);
   renderMindHappinessPatternCard(happinessPatterns);
+  renderMindRecentChangeCard(entries, timeline, valueSeeds, happinessPatterns, experimentFeedbackHistory);
   renderMindTimelineCard(timeline);
   renderMindReflectionCard(analysis, timeline);
 }
