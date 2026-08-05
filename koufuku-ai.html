@@ -3906,7 +3906,7 @@ function renderMindMapSummaryCard(analysis, entries){
   }
   const top = analysis.topTags[0];
   const growing = analysis.recentGrowingTags[0];
-  let html = `<p class="mind-trend-line">🌱 ${entries.length}個のワクワクから<br>${analysis.distinctTagCount}つの「好き」が見つかっています。</p>`;
+  let html = `<p class="mind-trend-line">🌱 ${entries.length}個のワクワクから<br>${analysis.distinctTagCount}個の「好き」が見つかっています。</p>`;
   html += `<p class="mind-stat-line" style="margin-top:8px;">いちばん大きな「好き」<br><strong>${escapeHtml(tagIcon(top.tag))} ${escapeHtml(top.tag)}</strong></p>`;
   if(growing){
     html += `<p class="mind-stat-line" style="margin-top:8px;">最近育っている「好き」<br><strong>${escapeHtml(tagIcon(growing.tag))} ${escapeHtml(growing.tag)}</strong></p>`;
