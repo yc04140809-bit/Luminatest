@@ -809,6 +809,11 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="card">
+          <div class="card-label">わたしの幸せパターン</div>
+          <div id="mindHappinessPatternBody"></div>
+        </div>
+
+        <div class="card">
           <div class="card-label">好きの時間軸</div>
           <div id="mindTimelineBody"></div>
           <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
@@ -3312,6 +3317,58 @@ function analyzeValueSeeds(entries){
   return { enoughData: candidates.length > 0, seeds: candidates.slice(0, 3) };
 }
 
+/* =========================================================
+   Phase28: analyzeHappinessPatterns(entries)
+   - 「幸せパターン」= 同じワクワク1件の中で、Phase26のVALUE_SEED_
+     GROUPSのうち"異なる2つのグループ"に属するタグが同時に登場して
+     いるケースを数える、独立した読み取り専用の純粋関数。
+     analyzeWakuwaku()/analyzeWakuwakuTimeline()/analyzeValueSeeds()/
+     generateValueFutureHints()のいずれも変更せず、VALUE_SEED_GROUPS/
+     VALUE_SEED_KEYWORD_MAP(Phase26で定義済み)を読み取るだけで、
+     新しい辞書の重複定義もしない。
+   - 単一タグや同じグループ内のタグの繰り返しはパターンにしない
+     (「異なる種類の要素が一緒に現れているケース」を優先する指示のため)。
+     同じ組み合わせが2件以上のワクワクで確認できたときだけ候補にする。
+   戻り値: { enoughData: boolean, patterns: [{ groups:[keyA,keyB], tags:[...] }] } (最大3件)
+   ========================================================= */
+function happinessPairKey(a, b){ return [a, b].sort().join("×"); }
+function analyzeHappinessPatterns(entries){
+  const list = entries || [];
+  const comboFreq = new Map();
+
+  list.forEach(e => {
+    const tags = Array.from(new Set((e.tags || []).filter(Boolean)));
+    const groupTagMap = new Map();
+    tags.forEach(tag => {
+      const groupKey = VALUE_SEED_KEYWORD_MAP[tag];
+      if(!groupKey) return;
+      if(!groupTagMap.has(groupKey)) groupTagMap.set(groupKey, new Set());
+      groupTagMap.get(groupKey).add(tag);
+    });
+    const groups = Array.from(groupTagMap.keys());
+    for(let i = 0; i < groups.length; i++){
+      for(let j = i + 1; j < groups.length; j++){
+        const key = happinessPairKey(groups[i], groups[j]);
+        if(!comboFreq.has(key)){
+          comboFreq.set(key, { count: 0, groups: [groups[i], groups[j]].sort(), tags: new Set() });
+        }
+        const rec = comboFreq.get(key);
+        rec.count += 1;
+        groupTagMap.get(groups[i]).forEach(t => rec.tags.add(t));
+        groupTagMap.get(groups[j]).forEach(t => rec.tags.add(t));
+      }
+    }
+  });
+
+  const patterns = [...comboFreq.values()]
+    .filter(r => r.count >= 2)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3)
+    .map(r => ({ groups: r.groups, tags: Array.from(r.tags) }));
+
+  return { enoughData: patterns.length > 0, patterns };
+}
+
 const MIND_RANKING_EMPTY = k3(
   "好きがもう少し集まると、<br>ここにあなたらしい景色が<br>見えてくるよ。",
   "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるで。",
@@ -3560,6 +3617,52 @@ function renderMindValueSeedCard(valueSeeds){
   if(kaosuEl) kaosuEl.textContent = sp(VALUE_SEED_KAOSU);
 }
 
+/* =========================================================
+   Phase28: 「わたしの幸せパターン」
+   - analyzeHappinessPatterns()の結果をそのまま表示するだけ。
+     ランキング・数値は一切見せず、最大3件を「〜かも」で締める
+     やわらかい仮説として見せる。少数の代表的な組み合わせだけ
+     専用文言を持ち、それ以外は価値観グループのラベルを使った
+     汎用文言にフォールバックする(タグ名そのもので機械的に断定
+     しないための一段抽象化)。
+   ========================================================= */
+const HAPPINESS_PATTERN_TEXT = {
+  [happinessPairKey("knowledge", "making")]: "新しいものを知って、自分で形にするときに心が動きやすいのかも。",
+  [happinessPairKey("expression", "connection")]: "何かを表現して、それを誰かと分かち合うときに心が動きやすいのかもしれないね。",
+  [happinessPairKey("newWorld", "making")]: "新しい世界に触れたことを、自分の手で何か形にするときに心が動きやすいのかも。",
+  [happinessPairKey("ownPace", "nature")]: "自分のペースで、自然の中にいるときに心が動きやすいのかもしれないね。",
+  [happinessPairKey("connection", "helping")]: "誰かと一緒に、誰かの力になれるときに心が動きやすいのかも。",
+};
+function happinessPatternFallbackText(labelA, labelB){
+  return `「${labelA}」と「${labelB}」が重なるとき、心が動きやすいのかもしれないね。`;
+}
+const HAPPINESS_PATTERN_EMPTY = k3(
+  "まだ、はっきりしたパターンは見えていないみたい。<br>好きなものが増えていくと、<br>少しずつ見えてくるかも。",
+  "まだ、はっきりしたパターンは見えてへんみたい。<br>好きなもんが増えていくと、<br>少しずつ見えてくるかもね。",
+  "まだ、はっきりしたパターンは見えとらんみたい。<br>好きなもんが増えていくと、<br>少しずつ見えてくるかもしれんばい。"
+);
+function renderMindHappinessPatternCard(patterns){
+  const root = document.getElementById("mindHappinessPatternBody");
+  if(!root) return;
+
+  if(!patterns.enoughData || patterns.patterns.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">${sp(HAPPINESS_PATTERN_EMPTY)}</p>`;
+    return;
+  }
+
+  root.innerHTML = patterns.patterns.map(p => {
+    const [a, b] = p.groups;
+    const groupA = VALUE_SEED_GROUPS[a];
+    const groupB = VALUE_SEED_GROUPS[b];
+    const text = HAPPINESS_PATTERN_TEXT[happinessPairKey(a, b)] || happinessPatternFallbackText(groupA.label, groupB.label);
+    return `
+      <div class="candidate-item">
+        <p class="mind-trend-line" style="margin-bottom:6px;">最近、<br>「${escapeHtml(groupA.label)}」×「${escapeHtml(groupB.label)}」<br>が一緒に出てくることが多いみたい。</p>
+        <p class="mind-empty-note">${escapeHtml(text)}</p>
+      </div>`;
+  }).join("");
+}
+
 function renderMindTimelineCard(timeline){
   const root = document.getElementById("mindTimelineBody");
   const kaosuEl = document.getElementById("mindTimelineKaosu");
@@ -3722,6 +3825,7 @@ function renderMindView(){
   const analysis = analyzeWakuwaku(entries);
   const timeline = analyzeWakuwakuTimeline(entries);
   const valueSeeds = analyzeValueSeeds(entries);
+  const happinessPatterns = analyzeHappinessPatterns(entries);
 
   let statsHtml = `<p class="mind-stat-line">今までに <strong>${entries.length}個</strong> のワクワクを集めました</p>`;
   if(topEmotion) statsHtml += `<p class="mind-stat-line">最近多い気持ち：<strong>${escapeHtml(topEmotion)}</strong></p>`;
@@ -3759,6 +3863,7 @@ function renderMindView(){
   renderMindInsightCard(analysis);
   renderMindSeedCard(analysis);
   renderMindValueSeedCard(valueSeeds);
+  renderMindHappinessPatternCard(happinessPatterns);
   renderMindTimelineCard(timeline);
   renderMindReflectionCard(analysis, timeline);
 }
