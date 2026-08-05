@@ -495,6 +495,20 @@ textarea.field-input{ resize:none; }
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-label">今日の小さな幸せ実験</div>
+        <p class="step-text" id="homeExperimentText"></p>
+        <p class="mind-empty-note" style="margin-top:2px;">やらなくても大丈夫。</p>
+        <button class="btn-text" id="btnHomeExperimentAnother" style="margin-top:8px;">別の実験を見る</button>
+        <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
+            <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="homeExperimentKaosu" style="font-size:13px;"></div>
+        </div>
+      </div>
+
       <div class="card" id="homeConnectionCard" style="display:none;">
         <div class="card-label">今日のつながり</div>
         <p class="mind-trend-line" id="homeConnectionText"></p>
@@ -1089,7 +1103,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -1742,6 +1756,38 @@ document.getElementById("btnStepSkipHome").addEventListener("click", () => {
 });
 
 /* =========================================================
+   Phase29: 「今日の小さな幸せ実験」
+   - Phase28のanalyzeHappinessPatterns()→generateTinyHappinessExperiments()
+     を毎回そのまま呼ぶだけで、選択状態(homeExperimentIndex)以外は
+     何も保存しない。リロードすれば0番目から始まる。
+   ========================================================= */
+let homeExperimentList = [];
+let homeExperimentIndex = 0;
+const HOME_EXPERIMENT_KAOSU = k3(
+  "正解を探さなくてもいいよ。ちょっと試してみるだけだからね。",
+  "正解を探さんでもええよ。ちょっと試してみるだけやからね。",
+  "正解ば探さんでもよかよ。ちょっと試してみるだけやけんね。"
+);
+function renderHomeExperimentCard(){
+  const textEl = document.getElementById("homeExperimentText");
+  const kaosuEl = document.getElementById("homeExperimentKaosu");
+  const anotherBtn = document.getElementById("btnHomeExperimentAnother");
+  if(!textEl) return;
+
+  homeExperimentList = generateTinyHappinessExperiments(analyzeHappinessPatterns(wakuwakuEntries || []));
+  if(homeExperimentIndex >= homeExperimentList.length) homeExperimentIndex = 0;
+
+  textEl.textContent = homeExperimentList[homeExperimentIndex] || "";
+  if(kaosuEl) kaosuEl.textContent = sp(HOME_EXPERIMENT_KAOSU);
+  if(anotherBtn) anotherBtn.style.display = homeExperimentList.length > 1 ? "block" : "none";
+}
+document.getElementById("btnHomeExperimentAnother").addEventListener("click", () => {
+  if(homeExperimentList.length <= 1) return;
+  homeExperimentIndex = (homeExperimentIndex + 1) % homeExperimentList.length;
+  document.getElementById("homeExperimentText").textContent = homeExperimentList[homeExperimentIndex];
+});
+
+/* =========================================================
    ワクワクBOX
    ========================================================= */
 function renderFilters(){
@@ -1933,6 +1979,7 @@ async function loadWakuwakuEntries(){
   renderHomeNowCard();
   renderTodayDesignCard();
   renderHomeReflectCard();
+  renderHomeExperimentCard();
   renderWwDebugInfo(loadStatus);
 }
 
@@ -3367,6 +3414,40 @@ function analyzeHappinessPatterns(entries){
     .map(r => ({ groups: r.groups, tags: Array.from(r.tags) }));
 
   return { enoughData: patterns.length > 0, patterns };
+}
+
+/* =========================================================
+   Phase29: generateTinyHappinessExperiments(patterns)
+   - Phase28のanalyzeHappinessPatterns()の戻り値だけを受け取り、
+     DB/localStorageには一切アクセスしない副作用なしの純粋関数。
+   - 「おすすめ行動」ではなく「小さな実験」として、5〜15分・ほぼ
+     無料・一人でできる・準備が少ない・やらなくてもよい候補文を
+     返すだけ。「毎日」「習慣化」「達成」等のプレッシャー表現は
+     一切使わない。
+   - パターンが少ないうちは無理に個人化せず、汎用の優しい実験
+     (TINY_EXPERIMENT_GENERIC)を返す。
+   ========================================================= */
+const TINY_EXPERIMENT_BY_PATTERN = {
+  [happinessPairKey("knowledge", "making")]: ["気になっていたことをひとつだけ調べて、5分だけ何か作ってみる？", "知らなかったことをひとつ知って、そのまま5分だけ手を動かしてみる？"],
+  [happinessPairKey("expression", "connection")]: ["好きなものを、誰かに一言だけ伝えてみる？", "作ったものや好きなものを、写真に撮ってみるだけでもいいかも。"],
+  [happinessPairKey("newWorld", "making")]: ["知らないジャンルを少し覗いて、気になったら真似して作ってみる？", "初めての材料や道具を、ちょっとだけ触ってみる？"],
+  [happinessPairKey("ownPace", "nature")]: ["5分だけ外の空気を感じに行ってみる？", "静かな場所で、何もせずぼーっとしてみる時間を作ってみる？"],
+  [happinessPairKey("connection", "helping")]: ["身近な人に、ちょっとした一言をかけてみる？", "誰かが喜びそうなことを、ひとつだけ考えてみる？"],
+};
+const TINY_EXPERIMENT_GENERIC = [
+  "今日ちょっと気になったものを、ひとつだけ眺めてみる？",
+  "気になっていたことを、5分だけ調べてみる？",
+  "好きなものをひとつ、ゆっくり見返してみる？",
+];
+function generateTinyHappinessExperiments(patterns){
+  const collected = [];
+  if(patterns && patterns.enoughData && patterns.patterns && patterns.patterns.length){
+    patterns.patterns.forEach(p => {
+      const list = TINY_EXPERIMENT_BY_PATTERN[happinessPairKey(p.groups[0], p.groups[1])];
+      if(list) list.forEach(t => { if(!collected.includes(t)) collected.push(t); });
+    });
+  }
+  return collected.length > 0 ? collected : TINY_EXPERIMENT_GENERIC.slice();
 }
 
 const MIND_RANKING_EMPTY = k3(
