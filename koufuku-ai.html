@@ -1788,7 +1788,7 @@ function renderHomeExperimentCard(){
   const anotherBtn = document.getElementById("btnHomeExperimentAnother");
   if(!textEl) return;
 
-  homeExperimentList = generateTinyHappinessExperiments(analyzeHappinessPatterns(wakuwakuEntries || []));
+  homeExperimentList = generateAdjustedHappinessExperiments(analyzeHappinessPatterns(wakuwakuEntries || []), experimentFeedbackRead());
   if(homeExperimentIndex >= homeExperimentList.length) homeExperimentIndex = 0;
 
   textEl.textContent = homeExperimentList[homeExperimentIndex] || "";
@@ -1847,6 +1847,58 @@ function resetExperimentFeedbackUI(){
   const kaosuRow = document.getElementById("experimentFeedbackKaosuRow");
   if(kaosuRow) kaosuRow.style.display = "none";
 }
+
+/* =========================================================
+   Phase31: 反応履歴で候補の並びだけをそっと調整する
+   - generateTinyHappinessExperiments()(Phase29)自体は一切変更せず、
+     その戻り値を受け取って並べ替えるだけの別関数として追加する。
+     データ不足(反応履歴が空)なら並び替えを行わず、Phase29のままの
+     順序を返す=「データ不足時はPhase29の現在のロジックをそのまま
+     使用する」を満たす。
+   - スコアはあくまで内部の並べ替えキーであり、UIには一切表示しない。
+     診断・分類・断定は行わない(パターン単位の「なんとなく再登場し
+     やすい/しにくい」程度の重み付けに留める)。
+   ========================================================= */
+function experimentFeedbackScoreForText(text, feedbackHistory){
+  const patternKey = findPatternKeyForExperimentText(text);
+  if(!patternKey) return 0;
+  let score = 0;
+  feedbackHistory.forEach(f => {
+    if(!f || f.patternKey !== patternKey) return;
+    if(f.reaction === "good") score += 1;
+    else if(f.reaction === "different") score -= 1;
+  });
+  return score;
+}
+function reorderExperimentsByFeedback(candidates, feedbackHistory){
+  if(!feedbackHistory || feedbackHistory.length === 0) return candidates;
+  return candidates
+    .map((text, idx) => ({ text, idx, score: experimentFeedbackScoreForText(text, feedbackHistory) }))
+    .sort((a, b) => (b.score - a.score) || (a.idx - b.idx))
+    .map(x => x.text);
+}
+function generateAdjustedHappinessExperiments(patterns, feedbackHistory){
+  const base = generateTinyHappinessExperiments(patterns);
+  return reorderExperimentsByFeedback(base, feedbackHistory || []);
+}
+
+const EXPERIMENT_FEEDBACK_RESPONSE = {
+  good: k3(
+    "いいね。その感じ、ちょっと覚えておこう☺️",
+    "ええやん。その感じ、ちょっと覚えとこ☺️",
+    "よかね。その感じ、ちょっと覚えとこ☺️"
+  ),
+  neutral: k3(
+    "そっか。こういう日もあるよ。",
+    "そっかそっか。こういう日もあるよ。",
+    "そっかそっか。こういう日もあるとよ。"
+  ),
+  different: k3(
+    "了解。今の気分には違ったんだね。また別のを探そう。",
+    "了解。今の気分には違ったんやね。また別のを探そ。",
+    "了解。今の気分には違ったとやね。また別のば探そ。"
+  ),
+};
 document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(btn => {
   btn.addEventListener("click", () => {
     const reaction = btn.dataset.feedback;
@@ -1860,6 +1912,14 @@ document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(btn => {
     });
     document.querySelectorAll("#experimentFeedbackRow .filterbtn").forEach(b => b.classList.toggle("active", b === btn));
     showToast("教えてくれてありがとう♪");
+
+    const kaosuRow = document.getElementById("experimentFeedbackKaosuRow");
+    const kaosuText = document.getElementById("experimentFeedbackKaosuText");
+    const response = EXPERIMENT_FEEDBACK_RESPONSE[reaction];
+    if(kaosuRow && kaosuText && response){
+      kaosuText.textContent = sp(response);
+      kaosuRow.style.display = "flex";
+    }
   });
 });
 
