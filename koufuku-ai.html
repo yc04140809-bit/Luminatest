@@ -656,6 +656,26 @@ textarea.field-input{ resize:none; }
       </div>
 
       <div id="stepContent" style="display:none;">
+        <div class="card" id="stepTagCandidateCard" style="display:none;">
+          <div class="card-label">今日の小さな一歩候補</div>
+          <div id="stepTagCandidateList"></div>
+          <button class="btn-text" id="btnStepTagUndecided" style="margin-top:2px;">今日は決めない</button>
+          <p class="mind-empty-note" id="stepTagUndecidedText" style="display:none; margin-top:10px;"></p>
+        </div>
+
+        <div class="card" id="stepTagChosenCard" style="display:none;">
+          <div class="card-label">今日の小さな一歩</div>
+          <p class="step-text" id="stepTagChosenText"></p>
+          <div class="kaosu-row" style="margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="stepTagChosenKaosu" style="font-size:13px;"></div>
+          </div>
+          <button class="btn-text" id="btnStepTagAnother" style="margin-top:10px;">別の一歩を見る</button>
+        </div>
+
         <div class="kaosu-row">
           <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
@@ -2683,6 +2703,110 @@ function renderStepChoice(){
   hideFeelingPrompt();
 }
 
+/* =========================================================
+   Phase23: 「今日の小さな一歩候補」
+   - Phase20/21のanalyzeWakuwaku(entries)のrecentGrowingTags/topTags
+     だけを使い、新しい集計は行わない。既存のtypeベースの一歩提案
+     (STEP_ACTION_TEXT〜stepLogAppendまでの一連の仕組み、下のkaosu-row
+     以降)には一切手を加えず、その上に新しいカードを追加するだけ。
+   - 選んだ一歩(stepTagChosenIndex)はページ内メモリだけで保持し、
+     IndexedDB/localStorageのどちらにも書き込まない(履歴管理は
+     今回不要という指示のため)。リロードすれば候補選択は消えるが、
+     ワクワクデータ自体には一切影響しない。
+   - TODOアプリ化を避けるため、「完了」「達成」等の状態は持たない。
+   ========================================================= */
+const STEP_TAG_ACTION = {
+  "音楽": "好きな曲を1曲だけ、ちゃんと聴いてみる",
+  "旅行": "行ってみたい場所をひとつだけ検索してみる",
+  "食べ物": "気になっていた料理の写真を1枚だけ見てみる",
+  "ゲーム": "気になっていたゲームを5分だけ調べてみる",
+  "画像生成": "作ってみたい画像をひとつ言葉にしてみる",
+};
+function stepTagActionFor(tag){
+  return STEP_TAG_ACTION[tag] || `「${tag}」について、今日は5分だけ触れてみる`;
+}
+function buildStepTagCandidates(analysis){
+  const tags = [];
+  const seen = new Set();
+  analysis.recentGrowingTags.forEach(t => { if(!seen.has(t.tag)){ seen.add(t.tag); tags.push(t.tag); } });
+  analysis.topTags.forEach(t => { if(!seen.has(t.tag)){ seen.add(t.tag); tags.push(t.tag); } });
+  return tags.slice(0, 3).map(tag => ({ tag, text: stepTagActionFor(tag) }));
+}
+
+const STEP_TAG_CHOSEN_KAOSU = k3(
+  "できても、できなくても大丈夫。ちょっと心が動いたら、それで十分だよ。",
+  "できても、できんでも大丈夫やで。ちょっと心が動いたら、それで十分や。",
+  "できても、できんでも大丈夫ばい。ちょっと心が動いたら、それで十分よ。"
+);
+const STEP_TAG_UNDECIDED_MESSAGE = k3(
+  "今日は決めなくても大丈夫。ワクワクを眺めるだけの日があってもいいよ。",
+  "今日は決めんでも大丈夫やで。ワクワクを眺めるだけの日があってもええよ。",
+  "今日は決めんでも大丈夫ばい。ワクワクを眺めるだけの日があってもよかよ。"
+);
+
+let stepTagCandidates = [];
+let stepTagChosenIndex = null;
+
+function renderStepTagCandidateList(){
+  const root = document.getElementById("stepTagCandidateList");
+  if(!root) return;
+  root.innerHTML = "";
+  stepTagCandidates.forEach((c, i) => {
+    const item = document.createElement("div");
+    item.className = "candidate-item";
+    item.innerHTML = `
+      <p class="candidate-text">${escapeHtml(c.text)}</p>
+      <button type="button" class="candidate-btn" data-idx="${i}">これならやってみたい</button>
+    `;
+    root.appendChild(item);
+  });
+  root.querySelectorAll(".candidate-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      stepTagChosenIndex = Number(btn.dataset.idx);
+      document.getElementById("stepTagUndecidedText").style.display = "none";
+      renderStepTagSection(analyzeWakuwaku(wakuwakuEntries || []));
+    });
+  });
+}
+
+function renderStepTagSection(analysis){
+  const candidateCard = document.getElementById("stepTagCandidateCard");
+  const chosenCard = document.getElementById("stepTagChosenCard");
+  if(!candidateCard || !chosenCard) return;
+
+  stepTagCandidates = buildStepTagCandidates(analysis);
+
+  if(stepTagCandidates.length === 0){
+    candidateCard.style.display = "none";
+    chosenCard.style.display = "none";
+    return;
+  }
+
+  if(stepTagChosenIndex !== null && stepTagCandidates[stepTagChosenIndex]){
+    candidateCard.style.display = "none";
+    chosenCard.style.display = "";
+    const chosen = stepTagCandidates[stepTagChosenIndex];
+    document.getElementById("stepTagChosenText").textContent = `🌱 ${chosen.text}。`;
+    document.getElementById("stepTagChosenKaosu").textContent = sp(STEP_TAG_CHOSEN_KAOSU);
+    return;
+  }
+
+  chosenCard.style.display = "none";
+  candidateCard.style.display = "";
+  document.getElementById("stepTagUndecidedText").style.display = "none";
+  renderStepTagCandidateList();
+}
+
+document.getElementById("btnStepTagAnother").addEventListener("click", () => {
+  stepTagChosenIndex = null;
+  renderStepTagSection(analyzeWakuwaku(wakuwakuEntries || []));
+});
+document.getElementById("btnStepTagUndecided").addEventListener("click", () => {
+  const note = document.getElementById("stepTagUndecidedText");
+  note.textContent = sp(STEP_TAG_UNDECIDED_MESSAGE);
+  note.style.display = "block";
+});
+
 function renderStepView(){
   const empty = document.getElementById("stepEmpty");
   const content = document.getElementById("stepContent");
@@ -2697,6 +2821,8 @@ function renderStepView(){
   }
   empty.style.display = "none";
   content.style.display = "block";
+
+  renderStepTagSection(analyzeWakuwaku(entries));
 
   if(!stepInitialized){
     stepEntryPointer = stepPickInitialIndex(entries);
