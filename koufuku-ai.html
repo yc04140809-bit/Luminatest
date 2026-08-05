@@ -821,6 +821,24 @@ textarea.field-input{ resize:none; }
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-label">ケイオスちゃんと振り返る</div>
+          <div id="mindReflectionBody"></div>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="mindReflectionFeedbackKaosu" style="font-size:13px;"></div>
+          </div>
+          <p class="view-sub" style="margin:12px 0 8px;">今の振り返り、どう感じる？</p>
+          <div class="chip-row" id="mindReflectionFeedbackRow" style="flex-wrap:wrap;">
+            <button type="button" class="filterbtn" data-feedback="agree">なんかわかる</button>
+            <button type="button" class="filterbtn" data-feedback="surprised">ちょっと意外</button>
+            <button type="button" class="filterbtn" data-feedback="unsure">まだわからない</button>
+          </div>
+        </div>
+
         <div class="kaosu-row">
           <div class="kaosu-avatar" style="width:68px;height:68px">
             <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
@@ -3334,6 +3352,127 @@ function renderMindTimelineCard(timeline){
   if(kaosuEl) kaosuEl.textContent = sp(MIND_TIMELINE_KAOSU);
 }
 
+/* =========================================================
+   Phase25: 「ケイオスちゃんと振り返る」
+   - generateReflection(analysis, timeline)は既存のanalyzeWakuwaku()/
+     analyzeWakuwakuTimeline()の結果を組み合わせるだけの読み取り専用
+     関数。DOM操作は一切行わず、k3()で作った「まだ話し方を選んでいない
+     文章の候補」を配列で返すだけにとどめる(sp()の適用はUI側=
+     renderMindReflectionCardで行う)。将来この関数の中身だけを
+     AI API呼び出しに差し替えられるようにするための分離。
+   - 優先順位: ①最近変化した好き(timeline) ②最近育っている好き
+     (analysis) ③好きの組み合わせ(analysis) ④長く続いている好き
+     (timeline) ⑤好きの種類の広がり(analysis)。同じタグ/組み合わせの
+     重複は出さない。断定はせず「〜かも」「〜みたい」で必ず終える。
+   ========================================================= */
+function reflectionChangedLine(tag, isNew){
+  return isNew
+    ? k3(`「${tag}」が、最近新しく増えてきてるかも。`, `「${tag}」が、最近新しく増えてきてるかもね。`, `「${tag}」が、最近新しく増えてきとーとかもしれんね。`)
+    : k3(`前より「${tag}」が増えてきてるかも。`, `前より「${tag}」が増えてきてるかもね。`, `前より「${tag}」が増えてきとーとかもしれんね。`);
+}
+function reflectionGrowingLine(tag){
+  return k3(`最近は「${tag}」に心が動くことが多いみたいです。`, `最近は「${tag}」に心が動くことが多いみたいやね。`, `最近は「${tag}」に心が動くことが多かみたいやね。`);
+}
+function reflectionComboLine(a, b){
+  return k3(`「${a}」と「${b}」が一緒に出てくることもあるみたいです。`, `「${a}」と「${b}」が一緒に出てくることもあるみたいやね。`, `「${a}」と「${b}」が一緒に出てくることもあるみたいやね。`);
+}
+function reflectionStableLine(tag){
+  return k3(`「${tag}」は、前から変わらず心が動くもののようです。`, `「${tag}」は、前から変わらず心が動くもんみたいやね。`, `「${tag}」は、前から変わらず心が動くもんみたいやね。`);
+}
+function reflectionBreadthLine(){
+  return k3("好きの種類も、少しずつ広がってきているみたいです。", "好きの種類も、少しずつ広がってきてるみたいやね。", "好きの種類も、少しずつ広がってきとーみたいやね。");
+}
+function generateReflection(analysis, timeline){
+  const lines = [];
+  const usedTags = new Set();
+
+  if(timeline.enoughData){
+    const changed = [
+      ...timeline.newInterests.map(t => ({ ...t, isNew: true })),
+      ...timeline.growing.map(t => ({ ...t, isNew: false })),
+    ].sort((a, b) => (b.recentCount - b.oldCount) - (a.recentCount - a.oldCount));
+    const c = changed.find(t => !usedTags.has(t.tag));
+    if(c){
+      usedTags.add(c.tag);
+      lines.push(reflectionChangedLine(c.tag, c.isNew));
+    }
+  }
+
+  if(lines.length < 4){
+    const g = analysis.recentGrowingTags.find(t => !usedTags.has(t.tag));
+    if(g){
+      usedTags.add(g.tag);
+      lines.push(reflectionGrowingLine(g.tag));
+    }
+  }
+
+  if(lines.length < 4 && analysis.tagCombinations.length){
+    const combo = analysis.tagCombinations[0];
+    lines.push(reflectionComboLine(combo.pair[0], combo.pair[1]));
+  }
+
+  if(lines.length < 4 && timeline.enoughData){
+    const s = timeline.stable.find(t => !usedTags.has(t.tag));
+    if(s){
+      usedTags.add(s.tag);
+      lines.push(reflectionStableLine(s.tag));
+    }
+  }
+
+  if(lines.length < 4 && analysis.distinctTagCount >= 3){
+    lines.push(reflectionBreadthLine());
+  }
+
+  return lines.slice(0, 4);
+}
+
+const REFLECTION_LOW_DATA = k3(
+  "まだ始まったばかりだね。<br>これからワクワクが増えるほど、<br>一緒に見つけられるものも増えていきそう。",
+  "まだ始まったばっかりやね。<br>これからワクワクが増えるほど、<br>一緒に見つけられるものも増えていきそうやで。",
+  "まだ始まったばっかりばい。<br>これからワクワクが増えるほど、<br>一緒に見つけられるもんも増えていきそうたい。"
+);
+const REFLECTION_FEEDBACK_RESPONSE = {
+  agree: k3(
+    "うん、その感覚も大事にしよう。答えを決めなくても大丈夫だよ。",
+    "うん、その感覚も大事にしよ。答えを決めんでも大丈夫やで。",
+    "うん、その感覚も大事にしよ。答えを決めんでも大丈夫ばい。"
+  ),
+  surprised: k3(
+    "意外って面白いよね。気づいていなかった好きが隠れているのかも。",
+    "意外っておもろいよね。気づいてなかった好きが隠れてるのかもね。",
+    "意外っておもしろかね。気づいとらんかった好きが隠れとーとかもしれんね。"
+  ),
+  unsure: k3(
+    "それでいいよ。今は答えを出さずに、ちょっと眺めておこう。",
+    "それでええよ。今は答えを出さずに、ちょっと眺めとこ。",
+    "それでよかよ。今は答えを出さずに、ちょっと眺めとこ。"
+  ),
+};
+function renderMindReflectionCard(analysis, timeline){
+  const root = document.getElementById("mindReflectionBody");
+  const feedbackKaosu = document.getElementById("mindReflectionFeedbackKaosu");
+  if(!root) return;
+
+  /* 再描画のたび、前回選んだ感想ボタンの状態はリセットする
+     (Phase25では感想を保存しないため、選択状態も一時的なものにとどめる) */
+  if(feedbackKaosu) feedbackKaosu.textContent = "";
+  document.querySelectorAll("#mindReflectionFeedbackRow .filterbtn").forEach(b => b.classList.remove("active"));
+
+  const lines = generateReflection(analysis, timeline);
+  if(lines.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">${sp(REFLECTION_LOW_DATA)}</p>`;
+    return;
+  }
+  root.innerHTML = lines.map(line => `<p class="mind-trend-line">${escapeHtml(sp(line))}</p>`).join("");
+}
+document.querySelectorAll("#mindReflectionFeedbackRow .filterbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#mindReflectionFeedbackRow .filterbtn").forEach(b => b.classList.toggle("active", b === btn));
+    const response = REFLECTION_FEEDBACK_RESPONSE[btn.dataset.feedback];
+    if(response) document.getElementById("mindReflectionFeedbackKaosu").textContent = sp(response);
+  });
+});
+
 function renderMindView(){
   const empty = document.getElementById("mindEmpty");
   const content = document.getElementById("mindContent");
@@ -3390,6 +3529,7 @@ function renderMindView(){
   renderMindInsightCard(analysis);
   renderMindSeedCard(analysis);
   renderMindTimelineCard(timeline);
+  renderMindReflectionCard(analysis, timeline);
 }
 
 /* =========================================================
