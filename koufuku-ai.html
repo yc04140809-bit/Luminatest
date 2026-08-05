@@ -931,6 +931,10 @@ textarea.field-input{ resize:none; }
         </div>
         <p class="view-sub" style="margin:10px 0 0;">今のあなたに一番心地いい<br>ケイオスちゃんを選んでね。</p>
       </div>
+
+      <div style="margin-top:6px; text-align:center;">
+        <button class="btn-text" id="btnOpenSurvey">テストアンケートに回答する</button>
+      </div>
     </section>
 
   </main>
@@ -1057,6 +1061,46 @@ textarea.field-input{ resize:none; }
           <button class="btn-text" id="btnSkipPreferredName">あとで決める</button>
         </div>
         <button class="btn-primary sheet-savebtn" id="btnClosePreferredNameConfirm" style="display:none;">はじめる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MVPテストアンケート(端末内のみで完結。外部送信は一切行わず、
+       回答をコピーしてテストユーザー自身がケイオス師匠へ送る方式) -->
+  <div class="modal" id="surveyModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles">
+          <h3>テストアンケート</h3>
+          <p>2〜3分くらいで大丈夫です</p>
+        </div>
+        <button class="sheet-close" id="surveyClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <div id="surveyFormStep">
+          <div class="kaosu-row">
+            <div class="kaosu-avatar" style="width:56px;height:56px">
+              <img src="img/koufuku/kaosu-face-smile.webp" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="surveyIntroText"></div>
+          </div>
+          <div id="surveyQuestionsBody"></div>
+          <button class="btn-primary sheet-savebtn" id="btnSurveyFinish">ここまでの回答を見る</button>
+        </div>
+        <div id="surveyDoneStep" style="display:none;">
+          <div class="kaosu-row">
+            <div class="kaosu-avatar" style="width:56px;height:56px">
+              <img src="img/koufuku/kaosu-face-cheer.webp" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="surveyThanksText"></div>
+          </div>
+          <button class="btn-primary sheet-savebtn" id="btnSurveyCopy">回答をコピー</button>
+          <p class="mind-empty-note" id="surveyCopyResultText" style="display:none;"></p>
+          <textarea class="field-input" id="surveyCopyFallbackArea" rows="12" style="display:none; margin-top:10px; font-size:12px;" readonly></textarea>
+          <button class="btn-text" id="btnSurveyBackToForm">回答を修正する</button>
+        </div>
       </div>
     </div>
   </div>
@@ -4437,6 +4481,177 @@ function renderMindFeelingCard(){
 }
 
 document.getElementById("btnMindGoWakuwaku").addEventListener("click", () => switchView("wakuwaku"));
+
+/* =========================================================
+   MVPテストアンケート
+   - 第三者テスト期間中だけ使う軽量なフィードバック収集。
+   - IndexedDB/localStorageへは一切保存しない(ページ内メモリのみ、
+     リロードで消える)。外部送信も一切行わない。
+   - 回収方法は「回答をコピー」してテストユーザー自身がケイオス師匠
+     へ手動で送る方式(クリップボードAPI、失敗時はテキストエリアの
+     手動コピーにフォールバック)。ネットワーク通信は一切発生しない。
+   ========================================================= */
+const SURVEY_INTRO = k3(
+  "使ってくれてありがとう！ちょっとだけ感想を聞かせてね♪<br>正解とかないから、思ったままで大丈夫だよ！",
+  "使ってくれてありがとう！ちょっとだけ感想聞かせてな♪<br>正解とかないから、思ったままで大丈夫やで！",
+  "使ってくれてありがとう！ちょっとだけ感想ば聞かせてね♪<br>正解とかなかけん、思ったままで大丈夫やけん！"
+);
+const SURVEY_THANKS = k3(
+  "ありがとう！めっちゃ助かりました✨<br>もらった感想を、もっと心地いいアプリにするために使わせてもらいます。",
+  "ありがとう！めっちゃ助かりました✨<br>もらった感想を、もっと心地いいアプリにするために使わせてもらうな。",
+  "ありがとう！めっちゃ助かりました✨<br>もらった感想を、もっと心地いいアプリにするために使わせてもらうけんね。"
+);
+const SURVEY_COPY_SUCCESS = k3(
+  "コピーできたよ！<br>この内容をケイオス師匠に送ってね♪",
+  "コピーできたで！<br>この内容をケイオス師匠に送ってな♪",
+  "コピーできたばい！<br>この内容をケイオス師匠に送ってね♪"
+);
+const SURVEY_COPY_FALLBACK = k3(
+  "自動コピーができなかったみたい。<br>下のテキストを長押しして、手動でコピーしてね。",
+  "自動コピーができんかったみたい。<br>下のテキストを長押しして、手動でコピーしてな。",
+  "自動コピーができんかったみたいたい。<br>下のテキストば長押しして、手動でコピーしてね。"
+);
+
+const SURVEY_QUESTIONS = [
+  { id:"q1", label:"Q1 名前設定", text:"名前を設定する流れは迷わなかったですか？", scale:["迷った","やや迷った","どちらでもない","迷わなかった","とてもスムーズ"], comment:true, commentPlaceholder:"迷ったところがあれば教えてください" },
+  { id:"q2", label:"Q2 ワクワク登録", text:"最初の「ワクワク」を記録するまでの流れはわかりやすかったですか？", scale:["わかりにくい","ややわかりにくい","どちらでもない","わかりやすい","とてもわかりやすい"], comment:false },
+  { id:"q3", label:"Q3 ケイオスちゃん", text:"ケイオスちゃんの反応（表情・言葉）は押し付けがましく感じませんでしたか？", scale:["とても押し付けがましい","やや押し付けがましい","どちらでもない","自然","とても自然"], comment:false },
+  { id:"q4", label:"Q4 わたし画面", text:"「わたし」タブの各カードの意味は、説明なしでも直感的に理解できましたか？", scale:["理解できなかった","やや理解しにくかった","どちらでもない","理解できた","とてもよく理解できた"], comment:false },
+  { id:"q5", label:"Q5 小さな幸せ実験", text:"「今日の小さな幸せ実験」を試してみたいと思えましたか？", scale:["思えなかった","あまり思わなかった","どちらでもない","思った","とても思った"], comment:false },
+  { id:"q6", label:"Q6 実験リアクション", text:"実験への反応「なんかよかった」「ふつう」「今は違ったかも」は押しやすかったですか？", scale:["押しにくい","やや押しにくい","どちらでもない","押しやすい","とても押しやすい"], comment:false },
+  { id:"q7", label:"Q7 方言切替", text:"話し方「標準語・関西弁・博多弁」を切り替えたとき、違和感のある言い回しはありませんでしたか？", scale:["違和感があった","やや違和感があった","どちらでもない","違和感はなかった","とても自然"], comment:true, commentPlaceholder:"気になった言葉があれば教えてください" },
+  { id:"q8", label:"Q8 スマホ表示", text:"スマホで使っていて、文字切れ・ボタンのはみ出し・横スクロール・押しにくい場所などはありませんでしたか？", scale:["よくあった","たまにあった","どちらでもない","ほとんどなかった","まったくなかった"], comment:true, commentPlaceholder:"気になった画面があれば教えてください" },
+  { id:"q9", label:"Q9 データ保持", text:"アプリを閉じて再度開いたとき、記録した内容はちゃんと残っていましたか？", scale:["残っていなかった","一部残っていなかった","わからない","残っていた","すべて残っていた"], comment:false },
+  { id:"q10", label:"Q10 診断・評価感", text:"このアプリを使っていて、「自分を診断されている」「評価されている」ように感じる瞬間はありましたか？", scale:["よくあった","たまにあった","どちらでもない","あまりなかった","まったくなかった"], comment:true, commentPlaceholder:"もしあれば、どの場面だったか教えてください" },
+];
+const SURVEY_FREE_QUESTIONS = [
+  { id:"good", label:"一番よかったところ", text:"一番よかったところは？" },
+  { id:"unclear", label:"一番わかりにくかったところ", text:"一番わかりにくかったところは？" },
+  { id:"wantMore", label:"もっと使いたくなる機能", text:"こうなったらもっと使いたい、と思うものは？" },
+  { id:"other", label:"その他", text:"その他、気になったことがあれば自由に教えてください" },
+];
+
+/* ページ内メモリのみに保持。保存・復元は一切行わない(リロードで消える) */
+let surveyAnswers = {};
+
+function renderSurveyForm(){
+  const root = document.getElementById("surveyQuestionsBody");
+  if(!root) return;
+  const questionsHtml = SURVEY_QUESTIONS.map(q => `
+    <div class="form-label" style="margin-top:20px;">${escapeHtml(q.text)}</div>
+    <div class="chip-row survey-likert" data-qid="${q.id}">
+      ${[1,2,3,4,5].map(n => `<button type="button" class="filterbtn survey-likert-btn${surveyAnswers[q.id] === n ? " active" : ""}" data-value="${n}">${n}</button>`).join("")}
+    </div>
+    <p class="view-sub" style="margin:4px 0 0;">${escapeHtml(q.scale[0])} ／ ${escapeHtml(q.scale[4])}</p>
+    ${q.comment ? `<textarea class="field-input" rows="2" style="margin-top:8px;" placeholder="${escapeHtml(q.commentPlaceholder)}（任意）" data-comment-for="${q.id}">${escapeHtml(surveyAnswers[q.id + "Comment"] || "")}</textarea>` : ""}
+  `).join("");
+  const freeHtml = SURVEY_FREE_QUESTIONS.map(fq => `
+    <div class="form-label" style="margin-top:20px;">${escapeHtml(fq.text)}</div>
+    <textarea class="field-input" rows="2" placeholder="（任意）" data-free-for="${fq.id}">${escapeHtml(surveyAnswers[fq.id] || "")}</textarea>
+  `).join("");
+  root.innerHTML = questionsHtml + freeHtml;
+
+  root.querySelectorAll(".survey-likert").forEach(row => {
+    row.querySelectorAll(".survey-likert-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const qid = row.dataset.qid;
+        surveyAnswers[qid] = Number(btn.dataset.value);
+        row.querySelectorAll(".survey-likert-btn").forEach(b => b.classList.toggle("active", b === btn));
+      });
+    });
+  });
+  root.querySelectorAll("textarea[data-comment-for]").forEach(ta => {
+    ta.addEventListener("input", () => { surveyAnswers[ta.dataset.commentFor + "Comment"] = ta.value; });
+  });
+  root.querySelectorAll("textarea[data-free-for]").forEach(ta => {
+    ta.addEventListener("input", () => { surveyAnswers[ta.dataset.freeFor] = ta.value; });
+  });
+}
+
+function buildSurveyCopyText(){
+  const lines = ["【幸せ設計AI MVPテスト回答】", ""];
+  SURVEY_QUESTIONS.forEach(q => {
+    const val = surveyAnswers[q.id];
+    lines.push(`${q.label}：${val ? val : "未回答"}`);
+    const comment = (surveyAnswers[q.id + "Comment"] || "").trim();
+    if(q.comment && comment){
+      lines.push(`　　コメント：${comment}`);
+    }
+  });
+  lines.push("");
+  SURVEY_FREE_QUESTIONS.forEach(fq => {
+    lines.push(`${fq.label}：`);
+    lines.push((surveyAnswers[fq.id] || "").trim() || "（記入なし）");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+function openSurvey(){
+  document.getElementById("surveyIntroText").innerHTML = sp(SURVEY_INTRO);
+  document.getElementById("surveyFormStep").style.display = "";
+  document.getElementById("surveyDoneStep").style.display = "none";
+  renderSurveyForm();
+  document.getElementById("surveyModal").classList.add("show");
+}
+function closeSurvey(){
+  document.getElementById("surveyModal").classList.remove("show");
+}
+document.getElementById("btnOpenSurvey").addEventListener("click", openSurvey);
+document.getElementById("surveyClose").addEventListener("click", closeSurvey);
+document.getElementById("surveyModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "surveyModal") closeSurvey();
+});
+
+document.getElementById("btnSurveyFinish").addEventListener("click", () => {
+  document.getElementById("surveyFormStep").style.display = "none";
+  document.getElementById("surveyDoneStep").style.display = "";
+  document.getElementById("surveyThanksText").innerHTML = sp(SURVEY_THANKS);
+  document.getElementById("surveyCopyResultText").style.display = "none";
+  document.getElementById("surveyCopyFallbackArea").style.display = "none";
+  const scroller = document.querySelector("#surveyModal .sheet-scroll");
+  if(scroller) scroller.scrollTop = 0;
+});
+document.getElementById("btnSurveyBackToForm").addEventListener("click", () => {
+  document.getElementById("surveyFormStep").style.display = "";
+  document.getElementById("surveyDoneStep").style.display = "none";
+});
+
+document.getElementById("btnSurveyCopy").addEventListener("click", async () => {
+  const text = buildSurveyCopyText();
+  let success = false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+      success = true;
+    }
+  }catch(e){ success = false; }
+  if(!success){
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      success = document.execCommand("copy");
+      document.body.removeChild(ta);
+    }catch(e){ success = false; }
+  }
+  const resultEl = document.getElementById("surveyCopyResultText");
+  const fallbackArea = document.getElementById("surveyCopyFallbackArea");
+  if(success){
+    resultEl.innerHTML = sp(SURVEY_COPY_SUCCESS);
+    resultEl.style.display = "block";
+    fallbackArea.style.display = "none";
+  }else{
+    resultEl.innerHTML = sp(SURVEY_COPY_FALLBACK);
+    resultEl.style.display = "block";
+    fallbackArea.value = text;
+    fallbackArea.style.display = "block";
+  }
+});
 
 /* =========================================================
    初期化
