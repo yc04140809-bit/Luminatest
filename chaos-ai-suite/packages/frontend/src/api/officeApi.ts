@@ -6,6 +6,7 @@ import type {
   CaseRequirements,
   ClientQuestions,
   CouncilRequestCategory,
+  DebateDecision,
   DeliveryPack,
   MarketingCopyDiagnoseRequest,
   MarketingCopyDiagnosis,
@@ -160,6 +161,21 @@ export function approveCouncil(sessionId: string): Promise<void> {
 /** AI会議モード: 破棄。 */
 export function discardCouncil(sessionId: string): Promise<void> {
   return sendJson("POST", `/api/council/${sessionId}/discard`, {});
+}
+
+/** AI討論会: 初期意見→相互反論→改善案→統合を開始する。既に進行中の場合はエラーになる。 */
+export function startDebate(input: { topic: string; participantAgentIds?: string[]; costCapUsd?: number }): Promise<void> {
+  return sendJson("POST", "/api/debate/start", input);
+}
+
+/** AI討論会: 処理停止。実行中のラウンドは完了させ、次のラウンドには進まない。 */
+export function stopDebate(sessionId: string): Promise<void> {
+  return sendJson("POST", `/api/debate/${sessionId}/stop`, {});
+}
+
+/** AI討論会: 人間の最終判断（そのまま実行／修正して実行／保留／却下）。 */
+export function decideDebate(sessionId: string, decision: DebateDecision, note?: string): Promise<void> {
+  return sendJson("POST", `/api/debate/${sessionId}/decide`, { decision, note });
 }
 
 /** 朝会ブリーフィングを実行する。本日実施済みの場合はエラーになる。 */

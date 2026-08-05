@@ -9,6 +9,9 @@ import {
   type BrandProfileUpdateInput,
   type CouncilCallLog,
   type CouncilSession,
+  type DebateCallLog,
+  type DebateEntry,
+  type DebateSession,
   type Message,
   type MessageDraft,
   type MeetingStatement,
@@ -246,6 +249,78 @@ export class OfficeStore {
     };
     this.state.councilSessions[id] = updated;
     this.emit({ type: "council_session_updated", session: updated });
+    return updated;
+  }
+
+  listDebateSessions(): DebateSession[] {
+    return Object.values(this.state.debateSessions);
+  }
+
+  getDebateSession(id: string): DebateSession | undefined {
+    return this.state.debateSessions[id];
+  }
+
+  /** 実行中、または人間の承認待ちのAI討論会が1件でもあればtrue（同時に扱えるのは常に1件まで）。 */
+  hasRunningDebateSession(): boolean {
+    return Object.values(this.state.debateSessions).some(
+      (session) => session.status === "running" || session.status === "awaiting_approval",
+    );
+  }
+
+  createDebateSession(input: {
+    topic: string;
+    participantAgentIds: string[];
+    integratorAgentId: string;
+    costCapUsd?: number;
+  }): DebateSession {
+    const now = new Date().toISOString();
+    const session: DebateSession = {
+      id: `debate-${randomUUID()}`,
+      topic: input.topic,
+      status: "running",
+      phase: "opinion",
+      participantAgentIds: input.participantAgentIds,
+      integratorAgentId: input.integratorAgentId,
+      entries: [],
+      calls: [],
+      costCapUsd: input.costCapUsd,
+      estimatedCostUsd: 0,
+      stopRequested: false,
+      startedAt: now,
+    };
+    this.state.debateSessions[session.id] = session;
+    this.emit({ type: "debate_session_updated", session });
+    return session;
+  }
+
+  updateDebateSession(id: string, patch: Partial<DebateSession>): DebateSession | undefined {
+    const existing = this.state.debateSessions[id];
+    if (!existing) return undefined;
+    const updated: DebateSession = { ...existing, ...patch };
+    this.state.debateSessions[id] = updated;
+    this.emit({ type: "debate_session_updated", session: updated });
+    return updated;
+  }
+
+  appendDebateEntry(id: string, entry: DebateEntry): DebateSession | undefined {
+    const existing = this.state.debateSessions[id];
+    if (!existing) return undefined;
+    const updated: DebateSession = { ...existing, entries: [...existing.entries, entry] };
+    this.state.debateSessions[id] = updated;
+    this.emit({ type: "debate_session_updated", session: updated });
+    return updated;
+  }
+
+  appendDebateCallLog(id: string, log: DebateCallLog): DebateSession | undefined {
+    const existing = this.state.debateSessions[id];
+    if (!existing) return undefined;
+    const updated: DebateSession = {
+      ...existing,
+      calls: [...existing.calls, log],
+      estimatedCostUsd: existing.estimatedCostUsd + log.estimatedCostUsd,
+    };
+    this.state.debateSessions[id] = updated;
+    this.emit({ type: "debate_session_updated", session: updated });
     return updated;
   }
 

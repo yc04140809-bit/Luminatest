@@ -23,12 +23,14 @@ import { trendRoutes } from "./routes/trend.js";
 import { brandProfileRoutes } from "./routes/brandProfile.js";
 import { marketingCopyRoutes } from "./routes/marketingCopy.js";
 import { councilRoutes } from "./routes/council.js";
+import { debateRoutes } from "./routes/debate.js";
 import { registerOfficeSocket } from "./ws/officeSocket.js";
 import { officeStore } from "./store/officeStore.js";
 import { createAnthropicClient } from "./orchestration/llmClient.js";
 import { createAgentRuntime } from "./orchestration/agentRuntime.js";
 import { createMeetingRuntime } from "./orchestration/meetingRuntime.js";
 import { createCouncilRuntime } from "./orchestration/councilRuntime.js";
+import { createDebateRuntime } from "./orchestration/debateRuntime.js";
 import { createMorningBriefingRuntime } from "./orchestration/morningBriefing.js";
 import { createOfficeBanterRuntime } from "./orchestration/officeBanter.js";
 import { buildToolRegistry } from "./tools/index.js";
@@ -44,6 +46,7 @@ async function main(): Promise<void> {
   const runtime = createAgentRuntime(officeStore, llm, toolRegistry);
   const meetingRuntime = createMeetingRuntime(officeStore, llm);
   const councilRuntime = createCouncilRuntime(officeStore, llm);
+  const debateRuntime = createDebateRuntime(officeStore, llm);
   const briefingRuntime = createMorningBriefingRuntime(officeStore, llm);
   const banterRuntime = createOfficeBanterRuntime(officeStore, llm);
 
@@ -65,6 +68,7 @@ async function main(): Promise<void> {
   await app.register(brandProfileRoutes);
   await app.register(marketingCopyRoutes(llm));
   await app.register(councilRoutes(councilRuntime));
+  await app.register(debateRoutes(debateRuntime));
   await app.register(registerOfficeSocket);
 
   // 本番デプロイ用: フロントエンドのビルド成果物を同じサーバー・同一originから配信する

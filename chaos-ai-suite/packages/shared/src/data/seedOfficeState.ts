@@ -16,6 +16,7 @@ export function buildSeedOfficeState(): OfficeState {
     strategyMeetings: {},
     brandProfile: buildDefaultBrandProfile(),
     councilSessions: {},
+    debateSessions: {},
     lastUpdated: new Date().toISOString(),
   };
 }

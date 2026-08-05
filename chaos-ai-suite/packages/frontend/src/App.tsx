@@ -14,6 +14,8 @@ import { MeetingLauncher } from "./components/MeetingLauncher.js";
 import { MeetingRoom } from "./components/MeetingRoom.js";
 import { CouncilLauncher } from "./components/CouncilLauncher.js";
 import { CouncilRoom } from "./components/CouncilRoom.js";
+import { DebateLauncher } from "./components/DebateLauncher.js";
+import { DebateRoom } from "./components/DebateRoom.js";
 import { BanterLauncher } from "./components/BanterLauncher.js";
 import { SnsAnalysisLab } from "./components/SnsAnalysisLab.js";
 import { NoteEditorStudio } from "./components/NoteEditorStudio.js";
@@ -44,6 +46,9 @@ export default function App() {
   const [councilRoomOpen, setCouncilRoomOpen] = useState(false);
   const [openCouncilSessionId, setOpenCouncilSessionId] = useState<string | null>(null);
   const seenCouncilIds = useRef<Set<string>>(new Set());
+  const [debateRoomOpen, setDebateRoomOpen] = useState(false);
+  const [openDebateSessionId, setOpenDebateSessionId] = useState<string | null>(null);
+  const seenDebateIds = useRef<Set<string>>(new Set());
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [luminaBrainOpen, setLuminaBrainOpen] = useState(false);
   const briefingRequested = useRef(false);
@@ -93,6 +98,21 @@ export default function App() {
     for (const session of activeSessions) seenCouncilIds.current.add(session.id);
   }, [office]);
 
+  useEffect(() => {
+    if (!office) return;
+    const activeSessions = Object.values(office.debateSessions).filter(
+      (session) => session.status === "running" || session.status === "awaiting_approval",
+    );
+    const unseen = activeSessions.find((session) => !seenDebateIds.current.has(session.id));
+    if (unseen) {
+      setDebateRoomOpen(true);
+      // 表示するセッションはIDで固定する。判断/破棄/失敗でstatusが変わっても
+      // 同じセッションを表示し続け、結果確認メッセージが一瞬で消えてしまわないようにする。
+      setOpenDebateSessionId(unseen.id);
+    }
+    for (const session of activeSessions) seenDebateIds.current.add(session.id);
+  }, [office]);
+
   if (!office) {
     return (
       <div className="flex min-h-full items-center justify-center bg-office-bg">
@@ -121,6 +141,12 @@ export default function App() {
   const councilRunning = councilSessions.some((session) => session.status === "running" || session.status === "awaiting_approval");
   // モーダルに表示するセッションはID固定。承認/破棄/失敗でstatusが変わっても表示し続ける
   const displayedCouncilSession = openCouncilSessionId ? office.councilSessions[openCouncilSessionId] : undefined;
+
+  const debateSessions = Object.values(office.debateSessions).sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+  );
+  const debateRunning = debateSessions.some((session) => session.status === "running" || session.status === "awaiting_approval");
+  const displayedDebateSession = openDebateSessionId ? office.debateSessions[openDebateSessionId] : undefined;
 
   function handleMention(agent: Agent): void {
     setMentionTarget({ agentId: agent.id, nonce: Date.now() });
@@ -202,6 +228,10 @@ export default function App() {
 
       {luminaBrainOpen && <LuminaBrainScreen onClose={() => setLuminaBrainOpen(false)} />}
 
+      {debateRoomOpen && displayedDebateSession && (
+        <DebateRoom session={displayedDebateSession} agents={office.agents} onClose={() => setDebateRoomOpen(false)} />
+      )}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
           <OfficeBoard
@@ -219,6 +249,7 @@ export default function App() {
         <div className="flex flex-col gap-6">
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
           <CouncilLauncher councilRunning={councilRunning} />
+          <DebateLauncher agents={agents} debateRunning={debateRunning} />
           <CaseWorkshop agents={agents} />
           <SnsAnalysisLab />
           <MarketingCopyStudio />

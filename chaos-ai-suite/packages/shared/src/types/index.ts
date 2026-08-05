@@ -16,3 +16,4 @@ export * from "./brandProfile.js";
 export * from "./marketingCopy.js";
 export * from "./council.js";
 export * from "./luminaBrain.js";
+export * from "./debate.js";

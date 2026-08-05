@@ -5,6 +5,7 @@ import type { ThemeSettings } from "./theme.js";
 import type { StrategyMeeting } from "./meeting.js";
 import type { BrandProfile } from "./brandProfile.js";
 import type { CouncilSession } from "./council.js";
+import type { DebateSession } from "./debate.js";
 
 /** 進行中の作戦会議（例: セイラちゃん×レヴィちゃんのタスク分解会議）。 */
 export interface ActiveMeeting {
@@ -35,6 +36,8 @@ export interface OfficeState {
   brandProfile: BrandProfile;
   /** AI会議モード（作成役→検証役→統合役→人間承認）のセッション記録 */
   councilSessions: Record<string, CouncilSession>;
+  /** AI討論会（初期意見→相互反論→改善案→統合→人間承認）のセッション記録 */
+  debateSessions: Record<string, DebateSession>;
   /** 朝会ブリーフィングを最後に実施した日付（"YYYY-MM-DD"、日本時間）。未実施ならundefined。 */
   lastBriefingDate?: string;
   lastUpdated: string;
@@ -53,4 +56,5 @@ export type OfficeEvent =
   | { type: "briefing_completed"; date: string }
   | { type: "brand_profile_updated"; brandProfile: BrandProfile }
   | { type: "council_session_updated"; session: CouncilSession }
+  | { type: "debate_session_updated"; session: DebateSession }
   | { type: "office_state_snapshot"; state: OfficeState };
