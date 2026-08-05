@@ -782,6 +782,19 @@ textarea.field-input{ resize:none; }
         </div>
 
         <div class="card">
+          <div class="card-label">好きの奥にあるもの</div>
+          <p class="view-sub" style="margin:0 0 10px;">好きなものを眺めていると、<br>少しずつ共通点が見えてくることがあります。</p>
+          <div id="mindValueSeedBody"></div>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="mindValueSeedKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
           <div class="card-label">好きの時間軸</div>
           <div id="mindTimelineBody"></div>
           <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
@@ -3120,6 +3133,88 @@ function analyzeWakuwakuTimeline(entries){
   return { enoughData: true, growing, newInterests, stable, summary };
 }
 
+/* =========================================================
+   Phase26: analyzeValueSeeds(entries)
+   - タグの奥にある「価値観の芽」を見つけるための、これも独立した
+     読み取り専用の純粋関数。analyzeWakuwaku()/analyzeWakuwakuTimeline()/
+     generateReflection()とは分離し、DOM操作・DB書き込みは一切
+     行わない。診断カテゴリではなく、あくまで「好き同士の共通点を
+     見つけるための内部辞書(VALUE_SEED_GROUPS)」を使うだけ。
+   - 同じ価値観候補につながる"異なるタグ"が2種類以上存在するときだけ
+     候補として拾う(1タグだけでは候補にしない=断定を避ける)。
+     数値・スコアはUIに一切渡さず、内部の並び替えだけに使う。
+   戻り値: { enoughData: boolean, seeds: [{ seedKey, matchedTags }] } (最大3件)
+   ========================================================= */
+const VALUE_SEED_GROUPS = {
+  expression: {
+    label: "表現すること", icon: "🎨",
+    description: "音楽や歌、創作みたいに、「自分の中にあるものを形にすること」に心が動いているのかも。",
+    keywords: ["音楽", "歌", "楽器", "絵", "写真", "文章", "創作"],
+  },
+  connection: {
+    label: "つながること", icon: "🤝",
+    description: "誰かと話したり、一緒に過ごしたりする時間。人とのつながりに、心が動いているのかもしれないね。",
+    keywords: ["家族", "友達", "会話", "一緒", "交流", "人"],
+  },
+  newWorld: {
+    label: "新しい世界に触れること", icon: "🌍",
+    description: "知らない場所や初めてのこと。新しい世界に触れる瞬間に、心惹かれているのかも。",
+    keywords: ["旅行", "冒険", "新しい場所", "初体験", "挑戦", "場所"],
+  },
+  nature: {
+    label: "自然を感じること", icon: "🌿",
+    description: "海や山、空や星。自然の中にいる時間に、そっと心が動いているのかもしれないね。",
+    keywords: ["自然", "海", "山", "空", "星", "植物"],
+  },
+  knowledge: {
+    label: "知ること・発見すること", icon: "🔍",
+    description: "知らないことを知ったり、調べたりする時間。「知ること」自体が好きなのかも。",
+    keywords: ["勉強", "AI", "技術", "発見", "研究", "知識"],
+  },
+  ownPace: {
+    label: "自分のペース", icon: "🌱",
+    description: "静かな時間や、のんびりすること。急がず自分の感覚を大切にする時間も、好きなのかもしれないね。",
+    keywords: ["自由", "一人時間", "のんびり", "休息", "静か", "癒し"],
+  },
+  making: {
+    label: "つくること", icon: "🔨",
+    description: "何かを手を動かして作る時間。「つくること」そのものに、心が動いているのかも。",
+    keywords: ["料理", "ものづくり", "DIY", "ハンドメイド"],
+  },
+  helping: {
+    label: "誰かの力になること", icon: "🤲",
+    description: "誰かの役に立てたとき。人の力になれることに、心が動いているのかもしれないね。",
+    keywords: ["応援", "手伝う", "喜ばせる", "教える"],
+  },
+};
+const VALUE_SEED_KEYWORD_MAP = {};
+Object.entries(VALUE_SEED_GROUPS).forEach(([key, group]) => {
+  group.keywords.forEach(kw => { VALUE_SEED_KEYWORD_MAP[kw] = key; });
+});
+function analyzeValueSeeds(entries){
+  const list = entries || [];
+  const tagFreq = new Map();
+  list.forEach(e => (e.tags || []).forEach(t => { if(t) tagFreq.set(t, (tagFreq.get(t) || 0) + 1); }));
+
+  const seedTagMap = new Map();
+  tagFreq.forEach((count, tag) => {
+    const seedKey = VALUE_SEED_KEYWORD_MAP[tag];
+    if(!seedKey) return;
+    if(!seedTagMap.has(seedKey)) seedTagMap.set(seedKey, new Set());
+    seedTagMap.get(seedKey).add(tag);
+  });
+
+  const candidates = [];
+  seedTagMap.forEach((tagSet, seedKey) => {
+    if(tagSet.size >= 2){
+      candidates.push({ seedKey, matchedTags: Array.from(tagSet) });
+    }
+  });
+  candidates.sort((a, b) => b.matchedTags.length - a.matchedTags.length);
+
+  return { enoughData: candidates.length > 0, seeds: candidates.slice(0, 3) };
+}
+
 const MIND_RANKING_EMPTY = k3(
   "好きがもう少し集まると、<br>ここにあなたらしい景色が<br>見えてくるよ。",
   "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるで。",
@@ -3331,6 +3426,43 @@ const MIND_TIMELINE_KAOSU = k3(
   "好きって、ずっと同じじゃなくてええんよ。今の心が向いてる方も、大事にしてみよか。",
   "好きは、ずっと同じじゃなくてもよかとよ。今の心が向いとる方も、大事にしてみらんね。"
 );
+/* =========================================================
+   Phase26: 「好きの奥にあるもの」
+   - analyzeValueSeeds()の結果をそのまま表示するだけ。ランキング化・
+     数値表示は一切行わず、最大3件をカード形式で見せる。
+   ========================================================= */
+const VALUE_SEED_EMPTY = k3(
+  "まだ『好き』の奥にある共通点は、<br>ゆっくり育っている途中みたい。<br><br>好きなものが増えていくと、<br>いつか『あ、これかも』が<br>見えてくるかもしれないね。",
+  "まだ『好き』の奥にある共通点は、<br>ゆっくり育っとる途中みたい。<br><br>好きなもんが増えていくと、<br>いつか『あ、これかも』が<br>見えてくるかもしれへんで。",
+  "まだ『好き』の奥にある共通点は、<br>ゆっくり育っとーとこみたい。<br><br>好きなもんが増えていくと、<br>いつか『あ、これかも』が<br>見えてくるかもしれんばい。"
+);
+const VALUE_SEED_KAOSU = k3(
+  "好きなものって、バラバラに見えて意外とつながってることがあるんだよ。",
+  "好きなもんって、バラバラに見えて意外と奥でつながっとることあるんよ。",
+  "好きなものって、バラバラに見えて意外と奥でつながっとることもあるとよ。"
+);
+function renderMindValueSeedCard(valueSeeds){
+  const root = document.getElementById("mindValueSeedBody");
+  const kaosuEl = document.getElementById("mindValueSeedKaosu");
+  if(!root) return;
+
+  if(!valueSeeds.enoughData || valueSeeds.seeds.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">${sp(VALUE_SEED_EMPTY)}</p>`;
+    if(kaosuEl) kaosuEl.textContent = "";
+    return;
+  }
+
+  root.innerHTML = valueSeeds.seeds.map(s => {
+    const group = VALUE_SEED_GROUPS[s.seedKey];
+    return `
+      <div class="candidate-item">
+        <p class="candidate-text" style="margin-bottom:4px; font-weight:700;">${escapeHtml(group.icon)} ${escapeHtml(group.label)}</p>
+        <p class="mind-empty-note">${escapeHtml(group.description)}</p>
+      </div>`;
+  }).join("");
+  if(kaosuEl) kaosuEl.textContent = sp(VALUE_SEED_KAOSU);
+}
+
 function renderMindTimelineCard(timeline){
   const root = document.getElementById("mindTimelineBody");
   const kaosuEl = document.getElementById("mindTimelineKaosu");
@@ -3492,6 +3624,7 @@ function renderMindView(){
   const topTypeLabel = topType && TYPE_META[topType] ? TYPE_META[topType].label : null;
   const analysis = analyzeWakuwaku(entries);
   const timeline = analyzeWakuwakuTimeline(entries);
+  const valueSeeds = analyzeValueSeeds(entries);
 
   let statsHtml = `<p class="mind-stat-line">今までに <strong>${entries.length}個</strong> のワクワクを集めました</p>`;
   if(topEmotion) statsHtml += `<p class="mind-stat-line">最近多い気持ち：<strong>${escapeHtml(topEmotion)}</strong></p>`;
@@ -3528,6 +3661,7 @@ function renderMindView(){
   renderMindComboCard(analysis);
   renderMindInsightCard(analysis);
   renderMindSeedCard(analysis);
+  renderMindValueSeedCard(valueSeeds);
   renderMindTimelineCard(timeline);
   renderMindReflectionCard(analysis, timeline);
 }
