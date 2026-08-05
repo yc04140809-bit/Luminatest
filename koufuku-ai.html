@@ -606,6 +606,20 @@ textarea.field-input{ resize:none; }
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-label">あなたらしい未来のヒント</div>
+          <p class="view-sub" style="margin:0 0 10px;">好きなものの奥にある共通点から、<br>こんな未来も似合うかもしれません。</p>
+          <div id="futureValueHintList"></div>
+          <p class="mind-empty-note" style="margin-top:10px;">未来は、まだ決めなくて大丈夫。</p>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureValueHintKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
         <div class="card future-scene-card">
           <div class="card-label">未来の風景</div>
           <p class="mind-empty-note" id="futureLowDataNote" style="display:none;"></p>
@@ -2477,6 +2491,88 @@ function renderFutureCandidateCard(analysis, entries){
   });
 }
 
+/* =========================================================
+   Phase27: 「価値観の芽 × 未来」
+   - generateValueFutureHints(valueSeeds, analysis)はPhase26の
+     analyzeValueSeeds()の結果を受け取って組み合わせるだけの
+     読み取り専用の純粋関数。Phase22〜26の既存関数(analyzeWakuwaku/
+     buildFutureCandidates等)は一切変更しない。analysisは将来
+     Phase22の未来候補と自然に紐付けたくなった場合の拡張余地として
+     受け取るが、今回は無理に一致させず、Phase26の辞書だけから
+     安全にヒント文を組み立てる。
+   - 目標設定ではないため、「〜すべき」「向いている」等の指示・
+     断定表現は使わず、常に「〜未来」という一つの可能性の提示に
+     とどめる。
+   ========================================================= */
+const VALUE_FUTURE_HINTS = {
+  expression: ["好きなものを、小さな形にして誰かに見せてみる未来", "小さな作品をひとつ作ってみる未来", "好きな表現方法をもう少し探してみる未来"],
+  connection: ["好きな人とゆっくり話す時間をつくる未来", "誰かと好きなものを共有してみる未来", "一緒に楽しめることを探してみる未来"],
+  newWorld: ["行ったことのない場所を調べてみる未来", "知らないジャンルを少し覗いてみる未来", "小さな初体験をひとつ選んでみる未来"],
+  nature: ["少し外の空気を感じに行ってみる未来", "自然のある場所でゆっくり過ごしてみる未来", "空や景色をぼんやり眺めてみる未来"],
+  knowledge: ["気になっていたことを少し調べてみる未来", "知らなかったことをひとつ知ってみる未来", "新しいことを少しだけ学んでみる未来"],
+  ownPace: ["何もしない時間を少しつくる未来", "落ち着く場所で過ごしてみる未来", "予定をひとつ減らしてみる未来"],
+  making: ["小さなものをひとつ作ってみる未来", "気になっていた材料や道具を見てみる未来", "完成を気にせず手を動かしてみる未来"],
+  helping: ["身近な人が喜びそうなことを考えてみる未来", "自分が得意なことで少し手伝ってみる未来", "ありがとうと言われた場面を思い出してみる未来"],
+};
+function generateValueFutureHints(valueSeeds, analysis){
+  if(!valueSeeds || !valueSeeds.enoughData || valueSeeds.seeds.length === 0) return [];
+  return valueSeeds.seeds
+    .map(s => {
+      const group = VALUE_SEED_GROUPS[s.seedKey];
+      const hints = VALUE_FUTURE_HINTS[s.seedKey] || [];
+      if(!group || hints.length === 0) return null;
+      return { seedKey: s.seedKey, label: group.label, icon: group.icon, hints };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+const FUTURE_VALUE_HINT_EMPTY = k3(
+  "まだ『好きの奥にあるもの』は、<br>ゆっくり育っている途中みたい。<br>もう少し集まると、<br>ここに未来のヒントが見えてくるかも。",
+  "まだ『好きの奥にあるもの』は、<br>ゆっくり育っとる途中みたい。<br>もう少し集まったら、<br>ここに未来のヒントが見えてくるかもね。",
+  "まだ『好きの奥にあるもの』は、<br>ゆっくり育っとーとこみたい。<br>もう少し集まったら、<br>ここに未来のヒントが見えてくるかもしれんばい。"
+);
+const FUTURE_VALUE_HINT_KAOSU = k3(
+  "どれも、まだ決めなくて大丈夫だよ。気になるものがあれば、心の片隅に置いておくくらいでいいから。",
+  "どれも、まだ決めんでも大丈夫やで。気になるもんがあれば、心の片隅に置いとくくらいでええから。",
+  "どれも、まだ決めんでもよかよ。気になるもんがあれば、心の片隅に置いとくくらいでよかけん。"
+);
+const FUTURE_VALUE_HINT_INTEREST_RESPONSE = k3(
+  "いいね。その『ちょっと気になる』くらい、大切にしよう☺️",
+  "ええやん。その『ちょっと気になる』くらい、大事にしよ☺️",
+  "よかね。その『ちょっと気になる』くらい、大事にしよ☺️"
+);
+function renderFutureValueHintCard(valueSeeds, analysis){
+  const list = document.getElementById("futureValueHintList");
+  const kaosuEl = document.getElementById("futureValueHintKaosu");
+  if(!list) return;
+
+  const hints = generateValueFutureHints(valueSeeds, analysis);
+  if(hints.length === 0){
+    list.innerHTML = `<p class="mind-empty-note">${sp(FUTURE_VALUE_HINT_EMPTY)}</p>`;
+    if(kaosuEl) kaosuEl.textContent = "";
+    return;
+  }
+
+  list.innerHTML = hints.map((h, i) => {
+    const hintText = h.hints[Math.floor(Math.random() * h.hints.length)];
+    return `
+      <div class="candidate-item">
+        <p class="candidate-text">${escapeHtml(h.icon)} ${escapeHtml(h.label)}から<br>「${escapeHtml(hintText)}」も、ちょっと楽しそうかも。</p>
+        <button type="button" class="candidate-btn" data-idx="${i}">ちょっと気になる</button>
+      </div>`;
+  }).join("");
+  if(kaosuEl) kaosuEl.textContent = sp(FUTURE_VALUE_HINT_KAOSU);
+
+  /* Phase27: 「ちょっと気になる」はDB/localStorageに一切保存しない、
+     その場限りのケイオスちゃんの返答だけを共有の吹き出しに表示する。 */
+  list.querySelectorAll(".candidate-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if(kaosuEl) kaosuEl.textContent = sp(FUTURE_VALUE_HINT_INTEREST_RESPONSE);
+    });
+  });
+}
+
 function renderFutureView(){
   const empty = document.getElementById("futureEmpty");
   const content = document.getElementById("futureContent");
@@ -2494,6 +2590,7 @@ function renderFutureView(){
   const analysis = analyzeWakuwaku(entries);
   renderFutureFragmentCard(analysis, entries);
   renderFutureCandidateCard(analysis, entries);
+  renderFutureValueHintCard(analyzeValueSeeds(entries), analysis);
 
   const topType = mindMostFrequent(entries.map(e => e.type));
   const topEmotion = mindMostFrequent(entries.map(e => e.emotion));
