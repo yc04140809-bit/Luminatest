@@ -844,6 +844,15 @@ textarea.field-input{ resize:none; }
         <div class="card">
           <div class="card-label">最近の幸せの変化</div>
           <div id="mindRecentChangeBody"></div>
+
+          <div class="card-label" style="margin-top:16px;">ケイオスちゃんからひとこと</div>
+          <div class="kaosu-row" style="margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="mindKaosuReflectionText" style="font-size:13px;"></div>
+          </div>
         </div>
 
         <div class="card">
@@ -3668,6 +3677,95 @@ function renderMindRecentChangeCard(entries, timeline, valueSeeds, patterns, fee
   root.innerHTML = result.insights.map(i => `<p class="mind-trend-line">${escapeHtml(i.text)}</p>`).join("");
 }
 
+/* =========================================================
+   Phase33: generateKaosuReflection(timeline, valueSeeds, patterns, feedbackHistory)
+   - Phase32と同じ入力(既に計算済みの分析結果)を受け取り、ケイオス
+     ちゃん本人の一人称の一言(2〜4文)をk3()の配列として返す純粋関数。
+     DOM操作なし。話し方の適用(sp())は描画側(renderMindKaosuReflection
+     Card)でだけ行う。
+   - 説教・励ましすぎ・ポジティブ強制を避けるため、変化が見つから
+     なくても「それもあなたらしさ」という締めにする(ネガティブ判定
+     をしない)。
+   ========================================================= */
+function kaosuReflectionTagFragment(tag){
+  return k3(
+    `最近、「${tag}」のワクワクがよく出てきてるね。`,
+    `最近、「${tag}」のワクワクがようけ出てきてるね。`,
+    `最近、「${tag}」のワクワクがよう出てきとーね。`
+  );
+}
+function kaosuReflectionValueFragment(label){
+  return k3(
+    `前より「${label}」にも気持ちが向いてるみたい。`,
+    `前より「${label}」にも気持ちが向いてるみたいやね。`,
+    `前より「${label}」にも気持ちが向いとーみたいやね。`
+  );
+}
+function kaosuReflectionPatternFragment(labelA, labelB){
+  return k3(
+    `「${labelA}」と「${labelB}」が重なる瞬間も増えてきてるみたい。`,
+    `「${labelA}」と「${labelB}」が重なる瞬間も増えてきてるみたいやね。`,
+    `「${labelA}」と「${labelB}」が重なる瞬間も増えてきとーみたいやね。`
+  );
+}
+const KAOSU_REFLECTION_FEEDBACK_FRAGMENT = k3(
+  "小さく試してみたことにも、いい反応があったみたいで良かったよ。",
+  "小さく試してみたことにも、ええ反応があったみたいでよかったな。",
+  "小さく試してみたことにも、よか反応があったみたいでよかったばい。"
+);
+const KAOSU_REFLECTION_CLOSING = k3(
+  "なんかちょっと面白い流れになってきたね☺️",
+  "なんかちょっと面白い流れになってきたな☺️",
+  "なんかちょっと面白か流れになってきたばい☺️"
+);
+const KAOSU_REFLECTION_STABLE_CLOSING = k3(
+  "変化がなくても、それもまたあなたらしさだよ☺️",
+  "変化がなくても、それもまたあなたらしさやで☺️",
+  "変化がなくても、それもまたあなたらしさばい☺️"
+);
+const KAOSU_REFLECTION_EMPTY = k3(
+  "まだ分からないこともいっぱいだね。<br>これから一緒に見つけていこう。",
+  "まだ分からんこともいっぱいやね。<br>これから一緒に見つけていこな。",
+  "まだ分からんこともいっぱいばい。<br>これから一緒に見つけていこうね。"
+);
+function generateKaosuReflection(timeline, valueSeeds, patterns, feedbackHistory){
+  const fragments = [];
+
+  if(timeline && timeline.enoughData){
+    const changed = [...timeline.newInterests, ...timeline.growing]
+      .sort((a, b) => (b.recentCount - (b.oldCount || 0)) - (a.recentCount - (a.oldCount || 0)));
+    if(changed[0]) fragments.push(kaosuReflectionTagFragment(escapeHtml(changed[0].tag)));
+  }
+  if(fragments.length < 2 && valueSeeds && valueSeeds.enoughData && valueSeeds.seeds[0]){
+    const group = VALUE_SEED_GROUPS[valueSeeds.seeds[0].seedKey];
+    if(group) fragments.push(kaosuReflectionValueFragment(group.label));
+  }
+  if(fragments.length < 2 && patterns && patterns.enoughData && patterns.patterns[0]){
+    const [a, b] = patterns.patterns[0].groups;
+    const groupA = VALUE_SEED_GROUPS[a], groupB = VALUE_SEED_GROUPS[b];
+    if(groupA && groupB) fragments.push(kaosuReflectionPatternFragment(groupA.label, groupB.label));
+  }
+  const hasGoodFeedback = (feedbackHistory || []).some(f => f && f.reaction === "good");
+  if(fragments.length < 3 && hasGoodFeedback){
+    fragments.push(KAOSU_REFLECTION_FEEDBACK_FRAGMENT);
+  }
+
+  if(fragments.length === 0) return [KAOSU_REFLECTION_EMPTY];
+
+  fragments.push(fragments.length >= 2 ? KAOSU_REFLECTION_CLOSING : KAOSU_REFLECTION_STABLE_CLOSING);
+  return fragments.slice(0, 4);
+}
+function renderMindKaosuReflectionCard(timeline, valueSeeds, patterns, feedbackHistory){
+  const el = document.getElementById("mindKaosuReflectionText");
+  if(!el) return;
+  const fragments = generateKaosuReflection(timeline, valueSeeds, patterns, feedbackHistory);
+  if(fragments.length === 1 && fragments[0] === KAOSU_REFLECTION_EMPTY){
+    el.innerHTML = sp(KAOSU_REFLECTION_EMPTY);
+    return;
+  }
+  el.innerHTML = fragments.map(f => escapeHtml(sp(f))).join("<br>");
+}
+
 const MIND_RANKING_EMPTY = k3(
   "好きがもう少し集まると、<br>ここにあなたらしい景色が<br>見えてくるよ。",
   "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるで。",
@@ -4165,6 +4263,7 @@ function renderMindView(){
   renderMindValueSeedCard(valueSeeds);
   renderMindHappinessPatternCard(happinessPatterns);
   renderMindRecentChangeCard(entries, timeline, valueSeeds, happinessPatterns, experimentFeedbackHistory);
+  renderMindKaosuReflectionCard(timeline, valueSeeds, happinessPatterns, experimentFeedbackHistory);
   renderMindTimelineCard(timeline);
   renderMindReflectionCard(analysis, timeline);
 }
