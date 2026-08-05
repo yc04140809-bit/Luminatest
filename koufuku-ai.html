@@ -281,6 +281,8 @@ textarea{ font-family:inherit; }
 .mind-rank-row:not(:last-child){ border-bottom:1px solid var(--border); }
 .mind-rank-tag{ font-size:14px; font-weight:600; color:var(--text); }
 .mind-rank-stars{ font-size:15px; letter-spacing:1px; color:var(--purple); flex:none; }
+/* ---------- Phase24: 好きの時間軸(簡易ドット表示) ---------- */
+.mind-timeline-dots{ font-size:13px; letter-spacing:3px; color:var(--purple); }
 
 /* ---------- ホーム: 今日の幸せ設計(Phase12・コンパクト表示) ---------- */
 .td-row{ display:flex; align-items:flex-start; gap:8px; font-size:13.5px; line-height:1.5; margin-bottom:8px; }
@@ -777,6 +779,18 @@ textarea.field-input{ resize:none; }
         <div class="card">
           <div class="card-label">あなたらしさの種</div>
           <div id="mindSeedBody"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">好きの時間軸</div>
+          <div id="mindTimelineBody"></div>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="mindTimelineKaosu" style="font-size:13px;"></div>
+          </div>
         </div>
 
         <div class="card">
@@ -3024,6 +3038,70 @@ function analyzeWakuwaku(entries){
 }
 const WAKUWAKU_STAGE_LABELS = Object.fromEntries(WAKUWAKU_STAGES.map(s => [s.key, s.label]));
 
+/* =========================================================
+   Phase24: analyzeWakuwakuTimeline(entries)
+   - analyzeWakuwaku()とは別の、読み取り専用の純粋関数。ワクワクを
+     作成日時順に並べ、古い半分/新しい半分の2グループに分けて
+     タグの出現回数を比べるだけの単純な集計(統計的な精度は狙わず、
+     「変化に気づくための補助」に徹する)。
+   - 比較できるほどの件数が無い場合はenoughData:falseを返し、
+     UI側はその値を見て優しい説明文に切り替える。
+   - 将来この関数の中身だけをAI分析APIに差し替えられるよう、
+     戻り値の形(enoughData/growing/newInterests/stable/summary)は
+     固定し、DOM操作や話し方(k3/sp)の選択はここでは行わない。
+   戻り値: {
+     enoughData: boolean,
+     growing: [{tag, recentCount, oldCount}]      最近増えている
+     newInterests: [{tag, recentCount, oldCount}] 以前は0件、最近複数回
+     stable: [{tag, recentCount, oldCount}]        両期間で一定数
+     summary: [{type:"growing"|"new"|"stable", tag, recentCount, oldCount}] (最大3件)
+   }
+   ========================================================= */
+const TIMELINE_MIN_ENTRIES = 4;
+function analyzeWakuwakuTimeline(entries){
+  const list = (entries || []).slice().sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+  const total = list.length;
+
+  if(total < TIMELINE_MIN_ENTRIES){
+    return { enoughData: false, growing: [], newInterests: [], stable: [], summary: [] };
+  }
+
+  const half = Math.floor(total / 2);
+  const olderFreq = new Map();
+  list.slice(0, half).forEach(e => (e.tags || []).forEach(t => { if(t) olderFreq.set(t, (olderFreq.get(t) || 0) + 1); }));
+  const recentFreq = new Map();
+  list.slice(half).forEach(e => (e.tags || []).forEach(t => { if(t) recentFreq.set(t, (recentFreq.get(t) || 0) + 1); }));
+
+  const allTags = new Set([...olderFreq.keys(), ...recentFreq.keys()]);
+  const growing = [];
+  const newInterests = [];
+  const stable = [];
+
+  allTags.forEach(tag => {
+    const oldCount = olderFreq.get(tag) || 0;
+    const recentCount = recentFreq.get(tag) || 0;
+    if(oldCount === 0 && recentCount >= 2){
+      newInterests.push({ tag, recentCount, oldCount });
+    }else if(recentCount >= 2 && recentCount > oldCount){
+      growing.push({ tag, recentCount, oldCount });
+    }else if(oldCount >= 2 && recentCount >= 2){
+      stable.push({ tag, recentCount, oldCount });
+    }
+    /* それ以外(データが薄い/変化が読み取れない)は表示対象にしない */
+  });
+
+  growing.sort((a, b) => (b.recentCount - b.oldCount) - (a.recentCount - a.oldCount));
+  newInterests.sort((a, b) => b.recentCount - a.recentCount);
+  stable.sort((a, b) => (b.recentCount + b.oldCount) - (a.recentCount + a.oldCount));
+
+  const summary = [];
+  growing.forEach(g => { if(summary.length < 3) summary.push({ type: "growing", ...g }); });
+  newInterests.forEach(n => { if(summary.length < 3) summary.push({ type: "new", ...n }); });
+  stable.forEach(s => { if(summary.length < 3) summary.push({ type: "stable", ...s }); });
+
+  return { enoughData: true, growing, newInterests, stable, summary };
+}
+
 const MIND_RANKING_EMPTY = k3(
   "好きがもう少し集まると、<br>ここにあなたらしい景色が<br>見えてくるよ。",
   "好きがもう少し集まったら、<br>ここにあなたらしい景色が<br>見えてくるで。",
@@ -3209,6 +3287,53 @@ function renderMindSeedCard(analysis){
   root.innerHTML = `<p class="mind-trend-line">${escapeHtml(sp(seed))}</p>`;
 }
 
+/* =========================================================
+   Phase24: 「好きの時間軸」
+   - analyzeWakuwakuTimeline(entries)の結果をそのまま表示するだけ。
+     ランキング化はせず、●○の簡易ドットで「最近どれくらい登場したか」
+     の目安だけを見せる(統計的な精度は狙わない)。
+   ========================================================= */
+const TIMELINE_TYPE_TEXT = {
+  growing: "最近、前よりよく登場してるみたい",
+  new: "この頃、新しく育ってきた好きかも",
+  stable: "前から変わらず心が動くものみたい",
+};
+function timelineDots(count, max){
+  max = max || 5;
+  const filled = Math.min(max, Math.max(1, count));
+  return "●".repeat(filled) + "○".repeat(max - filled);
+}
+const MIND_TIMELINE_LOW_DATA = k3(
+  "まだ変化を比べるには少し早いみたい。<br>ワクワクが増えていくと、<br>あなたの『好きの流れ』も少しずつ見えてきます。",
+  "まだ変化を比べるには少し早いみたいやね。<br>ワクワクが増えていくと、<br>あなたの『好きの流れ』も少しずつ見えてくるで。",
+  "まだ変化を比べるには少し早いみたいばい。<br>ワクワクが増えていくと、<br>あなたの『好きの流れ』も少しずつ見えてくるばい。"
+);
+const MIND_TIMELINE_KAOSU = k3(
+  "好きって、ずっと同じじゃなくてもいいんだよ。今の心が向いている方も、大切にしてみよう。",
+  "好きって、ずっと同じじゃなくてええんよ。今の心が向いてる方も、大事にしてみよか。",
+  "好きは、ずっと同じじゃなくてもよかとよ。今の心が向いとる方も、大事にしてみらんね。"
+);
+function renderMindTimelineCard(timeline){
+  const root = document.getElementById("mindTimelineBody");
+  const kaosuEl = document.getElementById("mindTimelineKaosu");
+  if(!root) return;
+
+  if(!timeline.enoughData || timeline.summary.length === 0){
+    root.innerHTML = `<p class="mind-empty-note">${sp(MIND_TIMELINE_LOW_DATA)}</p>`;
+    if(kaosuEl) kaosuEl.textContent = "";
+    return;
+  }
+
+  root.innerHTML = timeline.summary.map(s => `
+    <div class="candidate-item">
+      <p class="candidate-text" style="margin-bottom:4px;">${escapeHtml(tagIcon(s.tag))} ${escapeHtml(s.tag)}</p>
+      <p class="mind-empty-note" style="margin-bottom:6px;">${escapeHtml(TIMELINE_TYPE_TEXT[s.type])}</p>
+      <span class="mind-timeline-dots">${timelineDots(s.recentCount)}</span>
+    </div>
+  `).join("");
+  if(kaosuEl) kaosuEl.textContent = sp(MIND_TIMELINE_KAOSU);
+}
+
 function renderMindView(){
   const empty = document.getElementById("mindEmpty");
   const content = document.getElementById("mindContent");
@@ -3227,6 +3352,7 @@ function renderMindView(){
   const topType = mindMostFrequent(entries.map(e => e.type));
   const topTypeLabel = topType && TYPE_META[topType] ? TYPE_META[topType].label : null;
   const analysis = analyzeWakuwaku(entries);
+  const timeline = analyzeWakuwakuTimeline(entries);
 
   let statsHtml = `<p class="mind-stat-line">今までに <strong>${entries.length}個</strong> のワクワクを集めました</p>`;
   if(topEmotion) statsHtml += `<p class="mind-stat-line">最近多い気持ち：<strong>${escapeHtml(topEmotion)}</strong></p>`;
@@ -3263,6 +3389,7 @@ function renderMindView(){
   renderMindComboCard(analysis);
   renderMindInsightCard(analysis);
   renderMindSeedCard(analysis);
+  renderMindTimelineCard(timeline);
 }
 
 /* =========================================================
