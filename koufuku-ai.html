@@ -104,6 +104,29 @@ textarea{ font-family:inherit; }
 .kaosu-row .speech-bubble{ flex:1; }
 .kaosu-row.insight .speech-bubble{ font-size:13.5px; }
 
+/* ---------- 統合設計書Phase A: ケイオスちゃんとのチャット ---------- */
+.chat-inputbar{
+  flex:none; display:flex; align-items:center; gap:8px;
+  padding-top:10px; margin-top:8px; border-top:1px solid var(--border);
+}
+.chat-inputbar .field-input{ flex:1; }
+.chat-send-btn{
+  flex:none; width:40px; height:40px; border-radius:50%; border:none;
+  background:linear-gradient(135deg,#ff8fc7,#a78bfa); color:#fff; font-size:16px; line-height:1;
+}
+.chat-send-btn:disabled{ opacity:.45; }
+.chat-msg{ display:flex; margin-bottom:14px; }
+.chat-msg:last-child{ margin-bottom:0; }
+.chat-msg.user{ justify-content:flex-end; }
+.chat-user-bubble{
+  max-width:80%; background:var(--purple-soft); color:var(--text);
+  border-radius:var(--radius-md); border-top-right-radius:4px;
+  padding:10px 14px; font-size:14px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
+}
+.chat-msg.kaosu .kaosu-row{ margin-bottom:0; max-width:88%; }
+.chat-msg.kaosu .speech-bubble{ font-size:14px; }
+.chat-typing .speech-bubble{ font-style:italic; color:var(--text-sub); }
+
 /* ---------- ホーム: ケイオスちゃんヒーロー ---------- */
 .kaosu-hero{
   position:relative;
@@ -474,7 +497,8 @@ textarea.field-input{ resize:none; }
       </div>
       <button class="btn-text" id="btnEditPreferredName" style="margin-top:-10px;">呼び方を変える</button>
 
-      <button class="btn-primary" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
+      <button class="btn-primary" id="btnOpenChat" style="margin-bottom:10px;">💬 ケイオスちゃんと話す</button>
+      <button class="btn-outline" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
 
       <div class="card">
         <div class="card-label">今日の1問</div>
@@ -1062,6 +1086,33 @@ textarea.field-input{ resize:none; }
         </div>
         <button class="btn-primary sheet-savebtn" id="btnClosePreferredNameConfirm" style="display:none;">はじめる</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 統合設計書Phase A: ケイオスちゃんとのチャット(AI API接続なし、
+       ルールベースの固定文のみ。会話はIndexedDBの新規store
+       chatMessagesにのみ保存し、外部送信は一切行わない) -->
+  <div class="modal" id="chatModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3>ケイオスちゃん</h3></div>
+        <div style="flex:none; display:flex; align-items:center; gap:6px;">
+          <button class="btn-text" id="btnChatClearHistory" style="width:auto; display:inline-block; white-space:nowrap; padding:6px 4px; margin:0; font-size:11px;">履歴を削除</button>
+          <button class="sheet-close" id="chatClose" aria-label="閉じる">×</button>
+        </div>
+      </div>
+      <div id="chatClearConfirmRow" style="display:none; background:var(--peach-soft); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; font-size:13px;">
+        <p style="margin-bottom:8px;">チャット履歴を全部削除しますか？<br>この操作は取り消せません。</p>
+        <div class="chip-row">
+          <button type="button" class="filterbtn" id="btnChatClearConfirm">削除する</button>
+          <button type="button" class="filterbtn" id="btnChatClearCancel">キャンセル</button>
+        </div>
+      </div>
+      <div class="sheet-scroll" id="chatMessagesScroll"></div>
+      <form class="chat-inputbar" id="chatInputForm">
+        <input type="text" class="field-input" id="chatInput" placeholder="今日あったこと、話してみて" autocomplete="off" maxlength="500">
+        <button type="submit" class="chat-send-btn" id="chatSendBtn" aria-label="送信">➤</button>
+      </form>
     </div>
   </div>
 
@@ -2011,8 +2062,12 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 1;
+const WW_DB_VERSION = 2;
 const WW_STORE = "wakuwaku";
+/* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
+   WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
+   1→2に上げて store を追加するだけの標準的な加算のみの移行。 */
+const CHAT_STORE = "chatMessages";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -2060,6 +2115,7 @@ function wwOpenDB(){
     req.onupgradeneeded = (ev) => {
       const db = ev.target.result;
       if(!db.objectStoreNames.contains(WW_STORE)) db.createObjectStore(WW_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -2101,6 +2157,40 @@ const WakuWakuStore = {
       const req = tx.objectStore(WW_STORE).getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
+    });
+  },
+};
+
+/* 統合設計書Phase A: チャットメッセージ用ストア。WakuWakuStoreと同じ
+   インターフェース形状(add/getAll)に、履歴削除用のclear()を追加した
+   だけの、ごく薄いラッパー。localStorageへの二重バックアップは行わない
+   (新規localStorageキーを増やさない方針のため)。 */
+const ChatStore = {
+  async add(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CHAT_STORE, "readwrite");
+      tx.objectStore(CHAT_STORE).add(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CHAT_STORE, "readonly");
+      const req = tx.objectStore(CHAT_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async clear(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CHAT_STORE, "readwrite");
+      tx.objectStore(CHAT_STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   },
 };
@@ -4651,6 +4741,174 @@ document.getElementById("btnSurveyCopy").addEventListener("click", async () => {
     fallbackArea.value = text;
     fallbackArea.style.display = "block";
   }
+});
+
+/* =========================================================
+   統合設計書Phase A: ケイオスちゃんとのチャット
+   - AI API接続なし。ルールベースの固定文(3話し方対応)のみ。
+   - 会話はIndexedDBの新規store chatMessages(v1→v2の追加のみ)に
+     保存する。既存wakuwaku storeのデータには一切触れない。
+   - 抽出・ワクワク記録への連携は行わない(統合設計書のPhase B以降)。
+   - 応答は現時点では単一人格の固定文プールだが、将来「状況に応じた
+     応答スタイルの内部切り替え」(統合設計書3章)を足しやすいよう、
+     生成ロジックを generateChatReply() 1箇所にまとめている。
+   ========================================================= */
+let chatMessages = [];
+let chatLoaded = false;
+
+const CHAT_GREETING = k3(
+  "今日はどんな一日だった？何でも聞かせてね。",
+  "今日はどんな一日やった〜？何でも聞かせてな。",
+  "今日はどんな一日やったと？何でも聞かせてね。"
+);
+const CHAT_REPLY_POOL = [
+  k3(
+    "そうなんだね。もう少し聞かせてもらってもいい？",
+    "そうなんや。もうちょっと聞かせてもらえる？",
+    "そうとね。もうちょい聞かせてもらってよか？"
+  ),
+  k3(
+    "それ、なんかいいね。どんな感じだった？",
+    "それ、なんかええな。どんな感じやった？",
+    "それ、なんかよかね。どげん感じやった？"
+  ),
+  k3(
+    "教えてくれてありがとう。もっと知りたいな。",
+    "教えてくれておおきに。もっと知りたいな。",
+    "教えてくれてありがとうね。もっと知りたかばい。"
+  ),
+  k3(
+    "うんうん、聞いてるよ。よかったら続き聞かせて。",
+    "うんうん、聞いとるで。よかったら続き聞かせて。",
+    "うんうん、聞いとーよ。よかったら続き聞かせて。"
+  ),
+  k3(
+    "なるほどね。それ、ちょっと気になるかも。",
+    "なるほどな。それ、ちょっと気になるかも。",
+    "なるほどね。それ、ちょっと気になるっちゃんね。"
+  ),
+];
+function generateChatReply(userText){
+  return sp(CHAT_REPLY_POOL[Math.floor(Math.random() * CHAT_REPLY_POOL.length)]);
+}
+
+function chatGenerateId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+}
+
+function chatBuildMsgEl(m){
+  const wrap = document.createElement("div");
+  wrap.className = "chat-msg " + (m.role === "user" ? "user" : "kaosu");
+  if(m.role === "user"){
+    const bubble = document.createElement("div");
+    bubble.className = "chat-user-bubble";
+    bubble.textContent = m.text;
+    wrap.appendChild(bubble);
+  }else{
+    wrap.innerHTML = `
+      <div class="kaosu-row">
+        <div class="kaosu-avatar" style="width:40px;height:40px">
+          <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble"></div>
+      </div>`;
+    wrap.querySelector(".speech-bubble").textContent = m.text;
+  }
+  return wrap;
+}
+
+function chatScrollToBottom(){
+  const scroller = document.getElementById("chatMessagesScroll");
+  if(scroller) scroller.scrollTop = scroller.scrollHeight;
+}
+
+function chatRenderAll(){
+  const scroller = document.getElementById("chatMessagesScroll");
+  if(!scroller) return;
+  scroller.innerHTML = "";
+  chatMessages.forEach(m => scroller.appendChild(chatBuildMsgEl(m)));
+  chatScrollToBottom();
+}
+
+async function chatAppendMessage(role, text){
+  const m = { id: chatGenerateId(), role, text, createdAt: new Date().toISOString() };
+  chatMessages.push(m);
+  const scroller = document.getElementById("chatMessagesScroll");
+  if(scroller){ scroller.appendChild(chatBuildMsgEl(m)); chatScrollToBottom(); }
+  try{ await ChatStore.add(m); }catch(e){ /* 保存に失敗しても会話自体は継続する */ }
+  return m;
+}
+
+async function openChatModal(){
+  document.getElementById("chatModal").classList.add("show");
+  document.getElementById("chatClearConfirmRow").style.display = "none";
+  if(!chatLoaded){
+    try{
+      const stored = await ChatStore.getAll();
+      stored.sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+      chatMessages = stored;
+    }catch(e){
+      chatMessages = [];
+    }
+    chatLoaded = true;
+  }
+  chatRenderAll();
+  if(chatMessages.length === 0){
+    await chatAppendMessage("kaosu", sp(CHAT_GREETING));
+  }
+  document.getElementById("chatInput").focus();
+}
+function closeChatModal(){
+  document.getElementById("chatModal").classList.remove("show");
+}
+document.getElementById("btnOpenChat").addEventListener("click", openChatModal);
+document.getElementById("chatClose").addEventListener("click", closeChatModal);
+document.getElementById("chatModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "chatModal") closeChatModal();
+});
+
+document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = "";
+  await chatAppendMessage("user", text);
+
+  const scroller = document.getElementById("chatMessagesScroll");
+  const typingEl = document.createElement("div");
+  typingEl.className = "chat-msg kaosu chat-typing";
+  typingEl.innerHTML = `
+    <div class="kaosu-row">
+      <div class="kaosu-avatar" style="width:40px;height:40px">
+        <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+        <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+      </div>
+      <div class="speech-bubble">…</div>
+    </div>`;
+  scroller.appendChild(typingEl);
+  chatScrollToBottom();
+
+  setTimeout(async () => {
+    typingEl.remove();
+    await chatAppendMessage("kaosu", generateChatReply(text));
+  }, 500);
+});
+
+document.getElementById("btnChatClearHistory").addEventListener("click", () => {
+  document.getElementById("chatClearConfirmRow").style.display = "block";
+});
+document.getElementById("btnChatClearCancel").addEventListener("click", () => {
+  document.getElementById("chatClearConfirmRow").style.display = "none";
+});
+document.getElementById("btnChatClearConfirm").addEventListener("click", async () => {
+  try{ await ChatStore.clear(); }catch(e){ /* ローカル表示は消してよい */ }
+  chatMessages = [];
+  document.getElementById("chatClearConfirmRow").style.display = "none";
+  chatRenderAll();
+  await chatAppendMessage("kaosu", sp(CHAT_GREETING));
 });
 
 /* =========================================================
