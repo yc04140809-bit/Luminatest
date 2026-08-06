@@ -1109,6 +1109,9 @@ textarea.field-input{ resize:none; }
         </div>
       </div>
       <div class="sheet-scroll" id="chatMessagesScroll"></div>
+      <div style="flex:none; text-align:center;">
+        <button type="button" class="btn-text" id="btnChatAskProfile" style="padding:4px 0; font-size:12px; margin:0;">✨ 最近の自分について聞いてみる</button>
+      </div>
       <form class="chat-inputbar" id="chatInputForm">
         <input type="text" class="field-input" id="chatInput" placeholder="今日あったこと、話してみて" autocomplete="off" maxlength="500">
         <button type="submit" class="chat-send-btn" id="chatSendBtn" aria-label="送信">➤</button>
@@ -5001,14 +5004,70 @@ document.getElementById("chatModal").addEventListener("click", (ev) => {
   if(ev.target.id === "chatModal") closeChatModal();
 });
 
-document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  const input = document.getElementById("chatInput");
-  const text = input.value.trim();
-  if(!text) return;
-  input.value = "";
-  await chatAppendMessage("user", text);
+/* =========================================================
+   統合設計書Phase C: 会話の中で、既存の分析資産から
+   「自分でも気づいていなかった傾向」に自然に触れる
+   - 新しい永続プロフィールDBは作らない。既存wakuwakuEntriesから
+     Phase24/26/28/30/33の既存関数(analyzeWakuwakuTimeline/
+     analyzeValueSeeds/analyzeHappinessPatterns/experimentFeedbackRead/
+     generateKaosuReflection)を都度呼び出して組み立てるだけ。
+     新しい分析ロジックはここでは書かない(既存資産の最大限再利用)。
+   - generateKaosuReflection()はもともとMind画面「ケイオスちゃんから
+     ひとこと」カード(Phase33)向けに作られた、複数シグナルを
+     「〜かもしれない」の推測表現でまとめる関数で、データが少ない
+     ときのフォールバック文もこの指示書が求める表現とほぼ一致する
+     ため、そのまま流用する。
+   - UIとロジックを密結合させないよう、生成部分(generateChatProfile
+     ReplyHtml)は「HTML文字列を返すだけ」の純粋寄りの関数にして
+     あり、将来Phase DでAIへ渡す文脈としても取り出しやすい形にした。
+   ========================================================= */
+const CHAT_PROFILE_TRIGGER_WORDS = [
+  "どんな人","私って","わたしって","僕って","ぼくって","俺って","おれって",
+  "自分について","自分の傾向","私の傾向","わたしの傾向","私のパターン","わたしのパターン",
+  "何が好き","なにが好き","好きなもの教えて","最近の私","最近のわたし",
+];
+function isProfileReflectionRequest(userText){
+  return CHAT_PROFILE_TRIGGER_WORDS.some(w => userText.includes(w));
+}
 
+function generateChatProfileReplyHtml(){
+  const entries = wakuwakuEntries || [];
+  const timeline = analyzeWakuwakuTimeline(entries);
+  const valueSeeds = analyzeValueSeeds(entries);
+  const patterns = analyzeHappinessPatterns(entries);
+  const feedbackHistory = experimentFeedbackRead();
+  const fragments = generateKaosuReflection(timeline, valueSeeds, patterns, feedbackHistory);
+  /* KAOSU_REFLECTION_EMPTY自体が<br>を含む1本のテンプレートなので、
+     renderMindKaosuReflectionCard(Phase33)と同じく、この場合だけ
+     escapeHtmlを通さずsp()の結果をそのまま信頼する */
+  const isEmptyFallback = fragments.length === 1 && fragments[0] === KAOSU_REFLECTION_EMPTY;
+  const body = isEmptyFallback ? sp(KAOSU_REFLECTION_EMPTY) : fragments.map(f => escapeHtml(sp(f))).join("<br>");
+  const name = prefNameGet();
+  return (name ? escapeHtml(name) + "、<br>" : "") + body;
+}
+
+async function chatAppendKaosuHtml(html){
+  const plainText = html.replace(/<br\s*\/?>/g, " ");
+  await chatPersistMessage("kaosu", plainText);
+  const scroller = document.getElementById("chatMessagesScroll");
+  const wrap = document.createElement("div");
+  wrap.className = "chat-msg kaosu";
+  wrap.innerHTML = `
+    <div class="kaosu-row">
+      <div class="kaosu-avatar" style="width:40px;height:40px">
+        <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+        <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+      </div>
+      <div class="speech-bubble"></div>
+    </div>`;
+  wrap.querySelector(".speech-bubble").innerHTML = html;
+  scroller.appendChild(wrap);
+  chatScrollToBottom();
+}
+
+/* 「考え中…」表示 → callback、という流れをsubmitハンドラ・
+   自分について聞くボタンの両方から共通で使うための小さなヘルパー */
+function chatShowTypingThen(callback, delay){
   const scroller = document.getElementById("chatMessagesScroll");
   const typingEl = document.createElement("div");
   typingEl.className = "chat-msg kaosu chat-typing";
@@ -5022,16 +5081,39 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
     </div>`;
   scroller.appendChild(typingEl);
   chatScrollToBottom();
-
   setTimeout(async () => {
     typingEl.remove();
+    await callback();
+  }, delay || 500);
+}
+
+document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if(!text) return;
+  input.value = "";
+  await chatAppendMessage("user", text);
+
+  chatShowTypingThen(async () => {
+    if(isProfileReflectionRequest(text)){
+      await chatAppendKaosuHtml(generateChatProfileReplyHtml());
+      return;
+    }
     const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
     if(detection){
       await renderChatCandidatePrompt(detection, text);
     }else{
       await chatAppendMessage("kaosu", generateChatReply(text));
     }
-  }, 500);
+  });
+});
+
+document.getElementById("btnChatAskProfile").addEventListener("click", async () => {
+  await chatAppendMessage("user", "最近の私、どんな感じかな？");
+  chatShowTypingThen(async () => {
+    await chatAppendKaosuHtml(generateChatProfileReplyHtml());
+  });
 });
 
 document.getElementById("btnChatClearHistory").addEventListener("click", () => {
