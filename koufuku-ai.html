@@ -4832,13 +4832,145 @@ function chatRenderAll(){
   chatScrollToBottom();
 }
 
-async function chatAppendMessage(role, text){
+async function chatPersistMessage(role, text){
   const m = { id: chatGenerateId(), role, text, createdAt: new Date().toISOString() };
   chatMessages.push(m);
-  const scroller = document.getElementById("chatMessagesScroll");
-  if(scroller){ scroller.appendChild(chatBuildMsgEl(m)); chatScrollToBottom(); }
   try{ await ChatStore.add(m); }catch(e){ /* 保存に失敗しても会話自体は継続する */ }
   return m;
+}
+async function chatAppendMessage(role, text){
+  const m = await chatPersistMessage(role, text);
+  const scroller = document.getElementById("chatMessagesScroll");
+  if(scroller){ scroller.appendChild(chatBuildMsgEl(m)); chatScrollToBottom(); }
+  return m;
+}
+
+/* =========================================================
+   統合設計書Phase B: 会話 → ワクワク発見 → 確認 → 記録
+   - AI接続なし。既存VALUE_SEED_KEYWORD_MAP(Phase26)のキーワード辞書
+     ＋簡単な感情語リストによるルールベース検出のみ。
+   - 検出しても絶対に自動保存しない。必ず「残す/もう少し話す」の
+     ユーザー確認を経てから、既存WakuWakuStore.add()を呼ぶ。
+   - 診断・断定はしない(「〜かもしれないね」の推測表現のみ使用)。
+   - 一度に保留できる候補は1件まで(chatCandidatePending)。既存の
+     候補が未解決の間は新しい候補検出を行わず、会話のテンポを守る。
+   ========================================================= */
+let chatCandidatePending = null;
+
+const WAKUWAKU_ENTHUSIASM_WORDS = [
+  "好き","ワクワク","わくわく","楽しい","楽しかった","嬉しい","うれしい",
+  "最高","面白い","おもしろい","気持ちいい","気持ちよかった","落ち着く","癒された","心が動い",
+];
+
+function detectWakuwakuCandidate(userText){
+  const matchedKeywords = Object.keys(VALUE_SEED_KEYWORD_MAP).filter(kw => userText.includes(kw));
+  const hasEnthusiasm = WAKUWAKU_ENTHUSIASM_WORDS.some(w => userText.includes(w));
+  if(matchedKeywords.length === 0 && !hasEnthusiasm) return null;
+  return { matchedKeywords: matchedKeywords.slice(0, 3) };
+}
+
+function buildChatCandidateReplyHtml(detection){
+  const kw = detection.matchedKeywords[0];
+  const group = kw ? VALUE_SEED_GROUPS[VALUE_SEED_KEYWORD_MAP[kw]] : null;
+  let tmpl;
+  if(kw && group){
+    tmpl = k3(
+      `それ、なんかワクワクしてそうだね✨<br>「${escapeHtml(kw)}」、${escapeHtml(group.label)}にワクワクするのかもしれないね。<br>これ、ワクワクとして残しておく？`,
+      `それ、かなりワクワクしてそうやな✨<br>「${escapeHtml(kw)}」、${escapeHtml(group.label)}にワクワクするんかもしれへんな。<br>これ、ワクワクとして残しとく？`,
+      `それ、なんかワクワクしとーごたるね✨<br>「${escapeHtml(kw)}」、${escapeHtml(group.label)}にワクワクするんかもしれんね。<br>これ、ワクワクとして残しとくと？`
+    );
+  }else if(kw){
+    tmpl = k3(
+      `それ、なんかワクワクしてそうだね✨<br>「${escapeHtml(kw)}」、好きなのかもしれないね。<br>これ、ワクワクとして残しておく？`,
+      `それ、かなりワクワクしてそうやな✨<br>「${escapeHtml(kw)}」、好きなんかもしれへんな。<br>これ、ワクワクとして残しとく？`,
+      `それ、なんかワクワクしとーごたるね✨<br>「${escapeHtml(kw)}」、好きなんかもしれんね。<br>これ、ワクワクとして残しとくと？`
+    );
+  }else{
+    tmpl = k3(
+      "それ、なんかワクワクしてそうだね✨<br>これ、ワクワクとして残しておく？",
+      "それ、かなりワクワクしてそうやな✨<br>これ、ワクワクとして残しとく？",
+      "それ、なんかワクワクしとーごたるね✨<br>これ、ワクワクとして残しとくと？"
+    );
+  }
+  return sp(tmpl);
+}
+
+function chatBuildCandidatePromptEl(html){
+  const wrap = document.createElement("div");
+  wrap.className = "chat-msg kaosu";
+  wrap.innerHTML = `
+    <div class="kaosu-row">
+      <div class="kaosu-avatar" style="width:40px;height:40px">
+        <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+        <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+      </div>
+      <div class="bubblewrap" style="flex:1; min-width:0;">
+        <div class="speech-bubble"></div>
+        <div class="chip-row" style="margin-top:8px;" data-candidate-actions="1">
+          <button type="button" class="filterbtn" data-action="save">残す</button>
+          <button type="button" class="filterbtn" data-action="skip">もう少し話す</button>
+        </div>
+      </div>
+    </div>`;
+  wrap.querySelector(".speech-bubble").innerHTML = html;
+  return wrap;
+}
+
+function chatCandidateResolveUi(promptEl, resolvedLabel){
+  const row = promptEl.querySelector("[data-candidate-actions]");
+  if(row) row.outerHTML = `<p class="view-sub" style="margin-top:8px;">${escapeHtml(resolvedLabel)}</p>`;
+}
+
+async function renderChatCandidatePrompt(detection, rawUserText){
+  const html = buildChatCandidateReplyHtml(detection);
+  const plainText = html.replace(/<br>/g, " ");
+  chatCandidatePending = { rawText: rawUserText, tags: detection.matchedKeywords };
+
+  await chatPersistMessage("kaosu", plainText);
+  const scroller = document.getElementById("chatMessagesScroll");
+  const el = chatBuildCandidatePromptEl(html);
+  scroller.appendChild(el);
+  chatScrollToBottom();
+
+  el.querySelector('[data-action="save"]').addEventListener("click", async () => {
+    if(!chatCandidatePending) return;
+    const { rawText, tags } = chatCandidatePending;
+    const title = rawText.length > 60 ? rawText.slice(0, 59) + "…" : rawText;
+    const entry = {
+      id: wwGenerateId(),
+      createdAt: new Date().toISOString(),
+      type: "",
+      title,
+      image: null,
+      url: "",
+      note: rawText,
+      emotion: "",
+      tags: tags,
+    };
+    try{
+      await WakuWakuStore.add(entry);
+      await loadWakuwakuEntries();
+    }catch(e){ /* 保存に失敗しても会話は継続する */ }
+
+    chatCandidateResolveUi(el, "残したよ！");
+    chatCandidatePending = null;
+    await chatAppendMessage("kaosu", sp(k3(
+      "残しておいたよ！また教えてね。",
+      "残しといたで！また教えてな。",
+      "残しといたばい！また教えてね。"
+    )));
+  });
+
+  el.querySelector('[data-action="skip"]').addEventListener("click", async () => {
+    if(!chatCandidatePending) return;
+    chatCandidateResolveUi(el, "また今度でいいよ");
+    chatCandidatePending = null;
+    await chatAppendMessage("kaosu", sp(k3(
+      "そっか、じゃあもう少し聞かせて！",
+      "そっか、ほな続き聞かせて！",
+      "そっか、ほな続き聞かせてね！"
+    )));
+  });
 }
 
 async function openChatModal(){
@@ -4893,7 +5025,12 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
 
   setTimeout(async () => {
     typingEl.remove();
-    await chatAppendMessage("kaosu", generateChatReply(text));
+    const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
+    if(detection){
+      await renderChatCandidatePrompt(detection, text);
+    }else{
+      await chatAppendMessage("kaosu", generateChatReply(text));
+    }
   }, 500);
 });
 
