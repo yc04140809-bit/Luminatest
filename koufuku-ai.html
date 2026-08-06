@@ -5109,7 +5109,10 @@ async function chatAppendKaosuHtml(html){
 }
 
 /* 「考え中…」表示 → callback、という流れをsubmitハンドラ・
-   自分について聞くボタンの両方から共通で使うための小さなヘルパー */
+   自分について聞くボタンの両方から共通で使うための小さなヘルパー。
+   thinking表情を最低2秒維持してから回答を出すことで、「ちゃんと
+   考えてから答えている」間を作る(既存のsetTimeoutベースの仕組みを
+   そのまま使い、新しい状態管理は増やしていない)。 */
 function chatShowTypingThen(callback, delay){
   const scroller = document.getElementById("chatMessagesScroll");
   const typingEl = document.createElement("div");
@@ -5121,7 +5124,7 @@ function chatShowTypingThen(callback, delay){
   setTimeout(async () => {
     typingEl.remove();
     await callback();
-  }, delay || 500);
+  }, delay || 2000);
 }
 
 document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
