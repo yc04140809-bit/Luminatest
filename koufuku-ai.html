@@ -127,6 +127,14 @@ textarea{ font-family:inherit; }
 .chat-msg.kaosu > .speech-bubble{ max-width:88%; font-size:14px; }
 .chat-msg.kaosu > .bubblewrap{ max-width:88%; min-width:0; }
 .chat-typing .speech-bubble{ font-style:italic; color:var(--text-sub); }
+/* 新着のケイオスちゃんの返信だけに付ける、ごく軽い出現アニメーション
+   (履歴の一括再描画chatRenderAll()には付けない=このクラスをそこで
+   使わないだけで区別している。新しい状態管理は増やしていない)。 */
+@keyframes chatBubbleIn{
+  from{ opacity:0; transform:translateY(8px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+.chat-msg.kaosu.chat-bubble-in{ animation:chatBubbleIn .3s ease; }
 
 /* ---------- チャット上部のケイオスちゃんビジュアル領域 ----------
    .kaosu-hero(ホーム)とは意図的に別クラスにして、ホーム画面や他の
@@ -158,9 +166,9 @@ textarea{ font-family:inherit; }
   display:block;
   -webkit-mask-image:radial-gradient(ellipse 72% 88% at 50% 40%, #000 58%, transparent 100%);
   mask-image:radial-gradient(ellipse 72% 88% at 50% 40%, #000 58%, transparent 100%);
-  transition:opacity .16s ease, transform .16s ease;
+  transition:opacity .2s ease, transform .2s ease;
 }
-.chat-hero-avatar img.switching{ opacity:.55; transform:scale(.97); }
+.chat-hero-avatar img.switching{ opacity:.7; transform:scale(.99); }
 .chat-hero-avatar img.noimg{ display:none; }
 .chat-hero-avatar .kaosu-fallback{
   display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -4879,7 +4887,12 @@ async function chatPersistMessage(role, text){
 async function chatAppendMessage(role, text){
   const m = await chatPersistMessage(role, text);
   const scroller = document.getElementById("chatMessagesScroll");
-  if(scroller){ scroller.appendChild(chatBuildMsgEl(m)); chatScrollToBottom(); }
+  if(scroller){
+    const el = chatBuildMsgEl(m);
+    if(m.role !== "user") el.classList.add("chat-bubble-in");
+    scroller.appendChild(el);
+    chatScrollToBottom();
+  }
   return m;
 }
 
@@ -4935,7 +4948,7 @@ function buildChatCandidateReplyHtml(detection){
 
 function chatBuildCandidatePromptEl(html){
   const wrap = document.createElement("div");
-  wrap.className = "chat-msg kaosu";
+  wrap.className = "chat-msg kaosu chat-bubble-in";
   wrap.innerHTML = `
     <div class="bubblewrap">
       <div class="speech-bubble"></div>
@@ -5099,7 +5112,7 @@ async function chatAppendKaosuHtml(html){
   await chatPersistMessage("kaosu", plainText);
   const scroller = document.getElementById("chatMessagesScroll");
   const wrap = document.createElement("div");
-  wrap.className = "chat-msg kaosu";
+  wrap.className = "chat-msg kaosu chat-bubble-in";
   const bubble = document.createElement("div");
   bubble.className = "speech-bubble";
   bubble.innerHTML = html;
@@ -5127,6 +5140,11 @@ function chatShowTypingThen(callback, delay){
   }, delay || 2000);
 }
 
+/* 表情が変わってから返信が出るまでのごく短い間。「顔を上げてから
+   話し始める」ような自然さを出すためだけの定数で、状態は持たない。 */
+const CHAT_REPLY_GAP_MS = 280;
+function chatWait(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
 document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const input = document.getElementById("chatInput");
@@ -5138,15 +5156,18 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
   chatShowTypingThen(async () => {
     if(isProfileReflectionRequest(text)){
       chatSetHeroExpression("normal");
+      await chatWait(CHAT_REPLY_GAP_MS);
       await chatAppendKaosuHtml(generateChatProfileReplyHtml());
       return;
     }
     const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
     if(detection){
       chatSetHeroExpression("cheer");
+      await chatWait(CHAT_REPLY_GAP_MS);
       await renderChatCandidatePrompt(detection, text);
     }else{
       chatSetHeroExpression("smile");
+      await chatWait(CHAT_REPLY_GAP_MS);
       await chatAppendMessage("kaosu", generateChatReply(text));
     }
   });
@@ -5156,6 +5177,7 @@ document.getElementById("btnChatAskProfile").addEventListener("click", async () 
   await chatAppendMessage("user", "最近の私、どんな感じかな？");
   chatShowTypingThen(async () => {
     chatSetHeroExpression("normal");
+    await chatWait(CHAT_REPLY_GAP_MS);
     await chatAppendKaosuHtml(generateChatProfileReplyHtml());
   });
 });
