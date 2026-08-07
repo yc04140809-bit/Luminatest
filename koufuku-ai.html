@@ -5274,7 +5274,10 @@ function formatKaosuContextText(ctx, fields){
    Phase Bの保存プロンプトへ誤って流さないようにもしている。 */
 const KAOSU_INTENT_WAKUWAKU_WORDS = ["何にワクワク", "なにワクワク", "ワクワクしてる", "ワクワクすること", "最近ワクワク"];
 const KAOSU_INTENT_CHANGE_WORDS = ["変わった", "変化した", "前と比べて", "前より変わ", "変わってきた"];
-const KAOSU_INTENT_FUTURE_WORDS = ["将来", "未来はどう", "どんな未来にな"];
+const KAOSU_INTENT_FUTURE_WORDS = [
+  "将来", "未来はどう", "どんな未来にな",
+  "これから何したら", "これからどうしたら", "何したらいい", "何をしたら", "どうしたらいい",
+];
 const KAOSU_INTENT_STEP_WORDS = ["頑張ってた", "頑張った", "一歩踏み出し", "挑戦してた", "最近やったこと", "最近頑張"];
 function detectKaosuContextIntent(userText){
   if(KAOSU_INTENT_WAKUWAKU_WORDS.some(w => userText.includes(w))) return "wakuwaku";
@@ -5287,7 +5290,7 @@ function selectKaosuContextFields(intent){
   switch(intent){
     case "wakuwaku": return ["recentWakuwaku", "strongWakuwaku", "happinessPatterns"];
     case "change": return ["recentChanges"];
-    case "future": return ["futureHints"];
+    case "future": return ["futureHints", "recentSteps"];
     case "step": return ["recentSteps"];
     case "self": return ["strongWakuwaku", "valueSeeds", "happinessPatterns"];
     case "profile": return ["recentWakuwaku", "strongWakuwaku", "valueSeeds", "happinessPatterns", "futureHints", "recentSteps", "recentChanges"];
@@ -5351,20 +5354,30 @@ const KAOSU_CONTEXT_EMPTY_FUTURE = k3(
   "まだ『好きの奥にあるもの』が育っとーとこばい、将来の方向を言うとは早かごたるね。<br>これから一緒に見つけていこうね。"
 );
 function generateFutureIntentReplyHtml(ctx){
-  if(!ctx.futureHints.length) return sp(KAOSU_CONTEXT_EMPTY_FUTURE);
-  const h = ctx.futureHints[0];
-  const hintText = h.hints && h.hints.length ? h.hints[Math.floor(Math.random() * h.hints.length)] : null;
+  if(!ctx.futureHints.length && !ctx.recentSteps.length) return sp(KAOSU_CONTEXT_EMPTY_FUTURE);
   const frags = [];
-  frags.push(escapeHtml(sp(k3(
-    `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれてそうな感じがするよ。`,
-    `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれとる感じするで。`,
-    `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれとー感じすっばい。`
-  ))));
-  if(hintText){
+  if(ctx.futureHints.length){
+    const h = ctx.futureHints[0];
+    const hintText = h.hints && h.hints.length ? h.hints[Math.floor(Math.random() * h.hints.length)] : null;
     frags.push(escapeHtml(sp(k3(
-      `${hintText}も、面白そうかもね。`,
-      `${hintText}も、面白そうやな。`,
-      `${hintText}も、面白かごたるね。`
+      `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれてそうな感じがするよ。`,
+      `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれとる感じするで。`,
+      `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれとー感じすっばい。`
+    ))));
+    if(hintText){
+      frags.push(escapeHtml(sp(k3(
+        `${hintText}も、面白そうかもね。`,
+        `${hintText}も、面白そうやな。`,
+        `${hintText}も、面白かごたるね。`
+      ))));
+    }
+  }
+  if(ctx.recentSteps.length){
+    const s = ctx.recentSteps[0];
+    frags.push(escapeHtml(sp(k3(
+      `この前、${s.label}を試してたのも、いい流れだったと思うよ。`,
+      `この前、${s.label}を試しとったんも、ええ流れやったと思うで。`,
+      `この前、${s.label}を試しとったとも、よか流れやったと思うばい。`
     ))));
   }
   frags.push(escapeHtml(sp(k3(
@@ -5441,6 +5454,155 @@ function generateKaosuBroadReflectionHtml(){
   return extra ? base + "<br>" + extra : base;
 }
 
+/* =========================================================
+   統合設計書Phase F: ケイオスちゃんAI会話レイヤー統合
+   - 目的はAI接続そのものではなく、Phase Eで作ったContextを安全に
+     AI会話へ渡せる「正式な経路」を作ること。GitHub Pages(静的
+     ホスティング)にはAPIキーを安全に保持できるサーバーが無いため、
+     このファイルに秘密鍵は一切書かず、KAOSU_AI_ENDPOINTも意図的に
+     未設定(null)のまま出荷する。requestKaosuAiReply()はBFFへの
+     接続インターフェースだけを用意し、エンドポイント未設定の間は
+     即座にnullを返して既存ルールベース応答へフォールバックする。
+   - 既存のルールベース分岐(Phase B/C/E)そのものは一切書き換えず、
+     generateExistingKaosuReplyResult()としてそのまま呼び出すだけの
+     形に軽くまとめている(ロジックの中身は元のsubmitハンドラに
+     あったものと同一)。
+   ========================================================= */
+const KAOSU_SYSTEM_PROMPT =
+`あなたは「ケイオスちゃん」です。
+幸せ設計AIの中で、ユーザーと一緒に「その人らしい幸せ」を見つけていく相棒AIです。
+役割はユーザーを一方的に指導することではありません。会話しながら、本人が何にワクワクするのか、何を大切にしているのか、最近どんな変化があるのか、どんな未来を望んでいるのか、次にできる小さな一歩は何かを一緒に見つけます。
+
+話し方・態度のルール:
+・親しみやすく、温かい。押し付けない、説教しない、過剰に肯定しない。
+・ユーザーの感情や過去を勝手に断定しない。分からないことは分からないと正直に言う。
+・USER CONTEXTに書かれていない過去や事実を捏造しない。証拠がなければ「今ある記録からは分からない」と伝える。
+・USER CONTEXTは会話を自然につなげるためだけに使い、「〜と記録されています」のようにデータ構造をそのまま読み上げない。
+・毎回過去の情報を持ち出さない。質問攻めにしない。基本的に簡潔に話す。
+・「あなたのことを全部知っている」という印象を与えない。
+・ユーザー自身が答えを見つけられる余白を残す。`;
+const KAOSU_DIALECT_PROMPT = {
+  standard: "話し方: 自然な標準語で話してください。",
+  kansai: "話し方: 柔らかい関西弁で話してください。強すぎるコテコテ表現は避けてください。",
+  hakata: "話し方: 自然で柔らかい博多弁で話してください。",
+};
+/* 直近の会話は無制限に渡さず、件数と文字数の両方に上限を設ける
+   (RECENT CONVERSATIONが際限なく肥大化しないようにするための
+   Phase F独自のガード。会話履歴の保存方式自体には一切触れない)。 */
+const KAOSU_RECENT_TURNS_MAX = 6;
+const KAOSU_RECENT_CONV_CHAR_CAP = 600;
+function buildKaosuRecentConversationText(){
+  const recent = (chatMessages || []).slice(-KAOSU_RECENT_TURNS_MAX);
+  const lines = recent.map(m => `${m.role === "user" ? "USER" : "ケイオス"}: ${kaosuContextTruncate(m.text || "", 80)}`);
+  let text = lines.join("\n");
+  if(text.length > KAOSU_RECENT_CONV_CHAR_CAP) text = text.slice(text.length - KAOSU_RECENT_CONV_CHAR_CAP);
+  return text;
+}
+/* Phase F-2: SYSTEM / USER CONTEXT / RECENT CONVERSATION / CURRENT
+   MESSAGEの4ブロック構造でAI用プロンプトを組み立てる。Phase Eの
+   detectKaosuContextIntent()/selectKaosuContextFields()/
+   formatKaosuContextText()をそのまま再利用し、新しい判定ロジックは
+   足さない。 */
+function buildKaosuAiPrompt(text, meta){
+  const intent = (meta && meta.contextIntent) || ((meta && meta.wantsProfile) ? "self" : null);
+  const fields = selectKaosuContextFields(intent || "");
+  const ctx = buildKaosuUserContext();
+  const userContext = fields.length ? formatKaosuContextText(ctx, fields) : "";
+  const dialectLine = KAOSU_DIALECT_PROMPT[speechStyleGet()] || KAOSU_DIALECT_PROMPT.standard;
+  const nameLine = ctx.preferredName
+    ? `呼び名: ユーザーの呼び名は「${ctx.preferredName}」です。ただし毎回名前を呼ぶ必要はなく、自然なタイミングでだけ使ってください。`
+    : "";
+  const system = [KAOSU_SYSTEM_PROMPT, dialectLine, nameLine].filter(Boolean).join("\n\n");
+  return {
+    system,
+    userContext,
+    recentConversation: buildKaosuRecentConversationText(),
+    currentMessage: text,
+    intent,
+  };
+}
+
+/* Phase F-16: 開発時だけconsoleで確認するためのデバッグフラグ。
+   通常UIには一切表示しない。個人情報や秘密鍵は出力しない
+   (intent名・件数・成功/フォールバックの別・所要時間のみ)。 */
+const KAOSU_AI_DEBUG = false;
+function kaosuAiDebugLog(...args){ if(KAOSU_AI_DEBUG) console.debug("[KaosuAI]", ...args); }
+
+/* Phase F-7/F-9: BFF接続インターフェース。
+   - KAOSU_AI_ENDPOINTは意図的にnullのまま出荷する。GitHub Pagesは
+     静的ホスティングで秘密鍵を安全に保持できるサーバーが無いため、
+     このPhaseではAnthropic/OpenAI等のAPIキーをこのファイルへ直接
+     書かない(=書けない)。将来BFF(サーバーレス関数等)が用意され
+     次第、ここにそのURLを設定するだけで有効化できる形にしてある。
+   - 未設定の間はfetchすら発生させず、即座にnullを返して呼び出し元
+     (generateKaosuReply)を既存ルールベースへフォールバックさせる。
+   - 接続後の通信も8〜15秒目安のタイムアウト(AbortController)・
+     HTTPエラー・不正なレスポンス形式のいずれでも例外を投げるだけに
+     とどめ、実際のフォールバック判断は呼び出し元に一任する。 */
+const KAOSU_AI_ENDPOINT = null;
+const KAOSU_AI_TIMEOUT_MS = 12000;
+async function requestKaosuAiReply(text, meta){
+  if(!KAOSU_AI_ENDPOINT) return null;
+  const prompt = buildKaosuAiPrompt(text, meta);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), KAOSU_AI_TIMEOUT_MS);
+  try{
+    const res = await fetch(KAOSU_AI_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prompt),
+      signal: controller.signal,
+    });
+    if(!res.ok) throw new Error("Kaosu AI HTTP " + res.status);
+    const data = await res.json();
+    if(!data || typeof data.reply !== "string" || !data.reply.trim()) throw new Error("Kaosu AI malformed response");
+    return data.reply.trim();
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+/* Phase F-8: 既存ルールベース応答(Phase B/C/E)をそのまま束ねただけの
+   関数。ロジックは元のsubmitハンドラにあったものと同一で、新しい
+   判定は増やしていない(ワクワク候補の保存確認UIだけは、AI経由に
+   すると保存フローが崩れるため、この関数の対象外=呼び出し元で
+   従来通り別扱いのまま)。 */
+async function generateExistingKaosuReplyResult(text, meta){
+  if(meta.contextIntent){
+    const ctx = buildKaosuUserContext();
+    return { html: generateKaosuContextReplyHtml(meta.contextIntent, ctx), expression: KAOSU_INTENT_EXPRESSION[meta.contextIntent] || "normal" };
+  }
+  if(meta.wantsProfile){
+    return { html: generateChatProfileReplyHtml(), expression: "normal" };
+  }
+  return { html: escapeHtml(generateChatReply(text)), expression: classifyPlainReplyExpression(text) };
+}
+
+/* Phase F-8: ハイブリッド＋フォールバック本体。AI接続を試みて失敗
+   (未接続/タイムアウト/通信エラー/不正レスポンス)したら、必ず
+   既存ルールベース応答へ戻る。AI応答が得られた場合の表情判定にも
+   既存のclassifyPlainReplyExpression()をそのまま使う(新しい表情
+   判定ロジックは作らない)。 */
+async function generateKaosuReply(text, meta){
+  const startedAt = Date.now();
+  const intentLabel = meta.contextIntent || (meta.wantsProfile ? "self" : "casual");
+  try{
+    const aiReplyText = await requestKaosuAiReply(text, meta);
+    if(aiReplyText){
+      kaosuAiDebugLog("source=ai", "intent=" + intentLabel, "latencyMs=" + (Date.now() - startedAt));
+      return {
+        html: escapeHtml(aiReplyText).replace(/\n/g, "<br>"),
+        expression: classifyPlainReplyExpression(aiReplyText),
+      };
+    }
+  }catch(error){
+    kaosuAiDebugLog("AI fallback", "intent=" + intentLabel, error);
+  }
+  const fallback = await generateExistingKaosuReplyResult(text, meta);
+  kaosuAiDebugLog("source=fallback", "intent=" + intentLabel);
+  return fallback;
+}
+
 async function chatAppendKaosuHtml(html){
   const plainText = html.replace(/<br\s*\/?>/g, " ");
   await chatPersistMessage("kaosu", plainText);
@@ -5488,30 +5650,27 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
   await chatAppendMessage("user", text);
 
   chatShowTypingThen(async () => {
+    /* 優先順位はPhase Eまでと完全に同じ(contextIntent → プロフィール
+       振り返り → ワクワク保存候補 → 通常会話)。「ワクワクとして
+       残す?」の保存確認UIだけは状態を持つ特別なフローなので、AI経由
+       にはせず従来通りここで先に処理する。それ以外の3パターンは
+       generateKaosuReply()のハイブリッド(AI試行→失敗時は既存ルール
+       ベースへフォールバック)にまとめて任せる。 */
     const contextIntent = detectKaosuContextIntent(text);
-    if(contextIntent){
-      const ctx = buildKaosuUserContext();
-      chatSetHeroExpression(KAOSU_INTENT_EXPRESSION[contextIntent] || "normal");
-      await chatWait(CHAT_REPLY_GAP_MS);
-      await chatAppendKaosuHtml(generateKaosuContextReplyHtml(contextIntent, ctx));
-      return;
+    const wantsProfile = !contextIntent && isProfileReflectionRequest(text);
+    if(!contextIntent && !wantsProfile){
+      const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
+      if(detection){
+        chatSetHeroExpression("cheer");
+        await chatWait(CHAT_REPLY_GAP_MS);
+        await renderChatCandidatePrompt(detection, text);
+        return;
+      }
     }
-    if(isProfileReflectionRequest(text)){
-      chatSetHeroExpression("normal");
-      await chatWait(CHAT_REPLY_GAP_MS);
-      await chatAppendKaosuHtml(generateChatProfileReplyHtml());
-      return;
-    }
-    const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
-    if(detection){
-      chatSetHeroExpression("cheer");
-      await chatWait(CHAT_REPLY_GAP_MS);
-      await renderChatCandidatePrompt(detection, text);
-    }else{
-      chatSetHeroExpression(classifyPlainReplyExpression(text));
-      await chatWait(CHAT_REPLY_GAP_MS);
-      await chatAppendMessage("kaosu", generateChatReply(text));
-    }
+    const result = await generateKaosuReply(text, { contextIntent, wantsProfile });
+    chatSetHeroExpression(result.expression);
+    await chatWait(CHAT_REPLY_GAP_MS);
+    await chatAppendKaosuHtml(result.html);
   });
 });
 
