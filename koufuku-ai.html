@@ -5142,6 +5142,305 @@ function generateChatProfileReplyHtml(){
   return (name ? escapeHtml(name) + "、<br>" : "") + body;
 }
 
+/* =========================================================
+   統合設計書Phase E: ケイオスちゃん記憶・理解レイヤー v1
+   - 新しいDB/外部送信は一切追加しない。buildKaosuUserContext()は
+     読み取り専用の集約関数で、既存のwakuwakuEntries(IndexedDB)・
+     stepLogRead()(localStorage)・既存のanalyze*系純粋関数
+     (Phase24 analyzeWakuwakuTimeline / Phase26 analyzeValueSeeds /
+     Phase28 analyzeHappinessPatterns / Phase27 generateValueFutureHints /
+     Phase30 experimentFeedbackRead / Phase32 analyzeRecentHappinessChanges)
+     をそのまま呼び出して束ねるだけで、新しい集計ロジックは足さない。
+   - ここで作るContextは「AIへ渡す用の内部テキスト」であり、画面には
+     一切表示しない(Phase E-3)。現時点ではAI API接続はまだ行わない
+     (今回のPhase Eの対象外)ため、実際にはformatKaosuContextText()の
+     出力ではなく、buildKaosuUserContext()が返すオブジェクトを直接
+     参照して、既存のルールベース応答(k3/sp)を少し文脈に沿わせる
+     形で使っている。AI接続時もformatKaosuContextText()をそのまま
+     プロンプトの一部として渡せるよう、テキスト整形はここで独立
+     させてある。
+   - 各件数の上限(recentWakuwaku/recentSteps最大5、futureHints最大
+     3、recentChanges最大3、valueSeeds/happinessPatterns上位5)は
+     指示書の目安に合わせてslice()で明示的に切っている。
+   ========================================================= */
+const STEP_TYPE_SHORT_LABEL = {
+  image: "気になる景色を探すこと",
+  word: "心に残った言葉を読み返すこと",
+  url: "保存したページを開くこと",
+  music: "好きな曲を聴くこと",
+  place: "気になる場所を眺めること",
+  idea: "思いついたことを書くこと",
+  "": "ワクワクを見返すこと",
+};
+function kaosuContextTruncate(text, max){
+  const t = text || "";
+  return t.length > max ? t.slice(0, max - 1) + "…" : t;
+}
+function buildKaosuUserContext(){
+  const entries = wakuwakuEntries || [];
+  const analysis = analyzeWakuwaku(entries);
+  const timeline = analyzeWakuwakuTimeline(entries);
+  const valueSeeds = analyzeValueSeeds(entries);
+  const patterns = analyzeHappinessPatterns(entries);
+  const feedbackHistory = experimentFeedbackRead();
+  const changes = analyzeRecentHappinessChanges(entries, timeline, valueSeeds, patterns, feedbackHistory);
+  const futureHints = generateValueFutureHints(valueSeeds, analysis);
+
+  const sortedEntries = entries.slice().sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const recentWakuwaku = sortedEntries.slice(0, 5).map(e => kaosuContextTruncate(e.title || e.note || "", 40));
+  const strongWakuwaku = (analysis.topTags || []).slice(0, 5);
+
+  const recentSteps = stepLogSortedDesc(stepLogRead()).slice(0, 5).map(r => {
+    const linked = r.sourceEntryId ? entries.find(e => e.id === r.sourceEntryId) : null;
+    const feelingOpt = r.feeling ? FEELING_OPTIONS.find(f => f.key === r.feeling) : null;
+    return {
+      label: STEP_TYPE_SHORT_LABEL[r.stepType || ""] || STEP_TYPE_SHORT_LABEL[""],
+      relatedTitle: linked ? kaosuContextTruncate(linked.title || "", 30) : null,
+      feelingLabel: feelingOpt ? feelingOpt.label : null,
+      completedAt: r.completedAt || null,
+    };
+  });
+
+  let recentConversationSummary = null;
+  if(Array.isArray(chatMessages) && chatMessages.length){
+    const lastUser = [...chatMessages].reverse().find(m => m.role === "user");
+    if(lastUser) recentConversationSummary = kaosuContextTruncate(lastUser.text || "", 60);
+  }
+
+  return {
+    preferredName: prefNameGet(),
+    recentWakuwaku,
+    strongWakuwaku,
+    valueSeeds: valueSeeds.enoughData
+      ? valueSeeds.seeds.slice(0, 5).map(s => ({ seedKey: s.seedKey, label: (VALUE_SEED_GROUPS[s.seedKey] || {}).label || s.seedKey, matchedTags: s.matchedTags }))
+      : [],
+    happinessPatterns: patterns.enoughData
+      ? patterns.patterns.slice(0, 5).map(p => ({ groups: p.groups.map(g => (VALUE_SEED_GROUPS[g] || {}).label || g), tags: p.tags }))
+      : [],
+    futureHints: futureHints.slice(0, 5),
+    recentSteps,
+    recentChanges: changes.enoughData ? changes.insights.slice(0, 3) : [],
+    recentConversationSummary,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+/* Phase E-3: AIプロンプト専用のコンパクトなテキスト整形。今回まだ
+   実際のAI API呼び出しは行わないため、この関数の出力自体はどこにも
+   送信していないが、将来AI接続する際にそのままプロンプトへ渡せる
+   形として独立させている(ユーザー画面には表示しない)。 */
+function formatKaosuContextText(ctx, fields){
+  const keys = fields && fields.length ? fields : Object.keys(ctx);
+  const lines = ["[USER CONTEXT]"];
+  if(ctx.preferredName) lines.push(`呼び名：${ctx.preferredName}`);
+  if(keys.includes("recentWakuwaku") && ctx.recentWakuwaku.length){
+    lines.push("最近のワクワク：");
+    ctx.recentWakuwaku.forEach(t => lines.push(`・${t}`));
+  }
+  if(keys.includes("strongWakuwaku") && ctx.strongWakuwaku.length){
+    lines.push("よく現れる興味：");
+    ctx.strongWakuwaku.forEach(s => lines.push(`・${s.tag}(${s.count}回)`));
+  }
+  if(keys.includes("valueSeeds") && ctx.valueSeeds.length){
+    lines.push("よく現れる価値観：");
+    ctx.valueSeeds.forEach(s => lines.push(`・${s.label}`));
+  }
+  if(keys.includes("happinessPatterns") && ctx.happinessPatterns.length){
+    lines.push("幸せの組み合わせパターン：");
+    ctx.happinessPatterns.forEach(p => lines.push(`・${p.groups.join("×")}`));
+  }
+  if(keys.includes("futureHints") && ctx.futureHints.length){
+    lines.push("望んでいそうな未来の方向：");
+    ctx.futureHints.forEach(h => lines.push(`・${h.label}`));
+  }
+  if(keys.includes("recentSteps") && ctx.recentSteps.length){
+    lines.push("最近の一歩：");
+    ctx.recentSteps.forEach(s => lines.push(`・${s.label}${s.feelingLabel ? "(" + s.feelingLabel + ")" : ""}`));
+  }
+  if(keys.includes("recentChanges") && ctx.recentChanges.length){
+    lines.push("最近の変化：");
+    ctx.recentChanges.forEach(c => lines.push(`・${c.text}`));
+  }
+  if(keys.includes("recentConversationSummary") && ctx.recentConversationSummary){
+    lines.push("直前の発言：" + ctx.recentConversationSummary);
+  }
+  lines.push("[/USER CONTEXT]");
+  return lines.join("\n");
+}
+
+/* Phase E-2: 発言内容から必要なContextの種類だけ選ぶ。既存の
+   isProfileReflectionRequest()/detectWakuwakuCandidate()より先に
+   判定することで、「最近何にワクワクしてる？」のような“質問”を
+   Phase Bの保存プロンプトへ誤って流さないようにもしている。 */
+const KAOSU_INTENT_WAKUWAKU_WORDS = ["何にワクワク", "なにワクワク", "ワクワクしてる", "ワクワクすること", "最近ワクワク"];
+const KAOSU_INTENT_CHANGE_WORDS = ["変わった", "変化した", "前と比べて", "前より変わ", "変わってきた"];
+const KAOSU_INTENT_FUTURE_WORDS = ["将来", "未来はどう", "どんな未来にな"];
+const KAOSU_INTENT_STEP_WORDS = ["頑張ってた", "頑張った", "一歩踏み出し", "挑戦してた", "最近やったこと", "最近頑張"];
+function detectKaosuContextIntent(userText){
+  if(KAOSU_INTENT_WAKUWAKU_WORDS.some(w => userText.includes(w))) return "wakuwaku";
+  if(KAOSU_INTENT_CHANGE_WORDS.some(w => userText.includes(w))) return "change";
+  if(KAOSU_INTENT_FUTURE_WORDS.some(w => userText.includes(w))) return "future";
+  if(KAOSU_INTENT_STEP_WORDS.some(w => userText.includes(w))) return "step";
+  return null;
+}
+function selectKaosuContextFields(intent){
+  switch(intent){
+    case "wakuwaku": return ["recentWakuwaku", "strongWakuwaku", "happinessPatterns"];
+    case "change": return ["recentChanges"];
+    case "future": return ["futureHints"];
+    case "step": return ["recentSteps"];
+    case "self": return ["strongWakuwaku", "valueSeeds", "happinessPatterns"];
+    case "profile": return ["recentWakuwaku", "strongWakuwaku", "valueSeeds", "happinessPatterns", "futureHints", "recentSteps", "recentChanges"];
+    default: return [];
+  }
+}
+
+/* Phase E-4/E-5: 「記録を検索しました」ではなく「覚えていた」ように
+   感じる文へ整形する。断定はせず、記録が薄いときは無理に分析せず
+   フォールバック文を返す(Phase E-7)。 */
+const KAOSU_CONTEXT_EMPTY_WAKUWAKU = k3(
+  "まだワクワクの記録が少ないから、はっきりとは言えないかな。<br>これから集めてくれたら、一緒に見つけていけそうだよ😊",
+  "まだワクワクの記録が少ないけん、はっきりとは言えんかな。<br>これから集めてくれたら、一緒に見つけていけそうやで😊",
+  "まだワクワクの記録が少なかけん、はっきりとは言えんかな。<br>これから集めてくれたら、一緒に見つけていけそうばい😊"
+);
+function generateWakuwakuIntentReplyHtml(ctx){
+  if(!ctx.strongWakuwaku.length && !ctx.recentWakuwaku.length) return sp(KAOSU_CONTEXT_EMPTY_WAKUWAKU);
+  const frags = [];
+  if(ctx.strongWakuwaku.length){
+    const tags = ctx.strongWakuwaku.slice(0, 2).map(s => s.tag).join("と");
+    frags.push(escapeHtml(sp(k3(
+      `最近だと「${tags}」あたりに、よく心が動いてる感じがするよ。`,
+      `最近やと「${tags}」あたりに、よう心動いとる感じするで。`,
+      `最近やと「${tags}」あたりに、よう心動いとー感じすっばい。`
+    ))));
+  }
+  if(ctx.recentWakuwaku.length){
+    frags.push(escapeHtml(sp(k3(
+      `直近だと「${ctx.recentWakuwaku[0]}」も記録してたね。`,
+      `直近やと「${ctx.recentWakuwaku[0]}」も記録しとったな。`,
+      `直近やと「${ctx.recentWakuwaku[0]}」も記録しとったばい。`
+    ))));
+  }
+  frags.push(escapeHtml(sp(k3(
+    "また新しいワクワク見つけたら教えてね😊",
+    "また新しいワクワク見つけたら教えてな😊",
+    "また新しいワクワク見つけたら教えてね😊"
+  ))));
+  return frags.join("<br>");
+}
+
+const KAOSU_CONTEXT_EMPTY_CHANGE = k3(
+  "うーん、まだはっきりした変化は見えてこないかな。<br>もう少し記録が増えたら、一緒に見つけていこう。",
+  "うーん、まだはっきりした変化は見えてけえへんかな。<br>もう少し記録が増えたら、一緒に見つけていこな。",
+  "うーん、まだはっきりした変化は見えてこんかな。<br>もう少し記録が増えたら、一緒に見つけていこうね。"
+);
+function generateChangeIntentReplyHtml(ctx){
+  if(!ctx.recentChanges.length) return sp(KAOSU_CONTEXT_EMPTY_CHANGE);
+  const body = ctx.recentChanges.slice(0, 2).map(c => escapeHtml(c.text)).join("<br>");
+  const closing = escapeHtml(sp(k3(
+    "断定はできないけど、なんとなくそんな流れを感じるよ。",
+    "断定はできへんけど、なんとなくそんな流れを感じるで。",
+    "断定はでけんけど、なんとなくそがん流れを感じるばい。"
+  )));
+  return body + "<br>" + closing;
+}
+
+const KAOSU_CONTEXT_EMPTY_FUTURE = k3(
+  "まだ『好きの奥にあるもの』が育っている途中だから、将来の方向を言うのは早そうかな。<br>これから一緒に見つけていこう。",
+  "まだ『好きの奥にあるもの』が育っとーとこやから、将来の方向を言うのは早そうかな。<br>これから一緒に見つけていこな。",
+  "まだ『好きの奥にあるもの』が育っとーとこばい、将来の方向を言うとは早かごたるね。<br>これから一緒に見つけていこうね。"
+);
+function generateFutureIntentReplyHtml(ctx){
+  if(!ctx.futureHints.length) return sp(KAOSU_CONTEXT_EMPTY_FUTURE);
+  const h = ctx.futureHints[0];
+  const hintText = h.hints && h.hints.length ? h.hints[Math.floor(Math.random() * h.hints.length)] : null;
+  const frags = [];
+  frags.push(escapeHtml(sp(k3(
+    `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれてそうな感じがするよ。`,
+    `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれとる感じするで。`,
+    `前に集めてたワクワクから見ると、「${h.label}」な方向にちょっと惹かれとー感じすっばい。`
+  ))));
+  if(hintText){
+    frags.push(escapeHtml(sp(k3(
+      `${hintText}も、面白そうかもね。`,
+      `${hintText}も、面白そうやな。`,
+      `${hintText}も、面白かごたるね。`
+    ))));
+  }
+  frags.push(escapeHtml(sp(k3(
+    "まだ決めなくて大丈夫。気になる方だけ覚えておいて😊",
+    "まだ決めんでも大丈夫。気になる方だけ覚えとって😊",
+    "まだ決めんでもよか。気になる方だけ覚えとって😊"
+  ))));
+  return frags.join("<br>");
+}
+
+const KAOSU_CONTEXT_EMPTY_STEP = k3(
+  "まだ『試してみた』の記録がないから、次に何かやってみたらぜひ教えてね。",
+  "まだ『試してみた』の記録がないけん、次に何かやってみたらぜひ教えてな。",
+  "まだ『試してみた』の記録がなかけん、次に何かやってみたらぜひ教えてね。"
+);
+function generateStepIntentReplyHtml(ctx){
+  if(!ctx.recentSteps.length) return sp(KAOSU_CONTEXT_EMPTY_STEP);
+  const s = ctx.recentSteps[0];
+  const frags = [];
+  frags.push(escapeHtml(sp(k3(
+    `この前、${s.label}に取り組んでたよね。`,
+    `この前、${s.label}に取り組んどったよな。`,
+    `この前、${s.label}に取り組んどったばい。`
+  ))));
+  if(s.feelingLabel){
+    frags.push(escapeHtml(sp(k3(
+      `「${s.feelingLabel}」って感じてたのも、いい記録だと思うよ。`,
+      `「${s.feelingLabel}」って感じとったんも、ええ記録やと思うで。`,
+      `「${s.feelingLabel}」って感じとったとも、よか記録やと思うばい。`
+    ))));
+  }
+  frags.push(escapeHtml(sp(k3(
+    "また小さな一歩があったら教えてね😊",
+    "また小さな一歩があったら教えてな😊",
+    "また小さな一歩があったら教えてね😊"
+  ))));
+  return frags.join("<br>");
+}
+
+function generateKaosuContextReplyHtml(intent, ctx){
+  switch(intent){
+    case "wakuwaku": return generateWakuwakuIntentReplyHtml(ctx);
+    case "change": return generateChangeIntentReplyHtml(ctx);
+    case "future": return generateFutureIntentReplyHtml(ctx);
+    case "step": return generateStepIntentReplyHtml(ctx);
+    default: return null;
+  }
+}
+const KAOSU_INTENT_EXPRESSION = { wakuwaku: "cheer", change: "normal", future: "normal", step: "smile" };
+
+/* Phase E-6: 「自分について聞いてみる」を強化。既存のPhase C
+   generateChatProfileReplyHtml()自体は変更せず、その出力に
+   futureHints/recentStepsからの一言だけを追加する(データが無ければ
+   何も足さず、Phase Cの出力だけがそのまま返る=既存動作を壊さない)。 */
+function generateKaosuBroadReflectionHtml(){
+  const base = generateChatProfileReplyHtml();
+  const ctx = buildKaosuUserContext();
+  let extra = null;
+  if(ctx.futureHints.length){
+    const h = ctx.futureHints[0];
+    extra = escapeHtml(sp(k3(
+      `もし今の流れを一個だけ伸ばすなら、「${h.label}」の方向を少しだけ覗いてみても面白いかもね。`,
+      `もし今の流れを一個だけ伸ばすなら、「${h.label}」の方向を少しだけ覗いてみても面白いかもな。`,
+      `もし今の流れを一個だけ伸ばすなら、「${h.label}」の方向を少しだけ覗いてみても面白かごたるね。`
+    )));
+  }else if(ctx.recentSteps.length){
+    const s = ctx.recentSteps[0];
+    extra = escapeHtml(sp(k3(
+      `この前${s.label}を試してたのも、いい流れだったと思うよ。`,
+      `この前${s.label}を試しとったんも、ええ流れやったと思うで。`,
+      `この前${s.label}を試しとったとも、よか流れやったと思うばい。`
+    )));
+  }
+  return extra ? base + "<br>" + extra : base;
+}
+
 async function chatAppendKaosuHtml(html){
   const plainText = html.replace(/<br\s*\/?>/g, " ");
   await chatPersistMessage("kaosu", plainText);
@@ -5189,6 +5488,14 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
   await chatAppendMessage("user", text);
 
   chatShowTypingThen(async () => {
+    const contextIntent = detectKaosuContextIntent(text);
+    if(contextIntent){
+      const ctx = buildKaosuUserContext();
+      chatSetHeroExpression(KAOSU_INTENT_EXPRESSION[contextIntent] || "normal");
+      await chatWait(CHAT_REPLY_GAP_MS);
+      await chatAppendKaosuHtml(generateKaosuContextReplyHtml(contextIntent, ctx));
+      return;
+    }
     if(isProfileReflectionRequest(text)){
       chatSetHeroExpression("normal");
       await chatWait(CHAT_REPLY_GAP_MS);
@@ -5213,7 +5520,7 @@ document.getElementById("btnChatAskProfile").addEventListener("click", async () 
   chatShowTypingThen(async () => {
     chatSetHeroExpression("normal");
     await chatWait(CHAT_REPLY_GAP_MS);
-    await chatAppendKaosuHtml(generateChatProfileReplyHtml());
+    await chatAppendKaosuHtml(generateKaosuBroadReflectionHtml());
   });
 });
 
