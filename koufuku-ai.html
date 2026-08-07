@@ -152,10 +152,25 @@ textarea{ font-family:inherit; }
   border-radius:var(--radius-lg);
   margin-bottom:12px;
   overflow:hidden;
-  height:200px;
+  height:230px;
+  transition:height .2s ease;
   background:linear-gradient(120deg, #ffeef5 0%, #fff8e0 30%, #e7f5ff 62%, #efe9ff 100%);
   border:1px solid var(--border);
 }
+/* 入力欄にフォーカスがある間(≒ソフトキーボード表示中)だけ、
+   ケイオスちゃんの対面領域を少し縮める。ここでもケイオスちゃんを
+   隠しはしない(顔と表情が見えるサイズは維持)。:has()非対応の
+   古いブラウザではこのルールが単に効かず、常に通常サイズのまま
+   になるだけで壊れない(段階的機能強化)。 */
+#chatModal:has(#chatInput:focus) .chat-hero{ height:130px; }
+/* .modalbox.sheetの max-height:88vh は他の全シート(アンケート/
+   名前設定など)と共有の汎用ルールなので、そちらは変更せず、
+   チャットモーダルだけに動的ビューポート単位のオーバーライドを
+   足す。ソフトキーボード表示中はvhが縮まないため、88vhのままだと
+   シート全体がケイオスちゃんの分だけ画面上端からはみ出し、その
+   はみ出た部分(=ヘッダーとケイオスちゃん)が.appのoverflow:hidden
+   で見えなくなっていたのが「入力すると消える」の原因だった。 */
+#chatModal .modalbox.sheet{ max-height:88vh; max-height:88dvh; }
 .chat-hero-avatar{
   position:absolute; inset:0;
   display:flex; align-items:center; justify-content:center;
@@ -5054,7 +5069,11 @@ async function openChatModal(){
   if(chatMessages.length === 0){
     await chatAppendMessage("kaosu", sp(CHAT_GREETING));
   }
-  document.getElementById("chatInput").focus();
+  /* 以前はここで入力欄へ自動フォーカスしていたが、ボタンタップの
+     ジェスチャー内で発火するため端末によってはチャットを開いた
+     瞬間にソフトキーボードが出てしまい、ケイオスちゃんが即座に
+     隠れる主因になっていた。ユーザーが自分で入力欄をタップした
+     時だけキーボードが開くように、自動フォーカスをやめた。 */
 }
 function closeChatModal(){
   document.getElementById("chatModal").classList.remove("show");
