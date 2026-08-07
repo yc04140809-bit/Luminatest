@@ -181,9 +181,9 @@ textarea{ font-family:inherit; }
   display:block;
   -webkit-mask-image:radial-gradient(ellipse 72% 88% at 50% 40%, #000 58%, transparent 100%);
   mask-image:radial-gradient(ellipse 72% 88% at 50% 40%, #000 58%, transparent 100%);
-  transition:opacity .2s ease, transform .2s ease;
+  transition:opacity .18s ease, transform .18s ease;
 }
-.chat-hero-avatar img.switching{ opacity:.7; transform:scale(.99); }
+.chat-hero-avatar img.switching{ opacity:.85; transform:scale(.98); }
 .chat-hero-avatar img.noimg{ display:none; }
 .chat-hero-avatar .kaosu-fallback{
   display:none; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
@@ -4865,6 +4865,22 @@ function generateChatReply(userText){
   return sp(CHAT_REPLY_POOL[Math.floor(Math.random() * CHAT_REPLY_POOL.length)]);
 }
 
+/* 通常の返信(ワクワク候補にもプロフィール振り返りにも該当しない
+   会話)だけを対象にした、ごく簡易なルールベースの表情判定。
+   Phase Bで既にある WAKUWAKU_ENTHUSIASM_WORDS をそのまま流用し、
+   新しく増やすのは「落ち着いた/真剣な話題」を検出する語彙だけに
+   留めている。AI判定ではなくキーワード一致だけの軽い分類。 */
+const CHAT_CALM_TOPIC_WORDS = [
+  "相談","悩み","悩んで","不安","心配","迷って","迷ってる",
+  "つらい","しんどい","疲れた","疲れて","大変","困って","困った",
+  "どうしよう","悲しい","落ち込","ストレス","プレッシャー",
+];
+function classifyPlainReplyExpression(userText){
+  if(CHAT_CALM_TOPIC_WORDS.some(w => userText.includes(w))) return "normal";
+  if(WAKUWAKU_ENTHUSIASM_WORDS.some(w => userText.includes(w))) return "cheer";
+  return "smile";
+}
+
 function chatGenerateId(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "c_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
@@ -5161,7 +5177,7 @@ function chatShowTypingThen(callback, delay){
 
 /* 表情が変わってから返信が出るまでのごく短い間。「顔を上げてから
    話し始める」ような自然さを出すためだけの定数で、状態は持たない。 */
-const CHAT_REPLY_GAP_MS = 280;
+const CHAT_REPLY_GAP_MS = 650;
 function chatWait(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
 document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
@@ -5185,7 +5201,7 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
       await chatWait(CHAT_REPLY_GAP_MS);
       await renderChatCandidatePrompt(detection, text);
     }else{
-      chatSetHeroExpression("smile");
+      chatSetHeroExpression(classifyPlainReplyExpression(text));
       await chatWait(CHAT_REPLY_GAP_MS);
       await chatAppendMessage("kaosu", generateChatReply(text));
     }
