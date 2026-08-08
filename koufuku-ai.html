@@ -5528,14 +5528,18 @@ function buildKaosuAiPrompt(text, meta){
 const KAOSU_AI_DEBUG = false;
 function kaosuAiDebugLog(...args){ if(KAOSU_AI_DEBUG) console.debug("[KaosuAI]", ...args); }
 
-/* Phase F-7/F-9: BFF接続インターフェース。
-   - KAOSU_AI_ENDPOINTは意図的にnullのまま出荷する。GitHub Pagesは
-     静的ホスティングで秘密鍵を安全に保持できるサーバーが無いため、
-     このPhaseではAnthropic/OpenAI等のAPIキーをこのファイルへ直接
-     書かない(=書けない)。将来BFF(サーバーレス関数等)が用意され
-     次第、ここにそのURLを設定するだけで有効化できる形にしてある。
+/* Phase F-7/F-9 → Phase G: BFF接続インターフェース。
+   - KAOSU_AI_ENDPOINTはVercelへBFF(/api/kaosu-chat.js)をデプロイし、
+     発行されたURLが分かるまで意図的にnullのまま出荷する。GitHub
+     Pagesは静的ホスティングで秘密鍵を安全に保持できるサーバーが
+     無いため、Anthropic等のAPIキーはこのファイルへ直接書かない
+     (=書けない)。APIキーはVercel側の環境変数(ANTHROPIC_API_KEY)
+     だけが保持する。
    - 未設定の間はfetchすら発生させず、即座にnullを返して呼び出し元
      (generateKaosuReply)を既存ルールベースへフォールバックさせる。
+   - Vercelへのデプロイが完了したら、発行されたURLの末尾に
+     "/api/kaosu-chat" を付けた値をここへ設定するだけで有効化できる。
+     例: const KAOSU_AI_ENDPOINT = "https://<your-project>.vercel.app/api/kaosu-chat";
    - 接続後の通信も8〜15秒目安のタイムアウト(AbortController)・
      HTTPエラー・不正なレスポンス形式のいずれでも例外を投げるだけに
      とどめ、実際のフォールバック判断は呼び出し元に一任する。 */
@@ -5639,38 +5643,51 @@ function chatShowTypingThen(callback, delay){
 /* 表情が変わってから返信が出るまでのごく短い間。「顔を上げてから
    話し始める」ような自然さを出すためだけの定数で、状態は持たない。 */
 const CHAT_REPLY_GAP_MS = 650;
+/* Phase G: 1リクエストぶんの二重送信防止フラグ。送信中(thinking〜
+   AI応答〜返信表示まで)だけtrueにし、必ずfinallyでfalseへ戻す。 */
+let chatSendInFlight = false;
 function chatWait(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
 document.getElementById("chatInputForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
+  if(chatSendInFlight) return; // Phase G: 通信中の連打による二重送信を防ぐ
   const input = document.getElementById("chatInput");
   const text = input.value.trim();
   if(!text) return;
   input.value = "";
+  chatSendInFlight = true;
+  document.getElementById("chatSendBtn").disabled = true;
   await chatAppendMessage("user", text);
 
   chatShowTypingThen(async () => {
-    /* 優先順位はPhase Eまでと完全に同じ(contextIntent → プロフィール
-       振り返り → ワクワク保存候補 → 通常会話)。「ワクワクとして
-       残す?」の保存確認UIだけは状態を持つ特別なフローなので、AI経由
-       にはせず従来通りここで先に処理する。それ以外の3パターンは
-       generateKaosuReply()のハイブリッド(AI試行→失敗時は既存ルール
-       ベースへフォールバック)にまとめて任せる。 */
-    const contextIntent = detectKaosuContextIntent(text);
-    const wantsProfile = !contextIntent && isProfileReflectionRequest(text);
-    if(!contextIntent && !wantsProfile){
-      const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
-      if(detection){
-        chatSetHeroExpression("cheer");
-        await chatWait(CHAT_REPLY_GAP_MS);
-        await renderChatCandidatePrompt(detection, text);
-        return;
+    try{
+      /* 優先順位はPhase Eまでと完全に同じ(contextIntent → プロフィール
+         振り返り → ワクワク保存候補 → 通常会話)。「ワクワクとして
+         残す?」の保存確認UIだけは状態を持つ特別なフローなので、AI経由
+         にはせず従来通りここで先に処理する。それ以外の3パターンは
+         generateKaosuReply()のハイブリッド(AI試行→失敗時は既存ルール
+         ベースへフォールバック)にまとめて任せる。 */
+      const contextIntent = detectKaosuContextIntent(text);
+      const wantsProfile = !contextIntent && isProfileReflectionRequest(text);
+      if(!contextIntent && !wantsProfile){
+        const detection = chatCandidatePending ? null : detectWakuwakuCandidate(text);
+        if(detection){
+          chatSetHeroExpression("cheer");
+          await chatWait(CHAT_REPLY_GAP_MS);
+          await renderChatCandidatePrompt(detection, text);
+          return;
+        }
       }
+      const result = await generateKaosuReply(text, { contextIntent, wantsProfile });
+      chatSetHeroExpression(result.expression);
+      await chatWait(CHAT_REPLY_GAP_MS);
+      await chatAppendKaosuHtml(result.html);
+    }finally{
+      /* AI通信がtimeoutしても例外が飛んでも、必ずここで送信可能状態へ
+         戻す(「送信不能になったまま」を絶対に作らない)。 */
+      chatSendInFlight = false;
+      document.getElementById("chatSendBtn").disabled = false;
     }
-    const result = await generateKaosuReply(text, { contextIntent, wantsProfile });
-    chatSetHeroExpression(result.expression);
-    await chatWait(CHAT_REPLY_GAP_MS);
-    await chatAppendKaosuHtml(result.html);
   });
 });
 
