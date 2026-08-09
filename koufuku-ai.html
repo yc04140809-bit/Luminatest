@@ -5529,21 +5529,18 @@ const KAOSU_AI_DEBUG = false;
 function kaosuAiDebugLog(...args){ if(KAOSU_AI_DEBUG) console.debug("[KaosuAI]", ...args); }
 
 /* Phase F-7/F-9 → Phase G: BFF接続インターフェース。
-   - KAOSU_AI_ENDPOINTはVercelへBFF(/api/kaosu-chat.js)をデプロイし、
-     発行されたURLが分かるまで意図的にnullのまま出荷する。GitHub
-     Pagesは静的ホスティングで秘密鍵を安全に保持できるサーバーが
-     無いため、Anthropic等のAPIキーはこのファイルへ直接書かない
-     (=書けない)。APIキーはVercel側の環境変数(ANTHROPIC_API_KEY)
-     だけが保持する。
-   - 未設定の間はfetchすら発生させず、即座にnullを返して呼び出し元
-     (generateKaosuReply)を既存ルールベースへフォールバックさせる。
-   - Vercelへのデプロイが完了したら、発行されたURLの末尾に
-     "/api/kaosu-chat" を付けた値をここへ設定するだけで有効化できる。
-     例: const KAOSU_AI_ENDPOINT = "https://<your-project>.vercel.app/api/kaosu-chat";
+   - KAOSU_AI_ENDPOINTはVercelへデプロイしたBFF(/api/kaosu-chat.js)の
+     本番URLを指す。GitHub Pagesは静的ホスティングで秘密鍵を安全に
+     保持できるサーバーが無いため、Anthropic等のAPIキーはこの
+     ファイルへ直接書かない(=書けない)。APIキーはVercel側の環境
+     変数(ANTHROPIC_API_KEY)だけが保持する。
+   - もしVercel側のProject/URLを作り直す場合は、この1行の値だけを
+     差し替えれば良い。nullに戻せば即座にfetchを発生させず既存
+     ルールベースへフォールバックする状態に戻せる(切り戻し用)。
    - 接続後の通信も8〜15秒目安のタイムアウト(AbortController)・
      HTTPエラー・不正なレスポンス形式のいずれでも例外を投げるだけに
      とどめ、実際のフォールバック判断は呼び出し元に一任する。 */
-const KAOSU_AI_ENDPOINT = null;
+const KAOSU_AI_ENDPOINT = "https://luminatest-one.vercel.app/api/kaosu-chat";
 const KAOSU_AI_TIMEOUT_MS = 12000;
 async function requestKaosuAiReply(text, meta){
   if(!KAOSU_AI_ENDPOINT) return null;
