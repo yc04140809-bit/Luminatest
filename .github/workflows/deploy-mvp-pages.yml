@@ -1,0 +1,51 @@
+name: Deploy koufuku-ai MVP test page
+
+# 「幸せ設計AI」のMVPテスト版だけをGitHub Pagesで公開するワークフロー。
+# 公開対象は koufuku-ai.html と img/koufuku/ のみ。
+# リポジトリ内の他のファイル(index.html, care-training.html, img/care,
+# img/kaosu など、幸せ設計AIとは無関係な既存プロジェクト)は一切公開しない。
+# 公開用の複製はビルド時に一時ディレクトリ(_site)へコピーするだけで、
+# リポジトリ本体(koufuku-ai.html)には一切手を加えない。
+
+on:
+  push:
+    branches: ["claude/koufuku-ai-phase18"]
+    paths:
+      - "koufuku-ai.html"
+      - "img/koufuku/**"
+      - ".github/workflows/deploy-mvp-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build public site (only the MVP test files)
+        run: |
+          mkdir -p _site/img/koufuku
+          cp koufuku-ai.html _site/index.html
+          cp img/koufuku/*.webp _site/img/koufuku/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

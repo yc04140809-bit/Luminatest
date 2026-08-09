@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/kaosu-chat.js": {
+      "maxDuration": 15
+    }
+  }
+}
