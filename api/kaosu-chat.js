@@ -163,6 +163,14 @@ module.exports = async function handler(req, res) {
     debugLog("ok", "intent=" + (body.intent || "unknown"), "latencyMs=" + (Date.now() - startedAt));
     res.status(200).json({ reply });
   } catch (error) {
+    // API失敗時は常にVercelのFunction Logsへ原因を出す(デバッグフラグに
+    // 関係なく)。出すのはエラーメッセージのみ。APIキー・Authorization
+    // Header・USER CONTEXTの中身は一切含めない。
+    console.error(
+      "[kaosu-chat] Anthropic API call failed",
+      "intent=" + (body.intent || "unknown"),
+      String(error && error.message)
+    );
     debugLog("error", "intent=" + (body.intent || "unknown"), String(error && error.message));
     res.status(502).json({ error: "ai_upstream_failed" });
   }

@@ -5600,6 +5600,10 @@ async function generateKaosuReply(text, meta){
       };
     }
   }catch(error){
+    /* API失敗時は常にconsoleへ原因を出す(デバッグフラグに関係なく)。
+       ここに出すのはエラー内容だけで、APIキーやContextの中身は
+       一切含めない。 */
+    console.warn("[KaosuAI] AI応答の取得に失敗したため、既存のルールベース応答にフォールバックしました。", error);
     kaosuAiDebugLog("AI fallback", "intent=" + intentLabel, error);
   }
   const fallback = await generateExistingKaosuReplyResult(text, meta);
