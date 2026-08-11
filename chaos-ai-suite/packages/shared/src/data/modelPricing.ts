@@ -5,12 +5,12 @@
  */
 export const MODEL_PRICING_USD_PER_MILLION: Record<string, { input: number; output: number }> = {
   "claude-opus-4-8": { input: 5, output: 25 },
-  "claude-sonnet-5": { input: 3, output: 15 },
+  "claude-sonnet-5": { input: 2, output: 10 },
   "claude-haiku-4-5-20251001": { input: 1, output: 5 },
   "claude-haiku-4-5": { input: 1, output: 5 },
 };
 
-const DEFAULT_PRICING = { input: 3, output: 15 };
+const DEFAULT_PRICING = { input: 2, output: 10 };
 
 /** 入力・出力トークン数から概算費用（USD）を計算する。実際の請求額の目安であり保証値ではない。 */
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
