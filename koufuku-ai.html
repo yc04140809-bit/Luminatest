@@ -136,10 +136,24 @@ textarea{ font-family:inherit; }
 }
 .chat-msg.kaosu.chat-bubble-in{ animation:chatBubbleIn .3s ease; }
 
-/* ---------- チャット上部のケイオスちゃんビジュアル領域 ----------
-   .kaosu-hero(ホーム)とは意図的に別クラスにして、ホーム画面や他の
-   カードに一切影響しないようスコープをチャットモーダル内だけに
-   限定している。表情は既存のsetKaosuExpression()/data-kaosu-
+/* ---------- チャット画面(Phase21: モーダルではなく.view本体) ----------
+   Phase20まではモーダル(#chatModal)として実装していたが、Phase21で
+   幸せ設計AI本体のいち画面(ボトムナビ「チャット」)へ統合した。
+   レイアウトの考え方自体はモーダル時代から変えておらず、単に
+   "浮いているシート"から"常設の画面"へ入れ物を変えただけ:
+   ヘッダー(flex:none) → chat-hero(flex:none) → メッセージ一覧
+   (sheet-scrollで.flex:1・内部スクロール) → 入力欄(flex:none)、という
+   縦積みのflex構造そのものを.view[data-view="chat"]がまるごと担う。 */
+.view[data-view="chat"]{ padding:0; overflow:hidden; }
+.view[data-view="chat"].active{ display:flex; flex-direction:column; height:100%; }
+.view[data-view="chat"] .sheet-header{ padding:16px 16px 0; }
+.view[data-view="chat"] #chatClearConfirmRow{ margin:0 16px 12px; }
+.view[data-view="chat"] .chat-hero{ margin:12px 16px; }
+.view[data-view="chat"] .sheet-scroll{ padding:0 16px; }
+.view[data-view="chat"] .chat-inputbar{ padding:10px 16px calc(10px + env(safe-area-inset-bottom)); margin:0; background:var(--surface); }
+/* .kaosu-hero(ホーム)とは意図的に別クラスにして、ホーム画面や他の
+   カードに一切影響しないようスコープをチャット画面内だけに限定
+   している。表情は既存のsetKaosuExpression()/data-kaosu-
    expression属性の仕組みをそのまま使うだけで、画像ファイル名や
    状態の切り替えロジックをここに新しく作らない(将来Live2D等へ
    差し替える場合もsetKaosuExpression()の中身だけ差し替えればよい)。
@@ -162,15 +176,7 @@ textarea{ font-family:inherit; }
    隠しはしない(顔と表情が見えるサイズは維持)。:has()非対応の
    古いブラウザではこのルールが単に効かず、常に通常サイズのまま
    になるだけで壊れない(段階的機能強化)。 */
-#chatModal:has(#chatInput:focus) .chat-hero{ height:130px; }
-/* .modalbox.sheetの max-height:88vh は他の全シート(アンケート/
-   名前設定など)と共有の汎用ルールなので、そちらは変更せず、
-   チャットモーダルだけに動的ビューポート単位のオーバーライドを
-   足す。ソフトキーボード表示中はvhが縮まないため、88vhのままだと
-   シート全体がケイオスちゃんの分だけ画面上端からはみ出し、その
-   はみ出た部分(=ヘッダーとケイオスちゃん)が.appのoverflow:hidden
-   で見えなくなっていたのが「入力すると消える」の原因だった。 */
-#chatModal .modalbox.sheet{ max-height:88vh; max-height:88dvh; }
+.view[data-view="chat"]:has(#chatInput:focus) .chat-hero{ height:130px; }
 .chat-hero-avatar{
   position:absolute; inset:0;
   display:flex; align-items:center; justify-content:center;
@@ -1025,6 +1031,35 @@ textarea.field-input{ resize:none; }
       </div>
     </section>
 
+    <!-- ⑥ チャット(Phase21: 別モーダルではなく、幸せ設計AI本体のいち画面として統合) -->
+    <section class="view chat-view" data-view="chat">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3>ケイオスちゃん</h3></div>
+        <button class="btn-text" id="btnChatClearHistory" style="width:auto; display:inline-block; white-space:nowrap; padding:6px 4px; margin:0; font-size:11px;">履歴を削除</button>
+      </div>
+      <div class="chat-hero">
+        <div class="chat-hero-avatar">
+          <img id="chatHeroImg" src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+      </div>
+      <div id="chatClearConfirmRow" style="display:none; background:var(--peach-soft); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; font-size:13px;">
+        <p style="margin-bottom:8px;">チャット履歴を全部削除しますか？<br>この操作は取り消せません。</p>
+        <div class="chip-row">
+          <button type="button" class="filterbtn" id="btnChatClearConfirm">削除する</button>
+          <button type="button" class="filterbtn" id="btnChatClearCancel">キャンセル</button>
+        </div>
+      </div>
+      <div class="sheet-scroll" id="chatMessagesScroll"></div>
+      <div style="flex:none; text-align:center;">
+        <button type="button" class="btn-text" id="btnChatAskProfile" style="padding:4px 0; font-size:12px; margin:0;">✨ 最近の自分について聞いてみる</button>
+      </div>
+      <form class="chat-inputbar" id="chatInputForm">
+        <input type="text" class="field-input" id="chatInput" placeholder="今日あったこと、話してみて" autocomplete="off" maxlength="500">
+        <button type="submit" class="chat-send-btn" id="chatSendBtn" aria-label="送信">➤</button>
+      </form>
+    </section>
+
   </main>
 
   <nav class="bottomnav">
@@ -1047,6 +1082,10 @@ textarea.field-input{ resize:none; }
     <button class="navitem" data-view="mind">
       <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.3"/><path d="M5 19.5c0-3.9 3.1-6 7-6s7 2.1 7 6"/></svg></span>
       <span class="navlabel">わたし</span>
+    </button>
+    <button class="navitem" data-view="chat">
+      <span class="navicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16a1 1 0 0 1 1 1V15a1 1 0 0 1-1 1H9.8L5.6 19.3A.6.6 0 0 1 4.6 18.9V16H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z"/></svg></span>
+      <span class="navlabel">チャット</span>
     </button>
   </nav>
 
@@ -1150,42 +1189,6 @@ textarea.field-input{ resize:none; }
         </div>
         <button class="btn-primary sheet-savebtn" id="btnClosePreferredNameConfirm" style="display:none;">はじめる</button>
       </div>
-    </div>
-  </div>
-
-  <!-- 統合設計書Phase A: ケイオスちゃんとのチャット(AI API接続なし、
-       ルールベースの固定文のみ。会話はIndexedDBの新規store
-       chatMessagesにのみ保存し、外部送信は一切行わない) -->
-  <div class="modal" id="chatModal">
-    <div class="modalbox sheet">
-      <div class="sheet-header">
-        <div class="sheet-titles"><h3>ケイオスちゃん</h3></div>
-        <div style="flex:none; display:flex; align-items:center; gap:6px;">
-          <button class="btn-text" id="btnChatClearHistory" style="width:auto; display:inline-block; white-space:nowrap; padding:6px 4px; margin:0; font-size:11px;">履歴を削除</button>
-          <button class="sheet-close" id="chatClose" aria-label="閉じる">×</button>
-        </div>
-      </div>
-      <div class="chat-hero">
-        <div class="chat-hero-avatar">
-          <img id="chatHeroImg" src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-        </div>
-      </div>
-      <div id="chatClearConfirmRow" style="display:none; background:var(--peach-soft); border-radius:var(--radius-sm); padding:10px 12px; margin-bottom:12px; font-size:13px;">
-        <p style="margin-bottom:8px;">チャット履歴を全部削除しますか？<br>この操作は取り消せません。</p>
-        <div class="chip-row">
-          <button type="button" class="filterbtn" id="btnChatClearConfirm">削除する</button>
-          <button type="button" class="filterbtn" id="btnChatClearCancel">キャンセル</button>
-        </div>
-      </div>
-      <div class="sheet-scroll" id="chatMessagesScroll"></div>
-      <div style="flex:none; text-align:center;">
-        <button type="button" class="btn-text" id="btnChatAskProfile" style="padding:4px 0; font-size:12px; margin:0;">✨ 最近の自分について聞いてみる</button>
-      </div>
-      <form class="chat-inputbar" id="chatInputForm">
-        <input type="text" class="field-input" id="chatInput" placeholder="今日あったこと、話してみて" autocomplete="off" maxlength="500">
-        <button type="submit" class="chat-send-btn" id="chatSendBtn" aria-label="送信">➤</button>
-      </form>
     </div>
   </div>
 
@@ -1300,6 +1303,7 @@ function switchView(view){
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
   if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); }
+  if(view === "chat"){ openChatView(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -5067,8 +5071,11 @@ function chatSetHeroExpression(expression){
   }, 90);
 }
 
-async function openChatModal(){
-  document.getElementById("chatModal").classList.add("show");
+/* Phase21: モーダルの開閉(openChatModal/closeChatModal)ではなく、
+   switchView("chat")で画面へ入るたびに呼ばれる初期化処理。中身は
+   モーダル時代のopenChatModal()と同一(初回だけIndexedDBから読み込み、
+   履歴が空なら挨拶を1通追加)で、ロジックは変えていない。 */
+async function openChatView(){
   document.getElementById("chatClearConfirmRow").style.display = "none";
   chatSetHeroExpression("smile");
   if(!chatLoaded){
@@ -5091,14 +5098,7 @@ async function openChatModal(){
      隠れる主因になっていた。ユーザーが自分で入力欄をタップした
      時だけキーボードが開くように、自動フォーカスをやめた。 */
 }
-function closeChatModal(){
-  document.getElementById("chatModal").classList.remove("show");
-}
-document.getElementById("btnOpenChat").addEventListener("click", openChatModal);
-document.getElementById("chatClose").addEventListener("click", closeChatModal);
-document.getElementById("chatModal").addEventListener("click", (ev) => {
-  if(ev.target.id === "chatModal") closeChatModal();
-});
+document.getElementById("btnOpenChat").addEventListener("click", () => switchView("chat"));
 
 /* =========================================================
    統合設計書Phase C: 会話の中で、既存の分析資産から
