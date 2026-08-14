@@ -230,6 +230,34 @@ textarea{ font-family:inherit; }
   width:100%; height:100%; object-fit:cover; object-position:center; display:block;
 }
 
+/* ---------- ホーム: モード切替(Phase22) ---------- */
+.mode-switch-row{ display:flex; gap:10px; margin-bottom:18px; }
+.mode-card{
+  flex:1; display:flex; flex-direction:column; align-items:flex-start; gap:2px;
+  background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius-lg);
+  padding:13px 14px; text-align:left;
+}
+.mode-card-icon{ font-size:19px; line-height:1; }
+.mode-card-label{ font-size:13px; font-weight:700; color:var(--text); margin-top:3px; }
+.mode-card-sub{ font-size:10.5px; color:var(--text-sub); }
+.mode-card.active{
+  border-color:var(--purple);
+  background:linear-gradient(135deg,#fff0f7,#f3ecff);
+  box-shadow:0 4px 12px rgba(180,140,230,.18);
+}
+
+/* ---------- ホーム: おうちサポートモード プレースホルダー(Phase22) ----------
+   Phase23以降で家族プロフィール・予定・タスク等の実データを載せる
+   前提の、見た目だけを先行させたカード。タップ時は既存の共通モーダル
+   openModal()をそのまま再利用し、専用の案内UIは新しく作らない。 */
+.home-support-card{ position:relative; padding-right:76px; }
+.home-support-items{ font-size:13px; color:var(--text-sub); line-height:1.7; }
+.home-support-badge{
+  position:absolute; top:16px; right:16px; flex:none;
+  font-size:11px; font-weight:700; color:#9a8ad6;
+  background:var(--purple-soft); border-radius:99px; padding:3px 10px; white-space:nowrap;
+}
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -559,6 +587,24 @@ textarea.field-input{ resize:none; }
 
     <!-- ① ホーム -->
     <section class="view active" data-view="home">
+      <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
+           新しいDBは追加せず、localStorageに選択中モードを1件保持するのみ。
+           ホーム画面の中身をまるごと出し分けるだけで、ワクワク/未来/
+           一歩/わたし/チャットの各タブは今回一切変更しない。 -->
+      <div class="mode-switch-row" id="modeSwitchRow">
+        <button type="button" class="mode-card" id="modeCardHappiness" data-mode="happiness">
+          <span class="mode-card-icon">🌈</span>
+          <span class="mode-card-label">幸福設計モード</span>
+          <span class="mode-card-sub">自分の未来を整える</span>
+        </button>
+        <button type="button" class="mode-card" id="modeCardHomeSupport" data-mode="home-support">
+          <span class="mode-card-icon">🏠</span>
+          <span class="mode-card-label">おうちサポートモード</span>
+          <span class="mode-card-sub">家族の日常を支える</span>
+        </button>
+      </div>
+
+      <div id="happinessModeContent">
       <div class="kaosu-hero">
         <div class="kaosu-hero-visual" id="kaosuHeroVisual">
           <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" class="kaosu-hero-img" onerror="this.closest('.kaosu-hero-visual').style.display='none'">
@@ -669,6 +715,44 @@ textarea.field-input{ resize:none; }
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="speech-bubble" id="reflectResponseText" style="font-size:13px;"></div>
+        </div>
+      </div>
+      </div><!-- /#happinessModeContent -->
+
+      <!-- Phase22: おうちサポートモード(プレースホルダー)。実データ・
+           通知・家族プロフィールはPhase23以降で追加する。ここでは
+           「完成後にどうなるか」が伝わるMVPとして、4カテゴリの
+           カードだけを表示し、タップすると案内メッセージを出す。 -->
+      <div id="homeSupportModeContent" style="display:none;">
+        <div class="kaosu-hero">
+          <div class="kaosu-hero-visual">
+            <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" class="kaosu-hero-img" onerror="this.closest('.kaosu-hero-visual').style.display='none'">
+          </div>
+          <div class="speech-bubble" id="homeSupportKaosuMessage"></div>
+        </div>
+
+        <div class="card home-support-card" data-support-label="🧒 子育てサポート">
+          <div class="card-label">🧒 子育て</div>
+          <p class="home-support-items">・持ち物<br>・学校・保育園予定<br>・成長記録</p>
+          <span class="home-support-badge">準備中</span>
+        </div>
+
+        <div class="card home-support-card" data-support-label="🧓 介護サポート">
+          <div class="card-label">🧓 介護</div>
+          <p class="home-support-items">・通院<br>・訪問介護<br>・服薬<br>・水分確認</p>
+          <span class="home-support-badge">準備中</span>
+        </div>
+
+        <div class="card home-support-card" data-support-label="🏡 暮らしサポート">
+          <div class="card-label">🏡 暮らし</div>
+          <p class="home-support-items">・ゴミの日<br>・買い物<br>・家事<br>・ペット</p>
+          <span class="home-support-badge">準備中</span>
+        </div>
+
+        <div class="card home-support-card" data-support-label="👪 家族サポート">
+          <div class="card-label">👪 家族</div>
+          <p class="home-support-items">・家族プロフィール<br>・予定共有<br>・確認ボタン</p>
+          <span class="home-support-badge">準備中</span>
         </div>
       </div>
     </section>
@@ -1302,7 +1386,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); }
   if(view === "chat"){ openChatView(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
@@ -1475,6 +1559,58 @@ function sp(obj){
   const style = speechStyleGet();
   return obj[style] != null ? obj[style] : obj.standard;
 }
+
+/* =========================================================
+   Phase22: ホーム画面のモード切替(幸福設計モード / おうちサポートモード)
+   - 新しいDB/外部送信は追加しない。localStorageに選択中モードの
+     キーを1件保持するだけで、それ以外の状態管理は増やさない。
+   - 「幸福設計モード」はこれまでのホーム画面コンテンツをそのまま
+     #happinessModeContentへ包んだだけで、中身は一切変更していない。
+   - 「おうちサポートモード」はPhase22時点ではまだ実データ・通知・
+     家族プロフィールを持たないプレースホルダー。タップ時の案内は
+     既存の共通モーダルopenModal()をそのまま再利用する(専用UIを
+     新設しない=二重実装を避ける)。
+   - ワクワク/未来/一歩/わたし/チャットの各タブはモードに関係なく
+     常に同じ内容のまま(今回はホーム画面の中身だけを出し分ける)。
+   ========================================================= */
+const HOME_MODE_KEY = "koufukuAiActiveModeV1";
+function homeModeGet(){
+  try{
+    const saved = localStorage.getItem(HOME_MODE_KEY);
+    if(saved === "happiness" || saved === "home-support") return saved;
+  }catch(e){ /* 読めない場合は下のデフォルトへ */ }
+  return "happiness";
+}
+function homeModeSet(mode){
+  try{ localStorage.setItem(HOME_MODE_KEY, mode); }
+  catch(e){ /* 保存できなくてもアプリの利用は継続できるようにする */ }
+}
+const HOME_SUPPORT_GREETING = k3(
+  "今日は何をお手伝いしようか？😊",
+  "今日は何をお手伝いしよか？😊",
+  "今日は何ばお手伝いしようか？😊"
+);
+function renderHomeModeUI(){
+  const mode = homeModeGet();
+  document.getElementById("modeCardHappiness").classList.toggle("active", mode === "happiness");
+  document.getElementById("modeCardHomeSupport").classList.toggle("active", mode === "home-support");
+  document.getElementById("happinessModeContent").style.display = mode === "happiness" ? "block" : "none";
+  document.getElementById("homeSupportModeContent").style.display = mode === "home-support" ? "block" : "none";
+  if(mode === "home-support"){
+    document.getElementById("homeSupportKaosuMessage").textContent = sp(HOME_SUPPORT_GREETING);
+  }
+}
+function setHomeMode(mode){
+  homeModeSet(mode);
+  renderHomeModeUI();
+}
+document.getElementById("modeCardHappiness").addEventListener("click", () => setHomeMode("happiness"));
+document.getElementById("modeCardHomeSupport").addEventListener("click", () => setHomeMode("home-support"));
+document.querySelectorAll(".home-support-card").forEach(card => {
+  card.addEventListener("click", () => {
+    openModal(`${card.dataset.supportLabel}\n\nこの機能はPhase23以降で順次追加予定です。`);
+  });
+});
 
 /* =========================================================
    Phase17: ケイオスちゃんの表情アイコン切り替え
@@ -5772,6 +5908,7 @@ renderHomeQuestion();
 renderHomeStep();
 renderFilters();
 renderSpeechStyleSetting();
+renderHomeModeUI();
 loadWakuwakuEntries();
 if(prefNameGet() === null) openNameModal("first");
 </script>
