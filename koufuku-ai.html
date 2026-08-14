@@ -257,6 +257,33 @@ textarea{ font-family:inherit; }
   font-size:11px; font-weight:700; color:#9a8ad6;
   background:var(--purple-soft); border-radius:99px; padding:3px 10px; white-space:nowrap;
 }
+/* 「家族」カードだけはPhase23で実際に開けるようになったため、
+   準備中バッジとは別の見た目にして区別する */
+.home-support-badge-live{
+  color:#fff; background:linear-gradient(135deg,#ff8fc7,#a78bfa);
+}
+
+/* ---------- Family AI Core(Phase23) ---------- */
+.color-chip{
+  width:28px; height:28px; border-radius:50%; border:2px solid transparent;
+  padding:0; flex:none;
+}
+.color-chip.selected{ border-color:var(--text); box-shadow:0 0 0 2px #fff inset; }
+.family-card{ position:relative; }
+.family-card-head{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.family-card-icon{
+  flex:none; width:40px; height:40px; border-radius:50%; background:var(--purple-soft);
+  display:flex; align-items:center; justify-content:center; font-size:20px;
+}
+.family-card-name{ font-size:15px; font-weight:700; }
+.family-card-relation{ font-size:12px; color:var(--text-sub); margin-top:2px; }
+.family-card-memo{ font-size:13px; color:var(--text); margin-bottom:8px; white-space:pre-wrap; word-break:break-word; }
+.family-memory-viewer{
+  background:#f8f6ff; border-radius:var(--radius-sm); padding:10px 12px;
+}
+.family-memory-label{ font-size:11px; font-weight:700; color:var(--purple); margin-bottom:4px; }
+.family-memory-list{ font-size:13px; color:var(--text); line-height:1.6; }
+.family-memory-empty{ color:var(--text-sub); }
 
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
@@ -749,10 +776,10 @@ textarea.field-input{ resize:none; }
           <span class="home-support-badge">準備中</span>
         </div>
 
-        <div class="card home-support-card" data-support-label="👪 家族サポート">
+        <div class="card home-support-card" id="btnOpenFamily">
           <div class="card-label">👪 家族</div>
-          <p class="home-support-items">・家族プロフィール<br>・予定共有<br>・確認ボタン</p>
-          <span class="home-support-badge">準備中</span>
+          <p class="home-support-items">家族を登録すると、ケイオスちゃんが名前や続柄を覚えて会話に活かします。<br>・予定共有・確認ボタンは準備中</p>
+          <span class="home-support-badge home-support-badge-live">開く →</span>
         </div>
       </div>
     </section>
@@ -1250,6 +1277,74 @@ textarea.field-input{ resize:none; }
     </div>
   </div>
 
+  <!-- Phase23: Family AI Core — 家族一覧シート。おうちサポートモードの
+       「👪 家族」カードから開く。データはFamilyStore(IndexedDB)のみに
+       保存し、外部送信は一切行わない。 -->
+  <div class="modal" id="familyModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles">
+          <h3>家族</h3>
+          <p>ケイオスちゃんが家族のことを覚えておける場所だよ</p>
+        </div>
+        <button class="sheet-close" id="familyModalClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <button class="btn-primary" id="btnFamilyAdd" style="margin-bottom:14px;">＋ 家族を追加</button>
+        <div id="familyListBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase23: 家族の追加/編集シート -->
+  <div class="modal" id="familyEditModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3 id="familyEditTitle">家族を追加</h3></div>
+        <button class="sheet-close" id="familyEditClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <div class="form-label">アイコン</div>
+        <div class="chip-row" id="familyIconChipRow"></div>
+
+        <div class="form-label">名前</div>
+        <input type="text" class="field-input" id="familyNameInput" placeholder="例: たろう、おばあちゃん" maxlength="20">
+
+        <div class="form-label">続柄（あとから変更できます）</div>
+        <div class="chip-row" id="familyRoleChipRow"></div>
+        <input type="text" class="field-input" id="familyRoleInput" placeholder="例: パパ、娘、ペット" maxlength="20" style="margin-top:8px;">
+
+        <div class="form-label">関係性（AIが家族のつながりを理解するための項目・任意）</div>
+        <div class="chip-row" id="familyRelationChipRow"></div>
+
+        <div class="form-label">年齢（任意）</div>
+        <input type="number" class="field-input" id="familyAgeInput" min="0" max="120" placeholder="例: 8">
+
+        <div class="form-label">カラー</div>
+        <div class="chip-row" id="familyColorChipRow"></div>
+
+        <div class="form-label">メモ（任意）</div>
+        <textarea class="field-input" id="familyMemoInput" rows="2" placeholder="性格や大事にしていること など"></textarea>
+
+        <div class="form-label">AIが覚えていること（任意・1行に1つ）</div>
+        <textarea class="field-input" id="familyMemoriesInput" rows="4" placeholder="夜勤が多い&#10;プールが好き&#10;保育園に通っている"></textarea>
+
+        <button class="btn-primary sheet-savebtn" id="btnFamilySave">この内容で保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase23: 家族の削除確認 -->
+  <div class="modal" id="familyDeleteConfirmModal">
+    <div class="modalbox">
+      <p>この家族を削除しますか？</p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" id="familyDeleteCancelBtn">キャンセル</button>
+        <button class="btn-danger" id="familyDeleteConfirmBtn">削除する</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 呼び名(ニックネーム)登録 -->
   <div class="modal" id="nameOnboardingModal">
     <div class="modalbox sheet">
@@ -1606,7 +1701,7 @@ function setHomeMode(mode){
 }
 document.getElementById("modeCardHappiness").addEventListener("click", () => setHomeMode("happiness"));
 document.getElementById("modeCardHomeSupport").addEventListener("click", () => setHomeMode("home-support"));
-document.querySelectorAll(".home-support-card").forEach(card => {
+document.querySelectorAll(".home-support-card[data-support-label]").forEach(card => {
   card.addEventListener("click", () => {
     openModal(`${card.dataset.supportLabel}\n\nこの機能はPhase23以降で順次追加予定です。`);
   });
@@ -2275,12 +2370,17 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 2;
+const WW_DB_VERSION = 3;
 const WW_STORE = "wakuwaku";
 /* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
    WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
    1→2に上げて store を追加するだけの標準的な加算のみの移行。 */
 const CHAT_STORE = "chatMessages";
+/* Phase23: Family Database用の新規store。既存store(wakuwaku/
+   chatMessages)のデータには一切触れず、バージョンを2→3に上げて
+   store を追加するだけの標準的な加算のみの移行(新しいDBファイルは
+   作らず、既存のkoufukuAiDBをそのまま拡張する)。 */
+const FAMILY_STORE = "familyMembers";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -2329,6 +2429,7 @@ function wwOpenDB(){
       const db = ev.target.result;
       if(!db.objectStoreNames.contains(WW_STORE)) db.createObjectStore(WW_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(FAMILY_STORE)) db.createObjectStore(FAMILY_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -2404,6 +2505,49 @@ const ChatStore = {
       tx.objectStore(CHAT_STORE).clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+    });
+  },
+};
+
+/* Phase23: Family Database用ストア。WakuWakuStoreと同じ
+   インターフェース形状(add/update/remove/getAll)のごく薄いラッパー。
+   画像を扱わないためBlob用のバックアップ処理は不要で、新規
+   localStorageキーも増やさない。 */
+const FamilyStore = {
+  async add(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(FAMILY_STORE, "readwrite");
+      tx.objectStore(FAMILY_STORE).add(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async update(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(FAMILY_STORE, "readwrite");
+      tx.objectStore(FAMILY_STORE).put(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async remove(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(FAMILY_STORE, "readwrite");
+      tx.objectStore(FAMILY_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(FAMILY_STORE, "readonly");
+      const req = tx.objectStore(FAMILY_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
     });
   },
 };
@@ -2859,6 +3003,311 @@ document.getElementById("deleteConfirmBtn").addEventListener("click", async () =
   await loadWakuwakuEntries();
   showToast("ワクワクを削除したよ");
 });
+
+/* =========================================================
+   Phase23: Family AI Core(家族データベース)
+   - 新しいDBファイルは作らず、既存のkoufukuAiDB(WW_DB_NAME)に
+     familyMembers storeを追加しただけ(FamilyStore参照)。
+   - 「家族プロフィール管理」ではなく「AIが家族を理解する土台」が
+     目的のため、各メンバーに「AIが覚えていること(memories)」を
+     持たせている。Phase23時点ではまだ自動学習は行わず、ユーザーが
+     手入力した内容をそのまま保持・表示するだけ(表示のみでも可、の
+     指示に沿い、専用の編集UIは追加せず既存の追加/編集シートの
+     1項目として扱う=二重実装を避ける)。
+   - relationType(Phase23.5 Relationship Brain)は「ケイオス師匠から
+     見たそのメンバーとの関係」を表す1フィールド。将来、家族同士の
+     関係推論やAI提案(通知・気づき)へ拡張する際の土台となる
+     データ構造だけをここで用意し、推論ロジック自体は実装しない。
+   ========================================================= */
+const FAMILY_ICON_PRESET = ["👨","👩","👧","👦","👶","👴","👵","🐶","🐱","🧑"];
+const FAMILY_ROLE_PRESET = ["パパ","ママ","子ども","おじいちゃん","おばあちゃん","ペット","その他"];
+/* Phase23.5: Relationship Brainが将来扱う関係性の語彙。ここでは
+   データとして保持するだけで、通知/提案ロジックへは接続しない。 */
+const FAMILY_RELATION_TYPES = [
+  { key: "parent", label: "親" },
+  { key: "child", label: "子" },
+  { key: "grandparent", label: "祖父母" },
+  { key: "grandchild", label: "孫" },
+  { key: "spouse", label: "配偶者" },
+  { key: "petOwner", label: "飼い主" },
+  { key: "caregiver", label: "介護する側" },
+  { key: "careReceiver", label: "介護される側" },
+  { key: "friend", label: "友人" },
+  { key: "other", label: "その他" },
+];
+const FAMILY_COLOR_PRESET = ["#ff8fc7","#a78bfa","#7dd3c0","#ffd166","#6fb1ff","#ff9d76"];
+
+function familyRelationLabel(key){
+  const found = FAMILY_RELATION_TYPES.find(r => r.key === key);
+  return found ? found.label : "";
+}
+
+let familyMembers = [];
+let familyLoaded = false;
+let familyFormState = null;
+let familyDeleteId = null;
+
+function resetFamilyFormState(){
+  familyFormState = {
+    id: null,
+    icon: FAMILY_ICON_PRESET[0],
+    roleLabel: "",
+    relationType: "",
+    color: FAMILY_COLOR_PRESET[0],
+  };
+}
+resetFamilyFormState();
+
+async function loadFamilyMembers(){
+  try{
+    const list = await FamilyStore.getAll();
+    list.sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+    familyMembers = list;
+  }catch(e){
+    familyMembers = [];
+  }
+  familyLoaded = true;
+  renderFamilyList();
+}
+
+function renderFamilyMemberCardHtml(member){
+  const relationBits = [member.roleLabel, familyRelationLabel(member.relationType)].filter(Boolean).join(" / ");
+  const memories = member.memories || [];
+  const memoriesHtml = memories.length
+    ? memories.slice(0, 8).map(m => "・" + escapeHtml(m)).join("<br>")
+    : `<span class="family-memory-empty">まだ記録がありません</span>`;
+  return `
+    <div class="card family-card" style="border-left:4px solid ${escapeHtml(member.color || "#a78bfa")};">
+      <div class="family-card-head">
+        <span class="family-card-icon">${escapeHtml(member.icon || "👤")}</span>
+        <div class="family-card-titles">
+          <div class="family-card-name">${escapeHtml(member.name || "名前未設定")}</div>
+          <div class="family-card-relation">${escapeHtml(relationBits || "続柄未設定")}${member.age ? "・" + escapeHtml(String(member.age)) + "歳" : ""}</div>
+        </div>
+      </div>
+      ${member.memo ? `<p class="family-card-memo">${escapeHtml(member.memo)}</p>` : ""}
+      <div class="family-memory-viewer">
+        <div class="family-memory-label">AIが覚えていること</div>
+        <p class="family-memory-list">${memoriesHtml}</p>
+      </div>
+      <div class="chip-row" style="margin-top:10px;">
+        <button type="button" class="filterbtn" data-family-edit="${escapeHtml(member.id)}">編集</button>
+        <button type="button" class="filterbtn" data-family-delete="${escapeHtml(member.id)}">削除</button>
+      </div>
+    </div>`;
+}
+
+function renderFamilyList(){
+  const root = document.getElementById("familyListBody");
+  if(!root) return;
+  if(!familyMembers.length){
+    root.innerHTML = `<p class="mind-empty-note" style="text-align:center; margin:20px 0 4px;">まだ家族が登録されていません。<br>「＋ 家族を追加」から追加できるよ。</p>`;
+    return;
+  }
+  root.innerHTML = familyMembers.map(renderFamilyMemberCardHtml).join("");
+  root.querySelectorAll("[data-family-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const member = familyMembers.find(m => m.id === btn.dataset.familyEdit);
+      if(member) openFamilyEditSheet(member);
+    });
+  });
+  root.querySelectorAll("[data-family-delete]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      familyDeleteId = btn.dataset.familyDelete;
+      document.getElementById("familyDeleteConfirmModal").classList.add("show");
+    });
+  });
+}
+
+async function openFamilyModal(){
+  document.getElementById("familyModal").classList.add("show");
+  if(!familyLoaded) await loadFamilyMembers();
+}
+function closeFamilyModal(){
+  document.getElementById("familyModal").classList.remove("show");
+}
+document.getElementById("btnOpenFamily").addEventListener("click", openFamilyModal);
+document.getElementById("familyModalClose").addEventListener("click", closeFamilyModal);
+document.getElementById("familyModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "familyModal") closeFamilyModal();
+});
+
+/* ---------- 家族の追加/編集シート ---------- */
+function renderFamilyIconChips(){
+  const root = document.getElementById("familyIconChipRow");
+  root.innerHTML = "";
+  FAMILY_ICON_PRESET.forEach(icon => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (familyFormState.icon === icon ? " selected" : "");
+    btn.textContent = icon;
+    btn.addEventListener("click", () => {
+      familyFormState.icon = icon;
+      renderFamilyIconChips();
+    });
+    root.appendChild(btn);
+  });
+}
+function renderFamilyRoleChips(){
+  const root = document.getElementById("familyRoleChipRow");
+  root.innerHTML = "";
+  FAMILY_ROLE_PRESET.forEach(role => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (familyFormState.roleLabel === role ? " selected" : "");
+    btn.textContent = role;
+    btn.addEventListener("click", () => {
+      familyFormState.roleLabel = role;
+      document.getElementById("familyRoleInput").value = role;
+      renderFamilyRoleChips();
+    });
+    root.appendChild(btn);
+  });
+}
+function renderFamilyRelationChips(){
+  const root = document.getElementById("familyRelationChipRow");
+  root.innerHTML = "";
+  FAMILY_RELATION_TYPES.forEach(rel => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (familyFormState.relationType === rel.key ? " selected" : "");
+    btn.textContent = rel.label;
+    btn.addEventListener("click", () => {
+      familyFormState.relationType = familyFormState.relationType === rel.key ? "" : rel.key;
+      renderFamilyRelationChips();
+    });
+    root.appendChild(btn);
+  });
+}
+function renderFamilyColorChips(){
+  const root = document.getElementById("familyColorChipRow");
+  root.innerHTML = "";
+  FAMILY_COLOR_PRESET.forEach(color => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "color-chip" + (familyFormState.color === color ? " selected" : "");
+    btn.style.background = color;
+    btn.setAttribute("aria-label", color);
+    btn.addEventListener("click", () => {
+      familyFormState.color = color;
+      renderFamilyColorChips();
+    });
+    root.appendChild(btn);
+  });
+}
+
+function openFamilyEditSheet(member){
+  resetFamilyFormState();
+  if(member){
+    familyFormState.id = member.id;
+    familyFormState.icon = member.icon || FAMILY_ICON_PRESET[0];
+    familyFormState.roleLabel = member.roleLabel || "";
+    familyFormState.relationType = member.relationType || "";
+    familyFormState.color = member.color || FAMILY_COLOR_PRESET[0];
+  }
+  document.getElementById("familyEditTitle").textContent = member ? "家族を編集" : "家族を追加";
+  document.getElementById("familyNameInput").value = member ? (member.name || "") : "";
+  document.getElementById("familyRoleInput").value = familyFormState.roleLabel;
+  document.getElementById("familyAgeInput").value = member && member.age != null ? String(member.age) : "";
+  document.getElementById("familyMemoInput").value = member ? (member.memo || "") : "";
+  document.getElementById("familyMemoriesInput").value = member && member.memories ? member.memories.join("\n") : "";
+  renderFamilyIconChips();
+  renderFamilyRoleChips();
+  renderFamilyRelationChips();
+  renderFamilyColorChips();
+  document.getElementById("familyEditModal").classList.add("show");
+}
+function closeFamilyEditSheet(){
+  document.getElementById("familyEditModal").classList.remove("show");
+}
+document.getElementById("btnFamilyAdd").addEventListener("click", () => openFamilyEditSheet(null));
+document.getElementById("familyEditClose").addEventListener("click", closeFamilyEditSheet);
+document.getElementById("familyEditModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "familyEditModal") closeFamilyEditSheet();
+});
+
+document.getElementById("btnFamilySave").addEventListener("click", async () => {
+  const name = document.getElementById("familyNameInput").value.trim();
+  const roleInputVal = document.getElementById("familyRoleInput").value.trim();
+  const ageVal = document.getElementById("familyAgeInput").value.trim();
+  const memo = document.getElementById("familyMemoInput").value.trim();
+  const memoriesVal = document.getElementById("familyMemoriesInput").value;
+
+  if(!name){
+    showToast("名前を入れてみてね♪");
+    return;
+  }
+
+  const memories = memoriesVal.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 20);
+  const isEdit = !!familyFormState.id;
+  const entry = {
+    id: isEdit ? familyFormState.id : wwGenerateId(),
+    name,
+    icon: familyFormState.icon,
+    roleLabel: roleInputVal,
+    relationType: familyFormState.relationType,
+    age: ageVal ? Number(ageVal) : null,
+    color: familyFormState.color,
+    memo,
+    memories,
+    order: isEdit ? (familyMembers.find(m => m.id === familyFormState.id) || {}).order || 0 : familyMembers.length,
+    createdAt: isEdit ? (familyMembers.find(m => m.id === familyFormState.id) || {}).createdAt || new Date().toISOString() : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  try{
+    if(isEdit) await FamilyStore.update(entry);
+    else await FamilyStore.add(entry);
+  }catch(e){
+    showToast("保存に失敗しちゃった。もう一度試してみてね");
+    return;
+  }
+  closeFamilyEditSheet();
+  await loadFamilyMembers();
+  showToast(isEdit ? "家族の情報を更新したよ" : "家族を追加したよ");
+});
+
+document.getElementById("familyDeleteCancelBtn").addEventListener("click", () => {
+  familyDeleteId = null;
+  document.getElementById("familyDeleteConfirmModal").classList.remove("show");
+});
+document.getElementById("familyDeleteConfirmModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "familyDeleteConfirmModal"){
+    familyDeleteId = null;
+    document.getElementById("familyDeleteConfirmModal").classList.remove("show");
+  }
+});
+document.getElementById("familyDeleteConfirmBtn").addEventListener("click", async () => {
+  if(!familyDeleteId) return;
+  try{
+    await FamilyStore.remove(familyDeleteId);
+  }catch(e){ /* 削除失敗時も画面は閉じ、一覧は現状のまま保持する */ }
+  document.getElementById("familyDeleteConfirmModal").classList.remove("show");
+  familyDeleteId = null;
+  await loadFamilyMembers();
+  showToast("家族を削除したよ");
+});
+
+/* Phase23: 人物認識(チャット連携)。メッセージ内に登録済みの家族の
+   名前または続柄が含まれていたら、そのメンバーの情報をAIの
+   userContextへ追加する。自動学習(AIが会話から新しい事実を書き込む
+   こと)はまだ実装せず、あくまで「既に登録された情報を会話の中で
+   自然に思い出す」Phase20 Memory Brainの延長として扱う。 */
+function findMentionedFamilyMember(text){
+  if(!text || !familyMembers.length) return null;
+  return familyMembers.find(m => (m.name && text.includes(m.name)) || (m.roleLabel && text.includes(m.roleLabel))) || null;
+}
+function formatFamilyContextText(member){
+  const relationBits = [member.roleLabel, familyRelationLabel(member.relationType)].filter(Boolean).join(" / ");
+  const lines = ["[FAMILY CONTEXT]", `名前：${member.name}`];
+  if(relationBits) lines.push(`続柄：${relationBits}`);
+  if(member.age) lines.push(`年齢：${member.age}歳`);
+  if(member.memo) lines.push(`メモ：${kaosuContextTruncate(member.memo, 60)}`);
+  if(member.memories && member.memories.length){
+    lines.push(`AIが覚えていること：${member.memories.slice(0, 5).map(m => kaosuContextTruncate(m, 30)).join("、")}`);
+  }
+  return lines.join("\n");
+}
 
 /* =========================================================
    少し先の未来(Phase4)
@@ -5696,7 +6145,15 @@ function buildKaosuAiPrompt(text, meta){
   const intent = (meta && meta.contextIntent) || ((meta && meta.wantsProfile) ? "self" : null);
   const fields = selectKaosuContextFields(intent || "");
   const ctx = buildKaosuUserContext();
-  const userContext = fields.length ? formatKaosuContextText(ctx, fields) : "";
+  let userContext = fields.length ? formatKaosuContextText(ctx, fields) : "";
+  /* Phase23: 人物認識。メッセージに登録済み家族の名前/続柄が含まれる
+     場合だけ、そのメンバーの情報を追記する(常に全員分を渡すことは
+     しない=USER CONTEXTの肥大化を避ける既存方針を踏襲)。 */
+  const mentionedMember = findMentionedFamilyMember(text);
+  if(mentionedMember){
+    const familyText = formatFamilyContextText(mentionedMember);
+    userContext = userContext ? userContext + "\n\n" + familyText : familyText;
+  }
   const dialectLine = KAOSU_DIALECT_PROMPT[speechStyleGet()] || KAOSU_DIALECT_PROMPT.standard;
   const system = [KAOSU_SYSTEM_PROMPT, dialectLine].filter(Boolean).join("\n\n");
   return {
@@ -5910,6 +6367,7 @@ renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
 loadWakuwakuEntries();
+loadFamilyMembers();
 if(prefNameGet() === null) openNameModal("first");
 </script>
 </body>
