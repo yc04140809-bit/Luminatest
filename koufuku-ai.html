@@ -285,6 +285,19 @@ textarea{ font-family:inherit; }
 .family-memory-list{ font-size:13px; color:var(--text); line-height:1.6; }
 .family-memory-empty{ color:var(--text-sub); }
 
+/* ---------- Family Timeline / Event Engine(Phase23.8+24) ---------- */
+.event-card-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+.event-card-title{ font-size:15px; font-weight:700; }
+.event-status-badge{
+  flex:none; font-size:11px; font-weight:700; border-radius:99px; padding:3px 10px; white-space:nowrap;
+  background:var(--purple-soft); color:#8b5fd9;
+}
+.event-status-done{ background:#e3f8ef; color:#2f9e6b; }
+.event-status-skipped{ background:#f4f2fb; color:var(--text-sub); }
+.event-card-meta{ font-size:12px; color:var(--text-sub); margin-bottom:6px; }
+.event-tasks{ font-size:13px; color:var(--text); line-height:1.6; margin-bottom:6px; }
+.event-card-memo{ font-size:13px; color:var(--text-sub); white-space:pre-wrap; word-break:break-word; }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -1345,6 +1358,65 @@ textarea.field-input{ resize:none; }
     </div>
   </div>
 
+  <!-- Phase23.8: Family Timeline — 1人分の予定一覧シート。
+       Family Cardの「📅 タイムライン」から開く。 -->
+  <div class="modal" id="familyTimelineModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3 id="familyTimelineTitle">タイムライン</h3></div>
+        <button class="sheet-close" id="familyTimelineClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <button class="btn-primary" id="btnEventAdd" style="margin-bottom:14px;">＋ 予定・やることを追加</button>
+        <div id="familyTimelineBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase24: Event Engine — 予定/ToDo/通知/確認を共通のEventとして
+       追加・編集するシート -->
+  <div class="modal" id="eventEditModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3 id="eventEditTitle">予定を追加</h3></div>
+        <button class="sheet-close" id="eventEditClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll">
+        <div class="form-label">タイトル</div>
+        <input type="text" class="field-input" id="eventTitleInput" placeholder="例: プール、訪問看護" maxlength="40">
+
+        <div class="form-label">カテゴリ</div>
+        <div class="chip-row" id="eventCategoryChipRow"></div>
+        <input type="text" class="field-input" id="eventCategoryInput" placeholder="自由入力も可" maxlength="16" style="margin-top:8px;">
+
+        <div class="form-label">日時（任意）</div>
+        <input type="datetime-local" class="field-input" id="eventDatetimeInput">
+
+        <div class="form-label">繰り返し</div>
+        <div class="chip-row" id="eventRepeatChipRow"></div>
+
+        <div class="form-label">確認したいこと（任意・1行に1つ）</div>
+        <textarea class="field-input" id="eventTasksInput" rows="3" placeholder="タオル&#10;水筒"></textarea>
+
+        <div class="form-label">メモ（任意）</div>
+        <textarea class="field-input" id="eventMemoInput" rows="2" placeholder="その他メモ"></textarea>
+
+        <button class="btn-primary sheet-savebtn" id="btnEventSave">この内容で保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase24: Eventの削除確認 -->
+  <div class="modal" id="eventDeleteConfirmModal">
+    <div class="modalbox">
+      <p>この予定を削除しますか？</p>
+      <div class="confirm-actions">
+        <button class="btn-ghost" id="eventDeleteCancelBtn">キャンセル</button>
+        <button class="btn-danger" id="eventDeleteConfirmBtn">削除する</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 呼び名(ニックネーム)登録 -->
   <div class="modal" id="nameOnboardingModal">
     <div class="modalbox sheet">
@@ -2370,7 +2442,7 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 3;
+const WW_DB_VERSION = 4;
 const WW_STORE = "wakuwaku";
 /* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
    WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
@@ -2381,6 +2453,12 @@ const CHAT_STORE = "chatMessages";
    store を追加するだけの標準的な加算のみの移行(新しいDBファイルは
    作らず、既存のkoufukuAiDBをそのまま拡張する)。 */
 const FAMILY_STORE = "familyMembers";
+/* Phase23.8+24: Family Timeline / Event Engine用の新規store。
+   予定・ToDo・通知・確認を別々のstoreに分けず、1つのEventレコードに
+   まとめて持たせる(指示書の「Event Engineとして実装する」に対応)。
+   既存store・データには一切触れず、バージョンを3→4に上げて store を
+   追加するだけの標準的な加算のみの移行。 */
+const EVENT_STORE = "familyEvents";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -2430,6 +2508,7 @@ function wwOpenDB(){
       if(!db.objectStoreNames.contains(WW_STORE)) db.createObjectStore(WW_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(FAMILY_STORE)) db.createObjectStore(FAMILY_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(EVENT_STORE)) db.createObjectStore(EVENT_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -2546,6 +2625,47 @@ const FamilyStore = {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(FAMILY_STORE, "readonly");
       const req = tx.objectStore(FAMILY_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+};
+
+/* Phase23.8+24: Event Engine用ストア。FamilyStoreと同じ
+   インターフェース形状(add/update/remove/getAll)のごく薄いラッパー。 */
+const EventStore = {
+  async add(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(EVENT_STORE, "readwrite");
+      tx.objectStore(EVENT_STORE).add(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async update(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(EVENT_STORE, "readwrite");
+      tx.objectStore(EVENT_STORE).put(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async remove(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(EVENT_STORE, "readwrite");
+      tx.objectStore(EVENT_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(EVENT_STORE, "readonly");
+      const req = tx.objectStore(EVENT_STORE).getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
@@ -3091,6 +3211,7 @@ function renderFamilyMemberCardHtml(member){
         <p class="family-memory-list">${memoriesHtml}</p>
       </div>
       <div class="chip-row" style="margin-top:10px;">
+        <button type="button" class="filterbtn" data-family-timeline="${escapeHtml(member.id)}">📅 タイムライン</button>
         <button type="button" class="filterbtn" data-family-edit="${escapeHtml(member.id)}">編集</button>
         <button type="button" class="filterbtn" data-family-delete="${escapeHtml(member.id)}">削除</button>
       </div>
@@ -3115,6 +3236,12 @@ function renderFamilyList(){
     btn.addEventListener("click", () => {
       familyDeleteId = btn.dataset.familyDelete;
       document.getElementById("familyDeleteConfirmModal").classList.add("show");
+    });
+  });
+  root.querySelectorAll("[data-family-timeline]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const member = familyMembers.find(m => m.id === btn.dataset.familyTimeline);
+      if(member) openFamilyTimeline(member);
     });
   });
 }
@@ -3306,8 +3433,302 @@ function formatFamilyContextText(member){
   if(member.memories && member.memories.length){
     lines.push(`AIが覚えていること：${member.memories.slice(0, 5).map(m => kaosuContextTruncate(m, 30)).join("、")}`);
   }
+  /* Phase24: チャット連携。Family Context/Relationshipに加えて、
+     そのメンバーのTimeline(直近の未確認/今後の予定)もAIへ渡す。
+     通常会話(該当メンバーの言及がない場合)では一切追加しない。 */
+  const timelineLine = formatFamilyTimelineContextText(member.id);
+  if(timelineLine) lines.push(timelineLine);
   return lines.join("\n");
 }
+
+/* =========================================================
+   Phase23.8: Family Timeline / Phase24: Event Engine
+   - 予定・ToDo・通知・確認を別々のstoreに分けず、EventStoreの1レコード
+     (familyEvents)に統合して扱う(指示書「Event Engineとして実装する」)。
+   - Eventは必ずfamilyMemberIdを持ち、Family Memberへ紐付く(必須)。
+   - 確認ボタン(確認/完了/後で/スキップ)はstatusを更新し、変更のたびに
+     historyへ追記する(何もしない=pendingが初期状態)。
+   - AI通知判定・天気連携・自動学習・Push通知は指示書通り今回は
+     実装しない。ここではその土台となるデータ構造だけを用意する。
+   ========================================================= */
+const EVENT_CATEGORY_PRESET = ["子育て", "介護", "暮らし", "家事", "仕事", "学校", "病院", "ペット"];
+const EVENT_REPEAT_OPTIONS = [
+  { key: "none", label: "繰り返さない" },
+  { key: "daily", label: "毎日" },
+  { key: "weekly", label: "毎週" },
+  { key: "monthly", label: "毎月" },
+];
+const EVENT_STATUS_META = {
+  pending: { label: "未確認", icon: "🔲" },
+  confirmed: { label: "確認", icon: "✅" },
+  done: { label: "完了", icon: "🎉" },
+  later: { label: "後で", icon: "⏰" },
+  skipped: { label: "スキップ", icon: "⏭️" },
+};
+const EVENT_HISTORY_MAX = 20;
+
+let familyEvents = [];
+let eventsLoaded = false;
+let eventFormState = null;
+let eventTimelineMemberId = null;
+let eventDeleteId = null;
+
+function resetEventFormState(){
+  eventFormState = { id: null, category: "", repeat: "none" };
+}
+resetEventFormState();
+
+async function loadFamilyEvents(){
+  try{
+    const list = await EventStore.getAll();
+    list.sort((a, b) => String(a.datetime || "9999").localeCompare(String(b.datetime || "9999")));
+    familyEvents = list;
+  }catch(e){
+    familyEvents = [];
+  }
+  eventsLoaded = true;
+}
+
+function eventsForMember(familyMemberId){
+  return familyEvents.filter(ev => ev.familyMemberId === familyMemberId);
+}
+
+function formatEventDatetime(iso){
+  if(!iso) return "日時未設定";
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return "日時未設定";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/* Phase24: チャットへ渡す用の短いTimelineサマリー。直近の未確認/
+   後で対応の予定を最大3件だけ拾う(全件は渡さずUSER CONTEXTの
+   肥大化を避ける、既存Phase E/23の方針を踏襲)。該当が無ければ
+   空文字を返し、呼び出し側で何も追加しない。 */
+function formatFamilyTimelineContextText(familyMemberId){
+  const upcoming = eventsForMember(familyMemberId)
+    .filter(ev => ev.status === "pending" || ev.status === "later")
+    .slice(0, 3);
+  if(!upcoming.length) return "";
+  const items = upcoming.map(ev => {
+    const bits = [ev.title, ev.category].filter(Boolean).join("・");
+    return `${bits}(${formatEventDatetime(ev.datetime)})`;
+  });
+  return `Timeline：${items.join("、")}`;
+}
+
+function renderEventCardHtml(ev){
+  const statusMeta = EVENT_STATUS_META[ev.status] || EVENT_STATUS_META.pending;
+  const tasksHtml = (ev.tasks && ev.tasks.length)
+    ? `<p class="event-tasks">${ev.tasks.map(t => "・" + escapeHtml(t)).join("<br>")}</p>`
+    : "";
+  const statusButtons = ["confirmed", "done", "later", "skipped"].map(key => {
+    const meta = EVENT_STATUS_META[key];
+    return `<button type="button" class="filterbtn${ev.status === key ? " active" : ""}" data-event-status="${key}" data-event-id="${escapeHtml(ev.id)}">${meta.icon} ${meta.label}</button>`;
+  }).join("");
+  return `
+    <div class="card event-card">
+      <div class="event-card-head">
+        <span class="event-card-title">${escapeHtml(ev.title || "(タイトルなし)")}</span>
+        <span class="event-status-badge event-status-${escapeHtml(ev.status)}">${statusMeta.icon} ${statusMeta.label}</span>
+      </div>
+      <p class="event-card-meta">${ev.category ? escapeHtml(ev.category) + "・" : ""}${escapeHtml(formatEventDatetime(ev.datetime))}${ev.repeat && ev.repeat !== "none" ? "・" + escapeHtml((EVENT_REPEAT_OPTIONS.find(r => r.key === ev.repeat) || {}).label || "") : ""}</p>
+      ${tasksHtml}
+      ${ev.memo ? `<p class="event-card-memo">${escapeHtml(ev.memo)}</p>` : ""}
+      <div class="chip-row" style="margin-top:8px;">${statusButtons}</div>
+      <div class="chip-row" style="margin-top:8px;">
+        <button type="button" class="filterbtn" data-event-edit="${escapeHtml(ev.id)}">編集</button>
+        <button type="button" class="filterbtn" data-event-delete="${escapeHtml(ev.id)}">削除</button>
+      </div>
+    </div>`;
+}
+
+function renderFamilyTimelineBody(){
+  const root = document.getElementById("familyTimelineBody");
+  if(!root) return;
+  const list = eventsForMember(eventTimelineMemberId);
+  if(!list.length){
+    root.innerHTML = `<p class="mind-empty-note" style="text-align:center; margin:20px 0 4px;">まだ予定・やることが登録されていません。<br>「＋ 予定・やることを追加」から追加できるよ。</p>`;
+    return;
+  }
+  root.innerHTML = list.map(renderEventCardHtml).join("");
+  root.querySelectorAll("[data-event-status]").forEach(btn => {
+    btn.addEventListener("click", () => setEventStatus(btn.dataset.eventId, btn.dataset.eventStatus));
+  });
+  root.querySelectorAll("[data-event-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ev = familyEvents.find(e => e.id === btn.dataset.eventEdit);
+      if(ev) openEventEditSheet(ev);
+    });
+  });
+  root.querySelectorAll("[data-event-delete]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      eventDeleteId = btn.dataset.eventDelete;
+      document.getElementById("eventDeleteConfirmModal").classList.add("show");
+    });
+  });
+}
+
+async function setEventStatus(id, status){
+  const ev = familyEvents.find(e => e.id === id);
+  if(!ev) return;
+  ev.status = status;
+  ev.history = (ev.history || []).concat([{ status, at: new Date().toISOString() }]).slice(-EVENT_HISTORY_MAX);
+  ev.updatedAt = new Date().toISOString();
+  try{ await EventStore.update(ev); }catch(e){ /* 保存失敗時も画面表示は更新して続行する */ }
+  renderFamilyTimelineBody();
+}
+
+async function openFamilyTimeline(member){
+  eventTimelineMemberId = member.id;
+  document.getElementById("familyTimelineTitle").textContent = `${member.icon || "👤"} ${member.name}のタイムライン`;
+  if(!eventsLoaded) await loadFamilyEvents();
+  renderFamilyTimelineBody();
+  document.getElementById("familyTimelineModal").classList.add("show");
+}
+function closeFamilyTimeline(){
+  document.getElementById("familyTimelineModal").classList.remove("show");
+}
+document.getElementById("familyTimelineClose").addEventListener("click", closeFamilyTimeline);
+document.getElementById("familyTimelineModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "familyTimelineModal") closeFamilyTimeline();
+});
+
+/* ---------- Eventの追加/編集シート ---------- */
+function renderEventCategoryChips(){
+  const root = document.getElementById("eventCategoryChipRow");
+  root.innerHTML = "";
+  EVENT_CATEGORY_PRESET.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (eventFormState.category === cat ? " selected" : "");
+    btn.textContent = cat;
+    btn.addEventListener("click", () => {
+      eventFormState.category = cat;
+      document.getElementById("eventCategoryInput").value = cat;
+      renderEventCategoryChips();
+    });
+    root.appendChild(btn);
+  });
+}
+function renderEventRepeatChips(){
+  const root = document.getElementById("eventRepeatChipRow");
+  root.innerHTML = "";
+  EVENT_REPEAT_OPTIONS.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (eventFormState.repeat === opt.key ? " selected" : "");
+    btn.textContent = opt.label;
+    btn.addEventListener("click", () => {
+      eventFormState.repeat = opt.key;
+      renderEventRepeatChips();
+    });
+    root.appendChild(btn);
+  });
+}
+/* datetime-local用のローカル日時文字列(YYYY-MM-DDTHH:mm)へ変換 */
+function isoToDatetimeLocalValue(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function openEventEditSheet(ev){
+  resetEventFormState();
+  if(ev){
+    eventFormState.id = ev.id;
+    eventFormState.category = ev.category || "";
+    eventFormState.repeat = ev.repeat || "none";
+  }
+  document.getElementById("eventEditTitle").textContent = ev ? "予定を編集" : "予定を追加";
+  document.getElementById("eventTitleInput").value = ev ? (ev.title || "") : "";
+  document.getElementById("eventCategoryInput").value = eventFormState.category;
+  document.getElementById("eventDatetimeInput").value = ev ? isoToDatetimeLocalValue(ev.datetime) : "";
+  document.getElementById("eventTasksInput").value = ev && ev.tasks ? ev.tasks.join("\n") : "";
+  document.getElementById("eventMemoInput").value = ev ? (ev.memo || "") : "";
+  renderEventCategoryChips();
+  renderEventRepeatChips();
+  document.getElementById("eventEditModal").classList.add("show");
+}
+function closeEventEditSheet(){
+  document.getElementById("eventEditModal").classList.remove("show");
+}
+document.getElementById("btnEventAdd").addEventListener("click", () => openEventEditSheet(null));
+document.getElementById("eventEditClose").addEventListener("click", closeEventEditSheet);
+document.getElementById("eventEditModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "eventEditModal") closeEventEditSheet();
+});
+
+document.getElementById("btnEventSave").addEventListener("click", async () => {
+  if(!eventTimelineMemberId){
+    showToast("家族を選んでから追加してね");
+    return;
+  }
+  const title = document.getElementById("eventTitleInput").value.trim();
+  const categoryVal = document.getElementById("eventCategoryInput").value.trim();
+  const datetimeVal = document.getElementById("eventDatetimeInput").value;
+  const tasksVal = document.getElementById("eventTasksInput").value;
+  const memo = document.getElementById("eventMemoInput").value.trim();
+
+  if(!title){
+    showToast("タイトルを入れてみてね♪");
+    return;
+  }
+
+  const tasks = tasksVal.split("\n").map(s => s.trim()).filter(Boolean).slice(0, 20);
+  const isEdit = !!eventFormState.id;
+  const existing = isEdit ? familyEvents.find(e => e.id === eventFormState.id) : null;
+  const entry = {
+    id: isEdit ? eventFormState.id : wwGenerateId(),
+    familyMemberId: eventTimelineMemberId,
+    title,
+    category: categoryVal,
+    datetime: datetimeVal ? new Date(datetimeVal).toISOString() : "",
+    repeat: eventFormState.repeat || "none",
+    tasks,
+    memo,
+    status: existing ? existing.status : "pending",
+    history: existing ? (existing.history || []) : [],
+    createdAt: existing ? existing.createdAt : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  try{
+    if(isEdit) await EventStore.update(entry);
+    else await EventStore.add(entry);
+  }catch(e){
+    showToast("保存に失敗しちゃった。もう一度試してみてね");
+    return;
+  }
+  closeEventEditSheet();
+  await loadFamilyEvents();
+  renderFamilyTimelineBody();
+  showToast(isEdit ? "予定を更新したよ" : "予定を追加したよ");
+});
+
+document.getElementById("eventDeleteCancelBtn").addEventListener("click", () => {
+  eventDeleteId = null;
+  document.getElementById("eventDeleteConfirmModal").classList.remove("show");
+});
+document.getElementById("eventDeleteConfirmModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "eventDeleteConfirmModal"){
+    eventDeleteId = null;
+    document.getElementById("eventDeleteConfirmModal").classList.remove("show");
+  }
+});
+document.getElementById("eventDeleteConfirmBtn").addEventListener("click", async () => {
+  if(!eventDeleteId) return;
+  try{
+    await EventStore.remove(eventDeleteId);
+  }catch(e){ /* 削除失敗時も画面は閉じ、一覧は現状のまま保持する */ }
+  document.getElementById("eventDeleteConfirmModal").classList.remove("show");
+  eventDeleteId = null;
+  await loadFamilyEvents();
+  renderFamilyTimelineBody();
+  showToast("予定を削除したよ");
+});
 
 /* =========================================================
    少し先の未来(Phase4)
@@ -6368,6 +6789,7 @@ renderSpeechStyleSetting();
 renderHomeModeUI();
 loadWakuwakuEntries();
 loadFamilyMembers();
+loadFamilyEvents();
 if(prefNameGet() === null) openNameModal("first");
 </script>
 </body>
