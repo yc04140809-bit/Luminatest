@@ -293,6 +293,12 @@ textarea{ font-family:inherit; }
 }
 .family-memory-label{ font-size:11px; font-weight:700; color:var(--purple); margin-bottom:4px; }
 .family-memory-list{ font-size:13px; color:var(--text); line-height:1.6; }
+.family-memory-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin:0 0 4px; }
+.family-memory-row:last-child{ margin-bottom:0; }
+.family-memory-delete{
+  flex:none; width:18px; height:18px; line-height:16px; text-align:center; padding:0;
+  border-radius:50%; border:none; background:var(--purple-soft); color:var(--text-sub); font-size:12px;
+}
 .family-memory-empty{ color:var(--text-sub); }
 
 /* ---------- Family Timeline / Event Engine(Phase23.8+24) ---------- */
@@ -318,6 +324,14 @@ textarea{ font-family:inherit; }
   font-size:13.5px; line-height:1.5; color:var(--text); border-bottom:1px solid var(--border);
 }
 .home-ai-notice-item:last-child{ border-bottom:none; }
+
+/* ---------- AI Life Coach(Phase30) ---------- */
+.home-ai-advice-card{
+  background:linear-gradient(135deg,#fff8e8 0%,#ffeef5 100%);
+  border-color:transparent;
+}
+.home-ai-advice-item{ font-size:13.5px; line-height:1.7; margin:0 0 6px; }
+.home-ai-advice-item:last-child{ margin-bottom:0; }
 .notification-card{ padding:14px 16px; }
 
 /* ---------- AIカレンダー分析(Phase28) ---------- */
@@ -675,6 +689,15 @@ textarea.field-input{ resize:none; }
           <span class="mode-card-label">おうちサポートモード</span>
           <span class="mode-card-sub">家族の日常を支える</span>
         </button>
+      </div>
+
+      <!-- Phase30: AI Life Coach。モード(幸福設計/おうちサポート)に
+           関係なく常に表示するため、あえてどちらのmode content divにも
+           属さない位置に置く(片方のモード内へ複製すると二重実装に
+           なるため)。データが無ければ非表示。 -->
+      <div class="card home-ai-advice-card" id="homeAiAdviceCard" style="display:none;">
+        <div class="card-label">🌟 今日のAIアドバイス</div>
+        <div id="homeAiAdviceList"></div>
       </div>
 
       <div id="happinessModeContent">
@@ -1859,6 +1882,7 @@ function renderHomeModeUI(){
     document.getElementById("homeSupportKaosuMessage").textContent = sp(HOME_SUPPORT_GREETING);
     renderHomeAiNoticeCard();
   }
+  renderHomeAiAdviceCard();
 }
 function setHomeMode(mode){
   homeModeSet(mode);
@@ -2535,7 +2559,7 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 5;
+const WW_DB_VERSION = 6;
 const WW_STORE = "wakuwaku";
 /* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
    WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
@@ -2557,6 +2581,13 @@ const EVENT_STORE = "familyEvents";
    追加するだけの標準的な加算のみの移行。実際のPush配信は行わず、
    「AIが必要と判断した」候補の記録(履歴)として使う。 */
 const NOTIFICATION_STORE = "aiNotifications";
+/* Phase29: AI Memory Engine用の新規store。既存store・データには
+   一切触れず、バージョンを5→6に上げて store を追加するだけの
+   標準的な加算のみの移行。人物ごとの「AIが覚えていること」を
+   type/value/confidenceを持つ構造化レコードとして蓄積する
+   (既存のfamilyMembers.memories(手入力の自由配列)はそのまま維持し、
+   置き換えない。詳細画面では両方をマージして表示するだけ)。 */
+const AI_MEMORY_STORE = "aiMemory";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -2608,6 +2639,7 @@ function wwOpenDB(){
       if(!db.objectStoreNames.contains(FAMILY_STORE)) db.createObjectStore(FAMILY_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(EVENT_STORE)) db.createObjectStore(EVENT_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(NOTIFICATION_STORE)) db.createObjectStore(NOTIFICATION_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(AI_MEMORY_STORE)) db.createObjectStore(AI_MEMORY_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -2794,6 +2826,47 @@ const NotificationStore = {
   },
 };
 
+/* Phase29: AI Memory Engine用ストア。FamilyStoreと同じ
+   インターフェース形状(add/update/remove/getAll)のごく薄いラッパー。 */
+const AiMemoryStore = {
+  async add(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_MEMORY_STORE, "readwrite");
+      tx.objectStore(AI_MEMORY_STORE).add(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async update(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_MEMORY_STORE, "readwrite");
+      tx.objectStore(AI_MEMORY_STORE).put(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async remove(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_MEMORY_STORE, "readwrite");
+      tx.objectStore(AI_MEMORY_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_MEMORY_STORE, "readonly");
+      const req = tx.objectStore(AI_MEMORY_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+};
+
 function wwGenerateId(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return "w_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
@@ -2865,6 +2938,7 @@ async function loadWakuwakuEntries(){
   renderHomeReflectCard();
   renderHomeExperimentCard();
   renderWwDebugInfo(loadStatus);
+  renderHomeAiAdviceCard();
 }
 
 /* Phase3.1: 一時的な調査用デバッグ表示。原因切り分けができ次第、削除して構わない。
@@ -3312,6 +3386,7 @@ async function loadFamilyMembers(){
   renderFamilyList();
   renderHomeAiNoticeCard();
   renderFutureAiAnalysisCard();
+  renderHomeAiAdviceCard();
 }
 
 /* Phase26: 一覧画面は軽く、詳細画面で深掘りする方針のため、一覧の
@@ -3397,10 +3472,20 @@ function findRecentChatMentions(member, limit = 3){
 
 function renderFamilyDetailBody(member){
   const relationBits = [member.roleLabel, familyRelationLabel(member.relationType)].filter(Boolean).join(" / ");
-  const memories = member.memories || [];
-  const memoriesHtml = memories.length
-    ? memories.slice(0, 10).map(m => "・" + escapeHtml(m)).join("<br>")
-    : `<span class="family-memory-empty">まだ記録がありません</span>`;
+  /* Phase29: 手入力(member.memories、編集シートで一括編集)と
+     自動学習(aiMemoryFacts、チャット/予定パターンから蓄積)を
+     マージして表示する。手入力側は既存通り一覧表示のみ(編集は
+     編集シートの一括テキストで行う)、自動学習側だけ1件ずつ
+     削除できるようにする(指示書の「編集・ユーザーが削除・編集可能」
+     のうち、削除を個別に、編集は一括テキストへの手入力への切り替え
+     という形で両立させている)。 */
+  const manualMemories = member.memories || [];
+  const learnedFacts = aiMemoryFactsForMember(member.id).sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+  const manualHtml = manualMemories.slice(0, 10).map(m => `<p class="family-memory-row">・${escapeHtml(m)}</p>`).join("");
+  const learnedHtml = learnedFacts.slice(0, 10).map(f =>
+    `<p class="family-memory-row family-memory-row-learned">・${escapeHtml(f.value)}<button type="button" class="family-memory-delete" data-memory-fact-id="${escapeHtml(f.id)}" aria-label="削除">×</button></p>`
+  ).join("");
+  const memoriesHtml = (manualHtml + learnedHtml) || `<span class="family-memory-empty">まだ記録がありません</span>`;
 
   const events = eventsForMember(member.id);
   const upcoming = events.filter(e => e.status === "pending" || e.status === "later").slice(0, 5);
@@ -3452,7 +3537,7 @@ function renderFamilyDetailBody(member){
 
     <div class="card">
       <div class="card-label">AIが覚えていること</div>
-      <p class="family-memory-list">${memoriesHtml}</p>
+      <div class="family-memory-list">${memoriesHtml}</div>
     </div>
 
     <div class="card">
@@ -3512,6 +3597,17 @@ function openFamilyDetail(member){
     closeFamilyDetail();
     familyDeleteId = member.id;
     document.getElementById("familyDeleteConfirmModal").classList.add("show");
+  });
+  /* Phase29: 自動学習された「AIが覚えていること」を1件ずつ削除できる。
+     手入力分(member.memories)は従来通り編集シートの一括テキストで
+     編集する(専用の個別削除UIは追加せず二重実装を避ける)。 */
+  document.getElementById("familyDetailBody").querySelectorAll("[data-memory-fact-id]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const factId = btn.dataset.memoryFactId;
+      try{ await AiMemoryStore.remove(factId); }catch(e){ /* 削除失敗時も表示上は消して構わない */ }
+      aiMemoryFacts = aiMemoryFacts.filter(f => f.id !== factId);
+      openFamilyDetail(member);
+    });
   });
   document.getElementById("familyDetailModal").classList.add("show");
 }
@@ -3783,8 +3879,10 @@ async function loadFamilyEvents(){
     familyEvents = [];
   }
   eventsLoaded = true;
+  await learnFactsFromEventPatterns();
   renderHomeAiNoticeCard();
   renderFutureAiAnalysisCard();
+  renderHomeAiAdviceCard();
 }
 
 function eventsForMember(familyMemberId){
@@ -3874,9 +3972,11 @@ async function setEventStatus(id, status){
   ev.history = (ev.history || []).concat([{ status, at: new Date().toISOString() }]).slice(-EVENT_HISTORY_MAX);
   ev.updatedAt = new Date().toISOString();
   try{ await EventStore.update(ev); }catch(e){ /* 保存失敗時も画面表示は更新して続行する */ }
+  await learnFactsFromEventPatterns();
   renderFamilyTimelineBody();
   renderHomeAiNoticeCard();
   renderFutureAiAnalysisCard();
+  renderHomeAiAdviceCard();
 }
 
 async function openFamilyTimeline(member){
@@ -4525,6 +4625,229 @@ function renderFutureAiAnalysisCard(){
   document.getElementById("futureCalendarCommentBody").innerHTML = comments.length
     ? comments.map(c => `<p class="future-calendar-comment">💡 ${escapeHtml(c)}</p>`).join("")
     : "";
+}
+
+/* =========================================================
+   Phase29: AI Memory Engine
+   - 新規store aiMemory(id/familyMemberId/type/value/confidence/
+     createdAt/updatedAt)を追加。既存のfamilyMembers.memories(手入力の
+     自由配列、Phase23から)は置き換えず、家族詳細画面では両方を
+     マージして「AIが覚えていること」として表示するだけにする
+     (既存機能を壊さない・二重実装しない)。
+   - 自動学習は次の2経路のみ:
+     ①チャットで家族の名前/続柄が出た文の中に「好き」「苦手」が
+       あれば、その一文をそのまま事実として記録する(送信直後、
+       1メッセージ分だけを見る=履歴全体を毎回スキャンしない設計に
+       して処理コストを抑える)。
+     ②予定(Event)のパターンから: 同じタイトルの予定が3回以上→
+       「趣味」、特定の曜日に「後で」が集中→「生活リズム」、
+       介護/病院カテゴリの予定メモに「午前」「午後」があれば
+       「健康メモ」(同じtypeの古い値は新しい値で上書き=重複させない)。
+   - どちらも実際のAI(LLM)呼び出しは行わないルールベースの抽出。
+     チャットAIの人物認識(Phase23 findMentionedFamilyMember)とは
+     別の目的(会話への差し込み用/記憶の蓄積用)のため、あえて
+     ロジックは分けているが、家族マッチングの考え方自体は流用している。
+   ========================================================= */
+const AI_MEMORY_TYPES = ["好きな物", "苦手な物", "趣味", "性格傾向", "口癖", "大事な予定", "生活リズム", "健康メモ", "よく行く場所", "AIが気付いた特徴"];
+
+let aiMemoryFacts = [];
+let aiMemoryLoaded = false;
+async function loadAiMemoryFacts(){
+  try{
+    aiMemoryFacts = await AiMemoryStore.getAll();
+  }catch(e){
+    aiMemoryFacts = [];
+  }
+  aiMemoryLoaded = true;
+}
+
+function aiMemoryFactsForMember(familyMemberId){
+  return aiMemoryFacts.filter(f => f.familyMemberId === familyMemberId);
+}
+
+/* 同type+同valueならconfidenceを積み増すだけ(重複登録しない)。
+   exclusiveType=trueのtype(健康メモの時間帯希望など「1つに定まる
+   はずの情報」)は、同じtypeの古い値を新しい値で置き換える
+   (「古い情報は更新」への対応)。 */
+async function upsertAiMemoryFact(familyMemberId, type, value, exclusiveType){
+  value = kaosuContextTruncate(value, 40);
+  if(exclusiveType){
+    const stale = aiMemoryFacts.filter(f => f.familyMemberId === familyMemberId && f.type === type && f.value !== value);
+    for(const s of stale){
+      try{ await AiMemoryStore.remove(s.id); }catch(e){ /* 削除に失敗しても新しい事実の保存は続行する */ }
+    }
+    aiMemoryFacts = aiMemoryFacts.filter(f => !(f.familyMemberId === familyMemberId && f.type === type && f.value !== value));
+  }
+  const existing = aiMemoryFacts.find(f => f.familyMemberId === familyMemberId && f.type === type && f.value === value);
+  if(existing){
+    existing.confidence = Math.min(10, (existing.confidence || 1) + 1);
+    existing.updatedAt = new Date().toISOString();
+    try{ await AiMemoryStore.update(existing); }catch(e){ /* 更新に失敗しても表示中の値はそのまま使う */ }
+    return;
+  }
+  const entry = {
+    id: wwGenerateId(), familyMemberId, type, value, confidence: 1,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  try{
+    await AiMemoryStore.add(entry);
+    aiMemoryFacts.push(entry);
+  }catch(e){ /* 保存に失敗しても他の学習処理は継続する */ }
+}
+
+/* ①チャット由来の学習: 1メッセージだけを見る軽量な処理。
+   「名前/続柄」と「好き」「苦手」が同じ一文に含まれていたら、
+   その一文をそのまま事実として記録する(文中の一部だけを無理に
+   切り出そうとして誤抽出するより、実際に指示書の例
+   「娘さんは恐竜が好き」に近い自然な文のまま残す方が安全)。 */
+async function learnFromChatMessage(text){
+  if(!text || !familyMembers.length) return;
+  if(!aiMemoryLoaded) await loadAiMemoryFacts();
+  const clauses = text.split(/[。！？\n]/).map(s => s.trim()).filter(Boolean);
+  for(const member of familyMembers){
+    const names = [member.name, member.roleLabel].filter(Boolean);
+    for(const clause of clauses){
+      if(!names.some(n => clause.includes(n))) continue;
+      if(clause.includes("苦手")){
+        await upsertAiMemoryFact(member.id, "苦手な物", clause);
+      }else if(clause.includes("好き")){
+        await upsertAiMemoryFact(member.id, "好きな物", clause);
+      }
+    }
+  }
+}
+
+/* ②予定パターン由来の学習。単発のイベント保存のたびではなく、
+   その時点のfamilyEvents全体から再計算する(状態を積み上げず毎回
+   同じ結果を導出できるようにして、バグ時の復旧・保守をしやすくする)。 */
+async function learnFactsFromEventPatterns(){
+  if(!aiMemoryLoaded) await loadAiMemoryFacts();
+  for(const member of familyMembers){
+    const events = eventsForMember(member.id);
+    if(!events.length) continue;
+
+    const laterEvents = events.filter(e => (e.history || []).some(h => h.status === "later"));
+    if(laterEvents.length >= 3){
+      const counts = countEventsByWeekday(laterEvents);
+      const maxCount = Math.max(...counts);
+      const maxIdx = counts.indexOf(maxCount);
+      if(maxCount >= 2 && maxCount >= Math.ceil(laterEvents.length * 0.5)){
+        await upsertAiMemoryFact(member.id, "生活リズム", `${WEEKDAY_LABELS[maxIdx]}曜日は予定を後回しにしがちみたい`, true);
+      }
+    }
+
+    const titleCounts = {};
+    events.forEach(e => { if(e.title) titleCounts[e.title] = (titleCounts[e.title] || 0) + 1; });
+    for(const [title, count] of Object.entries(titleCounts)){
+      if(count >= 3) await upsertAiMemoryFact(member.id, "趣味", `${title}によく行く`);
+    }
+
+    const careEventsWithMemo = events.filter(e => CARE_CATEGORY_GROUP.includes(e.category) && e.memo);
+    for(const e of careEventsWithMemo){
+      if(e.memo.includes("午前")) await upsertAiMemoryFact(member.id, "健康メモ", "病院は午前希望", true);
+      else if(e.memo.includes("午後")) await upsertAiMemoryFact(member.id, "健康メモ", "病院は午後希望", true);
+    }
+  }
+}
+
+/* =========================================================
+   Phase30: AI Life Coach
+   - 予定・Memory・完了率・ワクワク・家族イベントを総合して、
+     「今日のAIアドバイス」を最大3件、ホームへ表示する。
+   - 判定材料の集計はPhase27/28で作ったcomputeEventStatsForRange()を
+     再利用し(ロジック重複禁止)、ここでは優先順位付け(危険→健康→
+     家族→予定→ワクワク→生活改善)とメッセージ生成だけを行う。
+   - 実データに基づかない断定(例: 「散歩していません」等、位置情報や
+     運動記録が無いのに言い切ること)はしない。すべてfamilyEvents/
+     wakuwakuEntriesの実際の値から導ける内容だけをメッセージ化する。
+   - 叱らない・責めない・命令しない。断定より「〜と良さそう」
+     「〜してみませんか」という提案形にする(既存persona方針と一致)。
+   ========================================================= */
+function generateTodayAiAdvice(){
+  const items = [];
+  const now = Date.now();
+
+  /* 危険(tier1): 介護/病院カテゴリの予定が2日以上未確認のまま */
+  familyEvents.forEach(ev => {
+    if(!ev.datetime || (ev.status !== "pending" && ev.status !== "later")) return;
+    if(!CARE_CATEGORY_GROUP.includes(ev.category)) return;
+    const overdueDays = (now - new Date(ev.datetime).getTime()) / 86400000;
+    if(overdueDays >= 2 && overdueDays <= 14){
+      const name = familyMemberName(ev.familyMemberId);
+      items.push({ tier: 1, message: `${name ? name + "の" : ""}${ev.title}がまだ確認できていないようです。少し気にかけてあげてくださいね。` });
+    }
+  });
+
+  const weekStats = computeEventStatsForRange(familyEvents, now, now + 7 * 86400000);
+  const recentStats = computeEventStatsForRange(familyEvents, now - 7 * 86400000, now);
+  const priorStats = computeEventStatsForRange(familyEvents, now - 21 * 86400000, now - 7 * 86400000);
+
+  /* 健康(tier2): 完了率が下がっている→休んでいいという声かけ */
+  if(recentStats.total >= 2 && priorStats.total >= 2 && (priorStats.doneRate - recentStats.doneRate) >= 25){
+    items.push({ tier: 2, message: "最近忙しい日が続いています。今日は少し休憩も大切ですよ🍀" });
+  }
+  /* 健康(tier2): 今日の予定がほぼ無い→自分の時間の提案(実データに
+     基づく=予定件数のみを根拠にし、運動/散歩などの未計測な行動は
+     断定しない) */
+  const todayStats = computeEventStatsForRange(familyEvents, now - 6 * 3600000, now + 18 * 3600000);
+  if(todayStats.total === 0 && familyEvents.length > 0){
+    items.push({ tier: 2, message: "今日は予定が少ないので、部屋を少し片付けると気持ち良く過ごせそうです😊" });
+  }
+
+  /* 家族(tier3): 今週の家族イベントが多め */
+  if(weekStats.total >= 6){
+    items.push({ tier: 3, message: "今週は家族イベントが多めです。前日に持ち物確認がおすすめです✨" });
+  }
+  /* 家族(tier3): 既存のanalyzeFamilyMemberInsights()をそのまま再利用 */
+  familyMembers.forEach(member => {
+    analyzeFamilyMemberInsights(member).forEach(text => {
+      items.push({ tier: 3, message: text });
+    });
+  });
+
+  /* 予定(tier4): 期限切れの未確認予定が複数ある */
+  const overdueCount = familyEvents.filter(ev => ev.datetime && (ev.status === "pending" || ev.status === "later") && new Date(ev.datetime).getTime() < now).length;
+  if(overdueCount >= 2){
+    items.push({ tier: 4, message: "確認できていない予定がいくつかあるようです。時間のある時に見返してみてください。" });
+  }
+
+  /* ワクワク(tier5): 直近しばらく登録が無い */
+  const entries = wakuwakuEntries || [];
+  const lastWakuAt = entries.map(e => e.createdAt).filter(Boolean).sort().pop();
+  const wakuStale = entries.length === 0 || !lastWakuAt || (now - new Date(lastWakuAt).getTime()) > 5 * 86400000;
+  if(wakuStale){
+    items.push({ tier: 5, message: "最近ワクワク登録が少なめです。今日ひとつだけ嬉しかったことを残してみませんか？" });
+  }
+
+  /* 生活改善(tier6): 何も気になることが無い時だけの前向きな一言 */
+  if(items.length === 0){
+    items.push({ tier: 6, message: "今日も一日、あなたのペースで大丈夫ですよ😊" });
+  }
+
+  const seen = new Set();
+  const ranked = items.sort((a, b) => a.tier - b.tier).filter(i => {
+    if(seen.has(i.message)) return false;
+    seen.add(i.message);
+    return true;
+  });
+  return ranked.slice(0, 3);
+}
+
+function renderHomeAiAdviceCard(){
+  const card = document.getElementById("homeAiAdviceCard");
+  const list = document.getElementById("homeAiAdviceList");
+  if(!card || !list) return;
+  if(notificationModeGet() === "off"){
+    card.style.display = "none";
+    return;
+  }
+  const advice = generateTodayAiAdvice();
+  if(!advice.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  list.innerHTML = advice.map(a => `<p class="home-ai-advice-item">${escapeHtml(a.message)}</p>`).join("");
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
@@ -7654,6 +7977,11 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
   chatSendInFlight = true;
   document.getElementById("chatSendBtn").disabled = true;
   await chatAppendMessage("user", text);
+  /* Phase29: AI Memory Engine。送信した1メッセージだけを見て、
+     家族の名前/続柄+「好き」「苦手」を含む一文があれば記録する
+     (履歴全体を毎回スキャンしない軽量な作り)。返信生成をブロック
+     しないよう、待たずに投げっぱなしにする。 */
+  learnFromChatMessage(text);
 
   chatShowTypingThen(async () => {
     try{
@@ -7724,6 +8052,7 @@ loadWakuwakuEntries();
 loadFamilyMembers();
 loadFamilyEvents();
 loadAiNotifications();
+loadAiMemoryFacts();
 startAiNotificationChecker();
 if(prefNameGet() === null) openNameModal("first");
 </script>
