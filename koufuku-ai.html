@@ -309,9 +309,27 @@ textarea{ font-family:inherit; }
 .event-card-memo{ font-size:13px; color:var(--text-sub); white-space:pre-wrap; word-break:break-word; }
 
 /* ---------- AI Notification Engine(Phase25) ---------- */
-.home-ai-notice-item{ font-size:13.5px; line-height:1.7; margin-bottom:4px; }
-.home-ai-notice-item:last-child{ margin-bottom:0; }
+/* Phase27: タップで予定/家族詳細へ遷移できるようbutton要素にした。
+   ネイティブボタンの見た目をリセットして、これまでの<p>と同じ
+   テキスト行に見えるようにしている。 */
+.home-ai-notice-item{
+  display:block; width:100%; text-align:left; font-family:inherit; cursor:pointer;
+  background:none; border:none; padding:6px 0; margin-bottom:0;
+  font-size:13.5px; line-height:1.5; color:var(--text); border-bottom:1px solid var(--border);
+}
+.home-ai-notice-item:last-child{ border-bottom:none; }
 .notification-card{ padding:14px 16px; }
+
+/* ---------- AIカレンダー分析(Phase28) ---------- */
+.future-ai-analysis-card{
+  background:linear-gradient(135deg,#fff0f7 0%,#f3ecff 100%);
+  border-color:transparent;
+}
+.future-busy-row{ display:flex; align-items:center; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:8px; }
+.future-busy-stars{ color:#e6a94a; letter-spacing:1px; }
+.future-calendar-stat-row{ display:flex; align-items:center; justify-content:space-between; font-size:13px; color:var(--text-sub); padding:4px 0; border-bottom:1px dashed var(--border); }
+.future-calendar-stat-row:last-child{ border-bottom:none; }
+.future-calendar-comment{ font-size:13.5px; line-height:1.7; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
@@ -846,6 +864,19 @@ textarea.field-input{ resize:none; }
       <h1 class="view-title">少し先の未来</h1>
       <p class="view-sub">集めたワクワクから、<br>あなたが少し心惹かれそうな未来を描きます。</p>
       <p class="wwDebugInfo"></p>
+
+      <!-- Phase28: AIカレンダー分析(新規画面は追加せず、既存の
+           「未来」画面へ追加)。ワクワクデータの有無に関係なく、
+           家族の予定データがあれば表示する。 -->
+      <div class="card future-ai-analysis-card" id="futureAiAnalysisCard" style="display:none;">
+        <div class="card-label">📅 AIカレンダー分析</div>
+        <div class="future-busy-row">
+          <span>今週の忙しさ</span>
+          <span class="future-busy-stars" id="futureBusyStars"></span>
+        </div>
+        <div id="futureCalendarStatsBody"></div>
+        <div id="futureCalendarCommentBody"></div>
+      </div>
 
       <div class="mind-empty" id="futureEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
@@ -3280,6 +3311,7 @@ async function loadFamilyMembers(){
   familyLoaded = true;
   renderFamilyList();
   renderHomeAiNoticeCard();
+  renderFutureAiAnalysisCard();
 }
 
 /* Phase26: 一覧画面は軽く、詳細画面で深掘りする方針のため、一覧の
@@ -3752,6 +3784,7 @@ async function loadFamilyEvents(){
   }
   eventsLoaded = true;
   renderHomeAiNoticeCard();
+  renderFutureAiAnalysisCard();
 }
 
 function eventsForMember(familyMemberId){
@@ -3842,6 +3875,8 @@ async function setEventStatus(id, status){
   ev.updatedAt = new Date().toISOString();
   try{ await EventStore.update(ev); }catch(e){ /* 保存失敗時も画面表示は更新して続行する */ }
   renderFamilyTimelineBody();
+  renderHomeAiNoticeCard();
+  renderFutureAiAnalysisCard();
 }
 
 async function openFamilyTimeline(member){
@@ -4215,6 +4250,58 @@ async function runAiNotificationCheck(now = new Date()){
   return fresh;
 }
 
+/* =========================================================
+   Phase27+28: 共通イベント統計エンジン
+   - ホーム(今日AIが気付いたこと)と未来画面(AIカレンダー分析)の
+     両方から呼ばれる、期間別の集計だけを行う純粋関数。判定・文言
+     生成ロジックをここに置かず、数値の集計だけに専念させることで、
+     「ロジック重複禁止」の指示に沿って1箇所にまとめている。
+   - 追加DBは使わず、既存familyEvents(+呼び出し側でfamilyMembers/
+     aiNotifications)だけを読む。
+   ========================================================= */
+function computeEventStatsForRange(events, sinceMs, untilMs){
+  const inRange = events.filter(ev => {
+    if(!ev.datetime) return false;
+    const t = new Date(ev.datetime).getTime();
+    return !isNaN(t) && t >= sinceMs && t <= untilMs;
+  });
+  const total = inRange.length;
+  const confirmedOrDone = inRange.filter(e => e.status === "confirmed" || e.status === "done").length;
+  const done = inRange.filter(e => e.status === "done").length;
+  const nowMs = Date.now();
+  const overdueCount = inRange.filter(e => (e.status === "pending" || e.status === "later") && new Date(e.datetime).getTime() < nowMs).length;
+  return {
+    total,
+    confirmedRate: total ? Math.round((confirmedOrDone / total) * 100) : 0,
+    doneRate: total ? Math.round((done / total) * 100) : 0,
+    unconfirmedRate: total ? Math.round(((total - confirmedOrDone) / total) * 100) : 0,
+    incompleteRate: total ? Math.round(((total - done) / total) * 100) : 0,
+    overdueCount,
+    events: inRange,
+  };
+}
+/* 曜日別の件数分布(0=日曜〜6=土曜)。「曜日偏り」分析に使う。 */
+function countEventsByWeekday(events){
+  const counts = [0, 0, 0, 0, 0, 0, 0];
+  events.forEach(ev => {
+    if(!ev.datetime) return;
+    const d = new Date(ev.datetime);
+    if(!isNaN(d.getTime())) counts[d.getDay()]++;
+  });
+  return counts;
+}
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+function categoryGroupCount(events, categories){
+  return events.filter(e => categories.includes(e.category)).length;
+}
+
+/* 「介護」系(介護+病院)・「子育て」系(子育て+学校)は指示書の
+   カテゴリ優先度(病院/介護が最優先、学校/子育てが同格)に合わせて
+   まとめて集計する。仕事は単独、それ以外はすべて「家族イベント数」
+   (=全件)に含める。 */
+const CARE_CATEGORY_GROUP = ["介護", "病院"];
+const CHILDCARE_CATEGORY_GROUP = ["子育て", "学校"];
+
 /* Phase26: ホームの「今日AIが気付いたこと」で使う、より広い候補。
    Phase25のevaluateAiNoticeCandidates()(時刻ウィンドウ厳密判定)とは
    別に、"今アプリを開いたときに見せて意味がある"候補を返す
@@ -4251,6 +4338,15 @@ function analyzeFamilyMemberInsights(member){
   return insights.slice(0, 2);
 }
 
+/* Phase27: AIホームダッシュボード用に強化。指示書の優先順位
+   (病院/介護/子育て/学校/仕事/期限が近い予定/未確認予定/最近忘れた
+   予定/完了率低下)を、既存のeventPriorityScore(カテゴリ優先度+
+   未確認回数)にPhase27独自の3シグナル(期限切れ・多忙週・完了率低下)
+   を上乗せする形で実装している(カテゴリ優先度の計算そのものは
+   Phase25のeventPriorityScore()を再利用し、二重実装しない)。
+   戻り値は文字列ではなくオブジェクト配列にして、ホーム側で
+   「ワンタップで予定詳細へ遷移」できるようeventId/familyMemberIdを
+   保持する。 */
 function getTodayAiInsights(){
   if(notificationModeGet() === "off") return [];
   const now = new Date();
@@ -4268,25 +4364,167 @@ function getTodayAiInsights(){
     items.push({
       score: eventPriorityScore(ev) + (isToday ? 5 : 0),
       message: `${isToday ? "今日" : "明日"}は${name ? name + "の" : ""}${ev.title}の日だよ${isToday ? "😊" : ""}`,
+      familyMemberId: ev.familyMemberId, eventId: ev.id,
     });
     if((ev.history || []).some(h => h.status === "later") && ev.status === "pending"){
-      items.push({ score: eventPriorityScore(ev) + 8, message: `${name ? name + "の" : ""}${ev.title}の確認がまだだよ。` });
+      items.push({
+        score: eventPriorityScore(ev) + 8,
+        message: `${name ? name + "の" : ""}${ev.title}の確認がまだだよ。`,
+        familyMemberId: ev.familyMemberId, eventId: ev.id,
+      });
+    }
+  });
+
+  /* 最近忘れた予定：期限(datetime)を過ぎてもpending/laterのまま。
+     通知エンジンの優先度計算をそのまま流用し、1件につき1つだけ
+     出す(同じ予定について複数メッセージを重ねない=重複禁止)。 */
+  familyEvents.forEach(ev => {
+    if(!ev.datetime || ev.status !== "pending" && ev.status !== "later") return;
+    const overdueHours = (now.getTime() - new Date(ev.datetime).getTime()) / 3600000;
+    if(overdueHours >= 3 && overdueHours <= 24 * 5){
+      const name = familyMemberName(ev.familyMemberId);
+      items.push({
+        score: eventPriorityScore(ev) + 12,
+        message: `${name ? name + "の" : ""}${ev.title}、確認できてないかも。大丈夫？`,
+        familyMemberId: ev.familyMemberId, eventId: ev.id,
+      });
     }
   });
 
   familyMembers.forEach(member => {
     analyzeFamilyMemberInsights(member).forEach(text => {
-      items.push({ score: 15, message: text });
+      items.push({ score: 15, message: text, familyMemberId: member.id, eventId: null });
     });
   });
 
-  const seen = new Set();
+  /* 今週は予定が少し多め(特定の家族/予定に紐付かない全体傾向) */
+  const weekStats = computeEventStatsForRange(familyEvents, now.getTime(), now.getTime() + 7 * 86400000);
+  if(weekStats.total >= 6){
+    items.push({ score: 12, message: "今週は予定が少し多めです。", familyMemberId: null, eventId: null });
+  }
+
+  /* 完了率低下(直近7日 vs その前2週間)。指示書の例文の通り、
+     「サボってる」ではなく「よく頑張っているから休んでいい」という
+     ねぎらいの言い方にする(既存persona=説教しない、と一致させる)。 */
+  const recentStats = computeEventStatsForRange(familyEvents, now.getTime() - 7 * 86400000, now.getTime());
+  const priorStats = computeEventStatsForRange(familyEvents, now.getTime() - 21 * 86400000, now.getTime() - 7 * 86400000);
+  if(recentStats.total >= 2 && priorStats.total >= 2 && (priorStats.doneRate - recentStats.doneRate) >= 25){
+    items.push({ score: 10, message: "最近頑張っています。今日は少し休憩しても大丈夫ですよ。", familyMemberId: null, eventId: null });
+  }
+
+  /* 重複禁止：同一メッセージ、および同一予定についての2件目以降は
+     出さない(1予定=最大1件の気づきに絞る)。 */
+  const seenMessages = new Set();
+  const seenEventIds = new Set();
   const ranked = items.sort((a, b) => b.score - a.score).filter(i => {
-    if(seen.has(i.message)) return false;
-    seen.add(i.message);
+    if(seenMessages.has(i.message)) return false;
+    if(i.eventId && seenEventIds.has(i.eventId)) return false;
+    seenMessages.add(i.message);
+    if(i.eventId) seenEventIds.add(i.eventId);
     return true;
   });
-  return ranked.slice(0, 3).map(i => i.message);
+  return ranked.slice(0, 5);
+}
+
+/* =========================================================
+   Phase28: AIカレンダー分析
+   - 新しい画面は作らず、既存の「未来」画面(.view[data-view="future"])
+     へカードを1枚追加するだけ。使うデータも既存familyEvents/
+     familyMembers/aiNotificationsのみ(新規DBなし)。
+   - 集計そのものはPhase27と共有のcomputeEventStatsForRange()/
+     countEventsByWeekday()を再利用し、ここでは「週の忙しさ★」
+     「カテゴリ内訳」「曜日偏りからのAIコメント」だけを組み立てる
+     (ロジック重複禁止への対応)。
+   ========================================================= */
+function computeFutureCalendarAnalysis(){
+  const now = Date.now();
+  const weekStats = computeEventStatsForRange(familyEvents, now, now + 7 * 86400000);
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const monthEnd = new Date(monthStart); monthEnd.setMonth(monthStart.getMonth() + 1);
+  const monthStats = computeEventStatsForRange(familyEvents, monthStart.getTime(), monthEnd.getTime());
+  const last7 = computeEventStatsForRange(familyEvents, now - 7 * 86400000, now);
+  const last30 = computeEventStatsForRange(familyEvents, now - 30 * 86400000, now);
+  const allTimeStats = computeEventStatsForRange(familyEvents, -8640000000000000, 8640000000000000);
+
+  /* 週の忙しさ★1〜5。件数のしきい値はMVPとしての目安(0-1=★1 ... 8+=★5)。 */
+  const busyStars = Math.max(1, Math.min(5, Math.ceil((weekStats.total + 1) / 2)));
+
+  const careCount = categoryGroupCount(monthStats.events, CARE_CATEGORY_GROUP);
+  const workCount = categoryGroupCount(monthStats.events, ["仕事"]);
+  const childcareCount = categoryGroupCount(monthStats.events, CHILDCARE_CATEGORY_GROUP);
+
+  /* 曜日偏り: 今後1週間で最も予定が少ない曜日を、暮らし/家事系の
+     未確認予定があれば「おすすめの日」として提案する材料にする。 */
+  const nextWeekEvents = weekStats.events;
+  const weekdayCounts = countEventsByWeekday(nextWeekEvents);
+  let leastBusyWeekday = null;
+  const today = new Date().getDay();
+  for(let offset = 0; offset < 7; offset++){
+    const idx = (today + offset) % 7;
+    if(leastBusyWeekday === null || weekdayCounts[idx] < weekdayCounts[leastBusyWeekday]) leastBusyWeekday = idx;
+  }
+  const flexibleEvent = familyEvents.find(ev =>
+    (ev.category === "暮らし" || ev.category === "家事") &&
+    (ev.status === "pending" || ev.status === "later") &&
+    (!ev.datetime || (new Date(ev.datetime).getTime() - now) / 86400000 <= 10)
+  );
+
+  return {
+    weekTotal: weekStats.total, busyStars,
+    monthTotal: monthStats.total,
+    familyEventCount: monthStats.total, careEventCount: careCount, workEventCount: workCount, childcareEventCount: childcareCount,
+    confirmedRate7d: last7.confirmedRate, doneRate7d: last7.doneRate,
+    unconfirmedRate30d: last30.unconfirmedRate, incompleteRate30d: last30.incompleteRate,
+    overdueCount: allTimeStats.overdueCount,
+    leastBusyWeekdayLabel: leastBusyWeekday !== null ? WEEKDAY_LABELS[leastBusyWeekday] : null,
+    flexibleEvent,
+  };
+}
+
+/* ルールベースのAIコメント生成(最大2件)。指示書の例文の雰囲気に
+   沿わせつつ、実データの計算結果だけを根拠にする(断定・煽りを
+   避ける既存persona方針を踏襲)。 */
+function generateFutureAiComments(stats){
+  const comments = [];
+  if(stats.busyStars >= 4){
+    comments.push("今週は予定が集中しています。");
+    if(stats.flexibleEvent && stats.leastBusyWeekdayLabel){
+      comments.push(`${stats.flexibleEvent.title}は${stats.leastBusyWeekdayLabel}曜日がおすすめです。`);
+    }
+  }
+  if(stats.childcareEventCount >= 3){
+    comments.push("学校行事が続きます。前日に持ち物を確認しましょう。");
+  }
+  if(stats.overdueCount >= 2 || stats.unconfirmedRate30d >= 40){
+    comments.push("最近予定を確認できていないことが増えています。通知をONにすると安心です。");
+  }
+  if(stats.busyStars <= 2 && stats.weekTotal >= 0){
+    comments.push("来週は比較的余裕があります。家族との時間を作れそうです。");
+  }
+  return comments.slice(0, 2);
+}
+
+function renderFutureAiAnalysisCard(){
+  const card = document.getElementById("futureAiAnalysisCard");
+  if(!card) return;
+  if(!familyEvents.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  const stats = computeFutureCalendarAnalysis();
+  document.getElementById("futureBusyStars").textContent = "★".repeat(stats.busyStars) + "☆".repeat(5 - stats.busyStars);
+  document.getElementById("futureCalendarStatsBody").innerHTML = [
+    ["今月の予定数", `${stats.monthTotal}件`],
+    ["家族イベント数", `${stats.familyEventCount}件`],
+    ["介護・通院予定数", `${stats.careEventCount}件`],
+    ["仕事予定数", `${stats.workEventCount}件`],
+    ["子育て・学校予定数", `${stats.childcareEventCount}件`],
+  ].map(([label, value]) => `<div class="future-calendar-stat-row"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`).join("");
+  const comments = generateFutureAiComments(stats);
+  document.getElementById("futureCalendarCommentBody").innerHTML = comments.length
+    ? comments.map(c => `<p class="future-calendar-comment">💡 ${escapeHtml(c)}</p>`).join("")
+    : "";
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
@@ -4365,6 +4603,33 @@ document.getElementById("btnRunNotificationCheckNow").addEventListener("click", 
 });
 
 /* ---------- ホームの「今日AIが気付いたこと」(おうちサポートモード) ---------- */
+/* Phase27: 気づき1件をタップした時の遷移先。
+   ・eventIdがあれば、その予定の詳細(=既存の編集シート。この
+     アプリには編集と別の読み取り専用詳細画面が無いため、既存の
+     openEventEditSheet()をそのまま「予定詳細」として再利用する)。
+   ・eventIdは無いがfamilyMemberIdがあれば、その家族の詳細画面
+     (Phase26のopenFamilyDetail())。
+   ・どちらも無い全体傾向の気づき(今週は予定が多め、等)は、
+     Phase28のAIカレンダー分析がある「未来」画面へ。 */
+function navigateToAiInsight(insight){
+  if(insight.eventId){
+    const ev = familyEvents.find(e => e.id === insight.eventId);
+    if(ev){
+      eventTimelineMemberId = ev.familyMemberId;
+      openEventEditSheet(ev);
+      return;
+    }
+  }
+  if(insight.familyMemberId){
+    const member = familyMembers.find(m => m.id === insight.familyMemberId);
+    if(member){
+      openFamilyDetail(member);
+      return;
+    }
+  }
+  switchView("future");
+}
+
 function renderHomeAiNoticeCard(){
   const card = document.getElementById("homeAiNoticeCard");
   const list = document.getElementById("homeAiNoticeList");
@@ -4375,7 +4640,12 @@ function renderHomeAiNoticeCard(){
     return;
   }
   card.style.display = "block";
-  list.innerHTML = insights.map(text => `<p class="home-ai-notice-item">💡 ${escapeHtml(text)}</p>`).join("");
+  list.innerHTML = insights.map((i, idx) =>
+    `<button type="button" class="home-ai-notice-item" data-notice-idx="${idx}">💡 ${escapeHtml(i.message)}</button>`
+  ).join("");
+  list.querySelectorAll("[data-notice-idx]").forEach(btn => {
+    btn.addEventListener("click", () => navigateToAiInsight(insights[Number(btn.dataset.noticeIdx)]));
+  });
 }
 
 /* タブが開いている間だけの簡易チェッカー。1分ごとに再評価する
@@ -4651,6 +4921,10 @@ function renderFutureValueHintCard(valueSeeds, analysis){
 }
 
 function renderFutureView(){
+  /* Phase28: ワクワクデータの有無とは独立した家族カレンダー分析
+     なので、下の空データ早期returnより前に必ず呼ぶ。 */
+  renderFutureAiAnalysisCard();
+
   const empty = document.getElementById("futureEmpty");
   const content = document.getElementById("futureContent");
   const entries = wakuwakuEntries || [];
