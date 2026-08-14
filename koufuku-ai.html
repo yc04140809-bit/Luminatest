@@ -278,6 +278,16 @@ textarea{ font-family:inherit; }
 .family-card-name{ font-size:15px; font-weight:700; }
 .family-card-relation{ font-size:12px; color:var(--text-sub); margin-top:2px; }
 .family-card-memo{ font-size:13px; color:var(--text); margin-bottom:8px; white-space:pre-wrap; word-break:break-word; }
+/* Phase26: 一覧カードはタップで詳細を開くbutton要素にしたため、
+   ネイティブボタンの見た目をリセットして既存.cardの外観へ合わせる */
+.family-card-list{
+  display:block; width:100%; text-align:left; font-family:inherit; cursor:pointer;
+}
+.family-card-list .family-card-head{ margin-bottom:0; }
+.family-card-chevron{ flex:none; font-size:22px; color:var(--text-sub); margin-left:auto; }
+.family-card-teaser{ font-size:12.5px; color:var(--text-sub); margin-top:6px; padding-left:50px; }
+/* Phase26: Family Detail Dashboardのヘッダー */
+.family-detail-head{ display:flex; align-items:center; gap:12px; padding:4px 4px 16px 10px; }
 .family-memory-viewer{
   background:#f8f6ff; border-radius:var(--radius-sm); padding:10px 12px;
 }
@@ -297,6 +307,11 @@ textarea{ font-family:inherit; }
 .event-card-meta{ font-size:12px; color:var(--text-sub); margin-bottom:6px; }
 .event-tasks{ font-size:13px; color:var(--text); line-height:1.6; margin-bottom:6px; }
 .event-card-memo{ font-size:13px; color:var(--text-sub); white-space:pre-wrap; word-break:break-word; }
+
+/* ---------- AI Notification Engine(Phase25) ---------- */
+.home-ai-notice-item{ font-size:13.5px; line-height:1.7; margin-bottom:4px; }
+.home-ai-notice-item:last-child{ margin-bottom:0; }
+.notification-card{ padding:14px 16px; }
 
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
@@ -771,6 +786,13 @@ textarea.field-input{ resize:none; }
           <div class="speech-bubble" id="homeSupportKaosuMessage"></div>
         </div>
 
+        <!-- Phase26: 今日AIが気付いたこと。家族・予定データが無ければ
+             非表示(情報が無いのに枠だけ出す状態を避ける)。 -->
+        <div class="card" id="homeAiNoticeCard" style="display:none;">
+          <div class="card-label">✨ 今日AIが気付いたこと</div>
+          <div id="homeAiNoticeList"></div>
+        </div>
+
         <div class="card home-support-card" data-support-label="🧒 子育てサポート">
           <div class="card-label">🧒 子育て</div>
           <p class="home-support-items">・持ち物<br>・学校・保育園予定<br>・成長記録</p>
@@ -1150,6 +1172,19 @@ textarea.field-input{ resize:none; }
         <p class="view-sub" style="margin:10px 0 0;">今のあなたに一番心地いい<br>ケイオスちゃんを選んでね。</p>
       </div>
 
+      <!-- Phase25: AI Notification Engine 設定 -->
+      <div class="card">
+        <div class="card-label">🔔 AIからのお知らせ</div>
+        <div class="chip-row" id="notificationModeChipRow" style="flex-wrap:wrap;"></div>
+        <p class="view-sub" style="margin:10px 0 0;">AIが必要そうと判断した時だけ、そっと教えるよ。</p>
+        <div id="notificationPermissionRow" style="margin-top:12px; display:none;">
+          <p class="view-sub" style="margin:0 0 8px;"></p>
+          <button type="button" class="btn-outline" id="btnEnableWebNotification">端末への通知を有効にする</button>
+        </div>
+        <button type="button" class="btn-text" id="btnRunNotificationCheckNow" style="margin-top:4px;">今すぐ気づきを確認する</button>
+        <button type="button" class="btn-text" id="btnNotificationHistoryOpen">通知履歴を見る</button>
+      </div>
+
       <div style="margin-top:6px; text-align:center;">
         <button class="btn-text" id="btnOpenSurvey">テストアンケートに回答する</button>
       </div>
@@ -1309,6 +1344,18 @@ textarea.field-input{ resize:none; }
     </div>
   </div>
 
+  <!-- Phase26: Family Detail Dashboard — 家族カードをタップして開く
+       専用詳細画面。一覧は軽く、ここで深掘りする方針。 -->
+  <div class="modal" id="familyDetailModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles"><h3 id="familyDetailName">家族の詳細</h3></div>
+        <button class="sheet-close" id="familyDetailClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll" id="familyDetailBody"></div>
+    </div>
+  </div>
+
   <!-- Phase23: 家族の追加/編集シート -->
   <div class="modal" id="familyEditModal">
     <div class="modalbox sheet">
@@ -1414,6 +1461,20 @@ textarea.field-input{ resize:none; }
         <button class="btn-ghost" id="eventDeleteCancelBtn">キャンセル</button>
         <button class="btn-danger" id="eventDeleteConfirmBtn">削除する</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Phase25: AI通知履歴 -->
+  <div class="modal" id="notificationHistoryModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles">
+          <h3>通知履歴</h3>
+          <p>AIが気付いて声をかけた記録だよ</p>
+        </div>
+        <button class="sheet-close" id="notificationHistoryClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll" id="notificationHistoryBody"></div>
     </div>
   </div>
 
@@ -1765,6 +1826,7 @@ function renderHomeModeUI(){
   document.getElementById("homeSupportModeContent").style.display = mode === "home-support" ? "block" : "none";
   if(mode === "home-support"){
     document.getElementById("homeSupportKaosuMessage").textContent = sp(HOME_SUPPORT_GREETING);
+    renderHomeAiNoticeCard();
   }
 }
 function setHomeMode(mode){
@@ -2442,7 +2504,7 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 4;
+const WW_DB_VERSION = 5;
 const WW_STORE = "wakuwaku";
 /* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
    WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
@@ -2459,6 +2521,11 @@ const FAMILY_STORE = "familyMembers";
    既存store・データには一切触れず、バージョンを3→4に上げて store を
    追加するだけの標準的な加算のみの移行。 */
 const EVENT_STORE = "familyEvents";
+/* Phase25: AI Notification Engine用の新規store(通知履歴)。既存
+   store・データには一切触れず、バージョンを4→5に上げて store を
+   追加するだけの標準的な加算のみの移行。実際のPush配信は行わず、
+   「AIが必要と判断した」候補の記録(履歴)として使う。 */
+const NOTIFICATION_STORE = "aiNotifications";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -2509,6 +2576,7 @@ function wwOpenDB(){
       if(!db.objectStoreNames.contains(CHAT_STORE)) db.createObjectStore(CHAT_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(FAMILY_STORE)) db.createObjectStore(FAMILY_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(EVENT_STORE)) db.createObjectStore(EVENT_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(NOTIFICATION_STORE)) db.createObjectStore(NOTIFICATION_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -2666,6 +2734,29 @@ const EventStore = {
     return new Promise((resolve, reject) => {
       const tx = db.transaction(EVENT_STORE, "readonly");
       const req = tx.objectStore(EVENT_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+};
+
+/* Phase25: AI Notification Engine用ストア。add/getAllのみの
+   ごく薄いラッパー(通知履歴は追記のみで、編集・削除UIは今回持たない)。 */
+const NotificationStore = {
+  async add(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(NOTIFICATION_STORE, "readwrite");
+      tx.objectStore(NOTIFICATION_STORE).add(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(NOTIFICATION_STORE, "readonly");
+      const req = tx.objectStore(NOTIFICATION_STORE).getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
     });
@@ -3188,34 +3279,31 @@ async function loadFamilyMembers(){
   }
   familyLoaded = true;
   renderFamilyList();
+  renderHomeAiNoticeCard();
 }
 
+/* Phase26: 一覧画面は軽く、詳細画面で深掘りする方針のため、一覧の
+   カードはアイコン・名前・続柄・ひとことメモだけの簡易表示にした
+   (「AIが覚えていること」の全文表示・編集/削除/タイムランチ操作は
+   #familyDetailModal側だけに置き、一覧側では二重に持たない)。
+   カード全体をタップすると詳細画面が開く。 */
 function renderFamilyMemberCardHtml(member){
   const relationBits = [member.roleLabel, familyRelationLabel(member.relationType)].filter(Boolean).join(" / ");
-  const memories = member.memories || [];
-  const memoriesHtml = memories.length
-    ? memories.slice(0, 8).map(m => "・" + escapeHtml(m)).join("<br>")
-    : `<span class="family-memory-empty">まだ記録がありません</span>`;
+  const teaser = member.memories && member.memories.length
+    ? member.memories[0]
+    : (member.memo || "");
   return `
-    <div class="card family-card" style="border-left:4px solid ${escapeHtml(member.color || "#a78bfa")};">
+    <button type="button" class="card family-card family-card-list" data-family-open="${escapeHtml(member.id)}" style="border-left:4px solid ${escapeHtml(member.color || "#a78bfa")};">
       <div class="family-card-head">
         <span class="family-card-icon">${escapeHtml(member.icon || "👤")}</span>
         <div class="family-card-titles">
           <div class="family-card-name">${escapeHtml(member.name || "名前未設定")}</div>
           <div class="family-card-relation">${escapeHtml(relationBits || "続柄未設定")}${member.age ? "・" + escapeHtml(String(member.age)) + "歳" : ""}</div>
         </div>
+        <span class="family-card-chevron">›</span>
       </div>
-      ${member.memo ? `<p class="family-card-memo">${escapeHtml(member.memo)}</p>` : ""}
-      <div class="family-memory-viewer">
-        <div class="family-memory-label">AIが覚えていること</div>
-        <p class="family-memory-list">${memoriesHtml}</p>
-      </div>
-      <div class="chip-row" style="margin-top:10px;">
-        <button type="button" class="filterbtn" data-family-timeline="${escapeHtml(member.id)}">📅 タイムライン</button>
-        <button type="button" class="filterbtn" data-family-edit="${escapeHtml(member.id)}">編集</button>
-        <button type="button" class="filterbtn" data-family-delete="${escapeHtml(member.id)}">削除</button>
-      </div>
-    </div>`;
+      ${teaser ? `<p class="family-card-teaser">${escapeHtml(teaser)}</p>` : ""}
+    </button>`;
 }
 
 function renderFamilyList(){
@@ -3226,25 +3314,189 @@ function renderFamilyList(){
     return;
   }
   root.innerHTML = familyMembers.map(renderFamilyMemberCardHtml).join("");
-  root.querySelectorAll("[data-family-edit]").forEach(btn => {
+  root.querySelectorAll("[data-family-open]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const member = familyMembers.find(m => m.id === btn.dataset.familyEdit);
-      if(member) openFamilyEditSheet(member);
-    });
-  });
-  root.querySelectorAll("[data-family-delete]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      familyDeleteId = btn.dataset.familyDelete;
-      document.getElementById("familyDeleteConfirmModal").classList.add("show");
-    });
-  });
-  root.querySelectorAll("[data-family-timeline]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const member = familyMembers.find(m => m.id === btn.dataset.familyTimeline);
-      if(member) openFamilyTimeline(member);
+      const member = familyMembers.find(m => m.id === btn.dataset.familyOpen);
+      if(member){
+        closeFamilyModal();
+        openFamilyDetail(member);
+      }
     });
   });
 }
+
+/* =========================================================
+   Phase26: Family Detail Dashboard
+   - 「一覧画面は軽く、詳細画面で情報を深掘り」という設計方針に沿って、
+     家族カードをタップした時だけ開く専用画面。新しいDB/フィールドは
+     追加せず、既存のfamilyMembers/familyEvents/chatMessagesを
+     集計・表示するだけ(表示専用の集計関数)。
+   - 編集/削除/タイムラインの操作自体は既存のopenFamilyEditSheet()/
+     familyDeleteConfirmModal/openFamilyTimeline()をそのまま呼ぶだけで、
+     詳細画面専用のCRUD UIを新しく作らない(二重実装を避ける)。
+   - 「追加予定」とされている写真登録・音声メモ・誕生日・血液型などは
+     今回のスコープ外(指示書通り、将来のフィールド追加に備えて
+     collectionの型は自由なオブジェクトのままにしてある)。
+   ========================================================= */
+function computeMemberEventStats(familyMemberId){
+  const events = eventsForMember(familyMemberId);
+  const total = events.length;
+  if(!total) return { total: 0, confirmedRate: 0, doneRate: 0 };
+  const confirmedOrMore = events.filter(e => e.status === "confirmed" || e.status === "done").length;
+  const done = events.filter(e => e.status === "done").length;
+  return {
+    total,
+    confirmedRate: Math.round((confirmedOrMore / total) * 100),
+    doneRate: Math.round((done / total) * 100),
+  };
+}
+
+/* チャット履歴からそのメンバーの名前/続柄が出てきた直近の発言を拾う
+   (新しい保存先は増やさず、既存chatMessagesを都度検索するだけ)。 */
+function findRecentChatMentions(member, limit = 3){
+  if(!Array.isArray(chatMessages)) return [];
+  const needle = [member.name, member.roleLabel].filter(Boolean);
+  if(!needle.length) return [];
+  return chatMessages
+    .filter(m => m.role === "user" && needle.some(n => (m.text || "").includes(n)))
+    .slice(-limit)
+    .reverse();
+}
+
+function renderFamilyDetailBody(member){
+  const relationBits = [member.roleLabel, familyRelationLabel(member.relationType)].filter(Boolean).join(" / ");
+  const memories = member.memories || [];
+  const memoriesHtml = memories.length
+    ? memories.slice(0, 10).map(m => "・" + escapeHtml(m)).join("<br>")
+    : `<span class="family-memory-empty">まだ記録がありません</span>`;
+
+  const events = eventsForMember(member.id);
+  const upcoming = events.filter(e => e.status === "pending" || e.status === "later").slice(0, 5);
+  const upcomingHtml = upcoming.length
+    ? upcoming.map(e => `<p class="event-card-meta" style="margin-bottom:6px;">${escapeHtml(e.title)}${e.category ? "・" + escapeHtml(e.category) : ""}・${escapeHtml(formatEventDatetime(e.datetime))}</p>`).join("")
+    : `<p class="family-memory-empty">今のところ予定はないよ</p>`;
+
+  const historyEntries = events
+    .flatMap(e => (e.history || []).map(h => ({ ...h, title: e.title })))
+    .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")))
+    .slice(0, 5);
+  const historyHtml = historyEntries.length
+    ? historyEntries.map(h => {
+        const meta = EVENT_STATUS_META[h.status] || {};
+        const when = h.at ? new Date(h.at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+        return `<p class="event-card-meta" style="margin-bottom:6px;">${escapeHtml(when)}・${escapeHtml(h.title)}を${escapeHtml(meta.label || h.status)}${meta.icon || ""}</p>`;
+      }).join("")
+    : `<p class="family-memory-empty">まだ記録がないよ</p>`;
+
+  const recentMemories = events
+    .filter(e => e.status === "done")
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))
+    .slice(0, 3);
+  const recentMemoriesHtml = recentMemories.length
+    ? recentMemories.map(e => `<p class="event-card-meta" style="margin-bottom:6px;">🎉 ${escapeHtml(e.title)}(${escapeHtml(formatEventDatetime(e.datetime))})</p>`).join("")
+    : `<p class="family-memory-empty">まだ思い出の記録がないよ</p>`;
+
+  const mentions = findRecentChatMentions(member, 3);
+  const mentionsHtml = mentions.length
+    ? mentions.map(m => `<p class="event-card-meta" style="margin-bottom:6px;">💬「${escapeHtml(kaosuContextTruncate(m.text || "", 40))}」</p>`).join("")
+    : `<p class="family-memory-empty">まだチャットで話題に出ていないよ</p>`;
+
+  const stats = computeMemberEventStats(member.id);
+  const insights = analyzeFamilyMemberInsights(member);
+  const insightsHtml = insights.length
+    ? insights.map(t => `<p class="event-card-meta" style="margin-bottom:6px;">💡 ${escapeHtml(t)}</p>`).join("")
+    : `<p class="family-memory-empty">今のところ特に気になる変化はなさそうだよ</p>`;
+
+  return `
+    <div class="family-detail-head" style="border-left:4px solid ${escapeHtml(member.color || "#a78bfa")};">
+      <span class="family-card-icon" style="width:56px;height:56px;font-size:26px;">${escapeHtml(member.icon || "👤")}</span>
+      <div>
+        <div class="family-card-name" style="font-size:18px;">${escapeHtml(member.name || "名前未設定")}</div>
+        <div class="family-card-relation">${escapeHtml(relationBits || "続柄未設定")}${member.age ? "・" + escapeHtml(String(member.age)) + "歳" : ""}</div>
+      </div>
+    </div>
+
+    ${member.memo ? `<div class="card"><div class="card-label">メモ</div><p class="family-card-memo">${escapeHtml(member.memo)}</p></div>` : ""}
+
+    <div class="card">
+      <div class="card-label">AIが覚えていること</div>
+      <p class="family-memory-list">${memoriesHtml}</p>
+    </div>
+
+    <div class="card">
+      <div class="card-label">💡 AI分析</div>
+      ${insightsHtml}
+    </div>
+
+    <div class="card">
+      <div class="card-label">📅 最近の予定</div>
+      ${upcomingHtml}
+      <button type="button" class="btn-text" id="btnFamilyDetailTimeline" style="margin-top:2px;">すべての予定を見る →</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">確認率・完了率</div>
+      <p class="event-card-meta">登録済みの予定 ${stats.total}件のうち、確認率 ${stats.confirmedRate}%・完了率 ${stats.doneRate}%</p>
+    </div>
+
+    <div class="card">
+      <div class="card-label">🕘 履歴</div>
+      ${historyHtml}
+    </div>
+
+    <div class="card">
+      <div class="card-label">✨ 最近の思い出</div>
+      ${recentMemoriesHtml}
+    </div>
+
+    <div class="card">
+      <div class="card-label">💬 最近の会話</div>
+      ${mentionsHtml}
+    </div>
+
+    <div class="chip-row" style="margin-top:4px;">
+      <button type="button" class="filterbtn" id="btnFamilyDetailEdit">編集</button>
+      <button type="button" class="filterbtn" id="btnFamilyDetailDelete">削除</button>
+    </div>`;
+}
+
+let familyDetailMemberId = null;
+function openFamilyDetail(member){
+  familyDetailMemberId = member.id;
+  document.getElementById("familyDetailName").textContent = `${member.icon || "👤"} ${member.name}`;
+  document.getElementById("familyDetailBody").innerHTML = renderFamilyDetailBody(member);
+  /* このアプリは1画面(モーダル)ずつ開く前提のため、詳細画面から
+     別のシートを開く時は先に詳細画面を閉じてから開く(モーダルの
+     二重表示を避ける、既存のモーダル運用と揃える)。 */
+  document.getElementById("btnFamilyDetailTimeline").addEventListener("click", () => {
+    closeFamilyDetail();
+    openFamilyTimeline(member);
+  });
+  document.getElementById("btnFamilyDetailEdit").addEventListener("click", () => {
+    closeFamilyDetail();
+    openFamilyEditSheet(member);
+  });
+  document.getElementById("btnFamilyDetailDelete").addEventListener("click", () => {
+    closeFamilyDetail();
+    familyDeleteId = member.id;
+    document.getElementById("familyDeleteConfirmModal").classList.add("show");
+  });
+  document.getElementById("familyDetailModal").classList.add("show");
+}
+function closeFamilyDetail(){
+  document.getElementById("familyDetailModal").classList.remove("show");
+}
+/* ×ボタン/背景タップは「閉じる」ではなく「一覧へ戻る」として扱う
+   (一覧モーダル→詳細モーダルの一方向ナビゲーションのため)。 */
+function backToFamilyListFromDetail(){
+  closeFamilyDetail();
+  renderFamilyList();
+  document.getElementById("familyModal").classList.add("show");
+}
+document.getElementById("familyDetailClose").addEventListener("click", backToFamilyListFromDetail);
+document.getElementById("familyDetailModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "familyDetailModal") backToFamilyListFromDetail();
+});
 
 async function openFamilyModal(){
   document.getElementById("familyModal").classList.add("show");
@@ -3391,6 +3643,11 @@ document.getElementById("btnFamilySave").addEventListener("click", async () => {
   }
   closeFamilyEditSheet();
   await loadFamilyMembers();
+  /* 詳細画面を開いたまま編集した場合、その場で最新の内容に更新する */
+  if(familyDetailMemberId === entry.id){
+    const updated = familyMembers.find(m => m.id === entry.id);
+    if(updated) openFamilyDetail(updated);
+  }
   showToast(isEdit ? "家族の情報を更新したよ" : "家族を追加したよ");
 });
 
@@ -3410,8 +3667,15 @@ document.getElementById("familyDeleteConfirmBtn").addEventListener("click", asyn
     await FamilyStore.remove(familyDeleteId);
   }catch(e){ /* 削除失敗時も画面は閉じ、一覧は現状のまま保持する */ }
   document.getElementById("familyDeleteConfirmModal").classList.remove("show");
+  const wasViewingDeletedMember = familyDetailMemberId === familyDeleteId;
   familyDeleteId = null;
   await loadFamilyMembers();
+  /* 削除されたメンバーの詳細を見ていた場合、詳細画面ではなく
+     一覧へ戻る(存在しないメンバーの詳細を表示し続けないため)。 */
+  if(wasViewingDeletedMember){
+    familyDetailMemberId = null;
+    document.getElementById("familyModal").classList.add("show");
+  }
   showToast("家族を削除したよ");
 });
 
@@ -3487,6 +3751,7 @@ async function loadFamilyEvents(){
     familyEvents = [];
   }
   eventsLoaded = true;
+  renderHomeAiNoticeCard();
 }
 
 function eventsForMember(familyMemberId){
@@ -3729,6 +3994,398 @@ document.getElementById("eventDeleteConfirmBtn").addEventListener("click", async
   renderFamilyTimelineBody();
   showToast("予定を削除したよ");
 });
+
+/* =========================================================
+   Phase25: AI Notification Engine
+   - 「決まった時刻に通知する」のではなく、既存のfamilyEvents/
+     familyMembersのデータから、AIが必要そうと判断した候補を
+     ルールベースで算出する(実際のLLM呼び出しは行わない。既存の
+     チャットAI(requestKaosuAiReply)とは別レイヤーであり、二重実装を
+     避けるためチャット側のAI接続には一切触れない)。
+   - Push配信は「設計だけ」との指示のため、Web Notification APIへ
+     そのまま渡せる関数(deliverWebNotification)は用意するが、
+     ユーザーが明示的に許可した場合のみ呼び出す(自動でパーミッション
+     ダイアログを出さない=既存UXを壊さない)。
+   - サーバー/Service Worker/バックグラウンド配信は今回実装しない。
+     タブが開いている間だけ、setIntervalで定期的に候補を再評価する
+     簡易な代替として実装している。
+   ========================================================= */
+const EVENT_CATEGORY_PRIORITY = {
+  "病院": 5, "介護": 5, "学校": 4, "子育て": 4, "仕事": 3, "暮らし": 2, "家事": 2, "ペット": 2,
+};
+function categoryPriorityStars(category){
+  return EVENT_CATEGORY_PRIORITY[category] || 2;
+}
+/* 未確認(pending/later)の回数が多いほど、優先度に軽く加点する
+   (指示書「予定の重要度や未確認回数も考慮」に対応)。 */
+function eventUnconfirmedPenalty(ev){
+  const laterCount = (ev.history || []).filter(h => h.status === "later").length;
+  return Math.min(laterCount, 3);
+}
+function eventPriorityScore(ev){
+  return categoryPriorityStars(ev.category) * 10 + eventUnconfirmedPenalty(ev);
+}
+
+const NOTIFICATION_MODE_KEY = "koufukuAiNotificationModeV1";
+const NOTIFICATION_MODES = [
+  { key: "all", label: "全部ON" },
+  { key: "recommended", label: "AIおすすめ" },
+  { key: "off", label: "通知なし" },
+];
+function notificationModeGet(){
+  try{
+    const saved = localStorage.getItem(NOTIFICATION_MODE_KEY);
+    if(NOTIFICATION_MODES.some(m => m.key === saved)) return saved;
+  }catch(e){ /* 読めない場合は下のデフォルトへ */ }
+  return "recommended";
+}
+function notificationModeSet(mode){
+  try{ localStorage.setItem(NOTIFICATION_MODE_KEY, mode); }
+  catch(e){ /* 保存できなくてもアプリの利用は継続できるようにする */ }
+}
+/* 「AIおすすめ」モードでは優先度★4以上だけ通知候補にする、という
+   簡易フィルタ(指示書の優先度リストをそのまま閾値として利用)。 */
+function passesNotificationModeFilter(ev){
+  const mode = notificationModeGet();
+  if(mode === "off") return false;
+  if(mode === "all") return true;
+  return categoryPriorityStars(ev.category) >= 4;
+}
+
+const NOTIFICATION_TIMING_META = {
+  dayBefore: { label: "前日夜" },
+  morning: { label: "当日朝" },
+  before30min: { label: "30分前" },
+  afterHome: { label: "帰宅後" },
+  night: { label: "夜" },
+};
+
+function webNotificationSupported(){
+  return typeof window !== "undefined" && "Notification" in window;
+}
+async function requestWebNotificationPermission(){
+  if(!webNotificationSupported()) return "unsupported";
+  try{
+    return await Notification.requestPermission();
+  }catch(e){
+    return "denied";
+  }
+}
+/* Web Notification APIへそのまま渡すだけの薄いラッパー。許可されて
+   いない場合や未対応ブラウザでは何もせずfalseを返す(呼び出し側は
+   常にfalseを許容できる作りにしておく=Push未実装でも壊れない)。 */
+function deliverWebNotification(title, body){
+  if(!webNotificationSupported() || Notification.permission !== "granted") return false;
+  try{
+    new Notification(title, { body, icon: "img/koufuku/kaosu-face-smile.webp" });
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+let aiNotifications = [];
+let notificationsLoaded = false;
+async function loadAiNotifications(){
+  try{
+    const list = await NotificationStore.getAll();
+    list.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    aiNotifications = list;
+  }catch(e){
+    aiNotifications = [];
+  }
+  notificationsLoaded = true;
+}
+
+function familyMemberName(id){
+  const m = familyMembers.find(x => x.id === id);
+  return m ? m.name : "";
+}
+
+/* 予定のタスク(タオル/水筒など)を1文にまとめる小さなヘルパー */
+function eventTasksPhrase(ev){
+  return ev.tasks && ev.tasks.length ? ev.tasks.slice(0, 3).join("と") : "";
+}
+
+/* 指示書の5タイミング(前日夜20:00/当日朝7:00/30分前/帰宅後/夜)を、
+   「今開いているタブの現在時刻」が該当ウィンドウ内かどうかで判定する
+   簡易版。サーバー側スケジューラは無いため、アプリを開いている間
+   だけ成立する(Push配信の設計だけ、という指示に沿った現実的な範囲)。 */
+function withinMinutesWindow(target, nowMs, windowMinutes){
+  return Math.abs(target - nowMs) <= windowMinutes * 60000;
+}
+function evaluateAiNoticeCandidates(now = new Date()){
+  if(notificationModeGet() === "off") return [];
+  const nowMs = now.getTime();
+  const candidates = [];
+  const activeEvents = familyEvents.filter(ev => ev.datetime && ev.status !== "done" && ev.status !== "skipped");
+
+  activeEvents.forEach(ev => {
+    if(!passesNotificationModeFilter(ev)) return;
+    const dt = new Date(ev.datetime);
+    if(isNaN(dt.getTime())) return;
+    const name = familyMemberName(ev.familyMemberId);
+    const tasksPhrase = eventTasksPhrase(ev);
+
+    const dayBefore = new Date(dt); dayBefore.setDate(dt.getDate() - 1); dayBefore.setHours(20, 0, 0, 0);
+    if(withinMinutesWindow(dayBefore.getTime(), nowMs, 30)){
+      candidates.push({
+        timingType: "dayBefore", familyMemberId: ev.familyMemberId, eventId: ev.id,
+        category: ev.category, priorityScore: eventPriorityScore(ev),
+        message: `明日は${name ? name + "の" : ""}${ev.title}の日だよ😊${tasksPhrase ? tasksPhrase + "を忘れないようにね。" : ""}`,
+      });
+    }
+    const morning = new Date(dt); morning.setHours(7, 0, 0, 0);
+    if(withinMinutesWindow(morning.getTime(), nowMs, 30) && dt.toDateString() === now.toDateString()){
+      candidates.push({
+        timingType: "morning", familyMemberId: ev.familyMemberId, eventId: ev.id,
+        category: ev.category, priorityScore: eventPriorityScore(ev),
+        message: `今日は${name ? name + "の" : ""}${ev.title}の日だよ。忘れ物チェックする？`,
+      });
+    }
+    if(withinMinutesWindow(dt.getTime() - 30 * 60000, nowMs, 5)){
+      candidates.push({
+        timingType: "before30min", familyMemberId: ev.familyMemberId, eventId: ev.id,
+        category: ev.category, priorityScore: eventPriorityScore(ev),
+        message: `そろそろ${name ? name + "の" : ""}${ev.title}の出発時間だね。`,
+      });
+    }
+  });
+
+  /* 帰宅後/夜は特定のEventに紐付かない1日のまとめ通知。今日の予定が
+     すべて完了/確認済みなら夜のねぎらいメッセージだけ候補にする。 */
+  const todayEvents = familyEvents.filter(ev => ev.datetime && new Date(ev.datetime).toDateString() === now.toDateString());
+  if(todayEvents.length){
+    const allWrapped = todayEvents.every(ev => ev.status === "done" || ev.status === "confirmed" || ev.status === "skipped");
+    const night = new Date(now); night.setHours(21, 0, 0, 0);
+    if(allWrapped && withinMinutesWindow(night.getTime(), nowMs, 30)){
+      candidates.push({
+        timingType: "night", familyMemberId: "", eventId: "",
+        category: "", priorityScore: 30,
+        message: "今日は全部終わったね😊 お疲れさま。",
+      });
+    }
+  }
+  const afterHome = new Date(now); afterHome.setHours(18, 0, 0, 0);
+  if(withinMinutesWindow(afterHome.getTime(), nowMs, 30) && todayEvents.some(ev => ev.status === "done")){
+    candidates.push({
+      timingType: "afterHome", familyMemberId: "", eventId: "",
+      category: "", priorityScore: 25,
+      message: "今日はどうだった？思い出を残しておく？",
+    });
+  }
+
+  return candidates.sort((a, b) => b.priorityScore - a.priorityScore);
+}
+
+/* 同じ予定・同じタイミング種別・同じ日については二重に記録/通知
+   しない(setIntervalで何度も再評価するため、重複防止が必須)。 */
+function notificationAlreadyRecorded(candidate, dateKey){
+  return aiNotifications.some(n =>
+    n.timingType === candidate.timingType &&
+    n.eventId === candidate.eventId &&
+    n.familyMemberId === candidate.familyMemberId &&
+    (n.dateKey || "") === dateKey
+  );
+}
+
+async function runAiNotificationCheck(now = new Date()){
+  if(!notificationsLoaded) await loadAiNotifications();
+  const dateKey = now.toDateString();
+  const candidates = evaluateAiNoticeCandidates(now);
+  const fresh = candidates.filter(c => !notificationAlreadyRecorded(c, dateKey));
+  for(const c of fresh){
+    const entry = {
+      id: wwGenerateId(),
+      timingType: c.timingType,
+      familyMemberId: c.familyMemberId,
+      eventId: c.eventId,
+      category: c.category,
+      priorityScore: c.priorityScore,
+      message: c.message,
+      dateKey,
+      delivered: false,
+      createdAt: new Date().toISOString(),
+    };
+    entry.delivered = deliverWebNotification("ケイオスちゃん＋", c.message);
+    try{ await NotificationStore.add(entry); }catch(e){ /* 保存に失敗しても通知自体は継続する */ }
+    aiNotifications.unshift(entry);
+  }
+  if(fresh.length) renderNotificationHistory();
+  return fresh;
+}
+
+/* Phase26: ホームの「今日AIが気付いたこと」で使う、より広い候補。
+   Phase25のevaluateAiNoticeCandidates()(時刻ウィンドウ厳密判定)とは
+   別に、"今アプリを開いたときに見せて意味がある"候補を返す
+   (時刻に関係なく、今日〜明日の重要な予定・未確認の高優先度予定・
+   しばらく話題に出ていない家族への声かけ、を返す)。通知エンジンと
+   優先度計算(eventPriorityScore/categoryPriorityStars)は共通利用し、
+   判定ロジックを二重実装しない。 */
+function analyzeFamilyMemberInsights(member){
+  const insights = [];
+  const events = eventsForMember(member.id);
+  const now = Date.now();
+  const within14Days = ts => ts && (now - new Date(ts).getTime()) <= 14 * 86400000;
+  const recentEvents = events.filter(ev => within14Days(ev.createdAt));
+  if(recentEvents.length >= 4){
+    insights.push(`最近${member.name}の予定が増えているみたい`);
+  }
+  const careEvents = recentEvents.filter(ev => ev.category === "介護" || ev.category === "病院");
+  if((member.relationType === "careReceiver" || member.relationType === "grandparent") && careEvents.length >= 3){
+    insights.push(`${member.name}の介護・通院の予定が増えてきたね`);
+  }
+  const schoolEvents = events.filter(ev => (ev.category === "学校" || ev.category === "子育て") && ev.datetime && ev.status !== "done" && ev.status !== "skipped");
+  const soonSchool = schoolEvents.find(ev => {
+    const days = (new Date(ev.datetime).getTime() - now) / 86400000;
+    return days >= 0 && days <= 3;
+  });
+  if(soonSchool){
+    insights.push(`${member.name}の${soonSchool.title}が近いよ`);
+  }
+  const lastEventAt = events.map(ev => ev.updatedAt || ev.createdAt).filter(Boolean).sort().pop();
+  const noRecentActivity = !lastEventAt || (now - new Date(lastEventAt).getTime()) > 10 * 86400000;
+  if(noRecentActivity && (member.relationType === "grandparent" || member.relationType === "careReceiver")){
+    insights.push(`${member.name}にしばらく連絡してないかも。声をかけてみる？`);
+  }
+  return insights.slice(0, 2);
+}
+
+function getTodayAiInsights(){
+  if(notificationModeGet() === "off") return [];
+  const now = new Date();
+  const items = [];
+
+  const todayOrTomorrow = familyEvents.filter(ev => {
+    if(!ev.datetime || ev.status === "done" || ev.status === "skipped") return false;
+    const days = (new Date(ev.datetime).getTime() - now.getTime()) / 86400000;
+    return days >= -0.5 && days <= 1.5;
+  });
+  todayOrTomorrow.forEach(ev => {
+    if(!passesNotificationModeFilter(ev)) return;
+    const name = familyMemberName(ev.familyMemberId);
+    const isToday = new Date(ev.datetime).toDateString() === now.toDateString();
+    items.push({
+      score: eventPriorityScore(ev) + (isToday ? 5 : 0),
+      message: `${isToday ? "今日" : "明日"}は${name ? name + "の" : ""}${ev.title}の日だよ${isToday ? "😊" : ""}`,
+    });
+    if((ev.history || []).some(h => h.status === "later") && ev.status === "pending"){
+      items.push({ score: eventPriorityScore(ev) + 8, message: `${name ? name + "の" : ""}${ev.title}の確認がまだだよ。` });
+    }
+  });
+
+  familyMembers.forEach(member => {
+    analyzeFamilyMemberInsights(member).forEach(text => {
+      items.push({ score: 15, message: text });
+    });
+  });
+
+  const seen = new Set();
+  const ranked = items.sort((a, b) => b.score - a.score).filter(i => {
+    if(seen.has(i.message)) return false;
+    seen.add(i.message);
+    return true;
+  });
+  return ranked.slice(0, 3).map(i => i.message);
+}
+
+/* ---------- 通知設定UI(わたし画面) ---------- */
+function renderNotificationModeChips(){
+  const root = document.getElementById("notificationModeChipRow");
+  if(!root) return;
+  root.innerHTML = "";
+  const current = notificationModeGet();
+  NOTIFICATION_MODES.forEach(mode => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "filterbtn" + (current === mode.key ? " active" : "");
+    btn.textContent = mode.label;
+    btn.addEventListener("click", () => {
+      notificationModeSet(mode.key);
+      renderNotificationModeChips();
+      renderHomeAiNoticeCard();
+      showToast("通知設定を変更したよ");
+    });
+    root.appendChild(btn);
+  });
+}
+function renderNotificationPermissionRow(){
+  const row = document.getElementById("notificationPermissionRow");
+  if(!row) return;
+  if(!webNotificationSupported()){
+    row.style.display = "none";
+    return;
+  }
+  if(Notification.permission === "granted"){
+    row.querySelector("p").textContent = "端末への通知が有効になっています";
+    row.querySelector("button").style.display = "none";
+  }else{
+    row.style.display = "block";
+    row.querySelector("p").textContent = "端末への通知はまだ有効になっていません(任意)";
+    row.querySelector("button").style.display = "block";
+  }
+}
+function renderNotificationHistory(){
+  const root = document.getElementById("notificationHistoryBody");
+  if(!root) return;
+  if(!aiNotifications.length){
+    root.innerHTML = `<p class="mind-empty-note" style="text-align:center; margin:16px 0;">まだ通知の記録がありません。</p>`;
+    return;
+  }
+  root.innerHTML = aiNotifications.slice(0, 30).map(n => {
+    const timingLabel = (NOTIFICATION_TIMING_META[n.timingType] || {}).label || "";
+    const name = familyMemberName(n.familyMemberId);
+    const when = n.createdAt ? new Date(n.createdAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return `<div class="card notification-card">
+      <div class="event-card-meta">${escapeHtml(when)}${timingLabel ? "・" + escapeHtml(timingLabel) : ""}${name ? "・" + escapeHtml(name) : ""}</div>
+      <p style="font-size:14px;">${escapeHtml(n.message)}</p>
+    </div>`;
+  }).join("");
+}
+document.getElementById("btnNotificationHistoryOpen").addEventListener("click", async () => {
+  if(!notificationsLoaded) await loadAiNotifications();
+  renderNotificationHistory();
+  document.getElementById("notificationHistoryModal").classList.add("show");
+});
+document.getElementById("notificationHistoryClose").addEventListener("click", () => {
+  document.getElementById("notificationHistoryModal").classList.remove("show");
+});
+document.getElementById("notificationHistoryModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "notificationHistoryModal") document.getElementById("notificationHistoryModal").classList.remove("show");
+});
+document.getElementById("btnEnableWebNotification").addEventListener("click", async () => {
+  const result = await requestWebNotificationPermission();
+  renderNotificationPermissionRow();
+  if(result === "granted") showToast("通知を有効にしたよ");
+  else if(result === "denied") showToast("通知はブラウザ側で許可されなかったよ");
+});
+document.getElementById("btnRunNotificationCheckNow").addEventListener("click", async () => {
+  const fresh = await runAiNotificationCheck();
+  showToast(fresh.length ? `${fresh.length}件、新しい気づきがあったよ` : "今のところ新しい気づきはなかったよ");
+});
+
+/* ---------- ホームの「今日AIが気付いたこと」(おうちサポートモード) ---------- */
+function renderHomeAiNoticeCard(){
+  const card = document.getElementById("homeAiNoticeCard");
+  const list = document.getElementById("homeAiNoticeList");
+  if(!card || !list) return;
+  const insights = getTodayAiInsights();
+  if(!insights.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  list.innerHTML = insights.map(text => `<p class="home-ai-notice-item">💡 ${escapeHtml(text)}</p>`).join("");
+}
+
+/* タブが開いている間だけの簡易チェッカー。1分ごとに再評価する
+   (サーバー側スケジューラ/Service Workerは今回実装しない)。 */
+const AI_NOTIFICATION_CHECK_INTERVAL_MS = 60000;
+let aiNotificationCheckTimer = null;
+function startAiNotificationChecker(){
+  if(aiNotificationCheckTimer) return;
+  aiNotificationCheckTimer = window.setInterval(() => { runAiNotificationCheck(); }, AI_NOTIFICATION_CHECK_INTERVAL_MS);
+}
 
 /* =========================================================
    少し先の未来(Phase4)
@@ -6787,9 +7444,13 @@ renderHomeStep();
 renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
+renderNotificationModeChips();
+renderNotificationPermissionRow();
 loadWakuwakuEntries();
 loadFamilyMembers();
 loadFamilyEvents();
+loadAiNotifications();
+startAiNotificationChecker();
 if(prefNameGet() === null) openNameModal("first");
 </script>
 </body>
