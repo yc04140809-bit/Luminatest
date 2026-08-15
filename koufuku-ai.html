@@ -410,6 +410,18 @@ textarea{ font-family:inherit; }
 .timeline-untimed-label{ font-size:12.5px; font-weight:700; color:var(--text-sub); margin:10px 0 4px; }
 .timeline-comment{ font-size:13.5px; line-height:1.7; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 
+/* ---------- AI Life Planner(Phase39) ---------- */
+.life-plan-card{ background:linear-gradient(135deg,#eef5ff 0%,#fff0f5 100%); border-color:transparent; }
+.life-plan-row{ padding:8px 0; border-bottom:1px dashed var(--border); }
+.life-plan-row:last-child{ border-bottom:none; padding-bottom:0; }
+.life-plan-period{ font-size:13px; font-weight:700; margin:0 0 2px; }
+.life-plan-message{ font-size:13.5px; line-height:1.6; margin:0; color:var(--text); }
+
+/* ---------- AI Priority Engine(Phase40) ---------- */
+.priority-card{ background:linear-gradient(135deg,#fff0e8 0%,#ffe8ef 100%); border-color:transparent; }
+.priority-message{ font-size:14px; line-height:1.7; margin:0 0 10px; }
+.priority-message:last-child{ margin-bottom:0; }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -799,6 +811,28 @@ textarea.field-input{ resize:none; }
         </div>
         <p class="achievement-trend" id="achievementTrend" style="display:none;"></p>
         <p class="achievement-comment" id="achievementComment" style="display:none;"></p>
+      </div>
+
+      <!-- Phase39: AI Life Planner。「最近の成長」カードの下に「今日の
+           おすすめプラン」カードを1枚だけ追加する。午前/午後/夜の3件を
+           常にまとめて表示する点がPhase34(今の時間帯の内容だけを出す
+           今日のルミナ)との違い。利用データは予定/今日のルミナ/幸せ
+           スコア/AI習慣/最近の成長/通知/家族予定/ワクワク/一歩のみで、
+           新しい推測・診断は行わない。 -->
+      <div class="card life-plan-card" id="homeLifePlanCard" style="display:none;">
+        <div class="card-label">🗓️ 今日のおすすめプラン</div>
+        <div id="homeLifePlanList"></div>
+      </div>
+
+      <!-- Phase40: AI Priority Engine。今日のおすすめプランの下に「今日
+           の最優先」カードを1枚だけ追加する。家族予定→期限付き予定→
+           通知→一歩→ワクワク→振り返りの優先順位で1件だけ選ぶ。行動できる
+           対象がある時だけ、Phase33のdispatchAiAction()をそのまま
+           使ってボタンを表示する(新しい遷移ロジックは作らない)。 -->
+      <div class="card priority-card" id="homePriorityCard" style="display:none;">
+        <div class="card-label">🎯 今日の最優先</div>
+        <p class="priority-message" id="priorityMessage"></p>
+        <button type="button" class="filterbtn ai-action-btn" id="priorityActionBtn" style="display:none;"></button>
       </div>
 
       <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
@@ -5249,15 +5283,18 @@ function generateTodayAiAdvice(){
 }
 
 function renderHomeAiAdviceCard(){
-  /* Phase34/35/37: 今日のルミナカード・幸せスコアカード・最近の成長
-     カードは通知ON/OFFやアドバイス有無に関係なく常に表示するため、
-     このカードのdisplay判定より前に呼ぶ。renderHomeAiAdviceCard()は
-     家族/予定/ワクワクの読み込み完了後やモード切替のたびに必ず呼ばれる
-     既存のフックなので、ここに便乗させて新しい呼び出し箇所を5箇所以上
-     増やさないようにする(呼び出し漏れ防止・重複実装回避)。 */
+  /* Phase34/35/37/39/40: 今日のルミナ・幸せスコア・最近の成長・今日の
+     おすすめプラン・今日の最優先の各カードは通知ON/OFFやアドバイス
+     有無に関係なく常に表示するため、このカードのdisplay判定より前に
+     呼ぶ。renderHomeAiAdviceCard()は家族/予定/ワクワクの読み込み完了後
+     やモード切替のたびに必ず呼ばれる既存のフックなので、ここに便乗
+     させて新しい呼び出し箇所を5箇所以上増やさないようにする
+     (呼び出し漏れ防止・重複実装回避)。 */
   renderHomeDailyLuminaCard();
   renderHomeHappinessScoreCard();
   renderHomeAchievementCard();
+  renderHomeLifePlanCard();
+  renderHomePriorityCard();
   const card = document.getElementById("homeAiAdviceCard");
   const list = document.getElementById("homeAiAdviceList");
   if(!card || !list) return;
@@ -6006,6 +6043,158 @@ function renderFutureTimelineCard(){
   const comment = generateTimelineComment(timed);
   commentEl.textContent = comment;
   commentEl.style.display = comment ? "block" : "none";
+}
+
+/* =========================================================
+   Phase39: AI Life Planner(今日のおすすめプラン)
+   - 新画面は作らず、ホームの「最近の成長」カードの下に「今日の
+     おすすめプラン」カードを1枚だけ追加する。午前/午後/夜の3件を
+     常にまとめて表示する点が、今の時間帯の内容だけを出すPhase34の
+     「今日のルミナ」との違い。
+   - 利用データは予定(familyEvents)/今日のルミナ(generateDailyLumina
+     Content)/幸せスコア(generateHappinessScore)/AI習慣(isWakuwaku
+     Stale)/ワクワク/一歩(stepLogRead)のみ。指示書が挙げる「AI習慣/
+     最近の成長/通知」は、既存の判定関数(isWakuwakuStale等)を再利用
+     する形で間接的に反映し、新しい集計ロジックは増やさない
+     (重複実装禁止)。
+   ========================================================= */
+function generateMorningPlanItem(now){
+  const todayMorningEvents = familyEvents
+    .filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now) && getDayBand(new Date(ev.datetime)) === "morning" && (ev.status === "pending" || ev.status === "later"))
+    .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)));
+  if(todayMorningEvents.length){
+    const ev = todayMorningEvents[0];
+    const name = familyMemberName(ev.familyMemberId);
+    const minsUntil = Math.round((new Date(ev.datetime).getTime() - now.getTime()) / 60000);
+    if(minsUntil > 0 && minsUntil <= 180){
+      return `${name ? name + "の" : ""}${ev.title}まで${minsUntil}分あります。ワクワクを1件追加しませんか？`;
+    }
+    return `${name ? name + "の" : ""}${ev.title}の準備を確認しておきましょう。`;
+  }
+  if(isWakuwakuStale()) return "午前中に、ワクワクを1つ書き留めてみませんか？";
+  return "午前中は落ち着いて過ごせそうです。";
+}
+function generateAfternoonPlanItem(now){
+  const todayAfternoonEvents = familyEvents.filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now) && getDayBand(new Date(ev.datetime)) === "afternoon");
+  if(todayAfternoonEvents.length >= 2){
+    return "予定が集中しています。移動前に休憩しましょう。";
+  }
+  if(todayAfternoonEvents.length === 1){
+    const name = familyMemberName(todayAfternoonEvents[0].familyMemberId);
+    return `${name ? name + "の" : ""}${todayAfternoonEvents[0].title}に向けて、無理のないペースで進めましょう。`;
+  }
+  return "午後は落ち着いて過ごせそうです。";
+}
+function generateNightPlanItem(now){
+  /* Phase35の幸せスコアをそのまま再利用し、夜の一言を選ぶ
+     (スコア算出ロジックを2重に持たない)。 */
+  const { score } = generateHappinessScore(now);
+  if(score >= 70) return "今日は頑張りました。振り返りを記録しましょう。";
+  if(score >= 50) return "今日もお疲れさまでした。少しゆっくり過ごしてくださいね。";
+  return "今日は無理せず、早めに休むのがおすすめです。";
+}
+function generateLifePlan(now = new Date()){
+  return [
+    { period: "①午前", icon: "🌅", message: generateMorningPlanItem(now) },
+    { period: "②午後", icon: "🌤", message: generateAfternoonPlanItem(now) },
+    { period: "③夜", icon: "🌙", message: generateNightPlanItem(now) },
+  ];
+}
+function renderHomeLifePlanCard(){
+  const card = document.getElementById("homeLifePlanCard");
+  const list = document.getElementById("homeLifePlanList");
+  if(!card || !list) return;
+
+  /* 判定材料が何も無ければ(初回起動時など)、根拠のないプランを
+     出さないようカードごと非表示にする(推測禁止)。 */
+  if(!familyEvents.length && !(wakuwakuEntries || []).length && !stepLogRead().length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  const plan = generateLifePlan();
+  list.innerHTML = plan.map(p => `
+    <div class="life-plan-row">
+      <p class="life-plan-period">${p.icon} ${escapeHtml(p.period)}</p>
+      <p class="life-plan-message">${escapeHtml(p.message)}</p>
+    </div>`).join("");
+}
+
+/* =========================================================
+   Phase40: AI Priority Engine(今日の最優先)
+   - 新画面は作らず、ホームの「今日のおすすめプラン」カードの下に
+     「今日の最優先」カードを1枚だけ追加する。指示書どおりの優先順位
+     (家族予定→期限付き予定→通知→一歩→ワクワク→振り返り)で、最初に
+     条件を満たした1件だけを選ぶ。
+   - 行動できる対象がある時だけ、Phase33で作ったdispatchAiAction()を
+     そのまま呼ぶボタンを出す(新しい画面遷移ロジックは増やさない)。
+   ========================================================= */
+function generateTopPriority(now = new Date()){
+  const nowMs = now.getTime();
+
+  /* ①家族予定: 今日の介護/病院/子育て/学校カテゴリの未確認予定 */
+  const familyToday = familyEvents
+    .filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now) && (ev.status === "pending" || ev.status === "later") && (CARE_CATEGORY_GROUP.includes(ev.category) || CHILDCARE_CATEGORY_GROUP.includes(ev.category)))
+    .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)))[0];
+  if(familyToday){
+    const name = familyMemberName(familyToday.familyMemberId);
+    return { message: `${name ? name + "の" : ""}${familyToday.title}があります。まずはこちらを終わらせましょう。`, action: { type: "event", eventId: familyToday.id, label: "予定を確認" } };
+  }
+
+  /* ②期限付き予定: カテゴリを問わず今日中の未確認予定 */
+  const dueToday = familyEvents
+    .filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now) && (ev.status === "pending" || ev.status === "later"))
+    .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)))[0];
+  if(dueToday){
+    const name = familyMemberName(dueToday.familyMemberId);
+    return { message: `${name ? name + "の" : ""}${dueToday.title}が今日の予定です。まずはこちらを終わらせましょう。`, action: { type: "event", eventId: dueToday.id, label: "予定を確認" } };
+  }
+
+  /* ③通知: 直近24時間に届いた通知のうち優先度が最も高いもの */
+  const topNotif = aiNotifications
+    .filter(n => n.createdAt && (nowMs - new Date(n.createdAt).getTime()) < 24 * 3600000)
+    .sort((a, b) => (b.priorityScore || 0) - (a.priorityScore || 0))[0];
+  if(topNotif){
+    return { message: `${topNotif.message} まずはこちらを確認しましょう。`, action: null };
+  }
+
+  /* ④一歩: 今日まだ記録が無ければ */
+  const stepToday = stepLogRead().some(r => r.completedAt && isSameCalendarDate(new Date(r.completedAt), now));
+  if(!stepToday){
+    return { message: "今日の小さな一歩を、まず1つ試してみましょう。", action: { type: "step", label: "一歩を見る" } };
+  }
+
+  /* ⑤ワクワク: 直近しばらく登録が無ければ(Phase30/32/36と同じ
+     isWakuwakuStale()を再利用) */
+  if(isWakuwakuStale()){
+    return { message: "ワクワクを1つ、書き留めてみましょう。", action: { type: "wakuwaku", label: "ワクワク追加" } };
+  }
+
+  /* ⑥振り返り: ここまで何も該当しなければ、今日の振り返りを提案 */
+  return { message: "今日一日を、少し振り返ってみましょう。", action: { type: "chat", prefillMessage: "今日を振り返りたいな", label: "チャットで話す" } };
+}
+function renderHomePriorityCard(){
+  const card = document.getElementById("homePriorityCard");
+  const msgEl = document.getElementById("priorityMessage");
+  const btnEl = document.getElementById("priorityActionBtn");
+  if(!card || !msgEl || !btnEl) return;
+
+  /* 判定材料が何も無ければ(初回起動時など)カードごと非表示にする
+     (指示書の「データ不足時: カード非表示」に対応)。 */
+  if(!familyMembers.length && !familyEvents.length && !(wakuwakuEntries || []).length && !stepLogRead().length && !aiNotifications.length){
+    card.style.display = "none";
+    return;
+  }
+  const priority = generateTopPriority();
+  card.style.display = "block";
+  msgEl.textContent = priority.message;
+  if(priority.action){
+    btnEl.style.display = "inline-block";
+    btnEl.textContent = `【${priority.action.label || AI_ACTION_DEFAULT_LABEL[priority.action.type] || "見てみる"}】`;
+    btnEl.onclick = () => dispatchAiAction(priority.action);
+  }else{
+    btnEl.style.display = "none";
+  }
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
