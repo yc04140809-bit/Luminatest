@@ -364,6 +364,33 @@ textarea{ font-family:inherit; }
 .daily-lumina-body p{ font-size:13.5px; line-height:1.8; margin:0 0 4px; }
 .daily-lumina-body p:last-child{ margin-bottom:0; }
 
+/* ---------- AI Happiness Score Engine(Phase35) ---------- */
+.happiness-score-card{ background:linear-gradient(135deg,#fff9e8 0%,#fff0f0 100%); border-color:transparent; }
+.happiness-score-row{ display:flex; align-items:center; gap:14px; }
+.happiness-gauge{
+  flex:none; width:84px; height:84px; border-radius:50%;
+  background:conic-gradient(var(--happiness-color,#7ac97a) calc(var(--happiness-score,0)*1%), #e8e4da 0);
+  display:flex; align-items:center; justify-content:center;
+}
+.happiness-gauge-inner{
+  width:66px; height:66px; border-radius:50%; background:#fff;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.happiness-gauge-emoji{ font-size:18px; line-height:1.2; }
+.happiness-gauge-score{ font-size:15px; font-weight:700; line-height:1.3; }
+.happiness-score-info{ flex:1; min-width:0; }
+.happiness-band-label{ font-size:13.5px; font-weight:700; margin:0 0 2px; }
+.happiness-score-trend{ font-size:12.5px; color:var(--text-sub); margin:0 0 4px; }
+.happiness-score-comment{ font-size:13px; line-height:1.6; margin:0; }
+
+/* ---------- AI Habit Engine(Phase36) ---------- */
+.habit-card{ background:linear-gradient(135deg,#f0fbe9 0%,#e9f7f4 100%); border-color:transparent; }
+.habit-section-label{ font-size:12.5px; font-weight:700; color:var(--text-sub); margin:10px 0 4px; }
+.habit-section-label:first-child{ margin-top:0; }
+.habit-item{ font-size:13.5px; line-height:1.7; margin:0 0 4px; }
+.habit-item:last-child{ margin-bottom:0; }
+.habit-comment{ font-size:13.5px; line-height:1.7; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -715,6 +742,30 @@ textarea.field-input{ resize:none; }
         <div class="daily-lumina-body" id="dailyLuminaBody"></div>
       </div>
 
+      <!-- Phase35: AI Happiness Score Engine。今日のルミナカードの下に、
+           アプリ内だけの独自指標として0〜100点のゲージを1枚だけ表示する。
+           医療/精神的な診断ではなく、既存データから算出したアプリ内目安
+           であることが伝わるよう「幸せスコア」という名前にしている。
+           推移グラフは追加せず、現在値のゲージ表示のみ(指示書どおり)。
+           Phase30/33/34と同じく、モードに関係なく常に表示したいので、
+           あえてどちらのmode content divにも属さない位置に置く。 -->
+      <div class="card happiness-score-card" id="homeHappinessScoreCard" style="display:none;">
+        <div class="card-label">💛 今日の幸せスコア</div>
+        <div class="happiness-score-row">
+          <div class="happiness-gauge" id="happinessGauge">
+            <div class="happiness-gauge-inner">
+              <span class="happiness-gauge-emoji" id="happinessEmoji"></span>
+              <span class="happiness-gauge-score" id="happinessScoreNum"></span>
+            </div>
+          </div>
+          <div class="happiness-score-info">
+            <p class="happiness-band-label" id="happinessBandLabel"></p>
+            <p class="happiness-score-trend" id="happinessTrend"></p>
+            <p class="happiness-score-comment" id="happinessComment"></p>
+          </div>
+        </div>
+      </div>
+
       <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
            新しいDBは追加せず、localStorageに選択中モードを1件保持するのみ。
            ホーム画面の中身をまるごと出し分けるだけで、ワクワク/未来/
@@ -956,6 +1007,25 @@ textarea.field-input{ resize:none; }
       <div class="card future-ai-analysis-card" id="futurePredictionCard" style="display:none;">
         <div class="card-label">🔮 AI予測</div>
         <div id="futurePredictionList"></div>
+      </div>
+
+      <!-- Phase36: AI習慣カード。AI予測カードの下に、続いている習慣/
+           止まった習慣を表示する。判定はfamilyEvents/wakuwakuEntries/
+           stepLogRead()/aiMemoryFactsの実際の日付だけを使い、7日/30日の
+           活動日数で継続・停止を判定する(新しい推測は禁止。データが
+           一度も無い習慣は「止まっている」とは言わず、判定対象から
+           外す)。 -->
+      <div class="card habit-card" id="futureHabitCard" style="display:none;">
+        <div class="card-label">🔁 AI習慣</div>
+        <div id="futureHabitContinuingSection" style="display:none;">
+          <p class="habit-section-label">最近続いています</p>
+          <div id="futureHabitContinuingList"></div>
+        </div>
+        <div id="futureHabitStoppedSection" style="display:none;">
+          <p class="habit-section-label">最近止まっています</p>
+          <div id="futureHabitStoppedList"></div>
+        </div>
+        <p class="habit-comment" id="futureHabitComment" style="display:none;"></p>
       </div>
 
       <!-- Phase33: AI Action Engine。AI予測カードの下に、行動できる
@@ -5132,13 +5202,14 @@ function generateTodayAiAdvice(){
 }
 
 function renderHomeAiAdviceCard(){
-  /* Phase34: 今日のルミナカードは通知ON/OFFやアドバイス有無に関係なく
-     常に表示するため、このカードのdisplay判定より前に呼ぶ。
-     renderHomeAiAdviceCard()は家族/予定/ワクワクの読み込み完了後や
-     モード切替のたびに必ず呼ばれる既存のフックなので、ここに便乗
-     させて新しい呼び出し箇所を5箇所以上増やさないようにする
+  /* Phase34/35: 今日のルミナカード・幸せスコアカードは通知ON/OFFや
+     アドバイス有無に関係なく常に表示するため、このカードのdisplay
+     判定より前に呼ぶ。renderHomeAiAdviceCard()は家族/予定/ワクワクの
+     読み込み完了後やモード切替のたびに必ず呼ばれる既存のフックなので、
+     ここに便乗させて新しい呼び出し箇所を5箇所以上増やさないようにする
      (呼び出し漏れ防止・重複実装回避)。 */
   renderHomeDailyLuminaCard();
+  renderHomeHappinessScoreCard();
   const card = document.getElementById("homeAiAdviceCard");
   const list = document.getElementById("homeAiAdviceList");
   if(!card || !list) return;
@@ -5293,6 +5364,11 @@ function generateFuturePredictions(){
 }
 
 function renderFuturePredictionCard(){
+  /* Phase36: AI習慣カードもAI予測と同じタイミング(未来画面表示・
+     家族/予定の読み込み完了後)で更新したいので、既存の呼び出し箇所
+     (renderFutureView/loadFamilyMembers/loadFamilyEvents/
+     setEventStatus)すべてに便乗させ、新しい呼び出し箇所を増やさない。 */
+  renderFutureHabitCard();
   const card = document.getElementById("futurePredictionCard");
   const list = document.getElementById("futurePredictionList");
   if(!card || !list) return;
@@ -5475,6 +5551,213 @@ function renderHomeDailyLuminaCard(){
   iconEl.textContent = content.icon;
   body.innerHTML = content.lines.map(line => `<p>${escapeHtml(line)}</p>`).join("");
   card.style.display = "block";
+}
+
+/* =========================================================
+   Phase35: AI Happiness Score Engine(今日の幸せスコア)
+   - 新画面は作らず、ホームの「今日のルミナ」カードの下に、0〜100点の
+     ゲージを1枚だけ追加する。医療/精神的な診断ではなく、あくまで
+     アプリ内データから算出した独自の目安。推移グラフは追加せず、
+     現在値のゲージ表示のみ。
+   - 集計はcomputeEventStatsForRange()/CARE_CATEGORY_GROUP/
+     CHILDCARE_CATEGORY_GROUP/stepLogRead()/aiMemoryFactsをそのまま
+     再利用し、新しい集計ロジックはスコア合成の部分だけに絞る
+     (重複実装禁止)。位置情報・GPS・歩数・運動量などこのアプリが
+     取得していないデータは一切使わない。
+   ========================================================= */
+function clampNum(v, min, max){
+  return Math.max(min, Math.min(max, v));
+}
+/* 指定期間のスコアだけを算出する純粋関数。「先週より+6」のような
+   週比較は、この関数を今週/先週の2つの期間でそれぞれ呼んで差分を
+   取るだけにし、スコア算出ロジック自体を2重に持たない。 */
+function computeHappinessScoreForWindow(sinceMs, untilMs){
+  const eventStats = computeEventStatsForRange(familyEvents, sinceMs, untilMs);
+  const inWindow = (iso) => {
+    if(!iso) return false;
+    const t = new Date(iso).getTime();
+    return !isNaN(t) && t >= sinceMs && t <= untilMs;
+  };
+  const wakuwakuCount = (wakuwakuEntries || []).filter(e => inWindow(e.createdAt)).length;
+  const stepCount = stepLogRead().filter(r => inWindow(r.completedAt)).length;
+
+  /* 家族予定(介護/病院/子育て/学校カテゴリ)の達成率 */
+  const familyCategoryEvents = eventStats.events.filter(ev => CARE_CATEGORY_GROUP.includes(ev.category) || CHILDCARE_CATEGORY_GROUP.includes(ev.category));
+  const familyDone = familyCategoryEvents.filter(ev => ev.status === "done" || ev.status === "confirmed").length;
+  const familyDoneRate = familyCategoryEvents.length ? (familyDone / familyCategoryEvents.length) * 100 : null;
+
+  /* 「AI Memoryが前向き」= Phase29で学習した「好きな物」の記録が
+     この期間に更新されているかどうか(断定的な感情分析はしない、
+     あくまで記録件数という実データだけを見る) */
+  const positiveMemoryCount = aiMemoryFacts.filter(f => f.type === "好きな物" && inWindow(f.updatedAt)).length;
+
+  let score = 50;
+  if(eventStats.total > 0) score += clampNum((eventStats.doneRate - 50) * 0.3, -15, 15);
+  score += clampNum(wakuwakuCount * 4, 0, 16);
+  score += clampNum(stepCount * 3, 0, 12);
+  if(familyDoneRate !== null) score += clampNum((familyDoneRate - 50) * 0.2, -10, 10);
+  score -= clampNum(eventStats.overdueCount * 4, 0, 20);
+  score += clampNum(positiveMemoryCount * 2, 0, 10);
+  return Math.round(clampNum(score, 0, 100));
+}
+const HAPPINESS_SCORE_BANDS = [
+  { min: 90, max: 100, label: "絶好調", emoji: "😆", comment: "今日もとてもいい調子です✨", color: "#4cc98a" },
+  { min: 70, max: 89, label: "順調", emoji: "😊", comment: "今日もいい流れです。", color: "#7ac97a" },
+  { min: 50, max: 69, label: "少し疲れ気味", emoji: "😐", comment: "少しゆっくりめのペースでも大丈夫ですよ。", color: "#e6b84a" },
+  { min: 30, max: 49, label: "休息推奨", emoji: "😥", comment: "今日は休憩を優先してみてくださいね。", color: "#e68a4a" },
+  { min: 0, max: 29, label: "今日は無理しない日", emoji: "🫂", comment: "今日は本当に無理しないでくださいね。", color: "#c97a9c" },
+];
+function happinessScoreBand(score){
+  return HAPPINESS_SCORE_BANDS.find(b => score >= b.min && score <= b.max) || HAPPINESS_SCORE_BANDS[2];
+}
+function generateHappinessScore(now = new Date()){
+  const nowMs = now.getTime();
+  const score = computeHappinessScoreForWindow(nowMs - 7 * 86400000, nowMs);
+  const lastWeekScore = computeHappinessScoreForWindow(nowMs - 14 * 86400000, nowMs - 7 * 86400000);
+  return { score, diff: score - lastWeekScore, band: happinessScoreBand(score) };
+}
+
+function renderHomeHappinessScoreCard(){
+  const card = document.getElementById("homeHappinessScoreCard");
+  const gauge = document.getElementById("happinessGauge");
+  const emojiEl = document.getElementById("happinessEmoji");
+  const scoreEl = document.getElementById("happinessScoreNum");
+  const labelEl = document.getElementById("happinessBandLabel");
+  const trendEl = document.getElementById("happinessTrend");
+  const commentEl = document.getElementById("happinessComment");
+  if(!card || !gauge || !emojiEl || !scoreEl || !labelEl || !trendEl || !commentEl) return;
+
+  /* 判定材料が何も無ければ(データが空の初回起動時など)、根拠のない
+     点数を表示しないよう、カードごと非表示にする(推測・断定の禁止)。 */
+  if(!familyEvents.length && !(wakuwakuEntries || []).length && !stepLogRead().length){
+    card.style.display = "none";
+    return;
+  }
+
+  const { score, diff, band } = generateHappinessScore();
+  card.style.display = "block";
+  gauge.style.setProperty("--happiness-score", score);
+  gauge.style.setProperty("--happiness-color", band.color);
+  emojiEl.textContent = band.emoji;
+  scoreEl.textContent = `${score}点`;
+  labelEl.textContent = band.label;
+  trendEl.textContent = diff === 0 ? "先週と同じくらいです" : (diff > 0 ? `先週より＋${diff}` : `先週より${diff}`);
+  commentEl.textContent = band.comment;
+}
+
+/* =========================================================
+   Phase36: AI Habit Engine(AI習慣)
+   - 新画面は作らず、未来画面のAI予測カードの下に「続いている習慣/
+     止まった習慣」を1枚のカードで表示する。
+   - 判定対象はfamilyEvents(予定・家族予定)/wakuwakuEntries(ワクワク)/
+     stepLogRead()(一歩)/aiMemoryFacts(Memory)の実データのタイムスタンプ
+     だけを使う(通知はaiNotificationsとの重複回避にのみ使う。
+     Phase32のdedupパターンと同じ考え方)。
+   - そのデータが1件も無い項目は「止まっている」と判定せず判定対象から
+     外す(一度も使っていない機能を「やめた」と決めつけない=新しい
+     推測の禁止)。
+   ========================================================= */
+function distinctActiveDayCount(timestamps, sinceMs, untilMs){
+  const days = new Set();
+  timestamps.forEach(ts => {
+    const t = new Date(ts).getTime();
+    if(!isNaN(t) && t >= sinceMs && t <= untilMs) days.add(new Date(ts).toDateString());
+  });
+  return days.size;
+}
+function daysSinceLastActivity(timestamps, now){
+  const valid = timestamps.map(ts => new Date(ts).getTime()).filter(t => !isNaN(t) && t <= now.getTime());
+  if(!valid.length) return Infinity;
+  return (now.getTime() - Math.max(...valid)) / 86400000;
+}
+const HABIT_DEFINITIONS = [
+  {
+    key: "eventCheck", label: "予定確認",
+    stoppedSuggestion: "予定を1つだけ確認してみませんか？",
+    getTimestamps: () => familyEvents.flatMap(ev => (ev.history || []).map(h => h.at)).filter(Boolean),
+  },
+  {
+    key: "familyEvent", label: "家族予定の実行",
+    stoppedSuggestion: "家族の予定を1つ見てみませんか？",
+    /* 「予定確認」habitとの重複を避けるため、介護/病院/子育て/学校
+       カテゴリ(CARE_CATEGORY_GROUP/CHILDCARE_CATEGORY_GROUP)の予定に
+       絞る。カテゴリを問わない全予定は既にeventCheck habitが見ている。 */
+    getTimestamps: () => familyEvents
+      .filter(ev => (CARE_CATEGORY_GROUP.includes(ev.category) || CHILDCARE_CATEGORY_GROUP.includes(ev.category)) && (ev.status === "done" || ev.status === "confirmed"))
+      .map(ev => ev.updatedAt).filter(Boolean),
+  },
+  {
+    key: "wakuwaku", label: "ワクワク登録",
+    stoppedSuggestion: "5分だけでも嬉しかったことを書いてみませんか？",
+    getTimestamps: () => (wakuwakuEntries || []).map(e => e.createdAt).filter(Boolean),
+  },
+  {
+    key: "step", label: "一歩記録",
+    stoppedSuggestion: "小さな一歩も、また覗いてみてくださいね。",
+    getTimestamps: () => stepLogRead().map(r => r.completedAt).filter(Boolean),
+  },
+  {
+    key: "memory", label: "AIの気づき記録",
+    stoppedSuggestion: "最近のできごとを少し話してみませんか？",
+    getTimestamps: () => aiMemoryFacts.map(f => f.updatedAt || f.createdAt).filter(Boolean),
+  },
+];
+/* 直近7日の活動日数(≒習慣化)と、8〜30日前の活動有無(≒以前から
+   続いている/やっていた実績)の2つを組み合わせて判定する
+   (指示書の「7日/14日/30日で比較」に沿い、直近7日の頻度と、その前の
+   最大30日分の実績の両方を見る)。 */
+function generateHabitAnalysis(now = new Date()){
+  const nowMs = now.getTime();
+  const continuing = [];
+  const stopped = [];
+  HABIT_DEFINITIONS.forEach(def => {
+    const timestamps = def.getTimestamps();
+    if(!timestamps.length) return;
+    const recentActiveDays = distinctActiveDayCount(timestamps, nowMs - 7 * 86400000, nowMs);
+    const priorActiveDays = distinctActiveDayCount(timestamps, nowMs - 30 * 86400000, nowMs - 7 * 86400000);
+    const gapDays = daysSinceLastActivity(timestamps, now);
+    if(recentActiveDays >= 5 && priorActiveDays >= 1){
+      continuing.push({ key: def.key, label: def.label });
+    }else if(gapDays >= 5 && priorActiveDays >= 1){
+      stopped.push({ key: def.key, label: def.label, suggestion: def.stoppedSuggestion });
+    }
+  });
+  return { continuing: continuing.slice(0, 3), stopped: stopped.slice(0, 3) };
+}
+function generateHabitComment(continuing, stopped){
+  if(stopped.length) return `最近${stopped[0].label}が少し止まっています。${stopped[0].suggestion}`;
+  if(continuing.length) return `最近${continuing[0].label}が続いています。この調子でいきましょう。`;
+  return "";
+}
+function renderFutureHabitCard(){
+  const card = document.getElementById("futureHabitCard");
+  const continuingSection = document.getElementById("futureHabitContinuingSection");
+  const stoppedSection = document.getElementById("futureHabitStoppedSection");
+  const continuingList = document.getElementById("futureHabitContinuingList");
+  const stoppedList = document.getElementById("futureHabitStoppedList");
+  const commentEl = document.getElementById("futureHabitComment");
+  if(!card || !continuingSection || !stoppedSection || !continuingList || !stoppedList || !commentEl) return;
+
+  const { continuing, stopped } = generateHabitAnalysis();
+  if(!continuing.length && !stopped.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  continuingSection.style.display = continuing.length ? "block" : "none";
+  stoppedSection.style.display = stopped.length ? "block" : "none";
+  continuingList.innerHTML = continuing.map(h => `<p class="habit-item">✅ ${escapeHtml(h.label)}</p>`).join("");
+  stoppedList.innerHTML = stopped.map(h => `<p class="habit-item">⚠ ${escapeHtml(h.label)}</p>`).join("");
+
+  /* 通知履歴(aiNotifications)との重複を避ける: 直近24時間に同じ文言の
+     通知が既に届いていれば、同じ一言をここでも繰り返さない
+     (Phase32のdedupパターンをそのまま再利用)。 */
+  const comment = generateHabitComment(continuing, stopped);
+  const recentMessages = aiNotifications
+    .filter(n => n.createdAt && (Date.now() - new Date(n.createdAt).getTime()) < 24 * 3600000)
+    .map(n => n.message);
+  commentEl.textContent = (comment && !recentMessages.includes(comment)) ? comment : "";
+  commentEl.style.display = commentEl.textContent ? "block" : "none";
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
