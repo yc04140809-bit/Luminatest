@@ -391,6 +391,25 @@ textarea{ font-family:inherit; }
 .habit-item:last-child{ margin-bottom:0; }
 .habit-comment{ font-size:13.5px; line-height:1.7; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 
+/* ---------- AI Achievement Engine(Phase37) ---------- */
+.achievement-card{ background:linear-gradient(135deg,#eafbe9 0%,#eef8ff 100%); border-color:transparent; }
+.achievement-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
+.achievement-stat{ display:flex; align-items:baseline; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px dashed var(--border); }
+.achievement-stat-label{ color:var(--text-sub); }
+.achievement-stat-value{ font-weight:700; font-size:14.5px; }
+.achievement-trend{ font-size:12.5px; color:var(--text-sub); margin:10px 0 0; text-align:right; }
+.achievement-comment{ font-size:13.5px; line-height:1.7; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+
+/* ---------- AI Smart Timeline(Phase38) ---------- */
+.timeline-card{ background:linear-gradient(135deg,#fff4e8 0%,#f5eaff 100%); border-color:transparent; }
+.timeline-row{ display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px dashed var(--border); }
+.timeline-row:last-child{ border-bottom:none; }
+.timeline-time{ flex:none; width:40px; font-size:12px; font-weight:700; color:var(--text-sub); padding-top:1px; }
+.timeline-icon{ flex:none; font-size:14px; }
+.timeline-label{ flex:1; min-width:0; font-size:13.5px; line-height:1.6; }
+.timeline-untimed-label{ font-size:12.5px; font-weight:700; color:var(--text-sub); margin:10px 0 4px; }
+.timeline-comment{ font-size:13.5px; line-height:1.7; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -766,6 +785,22 @@ textarea.field-input{ resize:none; }
         </div>
       </div>
 
+      <!-- Phase37: AI Achievement Engine。幸せスコアカードの下に「最近の
+           成長」カードを1枚だけ追加する。直近30日の実データ件数だけを
+           表示し、新しい推測は行わない。全カテゴリが0件の時はカード
+           ごと非表示にする(推測禁止)。 -->
+      <div class="card achievement-card" id="homeAchievementCard" style="display:none;">
+        <div class="card-label">🌱 最近の成長</div>
+        <div class="achievement-grid">
+          <div class="achievement-stat"><span class="achievement-stat-label">予定達成</span><span class="achievement-stat-value" id="achievementEventDone"></span></div>
+          <div class="achievement-stat"><span class="achievement-stat-label">ワクワク</span><span class="achievement-stat-value" id="achievementWakuwaku"></span></div>
+          <div class="achievement-stat"><span class="achievement-stat-label">一歩</span><span class="achievement-stat-value" id="achievementStep"></span></div>
+          <div class="achievement-stat"><span class="achievement-stat-label">家族予定</span><span class="achievement-stat-value" id="achievementFamilyEvent"></span></div>
+        </div>
+        <p class="achievement-trend" id="achievementTrend" style="display:none;"></p>
+        <p class="achievement-comment" id="achievementComment" style="display:none;"></p>
+      </div>
+
       <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
            新しいDBは追加せず、localStorageに選択中モードを1件保持するのみ。
            ホーム画面の中身をまるごと出し分けるだけで、ワクワク/未来/
@@ -1026,6 +1061,18 @@ textarea.field-input{ resize:none; }
           <div id="futureHabitStoppedList"></div>
         </div>
         <p class="habit-comment" id="futureHabitComment" style="display:none;"></p>
+      </div>
+
+      <!-- Phase38: AI Smart Timeline。AI習慣カードの下に、今日の出来事
+           を時刻順にまとめる。実際にタイムスタンプを持つデータ(予定の
+           datetime/ワクワクのcreatedAt/一歩のcompletedAt/実際に届いた
+           AI通知のcreatedAt)だけを使い、時刻を持たない項目(今日の
+           ルミナ)は新しい時刻を装わず「時刻なし」として最後に置く。 -->
+      <div class="card timeline-card" id="futureTimelineCard" style="display:none;">
+        <div class="card-label">🕒 今日の流れ</div>
+        <div id="futureTimelineList"></div>
+        <div id="futureTimelineUntimedList"></div>
+        <p class="timeline-comment" id="futureTimelineComment" style="display:none;"></p>
       </div>
 
       <!-- Phase33: AI Action Engine。AI予測カードの下に、行動できる
@@ -5202,14 +5249,15 @@ function generateTodayAiAdvice(){
 }
 
 function renderHomeAiAdviceCard(){
-  /* Phase34/35: 今日のルミナカード・幸せスコアカードは通知ON/OFFや
-     アドバイス有無に関係なく常に表示するため、このカードのdisplay
-     判定より前に呼ぶ。renderHomeAiAdviceCard()は家族/予定/ワクワクの
-     読み込み完了後やモード切替のたびに必ず呼ばれる既存のフックなので、
-     ここに便乗させて新しい呼び出し箇所を5箇所以上増やさないようにする
-     (呼び出し漏れ防止・重複実装回避)。 */
+  /* Phase34/35/37: 今日のルミナカード・幸せスコアカード・最近の成長
+     カードは通知ON/OFFやアドバイス有無に関係なく常に表示するため、
+     このカードのdisplay判定より前に呼ぶ。renderHomeAiAdviceCard()は
+     家族/予定/ワクワクの読み込み完了後やモード切替のたびに必ず呼ばれる
+     既存のフックなので、ここに便乗させて新しい呼び出し箇所を5箇所以上
+     増やさないようにする(呼び出し漏れ防止・重複実装回避)。 */
   renderHomeDailyLuminaCard();
   renderHomeHappinessScoreCard();
+  renderHomeAchievementCard();
   const card = document.getElementById("homeAiAdviceCard");
   const list = document.getElementById("homeAiAdviceList");
   if(!card || !list) return;
@@ -5730,6 +5778,10 @@ function generateHabitComment(continuing, stopped){
   return "";
 }
 function renderFutureHabitCard(){
+  /* Phase38: AI Smart Timelineカードも、AI習慣カードと同じ既存の
+     リフレッシュ経路(未来画面表示・家族/予定の読み込み完了後)に
+     便乗させる(新しい呼び出し箇所を増やさない)。 */
+  renderFutureTimelineCard();
   const card = document.getElementById("futureHabitCard");
   const continuingSection = document.getElementById("futureHabitContinuingSection");
   const stoppedSection = document.getElementById("futureHabitStoppedSection");
@@ -5758,6 +5810,202 @@ function renderFutureHabitCard(){
     .map(n => n.message);
   commentEl.textContent = (comment && !recentMessages.includes(comment)) ? comment : "";
   commentEl.style.display = commentEl.textContent ? "block" : "none";
+}
+
+/* =========================================================
+   Phase37: AI Achievement Engine(最近の成長)
+   - 新画面は作らず、ホームの「今日の幸せスコア」カードの下に「最近の
+     成長」カードを1枚だけ追加する。直近30日の実データ件数(予定達成/
+     ワクワク/一歩/家族予定)を表示するだけで、新しい推測は行わない。
+   - Memory/通知は表示用の件数枠は作らず、コメント選定・重複回避の
+     材料としてのみ使う(判定対象として使用しつつ、視覚的な二重表示は
+     避ける)。
+   - 判定対象が1件も無い(直近30日の合計が0件)時はカードごと非表示
+     にする(指示書の「データ不足時: カード非表示」に対応)。
+   ========================================================= */
+function computeAchievementCounts(sinceMs, untilMs){
+  const inWindow = (iso) => {
+    if(!iso) return false;
+    const t = new Date(iso).getTime();
+    return !isNaN(t) && t >= sinceMs && t <= untilMs;
+  };
+  const eventsInRange = familyEvents.filter(ev => inWindow(ev.datetime));
+  const eventDone = eventsInRange.filter(ev => ev.status === "done" || ev.status === "confirmed").length;
+  const familyEvent = eventsInRange.filter(ev => (ev.status === "done" || ev.status === "confirmed") && (CARE_CATEGORY_GROUP.includes(ev.category) || CHILDCARE_CATEGORY_GROUP.includes(ev.category))).length;
+  const wakuwaku = (wakuwakuEntries || []).filter(e => inWindow(e.createdAt)).length;
+  const step = stepLogRead().filter(r => inWindow(r.completedAt)).length;
+  const memory = aiMemoryFacts.filter(f => inWindow(f.updatedAt || f.createdAt)).length;
+  return { eventDone, wakuwaku, step, familyEvent, memory };
+}
+const ACHIEVEMENT_COMMENT_TEMPLATES = {
+  eventDone: "最近は予定の達成が続いています。小さな積み重ねが続いていますね。",
+  familyEvent: "最近は家族の予定もしっかりこなせています。",
+  wakuwaku: "最近はワクワク登録が続いています。心が動く瞬間を大事にできていますね。",
+  step: "最近は一歩記録が安定しています。小さな積み重ねが続いていますね。",
+  memory: "最近AIがあなたたちのことを少しずつ覚えています。",
+};
+function generateAchievementComment(counts){
+  const order = ["eventDone", "familyEvent", "wakuwaku", "step", "memory"];
+  let topKey = null, topVal = 0;
+  order.forEach(k => { if(counts[k] > topVal){ topVal = counts[k]; topKey = k; } });
+  return topKey ? ACHIEVEMENT_COMMENT_TEMPLATES[topKey] : "";
+}
+function generateAchievementSummary(now = new Date()){
+  const nowMs = now.getTime();
+  const recent30 = computeAchievementCounts(nowMs - 30 * 86400000, nowMs);
+  const thisWeek = computeAchievementCounts(nowMs - 7 * 86400000, nowMs);
+  const lastWeek = computeAchievementCounts(nowMs - 14 * 86400000, nowMs - 7 * 86400000);
+
+  const sumAll = (c) => c.eventDone + c.wakuwaku + c.step + c.familyEvent + c.memory;
+  const thisWeekTotal = sumAll(thisWeek);
+  const lastWeekTotal = sumAll(lastWeek);
+  let trendText = "";
+  if(lastWeekTotal > 0){
+    const pct = Math.round(((thisWeekTotal - lastWeekTotal) / lastWeekTotal) * 100);
+    trendText = pct === 0 ? "先週と同じくらいです" : (pct > 0 ? `先週より＋${pct}%` : `先週より${pct}%`);
+  }else if(thisWeekTotal > 0){
+    /* 先週の実績が0件だと割合(%)が数学的に無意味になるため、断定的な
+       数値は出さず「増えた」というだけの表現にとどめる。 */
+    trendText = "先週より積み重ねが増えました";
+  }
+
+  return { counts: recent30, trendText, total: sumAll(recent30) };
+}
+function renderHomeAchievementCard(){
+  const card = document.getElementById("homeAchievementCard");
+  const eventDoneEl = document.getElementById("achievementEventDone");
+  const wakuwakuEl = document.getElementById("achievementWakuwaku");
+  const stepEl = document.getElementById("achievementStep");
+  const familyEventEl = document.getElementById("achievementFamilyEvent");
+  const trendEl = document.getElementById("achievementTrend");
+  const commentEl = document.getElementById("achievementComment");
+  if(!card || !eventDoneEl || !wakuwakuEl || !stepEl || !familyEventEl || !trendEl || !commentEl) return;
+
+  const { counts, trendText, total } = generateAchievementSummary();
+  if(total === 0){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  eventDoneEl.textContent = `${counts.eventDone}件`;
+  wakuwakuEl.textContent = `${counts.wakuwaku}件`;
+  stepEl.textContent = `${counts.step}件`;
+  familyEventEl.textContent = `${counts.familyEvent}件`;
+  trendEl.textContent = trendText;
+  trendEl.style.display = trendText ? "block" : "none";
+
+  /* 通知履歴との重複回避(Phase32/36と同じdedupパターン) */
+  const comment = generateAchievementComment(counts);
+  const recentMessages = aiNotifications
+    .filter(n => n.createdAt && (Date.now() - new Date(n.createdAt).getTime()) < 24 * 3600000)
+    .map(n => n.message);
+  commentEl.textContent = (comment && !recentMessages.includes(comment)) ? comment : "";
+  commentEl.style.display = commentEl.textContent ? "block" : "none";
+}
+
+/* =========================================================
+   Phase38: AI Smart Timeline(今日の流れ)
+   - 新画面は作らず、未来画面のAI習慣カードの下に、今日の出来事を
+     時刻順にまとめたカードを1枚だけ追加する。
+   - 「予定確認/AI予測/今すぐできること」は毎回その場で再計算される
+     だけで生成時刻を保存していないため、新しい時刻を捏造せず、
+     実際にPhase25のAI通知エンジンが記録したaiNotifications(本当に
+     その時刻に届いた通知)だけを「AI提案」として並べる。
+   - 「今日のルミナ」は元々1日を通して変わらない案内文で、記録された
+     時刻を持たないため、時刻付きの一覧には含めず「時刻なし」として
+     最後に置く(指示書の「時刻なしは最後」に対応)。表示内容は
+     Phase34のgenerateDailyLuminaContent()をそのまま再利用する
+     (重複実装禁止)。
+   ========================================================= */
+const TIMELINE_MAX_ITEMS = 10;
+function generateSmartTimeline(now = new Date()){
+  const items = [];
+
+  familyEvents
+    .filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now))
+    .forEach(ev => {
+      const name = familyMemberName(ev.familyMemberId);
+      const isFamilyCategory = CARE_CATEGORY_GROUP.includes(ev.category) || CHILDCARE_CATEGORY_GROUP.includes(ev.category);
+      items.push({ time: new Date(ev.datetime), icon: isFamilyCategory ? "👪" : "🗓", label: `${name ? name + "の" : ""}${ev.title}` });
+    });
+
+  (wakuwakuEntries || [])
+    .filter(e => e.createdAt && isSameCalendarDate(new Date(e.createdAt), now))
+    .forEach(e => {
+      items.push({ time: new Date(e.createdAt), icon: "✨", label: `ワクワク${e.title ? "：" + e.title : ""}` });
+    });
+
+  stepLogRead()
+    .filter(r => r.completedAt && isSameCalendarDate(new Date(r.completedAt), now))
+    .forEach(r => {
+      items.push({ time: new Date(r.completedAt), icon: "👣", label: "一歩記録" });
+    });
+
+  aiNotifications
+    .filter(n => n.createdAt && isSameCalendarDate(new Date(n.createdAt), now))
+    .forEach(n => {
+      items.push({ time: new Date(n.createdAt), icon: "🤖", label: `AI提案：${n.message}` });
+    });
+
+  const timed = items
+    .filter(i => i.time && !isNaN(i.time.getTime()))
+    .sort((a, b) => a.time.getTime() - b.time.getTime())
+    .slice(0, TIMELINE_MAX_ITEMS);
+
+  const luminaContent = generateDailyLuminaContent(now);
+  const untimed = [{ icon: DAY_BAND_META[luminaContent.band].icon, label: `今日のルミナ：${luminaContent.lines[0]}` }];
+
+  return { timed, untimed };
+}
+function formatTimelineHHMM(date){
+  return String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+}
+/* 時間帯(Phase34のDAY_BAND_META/getDayBand)ごとの件数を数え、6割以上が
+   1つの時間帯へ偏っていたら、その旨をやさしく伝える。断定はせず、
+   「〜すると動きやすそうです」という提案形にとどめる。 */
+const TIMELINE_BAND_LABEL = { morning: "午前中", afternoon: "午後", night: "夜", midnight: "深夜" };
+const TIMELINE_REST_SUGGESTION = { morning: "午後や夜", afternoon: "午前中", night: "日中", midnight: "日中" };
+function generateTimelineComment(timed){
+  if(timed.length < 3) return "";
+  const bandCounts = { morning: 0, afternoon: 0, night: 0, midnight: 0 };
+  timed.forEach(i => { bandCounts[getDayBand(i.time)]++; });
+  const [topBand, topCount] = Object.entries(bandCounts).sort((a, b) => b[1] - a[1])[0];
+  if(topCount / timed.length >= 0.6){
+    return `${TIMELINE_BAND_LABEL[topBand]}に予定が集中しています。${TIMELINE_REST_SUGGESTION[topBand]}に少し休憩すると動きやすそうです。`;
+  }
+  return "";
+}
+function renderFutureTimelineCard(){
+  const card = document.getElementById("futureTimelineCard");
+  const list = document.getElementById("futureTimelineList");
+  const untimedList = document.getElementById("futureTimelineUntimedList");
+  const commentEl = document.getElementById("futureTimelineComment");
+  if(!card || !list || !untimedList || !commentEl) return;
+
+  const { timed, untimed } = generateSmartTimeline();
+  if(!timed.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  list.innerHTML = timed.map(i => `
+    <div class="timeline-row">
+      <span class="timeline-time">${formatTimelineHHMM(i.time)}</span>
+      <span class="timeline-icon">${i.icon}</span>
+      <span class="timeline-label">${escapeHtml(i.label)}</span>
+    </div>`).join("");
+  untimedList.innerHTML = untimed.length
+    ? `<p class="timeline-untimed-label">時刻なし</p>` + untimed.map(i => `
+    <div class="timeline-row">
+      <span class="timeline-time"></span>
+      <span class="timeline-icon">${i.icon}</span>
+      <span class="timeline-label">${escapeHtml(i.label)}</span>
+    </div>`).join("")
+    : "";
+
+  const comment = generateTimelineComment(timed);
+  commentEl.textContent = comment;
+  commentEl.style.display = comment ? "block" : "none";
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
