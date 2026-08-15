@@ -345,6 +345,10 @@ textarea{ font-family:inherit; }
 .future-calendar-stat-row:last-child{ border-bottom:none; }
 .future-calendar-comment{ font-size:13.5px; line-height:1.7; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 
+/* ---------- AI Prediction Engine(Phase32) ---------- */
+.future-prediction-item{ font-size:13.5px; line-height:1.7; margin:0 0 6px; }
+.future-prediction-item:last-child{ margin-bottom:0; }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -901,6 +905,14 @@ textarea.field-input{ resize:none; }
         <div id="futureCalendarCommentBody"></div>
       </div>
 
+      <!-- Phase32: AI予測カード(新画面は作らず、既存「未来」画面へ
+           追加)。予定件数/曜日偏り/Memory/繰り返し予定/通知履歴のみを
+           根拠にし、位置情報・歩数・GPS等の未取得データは使わない。 -->
+      <div class="card future-ai-analysis-card" id="futurePredictionCard" style="display:none;">
+        <div class="card-label">🔮 AI予測</div>
+        <div id="futurePredictionList"></div>
+      </div>
+
       <div class="mind-empty" id="futureEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
           <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
@@ -1430,6 +1442,9 @@ textarea.field-input{ resize:none; }
 
         <div class="form-label">関係性（AIが家族のつながりを理解するための項目・任意）</div>
         <div class="chip-row" id="familyRelationChipRow"></div>
+
+        <div class="form-label">AIの話し方（この家族と話す時のトーン）</div>
+        <div class="chip-row" id="familyPersonalityChipRow"></div>
 
         <div class="form-label">年齢（任意）</div>
         <input type="number" class="field-input" id="familyAgeInput" min="0" max="120" placeholder="例: 8">
@@ -3336,7 +3351,7 @@ document.getElementById("deleteConfirmBtn").addEventListener("click", async () =
      データ構造だけをここで用意し、推論ロジック自体は実装しない。
    ========================================================= */
 const FAMILY_ICON_PRESET = ["👨","👩","👧","👦","👶","👴","👵","🐶","🐱","🧑"];
-const FAMILY_ROLE_PRESET = ["パパ","ママ","子ども","おじいちゃん","おばあちゃん","ペット","その他"];
+const FAMILY_ROLE_PRESET = ["本人","パパ","ママ","妻","子ども","おじいちゃん","おばあちゃん","ペット","その他"];
 /* Phase23.5: Relationship Brainが将来扱う関係性の語彙。ここでは
    データとして保持するだけで、通知/提案ロジックへは接続しない。 */
 const FAMILY_RELATION_TYPES = [
@@ -3358,6 +3373,38 @@ function familyRelationLabel(key){
   return found ? found.label : "";
 }
 
+/* =========================================================
+   Phase31: AI Personality Engine
+   - 追加フィールドはfamilyMembers.personalityの1つだけ(新規store・
+     新規DBは作らない、指示書の「追加候補」通り)。
+   - Personalityは「事実を変える」ものではなく「口調だけを変える」
+     もの。buildKaosuAiPrompt()でKAOSU_SYSTEM_PROMPT/dialectLineに
+     追記する形で実装し、共感→提案の順番・NG(否定/命令/説教しない)
+     などの既存ルールはそのまま継承させる(上書きしない・二重実装
+     しない)。
+   ========================================================= */
+const PERSONALITY_PRESET = ["やさしい", "元気", "お姉さん", "先生", "AI秘書", "ケイオスちゃん", "ルミナ"];
+const PERSONALITY_STYLE_PROMPT = {
+  "やさしい": "この会話ではパーソナリティ「やさしい」で話してください。柔らかく穏やかな言葉遣いで、安心感を与えるように話してください。",
+  "元気": "この会話ではパーソナリティ「元気」で話してください。明るくテンポよく、前向きな言葉で話してください。",
+  "お姉さん": "この会話ではパーソナリティ「お姉さん」で話してください。少し大人っぽく、頼れる年上のお姉さんのように話してください。",
+  "先生": "この会話ではパーソナリティ「先生」で話してください。落ち着いた丁寧な言葉遣いで、分かりやすく話してください。",
+  "AI秘書": "この会話ではパーソナリティ「AI秘書」で話してください。簡潔に要点を整理した事務的な話し方にしてください(絵文字は控えめに)。",
+  /* 「ケイオスちゃん」は上書き無し=既存のKAOSU_SYSTEM_PROMPT/方言設定のまま */
+  "ケイオスちゃん": "",
+  "ルミナ": "この会話ではパーソナリティ「ルミナ」で話してください。落ち着いていて知的、穏やかに寄り添うように話してください。",
+};
+/* 家族を新規追加する時の初期値(指示書の「デフォルト」表)。あくまで
+   追加時の提案であり、既存メンバーのpersonalityを勝手に上書きする
+   ことはしない。 */
+function personalityDefaultForRole(roleLabel){
+  if(roleLabel === "本人") return "ルミナ";
+  if(roleLabel === "子ども") return "ケイオスちゃん";
+  if(roleLabel === "妻") return "やさしい";
+  if(roleLabel === "おじいちゃん" || roleLabel === "おばあちゃん") return "先生";
+  return "ケイオスちゃん";
+}
+
 let familyMembers = [];
 let familyLoaded = false;
 let familyFormState = null;
@@ -3370,6 +3417,7 @@ function resetFamilyFormState(){
     roleLabel: "",
     relationType: "",
     color: FAMILY_COLOR_PRESET[0],
+    personality: "ケイオスちゃん",
   };
 }
 resetFamilyFormState();
@@ -3386,6 +3434,7 @@ async function loadFamilyMembers(){
   renderFamilyList();
   renderHomeAiNoticeCard();
   renderFutureAiAnalysisCard();
+  renderFuturePredictionCard();
   renderHomeAiAdviceCard();
 }
 
@@ -3524,6 +3573,11 @@ function renderFamilyDetailBody(member){
     ? insights.map(t => `<p class="event-card-meta" style="margin-bottom:6px;">💡 ${escapeHtml(t)}</p>`).join("")
     : `<p class="family-memory-empty">今のところ特に気になる変化はなさそうだよ</p>`;
 
+  const currentPersonality = member.personality || "ケイオスちゃん";
+  const personalityChipsHtml = PERSONALITY_PRESET.map(p =>
+    `<button type="button" class="chip${p === currentPersonality ? " selected" : ""}" data-personality-select="${escapeHtml(p)}">${escapeHtml(p)}</button>`
+  ).join("");
+
   return `
     <div class="family-detail-head" style="border-left:4px solid ${escapeHtml(member.color || "#a78bfa")};">
       <span class="family-card-icon" style="width:56px;height:56px;font-size:26px;">${escapeHtml(member.icon || "👤")}</span>
@@ -3534,6 +3588,11 @@ function renderFamilyDetailBody(member){
     </div>
 
     ${member.memo ? `<div class="card"><div class="card-label">メモ</div><p class="family-card-memo">${escapeHtml(member.memo)}</p></div>` : ""}
+
+    <div class="card">
+      <div class="card-label">🎭 AIの話し方(このメンバーと話す時のトーン)</div>
+      <div class="chip-row" id="familyDetailPersonalityChipRow">${personalityChipsHtml}</div>
+    </div>
 
     <div class="card">
       <div class="card-label">AIが覚えていること</div>
@@ -3609,6 +3668,22 @@ function openFamilyDetail(member){
       openFamilyDetail(member);
     });
   });
+  /* Phase31①: 家族詳細画面から直接Personalityを選べるようにする
+     (編集シートを開かずその場で保存。既存のFamilyStore.update()を
+     そのまま使い、専用の保存APIは新設しない)。 */
+  document.getElementById("familyDetailBody").querySelectorAll("[data-personality-select]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const personality = btn.dataset.personalitySelect;
+      if(personality === (member.personality || "ケイオスちゃん")) return;
+      member.personality = personality;
+      member.updatedAt = new Date().toISOString();
+      try{ await FamilyStore.update(member); }catch(e){ /* 保存失敗時も表示は更新して続行する */ }
+      const idx = familyMembers.findIndex(m => m.id === member.id);
+      if(idx >= 0) familyMembers[idx] = member;
+      openFamilyDetail(member);
+      showToast(`${personality}のトーンに変えたよ`);
+    });
+  });
   document.getElementById("familyDetailModal").classList.add("show");
 }
 function closeFamilyDetail(){
@@ -3666,7 +3741,29 @@ function renderFamilyRoleChips(){
     btn.addEventListener("click", () => {
       familyFormState.roleLabel = role;
       document.getElementById("familyRoleInput").value = role;
+      /* Phase31: 続柄チップを押すたびに、指示書のデフォルト表に沿って
+         パーソナリティの初期提案を更新する。ユーザーがこの後に
+         パーソナリティチップを直接押せば、その選択がそのまま残る
+         (続柄→パーソナリティは「提案」であり、最終確定は保存時の
+         チップ選択そのもの)。 */
+      familyFormState.personality = personalityDefaultForRole(role);
       renderFamilyRoleChips();
+      renderFamilyPersonalityChips();
+    });
+    root.appendChild(btn);
+  });
+}
+function renderFamilyPersonalityChips(){
+  const root = document.getElementById("familyPersonalityChipRow");
+  root.innerHTML = "";
+  PERSONALITY_PRESET.forEach(p => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (familyFormState.personality === p ? " selected" : "");
+    btn.textContent = p;
+    btn.addEventListener("click", () => {
+      familyFormState.personality = p;
+      renderFamilyPersonalityChips();
     });
     root.appendChild(btn);
   });
@@ -3711,6 +3808,7 @@ function openFamilyEditSheet(member){
     familyFormState.roleLabel = member.roleLabel || "";
     familyFormState.relationType = member.relationType || "";
     familyFormState.color = member.color || FAMILY_COLOR_PRESET[0];
+    familyFormState.personality = member.personality || "ケイオスちゃん";
   }
   document.getElementById("familyEditTitle").textContent = member ? "家族を編集" : "家族を追加";
   document.getElementById("familyNameInput").value = member ? (member.name || "") : "";
@@ -3722,6 +3820,7 @@ function openFamilyEditSheet(member){
   renderFamilyRoleChips();
   renderFamilyRelationChips();
   renderFamilyColorChips();
+  renderFamilyPersonalityChips();
   document.getElementById("familyEditModal").classList.add("show");
 }
 function closeFamilyEditSheet(){
@@ -3755,6 +3854,7 @@ document.getElementById("btnFamilySave").addEventListener("click", async () => {
     relationType: familyFormState.relationType,
     age: ageVal ? Number(ageVal) : null,
     color: familyFormState.color,
+    personality: familyFormState.personality || "ケイオスちゃん",
     memo,
     memories,
     order: isEdit ? (familyMembers.find(m => m.id === familyFormState.id) || {}).order || 0 : familyMembers.length,
@@ -3822,8 +3922,13 @@ function formatFamilyContextText(member){
   if(relationBits) lines.push(`続柄：${relationBits}`);
   if(member.age) lines.push(`年齢：${member.age}歳`);
   if(member.memo) lines.push(`メモ：${kaosuContextTruncate(member.memo, 60)}`);
-  if(member.memories && member.memories.length){
-    lines.push(`AIが覚えていること：${member.memories.slice(0, 5).map(m => kaosuContextTruncate(m, 30)).join("、")}`);
+  /* Phase31③: Phase29 aiMemory(自動学習した事実)も手入力memoriesと
+     マージしてAIへ渡す。新しい集計ロジックは足さず、既存の
+     aiMemoryFactsForMember()をそのまま使う(二重実装しない)。 */
+  const learnedValues = aiMemoryFactsForMember(member.id).sort((a, b) => (b.confidence || 0) - (a.confidence || 0)).map(f => f.value);
+  const allMemories = [...(member.memories || []), ...learnedValues];
+  if(allMemories.length){
+    lines.push(`AIが覚えていること：${allMemories.slice(0, 5).map(m => kaosuContextTruncate(m, 30)).join("、")}`);
   }
   /* Phase24: チャット連携。Family Context/Relationshipに加えて、
      そのメンバーのTimeline(直近の未確認/今後の予定)もAIへ渡す。
@@ -3882,6 +3987,7 @@ async function loadFamilyEvents(){
   await learnFactsFromEventPatterns();
   renderHomeAiNoticeCard();
   renderFutureAiAnalysisCard();
+  renderFuturePredictionCard();
   renderHomeAiAdviceCard();
 }
 
@@ -3976,6 +4082,7 @@ async function setEventStatus(id, status){
   renderFamilyTimelineBody();
   renderHomeAiNoticeCard();
   renderFutureAiAnalysisCard();
+  renderFuturePredictionCard();
   renderHomeAiAdviceCard();
 }
 
@@ -4763,6 +4870,16 @@ async function learnFactsFromEventPatterns(){
    - 叱らない・責めない・命令しない。断定より「〜と良さそう」
      「〜してみませんか」という提案形にする(既存persona方針と一致)。
    ========================================================= */
+/* Phase30/32共通: 直近しばらくワクワク登録が無いかどうか。
+   ホーム(AI Life Coach)と未来(AI Prediction Engine)の両方が使うため、
+   ここに1つだけ用意する(重複実装しない)。 */
+function isWakuwakuStale(days = 5){
+  const entries = wakuwakuEntries || [];
+  if(!entries.length) return true;
+  const lastAt = entries.map(e => e.createdAt).filter(Boolean).sort().pop();
+  return !lastAt || (Date.now() - new Date(lastAt).getTime()) > days * 86400000;
+}
+
 function generateTodayAiAdvice(){
   const items = [];
   const now = Date.now();
@@ -4812,10 +4929,7 @@ function generateTodayAiAdvice(){
   }
 
   /* ワクワク(tier5): 直近しばらく登録が無い */
-  const entries = wakuwakuEntries || [];
-  const lastWakuAt = entries.map(e => e.createdAt).filter(Boolean).sort().pop();
-  const wakuStale = entries.length === 0 || !lastWakuAt || (now - new Date(lastWakuAt).getTime()) > 5 * 86400000;
-  if(wakuStale){
+  if(isWakuwakuStale()){
     items.push({ tier: 5, message: "最近ワクワク登録が少なめです。今日ひとつだけ嬉しかったことを残してみませんか？" });
   }
 
@@ -4848,6 +4962,128 @@ function renderHomeAiAdviceCard(){
   }
   card.style.display = "block";
   list.innerHTML = advice.map(a => `<p class="home-ai-advice-item">${escapeHtml(a.message)}</p>`).join("");
+}
+
+/* =========================================================
+   Phase32: AI Prediction Engine
+   - 新画面は作らず、既存の「未来」画面(Phase28のAIカレンダー分析
+     カードの隣)へAI予測カードを追加する。
+   - 予測材料は予定件数/曜日偏り/Memory/繰り返し予定/通知履歴のみ
+     (位置情報・歩数・GPS・運動量など未取得のデータは一切使わない)。
+   - 断定を避け、「〜すると良さそうです」のような提案形にする。
+   - 集計はcomputeEventStatsForRange()/countEventsByWeekday()/
+     categoryPriorityStars()/CARE_CATEGORY_GROUP/CHILDCARE_CATEGORY_
+     GROUP/isWakuwakuStale()をそのまま再利用し、新しい集計ロジックは
+     ここでは足さない(重複実装禁止)。
+   ========================================================= */
+/* 繰り返し予定(event.repeat)の次回発生日を概算する。月次は30日
+   ごとの近似(暦月の厳密な計算はせず、指示書の「そろそろ〜の日です」
+   という大まかな目安として十分な精度にとどめる)。 */
+function computeNextRecurrence(event){
+  if(!event.datetime || !event.repeat || event.repeat === "none") return null;
+  const stepDays = { daily: 1, weekly: 7, monthly: 30 }[event.repeat];
+  if(!stepDays) return null;
+  let next = new Date(event.datetime);
+  if(isNaN(next.getTime())) return null;
+  const now = Date.now();
+  while(next.getTime() < now){
+    next = new Date(next.getTime() + stepDays * 86400000);
+  }
+  return next;
+}
+
+function generateFuturePredictions(){
+  const items = [];
+  const now = Date.now();
+
+  /* ①危険: 介護/病院カテゴリの予定が2日以上未確認のまま */
+  familyEvents.forEach(ev => {
+    if(!ev.datetime || (ev.status !== "pending" && ev.status !== "later")) return;
+    if(!CARE_CATEGORY_GROUP.includes(ev.category)) return;
+    const overdueDays = (now - new Date(ev.datetime).getTime()) / 86400000;
+    if(overdueDays >= 2 && overdueDays <= 14){
+      const name = familyMemberName(ev.familyMemberId);
+      items.push({ tier: 1, message: `${name ? name + "の" : ""}${ev.title}がまだ確認できていないようです。少し気にかけてあげてくださいね。` });
+    }
+  });
+
+  const weekStats = computeEventStatsForRange(familyEvents, now, now + 7 * 86400000);
+
+  /* ②期限: 今週の通院予定 */
+  if(weekStats.events.some(ev => ev.category === "病院")){
+    items.push({ tier: 2, message: "今週は通院予定があります。" });
+  }
+
+  /* ③家族: 子育て/学校の予定が2日以内に迫っている→準備確認 */
+  const soonChildEvent = familyEvents.find(ev => {
+    if(!ev.datetime || (ev.status !== "pending" && ev.status !== "later")) return false;
+    if(!CHILDCARE_CATEGORY_GROUP.includes(ev.category)) return false;
+    const days = (new Date(ev.datetime).getTime() - now) / 86400000;
+    return days >= 0 && days <= 2;
+  });
+  if(soonChildEvent){
+    items.push({ tier: 3, message: `${soonChildEvent.title}の準備を確認しましょう。` });
+  }
+
+  /* ④健康: 完了率低下(Phase27/30と同じ計算式を再利用) */
+  const recentStats = computeEventStatsForRange(familyEvents, now - 7 * 86400000, now);
+  const priorStats = computeEventStatsForRange(familyEvents, now - 21 * 86400000, now - 7 * 86400000);
+  if(recentStats.total >= 2 && priorStats.total >= 2 && (priorStats.doneRate - recentStats.doneRate) >= 25){
+    items.push({ tier: 4, message: "少し休憩すると良さそうです。" });
+  }
+
+  /* ⑤予定集中: 曜日偏り(今週いちばん予定が多い曜日) */
+  const weekdayCounts = countEventsByWeekday(weekStats.events);
+  const maxCount = Math.max(...weekdayCounts);
+  if(maxCount >= 3){
+    items.push({ tier: 5, message: `${WEEKDAY_LABELS[weekdayCounts.indexOf(maxCount)]}曜日は予定が集中しています。` });
+  }
+  /* ⑤予定集中(繰り返し予定): 次回が2日以内に迫っている */
+  const seenRepeatTitles = new Set();
+  familyEvents.forEach(ev => {
+    if(!ev.repeat || ev.repeat === "none" || seenRepeatTitles.has(ev.title)) return;
+    const next = computeNextRecurrence(ev);
+    if(!next) return;
+    const days = (next.getTime() - now) / 86400000;
+    if(days >= 0 && days <= 2){
+      items.push({ tier: 5, message: `そろそろ${ev.title}の日です。` });
+      seenRepeatTitles.add(ev.title);
+    }
+  });
+
+  /* ⑥ワクワク不足 */
+  if(isWakuwakuStale()){
+    items.push({ tier: 6, message: "最近ワクワク記録が少なめです。" });
+  }
+
+  /* 通知履歴(aiNotifications)との重複を避ける: 直近24時間に同じ文言を
+     既にAI通知として送っていれば、予測カードでは重ねて出さない。 */
+  const recentlyNotified = new Set(
+    aiNotifications.filter(n => n.createdAt && (now - new Date(n.createdAt).getTime()) < 24 * 3600000).map(n => n.message)
+  );
+  const seen = new Set();
+  const ranked = items
+    .filter(i => !recentlyNotified.has(i.message))
+    .sort((a, b) => a.tier - b.tier)
+    .filter(i => {
+      if(seen.has(i.message)) return false;
+      seen.add(i.message);
+      return true;
+    });
+  return ranked.slice(0, 3);
+}
+
+function renderFuturePredictionCard(){
+  const card = document.getElementById("futurePredictionCard");
+  const list = document.getElementById("futurePredictionList");
+  if(!card || !list) return;
+  const predictions = generateFuturePredictions();
+  if(!predictions.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  list.innerHTML = predictions.map(p => `<p class="future-prediction-item">🔮 ${escapeHtml(p.message)}</p>`).join("");
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
@@ -5247,6 +5483,7 @@ function renderFutureView(){
   /* Phase28: ワクワクデータの有無とは独立した家族カレンダー分析
      なので、下の空データ早期returnより前に必ず呼ぶ。 */
   renderFutureAiAnalysisCard();
+  renderFuturePredictionCard();
 
   const empty = document.getElementById("futureEmpty");
   const content = document.getElementById("futureContent");
@@ -7830,7 +8067,13 @@ function buildKaosuAiPrompt(text, meta){
     userContext = userContext ? userContext + "\n\n" + familyText : familyText;
   }
   const dialectLine = KAOSU_DIALECT_PROMPT[speechStyleGet()] || KAOSU_DIALECT_PROMPT.standard;
-  const system = [KAOSU_SYSTEM_PROMPT, dialectLine].filter(Boolean).join("\n\n");
+  /* Phase31②: 話題に上った家族にpersonalityが設定されていれば、
+     口調だけを変えるトーン指示を追記する(事実・安全ルール・NG事項は
+     KAOSU_SYSTEM_PROMPTのまま引き継がれる)。 */
+  const personalityLine = mentionedMember && mentionedMember.personality
+    ? (PERSONALITY_STYLE_PROMPT[mentionedMember.personality] || "")
+    : "";
+  const system = [KAOSU_SYSTEM_PROMPT, dialectLine, personalityLine].filter(Boolean).join("\n\n");
   return {
     system,
     userContext,
