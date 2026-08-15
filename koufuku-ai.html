@@ -356,6 +356,14 @@ textarea{ font-family:inherit; }
 .ai-action-message{ font-size:13px; line-height:1.5; flex:1; min-width:0; }
 .ai-action-btn{ flex:none; white-space:nowrap; }
 
+/* ---------- AI Daily Assistant(Phase34) ---------- */
+.daily-lumina-card{ background:linear-gradient(135deg,#eef2ff 0%,#f5eaff 100%); border-color:transparent; }
+.daily-lumina-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.daily-lumina-title{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:14.5px; }
+.daily-lumina-band-icon{ font-size:16px; }
+.daily-lumina-body p{ font-size:13.5px; line-height:1.8; margin:0 0 4px; }
+.daily-lumina-body p:last-child{ margin-bottom:0; }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -685,6 +693,28 @@ textarea.field-input{ resize:none; }
 
     <!-- ① ホーム -->
     <section class="view active" data-view="home">
+      <!-- Phase34: AI Daily Assistant。時間帯(朝/昼/夜/深夜)で内容が
+           変わる「今日のルミナ」カードをホーム最上部に1枚だけ追加する。
+           Phase30/33と同じく、モード(幸福設計/おうちサポート)に関係
+           なく常に表示したいので、あえてどちらのmode content divにも
+           属さない最上部に置く(片方のモード内へ複製すると二重実装に
+           なるため)。専用のルミナ画像アセットは存在しないため、新しい
+           画像を作らず既存のケイオスちゃんアバター部品(.kaosu-avatar)を
+           そのまま再利用する。 -->
+      <div class="card daily-lumina-card" id="homeDailyLuminaCard" style="display:none;">
+        <div class="daily-lumina-head">
+          <div class="kaosu-avatar" style="width:44px;height:44px">
+            <img src="img/koufuku/kaosu-face-smile.webp" alt="ルミナ" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="daily-lumina-title">
+            <span class="daily-lumina-band-icon" id="dailyLuminaBandIcon"></span>
+            <span>今日のルミナ</span>
+          </div>
+        </div>
+        <div class="daily-lumina-body" id="dailyLuminaBody"></div>
+      </div>
+
       <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
            新しいDBは追加せず、localStorageに選択中モードを1件保持するのみ。
            ホーム画面の中身をまるごと出し分けるだけで、ワクワク/未来/
@@ -5102,6 +5132,13 @@ function generateTodayAiAdvice(){
 }
 
 function renderHomeAiAdviceCard(){
+  /* Phase34: 今日のルミナカードは通知ON/OFFやアドバイス有無に関係なく
+     常に表示するため、このカードのdisplay判定より前に呼ぶ。
+     renderHomeAiAdviceCard()は家族/予定/ワクワクの読み込み完了後や
+     モード切替のたびに必ず呼ばれる既存のフックなので、ここに便乗
+     させて新しい呼び出し箇所を5箇所以上増やさないようにする
+     (呼び出し漏れ防止・重複実装回避)。 */
+  renderHomeDailyLuminaCard();
   const card = document.getElementById("homeAiAdviceCard");
   const list = document.getElementById("homeAiAdviceList");
   if(!card || !list) return;
@@ -5269,6 +5306,175 @@ function renderFuturePredictionCard(){
   }
   card.style.display = "block";
   list.innerHTML = predictions.map(p => `<p class="future-prediction-item">🔮 ${escapeHtml(p.message)}</p>`).join("");
+}
+
+/* =========================================================
+   Phase34: AI Daily Assistant(今日のルミナ)
+   - 新画面は作らず、ホーム最上部に「今日のルミナ」カードを1枚だけ
+     追加する。朝/昼/夜/深夜の4つの時間帯で表示内容を切り替える。
+   - 利用データは既存のfamilyEvents/aiMemoryFacts/familyMembers/
+     aiNotifications/wakuwakuEntries/stepLogRead()のみ。位置情報・
+     GPS・歩数・運動量など、このアプリが取得していないデータは一切
+     使わない。
+   - 集計はcomputeEventStatsForRange()/eventTasksPhrase()/
+     familyMemberName()/isWakuwakuStale()をそのまま再利用し、ここでは
+     新しい集計ロジックを増やさない(重複実装禁止)。
+   - 各行は根拠となる実データが無ければ丸ごと省略する(新しい推測・
+     断定は禁止)。該当項目が1つも無い時間帯は、挨拶文だけになる。
+   ========================================================= */
+const DAY_BAND_META = {
+  morning:   { icon: "☀", label: "朝" },
+  afternoon: { icon: "🌤", label: "昼" },
+  night:     { icon: "🌙", label: "夜" },
+  midnight:  { icon: "⭐", label: "深夜" },
+};
+function getDayBand(now = new Date()){
+  const h = now.getHours();
+  if(h >= 5 && h <= 10) return "morning";
+  if(h >= 11 && h <= 16) return "afternoon";
+  if(h >= 17 && h <= 23) return "night";
+  return "midnight";
+}
+function isSameCalendarDate(a, b){
+  return a.toDateString() === b.toDateString();
+}
+
+/* 朝: 今日の予定/忘れ物/家族予定/一歩提案 */
+function dailyLuminaMorningLines(now){
+  const lines = [];
+  const today = familyEvents
+    .filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now) && ev.status !== "skipped")
+    .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)));
+
+  if(today.length === 1){
+    const name = familyMemberName(today[0].familyMemberId);
+    lines.push(`今日は${name ? name + "の" : ""}${today[0].title}があります。`);
+  }else if(today.length >= 2){
+    lines.push(`今日は予定が${today.length}件あります。`);
+  }else{
+    lines.push("今日は決まった予定はなさそうです。");
+  }
+
+  /* 忘れ物: 今日いちばん早い予定に記録されているtasksのみを見る
+     (記録が無ければ「無い」と断定せず、心配なさそうという表現に留める) */
+  if(today.length){
+    const tasksPhrase = eventTasksPhrase(today[0]);
+    lines.push(tasksPhrase ? `${tasksPhrase}を忘れないようにしてくださいね。` : "持ち物の心配は無さそうです。");
+  }
+
+  /* 家族予定: 今日以外で直近2日以内に迫っている予定だけを対象にし、
+     「今日の予定」との重複を避ける */
+  const upcoming = familyEvents
+    .filter(ev => ev.datetime && (ev.status === "pending" || ev.status === "later"))
+    .filter(ev => { const d = (new Date(ev.datetime).getTime() - now.getTime()) / 86400000; return d > 0 && d <= 2; })
+    .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)))[0];
+  if(upcoming){
+    const name = familyMemberName(upcoming.familyMemberId);
+    lines.push(`もうすぐ${name ? name + "の" : ""}${upcoming.title}があります。`);
+  }
+
+  /* 一歩提案: 今日まだ記録が無い時だけ軽く案内する */
+  const stepToday = stepLogRead().some(r => r.completedAt && isSameCalendarDate(new Date(r.completedAt), now));
+  if(!stepToday) lines.push("今日の小さな一歩も、よかったら覗いてみてくださいね。");
+
+  return lines;
+}
+
+/* 昼: 午後予定/休憩提案/健康 */
+function dailyLuminaAfternoonLines(now){
+  const lines = [];
+  const laterToday = familyEvents
+    .filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now))
+    .filter(ev => new Date(ev.datetime).getTime() >= now.getTime() && ev.status !== "done" && ev.status !== "skipped")
+    .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)));
+  if(laterToday.length){
+    const name = familyMemberName(laterToday[0].familyMemberId);
+    lines.push(`このあと${name ? name + "の" : ""}${laterToday[0].title}がありますよ。`);
+  }else{
+    lines.push("午後は決まった予定はなさそうです。");
+  }
+
+  /* 休憩提案: 直近1週間の完了率が下がっている時だけ(Phase30 tier2と同じ計算を再利用) */
+  const recentStats = computeEventStatsForRange(familyEvents, now.getTime() - 7 * 86400000, now.getTime());
+  const priorStats = computeEventStatsForRange(familyEvents, now.getTime() - 21 * 86400000, now.getTime() - 7 * 86400000);
+  if(recentStats.total >= 2 && priorStats.total >= 2 && (priorStats.doneRate - recentStats.doneRate) >= 25){
+    lines.push("少し予定が詰まっているので、休憩もはさんでくださいね🍀");
+  }
+
+  /* 健康: いずれかの家族の「健康メモ」(Phase29のaiMemory)があれば、直近更新の1件だけ紹介する */
+  const healthFact = aiMemoryFacts
+    .filter(f => f.type === "健康メモ")
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))[0];
+  if(healthFact){
+    const name = familyMemberName(healthFact.familyMemberId);
+    lines.push(`${name ? name + "：" : ""}${healthFact.value}`);
+  }
+
+  return lines;
+}
+
+/* 夜: 今日の振り返り/ワクワク登録/明日の予定 */
+function dailyLuminaNightLines(now){
+  const lines = [];
+  const today = familyEvents.filter(ev => ev.datetime && isSameCalendarDate(new Date(ev.datetime), now));
+  const doneToday = today.filter(ev => ev.status === "done" || ev.status === "confirmed");
+  lines.push(today.length ? `今日は${doneToday.length}件の予定をこなしました。よく頑張りましたね。` : "今日もお疲れさまでした。");
+
+  /* ワクワク登録: Phase30/32と同じisWakuwakuStale()をそのまま再利用(重複実装しない) */
+  if(isWakuwakuStale()) lines.push("ワクワクを1つ残しておきませんか？");
+
+  /* 明日の予定 */
+  const tomorrowStart = new Date(now); tomorrowStart.setDate(now.getDate() + 1); tomorrowStart.setHours(0, 0, 0, 0);
+  const tomorrowEnd = new Date(tomorrowStart.getTime() + 86400000);
+  const tomorrow = familyEvents.filter(ev => ev.datetime && new Date(ev.datetime).getTime() >= tomorrowStart.getTime() && new Date(ev.datetime).getTime() < tomorrowEnd.getTime());
+  if(tomorrow.length === 1){
+    const name = familyMemberName(tomorrow[0].familyMemberId);
+    lines.push(`明日は${name ? name + "の" : ""}${tomorrow[0].title}があります。`);
+  }else if(tomorrow.length >= 2){
+    lines.push(`明日は予定が${tomorrow.length}件あります。`);
+  }
+
+  return lines;
+}
+
+/* 深夜: 睡眠優先/無理しない/通知整理 */
+function dailyLuminaMidnightLines(now){
+  const lines = [
+    "今日はもう休む時間かもしれません。",
+    "無理せず、自分のペースで大丈夫ですよ。",
+  ];
+  const todayNotifCount = aiNotifications.filter(n => n.dateKey === now.toDateString()).length;
+  if(todayNotifCount > 0) lines.push(`今日の通知は${todayNotifCount}件あります。あとでゆっくり見返せば大丈夫です。`);
+  return lines;
+}
+
+const DAILY_LUMINA_GREETING = {
+  morning: "おはようございます。",
+  afternoon: "こんにちは。",
+  night: "こんばんは。",
+  midnight: "こんな時間まで、おつかれさまです。",
+};
+const DAILY_LUMINA_LINE_BUILDERS = {
+  morning: dailyLuminaMorningLines,
+  afternoon: dailyLuminaAfternoonLines,
+  night: dailyLuminaNightLines,
+  midnight: dailyLuminaMidnightLines,
+};
+function generateDailyLuminaContent(now = new Date()){
+  const band = getDayBand(now);
+  const lines = [DAILY_LUMINA_GREETING[band], ...DAILY_LUMINA_LINE_BUILDERS[band](now)];
+  return { band, icon: DAY_BAND_META[band].icon, lines };
+}
+
+function renderHomeDailyLuminaCard(){
+  const card = document.getElementById("homeDailyLuminaCard");
+  const body = document.getElementById("dailyLuminaBody");
+  const iconEl = document.getElementById("dailyLuminaBandIcon");
+  if(!card || !body || !iconEl) return;
+  const content = generateDailyLuminaContent();
+  iconEl.textContent = content.icon;
+  body.innerHTML = content.lines.map(line => `<p>${escapeHtml(line)}</p>`).join("");
+  card.style.display = "block";
 }
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
