@@ -422,6 +422,52 @@ textarea{ font-family:inherit; }
 .priority-message{ font-size:14px; line-height:1.7; margin:0 0 10px; }
 .priority-message:last-child{ margin-bottom:0; }
 
+/* ---------- ケイオスちゃんのお部屋(Version 2.0) ---------- */
+.kaosu-room{
+  position:relative; border-radius:var(--radius-lg); overflow:hidden;
+  margin-bottom:16px; box-shadow:var(--shadow); background:var(--surface);
+}
+.kaosu-room-scene{
+  position:relative; padding:22px 16px 44px; overflow:hidden;
+  transition:background .8s ease;
+  background:linear-gradient(180deg,#fff8e6 0%,#ffe9c9 55%,#ffd9c9 100%);
+}
+.kaosu-room-window{
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  width:118px; height:78px; border-radius:16px 16px 6px 6px;
+  background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.12));
+  border:3px solid rgba(255,255,255,.55);
+}
+.kaosu-room-window::before, .kaosu-room-window::after{
+  content:""; position:absolute; top:-4px; bottom:-4px; width:20px;
+  background:linear-gradient(180deg, rgba(255,255,255,.4), rgba(255,255,255,.05));
+  border-radius:10px;
+}
+.kaosu-room-window::before{ left:-13px; transform:rotate(-6deg); }
+.kaosu-room-window::after{ right:-13px; transform:rotate(6deg); }
+.kaosu-room-character{ position:relative; z-index:1; display:flex; justify-content:center; margin-top:32px; }
+.kaosu-room-character .kaosu-avatar{ box-shadow:0 8px 20px rgba(120,90,60,.2); }
+.kaosu-room-greeting{
+  position:relative; z-index:1; max-width:250px; margin:12px auto 0;
+  text-align:center; font-size:13.5px; transition:background .8s ease, color .8s ease;
+}
+
+/* 時間帯ごとの部屋の色味だけを切り替える(判定はgetRoomVisualBand()が
+   行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。 */
+.kaosu-room-scene.room-band-morning{ background:linear-gradient(180deg,#fff8e6 0%,#ffe9c9 55%,#ffd9c9 100%); }
+.kaosu-room-scene.room-band-day{ background:linear-gradient(180deg,#eaf6ff 0%,#dcefff 55%,#fdf3ff 100%); }
+.kaosu-room-scene.room-band-evening{ background:linear-gradient(180deg,#ffe3cf 0%,#ffb99b 55%,#ff9a8b 100%); }
+.kaosu-room-scene.room-band-night{ background:linear-gradient(180deg,#372c50 0%,#584070 55%,#7a5a6a 100%); }
+.kaosu-room-scene.room-band-midnight{ background:linear-gradient(180deg,#1c1f3a 0%,#25254a 55%,#312a4d 100%); }
+.kaosu-room-scene.room-band-night .kaosu-room-greeting,
+.kaosu-room-scene.room-band-midnight .kaosu-room-greeting{ background:rgba(255,255,255,.94); }
+
+.kaosu-room-shelf{
+  position:relative; margin-top:-26px; padding:18px 14px 4px 14px;
+  background:var(--bg); border-radius:22px 22px 0 0;
+}
+.kaosu-room-shelf > .card:last-child{ margin-bottom:0; }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -751,6 +797,31 @@ textarea.field-input{ resize:none; }
 
     <!-- ① ホーム -->
     <section class="view active" data-view="home">
+      <!-- Version 2.0: 「ケイオスちゃんのお部屋」。ホーム最上部を、
+           時間帯で背景・照明・表情が変わる"部屋"として演出する外枠。
+           既存カード(今日のケイオスちゃん/幸せスコア/最近の成長/
+           今日のおすすめプラン/今日の最優先)は中身も見た目も一切
+           変更せず、この部屋の中の棚(.kaosu-room-shelf)にそのまま
+           収める(削除・複製・作り直しはしない=大幅な重複を避ける)。
+           時間帯の判定は、既存Phase34のgetDayBand()(4区分・行動生成に
+           使う判定境界)とは別に、部屋の見た目専用のgetRoomVisualBand()
+           (5区分・朝/昼/夕方/夜/深夜)を新設する。理由: getDayBand()は
+           Phase34〜40の複数の判定ロジックが依存している既存の境界値
+           なので、そこへ「夕方」を割り込ませて5区分化すると既存の
+           生成内容が意図せず変わってしまう。見た目の演出だけを担当する
+           別関数に分けることで、既存ロジックには一切触れない。 -->
+      <div class="kaosu-room" id="kaosuRoom">
+        <div class="kaosu-room-scene" id="kaosuRoomScene">
+          <div class="kaosu-room-window"></div>
+          <div class="kaosu-room-character">
+            <div class="kaosu-avatar" style="width:84px;height:84px" id="kaosuRoomAvatar">
+              <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" id="kaosuRoomAvatarImg" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+          </div>
+          <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
+        </div>
+        <div class="kaosu-room-shelf" id="kaosuRoomShelf">
       <!-- Phase34: AI Daily Assistant。時間帯(朝/昼/夜/深夜)で内容が
            変わる「今日のルミナ」カードをホーム最上部に1枚だけ追加する。
            Phase30/33と同じく、モード(幸福設計/おうちサポート)に関係
@@ -833,6 +904,8 @@ textarea.field-input{ resize:none; }
         <div class="card-label">🎯 今日の最優先</div>
         <p class="priority-message" id="priorityMessage"></p>
         <button type="button" class="filterbtn ai-action-btn" id="priorityActionBtn" style="display:none;"></button>
+      </div>
+        </div>
       </div>
 
       <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
@@ -1886,7 +1959,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomScene(); rerollKaosuRoomGreeting(); }
   if(view === "chat"){ openChatView(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
@@ -6209,6 +6282,71 @@ function renderHomePriorityCard(){
   }
 }
 
+/* =========================================================
+   Version 2.0: ケイオスちゃんのお部屋
+   - ホーム最上部を「ケイオスちゃんが暮らす部屋」として演出する。
+   - 既存の5枚のカード(今日のケイオスちゃん/幸せスコア/最近の成長/
+     今日のおすすめプラン/今日の最優先)は中身も判定ロジックも一切
+     変更せず、そのまま.kaosu-room-shelf内(HTML上でこのdivの直後)に
+     置くだけ。表情切り替えも既存のsetKaosuExpression()/
+     KAOSU_EXPRESSIONSをそのまま再利用し、新しい画像切替ロジックは
+     作らない(重複実装禁止)。
+   - 時間帯の判定は、既存のgetDayBand()(Phase34〜40の複数の判定が
+     依存している4区分の境界)とは別に、部屋の見た目専用の5区分
+     (朝/昼/夕方/夜/深夜)を判定するgetRoomVisualBand()を新設する。
+     getDayBand()へ「夕方」を割り込ませて5区分化すると、それに依存
+     する既存の生成内容(Phase34/39等)の境界が意図せず変わってしまう
+     ため、見た目専用の別関数として完全に切り離している。
+   - 座る/本を読む/コーヒーを飲む等の複数ポーズ用の専用アセットは
+     現時点で存在しない(このセッションでは新規画像を生成できない)。
+     指示書の「今回は静止画でもよい」に沿い、既存のkaosu-face-*.webp
+     表情差分を時間帯ごとに割り当てるだけに留め、複数ポーズ/Live2D化
+     は将来の拡張ポイントとしてここにコメントを残す。
+   ========================================================= */
+const ROOM_VISUAL_BAND_META = {
+  morning:  { cssClass: "room-band-morning",  expression: "smile" },
+  day:      { cssClass: "room-band-day",      expression: "normal" },
+  evening:  { cssClass: "room-band-evening",  expression: "relax" },
+  night:    { cssClass: "room-band-night",    expression: "cheer" },
+  midnight: { cssClass: "room-band-midnight", expression: "thinking" },
+};
+function getRoomVisualBand(now = new Date()){
+  const h = now.getHours();
+  if(h >= 5 && h <= 10) return "morning";
+  if(h >= 11 && h <= 15) return "day";
+  if(h >= 16 && h <= 17) return "evening";
+  if(h >= 18 && h <= 23) return "night";
+  return "midnight";
+}
+function renderKaosuRoomScene(now = new Date()){
+  const scene = document.getElementById("kaosuRoomScene");
+  const img = document.getElementById("kaosuRoomAvatarImg");
+  if(!scene || !img) return;
+  const meta = ROOM_VISUAL_BAND_META[getRoomVisualBand(now)];
+  Object.values(ROOM_VISUAL_BAND_META).forEach(m => scene.classList.remove(m.cssClass));
+  scene.classList.add(meta.cssClass);
+  setKaosuExpression(img, meta.expression);
+}
+
+/* 指示書の例文をそのまま採用した「おかえり」挨拶プール。ホームへ戻る
+   たび(switchViewでview==="home"になるたび)にランダムで1件選ぶ。
+   データの再読み込みや通知の有無で再抽選しないよう、あえて
+   renderHomeAiAdviceCard()等の既存リフレッシュ経路には便乗させず、
+   switchView()の「home」分岐からだけ呼ぶ(初回表示・タブ復帰の
+   タイミングだけ変える)。 */
+const KAOSU_ROOM_GREETINGS = [
+  "おかえり♪",
+  "今日はどうする？",
+  "今日はゆっくり出来そう？",
+  "無理し過ぎたらあかんで😊",
+  "今日はワクワク見つかった？",
+];
+function rerollKaosuRoomGreeting(){
+  const el = document.getElementById("kaosuRoomGreeting");
+  if(!el) return;
+  el.textContent = KAOSU_ROOM_GREETINGS[Math.floor(Math.random() * KAOSU_ROOM_GREETINGS.length)];
+}
+
 /* ---------- 通知設定UI(わたし画面) ---------- */
 function renderNotificationModeChips(){
   const root = document.getElementById("notificationModeChipRow");
@@ -9412,6 +9550,8 @@ renderHomeStep();
 renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
+renderKaosuRoomScene();
+rerollKaosuRoomGreeting();
 renderNotificationModeChips();
 renderNotificationPermissionRow();
 loadWakuwakuEntries();
