@@ -349,6 +349,13 @@ textarea{ font-family:inherit; }
 .future-prediction-item{ font-size:13.5px; line-height:1.7; margin:0 0 6px; }
 .future-prediction-item:last-child{ margin-bottom:0; }
 
+/* ---------- AI Action Engine(Phase33) ---------- */
+.ai-action-card{ background:linear-gradient(135deg,#e7f8f0 0%,#eef6ff 100%); border-color:transparent; }
+.ai-action-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.ai-action-row:last-child{ border-bottom:none; padding-bottom:0; }
+.ai-action-message{ font-size:13px; line-height:1.5; flex:1; min-width:0; }
+.ai-action-btn{ flex:none; white-space:nowrap; }
+
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
   display:block; width:100%;
@@ -704,6 +711,14 @@ textarea.field-input{ resize:none; }
         <div id="homeAiAdviceList"></div>
       </div>
 
+      <!-- Phase33: AI Action Engine。AIアドバイスカードの下に、
+           行動できる項目だけを最大3件表示する(アクションが無い
+           項目は含めない=アドバイスカードとの二重掲載を避ける)。 -->
+      <div class="card ai-action-card" id="homeAiActionCard" style="display:none;">
+        <div class="card-label">✅ 今すぐできること</div>
+        <div id="homeAiActionList"></div>
+      </div>
+
       <div id="happinessModeContent">
       <div class="kaosu-hero">
         <div class="kaosu-hero-visual" id="kaosuHeroVisual">
@@ -911,6 +926,13 @@ textarea.field-input{ resize:none; }
       <div class="card future-ai-analysis-card" id="futurePredictionCard" style="display:none;">
         <div class="card-label">🔮 AI予測</div>
         <div id="futurePredictionList"></div>
+      </div>
+
+      <!-- Phase33: AI Action Engine。AI予測カードの下に、行動できる
+           項目だけを最大3件表示する。 -->
+      <div class="card ai-action-card" id="futureAiActionCard" style="display:none;">
+        <div class="card-label">✅ 今すぐできること</div>
+        <div id="futureAiActionList"></div>
       </div>
 
       <div class="mind-empty" id="futureEmpty" style="display:none;">
@@ -4880,6 +4902,110 @@ function isWakuwakuStale(days = 5){
   return !lastAt || (Date.now() - new Date(lastAt).getTime()) > days * 86400000;
 }
 
+/* =========================================================
+   Phase33: AI Action Engine
+   - 「AIアドバイス」「AI予測」の各項目に、任意でaction(遷移先の
+     種別・対象id・入力済みにする値)を付与できるようにする。
+     信号の計算そのものはPhase30/32のgenerateTodayAiAdvice()/
+     generateFuturePredictions()の中でそのまま行い、ここでは
+     「そのactionを渡された時にどの既存画面をどう開くか」の
+     ディスパッチだけを持つ(集計ロジックの二重実装をしない)。
+   - ボタンは常に既存の画面・既存の保存ボタンへ橋渡しするだけで、
+     ここから直接IndexedDBへ書き込むことはしない(「必要なら入力済み
+     状態で遷移」に留め、確認なしの自動保存はしない)。
+   - 「新しい推測は禁止」のため、入力済みにする値は既存データ
+     (過去に同じタイトルで記録されたtasks等)からのみ埋める。
+     根拠になるデータが無い項目はプレースホルダのまま(空欄)にする。
+   ========================================================= */
+const AI_ACTION_DEFAULT_LABEL = {
+  event: "予定を確認",
+  checklist: "チェックリスト作成",
+  wakuwaku: "ワクワク追加",
+  chat: "チャットで話す",
+  familyDetail: "詳細を見る",
+  familyMemo: "メモを追加",
+  step: "一歩を記録",
+};
+
+/* 同じタイトルの予定が過去にあれば、そのtasksをそのまま再利用する
+   (「牛乳・卵」のような具体的な中身を新しく推測して埋めることは
+   しない=指示書の「新しい推測は禁止」に対応)。 */
+function findPastTasksForTitle(title){
+  const past = familyEvents
+    .filter(ev => ev.title === title && ev.tasks && ev.tasks.length)
+    .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+  return past.length ? past[0].tasks : [];
+}
+
+function dispatchAiAction(action){
+  if(!action) return;
+  if(action.type === "event"){
+    const ev = action.eventId ? familyEvents.find(e => e.id === action.eventId) : null;
+    if(ev){
+      eventTimelineMemberId = ev.familyMemberId;
+      openEventEditSheet(ev);
+      return;
+    }
+    eventTimelineMemberId = action.familyMemberId || (familyMembers[0] && familyMembers[0].id) || null;
+    if(!eventTimelineMemberId){ showToast("先に家族を登録してみてね"); return; }
+    openEventEditSheet(null);
+    if(action.prefillTitle) document.getElementById("eventTitleInput").value = action.prefillTitle;
+    if(action.prefillCategory){
+      eventFormState.category = action.prefillCategory;
+      document.getElementById("eventCategoryInput").value = action.prefillCategory;
+      renderEventCategoryChips();
+    }
+    const tasks = action.prefillTasks && action.prefillTasks.length ? action.prefillTasks : findPastTasksForTitle(action.prefillTitle || "");
+    if(tasks.length) document.getElementById("eventTasksInput").value = tasks.join("\n");
+    return;
+  }
+  if(action.type === "wakuwaku"){
+    openAddSheet();
+    return;
+  }
+  if(action.type === "chat"){
+    switchView("chat");
+    if(action.prefillMessage){
+      window.setTimeout(() => {
+        const input = document.getElementById("chatInput");
+        if(input) input.value = action.prefillMessage;
+      }, 250);
+    }
+    return;
+  }
+  if(action.type === "familyDetail" || action.type === "familyMemo"){
+    const member = familyMembers.find(m => m.id === action.familyMemberId);
+    if(!member) return;
+    if(action.type === "familyMemo") openFamilyEditSheet(member);
+    else openFamilyDetail(member);
+    return;
+  }
+  if(action.type === "step"){
+    switchView("step");
+    return;
+  }
+}
+
+function renderAiActionCard(cardId, listId, items){
+  const card = document.getElementById(cardId);
+  const list = document.getElementById(listId);
+  if(!card || !list) return;
+  const actionable = items.filter(i => i.action).slice(0, 3);
+  if(!actionable.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  list.innerHTML = actionable.map((item, idx) => `
+    <div class="ai-action-row">
+      <p class="ai-action-message">${escapeHtml(item.message)}</p>
+      <button type="button" class="filterbtn ai-action-btn" data-action-idx="${idx}">【${escapeHtml(item.action.label || AI_ACTION_DEFAULT_LABEL[item.action.type] || "見てみる")}】</button>
+    </div>`).join("");
+  list.querySelectorAll("[data-action-idx]").forEach(btn => {
+    btn.addEventListener("click", () => dispatchAiAction(actionable[Number(btn.dataset.actionIdx)].action));
+  });
+}
+
 function generateTodayAiAdvice(){
   const items = [];
   const now = Date.now();
@@ -4891,7 +5017,10 @@ function generateTodayAiAdvice(){
     const overdueDays = (now - new Date(ev.datetime).getTime()) / 86400000;
     if(overdueDays >= 2 && overdueDays <= 14){
       const name = familyMemberName(ev.familyMemberId);
-      items.push({ tier: 1, message: `${name ? name + "の" : ""}${ev.title}がまだ確認できていないようです。少し気にかけてあげてくださいね。` });
+      items.push({
+        tier: 1, message: `${name ? name + "の" : ""}${ev.title}がまだ確認できていないようです。少し気にかけてあげてくださいね。`,
+        action: { type: "event", eventId: ev.id, label: "予定を確認" },
+      });
     }
   });
 
@@ -4899,30 +5028,52 @@ function generateTodayAiAdvice(){
   const recentStats = computeEventStatsForRange(familyEvents, now - 7 * 86400000, now);
   const priorStats = computeEventStatsForRange(familyEvents, now - 21 * 86400000, now - 7 * 86400000);
 
-  /* 健康(tier2): 完了率が下がっている→休んでいいという声かけ */
+  /* 健康(tier2): 完了率が下がっている→休んでいいという声かけ。
+     「休憩を入れる」アクションは、指示書の例⑤にある通り実際に
+     予定として仮登録できる導線にする(タイトル・カテゴリだけ入力済み
+     にし、保存するかは既存のイベント編集シートでユーザーが決める)。 */
   if(recentStats.total >= 2 && priorStats.total >= 2 && (priorStats.doneRate - recentStats.doneRate) >= 25){
-    items.push({ tier: 2, message: "最近忙しい日が続いています。今日は少し休憩も大切ですよ🍀" });
+    items.push({
+      tier: 2, message: "最近忙しい日が続いています。今日は少し休憩も大切ですよ🍀",
+      action: { type: "event", prefillTitle: "休憩", prefillCategory: "暮らし", label: "休憩を入れる" },
+    });
   }
   /* 健康(tier2): 今日の予定がほぼ無い→自分の時間の提案(実データに
      基づく=予定件数のみを根拠にし、運動/散歩などの未計測な行動は
      断定しない) */
   const todayStats = computeEventStatsForRange(familyEvents, now - 6 * 3600000, now + 18 * 3600000);
   if(todayStats.total === 0 && familyEvents.length > 0){
-    items.push({ tier: 2, message: "今日は予定が少ないので、部屋を少し片付けると気持ち良く過ごせそうです😊" });
+    items.push({
+      tier: 2, message: "今日は予定が少ないので、部屋を少し片付けると気持ち良く過ごせそうです😊",
+      action: { type: "event", prefillTitle: "片付け", prefillCategory: "暮らし", label: "チェックリスト作成" },
+    });
   }
 
-  /* 家族(tier3): 今週の家族イベントが多め */
+  /* 家族(tier3): 今週の家族イベントが多め→直近の予定を確認する導線 */
   if(weekStats.total >= 6){
-    items.push({ tier: 3, message: "今週は家族イベントが多めです。前日に持ち物確認がおすすめです✨" });
+    const soonestThisWeek = weekStats.events.slice().sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)))[0];
+    items.push({
+      tier: 3, message: "今週は家族イベントが多めです。前日に持ち物確認がおすすめです✨",
+      action: soonestThisWeek ? { type: "event", eventId: soonestThisWeek.id, label: "準備チェック" } : null,
+    });
   }
-  /* 家族(tier3): 既存のanalyzeFamilyMemberInsights()をそのまま再利用 */
+  /* 家族(tier3): 既存のanalyzeFamilyMemberInsights()をそのまま再利用。
+     文面から「声かけ」系だけチャット導線、それ以外は家族詳細への
+     導線にする(analyzeFamilyMemberInsights自体は変更しない)。 */
   familyMembers.forEach(member => {
     analyzeFamilyMemberInsights(member).forEach(text => {
-      items.push({ tier: 3, message: text });
+      const isReachOut = text.includes("声をかけてみる");
+      items.push({
+        tier: 3, message: text,
+        action: isReachOut
+          ? { type: "chat", prefillMessage: `${member.name}のことなんだけど`, label: "チャットで話す" }
+          : { type: "familyDetail", familyMemberId: member.id, label: "詳細を見る" },
+      });
     });
   });
 
-  /* 予定(tier4): 期限切れの未確認予定が複数ある */
+  /* 予定(tier4): 期限切れの未確認予定が複数ある(特定の1件に絞れない
+     ため、ここではアクションを付けず気付きの提示のみに留める) */
   const overdueCount = familyEvents.filter(ev => ev.datetime && (ev.status === "pending" || ev.status === "later") && new Date(ev.datetime).getTime() < now).length;
   if(overdueCount >= 2){
     items.push({ tier: 4, message: "確認できていない予定がいくつかあるようです。時間のある時に見返してみてください。" });
@@ -4930,7 +5081,10 @@ function generateTodayAiAdvice(){
 
   /* ワクワク(tier5): 直近しばらく登録が無い */
   if(isWakuwakuStale()){
-    items.push({ tier: 5, message: "最近ワクワク登録が少なめです。今日ひとつだけ嬉しかったことを残してみませんか？" });
+    items.push({
+      tier: 5, message: "最近ワクワク登録が少なめです。今日ひとつだけ嬉しかったことを残してみませんか？",
+      action: { type: "wakuwaku", label: "5分だけやってみる" },
+    });
   }
 
   /* 生活改善(tier6): 何も気になることが無い時だけの前向きな一言 */
@@ -4953,9 +5107,13 @@ function renderHomeAiAdviceCard(){
   if(!card || !list) return;
   if(notificationModeGet() === "off"){
     card.style.display = "none";
+    renderAiActionCard("homeAiActionCard", "homeAiActionList", []);
     return;
   }
   const advice = generateTodayAiAdvice();
+  /* Phase33: 同じadvice配列をそのまま「今すぐできること」カードへ渡す
+     (generateTodayAiAdvice()をもう一度呼んで二重計算しない)。 */
+  renderAiActionCard("homeAiActionCard", "homeAiActionList", advice);
   if(!advice.length){
     card.style.display = "none";
     return;
@@ -5003,18 +5161,27 @@ function generateFuturePredictions(){
     const overdueDays = (now - new Date(ev.datetime).getTime()) / 86400000;
     if(overdueDays >= 2 && overdueDays <= 14){
       const name = familyMemberName(ev.familyMemberId);
-      items.push({ tier: 1, message: `${name ? name + "の" : ""}${ev.title}がまだ確認できていないようです。少し気にかけてあげてくださいね。` });
+      items.push({
+        tier: 1, message: `${name ? name + "の" : ""}${ev.title}がまだ確認できていないようです。少し気にかけてあげてくださいね。`,
+        action: { type: "event", eventId: ev.id, label: "予定を確認" },
+      });
     }
   });
 
   const weekStats = computeEventStatsForRange(familyEvents, now, now + 7 * 86400000);
 
   /* ②期限: 今週の通院予定 */
-  if(weekStats.events.some(ev => ev.category === "病院")){
-    items.push({ tier: 2, message: "今週は通院予定があります。" });
+  const hospitalThisWeek = weekStats.events.find(ev => ev.category === "病院");
+  if(hospitalThisWeek){
+    items.push({
+      tier: 2, message: "今週は通院予定があります。",
+      action: { type: "event", eventId: hospitalThisWeek.id, label: "予定を確認" },
+    });
   }
 
-  /* ③家族: 子育て/学校の予定が2日以内に迫っている→準備確認 */
+  /* ③家族: 子育て/学校の予定が2日以内に迫っている→準備確認。
+     既存の同名予定にtasksの記録があれば、それをそのまま入力済みに
+     する(新しい推測はしない=無ければ空欄のまま)。 */
   const soonChildEvent = familyEvents.find(ev => {
     if(!ev.datetime || (ev.status !== "pending" && ev.status !== "later")) return false;
     if(!CHILDCARE_CATEGORY_GROUP.includes(ev.category)) return false;
@@ -5022,23 +5189,32 @@ function generateFuturePredictions(){
     return days >= 0 && days <= 2;
   });
   if(soonChildEvent){
-    items.push({ tier: 3, message: `${soonChildEvent.title}の準備を確認しましょう。` });
+    items.push({
+      tier: 3, message: `${soonChildEvent.title}の準備を確認しましょう。`,
+      action: { type: "event", eventId: soonChildEvent.id, label: "準備チェック" },
+    });
   }
 
   /* ④健康: 完了率低下(Phase27/30と同じ計算式を再利用) */
   const recentStats = computeEventStatsForRange(familyEvents, now - 7 * 86400000, now);
   const priorStats = computeEventStatsForRange(familyEvents, now - 21 * 86400000, now - 7 * 86400000);
   if(recentStats.total >= 2 && priorStats.total >= 2 && (priorStats.doneRate - recentStats.doneRate) >= 25){
-    items.push({ tier: 4, message: "少し休憩すると良さそうです。" });
+    items.push({
+      tier: 4, message: "少し休憩すると良さそうです。",
+      action: { type: "event", prefillTitle: "休憩", prefillCategory: "暮らし", label: "休憩を入れる" },
+    });
   }
 
-  /* ⑤予定集中: 曜日偏り(今週いちばん予定が多い曜日) */
+  /* ⑤予定集中: 曜日偏り(今週いちばん予定が多い曜日。特定の1件に
+     絞れないためアクションは付けない) */
   const weekdayCounts = countEventsByWeekday(weekStats.events);
   const maxCount = Math.max(...weekdayCounts);
   if(maxCount >= 3){
     items.push({ tier: 5, message: `${WEEKDAY_LABELS[weekdayCounts.indexOf(maxCount)]}曜日は予定が集中しています。` });
   }
-  /* ⑤予定集中(繰り返し予定): 次回が2日以内に迫っている */
+  /* ⑤予定集中(繰り返し予定): 次回が2日以内に迫っている。過去の同じ
+     予定に記録されていたtasksをそのまま引き継いで入力済みにする
+     (「牛乳・卵」のような具体的な中身を新しく推測しない)。 */
   const seenRepeatTitles = new Set();
   familyEvents.forEach(ev => {
     if(!ev.repeat || ev.repeat === "none" || seenRepeatTitles.has(ev.title)) return;
@@ -5046,14 +5222,20 @@ function generateFuturePredictions(){
     if(!next) return;
     const days = (next.getTime() - now) / 86400000;
     if(days >= 0 && days <= 2){
-      items.push({ tier: 5, message: `そろそろ${ev.title}の日です。` });
+      items.push({
+        tier: 5, message: `そろそろ${ev.title}の日です。`,
+        action: { type: "event", familyMemberId: ev.familyMemberId, prefillTitle: ev.title, prefillCategory: ev.category, prefillTasks: ev.tasks, label: "チェックリスト作成" },
+      });
       seenRepeatTitles.add(ev.title);
     }
   });
 
   /* ⑥ワクワク不足 */
   if(isWakuwakuStale()){
-    items.push({ tier: 6, message: "最近ワクワク記録が少なめです。" });
+    items.push({
+      tier: 6, message: "最近ワクワク記録が少なめです。",
+      action: { type: "wakuwaku", label: "5分だけやってみる" },
+    });
   }
 
   /* 通知履歴(aiNotifications)との重複を避ける: 直近24時間に同じ文言を
@@ -5078,6 +5260,9 @@ function renderFuturePredictionCard(){
   const list = document.getElementById("futurePredictionList");
   if(!card || !list) return;
   const predictions = generateFuturePredictions();
+  /* Phase33: 同じpredictions配列をそのまま「今すぐできること」カードへ
+     渡す(generateFuturePredictions()をもう一度呼んで二重計算しない)。 */
+  renderAiActionCard("futureAiActionCard", "futureAiActionList", predictions);
   if(!predictions.length){
     card.style.display = "none";
     return;
