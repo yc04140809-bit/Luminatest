@@ -400,6 +400,21 @@ textarea{ font-family:inherit; }
 .achievement-trend{ font-size:12.5px; color:var(--text-sub); margin:10px 0 0; text-align:right; }
 .achievement-comment{ font-size:13.5px; line-height:1.7; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
 
+/* ---------- 思い出アルバム(Phase41) ---------- */
+.memory-album-card{ background:linear-gradient(135deg,#fff0f5 0%,#fff8ea 100%); border-color:transparent; }
+.memory-album-count{ font-size:14px; font-weight:700; margin:0 0 10px; }
+.memory-album-count span{ font-size:19px; color:var(--purple); }
+.memory-album-recent-label{ font-size:12px; font-weight:700; color:var(--text-sub); margin:0 0 4px; }
+.memory-album-recent-item{ font-size:13.5px; line-height:1.7; margin:0; }
+.memory-album-entry{ margin-bottom:12px; }
+.memory-album-entry:last-child{ margin-bottom:0; }
+.memory-album-entry-head{ display:flex; align-items:flex-start; gap:10px; margin-bottom:8px; }
+.memory-album-entry-icon{ flex:none; font-size:22px; line-height:1; }
+.memory-album-entry-date{ font-size:11.5px; color:var(--text-sub); margin:0 0 2px; }
+.memory-album-entry-title{ font-size:14.5px; font-weight:700; margin:0; }
+.memory-album-entry-body{ font-size:13.5px; line-height:1.7; margin:0 0 8px; }
+.memory-album-entry-comment{ font-size:13px; line-height:1.6; color:var(--purple); margin:0; padding-top:8px; border-top:1px dashed var(--border); }
+
 /* ---------- AI Smart Timeline(Phase38) ---------- */
 .timeline-card{ background:linear-gradient(135deg,#fff4e8 0%,#f5eaff 100%); border-color:transparent; }
 .timeline-row{ display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px dashed var(--border); }
@@ -882,6 +897,21 @@ textarea.field-input{ resize:none; }
         </div>
         <p class="achievement-trend" id="achievementTrend" style="display:none;"></p>
         <p class="achievement-comment" id="achievementComment" style="display:none;"></p>
+      </div>
+
+      <!-- Phase41: ケイオスちゃんとの思い出アルバム。「最近の成長」
+           カードの下に「思い出アルバム」カードを1枚だけ追加する。
+           新しいDBストアは追加せず、既存のwakuwakuEntries(そのまま
+           思い出として使える title/note/emotion/createdAtを持つ)/
+           familyEvents(完了・確認済みの予定)/stepLogRead()(一歩の
+           記録)から都度アルバムを組み立てる読み込み専用の機能。
+           全カテゴリが0件の時はカードごと非表示にする。 -->
+      <div class="card memory-album-card" id="homeMemoryAlbumCard" style="display:none;">
+        <div class="card-label">📸 思い出アルバム</div>
+        <p class="memory-album-count">現在 <span id="memoryAlbumCount"></span>枚</p>
+        <p class="memory-album-recent-label">最近追加</p>
+        <div id="memoryAlbumRecentList"></div>
+        <button type="button" class="btn-outline" id="btnMemoryAlbumOpen" style="margin-top:10px;">見る</button>
       </div>
 
       <!-- Phase39: AI Life Planner。「最近の成長」カードの下に「今日の
@@ -1820,6 +1850,23 @@ textarea.field-input{ resize:none; }
         <button class="sheet-close" id="notificationHistoryClose" aria-label="閉じる">×</button>
       </div>
       <div class="sheet-scroll" id="notificationHistoryBody"></div>
+    </div>
+  </div>
+
+  <!-- Phase41: ケイオスちゃんとの思い出アルバム。新しいDBストアは
+       追加せず、既存のwakuwakuEntries/familyEvents/stepLogRead()
+       から都度アルバムを組み立てて表示するだけの読み込み専用画面
+       (モーダル)。 -->
+  <div class="modal" id="memoryAlbumModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles">
+          <h3>📸 思い出アルバム</h3>
+          <p>ケイオスちゃんと積み重ねてきた日々だよ</p>
+        </div>
+        <button class="sheet-close" id="memoryAlbumClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll" id="memoryAlbumBody"></div>
     </div>
   </div>
 
@@ -5368,16 +5415,17 @@ function generateTodayAiAdvice(){
 }
 
 function renderHomeAiAdviceCard(){
-  /* Phase34/35/37/39/40: 今日のルミナ・幸せスコア・最近の成長・今日の
-     おすすめプラン・今日の最優先の各カードは通知ON/OFFやアドバイス
-     有無に関係なく常に表示するため、このカードのdisplay判定より前に
-     呼ぶ。renderHomeAiAdviceCard()は家族/予定/ワクワクの読み込み完了後
-     やモード切替のたびに必ず呼ばれる既存のフックなので、ここに便乗
-     させて新しい呼び出し箇所を5箇所以上増やさないようにする
-     (呼び出し漏れ防止・重複実装回避)。 */
+  /* Phase34/35/37/39/40/41: 今日のルミナ・幸せスコア・最近の成長・
+     思い出アルバム・今日のおすすめプラン・今日の最優先の各カードは
+     通知ON/OFFやアドバイス有無に関係なく常に表示するため、この
+     カードのdisplay判定より前に呼ぶ。renderHomeAiAdviceCard()は家族/
+     予定/ワクワクの読み込み完了後やモード切替のたびに必ず呼ばれる
+     既存のフックなので、ここに便乗させて新しい呼び出し箇所を5箇所
+     以上増やさないようにする(呼び出し漏れ防止・重複実装回避)。 */
   renderHomeDailyLuminaCard();
   renderHomeHappinessScoreCard();
   renderHomeAchievementCard();
+  renderHomeMemoryAlbumCard();
   renderHomeLifePlanCard();
   renderHomePriorityCard();
   const card = document.getElementById("homeAiAdviceCard");
@@ -6346,6 +6394,226 @@ function rerollKaosuRoomGreeting(){
   if(!el) return;
   el.textContent = KAOSU_ROOM_GREETINGS[Math.floor(Math.random() * KAOSU_ROOM_GREETINGS.length)];
 }
+
+/* =========================================================
+   Phase41: ケイオスちゃんとの思い出アルバム
+   - 新しいIndexedDBストアは追加しない(バージョン変更なし)。
+     「思い出」は保存された専用レコードではなく、既存の
+     wakuwakuEntries(すでにtitle/note/emotion/createdAtを持ち、
+     そのまま思い出として使える)/familyEvents(完了・確認済みの
+     予定)/stepLogRead()(一歩の記録)から、表示するたびに毎回
+     組み立て直す読み込み専用のビューとして実装する。
+   - 「節目」だけは実データから算出する特別な1件(初めての利用日/
+     ワクワク100件達成/連続利用100日達成)。いずれも実在するタイム
+     スタンプの集計だけで判定し、新しい推測は行わない。「誕生日」は
+     familyMembersに誕生日フィールドが存在しないため実装しない
+     (Phase33の「プレゼント候補」と同じ理由による意図的な未実装)。
+   ========================================================= */
+function memoryIconForEventCategory(category){
+  if(CARE_CATEGORY_GROUP.includes(category)) return "🏥";
+  if(CHILDCARE_CATEGORY_GROUP.includes(category)) return "🎒";
+  if(category === "暮らし") return "🏠";
+  if(category === "仕事") return "💼";
+  return "👪";
+}
+/* アプリを使い始めた実際の最初の記録日(家族/予定/ワクワクのうち
+   最も古いcreatedAt)を「初めて出会った日」の目安として使う。 */
+function computeAppFirstUseDate(){
+  const timestamps = [];
+  familyMembers.forEach(m => { if(m.createdAt) timestamps.push(m.createdAt); });
+  familyEvents.forEach(e => { if(e.createdAt) timestamps.push(e.createdAt); });
+  (wakuwakuEntries || []).forEach(e => { if(e.createdAt) timestamps.push(e.createdAt); });
+  if(!timestamps.length) return null;
+  return timestamps.sort()[0];
+}
+/* 今日を含めて連続で何らかの記録(予定の履歴/ワクワク登録/一歩記録)が
+   ある日数。今日にまだ記録が無ければ0(「今も続いている」連続日数の
+   目安であり、過去のどこかで途切れた連続記録は数えない)。 */
+function computeActivityStreakDays(now = new Date()){
+  const dates = new Set();
+  familyEvents.forEach(ev => (ev.history || []).forEach(h => { if(h.at) dates.add(new Date(h.at).toDateString()); }));
+  (wakuwakuEntries || []).forEach(e => { if(e.createdAt) dates.add(new Date(e.createdAt).toDateString()); });
+  stepLogRead().forEach(r => { if(r.completedAt) dates.add(new Date(r.completedAt).toDateString()); });
+  if(!dates.size) return 0;
+  let streak = 0;
+  const cursor = new Date(now);
+  cursor.setHours(0, 0, 0, 0);
+  while(dates.has(cursor.toDateString())){
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+const MEMORY_WAKUWAKU_COUNT_MILESTONE = 100;
+const MEMORY_STREAK_MILESTONE = 100;
+
+function generateMemoryAlbumEntries(now = new Date()){
+  const entries = [];
+
+  (wakuwakuEntries || []).forEach(e => {
+    if(!e.createdAt) return;
+    entries.push({
+      date: e.createdAt, category: "ワクワク", icon: "✨",
+      title: e.title || "ワクワク",
+      body: e.note ? kaosuContextTruncate(e.note, 60) : "心が動いた出来事でした。",
+      emotion: e.emotion || "",
+      commentSeed: "ww_" + e.id,
+    });
+  });
+
+  familyEvents
+    .filter(ev => ev.datetime && (ev.status === "done" || ev.status === "confirmed"))
+    .forEach(ev => {
+      const name = familyMemberName(ev.familyMemberId);
+      entries.push({
+        date: ev.datetime, category: ev.category || "予定", icon: memoryIconForEventCategory(ev.category),
+        title: `${name ? name + "と" : ""}${ev.title}`,
+        body: `${name ? name + "との" : ""}${ev.title}の時間を過ごしました。`,
+        emotion: "",
+        commentSeed: "ev_" + ev.id,
+      });
+    });
+
+  stepLogRead().forEach(r => {
+    if(!r.completedAt) return;
+    entries.push({
+      date: r.completedAt, category: "一歩", icon: "👣",
+      title: "小さな一歩を踏み出した日",
+      body: "小さな一歩を踏み出しました。",
+      emotion: r.feeling || "",
+      commentSeed: "step_" + (r.id || r.completedAt),
+    });
+  });
+
+  const firstUse = computeAppFirstUseDate();
+  if(firstUse){
+    entries.push({
+      date: firstUse, category: "節目", icon: "🎉",
+      title: "初めてケイオスちゃんと出会った日",
+      body: "ここから一緒に日々を積み重ねてきました。",
+      emotion: "嬉しい",
+      commentSeed: "milestone_first",
+    });
+  }
+
+  const wakuwakuSorted = (wakuwakuEntries || [])
+    .filter(e => e.createdAt)
+    .slice()
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  if(wakuwakuSorted.length >= MEMORY_WAKUWAKU_COUNT_MILESTONE){
+    const milestoneEntry = wakuwakuSorted[MEMORY_WAKUWAKU_COUNT_MILESTONE - 1];
+    entries.push({
+      date: milestoneEntry.createdAt, category: "節目", icon: "🎉",
+      title: `初めて${MEMORY_WAKUWAKU_COUNT_MILESTONE}ワクワク達成`,
+      body: `ワクワクの記録が${MEMORY_WAKUWAKU_COUNT_MILESTONE}件になりました。`,
+      emotion: "嬉しい",
+      commentSeed: "milestone_100waku",
+    });
+  }
+
+  const streak = computeActivityStreakDays(now);
+  if(streak >= MEMORY_STREAK_MILESTONE){
+    entries.push({
+      date: now.toISOString(), category: "節目", icon: "🎉",
+      title: `${MEMORY_STREAK_MILESTONE}日連続で頑張った日`,
+      body: `${MEMORY_STREAK_MILESTONE}日間、毎日何かしら記録が続きました。`,
+      emotion: "嬉しい",
+      commentSeed: "milestone_streak",
+    });
+  }
+
+  entries.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return entries;
+}
+
+/* ケイオスちゃんの一言は、指示書の例文に近いトーンのプールから、
+   毎回ランダムに選ぶのではなく思い出ごとに安定して同じ1件を選ぶ
+   (擬似ハッシュ)。k3()/sp()は既存の方言切替をそのまま再利用する
+   (重複実装しない)。 */
+const MEMORY_COMMENT_POOL = {
+  wakuwaku: [
+    k3("あの日すごく楽しそうやったね😊", "あの日めっちゃ楽しそうやったなぁ😊", "あの日ばすごく楽しそうやったばい😊"),
+    k3("この気持ち、また味わいたいね✨", "この気持ち、また味わいたいなぁ✨", "この気持ち、また味わいたかね✨"),
+    k3("小さな「好き」が積み重なっているね", "小さな「好き」がぎょうさん積み重なっとるね", "小さな「好き」がだんだん積み重なっとーとよ"),
+  ],
+  family: [
+    k3("家族との時間、大切にできているね", "家族との時間、大事にできとるね", "家族との時間ば大事にしとるね"),
+    k3("ここから少しずつ変わり始めたね✨", "ここから少しずつ変わってきたなぁ✨", "ここから少しずつ変わってきたばい✨"),
+  ],
+  step: [
+    k3("小さな一歩、ちゃんと積み重なっているよ", "小さな一歩、ちゃんと積み重なっとるで", "小さな一歩、ちゃんと積み重なっとーよ"),
+  ],
+  milestone: [
+    k3("またこんな日を作ろう！", "またこんな日を作ろうな！", "またこんな日ば作ろうたい！"),
+    k3("ここまでよく続けてきたね✨", "ここまでよう続けてきたなぁ✨", "ここまでよう続けてきたばい✨"),
+  ],
+};
+function memoryCommentCategoryKey(category){
+  if(category === "ワクワク") return "wakuwaku";
+  if(category === "一歩") return "step";
+  if(category === "節目") return "milestone";
+  return "family";
+}
+function stableIndexForString(str, mod){
+  let h = 0;
+  for(let i = 0; i < str.length; i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+  return h % mod;
+}
+function pickMemoryComment(category, seedKey){
+  const pool = MEMORY_COMMENT_POOL[memoryCommentCategoryKey(category)] || MEMORY_COMMENT_POOL.wakuwaku;
+  return sp(pool[stableIndexForString(seedKey, pool.length)]);
+}
+function formatMemoryDate(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function renderHomeMemoryAlbumCard(){
+  const card = document.getElementById("homeMemoryAlbumCard");
+  const countEl = document.getElementById("memoryAlbumCount");
+  const recentList = document.getElementById("memoryAlbumRecentList");
+  if(!card || !countEl || !recentList) return;
+  const entries = generateMemoryAlbumEntries();
+  if(!entries.length){
+    card.style.display = "none";
+    return;
+  }
+  card.style.display = "block";
+  countEl.textContent = entries.length;
+  recentList.innerHTML = entries.slice(0, 3).map(e => `<p class="memory-album-recent-item">・${escapeHtml(e.title)}</p>`).join("");
+}
+function renderMemoryAlbumModal(){
+  const body = document.getElementById("memoryAlbumBody");
+  if(!body) return;
+  const entries = generateMemoryAlbumEntries();
+  if(!entries.length){
+    body.innerHTML = `<p class="mind-empty-note" style="text-align:center; margin:16px 0;">まだ思い出が記録されていません。</p>`;
+    return;
+  }
+  body.innerHTML = entries.map(e => `
+    <div class="card memory-album-entry">
+      <div class="memory-album-entry-head">
+        <span class="memory-album-entry-icon">${e.icon}</span>
+        <div>
+          <p class="memory-album-entry-date">${escapeHtml(formatMemoryDate(e.date))}</p>
+          <p class="memory-album-entry-title">${escapeHtml(e.title)}</p>
+        </div>
+      </div>
+      <p class="memory-album-entry-body">${escapeHtml(e.body)}</p>
+      <p class="memory-album-entry-comment">${escapeHtml(pickMemoryComment(e.category, e.commentSeed))}</p>
+    </div>`).join("");
+}
+document.getElementById("btnMemoryAlbumOpen").addEventListener("click", () => {
+  renderMemoryAlbumModal();
+  document.getElementById("memoryAlbumModal").classList.add("show");
+});
+document.getElementById("memoryAlbumClose").addEventListener("click", () => {
+  document.getElementById("memoryAlbumModal").classList.remove("show");
+});
+document.getElementById("memoryAlbumModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "memoryAlbumModal") document.getElementById("memoryAlbumModal").classList.remove("show");
+});
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
 function renderNotificationModeChips(){
