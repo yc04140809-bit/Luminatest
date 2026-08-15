@@ -762,12 +762,12 @@ textarea.field-input{ resize:none; }
       <div class="card daily-lumina-card" id="homeDailyLuminaCard" style="display:none;">
         <div class="daily-lumina-head">
           <div class="kaosu-avatar" style="width:44px;height:44px">
-            <img src="img/koufuku/kaosu-face-smile.webp" alt="ルミナ" onerror="this.classList.add('noimg')">
+            <img src="img/koufuku/kaosu-face-smile.webp" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
             <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
           </div>
           <div class="daily-lumina-title">
             <span class="daily-lumina-band-icon" id="dailyLuminaBandIcon"></span>
-            <span>今日のルミナ</span>
+            <span>今日のケイオスちゃん</span>
           </div>
         </div>
         <div class="daily-lumina-body" id="dailyLuminaBody"></div>
@@ -857,7 +857,7 @@ textarea.field-input{ resize:none; }
            属さない位置に置く(片方のモード内へ複製すると二重実装に
            なるため)。データが無ければ非表示。 -->
       <div class="card home-ai-advice-card" id="homeAiAdviceCard" style="display:none;">
-        <div class="card-label">🌟 今日のAIアドバイス</div>
+        <div class="card-label">🌟 今日のケイオスちゃんアドバイス</div>
         <div id="homeAiAdviceList"></div>
       </div>
 
@@ -999,7 +999,7 @@ textarea.field-input{ resize:none; }
         <!-- Phase26: 今日AIが気付いたこと。家族・予定データが無ければ
              非表示(情報が無いのに枠だけ出す状態を避ける)。 -->
         <div class="card" id="homeAiNoticeCard" style="display:none;">
-          <div class="card-label">✨ 今日AIが気付いたこと</div>
+          <div class="card-label">✨ 今日ケイオスちゃんが気付いたこと</div>
           <div id="homeAiNoticeList"></div>
         </div>
 
@@ -1061,7 +1061,7 @@ textarea.field-input{ resize:none; }
            「未来」画面へ追加)。ワクワクデータの有無に関係なく、
            家族の予定データがあれば表示する。 -->
       <div class="card future-ai-analysis-card" id="futureAiAnalysisCard" style="display:none;">
-        <div class="card-label">📅 AIカレンダー分析</div>
+        <div class="card-label">📅 ケイオスちゃんのカレンダー分析</div>
         <div class="future-busy-row">
           <span>今週の忙しさ</span>
           <span class="future-busy-stars" id="futureBusyStars"></span>
@@ -1074,7 +1074,7 @@ textarea.field-input{ resize:none; }
            追加)。予定件数/曜日偏り/Memory/繰り返し予定/通知履歴のみを
            根拠にし、位置情報・歩数・GPS等の未取得データは使わない。 -->
       <div class="card future-ai-analysis-card" id="futurePredictionCard" style="display:none;">
-        <div class="card-label">🔮 AI予測</div>
+        <div class="card-label">🔮 ケイオスちゃんの予想</div>
         <div id="futurePredictionList"></div>
       </div>
 
@@ -1085,7 +1085,7 @@ textarea.field-input{ resize:none; }
            一度も無い習慣は「止まっている」とは言わず、判定対象から
            外す)。 -->
       <div class="card habit-card" id="futureHabitCard" style="display:none;">
-        <div class="card-label">🔁 AI習慣</div>
+        <div class="card-label">🔁 ケイオスちゃんが見つけた習慣</div>
         <div id="futureHabitContinuingSection" style="display:none;">
           <p class="habit-section-label">最近続いています</p>
           <div id="futureHabitContinuingList"></div>
@@ -1443,9 +1443,9 @@ textarea.field-input{ resize:none; }
 
       <!-- Phase25: AI Notification Engine 設定 -->
       <div class="card">
-        <div class="card-label">🔔 AIからのお知らせ</div>
+        <div class="card-label">🔔 ケイオスちゃんからのお知らせ</div>
         <div class="chip-row" id="notificationModeChipRow" style="flex-wrap:wrap;"></div>
-        <p class="view-sub" style="margin:10px 0 0;">AIが必要そうと判断した時だけ、そっと教えるよ。</p>
+        <p class="view-sub" style="margin:10px 0 0;">ケイオスちゃんが必要そうって思った時だけ、そっと教えるよ。</p>
         <div id="notificationPermissionRow" style="margin-top:12px; display:none;">
           <p class="view-sub" style="margin:0 0 8px;"></p>
           <button type="button" class="btn-outline" id="btnEnableWebNotification">端末への通知を有効にする</button>
@@ -1643,10 +1643,10 @@ textarea.field-input{ resize:none; }
         <div class="chip-row" id="familyRoleChipRow"></div>
         <input type="text" class="field-input" id="familyRoleInput" placeholder="例: パパ、娘、ペット" maxlength="20" style="margin-top:8px;">
 
-        <div class="form-label">関係性（AIが家族のつながりを理解するための項目・任意）</div>
+        <div class="form-label">関係性（ケイオスちゃんが家族のつながりを理解するための項目・任意）</div>
         <div class="chip-row" id="familyRelationChipRow"></div>
 
-        <div class="form-label">AIの話し方（この家族と話す時のトーン）</div>
+        <div class="form-label">ケイオスちゃんの話し方（この家族と話す時のトーン）</div>
         <div class="chip-row" id="familyPersonalityChipRow"></div>
 
         <div class="form-label">年齢（任意）</div>
@@ -1658,7 +1658,7 @@ textarea.field-input{ resize:none; }
         <div class="form-label">メモ（任意）</div>
         <textarea class="field-input" id="familyMemoInput" rows="2" placeholder="性格や大事にしていること など"></textarea>
 
-        <div class="form-label">AIが覚えていること（任意・1行に1つ）</div>
+        <div class="form-label">ケイオスちゃんが覚えていること（任意・1行に1つ）</div>
         <textarea class="field-input" id="familyMemoriesInput" rows="4" placeholder="夜勤が多い&#10;プールが好き&#10;保育園に通っている"></textarea>
 
         <button class="btn-primary sheet-savebtn" id="btnFamilySave">この内容で保存する</button>
@@ -1742,7 +1742,7 @@ textarea.field-input{ resize:none; }
       <div class="sheet-header">
         <div class="sheet-titles">
           <h3>通知履歴</h3>
-          <p>AIが気付いて声をかけた記録だよ</p>
+          <p>ケイオスちゃんが気付いて声をかけた記録だよ</p>
         </div>
         <button class="sheet-close" id="notificationHistoryClose" aria-label="閉じる">×</button>
       </div>
@@ -3597,6 +3597,18 @@ const PERSONALITY_STYLE_PROMPT = {
   "ケイオスちゃん": "",
   "ルミナ": "この会話ではパーソナリティ「ルミナ」で話してください。落ち着いていて知的、穏やかに寄り添うように話してください。",
 };
+/* 世界観統一アップデート: アプリの案内役は「ケイオスちゃん」に統一し、
+   ユーザー画面には「ルミナ」「AI」という語を出さない。保存済みデータ
+   との互換性を保つため、PERSONALITY_PRESET/PERSONALITY_STYLE_PROMPTの
+   実体キー(personality値・プロンプト文言)は変更せず内部名称のまま
+   残し、チップ等の表示テキストだけをこのマップ経由で差し替える。 */
+const PERSONALITY_DISPLAY_LABEL = {
+  "AI秘書": "秘書系",
+  "ルミナ": "物知り系",
+};
+function personalityDisplayLabel(p){
+  return PERSONALITY_DISPLAY_LABEL[p] || p;
+}
 /* 家族を新規追加する時の初期値(指示書の「デフォルト」表)。あくまで
    追加時の提案であり、既存メンバーのpersonalityを勝手に上書きする
    ことはしない。 */
@@ -3778,7 +3790,7 @@ function renderFamilyDetailBody(member){
 
   const currentPersonality = member.personality || "ケイオスちゃん";
   const personalityChipsHtml = PERSONALITY_PRESET.map(p =>
-    `<button type="button" class="chip${p === currentPersonality ? " selected" : ""}" data-personality-select="${escapeHtml(p)}">${escapeHtml(p)}</button>`
+    `<button type="button" class="chip${p === currentPersonality ? " selected" : ""}" data-personality-select="${escapeHtml(p)}">${escapeHtml(personalityDisplayLabel(p))}</button>`
   ).join("");
 
   return `
@@ -3793,17 +3805,17 @@ function renderFamilyDetailBody(member){
     ${member.memo ? `<div class="card"><div class="card-label">メモ</div><p class="family-card-memo">${escapeHtml(member.memo)}</p></div>` : ""}
 
     <div class="card">
-      <div class="card-label">🎭 AIの話し方(このメンバーと話す時のトーン)</div>
+      <div class="card-label">🎭 ケイオスちゃんの話し方(このメンバーと話す時のトーン)</div>
       <div class="chip-row" id="familyDetailPersonalityChipRow">${personalityChipsHtml}</div>
     </div>
 
     <div class="card">
-      <div class="card-label">AIが覚えていること</div>
+      <div class="card-label">ケイオスちゃんが覚えていること</div>
       <div class="family-memory-list">${memoriesHtml}</div>
     </div>
 
     <div class="card">
-      <div class="card-label">💡 AI分析</div>
+      <div class="card-label">💡 ケイオスちゃんの分析</div>
       ${insightsHtml}
     </div>
 
@@ -3884,7 +3896,7 @@ function openFamilyDetail(member){
       const idx = familyMembers.findIndex(m => m.id === member.id);
       if(idx >= 0) familyMembers[idx] = member;
       openFamilyDetail(member);
-      showToast(`${personality}のトーンに変えたよ`);
+      showToast(`${personalityDisplayLabel(personality)}のトーンに変えたよ`);
     });
   });
   document.getElementById("familyDetailModal").classList.add("show");
@@ -3963,7 +3975,7 @@ function renderFamilyPersonalityChips(){
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "chip" + (familyFormState.personality === p ? " selected" : "");
-    btn.textContent = p;
+    btn.textContent = personalityDisplayLabel(p);
     btn.addEventListener("click", () => {
       familyFormState.personality = p;
       renderFamilyPersonalityChips();
@@ -4474,7 +4486,7 @@ function eventPriorityScore(ev){
 const NOTIFICATION_MODE_KEY = "koufukuAiNotificationModeV1";
 const NOTIFICATION_MODES = [
   { key: "all", label: "全部ON" },
-  { key: "recommended", label: "AIおすすめ" },
+  { key: "recommended", label: "ケイオスちゃんのおすすめ" },
   { key: "off", label: "通知なし" },
 ];
 function notificationModeGet(){
@@ -5782,7 +5794,7 @@ const HABIT_DEFINITIONS = [
     getTimestamps: () => stepLogRead().map(r => r.completedAt).filter(Boolean),
   },
   {
-    key: "memory", label: "AIの気づき記録",
+    key: "memory", label: "ケイオスちゃんの気づき記録",
     stoppedSuggestion: "最近のできごとを少し話してみませんか？",
     getTimestamps: () => aiMemoryFacts.map(f => f.updatedAt || f.createdAt).filter(Boolean),
   },
@@ -5879,7 +5891,7 @@ const ACHIEVEMENT_COMMENT_TEMPLATES = {
   familyEvent: "最近は家族の予定もしっかりこなせています。",
   wakuwaku: "最近はワクワク登録が続いています。心が動く瞬間を大事にできていますね。",
   step: "最近は一歩記録が安定しています。小さな積み重ねが続いていますね。",
-  memory: "最近AIがあなたたちのことを少しずつ覚えています。",
+  memory: "最近ケイオスちゃんがあなたたちのことを少しずつ覚えています。",
 };
 function generateAchievementComment(counts){
   const order = ["eventDone", "familyEvent", "wakuwaku", "step", "memory"];
@@ -5981,7 +5993,7 @@ function generateSmartTimeline(now = new Date()){
   aiNotifications
     .filter(n => n.createdAt && isSameCalendarDate(new Date(n.createdAt), now))
     .forEach(n => {
-      items.push({ time: new Date(n.createdAt), icon: "🤖", label: `AI提案：${n.message}` });
+      items.push({ time: new Date(n.createdAt), icon: "💬", label: `ケイオスちゃんの提案：${n.message}` });
     });
 
   const timed = items
@@ -5990,7 +6002,7 @@ function generateSmartTimeline(now = new Date()){
     .slice(0, TIMELINE_MAX_ITEMS);
 
   const luminaContent = generateDailyLuminaContent(now);
-  const untimed = [{ icon: DAY_BAND_META[luminaContent.band].icon, label: `今日のルミナ：${luminaContent.lines[0]}` }];
+  const untimed = [{ icon: DAY_BAND_META[luminaContent.band].icon, label: `今日のケイオスちゃん：${luminaContent.lines[0]}` }];
 
   return { timed, untimed };
 }
