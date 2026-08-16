@@ -523,6 +523,25 @@ textarea{ font-family:inherit; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-avatar-gaze{ transition:none; }
 }
+/* Phase59: 瞬きシステム(アイドル状態のみ)。実画像には個別の目
+   パーツが存在しないため、口元と同じく既存のフォールバック顔
+   (#kaosuRoomAvatar内の.kaosu-fallback .eyes i、画像読み込み失敗時
+   にのみ表示される簡易CSS顔の目)だけを対象にする。scaleYだけで
+   閉眼を表現し、必ずtransitionで開閉を滑らかに繋ぐ(通常瞬きは
+   100〜150ms程度、ゆっくり瞬きは意図的にそれより長め)。「連続瞬き」
+   はJS側で同じ閉眼表現を短い間隔で2回実行するだけで、CSS自体は
+   通常瞬きと同じscaleY表現を使い回す。#kaosuRoomScene配下に限定して
+   いるため、他の.kaosu-fallbackインスタンス(マインド画面等)には
+   一切影響しない。将来Live2D Eye/Sprite/GIF/Face Tracking/WebGLへ
+   置き換える際は、そちらが目の表現を担うため本演出は使われなくなる
+   だけで既存構造は壊れない。 */
+#kaosuRoomScene .kaosu-blink-eyes i{ transition:transform .05s ease-in-out; transform-origin:center; }
+#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-normal i{ transform:scaleY(.08); transition-duration:.05s; }
+#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-slow i{ transform:scaleY(.08); transition-duration:.09s; }
+#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-double i{ transform:scaleY(.08); transition-duration:.05s; }
+@media (prefers-reduced-motion: reduce){
+  #kaosuRoomScene .kaosu-blink-eyes i{ transition:none; }
+}
 /* Phase57: 口元モーション(アイドル状態のみ。会話アニメーションでは
    ない)。実画像には個別の口パーツが存在せず、新規DOM追加も禁止のため、
    既存のフォールバック顔(画像読み込み失敗時にのみ表示される簡易CSS
@@ -1031,8 +1050,13 @@ textarea.field-input{ resize:none; }
                要素なし)。Phase57: 口元モーション(既存の.kaosu-
                fallback .mouthへクラス付与のみ、新規DOM要素なし)。
                Phase58: 時間帯ライティング(::after疑似要素で実装、
-               新規DOM要素なし)。いずれも既存のカード配置・吹き出し
-               位置には触れない。指示書どおりの表示順(生活シーン→季節イベント→
+               新規DOM要素なし)。Phase59: 瞬きシステム(既存の
+               .kaosu-fallback .eyes iへクラス付与のみ、新規DOM要素
+               なし)。Phase60: アイドルモーション管理システム
+               (IDLE_SYSTEM_METAで呼吸/視線/瞬き/口元/ライティングを
+               統一管理、DOM構造への影響なし)。いずれも既存のカード
+               配置・吹き出し位置には触れない。指示書どおりの表示順
+               (生活シーン→季節イベント→
                天気・空気感→おかえりメッセージ→今日の一言→継続記念→
                プレゼント演出→感情→関係性リアクション→時間限定
                イベント)でDOMに並べ、既存の吹き出し挨拶(kaosu-room-
@@ -6913,6 +6937,130 @@ const LIGHTING_META = [
   { type: "band", test: (ctx) => ctx.band === "evening", cssClass: "kaosu-lighting-evening" },
   { type: "band", test: (ctx) => ctx.band === "night" || ctx.band === "midnight", cssClass: "kaosu-lighting-night" },
 ];
+/* Phase59: 瞬きシステム。{type, test, cssClass}形式の候補配列で管理し、
+   現状はtype==="css"の候補のうちtest()がtrueを返すものだけを対象に
+   ランダムで1つ選ぶ(候補からランダム1件方式)。通常瞬き/ゆっくり瞬きは
+   常に候補になり(test:()=>true)、連続瞬きだけはtest内でMath.random()を
+   使って低確率(約12%)でしか候補に入らないようにしてある。closeMs/
+   holdMs/repeatはこのPhaseでの追加実装用の補助フィールドで、CSS側の
+   transition-durationと値を揃えてある(閉眼→開眼で100〜150ms程度、
+   ゆっくり瞬きだけは意図的に長め)。将来Live2D Eye/Sprite/GIF/Face
+   Tracking/WebGLへ置き換えたい場合は、新しいtypeの候補をこの配列に
+   足すだけでよい(未対応typeは自動的に無視される)。 */
+const BLINK_MOTION_META = [
+  { type: "css", test: () => true, cssClass: "kaosu-blink-closed-normal", closeMs: 50, holdMs: 45, label: "通常瞬き" },
+  { type: "css", test: () => true, cssClass: "kaosu-blink-closed-slow", closeMs: 90, holdMs: 70, label: "ゆっくり瞬き" },
+  { type: "css", test: () => Math.random() < 0.12, cssClass: "kaosu-blink-closed-double", closeMs: 50, holdMs: 45, repeat: true, label: "連続瞬き" },
+];
+/* Phase60: アイドルモーション管理システム。呼吸(Phase54)/視線
+   (Phase55)/瞬き(Phase59)/口元(Phase57)/ライティング(Phase58)を
+   {type, target, run}形式で1つの配列にまとめ、renderKaosuRoomScene()
+   側は「IDLE_SYSTEM_METAを順番に処理するだけ」にする。runは各
+   システムの実装そのもの(タイマー多重起動防止・reduced-motion対応を
+   含む)を保持するクロージャで、呼び出されるまでは何も実行しない。
+   新しいグローバル関数は追加しておらず、runは配列の要素(データ)として
+   保持しているだけなので、window等のグローバルスコープを汚さない。
+   環境エフェクト(Phase51のkaosuRoomFx)は本配列の対象外だが、指示書の
+   表示順(呼吸→視線→瞬き→口元→環境→ライティング)を保つため、
+   renderKaosuRoomScene()内ではmouthとlightingの間に既存のfx処理を
+   そのまま挟む(fx自体のロジックは変更していない)。将来Live2D Idle/
+   Voice Animation/Particle/Emotion Motion/Camera Trackingへ拡張したい
+   場合は、この配列に新しいtypeのエントリを1件追加するだけでよい。 */
+const IDLE_SYSTEM_META = [
+  {
+    type: "breathing", target: ".kaosu-room-character",
+    run: (el) => {
+      if(BREATHE_MOTION_META.type === "css-class"){
+        el.classList.add(BREATHE_MOTION_META.cssClass);
+      }
+    },
+  },
+  {
+    type: "gaze", target: "#kaosuRoomAvatar",
+    run: (el) => {
+      const applyRandomGaze = () => {
+        const pool = GAZE_DIRECTION_META.filter(g => g.type === "css-class");
+        if(!pool.length) return;
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        GAZE_DIRECTION_META.forEach(g => { if(g.cssClass) el.classList.remove(g.cssClass); });
+        el.classList.add("kaosu-room-avatar-gaze", item.cssClass);
+      };
+      applyRandomGaze();
+      if(!renderKaosuRoomScene._gazeTimerStarted){
+        renderKaosuRoomScene._gazeTimerStarted = true;
+        window.setInterval(applyRandomGaze, GAZE_SWITCH_INTERVAL_MS);
+      }
+    },
+  },
+  {
+    type: "blink", target: "#kaosuRoomAvatar .kaosu-fallback .eyes",
+    run: (el) => {
+      el.classList.add("kaosu-blink-eyes");
+      const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const performBlink = () => {
+        if(prefersReducedMotion()) return;
+        const pool = BLINK_MOTION_META.filter(b => b.type === "css" && b.test());
+        if(!pool.length) return;
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        BLINK_MOTION_META.forEach(b => { if(b.cssClass) el.classList.remove(b.cssClass); });
+        el.classList.add(item.cssClass);
+        window.setTimeout(() => {
+          el.classList.remove(item.cssClass);
+          if(item.repeat){
+            window.setTimeout(() => {
+              el.classList.add(item.cssClass);
+              window.setTimeout(() => el.classList.remove(item.cssClass), item.closeMs);
+            }, 90);
+          }
+        }, item.closeMs + item.holdMs);
+      };
+      const scheduleNextBlink = () => {
+        const delay = 3000 + Math.random() * 5000;
+        window.setTimeout(() => {
+          performBlink();
+          scheduleNextBlink();
+        }, delay);
+      };
+      if(!renderKaosuRoomScene._blinkTimerStarted){
+        renderKaosuRoomScene._blinkTimerStarted = true;
+        scheduleNextBlink();
+      }
+    },
+  },
+  {
+    type: "mouth", target: "#kaosuRoomAvatar .kaosu-fallback .mouth",
+    run: (el) => {
+      const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const applyRandomMouth = () => {
+        const pool = MOUTH_MOTION_META.filter(m => m.type === "css-class");
+        if(!pool.length) return;
+        const item = pool[Math.floor(Math.random() * pool.length)];
+        MOUTH_MOTION_META.forEach(m => { if(m.cssClass) el.classList.remove(m.cssClass); });
+        el.classList.add("kaosu-room-mouth-idle", item.cssClass);
+      };
+      if(prefersReducedMotion()){
+        MOUTH_MOTION_META.forEach(m => { if(m.cssClass) el.classList.remove(m.cssClass); });
+        el.classList.add("kaosu-room-mouth-idle", "kaosu-mouth-normal");
+      }else{
+        applyRandomMouth();
+      }
+      if(!renderKaosuRoomScene._mouthTimerStarted){
+        renderKaosuRoomScene._mouthTimerStarted = true;
+        window.setInterval(() => { if(!prefersReducedMotion()) applyRandomMouth(); }, MOUTH_SWITCH_INTERVAL_MS);
+      }
+    },
+  },
+  {
+    type: "lighting", target: "#kaosuRoomScene",
+    run: (el, ctx) => {
+      const matchedLighting = LIGHTING_META.find(l => l.type === "band" && l.test(ctx));
+      LIGHTING_META.forEach(l => { if(l.cssClass) el.classList.remove(l.cssClass); });
+      if(matchedLighting){
+        el.classList.add(matchedLighting.cssClass);
+      }
+    },
+  },
+];
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -6926,71 +7074,22 @@ async function renderKaosuRoomScene(now = new Date()){
   const month = now.getMonth() + 1;
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
 
-  /* Phase54: 呼吸モーション。キャラクター全体を包む.kaosu-room-
-     characterへクラスを付けるだけ(常時オン、内部状態も保存もなし)。
-     実画像/フォールバック絵のどちらでも同じ箱の中で呼吸するため、
-     画像読み込みの成否に関係なく効く。 */
-  const charEl = scene.querySelector(".kaosu-room-character");
-  if(charEl && BREATHE_MOTION_META.type === "css-class"){
-    charEl.classList.add(BREATHE_MOTION_META.cssClass);
-  }
+  /* Phase60: アイドルモーション管理システム。呼吸/視線/瞬きをここで
+     まとめて処理する(口元は環境エフェクトの後、ライティングは表示順の
+     最後なので、この配列は2回に分けて処理する)。IDLE_SYSTEM_METAの
+     並び順(呼吸→視線→瞬き→口元→ライティング)のうち、環境エフェクトを
+     挟む直前の3件(breathing/gaze/blink)だけをここで処理する。 */
+  IDLE_SYSTEM_META.filter(sys => sys.type === "breathing" || sys.type === "gaze" || sys.type === "blink").forEach(sys => {
+    const el = document.querySelector(sys.target);
+    if(el && typeof sys.run === "function") sys.run(el, { band, season });
+  });
 
-  /* Phase55: 視線システム。#kaosuRoomAvatar(アバターの箱)へ5方向の
-     いずれか1つのクラスだけをランダムで付け替える。renderKaosuRoom
-     Scene()はホーム表示のたびに何度も呼ばれるため、初回だけ
-     setIntervalを起動し、以降は同じタイマーを使い回す(多重起動
-     防止)。新しいグローバル変数/関数を増やさずに一度きりの起動を
-     保証するため、フラグはこの関数自身のプロパティ
-     (renderKaosuRoomScene._gazeTimerStarted)に持たせている。呼び
-     出されるたびにも即座に1回ランダム表示することで、初回描画から
-     向きが決まっている状態にする。将来Live2D Eye/Face Tracking等へ
-     置き換える際は、この一箇所を止める(またはGAZE_DIRECTION_METAに
-     新しいtypeを足して分岐する)だけで無効化できる。 */
-  const avatarBoxForGaze = document.getElementById("kaosuRoomAvatar");
-  if(avatarBoxForGaze){
-    const applyRandomGaze = () => {
-      const pool = GAZE_DIRECTION_META.filter(g => g.type === "css-class");
-      if(!pool.length) return;
-      const item = pool[Math.floor(Math.random() * pool.length)];
-      GAZE_DIRECTION_META.forEach(g => { if(g.cssClass) avatarBoxForGaze.classList.remove(g.cssClass); });
-      avatarBoxForGaze.classList.add("kaosu-room-avatar-gaze", item.cssClass);
-    };
-    applyRandomGaze();
-    if(!renderKaosuRoomScene._gazeTimerStarted){
-      renderKaosuRoomScene._gazeTimerStarted = true;
-      window.setInterval(applyRandomGaze, GAZE_SWITCH_INTERVAL_MS);
-    }
-  }
-
-  /* Phase57: 口元モーション(アイドル状態のみ)。実画像には個別の口
-     パーツが存在しないため、新規DOM追加禁止の制約の下では既存の
-     フォールバック顔(#kaosuRoomAvatar内の.kaosu-fallback .mouth、
-     画像読み込み失敗時にのみ表示される簡易CSS顔)だけが対象になる。
-     視線と同じくrenderKaosuRoomScene自身のプロパティ
-     (_mouthTimerStarted)で多重起動を防止する。prefers-reduced-motion
-     が有効な間はswitchせず通常状態に固定して完全停止する(CSS側の
-     transition停止だけでなく、状態そのものを変化させない)。 */
-  const mouthEl = document.querySelector("#kaosuRoomAvatar .kaosu-fallback .mouth");
-  if(mouthEl){
-    const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    const applyRandomMouth = () => {
-      const pool = MOUTH_MOTION_META.filter(m => m.type === "css-class");
-      if(!pool.length) return;
-      const item = pool[Math.floor(Math.random() * pool.length)];
-      MOUTH_MOTION_META.forEach(m => { if(m.cssClass) mouthEl.classList.remove(m.cssClass); });
-      mouthEl.classList.add("kaosu-room-mouth-idle", item.cssClass);
-    };
-    if(prefersReducedMotion()){
-      MOUTH_MOTION_META.forEach(m => { if(m.cssClass) mouthEl.classList.remove(m.cssClass); });
-      mouthEl.classList.add("kaosu-room-mouth-idle", "kaosu-mouth-normal");
-    }else{
-      applyRandomMouth();
-    }
-    if(!renderKaosuRoomScene._mouthTimerStarted){
-      renderKaosuRoomScene._mouthTimerStarted = true;
-      window.setInterval(() => { if(!prefersReducedMotion()) applyRandomMouth(); }, MOUTH_SWITCH_INTERVAL_MS);
-    }
-  }
+  /* Phase60: 口元モーション。表示順(呼吸→視線→瞬き→口元→環境→
+     ライティング)のとおり、環境エフェクトの直前で処理する。 */
+  IDLE_SYSTEM_META.filter(sys => sys.type === "mouth").forEach(sys => {
+    const el = document.querySelector(sys.target);
+    if(el && typeof sys.run === "function") sys.run(el, { band, season });
+  });
 
   /* Phase51: 環境エフェクト。背景層(kaosuRoomFx)の中身を毎回作り直す
      だけで、アニメーションそのものはCSS(@keyframes)に任せる。現状
@@ -7013,16 +7112,14 @@ async function renderKaosuRoomScene(now = new Date()){
     }
   }
 
-  /* Phase58: 時間帯ライティング。ランダム選択ではなく、現在の時間帯に
-     一意に対応する1件をそのまま適用する(該当がなければ何も付けない)。
-     ::after疑似要素(CSS側で定義済み、新規DOM要素ではない)の見た目を
-     切り替えるだけなので、既存レイアウトへの影響はない。 */
-  const lightingCtx = { band, season };
-  const matchedLighting = LIGHTING_META.find(l => l.type === "band" && l.test(lightingCtx));
-  LIGHTING_META.forEach(l => { if(l.cssClass) scene.classList.remove(l.cssClass); });
-  if(matchedLighting){
-    scene.classList.add(matchedLighting.cssClass);
-  }
+  /* Phase60: 時間帯ライティング(Phase58)。IDLE_SYSTEM_METAの最後の
+     エントリとして表示順どおり一番最後に処理する。lightingはランダム
+     選択ではなく現在の時間帯(band)に一意に対応する1件をそのまま適用
+     する挙動を、runの中でそのまま維持している。 */
+  IDLE_SYSTEM_META.filter(sys => sys.type === "lighting").forEach(sys => {
+    const el = document.querySelector(sys.target);
+    if(el && typeof sys.run === "function") sys.run(el, { band, season });
+  });
 
   /* 生活シーン(Phase43)/季節イベント(Phase44)/天気・気分(Phase46)/
      おかえりメッセージ(Phase45)/今日の一言(Phase47)/プレゼント演出
