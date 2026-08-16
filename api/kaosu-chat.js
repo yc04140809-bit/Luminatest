@@ -41,7 +41,7 @@ async function callAnthropic({ system, userMessages, timeoutMs }) {
     throw new Error(
       "global fetch is unavailable in this runtime (Node.js version: " +
         String(process.version) +
-        "). vercel.json の runtime指定(nodejs20.x)が反映されているか確認してください。"
+        "). Vercelプロジェクトの Settings > General > Node.js Version を18.x以降に設定してください。"
     );
   }
   const apiKey = process.env.ANTHROPIC_API_KEY;
