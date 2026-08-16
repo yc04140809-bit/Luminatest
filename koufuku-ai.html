@@ -886,21 +886,22 @@ textarea.field-input{ resize:none; }
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
           </div>
-          <!-- Phase45: おかえりメッセージ。時間帯ごとの短い一言を
-               そっと添えるだけの装飾テキスト。既存のkaosu-room-
-               greeting(吹き出し)とは別物として共存させ、既存の
-               rerollKaosuRoomGreeting()/switchView()には一切触れない。
-               renderKaosuRoomScene()だけがこのテキストを書き換える
-               (保存はしない・チャット/会話履歴にも残さない)。 -->
-          <p class="kaosu-room-welcome" id="kaosuRoomWelcome"></p>
           <!-- Phase43: 日常生活システム。Phase44: 季節イベント。
-               時間帯ごとの生活シーン/季節ごとのイベントを表示する
-               だけの装飾バッジ2つ。renderKaosuRoomScene()だけが
-               このテキストを書き換える(保存はしない)。 -->
+               Phase46: 天気・気分。Phase45: おかえりメッセージ。
+               Phase47: 今日の一言。指示書どおりの表示順(生活シーン→
+               季節イベント→天気・空気感→おかえりメッセージ→今日の
+               一言)でDOMに並べる。いずれも保存はせず、
+               renderKaosuRoomScene()だけがテキストを書き換える
+               読み込み専用の装飾。既存のkaosu-room-greeting(吹き出し)
+               とは別物として共存させ、既存のrerollKaosuRoomGreeting()
+               /switchView()には一切触れない。 -->
           <div class="kaosu-room-badges" id="kaosuRoomBadges">
             <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
             <p class="kaosu-room-activity" id="kaosuRoomSeason"></p>
           </div>
+          <p class="kaosu-room-welcome" id="kaosuRoomWeather"></p>
+          <p class="kaosu-room-welcome" id="kaosuRoomWelcome"></p>
+          <p class="kaosu-room-welcome" id="kaosuRoomToday"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
@@ -6569,6 +6570,34 @@ const WELCOME_MESSAGE_META = {
   night: ["今日も会えて嬉しい。"],
   midnight: ["まだ起きてたんだね。", "無理しすぎないでね。"],
 };
+/* Phase46: 天気・気分システム。天気APIはまだ繋がず、「default」
+   プールからランダムに1件選ぶだけの演出。将来的に本物の天気APIへ
+   差し替える時は、取得した天気種別(sunny/rainy/cloudy等)をキーに
+   した専用プールをこのオブジェクトへ追加し、defaultの代わりにその
+   キーを選ぶよう1行足すだけで済む構造にしてある(既存構造は壊さず
+   拡張可能)。 */
+const WEATHER_MESSAGE_META = {
+  default: [
+    "☀️ 今日はいい天気だね",
+    "🌧 雨の日はお部屋でゆっくり♪",
+    "🌙 静かな夜だね",
+    "✨ 今日も素敵な一日になりますように",
+  ],
+};
+/* Phase47: 今日の一言システム。生活シーン/季節イベント/おかえり
+   メッセージとは独立した、時間帯にも季節にも紐付かない短い応援の
+   一言。WEATHER_MESSAGE_METAと同じ「defaultプール+将来キー追加で
+   拡張」という構造にして、将来は親密度/レベル/連続利用日数/季節/
+   イベントごとの専用プールを足せるようにしてある。 */
+const TODAY_MESSAGE_META = {
+  default: [
+    "無理しすぎないでね。",
+    "今日も少しずつ。",
+    "ちゃんと見てるよ。",
+    "君なら大丈夫。",
+    "ありがとう。",
+  ],
+};
 function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -6582,15 +6611,20 @@ function renderKaosuRoomScene(now = new Date()){
   const month = now.getMonth() + 1;
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
 
-  /* 生活シーン(Phase43)/季節イベント(Phase44)/おかえりメッセージ
-     (Phase45)は、いずれも「対象要素にpoolからランダムに1件選んで
-     表示するだけ」という同じ形なので、3回コピペしないよう1つの
-     ループにまとめる(このヘルパー配列はrenderKaosuRoomScene()の
-     ローカル変数であり、新しいグローバル関数は増やしていない)。 */
+  /* 生活シーン(Phase43)/季節イベント(Phase44)/天気・気分(Phase46)/
+     おかえりメッセージ(Phase45)/今日の一言(Phase47)は、いずれも
+     「対象要素にpoolからランダムに1件選んで表示するだけ」という
+     同じ形なので、5回コピペしないよう1つのループにまとめる(この
+     ヘルパー配列はrenderKaosuRoomScene()のローカル変数であり、
+     新しいグローバル関数は増やしていない)。表示順は指示書どおり
+     生活シーン→季節イベント→天気・空気感→おかえりメッセージ→
+     今日の一言(配列の並び順とDOM上の並び順を一致させてある)。 */
   [
     { el: document.getElementById("kaosuRoomActivity"), pool: ROOM_ACTIVITY_META[band] || [], badge: true },
     { el: document.getElementById("kaosuRoomSeason"), pool: SEASON_EVENT_META[season] || [], badge: true },
+    { el: document.getElementById("kaosuRoomWeather"), pool: WEATHER_MESSAGE_META.default || [], badge: false },
     { el: document.getElementById("kaosuRoomWelcome"), pool: WELCOME_MESSAGE_META[band] || [], badge: false },
+    { el: document.getElementById("kaosuRoomToday"), pool: TODAY_MESSAGE_META.default || [], badge: false },
   ].forEach(({ el, pool, badge }) => {
     if(!el) return;
     if(!pool.length){
