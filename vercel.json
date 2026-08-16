@@ -1,8 +1,7 @@
 {
   "functions": {
     "api/kaosu-chat.js": {
-      "maxDuration": 15,
-      "runtime": "nodejs20.x"
+      "maxDuration": 15
     }
   }
 }
