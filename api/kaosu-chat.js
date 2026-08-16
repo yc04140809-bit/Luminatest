@@ -27,6 +27,12 @@
 // 他のAI Providerへ切り替える場合は、この関数と同じ入出力の
 // 別関数を用意し、呼び出し側の1行を差し替えるだけでよい。
 async function callAnthropic({ system, userMessages, timeoutMs }) {
+  // 調査用の常時ログ(KAOSU_DEBUG_LOGに関係なく出す)。ANTHROPIC_API_KEYの
+  // 値そのものは出さず、設定の有無(boolean)だけを出す。原因切り分けが
+  // 済んだら削除して良い一時的な診断ログ。
+  console.log("[kaosu-chat] entering callAnthropic");
+  console.log("[kaosu-chat] API KEY =", !!process.env.ANTHROPIC_API_KEY);
+  console.log("[kaosu-chat] fetch =", typeof fetch);
   // 実行環境にグローバルfetchが無い場合(古いNode.jsランタイムに固定されて
   // いる等)、fetch(...)行そのものが例外を投げて「1回も外部通信していない
   // のに502で終了する」という区別しにくい失敗を起こす。ここで明示的に
