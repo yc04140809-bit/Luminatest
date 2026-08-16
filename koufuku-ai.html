@@ -498,14 +498,26 @@ textarea{ font-family:inherit; }
   position:relative; z-index:1; max-width:250px; margin:12px auto 0;
   text-align:center; font-size:13.5px; transition:background .8s ease, color .8s ease;
 }
-/* Phase43: 日常生活システムの装飾バッジ。背景を常に明るい白系に
-   固定しているため、夜/深夜の暗い部屋背景でも文字色を切り替えずに
-   読める(kaosu-room-greetingの夜間背景切り替えと同じ考え方)。 */
+/* Phase43/44: 日常生活システム/季節イベントの装飾バッジ。背景を常に
+   明るい白系に固定しているため、夜/深夜の暗い部屋背景でも文字色を
+   切り替えずに読める(kaosu-room-greetingの夜間背景切り替えと同じ
+   考え方)。Phase44でバッジが2つ(生活シーン+季節)並ぶため、
+   .kaosu-room-badgesという行コンテナでまとめて中央寄せする。 */
+.kaosu-room-badges{ position:relative; z-index:1; display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-top:8px; }
 .kaosu-room-activity{
-  position:relative; z-index:1; display:table; margin:8px auto 0;
+  display:inline-flex; align-items:center;
   padding:3px 12px; border-radius:99px; background:rgba(255,255,255,.85);
   font-size:12px; font-weight:700; color:var(--text-sub);
 }
+/* Phase45: おかえりメッセージ。既存のkaosu-room-greeting(吹き出し)
+   とは見た目を変え、キャラクターの下にそっと添えるだけの小さな
+   一言にする(吹き出しを二重に出さない)。 */
+.kaosu-room-welcome{
+  position:relative; z-index:1; text-align:center; margin:10px 0 0;
+  font-size:13px; font-style:italic; color:var(--text-sub);
+}
+.kaosu-room-scene.room-band-night .kaosu-room-welcome,
+.kaosu-room-scene.room-band-midnight .kaosu-room-welcome{ color:rgba(255,255,255,.85); }
 
 /* 時間帯ごとの部屋の色味だけを切り替える(判定はgetRoomVisualBand()が
    行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。 */
@@ -874,10 +886,21 @@ textarea.field-input{ resize:none; }
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
           </div>
-          <!-- Phase43: 日常生活システム。時間帯ごとの生活シーンを
-               表示するだけの装飾バッジ。renderKaosuRoomScene()だけが
+          <!-- Phase45: おかえりメッセージ。時間帯ごとの短い一言を
+               そっと添えるだけの装飾テキスト。既存のkaosu-room-
+               greeting(吹き出し)とは別物として共存させ、既存の
+               rerollKaosuRoomGreeting()/switchView()には一切触れない。
+               renderKaosuRoomScene()だけがこのテキストを書き換える
+               (保存はしない・チャット/会話履歴にも残さない)。 -->
+          <p class="kaosu-room-welcome" id="kaosuRoomWelcome"></p>
+          <!-- Phase43: 日常生活システム。Phase44: 季節イベント。
+               時間帯ごとの生活シーン/季節ごとのイベントを表示する
+               だけの装飾バッジ2つ。renderKaosuRoomScene()だけが
                このテキストを書き換える(保存はしない)。 -->
-          <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
+          <div class="kaosu-room-badges" id="kaosuRoomBadges">
+            <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
+            <p class="kaosu-room-activity" id="kaosuRoomSeason"></p>
+          </div>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
@@ -6507,10 +6530,48 @@ const ROOM_ACTIVITY_META = {
     { icon: "🎵", label: "静かに音楽を聴く" },
   ],
 };
+/* Phase44: 季節イベントシステム。renderKaosuRoomScene()のみを変更対象
+   とする指示のため、季節判定(現在月→春夏秋冬)もこの定数の直後に置く
+   だけで、新しいグローバル関数は増やさない(判定自体はrenderKaosu
+   RoomScene()の中で行う)。既存のgetDayBand()/getRoomVisualBand()には
+   一切触れない。 */
+const SEASON_EVENT_META = {
+  spring: [
+    { icon: "🌸", label: "桜を見ている" },
+    { icon: "🌷", label: "花を飾る" },
+    { icon: "🍓", label: "春のおやつ" },
+  ],
+  summer: [
+    { icon: "🍉", label: "スイカ" },
+    { icon: "🎐", label: "風鈴" },
+    { icon: "🌻", label: "夏の日差し" },
+  ],
+  autumn: [
+    { icon: "🍁", label: "紅葉" },
+    { icon: "📖", label: "読書" },
+    { icon: "☕", label: "温かい飲み物" },
+  ],
+  winter: [
+    { icon: "❄", label: "雪景色" },
+    { icon: "☕", label: "ココア" },
+    { icon: "🎄", label: "冬の飾り" },
+  ],
+};
+/* Phase45: おかえりメッセージシステム。既存のKAOSU_ROOM_GREETINGS/
+   rerollKaosuRoomGreeting()(Version2.0の吹き出し挨拶)はそのまま
+   残し、置き換えたり呼び出し元(switchView())を変更したりしない。
+   時間帯別の一言はrenderKaosuRoomScene()の中だけで完結させる、
+   別枠の演出として追加する。 */
+const WELCOME_MESSAGE_META = {
+  morning: ["おはよう♪", "今日も来てくれて嬉しいな"],
+  day: ["ちゃんと休憩してる？", "少しだけ一息つこう？"],
+  evening: ["今日も頑張ったね。"],
+  night: ["今日も会えて嬉しい。"],
+  midnight: ["まだ起きてたんだね。", "無理しすぎないでね。"],
+};
 function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
-  const activityEl = document.getElementById("kaosuRoomActivity");
   if(!scene || !img) return;
   const band = getRoomVisualBand(now);
   const meta = ROOM_VISUAL_BAND_META[band];
@@ -6518,16 +6579,28 @@ function renderKaosuRoomScene(now = new Date()){
   scene.classList.add(meta.cssClass);
   setKaosuExpression(img, meta.expression);
 
-  if(activityEl){
-    const pool = ROOM_ACTIVITY_META[band] || [];
-    if(pool.length){
-      const activity = pool[Math.floor(Math.random() * pool.length)];
-      activityEl.textContent = `${activity.icon} ${activity.label}`;
-      activityEl.style.display = "table";
-    }else{
-      activityEl.style.display = "none";
+  const month = now.getMonth() + 1;
+  const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
+
+  /* 生活シーン(Phase43)/季節イベント(Phase44)/おかえりメッセージ
+     (Phase45)は、いずれも「対象要素にpoolからランダムに1件選んで
+     表示するだけ」という同じ形なので、3回コピペしないよう1つの
+     ループにまとめる(このヘルパー配列はrenderKaosuRoomScene()の
+     ローカル変数であり、新しいグローバル関数は増やしていない)。 */
+  [
+    { el: document.getElementById("kaosuRoomActivity"), pool: ROOM_ACTIVITY_META[band] || [], badge: true },
+    { el: document.getElementById("kaosuRoomSeason"), pool: SEASON_EVENT_META[season] || [], badge: true },
+    { el: document.getElementById("kaosuRoomWelcome"), pool: WELCOME_MESSAGE_META[band] || [], badge: false },
+  ].forEach(({ el, pool, badge }) => {
+    if(!el) return;
+    if(!pool.length){
+      el.style.display = "none";
+      return;
     }
-  }
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    el.textContent = badge ? `${item.icon} ${item.label}` : item;
+    el.style.display = badge ? "inline-flex" : "block";
+  });
 }
 
 /* 指示書の例文をそのまま採用した「おかえり」挨拶プール。ホームへ戻る
