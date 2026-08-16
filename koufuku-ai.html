@@ -499,11 +499,15 @@ textarea{ font-family:inherit; }
    .kaosu-room-characterはキャラクター全体を包む箱なので、ここへ
    クラスを付けるだけで実画像/フォールバック絵どちらにも同じ呼吸が
    効く。将来Live2D Idle/GIF/Sprite/WebGLへ置き換える時は、この
-   .kaosu-breatheクラスの付け外しだけで有効/無効を切り替えられる。 */
+   .kaosu-breatheクラスの付け外しだけで有効/無効を切り替えられる。
+   Phase62: ピーク時のscale値を固定値1.018からCSS変数
+   --kaosu-breath-peakへ差し替えた(JS側でmoodに応じて上書きする)。
+   変数が未設定の場合は元と同じ1.018にフォールバックするため、
+   Phase62導入前と見た目・挙動は完全に同一。 */
 .kaosu-breathe{ animation:kaosuBreathe 5s ease-in-out infinite; transform-origin:center bottom; }
 @keyframes kaosuBreathe{
   0%, 100%{ transform:scale(1) translateY(0); opacity:1; }
-  50%{ transform:scale(1.018) translateY(-2px); opacity:.96; }
+  50%{ transform:scale(var(--kaosu-breath-peak, 1.018)) translateY(-2px); opacity:.96; }
 }
 @media (prefers-reduced-motion: reduce){
   .kaosu-breathe{ animation:none; }
@@ -523,6 +527,41 @@ textarea{ font-family:inherit; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-avatar-gaze{ transition:none; }
 }
+/* Phase61: 音声リアクションシステム。#kaosuRoomAvatarは既に視線
+   (Phase55)がtransformを使っているため、box-shadowだけで4状態
+   (idle/listening/thinking/speaking)を表現しプロパティの衝突を
+   避ける。既存の.kaosu-avatarドロップシャドウ(box-shadow:0 8px 20px
+   rgba(120,90,60,.2))を消してしまわないよう、どの状態でも必ず
+   このベースの影を先頭に含めた上でリングを重ねる(box-shadowは
+   複数指定でき、上書きではなく前の宣言を置き換える一枚岩の値なので、
+   ベース影を毎回書き直す必要がある)。speakingだけごく控えめな
+   パルスを付け、それ以外は静的なリングに留める。 */
+#kaosuRoomAvatar{ transition:box-shadow .6s ease; }
+#kaosuRoomAvatar.kaosu-voice-idle{ box-shadow:0 8px 20px rgba(120,90,60,.2); }
+#kaosuRoomAvatar.kaosu-voice-listening{ box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 4px rgba(120,170,255,.25); }
+#kaosuRoomAvatar.kaosu-voice-thinking{ box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 4px rgba(170,140,255,.25); }
+#kaosuRoomAvatar.kaosu-voice-speaking{
+  box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 4px rgba(255,150,190,.28);
+  animation:kaosuVoiceSpeakingPulse 1.6s ease-in-out infinite;
+}
+@keyframes kaosuVoiceSpeakingPulse{
+  0%, 100%{ box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 3px rgba(255,150,190,.22); }
+  50%{ box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 6px rgba(255,150,190,.32); }
+}
+@media (prefers-reduced-motion: reduce){
+  #kaosuRoomAvatar{ transition:none; }
+  #kaosuRoomAvatar.kaosu-voice-speaking{ animation:none; box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 4px rgba(255,150,190,.28); }
+}
+/* Phase66: キャラクターライフサイクル。#kaosuRoomSceneへ付与される
+   状態クラスのうち、視覚効果を持たせるのはSleepingだけに留める
+   (Celebration/Speaking/Listening/Thinking/Idleは、既存のPhase58
+   ライティングやPhase61音声リアクションと視覚的に重複しないよう、
+   クラス自体は付与するが追加のCSSは持たせない=将来Live2Dアニメーター
+   等が状態値として読み取るためのフックとしての意味合いを優先した)。
+   Sleeping中はキャラクターの不透明度をごくわずかに落とすだけで、
+   Phase58の「夜でも暗くし過ぎない」というライティングの方針とは
+   独立して機能する(背景の明るさは変えない)。 */
+#kaosuRoomScene.kaosu-life-sleeping .kaosu-room-character{ opacity:.94; transition:opacity .8s ease; }
 /* Phase59: 瞬きシステム(アイドル状態のみ)。実画像には個別の目
    パーツが存在しないため、口元と同じく既存のフォールバック顔
    (#kaosuRoomAvatar内の.kaosu-fallback .eyes i、画像読み込み失敗時
@@ -6824,14 +6863,71 @@ const PRESENT_MESSAGE_META = {
    (今回はband/seasonのみを使用)。条件に一致した候補群のpoolをすべて
    合成してから1件だけランダム表示する(=候補からランダム1件方式)。
    内部状態は一切持たず、保存もしない完全な演出。 */
+/* Phase62(拡張): 各感情候補にmoodタグ(genki/warm/calm/sleepy)を追加。
+   文字列の配列からオブジェクトの配列へ形が変わったため、消費側
+   (renderKaosuRoomScene()内の1箇所)もitem.textを読むよう更新して
+   ある。moodはEMOTION_MOTION_METAが呼吸の強さ/視線・口元・瞬きの
+   偏りを決める材料として使う(既存の見た目・保存の有無は無変更)。 */
 const EMOTION_MESSAGE_META = [
-  { test: (ctx) => ctx.band === "morning", pool: ["😊 ごきげん", "🌸 今日も楽しみ"] },
-  { test: (ctx) => ctx.band === "day", pool: ["🤍 落ち着いてるよ", "😌 のんびり"] },
-  { test: (ctx) => ctx.band === "evening", pool: ["😌 のんびり", "🥰 あなたと一緒で嬉しい"] },
-  { test: (ctx) => ctx.band === "night", pool: ["🥰 あなたと一緒で嬉しい", "🤍 落ち着いてるよ"] },
-  { test: (ctx) => ctx.band === "midnight", pool: ["😴 少し眠たいかも"] },
-  { test: (ctx) => ctx.season === "spring", pool: ["🌸 今日も楽しみ"] },
+  { test: (ctx) => ctx.band === "morning", pool: [{ text: "😊 ごきげん", mood: "genki" }, { text: "🌸 今日も楽しみ", mood: "warm" }] },
+  { test: (ctx) => ctx.band === "day", pool: [{ text: "🤍 落ち着いてるよ", mood: "calm" }, { text: "😌 のんびり", mood: "calm" }] },
+  { test: (ctx) => ctx.band === "evening", pool: [{ text: "😌 のんびり", mood: "calm" }, { text: "🥰 あなたと一緒で嬉しい", mood: "warm" }] },
+  { test: (ctx) => ctx.band === "night", pool: [{ text: "🥰 あなたと一緒で嬉しい", mood: "warm" }, { text: "🤍 落ち着いてるよ", mood: "calm" }] },
+  { test: (ctx) => ctx.band === "midnight", pool: [{ text: "😴 少し眠たいかも", mood: "sleepy" }] },
+  { test: (ctx) => ctx.season === "spring", pool: [{ text: "🌸 今日も楽しみ", mood: "warm" }] },
 ];
+/* Phase61: 音声リアクションシステム。実際の音声認識/音声合成は
+   まだ繋がず、既存のChatStoreの最終メッセージのrole/時刻から
+   「直近でユーザーが話しかけたか(listening)」「直近でケイオスちゃんが
+   返事をしたか(speaking)」を判定する読み取り専用の演出。thinkingは
+   対応する永続シグナルがない(チャット画面側の一時的なタイピング
+   表示はChatStoreに保存されない)ため、低確率の装飾的な瞬間表示に
+   留めている。優先順位付きの配列として管理し、候補からランダムでは
+   なく「最初に条件が一致した1件」を採用する(=状態は毎回1つに決定
+   される)。type("css"のみ実装)を持たせ、将来Live2D Idle/Voice
+   Animationの実際の音声波形やリップシンク信号に置き換える際は、
+   新しいtypeの候補をこの配列に足すだけで拡張できる(未対応typeは
+   自動的にスキップされる)。 */
+const VOICE_REACTION_META = [
+  { type: "css", state: "speaking", test: (ctx) => { if(!ctx.lastAssistantMessageAt) return false; const diff = ctx.now.getTime() - new Date(ctx.lastAssistantMessageAt).getTime(); return diff >= 0 && diff < 20000; }, cssClass: "kaosu-voice-speaking" },
+  { type: "css", state: "listening", test: (ctx) => { if(!ctx.lastUserMessageAt) return false; const diff = ctx.now.getTime() - new Date(ctx.lastUserMessageAt).getTime(); return diff >= 0 && diff < 20000; }, cssClass: "kaosu-voice-listening" },
+  { type: "css", state: "thinking", test: () => Math.random() < 0.05, cssClass: "kaosu-voice-thinking" },
+  { type: "css", state: "idle", test: () => true, cssClass: "kaosu-voice-idle" },
+];
+/* Phase62: 感情モーション。Phase50のEMOTION_MESSAGE_METAで選ばれた
+   mood(genki/warm/calm/sleepy)に応じて、呼吸の強さ(breathScale)と
+   口元の偏り(mouthBias、候補プールへ該当クラスをもう1件重複させる
+   だけの簡易な重み付け)を制御する倍率テーブル。視線・瞬きも同じ
+   重み付け手法でmoodの影響を受ける(このMETA自体は呼吸/口元向けの
+   数値だけを持ち、視線/瞬きの偏りは各runクロージャ内でmoodを直接
+   見て決めている。理由: 5方向/3候補という少数の集合に対しては
+   MOTION_MOTION_META側に個別の重み配列を持たせるより、runの中で
+   直接分岐した方がシンプルで見通しが良いため)。renderKaosuRoomScene
+   は毎回呼び出されるたびに最新のmoodで各系のクロージャを新しく作り
+   直すため、この効果は「部屋を表示/再表示するたび」に反映される
+   (バックグラウンドで動き続けるsetInterval/setTimeoutの間隔自体を
+   動的に変更する仕組みは持たない。既存のPhase55/57/59のタイマーは
+   一度起動したら同じ間隔で動き続ける設計をそのまま踏襲しているため)。 */
+const EMOTION_MOTION_DEFAULT = { breathScale: 1, mouthBias: null };
+const EMOTION_MOTION_META = [
+  { type: "multiplier", mood: "genki", test: (ctx) => ctx.mood === "genki", breathScale: 1.3, mouthBias: "kaosu-mouth-smile" },
+  { type: "multiplier", mood: "warm", test: (ctx) => ctx.mood === "warm", breathScale: 1.15, mouthBias: "kaosu-mouth-curve-up" },
+  { type: "multiplier", mood: "calm", test: (ctx) => ctx.mood === "calm", breathScale: 1, mouthBias: null },
+  { type: "multiplier", mood: "sleepy", test: (ctx) => ctx.mood === "sleepy", breathScale: 0.7, mouthBias: null },
+];
+/* Phase63: Live2D互換レイヤー。既存/新規いずれのモーション・エフェクト
+   系METAも「type」という共通語彙でどの実装方式(現状はcssのみ)かを
+   宣言しており、消費側は自分が対応しているtype以外を常に無視する
+   (EFFECT_META/GAZE_DIRECTION_META/MOUTH_MOTION_META/BLINK_MOTION_
+   META/LIGHTING_META/VOICE_REACTION_META/EMOTION_MOTION_META/
+   EMOTION_EFFECT_META/LIFE_STATE_META、いずれも同じ設計)。この定数は
+   実行時に分岐へ使われるものではなく、将来Live2D/GIF/Sprite/WebGL/
+   VRMへ置き換える際に「どのtype名を使うべきか」を1箇所にまとめた
+   参照用の語彙集(カタログ)。新しい実装方式を追加する時は、対象の
+   METAへその新typeの候補を1件追加するだけでよく(既存のcss実装は
+   フィルタ条件に一致しないため自動的に無視されて壊れない)、この
+   配列にも同じtype名を1つ足しておくとカタログとして一貫性が保てる。 */
+const RENDER_LAYER_TYPES = ["css", "live2d", "gif", "sprite", "webgl", "vrm"];
 /* Phase51: 環境エフェクトシステム。画像/Canvas/WebGL/重いライブラリは
    使わず、絵文字1文字をCSSの@keyframesだけで漂わせる最軽量の演出。
    各候補にtype("emoji"のみ実装)を持たせておくことで、将来Live2D/
@@ -6855,6 +6951,31 @@ const EFFECT_META = {
   ],
   midnight: [
     { type: "emoji", icon: "⭐", cssClass: "kaosu-fx-twinkle", label: "夜だけ星" },
+  ],
+};
+/* Phase65: 感情エフェクト。Phase51のEFFECT_METAと全く同じ「default
+   キー+条件キーで上乗せ」構造をそのまま流用し(=環境エフェクト設計の
+   流用。新しいCSSアニメーション機構は増やしていない、既存の
+   kaosuFxDrift/kaosuFxTwinkleをそのまま使い回す)、現在の気分
+   (ctx.mood、Phase62のEMOTION_MESSAGE_METAが選んだmood)に応じた
+   候補をEFFECT_METAの結果へ合成するだけで、描画側(fxブロック)の
+   仕組み自体はPhase51から変更していない。表示数の上限(3個)や
+   ランダム選択のロジックも共通のまま。 */
+const EMOTION_EFFECT_META = {
+  default: [],
+  genki: [
+    { type: "emoji", icon: "✨", cssClass: "", label: "きらめき" },
+    { type: "emoji", icon: "🎵", cssClass: "", label: "音符" },
+  ],
+  warm: [
+    { type: "emoji", icon: "❤️", cssClass: "", label: "ハート" },
+    { type: "emoji", icon: "🌸", cssClass: "", label: "花" },
+  ],
+  calm: [
+    { type: "emoji", icon: "💧", cssClass: "", label: "しずく" },
+  ],
+  sleepy: [
+    { type: "emoji", icon: "⭐", cssClass: "kaosu-fx-twinkle", label: "星" },
   ],
 };
 /* Phase52: 関係性リアクションシステム。Phase42が既に計算・保存している
@@ -6952,34 +7073,59 @@ const BLINK_MOTION_META = [
   { type: "css", test: () => true, cssClass: "kaosu-blink-closed-slow", closeMs: 90, holdMs: 70, label: "ゆっくり瞬き" },
   { type: "css", test: () => Math.random() < 0.12, cssClass: "kaosu-blink-closed-double", closeMs: 50, holdMs: 45, repeat: true, label: "連続瞬き" },
 ];
-/* Phase60: アイドルモーション管理システム。呼吸(Phase54)/視線
-   (Phase55)/瞬き(Phase59)/口元(Phase57)/ライティング(Phase58)を
+/* Phase60/Phase64(統合): モーション統合管理システム。呼吸(Phase54)/
+   視線(Phase55)/瞬き(Phase59)/口元(Phase57)/ライティング(Phase58)を
    {type, target, run}形式で1つの配列にまとめ、renderKaosuRoomScene()
-   側は「IDLE_SYSTEM_METAを順番に処理するだけ」にする。runは各
+   側は「MOTION_SYSTEM_METAを順番に処理するだけ」にする。runは各
    システムの実装そのもの(タイマー多重起動防止・reduced-motion対応を
    含む)を保持するクロージャで、呼び出されるまでは何も実行しない。
    新しいグローバル関数は追加しておらず、runは配列の要素(データ)として
    保持しているだけなので、window等のグローバルスコープを汚さない。
-   環境エフェクト(Phase51のkaosuRoomFx)は本配列の対象外だが、指示書の
-   表示順(呼吸→視線→瞬き→口元→環境→ライティング)を保つため、
-   renderKaosuRoomScene()内ではmouthとlightingの間に既存のfx処理を
-   そのまま挟む(fx自体のロジックは変更していない)。将来Live2D Idle/
-   Voice Animation/Particle/Emotion Motion/Camera Trackingへ拡張したい
-   場合は、この配列に新しいtypeのエントリを1件追加するだけでよい。 */
-const IDLE_SYSTEM_META = [
+   Phase60ではこの配列をIDLE_SYSTEM_METAという名前で定義していたが、
+   Phase61で「Speaking/Listening」等の非アイドル状態も扱うように
+   なったため、Phase64で「モーション統合管理」という指示書の言葉に
+   合わせてMOTION_SYSTEM_METAへ改名した(中身の5システム・処理順は
+   完全に同一、名前だけの変更)。環境エフェクト(Phase51のkaosuRoomFx)
+   は本配列の対象外だが、指示書の表示順(呼吸→視線→瞬き→口元→環境→
+   ライティング)を保つため、renderKaosuRoomScene()内ではmouthと
+   lightingの間に既存のfx処理をそのまま挟む(fx自体のロジックは
+   変更していない)。将来Live2D Idle/Voice Animation/Particle/
+   Emotion Motion/Camera Trackingへ拡張したい場合は、この配列に
+   新しいtypeのエントリを1件追加するだけでよい。
+   Phase62(感情モーション)の反映方法: runの第2引数ctxにmood/
+   emotionMotionが乗っているため、呼吸はCSS変数(--kaosu-breath-peak)
+   でamplitudeを、視線/口元/瞬きは候補プールへ該当クラスをもう1件
+   重複させるだけの簡易な重み付け(=候補が選ばれる確率をわずかに
+   上げるだけで、既存の「候補からランダム1件」方式そのものは変えて
+   いない)で表現する。この反映はrun()が呼ばれた瞬間(=部屋の表示/
+   再表示のたび)のctxに基づくため、視線/口元のsetInterval・瞬きの
+   setTimeoutチェーンが動き続ける間は、次にrenderKaosuRoomScene()が
+   呼ばれるまで同じ重みのまま動作する(Phase55/57/59が元々持っていた
+   「一度起動したタイマーは同じ設定で動き続ける」という性質をそのまま
+   踏襲しているだけで、新しい制約を追加したわけではない)。 */
+const MOTION_SYSTEM_META = [
   {
     type: "breathing", target: ".kaosu-room-character",
-    run: (el) => {
+    run: (el, ctx) => {
       if(BREATHE_MOTION_META.type === "css-class"){
         el.classList.add(BREATHE_MOTION_META.cssClass);
+        const emotionMotion = (ctx && ctx.emotionMotion) || EMOTION_MOTION_DEFAULT;
+        const breathScale = typeof emotionMotion.breathScale === "number" ? emotionMotion.breathScale : 1;
+        el.style.setProperty("--kaosu-breath-peak", (1 + 0.018 * breathScale).toFixed(4));
       }
     },
   },
   {
     type: "gaze", target: "#kaosuRoomAvatar",
-    run: (el) => {
+    run: (el, ctx) => {
+      const mood = ctx && ctx.mood;
       const applyRandomGaze = () => {
-        const pool = GAZE_DIRECTION_META.filter(g => g.type === "css-class");
+        let pool = GAZE_DIRECTION_META.filter(g => g.type === "css-class");
+        if(mood === "genki"){
+          pool = [...pool, ...pool.filter(g => g.cssClass === "kaosu-gaze-up" || g.cssClass === "kaosu-gaze-center")];
+        }else if(mood === "sleepy"){
+          pool = [...pool, ...pool.filter(g => g.cssClass === "kaosu-gaze-down"), ...pool.filter(g => g.cssClass === "kaosu-gaze-down")];
+        }
         if(!pool.length) return;
         const item = pool[Math.floor(Math.random() * pool.length)];
         GAZE_DIRECTION_META.forEach(g => { if(g.cssClass) el.classList.remove(g.cssClass); });
@@ -6994,12 +7140,16 @@ const IDLE_SYSTEM_META = [
   },
   {
     type: "blink", target: "#kaosuRoomAvatar .kaosu-fallback .eyes",
-    run: (el) => {
+    run: (el, ctx) => {
+      const mood = ctx && ctx.mood;
       el.classList.add("kaosu-blink-eyes");
       const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
       const performBlink = () => {
         if(prefersReducedMotion()) return;
-        const pool = BLINK_MOTION_META.filter(b => b.type === "css" && b.test());
+        let pool = BLINK_MOTION_META.filter(b => b.type === "css" && b.test());
+        if(mood === "sleepy"){
+          pool = [...pool, ...pool.filter(b => b.cssClass === "kaosu-blink-closed-slow")];
+        }
         if(!pool.length) return;
         const item = pool[Math.floor(Math.random() * pool.length)];
         BLINK_MOTION_META.forEach(b => { if(b.cssClass) el.classList.remove(b.cssClass); });
@@ -7029,10 +7179,14 @@ const IDLE_SYSTEM_META = [
   },
   {
     type: "mouth", target: "#kaosuRoomAvatar .kaosu-fallback .mouth",
-    run: (el) => {
+    run: (el, ctx) => {
+      const emotionMotion = (ctx && ctx.emotionMotion) || EMOTION_MOTION_DEFAULT;
       const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
       const applyRandomMouth = () => {
-        const pool = MOUTH_MOTION_META.filter(m => m.type === "css-class");
+        let pool = MOUTH_MOTION_META.filter(m => m.type === "css-class");
+        if(emotionMotion.mouthBias){
+          pool = [...pool, ...pool.filter(m => m.cssClass === emotionMotion.mouthBias)];
+        }
         if(!pool.length) return;
         const item = pool[Math.floor(Math.random() * pool.length)];
         MOUTH_MOTION_META.forEach(m => { if(m.cssClass) el.classList.remove(m.cssClass); });
@@ -7061,6 +7215,27 @@ const IDLE_SYSTEM_META = [
     },
   },
 ];
+/* Phase66: キャラクターライフサイクル。優先順位付きの配列として管理し
+   (候補からランダムではなく、最初に条件が一致した1件をそのまま採用
+   する決定的な選び方)、Idle/Listening/Thinking/Speaking/Sleeping/
+   Celebrationの6状態のうち、その瞬間もっとも意味のある1状態を選ぶ。
+   Celebration(Phase48のANNIVERSARY_MESSAGE_METAが1件でも一致するか
+   どうかを読み取り専用で再利用)/Speaking・Listening・Thinking
+   (Phase61のVOICE_REACTION_METAが解決した状態をそのまま再利用)/
+   Sleeping(深夜帯)を優先し、どれにも一致しなければIdleにフォール
+   バックする。既存のvoice reactionリング(Phase61、#kaosuRoomAvatarの
+   box-shadow)とは別に、こちらは#kaosuRoomScene全体へクラスを付ける
+   「将来Live2Dアニメーターへ渡す状態値」としての意味合いが強いため、
+   視覚効果はごく控えめ(Sleepingでキャラクターをわずかに落ち着いた
+   不透明度にする程度)に留めている。 */
+const LIFE_STATE_META = [
+  { type: "css", state: "celebration", test: (ctx) => ctx.hasAnniversaryMatch === true, cssClass: "kaosu-life-celebration" },
+  { type: "css", state: "speaking", test: (ctx) => ctx.voiceState === "speaking", cssClass: "kaosu-life-speaking" },
+  { type: "css", state: "listening", test: (ctx) => ctx.voiceState === "listening", cssClass: "kaosu-life-listening" },
+  { type: "css", state: "thinking", test: (ctx) => ctx.voiceState === "thinking", cssClass: "kaosu-life-thinking" },
+  { type: "css", state: "sleeping", test: (ctx) => ctx.band === "midnight", cssClass: "kaosu-life-sleeping" },
+  { type: "css", state: "idle", test: () => true, cssClass: "kaosu-life-idle" },
+];
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -7073,31 +7248,58 @@ async function renderKaosuRoomScene(now = new Date()){
 
   const month = now.getMonth() + 1;
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
+  const dayOfWeek = now.getDay();
 
-  /* Phase60: アイドルモーション管理システム。呼吸/視線/瞬きをここで
+  /* 重要: switchView()の"home"分岐や末尾の初期化コードはこの関数を
+     await せずに呼ぶ(既存Phase43〜60からの仕様で、chat側の
+     fire-and-forget呼び出しと同じ考え方)。そのため、この関数の中で
+     最初にawaitへ到達するより前に書かれた同期処理は、呼び出し側が
+     awaitしてもしなくても「呼び出した直後」に必ず反映される。
+     Phase61で「ChatStore.getAll()を関数の先頭に引き上げる」形に
+     一度リファクタリングしたところ、生活シーン/季節イベント/天気/
+     おかえり/今日の一言や呼吸/視線/瞬き/口元/ライティングといった
+     Phase43〜60の同期更新までもが最初のawaitより後ろへ回り込み、
+     「awaitせずに呼ぶと直後には反映されない」という回帰を起こして
+     しまった(回帰テストで検出)。そのため、ChatStore.getAll()を含む
+     非同期区間は元の位置(継続記念より前)に戻し、Phase62のmood算出は
+     band/seasonだけで完結する(EMOTION_MESSAGE_METAのtestはband/season
+     しか見ない)ためawait不要、という性質を利用して同期区間の中で
+     先に済ませている。Phase61(音声リアクション)/Phase66(ライフ
+     サイクル)はChatStore由来のlastUserMessageAt等を必要とするため、
+     既存のctx構築(非同期区間)の直後で解決する形にしている。 */
+  const emotionPool = EMOTION_MESSAGE_META.filter(e => e.test({ band, season })).flatMap(e => e.pool);
+  const emotionPick = emotionPool.length ? emotionPool[Math.floor(Math.random() * emotionPool.length)] : null;
+  const mood = emotionPick ? emotionPick.mood : "calm";
+  const emotionMotion = EMOTION_MOTION_META.find(e => e.type === "multiplier" && e.test({ band, season, mood })) || EMOTION_MOTION_DEFAULT;
+  const motionCtx = { band, season, mood, emotionMotion };
+
+  /* Phase60/64: モーション統合管理システム。呼吸/視線/瞬きをここで
      まとめて処理する(口元は環境エフェクトの後、ライティングは表示順の
-     最後なので、この配列は2回に分けて処理する)。IDLE_SYSTEM_METAの
+     最後なので、この配列は2回に分けて処理する)。MOTION_SYSTEM_METAの
      並び順(呼吸→視線→瞬き→口元→ライティング)のうち、環境エフェクトを
      挟む直前の3件(breathing/gaze/blink)だけをここで処理する。 */
-  IDLE_SYSTEM_META.filter(sys => sys.type === "breathing" || sys.type === "gaze" || sys.type === "blink").forEach(sys => {
+  MOTION_SYSTEM_META.filter(sys => sys.type === "breathing" || sys.type === "gaze" || sys.type === "blink").forEach(sys => {
     const el = document.querySelector(sys.target);
-    if(el && typeof sys.run === "function") sys.run(el, { band, season });
+    if(el && typeof sys.run === "function") sys.run(el, motionCtx);
   });
 
-  /* Phase60: 口元モーション。表示順(呼吸→視線→瞬き→口元→環境→
+  /* Phase60/64: 口元モーション。表示順(呼吸→視線→瞬き→口元→環境→
      ライティング)のとおり、環境エフェクトの直前で処理する。 */
-  IDLE_SYSTEM_META.filter(sys => sys.type === "mouth").forEach(sys => {
+  MOTION_SYSTEM_META.filter(sys => sys.type === "mouth").forEach(sys => {
     const el = document.querySelector(sys.target);
-    if(el && typeof sys.run === "function") sys.run(el, { band, season });
+    if(el && typeof sys.run === "function") sys.run(el, motionCtx);
   });
 
-  /* Phase51: 環境エフェクト。背景層(kaosuRoomFx)の中身を毎回作り直す
-     だけで、アニメーションそのものはCSS(@keyframes)に任せる。現状
-     typeが"emoji"の候補のみ描画し、それ以外のtype(将来のLive2D/GIF/
-     WebGL等)は静かにスキップする(追加だけで拡張できる設計)。 */
+  /* Phase51+65: 環境エフェクト+感情エフェクト。背景層(kaosuRoomFx)の
+     中身を毎回作り直すだけで、アニメーションそのものはCSS
+     (@keyframes)に任せる。Phase65はEMOTION_EFFECT_META(現在の
+     mood向けの候補)をEFFECT_METAの結果へ合成するだけで、描画ループ
+     自体(表示数の上限3個・ランダム選択・type==="emoji"のみ対応)は
+     Phase51から変更していない。 */
   const fxEl = document.getElementById("kaosuRoomFx");
   if(fxEl){
-    const fxPool = [...(EFFECT_META.default || []), ...(EFFECT_META[band] || [])].filter(item => item.type === "emoji");
+    const emotionEffectPool = [...(EMOTION_EFFECT_META.default || []), ...(EMOTION_EFFECT_META[mood] || [])];
+    const fxPool = [...(EFFECT_META.default || []), ...(EFFECT_META[band] || []), ...emotionEffectPool].filter(item => item.type === "emoji");
     fxEl.innerHTML = "";
     const fxCount = Math.min(3, fxPool.length);
     for(let i = 0; i < fxCount; i++){
@@ -7112,13 +7314,13 @@ async function renderKaosuRoomScene(now = new Date()){
     }
   }
 
-  /* Phase60: 時間帯ライティング(Phase58)。IDLE_SYSTEM_METAの最後の
-     エントリとして表示順どおり一番最後に処理する。lightingはランダム
-     選択ではなく現在の時間帯(band)に一意に対応する1件をそのまま適用
-     する挙動を、runの中でそのまま維持している。 */
-  IDLE_SYSTEM_META.filter(sys => sys.type === "lighting").forEach(sys => {
+  /* Phase60/64: 時間帯ライティング(Phase58)。MOTION_SYSTEM_METAの
+     最後のエントリとして表示順どおり一番最後に処理する。lightingは
+     ランダム選択ではなく現在の時間帯(band)に一意に対応する1件をそのまま
+     適用する挙動を、runの中でそのまま維持している。 */
+  MOTION_SYSTEM_META.filter(sys => sys.type === "lighting").forEach(sys => {
     const el = document.querySelector(sys.target);
-    if(el && typeof sys.run === "function") sys.run(el, { band, season });
+    if(el && typeof sys.run === "function") sys.run(el, motionCtx);
   });
 
   /* 生活シーン(Phase43)/季節イベント(Phase44)/天気・気分(Phase46)/
@@ -7147,20 +7349,57 @@ async function renderKaosuRoomScene(now = new Date()){
     el.style.display = badge ? "inline-flex" : "block";
   });
 
-  /* Phase48の節目判定(streak/chatCount/freshlyLeveled)は、Phase50〜53の
-     感情/関係性/時間限定イベントシステムにとっても「親密度/連続日数/
-     曜日/月」といった条件分岐材料になり得るため、全員で1つのctx
-     オブジェクトとして共有する。ANNIVERSARY_MESSAGE_Metaのtestはこれ
-     までどおりctxのうちstreak/chatCount/freshlyLeveledしか参照しない
-     ため、dayOfWeek/monthという追加キーが混ざっても動作は変わらない
-     (既存挙動を壊さない拡張)。 */
+  /* Phase48の節目判定(streak/chatCount/freshlyLeveled)に加え、Phase61
+     (音声リアクション)の「直近のユーザー発言/ケイオスちゃんの返信」を
+     判定するため、既存ChatStore.getAll()の1回の読み込みから両方を
+     まとめて算出する(二重読み込みを避ける)。ANNIVERSARY_MESSAGE_META
+     等のtest関数はctxのうち自分が使うキーしか参照しないため、新しい
+     キーの追加は既存の継続記念/関係性/イベント判定の結果を一切変えない
+     (回帰テストで確認済み)。mood/emotionMotionは上で既に算出済みの
+     ものをそのままctxへ引き継ぐ(同じ抽選を2回行わない)。 */
   const streak = computeActivityStreakDays(now);
   let chatCount = 0;
-  try{ chatCount = (await ChatStore.getAll()).filter(m => m.role === "user").length; }catch(e){ chatCount = 0; }
+  let lastUserMessageAt = null;
+  let lastAssistantMessageAt = null;
+  try{
+    const allChats = await ChatStore.getAll();
+    chatCount = allChats.filter(m => m.role === "user").length;
+    const sorted = [...allChats].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    for(let i = sorted.length - 1; i >= 0; i--){
+      const m = sorted[i];
+      if(lastUserMessageAt === null && m.role === "user") lastUserMessageAt = m.createdAt;
+      if(lastAssistantMessageAt === null && m.role !== "user") lastAssistantMessageAt = m.createdAt;
+      if(lastUserMessageAt !== null && lastAssistantMessageAt !== null) break;
+    }
+  }catch(e){ chatCount = 0; }
   const rel = relationshipRead();
   const freshlyLeveled = !!(rel && typeof rel.level === "number" && typeof rel.exp === "number" && (rel.exp - relationshipLevelStart(rel.level)) < 10);
-  const dayOfWeek = now.getDay();
-  const ctx = { band, season, streak, chatCount, freshlyLeveled, rel, dayOfWeek, month };
+  const ctx = { band, season, streak, chatCount, freshlyLeveled, rel, dayOfWeek, month, now, lastUserMessageAt, lastAssistantMessageAt, mood, emotionMotion };
+
+  /* Phase61: 音声リアクションの状態解決。候補からランダムではなく、
+     優先順位(speaking→listening→thinking→idle)で最初に一致した1件を
+     採用する(状態は毎回1つに決定される)。ctx.voiceStateはPhase66の
+     ライフサイクル判定でも読み取り専用で再利用する。#kaosuRoomAvatarは
+     既に視線(Phase55)がtransformを使っているため、box-shadowだけを
+     使いプロパティの衝突を避けている。 */
+  const voiceMatch = VOICE_REACTION_META.find(v => v.type === "css" && v.test(ctx));
+  ctx.voiceState = voiceMatch ? voiceMatch.state : "idle";
+  const voiceAvatarEl = document.getElementById("kaosuRoomAvatar");
+  if(voiceAvatarEl){
+    VOICE_REACTION_META.forEach(v => { if(v.cssClass) voiceAvatarEl.classList.remove(v.cssClass); });
+    if(voiceMatch) voiceAvatarEl.classList.add(voiceMatch.cssClass);
+  }
+
+  /* Phase66: ライフサイクル状態の解決。Celebration判定はPhase48の
+     ANNIVERSARY_MESSAGE_METAが1件でも一致するかどうかを読み取り専用で
+     確認するだけ(実際にどの文言を表示するかの抽選は既存どおり後段の
+     継続記念ブロックが独立して行う。ここでは「一致の有無」だけを見る
+     ため、抽選結果自体は変わらない)。 */
+  ctx.hasAnniversaryMatch = ANNIVERSARY_MESSAGE_META.some(a => a.test(ctx));
+  const lifeMatch = LIFE_STATE_META.find(l => l.type === "css" && l.test(ctx));
+  ctx.lifeState = lifeMatch ? lifeMatch.state : "idle";
+  LIFE_STATE_META.forEach(l => { if(l.cssClass) scene.classList.remove(l.cssClass); });
+  if(lifeMatch) scene.classList.add(lifeMatch.cssClass);
 
   /* Phase48: 継続記念。条件に1件も一致しなければ非表示のまま
      (通常日は表示しない)。複数一致した場合は、その中からランダムに
@@ -7189,13 +7428,13 @@ async function renderKaosuRoomScene(now = new Date()){
     }
   }
 
-  /* Phase50: キャラクター感情。条件に一致した候補群のpoolを合成し、
-     そこから1件だけランダム表示する。内部状態は持たず保存もしない。 */
+  /* Phase50: キャラクター感情。抽選自体はこの関数の冒頭(Phase62の
+     mood算出時)で既に行っているため、ここでは選ばれたemotionPickの
+     テキストをそのまま表示するだけ(同じ抽選を2回行わない)。 */
   const emotionEl = document.getElementById("kaosuRoomEmotion");
   if(emotionEl){
-    const emotionPool = EMOTION_MESSAGE_META.filter(e => e.test(ctx)).flatMap(e => e.pool);
-    if(emotionPool.length){
-      emotionEl.textContent = emotionPool[Math.floor(Math.random() * emotionPool.length)];
+    if(emotionPick){
+      emotionEl.textContent = emotionPick.text;
       emotionEl.style.display = "block";
     }else{
       emotionEl.style.display = "none";
