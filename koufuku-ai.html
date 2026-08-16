@@ -494,6 +494,35 @@ textarea{ font-family:inherit; }
 .kaosu-room-window::after{ right:-13px; transform:rotate(6deg); }
 .kaosu-room-character{ position:relative; z-index:1; display:flex; justify-content:center; margin-top:32px; }
 .kaosu-room-character .kaosu-avatar{ box-shadow:0 8px 20px rgba(120,90,60,.2); }
+/* Phase54: 呼吸モーション。scale/translateY/opacityだけの控えめな
+   keyframesで、極端な揺れにならないよう振れ幅を小さく保つ(周期5秒)。
+   .kaosu-room-characterはキャラクター全体を包む箱なので、ここへ
+   クラスを付けるだけで実画像/フォールバック絵どちらにも同じ呼吸が
+   効く。将来Live2D Idle/GIF/Sprite/WebGLへ置き換える時は、この
+   .kaosu-breatheクラスの付け外しだけで有効/無効を切り替えられる。 */
+.kaosu-breathe{ animation:kaosuBreathe 5s ease-in-out infinite; transform-origin:center bottom; }
+@keyframes kaosuBreathe{
+  0%, 100%{ transform:scale(1) translateY(0); opacity:1; }
+  50%{ transform:scale(1.018) translateY(-2px); opacity:.96; }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-breathe{ animation:none; }
+}
+/* Phase55: 視線システム。アバターの箱(#kaosuRoomAvatar)をごくわずかに
+   平行移動させるだけで正面/左右/上下の5方向を表現する。箱ごと動かす
+   ので、実画像でもフォールバック絵でもどちらでも同じ演出が効く。
+   急な移動に見えないよう必ずtransitionで滑らかに繋ぐ(振れ幅3px)。
+   reduced-motion環境ではtransitionだけ止め、切り替え自体は残す
+   (連続アニメーションではなく低頻度の離散的な向き変更のため)。 */
+.kaosu-room-avatar-gaze{ transition:transform 1.2s ease-in-out; }
+.kaosu-gaze-center{ transform:translate(0,0); }
+.kaosu-gaze-left{ transform:translate(-3px,0); }
+.kaosu-gaze-right{ transform:translate(3px,0); }
+.kaosu-gaze-up{ transform:translate(0,-3px); }
+.kaosu-gaze-down{ transform:translate(0,3px); }
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-avatar-gaze{ transition:none; }
+}
 .kaosu-room-greeting{
   position:relative; z-index:1; max-width:250px; margin:12px auto 0;
   text-align:center; font-size:13.5px; transition:background .8s ease, color .8s ease;
@@ -943,7 +972,11 @@ textarea.field-input{ resize:none; }
                Phase51: 環境エフェクト(kaosuRoomFxは背景層のため
                scene先頭に配置、表示順の対象外)。Phase52: 関係性
                リアクション。Phase53: 時間限定イベント(条件一致時の
-               み)。指示書どおりの表示順(生活シーン→季節イベント→
+               み)。Phase54: 呼吸モーション(.kaosu-room-characterへ
+               クラス付与のみ、新規DOM要素なし)。Phase55: 視線
+               システム(#kaosuRoomAvatarへクラス付与のみ、新規DOM
+               要素なし)。どちらも既存のカード配置・吹き出し位置には
+               触れない。指示書どおりの表示順(生活シーン→季節イベント→
                天気・空気感→おかえりメッセージ→今日の一言→継続記念→
                プレゼント演出→感情→関係性リアクション→時間限定
                イベント)でDOMに並べ、既存の吹き出し挨拶(kaosu-room-
@@ -6777,6 +6810,25 @@ const EVENT_MESSAGE_META = [
   { type: "text", test: (ctx) => ctx.dayOfWeek === 6, message: "☕ 今日は少しゆっくりしよう。" },
   { type: "text", test: (ctx) => ctx.month === 12, message: "🎄 街も少しずつ冬色だね。" },
 ];
+/* Phase54: 呼吸モーション。CSSの@keyframesだけで実装した最軽量の
+   演出だが、将来Live2D Idle/GIF/Sprite/WebGLへ置き換える可能性を
+   踏まえ、typeを持つ定数として管理する。現状はtype==="css-class"の
+   時だけ.kaosu-breatheクラスをキャラクター要素へ付与する(常時
+   オンで足すだけ、保存も内部状態も持たない)。 */
+const BREATHE_MOTION_META = { type: "css-class", cssClass: "kaosu-breathe" };
+/* Phase55: 視線システム。EFFECT_META等と同じ「typeを持つ候補配列」の
+   形で管理し、現状はtype==="css-class"の候補だけを対象にランダムで
+   1つ選ぶ(候補からランダム1件方式)。将来Live2D Eye/Face Tracking/
+   カメラ追従/まばたき/頭部回転などを追加したい場合は、新しいtypeの
+   候補をこの配列に足すだけでよい(未対応typeは自動的に無視される)。 */
+const GAZE_DIRECTION_META = [
+  { type: "css-class", cssClass: "kaosu-gaze-center", label: "正面" },
+  { type: "css-class", cssClass: "kaosu-gaze-left", label: "少し左" },
+  { type: "css-class", cssClass: "kaosu-gaze-right", label: "少し右" },
+  { type: "css-class", cssClass: "kaosu-gaze-up", label: "少し上" },
+  { type: "css-class", cssClass: "kaosu-gaze-down", label: "少し下" },
+];
+const GAZE_SWITCH_INTERVAL_MS = 6000;
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -6789,6 +6841,42 @@ async function renderKaosuRoomScene(now = new Date()){
 
   const month = now.getMonth() + 1;
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
+
+  /* Phase54: 呼吸モーション。キャラクター全体を包む.kaosu-room-
+     characterへクラスを付けるだけ(常時オン、内部状態も保存もなし)。
+     実画像/フォールバック絵のどちらでも同じ箱の中で呼吸するため、
+     画像読み込みの成否に関係なく効く。 */
+  const charEl = scene.querySelector(".kaosu-room-character");
+  if(charEl && BREATHE_MOTION_META.type === "css-class"){
+    charEl.classList.add(BREATHE_MOTION_META.cssClass);
+  }
+
+  /* Phase55: 視線システム。#kaosuRoomAvatar(アバターの箱)へ5方向の
+     いずれか1つのクラスだけをランダムで付け替える。renderKaosuRoom
+     Scene()はホーム表示のたびに何度も呼ばれるため、初回だけ
+     setIntervalを起動し、以降は同じタイマーを使い回す(多重起動
+     防止)。新しいグローバル変数/関数を増やさずに一度きりの起動を
+     保証するため、フラグはこの関数自身のプロパティ
+     (renderKaosuRoomScene._gazeTimerStarted)に持たせている。呼び
+     出されるたびにも即座に1回ランダム表示することで、初回描画から
+     向きが決まっている状態にする。将来Live2D Eye/Face Tracking等へ
+     置き換える際は、この一箇所を止める(またはGAZE_DIRECTION_METAに
+     新しいtypeを足して分岐する)だけで無効化できる。 */
+  const avatarBoxForGaze = document.getElementById("kaosuRoomAvatar");
+  if(avatarBoxForGaze){
+    const applyRandomGaze = () => {
+      const pool = GAZE_DIRECTION_META.filter(g => g.type === "css-class");
+      if(!pool.length) return;
+      const item = pool[Math.floor(Math.random() * pool.length)];
+      GAZE_DIRECTION_META.forEach(g => { if(g.cssClass) avatarBoxForGaze.classList.remove(g.cssClass); });
+      avatarBoxForGaze.classList.add("kaosu-room-avatar-gaze", item.cssClass);
+    };
+    applyRandomGaze();
+    if(!renderKaosuRoomScene._gazeTimerStarted){
+      renderKaosuRoomScene._gazeTimerStarted = true;
+      window.setInterval(applyRandomGaze, GAZE_SWITCH_INTERVAL_MS);
+    }
+  }
 
   /* Phase51: 環境エフェクト。背景層(kaosuRoomFx)の中身を毎回作り直す
      だけで、アニメーションそのものはCSS(@keyframes)に任せる。現状
