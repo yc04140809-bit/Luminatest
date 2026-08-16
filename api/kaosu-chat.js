@@ -27,6 +27,17 @@
 // 他のAI Providerへ切り替える場合は、この関数と同じ入出力の
 // 別関数を用意し、呼び出し側の1行を差し替えるだけでよい。
 async function callAnthropic({ system, userMessages, timeoutMs }) {
+  // 実行環境にグローバルfetchが無い場合(古いNode.jsランタイムに固定されて
+  // いる等)、fetch(...)行そのものが例外を投げて「1回も外部通信していない
+  // のに502で終了する」という区別しにくい失敗を起こす。ここで明示的に
+  // 検知し、ログだけですぐ原因が分かるメッセージにしておく。
+  if (typeof fetch !== "function") {
+    throw new Error(
+      "global fetch is unavailable in this runtime (Node.js version: " +
+        String(process.version) +
+        "). vercel.json の runtime指定(nodejs20.x)が反映されているか確認してください。"
+    );
+  }
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY is not configured");
