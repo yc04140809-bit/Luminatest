@@ -525,6 +525,12 @@ textarea{ font-family:inherit; }
 /* Phase50: キャラクター感情表示。他の一言(斜体)と見分けやすいよう
    斜体だけ解除する最小限の違いに留め、派手な演出は加えない。 */
 .kaosu-room-emotion{ font-style:normal; }
+/* Phase52: 関係性リアクション。親密度の温かさが伝わるよう、斜体を
+   解除しほんのりピンクに色付ける程度に留める(継続記念ほど強調しない)。 */
+.kaosu-room-relation{ font-style:normal; color:#ff8fac; }
+/* Phase53: 時間限定イベント(一致条件のみ表示するため通常は非表示)。
+   派手な演出は加えず、他の一言と同じ見た目のまま条件表示だけを担う。 */
+.kaosu-room-event{ font-style:normal; }
 
 /* Phase51: 環境エフェクト。画像/Canvas/重いライブラリは使わず、
    絵文字1文字ずつをCSSアニメーション(@keyframes)だけで漂わせる
@@ -935,11 +941,14 @@ textarea.field-input{ resize:none; }
                Phase47: 今日の一言。Phase48: 継続記念(条件一致時のみ)。
                Phase49: プレゼント演出。Phase50: キャラクター感情。
                Phase51: 環境エフェクト(kaosuRoomFxは背景層のため
-               scene先頭に配置、表示順の対象外)。指示書どおりの表示順
-               (生活シーン→季節イベント→天気・空気感→おかえり
-               メッセージ→今日の一言→継続記念→プレゼント演出→感情)
-               でDOMに並べ、既存の吹き出し挨拶(kaosu-room-greeting)を
-               一番下に据え置く。いずれも保存はせず、renderKaosuRoom
+               scene先頭に配置、表示順の対象外)。Phase52: 関係性
+               リアクション。Phase53: 時間限定イベント(条件一致時の
+               み)。指示書どおりの表示順(生活シーン→季節イベント→
+               天気・空気感→おかえりメッセージ→今日の一言→継続記念→
+               プレゼント演出→感情→関係性リアクション→時間限定
+               イベント)でDOMに並べ、既存の吹き出し挨拶(kaosu-room-
+               greeting)を一番下に据え置く。いずれも保存はせず、
+               renderKaosuRoom
                Scene()だけがテキストを書き換える読み込み専用の装飾。
                既存のrerollKaosuRoomGreeting()/switchView()には一切
                触れない。 -->
@@ -953,6 +962,8 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome kaosu-room-anniversary" id="kaosuRoomAnniversary" style="display:none;"></p>
           <p class="kaosu-room-welcome" id="kaosuRoomPresent"></p>
           <p class="kaosu-room-welcome kaosu-room-emotion" id="kaosuRoomEmotion"></p>
+          <p class="kaosu-room-welcome kaosu-room-relation" id="kaosuRoomRelation"></p>
+          <p class="kaosu-room-welcome kaosu-room-event" id="kaosuRoomEvent" style="display:none;"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
@@ -6733,6 +6744,39 @@ const EFFECT_META = {
     { type: "emoji", icon: "⭐", cssClass: "kaosu-fx-twinkle", label: "夜だけ星" },
   ],
 };
+/* Phase52: 関係性リアクションシステム。Phase42が既に計算・保存している
+   親密度レベル(rel.level、localStorageのkoufukuAiRelationshipV1)を
+   読み取り専用で使うだけで、新しい保存や計算はしない。EMOTION_MESSAGE_
+   METAと同じtest(ctx)+pool方式にしてあるので、レベル以外の条件(会話
+   回数/連続日数/記念日/イベント/季節/時間帯)を後から足したい時も、
+   この配列に1件追加するだけで拡張できる(ctxには既にstreak/chatCount/
+   band/season/freshlyLeveled/relがすべて揃っている)。レベルはPhase42の
+   getRelationshipLevelForExp()により1以上の整数として算出されるため、
+   「レベル5以上」のように上限を作らず無限に拡張できる形で条件を書く。 */
+const RELATION_REACTION_META = [
+  { test: (ctx) => (ctx.rel ? ctx.rel.level : 1) <= 1, pool: ["🤍 はじめまして"] },
+  { test: (ctx) => (ctx.rel ? ctx.rel.level : 1) === 2, pool: ["😊 少し仲良くなったね"] },
+  { test: (ctx) => (ctx.rel ? ctx.rel.level : 1) === 3, pool: ["🥰 一緒にいると安心するよ"] },
+  { test: (ctx) => (ctx.rel ? ctx.rel.level : 1) === 4, pool: ["💖 今日も会えて嬉しい"] },
+  { test: (ctx) => (ctx.rel ? ctx.rel.level : 1) >= 5, pool: ["🌸 大切な存在だよ"] },
+];
+/* Phase53: 時間限定イベントシステム。ANNIVERSARY_MESSAGE_METAと同じ
+   test(ctx)+message方式(候補ごとに1文)を採用し、時間帯(band)/曜日
+   (dayOfWeek)/月(month)のいずれかに一致する候補だけを表示する。複数
+   条件が同時に一致した場合(例: 12月の土曜の朝)は、その中からランダム
+   に1件だけ選ぶ(既存と同じ「候補からランダム1件」方式)。1件も
+   一致しなければ要素ごと非表示にする(通常日は非表示でよい、の指示
+   どおり)。各候補にtype("text"のみ実装)を持たせ、将来は天気API/
+   位置情報/祝日/特別イベント/Live2Dモーション/ボイス/通知といった
+   新しいtypeの候補を追加するだけで拡張できるようにしてある(未対応
+   typeは下のrenderKaosuRoomScene()側のフィルタで自動的に無視される
+   ため、追加だけで既存のtext表示を壊さない)。 */
+const EVENT_MESSAGE_META = [
+  { type: "text", test: (ctx) => ctx.band === "morning", message: "🌅 今日はどんな一日にしよう？" },
+  { type: "text", test: (ctx) => ctx.band === "night" || ctx.band === "midnight", message: "🌙 今日も一日お疲れさま。" },
+  { type: "text", test: (ctx) => ctx.dayOfWeek === 6, message: "☕ 今日は少しゆっくりしよう。" },
+  { type: "text", test: (ctx) => ctx.month === 12, message: "🎄 街も少しずつ冬色だね。" },
+];
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -6793,18 +6837,20 @@ async function renderKaosuRoomScene(now = new Date()){
     el.style.display = badge ? "inline-flex" : "block";
   });
 
-  /* Phase48の節目判定(streak/chatCount/freshlyLeveled)は、Phase50の
-     感情システムにとっても「親密度/連続日数」といった将来の条件分岐
-     材料になり得るため、両者で1つのctxオブジェクトとして共有する。
-     ANNIVERSARY_MESSAGE_Metaのtestはこれまでどおりctxのうちstreak/
-     chatCount/freshlyLeveledしか参照しないため、band/season/relという
-     追加キーが混ざっても動作は変わらない(既存挙動を壊さない拡張)。 */
+  /* Phase48の節目判定(streak/chatCount/freshlyLeveled)は、Phase50〜53の
+     感情/関係性/時間限定イベントシステムにとっても「親密度/連続日数/
+     曜日/月」といった条件分岐材料になり得るため、全員で1つのctx
+     オブジェクトとして共有する。ANNIVERSARY_MESSAGE_Metaのtestはこれ
+     までどおりctxのうちstreak/chatCount/freshlyLeveledしか参照しない
+     ため、dayOfWeek/monthという追加キーが混ざっても動作は変わらない
+     (既存挙動を壊さない拡張)。 */
   const streak = computeActivityStreakDays(now);
   let chatCount = 0;
   try{ chatCount = (await ChatStore.getAll()).filter(m => m.role === "user").length; }catch(e){ chatCount = 0; }
   const rel = relationshipRead();
   const freshlyLeveled = !!(rel && typeof rel.level === "number" && typeof rel.exp === "number" && (rel.exp - relationshipLevelStart(rel.level)) < 10);
-  const ctx = { band, season, streak, chatCount, freshlyLeveled, rel };
+  const dayOfWeek = now.getDay();
+  const ctx = { band, season, streak, chatCount, freshlyLeveled, rel, dayOfWeek, month };
 
   /* Phase48: 継続記念。条件に1件も一致しなければ非表示のまま
      (通常日は表示しない)。複数一致した場合は、その中からランダムに
@@ -6843,6 +6889,36 @@ async function renderKaosuRoomScene(now = new Date()){
       emotionEl.style.display = "block";
     }else{
       emotionEl.style.display = "none";
+    }
+  }
+
+  /* Phase52: 関係性リアクション。Phase42のrel.levelを読み取り専用で
+     参照し、一致した候補群のpoolを合成してから1件だけランダム表示
+     する(emotionと同じ処理形)。relがまだ存在しない(初回未計算)場合は
+     test側でlevel既定値1として扱われ、レベル1相当の反応を出す。 */
+  const relationEl = document.getElementById("kaosuRoomRelation");
+  if(relationEl){
+    const relationPool = RELATION_REACTION_META.filter(r => r.test(ctx)).flatMap(r => r.pool);
+    if(relationPool.length){
+      relationEl.textContent = relationPool[Math.floor(Math.random() * relationPool.length)];
+      relationEl.style.display = "block";
+    }else{
+      relationEl.style.display = "none";
+    }
+  }
+
+  /* Phase53: 時間限定イベント。条件に1件も一致しなければ非表示のまま
+     (通常日は非表示でよい)。type==="text"の候補だけを描画対象とし、
+     将来の非textタイプ(天気API/位置情報/祝日/特別イベント/Live2D
+     モーション/ボイス/通知)は現時点では自動的にスキップする。 */
+  const eventEl = document.getElementById("kaosuRoomEvent");
+  if(eventEl){
+    const matchedEvents = EVENT_MESSAGE_META.filter(e => e.type === "text" && e.test(ctx));
+    if(matchedEvents.length){
+      eventEl.textContent = matchedEvents[Math.floor(Math.random() * matchedEvents.length)].message;
+      eventEl.style.display = "block";
+    }else{
+      eventEl.style.display = "none";
     }
   }
 }
