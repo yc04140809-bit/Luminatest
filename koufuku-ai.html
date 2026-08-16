@@ -523,6 +523,59 @@ textarea{ font-family:inherit; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-avatar-gaze{ transition:none; }
 }
+/* Phase57: 口元モーション(アイドル状態のみ。会話アニメーションでは
+   ない)。実画像には個別の口パーツが存在せず、新規DOM追加も禁止のため、
+   既存のフォールバック顔(画像読み込み失敗時にのみ表示される簡易CSS
+   顔、.kaosu-fallback .mouth)だけを対象にする。#kaosuRoomScene配下に
+   限定してクラスを当てることで、マインド画面/わくわく空状態などの
+   他の.kaosu-fallbackインスタンスには一切影響しない。ベース側の
+   .kaosu-fallback .mouthが既にtransform:translate(-50%,0)で中央
+   寄せしているため、各状態でも同じtranslateを含めた上でscaleだけを
+   足す(変化は極めて小さく保つ)。将来Live2D Mouth/Lip Sync/Voice
+   Animation/GIF/Spriteを導入した際は、そちらが口元表現を担うため、
+   本演出はそのまま使われなくなるだけで既存構造は壊れない。 */
+#kaosuRoomScene .kaosu-room-mouth-idle{ transition:transform .8s ease-in-out; }
+#kaosuRoomScene .kaosu-mouth-normal{ transform:translate(-50%,0) scale(1); }
+#kaosuRoomScene .kaosu-mouth-smile{ transform:translate(-50%,0) scaleX(1.15); }
+#kaosuRoomScene .kaosu-mouth-curve-up{ transform:translate(-50%,0) scaleY(.85) translateY(-1px); }
+#kaosuRoomScene .kaosu-mouth-open{ transform:translate(-50%,0) scaleY(1.5); }
+@media (prefers-reduced-motion: reduce){
+  #kaosuRoomScene .kaosu-room-mouth-idle{ transition:none; }
+}
+/* Phase58: 時間帯ライティング。既存のroom-band-*(部屋の背景色)とは
+   別に、::after疑似要素(新規DOM要素ではない)だけで「柔らかい光の
+   色味」を重ねる。box-shadow/linear-gradient/opacity/filterのみを
+   使い、Canvasや画像は使わない。どの時間帯でも不透明度を低く抑え、
+   夜も暗くする方向ではなく淡い光を足す方向にしてあるため、既存の
+   文字色(.kaosu-room-welcome等)の可読性はそのまま維持される。 */
+.kaosu-room-scene::after{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  opacity:0; transition:opacity .8s ease, background .8s ease;
+}
+.kaosu-room-scene.kaosu-lighting-morning::after{
+  opacity:1;
+  background:linear-gradient(180deg, rgba(255,214,153,.28) 0%, rgba(255,183,130,.08) 60%, rgba(255,183,130,0) 100%);
+  box-shadow:inset 0 40px 60px -30px rgba(255,196,130,.35);
+}
+.kaosu-room-scene.kaosu-lighting-day::after{
+  opacity:1;
+  background:linear-gradient(180deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.05) 60%, rgba(255,255,255,0) 100%);
+  filter:saturate(1.02);
+}
+.kaosu-room-scene.kaosu-lighting-evening::after{
+  opacity:1;
+  background:linear-gradient(180deg, rgba(255,150,90,.24) 0%, rgba(255,110,90,.12) 55%, rgba(255,90,90,0) 100%);
+  box-shadow:inset 0 -40px 70px -30px rgba(255,130,90,.3);
+  filter:saturate(1.08);
+}
+.kaosu-room-scene.kaosu-lighting-night::after{
+  opacity:1;
+  background:linear-gradient(180deg, rgba(150,170,255,.18) 0%, rgba(120,130,230,.10) 55%, rgba(100,110,210,0) 100%);
+  box-shadow:inset 0 0 60px -10px rgba(130,150,255,.22);
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-scene::after{ transition:none; }
+}
 .kaosu-room-greeting{
   position:relative; z-index:1; max-width:250px; margin:12px auto 0;
   text-align:center; font-size:13.5px; transition:background .8s ease, color .8s ease;
@@ -975,8 +1028,11 @@ textarea.field-input{ resize:none; }
                み)。Phase54: 呼吸モーション(.kaosu-room-characterへ
                クラス付与のみ、新規DOM要素なし)。Phase55: 視線
                システム(#kaosuRoomAvatarへクラス付与のみ、新規DOM
-               要素なし)。どちらも既存のカード配置・吹き出し位置には
-               触れない。指示書どおりの表示順(生活シーン→季節イベント→
+               要素なし)。Phase57: 口元モーション(既存の.kaosu-
+               fallback .mouthへクラス付与のみ、新規DOM要素なし)。
+               Phase58: 時間帯ライティング(::after疑似要素で実装、
+               新規DOM要素なし)。いずれも既存のカード配置・吹き出し
+               位置には触れない。指示書どおりの表示順(生活シーン→季節イベント→
                天気・空気感→おかえりメッセージ→今日の一言→継続記念→
                プレゼント演出→感情→関係性リアクション→時間限定
                イベント)でDOMに並べ、既存の吹き出し挨拶(kaosu-room-
@@ -6829,6 +6885,34 @@ const GAZE_DIRECTION_META = [
   { type: "css-class", cssClass: "kaosu-gaze-down", label: "少し下" },
 ];
 const GAZE_SWITCH_INTERVAL_MS = 6000;
+/* Phase57: 口元モーションシステム。GAZE_DIRECTION_METAと同じ「typeを
+   持つ候補配列」の形で管理し、現状はtype==="css-class"の候補だけを
+   対象にランダムで1つ選ぶ(候補からランダム1件方式)。会話中の
+   リップシンクではなく、あくまでアイドル状態の微細な表情変化。
+   将来Live2D Mouth/Lip Sync/Voice Animation/GIF/Spriteへ置き換えたい
+   場合は、新しいtypeの候補をこの配列に足すだけでよい(未対応typeは
+   自動的に無視される)。 */
+const MOUTH_MOTION_META = [
+  { type: "css-class", cssClass: "kaosu-mouth-normal", label: "通常" },
+  { type: "css-class", cssClass: "kaosu-mouth-smile", label: "微笑み" },
+  { type: "css-class", cssClass: "kaosu-mouth-curve-up", label: "口角が少し上がる" },
+  { type: "css-class", cssClass: "kaosu-mouth-open", label: "少しだけ口が開く" },
+];
+const MOUTH_SWITCH_INTERVAL_MS = 5000;
+/* Phase58: 時間帯ライティングシステム。EVENT_MESSAGE_META等と同じ
+   test(ctx)+typeの形で管理する。lightingは「候補からランダム」では
+   なく現在の時間帯に一意に対応するため、一致した最初の1件をそのまま
+   使う(ランダム選択はしない)。type("band"のみ実装)を持たせておく
+   ことで、将来天気API/季節/位置情報/室内照明/特殊イベントに応じた
+   新しいtypeの候補を追加したい場合も、この配列に1件足すだけでよい
+   (未対応typeは自動的にスキップされる)。夜と深夜は同じ「青系」の
+   照明を使う(EVENT_MESSAGE_METAの夜/深夜統合と同じ考え方)。 */
+const LIGHTING_META = [
+  { type: "band", test: (ctx) => ctx.band === "morning", cssClass: "kaosu-lighting-morning" },
+  { type: "band", test: (ctx) => ctx.band === "day", cssClass: "kaosu-lighting-day" },
+  { type: "band", test: (ctx) => ctx.band === "evening", cssClass: "kaosu-lighting-evening" },
+  { type: "band", test: (ctx) => ctx.band === "night" || ctx.band === "midnight", cssClass: "kaosu-lighting-night" },
+];
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -6878,6 +6962,36 @@ async function renderKaosuRoomScene(now = new Date()){
     }
   }
 
+  /* Phase57: 口元モーション(アイドル状態のみ)。実画像には個別の口
+     パーツが存在しないため、新規DOM追加禁止の制約の下では既存の
+     フォールバック顔(#kaosuRoomAvatar内の.kaosu-fallback .mouth、
+     画像読み込み失敗時にのみ表示される簡易CSS顔)だけが対象になる。
+     視線と同じくrenderKaosuRoomScene自身のプロパティ
+     (_mouthTimerStarted)で多重起動を防止する。prefers-reduced-motion
+     が有効な間はswitchせず通常状態に固定して完全停止する(CSS側の
+     transition停止だけでなく、状態そのものを変化させない)。 */
+  const mouthEl = document.querySelector("#kaosuRoomAvatar .kaosu-fallback .mouth");
+  if(mouthEl){
+    const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const applyRandomMouth = () => {
+      const pool = MOUTH_MOTION_META.filter(m => m.type === "css-class");
+      if(!pool.length) return;
+      const item = pool[Math.floor(Math.random() * pool.length)];
+      MOUTH_MOTION_META.forEach(m => { if(m.cssClass) mouthEl.classList.remove(m.cssClass); });
+      mouthEl.classList.add("kaosu-room-mouth-idle", item.cssClass);
+    };
+    if(prefersReducedMotion()){
+      MOUTH_MOTION_META.forEach(m => { if(m.cssClass) mouthEl.classList.remove(m.cssClass); });
+      mouthEl.classList.add("kaosu-room-mouth-idle", "kaosu-mouth-normal");
+    }else{
+      applyRandomMouth();
+    }
+    if(!renderKaosuRoomScene._mouthTimerStarted){
+      renderKaosuRoomScene._mouthTimerStarted = true;
+      window.setInterval(() => { if(!prefersReducedMotion()) applyRandomMouth(); }, MOUTH_SWITCH_INTERVAL_MS);
+    }
+  }
+
   /* Phase51: 環境エフェクト。背景層(kaosuRoomFx)の中身を毎回作り直す
      だけで、アニメーションそのものはCSS(@keyframes)に任せる。現状
      typeが"emoji"の候補のみ描画し、それ以外のtype(将来のLive2D/GIF/
@@ -6897,6 +7011,17 @@ async function renderKaosuRoomScene(now = new Date()){
       span.style.animationDuration = `${(8 + Math.random() * 5).toFixed(2)}s`;
       fxEl.appendChild(span);
     }
+  }
+
+  /* Phase58: 時間帯ライティング。ランダム選択ではなく、現在の時間帯に
+     一意に対応する1件をそのまま適用する(該当がなければ何も付けない)。
+     ::after疑似要素(CSS側で定義済み、新規DOM要素ではない)の見た目を
+     切り替えるだけなので、既存レイアウトへの影響はない。 */
+  const lightingCtx = { band, season };
+  const matchedLighting = LIGHTING_META.find(l => l.type === "band" && l.test(lightingCtx));
+  LIGHTING_META.forEach(l => { if(l.cssClass) scene.classList.remove(l.cssClass); });
+  if(matchedLighting){
+    scene.classList.add(matchedLighting.cssClass);
   }
 
   /* 生活シーン(Phase43)/季節イベント(Phase44)/天気・気分(Phase46)/
