@@ -11317,9 +11317,13 @@ const KAOSU_DIALECT_PROMPT = {
 };
 /* 直近の会話は無制限に渡さず、件数と文字数の両方に上限を設ける
    (RECENT CONVERSATIONが際限なく肥大化しないようにするための
-   Phase F独自のガード。会話履歴の保存方式自体には一切触れない)。 */
-const KAOSU_RECENT_TURNS_MAX = 6;
-const KAOSU_RECENT_CONV_CHAR_CAP = 600;
+   Phase F独自のガード。会話履歴の保存方式自体には一切触れない)。
+   Anthropic API正式接続の指示書どおり直近20件程度を送るため
+   KAOSU_RECENT_TURNS_MAXを20に引き上げ、文字数上限もそれに合わせて
+   比例的に引き上げてある(20件×1行あたり最大90字前後を目安に、
+   長すぎる場合は古い行から切り捨てる挙動はそのまま維持)。 */
+const KAOSU_RECENT_TURNS_MAX = 20;
+const KAOSU_RECENT_CONV_CHAR_CAP = 2200;
 function buildKaosuRecentConversationText(){
   const recent = (chatMessages || []).slice(-KAOSU_RECENT_TURNS_MAX);
   const lines = recent.map(m => `${m.role === "user" ? "USER" : "ケイオス"}: ${kaosuContextTruncate(m.text || "", 80)}`);
@@ -11528,6 +11532,17 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
       chatSetHeroExpression(result.expression);
       await chatWait(CHAT_REPLY_GAP_MS);
       await chatAppendKaosuHtml(result.html);
+    }catch(error){
+      /* Anthropic API正式接続: generateKaosuReply()自体は内部でAI失敗時に
+         既存ルールベースへフォールバックするため、通常ここには来ない。
+         それでも(ルールベース生成側の想定外の例外なども含め)何かが
+         起きた場合は画面を止めずに、自然な一言だけを表示して復帰する
+         最終防衛線。 */
+      console.error("[KaosuAI] チャット応答の生成中に予期しないエラーが発生しました。", error);
+      try{
+        chatSetHeroExpression("normal");
+        await chatAppendKaosuHtml("今ちょっと考えがまとまらないみたい。<br>少ししてからもう一度話しかけてね。");
+      }catch(e2){ /* 最終防衛線自体が失敗しても、これ以上は何もしない */ }
     }finally{
       /* AI通信がtimeoutしても例外が飛んでも、必ずここで送信可能状態へ
          戻す(「送信不能になったまま」を絶対に作らない)。 */
