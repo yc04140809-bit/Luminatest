@@ -1,0 +1,69 @@
+name: Deploy ShiftCare AI MVP preview
+
+# ShiftCare AI (shiftcare-ai/) をビルドし、GitHub Pagesのサブパス
+# /shiftcare-ai/ へ公開するワークフロー。
+# 既存の「幸せ設計AI」(koufuku-ai.html)のルート公開はそのまま維持し、
+# 同じ_siteディレクトリへ両方をまとめて配置することで、どちらか一方の
+# デプロイが他方を消してしまわないようにしている。
+# リポジトリ本体には一切手を加えない(ビルド成果物のみ公開用に複製)。
+
+on:
+  push:
+    branches: ["claude/shiftcare-ai-mvp-yupddr"]
+    paths:
+      - "shiftcare-ai/**"
+      - "koufuku-ai.html"
+      - "img/koufuku/**"
+      - ".github/workflows/deploy-shiftcare-ai.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: shiftcare-ai/package-lock.json
+
+      - name: Install dependencies
+        working-directory: shiftcare-ai
+        run: npm ci
+
+      - name: Build ShiftCare AI
+        working-directory: shiftcare-ai
+        run: npm run build
+
+      - name: Build public site (koufuku-ai at root + ShiftCare AI at /shiftcare-ai/)
+        run: |
+          mkdir -p _site/img/koufuku
+          cp koufuku-ai.html _site/index.html
+          cp img/koufuku/*.webp _site/img/koufuku/
+          mkdir -p _site/shiftcare-ai
+          cp -r shiftcare-ai/dist/. _site/shiftcare-ai/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
