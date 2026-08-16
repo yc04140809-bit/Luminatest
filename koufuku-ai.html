@@ -518,6 +518,10 @@ textarea{ font-family:inherit; }
 }
 .kaosu-room-scene.room-band-night .kaosu-room-welcome,
 .kaosu-room-scene.room-band-midnight .kaosu-room-welcome{ color:rgba(255,255,255,.85); }
+/* Phase48: 継続記念(節目の日だけ表示するため通常は非表示のまま)。
+   お祝いだと一目で分かるよう、他の一言よりわずかに強調するだけに
+   留め、派手な演出は加えない。 */
+.kaosu-room-anniversary{ font-style:normal; font-weight:700; color:#ff6f9c; }
 
 /* 時間帯ごとの部屋の色味だけを切り替える(判定はgetRoomVisualBand()が
    行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。 */
@@ -888,13 +892,14 @@ textarea.field-input{ resize:none; }
           </div>
           <!-- Phase43: 日常生活システム。Phase44: 季節イベント。
                Phase46: 天気・気分。Phase45: おかえりメッセージ。
-               Phase47: 今日の一言。指示書どおりの表示順(生活シーン→
-               季節イベント→天気・空気感→おかえりメッセージ→今日の
-               一言)でDOMに並べる。いずれも保存はせず、
-               renderKaosuRoomScene()だけがテキストを書き換える
-               読み込み専用の装飾。既存のkaosu-room-greeting(吹き出し)
-               とは別物として共存させ、既存のrerollKaosuRoomGreeting()
-               /switchView()には一切触れない。 -->
+               Phase47: 今日の一言。Phase48: 継続記念(条件一致時のみ)。
+               Phase49: プレゼント演出。指示書どおりの表示順(生活シーン
+               →季節イベント→天気・空気感→おかえりメッセージ→今日の
+               一言→継続記念→プレゼント演出)でDOMに並べ、既存の吹き
+               出し挨拶(kaosu-room-greeting)を一番下に据え置く。いずれも
+               保存はせず、renderKaosuRoomScene()だけがテキストを
+               書き換える読み込み専用の装飾。既存のrerollKaosuRoom
+               Greeting()/switchView()には一切触れない。 -->
           <div class="kaosu-room-badges" id="kaosuRoomBadges">
             <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
             <p class="kaosu-room-activity" id="kaosuRoomSeason"></p>
@@ -902,6 +907,8 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome" id="kaosuRoomWeather"></p>
           <p class="kaosu-room-welcome" id="kaosuRoomWelcome"></p>
           <p class="kaosu-room-welcome" id="kaosuRoomToday"></p>
+          <p class="kaosu-room-welcome kaosu-room-anniversary" id="kaosuRoomAnniversary" style="display:none;"></p>
+          <p class="kaosu-room-welcome" id="kaosuRoomPresent"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
@@ -6598,7 +6605,47 @@ const TODAY_MESSAGE_META = {
     "ありがとう。",
   ],
 };
-function renderKaosuRoomScene(now = new Date()){
+/* Phase48: 継続記念システム。新しい保存は一切行わず、既存データ
+   だけを読んで「今まさに節目である」かどうかを判定する。
+   - 連続利用日数(streak): Phase41のcomputeActivityStreakDays()を
+     そのまま再利用。ちょうどN日目の日だけ真になる値なので、比較用の
+     状態を持たなくても「その日限定」の判定が成立する。
+   - 累計会話数(chatCount): 既存ChatStore.getAll()を読むだけ(新規
+     カウンタは持たない)。ちょうどN回目に達した時だけ真になるよう
+     厳密な等号で判定するので、N回を超えた通常の日には表示されない。
+   - 親密度の新しいステージ(freshlyLeveled): Phase42が既に保存して
+     いるlocalStorageのスナップショット(relationshipRead())を読む
+     だけ(新しい書き込みはしない)。現在のexpがそのレベルの開始
+     しきい値のすぐ近く(10ポイント未満)にある時だけ「入ったばかり」
+     とみなす、あくまで演出目的の簡易判定。Phase42本体のレベルアップ
+     モーダル(正確な遷移検知)とは役割を分けている。
+   各候補にtest(ctx)という条件関数を持たせることで、「候補配列＋
+   条件分岐」を1つの定数にまとめている(将来、季節/実績/限定イベント
+   などの条件を追加する時もこの配列に1件足すだけで拡張できる)。 */
+const ANNIVERSARY_MESSAGE_META = [
+  { test: (ctx) => ctx.streak === 7, message: "🎉 今日で7日目だね！" },
+  { test: (ctx) => ctx.streak === 30, message: "🌸 30日も一緒に過ごせたね。" },
+  { test: (ctx) => ctx.streak === 100, message: "🎊 100日も一緒に過ごせたね。" },
+  { test: (ctx) => ctx.chatCount === 100, message: "💖 会話100回達成！" },
+  { test: (ctx) => ctx.chatCount === 500, message: "💖 会話500回達成！" },
+  { test: (ctx) => ctx.chatCount === 1000, message: "💖 会話1000回達成！" },
+  { test: (ctx) => ctx.freshlyLeveled, message: "✨ 親密度が新しいステージに入ったよ。" },
+];
+/* Phase49: プレゼントシステム(演出のみ)。受け取りボタン・保存処理は
+   一切実装しない。将来「実際に集める/コレクションする」機能へ発展
+   させる際は、この配列の各要素にidや画像パスを足すだけで拡張できる
+   構造にしてある。 */
+const PRESENT_MESSAGE_META = {
+  default: [
+    { icon: "🍀", label: "四つ葉" },
+    { icon: "🌸", label: "お花" },
+    { icon: "☕", label: "コーヒー" },
+    { icon: "⭐", label: "星" },
+    { icon: "💎", label: "宝石" },
+    { icon: "📖", label: "本" },
+  ],
+};
+async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
   if(!scene || !img) return;
@@ -6612,13 +6659,14 @@ function renderKaosuRoomScene(now = new Date()){
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
 
   /* 生活シーン(Phase43)/季節イベント(Phase44)/天気・気分(Phase46)/
-     おかえりメッセージ(Phase45)/今日の一言(Phase47)は、いずれも
-     「対象要素にpoolからランダムに1件選んで表示するだけ」という
-     同じ形なので、5回コピペしないよう1つのループにまとめる(この
-     ヘルパー配列はrenderKaosuRoomScene()のローカル変数であり、
-     新しいグローバル関数は増やしていない)。表示順は指示書どおり
-     生活シーン→季節イベント→天気・空気感→おかえりメッセージ→
-     今日の一言(配列の並び順とDOM上の並び順を一致させてある)。 */
+     おかえりメッセージ(Phase45)/今日の一言(Phase47)/プレゼント演出
+     (Phase49)は、いずれも「対象要素にpoolからランダムに1件選んで
+     表示するだけ」という同じ形なので、コピペしないよう1つのループに
+     まとめる(このヘルパー配列はrenderKaosuRoomScene()のローカル
+     変数であり、新しいグローバル関数は増やしていない)。表示順は
+     指示書どおり生活シーン→季節イベント→天気・空気感→おかえり
+     メッセージ→今日の一言→(継続記念は下で別途処理)→プレゼント演出
+     (配列の並び順とDOM上の並び順を一致させてある)。 */
   [
     { el: document.getElementById("kaosuRoomActivity"), pool: ROOM_ACTIVITY_META[band] || [], badge: true },
     { el: document.getElementById("kaosuRoomSeason"), pool: SEASON_EVENT_META[season] || [], badge: true },
@@ -6635,6 +6683,38 @@ function renderKaosuRoomScene(now = new Date()){
     el.textContent = badge ? `${item.icon} ${item.label}` : item;
     el.style.display = badge ? "inline-flex" : "block";
   });
+
+  /* Phase48: 継続記念。条件に1件も一致しなければ非表示のまま
+     (通常日は表示しない)。複数一致した場合は、その中からランダムに
+     1件だけ選ぶ(既存と同じ「候補からランダム1件」方式)。 */
+  const anniversaryEl = document.getElementById("kaosuRoomAnniversary");
+  if(anniversaryEl){
+    const streak = computeActivityStreakDays(now);
+    let chatCount = 0;
+    try{ chatCount = (await ChatStore.getAll()).filter(m => m.role === "user").length; }catch(e){ chatCount = 0; }
+    const rel = relationshipRead();
+    const freshlyLeveled = !!(rel && typeof rel.level === "number" && typeof rel.exp === "number" && (rel.exp - relationshipLevelStart(rel.level)) < 10);
+    const matched = ANNIVERSARY_MESSAGE_META.filter(a => a.test({ streak, chatCount, freshlyLeveled }));
+    if(matched.length){
+      anniversaryEl.textContent = matched[Math.floor(Math.random() * matched.length)].message;
+      anniversaryEl.style.display = "block";
+    }else{
+      anniversaryEl.style.display = "none";
+    }
+  }
+
+  /* Phase49: プレゼント演出。常にランダムで1件表示するだけ。 */
+  const presentEl = document.getElementById("kaosuRoomPresent");
+  if(presentEl){
+    const pool = PRESENT_MESSAGE_META.default || [];
+    if(pool.length){
+      const item = pool[Math.floor(Math.random() * pool.length)];
+      presentEl.textContent = `🎁 ${item.icon}${item.label}をくれたよ`;
+      presentEl.style.display = "block";
+    }else{
+      presentEl.style.display = "none";
+    }
+  }
 }
 
 /* 指示書の例文をそのまま採用した「おかえり」挨拶プール。ホームへ戻る
