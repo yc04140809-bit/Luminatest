@@ -1,0 +1,166 @@
+import type {
+  FacilityRules,
+  JobRole,
+  Qualification,
+  ShiftType,
+} from '../types/domain';
+
+export const DEFAULT_JOB_ROLES: JobRole[] = [
+  { id: 'role_kaigofukushi', name: '介護福祉士', mode: 'care', isPreset: true },
+  { id: 'role_jitsumusha', name: '実務者研修', mode: 'care', isPreset: true },
+  { id: 'role_shonin', name: '初任者研修', mode: 'care', isPreset: true },
+  { id: 'role_mushikaku', name: '無資格', mode: 'care', isPreset: true },
+  { id: 'role_caremane', name: 'ケアマネジャー', mode: 'care', isPreset: true },
+  { id: 'role_kanri_care', name: '管理者', mode: 'care', isPreset: true },
+  { id: 'role_sonota_care', name: 'その他', mode: 'care', isPreset: true },
+
+  { id: 'role_kangoshi', name: '看護師', mode: 'nursing', isPreset: true },
+  { id: 'role_junkangoshi', name: '准看護師', mode: 'nursing', isPreset: true },
+  { id: 'role_kangojoshu', name: '看護助手', mode: 'nursing', isPreset: true },
+  { id: 'role_kanri_nursing', name: '管理者', mode: 'nursing', isPreset: true },
+  { id: 'role_sonota_nursing', name: 'その他', mode: 'nursing', isPreset: true },
+];
+
+export const DEFAULT_QUALIFICATIONS: Qualification[] = [
+  { id: 'qual_kaigofukushi', name: '介護福祉士', mode: 'care', isPreset: true },
+  { id: 'qual_jitsumusha', name: '実務者研修', mode: 'care', isPreset: true },
+  { id: 'qual_shonin', name: '初任者研修', mode: 'care', isPreset: true },
+  { id: 'qual_caremane', name: 'ケアマネジャー', mode: 'care', isPreset: true },
+
+  { id: 'qual_kangoshi', name: '看護師', mode: 'nursing', isPreset: true },
+  { id: 'qual_junkangoshi', name: '准看護師', mode: 'nursing', isPreset: true },
+];
+
+export const DEFAULT_SHIFT_TYPES: ShiftType[] = [
+  {
+    id: 'st_hayaban',
+    name: '早番',
+    shortLabel: '早',
+    isTimeOff: false,
+    isNightShift: false,
+    isNightShiftFollowUp: false,
+    startTime: '07:00',
+    endTime: '16:00',
+    color: '#38bdf8',
+    isPreset: true,
+    sortOrder: 1,
+  },
+  {
+    id: 'st_nikkin',
+    name: '日勤',
+    shortLabel: '日',
+    isTimeOff: false,
+    isNightShift: false,
+    isNightShiftFollowUp: false,
+    startTime: '09:00',
+    endTime: '18:00',
+    color: '#34d399',
+    isPreset: true,
+    sortOrder: 2,
+  },
+  {
+    id: 'st_osoban',
+    name: '遅番',
+    shortLabel: '遅',
+    isTimeOff: false,
+    isNightShift: false,
+    isNightShiftFollowUp: false,
+    startTime: '11:00',
+    endTime: '20:00',
+    color: '#fb923c',
+    isPreset: true,
+    sortOrder: 3,
+  },
+  {
+    id: 'st_yakin',
+    name: '夜勤',
+    shortLabel: '夜',
+    isTimeOff: false,
+    isNightShift: true,
+    isNightShiftFollowUp: false,
+    startTime: '17:00',
+    endTime: '09:00',
+    color: '#818cf8',
+    isPreset: true,
+    sortOrder: 4,
+  },
+  {
+    id: 'st_yakinake',
+    name: '夜勤明け',
+    shortLabel: '明',
+    isTimeOff: false,
+    isNightShift: false,
+    isNightShiftFollowUp: true,
+    startTime: '09:00',
+    endTime: '10:00',
+    color: '#c4b5fd',
+    isPreset: true,
+    sortOrder: 5,
+  },
+  {
+    id: 'st_yasumi',
+    name: '休み',
+    shortLabel: '休',
+    isTimeOff: true,
+    isNightShift: false,
+    isNightShiftFollowUp: false,
+    startTime: null,
+    endTime: null,
+    color: '#d4d4d8',
+    isPreset: true,
+    sortOrder: 6,
+  },
+  {
+    id: 'st_yukyu',
+    name: '有休',
+    shortLabel: '有',
+    isTimeOff: true,
+    isNightShift: false,
+    isNightShiftFollowUp: false,
+    startTime: null,
+    endTime: null,
+    color: '#fbbf24',
+    isPreset: true,
+    sortOrder: 7,
+  },
+  {
+    id: 'st_kiboyasumi',
+    name: '希望休',
+    shortLabel: '希',
+    isTimeOff: true,
+    isNightShift: false,
+    isNightShiftFollowUp: false,
+    startTime: null,
+    endTime: null,
+    color: '#f9a8d4',
+    isPreset: true,
+    sortOrder: 8,
+  },
+];
+
+export const DEFAULT_FACILITY_RULES: FacilityRules = {
+  maxConsecutiveDaysEnabled: true,
+  maxConsecutiveDays: 5,
+
+  nightShiftLimitEnabled: true,
+
+  nightShiftConsecutiveEnabled: true,
+  maxConsecutiveNightShifts: 2,
+
+  nightShiftNextDayRestrictionEnabled: true,
+  nightShiftNextDayForbiddenShiftTypeIds: ['st_hayaban', 'st_nikkin', 'st_osoban', 'st_yakin'],
+
+  nightShiftFollowUpRestrictionEnabled: true,
+  nightShiftFollowUpForbiddenShiftTypeIds: ['st_hayaban', 'st_nikkin', 'st_osoban', 'st_yakin'],
+
+  nightShiftIntervalEnabled: false,
+  minNightShiftIntervalDays: 2,
+
+  nightShiftRestrictedToEligibleEnabled: true,
+
+  restIntervalEnabled: true,
+  minRestHours: 11,
+
+  fairnessCheckEnabled: true,
+  fairnessToleranceCount: 2,
+};
