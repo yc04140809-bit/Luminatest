@@ -2225,12 +2225,13 @@ textarea.field-input{ resize:none; }
           </div>
           <div class="speech-bubble" id="nameOnboardingMessage"></div>
         </div>
+        <button class="btn-primary sheet-savebtn" id="btnNameOnboardingNext" style="display:none;">次へ</button>
         <div id="nameOnboardingAskStep">
           <div class="form-label">呼んでほしい名前</div>
           <input type="text" class="field-input" id="preferredNameInput" maxlength="20" placeholder="例: ゆう、たろう、師匠 など">
           <button class="btn-primary sheet-savebtn" id="btnSavePreferredName">この名前でよろしく！</button>
-          <button class="btn-text" id="btnSkipPreferredName">あとで決める</button>
         </div>
+        <button class="btn-text" id="btnSkipPreferredName">あとで決める</button>
         <button class="btn-primary sheet-savebtn" id="btnClosePreferredNameConfirm" style="display:none;">はじめる</button>
       </div>
     </div>
@@ -2397,6 +2398,15 @@ function prefNameSet(name){
 
 let nameModalMode = "first";
 
+/* Phase67: 初回体験(オンボーディング)。既存の呼び名モーダル
+   (nameOnboardingModal)へ「ウェルカム/自己紹介」のひとことステップを
+   1枚だけ追加する。新しいlocalStorageキーは増やさず、既存の
+   prefNameGet()===nullによる初回判定(script末尾)をそのままトリガーに
+   使う。途中で閉じたりタブを閉じたりしても、prefNameGet()は依然
+   nullのままなので次回起動時にまったく同じ場所(ウェルカムから)を
+   再表示するだけで「途中終了しても再開可能」を満たす(新しい進捗
+   保存の仕組みは不要)。ask(名前入力)ステップの見た目・保存挙動・
+   スキップ挙動は既存のままで一切変更していない。 */
 function openNameModal(mode){
   nameModalMode = mode;
   const modal = document.getElementById("nameOnboardingModal");
@@ -2404,23 +2414,34 @@ function openNameModal(mode){
   const message = document.getElementById("nameOnboardingMessage");
   const askStep = document.getElementById("nameOnboardingAskStep");
   const input = document.getElementById("preferredNameInput");
+  const nextBtn = document.getElementById("btnNameOnboardingNext");
   const skipBtn = document.getElementById("btnSkipPreferredName");
   const closeBtn = document.getElementById("nameOnboardingClose");
   const confirmBtn = document.getElementById("btnClosePreferredNameConfirm");
 
-  askStep.style.display = "block";
   confirmBtn.style.display = "none";
 
   if(mode === "first"){
-    title.textContent = "はじめまして";
-    message.innerHTML = "はじめまして。ケイオスちゃんです。🌱<br><br>これから一緒に、<br>あなたの『好き』や『ワクワク』を<br>少しずつ集めていくね。<br><br>あなたのこと、<br>なんて呼べばいい？<br><br>本名じゃなくても、<br>ニックネームでも大丈夫だよ。";
-    input.value = "";
+    /* ウェルカム/自己紹介ステップから開始。「次へ」ボタンだけを見せ、
+       名前入力ステップはまだ隠しておく。「あとで決める」はウェルカム
+       ステップも含め、初回フロー全体を通じて常に押せる状態にしておく
+       (途中で気が変わってもすぐ抜けられるように。プロダクト的にも
+       自然な設計であると同時に、既存の回帰テストの多くが「起動直後に
+       btnSkipPreferredNameが見えていれば押してモーダルを閉じる」という
+       共通の初期化パターンを使っているため、ここを常時押せる状態に
+       保つことが既存回帰テストとの互換性の面でも重要)。 */
+    title.textContent = "ようこそ";
+    message.innerHTML = "こんにちは、ケイオスちゃんだよ🌱<br><br>ここは、あなたの毎日の中にある<br>小さな『好き』や『ワクワク』を、<br>一緒に見つけていく場所。<br><br>気が向いたときに少しずつ、<br>一緒に集めていこうね。";
+    askStep.style.display = "none";
+    nextBtn.style.display = "block";
     skipBtn.style.display = "block";
     closeBtn.style.display = "none";
   } else {
     title.textContent = "呼び方を変える";
     message.innerHTML = "呼んでほしい名前を、<br>変えられるよ。";
     input.value = prefNameGet() || "";
+    askStep.style.display = "block";
+    nextBtn.style.display = "none";
     skipBtn.style.display = "none";
     closeBtn.style.display = "block";
   }
@@ -2430,6 +2451,16 @@ function openNameModal(mode){
 function closeNameModal(){
   document.getElementById("nameOnboardingModal").classList.remove("show");
 }
+
+/* ウェルカム/自己紹介ステップ→名前入力ステップへ進む(初回のみ)。 */
+document.getElementById("btnNameOnboardingNext").addEventListener("click", () => {
+  document.getElementById("btnNameOnboardingNext").style.display = "none";
+  document.getElementById("nameOnboardingTitle").textContent = "はじめまして";
+  document.getElementById("nameOnboardingMessage").innerHTML = "あなたのこと、<br>なんて呼べばいい？<br><br>本名じゃなくても、<br>ニックネームでも大丈夫だよ。";
+  document.getElementById("preferredNameInput").value = "";
+  document.getElementById("nameOnboardingAskStep").style.display = "block";
+  document.getElementById("btnSkipPreferredName").style.display = "block";
+});
 
 document.getElementById("btnSavePreferredName").addEventListener("click", () => {
   const input = document.getElementById("preferredNameInput");
@@ -2461,9 +2492,17 @@ document.getElementById("btnSkipPreferredName").addEventListener("click", () => 
   prefNameSet("");
   closeNameModal();
 });
+/* Phase67: 初回オンボーディング完了(「はじめる」)のタイミングで、
+   既存のホーム挨拶更新に加えて最初の会話(チャット画面)へ案内する。
+   チャット側の既存の開始処理(openChatView())が挨拶を出す仕組みを
+   そのまま使うだけで、送信リクエスト等の新しい非同期処理は追加して
+   いない(既存API変更禁止を遵守)。編集モード("呼び方を変える")側の
+   確認導線には影響しない(confirmBtnはfirstモードでしか表示されない
+   ため)。 */
 document.getElementById("btnClosePreferredNameConfirm").addEventListener("click", () => {
   closeNameModal();
   renderHomeKaosuGreeting();
+  switchView("chat");
 });
 document.getElementById("nameOnboardingClose").addEventListener("click", () => {
   closeNameModal();
