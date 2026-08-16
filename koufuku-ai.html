@@ -498,6 +498,14 @@ textarea{ font-family:inherit; }
   position:relative; z-index:1; max-width:250px; margin:12px auto 0;
   text-align:center; font-size:13.5px; transition:background .8s ease, color .8s ease;
 }
+/* Phase43: 日常生活システムの装飾バッジ。背景を常に明るい白系に
+   固定しているため、夜/深夜の暗い部屋背景でも文字色を切り替えずに
+   読める(kaosu-room-greetingの夜間背景切り替えと同じ考え方)。 */
+.kaosu-room-activity{
+  position:relative; z-index:1; display:table; margin:8px auto 0;
+  padding:3px 12px; border-radius:99px; background:rgba(255,255,255,.85);
+  font-size:12px; font-weight:700; color:var(--text-sub);
+}
 
 /* 時間帯ごとの部屋の色味だけを切り替える(判定はgetRoomVisualBand()が
    行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。 */
@@ -866,6 +874,10 @@ textarea.field-input{ resize:none; }
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
           </div>
+          <!-- Phase43: 日常生活システム。時間帯ごとの生活シーンを
+               表示するだけの装飾バッジ。renderKaosuRoomScene()だけが
+               このテキストを書き換える(保存はしない)。 -->
+          <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
@@ -6457,14 +6469,65 @@ function getRoomVisualBand(now = new Date()){
   if(h >= 18 && h <= 23) return "night";
   return "midnight";
 }
+/* Phase43: ケイオスちゃんの日常生活システム。
+   - 変更対象はrenderKaosuRoomScene()のみ(指示書どおり)。ここに定義
+     するROOM_ACTIVITY_METAはそのための静的データであり、既存の
+     ロジック(チャット/幸せスコア/思い出アルバム/特別な関係/DB周り)
+     には一切関与しない。
+   - 生活シーンは保存しない。表示のたびにこの配列からランダムに1件
+     選ぶだけの読み込み専用の演出で、IndexedDB/localStorageのどちらも
+     使わない。
+   - 将来Live2D/GIF/アニメーション/家具/季節イベントへ差し替える際は、
+     この定数の各要素にアセット参照を追加するだけで拡張できるように、
+     時間帯ごとの配列というシンプルな形にまとめてある。 */
+const ROOM_ACTIVITY_META = {
+  morning: [
+    { icon: "🪟", label: "窓を開ける" },
+    { icon: "☕", label: "コーヒーを飲む" },
+    { icon: "🧘", label: "ストレッチ" },
+  ],
+  day: [
+    { icon: "📖", label: "本を読む" },
+    { icon: "💻", label: "パソコン作業" },
+    { icon: "🪴", label: "観葉植物に水やり" },
+  ],
+  evening: [
+    { icon: "🪟", label: "窓の外を見る" },
+    { icon: "🎵", label: "オカリナを吹く" },
+    { icon: "🍵", label: "紅茶を飲む" },
+  ],
+  night: [
+    { icon: "📔", label: "日記を書く" },
+    { icon: "🛋️", label: "ソファで休む" },
+    { icon: "💡", label: "ランプの下で読書" },
+  ],
+  midnight: [
+    { icon: "✨", label: "星空を見る" },
+    { icon: "💭", label: "考え事" },
+    { icon: "🎵", label: "静かに音楽を聴く" },
+  ],
+};
 function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
+  const activityEl = document.getElementById("kaosuRoomActivity");
   if(!scene || !img) return;
-  const meta = ROOM_VISUAL_BAND_META[getRoomVisualBand(now)];
+  const band = getRoomVisualBand(now);
+  const meta = ROOM_VISUAL_BAND_META[band];
   Object.values(ROOM_VISUAL_BAND_META).forEach(m => scene.classList.remove(m.cssClass));
   scene.classList.add(meta.cssClass);
   setKaosuExpression(img, meta.expression);
+
+  if(activityEl){
+    const pool = ROOM_ACTIVITY_META[band] || [];
+    if(pool.length){
+      const activity = pool[Math.floor(Math.random() * pool.length)];
+      activityEl.textContent = `${activity.icon} ${activity.label}`;
+      activityEl.style.display = "table";
+    }else{
+      activityEl.style.display = "none";
+    }
+  }
 }
 
 /* 指示書の例文をそのまま採用した「おかえり」挨拶プール。ホームへ戻る
