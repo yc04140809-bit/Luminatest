@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#fff8fb">
 <title>幸せ設計AI（仮）</title>
+<script>
+/* Phase68: テーマの「ちらつき」防止。本体の<script>はbody末尾で
+   実行されるため、そこでdata-theme属性を設定すると一瞬だけライト
+   テーマで描画されてから切り替わって見えることがある。ここでは
+   localStorageから同じキー(koufukuAiSettingsV1)を読むだけの最小限の
+   判定を先出しし、<style>が評価される前にdata-theme属性を確定させる
+   (読み込みに失敗しても例外を握りつぶし、通常どおりライトで表示する
+   だけなので安全)。本体側のapplyKaosuSettings()が後で同じ処理を
+   再度行うが、既に正しい値なら見た目は変化しないため無害。 */
+try{
+  var kaosuEarlySettings = JSON.parse(localStorage.getItem("koufukuAiSettingsV1") || "{}");
+  var kaosuEarlyTheme = (kaosuEarlySettings && ["light", "dark"].indexOf(kaosuEarlySettings.theme) !== -1)
+    ? kaosuEarlySettings.theme
+    : ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
+  document.documentElement.dataset.theme = kaosuEarlyTheme;
+}catch(e){ /* 失敗時はライト表示のまま続行する */ }
+</script>
 <style>
 /* =========================================================
    幸せ設計AI（仮称） Phase 1 UIプロトタイプ
@@ -14,6 +31,15 @@
      img/koufuku/kaosu.png を置けば自動でその画像に切り替わり、無ければ
      やわらかいプレースホルダー(CSSの簡易フェイス)を表示する。
    ========================================================= */
+/* Phase68: モーション速度設定。呼吸/視線/瞬き/口元/音声リアクションの
+   各transition・animationのdurationはすべてcalc(<元の秒数> *
+   var(--kaosu-motion-speed, 1))という形で書き直してあり、JS側は
+   htmlのroot要素へこの変数値(ゆっくり=1.3/標準=1/高速=0.7)を
+   設定するだけで、実行中のCSSアニメーション/トランジションの
+   速さへ即座に反映される(タイマーの再作成は不要)。瞬きシステムの
+   JS側setTimeout(閉眼の保持時間・次の瞬きまでの間隔)も同じ倍率を
+   都度読み取って計算するため、CSS側とあわせて全体が同じ速さ感で
+   統一される。 */
 :root{
   --bg:#fbfbfe;
   --surface:#ffffff;
@@ -32,7 +58,40 @@
   --radius-lg:22px;
   --radius-md:16px;
   --radius-sm:12px;
+  --kaosu-motion-speed:1;
 }
+/* Phase68: テーマ切替。既存のUIの大半は:root側のCSS変数(--bg/--surface/
+   --text/--text-sub/--border/各soft系アクセント色/--shadow)を通じて
+   配色しているため、[data-theme="dark"]配下でこれらの値だけを
+   ダーク向けに上書きするだけで、カード/モーダル/ナビ等の主要な面が
+   自動的に追従する。個別の装飾用グラデーション(life-plan-card等の
+   一部のカード背景)まではすべて追従しないが、可読性に関わる主要な
+   背景色・文字色・枠線色はここで確実にカバーする。html要素へ
+   data-theme="dark"を付けるとダーク、"light"または未指定でライトに
+   なる(「自動」は起動時にprefers-color-schemeを読んでdata-theme
+   を設定するJS側のロジックが担い、CSS側はdata-theme属性の有無だけを
+   見ればよい設計にしてある)。 */
+:root[data-theme="dark"]{
+  --bg:#17151f;
+  --surface:#221f2e;
+  --text:#efeef7;
+  --text-sub:#a9a5bf;
+  --border:#332f45;
+  --pink-soft:#3a2333;
+  --purple-soft:#2a2540;
+  --blue-soft:#1e2c3a;
+  --mint-soft:#1c332b;
+  --yellow-soft:#332e1c;
+  --peach-soft:#332721;
+  --shadow:0 4px 18px rgba(0,0,0,.35);
+}
+/* Phase68: 文字サイズ。既存CSSのfont-sizeはpx直書きが大半で、rem化の
+   全面書き換えは影響範囲が大きすぎるため、.app全体をCSSのzoomで
+   拡大縮小する方式を採用する(レイアウト崩れのリスクが低く、テキスト
+   だけでなくボタン等のタップ領域も一緒に拡大されるため、むしろ
+   片手操作の観点でも都合がよい)。 */
+.app[data-font-size="small"]{ zoom:0.92; }
+.app[data-font-size="large"]{ zoom:1.14; }
 *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html,body{ height:100%; background:var(--bg); color:var(--text); }
 /* 一部のAndroid端末で、画像上から始めた縦スワイプが画像のドラッグ/コールアウト
@@ -504,7 +563,7 @@ textarea{ font-family:inherit; }
    --kaosu-breath-peakへ差し替えた(JS側でmoodに応じて上書きする)。
    変数が未設定の場合は元と同じ1.018にフォールバックするため、
    Phase62導入前と見た目・挙動は完全に同一。 */
-.kaosu-breathe{ animation:kaosuBreathe 5s ease-in-out infinite; transform-origin:center bottom; }
+.kaosu-breathe{ animation:kaosuBreathe calc(5s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; transform-origin:center bottom; }
 @keyframes kaosuBreathe{
   0%, 100%{ transform:scale(1) translateY(0); opacity:1; }
   50%{ transform:scale(var(--kaosu-breath-peak, 1.018)) translateY(-2px); opacity:.96; }
@@ -518,7 +577,7 @@ textarea{ font-family:inherit; }
    急な移動に見えないよう必ずtransitionで滑らかに繋ぐ(振れ幅3px)。
    reduced-motion環境ではtransitionだけ止め、切り替え自体は残す
    (連続アニメーションではなく低頻度の離散的な向き変更のため)。 */
-.kaosu-room-avatar-gaze{ transition:transform 1.2s ease-in-out; }
+.kaosu-room-avatar-gaze{ transition:transform calc(1.2s * var(--kaosu-motion-speed, 1)) ease-in-out; }
 .kaosu-gaze-center{ transform:translate(0,0); }
 .kaosu-gaze-left{ transform:translate(-3px,0); }
 .kaosu-gaze-right{ transform:translate(3px,0); }
@@ -542,7 +601,7 @@ textarea{ font-family:inherit; }
 #kaosuRoomAvatar.kaosu-voice-thinking{ box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 4px rgba(170,140,255,.25); }
 #kaosuRoomAvatar.kaosu-voice-speaking{
   box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 4px rgba(255,150,190,.28);
-  animation:kaosuVoiceSpeakingPulse 1.6s ease-in-out infinite;
+  animation:kaosuVoiceSpeakingPulse calc(1.6s * var(--kaosu-motion-speed, 1)) ease-in-out infinite;
 }
 @keyframes kaosuVoiceSpeakingPulse{
   0%, 100%{ box-shadow:0 8px 20px rgba(120,90,60,.2), 0 0 0 3px rgba(255,150,190,.22); }
@@ -574,10 +633,10 @@ textarea{ font-family:inherit; }
    一切影響しない。将来Live2D Eye/Sprite/GIF/Face Tracking/WebGLへ
    置き換える際は、そちらが目の表現を担うため本演出は使われなくなる
    だけで既存構造は壊れない。 */
-#kaosuRoomScene .kaosu-blink-eyes i{ transition:transform .05s ease-in-out; transform-origin:center; }
-#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-normal i{ transform:scaleY(.08); transition-duration:.05s; }
-#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-slow i{ transform:scaleY(.08); transition-duration:.09s; }
-#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-double i{ transform:scaleY(.08); transition-duration:.05s; }
+#kaosuRoomScene .kaosu-blink-eyes i{ transition:transform calc(.05s * var(--kaosu-motion-speed, 1)) ease-in-out; transform-origin:center; }
+#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-normal i{ transform:scaleY(.08); transition-duration:calc(.05s * var(--kaosu-motion-speed, 1)); }
+#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-slow i{ transform:scaleY(.08); transition-duration:calc(.09s * var(--kaosu-motion-speed, 1)); }
+#kaosuRoomScene .kaosu-blink-eyes.kaosu-blink-closed-double i{ transform:scaleY(.08); transition-duration:calc(.05s * var(--kaosu-motion-speed, 1)); }
 @media (prefers-reduced-motion: reduce){
   #kaosuRoomScene .kaosu-blink-eyes i{ transition:none; }
 }
@@ -592,7 +651,7 @@ textarea{ font-family:inherit; }
    足す(変化は極めて小さく保つ)。将来Live2D Mouth/Lip Sync/Voice
    Animation/GIF/Spriteを導入した際は、そちらが口元表現を担うため、
    本演出はそのまま使われなくなるだけで既存構造は壊れない。 */
-#kaosuRoomScene .kaosu-room-mouth-idle{ transition:transform .8s ease-in-out; }
+#kaosuRoomScene .kaosu-room-mouth-idle{ transition:transform calc(.8s * var(--kaosu-motion-speed, 1)) ease-in-out; }
 #kaosuRoomScene .kaosu-mouth-normal{ transform:translate(-50%,0) scale(1); }
 #kaosuRoomScene .kaosu-mouth-smile{ transform:translate(-50%,0) scaleX(1.15); }
 #kaosuRoomScene .kaosu-mouth-curve-up{ transform:translate(-50%,0) scaleY(.85) translateY(-1px); }
@@ -1286,8 +1345,6 @@ textarea.field-input{ resize:none; }
         </div>
         <div class="speech-bubble" id="homeKaosuMessage"></div>
       </div>
-      <button class="btn-text" id="btnEditPreferredName" style="margin-top:-10px;">呼び方を変える</button>
-
       <button class="btn-primary" id="btnOpenChat" style="margin-bottom:10px;">💬 ケイオスちゃんと話す</button>
       <button class="btn-outline" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
 
@@ -1851,7 +1908,35 @@ textarea.field-input{ resize:none; }
         <p class="view-sub" style="margin:10px 0 0;">今のあなたに一番心地いい<br>ケイオスちゃんを選んでね。</p>
       </div>
 
-      <!-- Phase25: AI Notification Engine 設定 -->
+      <!-- Phase68: 通知設定は設定画面(data-view="settings")へ移設した
+           (単一のDOM要素をID変更なしで移動しているだけなので、
+           renderNotificationModeChips()等の既存JSは無変更で動作する)。
+           マインド画面には設定画面への入口だけを残す。 -->
+      <div style="margin-top:6px; text-align:center;">
+        <button class="btn-text" id="btnOpenSettingsFromMind">⚙️ 設定を開く</button>
+        <br>
+        <button class="btn-text" id="btnOpenSurvey">テストアンケートに回答する</button>
+      </div>
+    </section>
+
+    <!-- Phase68: 設定画面。既存の話し方カード(マインド画面に残置)以外の
+         設定系コントロール(呼び方/通知/会話履歴)をここへ集約し、新しく
+         「キャラクターの演出」「見た目」「モーション速度」を追加する。
+         通知チップ行(#notificationModeChipRow等)と呼び方ボタン
+         (#btnEditPreferredName)は、マインド画面/ホーム画面から
+         そのままDOM移動しただけの同一要素(ID変更なし)なので、
+         既存のrenderNotificationModeChips()等のJSは無変更で動作する。 -->
+    <section class="view" data-view="settings">
+      <h1 class="view-title">設定</h1>
+      <p class="view-sub">あなたの使い方に、少しずつ合わせていくね。</p>
+
+      <div class="card">
+        <div class="card-label">呼び方</div>
+        <p class="view-sub" id="settingsCurrentNameText" style="margin:0 0 10px;"></p>
+        <button class="btn-text" id="btnEditPreferredName" style="margin-top:0;">呼び方を変える</button>
+      </div>
+
+      <!-- Phase25: AI Notification Engine 設定(マインド画面から移設) -->
       <div class="card">
         <div class="card-label">🔔 ケイオスちゃんからのお知らせ</div>
         <div class="chip-row" id="notificationModeChipRow" style="flex-wrap:wrap;"></div>
@@ -1864,8 +1949,43 @@ textarea.field-input{ resize:none; }
         <button type="button" class="btn-text" id="btnNotificationHistoryOpen">通知履歴を見る</button>
       </div>
 
-      <div style="margin-top:6px; text-align:center;">
-        <button class="btn-text" id="btnOpenSurvey">テストアンケートに回答する</button>
+      <!-- Phase68: キャラクターの演出のON/OFF。Phase54〜66で追加した
+           呼吸/視線/瞬き/口元/感情エフェクト/時間帯ライティング/音声
+           リアクションを、それぞれ個別に止められるようにする。 -->
+      <div class="card">
+        <div class="card-label">✨ キャラクターの演出</div>
+        <div class="chip-row" id="settingsMotionToggleRow" style="flex-wrap:wrap;"></div>
+        <p class="view-sub" style="margin:10px 0 0;">動きが気になるときは、個別にオフにできるよ。</p>
+      </div>
+
+      <!-- Phase68: 見た目(テーマ/文字サイズ)。 -->
+      <div class="card">
+        <div class="card-label">🎨 テーマ</div>
+        <div class="chip-row" id="settingsThemeRow" style="flex-wrap:wrap;"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">🔤 文字サイズ</div>
+        <div class="chip-row" id="settingsFontSizeRow" style="flex-wrap:wrap;"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">🏃 モーション速度</div>
+        <div class="chip-row" id="settingsMotionSpeedRow" style="flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Phase68: データ管理(会話履歴削除)。チャット画面の既存の
+           削除ボタン(#btnChatClearHistory)とは別のUIだが、実際に
+           削除処理を行う関数(clearChatHistoryNow())は共通化して
+           呼び出す(ロジックの二重実装を避ける)。 -->
+      <div class="card">
+        <div class="card-label">🗂️ データ管理</div>
+        <button type="button" class="btn-text" id="btnSettingsClearHistory">会話履歴を削除する</button>
+        <div id="settingsClearConfirmRow" style="display:none; background:var(--peach-soft); border-radius:var(--radius-sm); padding:10px 12px; margin-top:10px; font-size:13px;">
+          <p style="margin-bottom:8px;">チャット履歴を全部削除しますか？<br>この操作は取り消せません。</p>
+          <div class="chip-row">
+            <button type="button" class="filterbtn" id="btnSettingsClearConfirm">削除する</button>
+            <button type="button" class="filterbtn" id="btnSettingsClearCancel">キャンセル</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -2293,6 +2413,191 @@ textarea.field-input{ resize:none; }
 "use strict";
 
 /* =========================================================
+   Phase68: β版設定システム
+   - 新規localStorageキーは koufukuAiSettingsV1 の1つだけに絞り、
+     テーマ/文字サイズ/モーション速度/7つのキャラクター演出ON-OFFを
+     すべてこの1つのJSONオブジェクトへまとめて保存する(「必要最低限」
+     の新規キー数を優先し、設定項目ごとにキーを増やさない)。
+   - 保存に失敗しても(容量超過等)アプリの利用自体は継続できるよう、
+     読み込み/書き込みとも例外を握りつぶしてデフォルト値へフォール
+     バックする、既存のPREFERRED_NAME_KEY等と同じ設計を踏襲している。
+   - 個々の値は「テーマ/見た目」のように画面全体へ即座に反映する必要が
+     あるため、保存直後に必ずapplyKaosuSettings()を呼び、その場で
+     document.documentElementへ反映する(「全設定は即時反映」の要件)。
+   ========================================================= */
+const SETTINGS_KEY = "koufukuAiSettingsV1";
+const SETTINGS_DEFAULT = {
+  theme: "auto",
+  fontSize: "medium",
+  motionSpeed: "standard",
+  motion: {
+    breathing: true, gaze: true, blink: true, mouth: true,
+    emotionEffect: true, lighting: true, voiceReaction: true,
+  },
+};
+function settingsRead(){
+  try{
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if(!raw) return JSON.parse(JSON.stringify(SETTINGS_DEFAULT));
+    const parsed = JSON.parse(raw);
+    /* 将来項目が増えても既存の保存済みJSONと後方互換になるよう、
+       デフォルト値へ浅いマージをかける(未知のキーが欠けていても
+       デフォルトで補われるだけで、読み込みエラーにはならない)。 */
+    return {
+      theme: ["auto", "light", "dark"].includes(parsed.theme) ? parsed.theme : SETTINGS_DEFAULT.theme,
+      fontSize: ["small", "medium", "large"].includes(parsed.fontSize) ? parsed.fontSize : SETTINGS_DEFAULT.fontSize,
+      motionSpeed: ["slow", "standard", "fast"].includes(parsed.motionSpeed) ? parsed.motionSpeed : SETTINGS_DEFAULT.motionSpeed,
+      motion: Object.assign({}, SETTINGS_DEFAULT.motion, parsed.motion || {}),
+    };
+  }catch(e){
+    return JSON.parse(JSON.stringify(SETTINGS_DEFAULT));
+  }
+}
+function settingsWrite(next){
+  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); }
+  catch(e){ /* 保存できなくてもアプリ自体は使い続けられるようにする */ }
+}
+const MOTION_SPEED_SCALE = { slow: 1.3, standard: 1, fast: 0.7 };
+/* テーマ("auto"の場合はprefers-color-schemeを読む)/文字サイズ/
+   モーション速度を、それぞれ対応するDOM属性・CSS変数へ反映する。
+   保存はしない(呼び出し側が必要な時にsettingsWrite()する)。 */
+function applyKaosuSettings(){
+  const s = settingsRead();
+  const resolvedTheme = s.theme === "auto"
+    ? ((window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light")
+    : s.theme;
+  document.documentElement.dataset.theme = resolvedTheme;
+  const appEl = document.querySelector(".app");
+  if(appEl) appEl.dataset.fontSize = s.fontSize;
+  document.documentElement.style.setProperty("--kaosu-motion-speed", String(MOTION_SPEED_SCALE[s.motionSpeed] || 1));
+}
+if(window.matchMedia){
+  const darkSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const onSchemeChange = () => { if(settingsRead().theme === "auto") applyKaosuSettings(); };
+  if(darkSchemeQuery.addEventListener) darkSchemeQuery.addEventListener("change", onSchemeChange);
+}
+/* キャラクターの演出トグルの一覧。key はSETTINGS_DEFAULT.motionの
+   キー名と一致させ、renderKaosuRoomScene()側もこの同じkeyで
+   settingsRead().motionを参照する(名前の食い違いを防ぐため、
+   ラベル文言だけをここで一元管理する)。 */
+const SETTINGS_MOTION_TOGGLES = [
+  { key: "breathing", label: "呼吸" },
+  { key: "gaze", label: "視線" },
+  { key: "blink", label: "瞬き" },
+  { key: "mouth", label: "口元" },
+  { key: "emotionEffect", label: "感情エフェクト" },
+  { key: "lighting", label: "時間帯ライティング" },
+  { key: "voiceReaction", label: "音声リアクション" },
+];
+const SETTINGS_THEME_OPTIONS = [
+  { key: "auto", label: "自動" },
+  { key: "light", label: "ライト" },
+  { key: "dark", label: "ダーク" },
+];
+const SETTINGS_FONT_SIZE_OPTIONS = [
+  { key: "small", label: "小" },
+  { key: "medium", label: "中" },
+  { key: "large", label: "大" },
+];
+const SETTINGS_MOTION_SPEED_OPTIONS = [
+  { key: "slow", label: "ゆっくり" },
+  { key: "standard", label: "標準" },
+  { key: "fast", label: "高速" },
+];
+/* switchView("settings")のたびに呼ばれる、設定画面の描画関数。
+   既存のrenderNotificationModeChips()と同じ「毎回innerHTMLを作り
+   直し、クリックのたびに保存→再描画」というパターンをそのまま
+   踏襲している。呼び方(名前)の表示は既存のprefNameGet()を読むだけの
+   読み取り専用で、保存処理はopenNameModal("edit")側(Phase67までの
+   既存ロジック)にすべて任せている。 */
+function renderSettingsView(){
+  const nameText = document.getElementById("settingsCurrentNameText");
+  if(nameText){
+    const name = prefNameGet();
+    nameText.textContent = name ? `今は「${name}」って呼んでるよ。` : "まだ呼び方を決めていないみたい。";
+  }
+
+  const s = settingsRead();
+
+  const motionRow = document.getElementById("settingsMotionToggleRow");
+  if(motionRow){
+    motionRow.innerHTML = "";
+    SETTINGS_MOTION_TOGGLES.forEach(item => {
+      const on = s.motion[item.key] !== false;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filterbtn" + (on ? " active" : "");
+      btn.textContent = `${item.label}: ${on ? "ON" : "OFF"}`;
+      btn.addEventListener("click", () => {
+        const next = settingsRead();
+        next.motion[item.key] = !(next.motion[item.key] !== false);
+        settingsWrite(next);
+        renderSettingsView();
+        if(typeof renderKaosuRoomScene === "function") renderKaosuRoomScene();
+      });
+      motionRow.appendChild(btn);
+    });
+  }
+
+  const themeRow = document.getElementById("settingsThemeRow");
+  if(themeRow){
+    themeRow.innerHTML = "";
+    SETTINGS_THEME_OPTIONS.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filterbtn" + (s.theme === opt.key ? " active" : "");
+      btn.textContent = opt.label;
+      btn.addEventListener("click", () => {
+        const next = settingsRead();
+        next.theme = opt.key;
+        settingsWrite(next);
+        applyKaosuSettings();
+        renderSettingsView();
+      });
+      themeRow.appendChild(btn);
+    });
+  }
+
+  const fontSizeRow = document.getElementById("settingsFontSizeRow");
+  if(fontSizeRow){
+    fontSizeRow.innerHTML = "";
+    SETTINGS_FONT_SIZE_OPTIONS.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filterbtn" + (s.fontSize === opt.key ? " active" : "");
+      btn.textContent = opt.label;
+      btn.addEventListener("click", () => {
+        const next = settingsRead();
+        next.fontSize = opt.key;
+        settingsWrite(next);
+        applyKaosuSettings();
+        renderSettingsView();
+      });
+      fontSizeRow.appendChild(btn);
+    });
+  }
+
+  const motionSpeedRow = document.getElementById("settingsMotionSpeedRow");
+  if(motionSpeedRow){
+    motionSpeedRow.innerHTML = "";
+    SETTINGS_MOTION_SPEED_OPTIONS.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filterbtn" + (s.motionSpeed === opt.key ? " active" : "");
+      btn.textContent = opt.label;
+      btn.addEventListener("click", () => {
+        const next = settingsRead();
+        next.motionSpeed = opt.key;
+        settingsWrite(next);
+        applyKaosuSettings();
+        renderSettingsView();
+      });
+      motionSpeedRow.appendChild(btn);
+    });
+  }
+}
+
+/* =========================================================
    モックデータ(将来API/DBに差し替える際はこのオブジェクトの中身を
    fetch結果などに置き換えればよい構造にしている)
    ========================================================= */
@@ -2349,6 +2654,7 @@ function switchView(view){
   document.getElementById("viewport").scrollTop = 0;
   if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomScene(); rerollKaosuRoomGreeting(); }
   if(view === "chat"){ openChatView(); }
+  if(view === "settings"){ renderSettingsView(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -2485,6 +2791,11 @@ document.getElementById("btnSavePreferredName").addEventListener("click", () => 
   } else {
     closeNameModal();
     renderHomeKaosuGreeting();
+    /* Phase68: 設定画面から「呼び方を変える」を開いた場合、閉じた後に
+       画面上の呼び方テキストがすぐ切り替わるよう再描画する(設定は
+       すべて即時反映という共通ルールに合わせるため)。設定画面を経由
+       していない場合はrenderSettingsView()内のnullチェックで何もしない。 */
+    if(typeof renderSettingsView === "function") renderSettingsView();
     showToast("呼び方を変えたよ♪");
   }
 });
@@ -7147,6 +7458,12 @@ const MOTION_SYSTEM_META = [
     type: "breathing", target: ".kaosu-room-character",
     run: (el, ctx) => {
       if(BREATHE_MOTION_META.type === "css-class"){
+        /* Phase68: 呼吸ON/OFF。タイマーを持たないため、毎回の呼び出しで
+           そのままON/OFFを反映するだけでよい。 */
+        if(settingsRead().motion.breathing === false){
+          el.classList.remove(BREATHE_MOTION_META.cssClass);
+          return;
+        }
         el.classList.add(BREATHE_MOTION_META.cssClass);
         const emotionMotion = (ctx && ctx.emotionMotion) || EMOTION_MOTION_DEFAULT;
         const breathScale = typeof emotionMotion.breathScale === "number" ? emotionMotion.breathScale : 1;
@@ -7158,7 +7475,15 @@ const MOTION_SYSTEM_META = [
     type: "gaze", target: "#kaosuRoomAvatar",
     run: (el, ctx) => {
       const mood = ctx && ctx.mood;
+      /* Phase68: 視線ON/OFF。setIntervalは既存どおり1本だけ起動し続け、
+         毎tickでsettingsRead()を読み直してON/OFFを判定する(タイマーを
+         都度作り直さない)ことで、設定変更が次のtickから即座に反映される。 */
       const applyRandomGaze = () => {
+        if(settingsRead().motion.gaze === false){
+          GAZE_DIRECTION_META.forEach(g => { if(g.cssClass) el.classList.remove(g.cssClass); });
+          el.classList.remove("kaosu-room-avatar-gaze");
+          return;
+        }
         let pool = GAZE_DIRECTION_META.filter(g => g.type === "css-class");
         if(mood === "genki"){
           pool = [...pool, ...pool.filter(g => g.cssClass === "kaosu-gaze-up" || g.cssClass === "kaosu-gaze-center")];
@@ -7183,7 +7508,19 @@ const MOTION_SYSTEM_META = [
       const mood = ctx && ctx.mood;
       el.classList.add("kaosu-blink-eyes");
       const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      /* Phase68: モーション速度。CSS変数--kaosu-motion-speedを
+         getComputedStyleで都度読み直すだけで、JS側のsetTimeoutにも
+         同じ倍率を反映できる(値の二重管理を避けるため、速度設定の
+         「真実の情報源」はCSS変数側だけに統一している)。 */
+      const motionSpeedScale = () => {
+        const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--kaosu-motion-speed"));
+        return isNaN(v) ? 1 : v;
+      };
+      /* Phase68: 瞬きON/OFF。performBlink自体を毎回のtickでガードする
+         ことで、既に動いているsetTimeoutチェーンを止めずに次のtickから
+         即座にON/OFFを反映できる(prefersReducedMotionと同じ扱い方)。 */
       const performBlink = () => {
+        if(settingsRead().motion.blink === false) return;
         if(prefersReducedMotion()) return;
         let pool = BLINK_MOTION_META.filter(b => b.type === "css" && b.test());
         if(mood === "sleepy"){
@@ -7191,6 +7528,7 @@ const MOTION_SYSTEM_META = [
         }
         if(!pool.length) return;
         const item = pool[Math.floor(Math.random() * pool.length)];
+        const scale = motionSpeedScale();
         BLINK_MOTION_META.forEach(b => { if(b.cssClass) el.classList.remove(b.cssClass); });
         el.classList.add(item.cssClass);
         window.setTimeout(() => {
@@ -7198,13 +7536,13 @@ const MOTION_SYSTEM_META = [
           if(item.repeat){
             window.setTimeout(() => {
               el.classList.add(item.cssClass);
-              window.setTimeout(() => el.classList.remove(item.cssClass), item.closeMs);
-            }, 90);
+              window.setTimeout(() => el.classList.remove(item.cssClass), item.closeMs * scale);
+            }, 90 * scale);
           }
-        }, item.closeMs + item.holdMs);
+        }, (item.closeMs + item.holdMs) * scale);
       };
       const scheduleNextBlink = () => {
-        const delay = 3000 + Math.random() * 5000;
+        const delay = (3000 + Math.random() * 5000) * motionSpeedScale();
         window.setTimeout(() => {
           performBlink();
           scheduleNextBlink();
@@ -7221,6 +7559,10 @@ const MOTION_SYSTEM_META = [
     run: (el, ctx) => {
       const emotionMotion = (ctx && ctx.emotionMotion) || EMOTION_MOTION_DEFAULT;
       const prefersReducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      /* Phase68: 口元ON/OFF。OFFのときはprefersReducedMotionと同じ
+         「通常の口元へ固定する」扱いにし、setIntervalは都度isEnabled()を
+         読み直すだけで作り直さない。 */
+      const isMouthEnabled = () => settingsRead().motion.mouth !== false;
       const applyRandomMouth = () => {
         let pool = MOUTH_MOTION_META.filter(m => m.type === "css-class");
         if(emotionMotion.mouthBias){
@@ -7231,7 +7573,7 @@ const MOTION_SYSTEM_META = [
         MOUTH_MOTION_META.forEach(m => { if(m.cssClass) el.classList.remove(m.cssClass); });
         el.classList.add("kaosu-room-mouth-idle", item.cssClass);
       };
-      if(prefersReducedMotion()){
+      if(prefersReducedMotion() || !isMouthEnabled()){
         MOUTH_MOTION_META.forEach(m => { if(m.cssClass) el.classList.remove(m.cssClass); });
         el.classList.add("kaosu-room-mouth-idle", "kaosu-mouth-normal");
       }else{
@@ -7239,15 +7581,18 @@ const MOTION_SYSTEM_META = [
       }
       if(!renderKaosuRoomScene._mouthTimerStarted){
         renderKaosuRoomScene._mouthTimerStarted = true;
-        window.setInterval(() => { if(!prefersReducedMotion()) applyRandomMouth(); }, MOUTH_SWITCH_INTERVAL_MS);
+        window.setInterval(() => { if(isMouthEnabled() && !prefersReducedMotion()) applyRandomMouth(); }, MOUTH_SWITCH_INTERVAL_MS);
       }
     },
   },
   {
     type: "lighting", target: "#kaosuRoomScene",
     run: (el, ctx) => {
-      const matchedLighting = LIGHTING_META.find(l => l.type === "band" && l.test(ctx));
+      /* Phase68: 時間帯ライティングON/OFF。タイマーを持たないため、
+         毎回の呼び出しでそのままON/OFFを反映するだけでよい。 */
       LIGHTING_META.forEach(l => { if(l.cssClass) el.classList.remove(l.cssClass); });
+      if(settingsRead().motion.lighting === false) return;
+      const matchedLighting = LIGHTING_META.find(l => l.type === "band" && l.test(ctx));
       if(matchedLighting){
         el.classList.add(matchedLighting.cssClass);
       }
@@ -7337,7 +7682,12 @@ async function renderKaosuRoomScene(now = new Date()){
      Phase51から変更していない。 */
   const fxEl = document.getElementById("kaosuRoomFx");
   if(fxEl){
-    const emotionEffectPool = [...(EMOTION_EFFECT_META.default || []), ...(EMOTION_EFFECT_META[mood] || [])];
+    /* Phase68: 感情エフェクトON/OFF。設定でOFFのときはEMOTION_EFFECT_META
+       (mood向けの候補)だけを外し、EFFECT_META(環境エフェクト)は
+       「感情エフェクト」設定の対象外のため常に維持する。 */
+    const emotionEffectPool = settingsRead().motion.emotionEffect === false
+      ? []
+      : [...(EMOTION_EFFECT_META.default || []), ...(EMOTION_EFFECT_META[mood] || [])];
     const fxPool = [...(EFFECT_META.default || []), ...(EFFECT_META[band] || []), ...emotionEffectPool].filter(item => item.type === "emoji");
     fxEl.innerHTML = "";
     const fxCount = Math.min(3, fxPool.length);
@@ -7423,10 +7773,14 @@ async function renderKaosuRoomScene(now = new Date()){
      使いプロパティの衝突を避けている。 */
   const voiceMatch = VOICE_REACTION_META.find(v => v.type === "css" && v.test(ctx));
   ctx.voiceState = voiceMatch ? voiceMatch.state : "idle";
+  /* Phase68: 音声リアクションON/OFF。ctx.voiceStateはPhase66の
+     ライフサイクル判定にそのまま使うため常に解決しておき、実際の見た目
+     (avatarへのCSSクラス付与)だけを設定でガードする。 */
+  const voiceReactionEnabled = settingsRead().motion.voiceReaction !== false;
   const voiceAvatarEl = document.getElementById("kaosuRoomAvatar");
   if(voiceAvatarEl){
     VOICE_REACTION_META.forEach(v => { if(v.cssClass) voiceAvatarEl.classList.remove(v.cssClass); });
-    if(voiceMatch) voiceAvatarEl.classList.add(voiceMatch.cssClass);
+    if(voiceMatch && voiceReactionEnabled) voiceAvatarEl.classList.add(voiceMatch.cssClass);
   }
 
   /* Phase66: ライフサイクル状態の解決。Celebration判定はPhase48の
@@ -11156,6 +11510,18 @@ document.getElementById("btnChatAskProfile").addEventListener("click", async () 
   });
 });
 
+/* Phase68: 会話履歴削除を実行する共通処理。チャット画面の既存ボタン
+   (#btnChatClearHistory)と設定画面の新しいボタン(#btnSettingsClear
+   History)の両方から、この同じ関数を呼ぶだけにして、削除ロジックを
+   二重実装しない。 */
+async function clearChatHistoryNow(){
+  try{ await ChatStore.clear(); }catch(e){ /* ローカル表示は消してよい */ }
+  chatMessages = [];
+  if(document.getElementById("chatMessagesScroll")){
+    chatRenderAll();
+    await chatAppendMessage("kaosu", sp(CHAT_GREETING));
+  }
+}
 document.getElementById("btnChatClearHistory").addEventListener("click", () => {
   document.getElementById("chatClearConfirmRow").style.display = "block";
 });
@@ -11163,16 +11529,28 @@ document.getElementById("btnChatClearCancel").addEventListener("click", () => {
   document.getElementById("chatClearConfirmRow").style.display = "none";
 });
 document.getElementById("btnChatClearConfirm").addEventListener("click", async () => {
-  try{ await ChatStore.clear(); }catch(e){ /* ローカル表示は消してよい */ }
-  chatMessages = [];
   document.getElementById("chatClearConfirmRow").style.display = "none";
-  chatRenderAll();
-  await chatAppendMessage("kaosu", sp(CHAT_GREETING));
+  await clearChatHistoryNow();
+});
+document.getElementById("btnSettingsClearHistory").addEventListener("click", () => {
+  document.getElementById("settingsClearConfirmRow").style.display = "block";
+});
+document.getElementById("btnSettingsClearCancel").addEventListener("click", () => {
+  document.getElementById("settingsClearConfirmRow").style.display = "none";
+});
+document.getElementById("btnSettingsClearConfirm").addEventListener("click", async () => {
+  document.getElementById("settingsClearConfirmRow").style.display = "none";
+  await clearChatHistoryNow();
+  showToast("会話履歴を削除したよ");
+});
+document.getElementById("btnOpenSettingsFromMind").addEventListener("click", () => {
+  switchView("settings");
 });
 
 /* =========================================================
    初期化
    ========================================================= */
+applyKaosuSettings();
 renderHomeQuestion();
 renderHomeStep();
 renderFilters();
