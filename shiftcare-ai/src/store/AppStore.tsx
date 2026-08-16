@@ -6,6 +6,7 @@ import type {
   FacilityMode,
   FacilityRules,
   FacilitySettings,
+  FeedbackResponse,
   JobRole,
   PairRule,
   Qualification,
@@ -19,6 +20,7 @@ import type {
 import { dataRepository } from '../services/storageService';
 import { createEmptyData, createSeedData } from '../data/seed';
 import { generateId } from '../utils/id';
+import { mergeAssignments } from '../engine/scheduleHelpers';
 
 type Action =
   | { type: 'LOAD'; data: AppData }
@@ -44,6 +46,7 @@ type Action =
   | { type: 'UPDATE_FACILITY_RULES'; patch: Partial<FacilityRules> }
   | { type: 'UPSERT_DAY_NOTE'; item: DayNote }
   | { type: 'DELETE_DAY_NOTE'; id: string }
+  | { type: 'ADD_FEEDBACK_RESPONSE'; item: FeedbackResponse }
   | { type: 'ENSURE_SCHEDULE'; yearMonth: string }
   | { type: 'SET_SCHEDULE_STATUS'; yearMonth: string; status: Schedule['status'] }
   | { type: 'SET_ASSIGNMENT'; yearMonth: string; staffId: string; date: string; shiftTypeId: string | null; pushHistory?: boolean }
@@ -234,6 +237,8 @@ function reducer(state: StoreState, action: Action): StoreState {
     }
     case 'DELETE_DAY_NOTE':
       return { ...state, data: { ...state.data, dayNotes: state.data.dayNotes.filter((n) => n.id !== action.id) } };
+    case 'ADD_FEEDBACK_RESPONSE':
+      return { ...state, data: { ...state.data, feedbackResponses: [...state.data.feedbackResponses, action.item] } };
     case 'ENSURE_SCHEDULE':
       return { ...state, data: ensureSchedule(state.data, action.yearMonth) };
     case 'SET_SCHEDULE_STATUS': {
@@ -291,12 +296,7 @@ function reducer(state: StoreState, action: Action): StoreState {
       const withHistory = pushHistorySnapshot(state, action.yearMonth);
       const data = ensureSchedule(withHistory.data, action.yearMonth);
       const schedule = data.schedules[action.yearMonth];
-      const assignments = { ...schedule.assignments };
-      for (const a of action.assignments) {
-        const key = `${a.staffId}__${a.date}`;
-        if (assignments[key]?.locked) continue;
-        assignments[key] = a;
-      }
+      const assignments = mergeAssignments(schedule.assignments, action.assignments);
       return {
         ...withHistory,
         data: { ...data, schedules: { ...data.schedules, [action.yearMonth]: { ...schedule, assignments } } },

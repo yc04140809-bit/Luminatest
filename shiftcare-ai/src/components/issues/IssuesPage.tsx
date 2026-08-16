@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { ChevronRight, PartyPopper, Wand2 } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import { validateSchedule, countBySeverity } from '../../engine/validateSchedule';
-import type { Severity, ValidationIssue } from '../../types/domain';
+import { mergeAssignments } from '../../engine/scheduleHelpers';
+import type { Assignment, Severity, ValidationIssue } from '../../types/domain';
 import { SeverityBadge } from '../ui/Badge';
 import { Card, CardBody } from '../ui/Card';
+import { useToast } from '../ui/ToastProvider';
 import { formatYearMonthLabel } from '../../utils/date';
 import type { View } from '../../App';
 import type { ScheduleJumpTarget } from '../schedule/ScheduleGridPage';
@@ -21,6 +23,7 @@ export function IssuesPage({
   onJumpToCell: (target: ScheduleJumpTarget) => void;
 }) {
   const { state, dispatch } = useAppStore();
+  const { showToast } = useToast();
   const [filter, setFilter] = useState<Filter>('all');
 
   const issues = useMemo(() => validateSchedule(state.data, yearMonth), [state.data, yearMonth]);
@@ -34,15 +37,44 @@ export function IssuesPage({
   }
 
   function applySuggestion(s: ValidationIssue['suggestions'][number]) {
+    const schedule = state.data.schedules[yearMonth];
+    let previewAssignments: Assignment[];
+
     if (s.action.type === 'assign') {
+      previewAssignments = [{ staffId: s.action.staffId, date: s.action.date, shiftTypeId: s.action.shiftTypeId, locked: false }];
       dispatch({ type: 'SET_ASSIGNMENT', yearMonth, staffId: s.action.staffId, date: s.action.date, shiftTypeId: s.action.shiftTypeId });
-    } else if (s.action.type === 'swap') {
-      const schedule = state.data.schedules[yearMonth];
+    } else {
       const a = schedule?.assignments[`${s.action.staffIdA}__${s.action.dateA}`];
       const b = schedule?.assignments[`${s.action.staffIdB}__${s.action.dateB}`];
+      previewAssignments = [
+        { staffId: s.action.staffIdA, date: s.action.dateA, shiftTypeId: b?.shiftTypeId ?? null, locked: false },
+        { staffId: s.action.staffIdB, date: s.action.dateB, shiftTypeId: a?.shiftTypeId ?? null, locked: false },
+      ];
       dispatch({ type: 'SET_ASSIGNMENT', yearMonth, staffId: s.action.staffIdA, date: s.action.dateA, shiftTypeId: b?.shiftTypeId ?? null });
       dispatch({ type: 'SET_ASSIGNMENT', yearMonth, staffId: s.action.staffIdB, date: s.action.dateB, shiftTypeId: a?.shiftTypeId ?? null, pushHistory: false });
     }
+
+    const beforeCounts = countBySeverity(issues);
+    const previewData = {
+      ...state.data,
+      schedules: {
+        ...state.data.schedules,
+        [yearMonth]: {
+          yearMonth,
+          assignments: mergeAssignments(schedule?.assignments ?? {}, previewAssignments),
+          status: schedule?.status ?? ('draft' as const),
+          publishedAt: schedule?.publishedAt ?? null,
+        },
+      },
+    };
+    const afterCounts = countBySeverity(validateSchedule(previewData, yearMonth));
+    const beforeTotal = beforeCounts.error + beforeCounts.warning;
+    const afterTotal = afterCounts.error + afterCounts.warning;
+
+    showToast(
+      beforeTotal !== afterTotal ? `修正候補を適用しました。問題が${beforeTotal}件 → ${afterTotal}件になりました。` : '修正候補を適用しました。',
+      { hint: '「元に戻す」で取り消せます' },
+    );
   }
 
   return (

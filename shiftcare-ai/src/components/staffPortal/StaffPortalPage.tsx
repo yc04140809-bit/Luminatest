@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Info, Moon, CalendarOff, Plane, Ban, CalendarCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Moon, CalendarOff, Plane, Ban, CalendarCheck, Users } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import { getCalendarWeeks, formatYearMonthLabel, getWeekdayIndex } from '../../utils/date';
 import { WEEKDAYS } from '../../types/domain';
 import { Select } from '../ui/Form';
 import { Card, CardBody } from '../ui/Card';
+import { EmptyState } from '../ui/EmptyState';
 import { RequestEditorModal } from './RequestEditorModal';
+import type { View } from '../../App';
 
 function shiftMonth(yearMonth: string, delta: number): string {
   const [y, m] = yearMonth.split('-').map(Number);
@@ -13,7 +15,7 @@ function shiftMonth(yearMonth: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export function StaffPortalPage({ yearMonth: initialYearMonth }: { yearMonth: string }) {
+export function StaffPortalPage({ yearMonth: initialYearMonth, onNavigate }: { yearMonth: string; onNavigate: (v: View) => void }) {
   const { state } = useAppStore();
   const activeStaff = state.data.staff.filter((s) => s.active);
   const [staffId, setStaffId] = useState(activeStaff[0]?.id ?? '');
@@ -74,7 +76,13 @@ export function StaffPortalPage({ yearMonth: initialYearMonth }: { yearMonth: st
       </Card>
 
       {!staff ? (
-        <div className="text-center text-slate-400 py-16">スタッフが登録されていません。</div>
+        <EmptyState
+          icon={<Users size={26} />}
+          title="スタッフがまだ登録されていません"
+          description="スタッフ管理から登録すると、ここで希望を提出できるようになります。"
+          actionLabel="スタッフ管理を開く"
+          onAction={() => onNavigate('staff')}
+        />
       ) : (
         <>
           <div className="flex items-center justify-between mb-2">

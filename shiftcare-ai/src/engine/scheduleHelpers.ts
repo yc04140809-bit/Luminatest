@@ -26,3 +26,17 @@ export function staffAssignedTo(schedule: Schedule, date: string, shiftTypeId: s
 export function isWorkingShift(shiftType: ShiftType | undefined): boolean {
   return !!shiftType && !shiftType.isTimeOff;
 }
+
+/** 既存の割当にincomingをマージする。ロック済みのセルは上書きしない(自動作成・前月コピー・一括反映で共通の規則) */
+export function mergeAssignments(
+  existing: Record<string, Assignment>,
+  incoming: Assignment[],
+): Record<string, Assignment> {
+  const merged = { ...existing };
+  for (const a of incoming) {
+    const key = assignmentKey(a.staffId, a.date);
+    if (merged[key]?.locked) continue;
+    merged[key] = a;
+  }
+  return merged;
+}

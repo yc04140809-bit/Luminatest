@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AppStoreProvider, useAppStore } from './store/AppStore';
+import { ToastProvider } from './components/ui/ToastProvider';
 import { OnboardingWizard } from './components/onboarding/OnboardingWizard';
 import { AppShell } from './components/layout/AppShell';
 import { DashboardPage } from './components/dashboard/DashboardPage';
@@ -51,6 +52,7 @@ function AppContent() {
           onYearMonthChange={setYearMonth}
           jumpTarget={jumpTarget}
           onJumpHandled={() => setJumpTarget(null)}
+          onNavigate={setView}
         />
       )}
       {view === 'rules' && <RulesPage />}
@@ -61,8 +63,8 @@ function AppContent() {
           onJumpToCell={(target) => setJumpTarget(target)}
         />
       )}
-      {view === 'reports' && <ReportsPage yearMonth={yearMonth} />}
-      {view === 'staffPortal' && <StaffPortalPage yearMonth={yearMonth} />}
+      {view === 'reports' && <ReportsPage yearMonth={yearMonth} onNavigate={setView} />}
+      {view === 'staffPortal' && <StaffPortalPage yearMonth={yearMonth} onNavigate={setView} />}
     </AppShell>
   );
 }
@@ -70,7 +72,9 @@ function AppContent() {
 export default function App() {
   return (
     <AppStoreProvider>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </AppStoreProvider>
   );
 }

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Checkbox } from '../ui/Form';
+import { useToast } from '../ui/ToastProvider';
 import { buildCopyFromPreviousMonth } from '../../engine/copyMonth';
 import { shiftYearMonth, formatYearMonthLabel } from '../../utils/date';
 
@@ -16,30 +18,50 @@ export function CopyPreviousMonthModal({
   yearMonth: string;
 }) {
   const { state, dispatch } = useAppStore();
+  const { showToast } = useToast();
   const [copyLocks, setCopyLocks] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const prevYearMonth = shiftYearMonth(yearMonth, -1);
   const hasPrevSchedule = !!state.data.schedules[prevYearMonth];
 
   function run() {
-    const assignments = buildCopyFromPreviousMonth(state.data, yearMonth, {
-      copyAssignments: true,
-      copyLocks,
-    });
-    if (assignments.length > 0) {
-      dispatch({ type: 'BULK_SET_ASSIGNMENTS', yearMonth, assignments });
-    }
-    onClose();
+    setIsProcessing(true);
+    setTimeout(() => {
+      try {
+        const assignments = buildCopyFromPreviousMonth(state.data, yearMonth, {
+          copyAssignments: true,
+          copyLocks,
+        });
+        if (assignments.length > 0) {
+          dispatch({ type: 'BULK_SET_ASSIGNMENTS', yearMonth, assignments });
+          showToast(`${assignments.length}件のセルをコピーしました。`, { hint: '「元に戻す」で取り消せます' });
+        } else {
+          showToast('コピーできるセルがありませんでした(すでに入力済みか、前月にデータがありません)。');
+        }
+        setIsProcessing(false);
+        onClose();
+      } catch {
+        setIsProcessing(false);
+        showToast('コピーに失敗しました。もう一度お試しください。', { tone: 'error' });
+      }
+    }, 30);
   }
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => !isProcessing && onClose()}
       title="前月からコピー"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>キャンセル</Button>
-          <Button disabled={!hasPrevSchedule} onClick={run}>コピーする</Button>
+          <Button variant="ghost" onClick={onClose} disabled={isProcessing}>キャンセル</Button>
+          <Button
+            disabled={!hasPrevSchedule || isProcessing}
+            onClick={run}
+            icon={isProcessing ? <Loader2 size={15} className="animate-spin" /> : undefined}
+          >
+            {isProcessing ? 'コピー中...' : 'コピーする'}
+          </Button>
         </>
       }
     >

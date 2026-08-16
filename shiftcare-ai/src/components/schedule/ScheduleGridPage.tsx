@@ -12,16 +12,24 @@ import {
   Eye,
   Send,
   CheckCircle2,
+  Users,
+  Loader2,
 } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import { getDateKeysInMonth, getWeekdayLabel, formatDayLabel, formatYearMonthLabel } from '../../utils/date';
-import { validateSchedule, checkFeasibility } from '../../engine/validateSchedule';
+import { validateSchedule, checkFeasibility, countBySeverity } from '../../engine/validateSchedule';
 import { runAutoAssign, type AutoAssignMode } from '../../engine/autoAssign';
+import { mergeAssignments } from '../../engine/scheduleHelpers';
 import { Button } from '../ui/Button';
 import { CellEditorModal } from './CellEditorModal';
 import { DayDetailModal } from './DayDetailModal';
 import { CopyPreviousMonthModal } from './CopyPreviousMonthModal';
+import { ScrollFadeEdges } from '../ui/ScrollFade';
+import { EmptyState } from '../ui/EmptyState';
+import { useScrollEdges } from '../../hooks/useScrollEdges';
+import { useToast } from '../ui/ToastProvider';
 import type { FeasibilityIssue, ScheduleStatus, ValidationIssue } from '../../types/domain';
+import type { View } from '../../App';
 
 export interface ScheduleJumpTarget {
   staffId: string | null;
@@ -45,14 +53,17 @@ export function ScheduleGridPage({
   onYearMonthChange,
   jumpTarget,
   onJumpHandled,
+  onNavigate,
 }: {
   yearMonth: string;
   onYearMonthChange: (ym: string) => void;
   jumpTarget: ScheduleJumpTarget | null;
   onJumpHandled: () => void;
+  onNavigate: (v: View) => void;
 }) {
   const { state, dispatch } = useAppStore();
   const { data } = state;
+  const { showToast } = useToast();
   const activeStaff = data.staff.filter((s) => s.active);
   const dateKeys = useMemo(() => getDateKeysInMonth(yearMonth), [yearMonth]);
   const schedule = data.schedules[yearMonth];
@@ -64,9 +75,11 @@ export function ScheduleGridPage({
   const [copyModalOpen, setCopyModalOpen] = useState(false);
   const [autoMenuOpen, setAutoMenuOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<AutoAssignMode | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const scrollEdges = useScrollEdges(scrollRef, [yearMonth, activeStaff.length]);
 
   const issues = useMemo(() => validateSchedule(data, yearMonth), [data, yearMonth]);
   const issuesByCell = useMemo(() => {
@@ -104,9 +117,42 @@ export function ScheduleGridPage({
   }, [jumpTarget, onJumpHandled]);
 
   function runAssign(mode: AutoAssignMode) {
-    const assignments = runAutoAssign(data, yearMonth, mode);
-    dispatch({ type: 'BULK_SET_ASSIGNMENTS', yearMonth, assignments });
-    setPendingMode(null);
+    setIsProcessing(true);
+    // 計算前にスピナーを描画させるため、重い同期処理は次のタスクへ遅延する
+    setTimeout(() => {
+      try {
+        const beforeCounts = countBySeverity(issues);
+        const assignments = runAutoAssign(data, yearMonth, mode);
+
+        const mergedAssignments = mergeAssignments(schedule?.assignments ?? {}, assignments);
+        const previewData = {
+          ...data,
+          schedules: {
+            ...data.schedules,
+            [yearMonth]: { yearMonth, assignments: mergedAssignments, status, publishedAt: schedule?.publishedAt ?? null },
+          },
+        };
+        const afterCounts = countBySeverity(validateSchedule(previewData, yearMonth));
+
+        dispatch({ type: 'BULK_SET_ASSIGNMENTS', yearMonth, assignments });
+        setPendingMode(null);
+        setIsProcessing(false);
+
+        const beforeTotal = beforeCounts.error + beforeCounts.warning;
+        const afterTotal = afterCounts.error + afterCounts.warning;
+        const changedCells = assignments.length;
+        showToast(
+          beforeTotal !== afterTotal
+            ? `${AUTO_ASSIGN_LABEL[mode]}を実行しました。問題が${beforeTotal}件 → ${afterTotal}件になりました。`
+            : `${AUTO_ASSIGN_LABEL[mode]}を実行しました(${changedCells}件のセルを更新)。`,
+          { hint: '「元に戻す」で取り消せます' },
+        );
+      } catch {
+        setIsProcessing(false);
+        setPendingMode(null);
+        showToast('自動作成に失敗しました。もう一度お試しください。', { tone: 'error' });
+      }
+    }, 30);
   }
 
   function setStatus(next: ScheduleStatus) {
@@ -179,11 +225,16 @@ export function ScheduleGridPage({
       </div>
 
       {activeStaff.length === 0 ? (
-        <div className="text-center text-slate-400 py-20 bg-white rounded-2xl border border-slate-200">
-          スタッフが登録されていません。先に「スタッフ管理」から登録してください。
-        </div>
+        <EmptyState
+          icon={<Users size={26} />}
+          title="スタッフがまだ登録されていません"
+          description="シフト表を作るには、先にスタッフを登録してください。"
+          actionLabel="スタッフ管理を開く"
+          onAction={() => onNavigate('staff')}
+        />
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <ScrollFadeEdges atStart={scrollEdges.atStart} atEnd={scrollEdges.atEnd} showStart={false} />
           <div ref={scrollRef} className="overflow-x-auto">
             <table className="border-collapse w-full">
               <thead>
@@ -293,7 +344,7 @@ export function ScheduleGridPage({
 
       {pendingMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setPendingMode(null)} />
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => !isProcessing && setPendingMode(null)} />
           <div className="relative bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl max-h-[85vh] overflow-y-auto">
             <p className="text-slate-700 font-semibold mb-1">{AUTO_ASSIGN_LABEL[pendingMode]}を実行しますか？</p>
             <p className="text-sm text-slate-400 mb-3">
@@ -318,8 +369,10 @@ export function ScheduleGridPage({
             )}
 
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setPendingMode(null)}>キャンセル</Button>
-              <Button onClick={() => runAssign(pendingMode)}>{feasibility.length > 0 ? 'それでも実行する' : '実行する'}</Button>
+              <Button variant="ghost" onClick={() => setPendingMode(null)} disabled={isProcessing}>キャンセル</Button>
+              <Button onClick={() => runAssign(pendingMode)} disabled={isProcessing} icon={isProcessing ? <Loader2 size={15} className="animate-spin" /> : undefined}>
+                {isProcessing ? '作成中...' : feasibility.length > 0 ? 'それでも実行する' : '実行する'}
+              </Button>
             </div>
           </div>
         </div>

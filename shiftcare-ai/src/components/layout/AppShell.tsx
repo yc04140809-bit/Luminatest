@@ -13,6 +13,7 @@ import {
   Smartphone,
 } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
+import { FeedbackWidget } from '../feedback/FeedbackWidget';
 import type { View } from '../../App';
 
 const NAV_ITEMS: { key: View; label: string; icon: React.ElementType }[] = [
@@ -126,6 +127,8 @@ export function AppShell({
           />
         ))}
       </nav>
+
+      <FeedbackWidget />
     </div>
   );
 }

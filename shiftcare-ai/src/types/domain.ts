@@ -204,7 +204,7 @@ export interface ValidationSuggestion {
   label: string;
   /** クリック適用用: 実行内容 */
   action:
-    | { type: 'assign'; staffId: string; date: string; shiftTypeId: string }
+    | { type: 'assign'; staffId: string; date: string; shiftTypeId: string | null }
     | { type: 'swap'; staffIdA: string; dateA: string; staffIdB: string; dateB: string };
 }
 
@@ -242,6 +242,15 @@ export interface FacilitySettings {
 }
 
 /** アプリ全体のデータ(将来: サーバDBのテーブル群に相当) */
+/** 実機テスト用の簡易フィードバック(最大3問) */
+export interface FeedbackResponse {
+  id: string;
+  wantToUse: 'yes' | 'ifImproved' | 'no';
+  favoriteFeature: string;
+  biggestPain: string;
+  createdAt: string;
+}
+
 export interface AppData {
   version: number;
   facility: FacilitySettings;
@@ -256,4 +265,5 @@ export interface AppData {
   facilityRules: FacilityRules;
   dayNotes: DayNote[];
   schedules: Record<string, Schedule>; // key: yearMonth
+  feedbackResponses: FeedbackResponse[];
 }

@@ -1,10 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { BarChart3 } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import { computeFairness } from '../../engine/fairness';
 import { getDateKeysInMonth, getWeekdayIndex, isJapaneseHoliday, formatYearMonthLabel } from '../../utils/date';
 import { Badge } from '../ui/Badge';
 import { Card, CardBody } from '../ui/Card';
+import { ScrollFadeEdges } from '../ui/ScrollFade';
+import { EmptyState } from '../ui/EmptyState';
+import { useScrollEdges } from '../../hooks/useScrollEdges';
 import type { FairnessLevel } from '../../types/domain';
+import type { View } from '../../App';
 
 const FAIRNESS_COLOR: Record<FairnessLevel, 'teal' | 'amber' | 'rose'> = {
   '偏り小': 'teal',
@@ -12,7 +17,7 @@ const FAIRNESS_COLOR: Record<FairnessLevel, 'teal' | 'amber' | 'rose'> = {
   '要確認': 'rose',
 };
 
-export function ReportsPage({ yearMonth }: { yearMonth: string }) {
+export function ReportsPage({ yearMonth, onNavigate }: { yearMonth: string; onNavigate: (v: View) => void }) {
   const { state } = useAppStore();
   const { data } = state;
   const activeStaff = data.staff.filter((s) => s.active);
@@ -22,6 +27,8 @@ export function ReportsPage({ yearMonth }: { yearMonth: string }) {
   const timeOffShiftTypes = [...data.shiftTypes].filter((s) => s.isTimeOff).sort((a, b) => a.sortOrder - b.sortOrder);
 
   const fairness = useMemo(() => computeFairness(data, yearMonth), [data, yearMonth]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollEdges = useScrollEdges(scrollRef, [yearMonth, activeStaff.length]);
 
   const rows = activeStaff.map((staff) => {
     const perShiftType: Record<string, number> = {};
@@ -103,10 +110,17 @@ export function ReportsPage({ yearMonth }: { yearMonth: string }) {
       )}
 
       {activeStaff.length === 0 ? (
-        <div className="text-center text-slate-400 py-20 bg-white rounded-2xl border border-slate-200">集計するデータがありません。</div>
+        <EmptyState
+          icon={<BarChart3 size={26} />}
+          title="集計するデータがありません"
+          description="スタッフを登録してシフトを入力すると、ここに集計結果が表示されます。"
+          actionLabel="スタッフ管理を開く"
+          onAction={() => onNavigate('staff')}
+        />
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="relative bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <ScrollFadeEdges atStart={scrollEdges.atStart} atEnd={scrollEdges.atEnd} showStart={false} />
+          <div ref={scrollRef} className="overflow-x-auto">
             <table className="border-collapse w-full text-sm">
               <thead>
                 <tr className="bg-slate-50">

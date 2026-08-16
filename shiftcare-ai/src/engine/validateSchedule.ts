@@ -621,6 +621,19 @@ export function validateSchedule(data: AppData, yearMonth: string): ValidationIs
 
   const issues = RULES.flatMap((rule) => rule(ctx));
 
+  // 「何が悪いか」だけでなく「どう直せばよいか」を示すため、特定の日・スタッフに紐づく
+  // 問題で修正候補が未設定のものには、その勤務をクリアする汎用の修正候補を補う。
+  // (配置サポート不足は「勤務を消す」ことが解決策ではないため対象外)
+  for (const issue of issues) {
+    if (issue.date && issue.staffId && issue.suggestions.length === 0 && issue.ruleType !== 'supportPairMissing') {
+      issue.suggestions.push({
+        id: generateId('sugg'),
+        label: 'この勤務をクリアする(未設定に戻す)',
+        action: { type: 'assign', staffId: issue.staffId, date: issue.date, shiftTypeId: null },
+      });
+    }
+  }
+
   const severityOrder: Record<Severity, number> = { error: 0, warning: 1, suggestion: 2 };
   issues.sort((a, b) => {
     if (severityOrder[a.severity] !== severityOrder[b.severity]) {

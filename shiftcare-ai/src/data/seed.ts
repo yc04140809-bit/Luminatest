@@ -447,6 +447,7 @@ export function createSeedData(mode: FacilityMode, facilityName: string): AppDat
       },
     ],
     schedules: { [yearMonth]: schedule },
+    feedbackResponses: [],
   };
 }
 
@@ -471,5 +472,6 @@ export function createEmptyData(mode: FacilityMode, facilityName: string, onboar
     facilityRules: DEFAULT_FACILITY_RULES,
     dayNotes: [],
     schedules: { [yearMonth]: { yearMonth, assignments: {}, status: 'draft', publishedAt: null } },
+    feedbackResponses: [],
   };
 }
