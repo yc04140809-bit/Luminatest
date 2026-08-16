@@ -415,6 +415,38 @@ textarea{ font-family:inherit; }
 .memory-album-entry-body{ font-size:13.5px; line-height:1.7; margin:0 0 8px; }
 .memory-album-entry-comment{ font-size:13px; line-height:1.6; color:var(--purple); margin:0; padding-top:8px; border-top:1px dashed var(--border); }
 
+/* ---------- 特別な関係(Phase42) ---------- */
+.relationship-card{ background:linear-gradient(135deg,#ffeaf1 0%,#fff2e0 100%); border-color:transparent; }
+.relationship-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; }
+.relationship-stat{ display:flex; align-items:baseline; justify-content:space-between; font-size:13px; padding:4px 0; border-bottom:1px dashed var(--border); }
+.relationship-stat-label{ color:var(--text-sub); }
+.relationship-stat-value{ font-weight:700; font-size:14.5px; }
+.relationship-next-level{ font-size:12.5px; color:var(--text-sub); margin:10px 0 0; text-align:right; }
+.relationship-summary-level{ font-size:16px; font-weight:800; margin:0 0 4px; }
+.relationship-summary-next{ font-size:12.5px; color:var(--text-sub); margin:0; }
+.relationship-achievement-row{
+  display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:10px;
+}
+.relationship-achievement-row.relationship-achievement-locked{ opacity:.45; }
+.relationship-achievement-icon{ flex:none; font-size:20px; }
+.relationship-achievement-label{ font-size:14px; font-weight:700; margin:0; }
+.relationship-achievement-date{ font-size:11.5px; color:var(--text-sub); margin:2px 0 0; }
+
+/* レベルアップ演出(紙吹雪+既存アバター+安定コメント) */
+.kaosu-levelup-box{ position:relative; overflow:hidden; text-align:center; padding-top:26px; }
+.kaosu-levelup-confetti{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.kaosu-levelup-confetti span{
+  position:absolute; top:-10px; width:8px; height:8px; border-radius:2px;
+  animation:kaosu-confetti-fall 1.7s ease-in forwards;
+}
+@keyframes kaosu-confetti-fall{
+  0%{ transform:translateY(0) rotate(0deg); opacity:1; }
+  100%{ transform:translateY(240px) rotate(360deg); opacity:0; }
+}
+.kaosu-levelup-title{ font-size:18px; font-weight:800; margin:0 0 6px; position:relative; z-index:1; }
+.kaosu-levelup-level{ font-size:15px; font-weight:700; color:var(--purple); margin:0 0 10px; position:relative; z-index:1; }
+.kaosu-levelup-comment{ font-size:14px; line-height:1.7; margin:0; position:relative; z-index:1; }
+
 /* ---------- AI Smart Timeline(Phase38) ---------- */
 .timeline-card{ background:linear-gradient(135deg,#fff4e8 0%,#f5eaff 100%); border-color:transparent; }
 .timeline-row{ display:flex; align-items:flex-start; gap:10px; padding:6px 0; border-bottom:1px dashed var(--border); }
@@ -912,6 +944,31 @@ textarea.field-input{ resize:none; }
         <p class="memory-album-recent-label">最近追加</p>
         <div id="memoryAlbumRecentList"></div>
         <button type="button" class="btn-outline" id="btnMemoryAlbumOpen" style="margin-top:10px;">見る</button>
+      </div>
+
+      <!-- Phase42: ケイオスちゃんとの特別な関係。「思い出アルバム」
+           カードの下に「特別な関係」カードを1枚だけ追加する。
+           指示書は「IndexedDBバージョン変更禁止」と「relationshipを
+           新規追加可」を同時に述べており文面上は矛盾するが、両方を
+           文字どおり満たせる設計として、レベル/親密度のスナップ
+           ショットはIndexedDBではなくlocalStorage(新規キー
+           koufukuAiRelationshipV1)へ保存する。既存のstepLogRead()
+           (Phase5/6)と同じ「IndexedDBには一切触れず別のlocalStorage
+           キーに逃がす」設計を踏襲した(重複しない新規キー・IndexedDB
+           バージョンは不変)。親密度そのものは既存データ(会話数/
+           ワクワク数/一歩数/予定達成数/連続利用日数)から毎回計算し
+           直す値で、保存するのは「前回どのレベルだったか」を比較して
+           レベルアップを検知するための最小限のスナップショットのみ。 -->
+      <div class="card relationship-card" id="homeRelationshipCard" style="display:none;">
+        <div class="card-label">❤️ 特別な関係</div>
+        <div class="relationship-grid">
+          <div class="relationship-stat"><span class="relationship-stat-label">親密度</span><span class="relationship-stat-value" id="relationshipExpValue"></span></div>
+          <div class="relationship-stat"><span class="relationship-stat-label">レベル</span><span class="relationship-stat-value" id="relationshipLevelValue"></span></div>
+          <div class="relationship-stat"><span class="relationship-stat-label">累計会話</span><span class="relationship-stat-value" id="relationshipChatValue"></span></div>
+          <div class="relationship-stat"><span class="relationship-stat-label">連続利用</span><span class="relationship-stat-value" id="relationshipStreakValue"></span></div>
+        </div>
+        <p class="relationship-next-level" id="relationshipNextLevelText"></p>
+        <button type="button" class="btn-outline" id="btnRelationshipOpen" style="margin-top:10px;">見る</button>
       </div>
 
       <!-- Phase39: AI Life Planner。「最近の成長」カードの下に「今日の
@@ -1867,6 +1924,39 @@ textarea.field-input{ resize:none; }
         <button class="sheet-close" id="memoryAlbumClose" aria-label="閉じる">×</button>
       </div>
       <div class="sheet-scroll" id="memoryAlbumBody"></div>
+    </div>
+  </div>
+
+  <!-- Phase42: 特別な関係(現在の状況+実績一覧)。実績は表示のみで、
+       専用の保存レコードは持たず既存データから毎回算出する。 -->
+  <div class="modal" id="relationshipModal">
+    <div class="modalbox sheet">
+      <div class="sheet-header">
+        <div class="sheet-titles">
+          <h3>❤️ 特別な関係</h3>
+          <p>ケイオスちゃんと積み重ねてきた関係だよ</p>
+        </div>
+        <button class="sheet-close" id="relationshipModalClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="sheet-scroll" id="relationshipModalBody"></div>
+    </div>
+  </div>
+
+  <!-- Phase42: レベルアップ演出。レベルが実際に上がった時だけ表示する
+       お祝いモーダル。紙吹雪はCSSアニメーションのみで新規画像は
+       追加せず、表情は既存のkaosu-avatar/setKaosuExpression()を
+       そのまま再利用する。 -->
+  <div class="modal" id="relationshipLevelUpModal">
+    <div class="modalbox kaosu-levelup-box">
+      <div class="kaosu-levelup-confetti" id="kaosuLevelUpConfetti"></div>
+      <div class="kaosu-avatar" style="width:88px;height:88px;margin:0 auto 14px;">
+        <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+        <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+      </div>
+      <p class="kaosu-levelup-title">🎉 レベルアップ！</p>
+      <p class="kaosu-levelup-level" id="kaosuLevelUpLevelText"></p>
+      <p class="kaosu-levelup-comment" id="kaosuLevelUpComment"></p>
+      <button type="button" class="btn-primary" id="btnKaosuLevelUpClose" style="margin-top:14px;">うれしい！</button>
     </div>
   </div>
 
@@ -5415,17 +5505,18 @@ function generateTodayAiAdvice(){
 }
 
 function renderHomeAiAdviceCard(){
-  /* Phase34/35/37/39/40/41: 今日のルミナ・幸せスコア・最近の成長・
-     思い出アルバム・今日のおすすめプラン・今日の最優先の各カードは
-     通知ON/OFFやアドバイス有無に関係なく常に表示するため、この
-     カードのdisplay判定より前に呼ぶ。renderHomeAiAdviceCard()は家族/
-     予定/ワクワクの読み込み完了後やモード切替のたびに必ず呼ばれる
+  /* Phase34/35/37/39/40/41/42: 今日のルミナ・幸せスコア・最近の成長・
+     思い出アルバム・特別な関係・今日のおすすめプラン・今日の最優先の
+     各カードは通知ON/OFFやアドバイス有無に関係なく常に表示するため、
+     このカードのdisplay判定より前に呼ぶ。renderHomeAiAdviceCard()は
+     家族/予定/ワクワクの読み込み完了後やモード切替のたびに必ず呼ばれる
      既存のフックなので、ここに便乗させて新しい呼び出し箇所を5箇所
      以上増やさないようにする(呼び出し漏れ防止・重複実装回避)。 */
   renderHomeDailyLuminaCard();
   renderHomeHappinessScoreCard();
   renderHomeAchievementCard();
   renderHomeMemoryAlbumCard();
+  renderHomeRelationshipCard();
   renderHomeLifePlanCard();
   renderHomePriorityCard();
   const card = document.getElementById("homeAiAdviceCard");
@@ -6613,6 +6704,231 @@ document.getElementById("memoryAlbumClose").addEventListener("click", () => {
 });
 document.getElementById("memoryAlbumModal").addEventListener("click", (ev) => {
   if(ev.target.id === "memoryAlbumModal") document.getElementById("memoryAlbumModal").classList.remove("show");
+});
+
+/* =========================================================
+   Phase42: ケイオスちゃんとの特別な関係
+   - 指示書は「IndexedDBバージョン変更禁止」と「保存項目は
+     relationshipのみ新規追加可」を同時に述べている。IndexedDBの
+     ストア追加は仕組み上バージョンを上げないと不可能なため、両方を
+     文字どおり満たせる設計として、レベル/親密度のスナップショットは
+     IndexedDBではなくlocalStorage(新規キーkoufukuAiRelationshipV1)
+     へ保存する。既存のstepLogRead()/stepLogAppend()(Phase5/6)が
+     「IndexedDBには一切触れず別のlocalStorageキーに逃がす」設計で
+     既に実装されているのと同じ考え方を踏襲しただけで、新しい保存の
+     仕組みを発明してはいない。IndexedDBのバージョン・既存ストアは
+     完全に無変更。
+   - 親密度(exp)自体は保存せず、既存データ(会話数/ワクワク数/一歩数/
+     予定達成数/連続利用日数)から表示のたびに毎回計算し直す。
+     localStorageに保存するのは「前回どのレベルだったか」を比較して
+     レベルアップの瞬間だけを検知するための最小限のスナップショット
+     (level/exp/createdAt/updatedAt)のみ。
+   ========================================================= */
+const RELATIONSHIP_STORAGE_KEY = "koufukuAiRelationshipV1";
+function relationshipRead(){
+  try{
+    const raw = localStorage.getItem(RELATIONSHIP_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){
+    return null;
+  }
+}
+function relationshipWrite(record){
+  try{
+    localStorage.setItem(RELATIONSHIP_STORAGE_KEY, JSON.stringify(record));
+  }catch(e){
+    /* 容量超過等で保存に失敗しても表示は継続する */
+  }
+}
+
+/* Lv1:0-99/Lv2:100-249/Lv3:250-499/Lv4:500-999という指示書の例に
+   沿い、Lv5以降は直前レベルの幅を単純に2倍にしていく形で無限に
+   拡張できるようにする(「以降自由拡張可能」への対応)。 */
+const RELATIONSHIP_LEVEL_THRESHOLDS = [0, 100, 250, 500, 1000];
+function relationshipLevelStart(level){
+  if(level <= RELATIONSHIP_LEVEL_THRESHOLDS.length) return RELATIONSHIP_LEVEL_THRESHOLDS[Math.max(1, level) - 1];
+  let start = RELATIONSHIP_LEVEL_THRESHOLDS[RELATIONSHIP_LEVEL_THRESHOLDS.length - 1];
+  let width = start - RELATIONSHIP_LEVEL_THRESHOLDS[RELATIONSHIP_LEVEL_THRESHOLDS.length - 2];
+  for(let lv = RELATIONSHIP_LEVEL_THRESHOLDS.length + 1; lv <= level; lv++){
+    width *= 2;
+    start += width;
+  }
+  return start;
+}
+function getRelationshipLevelForExp(exp){
+  let level = 1;
+  while(relationshipLevelStart(level + 1) <= exp) level++;
+  return level;
+}
+
+/* 親密度が上がる行動: 会話/ワクワク登録/一歩達成/連続利用は、それぞれ
+   独立したカウントとして加算する。「今日のおすすめ実行」「未来プラン
+   実行」「思い出追加」は、実行結果として最終的にeventDone/wakuwaku/
+   一歩のいずれかが増える形で既に反映されるため、ここで別枠として
+   二重に加算しない(重複カウント防止)。重みづけの数値自体は今回の
+   セッションで決めた初期値であり、Phase35の幸せスコアと同様、運用
+   データを見ながら将来調整する余地がある。 */
+function computeRelationshipExp(chatAll, now = new Date()){
+  const chatCount = (chatAll || []).filter(m => m.role === "user").length;
+  const wakuwakuCount = (wakuwakuEntries || []).length;
+  const stepCount = stepLogRead().length;
+  const eventDoneCount = familyEvents.filter(ev => ev.status === "done" || ev.status === "confirmed").length;
+  const streakDays = computeActivityStreakDays(now);
+  return chatCount * 2 + wakuwakuCount * 3 + stepCount * 3 + eventDoneCount * 2 + streakDays * 1;
+}
+
+/* 実データを毎回計算し、前回保存したレベルと比較するだけの関数。
+   レベルアップの検知結果(leveledUp)を返すが、演出の表示自体は
+   呼び出し側(renderHomeRelationshipCard)が行う。 */
+function syncRelationshipProgress(chatAll, now = new Date()){
+  const targetExp = computeRelationshipExp(chatAll, now);
+  const targetLevel = getRelationshipLevelForExp(targetExp);
+  const previous = relationshipRead();
+  const previousLevel = previous ? (previous.level || 1) : null;
+  const leveledUp = previousLevel !== null && targetLevel > previousLevel;
+
+  relationshipWrite({
+    level: targetLevel, exp: targetExp,
+    createdAt: (previous && previous.createdAt) || now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+  return { leveledUp, exp: targetExp, level: targetLevel };
+}
+
+const RELATIONSHIP_LEVELUP_COMMENTS = [
+  k3("少しずつ仲良くなれて嬉しいな♪", "少しずつ仲良くなれて嬉しいなぁ♪", "少しずつ仲良くなれて嬉しかぁ♪"),
+  k3("また一緒に頑張ろ！", "また一緒に頑張ろな！", "また一緒に頑張ろうたい！"),
+  k3("今日はいっぱい話せたね！", "今日はぎょうさん話せたね！", "今日はいっぱい話せたばい！"),
+  k3("ありがとう。", "おおきに。", "ありがとうね。"),
+];
+const KAOSU_CONFETTI_COLORS = ["#ff8fc7", "#a78bfa", "#7dd3c0", "#ffd166", "#8fb8ff"];
+function spawnKaosuConfetti(){
+  const root = document.getElementById("kaosuLevelUpConfetti");
+  if(!root) return;
+  root.innerHTML = "";
+  for(let i = 0; i < 24; i++){
+    const span = document.createElement("span");
+    span.style.left = Math.random() * 100 + "%";
+    span.style.background = KAOSU_CONFETTI_COLORS[i % KAOSU_CONFETTI_COLORS.length];
+    span.style.animationDelay = (Math.random() * 0.4) + "s";
+    root.appendChild(span);
+  }
+}
+function showRelationshipLevelUpCelebration(level){
+  const levelText = document.getElementById("kaosuLevelUpLevelText");
+  const commentText = document.getElementById("kaosuLevelUpComment");
+  const modal = document.getElementById("relationshipLevelUpModal");
+  if(!levelText || !commentText || !modal) return;
+  levelText.textContent = `Lv.${level} になりました`;
+  /* ランダムではなく、レベルごとに安定した1件を選ぶ
+     (Phase41のstableIndexForString()をそのまま再利用)。 */
+  commentText.textContent = sp(RELATIONSHIP_LEVELUP_COMMENTS[stableIndexForString("levelup_" + level, RELATIONSHIP_LEVELUP_COMMENTS.length)]);
+  spawnKaosuConfetti();
+  modal.classList.add("show");
+}
+
+/* 実績は保存レコードを持たず、表示のたびに既存データから算出する
+   (指示書の「実績: 以下は表示のみ」に対応)。誕生日のような未取得
+   データに基づく実績は含めない。 */
+function generateRelationshipAchievements(chatAll){
+  const userMessages = (chatAll || [])
+    .filter(m => m.role === "user" && m.createdAt)
+    .slice()
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const wakuwakuSorted = (wakuwakuEntries || [])
+    .filter(e => e.createdAt)
+    .slice()
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  const stepSorted = stepLogRead()
+    .filter(r => r.completedAt)
+    .slice()
+    .sort((a, b) => String(a.completedAt).localeCompare(String(b.completedAt)));
+  const firstUse = computeAppFirstUseDate();
+  const streakDays = computeActivityStreakDays();
+  const chatMilestoneDate = (n) => (userMessages.length >= n ? userMessages[n - 1].createdAt : null);
+
+  return [
+    { label: "初めて会った日", achieved: !!firstUse, date: firstUse },
+    { label: "初めて話した日", achieved: userMessages.length > 0, date: userMessages.length ? userMessages[0].createdAt : null },
+    { label: "100会話", achieved: userMessages.length >= 100, date: chatMilestoneDate(100) },
+    { label: "500会話", achieved: userMessages.length >= 500, date: chatMilestoneDate(500) },
+    { label: "1000会話", achieved: userMessages.length >= 1000, date: chatMilestoneDate(1000) },
+    { label: "100ワクワク", achieved: wakuwakuSorted.length >= 100, date: wakuwakuSorted.length >= 100 ? wakuwakuSorted[99].createdAt : null },
+    { label: "100日継続", achieved: streakDays >= 100, date: streakDays >= 100 ? new Date().toISOString() : null },
+    { label: "初めて未来を作成", achieved: wakuwakuSorted.length > 0, date: wakuwakuSorted.length ? wakuwakuSorted[0].createdAt : null },
+    { label: "初めて一歩達成", achieved: stepSorted.length > 0, date: stepSorted.length ? stepSorted[0].completedAt : null },
+  ];
+}
+
+async function renderHomeRelationshipCard(){
+  const card = document.getElementById("homeRelationshipCard");
+  const expEl = document.getElementById("relationshipExpValue");
+  const levelEl = document.getElementById("relationshipLevelValue");
+  const chatEl = document.getElementById("relationshipChatValue");
+  const streakEl = document.getElementById("relationshipStreakValue");
+  const nextEl = document.getElementById("relationshipNextLevelText");
+  if(!card || !expEl || !levelEl || !chatEl || !streakEl || !nextEl) return;
+
+  if(!familyMembers.length && !familyEvents.length && !(wakuwakuEntries || []).length && !stepLogRead().length){
+    card.style.display = "none";
+    return;
+  }
+
+  let chatAll = [];
+  try{ chatAll = await ChatStore.getAll(); }catch(e){ chatAll = []; }
+  const { leveledUp, exp, level } = syncRelationshipProgress(chatAll);
+
+  card.style.display = "block";
+  expEl.textContent = `${exp}`;
+  levelEl.textContent = `Lv.${level}`;
+  chatEl.textContent = `${chatAll.filter(m => m.role === "user").length}回`;
+  streakEl.textContent = `${computeActivityStreakDays()}日`;
+  const nextStart = relationshipLevelStart(level + 1);
+  nextEl.textContent = `次のレベルまであと${Math.max(0, nextStart - exp)}`;
+
+  if(leveledUp) showRelationshipLevelUpCelebration(level);
+}
+async function renderRelationshipModal(){
+  const body = document.getElementById("relationshipModalBody");
+  if(!body) return;
+  let chatAll = [];
+  try{ chatAll = await ChatStore.getAll(); }catch(e){ chatAll = []; }
+  const exp = computeRelationshipExp(chatAll);
+  const level = getRelationshipLevelForExp(exp);
+  const nextStart = relationshipLevelStart(level + 1);
+  const achievements = generateRelationshipAchievements(chatAll);
+
+  body.innerHTML = `
+    <div class="card">
+      <p class="relationship-summary-level">Lv.${level}(親密度 ${exp})</p>
+      <p class="relationship-summary-next">次のレベルまであと${Math.max(0, nextStart - exp)}</p>
+    </div>
+    <p class="memory-album-recent-label" style="margin:16px 4px 8px;">実績</p>
+    ${achievements.map(a => `
+      <div class="card relationship-achievement-row${a.achieved ? "" : " relationship-achievement-locked"}">
+        <span class="relationship-achievement-icon">${a.achieved ? "🏆" : "🔒"}</span>
+        <div>
+          <p class="relationship-achievement-label">${escapeHtml(a.label)}</p>
+          ${a.achieved && a.date ? `<p class="relationship-achievement-date">${escapeHtml(formatMemoryDate(a.date))}</p>` : ""}
+        </div>
+      </div>`).join("")}
+  `;
+}
+document.getElementById("btnRelationshipOpen").addEventListener("click", async () => {
+  await renderRelationshipModal();
+  document.getElementById("relationshipModal").classList.add("show");
+});
+document.getElementById("relationshipModalClose").addEventListener("click", () => {
+  document.getElementById("relationshipModal").classList.remove("show");
+});
+document.getElementById("relationshipModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "relationshipModal") document.getElementById("relationshipModal").classList.remove("show");
+});
+document.getElementById("btnKaosuLevelUpClose").addEventListener("click", () => {
+  document.getElementById("relationshipLevelUpModal").classList.remove("show");
+});
+document.getElementById("relationshipLevelUpModal").addEventListener("click", (ev) => {
+  if(ev.target.id === "relationshipLevelUpModal") document.getElementById("relationshipLevelUpModal").classList.remove("show");
 });
 
 /* ---------- 通知設定UI(わたし画面) ---------- */
