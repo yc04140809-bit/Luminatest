@@ -263,6 +263,8 @@ function buildStaff(templates: StaffTemplate[]): Staff[] {
     qualificationIds: t.qualificationIds,
     availability: t.availability,
     desiredOffDates: [],
+    desiredPaidLeaveDates: [],
+    unavailableDates: [],
     desiredWorkDates: {},
     note: t.note ?? '',
     active: true,
@@ -290,6 +292,20 @@ export function createSeedData(mode: FacilityMode, facilityName: string): AppDat
   }
   if (dateKeys.length >= 20) {
     sato.desiredOffDates = [dateKeys[19]];
+  }
+  // 希望休が重なりやすい日のサンプル(希望集中デモ用)
+  if (dateKeys.length >= 16) {
+    const congestedDate = dateKeys[15];
+    for (const s of [yamada, ito, nakamura, kobayashi]) {
+      s.desiredOffDates = [...s.desiredOffDates, congestedDate];
+    }
+  }
+  // 有休希望・勤務不可日のサンプル
+  if (dateKeys.length >= 9) {
+    kato.desiredPaidLeaveDates = [dateKeys[8]];
+  }
+  if (dateKeys.length >= 25) {
+    takahashi.unavailableDates = [dateKeys[24]]; // 通院等でピンポイント勤務不可
   }
 
   const qualCareId = mode === 'care' ? 'qual_kaigofukushi' : 'qual_kangoshi';
@@ -355,7 +371,7 @@ export function createSeedData(mode: FacilityMode, facilityName: string): AppDat
     setAssign(kobayashi, dateKeys[8], offId, false);
   }
 
-  const schedule: Schedule = { yearMonth, assignments };
+  const schedule: Schedule = { yearMonth, assignments, status: 'draft', publishedAt: null };
 
   const pairRules: PairRule[] = [
     {
@@ -454,6 +470,6 @@ export function createEmptyData(mode: FacilityMode, facilityName: string, onboar
     supportPairRules: [],
     facilityRules: DEFAULT_FACILITY_RULES,
     dayNotes: [],
-    schedules: { [yearMonth]: { yearMonth, assignments: {} } },
+    schedules: { [yearMonth]: { yearMonth, assignments: {}, status: 'draft', publishedAt: null } },
   };
 }

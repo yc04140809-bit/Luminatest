@@ -10,6 +10,7 @@ import {
   Undo2,
   Redo2,
   HeartHandshake,
+  Smartphone,
 } from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import type { View } from '../../App';
@@ -19,6 +20,7 @@ const NAV_ITEMS: { key: View; label: string; icon: React.ElementType }[] = [
   { key: 'schedule', label: 'シフト表', icon: CalendarDays },
   { key: 'issues', label: '問題一覧', icon: AlertTriangle },
   { key: 'staff', label: 'スタッフ', icon: Users },
+  { key: 'staffPortal', label: '希望提出', icon: Smartphone },
   { key: 'shiftTypes', label: '勤務種別', icon: Tags },
   { key: 'rules', label: 'ルール設定', icon: SlidersHorizontal },
   { key: 'reports', label: '月次集計', icon: BarChart3 },

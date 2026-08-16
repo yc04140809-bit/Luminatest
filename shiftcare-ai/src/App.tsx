@@ -9,11 +9,12 @@ import { ScheduleGridPage, type ScheduleJumpTarget } from './components/schedule
 import { RulesPage } from './components/rules/RulesPage';
 import { IssuesPage } from './components/issues/IssuesPage';
 import { ReportsPage } from './components/reports/ReportsPage';
+import { StaffPortalPage } from './components/staffPortal/StaffPortalPage';
 import { validateSchedule, countBySeverity } from './engine/validateSchedule';
 import { currentYearMonth } from './utils/date';
 import { HeartHandshake } from 'lucide-react';
 
-export type View = 'dashboard' | 'staff' | 'shiftTypes' | 'schedule' | 'rules' | 'issues' | 'reports';
+export type View = 'dashboard' | 'staff' | 'shiftTypes' | 'schedule' | 'rules' | 'issues' | 'reports' | 'staffPortal';
 
 function AppContent() {
   const { state } = useAppStore();
@@ -61,6 +62,7 @@ function AppContent() {
         />
       )}
       {view === 'reports' && <ReportsPage yearMonth={yearMonth} />}
+      {view === 'staffPortal' && <StaffPortalPage yearMonth={yearMonth} />}
     </AppShell>
   );
 }

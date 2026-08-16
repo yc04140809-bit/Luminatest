@@ -1,17 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Wand2, ListPlus, Lock, StickyNote } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Wand2,
+  ListPlus,
+  Moon,
+  Lock,
+  StickyNote,
+  CopyPlus,
+  Eye,
+  Send,
+  CheckCircle2,
+} from 'lucide-react';
 import { useAppStore } from '../../store/AppStore';
 import { getDateKeysInMonth, getWeekdayLabel, formatDayLabel, formatYearMonthLabel } from '../../utils/date';
-import { validateSchedule } from '../../engine/validateSchedule';
-import { runAutoAssign } from '../../engine/autoAssign';
+import { validateSchedule, checkFeasibility } from '../../engine/validateSchedule';
+import { runAutoAssign, type AutoAssignMode } from '../../engine/autoAssign';
 import { Button } from '../ui/Button';
 import { CellEditorModal } from './CellEditorModal';
-import type { ValidationIssue } from '../../types/domain';
+import { DayDetailModal } from './DayDetailModal';
+import { CopyPreviousMonthModal } from './CopyPreviousMonthModal';
+import type { FeasibilityIssue, ScheduleStatus, ValidationIssue } from '../../types/domain';
 
 export interface ScheduleJumpTarget {
   staffId: string | null;
   date: string | null;
 }
+
+const AUTO_ASSIGN_LABEL: Record<AutoAssignMode, string> = {
+  nightOnly: 'STEP1: 夜勤のみ自動作成',
+  fillEmpty: '未入力を自動補完',
+  full: 'シフトを自動作成(フル)',
+};
+
+const STATUS_META: Record<ScheduleStatus, { label: string; color: string; icon: React.ElementType }> = {
+  draft: { label: '下書き', color: 'bg-slate-100 text-slate-600', icon: Eye },
+  review: { label: '確認中', color: 'bg-amber-100 text-amber-700', icon: Send },
+  published: { label: '公開済み', color: 'bg-teal-100 text-teal-700', icon: CheckCircle2 },
+};
 
 export function ScheduleGridPage({
   yearMonth,
@@ -30,9 +57,14 @@ export function ScheduleGridPage({
   const dateKeys = useMemo(() => getDateKeysInMonth(yearMonth), [yearMonth]);
   const schedule = data.schedules[yearMonth];
   const shiftTypes = data.shiftTypes;
+  const status: ScheduleStatus = schedule?.status ?? 'draft';
 
   const [selectedCell, setSelectedCell] = useState<{ staffId: string; date: string } | null>(null);
-  const [confirmAction, setConfirmAction] = useState<'full' | 'fillEmpty' | null>(null);
+  const [dayDetailDate, setDayDetailDate] = useState<string | null>(null);
+  const [copyModalOpen, setCopyModalOpen] = useState(false);
+  const [autoMenuOpen, setAutoMenuOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<AutoAssignMode | null>(null);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cellRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -47,6 +79,11 @@ export function ScheduleGridPage({
     }
     return map;
   }, [issues]);
+
+  const feasibility: FeasibilityIssue[] = useMemo(
+    () => (pendingMode ? checkFeasibility(data, yearMonth, pendingMode === 'nightOnly' ? 'nightOnly' : 'all') : []),
+    [data, yearMonth, pendingMode],
+  );
 
   useEffect(() => {
     if (!jumpTarget?.date) return;
@@ -66,15 +103,20 @@ export function ScheduleGridPage({
     onJumpHandled();
   }, [jumpTarget, onJumpHandled]);
 
-  function runAssign(mode: 'full' | 'fillEmpty') {
+  function runAssign(mode: AutoAssignMode) {
     const assignments = runAutoAssign(data, yearMonth, mode);
     dispatch({ type: 'BULK_SET_ASSIGNMENTS', yearMonth, assignments });
-    setConfirmAction(null);
+    setPendingMode(null);
+  }
+
+  function setStatus(next: ScheduleStatus) {
+    dispatch({ type: 'SET_SCHEDULE_STATUS', yearMonth, status: next });
+    setPublishConfirmOpen(false);
   }
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-800">月間シフト表</h1>
           <div className="flex items-center gap-2 mt-1">
@@ -87,13 +129,52 @@ export function ScheduleGridPage({
             </button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" icon={<ListPlus size={15} />} onClick={() => setConfirmAction('fillEmpty')}>
-            未入力を自動補完
+
+        <StatusControl status={status} onChangeDraftReview={setStatus} onRequestPublish={() => setPublishConfirmOpen(true)} />
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button variant="outline" size="sm" icon={<CopyPlus size={15} />} onClick={() => setCopyModalOpen(true)}>
+          前月からコピー
+        </Button>
+        <div className="relative">
+          <Button size="sm" icon={<Wand2 size={15} />} onClick={() => setAutoMenuOpen((v) => !v)}>
+            自動作成 <ChevronDown size={14} className="ml-0.5" />
           </Button>
-          <Button size="sm" icon={<Wand2 size={15} />} onClick={() => setConfirmAction('full')}>
-            シフトを自動作成
-          </Button>
+          {autoMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setAutoMenuOpen(false)} />
+              <div className="absolute z-40 top-full mt-1 left-0 bg-white rounded-xl border border-slate-200 shadow-lg py-1.5 min-w-[240px]">
+                <MenuItem
+                  icon={<Moon size={15} className="text-indigo-500" />}
+                  label={AUTO_ASSIGN_LABEL.nightOnly}
+                  hint="段階作成モード。他の勤務は空欄のまま残します"
+                  onClick={() => {
+                    setPendingMode('nightOnly');
+                    setAutoMenuOpen(false);
+                  }}
+                />
+                <MenuItem
+                  icon={<ListPlus size={15} className="text-teal-600" />}
+                  label={AUTO_ASSIGN_LABEL.fillEmpty}
+                  hint="入力済みのセルは変更しません"
+                  onClick={() => {
+                    setPendingMode('fillEmpty');
+                    setAutoMenuOpen(false);
+                  }}
+                />
+                <MenuItem
+                  icon={<Wand2 size={15} className="text-amber-500" />}
+                  label={AUTO_ASSIGN_LABEL.full}
+                  hint="ロック以外のセルを全て再計算します"
+                  onClick={() => {
+                    setPendingMode('full');
+                    setAutoMenuOpen(false);
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -117,7 +198,9 @@ export function ScheduleGridPage({
                       <th
                         key={date}
                         data-date-col={date}
-                        className={`border-b border-slate-200 px-1.5 py-2.5 text-center text-xs font-bold min-w-[42px] ${
+                        onClick={() => setDayDetailDate(date)}
+                        title="タップで人員状況を確認"
+                        className={`border-b border-slate-200 px-1.5 py-2.5 text-center text-xs font-bold min-w-[42px] cursor-pointer hover:bg-teal-50 transition-colors ${
                           isWeekend ? 'text-rose-400' : 'text-slate-500'
                         }`}
                       >
@@ -204,26 +287,123 @@ export function ScheduleGridPage({
         date={selectedCell?.date ?? null}
       />
 
-      {confirmAction && (
+      <DayDetailModal open={!!dayDetailDate} onClose={() => setDayDetailDate(null)} yearMonth={yearMonth} date={dayDetailDate} />
+
+      <CopyPreviousMonthModal open={copyModalOpen} onClose={() => setCopyModalOpen(false)} yearMonth={yearMonth} />
+
+      {pendingMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setConfirmAction(null)} />
-          <div className="relative bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl">
-            <p className="text-slate-700 font-semibold mb-1">
-              {confirmAction === 'full' ? 'シフトを自動作成しますか？' : '未入力部分だけを自動補完しますか？'}
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setPendingMode(null)} />
+          <div className="relative bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl max-h-[85vh] overflow-y-auto">
+            <p className="text-slate-700 font-semibold mb-1">{AUTO_ASSIGN_LABEL[pendingMode]}を実行しますか？</p>
+            <p className="text-sm text-slate-400 mb-3">
+              {pendingMode === 'full' && 'ロック(🔒)されたセル以外は上書きされます。実行後に「元に戻す」で取り消せます。'}
+              {pendingMode === 'fillEmpty' && '既に入力済みのセルは変更されません。空欄のみ自動的に埋められます。'}
+              {pendingMode === 'nightOnly' && '夜勤の必要人数だけを埋めます。早番・日勤・遅番などは空欄のまま残ります。内容を確認してロックしたら、続けてSTEP2(未入力を自動補完)を実行してください。'}
             </p>
+
+            {feasibility.length > 0 && (
+              <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-xs font-bold text-amber-700 mb-1.5">
+                  現在の登録条件では、一部の勤務が成立しない可能性があります({feasibility.length}件)
+                </p>
+                <ul className="space-y-1 max-h-32 overflow-y-auto">
+                  {feasibility.slice(0, 6).map((f) => (
+                    <li key={f.id} className="text-xs text-amber-700">・{f.message}</li>
+                  ))}
+                  {feasibility.length > 6 && <li className="text-xs text-amber-600">他{feasibility.length - 6}件</li>}
+                </ul>
+                <p className="text-[11px] text-amber-600 mt-1.5">スタッフの追加や必要人数の見直しをおすすめします。それでも実行することは可能です。</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPendingMode(null)}>キャンセル</Button>
+              <Button onClick={() => runAssign(pendingMode)}>{feasibility.length > 0 ? 'それでも実行する' : '実行する'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {publishConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setPublishConfirmOpen(false)} />
+          <div className="relative bg-white rounded-2xl p-5 max-w-sm w-full shadow-xl">
+            <p className="text-slate-700 font-semibold mb-1">シフトを公開しますか？</p>
             <p className="text-sm text-slate-400 mb-4">
-              {confirmAction === 'full'
-                ? 'ロック(🔒)されたセル以外は上書きされます。実行後に「元に戻す」で取り消せます。'
-                : '既に入力済みのセルは変更されません。空欄のみ自動的に埋められます。'}
+              公開すると、スタッフ画面に確定シフトとして表示されるようになります(将来のスタッフ公開機能を想定)。公開後も下書きに戻すことは可能です。
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setConfirmAction(null)}>キャンセル</Button>
-              <Button onClick={() => runAssign(confirmAction)}>実行する</Button>
+              <Button variant="ghost" onClick={() => setPublishConfirmOpen(false)}>キャンセル</Button>
+              <Button onClick={() => setStatus('published')}>公開する</Button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function StatusControl({
+  status,
+  onChangeDraftReview,
+  onRequestPublish,
+}: {
+  status: ScheduleStatus;
+  onChangeDraftReview: (s: ScheduleStatus) => void;
+  onRequestPublish: () => void;
+}) {
+  const meta = STATUS_META[status];
+  const Icon = meta.icon;
+  return (
+    <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full p-1">
+      <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${meta.color}`}>
+        <Icon size={13} />
+        {meta.label}
+      </span>
+      {status === 'draft' && (
+        <button onClick={() => onChangeDraftReview('review')} className="text-xs font-semibold text-slate-500 px-2.5 py-1 rounded-full hover:bg-slate-50">
+          確認待ちにする
+        </button>
+      )}
+      {status === 'review' && (
+        <>
+          <button onClick={() => onChangeDraftReview('draft')} className="text-xs font-semibold text-slate-400 px-2 py-1 rounded-full hover:bg-slate-50">
+            下書きに戻す
+          </button>
+          <button onClick={onRequestPublish} className="text-xs font-semibold text-teal-700 px-2.5 py-1 rounded-full hover:bg-teal-50">
+            公開する
+          </button>
+        </>
+      )}
+      {status === 'published' && (
+        <button onClick={() => onChangeDraftReview('draft')} className="text-xs font-semibold text-slate-400 px-2.5 py-1 rounded-full hover:bg-slate-50">
+          下書きに戻す
+        </button>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({
+  icon,
+  label,
+  hint,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  onClick: () => void;
+}) {
+  return (
+    <button onClick={onClick} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-start gap-2">
+      <span className="mt-0.5">{icon}</span>
+      <span>
+        <span className="block text-sm font-medium text-slate-700">{label}</span>
+        <span className="block text-[11px] text-slate-400">{hint}</span>
+      </span>
+    </button>
   );
 }
 

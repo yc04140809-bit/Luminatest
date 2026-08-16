@@ -27,6 +27,8 @@ function emptyStaff(): Staff {
       availableTimeNote: '',
     },
     desiredOffDates: [],
+    desiredPaidLeaveDates: [],
+    unavailableDates: [],
     desiredWorkDates: {},
     note: '',
     active: true,

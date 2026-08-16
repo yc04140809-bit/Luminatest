@@ -1,11 +1,13 @@
 import type {
   AppData,
+  FeasibilityIssue,
   Schedule,
   Staff,
   ShiftType,
   ValidationIssue,
   ValidationSuggestion,
   Severity,
+  WeekdayIndex,
 } from '../types/domain';
 import { getDateKeysInMonth, getWeekdayIndex, isJapaneseHoliday, addDays } from '../utils/date';
 import { generateId } from '../utils/id';
@@ -140,6 +142,26 @@ function checkWeekdayRestriction(ctx: ValidationContext): ValidationIssue[] {
       if (isWorkingShift(st)) {
         issues.push(
           makeIssue('error', 'weekdayRestriction', `${staff.displayName}さんは勤務不可の曜日に${st!.name}が設定されています。`, {
+            date,
+            staffId: staff.id,
+          }),
+        );
+      }
+    }
+  }
+  return issues;
+}
+
+function checkUnavailableDateConflict(ctx: ValidationContext): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  for (const staff of ctx.activeStaff) {
+    for (const date of staff.unavailableDates) {
+      if (!ctx.dateKeys.includes(date)) continue;
+      const a = getAssignment(ctx.schedule, staff.id, date);
+      const st = shiftTypeById(ctx.data.shiftTypes, a?.shiftTypeId);
+      if (isWorkingShift(st)) {
+        issues.push(
+          makeIssue('error', 'unavailableDateConflict', `${staff.displayName}さんは${dateLabel(date)}を勤務不可日として提出していますが、${st!.name}が設定されています。`, {
             date,
             staffId: staff.id,
           }),
@@ -574,6 +596,7 @@ type RuleCheck = (ctx: ValidationContext) => ValidationIssue[];
 const RULES: RuleCheck[] = [
   checkDesiredOffConflict,
   checkWeekdayRestriction,
+  checkUnavailableDateConflict,
   checkNightIneligible,
   checkHeadcount,
   checkQualificationCoverage,
@@ -591,7 +614,7 @@ const RULES: RuleCheck[] = [
 ];
 
 export function validateSchedule(data: AppData, yearMonth: string): ValidationIssue[] {
-  const schedule = data.schedules[yearMonth] ?? { yearMonth, assignments: {} };
+  const schedule = data.schedules[yearMonth] ?? { yearMonth, assignments: {}, status: 'draft' as const, publishedAt: null };
   const dateKeys = getDateKeysInMonth(yearMonth);
   const activeStaff = data.staff.filter((s) => s.active);
   const ctx: ValidationContext = { data, yearMonth, schedule, dateKeys, activeStaff };
@@ -614,6 +637,56 @@ export function countBySeverity(issues: ValidationIssue[]): Record<Severity, num
     warning: issues.filter((i) => i.severity === 'warning').length,
     suggestion: issues.filter((i) => i.severity === 'suggestion').length,
   };
+}
+
+/**
+ * 自動作成の実行前に、現在の登録条件だけで各勤務帯の必要人数を満たせる可能性があるかを
+ * ざっくり確認する(無駄な自動計算・後からのエラー大量発生を事前に知らせるため)。
+ * 希望休のような「ソフトな希望」は考慮せず、曜日制限・勤務不可日・夜勤可否のような
+ * ハードな制約のみで機械的におおよその対応可能人数を数える簡易チェック。
+ */
+export function checkFeasibility(
+  data: AppData,
+  yearMonth: string,
+  scope: 'all' | 'nightOnly' = 'all',
+): FeasibilityIssue[] {
+  const dateKeys = getDateKeysInMonth(yearMonth);
+  const activeStaff = data.staff.filter((s) => s.active);
+  const issues: FeasibilityIssue[] = [];
+
+  for (const req of data.shiftRequirements) {
+    const shiftType = shiftTypeById(data.shiftTypes, req.shiftTypeId);
+    if (!shiftType) continue;
+    if (scope === 'nightOnly' && !shiftType.isNightShift) continue;
+
+    for (const date of dateKeys) {
+      const requiredCount = req.overrides[date] ?? req.defaultMinCount;
+      if (requiredCount <= 0) continue;
+      const weekday = getWeekdayIndex(date) as WeekdayIndex;
+
+      const eligibleCount = activeStaff.filter((s) => {
+        if (s.availability.restrictedWeekdays.includes(weekday)) return false;
+        if (s.unavailableDates.includes(date)) return false;
+        if (shiftType.isNightShift && data.facilityRules.nightShiftRestrictedToEligibleEnabled && !s.availability.canWorkNight) {
+          return false;
+        }
+        return true;
+      }).length;
+
+      if (eligibleCount < requiredCount) {
+        issues.push({
+          id: generateId('feas'),
+          date,
+          shiftTypeId: shiftType.id,
+          requiredCount,
+          eligibleCount,
+          message: `${dateLabel(date)} ${shiftType.name}：必要${requiredCount}名に対し、対応可能なスタッフが${eligibleCount}名しかいません。`,
+        });
+      }
+    }
+  }
+
+  return issues;
 }
 
 export { consecutiveWorkingDaysAt };

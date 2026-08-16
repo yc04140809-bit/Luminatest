@@ -4,7 +4,7 @@ import { getAssignment, shiftTypeById, isWorkingShift } from './scheduleHelpers'
 import { consecutiveWorkingDaysAt } from './validateSchedule';
 
 export function computeFairness(data: AppData, yearMonth: string): FairnessResult[] {
-  const schedule = data.schedules[yearMonth] ?? { yearMonth, assignments: {} };
+  const schedule = data.schedules[yearMonth] ?? { yearMonth, assignments: {}, status: 'draft' as const, publishedAt: null };
   const dateKeys = getDateKeysInMonth(yearMonth);
   const activeStaff = data.staff.filter((s) => s.active);
 

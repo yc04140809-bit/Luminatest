@@ -2,7 +2,7 @@ import type { AppData, Assignment, ShiftType, Staff, WeekdayIndex } from '../typ
 import { getDateKeysInMonth, getWeekdayIndex, isJapaneseHoliday, addDays } from '../utils/date';
 import { shiftTypeById, isWorkingShift } from './scheduleHelpers';
 
-export type AutoAssignMode = 'full' | 'fillEmpty';
+export type AutoAssignMode = 'full' | 'fillEmpty' | 'nightOnly';
 
 interface StaffStats {
   worked: number;
@@ -20,17 +20,22 @@ function findShiftType(shiftTypes: ShiftType[], predicate: (s: ShiftType) => boo
 
 /**
  * 簡易自動作成エンジン。完全最適化はせず、優先順位に従ってたたき台を生成する。
- * mode='full'   : ロックされたセル以外を全て再計算する
+ * mode='full'      : ロックされたセル以外を全て再計算する
  * mode='fillEmpty' : 既に入力済みのセル(値がある)は一切変更せず、空欄のみ埋める
+ * mode='nightOnly' : 段階作成モードのSTEP1。既存セルは一切変更せず、夜勤の必要人数だけを埋める。
+ *                    早番・日勤・遅番等は空欄のまま残すため、他の値で埋めない。
  */
 export function runAutoAssign(data: AppData, yearMonth: string, mode: AutoAssignMode): Assignment[] {
   const dateKeys = getDateKeysInMonth(yearMonth);
   const activeStaff = data.staff.filter((s) => s.active);
-  const schedule = data.schedules[yearMonth] ?? { yearMonth, assignments: {} };
+  const schedule = data.schedules[yearMonth] ?? { yearMonth, assignments: {}, status: 'draft' as const, publishedAt: null };
   const workingMap = new Map(Object.entries(schedule.assignments));
 
   const desiredOffShiftType =
     findShiftType(data.shiftTypes, (s) => s.id === 'st_kiboyasumi') ??
+    findShiftType(data.shiftTypes, (s) => s.isTimeOff);
+  const paidLeaveShiftType =
+    findShiftType(data.shiftTypes, (s) => s.id === 'st_yukyu') ??
     findShiftType(data.shiftTypes, (s) => s.isTimeOff);
   const defaultOffShiftType =
     findShiftType(data.shiftTypes, (s) => s.id === 'st_yasumi') ??
@@ -60,6 +65,7 @@ export function runAutoAssign(data: AppData, yearMonth: string, mode: AutoAssign
   function isEligible(staff: Staff, date: string, shiftType: ShiftType, conflictSetForShift: Set<string>): boolean {
     const weekday = getWeekdayIndex(date) as WeekdayIndex;
     if (staff.availability.restrictedWeekdays.includes(weekday)) return false;
+    if (staff.unavailableDates.includes(date)) return false;
     if (shiftType.isNightShift && !staff.availability.canWorkNight) return false;
     if (data.facilityRules.nightShiftRestrictedToEligibleEnabled && shiftType.isNightShift && !staff.availability.canWorkNight) {
       return false;
@@ -135,7 +141,7 @@ export function runAutoAssign(data: AppData, yearMonth: string, mode: AutoAssign
     for (const staff of activeStaff) {
       const key = keyOf(staff.id, date);
       const existing = workingMap.get(key);
-      if (mode === 'fillEmpty') {
+      if (mode === 'fillEmpty' || mode === 'nightOnly') {
         if (existing && existing.shiftTypeId) {
           dayFixed.add(staff.id);
         }
@@ -168,7 +174,7 @@ export function runAutoAssign(data: AppData, yearMonth: string, mode: AutoAssign
       }
     }
 
-    // 2) 希望休を優先反映
+    // 2) 希望休・有休希望を優先反映
     if (desiredOffShiftType) {
       for (const staff of [...pool]) {
         if (staff.desiredOffDates.includes(date)) {
@@ -177,14 +183,23 @@ export function runAutoAssign(data: AppData, yearMonth: string, mode: AutoAssign
         }
       }
     }
+    if (paidLeaveShiftType) {
+      for (const staff of [...pool]) {
+        if (staff.desiredPaidLeaveDates.includes(date)) {
+          workingMap.set(keyOf(staff.id, date), { staffId: staff.id, date, shiftTypeId: paidLeaveShiftType.id, locked: false });
+          pool = pool.filter((p) => p.id !== staff.id);
+        }
+      }
+    }
 
     const countForShift = (shiftTypeId: string) =>
       activeStaff.filter((s) => workingMap.get(keyOf(s.id, date))?.shiftTypeId === shiftTypeId).length;
 
-    // 3) 必要人数・資格配置を満たすように割当
+    // 3) 必要人数・資格配置を満たすように割当(段階作成STEP1では夜勤のみ対象にする)
     for (const req of shiftRequirementsSorted) {
       const shiftType = shiftTypeById(data.shiftTypes, req.shiftTypeId);
       if (!shiftType) continue;
+      if (mode === 'nightOnly' && !shiftType.isNightShift) continue;
       const minCount = req.overrides[date] ?? req.defaultMinCount;
       let currentCount = countForShift(shiftType.id);
       if (currentCount >= minCount) continue;
@@ -229,7 +244,8 @@ export function runAutoAssign(data: AppData, yearMonth: string, mode: AutoAssign
     }
 
     // 4) 残りは休みで埋める(fillEmptyでも空欄は必ず何かで埋める)
-    if (defaultOffShiftType) {
+    // ただし段階作成STEP1(夜勤のみ)では、早番・日勤・遅番等はSTEP2のために空欄のまま残す。
+    if (defaultOffShiftType && mode !== 'nightOnly') {
       for (const staff of pool) {
         workingMap.set(keyOf(staff.id, date), { staffId: staff.id, date, shiftTypeId: defaultOffShiftType.id, locked: false });
       }

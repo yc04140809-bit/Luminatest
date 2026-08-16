@@ -3,6 +3,7 @@ import { useAppStore } from '../../store/AppStore';
 import { computeFairness } from '../../engine/fairness';
 import { getDateKeysInMonth, getWeekdayIndex, isJapaneseHoliday, formatYearMonthLabel } from '../../utils/date';
 import { Badge } from '../ui/Badge';
+import { Card, CardBody } from '../ui/Card';
 import type { FairnessLevel } from '../../types/domain';
 
 const FAIRNESS_COLOR: Record<FairnessLevel, 'teal' | 'amber' | 'rose'> = {
@@ -48,12 +49,58 @@ export function ReportsPage({ yearMonth }: { yearMonth: string }) {
     return { staff, perShiftType, workedDays, saturday, sunday, holiday, fairnessResult };
   });
 
+  const nightFairnessTargets = rows.filter((r) => !r.staff.isNightSpecialist && r.staff.availability.canWorkNight);
+  const nightAverage =
+    nightFairnessTargets.length === 0
+      ? 0
+      : nightFairnessTargets.reduce((sum, r) => sum + (r.fairnessResult?.nightCount ?? 0), 0) / nightFairnessTargets.length;
+  const nightMax = Math.max(1, ...nightFairnessTargets.map((r) => r.fairnessResult?.nightCount ?? 0));
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       <div className="mb-4">
         <h1 className="text-xl font-bold text-slate-800">月次集計</h1>
         <p className="text-sm text-slate-400 mt-0.5">{formatYearMonthLabel(yearMonth)}のスタッフ別集計・公平性チェック</p>
       </div>
+
+      {nightFairnessTargets.length > 0 && (
+        <Card className="mb-4">
+          <CardBody>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-slate-700">公平性一覧(夜勤回数)</h2>
+              <span className="text-xs text-slate-400">平均 {nightAverage.toFixed(1)}回(夜勤専従・夜勤不可を除く)</span>
+            </div>
+            <div className="space-y-2">
+              {nightFairnessTargets
+                .slice()
+                .sort((a, b) => (b.fairnessResult?.nightCount ?? 0) - (a.fairnessResult?.nightCount ?? 0))
+                .map((r) => {
+                  const count = r.fairnessResult?.nightCount ?? 0;
+                  const pct = Math.round((count / nightMax) * 100);
+                  const overAverage = count - nightAverage > (data.facilityRules.fairnessToleranceCount ?? 2);
+                  return (
+                    <div key={r.staff.id} className="flex items-center gap-3">
+                      <span className="w-14 text-xs font-medium text-slate-600 shrink-0 truncate">{r.staff.displayName}</span>
+                      <div className="flex-1 h-4 rounded-full bg-slate-100 overflow-hidden relative">
+                        <div
+                          className={`h-full rounded-full transition-all ${overAverage ? 'bg-amber-500' : 'bg-teal-500'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                        <div
+                          className="absolute top-0 bottom-0 w-px bg-slate-400"
+                          style={{ left: `${Math.min(100, (nightAverage / nightMax) * 100)}%` }}
+                          title={`平均 ${nightAverage.toFixed(1)}回`}
+                        />
+                      </div>
+                      <span className={`w-10 text-xs font-bold text-right shrink-0 ${overAverage ? 'text-amber-600' : 'text-slate-600'}`}>{count}回</span>
+                    </div>
+                  );
+                })}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-3">縦線は全体平均を示します。平均より一定回数以上多いスタッフはオレンジ表示され、下の一覧に理由が表示されます。</p>
+          </CardBody>
+        </Card>
+      )}
 
       {activeStaff.length === 0 ? (
         <div className="text-center text-slate-400 py-20 bg-white rounded-2xl border border-slate-200">集計するデータがありません。</div>

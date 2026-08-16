@@ -45,6 +45,7 @@ type Action =
   | { type: 'UPSERT_DAY_NOTE'; item: DayNote }
   | { type: 'DELETE_DAY_NOTE'; id: string }
   | { type: 'ENSURE_SCHEDULE'; yearMonth: string }
+  | { type: 'SET_SCHEDULE_STATUS'; yearMonth: string; status: Schedule['status'] }
   | { type: 'SET_ASSIGNMENT'; yearMonth: string; staffId: string; date: string; shiftTypeId: string | null; pushHistory?: boolean }
   | { type: 'TOGGLE_LOCK'; yearMonth: string; staffId: string; date: string }
   | { type: 'BULK_SET_ASSIGNMENTS'; yearMonth: string; assignments: Assignment[] }
@@ -65,7 +66,7 @@ function emptyBootstrapData(): AppData {
 
 function ensureSchedule(data: AppData, yearMonth: string): AppData {
   if (data.schedules[yearMonth]) return data;
-  const schedule: Schedule = { yearMonth, assignments: {} };
+  const schedule: Schedule = { yearMonth, assignments: {}, status: 'draft', publishedAt: null };
   return { ...data, schedules: { ...data.schedules, [yearMonth]: schedule } };
 }
 
@@ -235,6 +236,24 @@ function reducer(state: StoreState, action: Action): StoreState {
       return { ...state, data: { ...state.data, dayNotes: state.data.dayNotes.filter((n) => n.id !== action.id) } };
     case 'ENSURE_SCHEDULE':
       return { ...state, data: ensureSchedule(state.data, action.yearMonth) };
+    case 'SET_SCHEDULE_STATUS': {
+      const data = ensureSchedule(state.data, action.yearMonth);
+      const schedule = data.schedules[action.yearMonth];
+      return {
+        ...state,
+        data: {
+          ...data,
+          schedules: {
+            ...data.schedules,
+            [action.yearMonth]: {
+              ...schedule,
+              status: action.status,
+              publishedAt: action.status === 'published' ? new Date().toISOString() : schedule.publishedAt,
+            },
+          },
+        },
+      };
+    }
     case 'SET_ASSIGNMENT': {
       let next = state;
       if (action.pushHistory !== false) {

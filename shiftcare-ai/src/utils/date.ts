@@ -27,6 +27,19 @@ export function getWeekdayIndex(dateKey: string): number {
   return new Date(y, m - 1, d).getDay();
 }
 
+/** 日曜始まりの週グリッド(前後月の空白セルはnull)を返す。カレンダー表示用。 */
+export function getCalendarWeeks(yearMonth: string): (string | null)[][] {
+  const dateKeys = getDateKeysInMonth(yearMonth);
+  const leadingBlanks = getWeekdayIndex(dateKeys[0]);
+  const cells: (string | null)[] = [...Array(leadingBlanks).fill(null), ...dateKeys];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks: (string | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+  return weeks;
+}
+
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
 export function getWeekdayLabel(dateKey: string): string {
   return WEEKDAY_LABELS[getWeekdayIndex(dateKey)];

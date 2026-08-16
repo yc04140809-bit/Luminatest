@@ -52,7 +52,11 @@ export interface Staff {
   availability: StaffAvailability;
   /** 希望休 (YYYY-MM-DD の配列) */
   desiredOffDates: string[];
-  /** 希望勤務 (日付 -> 希望する勤務種別ID) */
+  /** 有休希望 (YYYY-MM-DD の配列)。希望休と違い、有休消化を意図している */
+  desiredPaidLeaveDates: string[];
+  /** 勤務不可日 (YYYY-MM-DD の配列)。曜日制限と違い特定日をピンポイントで指定する強い制約 */
+  unavailableDates: string[];
+  /** 希望勤務 (日付 -> 希望する勤務種別ID。夜勤希望もここで対象勤務種別を夜勤にして表現する) */
   desiredWorkDates: Record<string, string>;
   note: string;
   active: boolean;
@@ -174,10 +178,25 @@ export interface Assignment {
 }
 
 /** 月間シフト(施設×年月 に対して1つ) */
+/** 公開ステータス。draft=作成中、review=確認待ち、published=スタッフへ公開済み */
+export type ScheduleStatus = 'draft' | 'review' | 'published';
+
 export interface Schedule {
   yearMonth: string; // "YYYY-MM"
   /** key: `${staffId}__${date}` */
   assignments: Record<string, Assignment>;
+  status: ScheduleStatus;
+  publishedAt: string | null;
+}
+
+/** 自動作成前の成立チェック結果 */
+export interface FeasibilityIssue {
+  id: string;
+  date: string;
+  shiftTypeId: string;
+  requiredCount: number;
+  eligibleCount: number;
+  message: string;
 }
 
 export interface ValidationSuggestion {
