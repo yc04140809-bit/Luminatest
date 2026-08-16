@@ -522,6 +522,41 @@ textarea{ font-family:inherit; }
    お祝いだと一目で分かるよう、他の一言よりわずかに強調するだけに
    留め、派手な演出は加えない。 */
 .kaosu-room-anniversary{ font-style:normal; font-weight:700; color:#ff6f9c; }
+/* Phase50: キャラクター感情表示。他の一言(斜体)と見分けやすいよう
+   斜体だけ解除する最小限の違いに留め、派手な演出は加えない。 */
+.kaosu-room-emotion{ font-style:normal; }
+
+/* Phase51: 環境エフェクト。画像/Canvas/重いライブラリは使わず、
+   絵文字1文字ずつをCSSアニメーション(@keyframes)だけで漂わせる
+   最軽量の実装。要素数は毎回3個までに絞り、位置と開始タイミングを
+   JS側でランダム化するだけで、動き自体はすべてCSSに任せている。
+   .kaosu-room-scene側で既にoverflow:hiddenが指定されているため、
+   お部屋の外へはみ出さない。 */
+.kaosu-room-fx{ position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+.kaosu-room-fx-item{
+  position:absolute; top:-12%; font-size:13px; opacity:0;
+  animation-name:kaosuFxDrift; animation-timing-function:linear; animation-iteration-count:infinite;
+  will-change:transform, opacity;
+}
+.kaosu-room-fx-item.kaosu-fx-twinkle{
+  top:8%; animation-name:kaosuFxTwinkle; animation-timing-function:ease-in-out;
+}
+@keyframes kaosuFxDrift{
+  0%{ transform:translate(0,0) rotate(0deg); opacity:0; }
+  12%{ opacity:.55; }
+  88%{ opacity:.45; }
+  100%{ transform:translate(16px,340%) rotate(20deg); opacity:0; }
+}
+@keyframes kaosuFxTwinkle{
+  0%,100%{ opacity:.15; }
+  50%{ opacity:.7; }
+}
+/* 低スペック端末やモーション抑制設定への配慮。アニメーションを止め、
+   代わりに控えめな固定の不透明度だけを残す。 */
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-fx-item{ animation:none; opacity:.35; }
+  .kaosu-room-fx-item.kaosu-fx-twinkle{ opacity:.4; }
+}
 
 /* 時間帯ごとの部屋の色味だけを切り替える(判定はgetRoomVisualBand()が
    行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。 */
@@ -883,6 +918,11 @@ textarea.field-input{ resize:none; }
            別関数に分けることで、既存ロジックには一切触れない。 -->
       <div class="kaosu-room" id="kaosuRoom">
         <div class="kaosu-room-scene" id="kaosuRoomScene">
+          <!-- Phase51: 環境エフェクト。背景層としてscene先頭に置き、
+               z-index:0で他の要素(window/character/badges/text、いずれも
+               z-index:1またはDOM順で後発)の下に敷く。中身は
+               renderKaosuRoomScene()が毎回書き換える読み込み専用の演出。 -->
+          <div class="kaosu-room-fx" id="kaosuRoomFx" aria-hidden="true"></div>
           <div class="kaosu-room-window"></div>
           <div class="kaosu-room-character">
             <div class="kaosu-avatar" style="width:84px;height:84px" id="kaosuRoomAvatar">
@@ -893,13 +933,16 @@ textarea.field-input{ resize:none; }
           <!-- Phase43: 日常生活システム。Phase44: 季節イベント。
                Phase46: 天気・気分。Phase45: おかえりメッセージ。
                Phase47: 今日の一言。Phase48: 継続記念(条件一致時のみ)。
-               Phase49: プレゼント演出。指示書どおりの表示順(生活シーン
-               →季節イベント→天気・空気感→おかえりメッセージ→今日の
-               一言→継続記念→プレゼント演出)でDOMに並べ、既存の吹き
-               出し挨拶(kaosu-room-greeting)を一番下に据え置く。いずれも
-               保存はせず、renderKaosuRoomScene()だけがテキストを
-               書き換える読み込み専用の装飾。既存のrerollKaosuRoom
-               Greeting()/switchView()には一切触れない。 -->
+               Phase49: プレゼント演出。Phase50: キャラクター感情。
+               Phase51: 環境エフェクト(kaosuRoomFxは背景層のため
+               scene先頭に配置、表示順の対象外)。指示書どおりの表示順
+               (生活シーン→季節イベント→天気・空気感→おかえり
+               メッセージ→今日の一言→継続記念→プレゼント演出→感情)
+               でDOMに並べ、既存の吹き出し挨拶(kaosu-room-greeting)を
+               一番下に据え置く。いずれも保存はせず、renderKaosuRoom
+               Scene()だけがテキストを書き換える読み込み専用の装飾。
+               既存のrerollKaosuRoomGreeting()/switchView()には一切
+               触れない。 -->
           <div class="kaosu-room-badges" id="kaosuRoomBadges">
             <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
             <p class="kaosu-room-activity" id="kaosuRoomSeason"></p>
@@ -909,6 +952,7 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome" id="kaosuRoomToday"></p>
           <p class="kaosu-room-welcome kaosu-room-anniversary" id="kaosuRoomAnniversary" style="display:none;"></p>
           <p class="kaosu-room-welcome" id="kaosuRoomPresent"></p>
+          <p class="kaosu-room-welcome kaosu-room-emotion" id="kaosuRoomEmotion"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
@@ -6645,6 +6689,50 @@ const PRESENT_MESSAGE_META = {
     { icon: "📖", label: "本" },
   ],
 };
+/* Phase50: キャラクター感情システム。ANNIVERSARY_MESSAGE_METAと同じ
+   test(ctx)方式を採用し、各候補が「どの条件のときに出せるか」を
+   pool(複数可)とセットで持たせている。renderKaosuRoomScene()側で
+   時間帯(band)・季節(season)に加え、Phase48が既に算出している
+   連続日数(streak)/累計会話数(chatCount)/親密度が新ステージに入った
+   直後か(freshlyLeveled)/親密度スナップショット(rel)も同じctxへ
+   まとめて渡すため、将来「親密度が高い時だけ出す感情」「記念日だけの
+   感情」等を足したい場合もこの配列に1件追加するだけで拡張できる
+   (今回はband/seasonのみを使用)。条件に一致した候補群のpoolをすべて
+   合成してから1件だけランダム表示する(=候補からランダム1件方式)。
+   内部状態は一切持たず、保存もしない完全な演出。 */
+const EMOTION_MESSAGE_META = [
+  { test: (ctx) => ctx.band === "morning", pool: ["😊 ごきげん", "🌸 今日も楽しみ"] },
+  { test: (ctx) => ctx.band === "day", pool: ["🤍 落ち着いてるよ", "😌 のんびり"] },
+  { test: (ctx) => ctx.band === "evening", pool: ["😌 のんびり", "🥰 あなたと一緒で嬉しい"] },
+  { test: (ctx) => ctx.band === "night", pool: ["🥰 あなたと一緒で嬉しい", "🤍 落ち着いてるよ"] },
+  { test: (ctx) => ctx.band === "midnight", pool: ["😴 少し眠たいかも"] },
+  { test: (ctx) => ctx.season === "spring", pool: ["🌸 今日も楽しみ"] },
+];
+/* Phase51: 環境エフェクトシステム。画像/Canvas/WebGL/重いライブラリは
+   使わず、絵文字1文字をCSSの@keyframesだけで漂わせる最軽量の演出。
+   各候補にtype("emoji"のみ実装)を持たせておくことで、将来Live2D/
+   GIF/WebGL/動画背景/パーティクルへ差し替える際は新しいtypeの候補を
+   追加し、renderKaosuRoomScene()側の描画分岐を1つ足すだけで済む
+   (未対応typeは現状のループが自動的に無視するため、追加だけで既存
+   動作を壊さない)。defaultは常時のプール、bandキーは時間帯限定で
+   上乗せするプール(例: 夜だけ星)という、既存のWEATHER_MESSAGE_META
+   等と同じ「defaultキー+将来キー追加」の構造。表示数は毎回3個までに
+   抑え、位置と開始タイミングだけをランダム化する(動き自体はCSS任せ)。 */
+const EFFECT_META = {
+  default: [
+    { type: "emoji", icon: "✨", cssClass: "", label: "小さな光" },
+    { type: "emoji", icon: "🍃", cssClass: "", label: "ゆっくり漂う葉" },
+    { type: "emoji", icon: "🌸", cssClass: "", label: "花びら" },
+    { type: "emoji", icon: "☁", cssClass: "", label: "柔らかな粒子" },
+    { type: "emoji", icon: "💫", cssClass: "", label: "キラキラ" },
+  ],
+  night: [
+    { type: "emoji", icon: "⭐", cssClass: "kaosu-fx-twinkle", label: "夜だけ星" },
+  ],
+  midnight: [
+    { type: "emoji", icon: "⭐", cssClass: "kaosu-fx-twinkle", label: "夜だけ星" },
+  ],
+};
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -6657,6 +6745,27 @@ async function renderKaosuRoomScene(now = new Date()){
 
   const month = now.getMonth() + 1;
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
+
+  /* Phase51: 環境エフェクト。背景層(kaosuRoomFx)の中身を毎回作り直す
+     だけで、アニメーションそのものはCSS(@keyframes)に任せる。現状
+     typeが"emoji"の候補のみ描画し、それ以外のtype(将来のLive2D/GIF/
+     WebGL等)は静かにスキップする(追加だけで拡張できる設計)。 */
+  const fxEl = document.getElementById("kaosuRoomFx");
+  if(fxEl){
+    const fxPool = [...(EFFECT_META.default || []), ...(EFFECT_META[band] || [])].filter(item => item.type === "emoji");
+    fxEl.innerHTML = "";
+    const fxCount = Math.min(3, fxPool.length);
+    for(let i = 0; i < fxCount; i++){
+      const item = fxPool[Math.floor(Math.random() * fxPool.length)];
+      const span = document.createElement("span");
+      span.className = `kaosu-room-fx-item ${item.cssClass || ""}`.trim();
+      span.textContent = item.icon;
+      span.style.left = `${10 + Math.random() * 80}%`;
+      span.style.animationDelay = `${(Math.random() * 6).toFixed(2)}s`;
+      span.style.animationDuration = `${(8 + Math.random() * 5).toFixed(2)}s`;
+      fxEl.appendChild(span);
+    }
+  }
 
   /* 生活シーン(Phase43)/季節イベント(Phase44)/天気・気分(Phase46)/
      おかえりメッセージ(Phase45)/今日の一言(Phase47)/プレゼント演出
@@ -6684,17 +6793,25 @@ async function renderKaosuRoomScene(now = new Date()){
     el.style.display = badge ? "inline-flex" : "block";
   });
 
+  /* Phase48の節目判定(streak/chatCount/freshlyLeveled)は、Phase50の
+     感情システムにとっても「親密度/連続日数」といった将来の条件分岐
+     材料になり得るため、両者で1つのctxオブジェクトとして共有する。
+     ANNIVERSARY_MESSAGE_Metaのtestはこれまでどおりctxのうちstreak/
+     chatCount/freshlyLeveledしか参照しないため、band/season/relという
+     追加キーが混ざっても動作は変わらない(既存挙動を壊さない拡張)。 */
+  const streak = computeActivityStreakDays(now);
+  let chatCount = 0;
+  try{ chatCount = (await ChatStore.getAll()).filter(m => m.role === "user").length; }catch(e){ chatCount = 0; }
+  const rel = relationshipRead();
+  const freshlyLeveled = !!(rel && typeof rel.level === "number" && typeof rel.exp === "number" && (rel.exp - relationshipLevelStart(rel.level)) < 10);
+  const ctx = { band, season, streak, chatCount, freshlyLeveled, rel };
+
   /* Phase48: 継続記念。条件に1件も一致しなければ非表示のまま
      (通常日は表示しない)。複数一致した場合は、その中からランダムに
      1件だけ選ぶ(既存と同じ「候補からランダム1件」方式)。 */
   const anniversaryEl = document.getElementById("kaosuRoomAnniversary");
   if(anniversaryEl){
-    const streak = computeActivityStreakDays(now);
-    let chatCount = 0;
-    try{ chatCount = (await ChatStore.getAll()).filter(m => m.role === "user").length; }catch(e){ chatCount = 0; }
-    const rel = relationshipRead();
-    const freshlyLeveled = !!(rel && typeof rel.level === "number" && typeof rel.exp === "number" && (rel.exp - relationshipLevelStart(rel.level)) < 10);
-    const matched = ANNIVERSARY_MESSAGE_META.filter(a => a.test({ streak, chatCount, freshlyLeveled }));
+    const matched = ANNIVERSARY_MESSAGE_META.filter(a => a.test(ctx));
     if(matched.length){
       anniversaryEl.textContent = matched[Math.floor(Math.random() * matched.length)].message;
       anniversaryEl.style.display = "block";
@@ -6713,6 +6830,19 @@ async function renderKaosuRoomScene(now = new Date()){
       presentEl.style.display = "block";
     }else{
       presentEl.style.display = "none";
+    }
+  }
+
+  /* Phase50: キャラクター感情。条件に一致した候補群のpoolを合成し、
+     そこから1件だけランダム表示する。内部状態は持たず保存もしない。 */
+  const emotionEl = document.getElementById("kaosuRoomEmotion");
+  if(emotionEl){
+    const emotionPool = EMOTION_MESSAGE_META.filter(e => e.test(ctx)).flatMap(e => e.pool);
+    if(emotionPool.length){
+      emotionEl.textContent = emotionPool[Math.floor(Math.random() * emotionPool.length)];
+      emotionEl.style.display = "block";
+    }else{
+      emotionEl.style.display = "none";
     }
   }
 }
