@@ -1986,6 +1986,29 @@ textarea.field-input{ resize:none; }
             <button type="button" class="filterbtn" id="btnSettingsClearCancel">キャンセル</button>
           </div>
         </div>
+
+        <!-- Phase69: バックアップ/復元/初期化。会話履歴・名前・設定・
+             キャラクター状態(話し方/ホームモード)・感情状態(関係性)
+             のみを対象とし、わくわく/家族/通知履歴など今回の対象外
+             データは含めない(必要な保存データのみ)。 -->
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+          <button type="button" class="btn-text" id="btnSettingsBackupExport">📤 データをバックアップ(JSON)</button>
+          <br>
+          <button type="button" class="btn-text" id="btnSettingsBackupImport">📥 バックアップから復元する</button>
+          <input type="file" id="settingsBackupFileInput" accept="application/json,.json" style="display:none;">
+          <p id="settingsBackupErrorText" class="view-sub" style="display:none; color:#e0607a; margin:8px 0 0;"></p>
+        </div>
+
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+          <button type="button" class="btn-text" id="btnSettingsResetAll" style="color:#e0607a;">⚠️ すべてのデータを初期化する</button>
+          <div id="settingsResetConfirmRow" style="display:none; background:var(--peach-soft); border-radius:var(--radius-sm); padding:10px 12px; margin-top:10px; font-size:13px;">
+            <p style="margin-bottom:8px;">名前・設定・会話履歴・キャラクター状態を<br>全部初期状態に戻しますか？<br>この操作は取り消せません。</p>
+            <div class="chip-row">
+              <button type="button" class="filterbtn" id="btnSettingsResetConfirm">初期化する</button>
+              <button type="button" class="filterbtn" id="btnSettingsResetCancel">キャンセル</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -11545,6 +11568,125 @@ document.getElementById("btnSettingsClearConfirm").addEventListener("click", asy
 });
 document.getElementById("btnOpenSettingsFromMind").addEventListener("click", () => {
   switchView("settings");
+});
+
+/* =========================================================
+   Phase69: データ管理(JSONバックアップ/復元/初期化)
+   - 対象は会話履歴(ChatStore)・名前・設定・キャラクター状態(話し方/
+     ホームモード)・感情状態(関係性)の5カテゴリのみ(必要な保存データ
+     のみ)。わくわく/家族/通知履歴/アンケート/一歩ログはPhase69の
+     指示範囲外のため対象外のまま維持する。
+   - IndexedDBの構造(バージョン/ストア)は変更しない。ChatStoreへの
+     読み書きも既存メソッド(getAll/clear/add)を使うだけで、Phase68の
+     clearChatHistoryNow()と同じ範囲に留めている。
+   ========================================================= */
+const KAOSU_BACKUP_VERSION = 1;
+async function buildKaosuBackupPayload(){
+  let chatHistory = [];
+  try{ chatHistory = await ChatStore.getAll(); }catch(e){ chatHistory = []; }
+  return {
+    kaosuBackupVersion: KAOSU_BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    name: prefNameGet(),
+    settings: settingsRead(),
+    notificationMode: notificationModeGet(),
+    characterState: {
+      speechStyle: speechStyleGet(),
+      activeMode: homeModeGet(),
+    },
+    emotionState: {
+      relationship: relationshipRead(),
+    },
+    chatHistory,
+  };
+}
+/* 壊れたJSONを読み込まないための最低限の型チェック。個々のフィールドは
+   将来項目が増えても後方互換になるよう、適用側(applyKaosuBackupPayload)
+   で1つずつ存在チェックしてから使う。ここでは「そもそもこのアプリの
+   バックアップとして解釈できる形か」だけを見る。 */
+function isValidKaosuBackupPayload(obj){
+  return !!obj && typeof obj === "object" && typeof obj.kaosuBackupVersion === "number" && Array.isArray(obj.chatHistory);
+}
+async function applyKaosuBackupPayload(payload){
+  if(typeof payload.name === "string") prefNameSet(payload.name);
+  if(payload.settings && typeof payload.settings === "object") settingsWrite(payload.settings);
+  if(typeof payload.notificationMode === "string") notificationModeSet(payload.notificationMode);
+  if(payload.characterState && typeof payload.characterState === "object"){
+    if(typeof payload.characterState.speechStyle === "string") speechStyleSet(payload.characterState.speechStyle);
+    if(typeof payload.characterState.activeMode === "string") homeModeSet(payload.characterState.activeMode);
+  }
+  if(payload.emotionState && payload.emotionState.relationship && typeof payload.emotionState.relationship === "object"){
+    relationshipWrite(payload.emotionState.relationship);
+  }
+  try{ await ChatStore.clear(); }catch(e){ /* 空履歴として復元を続行する */ }
+  if(Array.isArray(payload.chatHistory)){
+    for(const msg of payload.chatHistory){
+      if(msg && typeof msg === "object" && msg.id){
+        try{ await ChatStore.add(msg); }catch(e){ /* 壊れた1件だけ読み飛ばす */ }
+      }
+    }
+  }
+}
+function downloadKaosuBackupFile(payload){
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `koufuku-ai-backup-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+document.getElementById("btnSettingsBackupExport").addEventListener("click", async () => {
+  const payload = await buildKaosuBackupPayload();
+  downloadKaosuBackupFile(payload);
+  showToast("バックアップを書き出したよ");
+});
+document.getElementById("btnSettingsBackupImport").addEventListener("click", () => {
+  document.getElementById("settingsBackupErrorText").style.display = "none";
+  document.getElementById("settingsBackupFileInput").click();
+});
+document.getElementById("settingsBackupFileInput").addEventListener("change", async (ev) => {
+  const errEl = document.getElementById("settingsBackupErrorText");
+  errEl.style.display = "none";
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if(!file) return;
+  let payload = null;
+  try{
+    const text = await file.text();
+    payload = JSON.parse(text);
+  }catch(e){
+    payload = null;
+  }
+  if(!isValidKaosuBackupPayload(payload)){
+    errEl.textContent = "このファイルは読み込めなかったよ。壊れているか、バックアップ用のJSONじゃないみたい。";
+    errEl.style.display = "block";
+    return;
+  }
+  await applyKaosuBackupPayload(payload);
+  showToast("バックアップから復元したよ");
+  location.reload();
+});
+document.getElementById("btnSettingsResetAll").addEventListener("click", () => {
+  document.getElementById("settingsResetConfirmRow").style.display = "block";
+});
+document.getElementById("btnSettingsResetCancel").addEventListener("click", () => {
+  document.getElementById("settingsResetConfirmRow").style.display = "none";
+});
+document.getElementById("btnSettingsResetConfirm").addEventListener("click", async () => {
+  document.getElementById("settingsResetConfirmRow").style.display = "none";
+  try{ localStorage.removeItem(PREFERRED_NAME_KEY); }catch(e){}
+  try{ localStorage.removeItem(SETTINGS_KEY); }catch(e){}
+  try{ localStorage.removeItem(NOTIFICATION_MODE_KEY); }catch(e){}
+  try{ localStorage.removeItem(SPEECH_STYLE_KEY); }catch(e){}
+  try{ localStorage.removeItem(HOME_MODE_KEY); }catch(e){}
+  try{ localStorage.removeItem(RELATIONSHIP_STORAGE_KEY); }catch(e){}
+  try{ await ChatStore.clear(); }catch(e){}
+  showToast("初期状態に戻したよ");
+  location.reload();
 });
 
 /* =========================================================
