@@ -19,7 +19,7 @@
  *
  * 必要な環境変数 (Vercel Project Settings > Environment Variables):
  *   ANTHROPIC_API_KEY  (必須) Anthropic Consoleで発行したAPIキー
- *   ANTHROPIC_MODEL    (任意) 未設定時は既定モデルを使用
+ *   ANTHROPIC_MODEL    (任意) 未設定時は既定モデル(claude-sonnet-4)を使用
  *   KAOSU_ALLOWED_ORIGIN (任意) CORSで許可するオリジンを追加/上書きしたい場合のみ
  */
 
@@ -31,7 +31,7 @@ async function callAnthropic({ system, userMessages, timeoutMs }) {
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY is not configured");
   }
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4";
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -163,6 +163,14 @@ module.exports = async function handler(req, res) {
     debugLog("ok", "intent=" + (body.intent || "unknown"), "latencyMs=" + (Date.now() - startedAt));
     res.status(200).json({ reply });
   } catch (error) {
+    // API失敗時は常にVercelのFunction Logsへ原因を出す(デバッグフラグに
+    // 関係なく)。出すのはエラーメッセージのみ。APIキー・Authorization
+    // Header・USER CONTEXTの中身は一切含めない。
+    console.error(
+      "[kaosu-chat] Anthropic API call failed",
+      "intent=" + (body.intent || "unknown"),
+      String(error && error.message)
+    );
     debugLog("error", "intent=" + (body.intent || "unknown"), String(error && error.message));
     res.status(502).json({ error: "ai_upstream_failed" });
   }
