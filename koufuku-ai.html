@@ -562,8 +562,22 @@ textarea{ font-family:inherit; }
   position:relative; overflow:hidden; flex:1; min-height:0; height:100%;
   padding:calc(18px + env(safe-area-inset-top)) 16px 18px;
   display:flex; flex-direction:column;
-  background-size:cover; background-position:center;
+  background-size:108% 108%; background-position:50% 50%;
   transition:background .8s ease;
+  animation:kaosuRoomBgDrift calc(50s * var(--kaosu-motion-speed, 1)) ease-in-out infinite alternate;
+}
+/* Phase22.4: 「部屋の中にいる」感覚を強めるための、ごくゆっくりした
+   背景の呼吸(軽いズーム/パララックス相当)。背景(このscene自身の
+   background)とキャラクター(.kaosu-breathe、5秒周期)の動きの速さを
+   意図的にずらすことで、奥行き(パララックス)のある空間として感じ
+   られるようにする。50秒という長い周期・微小な変化量(108%⇔100%)の
+   ため、動いていることに気づかない程度の「生きている背景」に留める。 */
+@keyframes kaosuRoomBgDrift{
+  0%{ background-size:108% 108%; background-position:50% 46%; }
+  100%{ background-size:100% 100%; background-position:50% 52%; }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-scene{ animation:none; }
 }
 /* Phase22.3: window/character/一言/挨拶をまとめて縦方向いっぱいに
    広げつつ中央寄せする「舞台」。下のkaosu-room-actions(CTAボタン)は
@@ -575,20 +589,39 @@ textarea{ font-family:inherit; }
 /* Phase22: 部屋全体にごく淡いガラス質感を足す(内側ハイライト+微細な
    ノイズ代わりの二重グラデーション)。派手にならないよう不透明度は
    低く抑える。既存のkaosu-lighting-*(::after、時間帯の光)とは別の
-   ::before疑似要素のため、重ね順・挙動とも干渉しない。 */
+   ::before疑似要素のため、重ね順・挙動とも干渉しない。
+   Phase22.4: 「微細な光エフェクト」としてごくゆっくり明滅させる。 */
 .kaosu-room-scene::before{
   content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
   background:radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,.35), transparent 60%);
   mix-blend-mode:soft-light;
+  animation:kaosuRoomGlowPulse calc(9s * var(--kaosu-motion-speed, 1)) ease-in-out infinite;
+}
+@keyframes kaosuRoomGlowPulse{
+  0%, 100%{ opacity:.75; }
+  50%{ opacity:1; }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-scene::before{ animation:none; }
 }
 /* ホーム画面リニューアル(部屋イラスト差し替え対応): 実際の背景イラスト
-   (img/koufuku/room/bg-*.webp)がまだ存在しない間は、この<img>が
+   (img/koufuku/room/bg-<時間帯>.webp)がまだ存在しない間は、この<img>が
    onerrorでdisplay:noneになり、上のCSSグラデーション背景がそのまま
    透けて見えるだけなので、素材が無くても壊れて見えない。実素材を
-   置いた瞬間、CSS/JSを一切変更せずにイラスト背景へ自動的に切り替わる。 */
+   置いた瞬間、CSS/JSを一切変更せずにイラスト背景へ自動的に切り替わる。
+   Phase22.4: 実素材が入った時のために、ごくゆっくりしたKen Burns風の
+   ズームも同じ思想(素材が無くても壊れない)で先に仕込んでおく。 */
 .kaosu-room-bg-img{
   position:absolute; inset:0; width:100%; height:100%;
   object-fit:cover; z-index:0; opacity:.94;
+  animation:kaosuRoomBgImgZoom calc(60s * var(--kaosu-motion-speed, 1)) ease-in-out infinite alternate;
+}
+@keyframes kaosuRoomBgImgZoom{
+  0%{ transform:scale(1); }
+  100%{ transform:scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-bg-img{ animation:none; }
 }
 /* CMS対応: 部屋の育成(家具/装飾)。既定はfurniture.itemsが空のため
    コンテナ自体は何も描画しない(サイズ0のまま=見た目に影響なし)。
@@ -621,11 +654,22 @@ textarea{ font-family:inherit; }
    よう、この要素自体のz-indexを0にしてDOM順(fx→window→character)で
    自然に間へ挟まる。 */
 .kaosu-room-character::before{
-  content:""; position:absolute; z-index:0; left:50%; top:52%;
-  width:min(78vw, 340px); height:min(78vw, 340px);
+  content:""; position:absolute; z-index:0; left:50%; top:50%;
+  width:min(94vw, 420px); height:min(94vw, 420px);
   transform:translate(-50%,-50%);
   background:radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(255,220,240,.28) 45%, transparent 72%);
   filter:blur(2px);
+  pointer-events:none;
+}
+/* Phase22.4: 「高級キャラクターゲームのホーム画面」に近づけるため、
+   キャラクターの存在感をさらに強める(画面高さの約60〜70%を占める
+   サイズへ拡大)。足元には柔らかい接地シャドウ(::after、新規画像
+   なしのCSSのみ)を敷き、背景に浮いて見えないようにする。 */
+.kaosu-room-character::after{
+  content:""; position:absolute; z-index:0; left:50%; bottom:2%;
+  width:min(46vw, 220px); height:14px;
+  transform:translateX(-50%);
+  background:radial-gradient(ellipse, rgba(15,8,28,.4) 0%, rgba(15,8,28,0) 72%);
   pointer-events:none;
 }
 /* Phase22: ケイオスちゃんの本体表示を「小さな丸アイコン」から「部屋の
@@ -636,7 +680,7 @@ textarea{ font-family:inherit; }
    ID指定で上書きし、イラスト全体が見えるcontain+透明背景に変える。 */
 #kaosuRoomAvatar{
   position:relative; z-index:1;
-  width:min(66vw, 300px); height:min(50vh, 420px);
+  width:min(88vw, 400px); height:min(68vh, 620px);
   border-radius:0; background:transparent; box-shadow:none;
 }
 /* 既存アセット(kaosu-home.webp等)は正方形・背景色ベタ塗りのバスト
