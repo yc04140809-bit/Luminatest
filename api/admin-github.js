@@ -1,16 +1,23 @@
 /**
  * ケイオスちゃん 管理画面(CMS) 用 BFF (Vercel Serverless Function)
  *
- * admin.html はコード変更なしにホーム画面の見た目(部屋背景/ケイオスちゃんの
- * 立ち絵・配置/家具)を編集するための静的な操作画面で、秘密鍵は一切持たない。
- * ここが唯一「GitHubリポジトリへの書き込み権限」を持つ場所で、admin.html
- * からのリクエストをGitHub Contents APIへ中継し、img/koufuku/room/ 以下の
- * 画像ファイルと room-config.json を直接コミットする。
+ * 「Lumina事業部」として今後 部屋/ケイオスちゃん/演出/家具/季節イベント/
+ * BGM/エフェクト/セリフ・会話/テーマ/お知らせ、といったモジュールを
+ * 増やしていく前提のため、この関数は特定の機能に紐づいた専用エンドポイント
+ * ではなく、「許可されたディレクトリ配下のJSON設定ファイルと画像/音声
+ * アセットを読み書きするだけの、汎用コンテンツAPI」として設計している。
+ * 新しいCMSモジュールを追加するときは、この関数もadmin.htmlのコードも
+ * 変更せず、data/cms/ 以下に新しいJSONファイルを1つ増やすだけでよい。
+ *
+ * admin.html はコード変更なしにホーム画面の見た目を編集するための静的な
+ * 操作画面で、秘密鍵は一切持たない。ここが唯一「GitHubリポジトリへの
+ * 書き込み権限」を持つ場所で、admin.htmlからのリクエストをGitHub Contents
+ * APIへ中継する。
  *
  * 保存の仕組み:
  *   admin.html → (この関数) → GitHub Contents API でコミット
  *     → 既存の .github/workflows/deploy-mvp-pages.yml が
- *       (paths: img/koufuku/** に room-config.json も含まれるため)
+ *       (paths: img/koufuku/**, data/cms/** を含むため)
  *       自動的にGitHub Pagesを再デプロイ → 数十秒〜1分程度でホーム画面に反映
  *
  * 必要な環境変数 (Vercel Project Settings > Environment Variables):
@@ -29,10 +36,18 @@
  *                        デプロイ元ブランチと必ず一致させること)。
  */
 
-const ROOM_DIR = "img/koufuku/room";
-const CONFIG_PATH = `${ROOM_DIR}/room-config.json`;
-const ALLOWED_IMAGE_EXT = [".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg"];
-const MAX_BASE64_LEN = 4_000_000; // 概ね3MB程度の画像までを許容(Vercel関数のリクエストボディ上限に収める)
+// ===== 書き込みを許可するディレクトリ/ファイルの一覧(ここが唯一の
+// 「新しいモジュールを追加するときに触る場所」)。新モジュール用の
+// JSONファイルは常に data/cms/ 配下に置く運用にすることで、この配列に
+// 1行足すだけで済むようにしてある。 =====
+const ASSET_DIRS = {
+  "img/koufuku/room": { exts: [".webp", ".png", ".jpg", ".jpeg", ".gif", ".svg"] },
+  "audio/koufuku": { exts: [".mp3", ".ogg", ".wav", ".m4a"] },
+};
+const FIXED_JSON_PATHS = ["img/koufuku/room/room-config.json"];
+const JSON_DIR_PREFIX = "data/cms/";
+const MAX_BASE64_LEN = 6_000_000; // 概ね4.5MB程度のファイルまでを許容(Vercel関数のリクエストボディ上限に収める)
+const MAX_JSON_LEN = 500_000; // 設定ファイル1つあたりの上限(壊れたデータの混入を防ぐ簡易ガード)
 
 function buildAllowedOrigins() {
   const origins = [
@@ -107,47 +122,57 @@ async function githubApi(path, { method = "GET", body, timeoutMs = 10000 } = {})
   }
 }
 
-function isSafeFilename(name) {
-  if (typeof name !== "string" || !name) return false;
-  if (name.includes("/") || name.includes("\\") || name.includes("..")) return false;
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9_\-.]*$/.test(name)) return false;
-  const ext = name.slice(name.lastIndexOf(".")).toLowerCase();
-  return ALLOWED_IMAGE_EXT.includes(ext);
+function isSafeBasename(name) {
+  return typeof name === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_\-.]*$/.test(name) && !name.includes("..");
 }
 
-function isValidRoomConfig(config) {
-  return (
-    config &&
-    typeof config === "object" &&
-    typeof config.configVersion === "number" &&
-    config.background &&
-    typeof config.background === "object" &&
-    config.character &&
-    typeof config.character === "object" &&
-    config.character.poses &&
-    typeof config.character.poses === "object" &&
-    config.entranceAnimations &&
-    Array.isArray(config.entranceAnimations.items) &&
-    config.furniture &&
-    Array.isArray(config.furniture.items)
-  );
+function extOf(name) {
+  const i = name.lastIndexOf(".");
+  return i >= 0 ? name.slice(i).toLowerCase() : "";
 }
 
-// ===== 各actionの実装 =====
+// アセット(画像/音声)用ディレクトリの妥当性チェック。ここで許可した
+// ディレクトリ以外へは、admin.html側が何を送ってきても書き込めない。
+function resolveAssetDir(dir) {
+  if (typeof dir !== "string") return null;
+  const clean = dir.replace(/\/+$/, "");
+  return ASSET_DIRS[clean] ? clean : null;
+}
 
-async function actionListImages() {
+// JSON設定ファイルのパスの妥当性チェック。room-config.json(既存・固定)
+// か、data/cms/ 配下の *.json (新モジュール用、拡張し放題) のみ許可する。
+function isAllowedJsonPath(path) {
+  if (typeof path !== "string") return false;
+  if (FIXED_JSON_PATHS.includes(path)) return true;
+  if (!path.startsWith(JSON_DIR_PREFIX)) return false;
+  if (!path.endsWith(".json")) return false;
+  if (path.includes("..")) return false;
+  const basename = path.slice(JSON_DIR_PREFIX.length, -".json".length);
+  return /^[a-zA-Z0-9_\-]+$/.test(basename);
+}
+
+// ===== 各actionの実装(すべて汎用) =====
+
+async function actionListFiles(payload) {
+  const dir = resolveAssetDir(payload && payload.dir);
+  if (!dir) {
+    const err = new Error("invalid or disallowed dir");
+    err.code = "invalid_dir";
+    throw err;
+  }
   const repo = getRepo();
   const branch = getBranch();
   let entries;
   try {
-    entries = await githubApi(`/repos/${repo}/contents/${ROOM_DIR}?ref=${encodeURIComponent(branch)}`);
+    entries = await githubApi(`/repos/${repo}/contents/${dir}?ref=${encodeURIComponent(branch)}`);
   } catch (e) {
-    if (e.status === 404) return { images: [] };
+    if (e.status === 404) return { files: [] };
     throw e;
   }
+  const allowedExts = ASSET_DIRS[dir].exts;
   const list = Array.isArray(entries) ? entries : [];
-  const images = list
-    .filter((it) => it.type === "file" && it.name !== "room-config.json" && isSafeFilename(it.name))
+  const files = list
+    .filter((it) => it.type === "file" && isSafeBasename(it.name) && allowedExts.includes(extOf(it.name)))
     .map((it) => ({
       name: it.name,
       path: it.path,
@@ -155,31 +180,57 @@ async function actionListImages() {
       size: it.size,
       url: `https://raw.githubusercontent.com/${repo}/${branch}/${it.path}`,
     }));
-  return { images };
+  return { files };
 }
 
-async function actionGetConfig() {
-  const repo = getRepo();
-  const branch = getBranch();
-  const data = await githubApi(`/repos/${repo}/contents/${CONFIG_PATH}?ref=${encodeURIComponent(branch)}`);
-  const content = Buffer.from(data.content, data.encoding || "base64").toString("utf-8");
-  const config = JSON.parse(content);
-  return { config, sha: data.sha };
-}
-
-async function actionSaveConfig(payload) {
-  if (!payload || !isValidRoomConfig(payload.config)) {
-    const err = new Error("invalid room-config payload");
-    err.code = "invalid_config";
+async function actionGetJson(payload) {
+  const path = payload && payload.path;
+  if (!isAllowedJsonPath(path)) {
+    const err = new Error("invalid or disallowed json path");
+    err.code = "invalid_path";
     throw err;
   }
   const repo = getRepo();
   const branch = getBranch();
-  const contentBase64 = Buffer.from(JSON.stringify(payload.config, null, 2) + "\n", "utf-8").toString("base64");
-  const result = await githubApi(`/repos/${repo}/contents/${CONFIG_PATH}`, {
+  try {
+    const data = await githubApi(`/repos/${repo}/contents/${path}?ref=${encodeURIComponent(branch)}`);
+    const content = Buffer.from(data.content, data.encoding || "base64").toString("utf-8");
+    return { content: JSON.parse(content), sha: data.sha };
+  } catch (e) {
+    // まだファイルが存在しないモジュール(新規追加直後など)は、エラーに
+    // せずcontent:nullを返す。どんな既定値を使うかはフロント側(モジュール
+    // ごとのスキーマ)の責務とし、この関数はあくまで汎用のまま保つ。
+    if (e.status === 404) return { content: null, sha: null };
+    throw e;
+  }
+}
+
+async function actionSaveJson(payload) {
+  const path = payload && payload.path;
+  if (!isAllowedJsonPath(path)) {
+    const err = new Error("invalid or disallowed json path");
+    err.code = "invalid_path";
+    throw err;
+  }
+  const content = payload && payload.content;
+  if (content === undefined || content === null || typeof content !== "object") {
+    const err = new Error("content must be a JSON object or array");
+    err.code = "invalid_content";
+    throw err;
+  }
+  const serialized = JSON.stringify(content, null, 2) + "\n";
+  if (serialized.length > MAX_JSON_LEN) {
+    const err = new Error("config too large");
+    err.code = "too_large";
+    throw err;
+  }
+  const repo = getRepo();
+  const branch = getBranch();
+  const contentBase64 = Buffer.from(serialized, "utf-8").toString("base64");
+  const result = await githubApi(`/repos/${repo}/contents/${path}`, {
     method: "PUT",
     body: {
-      message: "chore(admin): update room-config.json via admin panel",
+      message: `chore(admin): update ${path} via admin panel`,
       content: contentBase64,
       sha: payload.sha || undefined,
       branch,
@@ -191,10 +242,18 @@ async function actionSaveConfig(payload) {
   };
 }
 
-async function actionUploadImage(payload) {
+async function actionUploadFile(payload) {
+  const dir = resolveAssetDir(payload && payload.dir);
+  if (!dir) {
+    const err = new Error("invalid or disallowed dir");
+    err.code = "invalid_dir";
+    throw err;
+  }
   const filename = payload && payload.filename;
-  if (!isSafeFilename(filename)) {
-    const err = new Error("invalid filename (allowed: letters/numbers/-_. and " + ALLOWED_IMAGE_EXT.join("/") + ")");
+  if (!isSafeBasename(filename) || !ASSET_DIRS[dir].exts.includes(extOf(filename))) {
+    const err = new Error(
+      "invalid filename (allowed for this dir: letters/numbers/-_. and " + ASSET_DIRS[dir].exts.join("/") + ")"
+    );
     err.code = "invalid_filename";
     throw err;
   }
@@ -205,13 +264,13 @@ async function actionUploadImage(payload) {
     throw err;
   }
   if (contentBase64.length > MAX_BASE64_LEN) {
-    const err = new Error("image too large (please keep uploads under ~3MB)");
+    const err = new Error("file too large (please keep uploads under ~4.5MB)");
     err.code = "too_large";
     throw err;
   }
   const repo = getRepo();
   const branch = getBranch();
-  const path = `${ROOM_DIR}/${filename}`;
+  const path = `${dir}/${filename}`;
   const result = await githubApi(`/repos/${repo}/contents/${path}`, {
     method: "PUT",
     body: {
@@ -229,30 +288,30 @@ async function actionUploadImage(payload) {
   };
 }
 
-async function actionDeleteImage(payload) {
-  const filename = payload && payload.filename;
-  if (!isSafeFilename(filename)) {
-    const err = new Error("invalid filename");
-    err.code = "invalid_filename";
+async function actionDeleteFile(payload) {
+  const path = payload && payload.path;
+  const dir = path && path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  if (!resolveAssetDir(dir)) {
+    const err = new Error("invalid or disallowed path");
+    err.code = "invalid_path";
     throw err;
   }
   if (!payload.sha) {
-    const err = new Error("sha is required to delete (re-fetch listImages first)");
+    const err = new Error("sha is required to delete (re-fetch listFiles first)");
     err.code = "missing_sha";
     throw err;
   }
   const repo = getRepo();
   const branch = getBranch();
-  const path = `${ROOM_DIR}/${filename}`;
   await githubApi(`/repos/${repo}/contents/${path}`, {
     method: "DELETE",
     body: {
-      message: `chore(admin): delete ${filename} via admin panel`,
+      message: `chore(admin): delete ${path} via admin panel`,
       sha: payload.sha,
       branch,
     },
   });
-  return { deleted: filename };
+  return { deleted: path };
 }
 
 // GitHub Pagesの自動デプロイが完了したかどうかを、直近のワークフロー実行から
@@ -305,20 +364,20 @@ module.exports = async function handler(req, res) {
       case "ping":
         result = { ok: true };
         break;
-      case "listImages":
-        result = await actionListImages();
+      case "listFiles":
+        result = await actionListFiles(body);
         break;
-      case "getConfig":
-        result = await actionGetConfig();
+      case "getJson":
+        result = await actionGetJson(body);
         break;
-      case "saveConfig":
-        result = await actionSaveConfig(body);
+      case "saveJson":
+        result = await actionSaveJson(body);
         break;
-      case "uploadImage":
-        result = await actionUploadImage(body);
+      case "uploadFile":
+        result = await actionUploadFile(body);
         break;
-      case "deleteImage":
-        result = await actionDeleteImage(body);
+      case "deleteFile":
+        result = await actionDeleteFile(body);
         break;
       case "checkDeployStatus":
         result = await actionCheckDeployStatus(body);

@@ -14,6 +14,8 @@ on:
       - "koufuku-ai.html"
       - "admin.html"
       - "img/koufuku/**"
+      - "audio/koufuku/**"
+      - "data/cms/**"
       - ".github/workflows/deploy-mvp-pages.yml"
   workflow_dispatch:
 
@@ -38,7 +40,7 @@ jobs:
 
       - name: Build public site (only the MVP test files)
         run: |
-          mkdir -p _site/img/koufuku/room
+          mkdir -p _site/img/koufuku/room _site/audio/koufuku _site/data/cms
           cp koufuku-ai.html _site/index.html
           cp admin.html _site/admin.html
           cp img/koufuku/*.webp _site/img/koufuku/
@@ -46,6 +48,11 @@ jobs:
           # 差し替え画像はimg/koufuku/room/以下にまとめて置く運用のため、
           # このディレクトリだけは中身(.json/.webp等)を丸ごとコピーする。
           if [ -d img/koufuku/room ]; then cp -r img/koufuku/room/. _site/img/koufuku/room/; fi
+          # Lumina CMS拡張: BGM(audio/koufuku/)と、季節イベント/エフェクト/
+          # セリフ/テーマ/お知らせなど今後追加していくモジュール用の設定
+          # ファイル群(data/cms/)も、存在すればそのまま公開する。
+          if [ -d audio/koufuku ]; then cp -r audio/koufuku/. _site/audio/koufuku/; fi
+          if [ -d data/cms ]; then cp -r data/cms/. _site/data/cms/; fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

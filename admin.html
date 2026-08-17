@@ -4,28 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>ケイオスちゃん 管理画面</title>
+<title>Lumina CMS - ケイオスちゃん 管理画面</title>
 <style>
   :root{
     --bg:#f6f4fb; --card:#ffffff; --border:#e3ddf2; --text:#33304a; --muted:#8a84a3;
     --accent:#8b6fd6; --accent-dark:#6f52c2; --danger:#d6556f; --ok:#4caf7d;
-    --input-bg:#fbfaff;
+    --input-bg:#fbfaff; --tab-bg:#efeaf9;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --bg:#1c1a26; --card:#241f33; --border:#3a3350; --text:#eae7f5; --muted:#a79fc4; --input-bg:#2c273d; }
+    :root{ --bg:#1c1a26; --card:#241f33; --border:#3a3350; --text:#eae7f5; --muted:#a79fc4; --input-bg:#2c273d; --tab-bg:#2c2740; }
   }
   *{ box-sizing:border-box; }
   body{ margin:0; background:var(--bg); color:var(--text); font-family:"Hiragino Sans","Yu Gothic",sans-serif; line-height:1.6; }
-  .wrap{ max-width:1080px; margin:0 auto; padding:20px 16px 80px; }
+  .wrap{ max-width:1120px; margin:0 auto; padding:20px 16px 90px; }
   h1{ font-size:20px; margin:0 0 4px; }
   h2{ font-size:16px; margin:0 0 12px; }
+  h3{ font-size:14px; margin:14px 0 8px; color:var(--muted); }
   .sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
   .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:18px; }
   label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
-  input[type=text], input[type=number], input[type=password], select{
+  input[type=text], input[type=number], input[type=password], input[type=color], textarea, select{
     width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
-    background:var(--input-bg); color:var(--text); font-size:14px;
+    background:var(--input-bg); color:var(--text); font-size:14px; font-family:inherit;
   }
+  textarea{ resize:vertical; min-height:56px; }
   button{
     font-family:inherit; font-size:14px; padding:9px 16px; border-radius:9px; border:none;
     background:var(--accent); color:#fff; cursor:pointer;
@@ -33,12 +35,13 @@
   button:hover{ background:var(--accent-dark); }
   button.secondary{ background:transparent; color:var(--accent-dark); border:1px solid var(--accent); }
   button.danger{ background:transparent; color:var(--danger); border:1px solid var(--danger); }
+  button.tiny{ padding:4px 9px; font-size:12px; }
   button:disabled{ opacity:.5; cursor:not-allowed; }
   .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
   .field{ flex:1; min-width:110px; }
   .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; }
   .thumb{ border:1px solid var(--border); border-radius:10px; padding:8px; text-align:center; background:var(--input-bg); }
-  .thumb img{ width:100%; height:70px; object-fit:contain; background:repeating-conic-gradient(#0000 0 25%, #8881 0 50%) 0/16px 16px; border-radius:6px; }
+  .thumb img{ width:100%; height:60px; object-fit:contain; background:repeating-conic-gradient(#0000 0 25%, #8881 0 50%) 0/16px 16px; border-radius:6px; }
   .thumb .name{ font-size:11px; color:var(--muted); margin:6px 0; word-break:break-all; }
   .thumb .btns{ display:flex; gap:4px; justify-content:center; }
   .thumb .btns button{ padding:4px 8px; font-size:11px; }
@@ -52,13 +55,12 @@
   #loginScreen .card{ text-align:left; }
   #loginError{ color:var(--danger); font-size:13px; min-height:18px; margin-top:8px; }
   #mainScreen{ display:none; }
-  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
-  .status-pill{ display:inline-block; font-size:12px; padding:3px 10px; border-radius:99px; background:var(--input-bg); color:var(--muted); border:1px solid var(--border); }
+  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
   .save-bar{ position:sticky; bottom:0; background:var(--card); border-top:1px solid var(--border); padding:14px 18px; border-radius:14px 14px 0 0; box-shadow:0 -4px 16px rgba(0,0,0,.08); display:flex; align-items:center; gap:14px; }
   #saveStatus{ font-size:13px; color:var(--muted); flex:1; }
   #saveStatus.ok{ color:var(--ok); }
   #saveStatus.err{ color:var(--danger); }
-  .preview-scene{ position:relative; width:100%; max-width:340px; aspect-ratio:3/4; margin:0 auto; border-radius:16px; overflow:hidden; background:linear-gradient(160deg,#ffe6ef,#e9e0ff); border:1px solid var(--border); }
+  .preview-scene{ position:relative; width:100%; max-width:320px; aspect-ratio:3/4; margin:0 auto; border-radius:16px; overflow:hidden; background:linear-gradient(160deg,#ffe6ef,#e9e0ff); border:1px solid var(--border); }
   .preview-scene img.bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .preview-scene .avatar-box{ position:absolute; left:50%; bottom:14%; width:34%; aspect-ratio:1/1; transform:translateX(-50%); border-radius:50%; overflow:hidden; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,.18); }
   .preview-scene .avatar-box img{ width:100%; height:100%; object-fit:cover; }
@@ -66,16 +68,31 @@
   .preview-controls{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
   .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
   .upload-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
-  .furniture-item-card{ border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px; background:var(--input-bg); }
-  .furniture-item-card .head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .item-card{ border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px; background:var(--input-bg); }
+  .item-card .head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px; }
+  .item-card .head-title{ font-weight:600; flex:1; }
+  .item-card .head-btns{ display:flex; gap:4px; }
+  .field-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px; }
+  .media-field{ display:flex; gap:8px; align-items:center; }
+  .media-field select{ flex:1; }
+  .media-preview-thumb{ width:36px; height:36px; object-fit:cover; border-radius:6px; background:#fff; flex:none; }
+  audio.mini-audio{ height:28px; max-width:140px; }
+
+  /* ===== モジュールタブ ===== */
+  .tabbar{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tabbar button{ background:var(--tab-bg); color:var(--text); border:1px solid var(--border); font-size:13px; padding:8px 12px; }
+  .tabbar button.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+  .stub-note{ background:var(--tab-bg); border:1px dashed var(--border); border-radius:10px; padding:14px; font-size:13px; color:var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div id="loginScreen">
-    <h1>🏠 ケイオスちゃん 管理画面</h1>
-    <p class="sub">ホーム画面の見た目(部屋背景・ケイオスちゃんの立ち絵・配置・家具)を、コードを書かずに編集できます。</p>
+    <h1>🌸 Lumina CMS</h1>
+    <p class="sub">ケイオスちゃんホーム画面の見た目を、コードを書かずに編集できます。</p>
     <div class="card">
       <label for="pwInput">管理者パスワード</label>
       <input type="password" id="pwInput" placeholder="パスワード" autocomplete="current-password">
@@ -87,8 +104,8 @@
   <div id="mainScreen">
     <div class="topbar">
       <div>
-        <h1>🏠 ケイオスちゃん 管理画面</h1>
-        <p class="sub" style="margin:0;">保存すると <code>room-config.json</code> が更新され、GitHub Pagesの自動デプロイ(数十秒〜1分程度)を経てホーム画面に反映されます。</p>
+        <h1>🌸 Lumina CMS</h1>
+        <p class="sub" style="margin:0;">保存すると設定ファイルが更新され、GitHub Pagesの自動デプロイ(数十秒〜1分程度)を経てホーム画面に反映されます。</p>
       </div>
       <button class="secondary" id="btnLogout">ログアウト</button>
     </div>
@@ -96,77 +113,41 @@
     <div id="loadError" class="card" style="display:none; border-color:var(--danger);"></div>
 
     <div class="card">
-      <h2>① 画像アップロード</h2>
+      <h2>📦 メディアライブラリ</h2>
+      <p class="hint" style="margin-top:-6px;">画像・音声はここでアップロードし、各モジュールの編集画面からドロップダウンで選んで使います。</p>
+      <h3>画像</h3>
       <div class="upload-row">
         <div class="field" style="flex:2;">
-          <label for="uploadTarget">用途(割り当て先)</label>
-          <select id="uploadTarget"></select>
+          <label>用途(割り当て先・任意)</label>
+          <select id="uploadImageTarget"></select>
         </div>
         <div class="field" style="flex:2;">
-          <label for="uploadFile">画像ファイル</label>
-          <input type="file" id="uploadFile" accept=".webp,.png,.jpg,.jpeg,.gif,.svg">
+          <label>画像ファイル</label>
+          <input type="file" id="uploadImageFile" accept=".webp,.png,.jpg,.jpeg,.gif,.svg">
         </div>
-        <button id="btnUpload">アップロード</button>
+        <button id="btnUploadImage">アップロード</button>
       </div>
-      <p class="hint">対応形式: webp / png / jpg / gif / svg。3MB程度まで。「用途」を選ぶとアップロード後すぐにそのスロットへ割り当てます(位置などの調整後、下部の「保存」を押すまでは反映されません)。「未割り当て(家具などに使う)」を選ぶとファイルだけ追加され、②③のドロップダウンから後で選べます。</p>
-      <div id="uploadStatus" class="hint"></div>
-    </div>
+      <div id="uploadImageStatus" class="hint"></div>
+      <div id="imageGrid" class="grid" style="margin-top:10px;"></div>
+      <p class="hint" id="imageEmptyHint" style="display:none;">まだ画像がアップロードされていません。</p>
 
-    <div class="card">
-      <h2>② 画像一覧</h2>
-      <div id="imageGrid" class="grid"></div>
-      <p class="hint" id="imageEmptyHint" style="display:none;">まだ画像がアップロードされていません。①からアップロードしてください。</p>
-    </div>
-
-    <div class="card">
-      <h2>③ ケイオスちゃんの配置</h2>
-      <p class="hint" style="margin-top:-6px;">立ち絵の種類(ポーズ)ごとに、画像・表示位置・拡大縮小・前後関係・透明度を設定できます。</p>
-      <div id="poseEditor"></div>
-    </div>
-
-    <div class="card">
-      <h2>④ 部屋の背景(時間帯別)</h2>
-      <div id="bgEditor"></div>
-      <details style="margin-top:12px;">
-        <summary>詳細設定(天候・季節・イベント / 将来の拡張用)</summary>
-        <p class="hint">有効にした天候・季節・イベントは時間帯背景より優先して表示されます。現時点では既定で無効(未使用)です。</p>
-        <div id="bgAdvancedEditor"></div>
-      </details>
-    </div>
-
-    <div class="card">
-      <h2>⑤ 部屋の家具・装飾(部屋の育成)</h2>
-      <p class="hint" style="margin-top:-6px;">花・ぬいぐるみ・写真などを部屋に追加できます。</p>
-      <div id="furnitureEditor"></div>
-      <button class="secondary" id="btnAddFurniture" style="margin-top:6px;">＋ 家具を追加</button>
-    </div>
-
-    <div class="card">
-      <h2>プレビュー</h2>
-      <div class="preview-controls">
-        <select id="previewBand">
-          <option value="morning">朝</option>
-          <option value="day" selected>昼</option>
-          <option value="evening">夕方</option>
-          <option value="night">夜</option>
-          <option value="midnight">深夜</option>
-        </select>
-        <select id="previewPose"></select>
-      </div>
-      <div class="preview-scene" id="previewScene">
-        <img class="bg" id="previewBg" alt="" onerror="this.style.display='none'">
-        <div id="previewFurniture"></div>
-        <div class="avatar-box" id="previewAvatarBox">
-          <img id="previewAvatar" alt="" onerror="this.style.display='none'">
+      <h3>音声(BGM・効果音)</h3>
+      <div class="upload-row">
+        <div class="field" style="flex:2;">
+          <label>音声ファイル</label>
+          <input type="file" id="uploadAudioFile" accept=".mp3,.ogg,.wav,.m4a">
         </div>
+        <button id="btnUploadAudio">アップロード</button>
       </div>
-      <p class="hint" style="text-align:center;">※実際のホーム画面とは簡易表示です(構図の目安用)。背景は画面いっぱいに表示されるため、位置調整の対象はケイオスちゃんと家具のみです。</p>
+      <div id="uploadAudioStatus" class="hint"></div>
+      <div id="audioGrid" class="grid" style="margin-top:10px;"></div>
+      <p class="hint" id="audioEmptyHint" style="display:none;">まだ音声がアップロードされていません。</p>
+      <p class="hint">対応形式: 画像=webp/png/jpg/gif/svg、音声=mp3/ogg/wav/m4a。1ファイルあたり4MB程度まで。</p>
     </div>
 
-    <div class="card">
-      <h2>今後追加予定</h2>
-      <p class="hint" style="margin-top:-6px;margin-bottom:0;">登場演出(手を振る/読書/窓を見る等)の出現確率調整や、天気・季節と連動した自動切り替えは、このデータ構造のまま次のアップデートで管理画面に追加できるよう設計してあります。</p>
-    </div>
+    <div class="tabbar" id="tabbar"></div>
+
+    <div id="tabPanels"></div>
 
   </div>
 </div>
@@ -182,33 +163,125 @@
   "use strict";
 
   const ADMIN_ENDPOINT = "https://luminatest-one.vercel.app/api/admin-github";
-  const ROOM_DIR = "img/koufuku/room/";
+  const IMAGE_DIR = "img/koufuku/room";
+  const AUDIO_DIR = "audio/koufuku";
+  const ROOM_CONFIG_PATH = IMAGE_DIR + "/room-config.json";
+
   const TIME_BANDS = [
-    { key: "morning", label: "朝" },
-    { key: "day", label: "昼" },
-    { key: "evening", label: "夕方" },
-    { key: "night", label: "夜" },
-    { key: "midnight", label: "深夜" },
+    { key: "morning", label: "朝" }, { key: "day", label: "昼" }, { key: "evening", label: "夕方" },
+    { key: "night", label: "夜" }, { key: "midnight", label: "深夜" },
   ];
   const POSES = [
-    { key: "idle", label: "待機" },
-    { key: "wave", label: "手を振る" },
-    { key: "walk", label: "歩く" },
-    { key: "sit", label: "座る" },
-    { key: "read", label: "読書" },
-    { key: "window", label: "窓を見る" },
-    { key: "sofa", label: "ソファで休む" },
-    { key: "bow", label: "お辞儀" },
+    { key: "idle", label: "待機" }, { key: "wave", label: "手を振る" }, { key: "walk", label: "歩く" },
+    { key: "sit", label: "座る" }, { key: "read", label: "読書" }, { key: "window", label: "窓を見る" },
+    { key: "sofa", label: "ソファで休む" }, { key: "bow", label: "お辞儀" },
   ];
   const WEATHER = [ { key: "rain", label: "雨" }, { key: "snow", label: "雪" } ];
   const SEASON = [ { key: "spring", label: "春" }, { key: "summer", label: "夏" }, { key: "autumn", label: "秋" }, { key: "winter", label: "冬" } ];
   const EVENT = [ { key: "birthday", label: "誕生日" }, { key: "christmas", label: "クリスマス" }, { key: "halloween", label: "ハロウィン" }, { key: "newyear", label: "お正月" } ];
 
+  // ============================================================
+  // モジュール定義: 新しいCMSモジュールを追加するときは、この配列に
+  // 1件足すだけでよい(バックエンドもフロントの他の場所も変更不要)。
+  // group:"room" の4つは既存のroom-config.jsonを共有する専用エディタ、
+  // group:"generic" のものは data/cms/*.json を汎用コレクション編集
+  // エンジン(renderCollectionEditor / renderSingletonEditor)で編集する。
+  // ============================================================
+  const MODULES = [
+    { id: "room", icon: "🏠", label: "部屋編集", group: "room" },
+    { id: "character", icon: "👧", label: "ケイオスちゃん編集", group: "room" },
+    { id: "direction", icon: "🎭", label: "演出編集", group: "room" },
+    { id: "furniture", icon: "🎁", label: "家具・装飾", group: "room" },
+    {
+      id: "season", icon: "🌸", label: "季節イベント", group: "generic",
+      path: "data/cms/seasonal-events.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "イベント",
+      schema: [
+        { key: "label", label: "イベント名", type: "text", default: "新しいイベント" },
+        { key: "startDate", label: "開始日 (MM-DD)", type: "text", default: "12-20" },
+        { key: "endDate", label: "終了日 (MM-DD)", type: "text", default: "12-26" },
+        { key: "bgImage", label: "背景画像", type: "image", default: "" },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "この期間だけ部屋の背景を切り替える設定です。アプリ側での自動切替の反映は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "bgm", icon: "🎵", label: "BGM", group: "generic",
+      path: "data/cms/bgm.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "トラック",
+      schema: [
+        { key: "label", label: "曲名", type: "text", default: "新しいBGM" },
+        { key: "audioFile", label: "音声ファイル", type: "audio", default: "" },
+        { key: "audioUrl", label: "外部URL(ファイル未設定時に使用)", type: "text", default: "" },
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.6 },
+        { key: "loop", label: "ループ再生", type: "boolean", default: true },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "登録したBGMをホーム画面で自動再生する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "effects", icon: "✨", label: "エフェクト", group: "generic",
+      path: "data/cms/effects.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "エフェクト",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいエフェクト" },
+        { key: "type", label: "種類", type: "select", default: "sparkle",
+          options: [ { value: "confetti", label: "紙吹雪" }, { value: "sparkle", label: "キラキラ" }, { value: "hearts", label: "ハート" }, { value: "snow", label: "雪" }, { value: "custom", label: "カスタム画像" } ] },
+        { key: "image", label: "カスタム画像(種類=カスタムの場合)", type: "image", default: "" },
+        { key: "intensity", label: "強さ", type: "number", step: 1, min: 0, max: 100, default: 50 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "登録したエフェクトをホーム画面で再生する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "dialogue", icon: "💬", label: "セリフ・会話管理", group: "generic",
+      path: "data/cms/dialogue.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "セリフ",
+      schema: [
+        { key: "category", label: "カテゴリ", type: "select", default: "greeting",
+          options: [ { value: "greeting", label: "おかえりの挨拶" }, { value: "idle", label: "つぶやき" }, { value: "reaction", label: "リアクション" }, { value: "support", label: "励まし" } ] },
+        { key: "text", label: "セリフ本文", type: "textarea", default: "" },
+        { key: "weight", label: "出現しやすさ", type: "number", step: 1, min: 0, default: 10 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "ここで登録したセリフを実際の会話・挨拶に反映する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "theme", icon: "🎨", label: "テーマ編集", group: "generic",
+      path: "data/cms/theme.json", kind: "singleton",
+      defaultShape: { primaryColor: "#8b6fd6", accentColor: "#ffb6c9", backgroundStyle: "default", notes: "" },
+      schema: [
+        { key: "primaryColor", label: "メインカラー", type: "color", default: "#8b6fd6" },
+        { key: "accentColor", label: "アクセントカラー", type: "color", default: "#ffb6c9" },
+        { key: "backgroundStyle", label: "背景スタイル", type: "select", default: "default",
+          options: [ { value: "default", label: "標準" }, { value: "pastel", label: "パステル" }, { value: "dark", label: "ダーク基調" }, { value: "seasonal", label: "季節連動" } ] },
+        { key: "notes", label: "メモ", type: "textarea", default: "" },
+      ],
+      note: "テーマをアプリ側の配色に自動反映する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "announcements", icon: "📢", label: "お知らせ管理", group: "generic",
+      path: "data/cms/announcements.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "お知らせ",
+      schema: [
+        { key: "title", label: "タイトル", type: "text", default: "新しいお知らせ" },
+        { key: "body", label: "本文", type: "textarea", default: "" },
+        { key: "startDate", label: "掲載開始日 (YYYY-MM-DD)", type: "text", default: "" },
+        { key: "endDate", label: "掲載終了日 (YYYY-MM-DD)", type: "text", default: "" },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "登録したお知らせをホーム画面へバナー表示する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+  ];
+
   let adminToken = sessionStorage.getItem("kaosuAdminToken") || "";
-  let draftConfig = null;
-  let configSha = null;
-  let imageList = [];
-  let dirty = false;
+  let assetLibrary = { images: [], audio: [] };
+  let currentTab = "room";
+
+  // room-configクラスタ(🏠👧🎭🎁)は1つのJSONを共有する
+  const roomState = { draft: null, sha: null, dirty: false };
+  // generic モジュール(🌸🎵✨💬🎨📢)はモジュールごとに個別のJSON
+  const genericState = {}; // moduleId -> {draft, sha, dirty, loaded}
 
   const $ = (id) => document.getElementById(id);
 
@@ -227,16 +300,25 @@
     return data;
   }
 
-  function setDirty(v){
-    dirty = v;
-    $("saveBar").style.display = draftConfig ? "flex" : "none";
-    $("btnSave").disabled = !dirty;
-  }
-
   function filenameOf(path){
     if(!path) return "";
     const parts = String(path).split("/");
     return parts[parts.length - 1];
+  }
+  function findImageByPath(path){ return assetLibrary.images.find(im => im.path === path); }
+  function findAudioByPath(path){ return assetLibrary.audio.find(a => a.path === path); }
+
+  function currentDirtyState(){
+    const mod = MODULES.find(m => m.id === currentTab);
+    if(!mod) return { dirty: false };
+    if(mod.group === "room") return roomState;
+    return genericState[mod.id] || { dirty: false };
+  }
+  function setDirty(v){
+    const state = currentDirtyState();
+    state.dirty = v;
+    $("saveBar").style.display = "flex";
+    $("btnSave").disabled = !v;
   }
 
   // ===== ログイン =====
@@ -246,7 +328,7 @@
     sessionStorage.setItem("kaosuAdminToken", adminToken);
     $("loginScreen").style.display = "none";
     $("mainScreen").style.display = "block";
-    await loadAll();
+    await bootstrap();
   }
 
   $("btnLogin").addEventListener("click", async () => {
@@ -254,62 +336,49 @@
     $("loginError").textContent = "";
     if(!pw){ $("loginError").textContent = "パスワードを入力してください。"; return; }
     $("btnLogin").disabled = true;
-    try{
-      await tryLogin(pw);
-    }catch(e){
+    try{ await tryLogin(pw); }
+    catch(e){
       $("loginError").textContent = "ログインに失敗しました(" + e.message + ")";
-      adminToken = "";
-      sessionStorage.removeItem("kaosuAdminToken");
-    }finally{
-      $("btnLogin").disabled = false;
-    }
+      adminToken = ""; sessionStorage.removeItem("kaosuAdminToken");
+    }finally{ $("btnLogin").disabled = false; }
   });
   $("pwInput").addEventListener("keydown", (e) => { if(e.key === "Enter") $("btnLogin").click(); });
+  $("btnLogout").addEventListener("click", () => { sessionStorage.removeItem("kaosuAdminToken"); location.reload(); });
 
-  $("btnLogout").addEventListener("click", () => {
-    sessionStorage.removeItem("kaosuAdminToken");
-    location.reload();
-  });
+  // ===== 起動 =====
+  async function bootstrap(){
+    await loadMediaLibrary();
+    renderUploadImageTargetOptions();
+    buildTabs();
+    await loadRoomConfig();
+    await switchTab("room");
+  }
 
-  // ===== 読み込み =====
-  async function loadAll(){
-    $("loadError").style.display = "none";
+  // ===== メディアライブラリ =====
+  async function loadMediaLibrary(){
     try{
-      const [cfg, imgs] = await Promise.all([ api("getConfig"), api("listImages") ]);
-      draftConfig = cfg.config;
-      configSha = cfg.sha;
-      imageList = imgs.images || [];
-      renderAll();
-      setDirty(false);
+      const [imgs, auds] = await Promise.all([
+        api("listFiles", { dir: IMAGE_DIR }),
+        api("listFiles", { dir: AUDIO_DIR }),
+      ]);
+      assetLibrary.images = imgs.files || [];
+      assetLibrary.audio = auds.files || [];
     }catch(e){
       $("loadError").style.display = "block";
-      $("loadError").textContent = "読み込みに失敗しました: " + e.message;
+      $("loadError").textContent = "メディアライブラリの読み込みに失敗しました: " + e.message;
     }
-  }
-
-  function renderAll(){
-    renderUploadTargetOptions();
     renderImageGrid();
-    renderPoseEditor();
-    renderBgEditor();
-    renderBgAdvancedEditor();
-    renderFurnitureEditor();
-    renderPreviewControls();
-    renderPreview();
+    renderAudioGrid();
   }
 
-  // ===== ① アップロード =====
-  function renderUploadTargetOptions(){
-    const sel = $("uploadTarget");
+  function renderUploadImageTargetOptions(){
+    const sel = $("uploadImageTarget");
     sel.innerHTML = "";
-    const optNone = new Option("未割り当て(家具などに使う)", "");
-    sel.appendChild(optNone);
-    const bgGroup = document.createElement("optgroup");
-    bgGroup.label = "部屋背景";
+    sel.appendChild(new Option("未割り当て(家具・イベント等に使う)", ""));
+    const bgGroup = document.createElement("optgroup"); bgGroup.label = "部屋背景";
     TIME_BANDS.forEach(b => bgGroup.appendChild(new Option("背景:" + b.label, "bg:" + b.key)));
     sel.appendChild(bgGroup);
-    const poseGroup = document.createElement("optgroup");
-    poseGroup.label = "ケイオスちゃん";
+    const poseGroup = document.createElement("optgroup"); poseGroup.label = "ケイオスちゃん";
     POSES.forEach(p => poseGroup.appendChild(new Option("立ち絵:" + p.label, "pose:" + p.key)));
     sel.appendChild(poseGroup);
   }
@@ -322,28 +391,27 @@
       reader.readAsDataURL(file);
     });
   }
+  function extOf(filename){ const i = filename.lastIndexOf("."); return i >= 0 ? filename.slice(i) : ""; }
+  function sanitizeFilename(name){ return name.replace(/[^a-zA-Z0-9_\-.]/g, "_"); }
 
-  function extOf(filename){
-    const i = filename.lastIndexOf(".");
-    return i >= 0 ? filename.slice(i) : "";
+  async function uploadAndRegister(dir, filename, file, listArr){
+    const existing = listArr.find(im => im.name === filename);
+    const contentBase64 = await fileToBase64(file);
+    const result = await api("uploadFile", { dir, filename, contentBase64, sha: existing ? existing.sha : undefined });
+    const entry = { name: result.name, path: result.path, sha: result.sha, size: file.size, url: result.url + "?t=" + Date.now() };
+    const idx = listArr.findIndex(im => im.name === filename);
+    if(idx >= 0) listArr[idx] = entry; else listArr.push(entry);
+    return entry;
   }
 
-  function sanitizeFilename(name){
-    return name.replace(/[^a-zA-Z0-9_\-.]/g, "_");
-  }
-
-  function findImageByName(name){
-    return imageList.find(im => im.name === name);
-  }
-
-  $("btnUpload").addEventListener("click", async () => {
-    const fileInput = $("uploadFile");
+  $("btnUploadImage").addEventListener("click", async () => {
+    const fileInput = $("uploadImageFile");
     const file = fileInput.files && fileInput.files[0];
-    const target = $("uploadTarget").value;
-    const statusEl = $("uploadStatus");
+    const target = $("uploadImageTarget").value;
+    const statusEl = $("uploadImageStatus");
     if(!file){ statusEl.textContent = "ファイルを選択してください。"; return; }
     statusEl.textContent = "アップロード中…";
-    $("btnUpload").disabled = true;
+    $("btnUploadImage").disabled = true;
     try{
       const ext = extOf(file.name) || ".webp";
       let filename;
@@ -351,122 +419,291 @@
       else if(target.startsWith("pose:")) filename = "pose-" + target.slice(5) + ext;
       else filename = sanitizeFilename(Date.now() + "-" + file.name);
 
-      const existing = findImageByName(filename);
-      const contentBase64 = await fileToBase64(file);
-      const result = await api("uploadImage", { filename, contentBase64, sha: existing ? existing.sha : undefined });
-
-      const idx = imageList.findIndex(im => im.name === filename);
-      const entry = { name: result.name, path: result.path, sha: result.sha, size: file.size, url: result.url + "?t=" + Date.now() };
-      if(idx >= 0) imageList[idx] = entry; else imageList.push(entry);
+      const entry = await uploadAndRegister(IMAGE_DIR, filename, file, assetLibrary.images);
+      renderImageGrid();
 
       if(target.startsWith("bg:")){
         const key = target.slice(3);
-        draftConfig.background.timeOfDay[key] = draftConfig.background.timeOfDay[key] || { enabled: true };
-        draftConfig.background.timeOfDay[key].image = result.path;
-        draftConfig.background.timeOfDay[key].enabled = true;
+        roomState.draft.background.timeOfDay[key] = roomState.draft.background.timeOfDay[key] || { enabled: true };
+        roomState.draft.background.timeOfDay[key].image = entry.path;
+        roomState.draft.background.timeOfDay[key].enabled = true;
+        if(currentTab === "room") renderTab("room");
+        setDirty(true);
       }else if(target.startsWith("pose:")){
         const key = target.slice(5);
-        draftConfig.character.poses[key] = draftConfig.character.poses[key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
-        draftConfig.character.poses[key].image = result.path;
+        roomState.draft.character.poses[key] = roomState.draft.character.poses[key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
+        roomState.draft.character.poses[key].image = entry.path;
+        if(currentTab === "character") renderTab("character");
+        setDirty(true);
       }
 
-      renderImageGrid();
-      renderPoseEditor();
-      renderBgEditor();
-      renderFurnitureEditor();
-      renderPreview();
-      setDirty(true);
-      statusEl.textContent = "✅ アップロードしました(" + filename + ")。位置などを調整して「保存」を押してください。";
+      statusEl.textContent = "✅ アップロードしました(" + filename + ")。";
       fileInput.value = "";
+      refreshAllOpenMediaSelects();
     }catch(e){
       statusEl.textContent = "❌ アップロードに失敗しました: " + e.message;
-    }finally{
-      $("btnUpload").disabled = false;
-    }
+    }finally{ $("btnUploadImage").disabled = false; }
   });
 
-  // ===== ② 画像一覧 =====
+  $("btnUploadAudio").addEventListener("click", async () => {
+    const fileInput = $("uploadAudioFile");
+    const file = fileInput.files && fileInput.files[0];
+    const statusEl = $("uploadAudioStatus");
+    if(!file){ statusEl.textContent = "ファイルを選択してください。"; return; }
+    statusEl.textContent = "アップロード中…";
+    $("btnUploadAudio").disabled = true;
+    try{
+      const filename = sanitizeFilename(Date.now() + "-" + file.name);
+      await uploadAndRegister(AUDIO_DIR, filename, file, assetLibrary.audio);
+      renderAudioGrid();
+      statusEl.textContent = "✅ アップロードしました(" + filename + ")。";
+      fileInput.value = "";
+      refreshAllOpenMediaSelects();
+    }catch(e){
+      statusEl.textContent = "❌ アップロードに失敗しました: " + e.message;
+    }finally{ $("btnUploadAudio").disabled = false; }
+  });
+
   function renderImageGrid(){
     const grid = $("imageGrid");
     grid.innerHTML = "";
-    $("imageEmptyHint").style.display = imageList.length ? "none" : "block";
-    imageList.forEach(img => {
+    $("imageEmptyHint").style.display = assetLibrary.images.length ? "none" : "block";
+    assetLibrary.images.forEach(img => {
       const box = document.createElement("div");
       box.className = "thumb";
       box.innerHTML = `
         <img src="${img.url}" alt="" onerror="this.style.opacity=.2">
         <div class="name">${img.name}</div>
         <div class="btns">
-          <button class="secondary" data-act="replace" data-name="${img.name}" data-sha="${img.sha}">差し替え</button>
-          <button class="danger" data-act="delete" data-name="${img.name}" data-sha="${img.sha}">削除</button>
+          <button class="secondary tiny" data-act="replace">差し替え</button>
+          <button class="danger tiny" data-act="delete">削除</button>
         </div>`;
+      box.querySelector('[data-act="replace"]').addEventListener("click", () => triggerMediaReplace(IMAGE_DIR, img, assetLibrary.images, renderImageGrid, ".webp,.png,.jpg,.jpeg,.gif,.svg"));
+      box.querySelector('[data-act="delete"]').addEventListener("click", () => triggerMediaDelete(img, assetLibrary.images, renderImageGrid));
       grid.appendChild(box);
     });
-    grid.querySelectorAll('button[data-act="replace"]').forEach(btn => {
-      btn.addEventListener("click", () => triggerReplace(btn.dataset.name, btn.dataset.sha));
-    });
-    grid.querySelectorAll('button[data-act="delete"]').forEach(btn => {
-      btn.addEventListener("click", () => triggerDelete(btn.dataset.name, btn.dataset.sha));
+  }
+  function renderAudioGrid(){
+    const grid = $("audioGrid");
+    grid.innerHTML = "";
+    $("audioEmptyHint").style.display = assetLibrary.audio.length ? "none" : "block";
+    assetLibrary.audio.forEach(a => {
+      const box = document.createElement("div");
+      box.className = "thumb";
+      box.innerHTML = `
+        <div style="font-size:26px;">🎵</div>
+        <div class="name">${a.name}</div>
+        <audio class="mini-audio" controls src="${a.url}"></audio>
+        <div class="btns" style="margin-top:6px;">
+          <button class="secondary tiny" data-act="replace">差し替え</button>
+          <button class="danger tiny" data-act="delete">削除</button>
+        </div>`;
+      box.querySelector('[data-act="replace"]').addEventListener("click", () => triggerMediaReplace(AUDIO_DIR, a, assetLibrary.audio, renderAudioGrid, ".mp3,.ogg,.wav,.m4a"));
+      box.querySelector('[data-act="delete"]').addEventListener("click", () => triggerMediaDelete(a, assetLibrary.audio, renderAudioGrid));
+      grid.appendChild(box);
     });
   }
 
-  function triggerReplace(name, sha){
+  function triggerMediaReplace(dir, entry, listArr, rerender, accept){
     const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".webp,.png,.jpg,.jpeg,.gif,.svg";
+    input.type = "file"; input.accept = accept;
     input.onchange = async () => {
       const file = input.files && input.files[0];
       if(!file) return;
       try{
-        const contentBase64 = await fileToBase64(file);
-        const result = await api("uploadImage", { filename: name, contentBase64, sha });
-        const idx = imageList.findIndex(im => im.name === name);
-        if(idx >= 0) imageList[idx] = { name: result.name, path: result.path, sha: result.sha, size: file.size, url: result.url + "?t=" + Date.now() };
-        renderImageGrid();
-        renderPreview();
-        alert("「" + name + "」を差し替えました。この画像を使っている箇所には自動的に反映されます。");
-      }catch(e){
-        alert("差し替えに失敗しました: " + e.message);
-      }
+        await uploadAndRegister(dir, entry.name, file, listArr);
+        rerender();
+        refreshAllOpenMediaSelects();
+        alert("「" + entry.name + "」を差し替えました。この画像/音声を使っている箇所には自動的に反映されます。");
+      }catch(e){ alert("差し替えに失敗しました: " + e.message); }
     };
     input.click();
   }
-
-  async function triggerDelete(name, sha){
-    if(!confirm("「" + name + "」を削除します。よろしいですか?\nこの画像を使用中のスロットは、削除後に画像が表示されなくなります(アプリ側は落ちずに非表示へ自動フォールバックします)。")) return;
+  async function triggerMediaDelete(entry, listArr, rerender){
+    if(!confirm("「" + entry.name + "」を削除します。よろしいですか?\nこのファイルを使用中の項目は、削除後に表示/再生されなくなります(アプリ側は落ちずに自動フォールバックします)。")) return;
     try{
-      await api("deleteImage", { filename: name, sha });
-      imageList = imageList.filter(im => im.name !== name);
-      renderImageGrid();
-    }catch(e){
-      alert("削除に失敗しました: " + e.message);
+      await api("deleteFile", { path: entry.path, sha: entry.sha });
+      const idx = listArr.findIndex(x => x.name === entry.name);
+      if(idx >= 0) listArr.splice(idx, 1);
+      rerender();
+      refreshAllOpenMediaSelects();
+    }catch(e){ alert("削除に失敗しました: " + e.message); }
+  }
+
+  function refreshAllOpenMediaSelects(){
+    renderTab(currentTab);
+  }
+
+  // ===== タブ =====
+  function buildTabs(){
+    const bar = $("tabbar");
+    bar.innerHTML = "";
+    const panels = $("tabPanels");
+    panels.innerHTML = "";
+    MODULES.forEach(mod => {
+      const btn = document.createElement("button");
+      btn.textContent = mod.icon + " " + mod.label;
+      btn.dataset.tab = mod.id;
+      btn.addEventListener("click", () => switchTab(mod.id));
+      bar.appendChild(btn);
+
+      const panel = document.createElement("div");
+      panel.className = "tab-panel";
+      panel.id = "panel-" + mod.id;
+      panels.appendChild(panel);
+    });
+  }
+
+  async function switchTab(tabId){
+    currentTab = tabId;
+    document.querySelectorAll("#tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + tabId));
+    const mod = MODULES.find(m => m.id === tabId);
+    if(mod.group === "generic" && !(genericState[tabId] && genericState[tabId].loaded)){
+      await loadGenericModule(mod);
+    }
+    renderTab(tabId);
+    const state = currentDirtyState();
+    $("saveBar").style.display = "flex";
+    $("btnSave").disabled = !state.dirty;
+    $("saveStatus").textContent = "";
+    $("saveStatus").className = "";
+  }
+
+  function renderTab(tabId){
+    const mod = MODULES.find(m => m.id === tabId);
+    if(!mod) return;
+    if(mod.group === "room"){
+      if(tabId === "room") renderRoomModule();
+      else if(tabId === "character") renderCharacterModule();
+      else if(tabId === "direction") renderDirectionModule();
+      else if(tabId === "furniture") renderFurnitureModule();
+    }else{
+      renderGenericModule(mod);
     }
   }
 
-  // ===== ③ ケイオスちゃんの配置 =====
+  // ===== room-configクラスタ読み込み =====
+  async function loadRoomConfig(){
+    const data = await api("getJson", { path: ROOM_CONFIG_PATH });
+    roomState.draft = data.content || { configVersion: 1, background: { enabled:true, timeOfDay:{}, weather:{}, season:{}, event:{} }, character: { poses: {} }, entranceAnimations: { items: [] }, furniture: { items: [] } };
+    roomState.sha = data.sha;
+    roomState.dirty = false;
+  }
+
+  // ===== 🏠 部屋編集 =====
   function imageOptions(selectedPath){
     let html = '<option value="">(未選択)</option>';
-    imageList.forEach(img => {
+    assetLibrary.images.forEach(img => {
       const sel = img.path === selectedPath ? " selected" : "";
       html += `<option value="${img.path}"${sel}>${img.name}</option>`;
     });
     return html;
   }
+  function audioOptions(selectedPath){
+    let html = '<option value="">(未選択)</option>';
+    assetLibrary.audio.forEach(a => {
+      const sel = a.path === selectedPath ? " selected" : "";
+      html += `<option value="${a.path}"${sel}>${a.name}</option>`;
+    });
+    return html;
+  }
 
-  function renderPoseEditor(){
+  function renderRoomModule(){
+    const panel = $("panel-room");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🏠 部屋の背景(時間帯別)</h2>
+        <div id="bgEditor"></div>
+        <details style="margin-top:12px;">
+          <summary>詳細設定(天候・季節・イベント / 将来の拡張用)</summary>
+          <p class="hint">有効にした天候・季節・イベントは時間帯背景より優先して表示されます。</p>
+          <div id="bgAdvancedEditor"></div>
+        </details>
+      </div>
+      <div class="card">
+        <h2>プレビュー</h2>
+        <div class="preview-controls">
+          <select id="previewBand">${TIME_BANDS.map(b => `<option value="${b.key}">${b.label}</option>`).join("")}</select>
+        </div>
+        <div class="preview-scene" id="previewScene">
+          <img class="bg" id="previewBg" alt="" onerror="this.style.display='none'">
+        </div>
+      </div>
+    `;
+    const draft = roomState.draft;
+    const bgWrap = $("bgEditor");
+    TIME_BANDS.forEach(b => {
+      const tod = draft.background.timeOfDay[b.key] = draft.background.timeOfDay[b.key] || { enabled: true };
+      const row = document.createElement("div");
+      row.className = "row"; row.style.marginBottom = "10px";
+      row.innerHTML = `
+        <div class="field" style="flex:0 0 60px;"><label>&nbsp;</label><div>${b.label}</div></div>
+        <div class="field" style="flex:2;"><label>画像</label><select data-f="image">${imageOptions(tod.image)}</select></div>
+        <div class="field" style="flex:0 0 90px;"><label class="checkbox-row" style="margin-top:22px;"><input type="checkbox" data-f="enabled" ${tod.enabled!==false?"checked":""}> 有効</label></div>
+      `;
+      row.querySelector('[data-f="image"]').addEventListener("change", (e) => { tod.image = e.target.value; updateRoomPreview(); setDirty(true); });
+      row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { tod.enabled = e.target.checked; setDirty(true); });
+      bgWrap.appendChild(row);
+    });
+    const advWrap = $("bgAdvancedEditor");
+    [["weather", WEATHER], ["season", SEASON], ["event", EVENT]].forEach(([groupKey, list]) => {
+      draft.background[groupKey] = draft.background[groupKey] || {};
+      const group = draft.background[groupKey];
+      list.forEach(item => {
+        group[item.key] = group[item.key] || { enabled: false, image: IMAGE_DIR + "/bg-" + item.key + ".webp" };
+        const it = group[item.key];
+        const row = document.createElement("div");
+        row.className = "row"; row.style.marginBottom = "8px";
+        row.innerHTML = `
+          <div class="field" style="flex:0 0 70px;"><div>${item.label}</div></div>
+          <div class="field" style="flex:2;"><select data-f="image">${imageOptions(it.image)}</select></div>
+          <div class="field" style="flex:0 0 90px;"><label class="checkbox-row"><input type="checkbox" data-f="enabled" ${it.enabled?"checked":""}> 有効</label></div>
+        `;
+        row.querySelector('[data-f="image"]').addEventListener("change", (e) => { it.image = e.target.value; setDirty(true); });
+        row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { it.enabled = e.target.checked; setDirty(true); });
+        advWrap.appendChild(row);
+      });
+    });
+    $("previewBand").addEventListener("change", updateRoomPreview);
+    updateRoomPreview();
+  }
+  function updateRoomPreview(){
+    const bandSel = $("previewBand");
+    if(!bandSel) return;
+    const tod = roomState.draft.background.timeOfDay[bandSel.value];
+    const img = findImageByPath(tod && tod.image);
+    $("previewBg").src = img ? img.url : "";
+  }
+
+  // ===== 👧 ケイオスちゃん編集 =====
+  function renderCharacterModule(){
+    const panel = $("panel-character");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>👧 ケイオスちゃんの配置</h2>
+        <p class="hint" style="margin-top:-6px;">立ち絵の種類(ポーズ)ごとに、画像・表示位置・拡大縮小・前後関係・透明度を設定できます。</p>
+        <div id="poseEditor"></div>
+      </div>
+      <div class="card">
+        <h2>プレビュー</h2>
+        <div class="preview-controls">
+          <select id="previewPose">${POSES.map(p => `<option value="${p.key}">${p.label}</option>`).join("")}</select>
+        </div>
+        <div class="preview-scene" id="previewScene2" style="background:linear-gradient(160deg,#ffe6ef,#e9e0ff);">
+          <div class="avatar-box" id="previewAvatarBox"><img id="previewAvatar" alt="" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+    `;
     const wrap = $("poseEditor");
-    wrap.innerHTML = "";
+    const draft = roomState.draft;
     POSES.forEach(p => {
-      const pose = draftConfig.character.poses[p.key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
-      draftConfig.character.poses[p.key] = pose;
-      const thumbUrl = (findImageByName(filenameOf(pose.image)) || {}).url || "";
+      const pose = draft.character.poses[p.key] = draft.character.poses[p.key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
+      const thumbUrl = (findImageByPath(pose.image) || {}).url || "";
       const det = document.createElement("details");
       det.innerHTML = `
         <summary><span><img src="${thumbUrl}" onerror="this.style.visibility='hidden'">${p.label}</span></summary>
-        <div class="field">
-          <label>画像</label>
-          <select data-f="image">${imageOptions(pose.image)}</select>
-        </div>
+        <div class="field"><label>画像</label><select data-f="image">${imageOptions(pose.image)}</select></div>
         <div class="pose-fields">
           <div class="field"><label>X (px)</label><input type="number" data-f="x" value="${pose.x||0}"></div>
           <div class="field"><label>Y (px)</label><input type="number" data-f="y" value="${pose.y||0}"></div>
@@ -484,73 +721,148 @@
           if(field === "visible") pose.visible = el.checked;
           else if(field === "image") pose.image = el.value;
           else pose[field] = parseFloat(el.value) || 0;
-          det.querySelector("summary img").src = (findImageByName(filenameOf(pose.image)) || {}).url || "";
-          renderPreview();
+          det.querySelector("summary img").src = (findImageByPath(pose.image) || {}).url || "";
+          updateCharacterPreview();
           setDirty(true);
         });
       });
       wrap.appendChild(det);
     });
+    $("previewPose").addEventListener("change", updateCharacterPreview);
+    updateCharacterPreview();
+  }
+  function updateCharacterPreview(){
+    const poseSel = $("previewPose");
+    if(!poseSel) return;
+    const pose = roomState.draft.character.poses[poseSel.value] || {};
+    const img = findImageByPath(pose.image);
+    const avatarImg = $("previewAvatar");
+    avatarImg.src = img ? img.url : "";
+    avatarImg.style.display = pose.visible === false ? "none" : "";
+    avatarImg.style.opacity = pose.opacity != null ? String(pose.opacity) : "1";
+    const tx = (pose.x||0) * 0.5, ty = (pose.y||0) * 0.5;
+    avatarImg.style.transform = `translate(${tx}px, ${ty}px) scale(${pose.scale!=null?pose.scale:1}) rotate(${pose.rotation||0}deg)`;
   }
 
-  // ===== ④ 背景 =====
-  function renderBgEditor(){
-    const wrap = $("bgEditor");
-    wrap.innerHTML = "";
-    TIME_BANDS.forEach(b => {
-      const tod = draftConfig.background.timeOfDay[b.key] = draftConfig.background.timeOfDay[b.key] || { enabled: true };
-      const row = document.createElement("div");
-      row.className = "row";
-      row.style.marginBottom = "10px";
-      row.innerHTML = `
-        <div class="field" style="flex:0 0 60px;"><label>&nbsp;</label><div>${b.label}</div></div>
-        <div class="field" style="flex:2;"><label>画像</label><select data-f="image">${imageOptions(tod.image)}</select></div>
-        <div class="field" style="flex:0 0 90px;"><label class="checkbox-row" style="margin-top:22px;"><input type="checkbox" data-f="enabled" ${tod.enabled!==false?"checked":""}> 有効</label></div>
-      `;
-      row.querySelector('[data-f="image"]').addEventListener("change", (e) => { tod.image = e.target.value; renderPreview(); setDirty(true); });
-      row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { tod.enabled = e.target.checked; setDirty(true); });
-      wrap.appendChild(row);
-    });
-  }
-
-  function renderBgAdvancedEditor(){
-    const wrap = $("bgAdvancedEditor");
-    wrap.innerHTML = "";
-    [["weather", WEATHER], ["season", SEASON], ["event", EVENT]].forEach(([groupKey, list]) => {
-      draftConfig.background[groupKey] = draftConfig.background[groupKey] || {};
-      const group = draftConfig.background[groupKey];
-      list.forEach(item => {
-        group[item.key] = group[item.key] || { enabled: false, image: ROOM_DIR + "bg-" + item.key + ".webp" };
-        const it = group[item.key];
-        const row = document.createElement("div");
-        row.className = "row";
-        row.style.marginBottom = "8px";
-        row.innerHTML = `
-          <div class="field" style="flex:0 0 70px;"><div>${item.label}</div></div>
-          <div class="field" style="flex:2;"><select data-f="image">${imageOptions(it.image)}</select></div>
-          <div class="field" style="flex:0 0 90px;"><label class="checkbox-row"><input type="checkbox" data-f="enabled" ${it.enabled?"checked":""}> 有効</label></div>
-        `;
-        row.querySelector('[data-f="image"]').addEventListener("change", (e) => { it.image = e.target.value; setDirty(true); });
-        row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { it.enabled = e.target.checked; setDirty(true); });
-        wrap.appendChild(row);
+  // ===== 🎭 演出編集(登場演出の出現確率など) =====
+  function renderDirectionModule(){
+    const panel = $("panel-direction");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🎭 登場演出</h2>
+        <p class="hint" style="margin-top:-6px;">起動時、部屋の奥にいるケイオスちゃんが最初に何をしているか(手を振る/読書/窓を見る…)を、出現しやすさ(重み)に応じてランダムに選びます。「出現しやすさ」の合計に対する割合で確率が決まります(例: 手を振る40・読書10・窓を見る15・ソファ20・ストレッチ15 → 手を振るが40%)。</p>
+        <div id="directionEditor"></div>
+        <button class="secondary" id="btnAddDirection" style="margin-top:6px;">＋ 演出を追加</button>
+      </div>
+    `;
+    renderDirectionItems();
+    $("btnAddDirection").addEventListener("click", () => {
+      roomState.draft.entranceAnimations.items.push({
+        id: "custom-" + Date.now(), label: "新しい演出", pose: "idle", enabled: true, weight: 10, durationMs: 1100,
+        startOffset: { x: 0, y: 0, scale: 1, rotation: 0 },
       });
+      renderDirectionItems();
+      setDirty(true);
     });
   }
-
-  // ===== ⑤ 家具 =====
-  function renderFurnitureEditor(){
-    const wrap = $("furnitureEditor");
+  function renderDirectionItems(){
+    const wrap = $("directionEditor");
     wrap.innerHTML = "";
-    draftConfig.furniture.items.forEach((item, idx) => {
+    roomState.draft.entranceAnimations.items.forEach((item, idx) => {
+      item.startOffset = item.startOffset || { x: 0, y: 0, scale: 1, rotation: 0 };
       const card = document.createElement("div");
-      card.className = "furniture-item-card";
+      card.className = "item-card";
       card.innerHTML = `
         <div class="head">
-          <strong>${item.id || ("家具" + (idx+1))}</strong>
-          <button class="danger" data-act="remove">削除</button>
+          <input type="text" class="head-title" data-f="label" value="${item.label || ""}" style="border:none;background:transparent;font-weight:600;padding:0;">
+          <div class="head-btns">
+            <button class="secondary tiny" data-act="up">▲</button>
+            <button class="secondary tiny" data-act="down">▼</button>
+            <button class="danger tiny" data-act="remove">削除</button>
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field"><label>使用する立ち絵</label><select data-f="pose">${POSES.map(p => `<option value="${p.key}" ${item.pose===p.key?"selected":""}>${p.label}</option>`).join("")}</select></div>
+          <div class="field"><label>出現しやすさ(重み)</label><input type="number" data-f="weight" value="${item.weight||0}"></div>
+          <div class="field"><label>歩いてくる時間(ms)</label><input type="number" data-f="durationMs" value="${item.durationMs||1100}"></div>
+          <div class="field"><label>開始X(px)</label><input type="number" data-f="startOffset.x" value="${item.startOffset.x||0}"></div>
+          <div class="field"><label>開始Y(px)</label><input type="number" data-f="startOffset.y" value="${item.startOffset.y||0}"></div>
+          <div class="field"><label>開始縮小率</label><input type="number" step="0.05" data-f="startOffset.scale" value="${item.startOffset.scale!=null?item.startOffset.scale:1}"></div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" data-f="enabled" ${item.enabled!==false?"checked":""}> 有効</label>
+      `;
+      card.querySelectorAll("[data-f]").forEach(el => {
+        const field = el.dataset.f;
+        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+        el.addEventListener(evt, () => {
+          if(field === "enabled") item.enabled = el.checked;
+          else if(field === "label") item.label = el.value;
+          else if(field === "pose") item.pose = el.value;
+          else if(field.startsWith("startOffset.")) item.startOffset[field.split(".")[1]] = parseFloat(el.value) || 0;
+          else item[field] = parseFloat(el.value) || 0;
+          setDirty(true);
+        });
+      });
+      card.querySelector('[data-act="remove"]').addEventListener("click", () => {
+        roomState.draft.entranceAnimations.items.splice(idx, 1);
+        renderDirectionItems(); setDirty(true);
+      });
+      card.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        const arr = roomState.draft.entranceAnimations.items;
+        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+        renderDirectionItems(); setDirty(true);
+      });
+      card.querySelector('[data-act="down"]').addEventListener("click", () => {
+        const arr = roomState.draft.entranceAnimations.items;
+        if(idx === arr.length - 1) return;
+        [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
+        renderDirectionItems(); setDirty(true);
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+  // ===== 🎁 家具・装飾 =====
+  function renderFurnitureModule(){
+    const panel = $("panel-furniture");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🎁 部屋の家具・装飾(部屋の育成)</h2>
+        <p class="hint" style="margin-top:-6px;">花・ぬいぐるみ・写真などを部屋に追加できます。</p>
+        <div id="furnitureEditor"></div>
+        <button class="secondary" id="btnAddFurniture" style="margin-top:6px;">＋ 家具を追加</button>
+      </div>
+      <div class="card">
+        <h2>プレビュー</h2>
+        <div class="preview-scene" id="previewScene3" style="background:linear-gradient(160deg,#ffe6ef,#e9e0ff);">
+          <div id="previewFurniture"></div>
+        </div>
+      </div>
+    `;
+    renderFurnitureItems();
+    $("btnAddFurniture").addEventListener("click", () => {
+      roomState.draft.furniture.items.push({ id: "furniture-" + Date.now(), image: "", x: 50, y: 50, scale: 1, rotation: 0, opacity: 1, zIndex: 1, enabled: true });
+      renderFurnitureItems(); setDirty(true);
+    });
+  }
+  function renderFurnitureItems(){
+    const wrap = $("furnitureEditor");
+    wrap.innerHTML = "";
+    roomState.draft.furniture.items.forEach((item, idx) => {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      card.innerHTML = `
+        <div class="head">
+          <span class="head-title">${item.id || ("家具" + (idx+1))}</span>
+          <div class="head-btns">
+            <button class="secondary tiny" data-act="up">▲</button>
+            <button class="secondary tiny" data-act="down">▼</button>
+            <button class="danger tiny" data-act="remove">削除</button>
+          </div>
         </div>
         <div class="field" style="margin-bottom:8px;"><label>画像</label><select data-f="image">${imageOptions(item.image)}</select></div>
-        <div class="pose-fields">
+        <div class="field-grid">
           <div class="field"><label>X (%)</label><input type="number" data-f="x" value="${item.x!=null?item.x:50}"></div>
           <div class="field"><label>Y (%)</label><input type="number" data-f="y" value="${item.y!=null?item.y:50}"></div>
           <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${item.scale!=null?item.scale:1}"></div>
@@ -560,11 +872,18 @@
         </div>
         <label class="checkbox-row"><input type="checkbox" data-f="enabled" ${item.enabled!==false?"checked":""}> 表示する</label>
       `;
-      card.querySelector('[data-act="remove"]').addEventListener("click", () => {
-        draftConfig.furniture.items.splice(idx, 1);
-        renderFurnitureEditor();
-        renderPreview();
-        setDirty(true);
+      card.querySelector('[data-act="remove"]').addEventListener("click", () => { roomState.draft.furniture.items.splice(idx, 1); renderFurnitureItems(); updateFurniturePreview(); setDirty(true); });
+      card.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        const arr = roomState.draft.furniture.items;
+        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+        renderFurnitureItems(); updateFurniturePreview(); setDirty(true);
+      });
+      card.querySelector('[data-act="down"]').addEventListener("click", () => {
+        const arr = roomState.draft.furniture.items;
+        if(idx === arr.length - 1) return;
+        [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
+        renderFurnitureItems(); updateFurniturePreview(); setDirty(true);
       });
       card.querySelectorAll("[data-f]").forEach(el => {
         const field = el.dataset.f;
@@ -573,54 +892,19 @@
           if(field === "enabled") item.enabled = el.checked;
           else if(field === "image") item.image = el.value;
           else item[field] = parseFloat(el.value) || 0;
-          renderPreview();
-          setDirty(true);
+          updateFurniturePreview(); setDirty(true);
         });
       });
       wrap.appendChild(card);
     });
+    updateFurniturePreview();
   }
-
-  $("btnAddFurniture").addEventListener("click", () => {
-    draftConfig.furniture.items.push({
-      id: "furniture-" + Date.now(), image: "", x: 50, y: 50, scale: 1, rotation: 0, opacity: 1, zIndex: 1, enabled: true,
-    });
-    renderFurnitureEditor();
-    setDirty(true);
-  });
-
-  // ===== プレビュー =====
-  function renderPreviewControls(){
-    const sel = $("previewPose");
-    sel.innerHTML = "";
-    POSES.forEach(p => sel.appendChild(new Option(p.label, p.key)));
-  }
-  $("previewBand").addEventListener("change", renderPreview);
-  $("previewPose").addEventListener("change", renderPreview);
-
-  function renderPreview(){
-    if(!draftConfig) return;
-    const band = $("previewBand").value;
-    const tod = draftConfig.background.timeOfDay[band];
-    const bgImg = findImageByName(filenameOf(tod && tod.image));
-    $("previewBg").src = bgImg ? bgImg.url : "";
-
-    const poseKey = $("previewPose").value || "idle";
-    const pose = draftConfig.character.poses[poseKey] || {};
-    const poseImg = findImageByName(filenameOf(pose.image));
-    const avatarImg = $("previewAvatar");
-    avatarImg.style.opacity = "";
-    avatarImg.src = poseImg ? poseImg.url : "";
-    avatarImg.style.display = pose.visible === false ? "none" : "";
-    avatarImg.style.opacity = pose.opacity != null ? String(pose.opacity) : "1";
-    avatarImg.style.zIndex = pose.zIndex != null ? String(pose.zIndex) : "1";
-    const tx = (pose.x||0) * 0.5, ty = (pose.y||0) * 0.5; // プレビューは実画面より小さいため係数を掛けて目安表示にする
-    avatarImg.style.transform = `translate(${tx}px, ${ty}px) scale(${pose.scale!=null?pose.scale:1}) rotate(${pose.rotation||0}deg)`;
-
+  function updateFurniturePreview(){
     const fWrap = $("previewFurniture");
+    if(!fWrap) return;
     fWrap.innerHTML = "";
-    (draftConfig.furniture.items || []).filter(it => it.enabled !== false && it.image).forEach(it => {
-      const img = findImageByName(filenameOf(it.image));
+    (roomState.draft.furniture.items || []).filter(it => it.enabled !== false && it.image).forEach(it => {
+      const img = findImageByPath(it.image);
       if(!img) return;
       const el = document.createElement("img");
       el.className = "furniture-item";
@@ -635,21 +919,238 @@
     });
   }
 
-  // ===== 保存 =====
+  // ============================================================
+  // ===== 汎用コレクション編集エンジン(将来モジュール共通利用) =====
+  // ============================================================
+  async function loadGenericModule(mod){
+    const data = await api("getJson", { path: mod.path });
+    const draft = data.content || JSON.parse(JSON.stringify(mod.defaultShape));
+    genericState[mod.id] = { draft, sha: data.sha, dirty: false, loaded: true };
+  }
+
+  function getPath(obj, path){ return path.split(".").reduce((o,k) => (o == null ? undefined : o[k]), obj); }
+  function setPath(obj, path, val){
+    const parts = path.split(".");
+    let o = obj;
+    for(let i = 0; i < parts.length - 1; i++){ o[parts[i]] = o[parts[i]] || {}; o = o[parts[i]]; }
+    o[parts[parts.length - 1]] = val;
+  }
+  function defaultForField(f){ return f.default !== undefined ? f.default : (f.type === "boolean" ? false : f.type === "number" ? 0 : ""); }
+  function defaultItemForSchema(schema){
+    const obj = {};
+    schema.forEach(f => setPath(obj, f.key, defaultForField(f)));
+    return obj;
+  }
+
+  function buildFieldRow(fieldDef, item, onDirty){
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    const label = document.createElement("label");
+    label.textContent = fieldDef.label;
+    wrap.appendChild(label);
+    const value = getPath(item, fieldDef.key);
+
+    if(fieldDef.type === "boolean"){
+      wrap.className = "field checkbox-row";
+      wrap.innerHTML = "";
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = value !== false;
+      cb.addEventListener("change", () => { setPath(item, fieldDef.key, cb.checked); onDirty(); });
+      wrap.appendChild(cb);
+      const span = document.createElement("span"); span.textContent = fieldDef.label;
+      wrap.appendChild(span);
+      return wrap;
+    }
+    if(fieldDef.type === "textarea"){
+      const ta = document.createElement("textarea");
+      ta.value = value || "";
+      ta.addEventListener("input", () => { setPath(item, fieldDef.key, ta.value); onDirty(); });
+      wrap.appendChild(ta);
+      return wrap;
+    }
+    if(fieldDef.type === "select"){
+      const sel = document.createElement("select");
+      (fieldDef.options || []).forEach(opt => sel.appendChild(new Option(opt.label, opt.value, false, opt.value === value)));
+      sel.addEventListener("change", () => { setPath(item, fieldDef.key, sel.value); onDirty(); });
+      wrap.appendChild(sel);
+      return wrap;
+    }
+    if(fieldDef.type === "color"){
+      const inp = document.createElement("input");
+      inp.type = "color"; inp.value = value || "#8b6fd6";
+      inp.addEventListener("input", () => { setPath(item, fieldDef.key, inp.value); onDirty(); });
+      wrap.appendChild(inp);
+      return wrap;
+    }
+    if(fieldDef.type === "image" || fieldDef.type === "audio"){
+      const isAudio = fieldDef.type === "audio";
+      const row = document.createElement("div");
+      row.className = "media-field";
+      const sel = document.createElement("select");
+      const opts = isAudio ? audioOptions(value) : imageOptions(value);
+      sel.innerHTML = opts;
+      const preview = isAudio ? document.createElement("audio") : document.createElement("img");
+      if(isAudio){ preview.className = "mini-audio"; preview.controls = true; }
+      else { preview.className = "media-preview-thumb"; preview.onerror = function(){ this.style.visibility = "hidden"; }; }
+      const found = isAudio ? findAudioByPath(value) : findImageByPath(value);
+      if(found){ preview.src = found.url; }
+      sel.addEventListener("change", () => {
+        setPath(item, fieldDef.key, sel.value);
+        const f = isAudio ? findAudioByPath(sel.value) : findImageByPath(sel.value);
+        preview.src = f ? f.url : "";
+        onDirty();
+      });
+      const uploadBtn = document.createElement("button");
+      uploadBtn.type = "button"; uploadBtn.className = "secondary tiny"; uploadBtn.textContent = "追加";
+      uploadBtn.addEventListener("click", () => {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = isAudio ? ".mp3,.ogg,.wav,.m4a" : ".webp,.png,.jpg,.jpeg,.gif,.svg";
+        fileInput.onchange = async () => {
+          const file = fileInput.files && fileInput.files[0];
+          if(!file) return;
+          try{
+            const dir = isAudio ? AUDIO_DIR : IMAGE_DIR;
+            const listArr = isAudio ? assetLibrary.audio : assetLibrary.images;
+            const filename = sanitizeFilename(Date.now() + "-" + file.name);
+            const entry = await uploadAndRegister(dir, filename, file, listArr);
+            setPath(item, fieldDef.key, entry.path);
+            (isAudio ? renderAudioGrid : renderImageGrid)();
+            renderTab(currentTab);
+            onDirty();
+          }catch(e){ alert("アップロードに失敗しました: " + e.message); }
+        };
+        fileInput.click();
+      });
+      row.appendChild(sel); row.appendChild(preview); row.appendChild(uploadBtn);
+      wrap.appendChild(row);
+      return wrap;
+    }
+    // text / number (既定)
+    const inp = document.createElement("input");
+    inp.type = fieldDef.type === "number" ? "number" : "text";
+    if(fieldDef.step != null) inp.step = fieldDef.step;
+    if(fieldDef.min != null) inp.min = fieldDef.min;
+    if(fieldDef.max != null) inp.max = fieldDef.max;
+    inp.value = value != null ? value : "";
+    inp.addEventListener("input", () => {
+      setPath(item, fieldDef.key, fieldDef.type === "number" ? (parseFloat(inp.value) || 0) : inp.value);
+      onDirty();
+    });
+    wrap.appendChild(inp);
+    return wrap;
+  }
+
+  function itemHeading(mod, item, idx){
+    const titleField = mod.schema.find(f => f.key === "label" || f.key === "title");
+    if(titleField) return getPath(item, titleField.key) || (mod.itemLabel + (idx + 1));
+    return mod.itemLabel + (idx + 1);
+  }
+
+  function renderGenericModule(mod){
+    const panel = $("panel-" + mod.id);
+    const state = genericState[mod.id];
+    if(!state){ panel.innerHTML = `<div class="card">読み込み中…</div>`; return; }
+
+    if(mod.kind === "singleton"){
+      panel.innerHTML = `<div class="card"><h2>${mod.icon} ${mod.label}</h2><div class="field-grid" id="singletonFields"></div>${mod.note ? `<p class="stub-note" style="margin-top:12px;">${mod.note}</p>` : ""}</div>`;
+      const fieldsWrap = $("singletonFields");
+      mod.schema.forEach(f => {
+        const row = buildFieldRow(f, state.draft, () => setDirty(true));
+        fieldsWrap.appendChild(row);
+      });
+      return;
+    }
+
+    // kind === "collection"
+    state.draft.items = state.draft.items || [];
+    panel.innerHTML = `
+      <div class="card">
+        <h2>${mod.icon} ${mod.label}</h2>
+        ${mod.note ? `<p class="stub-note">${mod.note}</p>` : ""}
+        <div id="genericCollection-${mod.id}" style="margin-top:12px;"></div>
+        <button class="secondary" id="btnAddItem-${mod.id}" style="margin-top:6px;">＋ ${mod.itemLabel}を追加</button>
+      </div>
+    `;
+    renderGenericCollectionItems(mod);
+    $("btnAddItem-" + mod.id).addEventListener("click", () => {
+      state.draft.items.push(defaultItemForSchema(mod.schema));
+      renderGenericCollectionItems(mod);
+      setDirty(true);
+    });
+  }
+
+  function renderGenericCollectionItems(mod){
+    const state = genericState[mod.id];
+    const wrap = $("genericCollection-" + mod.id);
+    wrap.innerHTML = "";
+    state.draft.items.forEach((item, idx) => {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      const head = document.createElement("div");
+      head.className = "head";
+      head.innerHTML = `
+        <span class="head-title">${itemHeading(mod, item, idx)}</span>
+        <div class="head-btns">
+          <button class="secondary tiny" data-act="up">▲</button>
+          <button class="secondary tiny" data-act="down">▼</button>
+          <button class="danger tiny" data-act="remove">削除</button>
+        </div>`;
+      card.appendChild(head);
+      const grid = document.createElement("div");
+      grid.className = "field-grid";
+      mod.schema.forEach(f => {
+        const row = buildFieldRow(f, item, () => {
+          setDirty(true);
+          head.querySelector(".head-title").textContent = itemHeading(mod, item, idx);
+        });
+        grid.appendChild(row);
+      });
+      card.appendChild(grid);
+
+      head.querySelector('[data-act="remove"]').addEventListener("click", () => {
+        state.draft.items.splice(idx, 1); renderGenericCollectionItems(mod); setDirty(true);
+      });
+      head.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        const arr = state.draft.items;
+        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+        renderGenericCollectionItems(mod); setDirty(true);
+      });
+      head.querySelector('[data-act="down"]').addEventListener("click", () => {
+        const arr = state.draft.items;
+        if(idx === arr.length - 1) return;
+        [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
+        renderGenericCollectionItems(mod); setDirty(true);
+      });
+
+      wrap.appendChild(card);
+    });
+  }
+
+  // ===== 保存(現在開いているタブが属するモジュールを保存する) =====
   $("btnReload").addEventListener("click", async () => {
-    if(dirty && !confirm("保存していない変更を破棄して再読込します。よろしいですか?")) return;
-    await loadAll();
+    const state = currentDirtyState();
+    if(state.dirty && !confirm("保存していない変更を破棄して再読込します。よろしいですか?")) return;
+    const mod = MODULES.find(m => m.id === currentTab);
+    if(mod.group === "room"){ await loadRoomConfig(); }
+    else { await loadGenericModule(mod); }
+    renderTab(currentTab);
+    setDirty(false);
   });
 
   $("btnSave").addEventListener("click", async () => {
+    const mod = MODULES.find(m => m.id === currentTab);
+    const state = mod.group === "room" ? roomState : genericState[mod.id];
+    const path = mod.group === "room" ? ROOM_CONFIG_PATH : mod.path;
     const statusEl = $("saveStatus");
-    statusEl.className = "";
-    statusEl.textContent = "保存中…";
+    statusEl.className = ""; statusEl.textContent = "保存中…";
     $("btnSave").disabled = true;
     try{
-      const result = await api("saveConfig", { config: draftConfig, sha: configSha });
-      configSha = result.sha || configSha;
-      setDirty(false);
+      const result = await api("saveJson", { path, content: state.draft, sha: state.sha });
+      state.sha = result.sha || state.sha;
+      state.dirty = false;
+      $("btnSave").disabled = true;
       statusEl.className = "ok";
       statusEl.textContent = "✅ 保存しました。ホーム画面への反映を確認しています…";
       pollDeployStatus(result.commitSha, statusEl);
@@ -668,25 +1169,20 @@
         const d = await api("checkDeployStatus", { commitSha });
         if(d.status === "completed"){
           statusEl.className = d.conclusion === "success" ? "ok" : "err";
-          statusEl.textContent = d.conclusion === "success"
-            ? "✅ ホーム画面に反映されました！"
-            : "⚠ デプロイが失敗しました。GitHub Actionsのログを確認してください。";
+          statusEl.textContent = d.conclusion === "success" ? "✅ ホーム画面に反映されました!" : "⚠ デプロイが失敗しました。GitHub Actionsのログを確認してください。";
           return;
         }
       }catch(e){ /* 次のポーリングへ */ }
     }
   }
 
-  // ===== 起動 =====
+  // ===== 自動ログイン =====
   if(adminToken){
     api("ping").then(() => {
       $("loginScreen").style.display = "none";
       $("mainScreen").style.display = "block";
-      loadAll();
-    }).catch(() => {
-      sessionStorage.removeItem("kaosuAdminToken");
-      adminToken = "";
-    });
+      bootstrap();
+    }).catch(() => { sessionStorage.removeItem("kaosuAdminToken"); adminToken = ""; });
   }
 })();
 </script>
