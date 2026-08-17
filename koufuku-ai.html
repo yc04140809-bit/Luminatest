@@ -542,14 +542,44 @@ textarea{ font-family:inherit; }
 .priority-message:last-child{ margin-bottom:0; }
 
 /* ---------- ケイオスちゃんのお部屋(Version 2.0) ---------- */
+/* Phase22.3: ホーム背景デザイン改善。ホームは「機能一覧」ではなく
+   「ケイオスちゃんの世界へ入る入口」であるため、.view[data-view="home"]
+   自体をpadding無しのフルブリードにし(既存のチャット画面と同じ
+   考え方)、#kaosuRoomがその中を余白なく100%埋める。カード的な角丸/
+   影/白背景はすべて撤去し、背景画像(または後述のグラデーション)が
+   画面の隅々まで途切れず続くようにする。 */
+.view[data-view="home"]{ padding:0; }
+.view[data-view="home"].active{ display:flex; flex-direction:column; height:100%; }
 .kaosu-room{
-  position:relative; border-radius:var(--radius-lg); overflow:hidden;
-  margin-bottom:16px; box-shadow:var(--shadow); background:var(--surface);
+  position:relative; overflow:hidden; flex:1; min-height:0;
+  border-radius:0; box-shadow:none; background:transparent; margin-bottom:0;
 }
+/* Phase22/22.3: 部屋の高さを画面いっぱい(flex:1)にし、中の要素
+   (.kaosu-room-stage=window/character/一言/挨拶)を縦方向に中央寄せ
+   する。window/furniture/fx/bg-imgは元からposition:absoluteのため
+   flex化の影響を受けず、これまでどおりの位置関係を保つ。 */
 .kaosu-room-scene{
-  position:relative; padding:22px 16px 44px; overflow:hidden;
+  position:relative; overflow:hidden; flex:1; min-height:0; height:100%;
+  padding:calc(18px + env(safe-area-inset-top)) 16px 18px;
+  display:flex; flex-direction:column;
+  background-size:cover; background-position:center;
   transition:background .8s ease;
-  background:linear-gradient(180deg,#fff8e6 0%,#ffe9c9 55%,#ffd9c9 100%);
+}
+/* Phase22.3: window/character/一言/挨拶をまとめて縦方向いっぱいに
+   広げつつ中央寄せする「舞台」。下のkaosu-room-actions(CTAボタン)は
+   flex:noneの別ブロックとして最下部に固定される。 */
+.kaosu-room-stage{
+  position:relative; z-index:1; flex:1; min-height:0; width:100%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+/* Phase22: 部屋全体にごく淡いガラス質感を足す(内側ハイライト+微細な
+   ノイズ代わりの二重グラデーション)。派手にならないよう不透明度は
+   低く抑える。既存のkaosu-lighting-*(::after、時間帯の光)とは別の
+   ::before疑似要素のため、重ね順・挙動とも干渉しない。 */
+.kaosu-room-scene::before{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background:radial-gradient(ellipse 80% 50% at 50% 0%, rgba(255,255,255,.35), transparent 60%);
+  mix-blend-mode:soft-light;
 }
 /* ホーム画面リニューアル(部屋イラスト差し替え対応): 実際の背景イラスト
    (img/koufuku/room/bg-*.webp)がまだ存在しない間は、この<img>が
@@ -583,8 +613,61 @@ textarea{ font-family:inherit; }
 }
 .kaosu-room-window::before{ left:-13px; transform:rotate(-6deg); }
 .kaosu-room-window::after{ right:-13px; transform:rotate(6deg); }
-.kaosu-room-character{ position:relative; z-index:1; display:flex; justify-content:center; margin-top:32px; }
+.kaosu-room-character{ position:relative; z-index:1; display:flex; justify-content:center; margin-top:8px; }
 .kaosu-room-character .kaosu-avatar{ box-shadow:0 8px 20px rgba(120,90,60,.2); }
+/* Phase22: キャラクターの真後ろへ淡いスポットライトを敷き、部屋の中で
+   一番最初に目が行くようにする(視線誘導)。::beforeは.kaosu-room-fx
+   (z-index:0)より前面・キャラクター本体(z-index:1〜)より背面になる
+   よう、この要素自体のz-indexを0にしてDOM順(fx→window→character)で
+   自然に間へ挟まる。 */
+.kaosu-room-character::before{
+  content:""; position:absolute; z-index:0; left:50%; top:52%;
+  width:min(78vw, 340px); height:min(78vw, 340px);
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(255,220,240,.28) 45%, transparent 72%);
+  filter:blur(2px);
+  pointer-events:none;
+}
+/* Phase22: ケイオスちゃんの本体表示を「小さな丸アイコン」から「部屋の
+   主役」へ拡大する。#kaosuRoomAvatarはHTML側の固定px(width/height)を
+   撤去し、ここで画面比例のサイズ(全身〜腰上程度)を指定する。丸型
+   トリミング(border-radius:50%/object-fit:cover)は他画面(チャット/
+   マインド等)の小さい丸アイコン用の見た目なので、部屋のアバターだけ
+   ID指定で上書きし、イラスト全体が見えるcontain+透明背景に変える。 */
+#kaosuRoomAvatar{
+  position:relative; z-index:1;
+  width:min(66vw, 300px); height:min(50vh, 420px);
+  border-radius:0; background:transparent; box-shadow:none;
+}
+/* 既存アセット(kaosu-home.webp等)は正方形・背景色ベタ塗りのバスト
+   アップ画像のため、そのまま大きく表示すると輪郭が四角く硬く見える。
+   .chat-hero-avatar img(Phase21のチャット画面)と同じ考え方で、
+   楕円形のmask-imageで縁だけを淡くフェードさせ、部屋の背景に馴染ませる。 */
+#kaosuRoomAvatar img{
+  object-fit:contain; object-position:center bottom;
+  -webkit-mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
+  mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
+}
+#kaosuRoomAvatar .kaosu-fallback{
+  position:absolute; left:50%; top:58%; transform:translate(-50%,-50%);
+  width:62%; height:62%; border-radius:50%;
+  background:radial-gradient(circle at 34% 28%, #ffffff, #ffe3f0 38%, #dcefff 72%, #efe9ff 100%);
+  box-shadow:0 8px 20px rgba(120,90,60,.2);
+}
+/* Phase22: アバターをタップした時の反応。transformは呼吸(.kaosu-room-
+   character)・視線(#kaosuRoomAvatar)・ポーズ(imgのinline transform、
+   JS管理)がそれぞれ既に使っているため衝突を避け、filterのbrightness
+   だけを一瞬動かす(#kaosuRoomAvatarのbox-shadowは音声リアクション
+   (Phase61)が使っているため、これも触らない)。 */
+@keyframes kaosuTapFlash{
+  0%{ filter:brightness(1); }
+  35%{ filter:brightness(1.12); }
+  100%{ filter:brightness(1); }
+}
+#kaosuRoomAvatarImg.kaosu-tap-bounce{ animation:kaosuTapFlash calc(.4s * var(--kaosu-motion-speed, 1)) ease-out; }
+@media (prefers-reduced-motion: reduce){
+  #kaosuRoomAvatarImg.kaosu-tap-bounce{ animation:none; }
+}
 /* Phase54: 呼吸モーション。scale/translateY/opacityだけの控えめな
    keyframesで、極端な揺れにならないよう振れ幅を小さく保つ(周期5秒)。
    .kaosu-room-characterはキャラクター全体を包む箱なので、ここへ
@@ -594,11 +677,14 @@ textarea{ font-family:inherit; }
    Phase62: ピーク時のscale値を固定値1.018からCSS変数
    --kaosu-breath-peakへ差し替えた(JS側でmoodに応じて上書きする)。
    変数が未設定の場合は元と同じ1.018にフォールバックするため、
-   Phase62導入前と見た目・挙動は完全に同一。 */
+   Phase62導入前と見た目・挙動は完全に同一。
+   Phase22: 「生きている」感を強めるため、同じ呼吸周期にごくわずかな
+   回転(±0.35deg)を足した(「髪や服の微妙な揺れ」に相当)。scale/
+   translateYの値・周期は無変更で、rotateだけを追加している。 */
 .kaosu-breathe{ animation:kaosuBreathe calc(5s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; transform-origin:center bottom; }
 @keyframes kaosuBreathe{
-  0%, 100%{ transform:scale(1) translateY(0); opacity:1; }
-  50%{ transform:scale(var(--kaosu-breath-peak, 1.018)) translateY(-2px); opacity:.96; }
+  0%, 100%{ transform:scale(1) translateY(0) rotate(0deg); opacity:1; }
+  50%{ transform:scale(var(--kaosu-breath-peak, 1.018)) translateY(-2px) rotate(.35deg); opacity:.96; }
 }
 @media (prefers-reduced-motion: reduce){
   .kaosu-breathe{ animation:none; }
@@ -726,42 +812,40 @@ textarea{ font-family:inherit; }
   .kaosu-room-scene::after{ transition:none; }
 }
 .kaosu-room-greeting{
-  position:relative; z-index:1; max-width:250px; margin:12px auto 0;
-  text-align:center; font-size:13.5px; transition:background .8s ease, color .8s ease;
+  position:relative; z-index:1; max-width:260px; margin:10px auto 0;
+  text-align:center; font-size:14px; font-weight:600;
+  background:rgba(255,255,255,.82); color:#33313f;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  transition:background .8s ease, color .8s ease;
 }
-/* Phase43/44: 日常生活システム/季節イベントの装飾バッジ。背景を常に
-   明るい白系に固定しているため、夜/深夜の暗い部屋背景でも文字色を
-   切り替えずに読める(kaosu-room-greetingの夜間背景切り替えと同じ
-   考え方)。Phase44でバッジが2つ(生活シーン+季節)並ぶため、
-   .kaosu-room-badgesという行コンテナでまとめて中央寄せする。 */
-.kaosu-room-badges{ position:relative; z-index:1; display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-top:8px; }
-.kaosu-room-activity{
-  display:inline-flex; align-items:center;
-  padding:3px 12px; border-radius:99px; background:rgba(255,255,255,.85);
-  font-size:12px; font-weight:700; color:var(--text-sub);
+/* Phase22: 表示するテキストを「挨拶(吹き出し)」+「ひとことメッセージ」
+   の最大2つだけに絞る。生活シーン/季節イベント/天気/おかえり/今日の
+   一言/継続記念/プレゼント/感情/関係性リアクション/時間限定イベント
+   (Phase43〜53)は既存の抽選・条件判定ロジックをそのまま使うが、
+   個別の要素へバラバラに表示する代わりに優先順位付きで1件だけ選び、
+   このガラス風の1行ピルへまとめて表示する(renderKaosuRoomScene()側の
+   consolidateKaosuRoomOneLiner()が選定を行う)。元の個別要素
+   (#kaosuRoomActivity等)はDOM/計算ロジックともに残すが、常に
+   display:noneにして視覚的には使わない(将来また分けて出したくなった
+   場合に戻しやすくするため削除はしない)。 */
+.kaosu-room-oneliner{
+  position:relative; z-index:1; display:inline-flex; align-items:center; gap:6px;
+  max-width:88%; margin:12px auto 0; padding:7px 16px;
+  border-radius:99px; background:rgba(255,255,255,.72); color:#726f83;
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  box-shadow:0 4px 14px rgba(140,110,90,.12);
+  font-size:12.5px; font-weight:600;
+  text-align:center; transition:background .8s ease, color .8s ease;
 }
-/* Phase45: おかえりメッセージ。既存のkaosu-room-greeting(吹き出し)
-   とは見た目を変え、キャラクターの下にそっと添えるだけの小さな
-   一言にする(吹き出しを二重に出さない)。 */
-.kaosu-room-welcome{
-  position:relative; z-index:1; text-align:center; margin:10px 0 0;
-  font-size:13px; font-style:italic; color:var(--text-sub);
+.kaosu-room-scene.room-band-night .kaosu-room-oneliner,
+.kaosu-room-scene.room-band-midnight .kaosu-room-oneliner{ background:rgba(40,36,64,.55); color:rgba(255,255,255,.9); }
+/* Phase43/44/45/47/48/49/50/52/53: 上記の理由により常に非表示にする
+   (テキストの算出ロジック自体は無変更、表示先だけを.kaosu-room-
+   onelinerへ一本化した)。 */
+.kaosu-room-badges, .kaosu-room-activity, .kaosu-room-welcome,
+.kaosu-room-anniversary, .kaosu-room-emotion, .kaosu-room-relation, .kaosu-room-event{
+  display:none !important;
 }
-.kaosu-room-scene.room-band-night .kaosu-room-welcome,
-.kaosu-room-scene.room-band-midnight .kaosu-room-welcome{ color:rgba(255,255,255,.85); }
-/* Phase48: 継続記念(節目の日だけ表示するため通常は非表示のまま)。
-   お祝いだと一目で分かるよう、他の一言よりわずかに強調するだけに
-   留め、派手な演出は加えない。 */
-.kaosu-room-anniversary{ font-style:normal; font-weight:700; color:#ff6f9c; }
-/* Phase50: キャラクター感情表示。他の一言(斜体)と見分けやすいよう
-   斜体だけ解除する最小限の違いに留め、派手な演出は加えない。 */
-.kaosu-room-emotion{ font-style:normal; }
-/* Phase52: 関係性リアクション。親密度の温かさが伝わるよう、斜体を
-   解除しほんのりピンクに色付ける程度に留める(継続記念ほど強調しない)。 */
-.kaosu-room-relation{ font-style:normal; color:#ff8fac; }
-/* Phase53: 時間限定イベント(一致条件のみ表示するため通常は非表示)。
-   派手な演出は加えず、他の一言と同じ見た目のまま条件表示だけを担う。 */
-.kaosu-room-event{ font-style:normal; }
 
 /* Phase51: 環境エフェクト。画像/Canvas/重いライブラリは使わず、
    絵文字1文字ずつをCSSアニメーション(@keyframes)だけで漂わせる
@@ -795,36 +879,78 @@ textarea{ font-family:inherit; }
   .kaosu-room-fx-item.kaosu-fx-twinkle{ opacity:.4; }
 }
 
-/* 時間帯ごとの部屋の色味だけを切り替える(判定はgetRoomVisualBand()が
-   行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。 */
-.kaosu-room-scene.room-band-morning{ background:linear-gradient(180deg,#fff8e6 0%,#ffe9c9 55%,#ffd9c9 100%); }
-.kaosu-room-scene.room-band-day{ background:linear-gradient(180deg,#eaf6ff 0%,#dcefff 55%,#fdf3ff 100%); }
-.kaosu-room-scene.room-band-evening{ background:linear-gradient(180deg,#ffe3cf 0%,#ffb99b 55%,#ff9a8b 100%); }
-.kaosu-room-scene.room-band-night{ background:linear-gradient(180deg,#372c50 0%,#584070 55%,#7a5a6a 100%); }
-.kaosu-room-scene.room-band-midnight{ background:linear-gradient(180deg,#1c1f3a 0%,#25254a 55%,#312a4d 100%); }
+/* Phase22.3: 時間帯ごとの部屋の色味(判定はgetRoomVisualBand()が行い、
+   既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。「紫系・
+   幻想的・高級感」の世界観に統一するため、全時間帯を紫〜藍のジュエル
+   トーンへ寄せた。どのbandにも共通で、最下部(吹き出し/一言/CTAが
+   乗る帯)へ向けて黒紫のグラデーションを重ねる「読みやすさ確保用の
+   ヴィネット」レイヤーを重ねる(1枚目=最前面のvignette、2枚目=
+   時間帯の色)。実背景画像(img/koufuku/room/bg-*.webp)を後から
+   置いた場合も、この2枚のグラデーションがその上に重なったまま
+   維持されるため、読みやすさは常に確保される。 */
+.kaosu-room-scene{
+  background-image:
+    linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.18) 55%, rgba(15,8,28,.72) 100%),
+    linear-gradient(180deg,#4a3a72 0%,#2f2350 60%,#1c1530 100%);
+}
+.kaosu-room-scene.room-band-morning{
+  background-image:
+    linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.16) 55%, rgba(15,8,28,.68) 100%),
+    linear-gradient(180deg,#7a5f9c 0%,#5b4680 60%,#33264f 100%);
+}
+.kaosu-room-scene.room-band-day{
+  background-image:
+    linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.14) 55%, rgba(15,8,28,.62) 100%),
+    linear-gradient(180deg,#8a7ab8 0%,#6a5698 60%,#402f5e 100%);
+}
+.kaosu-room-scene.room-band-evening{
+  background-image:
+    linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.2) 55%, rgba(15,8,28,.74) 100%),
+    linear-gradient(180deg,#7a4f7e 0%,#5c3564 60%,#2c1a3c 100%);
+}
+.kaosu-room-scene.room-band-night{
+  background-image:
+    linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.24) 55%, rgba(12,6,24,.8) 100%),
+    linear-gradient(180deg,#372c50 0%,#241c3e 60%,#160f28 100%);
+}
+.kaosu-room-scene.room-band-midnight{
+  background-image:
+    linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.28) 55%, rgba(8,4,18,.85) 100%),
+    linear-gradient(180deg,#1c1f3a 0%,#171331 60%,#0e0a1e 100%);
+}
 .kaosu-room-scene.room-band-night .kaosu-room-greeting,
 .kaosu-room-scene.room-band-midnight .kaosu-room-greeting{ background:rgba(255,255,255,.94); }
 
-.kaosu-room-shelf{
-  position:relative; margin-top:-26px; padding:18px 14px 4px 14px;
-  background:var(--bg); border-radius:22px 22px 0 0;
-}
+/* ホーム画面UI簡素化(Phase22.2): 旧#homeFeatureDrawer(「機能を見る」で
+   開く格納庫)は廃止し、中身は「わたし」タブへそのまま移設した。
+   .kaosu-room-shelfは元々.kaosu-room直下(部屋の底に重なる想定の
+   マイナスmargin/角丸)だったが、その文脈が無くなったため通常のカード
+   群と同じ見た目(素直な縦積み)に戻す。中のカード自体は無変更。 */
 .kaosu-room-shelf > .card:last-child{ margin-bottom:0; }
-/* ホーム画面リニューアル: kaosuRoomShelfは元々.kaosu-room直下で
-   部屋の底に重なる想定のマイナスmargin/角丸だったが、機能ドロワー
-   (#homeFeatureDrawer)の中へ移設したため、その文脈では通常のカード
-   群と同じ見た目に戻す(視覚的な重なり/角丸だけを打ち消す。中の
-   カード自体は無変更)。 */
-#homeFeatureDrawer .kaosu-room-shelf{
-  margin-top:0; padding:0; background:none; border-radius:0;
-}
+.card-section-label{ font-size:15px; font-weight:700; margin:22px 0 12px; color:var(--text); }
 
-/* ホーム画面リニューアル: 「部屋+ケイオスちゃん」だけを最初に見せ、
-   それ以外のカード群は「▼機能を見る」で開くドロワーへ収める構成。
-   既存カードのIDやロジックは一切変更せず、表示位置と初期表示/非表示
-   だけをこの2つのクラスで制御する。 */
-.kaosu-room-actions{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
-.kaosu-room-drawer-toggle{ margin:0; }
+/* ホームは「ケイオスちゃんに会う場所」。CTAボタン以外の導線は置かない。 */
+.kaosu-room-actions{
+  position:relative; z-index:1; flex:none;
+  display:flex; flex-direction:column; gap:10px;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+/* Phase22: 「ケイオスちゃんと話す」をホーム最大・最重要のボタンに
+   する。既存.btn-primaryの見た目(グラデーション/角丸)は流用しつつ、
+   サイズ・余白・影だけを強調してタップの第一候補だと一目でわかる
+   ようにする。 */
+.kaosu-cta-talk{
+  padding:18px; font-size:17px; letter-spacing:.01em;
+  box-shadow:0 10px 26px rgba(167,139,250,.35);
+}
+@keyframes kaosuCtaGlow{
+  0%, 100%{ box-shadow:0 10px 26px rgba(167,139,250,.35); }
+  50%{ box-shadow:0 12px 30px rgba(255,143,199,.45); }
+}
+.kaosu-cta-talk{ animation:kaosuCtaGlow calc(3.2s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce){
+  .kaosu-cta-talk{ animation:none; }
+}
 
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
@@ -1261,6 +1387,11 @@ textarea.field-input{ resize:none; }
            別関数に分けることで、既存ロジックには一切触れない。 -->
       <div class="kaosu-room" id="kaosuRoom">
         <div class="kaosu-room-scene" id="kaosuRoomScene">
+          <!-- Phase22.2: 背景/家具/fx/window/character/一言/挨拶をまとめて
+               .kaosu-room-stageへ収め、flex:1で縦方向いっぱいに広げつつ
+               中央寄せする(下のkaosuRoomActionsは同じsceneの中で
+               flex:noneとして最下部に固定される)。 -->
+          <div class="kaosu-room-stage">
           <!-- ホーム画面リニューアル: 部屋イラスト背景。実素材(img/koufuku/
                room/bg-<時間帯>.webp)が無い間はonerrorで非表示になり、
                既存のCSSグラデーション背景(.kaosu-room-scene.room-band-*)
@@ -1287,7 +1418,7 @@ textarea.field-input{ resize:none; }
                  専用のtransformレイヤー。呼吸(親要素)・視線(子要素)の
                  transformとは別要素にして干渉を避ける。 -->
             <div class="kaosu-room-entrance" id="kaosuRoomEntrance">
-            <div class="kaosu-avatar" style="width:84px;height:84px" id="kaosuRoomAvatar">
+            <div class="kaosu-avatar" id="kaosuRoomAvatar">
               <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" id="kaosuRoomAvatarImg" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
@@ -1333,22 +1464,263 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome kaosu-room-emotion" id="kaosuRoomEmotion"></p>
           <p class="kaosu-room-welcome kaosu-room-relation" id="kaosuRoomRelation"></p>
           <p class="kaosu-room-welcome kaosu-room-event" id="kaosuRoomEvent" style="display:none;"></p>
+          <!-- Phase22: 上のPhase43〜53の個別要素はCSS側で常時非表示にし
+               (計算ロジックは維持)、そこから優先順位で選んだ1件だけを
+               ここへ表示する。挨拶(吹き出し)と合わせて最大2行に収める。 -->
+          <p class="kaosu-room-oneliner" id="kaosuRoomOneLiner" style="display:none;"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
+          </div>
+          <!-- ホーム画面UI簡素化: 「ケイオスちゃんと話す」だけを残す。
+               ショートカット行(幸せ設計/ワクワク/未来/一歩/チャット)は
+               Bottom Navigationと役割が重複するため削除した。 -->
+          <div class="kaosu-room-actions" id="kaosuRoomActions">
+            <button class="btn-primary kaosu-cta-talk" id="btnOpenChat">💬 ケイオスちゃんと話す</button>
+          </div>
         </div>
-      </div><!-- /#kaosuRoom: 開いた瞬間に見えるのは部屋+ケイオスちゃん
-                  だけにするため、既存カード群はここで#kaosuRoomを閉じて
-                  すべて下の#homeFeatureDrawer側へ回す。 -->
+      </div><!-- /#kaosuRoom -->
+    </section>
 
-      <!-- ホーム画面リニューアル: btnOpenChatは既存の「話す」導線として
-           ここへ移設し(下のhappinessModeContent内にあった同一IDの
-           ボタンを削除して重複させないようにした)、常に押せる状態を
-           維持する。 -->
-      <div class="kaosu-room-actions" id="kaosuRoomActions">
-        <button class="btn-primary" id="btnOpenChat">💬 ケイオスちゃんと話す</button>
-        <button type="button" class="btn-outline kaosu-room-drawer-toggle" id="btnHomeFeatureToggle" aria-expanded="false" aria-controls="homeFeatureDrawer">▼ 機能を見る</button>
+    <!-- ② ワクワクBOX -->
+    <section class="view" data-view="wakuwaku" style="position:relative;">
+      <h1 class="view-title">ワクワクBOX</h1>
+      <p class="view-sub">集めたワクワクを、眺めるだけでも楽しい場所</p>
+      <p class="privacy-note">※現在の試作版では、ワクワクの記録はこのブラウザ内に保存されます</p>
+      <p class="wwDebugInfo"></p>
+
+      <div class="filter-row-wrap">
+        <div class="filter-row" id="filterRow"></div>
+        <div class="filter-fade" aria-hidden="true"></div>
+      </div>
+      <div class="wakuwaku-grid" id="wakuwakuGrid"></div>
+      <div class="wakuwaku-empty" id="wakuwakuEmpty" style="display:none;">
+        <div class="kaosu-avatar" style="width:72px;height:72px">
+          <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble" id="wakuwakuEmptyMessage"></div>
+        <div style="margin-top:16px;"><button class="btn-primary" id="btnEmptyAddWakuwaku">最初のワクワクを残す</button></div>
+      </div>
+      <button class="fab" id="fabAddWakuwaku">＋</button>
+    </section>
+
+    <!-- ④ 少し先の未来(Phase4) -->
+    <section class="view" data-view="future">
+      <h1 class="view-title">少し先の未来</h1>
+      <p class="view-sub">集めたワクワクから、<br>あなたが少し心惹かれそうな未来を描きます。</p>
+      <p class="wwDebugInfo"></p>
+
+      <!-- Phase28: AIカレンダー分析(新規画面は追加せず、既存の
+           「未来」画面へ追加)。ワクワクデータの有無に関係なく、
+           家族の予定データがあれば表示する。 -->
+      <div class="card future-ai-analysis-card" id="futureAiAnalysisCard" style="display:none;">
+        <div class="card-label">📅 ケイオスちゃんのカレンダー分析</div>
+        <div class="future-busy-row">
+          <span>今週の忙しさ</span>
+          <span class="future-busy-stars" id="futureBusyStars"></span>
+        </div>
+        <div id="futureCalendarStatsBody"></div>
+        <div id="futureCalendarCommentBody"></div>
       </div>
 
-      <div class="kaosu-room-drawer" id="homeFeatureDrawer" style="display:none;">
+      <!-- Phase32: AI予測カード(新画面は作らず、既存「未来」画面へ
+           追加)。予定件数/曜日偏り/Memory/繰り返し予定/通知履歴のみを
+           根拠にし、位置情報・歩数・GPS等の未取得データは使わない。 -->
+      <div class="card future-ai-analysis-card" id="futurePredictionCard" style="display:none;">
+        <div class="card-label">🔮 ケイオスちゃんの予想</div>
+        <div id="futurePredictionList"></div>
+      </div>
+
+      <!-- Phase36: AI習慣カード。AI予測カードの下に、続いている習慣/
+           止まった習慣を表示する。判定はfamilyEvents/wakuwakuEntries/
+           stepLogRead()/aiMemoryFactsの実際の日付だけを使い、7日/30日の
+           活動日数で継続・停止を判定する(新しい推測は禁止。データが
+           一度も無い習慣は「止まっている」とは言わず、判定対象から
+           外す)。 -->
+      <div class="card habit-card" id="futureHabitCard" style="display:none;">
+        <div class="card-label">🔁 ケイオスちゃんが見つけた習慣</div>
+        <div id="futureHabitContinuingSection" style="display:none;">
+          <p class="habit-section-label">最近続いています</p>
+          <div id="futureHabitContinuingList"></div>
+        </div>
+        <div id="futureHabitStoppedSection" style="display:none;">
+          <p class="habit-section-label">最近止まっています</p>
+          <div id="futureHabitStoppedList"></div>
+        </div>
+        <p class="habit-comment" id="futureHabitComment" style="display:none;"></p>
+      </div>
+
+      <!-- Phase38: AI Smart Timeline。AI習慣カードの下に、今日の出来事
+           を時刻順にまとめる。実際にタイムスタンプを持つデータ(予定の
+           datetime/ワクワクのcreatedAt/一歩のcompletedAt/実際に届いた
+           AI通知のcreatedAt)だけを使い、時刻を持たない項目(今日の
+           ルミナ)は新しい時刻を装わず「時刻なし」として最後に置く。 -->
+      <div class="card timeline-card" id="futureTimelineCard" style="display:none;">
+        <div class="card-label">🕒 今日の流れ</div>
+        <div id="futureTimelineList"></div>
+        <div id="futureTimelineUntimedList"></div>
+        <p class="timeline-comment" id="futureTimelineComment" style="display:none;"></p>
+      </div>
+
+      <!-- Phase33: AI Action Engine。AI予測カードの下に、行動できる
+           項目だけを最大3件表示する。 -->
+      <div class="card ai-action-card" id="futureAiActionCard" style="display:none;">
+        <div class="card-label">✅ 今すぐできること</div>
+        <div id="futureAiActionList"></div>
+      </div>
+
+      <div class="mind-empty" id="futureEmpty" style="display:none;">
+        <div class="kaosu-avatar" style="width:72px;height:72px">
+          <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble" id="futureEmptyMessage"></div>
+        <div style="margin-top:16px;"><button class="btn-primary" id="btnFutureGoWakuwaku">ワクワクを集める</button></div>
+      </div>
+
+      <div id="futureContent" style="display:none;">
+        <div class="card">
+          <div class="card-label">未来のかけら</div>
+          <div id="futureFragmentBody"></div>
+        </div>
+
+        <div class="card" id="futureCandidateCard" style="display:none;">
+          <div class="card-label">未来の景色</div>
+          <div id="futureCandidateList"></div>
+          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureCandidateKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">あなたらしい未来のヒント</div>
+          <p class="view-sub" style="margin:0 0 10px;">好きなものの奥にある共通点から、<br>こんな未来も似合うかもしれません。</p>
+          <div id="futureValueHintList"></div>
+          <p class="mind-empty-note" style="margin-top:10px;">未来は、まだ決めなくて大丈夫。</p>
+          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureValueHintKaosu" style="font-size:13px;"></div>
+          </div>
+        </div>
+
+        <div class="card future-scene-card">
+          <div class="card-label">未来の風景</div>
+          <p class="mind-empty-note" id="futureLowDataNote" style="display:none;"></p>
+          <p class="future-paragraph" id="futureSceneText"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-label">未来につながっているワクワク</div>
+          <div class="future-source-list" id="futureSourceList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">未来への小さな一歩</div>
+          <div class="kaosu-row" style="margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureHint"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">未来の芽</div>
+          <div id="futureSproutBody"></div>
+          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="futureSproutKaosu"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ⑤ 今日の一歩(Phase5) -->
+    <section class="view" data-view="step">
+      <h1 class="view-title">今日の小さな一歩</h1>
+      <p class="view-sub">集めたワクワクから、<br>今日できそうな小さな一歩を見つけます。</p>
+      <p class="wwDebugInfo"></p>
+
+      <div class="mind-empty" id="stepEmpty" style="display:none;">
+        <div class="kaosu-avatar" style="width:72px;height:72px">
+          <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+        </div>
+        <div class="speech-bubble" id="stepEmptyMessage"></div>
+        <div style="margin-top:16px;"><button class="btn-primary" id="btnStepGoWakuwaku">ワクワクを集める</button></div>
+      </div>
+
+      <div id="stepContent" style="display:none;">
+        <div class="card" id="stepTagCandidateCard" style="display:none;">
+          <div class="card-label">今日の小さな一歩候補</div>
+          <div id="stepTagCandidateList"></div>
+          <button class="btn-text" id="btnStepTagUndecided" style="margin-top:2px;">今日は決めない</button>
+          <p class="mind-empty-note" id="stepTagUndecidedText" style="display:none; margin-top:10px;"></p>
+        </div>
+
+        <div class="card" id="stepTagChosenCard" style="display:none;">
+          <div class="card-label">今日の小さな一歩</div>
+          <p class="step-text" id="stepTagChosenText"></p>
+          <div class="kaosu-row" style="margin-bottom:0;">
+            <div class="kaosu-avatar" style="width:68px;height:68px">
+              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
+            <div class="speech-bubble" id="stepTagChosenKaosu" style="font-size:13px;"></div>
+          </div>
+          <button class="btn-text" id="btnStepTagAnother" style="margin-top:10px;">別の一歩を見る</button>
+        </div>
+
+        <div class="kaosu-row">
+          <div class="kaosu-avatar" style="width:68px;height:68px">
+            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
+            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+          </div>
+          <div class="speech-bubble" id="stepKaosuMessage">この一歩、試してみませんか？</div>
+        </div>
+
+        <div class="card step-card-big">
+          <p class="step-text-big" id="stepSuggestionText"></p>
+        </div>
+
+        <button class="btn-primary" id="btnStepTried" style="margin-bottom:14px;">やってみた</button>
+
+        <div class="step-choice-row">
+          <button class="btn-outline" id="btnStepSmaller">もっと小さく</button>
+          <button class="btn-outline" id="btnStepAnotherP5">別の一歩</button>
+        </div>
+        <button class="btn-text" id="btnStepNothing">今日は何もしない</button>
+
+        <div id="stepFeelingPrompt" style="display:none; margin-top:14px;">
+          <p class="feeling-prompt-text">やってみて、どんな気持ちでしたか？</p>
+          <div class="feeling-grid" id="feelingGrid"></div>
+          <button class="btn-text" id="btnFeelingSkip">今は選ばない</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ③ わたし(心の地図・Phase3) -->
+    <section class="view" data-view="mind">
+      <h1 class="view-title">わたしの心の地図</h1>
+      <p class="view-sub">集めたワクワクから、<br>あなたの「好き」を少しずつ見つけます。</p>
+      <p class="wwDebugInfo"></p>
+      <!-- Phase22.2: ホーム画面UI簡素化にともない、旧#homeFeatureDrawer
+           (思い出アルバム/特別な関係/今日のおすすめプラン/今日の最優先/
+           幸福設計⇔おうちサポートのモード切替/AIアドバイス/AIアクション/
+           今日の1問・小さな一歩・幸せ実験等)を、ここ「わたし」タブへ
+           そのまま移設した。IDもロジックも一切変更していないため、
+           各カードのrender関数(renderHomeAiAdviceCard()等)は無改修で動く。 -->
+      <div class="card-section-label">🏠 今日のケイオスちゃん</div>
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
       <!-- Phase34: AI Daily Assistant。時間帯(朝/昼/夜/深夜)で内容が
            変わる「今日のルミナ」カードをホーム最上部に1枚だけ追加する。
@@ -1664,242 +2036,6 @@ textarea.field-input{ resize:none; }
           <span class="home-support-badge home-support-badge-live">開く →</span>
         </div>
       </div>
-      </div><!-- /#homeFeatureDrawer -->
-    </section>
-
-    <!-- ② ワクワクBOX -->
-    <section class="view" data-view="wakuwaku" style="position:relative;">
-      <h1 class="view-title">ワクワクBOX</h1>
-      <p class="view-sub">集めたワクワクを、眺めるだけでも楽しい場所</p>
-      <p class="privacy-note">※現在の試作版では、ワクワクの記録はこのブラウザ内に保存されます</p>
-      <p class="wwDebugInfo"></p>
-      <div class="filter-row-wrap">
-        <div class="filter-row" id="filterRow"></div>
-        <div class="filter-fade" aria-hidden="true"></div>
-      </div>
-      <div class="wakuwaku-grid" id="wakuwakuGrid"></div>
-      <div class="wakuwaku-empty" id="wakuwakuEmpty" style="display:none;">
-        <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-        </div>
-        <div class="speech-bubble" id="wakuwakuEmptyMessage"></div>
-        <div style="margin-top:16px;"><button class="btn-primary" id="btnEmptyAddWakuwaku">最初のワクワクを残す</button></div>
-      </div>
-      <button class="fab" id="fabAddWakuwaku">＋</button>
-    </section>
-
-    <!-- ④ 少し先の未来(Phase4) -->
-    <section class="view" data-view="future">
-      <h1 class="view-title">少し先の未来</h1>
-      <p class="view-sub">集めたワクワクから、<br>あなたが少し心惹かれそうな未来を描きます。</p>
-      <p class="wwDebugInfo"></p>
-
-      <!-- Phase28: AIカレンダー分析(新規画面は追加せず、既存の
-           「未来」画面へ追加)。ワクワクデータの有無に関係なく、
-           家族の予定データがあれば表示する。 -->
-      <div class="card future-ai-analysis-card" id="futureAiAnalysisCard" style="display:none;">
-        <div class="card-label">📅 ケイオスちゃんのカレンダー分析</div>
-        <div class="future-busy-row">
-          <span>今週の忙しさ</span>
-          <span class="future-busy-stars" id="futureBusyStars"></span>
-        </div>
-        <div id="futureCalendarStatsBody"></div>
-        <div id="futureCalendarCommentBody"></div>
-      </div>
-
-      <!-- Phase32: AI予測カード(新画面は作らず、既存「未来」画面へ
-           追加)。予定件数/曜日偏り/Memory/繰り返し予定/通知履歴のみを
-           根拠にし、位置情報・歩数・GPS等の未取得データは使わない。 -->
-      <div class="card future-ai-analysis-card" id="futurePredictionCard" style="display:none;">
-        <div class="card-label">🔮 ケイオスちゃんの予想</div>
-        <div id="futurePredictionList"></div>
-      </div>
-
-      <!-- Phase36: AI習慣カード。AI予測カードの下に、続いている習慣/
-           止まった習慣を表示する。判定はfamilyEvents/wakuwakuEntries/
-           stepLogRead()/aiMemoryFactsの実際の日付だけを使い、7日/30日の
-           活動日数で継続・停止を判定する(新しい推測は禁止。データが
-           一度も無い習慣は「止まっている」とは言わず、判定対象から
-           外す)。 -->
-      <div class="card habit-card" id="futureHabitCard" style="display:none;">
-        <div class="card-label">🔁 ケイオスちゃんが見つけた習慣</div>
-        <div id="futureHabitContinuingSection" style="display:none;">
-          <p class="habit-section-label">最近続いています</p>
-          <div id="futureHabitContinuingList"></div>
-        </div>
-        <div id="futureHabitStoppedSection" style="display:none;">
-          <p class="habit-section-label">最近止まっています</p>
-          <div id="futureHabitStoppedList"></div>
-        </div>
-        <p class="habit-comment" id="futureHabitComment" style="display:none;"></p>
-      </div>
-
-      <!-- Phase38: AI Smart Timeline。AI習慣カードの下に、今日の出来事
-           を時刻順にまとめる。実際にタイムスタンプを持つデータ(予定の
-           datetime/ワクワクのcreatedAt/一歩のcompletedAt/実際に届いた
-           AI通知のcreatedAt)だけを使い、時刻を持たない項目(今日の
-           ルミナ)は新しい時刻を装わず「時刻なし」として最後に置く。 -->
-      <div class="card timeline-card" id="futureTimelineCard" style="display:none;">
-        <div class="card-label">🕒 今日の流れ</div>
-        <div id="futureTimelineList"></div>
-        <div id="futureTimelineUntimedList"></div>
-        <p class="timeline-comment" id="futureTimelineComment" style="display:none;"></p>
-      </div>
-
-      <!-- Phase33: AI Action Engine。AI予測カードの下に、行動できる
-           項目だけを最大3件表示する。 -->
-      <div class="card ai-action-card" id="futureAiActionCard" style="display:none;">
-        <div class="card-label">✅ 今すぐできること</div>
-        <div id="futureAiActionList"></div>
-      </div>
-
-      <div class="mind-empty" id="futureEmpty" style="display:none;">
-        <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-        </div>
-        <div class="speech-bubble" id="futureEmptyMessage"></div>
-        <div style="margin-top:16px;"><button class="btn-primary" id="btnFutureGoWakuwaku">ワクワクを集める</button></div>
-      </div>
-
-      <div id="futureContent" style="display:none;">
-        <div class="card">
-          <div class="card-label">未来のかけら</div>
-          <div id="futureFragmentBody"></div>
-        </div>
-
-        <div class="card" id="futureCandidateCard" style="display:none;">
-          <div class="card-label">未来の景色</div>
-          <div id="futureCandidateList"></div>
-          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:68px;height:68px">
-              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-            </div>
-            <div class="speech-bubble" id="futureCandidateKaosu" style="font-size:13px;"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-label">あなたらしい未来のヒント</div>
-          <p class="view-sub" style="margin:0 0 10px;">好きなものの奥にある共通点から、<br>こんな未来も似合うかもしれません。</p>
-          <div id="futureValueHintList"></div>
-          <p class="mind-empty-note" style="margin-top:10px;">未来は、まだ決めなくて大丈夫。</p>
-          <div class="kaosu-row" style="margin-top:10px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:68px;height:68px">
-              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-            </div>
-            <div class="speech-bubble" id="futureValueHintKaosu" style="font-size:13px;"></div>
-          </div>
-        </div>
-
-        <div class="card future-scene-card">
-          <div class="card-label">未来の風景</div>
-          <p class="mind-empty-note" id="futureLowDataNote" style="display:none;"></p>
-          <p class="future-paragraph" id="futureSceneText"></p>
-        </div>
-
-        <div class="card">
-          <div class="card-label">未来につながっているワクワク</div>
-          <div class="future-source-list" id="futureSourceList"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-label">未来への小さな一歩</div>
-          <div class="kaosu-row" style="margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:68px;height:68px">
-              <img src="img/koufuku/kaosu-face-thinking.webp" data-kaosu-expression="thinking" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-            </div>
-            <div class="speech-bubble" id="futureHint"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-label">未来の芽</div>
-          <div id="futureSproutBody"></div>
-          <div class="kaosu-row" style="margin-top:12px; margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:68px;height:68px">
-              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-            </div>
-            <div class="speech-bubble" id="futureSproutKaosu"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ⑤ 今日の一歩(Phase5) -->
-    <section class="view" data-view="step">
-      <h1 class="view-title">今日の小さな一歩</h1>
-      <p class="view-sub">集めたワクワクから、<br>今日できそうな小さな一歩を見つけます。</p>
-      <p class="wwDebugInfo"></p>
-
-      <div class="mind-empty" id="stepEmpty" style="display:none;">
-        <div class="kaosu-avatar" style="width:72px;height:72px">
-          <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-          <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-        </div>
-        <div class="speech-bubble" id="stepEmptyMessage"></div>
-        <div style="margin-top:16px;"><button class="btn-primary" id="btnStepGoWakuwaku">ワクワクを集める</button></div>
-      </div>
-
-      <div id="stepContent" style="display:none;">
-        <div class="card" id="stepTagCandidateCard" style="display:none;">
-          <div class="card-label">今日の小さな一歩候補</div>
-          <div id="stepTagCandidateList"></div>
-          <button class="btn-text" id="btnStepTagUndecided" style="margin-top:2px;">今日は決めない</button>
-          <p class="mind-empty-note" id="stepTagUndecidedText" style="display:none; margin-top:10px;"></p>
-        </div>
-
-        <div class="card" id="stepTagChosenCard" style="display:none;">
-          <div class="card-label">今日の小さな一歩</div>
-          <p class="step-text" id="stepTagChosenText"></p>
-          <div class="kaosu-row" style="margin-bottom:0;">
-            <div class="kaosu-avatar" style="width:68px;height:68px">
-              <img src="img/koufuku/kaosu-face-smile.webp" data-kaosu-expression="smile" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-            </div>
-            <div class="speech-bubble" id="stepTagChosenKaosu" style="font-size:13px;"></div>
-          </div>
-          <button class="btn-text" id="btnStepTagAnother" style="margin-top:10px;">別の一歩を見る</button>
-        </div>
-
-        <div class="kaosu-row">
-          <div class="kaosu-avatar" style="width:68px;height:68px">
-            <img src="img/koufuku/kaosu-face-normal.webp" data-kaosu-expression="normal" alt="ケイオスちゃん" onerror="this.classList.add('noimg')">
-            <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
-          </div>
-          <div class="speech-bubble" id="stepKaosuMessage">この一歩、試してみませんか？</div>
-        </div>
-
-        <div class="card step-card-big">
-          <p class="step-text-big" id="stepSuggestionText"></p>
-        </div>
-
-        <button class="btn-primary" id="btnStepTried" style="margin-bottom:14px;">やってみた</button>
-
-        <div class="step-choice-row">
-          <button class="btn-outline" id="btnStepSmaller">もっと小さく</button>
-          <button class="btn-outline" id="btnStepAnotherP5">別の一歩</button>
-        </div>
-        <button class="btn-text" id="btnStepNothing">今日は何もしない</button>
-
-        <div id="stepFeelingPrompt" style="display:none; margin-top:14px;">
-          <p class="feeling-prompt-text">やってみて、どんな気持ちでしたか？</p>
-          <div class="feeling-grid" id="feelingGrid"></div>
-          <button class="btn-text" id="btnFeelingSkip">今は選ばない</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ③ わたし(心の地図・Phase3) -->
-    <section class="view" data-view="mind">
-      <h1 class="view-title">わたしの心の地図</h1>
-      <p class="view-sub">集めたワクワクから、<br>あなたの「好き」を少しずつ見つけます。</p>
-      <p class="wwDebugInfo"></p>
 
       <div class="mind-empty" id="mindEmpty" style="display:none;">
         <div class="kaosu-avatar" style="width:72px;height:72px">
@@ -2944,10 +3080,18 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomSceneWithEntrance(); rerollKaosuRoomGreeting(); startKaosuBgm(); }
+  if(view === "home"){ renderKaosuRoomSceneWithEntrance(); rerollKaosuRoomGreeting(); startKaosuBgm(); }
   else{ stopKaosuBgm(); }
   if(view === "chat"){ openChatView(); }
   if(view === "settings"){ renderSettingsView(); }
+  /* Phase22.2: ホーム画面UI簡素化にともない、旧#homeFeatureDrawerの
+     中身(今日の1問/小さな一歩/幸せ実験/つながり/今のあなたへ、
+     モード切替、AIアドバイス/アクション、今日のルミナ/幸せスコア/
+     成長/思い出アルバム/特別な関係/おすすめプラン/最優先)を
+     「わたし」タブへ移設した。render関数自体はgetElementById経由の
+     ためDOM上の位置に依存せず無改修で動くが、更新タイミングを
+     「ホームを開いた時」から「わたしを開いた時」へ合わせて呼び直す。 */
+  if(view === "mind"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); }
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
@@ -8929,6 +9073,37 @@ async function renderKaosuRoomScene(now = new Date()){
       eventEl.style.display = "none";
     }
   }
+
+  consolidateKaosuRoomOneLiner();
+}
+
+/* Phase22: ホーム画面UI全面リデザイン。「情報は極力減らす」「一番
+   伝えたいメッセージだけ表示する」の指示どおり、上のPhase43〜53が
+   それぞれ書き込んだ個別要素(#kaosuRoomActivity等、CSS側で常時
+   display:noneにしてある)から、優先順位に沿って中身のあるものを
+   1件だけ選び、#kaosuRoomOneLinerへまとめて表示する。優先順位は
+   「珍しさ・特別さ」の高い順(時間限定イベント→継続記念→関係性
+   リアクション→感情→プレゼント→季節イベント→生活シーン→天気→
+   おかえり→今日の一言)。抽選・条件判定ロジック自体は各ブロックで
+   既に完了しているため、ここでは結果を読むだけで新しい抽選は行わない。 */
+function consolidateKaosuRoomOneLiner(){
+  const oneLinerEl = document.getElementById("kaosuRoomOneLiner");
+  if(!oneLinerEl) return;
+  const candidateIds = [
+    "kaosuRoomEvent", "kaosuRoomAnniversary", "kaosuRoomRelation", "kaosuRoomEmotion",
+    "kaosuRoomPresent", "kaosuRoomSeason", "kaosuRoomActivity", "kaosuRoomWeather",
+    "kaosuRoomWelcome", "kaosuRoomToday",
+  ];
+  const winnerId = candidateIds.find(id => {
+    const el = document.getElementById(id);
+    return el && el.style.display !== "none" && el.textContent.trim();
+  });
+  if(winnerId){
+    oneLinerEl.textContent = document.getElementById(winnerId).textContent;
+    oneLinerEl.style.display = "inline-flex";
+  }else{
+    oneLinerEl.style.display = "none";
+  }
 }
 
 /* 指示書の例文をそのまま採用した「おかえり」挨拶プール。ホームへ戻る
@@ -11906,21 +12081,31 @@ async function openChatView(){
 }
 document.getElementById("btnOpenChat").addEventListener("click", () => switchView("chat"));
 
-/* ホーム画面リニューアル: 「▼機能を見る」トグル。既存カード群(#home
-   FeatureDrawer内)はIDも中身も一切変更せず、display:none/blockの
-   切り替えだけを行う。開閉状態は保存しない(ページ再読み込みのたびに
-   閉じた状態へ戻る=常に「部屋+ケイオスちゃん」から始まる)。 */
-function setHomeFeatureDrawerOpen(open){
-  const drawer = document.getElementById("homeFeatureDrawer");
-  const btn = document.getElementById("btnHomeFeatureToggle");
-  if(!drawer || !btn) return;
-  drawer.style.display = open ? "block" : "none";
-  btn.setAttribute("aria-expanded", open ? "true" : "false");
-  btn.textContent = open ? "▲ 閉じる" : "▼ 機能を見る";
-}
-document.getElementById("btnHomeFeatureToggle").addEventListener("click", () => {
-  const drawer = document.getElementById("homeFeatureDrawer");
-  setHomeFeatureDrawerOpen(!(drawer && drawer.style.display === "block"));
+/* Phase22: アバターをタップした時のちいさな反応(タップリアクション)。
+   保存は行わず見た目だけの一過性の演出。既存のケイオスちゃんリアクション
+   カプセル(Phase18 showKaosuReaction、他の操作でも使っている共通部品)
+   をそのまま再利用し、新しいUIコンポーネントは増やさない。連打で
+   アニメーションが重複しないよう、直前のタイマーは毎回クリアする。 */
+const KAOSU_ROOM_TAP_REACTIONS = [
+  { text: "きゃっ、びっくりした〜", expression: "cheer" },
+  { text: "なでてくれるの？えへへ", expression: "smile" },
+  { text: "ん〜？呼んだ？", expression: "normal" },
+  { text: "くすぐったいよ〜", expression: "cheer" },
+  { text: "いつも見てくれてありがとう", expression: "relax" },
+];
+let kaosuRoomTapTimer = null;
+document.getElementById("kaosuRoomAvatar").addEventListener("click", () => {
+  const img = document.getElementById("kaosuRoomAvatarImg");
+  if(img){
+    img.classList.remove("kaosu-tap-bounce");
+    void img.offsetWidth;
+    img.classList.add("kaosu-tap-bounce");
+  }
+  const pick = KAOSU_ROOM_TAP_REACTIONS[Math.floor(Math.random() * KAOSU_ROOM_TAP_REACTIONS.length)];
+  clearTimeout(kaosuRoomTapTimer);
+  kaosuRoomTapTimer = setTimeout(() => {
+    if(typeof showKaosuReaction === "function") showKaosuReaction(pick.text, pick.expression);
+  }, 30);
 });
 
 /* =========================================================
