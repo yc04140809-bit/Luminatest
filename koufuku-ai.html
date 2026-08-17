@@ -551,6 +551,25 @@ textarea{ font-family:inherit; }
   transition:background .8s ease;
   background:linear-gradient(180deg,#fff8e6 0%,#ffe9c9 55%,#ffd9c9 100%);
 }
+/* ホーム画面リニューアル(部屋イラスト差し替え対応): 実際の背景イラスト
+   (img/koufuku/room/bg-*.webp)がまだ存在しない間は、この<img>が
+   onerrorでdisplay:noneになり、上のCSSグラデーション背景がそのまま
+   透けて見えるだけなので、素材が無くても壊れて見えない。実素材を
+   置いた瞬間、CSS/JSを一切変更せずにイラスト背景へ自動的に切り替わる。 */
+.kaosu-room-bg-img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; z-index:0; opacity:.94;
+}
+/* CMS対応: 部屋の育成(家具/装飾)。既定はfurniture.itemsが空のため
+   コンテナ自体は何も描画しない(サイズ0のまま=見た目に影響なし)。
+   個々の.kaosu-room-furniture-itemはrenderKaosuRoomFurniture()がJSで
+   left/top/transform/opacity/z-indexを都度設定する。 */
+.kaosu-room-furniture{ position:absolute; inset:0; pointer-events:none; }
+.kaosu-room-furniture-item{ position:absolute; max-width:72px; max-height:72px; }
+/* ケイオスちゃんの「入室演出」専用のtransformレイヤー。呼吸
+   (.kaosu-room-character)・視線(#kaosuRoomAvatar)のtransformとは別の
+   要素に持たせることで、3つのtransformが干渉しない。 */
+.kaosu-room-entrance{ display:inline-flex; }
 .kaosu-room-window{
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
   width:118px; height:78px; border-radius:16px 16px 6px 6px;
@@ -791,6 +810,21 @@ textarea{ font-family:inherit; }
   background:var(--bg); border-radius:22px 22px 0 0;
 }
 .kaosu-room-shelf > .card:last-child{ margin-bottom:0; }
+/* ホーム画面リニューアル: kaosuRoomShelfは元々.kaosu-room直下で
+   部屋の底に重なる想定のマイナスmargin/角丸だったが、機能ドロワー
+   (#homeFeatureDrawer)の中へ移設したため、その文脈では通常のカード
+   群と同じ見た目に戻す(視覚的な重なり/角丸だけを打ち消す。中の
+   カード自体は無変更)。 */
+#homeFeatureDrawer .kaosu-room-shelf{
+  margin-top:0; padding:0; background:none; border-radius:0;
+}
+
+/* ホーム画面リニューアル: 「部屋+ケイオスちゃん」だけを最初に見せ、
+   それ以外のカード群は「▼機能を見る」で開くドロワーへ収める構成。
+   既存カードのIDやロジックは一切変更せず、表示位置と初期表示/非表示
+   だけをこの2つのクラスで制御する。 */
+.kaosu-room-actions{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+.kaosu-room-drawer-toggle{ margin:0; }
 
 /* ---------- ボタン共通 ---------- */
 .btn-primary{
@@ -1136,6 +1170,17 @@ textarea.field-input{ resize:none; }
            別関数に分けることで、既存ロジックには一切触れない。 -->
       <div class="kaosu-room" id="kaosuRoom">
         <div class="kaosu-room-scene" id="kaosuRoomScene">
+          <!-- ホーム画面リニューアル: 部屋イラスト背景。実素材(img/koufuku/
+               room/bg-<時間帯>.webp)が無い間はonerrorで非表示になり、
+               既存のCSSグラデーション背景(.kaosu-room-scene.room-band-*)
+               がそのまま見える。素材が揃い次第、同じファイル名を置く
+               だけでCSS/JS変更なしにイラスト背景へ切り替わる。 -->
+          <img class="kaosu-room-bg-img" id="kaosuRoomBgImg" alt="" aria-hidden="true" onerror="this.style.display='none'">
+          <!-- CMS対応: 部屋の育成(家具/装飾)。room-config.jsonの
+               furniture.itemsが空の間は何も描画されない(既定の見た目
+               のまま)。管理画面から項目を追加するとrenderKaosuRoom
+               Furniture()がここへ<img>を並べる。 -->
+          <div class="kaosu-room-furniture" id="kaosuRoomFurniture" aria-hidden="true"></div>
           <!-- Phase51: 環境エフェクト。背景層としてscene先頭に置き、
                z-index:0で他の要素(window/character/badges/text、いずれも
                z-index:1またはDOM順で後発)の下に敷く。中身は
@@ -1143,9 +1188,14 @@ textarea.field-input{ resize:none; }
           <div class="kaosu-room-fx" id="kaosuRoomFx" aria-hidden="true"></div>
           <div class="kaosu-room-window"></div>
           <div class="kaosu-room-character">
+            <!-- ホーム画面リニューアル: 入室演出(歩いてくる/手を振る等)
+                 専用のtransformレイヤー。呼吸(親要素)・視線(子要素)の
+                 transformとは別要素にして干渉を避ける。 -->
+            <div class="kaosu-room-entrance" id="kaosuRoomEntrance">
             <div class="kaosu-avatar" style="width:84px;height:84px" id="kaosuRoomAvatar">
               <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" id="kaosuRoomAvatarImg" onerror="this.classList.add('noimg')">
               <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
+            </div>
             </div>
           </div>
           <!-- Phase43: 日常生活システム。Phase44: 季節イベント。
@@ -1190,6 +1240,20 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome kaosu-room-event" id="kaosuRoomEvent" style="display:none;"></p>
           <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
         </div>
+      </div><!-- /#kaosuRoom: 開いた瞬間に見えるのは部屋+ケイオスちゃん
+                  だけにするため、既存カード群はここで#kaosuRoomを閉じて
+                  すべて下の#homeFeatureDrawer側へ回す。 -->
+
+      <!-- ホーム画面リニューアル: btnOpenChatは既存の「話す」導線として
+           ここへ移設し(下のhappinessModeContent内にあった同一IDの
+           ボタンを削除して重複させないようにした)、常に押せる状態を
+           維持する。 -->
+      <div class="kaosu-room-actions" id="kaosuRoomActions">
+        <button class="btn-primary" id="btnOpenChat">💬 ケイオスちゃんと話す</button>
+        <button type="button" class="btn-outline kaosu-room-drawer-toggle" id="btnHomeFeatureToggle" aria-expanded="false" aria-controls="homeFeatureDrawer">▼ 機能を見る</button>
+      </div>
+
+      <div class="kaosu-room-drawer" id="homeFeatureDrawer" style="display:none;">
         <div class="kaosu-room-shelf" id="kaosuRoomShelf">
       <!-- Phase34: AI Daily Assistant。時間帯(朝/昼/夜/深夜)で内容が
            変わる「今日のルミナ」カードをホーム最上部に1枚だけ追加する。
@@ -1315,7 +1379,6 @@ textarea.field-input{ resize:none; }
         <button type="button" class="filterbtn ai-action-btn" id="priorityActionBtn" style="display:none;"></button>
       </div>
         </div>
-      </div>
 
       <!-- Phase22: モード切替(幸福設計モード / おうちサポートモード)。
            新しいDBは追加せず、localStorageに選択中モードを1件保持するのみ。
@@ -1358,7 +1421,6 @@ textarea.field-input{ resize:none; }
         </div>
         <div class="speech-bubble" id="homeKaosuMessage"></div>
       </div>
-      <button class="btn-primary" id="btnOpenChat" style="margin-bottom:10px;">💬 ケイオスちゃんと話す</button>
       <button class="btn-outline" id="btnAddWakuwaku" style="margin-bottom:18px;">＋ ワクワクを残す</button>
 
       <div class="card">
@@ -1507,6 +1569,7 @@ textarea.field-input{ resize:none; }
           <span class="home-support-badge home-support-badge-live">開く →</span>
         </div>
       </div>
+      </div><!-- /#homeFeatureDrawer -->
     </section>
 
     <!-- ② ワクワクBOX -->
@@ -2688,7 +2751,7 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomScene(); rerollKaosuRoomGreeting(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomSceneWithEntrance(); rerollKaosuRoomGreeting(); }
   if(view === "chat"){ openChatView(); }
   if(view === "settings"){ renderSettingsView(); }
 }
@@ -7656,6 +7719,247 @@ const LIFE_STATE_META = [
   { type: "css", state: "sleeping", test: (ctx) => ctx.band === "midnight", cssClass: "kaosu-life-sleeping" },
   { type: "css", state: "idle", test: () => true, cssClass: "kaosu-life-idle" },
 ];
+/* ============================================================
+   CMS対応: 部屋の背景/ケイオスちゃんの立ち絵/入室演出/家具は、将来
+   管理画面(コード変更なし)から編集できることを前提に、すべて外部
+   設定ファイル img/koufuku/room/room-config.json から読み込む
+   データ駆動構造にしてある。コード側にはこのJSONの「読み方」と
+   「既定値」しか持たず、実際の画像パス・座標・確率・有効/無効などの
+   中身は一切埋め込まない。JSON未配置/404/形式不正のいずれでも
+   KAOSU_ROOM_CONFIG_DEFAULT(現行の見た目と完全に同じ内容)へ自動的に
+   フォールバックするため、管理画面が無い現時点でもアプリは壊れない。
+   ============================================================ */
+const KAOSU_ROOM_ASSET_DIR = "img/koufuku/room/";
+const KAOSU_ROOM_CONFIG_URL = KAOSU_ROOM_ASSET_DIR + "room-config.json";
+const KAOSU_ROOM_CONFIG_DEFAULT = {
+  configVersion: 1,
+  background: {
+    enabled: true,
+    timeOfDay: {
+      morning:  { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-morning.webp" },
+      day:      { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-day.webp" },
+      evening:  { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-evening.webp" },
+      night:    { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-night.webp" },
+      midnight: { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-midnight.webp" },
+    },
+    weather: {},
+    season: {},
+    event: {},
+  },
+  character: {
+    poses: {
+      idle:   { image: KAOSU_ROOM_ASSET_DIR + "pose-idle.webp",   opacity: 1, zIndex: 1, visible: true },
+      wave:   { image: KAOSU_ROOM_ASSET_DIR + "pose-wave.webp",   opacity: 1, zIndex: 1, visible: true },
+      walk:   { image: KAOSU_ROOM_ASSET_DIR + "pose-walk.webp",   opacity: 1, zIndex: 1, visible: true },
+      sit:    { image: KAOSU_ROOM_ASSET_DIR + "pose-sit.webp",    opacity: 1, zIndex: 1, visible: true },
+      read:   { image: KAOSU_ROOM_ASSET_DIR + "pose-read.webp",   opacity: 1, zIndex: 1, visible: true },
+      window: { image: KAOSU_ROOM_ASSET_DIR + "pose-window.webp", opacity: 1, zIndex: 1, visible: true },
+      sofa:   { image: KAOSU_ROOM_ASSET_DIR + "pose-sofa.webp",   opacity: 1, zIndex: 1, visible: true },
+      bow:    { image: KAOSU_ROOM_ASSET_DIR + "pose-bow.webp",    opacity: 1, zIndex: 1, visible: true },
+    },
+  },
+  entranceAnimations: {
+    items: [
+      { id: "wave", label: "手を振る", pose: "wave", enabled: true, weight: 40, durationMs: 1100, startOffset: { x: 0, y: 0, scale: 1, rotation: 0 } },
+      { id: "read", label: "読書", pose: "read", enabled: true, weight: 10, durationMs: 1100, startOffset: { x: -30, y: -14, scale: .82, rotation: 0 } },
+      { id: "window", label: "窓を見る", pose: "window", enabled: true, weight: 15, durationMs: 1100, startOffset: { x: 36, y: -10, scale: .84, rotation: 0 } },
+      { id: "sofa", label: "ソファで休む", pose: "sofa", enabled: true, weight: 20, durationMs: 1100, startOffset: { x: -46, y: 6, scale: .86, rotation: 0 } },
+      { id: "stretch", label: "ストレッチ", pose: "sit", enabled: true, weight: 15, durationMs: 1100, startOffset: { x: 44, y: 10, scale: .86, rotation: 0 } },
+    ],
+  },
+  furniture: { items: [] },
+};
+/* room-config.jsonは1度だけfetchし、結果(既定値へのフォールバックも
+   含む)をメモリにキャッシュする。renderKaosuRoomScene()は既存の
+   「await せずに呼んでも直後に同期部分が反映される」制約を保つ必要が
+   あるため、その中では非同期のloadKaosuRoomConfig()を新たに待たず、
+   既にキャッシュ済みの値を同期的に読むgetKaosuRoomConfigSync()だけを
+   使う(初回はplayKaosuRoomEntrance()が必ず先にawaitで読み込みを
+   済ませるため、通常の利用ではキャッシュ未済のまま参照されることは
+   ない。万一未済でも既定値と同じ内容が返るだけで壊れない)。 */
+let kaosuRoomConfigCache = null;
+let kaosuRoomConfigPromise = null;
+function loadKaosuRoomConfig(){
+  if(kaosuRoomConfigCache) return Promise.resolve(kaosuRoomConfigCache);
+  if(kaosuRoomConfigPromise) return kaosuRoomConfigPromise;
+  kaosuRoomConfigPromise = (async () => {
+    let result = KAOSU_ROOM_CONFIG_DEFAULT;
+    try{
+      const res = await fetch(KAOSU_ROOM_CONFIG_URL, { cache: "no-cache" });
+      if(res.ok){
+        const data = await res.json();
+        if(data && typeof data === "object") result = data;
+      }
+    }catch(e){ /* 未配置/ネットワークエラー/JSON壊れは既定値のまま続行 */ }
+    kaosuRoomConfigCache = result;
+    return result;
+  })();
+  return kaosuRoomConfigPromise;
+}
+function getKaosuRoomConfigSync(){
+  return kaosuRoomConfigCache || KAOSU_ROOM_CONFIG_DEFAULT;
+}
+function kaosuRoomConfigPose(config, poseKey){
+  const p = config && config.character && config.character.poses && config.character.poses[poseKey];
+  if(p && typeof p === "object" && typeof p.image === "string") return p;
+  return KAOSU_ROOM_CONFIG_DEFAULT.character.poses[poseKey] || KAOSU_ROOM_CONFIG_DEFAULT.character.poses.idle;
+}
+/* 背景画像パスの優先順位(将来の拡張ポイント): イベント > 季節 > 天候 >
+   時間帯。現時点ではevent/season/weatherを既定で空にしてあるため、
+   実質的に時間帯だけで決まる(現行の見た目のまま)。管理画面が
+   season.spring.enabled等をtrueにするだけで、コード変更なしに優先
+   表示されるようになる。 */
+function kaosuRoomConfigBgImagePath(config, band){
+  const bg = config && config.background;
+  if(!bg || bg.enabled === false) return null;
+  for(const group of [bg.event, bg.season, bg.weather]){
+    if(!group || typeof group !== "object") continue;
+    for(const key in group){
+      const item = group[key];
+      if(item && item.enabled && typeof item.image === "string") return item.image;
+    }
+  }
+  const tod = bg.timeOfDay && bg.timeOfDay[band];
+  if(tod && tod.enabled !== false && typeof tod.image === "string") return tod.image;
+  const def = KAOSU_ROOM_CONFIG_DEFAULT.background.timeOfDay[band];
+  return def ? def.image : null;
+}
+function kaosuRoomConfigEntranceItems(config){
+  const items = config && config.entranceAnimations && Array.isArray(config.entranceAnimations.items)
+    ? config.entranceAnimations.items
+    : null;
+  const pool = (items && items.length ? items : KAOSU_ROOM_CONFIG_DEFAULT.entranceAnimations.items);
+  return pool.filter(it => it && it.enabled !== false && typeof it.weight === "number" && it.weight > 0);
+}
+/* 重み付き抽選。管理画面の「出現確率」設定(手を振る40%/読書10%…)を
+   そのままweightとして扱うだけの、依存ライブラリ無しの最小実装。 */
+function pickKaosuRoomWeightedItem(items){
+  if(!items || !items.length) return null;
+  const total = items.reduce((sum, it) => sum + (it.weight || 0), 0);
+  if(total <= 0) return items[0];
+  let r = Math.random() * total;
+  for(const it of items){
+    r -= (it.weight || 0);
+    if(r <= 0) return it;
+  }
+  return items[items.length - 1];
+}
+function kaosuRoomConfigFurnitureItems(config){
+  const items = config && config.furniture && Array.isArray(config.furniture.items) ? config.furniture.items : [];
+  return items.filter(it => it && it.enabled !== false && typeof it.image === "string");
+}
+/* 部屋の育成(家具/装飾)。既定では空配列のため何も描画しない。
+   room-config.jsonのfurniture.itemsへオブジェクトを1件足すだけで、
+   コード変更なしに#kaosuRoomFurniture内へ<img>が1枚追加される。 */
+function renderKaosuRoomFurniture(config){
+  const container = document.getElementById("kaosuRoomFurniture");
+  if(!container) return;
+  const items = kaosuRoomConfigFurnitureItems(config);
+  container.innerHTML = "";
+  items.forEach(item => {
+    const el = document.createElement("img");
+    el.className = "kaosu-room-furniture-item";
+    el.alt = "";
+    el.setAttribute("aria-hidden", "true");
+    el.onerror = function(){ this.style.display = "none"; };
+    el.src = item.image;
+    el.style.left = (typeof item.x === "number" ? item.x : 50) + "%";
+    el.style.top = (typeof item.y === "number" ? item.y : 50) + "%";
+    const scale = item.scale != null ? item.scale : 1;
+    const rotation = item.rotation || 0;
+    el.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${rotation}deg)`;
+    el.style.opacity = item.opacity != null ? item.opacity : 1;
+    el.style.zIndex = item.zIndex != null ? String(item.zIndex) : "1";
+    container.appendChild(el);
+  });
+}
+/* #kaosuRoomAvatarImgのsrcをポーズ画像へ切り替える。setKaosuExpression()
+   の「同じ表情なら再設定しない」判定(data-kaosu-expression)を巻き込ま
+   ないよう、ここではその属性を空にリセットしておく(次にrenderKaosu
+   RoomScene()が呼ばれた時、setKaosuExpression()が確実に元の表情画像へ
+   戻せるようにするため)。pose.opacity/zIndex/visibleも管理画面編集
+   対象としてそのまま反映する。 */
+function setKaosuRoomPoseImage(config, poseKey){
+  const imgEl = document.getElementById("kaosuRoomAvatarImg");
+  if(!imgEl) return;
+  const pose = kaosuRoomConfigPose(config, poseKey);
+  imgEl.dataset.kaosuExpression = "";
+  imgEl.classList.remove("noimg");
+  imgEl.src = pose.image;
+  imgEl.style.opacity = pose.opacity != null ? String(pose.opacity) : "";
+  imgEl.style.zIndex = pose.zIndex != null ? String(pose.zIndex) : "";
+  const avatarBox = imgEl.closest(".kaosu-avatar");
+  if(avatarBox) avatarBox.style.display = pose.visible === false ? "none" : "";
+}
+/* ホーム画面リニューアル: 起動後はじめてホーム画面が表示される時だけ、
+   「部屋の奥にいるケイオスちゃんが気づいて手を振り、歩いて定位置まで
+   来ておかえりと言う」入室演出を再生する(renderKaosuRoomScene._entrance
+   Playedフラグで1回きりに制御。既存のPhase55/59/60と同じ「起動フラグで
+   1本だけに固定する」設計を踏襲)。呼吸(.kaosu-room-character)・視線
+   (#kaosuRoomAvatar)のtransformとは別要素(#kaosuRoomEntrance)を動かす
+   ため、既存モーションとは干渉しない。prefers-reduced-motionの場合は
+   移動を行わず、定位置にそのまま表示するだけに留める。「最初に何を
+   していたか」(手を振る/読書/窓を見る/ソファ/ストレッチ…)は
+   room-config.jsonのentranceAnimations.itemsから重み付き抽選で選ぶ
+   (管理画面で出現確率・有効無効・開始位置・再生時間を調整できる)。 */
+async function playKaosuRoomEntrance(now = new Date()){
+  const wrap = document.getElementById("kaosuRoomEntrance");
+  const bubble = document.getElementById("kaosuRoomGreeting");
+  if(!wrap) return;
+  const config = await loadKaosuRoomConfig();
+  const reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  const picked = pickKaosuRoomWeightedItem(kaosuRoomConfigEntranceItems(config)) || KAOSU_ROOM_CONFIG_DEFAULT.entranceAnimations.items[0];
+  const idlePose = picked.pose || "idle";
+
+  if(reduced){
+    setKaosuRoomPoseImage(config, "idle");
+    return;
+  }
+
+  /* Phase68のモーション速度設定(--kaosu-motion-speed)をそのまま踏襲し、
+     入室演出も他のモーションと同じ倍率で速く/遅くなるようにする。 */
+  const speedScale = (() => {
+    const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--kaosu-motion-speed"));
+    return isNaN(v) ? 1 : v;
+  })();
+  const so = picked.startOffset || { x: 0, y: 0, scale: 1, rotation: 0 };
+  const startTransform = `translate(${so.x || 0}px, ${so.y || 0}px) scale(${so.scale != null ? so.scale : 1}) rotate(${so.rotation || 0}deg)`;
+  const duration = Math.round((picked.durationMs || 1100) * speedScale);
+
+  wrap.style.transition = "none";
+  wrap.style.opacity = "0";
+  wrap.style.transform = startTransform;
+  setKaosuRoomPoseImage(config, idlePose);
+  if(bubble) bubble.style.opacity = "0";
+
+  await chatWait(30);
+  wrap.style.opacity = "1";
+  await chatWait(Math.round(320 * speedScale));
+  setKaosuRoomPoseImage(config, "wave");
+  await chatWait(Math.round(260 * speedScale));
+  wrap.style.transition = `transform ${duration}ms cubic-bezier(.22,.8,.32,1), opacity .3s ease`;
+  wrap.style.transform = "translate(0,0) scale(1) rotate(0deg)";
+  setKaosuRoomPoseImage(config, "walk");
+  await chatWait(duration);
+  setKaosuRoomPoseImage(config, "idle");
+  if(bubble){
+    bubble.style.transition = "opacity .4s ease";
+    bubble.style.opacity = "1";
+  }
+}
+/* switchView()の"home"分岐/初期化コードの呼び出し口は、既存の
+   renderKaosuRoomScene()をこの関数に差し替えるだけでよい。1回目だけ
+   入室演出を先に再生してから、既存のrenderKaosuRoomScene()(無変更)を
+   呼ぶ。2回目以降はrenderKaosuRoomScene()を直接呼ぶだけで、既存の
+   Phase43〜72の挙動と完全に同じになる。 */
+async function renderKaosuRoomSceneWithEntrance(now = new Date()){
+  if(!renderKaosuRoomScene._entrancePlayed){
+    renderKaosuRoomScene._entrancePlayed = true;
+    await playKaosuRoomEntrance(now);
+  }
+  renderKaosuRoomScene(now);
+}
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -7665,6 +7969,22 @@ async function renderKaosuRoomScene(now = new Date()){
   Object.values(ROOM_VISUAL_BAND_META).forEach(m => scene.classList.remove(m.cssClass));
   scene.classList.add(meta.cssClass);
   setKaosuExpression(img, meta.expression);
+  /* CMS対応: 背景画像パスはroom-config.json(既にキャッシュ済みの値を
+     同期的に読むgetKaosuRoomConfigSync())から解決する。天候/季節/
+     イベントが有効化されていればそちらを優先し、無ければ時間帯背景
+     (既定は全時間帯enabled)を使う。 */
+  const roomConfig = getKaosuRoomConfigSync();
+  const bgImg = document.getElementById("kaosuRoomBgImg");
+  if(bgImg){
+    const bgSrc = kaosuRoomConfigBgImagePath(roomConfig, band);
+    if(bgSrc && bgImg.getAttribute("src") !== bgSrc){
+      bgImg.style.display = "";
+      bgImg.src = bgSrc;
+    }else if(!bgSrc){
+      bgImg.style.display = "none";
+    }
+  }
+  renderKaosuRoomFurniture(roomConfig);
 
   const month = now.getMonth() + 1;
   const season = (month >= 3 && month <= 5) ? "spring" : (month >= 6 && month <= 8) ? "summer" : (month >= 9 && month <= 11) ? "autumn" : "winter";
@@ -10876,6 +11196,23 @@ async function openChatView(){
 }
 document.getElementById("btnOpenChat").addEventListener("click", () => switchView("chat"));
 
+/* ホーム画面リニューアル: 「▼機能を見る」トグル。既存カード群(#home
+   FeatureDrawer内)はIDも中身も一切変更せず、display:none/blockの
+   切り替えだけを行う。開閉状態は保存しない(ページ再読み込みのたびに
+   閉じた状態へ戻る=常に「部屋+ケイオスちゃん」から始まる)。 */
+function setHomeFeatureDrawerOpen(open){
+  const drawer = document.getElementById("homeFeatureDrawer");
+  const btn = document.getElementById("btnHomeFeatureToggle");
+  if(!drawer || !btn) return;
+  drawer.style.display = open ? "block" : "none";
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.textContent = open ? "▲ 閉じる" : "▼ 機能を見る";
+}
+document.getElementById("btnHomeFeatureToggle").addEventListener("click", () => {
+  const drawer = document.getElementById("homeFeatureDrawer");
+  setHomeFeatureDrawerOpen(!(drawer && drawer.style.display === "block"));
+});
+
 /* =========================================================
    統合設計書Phase C: 会話の中で、既存の分析資産から
    「自分でも気づいていなかった傾向」に自然に触れる
@@ -11726,7 +12063,7 @@ renderHomeStep();
 renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
-renderKaosuRoomScene();
+renderKaosuRoomSceneWithEntrance();
 rerollKaosuRoomGreeting();
 renderNotificationModeChips();
 renderNotificationPermissionRow();

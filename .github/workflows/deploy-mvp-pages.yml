@@ -37,9 +37,13 @@ jobs:
 
       - name: Build public site (only the MVP test files)
         run: |
-          mkdir -p _site/img/koufuku
+          mkdir -p _site/img/koufuku/room
           cp koufuku-ai.html _site/index.html
           cp img/koufuku/*.webp _site/img/koufuku/
+          # CMS対応: 部屋の背景/立ち絵/入室演出/家具の設定ファイルと
+          # 差し替え画像はimg/koufuku/room/以下にまとめて置く運用のため、
+          # このディレクトリだけは中身(.json/.webp等)を丸ごとコピーする。
+          if [ -d img/koufuku/room ]; then cp -r img/koufuku/room/. _site/img/koufuku/room/; fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

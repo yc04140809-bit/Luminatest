@@ -1,0 +1,67 @@
+{
+  "configVersion": 1,
+  "_readme": "このファイルは将来の管理画面(CMS)がコードを一切書き換えずに編集することを想定した設定ファイルです。画像パスはimg/koufuku/room/以下のファイル名をそのまま指すので、ファイルを置く/差し替える/このJSONの値を書き換えるだけで、アプリのコード(koufuku-ai.html)を変更せずに見た目・演出を変更できます。存在しない画像パスを指しても、フロント側はonerrorで自動的にCSSフォールバックへ切り替わるため壊れません。",
+
+  "background": {
+    "enabled": true,
+    "timeOfDay": {
+      "morning":  { "enabled": true, "image": "img/koufuku/room/bg-morning.webp" },
+      "day":      { "enabled": true, "image": "img/koufuku/room/bg-day.webp" },
+      "evening":  { "enabled": true, "image": "img/koufuku/room/bg-evening.webp" },
+      "night":    { "enabled": true, "image": "img/koufuku/room/bg-night.webp" },
+      "midnight": { "enabled": true, "image": "img/koufuku/room/bg-midnight.webp" }
+    },
+    "weather": {
+      "_readme": "enabled:trueにした天候は、時間帯背景より優先して使われる(将来、天気APIや天気システムと連動させる拡張ポイント)。",
+      "rain":  { "enabled": false, "image": "img/koufuku/room/bg-rain.webp" },
+      "snow":  { "enabled": false, "image": "img/koufuku/room/bg-snow.webp" }
+    },
+    "season": {
+      "_readme": "enabled:trueにした季節は、天候の次に優先して使われる。",
+      "spring": { "enabled": false, "image": "img/koufuku/room/bg-spring.webp" },
+      "summer": { "enabled": false, "image": "img/koufuku/room/bg-summer.webp" },
+      "autumn": { "enabled": false, "image": "img/koufuku/room/bg-autumn.webp" },
+      "winter": { "enabled": false, "image": "img/koufuku/room/bg-winter.webp" }
+    },
+    "event": {
+      "_readme": "enabled:trueにしたイベントは、天候・季節よりさらに優先される(誕生日/クリスマス等の特別な日だけ差し替えたい場合用)。",
+      "birthday":  { "enabled": false, "image": "img/koufuku/room/bg-birthday.webp" },
+      "christmas": { "enabled": false, "image": "img/koufuku/room/bg-christmas.webp" },
+      "halloween": { "enabled": false, "image": "img/koufuku/room/bg-halloween.webp" },
+      "newyear":   { "enabled": false, "image": "img/koufuku/room/bg-newyear.webp" }
+    }
+  },
+
+  "character": {
+    "_readme": "poseキーはentranceAnimationsのpose欄から参照される。x/y/scale/rotationはこのポーズ画像自体の基準位置からのオフセット(通常は0のままでよい)、opacity/zIndex/visibleは表示制御用。",
+    "poses": {
+      "idle":   { "image": "img/koufuku/room/pose-idle.webp",   "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "wave":   { "image": "img/koufuku/room/pose-wave.webp",   "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "walk":   { "image": "img/koufuku/room/pose-walk.webp",   "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "sit":    { "image": "img/koufuku/room/pose-sit.webp",    "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "read":   { "image": "img/koufuku/room/pose-read.webp",   "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "window": { "image": "img/koufuku/room/pose-window.webp", "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "sofa":   { "image": "img/koufuku/room/pose-sofa.webp",   "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true },
+      "bow":    { "image": "img/koufuku/room/pose-bow.webp",    "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "zIndex": 1, "visible": true }
+    }
+  },
+
+  "entranceAnimations": {
+    "_readme": "起動時、ここに列挙した『気づかれる前のケイオスちゃん』候補から、enabled:trueかつweightの重みに応じて1件だけランダムに選ばれる(weightの合計は100でなくてもよく、enabledな項目内での相対比率として扱われる)。選ばれた後は必ず定位置まで歩いてきて挨拶する、という一連の流れ自体は共通。durationMsは定位置まで歩いてくる演出の目安秒数(実際はモーション速度設定で多少前後する)。startOffsetは『最初に見える時の位置』を部屋の中心からのズレ(px)・縮小率・回転角(度)で指定する。",
+    "items": [
+      { "id": "wave",        "label": "手を振る",           "pose": "wave",   "enabled": true, "weight": 40, "durationMs": 1100, "startOffset": { "x": 0,   "y": 0,   "scale": 1,    "rotation": 0 } },
+      { "id": "read",        "label": "読書",               "pose": "read",   "enabled": true, "weight": 10, "durationMs": 1100, "startOffset": { "x": -30, "y": -14, "scale": 0.82, "rotation": 0 } },
+      { "id": "window",      "label": "窓を見る",           "pose": "window", "enabled": true, "weight": 15, "durationMs": 1100, "startOffset": { "x": 36,  "y": -10, "scale": 0.84, "rotation": 0 } },
+      { "id": "sofa",        "label": "ソファで休む",       "pose": "sofa",   "enabled": true, "weight": 20, "durationMs": 1100, "startOffset": { "x": -46, "y": 6,   "scale": 0.86, "rotation": 0 } },
+      { "id": "stretch",     "label": "ストレッチ",         "pose": "sit",    "enabled": true, "weight": 15, "durationMs": 1100, "startOffset": { "x": 44,  "y": 10,  "scale": 0.86, "rotation": 0 } },
+      { "id": "bow",         "label": "お辞儀",             "pose": "bow",    "enabled": true, "weight": 0,  "durationMs": 1100, "startOffset": { "x": 0,   "y": 0,   "scale": 1,    "rotation": 0 } },
+      { "id": "water_plant", "label": "植物に水をあげる",   "pose": "sit",    "enabled": true, "weight": 0,  "durationMs": 1100, "startOffset": { "x": -30, "y": -14, "scale": 0.82, "rotation": 0 } },
+      { "id": "coffee",      "label": "コーヒーを飲む",     "pose": "sit",    "enabled": true, "weight": 0,  "durationMs": 1100, "startOffset": { "x": 36,  "y": -10, "scale": 0.84, "rotation": 0 } }
+    ]
+  },
+
+  "furniture": {
+    "_readme": "部屋の育成用の装飾リスト。既定では空(装飾なし)。追加するには{id, image, x, y, scale, rotation, opacity, zIndex, enabled}を持つオブジェクトをitemsへ足すだけで、コード変更なしに#kaosuRoomFurniture内へ描画される。x/yは部屋シーン基準の位置(%指定、0-100)。",
+    "items": []
+  }
+}
