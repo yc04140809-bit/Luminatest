@@ -12,7 +12,6 @@ on:
     branches: ["claude/koufuku-ai-phase18"]
     paths:
       - "koufuku-ai.html"
-      - "admin.html"
       - "img/koufuku/**"
       - "audio/koufuku/**"
       - "data/cms/**"
@@ -42,7 +41,6 @@ jobs:
         run: |
           mkdir -p _site/img/koufuku/room _site/audio/koufuku _site/data/cms
           cp koufuku-ai.html _site/index.html
-          cp admin.html _site/admin.html
           cp img/koufuku/*.webp _site/img/koufuku/
           # CMS対応: 部屋の背景/立ち絵/入室演出/家具の設定ファイルと
           # 差し替え画像はimg/koufuku/room/以下にまとめて置く運用のため、

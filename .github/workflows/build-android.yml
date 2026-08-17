@@ -12,7 +12,6 @@ on:
     branches: ["claude/koufuku-ai-phase18"]
     paths:
       - "koufuku-ai.html"
-      - "admin.html"
       - "img/koufuku/**"
       - "audio/koufuku/**"
       - "data/cms/**"
