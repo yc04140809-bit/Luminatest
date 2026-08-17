@@ -3880,7 +3880,7 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 7;
+const WW_DB_VERSION = 8;
 const WW_STORE = "wakuwaku";
 /* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
    WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
@@ -3919,6 +3919,15 @@ const AI_MEMORY_STORE = "aiMemory";
    保存は即座にこの端末内で完結し、即時反映される。 */
 const CMS_CONFIG_STORE = "cmsConfig";
 const CMS_MEDIA_STORE = "cmsMedia";
+/* Phase21: AI Studio用の新規store。既存store・データには一切触れず、
+   バージョンを7→8に上げてstoreを1つ追加するだけの標準的な加算のみの
+   移行。AI生成(画像/音楽/ボイス/環境音/効果音)は「生成キュー1件=1
+   レコード」として記録し、生成中/完了/失敗/お気に入り/タグの状態を
+   ここへ保持する。プロバイダ(OpenAI/Suno/ElevenLabs等)は現時点では
+   1つも接続されていないため、実際の生成は必ずエラー(未接続)で
+   終わるが、キュー→非同期処理→一覧反映という流れ自体はこのstoreと
+   AiGenerationStore/requestAiGeneration()で本物として動作する。 */
+const AI_GENERATION_STORE = "aiGenerations";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -3973,6 +3982,7 @@ function wwOpenDB(){
       if(!db.objectStoreNames.contains(AI_MEMORY_STORE)) db.createObjectStore(AI_MEMORY_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(CMS_CONFIG_STORE)) db.createObjectStore(CMS_CONFIG_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(CMS_MEDIA_STORE)) db.createObjectStore(CMS_MEDIA_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(AI_GENERATION_STORE)) db.createObjectStore(AI_GENERATION_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -4278,6 +4288,134 @@ const CmsStore = {
     });
   },
 };
+
+/* Phase21: AI Studioの土台。生成API本体はまだ1つも接続していないが、
+   「プロンプト送信→キュー登録(status:generating)→非同期処理→
+   一覧反映(status:done/error)→お気に入り/削除/再試行」という
+   流れそのものは、ここで最後まで本物として動作する。
+   実際のプロバイダ(OpenAI/Google/Suno/ElevenLabs/Stable Audio等)は
+   AI_PROVIDERSへ{id,label,generate:async({prompt,extra,apiKey})=>
+   {blob,mimeType,name}}を1件登録するだけで、他のコードは一切
+   変更せずに差し替えできる(現時点は各kindとも空配列=未接続)。 */
+const AI_GENERATION_KINDS = [
+  { key: "image", label: "AI画像生成", icon: "🖼️" },
+  { key: "music", label: "AI音楽生成", icon: "🎼" },
+  { key: "voice", label: "AIボイス生成", icon: "🎤" },
+  { key: "ambient", label: "AI環境音生成", icon: "🌿" },
+  { key: "sfx", label: "AI効果音生成", icon: "🔊" },
+];
+const AI_PROVIDERS = { image: [], music: [], voice: [], ambient: [], sfx: [] };
+function registerAiProvider(kind, provider){
+  if(!AI_PROVIDERS[kind]) AI_PROVIDERS[kind] = [];
+  AI_PROVIDERS[kind].push(provider);
+}
+async function aiProviderSettingsRead(){
+  const record = await CmsStore.getConfig("aiProviderSettings");
+  return (record && record.data) || {};
+}
+function pickActiveAiProvider(kind, settings){
+  const chosenId = settings && settings[kind] && settings[kind].providerId;
+  if(!chosenId) return null;
+  const list = AI_PROVIDERS[kind] || [];
+  return list.find(p => p.id === chosenId) || null;
+}
+
+const AiGenerationStore = {
+  async add(record){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_GENERATION_STORE, "readwrite");
+      tx.objectStore(AI_GENERATION_STORE).put(record);
+      tx.oncomplete = () => resolve(record);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async update(id, patch){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_GENERATION_STORE, "readwrite");
+      const store = tx.objectStore(AI_GENERATION_STORE);
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const current = getReq.result;
+        if(!current) { resolve(null); return; }
+        const next = { ...current, ...patch, updatedAt: Date.now() };
+        store.put(next);
+        tx.oncomplete = () => resolve(next);
+      };
+      getReq.onerror = () => reject(getReq.error);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async remove(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_GENERATION_STORE, "readwrite");
+      tx.objectStore(AI_GENERATION_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(AI_GENERATION_STORE, "readonly");
+      const req = tx.objectStore(AI_GENERATION_STORE).getAll();
+      req.onsuccess = () => resolve((req.result || []).sort((a, b) => b.createdAt - a.createdAt));
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async getByKind(kind){
+    return (await this.getAll()).filter(r => r.kind === kind);
+  },
+};
+
+/* 生成ジョブを1件作ってすぐ返す(UIをブロックしない)。実際の生成は
+   バックグラウンドで進み、完了/失敗はstatusフィールドの変化として
+   AiGenerationStoreへ書き戻される(呼び出し側はawaitせず、一覧を
+   再読込するタイミングで最新状態を拾えばよい)。 */
+async function requestAiGeneration({ kind, prompt, extra }){
+  const job = {
+    id: "aigen-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8),
+    kind, prompt: prompt || "", extra: extra || {},
+    status: "generating", errorMessage: "", resultMediaId: "",
+    favorite: false, createdAt: Date.now(), updatedAt: Date.now(),
+  };
+  await AiGenerationStore.add(job);
+  (async () => {
+    try{
+      const settings = await aiProviderSettingsRead();
+      const provider = pickActiveAiProvider(kind, settings);
+      if(!provider){
+        await AiGenerationStore.update(job.id, {
+          status: "error",
+          errorMessage: "AIプロバイダが未接続です。管理者モード→AI Studio→API設定で接続してください。",
+        });
+        return;
+      }
+      const apiKey = (settings[kind] && settings[kind].apiKey) || "";
+      const result = await provider.generate({ prompt: job.prompt, extra: job.extra, apiKey });
+      let resultMediaId = "";
+      if(result && result.blob){
+        resultMediaId = "media-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+        await CmsStore.putMedia({
+          id: resultMediaId,
+          kind: kind === "image" ? "image" : "audio",
+          name: result.name || (job.prompt || kind),
+          mimeType: result.mimeType || "",
+          blob: result.blob,
+          size: result.blob.size || 0,
+          createdAt: Date.now(),
+        });
+        if(typeof invalidateKaosuMediaIndex === "function") invalidateKaosuMediaIndex();
+      }
+      await AiGenerationStore.update(job.id, { status: "done", resultMediaId });
+    }catch(e){
+      await AiGenerationStore.update(job.id, { status: "error", errorMessage: (e && e.message) || "生成に失敗しました" });
+    }
+  })();
+  return job;
+}
 
 function wwGenerateId(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -12653,17 +12791,17 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
   const SEASON = [ { key: "spring", label: "春" }, { key: "summer", label: "夏" }, { key: "autumn", label: "秋" }, { key: "winter", label: "冬" } ];
   const EVENT = [ { key: "birthday", label: "誕生日" }, { key: "christmas", label: "クリスマス" }, { key: "halloween", label: "ハロウィン" }, { key: "newyear", label: "お正月" } ];
 
-  function makeSourceField(comingSoonLabel){
+  function makeSourceField(aiLabel){
     return {
       key: "source", label: "音源", type: "select", default: "upload", rerenderOnChange: true,
-      options: [ { value: "upload", label: "アップロード" }, { value: "ai", label: comingSoonLabel || "AI生成 (Coming Soon)" } ],
+      options: [ { value: "upload", label: "アップロード" }, { value: "ai", label: aiLabel || "AI生成" } ],
     };
   }
   function makeFileField(){
     return {
       key: "file", label: "音声ファイル", type: "audio", default: "",
       disabledWhen: (item) => item.source === "ai",
-      disabledLabel: "AI生成機能は準備中です。しばらくお待ちください。",
+      disabledLabel: "AI Studioタブで生成した音声を、メディアライブラリから選んでください(この項目の直接生成はまだ対応していません)。",
     };
   }
   const BGM_TRACK_SCHEMA = [
@@ -12723,7 +12861,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       kind: "collection", defaultShape: { items: [] }, itemLabel: "効果音",
       schema: [
         { key: "label", label: "名前", type: "text", default: "新しい効果音" },
-        makeSourceField("AI効果音生成 (Coming Soon)"),
+        makeSourceField("AI生成(AI Studioタブへ)"),
         makeFileField(),
         { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.8 },
         { key: "enabled", label: "有効", type: "boolean", default: true },
@@ -12735,7 +12873,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       kind: "collection", defaultShape: { items: [] }, itemLabel: "ボイス",
       schema: [
         { key: "label", label: "名前(例: おかえりの挨拶)", type: "text", default: "新しいボイス" },
-        makeSourceField("AIボイス生成 (Coming Soon)"),
+        makeSourceField("AI生成(AI Studioタブへ)"),
         makeFileField(),
         { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.9 },
         { key: "enabled", label: "有効", type: "boolean", default: true },
@@ -12747,17 +12885,39 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       kind: "collection", defaultShape: { items: [] }, itemLabel: "環境音",
       schema: [
         { key: "label", label: "名前(例: 鳥のさえずり)", type: "text", default: "新しい環境音" },
-        makeSourceField("AI環境音生成 (Coming Soon)"),
+        makeSourceField("AI生成(AI Studioタブへ)"),
         makeFileField(),
         { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.5 },
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
       note: "追加・削除・並び替え・保存・プレビューは今日から使えます。ホーム画面での自動再生(BGMとの重ね掛け)は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
     },
-    { id: "aiMusic", icon: "🎼", label: "AI音楽生成", category: "sound", group: "generic", kind: "comingSoon" },
-    { id: "aiVoice", icon: "🎤", label: "AIボイス生成", category: "sound", group: "generic", kind: "comingSoon" },
-    { id: "aiAmbient", icon: "🌿", label: "AI環境音生成", category: "sound", group: "generic", kind: "comingSoon" },
-    { id: "aiSfx", icon: "🎹", label: "AI効果音生成", category: "sound", group: "generic", kind: "comingSoon" },
+    /* Phase21: AI Studio。生成そのもの(キュー登録→非同期生成→一覧
+       反映)は本物として動作するが、AI_PROVIDERSが空のため必ず
+       「未接続」エラーで終わる(=後日プロバイダを追加すれば無改修で
+       本稼働するインターフェースのみの実装)。 */
+    { id: "aiImage", icon: "🖼️", label: "AI画像生成", category: "ai", group: "aiGen", genKind: "image" },
+    { id: "aiMusic", icon: "🎼", label: "AI音楽生成", category: "ai", group: "aiGen", genKind: "music" },
+    { id: "aiVoice", icon: "🎤", label: "AIボイス生成", category: "ai", group: "aiGen", genKind: "voice" },
+    { id: "aiAmbient", icon: "🌿", label: "AI環境音生成", category: "ai", group: "aiGen", genKind: "ambient" },
+    { id: "aiSfx", icon: "🔊", label: "AI効果音生成", category: "ai", group: "aiGen", genKind: "sfx" },
+    { id: "aiHistory", icon: "🕘", label: "生成履歴", category: "ai", group: "aiHistory" },
+    { id: "aiFavorites", icon: "⭐", label: "お気に入り", category: "ai", group: "aiFavorites" },
+    {
+      id: "aiSettings", icon: "⚙️", label: "API設定", category: "ai", group: "generic",
+      kind: "singleton",
+      defaultShape: {
+        image: { providerId: "", apiKey: "" }, music: { providerId: "", apiKey: "" },
+        voice: { providerId: "", apiKey: "" }, ambient: { providerId: "", apiKey: "" },
+        sfx: { providerId: "", apiKey: "" },
+      },
+      schema: AI_GENERATION_KINDS.flatMap(k => [
+        { key: `${k.key}.providerId`, label: `${k.icon} ${k.label}: 接続先`, type: "select",
+          default: "", options: [{ value: "", label: "未接続" }, ...(AI_PROVIDERS[k.key] || []).map(p => ({ value: p.id, label: p.label }))] },
+        { key: `${k.key}.apiKey`, label: `${k.icon} ${k.label}: APIキー`, type: "text", default: "" },
+      ]),
+      note: "AIサービスへの実際の接続は今後のアップデートで対応予定です(現時点は接続先を1つも登録していないため、生成を試みると必ず「未接続」の結果になります)。APIキーはこの端末のIndexedDB内にのみ保存され、外部へは送信されません。",
+    },
     {
       id: "effects", icon: "✨", label: "エフェクト", category: "appearance", group: "generic",
       kind: "collection", defaultShape: { items: [] }, itemLabel: "エフェクト",
@@ -13112,6 +13272,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     sound: "🎵 サウンド管理",
     content: "📝 コンテンツ",
     appearance: "🎨 見た目・演出",
+    ai: "🧪 AI Studio",
   };
   function buildTabs(){
     const bar = $("adminTabbar");
@@ -13158,7 +13319,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       await loadGenericModule(mod);
     }
     renderTab(tabId);
-    if(mod.kind === "comingSoon"){
+    if(mod.kind === "comingSoon" || mod.group === "aiGen" || mod.group === "aiHistory" || mod.group === "aiFavorites"){
       $("adminSaveBar").style.display = "none";
     }else{
       const state = currentDirtyState();
@@ -13177,6 +13338,12 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       else if(tabId === "character") renderCharacterModule();
       else if(tabId === "direction") renderDirectionModule();
       else if(tabId === "furniture") renderFurnitureModule();
+    }else if(mod.group === "aiGen"){
+      renderAiGenModule(mod);
+    }else if(mod.group === "aiHistory"){
+      renderAiHistoryModule();
+    }else if(mod.group === "aiFavorites"){
+      renderAiFavoritesModule();
     }else{
       renderGenericModule(mod);
     }
@@ -13790,6 +13957,138 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       </div>
     `;
     renderItemList($("adminGenericCollection-" + mod.id), state.draft.items, mod.schema, mod.itemLabel, () => setDirty(true));
+  }
+
+  // ===== AI Studio(Phase21: プロンプト送信→非同期生成→一覧反映の土台) =====
+  function aiStatusBadge(job){
+    if(job.status === "generating") return `<span style="color:var(--admin-muted);">⏳ 生成中…</span>`;
+    if(job.status === "done") return `<span style="color:var(--admin-ok);">✅ 完了</span>`;
+    return `<span style="color:var(--admin-danger);">❌ ${escapeHtml(job.errorMessage || "エラー")}</span>`;
+  }
+  function aiJobCardHtml(job, mediaEntry){
+    const kindMeta = AI_GENERATION_KINDS.find(k => k.key === job.kind) || { icon: "🧪", label: job.kind };
+    let previewHtml = "";
+    if(job.status === "done" && mediaEntry){
+      previewHtml = job.kind === "image"
+        ? `<div class="thumb" style="margin-top:8px; max-width:160px;"><img src="${mediaEntry.url}" alt=""></div>`
+        : `<audio controls src="${mediaEntry.url}" style="width:100%; margin-top:8px;"></audio>`;
+    }
+    return `
+      <div class="item-card" data-job-id="${job.id}">
+        <div class="head">
+          <div class="head-title">${kindMeta.icon} ${escapeHtml(job.prompt || "(プロンプトなし)")}</div>
+          <div class="head-btns">
+            <button type="button" class="tiny secondary" data-act="favorite">${job.favorite ? "★" : "☆"}</button>
+            ${job.status === "error" ? `<button type="button" class="tiny secondary" data-act="retry">🔄再試行</button>` : ""}
+            <button type="button" class="tiny danger" data-act="remove">削除</button>
+          </div>
+        </div>
+        <div class="hint">${kindMeta.label} ・ ${new Date(job.createdAt).toLocaleString("ja-JP")}</div>
+        <div style="margin-top:6px;">${aiStatusBadge(job)}</div>
+        ${previewHtml}
+      </div>
+    `;
+  }
+  // 一覧を描画し、まだ生成中のジョブが残っていれば少し待って自動的に
+  // 再描画する(結果が出るまでUIをブロックせず、手動リロード不要で
+  // 「生成中→完了/エラー」への切り替わりがそのまま画面に反映される)。
+  async function renderAiJobListInto(containerId, jobs, opts){
+    const el = $(containerId);
+    if(!el) return;
+    if(!jobs.length){
+      el.innerHTML = `<p class="hint">まだ生成履歴がありません。</p>`;
+      return;
+    }
+    if(jobs.some(j => j.status === "done" && j.resultMediaId)){
+      await loadKaosuMediaIndex();
+    }
+    el.innerHTML = jobs.map(job => {
+      const mediaEntry = job.resultMediaId && kaosuMediaIndexCache ? kaosuMediaIndexCache.get(job.resultMediaId) : null;
+      return aiJobCardHtml(job, mediaEntry);
+    }).join("");
+    el.querySelectorAll("[data-job-id]").forEach(card => {
+      const jobId = card.dataset.jobId;
+      const job = jobs.find(j => j.id === jobId);
+      const favBtn = card.querySelector('[data-act="favorite"]');
+      if(favBtn) favBtn.addEventListener("click", async () => {
+        await AiGenerationStore.update(jobId, { favorite: !job.favorite });
+        if(opts && opts.onChange) opts.onChange();
+      });
+      const retryBtn = card.querySelector('[data-act="retry"]');
+      if(retryBtn) retryBtn.addEventListener("click", async () => {
+        await requestAiGeneration({ kind: job.kind, prompt: job.prompt, extra: job.extra });
+        if(opts && opts.onChange) opts.onChange();
+      });
+      const removeBtn = card.querySelector('[data-act="remove"]');
+      if(removeBtn) removeBtn.addEventListener("click", async () => {
+        await AiGenerationStore.remove(jobId);
+        if(opts && opts.onChange) opts.onChange();
+      });
+    });
+    if(jobs.some(j => j.status === "generating") && opts && opts.onChange){
+      setTimeout(() => { if($(containerId)) opts.onChange(); }, 700);
+    }
+  }
+  async function renderAiGenModule(mod){
+    const panel = $("adminPanel-" + mod.id);
+    const listId = "aiGenList-" + mod.id;
+    panel.innerHTML = `
+      <div class="card">
+        <h2>${mod.icon} ${mod.label}</h2>
+        <p class="stub-note">プロンプトを入力して「生成する」を押すと、その場でキューに登録され、バックグラウンドで処理されます(画面はブロックされません)。まだAPIを1つも接続していないため、結果は必ず「未接続」エラーになりますが、API設定タブで接続先を登録すれば、この画面のコード変更なしにそのまま本稼働します。</p>
+        <div class="field"><label>プロンプト</label><textarea id="aiGenPrompt-${mod.id}" rows="3" placeholder="例: 朝の光がやさしく差し込む部屋"></textarea></div>
+        <button type="button" id="aiGenSubmit-${mod.id}" style="margin-top:10px;">✨ 生成する</button>
+      </div>
+      <div class="card">
+        <h2>生成履歴(${AI_GENERATION_KINDS.find(k => k.key === mod.genKind).label})</h2>
+        <div id="${listId}"></div>
+      </div>
+    `;
+    const reload = async () => {
+      const jobs = await AiGenerationStore.getByKind(mod.genKind);
+      await renderAiJobListInto(listId, jobs, { onChange: reload });
+    };
+    $("aiGenSubmit-" + mod.id).addEventListener("click", async () => {
+      const promptEl = $("aiGenPrompt-" + mod.id);
+      const prompt = promptEl.value.trim();
+      const btn = $("aiGenSubmit-" + mod.id);
+      btn.disabled = true;
+      await requestAiGeneration({ kind: mod.genKind, prompt });
+      promptEl.value = "";
+      btn.disabled = false;
+      await reload();
+    });
+    await reload();
+  }
+  async function renderAiHistoryModule(){
+    const panel = $("adminPanel-aiHistory");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🕘 生成履歴(すべて)</h2>
+        <p class="stub-note">画像/音楽/ボイス/環境音/効果音、すべてのAI生成をまとめて新しい順に表示します。</p>
+        <div id="aiHistoryList"></div>
+      </div>
+    `;
+    const reload = async () => {
+      const jobs = await AiGenerationStore.getAll();
+      await renderAiJobListInto("aiHistoryList", jobs, { onChange: reload });
+    };
+    await reload();
+  }
+  async function renderAiFavoritesModule(){
+    const panel = $("adminPanel-aiFavorites");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>⭐ お気に入り</h2>
+        <p class="stub-note">各生成カードの☆をタップするとここに表示されます。</p>
+        <div id="aiFavoritesList"></div>
+      </div>
+    `;
+    const reload = async () => {
+      const jobs = (await AiGenerationStore.getAll()).filter(j => j.favorite);
+      await renderAiJobListInto("aiFavoritesList", jobs, { onChange: reload });
+    };
+    await reload();
   }
 
   // ===== 保存/再読込(現在開いているタブが属するモジュールを対象とする) =====
