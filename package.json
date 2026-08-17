@@ -1,0 +1,18 @@
+{
+  "name": "koufuku-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ケイオスちゃんとの幸せ設計（幸せ設計AI） - Capacitor Androidアプリ",
+  "scripts": {
+    "build:www": "node scripts/build-www.js",
+    "cap:sync": "npm run build:www && npx cap sync android",
+    "cap:open:android": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

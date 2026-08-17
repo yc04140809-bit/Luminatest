@@ -2,3 +2,7 @@
 .env
 .env.local
 .env*.local
+
+# Capacitor / Android app (Phase19)
+node_modules/
+www/
