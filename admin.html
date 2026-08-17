@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ケイオスちゃん 管理画面</title>
+<style>
+  :root{
+    --bg:#f6f4fb; --card:#ffffff; --border:#e3ddf2; --text:#33304a; --muted:#8a84a3;
+    --accent:#8b6fd6; --accent-dark:#6f52c2; --danger:#d6556f; --ok:#4caf7d;
+    --input-bg:#fbfaff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1a26; --card:#241f33; --border:#3a3350; --text:#eae7f5; --muted:#a79fc4; --input-bg:#2c273d; }
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:"Hiragino Sans","Yu Gothic",sans-serif; line-height:1.6; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:20px 16px 80px; }
+  h1{ font-size:20px; margin:0 0 4px; }
+  h2{ font-size:16px; margin:0 0 12px; }
+  .sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
+  .card{ background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:18px; }
+  label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=password], select{
+    width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--input-bg); color:var(--text); font-size:14px;
+  }
+  button{
+    font-family:inherit; font-size:14px; padding:9px 16px; border-radius:9px; border:none;
+    background:var(--accent); color:#fff; cursor:pointer;
+  }
+  button:hover{ background:var(--accent-dark); }
+  button.secondary{ background:transparent; color:var(--accent-dark); border:1px solid var(--accent); }
+  button.danger{ background:transparent; color:var(--danger); border:1px solid var(--danger); }
+  button:disabled{ opacity:.5; cursor:not-allowed; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .field{ flex:1; min-width:110px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; }
+  .thumb{ border:1px solid var(--border); border-radius:10px; padding:8px; text-align:center; background:var(--input-bg); }
+  .thumb img{ width:100%; height:70px; object-fit:contain; background:repeating-conic-gradient(#0000 0 25%, #8881 0 50%) 0/16px 16px; border-radius:6px; }
+  .thumb .name{ font-size:11px; color:var(--muted); margin:6px 0; word-break:break-all; }
+  .thumb .btns{ display:flex; gap:4px; justify-content:center; }
+  .thumb .btns button{ padding:4px 8px; font-size:11px; }
+  details{ border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin-bottom:10px; background:var(--input-bg); }
+  summary{ cursor:pointer; font-weight:600; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+  summary img{ width:32px; height:32px; object-fit:cover; border-radius:6px; vertical-align:middle; margin-right:8px; background:#fff; }
+  .pose-fields{ display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:8px; margin-top:10px; }
+  .checkbox-row{ display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; color:var(--muted); }
+  .checkbox-row input{ width:auto; }
+  #loginScreen{ max-width:340px; margin:15vh auto; text-align:center; }
+  #loginScreen .card{ text-align:left; }
+  #loginError{ color:var(--danger); font-size:13px; min-height:18px; margin-top:8px; }
+  #mainScreen{ display:none; }
+  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
+  .status-pill{ display:inline-block; font-size:12px; padding:3px 10px; border-radius:99px; background:var(--input-bg); color:var(--muted); border:1px solid var(--border); }
+  .save-bar{ position:sticky; bottom:0; background:var(--card); border-top:1px solid var(--border); padding:14px 18px; border-radius:14px 14px 0 0; box-shadow:0 -4px 16px rgba(0,0,0,.08); display:flex; align-items:center; gap:14px; }
+  #saveStatus{ font-size:13px; color:var(--muted); flex:1; }
+  #saveStatus.ok{ color:var(--ok); }
+  #saveStatus.err{ color:var(--danger); }
+  .preview-scene{ position:relative; width:100%; max-width:340px; aspect-ratio:3/4; margin:0 auto; border-radius:16px; overflow:hidden; background:linear-gradient(160deg,#ffe6ef,#e9e0ff); border:1px solid var(--border); }
+  .preview-scene img.bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .preview-scene .avatar-box{ position:absolute; left:50%; bottom:14%; width:34%; aspect-ratio:1/1; transform:translateX(-50%); border-radius:50%; overflow:hidden; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+  .preview-scene .avatar-box img{ width:100%; height:100%; object-fit:cover; }
+  .preview-scene .furniture-item{ position:absolute; max-width:20%; max-height:20%; }
+  .preview-controls{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
+  .hint{ font-size:12px; color:var(--muted); margin-top:6px; }
+  .upload-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .furniture-item-card{ border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px; background:var(--input-bg); }
+  .furniture-item-card .head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loginScreen">
+    <h1>🏠 ケイオスちゃん 管理画面</h1>
+    <p class="sub">ホーム画面の見た目(部屋背景・ケイオスちゃんの立ち絵・配置・家具)を、コードを書かずに編集できます。</p>
+    <div class="card">
+      <label for="pwInput">管理者パスワード</label>
+      <input type="password" id="pwInput" placeholder="パスワード" autocomplete="current-password">
+      <div style="margin-top:12px;"><button id="btnLogin" style="width:100%">ログイン</button></div>
+      <div id="loginError"></div>
+    </div>
+  </div>
+
+  <div id="mainScreen">
+    <div class="topbar">
+      <div>
+        <h1>🏠 ケイオスちゃん 管理画面</h1>
+        <p class="sub" style="margin:0;">保存すると <code>room-config.json</code> が更新され、GitHub Pagesの自動デプロイ(数十秒〜1分程度)を経てホーム画面に反映されます。</p>
+      </div>
+      <button class="secondary" id="btnLogout">ログアウト</button>
+    </div>
+
+    <div id="loadError" class="card" style="display:none; border-color:var(--danger);"></div>
+
+    <div class="card">
+      <h2>① 画像アップロード</h2>
+      <div class="upload-row">
+        <div class="field" style="flex:2;">
+          <label for="uploadTarget">用途(割り当て先)</label>
+          <select id="uploadTarget"></select>
+        </div>
+        <div class="field" style="flex:2;">
+          <label for="uploadFile">画像ファイル</label>
+          <input type="file" id="uploadFile" accept=".webp,.png,.jpg,.jpeg,.gif,.svg">
+        </div>
+        <button id="btnUpload">アップロード</button>
+      </div>
+      <p class="hint">対応形式: webp / png / jpg / gif / svg。3MB程度まで。「用途」を選ぶとアップロード後すぐにそのスロットへ割り当てます(位置などの調整後、下部の「保存」を押すまでは反映されません)。「未割り当て(家具などに使う)」を選ぶとファイルだけ追加され、②③のドロップダウンから後で選べます。</p>
+      <div id="uploadStatus" class="hint"></div>
+    </div>
+
+    <div class="card">
+      <h2>② 画像一覧</h2>
+      <div id="imageGrid" class="grid"></div>
+      <p class="hint" id="imageEmptyHint" style="display:none;">まだ画像がアップロードされていません。①からアップロードしてください。</p>
+    </div>
+
+    <div class="card">
+      <h2>③ ケイオスちゃんの配置</h2>
+      <p class="hint" style="margin-top:-6px;">立ち絵の種類(ポーズ)ごとに、画像・表示位置・拡大縮小・前後関係・透明度を設定できます。</p>
+      <div id="poseEditor"></div>
+    </div>
+
+    <div class="card">
+      <h2>④ 部屋の背景(時間帯別)</h2>
+      <div id="bgEditor"></div>
+      <details style="margin-top:12px;">
+        <summary>詳細設定(天候・季節・イベント / 将来の拡張用)</summary>
+        <p class="hint">有効にした天候・季節・イベントは時間帯背景より優先して表示されます。現時点では既定で無効(未使用)です。</p>
+        <div id="bgAdvancedEditor"></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>⑤ 部屋の家具・装飾(部屋の育成)</h2>
+      <p class="hint" style="margin-top:-6px;">花・ぬいぐるみ・写真などを部屋に追加できます。</p>
+      <div id="furnitureEditor"></div>
+      <button class="secondary" id="btnAddFurniture" style="margin-top:6px;">＋ 家具を追加</button>
+    </div>
+
+    <div class="card">
+      <h2>プレビュー</h2>
+      <div class="preview-controls">
+        <select id="previewBand">
+          <option value="morning">朝</option>
+          <option value="day" selected>昼</option>
+          <option value="evening">夕方</option>
+          <option value="night">夜</option>
+          <option value="midnight">深夜</option>
+        </select>
+        <select id="previewPose"></select>
+      </div>
+      <div class="preview-scene" id="previewScene">
+        <img class="bg" id="previewBg" alt="" onerror="this.style.display='none'">
+        <div id="previewFurniture"></div>
+        <div class="avatar-box" id="previewAvatarBox">
+          <img id="previewAvatar" alt="" onerror="this.style.display='none'">
+        </div>
+      </div>
+      <p class="hint" style="text-align:center;">※実際のホーム画面とは簡易表示です(構図の目安用)。背景は画面いっぱいに表示されるため、位置調整の対象はケイオスちゃんと家具のみです。</p>
+    </div>
+
+    <div class="card">
+      <h2>今後追加予定</h2>
+      <p class="hint" style="margin-top:-6px;margin-bottom:0;">登場演出(手を振る/読書/窓を見る等)の出現確率調整や、天気・季節と連動した自動切り替えは、このデータ構造のまま次のアップデートで管理画面に追加できるよう設計してあります。</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="save-bar" id="saveBar" style="display:none;">
+  <div id="saveStatus"></div>
+  <button class="secondary" id="btnReload">再読込(破棄)</button>
+  <button id="btnSave">💾 保存する</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const ADMIN_ENDPOINT = "https://luminatest-one.vercel.app/api/admin-github";
+  const ROOM_DIR = "img/koufuku/room/";
+  const TIME_BANDS = [
+    { key: "morning", label: "朝" },
+    { key: "day", label: "昼" },
+    { key: "evening", label: "夕方" },
+    { key: "night", label: "夜" },
+    { key: "midnight", label: "深夜" },
+  ];
+  const POSES = [
+    { key: "idle", label: "待機" },
+    { key: "wave", label: "手を振る" },
+    { key: "walk", label: "歩く" },
+    { key: "sit", label: "座る" },
+    { key: "read", label: "読書" },
+    { key: "window", label: "窓を見る" },
+    { key: "sofa", label: "ソファで休む" },
+    { key: "bow", label: "お辞儀" },
+  ];
+  const WEATHER = [ { key: "rain", label: "雨" }, { key: "snow", label: "雪" } ];
+  const SEASON = [ { key: "spring", label: "春" }, { key: "summer", label: "夏" }, { key: "autumn", label: "秋" }, { key: "winter", label: "冬" } ];
+  const EVENT = [ { key: "birthday", label: "誕生日" }, { key: "christmas", label: "クリスマス" }, { key: "halloween", label: "ハロウィン" }, { key: "newyear", label: "お正月" } ];
+
+  let adminToken = sessionStorage.getItem("kaosuAdminToken") || "";
+  let draftConfig = null;
+  let configSha = null;
+  let imageList = [];
+  let dirty = false;
+
+  const $ = (id) => document.getElementById(id);
+
+  async function api(action, payload){
+    const res = await fetch(ADMIN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + adminToken },
+      body: JSON.stringify(Object.assign({ action }, payload || {})),
+    });
+    let data = null;
+    try{ data = await res.json(); }catch(e){ /* ignore */ }
+    if(!res.ok){
+      const msg = (data && data.message) || (data && data.error) || ("HTTP " + res.status);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  function setDirty(v){
+    dirty = v;
+    $("saveBar").style.display = draftConfig ? "flex" : "none";
+    $("btnSave").disabled = !dirty;
+  }
+
+  function filenameOf(path){
+    if(!path) return "";
+    const parts = String(path).split("/");
+    return parts[parts.length - 1];
+  }
+
+  // ===== ログイン =====
+  async function tryLogin(pw){
+    adminToken = pw;
+    await api("ping");
+    sessionStorage.setItem("kaosuAdminToken", adminToken);
+    $("loginScreen").style.display = "none";
+    $("mainScreen").style.display = "block";
+    await loadAll();
+  }
+
+  $("btnLogin").addEventListener("click", async () => {
+    const pw = $("pwInput").value;
+    $("loginError").textContent = "";
+    if(!pw){ $("loginError").textContent = "パスワードを入力してください。"; return; }
+    $("btnLogin").disabled = true;
+    try{
+      await tryLogin(pw);
+    }catch(e){
+      $("loginError").textContent = "ログインに失敗しました(" + e.message + ")";
+      adminToken = "";
+      sessionStorage.removeItem("kaosuAdminToken");
+    }finally{
+      $("btnLogin").disabled = false;
+    }
+  });
+  $("pwInput").addEventListener("keydown", (e) => { if(e.key === "Enter") $("btnLogin").click(); });
+
+  $("btnLogout").addEventListener("click", () => {
+    sessionStorage.removeItem("kaosuAdminToken");
+    location.reload();
+  });
+
+  // ===== 読み込み =====
+  async function loadAll(){
+    $("loadError").style.display = "none";
+    try{
+      const [cfg, imgs] = await Promise.all([ api("getConfig"), api("listImages") ]);
+      draftConfig = cfg.config;
+      configSha = cfg.sha;
+      imageList = imgs.images || [];
+      renderAll();
+      setDirty(false);
+    }catch(e){
+      $("loadError").style.display = "block";
+      $("loadError").textContent = "読み込みに失敗しました: " + e.message;
+    }
+  }
+
+  function renderAll(){
+    renderUploadTargetOptions();
+    renderImageGrid();
+    renderPoseEditor();
+    renderBgEditor();
+    renderBgAdvancedEditor();
+    renderFurnitureEditor();
+    renderPreviewControls();
+    renderPreview();
+  }
+
+  // ===== ① アップロード =====
+  function renderUploadTargetOptions(){
+    const sel = $("uploadTarget");
+    sel.innerHTML = "";
+    const optNone = new Option("未割り当て(家具などに使う)", "");
+    sel.appendChild(optNone);
+    const bgGroup = document.createElement("optgroup");
+    bgGroup.label = "部屋背景";
+    TIME_BANDS.forEach(b => bgGroup.appendChild(new Option("背景:" + b.label, "bg:" + b.key)));
+    sel.appendChild(bgGroup);
+    const poseGroup = document.createElement("optgroup");
+    poseGroup.label = "ケイオスちゃん";
+    POSES.forEach(p => poseGroup.appendChild(new Option("立ち絵:" + p.label, "pose:" + p.key)));
+    sel.appendChild(poseGroup);
+  }
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function extOf(filename){
+    const i = filename.lastIndexOf(".");
+    return i >= 0 ? filename.slice(i) : "";
+  }
+
+  function sanitizeFilename(name){
+    return name.replace(/[^a-zA-Z0-9_\-.]/g, "_");
+  }
+
+  function findImageByName(name){
+    return imageList.find(im => im.name === name);
+  }
+
+  $("btnUpload").addEventListener("click", async () => {
+    const fileInput = $("uploadFile");
+    const file = fileInput.files && fileInput.files[0];
+    const target = $("uploadTarget").value;
+    const statusEl = $("uploadStatus");
+    if(!file){ statusEl.textContent = "ファイルを選択してください。"; return; }
+    statusEl.textContent = "アップロード中…";
+    $("btnUpload").disabled = true;
+    try{
+      const ext = extOf(file.name) || ".webp";
+      let filename;
+      if(target.startsWith("bg:")) filename = "bg-" + target.slice(3) + ext;
+      else if(target.startsWith("pose:")) filename = "pose-" + target.slice(5) + ext;
+      else filename = sanitizeFilename(Date.now() + "-" + file.name);
+
+      const existing = findImageByName(filename);
+      const contentBase64 = await fileToBase64(file);
+      const result = await api("uploadImage", { filename, contentBase64, sha: existing ? existing.sha : undefined });
+
+      const idx = imageList.findIndex(im => im.name === filename);
+      const entry = { name: result.name, path: result.path, sha: result.sha, size: file.size, url: result.url + "?t=" + Date.now() };
+      if(idx >= 0) imageList[idx] = entry; else imageList.push(entry);
+
+      if(target.startsWith("bg:")){
+        const key = target.slice(3);
+        draftConfig.background.timeOfDay[key] = draftConfig.background.timeOfDay[key] || { enabled: true };
+        draftConfig.background.timeOfDay[key].image = result.path;
+        draftConfig.background.timeOfDay[key].enabled = true;
+      }else if(target.startsWith("pose:")){
+        const key = target.slice(5);
+        draftConfig.character.poses[key] = draftConfig.character.poses[key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
+        draftConfig.character.poses[key].image = result.path;
+      }
+
+      renderImageGrid();
+      renderPoseEditor();
+      renderBgEditor();
+      renderFurnitureEditor();
+      renderPreview();
+      setDirty(true);
+      statusEl.textContent = "✅ アップロードしました(" + filename + ")。位置などを調整して「保存」を押してください。";
+      fileInput.value = "";
+    }catch(e){
+      statusEl.textContent = "❌ アップロードに失敗しました: " + e.message;
+    }finally{
+      $("btnUpload").disabled = false;
+    }
+  });
+
+  // ===== ② 画像一覧 =====
+  function renderImageGrid(){
+    const grid = $("imageGrid");
+    grid.innerHTML = "";
+    $("imageEmptyHint").style.display = imageList.length ? "none" : "block";
+    imageList.forEach(img => {
+      const box = document.createElement("div");
+      box.className = "thumb";
+      box.innerHTML = `
+        <img src="${img.url}" alt="" onerror="this.style.opacity=.2">
+        <div class="name">${img.name}</div>
+        <div class="btns">
+          <button class="secondary" data-act="replace" data-name="${img.name}" data-sha="${img.sha}">差し替え</button>
+          <button class="danger" data-act="delete" data-name="${img.name}" data-sha="${img.sha}">削除</button>
+        </div>`;
+      grid.appendChild(box);
+    });
+    grid.querySelectorAll('button[data-act="replace"]').forEach(btn => {
+      btn.addEventListener("click", () => triggerReplace(btn.dataset.name, btn.dataset.sha));
+    });
+    grid.querySelectorAll('button[data-act="delete"]').forEach(btn => {
+      btn.addEventListener("click", () => triggerDelete(btn.dataset.name, btn.dataset.sha));
+    });
+  }
+
+  function triggerReplace(name, sha){
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".webp,.png,.jpg,.jpeg,.gif,.svg";
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if(!file) return;
+      try{
+        const contentBase64 = await fileToBase64(file);
+        const result = await api("uploadImage", { filename: name, contentBase64, sha });
+        const idx = imageList.findIndex(im => im.name === name);
+        if(idx >= 0) imageList[idx] = { name: result.name, path: result.path, sha: result.sha, size: file.size, url: result.url + "?t=" + Date.now() };
+        renderImageGrid();
+        renderPreview();
+        alert("「" + name + "」を差し替えました。この画像を使っている箇所には自動的に反映されます。");
+      }catch(e){
+        alert("差し替えに失敗しました: " + e.message);
+      }
+    };
+    input.click();
+  }
+
+  async function triggerDelete(name, sha){
+    if(!confirm("「" + name + "」を削除します。よろしいですか?\nこの画像を使用中のスロットは、削除後に画像が表示されなくなります(アプリ側は落ちずに非表示へ自動フォールバックします)。")) return;
+    try{
+      await api("deleteImage", { filename: name, sha });
+      imageList = imageList.filter(im => im.name !== name);
+      renderImageGrid();
+    }catch(e){
+      alert("削除に失敗しました: " + e.message);
+    }
+  }
+
+  // ===== ③ ケイオスちゃんの配置 =====
+  function imageOptions(selectedPath){
+    let html = '<option value="">(未選択)</option>';
+    imageList.forEach(img => {
+      const sel = img.path === selectedPath ? " selected" : "";
+      html += `<option value="${img.path}"${sel}>${img.name}</option>`;
+    });
+    return html;
+  }
+
+  function renderPoseEditor(){
+    const wrap = $("poseEditor");
+    wrap.innerHTML = "";
+    POSES.forEach(p => {
+      const pose = draftConfig.character.poses[p.key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
+      draftConfig.character.poses[p.key] = pose;
+      const thumbUrl = (findImageByName(filenameOf(pose.image)) || {}).url || "";
+      const det = document.createElement("details");
+      det.innerHTML = `
+        <summary><span><img src="${thumbUrl}" onerror="this.style.visibility='hidden'">${p.label}</span></summary>
+        <div class="field">
+          <label>画像</label>
+          <select data-f="image">${imageOptions(pose.image)}</select>
+        </div>
+        <div class="pose-fields">
+          <div class="field"><label>X (px)</label><input type="number" data-f="x" value="${pose.x||0}"></div>
+          <div class="field"><label>Y (px)</label><input type="number" data-f="y" value="${pose.y||0}"></div>
+          <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${pose.scale!=null?pose.scale:1}"></div>
+          <div class="field"><label>回転(deg)</label><input type="number" data-f="rotation" value="${pose.rotation||0}"></div>
+          <div class="field"><label>前後(Z-index)</label><input type="number" data-f="zIndex" value="${pose.zIndex!=null?pose.zIndex:1}"></div>
+          <div class="field"><label>透明度(0-1)</label><input type="number" step="0.05" min="0" max="1" data-f="opacity" value="${pose.opacity!=null?pose.opacity:1}"></div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" data-f="visible" ${pose.visible!==false?"checked":""}> 表示する</label>
+      `;
+      det.querySelectorAll("[data-f]").forEach(el => {
+        const field = el.dataset.f;
+        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+        el.addEventListener(evt, () => {
+          if(field === "visible") pose.visible = el.checked;
+          else if(field === "image") pose.image = el.value;
+          else pose[field] = parseFloat(el.value) || 0;
+          det.querySelector("summary img").src = (findImageByName(filenameOf(pose.image)) || {}).url || "";
+          renderPreview();
+          setDirty(true);
+        });
+      });
+      wrap.appendChild(det);
+    });
+  }
+
+  // ===== ④ 背景 =====
+  function renderBgEditor(){
+    const wrap = $("bgEditor");
+    wrap.innerHTML = "";
+    TIME_BANDS.forEach(b => {
+      const tod = draftConfig.background.timeOfDay[b.key] = draftConfig.background.timeOfDay[b.key] || { enabled: true };
+      const row = document.createElement("div");
+      row.className = "row";
+      row.style.marginBottom = "10px";
+      row.innerHTML = `
+        <div class="field" style="flex:0 0 60px;"><label>&nbsp;</label><div>${b.label}</div></div>
+        <div class="field" style="flex:2;"><label>画像</label><select data-f="image">${imageOptions(tod.image)}</select></div>
+        <div class="field" style="flex:0 0 90px;"><label class="checkbox-row" style="margin-top:22px;"><input type="checkbox" data-f="enabled" ${tod.enabled!==false?"checked":""}> 有効</label></div>
+      `;
+      row.querySelector('[data-f="image"]').addEventListener("change", (e) => { tod.image = e.target.value; renderPreview(); setDirty(true); });
+      row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { tod.enabled = e.target.checked; setDirty(true); });
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderBgAdvancedEditor(){
+    const wrap = $("bgAdvancedEditor");
+    wrap.innerHTML = "";
+    [["weather", WEATHER], ["season", SEASON], ["event", EVENT]].forEach(([groupKey, list]) => {
+      draftConfig.background[groupKey] = draftConfig.background[groupKey] || {};
+      const group = draftConfig.background[groupKey];
+      list.forEach(item => {
+        group[item.key] = group[item.key] || { enabled: false, image: ROOM_DIR + "bg-" + item.key + ".webp" };
+        const it = group[item.key];
+        const row = document.createElement("div");
+        row.className = "row";
+        row.style.marginBottom = "8px";
+        row.innerHTML = `
+          <div class="field" style="flex:0 0 70px;"><div>${item.label}</div></div>
+          <div class="field" style="flex:2;"><select data-f="image">${imageOptions(it.image)}</select></div>
+          <div class="field" style="flex:0 0 90px;"><label class="checkbox-row"><input type="checkbox" data-f="enabled" ${it.enabled?"checked":""}> 有効</label></div>
+        `;
+        row.querySelector('[data-f="image"]').addEventListener("change", (e) => { it.image = e.target.value; setDirty(true); });
+        row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { it.enabled = e.target.checked; setDirty(true); });
+        wrap.appendChild(row);
+      });
+    });
+  }
+
+  // ===== ⑤ 家具 =====
+  function renderFurnitureEditor(){
+    const wrap = $("furnitureEditor");
+    wrap.innerHTML = "";
+    draftConfig.furniture.items.forEach((item, idx) => {
+      const card = document.createElement("div");
+      card.className = "furniture-item-card";
+      card.innerHTML = `
+        <div class="head">
+          <strong>${item.id || ("家具" + (idx+1))}</strong>
+          <button class="danger" data-act="remove">削除</button>
+        </div>
+        <div class="field" style="margin-bottom:8px;"><label>画像</label><select data-f="image">${imageOptions(item.image)}</select></div>
+        <div class="pose-fields">
+          <div class="field"><label>X (%)</label><input type="number" data-f="x" value="${item.x!=null?item.x:50}"></div>
+          <div class="field"><label>Y (%)</label><input type="number" data-f="y" value="${item.y!=null?item.y:50}"></div>
+          <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${item.scale!=null?item.scale:1}"></div>
+          <div class="field"><label>回転(deg)</label><input type="number" data-f="rotation" value="${item.rotation||0}"></div>
+          <div class="field"><label>前後(Z-index)</label><input type="number" data-f="zIndex" value="${item.zIndex!=null?item.zIndex:1}"></div>
+          <div class="field"><label>透明度(0-1)</label><input type="number" step="0.05" min="0" max="1" data-f="opacity" value="${item.opacity!=null?item.opacity:1}"></div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" data-f="enabled" ${item.enabled!==false?"checked":""}> 表示する</label>
+      `;
+      card.querySelector('[data-act="remove"]').addEventListener("click", () => {
+        draftConfig.furniture.items.splice(idx, 1);
+        renderFurnitureEditor();
+        renderPreview();
+        setDirty(true);
+      });
+      card.querySelectorAll("[data-f]").forEach(el => {
+        const field = el.dataset.f;
+        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+        el.addEventListener(evt, () => {
+          if(field === "enabled") item.enabled = el.checked;
+          else if(field === "image") item.image = el.value;
+          else item[field] = parseFloat(el.value) || 0;
+          renderPreview();
+          setDirty(true);
+        });
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+  $("btnAddFurniture").addEventListener("click", () => {
+    draftConfig.furniture.items.push({
+      id: "furniture-" + Date.now(), image: "", x: 50, y: 50, scale: 1, rotation: 0, opacity: 1, zIndex: 1, enabled: true,
+    });
+    renderFurnitureEditor();
+    setDirty(true);
+  });
+
+  // ===== プレビュー =====
+  function renderPreviewControls(){
+    const sel = $("previewPose");
+    sel.innerHTML = "";
+    POSES.forEach(p => sel.appendChild(new Option(p.label, p.key)));
+  }
+  $("previewBand").addEventListener("change", renderPreview);
+  $("previewPose").addEventListener("change", renderPreview);
+
+  function renderPreview(){
+    if(!draftConfig) return;
+    const band = $("previewBand").value;
+    const tod = draftConfig.background.timeOfDay[band];
+    const bgImg = findImageByName(filenameOf(tod && tod.image));
+    $("previewBg").src = bgImg ? bgImg.url : "";
+
+    const poseKey = $("previewPose").value || "idle";
+    const pose = draftConfig.character.poses[poseKey] || {};
+    const poseImg = findImageByName(filenameOf(pose.image));
+    const avatarImg = $("previewAvatar");
+    avatarImg.style.opacity = "";
+    avatarImg.src = poseImg ? poseImg.url : "";
+    avatarImg.style.display = pose.visible === false ? "none" : "";
+    avatarImg.style.opacity = pose.opacity != null ? String(pose.opacity) : "1";
+    avatarImg.style.zIndex = pose.zIndex != null ? String(pose.zIndex) : "1";
+    const tx = (pose.x||0) * 0.5, ty = (pose.y||0) * 0.5; // プレビューは実画面より小さいため係数を掛けて目安表示にする
+    avatarImg.style.transform = `translate(${tx}px, ${ty}px) scale(${pose.scale!=null?pose.scale:1}) rotate(${pose.rotation||0}deg)`;
+
+    const fWrap = $("previewFurniture");
+    fWrap.innerHTML = "";
+    (draftConfig.furniture.items || []).filter(it => it.enabled !== false && it.image).forEach(it => {
+      const img = findImageByName(filenameOf(it.image));
+      if(!img) return;
+      const el = document.createElement("img");
+      el.className = "furniture-item";
+      el.src = img.url;
+      el.style.left = (it.x!=null?it.x:50) + "%";
+      el.style.top = (it.y!=null?it.y:50) + "%";
+      el.style.transform = `translate(-50%,-50%) scale(${it.scale!=null?it.scale:1}) rotate(${it.rotation||0}deg)`;
+      el.style.opacity = it.opacity != null ? it.opacity : 1;
+      el.style.zIndex = it.zIndex != null ? String(it.zIndex) : "1";
+      el.onerror = function(){ this.style.display = "none"; };
+      fWrap.appendChild(el);
+    });
+  }
+
+  // ===== 保存 =====
+  $("btnReload").addEventListener("click", async () => {
+    if(dirty && !confirm("保存していない変更を破棄して再読込します。よろしいですか?")) return;
+    await loadAll();
+  });
+
+  $("btnSave").addEventListener("click", async () => {
+    const statusEl = $("saveStatus");
+    statusEl.className = "";
+    statusEl.textContent = "保存中…";
+    $("btnSave").disabled = true;
+    try{
+      const result = await api("saveConfig", { config: draftConfig, sha: configSha });
+      configSha = result.sha || configSha;
+      setDirty(false);
+      statusEl.className = "ok";
+      statusEl.textContent = "✅ 保存しました。ホーム画面への反映を確認しています…";
+      pollDeployStatus(result.commitSha, statusEl);
+    }catch(e){
+      statusEl.className = "err";
+      statusEl.textContent = "❌ 保存に失敗しました: " + e.message;
+      $("btnSave").disabled = false;
+    }
+  });
+
+  async function pollDeployStatus(commitSha, statusEl){
+    if(!commitSha) return;
+    for(let i = 0; i < 20; i++){
+      await new Promise(r => setTimeout(r, 6000));
+      try{
+        const d = await api("checkDeployStatus", { commitSha });
+        if(d.status === "completed"){
+          statusEl.className = d.conclusion === "success" ? "ok" : "err";
+          statusEl.textContent = d.conclusion === "success"
+            ? "✅ ホーム画面に反映されました！"
+            : "⚠ デプロイが失敗しました。GitHub Actionsのログを確認してください。";
+          return;
+        }
+      }catch(e){ /* 次のポーリングへ */ }
+    }
+  }
+
+  // ===== 起動 =====
+  if(adminToken){
+    api("ping").then(() => {
+      $("loginScreen").style.display = "none";
+      $("mainScreen").style.display = "block";
+      loadAll();
+    }).catch(() => {
+      sessionStorage.removeItem("kaosuAdminToken");
+      adminToken = "";
+    });
+  }
+})();
+</script>
+</body>
+</html>

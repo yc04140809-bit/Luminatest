@@ -7748,14 +7748,14 @@ const KAOSU_ROOM_CONFIG_DEFAULT = {
   },
   character: {
     poses: {
-      idle:   { image: KAOSU_ROOM_ASSET_DIR + "pose-idle.webp",   opacity: 1, zIndex: 1, visible: true },
-      wave:   { image: KAOSU_ROOM_ASSET_DIR + "pose-wave.webp",   opacity: 1, zIndex: 1, visible: true },
-      walk:   { image: KAOSU_ROOM_ASSET_DIR + "pose-walk.webp",   opacity: 1, zIndex: 1, visible: true },
-      sit:    { image: KAOSU_ROOM_ASSET_DIR + "pose-sit.webp",    opacity: 1, zIndex: 1, visible: true },
-      read:   { image: KAOSU_ROOM_ASSET_DIR + "pose-read.webp",   opacity: 1, zIndex: 1, visible: true },
-      window: { image: KAOSU_ROOM_ASSET_DIR + "pose-window.webp", opacity: 1, zIndex: 1, visible: true },
-      sofa:   { image: KAOSU_ROOM_ASSET_DIR + "pose-sofa.webp",   opacity: 1, zIndex: 1, visible: true },
-      bow:    { image: KAOSU_ROOM_ASSET_DIR + "pose-bow.webp",    opacity: 1, zIndex: 1, visible: true },
+      idle:   { image: KAOSU_ROOM_ASSET_DIR + "pose-idle.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      wave:   { image: KAOSU_ROOM_ASSET_DIR + "pose-wave.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      walk:   { image: KAOSU_ROOM_ASSET_DIR + "pose-walk.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      sit:    { image: KAOSU_ROOM_ASSET_DIR + "pose-sit.webp",    x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      read:   { image: KAOSU_ROOM_ASSET_DIR + "pose-read.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      window: { image: KAOSU_ROOM_ASSET_DIR + "pose-window.webp", x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      sofa:   { image: KAOSU_ROOM_ASSET_DIR + "pose-sofa.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+      bow:    { image: KAOSU_ROOM_ASSET_DIR + "pose-bow.webp",    x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
     },
   },
   entranceAnimations: {
@@ -7878,7 +7878,11 @@ function renderKaosuRoomFurniture(config){
    ないよう、ここではその属性を空にリセットしておく(次にrenderKaosu
    RoomScene()が呼ばれた時、setKaosuExpression()が確実に元の表情画像へ
    戻せるようにするため)。pose.opacity/zIndex/visibleも管理画面編集
-   対象としてそのまま反映する。 */
+   対象としてそのまま反映する。pose.x/y/scale/rotationは、呼吸
+   (.kaosu-room-character)・入室演出(#kaosuRoomEntrance)・視線
+   (#kaosuRoomAvatar)がそれぞれ祖先要素のtransformを使っているのとは
+   独立に、img要素自身のtransformとして適用する(4つ目の独立レイヤー
+   のため、既存のモーションと干渉しない)。 */
 function setKaosuRoomPoseImage(config, poseKey){
   const imgEl = document.getElementById("kaosuRoomAvatarImg");
   if(!imgEl) return;
@@ -7888,6 +7892,10 @@ function setKaosuRoomPoseImage(config, poseKey){
   imgEl.src = pose.image;
   imgEl.style.opacity = pose.opacity != null ? String(pose.opacity) : "";
   imgEl.style.zIndex = pose.zIndex != null ? String(pose.zIndex) : "";
+  const tx = pose.x || 0, ty = pose.y || 0;
+  const scale = pose.scale != null ? pose.scale : 1;
+  const rotation = pose.rotation || 0;
+  imgEl.style.transform = `translate(${tx}px, ${ty}px) scale(${scale}) rotate(${rotation}deg)`;
   const avatarBox = imgEl.closest(".kaosu-avatar");
   if(avatarBox) avatarBox.style.display = pose.visible === false ? "none" : "";
 }
