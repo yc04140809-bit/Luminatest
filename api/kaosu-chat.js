@@ -74,11 +74,20 @@ async function callAnthropic({ system, userMessages, timeoutMs }) {
       throw new Error(`Anthropic API HTTP ${res.status}: ${errText.slice(0, 200)}`);
     }
     const data = await res.json();
-    const text = data && Array.isArray(data.content) && data.content[0] && data.content[0].text;
-    if (typeof text !== "string" || !text.trim()) {
-      throw new Error("Anthropic API returned no text content");
-    }
-    return text.trim();
+
+const text = Array.isArray(data.content)
+  ? data.content
+      .filter(block => block.type === "text")
+      .map(block => block.text)
+      .join("\n")
+  : "";
+
+if (!text.trim()) {
+  console.error("Anthropic response:", JSON.stringify(data, null, 2));
+  throw new Error("Anthropic API returned no text content");
+}
+
+return text.trim();
   } finally {
     clearTimeout(timer);
   }
