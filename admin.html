@@ -211,13 +211,21 @@
       itemLabel: "トラック",
       schema: [
         { key: "label", label: "曲名", type: "text", default: "新しいBGM" },
-        { key: "audioFile", label: "音声ファイル", type: "audio", default: "" },
-        { key: "audioUrl", label: "外部URL(ファイル未設定時に使用)", type: "text", default: "" },
+        { key: "source", label: "音源", type: "select", default: "upload", rerenderOnChange: true,
+          options: [ { value: "upload", label: "アップロード" }, { value: "ai", label: "AI生成 (Coming Soon)" } ] },
+        { key: "file", label: "音声ファイル", type: "audio", default: "",
+          disabledWhen: (item) => item.source === "ai", disabledLabel: "AI生成機能は準備中です。しばらくお待ちください。" },
         { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.6 },
         { key: "loop", label: "ループ再生", type: "boolean", default: true },
+        { key: "fadeInMs", label: "フェードイン(ms)", type: "number", step: 100, min: 0, default: 1500 },
+        { key: "fadeOutMs", label: "フェードアウト(ms)", type: "number", step: 100, min: 0, default: 1500 },
+        { key: "timeOfDay", label: "時間帯(未選択=すべて)", type: "multiselect", default: [],
+          options: TIME_BANDS.map(b => ({ value: b.key, label: b.label })) },
+        { key: "season", label: "季節(未選択=すべて)", type: "multiselect", default: [],
+          options: SEASON.map(s => ({ value: s.key, label: s.label })) },
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
-      note: "登録したBGMをホーム画面で自動再生する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+      note: "有効なトラックのうち、現在の時間帯・季節に条件が合うものが「並び順」の上から選ばれ、ホーム画面で自動再生・自動フェードされます(保存後、数十秒〜1分程度でホーム画面に反映)。sourceは入力方法の区別のみで、ホーム画面側は常にfileを再生します。",
     },
     {
       id: "effects", icon: "✨", label: "エフェクト", group: "generic",
@@ -942,7 +950,7 @@
     return obj;
   }
 
-  function buildFieldRow(fieldDef, item, onDirty){
+  function buildFieldRow(fieldDef, item, onChange){
     const wrap = document.createElement("div");
     wrap.className = "field";
     const label = document.createElement("label");
@@ -950,12 +958,25 @@
     wrap.appendChild(label);
     const value = getPath(item, fieldDef.key);
 
+    // 他のフィールド(例: BGMのsource)の値によって編集不可にする項目。
+    // 「AI生成(Coming Soon)」のように、まだ使えない項目をグレーアウト
+    // した説明文だけの表示に差し替えるための共通の仕組み。
+    if(fieldDef.disabledWhen && fieldDef.disabledWhen(item)){
+      const note = document.createElement("div");
+      note.className = "hint";
+      note.dataset.disabledPlaceholder = "1";
+      note.style.cssText = "padding:8px 10px;border:1px dashed var(--border);border-radius:8px;background:var(--input-bg);margin:0;";
+      note.textContent = fieldDef.disabledLabel || "現在この項目は編集できません。";
+      wrap.appendChild(note);
+      return wrap;
+    }
+
     if(fieldDef.type === "boolean"){
       wrap.className = "field checkbox-row";
       wrap.innerHTML = "";
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = value !== false;
-      cb.addEventListener("change", () => { setPath(item, fieldDef.key, cb.checked); onDirty(); });
+      cb.addEventListener("change", () => { setPath(item, fieldDef.key, cb.checked); onChange(fieldDef); });
       wrap.appendChild(cb);
       const span = document.createElement("span"); span.textContent = fieldDef.label;
       wrap.appendChild(span);
@@ -964,21 +985,48 @@
     if(fieldDef.type === "textarea"){
       const ta = document.createElement("textarea");
       ta.value = value || "";
-      ta.addEventListener("input", () => { setPath(item, fieldDef.key, ta.value); onDirty(); });
+      ta.addEventListener("input", () => { setPath(item, fieldDef.key, ta.value); onChange(fieldDef); });
       wrap.appendChild(ta);
       return wrap;
     }
     if(fieldDef.type === "select"){
       const sel = document.createElement("select");
       (fieldDef.options || []).forEach(opt => sel.appendChild(new Option(opt.label, opt.value, false, opt.value === value)));
-      sel.addEventListener("change", () => { setPath(item, fieldDef.key, sel.value); onDirty(); });
+      sel.addEventListener("change", () => { setPath(item, fieldDef.key, sel.value); onChange(fieldDef); });
       wrap.appendChild(sel);
+      return wrap;
+    }
+    if(fieldDef.type === "multiselect"){
+      const box = document.createElement("div");
+      box.style.cssText = "display:flex;flex-wrap:wrap;gap:4px 10px;";
+      const current = Array.isArray(value) ? value : [];
+      (fieldDef.options || []).forEach(opt => {
+        const optLabel = document.createElement("label");
+        optLabel.className = "checkbox-row";
+        optLabel.style.marginTop = "0";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = current.includes(opt.value);
+        cb.addEventListener("change", () => {
+          const arr = (Array.isArray(getPath(item, fieldDef.key)) ? getPath(item, fieldDef.key) : []).slice();
+          const i = arr.indexOf(opt.value);
+          if(cb.checked){ if(i < 0) arr.push(opt.value); }
+          else if(i >= 0){ arr.splice(i, 1); }
+          setPath(item, fieldDef.key, arr);
+          onChange(fieldDef);
+        });
+        optLabel.appendChild(cb);
+        const span = document.createElement("span"); span.textContent = opt.label;
+        optLabel.appendChild(span);
+        box.appendChild(optLabel);
+      });
+      wrap.appendChild(box);
       return wrap;
     }
     if(fieldDef.type === "color"){
       const inp = document.createElement("input");
       inp.type = "color"; inp.value = value || "#8b6fd6";
-      inp.addEventListener("input", () => { setPath(item, fieldDef.key, inp.value); onDirty(); });
+      inp.addEventListener("input", () => { setPath(item, fieldDef.key, inp.value); onChange(fieldDef); });
       wrap.appendChild(inp);
       return wrap;
     }
@@ -998,7 +1046,7 @@
         setPath(item, fieldDef.key, sel.value);
         const f = isAudio ? findAudioByPath(sel.value) : findImageByPath(sel.value);
         preview.src = f ? f.url : "";
-        onDirty();
+        onChange(fieldDef);
       });
       const uploadBtn = document.createElement("button");
       uploadBtn.type = "button"; uploadBtn.className = "secondary tiny"; uploadBtn.textContent = "追加";
@@ -1017,7 +1065,7 @@
             setPath(item, fieldDef.key, entry.path);
             (isAudio ? renderAudioGrid : renderImageGrid)();
             renderTab(currentTab);
-            onDirty();
+            onChange(fieldDef);
           }catch(e){ alert("アップロードに失敗しました: " + e.message); }
         };
         fileInput.click();
@@ -1035,7 +1083,7 @@
     inp.value = value != null ? value : "";
     inp.addEventListener("input", () => {
       setPath(item, fieldDef.key, fieldDef.type === "number" ? (parseFloat(inp.value) || 0) : inp.value);
-      onDirty();
+      onChange(fieldDef);
     });
     wrap.appendChild(inp);
     return wrap;
@@ -1056,7 +1104,10 @@
       panel.innerHTML = `<div class="card"><h2>${mod.icon} ${mod.label}</h2><div class="field-grid" id="singletonFields"></div>${mod.note ? `<p class="stub-note" style="margin-top:12px;">${mod.note}</p>` : ""}</div>`;
       const fieldsWrap = $("singletonFields");
       mod.schema.forEach(f => {
-        const row = buildFieldRow(f, state.draft, () => setDirty(true));
+        const row = buildFieldRow(f, state.draft, (changedField) => {
+          setDirty(true);
+          if(changedField && changedField.rerenderOnChange) renderGenericModule(mod);
+        });
         fieldsWrap.appendChild(row);
       });
       return;
@@ -1100,8 +1151,12 @@
       const grid = document.createElement("div");
       grid.className = "field-grid";
       mod.schema.forEach(f => {
-        const row = buildFieldRow(f, item, () => {
+        const row = buildFieldRow(f, item, (changedField) => {
           setDirty(true);
+          if(changedField && changedField.rerenderOnChange){
+            renderGenericCollectionItems(mod);
+            return;
+          }
           head.querySelector(".head-title").textContent = itemHeading(mod, item, idx);
         });
         grid.appendChild(row);

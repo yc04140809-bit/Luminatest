@@ -1181,6 +1181,10 @@ textarea.field-input{ resize:none; }
                のまま)。管理画面から項目を追加するとrenderKaosuRoom
                Furniture()がここへ<img>を並べる。 -->
           <div class="kaosu-room-furniture" id="kaosuRoomFurniture" aria-hidden="true"></div>
+          <!-- CMS対応: BGM。data/cms/bgm.jsonの現在の時間帯・季節に合う
+               有効なトラックを、ここへsrcを差し替えて鳴らすだけの
+               非表示<audio>。JS側(startKaosuBgm)がすべて制御する。 -->
+          <audio id="kaosuBgmAudio" preload="none" style="display:none;"></audio>
           <!-- Phase51: 環境エフェクト。背景層としてscene先頭に置き、
                z-index:0で他の要素(window/character/badges/text、いずれも
                z-index:1またはDOM順で後発)の下に敷く。中身は
@@ -2531,7 +2535,7 @@ const SETTINGS_DEFAULT = {
   motionSpeed: "standard",
   motion: {
     breathing: true, gaze: true, blink: true, mouth: true,
-    emotionEffect: true, lighting: true, voiceReaction: true,
+    emotionEffect: true, lighting: true, voiceReaction: true, bgm: true,
   },
 };
 function settingsRead(){
@@ -2587,6 +2591,7 @@ const SETTINGS_MOTION_TOGGLES = [
   { key: "emotionEffect", label: "感情エフェクト" },
   { key: "lighting", label: "時間帯ライティング" },
   { key: "voiceReaction", label: "音声リアクション" },
+  { key: "bgm", label: "BGM再生" },
 ];
 const SETTINGS_THEME_OPTIONS = [
   { key: "auto", label: "自動" },
@@ -2633,6 +2638,7 @@ function renderSettingsView(){
         settingsWrite(next);
         renderSettingsView();
         if(typeof renderKaosuRoomScene === "function") renderKaosuRoomScene();
+        if(item.key === "bgm" && typeof refreshKaosuBgmForSettingsChange === "function") refreshKaosuBgmForSettingsChange();
       });
       motionRow.appendChild(btn);
     });
@@ -2751,7 +2757,8 @@ function switchView(view){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomSceneWithEntrance(); rerollKaosuRoomGreeting(); }
+  if(view === "home"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); renderKaosuRoomSceneWithEntrance(); rerollKaosuRoomGreeting(); startKaosuBgm(); }
+  else{ stopKaosuBgm(); }
   if(view === "chat"){ openChatView(); }
   if(view === "settings"){ renderSettingsView(); }
 }
@@ -7968,6 +7975,136 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
   }
   renderKaosuRoomScene(now);
 }
+
+/* ============================================================
+   Lumina CMS: BGM再生エンジン。data/cms/bgm.json (管理画面「🎵BGM」の
+   保存先)を読み込み、現在の時間帯・季節に合う有効なトラックを自動再生
+   する。room-config.jsonと同じ「JSON未配置/404/形式不正のいずれでも
+   何もしないだけで壊れない」フォールバック方針を踏襲している。
+   管理画面のsourceフィールド("upload"/"ai")はCMS側の入力方法の区別で
+   しかなく、ここではsourceを一切見ずにfileだけを再生する(将来AI生成
+   トラックが増えても、このエンジンは無変更で動く)。 =========== */
+const KAOSU_BGM_CONFIG_URL = "data/cms/bgm.json";
+let kaosuBgmConfigCache = null;
+let kaosuBgmConfigPromise = null;
+function loadKaosuBgmConfig(){
+  if(kaosuBgmConfigCache) return Promise.resolve(kaosuBgmConfigCache);
+  if(kaosuBgmConfigPromise) return kaosuBgmConfigPromise;
+  kaosuBgmConfigPromise = (async () => {
+    let result = { items: [] };
+    try{
+      const res = await fetch(KAOSU_BGM_CONFIG_URL, { cache: "no-cache" });
+      if(res.ok){
+        const data = await res.json();
+        if(data && Array.isArray(data.items)) result = data;
+      }
+    }catch(e){ /* 未配置/ネットワークエラー/JSON壊れは「BGMなし」のまま続行 */ }
+    kaosuBgmConfigCache = result;
+    return result;
+  })();
+  return kaosuBgmConfigPromise;
+}
+/* Phase44/45と同じ気象学的季節区分(3-5月=春...)を、部屋背景の月判定
+   ロジック(renderKaosuRoomScene内)から独立した関数として切り出した
+   もの。既存のインライン計算はそのまま残し、ここでは複製せず同じ式を
+   BGMの季節マッチングにも使う。 */
+function getKaosuSeasonBand(now = new Date()){
+  const month = now.getMonth() + 1;
+  if(month >= 3 && month <= 5) return "spring";
+  if(month >= 6 && month <= 8) return "summer";
+  if(month >= 9 && month <= 11) return "autumn";
+  return "winter";
+}
+/* 管理画面の「並び替え」順=優先順位として扱う。有効・ファイル設定済み・
+   時間帯/季節が一致(配列が空 = 制限なし)の最初の1件を選ぶだけの
+   シンプルな実装。 */
+function pickKaosuBgmTrack(items, band, season){
+  if(!Array.isArray(items)) return null;
+  return items.find(it =>
+    it && it.enabled !== false && typeof it.file === "string" && it.file &&
+    (!Array.isArray(it.timeOfDay) || it.timeOfDay.length === 0 || it.timeOfDay.includes(band)) &&
+    (!Array.isArray(it.season) || it.season.length === 0 || it.season.includes(season))
+  ) || null;
+}
+/* フェード用の音量ランプ。既存のtransition/animation群とは別系統の
+   単純なsetInterval実装で、他のモーションのタイマー管理には触れない。 */
+function fadeKaosuBgmVolume(audioEl, from, to, durationMs, onDone){
+  clearInterval(audioEl._kaosuFadeTimer);
+  if(durationMs <= 0){ audioEl.volume = to; if(onDone) onDone(); return; }
+  const steps = Math.max(1, Math.round(durationMs / 60));
+  let i = 0;
+  audioEl.volume = from;
+  audioEl._kaosuFadeTimer = setInterval(() => {
+    i++;
+    audioEl.volume = from + (to - from) * (i / steps);
+    if(i >= steps){
+      clearInterval(audioEl._kaosuFadeTimer);
+      audioEl.volume = to;
+      if(onDone) onDone();
+    }
+  }, 60);
+}
+let kaosuBgmCurrentTrackId = null;
+/* 再生開始。設定でOFFにされている場合/一致するトラックが無い場合は
+   何もしない(既に再生中なら止める)。ブラウザの自動再生制限で play()
+   が拒否された場合は、ユーザーの最初の操作(click/touchstart/keydown)
+   を待って1回だけ再試行する(タイマーの多重登録はしない)。 */
+async function startKaosuBgm(now = new Date()){
+  const audioEl = document.getElementById("kaosuBgmAudio");
+  if(!audioEl) return;
+  if(settingsRead().motion.bgm === false){ stopKaosuBgm(); return; }
+  const config = await loadKaosuBgmConfig();
+  const band = getRoomVisualBand(now);
+  const season = getKaosuSeasonBand(now);
+  const track = pickKaosuBgmTrack(config.items, band, season);
+  if(!track){ stopKaosuBgm(); return; }
+  if(kaosuBgmCurrentTrackId === (track.id || track.file) && !audioEl.paused) return;
+
+  const playNewTrack = () => {
+    kaosuBgmCurrentTrackId = track.id || track.file;
+    audioEl.src = track.file;
+    audioEl.loop = track.loop !== false;
+    const targetVolume = typeof track.volume === "number" ? Math.min(1, Math.max(0, track.volume)) : 0.6;
+    const fadeInMs = typeof track.fadeInMs === "number" ? track.fadeInMs : 1500;
+    audioEl.volume = 0;
+    const playPromise = audioEl.play();
+    if(playPromise && typeof playPromise.catch === "function"){
+      playPromise.catch(() => {
+        const retry = () => { audioEl.play().catch(() => {}); };
+        document.addEventListener("click", retry, { once: true });
+        document.addEventListener("touchstart", retry, { once: true });
+        document.addEventListener("keydown", retry, { once: true });
+      });
+    }
+    fadeKaosuBgmVolume(audioEl, 0, targetVolume, fadeInMs);
+  };
+
+  if(!audioEl.paused && audioEl.src){
+    const prevTrackForFade = config.items.find(it => (it.id || it.file) === kaosuBgmCurrentTrackId);
+    const fadeOutMs = (prevTrackForFade && typeof prevTrackForFade.fadeOutMs === "number") ? prevTrackForFade.fadeOutMs : 1000;
+    fadeKaosuBgmVolume(audioEl, audioEl.volume, 0, fadeOutMs, () => { audioEl.pause(); playNewTrack(); });
+  }else{
+    playNewTrack();
+  }
+}
+function stopKaosuBgm(){
+  const audioEl = document.getElementById("kaosuBgmAudio");
+  if(!audioEl || audioEl.paused) { kaosuBgmCurrentTrackId = null; return; }
+  fadeKaosuBgmVolume(audioEl, audioEl.volume, 0, 800, () => {
+    audioEl.pause();
+    kaosuBgmCurrentTrackId = null;
+  });
+}
+/* 設定画面のBGMトグルを切り替えた直後に呼ばれる。今ホーム画面にいる
+   場合だけ即座に反映する(他の画面にいる間はどのみち再生していない)。 */
+function refreshKaosuBgmForSettingsChange(){
+  const homeView = document.querySelector('.view[data-view="home"]');
+  const onHome = homeView && homeView.classList.contains("active");
+  if(!onHome) return;
+  if(settingsRead().motion.bgm === false) stopKaosuBgm();
+  else startKaosuBgm();
+}
+
 async function renderKaosuRoomScene(now = new Date()){
   const scene = document.getElementById("kaosuRoomScene");
   const img = document.getElementById("kaosuRoomAvatarImg");
@@ -12073,6 +12210,7 @@ renderSpeechStyleSetting();
 renderHomeModeUI();
 renderKaosuRoomSceneWithEntrance();
 rerollKaosuRoomGreeting();
+startKaosuBgm();
 renderNotificationModeChips();
 renderNotificationPermissionRow();
 loadWakuwakuEntries();
