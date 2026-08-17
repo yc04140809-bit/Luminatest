@@ -1146,6 +1146,97 @@ textarea.field-input{ resize:none; }
 }
 .confirm-actions{ display:flex; gap:10px; margin-top:4px; }
 .confirm-actions > *{ flex:1; }
+
+/* ============================================================
+   Phase20: 管理者モード(アプリ内CMS)。以前のWeb版(admin.html)の
+   UI・CSSをそのまま移植したもの。既存のアプリ全体のCSS変数(--card
+   等)と名前がぶつからないよう、独自の変数はすべて--admin-プレフィックス
+   にし、セレクタは.admin-mode-root配下だけに限定してある。
+   ============================================================ */
+.admin-mode-root{
+  --admin-bg:#f6f4fb; --admin-card:#ffffff; --admin-border:#e3ddf2; --admin-text:#33304a; --admin-muted:#8a84a3;
+  --admin-accent:#8b6fd6; --admin-accent-dark:#6f52c2; --admin-danger:#d6556f; --admin-ok:#4caf7d;
+  --admin-input-bg:#fbfaff; --admin-tab-bg:#efeaf9;
+  position:fixed; inset:0; z-index:900; overflow-y:auto;
+  background:var(--admin-bg); color:var(--admin-text); font-family:"Hiragino Sans","Yu Gothic",sans-serif; line-height:1.6;
+}
+:root[data-theme="dark"] .admin-mode-root,
+:root:not([data-theme="light"]) .admin-mode-root{
+  --admin-bg:#1c1a26; --admin-card:#241f33; --admin-border:#3a3350; --admin-text:#eae7f5; --admin-muted:#a79fc4; --admin-input-bg:#2c273d; --admin-tab-bg:#2c2740;
+}
+.admin-mode-root *{ box-sizing:border-box; }
+.admin-mode-root .wrap{ max-width:720px; margin:0 auto; padding:20px 16px 90px; }
+.admin-mode-root h1{ font-size:20px; margin:0 0 4px; }
+.admin-mode-root h2{ font-size:16px; margin:0 0 12px; }
+.admin-mode-root h3{ font-size:14px; margin:14px 0 8px; color:var(--admin-muted); }
+.admin-mode-root .sub{ color:var(--admin-muted); font-size:13px; margin:0 0 20px; }
+.admin-mode-root .card{ background:var(--admin-card); border:1px solid var(--admin-border); border-radius:14px; padding:18px; margin-bottom:18px; }
+.admin-mode-root label{ display:block; font-size:12px; color:var(--admin-muted); margin-bottom:4px; }
+.admin-mode-root input[type=text], .admin-mode-root input[type=number], .admin-mode-root input[type=password],
+.admin-mode-root input[type=color], .admin-mode-root textarea, .admin-mode-root select{
+  width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--admin-border);
+  background:var(--admin-input-bg); color:var(--admin-text); font-size:14px; font-family:inherit;
+}
+.admin-mode-root textarea{ resize:vertical; min-height:56px; }
+.admin-mode-root button{
+  font-family:inherit; font-size:14px; padding:9px 16px; border-radius:9px; border:none;
+  background:var(--admin-accent); color:#fff; cursor:pointer;
+}
+.admin-mode-root button:hover{ background:var(--admin-accent-dark); }
+.admin-mode-root button.secondary{ background:transparent; color:var(--admin-accent-dark); border:1px solid var(--admin-accent); }
+.admin-mode-root button.danger{ background:transparent; color:var(--admin-danger); border:1px solid var(--admin-danger); }
+.admin-mode-root button.tiny{ padding:4px 9px; font-size:12px; }
+.admin-mode-root button:disabled{ opacity:.5; cursor:not-allowed; }
+.admin-mode-root .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+.admin-mode-root .field{ flex:1; min-width:110px; }
+.admin-mode-root .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; }
+.admin-mode-root .thumb{ border:1px solid var(--admin-border); border-radius:10px; padding:8px; text-align:center; background:var(--admin-input-bg); }
+.admin-mode-root .thumb img{ width:100%; height:60px; object-fit:contain; background:repeating-conic-gradient(#0000 0 25%, #8881 0 50%) 0/16px 16px; border-radius:6px; }
+.admin-mode-root .thumb .name{ font-size:11px; color:var(--admin-muted); margin:6px 0; word-break:break-all; }
+.admin-mode-root .thumb .btns{ display:flex; gap:4px; justify-content:center; }
+.admin-mode-root .thumb .btns button{ padding:4px 8px; font-size:11px; }
+.admin-mode-root details{ border:1px solid var(--admin-border); border-radius:10px; padding:10px 14px; margin-bottom:10px; background:var(--admin-input-bg); }
+.admin-mode-root summary{ cursor:pointer; font-weight:600; font-size:14px; display:flex; align-items:center; justify-content:space-between; }
+.admin-mode-root summary img{ width:32px; height:32px; object-fit:cover; border-radius:6px; vertical-align:middle; margin-right:8px; background:#fff; }
+.admin-mode-root .pose-fields{ display:grid; grid-template-columns:repeat(auto-fill, minmax(90px,1fr)); gap:8px; margin-top:10px; }
+.admin-mode-root .checkbox-row{ display:flex; align-items:center; gap:6px; margin-top:10px; font-size:13px; color:var(--admin-muted); }
+.admin-mode-root .checkbox-row input{ width:auto; }
+.admin-mode-root #adminLoginScreen{ max-width:340px; margin:15vh auto; text-align:center; }
+.admin-mode-root #adminLoginScreen .card{ text-align:left; }
+.admin-mode-root #adminLoginError{ color:var(--admin-danger); font-size:13px; min-height:18px; margin-top:8px; }
+.admin-mode-root #adminMainScreen{ display:none; }
+.admin-mode-root .admin-topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; }
+.admin-mode-root .admin-save-bar{ position:sticky; bottom:0; background:var(--admin-card); border-top:1px solid var(--admin-border); padding:14px 18px; border-radius:14px 14px 0 0; box-shadow:0 -4px 16px rgba(0,0,0,.08); display:flex; align-items:center; gap:14px; }
+.admin-mode-root #adminSaveStatus{ font-size:13px; color:var(--admin-muted); flex:1; }
+.admin-mode-root #adminSaveStatus.ok{ color:var(--admin-ok); }
+.admin-mode-root #adminSaveStatus.err{ color:var(--admin-danger); }
+.admin-mode-root .preview-scene{ position:relative; width:100%; max-width:320px; aspect-ratio:3/4; margin:0 auto; border-radius:16px; overflow:hidden; background:linear-gradient(160deg,#ffe6ef,#e9e0ff); border:1px solid var(--admin-border); }
+.admin-mode-root .preview-scene img.bg{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.admin-mode-root .preview-scene .avatar-box{ position:absolute; left:50%; bottom:14%; width:34%; aspect-ratio:1/1; transform:translateX(-50%); border-radius:50%; overflow:hidden; background:#fff; box-shadow:0 6px 16px rgba(0,0,0,.18); }
+.admin-mode-root .preview-scene .avatar-box img{ width:100%; height:100%; object-fit:cover; }
+.admin-mode-root .preview-scene .furniture-item{ position:absolute; max-width:20%; max-height:20%; }
+.admin-mode-root .preview-controls{ display:flex; gap:8px; justify-content:center; margin-top:10px; }
+.admin-mode-root .hint{ font-size:12px; color:var(--admin-muted); margin-top:6px; }
+.admin-mode-root .upload-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+.admin-mode-root .item-card{ border:1px solid var(--admin-border); border-radius:10px; padding:12px; margin-bottom:10px; background:var(--admin-input-bg); }
+.admin-mode-root .item-card .head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px; }
+.admin-mode-root .item-card .head-title{ font-weight:600; flex:1; }
+.admin-mode-root .item-card .head-btns{ display:flex; gap:4px; }
+.admin-mode-root .field-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px; }
+.admin-mode-root .media-field{ display:flex; gap:8px; align-items:center; }
+.admin-mode-root .media-field select{ flex:1; }
+.admin-mode-root .media-preview-thumb{ width:36px; height:36px; object-fit:cover; border-radius:6px; background:#fff; flex:none; }
+.admin-mode-root audio.mini-audio{ height:28px; max-width:140px; }
+.admin-mode-root .tabbar{ margin-bottom:16px; }
+.admin-mode-root .tabbar-group{ margin-bottom:10px; }
+.admin-mode-root .tabbar-group-heading{ font-size:12px; color:var(--admin-muted); margin-bottom:6px; font-weight:600; }
+.admin-mode-root .tabbar-group-row{ display:flex; gap:6px; flex-wrap:wrap; }
+.admin-mode-root .tabbar button{ background:var(--admin-tab-bg); color:var(--admin-text); border:1px solid var(--admin-border); font-size:13px; padding:8px 12px; }
+.admin-mode-root .tabbar button.active{ background:var(--admin-accent); color:#fff; border-color:var(--admin-accent); }
+.admin-mode-root .tab-panel{ display:none; }
+.admin-mode-root .tab-panel.active{ display:block; }
+.admin-mode-root .stub-note{ background:var(--admin-tab-bg); border:1px dashed var(--admin-border); border-radius:10px; padding:14px; font-size:13px; color:var(--admin-muted); }
+[data-disabled-placeholder]{ margin:0; }
 </style>
 </head>
 <body>
@@ -2090,6 +2181,18 @@ textarea.field-input{ resize:none; }
           </div>
         </div>
       </div>
+
+      <!-- Phase20: 管理者モード(アプリ内CMS)。一般ユーザーには通常の
+           設定ボタンとして見えるだけで、開くと必ずパスワード認証を
+           要求する(#adminModeOverlay)。ここから部屋/ケイオスちゃん/
+           演出/家具/BGM等をコードを書かずに編集し、保存すると
+           koufukuAiDB(IndexedDB)へ即座に保存されてホーム画面へ
+           即時反映される(GitHub/Vercelへの依存なし)。 -->
+      <div class="card">
+        <div class="card-label">🔒 管理者モード</div>
+        <p class="view-sub" style="margin:0 0 10px;">部屋・ケイオスちゃん・BGMなどの見た目をこの端末内で編集できます。</p>
+        <button type="button" class="btn-text" id="btnOpenAdminMode" style="margin-top:0;">管理者モードを開く</button>
+      </div>
     </section>
 
     <!-- ⑥ チャット(Phase21: 別モーダルではなく、幸せ設計AI本体のいち画面として統合) -->
@@ -2155,6 +2258,90 @@ textarea.field-input{ resize:none; }
       <p id="modalText"></p>
       <button class="closebtn" id="modalClose">閉じる</button>
     </div>
+  </div>
+
+  <!-- Phase20: 管理者モード(アプリ内CMS)。設定画面の「管理者モードを
+       開く」からのみ表示される全画面オーバーレイ。一般ユーザーの通常
+       利用フローには一切登場しない。 -->
+  <div class="admin-mode-root" id="adminModeOverlay" style="display:none;">
+  <div class="wrap">
+
+    <div id="adminLoginScreen">
+      <h1>🔒 管理者モード</h1>
+      <p class="sub" id="adminLoginIntro">部屋・ケイオスちゃん・BGMなどの見た目を、コードを書かずに編集できます。</p>
+      <div class="card">
+        <label for="adminPwInput" id="adminPwLabel">管理者パスワード</label>
+        <input type="password" id="adminPwInput" placeholder="パスワード" autocomplete="current-password">
+        <input type="password" id="adminPwConfirmInput" placeholder="もう一度入力" autocomplete="new-password" style="display:none; margin-top:8px;">
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button id="btnAdminLogin" style="flex:1;">開く</button>
+          <button class="secondary" id="btnAdminLoginCancel" style="flex:0 0 auto;">キャンセル</button>
+        </div>
+        <div id="adminLoginError"></div>
+      </div>
+    </div>
+
+    <div id="adminMainScreen">
+      <div class="admin-topbar">
+        <div>
+          <h1>🔒 管理者モード</h1>
+          <p class="sub" style="margin:0;">保存すると、この端末に即座に保存されてホーム画面へ即時反映されます(再起動不要)。</p>
+        </div>
+        <button class="secondary" id="btnAdminClose">✕ 閉じる</button>
+      </div>
+
+      <div class="card">
+        <h2>📦 メディアライブラリ</h2>
+        <p class="hint" style="margin-top:-6px;">画像・音声はここでアップロードし、各モジュールの編集画面からドロップダウンで選んで使います。</p>
+        <h3>画像</h3>
+        <div class="upload-row">
+          <div class="field" style="flex:2;">
+            <label>用途(割り当て先・任意)</label>
+            <select id="adminUploadImageTarget"></select>
+          </div>
+          <div class="field" style="flex:2;">
+            <label>画像ファイル</label>
+            <input type="file" id="adminUploadImageFile" accept=".webp,.png,.jpg,.jpeg,.gif,.svg">
+          </div>
+          <button id="btnAdminUploadImage">アップロード</button>
+        </div>
+        <div id="adminUploadImageStatus" class="hint"></div>
+        <div id="adminImageGrid" class="grid" style="margin-top:10px;"></div>
+        <p class="hint" id="adminImageEmptyHint" style="display:none;">まだ画像がアップロードされていません。</p>
+
+        <h3>音声(BGM・効果音・ボイス・環境音)</h3>
+        <div class="upload-row">
+          <div class="field" style="flex:2;">
+            <label>音声ファイル</label>
+            <input type="file" id="adminUploadAudioFile" accept=".mp3,.ogg,.wav,.m4a">
+          </div>
+          <button id="btnAdminUploadAudio">アップロード</button>
+        </div>
+        <div id="adminUploadAudioStatus" class="hint"></div>
+        <div id="adminAudioGrid" class="grid" style="margin-top:10px;"></div>
+        <p class="hint" id="adminAudioEmptyHint" style="display:none;">まだ音声がアップロードされていません。</p>
+        <p class="hint">対応形式: 画像=webp/png/jpg/gif/svg、音声=mp3/ogg/wav/m4a。1ファイルあたり4MB程度まで。</p>
+      </div>
+
+      <div class="tabbar" id="adminTabbar"></div>
+      <div id="adminTabPanels"></div>
+
+      <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--admin-border);">
+        <h2 style="font-size:15px;">📦 バックアップ</h2>
+        <p class="hint" style="margin-top:-6px;">部屋・BGM等の編集内容と、アップロードした画像・音声をまとめてZIPファイルへ書き出し/読み込みできます。</p>
+        <button type="button" class="secondary" id="btnAdminExport">📤 バックアップを書き出す(ZIP)</button>
+        <button type="button" class="secondary" id="btnAdminImport" style="margin-left:8px;">📥 バックアップから復元する</button>
+        <input type="file" id="adminImportFileInput" accept=".zip" style="display:none;">
+        <p id="adminBackupStatus" class="hint"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-save-bar" id="adminSaveBar" style="display:none;">
+    <div id="adminSaveStatus"></div>
+    <button class="secondary" id="btnAdminReload">再読込(破棄)</button>
+    <button id="btnAdminSave">💾 保存する</button>
+  </div>
   </div>
 
   <!-- ワクワク追加/編集シート -->
@@ -3693,7 +3880,7 @@ function renderFilters(){
      よいように、UI側はこのインターフェースだけを呼ぶ形にしている。
    ========================================================= */
 const WW_DB_NAME = "koufukuAiDB";
-const WW_DB_VERSION = 6;
+const WW_DB_VERSION = 7;
 const WW_STORE = "wakuwaku";
 /* 統合設計書Phase A: チャットメッセージ用の新規store。既存の
    WW_STORE(wakuwaku)の作成・データには一切触れず、バージョンを
@@ -3722,6 +3909,16 @@ const NOTIFICATION_STORE = "aiNotifications";
    (既存のfamilyMembers.memories(手入力の自由配列)はそのまま維持し、
    置き換えない。詳細画面では両方をマージして表示するだけ)。 */
 const AI_MEMORY_STORE = "aiMemory";
+/* Phase20: Androidアプリ完全移行。それまでGitHub Contents API経由で
+   GitHubリポジトリへ保存していたCMS設定(room-config/bgm/sfx/voice/
+   ambient/theme/セリフ/お知らせ等)と、アップロードした画像・音声の
+   実体(Blob)を、このkoufukuAiDBへ全面移行する。既存store・データには
+   一切触れず、バージョンを6→7に上げてstoreを2つ追加するだけの
+   標準的な加算のみの移行。GitHub/Vercelへの依存(ADMIN_PASSWORD/
+   GITHUB_ADMIN_TOKEN/GitHub Pagesの反映待ち)はこれで完全に無くなり、
+   保存は即座にこの端末内で完結し、即時反映される。 */
+const CMS_CONFIG_STORE = "cmsConfig";
+const CMS_MEDIA_STORE = "cmsMedia";
 /* Phase3.1: IndexedDBが読めない/リセットされた場合に備え、画像を除く
    最低限のテキスト情報だけをlocalStorageにも二重保存しておく(安全網)。
    IndexedDBが主、これはあくまで補助のバックアップで、自動復元はまだ行わない。 */
@@ -3774,6 +3971,8 @@ function wwOpenDB(){
       if(!db.objectStoreNames.contains(EVENT_STORE)) db.createObjectStore(EVENT_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(NOTIFICATION_STORE)) db.createObjectStore(NOTIFICATION_STORE, { keyPath: "id" });
       if(!db.objectStoreNames.contains(AI_MEMORY_STORE)) db.createObjectStore(AI_MEMORY_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(CMS_CONFIG_STORE)) db.createObjectStore(CMS_CONFIG_STORE, { keyPath: "id" });
+      if(!db.objectStoreNames.contains(CMS_MEDIA_STORE)) db.createObjectStore(CMS_MEDIA_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -3997,6 +4196,85 @@ const AiMemoryStore = {
       const req = tx.objectStore(AI_MEMORY_STORE).getAll();
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => reject(req.error);
+    });
+  },
+};
+
+/* Phase20: 管理者モード(アプリ内CMS)用ストア。
+   - cmsConfig: {id, data, updatedAt} 1件=1モジュールの設定JSON
+     (id="room"は部屋/ケイオスちゃん/演出/家具を1つのJSONで共有する
+     既存のroom-config.jsonクラスタと同じ構造、その他は
+     id="bgm"/"sfx"/"voice"/"ambient"/"theme"/"dialogue"/
+     "announcements"/"season"などモジュールごとに1件)。
+   - cmsMedia: {id, kind("image"|"audio"), name, mimeType, blob, size,
+     createdAt} 1件=1つのアップロード済みファイル(実体)。room-config
+     等のJSON側は、この id を画像/音声の参照値として持つ(以前の
+     GitHubパス文字列の代わり)。 */
+const CmsStore = {
+  async getConfig(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CMS_CONFIG_STORE, "readonly");
+      const req = tx.objectStore(CMS_CONFIG_STORE).get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async putConfig(id, data){
+    const db = await wwOpenDB();
+    const record = { id, data, updatedAt: Date.now() };
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CMS_CONFIG_STORE, "readwrite");
+      tx.objectStore(CMS_CONFIG_STORE).put(record);
+      tx.oncomplete = () => resolve(record);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAllConfigs(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CMS_CONFIG_STORE, "readonly");
+      const req = tx.objectStore(CMS_CONFIG_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  async putMedia(entry){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CMS_MEDIA_STORE, "readwrite");
+      tx.objectStore(CMS_MEDIA_STORE).put(entry);
+      tx.oncomplete = () => resolve(entry);
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async removeMedia(id){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CMS_MEDIA_STORE, "readwrite");
+      tx.objectStore(CMS_MEDIA_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+  async getAllMedia(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CMS_MEDIA_STORE, "readonly");
+      const req = tx.objectStore(CMS_MEDIA_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  },
+  // Import(復元)時、既存のCMSデータを丸ごと入れ替えるための一括クリア。
+  async clearAll(){
+    const db = await wwOpenDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([CMS_CONFIG_STORE, CMS_MEDIA_STORE], "readwrite");
+      tx.objectStore(CMS_CONFIG_STORE).clear();
+      tx.objectStore(CMS_MEDIA_STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
     });
   },
 };
@@ -7737,7 +8015,6 @@ const LIFE_STATE_META = [
    フォールバックするため、管理画面が無い現時点でもアプリは壊れない。
    ============================================================ */
 const KAOSU_ROOM_ASSET_DIR = "img/koufuku/room/";
-const KAOSU_ROOM_CONFIG_URL = KAOSU_ROOM_ASSET_DIR + "room-config.json";
 const KAOSU_ROOM_CONFIG_DEFAULT = {
   configVersion: 1,
   background: {
@@ -7776,14 +8053,58 @@ const KAOSU_ROOM_CONFIG_DEFAULT = {
   },
   furniture: { items: [] },
 };
-/* room-config.jsonは1度だけfetchし、結果(既定値へのフォールバックも
-   含む)をメモリにキャッシュする。renderKaosuRoomScene()は既存の
-   「await せずに呼んでも直後に同期部分が反映される」制約を保つ必要が
-   あるため、その中では非同期のloadKaosuRoomConfig()を新たに待たず、
-   既にキャッシュ済みの値を同期的に読むgetKaosuRoomConfigSync()だけを
-   使う(初回はplayKaosuRoomEntrance()が必ず先にawaitで読み込みを
+/* Phase20: 管理者モード(アプリ内CMS)は画像/音声のBlob実体をcmsMedia
+   ストアへ保存し、room-config等のJSON側はその参照id(文字列)だけを
+   持つ。id→表示用URLへの解決を1箇所にまとめたのがこのメディア
+   インデックスで、起動時に一度だけ全件読み込み、Blobごとに
+   URL.createObjectURL()したものをメモリに保持する(管理画面で
+   アップロード/差し替え/削除するたびに無効化して作り直す)。
+   resolveMediaUrl()はid以外(まだ移行していない相対パスや、後述の
+   既定値が指すバンドル済みアセットパス)が来ても、そのまま返すだけで
+   壊れない設計にしてある。 */
+let kaosuMediaIndexCache = null;
+let kaosuMediaIndexPromise = null;
+async function loadKaosuMediaIndex(){
+  if(kaosuMediaIndexCache) return kaosuMediaIndexCache;
+  if(kaosuMediaIndexPromise) return kaosuMediaIndexPromise;
+  kaosuMediaIndexPromise = (async () => {
+    const map = new Map();
+    try{
+      const all = await CmsStore.getAllMedia();
+      all.forEach(m => {
+        try{ map.set(m.id, { ...m, url: URL.createObjectURL(m.blob) }); }
+        catch(e){ /* Blobが壊れている等は無視し、その項目だけ未解決のまま続行 */ }
+      });
+    }catch(e){ /* IndexedDB未対応/エラー時は空のインデックスのまま続行 */ }
+    kaosuMediaIndexCache = map;
+    return map;
+  })();
+  return kaosuMediaIndexPromise;
+}
+function invalidateKaosuMediaIndex(){
+  if(kaosuMediaIndexCache){
+    kaosuMediaIndexCache.forEach(m => { try{ URL.revokeObjectURL(m.url); }catch(e){} });
+  }
+  kaosuMediaIndexCache = null;
+  kaosuMediaIndexPromise = null;
+}
+function resolveMediaUrl(value){
+  if(!value) return "";
+  if(kaosuMediaIndexCache && kaosuMediaIndexCache.has(value)) return kaosuMediaIndexCache.get(value).url;
+  return value;
+}
+/* room-config(部屋/ケイオスちゃん/演出/家具)はkoufukuAiDBのcmsConfig
+   ストア(id="room")から1度だけ読み込み、結果(既定値へのフォール
+   バックも含む)をメモリにキャッシュする。renderKaosuRoomScene()は
+   既存の「await せずに呼んでも直後に同期部分が反映される」制約を保つ
+   必要があるため、その中では非同期のloadKaosuRoomConfig()を新たに
+   待たず、既にキャッシュ済みの値を同期的に読むgetKaosuRoomConfigSync()
+   だけを使う(初回はplayKaosuRoomEntrance()が必ず先にawaitで読み込みを
    済ませるため、通常の利用ではキャッシュ未済のまま参照されることは
-   ない。万一未済でも既定値と同じ内容が返るだけで壊れない)。 */
+   ない。万一未済でも既定値と同じ内容が返るだけで壊れない)。
+   Phase20より前はGitHub Pages上のJSONファイルをfetchしていたが、
+   管理者モードの保存先がkoufukuAiDBへ全面移行したことに伴い、読み込み
+   先もここへ揃えた(GitHub Pages/Vercelへの依存はここで無くなる)。 */
 let kaosuRoomConfigCache = null;
 let kaosuRoomConfigPromise = null;
 function loadKaosuRoomConfig(){
@@ -7792,16 +8113,21 @@ function loadKaosuRoomConfig(){
   kaosuRoomConfigPromise = (async () => {
     let result = KAOSU_ROOM_CONFIG_DEFAULT;
     try{
-      const res = await fetch(KAOSU_ROOM_CONFIG_URL, { cache: "no-cache" });
-      if(res.ok){
-        const data = await res.json();
-        if(data && typeof data === "object") result = data;
-      }
-    }catch(e){ /* 未配置/ネットワークエラー/JSON壊れは既定値のまま続行 */ }
+      const record = await CmsStore.getConfig("room");
+      if(record && record.data && typeof record.data === "object") result = record.data;
+    }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
+    await loadKaosuMediaIndex();
     kaosuRoomConfigCache = result;
     return result;
   })();
   return kaosuRoomConfigPromise;
+}
+/* 管理者モードで保存した直後、アプリ再起動なしに即時反映するための
+   キャッシュ全クリア。次にloadKaosuRoomConfig()/renderKaosuRoomScene()
+   が呼ばれた時、最新のkoufukuAiDBの内容を読み直す。 */
+function invalidateKaosuRoomConfigCache(){
+  kaosuRoomConfigCache = null;
+  kaosuRoomConfigPromise = null;
 }
 function getKaosuRoomConfigSync(){
   return kaosuRoomConfigCache || KAOSU_ROOM_CONFIG_DEFAULT;
@@ -7869,7 +8195,7 @@ function renderKaosuRoomFurniture(config){
     el.alt = "";
     el.setAttribute("aria-hidden", "true");
     el.onerror = function(){ this.style.display = "none"; };
-    el.src = item.image;
+    el.src = resolveMediaUrl(item.image);
     el.style.left = (typeof item.x === "number" ? item.x : 50) + "%";
     el.style.top = (typeof item.y === "number" ? item.y : 50) + "%";
     const scale = item.scale != null ? item.scale : 1;
@@ -7896,7 +8222,7 @@ function setKaosuRoomPoseImage(config, poseKey){
   const pose = kaosuRoomConfigPose(config, poseKey);
   imgEl.dataset.kaosuExpression = "";
   imgEl.classList.remove("noimg");
-  imgEl.src = pose.image;
+  imgEl.src = resolveMediaUrl(pose.image);
   imgEl.style.opacity = pose.opacity != null ? String(pose.opacity) : "";
   imgEl.style.zIndex = pose.zIndex != null ? String(pose.zIndex) : "";
   const tx = pose.x || 0, ty = pose.y || 0;
@@ -7987,7 +8313,6 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
    トラックが増えても、このエンジンは無変更で動く)。
    新しいプレイリストが管理画面から追加されても、このエンジンは
    playlist.matchの中身を見て条件判定するだけなので、コード変更は不要。 */
-const KAOSU_BGM_CONFIG_URL = "data/cms/bgm.json";
 let kaosuBgmConfigCache = null;
 let kaosuBgmConfigPromise = null;
 function loadKaosuBgmConfig(){
@@ -7996,16 +8321,20 @@ function loadKaosuBgmConfig(){
   kaosuBgmConfigPromise = (async () => {
     let result = { items: [] };
     try{
-      const res = await fetch(KAOSU_BGM_CONFIG_URL, { cache: "no-cache" });
-      if(res.ok){
-        const data = await res.json();
-        if(data && Array.isArray(data.items)) result = data;
-      }
-    }catch(e){ /* 未配置/ネットワークエラー/JSON壊れは「BGMなし」のまま続行 */ }
+      const record = await CmsStore.getConfig("bgm");
+      if(record && record.data && Array.isArray(record.data.items)) result = record.data;
+    }catch(e){ /* IndexedDB未対応/エラー時は「BGMなし」のまま続行 */ }
+    await loadKaosuMediaIndex();
     kaosuBgmConfigCache = result;
     return result;
   })();
   return kaosuBgmConfigPromise;
+}
+/* 管理者モードで保存した直後、アプリ再起動なしに即時反映するための
+   キャッシュ全クリア。 */
+function invalidateKaosuBgmConfigCache(){
+  kaosuBgmConfigCache = null;
+  kaosuBgmConfigPromise = null;
 }
 /* Phase44/45と同じ気象学的季節区分(3-5月=春...)を、部屋背景の月判定
    ロジック(renderKaosuRoomScene内)から独立した関数として切り出した
@@ -8143,7 +8472,7 @@ async function startKaosuBgm(now = new Date()){
     kaosuBgmActivePlaylistId = playlist.id;
     const tracks = (playlist.tracks || []).filter(t => t && t.enabled !== false && typeof t.file === "string" && t.file);
     kaosuBgmActiveTrackIndex = Math.max(0, tracks.indexOf(track));
-    audioEl.src = track.file;
+    audioEl.src = resolveMediaUrl(track.file);
     audioEl.loop = false; // 単曲ループはプレイリストの再生方法が代わりに制御する
     audioEl.onended = () => { advanceKaosuBgmPlaylist(playlist); };
     const targetVolume = typeof track.volume === "number" ? Math.min(1, Math.max(0, track.volume)) : 0.6;
@@ -8196,16 +8525,31 @@ async function renderKaosuRoomScene(now = new Date()){
   const meta = ROOM_VISUAL_BAND_META[band];
   Object.values(ROOM_VISUAL_BAND_META).forEach(m => scene.classList.remove(m.cssClass));
   scene.classList.add(meta.cssClass);
-  setKaosuExpression(img, meta.expression);
   /* CMS対応: 背景画像パスはroom-config.json(既にキャッシュ済みの値を
      同期的に読むgetKaosuRoomConfigSync())から解決する。天候/季節/
      イベントが有効化されていればそちらを優先し、無ければ時間帯背景
      (既定は全時間帯enabled)を使う。 */
   const roomConfig = getKaosuRoomConfigSync();
+  /* 管理画面で「アイドル」ポーズの画像を独自にアップロード済みの場合は
+     そちらを常に優先して表示する(setKaosuRoomPoseImage)。未カスタマイズ
+     (既定のpose-idle.webpのまま、実体ファイルは存在しないプレース
+     ホルダー)の場合のみ、既存の時間帯/気分に応じた表情差分システム
+     (setKaosuExpression、kaosu-face-*.webpは実在アセット)を使う。
+     こうすることで、既存の表情差分機能(未カスタマイズ時の挙動)は
+     完全に無変更のまま、管理画面での見た目カスタマイズが即時に
+     ホーム画面へ反映されるようになる。 */
+  const idlePoseForExpressionCheck = kaosuRoomConfigPose(roomConfig, "idle");
+  const idlePoseCustomized = idlePoseForExpressionCheck.image !== KAOSU_ROOM_CONFIG_DEFAULT.character.poses.idle.image;
+  if(idlePoseCustomized){
+    setKaosuRoomPoseImage(roomConfig, "idle");
+  }else{
+    setKaosuExpression(img, meta.expression);
+  }
   const bgImg = document.getElementById("kaosuRoomBgImg");
   if(bgImg){
-    const bgSrc = kaosuRoomConfigBgImagePath(roomConfig, band);
-    if(bgSrc && bgImg.getAttribute("src") !== bgSrc){
+    const bgSrcRaw = kaosuRoomConfigBgImagePath(roomConfig, band);
+    const bgSrc = resolveMediaUrl(bgSrcRaw);
+    if(bgSrc && bgImg.src !== bgSrc){
       bgImg.style.display = "";
       bgImg.src = bgSrc;
     }else if(!bgSrc){
@@ -12281,6 +12625,1439 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
   showToast("初期状態に戻したよ");
   location.reload();
 });
+
+/* =========================================================
+   Phase20: 管理者モード(アプリ内CMS)
+   以前のWeb版(admin.html, GitHub Contents API + Vercel経由)のUI・
+   モジュール構成・共通編集エンジンをそのまま移植し、保存先だけを
+   koufukuAiDB(IndexedDB)へ差し替えたもの。GitHub Pages/Vercel/
+   ADMIN_PASSWORD/GITHUB_ADMIN_TOKENへの依存はここには一切無い。
+   このIIFE内の関数・変数はすべてローカルスコープに閉じており、
+   アプリ本体の他のJSとは名前が一切衝突しない。
+   ========================================================= */
+(function(){
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+
+  const TIME_BANDS = [
+    { key: "morning", label: "朝" }, { key: "day", label: "昼" }, { key: "evening", label: "夕方" },
+    { key: "night", label: "夜" }, { key: "midnight", label: "深夜" },
+  ];
+  const POSES = [
+    { key: "idle", label: "待機" }, { key: "wave", label: "手を振る" }, { key: "walk", label: "歩く" },
+    { key: "sit", label: "座る" }, { key: "read", label: "読書" }, { key: "window", label: "窓を見る" },
+    { key: "sofa", label: "ソファで休む" }, { key: "bow", label: "お辞儀" },
+  ];
+  const WEATHER = [ { key: "rain", label: "雨" }, { key: "snow", label: "雪" } ];
+  const SEASON = [ { key: "spring", label: "春" }, { key: "summer", label: "夏" }, { key: "autumn", label: "秋" }, { key: "winter", label: "冬" } ];
+  const EVENT = [ { key: "birthday", label: "誕生日" }, { key: "christmas", label: "クリスマス" }, { key: "halloween", label: "ハロウィン" }, { key: "newyear", label: "お正月" } ];
+
+  function makeSourceField(comingSoonLabel){
+    return {
+      key: "source", label: "音源", type: "select", default: "upload", rerenderOnChange: true,
+      options: [ { value: "upload", label: "アップロード" }, { value: "ai", label: comingSoonLabel || "AI生成 (Coming Soon)" } ],
+    };
+  }
+  function makeFileField(){
+    return {
+      key: "file", label: "音声ファイル", type: "audio", default: "",
+      disabledWhen: (item) => item.source === "ai",
+      disabledLabel: "AI生成機能は準備中です。しばらくお待ちください。",
+    };
+  }
+  const BGM_TRACK_SCHEMA = [
+    { key: "label", label: "曲名", type: "text", default: "新しい曲" },
+    makeSourceField(),
+    makeFileField(),
+    { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.6 },
+    { key: "fadeInMs", label: "フェードイン(ms)", type: "number", step: 100, min: 0, default: 1500 },
+    { key: "fadeOutMs", label: "フェードアウト(ms)", type: "number", step: 100, min: 0, default: 1500 },
+    { key: "enabled", label: "有効", type: "boolean", default: true },
+  ];
+
+  // モジュール定義。新しいCMSモジュールを追加するときはこの配列に1件
+  // 足すだけでよい(保存層は共通のCmsStoreを使うため変更不要)。
+  // group:"room" の4つはkoufukuAiDBのcmsConfig(id="room")を共有する
+  // 専用エディタ、group:"generic" のものはモジュールごとに個別の
+  // cmsConfigレコード(id=モジュールid)を汎用エンジンで編集する。
+  const MODULES = [
+    { id: "room", icon: "🏠", label: "部屋編集", category: "room", group: "room" },
+    { id: "character", icon: "👧", label: "ケイオスちゃん編集", category: "room", group: "room" },
+    { id: "direction", icon: "🎭", label: "演出編集", category: "room", group: "room" },
+    { id: "furniture", icon: "🎁", label: "家具・装飾", category: "room", group: "room" },
+    {
+      id: "season", icon: "🌸", label: "季節イベント", category: "content", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "イベント",
+      schema: [
+        { key: "label", label: "イベント名", type: "text", default: "新しいイベント" },
+        { key: "startDate", label: "開始日 (MM-DD)", type: "text", default: "12-20" },
+        { key: "endDate", label: "終了日 (MM-DD)", type: "text", default: "12-26" },
+        { key: "bgImage", label: "背景画像", type: "image", default: "" },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "この期間だけ部屋の背景を切り替える設定です。アプリ側での自動切替の反映は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "bgm", icon: "🎵", label: "BGM", category: "sound", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "プレイリスト",
+      schema: [
+        { key: "label", label: "プレイリスト名", type: "text", default: "新しいプレイリスト" },
+        { key: "playbackMode", label: "再生方法", type: "select", default: "sequential",
+          options: [ { value: "sequential", label: "順番再生" }, { value: "random", label: "ランダム再生" }, { value: "startupRandom", label: "起動ごとランダム" } ] },
+        { key: "match.timeOfDay", label: "時間帯(未選択=すべて)", type: "multiselect", default: [],
+          options: TIME_BANDS.map(b => ({ value: b.key, label: b.label })) },
+        { key: "match.season", label: "季節(未選択=すべて)", type: "multiselect", default: [],
+          options: SEASON.map(s => ({ value: s.key, label: s.label })) },
+        { key: "match.weather", label: "天候(未選択=すべて)", type: "multiselect", default: [],
+          options: WEATHER.map(w => ({ value: w.key, label: w.label })) },
+        { key: "match.event", label: "イベント(未選択=すべて)", type: "multiselect", default: [],
+          options: EVENT.map(e => ({ value: e.key, label: e.label })) },
+        { key: "tracks", label: "収録曲", type: "collection", itemLabel: "曲", itemSchema: BGM_TRACK_SCHEMA, default: [] },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "優先順位は「イベント > 季節 > 天候 > 時間帯」。現在の条件に合うプレイリストのうち、並び順が一番上のものが使われます。天候は天気APIとの連携が今後対応予定のため現時点では自動選出されず、イベントはクリスマス/ハロウィン/お正月のみカレンダー日付から自動判定されます。保存すると即座にこの端末へ保存され、ホーム画面へ即時反映されます。",
+    },
+    {
+      id: "sfx", icon: "🔊", label: "効果音", category: "sound", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "効果音",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しい効果音" },
+        makeSourceField("AI効果音生成 (Coming Soon)"),
+        makeFileField(),
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.8 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "追加・削除・並び替え・保存・プレビューは今日から使えます。特定の操作(タップ/通知など)に合わせてホーム画面側で実際に再生する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "voice", icon: "🎙️", label: "ボイス", category: "sound", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "ボイス",
+      schema: [
+        { key: "label", label: "名前(例: おかえりの挨拶)", type: "text", default: "新しいボイス" },
+        makeSourceField("AIボイス生成 (Coming Soon)"),
+        makeFileField(),
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.9 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "追加・削除・並び替え・保存・プレビューは今日から使えます。実際の会話にボイスを再生する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "ambient", icon: "🌿", label: "環境音", category: "sound", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "環境音",
+      schema: [
+        { key: "label", label: "名前(例: 鳥のさえずり)", type: "text", default: "新しい環境音" },
+        makeSourceField("AI環境音生成 (Coming Soon)"),
+        makeFileField(),
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.5 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "追加・削除・並び替え・保存・プレビューは今日から使えます。ホーム画面での自動再生(BGMとの重ね掛け)は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    { id: "aiMusic", icon: "🎼", label: "AI音楽生成", category: "sound", group: "generic", kind: "comingSoon" },
+    { id: "aiVoice", icon: "🎤", label: "AIボイス生成", category: "sound", group: "generic", kind: "comingSoon" },
+    { id: "aiAmbient", icon: "🌿", label: "AI環境音生成", category: "sound", group: "generic", kind: "comingSoon" },
+    { id: "aiSfx", icon: "🎹", label: "AI効果音生成", category: "sound", group: "generic", kind: "comingSoon" },
+    {
+      id: "effects", icon: "✨", label: "エフェクト", category: "appearance", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "エフェクト",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいエフェクト" },
+        { key: "type", label: "種類", type: "select", default: "sparkle",
+          options: [ { value: "confetti", label: "紙吹雪" }, { value: "sparkle", label: "キラキラ" }, { value: "hearts", label: "ハート" }, { value: "snow", label: "雪" }, { value: "custom", label: "カスタム画像" } ] },
+        { key: "image", label: "カスタム画像(種類=カスタムの場合)", type: "image", default: "" },
+        { key: "intensity", label: "強さ", type: "number", step: 1, min: 0, max: 100, default: 50 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "登録したエフェクトをホーム画面で再生する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "dialogue", icon: "💬", label: "セリフ・会話管理", category: "content", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "セリフ",
+      schema: [
+        { key: "category", label: "カテゴリ", type: "select", default: "greeting",
+          options: [ { value: "greeting", label: "おかえりの挨拶" }, { value: "idle", label: "つぶやき" }, { value: "reaction", label: "リアクション" }, { value: "support", label: "励まし" } ] },
+        { key: "text", label: "セリフ本文", type: "textarea", default: "" },
+        { key: "weight", label: "出現しやすさ", type: "number", step: 1, min: 0, default: 10 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "ここで登録したセリフを実際の会話・挨拶に反映する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "theme", icon: "🎨", label: "テーマ編集", category: "appearance", group: "generic",
+      kind: "singleton",
+      defaultShape: { primaryColor: "#8b6fd6", accentColor: "#ffb6c9", backgroundStyle: "default", notes: "" },
+      schema: [
+        { key: "primaryColor", label: "メインカラー", type: "color", default: "#8b6fd6" },
+        { key: "accentColor", label: "アクセントカラー", type: "color", default: "#ffb6c9" },
+        { key: "backgroundStyle", label: "背景スタイル", type: "select", default: "default",
+          options: [ { value: "default", label: "標準" }, { value: "pastel", label: "パステル" }, { value: "dark", label: "ダーク基調" }, { value: "seasonal", label: "季節連動" } ] },
+        { key: "notes", label: "メモ", type: "textarea", default: "" },
+      ],
+      note: "テーマをアプリ側の配色に自動反映する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "announcements", icon: "📢", label: "お知らせ管理", category: "content", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "お知らせ",
+      schema: [
+        { key: "title", label: "タイトル", type: "text", default: "新しいお知らせ" },
+        { key: "body", label: "本文", type: "textarea", default: "" },
+        { key: "startDate", label: "掲載開始日 (YYYY-MM-DD)", type: "text", default: "" },
+        { key: "endDate", label: "掲載終了日 (YYYY-MM-DD)", type: "text", default: "" },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "登録したお知らせをホーム画面へバナー表示する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+  ];
+
+  const ROOM_CONFIG_DEFAULT_FOR_ADMIN = {
+    configVersion: 1,
+    background: { enabled: true, timeOfDay: {}, weather: {}, season: {}, event: {} },
+    character: { poses: {} },
+    entranceAnimations: { items: [] },
+    furniture: { items: [] },
+  };
+
+  let assetLibrary = { images: [], audio: [] };
+  let currentTab = "room";
+  let currentAuthMode = "login"; // "login" | "setup"
+
+  const roomState = { draft: null, dirty: false };
+  const genericState = {};
+
+  // ===== ローカル認証(サーバー無し。localStorageに塩付きSHA-256ハッシュ
+  // のみ保存し、平文パスワードは保持しない)。GitHub Pages時代の
+  // ADMIN_PASSWORD(サーバー環境変数)を置き換えるもので、あくまで
+  // 「うっかりアクセス防止」程度の位置づけ(端末そのものへアクセス
+  // できる人には意味を持たない、という前提を踏まえた設計)。 =====
+  const ADMIN_AUTH_KEY = "koufukuAiAdminAuthV1";
+  async function sha256Hex(text){
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  function adminAuthRead(){
+    try{ const raw = localStorage.getItem(ADMIN_AUTH_KEY); return raw ? JSON.parse(raw) : null; }
+    catch(e){ return null; }
+  }
+  async function adminAuthSetPassword(pw){
+    const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const hash = await sha256Hex(salt + pw);
+    localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify({ salt, hash }));
+  }
+  async function adminAuthVerify(pw){
+    const rec = adminAuthRead();
+    if(!rec) return false;
+    const hash = await sha256Hex(rec.salt + pw);
+    return hash === rec.hash;
+  }
+
+  function filenameOf(name){ return name || ""; }
+  function findImageById(id){ return assetLibrary.images.find(im => im.id === id); }
+  function findAudioById(id){ return assetLibrary.audio.find(a => a.id === id); }
+
+  function currentDirtyState(){
+    const mod = MODULES.find(m => m.id === currentTab);
+    if(!mod) return { dirty: false };
+    if(mod.group === "room") return roomState;
+    return genericState[mod.id] || { dirty: false };
+  }
+  function setDirty(v){
+    const state = currentDirtyState();
+    state.dirty = v;
+    $("adminSaveBar").style.display = "flex";
+    $("btnAdminSave").disabled = !v;
+  }
+
+  // ===== 認証UI =====
+  function openAdminOverlay(){
+    $("adminModeOverlay").style.display = "block";
+    const hasAuth = !!adminAuthRead();
+    currentAuthMode = hasAuth ? "login" : "setup";
+    $("adminLoginScreen").style.display = "block";
+    $("adminMainScreen").style.display = "none";
+    $("adminSaveBar").style.display = "none";
+    $("adminPwInput").value = "";
+    $("adminPwConfirmInput").value = "";
+    $("adminLoginError").textContent = "";
+    if(currentAuthMode === "setup"){
+      $("adminLoginIntro").textContent = "初めてのご利用ですね。管理者パスワードを設定してください(4文字以上)。";
+      $("adminPwLabel").textContent = "新しい管理者パスワード";
+      $("adminPwInput").placeholder = "新しいパスワード";
+      $("adminPwConfirmInput").style.display = "block";
+      $("btnAdminLogin").textContent = "設定する";
+    }else{
+      $("adminLoginIntro").textContent = "部屋・ケイオスちゃん・BGMなどの見た目を、コードを書かずに編集できます。";
+      $("adminPwLabel").textContent = "管理者パスワード";
+      $("adminPwInput").placeholder = "パスワード";
+      $("adminPwConfirmInput").style.display = "none";
+      $("btnAdminLogin").textContent = "開く";
+    }
+    $("adminPwInput").focus();
+  }
+  function closeAdminOverlay(){
+    const state = currentDirtyState();
+    if(state.dirty && !confirm("保存していない変更があります。閉じてよろしいですか?")) return;
+    $("adminModeOverlay").style.display = "none";
+    reflectCmsChangeNow();
+  }
+  $("btnOpenAdminMode").addEventListener("click", openAdminOverlay);
+  $("btnAdminLoginCancel").addEventListener("click", () => { $("adminModeOverlay").style.display = "none"; });
+
+  $("btnAdminLogin").addEventListener("click", async () => {
+    const pw = $("adminPwInput").value;
+    $("adminLoginError").textContent = "";
+    if(!pw){ $("adminLoginError").textContent = "パスワードを入力してください。"; return; }
+    $("btnAdminLogin").disabled = true;
+    try{
+      if(currentAuthMode === "setup"){
+        const confirmPw = $("adminPwConfirmInput").value;
+        if(pw.length < 4){ $("adminLoginError").textContent = "4文字以上で設定してください。"; return; }
+        if(pw !== confirmPw){ $("adminLoginError").textContent = "確認用のパスワードが一致しません。"; return; }
+        await adminAuthSetPassword(pw);
+      }else{
+        const ok = await adminAuthVerify(pw);
+        if(!ok){ $("adminLoginError").textContent = "パスワードが違います。"; return; }
+      }
+      $("adminLoginScreen").style.display = "none";
+      $("adminMainScreen").style.display = "block";
+      await bootstrapAdmin();
+    }catch(e){
+      $("adminLoginError").textContent = "エラーが発生しました(" + e.message + ")";
+    }finally{
+      $("btnAdminLogin").disabled = false;
+    }
+  });
+  $("adminPwInput").addEventListener("keydown", (e) => { if(e.key === "Enter" && $("adminPwConfirmInput").style.display === "none") $("btnAdminLogin").click(); });
+  $("btnAdminClose").addEventListener("click", closeAdminOverlay);
+
+  // ===== 起動 =====
+  async function bootstrapAdmin(){
+    await loadMediaLibrary();
+    renderUploadImageTargetOptions();
+    buildTabs();
+    await loadRoomConfigForAdmin();
+    await switchTab("room");
+  }
+
+  // ===== メディアライブラリ(koufukuAiDBのcmsMediaストア) =====
+  async function loadMediaLibrary(){
+    await loadKaosuMediaIndex();
+    invalidateKaosuMediaIndex();
+    await loadKaosuMediaIndex();
+    const all = await CmsStore.getAllMedia();
+    assetLibrary.images = all.filter(m => m.kind === "image").map(m => ({ id: m.id, name: m.name, url: resolveMediaUrl(m.id), size: m.size }));
+    assetLibrary.audio = all.filter(m => m.kind === "audio").map(m => ({ id: m.id, name: m.name, url: resolveMediaUrl(m.id), size: m.size }));
+    renderImageGrid();
+    renderAudioGrid();
+  }
+
+  function renderUploadImageTargetOptions(){
+    const sel = $("adminUploadImageTarget");
+    sel.innerHTML = "";
+    sel.appendChild(new Option("未割り当て(家具・イベント等に使う)", ""));
+    const bgGroup = document.createElement("optgroup"); bgGroup.label = "部屋背景";
+    TIME_BANDS.forEach(b => bgGroup.appendChild(new Option("背景:" + b.label, "bg:" + b.key)));
+    sel.appendChild(bgGroup);
+    const poseGroup = document.createElement("optgroup"); poseGroup.label = "ケイオスちゃん";
+    POSES.forEach(p => poseGroup.appendChild(new Option("立ち絵:" + p.label, "pose:" + p.key)));
+    sel.appendChild(poseGroup);
+  }
+
+  function genMediaId(){ return "media-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8); }
+
+  // アップロード/差し替え共通処理。id省略時は新規発行、指定時はその
+  // idのBlobだけを差し替える(参照側のJSONは変更不要のまま新しい実体が
+  // 反映される)。
+  async function uploadAndRegister(kind, file, listArr, existingId){
+    const id = existingId || genMediaId();
+    await CmsStore.putMedia({ id, kind, name: file.name, mimeType: file.type || "", blob: file, size: file.size, createdAt: Date.now() });
+    invalidateKaosuMediaIndex();
+    await loadKaosuMediaIndex();
+    const entry = { id, name: file.name, url: resolveMediaUrl(id), size: file.size };
+    const idx = listArr.findIndex(x => x.id === id);
+    if(idx >= 0) listArr[idx] = entry; else listArr.push(entry);
+    return entry;
+  }
+
+  $("btnAdminUploadImage").addEventListener("click", async () => {
+    const fileInput = $("adminUploadImageFile");
+    const file = fileInput.files && fileInput.files[0];
+    const target = $("adminUploadImageTarget").value;
+    const statusEl = $("adminUploadImageStatus");
+    if(!file){ statusEl.textContent = "ファイルを選択してください。"; return; }
+    statusEl.textContent = "アップロード中…";
+    $("btnAdminUploadImage").disabled = true;
+    try{
+      const entry = await uploadAndRegister("image", file, assetLibrary.images);
+      renderImageGrid();
+
+      if(target.startsWith("bg:")){
+        const key = target.slice(3);
+        roomState.draft.background.timeOfDay[key] = roomState.draft.background.timeOfDay[key] || { enabled: true };
+        roomState.draft.background.timeOfDay[key].image = entry.id;
+        roomState.draft.background.timeOfDay[key].enabled = true;
+        if(currentTab === "room") renderTab("room");
+        setDirty(true);
+      }else if(target.startsWith("pose:")){
+        const key = target.slice(5);
+        roomState.draft.character.poses[key] = roomState.draft.character.poses[key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
+        roomState.draft.character.poses[key].image = entry.id;
+        if(currentTab === "character") renderTab("character");
+        setDirty(true);
+      }
+
+      statusEl.textContent = "✅ アップロードしました(" + entry.name + ")。";
+      fileInput.value = "";
+      refreshAllOpenMediaSelects();
+    }catch(e){
+      statusEl.textContent = "❌ アップロードに失敗しました: " + e.message;
+    }finally{ $("btnAdminUploadImage").disabled = false; }
+  });
+
+  $("btnAdminUploadAudio").addEventListener("click", async () => {
+    const fileInput = $("adminUploadAudioFile");
+    const file = fileInput.files && fileInput.files[0];
+    const statusEl = $("adminUploadAudioStatus");
+    if(!file){ statusEl.textContent = "ファイルを選択してください。"; return; }
+    statusEl.textContent = "アップロード中…";
+    $("btnAdminUploadAudio").disabled = true;
+    try{
+      const entry = await uploadAndRegister("audio", file, assetLibrary.audio);
+      renderAudioGrid();
+      statusEl.textContent = "✅ アップロードしました(" + entry.name + ")。";
+      fileInput.value = "";
+      refreshAllOpenMediaSelects();
+    }catch(e){
+      statusEl.textContent = "❌ アップロードに失敗しました: " + e.message;
+    }finally{ $("btnAdminUploadAudio").disabled = false; }
+  });
+
+  function renderImageGrid(){
+    const grid = $("adminImageGrid");
+    grid.innerHTML = "";
+    $("adminImageEmptyHint").style.display = assetLibrary.images.length ? "none" : "block";
+    assetLibrary.images.forEach(img => {
+      const box = document.createElement("div");
+      box.className = "thumb";
+      box.innerHTML = `
+        <img src="${img.url}" alt="" onerror="this.style.opacity=.2">
+        <div class="name">${img.name}</div>
+        <div class="btns">
+          <button class="secondary tiny" data-act="replace">差し替え</button>
+          <button class="danger tiny" data-act="delete">削除</button>
+        </div>`;
+      box.querySelector('[data-act="replace"]').addEventListener("click", () => triggerMediaReplace("image", img, assetLibrary.images, renderImageGrid, ".webp,.png,.jpg,.jpeg,.gif,.svg"));
+      box.querySelector('[data-act="delete"]').addEventListener("click", () => triggerMediaDelete(img, assetLibrary.images, renderImageGrid));
+      grid.appendChild(box);
+    });
+  }
+  function renderAudioGrid(){
+    const grid = $("adminAudioGrid");
+    grid.innerHTML = "";
+    $("adminAudioEmptyHint").style.display = assetLibrary.audio.length ? "none" : "block";
+    assetLibrary.audio.forEach(a => {
+      const box = document.createElement("div");
+      box.className = "thumb";
+      box.innerHTML = `
+        <div style="font-size:26px;">🎵</div>
+        <div class="name">${a.name}</div>
+        <audio class="mini-audio" controls src="${a.url}"></audio>
+        <div class="btns" style="margin-top:6px;">
+          <button class="secondary tiny" data-act="replace">差し替え</button>
+          <button class="danger tiny" data-act="delete">削除</button>
+        </div>`;
+      box.querySelector('[data-act="replace"]').addEventListener("click", () => triggerMediaReplace("audio", a, assetLibrary.audio, renderAudioGrid, ".mp3,.ogg,.wav,.m4a"));
+      box.querySelector('[data-act="delete"]').addEventListener("click", () => triggerMediaDelete(a, assetLibrary.audio, renderAudioGrid));
+      grid.appendChild(box);
+    });
+  }
+
+  function triggerMediaReplace(kind, entry, listArr, rerender, accept){
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = accept;
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if(!file) return;
+      try{
+        await uploadAndRegister(kind, file, listArr, entry.id);
+        rerender();
+        refreshAllOpenMediaSelects();
+        reflectCmsChangeNow();
+        alert("「" + entry.name + "」を差し替えました。この画像/音声を使っている箇所には自動的に反映されます。");
+      }catch(e){ alert("差し替えに失敗しました: " + e.message); }
+    };
+    input.click();
+  }
+  async function triggerMediaDelete(entry, listArr, rerender){
+    if(!confirm("「" + entry.name + "」を削除します。よろしいですか?\nこのファイルを使用中の項目は、削除後に表示/再生されなくなります(アプリ側は落ちずに自動フォールバックします)。")) return;
+    try{
+      await CmsStore.removeMedia(entry.id);
+      invalidateKaosuMediaIndex();
+      await loadKaosuMediaIndex();
+      const idx = listArr.findIndex(x => x.id === entry.id);
+      if(idx >= 0) listArr.splice(idx, 1);
+      rerender();
+      refreshAllOpenMediaSelects();
+      reflectCmsChangeNow();
+    }catch(e){ alert("削除に失敗しました: " + e.message); }
+  }
+
+  function refreshAllOpenMediaSelects(){
+    renderTab(currentTab);
+  }
+
+  // ===== タブ =====
+  const MODULE_CATEGORY_LABELS = {
+    room: "🏠 部屋・キャラクター",
+    sound: "🎵 サウンド管理",
+    content: "📝 コンテンツ",
+    appearance: "🎨 見た目・演出",
+  };
+  function buildTabs(){
+    const bar = $("adminTabbar");
+    bar.innerHTML = "";
+    const panels = $("adminTabPanels");
+    panels.innerHTML = "";
+    const categories = [];
+    MODULES.forEach(mod => {
+      const cat = mod.category || "other";
+      if(!categories.includes(cat)) categories.push(cat);
+    });
+    categories.forEach(cat => {
+      const group = document.createElement("div");
+      group.className = "tabbar-group";
+      const heading = document.createElement("div");
+      heading.className = "tabbar-group-heading";
+      heading.textContent = MODULE_CATEGORY_LABELS[cat] || "その他";
+      group.appendChild(heading);
+      const row = document.createElement("div");
+      row.className = "tabbar-group-row";
+      MODULES.filter(m => (m.category || "other") === cat).forEach(mod => {
+        const btn = document.createElement("button");
+        btn.textContent = mod.icon + " " + mod.label;
+        btn.dataset.tab = mod.id;
+        btn.addEventListener("click", () => switchTab(mod.id));
+        row.appendChild(btn);
+
+        const panel = document.createElement("div");
+        panel.className = "tab-panel";
+        panel.id = "adminPanel-" + mod.id;
+        panels.appendChild(panel);
+      });
+      group.appendChild(row);
+      bar.appendChild(group);
+    });
+  }
+
+  async function switchTab(tabId){
+    currentTab = tabId;
+    document.querySelectorAll("#adminTabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
+    document.querySelectorAll("#adminTabPanels .tab-panel").forEach(p => p.classList.toggle("active", p.id === "adminPanel-" + tabId));
+    const mod = MODULES.find(m => m.id === tabId);
+    if(mod.group === "generic" && mod.kind !== "comingSoon" && !(genericState[tabId] && genericState[tabId].loaded)){
+      await loadGenericModule(mod);
+    }
+    renderTab(tabId);
+    if(mod.kind === "comingSoon"){
+      $("adminSaveBar").style.display = "none";
+    }else{
+      const state = currentDirtyState();
+      $("adminSaveBar").style.display = "flex";
+      $("btnAdminSave").disabled = !state.dirty;
+    }
+    $("adminSaveStatus").textContent = "";
+    $("adminSaveStatus").className = "";
+  }
+
+  function renderTab(tabId){
+    const mod = MODULES.find(m => m.id === tabId);
+    if(!mod) return;
+    if(mod.group === "room"){
+      if(tabId === "room") renderRoomModule();
+      else if(tabId === "character") renderCharacterModule();
+      else if(tabId === "direction") renderDirectionModule();
+      else if(tabId === "furniture") renderFurnitureModule();
+    }else{
+      renderGenericModule(mod);
+    }
+  }
+
+  async function loadRoomConfigForAdmin(){
+    const record = await CmsStore.getConfig("room");
+    roomState.draft = (record && record.data) || JSON.parse(JSON.stringify(ROOM_CONFIG_DEFAULT_FOR_ADMIN));
+    roomState.dirty = false;
+  }
+
+  function imageOptions(selectedId){
+    let html = '<option value="">(未選択)</option>';
+    assetLibrary.images.forEach(img => {
+      const sel = img.id === selectedId ? " selected" : "";
+      html += `<option value="${img.id}"${sel}>${img.name}</option>`;
+    });
+    return html;
+  }
+  function audioOptions(selectedId){
+    let html = '<option value="">(未選択)</option>';
+    assetLibrary.audio.forEach(a => {
+      const sel = a.id === selectedId ? " selected" : "";
+      html += `<option value="${a.id}"${sel}>${a.name}</option>`;
+    });
+    return html;
+  }
+
+  function renderRoomModule(){
+    const panel = $("adminPanel-room");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🏠 部屋の背景(時間帯別)</h2>
+        <div id="adminBgEditor"></div>
+        <details style="margin-top:12px;">
+          <summary>詳細設定(天候・季節・イベント / 将来の拡張用)</summary>
+          <p class="hint">有効にした天候・季節・イベントは時間帯背景より優先して表示されます。</p>
+          <div id="adminBgAdvancedEditor"></div>
+        </details>
+      </div>
+      <div class="card">
+        <h2>プレビュー</h2>
+        <div class="preview-controls">
+          <select id="adminPreviewBand">${TIME_BANDS.map(b => `<option value="${b.key}">${b.label}</option>`).join("")}</select>
+        </div>
+        <div class="preview-scene" id="adminPreviewScene">
+          <img class="bg" id="adminPreviewBg" alt="" onerror="this.style.display='none'">
+        </div>
+      </div>
+    `;
+    const draft = roomState.draft;
+    const bgWrap = $("adminBgEditor");
+    TIME_BANDS.forEach(b => {
+      const tod = draft.background.timeOfDay[b.key] = draft.background.timeOfDay[b.key] || { enabled: true };
+      const row = document.createElement("div");
+      row.className = "row"; row.style.marginBottom = "10px";
+      row.innerHTML = `
+        <div class="field" style="flex:0 0 60px;"><label>&nbsp;</label><div>${b.label}</div></div>
+        <div class="field" style="flex:2;"><label>画像</label><select data-f="image">${imageOptions(tod.image)}</select></div>
+        <div class="field" style="flex:0 0 90px;"><label class="checkbox-row" style="margin-top:22px;"><input type="checkbox" data-f="enabled" ${tod.enabled!==false?"checked":""}> 有効</label></div>
+      `;
+      row.querySelector('[data-f="image"]').addEventListener("change", (e) => { tod.image = e.target.value; updateRoomPreview(); setDirty(true); });
+      row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { tod.enabled = e.target.checked; setDirty(true); });
+      bgWrap.appendChild(row);
+    });
+    const advWrap = $("adminBgAdvancedEditor");
+    [["weather", WEATHER], ["season", SEASON], ["event", EVENT]].forEach(([groupKey, list]) => {
+      draft.background[groupKey] = draft.background[groupKey] || {};
+      const group = draft.background[groupKey];
+      list.forEach(item => {
+        group[item.key] = group[item.key] || { enabled: false, image: "" };
+        const it = group[item.key];
+        const row = document.createElement("div");
+        row.className = "row"; row.style.marginBottom = "8px";
+        row.innerHTML = `
+          <div class="field" style="flex:0 0 70px;"><div>${item.label}</div></div>
+          <div class="field" style="flex:2;"><select data-f="image">${imageOptions(it.image)}</select></div>
+          <div class="field" style="flex:0 0 90px;"><label class="checkbox-row"><input type="checkbox" data-f="enabled" ${it.enabled?"checked":""}> 有効</label></div>
+        `;
+        row.querySelector('[data-f="image"]').addEventListener("change", (e) => { it.image = e.target.value; setDirty(true); });
+        row.querySelector('[data-f="enabled"]').addEventListener("change", (e) => { it.enabled = e.target.checked; setDirty(true); });
+        advWrap.appendChild(row);
+      });
+    });
+    $("adminPreviewBand").addEventListener("change", updateRoomPreview);
+    updateRoomPreview();
+  }
+  function updateRoomPreview(){
+    const bandSel = $("adminPreviewBand");
+    if(!bandSel) return;
+    const tod = roomState.draft.background.timeOfDay[bandSel.value];
+    const img = findImageById(tod && tod.image);
+    $("adminPreviewBg").src = img ? img.url : "";
+  }
+
+  function renderCharacterModule(){
+    const panel = $("adminPanel-character");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>👧 ケイオスちゃんの配置</h2>
+        <p class="hint" style="margin-top:-6px;">立ち絵の種類(ポーズ)ごとに、画像・表示位置・拡大縮小・前後関係・透明度を設定できます。</p>
+        <div id="adminPoseEditor"></div>
+      </div>
+      <div class="card">
+        <h2>プレビュー</h2>
+        <div class="preview-controls">
+          <select id="adminPreviewPose">${POSES.map(p => `<option value="${p.key}">${p.label}</option>`).join("")}</select>
+        </div>
+        <div class="preview-scene" id="adminPreviewScene2" style="background:linear-gradient(160deg,#ffe6ef,#e9e0ff);">
+          <div class="avatar-box" id="adminPreviewAvatarBox"><img id="adminPreviewAvatar" alt="" onerror="this.style.display='none'"></div>
+        </div>
+      </div>
+    `;
+    const wrap = $("adminPoseEditor");
+    const draft = roomState.draft;
+    POSES.forEach(p => {
+      const pose = draft.character.poses[p.key] = draft.character.poses[p.key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
+      const thumbUrl = (findImageById(pose.image) || {}).url || "";
+      const det = document.createElement("details");
+      det.innerHTML = `
+        <summary><span><img src="${thumbUrl}" onerror="this.style.visibility='hidden'">${p.label}</span></summary>
+        <div class="field"><label>画像</label><select data-f="image">${imageOptions(pose.image)}</select></div>
+        <div class="pose-fields">
+          <div class="field"><label>X (px)</label><input type="number" data-f="x" value="${pose.x||0}"></div>
+          <div class="field"><label>Y (px)</label><input type="number" data-f="y" value="${pose.y||0}"></div>
+          <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${pose.scale!=null?pose.scale:1}"></div>
+          <div class="field"><label>回転(deg)</label><input type="number" data-f="rotation" value="${pose.rotation||0}"></div>
+          <div class="field"><label>前後(Z-index)</label><input type="number" data-f="zIndex" value="${pose.zIndex!=null?pose.zIndex:1}"></div>
+          <div class="field"><label>透明度(0-1)</label><input type="number" step="0.05" min="0" max="1" data-f="opacity" value="${pose.opacity!=null?pose.opacity:1}"></div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" data-f="visible" ${pose.visible!==false?"checked":""}> 表示する</label>
+      `;
+      det.querySelectorAll("[data-f]").forEach(el => {
+        const field = el.dataset.f;
+        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+        el.addEventListener(evt, () => {
+          if(field === "visible") pose.visible = el.checked;
+          else if(field === "image") pose.image = el.value;
+          else pose[field] = parseFloat(el.value) || 0;
+          det.querySelector("summary img").src = (findImageById(pose.image) || {}).url || "";
+          updateCharacterPreview();
+          setDirty(true);
+        });
+      });
+      wrap.appendChild(det);
+    });
+    $("adminPreviewPose").addEventListener("change", updateCharacterPreview);
+    updateCharacterPreview();
+  }
+  function updateCharacterPreview(){
+    const poseSel = $("adminPreviewPose");
+    if(!poseSel) return;
+    const pose = roomState.draft.character.poses[poseSel.value] || {};
+    const img = findImageById(pose.image);
+    const avatarImg = $("adminPreviewAvatar");
+    avatarImg.src = img ? img.url : "";
+    avatarImg.style.display = pose.visible === false ? "none" : "";
+    avatarImg.style.opacity = pose.opacity != null ? String(pose.opacity) : "1";
+    const tx = (pose.x||0) * 0.5, ty = (pose.y||0) * 0.5;
+    avatarImg.style.transform = `translate(${tx}px, ${ty}px) scale(${pose.scale!=null?pose.scale:1}) rotate(${pose.rotation||0}deg)`;
+  }
+
+  function renderDirectionModule(){
+    const panel = $("adminPanel-direction");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🎭 登場演出</h2>
+        <p class="hint" style="margin-top:-6px;">起動時、部屋の奥にいるケイオスちゃんが最初に何をしているか(手を振る/読書/窓を見る…)を、出現しやすさ(重み)に応じてランダムに選びます。</p>
+        <div id="adminDirectionEditor"></div>
+        <button class="secondary" id="btnAdminAddDirection" style="margin-top:6px;">＋ 演出を追加</button>
+      </div>
+    `;
+    renderDirectionItems();
+    $("btnAdminAddDirection").addEventListener("click", () => {
+      roomState.draft.entranceAnimations.items.push({
+        id: "custom-" + Date.now(), label: "新しい演出", pose: "idle", enabled: true, weight: 10, durationMs: 1100,
+        startOffset: { x: 0, y: 0, scale: 1, rotation: 0 },
+      });
+      renderDirectionItems();
+      setDirty(true);
+    });
+  }
+  function renderDirectionItems(){
+    const wrap = $("adminDirectionEditor");
+    wrap.innerHTML = "";
+    roomState.draft.entranceAnimations.items.forEach((item, idx) => {
+      item.startOffset = item.startOffset || { x: 0, y: 0, scale: 1, rotation: 0 };
+      const card = document.createElement("div");
+      card.className = "item-card";
+      card.innerHTML = `
+        <div class="head">
+          <input type="text" class="head-title" data-f="label" value="${item.label || ""}" style="border:none;background:transparent;font-weight:600;padding:0;">
+          <div class="head-btns">
+            <button class="secondary tiny" data-act="up">▲</button>
+            <button class="secondary tiny" data-act="down">▼</button>
+            <button class="danger tiny" data-act="remove">削除</button>
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field"><label>使用する立ち絵</label><select data-f="pose">${POSES.map(p => `<option value="${p.key}" ${item.pose===p.key?"selected":""}>${p.label}</option>`).join("")}</select></div>
+          <div class="field"><label>出現しやすさ(重み)</label><input type="number" data-f="weight" value="${item.weight||0}"></div>
+          <div class="field"><label>歩いてくる時間(ms)</label><input type="number" data-f="durationMs" value="${item.durationMs||1100}"></div>
+          <div class="field"><label>開始X(px)</label><input type="number" data-f="startOffset.x" value="${item.startOffset.x||0}"></div>
+          <div class="field"><label>開始Y(px)</label><input type="number" data-f="startOffset.y" value="${item.startOffset.y||0}"></div>
+          <div class="field"><label>開始縮小率</label><input type="number" step="0.05" data-f="startOffset.scale" value="${item.startOffset.scale!=null?item.startOffset.scale:1}"></div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" data-f="enabled" ${item.enabled!==false?"checked":""}> 有効</label>
+      `;
+      card.querySelectorAll("[data-f]").forEach(el => {
+        const field = el.dataset.f;
+        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+        el.addEventListener(evt, () => {
+          if(field === "enabled") item.enabled = el.checked;
+          else if(field === "label") item.label = el.value;
+          else if(field === "pose") item.pose = el.value;
+          else if(field.startsWith("startOffset.")) item.startOffset[field.split(".")[1]] = parseFloat(el.value) || 0;
+          else item[field] = parseFloat(el.value) || 0;
+          setDirty(true);
+        });
+      });
+      card.querySelector('[data-act="remove"]').addEventListener("click", () => {
+        roomState.draft.entranceAnimations.items.splice(idx, 1);
+        renderDirectionItems(); setDirty(true);
+      });
+      card.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        const arr = roomState.draft.entranceAnimations.items;
+        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+        renderDirectionItems(); setDirty(true);
+      });
+      card.querySelector('[data-act="down"]').addEventListener("click", () => {
+        const arr = roomState.draft.entranceAnimations.items;
+        if(idx === arr.length - 1) return;
+        [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
+        renderDirectionItems(); setDirty(true);
+      });
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderFurnitureModule(){
+    const panel = $("adminPanel-furniture");
+    panel.innerHTML = `
+      <div class="card">
+        <h2>🎁 部屋の家具・装飾(部屋の育成)</h2>
+        <p class="hint" style="margin-top:-6px;">花・ぬいぐるみ・写真などを部屋に追加できます。</p>
+        <div id="adminFurnitureEditor"></div>
+        <button class="secondary" id="btnAdminAddFurniture" style="margin-top:6px;">＋ 家具を追加</button>
+      </div>
+      <div class="card">
+        <h2>プレビュー</h2>
+        <div class="preview-scene" id="adminPreviewScene3" style="background:linear-gradient(160deg,#ffe6ef,#e9e0ff);">
+          <div id="adminPreviewFurniture"></div>
+        </div>
+      </div>
+    `;
+    renderFurnitureItems();
+    $("btnAdminAddFurniture").addEventListener("click", () => {
+      roomState.draft.furniture.items.push({ id: "furniture-" + Date.now(), image: "", x: 50, y: 50, scale: 1, rotation: 0, opacity: 1, zIndex: 1, enabled: true });
+      renderFurnitureItems(); setDirty(true);
+    });
+  }
+  function renderFurnitureItems(){
+    const wrap = $("adminFurnitureEditor");
+    wrap.innerHTML = "";
+    roomState.draft.furniture.items.forEach((item, idx) => {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      card.innerHTML = `
+        <div class="head">
+          <span class="head-title">${item.id || ("家具" + (idx+1))}</span>
+          <div class="head-btns">
+            <button class="secondary tiny" data-act="up">▲</button>
+            <button class="secondary tiny" data-act="down">▼</button>
+            <button class="danger tiny" data-act="remove">削除</button>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:8px;"><label>画像</label><select data-f="image">${imageOptions(item.image)}</select></div>
+        <div class="field-grid">
+          <div class="field"><label>X (%)</label><input type="number" data-f="x" value="${item.x!=null?item.x:50}"></div>
+          <div class="field"><label>Y (%)</label><input type="number" data-f="y" value="${item.y!=null?item.y:50}"></div>
+          <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${item.scale!=null?item.scale:1}"></div>
+          <div class="field"><label>回転(deg)</label><input type="number" data-f="rotation" value="${item.rotation||0}"></div>
+          <div class="field"><label>前後(Z-index)</label><input type="number" data-f="zIndex" value="${item.zIndex!=null?item.zIndex:1}"></div>
+          <div class="field"><label>透明度(0-1)</label><input type="number" step="0.05" min="0" max="1" data-f="opacity" value="${item.opacity!=null?item.opacity:1}"></div>
+        </div>
+        <label class="checkbox-row"><input type="checkbox" data-f="enabled" ${item.enabled!==false?"checked":""}> 表示する</label>
+      `;
+      card.querySelector('[data-act="remove"]').addEventListener("click", () => { roomState.draft.furniture.items.splice(idx, 1); renderFurnitureItems(); updateFurniturePreview(); setDirty(true); });
+      card.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        const arr = roomState.draft.furniture.items;
+        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
+        renderFurnitureItems(); updateFurniturePreview(); setDirty(true);
+      });
+      card.querySelector('[data-act="down"]').addEventListener("click", () => {
+        const arr = roomState.draft.furniture.items;
+        if(idx === arr.length - 1) return;
+        [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
+        renderFurnitureItems(); updateFurniturePreview(); setDirty(true);
+      });
+      card.querySelectorAll("[data-f]").forEach(el => {
+        const field = el.dataset.f;
+        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+        el.addEventListener(evt, () => {
+          if(field === "enabled") item.enabled = el.checked;
+          else if(field === "image") item.image = el.value;
+          else item[field] = parseFloat(el.value) || 0;
+          updateFurniturePreview(); setDirty(true);
+        });
+      });
+      wrap.appendChild(card);
+    });
+    updateFurniturePreview();
+  }
+  function updateFurniturePreview(){
+    const fWrap = $("adminPreviewFurniture");
+    if(!fWrap) return;
+    fWrap.innerHTML = "";
+    (roomState.draft.furniture.items || []).filter(it => it.enabled !== false && it.image).forEach(it => {
+      const img = findImageById(it.image);
+      if(!img) return;
+      const el = document.createElement("img");
+      el.className = "furniture-item";
+      el.src = img.url;
+      el.style.left = (it.x!=null?it.x:50) + "%";
+      el.style.top = (it.y!=null?it.y:50) + "%";
+      el.style.transform = `translate(-50%,-50%) scale(${it.scale!=null?it.scale:1}) rotate(${it.rotation||0}deg)`;
+      el.style.opacity = it.opacity != null ? it.opacity : 1;
+      el.style.zIndex = it.zIndex != null ? String(it.zIndex) : "1";
+      el.onerror = function(){ this.style.display = "none"; };
+      fWrap.appendChild(el);
+    });
+  }
+
+  // ===== 汎用コレクション編集エンジン =====
+  async function loadGenericModule(mod){
+    const record = await CmsStore.getConfig(mod.id);
+    const draft = (record && record.data) || JSON.parse(JSON.stringify(mod.defaultShape));
+    genericState[mod.id] = { draft, dirty: false, loaded: true };
+  }
+
+  function getPath(obj, path){ return path.split(".").reduce((o,k) => (o == null ? undefined : o[k]), obj); }
+  function setPath(obj, path, val){
+    const parts = path.split(".");
+    let o = obj;
+    for(let i = 0; i < parts.length - 1; i++){ o[parts[i]] = o[parts[i]] || {}; o = o[parts[i]]; }
+    o[parts[parts.length - 1]] = val;
+  }
+  function cloneDefaultValue(v){
+    if(Array.isArray(v)) return v.map(cloneDefaultValue);
+    if(v && typeof v === "object") return JSON.parse(JSON.stringify(v));
+    return v;
+  }
+  function defaultForField(f){
+    const raw = f.default !== undefined ? f.default : (f.type === "boolean" ? false : f.type === "number" ? 0 : "");
+    return cloneDefaultValue(raw);
+  }
+  function defaultItemForSchema(schema){
+    const obj = {};
+    schema.forEach(f => setPath(obj, f.key, defaultForField(f)));
+    return obj;
+  }
+
+  function buildFieldRow(fieldDef, item, onChange){
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    const label = document.createElement("label");
+    label.textContent = fieldDef.label;
+    wrap.appendChild(label);
+    const value = getPath(item, fieldDef.key);
+
+    if(fieldDef.disabledWhen && fieldDef.disabledWhen(item)){
+      const note = document.createElement("div");
+      note.className = "hint";
+      note.dataset.disabledPlaceholder = "1";
+      note.style.cssText = "padding:8px 10px;border:1px dashed var(--admin-border);border-radius:8px;background:var(--admin-input-bg);margin:0;";
+      note.textContent = fieldDef.disabledLabel || "現在この項目は編集できません。";
+      wrap.appendChild(note);
+      return wrap;
+    }
+
+    if(fieldDef.type === "boolean"){
+      wrap.className = "field checkbox-row";
+      wrap.innerHTML = "";
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = value !== false;
+      cb.addEventListener("change", () => { setPath(item, fieldDef.key, cb.checked); onChange(fieldDef); });
+      wrap.appendChild(cb);
+      const span = document.createElement("span"); span.textContent = fieldDef.label;
+      wrap.appendChild(span);
+      return wrap;
+    }
+    if(fieldDef.type === "textarea"){
+      const ta = document.createElement("textarea");
+      ta.value = value || "";
+      ta.addEventListener("input", () => { setPath(item, fieldDef.key, ta.value); onChange(fieldDef); });
+      wrap.appendChild(ta);
+      return wrap;
+    }
+    if(fieldDef.type === "select"){
+      const sel = document.createElement("select");
+      (fieldDef.options || []).forEach(opt => sel.appendChild(new Option(opt.label, opt.value, false, opt.value === value)));
+      sel.addEventListener("change", () => { setPath(item, fieldDef.key, sel.value); onChange(fieldDef); });
+      wrap.appendChild(sel);
+      return wrap;
+    }
+    if(fieldDef.type === "multiselect"){
+      const box = document.createElement("div");
+      box.style.cssText = "display:flex;flex-wrap:wrap;gap:4px 10px;";
+      const current = Array.isArray(value) ? value : [];
+      (fieldDef.options || []).forEach(opt => {
+        const optLabel = document.createElement("label");
+        optLabel.className = "checkbox-row";
+        optLabel.style.marginTop = "0";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = current.includes(opt.value);
+        cb.addEventListener("change", () => {
+          const arr = (Array.isArray(getPath(item, fieldDef.key)) ? getPath(item, fieldDef.key) : []).slice();
+          const i = arr.indexOf(opt.value);
+          if(cb.checked){ if(i < 0) arr.push(opt.value); }
+          else if(i >= 0){ arr.splice(i, 1); }
+          setPath(item, fieldDef.key, arr);
+          onChange(fieldDef);
+        });
+        optLabel.appendChild(cb);
+        const span = document.createElement("span"); span.textContent = opt.label;
+        optLabel.appendChild(span);
+        box.appendChild(optLabel);
+      });
+      wrap.appendChild(box);
+      return wrap;
+    }
+    if(fieldDef.type === "color"){
+      const inp = document.createElement("input");
+      inp.type = "color"; inp.value = value || "#8b6fd6";
+      inp.addEventListener("input", () => { setPath(item, fieldDef.key, inp.value); onChange(fieldDef); });
+      wrap.appendChild(inp);
+      return wrap;
+    }
+    if(fieldDef.type === "image" || fieldDef.type === "audio"){
+      const isAudio = fieldDef.type === "audio";
+      const row = document.createElement("div");
+      row.className = "media-field";
+      const sel = document.createElement("select");
+      sel.innerHTML = isAudio ? audioOptions(value) : imageOptions(value);
+      const preview = isAudio ? document.createElement("audio") : document.createElement("img");
+      if(isAudio){ preview.className = "mini-audio"; preview.controls = true; }
+      else { preview.className = "media-preview-thumb"; preview.onerror = function(){ this.style.visibility = "hidden"; }; }
+      const found = isAudio ? findAudioById(value) : findImageById(value);
+      if(found){ preview.src = found.url; }
+      sel.addEventListener("change", () => {
+        setPath(item, fieldDef.key, sel.value);
+        const f = isAudio ? findAudioById(sel.value) : findImageById(sel.value);
+        preview.src = f ? f.url : "";
+        onChange(fieldDef);
+      });
+      const uploadBtn = document.createElement("button");
+      uploadBtn.type = "button"; uploadBtn.className = "secondary tiny"; uploadBtn.textContent = "追加";
+      uploadBtn.addEventListener("click", () => {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = isAudio ? ".mp3,.ogg,.wav,.m4a" : ".webp,.png,.jpg,.jpeg,.gif,.svg";
+        fileInput.onchange = async () => {
+          const file = fileInput.files && fileInput.files[0];
+          if(!file) return;
+          try{
+            const kind = isAudio ? "audio" : "image";
+            const listArr = isAudio ? assetLibrary.audio : assetLibrary.images;
+            const entry = await uploadAndRegister(kind, file, listArr);
+            setPath(item, fieldDef.key, entry.id);
+            (isAudio ? renderAudioGrid : renderImageGrid)();
+            renderTab(currentTab);
+            onChange(fieldDef);
+          }catch(e){ alert("アップロードに失敗しました: " + e.message); }
+        };
+        fileInput.click();
+      });
+      row.appendChild(sel); row.appendChild(preview); row.appendChild(uploadBtn);
+      wrap.appendChild(row);
+      return wrap;
+    }
+    if(fieldDef.type === "collection"){
+      wrap.style.gridColumn = "1 / -1";
+      let arr = getPath(item, fieldDef.key);
+      if(!Array.isArray(arr)){ arr = []; setPath(item, fieldDef.key, arr); }
+      const nestedWrap = document.createElement("div");
+      nestedWrap.style.cssText = "border-top:1px dashed var(--admin-border); padding-top:8px; margin-top:2px;";
+      renderItemList(nestedWrap, arr, fieldDef.itemSchema, fieldDef.itemLabel || "項目", () => onChange(fieldDef));
+      wrap.appendChild(nestedWrap);
+      return wrap;
+    }
+    const inp = document.createElement("input");
+    inp.type = fieldDef.type === "number" ? "number" : "text";
+    if(fieldDef.step != null) inp.step = fieldDef.step;
+    if(fieldDef.min != null) inp.min = fieldDef.min;
+    if(fieldDef.max != null) inp.max = fieldDef.max;
+    inp.value = value != null ? value : "";
+    inp.addEventListener("input", () => {
+      setPath(item, fieldDef.key, fieldDef.type === "number" ? (parseFloat(inp.value) || 0) : inp.value);
+      onChange(fieldDef);
+    });
+    wrap.appendChild(inp);
+    return wrap;
+  }
+
+  function itemHeadingGeneric(schema, item, idx, itemLabel){
+    const titleField = schema.find(f => f.key === "label" || f.key === "title");
+    if(titleField) return getPath(item, titleField.key) || (itemLabel + (idx + 1));
+    return itemLabel + (idx + 1);
+  }
+
+  function renderItemList(container, items, schema, itemLabel, onChange){
+    container.innerHTML = "";
+    items.forEach((item, idx) => {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      const head = document.createElement("div");
+      head.className = "head";
+      head.innerHTML = `
+        <span class="head-title">${itemHeadingGeneric(schema, item, idx, itemLabel)}</span>
+        <div class="head-btns">
+          <button class="secondary tiny" data-act="up">▲</button>
+          <button class="secondary tiny" data-act="down">▼</button>
+          <button class="danger tiny" data-act="remove">削除</button>
+        </div>`;
+      card.appendChild(head);
+      const grid = document.createElement("div");
+      grid.className = "field-grid";
+      schema.forEach(f => {
+        const row = buildFieldRow(f, item, (changedField) => {
+          onChange();
+          if(changedField && changedField.rerenderOnChange){
+            renderItemList(container, items, schema, itemLabel, onChange);
+            return;
+          }
+          const titleEl = head.querySelector(".head-title");
+          if(titleEl) titleEl.textContent = itemHeadingGeneric(schema, item, idx, itemLabel);
+        });
+        grid.appendChild(row);
+      });
+      card.appendChild(grid);
+
+      head.querySelector('[data-act="remove"]').addEventListener("click", () => {
+        items.splice(idx, 1); renderItemList(container, items, schema, itemLabel, onChange); onChange();
+      });
+      head.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        [items[idx-1], items[idx]] = [items[idx], items[idx-1]];
+        renderItemList(container, items, schema, itemLabel, onChange); onChange();
+      });
+      head.querySelector('[data-act="down"]').addEventListener("click", () => {
+        if(idx === items.length - 1) return;
+        [items[idx+1], items[idx]] = [items[idx], items[idx+1]];
+        renderItemList(container, items, schema, itemLabel, onChange); onChange();
+      });
+
+      container.appendChild(card);
+    });
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "secondary";
+    addBtn.style.marginTop = "6px";
+    addBtn.textContent = "＋ " + itemLabel + "を追加";
+    addBtn.addEventListener("click", () => {
+      items.push(defaultItemForSchema(schema));
+      renderItemList(container, items, schema, itemLabel, onChange);
+      onChange();
+    });
+    container.appendChild(addBtn);
+  }
+
+  function renderGenericModule(mod){
+    const panel = $("adminPanel-" + mod.id);
+
+    if(mod.kind === "comingSoon"){
+      panel.innerHTML = `
+        <div class="card">
+          <h2>${mod.icon} ${mod.label}</h2>
+          <p class="stub-note" style="font-size:15px; text-align:center; padding:28px 16px;">
+            現在開発中です。<br>今後のアップデートで対応予定です。
+          </p>
+        </div>
+      `;
+      return;
+    }
+
+    const state = genericState[mod.id];
+    if(!state){ panel.innerHTML = `<div class="card">読み込み中…</div>`; return; }
+
+    if(mod.kind === "singleton"){
+      panel.innerHTML = `<div class="card"><h2>${mod.icon} ${mod.label}</h2><div class="field-grid" id="adminSingletonFields"></div>${mod.note ? `<p class="stub-note" style="margin-top:12px;">${mod.note}</p>` : ""}</div>`;
+      const fieldsWrap = $("adminSingletonFields");
+      mod.schema.forEach(f => {
+        const row = buildFieldRow(f, state.draft, (changedField) => {
+          setDirty(true);
+          if(changedField && changedField.rerenderOnChange) renderGenericModule(mod);
+        });
+        fieldsWrap.appendChild(row);
+      });
+      return;
+    }
+
+    state.draft.items = state.draft.items || [];
+    panel.innerHTML = `
+      <div class="card">
+        <h2>${mod.icon} ${mod.label}</h2>
+        ${mod.note ? `<p class="stub-note">${mod.note}</p>` : ""}
+        <div id="adminGenericCollection-${mod.id}" style="margin-top:12px;"></div>
+      </div>
+    `;
+    renderItemList($("adminGenericCollection-" + mod.id), state.draft.items, mod.schema, mod.itemLabel, () => setDirty(true));
+  }
+
+  // ===== 保存/再読込(現在開いているタブが属するモジュールを対象とする) =====
+  $("btnAdminReload").addEventListener("click", async () => {
+    const state = currentDirtyState();
+    if(state.dirty && !confirm("保存していない変更を破棄して再読込します。よろしいですか?")) return;
+    const mod = MODULES.find(m => m.id === currentTab);
+    if(mod.group === "room"){ await loadRoomConfigForAdmin(); }
+    else{ await loadGenericModule(mod); }
+    renderTab(currentTab);
+    setDirty(false);
+  });
+
+  $("btnAdminSave").addEventListener("click", async () => {
+    const mod = MODULES.find(m => m.id === currentTab);
+    const state = mod.group === "room" ? roomState : genericState[mod.id];
+    const storeId = mod.group === "room" ? "room" : mod.id;
+    const statusEl = $("adminSaveStatus");
+    statusEl.className = ""; statusEl.textContent = "保存中…";
+    $("btnAdminSave").disabled = true;
+    try{
+      await CmsStore.putConfig(storeId, state.draft);
+      state.dirty = false;
+      $("btnAdminSave").disabled = true;
+      statusEl.className = "ok";
+      statusEl.textContent = "✅ 保存しました。ホーム画面へ即時反映されます。";
+      await reflectCmsChangeNow();
+    }catch(e){
+      statusEl.className = "err";
+      statusEl.textContent = "❌ 保存に失敗しました: " + e.message;
+      $("btnAdminSave").disabled = false;
+    }
+  });
+
+  // 保存/削除/インポートの直後に呼ぶ。ホーム画面側のキャッシュを無効化
+  // して読み直し、今ホーム画面が表示中ならその場で再描画する
+  // (アプリ再起動不要で反映するための唯一の経路)。
+  async function reflectCmsChangeNow(){
+    if(typeof invalidateKaosuMediaIndex === "function") invalidateKaosuMediaIndex();
+    if(typeof invalidateKaosuRoomConfigCache === "function") invalidateKaosuRoomConfigCache();
+    if(typeof invalidateKaosuBgmConfigCache === "function") invalidateKaosuBgmConfigCache();
+    if(typeof loadKaosuMediaIndex === "function") await loadKaosuMediaIndex();
+    if(typeof loadKaosuRoomConfig === "function") await loadKaosuRoomConfig();
+    const homeView = document.querySelector('.view[data-view="home"]');
+    if(homeView && homeView.classList.contains("active")){
+      if(typeof renderKaosuRoomScene === "function") renderKaosuRoomScene();
+      if(typeof startKaosuBgm === "function") startKaosuBgm();
+    }
+  }
+
+  // ============================================================
+  // ZIPバックアップ(Export/Import)。依存ライブラリ無しの最小実装で、
+  // 圧縮はせずSTORE方式のみを使う(このアプリ自身が書き出したZIPを
+  // 読み戻せれば十分なため、汎用の解凍アルゴリズムは実装しない)。
+  // ============================================================
+  function kaosuCrc32(bytes){
+    let crc = ~0;
+    for(let i = 0; i < bytes.length; i++){
+      crc ^= bytes[i];
+      for(let j = 0; j < 8; j++){
+        crc = (crc >>> 1) ^ (0xEDB88320 & -(crc & 1));
+      }
+    }
+    return (~crc) >>> 0;
+  }
+  function kaosuDosDateTime(date){
+    const time = ((date.getHours() & 0x1f) << 11) | ((date.getMinutes() & 0x3f) << 5) | (Math.floor(date.getSeconds() / 2) & 0x1f);
+    const d = (((date.getFullYear() - 1980) & 0x7f) << 9) | (((date.getMonth() + 1) & 0xf) << 5) | (date.getDate() & 0x1f);
+    return { time, date: d };
+  }
+  function kaosuBuildZip(entries){
+    const localParts = [];
+    const centralParts = [];
+    let offset = 0;
+    const { time, date } = kaosuDosDateTime(new Date());
+    const encoder = new TextEncoder();
+    entries.forEach(entry => {
+      const nameBytes = encoder.encode(entry.name);
+      const data = entry.data;
+      const crc = kaosuCrc32(data);
+      const size = data.length;
+
+      const local = new DataView(new ArrayBuffer(30));
+      local.setUint32(0, 0x04034b50, true);
+      local.setUint16(4, 20, true);
+      local.setUint16(6, 0, true);
+      local.setUint16(8, 0, true);
+      local.setUint16(10, time, true);
+      local.setUint16(12, date, true);
+      local.setUint32(14, crc, true);
+      local.setUint32(18, size, true);
+      local.setUint32(22, size, true);
+      local.setUint16(26, nameBytes.length, true);
+      local.setUint16(28, 0, true);
+      localParts.push(new Uint8Array(local.buffer), nameBytes, data);
+
+      const central = new DataView(new ArrayBuffer(46));
+      central.setUint32(0, 0x02014b50, true);
+      central.setUint16(4, 20, true);
+      central.setUint16(6, 20, true);
+      central.setUint16(8, 0, true);
+      central.setUint16(10, 0, true);
+      central.setUint16(12, time, true);
+      central.setUint16(14, date, true);
+      central.setUint32(16, crc, true);
+      central.setUint32(20, size, true);
+      central.setUint32(24, size, true);
+      central.setUint16(28, nameBytes.length, true);
+      central.setUint16(30, 0, true);
+      central.setUint16(32, 0, true);
+      central.setUint16(34, 0, true);
+      central.setUint16(36, 0, true);
+      central.setUint32(38, 0, true);
+      central.setUint32(42, offset, true);
+      centralParts.push(new Uint8Array(central.buffer), nameBytes);
+
+      offset += 30 + nameBytes.length + size;
+    });
+
+    const centralStart = offset;
+    const centralSize = centralParts.reduce((s, p) => s + p.length, 0);
+
+    const eocd = new DataView(new ArrayBuffer(22));
+    eocd.setUint32(0, 0x06054b50, true);
+    eocd.setUint16(4, 0, true);
+    eocd.setUint16(6, 0, true);
+    eocd.setUint16(8, entries.length, true);
+    eocd.setUint16(10, entries.length, true);
+    eocd.setUint32(12, centralSize, true);
+    eocd.setUint32(16, centralStart, true);
+    eocd.setUint16(20, 0, true);
+
+    const allParts = localParts.concat(centralParts, [new Uint8Array(eocd.buffer)]);
+    const totalLen = allParts.reduce((s, p) => s + p.length, 0);
+    const out = new Uint8Array(totalLen);
+    let pos = 0;
+    allParts.forEach(p => { out.set(p, pos); pos += p.length; });
+    return out;
+  }
+  function kaosuParseZip(bytes){
+    let eocdOffset = -1;
+    const scanFrom = Math.max(0, bytes.length - 22 - 65557);
+    for(let i = bytes.length - 22; i >= scanFrom; i--){
+      if(bytes[i] === 0x50 && bytes[i+1] === 0x4b && bytes[i+2] === 0x05 && bytes[i+3] === 0x06){ eocdOffset = i; break; }
+    }
+    if(eocdOffset < 0) throw new Error("ZIPファイルとして読み取れませんでした");
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const entryCount = view.getUint16(eocdOffset + 10, true);
+    const centralOffset = view.getUint32(eocdOffset + 16, true);
+    const decoder = new TextDecoder();
+    const headers = [];
+    let pos = centralOffset;
+    for(let i = 0; i < entryCount; i++){
+      if(view.getUint32(pos, true) !== 0x02014b50) throw new Error("ZIP形式が不正です(セントラルディレクトリ)");
+      const method = view.getUint16(pos + 10, true);
+      const compSize = view.getUint32(pos + 20, true);
+      const nameLen = view.getUint16(pos + 28, true);
+      const extraLen = view.getUint16(pos + 30, true);
+      const commentLen = view.getUint16(pos + 32, true);
+      const localOffset = view.getUint32(pos + 42, true);
+      const name = decoder.decode(bytes.subarray(pos + 46, pos + 46 + nameLen));
+      headers.push({ name, method, compSize, localOffset });
+      pos += 46 + nameLen + extraLen + commentLen;
+    }
+    return headers.map(h => {
+      if(view.getUint32(h.localOffset, true) !== 0x04034b50) throw new Error("ZIP形式が不正です(ローカルヘッダ)");
+      const lNameLen = view.getUint16(h.localOffset + 26, true);
+      const lExtraLen = view.getUint16(h.localOffset + 28, true);
+      const dataStart = h.localOffset + 30 + lNameLen + lExtraLen;
+      if(h.method !== 0) throw new Error(`「${h.name}」は圧縮ZIP(未対応形式)です。このアプリで書き出したバックアップのみ復元できます。`);
+      return { name: h.name, data: bytes.subarray(dataStart, dataStart + h.compSize) };
+    });
+  }
+  function blobToBase64(blob){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+  // ネイティブ(Capacitor Android)実行時はFilesystem+Shareプラグイン経由で
+  // 端末へ保存・共有する。このサンドボックスでは実機ビルドができないため
+  // ネイティブ経路は未検証(プラグイン未導入/エラー時はブラウザの
+  // ダウンロードへ自動フォールバックする=壊れない設計)。
+  async function deliverBackupFile(filename, bytes){
+    const blob = new Blob([bytes], { type: "application/zip" });
+    try{
+      const cap = window.Capacitor;
+      if(cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.Plugins.Filesystem && cap.Plugins.Share){
+        const base64 = await blobToBase64(blob);
+        const written = await cap.Plugins.Filesystem.writeFile({ path: filename, data: base64, directory: "CACHE" });
+        await cap.Plugins.Share.share({ title: filename, url: written.uri });
+        return;
+      }
+    }catch(e){ /* ネイティブ経路が使えない場合はブラウザのダウンロードへフォールバック */ }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  $("btnAdminExport").addEventListener("click", async () => {
+    const statusEl = $("adminBackupStatus");
+    statusEl.textContent = "書き出し中…";
+    try{
+      const configs = await CmsStore.getAllConfigs();
+      const media = await CmsStore.getAllMedia();
+      const manifest = {
+        formatVersion: 1,
+        exportedAt: new Date().toISOString(),
+        configs: configs.map(c => ({ id: c.id, updatedAt: c.updatedAt })),
+        media: media.map(m => ({ id: m.id, kind: m.kind, name: m.name, mimeType: m.mimeType, size: m.size, createdAt: m.createdAt })),
+      };
+      const encoder = new TextEncoder();
+      const entries = [{ name: "manifest.json", data: encoder.encode(JSON.stringify(manifest, null, 2)) }];
+      for(const c of configs){
+        entries.push({ name: `configs/${c.id}.json`, data: encoder.encode(JSON.stringify(c.data, null, 2)) });
+      }
+      for(const m of media){
+        const buf = await m.blob.arrayBuffer();
+        entries.push({ name: `media/${m.id}`, data: new Uint8Array(buf) });
+      }
+      const zipBytes = kaosuBuildZip(entries);
+      const filename = `Backup_${new Date().toISOString().slice(0, 10)}.zip`;
+      await deliverBackupFile(filename, zipBytes);
+      statusEl.textContent = "✅ 書き出しました(" + filename + ")。";
+    }catch(e){
+      statusEl.textContent = "❌ 書き出しに失敗しました: " + e.message;
+    }
+  });
+
+  $("btnAdminImport").addEventListener("click", () => { $("adminImportFileInput").click(); });
+  $("adminImportFileInput").addEventListener("change", async () => {
+    const file = $("adminImportFileInput").files && $("adminImportFileInput").files[0];
+    if(!file) return;
+    if(!confirm("バックアップから復元します。現在この端末に保存されているCMSデータは上書きされます。よろしいですか?")){
+      $("adminImportFileInput").value = "";
+      return;
+    }
+    const statusEl = $("adminBackupStatus");
+    statusEl.textContent = "復元中…";
+    try{
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const entries = kaosuParseZip(buf);
+      const manifestEntry = entries.find(e => e.name === "manifest.json");
+      if(!manifestEntry) throw new Error("manifest.jsonが見つかりません(このアプリで書き出したバックアップではない可能性があります)");
+      const manifest = JSON.parse(new TextDecoder().decode(manifestEntry.data));
+      await CmsStore.clearAll();
+      for(const c of (manifest.configs || [])){
+        const entry = entries.find(e => e.name === `configs/${c.id}.json`);
+        if(entry) await CmsStore.putConfig(c.id, JSON.parse(new TextDecoder().decode(entry.data)));
+      }
+      for(const m of (manifest.media || [])){
+        const entry = entries.find(e => e.name === `media/${m.id}`);
+        if(entry) await CmsStore.putMedia({ id: m.id, kind: m.kind, name: m.name, mimeType: m.mimeType, size: m.size, createdAt: m.createdAt, blob: new Blob([entry.data], { type: m.mimeType || "" }) });
+      }
+      statusEl.textContent = "✅ 復元しました。";
+      await reflectCmsChangeNow();
+      if($("adminMainScreen").style.display !== "none") await bootstrapAdmin();
+    }catch(e){
+      statusEl.textContent = "❌ 復元に失敗しました: " + e.message;
+    }finally{
+      $("adminImportFileInput").value = "";
+    }
+  });
+})();
 
 /* =========================================================
    初期化
