@@ -562,19 +562,20 @@ textarea{ font-family:inherit; }
   position:relative; overflow:hidden; flex:1; min-height:0; height:100%;
   padding:calc(18px + env(safe-area-inset-top)) 16px 18px;
   display:flex; flex-direction:column;
-  background-size:108% 108%; background-position:50% 50%;
+  background-size:104% 104%; background-position:50% 50%;
   transition:background .8s ease;
-  animation:kaosuRoomBgDrift calc(50s * var(--kaosu-motion-speed, 1)) ease-in-out infinite alternate;
+  animation:kaosuRoomBgDrift calc(60s * var(--kaosu-motion-speed, 1)) ease-in-out infinite alternate;
 }
-/* Phase22.4: 「部屋の中にいる」感覚を強めるための、ごくゆっくりした
-   背景の呼吸(軽いズーム/パララックス相当)。背景(このscene自身の
-   background)とキャラクター(.kaosu-breathe、5秒周期)の動きの速さを
-   意図的にずらすことで、奥行き(パララックス)のある空間として感じ
-   られるようにする。50秒という長い周期・微小な変化量(108%⇔100%)の
-   ため、動いていることに気づかない程度の「生きている背景」に留める。 */
+/* Phase22.4/22.5: 「部屋の中にいる」感覚を強めるための、ごくゆっくり
+   したKen Burns風の背景ドリフト(指示書どおり60秒周期・数%だけの
+   変化)。背景(このscene自身のbackground)とキャラクター(.kaosu-
+   breathe、5.5秒周期)の動きの速さを意図的にずらすことで、奥行き
+   (軽いパララックス)のある空間として感じられるようにする。ユーザーが
+   気付かない程度に留めるため変化量はごく小さい(background-size
+   100〜104%、positionも数%だけ)。 */
 @keyframes kaosuRoomBgDrift{
-  0%{ background-size:108% 108%; background-position:50% 46%; }
-  100%{ background-size:100% 100%; background-position:50% 52%; }
+  0%{ background-size:104% 104%; background-position:50% 48%; }
+  100%{ background-size:100% 100%; background-position:50% 51%; }
 }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-scene{ animation:none; }
@@ -657,9 +658,19 @@ textarea{ font-family:inherit; }
   content:""; position:absolute; z-index:0; left:50%; top:50%;
   width:min(94vw, 420px); height:min(94vw, 420px);
   transform:translate(-50%,-50%);
-  background:radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(255,220,240,.28) 45%, transparent 72%);
+  background:radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(210,180,255,.3) 45%, transparent 72%);
   filter:blur(2px);
   pointer-events:none;
+  animation:kaosuSpotlightFlicker calc(10s * var(--kaosu-motion-speed, 1)) ease-in-out infinite;
+}
+/* Phase22.5: 指示書どおり「紫〜白の光が8〜12秒周期でわずかに明滅」。
+   opacityとscaleをごくわずかに動かすだけの控えめな明滅。 */
+@keyframes kaosuSpotlightFlicker{
+  0%, 100%{ opacity:.85; transform:translate(-50%,-50%) scale(1); }
+  50%{ opacity:1; transform:translate(-50%,-50%) scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-character::before{ animation:none; }
 }
 /* Phase22.4: 「高級キャラクターゲームのホーム画面」に近づけるため、
    キャラクターの存在感をさらに強める(画面高さの約60〜70%を占める
@@ -718,20 +729,33 @@ textarea{ font-family:inherit; }
    クラスを付けるだけで実画像/フォールバック絵どちらにも同じ呼吸が
    効く。将来Live2D Idle/GIF/Sprite/WebGLへ置き換える時は、この
    .kaosu-breatheクラスの付け外しだけで有効/無効を切り替えられる。
-   Phase62: ピーク時のscale値を固定値1.018からCSS変数
-   --kaosu-breath-peakへ差し替えた(JS側でmoodに応じて上書きする)。
-   変数が未設定の場合は元と同じ1.018にフォールバックするため、
-   Phase62導入前と見た目・挙動は完全に同一。
-   Phase22: 「生きている」感を強めるため、同じ呼吸周期にごくわずかな
-   回転(±0.35deg)を足した(「髪や服の微妙な揺れ」に相当)。scale/
-   translateYの値・周期は無変更で、rotateだけを追加している。 */
-.kaosu-breathe{ animation:kaosuBreathe calc(5s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; transform-origin:center bottom; }
+   Phase62: ピーク時のscale値を固定値からCSS変数--kaosu-breath-peak
+   へ差し替えた(JS側でmoodに応じて上書きする)。
+   Phase22.5: 指示書どおり「絶対に大きく揺らさない自然な呼吸」に
+   合わせ、既定のピーク値を1.018→1.012へ調整(1 + 0.012 * breathScale、
+   breathScaleの既定値は1)。 */
+/* Phase22.5: 髪・羽・服の揺れ相当をkaosuSwayとして追加。標準化された
+   rotateプロパティ(transformとは別プロパティで、ブラウザ側が自動的に
+   合成する)を使うことで、呼吸(transformでscale/translateYを担当)と
+   同じ要素に無干渉で重ねられる。周期は呼吸(5.5秒)とわざとずらして
+   7秒にし、同期させない(指示書の「別タイミングでゆっくり」)。 */
+.kaosu-breathe{
+  animation:
+    kaosuBreathe calc(5.5s * var(--kaosu-motion-speed, 1)) ease-in-out infinite,
+    kaosuSway calc(7s * var(--kaosu-motion-speed, 1)) ease-in-out infinite;
+  transform-origin:center bottom;
+}
 @keyframes kaosuBreathe{
-  0%, 100%{ transform:scale(1) translateY(0) rotate(0deg); opacity:1; }
-  50%{ transform:scale(var(--kaosu-breath-peak, 1.018)) translateY(-2px) rotate(.35deg); opacity:.96; }
+  0%, 100%{ transform:scale(1) translateY(0); opacity:1; }
+  50%{ transform:scale(var(--kaosu-breath-peak, 1.012)) translateY(-1.5px); opacity:.97; }
+}
+@keyframes kaosuSway{
+  0%{ rotate:-.3deg; }
+  50%{ rotate:.8deg; }
+  100%{ rotate:-.3deg; }
 }
 @media (prefers-reduced-motion: reduce){
-  .kaosu-breathe{ animation:none; }
+  .kaosu-breathe{ animation:none; rotate:0deg; }
 }
 /* Phase55: 視線システム。アバターの箱(#kaosuRoomAvatar)をごくわずかに
    平行移動させるだけで正面/左右/上下の5方向を表現する。箱ごと動かす
@@ -849,8 +873,15 @@ textarea{ font-family:inherit; }
 }
 .kaosu-room-scene.kaosu-lighting-night::after{
   opacity:1;
-  background:linear-gradient(180deg, rgba(150,170,255,.18) 0%, rgba(120,130,230,.10) 55%, rgba(100,110,210,0) 100%);
-  box-shadow:inset 0 0 60px -10px rgba(130,150,255,.22);
+  background:linear-gradient(180deg, rgba(180,140,255,.2) 0%, rgba(150,110,225,.1) 55%, rgba(130,100,210,0) 100%);
+  box-shadow:inset 0 0 60px -10px rgba(170,130,255,.24);
+}
+/* Phase22.5: 指示書どおり夜(紫)と深夜(青紫)を別の色味にする(以前は
+   同じkaosu-lighting-nightクラスを共用していた)。 */
+.kaosu-room-scene.kaosu-lighting-midnight::after{
+  opacity:1;
+  background:linear-gradient(180deg, rgba(130,150,255,.18) 0%, rgba(100,110,230,.1) 55%, rgba(90,100,210,0) 100%);
+  box-shadow:inset 0 0 60px -10px rgba(120,140,255,.22);
 }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-scene::after{ transition:none; }
@@ -879,7 +910,11 @@ textarea{ font-family:inherit; }
   backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
   box-shadow:0 4px 14px rgba(140,110,90,.12);
   font-size:12.5px; font-weight:600;
-  text-align:center; transition:background .8s ease, color .8s ease;
+  text-align:center; opacity:0;
+  transition:background .8s ease, color .8s ease, opacity .5s ease;
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-oneliner{ transition:background .8s ease, color .8s ease; }
 }
 .kaosu-room-scene.room-band-night .kaosu-room-oneliner,
 .kaosu-room-scene.room-band-midnight .kaosu-room-oneliner{ background:rgba(40,36,64,.55); color:rgba(255,255,255,.9); }
@@ -889,6 +924,35 @@ textarea{ font-family:inherit; }
 .kaosu-room-badges, .kaosu-room-activity, .kaosu-room-welcome,
 .kaosu-room-anniversary, .kaosu-room-emotion, .kaosu-room-relation, .kaosu-room-event{
   display:none !important;
+}
+
+/* Phase22.5: 光の粒。8個の小さな白い点がゆっくり上昇して消え、
+   negative animation-delayでそれぞれ違う位置から再生成され続けている
+   ように見せる(JSの抽選は使わない、CSSのみの常設アンビエント演出)。
+   透明度は指示書どおり0.1〜0.3に収め、目立たせない。 */
+.kaosu-room-sparkles{ position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+.kaosu-room-sparkles span{
+  position:absolute; bottom:-4%; width:3px; height:3px; border-radius:50%;
+  background:radial-gradient(circle, #fff, rgba(255,255,255,0) 70%);
+  opacity:0; animation:kaosuSparkleRise linear infinite;
+}
+.kaosu-room-sparkles span:nth-child(1){ left:6%;  animation-duration:16s; animation-delay:-1s;  }
+.kaosu-room-sparkles span:nth-child(2){ left:18%; animation-duration:13s; animation-delay:-6s;  }
+.kaosu-room-sparkles span:nth-child(3){ left:30%; animation-duration:18s; animation-delay:-9s;  }
+.kaosu-room-sparkles span:nth-child(4){ left:45%; animation-duration:14s; animation-delay:-3s;  }
+.kaosu-room-sparkles span:nth-child(5){ left:58%; animation-duration:17s; animation-delay:-12s; }
+.kaosu-room-sparkles span:nth-child(6){ left:70%; animation-duration:15s; animation-delay:-7s;  }
+.kaosu-room-sparkles span:nth-child(7){ left:83%; animation-duration:19s; animation-delay:-2s;  }
+.kaosu-room-sparkles span:nth-child(8){ left:92%; animation-duration:16s; animation-delay:-10s; }
+@keyframes kaosuSparkleRise{
+  0%{ transform:translateY(0); opacity:0; }
+  12%{ opacity:.28; }
+  55%{ opacity:.16; }
+  90%{ opacity:.1; }
+  100%{ transform:translateY(-115%); opacity:0; }
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-room-sparkles span{ animation:none; opacity:0; }
 }
 
 /* Phase51: 環境エフェクト。画像/Canvas/重いライブラリは使わず、
@@ -987,11 +1051,14 @@ textarea{ font-family:inherit; }
   padding:18px; font-size:17px; letter-spacing:.01em;
   box-shadow:0 10px 26px rgba(167,139,250,.35);
 }
+/* Phase22.5: 指示書どおり2〜3秒ごとの「極小の発光」に調整(以前は
+   3.2秒周期でやや変化量が大きめだった)。派手にならないよう変化量を
+   さらに小さく抑えている。 */
 @keyframes kaosuCtaGlow{
   0%, 100%{ box-shadow:0 10px 26px rgba(167,139,250,.35); }
-  50%{ box-shadow:0 12px 30px rgba(255,143,199,.45); }
+  50%{ box-shadow:0 11px 27px rgba(255,143,199,.4); }
 }
-.kaosu-cta-talk{ animation:kaosuCtaGlow calc(3.2s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; }
+.kaosu-cta-talk{ animation:kaosuCtaGlow calc(2.6s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-cta-talk{ animation:none; }
 }
@@ -1451,6 +1518,17 @@ textarea.field-input{ resize:none; }
                有効なトラックを、ここへsrcを差し替えて鳴らすだけの
                非表示<audio>。JS側(startKaosuBgm)がすべて制御する。 -->
           <audio id="kaosuBgmAudio" preload="none" style="display:none;"></audio>
+          <!-- Phase22.5: 光の粒(常時8個、CSSのみ・JS抽選なしの静的な
+               装飾)。既存の.kaosu-room-fx(Phase51、季節/気分に応じて
+               JSが絵文字を差し替える演出)とは別の常設レイヤー。透明度
+               0.1〜0.3・ゆっくり上昇して消える・負のanimation-delayで
+               8個それぞれ発生タイミングをずらし、途切れず再生成され
+               続けるように見せる。目立たせない演出のため、JS側の再抽選
+               ロジックは一切追加していない。 -->
+          <div class="kaosu-room-sparkles" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+          </div>
           <!-- Phase51: 環境エフェクト。背景層としてscene先頭に置き、
                z-index:0で他の要素(window/character/badges/text、いずれも
                z-index:1またはDOM順で後発)の下に敷く。中身は
@@ -8110,13 +8188,15 @@ const MOUTH_SWITCH_INTERVAL_MS = 5000;
    使う(ランダム選択はしない)。type("band"のみ実装)を持たせておく
    ことで、将来天気API/季節/位置情報/室内照明/特殊イベントに応じた
    新しいtypeの候補を追加したい場合も、この配列に1件足すだけでよい
-   (未対応typeは自動的にスキップされる)。夜と深夜は同じ「青系」の
-   照明を使う(EVENT_MESSAGE_METAの夜/深夜統合と同じ考え方)。 */
+   (未対応typeは自動的にスキップされる)。Phase22.5: 夜(紫)と深夜
+   (青紫)は指示書どおり別の色味にした(以前は同じ「night」照明を
+   共用していた)。 */
 const LIGHTING_META = [
   { type: "band", test: (ctx) => ctx.band === "morning", cssClass: "kaosu-lighting-morning" },
   { type: "band", test: (ctx) => ctx.band === "day", cssClass: "kaosu-lighting-day" },
   { type: "band", test: (ctx) => ctx.band === "evening", cssClass: "kaosu-lighting-evening" },
-  { type: "band", test: (ctx) => ctx.band === "night" || ctx.band === "midnight", cssClass: "kaosu-lighting-night" },
+  { type: "band", test: (ctx) => ctx.band === "night", cssClass: "kaosu-lighting-night" },
+  { type: "band", test: (ctx) => ctx.band === "midnight", cssClass: "kaosu-lighting-midnight" },
 ];
 /* Phase59: 瞬きシステム。{type, test, cssClass}形式の候補配列で管理し、
    現状はtype==="css"の候補のうちtest()がtrueを返すものだけを対象に
@@ -8177,7 +8257,7 @@ const MOTION_SYSTEM_META = [
         el.classList.add(BREATHE_MOTION_META.cssClass);
         const emotionMotion = (ctx && ctx.emotionMotion) || EMOTION_MOTION_DEFAULT;
         const breathScale = typeof emotionMotion.breathScale === "number" ? emotionMotion.breathScale : 1;
-        el.style.setProperty("--kaosu-breath-peak", (1 + 0.018 * breathScale).toFixed(4));
+        el.style.setProperty("--kaosu-breath-peak", (1 + 0.012 * breathScale).toFixed(4));
       }
     },
   },
@@ -8252,7 +8332,7 @@ const MOTION_SYSTEM_META = [
         }, (item.closeMs + item.holdMs) * scale);
       };
       const scheduleNextBlink = () => {
-        const delay = (3000 + Math.random() * 5000) * motionSpeedScale();
+        const delay = (4000 + Math.random() * 6000) * motionSpeedScale();
         window.setTimeout(() => {
           performBlink();
           scheduleNextBlink();
@@ -8558,20 +8638,25 @@ function setKaosuRoomPoseImage(config, poseKey){
   const avatarBox = imgEl.closest(".kaosu-avatar");
   if(avatarBox) avatarBox.style.display = pose.visible === false ? "none" : "";
 }
-/* ホーム画面リニューアル: 起動後はじめてホーム画面が表示される時だけ、
-   「部屋の奥にいるケイオスちゃんが気づいて手を振り、歩いて定位置まで
-   来ておかえりと言う」入室演出を再生する(renderKaosuRoomScene._entrance
-   Playedフラグで1回きりに制御。既存のPhase55/59/60と同じ「起動フラグで
-   1本だけに固定する」設計を踏襲)。呼吸(.kaosu-room-character)・視線
-   (#kaosuRoomAvatar)のtransformとは別要素(#kaosuRoomEntrance)を動かす
-   ため、既存モーションとは干渉しない。prefers-reduced-motionの場合は
-   移動を行わず、定位置にそのまま表示するだけに留める。「最初に何を
-   していたか」(手を振る/読書/窓を見る/ソファ/ストレッチ…)は
-   room-config.jsonのentranceAnimations.itemsから重み付き抽選で選ぶ
-   (管理画面で出現確率・有効無効・開始位置・再生時間を調整できる)。 */
+/* Phase22.5: 登場演出。起動後はじめてホーム画面が表示される時だけ、
+   「背景フェードイン→キャラが少し下から浮く→セリフ表示」を0.8秒
+   以内で再生する(renderKaosuRoomScene._entrancePlayedフラグで1回
+   きりに制御。既存のPhase55/59/60と同じ「起動フラグで1本だけに固定
+   する」設計を踏襲)。以前は「手を振って歩いてくる」多段階の演出
+   だったが、指示書の「毎回長くしない」「静かで上品な演出」に合わせ、
+   フェード+わずかな浮き上がりだけのシンプルな演出へ変更した。
+   room-config.jsonのentranceAnimations.items(管理画面「演出編集」で
+   編集可能)からは、最初に見せるポーズ(pose)を引き続き重み付き抽選で
+   選ぶ。startOffset/durationMsは「浮き上がる距離・速さ」の微調整
+   として意味を持たせたまま、大きく揺らさないよう上限でクランプする。
+   呼吸(.kaosu-room-character)・視線(#kaosuRoomAvatar)のtransformとは
+   別要素(#kaosuRoomEntrance)を動かすため、既存モーションとは干渉
+   しない。prefers-reduced-motionの場合はフェードも行わず、定位置に
+   そのまま表示するだけに留める。 */
 async function playKaosuRoomEntrance(now = new Date()){
   const wrap = document.getElementById("kaosuRoomEntrance");
   const bubble = document.getElementById("kaosuRoomGreeting");
+  const scene = document.getElementById("kaosuRoomScene");
   if(!wrap) return;
   const config = await loadKaosuRoomConfig();
   const reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -8580,7 +8665,8 @@ async function playKaosuRoomEntrance(now = new Date()){
   const idlePose = picked.pose || "idle";
 
   if(reduced){
-    setKaosuRoomPoseImage(config, "idle");
+    setKaosuRoomPoseImage(config, idlePose);
+    if(bubble) bubble.style.opacity = "1";
     return;
   }
 
@@ -8590,28 +8676,31 @@ async function playKaosuRoomEntrance(now = new Date()){
     const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--kaosu-motion-speed"));
     return isNaN(v) ? 1 : v;
   })();
-  const so = picked.startOffset || { x: 0, y: 0, scale: 1, rotation: 0 };
-  const startTransform = `translate(${so.x || 0}px, ${so.y || 0}px) scale(${so.scale != null ? so.scale : 1}) rotate(${so.rotation || 0}deg)`;
-  const duration = Math.round((picked.durationMs || 1100) * speedScale);
+  const so = picked.startOffset || {};
+  const riseY = Math.min(Math.abs(so.y != null ? so.y : 16), 24);
+  const riseMs = Math.min(Math.round((picked.durationMs || 340) * speedScale), 420);
 
+  if(scene){
+    scene.style.transition = "none";
+    scene.style.opacity = "0";
+  }
   wrap.style.transition = "none";
   wrap.style.opacity = "0";
-  wrap.style.transform = startTransform;
+  wrap.style.transform = `translateY(${riseY}px)`;
   setKaosuRoomPoseImage(config, idlePose);
   if(bubble) bubble.style.opacity = "0";
 
-  await chatWait(30);
+  await chatWait(20);
+  if(scene){
+    scene.style.transition = `opacity ${Math.round(riseMs * .8)}ms ease, background .8s ease`;
+    scene.style.opacity = "1";
+  }
+  wrap.style.transition = `opacity ${riseMs}ms ease, transform ${riseMs}ms cubic-bezier(.22,.8,.32,1)`;
   wrap.style.opacity = "1";
-  await chatWait(Math.round(320 * speedScale));
-  setKaosuRoomPoseImage(config, "wave");
-  await chatWait(Math.round(260 * speedScale));
-  wrap.style.transition = `transform ${duration}ms cubic-bezier(.22,.8,.32,1), opacity .3s ease`;
-  wrap.style.transform = "translate(0,0) scale(1) rotate(0deg)";
-  setKaosuRoomPoseImage(config, "walk");
-  await chatWait(duration);
-  setKaosuRoomPoseImage(config, "idle");
+  wrap.style.transform = "translateY(0)";
+  await chatWait(riseMs);
   if(bubble){
-    bubble.style.transition = "opacity .4s ease";
+    bubble.style.transition = "opacity .3s ease";
     bubble.style.opacity = "1";
   }
 }
@@ -9130,7 +9219,7 @@ async function renderKaosuRoomScene(now = new Date()){
    リアクション→感情→プレゼント→季節イベント→生活シーン→天気→
    おかえり→今日の一言)。抽選・条件判定ロジック自体は各ブロックで
    既に完了しているため、ここでは結果を読むだけで新しい抽選は行わない。 */
-function consolidateKaosuRoomOneLiner(){
+function consolidateKaosuRoomOneLiner(delayMs){
   const oneLinerEl = document.getElementById("kaosuRoomOneLiner");
   if(!oneLinerEl) return;
   const candidateIds = [
@@ -9142,11 +9231,32 @@ function consolidateKaosuRoomOneLiner(){
     const el = document.getElementById(id);
     return el && el.style.display !== "none" && el.textContent.trim();
   });
+  /* Phase22.5: 「挨拶→今日の一言→吹き出し」のように、一気に全部
+     表示せずフェードで段階的に見せる(指示書のセリフ演出)。表示中に
+     文言だけ差し替わる時は一瞬フェードアウト→新しい文言でフェード
+     インし、初表示/入室演出直後は呼び出し側が渡すdelayMs分だけ
+     遅らせて挨拶(吹き出し)の後に続けて出す。 */
   if(winnerId){
-    oneLinerEl.textContent = document.getElementById(winnerId).textContent;
-    oneLinerEl.style.display = "inline-flex";
+    const newText = document.getElementById(winnerId).textContent;
+    const show = () => {
+      oneLinerEl.textContent = newText;
+      oneLinerEl.style.display = "inline-flex";
+      requestAnimationFrame(() => { oneLinerEl.style.opacity = "1"; });
+    };
+    if(oneLinerEl.textContent === newText && oneLinerEl.style.display !== "none"){
+      return; // 内容が同じ時は再フェードしない(ちらつき防止)
+    }
+    if(delayMs){
+      window.setTimeout(show, delayMs);
+    }else if(oneLinerEl.style.display === "none" || !oneLinerEl.textContent){
+      show();
+    }else{
+      oneLinerEl.style.opacity = "0";
+      window.setTimeout(show, 220);
+    }
   }else{
-    oneLinerEl.style.display = "none";
+    oneLinerEl.style.opacity = "0";
+    window.setTimeout(() => { oneLinerEl.style.display = "none"; }, 500);
   }
 }
 
