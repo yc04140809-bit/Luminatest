@@ -7977,13 +7977,16 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
 }
 
 /* ============================================================
-   Lumina CMS: BGM再生エンジン。data/cms/bgm.json (管理画面「🎵BGM」の
-   保存先)を読み込み、現在の時間帯・季節に合う有効なトラックを自動再生
-   する。room-config.jsonと同じ「JSON未配置/404/形式不正のいずれでも
-   何もしないだけで壊れない」フォールバック方針を踏襲している。
-   管理画面のsourceフィールド("upload"/"ai")はCMS側の入力方法の区別で
+   Lumina CMS: BGMプレイリスト再生エンジン。data/cms/bgm.json (管理画面
+   「🎵BGM」の保存先)を読み込む。JSON形式は{items:[...]}で、items配列の
+   1件=1プレイリスト({match, playbackMode, tracks:[...], enabled})。
+   room-config.jsonと同じ「JSON未配置/404/形式不正のいずれでも何もしない
+   だけで壊れない」フォールバック方針を踏襲している。
+   トラック側のsourceフィールド("upload"/"ai")はCMS側の入力方法の区別で
    しかなく、ここではsourceを一切見ずにfileだけを再生する(将来AI生成
-   トラックが増えても、このエンジンは無変更で動く)。 =========== */
+   トラックが増えても、このエンジンは無変更で動く)。
+   新しいプレイリストが管理画面から追加されても、このエンジンは
+   playlist.matchの中身を見て条件判定するだけなので、コード変更は不要。 */
 const KAOSU_BGM_CONFIG_URL = "data/cms/bgm.json";
 let kaosuBgmConfigCache = null;
 let kaosuBgmConfigPromise = null;
@@ -8015,16 +8018,77 @@ function getKaosuSeasonBand(now = new Date()){
   if(month >= 9 && month <= 11) return "autumn";
   return "winter";
 }
-/* 管理画面の「並び替え」順=優先順位として扱う。有効・ファイル設定済み・
-   時間帯/季節が一致(配列が空 = 制限なし)の最初の1件を選ぶだけの
-   シンプルな実装。 */
-function pickKaosuBgmTrack(items, band, season){
-  if(!Array.isArray(items)) return null;
-  return items.find(it =>
-    it && it.enabled !== false && typeof it.file === "string" && it.file &&
-    (!Array.isArray(it.timeOfDay) || it.timeOfDay.length === 0 || it.timeOfDay.includes(band)) &&
-    (!Array.isArray(it.season) || it.season.length === 0 || it.season.includes(season))
-  ) || null;
+/* 天候は実際の気象データと連動する仕組みがまだ無いため、room-config.json
+   のbackground.weatherと同じ「将来の拡張ポイント」として常に空配列を
+   返す(=天候条件を付けたプレイリストは、天気APIと接続されるまで自動
+   選出されない)。天気システムを追加する際はこの関数だけ差し替えればよい。 */
+function getKaosuCurrentWeatherTags(now = new Date()){
+  return [];
+}
+/* 誕生日以外(クリスマス/ハロウィン/正月)は固定の暦日程から自動判定する。
+   誕生日は保存場所が無いため自動判定は行わない(将来、誕生日の保存機能が
+   できた時にここへ追加するだけでよい)。 */
+function getKaosuCurrentEventTags(now = new Date()){
+  const m = now.getMonth() + 1, d = now.getDate();
+  const tags = [];
+  if(m === 12 && d >= 20 && d <= 25) tags.push("christmas");
+  if(m === 10 && d >= 25 && d <= 31) tags.push("halloween");
+  if(m === 1 && d === 1) tags.push("newyear");
+  return tags;
+}
+/* プレイリスト選定。優先順位はroom-config.jsonの背景選定(イベント>季節>
+   天候>時間帯)と同じにしてある。各プレイリストのmatchが指定している
+   次元のうち、現在の状況と一致する最初の1件(=管理画面の並び順の中で
+   最優先)を選ぶ。どの条件付きプレイリストにも一致しない場合は、条件を
+   何も指定していない(=「いつでも」用の)プレイリストへフォールバックする。 */
+function pickKaosuBgmPlaylist(playlists, now = new Date()){
+  if(!Array.isArray(playlists)) return null;
+  const band = getRoomVisualBand(now);
+  const season = getKaosuSeasonBand(now);
+  const weatherTags = getKaosuCurrentWeatherTags(now);
+  const eventTags = getKaosuCurrentEventTags(now);
+  const usable = playlists.filter(p =>
+    p && p.enabled !== false && Array.isArray(p.tracks) &&
+    p.tracks.some(t => t && t.enabled !== false && typeof t.file === "string" && t.file)
+  );
+  const dimIncludes = (arr, activeTags) => Array.isArray(arr) && arr.length > 0 && arr.some(v => activeTags.includes(v));
+  const dimTests = [
+    p => dimIncludes(p.match && p.match.event, eventTags),
+    p => dimIncludes(p.match && p.match.season, [season]),
+    p => dimIncludes(p.match && p.match.weather, weatherTags),
+    p => dimIncludes(p.match && p.match.timeOfDay, [band]),
+  ];
+  for(const test of dimTests){
+    const found = usable.find(test);
+    if(found) return found;
+  }
+  const isUnconditional = (p) => {
+    const m = p.match || {};
+    return (!Array.isArray(m.event) || m.event.length === 0) &&
+      (!Array.isArray(m.season) || m.season.length === 0) &&
+      (!Array.isArray(m.weather) || m.weather.length === 0) &&
+      (!Array.isArray(m.timeOfDay) || m.timeOfDay.length === 0);
+  };
+  return usable.find(isUnconditional) || null;
+}
+/* プレイリスト内のトラック選定。「並び替え」順=順番再生の順番として
+   扱う。再生方法(順番/ランダム/起動ごとランダム)は管理画面の設定通り。 */
+let kaosuBgmSession = { startupRandomPicks: {} };
+let kaosuBgmActivePlaylistId = null;
+let kaosuBgmActiveTrackIndex = 0;
+function pickKaosuBgmTrackFromPlaylist(playlist){
+  const tracks = (playlist.tracks || []).filter(t => t && t.enabled !== false && typeof t.file === "string" && t.file);
+  if(!tracks.length) return null;
+  const mode = playlist.playbackMode || "sequential";
+  if(mode === "random") return tracks[Math.floor(Math.random() * tracks.length)];
+  if(mode === "startupRandom"){
+    if(kaosuBgmSession.startupRandomPicks[playlist.id] == null){
+      kaosuBgmSession.startupRandomPicks[playlist.id] = Math.floor(Math.random() * tracks.length);
+    }
+    return tracks[kaosuBgmSession.startupRandomPicks[playlist.id] % tracks.length];
+  }
+  const idx = (kaosuBgmActivePlaylistId === playlist.id) ? (((kaosuBgmActiveTrackIndex % tracks.length) + tracks.length) % tracks.length) : 0;
+  return tracks[idx];
 }
 /* フェード用の音量ランプ。既存のtransition/animation群とは別系統の
    単純なsetInterval実装で、他のモーションのタイマー管理には触れない。 */
@@ -8045,27 +8109,46 @@ function fadeKaosuBgmVolume(audioEl, from, to, durationMs, onDone){
   }, 60);
 }
 let kaosuBgmCurrentTrackId = null;
-/* 再生開始。設定でOFFにされている場合/一致するトラックが無い場合は
-   何もしない(既に再生中なら止める)。ブラウザの自動再生制限で play()
-   が拒否された場合は、ユーザーの最初の操作(click/touchstart/keydown)
-   を待って1回だけ再試行する(タイマーの多重登録はしない)。 */
+let kaosuBgmCurrentFadeOutMs = 1000;
+/* トラック再生が終わった時に呼ばれる。ホーム画面を離れていれば何もしない。
+   順番再生は次の曲へ進め、ランダム系はstartKaosuBgm()側で毎回再抽選される
+   ため何もしなくてよい。その後startKaosuBgm()を再実行することで、時間帯/
+   季節がその間に変わっていれば別のプレイリストへ自動的に切り替わる。 */
+function advanceKaosuBgmPlaylist(playlist){
+  const homeView = document.querySelector('.view[data-view="home"]');
+  if(!homeView || !homeView.classList.contains("active")) return;
+  if(playlist.playbackMode !== "random" && playlist.playbackMode !== "startupRandom"){
+    kaosuBgmActiveTrackIndex += 1;
+  }
+  startKaosuBgm();
+}
+/* 再生開始。設定でOFFにされている場合/一致するプレイリスト・トラックが
+   無い場合は何もしない(既に再生中なら止める)。ブラウザの自動再生制限で
+   play()が拒否された場合は、ユーザーの最初の操作(click/touchstart/
+   keydown)を待って1回だけ再試行する(タイマーの多重登録はしない)。 */
 async function startKaosuBgm(now = new Date()){
   const audioEl = document.getElementById("kaosuBgmAudio");
   if(!audioEl) return;
   if(settingsRead().motion.bgm === false){ stopKaosuBgm(); return; }
   const config = await loadKaosuBgmConfig();
-  const band = getRoomVisualBand(now);
-  const season = getKaosuSeasonBand(now);
-  const track = pickKaosuBgmTrack(config.items, band, season);
+  const playlist = pickKaosuBgmPlaylist(config.items, now);
+  if(!playlist){ stopKaosuBgm(); return; }
+  const track = pickKaosuBgmTrackFromPlaylist(playlist);
   if(!track){ stopKaosuBgm(); return; }
-  if(kaosuBgmCurrentTrackId === (track.id || track.file) && !audioEl.paused) return;
+  const trackKey = playlist.id + "::" + (track.id || track.file);
+  if(kaosuBgmCurrentTrackId === trackKey && !audioEl.paused) return;
 
-  const playNewTrack = () => {
-    kaosuBgmCurrentTrackId = track.id || track.file;
+  const playThisTrack = () => {
+    kaosuBgmCurrentTrackId = trackKey;
+    kaosuBgmActivePlaylistId = playlist.id;
+    const tracks = (playlist.tracks || []).filter(t => t && t.enabled !== false && typeof t.file === "string" && t.file);
+    kaosuBgmActiveTrackIndex = Math.max(0, tracks.indexOf(track));
     audioEl.src = track.file;
-    audioEl.loop = track.loop !== false;
+    audioEl.loop = false; // 単曲ループはプレイリストの再生方法が代わりに制御する
+    audioEl.onended = () => { advanceKaosuBgmPlaylist(playlist); };
     const targetVolume = typeof track.volume === "number" ? Math.min(1, Math.max(0, track.volume)) : 0.6;
     const fadeInMs = typeof track.fadeInMs === "number" ? track.fadeInMs : 1500;
+    kaosuBgmCurrentFadeOutMs = typeof track.fadeOutMs === "number" ? track.fadeOutMs : 1000;
     audioEl.volume = 0;
     const playPromise = audioEl.play();
     if(playPromise && typeof playPromise.catch === "function"){
@@ -8080,16 +8163,16 @@ async function startKaosuBgm(now = new Date()){
   };
 
   if(!audioEl.paused && audioEl.src){
-    const prevTrackForFade = config.items.find(it => (it.id || it.file) === kaosuBgmCurrentTrackId);
-    const fadeOutMs = (prevTrackForFade && typeof prevTrackForFade.fadeOutMs === "number") ? prevTrackForFade.fadeOutMs : 1000;
-    fadeKaosuBgmVolume(audioEl, audioEl.volume, 0, fadeOutMs, () => { audioEl.pause(); playNewTrack(); });
+    fadeKaosuBgmVolume(audioEl, audioEl.volume, 0, kaosuBgmCurrentFadeOutMs, () => { audioEl.pause(); playThisTrack(); });
   }else{
-    playNewTrack();
+    playThisTrack();
   }
 }
 function stopKaosuBgm(){
   const audioEl = document.getElementById("kaosuBgmAudio");
-  if(!audioEl || audioEl.paused) { kaosuBgmCurrentTrackId = null; return; }
+  if(!audioEl) return;
+  audioEl.onended = null;
+  if(audioEl.paused){ kaosuBgmCurrentTrackId = null; return; }
   fadeKaosuBgmVolume(audioEl, audioEl.volume, 0, 800, () => {
     audioEl.pause();
     kaosuBgmCurrentTrackId = null;

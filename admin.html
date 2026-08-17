@@ -79,7 +79,10 @@
   audio.mini-audio{ height:28px; max-width:140px; }
 
   /* ===== モジュールタブ ===== */
-  .tabbar{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .tabbar{ margin-bottom:16px; }
+  .tabbar-group{ margin-bottom:10px; }
+  .tabbar-group-heading{ font-size:12px; color:var(--muted); margin-bottom:6px; font-weight:600; }
+  .tabbar-group-row{ display:flex; gap:6px; flex-wrap:wrap; }
   .tabbar button{ background:var(--tab-bg); color:var(--text); border:1px solid var(--border); font-size:13px; padding:8px 12px; }
   .tabbar button.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
   .tab-panel{ display:none; }
@@ -180,20 +183,55 @@
   const SEASON = [ { key: "spring", label: "春" }, { key: "summer", label: "夏" }, { key: "autumn", label: "秋" }, { key: "winter", label: "冬" } ];
   const EVENT = [ { key: "birthday", label: "誕生日" }, { key: "christmas", label: "クリスマス" }, { key: "halloween", label: "ハロウィン" }, { key: "newyear", label: "お正月" } ];
 
+  // 音声系モジュール(BGM/効果音/ボイス/環境音)で共通の「音源」「音声
+  // ファイル」フィールド定義。AI生成はまだ実装しないため、source:"ai"を
+  // 選ぶとfileフィールドがdisabledWhenで自動的にComing Soon表示へ切り替わる
+  // (buildFieldRowの汎用機構)。将来AI生成を実装する際は、disabledWhenの
+  // 条件とComing Soonのラベルを外すだけで、この同じデータ構造のまま使える。
+  function makeSourceField(comingSoonLabel){
+    return {
+      key: "source", label: "音源", type: "select", default: "upload", rerenderOnChange: true,
+      options: [ { value: "upload", label: "アップロード" }, { value: "ai", label: comingSoonLabel || "AI生成 (Coming Soon)" } ],
+    };
+  }
+  function makeFileField(){
+    return {
+      key: "file", label: "音声ファイル", type: "audio", default: "",
+      disabledWhen: (item) => item.source === "ai",
+      disabledLabel: "AI生成機能は準備中です。しばらくお待ちください。",
+    };
+  }
+  // BGMプレイリスト内の「収録曲」1件のスキーマ(ネストしたcollectionフィールド用)。
+  const BGM_TRACK_SCHEMA = [
+    { key: "label", label: "曲名", type: "text", default: "新しい曲" },
+    makeSourceField(),
+    makeFileField(),
+    { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.6 },
+    { key: "fadeInMs", label: "フェードイン(ms)", type: "number", step: 100, min: 0, default: 1500 },
+    { key: "fadeOutMs", label: "フェードアウト(ms)", type: "number", step: 100, min: 0, default: 1500 },
+    { key: "enabled", label: "有効", type: "boolean", default: true },
+  ];
+
   // ============================================================
   // モジュール定義: 新しいCMSモジュールを追加するときは、この配列に
   // 1件足すだけでよい(バックエンドもフロントの他の場所も変更不要)。
   // group:"room" の4つは既存のroom-config.jsonを共有する専用エディタ、
-  // group:"generic" のものは data/cms/*.json を汎用コレクション編集
-  // エンジン(renderCollectionEditor / renderSingletonEditor)で編集する。
+  // group:"generic" のものは data/cms/*.json を汎用コレクション/
+  // シングルトン編集エンジン(renderGenericModule)で編集する。
+  // kind:"collection"のitemsは、schemaにtype:"collection"のフィールドを
+  // 1つ含めるだけでネスト(プレイリストの中の曲、のような入れ子構造)に
+  // 対応できる(BGMを参照)。kind:"comingSoon"はデータを持たず、準備中の
+  // 案内だけを表示する(将来AI生成機能を実装する際、この1行をcollection
+  // モジュールへ差し替えるだけで済む設計)。
+  // category は画面上のタブをグループ分けする見出しにのみ使う。
   // ============================================================
   const MODULES = [
-    { id: "room", icon: "🏠", label: "部屋編集", group: "room" },
-    { id: "character", icon: "👧", label: "ケイオスちゃん編集", group: "room" },
-    { id: "direction", icon: "🎭", label: "演出編集", group: "room" },
-    { id: "furniture", icon: "🎁", label: "家具・装飾", group: "room" },
+    { id: "room", icon: "🏠", label: "部屋編集", category: "room", group: "room" },
+    { id: "character", icon: "👧", label: "ケイオスちゃん編集", category: "room", group: "room" },
+    { id: "direction", icon: "🎭", label: "演出編集", category: "room", group: "room" },
+    { id: "furniture", icon: "🎁", label: "家具・装飾", category: "room", group: "room" },
     {
-      id: "season", icon: "🌸", label: "季節イベント", group: "generic",
+      id: "season", icon: "🌸", label: "季節イベント", category: "content", group: "generic",
       path: "data/cms/seasonal-events.json", kind: "collection", defaultShape: { items: [] },
       itemLabel: "イベント",
       schema: [
@@ -206,29 +244,71 @@
       note: "この期間だけ部屋の背景を切り替える設定です。アプリ側での自動切替の反映は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
     },
     {
-      id: "bgm", icon: "🎵", label: "BGM", group: "generic",
+      id: "bgm", icon: "🎵", label: "BGM", category: "sound", group: "generic",
       path: "data/cms/bgm.json", kind: "collection", defaultShape: { items: [] },
-      itemLabel: "トラック",
+      itemLabel: "プレイリスト",
       schema: [
-        { key: "label", label: "曲名", type: "text", default: "新しいBGM" },
-        { key: "source", label: "音源", type: "select", default: "upload", rerenderOnChange: true,
-          options: [ { value: "upload", label: "アップロード" }, { value: "ai", label: "AI生成 (Coming Soon)" } ] },
-        { key: "file", label: "音声ファイル", type: "audio", default: "",
-          disabledWhen: (item) => item.source === "ai", disabledLabel: "AI生成機能は準備中です。しばらくお待ちください。" },
-        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.6 },
-        { key: "loop", label: "ループ再生", type: "boolean", default: true },
-        { key: "fadeInMs", label: "フェードイン(ms)", type: "number", step: 100, min: 0, default: 1500 },
-        { key: "fadeOutMs", label: "フェードアウト(ms)", type: "number", step: 100, min: 0, default: 1500 },
-        { key: "timeOfDay", label: "時間帯(未選択=すべて)", type: "multiselect", default: [],
+        { key: "label", label: "プレイリスト名", type: "text", default: "新しいプレイリスト" },
+        { key: "playbackMode", label: "再生方法", type: "select", default: "sequential",
+          options: [ { value: "sequential", label: "順番再生" }, { value: "random", label: "ランダム再生" }, { value: "startupRandom", label: "起動ごとランダム" } ] },
+        { key: "match.timeOfDay", label: "時間帯(未選択=すべて)", type: "multiselect", default: [],
           options: TIME_BANDS.map(b => ({ value: b.key, label: b.label })) },
-        { key: "season", label: "季節(未選択=すべて)", type: "multiselect", default: [],
+        { key: "match.season", label: "季節(未選択=すべて)", type: "multiselect", default: [],
           options: SEASON.map(s => ({ value: s.key, label: s.label })) },
+        { key: "match.weather", label: "天候(未選択=すべて)", type: "multiselect", default: [],
+          options: WEATHER.map(w => ({ value: w.key, label: w.label })) },
+        { key: "match.event", label: "イベント(未選択=すべて)", type: "multiselect", default: [],
+          options: EVENT.map(e => ({ value: e.key, label: e.label })) },
+        { key: "tracks", label: "収録曲", type: "collection", itemLabel: "曲", itemSchema: BGM_TRACK_SCHEMA, default: [] },
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
-      note: "有効なトラックのうち、現在の時間帯・季節に条件が合うものが「並び順」の上から選ばれ、ホーム画面で自動再生・自動フェードされます(保存後、数十秒〜1分程度でホーム画面に反映)。sourceは入力方法の区別のみで、ホーム画面側は常にfileを再生します。",
+      note: "優先順位は「イベント > 季節 > 天候 > 時間帯」。現在の条件に合うプレイリストのうち、並び順が一番上のものが使われます。どの条件にも一致しない場合は、時間帯・季節・天候・イベントを何も選択していない(=「いつでも」用の)プレイリストが使われます。天候は天気APIとの連携が今後対応予定のため現時点では自動選出されず、イベントはクリスマス/ハロウィン/お正月のみカレンダー日付から自動判定されます。保存後、数十秒〜1分程度でホーム画面に反映されます。",
     },
     {
-      id: "effects", icon: "✨", label: "エフェクト", group: "generic",
+      id: "sfx", icon: "🔊", label: "効果音", category: "sound", group: "generic",
+      path: "data/cms/sfx.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "効果音",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しい効果音" },
+        makeSourceField("AI効果音生成 (Coming Soon)"),
+        makeFileField(),
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.8 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "追加・削除・並び替え・保存・プレビューは今日から使えます。特定の操作(タップ/通知など)に合わせてホーム画面側で実際に再生する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "voice", icon: "🎙️", label: "ボイス", category: "sound", group: "generic",
+      path: "data/cms/voice.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "ボイス",
+      schema: [
+        { key: "label", label: "名前(例: おかえりの挨拶)", type: "text", default: "新しいボイス" },
+        makeSourceField("AIボイス生成 (Coming Soon)"),
+        makeFileField(),
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.9 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "追加・削除・並び替え・保存・プレビューは今日から使えます。実際の会話にボイスを再生する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "ambient", icon: "🌿", label: "環境音", category: "sound", group: "generic",
+      path: "data/cms/ambient.json", kind: "collection", defaultShape: { items: [] },
+      itemLabel: "環境音",
+      schema: [
+        { key: "label", label: "名前(例: 鳥のさえずり)", type: "text", default: "新しい環境音" },
+        makeSourceField("AI環境音生成 (Coming Soon)"),
+        makeFileField(),
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.5 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "追加・削除・並び替え・保存・プレビューは今日から使えます。ホーム画面での自動再生(BGMとの重ね掛け)は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    { id: "aiMusic", icon: "🎼", label: "AI音楽生成", category: "sound", group: "generic", kind: "comingSoon" },
+    { id: "aiVoice", icon: "🎤", label: "AIボイス生成", category: "sound", group: "generic", kind: "comingSoon" },
+    { id: "aiAmbient", icon: "🌿", label: "AI環境音生成", category: "sound", group: "generic", kind: "comingSoon" },
+    { id: "aiSfx", icon: "🎹", label: "AI効果音生成", category: "sound", group: "generic", kind: "comingSoon" },
+    {
+      id: "effects", icon: "✨", label: "エフェクト", category: "appearance", group: "generic",
       path: "data/cms/effects.json", kind: "collection", defaultShape: { items: [] },
       itemLabel: "エフェクト",
       schema: [
@@ -242,7 +322,7 @@
       note: "登録したエフェクトをホーム画面で再生する機能は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
     },
     {
-      id: "dialogue", icon: "💬", label: "セリフ・会話管理", group: "generic",
+      id: "dialogue", icon: "💬", label: "セリフ・会話管理", category: "content", group: "generic",
       path: "data/cms/dialogue.json", kind: "collection", defaultShape: { items: [] },
       itemLabel: "セリフ",
       schema: [
@@ -255,7 +335,7 @@
       note: "ここで登録したセリフを実際の会話・挨拶に反映する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
     },
     {
-      id: "theme", icon: "🎨", label: "テーマ編集", group: "generic",
+      id: "theme", icon: "🎨", label: "テーマ編集", category: "appearance", group: "generic",
       path: "data/cms/theme.json", kind: "singleton",
       defaultShape: { primaryColor: "#8b6fd6", accentColor: "#ffb6c9", backgroundStyle: "default", notes: "" },
       schema: [
@@ -268,7 +348,7 @@
       note: "テーマをアプリ側の配色に自動反映する処理は今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
     },
     {
-      id: "announcements", icon: "📢", label: "お知らせ管理", group: "generic",
+      id: "announcements", icon: "📢", label: "お知らせ管理", category: "content", group: "generic",
       path: "data/cms/announcements.json", kind: "collection", defaultShape: { items: [] },
       itemLabel: "お知らせ",
       schema: [
@@ -543,22 +623,48 @@
   }
 
   // ===== タブ =====
+  // タブをcategoryごとにグループ分けして表示するための見出し。新しい
+  // categoryを使うモジュールを追加した場合、ここへ1行足すだけでよい
+  // (足し忘れても「その他」という見出しの下に表示されるだけで壊れない)。
+  const MODULE_CATEGORY_LABELS = {
+    room: "🏠 部屋・キャラクター",
+    sound: "🎵 サウンド管理",
+    content: "📝 コンテンツ",
+    appearance: "🎨 見た目・演出",
+  };
   function buildTabs(){
     const bar = $("tabbar");
     bar.innerHTML = "";
     const panels = $("tabPanels");
     panels.innerHTML = "";
+    const categories = [];
     MODULES.forEach(mod => {
-      const btn = document.createElement("button");
-      btn.textContent = mod.icon + " " + mod.label;
-      btn.dataset.tab = mod.id;
-      btn.addEventListener("click", () => switchTab(mod.id));
-      bar.appendChild(btn);
+      const cat = mod.category || "other";
+      if(!categories.includes(cat)) categories.push(cat);
+    });
+    categories.forEach(cat => {
+      const group = document.createElement("div");
+      group.className = "tabbar-group";
+      const heading = document.createElement("div");
+      heading.className = "tabbar-group-heading";
+      heading.textContent = MODULE_CATEGORY_LABELS[cat] || "その他";
+      group.appendChild(heading);
+      const row = document.createElement("div");
+      row.className = "tabbar-group-row";
+      MODULES.filter(m => (m.category || "other") === cat).forEach(mod => {
+        const btn = document.createElement("button");
+        btn.textContent = mod.icon + " " + mod.label;
+        btn.dataset.tab = mod.id;
+        btn.addEventListener("click", () => switchTab(mod.id));
+        row.appendChild(btn);
 
-      const panel = document.createElement("div");
-      panel.className = "tab-panel";
-      panel.id = "panel-" + mod.id;
-      panels.appendChild(panel);
+        const panel = document.createElement("div");
+        panel.className = "tab-panel";
+        panel.id = "panel-" + mod.id;
+        panels.appendChild(panel);
+      });
+      group.appendChild(row);
+      bar.appendChild(group);
     });
   }
 
@@ -567,13 +673,17 @@
     document.querySelectorAll("#tabbar button").forEach(b => b.classList.toggle("active", b.dataset.tab === tabId));
     document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + tabId));
     const mod = MODULES.find(m => m.id === tabId);
-    if(mod.group === "generic" && !(genericState[tabId] && genericState[tabId].loaded)){
+    if(mod.group === "generic" && mod.kind !== "comingSoon" && !(genericState[tabId] && genericState[tabId].loaded)){
       await loadGenericModule(mod);
     }
     renderTab(tabId);
-    const state = currentDirtyState();
-    $("saveBar").style.display = "flex";
-    $("btnSave").disabled = !state.dirty;
+    if(mod.kind === "comingSoon"){
+      $("saveBar").style.display = "none";
+    }else{
+      const state = currentDirtyState();
+      $("saveBar").style.display = "flex";
+      $("btnSave").disabled = !state.dirty;
+    }
     $("saveStatus").textContent = "";
     $("saveStatus").className = "";
   }
@@ -943,7 +1053,19 @@
     for(let i = 0; i < parts.length - 1; i++){ o[parts[i]] = o[parts[i]] || {}; o = o[parts[i]]; }
     o[parts[parts.length - 1]] = val;
   }
-  function defaultForField(f){ return f.default !== undefined ? f.default : (f.type === "boolean" ? false : f.type === "number" ? 0 : ""); }
+  // schemaのdefault値(特に配列/オブジェクト)は複数アイテム間で同じ
+  // 参照を共有してしまわないよう、常に複製してから使う(例: multiselect
+  // やネストしたcollectionのdefault:[]を複数のプレイリストが共有して
+  // しまい、片方の編集がもう片方にも反映される、という事故を防ぐ)。
+  function cloneDefaultValue(v){
+    if(Array.isArray(v)) return v.map(cloneDefaultValue);
+    if(v && typeof v === "object") return JSON.parse(JSON.stringify(v));
+    return v;
+  }
+  function defaultForField(f){
+    const raw = f.default !== undefined ? f.default : (f.type === "boolean" ? false : f.type === "number" ? 0 : "");
+    return cloneDefaultValue(raw);
+  }
   function defaultItemForSchema(schema){
     const obj = {};
     schema.forEach(f => setPath(obj, f.key, defaultForField(f)));
@@ -1074,6 +1196,21 @@
       wrap.appendChild(row);
       return wrap;
     }
+    if(fieldDef.type === "collection"){
+      // ネストした子リスト(例: BGMプレイリストの中の「収録曲」)。
+      // renderItemList()をそのまま再帰的に使い回すだけで、追加/削除/
+      // 並び替え/アップロードがトップレベルのモジュールと全く同じ挙動で
+      // 手に入る。field-gridは1カラム140px単位なので、ここだけ全幅に
+      // 広げて読みやすくする。
+      wrap.style.gridColumn = "1 / -1";
+      let arr = getPath(item, fieldDef.key);
+      if(!Array.isArray(arr)){ arr = []; setPath(item, fieldDef.key, arr); }
+      const nestedWrap = document.createElement("div");
+      nestedWrap.style.cssText = "border-top:1px dashed var(--border); padding-top:8px; margin-top:2px;";
+      renderItemList(nestedWrap, arr, fieldDef.itemSchema, fieldDef.itemLabel || "項目", () => onChange(fieldDef));
+      wrap.appendChild(nestedWrap);
+      return wrap;
+    }
     // text / number (既定)
     const inp = document.createElement("input");
     inp.type = fieldDef.type === "number" ? "number" : "text";
@@ -1089,14 +1226,92 @@
     return wrap;
   }
 
-  function itemHeading(mod, item, idx){
-    const titleField = mod.schema.find(f => f.key === "label" || f.key === "title");
-    if(titleField) return getPath(item, titleField.key) || (mod.itemLabel + (idx + 1));
-    return mod.itemLabel + (idx + 1);
+  function itemHeadingGeneric(schema, item, idx, itemLabel){
+    const titleField = schema.find(f => f.key === "label" || f.key === "title");
+    if(titleField) return getPath(item, titleField.key) || (itemLabel + (idx + 1));
+    return itemLabel + (idx + 1);
+  }
+
+  // 「項目の配列(schemaで定義したフィールドを持つitem-card群)を、追加/
+  // 削除/並び替えつきでcontainerへ描画する」という、collectionモジュール
+  // (トップレベル)とcollection型フィールド(ネストした子リスト。例:
+  // BGMプレイリストの中の曲)の両方から共有される唯一の実装。新しい
+  // モジュールやネスト構造を追加するとき、この関数は変更不要。
+  function renderItemList(container, items, schema, itemLabel, onChange){
+    container.innerHTML = "";
+    items.forEach((item, idx) => {
+      const card = document.createElement("div");
+      card.className = "item-card";
+      const head = document.createElement("div");
+      head.className = "head";
+      head.innerHTML = `
+        <span class="head-title">${itemHeadingGeneric(schema, item, idx, itemLabel)}</span>
+        <div class="head-btns">
+          <button class="secondary tiny" data-act="up">▲</button>
+          <button class="secondary tiny" data-act="down">▼</button>
+          <button class="danger tiny" data-act="remove">削除</button>
+        </div>`;
+      card.appendChild(head);
+      const grid = document.createElement("div");
+      grid.className = "field-grid";
+      schema.forEach(f => {
+        const row = buildFieldRow(f, item, (changedField) => {
+          onChange();
+          if(changedField && changedField.rerenderOnChange){
+            renderItemList(container, items, schema, itemLabel, onChange);
+            return;
+          }
+          const titleEl = head.querySelector(".head-title");
+          if(titleEl) titleEl.textContent = itemHeadingGeneric(schema, item, idx, itemLabel);
+        });
+        grid.appendChild(row);
+      });
+      card.appendChild(grid);
+
+      head.querySelector('[data-act="remove"]').addEventListener("click", () => {
+        items.splice(idx, 1); renderItemList(container, items, schema, itemLabel, onChange); onChange();
+      });
+      head.querySelector('[data-act="up"]').addEventListener("click", () => {
+        if(idx === 0) return;
+        [items[idx-1], items[idx]] = [items[idx], items[idx-1]];
+        renderItemList(container, items, schema, itemLabel, onChange); onChange();
+      });
+      head.querySelector('[data-act="down"]').addEventListener("click", () => {
+        if(idx === items.length - 1) return;
+        [items[idx+1], items[idx]] = [items[idx], items[idx+1]];
+        renderItemList(container, items, schema, itemLabel, onChange); onChange();
+      });
+
+      container.appendChild(card);
+    });
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "secondary";
+    addBtn.style.marginTop = "6px";
+    addBtn.textContent = "＋ " + itemLabel + "を追加";
+    addBtn.addEventListener("click", () => {
+      items.push(defaultItemForSchema(schema));
+      renderItemList(container, items, schema, itemLabel, onChange);
+      onChange();
+    });
+    container.appendChild(addBtn);
   }
 
   function renderGenericModule(mod){
     const panel = $("panel-" + mod.id);
+
+    if(mod.kind === "comingSoon"){
+      panel.innerHTML = `
+        <div class="card">
+          <h2>${mod.icon} ${mod.label}</h2>
+          <p class="stub-note" style="font-size:15px; text-align:center; padding:28px 16px;">
+            現在開発中です。<br>今後のアップデートで対応予定です。
+          </p>
+        </div>
+      `;
+      return;
+    }
+
     const state = genericState[mod.id];
     if(!state){ panel.innerHTML = `<div class="card">読み込み中…</div>`; return; }
 
@@ -1120,67 +1335,9 @@
         <h2>${mod.icon} ${mod.label}</h2>
         ${mod.note ? `<p class="stub-note">${mod.note}</p>` : ""}
         <div id="genericCollection-${mod.id}" style="margin-top:12px;"></div>
-        <button class="secondary" id="btnAddItem-${mod.id}" style="margin-top:6px;">＋ ${mod.itemLabel}を追加</button>
       </div>
     `;
-    renderGenericCollectionItems(mod);
-    $("btnAddItem-" + mod.id).addEventListener("click", () => {
-      state.draft.items.push(defaultItemForSchema(mod.schema));
-      renderGenericCollectionItems(mod);
-      setDirty(true);
-    });
-  }
-
-  function renderGenericCollectionItems(mod){
-    const state = genericState[mod.id];
-    const wrap = $("genericCollection-" + mod.id);
-    wrap.innerHTML = "";
-    state.draft.items.forEach((item, idx) => {
-      const card = document.createElement("div");
-      card.className = "item-card";
-      const head = document.createElement("div");
-      head.className = "head";
-      head.innerHTML = `
-        <span class="head-title">${itemHeading(mod, item, idx)}</span>
-        <div class="head-btns">
-          <button class="secondary tiny" data-act="up">▲</button>
-          <button class="secondary tiny" data-act="down">▼</button>
-          <button class="danger tiny" data-act="remove">削除</button>
-        </div>`;
-      card.appendChild(head);
-      const grid = document.createElement("div");
-      grid.className = "field-grid";
-      mod.schema.forEach(f => {
-        const row = buildFieldRow(f, item, (changedField) => {
-          setDirty(true);
-          if(changedField && changedField.rerenderOnChange){
-            renderGenericCollectionItems(mod);
-            return;
-          }
-          head.querySelector(".head-title").textContent = itemHeading(mod, item, idx);
-        });
-        grid.appendChild(row);
-      });
-      card.appendChild(grid);
-
-      head.querySelector('[data-act="remove"]').addEventListener("click", () => {
-        state.draft.items.splice(idx, 1); renderGenericCollectionItems(mod); setDirty(true);
-      });
-      head.querySelector('[data-act="up"]').addEventListener("click", () => {
-        if(idx === 0) return;
-        const arr = state.draft.items;
-        [arr[idx-1], arr[idx]] = [arr[idx], arr[idx-1]];
-        renderGenericCollectionItems(mod); setDirty(true);
-      });
-      head.querySelector('[data-act="down"]').addEventListener("click", () => {
-        const arr = state.draft.items;
-        if(idx === arr.length - 1) return;
-        [arr[idx+1], arr[idx]] = [arr[idx], arr[idx+1]];
-        renderGenericCollectionItems(mod); setDirty(true);
-      });
-
-      wrap.appendChild(card);
-    });
+    renderItemList($("genericCollection-" + mod.id), state.draft.items, mod.schema, mod.itemLabel, () => setDirty(true));
   }
 
   // ===== 保存(現在開いているタブが属するモジュールを保存する) =====
