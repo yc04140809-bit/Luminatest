@@ -883,13 +883,6 @@ textarea{ font-family:inherit; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-scene::after{ transition:none; }
 }
-.kaosu-room-greeting{
-  position:relative; z-index:1; max-width:260px; margin:10px auto 0;
-  text-align:center; font-size:14px; font-weight:600;
-  background:rgba(255,255,255,.82); color:#33313f;
-  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
-  transition:background .8s ease, color .8s ease;
-}
 /* Phase22: 表示するテキストを「挨拶(吹き出し)」+「ひとことメッセージ」
    の最大2つだけに絞る。生活シーン/季節イベント/天気/おかえり/今日の
    一言/継続記念/プレゼント/感情/関係性リアクション/時間限定イベント
@@ -1035,9 +1028,6 @@ textarea{ font-family:inherit; }
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.28) 55%, rgba(8,4,18,.85) 100%),
     linear-gradient(180deg,#1c1f3a 0%,#171331 60%,#0e0a1e 100%);
 }
-.kaosu-room-scene.room-band-night .kaosu-room-greeting,
-.kaosu-room-scene.room-band-midnight .kaosu-room-greeting{ background:rgba(255,255,255,.94); }
-
 /* ホーム画面UI簡素化(Phase22.2): 旧#homeFeatureDrawer(「機能を見る」で
    開く格納庫)は廃止し、中身は「わたし」タブへそのまま移設した。
    .kaosu-room-shelfは元々.kaosu-room直下(部屋の底に重なる想定の
@@ -1604,12 +1594,10 @@ textarea.field-input{ resize:none; }
                (生活シーン→季節イベント→
                天気・空気感→おかえりメッセージ→今日の一言→継続記念→
                プレゼント演出→感情→関係性リアクション→時間限定
-               イベント)でDOMに並べ、既存の吹き出し挨拶(kaosu-room-
-               greeting)を一番下に据え置く。いずれも保存はせず、
-               renderKaosuRoom
-               Scene()だけがテキストを書き換える読み込み専用の装飾。
-               既存のrerollKaosuRoomGreeting()/switchView()には一切
-               触れない。 -->
+               イベント)でDOMに並べる。いずれも保存はせず、
+               renderKaosuRoomScene()だけがテキストを書き換える
+               読み込み専用の装飾。(旧・吹き出し挨拶kaosu-room-
+               greetingは実機修正でDOMごと廃止済み。) -->
           <div class="kaosu-room-badges" id="kaosuRoomBadges">
             <p class="kaosu-room-activity" id="kaosuRoomActivity"></p>
             <p class="kaosu-room-activity" id="kaosuRoomSeason"></p>
@@ -1624,9 +1612,14 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome kaosu-room-event" id="kaosuRoomEvent" style="display:none;"></p>
           <!-- Phase22: 上のPhase43〜53の個別要素はCSS側で常時非表示にし
                (計算ロジックは維持)、そこから優先順位で選んだ1件だけを
-               ここへ表示する。挨拶(吹き出し)と合わせて最大2行に収める。 -->
+               ここへ表示する。
+               実機修正: 一言メッセージ(このkaosuRoomOneLiner)の下に
+               もう1つ、ランダムな挨拶文だけを表示する白い角丸カード
+               (旧#kaosuRoomGreeting、吹き出し挨拶)が並んでいたが、
+               役割がkaosuRoomOneLinerと重複するだけの不要なUIだった
+               ため、DOMごと完全に削除した(display:noneではない)。
+               ホームのテキストはこのkaosuRoomOneLiner一本化する。 -->
           <p class="kaosu-room-oneliner" id="kaosuRoomOneLiner" style="display:none;"></p>
-          <div class="speech-bubble kaosu-room-greeting" id="kaosuRoomGreeting"></div>
           </div>
           <!-- ホーム画面UI簡素化: 「ケイオスちゃんと話す」だけを残す。
                ショートカット行(幸せ設計/ワクワク/未来/一歩/チャット)は
@@ -3238,7 +3231,7 @@ function switchView(view, fromPopState){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
-  if(view === "home"){ renderKaosuRoomSceneWithEntrance(); rerollKaosuRoomGreeting(); startKaosuBgm(); }
+  if(view === "home"){ renderKaosuRoomSceneWithEntrance(); startKaosuBgm(); }
   else{ stopKaosuBgm(); }
   if(view === "chat"){ openChatView(); }
   if(view === "settings"){ renderSettingsView(); }
@@ -7987,11 +7980,10 @@ const SEASON_EVENT_META = {
     { icon: "🎄", label: "冬の飾り" },
   ],
 };
-/* Phase45: おかえりメッセージシステム。既存のKAOSU_ROOM_GREETINGS/
-   rerollKaosuRoomGreeting()(Version2.0の吹き出し挨拶)はそのまま
-   残し、置き換えたり呼び出し元(switchView())を変更したりしない。
-   時間帯別の一言はrenderKaosuRoomScene()の中だけで完結させる、
-   別枠の演出として追加する。 */
+/* Phase45: おかえりメッセージシステム。時間帯別の一言はrenderKaosu
+   RoomScene()の中だけで完結させる、別枠の演出として追加する。
+   (旧・吹き出し挨拶KAOSU_ROOM_GREETINGS/rerollKaosuRoomGreeting()は
+   実機修正でDOMごと廃止済み。) */
 const WELCOME_MESSAGE_META = {
   morning: ["おはよう♪", "今日も来てくれて嬉しいな"],
   day: ["ちゃんと休憩してる？", "少しだけ一息つこう？"],
@@ -8771,12 +8763,21 @@ function setKaosuRoomPoseImage(config, poseKey){
    別要素(#kaosuRoomEntrance)を動かすため、既存モーションとは干渉
    しない。prefers-reduced-motionの場合はフェードも行わず、定位置に
    そのまま表示するだけに留める。 */
+/* 実機修正: 旧・吹き出し挨拶(#kaosuRoomGreeting)のDOM削除にともない、
+   このentrance関数が担当するのは「背景→キャラ」の2段階のみにした。
+   一言メッセージ(#kaosuRoomOneLiner)はrenderKaosuRoomScene()が呼ぶ
+   consolidateKaosuRoomOneLiner()が実データ確定後に自前でフェード
+   表示する(過去に「データが無いうちにここから先出しして空表示に
+   なる」不具合を踏んだため、あえてこの関数からは一切触れない)。
+   CTAの表示も同じ理由でここでは行わず、呼び出し元のrenderKaosuRoom
+   SceneWithEntrance()が「背景→キャラ→(データ確定/一言)→CTA」の
+   順になるよう、この関数の後段でタイミングを制御する。戻り値の
+   {reduced, stageMs}は、その後段のCTA表示が同じ速度倍率・同じ
+   reduced-motion判定を再計算せずに使い回すためのもの。 */
 async function playKaosuRoomEntrance(now = new Date()){
   const wrap = document.getElementById("kaosuRoomEntrance");
-  const bubble = document.getElementById("kaosuRoomGreeting");
   const scene = document.getElementById("kaosuRoomScene");
-  const actions = document.getElementById("kaosuRoomActions");
-  if(!wrap) return;
+  if(!wrap) return { reduced: true, stageMs: 0 };
   const config = await loadKaosuRoomConfig();
   const reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
@@ -8785,17 +8786,14 @@ async function playKaosuRoomEntrance(now = new Date()){
 
   if(reduced){
     setKaosuRoomPoseImage(config, idlePose);
-    if(bubble) bubble.style.opacity = "1";
-    if(actions) actions.style.opacity = "1";
-    return;
+    return { reduced: true, stageMs: 0 };
   }
 
-  /* 実機ブラッシュアップ: 「背景→キャラ→挨拶→CTA」の4段階を、
-     指示書どおり0.2〜0.3秒ずつ順番に(同時にではなく)フェードインする。
-     Phase68のモーション速度設定(--kaosu-motion-speed)は引き続き
-     踏襲し、各段の長さに同じ倍率をかける。初回セッションのみ再生
-     (renderKaosuRoomScene._entrancePlayedで制御、2回目以降は
-     renderKaosuRoomScene()が即時表示するだけになる)。 */
+  /* 「背景→キャラ」を指示書どおり0.2〜0.3秒ずつ順番に(同時にではなく)
+     フェードインする。Phase68のモーション速度設定(--kaosu-motion-
+     speed)は引き続き踏襲し、各段の長さに同じ倍率をかける。初回
+     セッションのみ再生(renderKaosuRoomScene._entrancePlayedで制御、
+     2回目以降はrenderKaosuRoomScene()が即時表示するだけになる)。 */
   const speedScale = (() => {
     const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--kaosu-motion-speed"));
     return isNaN(v) ? 1 : v;
@@ -8812,8 +8810,6 @@ async function playKaosuRoomEntrance(now = new Date()){
   wrap.style.opacity = "0";
   wrap.style.transform = `translateY(${riseY}px)`;
   setKaosuRoomPoseImage(config, idlePose);
-  if(bubble) bubble.style.opacity = "0";
-  if(actions) actions.style.opacity = "0";
 
   await chatWait(20);
   if(scene){
@@ -8827,26 +8823,38 @@ async function playKaosuRoomEntrance(now = new Date()){
   wrap.style.transform = "translateY(0)";
   await chatWait(stageMs);
 
-  if(bubble){
-    bubble.style.transition = `opacity ${stageMs}ms ease`;
-    bubble.style.opacity = "1";
-  }
-  await chatWait(stageMs);
-
-  if(actions){
-    actions.style.transition = `opacity ${stageMs}ms ease`;
-    actions.style.opacity = "1";
-  }
+  return { reduced: false, stageMs };
 }
 /* switchView()の"home"分岐/初期化コードの呼び出し口は、既存の
    renderKaosuRoomScene()をこの関数に差し替えるだけでよい。1回目だけ
    入室演出を先に再生してから、既存のrenderKaosuRoomScene()(無変更)を
    呼ぶ。2回目以降はrenderKaosuRoomScene()を直接呼ぶだけで、既存の
-   Phase43〜72の挙動と完全に同じになる。 */
+   Phase43〜72の挙動と完全に同じになる。
+   実機修正: CTA(#kaosuRoomActions)の表示も「背景→キャラ→一言→CTA」
+   の4段階の最後として、初回だけ演出対象に含める。ただしCTAの表示
+   タイミングはrenderKaosuRoomScene()(一言メッセージの実データを
+   確定させる関数)を呼んだ後にする必要があるため、playKaosuRoom
+   Entrance()の中ではなくここで制御する(consolidateKaosuRoomOneLiner
+   側のrequestAnimationFrameベースの表示ロジックと競合させないため、
+   一言メッセージ自体のopacityはここでも一切操作しない)。 */
 async function renderKaosuRoomSceneWithEntrance(now = new Date()){
   if(!renderKaosuRoomScene._entrancePlayed){
     renderKaosuRoomScene._entrancePlayed = true;
-    await playKaosuRoomEntrance(now);
+    const actions = document.getElementById("kaosuRoomActions");
+    const reducedGuess = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if(actions && !reducedGuess) actions.style.opacity = "0";
+    const { reduced, stageMs } = await playKaosuRoomEntrance(now);
+    renderKaosuRoomScene(now);
+    if(actions){
+      if(reduced){
+        actions.style.opacity = "1";
+      }else{
+        await chatWait(stageMs);
+        actions.style.transition = `opacity ${stageMs}ms ease`;
+        actions.style.opacity = "1";
+      }
+    }
+    return;
   }
   renderKaosuRoomScene(now);
 }
@@ -9389,25 +9397,6 @@ function consolidateKaosuRoomOneLiner(delayMs){
     oneLinerEl.style.opacity = "0";
     window.setTimeout(() => { oneLinerEl.style.display = "none"; }, 500);
   }
-}
-
-/* 指示書の例文をそのまま採用した「おかえり」挨拶プール。ホームへ戻る
-   たび(switchViewでview==="home"になるたび)にランダムで1件選ぶ。
-   データの再読み込みや通知の有無で再抽選しないよう、あえて
-   renderHomeAiAdviceCard()等の既存リフレッシュ経路には便乗させず、
-   switchView()の「home」分岐からだけ呼ぶ(初回表示・タブ復帰の
-   タイミングだけ変える)。 */
-const KAOSU_ROOM_GREETINGS = [
-  "おかえり♪",
-  "今日はどうする？",
-  "今日はゆっくり出来そう？",
-  "無理し過ぎたらあかんで😊",
-  "今日はワクワク見つかった？",
-];
-function rerollKaosuRoomGreeting(){
-  const el = document.getElementById("kaosuRoomGreeting");
-  if(!el) return;
-  el.textContent = KAOSU_ROOM_GREETINGS[Math.floor(Math.random() * KAOSU_ROOM_GREETINGS.length)];
 }
 
 /* =========================================================
@@ -14844,7 +14833,6 @@ renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
 renderKaosuRoomSceneWithEntrance();
-rerollKaosuRoomGreeting();
 startKaosuBgm();
 renderNotificationModeChips();
 renderNotificationPermissionRow();
