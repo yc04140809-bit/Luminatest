@@ -1,15 +1,16 @@
 {
   "configVersion": 1,
-  "_readme": "このファイルは将来の管理画面(CMS)がコードを一切書き換えずに編集することを想定した設定ファイルです。画像パスはimg/koufuku/room/以下のファイル名をそのまま指すので、ファイルを置く/差し替える/このJSONの値を書き換えるだけで、アプリのコード(koufuku-ai.html)を変更せずに見た目・演出を変更できます。存在しない画像パスを指しても、フロント側はonerrorで自動的にCSSフォールバックへ切り替わるため壊れません。",
+  "_readme": "このファイルは将来の管理画面(CMS)がコードを一切書き換えずに編集することを想定した設定ファイルの参考スキーマです(実行時はkoufukuAiDBのcmsConfigストアを読み、未設定時のみkoufuku-ai.html内のKAOSU_ROOM_CONFIG_DEFAULTへフォールバックします。この静的JSON自体はアプリから直接fetchされません)。画像パスはimg/koufuku/room/以下のファイル名をそのまま指すので、ファイルを置く/差し替える/管理画面の値を書き換えるだけで、アプリのコードを変更せずに見た目・演出を変更できます。存在しない画像パスを指しても、フロント側は自動的にCSSフォールバックへ切り替わるため壊れません。",
+  "_backgroundPolicy": "room_master.webpをホーム背景の絶対基準とする。カメラ位置・画角・窓/家具の配置・部屋の構造は全時間帯・季節・天候・イベントで完全固定とし、別の部屋を生成しない。時間帯ごとの見た目の違いは、この同じ画像の上に重ねる半透明の光色オーバーレイ(朝=暖色/昼=白系/夕方=オレンジ/夜=紫/深夜=青紫)だけで表現する。将来、時間帯ごとに実際に描き分けた素材(room_morning.webp等)が用意された場合のみ、該当する時間帯のimageを個別に差し替える。",
 
   "background": {
     "enabled": true,
     "timeOfDay": {
-      "morning":  { "enabled": true, "image": "img/koufuku/room/bg-morning.webp" },
-      "day":      { "enabled": true, "image": "img/koufuku/room/bg-day.webp" },
-      "evening":  { "enabled": true, "image": "img/koufuku/room/bg-evening.webp" },
-      "night":    { "enabled": true, "image": "img/koufuku/room/bg-night.webp" },
-      "midnight": { "enabled": true, "image": "img/koufuku/room/bg-midnight.webp" }
+      "morning":  { "enabled": true, "image": "img/koufuku/room/room_master.webp" },
+      "day":      { "enabled": true, "image": "img/koufuku/room/room_master.webp" },
+      "evening":  { "enabled": true, "image": "img/koufuku/room/room_master.webp" },
+      "night":    { "enabled": true, "image": "img/koufuku/room/room_master.webp" },
+      "midnight": { "enabled": true, "image": "img/koufuku/room/room_master.webp" }
     },
     "weather": {
       "_readme": "enabled:trueにした天候は、時間帯背景より優先して使われる(将来、天気APIや天気システムと連動させる拡張ポイント)。",

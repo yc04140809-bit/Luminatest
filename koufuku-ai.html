@@ -644,7 +644,7 @@ textarea{ font-family:inherit; }
   content:""; position:absolute; z-index:0; left:50%; top:50%;
   width:min(94vw, 420px); height:min(94vw, 420px);
   transform:translate(-50%,-50%);
-  background:radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(210,180,255,.3) 45%, transparent 72%);
+  background:radial-gradient(circle, rgba(255,255,255,.55) 0%, rgba(255,200,180,.28) 45%, transparent 72%);
   filter:blur(2px);
   pointer-events:none;
   animation:kaosuSpotlightFlicker calc(10s * var(--kaosu-motion-speed, 1)) ease-in-out infinite;
@@ -684,16 +684,20 @@ textarea{ font-family:inherit; }
 /* 既存アセット(kaosu-home.webp等)は正方形・背景色ベタ塗りのバスト
    アップ画像のため、そのまま大きく表示すると輪郭が四角く硬く見える。
    .chat-hero-avatar img(Phase21のチャット画面)と同じ考え方で、
-   楕円形のmask-imageで縁だけを淡くフェードさせ、部屋の背景に馴染ませる。 */
+   楕円形のmask-imageで縁だけを淡くフェードさせ、部屋の背景に馴染ませる。
+   room_master.webp採用に伴い、写真の細かい家具/窓と正方形の平塗り
+   背景との境界が目立ちやすくなったため、フェード開始位置を62%→40%へ
+   前倒しし終端も96%へ広げて、より広い範囲でじわっと透過させる。 */
 /* 実機ブラッシュアップ: drop-shadowはmask-imageと違い透過部分を無視し
-   不透明ピクセルの輪郭にだけ淡くにじむため、部屋の紫トーンの背景に
-   立っている質感を足せる(既存のスポットライト::beforeより輪郭に
-   密着した、ごく淡い環境光)。 */
+   不透明ピクセルの輪郭にだけ淡くにじむため、部屋の背景に立っている
+   質感を足せる(既存のスポットライト::beforeより輪郭に密着した、
+   ごく淡い環境光)。room_master.webpの実際の色調(ピンク・ゴールドの
+   暖色系)に合わせ、紫から暖色トーンへ変更。 */
 #kaosuRoomAvatar img{
   object-fit:contain; object-position:center bottom;
-  -webkit-mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
-  mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
-  filter:drop-shadow(0 6px 22px rgba(160,120,255,.28));
+  -webkit-mask-image:radial-gradient(ellipse 64% 88% at 50% 38%, #000 52%, transparent 94%);
+  mask-image:radial-gradient(ellipse 64% 88% at 50% 38%, #000 52%, transparent 94%);
+  filter:drop-shadow(0 6px 22px rgba(255,170,150,.26));
 }
 /* 実機修正: 「読み込み中を隠す演出」用のプレースホルダー(丸顔
    フォールバック・上部の窓枠装飾)を廃止し、代わりに読み込み完了まで
@@ -8494,16 +8498,26 @@ const LIFE_STATE_META = [
    フォールバックするため、管理画面が無い現時点でもアプリは壊れない。
    ============================================================ */
 const KAOSU_ROOM_ASSET_DIR = "img/koufuku/room/";
+/* ホーム背景の絶対基準(room_master.webp): カメラ位置・画角・窓/家具の
+   配置・部屋の構造は全時間帯・季節・天候・イベントで完全固定とし、
+   「別の部屋」を生成しない。時間帯ごとの表情の違いは、この同じ
+   room_master.webpの上に.kaosu-room-scene.kaosu-lighting-*::after
+   (Phase58、朝=暖色/昼=白系/夕方=オレンジ/夜=紫/深夜=青紫の半透明の
+   光色オーバーレイ)を重ねるだけで表現する(画像を差し替えない)。
+   将来、時間帯ごとに本当に描き分けたroom_morning.webp等の実素材が
+   用意された場合は、管理画面からその時間帯のimageだけを個別に
+   差し替えれば、この既定値より優先して使われる(kaosuRoomConfigBg
+   ImagePath()の既存優先順位ロジックは変更していない)。 */
 const KAOSU_ROOM_CONFIG_DEFAULT = {
   configVersion: 1,
   background: {
     enabled: true,
     timeOfDay: {
-      morning:  { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-morning.webp" },
-      day:      { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-day.webp" },
-      evening:  { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-evening.webp" },
-      night:    { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-night.webp" },
-      midnight: { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "bg-midnight.webp" },
+      morning:  { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "room_master.webp" },
+      day:      { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "room_master.webp" },
+      evening:  { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "room_master.webp" },
+      night:    { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "room_master.webp" },
+      midnight: { enabled: true, image: KAOSU_ROOM_ASSET_DIR + "room_master.webp" },
     },
     weather: {},
     season: {},
