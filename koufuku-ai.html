@@ -663,10 +663,11 @@ textarea{ font-family:inherit; }
    サイズへ拡大)。足元には柔らかい接地シャドウ(::after、新規画像
    なしのCSSのみ)を敷き、背景に浮いて見えないようにする。 */
 .kaosu-room-character::after{
-  content:""; position:absolute; z-index:0; left:50%; bottom:2%;
-  width:min(46vw, 220px); height:14px;
+  content:""; position:absolute; z-index:0; left:50%; bottom:1%;
+  width:min(50vw, 240px); height:18px;
   transform:translateX(-50%);
-  background:radial-gradient(ellipse, rgba(15,8,28,.4) 0%, rgba(15,8,28,0) 72%);
+  background:radial-gradient(ellipse, rgba(12,6,24,.48) 0%, rgba(12,6,24,0) 72%);
+  filter:blur(3px);
   pointer-events:none;
 }
 /* Phase22: ケイオスちゃんの本体表示を「小さな丸アイコン」から「部屋の
@@ -684,10 +685,15 @@ textarea{ font-family:inherit; }
    アップ画像のため、そのまま大きく表示すると輪郭が四角く硬く見える。
    .chat-hero-avatar img(Phase21のチャット画面)と同じ考え方で、
    楕円形のmask-imageで縁だけを淡くフェードさせ、部屋の背景に馴染ませる。 */
+/* 実機ブラッシュアップ: drop-shadowはmask-imageと違い透過部分を無視し
+   不透明ピクセルの輪郭にだけ淡くにじむため、部屋の紫トーンの背景に
+   立っている質感を足せる(既存のスポットライト::beforeより輪郭に
+   密着した、ごく淡い環境光)。 */
 #kaosuRoomAvatar img{
   object-fit:contain; object-position:center bottom;
   -webkit-mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
   mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
+  filter:drop-shadow(0 6px 22px rgba(160,120,255,.28));
 }
 /* 実機修正: 「読み込み中を隠す演出」用のプレースホルダー(丸顔
    フォールバック・上部の窓枠装飾)を廃止し、代わりに読み込み完了まで
@@ -8755,6 +8761,7 @@ async function playKaosuRoomEntrance(now = new Date()){
   const wrap = document.getElementById("kaosuRoomEntrance");
   const bubble = document.getElementById("kaosuRoomGreeting");
   const scene = document.getElementById("kaosuRoomScene");
+  const actions = document.getElementById("kaosuRoomActions");
   if(!wrap) return;
   const config = await loadKaosuRoomConfig();
   const reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -8765,18 +8772,23 @@ async function playKaosuRoomEntrance(now = new Date()){
   if(reduced){
     setKaosuRoomPoseImage(config, idlePose);
     if(bubble) bubble.style.opacity = "1";
+    if(actions) actions.style.opacity = "1";
     return;
   }
 
-  /* Phase68のモーション速度設定(--kaosu-motion-speed)をそのまま踏襲し、
-     入室演出も他のモーションと同じ倍率で速く/遅くなるようにする。 */
+  /* 実機ブラッシュアップ: 「背景→キャラ→挨拶→CTA」の4段階を、
+     指示書どおり0.2〜0.3秒ずつ順番に(同時にではなく)フェードインする。
+     Phase68のモーション速度設定(--kaosu-motion-speed)は引き続き
+     踏襲し、各段の長さに同じ倍率をかける。初回セッションのみ再生
+     (renderKaosuRoomScene._entrancePlayedで制御、2回目以降は
+     renderKaosuRoomScene()が即時表示するだけになる)。 */
   const speedScale = (() => {
     const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--kaosu-motion-speed"));
     return isNaN(v) ? 1 : v;
   })();
   const so = picked.startOffset || {};
   const riseY = Math.min(Math.abs(so.y != null ? so.y : 16), 24);
-  const riseMs = Math.min(Math.round((picked.durationMs || 340) * speedScale), 420);
+  const stageMs = Math.round(250 * speedScale);
 
   if(scene){
     scene.style.transition = "none";
@@ -8787,19 +8799,29 @@ async function playKaosuRoomEntrance(now = new Date()){
   wrap.style.transform = `translateY(${riseY}px)`;
   setKaosuRoomPoseImage(config, idlePose);
   if(bubble) bubble.style.opacity = "0";
+  if(actions) actions.style.opacity = "0";
 
   await chatWait(20);
   if(scene){
-    scene.style.transition = `opacity ${Math.round(riseMs * .8)}ms ease, background .8s ease`;
+    scene.style.transition = `opacity ${stageMs}ms ease, background .8s ease`;
     scene.style.opacity = "1";
   }
-  wrap.style.transition = `opacity ${riseMs}ms ease, transform ${riseMs}ms cubic-bezier(.22,.8,.32,1)`;
+  await chatWait(stageMs);
+
+  wrap.style.transition = `opacity ${stageMs}ms ease, transform ${stageMs}ms cubic-bezier(.22,.8,.32,1)`;
   wrap.style.opacity = "1";
   wrap.style.transform = "translateY(0)";
-  await chatWait(riseMs);
+  await chatWait(stageMs);
+
   if(bubble){
-    bubble.style.transition = "opacity .3s ease";
+    bubble.style.transition = `opacity ${stageMs}ms ease`;
     bubble.style.opacity = "1";
+  }
+  await chatWait(stageMs);
+
+  if(actions){
+    actions.style.transition = `opacity ${stageMs}ms ease`;
+    actions.style.opacity = "1";
   }
 }
 /* switchView()の"home"分岐/初期化コードの呼び出し口は、既存の
