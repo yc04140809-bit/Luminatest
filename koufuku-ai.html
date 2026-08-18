@@ -1238,10 +1238,10 @@ textarea{ font-family:inherit; }
   border-top:1px solid var(--border);
   padding:6px 4px calc(6px + env(safe-area-inset-bottom));
   box-shadow:0 -2px 14px rgba(140,130,190,.07);
-  position:absolute; left:0; right:0; bottom:0; z-index:20;
+  position:absolute; left:0; right:0; bottom:0; width:100%; z-index:20;
 }
 .navitem{
-  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+  flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:2px;
   background:none; border:none; padding:8px 2px; border-radius:14px; color:#aaa7ba;
 }
 .navitem .navicon{ display:flex; align-items:center; justify-content:center; }
@@ -1401,6 +1401,26 @@ textarea.field-input{ resize:none; }
 .confirm-actions > *{ flex:1; }
 
 /* ============================================================
+   Startup Sequence。起動直後だけ全画面(.appの外、画面幅いっぱい)を
+   覆い、管理画面「Startup Sequence」タブで編集したシーンを順番に
+   クロスフェード再生する。2枚の<img>を交互に使い、Aがフェードアウト
+   する間にBがフェードインすることでクロスフェードを実現する
+   (JS側のplayKaosuStartupSequence()がinnerHTML/opacity/transformを
+   都度書き換えるだけで、CSSは器と既定値だけを持つ)。 */
+.kaosu-startup-sequence{
+  position:fixed; inset:0; z-index:950;
+  background:#1c1530; overflow:hidden;
+}
+.kaosu-startup-img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; object-position:center; opacity:0;
+  will-change:opacity, transform;
+}
+@media (prefers-reduced-motion: reduce){
+  .kaosu-startup-sequence{ display:none !important; }
+}
+
+/* ============================================================
    Phase20: 管理者モード(アプリ内CMS)。以前のWeb版(admin.html)の
    UI・CSSをそのまま移植したもの。既存のアプリ全体のCSS変数(--card
    等)と名前がぶつからないよう、独自の変数はすべて--admin-プレフィックス
@@ -1493,6 +1513,14 @@ textarea.field-input{ resize:none; }
 </style>
 </head>
 <body>
+
+<!-- Phase: Startup Sequence。起動直後だけ全画面を覆い、管理画面で編集
+     したシーン(画像+表示時間+フェード)を順番にクロスフェード再生する
+     専用レイヤー。.appの外(max-width:480pxの制約を受けない)に置き、
+     画面幅いっぱいに表示する。シーン未設定(既定)なら即座にdisplay:
+     noneのまま何もしない、既存の「設定が空なら何もしない」グレース
+     フルデグラデーション方針を踏襲。 -->
+<div class="kaosu-startup-sequence" id="kaosuStartupSequence" style="display:none;" aria-hidden="true"></div>
 
 <div class="app">
   <main class="viewport" id="viewport">
