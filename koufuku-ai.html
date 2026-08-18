@@ -1416,8 +1416,47 @@ textarea.field-input{ resize:none; }
   object-fit:cover; object-position:center; opacity:0;
   will-change:opacity, transform;
 }
+/* 次フェーズ対応: SceneはExpression(表情)を「立ち絵の差し替え」では
+   なく、既存のkaosu-face-*.webp(実在するアセット)を使った控えめな
+   バッジとして重ねるだけにしてある(立ち絵自体を表情ごとに作り分ける
+   運用はまだ無いため)。 */
+.kaosu-startup-expression-badge{
+  position:absolute; z-index:60; left:50%; bottom:14%;
+  width:56px; height:56px; transform:translateX(-50%);
+  border-radius:50%; overflow:hidden; opacity:0;
+  border:3px solid rgba(255,255,255,.85); box-shadow:0 4px 14px rgba(0,0,0,.3);
+  transition:opacity .3s ease;
+}
+.kaosu-startup-expression-badge img{ width:100%; height:100%; object-fit:cover; display:block; }
+/* 次フェーズ対応: SceneのEffect参照(none/sparkle/petals/snow/glow)。
+   新しいEffectを追加する場合はここへ.kaosu-startup-effect-<key>を
+   1つ増やすだけで、Scene側はキー名を参照するだけで済む。 */
+.kaosu-startup-effect{ position:absolute; inset:0; z-index:55; pointer-events:none; opacity:0; transition:opacity .4s ease; }
+.kaosu-startup-effect.is-active{ opacity:1; }
+.kaosu-startup-effect-sparkle::before{
+  content:"✨"; position:absolute; top:20%; left:50%; font-size:28px;
+  animation:kaosuStartupEffectFloat 2.4s ease-in-out infinite;
+}
+.kaosu-startup-effect-petals::before{
+  content:"🌸"; position:absolute; top:10%; left:50%; font-size:26px;
+  animation:kaosuStartupEffectFall 3s ease-in infinite;
+}
+.kaosu-startup-effect-snow::before{
+  content:"❄"; position:absolute; top:10%; left:50%; font-size:24px; color:#fff;
+  animation:kaosuStartupEffectFall 3.6s linear infinite;
+}
+.kaosu-startup-effect-glow::before{
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(circle at 50% 60%, rgba(255,255,255,.35), transparent 60%);
+  animation:kaosuStartupEffectPulse 2.2s ease-in-out infinite;
+}
+@keyframes kaosuStartupEffectFloat{ 0%,100%{ transform:translate(-50%,0); opacity:.3; } 50%{ transform:translate(-50%,-16px); opacity:.9; } }
+@keyframes kaosuStartupEffectFall{ 0%{ transform:translate(-50%,-10%); opacity:0; } 15%{ opacity:.8; } 100%{ transform:translate(-50%,110%); opacity:0; } }
+@keyframes kaosuStartupEffectPulse{ 0%,100%{ opacity:.4; } 50%{ opacity:.8; } }
 @media (prefers-reduced-motion: reduce){
   .kaosu-startup-sequence{ display:none !important; }
+  .kaosu-startup-effect-sparkle::before, .kaosu-startup-effect-petals::before,
+  .kaosu-startup-effect-snow::before, .kaosu-startup-effect-glow::before{ animation:none; }
 }
 
 /* ============================================================
@@ -8926,15 +8965,31 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
 /* ============================================================
    Startup Sequence: 起動直後専用のシーン順次再生システム。
    ------------------------------------------------------------
-   設計方針(Pose/Animationの分離): 各シーンは「どの画像を出すか」を
-   自分では持たず、既存のcharacter.poseCategories(kaosuRoomConfig
-   Pose()で解決する共有Category/Variantプール、Room Editor「ケイオス
-   ちゃん編集」タブと完全に同じデータ)からposeKey(=Categoryキー)で
-   1件参照するだけにしてある。
-   シーン側が独自に持つのは「Animation」情報(位置x/y・拡大率・回転・
-   不透明度・表示時間・フェードイン/アウト・移動開始/終了位置・
-   イージング・重なり順)だけ。この分離により、Room Editorでポーズ
-   画像を差し替えれば、Startup Sequence側もコード変更なしに追従する。
+   設計方針(Pose/Animation/Expression/Voice/Effect/Camera/Delayの
+   完全分離): Sceneは画像や具体的な演出値を一切保持せず、以下7つの
+   「参照」だけを持つ。
+     ・Pose      … poseKey。character.poseCategories(Room Editor
+                   「ケイオスちゃん編集」と共有)から解決する。
+     ・Animation … animationKey。ANIMATION_PRESETS(CmsStore
+                   "animations"、独立したカタログ)からfadeIn/
+                   fadeOut/duration/移動開始・終了位置/イージングを
+                   解決する。
+     ・Expression… expressionKey。既存のKAOSU_EXPRESSIONS(実在する
+                   kaosu-face-*.webp)から、控えめな丸バッジとして
+                   重ねるだけ(立ち絵そのものは差し替えない)。
+     ・Voice     … voiceKey。CmsStore"voice"(管理画面「ボイス」タブ、
+                   既存の音声素材カタログ)のlabelから音声を解決する。
+     ・Effect    … effectKey。KAOSU_STARTUP_EFFECT_KEYSの固定語彙
+                   (none/sparkle/petals/snow/glow)からCSSクラスを
+                   適用するだけ。
+     ・Camera    … x/y/scale/rotation/opacity/layer。そのシーンの
+                   静的な画面内配置(将来Camera専用カタログへ独立
+                   させる余地を残しつつ、現時点はSceneが直接持つ)。
+     ・Delay     … delay。次のシーンまでの待機時間、Scene固有の値
+                   としてそのまま持つ(カタログ化する意味が薄いため)。
+   この分離により、新しい表情・歩行・衣装・演出(Animation/Expression
+   /Voice/Effect側の追加)をいくら増やしても、既存Sceneは一切編集
+   不要で、参照キーの組み合わせだけで演出の幅が広がる。
    ------------------------------------------------------------
    既定値の扱い: CmsStoreに保存済みの設定が無い場合、実行時(アプリ
    起動時)はSTARTUP_SEQUENCE_DEFAULT_ITEMSを使わず「シーン0件=何も
@@ -8948,23 +9003,59 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
    埋めておき、そのまま「保存」を押すだけで有効化できるようにする。
    ============================================================ */
 const STARTUP_SEQUENCE_EASING_OPTIONS = ["ease", "linear", "ease-in", "ease-out", "ease-in-out"];
+const KAOSU_STARTUP_EFFECT_KEYS = ["none", "sparkle", "petals", "snow", "glow"];
+/* Animation Catalog: Sceneはこの中の1件をanimationKeyで参照する
+   だけで、fadeIn/fadeOut/duration/移動/イージングそのものは持たない。
+   新しいAnimation(例:「素早く駆け込む」「ゆっくり佇む」)を管理画面
+   「Animation」タブで増やせば、既存Sceneを一切書き換えずに選択肢へ
+   追加される。 */
+const ANIMATION_PRESET_FALLBACK = { label: "既定", fadeIn: 300, fadeOut: 300, duration: 800, moveFromX: null, moveFromY: null, moveToX: null, moveToY: null, easing: "ease" };
+function kaosuAnimationPresetDefault(overrides){
+  return Object.assign({}, ANIMATION_PRESET_FALLBACK, overrides);
+}
+const ANIMATION_PRESETS_DEFAULT_ITEMS = [
+  kaosuAnimationPresetDefault({ label: "fadeStatic", fadeIn: 300, fadeOut: 250, duration: 800 }),
+  kaosuAnimationPresetDefault({ label: "fadeSlow", fadeIn: 250, fadeOut: 250, duration: 1000 }),
+  kaosuAnimationPresetDefault({ label: "panApproach", fadeIn: 250, fadeOut: 250, duration: 800, moveFromX: 50, moveFromY: 60, moveToX: 50, moveToY: 50, easing: "ease-out" }),
+  kaosuAnimationPresetDefault({ label: "quickSettle", fadeIn: 200, fadeOut: 200, duration: 500 }),
+  kaosuAnimationPresetDefault({ label: "gentleHold", fadeIn: 200, fadeOut: 300, duration: 600 }),
+];
+async function loadKaosuAnimationsConfig(){
+  try{
+    const record = await CmsStore.getConfig("animations");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行(フォールバック既定値を使う) */ }
+  return { configVersion: 1, items: [] };
+}
+/* animationKeyはAnimation側のlabelそのもの(汎用コレクションエンジン
+   は項目に安定したid持たないため、labelを実質的なキーとして扱う)。
+   一致するものが無ければ、fadeIn/fadeOut/duration等をSceneのCamera
+   位置(x/y)をそのまま使う「動かない・既定の速さで淡々とフェード」
+   相当のフォールバックへ落とす(コード内蔵、素材や保存データが無い
+   状態でも常に何らかの妥当な値が返る)。 */
+function kaosuResolveAnimationPreset(animConfig, animationKey){
+  const items = (animConfig && Array.isArray(animConfig.items)) ? animConfig.items : [];
+  const found = animationKey ? items.find(a => a.label === animationKey && a.enabled !== false) : null;
+  return found || ANIMATION_PRESET_FALLBACK;
+}
 function kaosuStartupSequenceDefaultScene(overrides){
   return Object.assign({
-    poseKey: "idle", x: 50, y: 55, scale: 1, rotation: 0, opacity: 1,
-    duration: 800, fadeIn: 300, fadeOut: 300, delay: 0,
-    moveFromX: 50, moveFromY: 55, moveToX: 50, moveToY: 55,
-    easing: "ease", layer: 1, enabled: true,
+    poseKey: "idle", x: 50, y: 55, scale: 1, rotation: 0, opacity: 1, layer: 1,
+    animationKey: "fadeStatic", expressionKey: "", voiceKey: "", effectKey: "none",
+    delay: 0, enabled: true,
   }, overrides);
 }
 /* 指示書の推奨構成: 後ろ姿(部屋の奥)→気付いて手を振る→小走りで
    近付く→ホーム立ち位置へ到着→待機(呼吸モーションは通常のホーム側
-   演出に引き継ぐため、ここでは単に定位置へフェードするだけ)。 */
+   演出に引き継ぐため、ここでは単に定位置へフェードするだけ)。
+   各シーンのAnimationはANIMATION_PRESETS_DEFAULT_ITEMSのlabelを
+   参照するだけで、フェード/移動の具体的な数値はここには無い。 */
 const STARTUP_SEQUENCE_DEFAULT_ITEMS = [
-  kaosuStartupSequenceDefaultScene({ id: "scene-back", poseKey: "back", x: 50, y: 58, scale: 0.82, duration: 800, fadeIn: 300, fadeOut: 250, moveFromX: 50, moveFromY: 58, moveToX: 50, moveToY: 58 }),
-  kaosuStartupSequenceDefaultScene({ id: "scene-wave", poseKey: "wave", x: 50, y: 55, scale: 0.9, duration: 1000, fadeIn: 250, fadeOut: 250, moveFromX: 50, moveFromY: 55, moveToX: 50, moveToY: 55 }),
-  kaosuStartupSequenceDefaultScene({ id: "scene-walk", poseKey: "walk", x: 50, y: 52, scale: 0.95, duration: 800, fadeIn: 250, fadeOut: 250, moveFromX: 50, moveFromY: 60, moveToX: 50, moveToY: 50, easing: "ease-out" }),
-  kaosuStartupSequenceDefaultScene({ id: "scene-arrive", poseKey: "idle", x: 50, y: 50, scale: 1, duration: 500, fadeIn: 200, fadeOut: 200, moveFromX: 50, moveFromY: 50, moveToX: 50, moveToY: 50 }),
-  kaosuStartupSequenceDefaultScene({ id: "scene-idle", poseKey: "idle", x: 50, y: 50, scale: 1, duration: 600, fadeIn: 200, fadeOut: 300, moveFromX: 50, moveFromY: 50, moveToX: 50, moveToY: 50 }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-back", poseKey: "back", x: 50, y: 58, scale: 0.82, animationKey: "fadeStatic" }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-wave", poseKey: "wave", x: 50, y: 55, scale: 0.9, animationKey: "fadeSlow" }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-walk", poseKey: "walk", x: 50, y: 52, scale: 0.95, animationKey: "panApproach" }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-arrive", poseKey: "idle", x: 50, y: 50, scale: 1, animationKey: "quickSettle" }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-idle", poseKey: "idle", x: 50, y: 50, scale: 1, animationKey: "gentleHold", expressionKey: "smile" }),
 ];
 function preloadKaosuImage(url){
   return new Promise(resolve => {
@@ -8982,12 +9073,29 @@ async function loadKaosuStartupSequenceConfig(){
   }catch(e){ /* IndexedDB未対応/エラー時は「シーン無し」のまま続行 */ }
   return { configVersion: 1, items: [] };
 }
+/* voiceKey(Voice側のlabel)から、管理画面「ボイス」タブ(既存の
+   CmsStore"voice"コレクション、schemaはlabel/source/file/volume/
+   enabled)の音声メディアURLを解決する。見つからなければnull(=何も
+   再生しない)。 */
+async function kaosuResolveVoiceUrl(voiceKey){
+  if(!voiceKey) return null;
+  try{
+    const record = await CmsStore.getConfig("voice");
+    const items = (record && record.data && Array.isArray(record.data.items)) ? record.data.items : [];
+    const found = items.find(v => v.label === voiceKey && v.enabled !== false);
+    if(!found || !found.file) return null;
+    return resolveMediaUrl(found.file) || null;
+  }catch(e){ return null; }
+}
 /* 起動直後だけ全画面を覆い、有効なシーンを順番にクロスフェード
    再生する。2枚の<img>を交互に使い、Aのfadeout中にBがfadeinする
    ことでクロスフェードを実現する。画像の実際の読み込み完了
    (Promise.allで全シーンぶん先に待つ)後にだけ再生を開始し、
    終了後はoverlayをdisplay:noneへ戻してホーム画面(既存のPhase22.5
-   入室演出はこのシーケンスと独立して別途動く)を見せる。 */
+   入室演出はこのシーケンスと独立して別途動く)を見せる。
+   Animation/Expression/Voice/Effect/Cameraはすべて「参照キーを解決
+   するだけ」で、このループ自体はどの参照がどんな中身かを知らない
+   (中身が増えても、このループのコードは変更不要)。 */
 async function playKaosuStartupSequence(){
   const overlay = document.getElementById("kaosuStartupSequence");
   if(!overlay) return;
@@ -8996,11 +9104,13 @@ async function playKaosuStartupSequence(){
   if(!scenes.length) return;
 
   const roomConfig = await loadKaosuRoomConfig();
+  const animConfig = await loadKaosuAnimationsConfig();
   await loadKaosuMediaIndex();
   const resolved = scenes
     .map(s => {
       const pose = kaosuRoomConfigPose(roomConfig, s.poseKey);
-      return Object.assign({}, s, { url: resolveMediaUrl(pose.image) });
+      const anim = kaosuResolveAnimationPreset(animConfig, s.animationKey);
+      return Object.assign({}, s, { url: resolveMediaUrl(pose.image), anim });
     })
     .filter(s => s.url);
   if(!resolved.length) return;
@@ -9009,24 +9119,34 @@ async function playKaosuStartupSequence(){
   await Promise.all(resolved.map(s => preloadKaosuImage(s.url)));
   if(reduced) return;
 
-  overlay.innerHTML = `<img class="kaosu-startup-img" id="kaosuStartupImgA" alt=""><img class="kaosu-startup-img" id="kaosuStartupImgB" alt="">`;
+  overlay.innerHTML = `
+    <img class="kaosu-startup-img" id="kaosuStartupImgA" alt="">
+    <img class="kaosu-startup-img" id="kaosuStartupImgB" alt="">
+    <div class="kaosu-startup-effect" id="kaosuStartupEffect" aria-hidden="true"></div>
+    <div class="kaosu-startup-expression-badge" id="kaosuStartupExpressionBadge"><img alt=""></div>
+    <audio id="kaosuStartupVoiceAudio" preload="none" style="display:none;"></audio>
+  `;
   overlay.style.display = "block";
   const imgs = [document.getElementById("kaosuStartupImgA"), document.getElementById("kaosuStartupImgB")];
+  const effectEl = document.getElementById("kaosuStartupEffect");
+  const badgeEl = document.getElementById("kaosuStartupExpressionBadge");
+  const voiceAudio = document.getElementById("kaosuStartupVoiceAudio");
   let active = 0;
   let lastFadeOut = 300;
   for(const s of resolved){
     const el = imgs[active];
-    const fromX = s.moveFromX != null ? s.moveFromX : s.x;
-    const fromY = s.moveFromY != null ? s.moveFromY : s.y;
-    const toX = s.moveToX != null ? s.moveToX : s.x;
-    const toY = s.moveToY != null ? s.moveToY : s.y;
+    const anim = s.anim;
+    const fromX = anim.moveFromX != null ? anim.moveFromX : s.x;
+    const fromY = anim.moveFromY != null ? anim.moveFromY : s.y;
+    const toX = anim.moveToX != null ? anim.moveToX : s.x;
+    const toY = anim.moveToY != null ? anim.moveToY : s.y;
     const scale = s.scale != null ? s.scale : 1;
     const rotation = s.rotation || 0;
     const targetOpacity = s.opacity != null ? s.opacity : 1;
-    const easing = STARTUP_SEQUENCE_EASING_OPTIONS.includes(s.easing) ? s.easing : "ease";
-    const duration = s.duration != null ? s.duration : 800;
-    const fadeIn = s.fadeIn != null ? s.fadeIn : 300;
-    const fadeOut = s.fadeOut != null ? s.fadeOut : 300;
+    const easing = STARTUP_SEQUENCE_EASING_OPTIONS.includes(anim.easing) ? anim.easing : "ease";
+    const duration = anim.duration != null ? anim.duration : 800;
+    const fadeIn = anim.fadeIn != null ? anim.fadeIn : 300;
+    const fadeOut = anim.fadeOut != null ? anim.fadeOut : 300;
     const delay = s.delay || 0;
 
     el.src = s.url;
@@ -9034,17 +9154,44 @@ async function playKaosuStartupSequence(){
     el.style.transition = "none";
     el.style.opacity = "0";
     el.style.transform = `translate(${fromX - 50}%, ${fromY - 50}%) scale(${scale}) rotate(${rotation}deg)`;
+
+    // Expression: 既存のkaosu-face-*.webp(実在アセット)を控えめな丸バッジとして重ねる。
+    if(s.expressionKey && KAOSU_EXPRESSIONS.includes(s.expressionKey)){
+      badgeEl.querySelector("img").src = `img/koufuku/kaosu-face-${s.expressionKey}.webp`;
+      badgeEl.style.opacity = "0";
+    }else{
+      badgeEl.style.opacity = "0";
+    }
+    // Effect: 固定語彙(none/sparkle/petals/snow/glow)のCSSクラスを切り替えるだけ。
+    effectEl.className = "kaosu-startup-effect";
+    if(s.effectKey && s.effectKey !== "none" && KAOSU_STARTUP_EFFECT_KEYS.includes(s.effectKey)){
+      effectEl.classList.add("kaosu-startup-effect-" + s.effectKey);
+    }
     void el.offsetHeight;
 
     el.style.transition = `opacity ${fadeIn}ms ${easing}, transform ${duration}ms ${easing}`;
     el.style.opacity = String(targetOpacity);
     el.style.transform = `translate(${toX - 50}%, ${toY - 50}%) scale(${scale}) rotate(${rotation}deg)`;
+    if(s.expressionKey) badgeEl.style.opacity = "1";
+    if(effectEl.classList.length > 1) effectEl.classList.add("is-active");
+
+    // Voice: 該当ボイスがあればシーン開始と同時にベストエフォートで再生
+    // (自動再生ブロック等で失敗しても演出自体は止めない)。
+    if(s.voiceKey){
+      kaosuResolveVoiceUrl(s.voiceKey).then(url => {
+        if(!url) return;
+        voiceAudio.src = url;
+        voiceAudio.play().catch(() => {});
+      });
+    }
 
     await chatWait(Math.max(fadeIn, 20));
     await chatWait(Math.max(duration - fadeIn, 0));
 
     el.style.transition = `opacity ${fadeOut}ms ${easing}`;
     el.style.opacity = "0";
+    badgeEl.style.opacity = "0";
+    effectEl.classList.remove("is-active");
     lastFadeOut = fadeOut;
 
     if(delay) await chatWait(delay);
@@ -13493,44 +13640,65 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     { id: "direction", icon: "🎭", label: "演出編集", category: "room", group: "room" },
     { id: "furniture", icon: "🎁", label: "家具・装飾", category: "room", group: "room" },
     {
+      /* Animation Catalog(次フェーズ対応)。フェード/移動/イージング
+         といった「Animation」の中身を、Startup Sequenceの各シーンから
+         切り離して独立管理する。新しいAnimation(例:「勢いよく登場」)
+         を増やしても、既存Sceneは一切編集不要でanimationKeyの選択肢に
+         増えるだけ。 */
+      id: "animations", icon: "🎞️", label: "Animation", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: ANIMATION_PRESETS_DEFAULT_ITEMS }, itemLabel: "Animation",
+      schema: [
+        { key: "label", label: "名前(Sceneから参照するキーになります)", type: "text", default: "新しいAnimation" },
+        { key: "fadeIn", label: "フェードイン (ms)", type: "number", default: 300 },
+        { key: "fadeOut", label: "フェードアウト (ms)", type: "number", default: 300 },
+        { key: "duration", label: "表示時間 (ms)", type: "number", default: 800 },
+        { key: "moveFromX", label: "移動開始位置 X (%、空欄=Sceneの表示位置)", type: "number", default: null },
+        { key: "moveFromY", label: "移動開始位置 Y (%、空欄=Sceneの表示位置)", type: "number", default: null },
+        { key: "moveToX", label: "移動終了位置 X (%、空欄=Sceneの表示位置)", type: "number", default: null },
+        { key: "moveToY", label: "移動終了位置 Y (%、空欄=Sceneの表示位置)", type: "number", default: null },
+        { key: "easing", label: "イージング", type: "select", default: "ease",
+          options: STARTUP_SEQUENCE_EASING_OPTIONS.map(v => ({ value: v, label: v })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "Startup SequenceのSceneが「Animation」として参照するプリセット集です。ここで値を変えると、そのAnimationを使っている全Sceneへ一括反映されます。",
+    },
+    {
       /* Startup Sequence Editor(追加仕様)。既存の汎用コレクション
          編集エンジン(season/bgm等と同じ、追加/削除/▲▼並べ替え/
-         スキーマ駆動フィールド)をそのまま再利用する。各シーンは
-         「Pose(どのCategoryか)」をPOSE_CATEGORIES(=Room Editorの
-         「ケイオスちゃん編集」タブと共有する同じCategory一覧)から
-         poseKeyで選ぶだけで、
-         画像そのものはここでは持たない。位置/拡大率/回転/不透明度/
-         表示時間/フェード/移動開始・終了位置/イージング/重なり順
-         (=「Animation」側の情報)だけをここで編集する設計。
+         スキーマ駆動フィールド)をそのまま再利用する。
+         次フェーズ対応: Sceneは画像や演出値そのものを持たず、
+         Pose/Animation/Expression/Voice/Effect/Camera/Delayの7つを
+         「参照」するだけの構造にした(詳細はplayKaosuStartup
+         Sequence()冒頭のコメントを参照)。
          defaultShapeにだけ指示書の推奨5シーン構成を入れてあるため、
          このタブを初めて開いた時点で5シーンが埋まった状態になり、
          そのまま保存すればすぐに有効化できる(実行時の既定値は空=
-         保存するまでは何も再生しない。詳細はplayKaosuStartup
-         Sequence()のコメントを参照)。 */
+         保存するまでは何も再生しない)。 */
       id: "startupSequence", icon: "🎬", label: "Startup Sequence", category: "room", group: "generic",
       kind: "collection", defaultShape: { items: STARTUP_SEQUENCE_DEFAULT_ITEMS }, itemLabel: "シーン",
       schema: [
-        { key: "poseKey", label: "ポーズ(Pose)", type: "select", default: "idle",
+        { key: "poseKey", label: "Pose(どのCategoryか)", type: "select", default: "idle",
           options: POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label })) },
-        { key: "x", label: "表示位置 X (%)", type: "number", default: 50 },
-        { key: "y", label: "表示位置 Y (%)", type: "number", default: 55 },
-        { key: "scale", label: "拡大率", type: "number", step: 0.05, default: 1 },
-        { key: "rotation", label: "回転 (deg)", type: "number", default: 0 },
-        { key: "opacity", label: "不透明度 (0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 1 },
-        { key: "duration", label: "表示時間 (ms)", type: "number", default: 800 },
-        { key: "fadeIn", label: "フェードイン (ms)", type: "number", default: 300 },
-        { key: "fadeOut", label: "フェードアウト (ms)", type: "number", default: 300 },
-        { key: "delay", label: "次のシーンまでの待機時間 (ms)", type: "number", default: 0 },
-        { key: "moveFromX", label: "移動開始位置 X (%)", type: "number", default: 50 },
-        { key: "moveFromY", label: "移動開始位置 Y (%)", type: "number", default: 55 },
-        { key: "moveToX", label: "移動終了位置 X (%)", type: "number", default: 50 },
-        { key: "moveToY", label: "移動終了位置 Y (%)", type: "number", default: 55 },
-        { key: "easing", label: "イージング", type: "select", default: "ease",
-          options: STARTUP_SEQUENCE_EASING_OPTIONS.map(v => ({ value: v, label: v })) },
-        { key: "layer", label: "重なり順 (z-index)", type: "number", default: 1 },
+        { key: "animationKey", label: "Animation(動き方)", type: "dynamicSelect", default: "",
+          emptyLabel: "(既定の動きを使う)",
+          optionsSource: () => ((genericState.animations && genericState.animations.draft && genericState.animations.draft.items) || []).map(a => ({ value: a.label, label: a.label })) },
+        { key: "expressionKey", label: "Expression(表情バッジ)", type: "select", default: "",
+          options: [{ value: "", label: "(付けない)" }].concat(KAOSU_EXPRESSIONS.map(e => ({ value: e, label: e }))) },
+        { key: "voiceKey", label: "Voice(音声)", type: "dynamicSelect", default: "",
+          emptyLabel: "(再生しない)",
+          optionsSource: () => ((genericState.voice && genericState.voice.draft && genericState.voice.draft.items) || []).map(v => ({ value: v.label, label: v.label })) },
+        { key: "effectKey", label: "Effect(演出エフェクト)", type: "select", default: "none",
+          options: KAOSU_STARTUP_EFFECT_KEYS.map(k => ({ value: k, label: k })) },
+        { key: "x", label: "Camera: 表示位置 X (%)", type: "number", default: 50 },
+        { key: "y", label: "Camera: 表示位置 Y (%)", type: "number", default: 55 },
+        { key: "scale", label: "Camera: 拡大率", type: "number", step: 0.05, default: 1 },
+        { key: "rotation", label: "Camera: 回転 (deg)", type: "number", default: 0 },
+        { key: "opacity", label: "Camera: 不透明度 (0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 1 },
+        { key: "layer", label: "Camera: 重なり順 (z-index)", type: "number", default: 1 },
+        { key: "delay", label: "Delay: 次のシーンまでの待機時間 (ms)", type: "number", default: 0 },
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
-      note: "起動直後に、この順番でシーンをクロスフェード再生します(画像はRoom Editor「ケイオスちゃん編集」タブのポーズ画像をそのまま使うので、ポーズ画像を差し替えるだけで演出も更新されます)。シーンが1件も無い場合は演出自体が発生せず、通常どおり即座にホーム画面が表示されます。",
+      note: "Sceneは画像や演出値そのものを持たず、Pose/Animation/Expression/Voice/Effect/Camera/Delayをそれぞれ「参照」するだけです。Animationは「Animation」タブ、Voiceは「ボイス」タブで管理し、新しく増やしても既存Sceneの編集は不要です。シーンが1件も無い場合は演出自体が発生せず、通常どおり即座にホーム画面が表示されます。",
     },
     {
       id: "season", icon: "🌸", label: "季節イベント", category: "content", group: "generic",
@@ -14050,6 +14218,19 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     if(mod.group === "generic" && mod.kind !== "comingSoon" && !(genericState[tabId] && genericState[tabId].loaded)){
       await loadGenericModule(mod);
     }
+    /* Startup Sequenceの各Sceneはanimation/voiceを「参照」する
+       dynamicSelectフィールドを持つため、このタブを開いた時点で
+       Animation/ボイス側のデータも(自分のタブを開いていなくても)
+       先読みしておく。読み込むだけで、それぞれの保存/dirty状態には
+       一切影響しない(参照専用のキャッシュとして使うだけ)。 */
+    if(tabId === "startupSequence"){
+      const crossRefIds = ["animations", "voice"];
+      await Promise.all(crossRefIds.map(id => {
+        const crossMod = MODULES.find(m => m.id === id);
+        if(crossMod && !(genericState[id] && genericState[id].loaded)) return loadGenericModule(crossMod);
+        return Promise.resolve();
+      }));
+    }
     renderTab(tabId);
     if(mod.kind === "comingSoon" || mod.group === "aiGen" || mod.group === "aiHistory" || mod.group === "aiFavorites"){
       $("adminSaveBar").style.display = "none";
@@ -14555,6 +14736,20 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     if(fieldDef.type === "select"){
       const sel = document.createElement("select");
       (fieldDef.options || []).forEach(opt => sel.appendChild(new Option(opt.label, opt.value, false, opt.value === value)));
+      sel.addEventListener("change", () => { setPath(item, fieldDef.key, sel.value); onChange(fieldDef); });
+      wrap.appendChild(sel);
+      return wrap;
+    }
+    /* dynamicSelect: selectと同じ見た目・挙動だが、options配列を
+       スキーマ定義時ではなく描画時にfieldDef.optionsSource()から
+       取得する。他モジュール(Animation/ボイス等)のコレクションを
+       参照するフィールド用(それらは実行時にしか内容が定まらない
+       ため、通常のselectのような静的optionsを持てない)。 */
+    if(fieldDef.type === "dynamicSelect"){
+      const sel = document.createElement("select");
+      const opts = (fieldDef.optionsSource ? fieldDef.optionsSource() : []) || [];
+      sel.appendChild(new Option(fieldDef.emptyLabel || "(なし)", "", false, !value));
+      opts.forEach(opt => sel.appendChild(new Option(opt.label, opt.value, false, opt.value === value)));
       sel.addEventListener("change", () => { setPath(item, fieldDef.key, sel.value); onChange(fieldDef); });
       wrap.appendChild(sel);
       return wrap;
