@@ -621,19 +621,6 @@ textarea{ font-family:inherit; }
    (.kaosu-room-character)・視線(#kaosuRoomAvatar)のtransformとは別の
    要素に持たせることで、3つのtransformが干渉しない。 */
 .kaosu-room-entrance{ display:inline-flex; }
-.kaosu-room-window{
-  position:absolute; top:14px; left:50%; transform:translateX(-50%);
-  width:118px; height:78px; border-radius:16px 16px 6px 6px;
-  background:linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.12));
-  border:3px solid rgba(255,255,255,.55);
-}
-.kaosu-room-window::before, .kaosu-room-window::after{
-  content:""; position:absolute; top:-4px; bottom:-4px; width:20px;
-  background:linear-gradient(180deg, rgba(255,255,255,.4), rgba(255,255,255,.05));
-  border-radius:10px;
-}
-.kaosu-room-window::before{ left:-13px; transform:rotate(-6deg); }
-.kaosu-room-window::after{ right:-13px; transform:rotate(6deg); }
 /* Phase23: 設定画面への導線(右上⚙)。ガラスモーフィズムを踏襲した
    丸いグラスボタンで、UI層(z-index:2、CTAと同じ階層)に属する。 */
 .kaosu-room-settings-btn{
@@ -702,12 +689,13 @@ textarea{ font-family:inherit; }
   -webkit-mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
   mask-image:radial-gradient(ellipse 78% 92% at 50% 42%, #000 62%, transparent 100%);
 }
-#kaosuRoomAvatar .kaosu-fallback{
-  position:absolute; left:50%; top:58%; transform:translate(-50%,-50%);
-  width:62%; height:62%; border-radius:50%;
-  background:radial-gradient(circle at 34% 28%, #ffffff, #ffe3f0 38%, #dcefff 72%, #efe9ff 100%);
-  box-shadow:0 8px 20px rgba(120,90,60,.2);
-}
+/* 実機修正: 「読み込み中を隠す演出」用のプレースホルダー(丸顔
+   フォールバック・上部の窓枠装飾)を廃止し、代わりに読み込み完了まで
+   キャラクター画像自体をopacity:0にしておくだけにする。setKaosuRoom
+   PoseImage()がsrc切替時にopacity:0へ戻し、実際のload完了(または
+   キャッシュ済みでcomplete)を検知した時だけこのtransitionで自然に
+   フェードインさせる(背景だけが最初から見えている状態を維持する)。 */
+#kaosuRoomAvatarImg{ opacity:0; transition:opacity .35s ease; }
 /* Phase22: アバターをタップした時の反応。transformは呼吸(.kaosu-room-
    character)・視線(#kaosuRoomAvatar)・ポーズ(imgのinline transform、
    JS管理)がそれぞれ既に使っているため衝突を避け、filterのbrightness
@@ -1564,7 +1552,6 @@ textarea.field-input{ resize:none; }
                z-index:1またはDOM順で後発)の下に敷く。中身は
                renderKaosuRoomScene()が毎回書き換える読み込み専用の演出。 -->
           <div class="kaosu-room-fx" id="kaosuRoomFx" aria-hidden="true"></div>
-          <div class="kaosu-room-window"></div>
           <!-- Phase23: 設定画面への導線をホーム右上へ復活させる(UI層。
                背景/キャラクターより手前・BottomNavより奥という4層構造の
                「UI」に属する)。既存のswitchView("settings")をそのまま
@@ -1573,11 +1560,15 @@ textarea.field-input{ resize:none; }
           <div class="kaosu-room-character">
             <!-- ホーム画面リニューアル: 入室演出(歩いてくる/手を振る等)
                  専用のtransformレイヤー。呼吸(親要素)・視線(子要素)の
-                 transformとは別要素にして干渉を避ける。 -->
+                 transformとは別要素にして干渉を避ける。
+                 実機修正: ロード中の「丸顔プレースホルダー」を廃止した
+                 ため.kaosu-fallbackは置かず、失敗時もimgがただ消えて
+                 背景だけが見える構成にする(setKaosuRoomPoseImage()が
+                 画像読み込み完了まで#kaosuRoomAvatarImgをopacity:0に
+                 保ち、読み込み後だけ自然にフェードインさせる)。 -->
             <div class="kaosu-room-entrance" id="kaosuRoomEntrance">
             <div class="kaosu-avatar" id="kaosuRoomAvatar">
               <img src="img/koufuku/kaosu-home.webp" alt="ケイオスちゃん" id="kaosuRoomAvatarImg" onerror="this.classList.add('noimg')">
-              <div class="kaosu-fallback"><span class="eyes"><i></i><i></i></span><span class="mouth"></span><span class="blush l"></span><span class="blush r"></span></div>
             </div>
             </div>
           </div>
@@ -8697,15 +8688,46 @@ function renderKaosuRoomFurniture(config){
    (.kaosu-room-character)・入室演出(#kaosuRoomEntrance)・視線
    (#kaosuRoomAvatar)がそれぞれ祖先要素のtransformを使っているのとは
    独立に、img要素自身のtransformとして適用する(4つ目の独立レイヤー
-   のため、既存のモーションと干渉しない)。 */
+   のため、既存のモーションと干渉しない)。
+   実機修正: 「読み込み中の丸顔プレースホルダー」を廃止したため、
+   既定のポーズ画像(img/koufuku/room/pose-*.webp、CMS未設定時の
+   フォールバック値)が実際には同梱されておらず404する場合でも、
+   キャラクターが永久に消えたままにならないよう、1回だけ既知の
+   同梱画像(kaosu-home.webp)へ差し替える保険を持たせる。読み込みが
+   (差し替え後も含め)完了するまでimgはopacity:0のまま保持し、
+   実際に絵が用意できた瞬間だけ.35sでフェードインする(背景だけが
+   最初から見えていて、キャラクターは「最初からそこにいた」ように
+   自然に浮かび上がる)。 */
+const KAOSU_ROOM_AVATAR_FALLBACK_SRC = "img/koufuku/kaosu-home.webp";
 function setKaosuRoomPoseImage(config, poseKey){
   const imgEl = document.getElementById("kaosuRoomAvatarImg");
   if(!imgEl) return;
   const pose = kaosuRoomConfigPose(config, poseKey);
+  const targetOpacity = pose.opacity != null ? pose.opacity : 1;
+  const nextSrc = resolveMediaUrl(pose.image);
   imgEl.dataset.kaosuExpression = "";
   imgEl.classList.remove("noimg");
-  imgEl.src = resolveMediaUrl(pose.image);
-  imgEl.style.opacity = pose.opacity != null ? String(pose.opacity) : "";
+  delete imgEl.dataset.kaosuFallbackApplied;
+  const reveal = () => {
+    imgEl.style.transition = "opacity .35s ease";
+    imgEl.style.opacity = String(targetOpacity);
+  };
+  imgEl.onload = reveal;
+  imgEl.onerror = () => {
+    if(imgEl.dataset.kaosuFallbackApplied){
+      imgEl.classList.add("noimg");
+      return;
+    }
+    imgEl.dataset.kaosuFallbackApplied = "1";
+    imgEl.src = KAOSU_ROOM_AVATAR_FALLBACK_SRC;
+  };
+  if(imgEl.getAttribute("src") !== nextSrc){
+    imgEl.style.transition = "none";
+    imgEl.style.opacity = "0";
+    imgEl.src = nextSrc;
+  }else if(imgEl.complete && imgEl.naturalWidth > 0){
+    reveal();
+  }
   imgEl.style.zIndex = pose.zIndex != null ? String(pose.zIndex) : "";
   const tx = pose.x || 0, ty = pose.y || 0;
   const scale = pose.scale != null ? pose.scale : 1;
