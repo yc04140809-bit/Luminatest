@@ -213,7 +213,10 @@ textarea{ font-family:inherit; }
    ヘッダー(flex:none) → chat-hero(flex:none) → メッセージ一覧
    (sheet-scrollで.flex:1・内部スクロール) → 入力欄(flex:none)、という
    縦積みのflex構造そのものを.view[data-view="chat"]がまるごと担う。 */
-.view[data-view="chat"]{ padding:0; overflow:hidden; }
+/* Phase23: ボトムナビがposition:absoluteになりflexの高さ計算から
+   外れたため、以前は暗黙にnav分の余白を得ていたチャット画面へ明示的な
+   下余白を追加する(入力欄がナビの下に隠れないようにするため)。 */
+.view[data-view="chat"]{ padding:0 0 calc(var(--kaosu-navbar-h) + env(safe-area-inset-bottom)) 0; overflow:hidden; }
 .view[data-view="chat"].active{ display:flex; flex-direction:column; height:100%; }
 .view[data-view="chat"] .sheet-header{ padding:16px 16px 0; }
 .view[data-view="chat"] #chatClearConfirmRow{ margin:0 16px 12px; }
@@ -605,25 +608,6 @@ textarea{ font-family:inherit; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-scene::before{ animation:none; }
 }
-/* ホーム画面リニューアル(部屋イラスト差し替え対応): 実際の背景イラスト
-   (img/koufuku/room/bg-<時間帯>.webp)がまだ存在しない間は、この<img>が
-   onerrorでdisplay:noneになり、上のCSSグラデーション背景がそのまま
-   透けて見えるだけなので、素材が無くても壊れて見えない。実素材を
-   置いた瞬間、CSS/JSを一切変更せずにイラスト背景へ自動的に切り替わる。
-   Phase22.4: 実素材が入った時のために、ごくゆっくりしたKen Burns風の
-   ズームも同じ思想(素材が無くても壊れない)で先に仕込んでおく。 */
-.kaosu-room-bg-img{
-  position:absolute; inset:0; width:100%; height:100%;
-  object-fit:cover; z-index:0; opacity:.94;
-  animation:kaosuRoomBgImgZoom calc(60s * var(--kaosu-motion-speed, 1)) ease-in-out infinite alternate;
-}
-@keyframes kaosuRoomBgImgZoom{
-  0%{ transform:scale(1); }
-  100%{ transform:scale(1.08); }
-}
-@media (prefers-reduced-motion: reduce){
-  .kaosu-room-bg-img{ animation:none; }
-}
 /* CMS対応: 部屋の育成(家具/装飾)。既定はfurniture.itemsが空のため
    コンテナ自体は何も描画しない(サイズ0のまま=見た目に影響なし)。
    個々の.kaosu-room-furniture-itemはrenderKaosuRoomFurniture()がJSで
@@ -647,6 +631,18 @@ textarea{ font-family:inherit; }
 }
 .kaosu-room-window::before{ left:-13px; transform:rotate(-6deg); }
 .kaosu-room-window::after{ right:-13px; transform:rotate(6deg); }
+/* Phase23: 設定画面への導線(右上⚙)。ガラスモーフィズムを踏襲した
+   丸いグラスボタンで、UI層(z-index:2、CTAと同じ階層)に属する。 */
+.kaosu-room-settings-btn{
+  position:absolute; z-index:2;
+  top:calc(10px + env(safe-area-inset-top)); right:14px;
+  width:38px; height:38px; border-radius:50%; border:none;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.16); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  box-shadow:0 2px 10px rgba(0,0,0,.18);
+  font-size:17px; line-height:1; color:#fff;
+}
+.kaosu-room-settings-btn:active{ background:rgba(255,255,255,.3); }
 .kaosu-room-character{ position:relative; z-index:1; display:flex; justify-content:center; margin-top:8px; }
 .kaosu-room-character .kaosu-avatar{ box-shadow:0 8px 20px rgba(120,90,60,.2); }
 /* Phase22: キャラクターの真後ろへ淡いスポットライトを敷き、部屋の中で
@@ -987,42 +983,54 @@ textarea{ font-family:inherit; }
   .kaosu-room-fx-item.kaosu-fx-twinkle{ opacity:.4; }
 }
 
-/* Phase22.3: 時間帯ごとの部屋の色味(判定はgetRoomVisualBand()が行い、
-   既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。「紫系・
-   幻想的・高級感」の世界観に統一するため、全時間帯を紫〜藍のジュエル
-   トーンへ寄せた。どのbandにも共通で、最下部(吹き出し/一言/CTAが
-   乗る帯)へ向けて黒紫のグラデーションを重ねる「読みやすさ確保用の
-   ヴィネット」レイヤーを重ねる(1枚目=最前面のvignette、2枚目=
-   時間帯の色)。実背景画像(img/koufuku/room/bg-*.webp)を後から
-   置いた場合も、この2枚のグラデーションがその上に重なったまま
-   維持されるため、読みやすさは常に確保される。 */
+/* Phase22.3/23: 時間帯ごとの部屋の色味(判定はgetRoomVisualBand()が
+   行い、既存Phase34のgetDayBand()とは完全に別の見た目専用の関数)。
+   「紫系・幻想的・高級感」の世界観に統一するため、全時間帯を紫〜藍の
+   ジュエルトーンへ寄せた。どのbandにも共通で、最下部(吹き出し/一言/
+   CTAが乗る帯)へ向けて黒紫のグラデーションを重ねる「読みやすさ確保
+   用のヴィネット」レイヤーを重ねる(1枚目=--kaosu-room-photo、CMSで
+   実背景画像を設定した場合だけここへurl()が入る/未設定はnoneで
+   何も描画しない。2枚目=vignette、3枚目=時間帯の色)。
+   Phase23: 実背景画像は<img>タグではなくこのCSS背景レイヤーとして
+   描画する(JS側はrenderKaosuRoomScene()で--kaosu-room-photo変数を
+   書き換えるだけで、urlが無効/404でもこの変数がただ描画されずに
+   透過し、後ろのvignette+時間帯グラデーションがそのまま見える
+   ため、既存のonerrorフォールバックと同じ「壊れて見えない」性質を
+   JS処理無しで実現できる)。 */
 .kaosu-room-scene{
+  --kaosu-room-photo:none;
   background-image:
+    var(--kaosu-room-photo),
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.18) 55%, rgba(15,8,28,.72) 100%),
     linear-gradient(180deg,#4a3a72 0%,#2f2350 60%,#1c1530 100%);
 }
 .kaosu-room-scene.room-band-morning{
   background-image:
+    var(--kaosu-room-photo),
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.16) 55%, rgba(15,8,28,.68) 100%),
     linear-gradient(180deg,#7a5f9c 0%,#5b4680 60%,#33264f 100%);
 }
 .kaosu-room-scene.room-band-day{
   background-image:
+    var(--kaosu-room-photo),
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.14) 55%, rgba(15,8,28,.62) 100%),
     linear-gradient(180deg,#8a7ab8 0%,#6a5698 60%,#402f5e 100%);
 }
 .kaosu-room-scene.room-band-evening{
   background-image:
+    var(--kaosu-room-photo),
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.2) 55%, rgba(15,8,28,.74) 100%),
     linear-gradient(180deg,#7a4f7e 0%,#5c3564 60%,#2c1a3c 100%);
 }
 .kaosu-room-scene.room-band-night{
   background-image:
+    var(--kaosu-room-photo),
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.24) 55%, rgba(12,6,24,.8) 100%),
     linear-gradient(180deg,#372c50 0%,#241c3e 60%,#160f28 100%);
 }
 .kaosu-room-scene.room-band-midnight{
   background-image:
+    var(--kaosu-room-photo),
     linear-gradient(180deg, rgba(18,10,32,0) 0%, rgba(18,10,32,.28) 55%, rgba(8,4,18,.85) 100%),
     linear-gradient(180deg,#1c1f3a 0%,#171331 60%,#0e0a1e 100%);
 }
@@ -1038,10 +1046,13 @@ textarea{ font-family:inherit; }
 .card-section-label{ font-size:15px; font-weight:700; margin:22px 0 12px; color:var(--text); }
 
 /* ホームは「ケイオスちゃんに会う場所」。CTAボタン以外の導線は置かない。 */
+/* Phase23: ボトムナビがposition:absoluteの重ね表示(UIより上のレイヤー)
+   になったため、CTAボタンがナビの下に隠れないよう明示的な下余白を
+   確保する(背景→キャラ→UI→BottomNavの4層構造のうち、UI層の底辺)。 */
 .kaosu-room-actions{
-  position:relative; z-index:1; flex:none;
+  position:relative; z-index:2; flex:none;
   display:flex; flex-direction:column; gap:10px;
-  padding-bottom:env(safe-area-inset-bottom);
+  padding-bottom:calc(var(--kaosu-navbar-h) + env(safe-area-inset-bottom));
 }
 /* Phase22: 「ケイオスちゃんと話す」をホーム最大・最重要のボタンに
    する。既存.btn-primaryの見た目(グラデーション/角丸)は流用しつつ、
@@ -1219,12 +1230,24 @@ textarea{ font-family:inherit; }
 .reflect-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
 
 /* ---------- ボトムナビ ---------- */
+/* Phase23: レイアウト基盤の安定化。以前はflexの通常の子要素として
+   .viewportの下に並んでいるだけだったため、理論上はどこかのビューが
+   高さ計算を誤ると隠れうる構造だった。.app(position:relative)の下端に
+   常時固定するpositon:absoluteへ変更し(.appはmax-width:480pxで中央
+   寄せされているため、position:fixedではなくposition:absoluteに
+   することで画面幅が広い端末でもアプリ本体の幅にちゃんと追従する)、
+   z-indexも通常のビュー内コンテンツ(0〜2程度)より確実に高いが、
+   モーダル/トースト/管理者モード(30〜900)よりは低い値に統一した。
+   .viewportからナビの高さぶんの領域を奪わなくなるため、各ビュー側
+   (特に以前は独自clearanceを持たなかったチャット画面とホーム画面)に
+   ナビの高さ+SafeAreaぶんの余白を追加している(下記参照)。 */
+:root{ --kaosu-navbar-h:68px; }
 .bottomnav{
   display:flex; background:#fff;
   border-top:1px solid var(--border);
   padding:6px 4px calc(6px + env(safe-area-inset-bottom));
   box-shadow:0 -2px 14px rgba(140,130,190,.07);
-  position:relative; z-index:5;
+  position:absolute; left:0; right:0; bottom:0; z-index:20;
 }
 .navitem{
   flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
@@ -1503,12 +1526,14 @@ textarea.field-input{ resize:none; }
                中央寄せする(下のkaosuRoomActionsは同じsceneの中で
                flex:noneとして最下部に固定される)。 -->
           <div class="kaosu-room-stage">
-          <!-- ホーム画面リニューアル: 部屋イラスト背景。実素材(img/koufuku/
-               room/bg-<時間帯>.webp)が無い間はonerrorで非表示になり、
-               既存のCSSグラデーション背景(.kaosu-room-scene.room-band-*)
-               がそのまま見える。素材が揃い次第、同じファイル名を置く
-               だけでCSS/JS変更なしにイラスト背景へ切り替わる。 -->
-          <img class="kaosu-room-bg-img" id="kaosuRoomBgImg" alt="" aria-hidden="true" onerror="this.style.display='none'">
+          <!-- Phase23: 部屋イラスト背景は<img>タグではなくCSS背景
+               (.kaosu-room-sceneの--kaosu-room-photo変数、renderKaosu
+               RoomScene()がJSで書き換える)として描画する。実素材
+               (img/koufuku/room/bg-<時間帯>.webp)が無い/読み込みに
+               失敗した間は、ブラウザがそのレイヤーをただ描画しない
+               だけで、既存のCSSグラデーション背景(.kaosu-room-scene.
+               room-band-*)がそのまま見える(onerrorハンドラ不要で
+               同じ「壊れて見えない」性質を実現)。 -->
           <!-- CMS対応: 部屋の育成(家具/装飾)。room-config.jsonの
                furniture.itemsが空の間は何も描画されない(既定の見た目
                のまま)。管理画面から項目を追加するとrenderKaosuRoom
@@ -1535,6 +1560,11 @@ textarea.field-input{ resize:none; }
                renderKaosuRoomScene()が毎回書き換える読み込み専用の演出。 -->
           <div class="kaosu-room-fx" id="kaosuRoomFx" aria-hidden="true"></div>
           <div class="kaosu-room-window"></div>
+          <!-- Phase23: 設定画面への導線をホーム右上へ復活させる(UI層。
+               背景/キャラクターより手前・BottomNavより奥という4層構造の
+               「UI」に属する)。既存のswitchView("settings")をそのまま
+               呼ぶだけで、新しい画面遷移ロジックは増やしていない。 -->
+          <button type="button" class="kaosu-room-settings-btn" id="btnOpenSettingsFromHome" aria-label="設定を開く">⚙️</button>
           <div class="kaosu-room-character">
             <!-- ホーム画面リニューアル: 入室演出(歩いてくる/手を振る等)
                  専用のtransformレイヤー。呼吸(親要素)・視線(子要素)の
@@ -3198,7 +3228,7 @@ function tagIcon(tag){ return TAG_ICON[tag] || "✨"; }
 /* =========================================================
    ナビゲーション
    ========================================================= */
-function switchView(view){
+function switchView(view, fromPopState){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.dataset.view === view));
   document.querySelectorAll(".navitem").forEach(b => b.classList.toggle("active", b.dataset.view === view));
   document.getElementById("viewport").scrollTop = 0;
@@ -3214,9 +3244,50 @@ function switchView(view){
      ためDOM上の位置に依存せず無改修で動くが、更新タイミングを
      「ホームを開いた時」から「わたしを開いた時」へ合わせて呼び直す。 */
   if(view === "mind"){ renderHomeKaosuGreeting(); renderHomeNowCard(); renderTodayDesignCard(); renderHomeReflectCard(); renderHomeExperimentCard(); renderHomeModeUI(); }
+  /* Phase23: Android実機の戻るボタン対応。fromPopState(popstate経由の
+     呼び出し)の時だけ履歴操作をスキップし、それ以外(ボトムナビ/
+     設定ボタン等、通常のタップ操作)の時だけ履歴へ積む。 */
+  if(!fromPopState) kaosuPushViewHistory(view);
 }
 document.querySelectorAll(".navitem").forEach(btn => {
   btn.addEventListener("click", () => switchView(btn.dataset.view));
+});
+
+/* =========================================================
+   Phase23: Android戻るボタン対応
+   - Capacitor(Android)のWebViewは、ハードウェア戻るボタンが押される
+     とデフォルトで「WebView自身のhistory.goBack()、それも不可能なら
+     アプリを終了」という挙動を取る(Capacitor Appプラグインを別途
+     組み込まなくても、この既定動作だけで成立する既存のCapacitor/
+     Cordova系アプリの定番パターン)。このSPAはswitchView()でDOMの
+     表示切り替えをするだけでhistoryへは何も積んでいなかったため、
+     どの画面からでも戻るボタン1回でアプリごと終了してしまっていた。
+   - ここでは「home以外の画面へ移動する時だけhistory.pushState()で
+     1件積み、homeへ移動する時はpushせずreplaceState()で現在地だけ
+     更新する」方式にする。これにより、例えば「チャットを開く」で
+     1件積まれ、戻るボタンで元のホームへ戻れる(popstateを拾って
+     switchViewをfromPopState=trueで呼ぶだけで、ここからさらに
+     pushしたりしない)。ホーム画面まで戻ってきた状態でさらに戻る
+     ボタンを押すと、もう積んだ履歴が無いためCapacitor既定の
+     「アプリ終了」に自然に委ねられる(=指示書の「チャット→ホーム→
+     終了」)。既存のswitchView()呼び出し箇所(タップ由来)は一切
+     変更していない(第2引数を省略すれば従来どおり)。 */
+let kaosuHistoryNavInProgress = false;
+function kaosuPushViewHistory(view){
+  if(kaosuHistoryNavInProgress) return;
+  if(view === "home"){
+    if(!history.state || history.state.kaosuView !== "home"){
+      history.replaceState({ kaosuView: "home" }, "", "#home");
+    }
+  }else if(!history.state || history.state.kaosuView !== view){
+    history.pushState({ kaosuView: view }, "", "#" + view);
+  }
+}
+window.addEventListener("popstate", (ev) => {
+  const target = (ev.state && ev.state.kaosuView) || "home";
+  kaosuHistoryNavInProgress = true;
+  try{ switchView(target, true); }
+  finally{ kaosuHistoryNavInProgress = false; }
 });
 
 /* =========================================================
@@ -8960,16 +9031,13 @@ async function renderKaosuRoomScene(now = new Date()){
   }else{
     setKaosuExpression(img, meta.expression);
   }
-  const bgImg = document.getElementById("kaosuRoomBgImg");
-  if(bgImg){
+  /* Phase23: 背景写真は<img>タグではなくCSS変数--kaosu-room-photo
+     経由で描画する(url()が404でもそのレイヤーが単に描画されない
+     だけで、後ろのvignette+時間帯グラデーションがそのまま見える)。 */
+  if(scene){
     const bgSrcRaw = kaosuRoomConfigBgImagePath(roomConfig, band);
     const bgSrc = resolveMediaUrl(bgSrcRaw);
-    if(bgSrc && bgImg.src !== bgSrc){
-      bgImg.style.display = "";
-      bgImg.src = bgSrc;
-    }else if(!bgSrc){
-      bgImg.style.display = "none";
-    }
+    scene.style.setProperty("--kaosu-room-photo", bgSrc ? `url("${bgSrc}")` : "none");
   }
   renderKaosuRoomFurniture(roomConfig);
 
@@ -12983,6 +13051,9 @@ document.getElementById("btnSettingsClearConfirm").addEventListener("click", asy
 document.getElementById("btnOpenSettingsFromMind").addEventListener("click", () => {
   switchView("settings");
 });
+document.getElementById("btnOpenSettingsFromHome").addEventListener("click", () => {
+  switchView("settings");
+});
 
 /* =========================================================
    Phase69: データ管理(JSONバックアップ/復元/初期化)
@@ -14700,6 +14771,9 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
 /* =========================================================
    初期化
    ========================================================= */
+/* Phase23: 起動直後のhistory.stateを確定させておく(nullのままだと
+   1回目の戻るボタンの挙動が不定になるため)。 */
+if(!history.state){ history.replaceState({ kaosuView: "home" }, "", "#home"); }
 applyKaosuSettings();
 renderHomeQuestion();
 renderHomeStep();
