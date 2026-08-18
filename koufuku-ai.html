@@ -8545,6 +8545,16 @@ const KAOSU_ROOM_CONFIG_DEFAULT = {
   },
   character: {
     poses: {
+      /* 追加仕様: Startup Sequence専用の「後ろ姿(部屋の奥)」ポーズ。
+         部屋の奥に立ち、ユーザーへ背中を向け、翼は肩甲骨位置、歩行
+         開始前の待機ポーズという役割のため、通常のRoom Editor(部屋の
+         キャラクター編集)からも他ポーズと同列に選択できるよう、
+         POSES配列とこのcharacter.poses両方へ同じ"back"キーで登録する
+         (Startup Sequenceは既存のkaosuRoomConfigPose()経由でこの
+         プールを直接参照するだけで、ポーズ画像を専用に持たない=
+         「Pose(画像)」はここに一元化し、「Animation(動き)」側だけを
+         Startup Sequence独自のシーンデータとして持たせる設計)。 */
+      back:   { image: KAOSU_ROOM_ASSET_DIR + "pose-back.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
       idle:   { image: KAOSU_ROOM_ASSET_DIR + "pose-idle.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
       wave:   { image: KAOSU_ROOM_ASSET_DIR + "pose-wave.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
       walk:   { image: KAOSU_ROOM_ASSET_DIR + "pose-walk.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
@@ -8885,6 +8895,137 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
     return;
   }
   renderKaosuRoomScene(now);
+}
+
+/* ============================================================
+   Startup Sequence: 起動直後専用のシーン順次再生システム。
+   ------------------------------------------------------------
+   設計方針(Pose/Animationの分離): 各シーンは「どの画像を出すか」を
+   自分では持たず、既存のcharacter.poses(kaosuRoomConfigPose()で
+   解決する共有ポーズプール、Room Editor「ケイオスちゃん編集」タブと
+   完全に同じデータ)からposeKeyで1件参照するだけにしてある。
+   シーン側が独自に持つのは「Animation」情報(位置x/y・拡大率・回転・
+   不透明度・表示時間・フェードイン/アウト・移動開始/終了位置・
+   イージング・重なり順)だけ。この分離により、Room Editorでポーズ
+   画像を差し替えれば、Startup Sequence側もコード変更なしに追従する。
+   ------------------------------------------------------------
+   既定値の扱い: CmsStoreに保存済みの設定が無い場合、実行時(アプリ
+   起動時)はSTARTUP_SEQUENCE_DEFAULT_ITEMSを使わず「シーン0件=何も
+   再生しない」を既定にする。理由: 既定のポーズ画像(pose-*.webp)は
+   実素材が同梱されておらず、5シーンぶんすべてが同じフォールバック
+   画像(kaosu-home.webp)へ解決されてしまい、起動のたびに同じ静止画が
+   意味もなく5回明滅するだけの見た目になる(既存のグレースフル
+   デグラデーション方針=素材が無い間は何も表示しない、に反する)。
+   管理画面「Startup Sequence」タブを初めて開いた時のドラフト初期値
+   だけはSTARTUP_SEQUENCE_DEFAULT_ITEMS(指示書の推奨5シーン構成)で
+   埋めておき、そのまま「保存」を押すだけで有効化できるようにする。
+   ============================================================ */
+const STARTUP_SEQUENCE_EASING_OPTIONS = ["ease", "linear", "ease-in", "ease-out", "ease-in-out"];
+function kaosuStartupSequenceDefaultScene(overrides){
+  return Object.assign({
+    poseKey: "idle", x: 50, y: 55, scale: 1, rotation: 0, opacity: 1,
+    duration: 800, fadeIn: 300, fadeOut: 300, delay: 0,
+    moveFromX: 50, moveFromY: 55, moveToX: 50, moveToY: 55,
+    easing: "ease", layer: 1, enabled: true,
+  }, overrides);
+}
+/* 指示書の推奨構成: 後ろ姿(部屋の奥)→気付いて手を振る→小走りで
+   近付く→ホーム立ち位置へ到着→待機(呼吸モーションは通常のホーム側
+   演出に引き継ぐため、ここでは単に定位置へフェードするだけ)。 */
+const STARTUP_SEQUENCE_DEFAULT_ITEMS = [
+  kaosuStartupSequenceDefaultScene({ id: "scene-back", poseKey: "back", x: 50, y: 58, scale: 0.82, duration: 800, fadeIn: 300, fadeOut: 250, moveFromX: 50, moveFromY: 58, moveToX: 50, moveToY: 58 }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-wave", poseKey: "wave", x: 50, y: 55, scale: 0.9, duration: 1000, fadeIn: 250, fadeOut: 250, moveFromX: 50, moveFromY: 55, moveToX: 50, moveToY: 55 }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-walk", poseKey: "walk", x: 50, y: 52, scale: 0.95, duration: 800, fadeIn: 250, fadeOut: 250, moveFromX: 50, moveFromY: 60, moveToX: 50, moveToY: 50, easing: "ease-out" }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-arrive", poseKey: "idle", x: 50, y: 50, scale: 1, duration: 500, fadeIn: 200, fadeOut: 200, moveFromX: 50, moveFromY: 50, moveToX: 50, moveToY: 50 }),
+  kaosuStartupSequenceDefaultScene({ id: "scene-idle", poseKey: "idle", x: 50, y: 50, scale: 1, duration: 600, fadeIn: 200, fadeOut: 300, moveFromX: 50, moveFromY: 50, moveToX: 50, moveToY: 50 }),
+];
+function preloadKaosuImage(url){
+  return new Promise(resolve => {
+    if(!url){ resolve(false); return; }
+    const img = new Image();
+    img.onload = () => resolve(true);
+    img.onerror = () => resolve(false);
+    img.src = url;
+  });
+}
+async function loadKaosuStartupSequenceConfig(){
+  try{
+    const record = await CmsStore.getConfig("startupSequence");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は「シーン無し」のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+/* 起動直後だけ全画面を覆い、有効なシーンを順番にクロスフェード
+   再生する。2枚の<img>を交互に使い、Aのfadeout中にBがfadeinする
+   ことでクロスフェードを実現する。画像の実際の読み込み完了
+   (Promise.allで全シーンぶん先に待つ)後にだけ再生を開始し、
+   終了後はoverlayをdisplay:noneへ戻してホーム画面(既存のPhase22.5
+   入室演出はこのシーケンスと独立して別途動く)を見せる。 */
+async function playKaosuStartupSequence(){
+  const overlay = document.getElementById("kaosuStartupSequence");
+  if(!overlay) return;
+  const seqConfig = await loadKaosuStartupSequenceConfig();
+  const scenes = (seqConfig.items || []).filter(s => s.enabled !== false && s.poseKey);
+  if(!scenes.length) return;
+
+  const roomConfig = await loadKaosuRoomConfig();
+  await loadKaosuMediaIndex();
+  const resolved = scenes
+    .map(s => {
+      const pose = kaosuRoomConfigPose(roomConfig, s.poseKey);
+      return Object.assign({}, s, { url: resolveMediaUrl(pose.image) });
+    })
+    .filter(s => s.url);
+  if(!resolved.length) return;
+
+  const reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  await Promise.all(resolved.map(s => preloadKaosuImage(s.url)));
+  if(reduced) return;
+
+  overlay.innerHTML = `<img class="kaosu-startup-img" id="kaosuStartupImgA" alt=""><img class="kaosu-startup-img" id="kaosuStartupImgB" alt="">`;
+  overlay.style.display = "block";
+  const imgs = [document.getElementById("kaosuStartupImgA"), document.getElementById("kaosuStartupImgB")];
+  let active = 0;
+  let lastFadeOut = 300;
+  for(const s of resolved){
+    const el = imgs[active];
+    const fromX = s.moveFromX != null ? s.moveFromX : s.x;
+    const fromY = s.moveFromY != null ? s.moveFromY : s.y;
+    const toX = s.moveToX != null ? s.moveToX : s.x;
+    const toY = s.moveToY != null ? s.moveToY : s.y;
+    const scale = s.scale != null ? s.scale : 1;
+    const rotation = s.rotation || 0;
+    const targetOpacity = s.opacity != null ? s.opacity : 1;
+    const easing = STARTUP_SEQUENCE_EASING_OPTIONS.includes(s.easing) ? s.easing : "ease";
+    const duration = s.duration != null ? s.duration : 800;
+    const fadeIn = s.fadeIn != null ? s.fadeIn : 300;
+    const fadeOut = s.fadeOut != null ? s.fadeOut : 300;
+    const delay = s.delay || 0;
+
+    el.src = s.url;
+    el.style.zIndex = String(s.layer != null ? s.layer : 1);
+    el.style.transition = "none";
+    el.style.opacity = "0";
+    el.style.transform = `translate(${fromX - 50}%, ${fromY - 50}%) scale(${scale}) rotate(${rotation}deg)`;
+    void el.offsetHeight;
+
+    el.style.transition = `opacity ${fadeIn}ms ${easing}, transform ${duration}ms ${easing}`;
+    el.style.opacity = String(targetOpacity);
+    el.style.transform = `translate(${toX - 50}%, ${toY - 50}%) scale(${scale}) rotate(${rotation}deg)`;
+
+    await chatWait(Math.max(fadeIn, 20));
+    await chatWait(Math.max(duration - fadeIn, 0));
+
+    el.style.transition = `opacity ${fadeOut}ms ${easing}`;
+    el.style.opacity = "0";
+    lastFadeOut = fadeOut;
+
+    if(delay) await chatWait(delay);
+    active = 1 - active;
+  }
+  await chatWait(lastFadeOut);
+  overlay.style.display = "none";
+  overlay.innerHTML = "";
 }
 
 /* ============================================================
@@ -13273,7 +13414,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     { key: "night", label: "夜" }, { key: "midnight", label: "深夜" },
   ];
   const POSES = [
-    { key: "idle", label: "待機" }, { key: "wave", label: "手を振る" }, { key: "walk", label: "歩く" },
+    { key: "back", label: "後ろ姿(部屋の奥)" }, { key: "idle", label: "待機" }, { key: "wave", label: "手を振る" }, { key: "walk", label: "歩く" },
     { key: "sit", label: "座る" }, { key: "read", label: "読書" }, { key: "window", label: "窓を見る" },
     { key: "sofa", label: "ソファで休む" }, { key: "bow", label: "お辞儀" },
   ];
@@ -13314,6 +13455,45 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     { id: "character", icon: "👧", label: "ケイオスちゃん編集", category: "room", group: "room" },
     { id: "direction", icon: "🎭", label: "演出編集", category: "room", group: "room" },
     { id: "furniture", icon: "🎁", label: "家具・装飾", category: "room", group: "room" },
+    {
+      /* Startup Sequence Editor(追加仕様)。既存の汎用コレクション
+         編集エンジン(season/bgm等と同じ、追加/削除/▲▼並べ替え/
+         スキーマ駆動フィールド)をそのまま再利用する。各シーンは
+         「Pose(どの画像か)」をPOSES(=Room Editorの「ケイオスちゃん
+         編集」タブと共有する同じポーズプール)からposeKeyで選ぶだけで、
+         画像そのものはここでは持たない。位置/拡大率/回転/不透明度/
+         表示時間/フェード/移動開始・終了位置/イージング/重なり順
+         (=「Animation」側の情報)だけをここで編集する設計。
+         defaultShapeにだけ指示書の推奨5シーン構成を入れてあるため、
+         このタブを初めて開いた時点で5シーンが埋まった状態になり、
+         そのまま保存すればすぐに有効化できる(実行時の既定値は空=
+         保存するまでは何も再生しない。詳細はplayKaosuStartup
+         Sequence()のコメントを参照)。 */
+      id: "startupSequence", icon: "🎬", label: "Startup Sequence", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: STARTUP_SEQUENCE_DEFAULT_ITEMS }, itemLabel: "シーン",
+      schema: [
+        { key: "poseKey", label: "ポーズ(Pose)", type: "select", default: "idle",
+          options: POSES.map(p => ({ value: p.key, label: p.label })) },
+        { key: "x", label: "表示位置 X (%)", type: "number", default: 50 },
+        { key: "y", label: "表示位置 Y (%)", type: "number", default: 55 },
+        { key: "scale", label: "拡大率", type: "number", step: 0.05, default: 1 },
+        { key: "rotation", label: "回転 (deg)", type: "number", default: 0 },
+        { key: "opacity", label: "不透明度 (0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 1 },
+        { key: "duration", label: "表示時間 (ms)", type: "number", default: 800 },
+        { key: "fadeIn", label: "フェードイン (ms)", type: "number", default: 300 },
+        { key: "fadeOut", label: "フェードアウト (ms)", type: "number", default: 300 },
+        { key: "delay", label: "次のシーンまでの待機時間 (ms)", type: "number", default: 0 },
+        { key: "moveFromX", label: "移動開始位置 X (%)", type: "number", default: 50 },
+        { key: "moveFromY", label: "移動開始位置 Y (%)", type: "number", default: 55 },
+        { key: "moveToX", label: "移動終了位置 X (%)", type: "number", default: 50 },
+        { key: "moveToY", label: "移動終了位置 Y (%)", type: "number", default: 55 },
+        { key: "easing", label: "イージング", type: "select", default: "ease",
+          options: STARTUP_SEQUENCE_EASING_OPTIONS.map(v => ({ value: v, label: v })) },
+        { key: "layer", label: "重なり順 (z-index)", type: "number", default: 1 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "起動直後に、この順番でシーンをクロスフェード再生します(画像はRoom Editor「ケイオスちゃん編集」タブのポーズ画像をそのまま使うので、ポーズ画像を差し替えるだけで演出も更新されます)。シーンが1件も無い場合は演出自体が発生せず、通常どおり即座にホーム画面が表示されます。",
+    },
     {
       id: "season", icon: "🌸", label: "季節イベント", category: "content", group: "generic",
       kind: "collection", defaultShape: { items: [] }, itemLabel: "イベント",
@@ -14860,6 +15040,7 @@ renderHomeStep();
 renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
+playKaosuStartupSequence();
 renderKaosuRoomSceneWithEntrance();
 startKaosuBgm();
 renderNotificationModeChips();
