@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#fff8fb">
 <title>幸せ設計AI（仮）</title>
 <!-- Phase71: favicon未指定だとブラウザが/favicon.icoへ自動リクエストし
@@ -565,7 +565,7 @@ textarea{ font-family:inherit; }
   position:relative; overflow:hidden; flex:1; min-height:0; height:100%;
   padding:calc(18px + env(safe-area-inset-top)) 16px 18px;
   display:flex; flex-direction:column;
-  background-size:104% 104%; background-position:50% 50%;
+  background-size:cover; background-position:50% 50%; background-repeat:no-repeat;
   transition:background .8s ease;
   animation:kaosuRoomBgDrift calc(60s * var(--kaosu-motion-speed, 1)) ease-in-out infinite alternate;
 }
@@ -573,12 +573,15 @@ textarea{ font-family:inherit; }
    したKen Burns風の背景ドリフト(指示書どおり60秒周期・数%だけの
    変化)。背景(このscene自身のbackground)とキャラクター(.kaosu-
    breathe、5.5秒周期)の動きの速さを意図的にずらすことで、奥行き
-   (軽いパララックス)のある空間として感じられるようにする。ユーザーが
-   気付かない程度に留めるため変化量はごく小さい(background-size
-   100〜104%、positionも数%だけ)。 */
+   (軽いパララックス)のある空間として感じられるようにする。
+   実機不具合修正: background-sizeを100〜104%の間で揺らすと、実際に
+   設定される背景画像の縦横比が画面と一致しない場合に画像が歪んで
+   見える(cover指定の意図に反する)ため、sizeは常にcover固定にし、
+   ドリフトはbackground-positionの数%移動のみで表現する
+   (歪み・余白のリスクを完全に排除)。 */
 @keyframes kaosuRoomBgDrift{
-  0%{ background-size:104% 104%; background-position:50% 48%; }
-  100%{ background-size:100% 100%; background-position:50% 51%; }
+  0%{ background-position:50% 48%; }
+  100%{ background-position:50% 51%; }
 }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-scene{ animation:none; }
@@ -1365,8 +1368,10 @@ textarea{ font-family:inherit; }
 
 .field-input{
   width:100%; border:1px solid var(--border); border-radius:var(--radius-sm);
-  padding:11px 13px; font-size:14.5px; color:var(--text); background:#fbfbff;
+  padding:11px 13px; font-size:14.5px; background:#fbfbff;
+  color:#222; -webkit-text-fill-color:#222; caret-color:var(--purple);
 }
+.field-input::placeholder{ color:#8A8A8A; opacity:1; }
 .field-input:focus{ outline:none; border-color:var(--purple); }
 textarea.field-input{ resize:none; }
 
