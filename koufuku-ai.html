@@ -8543,26 +8543,29 @@ const KAOSU_ROOM_CONFIG_DEFAULT = {
     season: {},
     event: {},
   },
+  /* 将来拡張対応: PoseをCategory(役割・シーン。例: Standing/Back/
+     Greeting/Walking/Reading/Sitting/Relax/Window/Sofa/Bow)と
+     Variant(そのCategory内の衣装違い・季節違い・表情違いなど、
+     初期状態は"default"の1件のみ)に分離した2階層構造にしてある。
+     Startup Sequence/演出編集(entranceAnimations.items[].pose)は
+     どちらもCategoryキー(idle/back/wave/walk/read/sit/relax/window/
+     sofa/bow)だけを参照し、実際にどの画像を使うかはそのCategoryの
+     activeVariantが指すVariantから解決する(kaosuRoomConfigPose()
+     参照)。そのため、Room Editorで新しい衣装Variantを追加して
+     activeVariantを切り替えるだけで、Startup Sequence側は一切
+     編集せずに新しい見た目へ一括更新される。 */
   character: {
-    poses: {
-      /* 追加仕様: Startup Sequence専用の「後ろ姿(部屋の奥)」ポーズ。
-         部屋の奥に立ち、ユーザーへ背中を向け、翼は肩甲骨位置、歩行
-         開始前の待機ポーズという役割のため、通常のRoom Editor(部屋の
-         キャラクター編集)からも他ポーズと同列に選択できるよう、
-         POSES配列とこのcharacter.poses両方へ同じ"back"キーで登録する
-         (Startup Sequenceは既存のkaosuRoomConfigPose()経由でこの
-         プールを直接参照するだけで、ポーズ画像を専用に持たない=
-         「Pose(画像)」はここに一元化し、「Animation(動き)」側だけを
-         Startup Sequence独自のシーンデータとして持たせる設計)。 */
-      back:   { image: KAOSU_ROOM_ASSET_DIR + "pose-back.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      idle:   { image: KAOSU_ROOM_ASSET_DIR + "pose-idle.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      wave:   { image: KAOSU_ROOM_ASSET_DIR + "pose-wave.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      walk:   { image: KAOSU_ROOM_ASSET_DIR + "pose-walk.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      sit:    { image: KAOSU_ROOM_ASSET_DIR + "pose-sit.webp",    x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      read:   { image: KAOSU_ROOM_ASSET_DIR + "pose-read.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      window: { image: KAOSU_ROOM_ASSET_DIR + "pose-window.webp", x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      sofa:   { image: KAOSU_ROOM_ASSET_DIR + "pose-sofa.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
-      bow:    { image: KAOSU_ROOM_ASSET_DIR + "pose-bow.webp",    x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true },
+    poseCategories: {
+      back:   { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-back.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      idle:   { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-idle.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      wave:   { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-wave.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      walk:   { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-walk.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      sit:    { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-sit.webp",    x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      read:   { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-read.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      relax:  { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-relax.webp",  x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      window: { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-window.webp", x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      sofa:   { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-sofa.webp",   x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
+      bow:    { activeVariant: "default", variants: { default: { label: "通常", image: KAOSU_ROOM_ASSET_DIR + "pose-bow.webp",    x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } } },
     },
   },
   entranceAnimations: {
@@ -8655,10 +8658,33 @@ function invalidateKaosuRoomConfigCache(){
 function getKaosuRoomConfigSync(){
   return kaosuRoomConfigCache || KAOSU_ROOM_CONFIG_DEFAULT;
 }
-function kaosuRoomConfigPose(config, poseKey){
-  const p = config && config.character && config.character.poses && config.character.poses[poseKey];
-  if(p && typeof p === "object" && typeof p.image === "string") return p;
-  return KAOSU_ROOM_CONFIG_DEFAULT.character.poses[poseKey] || KAOSU_ROOM_CONFIG_DEFAULT.character.poses.idle;
+/* Category(役割・シーン)からVariant(衣装違い・季節違いなど)込みの
+   設定オブジェクトを取り出す。優先順位: ①新形式(character.
+   poseCategories、Variant複数対応) ②旧形式(character.poses、1
+   Category=1Variantだった時代の保存データをdefaultバリエーション
+   として読み替える後方互換) ③コード内蔵の既定値。保存し直すまでは
+   ②の変換結果は読み取り専用(draftを書き換えない)。 */
+function kaosuRoomConfigCategory(config, categoryKey){
+  const char = config && config.character;
+  const cat = char && char.poseCategories && char.poseCategories[categoryKey];
+  if(cat && typeof cat === "object" && cat.variants && typeof cat.variants === "object" && Object.keys(cat.variants).length) return cat;
+  const legacy = char && char.poses && char.poses[categoryKey];
+  if(legacy && typeof legacy === "object" && typeof legacy.image === "string"){
+    return { activeVariant: "default", variants: { default: legacy } };
+  }
+  return KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories[categoryKey] || KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories.idle;
+}
+/* variantKeyを省略すると、そのCategoryの現在のactiveVariantを返す
+   (Startup Sequence/演出編集は常にこの省略形で呼ぶ=Categoryキー
+   だけを参照し、実際の見た目はactiveVariant切り替えだけで一括更新
+   できる)。 */
+function kaosuRoomConfigPose(config, categoryKey, variantKey){
+  const cat = kaosuRoomConfigCategory(config, categoryKey);
+  const vKey = variantKey || cat.activeVariant || Object.keys(cat.variants)[0];
+  const variant = cat.variants[vKey];
+  if(variant && typeof variant === "object" && typeof variant.image === "string") return variant;
+  const defCat = KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories[categoryKey] || KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories.idle;
+  return defCat.variants[defCat.activeVariant] || defCat.variants.default;
 }
 /* 背景画像パスの優先順位(将来の拡張ポイント): イベント > 季節 > 天候 >
    時間帯。現時点ではevent/season/weatherを既定で空にしてあるため、
@@ -8901,9 +8927,10 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
    Startup Sequence: 起動直後専用のシーン順次再生システム。
    ------------------------------------------------------------
    設計方針(Pose/Animationの分離): 各シーンは「どの画像を出すか」を
-   自分では持たず、既存のcharacter.poses(kaosuRoomConfigPose()で
-   解決する共有ポーズプール、Room Editor「ケイオスちゃん編集」タブと
-   完全に同じデータ)からposeKeyで1件参照するだけにしてある。
+   自分では持たず、既存のcharacter.poseCategories(kaosuRoomConfig
+   Pose()で解決する共有Category/Variantプール、Room Editor「ケイオス
+   ちゃん編集」タブと完全に同じデータ)からposeKey(=Categoryキー)で
+   1件参照するだけにしてある。
    シーン側が独自に持つのは「Animation」情報(位置x/y・拡大率・回転・
    不透明度・表示時間・フェードイン/アウト・移動開始/終了位置・
    イージング・重なり順)だけ。この分離により、Room Editorでポーズ
@@ -9265,7 +9292,7 @@ async function renderKaosuRoomScene(now = new Date()){
      完全に無変更のまま、管理画面での見た目カスタマイズが即時に
      ホーム画面へ反映されるようになる。 */
   const idlePoseForExpressionCheck = kaosuRoomConfigPose(roomConfig, "idle");
-  const idlePoseCustomized = idlePoseForExpressionCheck.image !== KAOSU_ROOM_CONFIG_DEFAULT.character.poses.idle.image;
+  const idlePoseCustomized = idlePoseForExpressionCheck.image !== KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories.idle.variants.default.image;
   if(idlePoseCustomized){
     setKaosuRoomPoseImage(roomConfig, "idle");
   }else{
@@ -13413,10 +13440,20 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     { key: "morning", label: "朝" }, { key: "day", label: "昼" }, { key: "evening", label: "夕方" },
     { key: "night", label: "夜" }, { key: "midnight", label: "深夜" },
   ];
-  const POSES = [
-    { key: "back", label: "後ろ姿(部屋の奥)" }, { key: "idle", label: "待機" }, { key: "wave", label: "手を振る" }, { key: "walk", label: "歩く" },
-    { key: "sit", label: "座る" }, { key: "read", label: "読書" }, { key: "window", label: "窓を見る" },
-    { key: "sofa", label: "ソファで休む" }, { key: "bow", label: "お辞儀" },
+  /* 将来拡張対応: Poseは単一の画像ではなく「Category(役割・シーン)」
+     ごとに複数の「Variant(衣装違い・季節違い・表情違いなど)」を登録
+     できる2階層構造にしてある(character.poseCategories、下記
+     kaosuRoomConfigPose()参照)。Startup Sequence/演出編集/Room
+     Editorはどれもこの同じCategoryキーを参照するだけなので、
+     衣装追加や季節差し替えのたびにStartup Sequence側を編集し直す
+     必要がない(該当CategoryのactiveVariantを切り替えるだけで、
+     参照している全箇所へ一括反映される)。 */
+  const POSE_CATEGORIES = [
+    { key: "idle", label: "Standing(待機)" }, { key: "back", label: "Back(後ろ姿・部屋の奥)" },
+    { key: "wave", label: "Greeting(手を振る)" }, { key: "walk", label: "Walking(歩く)" },
+    { key: "read", label: "Reading(読書)" }, { key: "sit", label: "Sitting(座る)" },
+    { key: "relax", label: "Relax(くつろぐ)" }, { key: "window", label: "Window(窓を見る)" },
+    { key: "sofa", label: "Sofa(ソファで休む)" }, { key: "bow", label: "Bow(お辞儀)" },
   ];
   const WEATHER = [ { key: "rain", label: "雨" }, { key: "snow", label: "雪" } ];
   const SEASON = [ { key: "spring", label: "春" }, { key: "summer", label: "夏" }, { key: "autumn", label: "秋" }, { key: "winter", label: "冬" } ];
@@ -13459,8 +13496,9 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       /* Startup Sequence Editor(追加仕様)。既存の汎用コレクション
          編集エンジン(season/bgm等と同じ、追加/削除/▲▼並べ替え/
          スキーマ駆動フィールド)をそのまま再利用する。各シーンは
-         「Pose(どの画像か)」をPOSES(=Room Editorの「ケイオスちゃん
-         編集」タブと共有する同じポーズプール)からposeKeyで選ぶだけで、
+         「Pose(どのCategoryか)」をPOSE_CATEGORIES(=Room Editorの
+         「ケイオスちゃん編集」タブと共有する同じCategory一覧)から
+         poseKeyで選ぶだけで、
          画像そのものはここでは持たない。位置/拡大率/回転/不透明度/
          表示時間/フェード/移動開始・終了位置/イージング/重なり順
          (=「Animation」側の情報)だけをここで編集する設計。
@@ -13473,7 +13511,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       kind: "collection", defaultShape: { items: STARTUP_SEQUENCE_DEFAULT_ITEMS }, itemLabel: "シーン",
       schema: [
         { key: "poseKey", label: "ポーズ(Pose)", type: "select", default: "idle",
-          options: POSES.map(p => ({ value: p.key, label: p.label })) },
+          options: POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label })) },
         { key: "x", label: "表示位置 X (%)", type: "number", default: 50 },
         { key: "y", label: "表示位置 Y (%)", type: "number", default: 55 },
         { key: "scale", label: "拡大率", type: "number", step: 0.05, default: 1 },
@@ -13643,7 +13681,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
   const ROOM_CONFIG_DEFAULT_FOR_ADMIN = {
     configVersion: 1,
     background: { enabled: true, timeOfDay: {}, weather: {}, season: {}, event: {} },
-    character: { poses: {} },
+    character: { poseCategories: {} },
     entranceAnimations: { items: [] },
     furniture: { items: [] },
   };
@@ -13684,6 +13722,30 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
   function filenameOf(name){ return name || ""; }
   function findImageById(id){ return assetLibrary.images.find(im => im.id === id); }
   function findAudioById(id){ return assetLibrary.audio.find(a => a.id === id); }
+
+  /* 将来拡張対応: roomState.draft.character.poseCategories[catKey]が
+     まだ無ければ(=新規、または保存前の旧character.poses形式のまま)
+     ここで初めて作る。旧形式に既存のカスタマイズ(画像・位置等)が
+     あれば消さずにdefaultバリエーションとして引き継ぐ(保存し直す
+     までは旧keyも残したままにしておき、事故的なデータ消失を避ける)。 */
+  function kaosuAdminEnsureCategory(catKey){
+    const draft = roomState.draft;
+    draft.character = draft.character || {};
+    draft.character.poseCategories = draft.character.poseCategories || {};
+    let cat = draft.character.poseCategories[catKey];
+    if(!cat || typeof cat !== "object" || !cat.variants || !Object.keys(cat.variants).length){
+      const legacy = draft.character.poses && draft.character.poses[catKey];
+      cat = draft.character.poseCategories[catKey] = {
+        activeVariant: "default",
+        variants: { default: (legacy && typeof legacy === "object") ? legacy : { label: "通常", x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true } },
+      };
+    }
+    if(!cat.activeVariant || !cat.variants[cat.activeVariant]) cat.activeVariant = "default";
+    return cat;
+  }
+  function kaosuAdminActiveVariant(cat){
+    return cat.variants[cat.activeVariant] || cat.variants.default;
+  }
 
   function currentDirtyState(){
     const mod = MODULES.find(m => m.id === currentTab);
@@ -13789,7 +13851,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     TIME_BANDS.forEach(b => bgGroup.appendChild(new Option("背景:" + b.label, "bg:" + b.key)));
     sel.appendChild(bgGroup);
     const poseGroup = document.createElement("optgroup"); poseGroup.label = "ケイオスちゃん";
-    POSES.forEach(p => poseGroup.appendChild(new Option("立ち絵:" + p.label, "pose:" + p.key)));
+    POSE_CATEGORIES.forEach(p => poseGroup.appendChild(new Option("立ち絵:" + p.label, "pose:" + p.key)));
     sel.appendChild(poseGroup);
   }
 
@@ -13830,8 +13892,8 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
         setDirty(true);
       }else if(target.startsWith("pose:")){
         const key = target.slice(5);
-        roomState.draft.character.poses[key] = roomState.draft.character.poses[key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
-        roomState.draft.character.poses[key].image = entry.id;
+        const cat = kaosuAdminEnsureCategory(key);
+        kaosuAdminActiveVariant(cat).image = entry.id;
         if(currentTab === "character") renderTab("character");
         setDirty(true);
       }
@@ -14114,13 +14176,13 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     panel.innerHTML = `
       <div class="card">
         <h2>👧 ケイオスちゃんの配置</h2>
-        <p class="hint" style="margin-top:-6px;">立ち絵の種類(ポーズ)ごとに、画像・表示位置・拡大縮小・前後関係・透明度を設定できます。</p>
+        <p class="hint" style="margin-top:-6px;">Category(役割・シーン)ごとに、複数のVariant(衣装違い・季節違い・表情違いなど)を登録できます。Startup Sequence/演出編集はCategoryだけを参照するため、Variantを追加して「アクティブ」を切り替えるだけで、それらの見た目を一括更新できます。</p>
         <div id="adminPoseEditor"></div>
       </div>
       <div class="card">
         <h2>プレビュー</h2>
         <div class="preview-controls">
-          <select id="adminPreviewPose">${POSES.map(p => `<option value="${p.key}">${p.label}</option>`).join("")}</select>
+          <select id="adminPreviewPose">${POSE_CATEGORIES.map(p => `<option value="${p.key}">${p.label}</option>`).join("")}</select>
         </div>
         <div class="preview-scene" id="adminPreviewScene2" style="background:linear-gradient(160deg,#ffe6ef,#e9e0ff);">
           <div class="avatar-box" id="adminPreviewAvatarBox"><img id="adminPreviewAvatar" alt="" onerror="this.style.display='none'"></div>
@@ -14128,45 +14190,121 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       </div>
     `;
     const wrap = $("adminPoseEditor");
-    const draft = roomState.draft;
-    POSES.forEach(p => {
-      const pose = draft.character.poses[p.key] = draft.character.poses[p.key] || { x:0, y:0, scale:1, rotation:0, opacity:1, zIndex:1, visible:true };
-      const thumbUrl = (findImageById(pose.image) || {}).url || "";
-      const det = document.createElement("details");
-      det.innerHTML = `
-        <summary><span><img src="${thumbUrl}" onerror="this.style.visibility='hidden'">${p.label}</span></summary>
-        <div class="field"><label>画像</label><select data-f="image">${imageOptions(pose.image)}</select></div>
-        <div class="pose-fields">
-          <div class="field"><label>X (px)</label><input type="number" data-f="x" value="${pose.x||0}"></div>
-          <div class="field"><label>Y (px)</label><input type="number" data-f="y" value="${pose.y||0}"></div>
-          <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${pose.scale!=null?pose.scale:1}"></div>
-          <div class="field"><label>回転(deg)</label><input type="number" data-f="rotation" value="${pose.rotation||0}"></div>
-          <div class="field"><label>前後(Z-index)</label><input type="number" data-f="zIndex" value="${pose.zIndex!=null?pose.zIndex:1}"></div>
-          <div class="field"><label>透明度(0-1)</label><input type="number" step="0.05" min="0" max="1" data-f="opacity" value="${pose.opacity!=null?pose.opacity:1}"></div>
-        </div>
-        <label class="checkbox-row"><input type="checkbox" data-f="visible" ${pose.visible!==false?"checked":""}> 表示する</label>
-      `;
-      det.querySelectorAll("[data-f]").forEach(el => {
-        const field = el.dataset.f;
-        const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
-        el.addEventListener(evt, () => {
-          if(field === "visible") pose.visible = el.checked;
-          else if(field === "image") pose.image = el.value;
-          else pose[field] = parseFloat(el.value) || 0;
-          det.querySelector("summary img").src = (findImageById(pose.image) || {}).url || "";
-          updateCharacterPreview();
-          setDirty(true);
-        });
-      });
-      wrap.appendChild(det);
-    });
+    POSE_CATEGORIES.forEach(p => renderPoseCategoryBlock(wrap, p));
     $("adminPreviewPose").addEventListener("change", updateCharacterPreview);
     updateCharacterPreview();
+  }
+  /* 1 Category ぶんの編集ブロック。summaryにCategory名+現在の
+     アクティブVariantのサムネイル、その下に「アクティブなVariant」
+     選択と、Variantごとのカード(画像/位置/拡大率/回転/前後/透明度/
+     表示)を並べる。defaultバリエーションは削除不可(常に最低1件は
+     残す)、それ以外は削除ボタンを出す。 */
+  function renderPoseCategoryBlock(wrap, catMeta){
+    const cat = kaosuAdminEnsureCategory(catMeta.key);
+    const det = document.createElement("details");
+    det.className = "pose-category";
+    const activeThumbUrl = (findImageById(kaosuAdminActiveVariant(cat).image) || {}).url || "";
+    det.innerHTML = `
+      <summary><span><img src="${activeThumbUrl}" onerror="this.style.visibility='hidden'">${catMeta.label}</span></summary>
+      <div class="field" style="margin-top:8px;">
+        <label>アクティブなVariant(他画面はこの見た目を使用)</label>
+        <select data-active-variant></select>
+      </div>
+      <div class="variant-list" data-variant-list></div>
+      <button type="button" class="secondary tiny" data-act="add-variant" style="margin-top:8px;">＋ Variantを追加(衣装・季節違いなど)</button>
+    `;
+    const activeSel = det.querySelector("[data-active-variant]");
+    const variantListEl = det.querySelector("[data-variant-list]");
+
+    function refreshSummaryThumb(){
+      det.querySelector("summary img").src = (findImageById(kaosuAdminActiveVariant(cat).image) || {}).url || "";
+    }
+    function renderVariantSelect(){
+      activeSel.innerHTML = "";
+      Object.keys(cat.variants).forEach(vKey => {
+        const v = cat.variants[vKey];
+        activeSel.appendChild(new Option(v.label || vKey, vKey, false, vKey === cat.activeVariant));
+      });
+    }
+    function renderVariantList(){
+      variantListEl.innerHTML = "";
+      Object.keys(cat.variants).forEach(vKey => {
+        const variant = cat.variants[vKey];
+        const isDefault = vKey === "default";
+        const card = document.createElement("div");
+        card.className = "item-card";
+        card.innerHTML = `
+          <div class="head">
+            <span class="head-title">${variant.label || vKey}${vKey === cat.activeVariant ? " ★アクティブ" : ""}</span>
+            <div class="head-btns">
+              ${!isDefault ? '<button type="button" class="danger tiny" data-act="remove-variant">削除</button>' : ""}
+            </div>
+          </div>
+          ${!isDefault ? `<div class="field" style="margin-bottom:8px;"><label>Variant名(衣装・季節名など)</label><input type="text" data-f="label" value="${variant.label || ""}"></div>` : ""}
+          <div class="field" style="margin-bottom:8px;"><label>画像</label><select data-f="image">${imageOptions(variant.image)}</select></div>
+          <div class="pose-fields">
+            <div class="field"><label>X (px)</label><input type="number" data-f="x" value="${variant.x||0}"></div>
+            <div class="field"><label>Y (px)</label><input type="number" data-f="y" value="${variant.y||0}"></div>
+            <div class="field"><label>拡大縮小</label><input type="number" step="0.05" data-f="scale" value="${variant.scale!=null?variant.scale:1}"></div>
+            <div class="field"><label>回転(deg)</label><input type="number" data-f="rotation" value="${variant.rotation||0}"></div>
+            <div class="field"><label>前後(Z-index)</label><input type="number" data-f="zIndex" value="${variant.zIndex!=null?variant.zIndex:1}"></div>
+            <div class="field"><label>透明度(0-1)</label><input type="number" step="0.05" min="0" max="1" data-f="opacity" value="${variant.opacity!=null?variant.opacity:1}"></div>
+          </div>
+          <label class="checkbox-row"><input type="checkbox" data-f="visible" ${variant.visible!==false?"checked":""}> 表示する</label>
+        `;
+        card.querySelectorAll("[data-f]").forEach(el => {
+          const field = el.dataset.f;
+          const evt = el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input";
+          el.addEventListener(evt, () => {
+            if(field === "visible") variant.visible = el.checked;
+            else if(field === "image" || field === "label") variant[field] = el.value;
+            else variant[field] = parseFloat(el.value) || 0;
+            if(field === "label"){ renderVariantSelect(); renderVariantList(); }
+            if(field === "image" && vKey === cat.activeVariant) refreshSummaryThumb();
+            updateCharacterPreview();
+            setDirty(true);
+          });
+        });
+        if(!isDefault){
+          card.querySelector('[data-act="remove-variant"]').addEventListener("click", () => {
+            if(cat.activeVariant === vKey) cat.activeVariant = "default";
+            delete cat.variants[vKey];
+            renderVariantSelect();
+            renderVariantList();
+            refreshSummaryThumb();
+            updateCharacterPreview();
+            setDirty(true);
+          });
+        }
+        variantListEl.appendChild(card);
+      });
+    }
+
+    activeSel.addEventListener("change", () => {
+      cat.activeVariant = activeSel.value;
+      refreshSummaryThumb();
+      renderVariantList();
+      updateCharacterPreview();
+      setDirty(true);
+    });
+    det.querySelector('[data-act="add-variant"]').addEventListener("click", () => {
+      let n = 2;
+      while(cat.variants["variant" + n]) n++;
+      cat.variants["variant" + n] = { label: "新しいVariant" + (n - 1), x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, zIndex: 1, visible: true };
+      renderVariantSelect();
+      renderVariantList();
+      setDirty(true);
+    });
+
+    renderVariantSelect();
+    renderVariantList();
+    wrap.appendChild(det);
   }
   function updateCharacterPreview(){
     const poseSel = $("adminPreviewPose");
     if(!poseSel) return;
-    const pose = roomState.draft.character.poses[poseSel.value] || {};
+    const cat = kaosuAdminEnsureCategory(poseSel.value);
+    const pose = kaosuAdminActiveVariant(cat);
     const img = findImageById(pose.image);
     const avatarImg = $("adminPreviewAvatar");
     avatarImg.src = img ? img.url : "";
@@ -14213,7 +14351,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
           </div>
         </div>
         <div class="field-grid">
-          <div class="field"><label>使用する立ち絵</label><select data-f="pose">${POSES.map(p => `<option value="${p.key}" ${item.pose===p.key?"selected":""}>${p.label}</option>`).join("")}</select></div>
+          <div class="field"><label>使用する立ち絵</label><select data-f="pose">${POSE_CATEGORIES.map(p => `<option value="${p.key}" ${item.pose===p.key?"selected":""}>${p.label}</option>`).join("")}</select></div>
           <div class="field"><label>出現しやすさ(重み)</label><input type="number" data-f="weight" value="${item.weight||0}"></div>
           <div class="field"><label>歩いてくる時間(ms)</label><input type="number" data-f="durationMs" value="${item.durationMs||1100}"></div>
           <div class="field"><label>開始X(px)</label><input type="number" data-f="startOffset.x" value="${item.startOffset.x||0}"></div>
