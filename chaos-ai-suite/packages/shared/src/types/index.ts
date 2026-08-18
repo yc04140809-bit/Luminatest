@@ -17,3 +17,4 @@ export * from "./marketingCopy.js";
 export * from "./council.js";
 export * from "./luminaBrain.js";
 export * from "./debate.js";
+export * from "./clientDelivery.js";

@@ -7,6 +7,8 @@ import {
   type AgentDraft,
   type BrandProfile,
   type BrandProfileUpdateInput,
+  type ClientProject,
+  type ClientProjectDraft,
   type CouncilCallLog,
   type CouncilSession,
   type DebateCallLog,
@@ -321,6 +323,55 @@ export class OfficeStore {
     };
     this.state.debateSessions[id] = updated;
     this.emit({ type: "debate_session_updated", session: updated });
+    return updated;
+  }
+
+  listClientProjects(): ClientProject[] {
+    return Object.values(this.state.clientProjects);
+  }
+
+  getClientProject(id: string): ClientProject | undefined {
+    return this.state.clientProjects[id];
+  }
+
+  createClientProject(draft: ClientProjectDraft): ClientProject {
+    const now = new Date().toISOString();
+    const project: ClientProject = {
+      id: `client-${randomUUID()}`,
+      name: draft.name,
+      clientName: draft.clientName,
+      industry: draft.industry,
+      contactName: draft.contactName,
+      contactNote: draft.contactNote,
+      memo: draft.memo,
+      status: "NEW",
+      riskLevel: "LOW",
+      interviews: [],
+      nextQuestion: undefined,
+      interviewComplete: false,
+      interviewCoverage: [],
+      automationCandidates: [],
+      mvpProposals: [],
+      implementationSpecs: [],
+      decisionLog: [],
+      auditLog: [
+        { id: `audit-${randomUUID()}`, event: "project_created", detail: `案件「${draft.name}」を作成しました。`, createdAt: now },
+      ],
+      usageLog: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.state.clientProjects[project.id] = project;
+    this.emit({ type: "client_project_updated", project });
+    return project;
+  }
+
+  updateClientProject(id: string, patch: Partial<ClientProject>): ClientProject | undefined {
+    const existing = this.state.clientProjects[id];
+    if (!existing) return undefined;
+    const updated: ClientProject = { ...existing, ...patch, updatedAt: new Date().toISOString() };
+    this.state.clientProjects[id] = updated;
+    this.emit({ type: "client_project_updated", project: updated });
     return updated;
   }
 

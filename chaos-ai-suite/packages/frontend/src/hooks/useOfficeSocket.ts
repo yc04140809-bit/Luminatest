@@ -43,6 +43,8 @@ function applyEvent(office: OfficeState, event: Exclude<OfficeEvent, { type: "of
       return { ...office, councilSessions: { ...office.councilSessions, [event.session.id]: event.session } };
     case "debate_session_updated":
       return { ...office, debateSessions: { ...office.debateSessions, [event.session.id]: event.session } };
+    case "client_project_updated":
+      return { ...office, clientProjects: { ...office.clientProjects, [event.project.id]: event.project } };
     default: {
       const exhaustiveCheck: never = event;
       return exhaustiveCheck;

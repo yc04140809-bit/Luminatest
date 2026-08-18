@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, Music, Settings, VolumeX } from "lucide-react";
+import { Archive, Briefcase, Music, Settings, VolumeX } from "lucide-react";
 import type { Agent, Task } from "@chaos-ai-suite/shared";
 import { useOfficeSocket } from "./hooks/useOfficeSocket.js";
 import { useApplyTheme } from "./hooks/useApplyTheme.js";
@@ -26,6 +26,7 @@ import { VideoStudio } from "./components/VideoStudio.js";
 import { UsageDashboard } from "./components/UsageDashboard.js";
 import { ArchivePanel } from "./components/ArchivePanel.js";
 import { LuminaBrainScreen } from "./components/luminaBrain/LuminaBrainScreen.js";
+import { ClientDeliveryDashboard } from "./components/clientDelivery/ClientDeliveryDashboard.js";
 import { postBriefing } from "./api/officeApi.js";
 import { todayInTokyo } from "./utils/dateUtil.js";
 
@@ -51,6 +52,7 @@ export default function App() {
   const seenDebateIds = useRef<Set<string>>(new Set());
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [luminaBrainOpen, setLuminaBrainOpen] = useState(false);
+  const [clientDeliveryOpen, setClientDeliveryOpen] = useState(false);
   const briefingRequested = useRef(false);
   const bgm = useBgm();
   useApplyTheme(office?.theme);
@@ -227,6 +229,7 @@ export default function App() {
       )}
 
       {luminaBrainOpen && <LuminaBrainScreen onClose={() => setLuminaBrainOpen(false)} />}
+      {clientDeliveryOpen && <ClientDeliveryDashboard onClose={() => setClientDeliveryOpen(false)} />}
 
       {debateRoomOpen && displayedDebateSession && (
         <DebateRoom session={displayedDebateSession} agents={office.agents} onClose={() => setDebateRoomOpen(false)} />
@@ -247,6 +250,22 @@ export default function App() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <section className="rounded-xl border border-office-border bg-office-panel p-4">
+            <h2 className="mb-2 flex items-center gap-2 font-display text-lg text-office-gold">
+              <Briefcase size={18} />
+              クライアント案件モード
+            </h2>
+            <p className="mb-3 text-xs text-office-muted">
+              依頼者の相談をヒアリング→整理→自動化分類→MVP提案→承認→Claude Code実装指示書まで一気通貫で進めます。
+            </p>
+            <button
+              type="button"
+              onClick={() => setClientDeliveryOpen(true)}
+              className="w-full rounded-lg bg-office-gold px-3 py-2 text-sm font-semibold text-office-bg"
+            >
+              クライアント案件を開く
+            </button>
+          </section>
           <MeetingLauncher meetingRunning={Boolean(runningMeeting)} />
           <CouncilLauncher councilRunning={councilRunning} />
           <DebateLauncher agents={agents} debateRunning={debateRunning} />

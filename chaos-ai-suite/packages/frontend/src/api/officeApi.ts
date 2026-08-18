@@ -4,10 +4,13 @@ import type {
   BrandProfileUpdateInput,
   CaseQualityResult,
   CaseRequirements,
+  ClientProject,
+  ClientProjectDraft,
   ClientQuestions,
   CouncilRequestCategory,
   DebateDecision,
   DeliveryPack,
+  MvpApprovalStatus,
   MarketingCopyDiagnoseRequest,
   MarketingCopyDiagnosis,
   MarketingCopyRequest,
@@ -314,4 +317,49 @@ export function reviseMarketingCopy(input: MarketingCopyRevisionRequest & { useB
 /** 刺さるマーケティング生成: 完成文章を10項目×10点で採点し、改善案まで返す（担当はミライ）。 */
 export function diagnoseMarketingCopy(input: MarketingCopyDiagnoseRequest): Promise<MarketingCopyDiagnosis> {
   return postJson<MarketingCopyDiagnosis>("/api/marketing-copy/diagnose", input);
+}
+
+// --- Client Delivery Mode（クライアント案件モード） ---
+
+export function listClientProjects(): Promise<ClientProject[]> {
+  return getJson<ClientProject[]>("/api/client-projects");
+}
+
+export function getClientProject(id: string): Promise<ClientProject> {
+  return getJson<ClientProject>(`/api/client-projects/${id}`);
+}
+
+export function createClientProject(draft: ClientProjectDraft): Promise<ClientProject> {
+  return postJson<ClientProject>("/api/client-projects", draft);
+}
+
+export function submitInterviewAnswer(projectId: string, question: string, answer: string): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/interview/answer`, { question, answer });
+}
+
+export function completeInterview(projectId: string): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/interview/complete`, {});
+}
+
+export function generateProjectAnalysis(projectId: string): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/analysis`, {});
+}
+
+export function generateAutomationClassification(projectId: string): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/automation`, {});
+}
+
+export function generateMvpProposalsApi(projectId: string): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/mvp`, {});
+}
+
+export function approveMvp(
+  projectId: string,
+  input: { mvpProposalId?: string; status: MvpApprovalStatus; note?: string; approvedBy?: string },
+): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/mvp/approve`, input);
+}
+
+export function generateImplementationSpecApi(projectId: string): Promise<ClientProject> {
+  return postJson<ClientProject>(`/api/client-projects/${projectId}/spec`, {});
 }

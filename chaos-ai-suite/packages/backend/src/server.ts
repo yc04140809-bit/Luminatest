@@ -24,6 +24,7 @@ import { brandProfileRoutes } from "./routes/brandProfile.js";
 import { marketingCopyRoutes } from "./routes/marketingCopy.js";
 import { councilRoutes } from "./routes/council.js";
 import { debateRoutes } from "./routes/debate.js";
+import { clientDeliveryRoutes } from "./routes/clientDelivery.js";
 import { registerOfficeSocket } from "./ws/officeSocket.js";
 import { officeStore } from "./store/officeStore.js";
 import { createAnthropicClient } from "./orchestration/llmClient.js";
@@ -69,6 +70,7 @@ async function main(): Promise<void> {
   await app.register(marketingCopyRoutes(llm));
   await app.register(councilRoutes(councilRuntime));
   await app.register(debateRoutes(debateRuntime));
+  await app.register(clientDeliveryRoutes(llm));
   await app.register(registerOfficeSocket);
 
   // 本番デプロイ用: フロントエンドのビルド成果物を同じサーバー・同一originから配信する
