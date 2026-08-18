@@ -8626,7 +8626,7 @@ function kaosuRoomConfigBgImagePath(config, band){
     if(!group || typeof group !== "object") continue;
     for(const key in group){
       const item = group[key];
-      if(item && item.enabled && typeof item.image === "string") return item.image;
+      if(item && item.enabled && typeof item.image === "string" && item.image) return item.image;
     }
   }
   const tod = bg.timeOfDay && bg.timeOfDay[band];
