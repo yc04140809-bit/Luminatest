@@ -611,6 +611,33 @@ textarea{ font-family:inherit; }
 @media (prefers-reduced-motion: reduce){
   .kaosu-room-scene::before{ animation:none; }
 }
+/* Living AI Engine: Ambient World。Resolverが決定したLighting Preset
+   の色味(--kaosu-ambient-tint-*)を、背景写真より上・キャラクターより
+   下のレイヤーへ重ねるだけ。Presetが1つも無い/Resolverが何も返さない
+   間はopacity:0のまま描画上ゼロコストで、既存の見た目を一切変えない。 */
+.kaosu-room-ambient-tint{
+  position:absolute; inset:0; pointer-events:none; z-index:0;
+  background:var(--kaosu-ambient-tint-color, transparent);
+  opacity:var(--kaosu-ambient-tint-opacity, 0);
+  mix-blend-mode:var(--kaosu-ambient-tint-blend, soft-light);
+  transition:opacity 1.2s ease, background-color 1.2s ease;
+}
+/* Living AI Engine: Dynamic Camera。Startup Sequenceと同じCamera
+   Presetのラベルを、ホーム画面の常設アバターへは「終わりのないごく
+   控えめなidle drift」としてCSSクラスだけで表現する(Startup
+   Sequence側の transform 制御とは完全に別物で、既存のtranslate/
+   scale/rotate(setKaosuRoomPoseImage()が設定)の上にtransformの
+   追加レイヤーを足さない=既存のtransform指定と衝突しないよう、
+   親の.kaosu-avatarへ付与する)。 */
+.kaosu-avatar.kaosu-camera-driftzoom{ animation:kaosuCameraDriftZoom calc(7s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; }
+.kaosu-avatar.kaosu-camera-driftfloat{ animation:kaosuCameraDriftFloat calc(6s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; }
+.kaosu-avatar.kaosu-camera-driftpan{ animation:kaosuCameraDriftPan calc(8s * var(--kaosu-motion-speed, 1)) ease-in-out infinite; }
+@keyframes kaosuCameraDriftZoom{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.015); } }
+@keyframes kaosuCameraDriftFloat{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-4px); } }
+@keyframes kaosuCameraDriftPan{ 0%,100%{ transform:translateX(0); } 50%{ transform:translateX(3px); } }
+@media (prefers-reduced-motion: reduce){
+  .kaosu-avatar.kaosu-camera-driftzoom, .kaosu-avatar.kaosu-camera-driftfloat, .kaosu-avatar.kaosu-camera-driftpan{ animation:none; }
+}
 /* CMS対応: 部屋の育成(家具/装飾)。既定はfurniture.itemsが空のため
    コンテナ自体は何も描画しない(サイズ0のまま=見た目に影響なし)。
    個々の.kaosu-room-furniture-itemはrenderKaosuRoomFurniture()がJSで
@@ -1626,6 +1653,10 @@ textarea.field-input{ resize:none; }
                furniture.itemsが空の間は何も描画されない(既定の見た目
                のまま)。管理画面から項目を追加するとrenderKaosuRoom
                Furniture()がここへ<img>を並べる。 -->
+          <!-- Living AI Engine: 解決されたLighting Presetの色味を重ねる
+               だけの薄いオーバーレイ。何も解決されていない間はopacity:0
+               のまま(既存の見た目に一切影響しない)。 -->
+          <div class="kaosu-room-ambient-tint" id="kaosuRoomAmbientTint" aria-hidden="true"></div>
           <div class="kaosu-room-furniture" id="kaosuRoomFurniture" aria-hidden="true"></div>
           <!-- CMS対応: BGM。data/cms/bgm.jsonの現在の時間帯・季節に合う
                有効なトラックを、ここへsrcを差し替えて鳴らすだけの
@@ -1705,6 +1736,11 @@ textarea.field-input{ resize:none; }
           <p class="kaosu-room-welcome kaosu-room-emotion" id="kaosuRoomEmotion"></p>
           <p class="kaosu-room-welcome kaosu-room-relation" id="kaosuRoomRelation"></p>
           <p class="kaosu-room-welcome kaosu-room-event" id="kaosuRoomEvent" style="display:none;"></p>
+          <!-- Phase18: Living AI Engine「Idle Conversation」。最優先度が
+               最も低い候補(=他に何も表示するものが無い時だけ出る、
+               押し付けにならない一言)。JS側(startKaosuIdleConversation
+               Ticker())だけが書き換える。 -->
+          <p class="kaosu-room-welcome" id="kaosuRoomIdleChat" style="display:none;"></p>
           <!-- Phase22: 上のPhase43〜53の個別要素はCSS側で常時非表示にし
                (計算ロジックは維持)、そこから優先順位で選んだ1件だけを
                ここへ表示する。
@@ -9274,8 +9310,15 @@ async function playKaosuStartupSequence(){
 const KAOSU_TIME_KEYS = ["morning", "day", "evening", "night", "midnight"];
 const KAOSU_SEASON_KEYS = ["spring", "summer", "autumn", "winter"];
 const KAOSU_WEATHER_KEYS = ["sunny", "cloudy", "rain", "snow"];
-const KAOSU_MOOD_KEYS = ["normal", "happy", "thinking", "sleepy", "excited", "sad"];
+const KAOSU_MOOD_KEYS = ["normal", "happy", "calm", "thinking", "sleepy", "excited", "lonely", "shy", "embarrassed", "sad", "tired"];
 const KAOSU_SITUATION_KEYS = ["idle", "greeting", "walking", "reading", "relax", "window", "sofa", "working", "back"];
+const KAOSU_AFFINITY_TIER_KEYS = ["low", "medium", "high"];
+function kaosuAffinityTier(affinity){
+  const v = Number(affinity) || 0;
+  if(v >= 70) return "high";
+  if(v >= 30) return "medium";
+  return "low";
+}
 
 /* --- State Engine -------------------------------------------------
    「今の世界の状態」。Time/SeasonはgetRoomVisualBand()/
@@ -9308,15 +9351,34 @@ function invalidateKaosuStateEngineConfigCache(){
 function getKaosuStateEngineConfigSync(){
   return kaosuStateEngineConfigCache || KAOSU_STATE_ENGINE_DEFAULT;
 }
+/* Phase18: 会話から検出したmoodは、GUIの手動指定(liveMoodOverride)
+   より優先度が高い「今まさに検出された気分」として扱う。有効期限
+   (KAOSU_RUNTIME_MOOD_TTL_MS)を過ぎたら自動的にauto扱いへ戻る
+   (=会話が途切れれば自然に通常の状態へ遷移する)。 */
+const KAOSU_RUNTIME_MOOD_TTL_MS = 20 * 60 * 1000;
+let kaosuRuntimeMood = null;
+let kaosuRuntimeMoodExpiresAt = 0;
+function kaosuSetRuntimeMood(mood, ttlMs){
+  if(!mood || !KAOSU_MOOD_KEYS.includes(mood)) return;
+  kaosuRuntimeMood = mood;
+  kaosuRuntimeMoodExpiresAt = Date.now() + (ttlMs || KAOSU_RUNTIME_MOOD_TTL_MS);
+}
+function kaosuActiveRuntimeMood(){
+  if(kaosuRuntimeMood && Date.now() < kaosuRuntimeMoodExpiresAt) return kaosuRuntimeMood;
+  return null;
+}
 function kaosuLiveState(now){
   now = now || new Date();
   const cfg = getKaosuStateEngineConfigSync();
+  const runtimeMood = kaosuActiveRuntimeMood();
+  const mem = getKaosuMemorySync();
   return {
     time: getRoomVisualBand(now),
     season: getKaosuSeasonBand(now),
     weather: (cfg.liveWeatherOverride && cfg.liveWeatherOverride !== "auto") ? cfg.liveWeatherOverride : "sunny",
-    mood: (cfg.liveMoodOverride && cfg.liveMoodOverride !== "auto") ? cfg.liveMoodOverride : "normal",
+    mood: runtimeMood || ((cfg.liveMoodOverride && cfg.liveMoodOverride !== "auto") ? cfg.liveMoodOverride : "normal"),
     situation: (cfg.liveSituationOverride && cfg.liveSituationOverride !== "auto") ? cfg.liveSituationOverride : "idle",
+    affinityTier: kaosuAffinityTier(mem.affinity),
   };
 }
 /* State Presets: GUIで名前を付けて登録できる「状態」のプリセット
@@ -9332,6 +9394,34 @@ const STATE_PRESETS_DEFAULT_ITEMS = [
   { label: "窓の外を見る", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "window", enabled: true },
   { label: "読書", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "reading", enabled: true },
   { label: "ソファでくつろぐ", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "sofa", enabled: true },
+  /* Phase18: Living Scheduleのタイムテーブル(起床/身支度/散歩/休憩/
+     会話/就寝)から参照する日常動作用のState。 */
+  { label: "起床", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "idle", enabled: true },
+  { label: "身支度", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "idle", enabled: true },
+  { label: "散歩", time: "auto", season: "auto", weather: "auto", mood: "happy", situation: "walking", enabled: true },
+  { label: "休憩", time: "auto", season: "auto", weather: "auto", mood: "calm", situation: "relax", enabled: true },
+  { label: "会話", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "greeting", enabled: true },
+  { label: "就寝", time: "auto", season: "auto", weather: "auto", mood: "sleepy", situation: "sofa", enabled: true },
+  /* Phase18: Emotional Resolver。Scene/Startup Sequence/Living
+     Eventsは、このlabelをstateKeyとして選ぶだけで「感情だけ指定」
+     できる(Emotionごとの見た目はResolver Rules側で決まる)。 */
+  { label: "Happy", time: "auto", season: "auto", weather: "auto", mood: "happy", situation: "idle", enabled: true },
+  { label: "Calm", time: "auto", season: "auto", weather: "auto", mood: "calm", situation: "idle", enabled: true },
+  { label: "Sleepy", time: "auto", season: "auto", weather: "auto", mood: "sleepy", situation: "idle", enabled: true },
+  { label: "Excited", time: "auto", season: "auto", weather: "auto", mood: "excited", situation: "idle", enabled: true },
+  { label: "Thinking", time: "auto", season: "auto", weather: "auto", mood: "thinking", situation: "idle", enabled: true },
+  { label: "Lonely", time: "auto", season: "auto", weather: "auto", mood: "lonely", situation: "idle", enabled: true },
+  { label: "Shy", time: "auto", season: "auto", weather: "auto", mood: "shy", situation: "idle", enabled: true },
+  { label: "Embarrassed", time: "auto", season: "auto", weather: "auto", mood: "embarrassed", situation: "idle", enabled: true },
+  { label: "Sad", time: "auto", season: "auto", weather: "auto", mood: "sad", situation: "idle", enabled: true },
+  { label: "Tired", time: "auto", season: "auto", weather: "auto", mood: "tired", situation: "idle", enabled: true },
+  /* Phase18: Living Events(自発イベント)用の日常動作State。 */
+  { label: "ストレッチ", time: "auto", season: "auto", weather: "auto", mood: "calm", situation: "idle", enabled: true },
+  { label: "歌う", time: "auto", season: "auto", weather: "auto", mood: "happy", situation: "idle", enabled: true },
+  { label: "お茶を飲む", time: "auto", season: "auto", weather: "auto", mood: "calm", situation: "relax", enabled: true },
+  { label: "花を見る", time: "auto", season: "auto", weather: "auto", mood: "calm", situation: "window", enabled: true },
+  { label: "部屋を歩く", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "walking", enabled: true },
+  { label: "居眠り", time: "auto", season: "auto", weather: "auto", mood: "sleepy", situation: "sofa", enabled: true },
 ];
 async function loadKaosuStatePresetsConfig(){
   try{
@@ -9353,6 +9443,7 @@ function kaosuResolveState(statePresetsConfig, stateKey, now){
     weather: pick(preset.weather, live.weather),
     mood: pick(preset.mood, live.mood),
     situation: pick(preset.situation, live.situation),
+    affinityTier: live.affinityTier,
   };
 }
 
@@ -9368,16 +9459,24 @@ function kaosuResolveState(statePresetsConfig, stateKey, now){
    既存データとの完全後方互換の要)。 */
 const RESOLVER_OUTPUT_KEYS = ["poseKey", "animationKey", "expressionKey", "voiceKey", "effectKey", "cameraKey", "roomKey", "lightingKey", "musicKey"];
 const RESOLVER_RULES_DEFAULT_ITEMS = [
-  { label: "朝のあいさつ", priority: 50, matchTime: "morning", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "greeting",
-    poseKey: "wave", animationKey: "fadeSlow", expressionKey: "smile", voiceKey: "", effectKey: "sunlight", cameraKey: "", roomKey: "Morning", lightingKey: "Morning", musicKey: "Morning", enabled: true },
-  { label: "雨の日は窓辺で", priority: 40, matchTime: "any", matchSeason: "any", matchWeather: "rain", matchMood: "any", matchSituation: "any",
-    poseKey: "window", animationKey: "", expressionKey: "", voiceKey: "", effectKey: "rain", cameraKey: "", roomKey: "Rain", lightingKey: "Rain", musicKey: "Rain", enabled: true },
-  { label: "眠そうな時はゆっくり", priority: 30, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "sleepy", matchSituation: "any",
-    poseKey: "", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "none", cameraKey: "", roomKey: "", lightingKey: "Night", musicKey: "Night", enabled: true },
-  { label: "夜のくつろぎ", priority: 20, matchTime: "night", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "sofa",
-    poseKey: "sofa", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "glow", cameraKey: "", roomKey: "Night", lightingKey: "Night", musicKey: "Night", enabled: true },
-  { label: "既定(待機)", priority: 0, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "any",
-    poseKey: "idle", animationKey: "gentleHold", expressionKey: "", voiceKey: "", effectKey: "none", cameraKey: "", roomKey: "", lightingKey: "", musicKey: "", enabled: true },
+  { label: "朝のあいさつ", priority: 50, matchTime: "morning", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "greeting", matchAffinity: "any",
+    poseKey: "wave", animationKey: "fadeSlow", expressionKey: "smile", voiceKey: "", effectKey: "sunlight", cameraKey: "GentleZoom", roomKey: "Morning", lightingKey: "Morning", musicKey: "Morning", enabled: true },
+  { label: "雨の日は窓辺で", priority: 40, matchTime: "any", matchSeason: "any", matchWeather: "rain", matchMood: "any", matchSituation: "any", matchAffinity: "any",
+    poseKey: "window", animationKey: "", expressionKey: "", voiceKey: "", effectKey: "rain", cameraKey: "Float", roomKey: "Rain", lightingKey: "Rain", musicKey: "Rain", enabled: true },
+  { label: "眠そうな時はゆっくり", priority: 30, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "sleepy", matchSituation: "any", matchAffinity: "any",
+    poseKey: "", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "none", cameraKey: "Static", roomKey: "", lightingKey: "Night", musicKey: "Night", enabled: true },
+  { label: "疲れている時はゆったり", priority: 28, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "tired", matchSituation: "any", matchAffinity: "any",
+    poseKey: "sofa", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "none", cameraKey: "Static", roomKey: "", lightingKey: "Warm", musicKey: "Healing", enabled: true },
+  { label: "寂しい時はそばに", priority: 26, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "lonely", matchSituation: "any", matchAffinity: "any",
+    poseKey: "", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "glow", cameraKey: "Approach", roomKey: "", lightingKey: "Warm", musicKey: "Healing", enabled: true },
+  { label: "わくわくしている時は元気に", priority: 26, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "excited", matchSituation: "any", matchAffinity: "any",
+    poseKey: "wave", animationKey: "quickSettle", expressionKey: "cheer", voiceKey: "", effectKey: "sparkle", cameraKey: "GentleZoom", roomKey: "", lightingKey: "", musicKey: "Fantasy", enabled: true },
+  { label: "夜のくつろぎ", priority: 20, matchTime: "night", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "sofa", matchAffinity: "any",
+    poseKey: "sofa", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "glow", cameraKey: "Static", roomKey: "Night", lightingKey: "Night", musicKey: "Night", enabled: true },
+  { label: "親密度が高い時はより近くに", priority: 15, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "any", matchAffinity: "high",
+    poseKey: "", animationKey: "", expressionKey: "smile", voiceKey: "", effectKey: "", cameraKey: "Approach", roomKey: "", lightingKey: "", musicKey: "", enabled: true },
+  { label: "既定(待機)", priority: 0, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "any", matchAffinity: "any",
+    poseKey: "idle", animationKey: "gentleHold", expressionKey: "", voiceKey: "", effectKey: "none", cameraKey: "Static", roomKey: "", lightingKey: "", musicKey: "", enabled: true },
 ];
 async function loadKaosuResolverRulesConfig(){
   try{
@@ -9387,7 +9486,7 @@ async function loadKaosuResolverRulesConfig(){
   return { configVersion: 1, items: [] };
 }
 function kaosuRuleMatchesState(rule, state){
-  const dims = [["matchTime", "time"], ["matchSeason", "season"], ["matchWeather", "weather"], ["matchMood", "mood"], ["matchSituation", "situation"]];
+  const dims = [["matchTime", "time"], ["matchSeason", "season"], ["matchWeather", "weather"], ["matchMood", "mood"], ["matchSituation", "situation"], ["matchAffinity", "affinityTier"]];
   return dims.every(([ruleKey, stateKey]) => {
     const want = rule[ruleKey];
     return !want || want === "any" || want === state[stateKey];
@@ -9529,26 +9628,426 @@ async function loadKaosuRoutinesConfig(){
   return { configVersion: 1, items: [] };
 }
 
-/* --- Memory Engine(基盤のみ) -----------------------------------------
-   LastTalk/LastVisit/Affinity/RecentTopics/LastGreetingを保持する
-   入れ物。AI処理・自動スコアリングは次フェーズの対応とし、ここでは
-   「起動のたびにLastVisitを更新する」という最小限の自動更新だけを
-   行う(将来ResolverがMemoryを条件に使えるよう、値自体は今から
-   蓄積しておく)。 */
+/* --- Memory Engine -----------------------------------------------------
+   Phase18(Living AI Engine)で本格利用へ移行。LastTalk/LastVisit/
+   Affinity/RecentTopics/LastGreetingの基盤(前フェーズ実装)に加えて
+   FavoriteTopics/LastMood/LastRoutine/ConversationHistoryを追加する。
+   ConversationHistoryは肥大化を避けるため直近KAOSU_MEMORY_HISTORY_MAX
+   件だけを保持する(古いものから捨てる)。kaosuMemoryCacheはState
+   Engineと同じ「起動時に1度読み込み、以後は同期的に読む」パターンで、
+   Resolverのaffinity判定(kaosuLiveState())から同期的に参照できる
+   ようにするためのもの。 */
+const KAOSU_MEMORY_HISTORY_MAX = 20;
+const KAOSU_MEMORY_TOPICS_MAX = 12;
+const KAOSU_MEMORY_DEFAULT = {
+  lastTalk: "", lastVisit: "", affinity: 0, recentTopics: "", lastGreeting: "",
+  favoriteTopics: "", lastMood: "", lastRoutine: "", conversationHistory: "[]",
+};
+let kaosuMemoryCache = null;
 async function kaosuMemoryGet(){
   try{
     const record = await CmsStore.getConfig("memory");
-    if(record && record.data && typeof record.data === "object") return record.data;
+    if(record && record.data && typeof record.data === "object"){
+      const merged = Object.assign({}, KAOSU_MEMORY_DEFAULT, record.data);
+      kaosuMemoryCache = merged;
+      return merged;
+    }
   }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
-  return { lastTalk: "", lastVisit: "", affinity: 0, recentTopics: "", lastGreeting: "" };
+  kaosuMemoryCache = Object.assign({}, KAOSU_MEMORY_DEFAULT);
+  return kaosuMemoryCache;
 }
 async function kaosuMemoryPut(data){
+  kaosuMemoryCache = data;
   try{ await CmsStore.putConfig("memory", data); }catch(e){ /* IndexedDB未対応時は何もしない */ }
+}
+function getKaosuMemorySync(){
+  return kaosuMemoryCache || KAOSU_MEMORY_DEFAULT;
 }
 async function kaosuMemoryTouchVisit(){
   const mem = await kaosuMemoryGet();
   mem.lastVisit = new Date().toISOString();
   await kaosuMemoryPut(mem);
+}
+function kaosuMemoryParseHistory(mem){
+  try{
+    const arr = JSON.parse(mem.conversationHistory || "[]");
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+/* 会話1往復ぶんの記録を追加する(直近KAOSU_MEMORY_HISTORY_MAX件のみ
+   保持)。合わせてLastTalk/LastMoodも更新する。呼び出し側
+   (kaosuLivingOnChatExchange())からのみ呼ばれる想定。 */
+async function kaosuMemoryAppendExchange({ userText, mood, topics }){
+  const mem = await kaosuMemoryGet();
+  const now = new Date().toISOString();
+  mem.lastTalk = now;
+  if(mood) mem.lastMood = mood;
+  const history = kaosuMemoryParseHistory(mem);
+  history.push({ t: now, u: String(userText || "").slice(0, 120), mood: mood || "" });
+  while(history.length > KAOSU_MEMORY_HISTORY_MAX) history.shift();
+  mem.conversationHistory = JSON.stringify(history);
+  if(Array.isArray(topics) && topics.length){
+    const current = (mem.favoriteTopics || "").split(",").map(s => s.trim()).filter(Boolean);
+    topics.forEach(t => { if(!current.includes(t)) current.push(t); });
+    while(current.length > KAOSU_MEMORY_TOPICS_MAX) current.shift();
+    mem.favoriteTopics = current.join(", ");
+    mem.recentTopics = topics.join(", ");
+  }
+  await kaosuMemoryPut(mem);
+  return mem;
+}
+async function kaosuMemorySetLastRoutine(label){
+  if(!label) return;
+  const mem = await kaosuMemoryGet();
+  if(mem.lastRoutine === label) return;
+  mem.lastRoutine = label;
+  await kaosuMemoryPut(mem);
+}
+
+/* --- Affinity System -----------------------------------------------------
+   会話・訪問・イベント等でAffinity(0-100)が増減する。値そのものは
+   Memory Engineのaffinityフィールドに保持し、Resolverからは
+   kaosuAffinityTier()で計算した3段階(low/medium/high)として
+   参照できる(Resolver Rulesの「条件: 親密度」)。増減量自体は
+   「Affinity」タブ(singleton)からGUIで調整できるデータ駆動。 */
+const KAOSU_AFFINITY_GAINS_DEFAULT = { chat: 1, visit: 1, giftOrEvent: 5 };
+let kaosuAffinityGainsCache = null;
+async function loadKaosuAffinityGainsConfig(){
+  if(kaosuAffinityGainsCache) return kaosuAffinityGainsCache;
+  let result = Object.assign({}, KAOSU_AFFINITY_GAINS_DEFAULT);
+  try{
+    const record = await CmsStore.getConfig("affinityGains");
+    if(record && record.data && typeof record.data === "object") result = Object.assign({}, result, record.data);
+  }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
+  kaosuAffinityGainsCache = result;
+  return result;
+}
+function invalidateKaosuAffinityGainsCache(){ kaosuAffinityGainsCache = null; }
+async function kaosuAffinityAdjust(delta){
+  if(!delta) return;
+  const mem = await kaosuMemoryGet();
+  const next = Math.max(0, Math.min(100, (Number(mem.affinity) || 0) + delta));
+  if(next === mem.affinity) return;
+  mem.affinity = next;
+  await kaosuMemoryPut(mem);
+}
+
+/* --- Conversation → State ------------------------------------------------
+   会話内容からmoodを推定し、kaosuSetRuntimeMood()(有効期限つき)へ
+   反映する。既存の「Phase D」の返信用表情分類(classifyPlainReply
+   Expression、AI返信文からnormal/cheer/smileだけを選ぶ一時的なUI
+   トグル)とは目的も語彙も別物のため独立させる(ユーザー発話から、
+   Resolver全体に影響する「今のmood」を検出するためのもの)。
+   キーワードに一致しなければ何もしない(=会話のたびに必ずmoodが
+   変わるわけではなく、既存の落ち着いた雰囲気を壊さない)。 */
+const KAOSU_MOOD_KEYWORDS = [
+  ["tired", ["疲れた", "疲れて", "つかれた", "しんどい", "だるい"]],
+  ["sleepy", ["眠い", "ねむい", "眠たい"]],
+  ["lonely", ["寂しい", "さびしい", "ひとりぼっち"]],
+  ["sad", ["悲しい", "かなしい", "つらい", "辛い"]],
+  ["excited", ["わくわく", "ワクワク", "楽しみ", "ドキドキ", "どきどき"]],
+  ["happy", ["嬉しい", "うれしい", "楽しい", "たのしい", "幸せ", "しあわせ"]],
+  ["shy", ["恥ずかしい", "はずかしい"]],
+  ["embarrassed", ["照れる", "てれる"]],
+  ["calm", ["落ち着く", "落ち着いた", "のんびり", "ゆったり"]],
+  ["thinking", ["悩んで", "どうしよう", "迷って", "迷ってる"]],
+];
+function kaosuClassifyMoodFromText(text){
+  if(!text) return null;
+  for(const [mood, words] of KAOSU_MOOD_KEYWORDS){
+    if(words.some(w => text.includes(w))) return mood;
+  }
+  return null;
+}
+/* FavoriteTopics: 固定の話題語彙に一致した単語だけを拾う軽量実装
+   (NLP無し)。一致しなければ空配列(=無理に話題を捏造しない)。 */
+const KAOSU_TOPIC_KEYWORDS = ["仕事", "家族", "趣味", "旅行", "音楽", "本", "ゲーム", "健康", "天気", "ペット", "食べ物", "映画"];
+function kaosuExtractTopics(text){
+  if(!text) return [];
+  return KAOSU_TOPIC_KEYWORDS.filter(w => text.includes(w));
+}
+/* チャット1往復が終わった直後(chatAppendKaosuHtml()の後)に呼ぶ想定。
+   会話演出(Memory更新/Affinity加算/mood反映)の失敗でチャット自体を
+   止めないよう、内部で例外を握りつぶす。 */
+async function kaosuLivingOnChatExchange(userText){
+  try{
+    kaosuMarkInteraction();
+    const mood = kaosuClassifyMoodFromText(userText);
+    if(mood) kaosuSetRuntimeMood(mood);
+    const topics = kaosuExtractTopics(userText);
+    await kaosuMemoryAppendExchange({ userText, mood: mood || "", topics });
+    const gains = await loadKaosuAffinityGainsConfig();
+    await kaosuAffinityAdjust(gains.chat);
+    const homeView = document.querySelector('.view[data-view="home"]');
+    if(homeView && homeView.classList.contains("active") && typeof renderKaosuRoomScene === "function"){
+      renderKaosuRoomScene();
+    }
+  }catch(e){ /* 会話演出に失敗しても会話自体は継続させる */ }
+}
+
+/* --- Routine Scheduler(Living Schedule) -----------------------------------
+   「現在時刻→Routine判定→State生成→Resolver→Pose/Animation/
+   Expression/Voice/Camera/Effect/Lighting/Music」を実際に稼働させる
+   タイムテーブル。1件のitemは「dayOfWeek(曜日、any=毎日)+
+   time(HH:MM)+stateKey」だけを持ち、Stateの中身(時間帯/季節/天候/
+   気分)自体はkaosuResolveState()がそのまま解決する(=このテーブル
+   はSituationを差し替えるだけで、他のStateの入力チャネルはすべて
+   共有・再利用する)。 */
+const KAOSU_WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const LIVING_SCHEDULE_DEFAULT_ITEMS = [
+  { label: "起床", dayOfWeek: "any", time: "06:00", stateKey: "起床", enabled: true },
+  { label: "窓を見る", dayOfWeek: "any", time: "07:00", stateKey: "窓の外を見る", enabled: true },
+  { label: "身支度", dayOfWeek: "any", time: "08:00", stateKey: "身支度", enabled: true },
+  { label: "散歩", dayOfWeek: "any", time: "12:00", stateKey: "散歩", enabled: true },
+  { label: "読書", dayOfWeek: "any", time: "15:00", stateKey: "読書", enabled: true },
+  { label: "休憩", dayOfWeek: "any", time: "18:00", stateKey: "休憩", enabled: true },
+  { label: "会話", dayOfWeek: "any", time: "21:00", stateKey: "会話", enabled: true },
+  { label: "就寝", dayOfWeek: "any", time: "23:00", stateKey: "就寝", enabled: true },
+];
+async function loadKaosuLivingScheduleConfig(){
+  try{
+    const record = await CmsStore.getConfig("livingSchedule");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+/* 「今この瞬間、有効なはずのStep」を選ぶ。当日ぶんでまだ来ていない
+   (=一番早いStepの時刻より前の)場合は、前日から続いている最後の
+   Stepがまだ有効という扱いにする(タイムテーブルは日をまたいで
+   連続していると考えるほうが自然なため)。 */
+function kaosuPickLivingScheduleEntry(scheduleConfig, now){
+  const items = (scheduleConfig && Array.isArray(scheduleConfig.items)) ? scheduleConfig.items : [];
+  const dayKey = KAOSU_WEEKDAY_KEYS[now.getDay()];
+  const usable = items.filter(it => it && it.enabled !== false && typeof it.time === "string" && /^\d{2}:\d{2}$/.test(it.time) &&
+    (!it.dayOfWeek || it.dayOfWeek === "any" || it.dayOfWeek === dayKey));
+  if(!usable.length) return null;
+  const toMinutes = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const sorted = usable.slice().sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+  let picked = null;
+  for(const it of sorted){ if(toMinutes(it.time) <= nowMinutes) picked = it; }
+  return picked || sorted[sorted.length - 1];
+}
+
+/* --- Future Event Framework -------------------------------------------
+   誕生日/季節イベント/記念日等をあらかじめ登録しておくための予約
+   機構。date="MM-DD"(年をまたいで毎年繰り返す)+windowDays(前後
+   何日を「開催中」とみなすか)で判定する。将来「一度きりの記念日」
+   (YYYY-MM-DD)を追加したくなった場合もこの構造のまま拡張できる。 */
+const FUTURE_EVENTS_DEFAULT_ITEMS = [
+  { label: "誕生日", type: "birthday", date: "01-01", windowDays: 0, stateKey: "Happy", enabled: false },
+  { label: "クリスマス", type: "christmas", date: "12-24", windowDays: 1, stateKey: "Happy", enabled: true },
+  { label: "ハロウィン", type: "halloween", date: "10-31", windowDays: 0, stateKey: "Excited", enabled: true },
+  { label: "お正月", type: "newyear", date: "01-01", windowDays: 1, stateKey: "Happy", enabled: true },
+  { label: "七夕", type: "tanabata", date: "07-07", windowDays: 0, stateKey: "Happy", enabled: true },
+];
+async function loadKaosuFutureEventsConfig(){
+  try{
+    const record = await CmsStore.getConfig("futureEvents");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuActiveFutureEvent(config, now){
+  const items = (config && Array.isArray(config.items)) ? config.items : [];
+  const usable = items.filter(it => it && it.enabled !== false && /^\d{2}-\d{2}$/.test(it.date || ""));
+  const nowMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for(const it of usable){
+    const [em, ed] = it.date.split("-").map(Number);
+    const win = Number(it.windowDays) || 0;
+    for(const yearOffset of [-1, 0, 1]){
+      const eventDate = new Date(now.getFullYear() + yearOffset, em - 1, ed);
+      const diffDays = Math.round((nowMid - eventDate) / 86400000);
+      if(Math.abs(diffDays) <= win) return it;
+    }
+  }
+  return null;
+}
+
+/* --- Living Events(自発イベント) -----------------------------------------
+   State/Routine/Memory/Affinityとは別に、「ふと」何かをする低確率の
+   演出。重み付きの抽選で1件選び、選ばれたらDaily Timelineへ記録する。 */
+const LIVING_EVENTS_DEFAULT_ITEMS = [
+  { label: "本を読む", stateKey: "読書", weight: 10, enabled: true },
+  { label: "窓を見る", stateKey: "窓の外を見る", weight: 10, enabled: true },
+  { label: "ストレッチ", stateKey: "ストレッチ", weight: 6, enabled: true },
+  { label: "歌う", stateKey: "歌う", weight: 4, enabled: true },
+  { label: "お茶を飲む", stateKey: "お茶を飲む", weight: 8, enabled: true },
+  { label: "花を見る", stateKey: "花を見る", weight: 6, enabled: true },
+  { label: "部屋を歩く", stateKey: "部屋を歩く", weight: 8, enabled: true },
+  { label: "ソファで休む", stateKey: "ソファでくつろぐ", weight: 8, enabled: true },
+  { label: "居眠り", stateKey: "居眠り", weight: 4, enabled: true },
+];
+async function loadKaosuLivingEventsConfig(){
+  try{
+    const record = await CmsStore.getConfig("livingEvents");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuPickWeightedItem(items){
+  const usable = (items || []).filter(it => it && it.enabled !== false && (Number(it.weight) || 0) > 0);
+  if(!usable.length) return null;
+  const total = usable.reduce((s, it) => s + (Number(it.weight) || 0), 0);
+  let r = Math.random() * total;
+  for(const it of usable){ r -= (Number(it.weight) || 0); if(r <= 0) return it; }
+  return usable[usable.length - 1];
+}
+
+/* --- Idle Conversation --------------------------------------------------
+   一定時間ユーザー操作が無いと、控えめな一言を#kaosuRoomIdleChatへ
+   書き込み、既存のconsolidateKaosuRoomOneLiner()の最低優先度候補
+   として提示する(=他に表示すべき一言が無い時だけ実際に見える)。 */
+const IDLE_CONVERSATION_LINES_DEFAULT_ITEMS = [
+  { label: "天気", text: "今日はいい天気だね。", weight: 5, enabled: true },
+  { label: "休憩", text: "ちょっと休憩しない?", weight: 4, enabled: true },
+  { label: "読書", text: "新しい本を読んでたの。", weight: 4, enabled: true },
+  { label: "感謝", text: "今日も来てくれてありがとう。", weight: 5, enabled: true },
+];
+async function loadKaosuIdleConversationConfig(){
+  try{
+    const record = await CmsStore.getConfig("idleConversationLines");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+const KAOSU_IDLE_CONVERSATION_THRESHOLD_MS = 3 * 60 * 1000;
+const KAOSU_IDLE_CONVERSATION_CHANCE = 0.3;
+const KAOSU_IDLE_CONVERSATION_COOLDOWN_MS = 15 * 60 * 1000;
+let kaosuLastInteractionAt = Date.now();
+let kaosuLastIdleLineAt = 0;
+function kaosuMarkInteraction(){
+  kaosuLastInteractionAt = Date.now();
+  const el = document.getElementById("kaosuRoomIdleChat");
+  if(el && el.style.display !== "none"){ el.style.display = "none"; el.textContent = ""; }
+}
+async function kaosuIdleConversationTick(){
+  try{
+    const homeView = document.querySelector('.view[data-view="home"]');
+    if(!homeView || !homeView.classList.contains("active")) return;
+    if(Date.now() - kaosuLastInteractionAt < KAOSU_IDLE_CONVERSATION_THRESHOLD_MS) return;
+    if(Date.now() - kaosuLastIdleLineAt < KAOSU_IDLE_CONVERSATION_COOLDOWN_MS) return;
+    if(Math.random() > KAOSU_IDLE_CONVERSATION_CHANCE) return;
+    const config = await loadKaosuIdleConversationConfig();
+    const picked = kaosuPickWeightedItem(config.items);
+    if(!picked || !picked.text) return;
+    kaosuLastIdleLineAt = Date.now();
+    const el = document.getElementById("kaosuRoomIdleChat");
+    if(el){
+      el.textContent = picked.text;
+      el.style.display = "block";
+      if(typeof consolidateKaosuRoomOneLiner === "function") consolidateKaosuRoomOneLiner();
+    }
+  }catch(e){ /* 何もしない(押し付けにならないよう、失敗時は単に出さない) */ }
+}
+let kaosuIdleConversationTimer = null;
+function startKaosuIdleConversationTicker(){
+  if(kaosuIdleConversationTimer) return;
+  kaosuIdleConversationTimer = window.setInterval(kaosuIdleConversationTick, 60 * 1000);
+  document.addEventListener("pointerdown", kaosuMarkInteraction, { passive: true });
+}
+
+/* --- Daily Timeline -------------------------------------------------
+   一日の生活ログ(直近KAOSU_TIMELINE_MAX件)。Living Schedule/
+   Living Eventsが実際に切り替わった時だけ追記する(tickのたびに
+   毎回書くとログが埋もれるため)。 */
+const KAOSU_TIMELINE_MAX = 50;
+async function kaosuTimelineAppend(label){
+  if(!label) return;
+  let data = { items: [] };
+  try{
+    const record = await CmsStore.getConfig("dailyTimeline");
+    if(record && record.data && Array.isArray(record.data.items)) data = record.data;
+  }catch(e){ /* IndexedDB未対応時は空のまま続行 */ }
+  const now = new Date();
+  const time = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  data.items = (data.items || []).concat([{ time, label }]);
+  while(data.items.length > KAOSU_TIMELINE_MAX) data.items.shift();
+  try{ await CmsStore.putConfig("dailyTimeline", data); }catch(e){ /* IndexedDB未対応時は何もしない */ }
+}
+
+/* --- Living AI Engine 本体(スケジューラ) -----------------------------
+   「現在時刻→Routine判定→State生成→Resolver→Pose/Animation/
+   Expression/Voice/Camera/Effect/Lighting/Music」を実際に結合する
+   場所。Future Event(有効なものがあれば最優先)→Living Schedule
+   (現在時刻のタイムテーブル)→(どちらも無ければ)素のkaosuLiveState()
+   の順でstateKeyを決め、Resolverへ渡す。結果はkaosuLivingResolvedCache
+   へ同期的に読めるようキャッシュし(renderKaosuRoomSceneの同期区間
+   から使うため)、内容が変わった時だけhome画面へ反映・Timelineへ記録
+   する。タイマーはaiNotificationCheckTimerと同じ「起動時に1度だけ
+   開始、以後は明示的に止めない」モジュール変数パターンを踏襲する。 */
+const KAOSU_LIVING_TICK_INTERVAL_MS = 5 * 60 * 1000;
+const KAOSU_LIVING_EVENT_CHANCE = 0.15;
+let kaosuLivingResolvedCache = null;
+let kaosuLivingLastAppliedLabel = null;
+function kaosuLivingResolvedSync(){ return kaosuLivingResolvedCache; }
+async function kaosuComposeLivingResolution(now){
+  now = now || new Date();
+  const [scheduleConfig, futureEventsConfig, statePresetsConfig, rulesConfig, roomStatesConfig, lightingConfig, musicConfig] = await Promise.all([
+    loadKaosuLivingScheduleConfig(), loadKaosuFutureEventsConfig(), loadKaosuStatePresetsConfig(), loadKaosuResolverRulesConfig(),
+    loadKaosuRoomStatesConfig(), loadKaosuLightingConfig(), loadKaosuMusicConfig(),
+  ]);
+  const futureEvent = kaosuActiveFutureEvent(futureEventsConfig, now);
+  const scheduleEntry = kaosuPickLivingScheduleEntry(scheduleConfig, now);
+  const stateKey = (futureEvent && futureEvent.stateKey) || (scheduleEntry && scheduleEntry.stateKey) || "";
+  const label = (futureEvent && futureEvent.label) || (scheduleEntry && scheduleEntry.label) || "";
+  const state = kaosuResolveState(statePresetsConfig, stateKey, now);
+  const outputs = kaosuResolveOutputs(rulesConfig, state);
+  const roomState = kaosuResolveRoomState(roomStatesConfig, outputs.roomKey);
+  const lighting = kaosuResolveLightingPreset(lightingConfig, outputs.lightingKey || (roomState && roomState.lightingKey));
+  const music = kaosuResolveMusicTrack(musicConfig, outputs.musicKey || (roomState && roomState.musicKey));
+  return {
+    poseKey: outputs.poseKey, expressionKey: outputs.expressionKey, cameraKey: outputs.cameraKey,
+    background: (roomState && roomState.background) || "",
+    lightingTint: lighting ? lighting.tint : "", lightingOpacity: lighting ? lighting.opacity : 0, lightingBlend: lighting ? lighting.blend : "soft-light",
+    music, label,
+  };
+}
+async function kaosuLivingTick(){
+  try{
+    const now = new Date();
+    const resolved = await kaosuComposeLivingResolution(now);
+    kaosuLivingResolvedCache = resolved;
+    if(resolved.label && resolved.label !== kaosuLivingLastAppliedLabel){
+      kaosuLivingLastAppliedLabel = resolved.label;
+      await kaosuTimelineAppend(resolved.label);
+      await kaosuMemorySetLastRoutine(resolved.label);
+    }
+    /* Living Events: 決まったSchedule/Future Eventとは別に、低確率で
+       「ふと」何かする。既に決まっているpose/expressionだけを上書き
+       し、Camera/Lighting/Music等は直前のkaosuLivingTick()の解決値を
+       引き継ぐ(自発イベントのために部屋全体の雰囲気まで変える
+       必要は無いため)。 */
+    if(Math.random() < KAOSU_LIVING_EVENT_CHANCE){
+      const eventsConfig = await loadKaosuLivingEventsConfig();
+      const picked = kaosuPickWeightedItem(eventsConfig.items);
+      if(picked){
+        const [statePresetsConfig, rulesConfig] = await Promise.all([loadKaosuStatePresetsConfig(), loadKaosuResolverRulesConfig()]);
+        const state = kaosuResolveState(statePresetsConfig, picked.stateKey, now);
+        const outputs = kaosuResolveOutputs(rulesConfig, state);
+        kaosuLivingResolvedCache = Object.assign({}, kaosuLivingResolvedCache, {
+          poseKey: outputs.poseKey || kaosuLivingResolvedCache.poseKey,
+          expressionKey: outputs.expressionKey || kaosuLivingResolvedCache.expressionKey,
+          label: picked.label,
+        });
+        if(picked.label !== kaosuLivingLastAppliedLabel){
+          kaosuLivingLastAppliedLabel = picked.label;
+          await kaosuTimelineAppend(picked.label);
+        }
+      }
+    }
+    const homeView = document.querySelector('.view[data-view="home"]');
+    if(homeView && homeView.classList.contains("active")){
+      if(typeof renderKaosuRoomScene === "function") renderKaosuRoomScene();
+      if(typeof startKaosuBgm === "function") startKaosuBgm();
+    }
+  }catch(e){ /* Living Engineの失敗でアプリ全体を止めない */ }
+}
+let kaosuLivingTickTimer = null;
+function startKaosuLivingScheduler(){
+  if(kaosuLivingTickTimer) return;
+  kaosuLivingTick();
+  kaosuLivingTickTimer = window.setInterval(kaosuLivingTick, KAOSU_LIVING_TICK_INTERVAL_MS);
 }
 
 /* ============================================================
@@ -9787,20 +10286,61 @@ async function renderKaosuRoomScene(now = new Date()){
      こうすることで、既存の表情差分機能(未カスタマイズ時の挙動)は
      完全に無変更のまま、管理画面での見た目カスタマイズが即時に
      ホーム画面へ反映されるようになる。 */
-  const idlePoseForExpressionCheck = kaosuRoomConfigPose(roomConfig, "idle");
-  const idlePoseCustomized = idlePoseForExpressionCheck.image !== KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories.idle.variants.default.image;
-  if(idlePoseCustomized){
-    setKaosuRoomPoseImage(roomConfig, "idle");
+  /* Phase18: Living AI Engineが解決した「今すべきこと」(kaosuLivingTick()
+     が非同期で更新し、ここでは同期的に読むだけ)があれば、そのPose
+     Categoryを使う。無い(まだ1度もtickが走っていない/何も一致しな
+     かった)場合はposeKey="idle"扱いとなり、以下の判定は従来と完全に
+     同じ挙動になる(=Living Engine未設定のインストールは無変更)。 */
+  const living = (typeof kaosuLivingResolvedSync === "function") ? kaosuLivingResolvedSync() : null;
+  const effectivePoseKey = (living && living.poseKey) || "idle";
+  /* 管理画面でこのポーズ画像を独自にアップロード済みの場合はそちらを
+     常に優先して表示する(setKaosuRoomPoseImage)。未カスタマイズ
+     (既定のpose-*.webpのまま、実体ファイルは存在しないプレース
+     ホルダー)の場合のみ、既存の時間帯/気分に応じた表情差分システム
+     (setKaosuExpression、kaosu-face-*.webpは実在アセット)を使う。
+     こうすることで、既存の表情差分機能(未カスタマイズ時の挙動)は
+     完全に無変更のまま、管理画面での見た目カスタマイズが即時に
+     ホーム画面へ反映されるようになる。 */
+  const poseForExpressionCheck = kaosuRoomConfigPose(roomConfig, effectivePoseKey);
+  const defaultCategoryForCheck = KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories[effectivePoseKey] || KAOSU_ROOM_CONFIG_DEFAULT.character.poseCategories.idle;
+  const poseCustomized = poseForExpressionCheck.image !== defaultCategoryForCheck.variants.default.image;
+  if(poseCustomized){
+    setKaosuRoomPoseImage(roomConfig, effectivePoseKey);
   }else{
-    setKaosuExpression(img, meta.expression);
+    const livingExpression = (living && living.expressionKey && KAOSU_EXPRESSIONS.includes(living.expressionKey)) ? living.expressionKey : null;
+    setKaosuExpression(img, livingExpression || meta.expression);
   }
   /* Phase23: 背景写真は<img>タグではなくCSS変数--kaosu-room-photo
      経由で描画する(url()が404でもそのレイヤーが単に描画されない
-     だけで、後ろのvignette+時間帯グラデーションがそのまま見える)。 */
+     だけで、後ろのvignette+時間帯グラデーションがそのまま見える)。
+     Phase18: Living EngineがRoom Stateの背景を解決していれば(=管理画面
+     で明示的に設定した場合のみ)、時間帯背景の代わりにそちらを使う。 */
   if(scene){
-    const bgSrcRaw = kaosuRoomConfigBgImagePath(roomConfig, band);
+    const bgSrcRaw = (living && living.background) || kaosuRoomConfigBgImagePath(roomConfig, band);
     const bgSrc = resolveMediaUrl(bgSrcRaw);
     scene.style.setProperty("--kaosu-room-photo", bgSrc ? `url("${bgSrc}")` : "none");
+  }
+  /* Phase18: Ambient World。Lighting Presetが解決していれば薄い色味
+     オーバーレイを重ね、無ければopacity:0のまま(何も変わらない)。 */
+  const ambientTintEl = document.getElementById("kaosuRoomAmbientTint");
+  if(ambientTintEl){
+    if(living && living.lightingTint){
+      scene.style.setProperty("--kaosu-ambient-tint-color", living.lightingTint);
+      scene.style.setProperty("--kaosu-ambient-tint-opacity", String(living.lightingOpacity != null ? living.lightingOpacity : 0.12));
+      scene.style.setProperty("--kaosu-ambient-tint-blend", living.lightingBlend || "soft-light");
+    }else{
+      scene.style.setProperty("--kaosu-ambient-tint-opacity", "0");
+    }
+  }
+  /* Phase18: Dynamic Camera。Startup Sequenceと同じCamera Presetの
+     ラベルを、常設アバターへは控えめなidle driftとして反映する。 */
+  const avatarBox = img.closest(".kaosu-avatar");
+  if(avatarBox){
+    avatarBox.classList.remove("kaosu-camera-driftzoom", "kaosu-camera-driftfloat", "kaosu-camera-driftpan");
+    const camKey = living && living.cameraKey;
+    if(camKey === "GentleZoom" || camKey === "Focus"){ avatarBox.classList.add("kaosu-camera-driftzoom"); }
+    else if(camKey === "Float" || camKey === "Approach"){ avatarBox.classList.add("kaosu-camera-driftfloat"); }
+    else if(camKey === "PanLeft" || camKey === "PanRight"){ avatarBox.classList.add("kaosu-camera-driftpan"); }
   }
   renderKaosuRoomFurniture(roomConfig);
 
@@ -10057,6 +10597,7 @@ function consolidateKaosuRoomOneLiner(delayMs){
     "kaosuRoomEvent", "kaosuRoomAnniversary", "kaosuRoomRelation", "kaosuRoomEmotion",
     "kaosuRoomPresent", "kaosuRoomSeason", "kaosuRoomActivity", "kaosuRoomWeather",
     "kaosuRoomWelcome", "kaosuRoomToday",
+    "kaosuRoomIdleChat", // Phase18: 他に何も表示するものが無い時だけ出る最低優先度
   ];
   const winnerId = candidateIds.find(id => {
     const el = document.getElementById(id);
@@ -13730,6 +14271,11 @@ document.getElementById("chatInputForm").addEventListener("submit", async (ev) =
       chatSetHeroExpression(result.expression);
       await chatWait(CHAT_REPLY_GAP_MS);
       await chatAppendKaosuHtml(result.html);
+      /* Phase18: Living AI Engine「Conversation→State」。会話1往復が
+         実際に画面へ表示された直後に、mood/Memory/Affinityへ反映する
+         (fire-and-forgetではなくawaitするが、内部で例外を握りつぶす
+         ため既存のチャット処理を止めない)。 */
+      if(typeof kaosuLivingOnChatExchange === "function") await kaosuLivingOnChatExchange(text);
     }catch(error){
       /* Anthropic API正式接続: generateKaosuReply()自体は内部でAI失敗時に
          既存ルールベースへフォールバックするため、通常ここには来ない。
@@ -14104,6 +14650,8 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
           options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_MOOD_KEYS.map(k => ({ value: k, label: k }))) },
         { key: "matchSituation", label: "条件: 状況", type: "select", default: "any",
           options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_SITUATION_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "matchAffinity", label: "条件: 親密度", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_AFFINITY_TIER_KEYS.map(k => ({ value: k, label: k }))) },
         { key: "poseKey", label: "出力: Pose Category(空欄=このRuleでは決めない)", type: "select", default: "",
           options: [{ value: "", label: "(指定しない)" }].concat(POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label }))) },
         { key: "animationKey", label: "出力: Animation", type: "dynamicSelect", default: "",
@@ -14214,15 +14762,94 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     {
       id: "memory", icon: "🧠", label: "Memory", category: "room", group: "generic",
       kind: "singleton",
-      defaultShape: { lastTalk: "", lastVisit: "", affinity: 0, recentTopics: "", lastGreeting: "" },
+      defaultShape: Object.assign({}, KAOSU_MEMORY_DEFAULT),
       schema: [
-        { key: "lastTalk", label: "LastTalk(最後に会話した日時)", type: "text", default: "" },
+        { key: "lastTalk", label: "LastTalk(最後に会話した日時。会話のたびに自動更新)", type: "text", default: "" },
         { key: "lastVisit", label: "LastVisit(最後に開いた日時。起動のたびに自動更新)", type: "text", default: "" },
-        { key: "affinity", label: "Affinity(親密度)", type: "number", default: 0 },
-        { key: "recentTopics", label: "RecentTopics(最近の話題)", type: "textarea", default: "" },
+        { key: "affinity", label: "Affinity(親密度、0-100)", type: "number", default: 0 },
+        { key: "recentTopics", label: "RecentTopics(直近の会話で検出した話題)", type: "textarea", default: "" },
+        { key: "favoriteTopics", label: "FavoriteTopics(これまでに検出した話題の蓄積)", type: "textarea", default: "" },
+        { key: "lastMood", label: "LastMood(直近に検出したmood)", type: "text", default: "" },
+        { key: "lastRoutine", label: "LastRoutine(直近に適用されたLiving Schedule/Living Event)", type: "text", default: "" },
         { key: "lastGreeting", label: "LastGreeting(直近のあいさつ内容)", type: "text", default: "" },
+        { key: "conversationHistory", label: `ConversationHistory(直近${KAOSU_MEMORY_HISTORY_MAX}件、JSON)`, type: "textarea", default: "[]" },
       ],
-      note: "Memory Engineの基盤(データの入れ物)です。LastVisitはアプリを開くたびに自動更新されます。それ以外の値の自動計算(会話内容からのAffinity算出等)は次フェーズのAI連携で対応予定です。ここでの編集値は将来Resolverの条件として参照できるようになります。",
+      note: "Phase18でMemory Engineが本格稼働します。LastVisitは起動のたび、LastTalk/LastMood/RecentTopics/FavoriteTopics/ConversationHistoryは会話のたびに自動更新されます。affinityの値はResolver Rulesの「条件: 親密度」(low/medium/high)から参照できます。",
+    },
+    {
+      id: "affinityGains", icon: "💗", label: "Affinity", category: "room", group: "generic",
+      kind: "singleton",
+      defaultShape: Object.assign({}, KAOSU_AFFINITY_GAINS_DEFAULT),
+      schema: [
+        { key: "chat", label: "会話1往復ごとの増加量", type: "number", default: 1 },
+        { key: "visit", label: "訪問(起動)ごとの増加量", type: "number", default: 1 },
+        { key: "giftOrEvent", label: "プレゼント/イベントごとの増加量", type: "number", default: 5 },
+      ],
+      note: "Affinity(親密度、Memoryタブのaffinity、0-100)の増加量をデータ駆動で調整します。0-29=low、30-69=medium、70-100=highの3段階でResolver Rulesの条件に使えます。",
+    },
+    {
+      id: "livingSchedule", icon: "🗓️", label: "Living Schedule", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: LIVING_SCHEDULE_DEFAULT_ITEMS }, itemLabel: "Step",
+      schema: [
+        { key: "label", label: "名前(Timelineに記録される表示名)", type: "text", default: "新しいStep" },
+        { key: "dayOfWeek", label: "曜日(any=毎日)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(毎日)" }].concat(KAOSU_WEEKDAY_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "time", label: "時刻 (HH:MM)", type: "text", default: "12:00" },
+        { key: "stateKey", label: "State", type: "dynamicSelect", default: "",
+          emptyLabel: "(なし)",
+          optionsSource: () => ((genericState.statePresets && genericState.statePresets.draft && genericState.statePresets.draft.items) || []).map(p => ({ value: p.label, label: p.label })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "現在時刻(+曜日)に一致する直近のStepを毎回自動的に適用します(06:00 起床→07:00 窓を見る→…のようなタイムテーブル)。一致するStepのStateをResolverが解決し、Pose/Animation/Expression/Camera/Room/Lighting/Musicが自動で決まります。",
+    },
+    {
+      id: "livingEvents", icon: "🎲", label: "Living Events", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: LIVING_EVENTS_DEFAULT_ITEMS }, itemLabel: "Event",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいEvent" },
+        { key: "stateKey", label: "State", type: "dynamicSelect", default: "",
+          emptyLabel: "(なし)",
+          optionsSource: () => ((genericState.statePresets && genericState.statePresets.draft && genericState.statePresets.draft.items) || []).map(p => ({ value: p.label, label: p.label })) },
+        { key: "weight", label: "出現しやすさ", type: "number", default: 5 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "Living Scheduleとは別に、低確率(約15分に1回判定・約15%)で「ふと」何かする自発イベントです。出現しやすさの比率で重み付き抽選されます。",
+    },
+    {
+      id: "idleConversationLines", icon: "💬", label: "Idle Conversation", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: IDLE_CONVERSATION_LINES_DEFAULT_ITEMS }, itemLabel: "セリフ",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいセリフ" },
+        { key: "text", label: "セリフ本文", type: "textarea", default: "" },
+        { key: "weight", label: "出現しやすさ", type: "number", default: 5 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "ホーム画面で3分以上操作が無いと、他に表示すべき一言が無い場合に限り控えめに話しかけます(最短15分間隔・出現確率30%、押し付けにならない頻度に調整済み)。",
+    },
+    {
+      id: "futureEvents", icon: "🎉", label: "Events", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: FUTURE_EVENTS_DEFAULT_ITEMS }, itemLabel: "Event",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいEvent" },
+        { key: "type", label: "種類", type: "select", default: "custom",
+          options: [ { value: "birthday", label: "誕生日" }, { value: "season", label: "季節イベント" }, { value: "christmas", label: "クリスマス" }, { value: "halloween", label: "ハロウィン" }, { value: "newyear", label: "お正月" }, { value: "tanabata", label: "七夕" }, { value: "anniversary", label: "記念日" }, { value: "custom", label: "その他" } ] },
+        { key: "date", label: "日付 (MM-DD、毎年繰り返し)", type: "text", default: "01-01" },
+        { key: "windowDays", label: "前後何日を「開催中」とみなすか", type: "number", default: 0 },
+        { key: "stateKey", label: "State", type: "dynamicSelect", default: "",
+          emptyLabel: "(なし)",
+          optionsSource: () => ((genericState.statePresets && genericState.statePresets.draft && genericState.statePresets.draft.items) || []).map(p => ({ value: p.label, label: p.label })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "登録した日付(毎年繰り返し)の前後windowDays日だけ、Living ScheduleのタイムテーブルよりStateが優先されます(誕生日は既定で無効化してあるので、実際の誕生日が決まったら日付を設定してから有効化してください)。",
+    },
+    {
+      id: "dailyTimeline", icon: "📜", label: "Timeline", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: [] }, itemLabel: "ログ",
+      schema: [
+        { key: "time", label: "時刻", type: "text", default: "" },
+        { key: "label", label: "内容", type: "text", default: "" },
+      ],
+      note: "Living Schedule/Living Eventsが実際に切り替わるたびに自動で記録される、その日の生活ログです(直近50件)。閲覧用途のため、通常は手動編集不要です。",
     },
     {
       id: "season", icon: "🌸", label: "季節イベント", category: "content", group: "generic",
@@ -14751,6 +15378,9 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       resolverRules: ["animations", "voice", "cameraPresets", "roomStates", "lighting", "music"],
       roomStates: ["lighting", "music"],
       routines: ["statePresets"],
+      livingSchedule: ["statePresets"],
+      livingEvents: ["statePresets"],
+      futureEvents: ["statePresets"],
     };
     if(CROSS_REF_IDS[tabId]){
       await Promise.all(CROSS_REF_IDS[tabId].map(id => {
@@ -15670,6 +16300,14 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     if(typeof loadKaosuStateEngineConfig === "function") await loadKaosuStateEngineConfig();
     if(typeof loadKaosuMediaIndex === "function") await loadKaosuMediaIndex();
     if(typeof loadKaosuRoomConfig === "function") await loadKaosuRoomConfig();
+    /* Phase18: Memory/Affinity/Living系タブは同期キャッシュ
+       (kaosuMemoryCache/kaosuAffinityGainsCache/kaosuLivingResolvedCache)
+       を持つため、管理画面の保存(CmsStore.putConfigを直接呼ぶ共通の
+       保存経路)がそれらを更新しないまま古い値を参照し続けないよう、
+       ここで明示的に読み直す。 */
+    if(typeof kaosuMemoryGet === "function") await kaosuMemoryGet();
+    kaosuAffinityGainsCache = null;
+    if(typeof kaosuLivingTick === "function") await kaosuLivingTick();
     const homeView = document.querySelector('.view[data-view="home"]');
     if(homeView && homeView.classList.contains("active")){
       if(typeof renderKaosuRoomScene === "function") renderKaosuRoomScene();
@@ -15912,6 +16550,9 @@ playKaosuStartupSequence();
 renderKaosuRoomSceneWithEntrance();
 startKaosuBgm();
 kaosuMemoryTouchVisit();
+loadKaosuAffinityGainsConfig().then(g => kaosuAffinityAdjust(g.visit));
+startKaosuLivingScheduler();
+startKaosuIdleConversationTicker();
 renderNotificationModeChips();
 renderNotificationPermissionRow();
 loadWakuwakuEntries();
