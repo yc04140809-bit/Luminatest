@@ -1450,13 +1450,41 @@ textarea.field-input{ resize:none; }
   background:radial-gradient(circle at 50% 60%, rgba(255,255,255,.35), transparent 60%);
   animation:kaosuStartupEffectPulse 2.2s ease-in-out infinite;
 }
+/* Lumina Engine: Effect Catalog拡張分(rain/dust/sunlight/firefly/
+   heart)。既存のsparkle/petals/snow/glowと同じ「::beforeに絵文字か
+   グラデーションを置いてkeyframesで動かすだけ」の軽量実装を踏襲。 */
+.kaosu-startup-effect-rain::before{
+  content:"🌧"; position:absolute; top:6%; left:50%; font-size:24px;
+  animation:kaosuStartupEffectFall 1.6s linear infinite;
+}
+.kaosu-startup-effect-dust::before{
+  content:""; position:absolute; inset:0;
+  background:radial-gradient(circle at 30% 70%, rgba(255,255,255,.18), transparent 55%);
+  animation:kaosuStartupEffectFloat 3.4s ease-in-out infinite;
+}
+.kaosu-startup-effect-sunlight::before{
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(115deg, rgba(255,236,180,.32), transparent 55%);
+  animation:kaosuStartupEffectPulse 3s ease-in-out infinite;
+}
+.kaosu-startup-effect-firefly::before{
+  content:"✦"; position:absolute; top:55%; left:50%; font-size:20px; color:#e8ffb0;
+  animation:kaosuStartupEffectFloat 2.8s ease-in-out infinite;
+}
+.kaosu-startup-effect-heart::before{
+  content:"💛"; position:absolute; top:22%; left:50%; font-size:24px;
+  animation:kaosuStartupEffectFloat 2s ease-in-out infinite;
+}
 @keyframes kaosuStartupEffectFloat{ 0%,100%{ transform:translate(-50%,0); opacity:.3; } 50%{ transform:translate(-50%,-16px); opacity:.9; } }
 @keyframes kaosuStartupEffectFall{ 0%{ transform:translate(-50%,-10%); opacity:0; } 15%{ opacity:.8; } 100%{ transform:translate(-50%,110%); opacity:0; } }
 @keyframes kaosuStartupEffectPulse{ 0%,100%{ opacity:.4; } 50%{ opacity:.8; } }
 @media (prefers-reduced-motion: reduce){
   .kaosu-startup-sequence{ display:none !important; }
   .kaosu-startup-effect-sparkle::before, .kaosu-startup-effect-petals::before,
-  .kaosu-startup-effect-snow::before, .kaosu-startup-effect-glow::before{ animation:none; }
+  .kaosu-startup-effect-snow::before, .kaosu-startup-effect-glow::before,
+  .kaosu-startup-effect-rain::before, .kaosu-startup-effect-dust::before,
+  .kaosu-startup-effect-sunlight::before, .kaosu-startup-effect-firefly::before,
+  .kaosu-startup-effect-heart::before{ animation:none; }
 }
 
 /* ============================================================
@@ -9003,7 +9031,7 @@ async function renderKaosuRoomSceneWithEntrance(now = new Date()){
    埋めておき、そのまま「保存」を押すだけで有効化できるようにする。
    ============================================================ */
 const STARTUP_SEQUENCE_EASING_OPTIONS = ["ease", "linear", "ease-in", "ease-out", "ease-in-out"];
-const KAOSU_STARTUP_EFFECT_KEYS = ["none", "sparkle", "petals", "snow", "glow"];
+const KAOSU_STARTUP_EFFECT_KEYS = ["none", "sparkle", "petals", "snow", "glow", "rain", "dust", "sunlight", "firefly", "heart"];
 /* Animation Catalog: Sceneはこの中の1件をanimationKeyで参照する
    だけで、fadeIn/fadeOut/duration/移動/イージングそのものは持たない。
    新しいAnimation(例:「素早く駆け込む」「ゆっくり佇む」)を管理画面
@@ -9042,6 +9070,7 @@ function kaosuStartupSequenceDefaultScene(overrides){
   return Object.assign({
     poseKey: "idle", x: 50, y: 55, scale: 1, rotation: 0, opacity: 1, layer: 1,
     animationKey: "fadeStatic", expressionKey: "", voiceKey: "", effectKey: "none",
+    stateKey: "", cameraKey: "",
     delay: 0, enabled: true,
   }, overrides);
 }
@@ -9100,12 +9129,42 @@ async function playKaosuStartupSequence(){
   const overlay = document.getElementById("kaosuStartupSequence");
   if(!overlay) return;
   const seqConfig = await loadKaosuStartupSequenceConfig();
-  const scenes = (seqConfig.items || []).filter(s => s.enabled !== false && s.poseKey);
+  const scenesRaw = (seqConfig.items || []).filter(s => s.enabled !== false);
+  if(!scenesRaw.length) return;
+
+  const [roomConfig, animConfig, cameraConfig, statePresetsConfig, rulesConfig] = await Promise.all([
+    loadKaosuRoomConfig(), loadKaosuAnimationsConfig(), loadKaosuCameraPresetsConfig(),
+    loadKaosuStatePresetsConfig(), loadKaosuResolverRulesConfig(), loadKaosuStateEngineConfig(),
+  ]);
+  await loadKaosuMediaIndex();
+
+  /* Lumina Engine: stateKeyが指定されているSceneだけ、まだ空欄の
+     キー(poseKey/animationKey/expressionKey/voiceKey/effectKey/
+     cameraKey)をResolverの出力で埋める。Sceneが自分で明示指定した
+     値は常にそのまま使われる(Manual Override)ため、stateKeyを
+     持たない既存データは今まで通り無変更で動く。 */
+  const merged = scenesRaw.map(s => {
+    const resolverOut = s.stateKey ? kaosuResolveOutputs(rulesConfig, kaosuResolveState(statePresetsConfig, s.stateKey)) : null;
+    const pick = (key) => (s[key] ? s[key] : (resolverOut ? resolverOut[key] : ""));
+    const cameraPreset = kaosuResolveCameraPreset(cameraConfig, pick("cameraKey"));
+    return Object.assign({}, s, {
+      poseKey: pick("poseKey") || "idle",
+      animationKey: pick("animationKey"),
+      expressionKey: pick("expressionKey"),
+      voiceKey: pick("voiceKey"),
+      effectKey: pick("effectKey") || "none",
+      x: cameraPreset ? cameraPreset.x : s.x,
+      y: cameraPreset ? cameraPreset.y : s.y,
+      scale: cameraPreset ? cameraPreset.scale : s.scale,
+      rotation: cameraPreset ? cameraPreset.rotation : s.rotation,
+      opacity: cameraPreset ? cameraPreset.opacity : s.opacity,
+      layer: cameraPreset ? cameraPreset.layer : s.layer,
+      cameraPreset,
+    });
+  });
+  const scenes = merged.filter(s => s.poseKey);
   if(!scenes.length) return;
 
-  const roomConfig = await loadKaosuRoomConfig();
-  const animConfig = await loadKaosuAnimationsConfig();
-  await loadKaosuMediaIndex();
   const resolved = scenes
     .map(s => {
       const pose = kaosuRoomConfigPose(roomConfig, s.poseKey);
@@ -9136,10 +9195,11 @@ async function playKaosuStartupSequence(){
   for(const s of resolved){
     const el = imgs[active];
     const anim = s.anim;
-    const fromX = anim.moveFromX != null ? anim.moveFromX : s.x;
-    const fromY = anim.moveFromY != null ? anim.moveFromY : s.y;
-    const toX = anim.moveToX != null ? anim.moveToX : s.x;
-    const toY = anim.moveToY != null ? anim.moveToY : s.y;
+    const cam = s.cameraPreset;
+    const fromX = (cam && cam.moveFromX != null) ? cam.moveFromX : (anim.moveFromX != null ? anim.moveFromX : s.x);
+    const fromY = (cam && cam.moveFromY != null) ? cam.moveFromY : (anim.moveFromY != null ? anim.moveFromY : s.y);
+    const toX = (cam && cam.moveToX != null) ? cam.moveToX : (anim.moveToX != null ? anim.moveToX : s.x);
+    const toY = (cam && cam.moveToY != null) ? cam.moveToY : (anim.moveToY != null ? anim.moveToY : s.y);
     const scale = s.scale != null ? s.scale : 1;
     const rotation = s.rotation || 0;
     const targetOpacity = s.opacity != null ? s.opacity : 1;
@@ -9200,6 +9260,295 @@ async function playKaosuStartupSequence(){
   await chatWait(lastFadeOut);
   overlay.style.display = "none";
   overlay.innerHTML = "";
+}
+
+/* ============================================================
+   Lumina Engine: State → Resolver → Renderer。
+   Sceneが画像や演出値を直接持つ旧構造(Pose/Animation/Expression/
+   Voice/Effect/Camera/Delayを個別に参照するだけ)を維持したまま、
+   その「参照するキー」自体をStateから自動決定できるようにする層。
+   既存のScene(poseKey/animationKey等を明示指定したもの)は今まで
+   通りそのまま動く(=Manual Override。値が入っているキーは常に
+   Resolverの出力より優先される)。新しいSceneはstateKeyだけを指定
+   すれば、Resolverが残りのキーを埋める。 */
+const KAOSU_TIME_KEYS = ["morning", "day", "evening", "night", "midnight"];
+const KAOSU_SEASON_KEYS = ["spring", "summer", "autumn", "winter"];
+const KAOSU_WEATHER_KEYS = ["sunny", "cloudy", "rain", "snow"];
+const KAOSU_MOOD_KEYS = ["normal", "happy", "thinking", "sleepy", "excited", "sad"];
+const KAOSU_SITUATION_KEYS = ["idle", "greeting", "walking", "reading", "relax", "window", "sofa", "working", "back"];
+
+/* --- State Engine -------------------------------------------------
+   「今の世界の状態」。Time/SeasonはgetRoomVisualBand()/
+   getKaosuSeasonBand()(既存関数、Phase43/BGM選定などで既に使われて
+   いるものをそのまま流用し、二重実装を避ける)から自動判定する。
+   Weather/Mood/Situationはまだセンサー/天気APIが無いため、管理画面
+   「State」タブ(singleton, id="stateEngine")の手動指定(auto以外)が
+   あればそれを使い、無ければ既定(晴れ/普通/待機)へ落ちる。 */
+let kaosuStateEngineConfigCache = null;
+let kaosuStateEngineConfigPromise = null;
+const KAOSU_STATE_ENGINE_DEFAULT = { liveWeatherOverride: "auto", liveMoodOverride: "auto", liveSituationOverride: "auto" };
+async function loadKaosuStateEngineConfig(){
+  if(kaosuStateEngineConfigCache) return kaosuStateEngineConfigCache;
+  if(kaosuStateEngineConfigPromise) return kaosuStateEngineConfigPromise;
+  kaosuStateEngineConfigPromise = (async () => {
+    let result = Object.assign({}, KAOSU_STATE_ENGINE_DEFAULT);
+    try{
+      const record = await CmsStore.getConfig("stateEngine");
+      if(record && record.data && typeof record.data === "object") result = Object.assign({}, result, record.data);
+    }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
+    kaosuStateEngineConfigCache = result;
+    return result;
+  })();
+  return kaosuStateEngineConfigPromise;
+}
+function invalidateKaosuStateEngineConfigCache(){
+  kaosuStateEngineConfigCache = null;
+  kaosuStateEngineConfigPromise = null;
+}
+function getKaosuStateEngineConfigSync(){
+  return kaosuStateEngineConfigCache || KAOSU_STATE_ENGINE_DEFAULT;
+}
+function kaosuLiveState(now){
+  now = now || new Date();
+  const cfg = getKaosuStateEngineConfigSync();
+  return {
+    time: getRoomVisualBand(now),
+    season: getKaosuSeasonBand(now),
+    weather: (cfg.liveWeatherOverride && cfg.liveWeatherOverride !== "auto") ? cfg.liveWeatherOverride : "sunny",
+    mood: (cfg.liveMoodOverride && cfg.liveMoodOverride !== "auto") ? cfg.liveMoodOverride : "normal",
+    situation: (cfg.liveSituationOverride && cfg.liveSituationOverride !== "auto") ? cfg.liveSituationOverride : "idle",
+  };
+}
+/* State Presets: GUIで名前を付けて登録できる「状態」のプリセット
+   (例:「後ろ姿(部屋の奥)」)。次元ごとに"auto"(=kaosuLiveState()を
+   継承)か明示値を持てるため、「時間帯/季節はそのまま、Situationだけ
+   強制する」といった使い方ができる。Startup Sequence/Routineはこの
+   labelをstateKeyとして参照するだけでよい。 */
+const STATE_PRESETS_DEFAULT_ITEMS = [
+  { label: "後ろ姿(部屋の奥)", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "back", enabled: true },
+  { label: "気付いて手を振る", time: "auto", season: "auto", weather: "auto", mood: "happy", situation: "greeting", enabled: true },
+  { label: "近付く", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "walking", enabled: true },
+  { label: "待機", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "idle", enabled: true },
+  { label: "窓の外を見る", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "window", enabled: true },
+  { label: "読書", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "reading", enabled: true },
+  { label: "ソファでくつろぐ", time: "auto", season: "auto", weather: "auto", mood: "auto", situation: "sofa", enabled: true },
+];
+async function loadKaosuStatePresetsConfig(){
+  try{
+    const record = await CmsStore.getConfig("statePresets");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuResolveState(statePresetsConfig, stateKey, now){
+  const live = kaosuLiveState(now);
+  if(!stateKey) return live;
+  const items = (statePresetsConfig && Array.isArray(statePresetsConfig.items)) ? statePresetsConfig.items : [];
+  const preset = items.find(p => p.label === stateKey && p.enabled !== false);
+  if(!preset) return live;
+  const pick = (v, fallback) => (v && v !== "auto") ? v : fallback;
+  return {
+    time: pick(preset.time, live.time),
+    season: pick(preset.season, live.season),
+    weather: pick(preset.weather, live.weather),
+    mood: pick(preset.mood, live.mood),
+    situation: pick(preset.situation, live.situation),
+  };
+}
+
+/* --- Resolver Engine / Rule Engine ---------------------------------
+   Stateを入力に、Pose(Category)/Animation/Expression/Voice/Effect/
+   Camera/Room/Lighting/Musicの各キーを自動決定する。中身は「Rule」の
+   配列(優先順位=priority、値が大きいほど優先)で、各Ruleは条件
+   (未指定/"any"は常に一致)と、一致した時に出力するキーの組を持つ。
+   優先度の高いRuleから見て、まだ埋まっていない出力キーだけを埋めて
+   いく(=Ruleごとに得意なキーだけ書けば足りる、ルール追加だけで
+   演出を拡張できる設計)。この出力はあくまで「推奨値」であり、Scene
+   側が個別に明示指定した値のほうが常に優先される(Manual Override、
+   既存データとの完全後方互換の要)。 */
+const RESOLVER_OUTPUT_KEYS = ["poseKey", "animationKey", "expressionKey", "voiceKey", "effectKey", "cameraKey", "roomKey", "lightingKey", "musicKey"];
+const RESOLVER_RULES_DEFAULT_ITEMS = [
+  { label: "朝のあいさつ", priority: 50, matchTime: "morning", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "greeting",
+    poseKey: "wave", animationKey: "fadeSlow", expressionKey: "smile", voiceKey: "", effectKey: "sunlight", cameraKey: "", roomKey: "Morning", lightingKey: "Morning", musicKey: "Morning", enabled: true },
+  { label: "雨の日は窓辺で", priority: 40, matchTime: "any", matchSeason: "any", matchWeather: "rain", matchMood: "any", matchSituation: "any",
+    poseKey: "window", animationKey: "", expressionKey: "", voiceKey: "", effectKey: "rain", cameraKey: "", roomKey: "Rain", lightingKey: "Rain", musicKey: "Rain", enabled: true },
+  { label: "眠そうな時はゆっくり", priority: 30, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "sleepy", matchSituation: "any",
+    poseKey: "", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "none", cameraKey: "", roomKey: "", lightingKey: "Night", musicKey: "Night", enabled: true },
+  { label: "夜のくつろぎ", priority: 20, matchTime: "night", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "sofa",
+    poseKey: "sofa", animationKey: "gentleHold", expressionKey: "relax", voiceKey: "", effectKey: "glow", cameraKey: "", roomKey: "Night", lightingKey: "Night", musicKey: "Night", enabled: true },
+  { label: "既定(待機)", priority: 0, matchTime: "any", matchSeason: "any", matchWeather: "any", matchMood: "any", matchSituation: "any",
+    poseKey: "idle", animationKey: "gentleHold", expressionKey: "", voiceKey: "", effectKey: "none", cameraKey: "", roomKey: "", lightingKey: "", musicKey: "", enabled: true },
+];
+async function loadKaosuResolverRulesConfig(){
+  try{
+    const record = await CmsStore.getConfig("resolverRules");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuRuleMatchesState(rule, state){
+  const dims = [["matchTime", "time"], ["matchSeason", "season"], ["matchWeather", "weather"], ["matchMood", "mood"], ["matchSituation", "situation"]];
+  return dims.every(([ruleKey, stateKey]) => {
+    const want = rule[ruleKey];
+    return !want || want === "any" || want === state[stateKey];
+  });
+}
+function kaosuResolveOutputs(rulesConfig, state){
+  const output = {};
+  RESOLVER_OUTPUT_KEYS.forEach(k => { output[k] = ""; });
+  const items = (rulesConfig && Array.isArray(rulesConfig.items)) ? rulesConfig.items : [];
+  const sorted = items.filter(r => r.enabled !== false).slice().sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  sorted.forEach(rule => {
+    if(!kaosuRuleMatchesState(rule, state)) return;
+    RESOLVER_OUTPUT_KEYS.forEach(k => {
+      if(!output[k] && rule[k]) output[k] = rule[k];
+    });
+  });
+  return output;
+}
+/* statePresetsConfig+rulesConfigを1度に読み、stateKeyから最終的な
+   Resolver出力までをまとめて得るショートカット。 */
+async function kaosuResolveScene(stateKey, now){
+  const [statePresetsConfig, rulesConfig] = await Promise.all([loadKaosuStatePresetsConfig(), loadKaosuResolverRulesConfig()]);
+  const state = kaosuResolveState(statePresetsConfig, stateKey, now);
+  const outputs = kaosuResolveOutputs(rulesConfig, state);
+  return { state, outputs };
+}
+
+/* --- Camera Engine --------------------------------------------------
+   Preset管理(Static/GentleZoom/Approach/PullBack/PanLeft/PanRight/
+   Float/Focus)。SceneがcameraKeyを参照した場合だけ、そのSceneの
+   x/y/scale/rotation/opacity/layer(および移動元/移動先)の代わりに
+   Presetの値が使われる(=Pose/Animation等と同じ「参照 or 直接指定」の
+   二択で、cameraKey未指定なら今まで通りSceneの直接指定がそのまま
+   使われる=完全後方互換)。 */
+const CAMERA_PRESET_FALLBACK = { label: "既定", x: 50, y: 55, scale: 1, rotation: 0, opacity: 1, layer: 1, moveFromX: null, moveFromY: null, moveToX: null, moveToY: null, easing: "ease" };
+function kaosuCameraPresetDefault(overrides){ return Object.assign({}, CAMERA_PRESET_FALLBACK, overrides); }
+const CAMERA_PRESETS_DEFAULT_ITEMS = [
+  kaosuCameraPresetDefault({ label: "Static" }),
+  kaosuCameraPresetDefault({ label: "GentleZoom", scale: 1.06 }),
+  kaosuCameraPresetDefault({ label: "Approach", moveFromY: 60, moveToY: 50, scale: 1.05 }),
+  kaosuCameraPresetDefault({ label: "PullBack", moveFromY: 48, moveToY: 55, scale: 0.94 }),
+  kaosuCameraPresetDefault({ label: "PanLeft", moveFromX: 58, moveToX: 42 }),
+  kaosuCameraPresetDefault({ label: "PanRight", moveFromX: 42, moveToX: 58 }),
+  kaosuCameraPresetDefault({ label: "Float", y: 52, moveFromY: 54, moveToY: 50 }),
+  kaosuCameraPresetDefault({ label: "Focus", scale: 1.12, y: 48 }),
+];
+async function loadKaosuCameraPresetsConfig(){
+  try{
+    const record = await CmsStore.getConfig("cameraPresets");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuResolveCameraPreset(cameraConfig, cameraKey){
+  const items = (cameraConfig && Array.isArray(cameraConfig.items)) ? cameraConfig.items : [];
+  return (cameraKey ? items.find(c => c.label === cameraKey && c.enabled !== false) : null) || null;
+}
+
+/* --- Room / Lighting / Music Engine ---------------------------------
+   Roomは背景だけでなくLighting/Musicの参照込みの「状態」を持てる。
+   season/bgm/sfx/effects/ambient/dialogueタブと同じ段階公開の方針を
+   踏襲し、このパスでは①データ管理(追加/削除/並び替え/保存/
+   プレビュー)と②Resolverからの参照(roomKey/lightingKey/musicKeyが
+   Resolver出力として決定できる)までを実装する。ホーム画面側での
+   自動適用(背景/照明/BGMの実描画)は今後のアップデートで対応予定。 */
+const ROOM_STATES_DEFAULT_ITEMS = ["Morning", "Night", "Rain", "Christmas", "Halloween", "Spring", "Summer", "Autumn", "Winter"]
+  .map(label => ({ label, background: "", lightingKey: "", musicKey: "", enabled: true }));
+async function loadKaosuRoomStatesConfig(){
+  try{
+    const record = await CmsStore.getConfig("roomStates");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuResolveRoomState(roomStatesConfig, roomKey){
+  const items = (roomStatesConfig && Array.isArray(roomStatesConfig.items)) ? roomStatesConfig.items : [];
+  return (roomKey ? items.find(r => r.label === roomKey && r.enabled !== false) : null) || null;
+}
+const LIGHTING_PRESETS_DEFAULT_ITEMS = [
+  { label: "Morning", tint: "#ffe3b0", opacity: 0.12, blend: "soft-light", enabled: true },
+  { label: "Sunset", tint: "#ff9a6b", opacity: 0.16, blend: "overlay", enabled: true },
+  { label: "Night", tint: "#2b2560", opacity: 0.22, blend: "multiply", enabled: true },
+  { label: "Warm", tint: "#ffcf8f", opacity: 0.14, blend: "soft-light", enabled: true },
+  { label: "Cool", tint: "#8fc7ff", opacity: 0.14, blend: "soft-light", enabled: true },
+  { label: "Rain", tint: "#6c7a94", opacity: 0.18, blend: "multiply", enabled: true },
+  { label: "Snow", tint: "#eaf3ff", opacity: 0.16, blend: "soft-light", enabled: true },
+];
+async function loadKaosuLightingConfig(){
+  try{
+    const record = await CmsStore.getConfig("lighting");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuResolveLightingPreset(lightingConfig, lightingKey){
+  const items = (lightingConfig && Array.isArray(lightingConfig.items)) ? lightingConfig.items : [];
+  return (lightingKey ? items.find(l => l.label === lightingKey && l.enabled !== false) : null) || null;
+}
+const MUSIC_CATALOG_DEFAULT_ITEMS = ["Morning", "Healing", "Fantasy", "Cafe", "Rain", "Night"]
+  .map(label => ({ label, file: "", volume: 0.5, loop: true, enabled: true }));
+async function loadKaosuMusicConfig(){
+  try{
+    const record = await CmsStore.getConfig("music");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+function kaosuResolveMusicTrack(musicConfig, musicKey){
+  const items = (musicConfig && Array.isArray(musicConfig.items)) ? musicConfig.items : [];
+  const found = musicKey ? items.find(m => m.label === musicKey && m.enabled !== false) : null;
+  if(!found || !found.file) return null;
+  return { url: resolveMediaUrl(found.file), volume: found.volume != null ? found.volume : 0.5, loop: found.loop !== false };
+}
+
+/* --- Routine Engine ---------------------------------------------------
+   時間帯ごとの生活リズムをGUIで組めるデータ層。各StepはState
+   Presetsのlabelを1つ参照するだけなので、新しいStateを増やしても
+   Routine自体の構造は変更不要。ホーム画面への自動トリガーは今後の
+   アップデートで対応予定(現時点はデータ管理のみ、Startup Sequenceと
+   同じ再生ロジックをplayKaosuRoutine()として用意)。 */
+const ROUTINES_DEFAULT_ITEMS = [
+  { label: "朝のルーティン", band: "morning", steps: [
+    { stateKey: "後ろ姿(部屋の奥)", delay: 800 },
+    { stateKey: "近付く", delay: 800 },
+    { stateKey: "気付いて手を振る", delay: 800 },
+    { stateKey: "待機", delay: 0 },
+  ], enabled: true },
+  { label: "夜のルーティン", band: "night", steps: [
+    { stateKey: "窓の外を見る", delay: 1200 },
+    { stateKey: "読書", delay: 1200 },
+    { stateKey: "ソファでくつろぐ", delay: 0 },
+  ], enabled: true },
+];
+async function loadKaosuRoutinesConfig(){
+  try{
+    const record = await CmsStore.getConfig("routines");
+    if(record && record.data && Array.isArray(record.data.items)) return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
+  return { configVersion: 1, items: [] };
+}
+
+/* --- Memory Engine(基盤のみ) -----------------------------------------
+   LastTalk/LastVisit/Affinity/RecentTopics/LastGreetingを保持する
+   入れ物。AI処理・自動スコアリングは次フェーズの対応とし、ここでは
+   「起動のたびにLastVisitを更新する」という最小限の自動更新だけを
+   行う(将来ResolverがMemoryを条件に使えるよう、値自体は今から
+   蓄積しておく)。 */
+async function kaosuMemoryGet(){
+  try{
+    const record = await CmsStore.getConfig("memory");
+    if(record && record.data && typeof record.data === "object") return record.data;
+  }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
+  return { lastTalk: "", lastVisit: "", affinity: 0, recentTopics: "", lastGreeting: "" };
+}
+async function kaosuMemoryPut(data){
+  try{ await CmsStore.putConfig("memory", data); }catch(e){ /* IndexedDB未対応時は何もしない */ }
+}
+async function kaosuMemoryTouchVisit(){
+  const mem = await kaosuMemoryGet();
+  mem.lastVisit = new Date().toISOString();
+  await kaosuMemoryPut(mem);
 }
 
 /* ============================================================
@@ -13677,7 +14026,10 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       id: "startupSequence", icon: "🎬", label: "Startup Sequence", category: "room", group: "generic",
       kind: "collection", defaultShape: { items: STARTUP_SEQUENCE_DEFAULT_ITEMS }, itemLabel: "シーン",
       schema: [
-        { key: "poseKey", label: "Pose(どのCategoryか)", type: "select", default: "idle",
+        { key: "stateKey", label: "State(この状態を参照。指定すると空欄のキーをResolverが自動で埋めます)", type: "dynamicSelect", default: "",
+          emptyLabel: "(Stateを使わない/直接指定のみ)",
+          optionsSource: () => ((genericState.statePresets && genericState.statePresets.draft && genericState.statePresets.draft.items) || []).map(p => ({ value: p.label, label: p.label })) },
+        { key: "poseKey", label: "Pose(どのCategoryか。空欄=Stateから自動決定)", type: "select", default: "idle",
           options: POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label })) },
         { key: "animationKey", label: "Animation(動き方)", type: "dynamicSelect", default: "",
           emptyLabel: "(既定の動きを使う)",
@@ -13689,6 +14041,9 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
           optionsSource: () => ((genericState.voice && genericState.voice.draft && genericState.voice.draft.items) || []).map(v => ({ value: v.label, label: v.label })) },
         { key: "effectKey", label: "Effect(演出エフェクト)", type: "select", default: "none",
           options: KAOSU_STARTUP_EFFECT_KEYS.map(k => ({ value: k, label: k })) },
+        { key: "cameraKey", label: "Camera Preset(指定するとX/Y/拡大率等の代わりに使われます)", type: "dynamicSelect", default: "",
+          emptyLabel: "(下のCamera値を直接使う)",
+          optionsSource: () => ((genericState.cameraPresets && genericState.cameraPresets.draft && genericState.cameraPresets.draft.items) || []).map(c => ({ value: c.label, label: c.label })) },
         { key: "x", label: "Camera: 表示位置 X (%)", type: "number", default: 50 },
         { key: "y", label: "Camera: 表示位置 Y (%)", type: "number", default: 55 },
         { key: "scale", label: "Camera: 拡大率", type: "number", step: 0.05, default: 1 },
@@ -13698,7 +14053,176 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
         { key: "delay", label: "Delay: 次のシーンまでの待機時間 (ms)", type: "number", default: 0 },
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
-      note: "Sceneは画像や演出値そのものを持たず、Pose/Animation/Expression/Voice/Effect/Camera/Delayをそれぞれ「参照」するだけです。Animationは「Animation」タブ、Voiceは「ボイス」タブで管理し、新しく増やしても既存Sceneの編集は不要です。シーンが1件も無い場合は演出自体が発生せず、通常どおり即座にホーム画面が表示されます。",
+      note: "Sceneは画像や演出値そのものを持たず、Pose/Animation/Expression/Voice/Effect/Camera/Delayをそれぞれ「参照」するだけです。Animationは「Animation」タブ、Voiceは「ボイス」タブで管理し、新しく増やしても既存Sceneの編集は不要です。Stateを指定すると、空欄のままにしたキー(Pose/Animation/Expression/Voice/Effect/Camera)だけをResolverが「State」「Resolver Rules」タブの設定から自動で埋めます(値を入れたキーは常にそちらが優先されます)。シーンが1件も無い場合は演出自体が発生せず、通常どおり即座にホーム画面が表示されます。",
+    },
+    {
+      id: "stateEngine", icon: "🌗", label: "State", category: "room", group: "generic",
+      kind: "singleton",
+      defaultShape: Object.assign({}, KAOSU_STATE_ENGINE_DEFAULT),
+      schema: [
+        { key: "liveWeatherOverride", label: "天候(auto=常に晴れ扱い。天気APIと連携するまでの仮設定)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto(晴れ)" }].concat(KAOSU_WEATHER_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "liveMoodOverride", label: "気分(auto=常にnormal扱い)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto(normal)" }].concat(KAOSU_MOOD_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "liveSituationOverride", label: "状況(auto=常にidle扱い)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto(idle)" }].concat(KAOSU_SITUATION_KEYS.map(k => ({ value: k, label: k }))) },
+      ],
+      note: "時間帯・季節は端末の時計から自動判定されます(このタブでは変更できません)。天候・気分・状況はまだセンサー/天気APIと繋がっていないため、ここで手動指定した値がResolverへ渡る「今の世界の状態」として使われます(autoのままなら既定値のまま動きます)。",
+    },
+    {
+      id: "statePresets", icon: "🧭", label: "State Presets", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: STATE_PRESETS_DEFAULT_ITEMS }, itemLabel: "State",
+      schema: [
+        { key: "label", label: "名前(Sceneやルーティンから参照するキーになります)", type: "text", default: "新しいState" },
+        { key: "time", label: "時間帯(auto=今の実際の時間帯を使う)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto" }].concat(KAOSU_TIME_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "season", label: "季節(auto=今の実際の季節を使う)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto" }].concat(KAOSU_SEASON_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "weather", label: "天候(auto=Stateタブの設定を使う)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto" }].concat(KAOSU_WEATHER_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "mood", label: "気分(auto=Stateタブの設定を使う)", type: "select", default: "auto",
+          options: [{ value: "auto", label: "auto" }].concat(KAOSU_MOOD_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "situation", label: "状況", type: "select", default: "idle",
+          options: KAOSU_SITUATION_KEYS.map(k => ({ value: k, label: k })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "「状況」だけを強制しつつ、時間帯・季節・天候・気分はその時点の実際の値を引き継ぐ、といったプリセットを名前付きで作れます。Startup SequenceのScene・Routineの各Stepからstateキーとして参照できます。",
+    },
+    {
+      id: "resolverRules", icon: "⚙️", label: "Resolver Rules", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: RESOLVER_RULES_DEFAULT_ITEMS }, itemLabel: "Rule",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいRule" },
+        { key: "priority", label: "優先度(数値が大きいほど優先)", type: "number", default: 10 },
+        { key: "matchTime", label: "条件: 時間帯", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_TIME_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "matchSeason", label: "条件: 季節", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_SEASON_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "matchWeather", label: "条件: 天候", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_WEATHER_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "matchMood", label: "条件: 気分", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_MOOD_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "matchSituation", label: "条件: 状況", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_SITUATION_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "poseKey", label: "出力: Pose Category(空欄=このRuleでは決めない)", type: "select", default: "",
+          options: [{ value: "", label: "(指定しない)" }].concat(POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label }))) },
+        { key: "animationKey", label: "出力: Animation", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.animations && genericState.animations.draft && genericState.animations.draft.items) || []).map(a => ({ value: a.label, label: a.label })) },
+        { key: "expressionKey", label: "出力: Expression", type: "select", default: "",
+          options: [{ value: "", label: "(指定しない)" }].concat(KAOSU_EXPRESSIONS.map(e => ({ value: e, label: e }))) },
+        { key: "voiceKey", label: "出力: Voice", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.voice && genericState.voice.draft && genericState.voice.draft.items) || []).map(v => ({ value: v.label, label: v.label })) },
+        { key: "effectKey", label: "出力: Effect", type: "select", default: "",
+          options: [{ value: "", label: "(指定しない)" }].concat(KAOSU_STARTUP_EFFECT_KEYS.filter(k => k !== "none").map(k => ({ value: k, label: k }))) },
+        { key: "cameraKey", label: "出力: Camera Preset", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.cameraPresets && genericState.cameraPresets.draft && genericState.cameraPresets.draft.items) || []).map(c => ({ value: c.label, label: c.label })) },
+        { key: "roomKey", label: "出力: Room State", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.roomStates && genericState.roomStates.draft && genericState.roomStates.draft.items) || []).map(r => ({ value: r.label, label: r.label })) },
+        { key: "lightingKey", label: "出力: Lighting", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.lighting && genericState.lighting.draft && genericState.lighting.draft.items) || []).map(l => ({ value: l.label, label: l.label })) },
+        { key: "musicKey", label: "出力: Music", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.music && genericState.music.draft && genericState.music.draft.items) || []).map(m => ({ value: m.label, label: m.label })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "State(時間帯/季節/天候/気分/状況)の条件に一致するRuleのうち、優先度が高いものから順に、まだ決まっていない出力キーだけを埋めます。Ruleを1件増やすだけで演出パターンを拡張でき、既存のScene/Routineは変更不要です。",
+    },
+    {
+      id: "cameraPresets", icon: "🎥", label: "Camera", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: CAMERA_PRESETS_DEFAULT_ITEMS }, itemLabel: "Camera Preset",
+      schema: [
+        { key: "label", label: "名前(Sceneから参照するキーになります)", type: "text", default: "新しいCamera" },
+        { key: "x", label: "表示位置 X (%)", type: "number", default: 50 },
+        { key: "y", label: "表示位置 Y (%)", type: "number", default: 55 },
+        { key: "scale", label: "拡大率", type: "number", step: 0.05, default: 1 },
+        { key: "rotation", label: "回転 (deg)", type: "number", default: 0 },
+        { key: "opacity", label: "不透明度 (0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 1 },
+        { key: "layer", label: "重なり順 (z-index)", type: "number", default: 1 },
+        { key: "moveFromX", label: "移動開始位置 X (%、空欄=Animation側かSceneの値を使う)", type: "number", default: null },
+        { key: "moveFromY", label: "移動開始位置 Y (%、空欄=Animation側かSceneの値を使う)", type: "number", default: null },
+        { key: "moveToX", label: "移動終了位置 X (%、空欄=Animation側かSceneの値を使う)", type: "number", default: null },
+        { key: "moveToY", label: "移動終了位置 Y (%、空欄=Animation側かSceneの値を使う)", type: "number", default: null },
+        { key: "easing", label: "イージング", type: "select", default: "ease",
+          options: STARTUP_SEQUENCE_EASING_OPTIONS.map(v => ({ value: v, label: v })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "Startup SequenceのSceneがCamera Presetを指定すると、そのSceneのX/Y/拡大率/回転/不透明度/重なり順の代わりにこの値が使われます(指定しなければ今まで通りSceneの直接指定がそのまま使われます)。",
+    },
+    {
+      id: "roomStates", icon: "🛋️", label: "Room States", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: ROOM_STATES_DEFAULT_ITEMS }, itemLabel: "Room State",
+      schema: [
+        { key: "label", label: "名前(Resolverから参照するキーになります)", type: "text", default: "新しいRoom State" },
+        { key: "background", label: "背景画像(空欄=時間帯に応じた既存の自動選択のまま)", type: "image", default: "" },
+        { key: "lightingKey", label: "Lighting", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.lighting && genericState.lighting.draft && genericState.lighting.draft.items) || []).map(l => ({ value: l.label, label: l.label })) },
+        { key: "musicKey", label: "Music", type: "dynamicSelect", default: "",
+          emptyLabel: "(指定しない)",
+          optionsSource: () => ((genericState.music && genericState.music.draft && genericState.music.draft.items) || []).map(m => ({ value: m.label, label: m.label })) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "Roomは背景だけでなくLighting/Musicの参照込みの「状態」として管理できます。Resolver Rulesの「出力: Room State」から参照可能です。ホーム画面の背景をこの設定で自動的に差し替える処理は今後のアップデートで対応予定です(現時点はデータの管理とResolverからの参照のみ)。",
+    },
+    {
+      id: "lighting", icon: "💡", label: "Lighting", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: LIGHTING_PRESETS_DEFAULT_ITEMS }, itemLabel: "Lighting Preset",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいLighting" },
+        { key: "tint", label: "色味", type: "color", default: "#8b6fd6" },
+        { key: "opacity", label: "強さ (0-1)", type: "number", step: 0.02, min: 0, max: 1, default: 0.12 },
+        { key: "blend", label: "ブレンドモード", type: "select", default: "soft-light",
+          options: [ { value: "normal", label: "normal" }, { value: "soft-light", label: "soft-light" }, { value: "overlay", label: "overlay" }, { value: "multiply", label: "multiply" }, { value: "screen", label: "screen" } ] },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "Room States/Resolver Rulesから参照される色味プリセットです。ホーム画面への自動適用は今後のアップデートで対応予定です(現時点はデータの管理とResolverからの参照のみ)。",
+    },
+    {
+      id: "music", icon: "🎼", label: "Music", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: MUSIC_CATALOG_DEFAULT_ITEMS }, itemLabel: "曲",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しい曲" },
+        { key: "file", label: "音声ファイル", type: "audio", default: "" },
+        { key: "volume", label: "音量(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.5 },
+        { key: "loop", label: "ループ再生", type: "boolean", default: true },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "Room States/Resolver Rulesから参照される環境BGMのカタログです。既存の「BGM」タブ(プレイリスト方式)とは別に、Lumina EngineのState/Roomから直接参照する用途向けです。自動再生の実配線は今後のアップデートで対応予定です。",
+    },
+    {
+      id: "routines", icon: "🕰️", label: "Routine", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: ROUTINES_DEFAULT_ITEMS }, itemLabel: "Routine",
+      schema: [
+        { key: "label", label: "名前", type: "text", default: "新しいRoutine" },
+        { key: "band", label: "時間帯(any=いつでも)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(いつでも)" }].concat(KAOSU_TIME_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "steps", label: "手順", type: "collection", itemLabel: "Step", default: [], itemSchema: [
+          { key: "stateKey", label: "State", type: "dynamicSelect", default: "",
+            emptyLabel: "(なし)",
+            optionsSource: () => ((genericState.statePresets && genericState.statePresets.draft && genericState.statePresets.draft.items) || []).map(p => ({ value: p.label, label: p.label })) },
+          { key: "delay", label: "次のStepまでの待機時間 (ms)", type: "number", default: 800 },
+        ] },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "「後ろ姿→歩く→近付く→笑顔→手を振る→待機」のような生活リズムを、State Presetsの組み合わせだけでGUI編集できます。時間帯ごとの自動再生トリガーは今後のアップデートで対応予定です(現時点はデータの管理のみ)。",
+    },
+    {
+      id: "memory", icon: "🧠", label: "Memory", category: "room", group: "generic",
+      kind: "singleton",
+      defaultShape: { lastTalk: "", lastVisit: "", affinity: 0, recentTopics: "", lastGreeting: "" },
+      schema: [
+        { key: "lastTalk", label: "LastTalk(最後に会話した日時)", type: "text", default: "" },
+        { key: "lastVisit", label: "LastVisit(最後に開いた日時。起動のたびに自動更新)", type: "text", default: "" },
+        { key: "affinity", label: "Affinity(親密度)", type: "number", default: 0 },
+        { key: "recentTopics", label: "RecentTopics(最近の話題)", type: "textarea", default: "" },
+        { key: "lastGreeting", label: "LastGreeting(直近のあいさつ内容)", type: "text", default: "" },
+      ],
+      note: "Memory Engineの基盤(データの入れ物)です。LastVisitはアプリを開くたびに自動更新されます。それ以外の値の自動計算(会話内容からのAffinity算出等)は次フェーズのAI連携で対応予定です。ここでの編集値は将来Resolverの条件として参照できるようになります。",
     },
     {
       id: "season", icon: "🌸", label: "季節イベント", category: "content", group: "generic",
@@ -14218,14 +14742,18 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     if(mod.group === "generic" && mod.kind !== "comingSoon" && !(genericState[tabId] && genericState[tabId].loaded)){
       await loadGenericModule(mod);
     }
-    /* Startup Sequenceの各Sceneはanimation/voiceを「参照」する
-       dynamicSelectフィールドを持つため、このタブを開いた時点で
-       Animation/ボイス側のデータも(自分のタブを開いていなくても)
+    /* 他モジュールのコレクションをdynamicSelectで参照するタブは、
+       開いた時点でその参照先も(自分のタブを開いていなくても)
        先読みしておく。読み込むだけで、それぞれの保存/dirty状態には
        一切影響しない(参照専用のキャッシュとして使うだけ)。 */
-    if(tabId === "startupSequence"){
-      const crossRefIds = ["animations", "voice"];
-      await Promise.all(crossRefIds.map(id => {
+    const CROSS_REF_IDS = {
+      startupSequence: ["animations", "voice", "statePresets", "cameraPresets"],
+      resolverRules: ["animations", "voice", "cameraPresets", "roomStates", "lighting", "music"],
+      roomStates: ["lighting", "music"],
+      routines: ["statePresets"],
+    };
+    if(CROSS_REF_IDS[tabId]){
+      await Promise.all(CROSS_REF_IDS[tabId].map(id => {
         const crossMod = MODULES.find(m => m.id === id);
         if(crossMod && !(genericState[id] && genericState[id].loaded)) return loadGenericModule(crossMod);
         return Promise.resolve();
@@ -14939,8 +15467,13 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     if(!state){ panel.innerHTML = `<div class="card">読み込み中…</div>`; return; }
 
     if(mod.kind === "singleton"){
-      panel.innerHTML = `<div class="card"><h2>${mod.icon} ${mod.label}</h2><div class="field-grid" id="adminSingletonFields"></div>${mod.note ? `<p class="stub-note" style="margin-top:12px;">${mod.note}</p>` : ""}</div>`;
-      const fieldsWrap = $("adminSingletonFields");
+      /* id="adminSingletonFields-<modId>"にする(複数のsingletonタブ
+         (aiSettings/stateEngine/memory等)を開くと、各タブのpanelは
+         active切替だけで内容が消えずDOMに残り続けるため、共通の固定id
+         のままだとgetElementById()が別タブの要素を誤って掴んでしまう
+         不具合があった)。 */
+      panel.innerHTML = `<div class="card"><h2>${mod.icon} ${mod.label}</h2><div class="field-grid" id="adminSingletonFields-${mod.id}"></div>${mod.note ? `<p class="stub-note" style="margin-top:12px;">${mod.note}</p>` : ""}</div>`;
+      const fieldsWrap = $("adminSingletonFields-" + mod.id);
       mod.schema.forEach(f => {
         const row = buildFieldRow(f, state.draft, (changedField) => {
           setDirty(true);
@@ -15133,6 +15666,8 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     if(typeof invalidateKaosuMediaIndex === "function") invalidateKaosuMediaIndex();
     if(typeof invalidateKaosuRoomConfigCache === "function") invalidateKaosuRoomConfigCache();
     if(typeof invalidateKaosuBgmConfigCache === "function") invalidateKaosuBgmConfigCache();
+    if(typeof invalidateKaosuStateEngineConfigCache === "function") invalidateKaosuStateEngineConfigCache();
+    if(typeof loadKaosuStateEngineConfig === "function") await loadKaosuStateEngineConfig();
     if(typeof loadKaosuMediaIndex === "function") await loadKaosuMediaIndex();
     if(typeof loadKaosuRoomConfig === "function") await loadKaosuRoomConfig();
     const homeView = document.querySelector('.view[data-view="home"]');
@@ -15376,6 +15911,7 @@ renderHomeModeUI();
 playKaosuStartupSequence();
 renderKaosuRoomSceneWithEntrance();
 startKaosuBgm();
+kaosuMemoryTouchVisit();
 renderNotificationModeChips();
 renderNotificationPermissionRow();
 loadWakuwakuEntries();
