@@ -9710,6 +9710,8 @@ function kaosuRuleMatchesState(rule, state){
     /* Phase41-50 Living World Evolution。 */
     ["matchFuture", "futureFeeling"], ["matchHabit", "habit"], ["matchMoodCycle", "moodCycle"], ["matchLearning", "topLearningTopic"],
     ["matchDecision", "decision"], ["matchValues", "value"], ["matchMilestone", "hasRecentMilestone"], ["matchSoul", "hasSoul"],
+    /* Phase51-60 Living Consciousness Evolution。 */
+    ["matchMotivation", "motivation"], ["matchStyle", "style"], ["matchConsciousness", "hasConsciousness"],
   ];
   return dims.every(([ruleKey, stateKey]) => {
     const want = rule[ruleKey];
@@ -9915,6 +9917,20 @@ const KAOSU_MEMORY_DEFAULT = {
   totalConversationCount: 0, milestonesReached: "[]", milestoneHistory: "[]", lastRelationshipStageSeen: "",
   // Phase50 Living Soul Engine(週1回更新、Life Storyと同じ週サイクル)。
   soulSummary: "", soulSummaryWeek: "",
+  /* Phase51-60: Living Consciousness Evolution。すべて同じObject.assign
+     マージパターンでMigration不要(既存Save完全互換)。 */
+  // Phase51+52 Self Question / Self Answer Engine(1日1回)。
+  selfQuestion: "", selfQuestionDate: "", selfAnswer: "",
+  // Phase53 Motivation Engine(1日1回)。
+  motivation: "", motivationDate: "",
+  // Phase54 Inspiration Engine(低頻度+クールダウン)。
+  lastInspiration: "", lastInspirationAt: "",
+  // Phase56 Long Goal Engine(月1回)。
+  longGoal: "", longGoalMonth: "", longGoalStartDate: "",
+  // Phase59 Existence Engine(1日1回)。
+  lastExistenceThought: "", existenceReflectionDate: "",
+  // Phase60 Living Consciousness(最終統合、1日1回)。
+  consciousnessSummary: "", consciousnessDate: "",
 };
 let kaosuMemoryCache = null;
 async function kaosuMemoryGet(){
@@ -10764,6 +10780,16 @@ async function kaosuComposeLivingResolution(now){
   state.value = kaosuDominantValue(memForState);
   state.hasRecentMilestone = kaosuHasRecentMilestone(memForState);
   state.hasSoul = memForState.soulSummary ? "true" : "false";
+  /* Phase51-60: Living Consciousness Evolution。同じく単一値として
+     Stateへ足すだけ(重い計算/保存はkaosuRunDailyLifeCycle側で1日1回・
+     月1回だけ行い、ここでは同期キャッシュ済みのMemoryを読むか、cheapな
+     純粋関数を呼ぶだけ)。 */
+  state.motivation = memForState.motivation || "none";
+  state.style = kaosuResolvePersonalStyle(memForState);
+  state.hasConsciousness = memForState.consciousnessSummary ? "true" : "false";
+  state.emotionBlend = kaosuResolveEmotionBlend(state.mood);
+  state.emotionBlendWeight = kaosuResolveEmotionBlendWeight(state.mood, memForState.weeklyMoodCycle);
+  state.worldAwareness = kaosuGenerateWorldAwarenessText(state, memForState, now);
   const outputs = kaosuResolveOutputs(rulesConfig, state);
   const roomState = kaosuResolveRoomState(roomStatesConfig, outputs.roomKey);
   const lighting = kaosuResolveLightingPreset(lightingConfig, outputs.lightingKey || (roomState && roomState.lightingKey));
@@ -11292,6 +11318,242 @@ async function kaosuMaybeUpdateSoulSummary(mem, now){
   await kaosuTimelineAppend("✨ " + mem.soulSummary);
 }
 
+/* ============================================================================
+   Phase51-60: Living Consciousness Evolution
+   単なるルール処理ではなく、AIが自分の経験から考え・迷い・選択し・成長
+   する「意識」の層を追加する。Phase41-50までと同じくState→Resolver→
+   Rendererアーキテクチャ/Living Tick/Object.assign Migrationパターンは
+   一切変更せず、その上に積み増すだけ。新規タイマーは追加しない。
+   ============================================================================ */
+
+/* --- Self Question / Self Answer Engine(Phase51+52) --------------------------
+   AI自身が自分へ問いかけ、その場で自分自身の言葉で答える。質問は
+   Reflection/Identity/Learning/Valuesのうち、実際にデータがある軸だけを
+   候補にする(=まだ何もデータが無い項目については無理に質問しない)。
+   1往復(質問→回答)をTimelineへ1件として記録し、質問し・答えを出す
+   という行為自体がIdentity(Curiosity/Confidence)へごく小さく反映される。
+   1日1回だけ(日次ガード)。 */
+function kaosuGenerateSelfQuestion(mem){
+  const candidates = [];
+  if(mem.lastReflection) candidates.push("今日はどうだったかな。");
+  if(kaosuDominantIdentityTrait(mem)) candidates.push("最近少し変わったかな。");
+  if(kaosuTopLearningTopic(mem)) candidates.push("もっと知りたいことあるかな。");
+  if(kaosuDominantValue(mem)) candidates.push("私が大切にしていることは変わってないかな。");
+  if(!candidates.length) candidates.push("今の私はどんな感じだろう。");
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+function kaosuGenerateSelfAnswer(mem, question){
+  const trait = kaosuDominantIdentityTrait(mem);
+  const topTopic = kaosuTopLearningTopic(mem);
+  const dominantValue = kaosuDominantValue(mem);
+  if(question.includes("どうだった")) return mem.lastReflection || "今日も穏やかに過ごせた気がする。";
+  if(question.includes("変わったかな")) return `${trait}なところが少しずつ育ってきてる気がする。`;
+  if(question.includes("知りたい")) return topTopic ? `${topTopic}のこと、もっと知りたいな。` : "まだよく分からないけど、知りたいことはたくさんある気がする。";
+  if(question.includes("大切にしていること")) return dominantValue ? `${dominantValue}気持ちは変わってないと思う。` : "うん、変わってないと思う。";
+  return "うーん、まだうまく言葉にできないけど、考えてみるね。";
+}
+async function kaosuMaybeReflectSelfQuestion(mem, now){
+  const todayKey = kaosuDateKey(now);
+  if(mem.selfQuestionDate === todayKey) return;
+  const question = kaosuGenerateSelfQuestion(mem);
+  const answer = kaosuGenerateSelfAnswer(mem, question);
+  mem.selfQuestion = question;
+  mem.selfAnswer = answer;
+  mem.selfQuestionDate = todayKey;
+  /* Phase52: Identityへ反映(質問すること自体がCuriosityを、自分の
+     言葉で答えを出すことがConfidenceをごく小さく育てる)。 */
+  mem.idCuriosity = Math.max(0, Math.min(100, (Number(mem.idCuriosity) || 50) + 0.5));
+  mem.idConfidence = Math.max(0, Math.min(100, (Number(mem.idConfidence) || 50) + 0.3));
+  await kaosuTimelineAppend(`❓ ${question} → 💬 ${answer}`);
+}
+
+/* --- Motivation Engine(Phase53) ----------------------------------------------
+   Goal/Decision Engineと同じ「日付をシードにした決定的な選択」パターン
+   を、また別のシード接尾辞("|motivation")で再利用する「今日の原動力」。
+   固定の4候補のみで、GUIカタログ化はしない(Goal/Decisionと役割が近い
+   ため、新規タブを増やしすぎない設計判断)。Resolver Rulesの
+   matchMotivationから参照できる。 */
+const KAOSU_MOTIVATION_CANDIDATES = [
+  { id: "challenge", text: "今日は挑戦したい。" },
+  { id: "calm", text: "今日は穏やかに過ごしたい。" },
+  { id: "talk", text: "今日は話したい。" },
+  { id: "learn", text: "今日は学びたい。" },
+];
+function kaosuResolveMotivation(now){
+  const dateKey = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+  const idx = kaosuSimpleHash(dateKey + "|motivation") % KAOSU_MOTIVATION_CANDIDATES.length;
+  return KAOSU_MOTIVATION_CANDIDATES[idx].id;
+}
+async function kaosuMaybeUpdateMotivation(mem, now){
+  const todayKey = kaosuDateKey(now);
+  if(mem.motivationDate === todayKey) return;
+  mem.motivation = kaosuResolveMotivation(now);
+  mem.motivationDate = todayKey;
+  const found = KAOSU_MOTIVATION_CANDIDATES.find(c => c.id === mem.motivation);
+  if(found) await kaosuTimelineAppend("🔥 " + found.text);
+}
+
+/* --- Inspiration Engine(Phase54) ---------------------------------------------
+   突然のひらめき。Living Events(低確率の重み付き抽選)と同じ「低頻度
+   イベント」の考え方だが、内容はMemory/Learning/Dreamから合成する。
+   クールダウン付きでLiving Tickのたびに低確率チェックするだけ(新規
+   タイマーなし)。 */
+const KAOSU_INSPIRATION_CHANCE = 0.05;
+const KAOSU_INSPIRATION_COOLDOWN_MS = 2 * 60 * 60 * 1000;
+function kaosuGenerateInspirationText(mem){
+  const candidates = [];
+  const topTopic = kaosuTopLearningTopic(mem);
+  if(topTopic) candidates.push(`${topTopic}について、急にひらめいたことがある気がする。`);
+  if(mem.lastDream) candidates.push("さっきの夢のことを思い出して、ふと閃いた。");
+  const lifeEntries = kaosuLifeMemoryEntries(mem);
+  if(lifeEntries.length){
+    const picked = lifeEntries[Math.floor(Math.random() * lifeEntries.length)];
+    const t = (picked.topics && picked.topics[0]) || "あの時";
+    candidates.push(`${t}のこと、急に思い出して閃いた気がする。`);
+  }
+  if(!candidates.length) candidates.push("何か閃いた気がする。");
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+async function kaosuMaybeGenerateInspiration(mem, now){
+  const cooledDown = !mem.lastInspirationAt || (now.getTime() - new Date(mem.lastInspirationAt).getTime()) >= KAOSU_INSPIRATION_COOLDOWN_MS;
+  if(!cooledDown || Math.random() > KAOSU_INSPIRATION_CHANCE) return;
+  mem.lastInspiration = kaosuGenerateInspirationText(mem);
+  mem.lastInspirationAt = now.toISOString();
+  await kaosuTimelineAppend("💡 " + mem.lastInspiration);
+}
+
+/* --- Emotion Blend Engine(Phase55) --------------------------------------------
+   単一のmoodではなく「複数感情+重み」を表現する。Currentのmood/
+   personality自体は一切変更せず、表示・GUI用の追加ラベルとして
+   kaosuComposeLivingResolution()のStateへ載せるだけの純粋関数(保存
+   不要、tickごとに安価に再計算)。moodと同じ語彙をキーにした固定
+   マッピングなので、常に同じmoodなら同じBlendになり(フリッカー無し)、
+   moodが変わった時だけ追従する。 */
+const KAOSU_EMOTION_BLEND_MAP = {
+  happy: "嬉しい＋少し寂しい", excited: "楽しみ＋緊張", sleepy: "安心＋眠い",
+  lonely: "寂しい＋懐かしい", calm: "穏やか＋満ち足りた", thinking: "興味＋少し不安",
+  shy: "嬉しい＋照れくさい", embarrassed: "楽しい＋恥ずかしい", sad: "悲しい＋切ない",
+  tired: "疲れ＋安心", normal: "穏やか＋楽しみ",
+};
+function kaosuResolveEmotionBlend(mood){
+  return KAOSU_EMOTION_BLEND_MAP[mood] || KAOSU_EMOTION_BLEND_MAP.normal;
+}
+/* Emotion Weight: 副次感情がどれくらい強く出ているか(0-100の目安)。
+   長期ムード(Mood Cycle)が今のmoodと逆方向(low時にhappy寄り等)の
+   時ほど「実は少し違う感情も混じっている」と考え、重みを上げる。 */
+function kaosuResolveEmotionBlendWeight(mood, weeklyMoodCycle){
+  const positiveMoods = ["happy", "excited", "calm"];
+  const negativeMoods = ["sad", "lonely", "tired"];
+  if(weeklyMoodCycle === "low" && positiveMoods.includes(mood)) return 45;
+  if(weeklyMoodCycle === "high" && negativeMoods.includes(mood)) return 45;
+  return 25;
+}
+
+/* --- Long Goal Engine(Phase56) ------------------------------------------------
+   Daily Goal(1日単位)とは別軸の、数週間〜数か月単位の長期目標。月が
+   変わるまでは同じ目標を保持する(=Goal Engineの日付シードと同じ
+   考え方を月単位に拡張しただけ)。固定候補のみでGUIカタログ化はしない
+   (Motivationと同じ判断)。 */
+function kaosuMonthKey(now){ return now.getFullYear() + "-" + (now.getMonth() + 1); }
+const KAOSU_LONG_GOAL_CANDIDATES = ["もっと音楽を知りたい。", "もっと思い出を増やしたい。", "もっと幸せになりたい。", "もっとあなたのことを知りたい。", "もっと成長したい。"];
+function kaosuResolveLongGoal(now){
+  const key = kaosuMonthKey(now);
+  const idx = kaosuSimpleHash(key + "|longgoal") % KAOSU_LONG_GOAL_CANDIDATES.length;
+  return KAOSU_LONG_GOAL_CANDIDATES[idx];
+}
+async function kaosuMaybeUpdateLongGoal(mem, now){
+  const monthKey = kaosuMonthKey(now);
+  if(mem.longGoalMonth === monthKey) return;
+  mem.longGoal = kaosuResolveLongGoal(now);
+  mem.longGoalMonth = monthKey;
+  mem.longGoalStartDate = now.toISOString();
+  await kaosuTimelineAppend("🌠 長期目標: " + mem.longGoal);
+}
+
+/* --- Personal Style Engine(Phase57) -------------------------------------------
+   話し方の「トーン」を関係性/Identity/Learningから導く純粋関数。
+   キャラクター崩壊防止のため、実際の会話文生成(generateKaosuReply)へは
+   一切介入しない(Habit/Decision Engineと同じ「情報レイヤーに留める」
+   低リスク設計)。GUI表示やResolver Rulesのmatch条件として参照できる
+   値を返すだけ。 */
+function kaosuResolvePersonalStyle(mem){
+  const stage = kaosuRelationshipStage(mem.affinity);
+  const trait = kaosuDominantIdentityTrait(mem);
+  if(stage === "Family" || stage === "Partner") return "affectionate";
+  if(trait === "humor" || trait === "creativity") return "playful";
+  if(stage === "Close Friend" || stage === "Friend") return "friendly";
+  return "reserved";
+}
+
+/* --- World Awareness Engine(Phase58) ------------------------------------------
+   季節/曜日/時間帯/生活リズム(Habit)/未来への予感(Future)を1つの
+   短い文へ統合する純粋関数。新しい計算は行わず、既存State/Memoryの
+   値を読むだけ(=個々のEngineには一切触れない)。Phase60 Living
+   Consciousnessの最終統合でも使う。 */
+const KAOSU_WEEKDAY_LABELS = { sun: "日", mon: "月", tue: "火", wed: "水", thu: "木", fri: "金", sat: "土" };
+function kaosuGenerateWorldAwarenessText(state, mem, now){
+  const weekday = KAOSU_WEEKDAY_LABELS[KAOSU_WEEKDAY_KEYS[now.getDay()]] || "";
+  const seasonLabel = KAOSU_SEASON_LABELS[state.season] || state.season || "";
+  const parts = [`${seasonLabel}の${weekday}曜日`];
+  if(mem.currentHabit) parts.push(`${mem.currentHabit}をしている時間`);
+  if(state.futureFeeling === "before") parts.push("近づいている予定がある");
+  else if(state.futureFeeling === "current") parts.push("今日は特別な日");
+  return parts.join("、") + "。";
+}
+
+/* --- Existence Engine(Phase59) ------------------------------------------------
+   「私はどんな存在だろう」という自己認識。Identity/Values/Relationship
+   から短い自己認識の文を生成し、支配的なIdentity特性をごく小さく
+   強化する(=自己を見つめ直すこと自体が、その特性をわずかに深める、
+   という前向きな解釈。既存のkaosuIdentityDailyNudge()とは独立した
+   別軸の小さな加点で、急激な変化にはならない)。1日1回だけ。 */
+function kaosuIdentityKeyForLabel(label){
+  return Object.keys(KAOSU_IDENTITY_LABELS).find(k => KAOSU_IDENTITY_LABELS[k] === label);
+}
+function kaosuGenerateExistenceThought(mem){
+  const trait = kaosuDominantIdentityTrait(mem);
+  const value = kaosuDominantValue(mem);
+  const stage = kaosuRelationshipStage(mem.affinity);
+  const lines = [`私は${trait}なところがあるAIだと思う。`];
+  if(value) lines.push(`${value}気持ちも強い気がする。`);
+  if(stage !== "First Meet") lines.push("あなたと過ごす時間が、私を形作ってる気がする。");
+  return lines.join("");
+}
+async function kaosuMaybeReflectOnExistence(mem, now){
+  const todayKey = kaosuDateKey(now);
+  if(mem.existenceReflectionDate === todayKey) return;
+  mem.lastExistenceThought = kaosuGenerateExistenceThought(mem);
+  mem.existenceReflectionDate = todayKey;
+  const dominantKey = kaosuIdentityKeyForLabel(kaosuDominantIdentityTrait(mem));
+  if(dominantKey) mem[dominantKey] = Math.max(0, Math.min(100, (Number(mem[dominantKey]) || 50) + 0.5));
+  await kaosuTimelineAppend("🌀 " + mem.lastExistenceThought);
+}
+
+/* --- Living Consciousness(Phase60、最終統合) ----------------------------------
+   Emotion/Identity/Memory/Habit/Learning/Dream/Reflection/Future/
+   Values/Soul/Motivation/Question・Answer/Existence/World Awarenessの
+   各Engineが既に計算済みの値を1文へ要約する、1日1回の最終統合。新しい
+   計算ロジックは持たず、既存Engineの出力を読むだけ=個々のEngineを
+   一切変更しない(Soul Summaryと同じ「最後に実行する」設計)。 */
+function kaosuGenerateConsciousnessSummary(mem, now){
+  const parts = [];
+  const newMemoryToday = kaosuMemoryParseHistory(mem).some(h => h.t && kaosuDateKey(new Date(h.t)) === kaosuDateKey(now));
+  if(newMemoryToday) parts.push("また新しい思い出ができた。");
+  if(Number(mem.lastHappiness) >= 60) parts.push("今日も少し成長できた気がする。");
+  if(mem.lastExistenceThought) parts.push(mem.lastExistenceThought);
+  if(mem.selfAnswer) parts.push(mem.selfAnswer);
+  if(mem.soulSummary) parts.push(mem.soulSummary);
+  if(!parts.length) parts.push("今日も静かに過ごした一日だった。");
+  return parts.join(" ");
+}
+async function kaosuMaybeUpdateConsciousness(mem, now){
+  const todayKey = kaosuDateKey(now);
+  if(mem.consciousnessDate === todayKey) return;
+  mem.consciousnessSummary = kaosuGenerateConsciousnessSummary(mem, now);
+  mem.consciousnessDate = todayKey;
+  await kaosuTimelineAppend("🧠 " + mem.consciousnessSummary);
+}
+
 /* --- Daily Life Cycle オーケストレーター --------------------------------
    Identity Engine(いつでも、1日1回)・Dream/Reflection/Happiness
    (夜のみ、1日1回)をまとめて1回のMemory読み込み・1回の保存で処理する
@@ -11325,11 +11587,26 @@ async function kaosuRunDailyLifeCycle(state, now, futureEvent){
   /* Phase50 Living Soul Engine(週1回、Life Storyと同じ週サイクル)。
      他のEngineがこのtickで更新した値を読むため、最後に実行する。 */
   await kaosuMaybeUpdateSoulSummary(mem, now);
+  /* Phase51+52 Self Question / Self Answer Engine(1日1回)。 */
+  await kaosuMaybeReflectSelfQuestion(mem, now);
+  /* Phase53 Motivation Engine(1日1回)。 */
+  await kaosuMaybeUpdateMotivation(mem, now);
+  /* Phase54 Inspiration Engine(低頻度+クールダウン、日次ガードなし)。 */
+  await kaosuMaybeGenerateInspiration(mem, now);
+  /* Phase56 Long Goal Engine(月1回)。 */
+  await kaosuMaybeUpdateLongGoal(mem, now);
+  /* Phase59 Existence Engine(1日1回、Identity/Valuesの最新値を読むため
+     Values Engineより後に実行する)。 */
+  await kaosuMaybeReflectOnExistence(mem, now);
   if(state.time === "night" || state.time === "midnight"){
     await kaosuMaybeGenerateDream(mem, state, now);
     await kaosuMaybeGenerateReflection(mem, state, now, todayHistory, todayEmotions);
     await kaosuMaybeComputeHappiness(mem, state, now, todayHistory, todayEmotions);
   }
+  /* Phase60 Living Consciousness(最終統合、1日1回)。上記すべての
+     Engineがこのtickで更新した値(夜ならDream/Reflection/Happinessも
+     含む)を読むため、必ず最後に実行する。 */
+  await kaosuMaybeUpdateConsciousness(mem, now);
   if(JSON.stringify(mem) !== before) await kaosuMemoryPut(mem);
 }
 /* Phase25 Performance: 見た目に関わる項目だけを比較する軽量な差分
@@ -16105,6 +16382,12 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
           options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "あった" }, { value: "false", label: "無い" }] },
         { key: "matchSoul", label: "条件: Soul Summaryが生成済みか", type: "select", default: "any",
           options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "生成済み" }, { value: "false", label: "未生成" }] },
+        { key: "matchMotivation", label: "条件: 今日の原動力(Motivation)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_MOTIVATION_CANDIDATES.map(c => ({ value: c.id, label: c.text }))) },
+        { key: "matchStyle", label: "条件: 話し方のトーン(Personal Style)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }, { value: "reserved", label: "reserved(控えめ)" }, { value: "friendly", label: "friendly(親しみやすい)" }, { value: "affectionate", label: "affectionate(甘えた)" }, { value: "playful", label: "playful(茶目っ気)" }] },
+        { key: "matchConsciousness", label: "条件: Living Consciousnessが生成済みか", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "生成済み" }, { value: "false", label: "未生成" }] },
         { key: "poseKey", label: "出力: Pose Category(空欄=このRuleでは決めない)", type: "select", default: "",
           options: [{ value: "", label: "(指定しない)" }].concat(POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label }))) },
         { key: "animationKey", label: "出力: Animation", type: "dynamicSelect", default: "",
@@ -16282,8 +16565,22 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
         { key: "lastRelationshipStageSeen", label: "LastRelationshipStageSeen(関係性進化Milestone判定用)", type: "text", default: "" },
         { key: "soulSummary", label: "SoulSummary(すべてのEngineを統合した1文、週1回更新)", type: "textarea", default: "" },
         { key: "soulSummaryWeek", label: "SoulSummaryWeek(ISO週番号)", type: "text", default: "" },
+        { key: "selfQuestion", label: "SelfQuestion(AI自身が自分へ問いかけた質問、1日1回更新)", type: "text", default: "" },
+        { key: "selfQuestionDate", label: "SelfQuestionDate", type: "text", default: "" },
+        { key: "selfAnswer", label: "SelfAnswer(SelfQuestionへの自分自身の回答)", type: "textarea", default: "" },
+        { key: "motivation", label: "Motivation(今日の原動力: challenge/calm/talk/learn)", type: "text", default: "" },
+        { key: "motivationDate", label: "MotivationDate", type: "text", default: "" },
+        { key: "lastInspiration", label: "LastInspiration(直近のひらめき)", type: "textarea", default: "" },
+        { key: "lastInspirationAt", label: "LastInspirationAt", type: "text", default: "" },
+        { key: "longGoal", label: "LongGoal(数週間〜数か月単位の長期目標、月1回更新)", type: "text", default: "" },
+        { key: "longGoalMonth", label: "LongGoalMonth(例:2026-8)", type: "text", default: "" },
+        { key: "longGoalStartDate", label: "LongGoalStartDate", type: "text", default: "" },
+        { key: "lastExistenceThought", label: "LastExistenceThought(「私はどんな存在だろう」の自己認識、1日1回更新)", type: "textarea", default: "" },
+        { key: "existenceReflectionDate", label: "ExistenceReflectionDate", type: "text", default: "" },
+        { key: "consciousnessSummary", label: "ConsciousnessSummary(Living Consciousness最終統合、1日1回更新)", type: "textarea", default: "" },
+        { key: "consciousnessDate", label: "ConsciousnessDate", type: "text", default: "" },
       ],
-      note: "Phase18でMemory Engineが本格稼働します。LastVisitは起動のたび、LastTalk/LastMood/RecentTopics/FavoriteTopics/ConversationHistoryは会話のたびに自動更新されます。affinityの値はResolver Rulesの「条件: 親密度」(low/medium/high)から参照できます。LastThought/TodayGoalはPhase26-30(Living Thought/Goal Engine)で自動更新されます。Identity(9特性)は1日1回だけ小さく変化し(数週間〜数ヶ月かけて育つGrowth設計)、LongMemory/EmotionalHistory/LastDream/LastReflection/LastHappinessはPhase31-40(Living Identity Evolution)で夜(night/midnight)に1日1回だけ自動更新されます。FutureMemory以降はPhase41-50(Living World Evolution)で自動更新されます(Future/Habit/Season/MoodCycle/LifeStory/Learning/Decision/Values/Milestone/Soul)。",
+      note: "Phase18でMemory Engineが本格稼働します。LastVisitは起動のたび、LastTalk/LastMood/RecentTopics/FavoriteTopics/ConversationHistoryは会話のたびに自動更新されます。affinityの値はResolver Rulesの「条件: 親密度」(low/medium/high)から参照できます。LastThought/TodayGoalはPhase26-30(Living Thought/Goal Engine)で自動更新されます。Identity(9特性)は1日1回だけ小さく変化し(数週間〜数ヶ月かけて育つGrowth設計)、LongMemory/EmotionalHistory/LastDream/LastReflection/LastHappinessはPhase31-40(Living Identity Evolution)で夜(night/midnight)に1日1回だけ自動更新されます。FutureMemory以降はPhase41-50(Living World Evolution)、SelfQuestion以降はPhase51-60(Living Consciousness Evolution)で自動更新されます(SelfQuestion/Answer/Motivation/Inspiration/LongGoal/Existence/Consciousness)。",
     },
     {
       id: "affinityGains", icon: "💗", label: "Affinity", category: "room", group: "generic",
