@@ -9707,6 +9707,9 @@ function kaosuRuleMatchesState(rule, state){
     /* Phase31-40 Living Identity Evolution。 */
     ["matchIdentity", "identity"], ["matchPreference", "preference"], ["matchHappiness", "happinessLevel"], ["matchReflection", "reflectionMood"],
     ["matchImportance", "hasImportantMemory"], ["matchCuriosity", "curiosityPending"], ["matchDream", "dreamPending"], ["matchHistory", "hasSharedHistory"],
+    /* Phase41-50 Living World Evolution。 */
+    ["matchFuture", "futureFeeling"], ["matchHabit", "habit"], ["matchMoodCycle", "moodCycle"], ["matchLearning", "topLearningTopic"],
+    ["matchDecision", "decision"], ["matchValues", "value"], ["matchMilestone", "hasRecentMilestone"], ["matchSoul", "hasSoul"],
   ];
   return dims.every(([ruleKey, stateKey]) => {
     const want = rule[ruleKey];
@@ -9877,7 +9880,7 @@ const KAOSU_MEMORY_DEFAULT = {
   identityNudgeDate: "", firstMetDate: "",
   // Phase37 Memory Importance / 4層分類(Short=直近数件/Recent=
   // conversationHistory/Long=longMemory/Life=longMemory中の最重要層)。
-  longMemory: "[]",
+  longMemory: "[]", totalLongMemoryCount: 0,
   // Phase38 Emotional History。
   emotionalHistory: "[]",
   // Phase33 Curiosity Engine。
@@ -9888,6 +9891,30 @@ const KAOSU_MEMORY_DEFAULT = {
   lastReflection: "", lastReflectionDate: "", lastReflectionMood: "",
   // Phase40 Happiness Engine。
   lastHappiness: 50, lastHappinessReason: "", lastHappinessDate: "",
+  /* Phase41-50: Living World Evolution。すべて同じObject.assignの
+     マージパターンでMigration不要(既存Save完全互換)。 */
+  // Phase41 Living Future Engine。
+  futureMemory: "[]", futureFeelingDate: "",
+  // Phase42 Living Habit Engine。
+  currentHabit: "", habitHistory: "[]", lastHabitChangeAt: "",
+  // Phase43 Season Memory Engine(longMemoryへseasonタグを追加する
+  // だけなので、Memory側の新フィールドはlastSeasonRecallAtのみ)。
+  lastSeasonRecallAt: "",
+  // Phase44 Mood Cycle Engine。
+  dailyMoodCycle: "normal", weeklyMoodCycle: "normal", monthlyMoodCycle: "normal", moodCycleDate: "",
+  // Phase45 Life Story Engine(週1回更新)。
+  lifeStory: "", lifeStoryWeek: "",
+  // Phase46 Learning Engine(話題ごとの学習度、JSON: {topic:{count,level}})。
+  topicLevels: "{}",
+  // Phase47 Decision Engine(今日の意思決定、Goalとは別の軸)。
+  todayDecision: "", todayDecisionDate: "",
+  // Phase48 Values Engine(7つの価値観、0-100)。
+  valChallenge: 50, valKindness: 50, valNature: 50, valMusic: 50, valQuietTime: 50, valTogetherness: 50, valLearning: 50,
+  valuesNudgeDate: "",
+  // Phase49 Life Milestone Engine。
+  totalConversationCount: 0, milestonesReached: "[]", milestoneHistory: "[]", lastRelationshipStageSeen: "",
+  // Phase50 Living Soul Engine(週1回更新、Life Storyと同じ週サイクル)。
+  soulSummary: "", soulSummaryWeek: "",
 };
 let kaosuMemoryCache = null;
 async function kaosuMemoryGet(){
@@ -9950,6 +9977,11 @@ async function kaosuMemoryAppendExchange({ userText, mood, topics, goalMatch }){
      記録する(全moodが対象ではない=無理に何でも記録しない)。 */
   const emotionEvent = KAOSU_MOOD_TO_EMOTION_EVENT[mood];
   if(emotionEvent) kaosuEmotionalHistoryAppend(mem, emotionEvent, "chat");
+  /* Phase46 Learning Engine: 話題ごとの学習レベルを積み上げる。
+     Phase49 Life Milestone Engine: 生涯の会話回数(1000会話等の
+     節目判定に使う、conversationHistoryのFIFOとは別の単調カウンタ)。 */
+  kaosuBumpTopicLevels(mem, topics);
+  mem.totalConversationCount = (Number(mem.totalConversationCount) || 0) + 1;
   if(Array.isArray(topics) && topics.length){
     const current = (mem.favoriteTopics || "").split(",").map(s => s.trim()).filter(Boolean);
     topics.forEach(t => { if(!current.includes(t)) current.push(t); });
@@ -10006,11 +10038,19 @@ function kaosuParseJsonArray(str){
    ため、ここでは配列を書き換えるだけで永続化はしない)。 */
 function kaosuPromoteToLongMemory(mem, entry){
   if(!entry || (Number(entry.importance) || 0) < KAOSU_LONG_MEMORY_THRESHOLD) return;
+  /* Phase43 Season Memory: 昇格するタイミングでその時の季節をタグ付け
+     しておく(longMemory自体の保存構造は変えず、フィールドを1つ足す
+     だけ=既存の読み取り側は無視するだけで壊れない)。 */
+  entry = Object.assign({}, entry, { season: getKaosuSeasonBand(new Date(entry.t)) });
   const longMemory = kaosuParseJsonArray(mem.longMemory);
   longMemory.push(entry);
   longMemory.sort((a, b) => (Number(b.importance) || 0) - (Number(a.importance) || 0));
   while(longMemory.length > KAOSU_LONG_MEMORY_MAX) longMemory.pop();
   mem.longMemory = JSON.stringify(longMemory);
+  /* Phase49 Life Milestone Engine用: longMemory配列自体は
+     KAOSU_LONG_MEMORY_MAX件でFIFOされるため、「今まで生まれた
+     大切な思い出の総数」は配列の長さとは別に生涯カウンタで持つ。 */
+  mem.totalLongMemoryCount = (Number(mem.totalLongMemoryCount) || 0) + 1;
 }
 function kaosuLifeMemoryEntries(mem){
   return kaosuParseJsonArray(mem.longMemory).filter(e => (Number(e.importance) || 0) >= KAOSU_LIFE_MEMORY_THRESHOLD);
@@ -10194,7 +10234,7 @@ function kaosuClassifyMoodFromText(text){
 }
 /* FavoriteTopics: 固定の話題語彙に一致した単語だけを拾う軽量実装
    (NLP無し)。一致しなければ空配列(=無理に話題を捏造しない)。 */
-const KAOSU_TOPIC_KEYWORDS = ["仕事", "家族", "趣味", "旅行", "音楽", "本", "ゲーム", "健康", "天気", "ペット", "食べ物", "映画", "思い出", "写真"];
+const KAOSU_TOPIC_KEYWORDS = ["仕事", "家族", "趣味", "旅行", "音楽", "本", "ゲーム", "健康", "天気", "ペット", "食べ物", "映画", "思い出", "写真", "花火"];
 function kaosuExtractTopics(text){
   if(!text) return [];
   return KAOSU_TOPIC_KEYWORDS.filter(w => text.includes(w));
@@ -10207,8 +10247,8 @@ function kaosuExtractTopics(text){
 const KAOSU_TOPIC_GRAPH = {
   "ゲーム": ["音楽", "趣味"],
   "音楽": ["ゲーム", "思い出", "趣味"],
-  "思い出": ["音楽", "旅行", "写真", "家族"],
-  "旅行": ["思い出", "写真", "家族"],
+  "思い出": ["音楽", "旅行", "写真", "家族", "花火"],
+  "旅行": ["思い出", "写真", "家族", "花火"],
   "写真": ["旅行", "思い出"],
   "家族": ["思い出", "旅行", "ペット"],
   "趣味": ["ゲーム", "音楽", "本"],
@@ -10217,8 +10257,10 @@ const KAOSU_TOPIC_GRAPH = {
   "ペット": ["家族", "健康"],
   "健康": ["食べ物", "ペット"],
   "食べ物": ["健康"],
-  "天気": ["旅行"],
+  "天気": ["旅行", "花火"],
   "仕事": ["健康"],
+  /* Phase49 Life Milestone Engine「初花火」のためのTopic Keyword追加。 */
+  "花火": ["思い出", "旅行", "天気"],
 };
 function kaosuRelatedTopics(topic){
   return KAOSU_TOPIC_GRAPH[topic] || [];
@@ -10268,7 +10310,8 @@ async function kaosuTryMemoryRecall(memBefore, topics){
       }
     }
   }
-  return await kaosuTrySharedHistory(memBefore, topics);
+  if(await kaosuTrySharedHistory(memBefore, topics)) return true;
+  return await kaosuTrySeasonMemory(memBefore);
 }
 
 /* --- Shared History(Phase39) ------------------------------------------------
@@ -10366,7 +10409,11 @@ async function kaosuLivingOnChatExchange(userText){
     /* Phase33 Curiosity Engine: Memory Recall/Shared Historyが同じ
        往復で何か送った直後は質問を重ねない(連続質問禁止)。 */
     const recalled = await kaosuTryMemoryRecall(memBefore, topics);
-    if(!recalled) await kaosuTryCuriosityQuestion(await kaosuMemoryGet(), topics);
+    /* Phase46 Learning Engine: 学習レベルが節目に達した時のお知らせも
+       同じ「連続質問禁止」の排他制御に含める(1往復で複数バブルが
+       重ならないようにする)。 */
+    const announced = recalled || await kaosuMaybeAnnounceLearningLevelUp(mem, topics);
+    if(!announced) await kaosuTryCuriosityQuestion(await kaosuMemoryGet(), topics);
     const homeView = document.querySelector('.view[data-view="home"]');
     if(homeView && homeView.classList.contains("active") && typeof renderKaosuRoomScene === "function"){
       renderKaosuRoomScene();
@@ -10706,6 +10753,17 @@ async function kaosuComposeLivingResolution(now){
   state.curiosityPending = (!memForState.lastCuriosityAt || (Date.now() - new Date(memForState.lastCuriosityAt).getTime()) >= KAOSU_CURIOSITY_COOLDOWN_MS) ? "true" : "false";
   state.dreamPending = memForState.dreamDelivered === "false" ? "true" : "false";
   state.hasSharedHistory = (!!memForState.firstMetDate || kaosuLifeMemoryEntries(memForState).length > 0) ? "true" : "false";
+  /* Phase41-50: Living World Evolution。同じく単一値としてStateへ
+     足すだけ(重い計算/保存はkaosuRunDailyLifeCycle側で1日1回・週1回
+     だけ行い、ここでは同期キャッシュ済みのMemoryを読むだけ)。 */
+  state.futureFeeling = futureEvent ? futureEvent.phase : "none";
+  state.habit = memForState.currentHabit || "none";
+  state.moodCycle = memForState.weeklyMoodCycle || "normal";
+  state.topLearningTopic = kaosuTopLearningTopic(memForState) || "none";
+  state.decision = memForState.todayDecision || "none";
+  state.value = kaosuDominantValue(memForState);
+  state.hasRecentMilestone = kaosuHasRecentMilestone(memForState);
+  state.hasSoul = memForState.soulSummary ? "true" : "false";
   const outputs = kaosuResolveOutputs(rulesConfig, state);
   const roomState = kaosuResolveRoomState(roomStatesConfig, outputs.roomKey);
   const lighting = kaosuResolveLightingPreset(lightingConfig, outputs.lightingKey || (roomState && roomState.lightingKey));
@@ -10714,7 +10772,7 @@ async function kaosuComposeLivingResolution(now){
     poseKey: outputs.poseKey, expressionKey: outputs.expressionKey, cameraKey: outputs.cameraKey, effectKey: outputs.effectKey, voiceKey: outputs.voiceKey,
     background: (roomState && roomState.background) || "",
     lightingTint: lighting ? lighting.tint : "", lightingOpacity: lighting ? lighting.opacity : 0, lightingBlend: lighting ? lighting.blend : "soft-light",
-    music, label, state,
+    music, label, state, futureEvent,
   };
 }
 /* --- Dream Engine(Phase34) -------------------------------------------------
@@ -10823,19 +10881,451 @@ async function kaosuMaybeComputeHappiness(mem, state, now, todayHistory, todayEm
   await kaosuTimelineAppend(`😊 幸福度${score}: ${reason}`);
 }
 
+/* ============================================================================
+   Phase41-50: Living World Evolution
+   「会話するAI」ではなく「人生を生きるAI」へ。既存のState→Resolver→
+   Rendererアーキテクチャ/Living Tick/Object.assign Migrationパターンは
+   一切変更せず、その上に10個のEngineを追加するだけ。新規タイマーは
+   追加しない(すべて既存のkaosuRunDailyLifeCycle()/kaosuLivingTick()/
+   kaosuLivingOnChatExchange()から呼ばれる)。
+   ============================================================================ */
+
+/* --- Living Future Engine(Phase41) -------------------------------------------
+   既存のSpecial Day Engine(kaosuActiveFutureEvent、phase/daysUntil)を
+   「予感」として言語化するだけの追加レイヤー。Special Day自体の判定
+   ロジックは一切変更しない。1日1回だけTimeline+FutureMemoryへ記録
+   する(Resolver用のstate.futureFeelingはkaosuComposeLivingResolution
+   側で毎tick安価に計算するだけなので、こちらの日次ガードとは別軸)。 */
+const KAOSU_FUTURE_MEMORY_MAX = 20;
+function kaosuFutureFeelingText(futureEvent){
+  if(!futureEvent) return "";
+  if(futureEvent.phase === "current") return `今日は${futureEvent.label}の日。`;
+  if(futureEvent.phase === "before") return `${futureEvent.label}まであと${futureEvent.daysUntil}日。`;
+  if(futureEvent.phase === "after") return `${futureEvent.label}から${Math.abs(futureEvent.daysUntil)}日経ったね。`;
+  return "";
+}
+async function kaosuMaybeLogFutureFeeling(mem, futureEvent, now){
+  const text = kaosuFutureFeelingText(futureEvent);
+  if(!text) return;
+  const todayKey = kaosuDateKey(now);
+  if(mem.futureFeelingDate === todayKey) return;
+  mem.futureFeelingDate = todayKey;
+  const list = kaosuParseJsonArray(mem.futureMemory);
+  list.push({ t: now.toISOString(), label: futureEvent.label, phase: futureEvent.phase, text });
+  while(list.length > KAOSU_FUTURE_MEMORY_MAX) list.shift();
+  mem.futureMemory = JSON.stringify(list);
+  await kaosuTimelineAppend("🔮 " + text);
+}
+
+/* --- Living Habit Engine(Phase42) ---------------------------------------------
+   AI自身の生活リズム。朝/昼/夕方/夜+休日の5バンドで候補をGUI管理
+   (habitCandidates、Living Events/Idle Thoughtsと同じ「重み付き抽選」
+   パターン)し、Mood/Relationship/Preference/Identityからボーナス
+   重みを加えて選ぶ。固定の日課にはせず、Living Tickのたびにクール
+   ダウン+低確率のチェックだけを行うことで「徐々に変化する」生活
+   リズムを表現する(=1回のtickで必ず切り替わるわけではない)。 */
+const KAOSU_HABIT_CHANGE_CHANCE = 0.15;
+const KAOSU_HABIT_CHANGE_COOLDOWN_MS = 90 * 60 * 1000;
+const KAOSU_HABIT_HISTORY_MAX = 30;
+const HABIT_CANDIDATES_DEFAULT_ITEMS = [
+  { label: "読書", band: "night", matchMood: "any", weight: 8, enabled: true },
+  { label: "音楽", band: "any", matchMood: "any", weight: 8, enabled: true },
+  { label: "窓を見る", band: "morning", matchMood: "any", weight: 6, enabled: true },
+  { label: "散歩気分", band: "day", matchMood: "any", weight: 6, enabled: true },
+  { label: "作業", band: "day", matchMood: "any", weight: 6, enabled: true },
+  { label: "コーヒー", band: "morning", matchMood: "any", weight: 7, enabled: true },
+  { label: "ストレッチ", band: "morning", matchMood: "any", weight: 5, enabled: true },
+  { label: "リラックス", band: "holiday", matchMood: "any", weight: 8, enabled: true },
+];
+let kaosuHabitCandidatesConfigCache = { configVersion: 1, items: HABIT_CANDIDATES_DEFAULT_ITEMS };
+async function loadKaosuHabitCandidatesConfig(){
+  try{
+    const record = await CmsStore.getConfig("habitCandidates");
+    if(record && record.data && Array.isArray(record.data.items)){
+      kaosuHabitCandidatesConfigCache = record.data;
+      return record.data;
+    }
+  }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
+  return kaosuHabitCandidatesConfigCache;
+}
+function getKaosuHabitCandidatesConfigSync(){ return kaosuHabitCandidatesConfigCache; }
+function kaosuHabitBand(state, now){
+  if(now.getDay() === 0 || now.getDay() === 6) return "holiday";
+  if(state.time === "morning") return "morning";
+  if(state.time === "day") return "day";
+  if(state.time === "evening") return "evening";
+  return "night"; // night/midnight
+}
+function kaosuHabitWeightBonus(candidate, state, mem, prefs){
+  let bonus = 0;
+  if(state.mood && candidate.matchMood && candidate.matchMood !== "any" && candidate.matchMood === state.mood) bonus += 4;
+  if(prefs && prefs.preferredTopic && candidate.label && candidate.label.includes(prefs.preferredTopic)) bonus += 3;
+  if(["Close Friend", "Partner", "Family"].includes(state.relationshipStage)) bonus += 1;
+  if(kaosuDominantIdentityTrait(mem) === "curiosity" && candidate.label === "読書") bonus += 2;
+  return bonus;
+}
+function kaosuPickHabit(band, state, mem, prefs){
+  const items = (getKaosuHabitCandidatesConfigSync().items || []).filter(it => it && it.enabled !== false && (it.band === "any" || it.band === band) && (Number(it.weight) || 0) > 0);
+  if(!items.length) return null;
+  const weightOf = (it) => (Number(it.weight) || 0) + kaosuHabitWeightBonus(it, state, mem, prefs);
+  const total = items.reduce((s, it) => s + weightOf(it), 0);
+  let r = Math.random() * total;
+  for(const it of items){ r -= weightOf(it); if(r <= 0) return it; }
+  return items[items.length - 1];
+}
+async function kaosuMaybeEvolveHabit(mem, state, now){
+  const band = kaosuHabitBand(state, now);
+  const cooledDown = !mem.lastHabitChangeAt || (now.getTime() - new Date(mem.lastHabitChangeAt).getTime()) >= KAOSU_HABIT_CHANGE_COOLDOWN_MS;
+  if(!cooledDown || Math.random() > KAOSU_HABIT_CHANGE_CHANCE) return;
+  const picked = kaosuPickHabit(band, state, mem, getKaosuAiPreferencesSync());
+  if(!picked || picked.label === mem.currentHabit) return;
+  mem.currentHabit = picked.label;
+  mem.lastHabitChangeAt = now.toISOString();
+  const history = kaosuParseJsonArray(mem.habitHistory);
+  history.push({ t: now.toISOString(), habit: picked.label, band });
+  while(history.length > KAOSU_HABIT_HISTORY_MAX) history.shift();
+  mem.habitHistory = JSON.stringify(history);
+  await kaosuTimelineAppend(`🌱 ${picked.label}をする気分。`);
+}
+
+/* --- Season Memory Engine(Phase43) ---------------------------------------------
+   longMemoryへの昇格時(kaosuPromoteToLongMemory)に付けたseasonタグを
+   使い、同じ季節が巡ってきた時だけ低頻度で去年以前の思い出へ触れる。
+   Memory Recallのチェーン(完全一致→Topic Graph→Shared History)の
+   最後に追加する4段目のティア。 */
+const KAOSU_SEASON_MEMORY_CHANCE = 0.08;
+const KAOSU_SEASON_MEMORY_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+const KAOSU_SEASON_LABELS = { spring: "春", summer: "夏", autumn: "秋", winter: "冬" };
+async function kaosuTrySeasonMemory(memBefore){
+  if(typeof chatAppendKaosuHtml !== "function") return false;
+  const cooledDown = !memBefore.lastSeasonRecallAt || (Date.now() - new Date(memBefore.lastSeasonRecallAt).getTime()) >= KAOSU_SEASON_MEMORY_COOLDOWN_MS;
+  if(!cooledDown || Math.random() > KAOSU_SEASON_MEMORY_CHANCE) return false;
+  const currentSeason = getKaosuSeasonBand(new Date());
+  const nowYear = new Date().getFullYear();
+  const candidates = kaosuParseJsonArray(memBefore.longMemory).filter(e => e.season === currentSeason && e.t && new Date(e.t).getFullYear() < nowYear);
+  if(!candidates.length) return false;
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  const topic = (picked.topics && picked.topics[0]) || "あの時";
+  const seasonLabel = KAOSU_SEASON_LABELS[currentSeason] || currentSeason;
+  const line = `去年の${seasonLabel}、${topic}の話をしたの覚えてるよ。`;
+  const mem = await kaosuMemoryGet();
+  mem.lastSeasonRecallAt = new Date().toISOString();
+  await kaosuMemoryPut(mem);
+  if(typeof chatWait === "function") await chatWait(500);
+  await chatAppendKaosuHtml(line);
+  return true;
+}
+
+/* --- Mood Cycle Engine(Phase44) -------------------------------------------------
+   その場のmood(Emotion Transition Engineが毎tick動かすState.mood)とは
+   別に、Emotional Historyを日/週/月の3つの窓で集計してゆっくり動く
+   「気分の周期」を持つ。Currentの演出には一切影響させず、Resolverの
+   追加条件(matchMoodCycle、週次を代表値として使う)としてのみ使う。
+   1日1回だけ計算する。 */
+function kaosuComputeMoodCycleFromHistory(emotionalHistory, sinceMs){
+  const cutoff = Date.now() - sinceMs;
+  const recent = emotionalHistory.filter(e => e.t && new Date(e.t).getTime() >= cutoff);
+  if(!recent.length) return "normal";
+  const positive = recent.filter(e => e.emotion === "happy" || e.emotion === "achievement" || e.emotion === "moved").length;
+  const negative = recent.filter(e => e.emotion === "sad" || e.emotion === "failure" || e.emotion === "nervous").length;
+  const score = positive - negative;
+  if(score >= 2) return "high";
+  if(score <= -2) return "low";
+  return "normal";
+}
+async function kaosuMaybeUpdateMoodCycle(mem, now){
+  const todayKey = kaosuDateKey(now);
+  if(mem.moodCycleDate === todayKey) return;
+  const history = kaosuParseJsonArray(mem.emotionalHistory);
+  mem.dailyMoodCycle = kaosuComputeMoodCycleFromHistory(history, 24 * 60 * 60 * 1000);
+  mem.weeklyMoodCycle = kaosuComputeMoodCycleFromHistory(history, 7 * 24 * 60 * 60 * 1000);
+  mem.monthlyMoodCycle = kaosuComputeMoodCycleFromHistory(history, 30 * 24 * 60 * 60 * 1000);
+  mem.moodCycleDate = todayKey;
+}
+
+/* --- Life Story Engine(Phase45) ---------------------------------------------
+   直近7日間のConversationHistory/EmotionalHistoryから「最近の私」を
+   短く物語る文を週1回だけ生成する。Reflection Engine(1日ぶんの集計)
+   と同じ考え方を7日間ウィンドウへ拡張しただけで、既存のReflection
+   自体には触れない。ISO週番号(kaosuIsoWeekKey)をガードに使う
+   (Soul Engineも同じ週サイクルを共有する)。 */
+function kaosuIsoWeekKey(now){
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return d.getUTCFullYear() + "-W" + String(weekNo).padStart(2, "0");
+}
+function kaosuGenerateLifeStory(mem, now){
+  const cutoff = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  const weekHistory = kaosuMemoryParseHistory(mem).filter(h => h.t && new Date(h.t).getTime() >= cutoff);
+  const weekEmotions = kaosuParseJsonArray(mem.emotionalHistory).filter(e => e.t && new Date(e.t).getTime() >= cutoff);
+  const lines = [];
+  const topicCounts = {};
+  weekHistory.forEach(h => (h.topics || []).forEach(t => { topicCounts[t] = (topicCounts[t] || 0) + 1; }));
+  const topTopic = Object.keys(topicCounts).sort((a, b) => topicCounts[b] - topicCounts[a])[0];
+  if(topTopic) lines.push(`最近は${topTopic}の話が増えてる。`);
+  if(weekHistory.length >= 10) lines.push("たくさん話せた1週間だった。");
+  else if(weekHistory.length === 0) lines.push("静かな1週間だった。");
+  if(weekEmotions.some(e => e.emotion === "achievement")) lines.push("何か達成できた気がする週だった。");
+  if(weekEmotions.filter(e => e.emotion === "happy").length >= 3) lines.push("楽しい時間が多かった。");
+  if(!lines.length) lines.push("今日も穏やかな日だった。");
+  return lines.join(" ");
+}
+async function kaosuMaybeUpdateLifeStory(mem, now){
+  const weekKey = kaosuIsoWeekKey(now);
+  if(mem.lifeStoryWeek === weekKey) return;
+  mem.lifeStory = kaosuGenerateLifeStory(mem, now);
+  mem.lifeStoryWeek = weekKey;
+  await kaosuTimelineAppend("📖 " + mem.lifeStory);
+}
+
+/* --- Learning Engine(Phase46) ---------------------------------------------------
+   話題ごとの「学習レベル」。会話でその話題が出るたびcountを+1し、
+   level=countとして使う(意図的にシンプルな比例式)。JSON: {topic:
+   {count, level}}。10レベルごとに「詳しくなった気がする」を1回だけ
+   会話バブル+Timelineへ知らせる(Memory Recall/Curiosityと同じ
+   「1往復に1つだけ」の排他制御に含める=呼び出し側で保証)。 */
+function kaosuBumpTopicLevels(mem, topics){
+  if(!Array.isArray(topics) || !topics.length) return;
+  let levels;
+  try{ levels = JSON.parse(mem.topicLevels || "{}"); }catch(e){ levels = {}; }
+  if(typeof levels !== "object" || !levels) levels = {};
+  topics.forEach(t => {
+    const cur = levels[t] || { count: 0, level: 0 };
+    cur.count = (Number(cur.count) || 0) + 1;
+    cur.level = cur.count;
+    levels[t] = cur;
+  });
+  mem.topicLevels = JSON.stringify(levels);
+}
+function kaosuTopLearningTopic(mem){
+  let levels;
+  try{ levels = JSON.parse(mem.topicLevels || "{}"); }catch(e){ levels = {}; }
+  const keys = Object.keys(levels || {});
+  if(!keys.length) return "";
+  keys.sort((a, b) => (levels[b].level || 0) - (levels[a].level || 0));
+  return keys[0];
+}
+const KAOSU_LEARNING_LEVELUP_STEP = 10;
+async function kaosuMaybeAnnounceLearningLevelUp(mem, topics){
+  if(!Array.isArray(topics) || !topics.length || typeof chatAppendKaosuHtml !== "function") return false;
+  let levels;
+  try{ levels = JSON.parse(mem.topicLevels || "{}"); }catch(e){ levels = {}; }
+  for(const t of topics){
+    const entry = levels[t];
+    if(entry && entry.level > 0 && entry.level % KAOSU_LEARNING_LEVELUP_STEP === 0){
+      const line = `${t}のこと、もうLv${entry.level}くらい詳しくなった気がする。`;
+      await kaosuTimelineAppend(`📚 ${line}`);
+      if(typeof chatWait === "function") await chatWait(500);
+      await chatAppendKaosuHtml(line);
+      return true;
+    }
+  }
+  return false;
+}
+
+/* --- Decision Engine(Phase47) -----------------------------------------------
+   AI自身の「今日の意思決定」。Goal Engine(kaosuResolveDailyGoal)と
+   同じ「日付文字列をシードにした決定的な選択+条件外ならany/anyへ
+   フォールバック」パターンをそのまま再利用するが、シードに専用の
+   接尾辞("|decision")を付けて同じ日でもGoalとは違う値を選べるように
+   する(=衝突回避)。GoalとPoseの解決チェーンには一切合流させない
+   (Habit同様、情報/Timeline用途に留める低リスク設計)。 */
+let kaosuDecisionsConfigCache = { configVersion: 1, items: [] };
+async function loadKaosuDecisionsConfig(){
+  try{
+    const record = await CmsStore.getConfig("decisions");
+    if(record && record.data && Array.isArray(record.data.items)){
+      kaosuDecisionsConfigCache = record.data;
+      return record.data;
+    }
+  }catch(e){ /* IndexedDB未対応/エラー時は既定値のまま続行 */ }
+  return kaosuDecisionsConfigCache;
+}
+function getKaosuDecisionsConfigSync(){ return kaosuDecisionsConfigCache; }
+const DECISIONS_DEFAULT_ITEMS = [
+  { label: "静かな部屋が好き", text: "今日は静かな部屋が好きな気分。", matchMood: "any", enabled: true },
+  { label: "読書したい", text: "今日は読書したい気分。", matchMood: "any", enabled: true },
+  { label: "ピアノを聴きたい", text: "今日はピアノを聴きたい気分。", matchMood: "any", enabled: true },
+  { label: "ゲームの話がしたい", text: "今日はゲームの話がしたい気分。", matchMood: "any", enabled: true },
+];
+function kaosuResolveDailyDecision(state, now){
+  const allItems = (getKaosuDecisionsConfigSync().items || []).filter(it => it && it.enabled !== false);
+  if(!allItems.length) return "";
+  const dateKey = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+  const idx = kaosuSimpleHash(dateKey + "|decision") % allItems.length;
+  const picked = allItems[idx];
+  const matches = (it) => !it.matchMood || it.matchMood === "any" || it.matchMood === state.mood;
+  if(matches(picked)) return picked.label;
+  const fallback = allItems.find(it => !it.matchMood || it.matchMood === "any");
+  return (fallback || picked).label;
+}
+function kaosuResolveDailyDecisionText(decisionLabel){
+  const items = getKaosuDecisionsConfigSync().items || [];
+  const found = items.find(it => it.label === decisionLabel);
+  return found ? found.text : "";
+}
+async function kaosuMaybeUpdateDecision(mem, state, now){
+  const todayKey = kaosuDateKey(now);
+  if(mem.todayDecisionDate === todayKey) return;
+  mem.todayDecision = kaosuResolveDailyDecision(state, now);
+  mem.todayDecisionDate = todayKey;
+  if(mem.todayDecision) await kaosuTimelineAppend("💭 " + (kaosuResolveDailyDecisionText(mem.todayDecision) || mem.todayDecision));
+}
+
+/* --- Values Engine(Phase48) --------------------------------------------------
+   7つの価値観(0-100)。Identity Engine(kaosuComputeIdentityNudges/
+   kaosuIdentityDailyNudge)と全く同じ「1日ぶんの集計→小さな増減→
+   1日1回だけ反映」パターンを別の7軸に対して適用するだけ。 */
+const KAOSU_VALUES_KEYS = ["valChallenge", "valKindness", "valNature", "valMusic", "valQuietTime", "valTogetherness", "valLearning"];
+const KAOSU_VALUES_LABELS = { valChallenge: "挑戦が好き", valKindness: "優しさを大切にする", valNature: "自然が好き", valMusic: "音楽が好き", valQuietTime: "静かな時間が好き", valTogetherness: "一緒に過ごす時間が好き", valLearning: "学ぶことが好き" };
+function kaosuComputeValuesNudges(todayHistory, todayEmotions, mem, affinityTier){
+  const nudge = {};
+  KAOSU_VALUES_KEYS.forEach(k => { nudge[k] = 0; });
+  const topics = [];
+  todayHistory.forEach(h => (h.topics || []).forEach(t => topics.push(t)));
+  if(topics.includes("音楽")) nudge.valMusic += 1;
+  if(topics.includes("旅行") || topics.includes("ゲーム")) nudge.valChallenge += 0.5;
+  if(topics.includes("天気") || topics.includes("ペット")) nudge.valNature += 0.5;
+  if(todayEmotions.some(e => e.emotion === "achievement")) nudge.valChallenge += 1;
+  if(affinityTier === "high") nudge.valTogetherness += 1;
+  if(todayHistory.length === 0) nudge.valQuietTime += 0.5;
+  if(mem.lastReflectionMood === "positive") nudge.valKindness += 0.5;
+  let levels;
+  try{ levels = JSON.parse(mem.topicLevels || "{}"); }catch(e){ levels = {}; }
+  if(Object.keys(levels).some(t => (levels[t].level || 0) >= 10)) nudge.valLearning += 1;
+  return nudge;
+}
+async function kaosuValuesDailyNudge(mem, now, todayHistory, todayEmotions){
+  const todayKey = kaosuDateKey(now);
+  if(mem.valuesNudgeDate === todayKey) return;
+  const nudge = kaosuComputeValuesNudges(todayHistory, todayEmotions, mem, kaosuAffinityTier(mem.affinity));
+  KAOSU_VALUES_KEYS.forEach(k => {
+    if(!nudge[k]) return;
+    mem[k] = Math.max(0, Math.min(100, (Number(mem[k]) || 50) + nudge[k]));
+  });
+  mem.valuesNudgeDate = todayKey;
+}
+function kaosuDominantValue(mem){
+  let best = "valKindness", bestVal = -1;
+  KAOSU_VALUES_KEYS.forEach(k => { const v = Number(mem[k]); if(!isNaN(v) && v > bestVal){ bestVal = v; best = k; } });
+  return KAOSU_VALUES_LABELS[best];
+}
+
+/* --- Life Milestone Engine(Phase49) ------------------------------------------
+   人生の節目を検知して1回だけ祝う。発火済みのmilestone idは
+   milestonesReachedへ記録し、二度と発火しない(会話数/日数のような
+   単調増加する条件が多いため、"一度だけ"の保証はidの重複チェックで
+   行う=数え直しや巻き戻りを気にしなくてよい)。 */
+const KAOSU_MILESTONE_HISTORY_MAX = 30;
+const KAOSU_IDENTITY_GROWTH_THRESHOLD = 80;
+function kaosuCheckableMilestones(mem, now){
+  const results = [];
+  const totalConv = Number(mem.totalConversationCount) || 0;
+  if(totalConv >= 1) results.push({ id: "first-talk", label: "初めての会話" });
+  if(totalConv >= 100) results.push({ id: "talk-100", label: "会話100回" });
+  if(totalConv >= 1000) results.push({ id: "talk-1000", label: "会話1000回" });
+  if(mem.firstMetDate){
+    const days = Math.floor((now.getTime() - new Date(mem.firstMetDate).getTime()) / 86400000);
+    if(days >= 365) results.push({ id: "days-365", label: "出会って365日" });
+  }
+  const favorites = (mem.favoriteTopics || "").split(",").map(s => s.trim());
+  if(favorites.includes("旅行")) results.push({ id: "first-travel", label: "初めての旅行の話" });
+  if(favorites.includes("花火")) results.push({ id: "first-fireworks", label: "初めての花火の話" });
+  if(favorites.includes("ゲーム")) results.push({ id: "first-game", label: "初めてのゲームの話" });
+  if((Number(mem.totalLongMemoryCount) || 0) >= 1000) results.push({ id: "memory-1000", label: "大切な思い出1000個" });
+  const stage = kaosuRelationshipStage(mem.affinity);
+  if(mem.lastRelationshipStageSeen && mem.lastRelationshipStageSeen !== stage){
+    results.push({ id: "relationship-" + stage, label: `関係性が${stage}へ` });
+  }
+  if(KAOSU_IDENTITY_KEYS.some(k => (Number(mem[k]) || 0) >= KAOSU_IDENTITY_GROWTH_THRESHOLD)) results.push({ id: "identity-growth", label: "人格の大きな成長" });
+  return results;
+}
+async function kaosuCheckMilestones(mem, now){
+  const reached = kaosuParseJsonArray(mem.milestonesReached);
+  const candidates = kaosuCheckableMilestones(mem, now);
+  for(const c of candidates){
+    if(reached.includes(c.id)) continue;
+    reached.push(c.id);
+    const history = kaosuParseJsonArray(mem.milestoneHistory);
+    history.push({ t: now.toISOString(), id: c.id, label: c.label });
+    while(history.length > KAOSU_MILESTONE_HISTORY_MAX) history.shift();
+    mem.milestoneHistory = JSON.stringify(history);
+    await kaosuTimelineAppend("🏆 " + c.label);
+  }
+  mem.milestonesReached = JSON.stringify(reached);
+  mem.lastRelationshipStageSeen = kaosuRelationshipStage(mem.affinity);
+}
+function kaosuHasRecentMilestone(mem){
+  const history = kaosuParseJsonArray(mem.milestoneHistory);
+  if(!history.length) return "false";
+  const last = history[history.length - 1];
+  return (last.t && (Date.now() - new Date(last.t).getTime()) < 24 * 60 * 60 * 1000) ? "true" : "false";
+}
+
+/* --- Living Soul Engine(Phase50) ---------------------------------------------
+   Identity/Preference/Values/Learning/Relationshipの各Engineが既に
+   計算済みの値を1文へ要約する、週1回だけの最終統合(Life Storyと
+   同じISO週サイクルを共有する)。新しい計算ロジックは持たず、既存
+   Engineの出力を読むだけ=個々のEngineを一切変更しない。 */
+function kaosuGenerateSoulSummary(mem){
+  const parts = [];
+  const topTopic = kaosuTopLearningTopic(mem);
+  const dominantValue = kaosuDominantValue(mem);
+  const dominantTrait = kaosuDominantIdentityTrait(mem);
+  const stage = kaosuRelationshipStage(mem.affinity);
+  parts.push(topTopic ? `最近の私は、${topTopic}を楽しみながら` : "最近の私は");
+  if(dominantValue) parts.push(`${dominantValue}気持ちを大切にしていて`);
+  if(dominantTrait) parts.push(`${dominantTrait}なところが少しずつ育ってきた気がする`);
+  if(stage && stage !== "First Meet") parts.push(`あなたとの時間も${stage}と呼べるくらい近くなった`);
+  let sentence = parts.join("、");
+  if(!sentence.endsWith("。")) sentence += "。";
+  return sentence;
+}
+async function kaosuMaybeUpdateSoulSummary(mem, now){
+  const weekKey = kaosuIsoWeekKey(now);
+  if(mem.soulSummaryWeek === weekKey) return;
+  mem.soulSummary = kaosuGenerateSoulSummary(mem);
+  mem.soulSummaryWeek = weekKey;
+  await kaosuTimelineAppend("✨ " + mem.soulSummary);
+}
+
 /* --- Daily Life Cycle オーケストレーター --------------------------------
    Identity Engine(いつでも、1日1回)・Dream/Reflection/Happiness
    (夜のみ、1日1回)をまとめて1回のMemory読み込み・1回の保存で処理する
    (新規タイマーを追加せず、既存のkaosuLivingTick()から呼ぶだけ=
-   「Living Tickへ統合」「CPU負荷増加最小」を満たす)。 */
-async function kaosuRunDailyLifeCycle(state, now){
+   「Living Tickへ統合」「CPU負荷増加最小」を満たす)。
+   Phase41-50: Living World Evolutionの10Engineも、新規タイマーを
+   追加せずすべてここに統合する。日次ガード(kaosuDateKey)・週次ガード
+   (kaosuIsoWeekKey)・クールダウン(タイムスタンプ差分)は各Engine内部
+   で自己完結しているため、ここでは呼ぶだけでよい。 */
+async function kaosuRunDailyLifeCycle(state, now, futureEvent){
   const mem = await kaosuMemoryGet();
   const before = JSON.stringify(mem);
   await kaosuIdentityDailyNudge(mem, now);
+  const todayKey = kaosuDateKey(now);
+  const todayHistory = kaosuMemoryParseHistory(mem).filter(h => h.t && kaosuDateKey(new Date(h.t)) === todayKey);
+  const todayEmotions = kaosuTodaysEmotionalHistory(mem, now);
+  /* Phase41 Living Future Engine(1日1回)。 */
+  await kaosuMaybeLogFutureFeeling(mem, futureEvent, now);
+  /* Phase42 Living Habit Engine(クールダウン+低確率、日次ガードなし)。 */
+  await kaosuMaybeEvolveHabit(mem, state, now);
+  /* Phase44 Mood Cycle Engine(1日1回)。 */
+  await kaosuMaybeUpdateMoodCycle(mem, now);
+  /* Phase45 Life Story Engine(週1回)。 */
+  await kaosuMaybeUpdateLifeStory(mem, now);
+  /* Phase47 Decision Engine(1日1回)。 */
+  await kaosuMaybeUpdateDecision(mem, state, now);
+  /* Phase48 Values Engine(1日1回)。 */
+  await kaosuValuesDailyNudge(mem, now, todayHistory, todayEmotions);
+  /* Phase49 Life Milestone Engine(毎tick、idの重複チェックで一度きり)。 */
+  await kaosuCheckMilestones(mem, now);
+  /* Phase50 Living Soul Engine(週1回、Life Storyと同じ週サイクル)。
+     他のEngineがこのtickで更新した値を読むため、最後に実行する。 */
+  await kaosuMaybeUpdateSoulSummary(mem, now);
   if(state.time === "night" || state.time === "midnight"){
-    const todayKey = kaosuDateKey(now);
-    const todayHistory = kaosuMemoryParseHistory(mem).filter(h => h.t && kaosuDateKey(new Date(h.t)) === todayKey);
-    const todayEmotions = kaosuTodaysEmotionalHistory(mem, now);
     await kaosuMaybeGenerateDream(mem, state, now);
     await kaosuMaybeGenerateReflection(mem, state, now, todayHistory, todayEmotions);
     await kaosuMaybeComputeHappiness(mem, state, now, todayHistory, todayEmotions);
@@ -10879,7 +11369,7 @@ async function kaosuLivingTick(){
     /* Phase31-40: Identity(いつでも1日1回)・Dream/Reflection/
        Happiness(夜のみ1日1回)。新規タイマーは追加せず、既存の
        Living Tickの中で完結させる。 */
-    if(resolved.state) await kaosuRunDailyLifeCycle(resolved.state, now);
+    if(resolved.state) await kaosuRunDailyLifeCycle(resolved.state, now, resolved.futureEvent);
     /* Living Events: 決まったSchedule/Future Eventとは別に、低確率で
        「ふと」何かする。既に決まっているpose/expressionだけを上書き
        し、Camera/Lighting/Music等は直前のkaosuLivingTick()の解決値を
@@ -15597,6 +16087,24 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
           options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "ある" }, { value: "false", label: "無い" }] },
         { key: "matchHistory", label: "条件: ユーザーとの思い出があるか", type: "select", default: "any",
           options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "ある" }, { value: "false", label: "無い" }] },
+        { key: "matchFuture", label: "条件: 未来への予感(Future Feeling)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }, { value: "before", label: "before(近付いている)" }, { value: "current", label: "current(当日)" }, { value: "after", label: "after(過ぎた)" }, { value: "none", label: "none(無し)" }] },
+        { key: "matchHabit", label: "条件: 今の生活習慣(Habit)", type: "dynamicSelect", default: "",
+          emptyLabel: "any(すべて)",
+          optionsSource: () => (((genericState.habitCandidates && genericState.habitCandidates.draft && genericState.habitCandidates.draft.items) || []).map(h => ({ value: h.label, label: h.label }))) },
+        { key: "matchMoodCycle", label: "条件: 長期ムード(Mood Cycle、週次)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }, { value: "high", label: "high" }, { value: "normal", label: "normal" }, { value: "low", label: "low" }] },
+        { key: "matchLearning", label: "条件: 最も学習が深い話題(Learning)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_TOPIC_KEYWORDS.map(k => ({ value: k, label: k }))) },
+        { key: "matchDecision", label: "条件: 今日の意思決定(Decision、空欄=any)", type: "dynamicSelect", default: "",
+          emptyLabel: "any(すべて)",
+          optionsSource: () => (((genericState.decisions && genericState.decisions.draft && genericState.decisions.draft.items) || []).map(d => ({ value: d.label, label: d.label }))) },
+        { key: "matchValues", label: "条件: 支配的な価値観(Values)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(Object.values(KAOSU_VALUES_LABELS).map(k => ({ value: k, label: k }))) },
+        { key: "matchMilestone", label: "条件: 直近24時間に人生の節目があったか", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "あった" }, { value: "false", label: "無い" }] },
+        { key: "matchSoul", label: "条件: Soul Summaryが生成済みか", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }, { value: "true", label: "生成済み" }, { value: "false", label: "未生成" }] },
         { key: "poseKey", label: "出力: Pose Category(空欄=このRuleでは決めない)", type: "select", default: "",
           options: [{ value: "", label: "(指定しない)" }].concat(POSE_CATEGORIES.map(p => ({ value: p.key, label: p.label }))) },
         { key: "animationKey", label: "出力: Animation", type: "dynamicSelect", default: "",
@@ -15744,8 +16252,38 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
         { key: "lastHappiness", label: "LastHappiness(幸福度スコア、0-100)", type: "number", default: 50 },
         { key: "lastHappinessReason", label: "LastHappinessReason(理由)", type: "text", default: "" },
         { key: "lastHappinessDate", label: "LastHappinessDate", type: "text", default: "" },
+        { key: "totalLongMemoryCount", label: "TotalLongMemoryCount(LongMemoryへ昇格した生涯累計。配列自体はFIFOで切り詰められるため、こちらはMilestone判定用の単調カウンタ)", type: "number", default: 0 },
+        { key: "futureMemory", label: `FutureMemory(Future Feelingの記録、最大${KAOSU_FUTURE_MEMORY_MAX}件、JSON)`, type: "textarea", default: "[]" },
+        { key: "futureFeelingDate", label: "FutureFeelingDate", type: "text", default: "" },
+        { key: "currentHabit", label: "CurrentHabit(今の生活習慣、Habit Candidatesのラベル)", type: "text", default: "" },
+        { key: "habitHistory", label: `HabitHistory(習慣の変化履歴、最大${KAOSU_HABIT_HISTORY_MAX}件、JSON)`, type: "textarea", default: "[]" },
+        { key: "lastHabitChangeAt", label: "LastHabitChangeAt(最後にHabitが変化した日時)", type: "text", default: "" },
+        { key: "lastSeasonRecallAt", label: "LastSeasonRecallAt(Season Memory Engineの最終発火日時)", type: "text", default: "" },
+        { key: "dailyMoodCycle", label: "DailyMoodCycle(high/normal/low)", type: "text", default: "normal" },
+        { key: "weeklyMoodCycle", label: "WeeklyMoodCycle(high/normal/low、Resolverの条件: 長期ムードはこの値を使用)", type: "text", default: "normal" },
+        { key: "monthlyMoodCycle", label: "MonthlyMoodCycle(high/normal/low)", type: "text", default: "normal" },
+        { key: "moodCycleDate", label: "MoodCycleDate", type: "text", default: "" },
+        { key: "lifeStory", label: "LifeStory(直近1週間の物語、週1回更新)", type: "textarea", default: "" },
+        { key: "lifeStoryWeek", label: "LifeStoryWeek(ISO週番号、例:2026-W08)", type: "text", default: "" },
+        { key: "topicLevels", label: "TopicLevels(話題ごとの学習度、JSON: {topic:{count,level}})", type: "textarea", default: "{}" },
+        { key: "todayDecision", label: "TodayDecision(今日の意思決定、Decisionsタブのラベル)", type: "text", default: "" },
+        { key: "todayDecisionDate", label: "TodayDecisionDate", type: "text", default: "" },
+        { key: "valChallenge", label: "Values: 挑戦が好き(0-100)", type: "number", default: 50 },
+        { key: "valKindness", label: "Values: 優しさを大切にする(0-100)", type: "number", default: 50 },
+        { key: "valNature", label: "Values: 自然が好き(0-100)", type: "number", default: 50 },
+        { key: "valMusic", label: "Values: 音楽が好き(0-100)", type: "number", default: 50 },
+        { key: "valQuietTime", label: "Values: 静かな時間が好き(0-100)", type: "number", default: 50 },
+        { key: "valTogetherness", label: "Values: 一緒に過ごす時間が好き(0-100)", type: "number", default: 50 },
+        { key: "valLearning", label: "Values: 学ぶことが好き(0-100)", type: "number", default: 50 },
+        { key: "valuesNudgeDate", label: "ValuesNudgeDate(最後にValuesが成長した日)", type: "text", default: "" },
+        { key: "totalConversationCount", label: "TotalConversationCount(生涯の会話回数、Life Milestone判定に使用)", type: "number", default: 0 },
+        { key: "milestonesReached", label: "MilestonesReached(発火済みMilestone idの一覧、JSON配列)", type: "textarea", default: "[]" },
+        { key: "milestoneHistory", label: `MilestoneHistory(節目の履歴、最大${KAOSU_MILESTONE_HISTORY_MAX}件、JSON)`, type: "textarea", default: "[]" },
+        { key: "lastRelationshipStageSeen", label: "LastRelationshipStageSeen(関係性進化Milestone判定用)", type: "text", default: "" },
+        { key: "soulSummary", label: "SoulSummary(すべてのEngineを統合した1文、週1回更新)", type: "textarea", default: "" },
+        { key: "soulSummaryWeek", label: "SoulSummaryWeek(ISO週番号)", type: "text", default: "" },
       ],
-      note: "Phase18でMemory Engineが本格稼働します。LastVisitは起動のたび、LastTalk/LastMood/RecentTopics/FavoriteTopics/ConversationHistoryは会話のたびに自動更新されます。affinityの値はResolver Rulesの「条件: 親密度」(low/medium/high)から参照できます。LastThought/TodayGoalはPhase26-30(Living Thought/Goal Engine)で自動更新されます。Identity(9特性)は1日1回だけ小さく変化し(数週間〜数ヶ月かけて育つGrowth設計)、LongMemory/EmotionalHistory/LastDream/LastReflection/LastHappinessはPhase31-40(Living Identity Evolution)で夜(night/midnight)に1日1回だけ自動更新されます。",
+      note: "Phase18でMemory Engineが本格稼働します。LastVisitは起動のたび、LastTalk/LastMood/RecentTopics/FavoriteTopics/ConversationHistoryは会話のたびに自動更新されます。affinityの値はResolver Rulesの「条件: 親密度」(low/medium/high)から参照できます。LastThought/TodayGoalはPhase26-30(Living Thought/Goal Engine)で自動更新されます。Identity(9特性)は1日1回だけ小さく変化し(数週間〜数ヶ月かけて育つGrowth設計)、LongMemory/EmotionalHistory/LastDream/LastReflection/LastHappinessはPhase31-40(Living Identity Evolution)で夜(night/midnight)に1日1回だけ自動更新されます。FutureMemory以降はPhase41-50(Living World Evolution)で自動更新されます(Future/Habit/Season/MoodCycle/LifeStory/Learning/Decision/Values/Milestone/Soul)。",
     },
     {
       id: "affinityGains", icon: "💗", label: "Affinity", category: "room", group: "generic",
@@ -15871,6 +16409,32 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
       note: "登録した日付(毎年繰り返し)の前後windowDays日だけ、Living ScheduleのタイムテーブルよりStateが優先されます(誕生日は既定で無効化してあるので、実際の誕生日が決まったら日付を設定してから有効化してください)。",
+    },
+    {
+      id: "habitCandidates", icon: "🌱", label: "Habit", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: HABIT_CANDIDATES_DEFAULT_ITEMS }, itemLabel: "Habit",
+      schema: [
+        { key: "label", label: "名前(Resolver Rulesから参照するキーになります)", type: "text", default: "新しいHabit" },
+        { key: "band", label: "時間帯(any=いつでも、holiday=休日)", type: "select", default: "any",
+          options: [ { value: "any", label: "any(いつでも)" }, { value: "morning", label: "morning" }, { value: "day", label: "day" }, { value: "evening", label: "evening" }, { value: "night", label: "night" }, { value: "holiday", label: "holiday(休日)" } ] },
+        { key: "matchMood", label: "候補に入れる条件: 気分(any=すべて)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_MOOD_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "weight", label: "選ばれやすさ", type: "number", default: 5 },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "AI自身の生活習慣(Phase42 Living Habit Engine)の候補です。時間帯(+休日)ごとに重み付き抽選で選ばれ、Living Tickのたびに低確率かつクールダウン付きで少しずつ入れ替わります。Poseやカメラなどの演出には直接影響せず、Resolver Rulesの「条件: 今の生活習慣」から参照できる情報レイヤーです。",
+    },
+    {
+      id: "decisions", icon: "💭", label: "Decision", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: DECISIONS_DEFAULT_ITEMS }, itemLabel: "Decision",
+      schema: [
+        { key: "label", label: "名前(Resolver Rulesから参照するキーになります)", type: "text", default: "新しいDecision" },
+        { key: "text", label: "本文", type: "textarea", default: "" },
+        { key: "matchMood", label: "候補に入れる条件: 気分(any=すべて)", type: "select", default: "any",
+          options: [{ value: "any", label: "any(すべて)" }].concat(KAOSU_MOOD_KEYS.map(k => ({ value: k, label: k }))) },
+        { key: "enabled", label: "有効", type: "boolean", default: true },
+      ],
+      note: "AI自身の「今日の意思決定」(Phase47 Decision Engine)です。Goalと同じ「日付をシードにした決定的な選択」ですが、別のシードを使うため同じ日でもGoalとは異なる値が選ばれます。Resolver Rulesの「条件: 今日の意思決定」から参照でき、Memoryのtoday Decisionへも自動保存されます。",
     },
     {
       id: "dailyTimeline", icon: "📜", label: "Timeline", category: "room", group: "generic",
@@ -16405,7 +16969,7 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
        一切影響しない(参照専用のキャッシュとして使うだけ)。 */
     const CROSS_REF_IDS = {
       startupSequence: ["animations", "voice", "statePresets", "cameraPresets"],
-      resolverRules: ["animations", "voice", "cameraPresets", "roomStates", "lighting", "music", "dailyGoals"],
+      resolverRules: ["animations", "voice", "cameraPresets", "roomStates", "lighting", "music", "dailyGoals", "habitCandidates", "decisions"],
       roomStates: ["lighting", "music"],
       routines: ["statePresets"],
       livingSchedule: ["statePresets"],
@@ -17340,6 +17904,8 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     kaosuAffinityGainsCache = null;
     if(typeof loadKaosuDailyGoalsConfig === "function") await loadKaosuDailyGoalsConfig();
     if(typeof loadKaosuAiPreferencesConfig === "function") await loadKaosuAiPreferencesConfig();
+    if(typeof loadKaosuHabitCandidatesConfig === "function") await loadKaosuHabitCandidatesConfig();
+    if(typeof loadKaosuDecisionsConfig === "function") await loadKaosuDecisionsConfig();
     if(typeof kaosuLivingTick === "function") await kaosuLivingTick();
     const homeView = document.querySelector('.view[data-view="home"]');
     if(homeView && homeView.classList.contains("active")){
@@ -17586,6 +18152,8 @@ kaosuMemoryTouchVisit();
 loadKaosuAffinityGainsConfig().then(g => kaosuAffinityAdjust(g.visit));
 loadKaosuDailyGoalsConfig();
 loadKaosuAiPreferencesConfig();
+loadKaosuHabitCandidatesConfig();
+loadKaosuDecisionsConfig();
 startKaosuLivingScheduler();
 startKaosuIdleConversationTicker();
 renderNotificationModeChips();
