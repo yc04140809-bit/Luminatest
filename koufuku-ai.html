@@ -9700,35 +9700,57 @@ async function loadKaosuResolverRulesConfig(){
   }catch(e){ /* IndexedDB未対応/エラー時は空のまま続行 */ }
   return { configVersion: 1, items: [] };
 }
+/* Phase61 Quality Tuning: 以前はkaosuRuleMatchesState()の呼び出しごとに
+   この配列を毎回生成していた(Resolver探索のたびに大量のGCゴミが出る)。
+   内容(条件の意味・判定順)は一切変更せず、モジュール定数として1度
+   だけ生成するだけの純粋な高速化(RulesがN件ならN回分のnew Array/
+   new Arrayを削減できる)。時間帯/気分など「よく指定される」条件を
+   先頭寄りに置いたままにしているのも従来どおりで、.every()の短絡
+   評価による探索順最適化も維持する。 */
+const KAOSU_RESOLVER_MATCH_DIMS = [
+  ["matchTime", "time"], ["matchSeason", "season"], ["matchWeather", "weather"], ["matchMood", "mood"], ["matchSituation", "situation"],
+  ["matchAffinity", "affinityTier"], ["matchPersonality", "personality"], ["matchRelationship", "relationshipStage"], ["matchGoal", "goal"],
+  /* Phase31-40 Living Identity Evolution。 */
+  ["matchIdentity", "identity"], ["matchPreference", "preference"], ["matchHappiness", "happinessLevel"], ["matchReflection", "reflectionMood"],
+  ["matchImportance", "hasImportantMemory"], ["matchCuriosity", "curiosityPending"], ["matchDream", "dreamPending"], ["matchHistory", "hasSharedHistory"],
+  /* Phase41-50 Living World Evolution。 */
+  ["matchFuture", "futureFeeling"], ["matchHabit", "habit"], ["matchMoodCycle", "moodCycle"], ["matchLearning", "topLearningTopic"],
+  ["matchDecision", "decision"], ["matchValues", "value"], ["matchMilestone", "hasRecentMilestone"], ["matchSoul", "hasSoul"],
+  /* Phase51-60 Living Consciousness Evolution。 */
+  ["matchMotivation", "motivation"], ["matchStyle", "style"], ["matchConsciousness", "hasConsciousness"],
+];
 function kaosuRuleMatchesState(rule, state){
-  const dims = [
-    ["matchTime", "time"], ["matchSeason", "season"], ["matchWeather", "weather"], ["matchMood", "mood"], ["matchSituation", "situation"],
-    ["matchAffinity", "affinityTier"], ["matchPersonality", "personality"], ["matchRelationship", "relationshipStage"], ["matchGoal", "goal"],
-    /* Phase31-40 Living Identity Evolution。 */
-    ["matchIdentity", "identity"], ["matchPreference", "preference"], ["matchHappiness", "happinessLevel"], ["matchReflection", "reflectionMood"],
-    ["matchImportance", "hasImportantMemory"], ["matchCuriosity", "curiosityPending"], ["matchDream", "dreamPending"], ["matchHistory", "hasSharedHistory"],
-    /* Phase41-50 Living World Evolution。 */
-    ["matchFuture", "futureFeeling"], ["matchHabit", "habit"], ["matchMoodCycle", "moodCycle"], ["matchLearning", "topLearningTopic"],
-    ["matchDecision", "decision"], ["matchValues", "value"], ["matchMilestone", "hasRecentMilestone"], ["matchSoul", "hasSoul"],
-    /* Phase51-60 Living Consciousness Evolution。 */
-    ["matchMotivation", "motivation"], ["matchStyle", "style"], ["matchConsciousness", "hasConsciousness"],
-  ];
-  return dims.every(([ruleKey, stateKey]) => {
+  for(let i = 0; i < KAOSU_RESOLVER_MATCH_DIMS.length; i++){
+    const ruleKey = KAOSU_RESOLVER_MATCH_DIMS[i][0];
+    const stateKey = KAOSU_RESOLVER_MATCH_DIMS[i][1];
     const want = rule[ruleKey];
-    return !want || want === "any" || want === state[stateKey];
-  });
+    if(want && want !== "any" && want !== state[stateKey]) return false;
+  }
+  return true;
 }
 function kaosuResolveOutputs(rulesConfig, state){
   const output = {};
   RESOLVER_OUTPUT_KEYS.forEach(k => { output[k] = ""; });
   const items = (rulesConfig && Array.isArray(rulesConfig.items)) ? rulesConfig.items : [];
-  const sorted = items.filter(r => r.enabled !== false).slice().sort((a, b) => (b.priority || 0) - (a.priority || 0));
-  sorted.forEach(rule => {
-    if(!kaosuRuleMatchesState(rule, state)) return;
-    RESOLVER_OUTPUT_KEYS.forEach(k => {
-      if(!output[k] && rule[k]) output[k] = rule[k];
-    });
-  });
+  /* Phase61 Quality Tuning: filter()は常に新しい配列を返す(呼び出し元
+     のitemsを書き換えない)ため、その直後の.slice()は無駄な複製だった。
+     並び替え結果・元配列への非破壊性は変わらないまま1回分のコピーを
+     削減する(オブジェクト生成削減)。 */
+  const sorted = items.filter(r => r.enabled !== false).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  /* Phase61 Quality Tuning: 全出力キーが既に埋まった時点で、それ以降
+     どのRuleが一致しても`!output[k]`が常にfalseになり何も起きない
+     (=既存の優先度ロジックを完全に維持したまま無駄なだけ)。そこで
+     残り未確定キー数を数えておき、0になった時点でループを打ち切る
+     (探索順最適化/不要ループ削除、出力結果は従来と完全に同一)。 */
+  let remaining = RESOLVER_OUTPUT_KEYS.length;
+  for(let i = 0; i < sorted.length && remaining > 0; i++){
+    const rule = sorted[i];
+    if(!kaosuRuleMatchesState(rule, state)) continue;
+    for(let j = 0; j < RESOLVER_OUTPUT_KEYS.length; j++){
+      const k = RESOLVER_OUTPUT_KEYS[j];
+      if(!output[k] && rule[k]){ output[k] = rule[k]; remaining--; }
+    }
+  }
   return output;
 }
 /* statePresetsConfig+rulesConfigを1度に読み、stateKeyから最終的な
@@ -9978,7 +10000,7 @@ async function kaosuMemoryAppendExchange({ userText, mood, topics, goalMatch }){
   /* Phase37 Memory Importance: 重要度を計算し、エントリ自体に含める
      (Short/Recent Memoryの実体であるconversationHistoryは既存構造の
      まま、importanceフィールドだけ追加=後方互換)。 */
-  const importance = kaosuComputeMemoryImportance({ mood, topics, affinityTier: kaosuAffinityTier(mem.affinity), goalMatch });
+  const importance = kaosuComputeMemoryImportance({ mood, topics, affinityTier: kaosuAffinityTier(mem.affinity), goalMatch, favoriteTopics: mem.favoriteTopics });
   const entry = { t: now, u: String(userText || "").slice(0, 120), mood: mood || "", topics: Array.isArray(topics) ? topics : [], importance };
   /* Phase28 TopicHistory: 各会話ログにtopics配列も残す(古いエントリに
      は無い=undefinedのままで、読み取り側は必ず配列にフォールバック
@@ -10034,13 +10056,25 @@ const KAOSU_MEMORY_IMPORTANCE_MOOD_WEIGHT = {
 const KAOSU_LONG_MEMORY_MAX = 40;
 const KAOSU_LONG_MEMORY_THRESHOLD = 60;
 const KAOSU_LIFE_MEMORY_THRESHOLD = 85;
-function kaosuComputeMemoryImportance({ mood, topics, affinityTier, goalMatch }){
-  let score = 30; // 基礎点(何も無い雑談でも完全ゼロにはしない)
-  score += KAOSU_MEMORY_IMPORTANCE_MOOD_WEIGHT[mood] || 0;
-  if(Array.isArray(topics) && topics.length) score += 15 + Math.min(15, (topics.length - 1) * 5);
-  if(affinityTier === "high") score += 10;
+/* Phase61 Quality Tuning: Emotion/Frequency/Goal/Relationship/
+   Importance(話題の厚み)の5要素を見直し、平均的な雑談がLong Memory
+   閾値(60点)へ簡単に届きすぎないよう基礎点を下げ(30→20)、代わりに
+   「話題が既にFavoriteTopicsにある=何度も出てくる話題」という
+   Frequencyシグナルを新たに加点する(単発の話題より、繰り返し話題に
+   なることの方が本当に重要という考え方)。戻り値の意味・0-100レンジ・
+   呼び出し側の扱いは一切変更しない(既存API互換)。 */
+function kaosuComputeMemoryImportance({ mood, topics, affinityTier, goalMatch, favoriteTopics }){
+  let score = 20; // 基礎点(何も無い雑談でも完全ゼロにはしない)
+  score += KAOSU_MEMORY_IMPORTANCE_MOOD_WEIGHT[mood] || 0; // Emotion
+  const topicList = Array.isArray(topics) ? topics : [];
+  if(topicList.length) score += 10 + Math.min(10, (topicList.length - 1) * 5); // Importance(話題の厚み)
+  if(favoriteTopics){
+    const priorFavorites = favoriteTopics.split(",").map(s => s.trim()).filter(Boolean);
+    if(topicList.some(t => priorFavorites.includes(t))) score += 12; // Frequency(繰り返し話題)
+  }
+  if(affinityTier === "high") score += 10; // Relationship
   else if(affinityTier === "medium") score += 5;
-  if(goalMatch) score += 15;
+  if(goalMatch) score += 15; // Goal
   return Math.max(0, Math.min(100, score));
 }
 function kaosuParseJsonArray(str){
@@ -10362,18 +10396,31 @@ async function kaosuTrySharedHistory(memBefore, topics){
   return true;
 }
 
-/* --- Curiosity Engine(Phase33) ----------------------------------------------
+/* --- Curiosity Engine(Phase33、Phase61で頻度をQuality Tuning) --------------
    AIから自然に質問する。Memory Recall/Shared Historyが同じ往復で
    何か送った直後は送らない(「連続質問禁止」)。さらに独自のクール
-   ダウン(KAOSU_CURIOSITY_COOLDOWN_MS)を持ち、低頻度でしか発火しない。 */
-const KAOSU_CURIOSITY_CHANCE = 0.1;
-const KAOSU_CURIOSITY_COOLDOWN_MS = 20 * 60 * 1000;
+   ダウン(KAOSU_CURIOSITY_COOLDOWN_MS)を持ち、低頻度でしか発火しない。
+   Phase61: 実運用向けに基礎頻度をやや下げ(0.1→0.08)、クールダウンを
+   延ばし(20分→25分)、さらに(1)今まさに話している話題をそのまま
+   聞き返す「同一話題連続」を避け(2)ユーザーが沈んだ気分(sad/
+   lonely/tired/embarrassed)の時は質問頻度をさらに半分に落として
+   「空気を読む」ようにした。既存Memory構造・戻り値・呼び出し契約は
+   変更しない。 */
+const KAOSU_CURIOSITY_CHANCE = 0.08;
+const KAOSU_CURIOSITY_COOLDOWN_MS = 25 * 60 * 1000;
+const KAOSU_CURIOSITY_SUBDUED_MOODS = ["sad", "lonely", "tired", "embarrassed"];
 function kaosuGenerateCuriosityQuestion(mem, topics){
   const candidates = [];
+  const currentTopics = Array.isArray(topics) ? topics : [];
   const favorites = (mem.favoriteTopics || "").split(",").map(s => s.trim()).filter(Boolean);
-  if(favorites.length) candidates.push(`そういえば前に${favorites[favorites.length - 1]}が好きって話してたよね。`);
+  /* Phase61: 直前の発言で既に触れた話題をそのまま聞き返さない
+     (同一話題連続抑制)。全候補が今回の話題と重なる場合だけ、従来
+     どおり最新のFavoriteTopicsへフォールバックする。 */
+  const nonRepeatingFavorite = favorites.slice().reverse().find(t => !currentTopics.includes(t));
+  const favoriteToAsk = nonRepeatingFavorite || (favorites.length ? favorites[favorites.length - 1] : "");
+  if(favoriteToAsk) candidates.push(`そういえば前に${favoriteToAsk}が好きって話してたよね。`);
   const preferredTopic = kaosuComputePreferredTopic(mem);
-  if(preferredTopic) candidates.push(`最近${preferredTopic}の話が多いね。`);
+  if(preferredTopic && !currentTopics.includes(preferredTopic)) candidates.push(`最近${preferredTopic}の話が多いね。`);
   if(mem.todayGoal){
     const goalText = (typeof kaosuResolveDailyGoalText === "function" ? kaosuResolveDailyGoalText(mem.todayGoal) : "") || mem.todayGoal;
     candidates.push(`そういえば、${goalText}`);
@@ -10381,10 +10428,14 @@ function kaosuGenerateCuriosityQuestion(mem, topics){
   candidates.push("今日はどんな一日だった?");
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
-async function kaosuTryCuriosityQuestion(mem, topics){
+async function kaosuTryCuriosityQuestion(mem, topics, mood){
   if(typeof chatAppendKaosuHtml !== "function") return false;
   if(mem.lastCuriosityAt && (Date.now() - new Date(mem.lastCuriosityAt).getTime()) < KAOSU_CURIOSITY_COOLDOWN_MS) return false;
-  if(Math.random() > KAOSU_CURIOSITY_CHANCE) return false;
+  /* Phase61: 空気を読む頻度調整(沈んだ気分の時は質問を半分の頻度に
+     落とす)。moodが渡されない既存の呼び出し経路は従来どおりの頻度の
+     まま動く(後方互換)。 */
+  const chance = (mood && KAOSU_CURIOSITY_SUBDUED_MOODS.includes(mood)) ? KAOSU_CURIOSITY_CHANCE / 2 : KAOSU_CURIOSITY_CHANCE;
+  if(Math.random() > chance) return false;
   const question = kaosuGenerateCuriosityQuestion(mem, topics);
   if(!question) return false;
   if(typeof chatWait === "function") await chatWait(500);
@@ -10429,7 +10480,7 @@ async function kaosuLivingOnChatExchange(userText){
        同じ「連続質問禁止」の排他制御に含める(1往復で複数バブルが
        重ならないようにする)。 */
     const announced = recalled || await kaosuMaybeAnnounceLearningLevelUp(mem, topics);
-    if(!announced) await kaosuTryCuriosityQuestion(await kaosuMemoryGet(), topics);
+    if(!announced) await kaosuTryCuriosityQuestion(await kaosuMemoryGet(), topics, mood);
     const homeView = document.querySelector('.view[data-view="home"]');
     if(homeView && homeView.classList.contains("active") && typeof renderKaosuRoomScene === "function"){
       renderKaosuRoomScene();
@@ -10807,24 +10858,59 @@ async function kaosuComposeLivingResolution(now){
    がkaosuIdleConversationTick()から呼ばれた時、時間帯がmorningへ
    変わった後に行う(=生成と提示を分離し、本当に「翌朝」感を出す)。 */
 const KAOSU_DREAM_RELATIONSHIP_LINES = { "Close Friend": "一緒にいる夢を見たよ。", "Partner": "一緒にいる夢を見たよ。", "Family": "一緒にいる夢を見たよ。" };
-function kaosuGenerateDreamText(mem){
+/* Phase61 Quality Tuning: 今日の感情イベントに沿った夢の言い回し
+   (Emotion反映率向上用)。全moodを網羅する必要はなく、対応が無い
+   感情は単に何も足さない(捏造しない)。 */
+const KAOSU_DREAM_EMOTION_LINES = {
+  achievement: ["何かを成し遂げる夢を見た気がする。", "うまくいく夢だったと思う。"],
+  happy: ["楽しい夢を見てた気がする。", "笑ってる夢だったと思う。"],
+  sad: ["少し切ない夢だった。", "ちょっと寂しい夢を見た気がする。"],
+  moved: ["心に残る夢だった気がする。"],
+  relieved: ["穏やかな夢だったと思う。"],
+  nervous: ["ふわふわして落ち着かない夢だった。"],
+};
+function kaosuGenerateDreamText(mem, todayEmotions){
   const candidates = [];
+  /* Memoryとの関連性向上: FavoriteTopicsの文字列だけでなく、実際に
+     昇格したLong/Life Memoryの内容からも夢を組み立てる。 */
+  const lifeEntries = kaosuLifeMemoryEntries(mem);
+  if(lifeEntries.length){
+    const picked = lifeEntries[Math.floor(Math.random() * lifeEntries.length)];
+    const t = (picked.topics && picked.topics[0]) || "";
+    if(t) candidates.push(Math.random() < 0.5 ? `前に話してくれた${t}のこと、夢に出てきたよ。` : `${t}の思い出を、また夢で見た気がする。`);
+  }
   const favorites = (mem.favoriteTopics || "").split(",").map(s => s.trim()).filter(Boolean);
   if(favorites.length){
     const t = favorites[Math.floor(Math.random() * favorites.length)];
     candidates.push(Math.random() < 0.5 ? `${t}の夢を見たよ。` : `${t}のことをぼんやり夢に見てた。`);
   }
   if(mem.lastRoutine) candidates.push(`一緒に${mem.lastRoutine}してる夢だった。`);
+  /* Goalとの関連性向上。 */
+  if(mem.todayGoal){
+    const goalText = (typeof kaosuResolveDailyGoalText === "function" ? kaosuResolveDailyGoalText(mem.todayGoal) : "") || "";
+    if(goalText) candidates.push(`「${goalText}」につながるような夢を見た気がする。`);
+  }
   const relLine = KAOSU_DREAM_RELATIONSHIP_LINES[kaosuRelationshipStage(mem.affinity)];
   if(relLine) candidates.push(relLine);
+  /* Emotion反映率向上: 今日の感情イベントがあれば、対応する言い回しを
+     2件分の重みで候補に加える(=通常候補と同じ均等抽選の中で選ばれ
+     やすくする、単純だが確実な重み付け)。 */
+  if(Array.isArray(todayEmotions) && todayEmotions.length){
+    const lastEmotion = todayEmotions[todayEmotions.length - 1].emotion;
+    const emotionLines = KAOSU_DREAM_EMOTION_LINES[lastEmotion];
+    if(emotionLines && emotionLines.length){
+      candidates.push(emotionLines[Math.floor(Math.random() * emotionLines.length)]);
+      candidates.push(emotionLines[Math.floor(Math.random() * emotionLines.length)]);
+    }
+  }
   candidates.push("不思議な夢を見たよ。");
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
-async function kaosuMaybeGenerateDream(mem, state, now){
+async function kaosuMaybeGenerateDream(mem, state, now, todayEmotions){
   if(state.time !== "night" && state.time !== "midnight") return;
   const todayKey = kaosuDateKey(now);
   if(mem.lastDreamDate === todayKey) return;
-  mem.lastDream = kaosuGenerateDreamText(mem);
+  mem.lastDream = kaosuGenerateDreamText(mem, todayEmotions);
   mem.lastDreamDate = todayKey;
   mem.dreamDelivered = "false";
   await kaosuTimelineAppend("💤 " + mem.lastDream);
@@ -10843,19 +10929,34 @@ async function kaosuMaybeDeliverDream(){
   return text;
 }
 
-/* --- Reflection Engine(Phase35) --------------------------------------------
+/* --- Reflection Engine(Phase35、Phase61でQuality Tuning) --------------------
    1日の終わり(night/midnight)に、その日のConversation/Emotional
-   History/Goalから短い振り返り文を1回だけ生成する。 */
+   History/Goalから短い振り返り文を1回だけ生成する。どの条件で何行目が
+   出るかというトリガーロジック(呼び出し側のkaosuMaybeGenerateReflection
+   含む、1日1回・夜のみのゲート)は変更しない。Phase61では文章表現の
+   品質だけを改善する: (1)各行を毎回同じ固定文にせず、小さな言い換え
+   候補群からランダムに選ぶことで重複表現を減らし「毎日少し違う構成」
+   にする、(2)締めの一言も複数用意し「同じ締め文防止」、(3)該当行が
+   1つしか無い日でも締めの一言を足して「短すぎる文章防止」を図る。 */
+const KAOSU_REFLECTION_MANY_TALK_LINES = ["今日はいっぱい話せた。", "今日はたくさんおしゃべりできた。", "今日はよく話が弾んだ気がする。"];
+const KAOSU_REFLECTION_TIRED_LINES = ["少し疲れてそうだった。", "今日はちょっと疲れ気味だったかな。", "今日は少しゆっくりめの一日だった。"];
+const KAOSU_REFLECTION_ACHIEVEMENT_LINES = ["今日は何か達成できた気がする。", "今日はちょっと誇らしい気持ちになれた。", "今日は少し前に進めた気がする。"];
+const KAOSU_REFLECTION_CLOSING_LINES = ["今日も一日が終わったな。", "今日という日も、こうして終わっていく。", "今日も一日、お疲れさま。"];
+function kaosuPickReflectionVariant(candidates){
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
 function kaosuGenerateReflection(mem, todayHistory, todayEmotions, todayGoalText){
   const lines = [];
-  if(todayHistory.length >= 3) lines.push("今日はいっぱい話せた。");
+  if(todayHistory.length >= 3) lines.push(kaosuPickReflectionVariant(KAOSU_REFLECTION_MANY_TALK_LINES));
   const favTopic = kaosuComputePreferredTopic(mem);
   if(favTopic) lines.push(`${favTopic}の話が楽しかった。`);
   const moods = todayHistory.map(h => h.mood).filter(Boolean);
-  if(moods.includes("tired") || moods.includes("sleepy")) lines.push("少し疲れてそうだった。");
-  if(todayEmotions.some(e => e.emotion === "achievement")) lines.push("今日は何か達成できた気がする。");
+  if(moods.includes("tired") || moods.includes("sleepy")) lines.push(kaosuPickReflectionVariant(KAOSU_REFLECTION_TIRED_LINES));
+  if(todayEmotions.some(e => e.emotion === "achievement")) lines.push(kaosuPickReflectionVariant(KAOSU_REFLECTION_ACHIEVEMENT_LINES));
   if(todayGoalText) lines.push(`「${todayGoalText}」を意識して過ごせた。`);
-  if(!lines.length) lines.push("今日も一日が終わったな。");
+  /* 短すぎる文章防止: 該当行が1つ以下の日は、変化のある締めの一言を
+     追加してある程度の分量を確保する(トリガー条件そのものは増やさない)。 */
+  if(lines.length < 2) lines.push(kaosuPickReflectionVariant(KAOSU_REFLECTION_CLOSING_LINES));
   return lines.join(" ");
 }
 function kaosuReflectionMoodTag(todayHistory, todayEmotions){
@@ -10875,15 +10976,35 @@ async function kaosuMaybeGenerateReflection(mem, state, now, todayHistory, today
   await kaosuTimelineAppend("📔 " + mem.lastReflection);
 }
 
-/* --- Happiness Engine(Phase40) ----------------------------------------------
-   1日の終わりに「今日は幸せだったか」を理由付きで評価する。 */
+/* --- Happiness Engine(Phase40、Phase61でQuality Tuning) ---------------------
+   1日の終わりに「今日は幸せだったか」を理由付きで評価する。Phase61では
+   Goal達成/感情/会話量/Relationship/Memoryの5要素の重み付けを見直し、
+   より人間らしい(なだらかな)推移にした: (1)会話量を閾値ジャンプでは
+   なく段階的な加点にする、(2)Relationshipボーナスを3段階の固定値
+   ではなく5段階のなだらかな加点にする、(3)今日新しく大切な思い出
+   (Long Memory相当の重要度)が生まれたかというMemory要素を追加する。
+   スコアの意味(0-100)・戻り値の形・呼び出し側の扱いは変更しない。 */
+const KAOSU_HAPPINESS_RELATIONSHIP_BONUS = { "First Meet": 0, "Friend": 3, "Close Friend": 6, "Partner": 9, "Family": 12 };
 function kaosuComputeHappiness(todayHistory, todayEmotions, state){
   let score = 50;
   const reasons = [];
-  if(todayHistory.length >= 3){ score += 15; reasons.push("今日はたくさん話せた。"); }
-  if(todayEmotions.some(e => e.emotion === "achievement")){ score += 15; reasons.push("目標を達成できた。"); }
+  /* 会話量: 3件以上で一気に+15ではなく、話した分だけなだらかに加点
+     (上限は従来と同じ15)。 */
+  const talkBonus = Math.min(15, todayHistory.length * 3);
+  if(talkBonus > 0){ score += talkBonus; reasons.push("今日はたくさん話せた。"); }
+  /* 感情(Goal達成の代理シグナル。既存のachievementイベントをそのまま
+     再利用し、新しい判定軸は増やさない)。 */
+  if(todayEmotions.some(e => e.emotion === "achievement")){ score += 18; reasons.push("目標を達成できた。"); }
   if(todayHistory.some(h => h.mood === "happy" || h.mood === "excited")){ score += 10; reasons.push("一緒に笑えた。"); }
-  if(["Close Friend", "Partner", "Family"].includes(state.relationshipStage)) score += 10;
+  /* Relationship: 段階ごとになだらかに加点。 */
+  score += KAOSU_HAPPINESS_RELATIONSHIP_BONUS[state.relationshipStage] || 0;
+  /* Memory: 今日の会話に、既にLong Memory昇格相当の重要度を持つやり取り
+     があれば少し加点する(=会話のimportanceフィールドを読むだけで、
+     Long Memory配列自体には触れない)。 */
+  if(todayHistory.some(h => (Number(h.importance) || 0) >= KAOSU_LONG_MEMORY_THRESHOLD)){
+    score += 8;
+    reasons.push("大切な思い出が増えた気がする。");
+  }
   const negCount = todayEmotions.filter(e => e.emotion === "sad" || e.emotion === "failure" || e.emotion === "nervous").length;
   score -= negCount * 5;
   score = Math.max(0, Math.min(100, score));
@@ -11343,6 +11464,9 @@ function kaosuGenerateSelfQuestion(mem){
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 function kaosuGenerateSelfAnswer(mem, question){
+  /* Phase61 Quality Tuning: Null安全性向上(questionが空/undefinedでも
+     クラッシュせず既定の答えを返す)。 */
+  if(!question) return "うーん、まだうまく言葉にできないけど、考えてみるね。";
   const trait = kaosuDominantIdentityTrait(mem);
   const topTopic = kaosuTopLearningTopic(mem);
   const dominantValue = kaosuDominantValue(mem);
@@ -11599,7 +11723,7 @@ async function kaosuRunDailyLifeCycle(state, now, futureEvent){
      Values Engineより後に実行する)。 */
   await kaosuMaybeReflectOnExistence(mem, now);
   if(state.time === "night" || state.time === "midnight"){
-    await kaosuMaybeGenerateDream(mem, state, now);
+    await kaosuMaybeGenerateDream(mem, state, now, todayEmotions);
     await kaosuMaybeGenerateReflection(mem, state, now, todayHistory, todayEmotions);
     await kaosuMaybeComputeHappiness(mem, state, now, todayHistory, todayEmotions);
   }
