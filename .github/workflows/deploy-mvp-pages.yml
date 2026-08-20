@@ -12,6 +12,7 @@ on:
     branches: ["claude/koufuku-ai-phase18"]
     paths:
       - "koufuku-ai.html"
+      - "mediaLibrary.js"
       - "img/koufuku/**"
       - "audio/koufuku/**"
       - "data/cms/**"
@@ -41,6 +42,10 @@ jobs:
         run: |
           mkdir -p _site/img/koufuku/room _site/audio/koufuku _site/data/cms
           cp koufuku-ai.html _site/index.html
+          # Phase62: Media Library用の独立モジュール。<script src="mediaLibrary.js">
+          # でindex.htmlと同じディレクトリから読み込まれるため、素の
+          # ファイルとしてトップレベルにコピーする。
+          cp mediaLibrary.js _site/mediaLibrary.js
           cp img/koufuku/*.webp _site/img/koufuku/
           # CMS対応: 部屋の背景/立ち絵/入室演出/家具の設定ファイルと
           # 差し替え画像はimg/koufuku/room/以下にまとめて置く運用のため、

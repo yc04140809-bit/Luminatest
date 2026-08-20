@@ -2,6 +2,9 @@
   "functions": {
     "api/kaosu-chat.js": {
       "maxDuration": 15
+    },
+    "api/admin-github.js": {
+      "maxDuration": 20
     }
   }
 }

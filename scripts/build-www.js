@@ -41,6 +41,9 @@ rimraf(WWW);
 fs.mkdirSync(WWW, { recursive: true });
 
 copyFile(path.join(ROOT, "koufuku-ai.html"), path.join(WWW, "index.html"));
+// Phase62: Media Library用の独立モジュール(<script src="mediaLibrary.js">
+// でindex.htmlから直接参照されるため、他のアセットと同じ階層に置く)。
+copyFile(path.join(ROOT, "mediaLibrary.js"), path.join(WWW, "mediaLibrary.js"));
 copyDir(path.join(ROOT, "img", "koufuku"), path.join(WWW, "img", "koufuku"));
 copyDir(path.join(ROOT, "audio", "koufuku"), path.join(WWW, "audio", "koufuku"));
 copyDir(path.join(ROOT, "data", "cms"), path.join(WWW, "data", "cms"));

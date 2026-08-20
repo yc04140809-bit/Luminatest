@@ -1470,6 +1470,21 @@ textarea.field-input{ resize:none; }
   position:fixed; inset:0; z-index:950;
   background:#1c1530; overflow:hidden;
 }
+
+/* Phase62: Media Library起動演出。既存のStartup Sequence(z-index:950)
+   より手前(z-index:970)に一瞬だけ重ね、フェードアウト後は完全に
+   display:noneへ戻すため、既存レイヤーの重なり順・挙動には影響しない。 */
+.kaosu-media-boot-overlay{
+  position:fixed; inset:0; z-index:970;
+  background:#1c1530; overflow:hidden;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .5s ease;
+}
+.kaosu-media-boot-overlay.is-active{ opacity:1; }
+.kaosu-media-boot-overlay img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; object-position:center;
+}
 .kaosu-startup-img{
   position:absolute; inset:0; width:100%; height:100%;
   object-fit:cover; object-position:center; opacity:0;
@@ -1647,6 +1662,20 @@ textarea.field-input{ resize:none; }
      noneのまま何もしない、既存の「設定が空なら何もしない」グレース
      フルデグラデーション方針を踏襲。 -->
 <div class="kaosu-startup-sequence" id="kaosuStartupSequence" style="display:none;" aria-hidden="true"></div>
+
+<!-- Phase62: Media Library 起動演出。運営が「公開」したBGM/壁紙が
+     1件以上ある時だけ、起動直後の一瞬だけ表示される全画面オーバーレイ
+     (フェードイン→壁紙表示→BGMフェードイン→自動でフェードアウトして
+     既存のホーム画面/Startup Sequenceへ引き継ぐ)。公開済みのBGM/壁紙が
+     1つも無い場合はkaosuMediaLibraryBoot()が何もしないため、display:
+     noneのまま一切表示されない(=既存の起動体験に影響しない)。BGMは
+     既存の#kaosuBgmAudio(Living Engine/管理画面プレイリスト用)とは
+     完全に別の専用<audio>要素を使い、オーバーレイが閉じる瞬間に必ず
+     停止するため、既存BGMと二重再生することは無い。 -->
+<div class="kaosu-media-boot-overlay" id="kaosuMediaBootOverlay" style="display:none;" aria-hidden="true">
+  <img id="kaosuMediaBootWallpaper" alt="" style="display:none;">
+  <audio id="kaosuMediaBgmAudio" preload="auto" playsinline></audio>
+</div>
 
 <div class="app">
   <main class="viewport" id="viewport">
@@ -2598,6 +2627,29 @@ textarea.field-input{ resize:none; }
         <div class="chip-row" id="settingsMotionSpeedRow" style="flex-wrap:wrap;"></div>
       </div>
 
+      <!-- Phase62: Media Library(運営が管理画面から公開したBGM/壁紙/
+           テーマ)の再生・自動切替設定。既存のmotion.bgm(直上の「BGM
+           再生」トグル、Living Engine/管理画面プレイリスト向け)とは
+           別軸で、公開ライブラリ由来の起動演出/おすすめ機能だけに
+           影響する。 -->
+      <div class="card" id="settingsMediaLibraryCard">
+        <div class="card-label">🎵 Media Library</div>
+        <div class="chip-row" id="settingsMediaLibraryToggleRow" style="flex-wrap:wrap;"></div>
+        <div style="margin-top:10px;">
+          <label class="view-sub" for="settingsMediaBgmVolume" style="display:block; margin-bottom:6px;">BGM音量</label>
+          <input type="range" id="settingsMediaBgmVolume" min="0" max="1" step="0.05" style="width:100%;">
+        </div>
+        <div style="margin-top:10px;">
+          <label class="view-sub" for="settingsMediaWallpaperLocked" style="display:block; margin-bottom:6px;">壁紙を固定する</label>
+          <select class="field-input" id="settingsMediaWallpaperLocked"></select>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="view-sub" for="settingsMediaThemeLocked" style="display:block; margin-bottom:6px;">テーマを固定する</label>
+          <select class="field-input" id="settingsMediaThemeLocked"></select>
+        </div>
+        <p class="view-sub" style="margin:10px 0 0;">運営が公開したBGM・壁紙・テーマがまだ無い間は、これらの設定は何にも影響しないよ。</p>
+      </div>
+
       <!-- Phase68: データ管理(会話履歴削除)。チャット画面の既存の
            削除ボタン(#btnChatClearHistory)とは別のUIだが、実際に
            削除処理を行う関数(clearChatHistoryNow())は共通化して
@@ -2794,9 +2846,16 @@ textarea.field-input{ resize:none; }
 
   <div class="admin-save-bar" id="adminSaveBar" style="display:none;">
     <div id="adminSaveStatus"></div>
+    <!-- Phase62: Media Libraryタブ(BGM/壁紙/テーマ)を開いている時だけ
+         追加で表示するボタン。💾保存するはこれまでどおりIndexedDBへの
+         下書き保存のみ(GitHubには触れない)。「GitHubへ公開」を押した
+         時だけ、下書きの内容をdata/cms/mediaLibrary.jsonとしてGitHubへ
+         コミットし、全ユーザーへ配信する。 -->
+    <button class="secondary" id="btnMediaPublish" style="display:none;">🌐 GitHubへ公開</button>
     <button class="secondary" id="btnAdminReload">再読込(破棄)</button>
     <button id="btnAdminSave">💾 保存する</button>
   </div>
+  <p id="mediaLibraryPublishStatus" class="hint" style="display:none; position:fixed; left:16px; right:16px; bottom:66px; text-align:center; z-index:60;"></p>
   </div>
 
   <!-- ワクワク追加/編集シート -->
@@ -3154,6 +3213,12 @@ textarea.field-input{ resize:none; }
   </div>
 </div>
 
+<!-- Phase62: Media Library(BGM/壁紙/テーマ)の取得・キャッシュ・
+     おすすめ解決だけを行う独立モジュール。本体の<script>より先に
+     読み込み、window.KaosuMediaLibraryを先に定義しておく(本体側は
+     起動シーケンスの中でこれを呼ぶだけで、既存Engine/Resolver/UIには
+     一切触れない)。 -->
+<script src="mediaLibrary.js"></script>
 <script>
 "use strict";
 
@@ -3179,6 +3244,15 @@ const SETTINGS_DEFAULT = {
     breathing: true, gaze: true, blink: true, mouth: true,
     emotionEffect: true, lighting: true, voiceReaction: true, bgm: true,
   },
+  /* Phase62 Media Library: 既存のmotion.bgm(Living Engine/管理画面
+     プレイリストのBGM)とは別軸。公開されたMedia Library由来の起動
+     演出BGM/おすすめ機能だけを対象にした設定で、既存のmotion設定には
+     一切触れない(後方互換: 未保存ユーザーはparsed.mediaLibraryが
+     無いため、下のsettingsRead()が既定値へ自動的にマージする)。 */
+  mediaLibrary: {
+    bgmEnabled: true, bgmVolume: 0.5, autoplay: true,
+    themeAutoSwitch: false, wallpaperLocked: "", themeLocked: "",
+  },
 };
 function settingsRead(){
   try{
@@ -3193,6 +3267,7 @@ function settingsRead(){
       fontSize: ["small", "medium", "large"].includes(parsed.fontSize) ? parsed.fontSize : SETTINGS_DEFAULT.fontSize,
       motionSpeed: ["slow", "standard", "fast"].includes(parsed.motionSpeed) ? parsed.motionSpeed : SETTINGS_DEFAULT.motionSpeed,
       motion: Object.assign({}, SETTINGS_DEFAULT.motion, parsed.motion || {}),
+      mediaLibrary: Object.assign({}, SETTINGS_DEFAULT.mediaLibrary, parsed.mediaLibrary || {}),
     };
   }catch(e){
     return JSON.parse(JSON.stringify(SETTINGS_DEFAULT));
@@ -3249,6 +3324,13 @@ const SETTINGS_MOTION_SPEED_OPTIONS = [
   { key: "slow", label: "ゆっくり" },
   { key: "standard", label: "標準" },
   { key: "fast", label: "高速" },
+];
+/* Phase62 Media Library設定トグル。keyはSETTINGS_DEFAULT.mediaLibraryの
+   キー名と一致させる(SETTINGS_MOTION_TOGGLESと同じ命名規則)。 */
+const SETTINGS_MEDIA_LIBRARY_TOGGLES = [
+  { key: "bgmEnabled", label: "BGM" },
+  { key: "autoplay", label: "自動再生" },
+  { key: "themeAutoSwitch", label: "テーマ自動切替" },
 ];
 /* switchView("settings")のたびに呼ばれる、設定画面の描画関数。
    既存のrenderNotificationModeChips()と同じ「毎回innerHTMLを作り
@@ -3341,6 +3423,65 @@ function renderSettingsView(){
       });
       motionSpeedRow.appendChild(btn);
     });
+  }
+
+  /* Phase62 Media Library設定。KaosuMediaLibraryが未読込(scriptの
+     読み込み順が崩れた等の異常系)でも設定画面自体は壊れないよう、
+     typeof チェックで安全にフォールバックする(空リストのまま=
+     「固定する」の選択肢が「自動」だけになるだけ)。 */
+  const mediaToggleRow = document.getElementById("settingsMediaLibraryToggleRow");
+  if(mediaToggleRow){
+    mediaToggleRow.innerHTML = "";
+    SETTINGS_MEDIA_LIBRARY_TOGGLES.forEach(item => {
+      const on = s.mediaLibrary[item.key] !== false;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "filterbtn" + (on ? " active" : "");
+      btn.textContent = `${item.label}: ${on ? "ON" : "OFF"}`;
+      btn.addEventListener("click", () => {
+        const next = settingsRead();
+        next.mediaLibrary[item.key] = !(next.mediaLibrary[item.key] !== false);
+        settingsWrite(next);
+        renderSettingsView();
+      });
+      mediaToggleRow.appendChild(btn);
+    });
+  }
+  const mediaVolumeInput = document.getElementById("settingsMediaBgmVolume");
+  if(mediaVolumeInput){
+    mediaVolumeInput.value = String(typeof s.mediaLibrary.bgmVolume === "number" ? s.mediaLibrary.bgmVolume : 0.5);
+    mediaVolumeInput.oninput = () => {
+      const next = settingsRead();
+      next.mediaLibrary.bgmVolume = Math.min(1, Math.max(0, Number(mediaVolumeInput.value) || 0));
+      settingsWrite(next);
+    };
+  }
+  const mediaLib = (typeof KaosuMediaLibrary !== "undefined") ? KaosuMediaLibrary : null;
+  const mediaWallpaperSelect = document.getElementById("settingsMediaWallpaperLocked");
+  if(mediaWallpaperSelect){
+    const wallpapers = mediaLib ? mediaLib.getWallpaperList() : [];
+    mediaWallpaperSelect.innerHTML = "";
+    mediaWallpaperSelect.appendChild(new Option("自動(おすすめ/時間帯に合わせる)", ""));
+    wallpapers.forEach(w => mediaWallpaperSelect.appendChild(new Option(w.label, w.label)));
+    mediaWallpaperSelect.value = s.mediaLibrary.wallpaperLocked || "";
+    mediaWallpaperSelect.onchange = () => {
+      const next = settingsRead();
+      next.mediaLibrary.wallpaperLocked = mediaWallpaperSelect.value;
+      settingsWrite(next);
+    };
+  }
+  const mediaThemeSelect = document.getElementById("settingsMediaThemeLocked");
+  if(mediaThemeSelect){
+    const themes = mediaLib ? mediaLib.getThemeList() : [];
+    mediaThemeSelect.innerHTML = "";
+    mediaThemeSelect.appendChild(new Option("自動(時間帯/季節に合わせる)", ""));
+    themes.forEach(t => mediaThemeSelect.appendChild(new Option(t.label, t.label)));
+    mediaThemeSelect.value = s.mediaLibrary.themeLocked || "";
+    mediaThemeSelect.onchange = () => {
+      const next = settingsRead();
+      next.mediaLibrary.themeLocked = mediaThemeSelect.value;
+      settingsWrite(next);
+    };
   }
 }
 
@@ -11952,6 +12093,77 @@ function fadeKaosuBgmVolume(audioEl, from, to, durationMs, onDone){
     }
   }, 60);
 }
+
+/* --- Phase62 Media Library: 起動演出 ---------------------------------------
+   運営が「公開」したBGM/壁紙がある時だけ、起動直後に一瞬だけ全画面
+   オーバーレイを見せる(⑧起動演出)。既存の#kaosuBgmAudio/Startup
+   Sequence/Room Engineには一切触れず、専用の<audio>とCSSクラスの
+   トグルだけで完結する。新規タイマーは追加せず、既存のfadeKaosuBgm
+   Volume()(setInterval、自己終了)をそのまま再利用する。 */
+function kaosuPlayMediaBootOverlay(wallpaper, bgm, mediaSettings){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("kaosuMediaBootOverlay");
+    const img = document.getElementById("kaosuMediaBootWallpaper");
+    const audio = document.getElementById("kaosuMediaBgmAudio");
+    if(!overlay){ resolve(); return; }
+    if(wallpaper && wallpaper.image && img){ img.src = wallpaper.image; img.style.display = "block"; }
+    else if(img){ img.style.display = "none"; }
+    overlay.style.display = "flex";
+    requestAnimationFrame(() => overlay.classList.add("is-active"));
+    if(bgm && bgm.file && audio && mediaSettings.bgmEnabled !== false && mediaSettings.autoplay !== false){
+      audio.src = bgm.file;
+      audio.loop = false;
+      audio.volume = 0;
+      const targetVolume = typeof mediaSettings.bgmVolume === "number" ? Math.min(1, Math.max(0, mediaSettings.bgmVolume)) : 0.5;
+      const playPromise = audio.play();
+      if(playPromise && typeof playPromise.catch === "function") playPromise.catch(() => {});
+      fadeKaosuBgmVolume(audio, 0, targetVolume, 1500);
+    }
+    setTimeout(() => {
+      overlay.classList.remove("is-active");
+      setTimeout(() => {
+        overlay.style.display = "none";
+        /* オーバーレイを閉じる瞬間に必ず停止する(=以後は既存のBGM
+           Engine/管理画面プレイリストだけが#kaosuBgmAudioを使う、
+           二重再生を防ぐためのクリーンな受け渡し)。 */
+        if(audio){ audio.pause(); audio.currentTime = 0; }
+        resolve();
+      }, 500);
+    }, 2400);
+  });
+}
+async function kaosuMediaLibraryBoot(){
+  try{
+    if(typeof KaosuMediaLibrary === "undefined") return;
+    await KaosuMediaLibrary.syncAndCache();
+    const s = settingsRead();
+    const ml = s.mediaLibrary;
+    const now = new Date();
+    let wallpaper = null;
+    let bgm = null;
+    if(ml.wallpaperLocked){
+      wallpaper = KaosuMediaLibrary.getWallpaperList().find(w => w.label === ml.wallpaperLocked) || null;
+    }
+    if(ml.themeLocked){
+      const lockedTheme = KaosuMediaLibrary.getThemeList().find(t => t.label === ml.themeLocked);
+      if(lockedTheme){
+        if(!wallpaper) wallpaper = KaosuMediaLibrary.getWallpaperList().find(w => w.label === lockedTheme.wallpaper) || null;
+        bgm = KaosuMediaLibrary.getBgmList().find(b => b.label === lockedTheme.bgm) || null;
+      }
+    }
+    if(!wallpaper && !bgm){
+      const picked = KaosuMediaLibrary.pickBootMedia(now);
+      wallpaper = wallpaper || picked.wallpaper;
+      bgm = bgm || picked.bgm;
+    }
+    /* 公開済みのBGM/壁紙が1つも無ければ、既存の起動体験に一切影響を
+       与えないため、ここで何もせず終える(オーバーレイは表示されない
+       まま=既存動作と完全に同一)。 */
+    if(!wallpaper && !bgm) return;
+    await kaosuPlayMediaBootOverlay(wallpaper, bgm, ml);
+  }catch(e){ /* Media Libraryの失敗でアプリ起動自体を止めない */ }
+}
+
 let kaosuBgmCurrentTrackId = null;
 let kaosuBgmCurrentFadeOutMs = 1000;
 /* トラック再生が終わった時に呼ばれる。ホーム画面を離れていれば何もしない。
@@ -16280,7 +16492,13 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
    以前のWeb版(admin.html, GitHub Contents API + Vercel経由)のUI・
    モジュール構成・共通編集エンジンをそのまま移植し、保存先だけを
    koufukuAiDB(IndexedDB)へ差し替えたもの。GitHub Pages/Vercel/
-   ADMIN_PASSWORD/GITHUB_ADMIN_TOKENへの依存はここには一切無い。
+   ADMIN_PASSWORD/GITHUB_ADMIN_TOKENへの依存はここには一切無い
+   ……という設計はPhase61まで維持していたが、Phase62(Media Library)
+   だけ例外を設けた: 「Media Library」タブの「GitHubへ公開」ボタンを
+   押した時だけ、api/admin-github.js(Phase20で廃止し、Phase62で復活)
+   をfetchする。それ以外の全モジュール(下書きの保存・編集・削除・
+   通常のCMSタブ)は、これまでどおりkoufukuAiDB(IndexedDB)だけで
+   完結し、GitHub/Vercelには一切触れない。
    このIIFE内の関数・変数はすべてローカルスコープに閉じており、
    アプリ本体の他のJSとは名前が一切衝突しない。
    ========================================================= */
@@ -16288,6 +16506,92 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
   "use strict";
 
   const $ = (id) => document.getElementById(id);
+
+  /* ===== Phase62: Media Library「GitHubへ公開」だけが使う小さな
+     ヘルパー群。既存のkoufukuAiDB経由の保存(uploadAndRegister等)には
+     一切触れず、完全に独立した経路として実装する。 ===== */
+  const MEDIA_ADMIN_ENDPOINT = "https://luminatest-one.vercel.app/api/admin-github";
+  const MEDIA_LIBRARY_WALLPAPER_DIR = "img/koufuku/room/media/wallpaper";
+  const MEDIA_LIBRARY_BGM_DIR = "audio/koufuku/media/bgm";
+  const MEDIA_LIBRARY_JSON_PATH = "data/cms/mediaLibrary.json";
+  const MEDIA_PUBLISH_TOKEN_KEY = "kaosuMediaPublishToken";
+  let mediaPublishSha = null; // 直近取得/保存したmediaLibrary.jsonのsha(楽観ロック用)
+
+  // 公開用パスワード(Vercelに設定したADMIN_PASSWORD)。アプリ内管理者
+  // モードのログインパスワード(IndexedDBローカル)とは別物。タブを
+  // 閉じるまでのセッション中だけ保持し、平文のまま永続化はしない。
+  function mediaGetPublishToken(){
+    let token = "";
+    try{ token = sessionStorage.getItem(MEDIA_PUBLISH_TOKEN_KEY) || ""; }catch(e){ /* private mode等 */ }
+    if(!token){
+      token = prompt("公開用パスワード(Vercelに設定したADMIN_PASSWORD)を入力してください。") || "";
+      if(token){ try{ sessionStorage.setItem(MEDIA_PUBLISH_TOKEN_KEY, token); }catch(e){} }
+    }
+    return token;
+  }
+  async function kaosuMediaGithubApi(action, payload){
+    const token = mediaGetPublishToken();
+    if(!token) throw new Error("公開用パスワードが未入力です");
+    const res = await fetch(MEDIA_ADMIN_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+      body: JSON.stringify(Object.assign({ action }, payload)),
+    });
+    let data = {};
+    try{ data = await res.json(); }catch(e){ data = {}; }
+    if(!res.ok){
+      if(res.status === 401){ try{ sessionStorage.removeItem(MEDIA_PUBLISH_TOKEN_KEY); }catch(e){} }
+      throw new Error((data && data.message) || ("HTTP " + res.status));
+    }
+    return data;
+  }
+  function mediaFileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+  function mediaSanitizeFilename(name){ return String(name || "file").replace(/[^a-zA-Z0-9_\-.]/g, "_"); }
+  async function kaosuMediaGithubUpload(dir, file){
+    const contentBase64 = await mediaFileToBase64(file);
+    const filename = Date.now().toString(36) + "-" + mediaSanitizeFilename(file.name);
+    const result = await kaosuMediaGithubApi("uploadFile", { dir, filename, contentBase64 });
+    return { name: result.name, url: result.url + "?t=" + Date.now(), path: result.path, sha: result.sha };
+  }
+  // BGM/壁紙/テーマの3タブの現在の下書きをまとめてdata/cms/mediaLibrary.json
+  // として公開する。3タブのうち未読込(このセッションで一度も開いていない)
+  // ものはCROSS_REF_IDSと同じ要領で先に読み込んでから使う。
+  async function kaosuMediaPublish(){
+    const statusEl = $("mediaLibraryPublishStatus");
+    const btn = $("btnMediaPublish");
+    if(statusEl){ statusEl.style.display = "block"; statusEl.textContent = "公開中…"; }
+    if(btn) btn.disabled = true;
+    try{
+      await Promise.all(["mediaBgm", "mediaWallpaper", "mediaTheme"].map(id => {
+        const mod = MODULES.find(m => m.id === id);
+        if(mod && !(genericState[id] && genericState[id].loaded)) return loadGenericModule(mod);
+        return Promise.resolve();
+      }));
+      const bgm = (genericState.mediaBgm && genericState.mediaBgm.draft && genericState.mediaBgm.draft.items) || [];
+      const wallpaper = (genericState.mediaWallpaper && genericState.mediaWallpaper.draft && genericState.mediaWallpaper.draft.items) || [];
+      const theme = (genericState.mediaTheme && genericState.mediaTheme.draft && genericState.mediaTheme.draft.items) || [];
+      const content = { configVersion: 1, publishedAt: new Date().toISOString(), bgm, wallpaper, theme };
+      let sha = mediaPublishSha;
+      if(!sha){
+        const existing = await kaosuMediaGithubApi("getJson", { path: MEDIA_LIBRARY_JSON_PATH });
+        sha = existing && existing.sha;
+      }
+      const result = await kaosuMediaGithubApi("saveJson", { path: MEDIA_LIBRARY_JSON_PATH, content, sha });
+      mediaPublishSha = result.sha || null;
+      if(statusEl) statusEl.textContent = "✅ 公開しました。GitHub Pagesへの反映まで数十秒〜1分ほどかかります。";
+    }catch(e){
+      if(statusEl) statusEl.textContent = "❌ 公開に失敗しました: " + e.message;
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  }
 
   const TIME_BANDS = [
     { key: "morning", label: "朝" }, { key: "day", label: "昼" }, { key: "evening", label: "夕方" },
@@ -16340,6 +16644,34 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
   // group:"room" の4つはkoufukuAiDBのcmsConfig(id="room")を共有する
   // 専用エディタ、group:"generic" のものはモジュールごとに個別の
   // cmsConfigレコード(id=モジュールid)を汎用エンジンで編集する。
+  /* Phase62 Media Libraryの既定データ。カテゴリ語彙はmediaLibrary.js
+     のEMOTION_MEDIA_MAP/resolveTimeBandTheme/resolveSeasonalPriorityTheme
+     が参照する文字列とそろえてある(自由記述ではなく選択式にすることで、
+     おすすめ機能が確実に一致判定できるようにする)。 */
+  const MEDIA_BGM_CATEGORY_OPTIONS = [
+    { value: "", label: "(未分類)" },
+    { value: "piano", label: "ピアノ" }, { value: "night", label: "夜" }, { value: "ambient", label: "環境音" },
+    { value: "lofi", label: "Lo-fi" }, { value: "morning", label: "朝" }, { value: "healing", label: "ヒーリング" },
+    { value: "cafe", label: "カフェ" }, { value: "rain", label: "雨" },
+  ];
+  const MEDIA_WALLPAPER_CATEGORY_OPTIONS = [
+    { value: "", label: "(未分類)" },
+    { value: "morning", label: "朝" }, { value: "rain", label: "雨" }, { value: "forest", label: "森林" },
+    { value: "lofi", label: "Lo-fi" }, { value: "night", label: "夜景" }, { value: "sakura", label: "桜" }, { value: "snow", label: "雪" },
+  ];
+  const MEDIA_SEASON_OPTIONS = [
+    { value: "", label: "(指定しない)" },
+    { value: "spring", label: "春" }, { value: "summer", label: "夏" }, { value: "autumn", label: "秋" }, { value: "winter", label: "冬" },
+    { value: "christmas", label: "クリスマス" }, { value: "halloween", label: "ハロウィン" }, { value: "newyear", label: "お正月" },
+  ];
+  const MEDIA_EMOTION_OPTIONS = [
+    { value: "", label: "(指定しない)" },
+    { value: "happy", label: "Happy" }, { value: "sad", label: "Sad" }, { value: "relax", label: "Relax" }, { value: "focus", label: "Focus" },
+  ];
+  const MEDIA_BGM_DEFAULT_ITEMS = [];
+  const MEDIA_WALLPAPER_DEFAULT_ITEMS = [];
+  const MEDIA_THEME_DEFAULT_ITEMS = [];
+
   const MODULES = [
     { id: "room", icon: "🏠", label: "部屋編集", category: "room", group: "room" },
     { id: "character", icon: "👧", label: "ケイオスちゃん編集", category: "room", group: "room" },
@@ -16856,6 +17188,51 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
         { key: "enabled", label: "有効", type: "boolean", default: true },
       ],
       note: "AI自身の「今日の意思決定」(Phase47 Decision Engine)です。Goalと同じ「日付をシードにした決定的な選択」ですが、別のシードを使うため同じ日でもGoalとは異なる値が選ばれます。Resolver Rulesの「条件: 今日の意思決定」から参照でき、Memoryのtoday Decisionへも自動保存されます。",
+    },
+    {
+      id: "mediaBgm", icon: "🎵", label: "Media BGM", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: MEDIA_BGM_DEFAULT_ITEMS }, itemLabel: "BGM",
+      schema: [
+        { key: "label", label: "曲名(テーマから参照するキーになります)", type: "text", default: "新しいBGM" },
+        { key: "file", label: "音源ファイル", type: "githubAudio", default: "" },
+        { key: "category", label: "カテゴリ(AIおすすめ機能が使用)", type: "select", default: "", options: MEDIA_BGM_CATEGORY_OPTIONS },
+        { key: "volume", label: "音量初期値(0-1)", type: "number", step: 0.05, min: 0, max: 1, default: 0.5 },
+        { key: "loop", label: "ループ再生", type: "boolean", default: true },
+        { key: "enabled", label: "公開する", type: "boolean", default: false },
+      ],
+      note: "ここに登録して「有効」をONにしたBGMだけが、「GitHubへ公開」ボタンを押した時にdata/cms/mediaLibrary.jsonへ書き出され、全ユーザーへ配信されます(💾保存するはこの端末内の下書き保存のみです)。音源ファイルは既存のBGMタブ(IndexedDBのみ、この端末限定)とは別に、GitHubリポジトリへ直接アップロードされます。",
+    },
+    {
+      id: "mediaWallpaper", icon: "🖼️", label: "Media 壁紙", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: MEDIA_WALLPAPER_DEFAULT_ITEMS }, itemLabel: "壁紙",
+      schema: [
+        { key: "label", label: "名前(テーマから参照するキーになります)", type: "text", default: "新しい壁紙" },
+        { key: "image", label: "画像", type: "githubImage", default: "" },
+        { key: "category", label: "カテゴリ(AIおすすめ機能が使用)", type: "select", default: "", options: MEDIA_WALLPAPER_CATEGORY_OPTIONS },
+        { key: "enabled", label: "公開する", type: "boolean", default: false },
+      ],
+      note: "ここに登録して「有効」をONにした壁紙だけが、「GitHubへ公開」ボタンを押した時にdata/cms/mediaLibrary.jsonへ書き出され、全ユーザーへ配信されます。既存のホーム画面の背景(時間帯背景/Room States)には一切影響しません。",
+    },
+    {
+      id: "mediaTheme", icon: "🎨", label: "Media テーマ", category: "room", group: "generic",
+      kind: "collection", defaultShape: { items: MEDIA_THEME_DEFAULT_ITEMS }, itemLabel: "テーマ",
+      schema: [
+        { key: "label", label: "テーマ名", type: "text", default: "新しいテーマ" },
+        { key: "wallpaper", label: "壁紙(空欄=なし)", type: "dynamicSelect", default: "",
+          emptyLabel: "(なし)",
+          optionsSource: () => (((genericState.mediaWallpaper && genericState.mediaWallpaper.draft && genericState.mediaWallpaper.draft.items) || []).map(w => ({ value: w.label, label: w.label }))) },
+        { key: "bgm", label: "BGM(空欄=なし)", type: "dynamicSelect", default: "",
+          emptyLabel: "(なし)",
+          optionsSource: () => (((genericState.mediaBgm && genericState.mediaBgm.draft && genericState.mediaBgm.draft.items) || []).map(b => ({ value: b.label, label: b.label }))) },
+        { key: "icon", label: "アイコン(絵文字1〜2文字)", type: "text", default: "" },
+        { key: "description", label: "説明", type: "textarea", default: "" },
+        { key: "timeBand", label: "時間帯(Daily Cycle連携、空欄=指定しない)", type: "select", default: "",
+          options: [ { value: "", label: "(指定しない)" }, { value: "morning", label: "朝" }, { value: "day", label: "昼" }, { value: "evening", label: "夕方" }, { value: "night", label: "夜" }, { value: "midnight", label: "深夜" } ] },
+        { key: "season", label: "季節/季節イベント(空欄=指定しない)", type: "select", default: "", options: MEDIA_SEASON_OPTIONS },
+        { key: "emotion", label: "おすすめ感情(空欄=指定しない)", type: "select", default: "", options: MEDIA_EMOTION_OPTIONS },
+        { key: "enabled", label: "公開する", type: "boolean", default: false },
+      ],
+      note: "壁紙+BGMの組み合わせを「テーマ」としてまとめて管理できます。時間帯/季節イベント/おすすめ感情のいずれかを設定しておくと、⑥Daily Cycle連携・⑦季節イベント・⑤AIおすすめの解決対象になります(mediaLibrary.jsが読み取るだけで、既存のResolver/Roomエンジンには一切接続していません)。",
     },
     {
       id: "dailyTimeline", icon: "📜", label: "Timeline", category: "room", group: "generic",
@@ -17397,6 +17774,9 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       livingEvents: ["statePresets"],
       futureEvents: ["statePresets"],
       aiPreferences: ["music", "roomStates", "lighting", "futureEvents"],
+      /* Phase62: テーマはBGM/壁紙をdynamicSelectで参照するため、
+         開いた時点で両方先読みしておく(既存パターンの踏襲)。 */
+      mediaTheme: ["mediaBgm", "mediaWallpaper"],
     };
     if(CROSS_REF_IDS[tabId]){
       await Promise.all(CROSS_REF_IDS[tabId].map(id => {
@@ -17413,6 +17793,12 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       $("adminSaveBar").style.display = "flex";
       $("btnAdminSave").disabled = !state.dirty;
     }
+    /* Phase62: 「GitHubへ公開」ボタンはMedia Libraryの3タブを開いて
+       いる時だけ表示する(それ以外のタブでは今までどおり非表示)。 */
+    const mediaPublishBtn = $("btnMediaPublish");
+    if(mediaPublishBtn) mediaPublishBtn.style.display = ["mediaBgm", "mediaWallpaper", "mediaTheme"].includes(tabId) ? "inline-block" : "none";
+    const mediaPublishStatus = $("mediaLibraryPublishStatus");
+    if(mediaPublishStatus) mediaPublishStatus.style.display = "none";
     $("adminSaveStatus").textContent = "";
     $("adminSaveStatus").className = "";
   }
@@ -18004,6 +18390,58 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
       wrap.appendChild(row);
       return wrap;
     }
+    /* Phase62 Media Library専用: 既存のimage/audio(IndexedDBのBlobを
+       参照するだけで、ブラウザ間で共有されない)とは別に、アップロード
+       すると実際にGitHubリポジトリへコミットされ、GitHub Pages経由で
+       全ユーザーが取得できる公開URL(文字列)をそのままフィールド値に
+       する。既存のimage/audio型・他の18種のタブは一切変更しない、
+       純粋な追加の2型。 */
+    if(fieldDef.type === "githubImage" || fieldDef.type === "githubAudio"){
+      const isAudio = fieldDef.type === "githubAudio";
+      const row = document.createElement("div");
+      row.className = "media-field";
+      const urlInput = document.createElement("input");
+      urlInput.type = "text";
+      urlInput.placeholder = "アップロード後に自動入力されます(URLを直接貼ってもOK)";
+      urlInput.value = value || "";
+      urlInput.style.cssText = "flex:1; min-width:120px;";
+      urlInput.addEventListener("input", () => {
+        setPath(item, fieldDef.key, urlInput.value);
+        preview.src = urlInput.value || "";
+        onChange(fieldDef);
+      });
+      const preview = isAudio ? document.createElement("audio") : document.createElement("img");
+      if(isAudio){ preview.className = "mini-audio"; preview.controls = true; }
+      else { preview.className = "media-preview-thumb"; preview.onerror = function(){ this.style.visibility = "hidden"; }; }
+      if(value) preview.src = value;
+      const uploadBtn = document.createElement("button");
+      uploadBtn.type = "button"; uploadBtn.className = "secondary tiny"; uploadBtn.textContent = "GitHubへアップロード";
+      uploadBtn.addEventListener("click", () => {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = isAudio ? ".mp3,.ogg,.wav,.m4a" : ".webp,.png,.jpg,.jpeg,.gif,.svg";
+        fileInput.onchange = async () => {
+          const file = fileInput.files && fileInput.files[0];
+          if(!file) return;
+          const originalLabel = uploadBtn.textContent;
+          uploadBtn.disabled = true;
+          uploadBtn.textContent = "アップロード中…";
+          try{
+            const dir = isAudio ? MEDIA_LIBRARY_BGM_DIR : MEDIA_LIBRARY_WALLPAPER_DIR;
+            const entry = await kaosuMediaGithubUpload(dir, file);
+            urlInput.value = entry.url;
+            preview.src = entry.url;
+            setPath(item, fieldDef.key, entry.url);
+            onChange(fieldDef);
+          }catch(e){ alert("GitHubへのアップロードに失敗しました: " + e.message); }
+          finally{ uploadBtn.disabled = false; uploadBtn.textContent = originalLabel; }
+        };
+        fileInput.click();
+      });
+      row.appendChild(urlInput); row.appendChild(preview); row.appendChild(uploadBtn);
+      wrap.appendChild(row);
+      return wrap;
+    }
     if(fieldDef.type === "collection"){
       wrap.style.gridColumn = "1 / -1";
       let arr = getPath(item, fieldDef.key);
@@ -18305,6 +18743,16 @@ document.getElementById("btnSettingsResetConfirm").addEventListener("click", asy
     }
   });
 
+  /* Phase62: 「GitHubへ公開」。IndexedDBへの下書き保存(💾保存する)とは
+     独立した操作で、公開前に必ずまず保存しておくことを促す(下書きが
+     未保存のまま公開すると、公開されるのは前回保存済みの内容になって
+     しまうため)。 */
+  $("btnMediaPublish").addEventListener("click", async () => {
+    const state = currentDirtyState();
+    if(state.dirty && !confirm("保存していない変更があります。先に「💾保存する」を押してから公開することをおすすめします。このまま公開しますか?")) return;
+    await kaosuMediaPublish();
+  });
+
   // 保存/削除/インポートの直後に呼ぶ。ホーム画面側のキャッシュを無効化
   // して読み直し、今ホーム画面が表示中ならその場で再描画する
   // (アプリ再起動不要で反映するための唯一の経路)。
@@ -18566,6 +19014,10 @@ renderHomeStep();
 renderFilters();
 renderSpeechStyleSetting();
 renderHomeModeUI();
+/* Phase62: Media Library同期+起動演出。公開済みのBGM/壁紙が無ければ
+   何もしない(既存のStartup Sequence以下の起動シーケンスには一切
+   影響しない、新しい1行の追加呼び出しのみ)。 */
+kaosuMediaLibraryBoot();
 playKaosuStartupSequence();
 renderKaosuRoomSceneWithEntrance();
 startKaosuBgm();

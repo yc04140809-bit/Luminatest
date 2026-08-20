@@ -12,6 +12,7 @@ on:
     branches: ["claude/koufuku-ai-phase18"]
     paths:
       - "koufuku-ai.html"
+      - "mediaLibrary.js"
       - "img/koufuku/**"
       - "audio/koufuku/**"
       - "data/cms/**"
