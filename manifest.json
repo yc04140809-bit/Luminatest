@@ -1,0 +1,12 @@
+{
+  "name": "ケイオスちゃん",
+  "short_name": "ケイオスちゃん",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0d0a1a",
+  "theme_color": "#0d0a1a",
+  "icons": [
+    { "src": "img/kaosu/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "img/kaosu/icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
