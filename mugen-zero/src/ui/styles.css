@@ -1,0 +1,345 @@
+:root {
+  --bg: #0b0b12;
+  --panel: #16161f;
+  --panel-2: #1e1e2a;
+  --text: #e8e6e0;
+  --text-dim: #9a97a3;
+  --accent: #e8c15a;
+  --danger: #c05555;
+  --green: #6fae7d;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
+}
+
+.app {
+  height: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ---- generic ---- */
+.btn {
+  appearance: none;
+  border: 1px solid #35354a;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 16px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:active {
+  background: #2a2a3c;
+}
+.btn.primary {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.screen-title {
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 14px 0 6px;
+}
+
+/* ---- title ---- */
+.title-screen {
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  background: radial-gradient(ellipse at 50% 35%, #171726 0%, var(--bg) 70%);
+}
+.title-logo {
+  font-size: 40px;
+  letter-spacing: 0.28em;
+  font-weight: 700;
+  text-align: center;
+}
+.title-sub {
+  font-size: 12px;
+  letter-spacing: 0.5em;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* ---- dialogue ---- */
+.dialogue-screen {
+  justify-content: flex-end;
+  background: #000;
+  cursor: pointer;
+}
+.dialogue-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.dialogue-centered {
+  font-size: 18px;
+  line-height: 2;
+  text-align: center;
+  color: var(--text);
+}
+.dialogue-box {
+  margin: 12px;
+  padding: 16px 18px 22px;
+  background: rgba(22, 22, 31, 0.94);
+  border: 1px solid #35354a;
+  border-radius: 12px;
+  min-height: 108px;
+}
+.dialogue-speaker {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.dialogue-text {
+  font-size: 16px;
+  line-height: 1.9;
+}
+.dialogue-next {
+  text-align: right;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* ---- home ---- */
+.home-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+}
+.home-place {
+  color: var(--text-dim);
+  font-size: 13px;
+  letter-spacing: 0.2em;
+}
+.home-explore {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  font-size: 20px;
+  letter-spacing: 0.15em;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  background: rgba(232, 193, 90, 0.06);
+}
+.bottom-nav {
+  display: flex;
+  border-top: 1px solid #26263a;
+  background: var(--panel);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.bottom-nav .nav-item {
+  flex: 1;
+  padding: 14px 0;
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  background: none;
+  border: none;
+}
+.bottom-nav .nav-item.active {
+  color: var(--accent);
+}
+
+/* ---- explore ---- */
+.location-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+}
+.location-card {
+  text-align: left;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #2c2c40;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+}
+.location-card:disabled {
+  opacity: 0.45;
+}
+.location-name {
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.location-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.screen-footer {
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+.screen-footer .btn {
+  width: 100%;
+}
+
+/* ---- greenwood / phaser ---- */
+.phaser-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #060a08;
+}
+.phaser-wrap canvas {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* ---- battle ---- */
+.battle-screen {
+  background: linear-gradient(180deg, #10120e 0%, #0b0b12 100%);
+}
+.battle-enemy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.enemy-figure {
+  width: 110px;
+  height: 110px;
+  border-radius: 14px;
+  background: #262230;
+  border: 1px solid #3c3650;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+}
+.hp-row {
+  width: 240px;
+}
+.hp-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.hp-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #26263a;
+  overflow: hidden;
+}
+.hp-fill {
+  height: 100%;
+  background: var(--green);
+  transition: width 0.25s;
+}
+.hp-fill.enemy {
+  background: var(--danger);
+}
+.battle-log {
+  margin: 0 12px;
+  padding: 10px 14px;
+  min-height: 64px;
+  background: rgba(22, 22, 31, 0.9);
+  border: 1px solid #2c2c40;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.battle-commands {
+  display: flex;
+  gap: 12px;
+  padding: 14px 12px calc(16px + env(safe-area-inset-bottom));
+}
+.battle-commands .btn {
+  flex: 1;
+  font-size: 17px;
+}
+
+/* ---- life choice ---- */
+.life-choice-screen {
+  background: #000;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  padding: 24px;
+  animation: lc-fade 1.2s ease;
+}
+@keyframes lc-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.life-choice-prompt {
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  line-height: 1.8;
+}
+.life-choice-options {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 300px;
+}
+.life-choice-btn {
+  padding: 16px;
+  font-size: 17px;
+  background: rgba(30, 30, 42, 0.85);
+  border: 1px solid #44445c;
+  border-radius: 10px;
+  color: var(--text);
+  cursor: pointer;
+}
+.life-choice-btn .sub {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.25em;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
