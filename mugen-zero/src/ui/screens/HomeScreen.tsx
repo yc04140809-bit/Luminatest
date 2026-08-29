@@ -1,8 +1,9 @@
 interface Props {
   onExplore: () => void;
+  onWorldMemory: () => void;
 }
 
-export function HomeScreen({ onExplore }: Props) {
+export function HomeScreen({ onExplore, onWorldMemory }: Props) {
   return (
     <div className="screen">
       <div className="home-main">
@@ -13,6 +14,14 @@ export function HomeScreen({ onExplore }: Props) {
         <div className="home-place" style={{ letterSpacing: 0 }}>
           周辺を探索する
         </div>
+        <button
+          className="btn"
+          data-testid="world-memory-button"
+          style={{ fontSize: 13 }}
+          onClick={onWorldMemory}
+        >
+          WORLD MEMORY — 世界の記憶
+        </button>
       </div>
       <nav className="bottom-nav">
         <button className="nav-item active">HOME</button>

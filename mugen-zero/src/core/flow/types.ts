@@ -10,15 +10,17 @@ export type Screen =
   | 'ENCOUNTER'
   | 'BATTLE'
   | 'LIFE_CHOICE'
-  | 'CHOICE_RESULT';
+  | 'CHOICE_RESULT'
+  | 'WORLD_MEMORY';
 
 export type LifeChoiceId = 'KILL' | 'SPARE' | 'HELP' | 'CAPTURE';
 
 export interface FlowState {
   screen: Screen;
   /**
-   * Phase A: the Gald life choice is held in memory only.
-   * Phase B will persist it into WORLD MEMORY (IndexedDB).
+   * The choice made this session, for the aftermath screen.
+   * The persisted world truth lives in WORLD MEMORY (IndexedDB),
+   * which is the single source of history — not this field.
    */
   galdLifeChoice: LifeChoiceId | null;
 }

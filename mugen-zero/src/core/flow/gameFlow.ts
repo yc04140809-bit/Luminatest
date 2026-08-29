@@ -5,15 +5,16 @@ import type { FlowState, LifeChoiceId, Screen } from './types';
 
 /** Allowed transitions for the Phase A vertical slice. */
 const TRANSITIONS: Record<Screen, Screen[]> = {
-  TITLE: ['PROLOGUE'],
+  TITLE: ['PROLOGUE', 'HOME'], // TITLE -> HOME = continue with an existing world
   PROLOGUE: ['HOME'],
-  HOME: ['EXPLORE'],
+  HOME: ['EXPLORE', 'WORLD_MEMORY'],
   EXPLORE: ['GREENWOOD', 'HOME'],
   GREENWOOD: ['ENCOUNTER', 'EXPLORE'],
   ENCOUNTER: ['BATTLE'],
   BATTLE: ['LIFE_CHOICE', 'HOME'],
   LIFE_CHOICE: ['CHOICE_RESULT'],
   CHOICE_RESULT: ['HOME'],
+  WORLD_MEMORY: ['HOME'],
 };
 
 type Listener = () => void;

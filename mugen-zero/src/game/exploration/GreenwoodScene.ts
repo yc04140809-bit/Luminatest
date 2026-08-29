@@ -13,6 +13,14 @@ export interface GreenwoodCallbacks {
   onEncounter: () => void;
 }
 
+export interface GreenwoodOptions {
+  /**
+   * False once Gald's life choice is already recorded in WORLD MEMORY:
+   * the same first encounter must not happen twice in one world.
+   */
+  encounterEnabled: boolean;
+}
+
 /**
  * Minimal Greenwood Forest exploration scene.
  * Tap anywhere to walk; reaching the "!" marker triggers the Gald encounter.
@@ -23,10 +31,12 @@ export class GreenwoodScene extends Phaser.Scene {
   private target: Phaser.Math.Vector2 | null = null;
   private encounterFired = false;
   private callbacks: GreenwoodCallbacks;
+  private options: GreenwoodOptions;
 
-  constructor(callbacks: GreenwoodCallbacks) {
+  constructor(callbacks: GreenwoodCallbacks, options: GreenwoodOptions) {
     super('greenwood');
     this.callbacks = callbacks;
+    this.options = options;
   }
 
   create(): void {
@@ -41,16 +51,22 @@ export class GreenwoodScene extends Phaser.Scene {
       this.add.rectangle(x, y + 20, 6, 14, 0x2c2418);
     }
 
-    // Encounter marker.
-    this.add.circle(ENCOUNTER_POINT.x, ENCOUNTER_POINT.y, ENCOUNTER_RADIUS, 0x2a2233, 0.9);
-    const mark = this.add
-      .text(ENCOUNTER_POINT.x, ENCOUNTER_POINT.y, '!', {
-        fontSize: '28px',
-        color: '#e8c15a',
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5);
-    this.tweens.add({ targets: mark, y: ENCOUNTER_POINT.y - 6, duration: 600, yoyo: true, repeat: -1 });
+    if (this.options.encounterEnabled) {
+      // Encounter marker.
+      this.add.circle(ENCOUNTER_POINT.x, ENCOUNTER_POINT.y, ENCOUNTER_RADIUS, 0x2a2233, 0.9);
+      const mark = this.add
+        .text(ENCOUNTER_POINT.x, ENCOUNTER_POINT.y, '!', {
+          fontSize: '28px',
+          color: '#e8c15a',
+          fontStyle: 'bold',
+        })
+        .setOrigin(0.5);
+      this.tweens.add({ targets: mark, y: ENCOUNTER_POINT.y - 6, duration: 600, yoyo: true, repeat: -1 });
+    } else {
+      this.add
+        .text(GAME_WIDTH / 2, 120, '森は、静かだ。', { fontSize: '14px', color: '#9fb3a8' })
+        .setOrigin(0.5);
+    }
 
     this.player = this.add.circle(PLAYER_START.x, PLAYER_START.y, 10, 0xd8e6f0);
 
@@ -69,6 +85,8 @@ export class GreenwoodScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.encounterFired) return;
 
+    const encounterActive = this.options.encounterEnabled;
+
     if (this.target) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
       const step = (PLAYER_SPEED * delta) / 1000;
@@ -81,6 +99,8 @@ export class GreenwoodScene extends Phaser.Scene {
         this.player.y += Math.sin(angle) * step;
       }
     }
+
+    if (!encounterActive) return;
 
     const dEnc = Phaser.Math.Distance.Between(
       this.player.x, this.player.y, ENCOUNTER_POINT.x, ENCOUNTER_POINT.y,
@@ -95,7 +115,11 @@ export class GreenwoodScene extends Phaser.Scene {
   }
 }
 
-export function createGreenwoodGame(parent: HTMLElement, callbacks: GreenwoodCallbacks): Phaser.Game {
+export function createGreenwoodGame(
+  parent: HTMLElement,
+  callbacks: GreenwoodCallbacks,
+  options: GreenwoodOptions,
+): Phaser.Game {
   return new Phaser.Game({
     type: Phaser.AUTO,
     parent,
@@ -106,6 +130,6 @@ export function createGreenwoodGame(parent: HTMLElement, callbacks: GreenwoodCal
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: new GreenwoodScene(callbacks),
+    scene: new GreenwoodScene(callbacks, options),
   });
 }
