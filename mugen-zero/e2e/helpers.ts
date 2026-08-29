@@ -61,6 +61,44 @@ export function readSchemaVersion(page: Page): Promise<number | null> {
   );
 }
 
+/** Reads one current-state row (world_clock, character_GALD, …) from IndexedDB. */
+export function readWorldStateValue(page: Page, key: string): Promise<unknown> {
+  return page.evaluate(
+    (stateKey) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open('mugen-zero-save');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          if (!db.objectStoreNames.contains('world_state')) {
+            db.close();
+            resolve(undefined);
+            return;
+          }
+          const rq = db.transaction('world_state', 'readonly').objectStore('world_state').get(stateKey);
+          rq.onsuccess = () => {
+            db.close();
+            resolve(rq.result ? rq.result.value : undefined);
+          };
+          rq.onerror = () => reject(rq.error);
+        };
+      }),
+    key,
+  );
+}
+
+/** Clicks ADVANCE DAY on the HOME screen n times, waiting out each advance. */
+export async function advanceDays(page: Page, n: number): Promise<void> {
+  const button = page.getByTestId('advance-day-button');
+  const clock = page.getByTestId('world-clock');
+  for (let i = 0; i < n; i++) {
+    const before = await clock.textContent();
+    await expect(button).toBeEnabled();
+    await button.click();
+    await expect(clock).not.toHaveText(before ?? '');
+  }
+}
+
 /** Walks the player to the "!" marker in the Greenwood Phaser scene. */
 export async function walkToEncounterMarker(page: Page): Promise<void> {
   const canvas = page.locator('.phaser-wrap canvas');

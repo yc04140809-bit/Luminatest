@@ -1,13 +1,14 @@
 // IndexedDB implementation of MemoryEventStore.
 // The only module in the codebase that talks to IndexedDB.
 
-import type { MemoryEvent, MemoryEventStore } from './types';
+import type { MemoryEvent, MemoryEventStore, WorldStateRow } from './types';
 
 export const DB_NAME = 'mugen-zero-save';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const EVENTS_STORE = 'memory_events';
 export const META_STORE = 'meta';
-export const SAVE_SCHEMA_VERSION = 1;
+export const WORLD_STATE_STORE = 'world_state';
+export const SAVE_SCHEMA_VERSION = 2;
 
 function promisify<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -45,17 +46,22 @@ export class IdbMemoryStore implements MemoryEventStore {
         if (!db.objectStoreNames.contains(META_STORE)) {
           db.createObjectStore(META_STORE, { keyPath: 'key' });
         }
+        // v2: current world state (clock, character states).
+        if (!db.objectStoreNames.contains(WORLD_STATE_STORE)) {
+          db.createObjectStore(WORLD_STATE_STORE, { keyPath: 'key' });
+        }
       };
       open.onsuccess = () => resolve(open.result);
       open.onerror = () => reject(open.error);
     });
 
-    // Stamp the schema version on first run. No migration engine yet —
-    // a newer-than-known save is only warned about.
+    // Stamp / upgrade the schema version. No migration engine yet —
+    // v1 saves only lacked the world_state store (absent rows fall back
+    // to defaults), so stamping forward is the whole migration.
     const tx = this.db.transaction(META_STORE, 'readwrite');
     const meta = tx.objectStore(META_STORE);
     const existing = await promisify(meta.get('saveSchemaVersion'));
-    if (!existing) {
+    if (!existing || existing.value < SAVE_SCHEMA_VERSION) {
       meta.put({ key: 'saveSchemaVersion', value: SAVE_SCHEMA_VERSION });
     } else if (existing.value > SAVE_SCHEMA_VERSION) {
       console.warn(
@@ -82,17 +88,44 @@ export class IdbMemoryStore implements MemoryEventStore {
   }
 
   async add(event: MemoryEvent): Promise<void> {
-    const tx = this.requireDb().transaction(EVENTS_STORE, 'readwrite');
-    // add() (not put) — the DB itself rejects a duplicate id, so a past
-    // fact can never be silently overwritten.
-    tx.objectStore(EVENTS_STORE).add(event);
+    await this.commit({ addEvents: [event] });
+  }
+
+  async commit(changes: { addEvents?: MemoryEvent[]; putState?: WorldStateRow[] }): Promise<void> {
+    const { addEvents = [], putState = [] } = changes;
+    if (addEvents.length === 0 && putState.length === 0) return;
+
+    // One transaction over both stores: new past facts and the updated
+    // current state land together, or not at all.
+    const tx = this.requireDb().transaction([EVENTS_STORE, WORLD_STATE_STORE], 'readwrite');
+    const events = tx.objectStore(EVENTS_STORE);
+    for (const event of addEvents) {
+      // add() (not put) — the DB itself rejects a duplicate id, so a past
+      // fact can never be silently overwritten; the abort rolls back the
+      // whole commit, state rows included.
+      events.add(event);
+    }
+    const state = tx.objectStore(WORLD_STATE_STORE);
+    for (const row of putState) {
+      state.put(row);
+    }
     await txDone(tx);
   }
 
+  async getStateValue(key: string): Promise<unknown | undefined> {
+    const tx = this.requireDb().transaction(WORLD_STATE_STORE, 'readonly');
+    const row = await promisify(tx.objectStore(WORLD_STATE_STORE).get(key));
+    return row ? (row as WorldStateRow).value : undefined;
+  }
+
   async clearAll(): Promise<void> {
-    const tx = this.requireDb().transaction([EVENTS_STORE, META_STORE], 'readwrite');
+    const tx = this.requireDb().transaction(
+      [EVENTS_STORE, META_STORE, WORLD_STATE_STORE],
+      'readwrite',
+    );
     tx.objectStore(EVENTS_STORE).clear();
     tx.objectStore(META_STORE).clear();
+    tx.objectStore(WORLD_STATE_STORE).clear();
     await txDone(tx);
   }
 

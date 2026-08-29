@@ -67,8 +67,44 @@ describe('IdbMemoryStore', () => {
     const store = freshStore();
     await store.init();
     await store.add(sampleEvent());
+    await store.commit({ putState: [{ key: 'world_clock', value: { worldYear: 1, worldDay: 5 } }] });
     await store.clearAll();
     expect(await store.getAll()).toEqual([]);
+    expect(await store.getStateValue('world_clock')).toBeUndefined();
+    store.close();
+  });
+
+  it('commit persists events and state rows together', async () => {
+    const store = freshStore();
+    await store.init();
+    const event = sampleEvent();
+    await store.commit({
+      addEvents: [event],
+      putState: [{ key: 'world_clock', value: { worldYear: 1, worldDay: 2 } }],
+    });
+    expect(await store.getAll()).toEqual([event]);
+    expect(await store.getStateValue('world_clock')).toEqual({ worldYear: 1, worldDay: 2 });
+    store.close();
+  });
+
+  it('commit is atomic: a duplicate event id rolls back the state write too', async () => {
+    const store = freshStore();
+    await store.init();
+    await store.add(sampleEvent());
+    await store.commit({ putState: [{ key: 'world_clock', value: { worldYear: 1, worldDay: 1 } }] });
+
+    await expect(
+      store.commit({
+        addEvents: [sampleEvent({ type: 'PLAYER_KILLED_GALD' })], // same id -> abort
+        putState: [{ key: 'world_clock', value: { worldYear: 9, worldDay: 9 } }],
+      }),
+    ).rejects.toBeTruthy();
+
+    // Neither half of the failed commit is visible.
+    const all = await store.getAll();
+    expect(all).toHaveLength(1);
+    expect(all[0].type).toBe('PLAYER_SPARED_GALD');
+    expect(await store.getStateValue('world_clock')).toEqual({ worldYear: 1, worldDay: 1 });
     store.close();
   });
 });

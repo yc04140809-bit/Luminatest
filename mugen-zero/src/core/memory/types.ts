@@ -12,7 +12,10 @@ export type GaldLifeChoiceEventType =
   | 'PLAYER_HELPED_GALD'
   | 'PLAYER_CAPTURED_GALD';
 
-export type MemoryEventType = GaldLifeChoiceEventType;
+/** Life events produced by the EVENT ENGINE. */
+export type LifeEventType = 'GALD_LEAVES_BANDITS';
+
+export type MemoryEventType = GaldLifeChoiceEventType | LifeEventType;
 
 export interface MemoryEvent {
   id: string;
@@ -24,6 +27,18 @@ export interface MemoryEvent {
   importance: EventImportance;
   /** Real-world ISO timestamp of when the event was recorded. */
   createdAt: string;
+  /**
+   * Event types of the past facts that caused this event
+   * (e.g. GALD_LEAVES_BANDITS is causedBy ['PLAYER_SPARED_GALD']).
+   * Absent on player-originated root events.
+   */
+  causedBy?: MemoryEventType[];
+}
+
+/** Current world state persisted alongside history (clock, character states). */
+export interface WorldStateRow {
+  key: string;
+  value: unknown;
 }
 
 /**
@@ -39,6 +54,14 @@ export interface MemoryEventStore {
    * Resolves only after the write is durably committed.
    */
   add(event: MemoryEvent): Promise<void>;
+  /**
+   * Atomically commits new events and current-state rows in ONE transaction:
+   * either everything is written or nothing is. A duplicate event id aborts
+   * the whole commit (write-once history still holds).
+   */
+  commit(changes: { addEvents?: MemoryEvent[]; putState?: WorldStateRow[] }): Promise<void>;
+  /** Reads one current-state row (world clock, character state, …). */
+  getStateValue(key: string): Promise<unknown | undefined>;
   /** Deletes all saved world data (NEW GAME / RESET WORLD). */
   clearAll(): Promise<void>;
   close(): void;

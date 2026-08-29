@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { GameFlow } from './core/flow/gameFlow';
-import { WorldMemory } from './core/memory/worldMemory';
+import { World } from './core/world/world';
 import { IdbMemoryStore } from './core/memory/idbStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { TitleScreen } from './ui/screens/TitleScreen';
@@ -16,27 +16,32 @@ import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 
 interface CoreBundle {
   flow: GameFlow;
-  memory: WorldMemory;
+  world: World;
 }
 
-function GameRoot({ flow, memory }: CoreBundle) {
+function GameRoot({ flow, world }: CoreBundle) {
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
   );
+  // Re-render when world truth changes (clock, events, character states).
+  useSyncExternalStore(
+    (cb) => world.subscribe(cb),
+    () => world.getVersion(),
+  );
 
   // WORLD MEMORY (the DB) is the truth; derive world facts from it.
-  const galdChoiceInWorld = memory.getGaldLifeChoice();
+  const galdChoiceInWorld = world.getGaldLifeChoice();
 
   switch (state.screen) {
     case 'TITLE':
       return (
         <TitleScreen
-          hasSave={memory.getEvents().length > 0}
+          hasSave={world.getEvents().length > 0}
           onStart={() => flow.goTo('PROLOGUE')}
           onContinue={() => flow.goTo('HOME')}
           onReset={async () => {
-            await memory.resetWorld();
+            await world.resetWorld();
             window.location.reload();
           }}
         />
@@ -46,12 +51,24 @@ function GameRoot({ flow, memory }: CoreBundle) {
     case 'HOME':
       return (
         <HomeScreen
+          clock={world.getClock()}
           onExplore={() => flow.goTo('EXPLORE')}
           onWorldMemory={() => flow.goTo('WORLD_MEMORY')}
+          onAdvanceDay={async () => {
+            // Event resolution is silent world truth — the player is not
+            // notified automatically (knowledge stays separate from truth).
+            await world.advanceDay();
+          }}
         />
       );
     case 'WORLD_MEMORY':
-      return <WorldMemoryScreen events={memory.getEvents()} onBack={() => flow.goTo('HOME')} />;
+      return (
+        <WorldMemoryScreen
+          events={world.getEvents()}
+          galdState={world.getCharacter('GALD')}
+          onBack={() => flow.goTo('HOME')}
+        />
+      );
     case 'EXPLORE':
       return (
         <ExploreScreen
@@ -82,7 +99,7 @@ function GameRoot({ flow, memory }: CoreBundle) {
           onChoose={async (choice) => {
             // Persist to WORLD MEMORY first; only advance once the DB
             // confirms the write.
-            await memory.recordGaldLifeChoice(choice);
+            await world.recordGaldLifeChoice(choice);
             flow.chooseGaldLife(choice);
           }}
         />
@@ -108,10 +125,10 @@ export default function App() {
     let cancelled = false;
     (async () => {
       try {
-        const memory = await WorldMemory.open(new IdbMemoryStore());
-        if (!cancelled) setBundle({ flow: new GameFlow(), memory });
+        const world = await World.open(new IdbMemoryStore());
+        if (!cancelled) setBundle({ flow: new GameFlow(), world });
       } catch (e) {
-        console.error('Failed to open WORLD MEMORY', e);
+        console.error('Failed to open the saved world', e);
         if (!cancelled) setInitError('セーブデータの読み込みに失敗しました。');
       }
     })();
@@ -130,5 +147,5 @@ export default function App() {
   if (!bundle) {
     return <div className="screen title-screen" data-testid="loading-screen" />;
   }
-  return <GameRoot flow={bundle.flow} memory={bundle.memory} />;
+  return <GameRoot flow={bundle.flow} world={bundle.world} />;
 }

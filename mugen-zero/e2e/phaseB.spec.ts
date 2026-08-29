@@ -31,7 +31,7 @@ for (const [choice, eventType] of CHOICES) {
     expect(event.importance).toBe('MAJOR');
     expect(Date.parse(event.createdAt)).not.toBeNaN();
 
-    expect(await readSchemaVersion(page)).toBe(1);
+    expect(await readSchemaVersion(page)).toBe(2);
   });
 }
 

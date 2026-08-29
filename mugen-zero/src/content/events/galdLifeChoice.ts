@@ -1,7 +1,7 @@
 // Content data for Gald's first-encounter life choice events.
 
 import type { LifeChoiceId } from '../../core/flow/types';
-import type { GaldLifeChoiceEventType } from '../../core/memory/types';
+import type { GaldLifeChoiceEventType, MemoryEventType } from '../../core/memory/types';
 
 /**
  * One fixed id for the final life choice of Gald's first encounter:
@@ -25,9 +25,10 @@ export const GALD_LIFE_CHOICE_TYPE_TO_CHOICE: Record<GaldLifeChoiceEventType, Li
 };
 
 /** Japanese labels for the WORLD MEMORY viewer. */
-export const MEMORY_EVENT_LABEL: Record<GaldLifeChoiceEventType, string> = {
+export const MEMORY_EVENT_LABEL: Record<MemoryEventType, string> = {
   PLAYER_KILLED_GALD: '森の盗賊にとどめを刺した',
   PLAYER_SPARED_GALD: '森の盗賊を見逃した',
   PLAYER_HELPED_GALD: '森の盗賊の傷を治療した',
   PLAYER_CAPTURED_GALD: '森の盗賊を衛兵へ引き渡した',
+  GALD_LEAVES_BANDITS: '森の盗賊が、盗賊団を離れた',
 };

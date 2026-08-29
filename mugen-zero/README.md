@@ -40,7 +40,7 @@ node scripts/screenshots.mjs  # 画面キャプチャ（要 vite preview --port 
 
 - [x] **PHASE A — SKELETON**: TITLE → PROLOGUE → HOME → EXPLORE → GREENWOOD → GALD ENCOUNTER → BATTLE → LIFE CHOICE の一気通貫画面遷移
 - [x] **PHASE B — WORLD MEMORY**: 4択のMEMORY_EVENTをIndexedDBへ永続化。排他・write-once・再起動復元・RESET WORLD
-- [ ] PHASE C — EVENT ENGINE（日付進行・条件判定・causedBy）
+- [x] **PHASE C — EVENT ENGINE**: WORLD CLOCK（ADVANCE DAY）、SPARE+3日経過→GALD_LEAVES_BANDITS、causedBy因果記録、CHARACTER STATE原子的更新
 - [ ] PHASE D — TIME（REST / DAY ADVANCE / TIME SHIFT +3 YEARS）
 - [ ] PHASE E — REUNION（3年後のアルデン・ガルド再会「見るな。」）
 - [ ] PHASE F — LIFE ARCHIVE（PLAYER KNOWLEDGE連動）
