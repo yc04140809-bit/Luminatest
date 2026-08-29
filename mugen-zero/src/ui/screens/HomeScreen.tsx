@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { WorldClock } from '../../core/events/types';
+import { DEV_ADMIN_ENABLED } from '../../dev/devMode';
 
 interface Props {
   clock: WorldClock;
@@ -9,9 +10,11 @@ interface Props {
   onRest: () => Promise<void>;
   /** Opens the TIME SHIFT confirmation screen. */
   onTimeShift: () => void;
+  /** Opens the DEV ADMIN lock screen (dev builds only). */
+  onDevAdmin: () => void;
 }
 
-export function HomeScreen({ clock, onExplore, onWorldMemory, onRest, onTimeShift }: Props) {
+export function HomeScreen({ clock, onExplore, onWorldMemory, onRest, onTimeShift, onDevAdmin }: Props) {
   const [resting, setResting] = useState(false);
 
   const rest = async () => {
@@ -53,6 +56,23 @@ export function HomeScreen({ clock, onExplore, onWorldMemory, onRest, onTimeShif
         >
           TIME SHIFT — 旅立つ（+3年）
         </button>
+        {DEV_ADMIN_ENABLED && (
+          <button
+            data-testid="dev-admin-entry"
+            onClick={onDevAdmin}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#3a3a4c',
+              fontSize: 11,
+              letterSpacing: '0.2em',
+              cursor: 'pointer',
+              padding: 4,
+            }}
+          >
+            DEV
+          </button>
+        )}
       </div>
       <nav className="bottom-nav">
         <button className="nav-item active">HOME</button>

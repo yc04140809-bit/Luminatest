@@ -87,6 +87,19 @@ describe('IdbMemoryStore', () => {
     store.close();
   });
 
+  it('commit deletes events atomically with other writes (dev reset path)', async () => {
+    const store = freshStore();
+    await store.init();
+    await store.add(sampleEvent());
+    await store.commit({
+      deleteEventIds: ['evt_test'],
+      putState: [{ key: 'character_GALD', value: { age: 27 } }],
+    });
+    expect(await store.getAll()).toEqual([]);
+    expect(await store.getStateValue('character_GALD')).toEqual({ age: 27 });
+    store.close();
+  });
+
   it('commit is atomic: a duplicate event id rolls back the state write too', async () => {
     const store = freshStore();
     await store.init();

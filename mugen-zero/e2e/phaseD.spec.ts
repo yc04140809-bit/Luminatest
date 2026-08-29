@@ -47,7 +47,8 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
   await page.getByTestId('time-shift-button').click();
   const go = page.getByTestId('time-shift-go');
   await go.click();
-  await go.click({ force: true }).catch(() => {}); // double-tap must be inert
+  // Double-tap must be inert: the button is either disabled or already gone.
+  await go.click({ force: true, timeout: 300 }).catch(() => {});
   await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('time-shift-return').click();
 

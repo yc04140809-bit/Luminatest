@@ -64,11 +64,17 @@ export interface MemoryEventStore {
    */
   add(event: MemoryEvent): Promise<void>;
   /**
-   * Atomically commits new events and current-state rows in ONE transaction:
-   * either everything is written or nothing is. A duplicate event id aborts
-   * the whole commit (write-once history still holds).
+   * Atomically commits new events, current-state rows, and (DEV tooling
+   * only) event deletions in ONE transaction: either everything is written
+   * or nothing is. A duplicate event id aborts the whole commit (write-once
+   * history still holds). deleteEventIds exists solely for the dev-admin
+   * RESET SCENARIO path — gameplay code must never delete history.
    */
-  commit(changes: { addEvents?: MemoryEvent[]; putState?: WorldStateRow[] }): Promise<void>;
+  commit(changes: {
+    addEvents?: MemoryEvent[];
+    putState?: WorldStateRow[];
+    deleteEventIds?: string[];
+  }): Promise<void>;
   /** Reads one current-state row (world clock, character state, …). */
   getStateValue(key: string): Promise<unknown | undefined>;
   /** Deletes all saved world data (NEW GAME / RESET WORLD). */

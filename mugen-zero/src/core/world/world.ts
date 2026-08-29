@@ -319,6 +319,39 @@ export class World {
     }
   }
 
+  /** Advances the world day by day, n times (each day fully resolved). */
+  async advanceDays(n: number): Promise<MemoryEvent[]> {
+    const fired: MemoryEvent[] = [];
+    for (let i = 0; i < n; i++) {
+      fired.push(...(await this.advanceDay()));
+    }
+    return fired;
+  }
+
+  /**
+   * DEV TOOLING ONLY (dev-admin RESET SCENARIO).
+   * Removes Gald's life-choice and life events from history and restores
+   * his initial CHARACTER STATE, atomically, so the Gald scenario can be
+   * re-tested. The WORLD CLOCK and non-Gald history (e.g. time shifts) are
+   * preserved. This is the single sanctioned exception to write-once
+   * history; gameplay code must never call it.
+   */
+  async devResetGaldScenario(): Promise<void> {
+    const galdEventTypes = new Set<string>([
+      ...Object.values(GALD_LIFE_CHOICE_EVENT_TYPE),
+      ...LIFE_EVENT_DEFS.filter((d) => d.actors.includes('GALD')).map((d) => d.type),
+    ]);
+    const removeIds = this.events.filter((e) => galdEventTypes.has(e.type)).map((e) => e.id);
+    const initialGald = INITIAL_CHARACTERS.GALD;
+    await this.store.commit({
+      deleteEventIds: removeIds,
+      putState: [{ key: characterKey('GALD'), value: initialGald }],
+    });
+    this.events = this.events.filter((e) => !removeIds.includes(e.id));
+    this.characters = { ...this.characters, GALD: initialGald };
+    this.emit();
+  }
+
   /** NEW GAME / RESET WORLD: deletes all saved world data and restores defaults. */
   async resetWorld(): Promise<void> {
     await this.store.clearAll();

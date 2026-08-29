@@ -14,6 +14,9 @@ import { LifeChoiceScreen } from './ui/screens/LifeChoiceScreen';
 import { ChoiceResultScreen } from './ui/screens/ChoiceResultScreen';
 import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
+import { DEV_ADMIN_ENABLED } from './dev/devMode';
+import { DevLockScreen } from './dev/DevLockScreen';
+import { DevAdminScreen } from './dev/DevAdminScreen';
 
 interface CoreBundle {
   flow: GameFlow;
@@ -61,8 +64,19 @@ function GameRoot({ flow, world }: CoreBundle) {
             // notified automatically (knowledge stays separate from truth).
             await world.advanceDay();
           }}
+          onDevAdmin={() => flow.goTo('DEV_LOCK')}
         />
       );
+    case 'DEV_LOCK':
+      // Unreachable in production builds (the HOME entry is hidden), but
+      // never render dev screens when the gate is off.
+      if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
+      return (
+        <DevLockScreen onUnlock={() => flow.goTo('DEV_ADMIN')} onBack={() => flow.goTo('HOME')} />
+      );
+    case 'DEV_ADMIN':
+      if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
+      return <DevAdminScreen world={world} onBack={() => flow.goTo('HOME')} />;
     case 'TIME_SHIFT':
       return (
         <TimeShiftScreen

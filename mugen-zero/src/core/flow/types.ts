@@ -12,7 +12,9 @@ export type Screen =
   | 'LIFE_CHOICE'
   | 'CHOICE_RESULT'
   | 'WORLD_MEMORY'
-  | 'TIME_SHIFT';
+  | 'TIME_SHIFT'
+  | 'DEV_LOCK'
+  | 'DEV_ADMIN';
 
 export type LifeChoiceId = 'KILL' | 'SPARE' | 'HELP' | 'CAPTURE';
 

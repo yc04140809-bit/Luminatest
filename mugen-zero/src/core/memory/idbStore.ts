@@ -91,14 +91,21 @@ export class IdbMemoryStore implements MemoryEventStore {
     await this.commit({ addEvents: [event] });
   }
 
-  async commit(changes: { addEvents?: MemoryEvent[]; putState?: WorldStateRow[] }): Promise<void> {
-    const { addEvents = [], putState = [] } = changes;
-    if (addEvents.length === 0 && putState.length === 0) return;
+  async commit(changes: {
+    addEvents?: MemoryEvent[];
+    putState?: WorldStateRow[];
+    deleteEventIds?: string[];
+  }): Promise<void> {
+    const { addEvents = [], putState = [], deleteEventIds = [] } = changes;
+    if (addEvents.length === 0 && putState.length === 0 && deleteEventIds.length === 0) return;
 
     // One transaction over both stores: new past facts and the updated
     // current state land together, or not at all.
     const tx = this.requireDb().transaction([EVENTS_STORE, WORLD_STATE_STORE], 'readwrite');
     const events = tx.objectStore(EVENTS_STORE);
+    for (const id of deleteEventIds) {
+      events.delete(id);
+    }
     for (const event of addEvents) {
       // add() (not put) — the DB itself rejects a duplicate id, so a past
       // fact can never be silently overwritten; the abort rolls back the
