@@ -15,7 +15,10 @@ export type GaldLifeChoiceEventType =
 /** Life events produced by the EVENT ENGINE. */
 export type LifeEventType = 'GALD_LEAVES_BANDITS';
 
-export type MemoryEventType = GaldLifeChoiceEventType | LifeEventType;
+/** World-scale events (large passages of time, …). */
+export type WorldEventType = 'WORLD_TIME_SHIFTED';
+
+export type MemoryEventType = GaldLifeChoiceEventType | LifeEventType | WorldEventType;
 
 export interface MemoryEvent {
   id: string;
@@ -33,6 +36,12 @@ export interface MemoryEvent {
    * Absent on player-originated root events.
    */
   causedBy?: MemoryEventType[];
+  /** WORLD_TIME_SHIFTED only: where the shift started. */
+  from?: { worldYear: number; worldDay: number };
+  /** WORLD_TIME_SHIFTED only: where the shift landed. */
+  to?: { worldYear: number; worldDay: number };
+  /** WORLD_TIME_SHIFTED only: whole years skipped. */
+  yearsElapsed?: number;
 }
 
 /** Current world state persisted alongside history (clock, character states). */

@@ -11,7 +11,8 @@ export type Screen =
   | 'BATTLE'
   | 'LIFE_CHOICE'
   | 'CHOICE_RESULT'
-  | 'WORLD_MEMORY';
+  | 'WORLD_MEMORY'
+  | 'TIME_SHIFT';
 
 export type LifeChoiceId = 'KILL' | 'SPARE' | 'HELP' | 'CAPTURE';
 

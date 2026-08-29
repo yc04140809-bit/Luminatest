@@ -87,9 +87,9 @@ export function readWorldStateValue(page: Page, key: string): Promise<unknown> {
   );
 }
 
-/** Clicks ADVANCE DAY on the HOME screen n times, waiting out each advance. */
+/** Clicks REST on the HOME screen n times, waiting out each day advance. */
 export async function advanceDays(page: Page, n: number): Promise<void> {
-  const button = page.getByTestId('advance-day-button');
+  const button = page.getByTestId('rest-button');
   const clock = page.getByTestId('world-clock');
   for (let i = 0; i < n; i++) {
     const before = await clock.textContent();

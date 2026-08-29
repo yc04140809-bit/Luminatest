@@ -1,23 +1,31 @@
 // MUGEN CORE — the world aggregate.
 // Owns WORLD MEMORY (past facts), WORLD CLOCK and CHARACTER STATE (current),
-// and runs the EVENT ENGINE on day advance. The DB is the single source of
+// and runs the EVENT ENGINE when time passes. The DB is the single source of
 // truth; React / Phaser only mirror what lives here.
 
 import type { LifeChoiceId } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
 import type { CharacterState } from '../characters/types';
-import type { WorldClock } from '../events/types';
+import type { LifeEventDef } from '../events/types';
 import { findDueLifeEvents } from '../events/eventEngine';
+import {
+  type WorldClock,
+  INITIAL_CLOCK,
+  addDays,
+  addYears,
+  toAbsoluteDay,
+  fromAbsoluteDay,
+} from '../time/calendar';
 import {
   GALD_LIFE_CHOICE_EVENT_ID,
   GALD_LIFE_CHOICE_EVENT_TYPE,
   GALD_LIFE_CHOICE_TYPE_TO_CHOICE,
+  GALD_LIFE_CHOICE_STATE_EFFECTS,
 } from '../../content/events/galdLifeChoice';
 import { LIFE_EVENT_DEFS } from '../../content/events/lifeEvents';
 import { INITIAL_GALD_STATE } from '../../content/characters/gald';
 
 const CLOCK_KEY = 'world_clock';
-const INITIAL_CLOCK: WorldClock = { worldYear: 1, worldDay: 1 };
 
 function characterKey(id: string): string {
   return `character_${id}`;
@@ -27,6 +35,11 @@ const INITIAL_CHARACTERS: Record<string, CharacterState> = {
   GALD: INITIAL_GALD_STATE,
 };
 
+interface ResolvedLifeEvent {
+  event: MemoryEvent;
+  def: LifeEventDef;
+}
+
 type Listener = () => void;
 
 export class World {
@@ -35,6 +48,7 @@ export class World {
   private characters: Record<string, CharacterState>;
   private listeners = new Set<Listener>();
   private version = 0;
+  private timePassing = false;
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -78,9 +92,15 @@ export class World {
 
   // ---- WORLD MEMORY (past facts) ----
 
-  /** All recorded events, oldest first. */
+  /** All recorded events, in world-chronological order. */
   getEvents(): MemoryEvent[] {
-    return [...this.events].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return [...this.events].sort((a, b) => {
+      const dayDiff =
+        toAbsoluteDay({ worldYear: a.worldYear, worldDay: a.worldDay }) -
+        toAbsoluteDay({ worldYear: b.worldYear, worldDay: b.worldDay });
+      if (dayDiff !== 0) return dayDiff;
+      return a.createdAt.localeCompare(b.createdAt);
+    });
   }
 
   hasEventOfType(type: MemoryEvent['type']): boolean {
@@ -108,7 +128,8 @@ export class World {
   // ---- mutations ----
 
   /**
-   * Records Gald's life choice as world truth.
+   * Records Gald's life choice as world truth, together with its immediate
+   * current-state consequence (KILL → alive: false) in one transaction.
    * - Exclusive: only one of the four outcomes can ever exist per world
    *   (all four share one fixed event id, and the store rejects duplicates).
    * - Idempotent for the same choice (double-tap safety).
@@ -136,57 +157,166 @@ export class World {
       importance: 'MAJOR',
       createdAt: new Date().toISOString(),
     };
-    await this.store.commit({ addEvents: [event] });
+
+    const stateRows: WorldStateRow[] = [];
+    const effect = GALD_LIFE_CHOICE_STATE_EFFECTS[choice];
+    let nextGald = this.characters.GALD;
+    if (effect && nextGald) {
+      nextGald = { ...nextGald, ...effect };
+      stateRows.push({ key: characterKey('GALD'), value: nextGald });
+    }
+
+    await this.store.commit({ addEvents: [event], putState: stateRows });
     this.events = [...this.events, event];
+    if (nextGald) this.characters = { ...this.characters, GALD: nextGald };
     this.emit();
     return event;
   }
 
   /**
-   * Advances the world by one day, runs the EVENT ENGINE, and atomically
-   * commits the new clock, any due life events, and their character-state
-   * effects in a single transaction.
+   * Finds every life event due at `atClock`, chains included: an event fired
+   * in one pass can satisfy another def's requiredMemory in the next pass.
+   * Bounded by the number of defs (each pass must fire at least one new
+   * once-event), so it cannot loop forever.
+   * Each event is dated the day its condition actually came true (its
+   * cause's day + minElapsedDays, capped at `atClock`) — a TIME SHIFT never
+   * swallows in-between history.
+   */
+  private resolveLifeEvents(atClock: WorldClock): ResolvedLifeEvent[] {
+    const all = [...this.events];
+    const resolved: ResolvedLifeEvent[] = [];
+    const maxPasses = LIFE_EVENT_DEFS.length + 1;
+    for (let pass = 0; pass < maxPasses; pass++) {
+      const due = findDueLifeEvents(LIFE_EVENT_DEFS, all, atClock);
+      if (due.length === 0) break;
+      for (const { def, cause } of due) {
+        const dueAbsolute =
+          toAbsoluteDay({ worldYear: cause.worldYear, worldDay: cause.worldDay }) +
+          def.minElapsedDays;
+        const recordedAt = fromAbsoluteDay(Math.min(dueAbsolute, toAbsoluteDay(atClock)));
+        const event: MemoryEvent = {
+          id: def.eventId,
+          type: def.type,
+          worldYear: recordedAt.worldYear,
+          worldDay: recordedAt.worldDay,
+          location: def.location,
+          actors: [...def.actors],
+          importance: def.importance,
+          createdAt: new Date().toISOString(),
+          causedBy: [def.requiredMemory],
+        };
+        all.push(event);
+        resolved.push({ event, def });
+      }
+    }
+    return resolved;
+  }
+
+  /** Applies life-event character effects; returns the new map + changed ids. */
+  private applyCharacterEffects(
+    base: Record<string, CharacterState>,
+    resolved: ResolvedLifeEvent[],
+  ): { characters: Record<string, CharacterState>; changedIds: Set<string> } {
+    const characters = { ...base };
+    const changedIds = new Set<string>();
+    for (const { def } of resolved) {
+      for (const effect of def.characterEffects) {
+        const current = characters[effect.characterId];
+        if (!current) continue;
+        characters[effect.characterId] = { ...current, ...effect.changes };
+        changedIds.add(effect.characterId);
+      }
+    }
+    return { characters, changedIds };
+  }
+
+  private async commitTimePassage(
+    nextClock: WorldClock,
+    extraEvents: MemoryEvent[],
+    resolved: ResolvedLifeEvent[],
+    characters: Record<string, CharacterState>,
+    changedIds: Set<string>,
+  ): Promise<void> {
+    const stateRows: WorldStateRow[] = [{ key: CLOCK_KEY, value: nextClock }];
+    for (const id of changedIds) {
+      stateRows.push({ key: characterKey(id), value: characters[id] });
+    }
+    await this.store.commit({
+      addEvents: [...resolved.map((r) => r.event), ...extraEvents],
+      putState: stateRows,
+    });
+    this.clock = nextClock;
+    this.characters = characters;
+    this.events = [...this.events, ...resolved.map((r) => r.event), ...extraEvents];
+    this.emit();
+  }
+
+  /**
+   * REST: advances the world by one day (year rollover included), runs the
+   * EVENT ENGINE, and atomically commits the new clock, any due life events,
+   * and their character-state effects in a single transaction.
    * Returns the life events that occurred (world truth — the UI decides
    * separately what the player gets to notice; no automatic popups).
    */
   async advanceDay(): Promise<MemoryEvent[]> {
-    const nextClock: WorldClock = { ...this.clock, worldDay: this.clock.worldDay + 1 };
+    const nextClock = addDays(this.clock, 1);
+    const resolved = this.resolveLifeEvents(nextClock);
+    const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
+    await this.commitTimePassage(nextClock, [], resolved, characters, changedIds);
+    return resolved.map((r) => r.event);
+  }
 
-    const due = findDueLifeEvents(LIFE_EVENT_DEFS, this.events, nextClock);
-
-    const newEvents: MemoryEvent[] = due.map(({ def }) => ({
-      id: def.eventId,
-      type: def.type,
-      worldYear: nextClock.worldYear,
-      worldDay: nextClock.worldDay,
-      location: def.location,
-      actors: [...def.actors],
-      importance: def.importance,
-      createdAt: new Date().toISOString(),
-      causedBy: [def.requiredMemory],
-    }));
-
-    const nextCharacters = { ...this.characters };
-    const stateRows: WorldStateRow[] = [{ key: CLOCK_KEY, value: nextClock }];
-    for (const { def } of due) {
-      for (const effect of def.characterEffects) {
-        const current = nextCharacters[effect.characterId];
-        if (!current) continue;
-        nextCharacters[effect.characterId] = { ...current, ...effect.changes };
-        stateRows.push({
-          key: characterKey(effect.characterId),
-          value: nextCharacters[effect.characterId],
-        });
-      }
+  /**
+   * TIME SHIFT: skips whole years at once.
+   * - Catches up every life event that became due inside the skipped span,
+   *   dated the day it actually happened (see resolveLifeEvents) — nothing
+   *   is swallowed, causal order is preserved.
+   * - Ages every LIVING character by the elapsed years (the dead do not age).
+   * - Records the shift itself as a WORLD_TIME_SHIFTED memory event.
+   * - Everything lands in one transaction. Re-entrant calls are refused
+   *   (double-tap cannot shift twice).
+   */
+  async timeShift(years: number): Promise<{ shift: MemoryEvent; lifeEvents: MemoryEvent[] }> {
+    if (!Number.isInteger(years) || years <= 0) {
+      throw new Error(`Invalid TIME SHIFT length: ${years}`);
     }
+    if (this.timePassing) {
+      throw new Error('TIME SHIFT already in progress');
+    }
+    this.timePassing = true;
+    try {
+      const from = { ...this.clock };
+      const to = addYears(this.clock, years);
 
-    await this.store.commit({ addEvents: newEvents, putState: stateRows });
+      const resolved = this.resolveLifeEvents(to);
+      const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
 
-    this.clock = nextClock;
-    this.characters = nextCharacters;
-    this.events = [...this.events, ...newEvents];
-    this.emit();
-    return newEvents;
+      // NPC AGE: living characters walk their own years; the dead stay still.
+      for (const [id, state] of Object.entries(characters)) {
+        if (!state.alive) continue;
+        characters[id] = { ...state, age: state.age + years };
+        changedIds.add(id);
+      }
+
+      const shift: MemoryEvent = {
+        id: `evt_world_time_shifted_y${to.worldYear}d${to.worldDay}`,
+        type: 'WORLD_TIME_SHIFTED',
+        worldYear: to.worldYear,
+        worldDay: to.worldDay,
+        location: 'WORLD',
+        actors: ['WORLD'],
+        importance: 'MAJOR',
+        createdAt: new Date().toISOString(),
+        from,
+        to: { ...to },
+        yearsElapsed: years,
+      };
+
+      await this.commitTimePassage(to, [shift], resolved, characters, changedIds);
+      return { shift, lifeEvents: resolved.map((r) => r.event) };
+    } finally {
+      this.timePassing = false;
+    }
   }
 
   /** NEW GAME / RESET WORLD: deletes all saved world data and restores defaults. */

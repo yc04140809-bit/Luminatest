@@ -13,6 +13,7 @@ import { BattleScreen } from './ui/screens/BattleScreen';
 import { LifeChoiceScreen } from './ui/screens/LifeChoiceScreen';
 import { ChoiceResultScreen } from './ui/screens/ChoiceResultScreen';
 import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
+import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
 
 interface CoreBundle {
   flow: GameFlow;
@@ -54,11 +55,23 @@ function GameRoot({ flow, world }: CoreBundle) {
           clock={world.getClock()}
           onExplore={() => flow.goTo('EXPLORE')}
           onWorldMemory={() => flow.goTo('WORLD_MEMORY')}
-          onAdvanceDay={async () => {
+          onTimeShift={() => flow.goTo('TIME_SHIFT')}
+          onRest={async () => {
             // Event resolution is silent world truth — the player is not
             // notified automatically (knowledge stays separate from truth).
             await world.advanceDay();
           }}
+        />
+      );
+    case 'TIME_SHIFT':
+      return (
+        <TimeShiftScreen
+          years={3}
+          onConfirm={async () => {
+            await world.timeShift(3);
+          }}
+          onStay={() => flow.goTo('HOME')}
+          onDone={() => flow.goTo('HOME')}
         />
       );
     case 'WORLD_MEMORY':

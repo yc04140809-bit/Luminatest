@@ -1,4 +1,4 @@
-// Captures the Phase C causality view against `vite preview --port 4173`.
+// Captures the Phase D TIME SHIFT screens against `vite preview --port 4173`.
 import { chromium } from '@playwright/test';
 
 const OUT = process.env.SHOT_DIR ?? '.';
@@ -38,24 +38,21 @@ await result.click();
 await result.click();
 await page.getByTestId('choice-recorded-screen').waitFor();
 await page.getByTestId('return-home-button').click();
-
 await page.getByTestId('world-clock').waitFor();
-await page.screenshot({ path: `${OUT}/11-home-clock.png` });
 
-// Advance 3 days -> GALD_LEAVES_BANDITS fires.
-const button = page.getByTestId('rest-button');
-const clock = page.getByTestId('world-clock');
-for (let i = 0; i < 3; i++) {
-  const before = await clock.textContent();
-  await button.click();
-  await page.waitForFunction(
-    (prev) => document.querySelector('[data-testid="world-clock"]')?.textContent !== prev,
-    before,
-  );
-}
+await page.getByTestId('time-shift-button').click();
+await page.getByTestId('time-shift-confirm').waitFor();
+await page.screenshot({ path: `${OUT}/13-time-shift-confirm.png` });
+
+await page.getByTestId('time-shift-go').click();
+await page.getByTestId('time-shift-done').waitFor({ timeout: 10000 });
+await page.getByTestId('time-shift-return').click();
+await page.getByTestId('world-clock').waitFor();
+await page.screenshot({ path: `${OUT}/14-home-after-shift.png` });
+
 await page.getByTestId('world-memory-button').click();
-await page.getByTestId('memory-event-GALD_LEAVES_BANDITS').waitFor();
-await page.screenshot({ path: `${OUT}/12-causality.png` });
+await page.getByTestId('memory-event-WORLD_TIME_SHIFTED').waitFor();
+await page.screenshot({ path: `${OUT}/15-memory-after-shift.png` });
 
 await browser.close();
 console.log('done');

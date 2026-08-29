@@ -6,6 +6,7 @@
 
 import type { MemoryEvent } from '../memory/types';
 import type { LifeEventDef, WorldClock } from './types';
+import { elapsedDays } from '../time/calendar';
 
 export interface DueLifeEvent {
   def: LifeEventDef;
@@ -13,14 +14,11 @@ export interface DueLifeEvent {
   cause: MemoryEvent;
 }
 
-/**
- * Elapsed days since the cause, on the Phase C calendar (no year wrap-around;
- * a later year simply counts as "long enough").
- */
+/** Elapsed days since the cause, on the 365-day calendar (year-aware). */
 function elapsedDaysSatisfied(cause: MemoryEvent, clock: WorldClock, minDays: number): boolean {
-  if (clock.worldYear > cause.worldYear) return true;
-  if (clock.worldYear < cause.worldYear) return false;
-  return clock.worldDay - cause.worldDay >= minDays;
+  return (
+    elapsedDays({ worldYear: cause.worldYear, worldDay: cause.worldDay }, clock) >= minDays
+  );
 }
 
 /** Returns the life events whose conditions hold right now. */

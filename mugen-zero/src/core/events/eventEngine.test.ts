@@ -56,10 +56,11 @@ describe('findDueLifeEvents — GALD_LEAVES_BANDITS', () => {
     expect(findDueLifeEvents(LIFE_EVENT_DEFS, events, { worldYear: 1, worldDay: 30 })).toEqual([]);
   });
 
-  it('treats a later year as long enough (Phase C has no wrap-around math)', () => {
-    const events = [event('PLAYER_SPARED_GALD', 300)];
-    const due = findDueLifeEvents(LIFE_EVENT_DEFS, events, { worldYear: 2, worldDay: 1 });
-    expect(due).toHaveLength(1);
+  it('counts elapsed days across a year boundary (365-day calendar)', () => {
+    // Spared on year 1 day 364: due on year 2 day 2, not simply "next year".
+    const events = [event('PLAYER_SPARED_GALD', 364)];
+    expect(findDueLifeEvents(LIFE_EVENT_DEFS, events, { worldYear: 2, worldDay: 1 })).toHaveLength(0);
+    expect(findDueLifeEvents(LIFE_EVENT_DEFS, events, { worldYear: 2, worldDay: 2 })).toHaveLength(1);
   });
 
   it('def data matches the Phase C contract', () => {

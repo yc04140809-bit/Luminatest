@@ -5,20 +5,22 @@ interface Props {
   clock: WorldClock;
   onExplore: () => void;
   onWorldMemory: () => void;
-  /** DEV (Phase C): advances the world by one day. REST replaces this in Phase D. */
-  onAdvanceDay: () => Promise<void>;
+  /** REST: advances the world by one day. */
+  onRest: () => Promise<void>;
+  /** Opens the TIME SHIFT confirmation screen. */
+  onTimeShift: () => void;
 }
 
-export function HomeScreen({ clock, onExplore, onWorldMemory, onAdvanceDay }: Props) {
-  const [advancing, setAdvancing] = useState(false);
+export function HomeScreen({ clock, onExplore, onWorldMemory, onRest, onTimeShift }: Props) {
+  const [resting, setResting] = useState(false);
 
-  const advance = async () => {
-    if (advancing) return;
-    setAdvancing(true);
+  const rest = async () => {
+    if (resting) return;
+    setResting(true);
     try {
-      await onAdvanceDay();
+      await onRest();
     } finally {
-      setAdvancing(false);
+      setResting(false);
     }
   };
 
@@ -45,12 +47,11 @@ export function HomeScreen({ clock, onExplore, onWorldMemory, onAdvanceDay }: Pr
         </button>
         <button
           className="btn"
-          data-testid="advance-day-button"
+          data-testid="time-shift-button"
           style={{ fontSize: 13 }}
-          disabled={advancing}
-          onClick={advance}
+          onClick={onTimeShift}
         >
-          ADVANCE DAY（開発用）
+          TIME SHIFT — 旅立つ（+3年）
         </button>
       </div>
       <nav className="bottom-nav">
@@ -58,7 +59,7 @@ export function HomeScreen({ clock, onExplore, onWorldMemory, onAdvanceDay }: Pr
         <button className="nav-item" disabled title="PHASE F で実装">
           ARCHIVE
         </button>
-        <button className="nav-item" disabled title="PHASE D で実装">
+        <button className="nav-item" data-testid="rest-button" disabled={resting} onClick={rest}>
           REST
         </button>
       </nav>

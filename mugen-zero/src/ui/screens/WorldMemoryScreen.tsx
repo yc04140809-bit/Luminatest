@@ -42,6 +42,13 @@ export function WorldMemoryScreen({ events, galdState, onBack }: Props) {
                     </span>
                   </>
                 )}
+                {event.type === 'WORLD_TIME_SHIFTED' && event.from && event.to && (
+                  <>
+                    <br />
+                    {event.from.worldYear}年目{event.from.worldDay}日目 →{' '}
+                    {event.to.worldYear}年目{event.to.worldDay}日目（+{event.yearsElapsed}年）
+                  </>
+                )}
               </div>
             </div>
           ))
@@ -52,8 +59,8 @@ export function WorldMemoryScreen({ events, galdState, onBack }: Props) {
               CHARACTER STATE（現在 / DEBUG）
             </div>
             <div className="location-desc">
-              GALD — occupation: {galdState.occupation} / location: {galdState.location} / alive:{' '}
-              {String(galdState.alive)}
+              GALD — age: {galdState.age} / occupation: {galdState.occupation} / location:{' '}
+              {galdState.location} / alive: {String(galdState.alive)}
             </div>
           </div>
         )}

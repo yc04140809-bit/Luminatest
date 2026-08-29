@@ -2,6 +2,7 @@
 
 import type { LifeChoiceId } from '../../core/flow/types';
 import type { GaldLifeChoiceEventType, MemoryEventType } from '../../core/memory/types';
+import type { CharacterState } from '../../core/characters/types';
 
 /**
  * One fixed id for the final life choice of Gald's first encounter:
@@ -31,4 +32,16 @@ export const MEMORY_EVENT_LABEL: Record<MemoryEventType, string> = {
   PLAYER_HELPED_GALD: '森の盗賊の傷を治療した',
   PLAYER_CAPTURED_GALD: '森の盗賊を衛兵へ引き渡した',
   GALD_LEAVES_BANDITS: '森の盗賊が、盗賊団を離れた',
+  WORLD_TIME_SHIFTED: '世界の時が、大きく流れた',
+};
+
+/**
+ * CURRENT-state consequences applied atomically with the choice event.
+ * Minimal by design: only what the fact itself makes true right now
+ * (a killed man is not alive). Everything else is the event engine's job.
+ */
+export const GALD_LIFE_CHOICE_STATE_EFFECTS: Partial<
+  Record<LifeChoiceId, Partial<CharacterState>>
+> = {
+  KILL: { alive: false },
 };

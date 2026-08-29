@@ -7,10 +7,7 @@
 import type { CharacterState } from '../characters/types';
 import type { EventImportance, LifeEventType, MemoryEventType } from '../memory/types';
 
-export interface WorldClock {
-  worldYear: number;
-  worldDay: number;
-}
+export type { WorldClock } from '../time/calendar';
 
 export interface LifeEventDef {
   /** Also used as the MEMORY_EVENT type when the event occurs. */

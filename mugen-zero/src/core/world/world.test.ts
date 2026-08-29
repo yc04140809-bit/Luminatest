@@ -165,23 +165,143 @@ describe('World — GALD_LEAVES_BANDITS causality', () => {
   });
 });
 
+describe('World — TIME SYSTEM (Phase D)', () => {
+  it('REST rolls over the year: day 365 + 1 becomes year 2 day 1', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    for (let i = 0; i < 364; i++) await world.advanceDay();
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 365 });
+    await world.advanceDay();
+    expect(world.getClock()).toEqual({ worldYear: 2, worldDay: 1 });
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getClock()).toEqual({ worldYear: 2, worldDay: 1 });
+  });
+
+  it('TIME SHIFT +3 years moves the clock and ages Gald 27 -> 30', async () => {
+    const world = await openWorld(freshDbName());
+    await world.advanceDay(); // day 2, so the shift lands mid-year
+    const { shift } = await world.timeShift(3);
+
+    expect(world.getClock()).toEqual({ worldYear: 4, worldDay: 2 });
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+
+    expect(shift.type).toBe('WORLD_TIME_SHIFTED');
+    expect(shift.from).toEqual({ worldYear: 1, worldDay: 2 });
+    expect(shift.to).toEqual({ worldYear: 4, worldDay: 2 });
+    expect(shift.yearsElapsed).toBe(3);
+    expect(shift.importance).toBe('MAJOR');
+  });
+
+  it('the shift API takes arbitrary year spans', async () => {
+    const world = await openWorld(freshDbName());
+    await world.timeShift(1);
+    await world.timeShift(10);
+    expect(world.getClock()).toEqual({ worldYear: 12, worldDay: 1 });
+    expect(world.getCharacter('GALD')?.age).toBe(27 + 11);
+  });
+
+  it('rejects a re-entrant TIME SHIFT (double-tap cannot shift twice)', async () => {
+    const world = await openWorld(freshDbName());
+    const first = world.timeShift(3);
+    await expect(world.timeShift(3)).rejects.toThrow(/already in progress/);
+    await first;
+    expect(world.getClock().worldYear).toBe(4);
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+    // Sequential shifts (after the first completes) still work.
+    await world.timeShift(3);
+    expect(world.getClock().worldYear).toBe(7);
+  });
+
+  it('rejects invalid shift lengths', async () => {
+    const world = await openWorld(freshDbName());
+    await expect(world.timeShift(0)).rejects.toThrow(/Invalid/);
+    await expect(world.timeShift(-3)).rejects.toThrow(/Invalid/);
+    await expect(world.timeShift(1.5)).rejects.toThrow(/Invalid/);
+  });
+
+  it('TIME SHIFT does not swallow events due mid-span: SPARE then immediate shift', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE'); // year 1 day 1
+    const { lifeEvents } = await world.timeShift(3);
+
+    expect(lifeEvents.map((e) => e.type)).toEqual(['GALD_LEAVES_BANDITS']);
+    const leaves = lifeEvents[0];
+    // Recorded the day it actually became due, not the post-shift date.
+    expect(leaves.worldYear).toBe(1);
+    expect(leaves.worldDay).toBe(4);
+    expect(leaves.causedBy).toEqual(['PLAYER_SPARED_GALD']);
+    expect(world.getCharacter('GALD')?.occupation).toBe('NONE');
+    expect(world.getCharacter('GALD')?.age).toBe(30);
+
+    // World-chronological order: spared -> leaves -> shift.
+    const types = world.getEvents().map((e) => e.type);
+    expect(types).toEqual(['PLAYER_SPARED_GALD', 'GALD_LEAVES_BANDITS', 'WORLD_TIME_SHIFTED']);
+  });
+
+  it('once holds across REST firing followed by a TIME SHIFT', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    for (let i = 0; i < 3; i++) await world.advanceDay(); // fires on day 4
+    const { lifeEvents } = await world.timeShift(3);
+    expect(lifeEvents).toEqual([]);
+    expect(world.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+  });
+
+  it('KILL marks Gald dead; the dead do not age and his life never moves on', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('KILL');
+    expect(world.getCharacter('GALD')?.alive).toBe(false);
+
+    await world.timeShift(3);
+    expect(world.getCharacter('GALD')?.age).toBe(27); // no aging after death
+    expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
+    // The past facts are untouched.
+    expect(world.hasEventOfType('PLAYER_KILLED_GALD')).toBe(true);
+  });
+
+  it('restores clock, age and all events after a simulated restart', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3);
+
+    const reopened = await openWorld(dbName);
+    expect(reopened.getClock()).toEqual({ worldYear: 4, worldDay: 1 });
+    expect(reopened.getCharacter('GALD')?.age).toBe(30);
+    expect(reopened.getCharacter('GALD')?.occupation).toBe('NONE');
+    expect(reopened.getEvents().map((e) => e.type)).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'WORLD_TIME_SHIFTED',
+    ]);
+    // And the reopened world does not re-fire anything.
+    await reopened.timeShift(3);
+    expect(reopened.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+  });
+});
+
 describe('World — RESET WORLD', () => {
-  it('resets memory, clock and character state, in memory and on disk', async () => {
+  it('resets memory, clock, age and character state, in memory and on disk', async () => {
     const dbName = freshDbName();
     const world = await openWorld(dbName);
     await world.recordGaldLifeChoice('SPARE');
     for (let i = 0; i < 3; i++) await world.advanceDay();
+    await world.timeShift(3);
     expect(world.getCharacter('GALD')?.occupation).toBe('NONE');
+    expect(world.getCharacter('GALD')?.age).toBe(30);
 
     await world.resetWorld();
     expect(world.getEvents()).toEqual([]);
     expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 1 });
     expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
     expect(world.getCharacter('GALD')?.location).toBe('GREENWOOD_FOREST');
+    expect(world.getCharacter('GALD')?.age).toBe(27);
 
     const reopened = await openWorld(dbName);
     expect(reopened.getEvents()).toEqual([]);
     expect(reopened.getClock()).toEqual({ worldYear: 1, worldDay: 1 });
     expect(reopened.getCharacter('GALD')?.occupation).toBe('BANDIT');
+    expect(reopened.getCharacter('GALD')?.age).toBe(27);
   });
 });
