@@ -103,8 +103,10 @@ test('the first reunion: spare, let life move on, discover the bakery, 「……
   await page.getByTestId('world-memory-button').click();
   await expect(page.getByTestId('memory-event-GALD_BECOMES_BAKER')).toBeVisible();
   await expect(page.getByTestId('memory-event-PLAYER_REUNITED_WITH_GALD')).toBeVisible();
+  // The player sees the cause in words; the event id lives in the DB
+  // (asserted above) and in the dev admin.
   await expect(page.getByTestId('caused-by-PLAYER_REUNITED_WITH_GALD')).toContainText(
-    'GALD_BECOMES_BAKER',
+    '男は、パン屋として生き始めた',
   );
 });
 

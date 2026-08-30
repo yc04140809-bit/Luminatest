@@ -3,7 +3,10 @@ import type { LifeChoiceId } from '../../core/flow/types';
 import {
   LIFE_CHOICE_PROMPT,
   LIFE_CHOICE_OPTIONS,
+  GALD_LIFE_CHOICE_LINE,
 } from '../../content/dialogue/galdEncounter';
+import { GALD } from '../../content/characters/gald';
+import { galdPortrait } from '../../assets/manifest';
 import { vibrate } from '../../platform/haptics';
 
 interface Props {
@@ -15,12 +18,15 @@ interface Props {
 }
 
 /**
- * The core moment of MUGEN ZERO: no result screen, no EXP —
- * the screen darkens and asks what to do with his life.
+ * The core moment of MUGEN ZERO: no result screen, no EXP — the man is
+ * kneeling in front of the player, and the question is what becomes of
+ * his life. All four answers are equally canon, so none of them is
+ * styled as the right one.
  */
 export function LifeChoiceScreen({ onChoose }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const portrait = galdPortrait('defeated');
 
   const choose = async (choice: LifeChoiceId) => {
     if (saving) return;
@@ -45,7 +51,23 @@ export function LifeChoiceScreen({ onChoose }: Props) {
       aria-modal="true"
       aria-label={LIFE_CHOICE_PROMPT}
     >
+      <div className="life-choice-figure">
+        {portrait && (
+          <img
+            className="life-choice-portrait"
+            data-testid="life-choice-portrait"
+            src={portrait}
+            alt="膝をついた盗賊"
+          />
+        )}
+        <div className="life-choice-speech">
+          <div className="dialogue-speaker">盗賊 {GALD.name}</div>
+          <div className="dialogue-text">{GALD_LIFE_CHOICE_LINE}</div>
+        </div>
+      </div>
+
       <p className="life-choice-prompt">{LIFE_CHOICE_PROMPT}</p>
+
       <div className="life-choice-options">
         {LIFE_CHOICE_OPTIONS.map((opt) => (
           <button

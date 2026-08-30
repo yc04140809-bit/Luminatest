@@ -131,7 +131,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     // --- LIFE ARCHIVE: the whole life, five chapters ---
     await page.getByTestId('archive-button').click();
     await page.getByTestId('archive-entry-GALD').click();
-    await expect(page.getByTestId('archive-detail')).toContainText('ガルド — LIFE RECORD');
+    await expect(page.getByTestId('archive-detail')).toContainText('ガルド の人生');
     await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
     await expect(page.getByTestId('archive-chapter-GALD_CH_REUNION')).toContainText('……見るな。');
     await context.close(); // FULL browser shutdown

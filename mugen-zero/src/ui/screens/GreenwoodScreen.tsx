@@ -45,7 +45,7 @@ export function GreenwoodScreen({ onEncounter, onBack, encounterEnabled }: Props
 
   return (
     <div className="screen">
-      <div className="screen-title">GREENWOOD FOREST — グリーンウッドの森</div>
+      <div className="screen-title">グリーンウッドの森</div>
       <div className="phaser-wrap" ref={hostRef} data-testid="greenwood-canvas" />
       <div className="screen-footer">
         <button className="btn" onClick={onBack}>

@@ -14,7 +14,7 @@ export function SettingsScreen({ settings, onChange, onBack }: Props) {
 
   return (
     <div className="screen" data-testid="settings-screen">
-      <div className="screen-title">SETTINGS — 設定</div>
+      <div className="screen-title">設定</div>
       <div className="location-list">
         <div className="settings-row">
           <label htmlFor="bgm-volume">BGM 音量（{Math.round(settings.bgmVolume * 100)}%）</label>

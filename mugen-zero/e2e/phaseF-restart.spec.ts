@@ -24,7 +24,7 @@ async function goHomeFresh(page: Page) {
 async function assertFullGaldRecord(page: Page) {
   await page.getByTestId('archive-button').click();
   await page.getByTestId('archive-entry-GALD').click();
-  await expect(page.getByTestId('archive-detail')).toContainText('ガルド — LIFE RECORD');
+  await expect(page.getByTestId('archive-detail')).toContainText('ガルド の人生');
   await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
   await expect(page.getByTestId('archive-chapter-GALD_CH_LEFT_FOREST')).toContainText('1年目 4日目');
   await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText('1年目 94日目');

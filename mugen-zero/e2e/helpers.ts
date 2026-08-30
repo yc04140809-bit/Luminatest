@@ -124,7 +124,12 @@ export async function walkToEncounterMarker(page: Page): Promise<void> {
 }
 
 /** Fresh world: plays TITLE through BATTLE until the life choice appears. */
-export async function playToLifeChoice(page: Page, base = ''): Promise<void> {
+export async function playToLifeChoice(
+  page: Page,
+  base = '',
+  options: { stopAt?: 'ENCOUNTER' | 'BATTLE' | 'LIFE_CHOICE' } = {},
+): Promise<void> {
+  const stopAt = options.stopAt ?? 'LIFE_CHOICE';
   await page.goto(`${base}/`);
   await page.getByTestId('start-button').click();
 
@@ -141,10 +146,12 @@ export async function playToLifeChoice(page: Page, base = ''): Promise<void> {
 
   const encounter = page.getByTestId('gald-encounter');
   await expect(encounter).toBeVisible({ timeout: 15_000 });
+  if (stopAt === 'ENCOUNTER') return;
   await encounter.click();
   await encounter.click();
 
   await expect(page.getByTestId('battle-screen')).toBeVisible();
+  if (stopAt === 'BATTLE') return;
   const attack = page.getByTestId('attack-button');
   for (let i = 0; i < 8; i++) {
     if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;

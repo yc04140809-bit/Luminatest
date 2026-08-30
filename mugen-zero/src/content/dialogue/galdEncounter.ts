@@ -3,9 +3,17 @@ import type { LifeChoiceId } from '../../core/flow/types';
 
 // First encounter in Greenwood Forest. Gald is still an unknown bandit.
 export const GALD_ENCOUNTER_LINES: DialogueLine[] = [
-  { speaker: '盗賊', text: '……止まれ。' },
-  { speaker: '盗賊', text: '金を置いていけ。命までは取らねぇ。' },
+  { speaker: '盗賊 ガルド', text: '……止まれ。' },
+  { speaker: '盗賊 ガルド', text: '金を置いていけ。命までは取らねぇ。' },
 ];
+
+/** After his HP reaches 0 — beaten, not dead. */
+export const GALD_DEFEATED_LINES: DialogueLine[] = [
+  { speaker: '盗賊 ガルド', text: '……くそ……。' },
+];
+
+/** Shown beside the four options, so a person is being decided, not a menu. */
+export const GALD_LIFE_CHOICE_LINE = '……どうするつもりだ……。';
 
 export const LIFE_CHOICE_PROMPT = '彼の人生を、どうしますか？';
 

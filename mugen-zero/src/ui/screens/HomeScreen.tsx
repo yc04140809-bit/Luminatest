@@ -48,18 +48,17 @@ export function HomeScreen({
           {clock.worldYear}年目 {clock.worldDay}日目
         </div>
         <button className="btn home-explore" data-testid="explore-button" onClick={onExplore}>
-          EXPLORE
+          <span className="home-explore-jp">探索する</span>
+          <span className="home-explore-en">EXPLORE</span>
         </button>
-        <div className="home-place" style={{ letterSpacing: 0 }}>
-          周辺を探索する
-        </div>
         <button
           className="btn"
           data-testid="world-memory-button"
           style={{ fontSize: 13 }}
           onClick={onWorldMemory}
         >
-          WORLD MEMORY — 世界の記憶
+          世界の記憶
+          <span className="btn-sub">WORLD MEMORY</span>
         </button>
         <button
           className="btn"
@@ -67,7 +66,8 @@ export function HomeScreen({
           style={{ fontSize: 13 }}
           onClick={onTimeShift}
         >
-          TIME SHIFT — 旅立つ（+3年）
+          旅立つ（+3年）
+          <span className="btn-sub">TIME SHIFT</span>
         </button>
         <button
           className="btn"
@@ -75,7 +75,8 @@ export function HomeScreen({
           style={{ fontSize: 13 }}
           onClick={onSettings}
         >
-          SETTINGS — 設定
+          設定
+          <span className="btn-sub">SETTINGS</span>
         </button>
         {DEV_ADMIN_ENABLED && (
           <button
@@ -96,12 +97,12 @@ export function HomeScreen({
         )}
       </div>
       <nav className="bottom-nav">
-        <button className="nav-item active">HOME</button>
+        <button className="nav-item active">ホーム</button>
         <button className="nav-item" data-testid="archive-button" onClick={onArchive}>
-          ARCHIVE
+          人生の記録
         </button>
         <button className="nav-item" data-testid="rest-button" disabled={resting} onClick={rest}>
-          REST
+          {resting ? '休息中…' : '休息する'}
         </button>
       </nav>
     </div>

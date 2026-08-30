@@ -22,7 +22,7 @@ export function ExploreScreen({
 }: Props) {
   return (
     <div className="screen">
-      <div className="screen-title">EXPLORE — ALDEN REGION</div>
+      <div className="screen-title">アルデン地方を探索する</div>
       <div className="location-list">
         {LOCATIONS.map((loc) => (
           <button

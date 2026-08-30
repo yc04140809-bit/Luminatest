@@ -33,7 +33,7 @@ export function ArchiveScreen({
   if (selected) {
     return (
       <div className="screen" data-testid="archive-detail">
-        <div className="screen-title">{selected.displayName} — LIFE RECORD</div>
+        <div className="screen-title">{selected.displayName} の人生</div>
         <div className="location-list" style={{ gap: 6 }}>
           {selected.chapters.map((chapter, i) => (
             <div key={chapter.id}>
@@ -88,7 +88,7 @@ export function ArchiveScreen({
 
   return (
     <div className="screen" data-testid="archive-screen">
-      <div className="screen-title">LIFE ARCHIVE</div>
+      <div className="screen-title">人生の記録</div>
       <div className="location-list">
         <p
           style={{

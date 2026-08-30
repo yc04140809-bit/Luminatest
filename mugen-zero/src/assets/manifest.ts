@@ -4,6 +4,8 @@
 
 import kaosNormal from './characters/kaos/kaos-normal.webp';
 import kaosSmile from './characters/kaos/kaos-smile.webp';
+import galdReady from './characters/gald/gald-ready.webp';
+import galdDefeated from './characters/gald/gald-defeated.webp';
 
 export type KaosExpression = 'normal' | 'smile';
 
@@ -15,6 +17,21 @@ export const KAOS_PORTRAITS: Record<KaosExpression, string | null> = {
 
 export function kaosPortrait(expression: KaosExpression = 'normal'): string | null {
   return KAOS_PORTRAITS[expression] ?? null;
+}
+
+/**
+ * Gald, the same man in two states. 'defeated' means beaten, NOT dead —
+ * whether he lives is the player's choice, made after this portrait.
+ */
+export type GaldState = 'ready' | 'defeated';
+
+export const GALD_PORTRAITS: Record<GaldState, string | null> = {
+  ready: galdReady,
+  defeated: galdDefeated,
+};
+
+export function galdPortrait(state: GaldState): string | null {
+  return GALD_PORTRAITS[state] ?? null;
 }
 
 /**

@@ -78,7 +78,7 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
 
   // Now the life connects into one record, dated from the true history.
   await openGaldRecord(page);
-  await expect(page.getByTestId('archive-detail')).toContainText('ガルド — LIFE RECORD');
+  await expect(page.getByTestId('archive-detail')).toContainText('ガルド の人生');
   await expect(page.getByTestId('archive-chapter-GALD_CH_LEFT_FOREST')).toContainText('1年目 4日目');
   await expect(page.getByTestId('archive-chapter-GALD_CH_ARRIVED')).toContainText('1年目 34日目');
   await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText('1年目 94日目');

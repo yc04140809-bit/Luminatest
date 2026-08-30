@@ -15,7 +15,7 @@ interface Props {
 export function WorldMemoryScreen({ events, onBack }: Props) {
   return (
     <div className="screen">
-      <div className="screen-title">WORLD MEMORY — 世界の記憶</div>
+      <div className="screen-title">世界の記憶</div>
       <div className="location-list" data-testid="world-memory-list">
         {events.length === 0 ? (
           <p style={{ color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.8 }}>
@@ -26,16 +26,15 @@ export function WorldMemoryScreen({ events, onBack }: Props) {
             <div key={event.id} className="location-card" data-testid={`memory-event-${event.type}`}>
               <div className="location-name">{MEMORY_EVENT_LABEL[event.type] ?? event.type}</div>
               <div className="location-desc">
-                {event.type}
-                <br />
-                {event.worldYear}年目 {event.worldDay}日目 / {event.location}
-                <br />
-                関係者: {event.actors.join('、')} / 重要度: {event.importance}
+                {event.worldYear}年目 {event.worldDay}日目
                 {event.causedBy && event.causedBy.length > 0 && (
                   <>
                     <br />
                     <span data-testid={`caused-by-${event.type}`}>
-                      因果: {event.causedBy.join(' + ')} → {event.type}
+                      きっかけ:{' '}
+                      {event.causedBy
+                        .map((cause) => MEMORY_EVENT_LABEL[cause] ?? cause)
+                        .join(' / ')}
                     </span>
                   </>
                 )}
