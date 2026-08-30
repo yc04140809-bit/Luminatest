@@ -6,6 +6,13 @@ interface Props {
   /** World.getLifeArchive() — built from PLAYER KNOWLEDGE, never raw truth. */
   entries: LifeArchiveEntry[];
   onBack: () => void;
+  /**
+   * Playtest survey entry point, offered only once the player has lived
+   * through a life choice — and never as a pop-up during play.
+   */
+  surveyAvailable?: boolean;
+  surveyAnswered?: boolean;
+  onOpenSurvey?: () => void;
 }
 
 /**
@@ -13,7 +20,13 @@ interface Props {
  * Not a bestiary and not an event log: chapters appear only as the player
  * meets, chooses, discovers and reunites. No event ids, no spoilers.
  */
-export function ArchiveScreen({ entries, onBack }: Props) {
+export function ArchiveScreen({
+  entries,
+  onBack,
+  surveyAvailable = false,
+  surveyAnswered = false,
+  onOpenSurvey,
+}: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = entries.find((e) => e.characterId === selectedId) ?? null;
 
@@ -115,7 +128,17 @@ export function ArchiveScreen({ entries, onBack }: Props) {
           ))
         )}
       </div>
-      <div className="screen-footer">
+      <div className="screen-footer" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {surveyAvailable && onOpenSurvey && (
+          <button
+            className="btn primary"
+            data-testid="open-survey-button"
+            disabled={surveyAnswered}
+            onClick={onOpenSurvey}
+          >
+            {surveyAnswered ? '感想は受け取りました' : 'この世界の感想を伝える'}
+          </button>
+        )}
         <button className="btn" data-testid="archive-back" onClick={onBack}>
           もどる
         </button>

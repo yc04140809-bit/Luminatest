@@ -16,6 +16,7 @@ import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
 import { BakeryScreen } from './ui/screens/BakeryScreen';
 import { ArchiveScreen } from './ui/screens/ArchiveScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
+import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
 import { LoadingScreen } from './ui/common/LoadingScreen';
 import { DEV_ADMIN_ENABLED } from './dev/devMode';
 import {
@@ -26,6 +27,9 @@ import {
 } from './platform/settings';
 import { audioManager } from './platform/audio';
 import { setHapticEnabled } from './platform/haptics';
+import { PlaytestFeedbackService, isSurveyAvailable } from './core/playtest/playtestService';
+import { IdbFeedbackStore } from './core/playtest/idbFeedbackStore';
+import { startNewPlaySession } from './core/playtest/playSession';
 
 // Phaser is the heaviest dependency by far and is only needed once the
 // player walks into the forest; the dev admin never ships to a player's
@@ -43,6 +47,8 @@ const DevAdminScreen = lazy(() =>
 interface CoreBundle {
   flow: GameFlow;
   world: World;
+  /** Playtest feedback is a separate layer: never world canon. */
+  playtest: PlaytestFeedbackService;
 }
 
 interface GameRootProps extends CoreBundle {
@@ -50,7 +56,24 @@ interface GameRootProps extends CoreBundle {
   onSettingsChange: (next: GameSettings) => void;
 }
 
-function GameRoot({ flow, world, settings, onSettingsChange }: GameRootProps) {
+function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRootProps) {
+  const [surveyAnswered, setSurveyAnswered] = useState(false);
+
+  // Reflects whether THIS playthrough already sent feedback.
+  useEffect(() => {
+    let cancelled = false;
+    playtest
+      .hasAnswered()
+      .then((answered) => {
+        if (!cancelled) setSurveyAnswered(answered);
+      })
+      .catch(() => {
+        /* the archive simply keeps offering the survey */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [playtest]);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -79,6 +102,9 @@ function GameRoot({ flow, world, settings, onSettingsChange }: GameRootProps) {
           }}
           onReset={async () => {
             await world.resetWorld();
+            // A fresh world is a fresh playthrough to ask about; past
+            // feedback is deliberately kept.
+            startNewPlaySession();
             window.location.reload();
           }}
         />
@@ -104,7 +130,30 @@ function GameRoot({ flow, world, settings, onSettingsChange }: GameRootProps) {
       );
     case 'ARCHIVE':
       // LIFE ARCHIVE is a projection of player knowledge — never raw truth.
-      return <ArchiveScreen entries={world.getLifeArchive()} onBack={() => flow.goTo('HOME')} />;
+      return (
+        <ArchiveScreen
+          entries={world.getLifeArchive()}
+          onBack={() => flow.goTo('HOME')}
+          surveyAvailable={isSurveyAvailable(world)}
+          surveyAnswered={surveyAnswered}
+          onOpenSurvey={() => flow.goTo('PLAYTEST_SURVEY')}
+        />
+      );
+    case 'PLAYTEST_SURVEY':
+      return (
+        <PlaytestSurveyScreen
+          world={world}
+          service={playtest}
+          onFinish={() => {
+            setSurveyAnswered(true);
+            flow.goTo('HOME');
+          }}
+          onOpenArchive={() => {
+            setSurveyAnswered(true);
+            flow.goTo('ARCHIVE');
+          }}
+        />
+      );
     case 'SETTINGS':
       return (
         <SettingsScreen
@@ -126,7 +175,7 @@ function GameRoot({ flow, world, settings, onSettingsChange }: GameRootProps) {
       if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
       return (
         <Suspense fallback={<LoadingScreen />}>
-          <DevAdminScreen world={world} onBack={() => flow.goTo('HOME')} />
+          <DevAdminScreen world={world} playtest={playtest} onBack={() => flow.goTo('HOME')} />
         </Suspense>
       );
     case 'TIME_SHIFT':
@@ -230,7 +279,8 @@ export default function App() {
     (async () => {
       try {
         const world = await World.open(new IdbMemoryStore());
-        if (!cancelled) setBundle({ flow: new GameFlow(), world });
+        const playtest = await PlaytestFeedbackService.open(new IdbFeedbackStore());
+        if (!cancelled) setBundle({ flow: new GameFlow(), world, playtest });
       } catch (e) {
         console.error('Failed to open the saved world', e);
         if (!cancelled) setInitError('セーブデータの読み込みに失敗しました。');
@@ -271,6 +321,7 @@ export default function App() {
     <GameRoot
       flow={bundle.flow}
       world={bundle.world}
+      playtest={bundle.playtest}
       settings={settings}
       onSettingsChange={handleSettingsChange}
     />

@@ -63,6 +63,7 @@ DEV ADMINは `import.meta.env.DEV` または `VITE_ENABLE_DEV_ADMIN=1` のとき
 - [x] **PHASE E — FIRST REUNION**: ガルドの人生連鎖（離脱→アルデン到着→パン屋）、探索での「？？？」発見、再会「……見るな。」、PLAYER_REUNITED_WITH_GALD記録、再訪、最小PLAYER KNOWLEDGEフィルタ（未発見の人生をUIでネタバレしない）
 - [x] **PHASE F — LIFE ARCHIVE**: 人生記録の射影（WORLD MEMORY → PLAYER KNOWLEDGE → LIFE ARCHIVE PROJECTION → UI）。既知章のみ表示＋単一「？？？」カード、再会で一本の人生記録に接続。DEV ADMINにKNOWN/UNKNOWNデバッグ
 - [x] **PHASE G — POLISH**: デザイントークン、スマホ最適化（360/390/412）、ケイオス立ち絵・台詞演出、記憶/選択/時渡り/再会の演出、AudioManager・haptics・設定、ローディング/Error Boundary、PWA（manifest・SW・オフラインシェル）、バンドル分割（初期188KB / Phaser遅延）
+- [x] **PHASE H — PLAYTEST**: プレイ後アンケート（7問・匿名・ローカル保存）、DEV ADMINでの集計/コメント閲覧/CSV書き出し。手順は `docs/PLAYTEST.md`
 
 ## 方針
 

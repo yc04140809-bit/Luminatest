@@ -1,30 +1,21 @@
-// IndexedDB implementation of MemoryEventStore.
-// The only module in the codebase that talks to IndexedDB.
+// IndexedDB implementation of MemoryEventStore (world canon).
+// Schema is shared with the playtest store — see core/memory/idbSchema.
 
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from './types';
+import {
+  DB_NAME,
+  EVENTS_STORE,
+  META_STORE,
+  WORLD_STATE_STORE,
+  openDatabase,
+  promisify,
+  txDone,
+} from './idbSchema';
 
-export const DB_NAME = 'mugen-zero-save';
-export const DB_VERSION = 2;
-export const EVENTS_STORE = 'memory_events';
-export const META_STORE = 'meta';
-export const WORLD_STATE_STORE = 'world_state';
+export { DB_NAME, DB_VERSION, EVENTS_STORE, META_STORE, WORLD_STATE_STORE } from './idbSchema';
+
+/** Bumped when the shape of saved data changes, not when a store is added. */
 export const SAVE_SCHEMA_VERSION = 2;
-
-function promisify<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-/** Resolves once the transaction has durably committed. */
-function txDone(tx: IDBTransaction): Promise<void> {
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'));
-    tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
-  });
-}
 
 export class IdbMemoryStore implements MemoryEventStore {
   private db: IDBDatabase | null = null;
@@ -36,24 +27,7 @@ export class IdbMemoryStore implements MemoryEventStore {
 
   async init(): Promise<void> {
     if (this.db) return;
-    this.db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const open = indexedDB.open(this.dbName, DB_VERSION);
-      open.onupgradeneeded = () => {
-        const db = open.result;
-        if (!db.objectStoreNames.contains(EVENTS_STORE)) {
-          db.createObjectStore(EVENTS_STORE, { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains(META_STORE)) {
-          db.createObjectStore(META_STORE, { keyPath: 'key' });
-        }
-        // v2: current world state (clock, character states).
-        if (!db.objectStoreNames.contains(WORLD_STATE_STORE)) {
-          db.createObjectStore(WORLD_STATE_STORE, { keyPath: 'key' });
-        }
-      };
-      open.onsuccess = () => resolve(open.result);
-      open.onerror = () => reject(open.error);
-    });
+    this.db = await openDatabase(this.dbName);
 
     // Stamp / upgrade the schema version. No migration engine yet —
     // v1 saves only lacked the world_state store (absent rows fall back

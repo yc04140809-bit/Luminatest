@@ -58,9 +58,12 @@ await page.getByTestId('continue-button').waitFor({ timeout: 15000 });
 await page.waitForTimeout(800); // let asset caching settle
 await context.setOffline(true);
 await page.reload();
+// waitFor, not isVisible: isVisible() ignores a timeout and answers
+// immediately, which raced the offline reload.
 const bootedOffline = await page
   .getByTestId('continue-button')
-  .isVisible({ timeout: 15000 })
+  .waitFor({ state: 'visible', timeout: 15000 })
+  .then(() => true)
   .catch(() => false);
 bootedOffline ? ok('offline shell boots from cache') : bad('offline shell boots from cache');
 

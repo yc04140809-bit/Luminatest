@@ -4,9 +4,13 @@ import { toAbsoluteDay } from '../core/time/calendar';
 import { MEMORY_EVENT_LABEL } from '../content/events/galdLifeChoice';
 import { SCENARIO_PRESETS } from './presets';
 import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
+import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
+import { DevPlaytestPanel } from './DevPlaytestPanel';
 
 interface Props {
   world: World;
+  /** Feedback layer — read here for analysis only, never fed into the world. */
+  playtest: PlaytestFeedbackService;
   onBack: () => void;
 }
 
@@ -27,7 +31,7 @@ const smallBtn: React.CSSProperties = { fontSize: 13, padding: '10px 12px', flex
  * recordGaldLifeChoice, advanceDays, timeShift, devResetGaldScenario);
  * there is no second game logic here.
  */
-export function DevAdminScreen({ world, onBack }: Props) {
+export function DevAdminScreen({ world, playtest, onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
@@ -207,6 +211,10 @@ export function DevAdminScreen({ world, onBack }: Props) {
             </>
           );
         })()}
+
+        {/* ---- PLAYTEST FEEDBACK ---- */}
+        <div style={sectionTitle}>PLAYTEST FEEDBACK</div>
+        <DevPlaytestPanel service={playtest} />
 
         {/* ---- DEBUG EVENT VIEWER ---- */}
         <div style={sectionTitle}>EVENT TIMELINE</div>
