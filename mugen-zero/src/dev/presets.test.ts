@@ -47,20 +47,57 @@ describe('DEV ADMIN scenario presets (built through official game flow)', () => 
     expect(world.getCharacter('GALD')?.occupation).toBe('NONE');
   });
 
-  it('SPARE + 3 YEARS builds the full canonical causal chain', async () => {
+  it('SPARE + 3 YEARS builds the full canonical causal chain up to BAKER', async () => {
     const world = await openWorld();
     await preset('SPARE_3Y').run(world);
 
     const types = world.getEvents().map((e) => e.type);
-    expect(types).toEqual(['PLAYER_SPARED_GALD', 'GALD_LEAVES_BANDITS', 'WORLD_TIME_SHIFTED']);
+    expect(types).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
+      'WORLD_TIME_SHIFTED',
+    ]);
     const leaves = world.getEvents().find((e) => e.type === 'GALD_LEAVES_BANDITS')!;
     expect(leaves.causedBy).toEqual(['PLAYER_SPARED_GALD']);
     expect(leaves.worldYear).toBe(1);
     expect(leaves.worldDay).toBe(4);
     expect(world.getClock()).toEqual({ worldYear: 4, worldDay: 4 });
-    expect(world.getCharacter('GALD')).toMatchObject({ age: 30, occupation: 'NONE' });
+    expect(world.getCharacter('GALD')).toMatchObject({ age: 30, occupation: 'BAKER' });
+    expect(world.hasReunitedWithGald()).toBe(false); // baker but NOT reunited
     // No duplicate firing.
     expect(types.filter((t) => t === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+    expect(types.filter((t) => t === 'GALD_BECOMES_BAKER')).toHaveLength(1);
+  });
+
+  it('ARRIVED preset stops right after Gald reaches Alden', async () => {
+    const world = await openWorld();
+    await preset('ARRIVED').run(world);
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 34 });
+    expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(true);
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+    expect(world.getCharacter('GALD')).toMatchObject({
+      occupation: 'NONE',
+      location: 'ALDEN_VILLAGE',
+    });
+  });
+
+  it('PRE_BAKER preset stops one day before the bakery', async () => {
+    const world = await openWorld();
+    await preset('PRE_BAKER').run(world);
+    expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 93 });
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+    await world.advanceDays(1);
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(true);
+  });
+
+  it('REUNITED preset includes the recorded reunion', async () => {
+    const world = await openWorld();
+    await preset('REUNITED').run(world);
+    expect(world.hasReunitedWithGald()).toBe(true);
+    const reunion = world.getEvents().find((e) => e.type === 'PLAYER_REUNITED_WITH_GALD')!;
+    expect(reunion.causedBy).toEqual(['GALD_BECOMES_BAKER']);
   });
 
   it.each(['KILL', 'HELP', 'CAPTURE'] as const)('%s preset records the choice', async (id) => {

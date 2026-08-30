@@ -10,7 +10,10 @@ export type PresetId =
   | 'SPARE'
   | 'SPARE_2D'
   | 'SPARE_3D'
+  | 'ARRIVED'
+  | 'PRE_BAKER'
   | 'SPARE_3Y'
+  | 'REUNITED'
   | 'KILL'
   | 'HELP'
   | 'CAPTURE';
@@ -56,15 +59,46 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     },
   },
   {
+    id: 'ARRIVED',
+    label: 'アルデン到着後',
+    run: async (world) => {
+      // spare day1 -> leaves day4 -> arrives day34.
+      await world.resetWorld();
+      await world.recordGaldLifeChoice('SPARE');
+      await world.advanceDays(33);
+    },
+  },
+  {
+    id: 'PRE_BAKER',
+    label: 'パン屋化直前',
+    run: async (world) => {
+      // Baker becomes due on day 94; stop on day 93.
+      await world.resetWorld();
+      await world.recordGaldLifeChoice('SPARE');
+      await world.advanceDays(92);
+    },
+  },
+  {
     id: 'SPARE_3Y',
-    label: 'SPARE + 3 YEARS',
+    label: 'SPARE+3年（パン屋/未再会）',
     run: async (world) => {
       // Canonical causal chain: spare -> 3 days -> leaves bandits ->
-      // time shift -> age update.
+      // time shift (catch-up fires arrives + baker) -> age update.
       await world.resetWorld();
       await world.recordGaldLifeChoice('SPARE');
       await world.advanceDays(3);
       await world.timeShift(3);
+    },
+  },
+  {
+    id: 'REUNITED',
+    label: '再会後',
+    run: async (world) => {
+      await world.resetWorld();
+      await world.recordGaldLifeChoice('SPARE');
+      await world.advanceDays(3);
+      await world.timeShift(3);
+      await world.recordGaldReunion();
     },
   },
   {

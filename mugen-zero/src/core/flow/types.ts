@@ -13,6 +13,7 @@ export type Screen =
   | 'CHOICE_RESULT'
   | 'WORLD_MEMORY'
   | 'TIME_SHIFT'
+  | 'BAKERY'
   | 'DEV_LOCK'
   | 'DEV_ADMIN';
 

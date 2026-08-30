@@ -32,6 +32,9 @@ export const MEMORY_EVENT_LABEL: Record<MemoryEventType, string> = {
   PLAYER_HELPED_GALD: '森の盗賊の傷を治療した',
   PLAYER_CAPTURED_GALD: '森の盗賊を衛兵へ引き渡した',
   GALD_LEAVES_BANDITS: '森の盗賊が、盗賊団を離れた',
+  GALD_ARRIVES_IN_ALDEN: 'ひとりの男が、アルデンに流れ着いた',
+  GALD_BECOMES_BAKER: '男は、パン屋として生き始めた',
+  PLAYER_REUNITED_WITH_GALD: 'パン屋で、あの盗賊と再会した',
   WORLD_TIME_SHIFTED: '世界の時が、大きく流れた',
 };
 

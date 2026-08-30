@@ -13,12 +13,22 @@ export type GaldLifeChoiceEventType =
   | 'PLAYER_CAPTURED_GALD';
 
 /** Life events produced by the EVENT ENGINE. */
-export type LifeEventType = 'GALD_LEAVES_BANDITS';
+export type LifeEventType =
+  | 'GALD_LEAVES_BANDITS'
+  | 'GALD_ARRIVES_IN_ALDEN'
+  | 'GALD_BECOMES_BAKER';
+
+/** Events the player takes part in outside the first-encounter choice. */
+export type PlayerEventType = 'PLAYER_REUNITED_WITH_GALD';
 
 /** World-scale events (large passages of time, …). */
 export type WorldEventType = 'WORLD_TIME_SHIFTED';
 
-export type MemoryEventType = GaldLifeChoiceEventType | LifeEventType | WorldEventType;
+export type MemoryEventType =
+  | GaldLifeChoiceEventType
+  | LifeEventType
+  | PlayerEventType
+  | WorldEventType;
 
 export interface MemoryEvent {
   id: string;

@@ -65,12 +65,13 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
     occupation: string;
   };
   expect(gald.age).toBe(30);
-  expect(gald.occupation).toBe('NONE');
+  expect(gald.occupation).toBe('BAKER'); // the chained life continued off-screen
 
-  // The viewer shows the shift and Gald's aged state.
+  // The player-facing viewer shows the shift (witnessed), never the
+  // undiscovered life; the aged state is checked via DB above.
   await page.getByTestId('world-memory-button').click();
   await expect(page.getByTestId('memory-event-WORLD_TIME_SHIFTED')).toBeVisible();
-  await expect(page.getByTestId('gald-state')).toContainText('age: 30');
+  await expect(page.getByTestId('memory-event-GALD_BECOMES_BAKER')).toHaveCount(0);
 });
 
 test('TIME SHIFT right after SPARE does not swallow GALD_LEAVES_BANDITS', async ({ page }) => {
@@ -95,5 +96,5 @@ test('TIME SHIFT right after SPARE does not swallow GALD_LEAVES_BANDITS', async 
     occupation: string;
     location: string;
   };
-  expect(gald).toMatchObject({ age: 30, occupation: 'NONE', location: 'UNKNOWN' });
+  expect(gald).toMatchObject({ age: 30, occupation: 'BAKER', location: 'ALDEN_VILLAGE' });
 });

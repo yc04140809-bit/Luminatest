@@ -1,21 +1,18 @@
 import type { MemoryEvent } from '../../core/memory/types';
-import type { CharacterState } from '../../core/characters/types';
 import { MEMORY_EVENT_LABEL } from '../../content/events/galdLifeChoice';
 
 interface Props {
+  /**
+   * Pass World.getKnownEvents() here, never the full truth: this is the
+   * player-facing view and must not spoil undiscovered lives. The complete
+   * canon lives in the DEV ADMIN event viewer.
+   */
   events: MemoryEvent[];
-  /** Debug: Gald's CURRENT state, shown to verify event effects. */
-  galdState?: CharacterState;
   onBack: () => void;
 }
 
-/**
- * Displays what is stored in WORLD MEMORY (the DB is the truth;
- * this screen only renders it). Phase C: doubles as the debug view for
- * verifying causality — this is world truth, not player knowledge;
- * the player-facing discovery flow comes in later phases.
- */
-export function WorldMemoryScreen({ events, galdState, onBack }: Props) {
+/** Displays the recorded past the player knows about. */
+export function WorldMemoryScreen({ events, onBack }: Props) {
   return (
     <div className="screen">
       <div className="screen-title">WORLD MEMORY — 世界の記憶</div>
@@ -52,17 +49,6 @@ export function WorldMemoryScreen({ events, galdState, onBack }: Props) {
               </div>
             </div>
           ))
-        )}
-        {galdState && (
-          <div className="location-card" data-testid="gald-state">
-            <div className="location-name" style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-              CHARACTER STATE（現在 / DEBUG）
-            </div>
-            <div className="location-desc">
-              GALD — age: {galdState.age} / occupation: {galdState.occupation} / location:{' '}
-              {galdState.location} / alive: {String(galdState.alive)}
-            </div>
-          </div>
         )}
       </div>
       <div className="screen-footer">

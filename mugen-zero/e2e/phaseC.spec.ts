@@ -50,14 +50,20 @@ test('SPARE + 3 elapsed days causes GALD_LEAVES_BANDITS exactly once, and it sur
   expect(gald.occupation).toBe('NONE');
   expect(gald.location).toBe('UNKNOWN');
 
-  // The viewer shows the causal chain and current state.
+  // Full truth (causal chain, current state) lives in the DEV ADMIN viewer;
+  // the player-facing WORLD MEMORY hides Gald's unwitnessed life.
   await page.getByTestId('world-memory-button').click();
-  await expect(page.getByTestId('memory-event-GALD_LEAVES_BANDITS')).toBeVisible();
-  await expect(page.getByTestId('caused-by-GALD_LEAVES_BANDITS')).toHaveText(
-    '因果: PLAYER_SPARED_GALD → GALD_LEAVES_BANDITS',
-  );
-  await expect(page.getByTestId('gald-state')).toContainText('occupation: NONE');
+  await expect(page.getByTestId('memory-event-PLAYER_SPARED_GALD')).toBeVisible();
+  await expect(page.getByTestId('memory-event-GALD_LEAVES_BANDITS')).toHaveCount(0);
   await page.getByTestId('world-memory-back').click();
+  await page.getByTestId('dev-admin-entry').click();
+  await page.getByTestId('dev-lock-input').fill('0909');
+  await page.getByTestId('dev-lock-submit').click();
+  await expect(page.getByTestId('dev-event-GALD_LEAVES_BANDITS')).toContainText(
+    'causedBy: PLAYER_SPARED_GALD',
+  );
+  await expect(page.getByTestId('dev-gald')).toContainText('occupation: NONE');
+  await page.getByTestId('dev-admin-back').click();
 
   // once: more days never duplicate it.
   await advanceDays(page, 3);

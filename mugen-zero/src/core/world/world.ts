@@ -107,6 +107,33 @@ export class World {
     return this.events.some((e) => e.type === type);
   }
 
+  /**
+   * Minimal PLAYER KNOWLEDGE approximation (full system arrives in a later
+   * phase): the player-facing WORLD MEMORY view shows only events the
+   * player took part in, plus world-scale time passage. Gald's off-screen
+   * life stays hidden until the player actually reunites with him — world
+   * truth must never spoil itself through the UI.
+   */
+  getKnownEvents(): MemoryEvent[] {
+    const reunited = this.hasEventOfType('PLAYER_REUNITED_WITH_GALD');
+    return this.getEvents().filter(
+      (e) =>
+        e.actors.includes('PLAYER') ||
+        e.type === 'WORLD_TIME_SHIFTED' ||
+        (reunited && e.actors.includes('GALD')),
+    );
+  }
+
+  /** World truth: a bakery exists in Alden. (Not player knowledge.) */
+  isBakeryOpen(): boolean {
+    return this.hasEventOfType('GALD_BECOMES_BAKER');
+  }
+
+  /** The player has actually met the baker. */
+  hasReunitedWithGald(): boolean {
+    return this.hasEventOfType('PLAYER_REUNITED_WITH_GALD');
+  }
+
   /** The final life choice made for Gald's first encounter, if any. */
   getGaldLifeChoice(): LifeChoiceId | null {
     const event = this.events.find((e) => e.id === GALD_LIFE_CHOICE_EVENT_ID);
@@ -319,6 +346,35 @@ export class World {
     }
   }
 
+  /**
+   * Records the moment the player actually meets Gald in the bakery.
+   * Only callable in a world whose truth contains GALD_BECOMES_BAKER;
+   * a TIME SHIFT alone never creates this event. Once per world
+   * (idempotent on revisit).
+   */
+  async recordGaldReunion(): Promise<MemoryEvent> {
+    const existing = this.events.find((e) => e.type === 'PLAYER_REUNITED_WITH_GALD');
+    if (existing) return existing;
+    if (!this.isBakeryOpen()) {
+      throw new Error('Reunion requires GALD_BECOMES_BAKER in world truth');
+    }
+    const event: MemoryEvent = {
+      id: 'evt_player_reunited_with_gald',
+      type: 'PLAYER_REUNITED_WITH_GALD',
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+      location: 'ALDEN_BAKERY',
+      actors: ['PLAYER', 'GALD'],
+      importance: 'MAJOR',
+      createdAt: new Date().toISOString(),
+      causedBy: ['GALD_BECOMES_BAKER'],
+    };
+    await this.store.commit({ addEvents: [event] });
+    this.events = [...this.events, event];
+    this.emit();
+    return event;
+  }
+
   /** Advances the world day by day, n times (each day fully resolved). */
   async advanceDays(n: number): Promise<MemoryEvent[]> {
     const fired: MemoryEvent[] = [];
@@ -337,11 +393,9 @@ export class World {
    * history; gameplay code must never call it.
    */
   async devResetGaldScenario(): Promise<void> {
-    const galdEventTypes = new Set<string>([
-      ...Object.values(GALD_LIFE_CHOICE_EVENT_TYPE),
-      ...LIFE_EVENT_DEFS.filter((d) => d.actors.includes('GALD')).map((d) => d.type),
-    ]);
-    const removeIds = this.events.filter((e) => galdEventTypes.has(e.type)).map((e) => e.id);
+    // Everything Gald took part in — choice events, his life events, and
+    // the reunion — while world-scale history (time shifts) survives.
+    const removeIds = this.events.filter((e) => e.actors.includes('GALD')).map((e) => e.id);
     const initialGald = INITIAL_CHARACTERS.GALD;
     await this.store.commit({
       deleteEventIds: removeIds,

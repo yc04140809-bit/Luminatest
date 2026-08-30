@@ -14,6 +14,7 @@ import { LifeChoiceScreen } from './ui/screens/LifeChoiceScreen';
 import { ChoiceResultScreen } from './ui/screens/ChoiceResultScreen';
 import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
+import { BakeryScreen } from './ui/screens/BakeryScreen';
 import { DEV_ADMIN_ENABLED } from './dev/devMode';
 import { DevLockScreen } from './dev/DevLockScreen';
 import { DevAdminScreen } from './dev/DevAdminScreen';
@@ -89,18 +90,28 @@ function GameRoot({ flow, world }: CoreBundle) {
         />
       );
     case 'WORLD_MEMORY':
+      // Player-facing view: known events only, never the full truth.
       return (
-        <WorldMemoryScreen
-          events={world.getEvents()}
-          galdState={world.getCharacter('GALD')}
-          onBack={() => flow.goTo('HOME')}
-        />
+        <WorldMemoryScreen events={world.getKnownEvents()} onBack={() => flow.goTo('HOME')} />
       );
     case 'EXPLORE':
       return (
         <ExploreScreen
           onEnterGreenwood={() => flow.goTo('GREENWOOD')}
           onBack={() => flow.goTo('HOME')}
+          bakeryOpen={world.isBakeryOpen()}
+          bakeryDiscovered={world.hasReunitedWithGald()}
+          onEnterBakery={() => flow.goTo('BAKERY')}
+        />
+      );
+    case 'BAKERY':
+      return (
+        <BakeryScreen
+          firstVisit={!world.hasReunitedWithGald()}
+          onReunion={async () => {
+            await world.recordGaldReunion();
+          }}
+          onLeave={() => flow.goTo('EXPLORE')}
         />
       );
     case 'GREENWOOD':

@@ -225,26 +225,38 @@ describe('World — TIME SYSTEM (Phase D)', () => {
     await world.recordGaldLifeChoice('SPARE'); // year 1 day 1
     const { lifeEvents } = await world.timeShift(3);
 
-    expect(lifeEvents.map((e) => e.type)).toEqual(['GALD_LEAVES_BANDITS']);
-    const leaves = lifeEvents[0];
-    // Recorded the day it actually became due, not the post-shift date.
-    expect(leaves.worldYear).toBe(1);
-    expect(leaves.worldDay).toBe(4);
-    expect(leaves.causedBy).toEqual(['PLAYER_SPARED_GALD']);
-    expect(world.getCharacter('GALD')?.occupation).toBe('NONE');
+    // The whole chained life fires, each event dated the day it actually
+    // became due — never the post-shift date.
+    expect(lifeEvents.map((e) => [e.type, e.worldYear, e.worldDay])).toEqual([
+      ['GALD_LEAVES_BANDITS', 1, 4],
+      ['GALD_ARRIVES_IN_ALDEN', 1, 34],
+      ['GALD_BECOMES_BAKER', 1, 94],
+    ]);
+    expect(lifeEvents[0].causedBy).toEqual(['PLAYER_SPARED_GALD']);
+    expect(world.getCharacter('GALD')?.occupation).toBe('BAKER');
     expect(world.getCharacter('GALD')?.age).toBe(30);
 
-    // World-chronological order: spared -> leaves -> shift.
+    // World-chronological order: spared -> life chain -> shift.
     const types = world.getEvents().map((e) => e.type);
-    expect(types).toEqual(['PLAYER_SPARED_GALD', 'GALD_LEAVES_BANDITS', 'WORLD_TIME_SHIFTED']);
+    expect(types).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
+      'WORLD_TIME_SHIFTED',
+    ]);
   });
 
   it('once holds across REST firing followed by a TIME SHIFT', async () => {
     const world = await openWorld(freshDbName());
     await world.recordGaldLifeChoice('SPARE');
-    for (let i = 0; i < 3; i++) await world.advanceDay(); // fires on day 4
+    for (let i = 0; i < 3; i++) await world.advanceDay(); // leaves fires on day 4
     const { lifeEvents } = await world.timeShift(3);
-    expect(lifeEvents).toEqual([]);
+    // Only the not-yet-fired chain continues; leaves is not re-fired.
+    expect(lifeEvents.map((e) => e.type)).toEqual([
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
+    ]);
     expect(world.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
   });
 
@@ -269,15 +281,129 @@ describe('World — TIME SYSTEM (Phase D)', () => {
     const reopened = await openWorld(dbName);
     expect(reopened.getClock()).toEqual({ worldYear: 4, worldDay: 1 });
     expect(reopened.getCharacter('GALD')?.age).toBe(30);
-    expect(reopened.getCharacter('GALD')?.occupation).toBe('NONE');
+    expect(reopened.getCharacter('GALD')?.occupation).toBe('BAKER');
     expect(reopened.getEvents().map((e) => e.type)).toEqual([
       'PLAYER_SPARED_GALD',
       'GALD_LEAVES_BANDITS',
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
       'WORLD_TIME_SHIFTED',
     ]);
     // And the reopened world does not re-fire anything.
     await reopened.timeShift(3);
     expect(reopened.getEvents().filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
+    expect(reopened.getEvents().filter((e) => e.type === 'GALD_BECOMES_BAKER')).toHaveLength(1);
+  });
+});
+
+describe('World — Gald bakery life chain (Phase E)', () => {
+  it('walks the full chain day by day with correct dates, states and causedBy', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE'); // day 1
+
+    await world.advanceDays(3); // day 4: leaves
+    expect(world.getCharacter('GALD')).toMatchObject({ occupation: 'NONE', location: 'UNKNOWN' });
+
+    await world.advanceDays(30); // day 34: arrives in Alden
+    expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(true);
+    expect(world.getCharacter('GALD')).toMatchObject({
+      occupation: 'NONE',
+      location: 'ALDEN_VILLAGE',
+    });
+
+    await world.advanceDays(60); // day 94: becomes baker
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(true);
+    expect(world.getCharacter('GALD')).toMatchObject({
+      alive: true,
+      occupation: 'BAKER',
+      location: 'ALDEN_VILLAGE',
+      age: 27, // no year passed — REST never ages
+    });
+
+    // Full causal chain is traceable from WORLD MEMORY.
+    const byType = Object.fromEntries(world.getEvents().map((e) => [e.type, e]));
+    expect(byType.GALD_LEAVES_BANDITS.causedBy).toEqual(['PLAYER_SPARED_GALD']);
+    expect(byType.GALD_ARRIVES_IN_ALDEN.causedBy).toEqual(['GALD_LEAVES_BANDITS']);
+    expect(byType.GALD_BECOMES_BAKER.causedBy).toEqual(['GALD_ARRIVES_IN_ALDEN']);
+    expect(byType.GALD_ARRIVES_IN_ALDEN.worldDay).toBe(34);
+    expect(byType.GALD_BECOMES_BAKER.worldDay).toBe(94);
+  });
+
+  it.each(['KILL', 'HELP', 'CAPTURE'] as const)(
+    '%s route never produces the bakery life, even after 100 years',
+    async (choice) => {
+      const world = await openWorld(freshDbName());
+      await world.recordGaldLifeChoice(choice);
+      await world.timeShift(100);
+      expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
+      expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(false);
+      expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+      expect(world.isBakeryOpen()).toBe(false);
+      expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
+      if (choice === 'KILL') {
+        expect(world.getCharacter('GALD')?.alive).toBe(false);
+        expect(world.getCharacter('GALD')?.age).toBe(27); // the dead do not age
+      }
+    },
+  );
+
+  it('the bakery alone never creates the reunion; only recordGaldReunion does', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3);
+    expect(world.isBakeryOpen()).toBe(true);
+    expect(world.hasReunitedWithGald()).toBe(false);
+    expect(world.hasEventOfType('PLAYER_REUNITED_WITH_GALD')).toBe(false);
+
+    const reunion = await world.recordGaldReunion();
+    expect(reunion.type).toBe('PLAYER_REUNITED_WITH_GALD');
+    expect(reunion.causedBy).toEqual(['GALD_BECOMES_BAKER']);
+    expect(reunion.actors).toEqual(['PLAYER', 'GALD']);
+    expect(reunion.location).toBe('ALDEN_BAKERY');
+    expect(reunion.importance).toBe('MAJOR');
+    expect(reunion.worldYear).toBe(4); // recorded when it actually happened
+
+    // once: a revisit returns the same fact, never a duplicate.
+    const again = await world.recordGaldReunion();
+    expect(again).toEqual(reunion);
+    expect(
+      world.getEvents().filter((e) => e.type === 'PLAYER_REUNITED_WITH_GALD'),
+    ).toHaveLength(1);
+
+    // Persisted across a restart.
+    const reopened = await openWorld(dbName);
+    expect(reopened.hasReunitedWithGald()).toBe(true);
+    expect(reopened.getCharacter('GALD')?.occupation).toBe('BAKER');
+  });
+
+  it('refuses a reunion in a world without the bakery', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    await expect(world.recordGaldReunion()).rejects.toThrow(/GALD_BECOMES_BAKER/);
+  });
+
+  it('getKnownEvents hides the undiscovered life and reveals it after the reunion', async () => {
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3);
+
+    // Before the reunion: the player knows their own acts and the time
+    // shift — not Gald's off-screen life.
+    expect(world.getKnownEvents().map((e) => e.type)).toEqual([
+      'PLAYER_SPARED_GALD',
+      'WORLD_TIME_SHIFTED',
+    ]);
+
+    await world.recordGaldReunion();
+    expect(world.getKnownEvents().map((e) => e.type)).toEqual([
+      'PLAYER_SPARED_GALD',
+      'GALD_LEAVES_BANDITS',
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
+      'WORLD_TIME_SHIFTED',
+      'PLAYER_REUNITED_WITH_GALD',
+    ]);
   });
 });
 
@@ -288,7 +414,7 @@ describe('World — RESET WORLD', () => {
     await world.recordGaldLifeChoice('SPARE');
     for (let i = 0; i < 3; i++) await world.advanceDay();
     await world.timeShift(3);
-    expect(world.getCharacter('GALD')?.occupation).toBe('NONE');
+    expect(world.getCharacter('GALD')?.occupation).toBe('BAKER');
     expect(world.getCharacter('GALD')?.age).toBe(30);
 
     await world.resetWorld();

@@ -51,6 +51,8 @@ test('admin-built state survives a full browser restart and matches the game', a
 
     const events = await readMemoryEvents(page);
     expect(events.map((e) => e.type).sort()).toEqual([
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
       'GALD_LEAVES_BANDITS',
       'PLAYER_SPARED_GALD',
       'WORLD_TIME_SHIFTED',

@@ -110,12 +110,13 @@ test('SPARE_3Y preset builds canon, and it matches the game after a reload', asy
   await expect(page.getByTestId('dev-clock')).toContainText('4年目 4日目');
   await expect(page.getByTestId('dev-gald')).toContainText('age: 30');
 
-  // Reload the whole app: the game (HOME clock, WORLD MEMORY) agrees with
-  // what the admin showed.
+  // Reload the whole app: the game agrees with what the admin showed
+  // (checked back through the admin — the player viewer hides the
+  // undiscovered life by design).
   await page.reload();
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
-  await page.getByTestId('world-memory-button').click();
-  await expect(page.getByTestId('gald-state')).toContainText('age: 30');
-  await expect(page.getByTestId('memory-event-GALD_LEAVES_BANDITS')).toBeVisible();
+  await openAdmin(page);
+  await expect(page.getByTestId('dev-gald')).toContainText('age: 30');
+  await expect(page.getByTestId('dev-event-GALD_LEAVES_BANDITS')).toBeVisible();
 });

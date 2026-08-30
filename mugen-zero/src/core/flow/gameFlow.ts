@@ -8,7 +8,8 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   TITLE: ['PROLOGUE', 'HOME'], // TITLE -> HOME = continue with an existing world
   PROLOGUE: ['HOME'],
   HOME: ['EXPLORE', 'WORLD_MEMORY', 'TIME_SHIFT', 'DEV_LOCK'],
-  EXPLORE: ['GREENWOOD', 'HOME'],
+  EXPLORE: ['GREENWOOD', 'BAKERY', 'HOME'],
+  BAKERY: ['EXPLORE'],
   GREENWOOD: ['ENCOUNTER', 'EXPLORE'],
   ENCOUNTER: ['BATTLE'],
   BATTLE: ['LIFE_CHOICE', 'HOME'],

@@ -43,7 +43,7 @@ node scripts/screenshots.mjs  # 画面キャプチャ（要 vite preview --port 
 - [x] **PHASE C — EVENT ENGINE**: WORLD CLOCK、SPARE+3日経過→GALD_LEAVES_BANDITS、causedBy因果記録、CHARACTER STATE原子的更新
 - [x] **PHASE D — TIME SYSTEM**: 365日カレンダー・年跨ぎ、REST(+1日)、TIME SHIFT +3年（確認画面・取りこぼし防止キャッチアップ・NPC加齢・WORLD_TIME_SHIFTED正史記録）
 - [x] **PHASE D.5 — DEV ADMIN**: 開発者用管理画面（LOCK 0909、ダッシュボード、TIME CONTROL、正規フロー再現プリセット、RESET SCENARIO/WORLD、イベントタイムライン）。devビルドのみ有効（本番は `VITE_ENABLE_DEV_ADMIN=1` を付けない限り非表示）
-- [ ] PHASE E — REUNION（3年後のアルデン・ガルド再会「見るな。」）
+- [x] **PHASE E — FIRST REUNION**: ガルドの人生連鎖（離脱→アルデン到着→パン屋）、探索での「？？？」発見、再会「……見るな。」、PLAYER_REUNITED_WITH_GALD記録、再訪、最小PLAYER KNOWLEDGEフィルタ（未発見の人生をUIでネタバレしない）
 - [ ] PHASE F — LIFE ARCHIVE（PLAYER KNOWLEDGE連動）
 - [ ] PHASE G — POLISH（アート・音・PWA・スマホ最適化）
 

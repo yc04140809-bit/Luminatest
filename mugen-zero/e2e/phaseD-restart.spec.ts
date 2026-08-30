@@ -45,6 +45,8 @@ test('clock, age and events survive a full browser restart after a TIME SHIFT', 
 
     const events = await readMemoryEvents(page);
     expect(events.map((e) => e.type).sort()).toEqual([
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
       'GALD_LEAVES_BANDITS',
       'PLAYER_SPARED_GALD',
       'WORLD_TIME_SHIFTED',
@@ -55,13 +57,15 @@ test('clock, age and events survive a full browser restart after a TIME SHIFT', 
       occupation: string;
     };
     expect(gald.age).toBe(30);
-    expect(gald.occupation).toBe('NONE');
+    expect(gald.occupation).toBe('BAKER');
 
     // The game agrees with the DB.
     await page.getByTestId('continue-button').click();
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 1日目');
-    await page.getByTestId('world-memory-button').click();
-    await expect(page.getByTestId('gald-state')).toContainText('age: 30');
+    await page.getByTestId('dev-admin-entry').click();
+    await page.getByTestId('dev-lock-input').fill('0909');
+    await page.getByTestId('dev-lock-submit').click();
+    await expect(page.getByTestId('dev-gald')).toContainText('age: 30');
 
     await context.close();
   } finally {
