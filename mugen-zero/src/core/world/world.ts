@@ -8,6 +8,7 @@ import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/typ
 import type { CharacterState } from '../characters/types';
 import type { LifeEventDef } from '../events/types';
 import { findDueLifeEvents } from '../events/eventEngine';
+import { buildGaldLifeArchive, type LifeArchiveEntry } from '../archive/lifeArchive';
 import {
   type WorldClock,
   INITIAL_CLOCK,
@@ -122,6 +123,15 @@ export class World {
         e.type === 'WORLD_TIME_SHIFTED' ||
         (reunited && e.actors.includes('GALD')),
     );
+  }
+
+  /**
+   * LIFE ARCHIVE — a pure projection over PLAYER KNOWLEDGE.
+   * Nothing is stored for it; RESET and save compatibility come for free.
+   */
+  getLifeArchive(): LifeArchiveEntry[] {
+    const gald = buildGaldLifeArchive(this.getKnownEvents());
+    return gald ? [gald] : [];
   }
 
   /** World truth: a bakery exists in Alden. (Not player knowledge.) */

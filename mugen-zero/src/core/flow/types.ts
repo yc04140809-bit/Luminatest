@@ -14,6 +14,7 @@ export type Screen =
   | 'WORLD_MEMORY'
   | 'TIME_SHIFT'
   | 'BAKERY'
+  | 'ARCHIVE'
   | 'DEV_LOCK'
   | 'DEV_ADMIN';
 

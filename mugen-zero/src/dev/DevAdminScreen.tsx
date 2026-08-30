@@ -3,6 +3,7 @@ import type { World } from '../core/world/world';
 import { toAbsoluteDay } from '../core/time/calendar';
 import { MEMORY_EVENT_LABEL } from '../content/events/galdLifeChoice';
 import { SCENARIO_PRESETS } from './presets';
+import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 
 interface Props {
   world: World;
@@ -170,6 +171,42 @@ export function DevAdminScreen({ world, onBack }: Props) {
             {status}
           </div>
         )}
+
+        {/* ---- LIFE ARCHIVE DEBUG ---- */}
+        <div style={sectionTitle}>LIFE ARCHIVE DEBUG — GALD</div>
+        {(() => {
+          // Same pure projection: full truth in, canon chapters out; the
+          // player projection tells us which of them are actually known.
+          const truth = buildGaldLifeArchive(events);
+          const known = world.getLifeArchive().find((e) => e.characterId === 'GALD');
+          const knownIds = new Set(known?.chapters.map((c) => c.id) ?? []);
+          if (!truth) {
+            return <div className="location-desc">まだガルドの章はありません。</div>;
+          }
+          return (
+            <>
+              {truth.chapters.map((chapter) => (
+                <div
+                  key={chapter.id}
+                  className="location-card"
+                  data-testid={`dev-archive-${chapter.id}`}
+                >
+                  <div className="location-desc">
+                    [{knownIds.has(chapter.id) ? 'KNOWN' : 'UNKNOWN'}] {chapter.id}
+                    <br />
+                    title: {chapter.title} / {chapter.worldYear}年目 {chapter.worldDay}日目
+                    <br />
+                    source: {chapter.sourceEventTypes.join(', ')} ({chapter.sourceEventIds.join(', ')})
+                  </div>
+                </div>
+              ))}
+              <div className="location-desc" data-testid="dev-archive-unknown-state">
+                player view: {known ? known.chapters.length : 0} known chapter(s) / unknown
+                continuation card: {String(known?.hasUnknownContinuation ?? false)}
+              </div>
+            </>
+          );
+        })()}
 
         {/* ---- DEBUG EVENT VIEWER ---- */}
         <div style={sectionTitle}>EVENT TIMELINE</div>

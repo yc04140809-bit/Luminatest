@@ -15,6 +15,7 @@ import { ChoiceResultScreen } from './ui/screens/ChoiceResultScreen';
 import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
 import { BakeryScreen } from './ui/screens/BakeryScreen';
+import { ArchiveScreen } from './ui/screens/ArchiveScreen';
 import { DEV_ADMIN_ENABLED } from './dev/devMode';
 import { DevLockScreen } from './dev/DevLockScreen';
 import { DevAdminScreen } from './dev/DevAdminScreen';
@@ -65,9 +66,13 @@ function GameRoot({ flow, world }: CoreBundle) {
             // notified automatically (knowledge stays separate from truth).
             await world.advanceDay();
           }}
+          onArchive={() => flow.goTo('ARCHIVE')}
           onDevAdmin={() => flow.goTo('DEV_LOCK')}
         />
       );
+    case 'ARCHIVE':
+      // LIFE ARCHIVE is a projection of player knowledge — never raw truth.
+      return <ArchiveScreen entries={world.getLifeArchive()} onBack={() => flow.goTo('HOME')} />;
     case 'DEV_LOCK':
       // Unreachable in production builds (the HOME entry is hidden), but
       // never render dev screens when the gate is off.

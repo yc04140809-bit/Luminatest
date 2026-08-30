@@ -10,11 +10,21 @@ interface Props {
   onRest: () => Promise<void>;
   /** Opens the TIME SHIFT confirmation screen. */
   onTimeShift: () => void;
+  /** Opens the LIFE ARCHIVE. */
+  onArchive: () => void;
   /** Opens the DEV ADMIN lock screen (dev builds only). */
   onDevAdmin: () => void;
 }
 
-export function HomeScreen({ clock, onExplore, onWorldMemory, onRest, onTimeShift, onDevAdmin }: Props) {
+export function HomeScreen({
+  clock,
+  onExplore,
+  onWorldMemory,
+  onRest,
+  onTimeShift,
+  onArchive,
+  onDevAdmin,
+}: Props) {
   const [resting, setResting] = useState(false);
 
   const rest = async () => {
@@ -76,7 +86,7 @@ export function HomeScreen({ clock, onExplore, onWorldMemory, onRest, onTimeShif
       </div>
       <nav className="bottom-nav">
         <button className="nav-item active">HOME</button>
-        <button className="nav-item" disabled title="PHASE F で実装">
+        <button className="nav-item" data-testid="archive-button" onClick={onArchive}>
           ARCHIVE
         </button>
         <button className="nav-item" data-testid="rest-button" disabled={resting} onClick={rest}>
