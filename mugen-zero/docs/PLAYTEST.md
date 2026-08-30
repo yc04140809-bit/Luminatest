@@ -51,3 +51,25 @@
 - **Q4 選択が世界に影響したと感じたか** — 因果の伝達度
 - **Q1 / Q5** — 継続意欲と収集意欲
 - **Q7 自由記述** — 迷った場所・退屈した場所は最優先の改善候補
+
+## 単一HTML版（リンク1本で配る）
+
+静的ホスティングを用意せずにテスターへ渡したいときは、全部入りの1ファイル
+（約1.8MB）を作れます。
+
+```bash
+npm run build:singlefile
+# dist-singlefile/index.html        … そのまま置ける単一HTML
+# dist-singlefile/artifact.html     … <head>/<body> を持つ環境へ貼る用
+```
+
+開発者パネル付き（回答を回収したい端末用）:
+
+```bash
+VITE_ENABLE_DEV_ADMIN=1 npx vite build --config vite.config.singlefile.ts --outDir dist-singlefile-dev
+node scripts/build-artifact-page.mjs dist-singlefile-dev/index.html dist-singlefile-dev/artifact-dev.html
+```
+
+制約: 単一HTML版は Service Worker と manifest を含まないため、PWA としての
+インストールとオフライン起動はできません（ゲーム本編とセーブはそのまま動作
+します）。PWA が必要なときは通常の `npm run build` の成果物を配信してください。

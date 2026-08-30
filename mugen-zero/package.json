@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:singlefile": "vite build --config vite.config.singlefile.ts && node scripts/build-artifact-page.mjs"
   },
   "dependencies": {
     "phaser": "^3.87.0",
@@ -23,6 +24,7 @@
     "fake-indexeddb": "^6.2.5",
     "typescript": "~5.6.3",
     "vite": "^6.0.3",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^3.2.7"
   }
 }

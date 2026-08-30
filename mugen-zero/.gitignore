@@ -4,3 +4,5 @@ playwright-report
 test-results
 .vite
 *.tsbuildinfo
+dist-singlefile
+dist-singlefile-dev
