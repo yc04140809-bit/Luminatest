@@ -109,6 +109,19 @@ export class World {
   }
 
   /**
+   * Whether this world has been lived in at all — recorded history OR a
+   * clock that has moved. Resting for a few days is progress too, so the
+   * title must offer to continue rather than silently starting over.
+   */
+  hasProgress(): boolean {
+    return (
+      this.events.length > 0 ||
+      this.clock.worldYear !== INITIAL_CLOCK.worldYear ||
+      this.clock.worldDay !== INITIAL_CLOCK.worldDay
+    );
+  }
+
+  /**
    * Minimal PLAYER KNOWLEDGE approximation (full system arrives in a later
    * phase): the player-facing WORLD MEMORY view shows only events the
    * player took part in, plus world-scale time passage. Gald's off-screen

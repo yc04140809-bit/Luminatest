@@ -28,11 +28,25 @@ export function ArchiveScreen({ entries, onBack }: Props) {
                 <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: 12 }}>↓</div>
               )}
               <div className="location-card" data-testid={`archive-chapter-${chapter.id}`}>
-                <div className="location-desc" style={{ marginBottom: 4 }}>
+                <div
+                  className="location-desc"
+                  style={{ marginBottom: 6, letterSpacing: '0.1em', color: 'var(--memory)' }}
+                >
                   {chapter.worldYear}年目 {chapter.worldDay}日目
                 </div>
-                <div className="location-name">{chapter.title}</div>
-                <div className="location-desc">{chapter.summary}</div>
+                <div className="location-name" style={{ fontSize: 'var(--font-size-lg)' }}>
+                  {chapter.title}
+                </div>
+                <div
+                  className="location-desc"
+                  style={{
+                    fontSize: 'var(--font-size-sm)',
+                    lineHeight: 'var(--line-height-body)',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  {chapter.summary}
+                </div>
               </div>
             </div>
           ))}
@@ -91,6 +105,11 @@ export function ArchiveScreen({ entries, onBack }: Props) {
               <div className="location-name">{entry.displayName}</div>
               <div className="location-desc">
                 {entry.firstKnownAt.worldYear}年目 {entry.firstKnownAt.worldDay}日目に出会った
+                <br />
+                {/* Counts only what the player knows — never the world's total. */}
+                {entry.hasUnknownContinuation
+                  ? `${entry.chapters.length}章 ＋ まだ知らない続き`
+                  : `${entry.chapters.length}章`}
               </div>
             </button>
           ))

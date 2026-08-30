@@ -15,6 +15,7 @@ export type Screen =
   | 'TIME_SHIFT'
   | 'BAKERY'
   | 'ARCHIVE'
+  | 'SETTINGS'
   | 'DEV_LOCK'
   | 'DEV_ADMIN';
 

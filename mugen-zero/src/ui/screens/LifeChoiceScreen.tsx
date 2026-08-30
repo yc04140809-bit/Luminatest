@@ -4,6 +4,7 @@ import {
   LIFE_CHOICE_PROMPT,
   LIFE_CHOICE_OPTIONS,
 } from '../../content/dialogue/galdEncounter';
+import { vibrate } from '../../platform/haptics';
 
 interface Props {
   /**
@@ -25,6 +26,7 @@ export function LifeChoiceScreen({ onChoose }: Props) {
     if (saving) return;
     setSaving(true);
     setError(null);
+    vibrate(24); // a decision you feel
     try {
       await onChoose(choice);
       // On success the parent advances the screen; this component unmounts.
@@ -36,7 +38,13 @@ export function LifeChoiceScreen({ onChoose }: Props) {
   };
 
   return (
-    <div className="screen life-choice-screen" data-testid="life-choice-screen">
+    <div
+      className="screen life-choice-screen"
+      data-testid="life-choice-screen"
+      role="dialog"
+      aria-modal="true"
+      aria-label={LIFE_CHOICE_PROMPT}
+    >
       <p className="life-choice-prompt">{LIFE_CHOICE_PROMPT}</p>
       <div className="life-choice-options">
         {LIFE_CHOICE_OPTIONS.map((opt) => (

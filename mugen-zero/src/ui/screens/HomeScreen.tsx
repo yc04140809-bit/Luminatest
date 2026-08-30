@@ -12,6 +12,8 @@ interface Props {
   onTimeShift: () => void;
   /** Opens the LIFE ARCHIVE. */
   onArchive: () => void;
+  /** Opens player settings. */
+  onSettings: () => void;
   /** Opens the DEV ADMIN lock screen (dev builds only). */
   onDevAdmin: () => void;
 }
@@ -23,6 +25,7 @@ export function HomeScreen({
   onRest,
   onTimeShift,
   onArchive,
+  onSettings,
   onDevAdmin,
 }: Props) {
   const [resting, setResting] = useState(false);
@@ -65,6 +68,14 @@ export function HomeScreen({
           onClick={onTimeShift}
         >
           TIME SHIFT — 旅立つ（+3年）
+        </button>
+        <button
+          className="btn"
+          data-testid="settings-button"
+          style={{ fontSize: 13 }}
+          onClick={onSettings}
+        >
+          SETTINGS — 設定
         </button>
         {DEV_ADMIN_ENABLED && (
           <button

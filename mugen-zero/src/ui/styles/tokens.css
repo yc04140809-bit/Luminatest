@@ -1,0 +1,52 @@
+/* MUGEN ZERO design tokens.
+   Quiet, dark, readable — memory / time / life, not gacha UI. */
+:root {
+  /* color */
+  --bg-primary: #0b0b12;
+  --bg-secondary: #101018;
+  --surface: #16161f;
+  --surface-2: #1e1e2a;
+  --border: #2c2c40;
+  --border-strong: #44445c;
+  --text-primary: #e8e6e0;
+  --text-secondary: #b9b6c2;
+  --text-muted: #9a97a3;
+  --accent: #e8c15a;
+  --memory: #9db8e8; /* the light of a memory being carved */
+  --danger: #c05555;
+  --green: #6fae7d;
+
+  /* spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 14px;
+  --space-lg: 20px;
+  --space-xl: 32px;
+
+  /* radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* type */
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  --line-height-body: 1.8;
+
+  /* motion */
+  --transition-fast: 160ms ease;
+  --transition-screen: 260ms ease;
+
+  /* tap targets */
+  --tap-min: 44px;
+
+  /* legacy aliases (existing rules keep working) */
+  --bg: var(--bg-primary);
+  --panel: var(--surface);
+  --panel-2: var(--surface-2);
+  --text: var(--text-primary);
+  --text-dim: var(--text-muted);
+}

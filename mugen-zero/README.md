@@ -33,8 +33,25 @@ npm run dev        # 開発サーバー
 npm run build      # 型チェック + ビルド
 npm test           # ユニットテスト (vitest)
 npm run test:e2e   # E2E (Playwright)
-node scripts/screenshots.mjs  # 画面キャプチャ（要 vite preview --port 4173）
+
+# 本番ビルドの検証（PWA / オフライン / DEV ADMIN非表示）
+npm run build && npx vite preview --port 4173 &
+node scripts/check-production.mjs
+
+# ビジュアルベースライン14枚（要 dev サーバー: npx vite --port 4174）
+SHOT_DIR=docs/baseline node scripts/screenshots-baseline.mjs
 ```
+
+## ビルド構成
+
+| チャンク | サイズ | 読み込み |
+|---|---|---|
+| app (index) | 47 KB | 初期 |
+| react | 142 KB | 初期 |
+| Phaser (GreenwoodScreen) | 1,485 KB | 森へ入る時のみ |
+| DEV ADMIN | 9 KB | 開発ビルドで管理画面を開いた時のみ |
+
+DEV ADMINは `import.meta.env.DEV` または `VITE_ENABLE_DEV_ADMIN=1` のときだけ有効です。
 
 ## 開発フェーズ状況
 
@@ -45,7 +62,7 @@ node scripts/screenshots.mjs  # 画面キャプチャ（要 vite preview --port 
 - [x] **PHASE D.5 — DEV ADMIN**: 開発者用管理画面（LOCK 0909、ダッシュボード、TIME CONTROL、正規フロー再現プリセット、RESET SCENARIO/WORLD、イベントタイムライン）。devビルドのみ有効（本番は `VITE_ENABLE_DEV_ADMIN=1` を付けない限り非表示）
 - [x] **PHASE E — FIRST REUNION**: ガルドの人生連鎖（離脱→アルデン到着→パン屋）、探索での「？？？」発見、再会「……見るな。」、PLAYER_REUNITED_WITH_GALD記録、再訪、最小PLAYER KNOWLEDGEフィルタ（未発見の人生をUIでネタバレしない）
 - [x] **PHASE F — LIFE ARCHIVE**: 人生記録の射影（WORLD MEMORY → PLAYER KNOWLEDGE → LIFE ARCHIVE PROJECTION → UI）。既知章のみ表示＋単一「？？？」カード、再会で一本の人生記録に接続。DEV ADMINにKNOWN/UNKNOWNデバッグ
-- [ ] PHASE G — POLISH（アート・音・PWA・スマホ最適化）
+- [x] **PHASE G — POLISH**: デザイントークン、スマホ最適化（360/390/412）、ケイオス立ち絵・台詞演出、記憶/選択/時渡り/再会の演出、AudioManager・haptics・設定、ローディング/Error Boundary、PWA（manifest・SW・オフラインシェル）、バンドル分割（初期188KB / Phaser遅延）
 
 ## 方針
 

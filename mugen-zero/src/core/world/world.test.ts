@@ -58,6 +58,23 @@ describe('World — WORLD CLOCK', () => {
     expect(world.getClock()).toEqual({ worldYear: 1, worldDay: 1 });
   });
 
+  it('hasProgress covers a moved clock, not just recorded events', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    expect(world.hasProgress()).toBe(false);
+
+    await world.advanceDay(); // rested; no memory event yet
+    expect(world.getEvents()).toHaveLength(0);
+    expect(world.hasProgress()).toBe(true);
+
+    // And a reopened world still offers to continue.
+    const reopened = await openWorld(dbName);
+    expect(reopened.hasProgress()).toBe(true);
+
+    await reopened.resetWorld();
+    expect(reopened.hasProgress()).toBe(false);
+  });
+
   it('advanceDay increments the day and persists it across reopen', async () => {
     const dbName = freshDbName();
     const world = await openWorld(dbName);

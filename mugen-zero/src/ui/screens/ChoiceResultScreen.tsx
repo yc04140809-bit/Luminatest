@@ -26,8 +26,12 @@ export function ChoiceResultScreen({ choice, recordedEventType, onReturnHome }: 
 
   return (
     <div className="screen life-choice-screen" data-testid="choice-recorded-screen">
-      <p className="life-choice-prompt">
+      {/* Shown only once the DB commit succeeded (the parent advances
+          here after recordGaldLifeChoice resolves). */}
+      <p className="life-choice-prompt memory-carved">
         あなたの選択を、世界が記憶した。
+        <br />
+        <span className="memory-mark">WORLD MEMORY</span>
         <br />
         <span
           style={{ fontSize: 13, color: 'var(--text-dim)', letterSpacing: '0.08em' }}

@@ -7,8 +7,9 @@ import type { FlowState, LifeChoiceId, Screen } from './types';
 const TRANSITIONS: Record<Screen, Screen[]> = {
   TITLE: ['PROLOGUE', 'HOME'], // TITLE -> HOME = continue with an existing world
   PROLOGUE: ['HOME'],
-  HOME: ['EXPLORE', 'WORLD_MEMORY', 'TIME_SHIFT', 'ARCHIVE', 'DEV_LOCK'],
+  HOME: ['EXPLORE', 'WORLD_MEMORY', 'TIME_SHIFT', 'ARCHIVE', 'SETTINGS', 'DEV_LOCK'],
   ARCHIVE: ['HOME'],
+  SETTINGS: ['HOME'],
   EXPLORE: ['GREENWOOD', 'BAKERY', 'HOME'],
   BAKERY: ['EXPLORE'],
   GREENWOOD: ['ENCOUNTER', 'EXPLORE'],

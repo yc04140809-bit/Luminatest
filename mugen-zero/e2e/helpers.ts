@@ -11,8 +11,22 @@ export interface StoredMemoryEvent {
   createdAt: string;
 }
 
-/** Reads all MEMORY_EVENTs straight out of IndexedDB (the source of truth). */
-export function readMemoryEvents(page: Page): Promise<StoredMemoryEvent[]> {
+/**
+ * Reads all MEMORY_EVENTs straight out of IndexedDB (the source of truth).
+ * RESET WORLD reloads the page, so a read can land mid-navigation; retry
+ * once after the load settles rather than failing the test.
+ */
+export async function readMemoryEvents(page: Page): Promise<StoredMemoryEvent[]> {
+  try {
+    return await readMemoryEventsOnce(page);
+  } catch (e) {
+    if (!String(e).includes('Execution context was destroyed')) throw e;
+    await page.waitForLoadState('load');
+    return readMemoryEventsOnce(page);
+  }
+}
+
+function readMemoryEventsOnce(page: Page): Promise<StoredMemoryEvent[]> {
   return page.evaluate(
     () =>
       new Promise<StoredMemoryEvent[]>((resolve, reject) => {

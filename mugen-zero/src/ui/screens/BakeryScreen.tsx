@@ -6,6 +6,8 @@ import {
   BAKERY_REVISIT_LINES,
   KAOS_AFTER_REUNION_LINE,
 } from '../../content/dialogue/bakery';
+import { kaosPortrait } from '../../assets/manifest';
+import { vibrate } from '../../platform/haptics';
 
 interface Props {
   /** Whether the reunion has NOT yet happened in world truth. */
@@ -32,6 +34,7 @@ export function BakeryScreen({ firstVisit, onReunion, onLeave }: Props) {
     setError(false);
     try {
       await onReunion();
+      vibrate(24); // the moment it becomes real
       setPhase('AFTER');
     } catch (e) {
       console.error('Failed to record the reunion', e);
@@ -74,7 +77,16 @@ export function BakeryScreen({ firstVisit, onReunion, onLeave }: Props) {
   if (isFirst && phase === 'AFTER') {
     return (
       <div className="screen life-choice-screen" data-testid="bakery-reunion-done">
+        {/* Reached only after the reunion is committed to WORLD MEMORY. */}
+        <p className="memory-mark memory-carved" style={{ margin: 0 }}>
+          WORLD MEMORY
+        </p>
         <div style={{ textAlign: 'center' }}>
+          {kaosPortrait('smile') && (
+            <div className="dialogue-portrait" style={{ marginBottom: 12 }}>
+              <img src={kaosPortrait('smile')!} alt="" aria-hidden="true" />
+            </div>
+          )}
           <p style={{ color: 'var(--accent)', fontSize: 13, marginBottom: 10 }}>ケイオス</p>
           <p className="life-choice-prompt" style={{ fontSize: 16 }}>
             {KAOS_AFTER_REUNION_LINE}

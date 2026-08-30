@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import type Phaser from 'phaser';
 import { createGreenwoodGame } from '../../game/exploration/GreenwoodScene';
 
 interface Props {
@@ -15,14 +16,30 @@ export function GreenwoodScreen({ onEncounter, onBack, encounterEnabled }: Props
   encounterRef.current = onEncounter;
 
   useEffect(() => {
-    if (!hostRef.current) return;
-    const game = createGreenwoodGame(
-      hostRef.current,
-      { onEncounter: () => encounterRef.current() },
-      { encounterEnabled },
-    );
+    const host = hostRef.current;
+    if (!host) return;
+    let game: Phaser.Game | null = null;
+    let cancelled = false;
+
+    // Phaser tears its canvas down asynchronously, so a fast
+    // mount → unmount → mount (StrictMode, or navigating straight back
+    // in) could leave an orphaned canvas behind and run two games at
+    // once. Defer creation by a tick, and clear the host on cleanup.
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      game = createGreenwoodGame(
+        host,
+        { onEncounter: () => encounterRef.current() },
+        { encounterEnabled },
+      );
+    }, 0);
+
     return () => {
-      game.destroy(true);
+      cancelled = true;
+      window.clearTimeout(timer);
+      game?.destroy(true);
+      game = null;
+      host.replaceChildren();
     };
   }, [encounterEnabled]);
 

@@ -113,6 +113,19 @@ body,
   text-align: center;
   color: var(--text);
 }
+.dialogue-portrait {
+  display: flex;
+  justify-content: center;
+  margin-bottom: -6px;
+}
+.dialogue-portrait img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 0 24px rgba(157, 184, 232, 0.18);
+  background: var(--surface);
+}
 .dialogue-box {
   margin: 12px;
   padding: 16px 18px 22px;
@@ -120,6 +133,10 @@ body,
   border: 1px solid #35354a;
   border-radius: 12px;
   min-height: 108px;
+}
+.dialogue-box.kaos {
+  border-color: rgba(157, 184, 232, 0.45);
+  box-shadow: 0 0 18px rgba(157, 184, 232, 0.1);
 }
 .dialogue-speaker {
   font-size: 13px;
@@ -342,4 +359,101 @@ body,
   letter-spacing: 0.25em;
   color: var(--text-dim);
   margin-top: 4px;
+}
+
+/* ---- Phase G polish ---- */
+
+/* Quiet screen entrance. */
+.screen {
+  animation: screen-in var(--transition-screen);
+}
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A memory being carved into the world (shown only AFTER the DB commit). */
+.memory-carved {
+  animation: memory-glow 1.6s ease;
+}
+@keyframes memory-glow {
+  0% {
+    text-shadow: 0 0 0 rgba(157, 184, 232, 0);
+  }
+  35% {
+    text-shadow: 0 0 22px rgba(157, 184, 232, 0.85);
+  }
+  100% {
+    text-shadow: 0 0 6px rgba(157, 184, 232, 0.25);
+  }
+}
+.memory-mark {
+  color: var(--memory);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.25em;
+}
+
+/* Motion is optional. */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+:root[data-reduced-motion='on'] * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Touch and keyboard. */
+.btn,
+.nav-item,
+.location-card,
+.life-choice-btn {
+  min-height: var(--tap-min);
+  -webkit-user-select: none;
+  user-select: none;
+}
+:focus-visible {
+  outline: 2px solid var(--memory);
+  outline-offset: 2px;
+}
+
+/* Settings */
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-row label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+.settings-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  min-height: 32px;
+}
+
+/* Screens with lists must scroll inside, never sideways — and their rows
+   must never be squeezed into each other when the list outgrows the
+   viewport (that made cards overlap and swallow taps). */
+.location-list {
+  overflow-x: hidden;
+}
+.location-list > * {
+  flex-shrink: 0;
+}
+.screen-title {
+  padding-top: calc(14px + env(safe-area-inset-top));
 }

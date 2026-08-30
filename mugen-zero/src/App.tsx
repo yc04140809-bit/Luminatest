@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { GameFlow } from './core/flow/gameFlow';
 import { World } from './core/world/world';
 import { IdbMemoryStore } from './core/memory/idbStore';
@@ -7,7 +7,6 @@ import { TitleScreen } from './ui/screens/TitleScreen';
 import { PrologueScreen } from './ui/screens/PrologueScreen';
 import { HomeScreen } from './ui/screens/HomeScreen';
 import { ExploreScreen } from './ui/screens/ExploreScreen';
-import { GreenwoodScreen } from './ui/screens/GreenwoodScreen';
 import { EncounterScreen } from './ui/screens/EncounterScreen';
 import { BattleScreen } from './ui/screens/BattleScreen';
 import { LifeChoiceScreen } from './ui/screens/LifeChoiceScreen';
@@ -16,16 +15,42 @@ import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
 import { BakeryScreen } from './ui/screens/BakeryScreen';
 import { ArchiveScreen } from './ui/screens/ArchiveScreen';
+import { SettingsScreen } from './ui/screens/SettingsScreen';
+import { LoadingScreen } from './ui/common/LoadingScreen';
 import { DEV_ADMIN_ENABLED } from './dev/devMode';
-import { DevLockScreen } from './dev/DevLockScreen';
-import { DevAdminScreen } from './dev/DevAdminScreen';
+import {
+  loadSettings,
+  saveSettings,
+  applyReducedMotion,
+  type GameSettings,
+} from './platform/settings';
+import { audioManager } from './platform/audio';
+import { setHapticEnabled } from './platform/haptics';
+
+// Phaser is the heaviest dependency by far and is only needed once the
+// player walks into the forest; the dev admin never ships to a player's
+// first load. Both load on demand.
+const GreenwoodScreen = lazy(() =>
+  import('./ui/screens/GreenwoodScreen').then((m) => ({ default: m.GreenwoodScreen })),
+);
+const DevLockScreen = lazy(() =>
+  import('./dev/DevLockScreen').then((m) => ({ default: m.DevLockScreen })),
+);
+const DevAdminScreen = lazy(() =>
+  import('./dev/DevAdminScreen').then((m) => ({ default: m.DevAdminScreen })),
+);
 
 interface CoreBundle {
   flow: GameFlow;
   world: World;
 }
 
-function GameRoot({ flow, world }: CoreBundle) {
+interface GameRootProps extends CoreBundle {
+  settings: GameSettings;
+  onSettingsChange: (next: GameSettings) => void;
+}
+
+function GameRoot({ flow, world, settings, onSettingsChange }: GameRootProps) {
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -43,9 +68,15 @@ function GameRoot({ flow, world }: CoreBundle) {
     case 'TITLE':
       return (
         <TitleScreen
-          hasSave={world.getEvents().length > 0}
-          onStart={() => flow.goTo('PROLOGUE')}
-          onContinue={() => flow.goTo('HOME')}
+          hasSave={world.hasProgress()}
+          onStart={() => {
+            audioManager.unlock(); // first real gesture: audio may begin
+            flow.goTo('PROLOGUE');
+          }}
+          onContinue={() => {
+            audioManager.unlock();
+            flow.goTo('HOME');
+          }}
           onReset={async () => {
             await world.resetWorld();
             window.location.reload();
@@ -67,22 +98,37 @@ function GameRoot({ flow, world }: CoreBundle) {
             await world.advanceDay();
           }}
           onArchive={() => flow.goTo('ARCHIVE')}
+          onSettings={() => flow.goTo('SETTINGS')}
           onDevAdmin={() => flow.goTo('DEV_LOCK')}
         />
       );
     case 'ARCHIVE':
       // LIFE ARCHIVE is a projection of player knowledge — never raw truth.
       return <ArchiveScreen entries={world.getLifeArchive()} onBack={() => flow.goTo('HOME')} />;
+    case 'SETTINGS':
+      return (
+        <SettingsScreen
+          settings={settings}
+          onChange={onSettingsChange}
+          onBack={() => flow.goTo('HOME')}
+        />
+      );
     case 'DEV_LOCK':
       // Unreachable in production builds (the HOME entry is hidden), but
       // never render dev screens when the gate is off.
       if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
       return (
-        <DevLockScreen onUnlock={() => flow.goTo('DEV_ADMIN')} onBack={() => flow.goTo('HOME')} />
+        <Suspense fallback={<LoadingScreen />}>
+          <DevLockScreen onUnlock={() => flow.goTo('DEV_ADMIN')} onBack={() => flow.goTo('HOME')} />
+        </Suspense>
       );
     case 'DEV_ADMIN':
       if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
-      return <DevAdminScreen world={world} onBack={() => flow.goTo('HOME')} />;
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <DevAdminScreen world={world} onBack={() => flow.goTo('HOME')} />
+        </Suspense>
+      );
     case 'TIME_SHIFT':
       return (
         <TimeShiftScreen
@@ -121,11 +167,13 @@ function GameRoot({ flow, world }: CoreBundle) {
       );
     case 'GREENWOOD':
       return (
-        <GreenwoodScreen
-          encounterEnabled={galdChoiceInWorld === null}
-          onEncounter={() => flow.goTo('ENCOUNTER')}
-          onBack={() => flow.goTo('EXPLORE')}
-        />
+        <Suspense fallback={<LoadingScreen message="森へ入っています……" />}>
+          <GreenwoodScreen
+            encounterEnabled={galdChoiceInWorld === null}
+            onEncounter={() => flow.goTo('ENCOUNTER')}
+            onBack={() => flow.goTo('EXPLORE')}
+          />
+        </Suspense>
       );
     case 'ENCOUNTER':
       return <EncounterScreen onBattleStart={() => flow.goTo('BATTLE')} />;
@@ -163,6 +211,19 @@ function GameRoot({ flow, world }: CoreBundle) {
 export default function App() {
   const [bundle, setBundle] = useState<CoreBundle | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  // Preferences live outside the world: localStorage, never IndexedDB.
+  const [settings, setSettings] = useState<GameSettings>(() => loadSettings());
+
+  useEffect(() => {
+    applyReducedMotion(settings.reducedMotion);
+    audioManager.setVolumes(settings.bgmVolume, settings.seVolume);
+    setHapticEnabled(settings.hapticEnabled);
+  }, [settings]);
+
+  const handleSettingsChange = useCallback((next: GameSettings) => {
+    setSettings(next);
+    saveSettings(next);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,13 +243,36 @@ export default function App() {
 
   if (initError) {
     return (
-      <div className="screen title-screen">
-        <p style={{ color: 'var(--danger)' }}>{initError}</p>
+      <div className="screen title-screen" data-testid="init-error">
+        <h1 className="title-logo" style={{ fontSize: 24 }}>
+          MUGEN ZERO
+        </h1>
+        <p
+          style={{
+            color: 'var(--danger)',
+            fontSize: 'var(--font-size-sm)',
+            lineHeight: 'var(--line-height-body)',
+            textAlign: 'center',
+            padding: '0 24px',
+          }}
+        >
+          {initError}
+          <br />
+          ブラウザのプライベートモードでは保存できない場合があります。
+        </p>
+        <button className="btn primary" onClick={() => window.location.reload()}>
+          再読み込み
+        </button>
       </div>
     );
   }
-  if (!bundle) {
-    return <div className="screen title-screen" data-testid="loading-screen" />;
-  }
-  return <GameRoot flow={bundle.flow} world={bundle.world} />;
+  if (!bundle) return <LoadingScreen />;
+  return (
+    <GameRoot
+      flow={bundle.flow}
+      world={bundle.world}
+      settings={settings}
+      onSettingsChange={handleSettingsChange}
+    />
+  );
 }
