@@ -7,6 +7,9 @@ import kaosSmile from './characters/kaos/kaos-smile.webp';
 import galdReady from './characters/gald/gald-ready.webp';
 import galdDefeated from './characters/gald/gald-defeated.webp';
 import galdBaker from './characters/gald/gald-baker.webp';
+import galdHealer from './characters/gald/gald-healer.webp';
+import galdWorker from './characters/gald/gald-worker.webp';
+import galdGrave from './events/event-gald-grave.webp';
 import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
 import aldenVillage from './backgrounds/location-alden-village.webp';
 import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
@@ -24,22 +27,37 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
 }
 
 /**
- * Gald, the same man at three points of one life. 'defeated' means
- * beaten, NOT dead — whether he lives is the player's choice; 'baker' is
- * where the spared route leads him three years on. Same CHARACTER, same
- * id in the DB: only the visual state differs.
+ * Gald, the same man at several points of one life. 'defeated' means
+ * beaten, NOT dead — whether he lives is the player's choice; the last
+ * three are where each surviving route leaves him three years on. Same
+ * CHARACTER, same id in the DB: only the visual state differs, and the
+ * DB decides which one is true.
  */
-export type GaldState = 'ready' | 'defeated' | 'baker';
+export type GaldState = 'ready' | 'defeated' | 'baker' | 'healer' | 'worker';
 
 export const GALD_PORTRAITS: Record<GaldState, string | null> = {
   ready: galdReady,
   defeated: galdDefeated,
   baker: galdBaker,
+  healer: galdHealer,
+  worker: galdWorker,
 };
 
 export function galdPortrait(state: GaldState): string | null {
   return GALD_PORTRAITS[state] ?? null;
 }
+
+/**
+ * EVENT CG — art for a moment rather than for a person.
+ *
+ * The grave is the only one so far: on the KILL route there is no Gald to
+ * draw, so the picture is of what the world kept. Adding a rare or
+ * hand-drawn event later means one more entry here and one field on the
+ * event's own definition — no new system.
+ */
+export const EVENT_CG = {
+  GALD_GRAVE: galdGrave,
+} as const;
 
 /**
  * Location backdrops, keyed by location id. content/locations/

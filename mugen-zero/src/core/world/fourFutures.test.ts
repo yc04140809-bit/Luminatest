@@ -5,6 +5,7 @@ import { IdbMemoryStore } from '../memory/idbStore';
 import type { LifeChoiceId } from '../flow/types';
 import type { MemoryEventType } from '../memory/types';
 import { FUTURE_SITE_DEFS } from '../../content/world/futureSites';
+import { EVENT_CG, GALD_PORTRAITS } from '../../assets/manifest';
 
 // GALD FOUR FUTURES: every one of the four choices leaves something in the
 // world three years later, and no route can ever see another route's.
@@ -218,6 +219,55 @@ describe('four futures — nothing fires twice', () => {
     expect(reopened.hasDiscoveredSite(route.siteId)).toBe(true);
     expect(reopened.getLifeArchive()[0].chapters).toHaveLength(route.chain.length + 2);
     expect(reopened.getLifeArchive()[0].hasUnknownContinuation).toBe(false);
+  });
+});
+
+describe('four futures — every route has its own event CG', () => {
+  it('gives each site one picture, and no two sites the same one', () => {
+    const cgs = FUTURE_SITE_DEFS.map((d) => d.eventCg);
+    expect(cgs.every((cg) => typeof cg === 'string' && cg.length > 0)).toBe(true);
+    expect(new Set(cgs).size).toBe(cgs.length);
+  });
+
+  it('describes each picture for a screen reader', () => {
+    for (const def of FUTURE_SITE_DEFS) {
+      expect(def.eventCgAlt.length).toBeGreaterThan(0);
+      // The alt text is a description, never a spoiler of the route id.
+      expect(def.eventCgAlt).not.toContain('ガルド');
+    }
+  });
+
+  it('the KILL picture is a place, not a living man', () => {
+    const grave = FUTURE_SITE_DEFS.find((d) => d.id === 'GREENWOOD_GRAVE')!;
+    expect(grave.eventCg).toBe(EVENT_CG.GALD_GRAVE);
+    // Not one of the portraits of a man who is alive.
+    expect(Object.values(GALD_PORTRAITS)).not.toContain(grave.eventCg);
+    // And it waits for the line that walks the player up to the stones.
+    expect(grave.eventCgFromLine).toBeGreaterThan(0);
+    expect(grave.firstVisitLines.length).toBeGreaterThan(grave.eventCgFromLine!);
+  });
+
+  it('the surviving routes each show their own point in one life', () => {
+    const byId = Object.fromEntries(FUTURE_SITE_DEFS.map((d) => [d.id, d]));
+    expect(byId.ALDEN_BAKERY.eventCg).toBe(GALD_PORTRAITS.baker);
+    expect(byId.GREENWOOD_WAYSTATION.eventCg).toBe(GALD_PORTRAITS.healer);
+    expect(byId.ALDEN_WORKYARD.eventCg).toBe(GALD_PORTRAITS.worker);
+  });
+
+  it('leaves the SPARE route exactly as Phase E drew it', () => {
+    const bakery = FUTURE_SITE_DEFS.find((d) => d.id === 'ALDEN_BAKERY')!;
+    expect(bakery.eventCg).toBe(GALD_PORTRAITS.baker);
+    expect(bakery.eventCgFit).toBe('figure');
+    expect(bakery.eventCgFromLine).toBeUndefined();
+  });
+
+  it('art is presentation only: no site def can gate an event on it', () => {
+    // The world never reads eventCg — the discovery depends on
+    // requiredMemory alone.
+    for (const def of FUTURE_SITE_DEFS) {
+      expect(def.requiredMemory).toBeTruthy();
+      expect(def.discovery.eventId).toBeTruthy();
+    }
   });
 });
 

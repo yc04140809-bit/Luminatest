@@ -17,6 +17,13 @@ interface Props {
   portraitSrc?: string | null;
   portraitAlt?: string;
   /**
+   * How scene art is laid out: 'figure' is a cut-out standing above the
+   * words, 'scene' a full illustration filling the stage.
+   */
+  portraitFit?: 'figure' | 'scene';
+  /** Show the art only from this line onwards (default: from the first). */
+  portraitFromLine?: number;
+  /**
    * Where the scene takes place. Given one, that location's backdrop is
    * drawn behind the dialogue, so meeting someone happens in the place
    * the player just walked through instead of cutting to black.
@@ -34,16 +41,22 @@ export function DialogueSequence({
   testId,
   portraitSrc,
   portraitAlt = '',
+  portraitFit = 'figure',
+  portraitFromLine = 0,
   backdropLocationId,
 }: Props) {
   const [index, setIndex] = useState(0);
+  // Art is presentation: if it fails to load the scene plays on without
+  // it, and the event still commits.
+  const [artFailed, setArtFailed] = useState(false);
   const line = lines[index];
   const isKaos = line.speaker === KAOS_SPEAKER;
   // Kaos speaks face to face — a round portrait sitting just above her
   // words, near the middle of the screen. Scene art (Gald) fills the
   // stage behind the box instead.
   const kaosSrc = isKaos ? kaosPortrait('normal') : null;
-  const sceneSrc = isKaos ? null : (portraitSrc ?? null);
+  const sceneSrc =
+    isKaos || artFailed || index < portraitFromLine ? null : (portraitSrc ?? null);
 
   const backdrop = backdropLocationId ? locationBackground(backdropLocationId) : null;
 
@@ -81,10 +94,13 @@ export function DialogueSequence({
         {centered && <p className="dialogue-centered">{line.text}</p>}
         {sceneSrc && (
           <img
-            className="dialogue-scene-art"
+            className={
+              portraitFit === 'scene' ? 'dialogue-scene-art event-cg' : 'dialogue-scene-art'
+            }
             data-testid="scene-portrait"
             src={sceneSrc}
             alt={portraitAlt}
+            onError={() => setArtFailed(true)}
           />
         )}
       </div>

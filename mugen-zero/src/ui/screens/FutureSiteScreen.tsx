@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DialogueSequence } from '../common/DialogueSequence';
 import type { DialogueLine } from '../../content/dialogue/prologue';
 import type { FutureSiteDef } from '../../content/world/futureSites';
-import { kaosPortrait, galdPortrait } from '../../assets/manifest';
+import { kaosPortrait } from '../../assets/manifest';
 import { vibrate } from '../../platform/haptics';
 
 interface Props {
@@ -68,16 +68,16 @@ export function FutureSiteScreen({
     else void commitDiscovery();
   };
 
-  const portrait = site.portrait ? galdPortrait(site.portrait) : null;
-
   if (isFirst && phase === 'SCENE') {
     return (
       <DialogueSequence
         lines={site.firstVisitLines}
         onComplete={afterFirstScene}
         testId={`${id}-first-visit`}
-        portraitSrc={portrait}
-        portraitAlt={site.portraitAlt}
+        portraitSrc={site.eventCg}
+        portraitAlt={site.eventCgAlt}
+        portraitFit={site.eventCgFit}
+        portraitFromLine={site.eventCgFromLine}
         backdropLocationId={site.id}
       />
     );
@@ -115,8 +115,9 @@ export function FutureSiteScreen({
         lines={lines}
         onComplete={commitDiscovery}
         testId={`${id}-after-reply`}
-        portraitSrc={portrait}
-        portraitAlt={site.portraitAlt}
+        portraitSrc={site.eventCg}
+        portraitAlt={site.eventCgAlt}
+        portraitFit={site.eventCgFit}
         backdropLocationId={site.id}
       />
     );
@@ -182,8 +183,9 @@ function RevisitScene({ site, onLeave }: { site: FutureSiteDef; onLeave: () => v
         lines={site.revisitLines as DialogueLine[]}
         onComplete={() => setDone(true)}
         testId={`${id}-revisit`}
-        portraitSrc={site.portrait ? galdPortrait(site.portrait) : null}
-        portraitAlt={site.portraitAlt}
+        portraitSrc={site.eventCg}
+        portraitAlt={site.eventCgAlt}
+        portraitFit={site.eventCgFit}
         backdropLocationId={site.id}
       />
     );

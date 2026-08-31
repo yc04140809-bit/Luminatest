@@ -10,7 +10,7 @@ const ROUTES = [
   { key: 'spare', preset: 'SPARE_3Y', site: 'ALDEN_BAKERY', scene: 'bakery', beat: 5 },
   { key: 'help', preset: 'HELP_3Y', site: 'GREENWOOD_WAYSTATION', scene: 'waystation', beat: 10 },
   { key: 'capture', preset: 'CAPTURE_3Y', site: 'ALDEN_WORKYARD', scene: 'workyard', beat: 10 },
-  { key: 'kill', preset: 'KILL_3Y', site: 'GREENWOOD_GRAVE', scene: 'grave', beat: 8 },
+  { key: 'kill', preset: 'KILL_3Y', site: 'GREENWOOD_GRAVE', scene: 'grave', beat: 15 },
 ];
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

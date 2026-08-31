@@ -130,6 +130,25 @@ body,
   height: 148px;
 }
 
+/* EVENT CG — a full illustration rather than a cut-out figure. It keeps
+   its own aspect ratio (never stretched, never cropped through a face),
+   fills the phone's width, and wears the black-and-gold frame the rest of
+   the game uses. */
+.dialogue-scene-art.event-cg {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(232, 193, 90, 0.22);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  filter: none;
+}
+/* A full-width CG wants the stage edges back. */
+.dialogue-stage:has(.event-cg) {
+  padding: 12px;
+}
+
 /* Scene art (Gald) fills the stage above the words. */
 .dialogue-scene-art {
   max-height: 100%;

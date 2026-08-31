@@ -23,6 +23,8 @@ interface Route {
   kaosProof: string;
   /** Chapters in the LIFE ARCHIVE once discovered. */
   chapterCount: number;
+  /** A fragment of this route's event CG filename. */
+  cg: string;
 }
 
 const ROUTES: Route[] = [
@@ -37,6 +39,7 @@ const ROUTES: Route[] = [
     sceneProof: '……見るな。',
     kaosProof: '続き、あったでしょ',
     chapterCount: 5,
+    cg: 'gald-baker',
   },
   {
     choice: 'HELP',
@@ -49,6 +52,7 @@ const ROUTES: Route[] = [
     sceneProof: 'なんで俺を治した？',
     kaosProof: '優しさって、不思議だね',
     chapterCount: 4,
+    cg: 'gald-healer',
   },
   {
     choice: 'CAPTURE',
@@ -61,6 +65,7 @@ const ROUTES: Route[] = [
     sceneProof: '捕まったから、逃げられなかった。',
     kaosProof: '自由にすることだけが、救うことじゃない',
     chapterCount: 5,
+    cg: 'gald-worker',
   },
   {
     choice: 'KILL',
@@ -73,6 +78,7 @@ const ROUTES: Route[] = [
     sceneProof: '誰かが時々、花を置いていくんだ。',
     kaosProof: 'これも、続きなんだよ',
     chapterCount: 4,
+    cg: 'event-gald-grave',
   },
 ];
 
@@ -105,14 +111,25 @@ async function buildWorld(page: Page, preset: string) {
   await page.getByTestId('dev-admin-back').click();
 }
 
-/** Clicks a tap-to-advance scene until the given testid disappears. */
-async function playScene(page: Page, testId: string, maxClicks = 24) {
+/**
+ * Clicks a tap-to-advance scene until the given testid disappears, and
+ * reports every event-CG src that was on screen along the way (the grave
+ * only appears partway through its scene).
+ */
+async function playScene(page: Page, testId: string, maxClicks = 24): Promise<string[]> {
   const scene = page.getByTestId(testId);
+  const cg = page.getByTestId('scene-portrait');
+  const seen: string[] = [];
   await expect(scene).toBeVisible();
   for (let i = 0; i < maxClicks; i++) {
-    if (!(await scene.isVisible().catch(() => false))) return;
+    if (!(await scene.isVisible().catch(() => false))) break;
+    // count() does not auto-wait — the grave has no CG for its first
+    // fourteen lines, and waiting for one would burn the test's timeout.
+    const src = (await cg.count()) ? await cg.getAttribute('src') : null;
+    if (src) seen.push(src);
     await scene.click();
   }
+  return seen;
 }
 
 for (const route of ROUTES) {
@@ -143,7 +160,13 @@ for (const route of ROUTES) {
 
     // --- The discovery itself ---
     await card.click();
-    await playScene(page, `${route.scene}-first-visit`);
+    const cgSeen = await playScene(page, `${route.scene}-first-visit`);
+    // The route's own event CG was on screen during its own scene, and no
+    // other route's picture ever was.
+    expect(cgSeen.some((src) => src.includes(route.cg))).toBe(true);
+    for (const other of ROUTES.filter((r) => r.cg !== route.cg)) {
+      expect(cgSeen.some((src) => src.includes(other.cg))).toBe(false);
+    }
     if (route.choice === 'HELP') {
       // The one optional reply: flavour, never canon.
       await expect(page.getByTestId('waystation-reply')).toBeVisible();
@@ -246,6 +269,30 @@ for (const route of ROUTES) {
     await expect(page.getByTestId('q1-5')).toBeVisible();
   });
 }
+
+test('a picture that will not load never stops the world from recording', async ({ page }) => {
+  // Art is presentation. Block every event CG and play the KILL route:
+  // the scene must still finish, the discovery must still commit, and the
+  // LIFE ARCHIVE must still open.
+  await page.route('**/*.webp', (route) => route.abort());
+  await buildWorld(page, 'KILL_3Y');
+
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('location-GREENWOOD_GRAVE').click();
+  await playScene(page, 'grave-first-visit');
+  await expect(page.getByTestId('grave-reunion-done')).toBeVisible({ timeout: 10_000 });
+
+  const events = await readMemoryEvents(page);
+  expect(events.map((e) => e.type)).toContain('PLAYER_FOUND_GALD_GRAVE');
+
+  await page.getByTestId('grave-leave').click();
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await page.getByTestId('ending-archive-button').click();
+  await page.getByTestId('archive-entry-GALD').click();
+  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(4);
+});
 
 test('the scene shown is the one the route earned', async ({ page }) => {
   // Read each route's own scene text once, and prove no other route's

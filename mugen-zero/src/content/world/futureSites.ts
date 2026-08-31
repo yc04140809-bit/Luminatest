@@ -14,6 +14,7 @@
 import type { DialogueLine } from '../dialogue/prologue';
 import type { LifeEventType, PlayerEventType } from '../../core/memory/types';
 import type { LocationId } from '../locations/locationVisuals';
+import { galdPortrait, EVENT_CG } from '../../assets/manifest';
 import {
   BAKERY_FIRST_VISIT_LINES,
   BAKERY_REVISIT_LINES,
@@ -67,9 +68,24 @@ export interface FutureSiteDef {
   revisitClosing: string;
   /** Kaos, immediately after the discovery is committed to the DB. */
   kaosLines: string[];
-  /** Gald art for the scene, if any exists for this point in his life. */
-  portrait: 'baker' | null;
-  portraitAlt: string;
+  /**
+   * The scene's event CG, or null where no art exists yet. Purely
+   * presentational: the scene plays, the discovery commits and the
+   * archive updates identically if it fails to load.
+   */
+  eventCg: string | null;
+  eventCgAlt: string;
+  /**
+   * How the art sits on the stage. 'figure' is the Phase E cut-out look
+   * (the baker); 'scene' fills the width for a full illustration.
+   */
+  eventCgFit: 'figure' | 'scene';
+  /**
+   * Index of the line the CG appears on (default: from the first).
+   * The grave uses it so the name carved in the stone arrives when the
+   * writing says it does, not eight lines early.
+   */
+  eventCgFromLine?: number;
 }
 
 export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
@@ -86,8 +102,9 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: BAKERY_REVISIT_LINES,
     revisitClosing: '棚には、焼きたてのパンが並んでいる。',
     kaosLines: [KAOS_AFTER_REUNION_LINE],
-    portrait: 'baker',
-    portraitAlt: 'パンの籠を抱えた店の男',
+    eventCg: galdPortrait('baker'),
+    eventCgAlt: 'パンの籠を抱えた店の男',
+    eventCgFit: 'figure',
   },
   {
     id: 'GREENWOOD_WAYSTATION',
@@ -104,8 +121,9 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: WAYSTATION_REVISIT_LINES,
     revisitClosing: '棚の薬草が、少しだけ減っている。',
     kaosLines: KAOS_AFTER_WAYSTATION_LINES,
-    portrait: null,
-    portraitAlt: '',
+    eventCg: galdPortrait('healer'),
+    eventCgAlt: '街道の休憩所で、旅人の腕に包帯を巻く男',
+    eventCgFit: 'scene',
   },
   {
     id: 'ALDEN_WORKYARD',
@@ -120,8 +138,9 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: WORKYARD_REVISIT_LINES,
     revisitClosing: '石を積む音が、まだ続いている。',
     kaosLines: KAOS_AFTER_WORKYARD_LINES,
-    portrait: null,
-    portraitAlt: '',
+    eventCg: galdPortrait('worker'),
+    eventCgAlt: '村の復旧作業場で、衛兵と並んで働く男',
+    eventCgFit: 'scene',
   },
   {
     id: 'GREENWOOD_GRAVE',
@@ -136,8 +155,12 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: GRAVE_REVISIT_LINES,
     revisitClosing: '花が、少しだけ増えていた。',
     kaosLines: KAOS_AFTER_GRAVE_LINES,
-    portrait: null,
-    portraitAlt: '',
+    // No Gald to draw here. The picture is of what the world kept, and
+    // it waits until the player walks up to the stones.
+    eventCg: EVENT_CG.GALD_GRAVE,
+    eventCgAlt: '森の入口の墓標と、供えられた白い花',
+    eventCgFit: 'scene',
+    eventCgFromLine: 14,
   },
 ];
 
