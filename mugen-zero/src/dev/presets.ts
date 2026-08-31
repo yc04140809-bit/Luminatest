@@ -15,8 +15,11 @@ export type PresetId =
   | 'SPARE_3Y'
   | 'REUNITED'
   | 'KILL'
+  | 'KILL_3Y'
   | 'HELP'
-  | 'CAPTURE';
+  | 'HELP_3Y'
+  | 'CAPTURE'
+  | 'CAPTURE_3Y';
 
 export interface ScenarioPreset {
   id: PresetId;
@@ -110,6 +113,15 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     },
   },
   {
+    id: 'KILL_3Y',
+    label: 'KILL+3年（墓/未発見）',
+    run: async (world) => {
+      await world.resetWorld();
+      await world.recordGaldLifeChoice('KILL');
+      await world.timeShift(3);
+    },
+  },
+  {
     id: 'HELP',
     label: 'HELP直後',
     run: async (world) => {
@@ -118,11 +130,29 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
     },
   },
   {
+    id: 'HELP_3Y',
+    label: 'HELP+3年（救護人/未再会）',
+    run: async (world) => {
+      await world.resetWorld();
+      await world.recordGaldLifeChoice('HELP');
+      await world.timeShift(3);
+    },
+  },
+  {
     id: 'CAPTURE',
     label: 'CAPTURE直後',
     run: async (world) => {
       await world.resetWorld();
       await world.recordGaldLifeChoice('CAPTURE');
+    },
+  },
+  {
+    id: 'CAPTURE_3Y',
+    label: 'CAPTURE+3年（村の作業/未再会）',
+    run: async (world) => {
+      await world.resetWorld();
+      await world.recordGaldLifeChoice('CAPTURE');
+      await world.timeShift(3);
     },
   },
 ];

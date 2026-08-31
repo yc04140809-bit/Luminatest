@@ -13,7 +13,7 @@ import { LifeChoiceScreen } from './ui/screens/LifeChoiceScreen';
 import { ChoiceResultScreen } from './ui/screens/ChoiceResultScreen';
 import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
-import { BakeryScreen } from './ui/screens/BakeryScreen';
+import { FutureSiteScreen } from './ui/screens/FutureSiteScreen';
 import { ArchiveScreen } from './ui/screens/ArchiveScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
@@ -32,6 +32,7 @@ import { PlaytestFeedbackService, isSurveyAvailable } from './core/playtest/play
 import { IdbFeedbackStore } from './core/playtest/idbFeedbackStore';
 import { startNewPlaySession } from './core/playtest/playSession';
 import type { LocationId } from './content/locations/locationVisuals';
+import { futureSiteDef } from './content/world/futureSites';
 
 // Phaser is the heaviest dependency by far and is only needed once the
 // player walks into the forest; the dev admin never ships to a player's
@@ -222,28 +223,33 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             setCurrentLocationId('ALDEN_VILLAGE');
             flow.goTo('HOME');
           }}
-          bakeryOpen={world.isBakeryOpen()}
-          bakeryDiscovered={world.hasReunitedWithGald()}
-          onEnterBakery={() => {
-            setCurrentLocationId('ALDEN_BAKERY');
-            flow.goTo('BAKERY');
+          sites={world.getOpenFutureSites()}
+          onEnterSite={(siteId) => {
+            setCurrentLocationId(siteId as LocationId);
+            flow.goTo('FUTURE_SITE');
           }}
         />
       );
-    case 'BAKERY':
+    case 'FUTURE_SITE': {
+      const site = futureSiteDef(currentLocationId);
+      // Only reachable from a card the world itself put on the map.
+      if (!site) return <div className="screen" />;
       return (
-        <BakeryScreen
-          firstVisit={!world.hasReunitedWithGald()}
-          onReunion={async () => {
-            await world.recordGaldReunion();
+        <FutureSiteScreen
+          site={site}
+          firstVisit={!world.hasDiscoveredSite(site.id)}
+          onDiscover={async () => {
+            await world.recordFutureSiteDiscovery(site.id);
           }}
-          // The first reunion is the end of this playtest's arc: close it
-          // in world terms rather than leaving the player on the map
-          // wondering what to do next. Revisits just step back outside.
-          onLeaveAfterReunion={() => flow.goTo('ENDING')}
+          // The first discovery is the end of this playtest's arc, on any
+          // of the four routes: close it in world terms rather than
+          // leaving the player on the map wondering what to do next.
+          // Revisits just step back outside.
+          onLeaveAfterDiscovery={() => flow.goTo('ENDING')}
           onLeave={() => flow.goTo('EXPLORE')}
         />
       );
+    }
     case 'GREENWOOD':
       return (
         <Suspense fallback={<LoadingScreen message="森へ入っています……" />}>

@@ -115,7 +115,7 @@ async function goHomeAndOpenAdmin(page: Page) {
   await expect(page.getByTestId('dev-admin-screen')).toBeVisible();
 }
 
-test('KILL: an ended life — no ??? card, no bakery chapters, even 3 years on', async ({ page }) => {
+test('KILL: an ended life — a ??? card, and no bakery chapters, even 3 years on', async ({ page }) => {
   await goHomeAndOpenAdmin(page);
   await page.getByTestId('preset-KILL').click();
   await page.getByTestId('time-plus-3y').click();
@@ -127,8 +127,10 @@ test('KILL: an ended life — no ??? card, no bakery chapters, even 3 years on',
   const text = await page.getByTestId('archive-detail').innerText();
   expect(text).toContain('森で終わった命');
   expect(text).not.toContain('パン');
-  await expect(page.getByTestId('archive-unknown')).toHaveCount(0);
-  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(1);
+  // His life ended — and the world's continuation is still unfound, so the
+  // record reads exactly like every other undiscovered route.
+  await expect(page.getByTestId('archive-unknown')).toBeVisible();
+  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(2);
 });
 
 for (const [preset, title] of [

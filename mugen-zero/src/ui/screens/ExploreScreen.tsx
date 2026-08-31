@@ -1,25 +1,20 @@
 import { LOCATIONS } from '../../content/locations/alden';
+import type { OpenFutureSite } from '../../core/world/world';
 
 interface Props {
   onEnterGreenwood: () => void;
   onBack: () => void;
   /**
-   * World truth says a bakery exists in Alden (GALD_BECOMES_BAKER).
-   * Until the player has actually met its owner, the card stays an
-   * unspoiled "？？？" — discovery belongs to the player.
+   * Places world truth has opened — the bakery, the roadside waystation,
+   * the village workyard, the grave in the forest. Whichever route this
+   * world took, the card stays an unspoiled 「？？？」 until the player has
+   * actually been there: discovery belongs to the player, not the clock.
    */
-  bakeryOpen: boolean;
-  bakeryDiscovered: boolean;
-  onEnterBakery: () => void;
+  sites: OpenFutureSite[];
+  onEnterSite: (siteId: string) => void;
 }
 
-export function ExploreScreen({
-  onEnterGreenwood,
-  onBack,
-  bakeryOpen,
-  bakeryDiscovered,
-  onEnterBakery,
-}: Props) {
+export function ExploreScreen({ onEnterGreenwood, onBack, sites, onEnterSite }: Props) {
   return (
     <div className="screen">
       <div className="screen-title">アルデン地方を探索する</div>
@@ -36,20 +31,19 @@ export function ExploreScreen({
             <div className="location-desc">{loc.description}</div>
           </button>
         ))}
-        {bakeryOpen && (
+        {sites.map(({ def, discovered }) => (
           <button
+            key={def.id}
             className="location-card"
-            data-testid="location-ALDEN_BAKERY"
-            onClick={onEnterBakery}
+            data-testid={`location-${def.id}`}
+            onClick={() => onEnterSite(def.id)}
           >
-            <div className="location-name">{bakeryDiscovered ? 'パン屋' : '？？？'}</div>
+            <div className="location-name">{discovered ? def.knownName : def.unknownName}</div>
             <div className="location-desc">
-              {bakeryDiscovered
-                ? '焼きたてのパンの匂いがする、小さな店。'
-                : '以前は空き店舗だった場所に、新しい店ができている。'}
+              {discovered ? def.knownDescription : def.unknownDescription}
             </div>
           </button>
-        )}
+        ))}
       </div>
       <div className="screen-footer">
         <button className="btn" onClick={onBack}>

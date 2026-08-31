@@ -12,7 +12,15 @@
 import { BACKGROUNDS } from '../../assets/manifest';
 
 /** Every place the game can show, art or not. */
-export type LocationId = 'ALDEN_VILLAGE' | 'MOONLIGHT_TAVERN' | 'GREENWOOD_FOREST' | 'ALDEN_BAKERY';
+export type LocationId =
+  | 'ALDEN_VILLAGE'
+  | 'MOONLIGHT_TAVERN'
+  | 'GREENWOOD_FOREST'
+  // The four places three years of world time can put on the map.
+  | 'ALDEN_BAKERY'
+  | 'GREENWOOD_WAYSTATION'
+  | 'ALDEN_WORKYARD'
+  | 'GREENWOOD_GRAVE';
 
 export interface LocationVisual {
   locationId: LocationId;
@@ -32,6 +40,12 @@ export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
   },
   // The bakery has no art yet; the reunion scene simply stays on Gald.
   ALDEN_BAKERY: { locationId: 'ALDEN_BAKERY', background: null },
+  // A hut interior — forest art would be a lie about where you are.
+  GREENWOOD_WAYSTATION: { locationId: 'GREENWOOD_WAYSTATION', background: null },
+  // Both of these ARE the places whose art already exists: the yard is on
+  // the village's edge, and the grave is at the forest's mouth.
+  ALDEN_WORKYARD: { locationId: 'ALDEN_WORKYARD', background: BACKGROUNDS.ALDEN_VILLAGE },
+  GREENWOOD_GRAVE: { locationId: 'GREENWOOD_GRAVE', background: BACKGROUNDS.GREENWOOD_FOREST },
 };
 
 /**

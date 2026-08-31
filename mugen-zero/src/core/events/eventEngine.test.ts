@@ -43,13 +43,19 @@ describe('findDueLifeEvents — GALD_LEAVES_BANDITS', () => {
     expect(findDueLifeEvents(LIFE_EVENT_DEFS, [], { worldYear: 1, worldDay: 100 })).toEqual([]);
   });
 
-  it.each(['PLAYER_KILLED_GALD', 'PLAYER_HELPED_GALD', 'PLAYER_CAPTURED_GALD'] as const)(
-    'never fires on the %s route',
-    (type) => {
-      const events = [event(type, 1)];
-      expect(findDueLifeEvents(LIFE_EVENT_DEFS, events, { worldYear: 1, worldDay: 50 })).toEqual([]);
-    },
-  );
+  // Each of the other three routes has its own chain now. What must hold
+  // is isolation: another route's root cause can never make the SPARE
+  // chain due, and never fires more than its own first step.
+  it.each([
+    ['PLAYER_KILLED_GALD', 'GALD_IS_BURIED'],
+    ['PLAYER_HELPED_GALD', 'GALD_WALKS_THE_ROAD'],
+    ['PLAYER_CAPTURED_GALD', 'GALD_STANDS_TRIAL'],
+  ] as const)('never fires on the %s route — that route fires its own first step', (type, own) => {
+    const events = [event(type, 1)];
+    const due = findDueLifeEvents(LIFE_EVENT_DEFS, events, { worldYear: 1, worldDay: 50 });
+    expect(due.map((d) => d.def.type)).toEqual([own]);
+    expect(due.every((d) => d.cause.type === type)).toBe(true);
+  });
 
   it('never fires twice (once): an existing GALD_LEAVES_BANDITS blocks it', () => {
     const events = [event('PLAYER_SPARED_GALD', 1), event('GALD_LEAVES_BANDITS', 4)];

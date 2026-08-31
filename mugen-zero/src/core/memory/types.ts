@@ -12,14 +12,37 @@ export type GaldLifeChoiceEventType =
   | 'PLAYER_HELPED_GALD'
   | 'PLAYER_CAPTURED_GALD';
 
-/** Life events produced by the EVENT ENGINE. */
+/**
+ * Life events produced by the EVENT ENGINE.
+ * One chain per life choice — the four are mutually exclusive because
+ * their root causes are (only one first-encounter outcome can exist).
+ */
 export type LifeEventType =
+  // SPARE — a life let go finds another one.
   | 'GALD_LEAVES_BANDITS'
   | 'GALD_ARRIVES_IN_ALDEN'
-  | 'GALD_BECOMES_BAKER';
+  | 'GALD_BECOMES_BAKER'
+  // HELP — a hand offered is a hand passed on.
+  | 'GALD_WALKS_THE_ROAD'
+  | 'GALD_BECOMES_HEALER'
+  // CAPTURE — the life that follows being held to account.
+  | 'GALD_STANDS_TRIAL'
+  | 'GALD_COMPLETES_SENTENCE'
+  | 'GALD_WORKS_FOR_ALDEN'
+  // KILL — the man's own time stopped; the world's did not.
+  | 'GALD_IS_BURIED'
+  | 'GALD_GRAVE_TENDED';
 
-/** Events the player takes part in outside the first-encounter choice. */
-export type PlayerEventType = 'PLAYER_REUNITED_WITH_GALD';
+/**
+ * Events the player takes part in outside the first-encounter choice.
+ * One per route: the moment the player finds, with their own feet, what
+ * became of the choice they made three years ago.
+ */
+export type PlayerEventType =
+  | 'PLAYER_REUNITED_WITH_GALD'
+  | 'PLAYER_MET_GALD_ON_THE_ROAD'
+  | 'PLAYER_MET_GALD_IN_ALDEN'
+  | 'PLAYER_FOUND_GALD_GRAVE';
 
 /** World-scale events (large passages of time, …). */
 export type WorldEventType = 'WORLD_TIME_SHIFTED';

@@ -12,8 +12,10 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   ENDING: ['HOME', 'ARCHIVE', 'PLAYTEST_SURVEY'],
   PLAYTEST_SURVEY: ['HOME', 'ARCHIVE'],
   SETTINGS: ['HOME'],
-  EXPLORE: ['GREENWOOD', 'BAKERY', 'HOME'],
-  BAKERY: ['EXPLORE', 'ENDING'],
+  EXPLORE: ['GREENWOOD', 'FUTURE_SITE', 'HOME'],
+  // One screen for all four routes' future sites: bakery, waystation,
+  // workyard, grave. Which one it shows is a location, not a screen.
+  FUTURE_SITE: ['EXPLORE', 'ENDING'],
   GREENWOOD: ['ENCOUNTER', 'EXPLORE'],
   ENCOUNTER: ['BATTLE'],
   BATTLE: ['LIFE_CHOICE', 'HOME'],

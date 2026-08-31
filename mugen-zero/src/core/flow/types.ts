@@ -13,7 +13,7 @@ export type Screen =
   | 'CHOICE_RESULT'
   | 'WORLD_MEMORY'
   | 'TIME_SHIFT'
-  | 'BAKERY'
+  | 'FUTURE_SITE'
   | 'ARCHIVE'
   | 'SETTINGS'
   | 'ENDING'

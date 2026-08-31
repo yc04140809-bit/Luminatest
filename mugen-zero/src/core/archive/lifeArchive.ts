@@ -16,6 +16,7 @@ import {
   GALD_LIFE_CHAPTERS,
 } from '../../content/archive/galdChapters';
 import { GALD_LIFE_CHOICE_EVENT_ID } from '../../content/events/galdLifeChoice';
+import { FUTURE_DISCOVERY_TYPES } from '../../content/world/futureSites';
 import { GALD } from '../../content/characters/gald';
 
 export type ChapterStatus = 'KNOWN' | 'UNKNOWN';
@@ -42,9 +43,12 @@ export interface LifeArchiveEntry {
   chapters: LifeArchiveChapter[];
   /**
    * Whether to show the single 「？？？」 continuation card. Depends ONLY
-   * on what the player knows (choice + reunion), never on world truth —
-   * so its presence can never leak that something has already happened.
-   * A life the player watched end (KILL) shows no continuation.
+   * on whether the player has been to the place their choice led to,
+   * never on world truth — so its presence can never leak that something
+   * has already happened, and it reads identically on all four routes.
+   *
+   * KILL included: his life ended, but what the world did with it is a
+   * continuation the player has not seen yet.
    */
   hasUnknownContinuation: boolean;
 }
@@ -84,17 +88,18 @@ export function buildGaldLifeArchive(events: MemoryEvent[]): LifeArchiveEntry | 
   }
   if (chapters.length === 0) return null;
 
-  const choice = events.find((e) => e.id === GALD_LIFE_CHOICE_EVENT_ID);
-  const lifeEnded = choice?.type === 'PLAYER_KILLED_GALD';
-  const reunited = events.some((e) => e.type === 'PLAYER_REUNITED_WITH_GALD');
+  // The one thing that changes the record: the player went and looked.
+  const discovered = events.some((e) =>
+    FUTURE_DISCOVERY_TYPES.includes(e.type as (typeof FUTURE_DISCOVERY_TYPES)[number]),
+  );
 
   return {
     characterId: GALD.id,
-    // The player files him under what they know him as; the reunion is
-    // when the name truly belongs to a person.
-    displayName: reunited ? GALD.name : GALD.unknownName,
+    // The player files him under what they know him as; finding him again
+    // — or finding his name on a grave — is when it becomes a person.
+    displayName: discovered ? GALD.name : GALD.unknownName,
     firstKnownAt: { worldYear: chapters[0].worldYear, worldDay: chapters[0].worldDay },
     chapters,
-    hasUnknownContinuation: !lifeEnded && !reunited,
+    hasUnknownContinuation: !discovered,
   };
 }

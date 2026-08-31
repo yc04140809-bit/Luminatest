@@ -137,19 +137,24 @@ describe('LIFE ARCHIVE projection', () => {
     expect(world.hasEventOfType('WORLD_TIME_SHIFTED')).toBe(true);
   });
 
-  it('KILL: a life the player watched end — no continuation card, ever', async () => {
+  it('KILL: the life ended, but the record still says there is more to find', async () => {
     const world = await openWorld();
     await world.recordGaldLifeChoice('KILL');
     let [entry] = world.getLifeArchive();
     expect(entry.chapters).toHaveLength(1);
     expect(entry.chapters[0].title).toBe('森で終わった命');
-    expect(entry.hasUnknownContinuation).toBe(false);
+    // His time stopped; what the world did afterwards is still unseen.
+    expect(entry.hasUnknownContinuation).toBe(true);
 
+    // A century of truth passes — the player's record does not move an inch.
     await world.timeShift(100);
     [entry] = world.getLifeArchive();
     expect(entry.chapters).toHaveLength(1);
-    expect(entry.hasUnknownContinuation).toBe(false);
-    expect(JSON.stringify(entry)).not.toContain('パン');
+    expect(entry.hasUnknownContinuation).toBe(true);
+    const text = JSON.stringify(entry);
+    expect(text).not.toContain('パン');
+    expect(text).not.toContain('石');
+    expect(text).not.toContain('花');
   });
 
   it.each([

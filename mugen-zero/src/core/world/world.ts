@@ -24,6 +24,12 @@ import {
   GALD_LIFE_CHOICE_STATE_EFFECTS,
 } from '../../content/events/galdLifeChoice';
 import { LIFE_EVENT_DEFS } from '../../content/events/lifeEvents';
+import {
+  FUTURE_SITE_DEFS,
+  FUTURE_DISCOVERY_TYPES,
+  futureSiteDef,
+  type FutureSiteDef,
+} from '../../content/world/futureSites';
 import { INITIAL_GALD_STATE } from '../../content/characters/gald';
 
 const CLOCK_KEY = 'world_clock';
@@ -39,6 +45,13 @@ const INITIAL_CHARACTERS: Record<string, CharacterState> = {
 interface ResolvedLifeEvent {
   event: MemoryEvent;
   def: LifeEventDef;
+}
+
+/** A future site that world truth has put on the map, and whether the
+ *  player has actually been there. */
+export interface OpenFutureSite {
+  def: FutureSiteDef;
+  discovered: boolean;
 }
 
 type Listener = () => void;
@@ -125,16 +138,19 @@ export class World {
    * Minimal PLAYER KNOWLEDGE approximation (full system arrives in a later
    * phase): the player-facing WORLD MEMORY view shows only events the
    * player took part in, plus world-scale time passage. Gald's off-screen
-   * life stays hidden until the player actually reunites with him — world
-   * truth must never spoil itself through the UI.
+   * life stays hidden until the player finds him (or, on the KILL route,
+   * finds his grave) — world truth must never spoil itself through the UI.
    */
   getKnownEvents(): MemoryEvent[] {
-    const reunited = this.hasEventOfType('PLAYER_REUNITED_WITH_GALD');
+    // Whatever the route, the player learns Gald's off-screen history at
+    // one moment only: when they go to the place the world put on the map
+    // and see for themselves.
+    const discovered = this.hasDiscoveredGaldFuture();
     return this.getEvents().filter(
       (e) =>
         e.actors.includes('PLAYER') ||
         e.type === 'WORLD_TIME_SHIFTED' ||
-        (reunited && e.actors.includes('GALD')),
+        (discovered && e.actors.includes('GALD')),
     );
   }
 
@@ -145,6 +161,32 @@ export class World {
   getLifeArchive(): LifeArchiveEntry[] {
     const gald = buildGaldLifeArchive(this.getKnownEvents());
     return gald ? [gald] : [];
+  }
+
+  /**
+   * FUTURE SITES the world has opened, whichever route this world took —
+   * the bakery, the waystation, the workyard or the grave. World truth
+   * decides that a place exists; `discovered` is player knowledge and is
+   * the only thing that may put a name on it.
+   */
+  getOpenFutureSites(): OpenFutureSite[] {
+    return FUTURE_SITE_DEFS.filter((def) => this.hasEventOfType(def.requiredMemory)).map(
+      (def) => ({ def, discovered: this.hasEventOfType(def.discovery.type) }),
+    );
+  }
+
+  /** Whether the player has been to this particular place. */
+  hasDiscoveredSite(siteId: string): boolean {
+    const def = futureSiteDef(siteId);
+    return def ? this.hasEventOfType(def.discovery.type) : false;
+  }
+
+  /**
+   * Whether the player has seen what became of their choice — on ANY
+   * route. Gates the LIFE ARCHIVE and the player-facing WORLD MEMORY.
+   */
+  hasDiscoveredGaldFuture(): boolean {
+    return FUTURE_DISCOVERY_TYPES.some((type) => this.hasEventOfType(type));
   }
 
   /** World truth: a bakery exists in Alden. (Not player knowledge.) */
@@ -370,32 +412,44 @@ export class World {
   }
 
   /**
-   * Records the moment the player actually meets Gald in the bakery.
-   * Only callable in a world whose truth contains GALD_BECOMES_BAKER;
-   * a TIME SHIFT alone never creates this event. Once per world
+   * Records the moment the player actually goes to a future site and sees
+   * what became of their choice — the bakery, the waystation, the workyard
+   * or the grave.
+   *
+   * Only callable in a world whose truth already contains the site's
+   * required memory: a TIME SHIFT alone never creates this event, and no
+   * route can produce another route's discovery. Once per world
    * (idempotent on revisit).
    */
-  async recordGaldReunion(): Promise<MemoryEvent> {
-    const existing = this.events.find((e) => e.type === 'PLAYER_REUNITED_WITH_GALD');
+  async recordFutureSiteDiscovery(siteId: string): Promise<MemoryEvent> {
+    const def = futureSiteDef(siteId);
+    if (!def) throw new Error(`Unknown future site: ${siteId}`);
+    const existing = this.events.find((e) => e.type === def.discovery.type);
     if (existing) return existing;
-    if (!this.isBakeryOpen()) {
-      throw new Error('Reunion requires GALD_BECOMES_BAKER in world truth');
+    if (!this.hasEventOfType(def.requiredMemory)) {
+      throw new Error(`${def.discovery.type} requires ${def.requiredMemory} in world truth`);
     }
     const event: MemoryEvent = {
-      id: 'evt_player_reunited_with_gald',
-      type: 'PLAYER_REUNITED_WITH_GALD',
+      id: def.discovery.eventId,
+      type: def.discovery.type,
       worldYear: this.clock.worldYear,
       worldDay: this.clock.worldDay,
-      location: 'ALDEN_BAKERY',
+      location: def.id,
+      // The grave is still his: the archive follows GALD's actor tag.
       actors: ['PLAYER', 'GALD'],
       importance: 'MAJOR',
       createdAt: new Date().toISOString(),
-      causedBy: ['GALD_BECOMES_BAKER'],
+      causedBy: [def.requiredMemory],
     };
     await this.store.commit({ addEvents: [event] });
     this.events = [...this.events, event];
     this.emit();
     return event;
+  }
+
+  /** The SPARE route's discovery, by its Phase E name. */
+  async recordGaldReunion(): Promise<MemoryEvent> {
+    return this.recordFutureSiteDiscovery('ALDEN_BAKERY');
   }
 
   /** Advances the world day by day, n times (each day fully resolved). */

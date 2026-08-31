@@ -138,11 +138,12 @@ describe('World — GALD_LEAVES_BANDITS causality', () => {
     async (choice) => {
       const world = await openWorld(freshDbName());
       await world.recordGaldLifeChoice(choice);
-      for (let i = 0; i < 6; i++) {
-        expect(await world.advanceDay()).toEqual([]);
-      }
+      for (let i = 0; i < 6; i++) await world.advanceDay();
+      // These routes have futures of their own; what they must never have
+      // is the SPARE chain.
       expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(false);
-      expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
+      expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(false);
+      expect(world.getCharacter('GALD')?.occupation).not.toBe('BAKER');
     },
   );
 
@@ -356,10 +357,12 @@ describe('World — Gald bakery life chain (Phase E)', () => {
       expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(false);
       expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
       expect(world.isBakeryOpen()).toBe(false);
-      expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
+      expect(world.getCharacter('GALD')?.occupation).not.toBe('BAKER');
       if (choice === 'KILL') {
         expect(world.getCharacter('GALD')?.alive).toBe(false);
         expect(world.getCharacter('GALD')?.age).toBe(27); // the dead do not age
+        // Nothing that happens after his death is HIS state.
+        expect(world.getCharacter('GALD')?.occupation).toBe('BANDIT');
       }
     },
   );

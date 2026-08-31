@@ -118,7 +118,7 @@ test('the first reunion: spare, let life move on, discover the bakery, 「……
   );
 });
 
-test('KILL world: three years later there is no bakery and no baker Gald', async ({ page }) => {
+test('KILL world: three years later there is no bakery and no living Gald', async ({ page }) => {
   // Build the state fast through the dev admin (official APIs underneath).
   await page.goto('/');
   await page.getByTestId('start-button').click();
@@ -138,6 +138,12 @@ test('KILL world: three years later there is no bakery and no baker Gald', async
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('location-ALDEN_BAKERY')).toHaveCount(0);
 
+  // The KILL route has a future of its own — but it is a grave, and the
+  // SPARE chain never runs in this world.
   const events = await readMemoryEvents(page);
-  expect(events.some((e) => e.type.startsWith('GALD_'))).toBe(false);
+  const types = events.map((e) => e.type);
+  expect(types).not.toContain('GALD_LEAVES_BANDITS');
+  expect(types).not.toContain('GALD_ARRIVES_IN_ALDEN');
+  expect(types).not.toContain('GALD_BECOMES_BAKER');
+  expect(types).toContain('GALD_IS_BURIED');
 });
