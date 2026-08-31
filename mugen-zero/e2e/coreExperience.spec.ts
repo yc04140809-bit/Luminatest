@@ -120,7 +120,16 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await expect(page.getByText('「……続き、あったでしょ？」')).toBeVisible();
     await page.getByTestId('bakery-leave').click();
 
+    // --- The playtest arc closes in world terms ---
+    const ending = page.getByTestId('ending-kaos');
+    await expect(ending).toBeVisible();
+    await expect(page.getByText('……どうだった？')).toBeVisible();
+    for (let i = 0; i < 4; i++) await ending.click();
+    await expect(page.getByTestId('ending-screen')).toBeVisible();
+    await page.getByTestId('ending-keep-playing').click();
+
     // --- Revisit is an ordinary bakery ---
+    await page.getByTestId('explore-button').click();
     await page.getByTestId('location-ALDEN_BAKERY').click();
     await expect(page.getByText('今日は何だ。')).toBeVisible();
     await expect(page.getByText('……見るな。')).toHaveCount(0);

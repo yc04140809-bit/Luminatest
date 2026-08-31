@@ -69,8 +69,20 @@ async function completeCoreExperience(page: Page) {
   for (let i = 0; i < 8; i++) await scene.click();
   await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('bakery-leave').click();
-  await page.locator('.screen-footer .btn').first().click(); // explore -> HOME
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await page.getByTestId('ending-keep-playing').click(); // -> HOME
   await expect(page.getByTestId('world-clock')).toBeVisible();
+}
+
+/** The archive's survey link now goes through Kaos's closing scene. */
+async function openSurveyFromArchive(page: Page) {
+  await page.getByTestId('open-survey-button').click();
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await page.getByTestId('ending-survey-button').click();
 }
 
 async function answerSurvey(page: Page, comment = '再会でびっくりした。') {
@@ -114,7 +126,7 @@ test('survey is offered only after the life choice, saves locally, and shows onc
   // Reached from the LIFE ARCHIVE, by the player's own choice.
   await page.getByTestId('archive-button').click();
   await expect(page.getByTestId('open-survey-button')).toBeVisible();
-  await page.getByTestId('open-survey-button').click();
+  await openSurveyFromArchive(page);
   await answerSurvey(page);
 
   const feedback = await readFeedback(page);
@@ -178,7 +190,7 @@ test('answers survive RESET WORLD, and the dev admin can read and export them', 
   for (let i = 0; i < 6; i++) await kaos.click();
   await completeCoreExperience(page);
   await page.getByTestId('archive-button').click();
-  await page.getByTestId('open-survey-button').click();
+  await openSurveyFromArchive(page);
   await answerSurvey(page, '=1+1 という書き出しのコメント');
   await page.getByTestId('survey-done-home').click();
 
@@ -234,7 +246,7 @@ test('KILL route reaches the survey without seeing bakery or reunion options', a
   await page.getByTestId('dev-admin-back').click();
 
   await page.getByTestId('archive-button').click();
-  await page.getByTestId('open-survey-button').click();
+  await openSurveyFromArchive(page);
   const intro = page.getByTestId('survey-intro');
   await intro.click();
   await intro.click();
@@ -281,7 +293,7 @@ for (const size of [
     await page.getByTestId('dev-admin-back').click();
 
     await page.getByTestId('archive-button').click();
-    await page.getByTestId('open-survey-button').click();
+    await openSurveyFromArchive(page);
     const intro = page.getByTestId('survey-intro');
     await intro.click();
     await intro.click();

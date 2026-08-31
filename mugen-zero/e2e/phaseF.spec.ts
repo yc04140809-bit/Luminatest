@@ -74,7 +74,10 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
   for (let i = 0; i < 8; i++) await scene.click();
   await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('bakery-leave').click();
-  await page.locator('.screen-footer .btn').click(); // explore -> HOME
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await page.getByTestId('ending-keep-playing').click(); // -> HOME
 
   // Now the life connects into one record, dated from the true history.
   await openGaldRecord(page);

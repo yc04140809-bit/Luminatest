@@ -16,6 +16,7 @@ export type Screen =
   | 'BAKERY'
   | 'ARCHIVE'
   | 'SETTINGS'
+  | 'ENDING'
   | 'PLAYTEST_SURVEY'
   | 'DEV_LOCK'
   | 'DEV_ADMIN';

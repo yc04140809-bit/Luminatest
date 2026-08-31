@@ -65,6 +65,10 @@ test('playtest feedback survives a full browser restart', async () => {
 
     await page.getByTestId('archive-button').click();
     await page.getByTestId('open-survey-button').click();
+    const ending = page.getByTestId('ending-kaos');
+    await expect(ending).toBeVisible();
+    for (let i = 0; i < 4; i++) await ending.click();
+    await page.getByTestId('ending-survey-button').click();
     const intro = page.getByTestId('survey-intro');
     await intro.click();
     await intro.click();

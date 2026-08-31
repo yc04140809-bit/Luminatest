@@ -83,7 +83,15 @@ test('the first reunion: spare, let life move on, discover the bakery, 「……
 
   await page.getByTestId('bakery-leave').click();
 
+  // The first reunion closes with Kaos, then back into the world.
+  const ending = page.getByTestId('ending-kaos');
+  await expect(ending).toBeVisible();
+  for (let i = 0; i < 4; i++) await ending.click();
+  await expect(page.getByTestId('ending-screen')).toBeVisible();
+  await page.getByTestId('ending-keep-playing').click();
+
   // Discovered: the card now reads パン屋.
+  await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('location-ALDEN_BAKERY')).toContainText('パン屋');
 
   // Revisit: an ordinary shop, no replayed reunion.

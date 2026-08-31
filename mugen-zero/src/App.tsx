@@ -17,6 +17,7 @@ import { BakeryScreen } from './ui/screens/BakeryScreen';
 import { ArchiveScreen } from './ui/screens/ArchiveScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
+import { EndingScreen } from './ui/screens/EndingScreen';
 import { LoadingScreen } from './ui/common/LoadingScreen';
 import { DEV_ADMIN_ENABLED } from './dev/devMode';
 import {
@@ -136,7 +137,16 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onBack={() => flow.goTo('HOME')}
           surveyAvailable={isSurveyAvailable(world)}
           surveyAnswered={surveyAnswered}
+          onOpenSurvey={() => flow.goTo('ENDING')}
+        />
+      );
+    case 'ENDING':
+      return (
+        <EndingScreen
+          alreadyAnswered={surveyAnswered}
           onOpenSurvey={() => flow.goTo('PLAYTEST_SURVEY')}
+          onOpenArchive={() => flow.goTo('ARCHIVE')}
+          onKeepPlaying={() => flow.goTo('HOME')}
         />
       );
     case 'PLAYTEST_SURVEY':
@@ -211,6 +221,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onReunion={async () => {
             await world.recordGaldReunion();
           }}
+          // The first reunion is the end of this playtest's arc: close it
+          // in world terms rather than leaving the player on the map
+          // wondering what to do next. Revisits just step back outside.
+          onLeaveAfterReunion={() => flow.goTo('ENDING')}
           onLeave={() => flow.goTo('EXPLORE')}
         />
       );

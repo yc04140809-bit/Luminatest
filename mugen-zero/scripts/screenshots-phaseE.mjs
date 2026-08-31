@@ -43,6 +43,11 @@ await page.getByTestId('bakery-reunion-done').waitFor({ timeout: 10000 });
 await page.screenshot({ path: `${OUT}/20-kaos-after-reunion.png` });
 
 await page.getByTestId('bakery-leave').click();
+const endingScene = page.getByTestId('ending-kaos');
+await endingScene.waitFor();
+for (let i = 0; i < 4; i++) await endingScene.click();
+await page.getByTestId('ending-keep-playing').click();
+await page.getByTestId('explore-button').click();
 await page.getByTestId('location-ALDEN_BAKERY').waitFor();
 await page.screenshot({ path: `${OUT}/21-explore-discovered.png` });
 

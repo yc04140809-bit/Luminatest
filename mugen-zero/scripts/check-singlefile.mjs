@@ -80,7 +80,10 @@ for (let i = 0; i < 5; i++) await scene.click();
 for (let i = 0; i < 3; i++) await scene.click();
 await page.getByTestId('bakery-reunion-done').waitFor({ timeout: 15000 });
 await page.getByTestId('bakery-leave').click();
-await page.locator('.screen-footer .btn').first().click();
+const endingScene = page.getByTestId('ending-kaos');
+await endingScene.waitFor();
+for (let i = 0; i < 4; i++) await endingScene.click();
+await page.getByTestId('ending-keep-playing').click();
 
 // Archive + survey.
 await page.getByTestId('archive-button').click();
@@ -88,7 +91,12 @@ await page.getByTestId('archive-entry-GALD').click();
 const chapters = await page.getByTestId('archive-detail').locator('.location-card').count();
 chapters === 5 ? ok('life archive shows 5 chapters') : bad('life archive shows 5 chapters', `${chapters}`);
 await page.getByTestId('archive-detail-back').click();
+// The survey is reached through Kaos's closing scene.
 await page.getByTestId('open-survey-button').click();
+const closing = page.getByTestId('ending-kaos');
+await closing.waitFor();
+for (let i = 0; i < 4; i++) await closing.click();
+await page.getByTestId('ending-survey-button').click();
 const intro = page.getByTestId('survey-intro');
 await intro.waitFor();
 await intro.click(); await intro.click();

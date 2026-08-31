@@ -105,7 +105,10 @@ await scene.click();
 await scene.click();
 await page.getByTestId('bakery-reunion-done').waitFor({ timeout: 10000 });
 await page.getByTestId('bakery-leave').click();
-await page.locator('.screen-footer .btn').click();
+const endingScene = page.getByTestId('ending-kaos');
+await endingScene.waitFor();
+for (let i = 0; i < 4; i++) await endingScene.click();
+await page.getByTestId('ending-keep-playing').click();
 
 await page.getByTestId('archive-button').click();
 await page.getByTestId('archive-entry-GALD').click();

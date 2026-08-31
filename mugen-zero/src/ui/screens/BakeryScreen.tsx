@@ -6,7 +6,7 @@ import {
   BAKERY_REVISIT_LINES,
   KAOS_AFTER_REUNION_LINE,
 } from '../../content/dialogue/bakery';
-import { kaosPortrait } from '../../assets/manifest';
+import { kaosPortrait, galdPortrait } from '../../assets/manifest';
 import { vibrate } from '../../platform/haptics';
 
 interface Props {
@@ -14,6 +14,13 @@ interface Props {
   firstVisit: boolean;
   /** Persists PLAYER_REUNITED_WITH_GALD; resolves after the DB commit. */
   onReunion: () => Promise<void>;
+  /**
+   * Leaving after the first reunion — this playtest's arc closes here.
+   * Kept separate from onLeave because recording the reunion re-renders
+   * the parent, which would otherwise flip 'first visit' mid-scene.
+   */
+  onLeaveAfterReunion: () => void;
+  /** Leaving an ordinary revisit. */
   onLeave: () => void;
 }
 
@@ -22,7 +29,12 @@ interface Props {
  * who the baker is; the reunion is recorded as world truth only here —
  * never by a TIME SHIFT.
  */
-export function BakeryScreen({ firstVisit, onReunion, onLeave }: Props) {
+export function BakeryScreen({
+  firstVisit,
+  onReunion,
+  onLeaveAfterReunion,
+  onLeave,
+}: Props) {
   // Lock the mode at mount: recording the reunion mid-scene must not
   // swap the screen into revisit mode.
   const [isFirst] = useState(firstVisit);
@@ -49,6 +61,8 @@ export function BakeryScreen({ firstVisit, onReunion, onLeave }: Props) {
         lines={BAKERY_FIRST_VISIT_LINES}
         onComplete={completeFirstVisit}
         testId="bakery-first-visit"
+        portraitSrc={galdPortrait('baker')}
+        portraitAlt="パンの籠を抱えた店の男"
       />
     );
   }
@@ -92,7 +106,11 @@ export function BakeryScreen({ firstVisit, onReunion, onLeave }: Props) {
             {KAOS_AFTER_REUNION_LINE}
           </p>
         </div>
-        <button className="btn primary" data-testid="bakery-leave" onClick={onLeave}>
+        <button
+          className="btn primary"
+          data-testid="bakery-leave"
+          onClick={onLeaveAfterReunion}
+        >
           店を出る
         </button>
       </div>
@@ -111,6 +129,8 @@ function RevisitScene({ onLeave }: { onLeave: () => void }) {
         lines={BAKERY_REVISIT_LINES as DialogueLine[]}
         onComplete={() => setDone(true)}
         testId="bakery-revisit"
+        portraitSrc={galdPortrait('baker')}
+        portraitAlt="パン屋の店主"
       />
     );
   }

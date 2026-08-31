@@ -6,6 +6,8 @@ import kaosNormal from './characters/kaos/kaos-normal.webp';
 import kaosSmile from './characters/kaos/kaos-smile.webp';
 import galdReady from './characters/gald/gald-ready.webp';
 import galdDefeated from './characters/gald/gald-defeated.webp';
+import galdBaker from './characters/gald/gald-baker.webp';
+import greenwoodForest from './backgrounds/greenwood-forest.webp';
 
 export type KaosExpression = 'normal' | 'smile';
 
@@ -20,19 +22,27 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
 }
 
 /**
- * Gald, the same man in two states. 'defeated' means beaten, NOT dead —
- * whether he lives is the player's choice, made after this portrait.
+ * Gald, the same man at three points of one life. 'defeated' means
+ * beaten, NOT dead — whether he lives is the player's choice; 'baker' is
+ * where the spared route leads him three years on. Same CHARACTER, same
+ * id in the DB: only the visual state differs.
  */
-export type GaldState = 'ready' | 'defeated';
+export type GaldState = 'ready' | 'defeated' | 'baker';
 
 export const GALD_PORTRAITS: Record<GaldState, string | null> = {
   ready: galdReady,
   defeated: galdDefeated,
+  baker: galdBaker,
 };
 
 export function galdPortrait(state: GaldState): string | null {
   return GALD_PORTRAITS[state] ?? null;
 }
+
+/** Location backdrops. */
+export const BACKGROUNDS = {
+  GREENWOOD_FOREST: greenwoodForest,
+} as const;
 
 /**
  * Audio slots. All null for now — no third-party audio is bundled.
