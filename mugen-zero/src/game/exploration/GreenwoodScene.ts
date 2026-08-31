@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BACKGROUNDS } from '../../assets/manifest';
+import { locationBackground } from '../../content/locations/locationVisuals';
 
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 520;
@@ -26,7 +26,8 @@ export interface GreenwoodOptions {
 /**
  * Minimal Greenwood Forest exploration scene.
  * Tap anywhere to walk; reaching the "!" marker triggers the Gald encounter.
- * Placeholder shapes only — real art arrives in PHASE G (polish).
+ * The backdrop is the location's own art; everything interactive is drawn
+ * on top of it by the game, never baked into the picture.
  */
 export class GreenwoodScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Arc;
@@ -42,7 +43,10 @@ export class GreenwoodScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image(BACKGROUND_KEY, BACKGROUNDS.GREENWOOD_FOREST);
+    // The same registry the React screens read: the forest walked through
+    // and the forest fought in are one location.
+    const art = locationBackground('GREENWOOD_FOREST');
+    if (art) this.load.image(BACKGROUND_KEY, art);
   }
 
   create(): void {

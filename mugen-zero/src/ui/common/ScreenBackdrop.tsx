@@ -1,0 +1,29 @@
+/**
+ * A full-screen art layer behind a screen's UI.
+ *
+ * Two rules it must never break:
+ *  - it is decoration, so it is aria-hidden and pointer-events:none — a
+ *    tap always reaches the button under the finger;
+ *  - it never carries information. Everything the player must read is
+ *    drawn by the UI above it.
+ *
+ * `variant` picks how the art is fitted and how hard it is dimmed; the
+ * densities live next to each other in styles.css so the screens can be
+ * tuned against one another.
+ */
+interface Props {
+  /** Art to show, or null — then nothing is rendered at all. */
+  src: string | null;
+  variant: 'title' | 'village' | 'battle' | 'encounter';
+  testId?: string;
+}
+
+export function ScreenBackdrop({ src, variant, testId }: Props) {
+  if (!src) return null;
+  return (
+    <div className={`screen-backdrop backdrop-${variant}`} aria-hidden="true" data-testid={testId}>
+      <div className="screen-backdrop-art" style={{ backgroundImage: `url(${src})` }} />
+      <div className="screen-backdrop-veil" />
+    </div>
+  );
+}

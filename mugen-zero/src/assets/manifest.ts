@@ -7,7 +7,9 @@ import kaosSmile from './characters/kaos/kaos-smile.webp';
 import galdReady from './characters/gald/gald-ready.webp';
 import galdDefeated from './characters/gald/gald-defeated.webp';
 import galdBaker from './characters/gald/gald-baker.webp';
-import greenwoodForest from './backgrounds/greenwood-forest.webp';
+import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
+import aldenVillage from './backgrounds/location-alden-village.webp';
+import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
 
 export type KaosExpression = 'normal' | 'smile';
 
@@ -39,10 +41,18 @@ export function galdPortrait(state: GaldState): string | null {
   return GALD_PORTRAITS[state] ?? null;
 }
 
-/** Location backdrops. */
+/**
+ * Location backdrops, keyed by location id. content/locations/
+ * locationVisuals.ts maps these onto places; screens go through that map
+ * instead of importing an image directly.
+ */
 export const BACKGROUNDS = {
+  ALDEN_VILLAGE: aldenVillage,
   GREENWOOD_FOREST: greenwoodForest,
 } as const;
+
+/** The Kaos key visual behind the title. Not a place: a cover image. */
+export const TITLE_KEY_VISUAL: string = titleKaosKeyVisual;
 
 /**
  * Audio slots. All null for now — no third-party audio is bundled.

@@ -31,6 +31,7 @@ import { setHapticEnabled } from './platform/haptics';
 import { PlaytestFeedbackService, isSurveyAvailable } from './core/playtest/playtestService';
 import { IdbFeedbackStore } from './core/playtest/idbFeedbackStore';
 import { startNewPlaySession } from './core/playtest/playSession';
+import type { LocationId } from './content/locations/locationVisuals';
 
 // Phaser is the heaviest dependency by far and is only needed once the
 // player walks into the forest; the dev admin never ships to a player's
@@ -59,6 +60,12 @@ interface GameRootProps extends CoreBundle {
 
 function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRootProps) {
   const [surveyAnswered, setSurveyAnswered] = useState(false);
+  // Where the player currently is. It carries no game rules — no event,
+  // no world state and no save depends on it — it only tells the scene
+  // screens which place they are showing. The encounter and the battle
+  // inherit it, which is what makes the fight happen in the forest the
+  // player walked into rather than on a screen of its own.
+  const [currentLocationId, setCurrentLocationId] = useState<LocationId>('ALDEN_VILLAGE');
 
   // Reflects whether THIS playthrough already sent feedback.
   useEffect(() => {
@@ -207,11 +214,20 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
     case 'EXPLORE':
       return (
         <ExploreScreen
-          onEnterGreenwood={() => flow.goTo('GREENWOOD')}
-          onBack={() => flow.goTo('HOME')}
+          onEnterGreenwood={() => {
+            setCurrentLocationId('GREENWOOD_FOREST');
+            flow.goTo('GREENWOOD');
+          }}
+          onBack={() => {
+            setCurrentLocationId('ALDEN_VILLAGE');
+            flow.goTo('HOME');
+          }}
           bakeryOpen={world.isBakeryOpen()}
           bakeryDiscovered={world.hasReunitedWithGald()}
-          onEnterBakery={() => flow.goTo('BAKERY')}
+          onEnterBakery={() => {
+            setCurrentLocationId('ALDEN_BAKERY');
+            flow.goTo('BAKERY');
+          }}
         />
       );
     case 'BAKERY':
@@ -239,10 +255,13 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
         </Suspense>
       );
     case 'ENCOUNTER':
-      return <EncounterScreen onBattleStart={() => flow.goTo('BATTLE')} />;
+      return (
+        <EncounterScreen locationId={currentLocationId} onBattleStart={() => flow.goTo('BATTLE')} />
+      );
     case 'BATTLE':
       return (
         <BattleScreen
+          battleLocationId={currentLocationId}
           onVictory={() => flow.goTo('LIFE_CHOICE')}
           onDefeat={() => flow.goTo('HOME')}
         />

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { WorldClock } from '../../core/events/types';
 import { DEV_ADMIN_ENABLED } from '../../dev/devMode';
+import { ScreenBackdrop } from '../common/ScreenBackdrop';
+import { locationBackground } from '../../content/locations/locationVisuals';
 
 interface Props {
   clock: WorldClock;
@@ -41,7 +43,13 @@ export function HomeScreen({
   };
 
   return (
-    <div className="screen">
+    <div className="screen has-backdrop">
+      {/* HOME is a place, not a menu: the player is standing in Alden. */}
+      <ScreenBackdrop
+        src={locationBackground('ALDEN_VILLAGE')}
+        variant="village"
+        testId="home-backdrop"
+      />
       <div className="home-main">
         <div className="home-place">ALDEN VILLAGE — アルデン村</div>
         <div className="home-place" style={{ letterSpacing: '0.1em' }} data-testid="world-clock">

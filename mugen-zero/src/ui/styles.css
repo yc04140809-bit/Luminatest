@@ -577,3 +577,168 @@ body,
 .screen-title {
   padding-top: calc(14px + env(safe-area-inset-top));
 }
+
+/* ---- LOCATION VISUALS: art behind the UI ------------------------------
+   One layer stack, four densities. The art is decoration only:
+   pointer-events:none keeps every tap on the button under the finger, and
+   the UI carries its own contrast instead of relying on the picture. */
+.screen.has-backdrop {
+  position: relative;
+  isolation: isolate;
+}
+.screen-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.screen-backdrop-art,
+.screen-backdrop-veil {
+  position: absolute;
+  inset: 0;
+}
+.screen-backdrop-art {
+  background-repeat: no-repeat;
+}
+/* Everything the screen itself draws sits above the art. */
+.screen.has-backdrop > *:not(.screen-backdrop) {
+  position: relative;
+  z-index: 1;
+}
+
+/* TITLE — the Kaos key visual. The art is square and the phone is not, so
+   cover-cropping it would cut the wings off. Instead it is fitted wide and
+   feathered into the page top and bottom: the wings and the gold-and-black
+   disc survive whole. The veil is heaviest at the top and the bottom, where
+   the logo and the buttons live, and lightest across her silhouette. */
+.backdrop-title .screen-backdrop-art {
+  background-position: 50% 38%;
+  /* wider than the screen so the wings clear the left and right edges,
+     and tall enough that the fade below ends before the art does */
+  background-size: 150% auto;
+  filter: brightness(0.46) contrast(1.04) saturate(1.15);
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 12%,
+    #000 34%,
+    #000 62%,
+    transparent 81%
+  );
+  mask-image: linear-gradient(180deg, transparent 12%, #000 34%, #000 62%, transparent 81%);
+}
+.backdrop-title .screen-backdrop-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(8, 8, 14, 0.9) 0%,
+    rgba(8, 8, 14, 0.6) 20%,
+    rgba(8, 8, 14, 0.34) 46%,
+    rgba(8, 8, 14, 0.72) 74%,
+    rgba(8, 8, 14, 0.95) 100%
+  );
+}
+
+/* HOME — standing in Alden. The path keeps the middle of the frame; the
+   veil darkens the sky and the ground so the clock, the EXPLORE dial and
+   the bottom nav stay readable against a sunlit painting. */
+.backdrop-village .screen-backdrop-art {
+  background-position: 50% 45%;
+  background-size: cover;
+  filter: brightness(0.66) saturate(0.94);
+}
+.backdrop-village .screen-backdrop-veil {
+  background:
+    radial-gradient(
+      ellipse 66% 30% at 50% 48%,
+      rgba(8, 10, 16, 0.6) 0%,
+      rgba(8, 10, 16, 0.18) 72%,
+      rgba(8, 10, 16, 0) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(8, 10, 16, 0.8) 0%,
+      rgba(8, 10, 16, 0.36) 26%,
+      rgba(8, 10, 16, 0.44) 62%,
+      rgba(8, 10, 16, 0.88) 100%
+    );
+}
+
+/* BATTLE — the same place the fight started in. Pushed back with a touch
+   of blur and the heaviest veil of the three: what the player must read
+   here is Gald and the HP bars, not the leaves. */
+.backdrop-battle .screen-backdrop-art {
+  background-position: 50% 32%;
+  background-size: cover;
+  filter: brightness(0.66) saturate(0.9) blur(1.2px);
+  /* blur samples past the edges; the overscan hides the soft border */
+  transform: scale(1.05);
+}
+.backdrop-battle .screen-backdrop-veil {
+  background:
+    radial-gradient(ellipse 62% 40% at 50% 44%, rgba(4, 6, 8, 0.06) 0%, rgba(4, 6, 8, 0.46) 100%),
+    linear-gradient(
+      180deg,
+      rgba(6, 8, 10, 0.52) 0%,
+      rgba(6, 8, 10, 0.3) 44%,
+      rgba(6, 8, 10, 0.78) 100%
+    );
+}
+
+/* ENCOUNTER — the forest again, so walking up to Gald, meeting him and
+   fighting him are visibly one continuous place. */
+.dialogue-screen.has-backdrop {
+  background: var(--bg);
+}
+.backdrop-encounter .screen-backdrop-art {
+  background-position: 50% 34%;
+  background-size: cover;
+  filter: brightness(0.54) saturate(0.9);
+}
+.backdrop-encounter .screen-backdrop-veil {
+  background: linear-gradient(
+    180deg,
+    rgba(6, 8, 10, 0.5) 0%,
+    rgba(6, 8, 10, 0.34) 45%,
+    rgba(6, 8, 10, 0.88) 100%
+  );
+}
+
+/* UI contrast over art: panels stop being translucent decoration and
+   become surfaces the text can sit on. */
+.screen.has-backdrop .btn {
+  background: rgba(20, 20, 29, 0.82);
+}
+.screen.has-backdrop .btn:active {
+  background: rgba(42, 42, 60, 0.9);
+}
+.title-screen .title-logo,
+.title-screen .title-sub,
+.has-backdrop .home-place {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+}
+.screen.has-backdrop .home-explore {
+  background: rgba(11, 11, 18, 0.55);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+.screen.has-backdrop .home-explore:active {
+  background: rgba(24, 22, 30, 0.7);
+}
+
+/* With the key visual behind it the title breathes: the logo sits high,
+   the buttons sit low, and Kaos holds the space between them. */
+.title-screen.has-backdrop {
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(9vh + env(safe-area-inset-top)) 24px calc(8vh + env(safe-area-inset-bottom));
+}
+.title-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 300px;
+}
+.title-actions .btn {
+  width: 100%;
+}

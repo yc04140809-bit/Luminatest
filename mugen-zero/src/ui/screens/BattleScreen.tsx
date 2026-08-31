@@ -8,8 +8,16 @@ import {
 import { GALD } from '../../content/characters/gald';
 import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
 import { galdPortrait } from '../../assets/manifest';
+import { ScreenBackdrop } from '../common/ScreenBackdrop';
+import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 
 interface Props {
+  /**
+   * The place the fight broke out in — where the backdrop comes from.
+   * BattleScreen knows nothing about forests, only about locations, so a
+   * fight in a cave or on a mountain needs no change here.
+   */
+  battleLocationId: LocationId;
   onVictory: () => void;
   onDefeat: () => void;
 }
@@ -55,7 +63,7 @@ function HpBar({
   );
 }
 
-export function BattleScreen({ onVictory, onDefeat }: Props) {
+export function BattleScreen({ battleLocationId, onVictory, onDefeat }: Props) {
   // The bandit is named from the first line of the encounter, so the bar
   // above belongs to a person the player has already met.
   const [battle, setBattle] = useState<BattleState>(() => createBattle(`盗賊 ${GALD.name}`));
@@ -84,6 +92,7 @@ export function BattleScreen({ onVictory, onDefeat }: Props) {
   const beaten = battle.enemyHp <= 0;
   const lastLogs = battle.log.slice(-2);
   const portrait = galdPortrait(beaten ? 'defeated' : 'ready');
+  const backdrop = locationBackground(battleLocationId);
 
   const attack = () => {
     setBattle((b) => playerAttack(b));
@@ -95,7 +104,11 @@ export function BattleScreen({ onVictory, onDefeat }: Props) {
   };
 
   return (
-    <div className="screen battle-screen" data-testid="battle-screen">
+    <div
+      className={backdrop ? 'screen battle-screen has-backdrop' : 'screen battle-screen'}
+      data-testid="battle-screen"
+    >
+      <ScreenBackdrop src={backdrop} variant="battle" testId="battle-backdrop" />
       <div className="battle-enemy">
         <HpBar
           label={battle.enemyName}

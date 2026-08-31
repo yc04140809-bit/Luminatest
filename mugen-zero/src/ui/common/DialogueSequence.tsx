@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { DialogueLine } from '../../content/dialogue/prologue';
 import { kaosPortrait } from '../../assets/manifest';
+import { ScreenBackdrop } from './ScreenBackdrop';
+import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 
 interface Props {
   lines: DialogueLine[];
@@ -14,6 +16,12 @@ interface Props {
    */
   portraitSrc?: string | null;
   portraitAlt?: string;
+  /**
+   * Where the scene takes place. Given one, that location's backdrop is
+   * drawn behind the dialogue, so meeting someone happens in the place
+   * the player just walked through instead of cutting to black.
+   */
+  backdropLocationId?: LocationId;
 }
 
 const KAOS_SPEAKER = 'ケイオス';
@@ -26,6 +34,7 @@ export function DialogueSequence({
   testId,
   portraitSrc,
   portraitAlt = '',
+  backdropLocationId,
 }: Props) {
   const [index, setIndex] = useState(0);
   const line = lines[index];
@@ -35,6 +44,8 @@ export function DialogueSequence({
   // stage behind the box instead.
   const kaosSrc = isKaos ? kaosPortrait('normal') : null;
   const sceneSrc = isKaos ? null : (portraitSrc ?? null);
+
+  const backdrop = backdropLocationId ? locationBackground(backdropLocationId) : null;
 
   const advance = () => {
     if (index + 1 < lines.length) {
@@ -46,9 +57,13 @@ export function DialogueSequence({
 
   return (
     <div
-      className={
-        isKaos ? 'screen dialogue-screen dialogue-kaos' : 'screen dialogue-screen'
-      }
+      className={[
+        'screen dialogue-screen',
+        isKaos ? 'dialogue-kaos' : '',
+        backdrop ? 'has-backdrop' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       onClick={advance}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -61,6 +76,7 @@ export function DialogueSequence({
       aria-label="次へ進む"
       data-testid={testId}
     >
+      <ScreenBackdrop src={backdrop} variant="encounter" testId="dialogue-backdrop" />
       <div className="dialogue-stage">
         {centered && <p className="dialogue-centered">{line.text}</p>}
         {sceneSrc && (
