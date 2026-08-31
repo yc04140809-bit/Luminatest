@@ -123,9 +123,9 @@ async function playScene(page: Page, testId: string, maxClicks = 24): Promise<st
   await expect(scene).toBeVisible();
   for (let i = 0; i < maxClicks; i++) {
     if (!(await scene.isVisible().catch(() => false))) break;
-    // count() does not auto-wait — the grave has no CG for its first
-    // fourteen lines, and waiting for one would burn the test's timeout.
-    const src = (await cg.count()) ? await cg.getAttribute('src') : null;
+    // Never wait for the art: the grave has no CG for its first fourteen
+    // lines, and a CG that fails to load removes itself mid-read.
+    const src = await cg.getAttribute('src', { timeout: 500 }).catch(() => null);
     if (src) seen.push(src);
     await scene.click();
   }
