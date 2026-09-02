@@ -306,7 +306,7 @@ test('the scene shown is the one the route earned', async ({ page }) => {
     let text = '';
     for (let i = 0; i < 24; i++) {
       if (!(await scene.isVisible().catch(() => false))) break;
-      text += `\n${await scene.innerText()}`;
+      text += `\n${await scene.innerText({ timeout: 2000 }).catch(() => '')}`;
       await scene.click();
     }
     expect(text).toContain(route.sceneProof);

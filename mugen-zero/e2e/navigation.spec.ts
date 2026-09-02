@@ -32,7 +32,7 @@ async function playScene(page: Page, testId: string, maxClicks = 20): Promise<st
   let text = '';
   for (let i = 0; i < maxClicks; i++) {
     if ((await scene.count()) === 0) break;
-    text += `\n${await scene.innerText().catch(() => '')}`;
+    text += `\n${await scene.innerText({ timeout: 2000 }).catch(() => '')}`;
     await scene.click({ timeout: 3000 }).catch(() => {});
   }
   return text;
