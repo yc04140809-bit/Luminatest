@@ -145,20 +145,29 @@ test('the village has small things in it, and never a dead end', async ({ page }
   await expect(page.getByTestId('new-mark-ALDEN_VILLAGE')).toBeVisible();
 
   const seen: string[] = [];
-  for (let i = 0; i < 5; i++) {
+  let quiet = false;
+  // The village has grown, and the ✦ only counts news — a beat that can
+  // come round again is not news. So walk it until a visit genuinely has
+  // nothing in it, rather than trusting a fixed number of visits.
+  for (let i = 0; i < 14 && !quiet; i++) {
     await page.getByTestId('location-ALDEN_VILLAGE').click();
+    await page
+      .locator('[data-testid="talk-ALDEN_VILLAGE"], [data-testid="talk-ALDEN_VILLAGE-done"]')
+      .first()
+      .waitFor({ timeout: 15_000 });
     if ((await page.getByTestId('talk-ALDEN_VILLAGE').count()) > 0) {
       seen.push(await playScene(page, 'talk-ALDEN_VILLAGE'));
+    } else {
+      // Walked dry: the village says so quietly instead of refusing to open.
+      await expect(page.getByTestId('talk-ALDEN_VILLAGE-done')).toContainText('いつもどおり');
+      quiet = true;
     }
     await page.getByTestId('talk-ALDEN_VILLAGE-leave').click();
-    if ((await page.getByTestId('new-mark-ALDEN_VILLAGE').count()) === 0) break;
   }
   expect(seen.length).toBeGreaterThanOrEqual(2);
-
-  // Walked dry, the village is quiet — not broken.
-  await page.getByTestId('location-ALDEN_VILLAGE').click();
-  await expect(page.getByTestId('talk-ALDEN_VILLAGE-done')).toContainText('いつもどおり');
-  await page.getByTestId('talk-ALDEN_VILLAGE-leave').click();
+  expect(quiet, 'a day of walking should be enough to run the village dry').toBe(true);
+  // And nothing is left flagged once it has been met.
+  await expect(page.getByTestId('new-mark-ALDEN_VILLAGE')).toHaveCount(0);
   await expect(page.getByTestId('location-GREENWOOD_FOREST')).toBeVisible();
 });
 
