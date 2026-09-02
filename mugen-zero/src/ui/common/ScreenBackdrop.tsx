@@ -15,14 +15,25 @@ interface Props {
   /** Art to show, or null — then nothing is rendered at all. */
   src: string | null;
   variant: 'title' | 'village' | 'battle' | 'encounter';
+  /** Overrides the variant's crop, for art that names its own subject. */
+  focus?: string;
+  /** Overrides the variant's scale, for art not composed for a phone. */
+  fit?: string;
   testId?: string;
 }
 
-export function ScreenBackdrop({ src, variant, testId }: Props) {
+export function ScreenBackdrop({ src, variant, focus, fit, testId }: Props) {
   if (!src) return null;
   return (
     <div className={`screen-backdrop backdrop-${variant}`} aria-hidden="true" data-testid={testId}>
-      <div className="screen-backdrop-art" style={{ backgroundImage: `url(${src})` }} />
+      <div
+        className="screen-backdrop-art"
+        style={{
+          backgroundImage: `url(${src})`,
+          ...(focus ? { backgroundPosition: focus } : {}),
+          ...(fit ? { backgroundSize: fit } : {}),
+        }}
+      />
       <div className="screen-backdrop-veil" />
     </div>
   );

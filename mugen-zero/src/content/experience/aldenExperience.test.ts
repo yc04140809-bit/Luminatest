@@ -60,7 +60,7 @@ describe('ALDEN EXPERIENCE — the shape of a session', () => {
     ).toBe('MOONLIGHT_TAVERN_FIRST_VISIT');
   });
 
-  it('the NEXT seed waits until the tavern is familiar, then arrives', () => {
+  it('the NEXT seeds wait until the tavern is familiar, then arrive', () => {
     const before = findAvailableEvents(ALDEN_EXPERIENCE_EVENTS, view([]), { layer: 'NEXT' });
     expect(before).toHaveLength(0);
     const after = findAvailableEvents(
@@ -68,13 +68,39 @@ describe('ALDEN EXPERIENCE — the shape of a session', () => {
       view([], ['MOONLIGHT_TAVERN_FIRST_VISIT']),
       { layer: 'NEXT' },
     );
-    expect(after.map((d) => d.eventId)).toEqual(['GREENWOOD_DEEPER_PATH_RUMOR']);
+    expect(after.map((d) => d.eventId)).toEqual([
+      'TAVERN_MASTER_OLD_GREATSWORD',
+      'GREENWOOD_DEEPER_PATH_RUMOR',
+    ]);
   });
 
-  it('exactly one NEXT event exists, and it plants a seed', () => {
+  it('every NEXT event plants a seed, and none of them resolves one yet', () => {
     const next = ALDEN_EXPERIENCE_EVENTS.filter((d) => d.layer === 'NEXT');
-    expect(next).toHaveLength(1);
-    expect(next[0].dna?.seed).toEqual({ id: 'GREENWOOD_DEEP_PATH', role: 'PLANTS' });
+    expect(next.map((d) => d.dna?.seed?.id).sort()).toEqual([
+      'GREENWOOD_DEEP_PATH',
+      'TAVERN_MASTER_OLD_GREATSWORD',
+    ]);
+    expect(next.every((d) => d.dna?.seed?.role === 'PLANTS')).toBe(true);
+  });
+
+  it('the tavern master never explains himself in this build', () => {
+    const sword = ALDEN_EXPERIENCE_EVENTS.find(
+      (d) => d.eventId === 'TAVERN_MASTER_OLD_GREATSWORD',
+    )!;
+    const text = sword.content.lines.map((l) => l.text).join('');
+    // He is clearly someone. What he was is not on the page.
+    for (const spoiler of ['冒険者', '戦士団', '戦場', '傭兵', '騎士']) {
+      expect(text, `Grave must not be explained by "${spoiler}"`).not.toContain(spoiler);
+    }
+  });
+
+  it('the tavern always has a word, even when it has no news', () => {
+    const everythingSeen = ALDEN_EXPERIENCE_EVENTS.map((d) => d.eventId);
+    const event = pickEvent(ALDEN_EXPERIENCE_EVENTS, view([], everythingSeen), {
+      location: 'MOONLIGHT_TAVERN',
+    });
+    expect(event?.eventId).toBe('TAVERN_MASTER_IDLE');
+    expect(event?.once).toBe(false);
   });
 
   it('the village has small things to find from the very first visit', () => {

@@ -711,7 +711,9 @@ body,
 .backdrop-encounter .screen-backdrop-art {
   background-position: 50% 34%;
   background-size: cover;
-  filter: brightness(0.54) saturate(0.9);
+  /* Lifted from 0.54: the tavern art is night-lit to begin with, and the
+     barman's scars — the thing the scene is about — were disappearing. */
+  filter: brightness(0.62) saturate(0.95);
 }
 .backdrop-encounter .screen-backdrop-veil {
   background: linear-gradient(

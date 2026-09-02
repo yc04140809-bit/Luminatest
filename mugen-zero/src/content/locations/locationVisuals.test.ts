@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { LOCATION_VISUALS, locationBackground, type LocationId } from './locationVisuals';
+import {
+  LOCATION_VISUALS,
+  locationBackground,
+  locationBackgroundFocus,
+  type LocationId,
+} from './locationVisuals';
 import { LOCATIONS } from './alden';
 
 describe('LOCATION VISUAL', () => {
@@ -17,7 +22,14 @@ describe('LOCATION VISUAL', () => {
 
   it('returns null — not an error — where no art exists yet', () => {
     expect(locationBackground('ALDEN_BAKERY')).toBeNull();
-    expect(locationBackground('MOONLIGHT_TAVERN')).toBeNull();
+    expect(locationBackground('GREENWOOD_WAYSTATION')).toBeNull();
+  });
+
+  it('a wide interior says where to aim the crop; a phone-shaped scene does not', () => {
+    expect(locationBackground('MOONLIGHT_TAVERN')).toBeTruthy();
+    expect(locationBackgroundFocus('MOONLIGHT_TAVERN')).toBeTruthy();
+    expect(locationBackgroundFocus('GREENWOOD_FOREST')).toBeUndefined();
+    expect(locationBackgroundFocus('ALDEN_BAKERY')).toBeUndefined();
   });
 
   it('every entry is keyed by its own id', () => {

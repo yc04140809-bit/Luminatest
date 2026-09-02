@@ -124,4 +124,17 @@ describe('EXPERIENCE ENGINE — selection', () => {
     const seen = defs.map((d) => d.eventId);
     expect(locationsWithSomethingNew(defs, view({ seen }))).toEqual(new Set());
   });
+
+  it('a repeatable event is never "something new"', () => {
+    const withRegular = [
+      ...defs,
+      def({ eventId: 'REGULAR', location: 'INN', once: false, priority: 1 }),
+    ];
+    const seen = defs.map((d) => d.eventId);
+    // The inn always has something to play...
+    expect(pickEvent(withRegular, view({ seen }), { location: 'INN' })?.eventId).toBe('REGULAR');
+    // ...but it is never marked as news.
+    expect(locationsWithSomethingNew(withRegular, view({ seen }))).toEqual(new Set());
+    expect(locationsWithSomethingNew(withRegular, view({}))).not.toContain('INN');
+  });
 });

@@ -69,12 +69,20 @@ export function pickEvent(
   return findAvailableEvents(defs, view, query)[0] ?? null;
 }
 
-/** Places that have something the player has not met yet. */
+/**
+ * Places that have something the player has not met yet.
+ *
+ * Only once-events count. A repeatable event — an innkeeper who always
+ * has a word for you — is hospitality, not news, and a marker that never
+ * goes out would stop meaning anything.
+ */
 export function locationsWithSomethingNew(
   defs: readonly ExperienceEventDef[],
   view: ExperienceWorldView,
 ): Set<string> {
   const places = new Set<string>();
-  for (const def of findAvailableEvents(defs, view)) places.add(def.location);
+  for (const def of findAvailableEvents(defs, view)) {
+    if (def.once) places.add(def.location);
+  }
   return places;
 }

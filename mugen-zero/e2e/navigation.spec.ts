@@ -89,17 +89,18 @@ test('✦ marks where something is waiting, and clears once it is met', async ({
   // Still marked: there is more in there.
   await expect(page.getByTestId('new-mark-MOONLIGHT_TAVERN')).toBeVisible();
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 8; i++) {
     if ((await page.getByTestId('new-mark-MOONLIGHT_TAVERN').count()) === 0) break;
     await page.getByTestId('location-MOONLIGHT_TAVERN').click();
     await playScene(page, 'talk-MOONLIGHT_TAVERN');
     await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
   }
-  // Exhausted: the mark is gone, and the place still opens.
+  // Out of news: the mark is gone. The barman is still there, though —
+  // a familiar greeting is hospitality, not something to flag on a map.
   await expect(page.getByTestId('new-mark-MOONLIGHT_TAVERN')).toHaveCount(0);
   await page.getByTestId('location-MOONLIGHT_TAVERN').click();
-  await expect(page.getByTestId('talk-MOONLIGHT_TAVERN-done')).toBeVisible();
-  await expect(page.getByTestId('talk-MOONLIGHT_TAVERN-done')).toContainText('今夜は');
+  const regular = await playScene(page, 'talk-MOONLIGHT_TAVERN');
+  expect(regular).toContain('また来たな');
   await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
 
   // And the bakery is still waiting, untouched by any of that.
@@ -181,13 +182,65 @@ test('what the player has met survives a reload', async ({ page }) => {
 test('the NEXT seed reads as "not yet", not as a missing feature', async ({ page }) => {
   await newWorld(page);
   await page.getByTestId('explore-button').click();
+  // The tavern has several things to say; keep drinking until the hunter
+  // gets to the path that is not on any map.
+  let text = '';
+  for (let i = 0; i < 5 && !text.includes('地図にない道'); i++) {
+    await page.getByTestId('location-MOONLIGHT_TAVERN').click();
+    text = await playScene(page, 'talk-MOONLIGHT_TAVERN');
+    if (!text.includes('地図にない道')) {
+      await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
+    }
+  }
+  expect(text).toContain('地図にない道');
+  // Kaos admits she has not been either — a promise, not a bug.
+  await expect(page.getByTestId('talk-MOONLIGHT_TAVERN-done')).toContainText('いつか');
+});
+
+test('the tavern has a face, and it does not explain itself', async ({ page }) => {
+  await newWorld(page);
+  await page.getByTestId('explore-button').click();
   await page.getByTestId('location-MOONLIGHT_TAVERN').click();
-  await playScene(page, 'talk-MOONLIGHT_TAVERN');
+
+  // The room is drawn, and the man in it introduces himself by name only.
+  await expect(page.getByTestId('dialogue-backdrop')).toBeVisible();
+  const src = await page
+    .getByTestId('dialogue-backdrop')
+    .locator('.screen-backdrop-art')
+    .evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(src).toContain('location-alden-tavern');
+
+  const meeting = await playScene(page, 'talk-MOONLIGHT_TAVERN');
+  expect(meeting).toContain('グレイヴ');
+  expect(meeting).toContain('傷');
+  // Who he was is not on the page.
+  for (const spoiler of ['冒険者', '戦士団', '戦場', '傭兵', '騎士']) {
+    expect(meeting, `Grave must not be explained by ${spoiler}`).not.toContain(spoiler);
+  }
+  await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
+
+  // The sword is the seed: it is shown, asked about, and left unanswered.
+  await page.getByTestId('location-MOONLIGHT_TAVERN').click();
+  const sword = await playScene(page, 'talk-MOONLIGHT_TAVERN');
+  expect(sword).toContain('両手剣');
+  expect(sword).toContain('もう振れねぇ');
+  await expect(page.getByTestId('talk-MOONLIGHT_TAVERN-done')).toContainText('待ってる');
+  await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
+  await expect(page.getByTestId('location-GREENWOOD_FOREST')).toBeVisible();
+});
+
+test('Grave passes the rumour on himself', async ({ page }) => {
+  await newWorld(page);
+  await usePreset(page, 'SPARE_3Y');
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('location-MOONLIGHT_TAVERN').click();
+  await playScene(page, 'talk-MOONLIGHT_TAVERN'); // meeting him
   await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
 
   await page.getByTestId('location-MOONLIGHT_TAVERN').click();
   const text = await playScene(page, 'talk-MOONLIGHT_TAVERN');
-  expect(text).toContain('地図にない道');
-  // Kaos admits she has not been either — a promise, not a bug.
-  await expect(page.getByTestId('talk-MOONLIGHT_TAVERN-done')).toContainText('いつか');
+  expect(text).toContain('妙な話');
+  expect(text).toContain('一人減った');
+  expect(text).not.toContain('パン');
+  await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
 });

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
-import { pickEvent } from '../experience/experienceEngine';
+import { locationsWithSomethingNew, pickEvent } from '../experience/experienceEngine';
 
 // Which small encounters the player has met is engine bookkeeping, not
 // canon. It has to survive a restart, stay out of the LIFE ARCHIVE, and
@@ -71,20 +71,27 @@ describe('experience state', () => {
       const event = pickEvent(ALDEN_EXPERIENCE_EVENTS, world.getExperienceView(), {
         location: 'MOONLIGHT_TAVERN',
       });
-      if (!event) break;
+      if (!event || !event.once) break; // the regular's greeting never runs out
       seenIds.push(event.eventId);
       await world.markExperienceSeen(event.eventId);
     }
     expect(seenIds).toEqual([
       'MOONLIGHT_TAVERN_FIRST_VISIT',
       'ALDEN_RUMOR_GALD_LEFT_THE_BANDITS',
+      'TAVERN_MASTER_OLD_GREATSWORD',
       'GREENWOOD_DEEPER_PATH_RUMOR',
+      'TAVERN_MASTER_STEW',
     ]);
+    // Nothing new left to mark on the map...
+    expect(
+      locationsWithSomethingNew(ALDEN_EXPERIENCE_EVENTS, world.getExperienceView()),
+    ).not.toContain('MOONLIGHT_TAVERN');
+    // ...but Grave is still behind the bar.
     expect(
       pickEvent(ALDEN_EXPERIENCE_EVENTS, world.getExperienceView(), {
         location: 'MOONLIGHT_TAVERN',
-      }),
-    ).toBeNull();
+      })?.eventId,
+    ).toBe('TAVERN_MASTER_IDLE');
   });
 
   it('a save written before this feature existed simply has nothing seen', async () => {

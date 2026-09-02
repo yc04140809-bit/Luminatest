@@ -26,6 +26,20 @@ export interface LocationVisual {
   locationId: LocationId;
   /** Backdrop art, or null while the place has none drawn yet. */
   background: string | null;
+  /**
+   * Where to aim the crop, as a CSS background-position. Only needed for
+   * art that is not already composed for a phone: a wide interior has to
+   * be told which part of the room matters, or a portrait screen will
+   * cover-crop straight past it.
+   */
+  focus?: string;
+  /**
+   * How big to draw it, as a CSS background-size. Portrait art fills the
+   * screen and needs nothing here; a landscape room says how much of
+   * itself to keep, because cover-cropping one into a phone leaves a
+   * face and no room around it.
+   */
+  fit?: string;
 }
 
 export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
@@ -33,7 +47,16 @@ export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
     locationId: 'ALDEN_VILLAGE',
     background: BACKGROUNDS.ALDEN_VILLAGE,
   },
-  MOONLIGHT_TAVERN: { locationId: 'MOONLIGHT_TAVERN', background: null },
+  MOONLIGHT_TAVERN: {
+    locationId: 'MOONLIGHT_TAVERN',
+    background: BACKGROUNDS.ALDEN_TAVERN,
+    // A wide room on a tall screen. Cover-cropping it leaves the barman's
+    // face filling the phone and no tavern at all, so it is drawn wider
+    // than the screen and aimed between the sword on the wall and the man
+    // behind the bar — both of which the player is meant to notice.
+    fit: '168% auto',
+    focus: '46% 38%',
+  },
   GREENWOOD_FOREST: {
     locationId: 'GREENWOOD_FOREST',
     background: BACKGROUNDS.GREENWOOD_FOREST,
@@ -54,4 +77,13 @@ export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
  */
 export function locationBackground(locationId: LocationId): string | null {
   return LOCATION_VISUALS[locationId]?.background ?? null;
+}
+
+/** How that backdrop should be aimed and sized, if the place says. */
+export function locationBackgroundFocus(locationId: LocationId): string | undefined {
+  return LOCATION_VISUALS[locationId]?.focus;
+}
+
+export function locationBackgroundFit(locationId: LocationId): string | undefined {
+  return LOCATION_VISUALS[locationId]?.fit;
 }

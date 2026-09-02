@@ -12,6 +12,7 @@ import galdWorker from './characters/gald/gald-worker.webp';
 import galdGrave from './events/event-gald-grave.webp';
 import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
 import aldenVillage from './backgrounds/location-alden-village.webp';
+import aldenTavern from './backgrounds/location-alden-tavern.webp';
 import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
 
 export type KaosExpression = 'normal' | 'smile';
@@ -66,6 +67,7 @@ export const EVENT_CG = {
  */
 export const BACKGROUNDS = {
   ALDEN_VILLAGE: aldenVillage,
+  ALDEN_TAVERN: aldenTavern,
   GREENWOOD_FOREST: greenwoodForest,
 } as const;
 

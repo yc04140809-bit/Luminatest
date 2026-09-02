@@ -2,7 +2,12 @@ import { useState } from 'react';
 import type { DialogueLine } from '../../content/dialogue/prologue';
 import { kaosPortrait } from '../../assets/manifest';
 import { ScreenBackdrop } from './ScreenBackdrop';
-import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
+import {
+  locationBackground,
+  locationBackgroundFit,
+  locationBackgroundFocus,
+  type LocationId,
+} from '../../content/locations/locationVisuals';
 
 interface Props {
   lines: DialogueLine[];
@@ -89,7 +94,13 @@ export function DialogueSequence({
       aria-label="次へ進む"
       data-testid={testId}
     >
-      <ScreenBackdrop src={backdrop} variant="encounter" testId="dialogue-backdrop" />
+      <ScreenBackdrop
+        src={backdrop}
+        variant="encounter"
+        focus={backdropLocationId ? locationBackgroundFocus(backdropLocationId) : undefined}
+        fit={backdropLocationId ? locationBackgroundFit(backdropLocationId) : undefined}
+        testId="dialogue-backdrop"
+      />
       <div className="dialogue-stage">
         {centered && <p className="dialogue-centered">{line.text}</p>}
         {sceneSrc && (

@@ -104,6 +104,11 @@ const VILLAGE_LOST_BUTTON: TalkEventDef = {
 
 // ---- NOW: the tavern ----------------------------------------------------
 
+/**
+ * Meeting Grave. He is drawn as a man who has clearly been something
+ * else, and the scene refuses to say what — the scars and the sword do
+ * the talking, and he changes the subject.
+ */
 const TAVERN_FIRST_VISIT: TalkEventDef = {
   eventId: 'MOONLIGHT_TAVERN_FIRST_VISIT',
   layer: 'NOW',
@@ -113,14 +118,106 @@ const TAVERN_FIRST_VISIT: TalkEventDef = {
   content: {
     lines: [
       { speaker: null, text: '扉を押すと、煮込みと安い酒の匂いがした。' },
-      { speaker: '主人', text: 'いらっしゃい。何も出せねぇ日もあるがな。' },
-      { speaker: null, text: '奥の席で、旅人たちが低い声で話している。' },
-      { speaker: '主人', text: '噂を聞きたきゃ、座ってな。' },
+      { speaker: null, text: 'カウンターの奥に、腕を組んだ大男が立っている。' },
+      { speaker: null, text: '顔の古い傷が、ランプの明かりで一瞬だけ深く見えた。' },
+      { speaker: 'マスター', text: 'お、旅人さん。見ない顔だな。' },
+      { speaker: 'マスター', text: 'グレイヴだ。ここの主人をやってる。' },
+      { speaker: 'グレイヴ', text: 'この店は、何を探す人でも歓迎だ。' },
+      { speaker: 'グレイヴ', text: '酒でも飲んで、ゆっくりしていきな。' },
+      { speaker: 'グレイヴ', text: '……噂なら、タダってわけにはいかねぇがな。' },
+      { speaker: null, text: 'そう言って、彼は笑った。' },
     ],
   },
   dna: {
     emotionTarget: 'DISCOVERY',
-    expectedEffect: 'The tavern is established as the place rumours come from.',
+    curiosityTarget: 'Who was this man before he poured drinks?',
+    expectedEffect: 'The tavern gets a face, and the face raises a question.',
+  },
+};
+
+/**
+ * NARRATIVE SEED — TAVERN_MASTER_OLD_GREATSWORD.
+ *
+ * The sword on the wall is real, used, and unexplained. This build plants
+ * it and does not pick it up: the payoff is a future NEXT/LIFE event.
+ * Grave's deflection is written so it reads as "he won't say", never as
+ * "the writer forgot".
+ */
+const TAVERN_GREATSWORD: TalkEventDef = {
+  eventId: 'TAVERN_MASTER_OLD_GREATSWORD',
+  layer: 'NEXT',
+  location: MOONLIGHT_TAVERN_SPOT,
+  requirements: [{ kind: 'SEEN', eventId: 'MOONLIGHT_TAVERN_FIRST_VISIT' }],
+  once: true,
+  priority: 75,
+  content: {
+    lines: [
+      { speaker: null, text: '壁に、両手剣が一振り掛けてある。' },
+      { speaker: null, text: '飾りではない。刃こぼれが、いくつも埋めた跡ごと残っている。' },
+      { speaker: null, text: '柄の革は、握られ続けて黒く光っていた。' },
+      { speaker: 'グレイヴ', text: '……それが気になるか。' },
+      { speaker: null, text: 'グレイヴはグラスを拭く手を止めなかった。' },
+      { speaker: 'グレイヴ', text: '重いぞ。今の俺じゃ、もう振れねぇ。' },
+      { speaker: null, text: 'あなたは、いつ振っていたのかを訊かなかった。' },
+      { speaker: 'グレイヴ', text: '……賢いな、あんた。' },
+    ],
+    kaosLine: '「あの人ね。……訊かれるのを、待ってると思う。」',
+  },
+  dna: {
+    emotionTarget: 'CURIOSITY',
+    curiosityTarget: "Whose sword is that, and what did he do with it?",
+    expectedEffect: 'The player files Grave away as someone with a story to come.',
+    seed: { id: 'TAVERN_MASTER_OLD_GREATSWORD', role: 'PLANTS' },
+  },
+};
+
+/** A joke, so the tavern is not only portents. */
+const TAVERN_STEW: TalkEventDef = {
+  eventId: 'TAVERN_MASTER_STEW',
+  layer: 'NOW',
+  location: MOONLIGHT_TAVERN_SPOT,
+  requirements: [{ kind: 'SEEN', eventId: 'MOONLIGHT_TAVERN_FIRST_VISIT' }],
+  once: true,
+  priority: 20,
+  content: {
+    lines: [
+      { speaker: 'グレイヴ', text: '今日のシチューはやめとけ。' },
+      { speaker: null, text: '厨房の方から、焦げた匂いがしている。' },
+      { speaker: 'グレイヴ', text: '俺が焦がした。' },
+      { speaker: 'グレイヴ', text: '……剣より鍋のほうが難しいんだよ、これが。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'HUMOR',
+    expectedEffect: 'Grave is likeable, not just ominous.',
+  },
+};
+
+/**
+ * The one repeatable event in the game. Grave always has a word, so the
+ * tavern is never a locked door — that is the whole attachment test:
+ * does a face you can go back to make you go back?
+ *
+ * It is deliberately once:false, which also keeps it out of the 「✦」
+ * calculation: a familiar greeting is not news.
+ */
+const TAVERN_IDLE: TalkEventDef = {
+  eventId: 'TAVERN_MASTER_IDLE',
+  layer: 'NOW',
+  location: MOONLIGHT_TAVERN_SPOT,
+  requirements: [{ kind: 'SEEN', eventId: 'MOONLIGHT_TAVERN_FIRST_VISIT' }],
+  once: false,
+  priority: 1,
+  content: {
+    lines: [
+      { speaker: 'グレイヴ', text: 'また来たな。そこ空いてるぞ。' },
+      { speaker: null, text: 'グレイヴはグラスを拭きながら、少しだけ肩をすくめた。' },
+      { speaker: 'グレイヴ', text: '今夜は、めぼしい話は入ってきてねぇ。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'WARMTH',
+    expectedEffect: 'Coming back is never punished with an empty room.',
   },
 };
 
@@ -142,7 +239,8 @@ const RUMOR_SPARED: TalkEventDef = {
   priority: 80,
   content: {
     lines: [
-      { speaker: null, text: '隣の席の男が、連れに話している。' },
+      { speaker: 'グレイヴ', text: 'そういや、森の方で妙な話を聞いたな。' },
+      { speaker: null, text: '彼は顎で、隣の席の男たちを指した。' },
       { speaker: '旅人', text: '森の盗賊団、一人減ったらしいぞ。' },
       { speaker: '旅人', text: '殺られたわけじゃねぇって話だ。' },
       { speaker: '旅人', text: '……足を洗ったのかね。物好きな。' },
@@ -164,6 +262,7 @@ const RUMOR_HELPED: TalkEventDef = {
   priority: 80,
   content: {
     lines: [
+      { speaker: 'グレイヴ', text: 'そういや、街道で妙な話を聞いたな。' },
       { speaker: null, text: '隣の席の男が、包帯の巻かれた腕をさすっている。' },
       { speaker: '旅人', text: '街道で、手当てしてくれた奴がいてな。' },
       { speaker: '旅人', text: '金は取らねぇって。' },
@@ -186,7 +285,7 @@ const RUMOR_CAPTURED: TalkEventDef = {
   priority: 80,
   content: {
     lines: [
-      { speaker: null, text: '衛兵が二人、隅の席で飲んでいる。' },
+      { speaker: 'グレイヴ', text: '衛兵が二人、隅で飲んでる。声がでかいんだ、あいつら。' },
       { speaker: '衛兵', text: 'あの森の男、裁きは終わったとよ。' },
       { speaker: '衛兵', text: '首は繋がった。働かされるがな。' },
       { speaker: '衛兵', text: '……続くかね、あれが。' },
@@ -208,9 +307,9 @@ const RUMOR_KILLED: TalkEventDef = {
   priority: 80,
   content: {
     lines: [
-      { speaker: null, text: '主人が、誰にともなく言った。' },
-      { speaker: '主人', text: '森の入口に、石が積んであるんだと。' },
-      { speaker: '主人', text: '名前も知らねぇ男のために、誰かが積んだ。' },
+      { speaker: null, text: 'グレイヴが、誰にともなく言った。' },
+      { speaker: 'グレイヴ', text: '森の入口に、石が積んであるんだと。' },
+      { speaker: 'グレイヴ', text: '名前も知らねぇ男のために、誰かが積んだ。' },
       { speaker: null, text: '奥の席が、少し静かになった。' },
     ],
   },
@@ -256,11 +355,14 @@ const NEXT_DEEPER_PATH: TalkEventDef = {
 /** Every NOW / NEXT event in the Alden region. */
 export const ALDEN_EXPERIENCE_EVENTS: readonly TalkEventDef[] = [
   TAVERN_FIRST_VISIT,
+  TAVERN_GREATSWORD,
   RUMOR_SPARED,
   RUMOR_HELPED,
   RUMOR_CAPTURED,
   RUMOR_KILLED,
   NEXT_DEEPER_PATH,
+  TAVERN_STEW,
+  TAVERN_IDLE,
   VILLAGER_FOREST_QUIET,
   VILLAGER_TRAVELLER,
   VILLAGE_LOST_BUTTON,
