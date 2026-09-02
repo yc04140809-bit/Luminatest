@@ -18,6 +18,7 @@ async function usePreset(page: Page, preset: string) {
   await page.getByTestId('dev-lock-submit').click();
   await page.getByTestId(`preset-${preset}`).click();
   await page.getByTestId('dev-admin-back').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 
 /**
