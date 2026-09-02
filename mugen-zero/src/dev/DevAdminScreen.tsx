@@ -212,6 +212,27 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
           );
         })()}
 
+        {/* ---- NARRATIVE SEEDS ---- */}
+        {/* Loose threads, and whether the player is carrying them yet.
+            Derived, never stored — and never world canon. */}
+        <div style={sectionTitle}>NARRATIVE SEEDS</div>
+        {world.getNarrativeSeeds().map((seed) => (
+          <div
+            key={seed.def.seedId}
+            className="location-card"
+            data-testid={`dev-seed-${seed.def.seedId}`}
+          >
+            <div className="location-desc">
+              [{seed.state}] {seed.def.seedId}
+              <br />
+              title: {seed.def.title} / playerKnown: {String(seed.playerKnown)}
+              <br />
+              source: {seed.def.sourceEventId}
+              {seed.def.relatedCharacters.length > 0 && ` / ${seed.def.relatedCharacters.join(', ')}`}
+            </div>
+          </div>
+        ))}
+
         {/* ---- PLAYTEST FEEDBACK ---- */}
         <div style={sectionTitle}>PLAYTEST FEEDBACK</div>
         <DevPlaytestPanel service={playtest} />

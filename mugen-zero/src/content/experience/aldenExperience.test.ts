@@ -60,15 +60,14 @@ describe('ALDEN EXPERIENCE — the shape of a session', () => {
     ).toBe('MOONLIGHT_TAVERN_FIRST_VISIT');
   });
 
-  it('the NEXT seeds wait until the tavern is familiar, then arrive', () => {
-    const before = findAvailableEvents(ALDEN_EXPERIENCE_EVENTS, view([]), { layer: 'NEXT' });
-    expect(before).toHaveLength(0);
-    const after = findAvailableEvents(
-      ALDEN_EXPERIENCE_EVENTS,
-      view([], ['MOONLIGHT_TAVERN_FIRST_VISIT']),
-      { layer: 'NEXT' },
-    );
-    expect(after.map((d) => d.eventId)).toEqual([
+  it("the tavern's NEXT seeds wait until it is familiar, then arrive", () => {
+    const tavernNext = (seen: string[]) =>
+      findAvailableEvents(ALDEN_EXPERIENCE_EVENTS, view([], seen), {
+        layer: 'NEXT',
+        location: 'MOONLIGHT_TAVERN',
+      }).map((d) => d.eventId);
+    expect(tavernNext([])).toHaveLength(0);
+    expect(tavernNext(['MOONLIGHT_TAVERN_FIRST_VISIT'])).toEqual([
       'TAVERN_MASTER_OLD_GREATSWORD',
       'GREENWOOD_DEEPER_PATH_RUMOR',
     ]);
@@ -77,10 +76,17 @@ describe('ALDEN EXPERIENCE — the shape of a session', () => {
   it('every NEXT event plants a seed, and none of them resolves one yet', () => {
     const next = ALDEN_EXPERIENCE_EVENTS.filter((d) => d.layer === 'NEXT');
     expect(next.map((d) => d.dna?.seed?.id).sort()).toEqual([
+      'ALDEN_UNSIGNED_LETTER',
       'GREENWOOD_DEEP_PATH',
       'TAVERN_MASTER_OLD_GREATSWORD',
     ]);
     expect(next.every((d) => d.dna?.seed?.role === 'PLANTS')).toBe(true);
+  });
+
+  it('most of the world is not a clue', () => {
+    // If everything were foreshadowing, nothing would be.
+    const withSeed = ALDEN_EXPERIENCE_EVENTS.filter((d) => d.dna?.seed).length;
+    expect(withSeed).toBeLessThan(ALDEN_EXPERIENCE_EVENTS.length / 3);
   });
 
   it('the tavern master never explains himself in this build', () => {
@@ -106,9 +112,18 @@ describe('ALDEN EXPERIENCE — the shape of a session', () => {
   it('the village has small things to find from the very first visit', () => {
     const now = findAvailableEvents(ALDEN_EXPERIENCE_EVENTS, view([]), {
       location: 'ALDEN_VILLAGE',
+      layer: 'NOW',
     });
     expect(now.length).toBeGreaterThanOrEqual(2);
-    expect(now.every((d) => d.layer === 'NOW')).toBe(true);
+  });
+
+  it('covers four different feelings, not four of the same', () => {
+    const targets = new Set(
+      ALDEN_EXPERIENCE_EVENTS.map((d) => d.dna?.emotionTarget).filter(Boolean),
+    );
+    for (const wanted of ['DISCOVERY', 'HUMOR', 'CURIOSITY', 'WARMTH']) {
+      expect(targets, `no event targets ${wanted}`).toContain(wanted);
+    }
   });
 
   it('is not all one note: curiosity, warmth and a joke are all present', () => {
@@ -129,10 +144,12 @@ describe('ALDEN EXPERIENCE — the shape of a session', () => {
 
   it('a village walked dry goes quiet instead of repeating itself', () => {
     const allSeen = ALDEN_EXPERIENCE_EVENTS.map((d) => d.eventId);
-    expect(
-      pickEvent(ALDEN_EXPERIENCE_EVENTS, view(['GALD_LEAVES_BANDITS'], allSeen), {
-        location: 'ALDEN_VILLAGE',
-      }),
-    ).toBeNull();
+    const worldView = {
+      ...view(['GALD_LEAVES_BANDITS'], allSeen),
+      // The one repeatable villager beat is still resting.
+      today: 1,
+      lastSeenDay: () => 1,
+    };
+    expect(pickEvent(ALDEN_EXPERIENCE_EVENTS, worldView, { location: 'ALDEN_VILLAGE' })).toBeNull();
   });
 });

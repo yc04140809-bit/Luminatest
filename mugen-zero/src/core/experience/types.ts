@@ -61,6 +61,13 @@ export type ExperienceRequirement =
   | { kind: 'SEEN'; eventId: string }
   | { kind: 'NOT_SEEN'; eventId: string };
 
+/**
+ * How often an event should turn up relative to its neighbours. Only
+ * meaningful among events of equal priority — it is a tie-breaker, not a
+ * lottery: the same world always plays the same sequence.
+ */
+export type Rarity = 'COMMON' | 'UNCOMMON' | 'RARE';
+
 export interface ExperienceEventDef<TContent = unknown> {
   eventId: string;
   layer: ExperienceLayer;
@@ -71,6 +78,9 @@ export interface ExperienceEventDef<TContent = unknown> {
   once: boolean;
   /** Higher wins when several are available at the same place. */
   priority: number;
+  /** Repeatable events only: days that must pass before it comes round again. */
+  cooldownDays?: number;
+  rarity?: Rarity;
   content: TContent;
   dna?: EventDna;
 }
@@ -84,4 +94,18 @@ export interface ExperienceWorldView {
   hasSeen(eventId: string): boolean;
   worldYear: number;
   worldDay: number;
+  /**
+   * EXPERIENCE CONTROL v0.2 — what the last few minutes felt like.
+   *
+   * Newest first, the emotion of the events the player just met. The
+   * engine uses it to avoid handing out four jokes in a row; it never
+   * uses it to gate anything.
+   */
+  recentEmotions?: EmotionTarget[];
+  /** Absolute day an event was last played, for repeatable cooldowns. */
+  lastSeenDay?(eventId: string): number | null;
+  /** Today, on the same absolute scale. */
+  today?: number;
+  /** Planted questions the world has not answered yet. */
+  unresolvedSeeds?: number;
 }

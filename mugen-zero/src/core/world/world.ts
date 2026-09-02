@@ -32,6 +32,11 @@ import {
 } from '../../content/world/futureSites';
 import { INITIAL_GALD_STATE } from '../../content/characters/gald';
 import type { ExperienceWorldView } from '../experience/types';
+import { recentEmotionsOf } from '../experience/experienceEngine';
+import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
+import { ALDEN_NARRATIVE_SEEDS } from '../../content/narrative/aldenSeeds';
+import { seedStatuses, unresolvedSeedCount } from '../narrative/narrativeSeeds';
+import type { NarrativeSeedStatus } from '../narrative/types';
 
 const CLOCK_KEY = 'world_clock';
 /**
@@ -44,6 +49,24 @@ const CLOCK_KEY = 'world_clock';
  * change, and a save written before this build simply has no such key.
  */
 const SEEN_EXPERIENCE_KEY = 'experience_seen';
+/**
+ * Pacing bookkeeping: when each event last played, and the order they
+ * were met in. A separate key from experience_seen on purpose — a save
+ * written before this build has no such row, reads as empty, and every
+ * "have I seen this?" answer still comes from the older key.
+ */
+const EXPERIENCE_LOG_KEY = 'experience_log';
+
+interface ExperienceLog {
+  /** eventId -> absolute day it last played. */
+  lastSeenDay: Record<string, number>;
+  /** Event ids in the order they were met, newest last. */
+  order: string[];
+}
+
+const EMPTY_LOG: ExperienceLog = { lastSeenDay: {}, order: [] };
+/** Enough history to keep two or three beats from repeating a feeling. */
+const LOG_ORDER_LIMIT = 12;
 
 function characterKey(id: string): string {
   return `character_${id}`;
@@ -76,6 +99,7 @@ export class World {
   private timePassing = false;
 
   private seenExperience: Set<string>;
+  private experienceLog: ExperienceLog;
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -83,11 +107,13 @@ export class World {
     clock: WorldClock,
     characters: Record<string, CharacterState>,
     seenExperience: string[],
+    experienceLog: ExperienceLog,
   ) {
     this.events = events;
     this.clock = clock;
     this.characters = characters;
     this.seenExperience = new Set(seenExperience);
+    this.experienceLog = experienceLog;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -102,7 +128,12 @@ export class World {
         ((await store.getStateValue(characterKey(id))) as CharacterState | undefined) ?? initial;
     }
     const seen = ((await store.getStateValue(SEEN_EXPERIENCE_KEY)) as string[] | undefined) ?? [];
-    return new World(store, events, clock, characters, seen);
+    const log =
+      ((await store.getStateValue(EXPERIENCE_LOG_KEY)) as ExperienceLog | undefined) ?? EMPTY_LOG;
+    return new World(store, events, clock, characters, seen, {
+      lastSeenDay: { ...log.lastSeenDay },
+      order: [...log.order],
+    });
   }
 
   subscribe(listener: Listener): () => void {
@@ -213,24 +244,56 @@ export class World {
    * the world itself — only this.
    */
   getExperienceView(): ExperienceWorldView {
+    const hasSeen = (eventId: string) => this.seenExperience.has(eventId);
     return {
       hasMemory: (type) => this.events.some((e) => e.type === type),
-      hasSeen: (eventId) => this.seenExperience.has(eventId),
+      hasSeen,
       worldYear: this.clock.worldYear,
       worldDay: this.clock.worldDay,
+      // EXPERIENCE CONTROL v0.2 — pacing, never gating.
+      today: toAbsoluteDay(this.clock),
+      lastSeenDay: (eventId) => this.experienceLog.lastSeenDay[eventId] ?? null,
+      recentEmotions: recentEmotionsOf(
+        ALDEN_EXPERIENCE_EVENTS,
+        [...this.experienceLog.order].reverse(),
+        3,
+      ),
+      unresolvedSeeds: unresolvedSeedCount(ALDEN_NARRATIVE_SEEDS, hasSeen),
     };
+  }
+
+  /**
+   * NARRATIVE SEEDS, derived from what the player has met. Nothing is
+   * stored for this and none of it is world canon.
+   */
+  getNarrativeSeeds(): NarrativeSeedStatus[] {
+    return seedStatuses(ALDEN_NARRATIVE_SEEDS, (id) => this.seenExperience.has(id));
   }
 
   hasSeenExperience(eventId: string): boolean {
     return this.seenExperience.has(eventId);
   }
 
-  /** Remembers that the player met this event. Idempotent. */
+  /**
+   * Remembers that the player met this event, and when.
+   *
+   * The "seen" set is idempotent; the log is not — a repeatable event
+   * plays again, and the pacing needs to know it just did.
+   */
   async markExperienceSeen(eventId: string): Promise<void> {
-    if (this.seenExperience.has(eventId)) return;
-    const next = [...this.seenExperience, eventId];
-    await this.store.commit({ putState: [{ key: SEEN_EXPERIENCE_KEY, value: next }] });
-    this.seenExperience = new Set(next);
+    const seen = this.seenExperience.has(eventId) ? [...this.seenExperience] : [...this.seenExperience, eventId];
+    const log: ExperienceLog = {
+      lastSeenDay: { ...this.experienceLog.lastSeenDay, [eventId]: toAbsoluteDay(this.clock) },
+      order: [...this.experienceLog.order, eventId].slice(-LOG_ORDER_LIMIT),
+    };
+    await this.store.commit({
+      putState: [
+        { key: SEEN_EXPERIENCE_KEY, value: seen },
+        { key: EXPERIENCE_LOG_KEY, value: log },
+      ],
+    });
+    this.seenExperience = new Set(seen);
+    this.experienceLog = log;
     this.emit();
   }
 
@@ -535,6 +598,7 @@ export class World {
     this.clock = INITIAL_CLOCK;
     this.characters = { ...INITIAL_CHARACTERS };
     this.seenExperience = new Set();
+    this.experienceLog = { lastSeenDay: {}, order: [] };
     this.emit();
   }
 }

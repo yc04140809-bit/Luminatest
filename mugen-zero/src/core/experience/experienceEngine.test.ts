@@ -4,21 +4,33 @@ import {
   isAvailable,
   locationsWithSomethingNew,
   pickEvent,
+  recentEmotionsOf,
 } from './experienceEngine';
-import type { ExperienceEventDef, ExperienceWorldView } from './types';
+import type { EmotionTarget, ExperienceEventDef, ExperienceWorldView } from './types';
 
 // The engine under test knows nothing about MUGEN. These fixtures are
 // deliberately about a different, imaginary game — if a test here ever
 // needs Gald, the engine has grown a dependency it must not have.
 
-function view(partial: Partial<ExperienceWorldView> & { memories?: string[]; seen?: string[] }) {
+function view(
+  partial: Partial<ExperienceWorldView> & {
+    memories?: string[];
+    seen?: string[];
+    lastSeen?: Record<string, number>;
+  },
+): ExperienceWorldView {
   const memories = new Set(partial.memories ?? []);
   const seen = new Set(partial.seen ?? []);
+  const lastSeen = partial.lastSeen ?? {};
   return {
     hasMemory: (type: string) => memories.has(type),
     hasSeen: (eventId: string) => seen.has(eventId),
     worldYear: partial.worldYear ?? 1,
     worldDay: partial.worldDay ?? 1,
+    today: partial.today,
+    lastSeenDay: (id: string) => lastSeen[id] ?? null,
+    recentEmotions: partial.recentEmotions,
+    unresolvedSeeds: partial.unresolvedSeeds,
   };
 }
 
@@ -136,5 +148,94 @@ describe('EXPERIENCE ENGINE — selection', () => {
     // ...but it is never marked as news.
     expect(locationsWithSomethingNew(withRegular, view({ seen }))).toEqual(new Set());
     expect(locationsWithSomethingNew(withRegular, view({}))).not.toContain('INN');
+  });
+});
+
+
+describe('EXPERIENCE CONTROL v0.2 — pacing', () => {
+  const withEmotion = (id: string, emotion: EmotionTarget, priority = 10) =>
+    def({
+      eventId: id,
+      priority,
+      dna: { emotionTarget: emotion, expectedEffect: 'test' },
+    });
+
+  it('a repeatable event rests for its cooldown, then returns', () => {
+    const regular = def({ eventId: 'REGULAR', once: false, cooldownDays: 5 });
+    expect(isAvailable(regular, view({ lastSeen: { REGULAR: 10 }, today: 12 }))).toBe(false);
+    expect(isAvailable(regular, view({ lastSeen: { REGULAR: 10 }, today: 15 }))).toBe(true);
+    // Never played: nothing to wait for.
+    expect(isAvailable(regular, view({ today: 12 }))).toBe(true);
+  });
+
+  it('a once-event ignores cooldown entirely', () => {
+    const single = def({ eventId: 'ONCE', once: true, cooldownDays: 99 });
+    expect(isAvailable(single, view({ lastSeen: { ONCE: 1 }, today: 2 }))).toBe(true);
+  });
+
+  it('rarity nudges an event down its tier without blocking it', () => {
+    const defs = [
+      def({ eventId: 'RARE_ONE', priority: 10, rarity: 'RARE' }),
+      def({ eventId: 'PLAIN', priority: 10 }),
+    ];
+    expect(findAvailableEvents(defs, view({})).map((d) => d.eventId)).toEqual([
+      'PLAIN',
+      'RARE_ONE',
+    ]);
+    // Alone, the rare one still plays.
+    expect(pickEvent([defs[0]], view({}))?.eventId).toBe('RARE_ONE');
+  });
+
+  it('breaks a run of the same feeling, among equals', () => {
+    const defs = [withEmotion('JOKE_B', 'HUMOR'), withEmotion('KIND', 'WARMTH')];
+    // Nothing recent: definition order wins.
+    expect(pickEvent(defs, view({}))?.eventId).toBe('JOKE_B');
+    // Two jokes just landed: take the other one.
+    expect(pickEvent(defs, view({ recentEmotions: ['HUMOR', 'HUMOR'] }))?.eventId).toBe('KIND');
+  });
+
+  it('never lets variety outrank importance', () => {
+    const defs = [
+      withEmotion('BIG_NEWS', 'HUMOR', 90),
+      withEmotion('SMALL_TALK', 'WARMTH', 10),
+    ];
+    // The joke-shaped event is the important one; it still goes first.
+    expect(pickEvent(defs, view({ recentEmotions: ['HUMOR', 'HUMOR'] }))?.eventId).toBe(
+      'BIG_NEWS',
+    );
+  });
+
+  it('would rather repeat a feeling than leave the player nothing', () => {
+    const only = [withEmotion('ONLY_JOKE', 'HUMOR')];
+    expect(pickEvent(only, view({ recentEmotions: ['HUMOR', 'HUMOR'] }))?.eventId).toBe(
+      'ONLY_JOKE',
+    );
+  });
+
+  it('stops planting questions once too many are open', () => {
+    const seedDef = def({
+      eventId: 'NEW_MYSTERY',
+      priority: 90,
+      dna: { emotionTarget: 'CURIOSITY', expectedEffect: 'x', seed: { id: 'S', role: 'PLANTS' } },
+    });
+    const ordinary = def({ eventId: 'ORDINARY', priority: 10 });
+    const defs = [seedDef, ordinary];
+    expect(pickEvent(defs, view({ unresolvedSeeds: 0 }))?.eventId).toBe('NEW_MYSTERY');
+    expect(pickEvent(defs, view({ unresolvedSeeds: 2 }))?.eventId).toBe('ORDINARY');
+    // ...unless holding back would mean showing nothing at all.
+    expect(pickEvent([seedDef], view({ unresolvedSeeds: 5 }))?.eventId).toBe('NEW_MYSTERY');
+  });
+
+  it('reads recent feelings off the events actually played', () => {
+    const defs = [withEmotion('A', 'HUMOR'), withEmotion('B', 'WARMTH'), def({ eventId: 'C' })];
+    expect(recentEmotionsOf(defs, ['B', 'C', 'A'], 3)).toEqual(['WARMTH', 'HUMOR']);
+    expect(recentEmotionsOf(defs, ['B', 'A'], 1)).toEqual(['WARMTH']);
+  });
+
+  it('stays deterministic: the same world plays the same sequence', () => {
+    const defs = [withEmotion('A', 'HUMOR'), withEmotion('B', 'WARMTH', 20)];
+    const v = view({ recentEmotions: ['WARMTH'] });
+    const picks = Array.from({ length: 5 }, () => pickEvent(defs, v)?.eventId);
+    expect(new Set(picks).size).toBe(1);
   });
 });

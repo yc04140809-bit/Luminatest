@@ -371,6 +371,203 @@ const RUMOR_KILLED: TalkEventDef = {
   },
 };
 
+// ---- PHASE C: the same news, from other mouths -------------------------
+//
+// One event is one telling. The village hears a rougher, vaguer version
+// than the tavern does, and the notice board hears the official one — but
+// none of the three contradicts WORLD MEMORY, and none of them names the
+// place the player has to find.
+
+const VILLAGE_RUMOR_SPARED: TalkEventDef = {
+  eventId: 'ALDEN_VILLAGE_RUMOR_FOREST_QUIETER',
+  layer: 'NOW',
+  location: ALDEN_VILLAGE_SPOT,
+  requirements: [{ kind: 'MEMORY_PRESENT', type: 'GALD_LEAVES_BANDITS' }],
+  once: true,
+  priority: 55,
+  rarity: 'COMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '桶を抱えた女が、坂の下で足を止めた。' },
+      { speaker: '村人', text: '最近、森が静かじゃない？' },
+      { speaker: '村人', text: '前は薪拾いも怖かったのに。' },
+      { speaker: null, text: '女は、それ以上は知らないという顔をした。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'CURIOSITY',
+    visualTier: 'NORMAL',
+    curiosityTarget: 'Why has the forest gone quiet?',
+    expectedEffect: 'The same world change reaches the player from a second direction.',
+  },
+};
+
+const VILLAGE_RUMOR_HELPED: TalkEventDef = {
+  eventId: 'ALDEN_VILLAGE_RUMOR_ROADSIDE_HELP',
+  layer: 'NOW',
+  location: ALDEN_VILLAGE_SPOT,
+  requirements: [{ kind: 'MEMORY_PRESENT', type: 'GALD_WALKS_THE_ROAD' }],
+  once: true,
+  priority: 55,
+  rarity: 'COMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '井戸端で、女たちが声をひそめている。' },
+      { speaker: '村人', text: '街道で助けてもらったって人、うちの人以外にもいるらしいよ。' },
+      { speaker: '村人', text: '……三人目だって。' },
+      { speaker: null, text: '誰も、その男の名前は言わなかった。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'CURIOSITY',
+    visualTier: 'NORMAL',
+    curiosityTarget: 'Who keeps helping people on the road?',
+    expectedEffect: 'The kindness looks like a pattern, not an incident.',
+  },
+};
+
+const NOTICE_BOARD: TalkEventDef = {
+  eventId: 'ALDEN_NOTICE_BOARD',
+  layer: 'NOW',
+  location: ALDEN_VILLAGE_SPOT,
+  requirements: [
+    {
+      kind: 'ANY_MEMORY_PRESENT',
+      types: ['GALD_LEAVES_BANDITS', 'GALD_WALKS_THE_ROAD', 'GALD_STANDS_TRIAL', 'GALD_IS_BURIED'],
+    },
+  ],
+  once: true,
+  priority: 50,
+  rarity: 'COMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '教会の前に、板を打ちつけただけの掲示板がある。' },
+      { speaker: null, text: '雨に濡れた紙が、何枚も重なって貼られていた。' },
+      { speaker: '張り紙', text: '「街道利用者は周辺状況に注意されたし」' },
+      { speaker: null, text: 'その下の一枚は、日付が古すぎて読めない。' },
+      { speaker: null, text: '誰かが剥がし忘れたまま、季節がいくつも過ぎたらしい。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'DISCOVERY',
+    visualTier: 'NORMAL',
+    expectedEffect: 'The world keeps records badly, the way a real village would.',
+  },
+};
+
+// ---- PHASE C: the second seed ------------------------------------------
+
+/**
+ * NARRATIVE SEED — ALDEN_UNSIGNED_LETTER.
+ *
+ * Nothing to do with Gald, nobody's face on it, and no way to follow it
+ * up in this build. It exists so the player cannot conclude that every
+ * thread in this world belongs to the man from the forest.
+ */
+const UNSIGNED_LETTER: TalkEventDef = {
+  eventId: 'ALDEN_UNSIGNED_LETTER',
+  layer: 'NEXT',
+  location: ALDEN_VILLAGE_SPOT,
+  once: true,
+  priority: 45,
+  rarity: 'UNCOMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '宿の戸口に、封のない手紙が挟まっていた。' },
+      { speaker: null, text: '宛名はない。差出人の名もない。' },
+      { speaker: null, text: '一行だけ、丁寧な字で書かれている。' },
+      { speaker: '手紙', text: '「まだ、間に合います」' },
+      { speaker: null, text: '……何に、とは書かれていない。' },
+      { speaker: null, text: 'あなたは手紙を畳んで、荷物にしまった。' },
+    ],
+    kaosLine: '「……わたし宛じゃ、ないよね？」',
+  },
+  dna: {
+    emotionTarget: 'CURIOSITY',
+    visualTier: 'FEATURED',
+    curiosityTarget: 'Who wrote it, and what is still in time?',
+    expectedEffect: 'A thread with no owner — proof the world is bigger than Gald.',
+    seed: { id: 'ALDEN_UNSIGNED_LETTER', role: 'PLANTS' },
+  },
+};
+
+// ---- PHASE D: NOW event pack -------------------------------------------
+
+/** Kaos, doing nothing in particular, on purpose. */
+const KAOS_DETOUR: TalkEventDef = {
+  eventId: 'ALDEN_KAOS_DETOUR',
+  layer: 'NOW',
+  location: ALDEN_VILLAGE_SPOT,
+  once: true,
+  priority: 35,
+  rarity: 'UNCOMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '石段に、ケイオスが座っていた。' },
+      { speaker: 'ケイオス', text: 'ねえ。' },
+      { speaker: 'ケイオス', text: '冒険ってさ。' },
+      { speaker: 'ケイオス', text: 'たまには何もしないのも、冒険じゃない？' },
+      { speaker: null, text: 'あなたは、しばらく黙って隣に座っていた。' },
+      { speaker: null, text: '坂の下で、誰かが洗濯物を取り込んでいる。' },
+      { speaker: 'ケイオス', text: '……うん。こういうの。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'WARMTH',
+    visualTier: 'NORMAL',
+    expectedEffect: 'Doing nothing is allowed here, and she says so.',
+    // No seed. This one really is just this.
+  },
+};
+
+/** A man, his cat, and his wounded pride. */
+const VILLAGE_CAT: TalkEventDef = {
+  eventId: 'ALDEN_VILLAGER_CAT',
+  layer: 'NOW',
+  location: ALDEN_VILLAGE_SPOT,
+  requirements: [{ kind: 'SEEN', eventId: 'MOONLIGHT_TAVERN_FIRST_VISIT' }],
+  once: true,
+  priority: 25,
+  rarity: 'COMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '男が、屋根の上をじっと見上げている。' },
+      { speaker: '村人', text: 'うちの猫な。' },
+      { speaker: '村人', text: '……俺より酒場のマスターになついてるんだよ。' },
+      { speaker: null, text: '屋根の上の猫は、こちらを一度見て、目を閉じた。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'HUMOR',
+    visualTier: 'NORMAL',
+    expectedEffect: 'A joke that quietly says Grave is liked here.',
+  },
+};
+
+/** Something small was going through your things. */
+const VILLAGE_CREATURE: TalkEventDef = {
+  eventId: 'ALDEN_SMALL_CREATURE',
+  layer: 'NOW',
+  location: ALDEN_VILLAGE_SPOT,
+  once: false,
+  cooldownDays: 30,
+  priority: 15,
+  rarity: 'UNCOMMON',
+  content: {
+    lines: [
+      { speaker: null, text: '足元で、何かが動いた。' },
+      { speaker: null, text: '小さな生き物が、あなたの荷物に鼻先を突っ込んでいる。' },
+      { speaker: null, text: '目が合った。' },
+      { speaker: null, text: '……逃げられた。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'HUMOR',
+    visualTier: 'NORMAL',
+    expectedEffect: 'The world moves on its own, in ways that do not concern the player.',
+  },
+};
+
 // ---- NEXT: the one seed -------------------------------------------------
 
 /**
@@ -418,8 +615,15 @@ export const ALDEN_EXPERIENCE_EVENTS: readonly TalkEventDef[] = [
   TAVERN_REVISIT_B,
   TAVERN_IDLE,
   VILLAGER_FOREST_QUIET,
+  VILLAGE_RUMOR_SPARED,
+  VILLAGE_RUMOR_HELPED,
+  NOTICE_BOARD,
+  UNSIGNED_LETTER,
+  KAOS_DETOUR,
   VILLAGER_TRAVELLER,
   VILLAGE_LOST_BUTTON,
+  VILLAGE_CAT,
+  VILLAGE_CREATURE,
 ];
 
 /** Shown when a place has nothing new — never a dead end, just quiet. */
