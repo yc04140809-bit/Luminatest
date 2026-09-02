@@ -80,7 +80,11 @@ test('playtest feedback survives a full browser restart', async () => {
     await page.getByTestId('q5-4').click();
     await page.getByTestId('q6-REUNION').click();
     await page.getByTestId('survey-next').click();
-    await page.getByTestId('q7-input').fill('続きが見たい');
+    await page.getByTestId('q7-5').click();
+    await page.getByTestId('q8-4').click();
+    await page.getByTestId('q9-NONE').click();
+    await page.getByTestId('survey-next').click();
+    await page.getByTestId('q10-input').fill('続きが見たい');
     await page.getByTestId('survey-submit').click();
     await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
     expect(await readFeedbackCount(page)).toBe(1);

@@ -2,7 +2,11 @@
 // no praise of the game's own systems, nothing that hints at content the
 // player has not reached.
 
-import type { MemorableMoment, ReunionRecognition } from '../../core/playtest/types';
+import type {
+  LostFrequency,
+  MemorableMoment,
+  ReunionRecognition,
+} from '../../core/playtest/types';
 
 export const SURVEY_INTRO_LINES = [
   { speaker: 'ケイオス', text: 'ここまで付き合ってくれてありがと。' },
@@ -30,7 +34,30 @@ export const RATING_LABELS = {
     low: '思わなかった',
     high: 'とても思った',
   },
+  // Round 2: does the mechanism generalise beyond Gald, and did the
+  // world make them curious while they were walking around in it?
+  moreLivesInterest: {
+    question: 'この仕組みで、もっと多くの人物の「その後」を見てみたいと思いましたか？',
+    low: '思わなかった',
+    high: 'とても思った',
+  },
+  nextCuriosity: {
+    question: '探索中、「次に何が起こるんだろう」と感じましたか？',
+    low: '感じなかった',
+    high: 'とても感じた',
+  },
 } as const;
+
+export const LOST_QUESTION = '次に何をすればよいか分からなくなる場面はありましたか？';
+
+export const LOST_OPTIONS: Array<{ id: LostFrequency; label: string }> = [
+  { id: 'NONE', label: 'なかった' },
+  { id: 'SOME', label: '少しあった' },
+  { id: 'OFTEN', label: 'かなりあった' },
+];
+
+export const WISH_COMMENT_QUESTION =
+  'もっとやってみたかったこと、気になったことがあれば教えてください。';
 
 export const REUNION_QUESTION = '再会した人物が、最初に出会った盗賊だと気づきましたか？';
 

@@ -102,7 +102,12 @@ async function answerSurvey(page: Page, comment = '再会でびっくりした�
   await page.getByTestId('q6-REUNION').click();
   await page.getByTestId('survey-next').click();
 
-  if (comment) await page.getByTestId('q7-input').fill(comment);
+  await page.getByTestId('q7-4').click();
+  await page.getByTestId('q8-3').click();
+  await page.getByTestId('q9-NONE').click();
+  await page.getByTestId('survey-next').click();
+
+  if (comment) await page.getByTestId('q10-input').fill(comment);
   await page.getByTestId('survey-submit').click();
   await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
 }
@@ -264,6 +269,10 @@ test('KILL route reaches the survey without seeing bakery or reunion options', a
   await expect(page.getByTestId('q6-LIFE_CHOICE')).toBeVisible();
   await page.getByTestId('q6-LIFE_CHOICE').click();
   await page.getByTestId('survey-next').click();
+  await page.getByTestId('q7-2').click();
+  await page.getByTestId('q8-2').click();
+  await page.getByTestId('q9-SOME').click();
+  await page.getByTestId('survey-next').click();
   await page.getByTestId('survey-submit').click();
   await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
 
@@ -323,7 +332,7 @@ for (const size of [
     await page.getByTestId('survey-next').click();
 
     // A long comment must not blow the layout sideways.
-    await page.getByTestId('q7-input').fill('とても長い感想'.repeat(60));
+    await page.getByTestId('q10-input').fill('とても長い感想'.repeat(60));
     await noOverflow();
     const textarea = await page.getByTestId('q7-input').boundingBox();
     expect(textarea!.x + textarea!.width).toBeLessThanOrEqual(size.width + 1);

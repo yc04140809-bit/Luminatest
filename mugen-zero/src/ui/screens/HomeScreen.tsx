@@ -3,6 +3,7 @@ import type { WorldClock } from '../../core/events/types';
 import { DEV_ADMIN_ENABLED } from '../../dev/devMode';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
 import { locationBackground } from '../../content/locations/locationVisuals';
+import { KAOS_HOME_ASIDES } from '../../content/dialogue/bakery';
 
 interface Props {
   clock: WorldClock;
@@ -32,6 +33,13 @@ export function HomeScreen({
 }: Props) {
   const [resting, setResting] = useState(false);
 
+  // Kaos is around without being an event: one line, on about one day in
+  // seven, chosen from the clock so it never flickers between renders.
+  const aside =
+    clock.worldDay % 7 === 3
+      ? KAOS_HOME_ASIDES[clock.worldDay % KAOS_HOME_ASIDES.length]
+      : null;
+
   const rest = async () => {
     if (resting) return;
     setResting(true);
@@ -55,6 +63,11 @@ export function HomeScreen({
         <div className="home-place" style={{ letterSpacing: '0.1em' }} data-testid="world-clock">
           {clock.worldYear}年目 {clock.worldDay}日目
         </div>
+        {aside && (
+          <div className="home-kaos-aside" data-testid="kaos-aside">
+            ケイオス {aside}
+          </div>
+        )}
         <button className="btn home-explore" data-testid="explore-button" onClick={onExplore}>
           <span className="home-explore-jp">探索する</span>
           <span className="home-explore-en">EXPLORE</span>

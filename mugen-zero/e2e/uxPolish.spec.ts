@@ -98,7 +98,7 @@ test('the reunion shows baker Gald, then closes with Kaos and offers the survey'
   await expect(intro).toBeVisible();
   await intro.click();
   await intro.click();
-  await expect(page.getByTestId('survey-screen')).toContainText('1 / 3');
+  await expect(page.getByTestId('survey-screen')).toContainText('1 / 4');
   await expect(page.getByTestId('q1-5')).toBeVisible();
 });
 

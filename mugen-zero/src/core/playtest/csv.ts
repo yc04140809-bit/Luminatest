@@ -16,6 +16,11 @@ export const CSV_COLUMNS = [
   'archiveInterest',
   'memorableMoment',
   'freeComment',
+  // Round 2. Blank for feedback collected before these existed.
+  'moreLivesInterest',
+  'nextCuriosity',
+  'lostFrequency',
+  'wishComment',
 ] as const;
 
 /** Excel and friends read a leading = + - @ (or tab / CR) as a formula. */

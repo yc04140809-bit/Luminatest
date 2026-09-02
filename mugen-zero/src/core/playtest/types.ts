@@ -24,6 +24,9 @@ export type MemorableMoment =
 /** 1..5 Likert answer. */
 export type Rating = 1 | 2 | 3 | 4 | 5;
 
+/** How often the player did not know what to do next. */
+export type LostFrequency = 'NONE' | 'SOME' | 'OFTEN';
+
 export const FREE_COMMENT_MAX_LENGTH = 1000;
 
 export interface PlaytestFeedback {
@@ -40,6 +43,16 @@ export interface PlaytestFeedback {
   archiveInterest: Rating;
   memorableMoment: MemorableMoment;
   freeComment: string;
+
+  /**
+   * Added for the second playtest round. Optional on purpose: feedback
+   * saved by the first round has no such fields, and old rows must keep
+   * reading back cleanly (no IndexedDB migration, no lost answers).
+   */
+  moreLivesInterest?: Rating;
+  nextCuriosity?: Rating;
+  lostFrequency?: LostFrequency;
+  wishComment?: string;
 
   /** Minimal observation context — never a copy of world history. */
   worldYear: number;

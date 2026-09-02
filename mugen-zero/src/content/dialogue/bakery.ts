@@ -26,6 +26,18 @@ export const KAOS_ENDING_LINES: DialogueLine[] = [
   { speaker: 'ケイオス', text: '最後に、この世界で感じたこと……少しだけ教えて？' },
 ];
 
+/**
+ * Kaos, in passing, on the way back into the village. Deliberately tiny:
+ * she is around, not narrating. Shown on roughly one day in seven so she
+ * never becomes a thing to tap through.
+ */
+export const KAOS_HOME_ASIDES: string[] = [
+  '「おかえり。」',
+  '「今日は、何か見つかるかな。」',
+  '「……ちゃんと歩いてる？」',
+  '「わたしは、ここにいるよ。」',
+];
+
 // Revisit: no ceremony, just a man and his bread.
 export const BAKERY_REVISIT_LINES: DialogueLine[] = [
   { speaker: 'ガルド', text: '今日は何だ。' },

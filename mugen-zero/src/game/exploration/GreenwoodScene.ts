@@ -30,7 +30,14 @@ export interface GreenwoodOptions {
  * on top of it by the game, never baked into the picture.
  */
 export class GreenwoodScene extends Phaser.Scene {
-  private player!: Phaser.GameObjects.Arc;
+  /**
+   * The player on the map. A container, not a shape: a walking figure is
+   * built out of primitives inside it now, and a real sprite can be
+   * dropped in later without a single line of the movement code changing.
+   */
+  private player!: Phaser.GameObjects.Container;
+  private playerLegs: Phaser.GameObjects.Rectangle[] = [];
+  private walkPhase = 0;
   private target: Phaser.Math.Vector2 | null = null;
   private encounterFired = false;
   private callbacks: GreenwoodCallbacks;
@@ -97,9 +104,9 @@ export class GreenwoodScene extends Phaser.Scene {
         .setDepth(11);
     }
 
-    // Layer 3: the player marker.
-    this.player = this.add.circle(PLAYER_START.x, PLAYER_START.y, 10, 0xf2f7fb).setDepth(20);
-    this.player.setStrokeStyle(2, 0x0b0b12, 0.8);
+    // Layer 3: the player. Small, high-contrast against the forest floor,
+    // and unmistakably a person rather than a dot on a map.
+    this.player = this.createPlayerFigure(PLAYER_START.x, PLAYER_START.y);
 
     // Layer 4: the hint, legible against the art.
     this.add
@@ -117,10 +124,48 @@ export class GreenwoodScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * A walking silhouette: a soft shadow, two legs, a body and a head,
+   * outlined so it stays readable over both sunlit path and dark leaves.
+   */
+  private createPlayerFigure(x: number, y: number): Phaser.GameObjects.Container {
+    const shadow = this.add.ellipse(0, 2, 20, 7, 0x000000, 0.45);
+    const legLeft = this.add.rectangle(-3, -5, 3, 9, 0x1b1b26).setOrigin(0.5, 0);
+    const legRight = this.add.rectangle(3, -5, 3, 9, 0x1b1b26).setOrigin(0.5, 0);
+    const cloak = this.add.ellipse(0, -12, 14, 18, 0xe9eef5);
+    cloak.setStrokeStyle(1.5, 0x11111a, 0.9);
+    const head = this.add.circle(0, -22, 5, 0xf5f0e6);
+    head.setStrokeStyle(1.5, 0x11111a, 0.9);
+    const scarf = this.add.rectangle(0, -17, 12, 3, 0xe8c15a);
+
+    this.playerLegs = [legLeft, legRight];
+    return this.add
+      .container(x, y, [shadow, legLeft, legRight, cloak, scarf, head])
+      .setDepth(20);
+  }
+
+  /** Legs scissor while moving and settle when standing still. */
+  private animateWalk(moving: boolean, delta: number): void {
+    const [left, right] = this.playerLegs;
+    if (!left || !right) return;
+    if (!moving) {
+      this.walkPhase = 0;
+      left.setScale(1, 1);
+      right.setScale(1, 1);
+      return;
+    }
+    this.walkPhase += delta / 90;
+    const swing = Math.sin(this.walkPhase) * 0.35;
+    left.setScale(1, 1 + swing);
+    right.setScale(1, 1 - swing);
+  }
+
   update(_time: number, delta: number): void {
     if (this.encounterFired) return;
 
     const encounterActive = this.options.encounterEnabled;
+
+    this.animateWalk(this.target !== null, delta);
 
     if (this.target) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, this.target.x, this.target.y);
@@ -132,6 +177,8 @@ export class GreenwoodScene extends Phaser.Scene {
         const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.target.x, this.target.y);
         this.player.x += Math.cos(angle) * step;
         this.player.y += Math.sin(angle) * step;
+        // Face the way you are going.
+        this.player.setScale(Math.cos(angle) < 0 ? -1 : 1, 1);
       }
     }
 

@@ -4,7 +4,7 @@ export interface LocationDef {
   id: string;
   name: string;
   description: string;
-  /** Whether the location can be entered in Phase A. */
+  /** Whether the location can be entered. */
   enterable: boolean;
 }
 
@@ -12,14 +12,14 @@ export const LOCATIONS: LocationDef[] = [
   {
     id: 'ALDEN_VILLAGE',
     name: 'アルデン村',
-    description: '静かな村。今いる場所。',
-    enterable: false,
+    description: '石畳の道と、井戸と、坂の上の教会。',
+    enterable: true,
   },
   {
     id: 'MOONLIGHT_TAVERN',
     name: '月灯りの酒場',
     description: '旅人と噂の集まる酒場。',
-    enterable: false,
+    enterable: true,
   },
   {
     id: 'GREENWOOD_FOREST',

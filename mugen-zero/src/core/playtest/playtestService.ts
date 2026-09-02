@@ -6,6 +6,7 @@
 import type { World } from '../world/world';
 import type {
   FeedbackStore,
+  LostFrequency,
   MemorableMoment,
   PlaytestFeedback,
   PlaytestRoute,
@@ -25,6 +26,10 @@ export interface SurveyAnswers {
   archiveInterest: Rating;
   memorableMoment: MemorableMoment;
   freeComment: string;
+  moreLivesInterest: Rating;
+  nextCuriosity: Rating;
+  lostFrequency: LostFrequency;
+  wishComment: string;
 }
 
 function randomId(): string {
@@ -76,11 +81,17 @@ export class PlaytestFeedbackService {
       archiveInterest: answers.archiveInterest,
       memorableMoment: answers.memorableMoment,
       freeComment: answers.freeComment.slice(0, FREE_COMMENT_MAX_LENGTH),
+      moreLivesInterest: answers.moreLivesInterest,
+      nextCuriosity: answers.nextCuriosity,
+      lostFrequency: answers.lostFrequency,
+      wishComment: answers.wishComment.slice(0, FREE_COMMENT_MAX_LENGTH),
       // Minimal observation context — not a copy of world history.
       worldYear: world.getClock().worldYear,
       worldDay: world.getClock().worldDay,
       knownChapterCount: world.getLifeArchive()[0]?.chapters.length ?? 0,
-      completedCoreExperience: world.hasReunitedWithGald(),
+      // "Completed" means they reached the end of THEIR route, whichever
+      // of the four it was — not that they found the bakery.
+      completedCoreExperience: world.hasDiscoveredGaldFuture(),
     };
     await this.store.add(feedback);
     return feedback;
@@ -105,8 +116,10 @@ export function availableMemorableMoments(world: World): MemorableMoment[] {
   if (world.getKnownEvents().some((e) => e.type === 'WORLD_TIME_SHIFTED')) {
     moments.push('TIME_SHIFT');
   }
-  if (world.hasReunitedWithGald()) {
-    moments.push('BAKERY', 'REUNION');
+  if (world.hasDiscoveredGaldFuture()) {
+    moments.push('REUNION');
+    // The bakery is only an option for the route that has one.
+    if (world.hasReunitedWithGald()) moments.push('BAKERY');
   }
   if ((world.getLifeArchive()[0]?.chapters.length ?? 0) > 0) {
     moments.push('LIFE_ARCHIVE');

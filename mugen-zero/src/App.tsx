@@ -14,6 +14,7 @@ import { ChoiceResultScreen } from './ui/screens/ChoiceResultScreen';
 import { WorldMemoryScreen } from './ui/screens/WorldMemoryScreen';
 import { TimeShiftScreen } from './ui/screens/TimeShiftScreen';
 import { FutureSiteScreen } from './ui/screens/FutureSiteScreen';
+import { TalkSpotScreen } from './ui/screens/TalkSpotScreen';
 import { ArchiveScreen } from './ui/screens/ArchiveScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
@@ -33,6 +34,10 @@ import { IdbFeedbackStore } from './core/playtest/idbFeedbackStore';
 import { startNewPlaySession } from './core/playtest/playSession';
 import type { LocationId } from './content/locations/locationVisuals';
 import { futureSiteDef } from './content/world/futureSites';
+import { LOCATIONS } from './content/locations/alden';
+import { ALDEN_EXPERIENCE_EVENTS } from './content/experience/aldenExperience';
+import { pickEvent, locationsWithSomethingNew } from './core/experience/experienceEngine';
+import type { TalkEventDef } from './content/experience/aldenExperience';
 
 // Phaser is the heaviest dependency by far and is only needed once the
 // player walks into the forest; the dev admin never ships to a player's
@@ -95,6 +100,18 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
 
   // WORLD MEMORY (the DB) is the truth; derive world facts from it.
   const galdChoiceInWorld = world.getGaldLifeChoice();
+
+  // Where the map should show 「✦」: somewhere with an experience event
+  // the player has not met, or a future site they have not walked into.
+  // Both are derived from world truth + player knowledge — there is no
+  // separate UI flag that could drift out of step with the world.
+  const changedLocations = new Set<string>([
+    ...locationsWithSomethingNew(ALDEN_EXPERIENCE_EVENTS, world.getExperienceView()),
+    ...world
+      .getOpenFutureSites()
+      .filter((s) => !s.discovered)
+      .map((s) => s.def.id),
+  ]);
 
   switch (state.screen) {
     case 'TITLE':
@@ -205,6 +222,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           }}
           onStay={() => flow.goTo('HOME')}
           onDone={() => flow.goTo('HOME')}
+          // Guidance is for the first shift only — after that the player
+          // knows how time works here.
+          firstShift={!world.hasEventOfType('WORLD_TIME_SHIFTED')}
+          onExplore={() => flow.goTo('EXPLORE')}
         />
       );
     case 'WORLD_MEMORY':
@@ -228,8 +249,31 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             setCurrentLocationId(siteId as LocationId);
             flow.goTo('FUTURE_SITE');
           }}
+          onEnterSpot={(spotId) => {
+            setCurrentLocationId(spotId as LocationId);
+            flow.goTo('TALK_SPOT');
+          }}
+          changedLocations={changedLocations}
         />
       );
+    case 'TALK_SPOT': {
+      const spot = LOCATIONS.find((l) => l.id === currentLocationId);
+      if (!spot) return <div className="screen" />;
+      return (
+        <TalkSpotScreen
+          spotId={spot.id}
+          spotName={spot.name}
+          // The engine decides what happens here; the screen only plays it.
+          event={
+            pickEvent(ALDEN_EXPERIENCE_EVENTS, world.getExperienceView(), {
+              location: spot.id,
+            }) as TalkEventDef | null
+          }
+          onSeen={(eventId) => world.markExperienceSeen(eventId)}
+          onLeave={() => flow.goTo('EXPLORE')}
+        />
+      );
+    }
     case 'FUTURE_SITE': {
       const site = futureSiteDef(currentLocationId);
       // Only reachable from a card the world itself put on the map.

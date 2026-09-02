@@ -31,8 +31,19 @@ import {
   type FutureSiteDef,
 } from '../../content/world/futureSites';
 import { INITIAL_GALD_STATE } from '../../content/characters/gald';
+import type { ExperienceWorldView } from '../experience/types';
 
 const CLOCK_KEY = 'world_clock';
+/**
+ * Which NOW / NEXT experience events the player has already met.
+ *
+ * This is engine bookkeeping, not world canon: bumping into a villager
+ * is not a fact of history the way sparing a man is, and it must never
+ * appear in the LIFE ARCHIVE. It lives as one more key in the existing
+ * key/value state store — no new store, no new index, no DB version
+ * change, and a save written before this build simply has no such key.
+ */
+const SEEN_EXPERIENCE_KEY = 'experience_seen';
 
 function characterKey(id: string): string {
   return `character_${id}`;
@@ -64,15 +75,19 @@ export class World {
   private version = 0;
   private timePassing = false;
 
+  private seenExperience: Set<string>;
+
   private constructor(
     private readonly store: MemoryEventStore,
     events: MemoryEvent[],
     clock: WorldClock,
     characters: Record<string, CharacterState>,
+    seenExperience: string[],
   ) {
     this.events = events;
     this.clock = clock;
     this.characters = characters;
+    this.seenExperience = new Set(seenExperience);
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -86,7 +101,8 @@ export class World {
       characters[id] =
         ((await store.getStateValue(characterKey(id))) as CharacterState | undefined) ?? initial;
     }
-    return new World(store, events, clock, characters);
+    const seen = ((await store.getStateValue(SEEN_EXPERIENCE_KEY)) as string[] | undefined) ?? [];
+    return new World(store, events, clock, characters, seen);
   }
 
   subscribe(listener: Listener): () => void {
@@ -129,6 +145,7 @@ export class World {
   hasProgress(): boolean {
     return (
       this.events.length > 0 ||
+      this.seenExperience.size > 0 ||
       this.clock.worldYear !== INITIAL_CLOCK.worldYear ||
       this.clock.worldDay !== INITIAL_CLOCK.worldDay
     );
@@ -187,6 +204,34 @@ export class World {
    */
   hasDiscoveredGaldFuture(): boolean {
     return FUTURE_DISCOVERY_TYPES.some((type) => this.hasEventOfType(type));
+  }
+
+  // ---- EXPERIENCE (NOW / NEXT events) ----
+
+  /**
+   * A read-only window for the EXPERIENCE ENGINE. The engine never sees
+   * the world itself — only this.
+   */
+  getExperienceView(): ExperienceWorldView {
+    return {
+      hasMemory: (type) => this.events.some((e) => e.type === type),
+      hasSeen: (eventId) => this.seenExperience.has(eventId),
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+    };
+  }
+
+  hasSeenExperience(eventId: string): boolean {
+    return this.seenExperience.has(eventId);
+  }
+
+  /** Remembers that the player met this event. Idempotent. */
+  async markExperienceSeen(eventId: string): Promise<void> {
+    if (this.seenExperience.has(eventId)) return;
+    const next = [...this.seenExperience, eventId];
+    await this.store.commit({ putState: [{ key: SEEN_EXPERIENCE_KEY, value: next }] });
+    this.seenExperience = new Set(next);
+    this.emit();
   }
 
   /** World truth: a bakery exists in Alden. (Not player knowledge.) */
@@ -489,6 +534,7 @@ export class World {
     this.events = [];
     this.clock = INITIAL_CLOCK;
     this.characters = { ...INITIAL_CHARACTERS };
+    this.seenExperience = new Set();
     this.emit();
   }
 }

@@ -14,6 +14,7 @@ export type Screen =
   | 'WORLD_MEMORY'
   | 'TIME_SHIFT'
   | 'FUTURE_SITE'
+  | 'TALK_SPOT'
   | 'ARCHIVE'
   | 'SETTINGS'
   | 'ENDING'

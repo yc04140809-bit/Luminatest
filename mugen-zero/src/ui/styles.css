@@ -761,3 +761,32 @@ body,
 .title-actions .btn {
   width: 100%;
 }
+
+/* 「✦」 — something is waiting here that the player has not met. It is a
+   pointer, never a spoiler: it says where to look, never what is there. */
+.location-new {
+  color: var(--accent);
+  font-size: 0.9em;
+  margin-left: 8px;
+  vertical-align: 0.05em;
+  animation: new-mark-breathe 2.4s ease-in-out infinite;
+}
+@keyframes new-mark-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Kaos passing through HOME. A line, not an event: no box, no tap. */
+.home-kaos-aside {
+  color: var(--memory);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  margin: -4px 0 2px;
+}

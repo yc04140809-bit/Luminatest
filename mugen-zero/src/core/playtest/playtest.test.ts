@@ -36,6 +36,10 @@ const ANSWERS: SurveyAnswers = {
   archiveInterest: 3,
   memorableMoment: 'REUNION',
   freeComment: '面白かった',
+  moreLivesInterest: 4,
+  nextCuriosity: 3,
+  lostFrequency: 'SOME',
+  wishComment: '森の奥へ行ってみたかった',
 };
 
 async function setupWorld(dbName: string, choice: LifeChoiceId = 'SPARE'): Promise<World> {

@@ -12,17 +12,20 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   ENDING: ['HOME', 'ARCHIVE', 'PLAYTEST_SURVEY'],
   PLAYTEST_SURVEY: ['HOME', 'ARCHIVE'],
   SETTINGS: ['HOME'],
-  EXPLORE: ['GREENWOOD', 'FUTURE_SITE', 'HOME'],
+  EXPLORE: ['GREENWOOD', 'FUTURE_SITE', 'TALK_SPOT', 'HOME'],
   // One screen for all four routes' future sites: bakery, waystation,
   // workyard, grave. Which one it shows is a location, not a screen.
   FUTURE_SITE: ['EXPLORE', 'ENDING'],
+  // A place you walk into and meet someone. Always steps back outside.
+  TALK_SPOT: ['EXPLORE'],
   GREENWOOD: ['ENCOUNTER', 'EXPLORE'],
   ENCOUNTER: ['BATTLE'],
   BATTLE: ['LIFE_CHOICE', 'HOME'],
   LIFE_CHOICE: ['CHOICE_RESULT'],
   CHOICE_RESULT: ['HOME'],
   WORLD_MEMORY: ['HOME'],
-  TIME_SHIFT: ['HOME'],
+  // After the first shift Kaos points at the map, not at an answer.
+  TIME_SHIFT: ['HOME', 'EXPLORE'],
   DEV_LOCK: ['DEV_ADMIN', 'HOME'],
   DEV_ADMIN: ['HOME'],
 };

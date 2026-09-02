@@ -9,15 +9,35 @@ interface Props {
   onStay: () => void;
   /** Leaves the aftermath screen. */
   onDone: () => void;
+  /**
+   * True on the player's FIRST shift only. Kaos then says, once, that
+   * the world moved and somewhere in it changed — never which place, and
+   * never whose life. Testers were reaching this screen and not knowing
+   * that looking around was the next thing to do.
+   */
+  firstShift: boolean;
+  /** Goes straight to the map. */
+  onExplore: () => void;
 }
 
 /**
  * TIME SHIFT never happens automatically — the player decides.
  * The full seasonal presentation arrives with Phase E/G; this stays quiet.
  */
-export function TimeShiftScreen({ years, onConfirm, onStay, onDone }: Props) {
+export function TimeShiftScreen({
+  years,
+  onConfirm,
+  onStay,
+  onDone,
+  firstShift,
+  onExplore,
+}: Props) {
   const [phase, setPhase] = useState<'CONFIRM' | 'SHIFTING' | 'DONE'>('CONFIRM');
   const [error, setError] = useState<string | null>(null);
+  // Locked at mount: the shift itself writes WORLD_TIME_SHIFTED, which
+  // would otherwise turn "this is your first shift" false before the
+  // player ever sees the words.
+  const [isFirstShift] = useState(firstShift);
 
   const go = async () => {
     if (phase !== 'CONFIRM') return; // double-tap cannot shift twice
@@ -61,9 +81,44 @@ export function TimeShiftScreen({ years, onConfirm, onStay, onDone }: Props) {
           <br />
           人々は生きていた。
         </p>
-        <button className="btn primary" data-testid="time-shift-return" onClick={onDone}>
-          アルデン地方へ
-        </button>
+        {isFirstShift && (
+          <div style={{ textAlign: 'center' }} data-testid="time-shift-guidance">
+            {kaosPortrait('normal') && (
+              <div className="dialogue-portrait" style={{ marginBottom: 10 }}>
+                <img src={kaosPortrait('normal')!} alt="" aria-hidden="true" />
+              </div>
+            )}
+            <p style={{ color: 'var(--accent)', fontSize: 13, marginBottom: 8 }}>ケイオス</p>
+            <p
+              style={{
+                color: 'var(--text-secondary)',
+                fontSize: 'var(--font-size-sm)',
+                lineHeight: 'var(--line-height-body)',
+                margin: 0,
+              }}
+            >
+              「あの日出会った人の“続き”も、
+              <br />
+              どこかで動いてるみたい。」
+              <br />
+              「少し、歩いてみる？」
+            </p>
+          </div>
+        )}
+        {isFirstShift ? (
+          <div className="life-choice-options" style={{ display: 'flex', flexDirection: 'column' }}>
+            <button className="btn primary" data-testid="time-shift-explore" onClick={onExplore}>
+              変化した場所を探す
+            </button>
+            <button className="btn" data-testid="time-shift-return" onClick={onDone}>
+              アルデン村へ戻る
+            </button>
+          </div>
+        ) : (
+          <button className="btn primary" data-testid="time-shift-return" onClick={onDone}>
+            アルデン地方へ
+          </button>
+        )}
       </div>
     );
   }

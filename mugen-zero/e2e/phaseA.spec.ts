@@ -26,9 +26,9 @@ test('Phase A vertical flow: title to life choice', async ({ page }) => {
   await expect(page.getByTestId('explore-button')).toBeVisible();
   await page.getByTestId('explore-button').click();
 
-  // EXPLORE — only Greenwood is enterable
-  await expect(page.getByTestId('location-ALDEN_VILLAGE')).toBeDisabled();
-  await expect(page.getByTestId('location-MOONLIGHT_TAVERN')).toBeDisabled();
+  // EXPLORE — the village, the tavern and the forest are all enterable
+  await expect(page.getByTestId('location-ALDEN_VILLAGE')).toBeEnabled();
+  await expect(page.getByTestId('location-MOONLIGHT_TAVERN')).toBeEnabled();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
 
   // GREENWOOD — Phaser scene. Click the "!" marker (game coords 180,120 of 360x520).

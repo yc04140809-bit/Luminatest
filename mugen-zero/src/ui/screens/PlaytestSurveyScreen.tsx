@@ -2,7 +2,12 @@ import { useState } from 'react';
 import type { World } from '../../core/world/world';
 import type { PlaytestFeedbackService, SurveyAnswers } from '../../core/playtest/playtestService';
 import { availableMemorableMoments } from '../../core/playtest/playtestService';
-import type { MemorableMoment, Rating, ReunionRecognition } from '../../core/playtest/types';
+import type {
+  LostFrequency,
+  MemorableMoment,
+  Rating,
+  ReunionRecognition,
+} from '../../core/playtest/types';
 import { FREE_COMMENT_MAX_LENGTH } from '../../core/playtest/types';
 import {
   SURVEY_INTRO_LINES,
@@ -11,7 +16,10 @@ import {
   REUNION_OPTIONS,
   MOMENT_QUESTION,
   MOMENT_LABELS,
+  LOST_QUESTION,
+  LOST_OPTIONS,
   FREE_COMMENT_QUESTION,
+  WISH_COMMENT_QUESTION,
   KAOS_THANKS_LINE,
 } from '../../content/playtest/survey';
 import { DialogueSequence } from '../common/DialogueSequence';
@@ -24,9 +32,11 @@ interface Props {
   onOpenArchive: () => void;
 }
 
-type Step = 'INTRO' | 'PAGE_1' | 'PAGE_2' | 'PAGE_3' | 'DONE';
+type Step = 'INTRO' | 'PAGE_1' | 'PAGE_2' | 'PAGE_3' | 'PAGE_4' | 'DONE';
 
-type Draft = Partial<SurveyAnswers> & { freeComment: string };
+const PAGE_COUNT = 4;
+
+type Draft = Partial<SurveyAnswers> & { freeComment: string; wishComment: string };
 
 function RatingQuestion({
   labels,
@@ -160,7 +170,7 @@ function ChoiceQuestion<T extends string>({
  */
 export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }: Props) {
   const [step, setStep] = useState<Step>('INTRO');
-  const [draft, setDraft] = useState<Draft>({ freeComment: '' });
+  const [draft, setDraft] = useState<Draft>({ freeComment: '', wishComment: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -179,9 +189,14 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
     draft.worldImpactFeeling !== undefined &&
     draft.archiveInterest !== undefined &&
     draft.memorableMoment !== undefined;
+  // Round 2 questions: does this generalise, and did they ever get lost?
+  const page3Ready =
+    draft.moreLivesInterest !== undefined &&
+    draft.nextCuriosity !== undefined &&
+    draft.lostFrequency !== undefined;
 
   const submit = async () => {
-    if (saving || !page1Ready || !page2Ready) return;
+    if (saving || !page1Ready || !page2Ready || !page3Ready) return;
     setSaving(true);
     setError(null);
     try {
@@ -194,6 +209,10 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
           archiveInterest: draft.archiveInterest!,
           memorableMoment: draft.memorableMoment!,
           freeComment: draft.freeComment,
+          moreLivesInterest: draft.moreLivesInterest!,
+          nextCuriosity: draft.nextCuriosity!,
+          lostFrequency: draft.lostFrequency!,
+          wishComment: draft.wishComment,
         },
         world,
       );
@@ -242,11 +261,14 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
     );
   }
 
-  const pageIndex = step === 'PAGE_1' ? 1 : step === 'PAGE_2' ? 2 : 3;
+  const pageIndex =
+    step === 'PAGE_1' ? 1 : step === 'PAGE_2' ? 2 : step === 'PAGE_3' ? 3 : 4;
 
   return (
     <div className="screen" data-testid="survey-screen">
-      <div className="screen-title">PLAYTEST — {pageIndex} / 3</div>
+      <div className="screen-title">
+        PLAYTEST — {pageIndex} / {PAGE_COUNT}
+      </div>
       <div className="location-list">
         {step === 'PAGE_1' && (
           <>
@@ -295,7 +317,30 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
           </>
         )}
         {step === 'PAGE_3' && (
-          <fieldset style={{ border: 'none', margin: 0, padding: 0 }} data-testid="q7">
+          <>
+            <RatingQuestion
+              labels={RATING_LABELS.moreLivesInterest}
+              value={draft.moreLivesInterest}
+              onChange={(v) => set('moreLivesInterest', v)}
+              testId="q7"
+            />
+            <RatingQuestion
+              labels={RATING_LABELS.nextCuriosity}
+              value={draft.nextCuriosity}
+              onChange={(v) => set('nextCuriosity', v)}
+              testId="q8"
+            />
+            <ChoiceQuestion<LostFrequency>
+              question={LOST_QUESTION}
+              options={LOST_OPTIONS}
+              value={draft.lostFrequency}
+              onChange={(v) => set('lostFrequency', v)}
+              testId="q9"
+            />
+          </>
+        )}
+        {step === 'PAGE_4' && (
+          <fieldset style={{ border: 'none', margin: 0, padding: 0 }} data-testid="q10">
             <legend
               style={{
                 fontSize: 'var(--font-size-md)',
@@ -307,7 +352,7 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
               {FREE_COMMENT_QUESTION}
             </legend>
             <textarea
-              data-testid="q7-input"
+              data-testid="q10-input"
               aria-label={FREE_COMMENT_QUESTION}
               value={draft.freeComment}
               maxLength={FREE_COMMENT_MAX_LENGTH}
@@ -338,6 +383,38 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
             >
               {draft.freeComment.length} / {FREE_COMMENT_MAX_LENGTH}（空欄のままでも送れます）
             </div>
+            <legend
+              style={{
+                fontSize: 'var(--font-size-md)',
+                lineHeight: 'var(--line-height-body)',
+                padding: 0,
+                margin: 'var(--space-lg) 0 var(--space-sm)',
+              }}
+            >
+              {WISH_COMMENT_QUESTION}
+            </legend>
+            <textarea
+              data-testid="q11-input"
+              aria-label={WISH_COMMENT_QUESTION}
+              value={draft.wishComment}
+              maxLength={FREE_COMMENT_MAX_LENGTH}
+              rows={5}
+              onChange={(e) => set('wishComment', e.target.value)}
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                padding: 'var(--space-md)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border-strong)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-primary)',
+                fontSize: 'var(--font-size-md)',
+                lineHeight: 'var(--line-height-body)',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+              }}
+            />
             {error && (
               <p
                 style={{ color: 'var(--danger)', fontSize: 'var(--font-size-sm)' }}
@@ -354,16 +431,30 @@ export function PlaytestSurveyScreen({ world, service, onFinish, onOpenArchive }
           className="btn"
           data-testid="survey-back"
           disabled={saving}
-          onClick={() => setStep(step === 'PAGE_3' ? 'PAGE_2' : step === 'PAGE_2' ? 'PAGE_1' : 'INTRO')}
+          onClick={() =>
+            setStep(
+              step === 'PAGE_4'
+                ? 'PAGE_3'
+                : step === 'PAGE_3'
+                  ? 'PAGE_2'
+                  : step === 'PAGE_2'
+                    ? 'PAGE_1'
+                    : 'INTRO',
+            )
+          }
         >
           もどる
         </button>
-        {step !== 'PAGE_3' ? (
+        {step !== 'PAGE_4' ? (
           <button
             className="btn primary"
             data-testid="survey-next"
-            disabled={step === 'PAGE_1' ? !page1Ready : !page2Ready}
-            onClick={() => setStep(step === 'PAGE_1' ? 'PAGE_2' : 'PAGE_3')}
+            disabled={
+              step === 'PAGE_1' ? !page1Ready : step === 'PAGE_2' ? !page2Ready : !page3Ready
+            }
+            onClick={() =>
+              setStep(step === 'PAGE_1' ? 'PAGE_2' : step === 'PAGE_2' ? 'PAGE_3' : 'PAGE_4')
+            }
           >
             つぎへ
           </button>
