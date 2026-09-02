@@ -261,7 +261,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       if (!spot) return <div className="screen" />;
       return (
         <TalkSpotScreen
-          spotId={spot.id}
+          spotId={spot.id as LocationId}
           spotName={spot.name}
           // The engine decides what happens here; the screen only plays it.
           event={

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { DialogueSequence } from '../common/DialogueSequence';
 import type { TalkEventDef } from '../../content/experience/aldenExperience';
+import type { LocationId } from '../../content/locations/locationVisuals';
 import { NOTHING_NEW_LINES } from '../../content/experience/aldenExperience';
 import { kaosPortrait } from '../../assets/manifest';
 
 interface Props {
   /** The place being visited (also its backdrop and testid suffix). */
-  spotId: string;
+  spotId: LocationId;
   /** Display name of the place. */
   spotName: string;
   /** What the EXPERIENCE ENGINE picked here, or null when nothing is new. */
@@ -47,7 +48,9 @@ export function TalkSpotScreen({ spotId, spotName, event, onSeen, onLeave }: Pro
         lines={scene.content.lines}
         onComplete={finish}
         testId={`talk-${spotId}`}
-        backdropLocationId={spotId === 'ALDEN_VILLAGE' ? 'ALDEN_VILLAGE' : undefined}
+        // Whatever art the place has. The tavern has none yet, and a
+        // scene with no backdrop simply plays on the dark stage.
+        backdropLocationId={spotId}
       />
     );
   }

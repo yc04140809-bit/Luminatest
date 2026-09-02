@@ -10,6 +10,9 @@ const ENCOUNTER_POINT = { x: 180, y: 120 };
 const ENCOUNTER_RADIUS = 28;
 const PLAYER_SPEED = 160; // px/sec
 const BACKGROUND_KEY = 'greenwood-bg';
+// Big enough to read as a person on a phone, small enough to stay a
+// marker rather than a character standing in front of the scenery.
+const PLAYER_SCALE = 1.25;
 
 export interface GreenwoodCallbacks {
   onEncounter: () => void;
@@ -141,6 +144,7 @@ export class GreenwoodScene extends Phaser.Scene {
     this.playerLegs = [legLeft, legRight];
     return this.add
       .container(x, y, [shadow, legLeft, legRight, cloak, scarf, head])
+      .setScale(PLAYER_SCALE)
       .setDepth(20);
   }
 
@@ -178,7 +182,7 @@ export class GreenwoodScene extends Phaser.Scene {
         this.player.x += Math.cos(angle) * step;
         this.player.y += Math.sin(angle) * step;
         // Face the way you are going.
-        this.player.setScale(Math.cos(angle) < 0 ? -1 : 1, 1);
+        this.player.setScale(Math.cos(angle) < 0 ? -PLAYER_SCALE : PLAYER_SCALE, PLAYER_SCALE);
       }
     }
 
