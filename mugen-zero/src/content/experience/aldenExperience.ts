@@ -130,6 +130,7 @@ const TAVERN_FIRST_VISIT: TalkEventDef = {
   },
   dna: {
     emotionTarget: 'DISCOVERY',
+    visualTier: 'FEATURED',
     curiosityTarget: 'Who was this man before he poured drinks?',
     expectedEffect: 'The tavern gets a face, and the face raises a question.',
   },
@@ -165,6 +166,7 @@ const TAVERN_GREATSWORD: TalkEventDef = {
   },
   dna: {
     emotionTarget: 'CURIOSITY',
+    visualTier: 'FEATURED',
     curiosityTarget: "Whose sword is that, and what did he do with it?",
     expectedEffect: 'The player files Grave away as someone with a story to come.',
     seed: { id: 'TAVERN_MASTER_OLD_GREATSWORD', role: 'PLANTS' },
@@ -194,12 +196,60 @@ const TAVERN_STEW: TalkEventDef = {
 };
 
 /**
- * The one repeatable event in the game. Grave always has a word, so the
- * tavern is never a locked door — that is the whole attachment test:
- * does a face you can go back to make you go back?
+ * Coming back a second and third time. These are the cheapest possible
+ * "he remembers you": no system, no affinity counter — just three
+ * greetings that get a little less formal, in order, once each.
+ */
+const TAVERN_REVISIT_A: TalkEventDef = {
+  eventId: 'TAVERN_MASTER_REVISIT_A',
+  layer: 'NOW',
+  location: MOONLIGHT_TAVERN_SPOT,
+  requirements: [{ kind: 'SEEN', eventId: 'MOONLIGHT_TAVERN_FIRST_VISIT' }],
+  once: true,
+  priority: 6,
+  content: {
+    lines: [
+      { speaker: 'グレイヴ', text: 'また来たな。いつもの席、空いてるぞ。' },
+      { speaker: null, text: 'いつもの席、と言われるほど通った覚えはない。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'WARMTH',
+    visualTier: 'NORMAL',
+    expectedEffect: 'Being recognised, one visit earlier than earned.',
+  },
+};
+
+const TAVERN_REVISIT_B: TalkEventDef = {
+  eventId: 'TAVERN_MASTER_REVISIT_B',
+  layer: 'NOW',
+  location: MOONLIGHT_TAVERN_SPOT,
+  requirements: [{ kind: 'SEEN', eventId: 'TAVERN_MASTER_REVISIT_A' }],
+  once: true,
+  priority: 5,
+  content: {
+    lines: [
+      { speaker: 'グレイヴ', text: 'よう。……何も訊かねぇんだな、あんた。' },
+      { speaker: null, text: 'グレイヴは、少しだけ嬉しそうだった。' },
+      { speaker: 'グレイヴ', text: 'いいことだ。' },
+    ],
+  },
+  dna: {
+    emotionTarget: 'CURIOSITY',
+    visualTier: 'NORMAL',
+    curiosityTarget: 'What is he glad not to be asked?',
+    expectedEffect: 'The gap he is not filling becomes something the player notices.',
+  },
+};
+
+/**
+ * The one repeatable event in the game, and the floor everything else
+ * falls through to. Grave always has a word, so the tavern is never a
+ * locked door — that is the whole attachment test: does a face you can go
+ * back to make you go back?
  *
- * It is deliberately once:false, which also keeps it out of the 「✦」
- * calculation: a familiar greeting is not news.
+ * once:false also keeps it out of the 「✦」 calculation: a familiar
+ * greeting is not news.
  */
 const TAVERN_IDLE: TalkEventDef = {
   eventId: 'TAVERN_MASTER_IDLE',
@@ -217,6 +267,7 @@ const TAVERN_IDLE: TalkEventDef = {
   },
   dna: {
     emotionTarget: 'WARMTH',
+    visualTier: 'NORMAL',
     expectedEffect: 'Coming back is never punished with an empty room.',
   },
 };
@@ -346,6 +397,7 @@ const NEXT_DEEPER_PATH: TalkEventDef = {
   },
   dna: {
     emotionTarget: 'CURIOSITY',
+    visualTier: 'FEATURED',
     curiosityTarget: 'What is down the path that is not on the map?',
     expectedEffect: 'The player leaves this build wanting the next one.',
     seed: { id: 'GREENWOOD_DEEP_PATH', role: 'PLANTS' },
@@ -362,6 +414,8 @@ export const ALDEN_EXPERIENCE_EVENTS: readonly TalkEventDef[] = [
   RUMOR_KILLED,
   NEXT_DEEPER_PATH,
   TAVERN_STEW,
+  TAVERN_REVISIT_A,
+  TAVERN_REVISIT_B,
   TAVERN_IDLE,
   VILLAGER_FOREST_QUIET,
   VILLAGER_TRAVELLER,

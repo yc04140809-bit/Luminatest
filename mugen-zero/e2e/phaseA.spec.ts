@@ -12,7 +12,9 @@ test('Phase A vertical flow: title to life choice', async ({ page }) => {
   // PROLOGUE — monologue (1 line), then Kaos intro (6 lines)
   const monologue = page.getByTestId('prologue-monologue');
   await expect(monologue).toBeVisible();
-  await expect(page.getByText('あなたが忘れても、世界は覚えている。')).toBeVisible();
+  // The opening line carries its own break, so match the clause
+  // rather than the whole sentence.
+  await expect(page.getByText('世界は覚えている。')).toBeVisible();
   await monologue.click();
 
   const kaos = page.getByTestId('kaos-intro');

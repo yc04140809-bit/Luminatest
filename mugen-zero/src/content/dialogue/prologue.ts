@@ -6,7 +6,9 @@ export interface DialogueLine {
 }
 
 export const PROLOGUE_LINES: DialogueLine[] = [
-  { speaker: null, text: 'あなたが忘れても、世界は覚えている。' },
+  // The break is written here on purpose: Japanese wraps anywhere, and
+  // left to itself this line ends with a stranded 「る。」 on its own row.
+  { speaker: null, text: 'あなたが忘れても、\n世界は覚えている。' },
 ];
 
 export const KAOS_INTRO_LINES: DialogueLine[] = [

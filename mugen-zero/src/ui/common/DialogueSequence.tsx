@@ -29,6 +29,11 @@ interface Props {
   /** Show the art only from this line onwards (default: from the first). */
   portraitFromLine?: number;
   /**
+   * A backdrop that is not a place — the key visual behind Kaos, say.
+   * Ignored when backdropLocationId is given.
+   */
+  backdropImage?: string | null;
+  /**
    * Where the scene takes place. Given one, that location's backdrop is
    * drawn behind the dialogue, so meeting someone happens in the place
    * the player just walked through instead of cutting to black.
@@ -49,6 +54,7 @@ export function DialogueSequence({
   portraitFit = 'figure',
   portraitFromLine = 0,
   backdropLocationId,
+  backdropImage = null,
 }: Props) {
   const [index, setIndex] = useState(0);
   // Art is presentation: if it fails to load the scene plays on without
@@ -63,7 +69,7 @@ export function DialogueSequence({
   const sceneSrc =
     isKaos || artFailed || index < portraitFromLine ? null : (portraitSrc ?? null);
 
-  const backdrop = backdropLocationId ? locationBackground(backdropLocationId) : null;
+  const backdrop = backdropLocationId ? locationBackground(backdropLocationId) : backdropImage;
 
   const advance = () => {
     if (index + 1 < lines.length) {
@@ -102,7 +108,11 @@ export function DialogueSequence({
         testId="dialogue-backdrop"
       />
       <div className="dialogue-stage">
-        {centered && <p className="dialogue-centered">{line.text}</p>}
+        {centered && (
+          <p key={index} className="dialogue-centered">
+            {line.text}
+          </p>
+        )}
         {sceneSrc && (
           <img
             className={
@@ -123,8 +133,12 @@ export function DialogueSequence({
             </div>
           )}
           <div className={isKaos ? 'dialogue-box kaos' : 'dialogue-box'}>
-            {line.speaker && <div className="dialogue-speaker">{line.speaker}</div>}
-            <div className="dialogue-text">{line.text}</div>
+            {/* Keyed on the line: each one fades in on its own rather
+                than the text swapping under the reader's eye. */}
+            <div key={index} className="dialogue-line">
+              {line.speaker && <div className="dialogue-speaker">{line.speaker}</div>}
+              <div className="dialogue-text">{line.text}</div>
+            </div>
             <div className="dialogue-next">▼ タップ</div>
           </div>
         </>

@@ -140,6 +140,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
     case 'HOME':
       return (
         <HomeScreen
+          locationId="ALDEN_VILLAGE"
           clock={world.getClock()}
           onExplore={() => flow.goTo('EXPLORE')}
           onWorldMemory={() => flow.goTo('WORLD_MEMORY')}

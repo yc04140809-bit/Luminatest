@@ -2,10 +2,22 @@ import { useState } from 'react';
 import type { WorldClock } from '../../core/events/types';
 import { DEV_ADMIN_ENABLED } from '../../dev/devMode';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
-import { locationBackground } from '../../content/locations/locationVisuals';
+import {
+  locationBackground,
+  locationBackgroundFit,
+  locationBackgroundFocus,
+  type LocationId,
+} from '../../content/locations/locationVisuals';
+import { LOCATIONS } from '../../content/locations/alden';
 import { KAOS_HOME_ASIDES } from '../../content/dialogue/bakery';
 
 interface Props {
+  /**
+   * Where the player is resting. HOME is a place, not a menu, so the
+   * backdrop and the name both come from here — a future forest camp or
+   * capital lodging needs no change to this screen.
+   */
+  locationId: LocationId;
   clock: WorldClock;
   onExplore: () => void;
   onWorldMemory: () => void;
@@ -22,6 +34,7 @@ interface Props {
 }
 
 export function HomeScreen({
+  locationId,
   clock,
   onExplore,
   onWorldMemory,
@@ -32,6 +45,7 @@ export function HomeScreen({
   onDevAdmin,
 }: Props) {
   const [resting, setResting] = useState(false);
+  const place = LOCATIONS.find((l) => l.id === locationId);
 
   // Kaos is around without being an event: one line, on about one day in
   // seven, chosen from the clock so it never flickers between renders.
@@ -54,12 +68,16 @@ export function HomeScreen({
     <div className="screen has-backdrop">
       {/* HOME is a place, not a menu: the player is standing in Alden. */}
       <ScreenBackdrop
-        src={locationBackground('ALDEN_VILLAGE')}
+        src={locationBackground(locationId)}
+        focus={locationBackgroundFocus(locationId)}
+        fit={locationBackgroundFit(locationId)}
         variant="village"
         testId="home-backdrop"
       />
       <div className="home-main">
-        <div className="home-place">ALDEN VILLAGE — アルデン村</div>
+        <div className="home-place" data-testid="home-place">
+          {locationId.replace(/_/g, ' ')} — {place?.name ?? ''}
+        </div>
         <div className="home-place" style={{ letterSpacing: '0.1em' }} data-testid="world-clock">
           {clock.worldYear}年目 {clock.worldDay}日目
         </div>

@@ -75,12 +75,17 @@ describe('experience state', () => {
       seenIds.push(event.eventId);
       await world.markExperienceSeen(event.eventId);
     }
+    // News first, then the seeds, then the small talk, then being
+    // recognised — and only after all of that does he settle into the
+    // regular's greeting.
     expect(seenIds).toEqual([
       'MOONLIGHT_TAVERN_FIRST_VISIT',
       'ALDEN_RUMOR_GALD_LEFT_THE_BANDITS',
       'TAVERN_MASTER_OLD_GREATSWORD',
       'GREENWOOD_DEEPER_PATH_RUMOR',
       'TAVERN_MASTER_STEW',
+      'TAVERN_MASTER_REVISIT_A',
+      'TAVERN_MASTER_REVISIT_B',
     ]);
     // Nothing new left to mark on the map...
     expect(

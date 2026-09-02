@@ -21,12 +21,25 @@ export type ExperienceLayer = 'NOW' | 'NEXT' | 'LIFE';
 export type EmotionTarget = 'CURIOSITY' | 'WARMTH' | 'HUMOR' | 'DISCOVERY' | 'QUIET';
 
 /**
+ * How much presentation an event is worth. Recorded now so the budget
+ * can be planned against intent later; nothing reads it yet, and the
+ * engine never will — it is a note to ourselves, not a switch.
+ *
+ *   NORMAL     a villager, a rumour, a passing beat
+ *   FEATURED   a named person, a discovery
+ *   CINEMATIC  a life turning, a core moment
+ */
+export type VisualTier = 'NORMAL' | 'FEATURED' | 'CINEMATIC';
+
+/**
  * EVENT DNA — the beginnings of a vocabulary for describing why an event
  * exists. Recorded so playtest results can be read against intent later;
  * the engine itself never reads it.
  */
 export interface EventDna {
   emotionTarget: EmotionTarget;
+  /** Presentation budget this event deserves. Descriptive only. */
+  visualTier?: VisualTier;
   /** What the player is meant to wonder about, in one phrase. */
   curiosityTarget?: string;
   /** What this event is expected to make the player do or feel. */

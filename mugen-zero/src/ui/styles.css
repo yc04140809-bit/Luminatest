@@ -792,3 +792,102 @@ body,
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
   margin: -4px 0 2px;
 }
+
+/* ---- FIRST IMPRESSION: the first thirty seconds ----------------------
+   Small moves only. The budget goes on hierarchy and timing, not on more
+   things to look at. Every animation here is short, and every one of them
+   disappears under prefers-reduced-motion (handled globally below). */
+
+/* The opening line is the first sentence of the game. Give it air, and
+   let it arrive rather than appear. */
+.dialogue-centered {
+  font-size: var(--font-size-lg);
+  letter-spacing: 0.08em;
+  line-height: 2.2;
+  max-width: 18em;
+  /* The opening line breaks where the writing says, not where the box
+     runs out — Japanese will otherwise strand a syllable on its own row. */
+  white-space: pre-line;
+  animation: line-arrive 0.9s ease both;
+}
+/* The tap hint waits, so the sentence gets a moment on its own. */
+.dialogue-screen .dialogue-next {
+  animation: hint-arrive 1.4s ease both;
+}
+
+/* Each spoken line fades up under the speaker's name. */
+.dialogue-line {
+  animation: line-arrive 0.34s ease both;
+}
+@keyframes line-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes hint-arrive {
+  0%,
+  55% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Kaos arrives: she rises into frame with a faint light behind her, and
+   her backdrop sits far enough back to stay a suggestion. */
+.dialogue-kaos .dialogue-portrait {
+  animation: kaos-arrive 0.7s ease both;
+}
+.dialogue-kaos .dialogue-portrait img {
+  box-shadow:
+    0 0 0 1px rgba(232, 193, 90, 0.25),
+    0 0 42px rgba(157, 184, 232, 0.22);
+}
+@keyframes kaos-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.dialogue-kaos .screen-backdrop-art {
+  filter: brightness(0.3) saturate(1.05);
+}
+.dialogue-kaos .screen-backdrop-veil {
+  background: radial-gradient(
+    ellipse 80% 50% at 50% 46%,
+    rgba(8, 8, 14, 0.5) 0%,
+    rgba(8, 8, 14, 0.92) 100%
+  );
+}
+
+/* A tap should feel like a press, not a repaint. */
+.btn,
+.location-card,
+.life-choice-btn,
+.nav-item {
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform 0.08s ease;
+}
+.btn:active,
+.location-card:not(:disabled):active,
+.life-choice-btn:active,
+.nav-item:active {
+  transform: scale(0.985);
+}
+
+/* Somewhere new on the map: the card itself says so once, quietly. */
+.location-card:has(.location-new) {
+  border-color: rgba(232, 193, 90, 0.34);
+}

@@ -37,7 +37,9 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.goto(`${BASE}/`);
     await expect(page.getByText('MUGEN ZERO')).toBeVisible();
     await page.getByTestId('start-button').click();
-    await expect(page.getByText('あなたが忘れても、世界は覚えている。')).toBeVisible();
+    // The opening line carries its own break, so match the clause
+    // rather than the whole sentence.
+    await expect(page.getByText('世界は覚えている。')).toBeVisible();
     await page.getByTestId('prologue-monologue').click();
     const kaos = page.getByTestId('kaos-intro');
     await expect(page.getByText('やっと来た。')).toBeVisible();
