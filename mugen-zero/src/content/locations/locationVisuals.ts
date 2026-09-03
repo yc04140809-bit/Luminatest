@@ -55,7 +55,12 @@ export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
     // than the screen and aimed between the sword on the wall and the man
     // behind the bar — both of which the player is meant to notice.
     fit: '168% auto',
-    focus: '46% 38%',
+    // Aimed from the very top of the screen: the art is wider than the
+    // phone and shorter than it, and anchoring it up here puts its upper
+    // cut edge off the frame entirely, leaving one edge to fade instead
+    // of two. Horizontally it still sits between the sword on the wall
+    // and the man behind the bar — both of which the player must notice.
+    focus: '46% 0%',
   },
   GREENWOOD_FOREST: {
     locationId: 'GREENWOOD_FOREST',

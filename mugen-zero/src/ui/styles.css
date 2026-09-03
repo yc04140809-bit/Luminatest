@@ -1,13 +1,5 @@
-:root {
-  --bg: #0b0b12;
-  --panel: #16161f;
-  --panel-2: #1e1e2a;
-  --text: #e8e6e0;
-  --text-dim: #9a97a3;
-  --accent: #e8c15a;
-  --danger: #c05555;
-  --green: #6fae7d;
-}
+/* The palette lives in styles/tokens.css and nowhere else. This file
+   only ever reads it. */
 
 * {
   box-sizing: border-box;
@@ -20,13 +12,18 @@ body,
   margin: 0;
   padding: 0;
   height: 100%;
-  background: var(--bg);
+  background: var(--mugen-bg);
   color: var(--text);
   font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
 }
 
 .app {
   height: 100%;
+  /* Not a flat sheet: the page is very slightly lit where the player
+     looks, the way vellum is under a lamp. */
+  background:
+    radial-gradient(ellipse 120% 60% at 50% 30%, var(--mugen-bg-lift) 0%, transparent 70%),
+    var(--mugen-bg);
   max-width: 480px;
   margin: 0 auto;
   display: flex;
@@ -44,21 +41,29 @@ body,
 /* ---- generic ---- */
 .btn {
   appearance: none;
-  border: 1px solid #35354a;
-  background: var(--panel-2);
-  color: var(--text);
+  border: 1px solid var(--mugen-border);
+  background: var(--mugen-surface);
+  color: var(--mugen-text);
   font-size: 16px;
   padding: 14px 18px;
   border-radius: 10px;
   cursor: pointer;
+  box-shadow: var(--mugen-shadow-soft);
   transition: background 0.15s;
 }
 .btn:active {
-  background: #2a2a3c;
+  background: var(--mugen-surface-alt);
 }
+/* The action that matters wears a little more gold — a stronger line and
+   the faintest wash, never a gold fill. */
 .btn.primary {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--mugen-border-strong);
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+  color: var(--mugen-gold);
+  font-weight: 600;
+}
+.btn:disabled {
+  box-shadow: none;
 }
 .btn:disabled {
   opacity: 0.4;
@@ -97,7 +102,7 @@ body,
 /* ---- dialogue ---- */
 .dialogue-screen {
   justify-content: flex-end;
-  background: #000;
+  background: var(--mugen-bg);
   cursor: pointer;
 }
 .dialogue-stage {
@@ -140,8 +145,8 @@ body,
   max-height: 100%;
   object-fit: contain;
   border-radius: var(--radius-md);
-  border: 1px solid rgba(232, 193, 90, 0.22);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--mugen-border-strong);
+  box-shadow: var(--mugen-shadow);
   filter: none;
 }
 /* A full-width CG wants the stage edges back. */
@@ -155,7 +160,7 @@ body,
   max-width: 100%;
   object-fit: contain;
   object-position: center bottom;
-  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.6));
+  filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.22));
 }
 
 .dialogue-portrait {
@@ -167,21 +172,22 @@ body,
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  box-shadow: 0 0 24px rgba(157, 184, 232, 0.18);
-  background: var(--surface);
+  border: 1px solid var(--mugen-border-strong);
+  box-shadow: 0 0 0 4px var(--mugen-surface), var(--mugen-shadow-soft);
+  background: var(--mugen-surface);
 }
 .dialogue-box {
   margin: 12px;
   padding: 16px 18px 22px;
-  background: rgba(22, 22, 31, 0.94);
-  border: 1px solid #35354a;
+  background: rgba(255, 253, 248, 0.94);
+  border: 1px solid var(--mugen-border);
   border-radius: 12px;
   min-height: 108px;
+  box-shadow: var(--mugen-shadow);
 }
 .dialogue-box.kaos {
-  border-color: rgba(157, 184, 232, 0.45);
-  box-shadow: 0 0 18px rgba(157, 184, 232, 0.1);
+  border-color: var(--mugen-memory-soft);
+  box-shadow: var(--mugen-shadow), 0 0 0 1px var(--mugen-memory-soft);
 }
 .dialogue-speaker {
   font-size: 13px;
@@ -218,9 +224,11 @@ body,
   width: 172px;
   height: 172px;
   border-radius: 50%;
-  border: 2px solid var(--accent);
-  color: var(--accent);
-  background: rgba(232, 193, 90, 0.06);
+  border: 1px solid var(--mugen-border-strong);
+  color: var(--mugen-gold);
+  background:
+    radial-gradient(circle at 50% 42%, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+  box-shadow: var(--mugen-shadow);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -246,8 +254,8 @@ body,
 }
 .bottom-nav {
   display: flex;
-  border-top: 1px solid #26263a;
-  background: var(--panel);
+  border-top: 1px solid var(--mugen-border);
+  background: var(--mugen-surface);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .bottom-nav .nav-item {
@@ -277,9 +285,10 @@ body,
   text-align: left;
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid #2c2c40;
-  background: var(--panel);
-  color: var(--text);
+  border: 1px solid var(--mugen-border);
+  background: var(--mugen-surface);
+  color: var(--mugen-text);
+  box-shadow: var(--mugen-shadow-soft);
   cursor: pointer;
 }
 .location-card:disabled {
@@ -308,7 +317,7 @@ body,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #060a08;
+  background: var(--mugen-bg);
 }
 .phaser-wrap canvas {
   max-width: 100%;
@@ -317,7 +326,7 @@ body,
 
 /* ---- battle ---- */
 .battle-screen {
-  background: linear-gradient(180deg, #10120e 0%, #0b0b12 100%);
+  background: linear-gradient(180deg, var(--mugen-bg-lift) 0%, var(--mugen-bg) 100%);
 }
 .battle-enemy {
   flex: 1;
@@ -342,13 +351,13 @@ body,
   max-height: 100%;
   max-width: 84%;
   object-fit: contain;
-  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.65));
+  filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.26));
 }
 .battle-portrait.hit {
   animation: battle-hit 0.26s ease;
 }
 .battle-portrait.beaten {
-  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.65)) saturate(0.85) brightness(0.92);
+  filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.26)) saturate(0.85) brightness(0.96);
 }
 @keyframes battle-hit {
   0% { transform: translateX(0); filter: brightness(1); }
@@ -359,7 +368,7 @@ body,
 .battle-guard-mark {
   position: absolute;
   inset: 12% 16%;
-  border: 2px solid rgba(157, 184, 232, 0.55);
+  border: 2px solid var(--mugen-memory);
   border-radius: 50%;
   animation: battle-guard 0.26s ease;
   pointer-events: none;
@@ -379,8 +388,8 @@ body,
   width: 110px;
   height: 110px;
   border-radius: 14px;
-  background: #262230;
-  border: 1px solid #3c3650;
+  background: var(--mugen-surface-alt);
+  border: 1px solid var(--mugen-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -399,7 +408,7 @@ body,
 .hp-bar {
   height: 8px;
   border-radius: 4px;
-  background: #26263a;
+  background: var(--mugen-surface-sunk);
   overflow: hidden;
 }
 .hp-fill {
@@ -414,12 +423,12 @@ body,
   margin: 0 12px;
   padding: 10px 14px;
   min-height: 64px;
-  background: rgba(22, 22, 31, 0.9);
-  border: 1px solid #2c2c40;
+  background: var(--mugen-surface);
+  border: 1px solid var(--mugen-border);
   border-radius: 10px;
   font-size: 14px;
   line-height: 1.7;
-  color: var(--text);
+  color: var(--mugen-text);
 }
 .battle-commands {
   display: flex;
@@ -433,7 +442,7 @@ body,
 
 /* ---- life choice ---- */
 .life-choice-screen {
-  background: #000;
+  background: var(--mugen-bg);
   justify-content: center;
   align-items: center;
   gap: 18px;
@@ -454,7 +463,7 @@ body,
   max-height: 34vh;
   max-width: 70%;
   object-fit: contain;
-  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.7));
+  filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.28));
 }
 .life-choice-speech {
   width: 100%;
@@ -486,10 +495,11 @@ body,
   padding: 14px 10px;
   font-size: 15px;
   text-align: center;
-  background: rgba(30, 30, 42, 0.85);
-  border: 1px solid #44445c;
+  background: var(--mugen-surface);
+  border: 1px solid var(--mugen-border-strong);
   border-radius: 10px;
-  color: var(--text);
+  color: var(--mugen-text);
+  box-shadow: var(--mugen-shadow-soft);
   cursor: pointer;
 }
 .life-choice-btn .sub {
@@ -521,15 +531,20 @@ body,
 .memory-carved {
   animation: memory-glow 1.6s ease;
 }
+/* On a light page a glow is invisible; what reads instead is the line
+   being drawn — a memory settling into the paper. */
 @keyframes memory-glow {
   0% {
-    text-shadow: 0 0 0 rgba(157, 184, 232, 0);
+    color: var(--mugen-text);
+    text-shadow: 0 0 0 var(--mugen-memory-soft);
   }
   35% {
-    text-shadow: 0 0 22px rgba(157, 184, 232, 0.85);
+    color: var(--mugen-memory);
+    text-shadow: 0 0 18px var(--mugen-memory-soft);
   }
   100% {
-    text-shadow: 0 0 6px rgba(157, 184, 232, 0.25);
+    color: var(--mugen-memory);
+    text-shadow: 0 0 0 var(--mugen-memory-soft);
   }
 }
 .memory-mark {
@@ -613,12 +628,54 @@ body,
   pointer-events: none;
 }
 .screen-backdrop-art,
-.screen-backdrop-veil {
+.screen-backdrop-veil,
+.screen-backdrop-underlay {
   position: absolute;
   inset: 0;
 }
+/* The wash a fitted band sits in. Not a picture — a colour memory of one. */
+.screen-backdrop-underlay {
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  filter: blur(30px) brightness(1.32) contrast(0.7) saturate(0.42);
+  transform: scale(1.14);
+  opacity: 0.55;
+}
 .screen-backdrop-art {
   background-repeat: no-repeat;
+}
+/* Art that is sized rather than cropped sits on the page as a band. Its
+   top and bottom are cut edges, so they are faded out instead of drawn:
+   the picture becomes an illustration on vellum rather than a photograph
+   pasted onto it. */
+.backdrop-art-inset {
+  /* A cut edge cannot be softened by fading it — the step is in the art,
+     not in the alpha. So the band is anchored to the top of the screen,
+     where its upper edge leaves the frame entirely, and only the single
+     lower edge remains to be faded away. */
+  /* The fade must be finished BY the band's lower edge, or the edge is
+     simply drawn at whatever alpha the fade has reached. Where the band
+     ends depends on the art's aspect and its width, so it is a variable:
+     one number per screen, set where that art is fitted. */
+  --band-end: 50%;
+  --band-fade: 24%;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 var(--band-fade),
+    transparent var(--band-end)
+  );
+  mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 var(--band-fade),
+    transparent var(--band-end)
+  );
+}
+/* The wash then carries the rest of the screen. */
+.screen-backdrop:has(.backdrop-art-inset) .screen-backdrop-underlay {
+  opacity: 0.4;
 }
 /* Everything the screen itself draws sits above the art. */
 .screen.has-backdrop > *:not(.screen-backdrop) {
@@ -628,15 +685,19 @@ body,
 
 /* TITLE — the Kaos key visual. The art is square and the phone is not, so
    cover-cropping it would cut the wings off. Instead it is fitted wide and
-   feathered into the page top and bottom: the wings and the gold-and-black
-   disc survive whole. The veil is heaviest at the top and the bottom, where
-   the logo and the buttons live, and lightest across her silhouette. */
+   feathered into the page top and bottom: the wings and the disc survive
+   whole. The veil is heaviest at the top and the bottom, where the logo
+   and the buttons live, and lightest across her silhouette.
+
+   Under this theme the veil is ivory, not black: the art is washed
+   towards the page until it reads as something remembered rather than
+   something photographed, and the words on top stay charcoal. */
 .backdrop-title .screen-backdrop-art {
   background-position: 50% 38%;
   /* wider than the screen so the wings clear the left and right edges,
      and tall enough that the fade below ends before the art does */
   background-size: 150% auto;
-  filter: brightness(0.46) contrast(1.04) saturate(1.15);
+  filter: brightness(1.08) contrast(1) saturate(0.78);
   -webkit-mask-image: linear-gradient(
     180deg,
     transparent 12%,
@@ -649,11 +710,11 @@ body,
 .backdrop-title .screen-backdrop-veil {
   background: linear-gradient(
     180deg,
-    rgba(8, 8, 14, 0.9) 0%,
-    rgba(8, 8, 14, 0.6) 20%,
-    rgba(8, 8, 14, 0.34) 46%,
-    rgba(8, 8, 14, 0.72) 74%,
-    rgba(8, 8, 14, 0.95) 100%
+    var(--mugen-veil-strong) 0%,
+    var(--mugen-veil) 20%,
+    rgba(250, 247, 240, 0.42) 46%,
+    var(--mugen-veil) 74%,
+    var(--mugen-veil-strong) 100%
   );
 }
 
@@ -663,22 +724,22 @@ body,
 .backdrop-village .screen-backdrop-art {
   background-position: 50% 45%;
   background-size: cover;
-  filter: brightness(0.66) saturate(0.94);
+  filter: var(--mugen-art-filter);
 }
 .backdrop-village .screen-backdrop-veil {
   background:
     radial-gradient(
       ellipse 66% 30% at 50% 48%,
-      rgba(8, 10, 16, 0.6) 0%,
-      rgba(8, 10, 16, 0.18) 72%,
-      rgba(8, 10, 16, 0) 100%
+      var(--mugen-veil) 0%,
+      var(--mugen-veil-light) 72%,
+      rgba(250, 247, 240, 0.42) 100%
     ),
     linear-gradient(
       180deg,
-      rgba(8, 10, 16, 0.8) 0%,
-      rgba(8, 10, 16, 0.36) 26%,
-      rgba(8, 10, 16, 0.44) 62%,
-      rgba(8, 10, 16, 0.88) 100%
+      var(--mugen-veil-strong) 0%,
+      var(--mugen-veil-light) 26%,
+      var(--mugen-veil) 62%,
+      var(--mugen-veil-strong) 100%
     );
 }
 
@@ -688,61 +749,62 @@ body,
 .backdrop-battle .screen-backdrop-art {
   background-position: 50% 32%;
   background-size: cover;
-  filter: brightness(0.66) saturate(0.9) blur(1.2px);
+  filter: var(--mugen-art-filter) blur(1.2px);
   /* blur samples past the edges; the overscan hides the soft border */
   transform: scale(1.05);
 }
 .backdrop-battle .screen-backdrop-veil {
   background:
-    radial-gradient(ellipse 62% 40% at 50% 44%, rgba(4, 6, 8, 0.06) 0%, rgba(4, 6, 8, 0.46) 100%),
+    radial-gradient(ellipse 62% 40% at 50% 44%, var(--mugen-veil-light) 0%, var(--mugen-veil) 100%),
     linear-gradient(
       180deg,
-      rgba(6, 8, 10, 0.52) 0%,
-      rgba(6, 8, 10, 0.3) 44%,
-      rgba(6, 8, 10, 0.78) 100%
+      var(--mugen-veil) 0%,
+      var(--mugen-veil-light) 44%,
+      var(--mugen-veil-strong) 100%
     );
 }
 
 /* ENCOUNTER — the forest again, so walking up to Gald, meeting him and
    fighting him are visibly one continuous place. */
 .dialogue-screen.has-backdrop {
-  background: var(--bg);
+  background: var(--mugen-bg);
 }
 .backdrop-encounter .screen-backdrop-art {
   background-position: 50% 34%;
   background-size: cover;
-  /* Lifted from 0.54: the tavern art is night-lit to begin with, and the
-     barman's scars — the thing the scene is about — were disappearing. */
-  filter: brightness(0.62) saturate(0.95);
+  /* The tavern art is night-lit to begin with, so it needs the least
+     lifting of the three to reach the page. */
+  filter: brightness(1.14) contrast(0.95) saturate(0.72);
 }
 .backdrop-encounter .screen-backdrop-veil {
   background: linear-gradient(
     180deg,
-    rgba(6, 8, 10, 0.5) 0%,
-    rgba(6, 8, 10, 0.34) 45%,
-    rgba(6, 8, 10, 0.88) 100%
+    var(--mugen-veil-strong) 0%,
+    rgba(250, 247, 240, 0.34) 38%,
+    var(--mugen-veil) 78%,
+    var(--mugen-veil-strong) 100%
   );
 }
 
 /* UI contrast over art: panels stop being translucent decoration and
    become surfaces the text can sit on. */
 .screen.has-backdrop .btn {
-  background: rgba(20, 20, 29, 0.82);
+  background: rgba(255, 253, 248, 0.88);
 }
 .screen.has-backdrop .btn:active {
-  background: rgba(42, 42, 60, 0.9);
+  background: rgba(242, 237, 225, 0.95);
 }
 .title-screen .title-logo,
 .title-screen .title-sub,
 .has-backdrop .home-place {
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+  text-shadow: 0 1px 10px rgba(250, 247, 240, 0.95);
 }
 .screen.has-backdrop .home-explore {
-  background: rgba(11, 11, 18, 0.55);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: var(--mugen-shadow);
 }
 .screen.has-backdrop .home-explore:active {
-  background: rgba(24, 22, 30, 0.7);
+  background: rgba(242, 237, 225, 0.92);
 }
 
 /* With the key visual behind it the title breathes: the logo sits high,
@@ -789,7 +851,7 @@ body,
   font-size: var(--font-size-sm);
   letter-spacing: 0.04em;
   text-align: center;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 10px rgba(250, 247, 240, 0.9);
   margin: -4px 0 2px;
 }
 
@@ -846,8 +908,9 @@ body,
 }
 .dialogue-kaos .dialogue-portrait img {
   box-shadow:
-    0 0 0 1px rgba(232, 193, 90, 0.25),
-    0 0 42px rgba(157, 184, 232, 0.22);
+    0 0 0 4px var(--mugen-surface),
+    0 0 0 5px var(--mugen-border-strong),
+    var(--mugen-shadow);
 }
 @keyframes kaos-arrive {
   from {
@@ -860,13 +923,13 @@ body,
   }
 }
 .dialogue-kaos .screen-backdrop-art {
-  filter: brightness(0.3) saturate(1.05);
+  filter: brightness(1.3) contrast(0.8) saturate(0.5);
 }
 .dialogue-kaos .screen-backdrop-veil {
   background: radial-gradient(
     ellipse 80% 50% at 50% 46%,
-    rgba(8, 8, 14, 0.5) 0%,
-    rgba(8, 8, 14, 0.92) 100%
+    var(--mugen-veil) 0%,
+    var(--mugen-veil-strong) 100%
   );
 }
 
@@ -889,5 +952,95 @@ body,
 
 /* Somewhere new on the map: the card itself says so once, quietly. */
 .location-card:has(.location-new) {
-  border-color: rgba(232, 193, 90, 0.34);
+  border-color: var(--mugen-border-strong);
+}
+
+
+/* ---- VISUAL IDENTITY v0.1: the marks ---------------------------------
+   Three motifs, used where they mean something and nowhere else. All of
+   them are hairline gold: they are drawn on the page, never filled onto
+   it. */
+
+.title-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.title-wings {
+  color: var(--mugen-gold);
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+/* WORLD MEMORY — one thread with marks along it. The line is the cause
+   running through the events; the ring at each event is the moment it
+   closed. It is drawn entirely from the list that was already there. */
+.memory-trace .location-card {
+  position: relative;
+  padding-left: 44px;
+}
+/* The thread is drawn between the marks, not down the whole page: it
+   joins what actually happened and stops where the記憶 stop. */
+.memory-trace .location-card::before {
+  content: '';
+  position: absolute;
+  left: 21px;
+  top: 34px;
+  /* the list's own gap, so the line bridges to the next card */
+  bottom: -13px;
+  width: 1px;
+  background: var(--mugen-gold-soft);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.memory-trace .location-card:last-child::before {
+  display: none;
+}
+.memory-trace-mark {
+  position: absolute;
+  left: 13px;
+  top: 15px;
+  color: var(--mugen-gold);
+  background: var(--mugen-surface);
+  line-height: 0;
+  padding: 2px 0;
+}
+.memory-empty {
+  color: var(--mugen-text-muted);
+  text-align: center;
+  line-height: 1.8;
+  padding-top: 12vh;
+}
+.memory-empty svg {
+  color: var(--mugen-gold-soft);
+  opacity: 0.7;
+  margin-bottom: 10px;
+}
+
+/* HOME — the dial the player pushes to go out into the world wears the
+   ring too: a circle that has not finished closing. */
+.home-explore {
+  position: relative;
+}
+.home-explore::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 1px solid var(--mugen-gold-soft);
+  opacity: 0.45;
+  /* The gap sits at the bottom, where the eye leaves the dial. */
+  -webkit-mask-image: conic-gradient(from 160deg, transparent 0 22deg, #000 22deg 360deg);
+  mask-image: conic-gradient(from 160deg, transparent 0 22deg, #000 22deg 360deg);
+  pointer-events: none;
+}
+
+/* Art that carries its own background is not a cut-out figure; framing it
+   says so, instead of letting a dark rectangle sit on the page. */
+.battle-portrait.beaten,
+.life-choice-portrait {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--mugen-border-strong);
+  box-shadow: var(--mugen-shadow);
 }

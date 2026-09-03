@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
+import { Ornament } from '../common/Ornament';
 import { TITLE_KEY_VISUAL } from '../../assets/manifest';
 
 interface Props {
@@ -33,11 +34,15 @@ export function TitleScreen({ hasSave, onStart, onContinue, onReset }: Props) {
       {/* The key visual sits behind everything; the logo rides above it
           and the buttons below it, so Kaos is never covered up. */}
       <ScreenBackdrop src={TITLE_KEY_VISUAL} variant="title" testId="title-backdrop" />
-      <div>
+      <div className="title-mark">
         <h1 className="title-logo">MUGEN ZERO</h1>
         <p className="title-sub">v0.1</p>
       </div>
       <div className="title-actions">
+        {/* Her wings, drawn once, between the picture and the way in.
+            One side feathered, one side webbed — never mirrored. They are
+            not repeated anywhere else: she is the only thing they mean. */}
+        <Ornament kind="wings" size={14} className="title-wings" />
         {hasSave ? (
           <>
             <button className="btn primary" data-testid="continue-button" onClick={onContinue}>

@@ -1,5 +1,6 @@
 import type { MemoryEvent } from '../../core/memory/types';
 import { MEMORY_EVENT_LABEL } from '../../content/events/galdLifeChoice';
+import { Ornament } from '../common/Ornament';
 
 interface Props {
   /**
@@ -16,14 +17,22 @@ export function WorldMemoryScreen({ events, onBack }: Props) {
   return (
     <div className="screen">
       <div className="screen-title">世界の記憶</div>
-      <div className="location-list" data-testid="world-memory-list">
+      {/* The記憶 read as one thread with marks along it, not as rows in a
+          table: what the world keeps is a chain of causes, and the page
+          should look like that before a word of it is read. */}
+      <div className="location-list memory-trace" data-testid="world-memory-list">
         {events.length === 0 ? (
-          <p style={{ color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.8 }}>
+          <p className="memory-empty">
+            <Ornament kind="feather" size={26} />
+            <br />
             まだ、世界に刻まれた記憶はありません。
           </p>
         ) : (
           events.map((event) => (
             <div key={event.id} className="location-card" data-testid={`memory-event-${event.type}`}>
+              <span className="memory-trace-mark" aria-hidden="true">
+                <Ornament kind="ring" size={16} />
+              </span>
               <div className="location-name">{MEMORY_EVENT_LABEL[event.type] ?? event.type}</div>
               <div className="location-desc">
                 {event.worldYear}年目 {event.worldDay}日目

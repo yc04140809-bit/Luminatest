@@ -47,7 +47,7 @@ export function DevLockScreen({ onUnlock, onBack }: Props) {
             letterSpacing: '0.4em',
             textAlign: 'center',
             background: 'var(--panel-2)',
-            border: '1px solid #44445c',
+            border: '1px solid var(--mugen-border-strong)',
             borderRadius: 10,
             color: 'var(--text)',
           }}

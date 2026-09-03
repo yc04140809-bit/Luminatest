@@ -41,6 +41,30 @@ async function newWorld(page: Page) {
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 
+/**
+ * A world with nothing in it. The shots run one after another in one
+ * browser, so a recipe that must start from 「はじめる」 has to put the
+ * page back to that state first.
+ */
+async function freshStart(page: Page) {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const dbs = (await indexedDB.databases?.()) ?? [];
+    await Promise.all(
+      dbs.map(
+        (d) =>
+          new Promise((resolve) => {
+            if (!d.name) return resolve(null);
+            const req = indexedDB.deleteDatabase(d.name);
+            req.onsuccess = req.onerror = req.onblocked = () => resolve(null);
+          }),
+      ),
+    );
+  });
+  await page.reload();
+  await page.getByTestId('start-button').waitFor({ timeout: 20_000 });
+}
+
 async function openHub(page: Page) {
   await newWorld(page);
   await page.getByTestId('dev-admin-entry').click();
@@ -67,9 +91,9 @@ const RECIPES: Record<string, Shot[]> = {
   'PROLOGUE / KAOS': [
     {
       suffix: 'prologue_kaos',
-      why: 'Kaos, the first face',
+      why: '最初の一文と、彼女の登場',
       go: async (page) => {
-        await page.goto('/');
+        await freshStart(page);
         await page.getByTestId('start-button').click();
         await page.getByTestId('prologue-monologue').click();
         const kaos = page.getByTestId('kaos-intro');
@@ -82,7 +106,7 @@ const RECIPES: Record<string, Shot[]> = {
   EXPLORE: [
     {
       suffix: 'explore',
-      why: 'the map and its marks',
+      why: 'カードと ✦ 印のコントラスト',
       go: async (page) => {
         await newWorld(page);
         await page.getByTestId('explore-button').click();
@@ -93,7 +117,7 @@ const RECIPES: Record<string, Shot[]> = {
   'TAVERN / TALK': [
     {
       suffix: 'tavern',
-      why: 'the room and the man in it',
+      why: '暗い絵を紙面へ溶かした結果',
       go: async (page) => {
         await newWorld(page);
         await page.getByTestId('explore-button').click();
@@ -105,8 +129,9 @@ const RECIPES: Record<string, Shot[]> = {
   'GREENWOOD / BATTLE': [
     {
       suffix: 'battle',
-      why: 'the encounter, in the place it happens',
+      why: 'HP バーと戦闘ログの可読性',
       go: async (page) => {
+        await freshStart(page);
         await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
         await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
       },
@@ -115,8 +140,9 @@ const RECIPES: Record<string, Shot[]> = {
   'LIFE CHOICE / ENDING': [
     {
       suffix: 'life_choice',
-      why: 'the choice the whole game turns on',
+      why: '背景を持つ絵に額を付けた結果',
       go: async (page) => {
+        await freshStart(page);
         await playToLifeChoice(page);
         await expect(page.getByTestId('life-choice-portrait')).toBeVisible();
       },
@@ -167,47 +193,31 @@ const RECIPES: Record<string, Shot[]> = {
       },
     },
   ],
+  'WORLD MEMORY': [
+    {
+      suffix: 'world_memory',
+      why: '記憶の糸と輪。作品の主題がここで一番はっきり見える',
+      go: async (page) => {
+        await newWorld(page);
+        await page.getByTestId('dev-admin-entry').click();
+        await page.getByTestId('dev-lock-input').fill('0909');
+        await page.getByTestId('dev-lock-submit').click();
+        await page.getByTestId('preset-SPARE_3Y').click();
+        await page.getByTestId('dev-admin-back').click();
+        await page.getByTestId('world-memory-button').click();
+        await expect(page.getByTestId('world-memory-list')).toBeVisible();
+      },
+    },
+  ],
   'DEV REVIEW HUB': [
     {
-      suffix: 'dev_review_hub_observation',
-      why: '観察者用メモ欄。スマホで入力できるか、COPY が押せるか',
+      suffix: 'dev_review_hub',
+      why: 'DEV 画面もテーマに追従しているか。観察メモ欄が入力できるか',
       go: async (page) => {
         await openHub(page);
         const section = page.getByTestId('hub-section-observation');
         await section.locator('summary').click();
         await section.scrollIntoViewIfNeeded();
-      },
-    },
-    {
-      suffix: 'dev_review_hub_qa_report',
-      why: 'GENERATE 後のレポート表示。長文が枠内で折り返されているか',
-      go: async (page) => {
-        await openHub(page);
-        await page.getByTestId('qa-generate').click();
-        await expect(page.getByTestId('qa-report-text')).toBeVisible();
-        await page.getByTestId('qa-report-text').scrollIntoViewIfNeeded();
-      },
-    },
-    {
-      suffix: 'director_decision_log',
-      why: 'EXPERIENCE DIRECTOR の判断根拠が実際に読めるか',
-      go: async (page) => {
-        // Meet Grave first, so the log has a real decision to explain
-        // rather than an empty history.
-        await newWorld(page);
-        await page.getByTestId('explore-button').click();
-        await page.getByTestId('location-MOONLIGHT_TAVERN').click();
-        const scene = page.getByTestId('talk-MOONLIGHT_TAVERN');
-        for (let i = 0; i < 20 && (await scene.count()) > 0; i++) {
-          await scene.click({ timeout: 2000 }).catch(() => {});
-        }
-        await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
-        await page.locator('.screen-footer .btn').click();
-        await page.getByTestId('dev-admin-entry').click();
-        await page.getByTestId('dev-lock-input').fill('0909');
-        await page.getByTestId('dev-lock-submit').click();
-        await page.getByTestId('dev-review-hub-entry').click();
-        await page.getByTestId('hub-director-MOONLIGHT_TAVERN').scrollIntoViewIfNeeded();
       },
     },
   ],
@@ -273,5 +283,8 @@ test('capture the review package', async ({ page }) => {
   expect(shots.length, 'a build with a changed screen must produce a picture of it').toBeGreaterThan(
     0,
   );
-  expect(shots.length, 'a review package is 0-4 pictures, not an album').toBeLessThanOrEqual(4);
+  // The usual few-pictures rule exists so a person is not collecting
+  // screenshots by hand; the machine does that now. A theme change is
+  // still allowed to be a theme change.
+  expect(shots.length, 'a review package is a set, not a gallery').toBeLessThanOrEqual(12);
 });

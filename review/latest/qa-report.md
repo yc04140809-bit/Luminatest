@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T11:08:14.700Z
-- Build: MUGEN ZERO v0.1 / fb6cf39 / 2026-09-03T11:07:54.859Z
+- Generated: 2026-09-03T11:48:24.671Z
+- Build: MUGEN ZERO v0.1 / 79763e3 / 2026-09-03T11:47:48.716Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -20,11 +20,11 @@
 - Locations: MOONLIGHT_TAVERN (11), ALDEN_VILLAGE (10)
 - Narrative seeds: 3
 - Rumours (events gated on a world fact): 8
-- Events met in this world: 1
+- Events met in this world: 0
 
 ## EXPERIENCE
-- Met: MOONLIGHT_TAVERN_FIRST_VISIT
-- Most recent first: MOONLIGHT_TAVERN_FIRST_VISIT
+- Met: nothing yet
+- Most recent first: nothing yet
 
 ## NARRATIVE SEEDS
 - [SEED] `TAVERN_MASTER_OLD_GREATSWORD` 酒場の壁の両手剣 — from TAVERN_MASTER_OLD_GREATSWORD, unanswered in this build
@@ -60,7 +60,7 @@
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
-- **PASS** `EXPERIENCE_LOG_RESOLVES` — 1 events met, all still in the registry
+- **PASS** `EXPERIENCE_LOG_RESOLVES` — 0 events met, all still in the registry
   - how: resolved the saved experience log against the registry
 - **PASS** `DIRECTOR_NEVER_EMPTIES_A_ROOM` — wherever something could happen, the director offers something
   - how: ran the director against every location in the current world
@@ -80,7 +80,7 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **PASS** `SAVE_RESTORED` — restored 5 facts and 1 met events from IndexedDB
+- **PASS** `SAVE_RESTORED` — restored 5 facts and 0 met events from IndexedDB
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
@@ -98,6 +98,13 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] PLAYTEST SURVEY — two new pages of round-3 questions — check the length and the boxes on a phone
-- [ ] DEV REVIEW HUB — a note pad for the observer was added below the director log
-- unchanged, no screenshot needed: TITLE, PROLOGUE / KAOS, HOME, EXPLORE, TAVERN / TALK, GREENWOOD / BATTLE, LIFE CHOICE / ENDING
+- [ ] TITLE — 第一印象。ivory の上でケイオスと金の輪が読めるか
+- [ ] PROLOGUE / KAOS — 最初の一文と彼女の登場が明るい紙面で成立するか
+- [ ] HOME — 村の絵の上でメニューが読めるか。EXPLORE の記憶の輪
+- [ ] EXPLORE — カードと ✦ 印のコントラスト
+- [ ] TAVERN / TALK — 暗い絵を紙面へ溶かした結果。グレイヴの傷が見えるか
+- [ ] GREENWOOD / BATTLE — HP バーと戦闘ログの可読性
+- [ ] WORLD MEMORY — 記憶の糸と輪。ここが作品の主題として見えるか
+- [ ] LIFE CHOICE / ENDING — 背景を持つ絵に額を付けた結果
+- [ ] PLAYTEST SURVEY — 設問と入力欄が明るい紙面で読めるか
+- [ ] DEV REVIEW HUB — DEV 画面もテーマに追従しているか

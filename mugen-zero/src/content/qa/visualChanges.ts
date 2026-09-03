@@ -10,22 +10,20 @@
 
 import type { VisualChange } from '../../core/qa/types';
 
+/* VISUAL IDENTITY v0.1 turned the whole game from black to ivory and
+   gold. There is no such thing as an unaffected screen this round, so
+   every one of them is listed as changed and every one of them is
+   photographed — the usual "keep it to a few" rule is about not making a
+   person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
-  { screen: 'TITLE', changed: false, reason: 'untouched since the key visual' },
-  { screen: 'PROLOGUE / KAOS', changed: false, reason: 'untouched' },
-  { screen: 'HOME', changed: false, reason: 'untouched' },
-  { screen: 'EXPLORE', changed: false, reason: 'untouched' },
-  { screen: 'TAVERN / TALK', changed: false, reason: 'untouched — event order changed, layout did not' },
-  { screen: 'GREENWOOD / BATTLE', changed: false, reason: 'untouched' },
-  { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'untouched' },
-  {
-    screen: 'PLAYTEST SURVEY',
-    changed: true,
-    reason: 'two new pages of round-3 questions — check the length and the boxes on a phone',
-  },
-  {
-    screen: 'DEV REVIEW HUB',
-    changed: true,
-    reason: 'a note pad for the observer was added below the director log',
-  },
+  { screen: 'TITLE', changed: true, reason: '第一印象。ivory の上でケイオスと金の輪が読めるか' },
+  { screen: 'PROLOGUE / KAOS', changed: true, reason: '最初の一文と彼女の登場が明るい紙面で成立するか' },
+  { screen: 'HOME', changed: true, reason: '村の絵の上でメニューが読めるか。EXPLORE の記憶の輪' },
+  { screen: 'EXPLORE', changed: true, reason: 'カードと ✦ 印のコントラスト' },
+  { screen: 'TAVERN / TALK', changed: true, reason: '暗い絵を紙面へ溶かした結果。グレイヴの傷が見えるか' },
+  { screen: 'GREENWOOD / BATTLE', changed: true, reason: 'HP バーと戦闘ログの可読性' },
+  { screen: 'WORLD MEMORY', changed: true, reason: '記憶の糸と輪。ここが作品の主題として見えるか' },
+  { screen: 'LIFE CHOICE / ENDING', changed: true, reason: '背景を持つ絵に額を付けた結果' },
+  { screen: 'PLAYTEST SURVEY', changed: true, reason: '設問と入力欄が明るい紙面で読めるか' },
+  { screen: 'DEV REVIEW HUB', changed: true, reason: 'DEV 画面もテーマに追従しているか' },
 ];

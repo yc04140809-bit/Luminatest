@@ -124,7 +124,7 @@ export function HomeScreen({
             style={{
               background: 'none',
               border: 'none',
-              color: '#3a3a4c',
+              color: 'var(--mugen-border-strong)',
               fontSize: 11,
               letterSpacing: '0.2em',
               cursor: 'pointer',

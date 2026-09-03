@@ -108,7 +108,7 @@ export function DevReviewHub({ world, onBack }: Props) {
           <div
             className="location-desc"
             data-testid="hub-verdict"
-            style={{ color: report.ok ? 'var(--accent)' : '#ff8a80', fontWeight: 700 }}
+            style={{ color: report.ok ? 'var(--accent)' : 'var(--mugen-danger)', fontWeight: 700 }}
           >
             {report.ok ? 'NO FAILED CHECKS' : `${failed.length} FAILED CHECK(S)`}
           </div>
@@ -426,8 +426,8 @@ const reportBox: React.CSSProperties = {
   marginTop: 8,
   padding: 10,
   borderRadius: 8,
-  border: '1px solid var(--line, #444)',
-  background: 'rgba(0,0,0,0.35)',
+  border: '1px solid var(--mugen-border)',
+  background: 'var(--mugen-surface-alt)',
   color: 'inherit',
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
   fontSize: 12,
@@ -547,8 +547,8 @@ function ObservationField({
           boxSizing: 'border-box',
           padding: 8,
           borderRadius: 8,
-          border: '1px solid var(--line, #444)',
-          background: 'rgba(0,0,0,0.35)',
+          border: '1px solid var(--mugen-border)',
+          background: 'var(--mugen-surface-alt)',
           color: 'inherit',
           fontSize: 13,
           lineHeight: 1.5,
@@ -562,10 +562,10 @@ function ObservationField({
 
 const STATUS_COLOR: Record<QaStatus, string> = {
   PASS: 'var(--accent)',
-  FAIL: '#ff8a80',
-  WARN: '#ffcc80',
+  FAIL: 'var(--mugen-danger)',
+  WARN: '#8a6a1f',
   NOT_TESTED: 'inherit',
-  MANUAL: '#90caf9',
+  MANUAL: 'var(--mugen-memory)',
 };
 
 function Row({ label, value }: { label: string; value: string }) {

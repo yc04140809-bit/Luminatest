@@ -26,8 +26,21 @@ export function ScreenBackdrop({ src, variant, focus, fit, testId }: Props) {
   if (!src) return null;
   return (
     <div className={`screen-backdrop backdrop-${variant}`} aria-hidden="true" data-testid={testId}>
+      {fit && (
+        // Art given its own size leaves the page bare above and below it,
+        // and on a light page that bare strip meets the picture as a hard
+        // line. The same image, blurred out to fill the frame, gives the
+        // band something of itself to fade into.
+        <div
+          className="screen-backdrop-underlay"
+          style={{ backgroundImage: `url(${src})` }}
+        />
+      )}
       <div
-        className="screen-backdrop-art"
+        // Art given its own size does not fill the screen, so its edges
+        // are real edges. On a light page they show as hard seams; the
+        // inset class feathers them into the paper.
+        className={`screen-backdrop-art${fit ? ' backdrop-art-inset' : ''}`}
         style={{
           backgroundImage: `url(${src})`,
           ...(focus ? { backgroundPosition: focus } : {}),
