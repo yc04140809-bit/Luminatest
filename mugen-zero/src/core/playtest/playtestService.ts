@@ -13,7 +13,7 @@ import type {
   Rating,
   ReunionRecognition,
 } from './types';
-import { FREE_COMMENT_MAX_LENGTH } from './types';
+import { FREE_COMMENT_MAX_LENGTH, SHORT_ANSWER_MAX_LENGTH } from './types';
 import { getPlaySessionId } from './playSession';
 import { summarizeFeedback, type PlaytestSummary } from './summary';
 import { feedbackToCsv } from './csv';
@@ -30,6 +30,13 @@ export interface SurveyAnswers {
   nextCuriosity: Rating;
   lostFrequency: LostFrequency;
   wishComment: string;
+  /** Round 3 — the core-experience questions. Text answers may be blank. */
+  reunionMeaning: Rating;
+  mugenMoment: string;
+  aliveMoment: string;
+  unnaturalMoment: string;
+  boringMoment: string;
+  confusingMoment: string;
 }
 
 function randomId(): string {
@@ -85,6 +92,12 @@ export class PlaytestFeedbackService {
       nextCuriosity: answers.nextCuriosity,
       lostFrequency: answers.lostFrequency,
       wishComment: answers.wishComment.slice(0, FREE_COMMENT_MAX_LENGTH),
+      reunionMeaning: answers.reunionMeaning,
+      mugenMoment: answers.mugenMoment.slice(0, SHORT_ANSWER_MAX_LENGTH),
+      aliveMoment: answers.aliveMoment.slice(0, SHORT_ANSWER_MAX_LENGTH),
+      unnaturalMoment: answers.unnaturalMoment.slice(0, SHORT_ANSWER_MAX_LENGTH),
+      boringMoment: answers.boringMoment.slice(0, SHORT_ANSWER_MAX_LENGTH),
+      confusingMoment: answers.confusingMoment.slice(0, SHORT_ANSWER_MAX_LENGTH),
       // Minimal observation context — not a copy of world history.
       worldYear: world.getClock().worldYear,
       worldDay: world.getClock().worldDay,

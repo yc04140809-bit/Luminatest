@@ -30,6 +30,8 @@ export function DevReviewHub({ world, onBack }: Props) {
   // game does.
   const [reportedAt, setReportedAt] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<string>('');
+  const [observation, setObservation] = useState<Observation>(loadObservation);
+  const [observationCopyState, setObservationCopyState] = useState<string>('');
 
   const input = useMemo(() => collectQaInput(world), [world]);
   const report = useMemo(() => buildQaReport(input), [input]);
@@ -53,6 +55,26 @@ export function DevReviewHub({ world, onBack }: Props) {
       // recognises — the text is on screen either way, so say so instead
       // of pretending it worked.
       setCopyState('コピーできませんでした。下のテキストを長押しして選択してください。');
+    }
+  };
+
+  const setObserved = (key: keyof Observation, value: string) => {
+    const next = { ...observation, [key]: value };
+    setObservation(next);
+    saveObservation(next);
+  };
+
+  const observationNote = useMemo(
+    () => renderObservationNote(observation, input.build.commit, decisions),
+    [observation, input.build.commit, decisions],
+  );
+
+  const copyObservation = async () => {
+    try {
+      await navigator.clipboard.writeText(observationNote);
+      setObservationCopyState('コピーしました。');
+    } catch {
+      setObservationCopyState('コピーできませんでした。下のテキストを長押しで選択してください。');
     }
   };
 
@@ -133,23 +155,7 @@ export function DevReviewHub({ world, onBack }: Props) {
                 readOnly
                 value={markdown}
                 onFocus={(e) => e.currentTarget.select()}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  minHeight: 260,
-                  marginTop: 8,
-                  padding: 10,
-                  borderRadius: 8,
-                  border: '1px solid var(--line, #444)',
-                  background: 'rgba(0,0,0,0.35)',
-                  color: 'inherit',
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  // Long lines wrap instead of forcing the page sideways.
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
+                style={reportBox}
               />
             </>
           )}
@@ -319,6 +325,75 @@ export function DevReviewHub({ world, onBack }: Props) {
           ))}
         </Section>
 
+        {/* ---- PLAYTEST OBSERVATION ---- */}
+        {/* The two questions a tester cannot answer, because answering
+            them means watching the log above while they play. Notes are
+            an observer's opinion: they are never world canon, never
+            analytics, and nothing in the game ever reads them. */}
+        <Section title="PLAYTEST OBSERVATION" id="observation">
+          <div className="location-desc" style={{ opacity: 0.75, marginBottom: 8 }}>
+            第三者プレイ中に気づいたことを、観察者が書き留めるための欄。
+            プレイヤー本人の回答は、ゲーム内の PLAYTEST アンケートで集めます。
+            ここに書いた内容は世界の記憶にもアナリティクスにも入りません。
+          </div>
+          <ObservationField
+            label="テスター / セッション"
+            testId="obs-session"
+            rows={1}
+            value={observation.session}
+            onChange={(v) => setObserved('session', v)}
+          />
+          <ObservationField
+            label="6. CHARACTER_REPEAT が邪魔したと感じた箇所"
+            hint="本来先に出るべき人物の話が後回しになった、と見えた場面。"
+            testId="obs-character-repeat"
+            value={observation.characterRepeat}
+            onChange={(v) => setObserved('characterRepeat', v)}
+          />
+          <ObservationField
+            label="7. Director の選択が不自然だった箇所"
+            hint="上の DECISION LOG と突き合わせて、選ばれた理由が納得できなかった場面。"
+            testId="obs-director"
+            value={observation.director}
+            onChange={(v) => setObserved('director', v)}
+          />
+          <ObservationField
+            label="その他の観察"
+            testId="obs-other"
+            value={observation.other}
+            onChange={(v) => setObserved('other', v)}
+          />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+            <button className="btn" style={btn} data-testid="obs-copy" onClick={copyObservation}>
+              COPY OBSERVATION NOTE
+            </button>
+            <button
+              className="btn"
+              style={btn}
+              data-testid="obs-clear"
+              onClick={() => {
+                setObservation(EMPTY_OBSERVATION);
+                saveObservation(EMPTY_OBSERVATION);
+                setObservationCopyState('');
+              }}
+            >
+              CLEAR
+            </button>
+          </div>
+          {observationCopyState && (
+            <div className="location-desc" data-testid="obs-copy-status">
+              {observationCopyState}
+            </div>
+          )}
+          <textarea
+            data-testid="obs-note-text"
+            readOnly
+            value={observationNote}
+            onFocus={(e) => e.currentTarget.select()}
+            style={{ ...reportBox, minHeight: 160 }}
+          />
+        </Section>
+
         {/* ---- ALL CHECKS ---- */}
         <Section title="AUTOMATED CHECKS" id="checks">
           {report.checks.map((c) => (
@@ -342,6 +417,148 @@ export function DevReviewHub({ world, onBack }: Props) {
 }
 
 const btn: React.CSSProperties = { fontSize: 13, padding: '12px 12px', flex: '1 1 40%' };
+
+/** Long text on a phone: wraps, never pushes the page sideways. */
+const reportBox: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  minHeight: 260,
+  marginTop: 8,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid var(--line, #444)',
+  background: 'rgba(0,0,0,0.35)',
+  color: 'inherit',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 12,
+  lineHeight: 1.5,
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+};
+
+interface Observation {
+  session: string;
+  characterRepeat: string;
+  director: string;
+  other: string;
+}
+
+const EMPTY_OBSERVATION: Observation = {
+  session: '',
+  characterRepeat: '',
+  director: '',
+  other: '',
+};
+
+/**
+ * The observer's draft, kept in localStorage.
+ *
+ * Deliberately NOT in IndexedDB: this is scratch paper for whoever is
+ * watching a playtest, not feedback and certainly not world canon, and
+ * it must not need a schema, a migration or a place in any export. It
+ * survives a reload so a session's notes are not lost by a stray tap,
+ * and that is all it is for.
+ */
+const OBSERVATION_KEY = 'mugen-playtest-observation';
+
+function loadObservation(): Observation {
+  try {
+    const raw = localStorage.getItem(OBSERVATION_KEY);
+    if (!raw) return EMPTY_OBSERVATION;
+    return { ...EMPTY_OBSERVATION, ...(JSON.parse(raw) as Partial<Observation>) };
+  } catch {
+    return EMPTY_OBSERVATION;
+  }
+}
+
+function saveObservation(observation: Observation): void {
+  try {
+    localStorage.setItem(OBSERVATION_KEY, JSON.stringify(observation));
+  } catch {
+    // Private mode, storage full, storage disabled: the notes still work
+    // for this visit, and losing scratch paper is not worth an error.
+  }
+}
+
+/** The note as text, with the evidence the observer was looking at. */
+function renderObservationNote(
+  observation: Observation,
+  commit: string,
+  decisions: { location: string; decision: { selected: { eventId: string } | null } }[],
+): string {
+  const lines = [
+    '# MUGEN PLAYTEST OBSERVATION NOTE',
+    '',
+    `- Build: ${commit}`,
+    `- Written: ${new Date().toISOString()}`,
+    `- Session: ${observation.session || '(未記入)'}`,
+    '',
+    '## 6. CHARACTER_REPEAT が邪魔したと感じた箇所',
+    observation.characterRepeat || '(なし / 未記入)',
+    '',
+    '## 7. Director の選択が不自然だった箇所',
+    observation.director || '(なし / 未記入)',
+    '',
+    '## その他の観察',
+    observation.other || '(なし / 未記入)',
+    '',
+    '## この時点で Director が選んでいたもの',
+  ];
+  for (const { location, decision } of decisions) {
+    lines.push(`- ${location}: ${decision.selected?.eventId ?? 'QUIET'}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+function ObservationField({
+  label,
+  hint,
+  value,
+  onChange,
+  testId,
+  rows = 3,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (value: string) => void;
+  testId: string;
+  rows?: number;
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div className="location-desc" style={{ marginBottom: 4 }}>
+        {label}
+      </div>
+      {hint && (
+        <div className="location-desc" style={{ opacity: 0.65, marginBottom: 4 }}>
+          {hint}
+        </div>
+      )}
+      <textarea
+        data-testid={testId}
+        aria-label={label}
+        rows={rows}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: 8,
+          borderRadius: 8,
+          border: '1px solid var(--line, #444)',
+          background: 'rgba(0,0,0,0.35)',
+          color: 'inherit',
+          fontSize: 13,
+          lineHeight: 1.5,
+          fontFamily: 'inherit',
+          resize: 'vertical',
+        }}
+      />
+    </div>
+  );
+}
 
 const STATUS_COLOR: Record<QaStatus, string> = {
   PASS: 'var(--accent)',

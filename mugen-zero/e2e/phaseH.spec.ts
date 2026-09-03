@@ -108,9 +108,39 @@ async function answerSurvey(page: Page, comment = '再会でびっくりした�
   await page.getByTestId('survey-next').click();
 
   if (comment) await page.getByTestId('q10-input').fill(comment);
+  await page.getByTestId('survey-next').click();
+
+  // Round 3: one rating, then the moment questions, which may be blank.
+  await page.getByTestId('q12-4').click();
+  await page.getByTestId('survey-next').click();
   await page.getByTestId('survey-submit').click();
   await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
 }
+
+test('the tester can hand their answers back, because nothing else can', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await completeCoreExperience(page);
+  await page.getByTestId('archive-button').click();
+  await openSurveyFromArchive(page);
+  await answerSurvey(page, '再会でびっくりした。');
+
+  // The done screen is honest about where the answers actually are.
+  await expect(page.getByTestId('survey-done')).toContainText('この端末の中だけ');
+  await page.getByTestId('survey-copy-answers').click();
+  await expect(page.getByTestId('survey-copy-status')).toContainText('コピーしました');
+
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).toContain('MUGEN ZERO PLAYTEST');
+  expect(text).toContain('route: SPARE');
+  expect(text).toContain('再会でびっくりした。');
+  expect(text).toContain('再会に意味を感じた: 4');
+  // The text on screen is the same text, for a browser that refuses the
+  // clipboard: the tester is never left with no way back.
+  expect(await page.getByTestId('survey-answers-text').inputValue()).toBe(text);
+});
 
 test('survey is offered only after the life choice, saves locally, and shows once', async ({
   page,
@@ -273,6 +303,9 @@ test('KILL route reaches the survey without seeing bakery or reunion options', a
   await page.getByTestId('q8-2').click();
   await page.getByTestId('q9-SOME').click();
   await page.getByTestId('survey-next').click();
+  await page.getByTestId('survey-next').click();
+  await page.getByTestId('q12-3').click();
+  await page.getByTestId('survey-next').click();
   await page.getByTestId('survey-submit').click();
   await expect(page.getByTestId('survey-done')).toBeVisible({ timeout: 10_000 });
 
@@ -341,5 +374,13 @@ for (const size of [
     await noOverflow();
     const textarea = await page.getByTestId('q10-input').boundingBox();
     expect(textarea!.x + textarea!.width).toBeLessThanOrEqual(size.width + 1);
+
+    // The round-3 pages have to fit too.
+    await page.getByTestId('survey-next').click();
+    await page.getByTestId('q12-3').click();
+    await noOverflow();
+    await page.getByTestId('survey-next').click();
+    await page.getByTestId('q16-input').fill('同じ人ばかり出てきた気がする');
+    await noOverflow();
   });
 }

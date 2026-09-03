@@ -112,7 +112,7 @@ const RECIPES: Record<string, Shot[]> = {
       },
     },
   ],
-  'LIFE CHOICE / ENDING / SURVEY': [
+  'LIFE CHOICE / ENDING': [
     {
       suffix: 'life_choice',
       why: 'the choice the whole game turns on',
@@ -122,11 +122,61 @@ const RECIPES: Record<string, Shot[]> = {
       },
     },
   ],
+  'PLAYTEST SURVEY': [
+    {
+      suffix: 'survey_core_questions',
+      why: '第3ラウンドの新しい設問ページ。スマホで長すぎないか、入力欄が押せるか',
+      go: async (page) => {
+        // A preset world, because the survey only asks about a choice
+        // that has already been made — and the questions are the point
+        // here, not the road to them.
+        await newWorld(page);
+        await page.getByTestId('dev-admin-entry').click();
+        await page.getByTestId('dev-lock-input').fill('0909');
+        await page.getByTestId('dev-lock-submit').click();
+        await page.getByTestId('preset-SPARE_3Y').click();
+        await page.getByTestId('dev-admin-back').click();
+        await page.getByTestId('archive-button').click();
+        await page.getByTestId('open-survey-button').click();
+        const ending = page.getByTestId('ending-kaos');
+        await expect(ending).toBeVisible();
+        for (let i = 0; i < 4; i++) await ending.click();
+        await page.getByTestId('ending-survey-button').click();
+        const intro = page.getByTestId('survey-intro');
+        await expect(intro).toBeVisible();
+        await intro.click();
+        await intro.click();
+        // Walk to the first of the new pages.
+        await page.getByTestId('q1-4').click();
+        await page.getByTestId('q2-4').click();
+        await page.getByTestId('q3-IMMEDIATE').click();
+        await page.getByTestId('survey-next').click();
+        await page.getByTestId('q4-4').click();
+        await page.getByTestId('q5-4').click();
+        // Never the reunion: this preset has not been to the bakery, and
+        // the survey rightly does not offer a moment nobody reached.
+        await page.getByTestId('q6-LIFE_CHOICE').click();
+        await page.getByTestId('survey-next').click();
+        await page.getByTestId('q7-4').click();
+        await page.getByTestId('q8-4').click();
+        await page.getByTestId('q9-NONE').click();
+        await page.getByTestId('survey-next').click();
+        await page.getByTestId('survey-next').click();
+        await page.getByTestId('q12-4').click();
+        await expect(page.getByTestId('q13')).toBeVisible();
+      },
+    },
+  ],
   'DEV REVIEW HUB': [
     {
-      suffix: 'dev_review_hub',
-      why: '新規画面。折りたたみと可読性を実機で確認してほしい',
-      go: openHub,
+      suffix: 'dev_review_hub_observation',
+      why: '観察者用メモ欄。スマホで入力できるか、COPY が押せるか',
+      go: async (page) => {
+        await openHub(page);
+        const section = page.getByTestId('hub-section-observation');
+        await section.locator('summary').click();
+        await section.scrollIntoViewIfNeeded();
+      },
     },
     {
       suffix: 'dev_review_hub_qa_report',

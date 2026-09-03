@@ -29,6 +29,12 @@ export type LostFrequency = 'NONE' | 'SOME' | 'OFTEN';
 
 export const FREE_COMMENT_MAX_LENGTH = 1000;
 
+/**
+ * The round-3 questions ask for a moment, not an essay. A short box says
+ * "one line is enough" more honestly than any placeholder text could.
+ */
+export const SHORT_ANSWER_MAX_LENGTH = 200;
+
 export interface PlaytestFeedback {
   id: string;
   createdAt: string;
@@ -53,6 +59,21 @@ export interface PlaytestFeedback {
   nextCuriosity?: Rating;
   lostFrequency?: LostFrequency;
   wishComment?: string;
+
+  /**
+   * Round 3 — the MUGEN CORE EXPERIENCE questions.
+   *
+   * These exist to test one causal chain and nothing else: meet someone,
+   * choose, be remembered, come back, and feel that the world kept the
+   * memory. Optional like their predecessors, so rounds 1 and 2 keep
+   * reading back with no migration and no lost answers.
+   */
+  reunionMeaning?: Rating;
+  mugenMoment?: string;
+  aliveMoment?: string;
+  unnaturalMoment?: string;
+  boringMoment?: string;
+  confusingMoment?: string;
 
   /** Minimal observation context — never a copy of world history. */
   worldYear: number;

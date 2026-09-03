@@ -17,10 +17,15 @@ export const VISUAL_CHANGES: readonly VisualChange[] = [
   { screen: 'EXPLORE', changed: false, reason: 'untouched' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'untouched — event order changed, layout did not' },
   { screen: 'GREENWOOD / BATTLE', changed: false, reason: 'untouched' },
-  { screen: 'LIFE CHOICE / ENDING / SURVEY', changed: false, reason: 'untouched' },
+  { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'untouched' },
+  {
+    screen: 'PLAYTEST SURVEY',
+    changed: true,
+    reason: 'two new pages of round-3 questions — check the length and the boxes on a phone',
+  },
   {
     screen: 'DEV REVIEW HUB',
     changed: true,
-    reason: 'new screen — check it is readable on a phone and that COPY works',
+    reason: 'a note pad for the observer was added below the director log',
   },
 ];

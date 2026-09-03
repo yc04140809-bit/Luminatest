@@ -10,8 +10,12 @@ import {
   type SurveyAnswers,
 } from './playtestService';
 import { summarizeFeedback } from './summary';
-import { feedbackToCsv, escapeCsvCell, UTF8_BOM } from './csv';
-import { FREE_COMMENT_MAX_LENGTH, type PlaytestFeedback } from './types';
+import { feedbackToCsv, escapeCsvCell, CSV_COLUMNS, UTF8_BOM } from './csv';
+import {
+  FREE_COMMENT_MAX_LENGTH,
+  SHORT_ANSWER_MAX_LENGTH,
+  type PlaytestFeedback,
+} from './types';
 import type { LifeChoiceId } from '../flow/types';
 
 let dbCounter = 0;
@@ -40,6 +44,12 @@ const ANSWERS: SurveyAnswers = {
   nextCuriosity: 3,
   lostFrequency: 'SOME',
   wishComment: '森の奥へ行ってみたかった',
+  reunionMeaning: 5,
+  mugenMoment: '三年後に村の噂が変わっていた',
+  aliveMoment: '酒場の主人が名前を覚えていた',
+  unnaturalMoment: '',
+  boringMoment: '',
+  confusingMoment: '',
 };
 
 async function setupWorld(dbName: string, choice: LifeChoiceId = 'SPARE'): Promise<World> {
@@ -257,6 +267,22 @@ describe('summary', () => {
   });
 });
 
+describe('round 3 — the core-experience questions', () => {
+  it('stores a moment, and caps it at a moment', async () => {
+    const world = await setupWorld('round3-db');
+    const service = await PlaytestFeedbackService.open(new IdbFeedbackStore('round3-fb'));
+    const saved = await service.submit(
+      { ...ANSWERS, reunionMeaning: 4, mugenMoment: 'あ'.repeat(500), confusingMoment: '' },
+      world,
+    );
+    expect(saved.reunionMeaning).toBe(4);
+    expect(saved.mugenMoment).toHaveLength(SHORT_ANSWER_MAX_LENGTH);
+    expect(saved.confusingMoment).toBe('');
+    // Feedback is still feedback: nothing of this reached the world.
+    expect(world.getEvents().some((e) => e.type.includes('MOMENT'))).toBe(false);
+  });
+});
+
 describe('CSV export', () => {
   it('writes a BOM, a header and one row per answer', () => {
     const csv = feedbackToCsv([sampleFeedback({ id: 'a1' })]);
@@ -275,6 +301,25 @@ describe('CSV export', () => {
     expect(csv).toContain('「再会」でびっくりした');
     // The newline stays inside a quoted cell.
     expect(csv).toContain('"面白かった\n「再会」でびっくりした"');
+  });
+
+  it('carries the round-3 answers, and leaves them blank for older rows', () => {
+    const round3 = feedbackToCsv([
+      sampleFeedback({
+        id: 'new',
+        reunionMeaning: 5,
+        mugenMoment: '村の噂が変わっていた',
+        boringMoment: '',
+      }),
+    ]);
+    expect(round3.split('\r\n')[0]).toContain('"mugenMoment"');
+    expect(round3).toContain('村の噂が変わっていた');
+
+    // A row saved before these questions existed still exports cleanly.
+    const older = feedbackToCsv([sampleFeedback({ id: 'old' })]);
+    const cells = older.trim().split('\r\n')[1].split(',');
+    expect(cells).toHaveLength(CSV_COLUMNS.length);
+    expect(cells[CSV_COLUMNS.indexOf('mugenMoment')]).toBe('""');
   });
 
   it('defuses spreadsheet formulas in any cell', () => {

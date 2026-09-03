@@ -46,7 +46,48 @@ export const RATING_LABELS = {
     low: '感じなかった',
     high: 'とても感じた',
   },
+  // Round 3: the one link in the chain the earlier rounds never asked
+  // about. Recognising him is not the same as it mattering.
+  reunionMeaning: {
+    question: '再会に意味を感じましたか？',
+    low: '感じなかった / 再会していない',
+    high: 'とても感じた',
+  },
 } as const;
+
+/**
+ * Round 3 — the MUGEN CORE EXPERIENCE questions.
+ *
+ * All five are optional and all five ask for a moment, not an opinion:
+ * "when" is answerable from memory, "was it good" is not. None of them
+ * names a system, so a tester never has to know what a Director is to
+ * tell us it got in the way.
+ */
+export const MOMENT_QUESTIONS = {
+  mugenMoment: {
+    question: 'この世界が「続いている」と感じた瞬間はありましたか？',
+    hint: 'あった場面をひとことで。なければ空欄で。',
+  },
+  aliveMoment: {
+    question: '登場人物が「生きている」と感じた瞬間はありましたか？',
+    hint: '誰の、どの場面か覚えている範囲で。',
+  },
+  unnaturalMoment: {
+    question: '会話が不自然だと感じた場面はありましたか？',
+    hint: '流れがおかしい、話が飛んだ、同じ人ばかり出てくる、など。',
+  },
+  boringMoment: {
+    question: '退屈だと感じた瞬間はありましたか？',
+    hint: '正直に書いてください。ここが一番役に立ちます。',
+  },
+  confusingMoment: {
+    question: '意味が分からなかった場面はありましたか？',
+    hint: '何が起きたのか分からなかった、どう読めばいいか迷った、など。',
+  },
+} as const;
+
+export const MOMENT_PAGE_NOTE =
+  '覚えている範囲で、ひとことで大丈夫です。空欄のままでも送れます。';
 
 export const LOST_QUESTION = '次に何をすればよいか分からなくなる場面はありましたか？';
 

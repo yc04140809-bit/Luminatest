@@ -1,17 +1,17 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T07:46:55.230Z
-- Build: MUGEN ZERO v0.1 / d56e817 / 2026-09-03T07:46:38.844Z
+- Generated: 2026-09-03T11:08:14.700Z
+- Build: MUGEN ZERO v0.1 / fb6cf39 / 2026-09-03T11:07:54.859Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 1年目 1日目 (day 1)
-- Route: NONE
-- TIME SHIFTs: 0
-- WORLD MEMORY facts: 0
-- LIFE ARCHIVE: 0 known / 0 in canon
-- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 4年目 4日目 (day 1099)
+- Route: SPARE
+- TIME SHIFTs: 1
+- WORLD MEMORY facts: 5
+- LIFE ARCHIVE: 1 known / 4 in canon
+- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -48,15 +48,15 @@
   - how: looked for an event requiring each route memory
 
 ## WORLD MEMORY CHECKS
-- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 0 facts recorded, no duplicates
+- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 5 facts recorded, no duplicates
   - how: compared every event id in the world currently loaded
-- **PASS** `LIFE_CHOICE_IS_SINGULAR` — no choice made yet
+- **PASS** `LIFE_CHOICE_IS_SINGULAR` — one choice: PLAYER_SPARED_GALD
   - how: counted the first-encounter outcomes in WORLD MEMORY
 - **PASS** `WORLD_MEMORY_IN_ORDER` — history runs forwards
   - how: walked the event list comparing world dates
-- **PASS** `FUTURE_SITE_CAUSALITY` — 0 of 4 sites on the map, 0 found
+- **PASS** `FUTURE_SITE_CAUSALITY` — 1 of 4 sites on the map, 0 found
   - how: compared each site discovery against its required world memory
-- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 0 of 0 chapters known to the player
+- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 1 of 4 chapters known to the player
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
@@ -80,7 +80,7 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **PASS** `SAVE_RESTORED` — restored 0 facts and 1 met events from IndexedDB
+- **PASS** `SAVE_RESTORED` — restored 5 facts and 1 met events from IndexedDB
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
@@ -98,5 +98,6 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] DEV REVIEW HUB — new screen — check it is readable on a phone and that COPY works
-- unchanged, no screenshot needed: TITLE, PROLOGUE / KAOS, HOME, EXPLORE, TAVERN / TALK, GREENWOOD / BATTLE, LIFE CHOICE / ENDING / SURVEY
+- [ ] PLAYTEST SURVEY — two new pages of round-3 questions — check the length and the boxes on a phone
+- [ ] DEV REVIEW HUB — a note pad for the observer was added below the director log
+- unchanged, no screenshot needed: TITLE, PROLOGUE / KAOS, HOME, EXPLORE, TAVERN / TALK, GREENWOOD / BATTLE, LIFE CHOICE / ENDING

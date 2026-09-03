@@ -74,9 +74,11 @@ const notes = readNotes();
 // ---- the measurements ----
 
 const results = [];
-const typecheck = run('typecheck', 'npx', ['tsc', '--noEmit']);
+// `tsc --noEmit` on this project's solution tsconfig checks NOTHING —
+// it has "files": [] and only references. Only a build checks the code.
+const typecheck = run('typecheck', 'npx', ['tsc', '-b', '--force']);
 results.push({
-  name: 'Typecheck (tsc --noEmit)',
+  name: 'Typecheck (tsc -b --force)',
   ok: typecheck.ok,
   detail: typecheck.ok ? 'no type errors' : tail(typecheck.output, /error/i),
 });

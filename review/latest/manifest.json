@@ -1,22 +1,27 @@
 {
-  "capturedAt": "2026-09-03T07:46:55.647Z",
+  "capturedAt": "2026-09-03T11:08:15.114Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_dev_review_hub.png",
-      "screen": "DEV REVIEW HUB",
-      "reason": "新規画面。折りたたみと可読性を実機で確認してほしい"
+      "file": "01_survey_core_questions.png",
+      "screen": "PLAYTEST SURVEY",
+      "reason": "第3ラウンドの新しい設問ページ。スマホで長すぎないか、入力欄が押せるか"
     },
     {
-      "file": "02_dev_review_hub_qa_report.png",
+      "file": "02_dev_review_hub_observation.png",
+      "screen": "DEV REVIEW HUB",
+      "reason": "観察者用メモ欄。スマホで入力できるか、COPY が押せるか"
+    },
+    {
+      "file": "03_dev_review_hub_qa_report.png",
       "screen": "DEV REVIEW HUB",
       "reason": "GENERATE 後のレポート表示。長文が枠内で折り返されているか"
     },
     {
-      "file": "03_director_decision_log.png",
+      "file": "04_director_decision_log.png",
       "screen": "DEV REVIEW HUB",
       "reason": "EXPERIENCE DIRECTOR の判断根拠が実際に読めるか"
     }
@@ -47,7 +52,7 @@
       "reason": "untouched"
     },
     {
-      "screen": "LIFE CHOICE / ENDING / SURVEY",
+      "screen": "LIFE CHOICE / ENDING",
       "reason": "untouched"
     }
   ]

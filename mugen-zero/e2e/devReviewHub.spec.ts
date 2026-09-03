@@ -136,6 +136,72 @@ test('the hub reports the seeds exactly as the world holds them', async ({ page 
   await expect(page.getByTestId('hub-seed-GREENWOOD_DEEP_PATH')).toContainText('unanswered');
 });
 
+/** The hub keeps its sections closed so it stays scannable; open one. */
+async function openSection(page: Page, id: string) {
+  const section = page.getByTestId(`hub-section-${id}`);
+  if (!(await section.evaluate((el) => (el as HTMLDetailsElement).open))) {
+    await section.locator('summary').click();
+  }
+}
+
+test('the observer can write down what the tester cannot', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await newWorld(page);
+  await openHub(page);
+  await openSection(page, 'observation');
+
+  await page.getByTestId('obs-session').fill('tester-01');
+  await page.getByTestId('obs-character-repeat').fill('酒場で剣の話より先に猟師の噂が出た');
+  await page.getByTestId('obs-director').fill('村で手紙が最初に来たのが唐突に見えた');
+
+  // The note carries the notes AND what the director was doing, so the
+  // observation and its evidence never get separated.
+  const note = await page.getByTestId('obs-note-text').inputValue();
+  expect(note).toContain('# MUGEN PLAYTEST OBSERVATION NOTE');
+  expect(note).toContain('tester-01');
+  expect(note).toContain('酒場で剣の話より先に猟師の噂が出た');
+  expect(note).toContain('MOONLIGHT_TAVERN:');
+
+  await page.getByTestId('obs-copy').click();
+  await expect(page.getByTestId('obs-copy-status')).toContainText('コピーしました');
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('tester-01');
+
+  // A stray tap must not lose a session's notes.
+  await page.reload();
+  // A world that was only walked into is not progress, so the title may
+  // offer either entry; take whichever is there.
+  await page
+    .locator('[data-testid="start-button"], [data-testid="continue-button"]')
+    .first()
+    .waitFor({ timeout: 20_000 });
+  if (await page.getByTestId('continue-button').isVisible().catch(() => false)) {
+    await page.getByTestId('continue-button').click();
+  } else {
+    await newWorld(page);
+  }
+  await page.getByTestId('dev-admin-entry').click();
+  await page.getByTestId('dev-lock-input').fill('0909');
+  await page.getByTestId('dev-lock-submit').click();
+  await page.getByTestId('dev-review-hub-entry').click();
+  await openSection(page, 'observation');
+  await expect(page.getByTestId('obs-session')).toHaveValue('tester-01');
+
+  await page.getByTestId('obs-clear').click();
+  await expect(page.getByTestId('obs-session')).toHaveValue('');
+});
+
+test('an observation note is not world canon and never leaves the hub', async ({ page }) => {
+  await newWorld(page);
+  await openHub(page);
+  await openSection(page, 'observation');
+  await page.getByTestId('obs-other').fill('これはメモです');
+  await page.getByTestId('qa-generate').click();
+  // The QA report describes the world; an observer's opinion is not part
+  // of it, and must never turn up in an export of world state.
+  expect(await page.getByTestId('qa-report-text').inputValue()).not.toContain('これはメモです');
+  await page.getByTestId('obs-clear').click();
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 360, height: 800 } });
 
