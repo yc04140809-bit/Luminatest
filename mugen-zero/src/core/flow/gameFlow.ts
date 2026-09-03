@@ -22,9 +22,11 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   // something living in it, or to the way out.
   GREENWOOD: ['ENCOUNTER', 'BATTLE', 'EXPLORE'],
   ENCOUNTER: ['BATTLE'],
-  // Beating Gald asks the life question; beating something in the forest
-  // puts the player back where they were standing.
-  BATTLE: ['LIFE_CHOICE', 'GREENWOOD', 'HOME'],
+  // Beating Gald asks the life question. Beating something that lives in
+  // the forest usually just puts the player back where they were
+  // standing — unless that one turned out to have a life too.
+  BATTLE: ['LIFE_CHOICE', 'CREATURE_LIFE_CHOICE', 'GREENWOOD', 'HOME'],
+  CREATURE_LIFE_CHOICE: ['GREENWOOD'],
   LIFE_CHOICE: ['CHOICE_RESULT'],
   CHOICE_RESULT: ['HOME'],
   WORLD_MEMORY: ['HOME'],

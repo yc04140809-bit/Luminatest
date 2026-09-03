@@ -103,13 +103,18 @@ const RING_SPOTS: readonly [number, number][] = [
  * A world where Gald's story is already settled, with the next arrival
  * forced, so the three routes can each be photographed.
  */
-async function forestWith(page: Page, force: 'EVENT' | 'ITEM' | 'BATTLE') {
+async function forestWith(
+  page: Page,
+  force: 'EVENT' | 'ITEM' | 'BATTLE',
+  story?: 'on' | 'off',
+) {
   await newWorld(page);
   await page.getByTestId('dev-admin-entry').click();
   await page.getByTestId('dev-lock-input').fill('0909');
   await page.getByTestId('dev-lock-submit').click();
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId(`force-encounter-${force}`).click();
+  if (story) await page.getByTestId(story === 'on' ? 'force-story-on' : 'force-story-off').click();
   await page.getByTestId('dev-admin-back').click();
   await openForest(page);
 }
@@ -247,6 +252,40 @@ const RECIPES: Record<string, Shot[]> = {
         await expect(scene).toBeVisible();
         // The 「▼ タップ」 prompt fades in over about a second.
         await page.waitForTimeout(1600);
+      },
+    },
+    {
+      suffix: 'moss_rabbit_battle',
+      why: 'モスラビットの絵が正しく出ているか。名前・HP・行動が読めるか',
+      go: async (page) => {
+        await forestWith(page, 'BATTLE');
+        const battle = page.getByTestId('battle-screen');
+        await walkUntil(page, () => battle.isVisible().catch(() => false));
+        await expect(battle).toBeVisible();
+        await page.waitForTimeout(400);
+      },
+    },
+    {
+      suffix: 'moss_rabbit_life_choice',
+      why: '特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか',
+      go: async (page) => {
+        await forestWith(page, 'BATTLE', 'on');
+        const battle = page.getByTestId('battle-screen');
+        await walkUntil(page, () => battle.isVisible().catch(() => false));
+        const attack = page.getByTestId('attack-button');
+        for (let i = 0; i < 20; i++) {
+          if (await page.getByTestId('enemy-defeated-line').isVisible().catch(() => false)) break;
+          if (await attack.isEnabled().catch(() => false)) await attack.click();
+          await page.waitForTimeout(140);
+        }
+        const scene = page.getByTestId('creature-scene-moss_rabbit');
+        await expect(scene).toBeVisible({ timeout: 20_000 });
+        for (let i = 0; i < 6; i++) {
+          if (!(await scene.isVisible().catch(() => false))) break;
+          await scene.click();
+          await page.waitForTimeout(140);
+        }
+        await expect(page.getByTestId('creature-life-choice-screen')).toBeVisible();
       },
     },
   ],

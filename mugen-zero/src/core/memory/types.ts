@@ -44,6 +44,24 @@ export type PlayerEventType =
   | 'PLAYER_MET_GALD_IN_ALDEN'
   | 'PLAYER_FOUND_GALD_GRAVE';
 
+/**
+ * The four answers, given to a creature rather than to a man.
+ *
+ * Most of what lives in the world is a species and leaves no mark: a
+ * moss rabbit fought on the path is not a fact the world keeps. These
+ * exist for the rare one that turned out to have a life the player
+ * could change, and the actor on the event is that individual's id.
+ *
+ * One set of four for every creature there will ever be, rather than
+ * four more types per species: what was decided is the fact, and who it
+ * was decided about is the actor.
+ */
+export type CreatureLifeChoiceEventType =
+  | 'PLAYER_KILLED_CREATURE'
+  | 'PLAYER_SPARED_CREATURE'
+  | 'PLAYER_HELPED_CREATURE'
+  | 'PLAYER_CAPTURED_CREATURE';
+
 /** World-scale events (large passages of time, …). */
 export type WorldEventType = 'WORLD_TIME_SHIFTED';
 
@@ -51,6 +69,7 @@ export type MemoryEventType =
   | GaldLifeChoiceEventType
   | LifeEventType
   | PlayerEventType
+  | CreatureLifeChoiceEventType
   | WorldEventType;
 
 export interface MemoryEvent {

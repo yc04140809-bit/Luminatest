@@ -44,9 +44,11 @@ import {
   GREENWOOD_EXPERIENCE_EVENTS,
   GREENWOOD_FOREST_SPOT,
 } from './content/experience/greenwoodExperience';
-import { GREENWOOD_STRAY_WOLF } from './content/exploration/forestFinds';
+import { MOSS_RABBIT, speciesOfIndividual } from './content/enemies/species';
+import { CreatureLifeChoiceScreen } from './ui/screens/CreatureLifeChoiceScreen';
+import type { EnemyIndividual } from './core/world/world';
 import { ExplorationSession } from './game/exploration/explorationSession';
-import { debugEncounterType } from './dev/debugEncounter';
+import { debugEncounterType, debugEnemyAction, debugStoryTrigger } from './dev/debugEncounter';
 import { clearObtainedItems } from './platform/discoveries';
 
 // Phaser is the heaviest dependency by far and is only needed once the
@@ -95,6 +97,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // in the same render, and a battle that mounted for one enemy keeps
   // that enemy's health bar for the rest of the fight.
   const forestBattle = useRef(false);
+  // The creature that turned out to have a life, between the fight and
+  // the four answers. Runtime only — once answered it is world truth and
+  // this goes back to null.
+  const [metCreature, setMetCreature] = useState<EnemyIndividual | null>(null);
 
   // Reflects whether THIS playthrough already sent feedback.
   useEffect(() => {
@@ -362,12 +368,29 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           <BattleScreen
             // Keyed by who is being fought, so the health bar can never
             // belong to the previous occupant of this screen.
-            key={GREENWOOD_STRAY_WOLF.id}
+            key={MOSS_RABBIT.speciesId}
             battleLocationId={currentLocationId}
-            enemy={GREENWOOD_STRAY_WOLF}
+            enemy={MOSS_RABBIT}
+            forcedEnemyAction={debugEnemyAction()}
             onVictory={() => {
               forestBattle.current = false;
-              flow.goTo('GREENWOOD');
+              // Was that one just an animal, or was it somebody? The
+              // world decides and writes the count down; only the rare
+              // answer comes back as a creature with a name.
+              void world
+                .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: debugStoryTrigger() })
+                .then((met) => {
+                  if (met) {
+                    setMetCreature(met);
+                    flow.goTo('CREATURE_LIFE_CHOICE');
+                  } else {
+                    flow.goTo('GREENWOOD');
+                  }
+                })
+                .catch((e) => {
+                  console.error('Failed to record the victory', e);
+                  flow.goTo('GREENWOOD');
+                });
             }}
             onDefeat={() => {
               forestBattle.current = false;
@@ -385,6 +408,24 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onDefeat={() => flow.goTo('HOME')}
         />
       );
+    case 'CREATURE_LIFE_CHOICE': {
+      const species = metCreature ? speciesOfIndividual(metCreature.individualId) : null;
+      // Only reachable straight from a fight the world named somebody in.
+      if (!metCreature || !species) return <div className="screen" />;
+      return (
+        <CreatureLifeChoiceScreen
+          species={species}
+          individualId={metCreature.individualId}
+          onChoose={async (choice) => {
+            await world.recordCreatureLifeChoice(metCreature.individualId, choice);
+          }}
+          onDone={() => {
+            setMetCreature(null);
+            flow.goTo('GREENWOOD');
+          }}
+        />
+      );
+    }
     case 'LIFE_CHOICE':
       return (
         <LifeChoiceScreen

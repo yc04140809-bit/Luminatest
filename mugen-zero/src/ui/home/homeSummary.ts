@@ -8,7 +8,7 @@
 
 import type { MemoryEvent } from '../../core/memory/types';
 import type { NarrativeSeedStatus } from '../../core/narrative/types';
-import { MEMORY_EVENT_LABEL } from '../../content/events/galdLifeChoice';
+import { memoryEventLabel } from '../../content/events/creatureLifeChoice';
 import { FUTURE_DISCOVERY_TYPES } from '../../content/world/futureSites';
 
 /** Actors that are not people the player met. */
@@ -53,7 +53,7 @@ export function homeMemorySummary(
     openThreads: seeds.filter((s) => s.playerKnown && s.state !== 'RESOLVED').length,
     latest: last
       ? {
-          label: MEMORY_EVENT_LABEL[last.type] ?? last.type,
+          label: memoryEventLabel(last),
           worldYear: last.worldYear,
           worldDay: last.worldDay,
         }

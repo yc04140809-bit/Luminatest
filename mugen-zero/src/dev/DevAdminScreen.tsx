@@ -1,14 +1,24 @@
 import { useState } from 'react';
 import type { World } from '../core/world/world';
 import { toAbsoluteDay } from '../core/time/calendar';
-import { MEMORY_EVENT_LABEL } from '../content/events/galdLifeChoice';
+import { memoryEventLabel } from '../content/events/creatureLifeChoice';
 import { SCENARIO_PRESETS } from './presets';
 import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
 import { DevReviewHub } from './DevReviewHub';
-import { debugEncounterType, setDebugEncounterType } from './debugEncounter';
+import {
+  debugEncounterType,
+  debugEnemyAction,
+  debugStoryTrigger,
+  setDebugEncounterType,
+  setDebugEnemyAction,
+  setDebugStoryTrigger,
+} from './debugEncounter';
 import type { DiscoveryCategory } from '../game/exploration/discovery';
+import type { EnemyAction } from '../game/battle/battleLogic';
+import { MOSS_RABBIT } from '../content/enemies/species';
+import { storyTriggerChance } from '../core/enemies/enemyEncounters';
 
 interface Props {
   world: World;
@@ -40,6 +50,9 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
   // here is what makes each of the three routes testable rather than
   // waited for; the player never sees this, in any build they can reach.
   const [forced, setForced] = useState<DiscoveryCategory | null>(() => debugEncounterType());
+  const [enemyAction, setEnemyAction] = useState<EnemyAction | null>(() => debugEnemyAction());
+  const [storyTrigger, setStoryTrigger] = useState<boolean | null>(() => debugStoryTrigger());
+  const rabbit = world.getEnemyProgress(MOSS_RABBIT.speciesId);
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
   // The hub is a mode of the admin screen, not a new route: it is read
@@ -274,7 +287,7 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
                   {event.type}
                 </div>
                 <div className="location-desc">
-                  {MEMORY_EVENT_LABEL[event.type]}
+                  {memoryEventLabel(event)}
                   <br />
                   {event.worldYear}年目 {event.worldDay}日目 / actors: {event.actors.join('、')} /{' '}
                   {event.importance}
@@ -322,6 +335,80 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
         森の金色リングに到着したとき、何が出るかを固定します。設定は森に入り直すと反映されます。
+      </div>
+
+      <div style={sectionTitle}>MOSS RABBIT — 敵の行動を固定</div>
+      <div style={row}>
+        {(['ATTACK', 'SKILL'] as EnemyAction[]).map((action) => (
+          <button
+            key={action}
+            className={enemyAction === action ? 'btn primary' : 'btn'}
+            style={smallBtn}
+            data-testid={`force-enemy-${action}`}
+            onClick={() => {
+              setDebugEnemyAction(action);
+              setEnemyAction(action);
+            }}
+          >
+            {action === 'ATTACK' ? 'リーフタックル' : '苔かくれ'}
+          </button>
+        ))}
+        <button
+          className={enemyAction === null ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-enemy-none"
+          onClick={() => {
+            setDebugEnemyAction(null);
+            setEnemyAction(null);
+          }}
+        >
+          AIにまかせる
+        </button>
+      </div>
+
+      <div style={sectionTitle}>MOSS RABBIT — 特殊個体の抽選</div>
+      <div style={row}>
+        <button
+          className={storyTrigger === true ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-story-on"
+          onClick={() => {
+            setDebugStoryTrigger(true);
+            setStoryTrigger(true);
+          }}
+        >
+          必ず発生
+        </button>
+        <button
+          className={storyTrigger === false ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-story-off"
+          onClick={() => {
+            setDebugStoryTrigger(false);
+            setStoryTrigger(false);
+          }}
+        >
+          発生させない
+        </button>
+        <button
+          className={storyTrigger === null ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-story-none"
+          onClick={() => {
+            setDebugStoryTrigger(null);
+            setStoryTrigger(null);
+          }}
+        >
+          確率どおり
+        </button>
+      </div>
+      <div
+        style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}
+        data-testid="moss-rabbit-progress"
+      >
+        撃破 {rabbit.defeated} 体 ／ 特殊個体なしの連続 {rabbit.sinceStory} 体 ／ 命名済み{' '}
+        {rabbit.named} 体。次の勝利で特殊個体になる確率{' '}
+        {Math.round(storyTriggerChance(rabbit.sinceStory + 1) * 100)}%。
       </div>
 
       <div className="screen-footer">

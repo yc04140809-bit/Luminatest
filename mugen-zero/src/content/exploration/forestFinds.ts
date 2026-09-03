@@ -40,29 +40,3 @@ export const FOREST_ITEMS: readonly FoundItemDef[] = [
 export function pickForestItem(rng: () => number = Math.random): FoundItemDef {
   return FOREST_ITEMS[Math.min(FOREST_ITEMS.length - 1, Math.floor(rng() * FOREST_ITEMS.length))];
 }
-
-export interface BattleEnemyDef {
-  id: string;
-  name: string;
-  /** Stands in for art that does not exist yet. */
-  glyph: string;
-  /** What is said once it is beaten. Nobody dies here either. */
-  defeatedSpeaker: string | null;
-  defeatedText: string;
-}
-
-/**
- * The one thing in Greenwood that fights back.
- *
- * A stray, not a monster: hungry, outnumbered, and gone the moment it
- * stops being sure of winning. The forest is not a dungeon and this is
- * not a bestiary — it exists so that walking towards something unknown
- * carries a little weight.
- */
-export const GREENWOOD_STRAY_WOLF: BattleEnemyDef = {
-  id: 'GREENWOOD_STRAY_WOLF',
-  name: 'はぐれ狼',
-  glyph: '🐺',
-  defeatedSpeaker: null,
-  defeatedText: '狼は一歩下がり、木立の奥へ消えていった。',
-};

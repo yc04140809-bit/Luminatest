@@ -36,6 +36,13 @@ import { recentEmotionsOf } from '../experience/experienceEngine';
 import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
 import { ALDEN_NARRATIVE_SEEDS } from '../../content/narrative/aldenSeeds';
 import { seedStatuses, unresolvedSeedCount } from '../narrative/narrativeSeeds';
+import {
+  mintIndividualId,
+  rollIndividualStory,
+  type Rng,
+  type StoryTriggerConfig,
+} from '../enemies/enemyEncounters';
+import { CREATURE_LIFE_CHOICE_EVENT_TYPE } from '../../content/events/creatureLifeChoice';
 import type { NarrativeSeedStatus } from '../narrative/types';
 
 const CLOCK_KEY = 'world_clock';
@@ -56,6 +63,17 @@ const SEEN_EXPERIENCE_KEY = 'experience_seen';
  * "have I seen this?" answer still comes from the older key.
  */
 const EXPERIENCE_LOG_KEY = 'experience_log';
+/**
+ * How many of each species the player has beaten, and how long it has
+ * been since one of them turned out to be somebody.
+ *
+ * Current state, not history: WORLD MEMORY does not record that a moss
+ * rabbit was fought on the path, because nothing about the world
+ * changed when it was. Absent in an older save, which reads as none.
+ */
+const ENEMY_PROGRESS_KEY = 'enemy_progress';
+/** The creatures that DID turn out to be somebody, and what became of them. */
+const ENEMY_INDIVIDUALS_KEY = 'enemy_individuals';
 
 interface ExperienceLog {
   /** eventId -> absolute day it last played. */
@@ -88,6 +106,49 @@ export interface OpenFutureSite {
   discovered: boolean;
 }
 
+/**
+ * How the player is getting on with one species.
+ *
+ * `defeated` is the whole count; `sinceStory` is how many of them have
+ * been beaten since one of them turned out to be somebody, which is what
+ * the chance of the next one being somebody is read off.
+ */
+export interface EnemyProgress {
+  defeated: number;
+  sinceStory: number;
+  /** How many of this species have been named so far. */
+  named: number;
+}
+
+/**
+ * One creature that stopped being a species and became somebody.
+ *
+ * Minted only when a fight ends in a story, which is why an ordinary
+ * moss rabbit has no row here and killing one changes nothing about
+ * whether Greenwood has moss rabbits in it.
+ */
+export interface EnemyIndividual {
+  individualId: string;
+  speciesId: string;
+  status: 'alive' | 'dead';
+  /** What the player chose to be to it. 'unknown' until they choose. */
+  relationship: 'unknown' | 'spared' | 'helped' | 'captured' | 'ended';
+  firstMetYear: number;
+  lastMetYear: number;
+  /** Whether meeting them again years from now is possible at all. */
+  reunionAvailable: boolean;
+}
+
+const EMPTY_PROGRESS: EnemyProgress = { defeated: 0, sinceStory: 0, named: 0 };
+
+/** What the four answers make a creature to the player, afterwards. */
+const CREATURE_RELATIONSHIP: Record<LifeChoiceId, EnemyIndividual['relationship']> = {
+  KILL: 'ended',
+  SPARE: 'spared',
+  HELP: 'helped',
+  CAPTURE: 'captured',
+};
+
 type Listener = () => void;
 
 export class World {
@@ -100,6 +161,8 @@ export class World {
 
   private seenExperience: Set<string>;
   private experienceLog: ExperienceLog;
+  private enemyProgress: Record<string, EnemyProgress>;
+  private enemyIndividuals: EnemyIndividual[];
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -108,12 +171,16 @@ export class World {
     characters: Record<string, CharacterState>,
     seenExperience: string[],
     experienceLog: ExperienceLog,
+    enemyProgress: Record<string, EnemyProgress>,
+    enemyIndividuals: EnemyIndividual[],
   ) {
     this.events = events;
     this.clock = clock;
     this.characters = characters;
     this.seenExperience = new Set(seenExperience);
     this.experienceLog = experienceLog;
+    this.enemyProgress = enemyProgress;
+    this.enemyIndividuals = enemyIndividuals;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -130,10 +197,21 @@ export class World {
     const seen = ((await store.getStateValue(SEEN_EXPERIENCE_KEY)) as string[] | undefined) ?? [];
     const log =
       ((await store.getStateValue(EXPERIENCE_LOG_KEY)) as ExperienceLog | undefined) ?? EMPTY_LOG;
-    return new World(store, events, clock, characters, seen, {
-      lastSeenDay: { ...log.lastSeenDay },
-      order: [...log.order],
-    });
+    const enemyProgress =
+      ((await store.getStateValue(ENEMY_PROGRESS_KEY)) as Record<string, EnemyProgress> | undefined) ??
+      {};
+    const enemyIndividuals =
+      ((await store.getStateValue(ENEMY_INDIVIDUALS_KEY)) as EnemyIndividual[] | undefined) ?? [];
+    return new World(
+      store,
+      events,
+      clock,
+      characters,
+      seen,
+      { lastSeenDay: { ...log.lastSeenDay }, order: [...log.order] },
+      enemyProgress,
+      enemyIndividuals,
+    );
   }
 
   subscribe(listener: Listener): () => void {
@@ -550,6 +628,137 @@ export class World {
    * route can produce another route's discovery. Once per world
    * (idempotent on revisit).
    */
+  // ---- ORDINARY ENEMIES (species, and the rare individual) ----
+
+  /** How the player is getting on with one species. Never null. */
+  getEnemyProgress(speciesId: string): EnemyProgress {
+    return this.enemyProgress[speciesId] ?? EMPTY_PROGRESS;
+  }
+
+  /** The creatures that turned out to be somebody. */
+  getEnemyIndividuals(): EnemyIndividual[] {
+    return this.enemyIndividuals.map((one) => ({ ...one }));
+  }
+
+  getEnemyIndividual(individualId: string): EnemyIndividual | null {
+    const found = this.enemyIndividuals.find((one) => one.individualId === individualId);
+    return found ? { ...found } : null;
+  }
+
+  /**
+   * A fight in the forest is over. Was that one just an animal, or was
+   * it somebody?
+   *
+   * Beating an ordinary creature is not a fact the world keeps — it only
+   * moves the count, which is what makes the next one a little more
+   * likely to have a story. When one does, it is named here and now, and
+   * the count starts again.
+   *
+   * Returns the newly named individual, or null for an ordinary victory.
+   * Resolves only once the write is committed.
+   */
+  async resolveEnemyVictory(
+    speciesId: string,
+    options: { rng?: Rng; forced?: boolean | null; config?: StoryTriggerConfig } = {},
+  ): Promise<EnemyIndividual | null> {
+    const before = this.getEnemyProgress(speciesId);
+    const sinceStory = before.sinceStory + 1;
+    const becomesSomebody = rollIndividualStory({
+      victoriesSinceStory: sinceStory,
+      rng: options.rng,
+      config: options.config,
+      forced: options.forced ?? null,
+    });
+
+    const individual: EnemyIndividual | null = becomesSomebody
+      ? {
+          individualId: mintIndividualId(speciesId, before.named),
+          speciesId,
+          status: 'alive',
+          relationship: 'unknown',
+          firstMetYear: this.clock.worldYear,
+          lastMetYear: this.clock.worldYear,
+          reunionAvailable: false,
+        }
+      : null;
+
+    const progress: EnemyProgress = {
+      defeated: before.defeated + 1,
+      sinceStory: becomesSomebody ? 0 : sinceStory,
+      named: before.named + (becomesSomebody ? 1 : 0),
+    };
+    const nextProgress = { ...this.enemyProgress, [speciesId]: progress };
+    const nextIndividuals = individual
+      ? [...this.enemyIndividuals, individual]
+      : this.enemyIndividuals;
+
+    const rows: WorldStateRow[] = [{ key: ENEMY_PROGRESS_KEY, value: nextProgress }];
+    if (individual) rows.push({ key: ENEMY_INDIVIDUALS_KEY, value: nextIndividuals });
+    await this.store.commit({ putState: rows });
+    this.enemyProgress = nextProgress;
+    this.enemyIndividuals = nextIndividuals;
+    this.emit();
+    return individual ? { ...individual } : null;
+  }
+
+  /**
+   * What the player decided about one particular creature.
+   *
+   * The same shape as the choice made about Gald, and for the same
+   * reason: it is a fact about a life, so it goes into WORLD MEMORY and
+   * stays there. The individual's own row is updated in the same
+   * transaction, because "killed" and "still alive" must never disagree.
+   *
+   * Idempotent for the same choice; a contradictory second answer is
+   * refused rather than overwritten.
+   */
+  async recordCreatureLifeChoice(individualId: string, choice: LifeChoiceId): Promise<MemoryEvent> {
+    const eventId = `evt_creature_life_choice_${individualId}`;
+    const existing = this.events.find((e) => e.id === eventId);
+    if (existing) {
+      if (existing.type === CREATURE_LIFE_CHOICE_EVENT_TYPE[choice]) return existing;
+      throw new Error(
+        `${individualId}'s life is already recorded as ${existing.type}; refusing ${choice}`,
+      );
+    }
+    const individual = this.enemyIndividuals.find((one) => one.individualId === individualId);
+    if (!individual) throw new Error(`No such individual: ${individualId}`);
+
+    const event: MemoryEvent = {
+      id: eventId,
+      type: CREATURE_LIFE_CHOICE_EVENT_TYPE[choice],
+      worldYear: this.clock.worldYear,
+      worldDay: this.clock.worldDay,
+      location: 'GREENWOOD_FOREST',
+      actors: ['PLAYER', individualId],
+      importance: 'NORMAL',
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated: EnemyIndividual = {
+      ...individual,
+      status: choice === 'KILL' ? 'dead' : 'alive',
+      relationship: CREATURE_RELATIONSHIP[choice],
+      lastMetYear: this.clock.worldYear,
+      // Somebody let go, helped or taken along can be met again years
+      // from now. Somebody whose life ended cannot — though what that
+      // death did to the world is a separate question, and still open.
+      reunionAvailable: choice !== 'KILL',
+    };
+    const nextIndividuals = this.enemyIndividuals.map((one) =>
+      one.individualId === individualId ? updated : one,
+    );
+
+    await this.store.commit({
+      addEvents: [event],
+      putState: [{ key: ENEMY_INDIVIDUALS_KEY, value: nextIndividuals }],
+    });
+    this.events = [...this.events, event];
+    this.enemyIndividuals = nextIndividuals;
+    this.emit();
+    return event;
+  }
+
   async recordFutureSiteDiscovery(siteId: string): Promise<MemoryEvent> {
     const def = futureSiteDef(siteId);
     if (!def) throw new Error(`Unknown future site: ${siteId}`);
@@ -620,6 +829,8 @@ export class World {
     this.characters = { ...INITIAL_CHARACTERS };
     this.seenExperience = new Set();
     this.experienceLog = { lastSeenDay: {}, order: [] };
+    this.enemyProgress = {};
+    this.enemyIndividuals = [];
     this.emit();
   }
 }

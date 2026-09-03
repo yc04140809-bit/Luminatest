@@ -10,6 +10,7 @@ export type Screen =
   | 'ENCOUNTER'
   | 'BATTLE'
   | 'LIFE_CHOICE'
+  | 'CREATURE_LIFE_CHOICE'
   | 'CHOICE_RESULT'
   | 'WORLD_MEMORY'
   | 'TIME_SHIFT'

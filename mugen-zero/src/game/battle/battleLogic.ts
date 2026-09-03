@@ -3,12 +3,61 @@
 
 export type BattleOutcome = 'ONGOING' | 'VICTORY' | 'DEFEAT';
 
+/**
+ * What the enemy just did, for the screen to play.
+ *
+ * The logic decides; the picture follows. Nothing here knows what a
+ * leaf tackle looks like, and nothing in the screen decides whether one
+ * happened.
+ */
+export type EnemyAction = 'NONE' | 'ATTACK' | 'SKILL';
+
+/** One enemy's numbers and its one trick. Content supplies both. */
+export interface EnemySkillSpec {
+  name: string;
+  /** How many of the player's blows it softens. */
+  turns: number;
+  /** What fraction of a blow still lands while it holds. */
+  damageTaken: number;
+  /** How likely it is to use it on a turn it could. */
+  chance: number;
+  /** Turns before it may be used again. */
+  cooldown: number;
+  /** A hard ceiling per battle, so it can never stall a fight. */
+  maxUses: number;
+  /** Shown when it goes up. */
+  line: string;
+}
+
+export interface EnemySpec {
+  name: string;
+  hp: number;
+  attackMin: number;
+  attackMax: number;
+  /** What its ordinary attack is called. */
+  attackName?: string;
+  skill?: EnemySkillSpec;
+  /** First line of the log, if it has one of its own. */
+  appearLine?: string;
+}
+
 export interface BattleState {
   playerHp: number;
   playerMaxHp: number;
   enemyHp: number;
   enemyMaxHp: number;
   enemyName: string;
+  enemyAttackMin: number;
+  enemyAttackMax: number;
+  enemyAttackName: string | null;
+  enemySkill: EnemySkillSpec | null;
+  /** Player blows still softened by the skill. */
+  enemyGuardTurns: number;
+  /** Turns before the skill may be used again. */
+  enemySkillCooldown: number;
+  enemySkillUses: number;
+  /** What the enemy did on its last turn, for the screen to play. */
+  lastEnemyAction: EnemyAction;
   log: string[];
   outcome: BattleOutcome;
 }
@@ -18,17 +67,27 @@ export type Rng = () => number;
 
 const PLAYER_ATK_MIN = 8;
 const PLAYER_ATK_MAX = 12;
-const ENEMY_ATK_MIN = 3;
-const ENEMY_ATK_MAX = 6;
 
-export function createBattle(enemyName: string): BattleState {
+/** The numbers a plain named enemy fights with — Gald's, historically. */
+const DEFAULT_ENEMY: Omit<EnemySpec, 'name'> = { hp: 30, attackMin: 3, attackMax: 6 };
+
+export function createBattle(enemy: string | EnemySpec): BattleState {
+  const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
   return {
     playerHp: 40,
     playerMaxHp: 40,
-    enemyHp: 30,
-    enemyMaxHp: 30,
-    enemyName,
-    log: [`${enemyName}が現れた！`],
+    enemyHp: spec.hp,
+    enemyMaxHp: spec.hp,
+    enemyName: spec.name,
+    enemyAttackMin: spec.attackMin,
+    enemyAttackMax: spec.attackMax,
+    enemyAttackName: spec.attackName ?? null,
+    enemySkill: spec.skill ?? null,
+    enemyGuardTurns: 0,
+    enemySkillCooldown: 0,
+    enemySkillUses: 0,
+    lastEnemyAction: 'NONE',
+    log: [spec.appearLine ?? `${spec.name}が現れた！`],
     outcome: 'ONGOING',
   };
 }
@@ -37,40 +96,99 @@ function roll(min: number, max: number, rng: Rng): number {
   return min + Math.floor(rng() * (max - min + 1));
 }
 
-function enemyTurn(state: BattleState, defending: boolean, rng: Rng): BattleState {
+/**
+ * The enemy's turn: hide, or come at you.
+ *
+ * The one rule beyond the dice is that a fight must keep moving. The
+ * skill cannot be used while it is already up, cannot be used again for
+ * a few turns, and cannot be used more than a set number of times in
+ * one battle — so an animal that protects itself never turns into a
+ * wall the player cannot get past.
+ */
+function enemyTurn(
+  state: BattleState,
+  defending: boolean,
+  rng: Rng,
+  forced: EnemyAction | null = null,
+): BattleState {
   if (state.enemyHp <= 0) return state;
-  let dmg = roll(ENEMY_ATK_MIN, ENEMY_ATK_MAX, rng);
+  const cooldown = Math.max(0, state.enemySkillCooldown - 1);
+  const skill = state.enemySkill;
+  const mayHide =
+    skill !== null &&
+    cooldown === 0 &&
+    state.enemyGuardTurns === 0 &&
+    state.enemySkillUses < skill.maxUses;
+  const hides =
+    forced === 'SKILL' ? mayHide : forced === 'ATTACK' ? false : mayHide && rng() < skill!.chance;
+
+  if (hides && skill) {
+    return {
+      ...state,
+      enemyGuardTurns: skill.turns,
+      enemySkillCooldown: skill.cooldown,
+      enemySkillUses: state.enemySkillUses + 1,
+      lastEnemyAction: 'SKILL',
+      log: [...state.log, skill.line],
+    };
+  }
+
+  let dmg = roll(state.enemyAttackMin, state.enemyAttackMax, rng);
   if (defending) dmg = Math.ceil(dmg / 2);
   const playerHp = Math.max(0, state.playerHp - dmg);
+  const move = state.enemyAttackName ? `${state.enemyName}の${state.enemyAttackName}` : `${state.enemyName}の攻撃`;
   const log = [
     ...state.log,
-    defending
-      ? `${state.enemyName}の攻撃。防御して${dmg}のダメージ。`
-      : `${state.enemyName}の攻撃！ ${dmg}のダメージ。`,
+    defending ? `${move}。防御して${dmg}のダメージ。` : `${move}！ ${dmg}のダメージ。`,
   ];
   const outcome: BattleOutcome = playerHp <= 0 ? 'DEFEAT' : state.outcome;
-  return { ...state, playerHp, log, outcome };
+  return {
+    ...state,
+    playerHp,
+    enemySkillCooldown: cooldown,
+    lastEnemyAction: 'ATTACK',
+    log,
+    outcome,
+  };
 }
 
-export function playerAttack(state: BattleState, rng: Rng = Math.random): BattleState {
+export function playerAttack(
+  state: BattleState,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
   if (state.outcome !== 'ONGOING') return state;
-  const dmg = roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng);
+  const raw = roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng);
+  // Whatever the enemy put between itself and the blow, it is worn
+  // through by taking one.
+  const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
+  const dmg = guarded ? Math.max(1, Math.ceil(raw * state.enemySkill!.damageTaken)) : raw;
   const enemyHp = Math.max(0, state.enemyHp - dmg);
   let next: BattleState = {
     ...state,
     enemyHp,
-    log: [...state.log, `攻撃！ ${state.enemyName}に${dmg}のダメージ。`],
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      guarded
+        ? `攻撃！ ${state.enemySkill!.name}に阻まれ、${dmg}のダメージ。`
+        : `攻撃！ ${state.enemyName}に${dmg}のダメージ。`,
+    ],
   };
   if (enemyHp <= 0) {
     // 敵HP0では倒さない。人生選択（LIFE CHOICE）へ委ねる。
     return { ...next, outcome: 'VICTORY', log: [...next.log, `${state.enemyName}は膝をついた……。`] };
   }
-  next = enemyTurn(next, false, rng);
+  next = enemyTurn(next, false, rng, forcedEnemyAction);
   return next;
 }
 
-export function playerDefend(state: BattleState, rng: Rng = Math.random): BattleState {
+export function playerDefend(
+  state: BattleState,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
   if (state.outcome !== 'ONGOING') return state;
   const next = { ...state, log: [...state.log, '身構えた。'] };
-  return enemyTurn(next, true, rng);
+  return enemyTurn(next, true, rng, forcedEnemyAction);
 }

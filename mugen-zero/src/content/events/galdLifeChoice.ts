@@ -1,7 +1,11 @@
 // Content data for Gald's first-encounter life choice events.
 
 import type { LifeChoiceId } from '../../core/flow/types';
-import type { GaldLifeChoiceEventType, MemoryEventType } from '../../core/memory/types';
+import type {
+  CreatureLifeChoiceEventType,
+  GaldLifeChoiceEventType,
+  MemoryEventType,
+} from '../../core/memory/types';
 import type { CharacterState } from '../../core/characters/types';
 
 /**
@@ -25,8 +29,18 @@ export const GALD_LIFE_CHOICE_TYPE_TO_CHOICE: Record<GaldLifeChoiceEventType, Li
   PLAYER_CAPTURED_GALD: 'CAPTURE',
 };
 
-/** Japanese labels for the WORLD MEMORY viewer. */
-export const MEMORY_EVENT_LABEL: Record<MemoryEventType, string> = {
+/**
+ * Japanese labels for the WORLD MEMORY viewer.
+ *
+ * Every fact whose sentence is fixed. A fact about a creature is about
+ * one particular animal, so its sentence is built from the event's
+ * actor instead — see memoryEventLabel in creatureLifeChoice.ts, which
+ * is what screens should call.
+ */
+export const MEMORY_EVENT_LABEL: Record<
+  Exclude<MemoryEventType, CreatureLifeChoiceEventType>,
+  string
+> = {
   PLAYER_KILLED_GALD: '森の盗賊にとどめを刺した',
   PLAYER_SPARED_GALD: '森の盗賊を見逃した',
   PLAYER_HELPED_GALD: '森の盗賊の傷を治療した',

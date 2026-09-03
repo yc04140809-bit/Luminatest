@@ -8,8 +8,11 @@
 
 import { DEV_ADMIN_ENABLED } from './devMode';
 import type { DiscoveryCategory } from '../game/exploration/discovery';
+import type { EnemyAction } from '../game/battle/battleLogic';
 
 const STORAGE_KEY = 'mugen-debug-encounter';
+const ENEMY_ACTION_KEY = 'mugen-debug-enemy-action';
+const STORY_TRIGGER_KEY = 'mugen-debug-story-trigger';
 
 function isCategory(value: unknown): value is DiscoveryCategory {
   return value === 'EVENT' || value === 'ITEM' || value === 'BATTLE';
@@ -18,19 +21,52 @@ function isCategory(value: unknown): value is DiscoveryCategory {
 /** The forced category, or null to let the weights decide. */
 export function debugEncounterType(): DiscoveryCategory | null {
   if (!DEV_ADMIN_ENABLED) return null;
+  const raw = read(STORAGE_KEY);
+  return isCategory(raw) ? raw : null;
+}
+
+export function setDebugEncounterType(category: DiscoveryCategory | null): void {
+  write(STORAGE_KEY, category);
+}
+
+/** Make the creature do one thing on every turn it gets. */
+export function debugEnemyAction(): EnemyAction | null {
+  if (!DEV_ADMIN_ENABLED) return null;
+  const raw = read(ENEMY_ACTION_KEY);
+  return raw === 'ATTACK' || raw === 'SKILL' ? raw : null;
+}
+
+export function setDebugEnemyAction(action: EnemyAction | null): void {
+  write(ENEMY_ACTION_KEY, action);
+}
+
+/**
+ * Settle whether the next victory turns the creature into somebody,
+ * instead of waiting for the dice. null leaves it to the rates.
+ */
+export function debugStoryTrigger(): boolean | null {
+  if (!DEV_ADMIN_ENABLED) return null;
+  const raw = read(STORY_TRIGGER_KEY);
+  return raw === 'ON' ? true : raw === 'OFF' ? false : null;
+}
+
+export function setDebugStoryTrigger(value: boolean | null): void {
+  write(STORY_TRIGGER_KEY, value === null ? null : value ? 'ON' : 'OFF');
+}
+
+function read(key: string): string | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return isCategory(raw) ? raw : null;
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
 }
 
-export function setDebugEncounterType(category: DiscoveryCategory | null): void {
+function write(key: string, value: string | null): void {
   try {
-    if (category) localStorage.setItem(STORAGE_KEY, category);
-    else localStorage.removeItem(STORAGE_KEY);
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
   } catch {
-    /* blocked storage: the tester falls back to walking until it happens */
+    /* blocked storage: the tester falls back to playing until it happens */
   }
 }

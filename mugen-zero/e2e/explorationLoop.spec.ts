@@ -41,12 +41,17 @@ async function freshWorld(page: Page) {
  * Settles Gald's story through the DEV preset so the forest is in its
  * repeatable mode, and forces what the next arrival will be.
  */
-async function settleAndForce(page: Page, force: 'EVENT' | 'ITEM' | 'BATTLE' | null) {
+async function settleAndForce(
+  page: Page,
+  force: 'EVENT' | 'ITEM' | 'BATTLE' | null,
+  story?: 'on' | 'off',
+) {
   await page.getByTestId('dev-admin-entry').click();
   await page.getByTestId('dev-lock-input').fill('0909');
   await page.getByTestId('dev-lock-submit').click();
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId(force ? `force-encounter-${force}` : 'force-encounter-none').click();
+  if (story) await page.getByTestId(story === 'on' ? 'force-story-on' : 'force-story-off').click();
   await page.getByTestId('dev-admin-back').click();
 }
 
@@ -122,12 +127,15 @@ test.describe('exploration loop', () => {
 
   test('arriving can be a fight, and winning puts them back on the path', async ({ page }) => {
     await freshWorld(page);
-    await settleAndForce(page, 'BATTLE');
+    // Story roll off: this test is about the ordinary victory, which is
+    // what almost every fight in the forest is. The rare one that turns
+    // out to be somebody has its own spec.
+    await settleAndForce(page, 'BATTLE', 'off');
     await intoForest(page);
 
     expect(await walkUntil(page, visible(page, 'battle-screen'))).toBe(true);
-    // The forest's own enemy, not the story's one bandit.
-    await expect(page.getByTestId('enemy-hp')).toContainText('はぐれ狼');
+    // The forest's own creature, not the story's one bandit.
+    await expect(page.getByTestId('enemy-hp')).toContainText('モスラビット');
     await expect(page.getByTestId('gald-portrait-ready')).toHaveCount(0);
 
     const attack = page.getByTestId('attack-button');

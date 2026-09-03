@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T22:55:36.588Z
-- Build: MUGEN ZERO v0.1 / f7fc091 / 2026-09-03T22:55:05.701Z
+- Generated: 2026-09-03T23:37:22.538Z
+- Build: MUGEN ZERO v0.1 / 5b39dd0 / 2026-09-03T23:36:32.896Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -98,5 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] GREENWOOD / BATTLE — 探索のゲームプレイループ。金色リングへ到着すると EVENT / ITEM / BATTLE のいずれかが起き、終わると別の場所に次のリングが現れます。見た目（背景・主人公・ケイオス・リング・UI）は無変更
+- [ ] GREENWOOD / BATTLE — 森の最初の通常敵「モスラビット」。公式画像そのまま。リーフタックルと苔かくれ。まれに特殊個体となり、KILL / SPARE / HELP / CAPTURE の4択へ。探索画面の見た目は無変更
 - unchanged, no screenshot needed: HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

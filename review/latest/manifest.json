@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-03T22:55:36.996Z",
+  "capturedAt": "2026-09-03T23:37:22.948Z",
   "viewport": {
     "width": 390,
     "height": 844
@@ -24,6 +24,16 @@
       "file": "04_greenwood_forest_event.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）"
+    },
+    {
+      "file": "05_moss_rabbit_battle.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "モスラビットの絵が正しく出ているか。名前・HP・行動が読めるか"
+    },
+    {
+      "file": "06_moss_rabbit_life_choice.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか"
     }
   ],
   "notPhotographed": [

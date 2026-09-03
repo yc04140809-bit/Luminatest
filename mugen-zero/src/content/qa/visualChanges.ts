@@ -20,7 +20,7 @@ export const VISUAL_CHANGES: readonly VisualChange[] = [
     screen: 'GREENWOOD / BATTLE',
     changed: true,
     reason:
-      '探索のゲームプレイループ。金色リングへ到着すると EVENT / ITEM / BATTLE のいずれかが起き、終わると別の場所に次のリングが現れます。見た目（背景・主人公・ケイオス・リング・UI）は無変更',
+      '森の最初の通常敵「モスラビット」。公式画像そのまま。リーフタックルと苔かくれ。まれに特殊個体となり、KILL / SPARE / HELP / CAPTURE の4択へ。探索画面の見た目は無変更',
   },
   { screen: 'HOME', changed: false, reason: 'v0.2 で承認済み' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },

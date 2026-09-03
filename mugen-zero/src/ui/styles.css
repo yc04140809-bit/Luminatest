@@ -1561,3 +1561,85 @@ body,
 .field-screen.has-overlay .field-foot {
   visibility: hidden;
 }
+
+/* ---- what a small animal does in a fight ----
+   Its whole body is the attack and its whole body is the defence, so
+   both are moves of the picture itself: no flash, no white, and nothing
+   done to the background. */
+
+/* リーフタックル — it sinks, comes at you, and goes back. */
+.battle-portrait.tackle {
+  animation: leaf-tackle 0.46s ease-in-out;
+}
+@keyframes leaf-tackle {
+  0% { transform: scale(var(--enemy-scale, 1)) translate(0, 0); }
+  22% { transform: scale(var(--enemy-scale, 1)) translate(0, 6px) scaleY(0.93); }
+  52% { transform: scale(var(--enemy-scale, 1)) translate(0, 34px) scale(1.05); }
+  74% { transform: scale(var(--enemy-scale, 1)) translate(0, 10px); }
+  100% { transform: scale(var(--enemy-scale, 1)) translate(0, 0); }
+}
+
+/* A few leaves come off where it hit. */
+.battle-leaves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.battle-leaves .leaf {
+  position: absolute;
+  left: 50%;
+  top: 62%;
+  width: 7px;
+  height: 4px;
+  border-radius: 60% 20% 60% 20%;
+  background: #6f8f4e;
+  opacity: 0;
+  animation: leaf-scatter 0.5s ease-out forwards;
+}
+.battle-leaves .leaf-0 { --lx: -46px; --ly: 20px; animation-delay: 0.16s; }
+.battle-leaves .leaf-1 { --lx: -22px; --ly: 34px; animation-delay: 0.19s; background: #86a45f; }
+.battle-leaves .leaf-2 { --lx: 6px; --ly: 40px; animation-delay: 0.17s; }
+.battle-leaves .leaf-3 { --lx: 30px; --ly: 28px; animation-delay: 0.21s; background: #5d7d42; }
+.battle-leaves .leaf-4 { --lx: 52px; --ly: 14px; animation-delay: 0.18s; }
+@keyframes leaf-scatter {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  25% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(var(--lx), var(--ly)) rotate(160deg); }
+}
+
+/* 苔かくれ — it makes itself small and the green closes over it. */
+.battle-portrait.hide {
+  animation: moss-hide 0.62s ease-in-out;
+}
+@keyframes moss-hide {
+  0% { transform: scale(var(--enemy-scale, 1)); }
+  35% { transform: scale(calc(var(--enemy-scale, 1) * 0.9)) translateY(6px); }
+  70% { transform: scale(calc(var(--enemy-scale, 1) * 0.9)) translateY(6px); }
+  100% { transform: scale(var(--enemy-scale, 1)); }
+}
+.battle-moss-mark {
+  position: absolute;
+  inset: 22% 24%;
+  border: 2.5px solid #6f8f4e;
+  border-radius: 50%;
+  box-shadow: 0 0 22px rgba(111, 143, 78, 0.5) inset, 0 0 12px rgba(111, 143, 78, 0.3);
+  animation: moss-close 0.62s ease-out;
+  pointer-events: none;
+}
+@keyframes moss-close {
+  0% { opacity: 0; transform: scale(1.35); }
+  40% { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.94); }
+}
+
+/* A creature is one picture rather than a cut-out figure, and the drawn
+   animal sits inside a lot of transparent margin in its own file. */
+.life-choice-portrait.creature {
+  transform: scale(1.35);
+}
+
+/* A creature has no line to say, so the question needs the air the
+   speech bubble would have given it. */
+.creature-choice .life-choice-prompt {
+  margin-top: 14px;
+}

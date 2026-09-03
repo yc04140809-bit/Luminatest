@@ -1,5 +1,6 @@
 import type { MemoryEvent } from '../../core/memory/types';
 import { MEMORY_EVENT_LABEL } from '../../content/events/galdLifeChoice';
+import { memoryEventLabel } from '../../content/events/creatureLifeChoice';
 import { Ornament } from '../common/Ornament';
 
 interface Props {
@@ -33,7 +34,7 @@ export function WorldMemoryScreen({ events, onBack }: Props) {
               <span className="memory-trace-mark" aria-hidden="true">
                 <Ornament kind="ring" size={16} />
               </span>
-              <div className="location-name">{MEMORY_EVENT_LABEL[event.type] ?? event.type}</div>
+              <div className="location-name">{memoryEventLabel(event)}</div>
               <div className="location-desc">
                 {event.worldYear}年目 {event.worldDay}日目
                 {event.causedBy && event.causedBy.length > 0 && (
@@ -42,7 +43,7 @@ export function WorldMemoryScreen({ events, onBack }: Props) {
                     <span data-testid={`caused-by-${event.type}`}>
                       きっかけ:{' '}
                       {event.causedBy
-                        .map((cause) => MEMORY_EVENT_LABEL[cause] ?? cause)
+                        .map((cause) => (cause in MEMORY_EVENT_LABEL ? MEMORY_EVENT_LABEL[cause as keyof typeof MEMORY_EVENT_LABEL] : cause))
                         .join(' / ')}
                     </span>
                   </>

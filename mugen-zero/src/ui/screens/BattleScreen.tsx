@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   createBattle,
   playerAttack,
   playerDefend,
   type BattleState,
+  type EnemyAction,
+  type EnemySpec,
 } from '../../game/battle/battleLogic';
 import { GALD } from '../../content/characters/gald';
 import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
 import { galdPortrait } from '../../assets/manifest';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
-import type { BattleEnemyDef } from '../../content/exploration/forestFinds';
+import type { EnemySpeciesDef } from '../../content/enemies/species';
 
 interface Props {
   /**
@@ -25,13 +27,43 @@ interface Props {
    * Anything else that can be met while exploring passes itself here,
    * and this screen learns nothing new about who it is.
    */
-  enemy?: BattleEnemyDef;
+  enemy?: EnemySpeciesDef;
   onVictory: () => void;
   onDefeat: () => void;
+  /** Development only: make the enemy do one thing every turn. */
+  forcedEnemyAction?: EnemyAction | null;
 }
 
-/** Which brief reaction to play after the last command. */
-type Reaction = 'NONE' | 'HIT' | 'GUARD';
+/** A species, in the units the battle speaks. */
+function specOf(species: EnemySpeciesDef): EnemySpec {
+  return {
+    name: species.name,
+    hp: species.hp,
+    attackMin: species.attackMin,
+    attackMax: species.attackMax,
+    attackName: species.attackName,
+    skill: species.skill,
+    appearLine: species.appearLine,
+  };
+}
+
+/**
+ * Which brief reaction is on screen.
+ *
+ * Two of them belong to the player's command (a blow landing, a guard
+ * going up) and two to the creature's answer — its one attack, and its
+ * one way of protecting itself. They play in that order, because that
+ * is the order they happen in.
+ */
+type Reaction = 'NONE' | 'HIT' | 'GUARD' | 'TACKLE' | 'HIDE';
+
+/** How long each beat is held. Short: this is a small animal, not a boss. */
+const BEAT_MS: Record<Exclude<Reaction, 'NONE'>, number> = {
+  HIT: 300,
+  GUARD: 300,
+  TACKLE: 460,
+  HIDE: 620,
+};
 
 function HpBar({
   label,
@@ -71,19 +103,39 @@ function HpBar({
   );
 }
 
-export function BattleScreen({ battleLocationId, enemy, onVictory, onDefeat }: Props) {
+export function BattleScreen({
+  battleLocationId,
+  enemy,
+  onVictory,
+  onDefeat,
+  forcedEnemyAction = null,
+}: Props) {
   // The bandit is named from the first line of the encounter, so the bar
   // above belongs to a person the player has already met.
   const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(enemy ? enemy.name : `盗賊 ${GALD.name}`),
+    createBattle(enemy ? specOf(enemy) : `盗賊 ${GALD.name}`),
   );
   const [reaction, setReaction] = useState<Reaction>('NONE');
+  const beats = useRef<number[]>([]);
 
-  useEffect(() => {
-    if (reaction === 'NONE') return;
-    const t = setTimeout(() => setReaction('NONE'), 260);
-    return () => clearTimeout(t);
-  }, [reaction]);
+  useEffect(() => () => beats.current.forEach(clearTimeout), []);
+
+  /** Plays a short sequence of reactions, then clears the screen. */
+  const play = (sequence: Exclude<Reaction, 'NONE'>[]) => {
+    beats.current.forEach(clearTimeout);
+    beats.current = [];
+    let at = 0;
+    for (const beat of sequence) {
+      const delay = at;
+      beats.current.push(window.setTimeout(() => setReaction(beat), delay));
+      at += BEAT_MS[beat];
+    }
+    beats.current.push(window.setTimeout(() => setReaction('NONE'), at));
+  };
+
+  /** What the creature did in reply, if it is still standing. */
+  const answer = (next: BattleState): Exclude<Reaction, 'NONE'>[] =>
+    next.lastEnemyAction === 'SKILL' ? ['HIDE'] : next.lastEnemyAction === 'ATTACK' ? ['TACKLE'] : [];
 
   useEffect(() => {
     if (battle.outcome === 'VICTORY') {
@@ -101,19 +153,19 @@ export function BattleScreen({ battleLocationId, enemy, onVictory, onDefeat }: P
   const ongoing = battle.outcome === 'ONGOING';
   const beaten = battle.enemyHp <= 0;
   const lastLogs = battle.log.slice(-2);
-  // Gald has standing art at both moments. Nothing else met in the
-  // forest has any yet, and a placeholder that admits it is better than
-  // borrowing his face.
-  const portrait = enemy ? null : galdPortrait(beaten ? 'defeated' : 'ready');
+  // Gald has standing art at both moments; a species has one picture.
+  const portrait = enemy ? enemy.portrait : galdPortrait(beaten ? 'defeated' : 'ready');
   const backdrop = locationBackground(battleLocationId);
 
   const attack = () => {
-    setBattle((b) => playerAttack(b));
-    setReaction('HIT');
+    const next = playerAttack(battle, undefined, forcedEnemyAction);
+    setBattle(next);
+    play(['HIT', ...answer(next)]);
   };
   const defend = () => {
-    setBattle((b) => playerDefend(b));
-    setReaction('GUARD');
+    const next = playerDefend(battle, undefined, forcedEnemyAction);
+    setBattle(next);
+    play(['GUARD', ...answer(next)]);
   };
 
   return (
@@ -133,17 +185,50 @@ export function BattleScreen({ battleLocationId, enemy, onVictory, onDefeat }: P
         <div className="battle-portrait-wrap">
           {portrait ? (
             <img
-              className={`battle-portrait${reaction === 'HIT' ? ' hit' : ''}${
-                beaten ? ' beaten' : ''
-              }`}
-              data-testid={beaten ? 'gald-portrait-defeated' : 'gald-portrait-ready'}
+              className={[
+                'battle-portrait',
+                reaction === 'HIT' ? 'hit' : '',
+                reaction === 'TACKLE' ? 'tackle' : '',
+                reaction === 'HIDE' ? 'hide' : '',
+                beaten ? 'beaten' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              data-testid={
+                enemy
+                  ? `enemy-portrait-${enemy.speciesId}`
+                  : beaten
+                    ? 'gald-portrait-defeated'
+                    : 'gald-portrait-ready'
+              }
+              // The art is used exactly as delivered. This only says how
+              // big to draw it, because the creature sits inside a lot of
+              // transparent margin in its own file.
+              style={
+                enemy
+                  ? ({
+                      transform: `scale(${enemy.portraitScale})`,
+                      '--enemy-scale': enemy.portraitScale,
+                    } as React.CSSProperties)
+                  : undefined
+              }
               src={portrait}
-              alt={beaten ? '膝をついた盗賊' : '短剣を構えた盗賊'}
+              alt={enemy ? enemy.name : beaten ? '膝をついた盗賊' : '短剣を構えた盗賊'}
             />
           ) : (
-            <div className="enemy-figure">{enemy?.glyph ?? '🗡'}</div>
+            <div className="enemy-figure">🗡</div>
           )}
           {reaction === 'GUARD' && <div className="battle-guard-mark" aria-hidden="true" />}
+          {/* Its own attack: a few leaves come off as it hits. */}
+          {reaction === 'TACKLE' && (
+            <div className="battle-leaves" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <span key={i} className={`leaf leaf-${i}`} />
+              ))}
+            </div>
+          )}
+          {/* And its own way of not being hit. */}
+          {reaction === 'HIDE' && <div className="battle-moss-mark" aria-hidden="true" />}
         </div>
         <HpBar
           label="あなた"
@@ -159,9 +244,7 @@ export function BattleScreen({ battleLocationId, enemy, onVictory, onDefeat }: P
           role="status"
           aria-live="polite"
         >
-          <div className="dialogue-speaker">
-            {enemy ? enemy.defeatedSpeaker : GALD_DEFEATED_LINES[0].speaker}
-          </div>
+          <div className="dialogue-speaker">{enemy ? null : GALD_DEFEATED_LINES[0].speaker}</div>
           <div className="dialogue-text">
             {enemy ? enemy.defeatedText : GALD_DEFEATED_LINES[0].text}
           </div>
