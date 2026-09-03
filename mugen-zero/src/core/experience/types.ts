@@ -46,6 +46,12 @@ export interface EventDna {
   expectedEffect: string;
   /** Foreshadowing, if this event plants or resolves a seed. */
   seed?: { id: string; role: 'PLANTS' | 'RESOLVES' };
+  /**
+   * Who the player actually meets here. The DIRECTOR uses it to stop one
+   * face filling every beat; it is a cast list, not a requirement, and
+   * an event with nobody in it simply omits it.
+   */
+  characters?: string[];
 }
 
 /**
@@ -81,6 +87,12 @@ export interface ExperienceEventDef<TContent = unknown> {
   /** Repeatable events only: days that must pass before it comes round again. */
   cooldownDays?: number;
   rarity?: Rarity;
+  /**
+   * A beat the story cannot do without. The DIRECTOR may never push a
+   * core event down for pacing — being bored is recoverable, missing the
+   * story is not.
+   */
+  core?: boolean;
   content: TContent;
   dna?: EventDna;
 }
@@ -108,4 +120,17 @@ export interface ExperienceWorldView {
   today?: number;
   /** Planted questions the world has not answered yet. */
   unresolvedSeeds?: number;
+  /**
+   * EXPERIENCE DIRECTOR v0.1 — the ids of the events just played, newest
+   * first. Everything the director reasons about (which feelings, which
+   * faces, which layers have been coming up) is derived from this plus
+   * the definitions; nothing extra is stored anywhere.
+   */
+  recentEventIds?: readonly string[];
+  /**
+   * Whether a LIFE beat is ready elsewhere in the world. The director
+   * uses it to keep 「また会えた」 from being outvoted forever by ambient
+   * chatter; it never fires anything itself.
+   */
+  lifeEventAvailable?: boolean;
 }

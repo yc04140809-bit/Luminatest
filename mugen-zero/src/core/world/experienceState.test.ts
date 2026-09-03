@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { World } from './world';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
-import { locationsWithSomethingNew, pickEvent } from '../experience/experienceEngine';
+import { locationsWithSomethingNew } from '../experience/experienceEngine';
+import { pickEvent } from '../experience/director';
 
 // Which small encounters the player has met is engine bookkeeping, not
 // canon. It has to survive a restart, stay out of the LIFE ARCHIVE, and
@@ -75,14 +76,17 @@ describe('experience state', () => {
       seenIds.push(event.eventId);
       await world.markExperienceSeen(event.eventId);
     }
-    // News first, then the seeds, then the small talk, then being
-    // recognised — and only after all of that does he settle into the
-    // regular's greeting.
+    // News first, then the small talk, then being recognised — and only
+    // after all of that does he settle into the regular's greeting.
+    //
+    // The hunter's rumour comes before the sword, and that is the
+    // DIRECTOR at work: two beats of Grave in a row have just landed, so
+    // the one voice in the room that is not his gets the next turn.
     expect(seenIds).toEqual([
       'MOONLIGHT_TAVERN_FIRST_VISIT',
       'ALDEN_RUMOR_GALD_LEFT_THE_BANDITS',
-      'TAVERN_MASTER_OLD_GREATSWORD',
       'GREENWOOD_DEEPER_PATH_RUMOR',
+      'TAVERN_MASTER_OLD_GREATSWORD',
       'TAVERN_MASTER_STEW',
       'TAVERN_MASTER_REVISIT_A',
       'TAVERN_MASTER_REVISIT_B',

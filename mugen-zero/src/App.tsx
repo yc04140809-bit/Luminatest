@@ -36,7 +36,8 @@ import type { LocationId } from './content/locations/locationVisuals';
 import { futureSiteDef } from './content/world/futureSites';
 import { LOCATIONS } from './content/locations/alden';
 import { ALDEN_EXPERIENCE_EVENTS } from './content/experience/aldenExperience';
-import { pickEvent, locationsWithSomethingNew } from './core/experience/experienceEngine';
+import { locationsWithSomethingNew } from './core/experience/experienceEngine';
+import { pickEvent } from './core/experience/director';
 import type { TalkEventDef } from './content/experience/aldenExperience';
 
 // Phaser is the heaviest dependency by far and is only needed once the

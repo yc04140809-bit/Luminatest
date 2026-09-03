@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { ALDEN_EXPERIENCE_EVENTS } from './aldenExperience';
-import { findAvailableEvents, pickEvent } from '../../core/experience/experienceEngine';
+import { findAvailableEvents } from '../../core/experience/experienceEngine';
+import { pickEvent } from '../../core/experience/director';
 import type { ExperienceWorldView } from '../../core/experience/types';
 
 function view(memories: string[], seen: string[] = [], worldYear = 1): ExperienceWorldView {

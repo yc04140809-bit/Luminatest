@@ -6,6 +6,7 @@ import { SCENARIO_PRESETS } from './presets';
 import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
+import { DevReviewHub } from './DevReviewHub';
 
 interface Props {
   world: World;
@@ -35,6 +36,9 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
+  // The hub is a mode of the admin screen, not a new route: it is read
+  // only, it is reached from here, and 「もどる」 comes straight back.
+  const [showHub, setShowHub] = useState(false);
 
   const run = async (label: string, op: () => Promise<unknown>) => {
     if (busy) return;
@@ -52,6 +56,8 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
     }
   };
 
+  if (showHub) return <DevReviewHub world={world} onBack={() => setShowHub(false)} />;
+
   const clock = world.getClock();
   const gald = world.getCharacter('GALD');
   const choice = world.getGaldLifeChoice() ?? 'NONE';
@@ -61,6 +67,16 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
     <div className="screen" data-testid="dev-admin-screen">
       <div className="screen-title">DEV ADMIN — TEST CONTROL PANEL</div>
       <div className="location-list" style={{ gap: 6 }}>
+        {/* ---- REVIEW HUB ---- */}
+        <button
+          className="btn"
+          data-testid="dev-review-hub-entry"
+          style={{ marginBottom: 4 }}
+          onClick={() => setShowHub(true)}
+        >
+          DEV REVIEW HUB / QA REPORT
+        </button>
+
         {/* ---- DASHBOARD ---- */}
         <div style={sectionTitle}>DASHBOARD</div>
         <div className="location-card" data-testid="dev-clock">

@@ -11,5 +11,5 @@
     "strict": true,
     "composite": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "vite.config.singlefile.ts", "types/node-shims.d.ts"]
 }

@@ -259,6 +259,27 @@ export class World {
         3,
       ),
       unresolvedSeeds: unresolvedSeedCount(ALDEN_NARRATIVE_SEEDS, hasSeen),
+      // EXPERIENCE DIRECTOR v0.1 — the recent past, newest first, and
+      // whether a life is waiting to be found. Both derived on the spot.
+      recentEventIds: [...this.experienceLog.order].reverse(),
+      lifeEventAvailable: this.getOpenFutureSites().some((site) => !site.discovered),
+    };
+  }
+
+  /**
+   * What the experience layer has actually done so far, for DEV REVIEW
+   * HUB. Read-only, derived, and never world canon — none of it belongs
+   * in the LIFE ARCHIVE.
+   */
+  getExperienceSummary(): {
+    seenEventIds: string[];
+    recentEventIds: string[];
+    lastSeenDay: Record<string, number>;
+  } {
+    return {
+      seenEventIds: [...this.seenExperience],
+      recentEventIds: [...this.experienceLog.order].reverse(),
+      lastSeenDay: { ...this.experienceLog.lastSeenDay },
     };
   }
 

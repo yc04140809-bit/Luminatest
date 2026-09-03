@@ -3,9 +3,11 @@ import {
   findAvailableEvents,
   isAvailable,
   locationsWithSomethingNew,
-  pickEvent,
   recentEmotionsOf,
 } from './experienceEngine';
+// Selection lives one layer up; the engine only decides eligibility.
+// These tests use it to check the two halves still fit together.
+import { pickEvent } from './director';
 import type { EmotionTarget, ExperienceEventDef, ExperienceWorldView } from './types';
 
 // The engine under test knows nothing about MUGEN. These fixtures are
@@ -31,6 +33,8 @@ function view(
     lastSeenDay: (id: string) => lastSeen[id] ?? null,
     recentEmotions: partial.recentEmotions,
     unresolvedSeeds: partial.unresolvedSeeds,
+    recentEventIds: partial.recentEventIds,
+    lifeEventAvailable: partial.lifeEventAvailable,
   };
 }
 
@@ -152,7 +156,7 @@ describe('EXPERIENCE ENGINE — selection', () => {
 });
 
 
-describe('EXPERIENCE CONTROL v0.2 — pacing', () => {
+describe('EXPERIENCE ENGINE — cooldown and rarity', () => {
   const withEmotion = (id: string, emotion: EmotionTarget, priority = 10) =>
     def({
       eventId: id,
@@ -210,20 +214,6 @@ describe('EXPERIENCE CONTROL v0.2 — pacing', () => {
     expect(pickEvent(only, view({ recentEmotions: ['HUMOR', 'HUMOR'] }))?.eventId).toBe(
       'ONLY_JOKE',
     );
-  });
-
-  it('stops planting questions once too many are open', () => {
-    const seedDef = def({
-      eventId: 'NEW_MYSTERY',
-      priority: 90,
-      dna: { emotionTarget: 'CURIOSITY', expectedEffect: 'x', seed: { id: 'S', role: 'PLANTS' } },
-    });
-    const ordinary = def({ eventId: 'ORDINARY', priority: 10 });
-    const defs = [seedDef, ordinary];
-    expect(pickEvent(defs, view({ unresolvedSeeds: 0 }))?.eventId).toBe('NEW_MYSTERY');
-    expect(pickEvent(defs, view({ unresolvedSeeds: 2 }))?.eventId).toBe('ORDINARY');
-    // ...unless holding back would mean showing nothing at all.
-    expect(pickEvent([seedDef], view({ unresolvedSeeds: 5 }))?.eventId).toBe('NEW_MYSTERY');
   });
 
   it('reads recent feelings off the events actually played', () => {

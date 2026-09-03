@@ -114,6 +114,7 @@ const TAVERN_FIRST_VISIT: TalkEventDef = {
   layer: 'NOW',
   location: MOONLIGHT_TAVERN_SPOT,
   once: true,
+  core: true,
   priority: 90,
   content: {
     lines: [
@@ -133,6 +134,7 @@ const TAVERN_FIRST_VISIT: TalkEventDef = {
     visualTier: 'FEATURED',
     curiosityTarget: 'Who was this man before he poured drinks?',
     expectedEffect: 'The tavern gets a face, and the face raises a question.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -170,6 +172,7 @@ const TAVERN_GREATSWORD: TalkEventDef = {
     curiosityTarget: "Whose sword is that, and what did he do with it?",
     expectedEffect: 'The player files Grave away as someone with a story to come.',
     seed: { id: 'TAVERN_MASTER_OLD_GREATSWORD', role: 'PLANTS' },
+    characters: ['GRAVE'],
   },
 };
 
@@ -192,6 +195,7 @@ const TAVERN_STEW: TalkEventDef = {
   dna: {
     emotionTarget: 'HUMOR',
     expectedEffect: 'Grave is likeable, not just ominous.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -217,6 +221,7 @@ const TAVERN_REVISIT_A: TalkEventDef = {
     emotionTarget: 'WARMTH',
     visualTier: 'NORMAL',
     expectedEffect: 'Being recognised, one visit earlier than earned.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -239,6 +244,7 @@ const TAVERN_REVISIT_B: TalkEventDef = {
     visualTier: 'NORMAL',
     curiosityTarget: 'What is he glad not to be asked?',
     expectedEffect: 'The gap he is not filling becomes something the player notices.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -269,6 +275,7 @@ const TAVERN_IDLE: TalkEventDef = {
     emotionTarget: 'WARMTH',
     visualTier: 'NORMAL',
     expectedEffect: 'Coming back is never punished with an empty room.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -301,6 +308,7 @@ const RUMOR_SPARED: TalkEventDef = {
     emotionTarget: 'CURIOSITY',
     curiosityTarget: 'Where did the man you spared go?',
     expectedEffect: 'The player wonders what became of him, without being told.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -324,6 +332,7 @@ const RUMOR_HELPED: TalkEventDef = {
     emotionTarget: 'CURIOSITY',
     curiosityTarget: 'Who is treating people on the road?',
     expectedEffect: 'The player suspects, but is not told, who it is.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -346,6 +355,7 @@ const RUMOR_CAPTURED: TalkEventDef = {
     emotionTarget: 'CURIOSITY',
     curiosityTarget: 'Does a sentence change a man?',
     expectedEffect: 'The player wants to see whether he lasted.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -368,6 +378,7 @@ const RUMOR_KILLED: TalkEventDef = {
     emotionTarget: 'QUIET',
     curiosityTarget: 'Who builds a cairn for a bandit?',
     expectedEffect: 'The KILL route feels like it left something behind.',
+    characters: ['GRAVE'],
   },
 };
 
@@ -517,6 +528,7 @@ const KAOS_DETOUR: TalkEventDef = {
     visualTier: 'NORMAL',
     expectedEffect: 'Doing nothing is allowed here, and she says so.',
     // No seed. This one really is just this.
+    characters: ['KAOS'],
   },
 };
 
