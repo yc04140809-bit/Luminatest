@@ -10,10 +10,11 @@ const ENCOUNTER_POINT = { x: 180, y: 120 };
 const ENCOUNTER_RADIUS = 28;
 const PLAYER_SPEED = 160; // px/sec
 const BACKGROUND_KEY = 'greenwood-bg';
-// Big enough that his hair, cloak, shirt and facing are all legible on a
-// phone — small enough that he is still a traveller in the forest rather
-// than a figure standing in front of it.
-const PLAYER_SCALE = 1.85;
+// Chibi proportions mean the head is nearly half of him, so the figure
+// is drawn small and scaled up as one piece. Big enough to be a person
+// walking in the forest; small enough that the forest is still the
+// subject and he is not standing in front of it.
+const PLAYER_SCALE = 1.9;
 
 /**
  * What is waiting at a discovery point.
@@ -44,19 +45,34 @@ const DISCOVERY_POINTS: readonly DiscoveryPointDef[] = [
   { id: 'GALD_ENCOUNTER', ...ENCOUNTER_POINT, radius: ENCOUNTER_RADIUS, kind: 'event' },
 ];
 
-/** The palette the traveller is drawn from — his character sheet, in numbers. */
+/**
+ * The traveller's palette, taken from the exploration sprite sheet.
+ *
+ * The sheet is the reference, not the asset: nothing pastes it onto the
+ * screen and nothing cuts frames out of it. What is copied is the design
+ * — the big soft mass of dark brown hair, the heavy dark stole over
+ * leather and cloth, small boots, and the round chibi proportions of a
+ * young man who is not a hero yet.
+ */
 const HIM = {
-  hair: 0x2f2620,
-  hairLit: 0x4a3a2c,
-  cloak: 0x2b2b30,
-  cloakLit: 0x3d3d45,
-  shirt: 0xe6dfd0,
-  trousers: 0x23232a,
+  hair: 0x3b2a1e,
+  hairLit: 0x55402d,
+  hairEdge: 0x2a1d15,
+  cloak: 0x24242b,
+  cloakLit: 0x35353f,
+  cloakEdge: 0x171720,
+  leather: 0x6b543f,
+  inner: 0xc9b696,
+  trousers: 0x22222a,
   boots: 0x4a3728,
-  skin: 0xf0d5b8,
-  rim: 0xd8cdb8,
-  shadow: 0x1a1a12,
+  skin: 0xf2d7ba,
+  eye: 0x3a2c22,
+  rune: 0xd9c48f,
+  shadow: 0x14140e,
 } as const;
+
+/** Which way he is facing. Back is the default: exploring is walking away. */
+type Facing = 'back' | 'front' | 'side';
 
 const GOLD = 0xc9a961;
 
@@ -95,9 +111,21 @@ export class GreenwoodScene extends Phaser.Scene {
    * later without a line of the movement code changing.
    */
   private player!: Phaser.GameObjects.Container;
-  private playerLegs: Phaser.GameObjects.Rectangle[] = [];
-  private playerCloak: Phaser.GameObjects.Polygon | null = null;
+  /** One sub-container per facing; exactly one of them is ever visible. */
+  private facings: Record<Facing, Phaser.GameObjects.Container> | null = null;
+  private facing: Facing = 'back';
+  private legsFor: Record<Facing, Phaser.GameObjects.Rectangle[]> = {
+    back: [],
+    front: [],
+    side: [],
+  };
+  private cloakFor: Record<Facing, Phaser.GameObjects.GameObject[]> = {
+    back: [],
+    front: [],
+    side: [],
+  };
   private walkPhase = 0;
+  private idlePhase = 0;
   private target: Phaser.Math.Vector2 | null = null;
   private encounterFired = false;
   private callbacks: GreenwoodCallbacks;
@@ -230,72 +258,176 @@ export class GreenwoodScene extends Phaser.Scene {
    * Everything is a primitive so it needs no asset, and everything sits
    * in one container so a sprite can replace the lot.
    */
+  /**
+   * The traveller.
+   *
+   * Three views of the same small person — back, front and side — built
+   * from primitives and held in one container, with only one shown at a
+   * time. Back is what the player sees almost always, because walking
+   * into a forest means walking away from the camera; the other two exist
+   * so that turning to the left or coming back down the path reads as
+   * turning rather than sliding.
+   *
+   * Every part is a shape, so there is no asset to load and no frame to
+   * cut out of anything. When a real sprite sheet is exported, this one
+   * method is what it replaces — the movement code never learns of it.
+   */
   private createTraveller(x: number, y: number): Phaser.GameObjects.Container {
-    const parts: Phaser.GameObjects.GameObject[] = [];
+    const facings: Record<Facing, Phaser.GameObjects.Container> = {
+      back: this.buildFigure('back'),
+      front: this.buildFigure('front'),
+      side: this.buildFigure('side'),
+    };
+    facings.front.setVisible(false);
+    facings.side.setVisible(false);
+    this.facings = facings;
+    this.facing = 'back';
 
-    const shadow = this.add.ellipse(0, 3, 18, 6, HIM.shadow, 0.45);
-    parts.push(shadow);
+    // The shadow belongs to the ground, not to any one view of him.
+    const shadow = this.add.ellipse(0, 3, 17, 5.5, HIM.shadow, 0.42);
 
-    // Boots, then legs above them: the legs are what the walk animates.
-    const bootLeft = this.add.rectangle(-3.2, 1, 4, 3, HIM.boots).setOrigin(0.5, 1);
-    const bootRight = this.add.rectangle(3.2, 1, 4, 3, HIM.boots).setOrigin(0.5, 1);
-    const legLeft = this.add.rectangle(-3, -2, 3.4, 6, HIM.trousers).setOrigin(0.5, 1);
-    const legRight = this.add.rectangle(3, -2, 3.4, 6, HIM.trousers).setOrigin(0.5, 1);
-    parts.push(bootLeft, bootRight, legLeft, legRight);
-
-    // The light shirt shows at the middle, under the cloak.
-    const shirt = this.add.rectangle(0, -8, 9, 8, HIM.shirt).setOrigin(0.5, 0.5);
-    parts.push(shirt);
-
-    // The cloak: dark, and torn along the hem the way his is.
-    const cloak = this.add.polygon(
-      0,
-      -8,
-      [
-        -7, -6, 7, -6, 8, 2, 6, 6, 4.5, 2, 2.5, 7, 0.5, 2, -1.5, 6.5, -3.5, 1.5, -5.5, 6, -7.5, 1,
-      ],
-      HIM.cloak,
-    );
-    cloak.setOrigin(0, 0);
-    // A pale hairline all round him: the forest floor is as dark as his
-    // cloak, and without it he sinks into it.
-    cloak.setStrokeStyle(0.8, HIM.rim, 0.85);
-    parts.push(cloak);
-    this.playerCloak = cloak;
-
-    // A collar catching the light, so the silhouette does not go flat.
-    const collar = this.add.rectangle(0, -13.5, 11, 2.4, HIM.cloakLit);
-    parts.push(collar);
-
-    // Head, then hair over it: a face is a face at four pixels only if
-    // something dark sits on top of it.
-    const head = this.add.circle(0, -18.5, 5.2, HIM.skin);
-    const hair = this.add.ellipse(0, -20.6, 11.4, 8.2, HIM.hair);
-    hair.setStrokeStyle(0.8, HIM.rim, 0.7);
-    const fringe = this.add.ellipse(-1.6, -18.4, 8, 4.6, HIM.hair);
-    const tuft = this.add.triangle(0, 0, 1, -25.5, 4.5, -28.5, 4.2, -24, HIM.hairLit);
-    parts.push(head, hair, fringe, tuft);
-
-    this.playerLegs = [legLeft, legRight];
-    return this.add.container(x, y, parts).setScale(PLAYER_SCALE).setDepth(20);
+    return this.add
+      .container(x, y, [shadow, facings.back, facings.front, facings.side])
+      .setScale(PLAYER_SCALE)
+      .setDepth(20);
   }
 
-  /** Legs scissor while moving, the cloak sways, and both settle at rest. */
+  /** One view of him. Same body, three silhouettes. */
+  private buildFigure(facing: Facing): Phaser.GameObjects.Container {
+    const parts: Phaser.GameObjects.GameObject[] = [];
+    const narrow = facing === 'side';
+
+    // ---- boots and legs. Short, because most of him is head and cloak.
+    const legSpan = narrow ? 2.2 : 3.1;
+    const bootLeft = this.add.rectangle(-legSpan, 1.5, narrow ? 4.4 : 3.8, 2.8, HIM.boots).setOrigin(0.5, 1);
+    const bootRight = this.add.rectangle(legSpan, 1.5, narrow ? 4.4 : 3.8, 2.8, HIM.boots).setOrigin(0.5, 1);
+    const legLeft = this.add.rectangle(-legSpan, -1.3, 3, 5, HIM.trousers).setOrigin(0.5, 1);
+    const legRight = this.add.rectangle(legSpan, -1.3, 3, 5, HIM.trousers).setOrigin(0.5, 1);
+    parts.push(bootLeft, bootRight, legLeft, legRight);
+    this.legsFor[facing] = [legLeft, legRight];
+
+    // ---- the body under the stole: cloth and leather, never bare.
+    const body = this.add.rectangle(0, -6.5, narrow ? 7 : 9.5, 8, HIM.inner).setOrigin(0.5, 0.5);
+    const belt = this.add.rectangle(0, -3.6, narrow ? 7.4 : 10, 1.8, HIM.leather).setOrigin(0.5, 0.5);
+    parts.push(body, belt);
+
+    // ---- the stole: the biggest thing about him after the hair. Wide
+    // at the shoulders, torn along the hem, and darker than the forest
+    // floor so his outline survives on the sunlit path.
+    const hem = narrow
+      ? [-4.5, -7, 4.5, -7, 5, 1.5, 3.6, 5, 2, 1, 0.4, 5.5, -1.4, 1, -3.2, 4.6, -4.8, 0.5]
+      : [
+          -7, -7.5, 7, -7.5, 7.8, 1.5, 6, 5.5, 4.4, 1.2, 2.4, 6.2, 0.4, 1.4, -1.6, 5.8, -3.6, 1,
+          -5.6, 5.2, -7.6, 0.8,
+        ];
+    const cloak = this.add.polygon(0, -7.5, hem, HIM.cloak);
+    cloak.setOrigin(0, 0);
+    cloak.setStrokeStyle(0.7, HIM.cloakEdge, 0.9);
+    parts.push(cloak);
+    this.cloakFor[facing] = [cloak];
+
+    // Seen from behind, the mark on his back is the one bright thing on
+    // him — the same small emblem the character sheet gives the cape.
+    if (facing === 'back') {
+      const rune = this.add.polygon(0, -8, [0, -3, 1.6, 0, 0, 3, -1.6, 0], HIM.rune);
+      rune.setOrigin(0, 0);
+      rune.setAlpha(0.5);
+      const runeLine = this.add.rectangle(0, -8, 0.7, 5.4, HIM.rune, 0.35);
+      parts.push(rune, runeLine);
+    }
+
+    // A collar of lighter cloth, so the black does not read as a hole.
+    const collar = this.add.ellipse(0, -13.4, narrow ? 8 : 11.5, 4, HIM.cloakLit);
+    parts.push(collar);
+
+    // ---- head and hair. Chibi: the head is nearly half of him, and the
+    // hair is a soft mass rather than a helmet.
+    const head = this.add.circle(narrow ? 0.8 : 0, -18.5, 6.4, HIM.skin);
+    parts.push(head);
+
+    if (facing === 'front') {
+      // Two dark eyes and nothing else: at this size a mouth is a smudge.
+      parts.push(
+        this.add.ellipse(-2.4, -18.2, 1.5, 2.1, HIM.eye),
+        this.add.ellipse(2.4, -18.2, 1.5, 2.1, HIM.eye),
+      );
+    } else if (narrow) {
+      parts.push(this.add.ellipse(3.2, -18.2, 1.4, 2, HIM.eye));
+    }
+
+    // The hair: a big rounded mass over the crown, side locks past the
+    // ears, and the one strand that never lies down.
+    const crown = this.add.ellipse(narrow ? 0.4 : 0, -21.4, narrow ? 12 : 14.2, 10.4, HIM.hair);
+    crown.setStrokeStyle(0.6, HIM.hairEdge, 0.9);
+    const lockLeft = this.add.ellipse(narrow ? -3.4 : -5.4, -18.2, 4.6, 7.2, HIM.hair);
+    const lockRight = this.add.ellipse(narrow ? 4.4 : 5.4, -18.2, 4.6, 7.2, HIM.hair);
+    parts.push(crown, lockLeft, lockRight);
+
+    if (facing === 'back') {
+      // From behind, the hair is all there is above the collar.
+      const nape = this.add.ellipse(0, -16.6, 10.6, 6, HIM.hair);
+      parts.push(nape);
+    } else {
+      // A fringe, sitting over the brow rather than covering the face.
+      const fringe = this.add.ellipse(narrow ? 0.6 : 0, -22.6, narrow ? 10.4 : 12.6, 6, HIM.hairLit);
+      fringe.setAlpha(0.55);
+      parts.push(fringe);
+    }
+
+    const ahoge = this.add.triangle(0, 0, narrow ? 1.4 : 0.6, -25.8, narrow ? 5.4 : 4.2, -30.4, narrow ? 4.6 : 3.4, -25.2, HIM.hairLit);
+    parts.push(ahoge);
+
+    const figure = this.add.container(0, 0, parts);
+    if (narrow) figure.setScale(0.94, 1);
+    return figure;
+  }
+
+  /** Turn him to face the way he is walking. Back unless told otherwise. */
+  private setFacing(next: Facing, flip: boolean): void {
+    const facings = this.facings;
+    if (!facings) return;
+    if (next !== this.facing) {
+      facings[this.facing].setVisible(false);
+      facings[next].setVisible(true);
+      this.facing = next;
+    }
+    if (next === 'side') {
+      const target = flip ? -0.94 : 0.94;
+      if (facings.side.scaleX !== target) facings.side.setScale(target, 1);
+    }
+  }
+
+  /**
+   * He walks, and when he stops he keeps breathing.
+   *
+   * Standing perfectly still is what makes a figure read as a marker, so
+   * the idle is never nothing: a slow rise and fall of a pixel or two.
+   */
   private animateWalk(moving: boolean, delta: number): void {
-    const [left, right] = this.playerLegs;
-    if (!left || !right) return;
+    const legs = this.legsFor[this.facing];
+    const cloak = this.cloakFor[this.facing][0] as Phaser.GameObjects.Polygon | undefined;
+    const body = this.facings?.[this.facing];
+    const [left, right] = legs;
+
     if (!moving) {
       this.walkPhase = 0;
-      left.setScale(1, 1);
-      right.setScale(1, 1);
-      this.playerCloak?.setRotation(0);
+      left?.setScale(1, 1);
+      right?.setScale(1, 1);
+      cloak?.setRotation(0);
+      this.idlePhase += delta / 620;
+      body?.setY(Math.sin(this.idlePhase) * 0.55);
       return;
     }
+
+    this.idlePhase = 0;
+    body?.setY(0);
     this.walkPhase += delta / 90;
-    const swing = Math.sin(this.walkPhase) * 0.35;
-    left.setScale(1, 1 + swing);
-    right.setScale(1, 1 - swing);
-    this.playerCloak?.setRotation(Math.sin(this.walkPhase) * 0.045);
+    const swing = Math.sin(this.walkPhase) * 0.38;
+    left?.setScale(1, 1 + swing);
+    right?.setScale(1, 1 - swing);
+    cloak?.setRotation(Math.sin(this.walkPhase) * 0.05);
+    // The whole figure lifts a hair on each step.
+    body?.setY(Math.abs(Math.sin(this.walkPhase)) * -0.5);
   }
 
   /**
@@ -332,10 +464,15 @@ export class GreenwoodScene extends Phaser.Scene {
         this.target = null;
       } else {
         const angle = Phaser.Math.Angle.Between(this.player.x, this.player.y, this.target.x, this.target.y);
-        this.player.x += Math.cos(angle) * step;
-        this.player.y += Math.sin(angle) * step;
-        // Face the way you are going.
-        this.player.setScale(Math.cos(angle) < 0 ? -PLAYER_SCALE : PLAYER_SCALE, PLAYER_SCALE);
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        this.player.x += dx * step;
+        this.player.y += dy * step;
+        // Turn to the way he is going. Sideways only when he is actually
+        // going sideways — otherwise he keeps his back to us, which is
+        // what walking into a forest looks like.
+        if (Math.abs(dx) > Math.abs(dy)) this.setFacing('side', dx < 0);
+        else this.setFacing(dy < 0 ? 'back' : 'front', false);
       }
     }
 
