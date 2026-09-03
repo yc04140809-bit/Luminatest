@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-03T19:59:32.791Z",
+  "capturedAt": "2026-09-03T21:38:47.646Z",
   "viewport": {
     "width": 390,
     "height": 844
@@ -8,12 +8,12 @@
     {
       "file": "01_greenwood_forest.png",
       "screen": "GREENWOOD / BATTLE",
-      "reason": "主人公が添付スプライトの本人に見えるか。発見の気配が世界に馴染んでいるか"
+      "reason": "主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか"
     },
     {
       "file": "02_greenwood_walking_side.png",
       "screen": "GREENWOOD / BATTLE",
-      "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか"
+      "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
     }
   ],
   "notPhotographed": [

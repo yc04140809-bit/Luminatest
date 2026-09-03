@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { locationBackground } from '../../content/locations/locationVisuals';
 import { ExplorationCharacter, directionFor, type Direction } from './PlayerSprite';
+import { FollowTrail } from './follow';
 
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 520;
@@ -17,6 +18,34 @@ const PLAYER_CHARACTER = 'HERO' as const;
 // read as a person on a phone, small enough that the forest is still the
 // subject and he is not standing in front of it.
 const PLAYER_DISPLAY_WIDTH = Math.round(GAME_WIDTH * 0.11);
+
+/**
+ * Kaos walks the forest with him.
+ *
+ * She is not scenery and not a marker: she is the other person in this
+ * story, so she keeps to his path, turns where he turned, and stops
+ * when he stops. Everything here is about that and nothing else — the
+ * reactions she will one day have (noticing a discovery, being startled,
+ * falling behind) belong to the companion's own state, not to the scene.
+ */
+const COMPANION_CHARACTER = 'KAOS' as const;
+/** Her height on screen. A little smaller than him, deliberately. */
+const COMPANION_DISPLAY_HEIGHT = 58;
+/**
+ * How far back along his path she walks. Far enough that the two of
+ * them read as two people on a path rather than as one figure with
+ * something stuck to it — which, at this size, takes most of a
+ * character's height.
+ */
+const FOLLOW_DISTANCE = 52;
+/** She never comes closer than this to him, whatever the path says. */
+const COMPANION_MIN_GAP = 34;
+/** A little faster than he is, so a gap she has lost can be closed. */
+const COMPANION_SPEED = 178;
+/** Close enough to her place on the path to stop walking. */
+const COMPANION_SETTLE = 1.5;
+/** Where she is standing when the forest opens: behind him, off to one side. */
+const COMPANION_START = { x: PLAYER_START.x - 28, y: PLAYER_START.y + 36 };
 
 /**
  * What is waiting at a discovery point.
@@ -89,6 +118,11 @@ export class GreenwoodScene extends Phaser.Scene {
    */
   private player!: ExplorationCharacter;
   private facing: Direction = 'back';
+  /** Kaos, walking with him. */
+  private companion!: ExplorationCharacter;
+  private companionFacing: Direction = 'back';
+  /** The ground he has walked, which is the ground she walks. */
+  private trail = new FollowTrail();
   private target: Phaser.Math.Vector2 | null = null;
   private encounterFired = false;
   private callbacks: GreenwoodCallbacks;
@@ -107,6 +141,8 @@ export class GreenwoodScene extends Phaser.Scene {
     if (art) this.load.image(BACKGROUND_KEY, art);
     // His frames: sixteen transparent PNGs, one per pose and direction.
     ExplorationCharacter.preload(this, PLAYER_CHARACTER);
+    // Hers: one transparent PNG holding her four views.
+    ExplorationCharacter.preload(this, COMPANION_CHARACTER);
   }
 
   create(): void {
@@ -140,8 +176,19 @@ export class GreenwoodScene extends Phaser.Scene {
       characterId: PLAYER_CHARACTER,
       x: PLAYER_START.x,
       y: PLAYER_START.y,
-      displayWidth: PLAYER_DISPLAY_WIDTH,
+      displaySize: PLAYER_DISPLAY_WIDTH,
       depth: 20,
+      reducedMotion: this.options.reducedMotion === true,
+    });
+    this.trail.reset(PLAYER_START.x, PLAYER_START.y);
+
+    // Layer 3b: Kaos, a step behind him.
+    this.companion = new ExplorationCharacter(this, {
+      characterId: COMPANION_CHARACTER,
+      x: COMPANION_START.x,
+      y: COMPANION_START.y,
+      displaySize: COMPANION_DISPLAY_HEIGHT,
+      depth: 22,
       reducedMotion: this.options.reducedMotion === true,
     });
 
@@ -223,6 +270,60 @@ export class GreenwoodScene extends Phaser.Scene {
   }
 
   /**
+   * Kaos walks his path, a set distance back.
+   *
+   * Not straight at him: a companion who steers at the person they are
+   * following cuts every corner and ends up walking beside them. She
+   * aims at the ground he actually covered, so she turns where he
+   * turned and arrives where he came from.
+   *
+   * Two rules keep her a person rather than a shadow. She never closes
+   * to within arm's length of him, whatever the path says, so they are
+   * always two figures and never one. And whoever is further up the
+   * path stands behind the other, so a step apart still reads as a step
+   * apart rather than as a sticker.
+   */
+  private updateCompanion(delta: number): void {
+    const place = this.trail.behind(FOLLOW_DISTANCE);
+    let walking = false;
+
+    if (place) {
+      const gap = Phaser.Math.Distance.Between(
+        this.companion.x,
+        this.companion.y,
+        place.x,
+        place.y,
+      );
+      if (gap > COMPANION_SETTLE) {
+        const step = Math.min(gap, (COMPANION_SPEED * delta) / 1000);
+        const angle = Phaser.Math.Angle.Between(
+          this.companion.x,
+          this.companion.y,
+          place.x,
+          place.y,
+        );
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+        const x = this.companion.x + dx * step;
+        const y = this.companion.y + dy * step;
+        // Never onto him. If the path would take her inside his
+        // shoulder — he doubled back, or she was catching up when he
+        // stopped — she waits instead.
+        if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) >= COMPANION_MIN_GAP) {
+          this.companion.setPosition(x, y);
+          this.companionFacing = directionFor(dx, dy, this.companionFacing);
+          this.companion.setDirection(this.companionFacing);
+          walking = true;
+        }
+      }
+    }
+
+    this.companion.setState(walking ? 'walk' : 'idle');
+    this.companion.update(delta);
+    this.companion.setDepth(this.companion.y <= this.player.y ? 18 : 22);
+  }
+
+  /**
    * "Found it." One ring leaving the spot, and gone in a quarter of a
    * second — enough to feel, too short to sit through.
    */
@@ -267,6 +368,9 @@ export class GreenwoodScene extends Phaser.Scene {
         this.player.setDirection(this.facing);
       }
     }
+
+    this.trail.record(this.player.x, this.player.y);
+    this.updateCompanion(delta);
 
     if (!encounterActive) return;
 

@@ -165,19 +165,19 @@ const RECIPES: Record<string, Shot[]> = {
   'GREENWOOD / BATTLE': [
     {
       suffix: 'greenwood_forest',
-      why: '主人公が添付スプライトの本人に見えるか。発見の気配が世界に馴染んでいるか',
+      why: '主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか',
       go: enterForest,
     },
     {
       // The back view is what the player sees almost always, so the
       // turn has to be photographed separately or nobody ever sees it.
       suffix: 'greenwood_walking_side',
-      why: '横に歩いたときに向きが変わるか。足元がタップ地点に来ているか',
+      why: '横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか',
       go: async (page) => {
         await enterForest(page);
         const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
         await page.mouse.click(box.x + box.width * 0.14, box.y + box.height * 0.5);
-        await page.waitForTimeout(320);
+        await page.waitForTimeout(420);
       },
     },
   ],
