@@ -65,6 +65,21 @@ async function freshStart(page: Page) {
   await page.getByTestId('start-button').waitFor({ timeout: 20_000 });
 }
 
+/** Into Greenwood, from nothing, with the art and the tweens running. */
+async function enterForest(page: Page) {
+  await freshStart(page);
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click();
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('location-GREENWOOD_FOREST').click();
+  await page.locator('.phaser-wrap canvas').waitFor({ timeout: 20_000 });
+  // The scene boots, loads its art and starts its tweens; the shot
+  // should be of the forest, not of a black canvas.
+  await page.waitForTimeout(1800);
+}
+
 async function openHub(page: Page) {
   await newWorld(page);
   await page.getByTestId('dev-admin-entry').click();
@@ -150,19 +165,19 @@ const RECIPES: Record<string, Shot[]> = {
   'GREENWOOD / BATTLE': [
     {
       suffix: 'greenwood_forest',
-      why: '主人公が人に見えるか。発見の気配が世界に馴染んでいるか',
+      why: '主人公が添付スプライトの本人に見えるか。発見の気配が世界に馴染んでいるか',
+      go: enterForest,
+    },
+    {
+      // The back view is what the player sees almost always, so the
+      // turn has to be photographed separately or nobody ever sees it.
+      suffix: 'greenwood_walking_side',
+      why: '横に歩いたときに向きが変わるか。足元がタップ地点に来ているか',
       go: async (page) => {
-        await freshStart(page);
-        await page.getByTestId('start-button').click();
-        await page.getByTestId('prologue-monologue').click();
-        const kaos = page.getByTestId('kaos-intro');
-        for (let i = 0; i < 6; i++) await kaos.click();
-        await page.getByTestId('explore-button').click();
-        await page.getByTestId('location-GREENWOOD_FOREST').click();
-        await page.locator('.phaser-wrap canvas').waitFor({ timeout: 20_000 });
-        // The scene boots, loads its art and starts its tweens; the shot
-        // should be of the forest, not of a black canvas.
-        await page.waitForTimeout(1800);
+        await enterForest(page);
+        const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
+        await page.mouse.click(box.x + box.width * 0.14, box.y + box.height * 0.5);
+        await page.waitForTimeout(320);
       },
     },
   ],

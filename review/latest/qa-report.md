@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T17:16:29.334Z
-- Build: MUGEN ZERO v0.1 / 4608ea3 / 2026-09-03T17:16:19.520Z
+- Generated: 2026-09-03T19:59:32.374Z
+- Build: MUGEN ZERO v0.1 / bd09370 / 2026-09-03T19:59:18.478Z
 - Environment: dev server
 - Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
@@ -98,5 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] GREENWOOD / BATTLE — 探索画面のみ。スプライトシート準拠の主人公ミニキャラ（後ろ姿基準・左右・正面）。戦闘画面は無変更
+- [ ] GREENWOOD / BATTLE — 探索画面のみ。主人公が公式スプライト画像（切り出した透過PNG）になりました。4方向＋歩行3コマ。戦闘画面は無変更
 - unchanged, no screenshot needed: HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

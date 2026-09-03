@@ -20,7 +20,7 @@ export const VISUAL_CHANGES: readonly VisualChange[] = [
     screen: 'GREENWOOD / BATTLE',
     changed: true,
     reason:
-      '探索画面のみ。スプライトシート準拠の主人公ミニキャラ（後ろ姿基準・左右・正面）。戦闘画面は無変更',
+      '探索画面のみ。主人公が公式スプライト画像（切り出した透過PNG）になりました。4方向＋歩行3コマ。戦闘画面は無変更',
   },
   { screen: 'HOME', changed: false, reason: 'v0.2 で承認済み' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },
