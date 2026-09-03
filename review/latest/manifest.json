@@ -1,0 +1,54 @@
+{
+  "capturedAt": "2026-09-03T07:46:55.647Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "shots": [
+    {
+      "file": "01_dev_review_hub.png",
+      "screen": "DEV REVIEW HUB",
+      "reason": "新規画面。折りたたみと可読性を実機で確認してほしい"
+    },
+    {
+      "file": "02_dev_review_hub_qa_report.png",
+      "screen": "DEV REVIEW HUB",
+      "reason": "GENERATE 後のレポート表示。長文が枠内で折り返されているか"
+    },
+    {
+      "file": "03_director_decision_log.png",
+      "screen": "DEV REVIEW HUB",
+      "reason": "EXPERIENCE DIRECTOR の判断根拠が実際に読めるか"
+    }
+  ],
+  "notPhotographed": [
+    {
+      "screen": "TITLE",
+      "reason": "untouched since the key visual"
+    },
+    {
+      "screen": "PROLOGUE / KAOS",
+      "reason": "untouched"
+    },
+    {
+      "screen": "HOME",
+      "reason": "untouched"
+    },
+    {
+      "screen": "EXPLORE",
+      "reason": "untouched"
+    },
+    {
+      "screen": "TAVERN / TALK",
+      "reason": "untouched — event order changed, layout did not"
+    },
+    {
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "untouched"
+    },
+    {
+      "screen": "LIFE CHOICE / ENDING / SURVEY",
+      "reason": "untouched"
+    }
+  ]
+}
