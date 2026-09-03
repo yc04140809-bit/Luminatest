@@ -155,7 +155,7 @@ for (const size of PHONES) {
 
     // Ending: buttons on screen and tappable.
     await page.getByTestId('dev-admin-entry').isVisible().catch(() => false);
-    await page.locator('.screen-footer .btn').click(); // leave the forest
+    await page.getByTestId('leave-forest').click(); // leave the forest
     await page.locator('.screen-footer .btn').click(); // back to HOME
     await page.getByTestId('dev-admin-entry').click();
     await page.getByTestId('dev-lock-input').fill('0909');

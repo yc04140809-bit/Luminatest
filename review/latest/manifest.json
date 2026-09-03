@@ -1,24 +1,28 @@
 {
-  "capturedAt": "2026-09-03T13:04:47.148Z",
+  "capturedAt": "2026-09-03T15:56:49.783Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_tavern.png",
-      "screen": "TAVERN / TALK",
-      "reason": "絵本来の色・暗さ・コントラストが戻っているか。白は UI だけか"
+      "file": "01_greenwood_forest.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "主人公が人に見えるか。発見の気配が世界に馴染んでいるか"
     }
   ],
   "notPhotographed": [
     {
       "screen": "HOME",
-      "reason": "v0.2 で承認済み。今回は変更なし"
+      "reason": "v0.2 で承認済み"
+    },
+    {
+      "screen": "TAVERN / TALK",
+      "reason": "シーンアート修正版のまま"
     },
     {
       "screen": "TITLE",
-      "reason": "v0.1 のまま（次フェーズの対象）"
+      "reason": "v0.1 のまま"
     },
     {
       "screen": "PROLOGUE / KAOS",
@@ -26,10 +30,6 @@
     },
     {
       "screen": "EXPLORE",
-      "reason": "v0.1 のまま"
-    },
-    {
-      "screen": "GREENWOOD / BATTLE",
       "reason": "v0.1 のまま"
     },
     {

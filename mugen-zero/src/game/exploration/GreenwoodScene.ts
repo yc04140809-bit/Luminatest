@@ -10,9 +10,55 @@ const ENCOUNTER_POINT = { x: 180, y: 120 };
 const ENCOUNTER_RADIUS = 28;
 const PLAYER_SPEED = 160; // px/sec
 const BACKGROUND_KEY = 'greenwood-bg';
-// Big enough to read as a person on a phone, small enough to stay a
-// marker rather than a character standing in front of the scenery.
-const PLAYER_SCALE = 1.25;
+// Big enough that his hair, cloak, shirt and facing are all legible on a
+// phone — small enough that he is still a traveller in the forest rather
+// than a figure standing in front of it.
+const PLAYER_SCALE = 1.85;
+
+/**
+ * What is waiting at a discovery point.
+ *
+ * Every kind is drawn EXACTLY the same, on purpose. The player should
+ * walk over because they wondered, not because an icon told them there
+ * was a fight or a box there — finding out what it was is the reward.
+ * The kind is carried so that later code can reason about it (what the
+ * world remembers, what a place becomes years on); it is not a label to
+ * put on the screen.
+ */
+export type DiscoveryKind = 'event' | 'battle' | 'item' | 'npc' | 'memory' | 'secret';
+
+interface DiscoveryPointDef {
+  id: string;
+  x: number;
+  y: number;
+  radius: number;
+  kind: DiscoveryKind;
+}
+
+/**
+ * Greenwood holds one discovery today: the man on the path. It is a list
+ * so that a second one costs a line rather than a rewrite — but nothing
+ * here generates, randomises or schedules anything.
+ */
+const DISCOVERY_POINTS: readonly DiscoveryPointDef[] = [
+  { id: 'GALD_ENCOUNTER', ...ENCOUNTER_POINT, radius: ENCOUNTER_RADIUS, kind: 'event' },
+];
+
+/** The palette the traveller is drawn from — his character sheet, in numbers. */
+const HIM = {
+  hair: 0x2f2620,
+  hairLit: 0x4a3a2c,
+  cloak: 0x2b2b30,
+  cloakLit: 0x3d3d45,
+  shirt: 0xe6dfd0,
+  trousers: 0x23232a,
+  boots: 0x4a3728,
+  skin: 0xf0d5b8,
+  rim: 0xd8cdb8,
+  shadow: 0x1a1a12,
+} as const;
+
+const GOLD = 0xc9a961;
 
 export interface GreenwoodCallbacks {
   onEncounter: () => void;
@@ -24,22 +70,33 @@ export interface GreenwoodOptions {
    * the same first encounter must not happen twice in one world.
    */
   encounterEnabled: boolean;
+  /**
+   * The player asked for less movement. Everything a cue says with
+   * motion it must also say standing still, so this only removes the
+   * animation — never the cue.
+   */
+  reducedMotion?: boolean;
 }
 
 /**
- * Minimal Greenwood Forest exploration scene.
- * Tap anywhere to walk; reaching the "!" marker triggers the Gald encounter.
- * The backdrop is the location's own art; everything interactive is drawn
- * on top of it by the game, never baked into the picture.
+ * Greenwood Forest — the exploration prototype.
+ *
+ * The loop it is built for: LOOK → NOTICE → WONDER → APPROACH →
+ * DISCOVER. So the forest is drawn at its own colour and never washed
+ * out, the traveller is a person rather than a marker, and the place
+ * worth walking to is a disturbance in the world — light on the ground,
+ * a ring that will not quite settle — instead of an icon saying "press
+ * here".
  */
 export class GreenwoodScene extends Phaser.Scene {
   /**
-   * The player on the map. A container, not a shape: a walking figure is
-   * built out of primitives inside it now, and a real sprite can be
-   * dropped in later without a single line of the movement code changing.
+   * The traveller. A container, not a shape: the figure is built from
+   * primitives inside it now, and a real sprite sheet can be dropped in
+   * later without a line of the movement code changing.
    */
   private player!: Phaser.GameObjects.Container;
   private playerLegs: Phaser.GameObjects.Rectangle[] = [];
+  private playerCloak: Phaser.GameObjects.Polygon | null = null;
   private walkPhase = 0;
   private target: Phaser.Math.Vector2 | null = null;
   private encounterFired = false;
@@ -62,8 +119,8 @@ export class GreenwoodScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor('#12241a');
 
-    // Layer 1: the forest itself. Cover-fit so the path stays centred and
-    // nothing is stretched, whatever the phone's aspect ratio.
+    // Layer 1: the forest itself, at its own colour. SCENE ART IS THE
+    // WORLD — nothing lightens it to match the menus.
     if (this.textures.exists(BACKGROUND_KEY)) {
       const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, BACKGROUND_KEY);
       const scale = Math.max(GAME_WIDTH / bg.width, GAME_HEIGHT / bg.height);
@@ -80,47 +137,13 @@ export class GreenwoodScene extends Phaser.Scene {
       }
     }
 
-    // Layer 2: the event point, drawn by the game — never baked into art.
+    // Layer 2: what is worth walking over to.
     if (this.options.encounterEnabled) {
-      this.add
-        .circle(ENCOUNTER_POINT.x, ENCOUNTER_POINT.y, ENCOUNTER_RADIUS, 0x120d18, 0.72)
-        .setDepth(10);
-      const mark = this.add
-        .text(ENCOUNTER_POINT.x, ENCOUNTER_POINT.y, '!', {
-          fontSize: '30px',
-          color: '#e8c15a',
-          fontStyle: 'bold',
-        })
-        .setOrigin(0.5)
-        .setDepth(11);
-      mark.setShadow(0, 0, '#000000', 6, true, true);
-      this.tweens.add({ targets: mark, y: ENCOUNTER_POINT.y - 6, duration: 600, yoyo: true, repeat: -1 });
-    } else {
-      this.add
-        .text(GAME_WIDTH / 2, 120, '森は、静かだ。', {
-          fontSize: '14px',
-          color: '#e6efe8',
-          backgroundColor: '#0b0b12cc',
-          padding: { x: 10, y: 6 },
-        })
-        .setOrigin(0.5)
-        .setDepth(11);
+      for (const point of DISCOVERY_POINTS) this.createDiscoveryCue(point);
     }
 
-    // Layer 3: the player. Small, high-contrast against the forest floor,
-    // and unmistakably a person rather than a dot on a map.
-    this.player = this.createPlayerFigure(PLAYER_START.x, PLAYER_START.y);
-
-    // Layer 4: the hint, legible against the art.
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT - 20, 'タップした場所へ移動', {
-        fontSize: '12px',
-        color: '#e6efe8',
-        backgroundColor: '#0b0b12cc',
-        padding: { x: 10, y: 5 },
-      })
-      .setOrigin(0.5)
-      .setDepth(20);
+    // Layer 3: the traveller.
+    this.player = this.createTraveller(PLAYER_START.x, PLAYER_START.y);
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.target = new Phaser.Math.Vector2(pointer.worldX, pointer.worldY);
@@ -128,27 +151,136 @@ export class GreenwoodScene extends Phaser.Scene {
   }
 
   /**
-   * A walking silhouette: a soft shadow, two legs, a body and a head,
-   * outlined so it stays readable over both sunlit path and dark leaves.
+   * A disturbance in the world, not a button on top of it.
+   *
+   * Four quiet layers: light caught on the ground, a ring of it that has
+   * not finished closing, two motes drifting up, and a slow ripple. The
+   * first two are drawn whether or not anything moves, so the place is
+   * still noticeable when the player has asked for less motion.
    */
-  private createPlayerFigure(x: number, y: number): Phaser.GameObjects.Container {
-    const shadow = this.add.ellipse(0, 2, 20, 7, 0x000000, 0.45);
-    const legLeft = this.add.rectangle(-3, -5, 3, 9, 0x1b1b26).setOrigin(0.5, 0);
-    const legRight = this.add.rectangle(3, -5, 3, 9, 0x1b1b26).setOrigin(0.5, 0);
-    const cloak = this.add.ellipse(0, -12, 14, 18, 0xe9eef5);
-    cloak.setStrokeStyle(1.5, 0x11111a, 0.9);
-    const head = this.add.circle(0, -22, 5, 0xf5f0e6);
-    head.setStrokeStyle(1.5, 0x11111a, 0.9);
-    const scarf = this.add.rectangle(0, -17, 12, 3, 0xe8c15a);
+  private createDiscoveryCue(point: DiscoveryPointDef): void {
+    const still = this.options.reducedMotion === true;
 
-    this.playerLegs = [legLeft, legRight];
-    return this.add
-      .container(x, y, [shadow, legLeft, legRight, cloak, scarf, head])
-      .setScale(PLAYER_SCALE)
-      .setDepth(20);
+    // Light on the ground. Soft, warm, wider than it is tall — the shape
+    // sunlight makes when it falls through leaves.
+    const glow = this.add.ellipse(point.x, point.y + 6, point.radius * 2.8, point.radius * 1.6, GOLD, 0.22);
+    glow.setDepth(6);
+
+    // The ring: the MUGEN mark, laid flat on the forest floor.
+    const ring = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
+    ring.setStrokeStyle(1.6, GOLD, 0.85);
+    ring.setDepth(7);
+
+    // A second, fainter one just inside it, so the cue reads as made
+    // rather than as a lens flare.
+    const inner = this.add.ellipse(point.x, point.y + 6, point.radius * 1.1, point.radius * 0.62);
+    inner.setStrokeStyle(1, GOLD, 0.5);
+    inner.setDepth(7);
+
+    if (still) return;
+
+    // The ring breathes rather than blinks.
+    this.tweens.add({
+      targets: [ring, inner],
+      scaleX: 1.06,
+      scaleY: 1.06,
+      alpha: 0.85,
+      duration: 1900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // A ripple leaving the point every few seconds — the world still
+    // remembering something that happened here.
+    const ripple = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
+    ripple.setStrokeStyle(1, GOLD, 0.5);
+    ripple.setDepth(7);
+    this.tweens.add({
+      targets: ripple,
+      scaleX: 2.1,
+      scaleY: 2.1,
+      alpha: 0,
+      duration: 2600,
+      repeat: -1,
+      ease: 'Sine.easeOut',
+    });
+
+    // Two motes of light, drifting.
+    for (let i = 0; i < 2; i++) {
+      const mote = this.add.circle(point.x + (i === 0 ? -7 : 8), point.y + 4, 1.6, GOLD, 0.85);
+      mote.setDepth(8);
+      this.tweens.add({
+        targets: mote,
+        y: point.y - 22 - i * 6,
+        alpha: 0,
+        duration: 2200 + i * 700,
+        delay: i * 900,
+        repeat: -1,
+        ease: 'Sine.easeOut',
+      });
+    }
   }
 
-  /** Legs scissor while moving and settle when standing still. */
+  /**
+   * The traveller, built to his character sheet: dark hair, dark ragged
+   * cloak, light shirt under it, small boots, and the compact
+   * proportions of the exploration chibi — young, not a child.
+   *
+   * Everything is a primitive so it needs no asset, and everything sits
+   * in one container so a sprite can replace the lot.
+   */
+  private createTraveller(x: number, y: number): Phaser.GameObjects.Container {
+    const parts: Phaser.GameObjects.GameObject[] = [];
+
+    const shadow = this.add.ellipse(0, 3, 18, 6, HIM.shadow, 0.45);
+    parts.push(shadow);
+
+    // Boots, then legs above them: the legs are what the walk animates.
+    const bootLeft = this.add.rectangle(-3.2, 1, 4, 3, HIM.boots).setOrigin(0.5, 1);
+    const bootRight = this.add.rectangle(3.2, 1, 4, 3, HIM.boots).setOrigin(0.5, 1);
+    const legLeft = this.add.rectangle(-3, -2, 3.4, 6, HIM.trousers).setOrigin(0.5, 1);
+    const legRight = this.add.rectangle(3, -2, 3.4, 6, HIM.trousers).setOrigin(0.5, 1);
+    parts.push(bootLeft, bootRight, legLeft, legRight);
+
+    // The light shirt shows at the middle, under the cloak.
+    const shirt = this.add.rectangle(0, -8, 9, 8, HIM.shirt).setOrigin(0.5, 0.5);
+    parts.push(shirt);
+
+    // The cloak: dark, and torn along the hem the way his is.
+    const cloak = this.add.polygon(
+      0,
+      -8,
+      [
+        -7, -6, 7, -6, 8, 2, 6, 6, 4.5, 2, 2.5, 7, 0.5, 2, -1.5, 6.5, -3.5, 1.5, -5.5, 6, -7.5, 1,
+      ],
+      HIM.cloak,
+    );
+    cloak.setOrigin(0, 0);
+    // A pale hairline all round him: the forest floor is as dark as his
+    // cloak, and without it he sinks into it.
+    cloak.setStrokeStyle(0.8, HIM.rim, 0.85);
+    parts.push(cloak);
+    this.playerCloak = cloak;
+
+    // A collar catching the light, so the silhouette does not go flat.
+    const collar = this.add.rectangle(0, -13.5, 11, 2.4, HIM.cloakLit);
+    parts.push(collar);
+
+    // Head, then hair over it: a face is a face at four pixels only if
+    // something dark sits on top of it.
+    const head = this.add.circle(0, -18.5, 5.2, HIM.skin);
+    const hair = this.add.ellipse(0, -20.6, 11.4, 8.2, HIM.hair);
+    hair.setStrokeStyle(0.8, HIM.rim, 0.7);
+    const fringe = this.add.ellipse(-1.6, -18.4, 8, 4.6, HIM.hair);
+    const tuft = this.add.triangle(0, 0, 1, -25.5, 4.5, -28.5, 4.2, -24, HIM.hairLit);
+    parts.push(head, hair, fringe, tuft);
+
+    this.playerLegs = [legLeft, legRight];
+    return this.add.container(x, y, parts).setScale(PLAYER_SCALE).setDepth(20);
+  }
+
+  /** Legs scissor while moving, the cloak sways, and both settle at rest. */
   private animateWalk(moving: boolean, delta: number): void {
     const [left, right] = this.playerLegs;
     if (!left || !right) return;
@@ -156,12 +288,33 @@ export class GreenwoodScene extends Phaser.Scene {
       this.walkPhase = 0;
       left.setScale(1, 1);
       right.setScale(1, 1);
+      this.playerCloak?.setRotation(0);
       return;
     }
     this.walkPhase += delta / 90;
     const swing = Math.sin(this.walkPhase) * 0.35;
     left.setScale(1, 1 + swing);
     right.setScale(1, 1 - swing);
+    this.playerCloak?.setRotation(Math.sin(this.walkPhase) * 0.045);
+  }
+
+  /**
+   * "Found it." One ring leaving the spot, and gone in a quarter of a
+   * second — enough to feel, too short to sit through.
+   */
+  private discoveryPulse(point: DiscoveryPointDef): void {
+    if (this.options.reducedMotion === true) return;
+    const pulse = this.add.ellipse(point.x, point.y + 6, point.radius * 1.6, point.radius * 0.9);
+    pulse.setStrokeStyle(2, GOLD, 0.95);
+    pulse.setDepth(30);
+    this.tweens.add({
+      targets: pulse,
+      scaleX: 2.4,
+      scaleY: 2.4,
+      alpha: 0,
+      duration: 260,
+      ease: 'Cubic.easeOut',
+    });
   }
 
   update(_time: number, delta: number): void {
@@ -188,15 +341,18 @@ export class GreenwoodScene extends Phaser.Scene {
 
     if (!encounterActive) return;
 
-    const dEnc = Phaser.Math.Distance.Between(
-      this.player.x, this.player.y, ENCOUNTER_POINT.x, ENCOUNTER_POINT.y,
-    );
-    if (dEnc <= ENCOUNTER_RADIUS + 10) {
+    for (const point of DISCOVERY_POINTS) {
+      const reached =
+        Phaser.Math.Distance.Between(this.player.x, this.player.y, point.x, point.y) <=
+        point.radius + 10;
+      if (!reached) continue;
       this.encounterFired = true;
+      this.discoveryPulse(point);
       this.cameras.main.fadeOut(350, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.callbacks.onEncounter();
       });
+      return;
     }
   }
 }

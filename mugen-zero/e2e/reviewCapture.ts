@@ -149,12 +149,20 @@ const RECIPES: Record<string, Shot[]> = {
   ],
   'GREENWOOD / BATTLE': [
     {
-      suffix: 'battle',
-      why: 'HP バーと戦闘ログの可読性',
+      suffix: 'greenwood_forest',
+      why: '主人公が人に見えるか。発見の気配が世界に馴染んでいるか',
       go: async (page) => {
         await freshStart(page);
-        await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
-        await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
+        await page.getByTestId('start-button').click();
+        await page.getByTestId('prologue-monologue').click();
+        const kaos = page.getByTestId('kaos-intro');
+        for (let i = 0; i < 6; i++) await kaos.click();
+        await page.getByTestId('explore-button').click();
+        await page.getByTestId('location-GREENWOOD_FOREST').click();
+        await page.locator('.phaser-wrap canvas').waitFor({ timeout: 20_000 });
+        // The scene boots, loads its art and starts its tweens; the shot
+        // should be of the forest, not of a black canvas.
+        await page.waitForTimeout(1800);
       },
     },
   ],

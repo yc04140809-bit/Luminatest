@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T13:04:46.726Z
-- Build: MUGEN ZERO v0.1 / 063b82c / 2026-09-03T13:04:39.890Z
+- Generated: 2026-09-03T15:56:49.367Z
+- Build: MUGEN ZERO v0.1 / ff4abd9 / 2026-09-03T15:56:40.181Z
 - Environment: dev server
 - Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
@@ -98,5 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] TAVERN / TALK — 白いフェードを外し、絵本来の色・暗さ・コントラストを戻した。UIだけが白と金
-- unchanged, no screenshot needed: HOME, TITLE, PROLOGUE / KAOS, EXPLORE, GREENWOOD / BATTLE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] GREENWOOD / BATTLE — 探索画面のみ。主人公ミニキャラ・世界に溶けた発見の気配・場所の導入・静かな退出。戦闘画面は無変更
+- unchanged, no screenshot needed: HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

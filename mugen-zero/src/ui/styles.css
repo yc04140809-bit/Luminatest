@@ -1396,3 +1396,76 @@ body,
   border: 1px solid var(--mugen-border-strong);
   box-shadow: var(--mugen-shadow);
 }
+
+
+/* ---- FIELD (exploration) ---------------------------------------------
+   The world is the subject. The UI names the place, says one thing about
+   how to move, and offers the way out — and then gets out of the way.
+   Scoped to .field-* so no other screen can be moved by it. */
+
+.field-screen {
+  background: var(--mugen-bg);
+}
+
+.field-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 8px;
+}
+.field-intro-en {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--mugen-gold);
+  opacity: 0.9;
+}
+.field-intro-jp {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: var(--mugen-text);
+}
+.field-intro-rule {
+  margin-top: 6px;
+  width: 84px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--mugen-gold-soft), transparent);
+}
+
+.field-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+}
+.field-hint {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--mugen-text-muted);
+}
+/* Secondary by construction: a line of type with a rule under it, never
+   a slab competing with the thing worth walking to. */
+.field-exit {
+  appearance: none;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--mugen-border);
+  padding: 10px 26px 4px;
+  min-height: var(--tap-min);
+  color: var(--mugen-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+.field-exit:active {
+  color: var(--mugen-gold);
+}
