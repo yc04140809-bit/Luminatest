@@ -138,6 +138,28 @@ export class ExplorationCharacter {
   }
 
   /**
+   * A small bounce in place — the whole of "oh, something's here".
+   *
+   * Purely visual: the feet do not move, so the character is still
+   * standing exactly where the scene believes they are. Only ever used
+   * while they are stopped, which is why it is safe to tween the sprite
+   * out from under setPosition.
+   */
+  hop(): void {
+    const sprite = this.sprite;
+    if (!sprite || this.reducedMotion) return;
+    this.scene.tweens.killTweensOf(sprite);
+    this.scene.tweens.add({
+      targets: sprite,
+      y: this.feet.y - 4,
+      duration: 120,
+      yoyo: true,
+      ease: 'Sine.easeOut',
+      onComplete: () => sprite.setY(this.feet.y),
+    });
+  }
+
+  /**
    * Who is in front of whom. Used to keep whoever is further up the
    * path behind the other, so two characters standing close together
    * still read as two people at different distances.

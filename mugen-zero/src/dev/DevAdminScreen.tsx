@@ -7,6 +7,8 @@ import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
 import { DevReviewHub } from './DevReviewHub';
+import { debugEncounterType, setDebugEncounterType } from './debugEncounter';
+import type { DiscoveryCategory } from '../game/exploration/discovery';
 
 interface Props {
   world: World;
@@ -34,6 +36,10 @@ const smallBtn: React.CSSProperties = { fontSize: 13, padding: '10px 12px', flex
  */
 export function DevAdminScreen({ world, playtest, onBack }: Props) {
   const [busy, setBusy] = useState(false);
+  // What the next arrival in the forest will turn out to be. Reading it
+  // here is what makes each of the three routes testable rather than
+  // waited for; the player never sees this, in any build they can reach.
+  const [forced, setForced] = useState<DiscoveryCategory | null>(() => debugEncounterType());
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
   // The hub is a mode of the admin screen, not a new route: it is read
@@ -286,6 +292,38 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
           ))
         )}
       </div>
+      <div style={sectionTitle}>EXPLORATION — 次の発見を固定</div>
+      <div style={row}>
+        {(['EVENT', 'ITEM', 'BATTLE'] as DiscoveryCategory[]).map((category) => (
+          <button
+            key={category}
+            className={forced === category ? 'btn primary' : 'btn'}
+            style={smallBtn}
+            data-testid={`force-encounter-${category}`}
+            onClick={() => {
+              setDebugEncounterType(category);
+              setForced(category);
+            }}
+          >
+            {category}
+          </button>
+        ))}
+        <button
+          className={forced === null ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-encounter-none"
+          onClick={() => {
+            setDebugEncounterType(null);
+            setForced(null);
+          }}
+        >
+          ランダム（既定）
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
+        森の金色リングに到着したとき、何が出るかを固定します。設定は森に入り直すと反映されます。
+      </div>
+
       <div className="screen-footer">
         <button className="btn" data-testid="dev-admin-back" onClick={onBack}>
           もどる

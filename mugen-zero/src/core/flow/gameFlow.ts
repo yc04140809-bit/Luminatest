@@ -18,9 +18,13 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   FUTURE_SITE: ['EXPLORE', 'ENDING'],
   // A place you walk into and meet someone. Always steps back outside.
   TALK_SPOT: ['EXPLORE'],
-  GREENWOOD: ['ENCOUNTER', 'EXPLORE'],
+  // The forest can hand over to the scripted meeting, to a fight with
+  // something living in it, or to the way out.
+  GREENWOOD: ['ENCOUNTER', 'BATTLE', 'EXPLORE'],
   ENCOUNTER: ['BATTLE'],
-  BATTLE: ['LIFE_CHOICE', 'HOME'],
+  // Beating Gald asks the life question; beating something in the forest
+  // puts the player back where they were standing.
+  BATTLE: ['LIFE_CHOICE', 'GREENWOOD', 'HOME'],
   LIFE_CHOICE: ['CHOICE_RESULT'],
   CHOICE_RESULT: ['HOME'],
   WORLD_MEMORY: ['HOME'],

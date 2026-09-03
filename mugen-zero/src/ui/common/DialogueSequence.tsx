@@ -39,6 +39,16 @@ interface Props {
    * the player just walked through instead of cutting to black.
    */
   backdropLocationId?: LocationId;
+  /**
+   * Play over whatever is already on screen instead of replacing it.
+   *
+   * Used by the forest: a few lines about a mossy stone should happen
+   * where the stone is, with the two of them still standing in the
+   * picture, rather than cutting away to a copy of the same forest.
+   * No backdrop is drawn in this mode — the world behind is the
+   * backdrop.
+   */
+  overlay?: boolean;
 }
 
 const KAOS_SPEAKER = 'ケイオス';
@@ -55,6 +65,7 @@ export function DialogueSequence({
   portraitFromLine = 0,
   backdropLocationId,
   backdropImage = null,
+  overlay = false,
 }: Props) {
   const [index, setIndex] = useState(0);
   // Art is presentation: if it fails to load the scene plays on without
@@ -82,7 +93,7 @@ export function DialogueSequence({
   return (
     <div
       className={[
-        'screen dialogue-screen',
+        overlay ? 'dialogue-overlay dialogue-screen' : 'screen dialogue-screen',
         isKaos ? 'dialogue-kaos' : '',
         backdrop ? 'has-backdrop' : '',
       ]
@@ -100,13 +111,15 @@ export function DialogueSequence({
       aria-label="次へ進む"
       data-testid={testId}
     >
-      <ScreenBackdrop
-        src={backdrop}
-        variant="encounter"
-        focus={backdropLocationId ? locationBackgroundFocus(backdropLocationId) : undefined}
-        fit={backdropLocationId ? locationBackgroundFit(backdropLocationId) : undefined}
-        testId="dialogue-backdrop"
-      />
+      {!overlay && (
+        <ScreenBackdrop
+          src={backdrop}
+          variant="encounter"
+          focus={backdropLocationId ? locationBackgroundFocus(backdropLocationId) : undefined}
+          fit={backdropLocationId ? locationBackgroundFit(backdropLocationId) : undefined}
+          testId="dialogue-backdrop"
+        />
+      )}
       <div className="dialogue-stage">
         {centered && (
           <p key={index} className="dialogue-centered">

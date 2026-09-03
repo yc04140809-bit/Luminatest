@@ -20,7 +20,7 @@ export const VISUAL_CHANGES: readonly VisualChange[] = [
     screen: 'GREENWOOD / BATTLE',
     changed: true,
     reason:
-      '探索画面のみ。ケイオスちゃんが同行キャラクターとして追加（添付PNGをそのまま使用・4方向・主人公の後方を追従）。主人公側は無変更。戦闘画面も無変更',
+      '探索のゲームプレイループ。金色リングへ到着すると EVENT / ITEM / BATTLE のいずれかが起き、終わると別の場所に次のリングが現れます。見た目（背景・主人公・ケイオス・リング・UI）は無変更',
   },
   { screen: 'HOME', changed: false, reason: 'v0.2 で承認済み' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },

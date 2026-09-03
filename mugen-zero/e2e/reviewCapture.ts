@@ -72,12 +72,58 @@ async function enterForest(page: Page) {
   await page.getByTestId('prologue-monologue').click();
   const kaos = page.getByTestId('kaos-intro');
   for (let i = 0; i < 6; i++) await kaos.click();
+  await openForest(page);
+}
+
+/** From HOME, straight through the map into the trees. */
+async function openForest(page: Page) {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
   await page.locator('.phaser-wrap canvas').waitFor({ timeout: 20_000 });
   // The scene boots, loads its art and starts its tweens; the shot
   // should be of the forest, not of a black canvas.
   await page.waitForTimeout(1800);
+}
+
+/**
+ * Every spot a gold ring may stand on, in scene coordinates.
+ *
+ * Which one is standing today is chosen at random, and a review shot
+ * cannot wait for luck — so the walk visits them in turn until an
+ * arrival happens. The same list as the game's, deliberately duplicated:
+ * a capture that silently followed a change in the real list would stop
+ * photographing what it claims to.
+ */
+const RING_SPOTS: readonly [number, number][] = [
+  [180, 118], [138, 166], [224, 158], [120, 250],
+  [172, 232], [238, 258], [206, 322], [134, 330],
+];
+
+/**
+ * A world where Gald's story is already settled, with the next arrival
+ * forced, so the three routes can each be photographed.
+ */
+async function forestWith(page: Page, force: 'EVENT' | 'ITEM' | 'BATTLE') {
+  await newWorld(page);
+  await page.getByTestId('dev-admin-entry').click();
+  await page.getByTestId('dev-lock-input').fill('0909');
+  await page.getByTestId('dev-lock-submit').click();
+  await page.getByTestId('preset-SPARE_3Y').click();
+  await page.getByTestId(`force-encounter-${force}`).click();
+  await page.getByTestId('dev-admin-back').click();
+  await openForest(page);
+}
+
+/** Walks the ring spots in turn until something happens. */
+async function walkUntil(page: Page, arrived: () => Promise<boolean>) {
+  const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
+  for (const [x, y] of RING_SPOTS) {
+    await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+    for (let i = 0; i < 12; i++) {
+      await page.waitForTimeout(180);
+      if (await arrived()) return;
+    }
+  }
 }
 
 async function openHub(page: Page) {
@@ -178,6 +224,29 @@ const RECIPES: Record<string, Shot[]> = {
         const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
         await page.mouse.click(box.x + box.width * 0.14, box.y + box.height * 0.5);
         await page.waitForTimeout(420);
+      },
+    },
+    {
+      suffix: 'greenwood_found_item',
+      why: 'アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか',
+      go: async (page) => {
+        await forestWith(page, 'ITEM');
+        const card = page.getByTestId('forest-item');
+        await walkUntil(page, () => card.isVisible().catch(() => false));
+        await expect(card).toBeVisible();
+        await page.waitForTimeout(300);
+      },
+    },
+    {
+      suffix: 'greenwood_forest_event',
+      why: '森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）',
+      go: async (page) => {
+        await forestWith(page, 'EVENT');
+        const scene = page.getByTestId('forest-event');
+        await walkUntil(page, () => scene.isVisible().catch(() => false));
+        await expect(scene).toBeVisible();
+        // The 「▼ タップ」 prompt fades in over about a second.
+        await page.waitForTimeout(1600);
       },
     },
   ],

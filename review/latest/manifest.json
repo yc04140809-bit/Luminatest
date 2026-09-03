@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-09-03T21:38:47.646Z",
+  "capturedAt": "2026-09-03T22:55:36.996Z",
   "viewport": {
     "width": 390,
     "height": 844
@@ -14,6 +14,16 @@
       "file": "02_greenwood_walking_side.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
+    },
+    {
+      "file": "03_greenwood_found_item.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか"
+    },
+    {
+      "file": "04_greenwood_forest_event.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）"
     }
   ],
   "notPhotographed": [

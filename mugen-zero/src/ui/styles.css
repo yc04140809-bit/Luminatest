@@ -1469,3 +1469,95 @@ body,
 .field-exit:active {
   color: var(--mugen-gold);
 }
+
+/* ---- what the forest gives you ----
+   Read over the world, not instead of it. The two of them stay standing
+   in the picture behind the words, which is what makes the walk feel
+   like it went somewhere — and nothing here tints, veils or lightens
+   the forest to make room for itself. */
+.field-screen {
+  position: relative;
+}
+.field-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+}
+/* The dialogue box on its own, with the forest showing around it. */
+.dialogue-overlay {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+
+.find-card-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.find-card {
+  width: min(300px, 100%);
+  padding: 20px 20px 14px;
+  background: rgba(255, 253, 248, 0.96);
+  border: 1px solid var(--mugen-border);
+  border-radius: 12px;
+  box-shadow: var(--mugen-shadow);
+  text-align: center;
+}
+.find-card-label {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--mugen-gold);
+}
+.find-card-rule {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin: 10px auto 14px;
+  background: linear-gradient(90deg, transparent, var(--mugen-gold-soft), transparent);
+}
+.find-card-name {
+  margin: 0 0 10px;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: var(--mugen-text);
+}
+.find-card-text {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--mugen-text-secondary);
+}
+.find-card-take {
+  appearance: none;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 10px 18px 6px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--mugen-border);
+  color: var(--mugen-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+}
+.find-card-take:active {
+  color: var(--mugen-gold);
+}
+/* While something is being read, the hint and the way out stand down:
+   the dialogue box is nearly opaque, not fully, and two lines of UI
+   showing through the words is worse than two lines of missing UI. */
+.field-screen.has-overlay .field-foot {
+  visibility: hidden;
+}

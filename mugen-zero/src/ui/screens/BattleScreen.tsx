@@ -10,6 +10,7 @@ import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
 import { galdPortrait } from '../../assets/manifest';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
+import type { BattleEnemyDef } from '../../content/exploration/forestFinds';
 
 interface Props {
   /**
@@ -18,6 +19,13 @@ interface Props {
    * fight in a cave or on a mountain needs no change here.
    */
   battleLocationId: LocationId;
+  /**
+   * Who the fight is with. Left out, it is Gald on the forest path —
+   * the story's one fight, with his art and his line when he goes down.
+   * Anything else that can be met while exploring passes itself here,
+   * and this screen learns nothing new about who it is.
+   */
+  enemy?: BattleEnemyDef;
   onVictory: () => void;
   onDefeat: () => void;
 }
@@ -63,10 +71,12 @@ function HpBar({
   );
 }
 
-export function BattleScreen({ battleLocationId, onVictory, onDefeat }: Props) {
+export function BattleScreen({ battleLocationId, enemy, onVictory, onDefeat }: Props) {
   // The bandit is named from the first line of the encounter, so the bar
   // above belongs to a person the player has already met.
-  const [battle, setBattle] = useState<BattleState>(() => createBattle(`盗賊 ${GALD.name}`));
+  const [battle, setBattle] = useState<BattleState>(() =>
+    createBattle(enemy ? enemy.name : `盗賊 ${GALD.name}`),
+  );
   const [reaction, setReaction] = useState<Reaction>('NONE');
 
   useEffect(() => {
@@ -91,7 +101,10 @@ export function BattleScreen({ battleLocationId, onVictory, onDefeat }: Props) {
   const ongoing = battle.outcome === 'ONGOING';
   const beaten = battle.enemyHp <= 0;
   const lastLogs = battle.log.slice(-2);
-  const portrait = galdPortrait(beaten ? 'defeated' : 'ready');
+  // Gald has standing art at both moments. Nothing else met in the
+  // forest has any yet, and a placeholder that admits it is better than
+  // borrowing his face.
+  const portrait = enemy ? null : galdPortrait(beaten ? 'defeated' : 'ready');
   const backdrop = locationBackground(battleLocationId);
 
   const attack = () => {
@@ -128,7 +141,7 @@ export function BattleScreen({ battleLocationId, onVictory, onDefeat }: Props) {
               alt={beaten ? '膝をついた盗賊' : '短剣を構えた盗賊'}
             />
           ) : (
-            <div className="enemy-figure">🗡</div>
+            <div className="enemy-figure">{enemy?.glyph ?? '🗡'}</div>
           )}
           {reaction === 'GUARD' && <div className="battle-guard-mark" aria-hidden="true" />}
         </div>
@@ -140,9 +153,18 @@ export function BattleScreen({ battleLocationId, onVictory, onDefeat }: Props) {
         />
       </div>
       {beaten ? (
-        <div className="battle-log" data-testid="gald-defeated-line" role="status" aria-live="polite">
-          <div className="dialogue-speaker">{GALD_DEFEATED_LINES[0].speaker}</div>
-          <div className="dialogue-text">{GALD_DEFEATED_LINES[0].text}</div>
+        <div
+          className="battle-log"
+          data-testid={enemy ? 'enemy-defeated-line' : 'gald-defeated-line'}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="dialogue-speaker">
+            {enemy ? enemy.defeatedSpeaker : GALD_DEFEATED_LINES[0].speaker}
+          </div>
+          <div className="dialogue-text">
+            {enemy ? enemy.defeatedText : GALD_DEFEATED_LINES[0].text}
+          </div>
         </div>
       ) : (
         <div className="battle-log" data-testid="battle-log" role="status" aria-live="polite">

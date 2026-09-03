@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { GameFlow } from './core/flow/gameFlow';
 import { World } from './core/world/world';
 import { IdbMemoryStore } from './core/memory/idbStore';
@@ -40,6 +40,14 @@ import { ALDEN_EXPERIENCE_EVENTS } from './content/experience/aldenExperience';
 import { locationsWithSomethingNew } from './core/experience/experienceEngine';
 import { pickEvent } from './core/experience/director';
 import type { TalkEventDef } from './content/experience/aldenExperience';
+import {
+  GREENWOOD_EXPERIENCE_EVENTS,
+  GREENWOOD_FOREST_SPOT,
+} from './content/experience/greenwoodExperience';
+import { GREENWOOD_STRAY_WOLF } from './content/exploration/forestFinds';
+import { ExplorationSession } from './game/exploration/explorationSession';
+import { debugEncounterType } from './dev/debugEncounter';
+import { clearObtainedItems } from './platform/discoveries';
 
 // Phaser is the heaviest dependency by far and is only needed once the
 // player walks into the forest; the dev admin never ships to a player's
@@ -74,6 +82,19 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // inherit it, which is what makes the fight happen in the forest the
   // player walked into rather than on a screen of its own.
   const [currentLocationId, setCurrentLocationId] = useState<LocationId>('ALDEN_VILLAGE');
+  // Where the two of them were standing when a fight took them off the
+  // forest screen. Runtime only: never saved, never world truth, and
+  // cleared the moment the player walks out of the forest on purpose.
+  const forestSession = useRef(new ExplorationSession());
+  // Whether the fight on screen is the one in the forest rather than the
+  // one the story is about. It decides who is fought and where victory
+  // goes, and nothing else.
+  //
+  // A ref rather than state, and set BEFORE the transition that shows
+  // the battle: the flow store and React state do not necessarily land
+  // in the same render, and a battle that mounted for one enemy keeps
+  // that enemy's health bar for the rest of the fight.
+  const forestBattle = useRef(false);
 
   // Reflects whether THIS playthrough already sent feedback.
   useEffect(() => {
@@ -130,6 +151,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           }}
           onReset={async () => {
             await world.resetWorld();
+            // Finds live beside the settings rather than in the world,
+            // so resetting the world has to clear them by name.
+            clearObtainedItems();
             // A fresh world is a fresh playthrough to ask about; past
             // feedback is deliberately kept.
             startNewPlaySession();
@@ -307,6 +331,21 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             encounterEnabled={galdChoiceInWorld === null}
             onEncounter={() => flow.goTo('ENCOUNTER')}
             onBack={() => flow.goTo('EXPLORE')}
+            session={forestSession.current}
+            // The forest's own small events, chosen by the same DIRECTOR
+            // that runs the village — a separate registry only because
+            // the village list also decides which places wear a ✦.
+            pickForestEvent={() =>
+              pickEvent(GREENWOOD_EXPERIENCE_EVENTS, world.getExperienceView(), {
+                location: GREENWOOD_FOREST_SPOT,
+              }) as TalkEventDef | null
+            }
+            onEventSeen={(eventId) => world.markExperienceSeen(eventId)}
+            onForestBattle={() => {
+              forestBattle.current = true;
+              flow.goTo('BATTLE');
+            }}
+            forcedCategory={debugEncounterType()}
           />
         </Suspense>
       );
@@ -315,8 +354,32 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
         <EncounterScreen locationId={currentLocationId} onBattleStart={() => flow.goTo('BATTLE')} />
       );
     case 'BATTLE':
+      // Two fights, one screen. The story's fight asks the life question
+      // when it is won; a fight in the forest puts the player back on the
+      // path they were walking, where they were standing.
+      if (forestBattle.current) {
+        return (
+          <BattleScreen
+            // Keyed by who is being fought, so the health bar can never
+            // belong to the previous occupant of this screen.
+            key={GREENWOOD_STRAY_WOLF.id}
+            battleLocationId={currentLocationId}
+            enemy={GREENWOOD_STRAY_WOLF}
+            onVictory={() => {
+              forestBattle.current = false;
+              flow.goTo('GREENWOOD');
+            }}
+            onDefeat={() => {
+              forestBattle.current = false;
+              forestSession.current.clear();
+              flow.goTo('HOME');
+            }}
+          />
+        );
+      }
       return (
         <BattleScreen
+          key="GALD"
           battleLocationId={currentLocationId}
           onVictory={() => flow.goTo('LIFE_CHOICE')}
           onDefeat={() => flow.goTo('HOME')}

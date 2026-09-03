@@ -1,17 +1,17 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T21:38:47.232Z
-- Build: MUGEN ZERO v0.1 / ce7c9f6 / 2026-09-03T21:38:32.409Z
+- Generated: 2026-09-03T22:55:36.588Z
+- Build: MUGEN ZERO v0.1 / f7fc091 / 2026-09-03T22:55:05.701Z
 - Environment: dev server
-- Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
+- Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 1年目 1日目 (day 1)
-- Route: NONE
-- TIME SHIFTs: 0
-- WORLD MEMORY facts: 0
-- LIFE ARCHIVE: 0 known / 0 in canon
-- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 4年目 4日目 (day 1099)
+- Route: SPARE
+- TIME SHIFTs: 1
+- WORLD MEMORY facts: 5
+- LIFE ARCHIVE: 1 known / 4 in canon
+- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -48,15 +48,15 @@
   - how: looked for an event requiring each route memory
 
 ## WORLD MEMORY CHECKS
-- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 0 facts recorded, no duplicates
+- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 5 facts recorded, no duplicates
   - how: compared every event id in the world currently loaded
-- **PASS** `LIFE_CHOICE_IS_SINGULAR` — no choice made yet
+- **PASS** `LIFE_CHOICE_IS_SINGULAR` — one choice: PLAYER_SPARED_GALD
   - how: counted the first-encounter outcomes in WORLD MEMORY
 - **PASS** `WORLD_MEMORY_IN_ORDER` — history runs forwards
   - how: walked the event list comparing world dates
-- **PASS** `FUTURE_SITE_CAUSALITY` — 0 of 4 sites on the map, 0 found
+- **PASS** `FUTURE_SITE_CAUSALITY` — 1 of 4 sites on the map, 0 found
   - how: compared each site discovery against its required world memory
-- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 0 of 0 chapters known to the player
+- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 1 of 4 chapters known to the player
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
@@ -80,7 +80,7 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **NOT TESTED** `SAVE_RESTORED` — nothing saved yet in this world, so there was nothing to restore
+- **PASS** `SAVE_RESTORED` — restored 5 facts and 0 met events from IndexedDB
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
@@ -98,5 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] GREENWOOD / BATTLE — 探索画面のみ。ケイオスちゃんが同行キャラクターとして追加（添付PNGをそのまま使用・4方向・主人公の後方を追従）。主人公側は無変更。戦闘画面も無変更
+- [ ] GREENWOOD / BATTLE — 探索のゲームプレイループ。金色リングへ到着すると EVENT / ITEM / BATTLE のいずれかが起き、終わると別の場所に次のリングが現れます。見た目（背景・主人公・ケイオス・リング・UI）は無変更
 - unchanged, no screenshot needed: HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
