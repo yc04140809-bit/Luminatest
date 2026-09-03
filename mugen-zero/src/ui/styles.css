@@ -975,38 +975,26 @@ body,
   pointer-events: none;
 }
 .screen-backdrop-art,
-.screen-backdrop-veil,
-.screen-backdrop-underlay {
+.screen-backdrop-veil {
   position: absolute;
   inset: 0;
-}
-/* The wash a fitted band sits in. Not a picture — a colour memory of one. */
-.screen-backdrop-underlay {
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
-  filter: blur(30px) brightness(1.32) contrast(0.7) saturate(0.42);
-  transform: scale(1.14);
-  opacity: 0.55;
 }
 .screen-backdrop-art {
   background-repeat: no-repeat;
 }
-/* Art that is sized rather than cropped sits on the page as a band. Its
-   top and bottom are cut edges, so they are faded out instead of drawn:
-   the picture becomes an illustration on vellum rather than a photograph
-   pasted onto it. */
+/* Art that is sized rather than cropped sits on the page as a band. A cut
+   edge cannot be softened by fading it — the step is in the picture, not
+   in the alpha — so the band is anchored to the top of the screen, where
+   its upper edge leaves the frame entirely, and only the single lower
+   edge remains to be faded.
+
+   The fade must be finished BY the band's lower edge, and starts as late
+   as it can so the picture keeps its full strength for as much of its
+   height as possible. Where the band ends depends on the art's aspect and
+   its width, so it is a variable: one number per screen. */
 .backdrop-art-inset {
-  /* A cut edge cannot be softened by fading it — the step is in the art,
-     not in the alpha. So the band is anchored to the top of the screen,
-     where its upper edge leaves the frame entirely, and only the single
-     lower edge remains to be faded away. */
-  /* The fade must be finished BY the band's lower edge, or the edge is
-     simply drawn at whatever alpha the fade has reached. Where the band
-     ends depends on the art's aspect and its width, so it is a variable:
-     one number per screen, set where that art is fitted. */
-  --band-end: 50%;
-  --band-fade: 24%;
+  --band-end: 53%;
+  --band-fade: 38%;
   -webkit-mask-image: linear-gradient(
     180deg,
     #000 0%,
@@ -1020,10 +1008,7 @@ body,
     transparent var(--band-end)
   );
 }
-/* The wash then carries the rest of the screen. */
-.screen-backdrop:has(.backdrop-art-inset) .screen-backdrop-underlay {
-  opacity: 0.4;
-}
+
 /* Everything the screen itself draws sits above the art. */
 .screen.has-backdrop > *:not(.screen-backdrop) {
   position: relative;
@@ -1128,24 +1113,31 @@ body,
   );
 }
 
-/* ENCOUNTER — the forest again, so walking up to Gald, meeting him and
-   fighting him are visibly one continuous place. */
+/* SCENE ART — the tavern, the forest, wherever the player is standing.
+   ------------------------------------------------------------------
+   These screens are not a white page with a picture behind it. They are
+   the place, with the game's white-and-gold UI laid on top of it.
+   So the art keeps its own colour, its own darkness and its own
+   contrast: nothing here lightens it, and nothing covers the frame with
+   an ivory sheet. The only overlay is the small one under the words,
+   and the dialogue box carries most of that itself. */
 .dialogue-screen.has-backdrop {
   background: var(--mugen-bg);
 }
 .backdrop-encounter .screen-backdrop-art {
   background-position: 50% 34%;
   background-size: cover;
-  /* The tavern art is night-lit to begin with, so it needs the least
-     lifting of the three to reach the page. */
-  filter: brightness(1.14) contrast(0.95) saturate(0.72);
+  filter: none;
 }
 .backdrop-encounter .screen-backdrop-veil {
+  /* Nothing across the picture; a short rise at the very bottom so the
+     page and the dialogue box do not meet the art as a hard line. */
   background: linear-gradient(
     180deg,
-    var(--mugen-veil-strong) 0%,
-    rgba(250, 247, 240, 0.34) 38%,
-    var(--mugen-veil) 78%,
+    transparent 0%,
+    transparent 62%,
+    rgba(250, 247, 240, 0.28) 78%,
+    rgba(250, 247, 240, 0.72) 92%,
     var(--mugen-veil-strong) 100%
   );
 }

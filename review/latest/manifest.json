@@ -1,22 +1,21 @@
 {
-  "capturedAt": "2026-09-03T12:33:41.691Z",
+  "capturedAt": "2026-09-03T13:04:47.148Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_home_new_world.png",
-      "screen": "HOME",
-      "reason": "始めたばかりの世界。まだ何も覚えていない状態の第一印象"
-    },
-    {
-      "file": "02_home_remembering.png",
-      "screen": "HOME",
-      "reason": "記憶を持った世界。数字と最新の記憶が入ったときの見え方"
+      "file": "01_tavern.png",
+      "screen": "TAVERN / TALK",
+      "reason": "絵本来の色・暗さ・コントラストが戻っているか。白は UI だけか"
     }
   ],
   "notPhotographed": [
+    {
+      "screen": "HOME",
+      "reason": "v0.2 で承認済み。今回は変更なし"
+    },
     {
       "screen": "TITLE",
       "reason": "v0.1 のまま（次フェーズの対象）"
@@ -27,10 +26,6 @@
     },
     {
       "screen": "EXPLORE",
-      "reason": "v0.1 のまま"
-    },
-    {
-      "screen": "TAVERN / TALK",
       "reason": "v0.1 のまま"
     },
     {

@@ -17,15 +17,14 @@ import type { VisualChange } from '../../core/qa/types';
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
-    screen: 'HOME',
+    screen: 'TAVERN / TALK',
     changed: true,
-    reason:
-      'v0.2 で構成から作り直した唯一の画面。額・紋章・記憶の数・輪の中の村・探索へ収束する金・静かな導線',
+    reason: '白いフェードを外し、絵本来の色・暗さ・コントラストを戻した。UIだけが白と金',
   },
+  { screen: 'HOME', changed: false, reason: 'v0.2 で承認済み。今回は変更なし' },
   { screen: 'TITLE', changed: false, reason: 'v0.1 のまま（次フェーズの対象）' },
   { screen: 'PROLOGUE / KAOS', changed: false, reason: 'v0.1 のまま' },
   { screen: 'EXPLORE', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'TAVERN / TALK', changed: false, reason: 'v0.1 のまま' },
   { screen: 'GREENWOOD / BATTLE', changed: false, reason: 'v0.1 のまま' },
   { screen: 'WORLD MEMORY', changed: false, reason: 'v0.1 のまま' },
   { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'v0.1 のまま' },

@@ -138,7 +138,7 @@ const RECIPES: Record<string, Shot[]> = {
   'TAVERN / TALK': [
     {
       suffix: 'tavern',
-      why: '暗い絵を紙面へ溶かした結果',
+      why: '絵本来の色・暗さ・コントラストが戻っているか。白は UI だけか',
       go: async (page) => {
         await newWorld(page);
         await page.getByTestId('explore-button').click();
