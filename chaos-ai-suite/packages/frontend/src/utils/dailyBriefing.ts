@@ -17,11 +17,13 @@ export interface DailyBriefing {
   greetingText: string;
 }
 
+/** ISO日時を日本時間の"YYYY-MM-DD"に変換する。「今日」「昨日」の判定はすべてこれ経由で統一する。 */
+export function toTokyoDateString(iso: string): string {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date(iso));
+}
+
 function isYesterday(iso: string, today: string): boolean {
-  const date = new Date(iso);
-  const yesterday = new Date(date);
-  yesterday.setDate(date.getDate());
-  const dateStr = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(date);
+  const dateStr = toTokyoDateString(iso);
   if (dateStr === today) return false;
   const todayDate = new Date(`${today}T00:00:00+09:00`);
   const diffDays = Math.round((todayDate.getTime() - new Date(`${dateStr}T00:00:00+09:00`).getTime()) / 86_400_000);

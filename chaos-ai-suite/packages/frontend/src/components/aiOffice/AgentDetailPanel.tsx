@@ -25,7 +25,7 @@ type PanelView = "main" | "history" | "output" | "feedback";
 export function AgentDetailPanel({ agent, tasks, messages, officeStatus, onClose, onOpenNoteEditor }: AgentDetailPanelProps) {
   const [view, setView] = useState<PanelView>("main");
   const [requestText, setRequestText] = useState("");
-  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackByTask, setFeedbackByTask] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -53,10 +53,11 @@ export function AgentDetailPanel({ agent, tasks, messages, officeStatus, onClose
   }
 
   function handleSendFeedback(taskId: string): void {
-    if (!feedbackText.trim()) return;
-    officeMemoryStore.addTaskFeedback(taskId, feedbackText.trim());
+    const text = (feedbackByTask[taskId] ?? "").trim();
+    if (!text) return;
+    officeMemoryStore.addTaskFeedback(taskId, text);
     setNotice("修正の希望を伝えたよ。次の依頼のときに参考にするね。");
-    setFeedbackText("");
+    setFeedbackByTask((prev) => ({ ...prev, [taskId]: "" }));
   }
 
   return (
@@ -136,24 +137,36 @@ export function AgentDetailPanel({ agent, tasks, messages, officeStatus, onClose
             {recentTasks.filter((task) => task.output).length === 0 && (
               <p className="text-xs text-office-muted">まだ成果物はないよ。</p>
             )}
-            {recentTasks.filter((task) => task.output).map((task) => (
-              <div key={task.id} className="rounded-xl border border-office-border bg-office-panel p-4">
-                <p className="mb-1 text-xs font-semibold text-office-text">{task.title}</p>
-                <p className="whitespace-pre-wrap text-xs leading-relaxed text-office-muted">{task.output}</p>
-                <div className="mt-2 space-y-1.5">
-                  <textarea
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                    placeholder="修正してほしい点を書いてね"
-                    rows={2}
-                    className={inputCls}
-                  />
-                  <button type="button" onClick={() => handleSendFeedback(task.id)} disabled={!feedbackText.trim()} className={btnSub}>
-                    修正を頼む
-                  </button>
+            {recentTasks.filter((task) => task.output).map((task) => {
+              const pastFeedback = officeMemoryStore.getTaskFeedback(task.id);
+              const feedbackText = feedbackByTask[task.id] ?? "";
+              return (
+                <div key={task.id} className="rounded-xl border border-office-border bg-office-panel p-4">
+                  <p className="mb-1 text-xs font-semibold text-office-text">{task.title}</p>
+                  <p className="whitespace-pre-wrap text-xs leading-relaxed text-office-muted">{task.output}</p>
+                  {pastFeedback.length > 0 && (
+                    <div className="mt-2 space-y-1 rounded-lg border border-office-border bg-office-bg p-2">
+                      <p className="text-[10px] font-semibold text-office-muted">これまで伝えた修正希望</p>
+                      {pastFeedback.map((entry, i) => (
+                        <p key={i} className="text-[11px] text-office-text">・{entry}</p>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2 space-y-1.5">
+                    <textarea
+                      value={feedbackText}
+                      onChange={(e) => setFeedbackByTask((prev) => ({ ...prev, [task.id]: e.target.value }))}
+                      placeholder="修正してほしい点を書いてね"
+                      rows={2}
+                      className={inputCls}
+                    />
+                    <button type="button" onClick={() => handleSendFeedback(task.id)} disabled={!feedbackText.trim()} className={btnSub}>
+                      修正を頼む
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {!latestOutput && recentTasks.length === 0 && <p className="text-xs text-office-muted">まだタスクの実績がないよ。</p>}
           </section>
         )}

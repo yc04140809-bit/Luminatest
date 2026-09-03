@@ -4,7 +4,7 @@ import type { Agent, OfficeState } from "@chaos-ai-suite/shared";
 import { getAgentIcon } from "../../utils/agentIcons.js";
 import { getDepartment, DEPARTMENT_ORDER } from "../../utils/officeDepartments.js";
 import { deriveOfficeStatus, OFFICE_STATUS_ICON, OFFICE_STATUS_LABEL } from "../../utils/officeAgentStatus.js";
-import { buildDailyBriefing } from "../../utils/dailyBriefing.js";
+import { buildDailyBriefing, toTokyoDateString } from "../../utils/dailyBriefing.js";
 import { useDayPhase } from "../../hooks/useDayPhase.js";
 import { NoteEditorStudio } from "../NoteEditorStudio.js";
 import { AgentDetailPanel } from "./AgentDetailPanel.js";
@@ -32,13 +32,14 @@ export function AIOfficeScreen({ office, onClose }: AIOfficeScreenProps) {
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [noteEditorSignal, setNoteEditorSignal] = useState(0);
   const [noteReport, setNoteReport] = useState<string | null>(null);
+  const [noteReportAgentName, setNoteReportAgentName] = useState("ネムリ");
   const dayPhase = useDayPhase();
 
   const agents = useMemo(() => Object.values(office.agents), [office.agents]);
   const tasks = useMemo(() => Object.values(office.tasks), [office.tasks]);
   const briefing = useMemo(() => buildDailyBriefing(tasks, office.agents), [tasks, office.agents]);
 
-  const completedToday = tasks.filter((t) => (t.status === "completed" || t.status === "approved") && t.updatedAt.startsWith(briefing.date)).length;
+  const completedToday = tasks.filter((t) => (t.status === "completed" || t.status === "approved") && toTokyoDateString(t.updatedAt) === briefing.date).length;
   const inProgress = briefing.inProgressTasks.length;
 
   const grouped = new Map<string, { label: string; agents: Agent[] }>();
@@ -54,6 +55,8 @@ export function AIOfficeScreen({ office, onClose }: AIOfficeScreenProps) {
   function handleNoteEditorOpen(): void {
     // NoteEditorStudioのモーダルはz-[70]、AgentDetailPanelはz-[80]のため、
     // 開いたままだとNote Editorが背面に隠れてしまう。呼び出し時に詳細パネルを閉じる。
+    // 報告メッセージに出す名前は、後で選択が外れても正しく表示できるようこの時点で保持しておく。
+    setNoteReportAgentName(selectedAgent?.name ?? "ネムリ");
     setSelectedAgentId(null);
     setNoteEditorSignal((n) => n + 1);
   }
@@ -81,9 +84,9 @@ export function AIOfficeScreen({ office, onClose }: AIOfficeScreenProps) {
       <div className={`mx-auto w-full max-w-2xl flex-1 space-y-3 overflow-y-auto bg-gradient-to-b ${DAY_PHASE_BG[dayPhase]} to-transparent p-4`}>
         {noteReport && (
           <div className="rounded-lg border border-office-gold/50 bg-office-gold/10 px-3 py-2 text-xs text-office-text">
-            <p className="flex items-center gap-1.5 font-semibold text-office-gold"><Sparkles size={13} />ネムリからの報告</p>
+            <p className="flex items-center gap-1.5 font-semibold text-office-gold"><Sparkles size={13} />{noteReportAgentName}からの報告</p>
             <p className="mt-1">{noteReport}</p>
-            <button type="button" onClick={() => setNoteReport(null)} className="mt-1 text-[11px] text-office-muted underline">閉じる</button>
+            <button type="button" onClick={() => setNoteReport(null)} className="-mx-2 mt-1 inline-flex min-h-11 items-center rounded-lg px-2 text-[11px] text-office-muted underline">閉じる</button>
           </div>
         )}
 
@@ -102,16 +105,32 @@ export function AIOfficeScreen({ office, onClose }: AIOfficeScreenProps) {
               <p className="whitespace-pre-wrap leading-relaxed">{briefing.greetingText}</p>
               {briefing.priorityTasks.length > 0 && (
                 <div className="space-y-1">
-                  {briefing.priorityTasks.map((task) => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => setSelectedAgentId(task.assignedAgentId ?? null)}
-                      className="block w-full rounded-lg border border-office-border bg-office-bg px-2.5 py-1.5 text-left text-[11px] hover:border-office-gold/60"
-                    >
-                      {task.title}
-                    </button>
-                  ))}
+                  {briefing.priorityTasks.map((task) =>
+                    task.assignedAgentId ? (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => setSelectedAgentId(task.assignedAgentId ?? null)}
+                        className="block w-full rounded-lg border border-office-border bg-office-bg px-2.5 py-1.5 text-left text-[11px] hover:border-office-gold/60"
+                      >
+                        {task.title}
+                      </button>
+                    ) : (
+                      <p key={task.id} className="block w-full rounded-lg border border-office-border bg-office-bg px-2.5 py-1.5 text-left text-[11px] text-office-muted">
+                        {task.title}（担当未定）
+                      </p>
+                    ),
+                  )}
+                </div>
+              )}
+              {briefing.recommendedActions.length > 0 && (
+                <div className="space-y-1 rounded-lg border border-office-border bg-office-bg p-2.5">
+                  <p className="text-[11px] font-semibold text-office-muted">おすすめのアクション</p>
+                  <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-office-text">
+                    {briefing.recommendedActions.map((action) => (
+                      <li key={action}>{action}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
