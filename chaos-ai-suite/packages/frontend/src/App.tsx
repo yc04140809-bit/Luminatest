@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Archive, Briefcase, Music, Settings, VolumeX } from "lucide-react";
+import { Archive, Briefcase, Building2, Music, Settings, VolumeX } from "lucide-react";
 import type { Agent, Task } from "@chaos-ai-suite/shared";
 import { useOfficeSocket } from "./hooks/useOfficeSocket.js";
 import { useApplyTheme } from "./hooks/useApplyTheme.js";
@@ -27,6 +27,7 @@ import { UsageDashboard } from "./components/UsageDashboard.js";
 import { ArchivePanel } from "./components/ArchivePanel.js";
 import { LuminaBrainScreen } from "./components/luminaBrain/LuminaBrainScreen.js";
 import { ClientDeliveryDashboard } from "./components/clientDelivery/ClientDeliveryDashboard.js";
+import { AIOfficeScreen } from "./components/aiOffice/AIOfficeScreen.js";
 import { postBriefing } from "./api/officeApi.js";
 import { todayInTokyo } from "./utils/dateUtil.js";
 
@@ -53,6 +54,7 @@ export default function App() {
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [luminaBrainOpen, setLuminaBrainOpen] = useState(false);
   const [clientDeliveryOpen, setClientDeliveryOpen] = useState(false);
+  const [aiOfficeOpen, setAiOfficeOpen] = useState(false);
   const briefingRequested = useRef(false);
   const bgm = useBgm();
   useApplyTheme(office?.theme);
@@ -181,6 +183,14 @@ export default function App() {
           </button>
           <button
             type="button"
+            onClick={() => setAiOfficeOpen(true)}
+            title="AI Office（AI社員の様子を見る）"
+            className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
+          >
+            <Building2 size={16} />
+          </button>
+          <button
+            type="button"
             onClick={() => setArchiveOpen(true)}
             title="書類保管庫"
             className="rounded-full border border-office-border p-2 text-office-muted transition hover:border-office-gold hover:text-office-gold"
@@ -228,6 +238,8 @@ export default function App() {
         <CouncilRoom session={displayedCouncilSession} agents={office.agents} onClose={() => setCouncilRoomOpen(false)} />
       )}
 
+      {aiOfficeOpen && <AIOfficeScreen office={office} onClose={() => setAiOfficeOpen(false)} />}
+
       {luminaBrainOpen && <LuminaBrainScreen onClose={() => setLuminaBrainOpen(false)} />}
       {clientDeliveryOpen && <ClientDeliveryDashboard onClose={() => setClientDeliveryOpen(false)} />}
 
@@ -250,6 +262,22 @@ export default function App() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <section className="rounded-xl border border-office-gold/50 bg-office-panel p-4">
+            <h2 className="mb-2 flex items-center gap-2 font-display text-lg text-office-gold">
+              <Building2 size={18} />
+              AI Office
+            </h2>
+            <p className="mb-3 text-xs text-office-muted">
+              部署ごとにAI社員が働いている様子を見て、そのまま仕事を頼めます。今日のブリーフィングもここから。
+            </p>
+            <button
+              type="button"
+              onClick={() => setAiOfficeOpen(true)}
+              className="w-full rounded-lg bg-office-gold px-3 py-2 text-sm font-semibold text-office-bg"
+            >
+              AI Officeを開く
+            </button>
+          </section>
           <section className="rounded-xl border border-office-border bg-office-panel p-4">
             <h2 className="mb-2 flex items-center gap-2 font-display text-lg text-office-gold">
               <Briefcase size={18} />

@@ -85,14 +85,32 @@ function Collapsible({
   );
 }
 
+interface NoteEditorStudioProps {
+  /** 値が変化するたびに（0以外なら）モーダルを開く。AI Office等、外部から起動したい場合に使う（省略時は既存動作のまま）。 */
+  openSignal?: number;
+  /** AI編集が完了するたびに呼ばれる（省略可）。AI Office側で「編集が終わったよ」という報告表示に使う。 */
+  onEditSaved?: (summary: string) => void;
+  /** trueならサイドバー用の入口カードを描画しない（フルスクリーンモーダル本体だけ使う。AI Office用）。省略時は既存動作のまま表示する。 */
+  hideEntryCard?: boolean;
+}
+
 /**
  * AI Note Editor（売れるnote編集AI）スタジオ。
  * 流れ: 記事入力 → 編集レベル選択 → AI編集 → 比較（編集前/編集後/変更点）→ 診断 → コピー/エクスポート。
  * 部分編集・履歴は折りたたみに収納し、通常画面をシンプルに保つ（スマホファースト）。
  * 比較・コピー・履歴はすべてクライアント処理でAIを呼ばない。
  */
-export function NoteEditorStudio() {
+export function NoteEditorStudio({ openSignal, onEditSaved, hideEntryCard }: NoteEditorStudioProps = {}) {
   const [open, setOpen] = useState(false);
+
+  // AI Office等、外部からの起動シグナル（既存の単独利用時はopenSignalが渡らないため無関係）。
+  const prevOpenSignal = useRef(openSignal);
+  useEffect(() => {
+    if (openSignal !== undefined && openSignal !== prevOpenSignal.current) {
+      prevOpenSignal.current = openSignal;
+      setOpen(true);
+    }
+  }, [openSignal]);
   const [content, setContent] = useState("");
   const [modeId, setModeId] = useState<NoteEditModeId>("experience");
   const [levelId, setLevelId] = useState<NoteEditLevelId>("readable");
@@ -212,6 +230,7 @@ export function NoteEditorStudio() {
         setError(`診断だけ失敗しました（編集結果は使えます）: ${(analyzeError as Error).message}`);
       }
       setPhase("done");
+      onEditSaved?.(edited.editedMarkdown.slice(0, 80));
     } catch (editError) {
       setError((editError as Error).message);
       setPhase(versions.length > 0 ? "done" : "idle");
@@ -290,22 +309,24 @@ export function NoteEditorStudio() {
 
   return (
     <>
-      <section className="rounded-xl border border-office-border bg-office-panel p-4">
-        <h2 className="mb-3 flex items-center gap-2 font-display text-lg text-office-gold">
-          <PenLine size={18} />
-          note編集スタジオ
-        </h2>
-        <p className="mb-3 text-xs text-office-muted">
-          AIで書いた下書きを貼るだけで、ネムリ（書類作成AI）がnoteにそのまま投稿できる品質へ編集。診断・比較・部分編集・履歴つき。
-        </p>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg border border-office-border px-3 py-2 text-sm font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
-        >
-          スタジオを開く
-        </button>
-      </section>
+      {!hideEntryCard && (
+        <section className="rounded-xl border border-office-border bg-office-panel p-4">
+          <h2 className="mb-3 flex items-center gap-2 font-display text-lg text-office-gold">
+            <PenLine size={18} />
+            note編集スタジオ
+          </h2>
+          <p className="mb-3 text-xs text-office-muted">
+            AIで書いた下書きを貼るだけで、ネムリ（書類作成AI）がnoteにそのまま投稿できる品質へ編集。診断・比較・部分編集・履歴つき。
+          </p>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-office-border px-3 py-2 text-sm font-semibold text-office-text transition hover:border-office-gold hover:text-office-gold"
+          >
+            スタジオを開く
+          </button>
+        </section>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-[70] flex flex-col bg-office-bg">
