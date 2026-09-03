@@ -6,6 +6,7 @@ import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { PrologueScreen } from './ui/screens/PrologueScreen';
 import { HomeScreen } from './ui/screens/HomeScreen';
+import { homeMemorySummary } from './ui/home/homeSummary';
 import { ExploreScreen } from './ui/screens/ExploreScreen';
 import { EncounterScreen } from './ui/screens/EncounterScreen';
 import { BattleScreen } from './ui/screens/BattleScreen';
@@ -143,6 +144,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
         <HomeScreen
           locationId="ALDEN_VILLAGE"
           clock={world.getClock()}
+          // Display only: a projection of what the player already knows,
+          // computed on the way in and never stored.
+          memory={homeMemorySummary(world.getKnownEvents(), world.getNarrativeSeeds())}
           onExplore={() => flow.goTo('EXPLORE')}
           onWorldMemory={() => flow.goTo('WORLD_MEMORY')}
           onTimeShift={() => flow.goTo('TIME_SHIFT')}

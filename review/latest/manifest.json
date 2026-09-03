@@ -1,60 +1,57 @@
 {
-  "capturedAt": "2026-09-03T11:48:25.093Z",
+  "capturedAt": "2026-09-03T12:33:41.691Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_title.png",
-      "screen": "TITLE",
-      "reason": "the first screen"
-    },
-    {
-      "file": "02_prologue_kaos.png",
-      "screen": "PROLOGUE / KAOS",
-      "reason": "最初の一文と、彼女の登場"
-    },
-    {
-      "file": "03_home.png",
+      "file": "01_home_new_world.png",
       "screen": "HOME",
-      "reason": "the menu the player returns to"
+      "reason": "始めたばかりの世界。まだ何も覚えていない状態の第一印象"
     },
     {
-      "file": "04_explore.png",
-      "screen": "EXPLORE",
-      "reason": "カードと ✦ 印のコントラスト"
-    },
-    {
-      "file": "05_tavern.png",
-      "screen": "TAVERN / TALK",
-      "reason": "暗い絵を紙面へ溶かした結果"
-    },
-    {
-      "file": "06_battle.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "HP バーと戦闘ログの可読性"
-    },
-    {
-      "file": "07_world_memory.png",
-      "screen": "WORLD MEMORY",
-      "reason": "記憶の糸と輪。作品の主題がここで一番はっきり見える"
-    },
-    {
-      "file": "08_life_choice.png",
-      "screen": "LIFE CHOICE / ENDING",
-      "reason": "背景を持つ絵に額を付けた結果"
-    },
-    {
-      "file": "09_survey_core_questions.png",
-      "screen": "PLAYTEST SURVEY",
-      "reason": "第3ラウンドの新しい設問ページ。スマホで長すぎないか、入力欄が押せるか"
-    },
-    {
-      "file": "10_dev_review_hub.png",
-      "screen": "DEV REVIEW HUB",
-      "reason": "DEV 画面もテーマに追従しているか。観察メモ欄が入力できるか"
+      "file": "02_home_remembering.png",
+      "screen": "HOME",
+      "reason": "記憶を持った世界。数字と最新の記憶が入ったときの見え方"
     }
   ],
-  "notPhotographed": []
+  "notPhotographed": [
+    {
+      "screen": "TITLE",
+      "reason": "v0.1 のまま（次フェーズの対象）"
+    },
+    {
+      "screen": "PROLOGUE / KAOS",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "EXPLORE",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "TAVERN / TALK",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "WORLD MEMORY",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "LIFE CHOICE / ENDING",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "PLAYTEST SURVEY",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "DEV REVIEW HUB",
+      "reason": "v0.1 のまま"
+    }
+  ]
 }

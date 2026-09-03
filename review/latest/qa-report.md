@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T11:48:24.671Z
-- Build: MUGEN ZERO v0.1 / 79763e3 / 2026-09-03T11:47:48.716Z
+- Generated: 2026-09-03T12:33:41.252Z
+- Build: MUGEN ZERO v0.1 / c8aab90 / 2026-09-03T12:33:32.423Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -98,13 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] TITLE — 第一印象。ivory の上でケイオスと金の輪が読めるか
-- [ ] PROLOGUE / KAOS — 最初の一文と彼女の登場が明るい紙面で成立するか
-- [ ] HOME — 村の絵の上でメニューが読めるか。EXPLORE の記憶の輪
-- [ ] EXPLORE — カードと ✦ 印のコントラスト
-- [ ] TAVERN / TALK — 暗い絵を紙面へ溶かした結果。グレイヴの傷が見えるか
-- [ ] GREENWOOD / BATTLE — HP バーと戦闘ログの可読性
-- [ ] WORLD MEMORY — 記憶の糸と輪。ここが作品の主題として見えるか
-- [ ] LIFE CHOICE / ENDING — 背景を持つ絵に額を付けた結果
-- [ ] PLAYTEST SURVEY — 設問と入力欄が明るい紙面で読めるか
-- [ ] DEV REVIEW HUB — DEV 画面もテーマに追従しているか
+- [ ] HOME — v0.2 で構成から作り直した唯一の画面。額・紋章・記憶の数・輪の中の村・探索へ収束する金・静かな導線
+- unchanged, no screenshot needed: TITLE, PROLOGUE / KAOS, EXPLORE, TAVERN / TALK, GREENWOOD / BATTLE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

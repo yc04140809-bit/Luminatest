@@ -102,7 +102,28 @@ const RECIPES: Record<string, Shot[]> = {
       },
     },
   ],
-  HOME: [{ suffix: 'home', why: 'the menu the player returns to', go: newWorld }],
+  HOME: [
+    {
+      suffix: 'home_new_world',
+      why: '始めたばかりの世界。まだ何も覚えていない状態の第一印象',
+      go: newWorld,
+    },
+    {
+      // The same screen with something in it. An empty world cannot show
+      // whether WORLD MEMORY reads as the subject of the game.
+      suffix: 'home_remembering',
+      why: '記憶を持った世界。数字と最新の記憶が入ったときの見え方',
+      go: async (page) => {
+        await newWorld(page);
+        await page.getByTestId('dev-admin-entry').click();
+        await page.getByTestId('dev-lock-input').fill('0909');
+        await page.getByTestId('dev-lock-submit').click();
+        await page.getByTestId('preset-SPARE_3Y').click();
+        await page.getByTestId('dev-admin-back').click();
+        await expect(page.getByTestId('home-latest-memory')).toBeVisible();
+      },
+    },
+  ],
   EXPLORE: [
     {
       suffix: 'explore',

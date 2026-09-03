@@ -16,14 +16,19 @@ import type { VisualChange } from '../../core/qa/types';
    photographed — the usual "keep it to a few" rule is about not making a
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
-  { screen: 'TITLE', changed: true, reason: '第一印象。ivory の上でケイオスと金の輪が読めるか' },
-  { screen: 'PROLOGUE / KAOS', changed: true, reason: '最初の一文と彼女の登場が明るい紙面で成立するか' },
-  { screen: 'HOME', changed: true, reason: '村の絵の上でメニューが読めるか。EXPLORE の記憶の輪' },
-  { screen: 'EXPLORE', changed: true, reason: 'カードと ✦ 印のコントラスト' },
-  { screen: 'TAVERN / TALK', changed: true, reason: '暗い絵を紙面へ溶かした結果。グレイヴの傷が見えるか' },
-  { screen: 'GREENWOOD / BATTLE', changed: true, reason: 'HP バーと戦闘ログの可読性' },
-  { screen: 'WORLD MEMORY', changed: true, reason: '記憶の糸と輪。ここが作品の主題として見えるか' },
-  { screen: 'LIFE CHOICE / ENDING', changed: true, reason: '背景を持つ絵に額を付けた結果' },
-  { screen: 'PLAYTEST SURVEY', changed: true, reason: '設問と入力欄が明るい紙面で読めるか' },
-  { screen: 'DEV REVIEW HUB', changed: true, reason: 'DEV 画面もテーマに追従しているか' },
+  {
+    screen: 'HOME',
+    changed: true,
+    reason:
+      'v0.2 で構成から作り直した唯一の画面。額・紋章・記憶の数・輪の中の村・探索へ収束する金・静かな導線',
+  },
+  { screen: 'TITLE', changed: false, reason: 'v0.1 のまま（次フェーズの対象）' },
+  { screen: 'PROLOGUE / KAOS', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'EXPLORE', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'TAVERN / TALK', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'GREENWOOD / BATTLE', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'WORLD MEMORY', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'PLAYTEST SURVEY', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'DEV REVIEW HUB', changed: false, reason: 'v0.1 のまま' },
 ];

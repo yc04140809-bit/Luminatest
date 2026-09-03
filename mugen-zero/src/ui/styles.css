@@ -205,71 +205,415 @@ body,
   margin-top: 6px;
 }
 
-/* ---- home ---- */
-.home-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 18px;
-  padding: 24px;
-}
-.home-place {
-  color: var(--text-dim);
-  font-size: 13px;
-  letter-spacing: 0.2em;
-}
-.home-explore {
-  width: 172px;
-  height: 172px;
-  border-radius: 50%;
-  border: 1px solid var(--mugen-border-strong);
-  color: var(--mugen-gold);
+/* ---- HOME v0.2 — the face of MUGEN ZERO ------------------------------
+   Not a menu over a photograph. One plate: a hairline frame, a crest, what
+   the world is holding, the place itself inside a ring, the single action,
+   and everything else on a quiet rail. Nothing on this screen is a white
+   rectangle with a label in it.
+
+   Only .home-* rules live here, so no other screen can be moved by them. */
+
+.home-plate {
+  position: relative;
+  isolation: isolate;
   background:
-    radial-gradient(circle at 50% 42%, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
-  box-shadow: var(--mugen-shadow);
+    /* the light that makes ivory a space rather than a colour */
+    radial-gradient(ellipse 78% 42% at 50% 34%, var(--mugen-bg-lift) 0%, transparent 68%),
+    var(--mugen-bg);
+}
+
+/* The frame. A page has edges; a web view does not. */
+.home-frame {
+  position: absolute;
+  inset: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
+  border: 1px solid var(--mugen-border);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 0;
+}
+.home-frame::after {
+  /* the second, inner rule — the thing that reads as "made", not "styled" */
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid var(--mugen-border);
+  opacity: 0.45;
+  border-radius: 2px;
+}
+.home-corner {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border: 0 solid var(--mugen-gold-soft);
+  opacity: 0.85;
+}
+.home-corner.tl {
+  top: -1px;
+  left: -1px;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+.home-corner.tr {
+  top: -1px;
+  right: -1px;
+  border-top-width: 2px;
+  border-right-width: 2px;
+}
+.home-corner.bl {
+  bottom: -1px;
+  left: -1px;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+}
+.home-corner.br {
+  bottom: -1px;
+  right: -1px;
+  border-bottom-width: 2px;
+  border-right-width: 2px;
+}
+
+.home-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  gap: 14px;
+  padding: calc(26px + env(safe-area-inset-top)) 26px calc(22px + env(safe-area-inset-bottom));
 }
-.home-explore-jp {
-  font-size: 22px;
-  letter-spacing: 0.12em;
+
+/* ---- LEVEL 1: the crest ---- */
+.home-crest {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
-.home-explore-en {
-  font-size: 11px;
+.home-crest-wings {
+  color: var(--mugen-gold);
+  opacity: 0.62;
+  margin-bottom: 2px;
+}
+.home-crest-name {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 27px;
+  font-weight: 400;
   letter-spacing: 0.3em;
-  color: var(--text-muted);
+  /* the indent the letter-spacing adds to the right edge, taken back */
+  text-indent: 0.3em;
+  color: var(--mugen-text);
 }
-/* Japanese leads on the menu buttons; English rides underneath. */
-.btn-sub {
+.home-crest-sub {
+  margin: 0;
+  font-size: 9px;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--mugen-gold);
+  opacity: 0.85;
+}
+
+/* ---- LEVEL 2: what the world is holding ---- */
+.home-memory {
+  width: 100%;
+  max-width: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.home-memory-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.home-memory-head .rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--mugen-gold-soft));
+  opacity: 0.7;
+}
+.home-memory-head .rule:last-child {
+  background: linear-gradient(90deg, var(--mugen-gold-soft), transparent);
+}
+.home-memory-head .label {
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--mugen-gold);
+}
+.home-memory-counts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 0;
+  width: 100%;
+}
+.home-memory-counts > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 0;
+  border-left: 1px solid var(--mugen-border);
+}
+.home-memory-counts > div:first-child {
+  border-left: none;
+}
+.home-memory-counts dt {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--mugen-text-muted);
+}
+.home-memory-counts dd {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 21px;
+  line-height: 1;
+  color: var(--mugen-gold);
+}
+.home-memory-latest {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+  color: var(--mugen-text-secondary);
+}
+.home-memory-latest .when {
   display: block;
   font-size: 10px;
-  letter-spacing: 0.28em;
-  color: var(--text-muted);
-  margin-top: 3px;
+  letter-spacing: 0.12em;
+  color: var(--mugen-text-muted);
 }
-.bottom-nav {
-  display: flex;
-  border-top: 1px solid var(--mugen-border);
-  background: var(--mugen-surface);
-  padding-bottom: env(safe-area-inset-bottom);
+.home-memory-latest .none {
+  color: var(--mugen-text-muted);
 }
-.bottom-nav .nav-item {
-  flex: 1;
-  padding: 14px 0;
-  text-align: center;
-  font-size: 13px;
-  letter-spacing: 0.15em;
-  color: var(--text-dim);
+/* Not a button-shaped button: a line of type with a mark after it. */
+.home-memory-open {
+  appearance: none;
   background: none;
   border: none;
+  border-top: 1px solid var(--mugen-border);
+  width: 100%;
+  padding: 9px 0 2px;
+  color: var(--mugen-text);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
-.bottom-nav .nav-item.active {
-  color: var(--accent);
+.home-memory-open .chev {
+  color: var(--mugen-gold);
+}
+
+/* ---- LEVEL 3: the place, held in a ring ---- */
+.home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.home-hero-ring {
+  position: relative;
+  width: min(74vw, 262px);
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+}
+/* The art is clipped to the circle: the world appears as something held,
+   not as wallpaper behind a menu. */
+.home-hero-art {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  /* soft towards the rim, so the picture does not end at a hard circle */
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 58%, transparent 96%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 58%, transparent 96%);
+}
+.home-hero-art .screen-backdrop {
+  position: absolute;
+  inset: 0;
+}
+/* The ring itself: two lines, the outer one open at the bottom, where
+   the eye leaves for the action below it. */
+.home-hero-ring-line {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 1px solid var(--mugen-gold-soft);
+  opacity: 0.75;
+  -webkit-mask-image: conic-gradient(from 168deg, transparent 0 24deg, #000 24deg 360deg);
+  mask-image: conic-gradient(from 168deg, transparent 0 24deg, #000 24deg 360deg);
+  pointer-events: none;
+}
+.home-hero-ring::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid var(--mugen-border);
+  pointer-events: none;
+}
+.home-hero-caption {
+  text-align: center;
+}
+.home-place {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: var(--mugen-text-muted);
+}
+.home-clock {
+  margin: 2px 0 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  color: var(--mugen-text-secondary);
+}
+.home-kaos-aside {
+  color: var(--mugen-memory);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.04em;
+  text-align: center;
+  margin: 0;
+}
+
+/* ---- LEVEL 4: the one thing to do ---- */
+.home-act {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 2px;
+}
+/* The gold reaching in from both sides towards the way out. */
+.home-act-rule {
+  flex: 1;
+  height: 1px;
+  max-width: 40px;
+  background: linear-gradient(90deg, transparent, var(--mugen-gold-soft));
+}
+.home-act-rule:last-child {
+  background: linear-gradient(90deg, var(--mugen-gold-soft), transparent);
+}
+/* Gold converges here and nowhere else on the screen. */
+.home-explore {
+  appearance: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(100%, 290px);
+  padding: 15px 22px;
+  border: 1px solid var(--mugen-gold-soft);
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+  color: var(--mugen-text);
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--mugen-shadow);
+}
+
+.home-explore-ring {
+  color: var(--mugen-gold);
+}
+.home-explore-jp {
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 19px;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+}
+.home-explore-en {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: var(--mugen-gold);
+}
+
+/* ---- LEVEL 5: everything else ---- */
+.home-rail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  max-width: 340px;
+  margin-top: 2px;
+}
+.home-rail-item {
+  appearance: none;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--mugen-border);
+  padding: 8px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--mugen-text-secondary);
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.home-rail-item:first-child {
+  border-left: none;
+}
+.home-rail-item .sub {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--mugen-text-muted);
+}
+.home-rail-item .glyph {
+  font-size: 15px;
+  line-height: 1;
+  color: var(--mugen-gold);
+  opacity: 0.9;
+}
+.home-rail-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.home-rail-item:active {
+  color: var(--mugen-gold);
+}
+
+.home-dev {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--mugen-border-strong);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+/* Short phones: the ring gives up its size first, never the words. */
+@media (max-height: 700px) {
+  .home-scroll {
+    gap: 10px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+  }
+  .home-hero-ring {
+    width: min(52vw, 190px);
+  }
+  .home-crest-name {
+    font-size: 23px;
+  }
 }
 
 /* ---- explore ---- */
@@ -571,7 +915,10 @@ body,
 .btn,
 .nav-item,
 .location-card,
-.life-choice-btn {
+.life-choice-btn,
+.home-explore,
+.home-rail-item,
+.home-memory-open {
   min-height: var(--tap-min);
   -webkit-user-select: none;
   user-select: none;
@@ -764,6 +1111,23 @@ body,
     );
 }
 
+/* HERO RING (HOME) — the art is inside a circle, so it needs almost none
+   of the veiling a full screen does: it is already small, already round,
+   and already surrounded by quiet. What it needs is to be visible. */
+.backdrop-hero .screen-backdrop-art {
+  background-position: 50% 46%;
+  background-size: cover;
+  filter: brightness(1.04) saturate(0.8) contrast(0.96);
+}
+.backdrop-hero .screen-backdrop-veil {
+  background: radial-gradient(
+    circle at 50% 46%,
+    rgba(250, 247, 240, 0.08) 0%,
+    rgba(250, 247, 240, 0.3) 58%,
+    rgba(250, 247, 240, 0.72) 100%
+  );
+}
+
 /* ENCOUNTER — the forest again, so walking up to Gald, meeting him and
    fighting him are visibly one continuous place. */
 .dialogue-screen.has-backdrop {
@@ -795,16 +1159,8 @@ body,
   background: rgba(242, 237, 225, 0.95);
 }
 .title-screen .title-logo,
-.title-screen .title-sub,
-.has-backdrop .home-place {
+.title-screen .title-sub {
   text-shadow: 0 1px 10px rgba(250, 247, 240, 0.95);
-}
-.screen.has-backdrop .home-explore {
-  background: rgba(255, 253, 248, 0.82);
-  box-shadow: var(--mugen-shadow);
-}
-.screen.has-backdrop .home-explore:active {
-  background: rgba(242, 237, 225, 0.92);
 }
 
 /* With the key visual behind it the title breathes: the logo sits high,
@@ -937,7 +1293,9 @@ body,
 .btn,
 .location-card,
 .life-choice-btn,
-.nav-item {
+.nav-item,
+.home-explore,
+.home-rail-item {
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast),
@@ -946,7 +1304,9 @@ body,
 .btn:active,
 .location-card:not(:disabled):active,
 .life-choice-btn:active,
-.nav-item:active {
+.nav-item:active,
+.home-explore:active,
+.home-rail-item:not(:disabled):active {
   transform: scale(0.985);
 }
 

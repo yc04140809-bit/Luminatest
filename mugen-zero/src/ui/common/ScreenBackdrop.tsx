@@ -14,7 +14,7 @@
 interface Props {
   /** Art to show, or null — then nothing is rendered at all. */
   src: string | null;
-  variant: 'title' | 'village' | 'battle' | 'encounter';
+  variant: 'title' | 'village' | 'battle' | 'encounter' | 'hero';
   /** Overrides the variant's crop, for art that names its own subject. */
   focus?: string;
   /** Overrides the variant's scale, for art not composed for a phone. */
