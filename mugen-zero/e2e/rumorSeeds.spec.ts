@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 // PHASE C + D: the world talks about itself from more than one mouth,
 // carries questions it does not answer, and has small things in it that

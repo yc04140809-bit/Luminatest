@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice } from './helpers';
 
 // VISUAL BACKGROUND UPDATE: every screen that gained art must show it,

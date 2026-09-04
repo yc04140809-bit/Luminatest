@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice, readMemoryEvents, advanceDays } from './helpers';
 
 // PHASE E acceptance: the spared bandit's life continues off-screen, the

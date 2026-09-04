@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { readMemoryEvents } from './helpers';
 
 // GALD FOUR FUTURES: whichever of the four choices the player made, three

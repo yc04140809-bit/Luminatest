@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext } from '@playwright/test';
+import { test, expect, chromium, type BrowserContext } from './fixtures';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

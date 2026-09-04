@@ -15,7 +15,7 @@
 // is deliberate: silently shipping no picture of the one screen that
 // moved is exactly the failure this package exists to prevent.
 
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { VISUAL_CHANGES } from '../src/content/qa/visualChanges';

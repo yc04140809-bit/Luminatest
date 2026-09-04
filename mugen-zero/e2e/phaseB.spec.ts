@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import { playToLifeChoice, readMemoryEvents, readSchemaVersion, walkToEncounterMarker } from './helpers';
 
 // PHASE B acceptance: each life choice becomes a distinct canonical

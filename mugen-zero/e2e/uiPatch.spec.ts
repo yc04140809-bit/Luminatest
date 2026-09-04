@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice } from './helpers';
 
 // UI patch: Gald must read as a person — seen before the fight, present

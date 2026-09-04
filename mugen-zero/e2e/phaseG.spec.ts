@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 // PHASE G: the polish layer — it must hold on real phone sizes, keep
 // preferences out of world history, and never break the core loop.

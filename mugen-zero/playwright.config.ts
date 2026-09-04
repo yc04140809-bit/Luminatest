@@ -11,6 +11,12 @@ export default defineConfig({
     // waiting, which made unrelated tests flake. The app already honours
     // prefers-reduced-motion, so ask for it: the suite tests the same
     // behaviour, deterministically.
+    //
+    // This line alone does not do it. In this environment the runner's
+    // page fixture does not deliver the preference to the page —
+    // matchMedia reads false inside it — so e2e/fixtures.ts asks again
+    // on the page, and every spec imports `test` from there. Keep both:
+    // this is the intent, that is the one that lands.
     reducedMotion: 'reduce',
     browserName: 'chromium',
     // The sandbox pre-installs Chromium here; do not download browsers.

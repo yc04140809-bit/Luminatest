@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice, advanceDays } from './helpers';
 
 // PHASE F acceptance: the LIFE ARCHIVE grows only with the player's own

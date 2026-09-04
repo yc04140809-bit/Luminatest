@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 // PHASE A acceptance: TITLE → PROLOGUE → HOME → EXPLORE → GREENWOOD
 // → GALD ENCOUNTER → BATTLE → LIFE CHOICE, in one uninterrupted run.

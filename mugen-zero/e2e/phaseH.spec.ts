@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice, advanceDays } from './helpers';
 
 // PHASE H: the post-play survey. Feedback is a separate layer — it must

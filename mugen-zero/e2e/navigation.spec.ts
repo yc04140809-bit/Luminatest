@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 // PLAYTEST ROUND 2: the player should never be stuck wondering what to do
 // next — without ever being told the answer.

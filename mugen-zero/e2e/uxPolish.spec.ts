@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice } from './helpers';
 
 // UX polish: the forest has a real backdrop, the baker's reveal is
