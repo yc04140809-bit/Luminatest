@@ -31,6 +31,8 @@ interface Props {
   onTimeShift: () => void;
   /** Opens the LIFE ARCHIVE. */
   onArchive: () => void;
+  /** Opens the ARCANA book. */
+  onArcana: () => void;
   /** Opens player settings. */
   onSettings: () => void;
   /** Opens the DEV ADMIN lock screen (dev builds only). */
@@ -60,6 +62,7 @@ export function HomeScreen({
   onRest,
   onTimeShift,
   onArchive,
+  onArcana,
   onSettings,
   onDevAdmin,
 }: Props) {
@@ -191,6 +194,10 @@ export function HomeScreen({
           <button className="home-rail-item" data-testid="archive-button" onClick={onArchive}>
             <span className="glyph">◇</span>
             人生の記録
+          </button>
+          <button className="home-rail-item" data-testid="arcana-button" onClick={onArcana}>
+            <span className="glyph">✧</span>
+            アルカナ
           </button>
           <button className="home-rail-item" data-testid="time-shift-button" onClick={onTimeShift}>
             <span className="glyph">◷</span>

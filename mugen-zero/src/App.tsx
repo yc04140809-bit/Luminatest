@@ -58,6 +58,10 @@ import {
 import { battleUi, startFinishable } from './dev/battleUiFlag';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
 import { clearObtainedItems } from './platform/discoveries';
+import { ArcanaScreen } from './ui/screens/ArcanaScreen';
+import { ArcanaToast } from './ui/common/ArcanaToast';
+import { MOSS_RABBIT_ARCANA } from './content/arcana/arcanaDefs';
+import type { ArcanaConditionId, ArcanaGain } from './core/arcana/arcana';
 
 // Phaser is the heaviest dependency by far and is only needed once the
 // player walks into the forest; the dev admin never ships to a player's
@@ -118,6 +122,44 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // this goes back to null.
   const [metCreature, setMetCreature] = useState<EnemyIndividual | null>(null);
 
+  // ---- ARCANA: what this playthrough has taught the player ----
+  //
+  // The battle reports what happened in front of the player as it
+  // happens; those reports are held here and written once, when the
+  // fight is over. One write per fight rather than five, and — more to
+  // the point — the little "you know it better now" line arrives once,
+  // on the way out, instead of interrupting three turns in a row.
+  const pendingArcana = useRef<Set<ArcanaConditionId>>(new Set());
+  const [arcanaGain, setArcanaGain] = useState<ArcanaGain | null>(null);
+  const noteArcana = useCallback((id: ArcanaConditionId) => {
+    pendingArcana.current.add(id);
+  }, []);
+  const flushArcana = useCallback(
+    async (...also: ArcanaConditionId[]) => {
+      const ids = [...pendingArcana.current, ...also];
+      pendingArcana.current.clear();
+      if (ids.length === 0) return;
+      try {
+        const gain = await world.recordArcanaConditions(MOSS_RABBIT_ARCANA.arcanaId, ids);
+        if (!gain) return; // nothing new: the same fight teaches once
+        if (gain.completedNow) {
+          // The completion moment plays once in the life of a save, and
+          // the flag that says so is written before it is shown.
+          const alreadySeen = world.getArcanaRecord(MOSS_RABBIT_ARCANA.arcanaId).completeSeen;
+          if (!alreadySeen) await world.markArcanaCompleteSeen(MOSS_RABBIT_ARCANA.arcanaId);
+          setArcanaGain(alreadySeen ? { ...gain, completedNow: false } : gain);
+          return;
+        }
+        setArcanaGain(gain);
+      } catch (e) {
+        // A memory that failed to save must never cost the player the
+        // fight they just had.
+        console.error('Failed to record what was learned', e);
+      }
+    },
+    [world],
+  );
+
   // Reflects whether THIS playthrough already sent feedback.
   useEffect(() => {
     let cancelled = false;
@@ -158,6 +200,26 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       .map((s) => s.def.id),
   ]);
 
+  const screen = renderScreen();
+
+  return (
+    <>
+      {screen}
+      {/* One small line about what was just learned, over whatever the
+          player is already looking at. It blocks nothing, covers no
+          part of the world, and goes away on its own. */}
+      {arcanaGain && (
+        <ArcanaToast
+          gain={arcanaGain}
+          name={MOSS_RABBIT_ARCANA.name}
+          completeLine={MOSS_RABBIT_ARCANA.completeLine}
+          onDone={() => setArcanaGain(null)}
+        />
+      )}
+    </>
+  );
+
+  function renderScreen() {
   switch (state.screen) {
     case 'TITLE':
       return (
@@ -202,6 +264,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             await world.advanceDay();
           }}
           onArchive={() => flow.goTo('ARCHIVE')}
+          onArcana={() => flow.goTo('ARCANA')}
           onSettings={() => flow.goTo('SETTINGS')}
           onDevAdmin={() => flow.goTo('DEV_LOCK')}
         />
@@ -295,6 +358,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           years={3}
           onConfirm={async () => {
             await world.timeShift(3);
+            // Time teaches you about something you already know. The
+            // core drops it for a page nobody has opened.
+            await flushArcana('TIME_PASSED');
           }}
           onStay={() => flow.goTo('HOME')}
           onDone={() => flow.goTo('HOME')}
@@ -304,6 +370,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onExplore={() => flow.goTo('EXPLORE')}
         />
       );
+    case 'ARCANA':
+      // Reading the book changes nothing: it is handed the saved
+      // records and has no way to write one.
+      return <ArcanaScreen records={world.getArcanaRecords()} onBack={() => flow.goTo('HOME')} />;
     case 'WORLD_MEMORY':
       // Player-facing view: known events only, never the full truth.
       return (
@@ -423,10 +493,14 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             startFinishable={startFinishable()}
             forcedEnemyAction={debugEnemyAction()}
             forcedChaos={debugChaosIntervention()}
+            // What the player actually saw. Held until the fight is
+            // over, then written in one go.
+            onObserved={noteArcana}
             onNormalEnd={() => {
               forestBattle.current = false;
               void world
                 .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: false })
+                .then(() => flushArcana())
                 .catch((e) => console.error('Failed to record the victory', e))
                 .finally(() => flow.goTo('GREENWOOD'));
             }}
@@ -438,13 +512,18 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
               void world
                 .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: true })
                 .then((met) => (met ? world.recordCreatureLifeChoice(met.individualId, choice) : null))
+                // Meeting somebody, and what was decided about them —
+                // only once the choice itself is safely in WORLD MEMORY.
+                // The four answers are worth the same as each other, so
+                // this is the same line whichever one was given.
+                .then(() => flushArcana('MET_SOMEBODY', `ROUTE_${choice}` as ArcanaConditionId))
                 .catch((e) => console.error('Failed to record the choice', e))
                 .finally(() => flow.goTo('GREENWOOD'));
             }}
             onDefeat={() => {
               forestBattle.current = false;
               forestSession.current.clear();
-              flow.goTo('HOME');
+              void flushArcana().finally(() => flow.goTo('HOME'));
             }}
           />
         );
@@ -465,6 +544,13 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
               // answer comes back as a creature with a name.
               void world
                 .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: debugStoryTrigger() })
+                // The older screen does not report what it showed, so
+                // only the two things this path can vouch for are
+                // recorded here. See the known issues in review notes.
+                .then(async (met) => {
+                  await flushArcana('FIRST_ENCOUNTER', 'WON_A_FIGHT');
+                  return met;
+                })
                 .then((met) => {
                   if (met) {
                     setMetCreature(met);
@@ -481,7 +567,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             onDefeat={() => {
               forestBattle.current = false;
               forestSession.current.clear();
-              flow.goTo('HOME');
+              void flushArcana('FIRST_ENCOUNTER', 'LOST_A_FIGHT').finally(() => flow.goTo('HOME'));
             }}
           />
         );
@@ -504,6 +590,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           individualId={metCreature.individualId}
           onChoose={async (choice) => {
             await world.recordCreatureLifeChoice(metCreature.individualId, choice);
+            await flushArcana('MET_SOMEBODY', `ROUTE_${choice}` as ArcanaConditionId);
           }}
           onDone={() => {
             setMetCreature(null);
@@ -533,6 +620,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
         />
       );
     }
+  }
   }
 }
 

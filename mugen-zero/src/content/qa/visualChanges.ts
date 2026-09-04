@@ -17,17 +17,27 @@ import type { VisualChange } from '../../core/qa/types';
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
-    screen: 'BATTLE UI PROTOTYPE',
+    screen: 'ARCANA / アルカナ図鑑',
     changed: true,
     reason:
-      '戦闘開始時のケイオス介入を追加。35% で1回だけ発動し、1.8秒のカード（コマンド欄の位置）と、ケイオス側の光・対象側の印が出ます。森は隠れません。65% は従来どおり何も出ません。まだ採用していません',
+      '新規画面。一覧（未発見は ARCANA #??? のまま）と詳細（構築度バー・段階解放される情報・ヒント・COMPLETE）。構築度が上がったときだけ画面上部に小さな通知が出ます',
+  },
+  {
+    screen: 'HOME',
+    changed: true,
+    reason: '下段の導線が4項目から5項目に増えました（アルカナを追加）。他は無変更です',
+  },
+  {
+    screen: 'BATTLE UI PROTOTYPE',
+    changed: false,
+    reason:
+      '前ラウンドから見た目の変更なし。見たものを外へ報告するコールバックが1つ増えただけです',
   },
   {
     screen: 'GREENWOOD / BATTLE',
     changed: false,
     reason: '前ラウンドから無変更。試作は既存画面を置き換えていません',
   },
-  { screen: 'HOME', changed: false, reason: 'v0.2 で承認済み' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },
   { screen: 'TITLE', changed: false, reason: 'v0.1 のまま' },
   { screen: 'PROLOGUE / KAOS', changed: false, reason: 'v0.1 のまま' },

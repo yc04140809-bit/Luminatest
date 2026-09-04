@@ -7,8 +7,10 @@ import type { FlowState, LifeChoiceId, Screen } from './types';
 const TRANSITIONS: Record<Screen, Screen[]> = {
   TITLE: ['PROLOGUE', 'HOME'], // TITLE -> HOME = continue with an existing world
   PROLOGUE: ['HOME'],
-  HOME: ['EXPLORE', 'WORLD_MEMORY', 'TIME_SHIFT', 'ARCHIVE', 'SETTINGS', 'DEV_LOCK'],
+  HOME: ['EXPLORE', 'WORLD_MEMORY', 'TIME_SHIFT', 'ARCHIVE', 'ARCANA', 'SETTINGS', 'DEV_LOCK'],
   ARCHIVE: ['HOME', 'ENDING', 'PLAYTEST_SURVEY'],
+  // The book is read and closed; it changes nothing about the world.
+  ARCANA: ['HOME'],
   ENDING: ['HOME', 'ARCHIVE', 'PLAYTEST_SURVEY'],
   PLAYTEST_SURVEY: ['HOME', 'ARCHIVE'],
   SETTINGS: ['HOME'],

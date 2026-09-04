@@ -30,6 +30,56 @@ import {
   type BattleUiChoice,
 } from './battleUiFlag';
 import { storyTriggerChance } from '../core/enemies/enemyEncounters';
+import { MOSS_RABBIT_ARCANA } from '../content/arcana/arcanaDefs';
+import { progressOf, type ArcanaConditionId } from '../core/arcana/arcana';
+
+/**
+ * DEV ONLY: pages in a few states worth looking at.
+ *
+ * Reaching 90% honestly is a dozen fights and a time shift. These exist
+ * so the page itself can be checked in a second, and they are compiled
+ * out of any build a player can run.
+ */
+const ARCANA_PRESETS: { label: string; met: ArcanaConditionId[] }[] = [
+  { label: '0', met: [] },
+  { label: '低', met: ['FIRST_ENCOUNTER'] },
+  { label: '中', met: ['FIRST_ENCOUNTER', 'OBSERVE_NORMAL_ATTACK', 'WON_A_FIGHT'] },
+  {
+    label: '高',
+    met: [
+      'FIRST_ENCOUNTER',
+      'OBSERVE_NORMAL_ATTACK',
+      'OBSERVE_UNIQUE_SKILL',
+      'WON_A_FIGHT',
+      'MET_SOMEBODY',
+      'KAOS_INTERVENED',
+      'ROUTE_HELP',
+    ],
+  },
+  {
+    label: 'あと一歩',
+    met: [
+      'FIRST_ENCOUNTER',
+      'OBSERVE_NORMAL_ATTACK',
+      'OBSERVE_UNIQUE_SKILL',
+      'WON_A_FIGHT',
+      'MET_SOMEBODY',
+      'ROUTE_SPARE',
+    ],
+  },
+  {
+    label: 'COMPLETE',
+    met: [
+      'FIRST_ENCOUNTER',
+      'OBSERVE_NORMAL_ATTACK',
+      'OBSERVE_UNIQUE_SKILL',
+      'WON_A_FIGHT',
+      'MET_SOMEBODY',
+      'ROUTE_SPARE',
+      'TIME_PASSED',
+    ],
+  },
+];
 
 interface Props {
   /** Opens the battle UI prototype on its own, for a look. */
@@ -469,6 +519,32 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
         新戦闘画面の戦闘開始時のみ。既定は約35%で4種のいずれか、残りは何も起きません。
+      </div>
+
+      <div style={sectionTitle}>ARCANA — 構築度を直接指定</div>
+      <div style={row}>
+        {ARCANA_PRESETS.map((preset) => (
+          <button
+            key={preset.label}
+            className="btn"
+            style={smallBtn}
+            disabled={busy}
+            data-testid={`arcana-set-${preset.label}`}
+            onClick={() =>
+              run(`ARCANA ${preset.label}`, () =>
+                world.devSetArcanaConditions(MOSS_RABBIT_ARCANA.arcanaId, preset.met),
+              )
+            }
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
+        現在 {progressOf(MOSS_RABBIT_ARCANA, world.getArcanaRecord(MOSS_RABBIT_ARCANA.arcanaId))}%
+        （COMPLETE表示済み:{' '}
+        {world.getArcanaRecord(MOSS_RABBIT_ARCANA.arcanaId).completeSeen ? 'はい' : 'いいえ'}）。
+        検証用の直接指定で、通常プレイでは到達できません。
       </div>
 
       <div style={sectionTitle}>MOSS RABBIT — 特殊個体の抽選</div>

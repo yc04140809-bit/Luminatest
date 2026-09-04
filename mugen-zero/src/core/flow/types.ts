@@ -17,6 +17,8 @@ export type Screen =
   | 'FUTURE_SITE'
   | 'TALK_SPOT'
   | 'ARCHIVE'
+  /** ARCANA 図鑑: what the player has come to know about the world. */
+  | 'ARCANA'
   | 'SETTINGS'
   | 'ENDING'
   | 'PLAYTEST_SURVEY'

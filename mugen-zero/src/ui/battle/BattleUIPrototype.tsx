@@ -19,6 +19,7 @@ import {
   type ChaosInterventionDef,
 } from '../../core/chaos/chaosIntervention';
 import { CHAOS_INTERVENTIONS } from '../../content/chaos/chaosInterventions';
+import type { ArcanaConditionId } from '../../core/arcana/arcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 
 /**
@@ -125,6 +126,16 @@ interface Props {
   forcedEnemyAction?: EnemyAction | null;
   /** Development only: settle what Kaos does at the start of the fight. */
   forcedChaos?: ChaosInterventionDef['id'] | null;
+  /**
+   * Something about this creature was just seen for the first time.
+   *
+   * The screen reports what happened in front of the player and knows
+   * nothing about what it is worth — who is keeping the book, and how
+   * much any of it counts for, is entirely the caller's business.
+   * Fired at the moment each thing is actually on screen, and at most
+   * once per fight per thing.
+   */
+  onObserved?: (id: ArcanaConditionId) => void;
   /** An ordinary fight, over. */
   onNormalEnd: () => void;
   /** The other kind. The choice is real and is recorded by the caller. */
@@ -206,6 +217,7 @@ export function BattleUIPrototype({
   startFinishable = false,
   forcedEnemyAction = null,
   forcedChaos = null,
+  onObserved,
   onNormalEnd,
   onMugenChoice,
   onDefeat,
@@ -290,6 +302,31 @@ export function BattleUIPrototype({
   const answerOf = (next: BattleState): string[] =>
     next.lastEnemyAction === 'SKILL' ? ['HIDE'] : next.lastEnemyAction === 'ATTACK' ? ['TACKLE', 'HURT'] : [];
 
+  /**
+   * Said once per fight, whatever the caller does with it.
+   *
+   * The screen is the only place that knows a leaf tackle actually
+   * landed rather than was rolled, so it is the honest place for this;
+   * the ref keeps a long fight from reporting the same sight ten times.
+   */
+  const seen = useRef<Set<ArcanaConditionId>>(new Set());
+  const observe = (id: ArcanaConditionId) => {
+    if (seen.current.has(id)) return;
+    seen.current.add(id);
+    onObserved?.(id);
+  };
+
+  // Meeting it at all, and whether anyone helped. Both are true the
+  // moment the fight exists, so they are reported on mount rather than
+  // waiting for a turn the player might never take.
+  useEffect(() => {
+    observe('FIRST_ENCOUNTER');
+    if (chaos) observe('KAOS_INTERVENED');
+    // Once, for this fight. The battle and the intervention are both
+    // settled before the first render and neither can change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const command = (kind: 'ATTACK' | 'DEFEND') => {
     if (battle.outcome !== 'ONGOING') return;
     setSkillOpen(false);
@@ -298,6 +335,10 @@ export function BattleUIPrototype({
         ? playerAttack(battle, undefined, forcedEnemyAction)
         : playerDefend(battle, undefined, forcedEnemyAction);
     setBattle(next);
+    if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
+    if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
+    if (next.outcome === 'VICTORY') observe('WON_A_FIGHT');
+    if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
     play([kind === 'ATTACK' ? 'STRIKE' : 'GUARD', ...answerOf(next)]);
   };
 

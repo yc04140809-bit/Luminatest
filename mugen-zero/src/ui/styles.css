@@ -547,9 +547,11 @@ body,
 /* ---- LEVEL 5: everything else ---- */
 .home-rail {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Five now, and the widest label is five characters: at 360px that is
+     still ~68px a column, which fits the label without shrinking it. */
+  grid-template-columns: repeat(5, 1fr);
   width: 100%;
-  max-width: 340px;
+  max-width: 360px;
   margin-top: 2px;
 }
 .home-rail-item {
@@ -557,7 +559,7 @@ body,
   background: none;
   border: none;
   border-left: 1px solid var(--mugen-border);
-  padding: 8px 2px;
+  padding: 8px 1px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2146,3 +2148,346 @@ body,
 :root[data-reduced-motion='on'] .bp-chaos-aura,
 :root[data-reduced-motion='on'] .bp-chaos-mark { animation: none !important; opacity: 0.8; }
 :root[data-reduced-motion='on'] .bp-chaos-card { animation: none !important; }
+
+/* ============================================================
+   ARCANA — the book of what the player has come to know.
+
+   Ivory, gold and an old hand: the same materials the rest of
+   the game is made of. Nothing here whitens, veils or blurs a
+   picture of the world — the one drawing on the page is the
+   creature's own art, cut out of its own file by CSS and put
+   on the paper at full colour.
+   ============================================================ */
+.arcana-screen {
+  background: var(--mugen-bg);
+}
+.arcana-count {
+  margin: -2px 0 8px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--mugen-gold);
+}
+.arcana-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 16px 16px;
+}
+
+/* One page, seen from the outside. */
+.arcana-card {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px 12px;
+  text-align: left;
+  border: 1px solid var(--mugen-border);
+  border-radius: 3px;
+  background: var(--mugen-surface);
+  box-shadow: var(--mugen-shadow-soft);
+  color: var(--mugen-text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.arcana-card.sealed {
+  background: var(--mugen-surface-alt);
+  border-style: dashed;
+  color: var(--mugen-text-muted);
+  cursor: default;
+}
+.arcana-no {
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--mugen-gold);
+}
+.arcana-card.sealed .arcana-no {
+  color: var(--mugen-text-muted);
+}
+.arcana-name {
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 19px;
+  letter-spacing: 0.14em;
+}
+
+/* The measure of a memory. */
+.arcana-meter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.arcana-meter.wide {
+  width: 100%;
+  margin: 4px 0 2px;
+}
+.arcana-bar {
+  flex: 1;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--mugen-surface-sunk);
+  border: 1px solid var(--mugen-border);
+  overflow: hidden;
+}
+.arcana-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--mugen-gold-soft), var(--mugen-gold));
+  transition: width 0.3s ease;
+}
+.arcana-bar-fill.complete {
+  background: linear-gradient(90deg, var(--mugen-gold), var(--mugen-gold-bright));
+}
+.arcana-pct {
+  min-width: 3.4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--mugen-gold);
+}
+.arcana-open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--mugen-border);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--mugen-text-secondary);
+}
+.arcana-chip {
+  margin-left: auto;
+  padding: 2px 9px;
+  border: 1px solid var(--mugen-gold-soft);
+  border-radius: 999px;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--mugen-gold);
+}
+
+/* ---- one page, opened ---- */
+.arcana-detail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 18px 18px;
+}
+.arcana-detail .arcana-no {
+  margin: 0;
+}
+.arcana-title {
+  margin: 3px 0 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  color: var(--mugen-text);
+}
+.arcana-rule {
+  width: 76px;
+  height: 1px;
+  margin: 9px 0 12px;
+  background: linear-gradient(90deg, transparent, var(--mugen-gold-soft), transparent);
+}
+
+/* The drawing, on the paper. Its own colour, no veil over it. */
+.arcana-plate {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--mugen-border);
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-surface-alt) 100%);
+  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.14);
+}
+.arcana-plate.complete {
+  border-color: var(--mugen-gold-soft);
+  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.3), 0 0 16px rgba(198, 166, 96, 0.18);
+}
+.arcana-art {
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 6px 14px rgba(92, 72, 38, 0.18));
+}
+
+.arcana-summary {
+  margin: 4px 0 2px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--mugen-text-secondary);
+  text-align: center;
+}
+.arcana-complete-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 6px 0 2px;
+  color: var(--mugen-gold);
+}
+.arcana-complete-line span {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+}
+.arcana-complete-line em {
+  font-style: normal;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--mugen-text);
+}
+
+.arcana-section {
+  width: 100%;
+  margin-top: 16px;
+}
+.arcana-h {
+  margin: 0 0 7px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: var(--mugen-gold);
+  border-bottom: 1px solid var(--mugen-border);
+  padding-bottom: 5px;
+}
+.arcana-facts {
+  margin: 0;
+}
+.arcana-facts > div {
+  margin-bottom: 11px;
+}
+.arcana-facts > div:last-child {
+  margin-bottom: 0;
+}
+.arcana-facts dt {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--mugen-text-muted);
+}
+.arcana-facts dd {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--mugen-text);
+}
+.arcana-dim {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--mugen-text-muted);
+}
+/* Hints, not tasks: no bullets, no counts, no percentages. */
+.arcana-hint-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.arcana-hint-list li {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 7px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--mugen-text-secondary);
+}
+.arcana-hint-list li:last-child {
+  margin-bottom: 0;
+}
+.arcana-hint-list li::before {
+  content: '·';
+  position: absolute;
+  left: 4px;
+  color: var(--mugen-gold-soft);
+}
+
+/* ---- the small word that a memory grew ---- */
+.arcana-toast {
+  appearance: none;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(10px + env(safe-area-inset-top));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(340px, calc(100% - 20px));
+  padding: 10px 14px;
+  text-align: left;
+  border: 1px solid var(--mugen-border-strong);
+  border-radius: 4px;
+  background: var(--mugen-surface);
+  box-shadow: var(--mugen-shadow);
+  color: var(--mugen-text);
+  font-family: inherit;
+  animation: arcana-toast-in 0.3s ease-out;
+}
+.arcana-toast.complete {
+  border-color: var(--mugen-gold-soft);
+  animation: arcana-toast-in 0.3s ease-out, arcana-toast-glow 1.5s ease-out 0.3s;
+}
+@keyframes arcana-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to { opacity: 1; transform: translateX(-50%); }
+}
+/* A short shine on the card itself. Never a flash on the screen. */
+@keyframes arcana-toast-glow {
+  0% { box-shadow: var(--mugen-shadow); }
+  35% { box-shadow: var(--mugen-shadow), 0 0 22px rgba(198, 166, 96, 0.5); }
+  100% { box-shadow: var(--mugen-shadow); }
+}
+.arcana-toast-mark {
+  flex: 0 0 auto;
+  color: var(--mugen-gold);
+  line-height: 0;
+}
+.arcana-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.arcana-toast-head {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  color: var(--mugen-gold);
+}
+.arcana-toast-line {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.arcana-toast-num {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  color: var(--mugen-text-muted);
+}
+.arcana-toast-num i {
+  font-style: normal;
+  color: var(--mugen-gold-soft);
+  padding: 0 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arcana-toast { animation: none !important; }
+}
+:root[data-reduced-motion='on'] .arcana-toast { animation: none !important; }

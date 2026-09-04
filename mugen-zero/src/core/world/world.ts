@@ -43,6 +43,15 @@ import {
   type StoryTriggerConfig,
 } from '../enemies/enemyEncounters';
 import { CREATURE_LIFE_CHOICE_EVENT_TYPE } from '../../content/events/creatureLifeChoice';
+import {
+  applyArcanaConditions,
+  emptyArcanaRecord,
+  readArcanaRecord,
+  type ArcanaConditionId,
+  type ArcanaGain,
+  type ArcanaRecord,
+} from '../arcana/arcana';
+import { ARCANA_DEFS, arcanaDef } from '../../content/arcana/arcanaDefs';
 import type { NarrativeSeedStatus } from '../narrative/types';
 
 const CLOCK_KEY = 'world_clock';
@@ -74,6 +83,18 @@ const EXPERIENCE_LOG_KEY = 'experience_log';
 const ENEMY_PROGRESS_KEY = 'enemy_progress';
 /** The creatures that DID turn out to be somebody, and what became of them. */
 const ENEMY_INDIVIDUALS_KEY = 'enemy_individuals';
+/**
+ * ARCANA — how much the player has come to know about each thing.
+ *
+ * Kept as one row of arcanaId -> the conditions that have been met, and
+ * deliberately NOT as percentages: the number is worked out from the
+ * conditions every time it is asked for, so a save can never disagree
+ * with the rules and rebalancing them rewrites nobody's history.
+ *
+ * Absent in a save written before this build, which reads as "nothing
+ * is known yet" — the same answer a new world gives.
+ */
+const ARCANA_KEY = 'arcana_records';
 
 interface ExperienceLog {
   /** eventId -> absolute day it last played. */
@@ -163,6 +184,7 @@ export class World {
   private experienceLog: ExperienceLog;
   private enemyProgress: Record<string, EnemyProgress>;
   private enemyIndividuals: EnemyIndividual[];
+  private arcana: Record<string, ArcanaRecord>;
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -173,6 +195,7 @@ export class World {
     experienceLog: ExperienceLog,
     enemyProgress: Record<string, EnemyProgress>,
     enemyIndividuals: EnemyIndividual[],
+    arcana: Record<string, ArcanaRecord>,
   ) {
     this.events = events;
     this.clock = clock;
@@ -181,6 +204,7 @@ export class World {
     this.experienceLog = experienceLog;
     this.enemyProgress = enemyProgress;
     this.enemyIndividuals = enemyIndividuals;
+    this.arcana = arcana;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -202,6 +226,8 @@ export class World {
       {};
     const enemyIndividuals =
       ((await store.getStateValue(ENEMY_INDIVIDUALS_KEY)) as EnemyIndividual[] | undefined) ?? [];
+    const arcanaRaw =
+      ((await store.getStateValue(ARCANA_KEY)) as Record<string, unknown> | undefined) ?? {};
     return new World(
       store,
       events,
@@ -211,6 +237,7 @@ export class World {
       { lastSeenDay: { ...log.lastSeenDay }, order: [...log.order] },
       enemyProgress,
       enemyIndividuals,
+      readArcanaRows(arcanaRaw),
     );
   }
 
@@ -255,6 +282,10 @@ export class World {
     return (
       this.events.length > 0 ||
       this.seenExperience.size > 0 ||
+      // Having come to know something is progress too. A player who met
+      // a moss rabbit and closed the game must be offered their world
+      // back, not a new one.
+      Object.values(this.arcana).some((record) => record.met.length > 0) ||
       this.clock.worldYear !== INITIAL_CLOCK.worldYear ||
       this.clock.worldDay !== INITIAL_CLOCK.worldDay
     );
@@ -759,6 +790,63 @@ export class World {
     return event;
   }
 
+  // ---- ARCANA (what the player has come to know) ----
+
+  /**
+   * What is known about one thing. Never null: a page nobody has opened
+   * is an empty page, not a missing one.
+   */
+  getArcanaRecord(arcanaId: string): ArcanaRecord {
+    const found = this.arcana[arcanaId];
+    return found ? { ...found, met: [...found.met] } : emptyArcanaRecord(arcanaId);
+  }
+
+  /** The whole book, in page order. */
+  getArcanaRecords(): ArcanaRecord[] {
+    return ARCANA_DEFS.map((def) => this.getArcanaRecord(def.arcanaId));
+  }
+
+  /**
+   * The player has come to know something. Says what that changed.
+   *
+   * Given a batch, because one fight teaches several things at once and
+   * the player should pay for that with one write, not five. Conditions
+   * already met, conditions this page does not define, planned ones and
+   * ones that need the thing to be known at all are all dropped by the
+   * pure rules — and if nothing survives, nothing is written and null
+   * comes back. That is what makes the same fight, fought again,
+   * silent.
+   */
+  async recordArcanaConditions(
+    arcanaId: string,
+    conditionIds: readonly ArcanaConditionId[],
+  ): Promise<ArcanaGain | null> {
+    const def = arcanaDef(arcanaId);
+    if (!def) return null;
+    const applied = applyArcanaConditions(def, this.getArcanaRecord(arcanaId), conditionIds);
+    if (!applied) return null;
+
+    const next = { ...this.arcana, [arcanaId]: applied.record };
+    await this.store.commit({ putState: [{ key: ARCANA_KEY, value: next }] });
+    this.arcana = next;
+    this.emit();
+    return applied.gain;
+  }
+
+  /**
+   * The completion moment has been played. Saved, so a reload does not
+   * play it a second time — the one thing about a page that is state
+   * rather than a consequence of what the player did.
+   */
+  async markArcanaCompleteSeen(arcanaId: string): Promise<void> {
+    const current = this.getArcanaRecord(arcanaId);
+    if (current.completeSeen) return;
+    const next = { ...this.arcana, [arcanaId]: { ...current, completeSeen: true } };
+    await this.store.commit({ putState: [{ key: ARCANA_KEY, value: next }] });
+    this.arcana = next;
+    this.emit();
+  }
+
   async recordFutureSiteDiscovery(siteId: string): Promise<MemoryEvent> {
     const def = futureSiteDef(siteId);
     if (!def) throw new Error(`Unknown future site: ${siteId}`);
@@ -821,6 +909,31 @@ export class World {
     this.emit();
   }
 
+  /**
+   * DEV ONLY: put a page into a given state outright.
+   *
+   * Reaching 90% by playing takes a dozen fights and a time shift,
+   * which is the right price for a player and the wrong one for
+   * checking that the page renders. Reachable only through DEV ADMIN,
+   * which is compiled out of a production build.
+   */
+  async devSetArcanaConditions(
+    arcanaId: string,
+    conditionIds: readonly ArcanaConditionId[],
+  ): Promise<void> {
+    const def = arcanaDef(arcanaId);
+    if (!def) return;
+    const record: ArcanaRecord = {
+      arcanaId,
+      met: conditionIds.filter((id) => def.conditions.some((c) => c.id === id && !c.planned)),
+      completeSeen: false,
+    };
+    const next = { ...this.arcana, [arcanaId]: record };
+    await this.store.commit({ putState: [{ key: ARCANA_KEY, value: next }] });
+    this.arcana = next;
+    this.emit();
+  }
+
   /** NEW GAME / RESET WORLD: deletes all saved world data and restores defaults. */
   async resetWorld(): Promise<void> {
     await this.store.clearAll();
@@ -831,6 +944,24 @@ export class World {
     this.experienceLog = { lastSeenDay: {}, order: [] };
     this.enemyProgress = {};
     this.enemyIndividuals = [];
+    // A reset world knows nothing, the same as a world nobody has
+    // played: leaving the book filled in while its history was erased
+    // would be a save that disagrees with itself.
+    this.arcana = readArcanaRows({});
     this.emit();
   }
+}
+
+/**
+ * Every page, restored from whatever the save happens to hold.
+ *
+ * Pages the save has never heard of come back empty rather than
+ * missing, so every reader downstream can assume a record exists.
+ */
+function readArcanaRows(raw: Record<string, unknown>): Record<string, ArcanaRecord> {
+  const rows: Record<string, ArcanaRecord> = {};
+  for (const def of ARCANA_DEFS) {
+    rows[def.arcanaId] = readArcanaRecord(def, raw[def.arcanaId]);
+  }
+  return rows;
 }
