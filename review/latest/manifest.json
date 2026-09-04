@@ -1,0 +1,86 @@
+{
+  "capturedAt": "2026-09-04T09:41:09.226Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "shots": [
+    {
+      "file": "01_arcana_sealed.png",
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "まだ何も知らない状態。#??? のまま、何があるかは言わない"
+    },
+    {
+      "file": "02_arcana_detail_low.png",
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "発見直後。1%でも読めるものがあるか、ヒントが攻略リストに見えないか"
+    },
+    {
+      "file": "03_arcana_detail_high.png",
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "高構築度。段階解放された情報の量と、90%で開く「予兆」"
+    },
+    {
+      "file": "04_arcana_complete.png",
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "ARCANA COMPLETE。金の縁と一行だけで、白フラッシュを使っていないこと"
+    },
+    {
+      "file": "05_arcana_toast_complete.png",
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "100%到達の瞬間。世界の絵を覆わない小さなカードであること"
+    },
+    {
+      "file": "06_home_new_world.png",
+      "screen": "HOME",
+      "reason": "始めたばかりの世界。まだ何も覚えていない状態の第一印象"
+    },
+    {
+      "file": "07_home_remembering.png",
+      "screen": "HOME",
+      "reason": "記憶を持った世界。数字と最新の記憶が入ったときの見え方"
+    }
+  ],
+  "notPhotographed": [
+    {
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "前ラウンドから見た目の変更なし。見たものを外へ報告するコールバックが1つ増えただけです"
+    },
+    {
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "前ラウンドから無変更。試作は既存画面を置き換えていません"
+    },
+    {
+      "screen": "TAVERN / TALK",
+      "reason": "シーンアート修正版のまま"
+    },
+    {
+      "screen": "TITLE",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "PROLOGUE / KAOS",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "EXPLORE",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "WORLD MEMORY",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "LIFE CHOICE / ENDING",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "PLAYTEST SURVEY",
+      "reason": "v0.1 のまま"
+    },
+    {
+      "screen": "DEV REVIEW HUB",
+      "reason": "v0.1 のまま"
+    }
+  ]
+}

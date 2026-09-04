@@ -135,6 +135,23 @@ async function walkUntil(page: Page, arrived: () => Promise<boolean>) {
   }
 }
 
+/** A fresh world with ARCANA #001 put into one of the states worth seeing. */
+async function arcanaAt(page: Page, preset: string) {
+  await newWorld(page);
+  await page.getByTestId('dev-admin-entry').click();
+  await page.getByTestId('dev-lock-input').fill('0909');
+  await page.getByTestId('dev-lock-submit').click();
+  await page.getByTestId(`arcana-set-${preset}`).click();
+  await page.getByTestId('dev-admin-back').click();
+}
+
+/** The same, with the book already open on the list. */
+async function arcanaBook(page: Page, preset: string) {
+  await arcanaAt(page, preset);
+  await page.getByTestId('arcana-button').click();
+  await expect(page.getByTestId('arcana-list')).toBeVisible();
+}
+
 async function openHub(page: Page) {
   await newWorld(page);
   await page.getByTestId('dev-admin-entry').click();
@@ -401,6 +418,54 @@ const RECIPES: Record<string, Shot[]> = {
         await page.getByTestId('dev-admin-back').click();
         await page.getByTestId('world-memory-button').click();
         await expect(page.getByTestId('world-memory-list')).toBeVisible();
+      },
+    },
+  ],
+  'ARCANA / アルカナ図鑑': [
+    {
+      suffix: 'arcana_sealed',
+      why: 'まだ何も知らない状態。#??? のまま、何があるかは言わない',
+      go: async (page) => {
+        await newWorld(page);
+        await page.getByTestId('arcana-button').click();
+        await expect(page.getByTestId('arcana-list')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'arcana_detail_low',
+      why: '発見直後。1%でも読めるものがあるか、ヒントが攻略リストに見えないか',
+      go: async (page) => {
+        await arcanaBook(page, '低');
+        await page.getByTestId('arcana-card-moss_rabbit').click();
+        await expect(page.getByTestId('arcana-detail-moss_rabbit')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'arcana_detail_high',
+      why: '高構築度。段階解放された情報の量と、90%で開く「予兆」',
+      go: async (page) => {
+        await arcanaBook(page, '高');
+        await page.getByTestId('arcana-card-moss_rabbit').click();
+        await expect(page.getByTestId('arcana-fragment-sign')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'arcana_complete',
+      why: 'ARCANA COMPLETE。金の縁と一行だけで、白フラッシュを使っていないこと',
+      go: async (page) => {
+        await arcanaBook(page, 'COMPLETE');
+        await page.getByTestId('arcana-card-moss_rabbit').click();
+        await expect(page.getByTestId('arcana-complete-line')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'arcana_toast_complete',
+      why: '100%到達の瞬間。世界の絵を覆わない小さなカードであること',
+      go: async (page) => {
+        await arcanaAt(page, 'あと一歩');
+        await page.getByTestId('time-shift-button').click();
+        await page.getByTestId('time-shift-go').click();
+        await expect(page.getByTestId('arcana-toast')).toBeVisible({ timeout: 10_000 });
       },
     },
   ],
