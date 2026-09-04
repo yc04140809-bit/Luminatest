@@ -10,11 +10,13 @@ import { DEV_ADMIN_ENABLED } from './devMode';
 import type { DiscoveryCategory } from '../game/exploration/discovery';
 import type { EnemyAction } from '../game/battle/battleLogic';
 import type { ChaosInterventionId } from '../core/chaos/chaosIntervention';
+import type { SummonOutcome } from '../core/summon/summon';
 
 const STORAGE_KEY = 'mugen-debug-encounter';
 const ENEMY_ACTION_KEY = 'mugen-debug-enemy-action';
 const STORY_TRIGGER_KEY = 'mugen-debug-story-trigger';
 const CHAOS_KEY = 'mugen-debug-chaos';
+const SUMMON_KEY = 'mugen-debug-summon';
 
 function isCategory(value: unknown): value is DiscoveryCategory {
   return value === 'EVENT' || value === 'ITEM' || value === 'BATTLE';
@@ -75,6 +77,23 @@ export function debugChaosIntervention(): ChaosInterventionId | null {
 
 export function setDebugChaosIntervention(id: ChaosInterventionId | null): void {
   write(CHAOS_KEY, id);
+}
+
+/**
+ * Settle how an incomplete summon goes, instead of waiting for a die
+ * that is only reached in a fraction of a fraction of fights. Never in
+ * a build a player can reach: the only way to set it is DEV ADMIN, and
+ * it is ignored entirely unless the player really does hold an
+ * unfinished memory.
+ */
+export function debugSummon(): SummonOutcome | null {
+  if (!DEV_ADMIN_ENABLED) return null;
+  const raw = read(SUMMON_KEY);
+  return raw === 'SUCCESS' || raw === 'FAILURE' ? raw : null;
+}
+
+export function setDebugSummon(outcome: SummonOutcome | null): void {
+  write(SUMMON_KEY, outcome);
 }
 
 function read(key: string): string | null {

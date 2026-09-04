@@ -1,50 +1,50 @@
 {
-  "capturedAt": "2026-09-04T09:41:09.226Z",
+  "capturedAt": "2026-09-04T11:42:50.250Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_arcana_sealed.png",
+      "file": "01_summon_incomplete_card.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "ケイオスが不完全召喚を試みた瞬間。どのページを・何%で呼ぼうとしているか"
+    },
+    {
+      "file": "02_summon_incomplete_field.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "同種戦。敵モスラビットと召喚モスラビットが見分けられるか（位置・大きさ・光の輪・タグ）"
+    },
+    {
+      "file": "03_summon_failure_card.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "不成立。ペナルティを与えず、短い一言で終わっているか"
+    },
+    {
+      "file": "04_summon_arcana_command.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "100%所持時の戦闘UI。攻撃・スキルを圧迫せず、独立した行になっているか"
+    },
+    {
+      "file": "05_summon_complete_field.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "完全召喚。金の輪、《森の息吹》の効果、1戦闘1回の使用済み表示"
+    },
+    {
+      "file": "06_battle_prototype.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
+    },
+    {
+      "file": "07_arcana_summon_ability.png",
       "screen": "ARCANA / アルカナ図鑑",
-      "reason": "まだ何も知らない状態。#??? のまま、何があるかは言わない"
-    },
-    {
-      "file": "02_arcana_detail_low.png",
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "発見直後。1%でも読めるものがあるか、ヒントが攻略リストに見えないか"
-    },
-    {
-      "file": "03_arcana_detail_high.png",
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "高構築度。段階解放された情報の量と、90%で開く「予兆」"
-    },
-    {
-      "file": "04_arcana_complete.png",
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "ARCANA COMPLETE。金の縁と一行だけで、白フラッシュを使っていないこと"
-    },
-    {
-      "file": "05_arcana_toast_complete.png",
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "100%到達の瞬間。世界の絵を覆わない小さなカードであること"
-    },
-    {
-      "file": "06_home_new_world.png",
-      "screen": "HOME",
-      "reason": "始めたばかりの世界。まだ何も覚えていない状態の第一印象"
-    },
-    {
-      "file": "07_home_remembering.png",
-      "screen": "HOME",
-      "reason": "記憶を持った世界。数字と最新の記憶が入ったときの見え方"
+      "reason": "100%でだけ開く「呼べるもの」。ステータスやレアリティになっていないこと"
     }
   ],
   "notPhotographed": [
     {
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "前ラウンドから見た目の変更なし。見たものを外へ報告するコールバックが1つ増えただけです"
+      "screen": "HOME",
+      "reason": "前ラウンドで承認待ちの5項目導線のまま。今回は無変更です"
     },
     {
       "screen": "GREENWOOD / BATTLE",

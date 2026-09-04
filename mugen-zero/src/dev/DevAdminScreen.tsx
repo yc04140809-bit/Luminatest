@@ -10,6 +10,8 @@ import { DevReviewHub } from './DevReviewHub';
 import {
   debugChaosIntervention,
   debugEncounterType,
+  debugSummon,
+  setDebugSummon,
   debugEnemyAction,
   debugStoryTrigger,
   setDebugChaosIntervention,
@@ -32,6 +34,7 @@ import {
 import { storyTriggerChance } from '../core/enemies/enemyEncounters';
 import { MOSS_RABBIT_ARCANA } from '../content/arcana/arcanaDefs';
 import { progressOf, type ArcanaConditionId } from '../core/arcana/arcana';
+import { summonSuccessChance, type SummonOutcome } from '../core/summon/summon';
 
 /**
  * DEV ONLY: pages in a few states worth looking at.
@@ -116,6 +119,7 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
   const [enemyAction, setEnemyAction] = useState<EnemyAction | null>(() => debugEnemyAction());
   const [storyTrigger, setStoryTrigger] = useState<boolean | null>(() => debugStoryTrigger());
   const [chaos, setChaos] = useState<ChaosInterventionId | null>(() => debugChaosIntervention());
+  const [summon, setSummon] = useState<SummonOutcome | null>(() => debugSummon());
   const rabbit = world.getEnemyProgress(MOSS_RABBIT.speciesId);
   // Which battle screen the forest fight uses. Nothing is adopted: this
   // is a switch, and OLD is what a player without it always gets.
@@ -519,6 +523,45 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
         新戦闘画面の戦闘開始時のみ。既定は約35%で4種のいずれか、残りは何も起きません。
+      </div>
+
+      <div style={sectionTitle}>SUMMON — 不完全召喚の結果を固定</div>
+      <div style={row}>
+        {(['SUCCESS', 'FAILURE'] as const).map((outcome) => (
+          <button
+            key={outcome}
+            className={summon === outcome ? 'btn primary' : 'btn'}
+            style={smallBtn}
+            data-testid={`force-summon-${outcome}`}
+            onClick={() => {
+              setDebugSummon(outcome);
+              setSummon(outcome);
+            }}
+          >
+            {outcome === 'SUCCESS' ? '必ず成功' : '必ず不成立'}
+          </button>
+        ))}
+        <button
+          className={summon === null ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-summon-none"
+          onClick={() => {
+            setDebugSummon(null);
+            setSummon(null);
+          }}
+        >
+          確率どおり
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
+        構築度 1〜99% のアルカナを持っているときだけ効きます（持っていなければ無視）。現在の構築度{' '}
+        {progressOf(MOSS_RABBIT_ARCANA, world.getArcanaRecord(MOSS_RABBIT_ARCANA.arcanaId))}% での成功率は
+        約{Math.round(
+          summonSuccessChance(
+            progressOf(MOSS_RABBIT_ARCANA, world.getArcanaRecord(MOSS_RABBIT_ARCANA.arcanaId)),
+          ) * 100,
+        )}
+        %。100% は完全召喚なので、そもそも抽選しません。
       </div>
 
       <div style={sectionTitle}>ARCANA — 構築度を直接指定</div>

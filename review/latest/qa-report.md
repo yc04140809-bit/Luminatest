@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-04T09:41:08.804Z
-- Build: MUGEN ZERO v0.1 / f3d2c04 / 2026-09-04T09:40:47.530Z
+- Generated: 2026-09-04T11:42:49.836Z
+- Build: MUGEN ZERO v0.1 / bc12329 / 2026-09-04T11:42:22.069Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -98,6 +98,6 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] ARCANA / アルカナ図鑑 — 新規画面。一覧（未発見は ARCANA #??? のまま）と詳細（構築度バー・段階解放される情報・ヒント・COMPLETE）。構築度が上がったときだけ画面上部に小さな通知が出ます
-- [ ] HOME — 下段の導線が4項目から5項目に増えました（アルカナを追加）。他は無変更です
-- unchanged, no screenshot needed: BATTLE UI PROTOTYPE, GREENWOOD / BATTLE, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] BATTLE UI PROTOTYPE — 召喚を追加。戦闘開始時にケイオスが不完全召喚を試みることがあり（成功／不成立）、100%のアルカナは「アルカナ」コマンドから1戦闘1回呼べます。呼ばれたモスラビットは主人公側の手前に、敵より小さく、光の輪と ARCANA タグ付きで立ちます
+- [ ] ARCANA / アルカナ図鑑 — 100% のときだけ「呼べるもの ―《森の息吹》」の1節が増えました。一覧・構築度・ヒントは前ラウンドから無変更です
+- unchanged, no screenshot needed: HOME, GREENWOOD / BATTLE, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

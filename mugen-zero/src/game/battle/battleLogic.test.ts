@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { NO_MODIFIERS, createBattle, playerAttack, playerDefend } from './battleLogic';
+import { NO_MODIFIERS, createBattle, healPlayer, playerAttack, playerDefend } from './battleLogic';
 
 // rng() = 0 → always minimum rolls; rng() = 0.999 → maximum rolls.
 const rngMin = () => 0;
@@ -220,5 +220,55 @@ describe('what Kaos changes about a fight', () => {
     expect(after.modifiers.playerAttack).toBe(1.25);
     // A new fight starts from nothing unless it is told otherwise.
     expect(createBattle(enemy).modifiers).toEqual(NO_MODIFIERS);
+  });
+});
+
+describe('something healing the player mid-fight', () => {
+  const spec = { name: 'モスラビット', hp: 22, attackMin: 2, attackMax: 5 };
+
+  it('puts health back, and says how much', () => {
+    const hurt = { ...createBattle(spec), playerHp: 20 };
+    const healed = healPlayer(hurt, 8, '《森の息吹》');
+    expect(healed.playerHp).toBe(28);
+    expect(healed.log.at(-2)).toBe('《森の息吹》');
+    expect(healed.log.at(-1)).toContain('8回復');
+  });
+
+  it('never goes over full, and never silently over-heals', () => {
+    const nearly = { ...createBattle(spec), playerHp: 38 };
+    const healed = healPlayer(nearly, 8);
+    expect(healed.playerHp).toBe(40);
+    expect(healed.log.at(-1)).toContain('2回復');
+  });
+
+  it('at full health does nothing, and says so rather than lying', () => {
+    // A player who spent their one summon on this deserves to be told
+    // it did nothing, not left wondering whether the button worked.
+    const full = createBattle(spec);
+    const healed = healPlayer(full, 8);
+    expect(healed.playerHp).toBe(40);
+    expect(healed.log.at(-1)).toBe('HPはもう満ちている。');
+  });
+
+  it('does not take the player’s turn: the creature does not get to move', () => {
+    const hurt = { ...createBattle(spec), playerHp: 20 };
+    const healed = healPlayer(hurt, 5);
+    expect(healed.lastEnemyAction).toBe(hurt.lastEnemyAction);
+    expect(healed.enemyHp).toBe(hurt.enemyHp);
+  });
+
+  it('cannot reopen a fight that is already over', () => {
+    const won = { ...createBattle(spec), playerHp: 10, outcome: 'VICTORY' as const };
+    expect(healPlayer(won, 8)).toBe(won);
+  });
+
+  it('refuses a nonsense amount rather than breaking the number', () => {
+    const hurt = { ...createBattle(spec), playerHp: 20 };
+    for (const amount of [Number.NaN, -5, Number.POSITIVE_INFINITY]) {
+      const healed = healPlayer(hurt, amount);
+      expect(Number.isInteger(healed.playerHp)).toBe(true);
+      expect(healed.playerHp).toBeGreaterThanOrEqual(20);
+      expect(healed.playerHp).toBeLessThanOrEqual(40);
+    }
   });
 });

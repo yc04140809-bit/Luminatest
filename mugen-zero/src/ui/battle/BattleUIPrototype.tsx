@@ -13,13 +13,18 @@ import { locationBackground, type LocationId } from '../../content/locations/loc
 import type { LifeChoiceId } from '../../core/flow/types';
 import { vibrate } from '../../platform/haptics';
 import { Ornament } from '../common/Ornament';
-import {
-  modifiersOf,
-  rollChaosIntervention,
-  type ChaosInterventionDef,
-} from '../../core/chaos/chaosIntervention';
+import { modifiersOf, type ChaosInterventionDef } from '../../core/chaos/chaosIntervention';
 import { CHAOS_INTERVENTIONS } from '../../content/chaos/chaosInterventions';
 import type { ArcanaConditionId } from '../../core/arcana/arcana';
+import { planIntervention, type InterventionPlan } from '../../core/chaos/interventionPlan';
+import {
+  SUMMON_CONFIG,
+  summonEffectFor,
+  type SummonKind,
+  type SummonOutcome,
+} from '../../core/summon/summon';
+import { healPlayer } from '../../game/battle/battleLogic';
+import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 
 /**
@@ -127,6 +132,19 @@ interface Props {
   /** Development only: settle what Kaos does at the start of the fight. */
   forcedChaos?: ChaosInterventionDef['id'] | null;
   /**
+   * The book, as this fight sees it: what can be called, how complete
+   * it is, and what it does. The screen never reads the world — it is
+   * handed this, so summoning one ARCANA and summoning a hundred are
+   * the same code.
+   */
+  arcana?: readonly BattleArcana[];
+  /**
+   * Development only: open this fight with an attempt at a summon and
+   * settle how it goes. Ignored when there is nothing unfinished to
+   * call, so it can never invent a memory the player has not made.
+   */
+  forcedSummon?: SummonOutcome | null;
+  /**
    * Something about this creature was just seen for the first time.
    *
    * The screen reports what happened in front of the player and knows
@@ -217,6 +235,8 @@ export function BattleUIPrototype({
   startFinishable = false,
   forcedEnemyAction = null,
   forcedChaos = null,
+  arcana = [],
+  forcedSummon = null,
   onObserved,
   onNormalEnd,
   onMugenChoice,
@@ -230,15 +250,38 @@ export function BattleUIPrototype({
    * lives inside the battle, which means it dies with it: nothing is
    * saved, and the next fight starts from nothing.
    */
-  const [chaos] = useState<ChaosInterventionDef | null>(() =>
-    rollChaosIntervention({ defs: CHAOS_INTERVENTIONS, forced: forcedChaos }),
+  const [plan] = useState<InterventionPlan>(() =>
+    planIntervention({
+      defs: CHAOS_INTERVENTIONS,
+      candidates: arcana.map((a) => ({ arcanaId: a.arcanaId, progress: a.progress })),
+      forcedChaos,
+      forcedSummon,
+    }),
   );
+  const chaos = plan.kind === 'MODIFIER' ? plan.def : null;
+  /** The unfinished memory she reached for, if she did. */
+  const openingSummon =
+    plan.kind === 'SUMMON'
+      ? (arcana.find((a) => a.arcanaId === plan.arcanaId) ?? null)
+      : null;
   const [battle, setBattle] = useState<BattleState>(() => {
     const fresh = createBattle(specOf(species), modifiersOf(chaos));
     return startFinishable ? { ...fresh, enemyHp: 1 } : fresh;
   });
   /** Her moment, before the fight. Skipped entirely when she does not. */
-  const [showingChaos, setShowingChaos] = useState(chaos !== null);
+  const [showingChaos, setShowingChaos] = useState(plan.kind !== 'NONE');
+  /**
+   * What is standing on the field right now because it was called.
+   *
+   * Runtime only, and short-lived: an ARCANA is a memory put back
+   * together for a moment, not a party member. It arrives, it does its
+   * one thing, and it goes.
+   */
+  const [summoned, setSummoned] = useState<{ arcana: BattleArcana; kind: SummonKind } | null>(null);
+  /** The complete memories already spent in this fight. */
+  const [spent, setSpent] = useState<string[]>([]);
+  const [arcanaTrayOpen, setArcanaTrayOpen] = useState(false);
+  const completeArcana = arcana.filter((a) => a.complete);
   const [beat, setBeat] = useState<string>('NONE');
   /**
    * NORMAL while it is fighting; DOWNED once it is beaten.
@@ -273,6 +316,26 @@ export function BattleUIPrototype({
     if (!showingChaos) return;
     const t = setTimeout(() => setShowingChaos(false), CHAOS_BEAT_MS);
     return () => clearTimeout(t);
+  }, [showingChaos]);
+
+  /**
+   * Her attempt resolves as her moment ends.
+   *
+   * Only on the way out, and only once: the card says she is trying,
+   * and the creature appears when she has finished saying it. A failed
+   * attempt costs the player nothing at all — no damage, no turn, no
+   * lost ARCANA. It simply did not hold.
+   */
+  const openingResolved = useRef(false);
+  useEffect(() => {
+    if (showingChaos || openingResolved.current) return;
+    openingResolved.current = true;
+    if (plan.kind === 'SUMMON' && plan.outcome === 'SUCCESS' && openingSummon) {
+      callArcana(openingSummon, 'INCOMPLETE');
+    }
+    // The card is what carries the outcome; nothing else to do on a
+    // failure, which is the point of it being harmless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showingChaos]);
 
   useEffect(() => {
@@ -316,12 +379,30 @@ export function BattleUIPrototype({
     onObserved?.(id);
   };
 
+  /**
+   * A memory arrives, does its one thing, and goes.
+   *
+   * The effect lands as it appears rather than when it leaves, so the
+   * player sees the creature and the number in the same breath; the
+   * timer only takes it off the field again.
+   */
+  const callArcana = (entry: BattleArcana, kind: SummonKind) => {
+    setSummoned({ arcana: entry, kind });
+    const effect = summonEffectFor(entry.ability, kind);
+    if (effect.kind === 'HEAL_PLAYER') {
+      setBattle((current) => healPlayer(current, effect.amount, `《${entry.ability.name}》`));
+    }
+    timers.current.push(
+      window.setTimeout(() => setSummoned(null), SUMMON_CONFIG.stayMs),
+    );
+  };
+
   // Meeting it at all, and whether anyone helped. Both are true the
   // moment the fight exists, so they are reported on mount rather than
   // waiting for a turn the player might never take.
   useEffect(() => {
     observe('FIRST_ENCOUNTER');
-    if (chaos) observe('KAOS_INTERVENED');
+    if (plan.kind !== 'NONE') observe('KAOS_INTERVENED');
     // Once, for this fight. The battle and the intervention are both
     // settled before the first render and neither can change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -374,6 +455,11 @@ export function BattleUIPrototype({
     enemyDown: Math.round(stageH * 0.16),
     hero: Math.round(stageH * 0.22),
     kaos: Math.round(stageH * 0.215),
+    // Smaller than the creature actually in the fight. A rebuilt memory
+    // should not read as the same weight of thing as the animal in
+    // front of you, and in a moss-rabbit-versus-moss-rabbit fight the
+    // difference in size is the first thing that tells them apart.
+    summon: Math.round(stageH * 0.15),
   };
 
   return (
@@ -437,6 +523,30 @@ export function BattleUIPrototype({
           )}
           <ActorArt crop={HERO_CROP} height={stage.hero} className="bp-art" />
         </div>
+
+        {/* 3b. What was called. On THIS side of the clearing, in front
+               of the two of them and well clear of the creature they
+               are fighting — which matters most in the one fight where
+               both of them are moss rabbits. It is smaller than the
+               real one, it stands inside a ring of her light, and it is
+               labelled; nothing about the drawing itself is recoloured. */}
+        {summoned && (
+          <div
+            className={`bp-actor bp-summon ${summoned.kind.toLowerCase()}`}
+            data-testid="bp-summoned"
+            data-arcana={summoned.arcana.arcanaId}
+            data-kind={summoned.kind}
+          >
+            <span className="bp-shadow" aria-hidden="true" />
+            <span className="bp-summon-ring" aria-hidden="true" />
+            <span className="bp-summon-tag">ARCANA</span>
+            <ActorArt
+              crop={cropOf({ src: summoned.arcana.visual.src, box: summoned.arcana.visual.box })}
+              height={stage.summon}
+              className="bp-art"
+            />
+          </div>
+        )}
 
         {/* 4. Who is in this, and how they are doing. A small framed
                plate rather than a status panel: it sits ON the forest
@@ -511,6 +621,41 @@ export function BattleUIPrototype({
         </button>
       )}
 
+      {/* 6c. The other thing she can do: reach for a memory that is not
+             all there. The same card, the same place, the same second
+             or two — the forest is not covered for this either. What it
+             shows instead of a blessing is which page she is reaching
+             for and how much of it there is, because that number is the
+             reason it works or does not. */}
+      {showingChaos && plan.kind === 'SUMMON' && openingSummon && (
+        <button
+          className={`bp-chaos-card bp-summon-card ${plan.outcome.toLowerCase()}`}
+          data-testid="bp-summon-card"
+          data-outcome={plan.outcome}
+          data-arcana={openingSummon.arcanaId}
+          onClick={() => setShowingChaos(false)}
+          aria-label={`${openingSummon.name} — ${plan.outcome === 'SUCCESS' ? '召喚' : '不成立'}`}
+        >
+          <span className="bp-chaos-who">ケイオス</span>
+          <span className="bp-chaos-line">
+            「{plan.outcome === 'SUCCESS' ? openingSummon.incompleteLine : openingSummon.failureLine}」
+          </span>
+          <span className="bp-chaos-rule" aria-hidden="true" />
+          <span className="bp-summon-id">
+            ARCANA #{String(openingSummon.number).padStart(3, '0')}
+            <i>{openingSummon.name}</i>
+          </span>
+          <span className="bp-summon-meter">
+            <span className="bp-summon-track" aria-hidden="true">
+              <span className="bp-summon-fill" style={{ width: `${openingSummon.progress}%` }} />
+            </span>
+            <span className="bp-summon-pct" data-testid="bp-summon-progress">
+              CONSTRUCTION {openingSummon.progress}%
+            </span>
+          </span>
+        </button>
+      )}
+
       {/* 6. Fighting, and then — separately — deciding. */}
       {!beaten && !showingChaos && (
         <div className="bp-commands" data-testid="bp-commands">
@@ -529,6 +674,34 @@ export function BattleUIPrototype({
             <span className="bp-cmd-jp">スキル</span>
             <span className="bp-cmd-en">SKILL</span>
           </button>
+          {/* A finished memory is the player's to spend, so it is a
+              command and not something that happens to them. Its own
+              row rather than a third column: at 360px three of these
+              side by side stop being readable, and this is the one the
+              collecting is for. */}
+          {completeArcana.length > 0 && (
+            <button
+              className={`bp-cmd wide arcana${arcanaTrayOpen ? ' open' : ''}`}
+              data-testid="bp-arcana"
+              aria-expanded={arcanaTrayOpen}
+              disabled={spent.length >= SUMMON_CONFIG.usesPerBattle}
+              onClick={() => {
+                setSkillOpen(false);
+                setArcanaTrayOpen((open) => !open);
+              }}
+            >
+              <Ornament kind="ring" size={17} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">
+                アルカナ
+                {spent.length >= SUMMON_CONFIG.usesPerBattle && (
+                  <i className="bp-cmd-spent" data-testid="bp-arcana-spent">
+                    この戦いではもう呼べない
+                  </i>
+                )}
+              </span>
+              <span className="bp-cmd-en">ARCANA</span>
+            </button>
+          )}
         </div>
       )}
       {!beaten && !showingChaos && skillOpen && (
@@ -538,6 +711,30 @@ export function BattleUIPrototype({
             <span className="bp-tray-sub">受けるダメージを半分にする</span>
           </button>
           <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
+        </div>
+      )}
+      {/* Which memory. One today; the list is built from the book, so a
+          hundred of them cost this screen nothing. */}
+      {!beaten && !showingChaos && arcanaTrayOpen && (
+        <div className="bp-tray" data-testid="bp-arcana-tray">
+          {completeArcana.map((entry) => (
+            <button
+              key={entry.arcanaId}
+              className="bp-tray-item"
+              data-testid={`bp-arcana-${entry.arcanaId}`}
+              onClick={() => {
+                if (spent.includes(entry.arcanaId) || spent.length >= SUMMON_CONFIG.usesPerBattle) return;
+                setArcanaTrayOpen(false);
+                setSpent((used) => [...used, entry.arcanaId]);
+                callArcana(entry, 'COMPLETE');
+              }}
+            >
+              {entry.name}
+              <span className="bp-tray-sub">
+                《{entry.ability.name}》 — {entry.completeLine}
+              </span>
+            </button>
+          ))}
         </div>
       )}
 

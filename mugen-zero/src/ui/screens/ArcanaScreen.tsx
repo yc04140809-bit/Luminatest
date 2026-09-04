@@ -192,6 +192,26 @@ function ArcanaDetail({
           )}
         </section>
 
+        {/* Only once the memory is finished. Not a stat block and not
+            a rarity — one ability, and a sentence about what it is. The
+            subject of this page is still what the player came to know. */}
+        {complete && def.summon && (
+          <section className="arcana-section" data-testid="arcana-summon">
+            <h2 className="arcana-h">呼べるもの</h2>
+            <dl className="arcana-facts">
+              <div>
+                <dt>召喚能力</dt>
+                <dd>
+                  《{def.summon.ability.name}》
+                  <span className="arcana-dim arcana-summon-note">
+                    {def.summon.ability.description}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+          </section>
+        )}
+
         {/* What is missing, said as a feeling rather than as a task.
             The exact conditions are kept exactly — just not here. */}
         {hints.length > 0 && (

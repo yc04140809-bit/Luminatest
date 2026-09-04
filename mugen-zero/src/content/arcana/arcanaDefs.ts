@@ -147,6 +147,28 @@ export const MOSS_RABBIT_ARCANA: ArcanaDef = {
   ],
 
   completeLine: 'この記憶は、もう失われない。',
+
+  /**
+   * What a moss rabbit does when it is a memory rather than an animal.
+   *
+   * NOT its leaf tackle and NOT its moss-hiding: those belong to the
+   * creature in the forest. This belongs to what the player came to
+   * know about it — a small frightened thing that lives in the green,
+   * and what it gives back is a breath of that green. Separate data on
+   * purpose, so the two can never drift into each other.
+   */
+  summon: {
+    ability: {
+      id: 'forest_breath',
+      name: '森の息吹',
+      line: 'モスラビットの周りに、苔と若葉のにおいが立ちのぼる。',
+      description: '呼び出したモスラビットが、あたりの緑をわずかに濃くする。傷が少し癒える。',
+      effect: { kind: 'HEAL_PLAYER', amount: 8 },
+    },
+    incompleteLine: 'まだちゃんとは呼べないけど……やってみる？',
+    failureLine: '……まだ、輪郭が足りないみたい。',
+    completeLine: 'この記憶なら――ちゃんと呼べる。',
+  },
 };
 
 /** Every page there is. One, today. */

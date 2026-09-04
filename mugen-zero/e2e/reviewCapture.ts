@@ -135,6 +135,25 @@ async function walkUntil(page: Page, arrived: () => Promise<boolean>) {
   }
 }
 
+/** The prototype, opened straight from DEV ADMIN with the book set. */
+async function summonBattle(
+  page: Page,
+  preset: string,
+  summon?: 'SUCCESS' | 'FAILURE',
+) {
+  await newWorld(page);
+  await page.getByTestId('dev-admin-entry').click();
+  await page.getByTestId('dev-lock-input').fill('0909');
+  await page.getByTestId('dev-lock-submit').click();
+  await page.getByTestId('force-story-off').click();
+  await page.getByTestId(`arcana-set-${preset}`).click();
+  await page.getByTestId(summon ? `force-summon-${summon}` : 'force-summon-none').click();
+  if (!summon) await page.getByTestId('force-chaos-NONE').click();
+  // Opening the prototype IS leaving DEV ADMIN; there is no back click.
+  await page.getByTestId('open-battle-prototype').click();
+  await expect(page.getByTestId('battle-prototype')).toBeVisible();
+}
+
 /** A fresh world with ARCANA #001 put into one of the states worth seeing. */
 async function arcanaAt(page: Page, preset: string) {
   await newWorld(page);
@@ -312,6 +331,49 @@ const RECIPES: Record<string, Shot[]> = {
   ],
   'BATTLE UI PROTOTYPE': [
     {
+      suffix: 'summon_incomplete_card',
+      why: 'ケイオスが不完全召喚を試みた瞬間。どのページを・何%で呼ぼうとしているか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'SUCCESS');
+        await expect(page.getByTestId('bp-summon-card')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'summon_incomplete_field',
+      why: '同種戦。敵モスラビットと召喚モスラビットが見分けられるか（位置・大きさ・光の輪・タグ）',
+      go: async (page) => {
+        await summonBattle(page, '中', 'SUCCESS');
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-summoned')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'summon_failure_card',
+      why: '不成立。ペナルティを与えず、短い一言で終わっているか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'FAILURE');
+        await expect(page.getByTestId('bp-summon-card')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'summon_arcana_command',
+      why: '100%所持時の戦闘UI。攻撃・スキルを圧迫せず、独立した行になっているか',
+      go: async (page) => {
+        await summonBattle(page, 'COMPLETE');
+        await expect(page.getByTestId('bp-arcana')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'summon_complete_field',
+      why: '完全召喚。金の輪、《森の息吹》の効果、1戦闘1回の使用済み表示',
+      go: async (page) => {
+        await summonBattle(page, 'COMPLETE');
+        await page.getByTestId('bp-arcana').click();
+        await page.getByTestId('bp-arcana-moss_rabbit').click();
+        await expect(page.getByTestId('bp-summoned')).toBeVisible();
+      },
+    },
+    {
       suffix: 'battle_prototype',
       why: '世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル',
       go: async (page) => {
@@ -321,31 +383,6 @@ const RECIPES: Record<string, Shot[]> = {
         );
         await expect(page.getByTestId('battle-prototype')).toBeVisible();
         await page.waitForTimeout(400);
-      },
-    },
-    {
-      suffix: 'battle_prototype_skill',
-      why: '「スキル」を開いた状態。まだ何も無いことを隠していないか',
-      go: async (page) => {
-        await forestWith(page, 'BATTLE', 'off', 'PROTOTYPE');
-        await walkUntil(page, () =>
-          page.getByTestId('battle-prototype').isVisible().catch(() => false),
-        );
-        await page.getByTestId('bp-skill').click();
-        await expect(page.getByTestId('bp-skill-tray')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'battle_prototype_mugen_choice',
-      why: '戦うことと人生を決めることの分離。4ボタンが窮屈でないか',
-      go: async (page) => {
-        await forestWith(page, 'BATTLE', 'on', 'PROTOTYPE', true);
-        await walkUntil(page, () =>
-          page.getByTestId('battle-prototype').isVisible().catch(() => false),
-        );
-        await page.getByTestId('bp-attack').click();
-        await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 5_000 });
-        await page.waitForTimeout(300);
       },
     },
   ],
@@ -423,49 +460,14 @@ const RECIPES: Record<string, Shot[]> = {
   ],
   'ARCANA / アルカナ図鑑': [
     {
-      suffix: 'arcana_sealed',
-      why: 'まだ何も知らない状態。#??? のまま、何があるかは言わない',
-      go: async (page) => {
-        await newWorld(page);
-        await page.getByTestId('arcana-button').click();
-        await expect(page.getByTestId('arcana-list')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'arcana_detail_low',
-      why: '発見直後。1%でも読めるものがあるか、ヒントが攻略リストに見えないか',
-      go: async (page) => {
-        await arcanaBook(page, '低');
-        await page.getByTestId('arcana-card-moss_rabbit').click();
-        await expect(page.getByTestId('arcana-detail-moss_rabbit')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'arcana_detail_high',
-      why: '高構築度。段階解放された情報の量と、90%で開く「予兆」',
-      go: async (page) => {
-        await arcanaBook(page, '高');
-        await page.getByTestId('arcana-card-moss_rabbit').click();
-        await expect(page.getByTestId('arcana-fragment-sign')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'arcana_complete',
-      why: 'ARCANA COMPLETE。金の縁と一行だけで、白フラッシュを使っていないこと',
+      suffix: 'arcana_summon_ability',
+      why: '100%でだけ開く「呼べるもの」。ステータスやレアリティになっていないこと',
       go: async (page) => {
         await arcanaBook(page, 'COMPLETE');
         await page.getByTestId('arcana-card-moss_rabbit').click();
-        await expect(page.getByTestId('arcana-complete-line')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'arcana_toast_complete',
-      why: '100%到達の瞬間。世界の絵を覆わない小さなカードであること',
-      go: async (page) => {
-        await arcanaAt(page, 'あと一歩');
-        await page.getByTestId('time-shift-button').click();
-        await page.getByTestId('time-shift-go').click();
-        await expect(page.getByTestId('arcana-toast')).toBeVisible({ timeout: 10_000 });
+        const section = page.getByTestId('arcana-summon');
+        await section.scrollIntoViewIfNeeded();
+        await expect(section).toBeVisible();
       },
     },
   ],

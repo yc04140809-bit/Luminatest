@@ -2491,3 +2491,166 @@ body,
   .arcana-toast { animation: none !important; }
 }
 :root[data-reduced-motion='on'] .arcana-toast { animation: none !important; }
+
+/* ============================================================
+   SUMMONING — a memory, put back together for a moment.
+
+   The rule that shapes all of it: in the one fight where the
+   creature being fought and the creature being called are the
+   same animal, a player must never have to wonder which is
+   which. So the called one stands on THIS side of the clearing,
+   is smaller, wears a ring of her light and is labelled — and
+   not one pixel of the drawing itself is recoloured.
+   ============================================================ */
+.bp-summon {
+  /* The player's side, in front of both of them, clear of the hero's
+     shoulder on one side and — because it stands much lower down the
+     path — well clear of the creature being fought on the other. */
+  right: 53%;
+  bottom: 10%;
+  animation: bp-summon-in 0.42s ease-out;
+  z-index: 2;
+}
+@keyframes bp-summon-in {
+  0% { opacity: 0; transform: translateY(6px) scale(0.82); }
+  60% { opacity: 1; transform: translateY(0) scale(1.04); }
+  100% { opacity: 1; transform: none; }
+}
+/* Called from a memory that is not all there: it does not sit still. */
+.bp-summon.incomplete .bp-art {
+  animation: bp-summon-waver 1.1s ease-in-out infinite;
+}
+@keyframes bp-summon-waver {
+  0%, 100% { opacity: 0.82; }
+  50% { opacity: 1; }
+}
+.bp-summon-ring {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+  width: 88%;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(168, 200, 240, 0.85);
+  box-shadow: 0 0 16px rgba(150, 190, 235, 0.5);
+  pointer-events: none;
+}
+.bp-summon.complete .bp-summon-ring {
+  border-color: rgba(214, 178, 104, 0.9);
+  box-shadow: 0 0 18px rgba(214, 178, 104, 0.5);
+}
+/* Whose side it is on, said in a word. */
+.bp-summon-tag {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  border: 1px solid rgba(168, 200, 240, 0.75);
+  border-radius: 999px;
+  background: rgba(26, 28, 22, 0.82);
+  color: #dbe6f6;
+  font-size: 8px;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.bp-summon.complete .bp-summon-tag {
+  border-color: rgba(214, 178, 104, 0.8);
+  color: var(--mugen-gold-bright);
+}
+
+/* Her card, when what she is reaching for is a page of the book. */
+.bp-summon-card .bp-chaos-rule {
+  background: linear-gradient(90deg, rgba(168, 200, 240, 0.7), transparent);
+}
+.bp-summon-id {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  color: #a8c8f0;
+}
+.bp-summon-card.failure .bp-summon-id {
+  color: rgba(168, 200, 240, 0.6);
+}
+.bp-summon-id i {
+  font-style: normal;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #f1ece0;
+}
+.bp-summon-meter {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 5px;
+}
+.bp-summon-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.bp-summon-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(168, 200, 240, 0.6), rgba(168, 200, 240, 0.95));
+}
+/* It did not hold: the outline is there and does not fill in. */
+.bp-summon-card.failure .bp-summon-fill {
+  background: rgba(168, 200, 240, 0.28);
+}
+.bp-summon-pct {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.14em;
+  color: rgba(241, 236, 224, 0.72);
+  white-space: nowrap;
+}
+
+/* The command. Its own row, because at 360px a third column stops
+   being readable and this is the one the collecting is for. */
+.bp-commands {
+  flex-wrap: wrap;
+}
+.bp-cmd.arcana {
+  min-height: 48px;
+  flex-direction: row;
+  gap: 9px;
+  border-color: var(--mugen-gold-soft);
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+}
+.bp-cmd.arcana .bp-cmd-jp {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.bp-cmd-spent {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--mugen-text-muted);
+}
+.bp-cmd.arcana:disabled {
+  opacity: 0.55;
+  background: var(--mugen-surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-summon, .bp-summon .bp-art { animation: none !important; }
+}
+:root[data-reduced-motion='on'] .bp-summon,
+:root[data-reduced-motion='on'] .bp-summon .bp-art { animation: none !important; }
+.arcana-summon-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.8;
+}

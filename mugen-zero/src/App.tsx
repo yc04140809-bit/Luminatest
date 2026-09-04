@@ -54,13 +54,15 @@ import {
   debugEncounterType,
   debugEnemyAction,
   debugStoryTrigger,
+  debugSummon,
 } from './dev/debugEncounter';
 import { battleUi, startFinishable } from './dev/battleUiFlag';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
 import { clearObtainedItems } from './platform/discoveries';
 import { ArcanaScreen } from './ui/screens/ArcanaScreen';
 import { ArcanaToast } from './ui/common/ArcanaToast';
-import { MOSS_RABBIT_ARCANA } from './content/arcana/arcanaDefs';
+import { ARCANA_DEFS, MOSS_RABBIT_ARCANA } from './content/arcana/arcanaDefs';
+import { battleArcanaOf } from './ui/battle/battleArcana';
 import type { ArcanaConditionId, ArcanaGain } from './core/arcana/arcana';
 
 // Phaser is the heaviest dependency by far and is only needed once the
@@ -187,6 +189,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
 
   // WORLD MEMORY (the DB) is the truth; derive world facts from it.
   const galdChoiceInWorld = world.getGaldLifeChoice();
+  // The book, flattened for a battlefield: what can be called, how much
+  // of it there is, and what it does. Derived, never stored — a summon
+  // writes nothing, so there is nothing here to keep in step.
+  const battleArcana = battleArcanaOf(ARCANA_DEFS, world.getArcanaRecords());
 
   // Where the map should show 「✦」: somewhere with an experience event
   // the player has not met, or a future site they have not walked into.
@@ -347,6 +353,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           startFinishable={startFinishable()}
           forcedEnemyAction={debugEnemyAction()}
           forcedChaos={debugChaosIntervention()}
+          arcana={battleArcana}
+          forcedSummon={debugSummon()}
           onNormalEnd={() => flow.goTo('DEV_ADMIN')}
           onMugenChoice={() => flow.goTo('DEV_ADMIN')}
           onDefeat={() => flow.goTo('DEV_ADMIN')}
@@ -493,6 +501,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             startFinishable={startFinishable()}
             forcedEnemyAction={debugEnemyAction()}
             forcedChaos={debugChaosIntervention()}
+            arcana={battleArcana}
+            forcedSummon={debugSummon()}
             // What the player actually saw. Held until the fight is
             // over, then written in one go.
             onObserved={noteArcana}

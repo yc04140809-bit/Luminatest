@@ -17,21 +17,21 @@ import type { VisualChange } from '../../core/qa/types';
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
+    screen: 'BATTLE UI PROTOTYPE',
+    changed: true,
+    reason:
+      '召喚を追加。戦闘開始時にケイオスが不完全召喚を試みることがあり（成功／不成立）、100%のアルカナは「アルカナ」コマンドから1戦闘1回呼べます。呼ばれたモスラビットは主人公側の手前に、敵より小さく、光の輪と ARCANA タグ付きで立ちます',
+  },
+  {
     screen: 'ARCANA / アルカナ図鑑',
     changed: true,
     reason:
-      '新規画面。一覧（未発見は ARCANA #??? のまま）と詳細（構築度バー・段階解放される情報・ヒント・COMPLETE）。構築度が上がったときだけ画面上部に小さな通知が出ます',
+      '100% のときだけ「呼べるもの ―《森の息吹》」の1節が増えました。一覧・構築度・ヒントは前ラウンドから無変更です',
   },
   {
     screen: 'HOME',
-    changed: true,
-    reason: '下段の導線が4項目から5項目に増えました（アルカナを追加）。他は無変更です',
-  },
-  {
-    screen: 'BATTLE UI PROTOTYPE',
     changed: false,
-    reason:
-      '前ラウンドから見た目の変更なし。見たものを外へ報告するコールバックが1つ増えただけです',
+    reason: '前ラウンドで承認待ちの5項目導線のまま。今回は無変更です',
   },
   {
     screen: 'GREENWOOD / BATTLE',

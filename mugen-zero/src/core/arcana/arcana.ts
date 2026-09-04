@@ -70,6 +70,8 @@ export interface ArcanaConditionDef {
   planned?: boolean;
 }
 
+import type { SummonAbilityDef } from '../summon/summon';
+
 /** A piece of what is known, readable once the memory is clear enough. */
 export interface ArcanaFragmentDef {
   id: string;
@@ -97,6 +99,26 @@ export interface ArcanaDef {
   conditions: readonly ArcanaConditionDef[];
   fragments: readonly ArcanaFragmentDef[];
   /** Said once, at 100%. */
+  completeLine: string;
+  /**
+   * What this memory does when Kaos puts it back together, and what she
+   * says while doing it.
+   *
+   * Looked up by arcanaId, so a battle screen that can summon one can
+   * summon a hundred without being rewritten. Null for a page that has
+   * nothing to call yet.
+   */
+  summon: ArcanaSummonDef | null;
+}
+
+/** Everything about calling one particular memory onto a battlefield. */
+export interface ArcanaSummonDef {
+  ability: SummonAbilityDef;
+  /** Kaos, reaching for a memory that is not all there. */
+  incompleteLine: string;
+  /** Kaos, when it does not hold. Nothing is taken from the player. */
+  failureLine: string;
+  /** Kaos, calling a memory that is finished. */
   completeLine: string;
 }
 

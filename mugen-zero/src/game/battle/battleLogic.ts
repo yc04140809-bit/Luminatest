@@ -254,3 +254,26 @@ export function playerDefend(
   const next = { ...state, log: [...state.log, '身構えた。'] };
   return enemyTurn(next, true, rng, forcedEnemyAction);
 }
+
+/**
+ * Something put health back into the player, without taking a turn.
+ *
+ * Kept separate from the two commands on purpose: a summoned ARCANA
+ * arrives, does one thing and goes, and it is not the player spending
+ * their turn — the creature's move is not skipped for it, and a fight
+ * that is already over is not reopened by it.
+ *
+ * Healing at full health is not an error and not a refusal: it is a
+ * thing that happened and did nothing, and the log says so, because a
+ * player who spent their one summon on it deserves to be told rather
+ * than left wondering whether the button worked.
+ */
+export function healPlayer(state: BattleState, amount: number, line?: string): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  const asked = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+  const healed = Math.min(asked, state.playerMaxHp - state.playerHp);
+  const log = [...state.log];
+  if (line) log.push(line);
+  log.push(healed > 0 ? `HPが${healed}回復した。` : 'HPはもう満ちている。');
+  return { ...state, playerHp: state.playerHp + healed, log };
+}
