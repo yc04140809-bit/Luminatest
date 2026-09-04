@@ -1,13 +1,28 @@
-# MUGEN REVIEW PACKAGE — 新戦闘画面 v1.1 — 敵カードから戦場へ（採用前）
+# MUGEN REVIEW PACKAGE — 新戦闘画面 v1.1 — 実機確認用プレビュー配線（採用前）
 
-- Generated: 2026-09-04T01:44:43.540Z
-- Commit: dd1214f on claude/mugen-zero-v01-implementation-qanh8u
-- Compared against: dd1214f
-- Verdict: SOMETHING FAILED — see 5
+- Generated: 2026-09-04T03:19:42.938Z
+- Commit: 4b70b68 on claude/mugen-zero-v01-implementation-qanh8u
+- Compared against: 4b70b68
+- Verdict: nothing failed
 
 ## 1. 実装前 → 実装後の変更点
 
 **まだ採用していません。** 既存の戦闘画面は1行も消していません。
+
+**今回：森のモスラビット戦だけが試作画面を出すようになりました（実機確認用）。**
+
+- **判明した重大な事実：DEV ADMIN は公開ビルドに存在しませんでした。**
+  `DEV_ADMIN_ENABLED` は本番ビルドで false になるため、前ラウンドまで
+  私が案内していた「DEV → 0909」は**公開ビルドでは一度も押せていません**。
+  つまり試作は実機で一度も見られておらず、指摘の「巨大なモスラビット」は
+  **旧戦闘画面**のことでした。案内が誤っていました。
+- **対処**：フラグの既定値を `PROTOTYPE` にし、DEV の有無に依存しない読み取りに
+  変更しました。これで**公開ビルドでも**森の戦闘が試作画面になります。
+- **旧UIへ戻すのは定数1つ**（`PREVIEW_DEFAULT` を `'OLD'` に）。削除も破壊も
+  していません。DEV が使える環境ではボタンでも切り替えられます。
+- **MUGEN CHOICE は本物の確率で出ます。** 試作は戦闘画面の中で4択を出すため、
+  抽選を「勝利後」ではなく「戦闘開始時」に行うようにしました。**同じ確率・
+  同じ書き込み**で、世界に残る記録は従来と一切変わりません。
 
 **v1.1 で変えたのは「何が主役か」です。** v1.0 は敵カードでした
 （大きな生き物が真ん中にいて、その下にUIが積んである）。
@@ -46,7 +61,7 @@ UIは帯ではなく隅と細い列に退きました。
 
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-04T01:44:43.325Z / viewport 390x844
+撮影: 2026-09-04T03:19:42.776Z / viewport 390x844
 
 - `review/latest/01_battle_prototype.png` — BATTLE UI PROTOTYPE：世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル
 - `review/latest/02_battle_prototype_skill.png` — BATTLE UI PROTOTYPE：「スキル」を開いた状態。まだ何も無いことを隠していないか
@@ -70,14 +85,18 @@ UIは帯ではなく隅と細い列に退きました。
   通常終了・MUGEN CHOICE を確認。縦横スクロールなし、ボタンは全て44px以上。
 - **DEV ADMIN に「試作をこの場で見る」を追加**しました。森を歩かずに1タップで
   試作だけ見られます。**世界には何も書き込みません**（自動テストで検証）。
+- 全E2E中に自作テストが2件落ちました。**どちらもテスト側の欠陥**で、
+  弱めずに直しています：(1) 敵の返し技が確率で変わるのにメッセージ末尾を
+  決め打ちしていた → 敵の行動を固定して検証、(2) 負荷時に森のシーン起動が
+  間に合わないことがあった → 待ちと巡回回数を増やした。修正後 **127/127**。
 
 同じビルドが出力した QA REPORT 全文: `review/latest/qa-report.md`
 
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-04T01:44:42.911Z
-- Build: MUGEN ZERO v0.1 / dd1214f / 2026-09-04T01:44:12.107Z
+- Generated: 2026-09-04T03:19:42.362Z
+- Build: MUGEN ZERO v0.1 / 4b70b68 / 2026-09-04T03:18:57.891Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -113,16 +132,16 @@ UIは帯ではなく隅と細い列に退きました。
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
 | Unit (vitest) | PASS | Tests  337 passed (337) |
-| E2E (playwright) | PASS | 127 passed (10.3m) — 自作テスト2件を修正して再実行（下記 NOTES:3 参照） |
-| Build (tsc -b && vite build) | PASS | ✓ built in 7.78s |
+| E2E (playwright) | PASS | 128 passed (10.4m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 5.89s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-CMX_jNHn.js                    1.33 kB │ gzip:   0.77 kB
-dist/assets/DevAdminScreen-CnUsu-sh.js                  42.68 kB │ gzip:  14.31 kB
-dist/assets/index-6BfvIFhr.js                          139.96 kB │ gzip:  42.45 kB
+dist/assets/DevLockScreen-BKwhXUfo.js                    1.33 kB │ gzip:   0.77 kB
+dist/assets/DevAdminScreen-DIx8jj6k.js                  42.68 kB │ gzip:  14.31 kB
+dist/assets/index-Cwv9B70r.js                          140.13 kB │ gzip:  42.50 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/GreenwoodScreen-Be-Hi8w8.js              1,498.86 kB │ gzip: 346.19 kB
+dist/assets/GreenwoodScreen-DgnVx-gZ.js              1,498.86 kB │ gzip: 346.19 kB
 ```
 
 ## 6. Android / mobile 確認結果

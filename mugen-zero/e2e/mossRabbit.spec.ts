@@ -39,6 +39,10 @@ async function prepare(page: Page, story: 'on' | 'off', enemyAction?: 'ATTACK' |
   await page.getByTestId('dev-lock-input').fill('0909');
   await page.getByTestId('dev-lock-submit').click();
   await page.getByTestId('preset-SPARE_3Y').click();
+  // These are tests of the enemy system — the species, the individual,
+  // what the world writes down — so the presentation is pinned to the
+  // established screen and cannot drift with it.
+  await page.getByTestId('battle-ui-OLD').click();
   await page.getByTestId('force-encounter-BATTLE').click();
   await page.getByTestId(story === 'on' ? 'force-story-on' : 'force-story-off').click();
   if (enemyAction) await page.getByTestId(`force-enemy-${enemyAction}`).click();

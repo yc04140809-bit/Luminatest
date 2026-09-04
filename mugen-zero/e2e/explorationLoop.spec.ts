@@ -133,18 +133,21 @@ test.describe('exploration loop', () => {
     await settleAndForce(page, 'BATTLE', 'off');
     await intoForest(page);
 
-    expect(await walkUntil(page, visible(page, 'battle-screen'))).toBe(true);
+    // Nothing is pinned here on purpose: this is the route a player
+    // actually gets, which is currently the battle UI preview.
+    expect(await walkUntil(page, visible(page, 'battle-prototype'))).toBe(true);
     // The forest's own creature, not the story's one bandit.
-    await expect(page.getByTestId('enemy-hp')).toContainText('モスラビット');
+    await expect(page.getByTestId('bp-enemy-hp')).toContainText('モスラビット');
     await expect(page.getByTestId('gald-portrait-ready')).toHaveCount(0);
 
-    const attack = page.getByTestId('attack-button');
-    for (let i = 0; i < 12; i++) {
-      if (await page.getByTestId('enemy-defeated-line').isVisible().catch(() => false)) break;
-      if (await attack.isEnabled().catch(() => false)) await attack.click();
-      await page.waitForTimeout(120);
+    const attack = page.getByTestId('bp-attack');
+    for (let i = 0; i < 14; i++) {
+      if (await page.getByTestId('bp-normal-end').isVisible().catch(() => false)) break;
+      if (await attack.isVisible().catch(() => false)) await attack.click();
+      await page.waitForTimeout(140);
     }
-    await expect(page.getByTestId('enemy-defeated-line')).toBeVisible();
+    await expect(page.getByTestId('bp-normal-end')).toBeVisible();
+    await page.getByTestId('bp-normal-end').click();
 
     // Back in the forest, not back at the village, and not at the door.
     await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });

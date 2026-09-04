@@ -45,6 +45,7 @@ import {
   GREENWOOD_FOREST_SPOT,
 } from './content/experience/greenwoodExperience';
 import { MOSS_RABBIT, speciesOfIndividual } from './content/enemies/species';
+import { rollIndividualStory } from './core/enemies/enemyEncounters';
 import { CreatureLifeChoiceScreen } from './ui/screens/CreatureLifeChoiceScreen';
 import type { EnemyIndividual } from './core/world/world';
 import { ExplorationSession } from './game/exploration/explorationSession';
@@ -99,6 +100,14 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // in the same render, and a battle that mounted for one enemy keeps
   // that enemy's health bar for the rest of the fight.
   const forestBattle = useRef(false);
+  // Whether the creature in THIS fight turns out to have a life.
+  //
+  // Rolled when the fight starts rather than when it ends, because the
+  // prototype asks the four answers inside the battle screen and has to
+  // know before the last blow lands. It is the same roll at the same
+  // rate, and the write below commits exactly this answer — so what the
+  // world records is what it would have recorded either way.
+  const forestStory = useRef(false);
   // The creature that turned out to have a life, between the fight and
   // the four answers. Runtime only — once answered it is world truth and
   // this goes back to null.
@@ -374,6 +383,11 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             onEventSeen={(eventId) => world.markExperienceSeen(eventId)}
             onForestBattle={() => {
               forestBattle.current = true;
+              forestStory.current = rollIndividualStory({
+                victoriesSinceStory:
+                  world.getEnemyProgress(MOSS_RABBIT.speciesId).sinceStory + 1,
+                forced: debugStoryTrigger(),
+              });
               flow.goTo('BATTLE');
             }}
             forcedCategory={debugEncounterType()}
@@ -398,9 +412,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             key="battle-prototype"
             species={MOSS_RABBIT}
             battleLocationId={currentLocationId}
-            // Which of the two endings this fight has is a debug switch
-            // in the prototype, so both can be looked at on a phone.
-            finishesInMugenChoice={debugStoryTrigger() === true}
+            // Decided when the fight began, at the real rate.
+            finishesInMugenChoice={forestStory.current}
             startFinishable={startFinishable()}
             forcedEnemyAction={debugEnemyAction()}
             onNormalEnd={() => {

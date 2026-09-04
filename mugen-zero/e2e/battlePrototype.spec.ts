@@ -90,7 +90,24 @@ async function walkIntoAFight(page: Page): Promise<void> {
 }
 
 test.describe('battle UI prototype', () => {
-  test('is not what a player gets: the flag is off and the old screen shows', async ({ page }) => {
+  test('is what a forest fight shows now, without anybody choosing it', async ({ page }) => {
+    await freshWorld(page);
+    // Nothing is set: no flag, no dev switch, straight off the shelf.
+    await page.getByTestId('dev-admin-entry').click();
+    await page.getByTestId('dev-lock-input').fill('0909');
+    await page.getByTestId('dev-lock-submit').click();
+    await page.getByTestId('preset-SPARE_3Y').click();
+    await page.getByTestId('force-encounter-BATTLE').click();
+    await page.getByTestId('dev-admin-back').click();
+    const chosen = await page.evaluate(() => localStorage.getItem('mugen-battle-ui'));
+    expect(chosen, 'nobody chose a battle UI').toBeNull();
+
+    await walkIntoAFight(page);
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+    await expect(page.getByTestId('battle-screen')).toHaveCount(0);
+  });
+
+  test('goes back to the old screen the moment it is chosen', async ({ page }) => {
     await freshWorld(page);
     await setup(page, { ui: 'OLD', story: 'off' });
     await walkIntoAFight(page);
