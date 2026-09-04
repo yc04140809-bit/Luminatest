@@ -42,6 +42,8 @@ interface Setup {
   ui: 'OLD' | 'PROTOTYPE';
   story: 'on' | 'off';
   finishable?: boolean;
+  /** Settle what the creature does, when the test needs its reply fixed. */
+  enemyAction?: 'ATTACK' | 'SKILL';
 }
 
 async function setup(page: Page, options: Setup) {
@@ -53,15 +55,22 @@ async function setup(page: Page, options: Setup) {
   if (options.finishable) await page.getByTestId('battle-start-finishable').click();
   await page.getByTestId('force-encounter-BATTLE').click();
   await page.getByTestId(options.story === 'on' ? 'force-story-on' : 'force-story-off').click();
+  if (options.enemyAction) await page.getByTestId(`force-enemy-${options.enemyAction}`).click();
   await page.getByTestId('dev-admin-back').click();
 }
 
-/** Walks the forest until a fight starts, whichever screen shows it. */
+/**
+ * Walks the forest until a fight starts, whichever screen shows it.
+ *
+ * The ring stands on one of several spots, chosen at random, so the walk
+ * visits them in turn — and goes round twice, because on a loaded
+ * machine the scene can boot slowly enough to swallow the first pass.
+ */
 async function walkIntoAFight(page: Page): Promise<void> {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
   await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2200);
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
   const fighting = () =>
     page
@@ -69,11 +78,13 @@ async function walkIntoAFight(page: Page): Promise<void> {
       .or(page.getByTestId('battle-screen'))
       .isVisible()
       .catch(() => false);
-  for (const [x, y] of SPOTS) {
-    await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
-    for (let i = 0; i < 12; i++) {
-      await page.waitForTimeout(180);
-      if (await fighting()) return;
+  for (let pass = 0; pass < 2; pass++) {
+    for (const [x, y] of SPOTS) {
+      await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+      for (let i = 0; i < 16; i++) {
+        await page.waitForTimeout(180);
+        if (await fighting()) return;
+      }
     }
   }
 }
@@ -105,6 +116,7 @@ test.describe('battle UI prototype', () => {
     expect(bg!.height / view.height).toBeGreaterThan(0.5);
 
     // Left is the enemy; right is the party.
+    const stageBox = (await page.locator('.bp-stage').boundingBox())!;
     const enemy = (await page.locator('.bp-enemy').boundingBox())!;
     const hero = (await page.locator('.bp-hero').boundingBox())!;
     const kaos = (await page.locator('.bp-kaos').boundingBox())!;
@@ -113,14 +125,29 @@ test.describe('battle UI prototype', () => {
     expect(kaos.x + kaos.width / 2).toBeGreaterThan(view.width / 2);
     // He stands between her and it.
     expect(hero.x).toBeLessThan(kaos.x);
-    // Nobody is a postage stamp.
-    expect(enemy.height).toBeGreaterThan(80);
-    expect(hero.height).toBeGreaterThan(80);
-    // And they do not sit on top of each other.
-    expect(hero.x + hero.width).toBeLessThan(kaos.x + kaos.width);
+
+    // Depth: it is further up the path than either of them, and she is
+    // further back than he is. Their feet, not their heads, say so.
+    const feet = (b: typeof hero) => b.y + b.height;
+    expect(feet(enemy)).toBeLessThan(feet(kaos));
+    expect(feet(kaos)).toBeLessThan(feet(hero));
+
+    // Nobody is a postage stamp, and nobody fills the clearing either.
+    for (const [who, box] of [['enemy', enemy], ['hero', hero], ['kaos', kaos]] as const) {
+      const share = box.height / stageBox.height;
+      expect(share, `${who} is big enough to read`).toBeGreaterThan(0.15);
+      expect(share, `${who} leaves room for the forest`).toBeLessThan(0.4);
+    }
+
+    // And no two of them are standing in the same place.
+    const overlaps = (a: typeof hero, b: typeof hero) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    expect(overlaps(hero, kaos), 'he and she do not overlap').toBe(false);
+    expect(overlaps(hero, enemy), 'he and it do not overlap').toBe(false);
+    expect(overlaps(kaos, enemy), 'she and it do not overlap').toBe(false);
 
     await expect(page.getByTestId('bp-enemy-hp')).toContainText('モスラビット');
-    await expect(page.getByTestId('bp-player-hp')).toContainText('40/40');
+    await expect(page.getByTestId('bp-player-hp')).toContainText('40 / 40');
     await expect(page.getByTestId('bp-message')).toContainText('モスラビット');
     await expect(page.getByTestId('bp-attack')).toBeVisible();
     await expect(page.getByTestId('bp-skill')).toBeVisible();
@@ -128,15 +155,58 @@ test.describe('battle UI prototype', () => {
     await expect(page.getByTestId('bp-mugen-choice')).toHaveCount(0);
   });
 
+  test('can be looked at straight from DEV ADMIN, without touching the world', async ({
+    page,
+  }) => {
+    await freshWorld(page);
+    await page.getByTestId('dev-admin-entry').click();
+    await page.getByTestId('dev-lock-input').fill('0909');
+    await page.getByTestId('dev-lock-submit').click();
+    await page.getByTestId('force-story-off').click();
+    await page.getByTestId('battle-start-finishable').click();
+    await page.getByTestId('open-battle-prototype').click();
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+
+    await page.getByTestId('bp-attack').click();
+    await page.getByTestId('bp-normal-end').click();
+    // Straight back to where it was opened from.
+    await expect(page.getByTestId('dev-admin-back')).toBeVisible();
+
+    // And nothing was written: no victory counted, nobody named.
+    const rows = await page.evaluate(
+      () =>
+        new Promise<number>((resolve, reject) => {
+          const open = indexedDB.open('mugen-zero-save');
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const rq = db.transaction('world_state', 'readonly').objectStore('world_state').getAll();
+            rq.onsuccess = () => {
+              db.close();
+              resolve(
+                (rq.result as { key: string }[]).filter((r) => r.key.startsWith('enemy_')).length,
+              );
+            };
+            rq.onerror = () => reject(rq.error);
+          };
+        }),
+    );
+    expect(rows).toBe(0);
+  });
+
   test('uses the real battle logic, not a mock of it', async ({ page }) => {
     await freshWorld(page);
-    await setup(page, { ui: 'PROTOTYPE', story: 'off' });
+    // Its reply is settled, so the last line of the log is its attack
+    // rather than the skill it might otherwise have chosen — the message
+    // box always shows the latest line, and the test has to know which.
+    await setup(page, { ui: 'PROTOTYPE', story: 'off', enemyAction: 'ATTACK' });
     await walkIntoAFight(page);
     const hp = page.getByTestId('bp-enemy-hp');
-    await expect(hp).toContainText('22/22');
+    await expect(hp).toContainText('22 / 22');
     await page.getByTestId('bp-attack').click();
     // The existing numbers: the player hits for 8 to 12.
-    await expect(hp).not.toContainText('22/22');
+    await expect(hp).not.toContainText('22 / 22');
+    await expect(page.getByTestId('bp-message')).toContainText('リーフタックル');
     await expect(page.getByTestId('bp-message')).toContainText('ダメージ');
   });
 

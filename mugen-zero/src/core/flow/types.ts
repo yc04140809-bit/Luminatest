@@ -21,7 +21,9 @@ export type Screen =
   | 'ENDING'
   | 'PLAYTEST_SURVEY'
   | 'DEV_LOCK'
-  | 'DEV_ADMIN';
+  | 'DEV_ADMIN'
+  /** Dev only: the battle UI prototype, looked at on its own. */
+  | 'BATTLE_UI_PROTOTYPE';
 
 export type LifeChoiceId = 'KILL' | 'SPARE' | 'HELP' | 'CAPTURE';
 

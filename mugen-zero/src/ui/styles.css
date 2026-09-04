@@ -1645,25 +1645,27 @@ body,
 }
 
 /* ====================================================================
-   BATTLE UI — PROTOTYPE. Every rule is .bp-*, so nothing on any other
-   screen can be moved by this block, and deleting the block deletes the
-   prototype. Nothing here is adopted.
+   BATTLE UI — PROTOTYPE v1.1. Every rule is .bp-*, so nothing on any
+   other screen can be moved by this block, and deleting the block
+   deletes the prototype. Nothing here is adopted.
 
-   The order of the screen is the order of what matters: the forest, the
-   creature, the two of them, what is happening, and only then the
-   buttons. So the world is full-bleed and untouched — no veil, no fade,
-   no wash — and the UI is small type on the world rather than panels
-   over it.
+   v1.0 was an enemy card: a big animal in the middle of a page with UI
+   stacked under it. v1.1 is a battlefield — the forest gets most of the
+   screen and all its depth, the three of them stand at different
+   distances in it, and the UI takes corners and a strip rather than
+   bands. What changed is not the parts but which of them is the subject.
    ================================================================== */
 .bp-screen {
   display: flex;
   flex-direction: column;
   background: var(--mugen-bg);
+  overflow: hidden;
 }
 
+/* ---- the battlefield ---- */
 .bp-stage {
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -1673,11 +1675,11 @@ body,
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* The forest as it is. Nothing lightens it to make room for the UI. */
+  /* The forest as it is: no veil, no fade, no washing out. */
   filter: none;
 }
 
-/* ---- the three of them, standing on one ground line ---- */
+/* ---- three people standing at three distances ---- */
 .bp-actor {
   position: absolute;
   display: flex;
@@ -1688,35 +1690,35 @@ body,
   background-repeat: no-repeat;
   position: relative;
 }
-/* Contact, not a drop shadow: a thin ellipse where they meet the earth. */
+/* Contact, not a drop shadow. */
 .bp-shadow {
   position: absolute;
-  bottom: -3px;
+  bottom: -2px;
   left: 50%;
   transform: translateX(-50%);
-  width: 62%;
-  height: 9px;
+  width: 58%;
+  height: 8px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.22);
-  filter: blur(1.5px);
+  background: rgba(0, 0, 0, 0.24);
+  filter: blur(2px);
 }
 
-/* Left, and further up the path. */
+/* It is over there, on the left, further up the path. */
 .bp-enemy {
-  left: 8%;
-  bottom: 32%;
+  left: 5%;
+  bottom: 40%;
   animation: bp-breathe 3.4s ease-in-out infinite;
 }
-/* Right: he stands between her and it, she is a step behind him — the
-   same order they walk the forest in. */
+/* He is nearest, on the right, between her and it. */
 .bp-hero {
-  right: 27%;
-  bottom: 19%;
+  right: 30%;
+  bottom: 8%;
   animation: bp-breathe 3.6s ease-in-out infinite 0.2s;
 }
+/* She is a step behind him and a little further back. */
 .bp-kaos {
-  right: 5%;
-  bottom: 9%;
+  right: 3%;
+  bottom: 21%;
   animation: bp-breathe 3.9s ease-in-out infinite 0.4s;
 }
 @keyframes bp-breathe {
@@ -1724,40 +1726,40 @@ body,
   50% { transform: translateY(-3px); }
 }
 
-/* He steps in to strike, and steps back. */
 .bp-hero.strike { animation: bp-strike 0.32s ease-out; }
 @keyframes bp-strike {
   0% { transform: translateX(0); }
-  40% { transform: translateX(-26px); }
+  40% { transform: translateX(-30px) translateY(-6px); }
   100% { transform: translateX(0); }
 }
 .bp-hero.hurt, .bp-kaos.flinch { animation: bp-flinch 0.3s ease-out; }
 @keyframes bp-flinch {
   0% { transform: translateX(0); }
-  30% { transform: translateX(9px); }
+  30% { transform: translateX(10px); }
   100% { transform: translateX(0); }
 }
 .bp-enemy.struck { animation: bp-struck 0.32s ease-out; }
 @keyframes bp-struck {
   0% { transform: translateX(0); }
-  30% { transform: translateX(-8px) rotate(-2deg); }
+  30% { transform: translateX(-9px) rotate(-2deg); }
   100% { transform: translateX(0); }
 }
 
-/* リーフタックル: it sinks, comes across at him, and goes back. */
+/* リーフタックル: it sinks, crosses the ground between them, and goes
+   back. The creature moves; the forest does not. */
 .bp-enemy.tackle { animation: bp-tackle 0.46s ease-in-out; }
 @keyframes bp-tackle {
-  0% { transform: translateX(0) scaleY(1); }
-  20% { transform: translateX(-4px) scaleY(0.93); }
-  55% { transform: translateX(64px) scale(1.04); }
-  78% { transform: translateX(18px); }
-  100% { transform: translateX(0); }
+  0% { transform: translate(0, 0) scaleY(1); }
+  18% { transform: translate(-4px, 2px) scaleY(0.92); }
+  55% { transform: translate(78px, 34px) scale(1.08); }
+  78% { transform: translate(24px, 10px); }
+  100% { transform: translate(0, 0); }
 }
 .bp-leaves { position: absolute; inset: 0; pointer-events: none; }
 .bp-leaf {
   position: absolute;
-  left: 70%;
-  top: 55%;
+  left: 72%;
+  top: 60%;
   width: 7px;
   height: 4px;
   border-radius: 60% 20% 60% 20%;
@@ -1765,18 +1767,18 @@ body,
   opacity: 0;
   animation: bp-scatter 0.46s ease-out forwards;
 }
-.bp-leaf-0 { --lx: 34px; --ly: -14px; animation-delay: 0.2s; }
-.bp-leaf-1 { --lx: 52px; --ly: 6px; animation-delay: 0.22s; background: #86a45f; }
-.bp-leaf-2 { --lx: 40px; --ly: 26px; animation-delay: 0.21s; }
-.bp-leaf-3 { --lx: 16px; --ly: 30px; animation-delay: 0.24s; background: #5d7d42; }
-.bp-leaf-4 { --lx: 62px; --ly: -4px; animation-delay: 0.23s; }
+.bp-leaf-0 { --lx: 36px; --ly: -12px; animation-delay: 0.2s; }
+.bp-leaf-1 { --lx: 56px; --ly: 10px; animation-delay: 0.22s; background: #86a45f; }
+.bp-leaf-2 { --lx: 42px; --ly: 30px; animation-delay: 0.21s; }
+.bp-leaf-3 { --lx: 18px; --ly: 34px; animation-delay: 0.24s; background: #5d7d42; }
+.bp-leaf-4 { --lx: 66px; --ly: -2px; animation-delay: 0.23s; }
 @keyframes bp-scatter {
   0% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
   25% { opacity: 0.95; }
   100% { opacity: 0; transform: translate(var(--lx), var(--ly)) rotate(150deg); }
 }
 
-/* 苔かくれ: it makes itself small and the green closes over it. */
+/* 苔かくれ */
 .bp-enemy.hide { animation: bp-hide 0.56s ease-in-out; }
 @keyframes bp-hide {
   0%, 100% { transform: scale(1); }
@@ -1796,95 +1798,135 @@ body,
   40% { opacity: 0.85; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.95); }
 }
-.bp-enemy.beaten .bp-art { filter: saturate(0.8) brightness(0.95); }
+.bp-enemy.beaten .bp-art { filter: saturate(0.82) brightness(0.95); }
 
-/* ---- what is happening: small type ON the world, not a panel ---- */
-.bp-hp {
+/* ---- who is in this: a small framed plate, in a corner ---- */
+.bp-plate {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 12px 7px;
+  border: 1px solid rgba(198, 166, 96, 0.55);
+  border-radius: 4px;
+  background: rgba(26, 28, 22, 0.62);
+  /* The second hairline is what makes it a plate rather than a box. */
+  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.16);
+  backdrop-filter: blur(2px);
+  color: #f1ece0;
+}
+.bp-plate-enemy {
   position: absolute;
+  left: 10px;
+  top: 10px;
+}
+.bp-plate-party {
+  align-self: flex-start;
+  margin: 8px 0 0 10px;
+  background: rgba(26, 28, 22, 0.9);
+}
+.bp-plate-name {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+}
+.bp-plate-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  /* Just enough behind the text to read it over leaves. */
-  background: rgba(28, 30, 24, 0.5);
-  backdrop-filter: blur(2px);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: #f3efe4;
-  white-space: nowrap;
+  gap: 8px;
 }
-.bp-hp-enemy { left: 10px; top: 10px; }
-.bp-hp-party { right: 10px; top: 10px; }
-.bp-hp-name { max-width: 9em; overflow: hidden; text-overflow: ellipsis; }
-.bp-hp-track {
-  width: 66px;
-  height: 4px;
+.bp-plate-num {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+  min-width: 4.6em;
+}
+.bp-track {
+  width: 92px;
+  height: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.18);
   overflow: hidden;
 }
-.bp-hp-fill {
+.bp-fill {
   display: block;
   height: 100%;
   border-radius: 999px;
   background: #7fae72;
   transition: width 0.24s ease;
 }
-.bp-hp-fill.enemy { background: #c0705f; }
-.bp-hp-num { font-variant-numeric: tabular-nums; opacity: 0.85; }
+.bp-fill.enemy { background: #b8564a; }
 
-/* ---- one line, and the commands ---- */
+/* ---- one line of what is happening ---- */
 .bp-message {
-  margin: 0;
-  padding: 11px 16px;
-  min-height: 44px;
+  position: relative;
   display: flex;
   align-items: center;
+  margin: 8px 10px 0;
+  padding: 10px 14px;
+  min-height: 46px;
+  border: 1px solid var(--mugen-border);
+  border-radius: 6px;
   background: var(--mugen-surface);
-  border-top: 1px solid var(--mugen-border);
-  font-size: 13px;
-  line-height: 1.7;
+  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.14);
+}
+.bp-message-text {
+  margin: 0;
+  padding-right: 26px;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--mugen-text);
 }
+.bp-message-mark {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  color: var(--mugen-gold-soft);
+  opacity: 0.4;
+}
 
+/* ---- the commands ---- */
 .bp-commands {
   display: flex;
-  gap: 10px;
-  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
-  background: var(--mugen-bg);
+  gap: 9px;
+  padding: 9px 10px calc(10px + env(safe-area-inset-bottom));
 }
 .bp-cmd {
   appearance: none;
   flex: 1;
-  min-height: var(--tap-min);
-  padding: 12px 8px;
-  border: 1px solid var(--mugen-border);
-  border-radius: 10px;
+  min-height: 56px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid var(--mugen-border-strong);
+  border-radius: 6px;
   background: var(--mugen-surface);
+  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.14);
   color: var(--mugen-text);
   font-family: inherit;
-  font-size: 15px;
-  letter-spacing: 0.14em;
 }
-.bp-cmd.open { border-color: var(--mugen-gold); color: var(--mugen-gold); }
-.bp-cmd:active { border-color: var(--mugen-gold); }
+.bp-cmd-mark { color: var(--mugen-gold); margin-bottom: 1px; }
+.bp-cmd-jp { font-size: 15px; letter-spacing: 0.18em; text-indent: 0.18em; }
+.bp-cmd-en { font-size: 8px; letter-spacing: 0.32em; text-indent: 0.32em; color: var(--mugen-text-muted); }
+.bp-cmd.open, .bp-cmd:active { border-color: var(--mugen-gold); }
+.bp-cmd.open .bp-cmd-jp { color: var(--mugen-gold); }
 .bp-cmd.wide { flex: 1 1 100%; }
 
 .bp-tray {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 12px 10px;
-  background: var(--mugen-bg);
+  padding: 0 10px 9px;
 }
 .bp-tray-item {
   appearance: none;
   text-align: left;
   min-height: var(--tap-min);
-  padding: 9px 14px;
+  padding: 8px 13px;
   border: 1px solid var(--mugen-border);
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--mugen-surface);
   color: var(--mugen-text);
   font-family: inherit;
@@ -1892,57 +1934,60 @@ body,
 }
 .bp-tray-sub {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   font-size: 11px;
   color: var(--mugen-text-muted);
-  letter-spacing: 0.04em;
 }
 .bp-tray-empty {
   margin: 0;
-  padding: 2px 4px 0;
+  padding: 1px 3px 0;
   font-size: 11px;
   color: var(--mugen-text-muted);
 }
 
-/* ---- and, separately, the question about a life ---- */
+/* ---- and, separately, the question about a life ----
+   The ivory gives way. A different kind of moment gets different
+   ground under it, so nobody can mistake these for four attacks. */
 .bp-mugen {
-  padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
-  background: var(--mugen-bg);
-  border-top: 1px solid var(--mugen-border);
+  padding: 10px 10px calc(11px + env(safe-area-inset-bottom));
+  background: #1b1d17;
+  border-top: 1px solid rgba(198, 166, 96, 0.45);
 }
-.bp-mugen-label {
-  margin: 0 0 8px;
-  text-align: center;
-  font-size: 9px;
-  letter-spacing: 0.42em;
-  text-indent: 0.42em;
-  color: var(--mugen-gold);
+.bp-mugen-line {
+  margin: 0 0 9px;
+  padding: 0 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ece6d8;
 }
 .bp-mugen-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
 }
 .bp-mugen-btn {
   appearance: none;
-  min-height: var(--tap-min);
-  padding: 9px 6px;
-  border: 1px solid var(--mugen-border);
-  border-radius: 10px;
-  background: var(--mugen-surface);
-  color: var(--mugen-text);
+  min-height: 62px;
+  padding: 7px 2px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid var(--accent-line, rgba(198, 166, 96, 0.5));
+  border-radius: 5px;
+  background: var(--accent-bg, rgba(255, 255, 255, 0.05));
+  color: #f1ece0;
   font-family: inherit;
-  font-size: 14px;
-  letter-spacing: 0.1em;
 }
-.bp-mugen-btn:active { border-color: var(--mugen-gold); }
-.bp-mugen-sub {
-  display: block;
-  margin-top: 2px;
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  color: var(--mugen-text-muted);
-}
+.bp-mugen-btn.kill { --accent-line: rgba(184, 86, 74, 0.75); --accent-bg: rgba(184, 86, 74, 0.16); }
+.bp-mugen-btn.spare { --accent-line: rgba(106, 134, 178, 0.75); --accent-bg: rgba(106, 134, 178, 0.16); }
+.bp-mugen-btn.help { --accent-line: rgba(111, 143, 78, 0.8); --accent-bg: rgba(111, 143, 78, 0.16); }
+.bp-mugen-btn.capture { --accent-line: rgba(146, 112, 168, 0.75); --accent-bg: rgba(146, 112, 168, 0.16); }
+.bp-mugen-btn:active { background: var(--accent-line); }
+.bp-mugen-mark { opacity: 0.92; }
+.bp-mugen-en { font-size: 10px; letter-spacing: 0.16em; text-indent: 0.16em; }
+.bp-mugen-jp { font-size: 9px; color: rgba(241, 236, 224, 0.7); letter-spacing: 0.02em; }
 
 @media (prefers-reduced-motion: reduce) {
   .bp-enemy, .bp-hero, .bp-kaos { animation: none !important; }

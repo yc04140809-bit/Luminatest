@@ -248,8 +248,31 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
       return (
         <Suspense fallback={<LoadingScreen />}>
-          <DevAdminScreen world={world} playtest={playtest} onBack={() => flow.goTo('HOME')} />
+          <DevAdminScreen
+            world={world}
+            playtest={playtest}
+            onBack={() => flow.goTo('HOME')}
+            onOpenBattlePrototype={() => flow.goTo('BATTLE_UI_PROTOTYPE')}
+          />
         </Suspense>
+      );
+    case 'BATTLE_UI_PROTOTYPE':
+      // A look at the prototype on its own, from DEV ADMIN. It writes
+      // nothing: no victory is recorded, no creature is named, and every
+      // way out of it goes straight back where it came from.
+      if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
+      return (
+        <BattleUIPrototype
+          key="battle-prototype-preview"
+          species={MOSS_RABBIT}
+          battleLocationId="GREENWOOD_FOREST"
+          finishesInMugenChoice={debugStoryTrigger() === true}
+          startFinishable={startFinishable()}
+          forcedEnemyAction={debugEnemyAction()}
+          onNormalEnd={() => flow.goTo('DEV_ADMIN')}
+          onMugenChoice={() => flow.goTo('DEV_ADMIN')}
+          onDefeat={() => flow.goTo('DEV_ADMIN')}
+        />
       );
     case 'TIME_SHIFT':
       return (
@@ -379,6 +402,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             // in the prototype, so both can be looked at on a phone.
             finishesInMugenChoice={debugStoryTrigger() === true}
             startFinishable={startFinishable()}
+            forcedEnemyAction={debugEnemyAction()}
             onNormalEnd={() => {
               forestBattle.current = false;
               void world

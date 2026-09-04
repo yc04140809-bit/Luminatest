@@ -33,7 +33,10 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   // After the first shift Kaos points at the map, not at an answer.
   TIME_SHIFT: ['HOME', 'EXPLORE'],
   DEV_LOCK: ['DEV_ADMIN', 'HOME'],
-  DEV_ADMIN: ['HOME'],
+  DEV_ADMIN: ['HOME', 'BATTLE_UI_PROTOTYPE'],
+  // A look at the battle UI prototype and straight back. Nothing about
+  // the world is touched by going there.
+  BATTLE_UI_PROTOTYPE: ['DEV_ADMIN'],
 };
 
 type Listener = () => void;

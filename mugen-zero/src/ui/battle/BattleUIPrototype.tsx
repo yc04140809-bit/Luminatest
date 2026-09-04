@@ -12,6 +12,8 @@ import { EXPLORATION_SPRITES } from '../../content/characters/explorationSprites
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { LifeChoiceId } from '../../core/flow/types';
 import { vibrate } from '../../platform/haptics';
+import { Ornament } from '../common/Ornament';
+import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 
 /**
  * A piece of a picture, drawn at a given height with its own feet on the
@@ -112,6 +114,8 @@ interface Props {
   finishesInMugenChoice: boolean;
   /** Start with the creature already beatable, to look at the swap. */
   startFinishable?: boolean;
+  /** Development only: make the creature do one thing every turn. */
+  forcedEnemyAction?: EnemyAction | null;
   /** An ordinary fight, over. */
   onNormalEnd: () => void;
   /** The other kind. The choice is real and is recorded by the caller. */
@@ -119,13 +123,21 @@ interface Props {
   onDefeat: () => void;
 }
 
-/** The four answers, in this creature's own words. */
-const MUGEN_LABELS: Record<LifeChoiceId, string> = {
-  KILL: 'とどめ',
-  SPARE: '見のがす',
-  HELP: '助ける',
-  CAPTURE: '連れて行く',
-};
+/**
+ * The four answers. Each one has a mark and a colour of its own,
+ * because they are not four versions of the same decision — a player
+ * must be able to tell them apart before reading a word.
+ */
+const MUGEN_CHOICES: {
+  id: LifeChoiceId;
+  jp: string;
+  Icon: typeof SwordIcon;
+}[] = [
+  { id: 'KILL', jp: 'とどめを刺す', Icon: SwordIcon },
+  { id: 'SPARE', jp: '見逃す', Icon: HeartIcon },
+  { id: 'HELP', jp: '助ける', Icon: LeafIcon },
+  { id: 'CAPTURE', jp: '連れて行く', Icon: CageIcon },
+];
 
 /** How long each moment of the fight is held on screen. */
 const BEAT_MS: Record<string, number> = {
@@ -164,6 +176,7 @@ export function BattleUIPrototype({
   battleLocationId,
   finishesInMugenChoice,
   startFinishable = false,
+  forcedEnemyAction = null,
   onNormalEnd,
   onMugenChoice,
   onDefeat,
@@ -176,6 +189,21 @@ export function BattleUIPrototype({
   const [skillOpen, setSkillOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const timers = useRef<number[]>([]);
+  // How tall the battlefield actually is on this phone. Everybody
+  // standing in it is sized as a fraction of that, so the three of them
+  // keep their scale to the place rather than to a pixel count.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageH, setStageH] = useState(460);
+
+  useEffect(() => {
+    const node = stageRef.current;
+    if (!node) return;
+    const measure = () => setStageH(node.getBoundingClientRect().height || 460);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
 
@@ -201,10 +229,13 @@ export function BattleUIPrototype({
   const answerOf = (next: BattleState): string[] =>
     next.lastEnemyAction === 'SKILL' ? ['HIDE'] : next.lastEnemyAction === 'ATTACK' ? ['TACKLE', 'HURT'] : [];
 
-  const command = (kind: 'ATTACK' | 'DEFEND', forced: EnemyAction | null = null) => {
+  const command = (kind: 'ATTACK' | 'DEFEND') => {
     if (battle.outcome !== 'ONGOING') return;
     setSkillOpen(false);
-    const next = kind === 'ATTACK' ? playerAttack(battle, undefined, forced) : playerDefend(battle, undefined, forced);
+    const next =
+      kind === 'ATTACK'
+        ? playerAttack(battle, undefined, forcedEnemyAction)
+        : playerDefend(battle, undefined, forcedEnemyAction);
     setBattle(next);
     play([kind === 'ATTACK' ? 'STRIKE' : 'GUARD', ...answerOf(next)]);
   };
@@ -220,19 +251,31 @@ export function BattleUIPrototype({
   const backdrop = locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
   const enemyCrop = cropOf(species);
+  /**
+   * Their sizes, as a share of the battlefield.
+   *
+   * A moss rabbit is a small animal that has to read as one from across
+   * a clearing; the two of them are nearer the camera and so a little
+   * taller. What matters is not the numbers but that all three sit
+   * inside the same picture instead of on top of it.
+   */
+  const stage = {
+    enemy: Math.round(stageH * 0.23),
+    hero: Math.round(stageH * 0.255),
+    kaos: Math.round(stageH * 0.215),
+  };
 
   return (
     <div className="screen bp-screen" data-testid="battle-prototype">
       {/* 1. The world. Its own colour, nothing over it. */}
-      <div className="bp-stage">
+      <div className="bp-stage" ref={stageRef}>
         {backdrop && <img className="bp-bg" src={backdrop} alt="" aria-hidden="true" />}
 
-        {/* 2. The creature, on the left, further up the path. */}
+        {/* 2. The creature: left, and further up the path than they are,
+               which is what makes the ground between them a distance. */}
         <div className={`bp-actor bp-enemy${beat === 'TACKLE' ? ' tackle' : ''}${beat === 'HIDE' ? ' hide' : ''}${beat === 'STRIKE' ? ' struck' : ''}${beaten ? ' beaten' : ''}`}>
           <span className="bp-shadow" aria-hidden="true" />
-          {/* A moss rabbit is a small animal, and has to read as one
-              next to two people. */}
-          <ActorArt crop={enemyCrop} height={122} className="bp-art" />
+          <ActorArt crop={enemyCrop} height={stage.enemy} className="bp-art" />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
           {beat === 'TACKLE' && (
             <span className="bp-leaves" aria-hidden="true">
@@ -246,50 +289,66 @@ export function BattleUIPrototype({
         {/* 3. The two of them, on the right, nearer. */}
         <div className={`bp-actor bp-kaos${beat === 'HURT' ? ' flinch' : ''}`}>
           <span className="bp-shadow" aria-hidden="true" />
-          <ActorArt crop={KAOS_CROP} height={112} className="bp-art" />
+          <ActorArt crop={KAOS_CROP} height={stage.kaos} className="bp-art" />
         </div>
         <div className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}>
           <span className="bp-shadow" aria-hidden="true" />
-          <ActorArt crop={HERO_CROP} height={132} className="bp-art" />
+          <ActorArt crop={HERO_CROP} height={stage.hero} className="bp-art" />
         </div>
 
-        {/* 4. What is happening, as small as it can be and still be read. */}
-        <div className="bp-hp bp-hp-enemy" data-testid="bp-enemy-hp">
-          <span className="bp-hp-name">{battle.enemyName}</span>
-          <span className="bp-hp-track">
-            <span
-              className="bp-hp-fill enemy"
-              style={{ width: `${(battle.enemyHp / battle.enemyMaxHp) * 100}%` }}
-            />
-          </span>
-          <span className="bp-hp-num">
-            {battle.enemyHp}/{battle.enemyMaxHp}
-          </span>
-        </div>
-        <div className="bp-hp bp-hp-party" data-testid="bp-player-hp">
-          <span className="bp-hp-name">あなた</span>
-          <span className="bp-hp-track">
-            <span
-              className="bp-hp-fill"
-              style={{ width: `${(battle.playerHp / battle.playerMaxHp) * 100}%` }}
-            />
-          </span>
-          <span className="bp-hp-num">
-            {battle.playerHp}/{battle.playerMaxHp}
+        {/* 4. Who is in this, and how they are doing. A small framed
+               plate rather than a status panel: it sits ON the forest
+               and takes a corner of it, not a band across it. */}
+        <div className="bp-plate bp-plate-enemy" data-testid="bp-enemy-hp">
+          <span className="bp-plate-name">{battle.enemyName}</span>
+          <span className="bp-plate-row">
+            <span className="bp-plate-num">
+              {battle.enemyHp} / {battle.enemyMaxHp}
+            </span>
+            <span className="bp-track">
+              <span
+                className="bp-fill enemy"
+                style={{ width: `${(battle.enemyHp / battle.enemyMaxHp) * 100}%` }}
+              />
+            </span>
           </span>
         </div>
       </div>
 
+      {/* The party's own plate, under the battlefield rather than over
+          it, so nothing of the forest is spent on it. */}
+      <div className="bp-plate bp-plate-party" data-testid="bp-player-hp">
+        <span className="bp-plate-name">あなた</span>
+        <span className="bp-plate-row">
+          <span className="bp-plate-num">
+            {battle.playerHp} / {battle.playerMaxHp}
+          </span>
+          <span className="bp-track">
+            <span
+              className="bp-fill"
+              style={{ width: `${(battle.playerHp / battle.playerMaxHp) * 100}%` }}
+            />
+          </span>
+        </span>
+      </div>
+
       {/* 5. One line, not a conversation box. */}
-      <p className="bp-message" data-testid="bp-message" role="status" aria-live="polite">
-        {beaten && !finishesInMugenChoice ? species.defeatedText : lastLine}
-      </p>
+      {!(beaten && finishesInMugenChoice) && (
+        <div className="bp-message" data-testid="bp-message" role="status" aria-live="polite">
+          <p className="bp-message-text">
+            {beaten && !finishesInMugenChoice ? species.defeatedText : lastLine}
+          </p>
+          <Ornament kind="ring" size={26} className="bp-message-mark" />
+        </div>
+      )}
 
       {/* 6. Fighting, and then — separately — deciding. */}
       {!beaten && (
         <div className="bp-commands" data-testid="bp-commands">
           <button className="bp-cmd" data-testid="bp-attack" onClick={() => command('ATTACK')}>
-            攻撃
+            <SwordIcon size={19} className="bp-cmd-mark" />
+            <span className="bp-cmd-jp">攻撃</span>
+            <span className="bp-cmd-en">ATTACK</span>
           </button>
           <button
             className={skillOpen ? 'bp-cmd open' : 'bp-cmd'}
@@ -297,7 +356,9 @@ export function BattleUIPrototype({
             aria-expanded={skillOpen}
             onClick={() => setSkillOpen((open) => !open)}
           >
-            スキル
+            <SparkIcon size={19} className="bp-cmd-mark" />
+            <span className="bp-cmd-jp">スキル</span>
+            <span className="bp-cmd-en">SKILL</span>
           </button>
         </div>
       )}
@@ -313,18 +374,22 @@ export function BattleUIPrototype({
 
       {beaten && finishesInMugenChoice && (
         <div className="bp-mugen" data-testid="bp-mugen-choice">
-          <p className="bp-mugen-label">MUGEN CHOICE</p>
+          {/* A different kind of moment, so a different ground under it:
+              the fight's ivory gives way, and the question is asked in
+              the dark. */}
+          <p className="bp-mugen-line">{species.defeatedText}</p>
           <div className="bp-mugen-grid">
-            {(Object.keys(MUGEN_LABELS) as LifeChoiceId[]).map((id) => (
+            {MUGEN_CHOICES.map(({ id, jp, Icon }) => (
               <button
                 key={id}
-                className="bp-mugen-btn"
+                className={`bp-mugen-btn ${id.toLowerCase()}`}
                 data-testid={`bp-mugen-${id}`}
                 disabled={saving}
                 onClick={() => decide(id)}
               >
-                {MUGEN_LABELS[id]}
-                <span className="bp-mugen-sub">{id}</span>
+                <Icon size={20} className="bp-mugen-mark" />
+                <span className="bp-mugen-en">{id}</span>
+                <span className="bp-mugen-jp">{jp}</span>
               </button>
             ))}
           </div>
@@ -334,7 +399,7 @@ export function BattleUIPrototype({
       {beaten && !finishesInMugenChoice && (
         <div className="bp-commands">
           <button className="bp-cmd wide" data-testid="bp-normal-end" onClick={onNormalEnd}>
-            森へ戻る
+            <span className="bp-cmd-jp">森へ戻る</span>
           </button>
         </div>
       )}

@@ -28,6 +28,8 @@ import {
 import { storyTriggerChance } from '../core/enemies/enemyEncounters';
 
 interface Props {
+  /** Opens the battle UI prototype on its own, for a look. */
+  onOpenBattlePrototype: () => void;
   world: World;
   /** Feedback layer — read here for analysis only, never fed into the world. */
   playtest: PlaytestFeedbackService;
@@ -51,7 +53,7 @@ const smallBtn: React.CSSProperties = { fontSize: 13, padding: '10px 12px', flex
  * recordGaldLifeChoice, advanceDays, timeShift, devResetGaldScenario);
  * there is no second game logic here.
  */
-export function DevAdminScreen({ world, playtest, onBack }: Props) {
+export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype }: Props) {
   const [busy, setBusy] = useState(false);
   // What the next arrival in the forest will turn out to be. Reading it
   // here is what makes each of the three routes testable rather than
@@ -376,10 +378,20 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
           決着可能から開始 {finishable ? 'ON' : 'OFF'}
         </button>
       </div>
+      <div style={row}>
+        <button
+          className="btn"
+          style={{ ...smallBtn, flex: '1 1 100%' }}
+          data-testid="open-battle-prototype"
+          onClick={onOpenBattlePrototype}
+        >
+          試作をこの場で見る（世界を変えません）
+        </button>
+      </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
-        森の戦闘だけに適用されます。ガルド戦は常に現行画面のままです。試作を見るには
-        「次の発見を BATTLE に固定」も押してから森へ。MUGEN CHOICE の表示は
-        「特殊個体：必ず発生」で確認できます。
+        上のボタンなら森を歩かずに試作だけ見られます。世界には何も書き込みません。
+        森の実戦で見る場合は「新戦闘画面（試作）」＋「次の発見を BATTLE に固定」。
+        ガルド戦は常に現行画面のままです。MUGEN CHOICE は「特殊個体：必ず発生」で。
       </div>
 
       <div style={sectionTitle}>MOSS RABBIT — 敵の行動を固定</div>
