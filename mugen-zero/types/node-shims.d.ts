@@ -9,3 +9,7 @@ declare module 'node:child_process' {
     options: { encoding: 'utf-8' },
   ): string;
 }
+
+declare module 'node:path' {
+  export function basename(path: string, suffix?: string): string;
+}

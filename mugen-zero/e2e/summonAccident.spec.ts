@@ -183,8 +183,11 @@ test.describe('the three ways an unfinished memory goes', () => {
     // The creature is on the field for a second and a half, so what is
     // asserted is the mark it leaves rather than the moment itself:
     // the log keeps what happened after the picture has gone.
-    await expect(page.getByTestId('bp-message').or(page.getByTestId('bp-said')))
-      .toContainText(/森の加護|回復/, { timeout: 8_000 });
+    // The plate keeps its identity while a summon speaks through it,
+    // and the log keeps what happened after the picture has gone.
+    await expect(page.getByTestId('bp-message')).toContainText(/森の加護|回復/, {
+      timeout: 8_000,
+    });
     await expect(page.getByTestId('bp-dragon')).toHaveCount(0);
   });
 

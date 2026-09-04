@@ -6,3 +6,4 @@ test-results
 *.tsbuildinfo
 dist-singlefile
 dist-singlefile-dev
+.review-assets/

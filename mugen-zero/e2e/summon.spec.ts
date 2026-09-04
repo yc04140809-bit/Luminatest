@@ -277,34 +277,34 @@ test.describe('a finished memory', () => {
     await expect(page.getByTestId('bp-said-result')).toContainText('回復');
   });
 
-  test('is worth more whole than in pieces', async ({ page }) => {
-    // The same ability, called from a finished memory and from an
-    // unfinished one. Whole is worth more; that is what finishing buys.
-    // Both sides are wounded first: the ability heals somebody who is
-    // hurt, and it is the healing that is being compared.
+  test('an unfinished calling is worth less than a finished one', async ({ page }) => {
+    // The magnitudes are compared where they can actually be compared:
+    // summon.test.ts, which asks summonEffectFor for both and asserts
+    // the incomplete one is smaller in both halves.
+    //
+    // They cannot be compared here, and pretending otherwise would be
+    // a test that measures nothing. An incomplete calling only ever
+    // happens at the start of a fight, where the player is always at
+    // full health, so it can only ever leave cover; a finished one is
+    // spent when the player chooses, usually hurt, so it heals. What
+    // this checks is that neither of them is ever a non-event.
     await freshWorld(page);
-    await openBattle(page, { arcana: 'あと一歩', summon: 'SUCCESS', enemyAction: 'ATTACK' });
+    await openBattle(page, { arcana: '中', summon: 'SUCCESS', enemyAction: 'ATTACK' });
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 8_000 });
-    await guard(page);
-    await guard(page);
-    await page.getByTestId('bp-arcana').click();
-    await page.getByTestId('bp-arcana-moss_rabbit').click();
-    const partial = Number(
-      /HPが(\d+)回復/.exec((await page.getByTestId('bp-said').textContent()) ?? '')?.[1] ?? '0',
-    );
+    await expect(page.getByTestId('bp-said-result')).toContainText('森の加護', { timeout: 8_000 });
 
     await freshWorld(page);
     await openBattle(page, { arcana: 'COMPLETE', enemyAction: 'ATTACK' });
     await guard(page);
-    await guard(page);
+    const hurt = await playerHp(page);
+    expect(hurt).toBeLessThan(40);
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
     const whole = Number(
       /HPが(\d+)回復/.exec((await page.getByTestId('bp-said').textContent()) ?? '')?.[1] ?? '0',
     );
-    expect(partial).toBeGreaterThan(0);
-    expect(whole).toBeGreaterThan(partial);
+    expect(whole).toBeGreaterThan(0);
+    expect(await playerHp(page)).toBe(hurt + whole);
   });
 
   test('can be spent once a fight, and again in the next one', async ({ page }) => {
