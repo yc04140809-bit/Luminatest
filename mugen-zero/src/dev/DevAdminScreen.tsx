@@ -18,6 +18,13 @@ import {
 import type { DiscoveryCategory } from '../game/exploration/discovery';
 import type { EnemyAction } from '../game/battle/battleLogic';
 import { MOSS_RABBIT } from '../content/enemies/species';
+import {
+  battleUi,
+  setBattleUi,
+  setStartFinishable,
+  startFinishable,
+  type BattleUiChoice,
+} from './battleUiFlag';
 import { storyTriggerChance } from '../core/enemies/enemyEncounters';
 
 interface Props {
@@ -53,6 +60,10 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
   const [enemyAction, setEnemyAction] = useState<EnemyAction | null>(() => debugEnemyAction());
   const [storyTrigger, setStoryTrigger] = useState<boolean | null>(() => debugStoryTrigger());
   const rabbit = world.getEnemyProgress(MOSS_RABBIT.speciesId);
+  // Which battle screen the forest fight uses. Nothing is adopted: this
+  // is a switch, and OLD is what a player without it always gets.
+  const [ui, setUi] = useState<BattleUiChoice>(() => battleUi());
+  const [finishable, setFinishable] = useState(() => startFinishable());
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
   // The hub is a mode of the admin screen, not a new route: it is read
@@ -335,6 +346,40 @@ export function DevAdminScreen({ world, playtest, onBack }: Props) {
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
         森の金色リングに到着したとき、何が出るかを固定します。設定は森に入り直すと反映されます。
+      </div>
+
+      <div style={sectionTitle}>BATTLE UI — 試作の切り替え（採用前）</div>
+      <div style={row}>
+        {(['OLD', 'PROTOTYPE'] as BattleUiChoice[]).map((choice) => (
+          <button
+            key={choice}
+            className={ui === choice ? 'btn primary' : 'btn'}
+            style={smallBtn}
+            data-testid={`battle-ui-${choice}`}
+            onClick={() => {
+              setBattleUi(choice);
+              setUi(choice);
+            }}
+          >
+            {choice === 'OLD' ? '現行の戦闘画面' : '新戦闘画面（試作）'}
+          </button>
+        ))}
+        <button
+          className={finishable ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="battle-start-finishable"
+          onClick={() => {
+            setStartFinishable(!finishable);
+            setFinishable(!finishable);
+          }}
+        >
+          決着可能から開始 {finishable ? 'ON' : 'OFF'}
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
+        森の戦闘だけに適用されます。ガルド戦は常に現行画面のままです。試作を見るには
+        「次の発見を BATTLE に固定」も押してから森へ。MUGEN CHOICE の表示は
+        「特殊個体：必ず発生」で確認できます。
       </div>
 
       <div style={sectionTitle}>MOSS RABBIT — 敵の行動を固定</div>

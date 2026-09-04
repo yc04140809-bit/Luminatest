@@ -107,6 +107,8 @@ async function forestWith(
   page: Page,
   force: 'EVENT' | 'ITEM' | 'BATTLE',
   story?: 'on' | 'off',
+  battleUi?: 'OLD' | 'PROTOTYPE',
+  startFinishable?: boolean,
 ) {
   await newWorld(page);
   await page.getByTestId('dev-admin-entry').click();
@@ -115,6 +117,8 @@ async function forestWith(
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId(`force-encounter-${force}`).click();
   if (story) await page.getByTestId(story === 'on' ? 'force-story-on' : 'force-story-off').click();
+  if (battleUi) await page.getByTestId(`battle-ui-${battleUi}`).click();
+  if (startFinishable) await page.getByTestId('battle-start-finishable').click();
   await page.getByTestId('dev-admin-back').click();
   await openForest(page);
 }
@@ -286,6 +290,45 @@ const RECIPES: Record<string, Shot[]> = {
           await page.waitForTimeout(140);
         }
         await expect(page.getByTestId('creature-life-choice-screen')).toBeVisible();
+      },
+    },
+  ],
+  'BATTLE UI PROTOTYPE': [
+    {
+      suffix: 'battle_prototype',
+      why: '世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル',
+      go: async (page) => {
+        await forestWith(page, 'BATTLE', 'off', 'PROTOTYPE');
+        await walkUntil(page, () =>
+          page.getByTestId('battle-prototype').isVisible().catch(() => false),
+        );
+        await expect(page.getByTestId('battle-prototype')).toBeVisible();
+        await page.waitForTimeout(400);
+      },
+    },
+    {
+      suffix: 'battle_prototype_skill',
+      why: '「スキル」を開いた状態。まだ何も無いことを隠していないか',
+      go: async (page) => {
+        await forestWith(page, 'BATTLE', 'off', 'PROTOTYPE');
+        await walkUntil(page, () =>
+          page.getByTestId('battle-prototype').isVisible().catch(() => false),
+        );
+        await page.getByTestId('bp-skill').click();
+        await expect(page.getByTestId('bp-skill-tray')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'battle_prototype_mugen_choice',
+      why: '戦うことと人生を決めることの分離。4ボタンが窮屈でないか',
+      go: async (page) => {
+        await forestWith(page, 'BATTLE', 'on', 'PROTOTYPE', true);
+        await walkUntil(page, () =>
+          page.getByTestId('battle-prototype').isVisible().catch(() => false),
+        );
+        await page.getByTestId('bp-attack').click();
+        await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 5_000 });
+        await page.waitForTimeout(300);
       },
     },
   ],

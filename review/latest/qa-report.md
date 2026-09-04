@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-03T23:37:22.538Z
-- Build: MUGEN ZERO v0.1 / 5b39dd0 / 2026-09-03T23:36:32.896Z
+- Generated: 2026-09-04T00:46:46.470Z
+- Build: MUGEN ZERO v0.1 / bfbc66b / 2026-09-04T00:46:11.189Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -98,5 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] GREENWOOD / BATTLE — 森の最初の通常敵「モスラビット」。公式画像そのまま。リーフタックルと苔かくれ。まれに特殊個体となり、KILL / SPARE / HELP / CAPTURE の4択へ。探索画面の見た目は無変更
-- unchanged, no screenshot needed: HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] BATTLE UI PROTOTYPE — 新戦闘画面の試作。既存の戦闘画面は残したまま、DEV フラグで切り替わる別画面です。まだ採用していません
+- unchanged, no screenshot needed: GREENWOOD / BATTLE, HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

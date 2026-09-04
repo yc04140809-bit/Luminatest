@@ -49,6 +49,8 @@ import { CreatureLifeChoiceScreen } from './ui/screens/CreatureLifeChoiceScreen'
 import type { EnemyIndividual } from './core/world/world';
 import { ExplorationSession } from './game/exploration/explorationSession';
 import { debugEncounterType, debugEnemyAction, debugStoryTrigger } from './dev/debugEncounter';
+import { battleUi, startFinishable } from './dev/battleUiFlag';
+import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
 import { clearObtainedItems } from './platform/discoveries';
 
 // Phaser is the heaviest dependency by far and is only needed once the
@@ -363,6 +365,46 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       // Two fights, one screen. The story's fight asks the life question
       // when it is won; a fight in the forest puts the player back on the
       // path they were walking, where they were standing.
+      if (forestBattle.current && battleUi() === 'PROTOTYPE') {
+        // THE PROTOTYPE. Reachable only through a DEV ADMIN flag that is
+        // off by default, applied only to the forest fight, and never to
+        // the story's own. The screen below is untouched and one tap
+        // away; nothing here has been adopted.
+        return (
+          <BattleUIPrototype
+            key="battle-prototype"
+            species={MOSS_RABBIT}
+            battleLocationId={currentLocationId}
+            // Which of the two endings this fight has is a debug switch
+            // in the prototype, so both can be looked at on a phone.
+            finishesInMugenChoice={debugStoryTrigger() === true}
+            startFinishable={startFinishable()}
+            onNormalEnd={() => {
+              forestBattle.current = false;
+              void world
+                .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: false })
+                .catch((e) => console.error('Failed to record the victory', e))
+                .finally(() => flow.goTo('GREENWOOD'));
+            }}
+            onMugenChoice={(choice) => {
+              forestBattle.current = false;
+              // The real thing: the creature is named and what the
+              // player decided is written into WORLD MEMORY, by exactly
+              // the code the old screen's path uses.
+              void world
+                .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: true })
+                .then((met) => (met ? world.recordCreatureLifeChoice(met.individualId, choice) : null))
+                .catch((e) => console.error('Failed to record the choice', e))
+                .finally(() => flow.goTo('GREENWOOD'));
+            }}
+            onDefeat={() => {
+              forestBattle.current = false;
+              forestSession.current.clear();
+              flow.goTo('HOME');
+            }}
+          />
+        );
+      }
       if (forestBattle.current) {
         return (
           <BattleScreen

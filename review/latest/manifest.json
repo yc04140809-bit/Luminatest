@@ -1,42 +1,31 @@
 {
-  "capturedAt": "2026-09-03T23:37:22.948Z",
+  "capturedAt": "2026-09-04T00:46:46.887Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_greenwood_forest.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか"
+      "file": "01_battle_prototype.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
     },
     {
-      "file": "02_greenwood_walking_side.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
+      "file": "02_battle_prototype_skill.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "「スキル」を開いた状態。まだ何も無いことを隠していないか"
     },
     {
-      "file": "03_greenwood_found_item.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか"
-    },
-    {
-      "file": "04_greenwood_forest_event.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）"
-    },
-    {
-      "file": "05_moss_rabbit_battle.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "モスラビットの絵が正しく出ているか。名前・HP・行動が読めるか"
-    },
-    {
-      "file": "06_moss_rabbit_life_choice.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか"
+      "file": "03_battle_prototype_mugen_choice.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "戦うことと人生を決めることの分離。4ボタンが窮屈でないか"
     }
   ],
   "notPhotographed": [
+    {
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "前ラウンドから無変更。試作は既存画面を置き換えていません"
+    },
     {
       "screen": "HOME",
       "reason": "v0.2 で承認済み"

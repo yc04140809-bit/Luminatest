@@ -17,10 +17,15 @@ import type { VisualChange } from '../../core/qa/types';
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
-    screen: 'GREENWOOD / BATTLE',
+    screen: 'BATTLE UI PROTOTYPE',
     changed: true,
     reason:
-      '森の最初の通常敵「モスラビット」。公式画像そのまま。リーフタックルと苔かくれ。まれに特殊個体となり、KILL / SPARE / HELP / CAPTURE の4択へ。探索画面の見た目は無変更',
+      '新戦闘画面の試作。既存の戦闘画面は残したまま、DEV フラグで切り替わる別画面です。まだ採用していません',
+  },
+  {
+    screen: 'GREENWOOD / BATTLE',
+    changed: false,
+    reason: '前ラウンドから無変更。試作は既存画面を置き換えていません',
   },
   { screen: 'HOME', changed: false, reason: 'v0.2 で承認済み' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },
