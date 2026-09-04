@@ -1709,9 +1709,11 @@ body,
   bottom: 40%;
   animation: bp-breathe 3.4s ease-in-out infinite;
 }
-/* He is nearest, on the right, between her and it. */
+/* He is nearest, on the right, between her and it. Nearest means
+   largest, but only just: too much and he stops being a person standing
+   closer and becomes a giant. */
 .bp-hero {
-  right: 30%;
+  right: 28%;
   bottom: 8%;
   animation: bp-breathe 3.6s ease-in-out infinite 0.2s;
 }
@@ -1798,7 +1800,35 @@ body,
   40% { opacity: 0.85; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.95); }
 }
-.bp-enemy.beaten .bp-art { filter: saturate(0.82) brightness(0.95); }
+/* Going down: it folds, and settles. Not a death — a small animal
+   putting itself on the ground. */
+.bp-enemy.falling { animation: bp-fall 0.34s ease-in forwards; }
+@keyframes bp-fall {
+  0% { transform: translateY(0) scaleY(1); }
+  55% { transform: translateY(6px) scaleY(0.88) scaleX(1.05); }
+  100% { transform: translateY(10px) scaleY(0.7) scaleX(1.1); opacity: 0.9; }
+}
+
+/* Down, and still there. It stays on the battlefield for the whole of
+   the question the player is about to be asked — the four answers are
+   about THIS animal, lying in front of them, not about a result screen.
+   It lies lower and further into the grass than it stood. */
+.bp-enemy.downed {
+  bottom: 30%;
+  left: 4%;
+  animation: bp-settle 0.4s ease-out;
+}
+@keyframes bp-settle {
+  0% { opacity: 0.75; transform: translateY(-5px) scaleY(0.86); }
+  100% { opacity: 1; transform: none; }
+}
+/* Its own contact patch: wider and flatter, because it is lying down. */
+.bp-enemy.downed .bp-shadow {
+  width: 74%;
+  height: 7px;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2);
+}
 
 /* ---- who is in this: a small framed plate, in a corner ---- */
 .bp-plate {

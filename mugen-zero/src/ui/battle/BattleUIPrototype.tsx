@@ -7,7 +7,7 @@ import {
   type EnemyAction,
   type EnemySpec,
 } from '../../game/battle/battleLogic';
-import type { EnemySpeciesDef } from '../../content/enemies/species';
+import type { EnemySpeciesDef, EnemyVisual } from '../../content/enemies/species';
 import { EXPLORATION_SPRITES } from '../../content/characters/explorationSprites';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { LifeChoiceId } from '../../core/flow/types';
@@ -61,15 +61,16 @@ const KAOS_CROP: ArtCrop = {
   h: KAOS_LEFT.rect!.height,
 };
 
-function cropOf(species: EnemySpeciesDef): ArtCrop {
+/** A species' art for one state, as a crop this screen can draw. */
+function cropOf(visual: EnemyVisual): ArtCrop {
   return {
-    src: species.portrait!,
-    fileW: 1024,
-    fileH: 1536,
-    x: 129,
-    y: 387,
-    w: 703,
-    h: 850,
+    src: visual.src,
+    fileW: visual.box.fileW,
+    fileH: visual.box.fileH,
+    x: visual.box.x,
+    y: visual.box.y,
+    w: visual.box.width,
+    h: visual.box.height,
   };
 }
 
@@ -148,6 +149,16 @@ const BEAT_MS: Record<string, number> = {
 };
 
 /**
+ * How long it takes to go down.
+ *
+ * Short. Long enough that the creature is seen to fall rather than to
+ * blink into a different picture, and no longer — being made to wait is
+ * not the same as being moved. Nothing is asked of the player until it
+ * has finished falling, so the picture and the question never disagree.
+ */
+const KNOCKDOWN_MS = 340;
+
+/**
  * BATTLE UI — PROTOTYPE.
  *
  * Not the battle screen. A second one, built beside it so that the
@@ -186,6 +197,14 @@ export function BattleUIPrototype({
     return startFinishable ? { ...fresh, enemyHp: 1 } : fresh;
   });
   const [beat, setBeat] = useState<string>('NONE');
+  /**
+   * NORMAL while it is fighting; DOWNED once it is beaten.
+   *
+   * DOWNED is not dead. It is a creature lying in the grass that the
+   * player is about to decide about, and it stays on the battlefield
+   * through the whole of that decision.
+   */
+  const [stance, setStance] = useState<'NORMAL' | 'DOWNED'>('NORMAL');
   const [skillOpen, setSkillOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const timers = useRef<number[]>([]);
@@ -212,7 +231,12 @@ export function BattleUIPrototype({
       const t = setTimeout(onDefeat, 1200);
       return () => clearTimeout(t);
     }
-  }, [battle.outcome, onDefeat]);
+    if (battle.outcome === 'VICTORY' && stance === 'NORMAL') {
+      // It goes down first, and only then is anything asked.
+      const t = setTimeout(() => setStance('DOWNED'), KNOCKDOWN_MS);
+      return () => clearTimeout(t);
+    }
+  }, [battle.outcome, stance, onDefeat]);
 
   const play = (sequence: string[]) => {
     timers.current.forEach(clearTimeout);
@@ -248,9 +272,14 @@ export function BattleUIPrototype({
   };
 
   const beaten = battle.outcome === 'VICTORY';
+  // Everything after the fight waits for it to actually be lying down,
+  // so the picture and the question never disagree.
+  const downed = beaten && stance === 'DOWNED';
+  const downVisual = species.battleVisuals.down;
+  const showingDown = downed && downVisual !== null;
   const backdrop = locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
-  const enemyCrop = cropOf(species);
+  const enemyCrop = cropOf(showingDown ? downVisual! : species.battleVisuals.normal);
   /**
    * Their sizes, as a share of the battlefield.
    *
@@ -261,7 +290,11 @@ export function BattleUIPrototype({
    */
   const stage = {
     enemy: Math.round(stageH * 0.23),
-    hero: Math.round(stageH * 0.255),
+    // Beaten, it is lying in the grass: the same animal, seen from the
+    // side, so its height on screen comes from its own drawing rather
+    // than from the standing one's.
+    enemyDown: Math.round(stageH * 0.16),
+    hero: Math.round(stageH * 0.22),
     kaos: Math.round(stageH * 0.215),
   };
 
@@ -273,9 +306,25 @@ export function BattleUIPrototype({
 
         {/* 2. The creature: left, and further up the path than they are,
                which is what makes the ground between them a distance. */}
-        <div className={`bp-actor bp-enemy${beat === 'TACKLE' ? ' tackle' : ''}${beat === 'HIDE' ? ' hide' : ''}${beat === 'STRIKE' ? ' struck' : ''}${beaten ? ' beaten' : ''}`}>
+        <div
+          className={[
+            'bp-actor bp-enemy',
+            beat === 'TACKLE' ? 'tackle' : '',
+            beat === 'HIDE' ? 'hide' : '',
+            beat === 'STRIKE' ? 'struck' : '',
+            beaten && !showingDown ? 'falling' : '',
+            showingDown ? 'downed' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
+        >
           <span className="bp-shadow" aria-hidden="true" />
-          <ActorArt crop={enemyCrop} height={stage.enemy} className="bp-art" />
+          <ActorArt
+            crop={enemyCrop}
+            height={showingDown ? stage.enemyDown : stage.enemy}
+            className="bp-art"
+          />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
           {beat === 'TACKLE' && (
             <span className="bp-leaves" aria-hidden="true">
@@ -333,7 +382,7 @@ export function BattleUIPrototype({
       </div>
 
       {/* 5. One line, not a conversation box. */}
-      {!(beaten && finishesInMugenChoice) && (
+      {!(downed && finishesInMugenChoice) && (
         <div className="bp-message" data-testid="bp-message" role="status" aria-live="polite">
           <p className="bp-message-text">
             {beaten && !finishesInMugenChoice ? species.defeatedText : lastLine}
@@ -372,7 +421,7 @@ export function BattleUIPrototype({
         </div>
       )}
 
-      {beaten && finishesInMugenChoice && (
+      {downed && finishesInMugenChoice && (
         <div className="bp-mugen" data-testid="bp-mugen-choice">
           {/* A different kind of moment, so a different ground under it:
               the fight's ivory gives way, and the question is asked in
@@ -396,7 +445,7 @@ export function BattleUIPrototype({
         </div>
       )}
 
-      {beaten && !finishesInMugenChoice && (
+      {downed && !finishesInMugenChoice && (
         <div className="bp-commands">
           <button className="bp-cmd wide" data-testid="bp-normal-end" onClick={onNormalEnd}>
             <span className="bp-cmd-jp">森へ戻る</span>

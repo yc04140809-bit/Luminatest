@@ -296,6 +296,51 @@ test.describe('battle UI prototype', () => {
     expect(kinds).toContain('PLAYER_SPARED_CREATURE');
   });
 
+  test('the creature goes down and stays there, beaten rather than gone', async ({ page }) => {
+    await freshWorld(page);
+    await setup(page, { ui: 'PROTOTYPE', story: 'off', finishable: true });
+    await walkIntoAFight(page);
+
+    // Standing while it is fighting.
+    await expect(page.getByTestId('bp-enemy-normal')).toBeVisible();
+    await expect(page.getByTestId('bp-enemy-downed')).toHaveCount(0);
+
+    await page.getByTestId('bp-attack').click();
+
+    // Beaten: lying in the grass, in its own drawing.
+    const down = page.getByTestId('bp-enemy-downed');
+    await expect(down).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('bp-enemy-normal')).toHaveCount(0);
+
+    // And it is still lying there when the fight is over — nothing
+    // clears the battlefield before the player has looked at it.
+    await expect(page.getByTestId('bp-normal-end')).toBeVisible();
+    await expect(down).toBeVisible();
+    await expect(page.locator('.bp-bg')).toBeVisible();
+
+    // On the ground rather than floating: its feet are inside the field.
+    const stage = (await page.locator('.bp-stage').boundingBox())!;
+    const box = (await down.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+    expect(box.y).toBeGreaterThanOrEqual(stage.y - 1);
+  });
+
+  test('the four answers are asked about the creature lying in front of you', async ({ page }) => {
+    await freshWorld(page);
+    await setup(page, { ui: 'PROTOTYPE', story: 'on', finishable: true });
+    await walkIntoAFight(page);
+    await page.getByTestId('bp-attack').click();
+
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 5_000 });
+    // The whole point: it is the beaten creature on screen, not a
+    // result panel, and the two of them are still standing there.
+    await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
+    await expect(page.getByTestId('bp-enemy-normal')).toHaveCount(0);
+    await expect(page.locator('.bp-hero')).toBeVisible();
+    await expect(page.locator('.bp-kaos')).toBeVisible();
+    await expect(page.locator('.bp-bg')).toBeVisible();
+  });
+
   test("never touches the story's own fight, flag on or not", async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => localStorage.setItem('mugen-battle-ui', 'PROTOTYPE'));

@@ -12,6 +12,7 @@
 // speaks, and lines that let an animal be an animal.
 
 import mossRabbitArt from '../../assets/enemies/moss-rabbit.png';
+import mossRabbitDownArt from '../../assets/enemies/moss-rabbit-down.png';
 import type { LifeChoiceId } from '../../core/flow/types';
 import type { DialogueLine } from '../dialogue/prologue';
 
@@ -33,6 +34,46 @@ export interface SpeciesSkill {
   line: string;
 }
 
+/**
+ * Where the drawing actually is inside its file.
+ *
+ * Official art arrives with whatever transparent margin it was exported
+ * with, and the game must not repaint a pixel of it — so instead of
+ * trimming the file, each visual says which box of it is the creature.
+ * That box is what gets sized, and what gets stood on the ground.
+ */
+export interface ArtBox {
+  fileW: number;
+  fileH: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface EnemyVisual {
+  src: string;
+  box: ArtBox;
+}
+
+/**
+ * The states a creature can be seen in on a battlefield.
+ *
+ * Two, for now, and the second one is the one that matters: DOWNED is
+ * beaten, not dead. Nothing in MUGEN ZERO dies because its health
+ * reached zero — what becomes of it is the question the player is about
+ * to be asked, and the creature has to still be lying there while they
+ * answer it.
+ *
+ * Every ordinary enemy after this one fills in the same two entries.
+ * That is the whole of the structure: no framework, one field.
+ */
+export interface EnemyBattleVisuals {
+  normal: EnemyVisual;
+  /** Null while a species has no beaten art drawn yet. */
+  down: EnemyVisual | null;
+}
+
 export interface EnemySpeciesDef {
   speciesId: SpeciesId;
   name: string;
@@ -48,6 +89,11 @@ export interface EnemySpeciesDef {
    * to enlarge it on screen; it changes no pixel.
    */
   portraitScale: number;
+  /**
+   * How the creature is drawn on a battlefield, per state. Separate from
+   * `portrait` above, which is what the older battle screen reads.
+   */
+  battleVisuals: EnemyBattleVisuals;
   /** Battle numbers, in the units the existing battle already uses. */
   hp: number;
   attackMin: number;
@@ -98,6 +144,21 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   portrait: mossRabbitArt,
   // The drawn animal fills about 55% of the height of its file.
   portraitScale: 1.55,
+  battleVisuals: {
+    // Both boxes measured from the files themselves; neither file is
+    // edited, cropped or recoloured.
+    normal: {
+      src: mossRabbitArt,
+      box: { fileW: 1024, fileH: 1536, x: 129, y: 387, width: 703, height: 850 },
+    },
+    // Lying in the grass with its ears spread: far wider than it is
+    // tall, which is why its size on screen is worked out from its own
+    // box rather than from the standing one's.
+    down: {
+      src: mossRabbitDownArt,
+      box: { fileW: 1536, fileH: 1024, x: 6, y: 218, width: 1523, height: 659 },
+    },
+  },
   hp: 22,
   attackMin: 2,
   attackMax: 5,
@@ -114,6 +175,7 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
     line: 'モスラビットの苔かくれ！ 身を低く丸め、苔と葉が身体を覆う。',
   },
   appearLine: 'モスラビットが飛び出してきた。',
+  // Beaten, and looking at you. Nothing here says it is dying.
   defeatedText: 'モスラビットは草の上に伏せ、こちらを見ている。',
   individual: {
     // A reason, not a lesson. The player is told what is in front of
