@@ -8,13 +8,17 @@ import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
 import { DevReviewHub } from './DevReviewHub';
 import {
+  debugChaosIntervention,
   debugEncounterType,
   debugEnemyAction,
   debugStoryTrigger,
+  setDebugChaosIntervention,
   setDebugEncounterType,
   setDebugEnemyAction,
   setDebugStoryTrigger,
 } from './debugEncounter';
+import type { ChaosInterventionId } from '../core/chaos/chaosIntervention';
+import { CHAOS_INTERVENTIONS } from '../content/chaos/chaosInterventions';
 import type { DiscoveryCategory } from '../game/exploration/discovery';
 import type { EnemyAction } from '../game/battle/battleLogic';
 import { MOSS_RABBIT } from '../content/enemies/species';
@@ -61,6 +65,7 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
   const [forced, setForced] = useState<DiscoveryCategory | null>(() => debugEncounterType());
   const [enemyAction, setEnemyAction] = useState<EnemyAction | null>(() => debugEnemyAction());
   const [storyTrigger, setStoryTrigger] = useState<boolean | null>(() => debugStoryTrigger());
+  const [chaos, setChaos] = useState<ChaosInterventionId | null>(() => debugChaosIntervention());
   const rabbit = world.getEnemyProgress(MOSS_RABBIT.speciesId);
   // Which battle screen the forest fight uses. Nothing is adopted: this
   // is a switch, and OLD is what a player without it always gets.
@@ -421,6 +426,49 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
         >
           AIにまかせる
         </button>
+      </div>
+
+      <div style={sectionTitle}>CHAOS — 戦闘開始時の介入を固定</div>
+      <div style={row}>
+        {CHAOS_INTERVENTIONS.map((def) => (
+          <button
+            key={def.id}
+            className={chaos === def.id ? 'btn primary' : 'btn'}
+            style={smallBtn}
+            data-testid={`force-chaos-${def.id}`}
+            onClick={() => {
+              setDebugChaosIntervention(def.id);
+              setChaos(def.id);
+            }}
+          >
+            {def.name}
+          </button>
+        ))}
+        <button
+          className={chaos === 'NONE' ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-chaos-NONE"
+          onClick={() => {
+            setDebugChaosIntervention('NONE');
+            setChaos('NONE');
+          }}
+        >
+          何もしない
+        </button>
+        <button
+          className={chaos === null ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="force-chaos-random"
+          onClick={() => {
+            setDebugChaosIntervention(null);
+            setChaos(null);
+          }}
+        >
+          確率どおり
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
+        新戦闘画面の戦闘開始時のみ。既定は約35%で4種のいずれか、残りは何も起きません。
       </div>
 
       <div style={sectionTitle}>MOSS RABBIT — 特殊個体の抽選</div>

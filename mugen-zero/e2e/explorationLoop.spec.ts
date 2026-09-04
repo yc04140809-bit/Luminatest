@@ -140,6 +140,12 @@ test.describe('exploration loop', () => {
     await expect(page.getByTestId('bp-enemy-hp')).toContainText('モスラビット');
     await expect(page.getByTestId('gald-portrait-ready')).toHaveCount(0);
 
+    // Kaos sometimes helps as a fight starts, and while she is speaking
+    // the commands are not there to press. Nothing is pinned here on
+    // purpose — a real player gets that moment about a third of the
+    // time — so wait for the fight to become a fight either way.
+    await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 10_000 });
+
     const attack = page.getByTestId('bp-attack');
     for (let i = 0; i < 14; i++) {
       if (await page.getByTestId('bp-normal-end').isVisible().catch(() => false)) break;

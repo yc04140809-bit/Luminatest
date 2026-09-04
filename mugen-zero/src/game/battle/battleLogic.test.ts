@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createBattle, playerAttack, playerDefend } from './battleLogic';
+import { NO_MODIFIERS, createBattle, playerAttack, playerDefend } from './battleLogic';
 
 // rng() = 0 → always minimum rolls; rng() = 0.999 → maximum rolls.
 const rngMin = () => 0;
@@ -132,5 +132,93 @@ describe('an enemy with a skill', () => {
     const b = createBattle('盗賊');
     expect(b.enemySkill).toBeNull();
     expect(playerAttack(b, () => 0.5).lastEnemyAction).toBe('ATTACK');
+  });
+});
+
+describe('what Kaos changes about a fight', () => {
+  const enemy = { name: 'モスラビット', hp: 200, attackMin: 4, attackMax: 4 };
+  /** rng 0 gives the player's minimum, 8, and the enemy's only roll, 4. */
+  const lowest = () => 0;
+
+  const damageDealt = (mods?: Partial<import('./battleLogic').BattleModifiers>) => {
+    const before = createBattle(enemy, { ...NO_MODIFIERS, ...mods });
+    return before.enemyHp - playerAttack(before, lowest, 'ATTACK').enemyHp;
+  };
+  const damageTaken = (
+    mods?: Partial<import('./battleLogic').BattleModifiers>,
+    brace = false,
+  ) => {
+    const before = createBattle(enemy, { ...NO_MODIFIERS, ...mods });
+    const after = brace
+      ? playerDefend(before, lowest, 'ATTACK')
+      : playerAttack(before, lowest, 'ATTACK');
+    return before.playerHp - after.playerHp;
+  };
+
+  it('leaves a fight exactly as it was when she does nothing', () => {
+    expect(damageDealt()).toBe(8);
+    expect(damageTaken()).toBe(4);
+    expect(createBattle(enemy).modifiers).toEqual(NO_MODIFIERS);
+  });
+
+  it('《ケイオスの加護》 makes his blows worth more', () => {
+    expect(damageDealt({ playerAttack: 1.25 })).toBe(10);
+  });
+
+  it('《ケイオスの崩し》 makes the creature easier to hurt', () => {
+    expect(damageDealt({ enemyDamageTaken: 1.3 })).toBe(11);
+  });
+
+  it('《ケイオスの弱体》 takes the weight out of its attacks', () => {
+    expect(damageTaken({ enemyAttack: 0.7 })).toBe(3);
+  });
+
+  it('《ケイオスの守護》 takes something off what reaches him', () => {
+    expect(damageTaken({ playerDamageTaken: 0.7 })).toBe(3);
+  });
+
+  it('stacks 「身構える」 with 《ケイオスの守護》 rather than one cancelling the other', () => {
+    // 4 → braced alone: 2. Guarded alone: 3. Both, multiplied: 4 × 0.7 × 0.5
+    // = 1.4, rounded up to 2 — better than bracing alone would have been
+    // on a bigger hit, and never zero.
+    expect(damageTaken({}, true)).toBe(2);
+    expect(damageTaken({ playerDamageTaken: 0.7 }, true)).toBe(2);
+    const big = { ...enemy, attackMin: 10, attackMax: 10 };
+    const braced = createBattle(big, NO_MODIFIERS);
+    const both = createBattle(big, { ...NO_MODIFIERS, playerDamageTaken: 0.7 });
+    expect(braced.playerHp - playerDefend(braced, lowest, 'ATTACK').playerHp).toBe(5);
+    expect(both.playerHp - playerDefend(both, lowest, 'ATTACK').playerHp).toBe(4);
+  });
+
+  it('never lets a stack of help reach zero, go negative, or stop being a number', () => {
+    const absurd = {
+      playerAttack: 0.0001,
+      playerDamageTaken: 0.0001,
+      enemyAttack: 0.0001,
+      enemyDamageTaken: 0.0001,
+    };
+    expect(damageDealt(absurd)).toBe(1);
+    expect(damageTaken(absurd, true)).toBe(1);
+    // And rubbish in the numbers is ignored rather than propagated.
+    const broken = {
+      playerAttack: NaN,
+      playerDamageTaken: -3,
+      enemyAttack: Number.POSITIVE_INFINITY,
+      enemyDamageTaken: 0,
+    };
+    const dealt = damageDealt(broken);
+    const taken = damageTaken(broken);
+    expect(Number.isFinite(dealt)).toBe(true);
+    expect(dealt).toBeGreaterThan(0);
+    expect(Number.isFinite(taken)).toBe(true);
+    expect(taken).toBeGreaterThan(0);
+  });
+
+  it('belongs to this battle and no other', () => {
+    const helped = createBattle(enemy, { ...NO_MODIFIERS, playerAttack: 1.25 });
+    const after = playerAttack(helped, lowest, 'ATTACK');
+    expect(after.modifiers.playerAttack).toBe(1.25);
+    // A new fight starts from nothing unless it is told otherwise.
+    expect(createBattle(enemy).modifiers).toEqual(NO_MODIFIERS);
   });
 });

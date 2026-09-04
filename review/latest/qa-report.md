@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-04T04:16:39.738Z
-- Build: MUGEN ZERO v0.1 / 99de424 / 2026-09-04T04:16:06.858Z
+- Generated: 2026-09-04T05:24:07.787Z
+- Build: MUGEN ZERO v0.1 / c816c3f / 2026-09-04T05:23:28.080Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -98,5 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] BATTLE UI PROTOTYPE — 新戦闘画面の試作。既存の戦闘画面は残したまま、DEV フラグで切り替わる別画面です。まだ採用していません
+- [ ] BATTLE UI PROTOTYPE — 戦闘開始時のケイオス介入を追加。35% で1回だけ発動し、1.8秒のカード（コマンド欄の位置）と、ケイオス側の光・対象側の印が出ます。森は隠れません。65% は従来どおり何も出ません。まだ採用していません
 - unchanged, no screenshot needed: GREENWOOD / BATTLE, HOME, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

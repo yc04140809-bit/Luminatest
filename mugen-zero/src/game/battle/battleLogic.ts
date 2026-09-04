@@ -29,6 +29,48 @@ export interface EnemySkillSpec {
   line: string;
 }
 
+/**
+ * Everything outside the two fighters that changes what a blow is worth.
+ *
+ * One number per direction of harm, all of them multipliers, all of them
+ * 1 when nobody has done anything. Kaos helping from the back of the
+ * field is the only thing that sets them today; whatever helps or
+ * hinders later sets the same four, and no damage code has to learn
+ * about it.
+ */
+export interface BattleModifiers {
+  /** What the player's blows are multiplied by. */
+  playerAttack: number;
+  /** What lands on the player, after their own guard. */
+  playerDamageTaken: number;
+  /** What the enemy's blows are multiplied by. */
+  enemyAttack: number;
+  /** What lands on the enemy — its defence, read from the other side. */
+  enemyDamageTaken: number;
+}
+
+/** Nobody has done anything. */
+export const NO_MODIFIERS: BattleModifiers = {
+  playerAttack: 1,
+  playerDamageTaken: 1,
+  enemyAttack: 1,
+  enemyDamageTaken: 1,
+};
+
+/**
+ * A blow, after everything that touches it.
+ *
+ * Multiplied in a stated order and floored at one: a fight where an
+ * attack lands for nothing is worse than a fight that is too easy, and
+ * a stack of modifiers must never reach zero, go negative, or produce a
+ * number that is not a number.
+ */
+function applyDamage(raw: number, multipliers: number[]): number {
+  let value = raw;
+  for (const m of multipliers) value *= Number.isFinite(m) && m > 0 ? m : 1;
+  return Math.max(1, Math.ceil(value));
+}
+
 export interface EnemySpec {
   name: string;
   hp: number;
@@ -58,6 +100,11 @@ export interface BattleState {
   enemySkillUses: number;
   /** What the enemy did on its last turn, for the screen to play. */
   lastEnemyAction: EnemyAction;
+  /**
+   * What is helping or hindering, for this battle only. Held here so it
+   * lives and dies with the fight and cannot leak into the next one.
+   */
+  modifiers: BattleModifiers;
   log: string[];
   outcome: BattleOutcome;
 }
@@ -71,7 +118,10 @@ const PLAYER_ATK_MAX = 12;
 /** The numbers a plain named enemy fights with — Gald's, historically. */
 const DEFAULT_ENEMY: Omit<EnemySpec, 'name'> = { hp: 30, attackMin: 3, attackMax: 6 };
 
-export function createBattle(enemy: string | EnemySpec): BattleState {
+export function createBattle(
+  enemy: string | EnemySpec,
+  modifiers: BattleModifiers = NO_MODIFIERS,
+): BattleState {
   const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
   return {
     playerHp: 40,
@@ -87,6 +137,7 @@ export function createBattle(enemy: string | EnemySpec): BattleState {
     enemySkillCooldown: 0,
     enemySkillUses: 0,
     lastEnemyAction: 'NONE',
+    modifiers: { ...modifiers },
     log: [spec.appearLine ?? `${spec.name}が現れた！`],
     outcome: 'ONGOING',
   };
@@ -133,8 +184,16 @@ function enemyTurn(
     };
   }
 
-  let dmg = roll(state.enemyAttackMin, state.enemyAttackMax, rng);
-  if (defending) dmg = Math.ceil(dmg / 2);
+  // What reaches the player, in this order and no other: what it can
+  // hit for, what Kaos took off it, what she put between them, and
+  // finally whether he braced. Everything is a multiplier, so 「身構える」
+  // and 《ケイオスの守護》 stack rather than one cancelling the other —
+  // and the result can still never be less than one.
+  const dmg = applyDamage(roll(state.enemyAttackMin, state.enemyAttackMax, rng), [
+    state.modifiers.enemyAttack,
+    state.modifiers.playerDamageTaken,
+    defending ? 0.5 : 1,
+  ]);
   const playerHp = Math.max(0, state.playerHp - dmg);
   const move = state.enemyAttackName ? `${state.enemyName}の${state.enemyAttackName}` : `${state.enemyName}の攻撃`;
   const log = [
@@ -158,11 +217,14 @@ export function playerAttack(
   forcedEnemyAction: EnemyAction | null = null,
 ): BattleState {
   if (state.outcome !== 'ONGOING') return state;
-  const raw = roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng);
   // Whatever the enemy put between itself and the blow, it is worn
   // through by taking one.
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
-  const dmg = guarded ? Math.max(1, Math.ceil(raw * state.enemySkill!.damageTaken)) : raw;
+  const dmg = applyDamage(roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng), [
+    state.modifiers.playerAttack,
+    state.modifiers.enemyDamageTaken,
+    guarded ? state.enemySkill!.damageTaken : 1,
+  ]);
   const enemyHp = Math.max(0, state.enemyHp - dmg);
   let next: BattleState = {
     ...state,

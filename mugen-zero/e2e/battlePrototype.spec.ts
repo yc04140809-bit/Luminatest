@@ -44,6 +44,13 @@ interface Setup {
   finishable?: boolean;
   /** Settle what the creature does, when the test needs its reply fixed. */
   enemyAction?: 'ATTACK' | 'SKILL';
+  /**
+   * What Kaos does at the start of the fight. Everything below leaves it
+   * at NONE — a fight nobody helped — so these tests keep describing the
+   * screen itself rather than a screen with a die rolled over it. The
+   * intervention has its own describe block at the bottom.
+   */
+  chaos?: 'NONE' | 'CHAOS_BLESSING' | 'CHAOS_GUARD' | 'CHAOS_WEAKEN' | 'CHAOS_BREAK';
 }
 
 async function setup(page: Page, options: Setup) {
@@ -56,6 +63,7 @@ async function setup(page: Page, options: Setup) {
   await page.getByTestId('force-encounter-BATTLE').click();
   await page.getByTestId(options.story === 'on' ? 'force-story-on' : 'force-story-off').click();
   if (options.enemyAction) await page.getByTestId(`force-enemy-${options.enemyAction}`).click();
+  await page.getByTestId(`force-chaos-${options.chaos ?? 'NONE'}`).click();
   await page.getByTestId('dev-admin-back').click();
 }
 
@@ -387,6 +395,272 @@ test.describe('battle UI prototype', () => {
       const message = (await page.getByTestId('bp-message').boundingBox())!;
       expect(message.width).toBeGreaterThan(width * 0.8);
       expect(message.y + message.height).toBeLessThanOrEqual(844);
+    });
+  }
+});
+
+/**
+ * CHAOS BATTLE INTERVENTION.
+ *
+ * Sometimes, at the start of a fight, Kaos does something about it. The
+ * rules these tests hold to are the ones that make it worth having:
+ * most fights are still nobody's business but yours, it is decided once
+ * and stays decided, it never covers the forest, and it is over when the
+ * fight is.
+ */
+test.describe('Kaos at the start of a fight', () => {
+  const CASES = [
+    {
+      id: 'CHAOS_BLESSING',
+      name: 'ケイオスの加護',
+      line: 'ちょっとだけ、手伝ってあげる。',
+      mark: '.bp-hero .bp-chaos-mark.buff',
+      kind: 'buff',
+    },
+    {
+      id: 'CHAOS_GUARD',
+      name: 'ケイオスの守護',
+      line: '少しくらい、守ってあげる。',
+      mark: '.bp-hero .bp-chaos-mark.buff',
+      kind: 'buff',
+    },
+    {
+      id: 'CHAOS_WEAKEN',
+      name: 'ケイオスの弱体',
+      line: 'この子、ちょっと弱くしよっか。',
+      mark: '.bp-enemy .bp-chaos-mark.debuff',
+      kind: 'debuff',
+    },
+    {
+      id: 'CHAOS_BREAK',
+      name: 'ケイオスの崩し',
+      line: 'そこ、隙だらけだよ。',
+      mark: '.bp-enemy .bp-chaos-mark.debuff',
+      kind: 'debuff',
+    },
+  ] as const;
+
+  test('a fight she stays out of is the fight it always was', async ({ page }) => {
+    await freshWorld(page);
+    await setup(page, { ui: 'PROTOTYPE', story: 'off', chaos: 'NONE' });
+    await walkIntoAFight(page);
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+    await expect(page.getByTestId('bp-chaos-card')).toHaveCount(0);
+    await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(0);
+    await expect(page.locator('.bp-chaos-mark')).toHaveCount(0);
+    await expect(page.locator('.bp-chaos-aura')).toHaveCount(0);
+    // Straight into it: nothing to sit through.
+    await expect(page.getByTestId('bp-commands')).toBeVisible();
+    await expect(page.getByTestId('bp-enemy-hp')).toContainText('22 / 22');
+  });
+
+  for (const c of CASES) {
+    test(`《${c.name}》 says what it is and shows who it landed on`, async ({ page }) => {
+      await freshWorld(page);
+      await setup(page, { ui: 'PROTOTYPE', story: 'off', chaos: c.id });
+      await walkIntoAFight(page);
+
+      const card = page.getByTestId('bp-chaos-card');
+      await expect(card).toBeVisible();
+      await expect(card).toHaveAttribute('data-chaos', c.id);
+      await expect(card).toContainText('ケイオス');
+      await expect(card).toContainText(c.line);
+      await expect(card).toContainText(`《${c.name}》`);
+      // Her, and whoever she touched.
+      await expect(page.locator('.bp-kaos .bp-chaos-aura')).toBeVisible();
+      await expect(page.locator(c.mark)).toHaveCount(1);
+      // One side only.
+      await expect(page.locator('.bp-chaos-mark')).toHaveCount(1);
+
+      // It is a moment, not a screen: the forest, all three of them and
+      // the creature's plate are exactly where they were, and nothing
+      // white is laid over any of it.
+      await expect(page.locator('.bp-bg')).toBeVisible();
+      await expect(page.locator('.bp-enemy')).toBeVisible();
+      await expect(page.locator('.bp-hero')).toBeVisible();
+      await expect(page.locator('.bp-kaos')).toBeVisible();
+      await expect(page.getByTestId('bp-enemy-hp')).toBeVisible();
+      const stage = (await page.locator('.bp-stage').boundingBox())!;
+      const box = (await card.boundingBox())!;
+      expect(box.y, 'her card is under the battlefield, not over it').toBeGreaterThanOrEqual(
+        stage.y + stage.height - 1,
+      );
+
+      // Commands wait for her, then come back.
+      await expect(page.getByTestId('bp-commands')).toHaveCount(0);
+      await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 5_000 });
+      const badge = page.getByTestId('bp-chaos-badge');
+      await expect(badge).toBeVisible();
+      await expect(badge).toContainText(c.name);
+      await expect(badge).toHaveClass(new RegExp(c.kind));
+    });
+  }
+
+  test('is settled once, and no turn of the fight gets to roll it again', async ({ page }) => {
+    await freshWorld(page);
+    await setup(page, {
+      ui: 'PROTOTYPE',
+      story: 'off',
+      chaos: 'CHAOS_BLESSING',
+      enemyAction: 'ATTACK',
+    });
+    await walkIntoAFight(page);
+
+    // Tapping skips her moment rather than waiting it out.
+    await page.getByTestId('bp-chaos-card').click();
+    await expect(page.getByTestId('bp-chaos-card')).toHaveCount(0);
+    const badge = page.getByTestId('bp-chaos-badge');
+    await expect(badge).toContainText('ケイオスの加護');
+
+    // Three turns later it is still the same one thing, and her moment
+    // has not come round again. Guarding rather than attacking, so the
+    // fight is still a fight by the third turn — helped blows would have
+    // finished a 22 HP creature before the count was up.
+    for (let i = 0; i < 3; i++) {
+      await page.getByTestId('bp-skill').click();
+      await page.getByTestId('bp-skill-guard').click();
+      await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId('bp-chaos-card')).toHaveCount(0);
+      await expect(badge).toContainText('ケイオスの加護');
+      await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(1);
+    }
+  });
+
+  test('guarding under 《ケイオスの守護》 still costs real HP, and never a strange number', async ({
+    page,
+  }) => {
+    await freshWorld(page);
+    await setup(page, {
+      ui: 'PROTOTYPE',
+      story: 'off',
+      chaos: 'CHAOS_GUARD',
+      enemyAction: 'ATTACK',
+    });
+    await walkIntoAFight(page);
+    await page.getByTestId('bp-chaos-card').click();
+
+    const hp = page.getByTestId('bp-player-hp');
+    await expect(hp).toContainText('40 / 40');
+    let before = 40;
+    for (let turn = 0; turn < 4; turn++) {
+      await page.getByTestId('bp-skill').click();
+      await page.getByTestId('bp-skill-guard').click();
+      await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 5_000 });
+
+      const text = (await hp.textContent()) ?? '';
+      const shown = /(-?\d+)\s*\/\s*40/.exec(text.replace(/\s+/g, ' '));
+      expect(shown, `HP is a number after turn ${turn + 1}: ${text}`).not.toBeNull();
+      const now = Number(shown![1]);
+      // Two things that must both hold: the two reductions stack, and
+      // stacking them never reaches zero damage, a negative or a NaN.
+      expect(now, 'it still got through').toBeLessThan(before);
+      expect(now, 'and never healed him or broke the number').toBeGreaterThan(0);
+      expect(before - now, 'a blow is worth at least one').toBeGreaterThanOrEqual(1);
+      before = now;
+    }
+  });
+
+  test('a fight she helped still ends with the creature down and the four answers', async ({
+    page,
+  }) => {
+    await freshWorld(page);
+    await setup(page, {
+      ui: 'PROTOTYPE',
+      story: 'on',
+      finishable: true,
+      chaos: 'CHAOS_BREAK',
+    });
+    await walkIntoAFight(page);
+    await page.getByTestId('bp-chaos-card').click();
+    await page.getByTestId('bp-attack').click();
+
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
+    // Her chip is a thing about a fight; there is no fight to be in now.
+    await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(0);
+    await page.getByTestId('bp-mugen-SPARE').click();
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  });
+
+  test('is over when the fight is: nothing saved, nothing carried into the next one', async ({
+    page,
+  }) => {
+    await freshWorld(page);
+    await setup(page, {
+      ui: 'PROTOTYPE',
+      story: 'off',
+      finishable: true,
+      chaos: 'CHAOS_BLESSING',
+    });
+    await walkIntoAFight(page);
+    await expect(page.getByTestId('bp-chaos-card')).toBeVisible();
+    await page.getByTestId('bp-chaos-card').click();
+    await page.getByTestId('bp-attack').click();
+    await page.getByTestId('bp-normal-end').click();
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+
+    // Nothing of hers was written down. The only key that mentions her
+    // is the dev switch this test set itself.
+    const keys = await page.evaluate(() =>
+      Object.keys(localStorage).filter((k) => /chaos/i.test(k)),
+    );
+    expect(keys).toEqual(['mugen-debug-chaos']);
+    const rows = await page.evaluate(
+      () =>
+        new Promise<string[]>((resolve, reject) => {
+          const open = indexedDB.open('mugen-zero-save');
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const rq = db.transaction('world_state', 'readonly').objectStore('world_state').getAll();
+            rq.onsuccess = () => {
+              db.close();
+              resolve((rq.result as { key: string }[]).map((r) => r.key));
+            };
+            rq.onerror = () => reject(rq.error);
+          };
+        }),
+    );
+    expect(rows.filter((k) => /chaos/i.test(k))).toEqual([]);
+
+    // And the next fight starts from nothing: she is asked again, and
+    // this time the answer is no.
+    await page.getByTestId('leave-forest').click();
+    await page.getByRole('button', { name: 'もどる' }).click();
+    await expect(page.getByTestId('dev-admin-entry')).toBeVisible();
+    await setup(page, { ui: 'PROTOTYPE', story: 'off', chaos: 'NONE' });
+    await walkIntoAFight(page);
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+    await expect(page.getByTestId('bp-chaos-card')).toHaveCount(0);
+    await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(0);
+    await expect(page.getByTestId('bp-player-hp')).toContainText('40 / 40');
+  });
+
+  for (const width of [360, 390, 412]) {
+    test(`her moment fits a ${width}px phone`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await freshWorld(page);
+      await setup(page, { ui: 'PROTOTYPE', story: 'off', chaos: 'CHAOS_WEAKEN' });
+      await walkIntoAFight(page);
+
+      const card = page.getByTestId('bp-chaos-card');
+      await expect(card).toBeVisible();
+      const scrolls = await page.evaluate(() => ({
+        x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        y: document.documentElement.scrollHeight > document.documentElement.clientHeight + 1,
+      }));
+      expect(scrolls.x, 'no sideways scroll').toBe(false);
+      expect(scrolls.y, 'no vertical scroll').toBe(false);
+
+      const box = (await card.boundingBox())!;
+      expect(box.x, 'on screen').toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, 'and inside it').toBeLessThanOrEqual(width);
+      expect(box.y + box.height, 'and not hanging off the bottom').toBeLessThanOrEqual(844);
+      // Still a card, not a screen: it takes a strip, not the phone.
+      expect(box.height / 844, 'her card is a strip, not a takeover').toBeLessThan(0.25);
+      // The forest is still most of what is on screen.
+      const bg = (await page.locator('.bp-bg').boundingBox())!;
+      expect(bg.height / 844).toBeGreaterThan(0.5);
     });
   }
 });

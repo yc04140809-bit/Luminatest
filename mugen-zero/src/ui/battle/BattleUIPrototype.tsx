@@ -13,6 +13,12 @@ import { locationBackground, type LocationId } from '../../content/locations/loc
 import type { LifeChoiceId } from '../../core/flow/types';
 import { vibrate } from '../../platform/haptics';
 import { Ornament } from '../common/Ornament';
+import {
+  modifiersOf,
+  rollChaosIntervention,
+  type ChaosInterventionDef,
+} from '../../core/chaos/chaosIntervention';
+import { CHAOS_INTERVENTIONS } from '../../content/chaos/chaosInterventions';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 
 /**
@@ -117,6 +123,8 @@ interface Props {
   startFinishable?: boolean;
   /** Development only: make the creature do one thing every turn. */
   forcedEnemyAction?: EnemyAction | null;
+  /** Development only: settle what Kaos does at the start of the fight. */
+  forcedChaos?: ChaosInterventionDef['id'] | null;
   /** An ordinary fight, over. */
   onNormalEnd: () => void;
   /** The other kind. The choice is real and is recorded by the caller. */
@@ -159,6 +167,15 @@ const BEAT_MS: Record<string, number> = {
 const KNOCKDOWN_MS = 340;
 
 /**
+ * How long her moment lasts before the fight starts.
+ *
+ * A remark and a name, not a scene. Long enough to read, short enough
+ * that a player who has seen it forty times is not waiting on it — and
+ * it can be tapped away.
+ */
+const CHAOS_BEAT_MS = 1800;
+
+/**
  * BATTLE UI — PROTOTYPE.
  *
  * Not the battle screen. A second one, built beside it so that the
@@ -188,14 +205,28 @@ export function BattleUIPrototype({
   finishesInMugenChoice,
   startFinishable = false,
   forcedEnemyAction = null,
+  forcedChaos = null,
   onNormalEnd,
   onMugenChoice,
   onDefeat,
 }: Props) {
+  /**
+   * What Kaos does about this fight.
+   *
+   * Rolled once, in the same breath as the battle itself, so it cannot
+   * be re-drawn per turn and cannot be shaken loose by a re-render. It
+   * lives inside the battle, which means it dies with it: nothing is
+   * saved, and the next fight starts from nothing.
+   */
+  const [chaos] = useState<ChaosInterventionDef | null>(() =>
+    rollChaosIntervention({ defs: CHAOS_INTERVENTIONS, forced: forcedChaos }),
+  );
   const [battle, setBattle] = useState<BattleState>(() => {
-    const fresh = createBattle(specOf(species));
+    const fresh = createBattle(specOf(species), modifiersOf(chaos));
     return startFinishable ? { ...fresh, enemyHp: 1 } : fresh;
   });
+  /** Her moment, before the fight. Skipped entirely when she does not. */
+  const [showingChaos, setShowingChaos] = useState(chaos !== null);
   const [beat, setBeat] = useState<string>('NONE');
   /**
    * NORMAL while it is fighting; DOWNED once it is beaten.
@@ -225,6 +256,12 @@ export function BattleUIPrototype({
   }, []);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  useEffect(() => {
+    if (!showingChaos) return;
+    const t = setTimeout(() => setShowingChaos(false), CHAOS_BEAT_MS);
+    return () => clearTimeout(t);
+  }, [showingChaos]);
 
   useEffect(() => {
     if (battle.outcome === 'DEFEAT') {
@@ -320,6 +357,9 @@ export function BattleUIPrototype({
           data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
           <span className="bp-shadow" aria-hidden="true" />
+          {showingChaos && chaos?.target === 'ENEMY' && (
+            <span className="bp-chaos-mark debuff" aria-hidden="true" />
+          )}
           <ActorArt
             crop={enemyCrop}
             height={showingDown ? stage.enemyDown : stage.enemy}
@@ -336,12 +376,24 @@ export function BattleUIPrototype({
         </div>
 
         {/* 3. The two of them, on the right, nearer. */}
-        <div className={`bp-actor bp-kaos${beat === 'HURT' ? ' flinch' : ''}`}>
+        <div
+          className={[
+            'bp-actor bp-kaos',
+            beat === 'HURT' ? 'flinch' : '',
+            showingChaos ? 'casting' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           <span className="bp-shadow" aria-hidden="true" />
+          {showingChaos && <span className="bp-chaos-aura" aria-hidden="true" />}
           <ActorArt crop={KAOS_CROP} height={stage.kaos} className="bp-art" />
         </div>
         <div className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}>
           <span className="bp-shadow" aria-hidden="true" />
+          {showingChaos && chaos?.target === 'PLAYER' && (
+            <span className="bp-chaos-mark buff" aria-hidden="true" />
+          )}
           <ActorArt crop={HERO_CROP} height={stage.hero} className="bp-art" />
         </div>
 
@@ -363,6 +415,14 @@ export function BattleUIPrototype({
           </span>
         </div>
       </div>
+
+      {/* Still in force. One chip, so a player who tapped past her
+          moment can still see that something is helping. */}
+      {chaos && !showingChaos && battle.outcome === 'ONGOING' && (
+        <p className={`bp-chaos-badge ${chaos.category.toLowerCase()}`} data-testid="bp-chaos-badge">
+          《{chaos.name}》
+        </p>
+      )}
 
       {/* The party's own plate, under the battlefield rather than over
           it, so nothing of the forest is spent on it. */}
@@ -391,8 +451,27 @@ export function BattleUIPrototype({
         </div>
       )}
 
+      {/* 6b. Her moment, in the place the commands were: a remark and a
+             name for a second or two, so nothing of the forest is
+             covered and nothing above this line moves. Tapping skips. */}
+      {showingChaos && chaos && (
+        <button
+          className="bp-chaos-card"
+          data-testid="bp-chaos-card"
+          data-chaos={chaos.id}
+          onClick={() => setShowingChaos(false)}
+          aria-label={`${chaos.name} — ${chaos.effect}`}
+        >
+          <span className="bp-chaos-who">ケイオス</span>
+          <span className="bp-chaos-line">「{chaos.line}」</span>
+          <span className="bp-chaos-rule" aria-hidden="true" />
+          <span className={`bp-chaos-name ${chaos.category.toLowerCase()}`}>《{chaos.name}》</span>
+          <span className="bp-chaos-effect">{chaos.effect}</span>
+        </button>
+      )}
+
       {/* 6. Fighting, and then — separately — deciding. */}
-      {!beaten && (
+      {!beaten && !showingChaos && (
         <div className="bp-commands" data-testid="bp-commands">
           <button className="bp-cmd" data-testid="bp-attack" onClick={() => command('ATTACK')}>
             <SwordIcon size={19} className="bp-cmd-mark" />
@@ -411,7 +490,7 @@ export function BattleUIPrototype({
           </button>
         </div>
       )}
-      {!beaten && skillOpen && (
+      {!beaten && !showingChaos && skillOpen && (
         <div className="bp-tray" data-testid="bp-skill-tray">
           <button className="bp-tray-item" data-testid="bp-skill-guard" onClick={() => command('DEFEND')}>
             身構える

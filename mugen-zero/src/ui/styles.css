@@ -2025,3 +2025,124 @@ body,
 :root[data-reduced-motion='on'] .bp-enemy,
 :root[data-reduced-motion='on'] .bp-hero,
 :root[data-reduced-motion='on'] .bp-kaos { animation: none !important; }
+
+/* ---- when Kaos does something ----
+   She is standing at the back of the field, so what she does happens ON
+   the field: a mark where she is, a mark on whoever she touched, and a
+   card laid over the grass rather than a screen put in front of it. No
+   modal, no white, and the forest is never covered. */
+.bp-kaos.casting .bp-art {
+  filter: drop-shadow(0 0 10px rgba(150, 190, 235, 0.55));
+}
+.bp-chaos-aura {
+  position: absolute;
+  inset: -14% -22%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(168, 200, 240, 0.7);
+  box-shadow: 0 0 18px rgba(150, 190, 235, 0.35) inset;
+  animation: bp-chaos-aura 1.2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes bp-chaos-aura {
+  0% { opacity: 0; transform: scale(0.72); }
+  45% { opacity: 0.9; }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+/* And a mark on whoever it landed on: gold for help, violet for harm. */
+.bp-chaos-mark {
+  position: absolute;
+  inset: 6% -10%;
+  border-radius: 50%;
+  animation: bp-chaos-mark 1.1s ease-out infinite;
+  pointer-events: none;
+}
+.bp-chaos-mark.buff {
+  border: 1.5px solid rgba(214, 178, 104, 0.85);
+  box-shadow: 0 0 16px rgba(214, 178, 104, 0.4) inset;
+}
+.bp-chaos-mark.debuff {
+  border: 1.5px solid rgba(158, 124, 186, 0.85);
+  box-shadow: 0 0 16px rgba(158, 124, 186, 0.4) inset;
+}
+@keyframes bp-chaos-mark {
+  0% { opacity: 0; transform: scale(1.2); }
+  40% { opacity: 0.95; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* Her card. It takes the place the commands were in for the second or
+   two she is speaking, so it covers no part of the forest at all and
+   nothing above it moves. Opaque: it sits over the app's own ground,
+   and anything showing through it would only be the party's plate. */
+.bp-chaos-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin: 8px 10px calc(10px + env(safe-area-inset-bottom));
+  padding: 10px 14px 11px;
+  min-height: 56px;
+  border: 1px solid rgba(198, 166, 96, 0.5);
+  border-radius: 6px;
+  background: #1a1c16;
+  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.16);
+  color: #f1ece0;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  animation: bp-chaos-card 0.28s ease-out;
+}
+@keyframes bp-chaos-card {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.bp-chaos-who {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--mugen-memory, #8fa6cd);
+}
+.bp-chaos-line {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.bp-chaos-rule {
+  width: 44px;
+  height: 1px;
+  margin: 5px 0 4px;
+  background: linear-gradient(90deg, rgba(198, 166, 96, 0.7), transparent);
+}
+.bp-chaos-name {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+}
+.bp-chaos-name.buff { color: #dcc084; }
+.bp-chaos-name.debuff { color: #c3a5d8; }
+.bp-chaos-effect {
+  font-size: 11px;
+  color: rgba(241, 236, 224, 0.72);
+}
+
+/* Afterwards: one small line saying it is still in force. */
+.bp-chaos-badge {
+  align-self: flex-start;
+  margin: 8px 0 -2px 10px;
+  padding: 3px 10px;
+  border: 1px solid var(--mugen-border);
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--mugen-text-secondary);
+  background: var(--mugen-surface);
+}
+.bp-chaos-badge.buff { border-color: rgba(198, 166, 96, 0.6); color: var(--mugen-gold); }
+.bp-chaos-badge.debuff { border-color: rgba(158, 124, 186, 0.6); color: #8a6aa8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-chaos-aura, .bp-chaos-mark { animation: none !important; opacity: 0.8; }
+  .bp-chaos-card { animation: none !important; }
+}
+:root[data-reduced-motion='on'] .bp-chaos-aura,
+:root[data-reduced-motion='on'] .bp-chaos-mark { animation: none !important; opacity: 0.8; }
+:root[data-reduced-motion='on'] .bp-chaos-card { animation: none !important; }

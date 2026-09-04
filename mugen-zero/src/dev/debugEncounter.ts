@@ -9,10 +9,12 @@
 import { DEV_ADMIN_ENABLED } from './devMode';
 import type { DiscoveryCategory } from '../game/exploration/discovery';
 import type { EnemyAction } from '../game/battle/battleLogic';
+import type { ChaosInterventionId } from '../core/chaos/chaosIntervention';
 
 const STORAGE_KEY = 'mugen-debug-encounter';
 const ENEMY_ACTION_KEY = 'mugen-debug-enemy-action';
 const STORY_TRIGGER_KEY = 'mugen-debug-story-trigger';
+const CHAOS_KEY = 'mugen-debug-chaos';
 
 function isCategory(value: unknown): value is DiscoveryCategory {
   return value === 'EVENT' || value === 'ITEM' || value === 'BATTLE';
@@ -52,6 +54,27 @@ export function debugStoryTrigger(): boolean | null {
 
 export function setDebugStoryTrigger(value: boolean | null): void {
   write(STORY_TRIGGER_KEY, value === null ? null : value ? 'ON' : 'OFF');
+}
+
+/**
+ * Settle what Kaos does at the start of the next fight, instead of
+ * waiting for the dice to show all four. Never in a build a player can
+ * reach: the only way to set it is DEV ADMIN.
+ */
+export function debugChaosIntervention(): ChaosInterventionId | null {
+  if (!DEV_ADMIN_ENABLED) return null;
+  const raw = read(CHAOS_KEY);
+  return raw === 'NONE' ||
+    raw === 'CHAOS_BLESSING' ||
+    raw === 'CHAOS_GUARD' ||
+    raw === 'CHAOS_WEAKEN' ||
+    raw === 'CHAOS_BREAK'
+    ? raw
+    : null;
+}
+
+export function setDebugChaosIntervention(id: ChaosInterventionId | null): void {
+  write(CHAOS_KEY, id);
 }
 
 function read(key: string): string | null {

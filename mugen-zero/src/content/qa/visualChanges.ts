@@ -20,7 +20,7 @@ export const VISUAL_CHANGES: readonly VisualChange[] = [
     screen: 'BATTLE UI PROTOTYPE',
     changed: true,
     reason:
-      '新戦闘画面の試作。既存の戦闘画面は残したまま、DEV フラグで切り替わる別画面です。まだ採用していません',
+      '戦闘開始時のケイオス介入を追加。35% で1回だけ発動し、1.8秒のカード（コマンド欄の位置）と、ケイオス側の光・対象側の印が出ます。森は隠れません。65% は従来どおり何も出ません。まだ採用していません',
   },
   {
     screen: 'GREENWOOD / BATTLE',

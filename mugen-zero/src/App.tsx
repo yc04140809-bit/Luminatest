@@ -49,7 +49,12 @@ import { rollIndividualStory } from './core/enemies/enemyEncounters';
 import { CreatureLifeChoiceScreen } from './ui/screens/CreatureLifeChoiceScreen';
 import type { EnemyIndividual } from './core/world/world';
 import { ExplorationSession } from './game/exploration/explorationSession';
-import { debugEncounterType, debugEnemyAction, debugStoryTrigger } from './dev/debugEncounter';
+import {
+  debugChaosIntervention,
+  debugEncounterType,
+  debugEnemyAction,
+  debugStoryTrigger,
+} from './dev/debugEncounter';
 import { battleUi, startFinishable } from './dev/battleUiFlag';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
 import { clearObtainedItems } from './platform/discoveries';
@@ -278,6 +283,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           finishesInMugenChoice={debugStoryTrigger() === true}
           startFinishable={startFinishable()}
           forcedEnemyAction={debugEnemyAction()}
+          forcedChaos={debugChaosIntervention()}
           onNormalEnd={() => flow.goTo('DEV_ADMIN')}
           onMugenChoice={() => flow.goTo('DEV_ADMIN')}
           onDefeat={() => flow.goTo('DEV_ADMIN')}
@@ -416,6 +422,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             finishesInMugenChoice={forestStory.current}
             startFinishable={startFinishable()}
             forcedEnemyAction={debugEnemyAction()}
+            forcedChaos={debugChaosIntervention()}
             onNormalEnd={() => {
               forestBattle.current = false;
               void world
