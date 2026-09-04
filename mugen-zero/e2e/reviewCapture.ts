@@ -139,16 +139,21 @@ async function walkUntil(page: Page, arrived: () => Promise<boolean>) {
 async function summonBattle(
   page: Page,
   preset: string,
-  summon?: 'SUCCESS' | 'FAILURE',
+  summon?: 'SUCCESS' | 'FAILURE' | 'ACCIDENT',
+  options: { story?: 'on' | 'off'; finishable?: boolean } = {},
 ) {
   await newWorld(page);
   await page.getByTestId('dev-admin-entry').click();
   await page.getByTestId('dev-lock-input').fill('0909');
   await page.getByTestId('dev-lock-submit').click();
-  await page.getByTestId('force-story-off').click();
+  await page.getByTestId(options.story === 'on' ? 'force-story-on' : 'force-story-off').click();
   await page.getByTestId(`arcana-set-${preset}`).click();
   await page.getByTestId(summon ? `force-summon-${summon}` : 'force-summon-none').click();
   if (!summon) await page.getByTestId('force-chaos-NONE').click();
+  if (options.finishable) {
+    const finishable = page.getByTestId('battle-start-finishable');
+    if ((await finishable.textContent())?.includes('OFF')) await finishable.click();
+  }
   // Opening the prototype IS leaving DEV ADMIN; there is no back click.
   await page.getByTestId('open-battle-prototype').click();
   await expect(page.getByTestId('battle-prototype')).toBeVisible();
@@ -331,46 +336,70 @@ const RECIPES: Record<string, Shot[]> = {
   ],
   'BATTLE UI PROTOTYPE': [
     {
-      suffix: 'summon_incomplete_card',
-      why: 'ケイオスが不完全召喚を試みた瞬間。どのページを・何%で呼ぼうとしているか',
+      suffix: 'accident_A_start',
+      why: 'A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%',
       go: async (page) => {
-        await summonBattle(page, '中', 'SUCCESS');
+        await summonBattle(page, '中', 'ACCIDENT');
         await expect(page.getByTestId('bp-summon-card')).toBeVisible();
       },
     },
     {
-      suffix: 'summon_incomplete_field',
-      why: '同種戦。敵モスラビットと召喚モスラビットが見分けられるか（位置・大きさ・光の輪・タグ）',
+      suffix: 'accident_B_unknown',
+      why: 'B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'ACCIDENT');
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-accident-card')).toBeVisible({ timeout: 8_000 });
+      },
+    },
+    {
+      suffix: 'accident_D_dragon',
+      why: 'D：巨大召喚。画面の半分以上を占めているか、敵側（左）を向いているか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'ACCIDENT');
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-dragon')).toBeVisible({ timeout: 10_000 });
+      },
+    },
+    {
+      suffix: 'accident_E_breath',
+      why: 'E：《エンシェントブレス》。縦画面で顔・口元・ブレス・文字が読めるか。技名の二重表示なし',
+      go: async (page) => {
+        await summonBattle(page, '中', 'ACCIDENT');
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 12_000 });
+        await page.waitForTimeout(500);
+      },
+    },
+    {
+      suffix: 'accident_G_talk',
+      why: 'G：事故後の会話。ケイオスが説明役になっていないか。古代龍は残っていないか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'ACCIDENT');
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+      },
+    },
+    {
+      suffix: 'accident_F_down',
+      why: 'F：ブレス後の敵DOWN。KILL自動確定ではなく、四つの答えが player に委ねられているか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'ACCIDENT', { story: 'on', finishable: true });
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+        await page.getByTestId('bp-accident-talk').click();
+        await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 12_000 });
+      },
+    },
+    {
+      suffix: 'summon_ward',
+      why: 'PHASE 1：HP満タンで呼んだとき。「HPはもう満ちている。」で終わらず《森の加護》になるか',
       go: async (page) => {
         await summonBattle(page, '中', 'SUCCESS');
         await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-summoned')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'summon_failure_card',
-      why: '不成立。ペナルティを与えず、短い一言で終わっているか',
-      go: async (page) => {
-        await summonBattle(page, '中', 'FAILURE');
-        await expect(page.getByTestId('bp-summon-card')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'summon_arcana_command',
-      why: '100%所持時の戦闘UI。攻撃・スキルを圧迫せず、独立した行になっているか',
-      go: async (page) => {
-        await summonBattle(page, 'COMPLETE');
-        await expect(page.getByTestId('bp-arcana')).toBeVisible();
-      },
-    },
-    {
-      suffix: 'summon_complete_field',
-      why: '完全召喚。金の輪、《森の息吹》の効果、1戦闘1回の使用済み表示',
-      go: async (page) => {
-        await summonBattle(page, 'COMPLETE');
-        await page.getByTestId('bp-arcana').click();
-        await page.getByTestId('bp-arcana-moss_rabbit').click();
-        await expect(page.getByTestId('bp-summoned')).toBeVisible();
+        await expect(page.getByTestId('bp-said-result')).toContainText('森の加護', {
+          timeout: 8_000,
+        });
       },
     },
     {
@@ -468,6 +497,22 @@ const RECIPES: Record<string, Shot[]> = {
         const section = page.getByTestId('arcana-summon');
         await section.scrollIntoViewIfNeeded();
         await expect(section).toBeVisible();
+      },
+    },
+    {
+      suffix: 'arcana_H_unknown',
+      why: 'H：観測後のUNKNOWN行。通常ARCANAの件数に足していないか、%を出していないか',
+      go: async (page) => {
+        await summonBattle(page, '中', 'ACCIDENT');
+        await page.getByTestId('bp-summon-card').click();
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+        await page.getByTestId('bp-accident-talk').click();
+        await page.waitForTimeout(400);
+        // Back to HOME with the save intact, then into the book.
+        await page.reload();
+        await page.getByTestId('continue-button').click();
+        await page.getByTestId('arcana-button').click();
+        await expect(page.getByTestId('arcana-unknown-unknown_001')).toBeVisible();
       },
     },
   ],

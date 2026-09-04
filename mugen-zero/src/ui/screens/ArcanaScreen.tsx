@@ -9,6 +9,8 @@ import {
   type ArcanaRecord,
 } from '../../core/arcana/arcana';
 import { ARCANA_DEFS } from '../../content/arcana/arcanaDefs';
+import { UNKNOWN_ARCANA_DEFS, type UnknownArcanaDef } from '../../content/arcana/unknownArcana';
+import { accidentDef } from '../../content/summon/accidents';
 import { Ornament } from '../common/Ornament';
 
 /**
@@ -62,10 +64,12 @@ function ProgressBar({ value, complete }: { value: number; complete: boolean }) 
 
 interface Props {
   records: readonly ArcanaRecord[];
+  /** Accident ids this save has witnessed. Not pages — sightings. */
+  observedAccidents?: readonly string[];
   onBack: () => void;
 }
 
-export function ArcanaScreen({ records, onBack }: Props) {
+export function ArcanaScreen({ records, observedAccidents = [], onBack }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const recordOf = (arcanaId: string): ArcanaRecord =>
     records.find((r) => r.arcanaId === arcanaId) ?? { arcanaId, met: [], completeSeen: false };
@@ -76,13 +80,24 @@ export function ArcanaScreen({ records, onBack }: Props) {
   }
 
   const known = ARCANA_DEFS.filter((def) => isDiscovered(recordOf(def.arcanaId))).length;
+  const glimpsed = unknownPagesFor(observedAccidents);
 
   return (
     <div className="screen arcana-screen">
       <div className="screen-title">アルカナ</div>
+      {/* The count is of things that can be finished, and an UNKNOWN
+          cannot be. Adding one to the denominator would tell the
+          player they are 1/2 of the way through a book whose second
+          page has nothing in it to do — so sightings are counted
+          separately, in smaller type, and never as a fraction. */}
       <p className="arcana-count" data-testid="arcana-count">
         {known} / {ARCANA_DEFS.length}
       </p>
+      {glimpsed.length > 0 && (
+        <p className="arcana-glimpsed" data-testid="arcana-unknown-count">
+          未知の記憶 {glimpsed.length}
+        </p>
+      )}
       <div className="arcana-list" data-testid="arcana-list">
         {ARCANA_DEFS.map((def) => {
           const record = recordOf(def.arcanaId);
@@ -123,6 +138,36 @@ export function ArcanaScreen({ records, onBack }: Props) {
             </button>
           );
         })}
+
+        {/* Below the book proper, and not part of it. A row here is
+            not a page at 0% — it is something the player watched for
+            a second and cannot name. There is nothing to open, because
+            there is nothing yet to know. */}
+        {glimpsed.map(({ def, witnessed }) => (
+          <div
+            className="arcana-card unknown"
+            key={def.arcanaId}
+            data-testid={`arcana-unknown-${def.arcanaId}`}
+          >
+            <span className="arcana-no">ARCANA #???</span>
+            <span className="arcana-name">{def.label}</span>
+            {/* No percentage, and no bar. A number here would say
+                "you have started collecting this", and the player has
+                not: there is nothing yet to collect. */}
+            <span className="arcana-open">
+              <em className="arcana-unknown-note">{def.note}</em>
+              <span className="arcana-chip unknown">UNKNOWN</span>
+            </span>
+            {witnessed.length > 0 && (
+              <span className="arcana-witnessed" data-testid={`arcana-witnessed-${def.arcanaId}`}>
+                <i>観測されたもの</i>
+                {witnessed.map((name) => (
+                  <b key={name}>《{name}》</b>
+                ))}
+              </span>
+            )}
+          </div>
+        ))}
       </div>
       <div className="screen-footer">
         <button className="btn" data-testid="arcana-back" onClick={onBack}>
@@ -131,6 +176,31 @@ export function ArcanaScreen({ records, onBack }: Props) {
       </div>
     </div>
   );
+}
+
+/**
+ * The sightings, as rows.
+ *
+ * Driven by what was seen rather than by the list of what exists, so
+ * an UNKNOWN nobody has met is not in the book at all — the book must
+ * never advertise a thing the player has not encountered.
+ */
+function unknownPagesFor(
+  observedAccidents: readonly string[],
+): { def: UnknownArcanaDef; witnessed: string[] }[] {
+  const witnessed = new Map<string, string[]>();
+  for (const id of observedAccidents) {
+    const accident = accidentDef(id);
+    if (!accident) continue;
+    const seen = witnessed.get(accident.unknownArcanaId) ?? [];
+    // What it was seen to do, which is all anybody knows about it.
+    if (!seen.includes(accident.ability.name)) seen.push(accident.ability.name);
+    witnessed.set(accident.unknownArcanaId, seen);
+  }
+  return UNKNOWN_ARCANA_DEFS.filter((def) => witnessed.has(def.arcanaId)).map((def) => ({
+    def,
+    witnessed: witnessed.get(def.arcanaId) ?? [],
+  }));
 }
 
 function ArcanaDetail({

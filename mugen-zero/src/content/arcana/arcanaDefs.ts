@@ -161,9 +161,17 @@ export const MOSS_RABBIT_ARCANA: ArcanaDef = {
     ability: {
       id: 'forest_breath',
       name: '森の息吹',
-      line: 'モスラビットの周りに、苔と若葉のにおいが立ちのぼる。',
-      description: '呼び出したモスラビットが、あたりの緑をわずかに濃くする。傷が少し癒える。',
-      effect: { kind: 'HEAL_PLAYER', amount: 8 },
+      line: 'やわらかな風が傷を包んだ。',
+      fullLine: 'やわらかな風が身体を包んだ。',
+      description:
+        '呼び出したモスラビットが、あたりの緑をわずかに濃くする。傷を癒し、癒すものが無ければ次の一撃をやわらげる。',
+      // One green, two ways of spending it. The heal is the ability;
+      // the ward is what is left for it to do when nobody is hurt,
+      // which at the start of a fight is nearly always. Small on
+      // purpose: 20% off one blow, and half of that from half a
+      // memory — 《身構える》 takes half off every blow the player is
+      // willing to spend a turn on, and must stay obviously better.
+      effect: { kind: 'MEND', heal: 8, ward: 0.2 },
     },
     incompleteLine: 'まだちゃんとは呼べないけど……やってみる？',
     failureLine: '……まだ、輪郭が足りないみたい。',

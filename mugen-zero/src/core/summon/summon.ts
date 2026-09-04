@@ -17,15 +17,17 @@
 /**
  * How a reconstruction turned out.
  *
- * ACCIDENT is the door, and it is shut. When an unstable memory can
- * pull something else through — something the world, the year, the
- * place and what the player chose all had a hand in — it is a third
- * value here and a third branch at the two places that read this type.
- * Nothing today produces one, and nothing today should: the design
- * rule is "surprise gets its meaning afterwards", and the meaning does
- * not exist yet.
+ * ACCIDENT is the door, and it is open now. It is not a rare prize
+ * pulled out of the same bag as the other two: an unfinished memory is
+ * unstable, and once in a while something the player has no memory of
+ * at all crosses it for a moment. Which something is not decided here
+ * — see summonAccident.ts, where the world, the year, the place and
+ * how much of the memory exists all get a say.
+ *
+ * The rule that keeps it honest: surprise gets its meaning afterwards.
+ * Nothing is awarded by an accident, and nothing is explained by one.
  */
-export type SummonOutcome = 'SUCCESS' | 'FAILURE';
+export type SummonOutcome = 'SUCCESS' | 'FAILURE' | 'ACCIDENT';
 
 /** Which kind of calling this was. */
 export type SummonKind = 'INCOMPLETE' | 'COMPLETE';
@@ -41,8 +43,17 @@ export type SummonKind = 'INCOMPLETE' | 'COMPLETE';
 export interface SummonAbilityDef {
   id: string;
   name: string;
-  /** What the battle log says when it lands. */
+  /** What the battle log says when it lands on somebody who is hurt. */
   line: string;
+  /**
+   * And when there was nothing to mend.
+   *
+   * A separate line rather than a fallback, because the two are not
+   * the same event: one closes a wound and one leaves something
+   * behind, and telling the player "nothing happened" in nicer words
+   * would be the same weak moment with better handwriting.
+   */
+  fullLine: string;
   /** One line for the book, in the player's language. */
   description: string;
   effect: SummonEffect;
@@ -52,8 +63,25 @@ export interface SummonAbilityDef {
  * One effect today. The union is the shape the next one slots into —
  * a new member here and a new branch where it is applied, and neither
  * the summoning rules nor the battle screen change.
+ *
+ * MEND is one thing with two faces rather than two effects: it puts
+ * health back, and when there is none to put back it leaves something
+ * behind instead. That is deliberate. A summon whose only outcome was
+ * healing was, at the start of a fight, almost always nothing at all —
+ * the player watched a memory come apart and back together to be told
+ * "HPはもう満ちている。" A thing that arrives must always leave a mark,
+ * however small, or arriving means nothing.
  */
-export type SummonEffect = { kind: 'HEAL_PLAYER'; amount: number };
+export type SummonEffect = {
+  kind: 'MEND';
+  /** How much health it puts back, when there is any missing. */
+  heal: number;
+  /**
+   * What it takes off the next blow instead, when there is not.
+   * A fraction: 0.2 means the next hit lands for four fifths.
+   */
+  ward: number;
+};
 
 /**
  * Every number this system has.
@@ -78,6 +106,16 @@ export const SUMMON_CONFIG = {
   incompletePower: 0.5,
   /** How long the summoned thing stays on the field. */
   stayMs: 1500,
+  /**
+   * The most a ward may ever take off a blow, whatever supplies it.
+   *
+   * A ceiling rather than a value: 《身構える》 halves damage and
+   * 《ケイオスの守護》 is worth about the same, and neither may be
+   * made pointless by something that arrives on its own and costs the
+   * player nothing. Anything asking for more than this is cut down to
+   * it.
+   */
+  wardCeiling: 0.35,
   /** How many times a complete memory can be called in one fight. */
   usesPerBattle: 1,
 };
@@ -125,12 +163,20 @@ export interface SummonRollOptions {
  * A complete memory is not rolled for. That is not a rounding of "very
  * likely" up to certain — it is the reward for finishing the page, and
  * a player who did that must never watch it fail.
+ *
+ * This function decides between the two ordinary answers and nothing
+ * else. An ACCIDENT is not one of the faces of this die: it needs a
+ * candidate that the world, the year and the place have all agreed to,
+ * so it is settled before this is ever reached (see planIntervention).
+ * Asking for one here — even in development — gets the ordinary roll,
+ * because a forced outcome must never invent the thing it is an
+ * outcome about.
  */
 export function rollSummon(options: SummonRollOptions): SummonOutcome | null {
   const { progress } = options;
   if (!canSummon(progress)) return null;
   if (progress >= 100) return 'SUCCESS';
-  if (options.forced) return options.forced;
+  if (options.forced && options.forced !== 'ACCIDENT') return options.forced;
   const rng = options.rng ?? Math.random;
   return rng() < summonSuccessChance(progress) ? 'SUCCESS' : 'FAILURE';
 }
@@ -142,7 +188,18 @@ export function rollSummon(options: SummonRollOptions): SummonOutcome | null {
  * to nothing is worse than an effect that is small.
  */
 export function summonEffectFor(ability: SummonAbilityDef, kind: SummonKind): SummonEffect {
-  if (kind === 'COMPLETE') return { ...ability.effect };
-  const scaled = Math.ceil(ability.effect.amount * SUMMON_CONFIG.incompletePower);
-  return { ...ability.effect, amount: Math.max(1, scaled) };
+  const effect = ability.effect;
+  if (kind === 'COMPLETE') {
+    return { ...effect, ward: Math.min(effect.ward, SUMMON_CONFIG.wardCeiling) };
+  }
+  const power = SUMMON_CONFIG.incompletePower;
+  return {
+    ...effect,
+    heal: Math.max(1, Math.ceil(effect.heal * power)),
+    // The ward scales by what it takes OFF, not by what it lets
+    // through: half a ward is half the protection, which is what a
+    // player would expect from half a memory. Halving the multiplier
+    // instead would make the weaker version the stronger one.
+    ward: Math.min(effect.ward * power, SUMMON_CONFIG.wardCeiling),
+  };
 }

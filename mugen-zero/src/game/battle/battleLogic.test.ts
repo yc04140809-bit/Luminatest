@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { NO_MODIFIERS, createBattle, healPlayer, playerAttack, playerDefend } from './battleLogic';
+import {
+  NO_MODIFIERS,
+  createBattle,
+  grantWard,
+  healPlayer,
+  mendPlayer,
+  playerAttack,
+  playerDefend,
+} from './battleLogic';
 
 // rng() = 0 → always minimum rolls; rng() = 0.999 → maximum rolls.
 const rngMin = () => 0;
@@ -269,6 +277,116 @@ describe('something healing the player mid-fight', () => {
       expect(Number.isInteger(healed.playerHp)).toBe(true);
       expect(healed.playerHp).toBeGreaterThanOrEqual(20);
       expect(healed.playerHp).toBeLessThanOrEqual(40);
+    }
+  });
+});
+
+
+describe('a little green left behind — 《森の加護》', () => {
+  const spec = { name: 'モスラビット', hp: 22, attackMin: 4, attackMax: 4 };
+  const MEND = { heal: 8, ward: 0.2 };
+
+  it('is what a summon does for somebody who is not hurt', () => {
+    // The whole point of the change: arriving at full health used to
+    // mean nothing happened. It now always leaves a mark.
+    const full = createBattle(spec);
+    const after = mendPlayer(full, MEND, 'やわらかな風が身体を包んだ。');
+    expect(after.playerHp).toBe(40);
+    expect(after.wardCut).toBeGreaterThan(0);
+    expect(after.log.at(-2)).toBe('やわらかな風が身体を包んだ。');
+    expect(after.log.at(-1)).toBe('《森の加護》を得た。');
+  });
+
+  it('heals instead, when there is anything to heal', () => {
+    const hurt = { ...createBattle(spec), playerHp: 30 };
+    const after = mendPlayer(hurt, MEND, 'やわらかな風が傷を包んだ。');
+    expect(after.playerHp).toBe(38);
+    expect(after.wardCut).toBe(0);
+    expect(after.log.at(-1)).toContain('8回復');
+  });
+
+  it('softens exactly one blow, and then it is gone', () => {
+    const warded = grantWard(createBattle(spec), 0.2);
+    const first = playerAttack(warded, rngMin, 'ATTACK');
+    expect(first.wardCut).toBe(0);
+    expect(first.log.some((l) => l.includes('そっと解けた'))).toBe(true);
+    const second = playerAttack(first, rngMin, 'ATTACK');
+    expect(second.log.filter((l) => l.includes('そっと解けた')).length).toBe(1);
+  });
+
+  it('actually takes something off, even against a small animal', () => {
+    // The failure this replaced: a fifth off a four-point blow is 3.2,
+    // which rounds back up to four. A ward that changes no number is
+    // the same nothing in nicer words.
+    const plain = playerAttack(createBattle(spec), rngMin, 'ATTACK');
+    const guarded = playerAttack(grantWard(createBattle(spec), 0.2), rngMin, 'ATTACK');
+    expect(40 - guarded.playerHp).toBeLessThan(40 - plain.playerHp);
+    expect(40 - guarded.playerHp).toBeGreaterThanOrEqual(1);
+  });
+
+  it('never softens a blow away to nothing', () => {
+    const oneHit = { name: 'モスラビット', hp: 22, attackMin: 1, attackMax: 1 };
+    const after = playerAttack(grantWard(createBattle(oneHit), 0.35), rngMin, 'ATTACK');
+    expect(40 - after.playerHp).toBe(1);
+  });
+
+  it('waits for a blow: hiding does not spend it', () => {
+    const skill = {
+      name: '苔かくれ',
+      turns: 2,
+      damageTaken: 0.4,
+      chance: 1,
+      cooldown: 2,
+      maxUses: 2,
+      line: '苔にもぐった。',
+    };
+    const warded = grantWard(createBattle({ ...spec, skill }), 0.2);
+    const hid = playerAttack(warded, rngMin, 'SKILL');
+    expect(hid.lastEnemyAction).toBe('SKILL');
+    expect(hid.wardCut).toBe(0.2);
+  });
+
+  it('never outclasses a spent turn', () => {
+    // 《身構える》 halves a blow and costs the player their turn.
+    // A ward that arrived for free must stay clearly worse, whatever
+    // number content asks for.
+    const greedy = grantWard(createBattle(spec), 5);
+    expect(greedy.wardCut).toBeLessThan(0.5);
+  });
+
+  it('stacks with bracing and with her guard, rather than replacing them', () => {
+    const spec8 = { name: 'モスラビット', hp: 22, attackMin: 8, attackMax: 8 };
+    const bare = playerDefend(createBattle(spec8), rngMin, 'ATTACK');
+    const both = playerDefend(grantWard(createBattle(spec8), 0.35), rngMin, 'ATTACK');
+    expect(40 - both.playerHp).toBeLessThan(40 - bare.playerHp);
+
+    const kaosGuard = { ...NO_MODIFIERS, playerDamageTaken: 0.5 };
+    const withHer = playerDefend(
+      grantWard(createBattle(spec8, kaosGuard), 0.35),
+      rngMin,
+      'ATTACK',
+    );
+    // Everything multiplies and the floor still holds: never zero,
+    // never negative, never NaN.
+    expect(withHer.playerHp).toBeLessThan(40);
+    expect(Number.isInteger(withHer.playerHp)).toBe(true);
+    expect(40 - withHer.playerHp).toBeGreaterThanOrEqual(1);
+  });
+
+  it('dies with the battle it was granted in', () => {
+    const warded = grantWard(createBattle(spec), 0.2);
+    const fresh = createBattle(spec);
+    expect(fresh.wardCut).toBe(0);
+    expect(warded.wardCut).toBe(0.2);
+  });
+
+  it('cannot be granted after the fight is over, and refuses nonsense', () => {
+    const won = { ...createBattle(spec), outcome: 'VICTORY' as const };
+    expect(grantWard(won, 0.2)).toBe(won);
+    for (const cut of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+      const after = grantWard(createBattle(spec), cut);
+      expect(after.wardCut).toBeGreaterThanOrEqual(0);
+      expect(after.wardCut).toBeLessThanOrEqual(0.35);
     }
   });
 });

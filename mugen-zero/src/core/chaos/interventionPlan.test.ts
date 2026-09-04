@@ -3,6 +3,19 @@ import { planIntervention } from './interventionPlan';
 import { CHAOS_INTERVENTION_CONFIG } from './chaosIntervention';
 import { CHAOS_INTERVENTIONS } from '../../content/chaos/chaosInterventions';
 import { SUMMON_CONFIG } from '../summon/summon';
+import { SUMMON_ACCIDENTS, UNKNOWN_ACCIDENT_001 } from '../../content/summon/accidents';
+import {
+  SUMMON_ACCIDENT_CONFIG,
+  type AccidentRecord,
+} from '../summon/summonAccident';
+
+/** Seen a few days ago, well inside its month-long cooldown. */
+const SEEN_TODAY: AccidentRecord = {
+  accidentId: UNKNOWN_ACCIDENT_001.id,
+  state: 'OBSERVED',
+  timesObserved: 1,
+  lastObservedDay: 4,
+};
 
 /** A die that hands back the numbers you give it, in order. */
 function dice(...values: number[]): () => number {
@@ -156,5 +169,142 @@ describe('the development switches', () => {
       rng: dice(0, 0, 0, 0),
     });
     expect(plan.kind).toBe('NONE');
+  });
+});
+
+
+/**
+ * The third thing that can happen to an unfinished memory.
+ *
+ * Not a rarer success and not a worse failure — a different event,
+ * settled before the ordinary die is thrown, and only ever when the
+ * world already had something able to cross.
+ */
+describe('when something else comes through', () => {
+  const CROSSES = SUMMON_ACCIDENT_CONFIG.chance - 0.01;
+  const DOES_NOT_CROSS = SUMMON_ACCIDENT_CONFIG.chance + 0.01;
+
+  it('crosses instead of holding or failing', () => {
+    const plan = planIntervention({
+      defs: DEFS,
+      candidates: HALF,
+      accidents: SUMMON_ACCIDENTS,
+      // acts, picks a def, reaches for arcana, picks the arcana, crosses, picks it
+      rng: dice(ACTS, 0, REACHES, 0, CROSSES, 0),
+    });
+    expect(plan.kind).toBe('SUMMON');
+    if (plan.kind !== 'SUMMON') return;
+    expect(plan.outcome).toBe('ACCIDENT');
+    expect(plan.accident?.id).toBe(UNKNOWN_ACCIDENT_001.id);
+  });
+
+  it('is an ordinary summon when nothing crosses', () => {
+    const plan = planIntervention({
+      defs: DEFS,
+      candidates: HALF,
+      accidents: SUMMON_ACCIDENTS,
+      rng: dice(ACTS, 0, REACHES, 0, DOES_NOT_CROSS, 0),
+    });
+    expect(plan.kind).toBe('SUMMON');
+    if (plan.kind !== 'SUMMON') return;
+    expect(plan.outcome).toBe('SUCCESS');
+    expect(plan.accident).toBeNull();
+  });
+
+  it('never crosses a memory the player finished', () => {
+    // A complete memory is not summoned through this path at all —
+    // it is the player's to spend — so a fight can never open with a
+    // finished page coming apart.
+    const plan = planIntervention({
+      defs: DEFS,
+      candidates: [{ arcanaId: 'moss_rabbit', progress: 100 }],
+      accidents: SUMMON_ACCIDENTS,
+      rng: dice(ACTS, 0, REACHES, 0, CROSSES, 0),
+    });
+    expect(plan.kind).toBe('MODIFIER');
+  });
+
+  it('never crosses the same thing twice in a row', () => {
+    const plan = planIntervention({
+      defs: DEFS,
+      candidates: HALF,
+      accidents: SUMMON_ACCIDENTS,
+      accidentRecords: [SEEN_TODAY],
+      day: 10,
+      rng: dice(ACTS, 0, REACHES, 0, CROSSES, 0),
+    });
+    expect(plan.kind).toBe('SUMMON');
+    if (plan.kind !== 'SUMMON') return;
+    expect(plan.outcome).not.toBe('ACCIDENT');
+    expect(plan.accident).toBeNull();
+  });
+
+  it('cannot happen at all when the world defines none', () => {
+    const plan = planIntervention({
+      defs: DEFS,
+      candidates: HALF,
+      rng: dice(ACTS, 0, REACHES, 0, CROSSES, 0),
+    });
+    expect(plan.kind).toBe('SUMMON');
+    if (plan.kind !== 'SUMMON') return;
+    expect(plan.outcome).not.toBe('ACCIDENT');
+  });
+
+  it('is still one thing at a time', () => {
+    // The exclusivity rule holds with three outcomes exactly as it did
+    // with two: a fight that opens with a blessing never also opens
+    // with something crossing.
+    for (let a = 0; a <= 1; a += 0.05) {
+      for (let b = 0; b <= 1; b += 0.25) {
+        const plan = planIntervention({
+          defs: DEFS,
+          candidates: HALF,
+          accidents: SUMMON_ACCIDENTS,
+          rng: dice(a, b, a, b, a, b),
+        });
+        if (plan.kind === 'SUMMON') expect('def' in plan).toBe(false);
+        if (plan.kind === 'MODIFIER') expect('arcanaId' in plan).toBe(false);
+        if (plan.kind === 'SUMMON' && plan.outcome === 'ACCIDENT') {
+          expect(plan.accident).not.toBeNull();
+        }
+        if (plan.kind === 'SUMMON' && plan.outcome !== 'ACCIDENT') {
+          expect(plan.accident).toBeNull();
+        }
+      }
+    }
+  });
+
+  describe('forcing one', () => {
+    it('skips the dice but not the conditions', () => {
+      const plan = planIntervention({
+        defs: DEFS,
+        candidates: HALF,
+        accidents: SUMMON_ACCIDENTS,
+        forcedSummon: 'ACCIDENT',
+        rng: dice(0.999),
+      });
+      expect(plan.kind).toBe('SUMMON');
+      if (plan.kind !== 'SUMMON') return;
+      expect(plan.outcome).toBe('ACCIDENT');
+    });
+
+    it('gives an ordinary fight when there is nothing left to cross', () => {
+      // Seen a week ago and still inside its cooldown, so the
+      // development switch has nothing to force. It settles outcomes;
+      // it does not invent them.
+      const plan = planIntervention({
+        defs: DEFS,
+        candidates: HALF,
+        accidents: SUMMON_ACCIDENTS,
+        accidentRecords: [SEEN_TODAY],
+        day: 10,
+        forcedSummon: 'ACCIDENT',
+        rng: dice(0),
+      });
+      expect(plan.kind).toBe('SUMMON');
+      if (plan.kind !== 'SUMMON') return;
+      expect(plan.outcome).toBe('SUCCESS');
+      expect(plan.accident).toBeNull();
+    });
   });
 });

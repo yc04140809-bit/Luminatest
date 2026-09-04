@@ -35,6 +35,8 @@ import { storyTriggerChance } from '../core/enemies/enemyEncounters';
 import { MOSS_RABBIT_ARCANA } from '../content/arcana/arcanaDefs';
 import { progressOf, type ArcanaConditionId } from '../core/arcana/arcana';
 import { summonSuccessChance, type SummonOutcome } from '../core/summon/summon';
+import { SUMMON_ACCIDENT_CONFIG } from '../core/summon/summonAccident';
+import { SUMMON_ACCIDENTS, UNKNOWN_ACCIDENT_001 } from '../content/summon/accidents';
 
 /**
  * DEV ONLY: pages in a few states worth looking at.
@@ -527,7 +529,7 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
 
       <div style={sectionTitle}>SUMMON — 不完全召喚の結果を固定</div>
       <div style={row}>
-        {(['SUCCESS', 'FAILURE'] as const).map((outcome) => (
+        {(['SUCCESS', 'FAILURE', 'ACCIDENT'] as const).map((outcome) => (
           <button
             key={outcome}
             className={summon === outcome ? 'btn primary' : 'btn'}
@@ -538,7 +540,7 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
               setSummon(outcome);
             }}
           >
-            {outcome === 'SUCCESS' ? '必ず成功' : '必ず不成立'}
+            {outcome === 'SUCCESS' ? '必ず成功' : outcome === 'FAILURE' ? '必ず不成立' : '必ず事故'}
           </button>
         ))}
         <button
@@ -562,6 +564,59 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
           ) * 100,
         )}
         %。100% は完全召喚なので、そもそも抽選しません。
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
+        「必ず事故」は候補が成立するときだけ効きます（構築度 {UNKNOWN_ACCIDENT_001.minProgress}〜
+        {UNKNOWN_ACCIDENT_001.maxProgress}%、かつ ACQUIRED でない、かつクールダウン明け）。
+        通常の事故確率は {Math.round(SUMMON_ACCIDENT_CONFIG.chance * 100)}%
+        （不完全召喚が起きたときの割合）。
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }} data-testid="accident-state">
+        {SUMMON_ACCIDENTS.map((def) => {
+          const record = world.getAccidentRecord(def.id);
+          return (
+            <div key={def.id}>
+              {def.id}：{record.state} / 観測{record.timesObserved}回 / 最終
+              {record.lastObservedDay === null ? ' なし' : ` ${record.lastObservedDay}日目`} /{' '}
+              {def.repeatPolicy} + {def.cooldownDays}日
+            </div>
+          );
+        })}
+      </div>
+      <div style={row}>
+        <button
+          className="btn"
+          style={smallBtn}
+          disabled={busy}
+          data-testid="accident-forget"
+          onClick={() => {
+            setBusy(true);
+            void world
+              .forgetObservedAccidents()
+              .catch((e) => console.error(e))
+              .finally(() => setBusy(false));
+          }}
+        >
+          観測記録を消す
+        </button>
+        {(['IDENTIFIED', 'ACQUIRED'] as const).map((state) => (
+          <button
+            key={state}
+            className="btn"
+            style={smallBtn}
+            disabled={busy}
+            data-testid={`accident-state-${state}`}
+            onClick={() => {
+              setBusy(true);
+              void world
+                .setAccidentState(UNKNOWN_ACCIDENT_001.id, state)
+                .catch((e) => console.error(e))
+                .finally(() => setBusy(false));
+            }}
+          >
+            {state}にする
+          </button>
+        ))}
       </div>
 
       <div style={sectionTitle}>ARCANA — 構築度を直接指定</div>

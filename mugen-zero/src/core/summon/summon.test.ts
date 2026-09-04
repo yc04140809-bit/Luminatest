@@ -106,25 +106,64 @@ describe('what the called thing does', () => {
     // what you know about it does neither.
     expect(ABILITY.name).not.toBe('リーフタックル');
     expect(ABILITY.name).not.toBe('苔かくれ');
-    expect(ABILITY.effect.kind).toBe('HEAL_PLAYER');
+    expect(ABILITY.effect.kind).toBe('MEND');
   });
 
-  it('is worth less when the memory is not all there', () => {
+  it('has something to do for somebody who is not hurt', () => {
+    // The reason this effect has two halves at all. A summon whose
+    // only answer was healing spent most of its appearances at the
+    // start of a fight, where nobody is hurt, doing nothing.
+    expect(ABILITY.effect.heal).toBeGreaterThan(0);
+    expect(ABILITY.effect.ward).toBeGreaterThan(0);
+  });
+
+  it('is worth less when the memory is not all there — both halves', () => {
     const whole = summonEffectFor(ABILITY, 'COMPLETE');
     const partial = summonEffectFor(ABILITY, 'INCOMPLETE');
-    expect(whole.amount).toBe(ABILITY.effect.amount);
-    expect(partial.amount).toBeLessThan(whole.amount);
+    expect(whole.heal).toBe(ABILITY.effect.heal);
+    expect(partial.heal).toBeLessThan(whole.heal);
+    expect(partial.ward).toBeLessThan(whole.ward);
+  });
+
+  it('never wards harder than a spent turn does', () => {
+    // 《身構える》 halves a blow and costs the player their turn.
+    // Nothing that arrives on its own may come near that, however
+    // large a number content writes.
+    const greedy: SummonAbilityDef = { ...ABILITY, effect: { kind: 'MEND', heal: 8, ward: 9 } };
+    expect(summonEffectFor(greedy, 'COMPLETE').ward).toBeLessThan(0.5);
+    expect(summonEffectFor(greedy, 'COMPLETE').ward).toBe(SUMMON_CONFIG.wardCeiling);
   });
 
   it('is never worth nothing at all', () => {
-    const tiny: SummonAbilityDef = { ...ABILITY, effect: { kind: 'HEAL_PLAYER', amount: 1 } };
-    expect(summonEffectFor(tiny, 'INCOMPLETE').amount).toBeGreaterThanOrEqual(1);
+    const tiny: SummonAbilityDef = { ...ABILITY, effect: { kind: 'MEND', heal: 1, ward: 0.1 } };
+    expect(summonEffectFor(tiny, 'INCOMPLETE').heal).toBeGreaterThanOrEqual(1);
   });
 
   it('does not edit the definition it was given', () => {
-    const before = ABILITY.effect.amount;
+    const before = ABILITY.effect.heal;
     summonEffectFor(ABILITY, 'INCOMPLETE');
-    expect(ABILITY.effect.amount).toBe(before);
+    expect(ABILITY.effect.heal).toBe(before);
+  });
+});
+
+describe('the third outcome', () => {
+  it('is not a face of the ordinary die', () => {
+    // An accident is not a very good success. It needs something in
+    // the world able to cross, which this function knows nothing
+    // about — so it can never come out of here, forced or not.
+    const seen = new Set<string>();
+    for (let i = 0; i <= 100; i++) {
+      const outcome = rollSummon({ progress: 40, rng: dice(i / 100) });
+      if (outcome) seen.add(outcome);
+    }
+    expect([...seen].sort()).toEqual(['FAILURE', 'SUCCESS']);
+  });
+
+  it('cannot be conjured by a development switch either', () => {
+    // Forcing settles how something goes, never whether the thing it
+    // is about exists. Asking for an accident here gets the roll.
+    const outcome = rollSummon({ progress: 40, forced: 'ACCIDENT', rng: dice(0) });
+    expect(outcome).toBe('SUCCESS');
   });
 });
 

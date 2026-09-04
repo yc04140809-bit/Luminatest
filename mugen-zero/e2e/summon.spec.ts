@@ -185,9 +185,11 @@ test.describe('an unfinished memory, at the start of a fight', () => {
     await expect(summoned).toBeVisible();
     await expect(summoned).toHaveAttribute('data-kind', 'INCOMPLETE');
     await expect(summoned).toContainText('ARCANA');
-    // 森の息吹, and not リーフタックル or 苔かくれ.
-    const message = page.getByTestId('bp-message');
-    await expect(message).toContainText('HP');
+    // 森の息吹, and not リーフタックル or 苔かくれ. At the start of a
+    // fight nobody is hurt, so what it leaves is cover rather than
+    // health — and it always leaves one or the other.
+    await expect(page.getByTestId('bp-said')).toContainText('森の息吹');
+    await expect(page.getByTestId('bp-said-result')).toContainText('森の加護');
     // It is a moment, not a party member: it goes on its own.
     await expect(summoned).toHaveCount(0, { timeout: 6_000 });
   });
@@ -272,18 +274,24 @@ test.describe('a finished memory', () => {
     await expect(summoned).toBeVisible();
     await expect(summoned).toHaveAttribute('data-kind', 'COMPLETE');
     expect(await playerHp(page)).toBeGreaterThan(hurt);
-    await expect(page.getByTestId('bp-message')).toContainText('回復');
+    await expect(page.getByTestId('bp-said-result')).toContainText('回復');
   });
 
   test('is worth more whole than in pieces', async ({ page }) => {
     // The same ability, called from a finished memory and from an
     // unfinished one. Whole is worth more; that is what finishing buys.
+    // Both sides are wounded first: the ability heals somebody who is
+    // hurt, and it is the healing that is being compared.
     await freshWorld(page);
-    await openBattle(page, { arcana: '中', summon: 'SUCCESS', enemyAction: 'ATTACK' });
+    await openBattle(page, { arcana: 'あと一歩', summon: 'SUCCESS', enemyAction: 'ATTACK' });
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-summoned')).toBeVisible();
+    await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 8_000 });
+    await guard(page);
+    await guard(page);
+    await page.getByTestId('bp-arcana').click();
+    await page.getByTestId('bp-arcana-moss_rabbit').click();
     const partial = Number(
-      /HPが(\d+)回復/.exec((await page.getByTestId('bp-message').textContent()) ?? '')?.[1] ?? '0',
+      /HPが(\d+)回復/.exec((await page.getByTestId('bp-said').textContent()) ?? '')?.[1] ?? '0',
     );
 
     await freshWorld(page);
@@ -292,10 +300,10 @@ test.describe('a finished memory', () => {
     await guard(page);
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
-    await expect(page.getByTestId('bp-summoned')).toBeVisible();
     const whole = Number(
-      /HPが(\d+)回復/.exec((await page.getByTestId('bp-message').textContent()) ?? '')?.[1] ?? '0',
+      /HPが(\d+)回復/.exec((await page.getByTestId('bp-said').textContent()) ?? '')?.[1] ?? '0',
     );
+    expect(partial).toBeGreaterThan(0);
     expect(whole).toBeGreaterThan(partial);
   });
 
@@ -337,15 +345,19 @@ test.describe('a finished memory', () => {
     await expect(page.getByTestId('bp-arcana')).toBeEnabled();
   });
 
-  test('healing at full health does nothing, and says so rather than lying', async ({ page }) => {
+  test('at full health leaves cover instead — never nothing', async ({ page }) => {
+    // This used to say "HPはもう満ちている。" and stop, which meant a
+    // player who spent their one summon at full health got a sentence
+    // and no event. The ability now always has something to do.
     await freshWorld(page);
     await openBattle(page, { arcana: 'COMPLETE' });
     expect(await playerHp(page)).toBe(40);
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
-    await expect(page.getByTestId('bp-summoned')).toBeVisible();
     expect(await playerHp(page)).toBe(40);
-    await expect(page.getByTestId('bp-message')).toContainText('もう満ちている');
+    await expect(page.getByTestId('bp-said')).toContainText('身体を包んだ');
+    await expect(page.getByTestId('bp-said-result')).toContainText('森の加護');
+    await expect(page.getByTestId('bp-said')).not.toContainText('もう満ちている');
     // It was still spent: the player chose to spend it.
     await expect(page.getByTestId('bp-arcana')).toBeDisabled();
   });

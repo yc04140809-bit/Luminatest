@@ -89,7 +89,7 @@ export function setDebugChaosIntervention(id: ChaosInterventionId | null): void 
 export function debugSummon(): SummonOutcome | null {
   if (!DEV_ADMIN_ENABLED) return null;
   const raw = read(SUMMON_KEY);
-  return raw === 'SUCCESS' || raw === 'FAILURE' ? raw : null;
+  return raw === 'SUCCESS' || raw === 'FAILURE' || raw === 'ACCIDENT' ? raw : null;
 }
 
 export function setDebugSummon(outcome: SummonOutcome | null): void {

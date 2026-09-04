@@ -18,6 +18,11 @@ import {
   type Rng,
 } from './chaosIntervention';
 import { SUMMON_CONFIG, canSummon, rollSummon, type SummonOutcome } from '../summon/summon';
+import {
+  pickAccident,
+  type AccidentRecord,
+  type SummonAccidentDef,
+} from '../summon/summonAccident';
 
 /** An ARCANA she could reach for, and how much of it there is. */
 export interface SummonCandidate {
@@ -40,6 +45,12 @@ export type InterventionPlan =
       arcanaId: string;
       progress: number;
       outcome: SummonOutcome;
+      /**
+       * What crossed, when the outcome is ACCIDENT. Null otherwise, and
+       * the two always agree: an ACCIDENT without a candidate is not a
+       * state this can be in.
+       */
+      accident: SummonAccidentDef | null;
     };
 
 export interface PlanOptions {
@@ -54,6 +65,18 @@ export interface PlanOptions {
   arcanaShare?: number;
   /** Development only. */
   forcedChaos?: ChaosInterventionId | null;
+  /** What could cross an unfinished memory here, and where the player
+   *  already stands with each of them. */
+  accidents?: readonly SummonAccidentDef[];
+  accidentRecords?: readonly AccidentRecord[];
+  /** ARCANA the player owns outright, which can never cross by accident. */
+  acquiredArcanaIds?: readonly string[];
+  /** Where and when this fight is, for candidates that care. */
+  location?: string | null;
+  year?: number | null;
+  /** Today, in absolute world days, for cooldowns. */
+  day?: number | null;
+  accidentChance?: number;
   /**
    * Development only: make this fight open with an attempt at a summon,
    * and settle how it goes. Ignored when there is nothing to summon —
@@ -77,12 +100,7 @@ export function planIntervention(options: PlanOptions): InterventionPlan {
   // unfinished memory: this settles the outcome, not the existence.
   if (options.forcedSummon && candidates.length > 0) {
     const chosen = candidates[0];
-    return {
-      kind: 'SUMMON',
-      arcanaId: chosen.arcanaId,
-      progress: chosen.progress,
-      outcome: options.forcedSummon,
-    };
+    return settle(options, chosen, rng, options.forcedSummon);
   }
 
   const def = rollChaosIntervention({
@@ -99,14 +117,63 @@ export function planIntervention(options: PlanOptions): InterventionPlan {
   const share = options.arcanaShare ?? SUMMON_CONFIG.arcanaShare;
   if (!options.forcedChaos && candidates.length > 0 && rng() < share) {
     const chosen = candidates[Math.min(candidates.length - 1, Math.floor(rng() * candidates.length))];
-    const outcome = rollSummon({ progress: chosen.progress, rng });
-    // canSummon already held, so this cannot be null; the check is here
+    const plan = settle(options, chosen, rng, null);
+    // canSummon already held, so this cannot be NONE; the check is here
     // so a future change to the rules cannot silently produce a summon
     // of nothing.
-    if (outcome) {
-      return { kind: 'SUMMON', arcanaId: chosen.arcanaId, progress: chosen.progress, outcome };
-    }
+    if (plan.kind === 'SUMMON') return plan;
   }
 
   return { kind: 'MODIFIER', def };
+}
+
+/**
+ * How one attempt at one unfinished memory turns out.
+ *
+ * The accident is asked about first, and this is the important part of
+ * the order: it is not a rarer grade of success that a very good roll
+ * upgrades into. It is a different thing happening instead — the
+ * memory did not hold OR fail, it was crossed — so it is settled
+ * before the ordinary die is ever thrown, and only ever when the world
+ * already had something that could cross it.
+ */
+function settle(
+  options: PlanOptions,
+  chosen: SummonCandidate,
+  rng: Rng,
+  forced: SummonOutcome | null,
+): InterventionPlan {
+  const accident = pickAccident({
+    defs: options.accidents ?? [],
+    progress: chosen.progress,
+    records: options.accidentRecords,
+    acquiredArcanaIds: options.acquiredArcanaIds,
+    day: options.day ?? null,
+    location: options.location ?? null,
+    year: options.year ?? null,
+    chance: options.accidentChance,
+    rng,
+    forced: forced === 'ACCIDENT',
+  });
+  if (accident) {
+    return {
+      kind: 'SUMMON',
+      arcanaId: chosen.arcanaId,
+      progress: chosen.progress,
+      outcome: 'ACCIDENT',
+      accident,
+    };
+  }
+  // Asked for an accident and the world had none to give: an ordinary
+  // fight, not a pretend one. Development switches settle outcomes,
+  // never existence.
+  const outcome = rollSummon({ progress: chosen.progress, rng, forced });
+  if (!outcome) return { kind: 'NONE' };
+  return {
+    kind: 'SUMMON',
+    arcanaId: chosen.arcanaId,
+    progress: chosen.progress,
+    outcome,
+    accident: null,
+  };
 }

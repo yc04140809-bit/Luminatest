@@ -2654,3 +2654,259 @@ body,
   font-size: 12px;
   line-height: 1.8;
 }
+
+/* ============================================================
+   SUMMONING ACCIDENTS — a memory the player does not have,
+   crossing one they do.
+
+   The whole visual brief is in what is NOT here: no white flash,
+   no blackout, no full-screen modal, no glitch bars, no rapid
+   flicker. A game that appears to be breaking is a game the
+   player distrusts. This is supposed to feel like the world
+   misremembering itself for a second, so everything below is
+   slow, small, and leaves the forest exactly where it was.
+   ============================================================ */
+
+/* The ground is disturbed. Two pixels, once, over most of two
+   seconds — enough to notice, not enough to read as a shake. */
+.bp-stage.crossed {
+  animation: bp-cross-stir 1.9s ease-in-out;
+}
+@keyframes bp-cross-stir {
+  0%, 100% { transform: none; }
+  18% { transform: translate(-1.5px, 1px); }
+  34% { transform: translate(1.5px, -1px); }
+  52% { transform: translate(-1px, 0); }
+  70% { transform: translate(1px, 0.5px); }
+}
+
+/* The thing itself.
+
+   Not an actor slot. Everyone else on this field is sized as a
+   share of the stage and stands on the ground line; this covers
+   most of the stage and ignores it, because the entire point of
+   the moment is that it does not fit in the frame it arrived in.
+   It is the delivered PNG at its own colours — no filter, no
+   recolour, no tint — mirrored so that it faces the creature,
+   which is the only decision this stylesheet makes about it. */
+.bp-dragon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+  animation: bp-dragon-arrive 0.75s ease-out;
+}
+.bp-dragon-art {
+  width: 112%;
+  max-width: none;
+  height: 100%;
+  object-fit: cover;
+  /* Framed on the head. The drawing is wider than a phone, so the
+     crop has to choose, and what has to survive it is the face and
+     the open jaw — that is what tells the player this is not a
+     creature they were expecting. */
+  object-position: 70% 30%;
+  /* Facing the enemy, who stands on the left. The drawing faces
+     right; nothing else about it is touched. */
+  transform: scaleX(-1);
+  filter: drop-shadow(0 12px 30px rgba(20, 30, 50, 0.45));
+}
+@keyframes bp-dragon-arrive {
+  0% { opacity: 0; transform: scale(1.06); }
+  40% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+/* It comes apart the way a memory does: the outline loosens and
+   drifts. Not an explosion, and nothing flashes. */
+.bp-dragon.unravelling {
+  animation: bp-dragon-unravel 1s ease-in forwards;
+}
+@keyframes bp-dragon-unravel {
+  0% { opacity: 1; filter: blur(0); transform: none; }
+  55% { opacity: 0.5; filter: blur(2px); }
+  100% { opacity: 0; filter: blur(7px); transform: scale(1.03) translateY(-8px); }
+}
+
+/* 《エンシェントブレス》.
+
+   The whole image, at the full width of the phone. The lettering
+   is at one edge of the artwork and the dragon's head at the
+   other, so every crop tight enough to enlarge it loses one of
+   the four things that have to stay legible in portrait — the
+   face, the mouth, the beam and the title. So: no crop.
+
+   It takes the middle of the battlefield and leaves the rest of
+   the screen alone. The forest is still above and below it, and
+   the plates, the message and the frame are all still there. */
+.bp-breath {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 4;
+  animation: bp-breath-in 0.36s ease-out;
+}
+.bp-breath-art {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  display: block;
+  box-shadow: 0 0 0 1px rgba(198, 166, 96, 0.45), 0 18px 40px rgba(10, 16, 30, 0.5);
+  animation: bp-breath-push 2.2s ease-out;
+}
+@keyframes bp-breath-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes bp-breath-push {
+  0% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Her card, coming apart. Same card, same place, same size — what
+   changed is that it no longer knows what it is holding. */
+.bp-accident-card {
+  border-color: rgba(150, 190, 235, 0.5);
+  box-shadow: inset 0 0 0 1px rgba(150, 190, 235, 0.18);
+}
+.bp-accident-id i {
+  color: #c7d6ea;
+}
+.bp-accident-hash {
+  font-weight: 400;
+  color: #9fb6d6;
+  letter-spacing: 0.08em;
+  /* One slow breath, not a strobe. */
+  animation: bp-cross-unsure 1.6s ease-in-out infinite;
+}
+@keyframes bp-cross-unsure {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.bp-accident-state {
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  color: #8fa6cd;
+}
+
+/* And then nobody explains it. */
+.bp-accident-talk {
+  gap: 4px;
+}
+.bp-accident-turn {
+  display: block;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #ece6d8;
+}
+.bp-accident-turn i {
+  font-style: normal;
+  margin-right: 8px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--mugen-memory, #8fa6cd);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-stage.crossed,
+  .bp-dragon,
+  .bp-breath,
+  .bp-breath-art,
+  .bp-accident-hash { animation: none !important; }
+  .bp-dragon.unravelling { opacity: 0; }
+}
+:root[data-reduced-motion='on'] .bp-stage.crossed,
+:root[data-reduced-motion='on'] .bp-dragon,
+:root[data-reduced-motion='on'] .bp-breath,
+:root[data-reduced-motion='on'] .bp-breath-art,
+:root[data-reduced-motion='on'] .bp-accident-hash { animation: none !important; }
+/* Reduced motion still has to let it leave. */
+:root[data-reduced-motion='on'] .bp-dragon.unravelling { opacity: 0; }
+
+/* ---- what a called memory says while it is here ---- */
+/* Three short lines in the plate the one line used to be in. The
+   plate is replaced, not added to, so nothing below it moves. */
+.bp-said {
+  padding: 8px 14px 9px;
+}
+.bp-said-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+}
+.bp-said-name {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--mugen-gold);
+}
+.bp-said-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--mugen-text-secondary);
+}
+.bp-said-result {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--mugen-text);
+}
+
+/* ---- the book's sightings ---- */
+.arcana-glimpsed {
+  margin: -6px 0 8px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: var(--mugen-memory);
+}
+.arcana-card.unknown {
+  border-style: dashed;
+  border-color: rgba(90, 108, 147, 0.4);
+  background: var(--mugen-surface-alt);
+  cursor: default;
+}
+.arcana-card.unknown .arcana-no,
+.arcana-card.unknown .arcana-name {
+  color: var(--mugen-memory);
+}
+.arcana-unknown-note {
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--mugen-text-muted);
+}
+.arcana-chip.unknown {
+  border-color: rgba(90, 108, 147, 0.5);
+  color: var(--mugen-memory);
+}
+.arcana-witnessed {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding-top: 7px;
+  border-top: 1px solid var(--mugen-border);
+}
+.arcana-witnessed i {
+  font-style: normal;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--mugen-text-muted);
+}
+.arcana-witnessed b {
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--mugen-memory);
+}

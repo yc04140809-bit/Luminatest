@@ -46,12 +46,20 @@ import { CREATURE_LIFE_CHOICE_EVENT_TYPE } from '../../content/events/creatureLi
 import {
   applyArcanaConditions,
   emptyArcanaRecord,
+  isComplete,
   readArcanaRecord,
   type ArcanaConditionId,
   type ArcanaGain,
   type ArcanaRecord,
 } from '../arcana/arcana';
 import { ARCANA_DEFS, arcanaDef } from '../../content/arcana/arcanaDefs';
+import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
+import {
+  emptyAccidentRecord,
+  observed as observedAccident,
+  type AccidentRecord,
+  type AccidentState,
+} from '../summon/summonAccident';
 import type { NarrativeSeedStatus } from '../narrative/types';
 
 const CLOCK_KEY = 'world_clock';
@@ -95,6 +103,20 @@ const ENEMY_INDIVIDUALS_KEY = 'enemy_individuals';
  * is known yet" — the same answer a new world gives.
  */
 const ARCANA_KEY = 'arcana_records';
+/**
+ * SUMMONING ACCIDENTS: where the player stands with each thing that
+ * has ever crossed them.
+ *
+ * One row per candidate — how far along it is, how many times it has
+ * been seen, and when — which is everything the pool needs to decide
+ * whether it may happen again. Deliberately NOT a WORLD MEMORY event:
+ * killing a man changes the world and glimpsing something you cannot
+ * name does not, and the archive must not fill up with sightings.
+ *
+ * Absent in a save written before this build, which reads as "nothing
+ * has crossed yet" — the same answer a new world gives.
+ */
+const ACCIDENTS_KEY = 'summon_accidents';
 
 interface ExperienceLog {
   /** eventId -> absolute day it last played. */
@@ -185,6 +207,7 @@ export class World {
   private enemyProgress: Record<string, EnemyProgress>;
   private enemyIndividuals: EnemyIndividual[];
   private arcana: Record<string, ArcanaRecord>;
+  private accidents: Record<string, AccidentRecord>;
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -196,6 +219,7 @@ export class World {
     enemyProgress: Record<string, EnemyProgress>,
     enemyIndividuals: EnemyIndividual[],
     arcana: Record<string, ArcanaRecord>,
+    accidents: Record<string, AccidentRecord>,
   ) {
     this.events = events;
     this.clock = clock;
@@ -205,6 +229,7 @@ export class World {
     this.enemyProgress = enemyProgress;
     this.enemyIndividuals = enemyIndividuals;
     this.arcana = arcana;
+    this.accidents = accidents;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -228,6 +253,7 @@ export class World {
       ((await store.getStateValue(ENEMY_INDIVIDUALS_KEY)) as EnemyIndividual[] | undefined) ?? [];
     const arcanaRaw =
       ((await store.getStateValue(ARCANA_KEY)) as Record<string, unknown> | undefined) ?? {};
+    const accidentsRaw = await store.getStateValue(ACCIDENTS_KEY);
     return new World(
       store,
       events,
@@ -238,6 +264,7 @@ export class World {
       enemyProgress,
       enemyIndividuals,
       readArcanaRows(arcanaRaw),
+      readAccidentRows(accidentsRaw),
     );
   }
 
@@ -286,6 +313,7 @@ export class World {
       // a moss rabbit and closed the game must be offered their world
       // back, not a new one.
       Object.values(this.arcana).some((record) => record.met.length > 0) ||
+      Object.keys(this.accidents).length > 0 ||
       this.clock.worldYear !== INITIAL_CLOCK.worldYear ||
       this.clock.worldDay !== INITIAL_CLOCK.worldDay
     );
@@ -847,6 +875,84 @@ export class World {
     this.emit();
   }
 
+  // ---- SUMMONING ACCIDENTS (what the player glimpsed) ----
+
+  /** Where this save stands with everything that could cross it. */
+  getAccidentRecords(): AccidentRecord[] {
+    return SUMMON_ACCIDENTS.map((def) => this.getAccidentRecord(def.id));
+  }
+
+  /** Never null: a thing nobody has seen is UNSEEN, not missing. */
+  getAccidentRecord(accidentId: string): AccidentRecord {
+    const found = this.accidents[accidentId];
+    return found ? { ...found } : emptyAccidentRecord(accidentId);
+  }
+
+  /** The ones actually witnessed, in the order they first were. */
+  getObservedAccidents(): string[] {
+    return SUMMON_ACCIDENTS.filter((def) => this.getAccidentRecord(def.id).timesObserved > 0).map(
+      (def) => def.id,
+    );
+  }
+
+  /**
+   * ARCANA the player holds outright.
+   *
+   * What the accident pool excludes by. A completed page is a thing
+   * the player summons on purpose, and it must never turn up again as
+   * something crossing them by chance.
+   */
+  getAcquiredArcanaIds(): string[] {
+    return ARCANA_DEFS.filter((def) => isComplete(def, this.getArcanaRecord(def.arcanaId))).map(
+      (def) => def.arcanaId,
+    );
+  }
+
+  /**
+   * The player saw something cross. Says whether that was the first.
+   *
+   * Counted rather than merely flagged: how many times and how long
+   * ago are what a repeat policy and a cooldown are made of.
+   */
+  async recordAccidentObserved(accidentId: string): Promise<boolean> {
+    const current = this.getAccidentRecord(accidentId);
+    const day = toAbsoluteDay(this.clock);
+    const next = { ...this.accidents, [accidentId]: observedAccident(current, day) };
+    await this.store.commit({ putState: [{ key: ACCIDENTS_KEY, value: next }] });
+    this.accidents = next;
+    this.emit();
+    return current.timesObserved === 0;
+  }
+
+  /**
+   * Where the player has got to with one of them.
+   *
+   * The entry point for UNKNOWN → IDENTIFIED → ACQUIRED. Nothing in
+   * the game calls this yet, because the event that would — actually
+   * meeting the thing — is a later phase. It exists so that phase is
+   * a call rather than a migration.
+   */
+  async setAccidentState(accidentId: string, state: AccidentState): Promise<void> {
+    const current = this.getAccidentRecord(accidentId);
+    if (current.state === state) return;
+    const next = { ...this.accidents, [accidentId]: { ...current, state } };
+    await this.store.commit({ putState: [{ key: ACCIDENTS_KEY, value: next }] });
+    this.accidents = next;
+    this.emit();
+  }
+
+  /**
+   * Development only: forget what was glimpsed, so it can be glimpsed
+   * again. Testing a sight with a month-long cooldown otherwise means
+   * a new save every time.
+   */
+  async forgetObservedAccidents(): Promise<void> {
+    if (Object.keys(this.accidents).length === 0) return;
+    await this.store.commit({ putState: [{ key: ACCIDENTS_KEY, value: {} }] });
+    this.accidents = {};
+    this.emit();
+  }
+
   async recordFutureSiteDiscovery(siteId: string): Promise<MemoryEvent> {
     const def = futureSiteDef(siteId);
     if (!def) throw new Error(`Unknown future site: ${siteId}`);
@@ -948,6 +1054,10 @@ export class World {
     // played: leaving the book filled in while its history was erased
     // would be a save that disagrees with itself.
     this.arcana = readArcanaRows({});
+    // Including what it glimpsed. A reset world has never seen
+    // anything it cannot explain, and the once-per-save sight is
+    // available again because it is a new save.
+    this.accidents = {};
     this.emit();
   }
 }
@@ -962,6 +1072,42 @@ function readArcanaRows(raw: Record<string, unknown>): Record<string, ArcanaReco
   const rows: Record<string, ArcanaRecord> = {};
   for (const def of ARCANA_DEFS) {
     rows[def.arcanaId] = readArcanaRecord(def, raw[def.arcanaId]);
+  }
+  return rows;
+}
+
+
+/**
+ * Where the player stands with each thing that can cross, restored
+ * from whatever the save happens to hold.
+ *
+ * Two shapes are accepted. The current one is a map of records. The
+ * other is the flat list of ids an earlier build of this feature
+ * wrote, which is read as "seen once, at a time nobody wrote down" —
+ * a save must never be made worthless by the shape of its own
+ * bookkeeping changing.
+ */
+function readAccidentRows(raw: unknown): Record<string, AccidentRecord> {
+  const rows: Record<string, AccidentRecord> = {};
+  if (Array.isArray(raw)) {
+    for (const id of raw) {
+      if (typeof id !== 'string') continue;
+      rows[id] = { accidentId: id, state: 'OBSERVED', timesObserved: 1, lastObservedDay: null };
+    }
+    return rows;
+  }
+  if (!raw || typeof raw !== 'object') return rows;
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const row = value as Partial<AccidentRecord> | null;
+    if (!row || typeof row !== 'object') continue;
+    const state = row.state;
+    rows[id] = {
+      accidentId: id,
+      state:
+        state === 'OBSERVED' || state === 'IDENTIFIED' || state === 'ACQUIRED' ? state : 'UNSEEN',
+      timesObserved: Number.isFinite(row.timesObserved) ? Math.max(0, Number(row.timesObserved)) : 0,
+      lastObservedDay: Number.isFinite(row.lastObservedDay) ? Number(row.lastObservedDay) : null,
+    };
   }
   return rows;
 }

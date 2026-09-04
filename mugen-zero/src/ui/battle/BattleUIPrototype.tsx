@@ -23,7 +23,12 @@ import {
   type SummonKind,
   type SummonOutcome,
 } from '../../core/summon/summon';
-import { healPlayer } from '../../game/battle/battleLogic';
+import { mendPlayer, strikeAllEnemies } from '../../game/battle/battleLogic';
+import type { AccidentRecord, SummonAccidentDef } from '../../core/summon/summonAccident';
+import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
+import { unknownArcanaDef } from '../../content/arcana/unknownArcana';
+import ancientDragonArt from '../../assets/arcana/unknown-ancient-dragon.png';
+import ancientBreathArt from '../../assets/arcana/ancient-breath.png';
 import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 
@@ -144,6 +149,20 @@ interface Props {
    * call, so it can never invent a memory the player has not made.
    */
   forcedSummon?: SummonOutcome | null;
+  /** Where this save stands with each thing that could cross it. */
+  accidentRecords?: readonly AccidentRecord[];
+  /** ARCANA the player owns, which can never cross by accident. */
+  acquiredArcanaIds?: readonly string[];
+  /** Today, in absolute world days, for the cooldown between sightings. */
+  worldDay?: number | null;
+  /**
+   * Something crossed. Reported once, as it happens.
+   *
+   * Seeing is not obtaining: what the caller does with this is write
+   * down that it was seen, and nothing else. No ARCANA is granted, no
+   * page is started, and nothing enters WORLD MEMORY.
+   */
+  onAccidentObserved?: (accidentId: string) => void;
   /**
    * Something about this creature was just seen for the first time.
    *
@@ -205,6 +224,59 @@ const KNOCKDOWN_MS = 340;
 const CHAOS_BEAT_MS = 1800;
 
 /**
+ * An accident, beat by beat.
+ *
+ * It starts as an ordinary attempt and then stops being one. The
+ * shape below is the whole of the direction: something goes wrong
+ * quietly, she does not understand it either, the card forgets what
+ * it was holding, and only then does the thing itself arrive — big
+ * enough that there is no mistaking it for a summon, and gone again
+ * before it can become one.
+ *
+ * Nothing in here flashes white, blacks the screen out, or opens a
+ * modal. A game that appears to be breaking is a game the player
+ * stops trusting; this is a world misremembering itself.
+ */
+const ACCIDENT_BEATS = {
+  /** 「……え？」 — she notices before the player does. */
+  CROSS: 900,
+  /** The half-second of nothing after it. This beat is the point. */
+  PAUSE: 550,
+  /** ARCANA #001 モスラビット → ARCANA #??? UNKNOWN. */
+  UNKNOWN: 1100,
+  /** It is simply there. Nothing attacks yet: look at it. */
+  DRAGON: 900,
+  /** The cut-in, and the damage. */
+  BREATH: 2200,
+  /** It comes apart the way a memory does, not like an explosion. */
+  FADE: 1000,
+  /** And nobody explains it, least of all her. */
+  TALK: 5200,
+} as const;
+
+type AccidentBeat = keyof typeof ACCIDENT_BEATS | 'NONE';
+
+/** In order, so the next beat is never spelled out twice. */
+const ACCIDENT_ORDER: AccidentBeat[] = [
+  'CROSS',
+  'PAUSE',
+  'UNKNOWN',
+  'DRAGON',
+  'BREATH',
+  'FADE',
+  'TALK',
+  'NONE',
+];
+
+/** What the pair of them say afterwards. Nobody explains anything. */
+const ACCIDENT_TALK: readonly { who: string; line: string }[] = [
+  { who: 'あなた', line: '……今の、何だったんだ？' },
+  { who: 'ケイオス', line: '…………。' },
+  { who: 'あなた', line: 'ケイオス？' },
+  { who: 'ケイオス', line: '……知らない。' },
+];
+
+/**
  * BATTLE UI — PROTOTYPE.
  *
  * Not the battle screen. A second one, built beside it so that the
@@ -237,6 +309,10 @@ export function BattleUIPrototype({
   forcedChaos = null,
   arcana = [],
   forcedSummon = null,
+  accidentRecords = [],
+  acquiredArcanaIds = [],
+  worldDay = null,
+  onAccidentObserved,
   onObserved,
   onNormalEnd,
   onMugenChoice,
@@ -254,6 +330,11 @@ export function BattleUIPrototype({
     planIntervention({
       defs: CHAOS_INTERVENTIONS,
       candidates: arcana.map((a) => ({ arcanaId: a.arcanaId, progress: a.progress })),
+      accidents: SUMMON_ACCIDENTS,
+      accidentRecords,
+      acquiredArcanaIds,
+      day: worldDay,
+      location: battleLocationId,
       forcedChaos,
       forcedSummon,
     }),
@@ -278,6 +359,28 @@ export function BattleUIPrototype({
    * one thing, and it goes.
    */
   const [summoned, setSummoned] = useState<{ arcana: BattleArcana; kind: SummonKind } | null>(null);
+  /**
+   * What a summon just said, while it is saying it.
+   *
+   * The message plate normally shows the last line of the log. For the
+   * second and a half a memory is standing on the field it shows this
+   * instead: the ability's name, what it did, and what came of it, all
+   * three at once. That is the fix for "a summon at full health told
+   * the player nothing" — it is not that nothing happened, it is that
+   * one line at the bottom of a log was never enough room to say what.
+   */
+  const [said, setSaid] = useState<{ name: string; line: string; result: string } | null>(null);
+  /**
+   * The accident, if this fight has one, and which beat it is on.
+   *
+   * NONE while nothing has crossed. It never returns to NONE from TALK
+   * by any route but time or a tap, and nothing about it is rolled
+   * here — the plan settled it before the first render.
+   */
+  const [accidentBeat, setAccidentBeat] = useState<AccidentBeat>('NONE');
+  const accident: SummonAccidentDef | null =
+    plan.kind === 'SUMMON' && plan.outcome === 'ACCIDENT' ? plan.accident : null;
+  const unknown = accident ? unknownArcanaDef(accident.unknownArcanaId) : null;
   /** The complete memories already spent in this fight. */
   const [spent, setSpent] = useState<string[]>([]);
   const [arcanaTrayOpen, setArcanaTrayOpen] = useState(false);
@@ -330,13 +433,49 @@ export function BattleUIPrototype({
   useEffect(() => {
     if (showingChaos || openingResolved.current) return;
     openingResolved.current = true;
-    if (plan.kind === 'SUMMON' && plan.outcome === 'SUCCESS' && openingSummon) {
+    if (plan.kind !== 'SUMMON') return;
+    if (plan.outcome === 'SUCCESS' && openingSummon) {
       callArcana(openingSummon, 'INCOMPLETE');
+      return;
+    }
+    if (plan.outcome === 'ACCIDENT' && accident) {
+      // Written down as it happens rather than when the beat ends: a
+      // player who closes the game mid-sight still saw it.
+      onAccidentObserved?.(accident.id);
+      setAccidentBeat('CROSS');
     }
     // The card is what carries the outcome; nothing else to do on a
     // failure, which is the point of it being harmless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showingChaos]);
+
+  /** One beat at a time, in order, and then an ordinary fight. */
+  useEffect(() => {
+    if (accidentBeat === 'NONE') return;
+    const ms = ACCIDENT_BEATS[accidentBeat];
+    const t = setTimeout(() => {
+      setAccidentBeat((beat) => ACCIDENT_ORDER[ACCIDENT_ORDER.indexOf(beat) + 1] ?? 'NONE');
+    }, ms);
+    return () => clearTimeout(t);
+  }, [accidentBeat]);
+
+  /**
+   * The breath lands as its picture appears, once.
+   *
+   * Through the ordinary battle rules, not around them: everything it
+   * brings to zero goes VICTORY → down → the four answers, exactly as
+   * if the player had done it. An accident is not allowed to decide
+   * anybody's fate.
+   */
+  const breathed = useRef(false);
+  useEffect(() => {
+    if (accidentBeat !== 'BREATH' || breathed.current || !accident) return;
+    breathed.current = true;
+    const effect = accident.ability.effect;
+    if (effect.kind === 'STRIKE_ALL') {
+      setBattle((current) => strikeAllEnemies(current, effect.amount));
+    }
+  }, [accidentBeat, accident]);
 
   useEffect(() => {
     if (battle.outcome === 'DEFEAT') {
@@ -389,11 +528,27 @@ export function BattleUIPrototype({
   const callArcana = (entry: BattleArcana, kind: SummonKind) => {
     setSummoned({ arcana: entry, kind });
     const effect = summonEffectFor(entry.ability, kind);
-    if (effect.kind === 'HEAL_PLAYER') {
-      setBattle((current) => healPlayer(current, effect.amount, `《${entry.ability.name}》`));
+    if (effect.kind === 'MEND') {
+      setBattle((current) => {
+        // Which of its two faces the player gets depends on whether
+        // they are hurt, and the rule for that lives in the battle,
+        // not here. The screen only reads back what happened.
+        const hurt = current.playerHp < current.playerMaxHp;
+        const line = hurt ? entry.ability.line : entry.ability.fullLine;
+        const next = mendPlayer(current, effect, line);
+        setSaid({
+          name: entry.ability.name,
+          line,
+          result: next.log[next.log.length - 1] ?? '',
+        });
+        return next;
+      });
     }
     timers.current.push(
-      window.setTimeout(() => setSummoned(null), SUMMON_CONFIG.stayMs),
+      window.setTimeout(() => {
+        setSummoned(null);
+        setSaid(null);
+      }, SUMMON_CONFIG.stayMs),
     );
   };
 
@@ -436,6 +591,17 @@ export function BattleUIPrototype({
   const downed = beaten && stance === 'DOWNED';
   const downVisual = species.battleVisuals.down;
   const showingDown = downed && downVisual !== null;
+  /**
+   * On the field from the moment it arrives until it comes apart.
+   *
+   * Three beats rather than one: it is there, it breathes, and it
+   * unravels. It never outlives that — nothing joins the party, and
+   * the battlefield afterwards is the battlefield from before.
+   */
+  const showingDragon =
+    accidentBeat === 'DRAGON' || accidentBeat === 'BREATH' || accidentBeat === 'FADE';
+  /** The fight itself is suspended while any of it is happening. */
+  const inAccident = accidentBeat !== 'NONE';
   const backdrop = locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
   const enemyCrop = cropOf(showingDown ? downVisual! : species.battleVisuals.normal);
@@ -465,7 +631,11 @@ export function BattleUIPrototype({
   return (
     <div className="screen bp-screen" data-testid="battle-prototype">
       {/* 1. The world. Its own colour, nothing over it. */}
-      <div className="bp-stage" ref={stageRef}>
+      <div
+        className={`bp-stage${accidentBeat === 'CROSS' ? ' crossed' : ''}`}
+        ref={stageRef}
+        data-accident={accidentBeat === 'NONE' ? undefined : accidentBeat}
+      >
         {backdrop && <img className="bp-bg" src={backdrop} alt="" aria-hidden="true" />}
 
         {/* 2. The creature: left, and further up the path than they are,
@@ -530,6 +700,52 @@ export function BattleUIPrototype({
                both of them are moss rabbits. It is smaller than the
                real one, it stands inside a ring of her light, and it is
                labelled; nothing about the drawing itself is recoloured. */}
+        {/* The thing that crossed.
+            Delivered art, used as delivered: no recolour, no redraw,
+            no filter. It is mirrored, and only mirrored, because the
+            drawing faces right and the creature it has come for is on
+            the left — the one thing this screen decides about it is
+            which way it is looking.
+
+            Not sized like a summon. A summoned moss rabbit is 15% of
+            the field; this is most of it, on purpose, because the
+            whole message of the moment is that it does not belong in
+            the frame it arrived in. */}
+        {showingDragon && (
+          <div
+            className={`bp-dragon${accidentBeat === 'FADE' ? ' unravelling' : ''}`}
+            data-testid="bp-dragon"
+            data-arcana={unknown?.arcanaId ?? ''}
+            data-beat={accidentBeat}
+            aria-label="？？？？？？？"
+          >
+            <img className="bp-dragon-art" src={ancientDragonArt} alt="" />
+          </div>
+        )}
+
+        {/* 《エンシェントブレス》 — the cut-in.
+            The picture carries its own title, so nothing here prints
+            the name a second time. It is the whole image at the full
+            width of the phone rather than a crop: the face, the mouth,
+            the beam and the lettering are all required to be legible
+            in portrait, and any crop wide enough to enlarge it drops
+            one of them off an edge.
+
+            It covers the middle of the battlefield and nothing else —
+            the forest is still above and below it, the plates and the
+            message are untouched. Not a modal, not a blackout, not a
+            white frame. */}
+        {accidentBeat === 'BREATH' && accident && (
+          <div className="bp-breath" data-testid="bp-breath" data-ability={accident.ability.id}>
+            <img
+              className="bp-breath-art"
+              src={ancientBreathArt}
+              alt={accident.ability.name}
+              data-title-in-art={accident.ability.titleInArt ? 'yes' : 'no'}
+            />
+          </div>
+        )}
+
         {summoned && (
           <div
             className={`bp-actor bp-summon ${summoned.kind.toLowerCase()}`}
@@ -592,13 +808,42 @@ export function BattleUIPrototype({
         </span>
       </div>
 
-      {/* 5. One line, not a conversation box. */}
-      {!(downed && finishesInMugenChoice) && (
-        <div className="bp-message" data-testid="bp-message" role="status" aria-live="polite">
-          <p className="bp-message-text">
-            {beaten && !finishesInMugenChoice ? species.defeatedText : lastLine}
-          </p>
-          <Ornament kind="ring" size={26} className="bp-message-mark" />
+      {/* 5. One line, not a conversation box — except for the second
+             and a half a called memory is speaking, when it is three:
+             what came, what it did, and what came of it. The plate is
+             replaced rather than added to, so nothing below it moves. */}
+      {!(downed && finishesInMugenChoice && !inAccident) && (
+        <div
+          className={said ? 'bp-message bp-said' : 'bp-message'}
+          data-testid="bp-message"
+          data-said={said ? 'yes' : undefined}
+          role="status"
+          aria-live="polite"
+        >
+          {said ? (
+            // The same plate, saying three things instead of one. It
+            // keeps its identity on purpose: everything that watches
+            // this line — the rest of the suite included — must not
+            // find it missing for a second and a half.
+            <div className="bp-said-body" data-testid="bp-said">
+              <span className="bp-said-name">《{said.name}》</span>
+              <p className="bp-said-line">{said.line}</p>
+              <p className="bp-said-result" data-testid="bp-said-result">
+                {said.result}
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="bp-message-text">
+                {/* While something is crossing, the plate reports the
+                    fight rather than its ending: the player needs to
+                    read what the breath just did before being told the
+                    creature is lying down. */}
+                {beaten && !finishesInMugenChoice && !inAccident ? species.defeatedText : lastLine}
+              </p>
+              <Ornament kind="ring" size={26} className="bp-message-mark" />
+            </>
+          )}
         </div>
       )}
 
@@ -634,11 +879,14 @@ export function BattleUIPrototype({
           data-outcome={plan.outcome}
           data-arcana={openingSummon.arcanaId}
           onClick={() => setShowingChaos(false)}
-          aria-label={`${openingSummon.name} — ${plan.outcome === 'SUCCESS' ? '召喚' : '不成立'}`}
+          aria-label={`${openingSummon.name} — ${plan.outcome === 'FAILURE' ? '不成立' : '召喚'}`}
         >
           <span className="bp-chaos-who">ケイオス</span>
           <span className="bp-chaos-line">
-            「{plan.outcome === 'SUCCESS' ? openingSummon.incompleteLine : openingSummon.failureLine}」
+            {/* An accident starts the way an ordinary attempt starts.
+                She is reaching for the same page and says the same
+                thing; what arrives is not what she reached for. */}
+            「{plan.outcome === 'FAILURE' ? openingSummon.failureLine : openingSummon.incompleteLine}」
           </span>
           <span className="bp-chaos-rule" aria-hidden="true" />
           <span className="bp-summon-id">
@@ -656,8 +904,52 @@ export function BattleUIPrototype({
         </button>
       )}
 
+      {/* 6d. It was not what she reached for.
+             The same card, in the same place, coming apart: the page
+             number goes, the name goes, and what is left says only
+             that it is not in the book. No flash, no blackout, no
+             modal, and nothing shaking hard enough to read as a
+             broken game — the forest is still there behind it, and
+             what went wrong went wrong quietly. */}
+      {accidentBeat === 'CROSS' && accident && (
+        <div
+          className="bp-chaos-card bp-accident-card"
+          data-testid="bp-accident-card"
+          data-accident={accident.id}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="bp-chaos-who">ケイオス</span>
+          <span className="bp-chaos-line">「……え？」</span>
+          <span className="bp-chaos-rule" aria-hidden="true" />
+          <span className="bp-summon-id bp-accident-id">
+            ARCANA #<b className="bp-accident-hash">???</b>
+            <i data-testid="bp-accident-label">{unknown?.label ?? '？？？？？？？'}</i>
+          </span>
+          <span className="bp-accident-state">UNKNOWN</span>
+        </div>
+      )}
+
+      {/* 6e. And then neither of them explains it. Four lines, one of
+             which is a silence, and she does not know either. */}
+      {accidentBeat === 'TALK' && (
+        <button
+          className="bp-chaos-card bp-accident-talk"
+          data-testid="bp-accident-talk"
+          onClick={() => setAccidentBeat('NONE')}
+          aria-label="……今のは忘れて。"
+        >
+          {ACCIDENT_TALK.map((turn) => (
+            <span className="bp-accident-turn" key={`${turn.who}-${turn.line}`}>
+              <i>{turn.who}</i>
+              {`「${turn.line}」`}
+            </span>
+          ))}
+        </button>
+      )}
+
       {/* 6. Fighting, and then — separately — deciding. */}
-      {!beaten && !showingChaos && (
+      {!beaten && !showingChaos && !inAccident && (
         <div className="bp-commands" data-testid="bp-commands">
           <button className="bp-cmd" data-testid="bp-attack" onClick={() => command('ATTACK')}>
             <SwordIcon size={19} className="bp-cmd-mark" />
@@ -704,7 +996,7 @@ export function BattleUIPrototype({
           )}
         </div>
       )}
-      {!beaten && !showingChaos && skillOpen && (
+      {!beaten && !showingChaos && !inAccident && skillOpen && (
         <div className="bp-tray" data-testid="bp-skill-tray">
           <button className="bp-tray-item" data-testid="bp-skill-guard" onClick={() => command('DEFEND')}>
             身構える
@@ -715,7 +1007,7 @@ export function BattleUIPrototype({
       )}
       {/* Which memory. One today; the list is built from the book, so a
           hundred of them cost this screen nothing. */}
-      {!beaten && !showingChaos && arcanaTrayOpen && (
+      {!beaten && !showingChaos && !inAccident && arcanaTrayOpen && (
         <div className="bp-tray" data-testid="bp-arcana-tray">
           {completeArcana.map((entry) => (
             <button
@@ -738,7 +1030,7 @@ export function BattleUIPrototype({
         </div>
       )}
 
-      {downed && finishesInMugenChoice && (
+      {downed && finishesInMugenChoice && !inAccident && (
         <div className="bp-mugen" data-testid="bp-mugen-choice">
           {/* A different kind of moment, so a different ground under it:
               the fight's ivory gives way, and the question is asked in
@@ -762,7 +1054,7 @@ export function BattleUIPrototype({
         </div>
       )}
 
-      {downed && !finishesInMugenChoice && (
+      {downed && !finishesInMugenChoice && !inAccident && (
         <div className="bp-commands">
           <button className="bp-cmd wide" data-testid="bp-normal-end" onClick={onNormalEnd}>
             <span className="bp-cmd-jp">森へ戻る</span>

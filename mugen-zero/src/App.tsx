@@ -59,6 +59,7 @@ import {
 import { battleUi, startFinishable } from './dev/battleUiFlag';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
 import { clearObtainedItems } from './platform/discoveries';
+import { toAbsoluteDay } from './core/time/calendar';
 import { ArcanaScreen } from './ui/screens/ArcanaScreen';
 import { ArcanaToast } from './ui/common/ArcanaToast';
 import { ARCANA_DEFS, MOSS_RABBIT_ARCANA } from './content/arcana/arcanaDefs';
@@ -193,6 +194,25 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // of it there is, and what it does. Derived, never stored — a summon
   // writes nothing, so there is nothing here to keep in step.
   const battleArcana = battleArcanaOf(ARCANA_DEFS, world.getArcanaRecords());
+  const accidentRecords = world.getAccidentRecords();
+  const observedAccidents = world.getObservedAccidents();
+  const acquiredArcanaIds = world.getAcquiredArcanaIds();
+  const worldDay = toAbsoluteDay(world.getClock());
+  /**
+   * The player glimpsed something. Written down, and nothing more.
+   *
+   * Not an ARCANA, not a WORLD MEMORY event, not a thing obtained —
+   * one row saying it was seen, which is what stops it being seen
+   * twice and what puts the UNKNOWN page in the book.
+   */
+  const noteAccident = useCallback(
+    (accidentId: string) => {
+      void world
+        .recordAccidentObserved(accidentId)
+        .catch((e) => console.error('Failed to record what crossed', e));
+    },
+    [world],
+  );
 
   // Where the map should show 「✦」: somewhere with an experience event
   // the player has not met, or a future site they have not walked into.
@@ -355,6 +375,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           forcedChaos={debugChaosIntervention()}
           arcana={battleArcana}
           forcedSummon={debugSummon()}
+          accidentRecords={accidentRecords}
+          acquiredArcanaIds={acquiredArcanaIds}
+          worldDay={worldDay}
+          onAccidentObserved={noteAccident}
           onNormalEnd={() => flow.goTo('DEV_ADMIN')}
           onMugenChoice={() => flow.goTo('DEV_ADMIN')}
           onDefeat={() => flow.goTo('DEV_ADMIN')}
@@ -381,7 +405,13 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
     case 'ARCANA':
       // Reading the book changes nothing: it is handed the saved
       // records and has no way to write one.
-      return <ArcanaScreen records={world.getArcanaRecords()} onBack={() => flow.goTo('HOME')} />;
+      return (
+        <ArcanaScreen
+          records={world.getArcanaRecords()}
+          observedAccidents={observedAccidents}
+          onBack={() => flow.goTo('HOME')}
+        />
+      );
     case 'WORLD_MEMORY':
       // Player-facing view: known events only, never the full truth.
       return (
@@ -503,6 +533,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             forcedChaos={debugChaosIntervention()}
             arcana={battleArcana}
             forcedSummon={debugSummon()}
+            accidentRecords={accidentRecords}
+            acquiredArcanaIds={acquiredArcanaIds}
+            worldDay={worldDay}
+            onAccidentObserved={noteAccident}
             // What the player actually saw. Held until the fight is
             // over, then written in one go.
             onObserved={noteArcana}
