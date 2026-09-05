@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 /**
  * SUMMONING — a memory put back together on a battlefield.
@@ -41,9 +42,7 @@ async function freshWorld(page: Page) {
 }
 
 async function unlockDev(page: Page) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
 }
 
 interface Setup {

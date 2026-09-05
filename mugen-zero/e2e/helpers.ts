@@ -160,3 +160,27 @@ export async function playToLifeChoice(
   }
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 10_000 });
 }
+
+
+/**
+ * Into DEV ADMIN, whether or not the lock is standing in the way.
+ *
+ * The lock is opened once per run of the app rather than once per
+ * visit, so a test that goes in, comes out and goes in again meets it
+ * the first time and not the second. Both screens are lazy-loaded, so
+ * "is the lock showing?" has to be waited for rather than asked.
+ *
+ * Every spec that needs the developer tools goes through here, so
+ * there is one place that knows this and not twenty-three.
+ */
+export async function enterDevAdmin(page: Page): Promise<void> {
+  await page.getByTestId('dev-admin-entry').click();
+  const lock = page.getByTestId('dev-lock-screen');
+  const admin = page.getByTestId('dev-admin-back');
+  await expect(lock.or(admin)).toBeVisible({ timeout: 20_000 });
+  if (await lock.isVisible()) {
+    await page.getByTestId('dev-lock-input').fill('0909');
+    await page.getByTestId('dev-lock-submit').click();
+  }
+  await expect(admin).toBeVisible({ timeout: 20_000 });
+}

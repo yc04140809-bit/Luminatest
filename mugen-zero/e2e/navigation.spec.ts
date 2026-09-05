@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 // PLAYTEST ROUND 2: the player should never be stuck wondering what to do
 // next — without ever being told the answer.
@@ -13,9 +14,7 @@ async function newWorld(page: Page) {
 }
 
 async function usePreset(page: Page, preset: string) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId(`preset-${preset}`).click();
   await page.getByTestId('dev-admin-back').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();

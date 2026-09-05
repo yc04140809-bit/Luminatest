@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, advanceDays } from './helpers';
+import { playToLifeChoice, advanceDays, enterDevAdmin } from './helpers';
 
 // PHASE H: the post-play survey. Feedback is a separate layer — it must
 // never touch world canon, never spoil unreached content, and never be
@@ -230,9 +230,7 @@ test('answers survive RESET WORLD, and the dev admin can read and export them', 
   await page.getByTestId('survey-done-home').click();
 
   // Dev admin shows the answer, its comment and the aggregates.
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await expect(page.getByTestId('dev-playtest-summary')).toContainText('PLAYTEST RESPONSES: 1');
   await expect(page.getByTestId('dev-playtest-summary')).toContainText('CONTINUE INTEREST: 5.0');
   await expect(page.getByTestId('dev-playtest-summary')).toContainText('Immediate 1');
@@ -272,9 +270,7 @@ test('KILL route reaches the survey without seeing bakery or reunion options', a
   const kaos = page.getByTestId('kaos-intro');
   for (let i = 0; i < 6; i++) await kaos.click();
 
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('preset-KILL').click();
   await page.getByTestId('time-plus-3y').click();
   await expect(page.getByTestId('dev-clock')).toContainText('4年目');
@@ -328,9 +324,7 @@ for (const size of [
     const kaos = page.getByTestId('kaos-intro');
     for (let i = 0; i < 6; i++) await kaos.click();
 
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();
     await page.getByTestId('dev-admin-back').click();
 

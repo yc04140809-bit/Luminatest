@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { readMemoryEvents, readWorldStateValue, walkToEncounterMarker } from './helpers';
+import { readMemoryEvents, readWorldStateValue, walkToEncounterMarker, enterDevAdmin } from './helpers';
 
 // PHASE D.5 acceptance: the dev admin panel drives the real game systems.
 
@@ -13,10 +13,9 @@ async function goHome(page: Page) {
 }
 
 async function openAdmin(page: Page) {
-  await page.getByTestId('dev-admin-entry').click();
-  await expect(page.getByTestId('dev-lock-screen')).toBeVisible();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  // Through the shared helper: the lock is opened once per run of the
+  // app, so a second visit in the same page does not meet it.
+  await enterDevAdmin(page);
   await expect(page.getByTestId('dev-admin-screen')).toBeVisible();
 }
 

@@ -1,4 +1,5 @@
 import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -41,9 +42,7 @@ test('the LIFE ARCHIVE record survives a full browser restart unchanged', async 
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
     await goHomeFresh(page);
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();
     await expect(page.getByTestId('dev-archive-GALD_CH_REUNION')).toContainText('[KNOWN]');
     await page.getByTestId('dev-admin-back').click();

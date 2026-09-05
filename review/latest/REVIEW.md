@@ -1,7 +1,7 @@
 # MUGEN REVIEW PACKAGE — ARCANA SYSTEM v0.3 — 召喚事故 / UNKNOWN観測 / ANCIENT BREATH（採用前）
 
-- Generated: 2026-09-05T01:44:41.788Z
-- Commit: b238e14 on claude/mugen-zero-v01-implementation-qanh8u
+- Generated: 2026-09-05T03:32:47.485Z
+- Commit: e1f5b36 on claude/mugen-zero-v01-implementation-qanh8u
 - Compared against: 97ec646
 - Verdict: SOMETHING FAILED — see 5
 
@@ -26,6 +26,10 @@
 ### commits
 
 ```
+e1f5b36 Write the round's notes, and test the lock itself
+98c3351 Photograph the admin tools, and let the lock be used twice
+57d063b Let the admin look at the theatre without playing the game
+f1b3c33 Regenerate the review package with both findings in it
 b238e14 Record both findings, and the measurement I got wrong
 6740395 Put the round's findings in sections the report actually renders
 c7ab96f Regenerate the review package
@@ -40,72 +44,81 @@ fc06275 Let the review package photograph a sighting more than once
 
 ```
 mugen-zero/.gitignore                              |   1 +
- mugen-zero/e2e/reviewCapture.ts                    |  96 +++-
+ mugen-zero/e2e/adminPreview.spec.ts                | 418 ++++++++++++++
+ mugen-zero/e2e/reviewCapture.ts                    | 129 ++++-
  mugen-zero/e2e/summon.spec.ts                      |  48 +-
  mugen-zero/e2e/summonAccident.spec.ts              | 629 +++++++++++++++++++++
  mugen-zero/scripts/review-encode-assets.d.mts      |  23 +
  mugen-zero/scripts/review-encode-assets.mjs        | 108 ++++
- mugen-zero/src/App.tsx                             |  36 +-
+ mugen-zero/src/App.tsx                             |  55 +-
  mugen-zero/src/assets/arcana/ancient-breath.png    | Bin 0 -> 3917579 bytes
  .../src/assets/arcana/unknown-ancient-dragon.png   | Bin 0 -> 3660221 bytes
  mugen-zero/src/content/arcana/arcanaDefs.ts        |  14 +-
  mugen-zero/src/content/arcana/unknownArcana.ts     |  65 +++
+ mugen-zero/src/content/qa/visualChanges.ts         |  15 +-
  mugen-zero/src/content/summon/accidents.ts         |  65 +++
  mugen-zero/src/core/chaos/interventionPlan.test.ts | 172 ++++++
  mugen-zero/src/core/chaos/interventionPlan.ts      |  96 +++-
+ mugen-zero/src/core/flow/gameFlow.ts               |  19 +-
+ mugen-zero/src/core/flow/types.ts                  |   1 +
  mugen-zero/src/core/summon/summon.test.ts          |  55 +-
  mugen-zero/src/core/summon/summon.ts               |  85 ++-
  mugen-zero/src/core/summon/summonAccident.test.ts  | 296 ++++++++++
  mugen-zero/src/core/summon/summonAccident.ts       | 257 +++++++++
  mugen-zero/src/core/world/accidentState.test.ts    | 179 ++++++
  mugen-zero/src/core/world/world.ts                 | 146 +++++
- mugen-zero/src/dev/DevAdminScreen.tsx              |  59 +-
+ mugen-zero/src/dev/CinematicPreviewScreen.tsx      | 236 ++++++++
+ mugen-zero/src/dev/DevAdminScreen.tsx              |  85 ++-
+ mugen-zero/src/dev/DevLockScreen.tsx               |  32 +-
  mugen-zero/src/dev/debugEncounter.ts               |   2 +-
+ mugen-zero/src/dev/devMode.test.ts                 |  81 +++
+ mugen-zero/src/dev/devMode.ts                      |  35 ++
  mugen-zero/src/game/battle/battleLogic.test.ts     | 120 +++-
  mugen-zero/src/game/battle/battleLogic.ts          | 139 ++++-
- mugen-zero/src/ui/battle/BattleUIPrototype.tsx     | 337 ++++++++++-
+ mugen-zero/src/ui/battle/BattleUIPrototype.tsx     | 197 ++++++-
+ mugen-zero/src/ui/cinematic/accidentCinematic.tsx  | 225 ++++++++
  mugen-zero/src/ui/screens/ArcanaScreen.tsx         |  72 ++-
- mugen-zero/src/ui/styles.css                       | 256 +++++++++
+ mugen-zero/src/ui/styles.css                       | 352 ++++++++++++
  mugen-zero/types/node-shims.d.ts                   |   4 +
  mugen-zero/vite.config.singlefile.ts               |  28 +
- ...incomplete_card.png => 01_accident_a_start.png} | Bin
- review/latest/02_accident_b_unknown.png            | Bin 0 -> 492086 bytes
+ review/latest/01_admin_a_lock.png                  | Bin 0 -> 13921 bytes
+ review/latest/01_summon_incomplete_card.png        | Bin 498068 -> 0 bytes
+ review/latest/02_admin_b_home.png                  | Bin 0 -> 145295 bytes
  review/latest/02_summon_incomplete_field.png       | Bin 516745 -> 0 bytes
- review/latest/03_accident_d_dragon.png             | Bin 0 -> 677998 bytes
+ review/latest/03_admin_c_preview_list.png          | Bin 0 -> 23454 bytes
  review/latest/03_summon_failure_card.png           | Bin 496088 -> 0 bytes
- review/latest/04_accident_e_breath.png             | Bin 0 -> 689116 bytes
+ review/latest/04_admin_d_dragon.png                | Bin 0 -> 627262 bytes
  review/latest/04_summon_arcana_command.png         | Bin 482085 -> 0 bytes
- review/latest/05_accident_g_talk.png               | Bin 0 -> 491337 bytes
+ review/latest/05_admin_e_breath.png                | Bin 0 -> 636520 bytes
  review/latest/05_summon_complete_field.png         | Bin 483863 -> 0 bytes
- review/latest/06_accident_f_down.png               | Bin 0 -> 536888 bytes
+ review/latest/06_admin_f_unknown.png               | Bin 0 -> 440189 bytes
  review/latest/06_battle_prototype.png              | Bin 515203 -> 0 bytes
- review/latest/07_summon_ward.png                   | Bin 0 -> 504129 bytes
- review/latest/08_battle_prototype.png              | Bin 0 -> 515369 bytes
- ...on_ability.png => 09_arcana_summon_ability.png} | Bin 96524 -> 100123 bytes
- review/latest/10_arcana_h_unknown.png              | Bin 0 -> 26510 bytes
- review/latest/REVIEW.md                            | 359 ++++++------
- review/latest/manifest.json                        |  41 +-
- review/latest/qa-report.md                         |   4 +-
- review/notes.md                                    | 202 ++++---
- 48 files changed, 3612 insertions(+), 382 deletions(-)
+ review/latest/07_admin_g_talk.png                  | Bin 0 -> 437303 bytes
+ review/latest/07_arcana_summon_ability.png         | Bin 96524 -> 0 bytes
+ review/latest/08_admin_h_end.png                   | Bin 0 -> 517641 bytes
+ review/latest/REVIEW.md                            | 371 ++++++------
+ review/latest/manifest.json                        |  57 +-
+ review/latest/qa-report.md                         |  33 +-
+ review/notes.md                                    | 147 ++---
+ 57 files changed, 4664 insertions(+), 428 deletions(-)
 ```
 
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-05T01:44:41.499Z / viewport 390x844
+撮影: 2026-09-05T03:32:44.141Z / viewport 390x844
 
-- `review/latest/01_accident_a_start.png` — BATTLE UI PROTOTYPE：A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%
-- `review/latest/02_accident_b_unknown.png` — BATTLE UI PROTOTYPE：B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか
-- `review/latest/03_accident_d_dragon.png` — BATTLE UI PROTOTYPE：D：巨大召喚。画面の半分以上を占めているか、敵側（左）を向いているか
-- `review/latest/04_accident_e_breath.png` — BATTLE UI PROTOTYPE：E：《エンシェントブレス》。縦画面で顔・口元・ブレス・文字が読めるか。技名の二重表示なし
-- `review/latest/05_accident_g_talk.png` — BATTLE UI PROTOTYPE：G：事故後の会話。ケイオスが説明役になっていないか。古代龍は残っていないか
-- `review/latest/06_accident_f_down.png` — BATTLE UI PROTOTYPE：F：ブレス後の敵DOWN。KILL自動確定ではなく、四つの答えが player に委ねられているか
-- `review/latest/07_summon_ward.png` — BATTLE UI PROTOTYPE：PHASE 1：HP満タンで呼んだとき。「HPはもう満ちている。」で終わらず《森の加護》になるか
-- `review/latest/08_battle_prototype.png` — BATTLE UI PROTOTYPE：世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル
-- `review/latest/09_arcana_summon_ability.png` — ARCANA / アルカナ図鑑：100%でだけ開く「呼べるもの」。ステータスやレアリティになっていないこと
-- `review/latest/10_arcana_h_unknown.png` — ARCANA / アルカナ図鑑：H：観測後のUNKNOWN行。通常ARCANAの件数に足していないか、%を出していないか
+- `review/latest/01_admin_a_lock.png` — ADMIN DEV TOOLS：A：管理者ロック。控えめな入口の先にあり、入力はそのまま表示されないか
+- `review/latest/02_admin_b_home.png` — ADMIN DEV TOOLS：B：ADMIN HOME。「演出プレビュー」が最初にあり、既存の開発スイッチは下に残っているか
+- `review/latest/03_admin_c_preview_list.png` — ADMIN DEV TOOLS：C：演出プレビュー一覧。ARCANA ＞ 召喚事故 ＞ UNKNOWN #001。正式名称は出していないか
+- `review/latest/04_admin_d_dragon.png` — ADMIN DEV TOOLS：D：巨大召喚。左向き・敵側・画面の半分以上。DUMMY表示で実戦と誤認しないか
+- `review/latest/05_admin_e_breath.png` — ADMIN DEV TOOLS：E：カットイン。顔・口元・ブレス・文字が読めるか。技名の二重表示がないか
+- `review/latest/06_admin_f_unknown.png` — ADMIN DEV TOOLS：F：フルシーケンス中の ARCANA #??? / UNKNOWN。実戦と同じカードか
+- `review/latest/07_admin_g_talk.png` — ADMIN DEV TOOLS：G：フルシーケンス終盤の会話。実戦と同じ4行か
+- `review/latest/08_admin_h_end.png` — ADMIN DEV TOOLS：H：PREVIEW END。もう一度／一覧へ。戦場に何も残っていないか
 
 撮影していない画面（変更なし。テスト結果で報告）:
+- BATTLE UI PROTOTYPE — 召喚事故の演出を ui/cinematic へ切り出し、実戦とプレビューが同じ定義を再生するようにしました。画面の見え方・順序・「間」は前ラウンドから1つも変えていません（E2E 29本が無変更で通ります）
+- ARCANA / アルカナ図鑑 — 前ラウンドから無変更です
 - HOME — 前ラウンドで承認待ちの5項目導線のまま。今回は無変更です
 - GREENWOOD / BATTLE — 前ラウンドから無変更。試作は既存画面を置き換えていません
 - TAVERN / TALK — シーンアート修正版のまま
@@ -142,18 +155,18 @@ mugen-zero/.gitignore                              |   1 +
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T01:44:41.392Z
-- Build: MUGEN ZERO v0.1 / b238e14 / 2026-09-05T01:43:50.162Z
+- Generated: 2026-09-05T03:32:44.053Z
+- Build: MUGEN ZERO v0.1 / e1f5b36 / 2026-09-05T03:32:16.688Z
 - Environment: dev server
-- Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
+- Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 4年目 4日目 (day 1099)
-- Route: SPARE
-- TIME SHIFTs: 1
-- WORLD MEMORY facts: 5
-- LIFE ARCHIVE: 1 known / 4 in canon
-- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 1年目 1日目 (day 1)
+- Route: NONE
+- TIME SHIFTs: 0
+- WORLD MEMORY facts: 0
+- LIFE ARCHIVE: 0 known / 0 in canon
+- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -187,16 +200,17 @@ mugen-zero/.gitignore                              |   1 +
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
 | Unit (vitest) | PASS | Tests  499 passed (499) |
-| E2E (playwright) | FAIL | 204 passed (13.0m) |
-| Build (tsc -b && vite build) | PASS | ✓ built in 9.55s |
+| E2E (playwright) | FAIL | 214 passed (16.4m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 6.51s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-B7HYYHUJ.js                    1.33 kB │ gzip:   0.76 kB
-dist/assets/DevAdminScreen-yQnwMe87.js                  47.47 kB │ gzip:  15.89 kB
+dist/assets/DevLockScreen-C1ILVPcH.js                    1.42 kB │ gzip:   0.78 kB
+dist/assets/CinematicPreviewScreen-DLGwrWPP.js           4.99 kB │ gzip:   1.82 kB
+dist/assets/DevAdminScreen-BoqCFNgC.js                  47.94 kB │ gzip:  16.07 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/index-Dg6t04Ao.js                          171.41 kB │ gzip:  52.27 kB
-dist/assets/GreenwoodScreen-7z2burpW.js              1,498.86 kB │ gzip: 346.19 kB
+dist/assets/index-_ij_gTde.js                          172.36 kB │ gzip:  52.66 kB
+dist/assets/GreenwoodScreen-CrMU7svC.js              1,498.86 kB │ gzip: 346.19 kB
 ```
 
 ## 6. Android / mobile 確認結果

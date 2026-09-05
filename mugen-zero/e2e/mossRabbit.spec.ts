@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 /**
  * The moss rabbit, from meeting one in the forest to the world writing
@@ -35,9 +36,7 @@ async function freshWorld(page: Page) {
 
 /** Settles Gald, forces a forest battle, and settles the story roll. */
 async function prepare(page: Page, story: 'on' | 'off', enemyAction?: 'ATTACK' | 'SKILL') {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
   // These are tests of the enemy system — the species, the individual,
   // what the world writes down — so the presentation is pinned to the

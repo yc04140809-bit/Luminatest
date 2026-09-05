@@ -2,7 +2,7 @@ import { test, expect, chromium, type BrowserContext, type Page } from './fixtur
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readMemoryEvents, readWorldStateValue } from './helpers';
+import { readMemoryEvents, readWorldStateValue, enterDevAdmin } from './helpers';
 
 const BASE = 'http://localhost:5173';
 
@@ -23,9 +23,7 @@ async function goHomeFresh(page: Page) {
 }
 
 async function openAdmin(page: Page) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await expect(page.getByTestId('dev-admin-screen')).toBeVisible();
 }
 

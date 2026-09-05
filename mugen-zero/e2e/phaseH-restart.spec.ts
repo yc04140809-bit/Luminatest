@@ -1,4 +1,5 @@
 import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -57,9 +58,7 @@ test('playtest feedback survives a full browser restart', async () => {
     await goHomeFresh(page);
 
     // Reach the end state quickly through the admin (official APIs).
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();
     await page.getByTestId('dev-admin-back').click();
 
@@ -105,9 +104,7 @@ test('playtest feedback survives a full browser restart', async () => {
 
     // The dev admin still reads it after the restart.
     await page.getByTestId('archive-back').click();
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await expect(page.getByTestId('dev-playtest-summary')).toContainText('PLAYTEST RESPONSES: 1');
     await expect(page.getByTestId('playtest-comment')).toContainText('続きが見たい');
 

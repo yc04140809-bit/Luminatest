@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, advanceDays } from './helpers';
+import { playToLifeChoice, advanceDays, enterDevAdmin } from './helpers';
 
 // PHASE F acceptance: the LIFE ARCHIVE grows only with the player's own
 // discoveries; the world's head start is never spoiled.
@@ -109,9 +109,7 @@ async function goHomeAndOpenAdmin(page: Page) {
   await page.getByTestId('prologue-monologue').click();
   const kaos = page.getByTestId('kaos-intro');
   for (let i = 0; i < 6; i++) await kaos.click();
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await expect(page.getByTestId('dev-admin-screen')).toBeVisible();
 }
 

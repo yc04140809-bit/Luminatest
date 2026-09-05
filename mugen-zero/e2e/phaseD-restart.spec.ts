@@ -2,7 +2,7 @@ import { test, expect, chromium, type BrowserContext } from './fixtures';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { playToLifeChoice, readMemoryEvents, readWorldStateValue } from './helpers';
+import { playToLifeChoice, readMemoryEvents, readWorldStateValue, enterDevAdmin } from './helpers';
 
 const BASE = 'http://localhost:5173';
 
@@ -62,9 +62,7 @@ test('clock, age and events survive a full browser restart after a TIME SHIFT', 
     // The game agrees with the DB.
     await page.getByTestId('continue-button').click();
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 1日目');
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await expect(page.getByTestId('dev-gald')).toContainText('age: 30');
 
     await context.close();

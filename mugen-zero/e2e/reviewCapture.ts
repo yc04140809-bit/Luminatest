@@ -19,7 +19,7 @@ import { test, expect, type Page } from './fixtures';
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { VISUAL_CHANGES } from '../src/content/qa/visualChanges';
-import { playToLifeChoice } from './helpers';
+import { playToLifeChoice, enterDevAdmin } from './helpers';
 
 const OUT_DIR = process.env.REVIEW_DIR ?? resolve(process.cwd(), '..', 'review', 'latest');
 
@@ -111,9 +111,7 @@ async function forestWith(
   startFinishable?: boolean,
 ) {
   await newWorld(page);
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId(`force-encounter-${force}`).click();
   if (story) await page.getByTestId(story === 'on' ? 'force-story-on' : 'force-story-off').click();
@@ -143,9 +141,7 @@ async function summonBattle(
   options: { story?: 'on' | 'off'; finishable?: boolean } = {},
 ) {
   await newWorld(page);
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId(options.story === 'on' ? 'force-story-on' : 'force-story-off').click();
   await page.getByTestId(`arcana-set-${preset}`).click();
   // These shots run one after another in one browser, and newWorld does
@@ -189,9 +185,7 @@ async function previewPiece(page: Page, piece: 'DRAGON' | 'BREATH' | 'FULL') {
 /** A fresh world with ARCANA #001 put into one of the states worth seeing. */
 async function arcanaAt(page: Page, preset: string) {
   await newWorld(page);
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId(`arcana-set-${preset}`).click();
   await page.getByTestId('dev-admin-back').click();
 }
@@ -205,9 +199,7 @@ async function arcanaBook(page: Page, preset: string) {
 
 async function openHub(page: Page) {
   await newWorld(page);
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('dev-review-hub-entry').click();
   await expect(page.getByTestId('dev-review-hub')).toBeVisible();
 }

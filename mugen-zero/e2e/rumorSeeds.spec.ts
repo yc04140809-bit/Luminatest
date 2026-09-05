@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 // PHASE C + D: the world talks about itself from more than one mouth,
 // carries questions it does not answer, and has small things in it that
@@ -20,9 +21,7 @@ async function newWorld(page: Page) {
 }
 
 async function openAdmin(page: Page) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await expect(page.getByTestId('dev-admin-screen')).toBeVisible();
 }
 

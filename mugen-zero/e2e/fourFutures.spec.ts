@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { readMemoryEvents } from './helpers';
+import { readMemoryEvents, enterDevAdmin } from './helpers';
 
 // GALD FOUR FUTURES: whichever of the four choices the player made, three
 // years later the world holds something they can go and find — and it is
@@ -103,9 +103,7 @@ async function buildWorld(page: Page, preset: string) {
     await page.getByTestId('continue-button').click();
   }
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId(`preset-${preset}`).click();
   await expect(page.getByTestId('dev-clock')).toContainText('4年目');
   await page.getByTestId('dev-admin-back').click();

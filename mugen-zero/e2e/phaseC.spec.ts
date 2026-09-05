@@ -3,8 +3,7 @@ import {
   playToLifeChoice,
   readMemoryEvents,
   readWorldStateValue,
-  advanceDays,
-} from './helpers';
+  advanceDays, enterDevAdmin } from './helpers';
 
 // PHASE C acceptance: a past fact (PLAYER_SPARED_GALD) plus elapsed time
 // causes a future event (GALD_LEAVES_BANDITS) with traceable causality.
@@ -56,9 +55,7 @@ test('SPARE + 3 elapsed days causes GALD_LEAVES_BANDITS exactly once, and it sur
   await expect(page.getByTestId('memory-event-PLAYER_SPARED_GALD')).toBeVisible();
   await expect(page.getByTestId('memory-event-GALD_LEAVES_BANDITS')).toHaveCount(0);
   await page.getByTestId('world-memory-back').click();
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await expect(page.getByTestId('dev-event-GALD_LEAVES_BANDITS')).toContainText(
     'causedBy: PLAYER_SPARED_GALD',
   );

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 /**
  * ARCANA v0.3 — a summon that always means something, and the first
@@ -54,9 +55,7 @@ async function reopen(page: Page) {
 }
 
 async function unlockDev(page: Page) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
 }
 
 interface Setup {

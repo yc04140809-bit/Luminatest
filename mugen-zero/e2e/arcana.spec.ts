@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 /**
  * ARCANA — the book, and the way a life fills it in.
@@ -44,9 +45,7 @@ async function freshWorld(page: Page) {
 }
 
 async function dev(page: Page, body: (page: Page) => Promise<void>) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await body(page);
   await page.getByTestId('dev-admin-back').click();
 }

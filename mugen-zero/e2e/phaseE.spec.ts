@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, readMemoryEvents, advanceDays } from './helpers';
+import { playToLifeChoice, readMemoryEvents, advanceDays, enterDevAdmin } from './helpers';
 
 // PHASE E acceptance: the spared bandit's life continues off-screen, the
 // player discovers the new bakery through ordinary exploration — never a
@@ -125,9 +125,7 @@ test('KILL world: three years later there is no bakery and no living Gald', asyn
   await page.getByTestId('prologue-monologue').click();
   const kaos = page.getByTestId('kaos-intro');
   for (let i = 0; i < 6; i++) await kaos.click();
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('preset-KILL').click();
   await expect(page.getByTestId('dev-gald')).toContainText('alive: false');
   await page.getByTestId('time-plus-3y').click();

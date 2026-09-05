@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { enterDevAdmin } from './helpers';
 
 /**
  * The exploration loop: see a ring, walk to it, find out what it was,
@@ -46,9 +47,7 @@ async function settleAndForce(
   force: 'EVENT' | 'ITEM' | 'BATTLE' | null,
   story?: 'on' | 'off',
 ) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId(force ? `force-encounter-${force}` : 'force-encounter-none').click();
   if (story) await page.getByTestId(story === 'on' ? 'force-story-on' : 'force-story-off').click();

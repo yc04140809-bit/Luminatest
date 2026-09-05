@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice } from './helpers';
+import { playToLifeChoice, enterDevAdmin } from './helpers';
 
 // UX polish: the forest has a real backdrop, the baker's reveal is
 // carried by his art, and no route leaves the player wondering what to
@@ -17,9 +17,7 @@ async function openAdminWithPreset(page: Page, preset: string) {
   await page.getByTestId('prologue-monologue').click();
   const kaos = page.getByTestId('kaos-intro');
   for (let i = 0; i < 6; i++) await kaos.click();
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId(`preset-${preset}`).click();
   await page.getByTestId('dev-admin-back').click();
 }
@@ -157,9 +155,7 @@ for (const size of PHONES) {
     await page.getByTestId('dev-admin-entry').isVisible().catch(() => false);
     await page.getByTestId('leave-forest').click(); // leave the forest
     await page.locator('.screen-footer .btn').click(); // back to HOME
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();
     await page.getByTestId('dev-admin-back').click();
     await page.getByTestId('archive-button').click();

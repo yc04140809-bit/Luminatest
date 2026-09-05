@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice } from './helpers';
+import { playToLifeChoice, enterDevAdmin } from './helpers';
 
 /**
  * The battle UI prototype: a second battle screen, behind a dev flag,
@@ -54,9 +54,7 @@ interface Setup {
 }
 
 async function setup(page: Page, options: Setup) {
-  await page.getByTestId('dev-admin-entry').click();
-  await page.getByTestId('dev-lock-input').fill('0909');
-  await page.getByTestId('dev-lock-submit').click();
+  await enterDevAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId(`battle-ui-${options.ui}`).click();
   if (options.finishable) await page.getByTestId('battle-start-finishable').click();
@@ -101,9 +99,7 @@ test.describe('battle UI prototype', () => {
   test('is what a forest fight shows now, without anybody choosing it', async ({ page }) => {
     await freshWorld(page);
     // Nothing is set: no flag, no dev switch, straight off the shelf.
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('preset-SPARE_3Y').click();
     await page.getByTestId('force-encounter-BATTLE').click();
     await page.getByTestId('dev-admin-back').click();
@@ -184,9 +180,7 @@ test.describe('battle UI prototype', () => {
     page,
   }) => {
     await freshWorld(page);
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('force-story-off').click();
     await page.getByTestId('battle-start-finishable').click();
     await page.getByTestId('open-battle-prototype').click();

@@ -2,7 +2,7 @@ import { test, expect, chromium, type BrowserContext, type Page } from './fixtur
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { readMemoryEvents, readWorldStateValue } from './helpers';
+import { readMemoryEvents, readWorldStateValue, enterDevAdmin } from './helpers';
 
 const BASE = 'http://localhost:5173';
 
@@ -31,9 +31,7 @@ test('baker Gald and the reunion survive a full browser restart', async () => {
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
     await goHomeFresh(page);
-    await page.getByTestId('dev-admin-entry').click();
-    await page.getByTestId('dev-lock-input').fill('0909');
-    await page.getByTestId('dev-lock-submit').click();
+    await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();
     await expect(page.getByTestId('dev-event-PLAYER_REUNITED_WITH_GALD')).toBeVisible();
     await context.close(); // full browser shutdown
