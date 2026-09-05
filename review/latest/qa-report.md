@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T04:21:10.841Z
-- Build: MUGEN ZERO v0.1 / 9f08e5a / 2026-09-05T04:20:43.221Z
+- Generated: 2026-09-05T10:09:33.433Z
+- Build: MUGEN ZERO v0.1 / 0956e3e / 2026-09-05T10:09:02.805Z
 - Environment: dev server
 - Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
@@ -98,5 +98,7 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] ADMIN DEV TOOLS — 管理者ロックの文言を日本語にし、同一セッション中は再入力を省略します（永続保存はしません）。管理者ホームに「演出プレビュー」を追加し、ARCANA ＞ 召喚事故 ＞ UNKNOWN #001 の巨大召喚・カットイン・フルシーケンスを、ゲームデータを一切変更せずに再生できます
+- [ ] SETTINGS — 「オープニングテーマ ON/OFF」を1行追加しました。既定はONで、アプリを開いてから最初の1回だけ流れます。音量はBGM音量に従い、OP専用の音量は作っていません
+- [ ] OPENING THEME / SKIP — 曲が鳴っている間だけ右上に SKIP が出ます。楽曲ファイルはまだ無いため通常は出ません。撮影はDEV専用の代役スイッチ（音は鳴らしません）で出しています
+- [ ] ADMIN DEV TOOLS — 「OPENING THEME PREVIEW」を1項目追加しました（SKIP表示のリハーサル／「今回はもう流した」を忘れる）。既存の演出プレビューと開発スイッチは無変更です
 - unchanged, no screenshot needed: BATTLE UI PROTOTYPE, ARCANA / アルカナ図鑑, HOME, GREENWOOD / BATTLE, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

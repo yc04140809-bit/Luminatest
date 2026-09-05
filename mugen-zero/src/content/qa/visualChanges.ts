@@ -17,10 +17,22 @@ import type { VisualChange } from '../../core/qa/types';
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
+    screen: 'SETTINGS',
+    changed: true,
+    reason:
+      '「オープニングテーマ ON/OFF」を1行追加しました。既定はONで、アプリを開いてから最初の1回だけ流れます。音量はBGM音量に従い、OP専用の音量は作っていません',
+  },
+  {
+    screen: 'OPENING THEME / SKIP',
+    changed: true,
+    reason:
+      '曲が鳴っている間だけ右上に SKIP が出ます。楽曲ファイルはまだ無いため通常は出ません。撮影はDEV専用の代役スイッチ（音は鳴らしません）で出しています',
+  },
+  {
     screen: 'ADMIN DEV TOOLS',
     changed: true,
     reason:
-      '管理者ロックの文言を日本語にし、同一セッション中は再入力を省略します（永続保存はしません）。管理者ホームに「演出プレビュー」を追加し、ARCANA ＞ 召喚事故 ＞ UNKNOWN #001 の巨大召喚・カットイン・フルシーケンスを、ゲームデータを一切変更せずに再生できます',
+      '「OPENING THEME PREVIEW」を1項目追加しました（SKIP表示のリハーサル／「今回はもう流した」を忘れる）。既存の演出プレビューと開発スイッチは無変更です',
   },
   {
     screen: 'BATTLE UI PROTOTYPE',

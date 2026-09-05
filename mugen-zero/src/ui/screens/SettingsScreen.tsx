@@ -41,6 +41,25 @@ export function SettingsScreen({ settings, onChange, onBack }: Props) {
           />
         </div>
         <div className="settings-row">
+          <label htmlFor="opening-toggle">
+            オープニングテーマ
+            <span style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)' }}>
+              ONのとき、アプリを開いてから最初の1回だけ流れます
+            </span>
+          </label>
+          <button
+            id="opening-toggle"
+            className="btn"
+            data-testid="opening-toggle"
+            aria-pressed={settings.openingMode !== 'OFF'}
+            onClick={() =>
+              set('openingMode', settings.openingMode === 'OFF' ? 'ONCE_PER_SESSION' : 'OFF')
+            }
+          >
+            {settings.openingMode === 'OFF' ? 'OFF' : 'ON'}
+          </button>
+        </div>
+        <div className="settings-row">
           <label htmlFor="haptic-toggle">
             振動フィードバック
             {!isHapticSupported() && '（この端末では利用できません）'}

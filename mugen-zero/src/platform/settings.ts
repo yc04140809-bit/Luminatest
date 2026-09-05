@@ -4,11 +4,24 @@
 
 const STORAGE_KEY = 'mugen-zero-settings';
 
+/**
+ * When the opening theme plays.
+ *
+ * Three states internally, one switch on the settings screen. A long
+ * opening every single time somebody opens a phone game is a good way
+ * to teach them to skip it, so the default plays it once per run of
+ * the app and then leaves them alone. ALWAYS exists for whoever wants
+ * it and for looking at the thing while working on it; it is data, not
+ * a button, until there is a reason for it to be one.
+ */
+export type OpeningPlayMode = 'ONCE_PER_SESSION' | 'ALWAYS' | 'OFF';
+
 export interface GameSettings {
   bgmVolume: number; // 0..1
   seVolume: number; // 0..1
   hapticEnabled: boolean;
   reducedMotion: boolean;
+  openingMode: OpeningPlayMode;
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -16,7 +29,14 @@ export const DEFAULT_SETTINGS: GameSettings = {
   seVolume: 0.8,
   hapticEnabled: true,
   reducedMotion: false,
+  openingMode: 'ONCE_PER_SESSION',
 };
+
+function readMode(value: unknown): OpeningPlayMode {
+  return value === 'ALWAYS' || value === 'OFF' || value === 'ONCE_PER_SESSION'
+    ? value
+    : DEFAULT_SETTINGS.openingMode;
+}
 
 function clamp01(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value)
@@ -40,6 +60,9 @@ export function loadSettings(): GameSettings {
         typeof parsed.reducedMotion === 'boolean'
           ? parsed.reducedMotion
           : DEFAULT_SETTINGS.reducedMotion,
+      // Absent in settings saved before this build, which reads as the
+      // default rather than as "off".
+      openingMode: readMode(parsed.openingMode),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

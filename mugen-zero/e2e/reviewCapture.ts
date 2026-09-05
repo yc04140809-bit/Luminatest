@@ -42,6 +42,22 @@ async function newWorld(page: Page) {
 }
 
 /**
+ * A fresh title with the DEV stand-in for the opening theme switched on.
+ *
+ * There is no song in the slot yet, so nothing would otherwise put the
+ * SKIP control on screen and there would be nothing to photograph. The
+ * stand-in makes no sound and no Audio element — it only says "treat
+ * the theme as playing" — and it is switched off again at the end of
+ * the last opening shot.
+ */
+async function openingRehearsal(page: Page) {
+  await freshStart(page);
+  await page.evaluate(() => localStorage.setItem('mugen-opening-rehearsal', 'ON'));
+  await page.reload();
+  await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 20_000 });
+}
+
+/**
  * A world with nothing in it. The shots run one after another in one
  * browser, so a recipe that must start from 「はじめる」 has to put the
  * page back to that state first.
@@ -350,6 +366,43 @@ const RECIPES: Record<string, Shot[]> = {
           await page.waitForTimeout(140);
         }
         await expect(page.getByTestId('creature-life-choice-screen')).toBeVisible();
+      },
+    },
+  ],
+  SETTINGS: [
+    {
+      suffix: 'settings_opening_row',
+      why: 'オープニングテーマの行。既定でON、説明が1行、BGM音量の下に自然に並んでいるか',
+      go: async (page) => {
+        await newWorld(page);
+        await page.getByTestId('settings-button').click();
+        await expect(page.getByTestId('opening-toggle')).toBeVisible();
+      },
+    },
+  ],
+  'OPENING THEME / SKIP': [
+    {
+      suffix: 'opening_A_skip_shown',
+      why: 'A：曲が鳴っている間のSKIP。ロゴにも本文にもかぶらず、右上に小さく出ているか',
+      go: async (page) => {
+        await openingRehearsal(page);
+        await page.getByTestId('start-button').click();
+        await expect(page.getByTestId('opening-skip')).toBeVisible();
+        await expect(page.getByTestId('prologue-monologue')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'opening_B_after_skip',
+      why: 'B：SKIP直後。ボタンだけが消え、読んでいた画面はそのまま（場面は飛ばない）',
+      go: async (page) => {
+        await openingRehearsal(page);
+        await page.getByTestId('start-button').click();
+        await page.getByTestId('opening-skip').click();
+        await expect(page.getByTestId('opening-skip')).toHaveCount(0);
+        await expect(page.getByTestId('prologue-monologue')).toBeVisible();
+        // The shots share one browser: leave the DEV stand-in off so the
+        // screens photographed after this one are the ordinary ones.
+        await page.evaluate(() => localStorage.removeItem('mugen-opening-rehearsal'));
       },
     },
   ],

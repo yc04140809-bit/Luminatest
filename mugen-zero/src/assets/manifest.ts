@@ -89,6 +89,28 @@ export const BGM_ASSETS: Record<BgmId, string | null> = {
   bakery: null,
 };
 
+/**
+ * MUSIC — the pieces that are not room tone.
+ *
+ * The opening theme is not a BGM: it plays once, it does not loop, and
+ * the game waits for it rather than the other way round. It gets its
+ * own slot for that reason, and this line is the ONLY place its file
+ * is named. Dropping the finished song in is:
+ *
+ *   1. put the file at src/assets/audio/music/opening-theme.mp3
+ *   2. import it here and put it in this map
+ *
+ * and nothing else in the project changes — not the title screen, not
+ * the player, not a test.
+ */
+export type MusicId = 'OPENING_THEME';
+
+export const MUSIC_ASSETS: Record<MusicId, string | null> = {
+  // No song yet. A null slot is silence, never an error: the opening
+  // simply does not play and the game starts as it always has.
+  OPENING_THEME: null,
+};
+
 export const SE_ASSETS: Record<SeId, string | null> = {
   select: null,
   memory: null,

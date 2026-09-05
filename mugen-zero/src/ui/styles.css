@@ -3006,3 +3006,52 @@ body,
 .preview-commands .bp-cmd {
   min-height: 48px;
 }
+
+/* ── OPENING THEME ────────────────────────────────────────────────────
+   One small control, only while the theme is sounding. It floats in the
+   top corner, clear of the safe area, and is deliberately narrow: at
+   360px it must not push the page sideways, so it is positioned rather
+   than laid out and never adds to the document's width. */
+.opening-skip {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(10px + env(safe-area-inset-right));
+  z-index: 60;
+  min-width: 0;
+  padding: 7px 15px;
+  border: 1px solid var(--mugen-border);
+  border-radius: 999px;
+  /* Pearl on ivory, like every other control in this build — not a dark
+     chip borrowed from the old palette. Slightly translucent so the key
+     visual behind it is never quite hidden. */
+  background: rgba(255, 253, 248, 0.86);
+  backdrop-filter: blur(2px);
+  color: var(--mugen-text-muted);
+  box-shadow: var(--mugen-shadow-soft);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  cursor: pointer;
+  /* A phone is held in one hand; the tap target stays finger-sized even
+     though the label is small. */
+  min-height: 34px;
+  animation: opening-skip-in 400ms ease-out both;
+}
+.opening-skip:active {
+  color: var(--mugen-gold);
+  border-color: var(--mugen-border-strong);
+}
+@keyframes opening-skip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .opening-skip {
+    animation: none;
+  }
+}

@@ -48,6 +48,9 @@ function reviewAssetAliases(): { find: RegExp; replacement: string }[] {
   }));
 }
 
+/** Never inlined, however small the file happens to be today. */
+const AUDIO_EXTENSIONS = /\.(mp3|ogg|m4a|wav|aac|flac|opus|webm)$/i;
+
 const buildDefine = {
   __BUILD_COMMIT__: JSON.stringify(gitCommit()),
   __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
@@ -60,8 +63,16 @@ export default defineConfig({
   resolve: { alias: reviewAssetAliases() },
   build: {
     outDir: 'dist-singlefile',
-    // Inline every asset (the Kaos portraits) as data URIs.
-    assetsInlineLimit: 10 * 1024 * 1024,
+    // Inline every asset (the Kaos portraits) as data URIs — except
+    // audio. A song is the one kind of asset that is large by nature and
+    // gains nothing from being in the HTML: base64 adds a third again to
+    // a file that is already megabytes, and this artifact has a 16 MB
+    // limit it has already been up against once. Music stays an external
+    // file, which in a single-file artifact means the opening theme is
+    // silent there. The artifact is for looking at, not for listening
+    // to; the repository build serves the file normally.
+    assetsInlineLimit: (filePath: string) =>
+      AUDIO_EXTENSIONS.test(filePath) ? false : undefined,
     cssCodeSplit: false,
     rollupOptions: {
       output: {

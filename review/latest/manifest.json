@@ -1,47 +1,62 @@
 {
-  "capturedAt": "2026-09-05T04:21:10.924Z",
+  "capturedAt": "2026-09-05T10:09:33.517Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_admin_a_lock.png",
+      "file": "01_settings_opening_row.png",
+      "screen": "SETTINGS",
+      "reason": "オープニングテーマの行。既定でON、説明が1行、BGM音量の下に自然に並んでいるか"
+    },
+    {
+      "file": "02_opening_a_skip_shown.png",
+      "screen": "OPENING THEME / SKIP",
+      "reason": "A：曲が鳴っている間のSKIP。ロゴにも本文にもかぶらず、右上に小さく出ているか"
+    },
+    {
+      "file": "03_opening_b_after_skip.png",
+      "screen": "OPENING THEME / SKIP",
+      "reason": "B：SKIP直後。ボタンだけが消え、読んでいた画面はそのまま（場面は飛ばない）"
+    },
+    {
+      "file": "04_admin_a_lock.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "A：管理者ロック。控えめな入口の先にあり、入力はそのまま表示されないか"
     },
     {
-      "file": "02_admin_b_home.png",
+      "file": "05_admin_b_home.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "B：ADMIN HOME。「演出プレビュー」が最初にあり、既存の開発スイッチは下に残っているか"
     },
     {
-      "file": "03_admin_c_preview_list.png",
+      "file": "06_admin_c_preview_list.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "C：演出プレビュー一覧。ARCANA ＞ 召喚事故 ＞ UNKNOWN #001。正式名称は出していないか"
     },
     {
-      "file": "04_admin_d_dragon.png",
+      "file": "07_admin_d_dragon.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "D：巨大召喚。左向き・敵側・画面の半分以上。DUMMY表示で実戦と誤認しないか"
     },
     {
-      "file": "05_admin_e_breath.png",
+      "file": "08_admin_e_breath.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "E：カットイン。顔・口元・ブレス・文字が読めるか。技名の二重表示がないか"
     },
     {
-      "file": "06_admin_f_unknown.png",
+      "file": "09_admin_f_unknown.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "F：フルシーケンス中の ARCANA #??? / UNKNOWN。実戦と同じカードか"
     },
     {
-      "file": "07_admin_g_talk.png",
+      "file": "10_admin_g_talk.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "G：フルシーケンス終盤の会話。実戦と同じ4行か"
     },
     {
-      "file": "08_admin_h_end.png",
+      "file": "11_admin_h_end.png",
       "screen": "ADMIN DEV TOOLS",
       "reason": "H：PREVIEW END。もう一度／一覧へ。戦場に何も残っていないか"
     }

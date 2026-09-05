@@ -25,9 +25,42 @@ describe('settings (player preferences, never world state)', () => {
 
   it('round-trips saved settings', () => {
     installStorage();
-    const next = { bgmVolume: 0.2, seVolume: 0.4, hapticEnabled: false, reducedMotion: true };
+    const next = {
+      bgmVolume: 0.2,
+      seVolume: 0.4,
+      hapticEnabled: false,
+      reducedMotion: true,
+      openingMode: 'OFF' as const,
+    };
     saveSettings(next);
     expect(loadSettings()).toEqual(next);
+  });
+
+  it('plays the opening once per run of the app unless told otherwise', () => {
+    installStorage();
+    expect(DEFAULT_SETTINGS.openingMode).toBe('ONCE_PER_SESSION');
+    expect(loadSettings().openingMode).toBe('ONCE_PER_SESSION');
+  });
+
+  it('reads settings saved before the opening theme existed as the default', () => {
+    // An older save has no openingMode at all. Absent must not read as
+    // OFF: somebody who never chose anything gets the opening.
+    installStorage({
+      'mugen-zero-settings': JSON.stringify({
+        bgmVolume: 0.5,
+        seVolume: 0.5,
+        hapticEnabled: true,
+        reducedMotion: false,
+      }),
+    });
+    expect(loadSettings().openingMode).toBe('ONCE_PER_SESSION');
+  });
+
+  it('ignores an openingMode that is not one of the three', () => {
+    installStorage({
+      'mugen-zero-settings': JSON.stringify({ openingMode: 'SOMETIMES' }),
+    });
+    expect(loadSettings().openingMode).toBe('ONCE_PER_SESSION');
   });
 
   it('falls back to defaults on corrupt data instead of throwing', () => {

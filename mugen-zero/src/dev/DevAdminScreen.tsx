@@ -37,6 +37,8 @@ import { progressOf, type ArcanaConditionId } from '../core/arcana/arcana';
 import { summonSuccessChance, type SummonOutcome } from '../core/summon/summon';
 import { SUMMON_ACCIDENT_CONFIG } from '../core/summon/summonAccident';
 import { SUMMON_ACCIDENTS, UNKNOWN_ACCIDENT_001 } from '../content/summon/accidents';
+import { openingRehearsal, setOpeningRehearsal } from './openingRehearsal';
+import { forgetOpeningSession } from '../platform/openingTheme';
 
 /**
  * DEV ONLY: pages in a few states worth looking at.
@@ -135,6 +137,7 @@ export function DevAdminScreen({
   // is a switch, and OLD is what a player without it always gets.
   const [ui, setUi] = useState<BattleUiChoice>(() => battleUi());
   const [finishable, setFinishable] = useState(() => startFinishable());
+  const [opRehearsal, setOpRehearsal] = useState(() => openingRehearsal());
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
   // The hub is a mode of the admin screen, not a new route: it is read
@@ -475,6 +478,33 @@ export function DevAdminScreen({
         上のボタンなら森を歩かずに試作だけ見られます。世界には何も書き込みません。
         森の実戦で見る場合は「新戦闘画面（試作）」＋「次の発見を BATTLE に固定」。
         ガルド戦は常に現行画面のままです。MUGEN CHOICE は「特殊個体：必ず発生」で。
+      </div>
+      {/* ---- OPENING THEME ---- */}
+      <div style={sectionTitle}>OPENING THEME PREVIEW</div>
+      <div style={row}>
+        <button
+          className={opRehearsal ? 'btn primary' : 'btn'}
+          style={smallBtn}
+          data-testid="opening-rehearsal"
+          onClick={() => {
+            setOpeningRehearsal(!opRehearsal);
+            setOpRehearsal(!opRehearsal);
+          }}
+        >
+          SKIP表示のリハーサル {opRehearsal ? 'ON' : 'OFF'}
+        </button>
+        <button
+          className="btn"
+          style={smallBtn}
+          data-testid="opening-forget-session"
+          onClick={() => forgetOpeningSession()}
+        >
+          「今回はもう流した」を忘れる
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+        楽曲はまだ入っていません。リハーサルはSKIPボタンの見え方だけを確認するもので、音は鳴りません。
+        設定のBGM音量を0にしている場合、またはオープニングテーマをOFFにしている場合は、曲は再生されません。
       </div>
 
       <div style={sectionTitle}>MOSS RABBIT — 敵の行動を固定</div>

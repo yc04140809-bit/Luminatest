@@ -57,6 +57,8 @@ import {
   debugSummon,
 } from './dev/debugEncounter';
 import { battleUi, startFinishable } from './dev/battleUiFlag';
+import { useOpeningTheme } from './ui/opening/useOpeningTheme';
+import { OpeningSkip } from './ui/opening/OpeningSkip';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
 import { clearObtainedItems } from './platform/discoveries';
 import { toAbsoluteDay } from './core/time/calendar';
@@ -95,6 +97,10 @@ interface GameRootProps extends CoreBundle {
 }
 
 function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRootProps) {
+  // The opening theme rides on the existing way in rather than on a
+  // screen of its own: the title is already there, and the first tap on
+  // it is already the gesture that lets audio start.
+  const opening = useOpeningTheme();
   const [surveyAnswered, setSurveyAnswered] = useState(false);
   // Where the player currently is. It carries no game rules — no event,
   // no world state and no save depends on it — it only tells the scene
@@ -234,6 +240,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   return (
     <>
       {screen}
+      {/* Only while the theme is actually sounding, so it never offers
+          to skip silence. */}
+      {opening.playing && <OpeningSkip onSkip={opening.skip} />}
       {/* One small line about what was just learned, over whatever the
           player is already looking at. It blocks nothing, covers no
           part of the world, and goes away on its own. */}
@@ -256,10 +265,12 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           hasSave={world.hasProgress()}
           onStart={() => {
             audioManager.unlock(); // first real gesture: audio may begin
+            opening.begin(settings.openingMode, settings.bgmVolume);
             flow.goTo('PROLOGUE');
           }}
           onContinue={() => {
             audioManager.unlock();
+            opening.begin(settings.openingMode, settings.bgmVolume);
             flow.goTo('HOME');
           }}
           onReset={async () => {
