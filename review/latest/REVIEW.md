@@ -1,7 +1,7 @@
 # MUGEN REVIEW PACKAGE — ARCANA SYSTEM v0.3 — 召喚事故 / UNKNOWN観測 / ANCIENT BREATH（採用前）
 
-- Generated: 2026-09-05T00:26:06.563Z
-- Commit: fc06275 on claude/mugen-zero-v01-implementation-qanh8u
+- Generated: 2026-09-05T00:51:50.904Z
+- Commit: 99054d6 on claude/mugen-zero-v01-implementation-qanh8u
 - Compared against: 97ec646
 - Verdict: SOMETHING FAILED — see 5
 
@@ -26,6 +26,7 @@
 ### commits
 
 ```
+99054d6 Let a summoned memory finish its sentence
 fc06275 Let the review package photograph a sighting more than once
 9595574 Keep the delivered art, and still have an artifact to look at
 371905a Let something the player has never met cross the summoning
@@ -58,7 +59,7 @@ mugen-zero/.gitignore                              |   1 +
  mugen-zero/src/dev/debugEncounter.ts               |   2 +-
  mugen-zero/src/game/battle/battleLogic.test.ts     | 120 +++-
  mugen-zero/src/game/battle/battleLogic.ts          | 139 ++++-
- mugen-zero/src/ui/battle/BattleUIPrototype.tsx     | 332 ++++++++++-
+ mugen-zero/src/ui/battle/BattleUIPrototype.tsx     | 337 ++++++++++-
  mugen-zero/src/ui/screens/ArcanaScreen.tsx         |  72 ++-
  mugen-zero/src/ui/styles.css                       | 256 +++++++++
  mugen-zero/types/node-shims.d.ts                   |   4 +
@@ -74,19 +75,20 @@ mugen-zero/.gitignore                              |   1 +
  review/latest/05_summon_complete_field.png         | Bin 483863 -> 0 bytes
  review/latest/06_accident_f_down.png               | Bin 0 -> 536888 bytes
  review/latest/06_battle_prototype.png              | Bin 515203 -> 0 bytes
- review/latest/07_summon_ward.png                   | Bin 0 -> 504129 bytes
- review/latest/08_battle_prototype.png              | Bin 0 -> 515369 bytes
+ review/latest/07_summon_ward.png                   | Bin 0 -> 504103 bytes
+ review/latest/08_battle_prototype.png              | Bin 0 -> 496668 bytes
  ...on_ability.png => 09_arcana_summon_ability.png} | Bin 96524 -> 100123 bytes
  review/latest/10_arcana_h_unknown.png              | Bin 0 -> 26510 bytes
+ review/latest/REVIEW.md                            | 347 ++++++------
  review/latest/manifest.json                        |  41 +-
  review/latest/qa-report.md                         |   4 +-
  review/notes.md                                    | 184 +++---
- 47 files changed, 3376 insertions(+), 207 deletions(-)
+ 48 files changed, 3553 insertions(+), 382 deletions(-)
 ```
 
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-05T00:26:06.236Z / viewport 390x844
+撮影: 2026-09-05T00:51:50.573Z / viewport 390x844
 
 - `review/latest/01_accident_a_start.png` — BATTLE UI PROTOTYPE：A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%
 - `review/latest/02_accident_b_unknown.png` — BATTLE UI PROTOTYPE：B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか
@@ -136,8 +138,8 @@ mugen-zero/.gitignore                              |   1 +
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T00:26:06.129Z
-- Build: MUGEN ZERO v0.1 / fc06275 / 2026-09-05T00:25:11.457Z
+- Generated: 2026-09-05T00:51:50.485Z
+- Build: MUGEN ZERO v0.1 / 99054d6 / 2026-09-05T00:50:56.680Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -181,16 +183,16 @@ mugen-zero/.gitignore                              |   1 +
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
 | Unit (vitest) | PASS | Tests  498 passed (498) |
-| E2E (playwright) | FAIL | 202 passed (14.1m) |
-| Build (tsc -b && vite build) | PASS | ✓ built in 9.61s |
+| E2E (playwright) | FAIL | 202 passed (13.2m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 9.05s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-Dg62IKGM.js                    1.33 kB │ gzip:   0.77 kB
-dist/assets/DevAdminScreen-CMgTWK1r.js                  47.47 kB │ gzip:  15.89 kB
+dist/assets/DevLockScreen-DAFdo0bg.js                    1.33 kB │ gzip:   0.77 kB
+dist/assets/DevAdminScreen-BcyUkLpf.js                  47.47 kB │ gzip:  15.89 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/index-BV8BXx9k.js                          171.38 kB │ gzip:  52.26 kB
-dist/assets/GreenwoodScreen-pqObjJEu.js              1,498.86 kB │ gzip: 346.19 kB
+dist/assets/index-DSpp96H_.js                          171.38 kB │ gzip:  52.26 kB
+dist/assets/GreenwoodScreen-CLNpJqKs.js              1,498.86 kB │ gzip: 346.19 kB
 ```
 
 ## 6. Android / mobile 確認結果

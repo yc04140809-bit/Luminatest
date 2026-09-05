@@ -275,6 +275,28 @@ describe('when something else comes through', () => {
   });
 
   describe('forcing one', () => {
+    it('a pinned outcome is not overruled by one', () => {
+      // The bug this exists to stop: the accident was settled before
+      // the ordinary roll, including when a tester had pinned that
+      // roll — so 6% of the fights they had asked to be a SUCCESS came
+      // out as a dragon. A switch that can be overruled is not a
+      // switch.
+      for (const pinned of ['SUCCESS', 'FAILURE'] as const) {
+        const plan = planIntervention({
+          defs: DEFS,
+          candidates: HALF,
+          accidents: SUMMON_ACCIDENTS,
+          forcedSummon: pinned,
+          // A die that would produce an accident every time.
+          rng: dice(0),
+        });
+        expect(plan.kind).toBe('SUMMON');
+        if (plan.kind !== 'SUMMON') return;
+        expect(plan.outcome).toBe(pinned);
+        expect(plan.accident).toBeNull();
+      }
+    });
+
     it('skips the dice but not the conditions', () => {
       const plan = planIntervention({
         defs: DEFS,
