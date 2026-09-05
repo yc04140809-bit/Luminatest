@@ -1,7 +1,7 @@
 # MUGEN REVIEW PACKAGE — ARCANA SYSTEM v0.3 — 召喚事故 / UNKNOWN観測 / ANCIENT BREATH（採用前）
 
-- Generated: 2026-09-05T01:13:59.884Z
-- Commit: dc191f5 on claude/mugen-zero-v01-implementation-qanh8u
+- Generated: 2026-09-05T01:29:32.284Z
+- Commit: 6740395 on claude/mugen-zero-v01-implementation-qanh8u
 - Compared against: 97ec646
 - Verdict: SOMETHING FAILED — see 5
 
@@ -26,6 +26,8 @@
 ### commits
 
 ```
+6740395 Put the round's findings in sections the report actually renders
+c7ab96f Regenerate the review package
 dc191f5 Stop an accident overruling a pinned outcome
 99054d6 Let a summoned memory finish its sentence
 fc06275 Let the review package photograph a sighting more than once
@@ -76,20 +78,20 @@ mugen-zero/.gitignore                              |   1 +
  review/latest/05_summon_complete_field.png         | Bin 483863 -> 0 bytes
  review/latest/06_accident_f_down.png               | Bin 0 -> 536890 bytes
  review/latest/06_battle_prototype.png              | Bin 515203 -> 0 bytes
- review/latest/07_summon_ward.png                   | Bin 0 -> 504103 bytes
- review/latest/08_battle_prototype.png              | Bin 0 -> 496613 bytes
+ review/latest/07_summon_ward.png                   | Bin 0 -> 504129 bytes
+ review/latest/08_battle_prototype.png              | Bin 0 -> 515369 bytes
  ...on_ability.png => 09_arcana_summon_ability.png} | Bin 96524 -> 100123 bytes
  review/latest/10_arcana_h_unknown.png              | Bin 0 -> 26510 bytes
- review/latest/REVIEW.md                            | 349 ++++++------
+ review/latest/REVIEW.md                            | 350 ++++++------
  review/latest/manifest.json                        |  41 +-
  review/latest/qa-report.md                         |   4 +-
- review/notes.md                                    | 194 ++++---
- 48 files changed, 3594 insertions(+), 382 deletions(-)
+ review/notes.md                                    | 191 ++++---
+ 48 files changed, 3592 insertions(+), 382 deletions(-)
 ```
 
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-05T01:13:59.526Z / viewport 390x844
+撮影: 2026-09-05T01:29:32.016Z / viewport 390x844
 
 - `review/latest/01_accident_a_start.png` — BATTLE UI PROTOTYPE：A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%
 - `review/latest/02_accident_b_unknown.png` — BATTLE UI PROTOTYPE：B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか
@@ -139,8 +141,8 @@ mugen-zero/.gitignore                              |   1 +
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T01:13:59.431Z
-- Build: MUGEN ZERO v0.1 / dc191f5 / 2026-09-05T01:13:05.003Z
+- Generated: 2026-09-05T01:29:31.926Z
+- Build: MUGEN ZERO v0.1 / 6740395 / 2026-09-05T01:28:35.134Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -184,16 +186,16 @@ mugen-zero/.gitignore                              |   1 +
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
 | Unit (vitest) | PASS | Tests  499 passed (499) |
-| E2E (playwright) | FAIL | 204 passed (13.1m) |
-| Build (tsc -b && vite build) | PASS | ✓ built in 9.15s |
+| E2E (playwright) | FAIL | 203 passed (13.2m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 9.29s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-CVEbH5yj.js                    1.33 kB │ gzip:   0.77 kB
-dist/assets/DevAdminScreen-D1Dro2bH.js                  47.47 kB │ gzip:  15.89 kB
+dist/assets/DevLockScreen-Olm2z_gt.js                    1.33 kB │ gzip:   0.77 kB
+dist/assets/DevAdminScreen-DGEMprqy.js                  47.47 kB │ gzip:  15.89 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/index-DJAy9XTW.js                          171.41 kB │ gzip:  52.27 kB
-dist/assets/GreenwoodScreen-CWg7owrf.js              1,498.86 kB │ gzip: 346.19 kB
+dist/assets/index-ykTobfLf.js                          171.41 kB │ gzip:  52.27 kB
+dist/assets/GreenwoodScreen-BCqHoabB.js              1,498.86 kB │ gzip: 346.19 kB
 ```
 
 ## 6. Android / mobile 確認結果
@@ -243,7 +245,14 @@ dist/assets/GreenwoodScreen-CWg7owrf.js              1,498.86 kB │ gzip: 346.1
    古代龍PNGは**一度も取得されていません**。
    結論：**負荷依存の既知フレーク**（Phaserの歩行がリングに着かない）。
    閾値・待ち時間は1つも緩めていません。
-6. 【継続・別issue】盗賊ガルドの右脚欠け。
+6. 【解決・本物のバグでした】負荷時だけ落ちるE2Eを追いかけたところ、
+   **DEVで SUCCESS / FAILURE を固定していても、その手前で事故抽選が
+   回っていました。** 固定したはずの約6%が事故になります。
+   「上書きされるスイッチ」はスイッチではありません。`settle` が、
+   何も指定されていないか ACCIDENT を指定されたときだけ事故を見るよう
+   に直し、「どんな目でも固定した結果になる」ことを単体テストで
+   固定しました。修正後、summon系E2Eは **3回 × 4並列 = 147/147 PASS**。
+7. 【継続・別issue】`phaseD` の負荷依存フレーク、盗賊ガルドの右脚欠け。
 
 ## 10. Claude 自身が気になる箇所
 
