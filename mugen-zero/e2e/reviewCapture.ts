@@ -148,6 +148,11 @@ async function summonBattle(
   await page.getByTestId('dev-lock-submit').click();
   await page.getByTestId(options.story === 'on' ? 'force-story-on' : 'force-story-off').click();
   await page.getByTestId(`arcana-set-${preset}`).click();
+  // These shots run one after another in one browser, and newWorld does
+  // not wipe the save. A sighting is remembered — deliberately, it is
+  // what the cooldown is made of — so the second accident shot would
+  // otherwise get an ordinary summon and photograph nothing.
+  if (summon === 'ACCIDENT') await page.getByTestId('accident-forget').click();
   await page.getByTestId(summon ? `force-summon-${summon}` : 'force-summon-none').click();
   if (!summon) await page.getByTestId('force-chaos-NONE').click();
   if (options.finishable) {

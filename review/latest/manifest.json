@@ -1,44 +1,59 @@
 {
-  "capturedAt": "2026-09-04T14:38:41.543Z",
+  "capturedAt": "2026-09-05T00:10:15.295Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_summon_incomplete_card.png",
+      "file": "01_accident_a_start.png",
       "screen": "BATTLE UI PROTOTYPE",
-      "reason": "ケイオスが不完全召喚を試みた瞬間。どのページを・何%で呼ぼうとしているか"
+      "reason": "A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%"
     },
     {
-      "file": "02_summon_incomplete_field.png",
+      "file": "02_accident_b_unknown.png",
       "screen": "BATTLE UI PROTOTYPE",
-      "reason": "同種戦。敵モスラビットと召喚モスラビットが見分けられるか（位置・大きさ・光の輪・タグ）"
+      "reason": "B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか"
     },
     {
-      "file": "03_summon_failure_card.png",
+      "file": "03_accident_d_dragon.png",
       "screen": "BATTLE UI PROTOTYPE",
-      "reason": "不成立。ペナルティを与えず、短い一言で終わっているか"
+      "reason": "D：巨大召喚。画面の半分以上を占めているか、敵側（左）を向いているか"
     },
     {
-      "file": "04_summon_arcana_command.png",
+      "file": "04_accident_e_breath.png",
       "screen": "BATTLE UI PROTOTYPE",
-      "reason": "100%所持時の戦闘UI。攻撃・スキルを圧迫せず、独立した行になっているか"
+      "reason": "E：《エンシェントブレス》。縦画面で顔・口元・ブレス・文字が読めるか。技名の二重表示なし"
     },
     {
-      "file": "05_summon_complete_field.png",
+      "file": "05_accident_g_talk.png",
       "screen": "BATTLE UI PROTOTYPE",
-      "reason": "完全召喚。金の輪、《森の息吹》の効果、1戦闘1回の使用済み表示"
+      "reason": "G：事故後の会話。ケイオスが説明役になっていないか。古代龍は残っていないか"
     },
     {
-      "file": "06_battle_prototype.png",
+      "file": "06_accident_f_down.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "F：ブレス後の敵DOWN。KILL自動確定ではなく、四つの答えが player に委ねられているか"
+    },
+    {
+      "file": "07_summon_ward.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "PHASE 1：HP満タンで呼んだとき。「HPはもう満ちている。」で終わらず《森の加護》になるか"
+    },
+    {
+      "file": "08_battle_prototype.png",
       "screen": "BATTLE UI PROTOTYPE",
       "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
     },
     {
-      "file": "07_arcana_summon_ability.png",
+      "file": "09_arcana_summon_ability.png",
       "screen": "ARCANA / アルカナ図鑑",
       "reason": "100%でだけ開く「呼べるもの」。ステータスやレアリティになっていないこと"
+    },
+    {
+      "file": "10_arcana_h_unknown.png",
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "H：観測後のUNKNOWN行。通常ARCANAの件数に足していないか、%を出していないか"
     }
   ],
   "notPhotographed": [
