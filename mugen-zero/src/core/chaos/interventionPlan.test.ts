@@ -4,18 +4,7 @@ import { CHAOS_INTERVENTION_CONFIG } from './chaosIntervention';
 import { CHAOS_INTERVENTIONS } from '../../content/chaos/chaosInterventions';
 import { SUMMON_CONFIG } from '../summon/summon';
 import { SUMMON_ACCIDENTS, UNKNOWN_ACCIDENT_001 } from '../../content/summon/accidents';
-import {
-  SUMMON_ACCIDENT_CONFIG,
-  type AccidentRecord,
-} from '../summon/summonAccident';
-
-/** Seen a few days ago, well inside its month-long cooldown. */
-const SEEN_TODAY: AccidentRecord = {
-  accidentId: UNKNOWN_ACCIDENT_001.id,
-  state: 'OBSERVED',
-  timesObserved: 1,
-  lastObservedDay: 4,
-};
+import { SUMMON_ACCIDENT_CONFIG } from '../summon/summonAccident';
 
 /** A die that hands back the numbers you give it, in order. */
 function dice(...values: number[]): () => number {
@@ -224,13 +213,27 @@ describe('when something else comes through', () => {
     expect(plan.kind).toBe('MODIFIER');
   });
 
-  it('never crosses the same thing twice in a row', () => {
+  it('crosses again however many times it has been seen', () => {
+    // A sighting is not an acquisition. Somebody who watched something
+    // enormous go past and still cannot name it has exactly as much
+    // reason to see it again as anybody else.
     const plan = planIntervention({
       defs: DEFS,
       candidates: HALF,
       accidents: SUMMON_ACCIDENTS,
-      accidentRecords: [SEEN_TODAY],
-      day: 10,
+      rng: dice(ACTS, 0, REACHES, 0, CROSSES, 0),
+    });
+    expect(plan.kind).toBe('SUMMON');
+    if (plan.kind !== 'SUMMON') return;
+    expect(plan.outcome).toBe('ACCIDENT');
+  });
+
+  it('never crosses once the player owns its ARCANA', () => {
+    const plan = planIntervention({
+      defs: DEFS,
+      candidates: HALF,
+      accidents: SUMMON_ACCIDENTS,
+      acquiredArcanaIds: [UNKNOWN_ACCIDENT_001.arcanaId],
       rng: dice(ACTS, 0, REACHES, 0, CROSSES, 0),
     });
     expect(plan.kind).toBe('SUMMON');
@@ -311,15 +314,13 @@ describe('when something else comes through', () => {
     });
 
     it('gives an ordinary fight when there is nothing left to cross', () => {
-      // Seen a week ago and still inside its cooldown, so the
-      // development switch has nothing to force. It settles outcomes;
-      // it does not invent them.
+      // Owned, so there is no candidate and the development switch has
+      // nothing to force. It settles outcomes; it does not invent them.
       const plan = planIntervention({
         defs: DEFS,
         candidates: HALF,
         accidents: SUMMON_ACCIDENTS,
-        accidentRecords: [SEEN_TODAY],
-        day: 10,
+        acquiredArcanaIds: [UNKNOWN_ACCIDENT_001.arcanaId],
         forcedSummon: 'ACCIDENT',
         rng: dice(0),
       });

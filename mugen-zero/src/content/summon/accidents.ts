@@ -4,7 +4,7 @@ import type { SummonAccidentDef } from '../../core/summon/summonAccident';
 import { UNKNOWN_001 } from '../arcana/unknownArcana';
 
 /**
- * The first accident.
+ * The first accident, and the shape every one after it takes.
  *
  * There is still no character here. No hit points, no routes, no way
  * to obtain it, no name the player is allowed to read — and that is
@@ -20,26 +20,27 @@ import { UNKNOWN_001 } from '../arcana/unknownArcana';
 export const UNKNOWN_ACCIDENT_001: SummonAccidentDef = {
   id: 'UNKNOWN_ANCIENT_DRAGON_001',
   enabled: true,
+
+  /**
+   * The ARCANA it turns out to be, once the world contains one.
+   *
+   * Reserved, not real: there is no such page, nothing grants it, and
+   * nobody can own it — so the exclusion rule below never fires for it
+   * yet, which is correct. It is an id and not a name; what this thing
+   * is actually called is still not decided and is not decided here.
+   */
+  arcanaId: 'ancient_dragon',
+  unknownLabel: 'UNKNOWN #001',
+  unknownArcanaId: UNKNOWN_001.arcanaId,
+  /** The piece of theatre the admin preview plays for it. */
+  previewId: 'accident-ancient-dragon',
+
+  // The band stops well short of a finished memory. A page the player
+  // has nearly rebuilt is a stable thing, and the sight belongs to the
+  // ones that are still mostly gaps. Unchanged this round: it is part
+  // of whether an accident happens, and that rate is not being touched.
   minProgress: 1,
   maxProgress: 60,
-
-  // Common the first time, and rare forever after. Not "never again":
-  // a player who was looking away when it happened would otherwise
-  // have missed the strangest thing in the build for good, and
-  // 「またアイツだ」 is worth having as its own moment later.
-  weight: 1,
-  repeatWeight: 0.08,
-  repeatPolicy: 'UNTIL_ACQUIRED',
-  // A month of world time between sightings. Whatever else it is, it
-  // must never read as a mechanic that turns up twice in an afternoon.
-  cooldownDays: 30,
-
-  unknownArcanaId: UNKNOWN_001.arcanaId,
-  // Nothing to resolve into yet. When the real page exists this names
-  // it, and the same rule that reads this field takes the creature out
-  // of the accident pool the moment the player owns it — no code here
-  // and no `if` about dragons anywhere.
-  resolvedArcanaId: null,
 
   ability: {
     id: 'ancient_breath',

@@ -509,53 +509,35 @@ test.describe('when it may happen again', () => {
     await reopen(page);
   }
 
-  test('not straight away: it waits out its cooldown', async ({ page }) => {
-    // "Once, ever" was rejected: a player looking away misses the only
-    // strange thing in the build forever. What replaces it is a long
-    // wait, so it can never read as a mechanic that turns up twice in
-    // an afternoon.
+  test('again, straight away, however many times it has been seen', async ({ page }) => {
+    // Seeing a thing is not owning it. A player who watched something
+    // enormous go past and still cannot name it has exactly as much
+    // reason to see it again as anybody else — so a sighting must
+    // never be what takes it out of the pool.
     await freshWorld(page);
     await seeIt(page);
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
-    await expect(page.getByTestId('bp-summon-card')).toBeVisible();
-    await expect(page.getByTestId('bp-summon-card')).not.toHaveAttribute(
-      'data-outcome',
-      'ACCIDENT',
-    );
-  });
+    await expect(page.getByTestId('bp-summon-card')).toHaveAttribute('data-outcome', 'ACCIDENT');
 
-  test('but it may, once enough of the world has gone by', async ({ page }) => {
-    await freshWorld(page);
-    await seeIt(page);
-    await unlockDev(page);
-    await page.getByTestId('time-plus-1y').click();
-    await page.waitForTimeout(500);
-    await page.getByTestId('dev-admin-back').click();
-
+    // And again after that.
+    await page.getByTestId('bp-summon-card').click();
+    await throughTheAccident(page);
+    await reopen(page);
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     await expect(page.getByTestId('bp-summon-card')).toHaveAttribute('data-outcome', 'ACCIDENT');
   });
 
-  test('never again once the player owns it', async ({ page }) => {
-    // The hard rule, and the reason a sighting carries an ARCANA it
-    // resolves into: a thing you can call on purpose must never turn
-    // up again as a thing that crossed you by chance.
+  test('and the book still holds exactly one row for it', async ({ page }) => {
+    // Seen three times, remembered once: the row is the sighting, not
+    // a tally the player is meant to read.
     await freshWorld(page);
     await seeIt(page);
-    await unlockDev(page);
-    await page.getByTestId('time-plus-1y').click();
-    await page.waitForTimeout(400);
-    await page.getByTestId('accident-state-ACQUIRED').click();
-    await page.waitForTimeout(400);
-    await expect(page.getByTestId('accident-state')).toContainText('ACQUIRED');
-    await page.getByTestId('dev-admin-back').click();
-
-    await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
-    await expect(page.getByTestId('bp-summon-card')).toBeVisible();
-    await expect(page.getByTestId('bp-summon-card')).not.toHaveAttribute(
-      'data-outcome',
-      'ACCIDENT',
-    );
+    await seeIt(page);
+    await page.getByTestId('arcana-button').click();
+    await expect(page.getByTestId('arcana-unknown-unknown_001')).toHaveCount(1);
+    await expect(page.getByTestId('arcana-unknown-count')).toContainText('未知の記憶 1');
+    // And it is still not an ARCANA anybody owns.
+    await expect(page.getByTestId('arcana-count')).toContainText('1 / 1');
   });
 
   test('never crosses a memory that is finished, or nearly', async ({ page }) => {

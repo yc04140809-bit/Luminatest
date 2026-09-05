@@ -147,17 +147,17 @@ function settle(
   // settling it AGAINST this: a tester who pinned SUCCESS and got a
   // dragon has not pinned anything. So the accident is only asked
   // about when nothing was asked for, or when an accident was.
+  // A development switch settles the outcome, and that has to include
+  // settling it AGAINST this: a tester who pinned SUCCESS and got a
+  // dragon has not pinned anything. So the accident is only asked
+  // about when nothing was asked for, or when an accident was.
   const accident =
     forced !== null && forced !== 'ACCIDENT'
       ? null
       : pickAccident({
           defs: options.accidents ?? [],
           progress: chosen.progress,
-          records: options.accidentRecords,
           acquiredArcanaIds: options.acquiredArcanaIds,
-          day: options.day ?? null,
-          location: options.location ?? null,
-          year: options.year ?? null,
           chance: options.accidentChance,
           rng,
           forced: forced === 'ACCIDENT',

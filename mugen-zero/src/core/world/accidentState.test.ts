@@ -160,6 +160,23 @@ describe('a save written before any of this had a shape', () => {
   });
 });
 
+describe('TEST 8 — a save from before any of this', () => {
+  it('loads with no migration and an empty pool history', async () => {
+    // The pool keeps no ownership of its own, so there is nothing for
+    // an old save to be missing: absent reads as "seen nothing", and
+    // whether anything is owned comes from the ARCANA book, which
+    // every save has always had.
+    const db = freshDbName();
+    const old = await openWorld(db);
+    await old.recordArcanaConditions('moss_rabbit', ['FIRST_ENCOUNTER']);
+    const now = await openWorld(db);
+    expect(now.getObservedAccidents()).toEqual([]);
+    expect(now.getAccidentRecord(ID).timesObserved).toBe(0);
+    expect(now.getArcanaRecord('moss_rabbit').met).toContain('FIRST_ENCOUNTER');
+    expect(now.getAcquiredArcanaIds()).toEqual([]);
+  });
+});
+
 describe('what the accident pool is allowed to see', () => {
   it('offers up the ARCANA the player has actually finished', async () => {
     const world = await openWorld(freshDbName());
@@ -175,5 +192,15 @@ describe('what the accident pool is allowed to see', () => {
       'ROUTE_SPARE',
     ]);
     expect(world.getAcquiredArcanaIds()).toEqual(['moss_rabbit']);
+  });
+
+  it('does not gain an owned flag of its own when something is seen', () => {
+    // The rule against managing the same fact twice. Watching a thing
+    // cross must never make the game think the player owns it.
+    return (async () => {
+      const world = await openWorld(freshDbName());
+      await world.recordAccidentObserved(ID);
+      expect(world.getAcquiredArcanaIds()).toEqual([]);
+    })();
   });
 });

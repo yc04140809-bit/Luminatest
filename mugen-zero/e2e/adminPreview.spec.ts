@@ -393,6 +393,53 @@ test.describe('a preview changes nothing', () => {
   });
 });
 
+test.describe('the accident pool', () => {
+  test('TEST 4 — the preview plays whatever the save owns', async ({ page }) => {
+    // The gameplay pool and the preview pool are different lists on
+    // purpose. A creature the player has acquired never crosses them
+    // by chance again, and its cut-in can still break — so the admin
+    // must be able to look at it either way. The preview is not handed
+    // a world at all, so there is nothing for ownership to hide.
+    await freshWorld(page);
+    await unlock(page);
+    // Finish an ARCANA outright, so the save genuinely owns something.
+    await page.getByTestId('arcana-set-COMPLETE').click();
+    await page.getByTestId('open-cinematic-preview').click();
+    await page.getByTestId('preview-UNKNOWN_ANCIENT_DRAGON_001').click();
+    await page.getByTestId('preview-play-FULL').click();
+    await expect(page.getByTestId('bp-dragon')).toBeVisible({ timeout: 12_000 });
+  });
+
+  test('the admin panel says why a candidate is in or out', async ({ page }) => {
+    await freshWorld(page);
+    await unlock(page);
+    const state = page.getByTestId('accident-state');
+    await expect(state).toContainText('UNKNOWN #001');
+    // Ownership is read from the book, not from a flag of its own.
+    await expect(state).toContainText('ancient_dragon');
+    await expect(state).toContainText('未入手 → 候補');
+  });
+
+  test('seeing it does not make the game think it is owned', async ({ page }) => {
+    await freshWorld(page);
+    await unlock(page);
+    await page.getByTestId('arcana-set-中').click();
+    await page.getByTestId('force-summon-ACCIDENT').click();
+    await page.getByTestId('force-story-off').click();
+    await page.getByTestId('open-battle-prototype').click();
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+    await page.getByTestId('bp-summon-card').click();
+    await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+    await page.getByTestId('bp-accident-talk').click();
+    await page.reload();
+    await page.getByTestId('continue-button').click();
+    await unlock(page);
+    // Observed once, and still not owned — so still a candidate.
+    await expect(page.getByTestId('accident-state')).toContainText('観測1回');
+    await expect(page.getByTestId('accident-state')).toContainText('未入手 → 候補');
+  });
+});
+
 for (const width of [360, 390, 412]) {
   test(`the preview fits a ${width}px phone`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });

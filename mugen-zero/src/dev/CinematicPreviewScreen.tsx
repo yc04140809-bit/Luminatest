@@ -8,7 +8,8 @@ import {
   useAccidentSequence,
   type AccidentBeat,
 } from '../ui/cinematic/accidentCinematic';
-import { UNKNOWN_ACCIDENT_001 } from '../content/summon/accidents';
+import { SUMMON_ACCIDENTS } from '../content/summon/accidents';
+import { previewableAccidents } from '../core/summon/summonAccident';
 import { unknownArcanaDef } from '../content/arcana/unknownArcana';
 import { locationBackground } from '../content/locations/locationVisuals';
 
@@ -35,6 +36,17 @@ import { locationBackground } from '../content/locations/locationVisuals';
  * plays. A preview that reimplemented the sequence would drift from
  * the game within a week and start answering the wrong question.
  */
+
+/**
+ * Everything there is to look at.
+ *
+ * The PREVIEW pool, not the gameplay one: what the admin may inspect
+ * has nothing to do with what any save happens to own. A creature the
+ * player has acquired — and which therefore never crosses them by
+ * accident again — still has a cut-in that can break, and this is
+ * where somebody checks it.
+ */
+const PREVIEWABLE = previewableAccidents(SUMMON_ACCIDENTS);
 
 type Mode = 'LIST' | 'ENTRY' | 'PLAY';
 /** Which piece is being looked at. */
@@ -106,7 +118,10 @@ export function CinematicPreviewScreen({ onBack }: { onBack: () => void }) {
     setMode('ENTRY');
   }, [sequence]);
 
-  const unknown = unknownArcanaDef(UNKNOWN_ACCIDENT_001.unknownArcanaId);
+  // One today. The list below is built from the pool, so the second
+  // one costs an entry in content and nothing here.
+  const subject = PREVIEWABLE[0];
+  const unknown = unknownArcanaDef(subject.unknownArcanaId);
 
   if (mode === 'LIST') {
     return (
@@ -118,11 +133,11 @@ export function CinematicPreviewScreen({ onBack }: { onBack: () => void }) {
           <p className="preview-group sub">召喚事故</p>
           <button
             className="preview-item"
-            data-testid="preview-UNKNOWN_ANCIENT_DRAGON_001"
+            data-testid={`preview-${subject.id}`}
             onClick={() => setMode('ENTRY')}
           >
-            <span className="preview-item-name">UNKNOWN #001</span>
-            <span className="preview-item-id">{UNKNOWN_ACCIDENT_001.id}</span>
+            <span className="preview-item-name">{subject.unknownLabel}</span>
+            <span className="preview-item-id">{subject.id}</span>
           </button>
           <p className="preview-note">
             ここで再生しても、HP・構築度・図鑑・観測状態・クールダウン・セーブは
@@ -141,8 +156,8 @@ export function CinematicPreviewScreen({ onBack }: { onBack: () => void }) {
   if (mode === 'ENTRY') {
     return (
       <div className="screen preview-screen" data-testid="cinematic-preview">
-        <div className="screen-title">UNKNOWN #001</div>
-        <p className="preview-crumb">ARCANA ＞ 召喚事故 ＞ UNKNOWN #001</p>
+        <div className="screen-title">{subject.unknownLabel}</div>
+        <p className="preview-crumb">ARCANA ＞ 召喚事故 ＞ {subject.unknownLabel}</p>
         <div className="preview-list">
           {PIECES.map((p) => (
             <button
@@ -190,7 +205,7 @@ export function CinematicPreviewScreen({ onBack }: { onBack: () => void }) {
         <span className="preview-badge" data-testid="preview-badge">
           ADMIN PREVIEW
         </span>
-        <AccidentStage beat={beat} unknown={unknown} ability={UNKNOWN_ACCIDENT_001.ability} />
+        <AccidentStage beat={beat} unknown={unknown} ability={subject.ability} />
       </div>
 
       <div className="bp-plate bp-plate-party">
@@ -208,7 +223,7 @@ export function CinematicPreviewScreen({ onBack }: { onBack: () => void }) {
         </p>
       </div>
 
-      {beat === 'CROSS' && <AccidentCard unknown={unknown} accidentId={UNKNOWN_ACCIDENT_001.id} />}
+      {beat === 'CROSS' && <AccidentCard unknown={unknown} accidentId={subject.id} />}
       {beat === 'TALK' && (
         <AccidentTalk
           onSkip={() => {

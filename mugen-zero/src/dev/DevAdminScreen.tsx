@@ -589,18 +589,19 @@ export function DevAdminScreen({
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 6 }}>
         「必ず事故」は候補が成立するときだけ効きます（構築度 {UNKNOWN_ACCIDENT_001.minProgress}〜
-        {UNKNOWN_ACCIDENT_001.maxProgress}%、かつ ACQUIRED でない、かつクールダウン明け）。
+        {UNKNOWN_ACCIDENT_001.maxProgress}%、かつ正式ARCANA未入手）。
         通常の事故確率は {Math.round(SUMMON_ACCIDENT_CONFIG.chance * 100)}%
-        （不完全召喚が起きたときの割合）。
+        （不完全召喚が起きたときの割合）。**見たことがあるかどうかは候補から
+        外す理由になりません。**
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }} data-testid="accident-state">
         {SUMMON_ACCIDENTS.map((def) => {
           const record = world.getAccidentRecord(def.id);
+          const owned = world.getAcquiredArcanaIds().includes(def.arcanaId);
           return (
             <div key={def.id}>
-              {def.id}：{record.state} / 観測{record.timesObserved}回 / 最終
-              {record.lastObservedDay === null ? ' なし' : ` ${record.lastObservedDay}日目`} /{' '}
-              {def.repeatPolicy} + {def.cooldownDays}日
+              {def.unknownLabel}（{def.id}）：観測{record.timesObserved}回 ／ 正式ARCANA{' '}
+              {def.arcanaId} は{owned ? '入手済み → 候補から除外' : '未入手 → 候補'}
             </div>
           );
         })}
@@ -621,24 +622,6 @@ export function DevAdminScreen({
         >
           観測記録を消す
         </button>
-        {(['IDENTIFIED', 'ACQUIRED'] as const).map((state) => (
-          <button
-            key={state}
-            className="btn"
-            style={smallBtn}
-            disabled={busy}
-            data-testid={`accident-state-${state}`}
-            onClick={() => {
-              setBusy(true);
-              void world
-                .setAccidentState(UNKNOWN_ACCIDENT_001.id, state)
-                .catch((e) => console.error(e))
-                .finally(() => setBusy(false));
-            }}
-          >
-            {state}にする
-          </button>
-        ))}
       </div>
 
       <div style={sectionTitle}>ARCANA — 構築度を直接指定</div>

@@ -31,20 +31,6 @@ import type { Rng } from './summon';
  */
 export type AccidentState = 'UNSEEN' | 'OBSERVED' | 'IDENTIFIED' | 'ACQUIRED';
 
-/**
- * Whether a thing that has already crossed may cross again.
- *
- * Deliberately data rather than a rule. "Once, ever" reads well and
- * plays badly: a player who was looking away has missed the only
- * strange thing in the build, forever. And "……またアイツだ" is worth
- * having as an experience in its own right.
- *
- *   ONCE            never again.
- *   RARE_REPEAT     rarely, after a cooldown, forever.
- *   UNTIL_ACQUIRED  rarely, after a cooldown, until it is theirs.
- */
-export type AccidentRepeatPolicy = 'ONCE' | 'RARE_REPEAT' | 'UNTIL_ACQUIRED';
-
 /** What a thing that crosses does while it is here. */
 export interface SummonAccidentAbility {
   id: string;
@@ -68,41 +54,54 @@ export interface SummonAccidentAbility {
  */
 export type AccidentEffect = { kind: 'STRIKE_ALL'; amount: number };
 
-/** One thing that could cross, and what has to be true for it to. */
+/**
+ * One thing that could cross, and what has to be true for it to.
+ *
+ * The pool is a list of these. Adding UNKNOWN #002 is adding an entry
+ * — no new branch, no `if` about any particular creature, and nothing
+ * in the battle or the preview to change.
+ */
 export interface SummonAccidentDef {
+  /** The accident, for the save and the preview. */
   id: string;
   enabled: boolean;
+  /**
+   * The ARCANA this thing turns out to be, once the player has it.
+   *
+   * The join between a sighting and a page, and the only thing the
+   * exclusion rule reads. It is a reserved id today: no such ARCANA
+   * exists yet, so nobody can own it, so the candidate always stands.
+   */
+  arcanaId: string;
+  /** What the book and the preview call it. Never its real name. */
+  unknownLabel: string;
+  /** The page the book writes when somebody sees this. */
+  unknownArcanaId: string;
+  /** Which piece of theatre the admin preview plays for it. */
+  previewId: string;
   /**
    * The band of construction an unstable memory has to be in.
    *
    * A band, not a curve. "The less complete, the more accidents" as
    * the whole design would make the rarest sight in the game a reward
-   * for collecting badly.
+   * for collecting badly. Part of WHETHER an accident happens, which
+   * is why it is here and not among the things left for later.
    */
   minProgress: number;
   maxProgress: number;
-  /** Where the fight is, when it matters. */
-  location?: string;
-  /** The world year, when it matters. */
-  year?: number;
-  /** Its share the first time. */
-  weight: number;
-  /** Its share every time after that. Zero means "never again". */
-  repeatWeight: number;
-  repeatPolicy: AccidentRepeatPolicy;
-  /** Days that must pass before it may cross again. Stops it recurring. */
-  cooldownDays: number;
-  /** The page the book writes when somebody sees this. */
-  unknownArcanaId: string;
-  /**
-   * The real ARCANA this turns out to be, once the world contains it.
-   *
-   * Null while there is no such thing. It is the join between a
-   * sighting and a page, and it is what makes the exclusion rule below
-   * general instead of a special case about one creature.
-   */
-  resolvedArcanaId: string | null;
   ability: SummonAccidentAbility;
+
+  /*
+   * The door, deliberately left shut.
+   *
+   * A candidate may one day want a place, a year, a story flag, a
+   * rarity, a draw weight or a cooldown before it may recur. None of
+   * those are here, because none of them have a second candidate to
+   * be different about yet, and a condition engine written before
+   * there are conditions is a guess with a schema. When the second
+   * one arrives, they go on this interface and into
+   * eligibleAccidents, and nothing else moves.
+   */
 }
 
 /** Where the player stands with one of them. */
@@ -136,21 +135,19 @@ export interface AccidentPickOptions {
   defs: readonly SummonAccidentDef[];
   /** How much of the memory being rebuilt exists. */
   progress: number;
-  /** Where the player stands with each of them. Absent reads as UNSEEN. */
-  records?: readonly AccidentRecord[];
   /**
    * ARCANA the player holds outright.
    *
-   * The exclusion this drives is the important one, and it is written
-   * once for everything rather than as an `if` about a dragon: a thing
-   * whose page you own is a thing you summon on purpose, and it must
-   * never turn up again as an accident.
+   * The one and only reason a candidate is taken out of the pool, and
+   * it is read from the book rather than kept here — a second copy of
+   * "does the player own this" is a second copy that can disagree.
+   *
+   * Note what is NOT a reason: having seen it. A sighting is not an
+   * acquisition, and somebody who watched something enormous go past
+   * and still has no idea what it was has exactly as much reason to
+   * see it again as anybody else.
    */
   acquiredArcanaIds?: readonly string[];
-  /** Today, in absolute world days, for cooldowns. */
-  day?: number | null;
-  location?: string | null;
-  year?: number | null;
   rng?: Rng;
   /**
    * Development only: skip the chance roll, but never the conditions.
@@ -160,65 +157,56 @@ export interface AccidentPickOptions {
   chance?: number;
 }
 
-function recordFor(
-  options: AccidentPickOptions,
-  def: SummonAccidentDef,
-): AccidentRecord {
-  return (
-    options.records?.find((r) => r.accidentId === def.id) ?? emptyAccidentRecord(def.id)
-  );
-}
-
-/** Whether enough time has passed since the last sighting. */
-function cooledDown(def: SummonAccidentDef, record: AccidentRecord, day: number | null): boolean {
-  if (record.lastObservedDay === null) return true;
-  if (def.cooldownDays <= 0) return true;
-  // A world with no clock to read cannot prove the wait is over, and
-  // the safe answer to that is "not yet": better a sight withheld than
-  // the same sight twice in one afternoon.
-  if (day === null) return false;
-  return day - record.lastObservedDay >= def.cooldownDays;
-}
-
-/** Everything that could happen here, before the dice. */
+/**
+ * Everything that could cross here.
+ *
+ * Two questions, and deliberately only two. Is this candidate live at
+ * all, and is this memory unfinished enough for something to cross it
+ * — then: does the player already own the thing? That last one is the
+ * whole of PHASE 2, and it is written once, for every candidate, by
+ * reading the book rather than by asking about any creature by name.
+ */
 export function eligibleAccidents(options: AccidentPickOptions): SummonAccidentDef[] {
   const acquired = new Set(options.acquiredArcanaIds ?? []);
-  const day = options.day ?? null;
   return options.defs.filter((def) => {
     if (!def.enabled) return false;
     if (options.progress < def.minProgress) return false;
     if (options.progress > def.maxProgress) return false;
-    if (def.location !== undefined && def.location !== options.location) return false;
-    if (def.year !== undefined && def.year !== options.year) return false;
-
-    const record = recordFor(options, def);
-    // The hard rule, and the reason `resolvedArcanaId` exists: what
-    // the player owns is theirs to call, and can never be an accident
-    // again. Checked from both sides — the state the record reached,
-    // and the page the player holds — because either can arrive first.
-    if (record.state === 'ACQUIRED') return false;
-    if (def.resolvedArcanaId !== null && acquired.has(def.resolvedArcanaId)) return false;
-
-    if (record.timesObserved === 0) return true;
-    if (def.repeatPolicy === 'ONCE') return false;
-    if (weightFor(def, record) <= 0) return false;
-    return cooledDown(def, record, day);
+    // Owned is out, and nothing else is. Once a thing is the player's
+    // to call on purpose it stops being a thing that crossed them by
+    // chance; until then it stays in the pool however many times they
+    // have watched it go past.
+    return !acquired.has(def.arcanaId);
   });
 }
 
-/** Its share of the draw, which drops sharply after the first time. */
-export function weightFor(def: SummonAccidentDef, record: AccidentRecord): number {
-  return record.timesObserved === 0 ? Math.max(0, def.weight) : Math.max(0, def.repeatWeight);
+/**
+ * Everything the admin may look at, which is everything that exists.
+ *
+ * A separate list from the one above on purpose. The preview answers
+ * "does this piece of theatre still look right", and that question has
+ * nothing to do with what any save happens to own — an owned creature
+ * whose cut-in has broken is exactly the case somebody needs to be
+ * able to check.
+ */
+export function previewableAccidents(
+  defs: readonly SummonAccidentDef[],
+): SummonAccidentDef[] {
+  return defs.filter((def) => def.enabled);
 }
 
 /**
  * What crosses, if anything does.
  *
- * Two gates, in this order: something has to be able to happen here,
- * and then the world has to be unlucky. Forcing skips the second and
- * never the first — a tester whose candidate is out of band, on
- * cooldown or already owned gets an ordinary summon, exactly as a
- * player would.
+ * Two gates, in this order, and the order is the point: something has
+ * to be able to happen here, and only then does the world roll for it.
+ * Whether an accident happens at all is unchanged by anything in this
+ * round — the same chance, checked in the same place. What changed is
+ * only which of them is chosen once it has.
+ *
+ * Nothing eligible means no accident, and no dice thrown: the caller
+ * falls back to an ordinary summon with its own roll untouched.
+ * Forcing skips the chance and never the conditions.
  */
 export function pickAccident(options: AccidentPickOptions): SummonAccidentDef | null {
   let candidates = eligibleAccidents(options);
@@ -229,16 +217,9 @@ export function pickAccident(options: AccidentPickOptions): SummonAccidentDef | 
   const rng = options.rng ?? Math.random;
   const chance = options.chance ?? SUMMON_ACCIDENT_CONFIG.chance;
   if (!options.forced && rng() >= chance) return null;
-
-  const weights = candidates.map((def) => weightFor(def, recordFor(options, def)));
-  const total = weights.reduce((sum, w) => sum + w, 0);
-  if (total <= 0) return candidates[0];
-  let cut = rng() * total;
-  for (let i = 0; i < candidates.length; i++) {
-    cut -= weights[i];
-    if (cut < 0) return candidates[i];
-  }
-  return candidates[candidates.length - 1];
+  // Evenly, for now. A per-candidate draw weight is one of the things
+  // waiting on there being a second candidate to weigh against.
+  return candidates[Math.min(candidates.length - 1, Math.floor(rng() * candidates.length))];
 }
 
 /**
