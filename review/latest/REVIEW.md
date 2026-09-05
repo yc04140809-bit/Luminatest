@@ -1,102 +1,40 @@
-# MUGEN REVIEW PACKAGE — ADMIN DEV TOOLS v0.1 — 管理者ロック / 演出プレビュー（採用前）
+# MUGEN REVIEW PACKAGE — ARCANA v0.3 — 召喚事故プール / 入手済み除外（採用前）
 
-- Generated: 2026-09-05T03:49:56.086Z
-- Commit: 1080e50 on claude/mugen-zero-v01-implementation-qanh8u
-- Compared against: f1b3c33
+- Generated: 2026-09-05T04:21:11.067Z
+- Commit: 9f08e5a on claude/mugen-zero-v01-implementation-qanh8u
+- Compared against: 4e1ecf6
 - Verdict: nothing failed
 
 ## 1. 実装前 → 実装後の変更点
 
-**まだ採用していません。** 2つだけ作りました。
+**まだ採用していません。** 2つです。
 
-**PHASE 1 — 管理者ロック。** 入口もロックも既存のものが既にあったので、
-**作り直さず再利用**しました。変えたのは3点だけです。
-表示を日本語に（ADMIN／管理者ページ／ロックNo.を入力／入る）、
-文言を「ロックNo.が違います」に、そして**同一セッション中のみ再入力を省略**。
+**PHASE 1 — 事故候補プールの汎用化。** `SummonAccidentDef` に
+`arcanaId` / `unknownLabel` / `previewId` を持たせ、UNKNOWN #002 の追加が
+**content に1エントリ足すだけ**で済むようにしました。分岐も、特定の
+生き物についての `if` も増えません。
 
-**PHASE 2 — 演出プレビュー。** 管理者ホームから
-ARCANA ＞ 召喚事故 ＞ UNKNOWN #001 を選び、
-**巨大召喚 / エンシェントブレス / フルシーケンス**を再生できます。
-召喚事故は仕様上とても稀（実効1%弱＋30日クールダウン）なので、
-「360pxで龍が大きすぎないか」を確かめるために戦闘を何十回もやる、
-という状態を解消するのが目的です。
+**PHASE 2 — 正式入手済みの除外。** 候補から外れる理由は
+**正式ARCANAを所有していること、ただ1つ**にしました。
 
-### commits
+### 前ラウンド（v0.3）からの仕様変更を明記します
 
-```
-1080e50 Teach the suite that the lock opens once per run, not per visit
-e1f5b36 Write the round's notes, and test the lock itself
-98c3351 Photograph the admin tools, and let the lock be used twice
-57d063b Let the admin look at the theatre without playing the game
-```
+前回わたしは `repeatPolicy: UNTIL_ACQUIRED` ＋ **30日クールダウン**を実装し、
+「一度見たら当分出ない」挙動にしていました。**今回の指示はこれを覆します**
+（「召喚事故を何度見ても、正式入手していない限り除外してはいけない」）。
+したがって**クールダウン・repeatPolicy・weight・観測回数による抽選除外を
+すべて撤去**しました。同じ人が同じ条件で連続して事故に遭えます。
+意図した変更ですが、**前回の挙動とは違う**ので確認をお願いします。
 
-### changed files
-
-```
-mugen-zero/e2e/adminPreview.spec.ts               | 418 ++++++++++++++++++++++
- mugen-zero/e2e/arcana.spec.ts                     |   5 +-
- mugen-zero/e2e/battlePrototype.spec.ts            |  14 +-
- mugen-zero/e2e/devReviewHub.spec.ts               |  13 +-
- mugen-zero/e2e/explorationLoop.spec.ts            |   5 +-
- mugen-zero/e2e/fourFutures.spec.ts                |   6 +-
- mugen-zero/e2e/helpers.ts                         |  24 ++
- mugen-zero/e2e/mossRabbit.spec.ts                 |   5 +-
- mugen-zero/e2e/navigation.spec.ts                 |   5 +-
- mugen-zero/e2e/phaseC.spec.ts                     |   7 +-
- mugen-zero/e2e/phaseD-restart.spec.ts             |   6 +-
- mugen-zero/e2e/phaseD5-restart.spec.ts            |   6 +-
- mugen-zero/e2e/phaseD5.spec.ts                    |   9 +-
- mugen-zero/e2e/phaseE-restart.spec.ts             |   6 +-
- mugen-zero/e2e/phaseE.spec.ts                     |   6 +-
- mugen-zero/e2e/phaseF-restart.spec.ts             |   5 +-
- mugen-zero/e2e/phaseF.spec.ts                     |   6 +-
- mugen-zero/e2e/phaseH-restart.spec.ts             |   9 +-
- mugen-zero/e2e/phaseH.spec.ts                     |  14 +-
- mugen-zero/e2e/reviewCapture.ts                   | 123 ++++---
- mugen-zero/e2e/rumorSeeds.spec.ts                 |   5 +-
- mugen-zero/e2e/summon.spec.ts                     |   5 +-
- mugen-zero/e2e/summonAccident.spec.ts             |   5 +-
- mugen-zero/e2e/uxPolish.spec.ts                   |  10 +-
- mugen-zero/src/App.tsx                            |  19 +-
- mugen-zero/src/content/qa/visualChanges.ts        |  15 +-
- mugen-zero/src/core/flow/gameFlow.ts              |  19 +-
- mugen-zero/src/core/flow/types.ts                 |   1 +
- mugen-zero/src/dev/CinematicPreviewScreen.tsx     | 236 ++++++++++++
- mugen-zero/src/dev/DevAdminScreen.tsx             |  26 +-
- mugen-zero/src/dev/DevLockScreen.tsx              |  32 +-
- mugen-zero/src/dev/devMode.test.ts                |  81 +++++
- mugen-zero/src/dev/devMode.ts                     |  35 ++
- mugen-zero/src/ui/battle/BattleUIPrototype.tsx    | 186 ++--------
- mugen-zero/src/ui/cinematic/accidentCinematic.tsx | 225 ++++++++++++
- mugen-zero/src/ui/styles.css                      |  96 +++++
- review/latest/01_accident_a_start.png             | Bin 498068 -> 0 bytes
- review/latest/01_admin_a_lock.png                 | Bin 0 -> 13921 bytes
- review/latest/02_accident_b_unknown.png           | Bin 492086 -> 0 bytes
- review/latest/02_admin_b_home.png                 | Bin 0 -> 145295 bytes
- review/latest/03_accident_d_dragon.png            | Bin 677998 -> 0 bytes
- review/latest/03_admin_c_preview_list.png         | Bin 0 -> 23454 bytes
- review/latest/04_accident_e_breath.png            | Bin 689116 -> 0 bytes
- review/latest/04_admin_d_dragon.png               | Bin 0 -> 627262 bytes
- review/latest/05_accident_g_talk.png              | Bin 491338 -> 0 bytes
- review/latest/05_admin_e_breath.png               | Bin 0 -> 636520 bytes
- review/latest/06_accident_f_down.png              | Bin 536888 -> 0 bytes
- review/latest/06_admin_f_unknown.png              | Bin 0 -> 440189 bytes
- review/latest/07_admin_g_talk.png                 | Bin 0 -> 437303 bytes
- review/latest/07_summon_ward.png                  | Bin 504103 -> 0 bytes
- review/latest/08_admin_h_end.png                  | Bin 0 -> 517641 bytes
- review/latest/08_battle_prototype.png             | Bin 515369 -> 0 bytes
- review/latest/09_arcana_summon_ability.png        | Bin 100123 -> 0 bytes
- review/latest/10_arcana_h_unknown.png             | Bin 26510 -> 0 bytes
- review/latest/REVIEW.md                           | 110 +++---
- review/latest/manifest.json                       |  64 ++--
- review/latest/qa-report.md                        |  33 +-
- review/notes.md                                   | 179 ++++-----
- 58 files changed, 1525 insertions(+), 549 deletions(-)
-```
+同時に「所有状態の二重管理をしない」という指示に従い、
+`AccidentRecord.state === 'ACQUIRED'` による除外も撤去しました。
+所有の正本は**ARCANA図鑑（完成したページ）だけ**です。
+DEV の「ACQUIRED/IDENTIFIEDにする」ボタンも、所有の第2の置き場に
+なるため削除しました。
 
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-05T03:49:55.499Z / viewport 390x844
+撮影: 2026-09-05T04:21:10.924Z / viewport 390x844
 
 - `review/latest/01_admin_a_lock.png` — ADMIN DEV TOOLS：A：管理者ロック。控えめな入口の先にあり、入力はそのまま表示されないか
 - `review/latest/02_admin_b_home.png` — ADMIN DEV TOOLS：B：ADMIN HOME。「演出プレビュー」が最初にあり、既存の開発スイッチは下に残っているか
@@ -123,23 +61,21 @@ mugen-zero/e2e/adminPreview.spec.ts               | 418 ++++++++++++++++++++++
 
 ## 3. 新規機能の動作確認結果
 
-- 360 / 390 / 412px 確認。横縦スクロールなし。全ビートで PREVIEW 表示が残ります。
-- **「ADMIN PREVIEW」は小さな丸バッジ**で、戦場の 5% 未満（E2Eが検査）。
-  演出を邪魔する巨大透かしにはしていません。
-- **敵は置いていません。** プレートは「DUMMY／— / —」の表示だけで、
-  データも戦闘状態も存在しません。E2Eが「モスラビット」と書かれていないこと、
-  攻撃・スキル・アルカナ・MUGEN CHOICE が**1つも存在しない**ことを確認します。
-- **カットイン中に技名を出していません。** プレビューの見出しは
-  「エンシェントブレス」ではなく **「必殺技カットイン」** です。
-  実装中に一度ここを間違え、キャプション側に技名を出していました（下記）。
+- **古代龍の演出は1ピクセルも触っていません。** 巨大表示・左向き・面積比・
+  エンシェントブレス・カットイン・タイムライン・事故後会話・消滅すべて現状維持
+  （召喚事故E2E 28本が無変更で通ります）。
+- ADMIN 導線（HOME → DEV ADMIN → 0909 → 演出プレビュー → ARCANA → 召喚事故）
+  も無変更。360 / 390 / 412px で横スクロールなし。
+- DEV パネルの表示だけ、候補の状態を新しい規則で説明するよう書き換えました
+  （「観測N回 ／ 正式ARCANA ancient_dragon は未入手 → 候補」）。
 
 同じビルドが出力した QA REPORT 全文: `review/latest/qa-report.md`
 
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T03:49:55.411Z
-- Build: MUGEN ZERO v0.1 / 1080e50 / 2026-09-05T03:49:27.853Z
+- Generated: 2026-09-05T04:21:10.841Z
+- Build: MUGEN ZERO v0.1 / 9f08e5a / 2026-09-05T04:20:43.221Z
 - Environment: dev server
 - Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
@@ -164,33 +100,31 @@ mugen-zero/e2e/adminPreview.spec.ts               | 418 ++++++++++++++++++++++
 
 ## 4. 既存機能への影響
 
-新規：`src/ui/cinematic/accidentCinematic.tsx`（演出の共有定義）、
-`src/dev/CinematicPreviewScreen.tsx`、`e2e/adminPreview.spec.ts`（17本）。
-変更：`BattleUIPrototype.tsx`（演出を共有定義から呼ぶだけに）、
-`DevLockScreen.tsx`・`devMode.ts`（文言とセッション解除）、
-`DevAdminScreen.tsx`（入口1つ）、`App.tsx`・`gameFlow.ts`・`types.ts`（画面追加）、
-`styles.css`（追記のみ）。
+変更：`core/summon/summonAccident.ts`（プール・除外・プレビュー用リスト）、
+`content/summon/accidents.ts`（UNKNOWN #001 の登録）、
+`core/chaos/interventionPlan.ts`（受け渡し）、
+`dev/CinematicPreviewScreen.tsx`（プレビュー用リストから引く）、
+`dev/DevAdminScreen.tsx`（表示のみ）、各テスト。
 
-**ゲームのルールは1行も変えていません。** 戦闘ロジック・ARCANA・
-召喚事故の判定・世界・セーブは無変更です。
+**演出・画像・確率・戦闘・世界・セーブ内容は変更していません。**
 
 ## 5. Unit / E2E / Build 結果
 
 | 項目 | 結果 | 内容 |
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
-| Unit (vitest) | PASS | Tests  507 passed (507) |
-| E2E (playwright) | PASS | 222 passed (12.2m) |
-| Build (tsc -b && vite build) | PASS | ✓ built in 5.95s |
+| Unit (vitest) | PASS | Tests  504 passed (504) |
+| E2E (playwright) | PASS | 224 passed (12.4m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 6.39s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-BN9_cmS5.js                    1.42 kB │ gzip:   0.78 kB
-dist/assets/CinematicPreviewScreen-CHFkpus3.js           4.99 kB │ gzip:   1.83 kB
-dist/assets/DevAdminScreen-DnInXU_f.js                  47.94 kB │ gzip:  16.07 kB
+dist/assets/DevLockScreen-Bsm_qDxu.js                    1.42 kB │ gzip:   0.78 kB
+dist/assets/CinematicPreviewScreen-3RDddlEd.js           5.00 kB │ gzip:   1.83 kB
+dist/assets/DevAdminScreen-BjkEsLB1.js                  47.78 kB │ gzip:  16.05 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/index-w1HaKgD9.js                          172.36 kB │ gzip:  52.66 kB
-dist/assets/GreenwoodScreen-BZEMnBWH.js              1,498.86 kB │ gzip: 346.19 kB
+dist/assets/index-Bw225qIr.js                          171.59 kB │ gzip:  52.41 kB
+dist/assets/GreenwoodScreen-BUawhw9X.js              1,498.86 kB │ gzip: 346.19 kB
 ```
 
 ## 6. Android / mobile 確認結果
@@ -209,36 +143,30 @@ dist/assets/GreenwoodScreen-BZEMnBWH.js              1,498.86 kB │ gzip: 346.1
 
 ## 9. 既知の問題
 
-1. 【設計】**プレビューが本編を壊さない保証を「気をつける」で担保していません。**
-   `CinematicPreviewScreen` は `world` を**渡されていません**。
-   ストアも書き込み口も持たず、呼びたくても呼べません。
-   E2Eは IndexedDB の全ストアと localStorage 全キーを
-   **再生前後で文字列比較**して同一であることを確認します。
-2. 【継続・別issue】`explorationLoop` / `phaseD` の負荷依存フレーク、
+1. 【仕様変更】上記のとおり**クールダウンを撤去**しました。事故が
+   「たまにしか見られない稀なもの」である度合いは、確率6%だけが担います。
+   同じプレイヤーが短時間に2回見る可能性があります。**意図どおりですが、
+   前回と体験が変わります。**
+2. 【設計】`arcanaId: 'ancient_dragon'` は**予約IDで、そのARCANAは存在しません**。
+   だから誰も所有できず、候補は常に立ちます（正しい状態です）。
+   TEST 3 は単体テストで所有リストを与えて検証しています。
+   ゲーム内で古代龍を入手する手段は作っていません（指示どおり）。
+3. 【継続・別issue】`explorationLoop` / `phaseD` の負荷依存フレーク、
    盗賊ガルドの右脚欠け。
-3. 【将来】プレビューは今のところ古代龍1件だけです。通常召喚・ボス登場・
-   再会などを足す土台にはなっていますが、**汎用フレームワークは作っていません**。
-4. 【注意】ロックNo. 0909 は**フロントエンド内のPIN比較**です。
-   一般プレイヤーの誤操作を防ぐための速度制限であって、
-   **認証ではありません。** 公開ビルドからの本当の除外は
-   `DEV_ADMIN_ENABLED`（入口も画面もビルドから消えます）です。
 
 ## 10. Claude 自身が気になる箇所
 
-- **演出を丸ごとコピーしなかったのが今回の主題です。** プレビューが
-  実装の第2コピーになると、1週間で本編とズレて、**確認したい質問に
-  答えられない道具**になります。so タイムラインも台詞も龍もカットインも
-  `ui/cinematic/accidentCinematic` に1つだけ置き、戦闘とプレビューが
-  同じものを再生します。切り出しが正しかった証拠として、
-  **召喚事故のE2E 29本を1行も書き換えずに通しました**。
-- **「変更しない」を能力の不在で担保したこと。** `world` を渡さなければ、
-  書き込みは事故でも起きません。テストで守るより構造で守るほうが強い、
-  という判断です（テストは念のため両方やっています）。
-- **テストを書いていて実装のミスが3つ出ました。** HOME→DEV_ADMIN が
-  フロー定義になく、セッション解除が黙って無視されていたこと。
-  遅延読み込みの画面に対して「今見えているか」を聞いていたヘルパー。
-  そして**キャプションに技名を出していた二重表示**。
-  3つとも、コードを読み返すだけでは見つからなかったと思います。
+- **「見た」と「持っている」を混ぜないことが今回の全部です。** 前回の実装は
+  観測でプールから外していて、それは実質「見たら持っている扱い」でした。
+  いまは所有の判定が**図鑑1か所**にあり、事故側は所有フラグを持ちません。
+- **候補0件を例外にしなかったこと。** 抽選が成立しても候補が無ければ
+  `pickAccident` は **サイコロを1つも引かずに** null を返し、通常召喚の
+  抽選がそのまま走ります。「サイコロを引かない」ことまでテストしました
+  （引いてしまうと、事故を検討しただけで下流の目が変わります）。
+- **プレビュー用と抽選用でリストを分けたこと。** 同じ関数に
+  「所有を無視するフラグ」を足すのではなく、`previewableAccidents()` を
+  別に置きました。プレビューには**セーブを渡す口自体がない**ので、
+  所有状態が何かを隠すことが構造的に起こりません。
 
 ## 11. 次フェーズへ進行可能か
 
