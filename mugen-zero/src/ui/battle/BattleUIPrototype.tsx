@@ -544,12 +544,11 @@ export function BattleUIPrototype({
         return next;
       });
     }
-    timers.current.push(
-      window.setTimeout(() => {
-        setSummoned(null);
-        setSaid(null);
-      }, SUMMON_CONFIG.stayMs),
-    );
+    // The creature leaves on a timer. What it said does not: three
+    // lines of Japanese in a second and a half is a thing the player
+    // is watching disappear rather than reading. The plate holds them
+    // until the fight moves on, which is the player's own next move.
+    timers.current.push(window.setTimeout(() => setSummoned(null), SUMMON_CONFIG.stayMs));
   };
 
   // Meeting it at all, and whether anyone helped. Both are true the
@@ -566,6 +565,8 @@ export function BattleUIPrototype({
   const command = (kind: 'ATTACK' | 'DEFEND') => {
     if (battle.outcome !== 'ONGOING') return;
     setSkillOpen(false);
+    // The fight moves on, so the plate goes back to reporting it.
+    setSaid(null);
     const next =
       kind === 'ATTACK'
         ? playerAttack(battle, undefined, forcedEnemyAction)
