@@ -89,6 +89,8 @@ const ARCANA_PRESETS: { label: string; met: ArcanaConditionId[] }[] = [
 interface Props {
   /** Opens the battle UI prototype on its own, for a look. */
   onOpenBattlePrototype: () => void;
+  /** Opens the cinematic preview — theatre only, never the game. */
+  onOpenCinematicPreview: () => void;
   world: World;
   /** Feedback layer — read here for analysis only, never fed into the world. */
   playtest: PlaytestFeedbackService;
@@ -112,7 +114,13 @@ const smallBtn: React.CSSProperties = { fontSize: 13, padding: '10px 12px', flex
  * recordGaldLifeChoice, advanceDays, timeShift, devResetGaldScenario);
  * there is no second game logic here.
  */
-export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype }: Props) {
+export function DevAdminScreen({
+  world,
+  playtest,
+  onBack,
+  onOpenBattlePrototype,
+  onOpenCinematicPreview,
+}: Props) {
   const [busy, setBusy] = useState(false);
   // What the next arrival in the forest will turn out to be. Reading it
   // here is what makes each of the three routes testable rather than
@@ -158,7 +166,21 @@ export function DevAdminScreen({ world, playtest, onBack, onOpenBattlePrototype 
 
   return (
     <div className="screen" data-testid="dev-admin-screen">
-      <div className="screen-title">DEV ADMIN — TEST CONTROL PANEL</div>
+      <div className="screen-title">ADMIN DEV TOOLS</div>
+      {/* The one new entry this round. Deliberately at the top and
+          deliberately alone: a preview is a different kind of thing
+          from the switches below it — it looks at theatre and touches
+          nothing, where everything else here drives the real game. */}
+      <div style={row}>
+        <button
+          className="btn primary"
+          style={{ ...smallBtn, flex: '1 1 100%' }}
+          data-testid="open-cinematic-preview"
+          onClick={onOpenCinematicPreview}
+        >
+          演出プレビュー（ゲームデータを変更しません）
+        </button>
+      </div>
       <div className="location-list" style={{ gap: 6 }}>
         {/* ---- REVIEW HUB ---- */}
         <button

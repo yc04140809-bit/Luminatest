@@ -2910,3 +2910,99 @@ body,
   letter-spacing: 0.06em;
   color: var(--mugen-memory);
 }
+
+/* ============================================================
+   ADMIN DEV TOOLS — the cinematic preview.
+
+   Plain on purpose. This is a workbench, not a screen of the
+   game, and the one thing it must never do is look enough like
+   the game that somebody mistakes what they are seeing for a
+   fight that happened.
+   ============================================================ */
+.preview-screen {
+  background: var(--mugen-bg);
+}
+.preview-crumb {
+  margin: -2px 0 10px;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--mugen-text-muted);
+}
+.preview-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 4px 16px 16px;
+}
+.preview-group {
+  margin: 6px 0 -2px;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--mugen-gold);
+}
+.preview-group.sub {
+  padding-left: 14px;
+  color: var(--mugen-text-muted);
+}
+.preview-item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 12px 15px;
+  text-align: left;
+  border: 1px solid var(--mugen-border);
+  border-radius: 4px;
+  background: var(--mugen-surface);
+  color: var(--mugen-text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.preview-item-name {
+  font-size: 15px;
+  letter-spacing: 0.1em;
+}
+.preview-item-id {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--mugen-text-muted);
+}
+.preview-note {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--mugen-text-muted);
+}
+
+/* A mark, not a watermark. Small enough to ignore while judging
+   the art, present enough that nobody thinks this was a fight. */
+.preview-badge {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 6;
+  padding: 3px 9px;
+  border: 1px solid rgba(198, 166, 96, 0.6);
+  border-radius: 999px;
+  background: rgba(26, 28, 22, 0.72);
+  color: var(--mugen-gold-bright);
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  pointer-events: none;
+}
+.preview-stage-screen .bp-message-text {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--mugen-text-secondary);
+}
+.preview-commands .bp-cmd {
+  min-height: 48px;
+}

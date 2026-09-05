@@ -24,6 +24,7 @@ export type Screen =
   | 'PLAYTEST_SURVEY'
   | 'DEV_LOCK'
   | 'DEV_ADMIN'
+  | 'CINEMATIC_PREVIEW'
   /** Dev only: the battle UI prototype, looked at on its own. */
   | 'BATTLE_UI_PROTOTYPE';
 

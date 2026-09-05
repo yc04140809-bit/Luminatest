@@ -27,8 +27,13 @@ import { mendPlayer, strikeAllEnemies } from '../../game/battle/battleLogic';
 import type { AccidentRecord, SummonAccidentDef } from '../../core/summon/summonAccident';
 import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
 import { unknownArcanaDef } from '../../content/arcana/unknownArcana';
-import ancientDragonArt from '../../assets/arcana/unknown-ancient-dragon.png';
-import ancientBreathArt from '../../assets/arcana/ancient-breath.png';
+import {
+  AccidentCard,
+  AccidentStage,
+  AccidentTalk,
+  accidentStageClass,
+  useAccidentSequence,
+} from '../cinematic/accidentCinematic';
 import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 
@@ -224,59 +229,6 @@ const KNOCKDOWN_MS = 340;
 const CHAOS_BEAT_MS = 1800;
 
 /**
- * An accident, beat by beat.
- *
- * It starts as an ordinary attempt and then stops being one. The
- * shape below is the whole of the direction: something goes wrong
- * quietly, she does not understand it either, the card forgets what
- * it was holding, and only then does the thing itself arrive — big
- * enough that there is no mistaking it for a summon, and gone again
- * before it can become one.
- *
- * Nothing in here flashes white, blacks the screen out, or opens a
- * modal. A game that appears to be breaking is a game the player
- * stops trusting; this is a world misremembering itself.
- */
-const ACCIDENT_BEATS = {
-  /** 「……え？」 — she notices before the player does. */
-  CROSS: 900,
-  /** The half-second of nothing after it. This beat is the point. */
-  PAUSE: 550,
-  /** ARCANA #001 モスラビット → ARCANA #??? UNKNOWN. */
-  UNKNOWN: 1100,
-  /** It is simply there. Nothing attacks yet: look at it. */
-  DRAGON: 900,
-  /** The cut-in, and the damage. */
-  BREATH: 2200,
-  /** It comes apart the way a memory does, not like an explosion. */
-  FADE: 1000,
-  /** And nobody explains it, least of all her. */
-  TALK: 5200,
-} as const;
-
-type AccidentBeat = keyof typeof ACCIDENT_BEATS | 'NONE';
-
-/** In order, so the next beat is never spelled out twice. */
-const ACCIDENT_ORDER: AccidentBeat[] = [
-  'CROSS',
-  'PAUSE',
-  'UNKNOWN',
-  'DRAGON',
-  'BREATH',
-  'FADE',
-  'TALK',
-  'NONE',
-];
-
-/** What the pair of them say afterwards. Nobody explains anything. */
-const ACCIDENT_TALK: readonly { who: string; line: string }[] = [
-  { who: 'あなた', line: '……今の、何だったんだ？' },
-  { who: 'ケイオス', line: '…………。' },
-  { who: 'あなた', line: 'ケイオス？' },
-  { who: 'ケイオス', line: '……知らない。' },
-];
-
-/**
  * BATTLE UI — PROTOTYPE.
  *
  * Not the battle screen. A second one, built beside it so that the
@@ -377,7 +329,9 @@ export function BattleUIPrototype({
    * by any route but time or a tap, and nothing about it is rolled
    * here — the plan settled it before the first render.
    */
-  const [accidentBeat, setAccidentBeat] = useState<AccidentBeat>('NONE');
+  // The same sequence the admin preview plays, driven by the same
+  // hook: there is one accident in this codebase, not two.
+  const { beat: accidentBeat, start: startAccident, stop: stopAccident } = useAccidentSequence();
   const accident: SummonAccidentDef | null =
     plan.kind === 'SUMMON' && plan.outcome === 'ACCIDENT' ? plan.accident : null;
   const unknown = accident ? unknownArcanaDef(accident.unknownArcanaId) : null;
@@ -442,22 +396,12 @@ export function BattleUIPrototype({
       // Written down as it happens rather than when the beat ends: a
       // player who closes the game mid-sight still saw it.
       onAccidentObserved?.(accident.id);
-      setAccidentBeat('CROSS');
+      startAccident();
     }
     // The card is what carries the outcome; nothing else to do on a
     // failure, which is the point of it being harmless.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showingChaos]);
-
-  /** One beat at a time, in order, and then an ordinary fight. */
-  useEffect(() => {
-    if (accidentBeat === 'NONE') return;
-    const ms = ACCIDENT_BEATS[accidentBeat];
-    const t = setTimeout(() => {
-      setAccidentBeat((beat) => ACCIDENT_ORDER[ACCIDENT_ORDER.indexOf(beat) + 1] ?? 'NONE');
-    }, ms);
-    return () => clearTimeout(t);
-  }, [accidentBeat]);
 
   /**
    * The breath lands as its picture appears, once.
@@ -592,15 +536,6 @@ export function BattleUIPrototype({
   const downed = beaten && stance === 'DOWNED';
   const downVisual = species.battleVisuals.down;
   const showingDown = downed && downVisual !== null;
-  /**
-   * On the field from the moment it arrives until it comes apart.
-   *
-   * Three beats rather than one: it is there, it breathes, and it
-   * unravels. It never outlives that — nothing joins the party, and
-   * the battlefield afterwards is the battlefield from before.
-   */
-  const showingDragon =
-    accidentBeat === 'DRAGON' || accidentBeat === 'BREATH' || accidentBeat === 'FADE';
   /** The fight itself is suspended while any of it is happening. */
   const inAccident = accidentBeat !== 'NONE';
   const backdrop = locationBackground(battleLocationId);
@@ -633,7 +568,7 @@ export function BattleUIPrototype({
     <div className="screen bp-screen" data-testid="battle-prototype">
       {/* 1. The world. Its own colour, nothing over it. */}
       <div
-        className={`bp-stage${accidentBeat === 'CROSS' ? ' crossed' : ''}`}
+        className={`bp-stage${accidentStageClass(accidentBeat)}`}
         ref={stageRef}
         data-accident={accidentBeat === 'NONE' ? undefined : accidentBeat}
       >
@@ -701,51 +636,13 @@ export function BattleUIPrototype({
                both of them are moss rabbits. It is smaller than the
                real one, it stands inside a ring of her light, and it is
                labelled; nothing about the drawing itself is recoloured. */}
-        {/* The thing that crossed.
-            Delivered art, used as delivered: no recolour, no redraw,
-            no filter. It is mirrored, and only mirrored, because the
-            drawing faces right and the creature it has come for is on
-            the left — the one thing this screen decides about it is
-            which way it is looking.
-
-            Not sized like a summon. A summoned moss rabbit is 15% of
-            the field; this is most of it, on purpose, because the
-            whole message of the moment is that it does not belong in
-            the frame it arrived in. */}
-        {showingDragon && (
-          <div
-            className={`bp-dragon${accidentBeat === 'FADE' ? ' unravelling' : ''}`}
-            data-testid="bp-dragon"
-            data-arcana={unknown?.arcanaId ?? ''}
-            data-beat={accidentBeat}
-            aria-label="？？？？？？？"
-          >
-            <img className="bp-dragon-art" src={ancientDragonArt} alt="" />
-          </div>
-        )}
-
-        {/* 《エンシェントブレス》 — the cut-in.
-            The picture carries its own title, so nothing here prints
-            the name a second time. It is the whole image at the full
-            width of the phone rather than a crop: the face, the mouth,
-            the beam and the lettering are all required to be legible
-            in portrait, and any crop wide enough to enlarge it drops
-            one of them off an edge.
-
-            It covers the middle of the battlefield and nothing else —
-            the forest is still above and below it, the plates and the
-            message are untouched. Not a modal, not a blackout, not a
-            white frame. */}
-        {accidentBeat === 'BREATH' && accident && (
-          <div className="bp-breath" data-testid="bp-breath" data-ability={accident.ability.id}>
-            <img
-              className="bp-breath-art"
-              src={ancientBreathArt}
-              alt={accident.ability.name}
-              data-title-in-art={accident.ability.titleInArt ? 'yes' : 'no'}
-            />
-          </div>
-        )}
+        {/* What crossed, and its one move. Shared with the admin
+            preview so the two can never drift apart. */}
+        <AccidentStage
+          beat={accidentBeat}
+          unknown={unknown}
+          ability={accident?.ability ?? null}
+        />
 
         {summoned && (
           <div
@@ -905,49 +802,12 @@ export function BattleUIPrototype({
         </button>
       )}
 
-      {/* 6d. It was not what she reached for.
-             The same card, in the same place, coming apart: the page
-             number goes, the name goes, and what is left says only
-             that it is not in the book. No flash, no blackout, no
-             modal, and nothing shaking hard enough to read as a
-             broken game — the forest is still there behind it, and
-             what went wrong went wrong quietly. */}
+      {/* 6d. It was not what she reached for, and then nobody
+             explains it. Both cards come from the shared cinematic. */}
       {accidentBeat === 'CROSS' && accident && (
-        <div
-          className="bp-chaos-card bp-accident-card"
-          data-testid="bp-accident-card"
-          data-accident={accident.id}
-          role="status"
-          aria-live="polite"
-        >
-          <span className="bp-chaos-who">ケイオス</span>
-          <span className="bp-chaos-line">「……え？」</span>
-          <span className="bp-chaos-rule" aria-hidden="true" />
-          <span className="bp-summon-id bp-accident-id">
-            ARCANA #<b className="bp-accident-hash">???</b>
-            <i data-testid="bp-accident-label">{unknown?.label ?? '？？？？？？？'}</i>
-          </span>
-          <span className="bp-accident-state">UNKNOWN</span>
-        </div>
+        <AccidentCard unknown={unknown} accidentId={accident.id} />
       )}
-
-      {/* 6e. And then neither of them explains it. Four lines, one of
-             which is a silence, and she does not know either. */}
-      {accidentBeat === 'TALK' && (
-        <button
-          className="bp-chaos-card bp-accident-talk"
-          data-testid="bp-accident-talk"
-          onClick={() => setAccidentBeat('NONE')}
-          aria-label="……今のは忘れて。"
-        >
-          {ACCIDENT_TALK.map((turn) => (
-            <span className="bp-accident-turn" key={`${turn.who}-${turn.line}`}>
-              <i>{turn.who}</i>
-              {`「${turn.line}」`}
-            </span>
-          ))}
-        </button>
-      )}
+      {accidentBeat === 'TALK' && <AccidentTalk onSkip={stopAccident} />}
 
       {/* 6. Fighting, and then — separately — deciding. */}
       {!beaten && !showingChaos && !inAccident && (

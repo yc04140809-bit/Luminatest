@@ -21,7 +21,7 @@ import { SettingsScreen } from './ui/screens/SettingsScreen';
 import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
 import { EndingScreen } from './ui/screens/EndingScreen';
 import { LoadingScreen } from './ui/common/LoadingScreen';
-import { DEV_ADMIN_ENABLED } from './dev/devMode';
+import { DEV_ADMIN_ENABLED, devUnlocked } from './dev/devMode';
 import {
   loadSettings,
   saveSettings,
@@ -74,6 +74,9 @@ const GreenwoodScreen = lazy(() =>
 );
 const DevLockScreen = lazy(() =>
   import('./dev/DevLockScreen').then((m) => ({ default: m.DevLockScreen })),
+);
+const CinematicPreviewScreen = lazy(() =>
+  import('./dev/CinematicPreviewScreen').then((m) => ({ default: m.CinematicPreviewScreen })),
 );
 const DevAdminScreen = lazy(() =>
   import('./dev/DevAdminScreen').then((m) => ({ default: m.DevAdminScreen })),
@@ -292,7 +295,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onArchive={() => flow.goTo('ARCHIVE')}
           onArcana={() => flow.goTo('ARCANA')}
           onSettings={() => flow.goTo('SETTINGS')}
-          onDevAdmin={() => flow.goTo('DEV_LOCK')}
+          // Once per run of the app, not once per save: the unlock
+          // lives in memory and is gone when the app closes.
+          onDevAdmin={() => flow.goTo(devUnlocked() ? 'DEV_ADMIN' : 'DEV_LOCK')}
         />
       );
     case 'ARCHIVE':
@@ -347,6 +352,15 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           <DevLockScreen onUnlock={() => flow.goTo('DEV_ADMIN')} onBack={() => flow.goTo('HOME')} />
         </Suspense>
       );
+    case 'CINEMATIC_PREVIEW':
+      if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
+      // Handed no world, no store and no writer — the guarantee that
+      // a preview changes nothing is that it has nothing to change.
+      return (
+        <Suspense fallback={<LoadingScreen />}>
+          <CinematicPreviewScreen onBack={() => flow.goTo('DEV_ADMIN')} />
+        </Suspense>
+      );
     case 'DEV_ADMIN':
       if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
       return (
@@ -356,6 +370,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             playtest={playtest}
             onBack={() => flow.goTo('HOME')}
             onOpenBattlePrototype={() => flow.goTo('BATTLE_UI_PROTOTYPE')}
+            onOpenCinematicPreview={() => flow.goTo('CINEMATIC_PREVIEW')}
           />
         </Suspense>
       );
