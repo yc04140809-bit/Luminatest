@@ -1,7 +1,7 @@
 # MUGEN REVIEW PACKAGE — ARCANA SYSTEM v0.3 — 召喚事故 / UNKNOWN観測 / ANCIENT BREATH（採用前）
 
-- Generated: 2026-09-05T01:29:32.284Z
-- Commit: 6740395 on claude/mugen-zero-v01-implementation-qanh8u
+- Generated: 2026-09-05T01:44:41.788Z
+- Commit: b238e14 on claude/mugen-zero-v01-implementation-qanh8u
 - Compared against: 97ec646
 - Verdict: SOMETHING FAILED — see 5
 
@@ -26,6 +26,7 @@
 ### commits
 
 ```
+b238e14 Record both findings, and the measurement I got wrong
 6740395 Put the round's findings in sections the report actually renders
 c7ab96f Regenerate the review package
 dc191f5 Stop an accident overruling a pinned outcome
@@ -76,22 +77,22 @@ mugen-zero/.gitignore                              |   1 +
  review/latest/04_summon_arcana_command.png         | Bin 482085 -> 0 bytes
  review/latest/05_accident_g_talk.png               | Bin 0 -> 491337 bytes
  review/latest/05_summon_complete_field.png         | Bin 483863 -> 0 bytes
- review/latest/06_accident_f_down.png               | Bin 0 -> 536890 bytes
+ review/latest/06_accident_f_down.png               | Bin 0 -> 536888 bytes
  review/latest/06_battle_prototype.png              | Bin 515203 -> 0 bytes
  review/latest/07_summon_ward.png                   | Bin 0 -> 504129 bytes
  review/latest/08_battle_prototype.png              | Bin 0 -> 515369 bytes
  ...on_ability.png => 09_arcana_summon_ability.png} | Bin 96524 -> 100123 bytes
  review/latest/10_arcana_h_unknown.png              | Bin 0 -> 26510 bytes
- review/latest/REVIEW.md                            | 350 ++++++------
+ review/latest/REVIEW.md                            | 359 ++++++------
  review/latest/manifest.json                        |  41 +-
  review/latest/qa-report.md                         |   4 +-
- review/notes.md                                    | 191 ++++---
- 48 files changed, 3592 insertions(+), 382 deletions(-)
+ review/notes.md                                    | 202 ++++---
+ 48 files changed, 3612 insertions(+), 382 deletions(-)
 ```
 
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-05T01:29:32.016Z / viewport 390x844
+撮影: 2026-09-05T01:44:41.499Z / viewport 390x844
 
 - `review/latest/01_accident_a_start.png` — BATTLE UI PROTOTYPE：A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%
 - `review/latest/02_accident_b_unknown.png` — BATTLE UI PROTOTYPE：B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか
@@ -141,8 +142,8 @@ mugen-zero/.gitignore                              |   1 +
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T01:29:31.926Z
-- Build: MUGEN ZERO v0.1 / 6740395 / 2026-09-05T01:28:35.134Z
+- Generated: 2026-09-05T01:44:41.392Z
+- Build: MUGEN ZERO v0.1 / b238e14 / 2026-09-05T01:43:50.162Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -186,16 +187,16 @@ mugen-zero/.gitignore                              |   1 +
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
 | Unit (vitest) | PASS | Tests  499 passed (499) |
-| E2E (playwright) | FAIL | 203 passed (13.2m) |
-| Build (tsc -b && vite build) | PASS | ✓ built in 9.29s |
+| E2E (playwright) | FAIL | 204 passed (13.0m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 9.55s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-Olm2z_gt.js                    1.33 kB │ gzip:   0.77 kB
-dist/assets/DevAdminScreen-DGEMprqy.js                  47.47 kB │ gzip:  15.89 kB
+dist/assets/DevLockScreen-B7HYYHUJ.js                    1.33 kB │ gzip:   0.76 kB
+dist/assets/DevAdminScreen-yQnwMe87.js                  47.47 kB │ gzip:  15.89 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/index-ykTobfLf.js                          171.41 kB │ gzip:  52.27 kB
-dist/assets/GreenwoodScreen-BCqHoabB.js              1,498.86 kB │ gzip: 346.19 kB
+dist/assets/index-Dg6t04Ao.js                          171.41 kB │ gzip:  52.27 kB
+dist/assets/GreenwoodScreen-7z2burpW.js              1,498.86 kB │ gzip: 346.19 kB
 ```
 
 ## 6. Android / mobile 確認結果
@@ -261,6 +262,8 @@ dist/assets/GreenwoodScreen-BCqHoabB.js              1,498.86 kB │ gzip: 346.1
   通常判定より前に、しかも「世界に横切れるものが既にある」ときだけ
   起こるようにしました。だから **DEV強制でも条件は飛ばせません**
   （帯域外・クールダウン中・取得済みなら、テスターにも普通の召喚が出ます）。
+  そして逆向きも同じで、**SUCCESS / FAILURE を固定したら事故は起きません。**
+  ここは最初バグっていました（下記）。
 - **「一度見たら永久除外」をやめたのが良かったと思います。** 目を離して
   いたプレイヤーが、ビルド中でいちばん不思議なものを永久に見逃します。
   代わりに `repeatPolicy` + 30日クールダウンをデータにしました。
@@ -273,6 +276,15 @@ dist/assets/GreenwoodScreen-BCqHoabB.js              1,498.86 kB │ gzip: 346.1
 - **事故がプレイヤーの選択を奪わないこと。** ブレスでHPが0になっても
   DOWNを経由し、四つの答えは**必ずプレイヤーに聞きます**。
   KILL自動確定は絶対にしません。DOWNはDEADではありません。
+- **「たまに落ちる」を、まずフレークと呼ばなかったのが今回2度効きました。**
+  1度目は reduced-motion がスイート全体で効いていなかったこと、
+  2度目は **DEV固定を事故抽選が上書きしていた本物のバグ**です。
+  どちらも「再実行したら通るので」で片付けていたら残っていました。
+- **一方で、1度は測定そのものを間違えました。** `explorationLoop` を
+  「v0.3の回帰」と報告しましたが、実際はフルスイート実行中に単体実行を
+  重ねていただけでした。マシンを空けて再測定したら 7/7 PASS、
+  巨大PNGを小さい画像に差し替えた対照実験でも同じ結果でした。
+  **測り方そのものを疑うのも切り分けのうち**だと反省しています。
 - **《森の加護》を掛け算ではなく引き算にしたのは実測の結果です。**
   20%引きは4ダメージに対して 3.2 → 切り上げ 4 で、**数字が1つも
   動きませんでした。** 「何も起きない」を直す機能が何も起こさないのでは
