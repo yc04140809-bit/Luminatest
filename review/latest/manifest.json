@@ -1,62 +1,60 @@
 {
-  "capturedAt": "2026-09-05T01:44:41.499Z",
+  "capturedAt": "2026-09-05T03:15:03.615Z",
   "viewport": {
     "width": 390,
     "height": 844
   },
   "shots": [
     {
-      "file": "01_accident_a_start.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%"
+      "file": "01_admin_a_lock.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "A：管理者ロック。控えめな入口の先にあり、入力はそのまま表示されないか"
     },
     {
-      "file": "02_accident_b_unknown.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか"
+      "file": "02_admin_b_home.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "B：ADMIN HOME。「演出プレビュー」が最初にあり、既存の開発スイッチは下に残っているか"
     },
     {
-      "file": "03_accident_d_dragon.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "D：巨大召喚。画面の半分以上を占めているか、敵側（左）を向いているか"
+      "file": "03_admin_c_preview_list.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "C：演出プレビュー一覧。ARCANA ＞ 召喚事故 ＞ UNKNOWN #001。正式名称は出していないか"
     },
     {
-      "file": "04_accident_e_breath.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "E：《エンシェントブレス》。縦画面で顔・口元・ブレス・文字が読めるか。技名の二重表示なし"
+      "file": "04_admin_d_dragon.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "D：巨大召喚。左向き・敵側・画面の半分以上。DUMMY表示で実戦と誤認しないか"
     },
     {
-      "file": "05_accident_g_talk.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "G：事故後の会話。ケイオスが説明役になっていないか。古代龍は残っていないか"
+      "file": "05_admin_e_breath.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "E：カットイン。顔・口元・ブレス・文字が読めるか。技名の二重表示がないか"
     },
     {
-      "file": "06_accident_f_down.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "F：ブレス後の敵DOWN。KILL自動確定ではなく、四つの答えが player に委ねられているか"
+      "file": "06_admin_f_unknown.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "F：フルシーケンス中の ARCANA #??? / UNKNOWN。実戦と同じカードか"
     },
     {
-      "file": "07_summon_ward.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "PHASE 1：HP満タンで呼んだとき。「HPはもう満ちている。」で終わらず《森の加護》になるか"
+      "file": "07_admin_g_talk.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "G：フルシーケンス終盤の会話。実戦と同じ4行か"
     },
     {
-      "file": "08_battle_prototype.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
-    },
-    {
-      "file": "09_arcana_summon_ability.png",
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "100%でだけ開く「呼べるもの」。ステータスやレアリティになっていないこと"
-    },
-    {
-      "file": "10_arcana_h_unknown.png",
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "H：観測後のUNKNOWN行。通常ARCANAの件数に足していないか、%を出していないか"
+      "file": "08_admin_h_end.png",
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "H：PREVIEW END。もう一度／一覧へ。戦場に何も残っていないか"
     }
   ],
   "notPhotographed": [
+    {
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "召喚事故の演出を ui/cinematic へ切り出し、実戦とプレビューが同じ定義を再生するようにしました。画面の見え方・順序・「間」は前ラウンドから1つも変えていません（E2E 29本が無変更で通ります）"
+    },
+    {
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "前ラウンドから無変更です"
+    },
     {
       "screen": "HOME",
       "reason": "前ラウンドで承認待ちの5項目導線のまま。今回は無変更です"

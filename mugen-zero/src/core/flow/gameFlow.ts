@@ -7,7 +7,19 @@ import type { FlowState, LifeChoiceId, Screen } from './types';
 const TRANSITIONS: Record<Screen, Screen[]> = {
   TITLE: ['PROLOGUE', 'HOME'], // TITLE -> HOME = continue with an existing world
   PROLOGUE: ['HOME'],
-  HOME: ['EXPLORE', 'WORLD_MEMORY', 'TIME_SHIFT', 'ARCHIVE', 'ARCANA', 'SETTINGS', 'DEV_LOCK'],
+  // DEV_ADMIN is reachable from HOME only because the lock may already
+  // have been opened during this run of the app; the entry itself still
+  // sends anybody who has not opened it to DEV_LOCK.
+  HOME: [
+    'EXPLORE',
+    'WORLD_MEMORY',
+    'TIME_SHIFT',
+    'ARCHIVE',
+    'ARCANA',
+    'SETTINGS',
+    'DEV_LOCK',
+    'DEV_ADMIN',
+  ],
   ARCHIVE: ['HOME', 'ENDING', 'PLAYTEST_SURVEY'],
   // The book is read and closed; it changes nothing about the world.
   ARCANA: ['HOME'],

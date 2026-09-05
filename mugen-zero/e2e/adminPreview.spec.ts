@@ -39,10 +39,16 @@ async function freshWorld(page: Page) {
 async function unlock(page: Page) {
   await page.getByTestId('dev-admin-entry').click();
   const lock = page.getByTestId('dev-lock-screen');
-  if (await lock.isVisible().catch(() => false)) {
+  const admin = page.getByTestId('open-cinematic-preview');
+  // Both screens are lazy-loaded, so asking "is the lock showing?" the
+  // instant after the click asks it of a page that has not finished
+  // arriving. Wait for whichever one turns up.
+  await expect(lock.or(admin)).toBeVisible({ timeout: 20_000 });
+  if (await lock.isVisible()) {
     await page.getByTestId('dev-lock-input').fill('0909');
     await page.getByTestId('dev-lock-submit').click();
   }
+  await expect(admin).toBeVisible({ timeout: 20_000 });
 }
 
 /** Into the preview of the one thing there is to preview. */
@@ -164,9 +170,22 @@ test.describe('the way in', () => {
     expect(stored.toLowerCase()).not.toContain('unlock');
     expect(stored).not.toContain('0909');
 
-    // A closed app asks again.
+    // A closed app asks again. (This world has no history to continue,
+    // so the title offers 「はじめる」 — either way it is a fresh run of
+    // the app, which is exactly what the unlock must not survive.)
     await page.reload();
-    await page.getByTestId('continue-button').click();
+    const cont = page.getByTestId('continue-button');
+    const start = page.getByTestId('start-button');
+    await expect(cont.or(start)).toBeVisible({ timeout: 20_000 });
+    if (await cont.isVisible()) {
+      await cont.click();
+    } else {
+      await start.click();
+      await page.getByTestId('prologue-monologue').click();
+      const kaos = page.getByTestId('kaos-intro');
+      for (let i = 0; i < 6; i++) await kaos.click();
+    }
+    await expect(page.getByTestId('world-clock')).toBeVisible();
     await page.getByTestId('dev-admin-entry').click();
     await expect(page.getByTestId('dev-lock-screen')).toBeVisible();
   });

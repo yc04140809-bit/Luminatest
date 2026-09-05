@@ -1,17 +1,17 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T01:44:41.392Z
-- Build: MUGEN ZERO v0.1 / b238e14 / 2026-09-05T01:43:50.162Z
+- Generated: 2026-09-05T03:15:03.528Z
+- Build: MUGEN ZERO v0.1 / 57d063b / 2026-09-05T03:14:36.019Z
 - Environment: dev server
-- Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
+- Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 4年目 4日目 (day 1099)
-- Route: SPARE
-- TIME SHIFTs: 1
-- WORLD MEMORY facts: 5
-- LIFE ARCHIVE: 1 known / 4 in canon
-- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 1年目 1日目 (day 1)
+- Route: NONE
+- TIME SHIFTs: 0
+- WORLD MEMORY facts: 0
+- LIFE ARCHIVE: 0 known / 0 in canon
+- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -48,15 +48,15 @@
   - how: looked for an event requiring each route memory
 
 ## WORLD MEMORY CHECKS
-- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 5 facts recorded, no duplicates
+- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 0 facts recorded, no duplicates
   - how: compared every event id in the world currently loaded
-- **PASS** `LIFE_CHOICE_IS_SINGULAR` — one choice: PLAYER_SPARED_GALD
+- **PASS** `LIFE_CHOICE_IS_SINGULAR` — no choice made yet
   - how: counted the first-encounter outcomes in WORLD MEMORY
 - **PASS** `WORLD_MEMORY_IN_ORDER` — history runs forwards
   - how: walked the event list comparing world dates
-- **PASS** `FUTURE_SITE_CAUSALITY` — 1 of 4 sites on the map, 0 found
+- **PASS** `FUTURE_SITE_CAUSALITY` — 0 of 4 sites on the map, 0 found
   - how: compared each site discovery against its required world memory
-- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 1 of 4 chapters known to the player
+- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 0 of 0 chapters known to the player
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
@@ -80,7 +80,7 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **PASS** `SAVE_RESTORED` — restored 5 facts and 0 met events from IndexedDB
+- **NOT TESTED** `SAVE_RESTORED` — nothing saved yet in this world, so there was nothing to restore
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
@@ -98,6 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] BATTLE UI PROTOTYPE — 召喚を追加。戦闘開始時にケイオスが不完全召喚を試みることがあり（成功／不成立）、100%のアルカナは「アルカナ」コマンドから1戦闘1回呼べます。呼ばれたモスラビットは主人公側の手前に、敵より小さく、光の輪と ARCANA タグ付きで立ちます
-- [ ] ARCANA / アルカナ図鑑 — 100% のときだけ「呼べるもの ―《森の息吹》」の1節が増えました。一覧・構築度・ヒントは前ラウンドから無変更です
-- unchanged, no screenshot needed: HOME, GREENWOOD / BATTLE, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] ADMIN DEV TOOLS — 管理者ロックの文言を日本語にし、同一セッション中は再入力を省略します（永続保存はしません）。管理者ホームに「演出プレビュー」を追加し、ARCANA ＞ 召喚事故 ＞ UNKNOWN #001 の巨大召喚・カットイン・フルシーケンスを、ゲームデータを一切変更せずに再生できます
+- unchanged, no screenshot needed: BATTLE UI PROTOTYPE, ARCANA / アルカナ図鑑, HOME, GREENWOOD / BATTLE, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

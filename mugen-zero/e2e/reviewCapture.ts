@@ -164,6 +164,28 @@ async function summonBattle(
   await expect(page.getByTestId('battle-prototype')).toBeVisible();
 }
 
+/** Into ADMIN HOME, through the lock if it is still shut. */
+async function adminHome(page: Page) {
+  await newWorld(page);
+  await page.getByTestId('dev-admin-entry').click();
+  const lock = page.getByTestId('dev-lock-screen');
+  const admin = page.getByTestId('open-cinematic-preview');
+  await expect(lock.or(admin)).toBeVisible({ timeout: 20_000 });
+  if (await lock.isVisible()) {
+    await page.getByTestId('dev-lock-input').fill('0909');
+    await page.getByTestId('dev-lock-submit').click();
+  }
+  await expect(admin).toBeVisible({ timeout: 20_000 });
+}
+
+/** ADMIN HOME → the preview → one piece of it, playing. */
+async function previewPiece(page: Page, piece: 'DRAGON' | 'BREATH' | 'FULL') {
+  await adminHome(page);
+  await page.getByTestId('open-cinematic-preview').click();
+  await page.getByTestId('preview-UNKNOWN_ANCIENT_DRAGON_001').click();
+  await page.getByTestId(`preview-play-${piece}`).click();
+}
+
 /** A fresh world with ARCANA #001 put into one of the states worth seeing. */
 async function arcanaAt(page: Page, preset: string) {
   await newWorld(page);
@@ -339,74 +361,79 @@ const RECIPES: Record<string, Shot[]> = {
       },
     },
   ],
-  'BATTLE UI PROTOTYPE': [
+  'ADMIN DEV TOOLS': [
     {
-      suffix: 'accident_A_start',
-      why: 'A：通常の不完全召喚として始まる。ARCANA #001 モスラビット / CONSTRUCTION 30%',
+      suffix: 'admin_A_lock',
+      why: 'A：管理者ロック。控えめな入口の先にあり、入力はそのまま表示されないか',
       go: async (page) => {
-        await summonBattle(page, '中', 'ACCIDENT');
-        await expect(page.getByTestId('bp-summon-card')).toBeVisible();
+        await newWorld(page);
+        await page.getByTestId('dev-admin-entry').click();
+        await expect(page.getByTestId('dev-lock-screen')).toBeVisible();
       },
     },
     {
-      suffix: 'accident_B_unknown',
-      why: 'B・C：ケイオス「……え？」とARCANA #??? / UNKNOWN。名前は出していないか',
+      suffix: 'admin_B_home',
+      why: 'B：ADMIN HOME。「演出プレビュー」が最初にあり、既存の開発スイッチは下に残っているか',
       go: async (page) => {
-        await summonBattle(page, '中', 'ACCIDENT');
-        await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-accident-card')).toBeVisible({ timeout: 8_000 });
+        await adminHome(page);
+        await expect(page.getByTestId('open-cinematic-preview')).toBeVisible();
       },
     },
     {
-      suffix: 'accident_D_dragon',
-      why: 'D：巨大召喚。画面の半分以上を占めているか、敵側（左）を向いているか',
+      suffix: 'admin_C_preview_list',
+      why: 'C：演出プレビュー一覧。ARCANA ＞ 召喚事故 ＞ UNKNOWN #001。正式名称は出していないか',
       go: async (page) => {
-        await summonBattle(page, '中', 'ACCIDENT');
-        await page.getByTestId('bp-summon-card').click();
+        await adminHome(page);
+        await page.getByTestId('open-cinematic-preview').click();
+        await expect(page.getByTestId('preview-UNKNOWN_ANCIENT_DRAGON_001')).toBeVisible();
+      },
+    },
+    {
+      suffix: 'admin_D_dragon',
+      why: 'D：巨大召喚。左向き・敵側・画面の半分以上。DUMMY表示で実戦と誤認しないか',
+      go: async (page) => {
+        await previewPiece(page, 'DRAGON');
         await expect(page.getByTestId('bp-dragon')).toBeVisible({ timeout: 10_000 });
+        await page.waitForTimeout(700);
       },
     },
     {
-      suffix: 'accident_E_breath',
-      why: 'E：《エンシェントブレス》。縦画面で顔・口元・ブレス・文字が読めるか。技名の二重表示なし',
+      suffix: 'admin_E_breath',
+      why: 'E：カットイン。顔・口元・ブレス・文字が読めるか。技名の二重表示がないか',
       go: async (page) => {
-        await summonBattle(page, '中', 'ACCIDENT');
-        await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 12_000 });
-        await page.waitForTimeout(500);
+        await previewPiece(page, 'BREATH');
+        await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 10_000 });
+        await page.waitForTimeout(900);
       },
     },
     {
-      suffix: 'accident_G_talk',
-      why: 'G：事故後の会話。ケイオスが説明役になっていないか。古代龍は残っていないか',
+      suffix: 'admin_F_unknown',
+      why: 'F：フルシーケンス中の ARCANA #??? / UNKNOWN。実戦と同じカードか',
       go: async (page) => {
-        await summonBattle(page, '中', 'ACCIDENT');
-        await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+        await previewPiece(page, 'FULL');
+        await expect(page.getByTestId('bp-accident-card')).toBeVisible({ timeout: 10_000 });
       },
     },
     {
-      suffix: 'accident_F_down',
-      why: 'F：ブレス後の敵DOWN。KILL自動確定ではなく、四つの答えが player に委ねられているか',
+      suffix: 'admin_G_talk',
+      why: 'G：フルシーケンス終盤の会話。実戦と同じ4行か',
       go: async (page) => {
-        await summonBattle(page, '中', 'ACCIDENT', { story: 'on', finishable: true });
-        await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+        await previewPiece(page, 'FULL');
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 18_000 });
+      },
+    },
+    {
+      suffix: 'admin_H_end',
+      why: 'H：PREVIEW END。もう一度／一覧へ。戦場に何も残っていないか',
+      go: async (page) => {
+        await previewPiece(page, 'FULL');
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 18_000 });
         await page.getByTestId('bp-accident-talk').click();
-        await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 12_000 });
+        await expect(page.getByTestId('preview-replay')).toBeVisible();
       },
     },
-    {
-      suffix: 'summon_ward',
-      why: 'PHASE 1：HP満タンで呼んだとき。「HPはもう満ちている。」で終わらず《森の加護》になるか',
-      go: async (page) => {
-        await summonBattle(page, '中', 'SUCCESS');
-        await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-said-result')).toContainText('森の加護', {
-          timeout: 8_000,
-        });
-      },
-    },
+  ],
+  'BATTLE UI PROTOTYPE': [
     {
       suffix: 'battle_prototype',
       why: '世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル',

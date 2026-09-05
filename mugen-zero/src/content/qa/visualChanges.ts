@@ -17,16 +17,21 @@ import type { VisualChange } from '../../core/qa/types';
    person collect screenshots by hand, and the capture does that now. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
-    screen: 'BATTLE UI PROTOTYPE',
+    screen: 'ADMIN DEV TOOLS',
     changed: true,
     reason:
-      '召喚を追加。戦闘開始時にケイオスが不完全召喚を試みることがあり（成功／不成立）、100%のアルカナは「アルカナ」コマンドから1戦闘1回呼べます。呼ばれたモスラビットは主人公側の手前に、敵より小さく、光の輪と ARCANA タグ付きで立ちます',
+      '管理者ロックの文言を日本語にし、同一セッション中は再入力を省略します（永続保存はしません）。管理者ホームに「演出プレビュー」を追加し、ARCANA ＞ 召喚事故 ＞ UNKNOWN #001 の巨大召喚・カットイン・フルシーケンスを、ゲームデータを一切変更せずに再生できます',
+  },
+  {
+    screen: 'BATTLE UI PROTOTYPE',
+    changed: false,
+    reason:
+      '召喚事故の演出を ui/cinematic へ切り出し、実戦とプレビューが同じ定義を再生するようにしました。画面の見え方・順序・「間」は前ラウンドから1つも変えていません（E2E 29本が無変更で通ります）',
   },
   {
     screen: 'ARCANA / アルカナ図鑑',
-    changed: true,
-    reason:
-      '100% のときだけ「呼べるもの ―《森の息吹》」の1節が増えました。一覧・構築度・ヒントは前ラウンドから無変更です',
+    changed: false,
+    reason: '前ラウンドから無変更です',
   },
   {
     screen: 'HOME',
