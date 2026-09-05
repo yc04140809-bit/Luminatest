@@ -3,10 +3,11 @@ import { test, expect, type Page } from './fixtures';
 // PHASE G: the polish layer — it must hold on real phone sizes, keep
 // preferences out of world history, and never break the core loop.
 
+// The same three phones, held the way a landscape game is held.
 const PHONE_SIZES = [
-  { name: '360x800', width: 360, height: 800 },
-  { name: '390x844', width: 390, height: 844 },
-  { name: '412x915', width: 412, height: 915 },
+  { name: '800x360', width: 800, height: 360 },
+  { name: '844x390', width: 844, height: 390 },
+  { name: '915x412', width: 915, height: 412 },
 ];
 
 async function startNewGame(page: Page) {
@@ -131,7 +132,8 @@ test('the app exposes a PWA manifest and registers no service worker in dev', as
     name: 'MUGEN ZERO',
     short_name: 'MUGEN',
     display: 'standalone',
-    orientation: 'portrait-primary',
+    // The game is landscape now, and an installed copy asks for it.
+    orientation: 'landscape',
   });
   expect(manifest.icons.length).toBeGreaterThanOrEqual(2);
 });

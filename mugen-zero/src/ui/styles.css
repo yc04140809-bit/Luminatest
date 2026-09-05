@@ -17,6 +17,35 @@ body,
   font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
 }
 
+/* ---- landscape stage ----
+   The game is landscape, always. The root is the window; the stage
+   inside it is the game, laid out at the window's landscape size and
+   turned a quarter when the device is being held upright. Nothing below
+   this needs to know which of the two happened. */
+.landscape-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--mugen-bg);
+}
+.landscape-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  overflow: hidden;
+}
+
+/* The stage's own size, for the handful of rules that used to be written
+   in vw/vh. Under rotation the window's vw and vh are the wrong way
+   round — the game is 844 wide on a phone whose vw is 390 — so anything
+   sized against the screen reads these instead. LandscapeStage sets them
+   inline; these are what applies before it has measured. */
+:root {
+  --stage-w: 100vw;
+  --stage-h: 100vh;
+}
+
 .app {
   height: 100%;
   /* Not a flat sheet: the page is very slightly lit where the player
@@ -24,11 +53,23 @@ body,
   background:
     radial-gradient(ellipse 120% 60% at 50% 30%, var(--mugen-bg-lift) 0%, transparent 70%),
     var(--mugen-bg);
-  max-width: 480px;
+  /* The stage decides the width now. A screen that wants a narrow
+     column of text asks for one itself (.screen-column below) instead
+     of the whole game being 480px wide on a landscape display. */
+  width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* A readable column inside a wide stage. Screens that are a list or a
+   page of prose opt into this; screens that are a scene (battle, forest,
+   title) use the full width. */
+.screen-column {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
 }
 
 .screen {
@@ -128,7 +169,7 @@ body,
   padding: 0;
 }
 .dialogue-screen.dialogue-kaos .dialogue-box {
-  margin-bottom: 18vh;
+  margin-bottom: calc(var(--stage-h) * 0.14);
 }
 .dialogue-kaos .dialogue-portrait img {
   width: 148px;
@@ -177,7 +218,10 @@ body,
   background: var(--mugen-surface);
 }
 .dialogue-box {
-  margin: 12px;
+  /* A line of dialogue the width of a landscape stage is unreadable;
+     it keeps a page's measure and sits in the middle. */
+  width: min(100%, 680px);
+  margin: 10px auto;
   padding: 16px 18px 22px;
   background: rgba(255, 253, 248, 0.94);
   border: 1px solid var(--mugen-border);
@@ -426,7 +470,7 @@ body,
 }
 .home-hero-ring {
   position: relative;
-  width: min(74vw, 262px);
+  width: min(calc(var(--stage-h) * 0.62), 232px);
   aspect-ratio: 1;
   flex: 0 0 auto;
 }
@@ -604,28 +648,65 @@ body,
   cursor: pointer;
 }
 
-/* Short phones: the ring gives up its size first, never the words. */
-@media (max-height: 700px) {
-  .home-scroll {
-    gap: 10px;
-    padding-top: calc(16px + env(safe-area-inset-top));
-  }
-  .home-hero-ring {
-    width: min(52vw, 190px);
-  }
-  .home-crest-name {
-    font-size: 23px;
-  }
+/* HOME, laid out across rather than down.
+   The place is held in its ring on the left and stays whole; the words,
+   the one thing to do and the quiet rail stack down the right. Nothing
+   here is behind a media query: the stage guarantees landscape, and a
+   window that reports portrait is a stage that has been turned. */
+.home-scroll {
+  display: grid;
+  grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+  grid-template-areas:
+    'hero crest'
+    'hero memory'
+    'hero act'
+    'hero rail';
+  align-content: center;
+  justify-items: center;
+  gap: 6px 26px;
+  padding: calc(10px + env(safe-area-inset-top)) 26px calc(10px + env(safe-area-inset-bottom));
+}
+.home-crest {
+  grid-area: crest;
+}
+.home-memory {
+  grid-area: memory;
+}
+.home-hero {
+  grid-area: hero;
+  align-self: center;
+}
+.home-act {
+  grid-area: act;
+}
+.home-rail {
+  grid-area: rail;
+}
+.home-crest-name {
+  font-size: 23px;
+}
+/* Out of the grid entirely: a corner mark, not a menu item. */
+.home-dev {
+  position: absolute;
+  right: 14px;
+  bottom: 6px;
+  z-index: 2;
 }
 
 /* ---- explore ---- */
+/* A list is still a column, but a column the width of a landscape stage
+   is a line of text nobody can follow. It keeps a readable measure and
+   sits in the middle of the room instead. */
 .location-list {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 16px;
+  padding: 12px 16px;
   overflow-y: auto;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
 }
 .location-card {
   text-align: left;
@@ -650,7 +731,10 @@ body,
   line-height: 1.6;
 }
 .screen-footer {
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
 }
 .screen-footer .btn {
   width: 100%;
@@ -658,7 +742,8 @@ body,
 
 /* ---- greenwood / phaser ---- */
 .phaser-wrap {
-  flex: 1;
+  grid-column: 2;
+  height: 100%;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -674,28 +759,49 @@ body,
 .battle-screen {
   background: linear-gradient(180deg, var(--mugen-bg-lift) 0%, var(--mugen-bg) 100%);
 }
+/* The story fight, in landscape.
+   Same three bands as the prototype: both healths across the top in the
+   shape the fight has — the enemy's on its side, yours on yours — and
+   the field underneath, with what you are fighting on the left. This
+   screen draws no party sprite, so the right of the field is empty
+   ground rather than a person; that is a gap in the art, not in the
+   layout, and the prototype is where the party is drawn. */
 .battle-enemy {
   flex: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 8px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 16px;
+  padding: 6px 14px 0;
+}
+.battle-enemy > .hp-row:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+}
+.battle-enemy > .hp-row:last-child {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
 }
 /* The fight is with a man, not an icon: his art holds the middle. */
 .battle-portrait-wrap {
   position: relative;
-  flex: 1;
+  grid-column: 1 / -1;
+  grid-row: 2;
   min-height: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  /* Left, where the enemy is. */
+  justify-content: flex-start;
+  padding-left: 6%;
+  width: 100%;
 }
 .battle-portrait {
   max-height: 100%;
-  max-width: 84%;
+  max-width: 34%;
   object-fit: contain;
   filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.26));
 }
@@ -766,9 +872,10 @@ body,
   background: var(--danger);
 }
 .battle-log {
-  margin: 0 12px;
-  padding: 10px 14px;
-  min-height: 64px;
+  margin: 0 14px;
+  padding: 8px 14px;
+  min-height: 46px;
+  flex: 0 0 auto;
   background: var(--mugen-surface);
   border: 1px solid var(--mugen-border);
   border-radius: 10px;
@@ -779,7 +886,8 @@ body,
 .battle-commands {
   display: flex;
   gap: 12px;
-  padding: 14px 12px calc(16px + env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
 }
 .battle-commands .btn {
   flex: 1;
@@ -806,7 +914,7 @@ body,
   width: 100%;
 }
 .life-choice-portrait {
-  max-height: 34vh;
+  max-height: calc(var(--stage-h) * 0.42);
   max-width: 70%;
   object-fit: contain;
   filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.28));
@@ -1162,7 +1270,8 @@ body,
 .title-screen.has-backdrop {
   justify-content: space-between;
   gap: 16px;
-  padding: calc(9vh + env(safe-area-inset-top)) 24px calc(8vh + env(safe-area-inset-bottom));
+  padding: calc(var(--stage-h) * 0.07 + env(safe-area-inset-top)) 24px
+    calc(var(--stage-h) * 0.07 + env(safe-area-inset-bottom));
 }
 .title-actions {
   display: flex;
@@ -1364,7 +1473,7 @@ body,
   color: var(--mugen-text-muted);
   text-align: center;
   line-height: 1.8;
-  padding-top: 12vh;
+  padding-top: calc(var(--stage-h) * 0.14);
 }
 .memory-empty svg {
   color: var(--mugen-gold-soft);
@@ -1405,8 +1514,21 @@ body,
    how to move, and offers the way out — and then gets out of the way.
    Scoped to .field-* so no other screen can be moved by it. */
 
+/* The forest, in landscape.
+   The walking field itself is still the portrait world it was drawn
+   against — its eight discovery rings are hand-placed on that painting,
+   and moving them is art work rather than layout — so it keeps its
+   shape and stands in the middle of the room. What changes is what sits
+   beside it: the place names itself down the left, the way out and the
+   one line of instruction down the right, so the room either side of
+   the field is used rather than left empty. */
 .field-screen {
   background: var(--mugen-bg);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
 }
 
 .field-intro {
@@ -1414,7 +1536,8 @@ body,
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  padding: calc(14px + env(safe-area-inset-top)) 16px 8px;
+  grid-column: 1;
+  padding: 0;
 }
 .field-intro-en {
   margin: 0;
@@ -1444,8 +1567,9 @@ body,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  gap: 10px;
+  grid-column: 3;
+  padding: 0;
 }
 .field-hint {
   margin: 0;
@@ -1667,6 +1791,7 @@ body,
 /* ---- the battlefield ---- */
 .bp-stage {
   position: relative;
+  /* The middle band: whatever the two thin bands do not need. */
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -1706,23 +1831,27 @@ body,
 }
 
 /* It is over there, on the left, further up the path. */
+/* Where the three of them stand on a wide field: the creature at one
+   end and further up the path, the two of them at the other, nearer,
+   and close enough together to read as one party rather than two people
+   who happen to be on the same side. */
 .bp-enemy {
-  left: 5%;
-  bottom: 40%;
+  left: 8%;
+  bottom: 38%;
   animation: bp-breathe 3.4s ease-in-out infinite;
 }
 /* He is nearest, on the right, between her and it. Nearest means
    largest, but only just: too much and he stops being a person standing
    closer and becomes a giant. */
 .bp-hero {
-  right: 28%;
-  bottom: 8%;
+  right: 20%;
+  bottom: 7%;
   animation: bp-breathe 3.6s ease-in-out infinite 0.2s;
 }
 /* She is a step behind him and a little further back. */
 .bp-kaos {
-  right: 3%;
-  bottom: 21%;
+  right: 8%;
+  bottom: 19%;
   animation: bp-breathe 3.9s ease-in-out infinite 0.4s;
 }
 @keyframes bp-breathe {
@@ -1846,15 +1975,41 @@ body,
   backdrop-filter: blur(2px);
   color: #f1ece0;
 }
+/* ---- the top band: who is in this ----
+   A landscape screen can show both sides at once, in the shape they
+   stand in: the creature on the left where the creature is, the party
+   on the right where the party is. It is a band across the top rather
+   than two plates laid on the forest, so no part of the battlefield is
+   spent on numbers. */
+.bp-band {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 7px 10px 6px;
+  background: var(--mugen-bg);
+  border-bottom: 1px solid var(--mugen-border);
+}
+/* One line each, not two: height is the scarce thing on a landscape
+   stage, and the band must not eat the battlefield. */
+.bp-band .bp-plate {
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 11px;
+  padding: 5px 12px;
+}
 .bp-plate-enemy {
-  position: absolute;
-  left: 10px;
-  top: 10px;
+  /* Its bar grows from the creature's side of the screen outward. */
+  align-items: flex-start;
 }
 .bp-plate-party {
-  align-self: flex-start;
-  margin: 8px 0 0 10px;
-  background: rgba(26, 28, 22, 0.9);
+  align-items: flex-end;
+}
+.bp-plate-party .bp-plate-row {
+  flex-direction: row-reverse;
 }
 .bp-plate-name {
   font-size: 11px;
@@ -1873,7 +2028,7 @@ body,
   min-width: 4.6em;
 }
 .bp-track {
-  width: 92px;
+  width: clamp(92px, calc(var(--stage-w) * 0.17), 190px);
   height: 5px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.18);
@@ -1893,9 +2048,10 @@ body,
   position: relative;
   display: flex;
   align-items: center;
-  margin: 8px 10px 0;
-  padding: 10px 14px;
-  min-height: 46px;
+  flex: 0 0 auto;
+  margin: 6px 10px 0;
+  padding: 7px 14px;
+  min-height: 36px;
   border: 1px solid var(--mugen-border);
   border-radius: 6px;
   background: var(--mugen-surface);
@@ -1917,21 +2073,29 @@ body,
 }
 
 /* ---- the commands ---- */
+/* ---- the bottom band: what you can do ----
+   Wide and short. On a landscape stage the height is the scarce thing,
+   so the commands spread sideways instead of stacking. */
 .bp-commands {
   display: flex;
   gap: 9px;
-  padding: 9px 10px calc(10px + env(safe-area-inset-bottom));
+  flex: 0 0 auto;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
 }
+/* Wide and short. A landscape stage has width going spare and no
+   height at all, so the name and its English sit on one line instead of
+   stacking — the button stays thumb-sized and the battlefield keeps the
+   twenty pixels. */
 .bp-cmd {
   appearance: none;
   flex: 1;
-  min-height: 56px;
-  padding: 8px 6px;
+  min-height: 44px;
+  padding: 5px 8px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: 8px;
   border: 1px solid var(--mugen-border-strong);
   border-radius: 6px;
   background: var(--mugen-surface);
@@ -1939,7 +2103,7 @@ body,
   color: var(--mugen-text);
   font-family: inherit;
 }
-.bp-cmd-mark { color: var(--mugen-gold); margin-bottom: 1px; }
+.bp-cmd-mark { color: var(--mugen-gold); margin-bottom: 0; flex: 0 0 auto; }
 .bp-cmd-jp { font-size: 15px; letter-spacing: 0.18em; text-indent: 0.18em; }
 .bp-cmd-en { font-size: 8px; letter-spacing: 0.32em; text-indent: 0.32em; color: var(--mugen-text-muted); }
 .bp-cmd.open, .bp-cmd:active { border-color: var(--mugen-gold); }
@@ -2077,15 +2241,26 @@ body,
    two she is speaking, so it covers no part of the forest at all and
    nothing above it moves. Opaque: it sits over the app's own ground,
    and anything showing through it would only be the party's plate. */
+/* Her moment, in landscape.
+   The same five things — who is speaking, what she said, what it was,
+   what it does — but across instead of down: what she said on the left,
+   what it was on the right, a hairline between them. Stacked, this card
+   was a third of the height of a landscape screen and pushed the forest
+   under half of it, which is the one thing this card must never do. */
 .bp-chaos-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  margin: 8px 10px calc(10px + env(safe-area-inset-bottom));
-  padding: 10px 14px 11px;
-  min-height: 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 1px auto;
+  grid-template-areas:
+    'who rule name'
+    'line rule effect';
+  align-items: center;
+  justify-items: start;
+  column-gap: 16px;
+  row-gap: 1px;
+  margin: 6px 10px calc(7px + env(safe-area-inset-bottom));
+  padding: 8px 14px;
+  min-height: 52px;
   border: 1px solid rgba(198, 166, 96, 0.5);
   border-radius: 6px;
   background: #1a1c16;
@@ -2101,27 +2276,39 @@ body,
   to { opacity: 1; transform: none; }
 }
 .bp-chaos-who {
+  grid-area: who;
   font-size: 10px;
   letter-spacing: 0.24em;
   color: var(--mugen-memory, #8fa6cd);
 }
 .bp-chaos-line {
+  grid-area: line;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
 }
+/* The rule stands between the two halves instead of under the first. */
 .bp-chaos-rule {
-  width: 44px;
-  height: 1px;
-  margin: 5px 0 4px;
-  background: linear-gradient(90deg, rgba(198, 166, 96, 0.7), transparent);
+  grid-area: rule;
+  width: 1px;
+  height: 100%;
+  margin: 0;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(198, 166, 96, 0.7) 25%,
+    rgba(198, 166, 96, 0.7) 75%,
+    transparent
+  );
 }
 .bp-chaos-name {
+  grid-area: name;
   font-size: 13px;
   letter-spacing: 0.1em;
 }
 .bp-chaos-name.buff { color: #dcc084; }
 .bp-chaos-name.debuff { color: #c3a5d8; }
 .bp-chaos-effect {
+  grid-area: effect;
   font-size: 11px;
   color: rgba(241, 236, 224, 0.72);
 }
@@ -2177,7 +2364,10 @@ body,
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 4px 16px 16px;
+  padding: 4px 16px 12px;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
 }
 
 /* One page, seen from the outside. */
@@ -2284,7 +2474,10 @@ body,
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 18px 18px;
+  padding: 4px 18px 14px;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
 }
 .arcana-detail .arcana-no {
   margin: 0;
@@ -2506,8 +2699,8 @@ body,
   /* The player's side, in front of both of them, clear of the hero's
      shoulder on one side and — because it stands much lower down the
      path — well clear of the creature being fought on the other. */
-  right: 53%;
-  bottom: 10%;
+  right: 42%;
+  bottom: 9%;
   animation: bp-summon-in 0.42s ease-out;
   z-index: 2;
 }
@@ -2566,7 +2759,10 @@ body,
 .bp-summon-card .bp-chaos-rule {
   background: linear-gradient(90deg, rgba(168, 200, 240, 0.7), transparent);
 }
+/* The summon card is the same card with a different right-hand half:
+   which page she is reaching for, and how much of it there is. */
 .bp-summon-id {
+  grid-area: name;
   display: flex;
   align-items: baseline;
   gap: 9px;
@@ -2584,11 +2780,12 @@ body,
   color: #f1ece0;
 }
 .bp-summon-meter {
+  grid-area: effect;
   display: flex;
   align-items: center;
   gap: 9px;
   width: 100%;
-  margin-top: 5px;
+  margin-top: 0;
 }
 .bp-summon-track {
   flex: 1;
@@ -2617,11 +2814,11 @@ body,
 
 /* The command. Its own row, because at 360px a third column stops
    being readable and this is the one the collecting is for. */
-.bp-commands {
-  flex-wrap: wrap;
-}
+/* Three commands side by side. Stacked, the ARCANA command took a
+   second row and pushed the battlefield under half the screen — which
+   is exactly the room a landscape stage has going spare across. */
 .bp-cmd.arcana {
-  min-height: 48px;
+  min-height: 44px;
   flex-direction: row;
   gap: 9px;
   border-color: var(--mugen-gold-soft);
@@ -2836,11 +3033,15 @@ body,
 .bp-said {
   padding: 8px 14px 9px;
 }
+/* What was called, what it said, and what came of it — across, in the
+   one plate, rather than three lines down. Three lines of prose is a
+   third of a landscape screen's height, and the screen has room for
+   them side by side. */
 .bp-said-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 14px;
   width: 100%;
 }
 .bp-said-name {
@@ -3054,4 +3255,25 @@ body,
   .opening-skip {
     animation: none;
   }
+}
+
+/* ---- a picture that has not been drawn yet ----
+   Deliberately not a creature. Nothing here tries to stand in for the
+   art with a shape, an emoji or a silhouette: it is a marked empty box
+   that says something belongs here, so a missing file is obvious in a
+   screenshot instead of looking like a design decision. */
+.art-missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--mugen-border-strong);
+  border-radius: 4px;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(166, 135, 63, 0.06) 0 6px,
+    transparent 6px 12px
+  );
+  color: var(--mugen-text-muted);
+  font-size: 15px;
+  letter-spacing: 0.1em;
 }

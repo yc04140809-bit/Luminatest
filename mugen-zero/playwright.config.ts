@@ -5,7 +5,13 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL: 'http://localhost:5173',
-    viewport: { width: 390, height: 844 },
+    // MUGEN ZERO is a landscape game: this is the same 390x844 phone the
+    // suite has always used, held the way it is played. A portrait
+    // viewport is not wrong so much as beside the point — the app turns
+    // its own stage to landscape either way, and measuring a rotated
+    // stage against the window is how you get assertions that pass while
+    // the game is off the side of the screen.
+    viewport: { width: 844, height: 390 },
     // Screens fade and slide in by 6px on entry. Under load Playwright
     // sees that as "element is not stable" and burns a whole timeout
     // waiting, which made unrelated tests flake. The app already honours

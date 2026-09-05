@@ -7,8 +7,10 @@ import {
   type EnemyAction,
   type EnemySpec,
 } from '../../game/battle/battleLogic';
-import type { EnemySpeciesDef, EnemyVisual } from '../../content/enemies/species';
-import { EXPLORATION_SPRITES } from '../../content/characters/explorationSprites';
+import type { EnemySpeciesDef } from '../../content/enemies/species';
+import { enemyArtFor, partyArtFor } from '../../content/art';
+import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
+import { CharacterArt } from '../art/CharacterArt';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { LifeChoiceId } from '../../core/flow/types';
 import { vibrate } from '../../platform/haptics';
@@ -47,71 +49,6 @@ import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIco
  * part of the file is the character — nothing is redrawn, recoloured or
  * regenerated, and cropping in CSS leaves the files untouched.
  */
-interface ArtCrop {
-  src: string;
-  fileW: number;
-  fileH: number;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-const KAOS_LEFT = EXPLORATION_SPRITES.KAOS.frames.left.idle;
-const HERO_LEFT = EXPLORATION_SPRITES.HERO.frames.left.idle;
-
-/** Measured from the assets themselves: the box the drawing occupies. */
-const HERO_CROP: ArtCrop = {
-  src: HERO_LEFT.url,
-  fileW: 120,
-  fileH: 180,
-  x: 14,
-  y: 18,
-  w: 101,
-  h: 159,
-};
-
-const KAOS_CROP: ArtCrop = {
-  src: KAOS_LEFT.url,
-  fileW: 1221,
-  fileH: 1289,
-  // The registry already knows which rectangle of her sheet is the
-  // left-facing view; this is that rectangle and nothing else.
-  x: KAOS_LEFT.rect!.x,
-  y: KAOS_LEFT.rect!.y,
-  w: KAOS_LEFT.rect!.width,
-  h: KAOS_LEFT.rect!.height,
-};
-
-/** A species' art for one state, as a crop this screen can draw. */
-function cropOf(visual: EnemyVisual): ArtCrop {
-  return {
-    src: visual.src,
-    fileW: visual.box.fileW,
-    fileH: visual.box.fileH,
-    x: visual.box.x,
-    y: visual.box.y,
-    w: visual.box.width,
-    h: visual.box.height,
-  };
-}
-
-/** The art, sized by height, with the bottom edge on the ground line. */
-function ActorArt({ crop, height, className }: { crop: ArtCrop; height: number; className: string }) {
-  const k = height / crop.h;
-  return (
-    <div
-      className={className}
-      style={{
-        width: crop.w * k,
-        height,
-        backgroundImage: `url(${crop.src})`,
-        backgroundSize: `${crop.fileW * k}px ${crop.fileH * k}px`,
-        backgroundPosition: `${-crop.x * k}px ${-crop.y * k}px`,
-      }}
-    />
-  );
-}
 
 function specOf(species: EnemySpeciesDef): EnemySpec {
   return {
@@ -534,13 +471,28 @@ export function BattleUIPrototype({
   // Everything after the fight waits for it to actually be lying down,
   // so the picture and the question never disagree.
   const downed = beaten && stance === 'DOWNED';
-  const downVisual = species.battleVisuals.down;
-  const showingDown = downed && downVisual !== null;
+  /**
+   * Which picture of each of them belongs to this moment.
+   *
+   * The battle asks for the pose the moment deserves and the art layer
+   * answers with the nearest thing that has been drawn. Today the moss
+   * rabbit has two pictures, so 'attack' and 'damage' both come back as
+   * the standing one and the field looks exactly as it did — but the
+   * asking is real, and a drawn attack pose appears here the day it is
+   * added to content/art, with no change to this screen.
+   */
+  const view = { beat, downed };
+  const enemyShown = enemyArtFor(species.speciesId, enemyPose(view));
+  const heroShown = partyArtFor('hero', heroPose(view));
+  const kaosShown = partyArtFor('kaos', kaosPose(view));
+  // It is only lying down on screen if a picture of it lying down
+  // exists; otherwise it stays standing rather than being drawn in a
+  // pose that means something else.
+  const showingDown = downed && enemyShown.state === 'down';
   /** The fight itself is suspended while any of it is happening. */
   const inAccident = accidentBeat !== 'NONE';
   const backdrop = locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
-  const enemyCrop = cropOf(showingDown ? downVisual! : species.battleVisuals.normal);
   /**
    * Their sizes, as a share of the battlefield.
    *
@@ -550,23 +502,60 @@ export function BattleUIPrototype({
    * inside the same picture instead of on top of it.
    */
   const stage = {
-    enemy: Math.round(stageH * 0.23),
+    enemy: Math.round(stageH * 0.36),
     // Beaten, it is lying in the grass: the same animal, seen from the
     // side, so its height on screen comes from its own drawing rather
     // than from the standing one's.
-    enemyDown: Math.round(stageH * 0.16),
-    hero: Math.round(stageH * 0.22),
-    kaos: Math.round(stageH * 0.215),
+    enemyDown: Math.round(stageH * 0.25),
+    hero: Math.round(stageH * 0.34),
+    kaos: Math.round(stageH * 0.33),
     // Smaller than the creature actually in the fight. A rebuilt memory
     // should not read as the same weight of thing as the animal in
     // front of you, and in a moss-rabbit-versus-moss-rabbit fight the
     // difference in size is the first thing that tells them apart.
-    summon: Math.round(stageH * 0.15),
+    summon: Math.round(stageH * 0.23),
   };
 
   return (
     <div className="screen bp-screen" data-testid="battle-prototype">
-      {/* 1. The world. Its own colour, nothing over it. */}
+      {/* 1. WHO IS IN THIS. A landscape screen has room for both sides
+             at once, side by side, in the shape they stand in: the
+             creature's health on the left where the creature is, the
+             party's on the right where the party is. Reading a bar no
+             longer means looking away from the thing it belongs to. */}
+      <div className="bp-band">
+        <div className="bp-plate bp-plate-enemy" data-testid="bp-enemy-hp">
+          <span className="bp-plate-name">{battle.enemyName}</span>
+          <span className="bp-plate-row">
+            <span className="bp-plate-num">
+              {battle.enemyHp} / {battle.enemyMaxHp}
+            </span>
+            <span className="bp-track">
+              <span
+                className="bp-fill enemy"
+                style={{ width: `${(battle.enemyHp / battle.enemyMaxHp) * 100}%` }}
+              />
+            </span>
+          </span>
+        </div>
+        <div className="bp-plate bp-plate-party" data-testid="bp-player-hp">
+          <span className="bp-plate-name">あなた</span>
+          <span className="bp-plate-row">
+            <span className="bp-plate-num">
+              {battle.playerHp} / {battle.playerMaxHp}
+            </span>
+            <span className="bp-track">
+              <span
+                className="bp-fill"
+                style={{ width: `${(battle.playerHp / battle.playerMaxHp) * 100}%` }}
+              />
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {/* 2. THE BATTLEFIELD. Everything that is happening happens here,
+             and nothing is laid over it. */}
       <div
         className={`bp-stage${accidentStageClass(accidentBeat)}`}
         ref={stageRef}
@@ -593,10 +582,14 @@ export function BattleUIPrototype({
           {showingChaos && chaos?.target === 'ENEMY' && (
             <span className="bp-chaos-mark debuff" aria-hidden="true" />
           )}
-          <ActorArt
-            crop={enemyCrop}
+          <CharacterArt
+            art={enemyShown}
             height={showingDown ? stage.enemyDown : stage.enemy}
             className="bp-art"
+            // Enemies look across the field at the party.
+            face="right"
+            label={species.name}
+            testId="bp-enemy-art"
           />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
           {beat === 'TACKLE' && (
@@ -620,14 +613,29 @@ export function BattleUIPrototype({
         >
           <span className="bp-shadow" aria-hidden="true" />
           {showingChaos && <span className="bp-chaos-aura" aria-hidden="true" />}
-          <ActorArt crop={KAOS_CROP} height={stage.kaos} className="bp-art" />
+          <CharacterArt
+            art={kaosShown}
+            height={stage.kaos}
+            className="bp-art"
+            face="left"
+            label="ケイオス"
+            testId="bp-kaos-art"
+          />
         </div>
         <div className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}>
           <span className="bp-shadow" aria-hidden="true" />
           {showingChaos && chaos?.target === 'PLAYER' && (
             <span className="bp-chaos-mark buff" aria-hidden="true" />
           )}
-          <ActorArt crop={HERO_CROP} height={stage.hero} className="bp-art" />
+          <CharacterArt
+            art={heroShown}
+            height={stage.hero}
+            className="bp-art"
+            // The party looks across the field at the enemy.
+            face="left"
+            label="あなた"
+            testId="bp-hero-art"
+          />
         </div>
 
         {/* 3b. What was called. On THIS side of the clearing, in front
@@ -654,31 +662,20 @@ export function BattleUIPrototype({
             <span className="bp-shadow" aria-hidden="true" />
             <span className="bp-summon-ring" aria-hidden="true" />
             <span className="bp-summon-tag">ARCANA</span>
-            <ActorArt
-              crop={cropOf({ src: summoned.arcana.visual.src, box: summoned.arcana.visual.box })}
+            <CharacterArt
+              art={{
+                asset: { src: summoned.arcana.visual.src, box: summoned.arcana.visual.box },
+                state: 'front',
+                substituted: false,
+                placeholder: false,
+              }}
               height={stage.summon}
               className="bp-art"
+              testId="bp-summon-art"
             />
           </div>
         )}
 
-        {/* 4. Who is in this, and how they are doing. A small framed
-               plate rather than a status panel: it sits ON the forest
-               and takes a corner of it, not a band across it. */}
-        <div className="bp-plate bp-plate-enemy" data-testid="bp-enemy-hp">
-          <span className="bp-plate-name">{battle.enemyName}</span>
-          <span className="bp-plate-row">
-            <span className="bp-plate-num">
-              {battle.enemyHp} / {battle.enemyMaxHp}
-            </span>
-            <span className="bp-track">
-              <span
-                className="bp-fill enemy"
-                style={{ width: `${(battle.enemyHp / battle.enemyMaxHp) * 100}%` }}
-              />
-            </span>
-          </span>
-        </div>
       </div>
 
       {/* Still in force. One chip, so a player who tapped past her
@@ -689,22 +686,6 @@ export function BattleUIPrototype({
         </p>
       )}
 
-      {/* The party's own plate, under the battlefield rather than over
-          it, so nothing of the forest is spent on it. */}
-      <div className="bp-plate bp-plate-party" data-testid="bp-player-hp">
-        <span className="bp-plate-name">あなた</span>
-        <span className="bp-plate-row">
-          <span className="bp-plate-num">
-            {battle.playerHp} / {battle.playerMaxHp}
-          </span>
-          <span className="bp-track">
-            <span
-              className="bp-fill"
-              style={{ width: `${(battle.playerHp / battle.playerMaxHp) * 100}%` }}
-            />
-          </span>
-        </span>
-      </div>
 
       {/* 5. One line, not a conversation box — except for the second
              and a half a called memory is speaking, when it is three:

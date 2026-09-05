@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, enterDevAdmin } from './helpers';
+import { playToLifeChoice, enterDevAdmin, PHONES, viewportOf } from './helpers';
 
 /**
  * The battle UI prototype: a second battle screen, behind a dev flag,
@@ -366,9 +366,9 @@ test.describe('battle UI prototype', () => {
     await expect(page.getByTestId('battle-prototype')).toHaveCount(0);
   });
 
-  for (const width of [360, 390, 412]) {
-    test(`fits a ${width}px phone without scrolling`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 844 });
+  for (const phone of PHONES) {
+    test(`fits a ${phone.name} phone without scrolling`, async ({ page }) => {
+      await page.setViewportSize(viewportOf(phone));
       await freshWorld(page);
       await setup(page, { ui: 'PROTOTYPE', story: 'off' });
       await walkIntoAFight(page);
@@ -387,8 +387,8 @@ test.describe('battle UI prototype', () => {
       }
       // The message is on screen and readable, not clipped away.
       const message = (await page.getByTestId('bp-message').boundingBox())!;
-      expect(message.width).toBeGreaterThan(width * 0.8);
-      expect(message.y + message.height).toBeLessThanOrEqual(844);
+      expect(message.width).toBeGreaterThan(phone.width * 0.8);
+      expect(message.y + message.height).toBeLessThanOrEqual(phone.height);
     });
   }
 });
@@ -630,9 +630,9 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(page.getByTestId('bp-player-hp')).toContainText('40 / 40');
   });
 
-  for (const width of [360, 390, 412]) {
-    test(`her moment fits a ${width}px phone`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 844 });
+  for (const phone of PHONES) {
+    test(`her moment fits a ${phone.name} phone`, async ({ page }) => {
+      await page.setViewportSize(viewportOf(phone));
       await freshWorld(page);
       await setup(page, { ui: 'PROTOTYPE', story: 'off', chaos: 'CHAOS_WEAKEN' });
       await walkIntoAFight(page);
@@ -648,13 +648,13 @@ test.describe('Kaos at the start of a fight', () => {
 
       const box = (await card.boundingBox())!;
       expect(box.x, 'on screen').toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width, 'and inside it').toBeLessThanOrEqual(width);
-      expect(box.y + box.height, 'and not hanging off the bottom').toBeLessThanOrEqual(844);
+      expect(box.x + box.width, 'and inside it').toBeLessThanOrEqual(phone.width);
+      expect(box.y + box.height, 'and not hanging off the bottom').toBeLessThanOrEqual(phone.height);
       // Still a card, not a screen: it takes a strip, not the phone.
-      expect(box.height / 844, 'her card is a strip, not a takeover').toBeLessThan(0.25);
+      expect(box.height / phone.height, 'her card is a strip, not a takeover').toBeLessThan(0.35);
       // The forest is still most of what is on screen.
       const bg = (await page.locator('.bp-bg').boundingBox())!;
-      expect(bg.height / 844).toBeGreaterThan(0.5);
+      expect(bg.height / phone.height, 'the forest is still most of the screen').toBeGreaterThan(0.5);
     });
   }
 });

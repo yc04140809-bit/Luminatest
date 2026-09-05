@@ -1,17 +1,17 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T10:09:33.433Z
-- Build: MUGEN ZERO v0.1 / 0956e3e / 2026-09-05T10:09:02.805Z
+- Generated: 2026-09-05T13:51:10.453Z
+- Build: MUGEN ZERO v0.1 / d602cdd / 2026-09-05T13:49:59.536Z
 - Environment: dev server
-- Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
+- Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 1年目 1日目 (day 1)
-- Route: NONE
-- TIME SHIFTs: 0
-- WORLD MEMORY facts: 0
-- LIFE ARCHIVE: 0 known / 0 in canon
-- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 4年目 4日目 (day 1099)
+- Route: SPARE
+- TIME SHIFTs: 1
+- WORLD MEMORY facts: 5
+- LIFE ARCHIVE: 1 known / 4 in canon
+- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -48,15 +48,15 @@
   - how: looked for an event requiring each route memory
 
 ## WORLD MEMORY CHECKS
-- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 0 facts recorded, no duplicates
+- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 5 facts recorded, no duplicates
   - how: compared every event id in the world currently loaded
-- **PASS** `LIFE_CHOICE_IS_SINGULAR` — no choice made yet
+- **PASS** `LIFE_CHOICE_IS_SINGULAR` — one choice: PLAYER_SPARED_GALD
   - how: counted the first-encounter outcomes in WORLD MEMORY
 - **PASS** `WORLD_MEMORY_IN_ORDER` — history runs forwards
   - how: walked the event list comparing world dates
-- **PASS** `FUTURE_SITE_CAUSALITY` — 0 of 4 sites on the map, 0 found
+- **PASS** `FUTURE_SITE_CAUSALITY` — 1 of 4 sites on the map, 0 found
   - how: compared each site discovery against its required world memory
-- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 0 of 0 chapters known to the player
+- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 1 of 4 chapters known to the player
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
@@ -80,13 +80,13 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **NOT TESTED** `SAVE_RESTORED` — nothing saved yet in this world, so there was nothing to restore
+- **PASS** `SAVE_RESTORED` — restored 5 facts and 0 met events from IndexedDB
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
 
 ## MOBILE
-- **PASS** `NO_HORIZONTAL_SCROLL` — 390x844: nothing spills sideways
+- **PASS** `NO_HORIZONTAL_SCROLL` — 844x390: nothing spills sideways
   - how: measured this screen in this browser, right now
 - **MANUAL CHECK REQUIRED** `VISUAL_LAYOUT` — whether it looks right, not whether it fits
   - how: a person has to look — see VISUAL REVIEW REQUIRED at the end of this report
@@ -98,7 +98,10 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] SETTINGS — 「オープニングテーマ ON/OFF」を1行追加しました。既定はONで、アプリを開いてから最初の1回だけ流れます。音量はBGM音量に従い、OP専用の音量は作っていません
-- [ ] OPENING THEME / SKIP — 曲が鳴っている間だけ右上に SKIP が出ます。楽曲ファイルはまだ無いため通常は出ません。撮影はDEV専用の代役スイッチ（音は鳴らしません）で出しています
-- [ ] ADMIN DEV TOOLS — 「OPENING THEME PREVIEW」を1項目追加しました（SKIP表示のリハーサル／「今回はもう流した」を忘れる）。既存の演出プレビューと開発スイッチは無変更です
-- unchanged, no screenshot needed: BATTLE UI PROTOTYPE, ARCANA / アルカナ図鑑, HOME, GREENWOOD / BATTLE, TAVERN / TALK, TITLE, PROLOGUE / KAOS, EXPLORE, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] BATTLE UI PROTOTYPE — ランドスケープ化。上部情報帯（敵HP＝左／味方HP＝右）／中央戦闘領域／下部コマンドUI の3分割にしました。敵は左、味方（あなた＋ケイオス）は右で、互いを向いています。演出・タイムライン・古代龍のカットインは無変更です
+- [ ] GREENWOOD / BATTLE — ランドスケープ化。探索フィールド（Phaser）のワールドは縦のまま中央に置き、場所名を左、操作説明と「森を出る」を右に配置しました。8つの発見スポットは背景画に合わせて手で置いたものなので動かしていません
+- [ ] TITLE — ランドスケープ化。キービジュアル・ロゴ・翼の装飾・ボタンはそのままです
+- [ ] HOME — ランドスケープ化。左に村（円のなか）、右に世界の記憶・探索する・下段レール、という2段組にしました。項目・文言・遷移は無変更です
+- [ ] EXPLORE — ランドスケープ化。カードが横幅いっぱいに伸びないよう、読める幅で中央に置いています
+- [ ] SETTINGS — ランドスケープ化。前ラウンドで足した「オープニングテーマ ON/OFF」はそのままです
+- unchanged, no screenshot needed: ADMIN DEV TOOLS, OPENING THEME / SKIP, ARCANA / アルカナ図鑑, PROLOGUE / KAOS, TAVERN / TALK, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

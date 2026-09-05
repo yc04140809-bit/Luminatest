@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin } from './helpers';
+import { enterDevAdmin, PHONES, viewportOf } from './helpers';
 
 /**
  * The exploration loop: see a ring, walk to it, find out what it was,
@@ -189,9 +189,9 @@ test.describe('exploration loop', () => {
     expect(kept).toBe(1);
   });
 
-  for (const width of [360, 390, 412]) {
-    test(`the find card fits a ${width}px phone`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 844 });
+  for (const phone of PHONES) {
+    test(`the find card fits a ${phone.name} phone`, async ({ page }) => {
+      await page.setViewportSize(viewportOf(phone));
       await freshWorld(page);
       await settleAndForce(page, 'ITEM');
       await intoForest(page);
@@ -200,7 +200,7 @@ test.describe('exploration loop', () => {
       const card = page.locator('.find-card');
       const box = (await card.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.x + box.width).toBeLessThanOrEqual(width + 0.5);
+      expect(box.x + box.width).toBeLessThanOrEqual(phone.width + 0.5);
       // The way to close it is a real target, not a hairline.
       const take = (await page.getByTestId('take-item').boundingBox())!;
       expect(take.height).toBeGreaterThanOrEqual(44);

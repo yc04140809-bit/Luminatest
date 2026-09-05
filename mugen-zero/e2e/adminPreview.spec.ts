@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './fixtures';
+import { PHONES, viewportOf } from './helpers';
 
 /**
  * ADMIN DEV TOOLS — the lock, and the cinematic preview behind it.
@@ -440,9 +441,9 @@ test.describe('the accident pool', () => {
   });
 });
 
-for (const width of [360, 390, 412]) {
-  test(`the preview fits a ${width}px phone`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+for (const phone of PHONES) {
+  test(`the preview fits a ${phone.name} phone`, async ({ page }) => {
+    await page.setViewportSize(viewportOf(phone));
     await freshWorld(page);
     await openPreview(page);
     await page.getByTestId('preview-play-FULL').click();
@@ -457,7 +458,7 @@ for (const width of [360, 390, 412]) {
       expect(scrolls.x, `no sideways scroll at ${id}`).toBe(false);
       expect(scrolls.y, `no vertical scroll at ${id}`).toBe(false);
       const box = (await node.boundingBox())!;
-      expect(box.x + box.width, 'inside the phone').toBeLessThanOrEqual(width + 1);
+      expect(box.x + box.width, 'inside the phone').toBeLessThanOrEqual(phone.width + 1);
       // The mark stays readable through the whole of it.
       await expect(page.getByTestId('preview-badge')).toBeVisible();
     }

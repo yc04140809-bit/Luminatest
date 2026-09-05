@@ -336,10 +336,12 @@ const RECIPES: Record<string, Shot[]> = {
     },
     {
       suffix: 'moss_rabbit_battle',
-      why: 'モスラビットの絵が正しく出ているか。名前・HP・行動が読めるか',
+      why: '横画面の戦闘。敵＝左／味方＝右、上部情報帯・中央戦闘領域・下部コマンドの3分割',
       go: async (page) => {
+        // A forest fight uses the prototype screen by default, which is
+        // the one this round rebuilt for landscape.
         await forestWith(page, 'BATTLE');
-        const battle = page.getByTestId('battle-screen');
+        const battle = page.getByTestId('battle-prototype');
         await walkUntil(page, () => battle.isVisible().catch(() => false));
         await expect(battle).toBeVisible();
         await page.waitForTimeout(400);
@@ -349,23 +351,26 @@ const RECIPES: Record<string, Shot[]> = {
       suffix: 'moss_rabbit_life_choice',
       why: '特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか',
       go: async (page) => {
-        await forestWith(page, 'BATTLE', 'on');
-        const battle = page.getByTestId('battle-screen');
+        // Started already beatable, on purpose: the four answers are
+        // what is being photographed, and walking a forest and then
+        // playing a whole fight to reach them is six minutes of
+        // capture for one picture.
+        await forestWith(page, 'BATTLE', 'on', undefined, true);
+        const battle = page.getByTestId('battle-prototype');
         await walkUntil(page, () => battle.isVisible().catch(() => false));
-        const attack = page.getByTestId('attack-button');
-        for (let i = 0; i < 20; i++) {
-          if (await page.getByTestId('enemy-defeated-line').isVisible().catch(() => false)) break;
-          if (await attack.isEnabled().catch(() => false)) await attack.click();
-          await page.waitForTimeout(140);
+        await expect(battle).toBeVisible();
+        const attack = page.getByTestId('bp-attack');
+        const choice = page.getByTestId('bp-mugen-choice');
+        for (let i = 0; i < 12; i++) {
+          if (await choice.isVisible().catch(() => false)) break;
+          // Short and forgiving: between the last blow and the four
+          // answers the commands are on their way out, and a plain
+          // click() there waits for the whole test timeout rather than
+          // for the button.
+          await attack.click({ timeout: 1500 }).catch(() => {});
+          await page.waitForTimeout(200);
         }
-        const scene = page.getByTestId('creature-scene-moss_rabbit');
-        await expect(scene).toBeVisible({ timeout: 20_000 });
-        for (let i = 0; i < 6; i++) {
-          if (!(await scene.isVisible().catch(() => false))) break;
-          await scene.click();
-          await page.waitForTimeout(140);
-        }
-        await expect(page.getByTestId('creature-life-choice-screen')).toBeVisible();
+        await expect(choice).toBeVisible({ timeout: 20_000 });
       },
     },
   ],
@@ -612,6 +617,12 @@ function slug(name: string): string {
 }
 
 test('capture the review package', async ({ page }) => {
+  // One test that takes fifteen photographs, several of which involve
+  // walking a forest until something happens. The suite's 60s is a
+  // timeout for a behaviour test; this is a photo session, and the
+  // number below is how long the session takes, not how patient an
+  // assertion is allowed to be.
+  test.setTimeout(6 * 60_000);
   mkdirSync(OUT_DIR, { recursive: true });
   for (const file of readdirSync(OUT_DIR)) {
     if (file.endsWith('.png') || file === 'manifest.json' || file === 'qa-report.md') {

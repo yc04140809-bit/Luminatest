@@ -8,7 +8,8 @@ const BASE = 'http://localhost:5173';
 function launch(userDataDir: string): Promise<BrowserContext> {
   return chromium.launchPersistentContext(userDataDir, {
     executablePath: '/opt/pw-browsers/chromium',
-    viewport: { width: 390, height: 844 },
+    // Landscape, like the rest of the suite: the game has no portrait layout.
+    viewport: { width: 844, height: 390 },
   });
 }
 

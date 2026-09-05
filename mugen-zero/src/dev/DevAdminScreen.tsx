@@ -38,6 +38,7 @@ import { summonSuccessChance, type SummonOutcome } from '../core/summon/summon';
 import { SUMMON_ACCIDENT_CONFIG } from '../core/summon/summonAccident';
 import { SUMMON_ACCIDENTS, UNKNOWN_ACCIDENT_001 } from '../content/summon/accidents';
 import { openingRehearsal, setOpeningRehearsal } from './openingRehearsal';
+import { artCoverageLines } from '../content/art/artCoverage';
 import { forgetOpeningSession } from '../platform/openingTheme';
 
 /**
@@ -479,6 +480,21 @@ export function DevAdminScreen({
         森の実戦で見る場合は「新戦闘画面（試作）」＋「次の発見を BATTLE に固定」。
         ガルド戦は常に現行画面のままです。MUGEN CHOICE は「特殊個体：必ず発生」で。
       </div>
+      {/* ---- ART COVERAGE ---- */}
+      <div style={sectionTitle}>CHARACTER ART — 実装済み / 未実装</div>
+      <div
+        style={{ fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.9, padding: '2px 2px' }}
+        data-testid="art-coverage"
+      >
+        {artCoverageLines().map((line) => (
+          <div key={line}>{line}</div>
+        ))}
+        <div style={{ marginTop: 4 }}>
+          未実装の状態は、指定 → idle → side → front → sheet の順に代替表示されます
+          （味方は 指定 → battle_idle → fullbody → portrait）。
+        </div>
+      </div>
+
       {/* ---- OPENING THEME ---- */}
       <div style={sectionTitle}>OPENING THEME PREVIEW</div>
       <div style={row}>

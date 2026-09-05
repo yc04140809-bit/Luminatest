@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice } from './helpers';
+import { playToLifeChoice, PHONES, viewportOf } from './helpers';
 
 // VISUAL BACKGROUND UPDATE: every screen that gained art must show it,
 // must stay readable, and must never let the art eat a tap.
@@ -84,9 +84,9 @@ test('the battle happens where the encounter did — the same forest', async ({ 
   await expect(page.getByTestId('battle-log')).toContainText('ダメージ');
 });
 
-for (const width of [360, 390, 412]) {
-  test(`no sideways scroll at ${width}px, title through battle`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+for (const phone of PHONES) {
+  test(`no sideways scroll at ${phone.name}, title through battle`, async ({ page }) => {
+    await page.setViewportSize(viewportOf(phone));
     await playToLifeChoice(page);
     expect(await horizontalOverflow(page)).toBe(0);
     await expect(page.getByTestId('life-choice-screen')).toBeVisible();

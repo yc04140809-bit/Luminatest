@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin } from './helpers';
+import { enterDevAdmin, PHONES, viewportOf } from './helpers';
 
 /**
  * SUMMONING — a memory put back together on a battlefield.
@@ -249,11 +249,22 @@ test.describe('a finished memory', () => {
     await expect(command).toBeVisible();
     await expect(command).toBeEnabled();
     await expect(command).toContainText('アルカナ');
-    // Its own row, so the two existing commands are not squeezed.
+    // Beside the other two rather than under them: a landscape screen
+    // has the width for three commands and no height to spare, and the
+    // property that mattered — none of the three squeezed — is checked
+    // here directly instead of being inferred from the row it is on.
     const attack = (await page.getByTestId('bp-attack').boundingBox())!;
+    const skill = (await page.getByTestId('bp-skill').boundingBox())!;
     const arcana = (await command.boundingBox())!;
-    expect(arcana.y).toBeGreaterThan(attack.y);
-    expect(arcana.height, 'thumb-sized').toBeGreaterThanOrEqual(44);
+    expect(arcana.y, 'on the same row as the other two').toBeCloseTo(attack.y, 0);
+    for (const [name, box] of [
+      ['attack', attack],
+      ['skill', skill],
+      ['arcana', arcana],
+    ] as const) {
+      expect(box.height, `${name} is thumb-sized`).toBeGreaterThanOrEqual(44);
+      expect(box.width, `${name} is not squeezed to a sliver`).toBeGreaterThanOrEqual(90);
+    }
   });
 
   test('is chosen by name, never fails, and does what the book says', async ({ page }) => {
@@ -491,9 +502,9 @@ test.describe('the book', () => {
   });
 });
 
-for (const width of [360, 390, 412]) {
-  test(`summoning fits a ${width}px phone`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+for (const phone of PHONES) {
+  test(`summoning fits a ${phone.name} phone`, async ({ page }) => {
+    await page.setViewportSize(viewportOf(phone));
     await freshWorld(page);
     await openBattle(page, { arcana: 'COMPLETE' });
 
@@ -501,7 +512,7 @@ for (const width of [360, 390, 412]) {
     const box = (await command.boundingBox())!;
     expect(box.height, 'thumb-sized').toBeGreaterThanOrEqual(44);
     expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.x + box.width).toBeLessThanOrEqual(phone.width);
     // The two older commands are not squeezed by the new one.
     for (const id of ['bp-attack', 'bp-skill']) {
       const other = (await page.getByTestId(id).boundingBox())!;
@@ -514,7 +525,7 @@ for (const width of [360, 390, 412]) {
     await expect(summoned).toBeVisible();
     const called = (await summoned.boundingBox())!;
     expect(called.x).toBeGreaterThanOrEqual(0);
-    expect(called.x + called.width).toBeLessThanOrEqual(width);
+    expect(called.x + called.width).toBeLessThanOrEqual(phone.width);
 
     const scrolls = await page.evaluate(() => ({
       x: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -524,6 +535,6 @@ for (const width of [360, 390, 412]) {
     expect(scrolls.y, 'no vertical scroll').toBe(false);
     // The forest is still most of what is on screen.
     const bg = (await page.locator('.bp-bg').boundingBox())!;
-    expect(bg.height / 844).toBeGreaterThan(0.5);
+    expect(bg.height / phone.height, 'the forest is still most of the screen').toBeGreaterThan(0.5);
   });
 }

@@ -312,9 +312,10 @@ test('KILL route reaches the survey without seeing bakery or reunion options', a
 });
 
 for (const size of [
-  { name: '360x800', width: 360, height: 800 },
-  { name: '390x844', width: 390, height: 844 },
-  { name: '412x915', width: 412, height: 915 },
+  // The same three phones, held the way a landscape game is held.
+  { name: '800x360', width: 800, height: 360 },
+  { name: '844x390', width: 844, height: 390 },
+  { name: '915x412', width: 915, height: 412 },
 ]) {
   test(`survey fits ${size.name} with no horizontal scroll`, async ({ page }) => {
     await page.setViewportSize({ width: size.width, height: size.height });

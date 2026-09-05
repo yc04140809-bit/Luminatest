@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { advanceDays, enterDevAdmin, readMemoryEvents } from './helpers';
+import { advanceDays, enterDevAdmin, PHONES, readMemoryEvents, viewportOf } from './helpers';
 
 /**
  * OPENING EXPERIENCE v0.1 — the title's theme, and the one control it has.
@@ -19,7 +19,6 @@ import { advanceDays, enterDevAdmin, readMemoryEvents } from './helpers';
 /** DEV stand-in: the song's length when there is no song. See openingRehearsal.ts. */
 const REHEARSAL_MS = 6000;
 
-const WIDTHS = [360, 390, 412];
 
 async function clean(page: Page) {
   await page.goto('/');
@@ -188,9 +187,9 @@ test.describe('OPENING THEME', () => {
     await expect(page.getByTestId('opening-forget-session')).toBeVisible();
   });
 
-  for (const width of WIDTHS) {
-    test(`fits and is usable at ${width}px`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 844 });
+  for (const phone of PHONES) {
+    test(`fits and is usable on a ${phone.name} phone`, async ({ page }) => {
+      await page.setViewportSize(viewportOf(phone));
       await clean(page);
       await rehearsalOn(page);
       await newGame(page);
@@ -201,7 +200,7 @@ test.describe('OPENING THEME', () => {
       const box = await skip.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      expect(box!.x + box!.width).toBeLessThanOrEqual(phone.width);
       expect(box!.height).toBeGreaterThanOrEqual(32);
 
       // The control must not push the page sideways.

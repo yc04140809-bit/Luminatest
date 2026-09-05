@@ -1,114 +1,107 @@
 {
-  "capturedAt": "2026-09-05T10:09:33.517Z",
+  "capturedAt": "2026-09-05T13:51:10.544Z",
   "viewport": {
-    "width": 390,
-    "height": 844
+    "width": 844,
+    "height": 390
   },
   "shots": [
     {
-      "file": "01_settings_opening_row.png",
+      "file": "01_battle_prototype.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
+    },
+    {
+      "file": "02_greenwood_forest.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか"
+    },
+    {
+      "file": "03_greenwood_walking_side.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
+    },
+    {
+      "file": "04_greenwood_found_item.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか"
+    },
+    {
+      "file": "05_greenwood_forest_event.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）"
+    },
+    {
+      "file": "06_moss_rabbit_battle.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "横画面の戦闘。敵＝左／味方＝右、上部情報帯・中央戦闘領域・下部コマンドの3分割"
+    },
+    {
+      "file": "07_moss_rabbit_life_choice.png",
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか"
+    },
+    {
+      "file": "08_title.png",
+      "screen": "TITLE",
+      "reason": "the first screen"
+    },
+    {
+      "file": "09_home_new_world.png",
+      "screen": "HOME",
+      "reason": "始めたばかりの世界。まだ何も覚えていない状態の第一印象"
+    },
+    {
+      "file": "10_home_remembering.png",
+      "screen": "HOME",
+      "reason": "記憶を持った世界。数字と最新の記憶が入ったときの見え方"
+    },
+    {
+      "file": "11_explore.png",
+      "screen": "EXPLORE",
+      "reason": "カードと ✦ 印のコントラスト"
+    },
+    {
+      "file": "12_settings_opening_row.png",
       "screen": "SETTINGS",
       "reason": "オープニングテーマの行。既定でON、説明が1行、BGM音量の下に自然に並んでいるか"
-    },
-    {
-      "file": "02_opening_a_skip_shown.png",
-      "screen": "OPENING THEME / SKIP",
-      "reason": "A：曲が鳴っている間のSKIP。ロゴにも本文にもかぶらず、右上に小さく出ているか"
-    },
-    {
-      "file": "03_opening_b_after_skip.png",
-      "screen": "OPENING THEME / SKIP",
-      "reason": "B：SKIP直後。ボタンだけが消え、読んでいた画面はそのまま（場面は飛ばない）"
-    },
-    {
-      "file": "04_admin_a_lock.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "A：管理者ロック。控えめな入口の先にあり、入力はそのまま表示されないか"
-    },
-    {
-      "file": "05_admin_b_home.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "B：ADMIN HOME。「演出プレビュー」が最初にあり、既存の開発スイッチは下に残っているか"
-    },
-    {
-      "file": "06_admin_c_preview_list.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "C：演出プレビュー一覧。ARCANA ＞ 召喚事故 ＞ UNKNOWN #001。正式名称は出していないか"
-    },
-    {
-      "file": "07_admin_d_dragon.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "D：巨大召喚。左向き・敵側・画面の半分以上。DUMMY表示で実戦と誤認しないか"
-    },
-    {
-      "file": "08_admin_e_breath.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "E：カットイン。顔・口元・ブレス・文字が読めるか。技名の二重表示がないか"
-    },
-    {
-      "file": "09_admin_f_unknown.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "F：フルシーケンス中の ARCANA #??? / UNKNOWN。実戦と同じカードか"
-    },
-    {
-      "file": "10_admin_g_talk.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "G：フルシーケンス終盤の会話。実戦と同じ4行か"
-    },
-    {
-      "file": "11_admin_h_end.png",
-      "screen": "ADMIN DEV TOOLS",
-      "reason": "H：PREVIEW END。もう一度／一覧へ。戦場に何も残っていないか"
     }
   ],
   "notPhotographed": [
     {
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "召喚事故の演出を ui/cinematic へ切り出し、実戦とプレビューが同じ定義を再生するようにしました。画面の見え方・順序・「間」は前ラウンドから1つも変えていません（E2E 29本が無変更で通ります）"
+      "screen": "ADMIN DEV TOOLS",
+      "reason": "ランドスケープ化の影響は受けますが、今回の主題ではないので撮影から外しました。中身の変更は「CHARACTER ART — 実装済み / 未実装」の一覧を1ブロック追加しただけで、演出プレビューは無変更です"
+    },
+    {
+      "screen": "OPENING THEME / SKIP",
+      "reason": "前ラウンドから無変更です（楽曲はまだ入っていません）"
     },
     {
       "screen": "ARCANA / アルカナ図鑑",
-      "reason": "前ラウンドから無変更です"
+      "reason": "画像の出どころを画像管理レイヤーへ移しましたが、表示は同じ絵の同じ切り出しです。幅だけ読める幅に制限しました"
     },
     {
-      "screen": "HOME",
-      "reason": "前ラウンドで承認待ちの5項目導線のまま。今回は無変更です"
-    },
-    {
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "前ラウンドから無変更。試作は既存画面を置き換えていません"
+      "screen": "PROLOGUE / KAOS",
+      "reason": "ランドスケープ化。会話ボックスは読める幅で中央に置いています"
     },
     {
       "screen": "TAVERN / TALK",
       "reason": "シーンアート修正版のまま"
     },
     {
-      "screen": "TITLE",
-      "reason": "v0.1 のまま"
-    },
-    {
-      "screen": "PROLOGUE / KAOS",
-      "reason": "v0.1 のまま"
-    },
-    {
-      "screen": "EXPLORE",
-      "reason": "v0.1 のまま"
-    },
-    {
       "screen": "WORLD MEMORY",
-      "reason": "v0.1 のまま"
+      "reason": "ランドスケープ化のみ"
     },
     {
       "screen": "LIFE CHOICE / ENDING",
-      "reason": "v0.1 のまま"
+      "reason": "ランドスケープ化のみ"
     },
     {
       "screen": "PLAYTEST SURVEY",
-      "reason": "v0.1 のまま"
+      "reason": "ランドスケープ化のみ"
     },
     {
       "screen": "DEV REVIEW HUB",
-      "reason": "v0.1 のまま"
+      "reason": "ランドスケープ化のみ"
     }
   ]
 }

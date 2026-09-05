@@ -10,57 +10,67 @@
 
 import type { VisualChange } from '../../core/qa/types';
 
-/* VISUAL IDENTITY v0.1 turned the whole game from black to ivory and
-   gold. There is no such thing as an unaffected screen this round, so
-   every one of them is listed as changed and every one of them is
-   photographed — the usual "keep it to a few" rule is about not making a
-   person collect screenshots by hand, and the capture does that now. */
+/* LANDSCAPE MIGRATION v1.0 turns every screen in the game through
+   ninety degrees, so there is no such thing as an unaffected screen this
+   round either. What is photographed is the set that answers "did
+   turning it break anything": the way in, the home, the list, the
+   forest, the fight, and the settings page the opening theme lives on.
+   The rest is described in words. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
+  {
+    screen: 'BATTLE UI PROTOTYPE',
+    changed: true,
+    reason:
+      'ランドスケープ化。上部情報帯（敵HP＝左／味方HP＝右）／中央戦闘領域／下部コマンドUI の3分割にしました。敵は左、味方（あなた＋ケイオス）は右で、互いを向いています。演出・タイムライン・古代龍のカットインは無変更です',
+  },
+  {
+    screen: 'GREENWOOD / BATTLE',
+    changed: true,
+    reason:
+      'ランドスケープ化。探索フィールド（Phaser）のワールドは縦のまま中央に置き、場所名を左、操作説明と「森を出る」を右に配置しました。8つの発見スポットは背景画に合わせて手で置いたものなので動かしていません',
+  },
+  {
+    screen: 'TITLE',
+    changed: true,
+    reason: 'ランドスケープ化。キービジュアル・ロゴ・翼の装飾・ボタンはそのままです',
+  },
+  {
+    screen: 'HOME',
+    changed: true,
+    reason:
+      'ランドスケープ化。左に村（円のなか）、右に世界の記憶・探索する・下段レール、という2段組にしました。項目・文言・遷移は無変更です',
+  },
+  {
+    screen: 'EXPLORE',
+    changed: true,
+    reason: 'ランドスケープ化。カードが横幅いっぱいに伸びないよう、読める幅で中央に置いています',
+  },
   {
     screen: 'SETTINGS',
     changed: true,
-    reason:
-      '「オープニングテーマ ON/OFF」を1行追加しました。既定はONで、アプリを開いてから最初の1回だけ流れます。音量はBGM音量に従い、OP専用の音量は作っていません',
-  },
-  {
-    screen: 'OPENING THEME / SKIP',
-    changed: true,
-    reason:
-      '曲が鳴っている間だけ右上に SKIP が出ます。楽曲ファイルはまだ無いため通常は出ません。撮影はDEV専用の代役スイッチ（音は鳴らしません）で出しています',
+    reason: 'ランドスケープ化。前ラウンドで足した「オープニングテーマ ON/OFF」はそのままです',
   },
   {
     screen: 'ADMIN DEV TOOLS',
-    changed: true,
-    reason:
-      '「OPENING THEME PREVIEW」を1項目追加しました（SKIP表示のリハーサル／「今回はもう流した」を忘れる）。既存の演出プレビューと開発スイッチは無変更です',
-  },
-  {
-    screen: 'BATTLE UI PROTOTYPE',
     changed: false,
     reason:
-      '召喚事故の演出を ui/cinematic へ切り出し、実戦とプレビューが同じ定義を再生するようにしました。画面の見え方・順序・「間」は前ラウンドから1つも変えていません（E2E 29本が無変更で通ります）',
+      'ランドスケープ化の影響は受けますが、今回の主題ではないので撮影から外しました。中身の変更は「CHARACTER ART — 実装済み / 未実装」の一覧を1ブロック追加しただけで、演出プレビューは無変更です',
+  },
+  {
+    screen: 'OPENING THEME / SKIP',
+    changed: false,
+    reason: '前ラウンドから無変更です（楽曲はまだ入っていません）',
   },
   {
     screen: 'ARCANA / アルカナ図鑑',
     changed: false,
-    reason: '前ラウンドから無変更です',
+    reason:
+      '画像の出どころを画像管理レイヤーへ移しましたが、表示は同じ絵の同じ切り出しです。幅だけ読める幅に制限しました',
   },
-  {
-    screen: 'HOME',
-    changed: false,
-    reason: '前ラウンドで承認待ちの5項目導線のまま。今回は無変更です',
-  },
-  {
-    screen: 'GREENWOOD / BATTLE',
-    changed: false,
-    reason: '前ラウンドから無変更。試作は既存画面を置き換えていません',
-  },
+  { screen: 'PROLOGUE / KAOS', changed: false, reason: 'ランドスケープ化。会話ボックスは読める幅で中央に置いています' },
   { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },
-  { screen: 'TITLE', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'PROLOGUE / KAOS', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'EXPLORE', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'WORLD MEMORY', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'PLAYTEST SURVEY', changed: false, reason: 'v0.1 のまま' },
-  { screen: 'DEV REVIEW HUB', changed: false, reason: 'v0.1 のまま' },
+  { screen: 'WORLD MEMORY', changed: false, reason: 'ランドスケープ化のみ' },
+  { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'ランドスケープ化のみ' },
+  { screen: 'PLAYTEST SURVEY', changed: false, reason: 'ランドスケープ化のみ' },
+  { screen: 'DEV REVIEW HUB', changed: false, reason: 'ランドスケープ化のみ' },
 ];

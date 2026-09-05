@@ -11,8 +11,7 @@
 // one normal attack, one skill, numbers in the units the battle already
 // speaks, and lines that let an animal be an animal.
 
-import mossRabbitArt from '../../assets/enemies/moss-rabbit.png';
-import mossRabbitDownArt from '../../assets/enemies/moss-rabbit-down.png';
+import { MOSS_RABBIT_ART } from '../art/enemyArt';
 import type { LifeChoiceId } from '../../core/flow/types';
 import type { DialogueLine } from '../dialogue/prologue';
 
@@ -37,49 +36,23 @@ export interface SpeciesSkill {
 /**
  * Where the drawing actually is inside its file.
  *
- * Official art arrives with whatever transparent margin it was exported
- * with, and the game must not repaint a pixel of it — so instead of
- * trimming the file, each visual says which box of it is the creature.
- * That box is what gets sized, and what gets stood on the ground.
+ * The one definition now lives with the art layer; this re-export is
+ * kept so nothing that already speaks in ArtBox has to be rewritten.
  */
-export interface ArtBox {
-  fileW: number;
-  fileH: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface EnemyVisual {
-  src: string;
-  box: ArtBox;
-}
-
-/**
- * The states a creature can be seen in on a battlefield.
- *
- * Two, for now, and the second one is the one that matters: DOWNED is
- * beaten, not dead. Nothing in MUGEN ZERO dies because its health
- * reached zero — what becomes of it is the question the player is about
- * to be asked, and the creature has to still be lying there while they
- * answer it.
- *
- * Every ordinary enemy after this one fills in the same two entries.
- * That is the whole of the structure: no framework, one field.
- */
-export interface EnemyBattleVisuals {
-  normal: EnemyVisual;
-  /** Null while a species has no beaten art drawn yet. */
-  down: EnemyVisual | null;
-}
+export type { ArtBox } from '../../core/art/artStates';
 
 export interface EnemySpeciesDef {
   speciesId: SpeciesId;
   name: string;
   /** Where it lives. One place for now; a list when there are two. */
   habitat: string;
-  /** Official art, or null while a species has none drawn. */
+  /**
+   * Official art, or null while a species has none drawn.
+   *
+   * Read from the art registry rather than imported here: content/art
+   * is the only place in the project that names an image file, so
+   * adding a creature's pictures never means editing this file too.
+   */
   portrait: string | null;
   /**
    * How much of the picture is the animal.
@@ -89,11 +62,6 @@ export interface EnemySpeciesDef {
    * to enlarge it on screen; it changes no pixel.
    */
   portraitScale: number;
-  /**
-   * How the creature is drawn on a battlefield, per state. Separate from
-   * `portrait` above, which is what the older battle screen reads.
-   */
-  battleVisuals: EnemyBattleVisuals;
   /** Battle numbers, in the units the existing battle already uses. */
   hp: number;
   attackMin: number;
@@ -141,24 +109,9 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   speciesId: 'moss_rabbit',
   name: 'モスラビット',
   habitat: 'GREENWOOD_FOREST',
-  portrait: mossRabbitArt,
+  portrait: MOSS_RABBIT_ART.states.front?.src ?? null,
   // The drawn animal fills about 55% of the height of its file.
   portraitScale: 1.55,
-  battleVisuals: {
-    // Both boxes measured from the files themselves; neither file is
-    // edited, cropped or recoloured.
-    normal: {
-      src: mossRabbitArt,
-      box: { fileW: 1024, fileH: 1536, x: 129, y: 387, width: 703, height: 850 },
-    },
-    // Lying in the grass with its ears spread: far wider than it is
-    // tall, which is why its size on screen is worked out from its own
-    // box rather than from the standing one's.
-    down: {
-      src: mossRabbitDownArt,
-      box: { fileW: 1536, fileH: 1024, x: 6, y: 218, width: 1523, height: 659 },
-    },
-  },
   hp: 22,
   attackMin: 2,
   attackMax: 5,

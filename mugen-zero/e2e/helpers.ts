@@ -184,3 +184,23 @@ export async function enterDevAdmin(page: Page): Promise<void> {
   }
   await expect(admin).toBeVisible({ timeout: 20_000 });
 }
+
+/**
+ * The three phones the game is judged on — held the way it is played.
+ *
+ * MUGEN ZERO is landscape now, so a "360px phone" is 800x360 on screen.
+ * The numbers are the same three devices as before, turned; one place
+ * knows that, and every spec that checks the layout reads it from here.
+ */
+export const PHONES = [
+  { name: '800x360', width: 800, height: 360 },
+  { name: '844x390', width: 844, height: 390 },
+  { name: '915x412', width: 915, height: 412 },
+] as const;
+
+export type Phone = (typeof PHONES)[number];
+
+/** The viewport for one of them, without its name. */
+export function viewportOf(phone: Phone): { width: number; height: number } {
+  return { width: phone.width, height: phone.height };
+}

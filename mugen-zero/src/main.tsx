@@ -4,6 +4,7 @@ import App from './App';
 import './ui/styles/tokens.css';
 import './ui/styles.css';
 import { ErrorBoundary } from './ui/common/ErrorBoundary';
+import { LandscapeStage } from './ui/layout/LandscapeStage';
 
 // Offline shell (assets only — WORLD MEMORY stays in IndexedDB).
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
@@ -16,10 +17,13 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <div className="app">
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </div>
+    {/* Everything below here may assume it is wider than it is tall. */}
+    <LandscapeStage>
+      <div className="app">
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </div>
+    </LandscapeStage>
   </StrictMode>,
 );

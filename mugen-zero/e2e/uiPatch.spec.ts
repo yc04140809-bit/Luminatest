@@ -5,9 +5,10 @@ import { playToLifeChoice } from './helpers';
 // during it, and visibly beaten (not dead) while his life is decided.
 
 const PHONES = [
-  { name: '360x800', width: 360, height: 800 },
-  { name: '390x844', width: 390, height: 844 },
-  { name: '412x915', width: 412, height: 915 },
+  // The same three phones, held the way a landscape game is held.
+  { name: '800x360', width: 800, height: 360 },
+  { name: '844x390', width: 844, height: 390 },
+  { name: '915x412', width: 915, height: 412 },
 ];
 
 async function startAndOpenHome(page: Page) {

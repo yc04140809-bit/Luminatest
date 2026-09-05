@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin } from './helpers';
+import { enterDevAdmin, PHONES, viewportOf } from './helpers';
 
 /**
  * ARCANA — the book, and the way a life fills it in.
@@ -396,9 +396,9 @@ test.describe('the book and the rest of the world', () => {
   });
 });
 
-for (const width of [360, 390, 412]) {
-  test(`the book fits a ${width}px phone`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 });
+for (const phone of PHONES) {
+  test(`the book fits a ${phone.name} phone`, async ({ page }) => {
+    await page.setViewportSize(viewportOf(phone));
     await freshWorld(page);
     await setArcana(page, '高');
 
@@ -406,12 +406,12 @@ for (const width of [360, 390, 412]) {
     const rail = (await page.getByTestId('arcana-button').boundingBox())!;
     expect(rail.height, 'the way into the book is thumb-sized').toBeGreaterThanOrEqual(44);
     expect(rail.x).toBeGreaterThanOrEqual(0);
-    expect(rail.x + rail.width).toBeLessThanOrEqual(width);
+    expect(rail.x + rail.width).toBeLessThanOrEqual(phone.width);
 
     await openBook(page);
     const card = (await page.getByTestId('arcana-card-moss_rabbit').boundingBox())!;
     expect(card.x).toBeGreaterThanOrEqual(0);
-    expect(card.x + card.width).toBeLessThanOrEqual(width);
+    expect(card.x + card.width).toBeLessThanOrEqual(phone.width);
 
     await page.getByTestId('arcana-card-moss_rabbit').click();
     await expect(page.getByTestId('arcana-detail-moss_rabbit')).toBeVisible();
@@ -426,8 +426,8 @@ for (const width of [360, 390, 412]) {
     const art = (await page.locator('.arcana-art').boundingBox())!;
     expect(art.width).toBeGreaterThan(60);
     expect(art.x).toBeGreaterThanOrEqual(0);
-    expect(art.x + art.width).toBeLessThanOrEqual(width);
+    expect(art.x + art.width).toBeLessThanOrEqual(phone.width);
     const back = (await page.getByTestId('arcana-detail-back').boundingBox())!;
-    expect(back.y + back.height).toBeLessThanOrEqual(844);
+    expect(back.y + back.height).toBeLessThanOrEqual(phone.height);
   });
 }
