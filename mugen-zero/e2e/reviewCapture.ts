@@ -239,6 +239,10 @@ type Shot = {
  * comes first, so the swinging here is bounded and short.
  */
 async function galdUntilAwakening(page: Page) {
+  // From nothing: the shots share one browser, and playToLifeChoice
+  // starts by pressing 「はじめる」 — which is not on the title screen of
+  // a world that already exists.
+  await freshStart(page);
   await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
   const scene = page.getByTestId('magic-awakening');
   await swingUntil(page, 'attack-button', () => scene.isVisible().catch(() => false), 60_000);
@@ -328,42 +332,6 @@ const RECIPES: Record<string, Shot[]> = {
         const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
         await page.mouse.click(box.x + box.width * 0.14, box.y + box.height * 0.5);
         await page.waitForTimeout(420);
-      },
-    },
-    {
-      suffix: 'greenwood_found_item',
-      why: 'アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか',
-      go: async (page) => {
-        await forestWith(page, 'ITEM');
-        const card = page.getByTestId('forest-item');
-        await walkUntil(page, () => card.isVisible().catch(() => false));
-        await expect(card).toBeVisible();
-        await page.waitForTimeout(300);
-      },
-    },
-    {
-      suffix: 'greenwood_forest_event',
-      why: '森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）',
-      go: async (page) => {
-        await forestWith(page, 'EVENT');
-        const scene = page.getByTestId('forest-event');
-        await walkUntil(page, () => scene.isVisible().catch(() => false));
-        await expect(scene).toBeVisible();
-        // The 「▼ タップ」 prompt fades in over about a second.
-        await page.waitForTimeout(1600);
-      },
-    },
-    {
-      suffix: 'moss_rabbit_battle',
-      why: '横画面の戦闘。敵＝左／味方＝右、上部情報帯・中央戦闘領域・下部コマンドの3分割',
-      go: async (page) => {
-        // A forest fight uses the prototype screen by default, which is
-        // the one this round rebuilt for landscape.
-        await forestWith(page, 'BATTLE');
-        const battle = page.getByTestId('battle-prototype');
-        await walkUntil(page, () => battle.isVisible().catch(() => false));
-        await expect(battle).toBeVisible();
-        await page.waitForTimeout(400);
       },
     },
     {
@@ -503,11 +471,26 @@ const RECIPES: Record<string, Shot[]> = {
       },
     },
   ],
+  'GALD ENCOUNTER': [
+    {
+      suffix: 'gald_encounter',
+      why: '横画面の会話。ガルドが全身で立っているか（膝から下だけになっていないか）、背景が画面全面か、文章帯が横長で読めるか',
+      go: async (page) => {
+        await freshStart(page);
+        await playToLifeChoice(page, '', { stopAt: 'ENCOUNTER' });
+        await page.waitForTimeout(400);
+      },
+    },
+  ],
   'GALD BATTLE / MAGIC': [
     {
-      suffix: 'magic_awakening',
-      why: 'ケイオスちゃんが前に出る場面。戦闘の上に重なっているか（別画面へ飛んでいないか）、文字が横画面に収まっているか',
-      go: galdUntilAwakening,
+      suffix: 'gald_battle',
+      why: '横画面の戦闘。敵＝左／味方＝右（主人公が前・ケイオスが後ろ）、3人が同じ地面に立っているか、誰も重なっていないか、上のHPが読めるか、背景の森が見えるか',
+      go: async (page) => {
+        await freshStart(page);
+        await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+        await page.waitForTimeout(500);
+      },
     },
     {
       suffix: 'magic_tray',

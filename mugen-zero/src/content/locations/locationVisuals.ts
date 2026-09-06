@@ -50,17 +50,12 @@ export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
   MOONLIGHT_TAVERN: {
     locationId: 'MOONLIGHT_TAVERN',
     background: BACKGROUNDS.ALDEN_TAVERN,
-    // A wide room on a tall screen. Cover-cropping it leaves the barman's
-    // face filling the phone and no tavern at all, so it is drawn wider
-    // than the screen and aimed between the sword on the wall and the man
-    // behind the bar — both of which the player is meant to notice.
-    fit: '168% auto',
-    // Aimed from the very top of the screen: the art is wider than the
-    // phone and shorter than it, and anchoring it up here puts its upper
-    // cut edge off the frame entirely, leaving one edge to fade instead
-    // of two. Horizontally it still sits between the sword on the wall
-    // and the man behind the bar — both of which the player must notice.
-    focus: '46% 0%',
+    // A wide room on a WIDE screen, now that the game is landscape: it
+    // covers the stage the way it was painted, with no band of empty
+    // page under it. The only thing worth saying is where to aim the
+    // crop — between the sword on the wall and the man behind the bar,
+    // both of which the player is meant to notice.
+    focus: '48% 34%',
   },
   GREENWOOD_FOREST: {
     locationId: 'GREENWOOD_FOREST',

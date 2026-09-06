@@ -1,53 +1,115 @@
-// Which way round the game is drawn.
+// The shape of the stage the whole game is drawn on.
 //
-// MUGEN ZERO is a landscape game now: enemy on the left, party on the
+// MUGEN ZERO is a landscape game: enemy on the left, party on the
 // right, and a battlefield wide enough for the distance between them to
-// mean something. That is true whichever way the device is held, so the
-// decision is made here, once, in a pure function that the layout and
-// its tests can both read.
+// mean something. Everything inside the stage may assume it is wider
+// than it is tall.
+//
+// It used to get that by turning a portrait window a quarter turn,
+// which produced a game whose text ran up the side of the phone. It
+// does not do that any more. The stage is laid out landscape and drawn
+// landscape; on a window too tall for it, it is made SMALLER and
+// centred, with the letterbox left plain and a line asking for the
+// phone to be turned. Nothing is ever rotated.
+
+/** What the game is designed against: sixteen by nine. */
+export const STAGE_ASPECT = 16 / 9;
+
+/**
+ * The widest the stage is allowed to get.
+ *
+ * A phone held sideways is about 2:1 and gets its whole screen, which
+ * is the point of the exercise. A desktop window can be 3:1 or worse,
+ * and a battlefield that wide is not a wider picture, it is two
+ * characters at opposite ends of a room; past this the extra width
+ * becomes letterbox instead.
+ */
+export const MAX_STAGE_ASPECT = 2.4;
 
 export interface StageBox {
-  /** The landscape stage's own width, in CSS pixels. Always the longer side. */
+  /** The stage's width in CSS pixels. Always the longer side. */
   width: number;
   /** Its height. Always the shorter side. */
   height: number;
   /**
-   * Whether the stage has to be turned to fit the window.
+   * Whether the window itself is taller than it is wide.
    *
-   * True only when the device is being held upright. It is a fact about
-   * the window, never a preference: the game does not offer a portrait
-   * layout to fall back to.
+   * Not a layout switch — there is no portrait layout — but the game
+   * has been shrunk to fit a window it does not fit, so it is worth
+   * saying so to the player.
    */
-  rotated: boolean;
+  portraitHost: boolean;
+}
+
+function clamp(value: number, low: number, high: number): number {
+  return Math.min(high, Math.max(low, value));
 }
 
 /**
  * The landscape stage for a window of this size.
  *
- * The longer side of the window is always the stage's width, so the
- * game is the same shape on a phone held sideways and on a desktop
- * window that happens to be tall.
+ * A landscape window gives the stage all of itself (a phone held
+ * sideways should not be playing inside a 16:9 box with bars down both
+ * sides). A window that is too tall, too square, or absurdly wide gets
+ * the nearest allowed shape, fitted inside it — smaller, never turned.
  */
 export function stageFor(viewportWidth: number, viewportHeight: number): StageBox {
   const w = Math.max(0, Math.floor(viewportWidth));
   const h = Math.max(0, Math.floor(viewportHeight));
-  // Square counts as landscape: nothing is gained by turning it, and a
-  // window that is resized through square must not flicker.
-  if (h > w) return { width: h, height: w, rotated: true };
-  return { width: w, height: h, rotated: false };
+  if (w === 0 || h === 0) return { width: w, height: h, portraitHost: h > w };
+  const aspect = clamp(w / h, STAGE_ASPECT, MAX_STAGE_ASPECT);
+  // Fit a box of that shape inside the window, touching whichever pair
+  // of edges it reaches first.
+  const width = Math.min(w, h * aspect);
+  const height = width / aspect;
+  return {
+    width: Math.floor(width),
+    height: Math.floor(height),
+    portraitHost: h > w,
+  };
 }
 
 /**
- * The CSS transform that puts a rotated stage back over the window.
+ * The shortest stage the screens are drawn for.
  *
- * The stage is laid out at its landscape size with its origin at the
- * window's top-left corner. Turning it a quarter clockwise swings it off
- * the left edge by exactly its own height, so it is pushed back by that
- * much. Written out rather than left to a magic string because it is
- * the one piece of this that is easy to get wrong and impossible to see
- * wrong in a screenshot — it simply looks empty.
+ * Every layout in the game is written in real pixels against a phone
+ * held sideways, and the shortest of the three the game is judged on is
+ * 360 tall. A stage shorter than this is not a smaller version of the
+ * game, it is a clipped one — so below this the game is laid out at
+ * this height and SCALED to fit instead.
  */
-export function stageTransform(box: StageBox): string | undefined {
-  if (!box.rotated) return undefined;
-  return `translateX(${box.height}px) rotate(90deg)`;
+export const MIN_STAGE_HEIGHT = 360;
+
+export interface StageLayout {
+  /** The width the screens are laid out at, in their own pixels. */
+  width: number;
+  /** The height they are laid out at. Never below MIN_STAGE_HEIGHT. */
+  height: number;
+  /**
+   * What that layout is multiplied by to reach the screen. One for
+   * every phone held sideways — the common case is not scaled at all,
+   * so a button is exactly as big as it was measured to be.
+   */
+  scale: number;
+}
+
+/**
+ * How to draw a stage box: at what size, and shrunk by how much.
+ *
+ * A box tall enough to hold the game is laid out at its own size and
+ * left alone. A box too short — the upright phone, the small window —
+ * is laid out at the height the screens were written for and scaled
+ * down uniformly, which keeps every proportion and every line of text
+ * the right way up. Scaling, not turning.
+ */
+export function layoutFor(box: StageBox): StageLayout {
+  if (box.height <= 0 || box.height >= MIN_STAGE_HEIGHT) {
+    return { width: box.width, height: box.height, scale: 1 };
+  }
+  const scale = box.height / MIN_STAGE_HEIGHT;
+  return {
+    width: Math.round(box.width / scale),
+    height: MIN_STAGE_HEIGHT,
+    scale,
+  };
 }

@@ -10,77 +10,64 @@
 
 import type { VisualChange } from '../../core/qa/types';
 
-/* CHAOS MAGIC v1.0 changes one screen and only one: Gald's fight, which
-   now has a 《魔法》 command, an MP bar and the moment she steps forward.
-   The forest fight has the same command in its code, but it is locked
-   until Gald's fight has been fought, so in a fresh world — which is
-   what the capture photographs — that screen is pixel-for-pixel the one
-   from v1.1. Photographing it again would cost a reviewer two minutes
-   and show them nothing, so it is reported here in words and asserted
-   in e2e/magic.spec.ts instead. */
+/* LANDSCAPE VISUAL STABILIZATION v1.0 is a layout pass, so almost
+   everything moved and almost everything is photographed. The seven
+   screens the brief named are all here. Two things do not need a
+   picture and are described instead: the stage no longer turns itself
+   (that is a fact about transforms, asserted in e2e/landscape.spec.ts
+   and visible only on a phone held upright), and the size registry
+   (a fact about numbers, asserted in spriteFrames.test.ts). */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
+  {
+    screen: 'TAVERN / TALK',
+    changed: true,
+    reason:
+      '会話画面を横画面向けに作り直しました。背景が画面全面（cover）になり、下部に横長のダイアログボックス。以前は絵が上半分の帯で、下半分が巨大なクリーム色の余白でした',
+  },
+  {
+    screen: 'GREENWOOD / BATTLE',
+    changed: true,
+    reason:
+      '探索キャラクターを大きくしました（主人公 約0.19→0.28、ケイオス 58px固定→フィールド高の0.30）。「歩きたい場所をタップ／森を出る」は右下から右上へ移動——キャラが大きくなって文字と重なったためです。歩行可能領域・進行方向（右→左）はv1.1のまま変更していません',
+  },
+  {
+    screen: 'GALD ENCOUNTER',
+    changed: true,
+    reason:
+      'ガルドの遭遇シーン。以前は画像が元ピクセルサイズのまま描画され、画面に「膝から下」しか映っていませんでした。ステージ基準のサイズ指定に直し、足元基準で立たせています',
+  },
   {
     screen: 'GALD BATTLE / MAGIC',
     changed: true,
     reason:
-      'ガルド戦にケイオスちゃんの《魔法》が入りました。戦闘中盤（HP66%以下、または8ターン経過）でケイオスちゃんが前に出る場面が戦闘画面の上に重なり、以後コマンド行が「攻撃／魔法／身構える」の3つになります。上部にMPを追加（48/48から開始）。魔法トレイには《星光弾》1つ（MP6）だけが並びます。魔法を使ったターンは主人公は攻撃しません（1ターン1行動のまま）',
+      'ガルド戦を横画面の戦闘レイアウトへ作り直しました。敵＝左／味方＝右（主人公が前衛、ケイオスが後衛）、全員が同じ地面ラインに立ちます。いただいた透過PNG3枚（主人公・ケイオス・ガルドの戦闘ポーズ）を登録し、味方の立ち絵が初めて画面に出ました。背景の森も見えるようになっています（以前はほぼクリーム一色）',
+  },
+  {
+    screen: 'LIFE CHOICE / ENDING',
+    changed: true,
+    reason:
+      '人生選択を横画面向けに作り直しました。左＝対象キャラクター／名前／短いセリフ、右＝質問と2×2の選択肢。以前はタイトルと画像と選択肢が縦に重なり、文字が画像の上に乗っていました',
   },
   {
     screen: 'BATTLE UI PROTOTYPE',
-    changed: false,
+    changed: true,
     reason:
-      '森の戦闘にも同じ《魔法》コマンドを通していますが、ガルド戦を戦うまでは解禁されないため、新規ワールド（＝撮影される状態）の見た目はv1.1と同一です。解禁後の表示は e2e/magic.spec.ts「she has not forgotten it by the next fight」で検証しています',
-  },
-  {
-    screen: 'GREENWOOD / BATTLE',
-    changed: false,
-    reason:
-      '探索フィールドと横画面戦闘レイアウトはv1.1から無変更です。モスラビット戦のコマンド行も、魔法未解禁の新規ワールドでは無変更です',
-  },
-  {
-    screen: 'ADMIN DEV TOOLS',
-    changed: false,
-    reason: '無変更です（魔法解禁フラグ用のDBスキーマ変更は行っていません）',
-  },
-  {
-    screen: 'EXPLORE',
-    changed: false,
-    reason: '無変更です',
-  },
-  {
-    screen: 'SETTINGS',
-    changed: false,
-    reason: '無変更です',
-  },
-  {
-    screen: 'ARCANA / アルカナ図鑑',
-    changed: false,
-    reason: '無変更です',
+      '森の戦闘。味方2人が新しい戦闘立ち絵になり、サイズは共通レジストリ（content/art/spriteFrames）から取ります。重なり防止のため主人公とケイオスの立ち位置を離しました。モスラビットのDOWN画像は「同じ動物が伏せている」大きさを保ちます（画面を占有しません）',
   },
   {
     screen: 'TITLE',
     changed: false,
-    reason: '無変更です',
-  },
-  {
-    screen: 'HOME',
-    changed: false,
-    reason: '無変更です',
-  },
-  {
-    screen: 'OPENING THEME / SKIP',
-    changed: false,
-    reason: '無変更です（楽曲はまだ入っていません）',
-  },
-  { screen: 'PROLOGUE / KAOS', changed: false, reason: '無変更' },
-  { screen: 'TAVERN / TALK', changed: false, reason: '無変更' },
-  { screen: 'WORLD MEMORY', changed: false, reason: '無変更' },
-  {
-    screen: 'LIFE CHOICE / ENDING',
-    changed: false,
     reason:
-      '4択は無変更です。魔法を使って勝っても同じ4択が同じ形で出ることを e2e で確認しています（魔法は世界の記憶に何も書きません）',
+      '中身は無変更です。ただし縦持ちの端末では見え方が変わります（90度回転をやめ、16:9ステージを縮小表示＋「端末を横向きにしてください」）',
   },
+  { screen: 'HOME', changed: false, reason: '無変更です' },
+  { screen: 'EXPLORE', changed: false, reason: '無変更です' },
+  { screen: 'SETTINGS', changed: false, reason: '無変更です' },
+  { screen: 'ARCANA / アルカナ図鑑', changed: false, reason: '無変更です' },
+  { screen: 'ADMIN DEV TOOLS', changed: false, reason: '無変更です' },
+  { screen: 'OPENING THEME / SKIP', changed: false, reason: '無変更です（楽曲はまだ入っていません）' },
+  { screen: 'PROLOGUE / KAOS', changed: false, reason: '会話レイアウトの変更は受けますが、ケイオスの語りは中央寄せの別レイアウトなので見た目は無変更です' },
+  { screen: 'WORLD MEMORY', changed: false, reason: '無変更' },
   { screen: 'PLAYTEST SURVEY', changed: false, reason: '無変更' },
   { screen: 'DEV REVIEW HUB', changed: false, reason: '無変更' },
 ];

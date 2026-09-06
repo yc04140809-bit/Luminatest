@@ -48,7 +48,7 @@ export function LifeChoiceScreen({ onChoose }: Props) {
 
   return (
     <div
-      className="screen life-choice-screen"
+      className="screen life-choice-screen life-choice-landscape"
       data-testid="life-choice-screen"
       role="dialog"
       aria-modal="true"
@@ -86,10 +86,10 @@ export function LifeChoiceScreen({ onChoose }: Props) {
         ))}
       </div>
       {saving && (
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: 0 }}>記録しています……</p>
+        <p className="life-choice-note">記録しています……</p>
       )}
       {error && (
-        <p style={{ color: 'var(--danger)', fontSize: 13, margin: 0 }} data-testid="save-error">
+        <p className="life-choice-note error" data-testid="save-error">
           {error}
         </p>
       )}

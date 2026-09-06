@@ -13,6 +13,7 @@ import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { magicBlocked } from '../../game/battle/magicChoice';
 import { MagicTray } from './MagicTray';
 import { AwakeningScene } from './AwakeningScene';
+import { spriteHeight } from '../../content/art/spriteFrames';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
@@ -548,19 +549,20 @@ export function BattleUIPrototype({
    * taller. What matters is not the numbers but that all three sit
    * inside the same picture instead of on top of it.
    */
+  /**
+   * Their sizes, as a share of the battlefield.
+   *
+   * Not worked out here: every number lives in content/art/spriteFrames
+   * and is read by every screen that draws somebody standing in a
+   * place, so a moss rabbit is the same moss rabbit on this screen and
+   * on the story one. What this screen decides is WHO is on the field;
+   * how big they are is a fact about them.
+   */
   const stage = {
-    enemy: Math.round(stageH * 0.36),
-    // Beaten, it is lying in the grass: the same animal, seen from the
-    // side, so its height on screen comes from its own drawing rather
-    // than from the standing one's.
-    enemyDown: Math.round(stageH * 0.25),
-    hero: Math.round(stageH * 0.34),
-    kaos: Math.round(stageH * 0.33),
-    // Smaller than the creature actually in the fight. A rebuilt memory
-    // should not read as the same weight of thing as the animal in
-    // front of you, and in a moss-rabbit-versus-moss-rabbit fight the
-    // difference in size is the first thing that tells them apart.
-    summon: Math.round(stageH * 0.23),
+    enemy: spriteHeight(species.speciesId, enemyShown.state, stageH),
+    hero: spriteHeight('hero', heroShown.state, stageH),
+    kaos: spriteHeight('kaos', kaosShown.state, stageH),
+    summon: spriteHeight('arcana_summon', null, stageH),
   };
 
   return (
@@ -662,7 +664,7 @@ export function BattleUIPrototype({
           )}
           <CharacterArt
             art={enemyShown}
-            height={showingDown ? stage.enemyDown : stage.enemy}
+            height={stage.enemy}
             className="bp-art"
             // Enemies look across the field at the party.
             face="right"

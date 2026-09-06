@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { RING_TAPS, enterDevAdmin, swingUntil } from './helpers';
+import { enterDevAdmin, swingUntil, walkTheForestUntil } from './helpers';
 
 /**
  * The moss rabbit, from meeting one in the forest to the world writing
@@ -55,16 +55,12 @@ async function intoForest(page: Page) {
 
 /** Walks the ring spots in turn until the fight starts. */
 async function walkIntoAFight(page: Page): Promise<boolean> {
-  const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
+  // The shared, time-bounded walk. This used to be a local copy that
+  // gave each spot twelve frames, which is not long enough to cross the
+  // clearing when three browsers are sharing the machine — so the loop
+  // moved on and tapped again, cancelling the walk it was waiting for.
   const battle = page.getByTestId('battle-screen');
-  for (const at of RING_TAPS) {
-    await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
-    for (let i = 0; i < 12; i++) {
-      await page.waitForTimeout(180);
-      if (await battle.isVisible().catch(() => false)) return true;
-    }
-  }
-  return false;
+  return walkTheForestUntil(page, () => battle.isVisible().catch(() => false));
 }
 
 async function winTheFight(page: Page) {

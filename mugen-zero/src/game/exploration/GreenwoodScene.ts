@@ -42,7 +42,14 @@ const PLAYER_CHARACTER = 'HERO' as const;
 // Measured against the field's HEIGHT, which is the same on every
 // phone — a fraction of the width would make him bigger on a wider
 // screen, which is the one thing a character size must not do.
-const PLAYER_DISPLAY_WIDTH = Math.round(GAME_HEIGHT * 0.19);
+//
+// Raised from 0.19 with the landscape stabilisation pass. At 0.19 he
+// was a 74px figure in a 390px forest and read as a marker on a map
+// rather than as a person walking through trees; his drawing is 102px
+// of real pixels wide, so 0.19 was also throwing a third of it away.
+// This is about where the file's own resolution lands, so he is bigger
+// AND sharper.
+const PLAYER_DISPLAY_WIDTH = Math.round(GAME_HEIGHT * 0.28);
 
 /**
  * Kaos walks the forest with him.
@@ -52,17 +59,24 @@ const PLAYER_DISPLAY_WIDTH = Math.round(GAME_HEIGHT * 0.19);
  * when he stops.
  */
 const COMPANION_CHARACTER = 'KAOS' as const;
-/** Her height on screen. A little smaller than him, deliberately. */
-const COMPANION_DISPLAY_HEIGHT = 58;
+/**
+ * Her height on screen. A little smaller than him, deliberately.
+ *
+ * A share of the field rather than a bare 58 pixels, for the same
+ * reason as his: a number of pixels means a different-sized person on
+ * every phone, and the field's height is the one thing that does not
+ * move.
+ */
+const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.3);
 /**
  * How far back along his path she walks. Far enough that the two of
  * them read as two people on a path rather than as one figure with
  * something stuck to it — which, at this size, takes most of a
  * character's height.
  */
-const FOLLOW_DISTANCE = 52;
+const FOLLOW_DISTANCE = 72;
 /** She never comes closer than this to him, whatever the path says. */
-const COMPANION_MIN_GAP = 34;
+const COMPANION_MIN_GAP = 48;
 /** A little faster than he is, so a gap she has lost can be closed. */
 const COMPANION_SPEED = 178;
 /** Close enough to her place on the path to stop walking. */

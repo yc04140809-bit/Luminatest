@@ -10,6 +10,9 @@ import galdBaker from './characters/gald/gald-baker.webp';
 import galdHealer from './characters/gald/gald-healer.webp';
 import galdWorker from './characters/gald/gald-worker.webp';
 import galdBattleDown from './characters/gald/gald-battle-down.png';
+import galdBattleIdle from './characters/gald/gald-battle-idle.png';
+import heroBattleIdle from './characters/hero/hero-battle-idle.png';
+import kaosBattleIdle from './characters/kaos/kaos-battle-idle.png';
 import galdGrave from './events/event-gald-grave.webp';
 import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
 import greenwoodField from './backgrounds/field-greenwood.png';
@@ -54,6 +57,20 @@ export const GALD_PORTRAITS: Record<GaldState, string | null> = {
  * the question still open, and this is the moment before that.
  */
 export const GALD_BATTLE_DOWN: string = galdBattleDown;
+
+/**
+ * THE THREE BATTLE FIGURES.
+ *
+ * Delivered as transparent PNGs, used exactly as delivered. Each one is
+ * a whole person on a clear background, which is what a battlefield
+ * needs and what the exploration sprites were standing in for until
+ * these arrived.
+ */
+export const BATTLE_FIGURES = {
+  hero: heroBattleIdle,
+  kaos: kaosBattleIdle,
+  gald: galdBattleIdle,
+} as const;
 
 export function galdPortrait(state: GaldState): string | null {
   return GALD_PORTRAITS[state] ?? null;

@@ -1,0 +1,166 @@
+// HOW BIG SOMEBODY IS ON THE FIELD.
+//
+// One registry, read by every screen that draws a character standing in
+// a place: both battle screens, the encounter, the life choice. The rule
+// it exists to enforce is short —
+//
+//   a character's size on screen comes from the STAGE, never from the
+//   pixel size of the file they were drawn in.
+//
+// A 1536px drawing and a 180px sprite of the same person are the same
+// height on a phone, because the height is a share of the battlefield
+// and the art layer scales the picture into it. Nothing here edits,
+// re-exports or crops a delivered file; it says how tall to draw it.
+//
+// Adding a creature is one entry. Forgetting to add one is not a crash:
+// DEFAULT_FRAME draws it as a person and the coverage test says it is
+// missing.
+
+/**
+ * Roughly how big a thing is, as a share of the stage's height.
+ *
+ * A person is a person's height whether their drawing is 1536 pixels
+ * tall or 180: that is the whole point of the bands. CHIBI is kept for
+ * an entry that is standing in for battle art nobody has drawn — the
+ * exploration sprites were in it until the real figures arrived, and
+ * the next creature to join before its art does will be.
+ */
+export type SizeBand = 'HUMANOID' | 'SMALL' | 'LARGE' | 'BOSS' | 'CHIBI' | 'SUMMON';
+
+export const SIZE_BANDS: Record<SizeBand, { min: number; max: number }> = {
+  HUMANOID: { min: 0.55, max: 0.7 },
+  SMALL: { min: 0.25, max: 0.4 },
+  LARGE: { min: 0.5, max: 0.75 },
+  // Set per boss, deliberately wide: a boss whose scale is its whole
+  // point should not have to fit somebody else's band.
+  BOSS: { min: 0.3, max: 0.95 },
+  CHIBI: { min: 0.26, max: 0.46 },
+  /**
+   * A called memory, and deliberately below every creature band.
+   *
+   * It has to read as smaller than the animal actually in the fight —
+   * in a moss rabbit versus moss rabbit fight that difference is the
+   * only thing telling them apart at a glance — so it cannot share the
+   * SMALL band with the creature it is a copy of.
+   */
+  SUMMON: { min: 0.16, max: 0.3 },
+};
+
+/** Per-state tweaks. A drawing of somebody lying down is not a shorter person. */
+export interface SpriteStateFrame {
+  /** Overrides the standing scale for this one state. */
+  scale?: number;
+  /** Nudges it up or down, as a share of stage height. Positive is down. */
+  offsetY?: number;
+}
+
+export interface SpriteFrame {
+  band: SizeBand;
+  /** Height as a share of the stage's height. */
+  scale: number;
+  /**
+   * What the scale and the position are measured from. Only one for
+   * now, and it is the one that matters: a character's feet.
+   */
+  anchor: 'bottom-center';
+  /** Nudges, as shares of the stage. Positive x is right, positive y down. */
+  offsetX?: number;
+  offsetY?: number;
+  /**
+   * True while this entry is standing in for battle art nobody has
+   * drawn. Read by the coverage test, and by the QA report.
+   */
+  standIn?: boolean;
+  states?: Partial<Record<string, SpriteStateFrame>>;
+}
+
+/**
+ * Anything not listed is drawn as a person of average height.
+ *
+ * A creature with no entry looks wrong rather than enormous, which is
+ * the failure mode worth having.
+ */
+export const DEFAULT_FRAME: SpriteFrame = { band: 'HUMANOID', scale: 0.58, anchor: 'bottom-center' };
+
+export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
+  /* THE PARTY. Both have real battle figures now. */
+  hero: { band: 'HUMANOID', scale: 0.64, anchor: 'bottom-center' },
+  // A step behind him and a little smaller for it, which is what makes
+  // the two of them read as front rank and back rank rather than as a
+  // pair standing side by side. Her drawing is wider than it is tall
+  // because of the wings, so a share of the HEIGHT is the only sane way
+  // to size her against him.
+  kaos: { band: 'HUMANOID', scale: 0.55, anchor: 'bottom-center' },
+
+  /* GALD. */
+  gald: {
+    band: 'HUMANOID',
+    scale: 0.66,
+    anchor: 'bottom-center',
+    states: {
+      // On one knee: the same man, lower to the ground, not a smaller
+      // one. Two thirds of his standing height is about what kneeling
+      // costs a person.
+      battle_damage: { scale: 0.46 },
+      // Face down, and his drawing is half again as wide as it is tall
+      // with clear margin above and below him — so the number that puts
+      // his body at the right size is much smaller than his standing
+      // one. This is exactly the case the per-state override exists
+      // for, and exactly the case that used to fill a screen.
+      battle_down: { scale: 0.34 },
+    },
+  },
+
+  /**
+   * What an arcana calls up. Deliberately smaller than the creature
+   * actually in the fight: a rebuilt memory should not read as the same
+   * weight of thing as the animal in front of you, and in a moss
+   * rabbit versus moss rabbit fight the difference in size is the first
+   * thing that tells them apart.
+   */
+  arcana_summon: { band: 'SUMMON', scale: 0.2, anchor: 'bottom-center' },
+
+  /* CREATURES. */
+  moss_rabbit: {
+    band: 'SMALL',
+    scale: 0.34,
+    anchor: 'bottom-center',
+    states: {
+      // Lying in the grass with its ears out. Its drawing is more than
+      // twice as wide as it is tall, so the same body reads at a
+      // smaller HEIGHT — which is the whole reason a down state gets
+      // its own number rather than reusing the standing one.
+      down: { scale: 0.24 },
+    },
+  },
+};
+
+export function frameOf(characterId: string): SpriteFrame {
+  return SPRITE_FRAMES[characterId] ?? DEFAULT_FRAME;
+}
+
+/**
+ * How tall to draw somebody, in real pixels.
+ *
+ * `state` is the art state the screen asked for — the pose — and is
+ * allowed to be one nobody has a tweak for, which is the common case.
+ */
+export function spriteHeight(characterId: string, state: string | null, stageHeight: number): number {
+  const frame = frameOf(characterId);
+  const scale = (state ? frame.states?.[state]?.scale : undefined) ?? frame.scale;
+  return Math.round(stageHeight * scale);
+}
+
+/** And where to nudge them from the ground line, in real pixels. */
+export function spriteOffset(
+  characterId: string,
+  state: string | null,
+  stage: { width: number; height: number },
+): { x: number; y: number } {
+  const frame = frameOf(characterId);
+  const offsetY = (state ? frame.states?.[state]?.offsetY : undefined) ?? frame.offsetY ?? 0;
+  return {
+    x: Math.round(stage.width * (frame.offsetX ?? 0)),
+    y: Math.round(stage.height * offsetY),
+  };
+}

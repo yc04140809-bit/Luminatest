@@ -51,6 +51,22 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-down.png'),
     out: join(REVIEW_ASSET_DIR, 'gald-battle-down.webp'),
   },
+  // The three battle figures, delivered as transparent PNGs: 6.6 MB
+  // between them, and the artifact has no room for that on top of
+  // everything else. The game uses the delivered files; these copies
+  // are for the single-file review build only.
+  {
+    source: join(APP_DIR, 'src/assets/characters/hero/hero-battle-idle.png'),
+    out: join(REVIEW_ASSET_DIR, 'hero-battle-idle.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-battle-idle.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-battle-idle.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-idle.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-battle-idle.webp'),
+  },
   // The moss rabbit's two pictures: 4.7 MB of PNG, and the single
   // largest thing left in the artifact once the dragon was handled.
   {

@@ -16,7 +16,9 @@ import { AwakeningScene } from '../battle/AwakeningScene';
 import { specOf } from '../../game/battle/enemySpec';
 import { GALD_BATTLE } from '../../content/enemies/galdBattle';
 import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
-import { partyArtFor } from '../../content/art';
+import { enemyArtFor, partyArtFor } from '../../content/art';
+import { CharacterArt } from '../art/CharacterArt';
+import { spriteHeight } from '../../content/art/spriteFrames';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
@@ -119,9 +121,28 @@ export function BattleScreen({
     createBattle(enemy ? specOf(enemy) : GALD_BATTLE, undefined, { magicUnlocked }),
   );
   const [reaction, setReaction] = useState<Reaction>('NONE');
+  /**
+   * How tall the field is, in real pixels.
+   *
+   * Everybody standing in it is a share of this, so the three of them
+   * keep their scale to the place rather than to a pixel count — the
+   * same rule, and the same registry, as the prototype screen.
+   */
+  const fieldRef = useRef<HTMLDivElement>(null);
+  const [fieldH, setFieldH] = useState(260);
   const beats = useRef<number[]>([]);
 
   useEffect(() => () => beats.current.forEach(clearTimeout), []);
+
+  useEffect(() => {
+    const node = fieldRef.current;
+    if (!node) return;
+    const measure = () => setFieldH(node.getBoundingClientRect().height || 260);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   /** Plays a short sequence of reactions, then clears the screen. */
   const play = (sequence: Exclude<Reaction, 'NONE'>[]) => {
@@ -156,10 +177,21 @@ export function BattleScreen({
   const ongoing = battle.outcome === 'ONGOING';
   const beaten = battle.enemyHp <= 0;
   const lastLogs = battle.log.slice(-2);
-  // Gald has standing art at both moments; a species has one picture.
-  const portrait = enemy
-    ? enemy.portrait
-    : (partyArtFor('gald', beaten ? 'battle_damage' : 'battle_idle').asset?.src ?? null);
+  /**
+   * Who is standing where, asked for as poses rather than as files.
+   *
+   * Gald has standing art at both moments; a creature met while
+   * exploring has whatever its own registry holds. Either way the size
+   * on screen comes from content/art/spriteFrames and the stage, never
+   * from the pixel size of the picture — which is what used to put his
+   * knees at the top of the screen and his head off it.
+   */
+  const enemyArt = enemy
+    ? enemyArtFor(enemy.speciesId, beaten ? 'down' : 'front')
+    : partyArtFor('gald', beaten ? 'battle_damage' : 'battle_idle');
+  const enemySpriteId = enemy ? enemy.speciesId : 'gald';
+  const heroArt = partyArtFor('hero', 'battle_idle');
+  const kaosArt = partyArtFor('kaos', 'battle_idle');
   const backdrop = locationBackground(battleLocationId);
 
   /**
@@ -216,53 +248,74 @@ export function BattleScreen({
           enemy
           testId="enemy-hp"
         />
-        <div className="battle-portrait-wrap">
-          {portrait ? (
-            <img
-              className={[
-                'battle-portrait',
-                reaction === 'HIT' ? 'hit' : '',
-                reaction === 'TACKLE' ? 'tackle' : '',
-                reaction === 'HIDE' ? 'hide' : '',
-                beaten ? 'beaten' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-testid={
+        {/* THE FIELD. What you are fighting on the left, the two of
+            you on the right, both standing on the same ground line.
+            Sizes come from the shared registry, so the man who used to
+            arrive as a pair of knees is now a man. */}
+        <div className="battle-field" ref={fieldRef}>
+          <div
+            className={[
+              'bf-actor bf-enemy',
+              reaction === 'HIT' ? 'hit' : '',
+              reaction === 'TACKLE' ? 'tackle' : '',
+              reaction === 'HIDE' ? 'hide' : '',
+              beaten ? 'beaten' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <span className="bf-shadow" aria-hidden="true" />
+            <CharacterArt
+              art={enemyArt}
+              height={spriteHeight(enemySpriteId, enemyArt.state, fieldH)}
+              className="bf-art"
+              face="right"
+              label={enemy ? enemy.name : '盗賊 ガルド'}
+              testId={
                 enemy
                   ? `enemy-portrait-${enemy.speciesId}`
                   : beaten
                     ? 'gald-portrait-defeated'
                     : 'gald-portrait-ready'
               }
-              // The art is used exactly as delivered. This only says how
-              // big to draw it, because the creature sits inside a lot of
-              // transparent margin in its own file.
-              style={
-                enemy
-                  ? ({
-                      transform: `scale(${enemy.portraitScale})`,
-                      '--enemy-scale': enemy.portraitScale,
-                    } as React.CSSProperties)
-                  : undefined
-              }
-              src={portrait}
-              alt={enemy ? enemy.name : beaten ? '膝をついた盗賊' : '短剣を構えた盗賊'}
             />
-          ) : (
-            <div className="enemy-figure">🗡</div>
-          )}
-          {reaction === 'GUARD' && <div className="battle-guard-mark" aria-hidden="true" />}
-          {/* Its own attack: a few leaves come off as it hits. */}
-          {reaction === 'TACKLE' && (
-            <div className="battle-leaves" aria-hidden="true">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <span key={i} className={`leaf leaf-${i}`} />
-              ))}
-            </div>
-          )}
-          {/* And its own way of not being hit. */}
-          {reaction === 'HIDE' && <div className="battle-moss-mark" aria-hidden="true" />}
+            {reaction === 'GUARD' && <div className="battle-guard-mark" aria-hidden="true" />}
+            {/* Its own attack: a few leaves come off as it hits. */}
+            {reaction === 'TACKLE' && (
+              <div className="battle-leaves" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <span key={i} className={`leaf leaf-${i}`} />
+                ))}
+              </div>
+            )}
+            {/* And its own way of not being hit. */}
+            {reaction === 'HIDE' && <div className="battle-moss-mark" aria-hidden="true" />}
+          </div>
+
+          {/* The party. He is in front, she is a step behind him — the
+              order the fight is fought in, readable at a glance. */}
+          <div className={`bf-actor bf-hero${reaction === 'HIT' ? ' strike' : ''}`}>
+            <span className="bf-shadow" aria-hidden="true" />
+            <CharacterArt
+              art={heroArt}
+              height={spriteHeight('hero', heroArt.state, fieldH)}
+              className="bf-art"
+              face="left"
+              label="あなた"
+              testId="battle-hero-art"
+            />
+          </div>
+          <div className="bf-actor bf-kaos">
+            <span className="bf-shadow" aria-hidden="true" />
+            <CharacterArt
+              art={kaosArt}
+              height={spriteHeight('kaos', kaosArt.state, fieldH)}
+              className="bf-art"
+              face="left"
+              label="ケイオス"
+              testId="battle-kaos-art"
+            />
+          </div>
         </div>
         <HpBar
           label="あなた"

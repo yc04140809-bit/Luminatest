@@ -66,22 +66,45 @@ export function CharacterArt<S extends string>({
   const cropToBust = bust === true && art.state !== 'talk' && art.state !== 'portrait';
   const box = cropToBust ? bustBox(asset) : asset.box;
   const flip = face !== undefined && asset.facing !== undefined && asset.facing !== face;
-  const style = box
-    ? cropStyle(asset, box, height)
-    : cropToBust
-      ? bustStyle(asset, height)
-      : { height, width: 'auto', backgroundImage: `url(${asset.src})`, backgroundSize: 'contain' };
+  const shared = {
+    'data-testid': testId,
+    'data-art-state': art.state ?? undefined,
+    // A screen showing a stand-in says so in the DOM. It is how a test
+    // can tell "the attack pose is drawn" from "the attack pose falls
+    // back to the standing one", which look identical in a screenshot.
+    'data-art-substituted': art.substituted ? 'yes' : undefined,
+    'data-art-bust': cropToBust ? 'yes' : undefined,
+  } as const;
+  // A picture with no box on it has no measured rectangle to scale, so
+  // its width can only come from its own proportions — which only the
+  // browser knows, and only once it has loaded it. An <img> asked for a
+  // height works that out by itself; a background-image div asked for
+  // `width: auto` is nought pixels wide and draws nothing at all, which
+  // is exactly how a man can be resolved, positioned, and invisible.
+  if (!box && !cropToBust) {
+    return (
+      <img
+        className={className}
+        src={asset.src}
+        alt=""
+        aria-hidden="true"
+        style={{
+          height,
+          width: 'auto',
+          objectFit: 'contain',
+          objectPosition: 'center bottom',
+          transform: flip ? 'scaleX(-1)' : undefined,
+        }}
+        {...shared}
+      />
+    );
+  }
+  const style = box ? cropStyle(asset, box, height) : bustStyle(asset, height);
   return (
     <div
       className={className}
       style={{ ...style, transform: flip ? 'scaleX(-1)' : undefined }}
-      data-testid={testId}
-      data-art-state={art.state ?? undefined}
-      // A screen showing a stand-in says so in the DOM. It is how a test
-      // can tell "the attack pose is drawn" from "the attack pose falls
-      // back to the standing one", which look identical in a screenshot.
-      data-art-substituted={art.substituted ? 'yes' : undefined}
-      data-art-bust={cropToBust ? 'yes' : undefined}
+      {...shared}
     />
   );
 }

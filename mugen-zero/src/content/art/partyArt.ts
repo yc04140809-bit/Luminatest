@@ -10,7 +10,12 @@
 // arrives it lands in this file, and the battle screen does not change.
 
 import { EXPLORATION_SPRITES } from '../characters/explorationSprites';
-import { GALD_PORTRAITS, GALD_BATTLE_DOWN, KAOS_PORTRAITS } from '../../assets/manifest';
+import {
+  BATTLE_FIGURES,
+  GALD_PORTRAITS,
+  GALD_BATTLE_DOWN,
+  KAOS_PORTRAITS,
+} from '../../assets/manifest';
 import type { PartyArtRegistry, PartyArtSet } from '../../core/art/artRegistry';
 import type { PartyArtState } from '../../core/art/artStates';
 
@@ -35,8 +40,14 @@ export const HERO_ART: PartyArtSet = {
   id: 'hero',
   label: 'あなた',
   states: {
-    // Measured from the file: the box the drawing occupies inside it.
-    battle_idle: {
+    // His battle figure, delivered as a transparent PNG and used as
+    // delivered. No box: the drawing fills its own file, so the size on
+    // screen comes from content/art/spriteFrames and nothing here has a
+    // rectangle that can go stale.
+    battle_idle: { src: BATTLE_FIGURES.hero, facing: 'left' },
+    // The exploration sprite he used to fight in, kept as the whole-body
+    // fallback for anything that has no drawing yet.
+    fullbody: {
       src: HERO_LEFT.url,
       box: { fileW: 120, fileH: 180, x: 14, y: 18, width: 101, height: 159 },
       facing: 'left',
@@ -49,7 +60,8 @@ export const KAOS_ART: PartyArtSet = {
   id: 'kaos',
   label: 'ケイオス',
   states: {
-    battle_idle: {
+    battle_idle: { src: BATTLE_FIGURES.kaos, facing: 'left' },
+    fullbody: {
       src: KAOS_LEFT.url,
       box: {
         fileW: 1221,
@@ -90,10 +102,15 @@ export const GALD_ART: PartyArtSet = {
   id: 'gald',
   label: '盗賊ガルド',
   states: {
-    battle_idle: GALD_PORTRAITS.ready ? { src: GALD_PORTRAITS.ready, facing: 'left' } : undefined,
+    // His fighting pose, delivered as a transparent PNG. He stands on
+    // the left of the field and looks across it, so he faces right.
+    battle_idle: { src: BATTLE_FIGURES.gald, facing: 'right' },
     // Beaten and on one knee: still looking at you, and still to be
     // decided about. Not the same picture as being face down.
     battle_damage: GALD_PORTRAITS.defeated ? { src: GALD_PORTRAITS.defeated } : undefined,
+    // Face down where the fight left him. No `facing`: he is lying with
+    // his head towards the trees and his hand towards the party, and
+    // mirroring that would have him reaching the wrong way.
     battle_down: GALD_BATTLE_DOWN ? { src: GALD_BATTLE_DOWN } : undefined,
     // No talking picture drawn yet: a conversation falls back to the
     // whole figure and shows the top of it. See CharacterArt's `bust`.

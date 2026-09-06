@@ -144,6 +144,27 @@ test.describe('one action a turn', () => {
 });
 
 test.describe('the fight is still the fight', () => {
+  test('opening the tray does not shrink the battlefield', async ({ page }) => {
+    // It is a way of choosing, not a panel: the three of them must be
+    // exactly where and what size they were. As a flex item in the
+    // column the tray took its height out of the field and halved
+    // everybody standing in it, which no assertion in the suite could
+    // see and one screenshot could.
+    await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+    await awaken(page);
+    const field = page.locator('.battle-field');
+    const before = (await field.boundingBox())!;
+    const hero = (await page.getByTestId('battle-hero-art').boundingBox())!;
+    await page.getByTestId('magic-button').click({ force: true });
+    await expect(page.getByTestId('magic-tray')).toBeVisible();
+    await page.waitForTimeout(250);
+    const after = (await field.boundingBox())!;
+    const heroAfter = (await page.getByTestId('battle-hero-art').boundingBox())!;
+    expect(Math.round(after.height), 'the field keeps its height').toBe(Math.round(before.height));
+    expect(Math.round(heroAfter.height), 'and so does he').toBe(Math.round(hero.height));
+  });
+
+
   test('reaches the four answers after a fight fought with magic', async ({ page }) => {
     test.setTimeout(200_000);
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });

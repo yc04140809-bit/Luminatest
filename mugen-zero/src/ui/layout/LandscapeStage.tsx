@@ -1,23 +1,24 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { stageFor, stageTransform, type StageBox } from './landscape';
+import { layoutFor, stageFor, type StageBox } from './landscape';
 
 function measure(): StageBox {
-  if (typeof window === 'undefined') return { width: 812, height: 375, rotated: false };
+  if (typeof window === 'undefined') return { width: 812, height: 375, portraitHost: false };
   return stageFor(window.innerWidth, window.innerHeight);
 }
 
 /**
- * The whole game, always landscape.
+ * The one stage every screen is drawn on.
  *
- * A phone held upright still gets the landscape game — turned, so the
- * player turns the phone. There is no portrait layout to fall back to
- * and no orientation switch to handle: every screen inside this can
- * assume it is wider than it is tall, which is what makes a battlefield
- * with an enemy at one end and the party at the other possible at all.
+ * Landscape, always, and never by turning anything: the stage is laid
+ * out at a landscape size and the game is drawn into it the right way
+ * up. A window too tall to hold it gets a smaller stage, centred, with
+ * the leftover left plain — a shrunk game a player can read beats a
+ * full-size one printed up the side of their phone.
  *
- * The manifest asks an installed copy for landscape, but that is a
- * request a browser is free to ignore, so this is the part that is
- * actually load-bearing.
+ * It is also the only thing in the app that measures the window. Every
+ * screen inside sizes itself against `--stage-w` / `--stage-h` instead,
+ * so there is one coordinate system and no screen has to know how it
+ * got there.
  */
 export function LandscapeStage({ children }: { children: ReactNode }) {
   const [box, setBox] = useState<StageBox>(measure);
@@ -36,25 +37,47 @@ export function LandscapeStage({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const layout = layoutFor(box);
   return (
-    <div className="landscape-root" data-testid="landscape-root">
+    <div
+      className="landscape-root"
+      data-testid="landscape-root"
+      data-portrait-host={box.portraitHost ? 'yes' : 'no'}
+    >
       <div
         className="landscape-stage"
         data-testid="landscape-stage"
-        data-rotated={box.rotated ? 'yes' : 'no'}
-        style={{
-          width: box.width,
-          height: box.height,
-          transform: stageTransform(box),
-          // Screens that need to know how much room they have read these
-          // rather than measuring the window, which after a rotation is
-          // the wrong way round.
-          ['--stage-w' as string]: `${box.width}px`,
-          ['--stage-h' as string]: `${box.height}px`,
-        }}
+        data-scale={layout.scale === 1 ? 'none' : layout.scale.toFixed(3)}
+        style={{ width: box.width, height: box.height }}
       >
-        {children}
+        {/* Laid out at a size the screens were written for, then shrunk
+            to whatever the window can give. On a phone held sideways
+            the scale is exactly 1 and this is a plain box. */}
+        <div
+          className="landscape-frame"
+          data-testid="landscape-frame"
+          style={{
+            width: layout.width,
+            height: layout.height,
+            transform: layout.scale === 1 ? undefined : `scale(${layout.scale})`,
+            // Screens that need to know how much room they have read
+            // these rather than measuring the window, which on a
+            // portrait phone is a good deal taller than the game.
+            ['--stage-w' as string]: `${layout.width}px`,
+            ['--stage-h' as string]: `${layout.height}px`,
+          }}
+        >
+          {children}
+        </div>
       </div>
+      {/* Not a wall in front of the game: it stays playable at the size
+          it fits in. Just the one thing worth saying to somebody holding
+          the phone the wrong way. */}
+      {box.portraitHost && (
+        <p className="landscape-turn-hint" data-testid="turn-hint">
+          端末を横向きにしてください
+        </p>
+      )}
     </div>
   );
 }

@@ -56,14 +56,6 @@ export interface EnemySpeciesDef {
    * adding a creature's pictures never means editing this file too.
    */
   portrait: string | null;
-  /**
-   * How much of the picture is the animal.
-   *
-   * The art is used exactly as delivered, transparent margins and all,
-   * so the drawn creature is smaller than its file. This says how much
-   * to enlarge it on screen; it changes no pixel.
-   */
-  portraitScale: number;
   /** Battle numbers, in the units the existing battle already uses. */
   hp: number;
   /**
@@ -130,8 +122,6 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   name: 'モスラビット',
   habitat: 'GREENWOOD_FOREST',
   portrait: MOSS_RABBIT_ART.states.front?.src ?? null,
-  // The drawn animal fills about 55% of the height of its file.
-  portraitScale: 1.55,
   // Raised from 22, and NOT because a bigger number is more exciting.
   // At 22 the fight was over in two or three taps: no music got heard,
   // the creature never got to do the one thing it does, and the four

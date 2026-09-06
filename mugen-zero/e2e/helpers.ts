@@ -243,17 +243,24 @@ export async function tapField(
  * Walk the rings in turn until something happens.
  *
  * One copy of the loop that every forest spec was keeping its own
- * version of, with its own count of how many times to try.
+ * version of, with its own count of how many times to try — and
+ * bounded by TIME rather than by that count, for the same reason
+ * swingUntil is: a walk across the clearing takes as long as it takes,
+ * and on a machine running three browsers at once that is a good deal
+ * longer than fourteen frames. A tries-bounded loop gives up mid-walk
+ * and taps somewhere else, which cancels the walk it was waiting for.
  */
 export async function walkTheForestUntil(
   page: Page,
   arrived: () => Promise<boolean>,
-  tries = 14,
+  budgetMs = 60_000,
 ): Promise<boolean> {
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
+  const perSpot = Math.max(1500, Math.round(budgetMs / RING_TAPS.length));
   for (const at of RING_TAPS) {
     await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
-    for (let i = 0; i < tries; i++) {
+    const until = Date.now() + perSpot;
+    while (Date.now() < until) {
       await page.waitForTimeout(180);
       if (await arrived()) return true;
     }

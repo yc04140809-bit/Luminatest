@@ -159,7 +159,14 @@ test.describe('battle UI prototype', () => {
     ] as const) {
       const share = box.height / stageBox.height;
       expect(share, `${who} is big enough to read`).toBeGreaterThan(0.15);
-      expect(share, `${who} leaves room for the forest`).toBeLessThan(0.4);
+      // Raised from 0.4 with the landscape stabilisation pass, on
+      // purpose and not to make a red test green: the design round
+      // asked for battle characters in the 55-70% band, and the party
+      // now has real full-body figures instead of the exploration
+      // sprites that were standing in for them. The bound still says
+      // what it always said — nobody may fill the clearing — at the
+      // size the clearing is now shared at.
+      expect(share, `${who} leaves room for the forest`).toBeLessThan(0.75);
     }
 
     // And no two of them are standing in the same place.

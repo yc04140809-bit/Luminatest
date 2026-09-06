@@ -22,18 +22,40 @@ body,
    inside it is the game, laid out at the window's landscape size and
    turned a quarter when the device is being held upright. Nothing below
    this needs to know which of the two happened. */
+/* The letterbox. Plain and dark, so a stage smaller than the window
+   reads as a screen rather than as a broken page. */
 .landscape-root {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #0b0b10;
+}
+/* The stage itself: a landscape box, drawn the right way up, whatever
+   shape the window is. Nothing here is rotated. */
+.landscape-stage {
+  position: relative;
+  overflow: hidden;
   background: var(--mugen-bg);
 }
-.landscape-stage {
+/* The layer the screens actually live in. Scaled, never rotated. */
+.landscape-frame {
   position: absolute;
   top: 0;
   left: 0;
   transform-origin: top left;
-  overflow: hidden;
+}
+.landscape-turn-hint {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 253, 248, 0.72);
+  /* Never in the way of a tap: the game underneath is still the game. */
+  pointer-events: none;
 }
 
 /* The stage's own size, for the handful of rules that used to be written
@@ -166,17 +188,46 @@ body,
 }
 
 /* ---- dialogue ---- */
+/* A LANDSCAPE CONVERSATION.
+   The picture is the screen — background across the whole stage, the
+   person standing in it — and the words are a wide, short box along the
+   bottom, the way a conversation reads on a phone held sideways. What
+   it is NOT any more: a tall column of text with a band of art above
+   it, which is what a portrait layout turns into when you turn the
+   phone. */
 .dialogue-screen {
+  position: relative;
   justify-content: flex-end;
   background: var(--mugen-bg);
   cursor: pointer;
 }
-.dialogue-stage {
-  flex: 1;
+/* The whole stage, behind the words. Never a flex row that the art can
+   push taller than the screen: it is the screen.
+
+   Written at this specificity on purpose. `.screen.has-backdrop >
+   *:not(.screen-backdrop)` forces `position: relative` on every child,
+   and it out-specifies a bare `.dialogue-stage` — which left this in
+   the flow with an auto height, which made the art's `height: 88%`
+   resolve against nothing, which is how the player ended up looking at
+   a life-size pair of knees. */
+.screen.dialogue-screen > .dialogue-stage,
+.screen.dialogue-screen.has-backdrop > .dialogue-stage {
+  position: absolute;
+  inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 24px;
+  padding: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+/* The words, always in front of the picture. */
+.screen.dialogue-screen > .dialogue-box,
+.screen.dialogue-screen.has-backdrop > .dialogue-box,
+.screen.dialogue-screen > .dialogue-portrait,
+.screen.dialogue-screen.has-backdrop > .dialogue-portrait {
+  position: relative;
+  z-index: 2;
 }
 .dialogue-centered {
   font-size: 18px;
@@ -220,16 +271,28 @@ body,
   padding: 12px;
 }
 
-/* Scene art (Gald) fills the stage above the words. */
+/* Scene art (Gald) stands in the place, feet on the bottom of the stage
+   and the words in front of him. His size comes from the STAGE — a
+   share of its height — and never from the pixel size of the file,
+   which is what used to show the player a pair of knees. */
 .dialogue-scene-art {
-  max-height: 100%;
-  max-width: 100%;
+  height: 88%;
+  width: auto;
+  max-width: 54%;
   object-fit: contain;
   object-position: center bottom;
   filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.22));
 }
+/* An event illustration is a picture, not a person standing somewhere:
+   it keeps clear of the words instead of standing behind them. */
+.dialogue-stage:has(.event-cg) {
+  align-items: center;
+  padding: 10px 12px 108px;
+}
 
 .dialogue-portrait {
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: center;
   margin-bottom: -6px;
@@ -243,15 +306,18 @@ body,
   background: var(--mugen-surface);
 }
 .dialogue-box {
-  /* A line of dialogue the width of a landscape stage is unreadable;
-     it keeps a page's measure and sits in the middle. */
-  width: min(100%, 680px);
-  margin: 10px auto;
-  padding: 16px 18px 22px;
+  /* Wide and short: a landscape box that leaves the picture visible
+     above it. A line of dialogue the full width of the stage is
+     unreadable, so it keeps a page's measure and sits in the middle. */
+  position: relative;
+  z-index: 2;
+  width: min(100%, 760px);
+  margin: 0 auto 10px;
+  padding: 12px 18px 14px;
   background: rgba(255, 253, 248, 0.94);
   border: 1px solid var(--mugen-border);
   border-radius: 12px;
-  min-height: 108px;
+  min-height: 84px;
   box-shadow: var(--mugen-shadow);
 }
 .dialogue-box.kaos {
@@ -265,7 +331,7 @@ body,
 }
 .dialogue-text {
   font-size: 16px;
-  line-height: 1.9;
+  line-height: 1.75;
 }
 .dialogue-next {
   text-align: right;
@@ -797,12 +863,38 @@ body,
 .battle-enemy {
   flex: 1;
   min-height: 0;
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto minmax(0, 1fr);
   align-items: start;
   gap: 4px 16px;
   padding: 6px 14px 0;
+}
+/* The health bars sit on top of a painted forest now, so they need
+   something to be read against: a short dark rise at the very top of
+   the field, under the numbers and nothing else. */
+.battle-enemy::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 54px;
+  background: linear-gradient(180deg, rgba(16, 14, 12, 0.55) 0%, rgba(16, 14, 12, 0) 100%);
+  pointer-events: none;
+}
+.battle-enemy > .hp-row {
+  position: relative;
+  z-index: 1;
+}
+.battle-enemy .hp-label {
+  color: rgba(255, 253, 248, 0.86);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.battle-enemy .hp-name {
+  color: rgba(255, 253, 248, 0.95);
+}
+.battle-enemy .hp-name.enemy {
+  color: var(--mugen-gold);
 }
 .battle-enemy > .hp-row:first-child {
   grid-column: 1;
@@ -814,29 +906,79 @@ body,
   grid-row: 1;
   justify-self: end;
 }
-/* The fight is with a man, not an icon: his art holds the middle. */
-.battle-portrait-wrap {
+/* THE FIELD. One ground line, the creature at one end of it and the two
+   of you at the other — the same shape as the prototype screen, because
+   it is the same fight seen from the same place. Everybody in here is
+   positioned by their FEET (bottom + flex-end), so changing which
+   picture is showing moves the top of the drawing and nothing else. */
+.battle-field {
   position: relative;
   grid-column: 1 / -1;
   grid-row: 2;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  /* Left, where the enemy is. */
-  justify-content: flex-start;
-  padding-left: 6%;
   width: 100%;
+  /* Everything standing in it is absolutely positioned, so without this
+     the row collapses to nothing and three characters pile up on the
+     health bars. `align-items: start` on the grid is for the bars. */
+  align-self: stretch;
+  height: 100%;
 }
-.battle-portrait {
-  max-height: 100%;
-  max-width: 34%;
-  object-fit: contain;
+.bf-actor {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
   filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.26));
 }
-.battle-portrait.hit {
+.bf-art {
+  background-repeat: no-repeat;
+  position: relative;
+}
+/* Contact with the ground, not a drop shadow. */
+.bf-shadow {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 56%;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  filter: blur(2px);
+}
+/* Him, over there, on the left. A little clear of the bottom so his
+   boots are on the ground rather than behind the message box. */
+.bf-enemy {
+  left: 7%;
+  bottom: 3%;
+}
+/* You, on the right and nearest — and in front of her, so a pair of
+   wings never crosses your sword arm. */
+.bf-hero {
+  right: 25%;
+  bottom: 3%;
+  z-index: 2;
+}
+/* Her, a step behind you and further back up the path. Her drawing is
+   wider than it is tall (the wings), so she is set right against the
+   edge to keep clear of him. */
+.bf-kaos {
+  right: 0;
+  bottom: 13%;
+  z-index: 1;
+}
+.bf-enemy.hit {
   animation: battle-hit 0.26s ease;
 }
-.battle-portrait.beaten {
+.bf-hero.strike {
+  animation: bf-strike 0.3s ease-out;
+}
+@keyframes bf-strike {
+  0% { transform: translateX(0); }
+  40% { transform: translateX(-22px) translateY(-5px); }
+  100% { transform: translateX(0); }
+}
+.bf-enemy.beaten {
   filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.26)) saturate(0.85) brightness(0.96);
 }
 @keyframes battle-hit {
@@ -990,6 +1132,81 @@ body,
   letter-spacing: 0.25em;
   color: var(--text-dim);
   margin-top: 4px;
+}
+
+/* ---- THE FOUR ANSWERS, IN LANDSCAPE -------------------------------
+   Left: the person being decided about, their name, and the one thing
+   they said. Right: the question and the four answers as a 2x2 grid.
+   All four are on screen at once at a glance, which is the whole point
+   of asking them together — stacked down a portrait column on a phone
+   held sideways, the title used to break a glyph per line and the last
+   two answers used to be below the fold.
+
+   Only .life-choice-landscape gets this. The same class names are used
+   by half a dozen quiet "one line and a button" screens, and they stay
+   the centred column they were. */
+.life-choice-landscape {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'figure prompt'
+    'figure options'
+    'figure note';
+  align-items: center;
+  justify-items: stretch;
+  gap: 8px 20px;
+  padding: 12px 20px calc(10px + env(safe-area-inset-bottom));
+}
+.life-choice-landscape .life-choice-figure {
+  grid-area: figure;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.life-choice-landscape .life-choice-portrait {
+  /* Sized against the stage, not against the file: the same rule the
+     battlefield uses. */
+  max-height: calc(var(--stage-h) * 0.54);
+  min-height: 0;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+}
+.life-choice-landscape .life-choice-speech {
+  max-width: none;
+  flex: 0 0 auto;
+}
+.life-choice-landscape .life-choice-speech .dialogue-text {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.life-choice-landscape .life-choice-prompt {
+  grid-area: prompt;
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0;
+  align-self: end;
+}
+.life-choice-landscape .life-choice-options {
+  grid-area: options;
+  max-width: none;
+  align-self: center;
+  gap: 8px;
+}
+.life-choice-landscape .life-choice-btn {
+  padding: 10px 8px;
+  font-size: 15px;
+}
+.life-choice-note {
+  grid-area: note;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+.life-choice-note.error {
+  color: var(--danger);
 }
 
 /* ---- Phase G polish ---- */
@@ -1152,6 +1369,33 @@ body,
   position: relative;
   z-index: 1;
 }
+/* …except the children that place themselves.
+   The rule above exists so a screen's contents sit over its backdrop,
+   and it out-specifies a bare class selector — so anything laid OVER
+   the screen rather than stacked inside it gets quietly dropped back
+   into the flow. That has now caused three separate bugs in two rounds
+   (an awakening scene that became a band at the top, a man drawn at
+   his file's own size because his container had no height, and a spell
+   tray that squeezed the battlefield to a third of its height every
+   time it opened), so the exceptions are listed here, once, at the
+   same specificity and after it. */
+.screen.has-backdrop > .awakening-scene,
+.screen.has-backdrop > .magic-tray,
+.screen.has-backdrop > .dialogue-stage {
+  position: absolute;
+}
+/* And their stacking, for the same reason: `z-index: 1` above beats a
+   bare class too, so a drawer meant to be over the message box lands
+   level with it and the paint order decides by accident. */
+.screen.has-backdrop > .awakening-scene {
+  z-index: 30;
+}
+.screen.has-backdrop > .magic-tray {
+  z-index: 20;
+}
+.screen.has-backdrop > .dialogue-stage {
+  z-index: 1;
+}
 
 /* TITLE — the Kaos key visual. The art is square and the phone is not, so
    cover-cropping it would cut the wings off. Instead it is fitted wide and
@@ -1216,22 +1460,25 @@ body,
 /* BATTLE — the same place the fight started in. Pushed back with a touch
    of blur and the heaviest veil of the three: what the player must read
    here is Gald and the HP bars, not the leaves. */
+/* The place the fight is happening in, and it should look like a place.
+   The veil used to be heavy enough that the forest read as cream paper —
+   which was defensible when the screen was a health bar and a portrait,
+   and is not now that there are three people standing in it. Light
+   blur, light wash: it stays behind them without disappearing. */
 .backdrop-battle .screen-backdrop-art {
-  background-position: 50% 32%;
+  background-position: 50% 42%;
   background-size: cover;
   filter: var(--mugen-art-filter) blur(1.2px);
   /* blur samples past the edges; the overscan hides the soft border */
   transform: scale(1.05);
 }
 .backdrop-battle .screen-backdrop-veil {
-  background:
-    radial-gradient(ellipse 62% 40% at 50% 44%, var(--mugen-veil-light) 0%, var(--mugen-veil) 100%),
-    linear-gradient(
-      180deg,
-      var(--mugen-veil) 0%,
-      var(--mugen-veil-light) 44%,
-      var(--mugen-veil-strong) 100%
-    );
+  background: linear-gradient(
+    180deg,
+    rgba(250, 247, 240, 0.34) 0%,
+    rgba(250, 247, 240, 0.14) 40%,
+    rgba(250, 247, 240, 0.3) 100%
+  );
 }
 
 /* HERO RING (HOME) — the art is inside a circle, so it needs almost none
@@ -1268,15 +1515,16 @@ body,
   filter: none;
 }
 .backdrop-encounter .screen-backdrop-veil {
-  /* Nothing across the picture; a short rise at the very bottom so the
-     page and the dialogue box do not meet the art as a hard line. */
+  /* Nothing across the picture. The dialogue box carries its own
+     background now, so the bottom needs only enough of a rise to keep
+     the box from meeting the art as a hard line — not the opaque band
+     that used to eat the lower third of the room. */
   background: linear-gradient(
     180deg,
     transparent 0%,
-    transparent 62%,
-    rgba(250, 247, 240, 0.28) 78%,
-    rgba(250, 247, 240, 0.72) 92%,
-    var(--mugen-veil-strong) 100%
+    transparent 70%,
+    rgba(250, 247, 240, 0.16) 84%,
+    rgba(250, 247, 240, 0.4) 100%
   );
 }
 
@@ -1529,7 +1777,6 @@ body,
 
 /* Art that carries its own background is not a cut-out figure; framing it
    says so, instead of letting a dark rectangle sit on the page. */
-.battle-portrait.beaten,
 .life-choice-portrait {
   border-radius: var(--radius-md);
   border: 1px solid var(--mugen-border-strong);
@@ -1597,16 +1844,25 @@ body,
   background: linear-gradient(90deg, transparent, var(--mugen-gold-soft), transparent);
 }
 
+/* Top right, above the treeline.
+   It used to sit in the bottom right corner, which is exactly where the
+   two of them start standing and where the ground is — so at the size
+   the characters are now, the words came out of the back of Kaos's
+   head. Nothing walks up here. */
 .field-foot {
   position: absolute;
   z-index: 2;
-  right: calc(14px + env(safe-area-inset-right));
-  bottom: calc(4px + env(safe-area-inset-bottom));
+  right: 0;
+  top: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0;
-  padding: 0;
+  gap: 2px;
+  /* Sunlit leaves are a bad page to print pale type on, so the corner
+     carries a soft darkening of its own — a gradient into nothing, not
+     a panel. */
+  padding: calc(8px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 16px 34px;
+  background: linear-gradient(215deg, rgba(10, 10, 14, 0.62) 0%, rgba(10, 10, 14, 0) 72%);
 }
 .field-hint {
   margin: 0;
@@ -1623,8 +1879,8 @@ body,
   appearance: none;
   background: none;
   border: none;
-  border-top: 1px solid rgba(201, 169, 97, 0.5);
-  padding: 10px 26px 4px;
+  border-bottom: 1px solid rgba(201, 169, 97, 0.5);
+  padding: 4px 26px 8px;
   min-height: var(--tap-min);
   color: rgba(255, 253, 248, 0.92);
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
@@ -1734,16 +1990,18 @@ body,
    both are moves of the picture itself: no flash, no white, and nothing
    done to the background. */
 
-/* リーフタックル — it sinks, comes at you, and goes back. */
-.battle-portrait.tackle {
+/* リーフタックル — it sinks, comes at you, and goes back. The picture is
+   no longer scaled into place, so the move is a plain translate: nothing
+   here has to know how big the drawing was. */
+.bf-enemy.tackle {
   animation: leaf-tackle 0.46s ease-in-out;
 }
 @keyframes leaf-tackle {
-  0% { transform: scale(var(--enemy-scale, 1)) translate(0, 0); }
-  22% { transform: scale(var(--enemy-scale, 1)) translate(0, 6px) scaleY(0.93); }
-  52% { transform: scale(var(--enemy-scale, 1)) translate(0, 34px) scale(1.05); }
-  74% { transform: scale(var(--enemy-scale, 1)) translate(0, 10px); }
-  100% { transform: scale(var(--enemy-scale, 1)) translate(0, 0); }
+  0% { transform: translate(0, 0); }
+  22% { transform: translate(4px, 6px) scaleY(0.93); }
+  52% { transform: translate(38px, 26px) scale(1.05); }
+  74% { transform: translate(12px, 8px); }
+  100% { transform: translate(0, 0); }
 }
 
 /* A few leaves come off where it hit. */
@@ -1775,14 +2033,14 @@ body,
 }
 
 /* 苔かくれ — it makes itself small and the green closes over it. */
-.battle-portrait.hide {
+.bf-enemy.hide {
   animation: moss-hide 0.62s ease-in-out;
 }
 @keyframes moss-hide {
-  0% { transform: scale(var(--enemy-scale, 1)); }
-  35% { transform: scale(calc(var(--enemy-scale, 1) * 0.9)) translateY(6px); }
-  70% { transform: scale(calc(var(--enemy-scale, 1) * 0.9)) translateY(6px); }
-  100% { transform: scale(var(--enemy-scale, 1)); }
+  0% { transform: scale(1); }
+  35% { transform: scale(0.9) translateY(6px); }
+  70% { transform: scale(0.9) translateY(6px); }
+  100% { transform: scale(1); }
 }
 .battle-moss-mark {
   position: absolute;
@@ -1886,14 +2144,18 @@ body,
    largest, but only just: too much and he stops being a person standing
    closer and becomes a giant. */
 .bp-hero {
-  right: 20%;
+  right: 25%;
   bottom: 7%;
+  z-index: 2;
   animation: bp-breathe 3.6s ease-in-out infinite 0.2s;
 }
-/* She is a step behind him and a little further back. */
+/* She is a step behind him and a little further back. Her wings make
+   her drawing wider than it is tall, so she needs the whole of the
+   right edge to stand clear of him. */
 .bp-kaos {
-  right: 8%;
+  right: 0;
   bottom: 19%;
+  z-index: 1;
   animation: bp-breathe 3.9s ease-in-out infinite 0.4s;
 }
 @keyframes bp-breathe {
@@ -3379,15 +3641,35 @@ body,
    A tray of what she can do, in the place the skill tray uses. It is a
    way of choosing, not a second action: what it spends is the one turn
    the player had. */
+/* Choosing a spell is not supposed to shrink the battlefield.
+   As a flex item in the column it took its height out of the field, and
+   three characters halved in size and slid up the screen every time the
+   tray opened — so it is laid OVER the fight instead, just above the
+   commands, which is also where a thumb already is. */
+/* Choosing a spell is not supposed to shrink the battlefield.
+   As a flex item in the column it took its height out of the field, and
+   three characters halved in size and slid up the screen every time the
+   tray opened — so it is a drawer laid OVER the message area, just
+   above the commands, which is also where a thumb already is. It
+   carries its own ground so it never has to be read against the log
+   underneath it. */
 .magic-tray {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  z-index: 20;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  flex: 0 0 auto;
   width: 100%;
-  max-width: 620px;
-  margin: 0 auto;
-  padding: 0 14px 8px;
+  padding: 14px max(14px, calc((100% - 620px) / 2)) 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 16, 14, 0) 0%,
+    rgba(18, 16, 14, 0.82) 26%,
+    rgba(18, 16, 14, 0.9) 100%
+  );
 }
 .magic-tray-item {
   appearance: none;
@@ -3427,14 +3709,19 @@ body,
   margin: 0;
   padding: 2px 4px;
   font-size: 11px;
-  color: var(--mugen-text-muted);
+  /* On the drawer's own dark ground now, not on the page. */
+  color: rgba(255, 253, 248, 0.78);
 }
 .magic-tray-close {
   appearance: none;
-  background: none;
-  border: none;
+  /* Explicit, because a <button> with no background is not transparent:
+     it is whatever the browser paints one, which over the drawer is a
+     pale slab with pale type on it. */
+  background: rgba(255, 253, 248, 0.07);
+  border: 1px solid rgba(255, 253, 248, 0.2);
+  border-radius: 6px;
   min-height: var(--tap-min);
-  color: var(--mugen-text-secondary);
+  color: rgba(255, 253, 248, 0.88);
   font-family: inherit;
   font-size: 12px;
   letter-spacing: 0.14em;

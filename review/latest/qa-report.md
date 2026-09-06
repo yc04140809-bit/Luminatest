@@ -1,17 +1,17 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-06T03:54:05.046Z
-- Build: MUGEN ZERO v0.1 / b81ad6c / 2026-09-06T03:53:48.777Z
+- Generated: 2026-09-06T07:55:43.449Z
+- Build: MUGEN ZERO v0.1 / 1d9f752 / 2026-09-06T05:20:51.231Z
 - Environment: dev server
-- Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
+- Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 1年目 1日目 (day 1)
-- Route: NONE
-- TIME SHIFTs: 0
-- WORLD MEMORY facts: 0
-- LIFE ARCHIVE: 0 known / 0 in canon
-- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 4年目 4日目 (day 1099)
+- Route: SPARE
+- TIME SHIFTs: 1
+- WORLD MEMORY facts: 5
+- LIFE ARCHIVE: 1 known / 4 in canon
+- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -48,15 +48,15 @@
   - how: looked for an event requiring each route memory
 
 ## WORLD MEMORY CHECKS
-- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 0 facts recorded, no duplicates
+- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 5 facts recorded, no duplicates
   - how: compared every event id in the world currently loaded
-- **PASS** `LIFE_CHOICE_IS_SINGULAR` — no choice made yet
+- **PASS** `LIFE_CHOICE_IS_SINGULAR` — one choice: PLAYER_SPARED_GALD
   - how: counted the first-encounter outcomes in WORLD MEMORY
 - **PASS** `WORLD_MEMORY_IN_ORDER` — history runs forwards
   - how: walked the event list comparing world dates
-- **PASS** `FUTURE_SITE_CAUSALITY` — 0 of 4 sites on the map, 0 found
+- **PASS** `FUTURE_SITE_CAUSALITY` — 1 of 4 sites on the map, 0 found
   - how: compared each site discovery against its required world memory
-- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 0 of 0 chapters known to the player
+- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 1 of 4 chapters known to the player
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
@@ -80,7 +80,7 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **NOT TESTED** `SAVE_RESTORED` — nothing saved yet in this world, so there was nothing to restore
+- **PASS** `SAVE_RESTORED` — restored 5 facts and 0 met events from IndexedDB
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
@@ -98,5 +98,10 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] GALD BATTLE / MAGIC — ガルド戦にケイオスちゃんの《魔法》が入りました。戦闘中盤（HP66%以下、または8ターン経過）でケイオスちゃんが前に出る場面が戦闘画面の上に重なり、以後コマンド行が「攻撃／魔法／身構える」の3つになります。上部にMPを追加（48/48から開始）。魔法トレイには《星光弾》1つ（MP6）だけが並びます。魔法を使ったターンは主人公は攻撃しません（1ターン1行動のまま）
-- unchanged, no screenshot needed: BATTLE UI PROTOTYPE, GREENWOOD / BATTLE, ADMIN DEV TOOLS, EXPLORE, SETTINGS, ARCANA / アルカナ図鑑, TITLE, HOME, OPENING THEME / SKIP, PROLOGUE / KAOS, TAVERN / TALK, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] TAVERN / TALK — 会話画面を横画面向けに作り直しました。背景が画面全面（cover）になり、下部に横長のダイアログボックス。以前は絵が上半分の帯で、下半分が巨大なクリーム色の余白でした
+- [ ] GREENWOOD / BATTLE — 探索キャラクターを大きくしました（主人公 約0.19→0.28、ケイオス 58px固定→フィールド高の0.30）。「歩きたい場所をタップ／森を出る」は右下から右上へ移動——キャラが大きくなって文字と重なったためです。歩行可能領域・進行方向（右→左）はv1.1のまま変更していません
+- [ ] GALD ENCOUNTER — ガルドの遭遇シーン。以前は画像が元ピクセルサイズのまま描画され、画面に「膝から下」しか映っていませんでした。ステージ基準のサイズ指定に直し、足元基準で立たせています
+- [ ] GALD BATTLE / MAGIC — ガルド戦を横画面の戦闘レイアウトへ作り直しました。敵＝左／味方＝右（主人公が前衛、ケイオスが後衛）、全員が同じ地面ラインに立ちます。いただいた透過PNG3枚（主人公・ケイオス・ガルドの戦闘ポーズ）を登録し、味方の立ち絵が初めて画面に出ました。背景の森も見えるようになっています（以前はほぼクリーム一色）
+- [ ] LIFE CHOICE / ENDING — 人生選択を横画面向けに作り直しました。左＝対象キャラクター／名前／短いセリフ、右＝質問と2×2の選択肢。以前はタイトルと画像と選択肢が縦に重なり、文字が画像の上に乗っていました
+- [ ] BATTLE UI PROTOTYPE — 森の戦闘。味方2人が新しい戦闘立ち絵になり、サイズは共通レジストリ（content/art/spriteFrames）から取ります。重なり防止のため主人公とケイオスの立ち位置を離しました。モスラビットのDOWN画像は「同じ動物が伏せている」大きさを保ちます（画面を占有しません）
+- unchanged, no screenshot needed: TITLE, HOME, EXPLORE, SETTINGS, ARCANA / アルカナ図鑑, ADMIN DEV TOOLS, OPENING THEME / SKIP, PROLOGUE / KAOS, WORLD MEMORY, PLAYTEST SURVEY, DEV REVIEW HUB

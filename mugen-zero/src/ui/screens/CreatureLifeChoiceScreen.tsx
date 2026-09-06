@@ -78,7 +78,7 @@ export function CreatureLifeChoiceScreen({ species, individualId, onChoose, onDo
 
   return (
     <div
-      className="screen life-choice-screen creature-choice"
+      className="screen life-choice-screen creature-choice life-choice-landscape"
       data-testid="creature-life-choice-screen"
       data-individual={individualId}
       role="dialog"
@@ -113,10 +113,10 @@ export function CreatureLifeChoiceScreen({ species, individualId, onChoose, onDo
         ))}
       </div>
       {saving && (
-        <p style={{ color: 'var(--text-dim)', fontSize: 13, margin: 0 }}>記録しています……</p>
+        <p className="life-choice-note">記録しています……</p>
       )}
       {error && (
-        <p style={{ color: 'var(--danger)', fontSize: 13, margin: 0 }} data-testid="save-error">
+        <p className="life-choice-note error" data-testid="save-error">
           {error}
         </p>
       )}
