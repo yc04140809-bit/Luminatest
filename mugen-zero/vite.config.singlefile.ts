@@ -43,7 +43,10 @@ function reviewAssetAliases(): { find: RegExp; replacement: string }[] {
     // Matched against the import specifier and replaced whole: the
     // specifier is relative, so the pattern has to swallow the leading
     // ../.. as well as the tail that identifies the file.
-    find: new RegExp(`^.*assets/arcana/${basename(asset.source).replace('.', '\\.')}$`),
+    // Matched on the filename alone now that review copies come from
+    // more than one folder. Still whole-specifier and still anchored, so
+    // it cannot catch anything but the file it names.
+    find: new RegExp(`^.*/${basename(asset.source).replace('.', '\\.')}$`),
     replacement: asset.out,
   }));
 }

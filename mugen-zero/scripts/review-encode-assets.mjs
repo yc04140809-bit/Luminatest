@@ -41,6 +41,32 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/arcana/ancient-breath.png'),
     out: join(REVIEW_ASSET_DIR, 'ancient-breath.webp'),
   },
+  // The forest field and Gald face down: 5.5 MB of PNG between them,
+  // which put the artifact back over the limit the moment they landed.
+  {
+    source: join(APP_DIR, 'src/assets/backgrounds/field-greenwood.png'),
+    out: join(REVIEW_ASSET_DIR, 'field-greenwood.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-down.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-battle-down.webp'),
+  },
+  // The moss rabbit's two pictures: 4.7 MB of PNG, and the single
+  // largest thing left in the artifact once the dragon was handled.
+  {
+    source: join(APP_DIR, 'src/assets/enemies/moss-rabbit.png'),
+    out: join(REVIEW_ASSET_DIR, 'moss-rabbit.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/enemies/moss-rabbit-down.png'),
+    out: join(REVIEW_ASSET_DIR, 'moss-rabbit-down.webp'),
+  },
+  // Kaos' walking sheet. Re-encoded at the same resolution, so the
+  // rectangles the game cuts her four views out of still line up.
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-exploration-sheet.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-exploration-sheet.webp'),
+  },
 ];
 
 /** High enough that a reviewer is judging the art, not the encoder. */
