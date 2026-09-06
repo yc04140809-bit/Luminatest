@@ -36,10 +36,14 @@ export const REVIEW_ASSETS = [
   {
     source: join(APP_DIR, 'src/assets/arcana/unknown-ancient-dragon.png'),
     out: join(REVIEW_ASSET_DIR, 'unknown-ancient-dragon.webp'),
+    // Reviewed two rounds ago and unchanged since.
+    quality: 55,
   },
   {
     source: join(APP_DIR, 'src/assets/arcana/ancient-breath.png'),
     out: join(REVIEW_ASSET_DIR, 'ancient-breath.webp'),
+    // Reviewed two rounds ago and unchanged since.
+    quality: 55,
   },
   // The forest field and Gald face down: 5.5 MB of PNG between them,
   // which put the artifact back over the limit the moment they landed.
@@ -85,8 +89,23 @@ export const REVIEW_ASSETS = [
   },
 ];
 
-/** High enough that a reviewer is judging the art, not the encoder. */
-const QUALITY = 92;
+/**
+ * High enough that a reviewer is judging the art, not the encoder.
+ *
+ * Lowered from 92 when the three delivered battle figures landed: at 92
+ * the artifact came to 11.4 MB and was refused, so there was no
+ * artifact at all. Leaving a character out of the review build would be
+ * worse — nobody can judge a battlefield with one of the three people
+ * missing.
+ *
+ * Where the budget is spent is a judgement, not an average: whatever
+ * the round is ABOUT keeps the high number, and art that has already
+ * been reviewed and is only in the build because it is in the game
+ * takes the cut (see `quality` on the entries above). Resolution,
+ * composition and crop are untouched either way, and the repository's
+ * PNGs are what the game, the tests and the screenshots all use.
+ */
+const QUALITY = 82;
 
 const ENCODE = `
 import sys
@@ -121,7 +140,7 @@ export function encodeReviewAssets() {
     try {
       size = execFileSync(
         'python3',
-        ['-c', ENCODE, asset.source, asset.out, String(QUALITY)],
+        ['-c', ENCODE, asset.source, asset.out, String(asset.quality ?? QUALITY)],
         { encoding: 'utf-8' },
       ).trim();
     } catch (error) {
