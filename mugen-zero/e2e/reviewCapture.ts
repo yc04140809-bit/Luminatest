@@ -19,7 +19,7 @@ import { test, expect, type Page } from './fixtures';
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { VISUAL_CHANGES } from '../src/content/qa/visualChanges';
-import { playToLifeChoice, enterDevAdmin } from './helpers';
+import { playToLifeChoice, enterDevAdmin, RING_TAPS, swingUntil } from './helpers';
 
 const OUT_DIR = process.env.REVIEW_DIR ?? resolve(process.cwd(), '..', 'review', 'latest');
 
@@ -54,7 +54,9 @@ async function openingRehearsal(page: Page) {
   await freshStart(page);
   await page.evaluate(() => localStorage.setItem('mugen-opening-rehearsal', 'ON'));
   await page.reload();
-  await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('start-button')).toBeVisible({
+    timeout: 20_000,
+  });
 }
 
 /**
@@ -110,10 +112,6 @@ async function openForest(page: Page) {
  * a capture that silently followed a change in the real list would stop
  * photographing what it claims to.
  */
-const RING_SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 /**
  * A world where Gald's story is already settled, with the next arrival
@@ -140,8 +138,8 @@ async function forestWith(
 /** Walks the ring spots in turn until something happens. */
 async function walkUntil(page: Page, arrived: () => Promise<boolean>) {
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
-  for (const [x, y] of RING_SPOTS) {
-    await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+  for (const at of RING_TAPS) {
+    await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
     for (let i = 0; i < 12; i++) {
       await page.waitForTimeout(180);
       if (await arrived()) return;
@@ -233,7 +231,13 @@ type Shot = {
 };
 
 const RECIPES: Record<string, Shot[]> = {
-  TITLE: [{ suffix: 'title', why: 'the first screen', go: async (page) => void (await page.goto('/')) }],
+  TITLE: [
+    {
+      suffix: 'title',
+      why: 'the first screen',
+      go: async (page) => void (await page.goto('/')),
+    },
+  ],
   'PROLOGUE / KAOS': [
     {
       suffix: 'prologue_kaos',
@@ -359,17 +363,8 @@ const RECIPES: Record<string, Shot[]> = {
         const battle = page.getByTestId('battle-prototype');
         await walkUntil(page, () => battle.isVisible().catch(() => false));
         await expect(battle).toBeVisible();
-        const attack = page.getByTestId('bp-attack');
         const choice = page.getByTestId('bp-mugen-choice');
-        for (let i = 0; i < 12; i++) {
-          if (await choice.isVisible().catch(() => false)) break;
-          // Short and forgiving: between the last blow and the four
-          // answers the commands are on their way out, and a plain
-          // click() there waits for the whole test timeout rather than
-          // for the button.
-          await attack.click({ timeout: 1500 }).catch(() => {});
-          await page.waitForTimeout(200);
-        }
+        await swingUntil(page, 'bp-attack', () => choice.isVisible().catch(() => false), 40_000);
         await expect(choice).toBeVisible({ timeout: 20_000 });
       },
     },
@@ -443,7 +438,9 @@ const RECIPES: Record<string, Shot[]> = {
       why: 'D：巨大召喚。左向き・敵側・画面の半分以上。DUMMY表示で実戦と誤認しないか',
       go: async (page) => {
         await previewPiece(page, 'DRAGON');
-        await expect(page.getByTestId('bp-dragon')).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByTestId('bp-dragon')).toBeVisible({
+          timeout: 10_000,
+        });
         await page.waitForTimeout(700);
       },
     },
@@ -452,7 +449,9 @@ const RECIPES: Record<string, Shot[]> = {
       why: 'E：カットイン。顔・口元・ブレス・文字が読めるか。技名の二重表示がないか',
       go: async (page) => {
         await previewPiece(page, 'BREATH');
-        await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByTestId('bp-breath')).toBeVisible({
+          timeout: 10_000,
+        });
         await page.waitForTimeout(900);
       },
     },
@@ -461,7 +460,9 @@ const RECIPES: Record<string, Shot[]> = {
       why: 'F：フルシーケンス中の ARCANA #??? / UNKNOWN。実戦と同じカードか',
       go: async (page) => {
         await previewPiece(page, 'FULL');
-        await expect(page.getByTestId('bp-accident-card')).toBeVisible({ timeout: 10_000 });
+        await expect(page.getByTestId('bp-accident-card')).toBeVisible({
+          timeout: 10_000,
+        });
       },
     },
     {
@@ -469,7 +470,9 @@ const RECIPES: Record<string, Shot[]> = {
       why: 'G：フルシーケンス終盤の会話。実戦と同じ4行か',
       go: async (page) => {
         await previewPiece(page, 'FULL');
-        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 18_000 });
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({
+          timeout: 18_000,
+        });
       },
     },
     {
@@ -477,7 +480,9 @@ const RECIPES: Record<string, Shot[]> = {
       why: 'H：PREVIEW END。もう一度／一覧へ。戦場に何も残っていないか',
       go: async (page) => {
         await previewPiece(page, 'FULL');
-        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 18_000 });
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({
+          timeout: 18_000,
+        });
         await page.getByTestId('bp-accident-talk').click();
         await expect(page.getByTestId('preview-replay')).toBeVisible();
       },
@@ -490,7 +495,10 @@ const RECIPES: Record<string, Shot[]> = {
       go: async (page) => {
         await forestWith(page, 'BATTLE', 'off', 'PROTOTYPE');
         await walkUntil(page, () =>
-          page.getByTestId('battle-prototype').isVisible().catch(() => false),
+          page
+            .getByTestId('battle-prototype')
+            .isVisible()
+            .catch(() => false),
         );
         await expect(page.getByTestId('battle-prototype')).toBeVisible();
         await page.waitForTimeout(400);
@@ -587,7 +595,9 @@ const RECIPES: Record<string, Shot[]> = {
       go: async (page) => {
         await summonBattle(page, '中', 'ACCIDENT');
         await page.getByTestId('bp-summon-card').click();
-        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 16_000 });
+        await expect(page.getByTestId('bp-accident-talk')).toBeVisible({
+          timeout: 16_000,
+        });
         await page.getByTestId('bp-accident-talk').click();
         await page.waitForTimeout(400);
         // Back to HOME with the save intact, then into the book.
@@ -613,7 +623,10 @@ const RECIPES: Record<string, Shot[]> = {
 };
 
 function slug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
 }
 
 test('capture the review package', async ({ page }) => {
@@ -675,9 +688,10 @@ test('capture the review package', async ({ page }) => {
     'utf-8',
   );
 
-  expect(shots.length, 'a build with a changed screen must produce a picture of it').toBeGreaterThan(
-    0,
-  );
+  expect(
+    shots.length,
+    'a build with a changed screen must produce a picture of it',
+  ).toBeGreaterThan(0);
   // The usual few-pictures rule exists so a person is not collecting
   // screenshots by hand; the machine does that now. A theme change is
   // still allowed to be a theme change.

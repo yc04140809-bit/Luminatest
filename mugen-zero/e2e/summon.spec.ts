@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin, PHONES, viewportOf } from './helpers';
+import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
 
 /**
  * SUMMONING — a memory put back together on a battlefield.
@@ -11,11 +11,6 @@ import { enterDevAdmin, PHONES, viewportOf } from './helpers';
  * never fails and can be spent once a fight, and in the one fight
  * where both creatures are moss rabbits it is obvious which is which.
  */
-
-const RING_SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 async function freshWorld(page: Page) {
   await page.goto('/');
@@ -101,13 +96,19 @@ async function forestFight(page: Page, options: Setup & { story?: 'on' | 'off' }
 
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
-  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+    timeout: 20_000,
+  });
   await page.waitForTimeout(2200);
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
-  const fighting = () => page.getByTestId('battle-prototype').isVisible().catch(() => false);
+  const fighting = () =>
+    page
+      .getByTestId('battle-prototype')
+      .isVisible()
+      .catch(() => false);
   for (let pass = 0; pass < 2; pass++) {
-    for (const [x, y] of RING_SPOTS) {
-      await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+    for (const at of RING_TAPS) {
+      await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
       for (let i = 0; i < 16; i++) {
         await page.waitForTimeout(180);
         if (await fighting()) return;
@@ -118,7 +119,16 @@ async function forestFight(page: Page, options: Setup & { story?: 'on' | 'off' }
 
 async function playerHp(page: Page): Promise<number> {
   const text = (await page.getByTestId('bp-player-hp').textContent()) ?? '';
-  return Number(/(\d+)\s*\/\s*40/.exec(text.replace(/\s+/g, ' '))?.[1] ?? NaN);
+  // Read both numbers off the plate rather than pinning the maximum:
+  // the player's health moved with the battle tempo retune, and what
+  // these tests are about is what a summon does to it, not what it is.
+  return Number(/(\d+)\s*\/\s*(\d+)/.exec(text.replace(/\s+/g, ' '))?.[1] ?? NaN);
+}
+
+/** And the maximum on the same plate, so nothing has to know the number. */
+async function playerMaxHp(page: Page): Promise<number> {
+  const text = (await page.getByTestId('bp-player-hp').textContent()) ?? '';
+  return Number(/(\d+)\s*\/\s*(\d+)/.exec(text.replace(/\s+/g, ' '))?.[2] ?? NaN);
 }
 
 /** Guards a turn and waits for the commands to come back. */
@@ -203,9 +213,9 @@ test.describe('an unfinished memory, at the start of a fight', () => {
     // Nothing arrives, and nothing is taken: full health, full turn,
     // and the fight starts as it always would.
     await expect(page.getByTestId('bp-summoned')).toHaveCount(0);
-    expect(await playerHp(page)).toBe(40);
+    expect(await playerHp(page)).toBe(await playerMaxHp(page));
     await expect(page.getByTestId('bp-commands')).toBeVisible();
-    await expect(page.getByTestId('bp-enemy-hp')).toContainText('22 / 22');
+    await expect(page.getByTestId('bp-enemy-hp')).toHaveText(/モスラビット(\d+) \/ \1$/);
   });
 });
 
@@ -272,7 +282,7 @@ test.describe('a finished memory', () => {
     await openBattle(page, { arcana: 'COMPLETE', enemyAction: 'ATTACK' });
     await guard(page);
     const hurt = await playerHp(page);
-    expect(hurt).toBeLessThan(40);
+    expect(hurt).toBeLessThan(await playerMaxHp(page));
 
     await page.getByTestId('bp-arcana').click();
     const tray = page.getByTestId('bp-arcana-tray');
@@ -299,15 +309,21 @@ test.describe('a finished memory', () => {
     // spent when the player chooses, usually hurt, so it heals. What
     // this checks is that neither of them is ever a non-event.
     await freshWorld(page);
-    await openBattle(page, { arcana: '中', summon: 'SUCCESS', enemyAction: 'ATTACK' });
+    await openBattle(page, {
+      arcana: '中',
+      summon: 'SUCCESS',
+      enemyAction: 'ATTACK',
+    });
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-said-result')).toContainText('森の加護', { timeout: 8_000 });
+    await expect(page.getByTestId('bp-said-result')).toContainText('森の加護', {
+      timeout: 8_000,
+    });
 
     await freshWorld(page);
     await openBattle(page, { arcana: 'COMPLETE', enemyAction: 'ATTACK' });
     await guard(page);
     const hurt = await playerHp(page);
-    expect(hurt).toBeLessThan(40);
+    expect(hurt).toBeLessThan(await playerMaxHp(page));
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
     const whole = Number(
@@ -319,7 +335,11 @@ test.describe('a finished memory', () => {
 
   test('can be spent once a fight, and again in the next one', async ({ page }) => {
     await freshWorld(page);
-    await forestFight(page, { arcana: 'COMPLETE', enemyAction: 'ATTACK', finishable: true });
+    await forestFight(page, {
+      arcana: 'COMPLETE',
+      enemyAction: 'ATTACK',
+      finishable: true,
+    });
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
@@ -335,21 +355,43 @@ test.describe('a finished memory', () => {
 
     // Out of the fight and into the next one: it is available again.
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
+      timeout: 8_000,
+    });
     await page.getByTestId('bp-normal-end').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
     for (let pass = 0; pass < 2; pass++) {
-      for (const [x, y] of RING_SPOTS) {
-        await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+      for (const at of RING_TAPS) {
+        await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
         for (let i = 0; i < 16; i++) {
           await page.waitForTimeout(180);
-          if (await page.getByTestId('battle-prototype').isVisible().catch(() => false)) break;
+          if (
+            await page
+              .getByTestId('battle-prototype')
+              .isVisible()
+              .catch(() => false)
+          )
+            break;
         }
-        if (await page.getByTestId('battle-prototype').isVisible().catch(() => false)) break;
+        if (
+          await page
+            .getByTestId('battle-prototype')
+            .isVisible()
+            .catch(() => false)
+        )
+          break;
       }
-      if (await page.getByTestId('battle-prototype').isVisible().catch(() => false)) break;
+      if (
+        await page
+          .getByTestId('battle-prototype')
+          .isVisible()
+          .catch(() => false)
+      )
+        break;
     }
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await expect(page.getByTestId('bp-arcana')).toBeEnabled();
@@ -361,10 +403,10 @@ test.describe('a finished memory', () => {
     // and no event. The ability now always has something to do.
     await freshWorld(page);
     await openBattle(page, { arcana: 'COMPLETE' });
-    expect(await playerHp(page)).toBe(40);
+    expect(await playerHp(page)).toBe(await playerMaxHp(page));
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
-    expect(await playerHp(page)).toBe(40);
+    expect(await playerHp(page)).toBe(await playerMaxHp(page));
     await expect(page.getByTestId('bp-said')).toContainText('身体を包んだ');
     await expect(page.getByTestId('bp-said-result')).toContainText('森の加護');
     await expect(page.getByTestId('bp-said')).not.toContainText('もう満ちている');
@@ -389,8 +431,12 @@ test.describe('a moss rabbit fighting a moss rabbit', () => {
 
     // Told apart three ways at once, none of which repaints the art:
     // it stands on the player's side of the clearing…
-    expect(called.x, 'the called one is nearer the party than the enemy is').toBeGreaterThan(enemy.x);
-    expect(called.y + called.height, 'and nearer the camera').toBeGreaterThan(enemy.y + enemy.height);
+    expect(called.x, 'the called one is nearer the party than the enemy is').toBeGreaterThan(
+      enemy.x,
+    );
+    expect(called.y + called.height, 'and nearer the camera').toBeGreaterThan(
+      enemy.y + enemy.height,
+    );
     // …it is visibly smaller than the animal actually being fought…
     expect(called.height).toBeLessThan(enemy.height);
     // …and it is labelled.
@@ -406,7 +452,9 @@ test.describe('a moss rabbit fighting a moss rabbit', () => {
 });
 
 test.describe('the rest of the fight is untouched', () => {
-  test('a summoned fight still ends in a beaten creature and the four answers', async ({ page }) => {
+  test('a summoned fight still ends in a beaten creature and the four answers', async ({
+    page,
+  }) => {
     await freshWorld(page);
     await forestFight(page, {
       arcana: 'COMPLETE',
@@ -420,10 +468,14 @@ test.describe('the rest of the fight is untouched', () => {
     await expect(page.getByTestId('bp-summoned')).toBeVisible();
 
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({
+      timeout: 8_000,
+    });
     await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
     await page.getByTestId('bp-mugen-SPARE').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     // And what was decided is in WORLD MEMORY, exactly as before.
     const kinds = await page.evaluate(
@@ -463,7 +515,10 @@ test.describe('the rest of the fight is untouched', () => {
           open.onerror = () => reject(open.error);
           open.onsuccess = () => {
             const db = open.result;
-            const rq = db.transaction('world_state', 'readonly').objectStore('world_state').getAll();
+            const rq = db
+              .transaction('world_state', 'readonly')
+              .objectStore('world_state')
+              .getAll();
             rq.onsuccess = () => {
               db.close();
               resolve((rq.result as { key: string }[]).map((r) => r.key));

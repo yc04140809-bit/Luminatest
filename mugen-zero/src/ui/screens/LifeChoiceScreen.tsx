@@ -6,7 +6,7 @@ import {
   GALD_LIFE_CHOICE_LINE,
 } from '../../content/dialogue/galdEncounter';
 import { GALD } from '../../content/characters/gald';
-import { galdPortrait } from '../../assets/manifest';
+import { partyArtFor } from '../../content/art';
 import { vibrate } from '../../platform/haptics';
 
 interface Props {
@@ -26,7 +26,10 @@ interface Props {
 export function LifeChoiceScreen({ onChoose }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const portrait = galdPortrait('defeated');
+  // Beaten and on one knee, still looking at you: the question is open,
+  // which is what this screen is for. Asked of the art layer by state
+  // rather than named as a file.
+  const portrait = partyArtFor('gald', 'battle_damage').asset?.src ?? null;
 
   const choose = async (choice: LifeChoiceId) => {
     if (saving) return;

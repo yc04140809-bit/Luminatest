@@ -382,7 +382,7 @@ test.describe('a preview changes nothing', () => {
     await expect(page.getByTestId('bp-message')).toContainText(/森の加護|回復/, {
       timeout: 8_000,
     });
-    await expect(page.getByTestId('bp-player-hp')).toContainText('40 / 40');
+    await expect(page.getByTestId('bp-player-hp')).toHaveText(/あなた(\d+) \/ \1$/);
 
     // And the book is where it was: 30%, one page, no sighting.
     await page.reload();

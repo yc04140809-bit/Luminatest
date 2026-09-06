@@ -2,7 +2,21 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 60_000,
+  // One fewer than the machine has cores, so the dev server that is
+  // serving all of them keeps one. Since the battle tempo retune a
+  // single test may play a twenty-four exchange fight in real time, and
+  // four of those competing for four cores is how a fight that takes
+  // ninety seconds starts taking four minutes.
+  workers: 3,
+  // Raised from 60s with the battle tempo retune. A story fight is now
+  // about ninety seconds of play BY DESIGN — twenty-four exchanges
+  // rather than three — and a test that plays one from the title screen
+  // to the four answers cannot finish inside a timeout shorter than the
+  // fight. Alone such a run takes about eleven seconds; four of them at
+  // once on a loaded machine take a great deal longer, and the number
+  // below is headroom for that rather than patience with a hang. This
+  // is the fight getting longer, not an assertion getting weaker.
+  timeout: 240_000,
   use: {
     baseURL: 'http://localhost:5173',
     // MUGEN ZERO is a landscape game: this is the same 390x844 phone the

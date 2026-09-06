@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import { GALD_TAP, swingUntil } from './helpers';
 
 // PHASE A acceptance: TITLE → PROLOGUE → HOME → EXPLORE → GREENWOOD
 // → GALD ENCOUNTER → BATTLE → LIFE CHOICE, in one uninterrupted run.
@@ -39,7 +40,7 @@ test('Phase A vertical flow: title to life choice', async ({ page }) => {
   await page.waitForTimeout(500); // let the scene finish booting
   const box = await canvas.boundingBox();
   if (!box) throw new Error('canvas bounding box unavailable');
-  await page.mouse.click(box.x + box.width * (180 / 360), box.y + box.height * (120 / 520));
+  await page.mouse.click(box.x + box.width * GALD_TAP.fx, box.y + box.height * GALD_TAP.fy);
 
   // Player walks up (~2s), fade, then encounter dialogue.
   const encounter = page.getByTestId('gald-encounter');
@@ -51,17 +52,14 @@ test('Phase A vertical flow: title to life choice', async ({ page }) => {
 
   // BATTLE — attack until victory
   await expect(page.getByTestId('battle-screen')).toBeVisible();
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 8; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (await attack.isEnabled().catch(() => false)) {
-      await attack.click();
-    }
-    await page.waitForTimeout(150);
-  }
+  await swingUntil(page, 'attack-button', () =>
+    page.getByTestId('life-choice-screen').isVisible().catch(() => false),
+  );
 
   // LIFE CHOICE — no EXP screen, the question instead
-  await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByText('彼の人生を、どうしますか？')).toBeVisible();
   await page.getByTestId('choice-SPARE').click();
 

@@ -1,31 +1,48 @@
 import Phaser from 'phaser';
-import { locationBackground } from '../../content/locations/locationVisuals';
+import { fieldArt, locationBackground } from '../../content/locations/locationVisuals';
 import { ExplorationCharacter, directionFor, type Direction } from './PlayerSprite';
 import { FollowTrail } from './follow';
 import {
-  GREENWOOD_DISCOVERY_SPOTS,
+  GREENWOOD_GROUND_SPOTS,
   nextDiscoverySpot,
+  spotsOnGround,
   resolveExplorationEncounter,
   type DiscoveryCategory,
   type DiscoverySpot,
 } from './discovery';
 import type { ExplorationSession } from './explorationSession';
+import {
+  EDGE_ZONE_WIDTH,
+  GREENWOOD_FIELD,
+  GREENWOOD_GROUND,
+  clampToGround,
+  edgeZoneAt,
+  fieldForScreen,
+  groundPoint,
+  type EdgeZone,
+  type FieldSize,
+} from './walkable';
 
-export const GAME_WIDTH = 360;
-export const GAME_HEIGHT = 520;
+export const GAME_WIDTH = GREENWOOD_FIELD.width;
+export const GAME_HEIGHT = GREENWOOD_FIELD.height;
 
-// Deterministic layout so the e2e test can click the encounter marker.
-const PLAYER_START = { x: 180, y: 440 };
-const ENCOUNTER_POINT = { x: 180, y: 120 };
+// The player comes in from the right and the forest goes on to the left.
+// Given as places on the clearing rather than as pixels, so they hold
+// whatever shape the field turns out to be on this phone.
+const PLAYER_START_ON_GROUND = { along: 0.84, depth: 0.72 };
+const COMPANION_START_ON_GROUND = { along: 0.9, depth: 0.88 };
+/** The scripted first meeting, well down the path he is walking. */
+const ENCOUNTER_ON_GROUND = { along: 0.28, depth: 0.3 };
+const GALD_POINT_ID = 'GALD_ENCOUNTER';
 const ENCOUNTER_RADIUS = 28;
 const PLAYER_SPEED = 160; // px/sec
 const BACKGROUND_KEY = 'greenwood-bg';
 /** Who the player is walking as. The frames belong to the registry. */
 const PLAYER_CHARACTER = 'HERO' as const;
-// About a ninth of the screen across the drawn figure — big enough to
-// read as a person on a phone, small enough that the forest is still the
-// subject and he is not standing in front of it.
-const PLAYER_DISPLAY_WIDTH = Math.round(GAME_WIDTH * 0.11);
+// Measured against the field's HEIGHT, which is the same on every
+// phone — a fraction of the width would make him bigger on a wider
+// screen, which is the one thing a character size must not do.
+const PLAYER_DISPLAY_WIDTH = Math.round(GAME_HEIGHT * 0.19);
 
 /**
  * Kaos walks the forest with him.
@@ -50,8 +67,7 @@ const COMPANION_MIN_GAP = 34;
 const COMPANION_SPEED = 178;
 /** Close enough to her place on the path to stop walking. */
 const COMPANION_SETTLE = 1.5;
-/** Where she is standing when the forest opens: behind him, off to one side. */
-const COMPANION_START = { x: PLAYER_START.x - 28, y: PLAYER_START.y + 36 };
+
 
 /** How long "you have arrived" takes before the result is handed over. */
 const ARRIVAL_MS = 450;
@@ -79,14 +95,6 @@ interface DiscoveryPointDef {
   kind: DiscoveryKind;
 }
 
-/** The scripted first meeting. Its coordinates are part of the story. */
-const GALD_POINT: DiscoveryPointDef = {
-  id: 'GALD_ENCOUNTER',
-  ...ENCOUNTER_POINT,
-  radius: ENCOUNTER_RADIUS,
-  kind: 'event',
-};
-
 /** The ring standing in the forest right now, and the parts it is made of. */
 interface ActiveDiscovery {
   point: DiscoveryPointDef;
@@ -112,6 +120,15 @@ const GOLD = 0xc9a961;
 export interface GreenwoodCallbacks {
   /** The scripted first meeting on the forest path. Unchanged. */
   onEncounter: () => void;
+  /**
+   * Walked back out the way they came in.
+   *
+   * The path has two ends and the screen decides what is at each of
+   * them; the scene only says which end somebody is standing at. Today
+   * the right-hand end is the way back — the same thing the 「森を出る」
+   * line does — and the left-hand end is where the forest goes on.
+   */
+  onLeaveField?: () => void;
   /**
    * An arrival at a repeatable ring, and what it turned out to be. The
    * scene has decided the category and nothing else: which event, which
@@ -140,6 +157,12 @@ export interface GreenwoodOptions {
   session?: ExplorationSession;
   /** Development only: force what the next arrival turns out to be. */
   forcedCategory?: DiscoveryCategory | null;
+  /**
+   * The world's size, so the field can be the shape of the screen it is
+   * being drawn on. Everything about the ground is written in fractions
+   * of this, so nothing else has to know.
+   */
+  field?: FieldSize;
 }
 
 /**
@@ -176,17 +199,38 @@ export class GreenwoodScene extends Phaser.Scene {
   private lastCategory: DiscoveryCategory | null = null;
   private callbacks: GreenwoodCallbacks;
   private options: GreenwoodOptions;
+  /** This field, at this size. Fractions of it are what the rules speak. */
+  private field: FieldSize;
+  /** The eight rings, standing on this field's clearing floor. */
+  private spots: DiscoverySpot[];
 
   constructor(callbacks: GreenwoodCallbacks, options: GreenwoodOptions) {
     super('greenwood');
     this.callbacks = callbacks;
     this.options = options;
+    this.field = options.field ?? GREENWOOD_FIELD;
+    this.spots = spotsOnGround(GREENWOOD_GROUND_SPOTS, this.field);
+  }
+
+  /** Somewhere on this field's clearing floor. */
+  private onGround(along: number, depth: number) {
+    return groundPoint(GREENWOOD_GROUND, this.field, along, depth);
+  }
+
+  /** The scripted first meeting. Its place on the path is part of the story. */
+  private galdPoint(): DiscoveryPointDef {
+    const at = this.onGround(ENCOUNTER_ON_GROUND.along, ENCOUNTER_ON_GROUND.depth);
+    return { id: GALD_POINT_ID, x: at.x, y: at.y, radius: ENCOUNTER_RADIUS, kind: 'event' };
   }
 
   preload(): void {
     // The same registry the React screens read: the forest walked through
     // and the forest fought in are one location.
-    const art = locationBackground('GREENWOOD_FOREST');
+    // The field painting: the same forest as the battle backdrop, drawn
+    // wide with a clearing floor along the bottom. The ground band in
+    // walkable.ts is measured against THIS picture, which is why the
+    // walk and the fight read from different entries.
+    const art = fieldArt('GREENWOOD_FOREST') ?? locationBackground('GREENWOOD_FOREST');
     if (art) this.load.image(BACKGROUND_KEY, art);
     // His frames: sixteen transparent PNGs, one per pose and direction.
     ExplorationCharacter.preload(this, PLAYER_CHARACTER);
@@ -200,8 +244,8 @@ export class GreenwoodScene extends Phaser.Scene {
     // Layer 1: the forest itself, at its own colour. SCENE ART IS THE
     // WORLD — nothing lightens it to match the menus.
     if (this.textures.exists(BACKGROUND_KEY)) {
-      const bg = this.add.image(GAME_WIDTH / 2, GAME_HEIGHT / 2, BACKGROUND_KEY);
-      const scale = Math.max(GAME_WIDTH / bg.width, GAME_HEIGHT / bg.height);
+      const bg = this.add.image(this.field.width / 2, this.field.height / 2, BACKGROUND_KEY);
+      const scale = Math.max(this.field.width / bg.width, this.field.height / bg.height);
       bg.setScale(scale).setScrollFactor(0).setDepth(0);
     } else {
       // The art failed to load: fall back to the original shapes rather
@@ -217,8 +261,11 @@ export class GreenwoodScene extends Phaser.Scene {
 
     // Where they left off, if a fight interrupted the walk.
     const held = this.options.session?.read() ?? null;
-    const playerAt = held?.player ?? PLAYER_START;
-    const companionAt = held?.companion ?? COMPANION_START;
+    const playerAt =
+      held?.player ?? this.onGround(PLAYER_START_ON_GROUND.along, PLAYER_START_ON_GROUND.depth);
+    const companionAt =
+      held?.companion ??
+      this.onGround(COMPANION_START_ON_GROUND.along, COMPANION_START_ON_GROUND.depth);
     this.facing = held?.facing ?? 'back';
     this.companionFacing = held?.companionFacing ?? 'back';
     this.lastCategory = held?.lastCategory ?? null;
@@ -246,6 +293,11 @@ export class GreenwoodScene extends Phaser.Scene {
     });
     this.companion.setDirection(this.companionFacing);
 
+    // Layer 2c: the way back, at the end of the path they came in by.
+    // Drawn quietly and standing on the ground, so it reads as a place
+    // rather than as a button laid over the forest.
+    this.drawWayBack();
+
     // Layer 3: what is worth walking over to. One at a time, always.
     this.createDiscovery(this.openingPoint(held?.spotId ?? null, playerAt));
 
@@ -253,7 +305,16 @@ export class GreenwoodScene extends Phaser.Scene {
       // Arriving and everything after it is not a moment to be
       // interrupted, and a second tap must never start a second result.
       if (this.phase !== 'walking') return;
-      this.target = new Phaser.Math.Vector2(pointer.worldX, pointer.worldY);
+      // The forest is a painting: most of it is trees, canopy and a far
+      // bank, and none of that is floor. A tap anywhere still means
+      // something — the nearest piece of ground to it — rather than
+      // being swallowed, which is how a field starts feeling broken
+      // exactly where people press.
+      const to = clampToGround(GREENWOOD_GROUND, this.field, {
+        x: pointer.worldX,
+        y: pointer.worldY,
+      });
+      this.target = new Phaser.Math.Vector2(to.x, to.y);
     });
   }
 
@@ -271,6 +332,32 @@ export class GreenwoodScene extends Phaser.Scene {
     this.phase = 'walking';
   }
 
+  /**
+   * Whether he is standing at the end of the path he came in by.
+   *
+   * Asked only once he has stopped, so that walking THROUGH the end of
+   * the path on the way to something does not throw the player out of
+   * the forest.
+   */
+  private atWayBack(): boolean {
+    const where: EdgeZone | null = edgeZoneAt(GREENWOOD_GROUND, this.field, {
+      x: this.player.x,
+      y: this.player.y,
+    });
+    return where === 'RIGHT' && this.callbacks.onLeaveField !== undefined;
+  }
+
+  /** A quiet mark on the ground where the path leaves the clearing. */
+  private drawWayBack(): void {
+    if (!this.callbacks.onLeaveField) return;
+    const at = this.onGround(1 - EDGE_ZONE_WIDTH / 2, 0.78);
+    const mark = this.add.ellipse(at.x, at.y, 40, 14);
+    mark.setStrokeStyle(1, GOLD, 0.35);
+    mark.setDepth(5);
+    const arrow = this.add.triangle(at.x + 13, at.y, 0, -5, 0, 5, 7, 0, GOLD, 0.45);
+    arrow.setDepth(5);
+  }
+
   /** Where they are standing, for the session to hold. */
   private saveSession(): void {
     this.options.session?.save({
@@ -278,7 +365,7 @@ export class GreenwoodScene extends Phaser.Scene {
       companion: { x: this.companion.x, y: this.companion.y },
       facing: this.facing,
       companionFacing: this.companionFacing,
-      spotId: this.nextSpotId ?? GREENWOOD_DISCOVERY_SPOTS[0].id,
+      spotId: this.nextSpotId ?? this.spots[0].id,
       lastCategory: this.lastCategory,
     });
   }
@@ -288,19 +375,20 @@ export class GreenwoodScene extends Phaser.Scene {
     // The first meeting on the path is a story beat, not a discovery:
     // while it is still ahead of the player it is the only thing in the
     // forest, at the coordinates it has always been at.
-    if (this.options.encounterEnabled) return GALD_POINT;
+    if (this.options.encounterEnabled) return this.galdPoint();
     const spot = this.spotById(heldSpotId);
     return spot ?? this.freshPoint(playerAt);
   }
 
   private spotById(id: string | null): DiscoveryPointDef | null {
-    const spot = GREENWOOD_DISCOVERY_SPOTS.find((s) => s.id === id);
+    const spot = this.spots.find((s) => s.id === id);
     return spot ? this.pointFor(spot) : null;
   }
 
   private freshPoint(from?: { x: number; y: number }): DiscoveryPointDef {
     return this.pointFor(
       nextDiscoverySpot({
+        spots: this.spots,
         previousId: this.active?.point.id ?? null,
         from: from ?? { x: this.player.x, y: this.player.y },
       }),
@@ -500,7 +588,7 @@ export class GreenwoodScene extends Phaser.Scene {
     if (this.phase !== 'arriving') return;
     this.phase = 'handedOver';
 
-    if (point.id === GALD_POINT.id) {
+    if (point.id === GALD_POINT_ID) {
       // The scripted meeting, exactly as it always was.
       this.cameras.main.fadeOut(350, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -613,12 +701,26 @@ export class GreenwoodScene extends Phaser.Scene {
 
     this.player.setState(walkable && this.target ? 'walk' : 'idle');
     this.player.update(delta);
+    // Nearer the camera means in front. A step of depth per pixel down
+    // the field is enough to keep two people who pass each other from
+    // swapping which is in front — it is the whole of the "back and
+    // forth" the field needs, and it costs one line.
+    this.player.setDepth(20 + Math.round(this.player.y));
     // She keeps coming for a moment after he has stopped, which is what
     // having walked behind him looks like.
     this.trail.record(this.player.x, this.player.y);
     this.updateCompanion(delta);
+    this.companion.setDepth(22 + Math.round(this.companion.y));
 
     if (!walkable) return;
+
+    // Walked off the end of the path they came in by.
+    if (this.target === null && this.atWayBack()) {
+      this.phase = 'handedOver';
+      this.saveSession();
+      this.callbacks.onLeaveField?.();
+      return;
+    }
 
     const point = this.active?.point;
     if (!point) return;
@@ -634,14 +736,20 @@ export function createGreenwoodGame(
   callbacks: GreenwoodCallbacks,
   options: GreenwoodOptions,
 ): { game: Phaser.Game; scene: GreenwoodScene } {
-  const scene = new GreenwoodScene(callbacks, options);
+  // The field takes the shape of the room it is given, so a phone that
+  // is a slightly different shape gets a slightly wider forest rather
+  // than bars down both sides of a fixed one.
+  const field = options.field ?? fieldForScreen(parent.clientWidth, parent.clientHeight);
+  const scene = new GreenwoodScene(callbacks, { ...options, field });
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent,
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
+    width: field.width,
+    height: field.height,
     backgroundColor: '#12241a',
     scale: {
+      // The field is the same shape as the screen now, so FIT fills it
+      // instead of leaving bars either side.
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },

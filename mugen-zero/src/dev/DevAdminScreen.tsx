@@ -185,7 +185,11 @@ export function DevAdminScreen({
           演出プレビュー（ゲームデータを変更しません）
         </button>
       </div>
-      <div className="location-list" style={{ gap: 6 }}>
+      {/* Everything the panel holds, in one scrolling region. A landscape
+          screen is 390px tall and this panel is over 1700; before this it
+          simply ran off the bottom of a screen that clipped it, and the
+          「もどる」 at the end of it was unreachable. */}
+      <div className="screen-scroll" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {/* ---- REVIEW HUB ---- */}
         <button
           className="btn"
@@ -404,7 +408,6 @@ export function DevAdminScreen({
             </div>
           ))
         )}
-      </div>
       <div style={sectionTitle}>EXPLORATION — 次の発見を固定</div>
       <div style={row}>
         {(['EVENT', 'ITEM', 'BATTLE'] as DiscoveryCategory[]).map((category) => (
@@ -741,6 +744,7 @@ export function DevAdminScreen({
         {Math.round(storyTriggerChance(rabbit.sinceStory + 1) * 100)}%。
       </div>
 
+      </div>
       <div className="screen-footer">
         <button className="btn" data-testid="dev-admin-back" onClick={onBack}>
           もどる

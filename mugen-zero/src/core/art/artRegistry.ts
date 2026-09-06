@@ -6,7 +6,7 @@
 
 import {
   ENEMY_FALLBACK,
-  PARTY_FALLBACK,
+  partyChainFor,
   resolveArt,
   type ArtSet,
   type EnemyArtState,
@@ -36,10 +36,18 @@ export function enemyArt(
   return resolveArt(registry[id], state, ENEMY_FALLBACK);
 }
 
+/**
+ * Which picture of this person.
+ *
+ * The chain depends on what was asked for: a battlefield request falls
+ * back through battle poses, a conversation request through whole
+ * figures. Same registry, same id, same character — the request says
+ * what it is for.
+ */
 export function partyArt(
   registry: PartyArtRegistry,
   id: string,
   state: PartyArtState,
 ): ResolvedArt<PartyArtState> {
-  return resolveArt(registry[id], state, PARTY_FALLBACK);
+  return resolveArt(registry[id], state, partyChainFor(state));
 }

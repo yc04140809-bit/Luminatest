@@ -176,7 +176,9 @@ export const MOSS_RABBIT_ARCANA: ArcanaDef = {
       // purpose: 20% off one blow, and half of that from half a
       // memory — 《身構える》 takes half off every blow the player is
       // willing to spend a turn on, and must stay obviously better.
-      effect: { kind: 'MEND', heal: 8, ward: 0.2 },
+      // A fifth of the player's health, as it always was: the number
+      // moved with the health bar so the memory is worth the same.
+      effect: { kind: 'MEND', heal: 20, ward: 0.2 },
     },
     incompleteLine: 'まだちゃんとは呼べないけど……やってみる？',
     failureLine: '……まだ、輪郭が足りないみたい。',

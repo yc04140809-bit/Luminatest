@@ -1,4 +1,6 @@
 import { expect, type Page } from './fixtures';
+import { GREENWOOD_GROUND_SPOTS } from '../src/game/exploration/discovery';
+import { GREENWOOD_GROUND, groundFraction } from '../src/game/exploration/walkable';
 
 export interface StoredMemoryEvent {
   id: string;
@@ -39,7 +41,10 @@ function readMemoryEventsOnce(page: Page): Promise<StoredMemoryEvent[]> {
             resolve([]);
             return;
           }
-          const rq = db.transaction('memory_events', 'readonly').objectStore('memory_events').getAll();
+          const rq = db
+            .transaction('memory_events', 'readonly')
+            .objectStore('memory_events')
+            .getAll();
           rq.onsuccess = () => {
             db.close();
             resolve(rq.result as StoredMemoryEvent[]);
@@ -64,7 +69,10 @@ export function readSchemaVersion(page: Page): Promise<number | null> {
             resolve(null);
             return;
           }
-          const rq = db.transaction('meta', 'readonly').objectStore('meta').get('saveSchemaVersion');
+          const rq = db
+            .transaction('meta', 'readonly')
+            .objectStore('meta')
+            .get('saveSchemaVersion');
           rq.onsuccess = () => {
             db.close();
             resolve(rq.result ? rq.result.value : null);
@@ -89,7 +97,10 @@ export function readWorldStateValue(page: Page, key: string): Promise<unknown> {
             resolve(undefined);
             return;
           }
-          const rq = db.transaction('world_state', 'readonly').objectStore('world_state').get(stateKey);
+          const rq = db
+            .transaction('world_state', 'readonly')
+            .objectStore('world_state')
+            .get(stateKey);
           rq.onsuccess = () => {
             db.close();
             resolve(rq.result ? rq.result.value : undefined);
@@ -120,7 +131,7 @@ export async function walkToEncounterMarker(page: Page): Promise<void> {
   await page.waitForTimeout(500); // let the scene finish booting
   const box = await canvas.boundingBox();
   if (!box) throw new Error('canvas bounding box unavailable');
-  await page.mouse.click(box.x + box.width * (180 / 360), box.y + box.height * (120 / 520));
+  await page.mouse.click(box.x + box.width * GALD_TAP.fx, box.y + box.height * GALD_TAP.fy);
 }
 
 /** Fresh world: plays TITLE through BATTLE until the life choice appears. */
@@ -152,15 +163,13 @@ export async function playToLifeChoice(
 
   await expect(page.getByTestId('battle-screen')).toBeVisible();
   if (stopAt === 'BATTLE') return;
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 8; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (await attack.isEnabled().catch(() => false)) await attack.click();
-    await page.waitForTimeout(150);
-  }
-  await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 10_000 });
+  await swingUntil(page, 'attack-button', () =>
+    page.getByTestId('life-choice-screen').isVisible().catch(() => false),
+  );
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible({
+    timeout: 10_000,
+  });
 }
-
 
 /**
  * Into DEV ADMIN, whether or not the lock is standing in the way.
@@ -203,4 +212,97 @@ export type Phone = (typeof PHONES)[number];
 /** The viewport for one of them, without its name. */
 export function viewportOf(phone: Phone): { width: number; height: number } {
   return { width: phone.width, height: phone.height };
+}
+
+/**
+ * Where to tap on the forest canvas to walk to each gold ring.
+ *
+ * Fractions of the canvas, derived from the game's own definition of
+ * the eight places — not eight pairs of pixels copied into eight spec
+ * files, which is what these were, and which is why moving the forest
+ * broke seventy tests at once. If the rings move again, this moves with
+ * them and nothing else has to.
+ */
+export const RING_TAPS: readonly { fx: number; fy: number }[] = GREENWOOD_GROUND_SPOTS.map((s) =>
+  groundFraction(GREENWOOD_GROUND, s.along, s.depth),
+);
+
+/** And where the scripted first meeting stands, the same way. */
+export const GALD_TAP = groundFraction(GREENWOOD_GROUND, 0.28, 0.3);
+
+/** Tap a place on the forest canvas given as fractions of it. */
+export async function tapField(
+  page: Page,
+  at: { fx: number; fy: number } = GALD_TAP,
+): Promise<void> {
+  const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
+  await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
+}
+
+/**
+ * Walk the rings in turn until something happens.
+ *
+ * One copy of the loop that every forest spec was keeping its own
+ * version of, with its own count of how many times to try.
+ */
+export async function walkTheForestUntil(
+  page: Page,
+  arrived: () => Promise<boolean>,
+  tries = 14,
+): Promise<boolean> {
+  const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
+  for (const at of RING_TAPS) {
+    await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
+    for (let i = 0; i < tries; i++) {
+      await page.waitForTimeout(180);
+      if (await arrived()) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Keep swinging until the fight is over.
+ *
+ * Bounded by TIME rather than by a count of iterations, which is the
+ * property that actually matters now that a fight is twenty-odd
+ * exchanges instead of three: a swing that arrives mid-animation is
+ * retried rather than counted, so a loaded machine costs the loop
+ * seconds instead of turns. Every forest and story fight in the suite
+ * goes through here, so there is one place that knows how long a fight
+ * is allowed to take.
+ *
+ * The budget is generous because four of these run at once on a
+ * four-core machine, and a fight the player would finish in ninety
+ * seconds takes considerably longer when the browser running it is
+ * sharing a core with three others.
+ */
+export async function swingUntil(
+  page: Page,
+  attackTestId: string,
+  done: () => Promise<boolean>,
+  budgetMs = 150_000,
+): Promise<boolean> {
+  const attack = page.getByTestId(attackTestId);
+  // Fail loudly and immediately if there is no fight to swing at.
+  // Without this, a walk that never reached the enemy spends the whole
+  // budget pressing a button that is not there and then reports the
+  // wrong thing entirely — "the life choice never appeared" rather than
+  // "the fight never started".
+  await expect(attack, `${attackTestId} must be on screen before swinging`).toBeVisible({
+    timeout: 15_000,
+  });
+  const deadline = Date.now() + budgetMs;
+  while (Date.now() < deadline) {
+    if (await done()) return true;
+    // Between one blow and the next the commands are mid-animation, and
+    // Playwright's stability check will not press a button that is
+    // still moving — on a loaded machine that is most of them, and a
+    // fight that takes twenty-four swings never lands them. The button
+    // is a real button in a real place; pressing it without waiting for
+    // the animation to settle is what a player does.
+    await attack.click({ force: true, timeout: 2500 }).catch(() => {});
+    await page.waitForTimeout(70);
+  }
+  return done();
 }

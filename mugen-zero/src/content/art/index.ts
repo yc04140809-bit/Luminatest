@@ -19,4 +19,4 @@ export function partyArtFor(id: string, state: PartyArtState): ResolvedArt<Party
 }
 
 export { ENEMY_ART, ENEMY_ART_STATES, MOSS_RABBIT_ART } from './enemyArt';
-export { PARTY_ART, PARTY_ART_STATES, HERO_ART, KAOS_ART } from './partyArt';
+export { PARTY_ART, PARTY_ART_STATES, HERO_ART, KAOS_ART, GALD_ART } from './partyArt';

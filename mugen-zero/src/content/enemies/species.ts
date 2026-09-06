@@ -12,6 +12,7 @@
 // speaks, and lines that let an animal be an animal.
 
 import { MOSS_RABBIT_ART } from '../art/enemyArt';
+import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviour';
 import type { LifeChoiceId } from '../../core/flow/types';
 import type { DialogueLine } from '../dialogue/prologue';
 
@@ -64,6 +65,15 @@ export interface EnemySpeciesDef {
   portraitScale: number;
   /** Battle numbers, in the units the existing battle already uses. */
   hp: number;
+  /**
+   * Its footing, and how it changes as it is hurt.
+   *
+   * The two places a creature gets to be a creature rather than a
+   * health bar. Both optional: an enemy written without them fights
+   * exactly as everything did before they existed.
+   */
+  poise?: EnemyPoiseSpec;
+  phases?: readonly EnemyPhase[];
   attackMin: number;
   attackMax: number;
   /** Its one normal attack. */
@@ -112,10 +122,57 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   portrait: MOSS_RABBIT_ART.states.front?.src ?? null,
   // The drawn animal fills about 55% of the height of its file.
   portraitScale: 1.55,
-  hp: 22,
+  // Raised from 22, and NOT because a bigger number is more exciting.
+  // At 22 the fight was over in two or three taps: no music got heard,
+  // the creature never got to do the one thing it does, and the four
+  // answers arrived before the player had formed an opinion about the
+  // animal they were being asked about. What fills the extra time is
+  // the poise and the phases below, not the health bar.
+  hp: 124,
   attackMin: 2,
   attackMax: 5,
   attackName: 'リーフタックル',
+  /**
+   * ITS FOOTING. A small animal braced under a mat of moss: hit it and
+   * it slips, hit it while it is bracing and it slips further, and when
+   * it has nothing left it sits down hard and you get two free swings.
+   *
+   * This is what 苔かくれ is FOR, from the player's side: not a wall to
+   * wait out but something to break.
+   */
+  poise: {
+    max: 5,
+    perHit: 1,
+    perGuardedHit: 2,
+    staggerTurns: 2,
+    staggerDamageTaken: 1.5,
+    breakLine: 'モスラビットの体勢が崩れた！ 苔が肩から滑り落ちる。',
+    recoverLine: 'モスラビットは足を踏みなおし、こちらを見た。',
+  },
+  /**
+   * HOW IT CHANGES. Two, and neither of them makes it a better fighter
+   * in a way that is only a bigger number: first it stops facing you
+   * and starts hiding, and then — cornered, with nowhere behind it —
+   * it comes at you. It is a frightened animal, and the fight is
+   * supposed to read that way by the end of it.
+   */
+  phases: [
+    {
+      id: 'WARY',
+      atOrBelow: 0.6,
+      line: 'モスラビットは耳を伏せ、苔の下に身を沈めた。',
+      // It hides far more readily. Which is what poise is the answer to.
+      skillChance: 0.65,
+    },
+    {
+      id: 'CORNERED',
+      atOrBelow: 0.28,
+      line: 'モスラビットは後ずさり、それ以上下がれないと知った。',
+      attack: 1.5,
+      // And it stops hiding: there is no time left for that.
+      skillChance: 0.15,
+    },
+  ],
   skill: {
     name: '苔かくれ',
     turns: 2,

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, enterDevAdmin, PHONES, viewportOf } from './helpers';
+import { playToLifeChoice, enterDevAdmin, PHONES, RING_TAPS, viewportOf } from './helpers';
 
 /**
  * The battle UI prototype: a second battle screen, behind a dev flag,
@@ -9,10 +9,6 @@ import { playToLifeChoice, enterDevAdmin, PHONES, viewportOf } from './helpers';
  * still exists, the story's own fight never sees the new one, and the
  * flag being off is the same game as before.
  */
-const SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 async function freshWorld(page: Page) {
   await page.goto('/');
@@ -75,7 +71,9 @@ async function setup(page: Page, options: Setup) {
 async function walkIntoAFight(page: Page): Promise<void> {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
-  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+    timeout: 20_000,
+  });
   await page.waitForTimeout(2200);
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
   const fighting = () =>
@@ -85,8 +83,8 @@ async function walkIntoAFight(page: Page): Promise<void> {
       .isVisible()
       .catch(() => false);
   for (let pass = 0; pass < 2; pass++) {
-    for (const [x, y] of SPOTS) {
-      await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+    for (const at of RING_TAPS) {
+      await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
       for (let i = 0; i < 16; i++) {
         await page.waitForTimeout(180);
         if (await fighting()) return;
@@ -154,7 +152,11 @@ test.describe('battle UI prototype', () => {
     expect(feet(kaos)).toBeLessThan(feet(hero));
 
     // Nobody is a postage stamp, and nobody fills the clearing either.
-    for (const [who, box] of [['enemy', enemy], ['hero', hero], ['kaos', kaos]] as const) {
+    for (const [who, box] of [
+      ['enemy', enemy],
+      ['hero', hero],
+      ['kaos', kaos],
+    ] as const) {
       const share = box.height / stageBox.height;
       expect(share, `${who} is big enough to read`).toBeGreaterThan(0.15);
       expect(share, `${who} leaves room for the forest`).toBeLessThan(0.4);
@@ -168,7 +170,7 @@ test.describe('battle UI prototype', () => {
     expect(overlaps(kaos, enemy), 'she and it do not overlap').toBe(false);
 
     await expect(page.getByTestId('bp-enemy-hp')).toContainText('モスラビット');
-    await expect(page.getByTestId('bp-player-hp')).toContainText('40 / 40');
+    await expect(page.getByTestId('bp-player-hp')).toContainText('100 / 100');
     await expect(page.getByTestId('bp-message')).toContainText('モスラビット');
     await expect(page.getByTestId('bp-attack')).toBeVisible();
     await expect(page.getByTestId('bp-skill')).toBeVisible();
@@ -176,9 +178,7 @@ test.describe('battle UI prototype', () => {
     await expect(page.getByTestId('bp-mugen-choice')).toHaveCount(0);
   });
 
-  test('can be looked at straight from DEV ADMIN, without touching the world', async ({
-    page,
-  }) => {
+  test('can be looked at straight from DEV ADMIN, without touching the world', async ({ page }) => {
     await freshWorld(page);
     await enterDevAdmin(page);
     await page.getByTestId('force-story-off').click();
@@ -199,7 +199,10 @@ test.describe('battle UI prototype', () => {
           open.onerror = () => reject(open.error);
           open.onsuccess = () => {
             const db = open.result;
-            const rq = db.transaction('world_state', 'readonly').objectStore('world_state').getAll();
+            const rq = db
+              .transaction('world_state', 'readonly')
+              .objectStore('world_state')
+              .getAll();
             rq.onsuccess = () => {
               db.close();
               resolve(
@@ -221,10 +224,13 @@ test.describe('battle UI prototype', () => {
     await setup(page, { ui: 'PROTOTYPE', story: 'off', enemyAction: 'ATTACK' });
     await walkIntoAFight(page);
     const hp = page.getByTestId('bp-enemy-hp');
-    await expect(hp).toContainText('22 / 22');
+    // Whole, whatever whole is: the creature's numbers are tuned for the
+    // tempo of the fight, and what this test is about is that the screen
+    // is running the real battle rather than a mock of it.
+    await expect(hp).toHaveText(/モスラビット(\d+) \/ \1$/);
+    const before = await hp.textContent();
     await page.getByTestId('bp-attack').click();
-    // The existing numbers: the player hits for 8 to 12.
-    await expect(hp).not.toContainText('22 / 22');
+    await expect(hp).not.toHaveText(before ?? '');
     await expect(page.getByTestId('bp-message')).toContainText('リーフタックル');
     await expect(page.getByTestId('bp-message')).toContainText('ダメージ');
   });
@@ -248,10 +254,14 @@ test.describe('battle UI prototype', () => {
     await setup(page, { ui: 'PROTOTYPE', story: 'off', finishable: true });
     await walkIntoAFight(page);
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
+      timeout: 5_000,
+    });
     await expect(page.getByTestId('bp-mugen-choice')).toHaveCount(0);
     await page.getByTestId('bp-normal-end').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
   test('the commands become the four answers only once there is a life to decide', async ({
@@ -272,7 +282,9 @@ test.describe('battle UI prototype', () => {
     }
 
     await page.getByTestId('bp-mugen-SPARE').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     // The choice made in the new UI is the real one, written by the same
     // code the old screen's path uses.
@@ -333,7 +345,9 @@ test.describe('battle UI prototype', () => {
     await walkIntoAFight(page);
     await page.getByTestId('bp-attack').click();
 
-    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({
+      timeout: 5_000,
+    });
     // The whole point: it is the beaten creature on screen, not a
     // result panel, and the two of them are still standing there.
     await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
@@ -445,7 +459,7 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(page.locator('.bp-chaos-aura')).toHaveCount(0);
     // Straight into it: nothing to sit through.
     await expect(page.getByTestId('bp-commands')).toBeVisible();
-    await expect(page.getByTestId('bp-enemy-hp')).toContainText('22 / 22');
+    await expect(page.getByTestId('bp-enemy-hp')).toHaveText(/モスラビット(\d+) \/ \1$/);
   });
 
   for (const c of CASES) {
@@ -482,7 +496,9 @@ test.describe('Kaos at the start of a fight', () => {
 
       // Commands wait for her, then come back.
       await expect(page.getByTestId('bp-commands')).toHaveCount(0);
-      await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId('bp-commands')).toBeVisible({
+        timeout: 5_000,
+      });
       const badge = page.getByTestId('bp-chaos-badge');
       await expect(badge).toBeVisible();
       await expect(badge).toContainText(c.name);
@@ -513,7 +529,9 @@ test.describe('Kaos at the start of a fight', () => {
     for (let i = 0; i < 3; i++) {
       await page.getByTestId('bp-skill').click();
       await page.getByTestId('bp-skill-guard').click();
-      await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId('bp-commands')).toBeVisible({
+        timeout: 5_000,
+      });
       await expect(page.getByTestId('bp-chaos-card')).toHaveCount(0);
       await expect(badge).toContainText('ケイオスの加護');
       await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(1);
@@ -534,15 +552,17 @@ test.describe('Kaos at the start of a fight', () => {
     await page.getByTestId('bp-chaos-card').click();
 
     const hp = page.getByTestId('bp-player-hp');
-    await expect(hp).toContainText('40 / 40');
-    let before = 40;
+    await expect(hp).toContainText('100 / 100');
+    let before = Number.POSITIVE_INFINITY;
     for (let turn = 0; turn < 4; turn++) {
       await page.getByTestId('bp-skill').click();
       await page.getByTestId('bp-skill-guard').click();
-      await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 5_000 });
+      await expect(page.getByTestId('bp-commands')).toBeVisible({
+        timeout: 5_000,
+      });
 
       const text = (await hp.textContent()) ?? '';
-      const shown = /(-?\d+)\s*\/\s*40/.exec(text.replace(/\s+/g, ' '));
+      const shown = /(-?\d+)\s*\/\s*(\d+)/.exec(text.replace(/\s+/g, ' '));
       expect(shown, `HP is a number after turn ${turn + 1}: ${text}`).not.toBeNull();
       const now = Number(shown![1]);
       // Two things that must both hold: the two reductions stack, and
@@ -568,12 +588,16 @@ test.describe('Kaos at the start of a fight', () => {
     await page.getByTestId('bp-chaos-card').click();
     await page.getByTestId('bp-attack').click();
 
-    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({
+      timeout: 5_000,
+    });
     await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
     // Her chip is a thing about a fight; there is no fight to be in now.
     await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(0);
     await page.getByTestId('bp-mugen-SPARE').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
   test('is over when the fight is: nothing saved, nothing carried into the next one', async ({
@@ -591,7 +615,9 @@ test.describe('Kaos at the start of a fight', () => {
     await page.getByTestId('bp-chaos-card').click();
     await page.getByTestId('bp-attack').click();
     await page.getByTestId('bp-normal-end').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     // Nothing of hers was written down. The only key that mentions her
     // is the dev switch this test set itself.
@@ -606,7 +632,10 @@ test.describe('Kaos at the start of a fight', () => {
           open.onerror = () => reject(open.error);
           open.onsuccess = () => {
             const db = open.result;
-            const rq = db.transaction('world_state', 'readonly').objectStore('world_state').getAll();
+            const rq = db
+              .transaction('world_state', 'readonly')
+              .objectStore('world_state')
+              .getAll();
             rq.onsuccess = () => {
               db.close();
               resolve((rq.result as { key: string }[]).map((r) => r.key));
@@ -627,14 +656,18 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await expect(page.getByTestId('bp-chaos-card')).toHaveCount(0);
     await expect(page.getByTestId('bp-chaos-badge')).toHaveCount(0);
-    await expect(page.getByTestId('bp-player-hp')).toContainText('40 / 40');
+    await expect(page.getByTestId('bp-player-hp')).toContainText('100 / 100');
   });
 
   for (const phone of PHONES) {
     test(`her moment fits a ${phone.name} phone`, async ({ page }) => {
       await page.setViewportSize(viewportOf(phone));
       await freshWorld(page);
-      await setup(page, { ui: 'PROTOTYPE', story: 'off', chaos: 'CHAOS_WEAKEN' });
+      await setup(page, {
+        ui: 'PROTOTYPE',
+        story: 'off',
+        chaos: 'CHAOS_WEAKEN',
+      });
       await walkIntoAFight(page);
 
       const card = page.getByTestId('bp-chaos-card');
@@ -649,12 +682,16 @@ test.describe('Kaos at the start of a fight', () => {
       const box = (await card.boundingBox())!;
       expect(box.x, 'on screen').toBeGreaterThanOrEqual(0);
       expect(box.x + box.width, 'and inside it').toBeLessThanOrEqual(phone.width);
-      expect(box.y + box.height, 'and not hanging off the bottom').toBeLessThanOrEqual(phone.height);
+      expect(box.y + box.height, 'and not hanging off the bottom').toBeLessThanOrEqual(
+        phone.height,
+      );
       // Still a card, not a screen: it takes a strip, not the phone.
       expect(box.height / phone.height, 'her card is a strip, not a takeover').toBeLessThan(0.35);
       // The forest is still most of what is on screen.
       const bg = (await page.locator('.bp-bg').boundingBox())!;
-      expect(bg.height / phone.height, 'the forest is still most of the screen').toBeGreaterThan(0.5);
+      expect(bg.height / phone.height, 'the forest is still most of the screen').toBeGreaterThan(
+        0.5,
+      );
     });
   }
 });

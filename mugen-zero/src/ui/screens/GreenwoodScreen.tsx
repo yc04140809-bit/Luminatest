@@ -64,8 +64,8 @@ export function GreenwoodScreen({
   // The scene is built once and lives longer than any render, so it is
   // given refs to call rather than the callbacks of the render that
   // happened to create it.
-  const handlers = useRef({ onEncounter, onForestBattle, pickForestEvent });
-  handlers.current = { onEncounter, onForestBattle, pickForestEvent };
+  const handlers = useRef({ onEncounter, onForestBattle, pickForestEvent, onBack, session });
+  handlers.current = { onEncounter, onForestBattle, pickForestEvent, onBack, session };
   // Phaser's timers and camera fades outlive a React unmount by a frame
   // or two. Walking out of the forest mid-arrival must not then ask the
   // flow for a screen this screen is no longer on.
@@ -108,6 +108,14 @@ export function GreenwoodScreen({
             if (alive.current) handlers.current.onEncounter();
           },
           onDiscovery: handleDiscovery,
+          // Walking off the end of the path they came in by is the same
+          // thing as pressing 「森を出る」 — one way out, two ways to
+          // ask for it, so neither can leave the forest half-left.
+          onLeaveField: () => {
+            if (!alive.current) return;
+            handlers.current.session.clear();
+            handlers.current.onBack();
+          },
         },
         {
           encounterEnabled,

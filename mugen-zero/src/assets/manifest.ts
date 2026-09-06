@@ -9,8 +9,10 @@ import galdDefeated from './characters/gald/gald-defeated.webp';
 import galdBaker from './characters/gald/gald-baker.webp';
 import galdHealer from './characters/gald/gald-healer.webp';
 import galdWorker from './characters/gald/gald-worker.webp';
+import galdBattleDown from './characters/gald/gald-battle-down.png';
 import galdGrave from './events/event-gald-grave.webp';
 import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
+import greenwoodField from './backgrounds/field-greenwood.png';
 import aldenVillage from './backgrounds/location-alden-village.webp';
 import aldenTavern from './backgrounds/location-alden-tavern.webp';
 import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
@@ -44,6 +46,15 @@ export const GALD_PORTRAITS: Record<GaldState, string | null> = {
   worker: galdWorker,
 };
 
+/**
+ * Face down where the fight left him.
+ *
+ * A battlefield state rather than a stage of his life, so it is not one
+ * of GALD_PORTRAITS above: 'defeated' is beaten and looking at you with
+ * the question still open, and this is the moment before that.
+ */
+export const GALD_BATTLE_DOWN: string = galdBattleDown;
+
 export function galdPortrait(state: GaldState): string | null {
   return GALD_PORTRAITS[state] ?? null;
 }
@@ -69,6 +80,19 @@ export const BACKGROUNDS = {
   ALDEN_VILLAGE: aldenVillage,
   ALDEN_TAVERN: aldenTavern,
   GREENWOOD_FOREST: greenwoodForest,
+} as const;
+
+/**
+ * The forest as a field to walk across, rather than as a backdrop.
+ *
+ * A landscape painting of the same place with a clearing floor along
+ * the bottom: the ground band in walkable.ts is measured against this,
+ * which is why it is a separate entry and not a second use of the
+ * backdrop above. The battle screen is unchanged and still uses
+ * BACKGROUNDS.GREENWOOD_FOREST.
+ */
+export const FIELD_ART = {
+  GREENWOOD_FOREST: greenwoodField,
 } as const;
 
 /** The Kaos key visual behind the title. Not a place: a cover image. */

@@ -1,6 +1,15 @@
 // Simple turn-based battle logic. Pure functions, no React / Phaser.
 // v0.1 keeps battle intentionally minimal: attack / defend only.
 
+import {
+  hitPoise,
+  phaseAt,
+  phaseChanged,
+  recoverPoise,
+  type EnemyPhase,
+  type EnemyPoiseSpec,
+} from './enemyBehaviour';
+
 export type BattleOutcome = 'ONGOING' | 'VICTORY' | 'DEFEAT';
 
 /**
@@ -81,6 +90,13 @@ export interface EnemySpec {
   skill?: EnemySkillSpec;
   /** First line of the log, if it has one of its own. */
   appearLine?: string;
+  /**
+   * Its footing, if this one has any. A creature with none fights
+   * exactly as everything did before poise existed.
+   */
+  poise?: EnemyPoiseSpec;
+  /** How it changes as it is hurt, if it changes at all. */
+  phases?: readonly EnemyPhase[];
 }
 
 export interface BattleState {
@@ -100,6 +116,22 @@ export interface BattleState {
   enemySkillUses: number;
   /** What the enemy did on its last turn, for the screen to play. */
   lastEnemyAction: EnemyAction;
+  /**
+   * Its footing, and what happens when it runs out.
+   *
+   * The middle of a fight needs something to aim at that is not "keep
+   * pressing attack until the bar empties". Null for a creature that
+   * has none, and then nothing below it happens at all.
+   */
+  enemyPoiseSpec: EnemyPoiseSpec | null;
+  enemyPoise: number;
+  enemyMaxPoise: number;
+  /** Turns it is off balance for. While above zero it does not act. */
+  enemyStaggerTurns: number;
+  /** Which of its phases it is in, by id. Null while it is still itself. */
+  enemyPhaseId: string | null;
+  /** Its phases, in the order they are entered. */
+  enemyPhases: readonly EnemyPhase[] | null;
   /**
    * What is helping or hindering, for this battle only. Held here so it
    * lives and dies with the fight and cannot leak into the next one.
@@ -142,8 +174,13 @@ export function createBattle(
 ): BattleState {
   const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
   return {
-    playerHp: 40,
-    playerMaxHp: 40,
+    // Raised from 40 with the tempo retune. Forty was two or three of a
+    // bandit's blows, which is why every fight had to be over in two or
+    // three of the player's — the health bar was what made a fight
+    // short, not the enemy's. Everything that heals or protects is
+    // written as a share of this, so the retune is one number.
+    playerHp: 100,
+    playerMaxHp: 100,
     enemyHp: spec.hp,
     enemyMaxHp: spec.hp,
     enemyName: spec.name,
@@ -155,6 +192,12 @@ export function createBattle(
     enemySkillCooldown: 0,
     enemySkillUses: 0,
     lastEnemyAction: 'NONE',
+    enemyPoiseSpec: spec.poise ?? null,
+    enemyPoise: spec.poise?.max ?? 0,
+    enemyMaxPoise: spec.poise?.max ?? 0,
+    enemyStaggerTurns: 0,
+    enemyPhaseId: null,
+    enemyPhases: spec.phases ?? null,
     modifiers: { ...modifiers },
     wardCut: 0,
     log: [spec.appearLine ?? `${spec.name}が現れた！`],
@@ -182,6 +225,25 @@ function enemyTurn(
   forced: EnemyAction | null = null,
 ): BattleState {
   if (state.enemyHp <= 0) return state;
+
+  // Off balance: its turn goes on getting its footing back. This is what
+  // makes breaking a guard worth doing rather than a turn thrown away —
+  // the reward is the creature's next move, not a bigger number.
+  if (state.enemyStaggerTurns > 0) {
+    const back = recoverPoise(state.enemyPoiseSpec, state.enemyPoise, state.enemyStaggerTurns);
+    return {
+      ...state,
+      enemyPoise: back.poise,
+      enemyStaggerTurns: back.staggerTurns,
+      enemySkillCooldown: Math.max(0, state.enemySkillCooldown - 1),
+      lastEnemyAction: 'NONE',
+      log: back.recovered && state.enemyPoiseSpec
+        ? [...state.log, state.enemyPoiseSpec.recoverLine]
+        : state.log,
+    };
+  }
+
+  const phase = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
   const cooldown = Math.max(0, state.enemySkillCooldown - 1);
   const skill = state.enemySkill;
   const mayHide =
@@ -189,8 +251,9 @@ function enemyTurn(
     cooldown === 0 &&
     state.enemyGuardTurns === 0 &&
     state.enemySkillUses < skill.maxUses;
+  const skillChance = phase?.skillChance ?? skill?.chance ?? 0;
   const hides =
-    forced === 'SKILL' ? mayHide : forced === 'ATTACK' ? false : mayHide && rng() < skill!.chance;
+    forced === 'SKILL' ? mayHide : forced === 'ATTACK' ? false : mayHide && rng() < skillChance;
 
   if (hides && skill) {
     return {
@@ -213,6 +276,10 @@ function enemyTurn(
   const struck = applyDamage(roll(state.enemyAttackMin, state.enemyAttackMax, rng), [
     state.modifiers.enemyAttack,
     state.modifiers.playerDamageTaken,
+    // What being hurt has made of it. A creature that fights harder as
+    // it is cornered is the difference between a health bar and an
+    // animal that does not want to die.
+    phase?.attack ?? 1,
     defending ? 0.5 : 1,
   ]);
   // The ward is taken off, not multiplied in — and it always takes at
@@ -255,26 +322,46 @@ export function playerAttack(
   // Whatever the enemy put between itself and the blow, it is worn
   // through by taking one.
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
+  const staggered = state.enemyStaggerTurns > 0;
+  const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
   const dmg = applyDamage(roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng), [
     state.modifiers.playerAttack,
     state.modifiers.enemyDamageTaken,
     guarded ? state.enemySkill!.damageTaken : 1,
+    // Off balance and open. This is the reward for having broken it.
+    staggered ? (state.enemyPoiseSpec?.staggerDamageTaken ?? 1) : 1,
+    // Some creatures get harder to hurt as they get serious.
+    wasIn?.damageTaken ?? 1,
   ]);
   const enemyHp = Math.max(0, state.enemyHp - dmg);
+  // Its footing, taken by the blow. A blow that lands on a guard takes
+  // more of it: breaking the guard is the point of hitting it.
+  const footing = hitPoise(state.enemyPoiseSpec, state.enemyPoise, state.enemyStaggerTurns, guarded);
   let next: BattleState = {
     ...state,
     enemyHp,
-    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    enemyGuardTurns: footing.broke ? 0 : Math.max(0, state.enemyGuardTurns - 1),
+    enemyPoise: footing.poise,
+    enemyStaggerTurns: footing.staggerTurns,
     log: [
       ...state.log,
       guarded
         ? `攻撃！ ${state.enemySkill!.name}に阻まれ、${dmg}のダメージ。`
         : `攻撃！ ${state.enemyName}に${dmg}のダメージ。`,
+      // Losing its footing is a moment, so it gets its own line rather
+      // than being buried in the damage number.
+      ...(footing.broke && state.enemyPoiseSpec ? [state.enemyPoiseSpec.breakLine] : []),
     ],
   };
   if (enemyHp <= 0) {
     // 敵HP0では倒さない。人生選択（LIFE CHOICE）へ委ねる。
     return { ...next, outcome: 'VICTORY', log: [...next.log, `${state.enemyName}は膝をついた……。`] };
+  }
+  // Crossed into something else on the way down. Said once, before its
+  // turn, because what it does next is what the line is about.
+  const nowIn = phaseAt(next.enemyPhases, next.enemyHp, next.enemyMaxHp);
+  if (phaseChanged(wasIn, nowIn) && nowIn) {
+    next = { ...next, enemyPhaseId: nowIn.id, log: [...next.log, nowIn.line] };
   }
   next = enemyTurn(next, false, rng, forcedEnemyAction);
   return next;

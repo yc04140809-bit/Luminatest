@@ -1,107 +1,98 @@
 {
-  "capturedAt": "2026-09-05T13:51:10.544Z",
+  "capturedAt": "2026-09-06T00:53:27.332Z",
   "viewport": {
     "width": 844,
     "height": 390
   },
   "shots": [
     {
-      "file": "01_battle_prototype.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
-    },
-    {
-      "file": "02_greenwood_forest.png",
+      "file": "01_greenwood_forest.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか"
     },
     {
-      "file": "03_greenwood_walking_side.png",
+      "file": "02_greenwood_walking_side.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
     },
     {
-      "file": "04_greenwood_found_item.png",
+      "file": "03_greenwood_found_item.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか"
     },
     {
-      "file": "05_greenwood_forest_event.png",
+      "file": "04_greenwood_forest_event.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）"
     },
     {
-      "file": "06_moss_rabbit_battle.png",
+      "file": "05_moss_rabbit_battle.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "横画面の戦闘。敵＝左／味方＝右、上部情報帯・中央戦闘領域・下部コマンドの3分割"
     },
     {
-      "file": "07_moss_rabbit_life_choice.png",
+      "file": "06_moss_rabbit_life_choice.png",
       "screen": "GREENWOOD / BATTLE",
       "reason": "特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか"
     },
     {
-      "file": "08_title.png",
-      "screen": "TITLE",
-      "reason": "the first screen"
-    },
-    {
-      "file": "09_home_new_world.png",
-      "screen": "HOME",
-      "reason": "始めたばかりの世界。まだ何も覚えていない状態の第一印象"
-    },
-    {
-      "file": "10_home_remembering.png",
-      "screen": "HOME",
-      "reason": "記憶を持った世界。数字と最新の記憶が入ったときの見え方"
-    },
-    {
-      "file": "11_explore.png",
-      "screen": "EXPLORE",
-      "reason": "カードと ✦ 印のコントラスト"
-    },
-    {
-      "file": "12_settings_opening_row.png",
-      "screen": "SETTINGS",
-      "reason": "オープニングテーマの行。既定でON、説明が1行、BGM音量の下に自然に並んでいるか"
+      "file": "07_battle_prototype.png",
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
     }
   ],
   "notPhotographed": [
     {
       "screen": "ADMIN DEV TOOLS",
-      "reason": "ランドスケープ化の影響は受けますが、今回の主題ではないので撮影から外しました。中身の変更は「CHARACTER ART — 実装済み / 未実装」の一覧を1ブロック追加しただけで、演出プレビューは無変更です"
+      "reason": "スクロール修正が入りました（パネル本体がスクロールし、「もどる」は固定）。見た目の変更ではないので撮影せず、e2e/scrolling.spec.ts で「1700px超のパネルの末尾に到達できる」「もどるが常に画面内」を検証しています。CHARACTER ART 一覧に「ガルド」が1体増えています"
+    },
+    {
+      "screen": "EXPLORE",
+      "reason": "一覧のスクロールを確認済み。見た目は前ラウンドから無変更です"
+    },
+    {
+      "screen": "SETTINGS",
+      "reason": "一覧のスクロールを確認済み。見た目は前ラウンドから無変更です"
+    },
+    {
+      "screen": "ARCANA / アルカナ図鑑",
+      "reason": "一覧のスクロールを確認済み。表示は無変更です"
+    },
+    {
+      "screen": "TITLE",
+      "reason": "前ラウンドから無変更です"
+    },
+    {
+      "screen": "HOME",
+      "reason": "前ラウンドから無変更です"
     },
     {
       "screen": "OPENING THEME / SKIP",
       "reason": "前ラウンドから無変更です（楽曲はまだ入っていません）"
     },
     {
-      "screen": "ARCANA / アルカナ図鑑",
-      "reason": "画像の出どころを画像管理レイヤーへ移しましたが、表示は同じ絵の同じ切り出しです。幅だけ読める幅に制限しました"
-    },
-    {
       "screen": "PROLOGUE / KAOS",
-      "reason": "ランドスケープ化。会話ボックスは読める幅で中央に置いています"
+      "reason": "無変更"
     },
     {
       "screen": "TAVERN / TALK",
-      "reason": "シーンアート修正版のまま"
+      "reason": "無変更"
     },
     {
       "screen": "WORLD MEMORY",
-      "reason": "ランドスケープ化のみ"
+      "reason": "スクロール確認済み。見た目は無変更"
     },
     {
       "screen": "LIFE CHOICE / ENDING",
-      "reason": "ランドスケープ化のみ"
+      "reason": "ガルドの絵の「出どころ」を画像管理レイヤーへ移しましたが、出る絵は同じ（膝をついたガルド）です"
     },
     {
       "screen": "PLAYTEST SURVEY",
-      "reason": "ランドスケープ化のみ"
+      "reason": "スクロール確認済み。見た目は無変更"
     },
     {
       "screen": "DEV REVIEW HUB",
-      "reason": "ランドスケープ化のみ"
+      "reason": "無変更"
     }
   ]
 }

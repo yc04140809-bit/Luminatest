@@ -6,6 +6,12 @@ import {
   resolveExplorationEncounter,
   type DiscoveryCategory,
 } from './discovery';
+import {
+  GREENWOOD_FIELD,
+  GREENWOOD_GROUND,
+  edgeZoneAt,
+  isWalkable,
+} from './walkable';
 
 /** An rng that hands out the numbers it was given, then repeats the last. */
 function scripted(values: number[]): () => number {
@@ -98,16 +104,32 @@ describe('nextDiscoverySpot', () => {
     expect(next.id).toBe('B');
   });
 
-  it('keeps every shipped spot inside the field, away from the edges', () => {
+  it('stands every shipped spot on ground the player can actually reach', () => {
+    // Stronger than the box of pixels this used to check, and the thing
+    // that actually matters: a ring in a tree is not something anybody
+    // sees in a screenshot until they try to walk to it.
     for (const spot of GREENWOOD_DISCOVERY_SPOTS) {
-      expect(spot.x).toBeGreaterThanOrEqual(90);
-      expect(spot.x).toBeLessThanOrEqual(270);
-      expect(spot.y).toBeGreaterThanOrEqual(100);
-      // Well above where the player walks in, so it is seen ahead.
-      expect(spot.y).toBeLessThanOrEqual(360);
+      expect(
+        isWalkable(GREENWOOD_GROUND, GREENWOOD_FIELD, spot),
+        `${spot.id} must stand on the clearing floor`,
+      ).toBe(true);
     }
     expect(new Set(GREENWOOD_DISCOVERY_SPOTS.map((s) => s.id)).size).toBe(
       GREENWOOD_DISCOVERY_SPOTS.length,
     );
+  });
+
+  it('spreads them along the clearing rather than bunching them at one end', () => {
+    const xs = GREENWOOD_DISCOVERY_SPOTS.map((s) => s.x);
+    expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan(GREENWOOD_FIELD.width * 0.4);
+  });
+
+  it('keeps them clear of the way back, so walking to one cannot leave the forest', () => {
+    for (const spot of GREENWOOD_DISCOVERY_SPOTS) {
+      expect(
+        edgeZoneAt(GREENWOOD_GROUND, GREENWOOD_FIELD, spot),
+        `${spot.id} must not sit in an edge zone`,
+      ).toBeNull();
+    }
   });
 });

@@ -17,6 +17,14 @@
  * explain and a fourth thing to balance, and none of the three are
  * proven yet.
  */
+import {
+  GREENWOOD_FIELD,
+  GREENWOOD_GROUND,
+  groundPoint,
+  type FieldSize,
+  type GroundBand,
+} from './walkable';
+
 export type DiscoveryCategory = 'EVENT' | 'ITEM' | 'BATTLE';
 
 export const DISCOVERY_CATEGORIES: readonly DiscoveryCategory[] = ['EVENT', 'ITEM', 'BATTLE'];
@@ -84,23 +92,58 @@ export interface DiscoverySpot {
 /**
  * Where a gold ring may stand in Greenwood.
  *
- * Hand-placed against the background art rather than worked out by a
- * machine: each one is on or beside the path, far enough from the edges
- * that nothing is half off-screen, and up the slope from where the
- * player enters, so the ring is something seen ahead rather than
- * something that appeared underfoot. No navmesh, no image analysis —
- * eight coordinates and a rule about which one comes next.
+ * Placed ON THE GROUND BAND rather than measured against the painting:
+ * each one is given as how far along the clearing it is and how far
+ * forward, and walkable.ts turns that into a point that is on the path
+ * by construction. That is the whole reason these moved — hand-placed
+ * pixels have to be re-placed every time the art or the field's shape
+ * changes, and a ring standing in a tree is not a bug anybody can see
+ * in a screenshot until they walk into it.
+ *
+ * The player comes in from the right and the forest goes on to the
+ * left, so the spots lean that way: something to walk towards, not
+ * something that appeared underfoot.
  */
-export const GREENWOOD_DISCOVERY_SPOTS: readonly DiscoverySpot[] = [
-  { id: 'PATH_FAR', x: 180, y: 118 },
-  { id: 'PATH_BEND_LEFT', x: 138, y: 166 },
-  { id: 'PATH_BEND_RIGHT', x: 224, y: 158 },
-  { id: 'ROOTS_LEFT', x: 120, y: 250 },
-  { id: 'PATH_MIDDLE', x: 172, y: 232 },
-  { id: 'STONES_RIGHT', x: 238, y: 258 },
-  { id: 'PATH_NEAR_RIGHT', x: 206, y: 322 },
-  { id: 'PATH_NEAR_LEFT', x: 134, y: 330 },
+export interface GroundSpot {
+  id: string;
+  /** 0 at the left edge of the clearing, 1 at the right. */
+  along: number;
+  /** 0 at the back of the clearing, 1 at the front. */
+  depth: number;
+}
+
+export const GREENWOOD_GROUND_SPOTS: readonly GroundSpot[] = [
+  { id: 'PATH_FAR', along: 0.22, depth: 0.18 },
+  { id: 'PATH_BEND_LEFT', along: 0.1, depth: 0.52 },
+  { id: 'PATH_BEND_RIGHT', along: 0.36, depth: 0.34 },
+  { id: 'ROOTS_LEFT', along: 0.17, depth: 0.86 },
+  { id: 'PATH_MIDDLE', along: 0.5, depth: 0.62 },
+  { id: 'STONES_RIGHT', along: 0.68, depth: 0.28 },
+  { id: 'PATH_NEAR_RIGHT', along: 0.74, depth: 0.9 },
+  { id: 'PATH_NEAR_LEFT', along: 0.42, depth: 0.96 },
 ];
+
+/**
+ * The same eight places, as coordinates in a field of this size.
+ *
+ * Derived rather than written down, so the ring is on the path because
+ * of where the path is — not because somebody once measured a pixel
+ * and nobody has re-measured it since.
+ */
+export function spotsOnGround(
+  spots: readonly GroundSpot[],
+  size: FieldSize = GREENWOOD_FIELD,
+  band: GroundBand = GREENWOOD_GROUND,
+): DiscoverySpot[] {
+  return spots.map((s) => {
+    const p = groundPoint(band, size, s.along, s.depth);
+    return { id: s.id, x: p.x, y: p.y };
+  });
+}
+
+/** Greenwood's, at the size the forest is actually drawn. */
+export const GREENWOOD_DISCOVERY_SPOTS: readonly DiscoverySpot[] =
+  spotsOnGround(GREENWOOD_GROUND_SPOTS);
 
 export interface NextSpotOptions {
   spots?: readonly DiscoverySpot[];

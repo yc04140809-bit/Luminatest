@@ -1,14 +1,10 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin } from './helpers';
+import { RING_TAPS, enterDevAdmin, swingUntil } from './helpers';
 
 /**
  * The moss rabbit, from meeting one in the forest to the world writing
  * down what was decided about one of them.
  */
-const RING_SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 async function freshWorld(page: Page) {
   await page.goto('/');
@@ -51,7 +47,9 @@ async function prepare(page: Page, story: 'on' | 'off', enemyAction?: 'ATTACK' |
 async function intoForest(page: Page) {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
-  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+    timeout: 20_000,
+  });
   await page.waitForTimeout(1500);
 }
 
@@ -59,8 +57,8 @@ async function intoForest(page: Page) {
 async function walkIntoAFight(page: Page): Promise<boolean> {
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
   const battle = page.getByTestId('battle-screen');
-  for (const [x, y] of RING_SPOTS) {
-    await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+  for (const at of RING_TAPS) {
+    await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
     for (let i = 0; i < 12; i++) {
       await page.waitForTimeout(180);
       if (await battle.isVisible().catch(() => false)) return true;
@@ -70,13 +68,9 @@ async function walkIntoAFight(page: Page): Promise<boolean> {
 }
 
 async function winTheFight(page: Page) {
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 20; i++) {
-    if (await page.getByTestId('enemy-defeated-line').isVisible().catch(() => false)) break;
-    if (await attack.isEnabled().catch(() => false)) await attack.click();
-    await page.waitForTimeout(140);
-  }
-  await expect(page.getByTestId('enemy-defeated-line')).toBeVisible();
+  await swingUntil(page, 'attack-button', () =>
+    page.getByTestId('enemy-defeated-line').isVisible().catch(() => false),
+  );
 }
 
 test.describe('moss rabbit', () => {
@@ -112,8 +106,17 @@ test.describe('moss rabbit', () => {
     // at you, which is the only reason the fight can end.
     let tackled = false;
     for (let i = 0; i < 12 && !tackled; i++) {
-      if (await page.getByTestId('enemy-defeated-line').isVisible().catch(() => false)) break;
-      if (await attack.isEnabled().catch(() => false)) await attack.click();
+      if (
+        await page
+          .getByTestId('enemy-defeated-line')
+          .isVisible()
+          .catch(() => false)
+      )
+        break;
+      // Short and forgiving: between one blow and the next the
+      // commands are mid-animation, and a plain click() there waits
+      // for the whole test timeout rather than for the button.
+      await attack.click({ timeout: 2500 }).catch(() => {});
       await page.waitForTimeout(160);
       tackled = ((await log.textContent()) ?? '').includes('リーフタックル');
     }
@@ -121,7 +124,9 @@ test.describe('moss rabbit', () => {
 
     await winTheFight(page);
     // Story roll forced off, so this one was only ever an animal.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
   });
 
   test('is usually just an animal: the world keeps no record of one', async ({ page }) => {
@@ -132,7 +137,9 @@ test.describe('moss rabbit', () => {
     await winTheFight(page);
 
     // Straight back to the path — no question asked about its life.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByTestId('creature-life-choice-screen')).toHaveCount(0);
   });
 
@@ -161,7 +168,9 @@ test.describe('moss rabbit', () => {
     await page.getByTestId('creature-choice-HELP').click();
     await expect(page.getByTestId('creature-choice-result')).toBeVisible();
     await page.getByTestId('creature-choice-continue').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     // And the world wrote it down.
     const kinds = await page.evaluate(
@@ -201,7 +210,9 @@ test.describe('moss rabbit', () => {
     }
     await page.getByTestId('creature-choice-KILL').click();
     await page.getByTestId('creature-choice-continue').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     // Killing one does not empty the forest of moss rabbits.
     expect(await walkIntoAFight(page)).toBe(true);

@@ -5,11 +5,11 @@ import {
   playerDefend,
   type BattleState,
   type EnemyAction,
-  type EnemySpec,
 } from '../../game/battle/battleLogic';
-import { GALD } from '../../content/characters/gald';
+import { specOf } from '../../game/battle/enemySpec';
+import { GALD_BATTLE } from '../../content/enemies/galdBattle';
 import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
-import { galdPortrait } from '../../assets/manifest';
+import { partyArtFor } from '../../content/art';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
@@ -35,18 +35,6 @@ interface Props {
 }
 
 /** A species, in the units the battle speaks. */
-function specOf(species: EnemySpeciesDef): EnemySpec {
-  return {
-    name: species.name,
-    hp: species.hp,
-    attackMin: species.attackMin,
-    attackMax: species.attackMax,
-    attackName: species.attackName,
-    skill: species.skill,
-    appearLine: species.appearLine,
-  };
-}
-
 /**
  * Which brief reaction is on screen.
  *
@@ -113,7 +101,7 @@ export function BattleScreen({
   // The bandit is named from the first line of the encounter, so the bar
   // above belongs to a person the player has already met.
   const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(enemy ? specOf(enemy) : `盗賊 ${GALD.name}`),
+    createBattle(enemy ? specOf(enemy) : GALD_BATTLE),
   );
   const [reaction, setReaction] = useState<Reaction>('NONE');
   const beats = useRef<number[]>([]);
@@ -154,7 +142,9 @@ export function BattleScreen({
   const beaten = battle.enemyHp <= 0;
   const lastLogs = battle.log.slice(-2);
   // Gald has standing art at both moments; a species has one picture.
-  const portrait = enemy ? enemy.portrait : galdPortrait(beaten ? 'defeated' : 'ready');
+  const portrait = enemy
+    ? enemy.portrait
+    : (partyArtFor('gald', beaten ? 'battle_damage' : 'battle_idle').asset?.src ?? null);
   const backdrop = locationBackground(battleLocationId);
 
   const attack = () => {

@@ -63,7 +63,15 @@ export type EnemyArtState =
   | 'portrait'
   | 'sheet';
 
-/** The same, for anybody on the player's side. */
+/**
+ * The same, for anybody who is drawn as a person: the party, and the
+ * people the party meets and sometimes fights.
+ *
+ * There is no separate list for "the Gald you fight" and "the Gald you
+ * talk to". A close-up in a conversation is a WAY OF SHOWING a picture,
+ * not a category of picture, and the moment those become two characters
+ * they need keeping in step forever.
+ */
 export type PartyArtState =
   | 'battle_idle'
   | 'battle_attack'
@@ -71,6 +79,7 @@ export type PartyArtState =
   | 'battle_skill_1'
   | 'battle_skill_2'
   | 'battle_down'
+  | 'talk'
   | 'portrait'
   | 'fullbody'
   | 'cutin'
@@ -86,6 +95,25 @@ export type PartyArtState =
  */
 export const ENEMY_FALLBACK: readonly EnemyArtState[] = ['idle', 'side', 'front', 'sheet'];
 export const PARTY_FALLBACK: readonly PartyArtState[] = ['battle_idle', 'fullbody', 'portrait'];
+
+/**
+ * What to show in a conversation when there is no talking picture.
+ *
+ * A different chain from the battlefield's, and that is the point: a
+ * mid-swing battle pose is a bad stand-in for somebody speaking to you,
+ * and a portrait is a bad stand-in for somebody standing on a
+ * battlefield. Falling back to a whole figure and showing the top of it
+ * is what "a close-up is a way of showing, not a kind of picture" means
+ * in practice.
+ */
+export const TALK_FALLBACK: readonly PartyArtState[] = ['fullbody', 'portrait', 'battle_idle'];
+
+/** Which chain a request belongs to. */
+export function partyChainFor(state: PartyArtState): readonly PartyArtState[] {
+  return state === 'talk' || state === 'portrait' || state === 'cutin'
+    ? TALK_FALLBACK
+    : PARTY_FALLBACK;
+}
 
 /** One character's pictures. Every state is optional, on purpose. */
 export interface ArtSet<S extends string> {

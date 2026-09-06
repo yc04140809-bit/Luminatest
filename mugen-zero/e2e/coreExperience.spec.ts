@@ -1,4 +1,5 @@
 import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { GALD_TAP, swingUntil } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,7 +57,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.waitForTimeout(500);
     const box = await canvas.boundingBox();
     if (!box) throw new Error('canvas bounding box unavailable');
-    await page.mouse.click(box.x + box.width * (180 / 360), box.y + box.height * (120 / 520));
+    await page.mouse.click(box.x + box.width * GALD_TAP.fx, box.y + box.height * GALD_TAP.fy);
 
     // --- GALD ENCOUNTER -> BATTLE ---
     const encounter = page.getByTestId('gald-encounter');
@@ -66,14 +67,14 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await encounter.click();
     await expect(page.getByTestId('battle-screen')).toBeVisible();
     const attack = page.getByTestId('attack-button');
-    for (let i = 0; i < 8; i++) {
-      if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-      if (await attack.isEnabled().catch(() => false)) await attack.click();
-      await page.waitForTimeout(150);
-    }
+    await swingUntil(page, 'attack-button', () =>
+      page.getByTestId('life-choice-screen').isVisible().catch(() => false),
+    );
 
     // --- LIFE CHOICE: SPARE, and WORLD MEMORY records it ---
-    await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('life-choice-screen')).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByText('彼の人生を、どうしますか？')).toBeVisible();
     await page.getByTestId('choice-SPARE').click();
     const result = page.getByTestId('choice-result-dialogue');
@@ -91,7 +92,9 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await expect(page.getByTestId('world-clock')).toHaveText('1年目 4日目');
     await page.getByTestId('time-shift-button').click();
     await page.getByTestId('time-shift-go').click();
-    await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('time-shift-done')).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByText('――3年後。')).toBeVisible();
     await page.getByTestId('time-shift-return').click();
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
@@ -119,7 +122,9 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await scene.click();
     await scene.click();
     await scene.click();
-    await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByText('「……続き、あったでしょ？」')).toBeVisible();
     await page.getByTestId('bakery-leave').click();
 
@@ -157,7 +162,9 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.getByTestId('archive-button').click();
     await page.getByTestId('archive-entry-GALD').click();
     await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
-    await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText('1年目 94日目');
+    await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText(
+      '1年目 94日目',
+    );
     await expect(page.getByTestId('archive-unknown')).toHaveCount(0);
 
     await context.close();

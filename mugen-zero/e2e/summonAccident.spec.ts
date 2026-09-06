@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin, PHONES, viewportOf } from './helpers';
+import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
 
 /**
  * ARCANA v0.3 — a summon that always means something, and the first
@@ -17,11 +17,6 @@ import { enterDevAdmin, PHONES, viewportOf } from './helpers';
  *    the breath brings to zero goes down and is asked about in the
  *    ordinary way, exactly as if the player had done it.
  */
-
-const RING_SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 async function freshWorld(page: Page) {
   await page.goto('/');
@@ -87,7 +82,16 @@ async function openBattle(page: Page, options: Setup) {
 
 async function playerHp(page: Page): Promise<number> {
   const text = (await page.getByTestId('bp-player-hp').textContent()) ?? '';
-  return Number(/(\d+)\s*\/\s*40/.exec(text.replace(/\s+/g, ' '))?.[1] ?? NaN);
+  // Read both numbers off the plate rather than pinning the maximum:
+  // the player's health moved with the battle tempo retune, and what
+  // these tests are about is what a summon does to it, not what it is.
+  return Number(/(\d+)\s*\/\s*(\d+)/.exec(text.replace(/\s+/g, ' '))?.[1] ?? NaN);
+}
+
+/** And the maximum on the same plate, so nothing has to know the number. */
+async function playerMaxHp(page: Page): Promise<number> {
+  const text = (await page.getByTestId('bp-player-hp').textContent()) ?? '';
+  return Number(/(\d+)\s*\/\s*(\d+)/.exec(text.replace(/\s+/g, ' '))?.[2] ?? NaN);
 }
 
 async function enemyHp(page: Page): Promise<number> {
@@ -104,9 +108,13 @@ async function guard(page: Page) {
 
 /** Sits through the whole thing and comes out the other side. */
 async function throughTheAccident(page: Page) {
-  await expect(page.getByTestId('bp-accident-card')).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByTestId('bp-accident-card')).toBeVisible({
+    timeout: 8_000,
+  });
   await expect(page.getByTestId('bp-dragon')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByTestId('bp-accident-talk')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('bp-accident-talk')).toBeVisible({
+    timeout: 15_000,
+  });
   await page.getByTestId('bp-accident-talk').click();
 }
 
@@ -119,7 +127,11 @@ test.describe('what a called memory does', () => {
     // The whole reason this changed: at the start of a fight nobody is
     // hurt, and the old version said "HPはもう満ちている。" and stopped.
     await freshWorld(page);
-    await openBattle(page, { arcana: '中', summon: 'SUCCESS', enemyAction: 'ATTACK' });
+    await openBattle(page, {
+      arcana: '中',
+      summon: 'SUCCESS',
+      enemyAction: 'ATTACK',
+    });
     await expect(page.getByTestId('bp-summon-card')).toBeVisible();
     await page.getByTestId('bp-summon-card').click();
 
@@ -129,20 +141,26 @@ test.describe('what a called memory does', () => {
     await expect(said).toContainText('身体を包んだ');
     await expect(page.getByTestId('bp-said-result')).toContainText('森の加護');
     await expect(said).not.toContainText('HPはもう満ちている');
-    expect(await playerHp(page)).toBe(40);
+    expect(await playerHp(page)).toBe(await playerMaxHp(page));
 
     // And the fight is an ordinary fight afterwards.
-    await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-commands')).toBeVisible({
+      timeout: 8_000,
+    });
     await guard(page);
-    expect(await playerHp(page)).toBeLessThan(40);
+    expect(await playerHp(page)).toBeLessThan(await playerMaxHp(page));
   });
 
   test('closes a wound when there is one', async ({ page }) => {
     await freshWorld(page);
-    await openBattle(page, { arcana: 'COMPLETE', summon: null, enemyAction: 'ATTACK' });
+    await openBattle(page, {
+      arcana: 'COMPLETE',
+      summon: null,
+      enemyAction: 'ATTACK',
+    });
     await guard(page);
     const before = await playerHp(page);
-    expect(before).toBeLessThan(40);
+    expect(before).toBeLessThan(await playerMaxHp(page));
 
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
@@ -156,12 +174,20 @@ test.describe('what a called memory does', () => {
 
   test('is gone by the next fight', async ({ page }) => {
     await freshWorld(page);
-    await openBattle(page, { arcana: '中', summon: 'SUCCESS', enemyAction: 'ATTACK' });
+    await openBattle(page, {
+      arcana: '中',
+      summon: 'SUCCESS',
+      enemyAction: 'ATTACK',
+    });
     await page.getByTestId('bp-summon-card').click();
     await expect(page.getByTestId('bp-said-result')).toContainText('森の加護');
 
     await reopen(page);
-    await openBattle(page, { arcana: '0', summon: null, enemyAction: 'ATTACK' });
+    await openBattle(page, {
+      arcana: '0',
+      summon: null,
+      enemyAction: 'ATTACK',
+    });
     await expect(page.getByTestId('bp-summon-card')).toHaveCount(0);
     await guard(page);
     // Nothing carried over: the plate is reporting an ordinary blow.
@@ -196,8 +222,10 @@ test.describe('the three ways an unfinished memory goes', () => {
     await expect(page.getByTestId('bp-summon-card')).toHaveAttribute('data-outcome', 'FAILURE');
     await expect(page.getByTestId('bp-summon-card')).toContainText('輪郭が足りない');
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 8_000 });
-    expect(await playerHp(page)).toBe(40);
+    await expect(page.getByTestId('bp-commands')).toBeVisible({
+      timeout: 8_000,
+    });
+    expect(await playerHp(page)).toBe(await playerMaxHp(page));
     await expect(page.getByTestId('bp-dragon')).toHaveCount(0);
   });
 
@@ -263,7 +291,9 @@ test.describe('the thing itself', () => {
     await freshWorld(page);
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-dragon')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('bp-dragon')).toBeVisible({
+      timeout: 10_000,
+    });
 
     // The enemy stands on the left, so it looks left. The drawing
     // faces right, so the screen mirrors it — and mirrors it only.
@@ -312,7 +342,9 @@ test.describe('《エンシェントブレス》', () => {
     await freshWorld(page);
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 12_000 });
+    await expect(page.getByTestId('bp-breath')).toBeVisible({
+      timeout: 12_000,
+    });
 
     // The face, the mouth, the beam and the title are at opposite
     // ends of a wide drawing, so the whole of it is shown rather than
@@ -327,14 +359,14 @@ test.describe('《エンシェントブレス》', () => {
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     expect(await enemyHp(page)).toBeGreaterThan(0);
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 12_000 });
-    await expect
-      .poll(() => enemyHp(page), { timeout: 8_000 })
-      .toBe(0);
+    await expect(page.getByTestId('bp-breath')).toBeVisible({
+      timeout: 12_000,
+    });
+    await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBe(0);
     // Brought to zero, not killed. The creature goes down and lies
     // there, exactly as it does when the player does it.
     await expect(page.getByTestId('bp-message')).toContainText('膝をついた');
-    expect(await playerHp(page)).toBe(40);
+    expect(await playerHp(page)).toBe(await playerMaxHp(page));
   });
 
   test('leaves the four answers to the player, not to the dragon', async ({ page }) => {
@@ -350,14 +382,20 @@ test.describe('《エンシェントブレス》', () => {
 
     await page.getByTestId('explore-button').click();
     await page.getByTestId('location-GREENWOOD_FOREST').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
     await page.waitForTimeout(2200);
     const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
-    const fighting = () => page.getByTestId('battle-prototype').isVisible().catch(() => false);
+    const fighting = () =>
+      page
+        .getByTestId('battle-prototype')
+        .isVisible()
+        .catch(() => false);
     let found = false;
     for (let pass = 0; pass < 2 && !found; pass++) {
-      for (const [x, y] of RING_SPOTS) {
-        await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+      for (const at of RING_TAPS) {
+        await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
         for (let i = 0; i < 16 && !found; i++) {
           await page.waitForTimeout(180);
           if (await fighting()) found = true;
@@ -370,14 +408,18 @@ test.describe('《エンシェントブレス》', () => {
     await page.getByTestId('bp-summon-card').click();
     await throughTheAccident(page);
     // Down first, and only then asked — never decided for.
-    await expect(page.getByTestId('bp-enemy-downed')).toBeVisible({ timeout: 12_000 });
+    await expect(page.getByTestId('bp-enemy-downed')).toBeVisible({
+      timeout: 12_000,
+    });
     const choice = page.getByTestId('bp-mugen-choice');
     await expect(choice).toBeVisible({ timeout: 12_000 });
     for (const id of ['KILL', 'SPARE', 'HELP', 'CAPTURE']) {
       await expect(page.getByTestId(`bp-mugen-${id}`)).toBeVisible();
     }
     await page.getByTestId('bp-mugen-SPARE').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
   });
 });
 
@@ -386,7 +428,9 @@ test.describe('it is quiet, however large it is', () => {
     await freshWorld(page);
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     await page.getByTestId('bp-summon-card').click();
-    await expect(page.getByTestId('bp-breath')).toBeVisible({ timeout: 12_000 });
+    await expect(page.getByTestId('bp-breath')).toBeVisible({
+      timeout: 12_000,
+    });
 
     // The UI is still the UI: both plates and the message are there.
     await expect(page.getByTestId('bp-player-hp')).toBeVisible();
@@ -419,7 +463,9 @@ test.describe('the book afterwards', () => {
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     await page.getByTestId('bp-summon-card').click();
     await throughTheAccident(page);
-    await expect(page.getByTestId('bp-message')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-message')).toBeVisible({
+      timeout: 8_000,
+    });
   }
 
   test('gains a row that is a sighting, not a page', async ({ page }) => {
@@ -505,7 +551,9 @@ test.describe('when it may happen again', () => {
     await openBattle(page, { arcana: '中', summon: 'ACCIDENT' });
     await page.getByTestId('bp-summon-card').click();
     await throughTheAccident(page);
-    await expect(page.getByTestId('bp-message')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-message')).toBeVisible({
+      timeout: 8_000,
+    });
     await reopen(page);
   }
 
@@ -560,7 +608,11 @@ test.describe('when it may happen again', () => {
 test.describe('everything she used to do, she still does', () => {
   test('a blessing asked for by name is still a blessing', async ({ page }) => {
     await freshWorld(page);
-    await openBattle(page, { arcana: '中', summon: null, chaos: 'CHAOS_BLESSING' });
+    await openBattle(page, {
+      arcana: '中',
+      summon: null,
+      chaos: 'CHAOS_BLESSING',
+    });
     await expect(page.getByTestId('bp-chaos-card')).toBeVisible();
     await expect(page.getByTestId('bp-dragon')).toHaveCount(0);
     await page.getByTestId('bp-chaos-card').click();
@@ -569,18 +621,28 @@ test.describe('everything she used to do, she still does', () => {
 
   test('and a curse is still a curse', async ({ page }) => {
     await freshWorld(page);
-    await openBattle(page, { arcana: '中', summon: null, chaos: 'CHAOS_WEAKEN' });
+    await openBattle(page, {
+      arcana: '中',
+      summon: null,
+      chaos: 'CHAOS_WEAKEN',
+    });
     await expect(page.getByTestId('bp-chaos-card')).toBeVisible();
     await expect(page.getByTestId('bp-dragon')).toHaveCount(0);
   });
 
   test('a finished memory is still the player’s to spend', async ({ page }) => {
     await freshWorld(page);
-    await openBattle(page, { arcana: 'COMPLETE', summon: null, enemyAction: 'ATTACK' });
+    await openBattle(page, {
+      arcana: 'COMPLETE',
+      summon: null,
+      enemyAction: 'ATTACK',
+    });
     await page.getByTestId('bp-arcana').click();
     await page.getByTestId('bp-arcana-moss_rabbit').click();
     await expect(page.getByTestId('bp-summoned')).toHaveAttribute('data-kind', 'COMPLETE');
-    await expect(page.getByTestId('bp-arcana-spent')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-arcana-spent')).toBeVisible({
+      timeout: 8_000,
+    });
   });
 });
 

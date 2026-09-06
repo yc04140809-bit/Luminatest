@@ -17,6 +17,16 @@ interface Props<S extends string> {
   /** For the placeholder, so a missing picture still says who is missing. */
   label?: string;
   testId?: string;
+  /**
+   * Show the top of the drawing rather than all of it.
+   *
+   * A conversation wants a face. When a talking picture exists it is
+   * already a close-up and this does nothing; when the art layer has
+   * fallen back to a whole figure, this is what turns that figure into
+   * a close-up — which is the whole reason a close-up is not an eighth
+   * picture somebody has to draw.
+   */
+  bust?: boolean;
 }
 
 /**
@@ -34,6 +44,7 @@ export function CharacterArt<S extends string>({
   face,
   label,
   testId,
+  bust,
 }: Props<S>) {
   if (art.placeholder || !art.asset) {
     return (
@@ -50,11 +61,16 @@ export function CharacterArt<S extends string>({
     );
   }
   const { asset } = art;
-  const box = asset.box;
+  // A close-up of a picture that is already a close-up is just the
+  // picture. Only a stand-in gets cropped.
+  const cropToBust = bust === true && art.state !== 'talk' && art.state !== 'portrait';
+  const box = cropToBust ? bustBox(asset) : asset.box;
   const flip = face !== undefined && asset.facing !== undefined && asset.facing !== face;
   const style = box
     ? cropStyle(asset, box, height)
-    : { height, width: 'auto', backgroundImage: `url(${asset.src})`, backgroundSize: 'contain' };
+    : cropToBust
+      ? bustStyle(asset, height)
+      : { height, width: 'auto', backgroundImage: `url(${asset.src})`, backgroundSize: 'contain' };
   return (
     <div
       className={className}
@@ -65,6 +81,7 @@ export function CharacterArt<S extends string>({
       // can tell "the attack pose is drawn" from "the attack pose falls
       // back to the standing one", which look identical in a screenshot.
       data-art-substituted={art.substituted ? 'yes' : undefined}
+      data-art-bust={cropToBust ? 'yes' : undefined}
     />
   );
 }
@@ -77,5 +94,49 @@ function cropStyle(asset: ArtAsset, box: NonNullable<ArtAsset['box']>, height: n
     backgroundImage: `url(${asset.src})`,
     backgroundSize: `${box.fileW * k}px ${box.fileH * k}px`,
     backgroundPosition: `${-box.x * k}px ${-box.y * k}px`,
+  } as const;
+}
+
+
+/**
+ * The top of a drawing, as a box.
+ *
+ * The head and shoulders of a standing figure are the top third or so
+ * of it, roughly centred. Rough is right: this is a fallback for a
+ * picture nobody has drawn yet, and a rule that is nearly right
+ * everywhere beats a table of per-character numbers that has to be
+ * maintained for a stand-in.
+ */
+const BUST_HEIGHT = 0.38;
+const BUST_WIDTH = 0.56;
+
+function bustBox(asset: ArtAsset): NonNullable<ArtAsset['box']> | undefined {
+  const box = asset.box;
+  if (!box) return undefined;
+  return {
+    fileW: box.fileW,
+    fileH: box.fileH,
+    x: box.x + box.width * ((1 - BUST_WIDTH) / 2),
+    y: box.y,
+    width: box.width * BUST_WIDTH,
+    height: box.height * BUST_HEIGHT,
+  };
+}
+
+/**
+ * The same crop for a picture whose file has no box on it.
+ *
+ * Its pixel size is not known here, so the crop is said in proportions
+ * instead: draw the whole figure at the height it would need for its
+ * top BUST_HEIGHT to fill this element, and show that top.
+ */
+function bustStyle(asset: ArtAsset, height: number) {
+  return {
+    height,
+    width: Math.round(height * (BUST_WIDTH / BUST_HEIGHT) * 0.62),
+    backgroundImage: `url(${asset.src})`,
+    backgroundSize: `auto ${Math.round(height / BUST_HEIGHT)}px`,
+    backgroundPosition: 'center top',
+    backgroundRepeat: 'no-repeat',
   } as const;
 }

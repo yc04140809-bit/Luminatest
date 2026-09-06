@@ -72,6 +72,31 @@ body,
   margin: 0 auto;
 }
 
+/* THE SCROLLING PART OF A SCREEN.
+   A landscape stage is under 400px tall and several screens hold far
+   more than that. The content scrolls; the footer with 「もどる」 in it
+   does not, because a way out you have to scroll to find is a way out
+   people do not find. Screens whose content is a single list already
+   have this in .location-list — this is for the ones that are a page. */
+.screen-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 0 16px 8px;
+}
+
+/* Nothing may quietly fall off the bottom of a screen. A screen that
+   holds more than it can show says so by scrolling — and if it cannot
+   scroll, it is a bug, not a slightly cropped page. */
+.screen {
+  overflow: hidden;
+}
+
 .screen {
   flex: 1;
   display: flex;
@@ -742,8 +767,8 @@ body,
 
 /* ---- greenwood / phaser ---- */
 .phaser-wrap {
-  grid-column: 2;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -1523,20 +1548,25 @@ body,
    one line of instruction down the right, so the room either side of
    the field is used rather than left empty. */
 .field-screen {
+  /* The field is a landscape world of its own now and takes the whole
+     screen. The screen's furniture sits ON it — the place name over the
+     canopy top-left, the way out over the trees bottom-right — so
+     nothing is laid across the ground the player walks on. */
+  position: relative;
   background: var(--mugen-bg);
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
+  display: block;
+  padding: 0;
 }
 
 .field-intro {
+  position: absolute;
+  z-index: 2;
+  top: calc(6px + env(safe-area-inset-top));
+  left: calc(14px + env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 1px;
-  grid-column: 1;
   padding: 0;
 }
 .field-intro-en {
@@ -1554,7 +1584,8 @@ body,
   font-weight: 400;
   letter-spacing: 0.22em;
   text-indent: 0.22em;
-  color: var(--mugen-text);
+  color: rgba(255, 253, 248, 0.96);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9);
 }
 .field-intro-rule {
   margin-top: 6px;
@@ -1564,18 +1595,24 @@ body,
 }
 
 .field-foot {
+  position: absolute;
+  z-index: 2;
+  right: calc(14px + env(safe-area-inset-right));
+  bottom: calc(4px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  grid-column: 3;
+  align-items: flex-end;
+  gap: 0;
   padding: 0;
 }
 .field-hint {
   margin: 0;
   font-size: 11px;
   letter-spacing: 0.16em;
-  color: var(--mugen-text-muted);
+  /* Over the picture now, so it carries its own legibility rather than
+     borrowing the page's. */
+  color: rgba(255, 253, 248, 0.72);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
 }
 /* Secondary by construction: a line of type with a rule under it, never
    a slab competing with the thing worth walking to. */
@@ -1583,17 +1620,18 @@ body,
   appearance: none;
   background: none;
   border: none;
-  border-top: 1px solid var(--mugen-border);
+  border-top: 1px solid rgba(201, 169, 97, 0.5);
   padding: 10px 26px 4px;
   min-height: var(--tap-min);
-  color: var(--mugen-text-secondary);
+  color: rgba(255, 253, 248, 0.92);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
   font-family: inherit;
   font-size: 13px;
   letter-spacing: 0.14em;
   cursor: pointer;
 }
 .field-exit:active {
-  color: var(--mugen-gold);
+  color: var(--mugen-gold-bright);
 }
 
 /* ---- what the forest gives you ----
@@ -3276,4 +3314,59 @@ body,
   color: var(--mugen-text-muted);
   font-size: 15px;
   letter-spacing: 0.1em;
+}
+
+/* ---- what a creature has left besides health ----
+   Its FOOTING, drawn as a thin line under its health bar. Hitting it
+   takes footing; hitting it while it is guarding takes more. At zero it
+   is off balance, cannot act, and takes more — which is the middle of a
+   fight having something to aim at other than the health bar going
+   down. Only creatures that have footing get the line. */
+.bp-poise {
+  position: absolute;
+  left: 0;
+  bottom: -3px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(214, 178, 104, 0.9);
+  transition: width 0.24s ease;
+}
+.bp-poise.broken {
+  /* Gone, and visibly so: the bar is empty and the space it left is lit. */
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(214, 178, 104, 0.55);
+  width: 100% !important;
+  animation: bp-poise-broken 0.7s ease-in-out infinite;
+}
+@keyframes bp-poise-broken {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.bp-track {
+  position: relative;
+  overflow: visible;
+}
+/* One word for what it has become. Beside its name, in her colour. */
+.bp-phase {
+  font-style: normal;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid rgba(214, 178, 104, 0.65);
+  border-radius: 999px;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: #dcc084;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-poise.broken {
+    animation: none;
+  }
+}
+:root[data-reduced-motion='on'] .bp-poise.broken {
+  animation: none;
 }

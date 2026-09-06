@@ -10,67 +10,71 @@
 
 import type { VisualChange } from '../../core/qa/types';
 
-/* LANDSCAPE MIGRATION v1.0 turns every screen in the game through
-   ninety degrees, so there is no such thing as an unaffected screen this
-   round either. What is photographed is the set that answers "did
-   turning it break anything": the way in, the home, the list, the
-   forest, the fight, and the settings page the opening theme lives on.
-   The rest is described in words. */
+/* v1.1 changes two screens deeply and several others structurally. The
+   two deep ones are photographed: the forest, which is now a landscape
+   field with ground you can and cannot stand on, and the fight, which
+   has a middle to it. The structural ones — a panel that scrolls, a way
+   out that stays put — are things a screenshot cannot show and a test
+   can, so they are asserted in e2e/scrolling.spec.ts and described in
+   words here. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
-  {
-    screen: 'BATTLE UI PROTOTYPE',
-    changed: true,
-    reason:
-      'ランドスケープ化。上部情報帯（敵HP＝左／味方HP＝右）／中央戦闘領域／下部コマンドUI の3分割にしました。敵は左、味方（あなた＋ケイオス）は右で、互いを向いています。演出・タイムライン・古代龍のカットインは無変更です',
-  },
   {
     screen: 'GREENWOOD / BATTLE',
     changed: true,
     reason:
-      'ランドスケープ化。探索フィールド（Phaser）のワールドは縦のまま中央に置き、場所名を左、操作説明と「森を出る」を右に配置しました。8つの発見スポットは背景画に合わせて手で置いたものなので動かしていません',
+      '探索フィールドを横ワールド化しました。背景は新規の横長フィールド画（添付いただいたもの）。画面下部の地面帯だけが歩行可能で、地面以外をタップしても最寄りの地面へ補正されます。8つの発見スポットは地面帯の上に「どのくらい奥／どのくらい横」で定義され、ピクセル指定をやめました。進行方向は右→左で、右端に「戻る」判定を置いています',
   },
   {
-    screen: 'TITLE',
-    changed: true,
-    reason: 'ランドスケープ化。キービジュアル・ロゴ・翼の装飾・ボタンはそのままです',
-  },
-  {
-    screen: 'HOME',
+    screen: 'BATTLE UI PROTOTYPE',
     changed: true,
     reason:
-      'ランドスケープ化。左に村（円のなか）、右に世界の記憶・探索する・下段レール、という2段組にしました。項目・文言・遷移は無変更です',
-  },
-  {
-    screen: 'EXPLORE',
-    changed: true,
-    reason: 'ランドスケープ化。カードが横幅いっぱいに伸びないよう、読める幅で中央に置いています',
-  },
-  {
-    screen: 'SETTINGS',
-    changed: true,
-    reason: 'ランドスケープ化。前ラウンドで足した「オープニングテーマ ON/OFF」はそのままです',
+      '戦闘テンポの調整。敵HPバーの下に細い「体勢（POISE）」ゲージを追加し、崩れている間は点滅します。敵名の横に「警戒」「必死」などの段階バッジが出ます。レイアウト・演出・古代龍のカットインは無変更です',
   },
   {
     screen: 'ADMIN DEV TOOLS',
     changed: false,
     reason:
-      'ランドスケープ化の影響は受けますが、今回の主題ではないので撮影から外しました。中身の変更は「CHARACTER ART — 実装済み / 未実装」の一覧を1ブロック追加しただけで、演出プレビューは無変更です',
+      'スクロール修正が入りました（パネル本体がスクロールし、「もどる」は固定）。見た目の変更ではないので撮影せず、e2e/scrolling.spec.ts で「1700px超のパネルの末尾に到達できる」「もどるが常に画面内」を検証しています。CHARACTER ART 一覧に「ガルド」が1体増えています',
+  },
+  {
+    screen: 'EXPLORE',
+    changed: false,
+    reason: '一覧のスクロールを確認済み。見た目は前ラウンドから無変更です',
+  },
+  {
+    screen: 'SETTINGS',
+    changed: false,
+    reason: '一覧のスクロールを確認済み。見た目は前ラウンドから無変更です',
+  },
+  {
+    screen: 'ARCANA / アルカナ図鑑',
+    changed: false,
+    reason: '一覧のスクロールを確認済み。表示は無変更です',
+  },
+  {
+    screen: 'TITLE',
+    changed: false,
+    reason: '前ラウンドから無変更です',
+  },
+  {
+    screen: 'HOME',
+    changed: false,
+    reason: '前ラウンドから無変更です',
   },
   {
     screen: 'OPENING THEME / SKIP',
     changed: false,
     reason: '前ラウンドから無変更です（楽曲はまだ入っていません）',
   },
+  { screen: 'PROLOGUE / KAOS', changed: false, reason: '無変更' },
+  { screen: 'TAVERN / TALK', changed: false, reason: '無変更' },
+  { screen: 'WORLD MEMORY', changed: false, reason: 'スクロール確認済み。見た目は無変更' },
   {
-    screen: 'ARCANA / アルカナ図鑑',
+    screen: 'LIFE CHOICE / ENDING',
     changed: false,
     reason:
-      '画像の出どころを画像管理レイヤーへ移しましたが、表示は同じ絵の同じ切り出しです。幅だけ読める幅に制限しました',
+      'ガルドの絵の「出どころ」を画像管理レイヤーへ移しましたが、出る絵は同じ（膝をついたガルド）です',
   },
-  { screen: 'PROLOGUE / KAOS', changed: false, reason: 'ランドスケープ化。会話ボックスは読める幅で中央に置いています' },
-  { screen: 'TAVERN / TALK', changed: false, reason: 'シーンアート修正版のまま' },
-  { screen: 'WORLD MEMORY', changed: false, reason: 'ランドスケープ化のみ' },
-  { screen: 'LIFE CHOICE / ENDING', changed: false, reason: 'ランドスケープ化のみ' },
-  { screen: 'PLAYTEST SURVEY', changed: false, reason: 'ランドスケープ化のみ' },
-  { screen: 'DEV REVIEW HUB', changed: false, reason: 'ランドスケープ化のみ' },
+  { screen: 'PLAYTEST SURVEY', changed: false, reason: 'スクロール確認済み。見た目は無変更' },
+  { screen: 'DEV REVIEW HUB', changed: false, reason: '無変更' },
 ];

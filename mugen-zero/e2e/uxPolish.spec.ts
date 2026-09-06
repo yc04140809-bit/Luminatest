@@ -48,10 +48,15 @@ test('the forest background is loaded as a texture', async ({ page }) => {
 
   const responses: string[] = [];
   page.on('response', (r) => {
-    if (/greenwood-forest.*\.webp/.test(r.url())) responses.push(r.url());
+    // The field the forest is WALKED across, which since the walkable
+    // ground landed is a landscape painting of its own rather than the
+    // backdrop the battle is fought against.
+    if (/field-greenwood.*\.(png|webp)/.test(r.url())) responses.push(r.url());
   });
   await page.getByTestId('location-GREENWOOD_FOREST').click();
-  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+    timeout: 20_000,
+  });
   await page.waitForTimeout(1200);
   expect(responses.length).toBeGreaterThan(0);
 });
@@ -72,7 +77,9 @@ test('the reunion shows baker Gald, then closes with Kaos and offers the survey'
   expect(art).toMatch(/gald-baker/);
 
   for (let i = 0; i < 8; i++) await scene.click();
-  await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({
+    timeout: 10_000,
+  });
   await page.getByTestId('bakery-leave').click();
 
   // No dead end: Kaos closes the arc and hands over three clear choices.
@@ -153,7 +160,10 @@ for (const size of PHONES) {
     expect(box.x + box.width).toBeLessThanOrEqual(size.width + 1);
 
     // Ending: buttons on screen and tappable.
-    await page.getByTestId('dev-admin-entry').isVisible().catch(() => false);
+    await page
+      .getByTestId('dev-admin-entry')
+      .isVisible()
+      .catch(() => false);
     await page.getByTestId('leave-forest').click(); // leave the forest
     await page.locator('.screen-footer .btn').click(); // back to HOME
     await enterDevAdmin(page);

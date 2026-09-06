@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, PHONES, viewportOf } from './helpers';
+import { PHONES, playToLifeChoice, viewportOf, walkToEncounterMarker } from './helpers';
 
 // VISUAL BACKGROUND UPDATE: every screen that gained art must show it,
 // must stay readable, and must never let the art eat a tap.
@@ -59,10 +59,10 @@ test('the battle happens where the encounter did — the same forest', async ({ 
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
 
-  const canvas = page.locator('.phaser-wrap canvas');
-  await canvas.waitFor({ timeout: 20_000 });
-  const box = await canvas.boundingBox();
-  await page.mouse.click(box!.x + box!.width * 0.5, box!.y + box!.height * (120 / 520));
+  // Through the shared helper, which waits for the scene to finish
+  // booting before tapping. A tap at the frame the canvas appears is a
+  // tap Phaser has not started listening for yet.
+  await walkToEncounterMarker(page);
 
   const encounter = page.getByTestId('gald-encounter');
   await expect(encounter).toBeVisible({ timeout: 20_000 });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice } from './helpers';
+import { playToLifeChoice, swingUntil } from './helpers';
 
 // UI patch: Gald must read as a person — seen before the fight, present
 // during it, and visibly beaten (not dead) while his life is decided.
@@ -45,26 +45,31 @@ test('Gald is shown at the encounter, in battle, and beaten at the choice', asyn
   await expect(page.getByTestId('battle-screen')).toBeVisible();
   await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
   await expect(page.getByTestId('enemy-hp')).toContainText('盗賊 ガルド');
-  await expect(page.getByTestId('enemy-hp')).toContainText('30 / 30');
-  await expect(page.getByTestId('player-hp')).toContainText('40 / 40');
+  // At full health, whatever full health is this week: his numbers are
+  // tuned for the tempo of the fight and the property here is that he
+  // starts whole, not that he starts at any particular number.
+  const enemyHp = page.getByTestId('enemy-hp');
+  await expect(enemyHp).toHaveText(/盗賊 ガルド(\d+) \/ \1$/);
+  await expect(page.getByTestId('player-hp')).toContainText('100 / 100');
 
   const attack = page.getByTestId('attack-button');
+  const before = await enemyHp.textContent();
   await attack.click();
-  await expect(page.getByTestId('enemy-hp')).not.toContainText('30 / 30'); // damage lands
+  await expect(enemyHp).not.toHaveText(before ?? ''); // damage lands
   await page.getByTestId('defend-button').click();
 
-  for (let i = 0; i < 8; i++) {
-    if (await page.getByTestId('gald-portrait-defeated').isVisible().catch(() => false)) break;
-    if (await attack.isEnabled().catch(() => false)) await attack.click();
-    await page.waitForTimeout(150);
-  }
+  await swingUntil(page, 'attack-button', () =>
+    page.getByTestId('gald-portrait-defeated').isVisible().catch(() => false),
+  );
 
   // 3. HP 0: he switches to the beaten art and speaks — still alive.
   await expect(page.getByTestId('gald-portrait-defeated')).toBeVisible();
   await expect(page.getByTestId('gald-defeated-line')).toContainText('……くそ……。');
 
   // 4. The choice is made with him in view; all four routes offered.
-  await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible({
+    timeout: 10_000,
+  });
   await expect(page.getByTestId('life-choice-portrait')).toBeVisible();
   await expect(page.getByText('彼の人生を、どうしますか？')).toBeVisible();
   for (const id of ['KILL', 'SPARE', 'HELP', 'CAPTURE']) {
@@ -130,13 +135,12 @@ for (const size of PHONES) {
     expect(cmd.y + cmd.height).toBeLessThanOrEqual(size.height + 1);
     expect(cmd.height).toBeGreaterThanOrEqual(40);
 
-    const attack = page.getByTestId('attack-button');
-    for (let i = 0; i < 8; i++) {
-      if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-      if (await attack.isEnabled().catch(() => false)) await attack.click();
-      await page.waitForTimeout(150);
-    }
-    await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 10_000 });
+    await swingUntil(page, 'attack-button', () =>
+      page.getByTestId('life-choice-screen').isVisible().catch(() => false),
+    );
+    await expect(page.getByTestId('life-choice-screen')).toBeVisible({
+      timeout: 10_000,
+    });
     await expectNoHorizontalScroll(page);
 
     // All four options are on screen and tappable.

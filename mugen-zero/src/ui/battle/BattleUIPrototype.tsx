@@ -5,8 +5,8 @@ import {
   playerDefend,
   type BattleState,
   type EnemyAction,
-  type EnemySpec,
 } from '../../game/battle/battleLogic';
+import { specOf } from '../../game/battle/enemySpec';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
@@ -49,18 +49,6 @@ import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIco
  * part of the file is the character — nothing is redrawn, recoloured or
  * regenerated, and cropping in CSS leaves the files untouched.
  */
-
-function specOf(species: EnemySpeciesDef): EnemySpec {
-  return {
-    name: species.name,
-    hp: species.hp,
-    attackMin: species.attackMin,
-    attackMax: species.attackMax,
-    attackName: species.attackName,
-    skill: species.skill,
-    appearLine: species.appearLine,
-  };
-}
 
 interface Props {
   species: EnemySpeciesDef;
@@ -137,6 +125,19 @@ const MUGEN_CHOICES: {
   { id: 'HELP', jp: '助ける', Icon: LeafIcon },
   { id: 'CAPTURE', jp: '連れて行く', Icon: CageIcon },
 ];
+
+/**
+ * One word for the state a creature has got itself into.
+ *
+ * A label on a bar rather than a line anybody says — the creature's own
+ * words for the same moment are in content, where its voice lives.
+ */
+const PHASE_WORD: Record<string, string> = {
+  WARY: '警戒',
+  CORNERED: '必死',
+  SERIOUS: '本気',
+  DESPERATE: '死に物狂い',
+};
 
 /** How long each moment of the fight is held on screen. */
 const BEAT_MS: Record<string, number> = {
@@ -525,7 +526,17 @@ export function BattleUIPrototype({
              longer means looking away from the thing it belongs to. */}
       <div className="bp-band">
         <div className="bp-plate bp-plate-enemy" data-testid="bp-enemy-hp">
-          <span className="bp-plate-name">{battle.enemyName}</span>
+          <span className="bp-plate-name">
+            {battle.enemyName}
+            {/* What it has become on the way down. One word, in its own
+                colour, so a phase is something the player SEES rather
+                than a line they may have tapped past. */}
+            {battle.enemyPhaseId && (
+              <i className="bp-phase" data-testid="bp-enemy-phase">
+                {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
+              </i>
+            )}
+          </span>
           <span className="bp-plate-row">
             <span className="bp-plate-num">
               {battle.enemyHp} / {battle.enemyMaxHp}
@@ -535,6 +546,19 @@ export function BattleUIPrototype({
                 className="bp-fill enemy"
                 style={{ width: `${(battle.enemyHp / battle.enemyMaxHp) * 100}%` }}
               />
+              {/* Its footing, under its health: the thing to aim at in
+                  the middle of a fight. Only drawn for creatures that
+                  have any. */}
+              {battle.enemyMaxPoise > 0 && (
+                <span
+                  className={`bp-poise${battle.enemyStaggerTurns > 0 ? ' broken' : ''}`}
+                  data-testid="bp-enemy-poise"
+                  data-broken={battle.enemyStaggerTurns > 0 ? 'yes' : undefined}
+                  style={{
+                    width: `${(battle.enemyPoise / battle.enemyMaxPoise) * 100}%`,
+                  }}
+                />
+              )}
             </span>
           </span>
         </div>

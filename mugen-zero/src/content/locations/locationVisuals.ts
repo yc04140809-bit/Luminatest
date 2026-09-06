@@ -9,7 +9,7 @@
 // Adding CAVE / ROYAL_CAPITAL / SNOW_MOUNTAIN later means adding an image
 // and one line below — no screen changes.
 
-import { BACKGROUNDS } from '../../assets/manifest';
+import { BACKGROUNDS, FIELD_ART } from '../../assets/manifest';
 
 /** Every place the game can show, art or not. */
 export type LocationId =
@@ -80,6 +80,19 @@ export const LOCATION_VISUALS: Record<LocationId, LocationVisual> = {
  * The backdrop for a place. Null is a normal answer, not an error: the
  * screen keeps its plain background.
  */
+/**
+ * The painting a place is WALKED ACROSS on, as opposed to the one it is
+ * seen against.
+ *
+ * Most places have only a backdrop. A place with a field has a second,
+ * landscape picture with a clearing floor along the bottom, and the
+ * walkable ground is measured against that one — so the two are
+ * different entries rather than the same image used twice.
+ */
+export function fieldArt(locationId: LocationId): string | null {
+  return (FIELD_ART as Partial<Record<LocationId, string>>)[locationId] ?? null;
+}
+
 export function locationBackground(locationId: LocationId): string | null {
   return LOCATION_VISUALS[locationId]?.background ?? null;
 }

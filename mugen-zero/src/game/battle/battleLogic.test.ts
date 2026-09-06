@@ -47,8 +47,10 @@ describe('battleLogic', () => {
 
   it('player can be defeated', () => {
     let b = createBattle('盗賊');
-    // Never attack; take max damage until defeat.
-    for (let i = 0; i < 20 && b.outcome === 'ONGOING'; i++) {
+    // Never attack; take max damage until defeat. The bound is only
+    // there so a bug cannot hang the suite — it is not a claim about
+    // how many turns it takes, which moves with the health bar.
+    for (let i = 0; i < 200 && b.outcome === 'ONGOING'; i++) {
       b = { ...playerDefend(b, rngMax) };
     }
     expect(b.outcome).toBe('DEFEAT');
@@ -243,9 +245,14 @@ describe('something healing the player mid-fight', () => {
   });
 
   it('never goes over full, and never silently over-heals', () => {
-    const nearly = { ...createBattle(spec), playerHp: 38 };
+    // Two short of full, healed for eight: two of it lands and the log
+    // says two, not eight. Written against the state's own maximum so
+    // the next time the health bar is retuned this still means what it
+    // says.
+    const base = createBattle(spec);
+    const nearly = { ...base, playerHp: base.playerMaxHp - 2 };
     const healed = healPlayer(nearly, 8);
-    expect(healed.playerHp).toBe(40);
+    expect(healed.playerHp).toBe(healed.playerMaxHp);
     expect(healed.log.at(-1)).toContain('2回復');
   });
 
@@ -254,7 +261,7 @@ describe('something healing the player mid-fight', () => {
     // it did nothing, not left wondering whether the button worked.
     const full = createBattle(spec);
     const healed = healPlayer(full, 8);
-    expect(healed.playerHp).toBe(40);
+    expect(healed.playerHp).toBe(healed.playerMaxHp);
     expect(healed.log.at(-1)).toBe('HPはもう満ちている。');
   });
 
@@ -276,7 +283,7 @@ describe('something healing the player mid-fight', () => {
       const healed = healPlayer(hurt, amount);
       expect(Number.isInteger(healed.playerHp)).toBe(true);
       expect(healed.playerHp).toBeGreaterThanOrEqual(20);
-      expect(healed.playerHp).toBeLessThanOrEqual(40);
+      expect(healed.playerHp).toBeLessThanOrEqual(healed.playerMaxHp);
     }
   });
 });
@@ -291,7 +298,7 @@ describe('a little green left behind — 《森の加護》', () => {
     // mean nothing happened. It now always leaves a mark.
     const full = createBattle(spec);
     const after = mendPlayer(full, MEND, 'やわらかな風が身体を包んだ。');
-    expect(after.playerHp).toBe(40);
+    expect(after.playerHp).toBe(after.playerMaxHp);
     expect(after.wardCut).toBeGreaterThan(0);
     expect(after.log.at(-2)).toBe('やわらかな風が身体を包んだ。');
     expect(after.log.at(-1)).toBe('《森の加護》を得た。');
@@ -320,14 +327,14 @@ describe('a little green left behind — 《森の加護》', () => {
     // the same nothing in nicer words.
     const plain = playerAttack(createBattle(spec), rngMin, 'ATTACK');
     const guarded = playerAttack(grantWard(createBattle(spec), 0.2), rngMin, 'ATTACK');
-    expect(40 - guarded.playerHp).toBeLessThan(40 - plain.playerHp);
-    expect(40 - guarded.playerHp).toBeGreaterThanOrEqual(1);
+    expect(guarded.playerMaxHp - guarded.playerHp).toBeLessThan(plain.playerMaxHp - plain.playerHp);
+    expect(guarded.playerMaxHp - guarded.playerHp).toBeGreaterThanOrEqual(1);
   });
 
   it('never softens a blow away to nothing', () => {
     const oneHit = { name: 'モスラビット', hp: 22, attackMin: 1, attackMax: 1 };
     const after = playerAttack(grantWard(createBattle(oneHit), 0.35), rngMin, 'ATTACK');
-    expect(40 - after.playerHp).toBe(1);
+    expect(after.playerMaxHp - after.playerHp).toBe(1);
   });
 
   it('waits for a blow: hiding does not spend it', () => {
@@ -358,7 +365,7 @@ describe('a little green left behind — 《森の加護》', () => {
     const spec8 = { name: 'モスラビット', hp: 22, attackMin: 8, attackMax: 8 };
     const bare = playerDefend(createBattle(spec8), rngMin, 'ATTACK');
     const both = playerDefend(grantWard(createBattle(spec8), 0.35), rngMin, 'ATTACK');
-    expect(40 - both.playerHp).toBeLessThan(40 - bare.playerHp);
+    expect(both.playerMaxHp - both.playerHp).toBeLessThan(bare.playerMaxHp - bare.playerHp);
 
     const kaosGuard = { ...NO_MODIFIERS, playerDamageTaken: 0.5 };
     const withHer = playerDefend(
@@ -368,9 +375,9 @@ describe('a little green left behind — 《森の加護》', () => {
     );
     // Everything multiplies and the floor still holds: never zero,
     // never negative, never NaN.
-    expect(withHer.playerHp).toBeLessThan(40);
+    expect(withHer.playerHp).toBeLessThan(withHer.playerMaxHp);
     expect(Number.isInteger(withHer.playerHp)).toBe(true);
-    expect(40 - withHer.playerHp).toBeGreaterThanOrEqual(1);
+    expect(withHer.playerMaxHp - withHer.playerHp).toBeGreaterThanOrEqual(1);
   });
 
   it('dies with the battle it was granted in', () => {

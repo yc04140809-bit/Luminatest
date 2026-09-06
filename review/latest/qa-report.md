@@ -1,7 +1,7 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-05T13:51:10.453Z
-- Build: MUGEN ZERO v0.1 / d602cdd / 2026-09-05T13:49:59.536Z
+- Generated: 2026-09-06T00:53:27.246Z
+- Build: MUGEN ZERO v0.1 / 57b6f22 / 2026-09-06T00:52:01.668Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -98,10 +98,6 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] BATTLE UI PROTOTYPE — ランドスケープ化。上部情報帯（敵HP＝左／味方HP＝右）／中央戦闘領域／下部コマンドUI の3分割にしました。敵は左、味方（あなた＋ケイオス）は右で、互いを向いています。演出・タイムライン・古代龍のカットインは無変更です
-- [ ] GREENWOOD / BATTLE — ランドスケープ化。探索フィールド（Phaser）のワールドは縦のまま中央に置き、場所名を左、操作説明と「森を出る」を右に配置しました。8つの発見スポットは背景画に合わせて手で置いたものなので動かしていません
-- [ ] TITLE — ランドスケープ化。キービジュアル・ロゴ・翼の装飾・ボタンはそのままです
-- [ ] HOME — ランドスケープ化。左に村（円のなか）、右に世界の記憶・探索する・下段レール、という2段組にしました。項目・文言・遷移は無変更です
-- [ ] EXPLORE — ランドスケープ化。カードが横幅いっぱいに伸びないよう、読める幅で中央に置いています
-- [ ] SETTINGS — ランドスケープ化。前ラウンドで足した「オープニングテーマ ON/OFF」はそのままです
-- unchanged, no screenshot needed: ADMIN DEV TOOLS, OPENING THEME / SKIP, ARCANA / アルカナ図鑑, PROLOGUE / KAOS, TAVERN / TALK, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] GREENWOOD / BATTLE — 探索フィールドを横ワールド化しました。背景は新規の横長フィールド画（添付いただいたもの）。画面下部の地面帯だけが歩行可能で、地面以外をタップしても最寄りの地面へ補正されます。8つの発見スポットは地面帯の上に「どのくらい奥／どのくらい横」で定義され、ピクセル指定をやめました。進行方向は右→左で、右端に「戻る」判定を置いています
+- [ ] BATTLE UI PROTOTYPE — 戦闘テンポの調整。敵HPバーの下に細い「体勢（POISE）」ゲージを追加し、崩れている間は点滅します。敵名の横に「警戒」「必死」などの段階バッジが出ます。レイアウト・演出・古代龍のカットインは無変更です
+- unchanged, no screenshot needed: ADMIN DEV TOOLS, EXPLORE, SETTINGS, ARCANA / アルカナ図鑑, TITLE, HOME, OPENING THEME / SKIP, PROLOGUE / KAOS, TAVERN / TALK, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

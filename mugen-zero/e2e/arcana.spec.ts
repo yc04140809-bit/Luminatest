@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin, PHONES, viewportOf } from './helpers';
+import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
 
 /**
  * ARCANA — the book, and the way a life fills it in.
@@ -10,11 +10,6 @@ import { enterDevAdmin, PHONES, viewportOf } from './helpers';
  * keeps everything, and a reset takes it all with the rest of the
  * world.
  */
-
-const RING_SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 async function wipe(page: Page) {
   await page.evaluate(async () => {
@@ -93,7 +88,9 @@ async function armBattle(page: Page, options: { story: 'on' | 'off'; chaos?: str
 async function walkIntoFight(page: Page) {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
-  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+    timeout: 20_000,
+  });
   await page.waitForTimeout(2200);
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
   const fighting = () =>
@@ -103,8 +100,8 @@ async function walkIntoFight(page: Page) {
       .isVisible()
       .catch(() => false);
   for (let pass = 0; pass < 2; pass++) {
-    for (const [x, y] of RING_SPOTS) {
-      await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+    for (const at of RING_TAPS) {
+      await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
       for (let i = 0; i < 16; i++) {
         await page.waitForTimeout(180);
         if (await fighting()) return;
@@ -199,9 +196,13 @@ test.describe('what a life writes into the book', () => {
     await walkIntoFight(page);
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
+      timeout: 8_000,
+    });
     await page.getByTestId('bp-normal-end').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     // A small word about it, and no more than that.
     const toast = page.getByTestId('arcana-toast');
@@ -226,9 +227,13 @@ test.describe('what a life writes into the book', () => {
     // with it, which is exactly what this test must not do.
     await walkIntoFight(page);
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
+      timeout: 8_000,
+    });
     await page.getByTestId('bp-normal-end').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByTestId('arcana-toast')).toHaveCount(0);
 
     await page.getByTestId('leave-forest').click();
@@ -243,9 +248,13 @@ test.describe('what a life writes into the book', () => {
     await walkIntoFight(page);
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({
+      timeout: 8_000,
+    });
     await page.getByTestId('bp-mugen-SPARE').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     await page.getByTestId('leave-forest').click();
     await page.getByRole('button', { name: 'もどる' }).click();
@@ -324,9 +333,13 @@ test.describe('a memory that becomes complete', () => {
     await walkIntoFight(page);
     await page.getByTestId('bp-chaos-card').click();
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId('bp-mugen-choice')).toBeVisible({
+      timeout: 8_000,
+    });
     await page.getByTestId('bp-mugen-HELP').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
 
     await page.getByTestId('leave-forest').click();
     await page.getByRole('button', { name: 'もどる' }).click();
@@ -336,7 +349,9 @@ test.describe('a memory that becomes complete', () => {
 });
 
 test.describe('the book and the rest of the world', () => {
-  test('survives a reload and is taken by a reset, along with everything else', async ({ page }) => {
+  test('survives a reload and is taken by a reset, along with everything else', async ({
+    page,
+  }) => {
     await freshWorld(page);
     await setArcana(page, '高');
     await openBook(page);
@@ -357,7 +372,9 @@ test.describe('the book and the rest of the world', () => {
     await page.reload();
     await page.getByTestId('reset-button').click();
     await page.getByTestId('confirm-reset-button').click();
-    await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('start-button')).toBeVisible({
+      timeout: 20_000,
+    });
     await page.getByTestId('start-button').click();
     await page.getByTestId('prologue-monologue').click();
     const kaos = page.getByTestId('kaos-intro');
@@ -392,7 +409,9 @@ test.describe('the book and the rest of the world', () => {
     );
     expect(kinds).toEqual([]);
     await page.getByTestId('world-memory-button').click();
-    await expect(page.getByTestId('world-memory-list')).toContainText('まだ、世界に刻まれた記憶はありません');
+    await expect(page.getByTestId('world-memory-list')).toContainText(
+      'まだ、世界に刻まれた記憶はありません',
+    );
   });
 });
 

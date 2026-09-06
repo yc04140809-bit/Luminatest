@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin, PHONES, viewportOf } from './helpers';
+import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
 
 /**
  * The exploration loop: see a ring, walk to it, find out what it was,
@@ -9,10 +9,6 @@ import { enterDevAdmin, PHONES, viewportOf } from './helpers';
  * so these tests walk the spots in turn rather than assuming where it
  * is — which is also the honest test: the player does the same.
  */
-const RING_SPOTS: readonly [number, number][] = [
-  [180, 118], [138, 166], [224, 158], [120, 250],
-  [172, 232], [238, 258], [206, 322], [134, 330],
-];
 
 async function freshWorld(page: Page) {
   await page.goto('/');
@@ -57,7 +53,9 @@ async function settleAndForce(
 async function intoForest(page: Page) {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
-  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+    timeout: 20_000,
+  });
   await page.waitForTimeout(1500);
 }
 
@@ -65,8 +63,8 @@ async function intoForest(page: Page) {
 async function walkUntil(page: Page, arrived: () => Promise<boolean>): Promise<boolean> {
   const box = await page.locator('.phaser-wrap canvas').boundingBox();
   if (!box) throw new Error('canvas bounding box unavailable');
-  for (const [x, y] of RING_SPOTS) {
-    await page.mouse.click(box.x + box.width * (x / 360), box.y + box.height * (y / 520));
+  for (const at of RING_TAPS) {
+    await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
     for (let i = 0; i < 12; i++) {
       await page.waitForTimeout(180);
       if (await arrived()) return true;
@@ -76,7 +74,10 @@ async function walkUntil(page: Page, arrived: () => Promise<boolean>): Promise<b
 }
 
 const visible = (page: Page, id: string) => () =>
-  page.getByTestId(id).isVisible().catch(() => false);
+  page
+    .getByTestId(id)
+    .isVisible()
+    .catch(() => false);
 
 test.describe('exploration loop', () => {
   test('arriving at a ring finds something to pick up, and the loop goes round again', async ({
@@ -143,11 +144,19 @@ test.describe('exploration loop', () => {
     // the commands are not there to press. Nothing is pinned here on
     // purpose — a real player gets that moment about a third of the
     // time — so wait for the fight to become a fight either way.
-    await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('bp-commands')).toBeVisible({
+      timeout: 10_000,
+    });
 
     const attack = page.getByTestId('bp-attack');
-    for (let i = 0; i < 14; i++) {
-      if (await page.getByTestId('bp-normal-end').isVisible().catch(() => false)) break;
+    for (let i = 0; i < 40; i++) {
+      if (
+        await page
+          .getByTestId('bp-normal-end')
+          .isVisible()
+          .catch(() => false)
+      )
+        break;
       if (await attack.isVisible().catch(() => false)) await attack.click();
       await page.waitForTimeout(140);
     }
@@ -155,7 +164,9 @@ test.describe('exploration loop', () => {
     await page.getByTestId('bp-normal-end').click();
 
     // Back in the forest, not back at the village, and not at the door.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByTestId('leave-forest')).toBeVisible();
   });
 
@@ -166,13 +177,16 @@ test.describe('exploration loop', () => {
 
     const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
     const card = page.getByTestId('forest-item');
-    for (const [x, y] of RING_SPOTS) {
-      const at = { x: box.x + box.width * (x / 360), y: box.y + box.height * (y / 520) };
+    for (const at of RING_TAPS) {
+      const to = {
+        x: box.x + box.width * at.fx,
+        y: box.y + box.height * at.fy,
+      };
       for (let i = 0; i < 14; i++) {
         // An impatient player taps the place they want to be, over and
         // over, right through the arrival. The same place, so this is
         // hammering rather than steering him somewhere else.
-        await page.mouse.click(at.x, at.y);
+        await page.mouse.click(to.x, to.y);
         await page.waitForTimeout(160);
         if (await card.isVisible().catch(() => false)) break;
       }
