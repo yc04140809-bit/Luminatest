@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "build:singlefile": "vite build --config vite.config.singlefile.ts && node scripts/build-artifact-page.mjs",
+    "build:singlefile": "vite build --config vite.config.singlefile.ts && node scripts/build-artifact-page.mjs && node scripts/check-artifact.mjs",
     "review": "node scripts/reviewPackage.mjs",
     "review:shots": "playwright test --config playwright.review.config.ts"
   },

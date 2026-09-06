@@ -62,6 +62,28 @@ const buildDefine = {
 export default defineConfig({
   base: './',
   define: buildDefine,
+  /**
+   * Keep the minifier from writing the whole bundle on one line.
+   *
+   * Publishing refused this artifact three times as "too large" while a
+   * BIGGER one from the round before published fine on the same day.
+   * The measurement that explained it: the accepted file's longest line
+   * was 4.11 MB and this one's was 5,001,963 bytes — 1,963 over five
+   * million. Total size was never the problem; one line was.
+   *
+   * esbuild breaks between tokens where it can, and where a single
+   * token is longer than the limit — a megabyte of base64 is one token
+   * — it uses a JavaScript line continuation (a backslash before the
+   * newline) inside the literal. That is a source-text change with no
+   * value change at all: the string the program sees is byte for byte
+   * the one it saw before, which scripts/check-artifact.mjs verifies by
+   * decoding every data URI in the built file and comparing it to the
+   * file it came from.
+   *
+   * This is the artifact build only. The repository build
+   * (vite.config.ts) is untouched, and so are the images.
+   */
+  esbuild: { lineLimit: 500_000 },
   plugins: [react(), viteSingleFile()],
   resolve: { alias: reviewAssetAliases() },
   build: {
