@@ -1,74 +1,57 @@
 {
-  "capturedAt": "2026-09-06T00:53:27.332Z",
+  "capturedAt": "2026-09-06T03:54:05.129Z",
   "viewport": {
     "width": 844,
     "height": 390
   },
   "shots": [
     {
-      "file": "01_greenwood_forest.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか"
+      "file": "01_magic_awakening.png",
+      "screen": "GALD BATTLE / MAGIC",
+      "reason": "ケイオスちゃんが前に出る場面。戦闘の上に重なっているか（別画面へ飛んでいないか）、文字が横画面に収まっているか"
     },
     {
-      "file": "02_greenwood_walking_side.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "横に歩いたときに向きが変わるか。足元がタップ地点に来ているか。ケイオスちゃんが道をなぞって付いてくるか"
-    },
-    {
-      "file": "03_greenwood_found_item.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "アイテム発見カード。森の上で読めるか、文字が画面外に出ていないか"
-    },
-    {
-      "file": "04_greenwood_forest_event.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "森の小さな出来事。世界を映したまま会話できているか（白いveilを被せていないか）"
-    },
-    {
-      "file": "05_moss_rabbit_battle.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "横画面の戦闘。敵＝左／味方＝右、上部情報帯・中央戦闘領域・下部コマンドの3分割"
-    },
-    {
-      "file": "06_moss_rabbit_life_choice.png",
-      "screen": "GREENWOOD / BATTLE",
-      "reason": "特殊個体の4択。どれかが「正解」に見えていないか。文字が画面外へ出ていないか"
-    },
-    {
-      "file": "07_battle_prototype.png",
-      "screen": "BATTLE UI PROTOTYPE",
-      "reason": "世界が主役に見えるか。敵と味方の大きさ・接地・HP・メッセージ・攻撃/スキル"
+      "file": "02_magic_tray.png",
+      "screen": "GALD BATTLE / MAGIC",
+      "reason": "《魔法》トレイ。星光弾とMP消費が読めるか、横画面スマホの親指で押せる大きさか、上のHP/MP帯が隠れていないか"
     }
   ],
   "notPhotographed": [
     {
+      "screen": "BATTLE UI PROTOTYPE",
+      "reason": "森の戦闘にも同じ《魔法》コマンドを通していますが、ガルド戦を戦うまでは解禁されないため、新規ワールド（＝撮影される状態）の見た目はv1.1と同一です。解禁後の表示は e2e/magic.spec.ts「she has not forgotten it by the next fight」で検証しています"
+    },
+    {
+      "screen": "GREENWOOD / BATTLE",
+      "reason": "探索フィールドと横画面戦闘レイアウトはv1.1から無変更です。モスラビット戦のコマンド行も、魔法未解禁の新規ワールドでは無変更です"
+    },
+    {
       "screen": "ADMIN DEV TOOLS",
-      "reason": "スクロール修正が入りました（パネル本体がスクロールし、「もどる」は固定）。見た目の変更ではないので撮影せず、e2e/scrolling.spec.ts で「1700px超のパネルの末尾に到達できる」「もどるが常に画面内」を検証しています。CHARACTER ART 一覧に「ガルド」が1体増えています"
+      "reason": "無変更です（魔法解禁フラグ用のDBスキーマ変更は行っていません）"
     },
     {
       "screen": "EXPLORE",
-      "reason": "一覧のスクロールを確認済み。見た目は前ラウンドから無変更です"
+      "reason": "無変更です"
     },
     {
       "screen": "SETTINGS",
-      "reason": "一覧のスクロールを確認済み。見た目は前ラウンドから無変更です"
+      "reason": "無変更です"
     },
     {
       "screen": "ARCANA / アルカナ図鑑",
-      "reason": "一覧のスクロールを確認済み。表示は無変更です"
+      "reason": "無変更です"
     },
     {
       "screen": "TITLE",
-      "reason": "前ラウンドから無変更です"
+      "reason": "無変更です"
     },
     {
       "screen": "HOME",
-      "reason": "前ラウンドから無変更です"
+      "reason": "無変更です"
     },
     {
       "screen": "OPENING THEME / SKIP",
-      "reason": "前ラウンドから無変更です（楽曲はまだ入っていません）"
+      "reason": "無変更です（楽曲はまだ入っていません）"
     },
     {
       "screen": "PROLOGUE / KAOS",
@@ -80,15 +63,15 @@
     },
     {
       "screen": "WORLD MEMORY",
-      "reason": "スクロール確認済み。見た目は無変更"
+      "reason": "無変更"
     },
     {
       "screen": "LIFE CHOICE / ENDING",
-      "reason": "ガルドの絵の「出どころ」を画像管理レイヤーへ移しましたが、出る絵は同じ（膝をついたガルド）です"
+      "reason": "4択は無変更です。魔法を使って勝っても同じ4択が同じ形で出ることを e2e で確認しています（魔法は世界の記憶に何も書きません）"
     },
     {
       "screen": "PLAYTEST SURVEY",
-      "reason": "スクロール確認済み。見た目は無変更"
+      "reason": "無変更"
     },
     {
       "screen": "DEV REVIEW HUB",

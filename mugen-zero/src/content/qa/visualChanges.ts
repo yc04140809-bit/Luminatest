@@ -10,71 +10,77 @@
 
 import type { VisualChange } from '../../core/qa/types';
 
-/* v1.1 changes two screens deeply and several others structurally. The
-   two deep ones are photographed: the forest, which is now a landscape
-   field with ground you can and cannot stand on, and the fight, which
-   has a middle to it. The structural ones — a panel that scrolls, a way
-   out that stays put — are things a screenshot cannot show and a test
-   can, so they are asserted in e2e/scrolling.spec.ts and described in
-   words here. */
+/* CHAOS MAGIC v1.0 changes one screen and only one: Gald's fight, which
+   now has a 《魔法》 command, an MP bar and the moment she steps forward.
+   The forest fight has the same command in its code, but it is locked
+   until Gald's fight has been fought, so in a fresh world — which is
+   what the capture photographs — that screen is pixel-for-pixel the one
+   from v1.1. Photographing it again would cost a reviewer two minutes
+   and show them nothing, so it is reported here in words and asserted
+   in e2e/magic.spec.ts instead. */
 export const VISUAL_CHANGES: readonly VisualChange[] = [
   {
-    screen: 'GREENWOOD / BATTLE',
+    screen: 'GALD BATTLE / MAGIC',
     changed: true,
     reason:
-      '探索フィールドを横ワールド化しました。背景は新規の横長フィールド画（添付いただいたもの）。画面下部の地面帯だけが歩行可能で、地面以外をタップしても最寄りの地面へ補正されます。8つの発見スポットは地面帯の上に「どのくらい奥／どのくらい横」で定義され、ピクセル指定をやめました。進行方向は右→左で、右端に「戻る」判定を置いています',
+      'ガルド戦にケイオスちゃんの《魔法》が入りました。戦闘中盤（HP66%以下、または8ターン経過）でケイオスちゃんが前に出る場面が戦闘画面の上に重なり、以後コマンド行が「攻撃／魔法／身構える」の3つになります。上部にMPを追加（48/48から開始）。魔法トレイには《星光弾》1つ（MP6）だけが並びます。魔法を使ったターンは主人公は攻撃しません（1ターン1行動のまま）',
   },
   {
     screen: 'BATTLE UI PROTOTYPE',
-    changed: true,
+    changed: false,
     reason:
-      '戦闘テンポの調整。敵HPバーの下に細い「体勢（POISE）」ゲージを追加し、崩れている間は点滅します。敵名の横に「警戒」「必死」などの段階バッジが出ます。レイアウト・演出・古代龍のカットインは無変更です',
+      '森の戦闘にも同じ《魔法》コマンドを通していますが、ガルド戦を戦うまでは解禁されないため、新規ワールド（＝撮影される状態）の見た目はv1.1と同一です。解禁後の表示は e2e/magic.spec.ts「she has not forgotten it by the next fight」で検証しています',
+  },
+  {
+    screen: 'GREENWOOD / BATTLE',
+    changed: false,
+    reason:
+      '探索フィールドと横画面戦闘レイアウトはv1.1から無変更です。モスラビット戦のコマンド行も、魔法未解禁の新規ワールドでは無変更です',
   },
   {
     screen: 'ADMIN DEV TOOLS',
     changed: false,
-    reason:
-      'スクロール修正が入りました（パネル本体がスクロールし、「もどる」は固定）。見た目の変更ではないので撮影せず、e2e/scrolling.spec.ts で「1700px超のパネルの末尾に到達できる」「もどるが常に画面内」を検証しています。CHARACTER ART 一覧に「ガルド」が1体増えています',
+    reason: '無変更です（魔法解禁フラグ用のDBスキーマ変更は行っていません）',
   },
   {
     screen: 'EXPLORE',
     changed: false,
-    reason: '一覧のスクロールを確認済み。見た目は前ラウンドから無変更です',
+    reason: '無変更です',
   },
   {
     screen: 'SETTINGS',
     changed: false,
-    reason: '一覧のスクロールを確認済み。見た目は前ラウンドから無変更です',
+    reason: '無変更です',
   },
   {
     screen: 'ARCANA / アルカナ図鑑',
     changed: false,
-    reason: '一覧のスクロールを確認済み。表示は無変更です',
+    reason: '無変更です',
   },
   {
     screen: 'TITLE',
     changed: false,
-    reason: '前ラウンドから無変更です',
+    reason: '無変更です',
   },
   {
     screen: 'HOME',
     changed: false,
-    reason: '前ラウンドから無変更です',
+    reason: '無変更です',
   },
   {
     screen: 'OPENING THEME / SKIP',
     changed: false,
-    reason: '前ラウンドから無変更です（楽曲はまだ入っていません）',
+    reason: '無変更です（楽曲はまだ入っていません）',
   },
   { screen: 'PROLOGUE / KAOS', changed: false, reason: '無変更' },
   { screen: 'TAVERN / TALK', changed: false, reason: '無変更' },
-  { screen: 'WORLD MEMORY', changed: false, reason: 'スクロール確認済み。見た目は無変更' },
+  { screen: 'WORLD MEMORY', changed: false, reason: '無変更' },
   {
     screen: 'LIFE CHOICE / ENDING',
     changed: false,
     reason:
-      'ガルドの絵の「出どころ」を画像管理レイヤーへ移しましたが、出る絵は同じ（膝をついたガルド）です',
+      '4択は無変更です。魔法を使って勝っても同じ4択が同じ形で出ることを e2e で確認しています（魔法は世界の記憶に何も書きません）',
   },
-  { screen: 'PLAYTEST SURVEY', changed: false, reason: 'スクロール確認済み。見た目は無変更' },
+  { screen: 'PLAYTEST SURVEY', changed: false, reason: '無変更' },
   { screen: 'DEV REVIEW HUB', changed: false, reason: '無変更' },
 ];

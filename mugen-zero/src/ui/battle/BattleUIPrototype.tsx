@@ -7,6 +7,12 @@ import {
   type EnemyAction,
 } from '../../game/battle/battleLogic';
 import { specOf } from '../../game/battle/enemySpec';
+import { castMagic, clearAwakeningLines } from '../../game/battle/battleLogic';
+import { availableMagic } from '../../core/magic/magic';
+import { MAGIC_DEFS } from '../../content/magic/magicDefs';
+import { magicBlocked } from '../../game/battle/magicChoice';
+import { MagicTray } from './MagicTray';
+import { AwakeningScene } from './AwakeningScene';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
@@ -103,6 +109,13 @@ interface Props {
    * once per fight per thing.
    */
   onObserved?: (id: ArcanaConditionId) => void;
+  /**
+   * Whether Kaos has already reached past what she was doing.
+   *
+   * Read from WORLD MEMORY by the caller rather than decided here: she
+   * learned it in the fight with Gald and did not forget it afterwards.
+   */
+  magicUnlocked?: boolean;
   /** An ordinary fight, over. */
   onNormalEnd: () => void;
   /** The other kind. The choice is real and is recorded by the caller. */
@@ -145,6 +158,10 @@ const BEAT_MS: Record<string, number> = {
   TACKLE: 460,
   HIDE: 560,
   HURT: 300,
+  // Hers: a moment for the light to gather and reach across the field.
+  // Short, like the rest of them. A spell that stops the fight for two
+  // seconds every time it is cast is a spell people stop casting.
+  MAGIC: 520,
 };
 
 /**
@@ -196,6 +213,7 @@ export function BattleUIPrototype({
   finishesInMugenChoice,
   startFinishable = false,
   forcedEnemyAction = null,
+  magicUnlocked = false,
   forcedChaos = null,
   arcana = [],
   forcedSummon = null,
@@ -236,7 +254,11 @@ export function BattleUIPrototype({
       ? (arcana.find((a) => a.arcanaId === plan.arcanaId) ?? null)
       : null;
   const [battle, setBattle] = useState<BattleState>(() => {
-    const fresh = createBattle(specOf(species), modifiersOf(chaos));
+    const fresh = createBattle(specOf(species), modifiersOf(chaos), {
+      // Whether she can already do this is the world's business, not
+      // this fight's: she learned it somewhere else and did not forget.
+      magicUnlocked,
+    });
     return startFinishable ? { ...fresh, enemyHp: 1 } : fresh;
   });
   /** Her moment, before the fight. Skipped entirely when she does not. */
@@ -287,6 +309,7 @@ export function BattleUIPrototype({
    */
   const [stance, setStance] = useState<'NORMAL' | 'DOWNED'>('NORMAL');
   const [skillOpen, setSkillOpen] = useState(false);
+  const [magicOpen, setMagicOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const timers = useRef<number[]>([]);
   // How tall the battlefield actually is on this phone. Everybody
@@ -461,6 +484,28 @@ export function BattleUIPrototype({
     play([kind === 'ATTACK' ? 'STRIKE' : 'GUARD', ...answerOf(next)]);
   };
 
+  /**
+   * She casts, and that is the turn.
+   *
+   * The same shape as `command` above on purpose: it ends the player's
+   * action, hands the creature its turn, and plays one beat. There is
+   * no path through here that also swings.
+   */
+  const cast = (id: string) => {
+    if (battle.outcome !== 'ONGOING') return;
+    const magic = spells.find((m) => m.id === id);
+    if (!magic || magicBlocked(battle, magic) !== null) return;
+    setMagicOpen(false);
+    setSaid(null);
+    const next = castMagic(battle, magic, undefined, forcedEnemyAction);
+    setBattle(next);
+    if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
+    if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
+    if (next.outcome === 'VICTORY') observe('WON_A_FIGHT');
+    if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
+    play(['MAGIC', ...answerOf(next)]);
+  };
+
   const decide = (choice: LifeChoiceId) => {
     if (saving) return;
     setSaving(true);
@@ -482,6 +527,7 @@ export function BattleUIPrototype({
    * asking is real, and a drawn attack pose appears here the day it is
    * added to content/art, with no change to this screen.
    */
+  const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
   const view = { beat, downed };
   const enemyShown = enemyArtFor(species.speciesId, enemyPose(view));
   const heroShown = partyArtFor('hero', heroPose(view));
@@ -519,6 +565,14 @@ export function BattleUIPrototype({
 
   return (
     <div className="screen bp-screen" data-testid="battle-prototype">
+      {/* She steps forward. Over the fight, which stays exactly where it
+          was: nobody has taken a turn for this. */}
+      {battle.awakeningLines.length > 0 && (
+        <AwakeningScene
+          lines={battle.awakeningLines}
+          onDone={() => setBattle((b) => clearAwakeningLines(b))}
+        />
+      )}
       {/* 1. WHO IS IN THIS. A landscape screen has room for both sides
              at once, side by side, in the shape they stand in: the
              creature's health on the left where the creature is, the
@@ -594,7 +648,7 @@ export function BattleUIPrototype({
             'bp-actor bp-enemy',
             beat === 'TACKLE' ? 'tackle' : '',
             beat === 'HIDE' ? 'hide' : '',
-            beat === 'STRIKE' ? 'struck' : '',
+            beat === 'STRIKE' || beat === 'MAGIC' ? 'struck' : '',
             beaten && !showingDown ? 'falling' : '',
             showingDown ? 'downed' : '',
           ]
@@ -616,6 +670,10 @@ export function BattleUIPrototype({
             testId="bp-enemy-art"
           />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
+          {/* Where her star lands. Drawn on the creature rather than
+              flown across the field: a travelling projectile is a
+              second timing system, and this one is 520ms long. */}
+          {beat === 'MAGIC' && <span className="bp-star-hit" aria-hidden="true" />}
           {beat === 'TACKLE' && (
             <span className="bp-leaves" aria-hidden="true">
               {[0, 1, 2, 3, 4].map((i) => (
@@ -630,13 +688,15 @@ export function BattleUIPrototype({
           className={[
             'bp-actor bp-kaos',
             beat === 'HURT' ? 'flinch' : '',
-            showingChaos ? 'casting' : '',
+            showingChaos || beat === 'MAGIC' ? 'casting' : '',
           ]
             .filter(Boolean)
             .join(' ')}
         >
           <span className="bp-shadow" aria-hidden="true" />
-          {showingChaos && <span className="bp-chaos-aura" aria-hidden="true" />}
+          {(showingChaos || beat === 'MAGIC') && (
+            <span className="bp-chaos-aura" aria-hidden="true" />
+          )}
           <CharacterArt
             art={kaosShown}
             height={stage.kaos}
@@ -822,11 +882,34 @@ export function BattleUIPrototype({
             <span className="bp-cmd-jp">攻撃</span>
             <span className="bp-cmd-en">ATTACK</span>
           </button>
+          {/* Hers. Only once she can, and never as an extra swing:
+              picking a spell IS this turn. */}
+          {battle.magicUnlocked && (
+            <button
+              className={magicOpen ? 'bp-cmd open' : 'bp-cmd'}
+              data-testid="bp-magic"
+              aria-expanded={magicOpen}
+              onClick={() => {
+                setSkillOpen(false);
+                setArcanaTrayOpen(false);
+                setMagicOpen((open) => !open);
+              }}
+            >
+              <SparkIcon size={19} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">魔法</span>
+              <span className="bp-cmd-en" data-testid="bp-mp">
+                MP {battle.playerMp}
+              </span>
+            </button>
+          )}
           <button
             className={skillOpen ? 'bp-cmd open' : 'bp-cmd'}
             data-testid="bp-skill"
             aria-expanded={skillOpen}
-            onClick={() => setSkillOpen((open) => !open)}
+            onClick={() => {
+              setMagicOpen(false);
+              setSkillOpen((open) => !open);
+            }}
           >
             <SparkIcon size={19} className="bp-cmd-mark" />
             <span className="bp-cmd-jp">スキル</span>
@@ -861,6 +944,14 @@ export function BattleUIPrototype({
             </button>
           )}
         </div>
+      )}
+      {!beaten && !showingChaos && !inAccident && magicOpen && (
+        <MagicTray
+          spells={spells}
+          mp={battle.playerMp}
+          onCast={cast}
+          onClose={() => setMagicOpen(false)}
+        />
       )}
       {!beaten && !showingChaos && !inAccident && skillOpen && (
         <div className="bp-tray" data-testid="bp-skill-tray">

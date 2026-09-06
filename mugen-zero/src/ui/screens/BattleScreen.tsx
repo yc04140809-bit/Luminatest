@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import {
+  castMagic,
+  clearAwakeningLines,
   createBattle,
   playerAttack,
   playerDefend,
   type BattleState,
   type EnemyAction,
 } from '../../game/battle/battleLogic';
+import { availableMagic } from '../../core/magic/magic';
+import { MAGIC_DEFS } from '../../content/magic/magicDefs';
+import { magicBlocked } from '../../game/battle/magicChoice';
+import { MagicTray } from '../battle/MagicTray';
+import { AwakeningScene } from '../battle/AwakeningScene';
 import { specOf } from '../../game/battle/enemySpec';
 import { GALD_BATTLE } from '../../content/enemies/galdBattle';
 import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
@@ -32,6 +39,13 @@ interface Props {
   onDefeat: () => void;
   /** Development only: make the enemy do one thing every turn. */
   forcedEnemyAction?: EnemyAction | null;
+  /**
+   * Whether Kaos has already reached past what she was doing.
+   *
+   * Ignored by the one fight that carries the awakening — Gald's — and
+   * read by every other fight this screen shows.
+   */
+  magicUnlocked?: boolean;
 }
 
 /** A species, in the units the battle speaks. */
@@ -97,11 +111,12 @@ export function BattleScreen({
   onVictory,
   onDefeat,
   forcedEnemyAction = null,
+  magicUnlocked = false,
 }: Props) {
   // The bandit is named from the first line of the encounter, so the bar
   // above belongs to a person the player has already met.
   const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(enemy ? specOf(enemy) : GALD_BATTLE),
+    createBattle(enemy ? specOf(enemy) : GALD_BATTLE, undefined, { magicUnlocked }),
   );
   const [reaction, setReaction] = useState<Reaction>('NONE');
   const beats = useRef<number[]>([]);
@@ -147,6 +162,25 @@ export function BattleScreen({
     : (partyArtFor('gald', beaten ? 'battle_damage' : 'battle_idle').asset?.src ?? null);
   const backdrop = locationBackground(battleLocationId);
 
+  /**
+   * Her spells, and whether the tray is open.
+   *
+   * The tray is a way of choosing, not an extra action: closing it
+   * costs nothing and casting from it spends the one turn the player
+   * had. Nothing in here can produce a swing as well.
+   */
+  const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
+  const [magicOpen, setMagicOpen] = useState(false);
+
+  const cast = (id: string) => {
+    const magic = spells.find((m) => m.id === id);
+    if (!magic || magicBlocked(battle, magic) !== null) return;
+    setMagicOpen(false);
+    const next = castMagic(battle, magic, undefined, forcedEnemyAction);
+    setBattle(next);
+    play(['HIT', ...answer(next)]);
+  };
+
   const attack = () => {
     const next = playerAttack(battle, undefined, forcedEnemyAction);
     setBattle(next);
@@ -163,6 +197,16 @@ export function BattleScreen({
       className={backdrop ? 'screen battle-screen has-backdrop' : 'screen battle-screen'}
       data-testid="battle-screen"
     >
+      {/* The moment she steps forward. Read over the fight, which stays
+          exactly where it was behind it — nothing is reset, nobody has
+          taken a turn, and tapping through it returns to the same
+          board. */}
+      {battle.awakeningLines.length > 0 && (
+        <AwakeningScene
+          lines={battle.awakeningLines}
+          onDone={() => setBattle((b) => clearAwakeningLines(b))}
+        />
+      )}
       <ScreenBackdrop src={backdrop} variant="battle" testId="battle-backdrop" />
       <div className="battle-enemy">
         <HpBar
@@ -246,6 +290,16 @@ export function BattleScreen({
           ))}
         </div>
       )}
+      {/* Her spells, when she has any and the player has asked. One
+          action a turn: choosing one of these IS the turn. */}
+      {magicOpen && (
+        <MagicTray
+          spells={spells}
+          mp={battle.playerMp}
+          onCast={cast}
+          onClose={() => setMagicOpen(false)}
+        />
+      )}
       <div className="battle-commands">
         <button
           className="btn primary"
@@ -255,8 +309,23 @@ export function BattleScreen({
         >
           攻撃
         </button>
+        {/* Only once she can. Before that there is nothing to show and
+            nothing to explain — the fight itself explains it. */}
+        {battle.magicUnlocked && (
+          <button
+            className={magicOpen ? 'btn primary' : 'btn'}
+            data-testid="magic-button"
+            disabled={!ongoing}
+            onClick={() => setMagicOpen((open) => !open)}
+          >
+            魔法
+            <span className="battle-mp" data-testid="player-mp">
+              MP {battle.playerMp}/{battle.playerMaxMp}
+            </span>
+          </button>
+        )}
         <button className="btn" data-testid="defend-button" disabled={!ongoing} onClick={defend}>
-          防御
+          身構える
         </button>
       </div>
     </div>

@@ -1,6 +1,8 @@
 // Simple turn-based battle logic. Pure functions, no React / Phaser.
 // v0.1 keeps battle intentionally minimal: attack / defend only.
 
+import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
+import type { MagicDef } from '../../core/magic/magic';
 import {
   hitPoise,
   phaseAt,
@@ -97,6 +99,51 @@ export interface EnemySpec {
   poise?: EnemyPoiseSpec;
   /** How it changes as it is hurt, if it changes at all. */
   phases?: readonly EnemyPhase[];
+  /**
+   * What it is tough against and what it is soft against. Absent for
+   * anything that simply takes what it is given.
+   */
+  affinity?: EnemyAffinity;
+  /**
+   * The fight in which she first reaches past what she was doing.
+   *
+   * Content, not code: WHICH fight, WHEN in it, and WHAT is said are
+   * all here, so the beat can be moved, retimed or rewritten without
+   * touching the battle. Absent for every other fight, which is most
+   * of them.
+   */
+  awakening?: MagicAwakening;
+}
+
+/**
+ * The moment Kaos stops standing at the back of the field.
+ *
+ * Two ways to reach it and the earlier one wins: after so many of the
+ * player's turns, or once the thing they are fighting is hurt past some
+ * share of its health. Two, because a player who is winning fast and a
+ * player who is grinding should both get there — neither should finish
+ * the fight without having been offered the thing the fight exists to
+ * teach.
+ */
+/** What the log says about the awakening when a fight does not say it itself. */
+export const AWAKENING_RECORD = '《魔法》が使えるようになった。';
+
+export interface MagicAwakening {
+  /** After this many of the player's turns. */
+  afterTurns: number;
+  /**
+   * The single line left in the battle log once the scene has been
+   * read. Content, like the lines themselves, so a fight can word it
+   * its own way; omitted, it is the plain one below.
+   */
+  record?: string;
+  /** Or once the enemy is at or below this share of its health. */
+  atOrBelowHp: number;
+  /**
+   * What is said, in order. Placeholder text is expected and fine — it
+   * is data, and replacing it is replacing this array.
+   */
+  lines: readonly { speaker: string | null; text: string }[];
 }
 
 export interface BattleState {
@@ -132,6 +179,43 @@ export interface BattleState {
   enemyPhaseId: string | null;
   /** Its phases, in the order they are entered. */
   enemyPhases: readonly EnemyPhase[] | null;
+  /** What it is tough and soft against. Null for most creatures. */
+  enemyAffinity: EnemyAffinity | null;
+  /**
+   * What Kaos has left to spend.
+   *
+   * There is no way to get it back inside a fight, and that is the
+   * whole of the resource for now: a spell is one of a handful of
+   * things she can do today, so casting one is a decision rather than a
+   * button that is always right.
+   */
+  playerMp: number;
+  playerMaxMp: number;
+  /** How many turns the player has taken. The awakening counts them. */
+  turnsTaken: number;
+  /**
+   * Whether she has reached past what she was doing, in THIS fight.
+   *
+   * A fight she starts already able to (because she did it in an
+   * earlier one) begins with this true; the fight where it happens
+   * begins false and turns true partway through.
+   */
+  magicUnlocked: boolean;
+  /**
+   * The lines of the moment it happened, once, for the screen to play.
+   *
+   * Emptied by the screen when it has shown them, so a re-render cannot
+   * show them twice.
+   */
+  awakeningLines: readonly { speaker: string | null; text: string }[];
+  /** The beat this fight is carrying, if it carries one. */
+  awakening: MagicAwakening | null;
+  /**
+   * What the player's last action was worth against this creature —
+   * whether it minded, shrugged, or neither. For the log line, and for
+   * an AUTO brain that has to learn the same thing by trying.
+   */
+  lastHitRead: 'WEAK' | 'RESISTED' | 'PLAIN';
   /**
    * What is helping or hindering, for this battle only. Held here so it
    * lives and dies with the fight and cannot leak into the next one.
@@ -165,12 +249,55 @@ const PLAYER_ATK_MAX = 12;
  */
 const WARD_MAX_CUT = 0.35;
 
+/**
+ * What Kaos has to spend in one fight.
+ *
+ * Enough for eight casts of the one spell she has, in a fight that
+ * lasts a little over twenty turns — so a player can learn what magic
+ * is for by using it, and still cannot answer every turn with it. There
+ * is nothing that gives it back mid-fight yet, and adding one is a
+ * design decision rather than an oversight to fix.
+ */
+export const PLAYER_MAX_MP = 48;
+
+/**
+ * What bracing is worth, besides the blow it softens.
+ *
+ * 身構える was a losing move and the simulation said so out loud: a
+ * player who braced every fifth turn won Gald one time in seven, because
+ * halving one blow never pays for a turn not spent hurting him. A
+ * defensive action that is always wrong is not a choice, it is a trap
+ * with a button.
+ *
+ * So bracing is now the other half of having two people. He covers;
+ * she uses the moment to gather. It is the only way her magic comes
+ * back inside a fight, which means the fight has a rhythm — press,
+ * cover, spend — instead of one right answer repeated.
+ */
+export const GUARD_MP_GAIN = 8;
+
 /** The numbers a plain named enemy fights with — Gald's, historically. */
 const DEFAULT_ENEMY: Omit<EnemySpec, 'name'> = { hp: 30, attackMin: 3, attackMax: 6 };
+
+/**
+ * Everything about the fight that comes from OUTSIDE the fight.
+ *
+ * One field so far. It is an options bag rather than a positional
+ * argument because the next one will be too, and because
+ * `createBattle(spec, mods, true)` is a line nobody can read.
+ */
+export interface BattleOptions {
+  /**
+   * Whether Kaos can already do this — decided by the world, not by
+   * the battle. The fight that carries the awakening ignores it.
+   */
+  magicUnlocked?: boolean;
+}
 
 export function createBattle(
   enemy: string | EnemySpec,
   modifiers: BattleModifiers = NO_MODIFIERS,
+  options: BattleOptions = {},
 ): BattleState {
   const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
   return {
@@ -198,6 +325,16 @@ export function createBattle(
     enemyStaggerTurns: 0,
     enemyPhaseId: null,
     enemyPhases: spec.phases ?? null,
+    enemyAffinity: spec.affinity ?? null,
+    playerMp: PLAYER_MAX_MP,
+    playerMaxMp: PLAYER_MAX_MP,
+    turnsTaken: 0,
+    // A fight that carries the awakening beat starts before it; every
+    // other fight starts after whatever the world has already decided.
+    magicUnlocked: spec.awakening ? false : (options.magicUnlocked ?? false),
+    awakeningLines: [],
+    awakening: spec.awakening ?? null,
+    lastHitRead: 'PLAIN',
     modifiers: { ...modifiers },
     wardCut: 0,
     log: [spec.appearLine ?? `${spec.name}が現れた！`],
@@ -324,6 +461,8 @@ export function playerAttack(
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
   const staggered = state.enemyStaggerTurns > 0;
   const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
+  // What this creature thinks of a sword. Most think nothing.
+  const affinity = affinityMultiplier(state.enemyAffinity, 'PHYSICAL');
   const dmg = applyDamage(roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng), [
     state.modifiers.playerAttack,
     state.modifiers.enemyDamageTaken,
@@ -332,6 +471,7 @@ export function playerAttack(
     staggered ? (state.enemyPoiseSpec?.staggerDamageTaken ?? 1) : 1,
     // Some creatures get harder to hurt as they get serious.
     wasIn?.damageTaken ?? 1,
+    affinity,
   ]);
   const enemyHp = Math.max(0, state.enemyHp - dmg);
   // Its footing, taken by the blow. A blow that lands on a guard takes
@@ -340,6 +480,8 @@ export function playerAttack(
   let next: BattleState = {
     ...state,
     enemyHp,
+    turnsTaken: state.turnsTaken + 1,
+    lastHitRead: readAffinity(affinity),
     enemyGuardTurns: footing.broke ? 0 : Math.max(0, state.enemyGuardTurns - 1),
     enemyPoise: footing.poise,
     enemyStaggerTurns: footing.staggerTurns,
@@ -363,8 +505,116 @@ export function playerAttack(
   if (phaseChanged(wasIn, nowIn) && nowIn) {
     next = { ...next, enemyPhaseId: nowIn.id, log: [...next.log, nowIn.line] };
   }
+  next = awaken(next);
   next = enemyTurn(next, false, rng, forcedEnemyAction);
   return next;
+}
+
+/**
+ * The moment she reaches past what she was doing.
+ *
+ * Checked after the player's action and before the creature's, because
+ * what she says belongs to the pause between the two. It happens once:
+ * the flag is what stops it, not a count, so healing the enemy back
+ * over the threshold cannot make her do it again.
+ */
+function awaken(state: BattleState): BattleState {
+  const beat = state.awakening;
+  if (!beat || state.magicUnlocked || state.outcome !== 'ONGOING') return state;
+  const hurtEnough = state.enemyMaxHp > 0 && state.enemyHp / state.enemyMaxHp <= beat.atOrBelowHp;
+  const longEnough = state.turnsTaken >= beat.afterTurns;
+  if (!hurtEnough && !longEnough) return state;
+  return {
+    ...state,
+    magicUnlocked: true,
+    // Handed to the screen to play as a scene, and NOT written into the
+    // log yet. The log sits behind the scene and is readable while it
+    // plays, so copying the lines in here printed the last one — the one
+    // that says what just happened — before the player had tapped
+    // through to it. The log gets its one-line record when the scene is
+    // over, in clearAwakeningLines.
+    awakeningLines: beat.lines,
+  };
+}
+
+/**
+ * Kaos casts, and that is the player's action for this turn.
+ *
+ * The one rule this whole feature is built around: it does NOT come on
+ * top of a swing. The player has one action and this is it — which is
+ * what makes "who should do this one" a question rather than a formality.
+ */
+export function castMagic(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  if (!state.magicUnlocked) return state;
+  if (state.playerMp < magic.mpCost) return state;
+
+  const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
+  const staggered = state.enemyStaggerTurns > 0;
+  const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
+  const affinity = affinityMultiplier(state.enemyAffinity, magic.type, magic.element);
+  const dmg = applyDamage(magic.power, [
+    state.modifiers.enemyDamageTaken,
+    // A raised guard stops a blow. Whether it stops a spell is the
+    // spell's business, and hers it does not — which is the reason to
+    // ever cast one at something that has no opinion about magic.
+    guarded && magic.blockedByGuard ? state.enemySkill!.damageTaken : 1,
+    staggered ? (state.enemyPoiseSpec?.staggerDamageTaken ?? 1) : 1,
+    wasIn?.damageTaken ?? 1,
+    affinity,
+  ]);
+  const enemyHp = Math.max(0, state.enemyHp - dmg);
+  // Light does not knock anybody over. A spell that costs no footing
+  // takes none, and breaking a guard stays the sword's job.
+  const footing =
+    magic.poiseCost > 0
+      ? hitPoise(state.enemyPoiseSpec, state.enemyPoise, state.enemyStaggerTurns, guarded)
+      : { poise: state.enemyPoise, staggerTurns: state.enemyStaggerTurns, broke: false };
+
+  const read = readAffinity(affinity);
+  let next: BattleState = {
+    ...state,
+    enemyHp,
+    playerMp: state.playerMp - magic.mpCost,
+    turnsTaken: state.turnsTaken + 1,
+    lastHitRead: read,
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    enemyPoise: footing.poise,
+    enemyStaggerTurns: footing.staggerTurns,
+    log: [
+      ...state.log,
+      magic.line,
+      `《${magic.name}》！ ${state.enemyName}に${dmg}のダメージ。` +
+        (read === 'WEAK' ? ' 効果は絶大だ！' : read === 'RESISTED' ? ' 手ごたえが薄い。' : ''),
+      ...(footing.broke && state.enemyPoiseSpec ? [state.enemyPoiseSpec.breakLine] : []),
+    ],
+  };
+  if (enemyHp <= 0) {
+    return { ...next, outcome: 'VICTORY', log: [...next.log, `${state.enemyName}は膝をついた……。`] };
+  }
+  const nowIn = phaseAt(next.enemyPhases, next.enemyHp, next.enemyMaxHp);
+  if (phaseChanged(wasIn, nowIn) && nowIn) {
+    next = { ...next, enemyPhaseId: nowIn.id, log: [...next.log, nowIn.line] };
+  }
+  next = awaken(next);
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/** The screen has played the awakening scene; it must not play twice. */
+export function clearAwakeningLines(state: BattleState): BattleState {
+  if (state.awakeningLines.length === 0) return state;
+  // One line, now that the scene has been read, so a player who taps
+  // through it quickly can still find out what changed.
+  return {
+    ...state,
+    awakeningLines: [],
+    log: [...state.log, state.awakening?.record ?? AWAKENING_RECORD],
+  };
 }
 
 export function playerDefend(
@@ -373,7 +623,20 @@ export function playerDefend(
   forcedEnemyAction: EnemyAction | null = null,
 ): BattleState {
   if (state.outcome !== 'ONGOING') return state;
-  const next = { ...state, log: [...state.log, '身構えた。'] };
+  const gathered = Math.min(state.playerMaxMp, state.playerMp + GUARD_MP_GAIN);
+  const gained = gathered - state.playerMp;
+  const next = awaken({
+    ...state,
+    playerMp: gathered,
+    turnsTaken: state.turnsTaken + 1,
+    log: [
+      ...state.log,
+      '身構えた。',
+      // Only said when it did something. A line that appears every
+      // turn saying "nothing happened" is noise.
+      ...(gained > 0 ? [`ケイオスが息を整えた。MPが${gained}回復。`] : []),
+    ],
+  });
   return enemyTurn(next, true, rng, forcedEnemyAction);
 }
 

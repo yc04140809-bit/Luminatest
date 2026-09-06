@@ -230,6 +230,21 @@ type Shot = {
   go: (page: Page) => Promise<void>;
 };
 
+/**
+ * Gald's fight, played until she steps forward.
+ *
+ * The awakening is a mid-fight event rather than a screen the player
+ * can walk to, so the only way to photograph it is to fight until it
+ * happens. It arrives at 66% of his health or on turn 8, whichever
+ * comes first, so the swinging here is bounded and short.
+ */
+async function galdUntilAwakening(page: Page) {
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+  const scene = page.getByTestId('magic-awakening');
+  await swingUntil(page, 'attack-button', () => scene.isVisible().catch(() => false), 60_000);
+  await expect(scene).toBeVisible({ timeout: 20_000 });
+}
+
 const RECIPES: Record<string, Shot[]> = {
   TITLE: [
     {
@@ -485,6 +500,29 @@ const RECIPES: Record<string, Shot[]> = {
         });
         await page.getByTestId('bp-accident-talk').click();
         await expect(page.getByTestId('preview-replay')).toBeVisible();
+      },
+    },
+  ],
+  'GALD BATTLE / MAGIC': [
+    {
+      suffix: 'magic_awakening',
+      why: 'ケイオスちゃんが前に出る場面。戦闘の上に重なっているか（別画面へ飛んでいないか）、文字が横画面に収まっているか',
+      go: galdUntilAwakening,
+    },
+    {
+      suffix: 'magic_tray',
+      why: '《魔法》トレイ。星光弾とMP消費が読めるか、横画面スマホの親指で押せる大きさか、上のHP/MP帯が隠れていないか',
+      go: async (page) => {
+        await galdUntilAwakening(page);
+        const scene = page.getByTestId('magic-awakening');
+        for (let i = 0; i < 10; i += 1) {
+          if (!(await scene.isVisible().catch(() => false))) break;
+          await scene.click({ force: true });
+          await page.waitForTimeout(120);
+        }
+        await page.getByTestId('magic-button').click({ force: true });
+        await expect(page.getByTestId('magic-tray')).toBeVisible();
+        await page.waitForTimeout(300);
       },
     },
   ],

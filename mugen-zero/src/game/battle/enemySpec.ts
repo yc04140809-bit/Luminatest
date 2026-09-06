@@ -19,5 +19,6 @@ export function specOf(species: EnemySpeciesDef): EnemySpec {
     appearLine: species.appearLine,
     poise: species.poise,
     phases: species.phases,
+    affinity: species.affinity,
   };
 }

@@ -1,17 +1,17 @@
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-06T00:53:27.246Z
-- Build: MUGEN ZERO v0.1 / 57b6f22 / 2026-09-06T00:52:01.668Z
+- Generated: 2026-09-06T03:54:05.046Z
+- Build: MUGEN ZERO v0.1 / b81ad6c / 2026-09-06T03:53:48.777Z
 - Environment: dev server
-- Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
+- Result: no failed checks — 20 pass, 0 warn, 3 not tested, 1 manual
 
 ## CURRENT WORLD
-- World time: 4年目 4日目 (day 1099)
-- Route: SPARE
-- TIME SHIFTs: 1
-- WORLD MEMORY facts: 5
-- LIFE ARCHIVE: 1 known / 4 in canon
-- Future sites: ALDEN_BAKERY:ON MAP, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
+- World time: 1年目 1日目 (day 1)
+- Route: NONE
+- TIME SHIFTs: 0
+- WORLD MEMORY facts: 0
+- LIFE ARCHIVE: 0 known / 0 in canon
+- Future sites: ALDEN_BAKERY:not yet, GREENWOOD_WAYSTATION:not yet, ALDEN_WORKYARD:not yet, GREENWOOD_GRAVE:not yet
 
 ## CONTENT
 - NOW events: 18
@@ -48,15 +48,15 @@
   - how: looked for an event requiring each route memory
 
 ## WORLD MEMORY CHECKS
-- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 5 facts recorded, no duplicates
+- **PASS** `WORLD_MEMORY_NO_DUPLICATES` — 0 facts recorded, no duplicates
   - how: compared every event id in the world currently loaded
-- **PASS** `LIFE_CHOICE_IS_SINGULAR` — one choice: PLAYER_SPARED_GALD
+- **PASS** `LIFE_CHOICE_IS_SINGULAR` — no choice made yet
   - how: counted the first-encounter outcomes in WORLD MEMORY
 - **PASS** `WORLD_MEMORY_IN_ORDER` — history runs forwards
   - how: walked the event list comparing world dates
-- **PASS** `FUTURE_SITE_CAUSALITY` — 1 of 4 sites on the map, 0 found
+- **PASS** `FUTURE_SITE_CAUSALITY` — 0 of 4 sites on the map, 0 found
   - how: compared each site discovery against its required world memory
-- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 1 of 4 chapters known to the player
+- **PASS** `LIFE_ARCHIVE_IS_A_PROJECTION` — 0 of 0 chapters known to the player
   - how: compared the player projection against the canon archive
 
 ## EXPERIENCE CHECKS
@@ -80,7 +80,7 @@
   - how: not checked here — e2e/fourFutures.spec.ts plays all four in a browser
 
 ## SAVE
-- **PASS** `SAVE_RESTORED` — restored 5 facts and 0 met events from IndexedDB
+- **NOT TESTED** `SAVE_RESTORED` — nothing saved yet in this world, so there was nothing to restore
   - how: this world was read back from IndexedDB when the page loaded
 - **NOT TESTED** `SAVE_SURVIVES_RELOAD` — a reload keeps what the player met and what the world remembers
   - how: not checked here — e2e navigation / rumorSeeds specs reload the page and re-read
@@ -98,6 +98,5 @@
 - none
 
 ## VISUAL REVIEW REQUIRED
-- [ ] GREENWOOD / BATTLE — 探索フィールドを横ワールド化しました。背景は新規の横長フィールド画（添付いただいたもの）。画面下部の地面帯だけが歩行可能で、地面以外をタップしても最寄りの地面へ補正されます。8つの発見スポットは地面帯の上に「どのくらい奥／どのくらい横」で定義され、ピクセル指定をやめました。進行方向は右→左で、右端に「戻る」判定を置いています
-- [ ] BATTLE UI PROTOTYPE — 戦闘テンポの調整。敵HPバーの下に細い「体勢（POISE）」ゲージを追加し、崩れている間は点滅します。敵名の横に「警戒」「必死」などの段階バッジが出ます。レイアウト・演出・古代龍のカットインは無変更です
-- unchanged, no screenshot needed: ADMIN DEV TOOLS, EXPLORE, SETTINGS, ARCANA / アルカナ図鑑, TITLE, HOME, OPENING THEME / SKIP, PROLOGUE / KAOS, TAVERN / TALK, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB
+- [ ] GALD BATTLE / MAGIC — ガルド戦にケイオスちゃんの《魔法》が入りました。戦闘中盤（HP66%以下、または8ターン経過）でケイオスちゃんが前に出る場面が戦闘画面の上に重なり、以後コマンド行が「攻撃／魔法／身構える」の3つになります。上部にMPを追加（48/48から開始）。魔法トレイには《星光弾》1つ（MP6）だけが並びます。魔法を使ったターンは主人公は攻撃しません（1ターン1行動のまま）
+- unchanged, no screenshot needed: BATTLE UI PROTOTYPE, GREENWOOD / BATTLE, ADMIN DEV TOOLS, EXPLORE, SETTINGS, ARCANA / アルカナ図鑑, TITLE, HOME, OPENING THEME / SKIP, PROLOGUE / KAOS, TAVERN / TALK, WORLD MEMORY, LIFE CHOICE / ENDING, PLAYTEST SURVEY, DEV REVIEW HUB

@@ -13,6 +13,7 @@
 
 import { MOSS_RABBIT_ART } from '../art/enemyArt';
 import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviour';
+import type { EnemyAffinity } from '../../game/battle/damageType';
 import type { LifeChoiceId } from '../../core/flow/types';
 import type { DialogueLine } from '../dialogue/prologue';
 
@@ -74,6 +75,15 @@ export interface EnemySpeciesDef {
    */
   poise?: EnemyPoiseSpec;
   phases?: readonly EnemyPhase[];
+  /**
+   * What it is tough against and what it is soft against.
+   *
+   * The field that makes "who should swing at this one" a question. An
+   * empty object means it has no opinion, which is what most creatures
+   * should be — a bestiary where everything has a weakness is a
+   * bestiary where the weakness chart is the game.
+   */
+  affinity?: EnemyAffinity;
   attackMin: number;
   attackMax: number;
   /** Its one normal attack. */
@@ -132,6 +142,13 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   attackMin: 2,
   attackMax: 5,
   attackName: 'リーフタックル',
+  /**
+   * A small animal under a mat of living moss. Nothing about it is
+   * armoured and nothing about it is magical: it takes both kinds as
+   * they come, which is what an ordinary creature should do. The
+   * creatures that have an opinion are the ones worth writing one for.
+   */
+  affinity: {},
   /**
    * ITS FOOTING. A small animal braced under a mat of moss: hit it and
    * it slips, hit it while it is bracing and it slips further, and when

@@ -54,6 +54,38 @@ export const GALD_BATTLE: EnemySpec = {
     breakLine: `${GALD.unknownName}の構えが崩れた！ 短剣の切っ先が下がる。`,
     recoverLine: `${GALD.unknownName}は息を整え、短剣を握りなおした。`,
   },
+  /**
+   * A man in leather with a knife. He has no opinion about either kind
+   * of harm, which is what makes him the right fight to learn on: the
+   * choice between a sword and a star here is about his GUARD, not
+   * about a weakness chart.
+   */
+  affinity: {},
+  /**
+   * THE AWAKENING — the first time Kaos does more than stand behind you.
+   *
+   * Placed in this fight because it is the fight the story turns on,
+   * and timed two ways so that nobody finishes it without being offered
+   * the thing it exists to teach: eight of the player's turns, or the
+   * moment he is down to two thirds, whichever comes first. In a
+   * twenty-three turn fight that lands early enough to be used a lot.
+   *
+   * THE LINES ARE PROVISIONAL. They are data, in order, and replacing
+   * them is replacing this array — nothing reads their content. She is
+   * deliberately not explaining herself here: what she can do is shown,
+   * and why she can do it is not asked and not answered.
+   */
+  awakening: {
+    afterTurns: 8,
+    atOrBelowHp: 0.66,
+    lines: [
+      { speaker: null, text: '短剣が肩をかすめた。' },
+      { speaker: 'ケイオス', text: '……そこまで。' },
+      { speaker: null, text: 'ケイオスが一歩、前に出た。指先に小さな光が集まっていく。' },
+      { speaker: 'ケイオス', text: 'わたしも、戦えるよ。' },
+      { speaker: null, text: '《魔法》が使えるようになった。' },
+    ],
+  },
   phases: [
     {
       id: 'SERIOUS',

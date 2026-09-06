@@ -3,6 +3,7 @@ import { GameFlow } from './core/flow/gameFlow';
 import { World } from './core/world/world';
 import { IdbMemoryStore } from './core/memory/idbStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
+import { kaosHasAwakened } from './core/magic/awakened';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { PrologueScreen } from './ui/screens/PrologueScreen';
 import { HomeScreen } from './ui/screens/HomeScreen';
@@ -205,6 +206,16 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   const battleArcana = battleArcanaOf(ARCANA_DEFS, world.getArcanaRecords());
   const accidentRecords = world.getAccidentRecords();
   const observedAccidents = world.getObservedAccidents();
+  /**
+   * Whether Kaos can already do more than stand behind you.
+   *
+   * Read from what the world remembers rather than from a flag of its
+   * own: she steps forward during the fight with Gald, and the only way
+   * past that fight is one of the four answers — which the world has
+   * written down. No new key, no migration, and a save made before any
+   * of this existed still answers correctly.
+   */
+  const kaosAwakened = kaosHasAwakened(world.getKnownEvents().map((e) => e.type));
   const acquiredArcanaIds = world.getAcquiredArcanaIds();
   const worldDay = toAbsoluteDay(world.getClock());
   /**
@@ -398,6 +409,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           finishesInMugenChoice={debugStoryTrigger() === true}
           startFinishable={startFinishable()}
           forcedEnemyAction={debugEnemyAction()}
+          magicUnlocked={kaosAwakened}
           forcedChaos={debugChaosIntervention()}
           arcana={battleArcana}
           forcedSummon={debugSummon()}
@@ -556,6 +568,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             finishesInMugenChoice={forestStory.current}
             startFinishable={startFinishable()}
             forcedEnemyAction={debugEnemyAction()}
+            magicUnlocked={kaosAwakened}
             forcedChaos={debugChaosIntervention()}
             arcana={battleArcana}
             forcedSummon={debugSummon()}
@@ -607,6 +620,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             battleLocationId={currentLocationId}
             enemy={MOSS_RABBIT}
             forcedEnemyAction={debugEnemyAction()}
+            magicUnlocked={kaosAwakened}
             onVictory={() => {
               forestBattle.current = false;
               // Was that one just an animal, or was it somebody? The
