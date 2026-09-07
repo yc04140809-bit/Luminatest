@@ -134,16 +134,27 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   attackMax: 5,
   attackName: 'リーフタックル',
   /**
-   * A small animal under a mat of living moss. Nothing about it is
-   * armoured and nothing about it is magical: it takes both kinds as
-   * they come, which is what an ordinary creature should do. The
-   * creatures that have an opinion are the ones worth writing one for.
+   * SOFT TO HER LIGHT.
    *
-   * So: NORMAL, said out loud. Giving the first animal in the game a
-   * weakness to make the feature visible would be inventing a fact
-   * about it to suit a test.
+   * Nothing about it is armoured, so a sword is a sword to it and
+   * always will be — the blade is the constant that everything else in
+   * a fight is judged against. What it does have is the mat of living
+   * moss it hides under, which is the whole of the animal's answer to
+   * being found: it lives in the deep shade of Greenwood under a thing
+   * that grows there because the light does not reach it.
+   *
+   * So the star is the one thing it has no answer to, and that is why
+   * this is the creature the weakness belongs on rather than the man.
+   * He is a fight about a guard — a question of WHEN to cast. This is
+   * the first fight that asks WHETHER, and it is the first animal a
+   * player meets, which is where a rule wants teaching.
+   *
+   * It does not make the fight free: the star is nine and a swing is
+   * eight to twelve, so half again on the smaller of the two is a
+   * reason to use her, not a reason to stop swinging. And her power is
+   * finite while the blade is not.
    */
-  affinity: starAffinity('NORMAL'),
+  affinity: starAffinity('WEAK'),
   /**
    * ITS FOOTING. A small animal braced under a mat of moss: hit it and
    * it slips, hit it while it is bracing and it slips further, and when

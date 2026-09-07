@@ -20,6 +20,7 @@ import {
 import { starAffinity, starAffinityOf, type StarAffinity } from './damageType';
 import { GALD_BATTLE } from '../../content/enemies/galdBattle';
 import { MOSS_RABBIT } from '../../content/enemies/species';
+import { specOf } from './enemySpec';
 
 import {
   AUTO_MEND_AT,
@@ -732,11 +733,71 @@ describe('what the creature in front of you thinks of her light', () => {
 });
 
 describe('the two creatures that exist', () => {
-  it('neither of them has an opinion about the star', () => {
-    // Written down so that giving one of them a weakness later is a
-    // deliberate act with a failing test in front of it, rather than
-    // something that happens to a data file.
+  const rabbit = () => createBattle(specOf(MOSS_RABBIT), undefined, { magicUnlocked: true });
+  // His fight is the one that CARRIES the awakening, so it starts with
+  // her locked whatever the option says. Unlocked by hand here, because
+  // what is being measured is what the star does to him, not when he
+  // lets her have it.
+  const gald = (): BattleState => ({ ...createBattle(GALD_BATTLE), magicUnlocked: true });
+
+  it('the animal is soft to her light and the man is not', () => {
+    // Written down so that changing either is a deliberate act with a
+    // failing test in front of it, rather than something that happens
+    // to a data file.
+    expect(starAffinityOf(MOSS_RABBIT.affinity)).toBe('WEAK');
     expect(starAffinityOf(GALD_BATTLE.affinity)).toBe('NORMAL');
-    expect(starAffinityOf(MOSS_RABBIT.affinity)).toBe('NORMAL');
+  });
+
+  it('so the star does more to it than it does to him', () => {
+    // The first fight in the game where the choice of who acts is
+    // decided by what is standing there.
+    const onRabbit = rabbit().enemyHp - castMagic(rabbit(), STARLIGHT_BOLT, rngMid).enemyHp;
+    const onGald = gald().enemyHp - castMagic(gald(), STARLIGHT_BOLT, rngMid).enemyHp;
+    expect(onRabbit).toBeGreaterThan(onGald);
+    // Half again, and he takes exactly what he always did.
+    expect(onGald).toBe(STARLIGHT_BOLT.power);
+    expect(onRabbit).toBe(Math.round(STARLIGHT_BOLT.power * 1.5));
+  });
+
+  it('and the blade is the same blade to both of them', () => {
+    // The constant everything else is judged against. If this ever
+    // moves, the weakness has stopped being about her.
+    const swing = (make: () => BattleState) =>
+      make().enemyHp - playerAttack(make(), rngMid, 'ATTACK').enemyHp;
+    expect(swing(rabbit)).toBe(swing(gald));
+  });
+
+  it('tells the player, in the line it already had', () => {
+    const hit = castMagic(rabbit(), STARLIGHT_BOLT, rngMid);
+    expect(hit.log.some((l) => l.includes('効果は絶大だ'))).toBe(true);
+    expect(hit.lastHitRead).toBe('WEAK');
+    // And says nothing of the sort about him.
+    const onGald = castMagic(gald(), STARLIGHT_BOLT, rngMid);
+    expect(onGald.log.some((l) => l.includes('効果は絶大だ'))).toBe(false);
+  });
+
+  it('is not a free fight: the blade is still worth swinging', () => {
+    // Half again on nine is thirteen or fourteen; a swing is eight to
+    // twelve and costs nothing. If the star ever beats the blade on
+    // average AND costs nothing, she has replaced him.
+    const starred = Math.round(STARLIGHT_BOLT.power * 1.5);
+    expect(starred).toBeLessThan(20);
+    expect(STARLIGHT_BOLT.mpCost).toBeGreaterThan(0);
+  });
+
+  it('makes AUTO reach for her against the animal, and swing at the man', () => {
+    expect(decideTurn(rabbit(), MAGIC_DEFS)).toEqual({
+      action: 'MAGIC',
+      magicId: 'starlight_bolt',
+    });
+    expect(decideTurn(gald(), MAGIC_DEFS).action).toBe('ATTACK');
+  });
+
+  it('leaves the two spells that strike nobody exactly as they were', () => {
+    const hurt: BattleState = { ...rabbit(), playerHp: 50 };
+    expect(castMagic(hurt, MENDING_LIGHT, rngMid).enemyHp).toBe(hurt.enemyHp);
+    const shielded = castMagic(rabbit(), STAR_SHIELD, rngMid);
+    expect(shielded.wardCut).toBeGreaterThan(0);
+    expect(shielded.enemyHp).toBe(rabbit().enemyHp);
   });
 });
