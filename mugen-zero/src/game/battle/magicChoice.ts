@@ -90,6 +90,24 @@ export function weighMagic(state: BattleState, magic: MagicDef): MagicWeigh {
  * more. AUTO will want more than this — it is a starting point with a
  * test, not a brain.
  */
+/**
+ * Nearly out of health: the point at which covering beats swinging.
+ *
+ * Named because two rules read it and they must agree — a turn spent
+ * bracing when you should be mending, or the other way round, is the
+ * kind of thing nobody notices for a hundred fights.
+ */
+export const AUTO_DESPERATE_AT = 0.3;
+
+/**
+ * Hurt enough to be worth a turn of mending.
+ *
+ * Above the desperate line on purpose: mending at the last moment means
+ * mending on the turn a blow kills you, and the whole value of a heal
+ * is that it is spent before it is needed.
+ */
+export const AUTO_MEND_AT = 0.45;
+
 export function suggestAction(
   state: BattleState,
   magic: MagicDef | null,
@@ -97,7 +115,7 @@ export function suggestAction(
   reserveMp = 0,
 ): 'ATTACK' | 'MAGIC' | 'GUARD' {
   // Nearly out of health and out of power: cover, and let her gather.
-  const desperate = state.playerHp <= state.playerMaxHp * 0.3;
+  const desperate = state.playerHp <= state.playerMaxHp * AUTO_DESPERATE_AT;
   if (magic === null || magicBlocked(state, magic) !== null) {
     return desperate && state.playerMp < state.playerMaxMp ? 'GUARD' : 'ATTACK';
   }
@@ -112,4 +130,88 @@ export function suggestAction(
   // takes.
   if (weigh.swingWouldBreak) return 'ATTACK';
   return weigh.favoursMagic ? 'MAGIC' : 'ATTACK';
+}
+
+/**
+ * What an unattended player would do with this turn, given everything
+ * she can do.
+ *
+ * `suggestAction` above answers about ONE spell and only ever about
+ * hurting the creature; this is the whole hand, and the difference is
+ * the reason it exists: with two spells that are not the same kind of
+ * answer, "cast or swing" has stopped being the question and "which of
+ * the four things" has started.
+ *
+ * Still not a brain, and still wired to nothing. Four rules, in the
+ * order a person would apply them:
+ *
+ *   1. Hurt, and she can mend → mend. Before the last moment, not on it.
+ *   2. Nearly gone with nothing to spend → cover, and let her gather.
+ *   3. The best of what hurts it, if it beats swinging → cast that.
+ *   4. Otherwise swing.
+ *
+ * Whoever wires AUTO up gets to argue with these in a test rather than
+ * in a fight.
+ */
+export interface TurnPlan {
+  action: 'ATTACK' | 'MAGIC' | 'GUARD';
+  /** Which of hers, when the action is MAGIC. Null otherwise. */
+  magicId: string | null;
+}
+
+export interface AutoOptions {
+  /** Keep this much power back for later. */
+  reserveMp?: number;
+  /** Mend at or below this share of health. */
+  mendAt?: number;
+}
+
+const SWING: TurnPlan = { action: 'ATTACK', magicId: null };
+const COVER: TurnPlan = { action: 'GUARD', magicId: null };
+
+export function decideTurn(
+  state: BattleState,
+  spells: readonly MagicDef[],
+  options: AutoOptions = {},
+): TurnPlan {
+  const reserveMp = options.reserveMp ?? 0;
+  const mendAt = options.mendAt ?? AUTO_MEND_AT;
+  const usable = spells.filter((spell) => magicBlocked(state, spell) === null);
+
+  // 1. Hurt, with something to do about it. Health already at the top
+  //    is not hurt, however low the bar looks: mending it does nothing
+  //    and costs the turn.
+  const room = state.playerMaxHp - state.playerHp;
+  if (room > 0 && state.playerHp <= state.playerMaxHp * mendAt) {
+    // The biggest one she can afford. With one mending spell this is
+    // that one; with two it is the one that closes more of the gap.
+    const mend = usable.filter(isMending).sort((a, b) => b.power - a.power)[0];
+    if (mend) return { action: 'MAGIC', magicId: mend.id };
+  }
+
+  // 2. Nearly gone, nothing to mend with, and power to be gathered.
+  if (
+    state.playerHp <= state.playerMaxHp * AUTO_DESPERATE_AT &&
+    state.playerMp < state.playerMaxMp
+  ) {
+    return COVER;
+  }
+
+  // 3. The best of what hurts it — best by what it would actually do,
+  //    which is not the same as by its power.
+  let best: MagicDef | null = null;
+  let bestDamage = 0;
+  for (const spell of usable) {
+    if (isMending(spell)) continue;
+    if (state.playerMp - spell.mpCost < reserveMp) continue;
+    const { magicDamage } = weighMagic(state, spell);
+    if (best === null || magicDamage > bestDamage) {
+      best = spell;
+      bestDamage = magicDamage;
+    }
+  }
+  if (best && suggestAction(state, best, reserveMp) === 'MAGIC') {
+    return { action: 'MAGIC', magicId: best.id };
+  }
+  return SWING;
 }

@@ -12,7 +12,13 @@ import {
   type EnemySpec,
 } from './battleLogic';
 import { MAGIC_DEFS, MENDING_LIGHT, STARLIGHT_BOLT } from '../../content/magic/magicDefs';
-import { magicBlocked, suggestAction, weighMagic } from './magicChoice';
+import {
+  AUTO_MEND_AT,
+  decideTurn,
+  magicBlocked,
+  suggestAction,
+  weighMagic,
+} from './magicChoice';
 import {
   availableMagic,
   canCast,
@@ -424,10 +430,74 @@ describe('deciding without a person, about a spell that mends', () => {
   });
 
   it('declines to answer rather than guessing what health is worth', () => {
-    // Handed only a mending spell, an unattended player swings. When
-    // AUTO is wired up it will need its own rule for this; what it must
-    // not do is inherit an answer nobody thought about.
+    // Handed only a mending spell, this one swings: it answers about
+    // damage and healing is not damage. The question of what a health
+    // bar is worth against a turn belongs to `decideTurn`, below, which
+    // is handed the whole hand rather than one card.
     expect(suggestAction(unlocked(), MENDING_LIGHT)).toBe('ATTACK');
     expect(suggestAction({ ...unlocked(), playerHp: 10 }, MENDING_LIGHT)).toBe('ATTACK');
+  });
+});
+
+describe('deciding the whole turn', () => {
+  const ALL = MAGIC_DEFS;
+  const hurt = (hp: number): BattleState => ({ ...unlocked(), playerHp: hp });
+  const armoured = (): BattleState =>
+    createBattle({ ...PLAIN, affinity: { physicalResistance: 0.6, magicWeakness: 0.6 } }, undefined, {
+      magicUnlocked: true,
+    });
+
+  it('swings when there is nothing better to do', () => {
+    expect(decideTurn(unlocked(), ALL)).toEqual({ action: 'ATTACK', magicId: null });
+    expect(decideTurn(unlocked(), [])).toEqual({ action: 'ATTACK', magicId: null });
+  });
+
+  it('mends before the last moment, not on it', () => {
+    // At the mending line exactly, and well above the desperate one.
+    const plan = decideTurn(hurt(Math.floor(100 * AUTO_MEND_AT)), ALL);
+    expect(plan).toEqual({ action: 'MAGIC', magicId: 'mending_light' });
+  });
+
+  it('does not mend health that is already there', () => {
+    // A full bar is not hurt, whatever else is true. Mending it costs
+    // the turn and does nothing, which is the one thing an unattended
+    // player must never spend a turn on.
+    expect(decideTurn(unlocked(), ALL).action).toBe('ATTACK');
+  });
+
+  it('does not mend what it cannot pay for', () => {
+    const poor: BattleState = { ...hurt(20), playerMp: 4 };
+    // Nothing to mend with and power still to gather: cover.
+    expect(decideTurn(poor, ALL)).toEqual({ action: 'GUARD', magicId: null });
+  });
+
+  it('mends rather than covering when it can do both', () => {
+    // Nearly gone AND able to mend. Mending is the better of the two:
+    // bracing buys one softened blow, mending buys five.
+    expect(decideTurn(hurt(15), ALL)).toEqual({ action: 'MAGIC', magicId: 'mending_light' });
+  });
+
+  it('casts at something that minds it, and names which spell', () => {
+    expect(decideTurn(armoured(), ALL)).toEqual({ action: 'MAGIC', magicId: 'starlight_bolt' });
+  });
+
+  it('never names a spell it is not casting', () => {
+    for (const state of [unlocked(), hurt(20), { ...hurt(20), playerMp: 0 }]) {
+      const plan = decideTurn(state, ALL);
+      if (plan.action !== 'MAGIC') expect(plan.magicId).toBeNull();
+    }
+  });
+
+  it('keeps a reserve back from the spells that spend it', () => {
+    const state = armoured();
+    // Enough for the bolt, but not enough to leave the reserve behind.
+    expect(decideTurn(state, ALL, { reserveMp: state.playerMp }).action).toBe('ATTACK');
+  });
+
+  it('will not act at all through a spell it cannot reach', () => {
+    // Locked: she has not stepped forward yet, so nothing of hers is on
+    // the table and the plan is the plan of somebody fighting alone.
+    const locked = createBattle(PLAIN);
+    expect(decideTurn({ ...locked, playerHp: 20 }, ALL).magicId).toBeNull();
   });
 });
