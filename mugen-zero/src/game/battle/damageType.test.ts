@@ -2,8 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   MAX_TAKEN,
   MIN_TAKEN,
+  STAR_SHARE,
   affinityMultiplier,
   readAffinity,
+  starAffinity,
+  starAffinityOf,
   type EnemyAffinity,
 } from './damageType';
 
@@ -68,5 +71,75 @@ describe('telling the player their choice mattered', () => {
     // A rounding wobble is not news.
     expect(readAffinity(1.02)).toBe('PLAIN');
     expect(readAffinity(0.98)).toBe('PLAIN');
+  });
+});
+
+describe('what a creature thinks of her light, in three words', () => {
+  it('is half again for something soft to it', () => {
+    expect(affinityMultiplier(starAffinity('WEAK'), 'MAGIC', 'STAR')).toBeCloseTo(1.5, 5);
+  });
+
+  it('is exactly what it always was for something with no opinion', () => {
+    // The number that must not move: every fight in the game today is
+    // fought against this, so NORMAL is not "roughly one".
+    expect(affinityMultiplier(starAffinity('NORMAL'), 'MAGIC', 'STAR')).toBe(1);
+    expect(starAffinity('NORMAL')).toEqual({});
+  });
+
+  it('is half for something that shrugs it off', () => {
+    expect(affinityMultiplier(starAffinity('RESIST'), 'MAGIC', 'STAR')).toBeCloseTo(0.5, 5);
+  });
+
+  it('says nothing about a sword, whichever of the three it is', () => {
+    // The requirement in one test: the star's business is the star's.
+    // A creature soft to her light is not softer to his blade.
+    for (const kind of ['WEAK', 'NORMAL', 'RESIST'] as const) {
+      expect(affinityMultiplier(starAffinity(kind), 'PHYSICAL'), kind).toBe(1);
+    }
+  });
+
+  it('says nothing about magic that is not hers, either', () => {
+    // No element passed is a spell with no element. The fold only
+    // happens for the element it was written about.
+    for (const kind of ['WEAK', 'NORMAL', 'RESIST'] as const) {
+      expect(affinityMultiplier(starAffinity(kind), 'MAGIC'), kind).toBe(1);
+    }
+  });
+
+  it('reads back as the word it was written with', () => {
+    for (const kind of ['WEAK', 'NORMAL', 'RESIST'] as const) {
+      expect(starAffinityOf(starAffinity(kind))).toBe(kind);
+    }
+    // And a creature nobody wrote an opinion for is NORMAL, which is
+    // the whole of the default.
+    expect(starAffinityOf(undefined)).toBe('NORMAL');
+    expect(starAffinityOf(null)).toBe('NORMAL');
+    expect(starAffinityOf({})).toBe('NORMAL');
+  });
+
+  it('reads a creature written the long way round honestly', () => {
+    const softToMagic: EnemyAffinity = { magicWeakness: 0.6 };
+    expect(starAffinityOf(softToMagic)).toBe('WEAK');
+  });
+
+  it('is a share of the blow, said once', () => {
+    expect(STAR_SHARE).toBe(0.5);
+    expect(starAffinity('WEAK').elementWeakness?.STAR).toBe(STAR_SHARE);
+    expect(starAffinity('RESIST').elementResistance?.STAR).toBe(STAR_SHARE);
+  });
+
+  it('tells the player their choice mattered', () => {
+    expect(readAffinity(affinityMultiplier(starAffinity('WEAK'), 'MAGIC', 'STAR'))).toBe('WEAK');
+    expect(readAffinity(affinityMultiplier(starAffinity('NORMAL'), 'MAGIC', 'STAR'))).toBe('PLAIN');
+    expect(readAffinity(affinityMultiplier(starAffinity('RESIST'), 'MAGIC', 'STAR'))).toBe(
+      'RESISTED',
+    );
+  });
+
+  it('stays inside what the battle allows, however it is combined', () => {
+    const both: EnemyAffinity = { ...starAffinity('WEAK'), magicWeakness: 9 };
+    expect(affinityMultiplier(both, 'MAGIC', 'STAR')).toBeLessThanOrEqual(MAX_TAKEN);
+    const neither: EnemyAffinity = { ...starAffinity('RESIST'), magicResistance: 9 };
+    expect(affinityMultiplier(neither, 'MAGIC', 'STAR')).toBeGreaterThanOrEqual(MIN_TAKEN);
   });
 });

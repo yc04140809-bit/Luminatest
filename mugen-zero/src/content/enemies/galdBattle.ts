@@ -14,6 +14,7 @@
 // somebody who is not going to get another chance.
 
 import type { EnemySpec } from '../../game/battle/battleLogic';
+import { starAffinity } from '../../game/battle/damageType';
 import { GALD } from '../characters/gald';
 
 export const GALD_BATTLE: EnemySpec = {
@@ -59,8 +60,12 @@ export const GALD_BATTLE: EnemySpec = {
    * of harm, which is what makes him the right fight to learn on: the
    * choice between a sword and a star here is about his GUARD, not
    * about a weakness chart.
+   *
+   * NORMAL is written out rather than left blank now that a creature
+   * can say otherwise. It is a decision about him, not a field nobody
+   * filled in.
    */
-  affinity: {},
+  affinity: starAffinity('NORMAL'),
   /**
    * THE AWAKENING — the first time Kaos does more than stand behind you.
    *

@@ -12,6 +12,7 @@
 // speaks, and lines that let an animal be an animal.
 
 import { MOSS_RABBIT_ART } from '../art/enemyArt';
+import { starAffinity } from '../../game/battle/damageType';
 import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviour';
 import type { EnemyAffinity } from '../../game/battle/damageType';
 import type { LifeChoiceId } from '../../core/flow/types';
@@ -137,8 +138,12 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
    * armoured and nothing about it is magical: it takes both kinds as
    * they come, which is what an ordinary creature should do. The
    * creatures that have an opinion are the ones worth writing one for.
+   *
+   * So: NORMAL, said out loud. Giving the first animal in the game a
+   * weakness to make the feature visible would be inventing a fact
+   * about it to suit a test.
    */
-  affinity: {},
+  affinity: starAffinity('NORMAL'),
   /**
    * ITS FOOTING. A small animal braced under a mat of moss: hit it and
    * it slips, hit it while it is bracing and it slips further, and when

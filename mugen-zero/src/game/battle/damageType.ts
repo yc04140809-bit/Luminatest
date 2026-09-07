@@ -86,6 +86,55 @@ export function affinityMultiplier(
 }
 
 /**
+ * WHAT A CREATURE THINKS OF HER LIGHT, in the three words a designer
+ * uses.
+ *
+ * The multiplier above can express anything; this is the small vocabulary
+ * a creature is actually written in. Three states and no more, because
+ * the interesting question is "does the star matter here" and a creature
+ * that takes 1.35× is a creature nobody can feel the difference in.
+ *
+ * Not a new system: it produces the affinity the battle has always
+ * read, so nothing downstream — the damage, the log line, AUTO —
+ * learns anything. It is a way of SAYING it, kept in one place so that
+ * the numbers behind the three words are argued about once.
+ */
+export type StarAffinity = 'WEAK' | 'NORMAL' | 'RESIST';
+
+/**
+ * Half again, and half.
+ *
+ * Both of these are fractions in the sense the affinity uses: weakness
+ * ADDS its fraction and resistance TAKES its fraction away, so a half
+ * either way comes out as ×1.5 and ×0.5. Deliberately big — a creature
+ * whose whole point is that the sword is the wrong tool has to be
+ * obvious in one exchange, not in a spreadsheet.
+ */
+export const STAR_SHARE = 0.5;
+
+/** The affinity for a creature written in those three words. */
+export function starAffinity(kind: StarAffinity): EnemyAffinity {
+  if (kind === 'WEAK') return { elementWeakness: { STAR: STAR_SHARE } };
+  if (kind === 'RESIST') return { elementResistance: { STAR: STAR_SHARE } };
+  // Which is what every creature is until somebody has a reason to
+  // write otherwise. An empty opinion, not an absent one.
+  return {};
+}
+
+/**
+ * And back again, for a report that has to say which of the three a
+ * creature is.
+ *
+ * Reads the multiplier rather than the fields, so a creature written
+ * the long way round — or one that is soft to magic generally — is
+ * still answered honestly.
+ */
+export function starAffinityOf(affinity: EnemyAffinity | null | undefined): StarAffinity {
+  const read = readAffinity(affinityMultiplier(affinity, 'MAGIC', 'STAR'));
+  return read === 'WEAK' ? 'WEAK' : read === 'RESISTED' ? 'RESIST' : 'NORMAL';
+}
+
+/**
  * Whether the creature in front of you would rather be hit by the other
  * one of you.
  *

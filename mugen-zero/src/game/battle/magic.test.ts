@@ -17,6 +17,10 @@ import {
   STARLIGHT_BOLT,
   STAR_SHIELD,
 } from '../../content/magic/magicDefs';
+import { starAffinity, starAffinityOf, type StarAffinity } from './damageType';
+import { GALD_BATTLE } from '../../content/enemies/galdBattle';
+import { MOSS_RABBIT } from '../../content/enemies/species';
+
 import {
   AUTO_MEND_AT,
   AUTO_WARD_AT,
@@ -637,5 +641,102 @@ describe('deciding the whole turn, with a shield in hand', () => {
   it('does not shield what it cannot pay for', () => {
     const poor: BattleState = { ...hurt(70), playerMp: 2 };
     expect(decideTurn(poor, ALL).action).toBe('ATTACK');
+  });
+});
+
+describe('what the creature in front of you thinks of her light', () => {
+  /**
+   * Fixtures, not fabrications.
+   *
+   * Neither creature in the game has an opinion about the star, and
+   * giving one of them a weakness so that this file has something to
+   * measure would be inventing a fact about them to suit a test. These
+   * three are scarecrows: the same numbers three times, differing only
+   * in the one thing being measured.
+   */
+  const scarecrow = (kind: StarAffinity): BattleState =>
+    createBattle({ ...PLAIN, affinity: starAffinity(kind) }, undefined, { magicUnlocked: true });
+
+  const dealtBy = (kind: StarAffinity): number => {
+    const before = scarecrow(kind);
+    return before.enemyHp - castMagic(before, STARLIGHT_BOLT, rngMid).enemyHp;
+  };
+
+  it('takes more from the star when it is soft to it', () => {
+    expect(dealtBy('WEAK')).toBeGreaterThan(dealtBy('NORMAL'));
+  });
+
+  it('takes exactly what it always did when it has no opinion', () => {
+    // The bolt is nine, and against something with nothing to say
+    // about it that is what it has always been.
+    expect(dealtBy('NORMAL')).toBe(STARLIGHT_BOLT.power);
+  });
+
+  it('takes less from the star when it shrugs it off', () => {
+    expect(dealtBy('RESIST')).toBeLessThan(dealtBy('NORMAL'));
+  });
+
+  it('says so in the log, so the choice reads as a choice', () => {
+    const weak = castMagic(scarecrow('WEAK'), STARLIGHT_BOLT, rngMid);
+    expect(weak.log.some((l) => l.includes('効果は絶大だ'))).toBe(true);
+    const tough = castMagic(scarecrow('RESIST'), STARLIGHT_BOLT, rngMid);
+    expect(tough.log.some((l) => l.includes('手ごたえが薄い'))).toBe(true);
+    const plain = castMagic(scarecrow('NORMAL'), STARLIGHT_BOLT, rngMid);
+    expect(plain.log.some((l) => l.includes('効果は絶大だ') || l.includes('手ごたえが薄い'))).toBe(
+      false,
+    );
+  });
+
+  it('changes nothing about a sword', () => {
+    // The point of the whole feature: the star is the thing that has
+    // become a choice, so the blade must be untouched by it.
+    const swing = (kind: StarAffinity) => {
+      const before = scarecrow(kind);
+      return before.enemyHp - playerAttack(before, rngMid, 'ATTACK').enemyHp;
+    };
+    expect(swing('WEAK')).toBe(swing('NORMAL'));
+    expect(swing('RESIST')).toBe(swing('NORMAL'));
+  });
+
+  it('changes nothing about the two spells that strike nobody', () => {
+    for (const kind of ['WEAK', 'NORMAL', 'RESIST'] as const) {
+      const hurt: BattleState = { ...scarecrow(kind), playerHp: 50 };
+      const mended = castMagic(hurt, MENDING_LIGHT, rngMid);
+      expect(mended.enemyHp, kind).toBe(hurt.enemyHp);
+      const shielded = castMagic(scarecrow(kind), STAR_SHIELD, rngMid);
+      expect(shielded.wardCut, kind).toBeGreaterThan(0);
+    }
+  });
+
+  it('is what AUTO already weighs, without being taught anything', () => {
+    // weighMagic has multiplied by the affinity since it was written.
+    expect(weighMagic(scarecrow('WEAK'), STARLIGHT_BOLT).magicDamage).toBeGreaterThan(
+      weighMagic(scarecrow('NORMAL'), STARLIGHT_BOLT).magicDamage,
+    );
+    expect(weighMagic(scarecrow('RESIST'), STARLIGHT_BOLT).magicDamage).toBeLessThan(
+      weighMagic(scarecrow('NORMAL'), STARLIGHT_BOLT).magicDamage,
+    );
+  });
+
+  it('makes AUTO reach for the star at something soft to it', () => {
+    expect(decideTurn(scarecrow('WEAK'), MAGIC_DEFS)).toEqual({
+      action: 'MAGIC',
+      magicId: 'starlight_bolt',
+    });
+  });
+
+  it('and swing at something that shrugs it off', () => {
+    expect(decideTurn(scarecrow('RESIST'), MAGIC_DEFS).action).toBe('ATTACK');
+    expect(decideTurn(scarecrow('NORMAL'), MAGIC_DEFS).action).toBe('ATTACK');
+  });
+});
+
+describe('the two creatures that exist', () => {
+  it('neither of them has an opinion about the star', () => {
+    // Written down so that giving one of them a weakness later is a
+    // deliberate act with a failing test in front of it, rather than
+    // something that happens to a data file.
+    expect(starAffinityOf(GALD_BATTLE.affinity)).toBe('NORMAL');
+    expect(starAffinityOf(MOSS_RABBIT.affinity)).toBe('NORMAL');
   });
 });
