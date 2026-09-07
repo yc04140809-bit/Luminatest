@@ -16,6 +16,26 @@
 export const STAGE_ASPECT = 16 / 9;
 
 /**
+ * The narrowest the stage is allowed to get.
+ *
+ * NOT the shape the game is designed against, deliberately. This used
+ * to be STAGE_ASPECT, which meant a window that was genuinely landscape
+ * but less wide than 16:9 — a tablet, a desktop window, the panel a
+ * published copy is played in — got bars top and bottom for the crime
+ * of not being a phone. The game got visibly smaller than the room it
+ * had, which is the opposite of what the stage is for.
+ *
+ * So the floor is looser than the design target — but only for a
+ * window that is already wider than it is tall. An UPRIGHT phone still
+ * gets 16:9, because there the stage is scaled down to fit and a 4:3
+ * stage at the height the screens are written for is a narrower play
+ * area than they are written for: taller on the glass, and smaller in
+ * the units the screens actually use. Landscape has no such trade —
+ * there the stage is not scaled at all, so wider is simply more room.
+ */
+export const MIN_STAGE_ASPECT = 4 / 3;
+
+/**
  * The widest the stage is allowed to get.
  *
  * A phone held sideways is about 2:1 and gets its whole screen, which
@@ -48,16 +68,21 @@ function clamp(value: number, low: number, high: number): number {
 /**
  * The landscape stage for a window of this size.
  *
- * A landscape window gives the stage all of itself (a phone held
- * sideways should not be playing inside a 16:9 box with bars down both
- * sides). A window that is too tall, too square, or absurdly wide gets
+ * A landscape window gives the stage all of itself — a phone held
+ * sideways, and equally a window that merely happens to be wider than
+ * it is tall, should not be playing inside a box with bars round it.
+ * Only a window that is too tall, nearly square, or absurdly wide gets
  * the nearest allowed shape, fitted inside it — smaller, never turned.
  */
 export function stageFor(viewportWidth: number, viewportHeight: number): StageBox {
   const w = Math.max(0, Math.floor(viewportWidth));
   const h = Math.max(0, Math.floor(viewportHeight));
   if (w === 0 || h === 0) return { width: w, height: h, portraitHost: h > w };
-  const aspect = clamp(w / h, STAGE_ASPECT, MAX_STAGE_ASPECT);
+  // A window already the right way round may keep whatever shape it
+  // has; one that is not gets squared up to the shape the game is
+  // drawn against before being fitted inside it.
+  const floor = w >= h ? MIN_STAGE_ASPECT : STAGE_ASPECT;
+  const aspect = clamp(w / h, floor, MAX_STAGE_ASPECT);
   // Fit a box of that shape inside the window, touching whichever pair
   // of edges it reaches first.
   const width = Math.min(w, h * aspect);

@@ -3,7 +3,15 @@ import { layoutFor, stageFor, type StageBox } from './landscape';
 
 function measure(): StageBox {
   if (typeof window === 'undefined') return { width: 812, height: 375, portraitHost: false };
-  return stageFor(window.innerWidth, window.innerHeight);
+  // The visual viewport where there is one: it is what is actually on
+  // screen, rather than what would be there if the browser's own bars
+  // were not. Inside a published copy, and on a phone with a retracting
+  // address bar, the two differ by enough to letterbox the game for no
+  // reason. Falls back to the window, which is what it always used.
+  const vv = window.visualViewport;
+  const width = vv?.width ?? window.innerWidth;
+  const height = vv?.height ?? window.innerHeight;
+  return stageFor(width, height);
 }
 
 /**
@@ -27,12 +35,16 @@ export function LandscapeStage({ children }: { children: ReactNode }) {
     const update = () => setBox(measure());
     update();
     window.addEventListener('resize', update);
+    // The visual viewport resizes without the window doing so — a
+    // browser bar sliding away is exactly that — so it is watched too.
+    window.visualViewport?.addEventListener('resize', update);
     // Some browsers fire only one of the two, and some fire
     // orientationchange before the new size is readable — hence both,
     // and a re-measure on the next frame.
     window.addEventListener('orientationchange', () => requestAnimationFrame(update));
     return () => {
       window.removeEventListener('resize', update);
+      window.visualViewport?.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
     };
   }, []);
