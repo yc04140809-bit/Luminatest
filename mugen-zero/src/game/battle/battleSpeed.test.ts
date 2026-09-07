@@ -21,7 +21,13 @@ describe('watching the fight faster', () => {
 
   it('shortens a beat by the speed', () => {
     expect(beatMs(600, 2)).toBe(300);
+  });
+
+  it('already holds a beat at a speed nobody is offered yet', () => {
+    // Adding ×3 is appending it to BATTLE_SPEEDS. The timing does not
+    // need to learn anything, and this is what says so.
     expect(beatMs(600, 3)).toBe(200);
+    expect(speedLabel(3)).toBe('×3');
   });
 
   it('never shortens one past being seen', () => {
@@ -55,7 +61,8 @@ describe('watching the fight faster', () => {
     expect(speed).toBe(DEFAULT_BATTLE_SPEED);
   });
 
-  it('says which one it is', () => {
-    expect(BATTLE_SPEEDS.map(speedLabel)).toEqual(['×1', '×2', '×3']);
+  it('offers normal and twice, and says which one it is', () => {
+    expect(BATTLE_SPEEDS).toEqual([1, 2]);
+    expect(BATTLE_SPEEDS.map(speedLabel)).toEqual(['×1', '×2']);
   });
 });

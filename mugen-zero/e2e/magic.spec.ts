@@ -337,7 +337,13 @@ test.describe('on a phone', () => {
       expect(overflow.x).toBeLessThanOrEqual(1);
       expect(overflow.y).toBeLessThanOrEqual(1);
 
-      for (const id of ['attack-button', 'magic-button', 'defend-button']) {
+      for (const id of [
+        'attack-button',
+        'magic-button',
+        'defend-button',
+        'auto-button',
+        'speed-button',
+      ]) {
         const box = (await page.getByTestId(id).boundingBox())!;
         expect(box, id).not.toBeNull();
         expect(box.x, `${id} on screen`).toBeGreaterThanOrEqual(0);

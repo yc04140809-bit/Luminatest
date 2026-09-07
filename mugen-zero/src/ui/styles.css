@@ -1054,6 +1054,32 @@ body,
   flex: 1;
   font-size: 17px;
 }
+/* AUTO and the speed. They say how the fight is WATCHED, not what is
+   done in it, so they take only the width of their own label and leave
+   the three commands the size they were — and they stay in the command
+   row, which is where a thumb already is on a phone held sideways.
+   `min-height` is the shared tap target; nothing here is smaller. */
+.battle-commands .btn.battle-mode {
+  flex: 0 0 auto;
+  min-width: 62px;
+  min-height: var(--tap-min);
+  padding-left: 10px;
+  padding-right: 10px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+/* On, and unmistakably so: a fight playing itself must never look like
+   a fight waiting for you. The same wash the acting commands wear —
+   a flat gold fill under gold text is the one combination in this
+   palette that cannot be read — with the line doubled, which is what
+   says "engaged" rather than "important". */
+.battle-commands .btn.battle-mode.on {
+  border-color: var(--mugen-gold);
+  color: var(--mugen-gold);
+  font-weight: 600;
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+  box-shadow: var(--mugen-shadow-soft), inset 0 0 0 2px var(--mugen-gold-wash);
+}
 
 /* ---- life choice ---- */
 .life-choice-screen {

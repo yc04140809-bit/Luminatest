@@ -11,10 +11,19 @@
 // number that comes out is the number that went in, which is what makes
 // adopting this invisible until somebody asks for it.
 
-/** What the player may pick. One, and then the ones worth having. */
+/** Every speed the timing knows how to hold a beat at. */
 export type BattleSpeed = 1 | 2 | 3;
 
-export const BATTLE_SPEEDS: readonly BattleSpeed[] = [1, 2, 3];
+/**
+ * What the player is actually offered, in the order the control cycles.
+ *
+ * Two, because two is the choice somebody makes — "normal" and "I have
+ * seen this" — and a third step is worth adding when somebody has sat
+ * through enough fights to want it rather than because the type allows
+ * it. Adding it is appending `3` to this array: the timing already
+ * holds beats at three, and a test below proves it.
+ */
+export const BATTLE_SPEEDS: readonly BattleSpeed[] = [1, 2];
 
 /** What a fight starts at, and what every fight is timed against today. */
 export const DEFAULT_BATTLE_SPEED: BattleSpeed = 1;

@@ -10,10 +10,12 @@ import {
 } from '../../game/battle/battleLogic';
 import { availableMagic, isMending } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
-import { magicBlocked } from '../../game/battle/magicChoice';
+import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
 import {
   DEFAULT_BATTLE_SPEED,
   beatMs,
+  nextSpeed,
+  speedLabel,
   type BattleSpeed,
 } from '../../game/battle/battleSpeed';
 import { MagicTray } from '../battle/MagicTray';
@@ -75,6 +77,18 @@ const BEAT_MS: Record<Exclude<Reaction, 'NONE'>, number> = {
   TACKLE: 460,
   HIDE: 620,
 };
+
+/**
+ * How long AUTO waits after the theatre has finished before it acts.
+ *
+ * Long enough to read the line that just appeared, short enough that
+ * watching does not feel like waiting. Scaled with everything else, so
+ * at ×2 it is half of this.
+ */
+const AUTO_GAP_MS = 550;
+
+/** And how long it holds a line of the awakening scene. */
+const AUTO_READ_MS = 2200;
 
 function HpBar({
   label,
@@ -142,10 +156,22 @@ export function BattleScreen({
    * touching nothing else. One until then, which is what the fight has
    * always been timed at.
    */
-  const [speed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
+  const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
+  /**
+   * Whether the fight is being watched rather than played.
+   *
+   * It chooses with the same rules a player has — `decideTurn` reads
+   * the same state, the same spells and the same power — and it presses
+   * the same three commands. There is no second battle underneath it,
+   * which is why turning it off is nothing more than not scheduling the
+   * next press.
+   */
+  const [auto, setAuto] = useState(false);
   const fieldRef = useRef<HTMLDivElement>(null);
   const [fieldH, setFieldH] = useState(260);
   const beats = useRef<number[]>([]);
+  /** When the theatre currently on screen finishes, in epoch ms. */
+  const busyUntil = useRef(0);
 
   useEffect(() => () => beats.current.forEach(clearTimeout), []);
 
@@ -170,6 +196,8 @@ export function BattleScreen({
       at += beatMs(BEAT_MS[beat], speed);
     }
     beats.current.push(window.setTimeout(() => setReaction('NONE'), at));
+    // What AUTO waits for. A person waits for the same thing.
+    busyUntil.current = Date.now() + at;
   };
 
   /** What the creature did in reply, if it is still standing. */
@@ -257,6 +285,40 @@ export function BattleScreen({
     play(['GUARD', ...answer(next)]);
   };
 
+  /**
+   * AUTO, which is one timer and no second battle.
+   *
+   * When it is on and nothing is playing, it asks `decideTurn` what to
+   * do with the turn and presses the command a player would have
+   * pressed. It reads the same state, the same spells and the same
+   * power, and it cannot do anything the player could not: there is no
+   * path from here into the battle that the three buttons do not also
+   * take.
+   *
+   * Turning it off clears this timer and nothing else, so the very next
+   * tap is a hand-played turn. The awakening is left alone — the scene
+   * advances itself while AUTO is on, at a reading pace, and until it
+   * is done nobody's turn is taken.
+   */
+  useEffect(() => {
+    if (!auto || battle.outcome !== 'ONGOING') return;
+    if (battle.awakeningLines.length > 0) return;
+    const wait = Math.max(0, busyUntil.current - Date.now()) + beatMs(AUTO_GAP_MS, speed);
+    const t = window.setTimeout(() => {
+      const plan = decideTurn(battle, spells);
+      if (plan.action === 'MAGIC' && plan.magicId !== null) cast(plan.magicId);
+      else if (plan.action === 'GUARD') defend();
+      else attack();
+    }, wait);
+    return () => clearTimeout(t);
+    // `spells`, `cast`, `attack` and `defend` are rebuilt every render
+    // and all of them read the same `battle` this effect already
+    // watches. Listing them would clear and re-arm the timer on every
+    // repaint — including the four this screen does while a blow is
+    // playing — and AUTO would never reach the end of its own wait.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, battle, speed]);
+
   return (
     <div
       className={backdrop ? 'screen battle-screen has-backdrop' : 'screen battle-screen'}
@@ -270,6 +332,7 @@ export function BattleScreen({
         <AwakeningScene
           lines={battle.awakeningLines}
           onDone={() => setBattle((b) => clearAwakeningLines(b))}
+          advanceMs={auto ? beatMs(AUTO_READ_MS, speed) : undefined}
         />
       )}
       <ScreenBackdrop src={backdrop} variant="battle" testId="battle-backdrop" />
@@ -393,6 +456,32 @@ export function BattleScreen({
         )}
         <button className="btn" data-testid="defend-button" disabled={!ongoing} onClick={defend}>
           身構える
+        </button>
+        {/* How the fight is watched, rather than what is done in it —
+            so they are narrow, at the end of the row, and the three
+            things that spend a turn keep the width they had. Still in
+            the same reach: this row is where the thumbs already are. */}
+        <button
+          className={auto ? 'btn battle-mode on' : 'btn battle-mode'}
+          data-testid="auto-button"
+          aria-pressed={auto}
+          disabled={!ongoing}
+          onClick={() => {
+            setAuto((on) => !on);
+            setMagicOpen(false);
+          }}
+        >
+          AUTO
+        </button>
+        <button
+          className="btn battle-mode"
+          data-testid="speed-button"
+          data-speed={speed}
+          aria-label={`速度 ${speedLabel(speed)}`}
+          disabled={!ongoing}
+          onClick={() => setSpeed(nextSpeed)}
+        >
+          {speedLabel(speed)}
         </button>
       </div>
     </div>
