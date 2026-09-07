@@ -11,6 +11,11 @@ import {
 import { availableMagic, isMending } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { magicBlocked } from '../../game/battle/magicChoice';
+import {
+  DEFAULT_BATTLE_SPEED,
+  beatMs,
+  type BattleSpeed,
+} from '../../game/battle/battleSpeed';
 import { MagicTray } from '../battle/MagicTray';
 import { AwakeningScene } from '../battle/AwakeningScene';
 import { specOf } from '../../game/battle/enemySpec';
@@ -130,6 +135,14 @@ export function BattleScreen({
    * keep their scale to the place rather than to a pixel count — the
    * same rule, and the same registry, as the prototype screen.
    */
+  /**
+   * How fast the theatre is watched. Nothing changes the numbers of the
+   * fight; every duration on this screen goes through `beatMs`, so
+   * offering the player a control is adding a setter and a button and
+   * touching nothing else. One until then, which is what the fight has
+   * always been timed at.
+   */
+  const [speed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
   const fieldRef = useRef<HTMLDivElement>(null);
   const [fieldH, setFieldH] = useState(260);
   const beats = useRef<number[]>([]);
@@ -154,7 +167,7 @@ export function BattleScreen({
     for (const beat of sequence) {
       const delay = at;
       beats.current.push(window.setTimeout(() => setReaction(beat), delay));
-      at += BEAT_MS[beat];
+      at += beatMs(BEAT_MS[beat], speed);
     }
     beats.current.push(window.setTimeout(() => setReaction('NONE'), at));
   };
@@ -167,14 +180,14 @@ export function BattleScreen({
     if (battle.outcome === 'VICTORY') {
       // No EXP screen. He is beaten, not dead — his life is the next
       // screen's question.
-      const t = setTimeout(onVictory, 1500);
+      const t = setTimeout(onVictory, beatMs(1500, speed));
       return () => clearTimeout(t);
     }
     if (battle.outcome === 'DEFEAT') {
-      const t = setTimeout(onDefeat, 1200);
+      const t = setTimeout(onDefeat, beatMs(1200, speed));
       return () => clearTimeout(t);
     }
-  }, [battle.outcome, onVictory, onDefeat]);
+  }, [battle.outcome, onVictory, onDefeat, speed]);
 
   const ongoing = battle.outcome === 'ONGOING';
   const beaten = battle.enemyHp <= 0;
