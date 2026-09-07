@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { artCoverage } from './artCoverage';
+import { activeParty } from '../../game/party/battleParty';
+import { PARTY_ART } from './partyArt';
+import { SPRITE_FRAMES } from './spriteFrames';
 import { ENEMY_ART_STATES } from './enemyArt';
 import { PARTY_ART_STATES } from './partyArt';
 
@@ -27,6 +30,27 @@ describe('art coverage', () => {
     expect(byId.hero.missing).toContain('battle_attack');
     expect(byId.kaos.present).toContain('battle_idle');
     expect(byId.kaos.present).toContain('portrait');
+  });
+
+  /**
+   * The one thing that would let a third member arrive as a question
+   * mark.
+   *
+   * Joining the party is two files — the roster and this registry — and
+   * nothing crashes if somebody does only the first: the art layer
+   * answers with a placeholder and the battlefield draws a '?'. That is
+   * the right failure at runtime and the wrong one to find in a
+   * screenshot, so it is a failing test instead.
+   */
+  it('has a battle picture and a size for everybody in the party', () => {
+    for (const member of activeParty()) {
+      expect(PARTY_ART[member.id], `${member.id} has no pictures`).toBeDefined();
+      expect(
+        PARTY_ART[member.id]?.states.battle_idle,
+        `${member.id} has no standing battle picture`,
+      ).toBeDefined();
+      expect(SPRITE_FRAMES[member.id], `${member.id} has no size on the stage`).toBeDefined();
+    }
   });
 
   it('has nobody with nothing at all', () => {
