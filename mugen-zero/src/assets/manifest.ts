@@ -33,6 +33,50 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
 }
 
 /**
+ * GALD, IN ONE PLACE — the checklist for redrawing him.
+ *
+ * Every picture of him the game can show, and what each one is for. He
+ * is the character most likely to be redrawn as a set, and until this
+ * table existed his files were named in three separate exports below,
+ * so "replace Gald" meant finding all three and hoping.
+ *
+ * Replacing his design is: drop files with these names into
+ * assets/characters/gald/ (and events/ for the last one). Nothing else
+ * in the game names any of them — content/art/partyArt.ts maps these
+ * onto art states, and every screen asks the art layer.
+ *
+ *   ready        gald-ready.webp         standing, before the fight —
+ *                                        also his talk / event picture
+ *   defeated     gald-defeated.webp      beaten, on one knee, still
+ *                                        looking at you. The four
+ *                                        answers are asked over this
+ *   battleIdle   gald-battle-idle.png    his fighting pose on the
+ *                                        battlefield. TRANSPARENT, and
+ *                                        used exactly as delivered
+ *   battleDown   gald-battle-down.png    face down where the fight left
+ *                                        him. TRANSPARENT
+ *   baker        gald-baker.webp     ┐
+ *   healer       gald-healer.webp    ├   three years on, one per
+ *   worker       gald-worker.webp    ┘   surviving route
+ *   graveEventCg event-gald-grave.webp    the KILL route, where there
+ *                                        is no Gald left to draw
+ *
+ * The two PNGs are transparent cut-outs and the rest are webp scenes;
+ * that difference is deliberate and load-bearing — a battlefield figure
+ * with a background baked into it cannot stand on the forest floor.
+ */
+const GALD_FILES = {
+  ready: galdReady,
+  defeated: galdDefeated,
+  baker: galdBaker,
+  healer: galdHealer,
+  worker: galdWorker,
+  battleIdle: galdBattleIdle,
+  battleDown: galdBattleDown,
+  graveEventCg: galdGrave,
+} as const;
+
+/**
  * Gald, the same man at several points of one life. 'defeated' means
  * beaten, NOT dead — whether he lives is the player's choice; the last
  * three are where each surviving route leaves him three years on. Same
@@ -42,11 +86,11 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
 export type GaldState = 'ready' | 'defeated' | 'baker' | 'healer' | 'worker';
 
 export const GALD_PORTRAITS: Record<GaldState, string | null> = {
-  ready: galdReady,
-  defeated: galdDefeated,
-  baker: galdBaker,
-  healer: galdHealer,
-  worker: galdWorker,
+  ready: GALD_FILES.ready,
+  defeated: GALD_FILES.defeated,
+  baker: GALD_FILES.baker,
+  healer: GALD_FILES.healer,
+  worker: GALD_FILES.worker,
 };
 
 /**
@@ -56,7 +100,7 @@ export const GALD_PORTRAITS: Record<GaldState, string | null> = {
  * of GALD_PORTRAITS above: 'defeated' is beaten and looking at you with
  * the question still open, and this is the moment before that.
  */
-export const GALD_BATTLE_DOWN: string = galdBattleDown;
+export const GALD_BATTLE_DOWN: string = GALD_FILES.battleDown;
 
 /**
  * THE THREE BATTLE FIGURES.
@@ -69,7 +113,7 @@ export const GALD_BATTLE_DOWN: string = galdBattleDown;
 export const BATTLE_FIGURES = {
   hero: heroBattleIdle,
   kaos: kaosBattleIdle,
-  gald: galdBattleIdle,
+  gald: GALD_FILES.battleIdle,
 } as const;
 
 export function galdPortrait(state: GaldState): string | null {
@@ -85,7 +129,7 @@ export function galdPortrait(state: GaldState): string | null {
  * event's own definition — no new system.
  */
 export const EVENT_CG = {
-  GALD_GRAVE: galdGrave,
+  GALD_GRAVE: GALD_FILES.graveEventCg,
 } as const;
 
 /**
