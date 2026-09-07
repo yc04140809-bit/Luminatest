@@ -83,7 +83,12 @@ export default defineConfig({
    * This is the artifact build only. The repository build
    * (vite.config.ts) is untouched, and so are the images.
    */
-  esbuild: { lineLimit: 500_000 },
+  // And leave the identifiers alone. The publisher rejected several
+  // builds of this page that differed from a published one only in
+  // which short names the minifier had handed out; with full names it
+  // publishes. It costs about 700 kB of a 16 MB budget, and it costs
+  // the repository build nothing — that config never sees this line.
+  esbuild: { lineLimit: 500_000, minifyIdentifiers: false },
   plugins: [react(), viteSingleFile()],
   resolve: { alias: reviewAssetAliases() },
   build: {
