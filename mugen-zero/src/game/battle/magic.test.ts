@@ -12,6 +12,7 @@ import {
   type EnemySpec,
 } from './battleLogic';
 import {
+  COMET_STRIKE,
   MAGIC_DEFS,
   MENDING_LIGHT,
   STARLIGHT_BOLT,
@@ -424,6 +425,7 @@ describe('the light that mends', () => {
     expect(availableMagic(MAGIC_DEFS, { awakened: false })).toEqual([]);
     expect(availableMagic(MAGIC_DEFS, { awakened: true }).map((m) => m.id)).toEqual([
       'starlight_bolt',
+      'comet_strike',
       'mending_light',
       'star_shield',
     ]);
@@ -799,5 +801,136 @@ describe('the two creatures that exist', () => {
     const shielded = castMagic(rabbit(), STAR_SHIELD, rngMid);
     expect(shielded.wardCut).toBeGreaterThan(0);
     expect(shielded.enemyHp).toBe(rabbit().enemyHp);
+  });
+});
+
+describe('the comet', () => {
+  const scarecrow = (hp = 200): BattleState => ({
+    ...createBattle({ ...PLAIN, hp }, undefined, { magicUnlocked: true }),
+  });
+
+  it('is the other side of the bolt, not a bigger one', () => {
+    // The whole reason both exist. If these ever agree, one of them
+    // has become an upgrade of the other and the choice is gone.
+    expect(COMET_STRIKE.power).toBeGreaterThan(STARLIGHT_BOLT.power);
+    expect(COMET_STRIKE.mpCost).toBeGreaterThan(STARLIGHT_BOLT.mpCost);
+    expect(COMET_STRIKE.blockedByGuard).toBe(true);
+    expect(STARLIGHT_BOLT.blockedByGuard).toBe(false);
+  });
+
+  it('costs power the bolt does not, for damage the bolt cannot', () => {
+    const before = scarecrow();
+    const comet = castMagic(before, COMET_STRIKE, rngMid);
+    const bolt = castMagic(before, STARLIGHT_BOLT, rngMid);
+    expect(before.enemyHp - comet.enemyHp).toBe(COMET_STRIKE.power);
+    expect(before.enemyHp - comet.enemyHp).toBeGreaterThan(before.enemyHp - bolt.enemyHp);
+    expect(comet.playerMp).toBe(before.playerMp - COMET_STRIKE.mpCost);
+  });
+
+  it('is worse power for power than the bolt, which is why the bolt stays', () => {
+    const perPower = (m: typeof COMET_STRIKE) => m.power / m.mpCost;
+    expect(perPower(COMET_STRIKE)).toBeLessThan(perPower(STARLIGHT_BOLT));
+  });
+
+  it('does not replace the blade: her power runs out and it does not', () => {
+    // Three of them and she is empty. A swing is eight to twelve for
+    // nothing, every turn, forever.
+    const casts = Math.floor(PLAYER_MAX_MP / COMET_STRIKE.mpCost);
+    expect(casts).toBeLessThanOrEqual(3);
+    expect(COMET_STRIKE.power).toBeLessThan(24);
+  });
+
+  it('takes nobody off their feet, however big it is', () => {
+    const footed: BattleState = { ...scarecrow(), enemyPoise: 3, enemyMaxPoise: 5 };
+    const after = castMagic(footed, COMET_STRIKE, rngMid);
+    expect(after.enemyPoise).toBe(footed.enemyPoise);
+  });
+
+  it('is blunted by a raised guard, where the bolt is not', () => {
+    const skill = {
+      name: '身がまえ',
+      damageTaken: 0.5,
+      turns: 2,
+      cooldown: 2,
+      chance: 1,
+      maxUses: 3,
+      line: '身がまえた。',
+    };
+    const covered: BattleState = {
+      ...createBattle({ ...PLAIN, skill }, undefined, { magicUnlocked: true }),
+      enemyGuardTurns: 2,
+    };
+    const comet = covered.enemyHp - castMagic(covered, COMET_STRIKE, rngMid).enemyHp;
+    const bolt = covered.enemyHp - castMagic(covered, STARLIGHT_BOLT, rngMid).enemyHp;
+    expect(comet).toBe(Math.round(COMET_STRIKE.power * 0.5));
+    expect(bolt).toBe(STARLIGHT_BOLT.power);
+  });
+
+  it('takes the star weakness like anything else of hers', () => {
+    const soft = createBattle({ ...PLAIN, affinity: starAffinity('WEAK') }, undefined, {
+      magicUnlocked: true,
+    });
+    const dealt = soft.enemyHp - castMagic(soft, COMET_STRIKE, rngMid).enemyHp;
+    expect(dealt).toBe(Math.round(COMET_STRIKE.power * 1.5));
+  });
+
+  it('cannot be cast without the power for it', () => {
+    const broke: BattleState = { ...scarecrow(), playerMp: COMET_STRIKE.mpCost - 1 };
+    expect(castMagic(broke, COMET_STRIKE, rngMid)).toBe(broke);
+    expect(magicBlocked(broke, COMET_STRIKE)).toBe('NO_MP');
+  });
+});
+
+describe('AUTO, given two ways to hurt something', () => {
+  const soft = (hp: number): BattleState =>
+    createBattle({ ...PLAIN, hp, affinity: starAffinity('WEAK') }, undefined, {
+      magicUnlocked: true,
+    });
+
+  it('does not hold the big one down: the cheap one is what it keeps doing', () => {
+    // The requirement in one test. A long fight against something soft
+    // to her light is fought on bolts, because her power runs out.
+    const plan = decideTurn(soft(300), MAGIC_DEFS);
+    expect(plan).toEqual({ action: 'MAGIC', magicId: 'starlight_bolt' });
+  });
+
+  it('spends the big one to end a fight the cheap one cannot', () => {
+    // Comet is twenty, half again is thirty; the bolt is nine, half
+    // again is fourteen. Between those two numbers is the window the
+    // comet exists for.
+    const plan = decideTurn(soft(25), MAGIC_DEFS);
+    expect(plan).toEqual({ action: 'MAGIC', magicId: 'comet_strike' });
+  });
+
+  it('does not spend the big one where the cheap one already finishes', () => {
+    const plan = decideTurn(soft(10), MAGIC_DEFS);
+    expect(plan).toEqual({ action: 'MAGIC', magicId: 'starlight_bolt' });
+  });
+
+  it('never casts what it cannot pay for', () => {
+    const low: BattleState = { ...soft(25), playerMp: COMET_STRIKE.mpCost - 1 };
+    expect(decideTurn(low, MAGIC_DEFS).magicId).not.toBe('comet_strike');
+  });
+
+  it('runs a whole fight without emptying her on comets', () => {
+    // Played out rather than reasoned about: AUTO fights a soft
+    // creature to the end and must not be dry before it is over.
+    let state = soft(160);
+    let comets = 0;
+    for (let turn = 0; turn < 60 && state.outcome === 'ONGOING'; turn += 1) {
+      const plan = decideTurn(state, MAGIC_DEFS);
+      if (plan.action === 'MAGIC' && plan.magicId) {
+        const spell = MAGIC_DEFS.find((m) => m.id === plan.magicId)!;
+        if (spell.id === 'comet_strike') comets += 1;
+        state = castMagic(state, spell, rngMid);
+      } else if (plan.action === 'GUARD') {
+        state = playerDefend(state, rngMid);
+      } else {
+        state = playerAttack(state, rngMid);
+      }
+    }
+    expect(state.outcome).toBe('VICTORY');
+    // It reached for it, and it did not lean on it.
+    expect(comets).toBeLessThanOrEqual(2);
   });
 });

@@ -1,12 +1,14 @@
 // The spells themselves.
 //
-// Three. On purpose: a starting spell that is strictly better than
+// Four. On purpose: a starting spell that is strictly better than
 // swinging a sword turns two characters into one character, and a list
 // of six nobody has enemies for is six things to balance and nothing to
 // choose between. These are not the same kind of answer — what she
 // does to the thing in front of you, what she does for you once it has
 // landed, and what she puts between you before it does — so the tray
-// asks a real question every time it is opened.
+// asks a real question every time it is opened. Two of them do hurt
+// the creature, and they are not interchangeable either: one goes
+// through a raised guard and the other is what a raised guard is for.
 
 import type { MagicDef } from '../../core/magic/magic';
 
@@ -120,4 +122,53 @@ export const STAR_SHIELD: MagicDef = {
   poiseCost: 0,
 };
 
-export const MAGIC_DEFS: readonly MagicDef[] = [STARLIGHT_BOLT, MENDING_LIGHT, STAR_SHIELD];
+/**
+ * 彗星撃 — provisional name.
+ *
+ * The big one, and deliberately not a bigger 星光弾: it is the other
+ * side of the same coin.
+ *
+ * THE BOLT goes past a raised knife and costs almost nothing, which
+ * makes it the answer to a creature that has covered up — small, and
+ * it does not care what is in the way.
+ *
+ * THIS does care. It is weight rather than precision, so a guard
+ * blunts it exactly as a guard blunts a sword — and against a creature
+ * standing open it is two swings in one turn. The choice between them
+ * is therefore not "which is stronger" but "is anything in the way",
+ * which is a question the fight already asks every few turns.
+ *
+ * WHY IT DOES NOT REPLACE ANYTHING. Twenty for sixteen is worse power
+ * for power than nine for six, so a fight fought entirely on comets
+ * runs her dry in three turns; the bolt is what she can afford to keep
+ * doing. And a swing is eight to twelve for nothing at all, which is
+ * still the only thing that can be done every turn of a long fight and
+ * still the only thing that takes a creature's footing.
+ */
+export const COMET_STRIKE: MagicDef = {
+  id: 'comet_strike',
+  name: '彗星撃',
+  line: 'ケイオスの頭上で光が凝り、尾を引いて落ちた。',
+  mpCost: 16,
+  // Two of the player's swings, in the turn one of them would take.
+  power: 20,
+  type: 'MAGIC',
+  element: 'STAR',
+  target: 'ONE_ENEMY',
+  effect: 'DAMAGE',
+  animation: 'STAR_COMET',
+  unlock: 'AWAKENING',
+  // The difference that makes it a choice rather than an upgrade: this
+  // one is weight, and a raised guard is for weight.
+  blockedByGuard: true,
+  // Light still knocks nobody over, however much of it there is.
+  // Breaking a guard stays the sword's job.
+  poiseCost: 0,
+};
+
+export const MAGIC_DEFS: readonly MagicDef[] = [
+  STARLIGHT_BOLT,
+  COMET_STRIKE,
+  MENDING_LIGHT,
+  STAR_SHIELD,
+];

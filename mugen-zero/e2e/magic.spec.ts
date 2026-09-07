@@ -130,6 +130,33 @@ test.describe('one action a turn', () => {
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
   });
 
+  test('the big one costs more, hits harder, and is still one turn', async ({ page }) => {
+    await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+    await awaken(page);
+    const enemyHp = page.getByTestId('enemy-hp');
+
+    // The cheap one first, for something to measure against.
+    await page.getByTestId('magic-button').click();
+    let before = hpOf(await enemyHp.textContent());
+    await page.getByTestId('magic-starlight_bolt').click();
+    await page.waitForTimeout(700);
+    const bolt = before - hpOf(await enemyHp.textContent());
+    await expect(page.getByTestId('player-mp')).toContainText('42/48');
+
+    await page.getByTestId('magic-button').click();
+    before = hpOf(await enemyHp.textContent());
+    await page.getByTestId('magic-comet_strike').click();
+    await expect(page.getByTestId('magic-tray')).toHaveCount(0);
+    await page.waitForTimeout(700);
+    const comet = before - hpOf(await enemyHp.textContent());
+
+    expect(comet, 'the comet hits harder').toBeGreaterThan(bolt);
+    // 42 - 16. And nothing else landed with it: a swing is 8–12, so
+    // both in one turn would be past 30.
+    await expect(page.getByTestId('player-mp')).toContainText('26/48');
+    expect(comet, 'and nothing else landed with it').toBeLessThan(30);
+  });
+
   test('her other hand: mending puts health back and strikes nobody', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
@@ -376,7 +403,12 @@ test.describe('on a phone', () => {
       await page.getByTestId('magic-button').click();
       // Every spell in the tray, not just the first: the tray grows as
       // she learns things and it must still fit the shortest phone.
-      for (const id of ['magic-starlight_bolt', 'magic-mending_light', 'magic-star_shield']) {
+      for (const id of [
+        'magic-starlight_bolt',
+        'magic-comet_strike',
+        'magic-mending_light',
+        'magic-star_shield',
+      ]) {
         const spell = (await page.getByTestId(id).boundingBox())!;
         expect(spell, id).not.toBeNull();
         expect(spell.height, `${id} is thumb-sized too`).toBeGreaterThanOrEqual(40);

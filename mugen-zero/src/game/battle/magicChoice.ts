@@ -223,16 +223,37 @@ export function decideTurn(
   }
 
   // 4. The best of what hurts it — best by what it would actually do,
-  //    which is not the same as by its power.
+  //    which is not the same as by its power, and not the same as by
+  //    the biggest number either.
+  //
+  //    With one attacking spell these two clauses agree and neither is
+  //    visible. With two that trade power against reach, they are the
+  //    difference between an unattended player and a button held down:
+  //    take the big one when it ENDS the fight, and the rest of the
+  //    time take whichever gets the most out of the power she has,
+  //    because her power runs out and the fight does not.
+  const attacking = usable.filter(
+    (spell) => harmsEnemy(spell) && state.playerMp - spell.mpCost >= reserveMp,
+  );
+  const weighed = attacking.map((spell) => ({ spell, ...weighMagic(state, spell) }));
+
+  // Anything that would put it down, cheapest first: there is no
+  // reason to spend the big one where the small one already finishes.
+  const finisher = weighed
+    .filter((w) => w.magicDamage >= state.enemyHp)
+    .sort((a, b) => a.spell.mpCost - b.spell.mpCost)[0];
+  if (finisher) return { action: 'MAGIC', magicId: finisher.spell.id };
+
   let best: MagicDef | null = null;
-  let bestDamage = 0;
-  for (const spell of usable) {
-    if (!harmsEnemy(spell)) continue;
-    if (state.playerMp - spell.mpCost < reserveMp) continue;
-    const { magicDamage } = weighMagic(state, spell);
-    if (best === null || magicDamage > bestDamage) {
+  let bestWorth = 0;
+  for (const { spell, magicDamage } of weighed) {
+    // What the power actually buys. A spell that hits twice as hard
+    // for nearly three times the power is not the better spell for a
+    // fight that is going to last.
+    const worth = spell.mpCost > 0 ? magicDamage / spell.mpCost : magicDamage;
+    if (best === null || worth > bestWorth) {
       best = spell;
-      bestDamage = magicDamage;
+      bestWorth = worth;
     }
   }
   if (best && suggestAction(state, best, reserveMp) === 'MAGIC') {

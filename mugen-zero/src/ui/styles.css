@@ -3678,9 +3678,18 @@ body,
   z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  /* Tightened from 6/14/12 when she learned a fourth spell: five rows
+     at the old rhythm reached over the health bars, and choosing
+     between a small spell and a big one is exactly the decision that
+     needs to see how much of the creature is left. */
+  gap: 4px;
   width: 100%;
-  padding: 14px max(14px, calc((100% - 620px) / 2)) 12px;
+  padding: 8px max(14px, calc((100% - 620px) / 2)) 8px;
+  /* And a guard rail rather than a promise: whatever she learns next,
+     the drawer stays inside the stage and scrolls instead of running
+     off the top of it. */
+  max-height: calc(var(--stage-h, 100vh) - 108px);
+  overflow-y: auto;
   background: linear-gradient(
     180deg,
     rgba(18, 16, 14, 0) 0%,
