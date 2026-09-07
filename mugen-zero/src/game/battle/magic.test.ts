@@ -11,9 +11,15 @@ import {
   type BattleState,
   type EnemySpec,
 } from './battleLogic';
-import { STARLIGHT_BOLT } from '../../content/magic/magicDefs';
+import { MAGIC_DEFS, MENDING_LIGHT, STARLIGHT_BOLT } from '../../content/magic/magicDefs';
 import { magicBlocked, suggestAction, weighMagic } from './magicChoice';
-import { availableMagic, canCast, magicAvailable, type MagicDef } from '../../core/magic/magic';
+import {
+  availableMagic,
+  canCast,
+  isMending,
+  magicAvailable,
+  type MagicDef,
+} from '../../core/magic/magic';
 
 const rngMid = () => 0.5;
 
@@ -328,5 +334,100 @@ describe('deciding without a person', () => {
   it('covers when it is hurt and out of power', () => {
     const cornered: BattleState = { ...unlocked(), playerHp: 20, playerMp: 0 };
     expect(suggestAction(cornered, STARLIGHT_BOLT)).toBe('GUARD');
+  });
+});
+
+describe('the light that mends', () => {
+  const hurt = (hp: number): BattleState => ({ ...unlocked(), playerHp: hp });
+
+  it('puts health back, and spends the power it cost', () => {
+    const before = hurt(40);
+    const after = castMagic(before, MENDING_LIGHT, rngMid);
+    // The creature answers, so the health is what she gave less what it
+    // took back — but she gave all of it.
+    const dealt = before.playerHp + MENDING_LIGHT.power - after.playerHp;
+    expect(dealt).toBeGreaterThanOrEqual(0);
+    expect(after.playerHp).toBeGreaterThan(before.playerHp);
+    expect(after.playerMp).toBe(before.playerMp - MENDING_LIGHT.mpCost);
+  });
+
+  it('is the turn: the hero does not also swing', () => {
+    // The same rule the whole feature is built around, checked again on
+    // the other kind of spell.
+    const before = hurt(40);
+    const after = castMagic(before, MENDING_LIGHT, rngMid);
+    expect(after.enemyHp).toBe(before.enemyHp);
+    expect(after.turnsTaken).toBe(before.turnsTaken + 1);
+  });
+
+  it('never puts back more than was lost', () => {
+    const full = castMagic(unlocked(), MENDING_LIGHT, rngMid);
+    expect(full.playerHp).toBeLessThanOrEqual(full.playerMaxHp);
+    const barely = castMagic(hurt(99), MENDING_LIGHT, rngMid);
+    expect(barely.playerHp).toBeLessThanOrEqual(barely.playerMaxHp);
+  });
+
+  it('says so when there was no room, rather than looking broken', () => {
+    const after = castMagic(unlocked(), MENDING_LIGHT, rngMid);
+    expect(after.log.some((l) => l.includes('もう満ちている'))).toBe(true);
+    // And it still cost the turn and the power. A spell that quietly
+    // refunds itself is a spell nobody can reason about.
+    expect(after.playerMp).toBe(unlocked().playerMp - MENDING_LIGHT.mpCost);
+  });
+
+  it('hurts nobody and takes nobody\'s footing', () => {
+    const before: BattleState = { ...hurt(40), enemyPoise: 3, enemyMaxPoise: 5 };
+    const after = castMagic(before, MENDING_LIGHT, rngMid);
+    expect(after.enemyHp).toBe(before.enemyHp);
+    expect(after.enemyPoise).toBe(before.enemyPoise);
+    expect(after.enemyStaggerTurns).toBe(before.enemyStaggerTurns);
+  });
+
+  it('cannot be cast without the power for it', () => {
+    const broke: BattleState = { ...hurt(40), playerMp: MENDING_LIGHT.mpCost - 1 };
+    expect(castMagic(broke, MENDING_LIGHT, rngMid)).toBe(broke);
+    expect(magicBlocked(broke, MENDING_LIGHT)).toBe('NO_MP');
+  });
+
+  it('cannot be cast before she has reached past what she was doing', () => {
+    const locked = createBattle(PLAIN);
+    expect(castMagic(locked, MENDING_LIGHT, rngMid)).toBe(locked);
+    expect(magicAvailable(MENDING_LIGHT, { awakened: false })).toBe(false);
+  });
+
+  it('costs more than bracing gathers, so mending is never free', () => {
+    // The whole reason 《身構える》 is part of a plan now. If this ever
+    // inverts, standing still and healing beats playing the fight.
+    expect(MENDING_LIGHT.mpCost).toBeGreaterThan(GUARD_MP_GAIN);
+  });
+
+  it('arrives with the bolt, and both are hers', () => {
+    expect(availableMagic(MAGIC_DEFS, { awakened: false })).toEqual([]);
+    expect(availableMagic(MAGIC_DEFS, { awakened: true }).map((m) => m.id)).toEqual([
+      'starlight_bolt',
+      'mending_light',
+    ]);
+  });
+
+  it('is the one that mends, and the bolt is not', () => {
+    expect(isMending(MENDING_LIGHT)).toBe(true);
+    expect(isMending(STARLIGHT_BOLT)).toBe(false);
+  });
+});
+
+describe('deciding without a person, about a spell that mends', () => {
+  it('never reports healing as a small amount of damage', () => {
+    const weigh = weighMagic(unlocked(), MENDING_LIGHT);
+    expect(weigh.magicDamage).toBe(0);
+    expect(weigh.favoursMagic).toBe(false);
+    expect(weigh.swingWouldBreak).toBe(false);
+  });
+
+  it('declines to answer rather than guessing what health is worth', () => {
+    // Handed only a mending spell, an unattended player swings. When
+    // AUTO is wired up it will need its own rule for this; what it must
+    // not do is inherit an answer nobody thought about.
+    expect(suggestAction(unlocked(), MENDING_LIGHT)).toBe('ATTACK');
+    expect(suggestAction({ ...unlocked(), playerHp: 10 }, MENDING_LIGHT)).toBe('ATTACK');
   });
 });

@@ -130,6 +130,29 @@ test.describe('one action a turn', () => {
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
   });
 
+  test('her other hand: mending puts health back and strikes nobody', async ({ page }) => {
+    await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+    await awaken(page);
+    await page.getByTestId('magic-button').click();
+    // Both of hers arrive together, and they are not the same answer.
+    await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
+    const mend = page.getByTestId('magic-mending_light');
+    await expect(mend).toBeVisible();
+
+    const hpBefore = hpOf(await page.getByTestId('player-hp').textContent());
+    const enemyBefore = hpOf(await page.getByTestId('enemy-hp').textContent());
+    await mend.click();
+    await expect(page.getByTestId('magic-tray')).toHaveCount(0);
+    await page.waitForTimeout(600);
+
+    // Twenty-two back, less whatever he took for the turn it cost.
+    expect(hpOf(await page.getByTestId('player-hp').textContent())).toBeGreaterThan(hpBefore);
+    // And he is exactly as he was: this is the one spell that is not a
+    // blow, so if this ever changes it has become one.
+    expect(hpOf(await page.getByTestId('enemy-hp').textContent())).toBe(enemyBefore);
+    await expect(page.getByTestId('player-mp')).toContainText('36/48');
+  });
+
   test('bracing gives her power back, which is what makes it worth a turn', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);

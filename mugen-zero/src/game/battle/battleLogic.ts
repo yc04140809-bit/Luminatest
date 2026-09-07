@@ -2,7 +2,7 @@
 // v0.1 keeps battle intentionally minimal: attack / defend only.
 
 import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
-import type { MagicDef } from '../../core/magic/magic';
+import { isMending, type MagicDef } from '../../core/magic/magic';
 import {
   hitPoise,
   phaseAt,
@@ -554,6 +554,12 @@ export function castMagic(
   if (!state.magicUnlocked) return state;
   if (state.playerMp < magic.mpCost) return state;
 
+  // Mending is not a blow with the sign flipped: nothing is struck,
+  // nothing loses its footing, and no creature has an opinion about
+  // it. It takes the turn and the creature answers, which is the only
+  // thing the two kinds have in common.
+  if (isMending(magic)) return castMending(state, magic, rng, forcedEnemyAction);
+
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
   const staggered = state.enemyStaggerTurns > 0;
   const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
@@ -602,6 +608,45 @@ export function castMagic(
     next = { ...next, enemyPhaseId: nowIn.id, log: [...next.log, nowIn.line] };
   }
   next = awaken(next);
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * Her hands rather than her fingertips.
+ *
+ * Health where there is room for it, and an honest line where there is
+ * not: a player who spent twelve of their power and their whole turn
+ * on a full health bar is owed being told so, not left wondering
+ * whether the button worked. Same reasoning as `healPlayer`, which is
+ * the summon's version of this and deliberately does NOT take the turn.
+ *
+ * The creature's guard ticks down because a turn passed, and its
+ * footing is untouched because nothing hit it.
+ */
+function castMending(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+): BattleState {
+  const healed = Math.min(magic.power, state.playerMaxHp - state.playerHp);
+  const next = awaken({
+    ...state,
+    playerHp: state.playerHp + healed,
+    playerMp: state.playerMp - magic.mpCost,
+    turnsTaken: state.turnsTaken + 1,
+    // `lastHitRead` is deliberately left as it was. Nothing was struck,
+    // so there is no reading to report, and 《身構える》 leaves it alone
+    // for the same reason.
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      magic.line,
+      healed > 0
+        ? `《${magic.name}》！ HPが${healed}回復した。`
+        : `《${magic.name}》……HPはもう満ちている。`,
+    ],
+  });
   return enemyTurn(next, false, rng, forcedEnemyAction);
 }
 

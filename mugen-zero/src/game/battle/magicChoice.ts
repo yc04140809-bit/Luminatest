@@ -13,7 +13,7 @@
 
 import { affinityMultiplier } from './damageType';
 import type { BattleState } from './battleLogic';
-import type { MagicDef } from '../../core/magic/magic';
+import { isMending, type MagicDef } from '../../core/magic/magic';
 
 /** Why a spell is not available to press right now. */
 export type MagicBlock = 'LOCKED' | 'NO_MP' | 'OVER' | null;
@@ -47,6 +47,20 @@ const AVERAGE_SWING = 10; // the player's 8–12
 
 export function weighMagic(state: BattleState, magic: MagicDef): MagicWeigh {
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
+  // A mending spell does no damage, and saying it does nought rather
+  // than saying nothing is the point: whatever asks this must not be
+  // able to conclude that healing is a weak attack. What it IS worth
+  // is a different question, in different units, and AUTO will need to
+  // ask it separately when somebody wires AUTO up.
+  if (isMending(magic)) {
+    return {
+      magicDamage: 0,
+      swingDamage: AVERAGE_SWING * (guarded ? (state.enemySkill?.damageTaken ?? 1) : 1) *
+        affinityMultiplier(state.enemyAffinity, 'PHYSICAL'),
+      favoursMagic: false,
+      swingWouldBreak: false,
+    };
+  }
   const guardCut = guarded ? (state.enemySkill?.damageTaken ?? 1) : 1;
   const swingDamage = AVERAGE_SWING * guardCut * affinityMultiplier(state.enemyAffinity, 'PHYSICAL');
   const magicDamage =
@@ -87,6 +101,10 @@ export function suggestAction(
   if (magic === null || magicBlocked(state, magic) !== null) {
     return desperate && state.playerMp < state.playerMaxMp ? 'GUARD' : 'ATTACK';
   }
+  // Nothing here knows what a health bar is worth against a turn of
+  // damage, and guessing is worse than declining to answer: handed
+  // only a mending spell, an unattended player swings.
+  if (isMending(magic)) return 'ATTACK';
   if (state.playerMp - magic.mpCost < reserveMp) return 'ATTACK';
   const weigh = weighMagic(state, magic);
   // A blow that would put it on the ground is worth more than a bigger

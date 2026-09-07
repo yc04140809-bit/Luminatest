@@ -13,8 +13,20 @@
 
 import type { DamageType, Element } from '../../game/battle/damageType';
 
-/** Who a spell is aimed at. One kind so far; the field is the point. */
-export type MagicTarget = 'ONE_ENEMY';
+/**
+ * Who a spell is aimed at, and — for now — what kind of thing it is.
+ *
+ * 'ONE_ENEMY' harms the creature. 'ALLY' mends the party.
+ *
+ * Two rather than a separate effect field, because with one spell of
+ * each there is nothing a second field would say that this one does
+ * not: nobody aims harm at their own side and nobody mends a bandit.
+ * The day a spell breaks that — a drain, a curse that heals its
+ * caster — is the day this grows an effect, and it will grow it in one
+ * place because everything asks `isMending` below rather than reading
+ * the target itself.
+ */
+export type MagicTarget = 'ONE_ENEMY' | 'ALLY';
 
 /**
  * Why a spell is or is not available yet.
@@ -36,7 +48,16 @@ export interface MagicDef {
   /** One line in the log when she casts it. */
   line: string;
   mpCost: number;
-  /** Its base damage, before anything the creature thinks about it. */
+  /**
+   * How much it does.
+   *
+   * Damage for a spell aimed at the creature, before anything the
+   * creature thinks about it. Health for one aimed at the party, and
+   * there is nothing to think about it — mending is not resisted, not
+   * guarded against and not elemental, so a mending spell's `type`,
+   * `element`, `blockedByGuard` and `poiseCost` are written for
+   * completeness and read by nothing.
+   */
   power: number;
   type: DamageType;
   element: Element | null;
@@ -80,6 +101,17 @@ export function magicAvailable(def: MagicDef, ctx: MagicContext): boolean {
 /** The ones she can reach, in the order they are written. */
 export function availableMagic(defs: readonly MagicDef[], ctx: MagicContext): MagicDef[] {
   return defs.filter((def) => magicAvailable(def, ctx));
+}
+
+/**
+ * Whether this one mends the party rather than hurting the creature.
+ *
+ * The one question anything downstream needs to ask, asked in one
+ * place: the battle branches on it, and the screen uses it to know
+ * that nobody was struck.
+ */
+export function isMending(def: MagicDef): boolean {
+  return def.target === 'ALLY';
 }
 
 /** Whether she can pay for it right now. Separate from whether she has it. */
