@@ -22,7 +22,8 @@ React UI  →  MUGEN CORE (src/core — React/Phaser非依存)  →  Phaser Game
 - `src/core/` — ゲームロジック（フロー、将来: WORLD MEMORY / EVENT ENGINE / TIME）
 - `src/game/` — 探索（Phaser）・戦闘ロジック
 - `src/content/` — キャラクター・台詞・場所などのコンテンツデータ
-- `src/ui/` — React画面（スマホ縦画面優先）
+- `src/ui/` — React画面（**横画面固定**。`ui/layout/LandscapeStage` が窓を測る唯一の場所で、
+  各画面は `--stage-w` / `--stage-h` を読む。回転は使わない — 縦持ちの窓では縮小して中央に置く）
 - `assets/reference/` — コンセプトアート等の参照資料（ビルドには含まない）
 
 ## 開発
@@ -64,6 +65,25 @@ DEV ADMINは `import.meta.env.DEV` または `VITE_ENABLE_DEV_ADMIN=1` のとき
 - [x] **PHASE F — LIFE ARCHIVE**: 人生記録の射影（WORLD MEMORY → PLAYER KNOWLEDGE → LIFE ARCHIVE PROJECTION → UI）。既知章のみ表示＋単一「？？？」カード、再会で一本の人生記録に接続。DEV ADMINにKNOWN/UNKNOWNデバッグ
 - [x] **PHASE G — POLISH**: デザイントークン、スマホ最適化（360/390/412）、ケイオス立ち絵・台詞演出、記憶/選択/時渡り/再会の演出、AudioManager・haptics・設定、ローディング/Error Boundary、PWA（manifest・SW・オフラインシェル）、バンドル分割（初期188KB / Phaser遅延）
 - [x] **PHASE H — PLAYTEST**: プレイ後アンケート（7問・匿名・ローカル保存）、DEV ADMINでの集計/コメント閲覧/CSV書き出し。手順は `docs/PLAYTEST.md`
+
+## 採用済みの画面仕様
+
+**LANDSCAPE VISUAL STABILIZATION PASS v1.0 — 正式採用（2026-09-07）。**
+
+- **横画面で描く。**`transform: rotate(90deg)` による擬似横画面は廃止。窓が縦のときは
+  16:9のステージを一様に `scale` して中央に置き、余白はレターボックスにする。
+  UI・文字・画像を回転させない。回転が存在しないことをE2Eが計算後の
+  transform行列で確認する。
+- **ステージは1つ。**窓を測るのは `ui/layout/LandscapeStage` だけ。
+- **キャラクターの大きさはステージから取る。**`content/art/spriteFrames.ts` が
+  「ステージ高さに対する割合」を持つ。元画像のピクセルサイズは表示サイズに使わない。
+  帯は 通常人型 55〜70% / 小型 25〜40% / 大型 50〜75% / ボスは個別。
+- **足元基準。**ポーズを差し替えても上下に飛ばない。
+- **納品された素材を加工しない。**再エンコードするのは artifact 公開用の複製だけで、
+  ゲーム・テスト・スクリーンショットは納品ファイルをそのまま使う。
+- **パーティーは1つの描画単位。**誰がいるかは `game/party/battleParty.ts`、
+  どこに立つかは `ui/battle/formation.ts`（1〜4人分）。画面はキャラクターを
+  1人ずつ書かない。
 
 ## 方針
 
