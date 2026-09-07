@@ -8,7 +8,7 @@ import {
   type BattleState,
   type EnemyAction,
 } from '../../game/battle/battleLogic';
-import { availableMagic, harmsEnemy } from '../../core/magic/magic';
+import { availableMagic, harmsEnemy, isMending } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
 import {
@@ -68,7 +68,21 @@ interface Props {
  * one way of protecting itself. They play in that order, because that
  * is the order they happen in.
  */
-type Reaction = 'NONE' | 'HIT' | 'GUARD' | 'TACKLE' | 'HIDE';
+type Reaction =
+  | 'NONE'
+  | 'HIT'
+  | 'GUARD'
+  | 'TACKLE'
+  | 'HIDE'
+  // One per spell, because they do not look alike: a small light that
+  // crosses the field, a thing that falls on somebody, light gathering
+  // over the party, and a shell going up around it. The names are the
+  // spells' own `animation` field, so a spell says what it looks like
+  // in the same entry that says what it does.
+  | 'STAR_BOLT'
+  | 'STAR_COMET'
+  | 'STAR_MEND'
+  | 'STAR_WARD';
 
 /** How long each beat is held. Short: this is a small animal, not a boss. */
 const BEAT_MS: Record<Exclude<Reaction, 'NONE'>, number> = {
@@ -76,7 +90,20 @@ const BEAT_MS: Record<Exclude<Reaction, 'NONE'>, number> = {
   GUARD: 300,
   TACKLE: 460,
   HIDE: 620,
+  STAR_BOLT: 520,
+  // The long one, and the only one that moves the camera.
+  STAR_COMET: 760,
+  STAR_MEND: 560,
+  STAR_WARD: 560,
 };
+
+/** The beats that are a spell going off, and are drawn as one. */
+const SPELL_BEATS = new Set<string>(['STAR_BOLT', 'STAR_COMET', 'STAR_MEND', 'STAR_WARD']);
+
+/** Whether this beat is the sort a battlefield leans in for. */
+function isSpell(reaction: Reaction): boolean {
+  return SPELL_BEATS.has(reaction);
+}
 
 /**
  * How long AUTO waits after the theatre has finished before it acts.
@@ -167,6 +194,14 @@ export function BattleScreen({
    * next press.
    */
   const [auto, setAuto] = useState(false);
+  /**
+   * The number that floats up off the party when she mends them.
+   *
+   * Keyed by the turn it happened on so that mending twice in a row
+   * restarts the animation rather than leaving the first one hanging.
+   * Null the rest of the time, which is most of the time.
+   */
+  const [float, setFloat] = useState<{ key: number; amount: number } | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const [fieldH, setFieldH] = useState(260);
   const beats = useRef<number[]>([]);
@@ -268,21 +303,37 @@ export function BattleScreen({
     setMagicOpen(false);
     const next = castMagic(battle, magic, undefined, forcedEnemyAction);
     setBattle(next);
-    // Only a spell aimed at the creature struck anything, so only that
-    // one makes something flinch and him swing. For the other two the
-    // bar moving and the line in the log are what happened, and playing
-    // a hit over them would be a lie.
-    play([...(harmsEnemy(magic) ? (['HIT'] as const) : []), ...answer(next)]);
+    // How much health she put back, if she put any back.
+    //
+    // The same arithmetic the battle does, rather than the difference
+    // between the two states: the creature answers inside the same
+    // call, so the difference is the heal LESS whatever it took back —
+    // which would float a number the log does not agree with.
+    const mended = isMending(magic)
+      ? Math.min(magic.power, battle.playerMaxHp - battle.playerHp)
+      : 0;
+    setFloat(mended > 0 ? { key: next.turnsTaken, amount: mended } : null);
+    // The spell's own beat. Each of the four looks like itself, and
+    // only the one aimed at the creature also makes something flinch.
+    const beat = SPELL_BEATS.has(magic.animation)
+      ? (magic.animation as Exclude<Reaction, 'NONE'>)
+      : harmsEnemy(magic)
+        ? 'HIT'
+        : null;
+    play([...(beat ? [beat] : []), ...answer(next)]);
   };
 
   const attack = () => {
     const next = playerAttack(battle, undefined, forcedEnemyAction);
     setBattle(next);
+    // Last turn's number goes with last turn.
+    setFloat(null);
     play(['HIT', ...answer(next)]);
   };
   const defend = () => {
     const next = playerDefend(battle, undefined, forcedEnemyAction);
     setBattle(next);
+    setFloat(null);
     play(['GUARD', ...answer(next)]);
   };
 
@@ -324,6 +375,10 @@ export function BattleScreen({
     <div
       className={backdrop ? 'screen battle-screen has-backdrop' : 'screen battle-screen'}
       data-testid="battle-screen"
+      // One number, read by every animation on this screen. At twice
+      // speed every effect is half as long, and not one of them has had
+      // to learn what speed is.
+      style={{ ['--fx' as string]: String(1 / speed) }}
     >
       {/* The moment she steps forward. Read over the fight, which stays
           exactly where it was behind it — nothing is reset, nobody has
@@ -349,11 +404,25 @@ export function BattleScreen({
             you on the right, both standing on the same ground line.
             Sizes come from the shared registry, so the man who used to
             arrive as a pair of knees is now a man. */}
-        <div className="battle-field" ref={fieldRef}>
+        <div
+          className={[
+            'battle-field',
+            isSpell(reaction) ? 'casting' : '',
+            reaction === 'STAR_COMET' ? 'impact' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-beat={reaction === 'NONE' ? undefined : reaction}
+          ref={fieldRef}
+        >
           <div
             className={[
               'bf-actor bf-enemy',
-              reaction === 'HIT' ? 'hit' : '',
+              // It flinches at whatever actually struck it, which is a
+              // sword or either of the two spells aimed at it.
+              reaction === 'HIT' || reaction === 'STAR_BOLT' || reaction === 'STAR_COMET'
+                ? 'hit'
+                : '',
               reaction === 'TACKLE' ? 'tackle' : '',
               reaction === 'HIDE' ? 'hide' : '',
               beaten ? 'beaten' : '',
@@ -394,6 +463,44 @@ export function BattleScreen({
               now the formation table's business rather than this
               screen's. */}
           <BattleParty actors={partyActors} stageHeight={fieldH} />
+
+          {/* WHAT A SPELL LOOKS LIKE. One element per beat, drawn over
+              the field and gone when the beat is: no library, no
+              particle system, and nothing left behind to clean up. Each
+              reads its own duration from --fx, so twice speed is half
+              as long without any of them knowing about speed. */}
+          {reaction === 'STAR_BOLT' && (
+            <div className="fx fx-bolt" data-testid="fx-starlight" aria-hidden="true">
+              <span className="fx-bolt-shot" />
+              <span className="fx-bolt-flash" />
+            </div>
+          )}
+          {reaction === 'STAR_COMET' && (
+            <div className="fx fx-comet" data-testid="fx-comet" aria-hidden="true">
+              <span className="fx-comet-fall" />
+              <span className="fx-comet-burst" />
+            </div>
+          )}
+          {reaction === 'STAR_MEND' && (
+            <div className="fx fx-mend" data-testid="fx-mend" aria-hidden="true">
+              <span className="fx-mend-glow" />
+            </div>
+          )}
+          {reaction === 'STAR_WARD' && (
+            <div className="fx fx-ward" data-testid="fx-ward" aria-hidden="true">
+              <span className="fx-ward-shell" />
+            </div>
+          )}
+          {/* The shield, while it is still standing. Faint, because it
+              is a fact about the party rather than an event. */}
+          {battle.wardTurns > 0 && (
+            <div className="fx-ward-held" data-testid="ward-held" aria-hidden="true" />
+          )}
+          {float && (
+            <div className="fx-float" key={float.key} data-testid="heal-number" aria-hidden="true">
+              +{float.amount}
+            </div>
+          )}
         </div>
         <HpBar
           label="あなた"

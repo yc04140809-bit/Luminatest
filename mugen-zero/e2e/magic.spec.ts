@@ -150,7 +150,13 @@ test.describe('one action a turn', () => {
     await page.waitForTimeout(700);
     const comet = before - hpOf(await enemyHp.textContent());
 
-    expect(comet, 'the comet hits harder').toBeGreaterThan(bolt);
+    // Twenty when he is standing open, nine when he is behind his
+    // guard — this is the one spell of hers a raised knife blunts, and
+    // that is the entire reason both of them exist. His guard goes up
+    // on a roll, so BOTH are correct here and asserting "the comet is
+    // always bigger" would be asserting the design is not there.
+    expect(bolt, 'the bolt goes past a guard, so it is nine either way').toBe(9);
+    expect([20, 9], 'open, or blunted by his guard').toContain(comet);
     // 42 - 16. And nothing else landed with it: a swing is 8–12, so
     // both in one turn would be past 30.
     await expect(page.getByTestId('player-mp')).toContainText('26/48');

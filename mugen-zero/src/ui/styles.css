@@ -958,15 +958,20 @@ body,
    ui/battle/formation.ts, so a third member is a row in a table rather
    than another rule in this file. */
 .bf-enemy.hit {
-  animation: battle-hit 0.26s ease;
+  animation: battle-hit calc(0.3s * var(--fx, 1)) ease;
 }
-/* Whoever's blow it is, not whose it usually is. */
+/* Whoever's blow it is, not whose it usually is.
+   Re-cut with a hold at the point of contact: a lunge that comes
+   straight back has no impact in it, and the flat 12% in the middle is
+   the whole of the hit-stop. No system, one keyframe. */
 .bf-actor.strike {
-  animation: bf-strike 0.3s ease-out;
+  animation: bf-strike calc(0.34s * var(--fx, 1)) ease-out;
 }
 @keyframes bf-strike {
   0% { transform: translateX(0); }
-  40% { transform: translateX(-22px) translateY(-5px); }
+  34% { transform: translateX(-24px) translateY(-6px); }
+  /* The hold. Both of them stop for a moment where the blow lands. */
+  46% { transform: translateX(-24px) translateY(-6px); }
   100% { transform: translateX(0); }
 }
 .bf-enemy.beaten {
@@ -974,10 +979,223 @@ body,
 }
 @keyframes battle-hit {
   0% { transform: translateX(0); filter: brightness(1); }
-  25% { transform: translateX(-7px); filter: brightness(1.9); }
-  60% { transform: translateX(5px); filter: brightness(1.1); }
+  18% { transform: translateX(-8px); filter: brightness(2); }
+  /* Held white for a beat: this is the hit-stop, seen from the other
+     side of the blow. */
+  30% { transform: translateX(-8px); filter: brightness(2); }
+  62% { transform: translateX(5px); filter: brightness(1.1); }
   100% { transform: translateX(0); filter: brightness(1); }
 }
+/* ------------------------------------------------------------------
+   SPELL EFFECTS
+
+   Four beats, four looks, all of them CSS over a couple of empty spans
+   inside the battlefield. Nothing here loads a library, keeps state, or
+   survives its own beat: React draws the element while the beat is on
+   screen and removes it after, so there is nothing to reset and nothing
+   that can leak into the next turn.
+
+   Every duration is `calc(<time> * var(--fx))`. The battle screen sets
+   --fx to 1 / speed, so at twice speed the whole lot is half as long
+   and none of these rules know why.
+   ------------------------------------------------------------------ */
+.fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* 星光弾 — a small light crosses the field and lands. */
+.fx-bolt-shot {
+  position: absolute;
+  top: 42%;
+  right: 27%;
+  width: 22px;
+  height: 22px;
+  margin: -11px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, #fff6dc 30%, var(--mugen-gold) 55%, rgba(220, 192, 132, 0) 74%);
+  box-shadow: 0 0 26px 10px rgba(238, 214, 158, 0.85);
+  animation: fx-bolt-fly calc(0.34s * var(--fx, 1)) cubic-bezier(0.3, 0, 0.7, 1) forwards;
+}
+@keyframes fx-bolt-fly {
+  0% { transform: translateX(0) scale(0.5); opacity: 0; }
+  15% { opacity: 1; }
+  /* The stage's own width, not the viewport's: the field is as wide as
+     the stage, and a spell must cross the field it was cast on. */
+  100% { transform: translateX(calc(var(--stage-w, 100vw) * -0.66)) scale(1.15); opacity: 1; }
+}
+/* And the flash where it arrives, on the creature's side. */
+.fx-bolt-flash {
+  position: absolute;
+  left: 7%;
+  top: 30%;
+  width: 22%;
+  height: 46%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 252, 240, 0.9) 0%, rgba(226, 200, 140, 0) 70%);
+  opacity: 0;
+  animation: fx-flash calc(0.22s * var(--fx, 1)) ease-out calc(0.32s * var(--fx, 1)) forwards;
+}
+@keyframes fx-flash {
+  0% { opacity: 0; transform: scale(0.6); }
+  35% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
+
+/* 彗星撃 — something falls, and the ground takes it. */
+.fx-comet-fall {
+  position: absolute;
+  left: 15%;
+  /* Anchored to the FLOOR, not the ceiling. It used to be measured
+     down from the top of the field, which meant its end depended on
+     how tall the field happened to be and it stopped above his head on
+     a short one. Now it falls from off-screen and finishes where he is
+     standing, whatever size the stage is. */
+  bottom: 2%;
+  width: 14px;
+  height: 66%;
+  margin-left: -7px;
+  border-radius: 7px;
+  transform-origin: bottom center;
+  background: linear-gradient(180deg, rgba(255, 250, 235, 0) 0%, rgba(255, 250, 235, 0.8) 32%, #fff 74%, var(--mugen-gold) 100%);
+  box-shadow: 0 0 34px 10px rgba(238, 214, 158, 0.75);
+  filter: blur(0.6px);
+  animation: fx-comet-fall calc(0.32s * var(--fx, 1)) cubic-bezier(0.5, 0, 0.9, 1) forwards;
+}
+@keyframes fx-comet-fall {
+  0% { transform: translate(72px, -170%) rotate(16deg) scaleY(1.25); opacity: 0; }
+  20% { opacity: 1; }
+  76% { transform: translate(0, 0) rotate(16deg) scaleY(1); opacity: 1; }
+  100% { transform: translate(0, 8%) rotate(16deg) scaleY(0.4); opacity: 0; }
+}
+.fx-comet-burst {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 32%;
+  height: 56%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 253, 244, 0.95) 0%, rgba(226, 200, 140, 0.55) 40%, rgba(226, 200, 140, 0) 72%);
+  opacity: 0;
+  animation: fx-flash calc(0.44s * var(--fx, 1)) ease-out calc(0.2s * var(--fx, 1)) forwards;
+}
+/* The only beat that moves the camera, and barely: a lean in and out,
+   under half a second, on the battlefield alone — the health bars and
+   the commands stay exactly where a thumb left them. */
+.battle-field.impact {
+  animation: fx-impact calc(0.42s * var(--fx, 1)) ease-out;
+}
+@keyframes fx-impact {
+  0% { transform: scale(1) translate(0, 0); }
+  18% { transform: scale(1.05) translate(-4px, 2px); }
+  30% { transform: scale(1.05) translate(4px, -2px); }
+  44% { transform: scale(1.04) translate(-2px, 0); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+
+/* 癒しの光 — it gathers over the party and settles onto them. */
+.fx-mend-glow {
+  position: absolute;
+  right: 4%;
+  bottom: 0;
+  width: 34%;
+  height: 82%;
+  border-radius: 46% 46% 40% 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(198, 236, 210, 0.5) 55%, rgba(150, 215, 175, 0.7) 100%);
+  opacity: 0;
+  animation: fx-mend calc(0.56s * var(--fx, 1)) ease-out forwards;
+}
+@keyframes fx-mend {
+  0% { opacity: 0; transform: translateY(-14%) scaleY(0.7); }
+  40% { opacity: 1; transform: translateY(0) scaleY(1); }
+  100% { opacity: 0; transform: translateY(6%) scaleY(1.02); }
+}
+/* The number, which is the part a player actually reads. */
+.fx-float {
+  position: absolute;
+  right: 16%;
+  bottom: 46%;
+  z-index: 7;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #7fc79b;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85), 0 0 14px rgba(120, 200, 150, 0.6);
+  pointer-events: none;
+  animation: fx-float calc(1.1s * var(--fx, 1)) ease-out forwards;
+}
+@keyframes fx-float {
+  0% { opacity: 0; transform: translateY(10px) scale(0.9); }
+  18% { opacity: 1; transform: translateY(0) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-26px); }
+}
+
+/* 星盾 — a shell goes up round the party. */
+.fx-ward-shell {
+  position: absolute;
+  right: 2%;
+  bottom: -4%;
+  width: 40%;
+  height: 96%;
+  border-radius: 50%;
+  border: 2px solid rgba(226, 200, 140, 0.85);
+  background: radial-gradient(circle at 50% 60%, rgba(255, 252, 240, 0.28) 0%, rgba(226, 200, 140, 0.1) 60%, rgba(226, 200, 140, 0) 78%);
+  opacity: 0;
+  animation: fx-ward calc(0.56s * var(--fx, 1)) ease-out forwards;
+}
+@keyframes fx-ward {
+  0% { opacity: 0; transform: scale(0.72); }
+  45% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 0.55; transform: scale(1); }
+}
+/* And while it is still standing, a thin line that says so. Faint on
+   purpose: it is a fact about the party, not something happening. */
+.fx-ward-held {
+  position: absolute;
+  right: 2%;
+  bottom: -4%;
+  width: 40%;
+  height: 96%;
+  border-radius: 50%;
+  border: 1px solid rgba(226, 200, 140, 0.34);
+  background: radial-gradient(circle at 50% 60%, rgba(255, 252, 240, 0.1) 0%, rgba(226, 200, 140, 0) 70%);
+  pointer-events: none;
+  z-index: 5;
+}
+/* MOTION OFF.
+   `animation: none` on its own is not the answer here: it leaves the
+   moving pieces frozen wherever their untransformed CSS puts them,
+   which is a bolt sitting in mid-air and a comet trail standing in the
+   trees. So the parts that only make sense while travelling are hidden,
+   and the parts that ARE the event — the flash where it landed, the
+   light over the party, the shell — are shown, still and at full
+   strength. A player who asked for less motion still gets told what
+   happened. */
+@media (prefers-reduced-motion: reduce) {
+  .fx *,
+  .fx-float,
+  .battle-field.impact,
+  .bf-actor.strike,
+  .bf-enemy.hit {
+    animation: none !important;
+  }
+  .fx-bolt-shot,
+  .fx-comet-fall {
+    display: none;
+  }
+  .fx-bolt-flash,
+  .fx-comet-burst,
+  .fx-mend-glow,
+  .fx-ward-shell,
+  .fx-float {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .battle-guard-mark {
   position: absolute;
   inset: 12% 16%;
