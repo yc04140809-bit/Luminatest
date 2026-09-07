@@ -153,6 +153,27 @@ test.describe('one action a turn', () => {
     await expect(page.getByTestId('player-mp')).toContainText('36/48');
   });
 
+  test('her third answer: a shield strikes nobody and stands before the blow', async ({ page }) => {
+    await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+    await awaken(page);
+    await page.getByTestId('magic-button').click();
+    // All three of hers, and no two of them the same kind of answer.
+    await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
+    await expect(page.getByTestId('magic-mending_light')).toBeVisible();
+    const shield = page.getByTestId('magic-star_shield');
+    await expect(shield).toBeVisible();
+
+    const enemyBefore = hpOf(await page.getByTestId('enemy-hp').textContent());
+    await shield.click();
+    await expect(page.getByTestId('magic-tray')).toHaveCount(0);
+    await page.waitForTimeout(700);
+
+    // Nobody was struck by it.
+    expect(hpOf(await page.getByTestId('enemy-hp').textContent())).toBe(enemyBefore);
+    await expect(page.getByTestId('player-mp')).toContainText('40/48');
+    await expect(page.getByTestId('battle-log')).toBeVisible();
+  });
+
   test('bracing gives her power back, which is what makes it worth a turn', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
@@ -353,10 +374,16 @@ test.describe('on a phone', () => {
       }
 
       await page.getByTestId('magic-button').click();
-      const spell = (await page.getByTestId('magic-starlight_bolt').boundingBox())!;
-      expect(spell.height, 'a spell is thumb-sized too').toBeGreaterThanOrEqual(40);
-      expect(spell.x + spell.width).toBeLessThanOrEqual(phone.width + 1);
-      expect(spell.y + spell.height).toBeLessThanOrEqual(phone.height + 1);
+      // Every spell in the tray, not just the first: the tray grows as
+      // she learns things and it must still fit the shortest phone.
+      for (const id of ['magic-starlight_bolt', 'magic-mending_light', 'magic-star_shield']) {
+        const spell = (await page.getByTestId(id).boundingBox())!;
+        expect(spell, id).not.toBeNull();
+        expect(spell.height, `${id} is thumb-sized too`).toBeGreaterThanOrEqual(40);
+        expect(spell.y, `${id} top on screen`).toBeGreaterThanOrEqual(0);
+        expect(spell.x + spell.width).toBeLessThanOrEqual(phone.width + 1);
+        expect(spell.y + spell.height).toBeLessThanOrEqual(phone.height + 1);
+      }
     });
   }
 });

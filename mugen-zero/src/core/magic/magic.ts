@@ -13,20 +13,39 @@
 
 import type { DamageType, Element } from '../../game/battle/damageType';
 
-/**
- * Who a spell is aimed at, and — for now — what kind of thing it is.
- *
- * 'ONE_ENEMY' harms the creature. 'ALLY' mends the party.
- *
- * Two rather than a separate effect field, because with one spell of
- * each there is nothing a second field would say that this one does
- * not: nobody aims harm at their own side and nobody mends a bandit.
- * The day a spell breaks that — a drain, a curse that heals its
- * caster — is the day this grows an effect, and it will grow it in one
- * place because everything asks `isMending` below rather than reading
- * the target itself.
- */
+/** Who a spell is aimed at. */
 export type MagicTarget = 'ONE_ENEMY' | 'ALLY';
+
+/**
+ * What it does when it gets there.
+ *
+ * This used to be read off the target, on the grounds that with one
+ * spell of each there was nothing a second field would say. A shield
+ * is what broke that: it is aimed at your own side and it is not
+ * mending. The comment then said the day a spell broke it would be the
+ * day this grew an effect, and would grow it in ONE place because
+ * everything asked a helper rather than reading the target. That is
+ * what happened — the helpers below are unchanged from the outside.
+ *
+ * 'DAMAGE' hurts the creature. 'MEND' puts health back. 'WARD' takes
+ * the edge off the blows that are coming.
+ */
+export type MagicEffect = 'DAMAGE' | 'MEND' | 'WARD';
+
+/**
+ * What a shield is worth, and for how long.
+ *
+ * Carried by the spell rather than by the battle so that tuning it is
+ * editing one entry, and read only for a 'WARD'. The battle still has
+ * the last word on the cut: content may ask for anything and gets what
+ * the battle allows.
+ */
+export interface MagicWard {
+  /** The share taken off each blow. */
+  cut: number;
+  /** How many blows it lasts. Spent by blows that land, not by turns. */
+  blows: number;
+}
 
 /**
  * Why a spell is or is not available yet.
@@ -49,19 +68,24 @@ export interface MagicDef {
   line: string;
   mpCost: number;
   /**
-   * How much it does.
+   * How much it does, where that is one number.
    *
    * Damage for a spell aimed at the creature, before anything the
-   * creature thinks about it. Health for one aimed at the party, and
-   * there is nothing to think about it — mending is not resisted, not
-   * guarded against and not elemental, so a mending spell's `type`,
-   * `element`, `blockedByGuard` and `poiseCost` are written for
-   * completeness and read by nothing.
+   * creature thinks about it. Health for one that mends, and there is
+   * nothing to think about it — mending is not resisted, not guarded
+   * against and not elemental, so a spell that is not 'DAMAGE' has its
+   * `type`, `element`, `blockedByGuard` and `poiseCost` written for
+   * completeness and read by nothing. A shield's numbers are two, so
+   * they are in `ward` and this is nought.
    */
   power: number;
   type: DamageType;
   element: Element | null;
   target: MagicTarget;
+  /** What it does. See `MagicEffect`. */
+  effect: MagicEffect;
+  /** Only for a 'WARD', and required for one. */
+  ward?: MagicWard;
   /** Which short piece of theatre the screen plays. Never a filename. */
   animation: string;
   unlock: MagicUnlock;
@@ -103,15 +127,25 @@ export function availableMagic(defs: readonly MagicDef[], ctx: MagicContext): Ma
   return defs.filter((def) => magicAvailable(def, ctx));
 }
 
-/**
- * Whether this one mends the party rather than hurting the creature.
- *
- * The one question anything downstream needs to ask, asked in one
- * place: the battle branches on it, and the screen uses it to know
- * that nobody was struck.
- */
+/** Whether this one puts health back. */
 export function isMending(def: MagicDef): boolean {
-  return def.target === 'ALLY';
+  return def.effect === 'MEND';
+}
+
+/** Whether this one puts something between the party and what is coming. */
+export function isWarding(def: MagicDef): boolean {
+  return def.effect === 'WARD';
+}
+
+/**
+ * Whether anything is struck by it.
+ *
+ * The question the screen and the decision layer actually ask: a spell
+ * that is not this one hurts nobody, so nothing flinches and nothing
+ * may weigh it as a small amount of damage.
+ */
+export function harmsEnemy(def: MagicDef): boolean {
+  return def.effect === 'DAMAGE';
 }
 
 /** Whether she can pay for it right now. Separate from whether she has it. */

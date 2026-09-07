@@ -2,7 +2,7 @@
 // v0.1 keeps battle intentionally minimal: attack / defend only.
 
 import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
-import { isMending, type MagicDef } from '../../core/magic/magic';
+import { isMending, isWarding, type MagicDef } from '../../core/magic/magic';
 import {
   hitPoise,
   phaseAt,
@@ -230,6 +230,18 @@ export interface BattleState {
    * choice the player makes every turn at the cost of their turn.
    */
   wardCut: number;
+  /**
+   * How many more blows it has left in it.
+   *
+   * Spent by blows that LAND, not by turns: a creature that spends its
+   * turn hiding has not used anything up. One is what a favour arriving
+   * on its own is worth, and it is what the field was doing before it
+   * could count — everything below falls out of that as the one-blow
+   * case.
+   */
+  wardTurns: number;
+  /** What to call it in the log when it goes. Null when there is none. */
+  wardName: string | null;
   log: string[];
   outcome: BattleOutcome;
 }
@@ -248,6 +260,9 @@ const PLAYER_ATK_MAX = 12;
  * favour from Kaos, and nothing free may quietly outclass them.
  */
 const WARD_MAX_CUT = 0.35;
+
+/** What a summoned memory's green is called, wherever it is said. */
+const ARCANA_WARD_NAME = '森の加護';
 
 /**
  * What Kaos has to spend in one fight.
@@ -337,6 +352,8 @@ export function createBattle(
     lastHitRead: 'PLAIN',
     modifiers: { ...modifiers },
     wardCut: 0,
+    wardTurns: 0,
+    wardName: null,
     log: [spec.appearLine ?? `${spec.name}が現れた！`],
     outcome: 'ONGOING',
   };
@@ -433,9 +450,16 @@ function enemyTurn(
   // the screen shows, and what the player needs to read there is the
   // damage. Spent whether it saved much or little — it was one blow's
   // worth of green, and the blow has happened.
+  // One blow off it. A ward worth one blow — every ward there was
+  // before a spell could grant one — reaches nought here and behaves
+  // exactly as it always did.
+  const wardLeft = warded ? Math.max(0, state.wardTurns - 1) : state.wardTurns;
+  const wardGone = warded && wardLeft === 0;
   const log = [
     ...state.log,
-    ...(warded ? ['《森の加護》が、そっと解けた。'] : []),
+    // Said when it actually goes, not every time it works: a line that
+    // appears on all four blows of a shield is a line nobody reads.
+    ...(wardGone ? [`《${state.wardName ?? ARCANA_WARD_NAME}》が、そっと解けた。`] : []),
     defending ? `${move}。防御して${dmg}のダメージ。` : `${move}！ ${dmg}のダメージ。`,
   ];
   const outcome: BattleOutcome = playerHp <= 0 ? 'DEFEAT' : state.outcome;
@@ -444,7 +468,9 @@ function enemyTurn(
     playerHp,
     enemySkillCooldown: cooldown,
     lastEnemyAction: 'ATTACK',
-    wardCut: 0,
+    wardCut: wardLeft > 0 ? state.wardCut : 0,
+    wardTurns: wardLeft,
+    wardName: wardLeft > 0 ? state.wardName : null,
     log,
     outcome,
   };
@@ -554,11 +580,12 @@ export function castMagic(
   if (!state.magicUnlocked) return state;
   if (state.playerMp < magic.mpCost) return state;
 
-  // Mending is not a blow with the sign flipped: nothing is struck,
-  // nothing loses its footing, and no creature has an opinion about
-  // it. It takes the turn and the creature answers, which is the only
-  // thing the two kinds have in common.
+  // Neither of hers that is aimed at your own side is a blow with the
+  // sign flipped: nothing is struck, nothing loses its footing, and no
+  // creature has an opinion about them. They take the turn and the
+  // creature answers, which is the only thing all three have in common.
   if (isMending(magic)) return castMending(state, magic, rng, forcedEnemyAction);
+  if (isWarding(magic)) return castWarding(state, magic, rng, forcedEnemyAction);
 
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
   const staggered = state.enemyStaggerTurns > 0;
@@ -650,6 +677,40 @@ function castMending(
   return enemyTurn(next, false, rng, forcedEnemyAction);
 }
 
+/**
+ * Something between the party and what is coming.
+ *
+ * Set up before the blow rather than answered after it, which is the
+ * whole of why this is not the mending spell wearing a different name.
+ * The creature answers this turn like it answers any other, so the
+ * shield is already up when its reply lands — the first of the blows it
+ * was bought for.
+ *
+ * `grantWard` has the last word on how thick it is: the battle holds a
+ * ceiling on any one ward and content asks rather than tells.
+ */
+function castWarding(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+): BattleState {
+  const ward = magic.ward ?? { cut: 0, blows: 1 };
+  const shielded = grantWard(
+    {
+      ...state,
+      playerMp: state.playerMp - magic.mpCost,
+      turnsTaken: state.turnsTaken + 1,
+      // Nothing was struck, so the last thing struck is not news.
+      enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    },
+    ward.cut,
+    magic.line,
+    { blows: ward.blows, name: magic.name },
+  );
+  return enemyTurn(awaken(shielded), false, rng, forcedEnemyAction);
+}
+
 /** The screen has played the awakening scene; it must not play twice. */
 export function clearAwakeningLines(state: BattleState): BattleState {
   if (state.awakeningLines.length === 0) return state;
@@ -717,17 +778,39 @@ export function healPlayer(state: BattleState, amount: number, line?: string): B
  * favour — a thing that arrives on its own and asks nothing must be
  * worth clearly less than either.
  */
-export function grantWard(state: BattleState, cut: number, line?: string): BattleState {
+export function grantWard(
+  state: BattleState,
+  cut: number,
+  line?: string,
+  /**
+   * How many blows, and what it is called. Left out, it is one blow of
+   * the green a summoned memory leaves — which is every ward that
+   * existed before a spell could grant one.
+   */
+  worth: { blows?: number; name?: string } = {},
+): BattleState {
   if (state.outcome !== 'ONGOING') return state;
   const asked = Number.isFinite(cut) ? cut : 0;
   const wardCut = Math.min(WARD_MAX_CUT, Math.max(0, asked));
+  const blows = Math.max(1, Math.floor(worth.blows ?? 1));
+  const name = worth.name ?? ARCANA_WARD_NAME;
   const log = [...state.log];
   if (line) log.push(line);
   // Never silent, even when it changes nothing worth a number: the
   // player watched something arrive, and being told nothing is what
   // made the old version of this feel like a bug.
-  log.push(wardCut > 0 ? '《森の加護》を得た。' : 'なにも起こらなかった。');
-  return { ...state, wardCut: Math.max(state.wardCut, wardCut), log };
+  log.push(wardCut > 0 ? `《${name}》を得た。` : 'なにも起こらなかった。');
+  if (wardCut <= 0) return { ...state, log };
+  // The better of the two, kept whole: a thinner ward must not shorten
+  // a thicker one and a shorter one must not thin it.
+  const keepNew = wardCut >= state.wardCut;
+  return {
+    ...state,
+    wardCut: Math.max(state.wardCut, wardCut),
+    wardTurns: keepNew ? blows : Math.max(state.wardTurns, blows),
+    wardName: keepNew ? name : state.wardName,
+    log,
+  };
 }
 
 /**

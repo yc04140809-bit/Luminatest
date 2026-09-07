@@ -11,9 +11,15 @@ import {
   type BattleState,
   type EnemySpec,
 } from './battleLogic';
-import { MAGIC_DEFS, MENDING_LIGHT, STARLIGHT_BOLT } from '../../content/magic/magicDefs';
+import {
+  MAGIC_DEFS,
+  MENDING_LIGHT,
+  STARLIGHT_BOLT,
+  STAR_SHIELD,
+} from '../../content/magic/magicDefs';
 import {
   AUTO_MEND_AT,
+  AUTO_WARD_AT,
   decideTurn,
   magicBlocked,
   suggestAction,
@@ -22,7 +28,9 @@ import {
 import {
   availableMagic,
   canCast,
+  harmsEnemy,
   isMending,
+  isWarding,
   magicAvailable,
   type MagicDef,
 } from '../../core/magic/magic';
@@ -407,11 +415,12 @@ describe('the light that mends', () => {
     expect(MENDING_LIGHT.mpCost).toBeGreaterThan(GUARD_MP_GAIN);
   });
 
-  it('arrives with the bolt, and both are hers', () => {
+  it('arrives with the others, and all of them are hers', () => {
     expect(availableMagic(MAGIC_DEFS, { awakened: false })).toEqual([]);
     expect(availableMagic(MAGIC_DEFS, { awakened: true }).map((m) => m.id)).toEqual([
       'starlight_bolt',
       'mending_light',
+      'star_shield',
     ]);
   });
 
@@ -499,5 +508,134 @@ describe('deciding the whole turn', () => {
     // the table and the plan is the plan of somebody fighting alone.
     const locked = createBattle(PLAIN);
     expect(decideTurn({ ...locked, playerHp: 20 }, ALL).magicId).toBeNull();
+  });
+});
+
+describe('the shield of stars', () => {
+  const hurt = (hp: number): BattleState => ({ ...unlocked(), playerHp: hp });
+
+  it('is its own kind of answer, and not either of the others', () => {
+    expect(isWarding(STAR_SHIELD)).toBe(true);
+    expect(isMending(STAR_SHIELD)).toBe(false);
+    expect(harmsEnemy(STAR_SHIELD)).toBe(false);
+    // And nobody else is a shield.
+    expect(isWarding(STARLIGHT_BOLT)).toBe(false);
+    expect(isWarding(MENDING_LIGHT)).toBe(false);
+  });
+
+  it('puts something up, and spends the power it cost', () => {
+    const before = unlocked();
+    const after = castMagic(before, STAR_SHIELD, rngMid);
+    expect(after.playerMp).toBe(before.playerMp - STAR_SHIELD.mpCost);
+    // The creature's answer this turn is the first blow it was bought
+    // for, so one of them has already been spent.
+    expect(after.wardTurns).toBeGreaterThan(0);
+    expect(after.wardTurns).toBeLessThan(STAR_SHIELD.ward!.blows);
+  });
+
+  it('is the turn: the hero does not also swing', () => {
+    const before = unlocked();
+    const after = castMagic(before, STAR_SHIELD, rngMid);
+    expect(after.enemyHp).toBe(before.enemyHp);
+    expect(after.turnsTaken).toBe(before.turnsTaken + 1);
+  });
+
+  it('softens without ever stopping a blow', () => {
+    // Not a wall. A blow always lands for something, which is the rule
+    // the whole ward is written around.
+    const hard: EnemySpec = { ...PLAIN, attackMin: 20, attackMax: 20 };
+    const bare = castMagic(createBattle(hard, undefined, { magicUnlocked: true }), STARLIGHT_BOLT, rngMid);
+    const shielded = castMagic(createBattle(hard, undefined, { magicUnlocked: true }), STAR_SHIELD, rngMid);
+    const bareTook = bare.playerMaxHp - bare.playerHp;
+    const shieldedTook = shielded.playerMaxHp - shielded.playerHp;
+    expect(shieldedTook).toBeLessThan(bareTook);
+    expect(shieldedTook).toBeGreaterThan(0);
+  });
+
+  it('lasts the blows it was bought for, and then goes', () => {
+    const hard: EnemySpec = { ...PLAIN, attackMin: 20, attackMax: 20 };
+    let state = castMagic(createBattle(hard, undefined, { magicUnlocked: true }), STAR_SHIELD, rngMid);
+    const blows = STAR_SHIELD.ward!.blows;
+    // One was spent by the answer to the cast itself.
+    for (let i = 1; i < blows; i += 1) {
+      expect(state.wardTurns, `after ${i} blows`).toBeGreaterThan(0);
+      state = playerAttack(state, rngMid, 'ATTACK');
+    }
+    expect(state.wardTurns).toBe(0);
+    expect(state.wardCut).toBe(0);
+    expect(state.log.some((l) => l.includes('《星盾》が、そっと解けた。'))).toBe(true);
+  });
+
+  it('says so once, when it goes — not on every blow it softens', () => {
+    const hard: EnemySpec = { ...PLAIN, attackMin: 20, attackMax: 20 };
+    let state = castMagic(createBattle(hard, undefined, { magicUnlocked: true }), STAR_SHIELD, rngMid);
+    for (let i = 1; i < STAR_SHIELD.ward!.blows; i += 1) state = playerAttack(state, rngMid, 'ATTACK');
+    expect(state.log.filter((l) => l.includes('そっと解けた')).length).toBe(1);
+  });
+
+  it('cannot be cast without the power for it', () => {
+    const broke: BattleState = { ...unlocked(), playerMp: STAR_SHIELD.mpCost - 1 };
+    expect(castMagic(broke, STAR_SHIELD, rngMid)).toBe(broke);
+    expect(magicBlocked(broke, STAR_SHIELD)).toBe('NO_MP');
+  });
+
+  it('cannot be cast before she has reached past what she was doing', () => {
+    const locked = createBattle(PLAIN);
+    expect(castMagic(locked, STAR_SHIELD, rngMid)).toBe(locked);
+    expect(magicAvailable(STAR_SHIELD, { awakened: false })).toBe(false);
+  });
+
+  it('asks the battle for a ward rather than telling it', () => {
+    // Content may write any number it likes; the battle decides.
+    const greedy: MagicDef = { ...STAR_SHIELD, ward: { cut: 5, blows: 2 } };
+    const after = castMagic(hurt(90), greedy, rngMid);
+    expect(after.wardCut).toBeLessThanOrEqual(0.35);
+  });
+
+  it('stacks with bracing rather than replacing it', () => {
+    // Two turns and the power is the most that can be put in front of
+    // one swing. If these ever stop stacking, one of them has quietly
+    // been made pointless.
+    const hard: EnemySpec = { ...PLAIN, attackMin: 20, attackMax: 20 };
+    const shielded = castMagic(createBattle(hard, undefined, { magicUnlocked: true }), STAR_SHIELD, rngMid);
+    const braced = playerDefend(shielded, rngMid, 'ATTACK');
+    const plain = playerDefend(
+      createBattle(hard, undefined, { magicUnlocked: true }),
+      rngMid,
+      'ATTACK',
+    );
+    const withBoth = braced.playerHp - shielded.playerHp;
+    const withGuardOnly = plain.playerHp - plain.playerMaxHp;
+    expect(Math.abs(withBoth)).toBeLessThan(Math.abs(withGuardOnly));
+  });
+});
+
+describe('deciding the whole turn, with a shield in hand', () => {
+  const ALL = MAGIC_DEFS;
+  const hurt = (hp: number): BattleState => ({ ...unlocked(), playerHp: hp });
+
+  it('does not shield a fight that has not started hurting', () => {
+    expect(decideTurn(unlocked(), ALL).action).toBe('ATTACK');
+  });
+
+  it('puts one up once blows have started landing', () => {
+    const plan = decideTurn(hurt(Math.floor(100 * AUTO_WARD_AT)), ALL);
+    expect(plan).toEqual({ action: 'MAGIC', magicId: 'star_shield' });
+  });
+
+  it('never puts a second one over the first', () => {
+    // A shield on a shield buys nothing and costs a turn.
+    const already: BattleState = { ...hurt(70), wardCut: 0.35, wardTurns: 3, wardName: '星盾' };
+    expect(decideTurn(already, ALL).magicId).not.toBe('star_shield');
+  });
+
+  it('mends before it shields, when it is hurt enough for both', () => {
+    // Health first: a shield does nothing for damage already taken.
+    expect(decideTurn(hurt(20), ALL)).toEqual({ action: 'MAGIC', magicId: 'mending_light' });
+  });
+
+  it('does not shield what it cannot pay for', () => {
+    const poor: BattleState = { ...hurt(70), playerMp: 2 };
+    expect(decideTurn(poor, ALL).action).toBe('ATTACK');
   });
 });

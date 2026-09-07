@@ -1,12 +1,12 @@
 // The spells themselves.
 //
-// Two. On purpose: a starting spell that is strictly better than
+// Three. On purpose: a starting spell that is strictly better than
 // swinging a sword turns two characters into one character, and a list
 // of six nobody has enemies for is six things to balance and nothing to
-// choose between. These two are not the same kind of answer — one is
-// what she does to the thing in front of you, the other is what she
-// does for you — so the tray asks a real question the first time it is
-// opened.
+// choose between. These are not the same kind of answer — what she
+// does to the thing in front of you, what she does for you once it has
+// landed, and what she puts between you before it does — so the tray
+// asks a real question every time it is opened.
 
 import type { MagicDef } from '../../core/magic/magic';
 
@@ -29,6 +29,7 @@ export const STARLIGHT_BOLT: MagicDef = {
   type: 'MAGIC',
   element: 'STAR',
   target: 'ONE_ENEMY',
+  effect: 'DAMAGE',
   animation: 'STAR_BOLT',
   unlock: 'AWAKENING',
   blockedByGuard: false,
@@ -64,6 +65,7 @@ export const MENDING_LIGHT: MagicDef = {
   type: 'MAGIC',
   element: 'STAR',
   target: 'ALLY',
+  effect: 'MEND',
   animation: 'STAR_MEND',
   unlock: 'AWAKENING',
   // Neither of these means anything to a spell aimed at your own side.
@@ -73,4 +75,49 @@ export const MENDING_LIGHT: MagicDef = {
   poiseCost: 0,
 };
 
-export const MAGIC_DEFS: readonly MagicDef[] = [STARLIGHT_BOLT, MENDING_LIGHT];
+/**
+ * 星盾 — provisional name.
+ *
+ * The third answer, and the one that is neither of the other two: not
+ * what she does to him and not what she does after he has landed, but
+ * what she puts between you before he does.
+ *
+ * WHY IT IS WORTH A TURN. Against a man swinging for three it is the
+ * smallest of the three spells, and that is correct — there is nothing
+ * to protect anybody from yet. It earns its keep when he stops
+ * covering up: in his last quarter he swings half again as hard and
+ * guards almost never, which is exactly the moment the star bolt's
+ * reason to exist (going through a guard) evaporates and mending
+ * becomes a race. Four blows softened, bought one turn before they
+ * arrive, is a different shape of answer from healing them afterwards.
+ *
+ * It also stacks with 《身構える》, which halves the blow before this
+ * is taken off it — so the two together are the most a player can put
+ * in front of one swing, at the cost of two turns and the power.
+ *
+ * THE CUT IS A REQUEST. The battle holds a ceiling on any one ward,
+ * whatever granted it, and this asks for exactly that ceiling: a spell
+ * that costs a turn and eight power has earned the most a ward is
+ * allowed to be. If the ceiling moves, this moves with it and nothing
+ * here needs editing.
+ */
+export const STAR_SHIELD: MagicDef = {
+  id: 'star_shield',
+  name: '星盾',
+  line: 'ケイオスが手をかざすと、淡い光が薄い膜になって広がった。',
+  mpCost: 8,
+  // A shield's numbers are two, and they are below.
+  power: 0,
+  type: 'MAGIC',
+  element: 'STAR',
+  target: 'ALLY',
+  effect: 'WARD',
+  ward: { cut: 0.35, blows: 4 },
+  animation: 'STAR_WARD',
+  unlock: 'AWAKENING',
+  // Neither of these means anything to a spell aimed at your own side.
+  blockedByGuard: false,
+  poiseCost: 0,
+};
+
+export const MAGIC_DEFS: readonly MagicDef[] = [STARLIGHT_BOLT, MENDING_LIGHT, STAR_SHIELD];

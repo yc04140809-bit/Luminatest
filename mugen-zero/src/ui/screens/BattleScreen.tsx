@@ -8,7 +8,7 @@ import {
   type BattleState,
   type EnemyAction,
 } from '../../game/battle/battleLogic';
-import { availableMagic, isMending } from '../../core/magic/magic';
+import { availableMagic, harmsEnemy } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
 import {
@@ -268,10 +268,11 @@ export function BattleScreen({
     setMagicOpen(false);
     const next = castMagic(battle, magic, undefined, forcedEnemyAction);
     setBattle(next);
-    // Nobody was struck by a mending spell, so nothing flinches and he
-    // does not swing: the health bar moving and the line in the log are
-    // what happened, and playing a hit over them would be a lie.
-    play([...(isMending(magic) ? [] : (['HIT'] as const)), ...answer(next)]);
+    // Only a spell aimed at the creature struck anything, so only that
+    // one makes something flinch and him swing. For the other two the
+    // bar moving and the line in the log are what happened, and playing
+    // a hit over them would be a lie.
+    play([...(harmsEnemy(magic) ? (['HIT'] as const) : []), ...answer(next)]);
   };
 
   const attack = () => {

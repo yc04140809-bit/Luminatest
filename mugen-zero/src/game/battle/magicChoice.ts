@@ -13,7 +13,7 @@
 
 import { affinityMultiplier } from './damageType';
 import type { BattleState } from './battleLogic';
-import { isMending, type MagicDef } from '../../core/magic/magic';
+import { harmsEnemy, isMending, isWarding, type MagicDef } from '../../core/magic/magic';
 
 /** Why a spell is not available to press right now. */
 export type MagicBlock = 'LOCKED' | 'NO_MP' | 'OVER' | null;
@@ -47,12 +47,12 @@ const AVERAGE_SWING = 10; // the player's 8–12
 
 export function weighMagic(state: BattleState, magic: MagicDef): MagicWeigh {
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
-  // A mending spell does no damage, and saying it does nought rather
-  // than saying nothing is the point: whatever asks this must not be
-  // able to conclude that healing is a weak attack. What it IS worth
-  // is a different question, in different units, and AUTO will need to
-  // ask it separately when somebody wires AUTO up.
-  if (isMending(magic)) {
+  // A spell that strikes nobody does no damage, and saying it does
+  // nought rather than saying nothing is the point: whatever asks this
+  // must not be able to conclude that healing, or a shield, is a weak
+  // attack. What they ARE worth is a different question in different
+  // units, and `decideTurn` below is where it is asked.
+  if (!harmsEnemy(magic)) {
     return {
       magicDamage: 0,
       swingDamage: AVERAGE_SWING * (guarded ? (state.enemySkill?.damageTaken ?? 1) : 1) *
@@ -108,6 +108,16 @@ export const AUTO_DESPERATE_AT = 0.3;
  */
 export const AUTO_MEND_AT = 0.45;
 
+/**
+ * Hurt enough to be worth putting something in front of the next blow.
+ *
+ * Higher than the mending line, because a shield is bought BEFORE it is
+ * needed — that is the entire difference between it and a heal. Below
+ * this the fight has not started hurting yet and a turn is better spent
+ * on the creature.
+ */
+export const AUTO_WARD_AT = 0.8;
+
 export function suggestAction(
   state: BattleState,
   magic: MagicDef | null,
@@ -121,8 +131,8 @@ export function suggestAction(
   }
   // Nothing here knows what a health bar is worth against a turn of
   // damage, and guessing is worse than declining to answer: handed
-  // only a mending spell, an unattended player swings.
-  if (isMending(magic)) return 'ATTACK';
+  // only a spell that strikes nobody, an unattended player swings.
+  if (!harmsEnemy(magic)) return 'ATTACK';
   if (state.playerMp - magic.mpCost < reserveMp) return 'ATTACK';
   const weigh = weighMagic(state, magic);
   // A blow that would put it on the ground is worth more than a bigger
@@ -146,9 +156,10 @@ export function suggestAction(
  * order a person would apply them:
  *
  *   1. Hurt, and she can mend → mend. Before the last moment, not on it.
- *   2. Nearly gone with nothing to spend → cover, and let her gather.
- *   3. The best of what hurts it, if it beats swinging → cast that.
- *   4. Otherwise swing.
+ *   2. Nothing in front of the next blow and blows are landing → shield.
+ *   3. Nearly gone with nothing to spend → cover, and let her gather.
+ *   4. The best of what hurts it, if it beats swinging → cast that.
+ *   5. Otherwise swing.
  *
  * Whoever wires AUTO up gets to argue with these in a test rather than
  * in a fight.
@@ -164,6 +175,8 @@ export interface AutoOptions {
   reserveMp?: number;
   /** Mend at or below this share of health. */
   mendAt?: number;
+  /** Put a shield up at or below this share of health. */
+  wardAt?: number;
 }
 
 const SWING: TurnPlan = { action: 'ATTACK', magicId: null };
@@ -189,7 +202,19 @@ export function decideTurn(
     if (mend) return { action: 'MAGIC', magicId: mend.id };
   }
 
-  // 2. Nearly gone, nothing to mend with, and power to be gathered.
+  // 2. Nothing in front of the next blow, and blows have started to
+  //    matter. Not while a shield is already up — a second one buys
+  //    nothing, and the turn it costs is a turn the creature gets for
+  //    free.
+  if (
+    state.wardTurns <= 0 &&
+    state.playerHp <= state.playerMaxHp * (options.wardAt ?? AUTO_WARD_AT)
+  ) {
+    const shield = usable.filter(isWarding)[0];
+    if (shield) return { action: 'MAGIC', magicId: shield.id };
+  }
+
+  // 3. Nearly gone, nothing to mend with, and power to be gathered.
   if (
     state.playerHp <= state.playerMaxHp * AUTO_DESPERATE_AT &&
     state.playerMp < state.playerMaxMp
@@ -197,12 +222,12 @@ export function decideTurn(
     return COVER;
   }
 
-  // 3. The best of what hurts it — best by what it would actually do,
+  // 4. The best of what hurts it — best by what it would actually do,
   //    which is not the same as by its power.
   let best: MagicDef | null = null;
   let bestDamage = 0;
   for (const spell of usable) {
-    if (isMending(spell)) continue;
+    if (!harmsEnemy(spell)) continue;
     if (state.playerMp - spell.mpCost < reserveMp) continue;
     const { magicDamage } = weighMagic(state, spell);
     if (best === null || magicDamage > bestDamage) {
