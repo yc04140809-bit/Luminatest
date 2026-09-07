@@ -1,9 +1,9 @@
 # MUGEN REVIEW PACKAGE — 横画面の作り直し / GameStage / 戦闘立ち絵サイズ統一 v1.0（採用前）
 
-- Generated: 2026-09-06T07:55:43.692Z
-- Commit: 1d9f752 on claude/mugen-zero-v01-implementation-qanh8u
+- Generated: 2026-09-07T12:37:52.805Z
+- Commit: fbb4b37 on claude/mugen-zero-v01-implementation-qanh8u
 - Compared against: 1d9f752
-- Verdict: nothing failed
+- Verdict: SOMETHING FAILED — see 5
 
 ## 1. 実装前 → 実装後の変更点
 
@@ -41,9 +41,71 @@
 **主人公の立ち絵とガルドの戦闘ポーズが、透過付きで届いた**ので登録して
 います。**1バイトも加工していません**（md5一致を確認済み）。
 
+### commits
+
+```
+fbb4b37 Hold the artifact's lines to half a megabyte, and check what is in it
+33fca32 Spend the artifact's size budget where the round is
+6f3f7cc Draw the game landscape instead of turning it sideways
+```
+
+### changed files
+
+```
+mugen-zero/e2e/battlePrototype.spec.ts             |   9 +-
+ mugen-zero/e2e/helpers.ts                          |  13 +-
+ mugen-zero/e2e/landscape.spec.ts                   |  99 ++++-
+ mugen-zero/e2e/landscapeShots.ts                   | 137 +++++++
+ mugen-zero/e2e/magic.spec.ts                       |  21 +
+ mugen-zero/e2e/mossRabbit.spec.ts                  |  16 +-
+ mugen-zero/e2e/reviewCapture.ts                    |  61 ++-
+ mugen-zero/package.json                            |   2 +-
+ mugen-zero/playwright.shots.config.ts              |  13 +
+ mugen-zero/scripts/check-artifact.mjs              | 145 +++++++
+ mugen-zero/scripts/review-encode-assets.mjs        |  41 +-
+ .../assets/characters/gald/gald-battle-down.png    | Bin 2316789 -> 2339831 bytes
+ .../assets/characters/gald/gald-battle-idle.png    | Bin 0 -> 1882314 bytes
+ .../assets/characters/hero/hero-battle-idle.png    | Bin 0 -> 2437621 bytes
+ .../assets/characters/kaos/kaos-battle-idle.png    | Bin 0 -> 2322940 bytes
+ mugen-zero/src/assets/manifest.ts                  |  17 +
+ mugen-zero/src/content/art/partyArt.ts             |  27 +-
+ mugen-zero/src/content/art/spriteFrames.test.ts    |  80 ++++
+ mugen-zero/src/content/art/spriteFrames.ts         | 166 ++++++++
+ mugen-zero/src/content/enemies/species.ts          |  10 -
+ .../src/content/locations/locationVisuals.ts       |  17 +-
+ mugen-zero/src/content/qa/visualChanges.ts         |  85 ++--
+ mugen-zero/src/game/exploration/GreenwoodScene.ts  |  24 +-
+ mugen-zero/src/ui/art/CharacterArt.tsx             |  47 ++-
+ mugen-zero/src/ui/battle/BattleUIPrototype.tsx     |  28 +-
+ mugen-zero/src/ui/layout/LandscapeStage.tsx        |  71 ++--
+ mugen-zero/src/ui/layout/landscape.test.ts         |  80 ++--
+ mugen-zero/src/ui/layout/landscape.ts              | 118 ++++--
+ mugen-zero/src/ui/screens/BattleScreen.tsx         | 143 ++++---
+ .../src/ui/screens/CreatureLifeChoiceScreen.tsx    |   6 +-
+ mugen-zero/src/ui/screens/LifeChoiceScreen.tsx     |   6 +-
+ mugen-zero/src/ui/styles.css                       | 435 +++++++++++++++++----
+ mugen-zero/vite.config.singlefile.ts               |  22 ++
+ review/latest/01_magic_awakening.png               | Bin 233962 -> 0 bytes
+ review/latest/01_tavern.png                        | Bin 0 -> 474767 bytes
+ review/latest/02_greenwood_forest.png              | Bin 0 -> 689987 bytes
+ review/latest/02_magic_tray.png                    | Bin 220738 -> 0 bytes
+ review/latest/03_greenwood_walking_side.png        | Bin 0 -> 691636 bytes
+ review/latest/04_moss_rabbit_life_choice.png       | Bin 0 -> 360694 bytes
+ review/latest/05_gald_encounter.png                | Bin 0 -> 453685 bytes
+ review/latest/06_gald_battle.png                   | Bin 0 -> 380290 bytes
+ review/latest/07_magic_tray.png                    | Bin 0 -> 339973 bytes
+ review/latest/08_life_choice.png                   | Bin 0 -> 83761 bytes
+ review/latest/09_battle_prototype.png              | Bin 0 -> 361866 bytes
+ review/latest/REVIEW.md                            | 362 +++++++++--------
+ review/latest/manifest.json                        |  71 ++--
+ review/latest/qa-report.md                         |  37 +-
+ review/notes.md                                    | 309 ++++++++-------
+ 48 files changed, 1981 insertions(+), 737 deletions(-)
+```
+
 ## 2. スクリーンショット（必要な分だけ）
 
-撮影: 2026-09-06T07:55:43.544Z / viewport 844x390
+撮影: 2026-09-07T12:37:51.122Z / viewport 844x390
 
 - `review/latest/01_tavern.png` — TAVERN / TALK：絵本来の色・暗さ・コントラストが戻っているか。白は UI だけか
 - `review/latest/02_greenwood_forest.png` — GREENWOOD / BATTLE：主人公とケイオスちゃんが二人の人物に見えるか。発見の気配が世界に馴染んでいるか
@@ -88,8 +150,8 @@
 ```
 # MUGEN ZERO QA REPORT
 
-- Generated: 2026-09-06T07:55:43.449Z
-- Build: MUGEN ZERO v0.1 / 1d9f752 / 2026-09-06T05:20:51.231Z
+- Generated: 2026-09-07T12:37:51.005Z
+- Build: MUGEN ZERO v0.1 / fbb4b37 / 2026-09-07T12:36:30.898Z
 - Environment: dev server
 - Result: no failed checks — 21 pass, 0 warn, 2 not tested, 1 manual
 
@@ -114,7 +176,7 @@
 
 ## 4. 既存機能への影響
 
-新規：`content/art/spriteFrames.ts`（＋テスト）、`ui/battle/BattleSprite.tsx`、
+新規：`content/art/spriteFrames.ts`（＋テスト）、
 `e2e/landscapeShots.ts`（7画面を撮るだけのカメラ）、
 `playwright.shots.config.ts`、
 `assets/characters/hero/hero-battle-idle.png`、
@@ -143,18 +205,18 @@ gitの履歴に残っています。
 | 項目 | 結果 | 内容 |
 | --- | --- | --- |
 | Typecheck (tsc -b --force) | PASS | no type errors |
-| Unit (vitest) | PASS | Tests  680 passed (680) |
-| E2E (playwright) | PASS | 270 passed (12.6m) |
-| Build (tsc -b && vite build) | PASS | ✓ built in 6.80s |
+| Unit (vitest) | PASS | Tests  687 passed (687) |
+| E2E (playwright) | FAIL | 268 passed (15.5m) |
+| Build (tsc -b && vite build) | PASS | ✓ built in 10.45s |
 | Screenshot capture | PASS | captured |
 
 ```
-dist/assets/DevLockScreen-lNXTVgP3.js                    1.42 kB │ gzip:   0.78 kB
-dist/assets/CinematicPreviewScreen-Du7aFZYW.js           5.00 kB │ gzip:   1.83 kB
-dist/assets/DevAdminScreen-C8D4VYLo.js                  51.28 kB │ gzip:  17.47 kB
+dist/assets/DevLockScreen-CDp4KwoA.js                    1.42 kB │ gzip:   0.78 kB
+dist/assets/CinematicPreviewScreen-zad9YKjE.js           5.00 kB │ gzip:   1.82 kB
+dist/assets/DevAdminScreen-BGZ9joGg.js                  51.28 kB │ gzip:  17.47 kB
 dist/assets/react-C8w-UNLI.js                          141.74 kB │ gzip:  45.48 kB
-dist/assets/index-DeBO4l0d.js                          191.78 kB │ gzip:  59.33 kB
-dist/assets/GreenwoodScreen-DOTC5bl0.js              1,501.45 kB │ gzip: 346.98 kB
+dist/assets/index-CYcx58te.js                          192.58 kB │ gzip:  59.70 kB
+dist/assets/GreenwoodScreen-D4oZoJVt.js              1,501.45 kB │ gzip: 346.98 kB
 ```
 
 ## 6. Android / mobile 確認結果
@@ -221,10 +283,20 @@ dist/assets/GreenwoodScreen-DOTC5bl0.js              1,501.45 kB │ gzip: 346.9
 7. 【今回やっていないこと（指示どおり）】ケイオスの魔法追加・AUTO・倍速・
    新規敵・新規ストーリー・新規戦闘システムは**一切足していません**。
    既にある魔法システムはそのままです。
-8. 【アーティファクト】新しい立ち絵3枚で**6.6MBのPNG**が増えました。
-   単一HTMLは16MB制限（実測では約9.5MBが限界）なので、
-   **アーティファクト用の再エンコード（WebP・同解像度）に3枚追加**しました。
-   **リポジトリの元PNGは1バイトも変えていません。**
+8. 【アーティファクトが公開できていません（未解決）】
+   新しい立ち絵3枚で**6.6MBのPNG**が増えたため、アーティファクト用の
+   再エンコード（WebP・**同解像度**）に3枚追加しました。
+   ただし**今回は公開に失敗しています**。試した順に
+   **11.38MB → 9.67MB → 9.30MB**、いずれも同じ「大きすぎる」拒否でした。
+   **前ラウンドは9.47MBで公開できています**ので、
+   **今日の失敗は大きさだけが原因ではない可能性**があります
+   （エラー文面は前回も実際の原因と食い違っていました）。
+   縮小のために、**今回の主役ではない古代龍のアルカナ2枚**の
+   レビュー用画質を下げ、他は82にしています——**どこを削るかは
+   平均ではなく判断**で、今回見ていただきたい立ち絵側に予算を残しました。
+   **リポジトリの元PNGは1バイトも変えていません**（md5一致を確認済み）。
+   ゲーム・テスト・スクリーンショットはすべて元PNGが基準です。
+   スクリーンショット9枚は `review/latest/` にあり、別途お送りします。
 
 ## 10. Claude 自身が気になる箇所
 

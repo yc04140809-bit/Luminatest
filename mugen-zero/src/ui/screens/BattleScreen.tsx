@@ -19,6 +19,8 @@ import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { CharacterArt } from '../art/CharacterArt';
 import { spriteHeight } from '../../content/art/spriteFrames';
+import { BattleParty } from '../battle/BattleParty';
+import { activeParty } from '../../game/party/battleParty';
 import { ScreenBackdrop } from '../common/ScreenBackdrop';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
@@ -190,8 +192,23 @@ export function BattleScreen({
     ? enemyArtFor(enemy.speciesId, beaten ? 'down' : 'front')
     : partyArtFor('gald', beaten ? 'battle_damage' : 'battle_idle');
   const enemySpriteId = enemy ? enemy.speciesId : 'gald';
-  const heroArt = partyArtFor('hero', 'battle_idle');
-  const kaosArt = partyArtFor('kaos', 'battle_idle');
+  /**
+   * The party, as a list rather than as two variables.
+   *
+   * Who is in it comes from the roster and where they stand comes from
+   * the formation table, so a third member joining is a change to
+   * neither this screen nor the party layer.
+   */
+  const partyActors = activeParty().map((member, i) => ({
+    id: member.id,
+    label: member.label,
+    art: partyArtFor(member.id, 'battle_idle'),
+    face: 'left' as const,
+    testId: `battle-${member.id}-art`,
+    // The front rank is the one whose blow lands. That is him today;
+    // when the fight records which member acted, this reads that.
+    beat: i === 0 && reaction === 'HIT' ? 'strike' : null,
+  }));
   const backdrop = locationBackground(battleLocationId);
 
   /**
@@ -293,29 +310,10 @@ export function BattleScreen({
           </div>
 
           {/* The party. He is in front, she is a step behind him — the
-              order the fight is fought in, readable at a glance. */}
-          <div className={`bf-actor bf-hero${reaction === 'HIT' ? ' strike' : ''}`}>
-            <span className="bf-shadow" aria-hidden="true" />
-            <CharacterArt
-              art={heroArt}
-              height={spriteHeight('hero', heroArt.state, fieldH)}
-              className="bf-art"
-              face="left"
-              label="あなた"
-              testId="battle-hero-art"
-            />
-          </div>
-          <div className="bf-actor bf-kaos">
-            <span className="bf-shadow" aria-hidden="true" />
-            <CharacterArt
-              art={kaosArt}
-              height={spriteHeight('kaos', kaosArt.state, fieldH)}
-              className="bf-art"
-              face="left"
-              label="ケイオス"
-              testId="battle-kaos-art"
-            />
-          </div>
+              order the fight is fought in, readable at a glance, and
+              now the formation table's business rather than this
+              screen's. */}
+          <BattleParty actors={partyActors} stageHeight={fieldH} />
         </div>
         <HpBar
           label="あなた"

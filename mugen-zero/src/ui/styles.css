@@ -952,25 +952,16 @@ body,
   left: 7%;
   bottom: 3%;
 }
-/* You, on the right and nearest — and in front of her, so a pair of
-   wings never crosses your sword arm. */
-.bf-hero {
-  right: 25%;
-  bottom: 3%;
-  z-index: 2;
-}
-/* Her, a step behind you and further back up the path. Her drawing is
-   wider than it is tall (the wings), so she is set right against the
-   edge to keep clear of him. */
-.bf-kaos {
-  right: 0;
-  bottom: 13%;
-  z-index: 1;
-}
+/* Where the party stands is no longer written here. You on the right
+   and nearest, her a step behind you and further back up the path — the
+   same two places, to the same numbers — now come from
+   ui/battle/formation.ts, so a third member is a row in a table rather
+   than another rule in this file. */
 .bf-enemy.hit {
   animation: battle-hit 0.26s ease;
 }
-.bf-hero.strike {
+/* Whoever's blow it is, not whose it usually is. */
+.bf-actor.strike {
   animation: bf-strike 0.3s ease-out;
 }
 @keyframes bf-strike {
