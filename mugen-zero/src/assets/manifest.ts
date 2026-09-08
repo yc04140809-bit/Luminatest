@@ -9,6 +9,7 @@ import galdDefeated from './characters/gald/gald-defeated.png';
 import galdBaker from './characters/gald/gald-baker.webp';
 import galdHealer from './characters/gald/gald-healer.webp';
 import galdWorker from './characters/gald/gald-worker.webp';
+import galdBattleDamage from './characters/gald/gald-battle-damage.png';
 import galdBattleDown from './characters/gald/gald-battle-down.png';
 import galdBattleIdle from './characters/gald/gald-battle-idle.png';
 import heroBattleIdle from './characters/hero/hero-battle-idle.png';
@@ -49,11 +50,12 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
  *                                        his encounter / talk picture.
  *                                        TRANSPARENT
  *   defeated     gald-defeated.png       beaten, on one knee, still
- *                                        looking at you. The four
- *                                        answers are asked over this,
- *                                        and the battlefield shows it
- *                                        the moment he goes down.
- *                                        OPAQUE — see the note below
+ *                                        looking at you. The framed
+ *                                        card the four answers are
+ *                                        asked over. OPAQUE, on black,
+ *                                        and meant to be
+ *   battleDamage gald-battle-damage.png  the same moment, cut out, for
+ *                                        the battlefield. TRANSPARENT
  *   battleIdle   gald-battle-idle.png    his fighting pose on the
  *                                        battlefield. TRANSPARENT, and
  *                                        used exactly as delivered
@@ -72,12 +74,12 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
  * `battleIdle`, `ready` and `battleDown` are transparent and are the
  * ones drawn over the field and over a backdrop.
  *
- * `defeated` is NOT, and has never been: the slot has held an opaque
- * picture since it existed, and the delivered replacement is opaque
- * too. It is the one place the game draws a rectangle rather than a
- * person, and the new one is on black where the old one was on dark
- * olive, so it reads as a harder edge. Worth a transparent version when
- * there is one; not a regression introduced here.
+ * `defeated` is NOT — deliberately. It is the framed card, where the
+ * black it is drawn on IS the frame, and it is the best-looking of the
+ * set there. The same moment cut out for the field is `battleDamage`,
+ * a separate file, because a figure standing on ground has to be cut
+ * out and a card does not. Two mattes of one drawing, each where it
+ * belongs.
  *
  * WHAT IS STILL THE OLD MAN: `battleDown`, and the three lives —
  * baker, healer, worker. He was redesigned from the ground up, so those
@@ -90,6 +92,7 @@ const GALD_FILES = {
   healer: galdHealer,
   worker: galdWorker,
   battleIdle: galdBattleIdle,
+  battleDamage: galdBattleDamage,
   battleDown: galdBattleDown,
   graveEventCg: galdGrave,
 } as const;
@@ -119,6 +122,9 @@ export const GALD_PORTRAITS: Record<GaldState, string | null> = {
  * the question still open, and this is the moment before that.
  */
 export const GALD_BATTLE_DOWN: string = GALD_FILES.battleDown;
+
+/** The same man on one knee, cut out, for the field rather than a card. */
+export const GALD_BATTLE_DAMAGE: string = GALD_FILES.battleDamage;
 
 /**
  * THE THREE BATTLE FIGURES.

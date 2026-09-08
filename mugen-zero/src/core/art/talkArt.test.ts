@@ -35,19 +35,25 @@ describe('Gald', () => {
     expect(partyArtFor('gald', 'battle_down').substituted).toBe(false);
   });
 
-  it('stands in for being beaten rather than putting a black card on the field', () => {
-    // The picture of him on one knee is drawn on black, for the framed
-    // card the four answers are asked over. On the battlefield it would
-    // be a rectangle, so it is registered as the close-up it is and the
-    // field falls back to his fighting pose — the same man, cut out.
-    // A transparent version of that pose belongs in `battle_damage`,
-    // and this test is what will notice when one arrives.
-    const beaten = partyArtFor('gald', 'battle_damage');
-    expect(beaten.placeholder, 'never nothing').toBe(false);
-    expect(beaten.state).toBe('battle_idle');
-    expect(beaten.substituted, 'and says it stood in').toBe(true);
-    // The close-up itself is his own picture, not a stand-in.
-    expect(partyArtFor('gald', 'portrait').substituted).toBe(false);
+  it('has him on one knee twice: once for the field, once for the card', () => {
+    // One drawing, two mattes, because the two places need different
+    // things. The field needs a figure that stands on ground, so
+    // `battle_damage` is the cut-out. The four answers are asked over a
+    // framed card, where the black the other one is drawn on IS the
+    // frame — so `portrait` stays as it came.
+    //
+    // Both are his own picture. Neither is standing in for the other,
+    // and if either ever starts to, this is what says so.
+    const onTheField = partyArtFor('gald', 'battle_damage');
+    expect(onTheField.substituted, 'the field has its own').toBe(false);
+    expect(onTheField.state).toBe('battle_damage');
+
+    const inTheCard = partyArtFor('gald', 'portrait');
+    expect(inTheCard.substituted, 'and so does the card').toBe(false);
+    expect(inTheCard.state).toBe('portrait');
+
+    // And they are not the same file: one of them is cut out.
+    expect(onTheField.asset?.src).not.toBe(inTheCard.asset?.src);
   });
 
   it('has no talking picture yet, and falls back to the whole figure', () => {

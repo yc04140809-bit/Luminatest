@@ -13,6 +13,7 @@ import { EXPLORATION_SPRITES } from '../characters/explorationSprites';
 import {
   BATTLE_FIGURES,
   GALD_PORTRAITS,
+  GALD_BATTLE_DAMAGE,
   GALD_BATTLE_DOWN,
   KAOS_PORTRAITS,
 } from '../../assets/manifest';
@@ -105,21 +106,16 @@ export const GALD_ART: PartyArtSet = {
     // His fighting pose, delivered as a transparent PNG. He stands on
     // the left of the field and looks across it, so he faces right.
     battle_idle: { src: BATTLE_FIGURES.gald, facing: 'right' },
-    // NOT `battle_damage`, and that is the whole of this entry.
+    // Beaten and on one knee, twice: the same drawing with two
+    // mattes, each in the place it is for.
     //
-    // Beaten and on one knee: still looking at you, and still to be
-    // decided about. It is drawn on black, and it is meant to be — in
-    // the framed card the four answers are asked over, the black reads
-    // as the frame. On the FIELD the same picture is a black rectangle
-    // sitting on the forest floor, because a battlefield figure has to
-    // be cut out and this one is not.
-    //
-    // So it is registered as the close-up it is. The field asks for
-    // `battle_damage`, finds nothing, and falls back to his fighting
-    // pose — the same man, cut out, for the second and a half between
-    // the last blow and the question. When a transparent version of
-    // this pose exists it goes back to `battle_damage` and both places
-    // get the right picture.
+    // On the FIELD he has to stand on ground, so this is the cut-out.
+    // No `facing`: he is kneeling with his weight on one hand and the
+    // other blade on the floor beside him, and mirroring that would
+    // have him reaching the wrong way.
+    battle_damage: { src: GALD_BATTLE_DAMAGE },
+    // In the framed card the four answers are asked over, the black he
+    // is drawn on IS the frame — so that one stays as it came.
     portrait: GALD_PORTRAITS.defeated ? { src: GALD_PORTRAITS.defeated } : undefined,
     // Face down where the fight left him. No `facing`: he is lying with
     // his head towards the trees and his hand towards the party, and

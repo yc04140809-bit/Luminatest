@@ -82,6 +82,10 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/characters/gald/gald-defeated.png'),
     out: join(REVIEW_ASSET_DIR, 'gald-defeated.webp'),
   },
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-damage.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-battle-damage.webp'),
+  },
   // The moss rabbit's two pictures: 4.7 MB of PNG, and the single
   // largest thing left in the artifact once the dragon was handled.
   {

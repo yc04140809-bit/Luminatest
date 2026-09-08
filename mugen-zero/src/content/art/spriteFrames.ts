@@ -99,9 +99,13 @@ export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
     anchor: 'bottom-center',
     states: {
       // On one knee: the same man, lower to the ground, not a smaller
-      // one. Two thirds of his standing height is about what kneeling
-      // costs a person.
-      battle_damage: { scale: 0.46 },
+      // one. Raised from 0.46 with his redesign — the old drawing was a
+      // tall portrait of him kneeling and the new one is a wide one,
+      // with clear margin above his head and below the blade on the
+      // floor, so the same share of the stage put a much smaller man on
+      // it. Still well under his standing 0.66, because kneeling does
+      // cost a person height.
+      battle_damage: { scale: 0.58 },
       // Face down, and his drawing is half again as wide as it is tall
       // with clear margin above and below him — so the number that puts
       // his body at the right size is much smaller than his standing
