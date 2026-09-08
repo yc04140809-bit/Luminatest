@@ -6,9 +6,9 @@ import kaosNormal from './characters/kaos/kaos-normal.webp';
 import kaosSmile from './characters/kaos/kaos-smile.webp';
 import galdReady from './characters/gald/gald-ready.png';
 import galdDefeated from './characters/gald/gald-defeated.png';
-import galdBaker from './characters/gald/gald-baker.webp';
-import galdHealer from './characters/gald/gald-healer.webp';
-import galdWorker from './characters/gald/gald-worker.webp';
+import galdBaker from './characters/gald/gald-baker.png';
+import galdHealer from './characters/gald/gald-healer.png';
+import galdWorker from './characters/gald/gald-worker.png';
 import galdBattleDamage from './characters/gald/gald-battle-damage.png';
 import galdBattleDown from './characters/gald/gald-battle-down.png';
 import galdBattleIdle from './characters/gald/gald-battle-idle.png';
@@ -63,9 +63,11 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
  *                                        him. TRANSPARENT. STILL THE
  *                                        OLD DESIGN — no replacement
  *                                        has been drawn for it yet
- *   baker        gald-baker.webp     ┐
- *   healer       gald-healer.webp    ├   three years on, one per
- *   worker       gald-worker.webp    ┘   surviving route
+ *   baker        gald-baker.png      ┐   three years on, one per
+ *   healer       gald-healer.png     ├   surviving route. Event CGs:
+ *   worker       gald-worker.png     ┘   whole scenes with their own
+ *                                        light and their own signage,
+ *                                        so opaque is right for them
  *   graveEventCg event-gald-grave.webp    the KILL route, where there
  *                                        is no Gald left to draw
  *
@@ -81,9 +83,9 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
  * out and a card does not. Two mattes of one drawing, each where it
  * belongs.
  *
- * WHAT IS STILL THE OLD MAN: `battleDown`, and the three lives —
- * baker, healer, worker. He was redesigned from the ground up, so those
- * four are a different person until they are redrawn.
+ * WHAT IS STILL THE OLD MAN: `battleDown` alone. Everything else here
+ * is the redesign — met, fought, beaten, and living each of the three
+ * lives the player can leave him in.
  */
 const GALD_FILES = {
   ready: galdReady,

@@ -103,8 +103,13 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitClosing: '棚には、焼きたてのパンが並んでいる。',
     kaosLines: [KAOS_AFTER_REUNION_LINE],
     eventCg: galdPortrait('baker'),
-    eventCgAlt: 'パンの籠を抱えた店の男',
-    eventCgFit: 'figure',
+    eventCgAlt: '粉まみれの前掛けで生地をこねる店の男',
+    // 'scene' with his redesign. The old baker was a cut-out figure and
+    // this was 'figure' to match it; the new one is a whole bakery —
+    // the oven, the shelves, the board he chalked his own line onto —
+    // and a full illustration shown at figure size is a postcard held
+    // up in the middle of the screen.
+    eventCgFit: 'scene',
   },
   {
     id: 'GREENWOOD_WAYSTATION',

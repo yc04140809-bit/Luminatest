@@ -254,11 +254,19 @@ describe('four futures — every route has its own event CG', () => {
     expect(byId.ALDEN_WORKYARD.eventCg).toBe(GALD_PORTRAITS.worker);
   });
 
-  it('leaves the SPARE route exactly as Phase E drew it', () => {
+  it('shows every route the way its own picture was drawn', () => {
+    // The fit follows the art, not the phase it arrived in. Phase E's
+    // baker was a cut-out figure and this pinned him to 'figure'; his
+    // redesign is a whole bakery — the oven, the shelves, the board he
+    // chalked his own line onto — so he is a scene like the other two,
+    // and all three of his lives are shown the same way.
     const bakery = FUTURE_SITE_DEFS.find((d) => d.id === 'ALDEN_BAKERY')!;
     expect(bakery.eventCg).toBe(GALD_PORTRAITS.baker);
-    expect(bakery.eventCgFit).toBe('figure');
     expect(bakery.eventCgFromLine).toBeUndefined();
+    for (const id of ['ALDEN_BAKERY', 'GREENWOOD_WAYSTATION', 'ALDEN_WORKYARD']) {
+      const site = FUTURE_SITE_DEFS.find((d) => d.id === id)!;
+      expect(site.eventCgFit, id).toBe('scene');
+    }
   });
 
   it('art is presentation only: no site def can gate an event on it', () => {

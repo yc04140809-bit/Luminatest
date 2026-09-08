@@ -86,6 +86,20 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-damage.png'),
     out: join(REVIEW_ASSET_DIR, 'gald-battle-damage.webp'),
   },
+  // And the three lives he can be left in. Event CGs at 2.5 MB each:
+  // 7.5 MB of PNG for three pictures the artifact shows one of.
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-baker.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-baker.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-healer.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-healer.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-worker.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-worker.webp'),
+  },
   // The moss rabbit's two pictures: 4.7 MB of PNG, and the single
   // largest thing left in the artifact once the dragon was handled.
   {
