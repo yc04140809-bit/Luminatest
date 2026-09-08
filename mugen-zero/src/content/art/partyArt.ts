@@ -105,17 +105,31 @@ export const GALD_ART: PartyArtSet = {
     // His fighting pose, delivered as a transparent PNG. He stands on
     // the left of the field and looks across it, so he faces right.
     battle_idle: { src: BATTLE_FIGURES.gald, facing: 'right' },
+    // NOT `battle_damage`, and that is the whole of this entry.
+    //
     // Beaten and on one knee: still looking at you, and still to be
-    // decided about. Not the same picture as being face down.
-    battle_damage: GALD_PORTRAITS.defeated ? { src: GALD_PORTRAITS.defeated } : undefined,
+    // decided about. It is drawn on black, and it is meant to be — in
+    // the framed card the four answers are asked over, the black reads
+    // as the frame. On the FIELD the same picture is a black rectangle
+    // sitting on the forest floor, because a battlefield figure has to
+    // be cut out and this one is not.
+    //
+    // So it is registered as the close-up it is. The field asks for
+    // `battle_damage`, finds nothing, and falls back to his fighting
+    // pose — the same man, cut out, for the second and a half between
+    // the last blow and the question. When a transparent version of
+    // this pose exists it goes back to `battle_damage` and both places
+    // get the right picture.
+    portrait: GALD_PORTRAITS.defeated ? { src: GALD_PORTRAITS.defeated } : undefined,
     // Face down where the fight left him. No `facing`: he is lying with
     // his head towards the trees and his hand towards the party, and
     // mirroring that would have him reaching the wrong way.
     battle_down: GALD_BATTLE_DOWN ? { src: GALD_BATTLE_DOWN } : undefined,
     // No talking picture drawn yet: a conversation falls back to the
     // whole figure and shows the top of it. See CharacterArt's `bust`.
+    // Standing, before any of it. His encounter and conversation
+    // picture, and a cut-out, so it can be drawn over a backdrop.
     fullbody: GALD_PORTRAITS.ready ? { src: GALD_PORTRAITS.ready } : undefined,
-    portrait: GALD_PORTRAITS.ready ? { src: GALD_PORTRAITS.ready } : undefined,
   },
 };
 

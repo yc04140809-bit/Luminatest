@@ -29,7 +29,9 @@ export function LifeChoiceScreen({ onChoose }: Props) {
   // Beaten and on one knee, still looking at you: the question is open,
   // which is what this screen is for. Asked of the art layer by state
   // rather than named as a file.
-  const portrait = partyArtFor('gald', 'battle_damage').asset?.src ?? null;
+  // The close-up, not the battlefield pose: this screen shows him in a
+  // frame, and the picture of him beaten is drawn for a frame.
+  const portrait = partyArtFor('gald', 'portrait').asset?.src ?? null;
 
   const choose = async (choice: LifeChoiceId) => {
     if (saving) return;

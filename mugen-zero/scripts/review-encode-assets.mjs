@@ -71,6 +71,17 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-idle.png'),
     out: join(REVIEW_ASSET_DIR, 'gald-battle-idle.webp'),
   },
+  // And the other two of his redesign, which arrived as PNGs of the
+  // same weight: 4.3 MB more that the artifact has no room for. The
+  // game still uses the delivered files at their delivered quality.
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-ready.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-ready.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/gald/gald-defeated.png'),
+    out: join(REVIEW_ASSET_DIR, 'gald-defeated.webp'),
+  },
   // The moss rabbit's two pictures: 4.7 MB of PNG, and the single
   // largest thing left in the artifact once the dragon was handled.
   {

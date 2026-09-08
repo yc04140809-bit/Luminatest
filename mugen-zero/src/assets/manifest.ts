@@ -4,8 +4,8 @@
 
 import kaosNormal from './characters/kaos/kaos-normal.webp';
 import kaosSmile from './characters/kaos/kaos-smile.webp';
-import galdReady from './characters/gald/gald-ready.webp';
-import galdDefeated from './characters/gald/gald-defeated.webp';
+import galdReady from './characters/gald/gald-ready.png';
+import galdDefeated from './characters/gald/gald-defeated.png';
 import galdBaker from './characters/gald/gald-baker.webp';
 import galdHealer from './characters/gald/gald-healer.webp';
 import galdWorker from './characters/gald/gald-worker.webp';
@@ -45,25 +45,43 @@ export function kaosPortrait(expression: KaosExpression = 'normal'): string | nu
  * in the game names any of them — content/art/partyArt.ts maps these
  * onto art states, and every screen asks the art layer.
  *
- *   ready        gald-ready.webp         standing, before the fight —
- *                                        also his talk / event picture
- *   defeated     gald-defeated.webp      beaten, on one knee, still
+ *   ready        gald-ready.png          standing, before the fight —
+ *                                        his encounter / talk picture.
+ *                                        TRANSPARENT
+ *   defeated     gald-defeated.png       beaten, on one knee, still
  *                                        looking at you. The four
- *                                        answers are asked over this
+ *                                        answers are asked over this,
+ *                                        and the battlefield shows it
+ *                                        the moment he goes down.
+ *                                        OPAQUE — see the note below
  *   battleIdle   gald-battle-idle.png    his fighting pose on the
  *                                        battlefield. TRANSPARENT, and
  *                                        used exactly as delivered
  *   battleDown   gald-battle-down.png    face down where the fight left
- *                                        him. TRANSPARENT
+ *                                        him. TRANSPARENT. STILL THE
+ *                                        OLD DESIGN — no replacement
+ *                                        has been drawn for it yet
  *   baker        gald-baker.webp     ┐
  *   healer       gald-healer.webp    ├   three years on, one per
  *   worker       gald-worker.webp    ┘   surviving route
  *   graveEventCg event-gald-grave.webp    the KILL route, where there
  *                                        is no Gald left to draw
  *
- * The two PNGs are transparent cut-outs and the rest are webp scenes;
- * that difference is deliberate and load-bearing — a battlefield figure
+ * WHICH OF THEM ARE CUT OUT, and why it matters: a battlefield figure
  * with a background baked into it cannot stand on the forest floor.
+ * `battleIdle`, `ready` and `battleDown` are transparent and are the
+ * ones drawn over the field and over a backdrop.
+ *
+ * `defeated` is NOT, and has never been: the slot has held an opaque
+ * picture since it existed, and the delivered replacement is opaque
+ * too. It is the one place the game draws a rectangle rather than a
+ * person, and the new one is on black where the old one was on dark
+ * olive, so it reads as a harder edge. Worth a transparent version when
+ * there is one; not a regression introduced here.
+ *
+ * WHAT IS STILL THE OLD MAN: `battleDown`, and the three lives —
+ * baker, healer, worker. He was redesigned from the ground up, so those
+ * four are a different person until they are redrawn.
  */
 const GALD_FILES = {
   ready: galdReady,

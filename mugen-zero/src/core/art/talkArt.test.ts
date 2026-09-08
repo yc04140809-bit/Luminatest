@@ -33,7 +33,21 @@ describe('Gald', () => {
   it('has a picture for the fight and a picture for being face down', () => {
     expect(partyArtFor('gald', 'battle_idle').substituted).toBe(false);
     expect(partyArtFor('gald', 'battle_down').substituted).toBe(false);
-    expect(partyArtFor('gald', 'battle_damage').substituted).toBe(false);
+  });
+
+  it('stands in for being beaten rather than putting a black card on the field', () => {
+    // The picture of him on one knee is drawn on black, for the framed
+    // card the four answers are asked over. On the battlefield it would
+    // be a rectangle, so it is registered as the close-up it is and the
+    // field falls back to his fighting pose — the same man, cut out.
+    // A transparent version of that pose belongs in `battle_damage`,
+    // and this test is what will notice when one arrives.
+    const beaten = partyArtFor('gald', 'battle_damage');
+    expect(beaten.placeholder, 'never nothing').toBe(false);
+    expect(beaten.state).toBe('battle_idle');
+    expect(beaten.substituted, 'and says it stood in').toBe(true);
+    // The close-up itself is his own picture, not a stand-in.
+    expect(partyArtFor('gald', 'portrait').substituted).toBe(false);
   });
 
   it('has no talking picture yet, and falls back to the whole figure', () => {
