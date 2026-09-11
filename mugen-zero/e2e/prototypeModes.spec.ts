@@ -36,6 +36,15 @@ async function openPrototype(page: Page) {
   await page.getByTestId('force-story-off').click();
   await page.getByTestId('open-battle-prototype').click();
   await expect(page.getByTestId('battle-prototype')).toBeVisible();
+  // And wait for the commands, which are not on screen at once: Kaos
+  // steps in at the start of a fight and the row appears when she is
+  // done. Every test that CLICKS a command got this for free from
+  // Playwright's auto-waiting; the one that read styles with
+  // `page.evaluate` did not, and failed under parallel load with
+  // `getComputedStyle(null)` — because the row genuinely was not there
+  // yet. Waiting here fixes the class of problem rather than the one
+  // test that happened to hit it.
+  await expect(page.getByTestId('bp-modes')).toBeVisible();
 }
 
 test('both controls exist on the screen a forest fight uses', async ({ page }) => {
@@ -113,28 +122,50 @@ test('×2 shortens the theatre and nothing else', async ({ page }) => {
   await expect(speed).toHaveAttribute('data-speed', '1');
   await expect(speed).toContainText('×1');
 
-  // How long one hand-played turn takes to finish playing, at each speed.
-  const beatLength = async () => {
-    const started = Date.now();
+  /**
+   * How long one hand-played turn is held on screen.
+   *
+   * MEASURED OFF THE SCREEN'S OWN CLASSES, which is the whole point and
+   * was the bug: this used to wait for `.bp-actor.bf-hit`, a class that
+   * belongs to the OTHER battle screen and never appears on this one.
+   * The wait therefore resolved instantly, both numbers were Playwright
+   * round-trip noise (46ms vs 48ms), and the test passed for two years'
+   * worth of the wrong reason until parallel load ordered the noise the
+   * other way.
+   *
+   * A turn is STRIKE(320) + the creature's reply — over a second at ×1
+   * and about half that at ×2, so the difference is far larger than any
+   * round-trip. The beats are `setTimeout`s in JS, not CSS animations,
+   * so reduced-motion does not flatten them.
+   */
+  const theatre = async () => {
+    const playing = () =>
+      page.evaluate(() =>
+        Boolean(
+          document.querySelector(
+            '.bp-hero.strike, .bp-hero.hurt, .bp-enemy.struck, .bp-enemy.tackle, .bp-enemy.hide',
+          ),
+        ),
+      );
     await page.getByTestId('bp-attack').click();
-    // The beat is over when the field stops reacting.
-    await expect(page.getByTestId('bp-attack')).toBeEnabled();
-    await page.waitForFunction(
-      () => !document.querySelector('[data-testid="battle-prototype"] .bp-actor.bf-hit'),
-      undefined,
-      { timeout: 10_000 },
-    );
+    // It has to start before it can end, or "finished" is just "not
+    // begun yet" with a stopwatch on it.
+    await expect.poll(playing, { timeout: 10_000 }).toBe(true);
+    const started = Date.now();
+    await expect.poll(playing, { timeout: 20_000 }).toBe(false);
     return Date.now() - started;
   };
 
-  const atOne = await beatLength();
+  const atOne = await theatre();
   await speed.click();
   await expect(speed).toHaveAttribute('data-speed', '2');
   await expect(speed).toContainText('×2');
-  const atTwo = await beatLength();
+  const atTwo = await theatre();
 
-  // Faster, and visibly so rather than by a hair.
-  expect(atTwo).toBeLessThan(atOne);
+  // Meaningfully shorter, not shorter by a hair. Half, with room for a
+  // loaded machine's polling granularity either side.
+  expect(atOne, 'a turn at ×1 is theatre, not an instant').toBeGreaterThan(400);
+  expect(atTwo, `×2 (${atTwo}ms) is well under ×1 (${atOne}ms)`).toBeLessThan(atOne * 0.8);
 
   // Cycling comes back round rather than sticking at the top.
   await speed.click();
@@ -145,13 +176,13 @@ test('being ON is visible, not only announced', async ({ page }) => {
   await freshWorld(page);
   await openPrototype(page);
 
-  const paint = (id: string) =>
-    page.evaluate(
-      (t) =>
-        getComputedStyle(document.querySelector(`[data-testid="${t}"]`) as HTMLElement)
-          .backgroundColor,
-      id,
-    );
+  // Read through the locator rather than `document.querySelector`, so
+  // Playwright waits for the element instead of handing null to
+  // getComputedStyle the moment the row has not rendered yet.
+  const paint = async (id: string) =>
+    page
+      .getByTestId(id)
+      .evaluate((node) => getComputedStyle(node as HTMLElement).backgroundColor);
 
   const offAuto = await paint('bp-auto');
   const offSpeed = await paint('bp-speed');
