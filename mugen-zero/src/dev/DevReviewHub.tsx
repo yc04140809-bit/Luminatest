@@ -5,8 +5,13 @@ import { direct } from '../core/experience/director';
 import { buildQaReport, renderQaReportMarkdown } from '../core/qa/qaReport';
 import type { QaStatus } from '../core/qa/types';
 import { collectQaInput } from './qaSnapshot';
-import { runAldenDemo, runGaldHelpDemo, runLinaFuturesDemo } from './worldLifeDemo';
-import { readGaldLife, GALD_LIFE_RULES } from '../core/life/galdReading';
+import {
+  runAldenDemo,
+  runCrossingDemo,
+  runGaldHelpDemo,
+  runLinaFuturesDemo,
+} from './worldLifeDemo';
+import { readWorldLife, WORLD_LIFE_RULES } from '../core/life/worldReading';
 import { traceNpc } from '../core/life/engine';
 import { ALDEN_GUARD, GALD } from '../content/world/galdLife';
 
@@ -441,6 +446,16 @@ export function DevReviewHub({ world, onBack }: Props) {
           <GaldLifeTrace />
         </Section>
 
+        {/* ---- WHERE LIVES CROSS ----
+
+            The furthest the engine reaches: one decision in a forest,
+            followed to a boy on a dock in a town the player has never
+            visited. Read the meeting list and note who is in it — after
+            the first line, never the player. */}
+        <Section title="WORLD LIFE ENGINE / 交差と伝播" id="crossings">
+          <CrossingTrace />
+        </Section>
+
         {/* ---- THIS SAVE ----
 
             The same rules, read off the world the tester is actually
@@ -722,15 +737,53 @@ function GaldLifeTrace() {
  * on this same screen. Read-only, like everything else in the hub.
  */
 function GaldLiveTrace({ world }: { world: World }) {
-  const life = readGaldLife(world.getEvents(), world.getClock());
+  const life = readWorldLife(world.getEvents(), world.getClock());
   const lines = [
-    ...traceNpc(life, GALD_LIFE_RULES, GALD),
+    ...traceNpc(life, WORLD_LIFE_RULES, GALD),
     '',
-    ...traceNpc(life, GALD_LIFE_RULES, ALDEN_GUARD),
+    ...traceNpc(life, WORLD_LIFE_RULES, ALDEN_GUARD),
   ];
   return (
     <div className="location-desc" style={TRACE} data-testid="hub-gald-live">
       {lines.join('\n')}
+    </div>
+  );
+}
+
+/**
+ * Four meetings and the town at the end of them.
+ *
+ * Nothing here is about the player after the first line, and that is
+ * the thing to check rather than take on trust: the meeting list names
+ * who was in each one.
+ */
+function CrossingTrace() {
+  const demo = runCrossingDemo();
+  return (
+    <div data-testid="hub-crossings">
+      <div className="location-desc" style={TRACE} data-testid="hub-crossings-steps">
+        {demo.steps.join('\n')}
+      </div>
+      <div style={{ ...TRACE, color: 'var(--accent)', marginTop: 8 }}>
+        交差した出会い（PLAYERはこの先どこにもいない）
+      </div>
+      <div className="location-desc" style={TRACE} data-testid="hub-crossings-meetings">
+        {demo.meetings.join('\n')}
+      </div>
+      <div style={{ ...TRACE, color: 'var(--accent)', marginTop: 8 }}>
+        PLAYERが行ったことのない町
+      </div>
+      <div className="location-desc" style={TRACE} data-testid="hub-crossings-far">
+        {demo.faraway.join('\n')}
+      </div>
+      <details data-testid="hub-crossings-waiting">
+        <summary style={{ cursor: 'pointer', fontSize: 11, padding: '6px 0' }}>
+          まだ起きていない交差と、その理由
+        </summary>
+        <div className="location-desc" style={TRACE}>
+          {demo.waiting.join('\n')}
+        </div>
+      </details>
     </div>
   );
 }

@@ -17,7 +17,7 @@ import { describe, it, expect } from 'vitest';
 import { INITIAL_CLOCK, addDays, toAbsoluteDay, type WorldClock } from '../time/calendar';
 import type { MemoryEvent } from '../memory/types';
 import { canonAsWorldMemories, asWorldMemory, isCanon } from './canonBridge';
-import { readGaldLife, GALD_LIFE_RULES } from './galdReading';
+import { readWorldLife, WORLD_LIFE_RULES } from './worldReading';
 import {
   advanceTime,
   emptyWorld,
@@ -390,8 +390,8 @@ describe('read off the world the player is actually in', () => {
     // The guard was walking that road before the player existed. If the
     // world began the day they arrived, his wariness would have to be
     // set by hand — and nothing in this engine is ever simply set.
-    const day1 = readGaldLife([], INITIAL_CLOCK);
-    const wary = seedsOf(day1, GALD_LIFE_RULES, ALDEN_GUARD).find(
+    const day1 = readWorldLife([], INITIAL_CLOCK);
+    const wary = seedsOf(day1, WORLD_LIFE_RULES, ALDEN_GUARD).find(
       (s) => s.type === 'GUARD_WARINESS',
     );
     expect(wary).toBeDefined();
@@ -399,9 +399,9 @@ describe('read off the world the player is actually in', () => {
   });
 
   it('builds the whole reading from canon alone, with nothing stored', () => {
-    const read = readGaldLife(PLAYED, addDays(INITIAL_CLOCK, 1096));
+    const read = readWorldLife(PLAYED, addDays(INITIAL_CLOCK, 1096));
     expect(
-      seedsOf(read, GALD_LIFE_RULES, GALD).find((s) => s.type === 'GALD_REDEMPTION')!.status,
+      seedsOf(read, WORLD_LIFE_RULES, GALD).find((s) => s.type === 'GALD_REDEMPTION')!.status,
     ).toBe('ROOTED');
     expect(read.blooms.some((b) => b.id === 'GALD_AND_THE_GUARD_SPEAK')).toBe(true);
   });
@@ -410,8 +410,8 @@ describe('read off the world the player is actually in', () => {
     // There is no life-engine save, so there is nothing to migrate and
     // nothing that can fall out of step with the history it came from.
     const shuffled = [...PLAYED].reverse();
-    const a = readGaldLife(PLAYED, addDays(INITIAL_CLOCK, 1096));
-    const b = readGaldLife(shuffled, addDays(INITIAL_CLOCK, 1096));
+    const a = readWorldLife(PLAYED, addDays(INITIAL_CLOCK, 1096));
+    const b = readWorldLife(shuffled, addDays(INITIAL_CLOCK, 1096));
     expect(a.seeds).toEqual(b.seeds);
     expect(a.blooms.map((x) => x.id)).toEqual(b.blooms.map((x) => x.id));
   });
@@ -419,7 +419,7 @@ describe('read off the world the player is actually in', () => {
   it('says nothing about him on a route where he was not helped', () => {
     // SPARE, played straight. The HELP seed is never planted, because
     // the fact that plants it never happened.
-    const spared = readGaldLife(
+    const spared = readWorldLife(
       [
         canon('PLAYER_SPARED_GALD', 0, [PLAYER_ACTOR, GALD], FOREST),
         canon('GALD_LEAVES_BANDITS', 4, [GALD], 'GREENWOOD_FOREST'),
@@ -429,24 +429,24 @@ describe('read off the world the player is actually in', () => {
       addDays(INITIAL_CLOCK, 1096),
     );
     expect(
-      seedsOf(spared, GALD_LIFE_RULES, GALD).find((s) => s.type === 'GALD_REDEMPTION'),
+      seedsOf(spared, WORLD_LIFE_RULES, GALD).find((s) => s.type === 'GALD_REDEMPTION'),
     ).toBeUndefined();
     expect(spared.blooms.some((b) => b.id === 'GALD_AND_THE_GUARD_SPEAK')).toBe(false);
     // But the village did take him in, and the engine noticed.
     expect(
-      seedsOf(spared, GALD_LIFE_RULES, GALD).find((s) => s.type === 'GALD_ROOTS_IN_ALDEN'),
+      seedsOf(spared, WORLD_LIFE_RULES, GALD).find((s) => s.type === 'GALD_ROOTS_IN_ALDEN'),
     ).toBeDefined();
   });
 
   it('says nothing at all about a man who was killed', () => {
-    const killed = readGaldLife(
+    const killed = readWorldLife(
       [
         canon('PLAYER_KILLED_GALD', 0, [PLAYER_ACTOR, GALD], FOREST),
         canon('GALD_IS_BURIED', 2, [GALD], 'GREENWOOD_FOREST'),
       ],
       addDays(INITIAL_CLOCK, 1096),
     );
-    expect(seedsOf(killed, GALD_LIFE_RULES, GALD)).toEqual([]);
+    expect(seedsOf(killed, WORLD_LIFE_RULES, GALD)).toEqual([]);
     expect(killed.blooms.filter((b) => b.npcId === GALD)).toEqual([]);
   });
 
@@ -455,7 +455,7 @@ describe('read off the world the player is actually in', () => {
     // never planted must not read as satisfied.
     const nothing = recompute(
       { ...emptyWorld(addDays(INITIAL_CLOCK, 2000)), memories: [], seeds: [] },
-      GALD_LIFE_RULES,
+      WORLD_LIFE_RULES,
     );
     expect(nothing.blooms.some((b) => b.id === 'GUARD_STOPS_WATCHING_HIM')).toBe(false);
   });

@@ -336,3 +336,34 @@ test('the hub shows one seed becoming four different lives', async ({ page }) =>
   await expect(page.getByTestId('hub-lina-why')).toContainText('aptitude MAGIC ≥ 0.6');
   await expect(page.getByTestId('hub-lina-why')).toContainText('LINA_WANDERING_MAGE まだ');
 });
+
+// 交差と伝播 — the furthest the engine reaches, and the one claim that
+// is easiest to fake: a player action in Alden changing somebody in a
+// town the player has never been to.
+test('the hub follows one decision into a town the player never visits', async ({ page }) => {
+  await newWorld(page);
+  await openHub(page);
+  await page.getByTestId('hub-section-crossings').locator('summary').first().click();
+
+  const steps = page.getByTestId('hub-crossings-steps');
+  await expect(steps).toContainText('PLAYERがガルドをHELP（森）');
+
+  // Four meetings, in order, and the player is in none of them.
+  const meetings = page.getByTestId('hub-crossings-meetings');
+  await expect(meetings).toContainText('GALD_WALKS_INTO_ALDEN');
+  await expect(meetings).toContainText('GALD_TELLS_LINA_OF_THE_ROAD');
+  await expect(meetings).toContainText('BAKER_GIVES_GALD_A_CORNER');
+  await expect(meetings).toContainText('GALD_TAKES_THE_ROAD_TO_THE_PORT');
+  await expect(meetings).toContainText('GALD → NEL @ PORT_TOWN');
+  await expect(meetings).not.toContainText('PLAYER');
+
+  // And the far end: a boy with a seed, a line back to Gald, and a
+  // future of his own.
+  const far = page.getByTestId('hub-crossings-far');
+  await expect(far).toContainText('── NEL @');
+  await expect(far).toContainText('SEED   HEALING_CALL');
+  await expect(far).toContainText('FROM ACTION TENDED_THE_HURT by GALD @ PORT_TOWN');
+  await expect(far).toContainText('VINE   BECAUSE_OF → GALD');
+  await expect(far).toContainText('NEL_LEARNS_TO_BIND_WOUNDS CANDIDATE');
+  await expect(far).toContainText('港町の荷運びの少年');
+});

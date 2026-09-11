@@ -11,12 +11,20 @@
 import { INITIAL_CLOCK, addDays, toAbsoluteDay } from '../core/time/calendar';
 import type { MemoryEvent, MemoryEventType } from '../core/memory/types';
 import { canonAsWorldMemories } from '../core/life/canonBridge';
+import { allCrossingChecks } from '../core/life/crossing';
+import {
+  MUGEN_WORLD_RULES,
+  NEL,
+  PORT_TOWN,
+  WORLD_CROSSINGS,
+} from '../content/world/mugenWorld';
 import {
   advanceTime,
   emptyWorld,
   observe,
   recompute,
   replayCanon,
+  settle,
   traceNpc,
   type WorldLifeRules,
 } from '../core/life/engine';
@@ -29,6 +37,7 @@ import {
   GALD_BLOOMS,
   GALD_CORES,
   GALD_SEED_KINDS,
+  GREENWOOD_PRELUDE,
 } from '../content/world/galdLife';
 import {
   ALDEN_VILLAGE_ACTOR,
@@ -391,4 +400,136 @@ export function linaFuturesText(): string {
       '',
     ])
     .join('\n');
+}
+
+
+// ---------------------------------------------------------------------
+// WHERE LIVES CROSS, and how far one decision travels.
+//
+// The last and largest of the demonstrations: a player action in a
+// forest outside Alden, followed all the way to a boy on a dock in a
+// town the player has never visited and will never visit.
+//
+// Read the meeting list and note who is in it. After the first line,
+// never the player.
+
+const WORLD_RULES: WorldLifeRules = MUGEN_WORLD_RULES;
+const LINA_ID = LINA.npcId;
+
+const CROSSING_CANON: readonly { type: MemoryEventType; day: number; actors: string[]; at: string }[] =
+  [
+    { type: 'PLAYER_HELPED_GALD', day: 1, actors: [PLAYER_ACTOR, GALD], at: 'ALDEN_FOREST' },
+    { type: 'GALD_WALKS_THE_ROAD', day: 5, actors: [GALD], at: 'GREENWOOD_FOREST' },
+    { type: 'GALD_BECOMES_HEALER', day: 125, actors: [GALD], at: 'GREENWOOD_WAYSTATION' },
+  ];
+
+export interface CrossingDemo {
+  steps: readonly string[];
+  /** Every meeting the world produced, in the order it produced them. */
+  meetings: readonly string[];
+  /** Why any that have not happened have not happened. */
+  waiting: readonly string[];
+  /** The far end: a boy the player never met. */
+  faraway: readonly string[];
+}
+
+/**
+ * One forest, four days' walk, and five years.
+ *
+ * Time is moved in story-sized steps rather than one jump, because that
+ * is how the game moves it and because a meeting is recorded when the
+ * story next looks.
+ */
+export function runCrossingDemo(): CrossingDemo {
+  const steps: string[] = [];
+
+  let world = emptyWorld(INITIAL_CLOCK);
+  for (const fact of GREENWOOD_PRELUDE) {
+    world = observe(world, { ...fact, witnesses: [...fact.witnesses] }, WORLD_RULES).state;
+  }
+  steps.push('WORLD  盗賊が街道で働いていた → 衛兵に GUARD_WARINESS');
+
+  for (let i = 0; i < 5; i++) {
+    if (i > 0) world = advanceTime(world, 150, 'STORY_TIME_ADVANCE');
+    world = observe(
+      world,
+      {
+        action: 'SHOW_MAGIC',
+        actor: KAOS_ACTOR,
+        target: LINA_ID,
+        location: 'ALDEN_VILLAGE',
+        witnesses: [MARTA.npcId],
+      },
+      WORLD_RULES,
+    ).state;
+  }
+  steps.push('ACTION ケイオスがリナに魔法を見せる ×5 → LINA に MAGIC_DREAM');
+
+  world = replayCanon(
+    world,
+    canonAsWorldMemories(
+      CROSSING_CANON.map((spec) => {
+        const when = addDays(INITIAL_CLOCK, spec.day);
+        return {
+          id: `demo_cross_${spec.type}`,
+          type: spec.type,
+          worldYear: when.worldYear,
+          worldDay: when.worldDay,
+          location: spec.at,
+          actors: spec.actors,
+          importance: 'MAJOR' as const,
+          createdAt: new Date(0).toISOString(),
+        };
+      }),
+    ),
+    WORLD_RULES,
+  );
+  steps.push('ACTION PLAYERがガルドをHELP（森） → GALD に GALD_REDEMPTION');
+  steps.push('CANON  街道へ / 街道の救護者に（EVENT ENGINE）');
+
+  while (toAbsoluteDay(world.now) - 1 < 1500) {
+    const step = Math.min(180, 1500 - (toAbsoluteDay(world.now) - 1));
+    world = settle(advanceTime(world, step, 'STORY_TIME_ADVANCE'), WORLD_RULES);
+  }
+  steps.push(`TIME   約4年 → Y${world.now.worldYear}D${world.now.worldDay}`);
+
+  const meetings = world.memories
+    .filter((memory) => memory.id.startsWith('cross:'))
+    .map(
+      (memory) =>
+        `Y${memory.time.worldYear}D${memory.time.worldDay}  ${memory.id.slice(6)}` +
+        `\n        ${memory.actor} → ${memory.target ?? '—'} @ ${memory.location}`,
+    );
+
+  const waiting = allCrossingChecks(WORLD_CROSSINGS, {
+    state: world,
+    kinds: WORLD_RULES.kinds,
+    cores: WORLD_RULES.cores,
+  })
+    .filter((check) => !check.already)
+    .flatMap((check) => [
+      `${check.def.id} — まだ`,
+      ...check.reasons.map((r) => `  ${r.met ? '✓' : '·'} ${r.requirement}: ${r.detail}`),
+    ]);
+
+  return {
+    steps,
+    meetings,
+    waiting: waiting.length > 0 ? waiting : ['（書かれた交差はすべて起きた）'],
+    faraway: traceNpc(world, WORLD_RULES, NEL),
+  };
+}
+
+/** The whole thing as one block, for a console. */
+export function crossingDemoText(): string {
+  const demo = runCrossingDemo();
+  return [
+    ...demo.steps,
+    '',
+    `===== 交差した出会い（PLAYERはこの先どこにもいない） =====`,
+    ...demo.meetings,
+    '',
+    `===== ${PORT_TOWN}：PLAYERが行ったことのない町 =====`,
+    ...demo.faraway,
+  ].join('\n');
 }

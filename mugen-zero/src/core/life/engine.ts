@@ -22,6 +22,7 @@ import { grownSeed } from './growth';
 import { bloomCandidates, allBloomChecks, type BloomCheck } from './bloom';
 import { feed, memoryId, reachedBy, sow } from './sow';
 import { vinesOf } from './vine';
+import { crossingRecord, crossingsDue, type WorldCrossingDef } from './crossing';
 import type {
   NpcCore,
   WorldBloomDef,
@@ -42,6 +43,14 @@ export interface WorldLifeRules {
   kinds: readonly SeedKindDef[];
   cores: readonly NpcCore[];
   blooms: readonly WorldBloomDef[];
+  /**
+   * The pairs of lives an author has said could touch.
+   *
+   * Optional, and a world with none behaves exactly as it did before
+   * crossings existed. Never a list of everybody: see crossing.ts for
+   * why the absence of an N² pass is the whole point.
+   */
+  crossings?: readonly WorldCrossingDef[];
 }
 
 /** A world with nothing in it yet, on a given day. */
@@ -218,7 +227,7 @@ export function replayCanon(
     if (at > here) world = { ...world, now: record.time };
     world = witness(world, record, rules).state;
   }
-  return recompute(world, rules);
+  return settle(world, rules);
 }
 
 /**
@@ -246,6 +255,49 @@ export function recompute(state: WorldLifeState, rules: WorldLifeRules): WorldLi
     since: state.memories[0]?.time ?? state.now,
   });
   return { ...state, vines, blooms };
+}
+
+/**
+ * HOW MANY TIMES A MEETING MAY SET OFF ANOTHER MEETING.
+ *
+ * A man walking into a market is why he meets a girl; the girl is why
+ * somebody else hears about the road. Chains like that are the point.
+ * A chain longer than this is almost certainly two crossings that
+ * enable each other, and a world that will not settle is worse than a
+ * world that settles one link short — so this stops, and the next call
+ * picks up where it left off.
+ */
+export const CROSSING_ROUNDS = 8;
+
+/**
+ * THE WORLD, CAUGHT UP WITH ITSELF.
+ *
+ * Derives what is derived, lets any lives that were due to touch touch,
+ * and does it again in case one meeting made another possible. Returns
+ * when nothing more happens, which is almost always the first round.
+ *
+ * This is what a caller runs after time passes or something happens.
+ * `recompute` on its own is still available and still pure — it derives
+ * and changes nothing — and the difference matters: settling can write
+ * records, because a meeting is an event, and deriving cannot.
+ */
+export function settle(state: WorldLifeState, rules: WorldLifeRules): WorldLifeState {
+  let world = recompute(state, rules);
+  const crossings = rules.crossings ?? [];
+  if (crossings.length === 0) return world;
+
+  for (let round = 0; round < CROSSING_ROUNDS; round++) {
+    const due = crossingsDue(crossings, {
+      state: world,
+      kinds: rules.kinds,
+      cores: rules.cores,
+    });
+    if (due.length === 0) return world;
+    for (const def of due) {
+      world = witness(world, crossingRecord(def, world.now), rules).state;
+    }
+  }
+  return world;
 }
 
 /** Every seed of one person's, as they stand today. */

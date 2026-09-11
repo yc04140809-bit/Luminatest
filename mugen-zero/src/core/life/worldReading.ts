@@ -1,4 +1,4 @@
-// GALD'S LIFE, READ OFF THE PLAYER'S OWN WORLD.
+// THE WORLD'S LIVES, READ OFF THE PLAYER'S OWN SAVE.
 //
 // The connection between the game that is actually being played and the
 // engine that watches what it does to people. One function, one
@@ -15,25 +15,22 @@ import { canonAsWorldMemories } from './canonBridge';
 import {
   emptyWorld,
   observe,
-  recompute,
   replayCanon,
+  settle,
   type WorldLifeRules,
 } from './engine';
 import type { WorldLifeState } from './types';
-import {
-  GALD_ACTIONS,
-  GALD_BLOOMS,
-  GALD_CORES,
-  GALD_SEED_KINDS,
-  GREENWOOD_PRELUDE,
-} from '../../content/world/galdLife';
+import { GREENWOOD_PRELUDE } from '../../content/world/galdLife';
+import { MUGEN_WORLD_RULES } from '../../content/world/mugenWorld';
 
-export const GALD_LIFE_RULES: WorldLifeRules = {
-  actions: GALD_ACTIONS,
-  kinds: GALD_SEED_KINDS,
-  cores: GALD_CORES,
-  blooms: GALD_BLOOMS,
-};
+/**
+ * Every region the engine knows about, as one set of rules.
+ *
+ * The merged world rather than one region's, because a crossing is by
+ * definition not inside a region: a man walking north out of Alden is
+ * only interesting if the town he arrives in is in the same world.
+ */
+export const WORLD_LIFE_RULES: WorldLifeRules = MUGEN_WORLD_RULES;
 
 /**
  * What this world has made of him so far.
@@ -51,7 +48,7 @@ export const GALD_LIFE_RULES: WorldLifeRules = {
  * routes have an opinion about — canon says what happened to Gald, and
  * this says what it did to him and to the man who used to hunt him.
  */
-export function readGaldLife(
+export function readWorldLife(
   events: readonly MemoryEvent[],
   now: WorldClock,
 ): WorldLifeState {
@@ -59,12 +56,14 @@ export function readGaldLife(
   // guard's wariness is older than anything the player did.
   let world = emptyWorld({ worldYear: 1, worldDay: 1 });
   for (const fact of GREENWOOD_PRELUDE) {
-    world = observe(world, { ...fact, witnesses: [...fact.witnesses] }, GALD_LIFE_RULES).state;
+    world = observe(world, { ...fact, witnesses: [...fact.witnesses] }, WORLD_LIFE_RULES).state;
   }
-  world = replayCanon(world, canonAsWorldMemories(events), GALD_LIFE_RULES);
+  world = replayCanon(world, canonAsWorldMemories(events), WORLD_LIFE_RULES);
   // And then to where the player is standing, which may be well past
-  // the last thing that happened.
-  return recompute({ ...world, now: laterOf(world.now, now) }, GALD_LIFE_RULES);
+  // the last thing that happened — settling rather than merely
+  // deriving, because lives that were due to touch touch when the
+  // story looks, and this is the story looking.
+  return settle({ ...world, now: laterOf(world.now, now) }, WORLD_LIFE_RULES);
 }
 
 function laterOf(a: WorldClock, b: WorldClock): WorldClock {
