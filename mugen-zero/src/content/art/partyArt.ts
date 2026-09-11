@@ -11,6 +11,7 @@
 
 import { EXPLORATION_SPRITES } from '../characters/explorationSprites';
 import {
+  ALDEN_FIGURES,
   BATTLE_FIGURES,
   GALD_PORTRAITS,
   GALD_BATTLE_DAMAGE,
@@ -129,8 +130,46 @@ export const GALD_ART: PartyArtSet = {
   },
 };
 
+/**
+ * リナ — the baker's daughter.
+ *
+ * BEING IN THIS REGISTRY IS NOT BEING IN THE PARTY. The file is named
+ * for the side of the screen it was first needed on; what it actually
+ * holds is "every picture of a person the game can show", which is why
+ * Gald — who the player fights — has lived here for months. Who is
+ * actually in a fight is `activeParty()` in game/party, and neither of
+ * the two below is in it.
+ *
+ * One pose delivered: standing, holding the morning's basket. Every
+ * other state falls back to it through the ordinary chain, so the day
+ * she is drawn talking or startled it lands in this file and nothing
+ * that shows her changes.
+ */
+export const LINA_ART: PartyArtSet = {
+  id: 'LINA',
+  label: 'リナ',
+  states: {
+    // A cut-out, so she can stand in front of a village backdrop.
+    // `facing: 'right'` is not set: she is holding a basket against her
+    // left hip with both hands, and mirroring her would put it through
+    // her arm.
+    fullbody: { src: ALDEN_FIGURES.lina },
+  },
+};
+
+/** パン屋の主人 — her father. Same terms, same one pose. */
+export const BAKERY_OWNER_ART: PartyArtSet = {
+  id: 'BAKERY_OWNER',
+  label: 'パン屋の主人',
+  states: {
+    fullbody: { src: ALDEN_FIGURES.bakeryOwner },
+  },
+};
+
 export const PARTY_ART: PartyArtRegistry = {
   [HERO_ART.id]: HERO_ART,
   [KAOS_ART.id]: KAOS_ART,
   [GALD_ART.id]: GALD_ART,
+  [LINA_ART.id]: LINA_ART,
+  [BAKERY_OWNER_ART.id]: BAKERY_OWNER_ART,
 };

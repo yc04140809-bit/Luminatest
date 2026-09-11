@@ -31,6 +31,8 @@ import {
   type FutureSiteDef,
 } from '../../content/world/futureSites';
 import { INITIAL_GALD_STATE } from '../../content/characters/gald';
+import { INITIAL_LINA_STATE } from '../../content/characters/lina';
+import { INITIAL_BAKERY_OWNER_STATE } from '../../content/characters/bakeryOwner';
 import type { ExperienceWorldView } from '../experience/types';
 import { recentEmotionsOf } from '../experience/experienceEngine';
 import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
@@ -135,6 +137,12 @@ function characterKey(id: string): string {
 
 const INITIAL_CHARACTERS: Record<string, CharacterState> = {
   GALD: INITIAL_GALD_STATE,
+  // Alden's baker and his daughter. Added here rather than anywhere
+  // else because this is what `World.open` walks: an existing save
+  // simply has no stored row for either of them and falls back to
+  // these, so adding people is save-compatible by construction.
+  LINA: INITIAL_LINA_STATE,
+  BAKERY_OWNER: INITIAL_BAKERY_OWNER_STATE,
 };
 
 interface ResolvedLifeEvent {
@@ -649,9 +657,17 @@ export class World {
       const resolved = this.resolveLifeEvents(to);
       const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
 
-      // NPC AGE: living characters walk their own years; the dead stay still.
+      // NPC AGE: living characters walk their own years; the dead stay
+      // still, and so does anybody whose age nobody has decided.
+      //
+      // That last case is the one worth saying out loud. `null + years`
+      // is `years` in JavaScript, so a character with an undecided age
+      // would come out of a three-year shift aged exactly three — a
+      // number nobody chose, indistinguishable afterwards from one
+      // somebody did. Undecided stays undecided until an author decides.
       for (const [id, state] of Object.entries(characters)) {
         if (!state.alive) continue;
+        if (state.age === null) continue;
         characters[id] = { ...state, age: state.age + years };
         changedIds.add(id);
       }

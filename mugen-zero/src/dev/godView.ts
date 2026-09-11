@@ -61,6 +61,16 @@ export interface NpcObservation {
    * canonical record is somebody no scene can currently show.
    */
   character: CharacterState | null;
+  /**
+   * Who they are to the other people on the roster, in one line.
+   *
+   * DERIVED, never stored. `CharacterState` keeps family one way round
+   * — a parent lists their children — so a child's parent is found by
+   * asking who lists them. At the size of a village that scan is free,
+   * and keeping one fact in one place means the two directions can
+   * never disagree.
+   */
+  family: string;
   /** Their seeds as they stand today, strongest first. */
   seeds: readonly WorldSeed[];
   /** Lines out of them, and lines into them. */
@@ -133,12 +143,40 @@ export function memoriesFor(state: WorldLifeState, npcId: string): WorldMemoryRe
   );
 }
 
+/**
+ * 「Xの娘」「Yの父」, read off `childrenIds` in both directions.
+ *
+ * Names rather than ids where the roster knows one, because this line
+ * is read by a person.
+ */
+function familyOf(
+  npcId: string,
+  characters: Readonly<Record<string, CharacterState | undefined>>,
+  nameOf: (id: string) => string,
+): string {
+  const said: string[] = [];
+  const self = characters[npcId];
+
+  // Downwards: what this record says itself.
+  for (const childId of self?.childrenIds ?? []) said.push(`${nameOf(childId)}の親`);
+  if (self?.spouseId) said.push(`${nameOf(self.spouseId)}の配偶者`);
+
+  // Upwards: whoever lists them. The scan that lets family be stored
+  // once instead of twice.
+  for (const [id, other] of Object.entries(characters)) {
+    if (!other || id === npcId) continue;
+    if (other.childrenIds.includes(npcId)) said.push(`${nameOf(id)}の子`);
+  }
+  return said.join(' / ');
+}
+
 function observePerson(
   person: WorldPerson,
   state: WorldLifeState,
   rules: WorldLifeRules,
   characters: Readonly<Record<string, CharacterState | undefined>>,
   regionOf: (npcId: string) => string,
+  nameOf: (npcId: string) => string,
 ): NpcObservation {
   const vinesOut = state.vines.filter((vine) => vine.source === person.npcId);
   const vinesIn = state.vines.filter((vine) => vine.target === person.npcId);
@@ -169,6 +207,7 @@ function observePerson(
     standing: person.standing,
     core: rules.cores.find((core) => core.npcId === person.npcId) ?? null,
     character: characters[person.npcId] ?? null,
+    family: familyOf(person.npcId, characters, nameOf),
     seeds: seedsFor(state, rules, person.npcId),
     vinesOut,
     vinesIn,
@@ -201,10 +240,15 @@ export function observeWorld(
 ): GodView {
   const regionOf = (npcId: string) =>
     roster.find((person) => person.npcId === npcId)?.region ?? '（不明）';
+  // The roster's display name where there is one, the id otherwise —
+  // an id showing up here is itself a finding (somebody in the world
+  // the roster does not name), and `unlisted` reports it separately.
+  const nameOf = (npcId: string) =>
+    roster.find((person) => person.npcId === npcId)?.name ?? npcId;
 
   const here = roster.filter((person) => person.region === region);
   const people = here.map((person) =>
-    observePerson(person, state, rules, characters, regionOf),
+    observePerson(person, state, rules, characters, regionOf, nameOf),
   );
 
   // Somebody in another region is worth showing exactly when a line
@@ -216,7 +260,7 @@ export function observeWorld(
   }
   const outsiders = roster
     .filter((person) => tied.has(person.npcId))
-    .map((person) => observePerson(person, state, rules, characters, regionOf));
+    .map((person) => observePerson(person, state, rules, characters, regionOf, nameOf));
 
   // Anybody the world treats as a person that the roster does not name.
   //
@@ -292,11 +336,15 @@ export function unreachedBlooms(
 
 /** One line per person, for the roster at the top of the screen. */
 export function rosterLine(person: NpcObservation): string {
+  // Three states, not two: no record at all, a record with an age, and
+  // a record whose age nobody has decided. Printing `null歳` would make
+  // the third look like a bug instead of a decision still to be made.
+  const age = person.character?.age === null ? '年齢未定' : `${person.character?.age}歳`;
   const alive =
     person.character === null
       ? 'CHARACTER_STATE未登録'
       : person.character.alive
-        ? `生存 ${person.character.age}歳 / ${person.character.occupation}`
+        ? `生存 ${age} / ${person.character.occupation}`
         : '死亡';
   // The id as well as the name, because the person reading this is the
   // one who writes the rule sets: a roster that only says 「マルタ」 is a

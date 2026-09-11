@@ -44,6 +44,8 @@ import {
   PERSONAL_VINE,
 } from './godView';
 import type { CharacterState } from '../core/characters/types';
+import { INITIAL_LINA_STATE } from '../content/characters/lina';
+import { INITIAL_BAKERY_OWNER_STATE } from '../content/characters/bakeryOwner';
 
 const RULES: WorldLifeRules = MUGEN_WORLD_RULES;
 const HER = LINA.npcId;
@@ -139,8 +141,12 @@ describe('the roster', () => {
   it('says what canon knows, and says plainly when canon knows nothing', () => {
     const view = look();
     expect(rosterLine(person(view, GALD))).toContain('生存 34歳 / ROADSIDE_HEALER');
-    // The real finding, not a gap to paper over: the life engine is
-    // growing futures for a girl no scene can currently show.
+    // The other branch, checked with a character map that deliberately
+    // holds only Gald. It used to be a statement about Lina — the
+    // engine was growing four futures for a girl no scene could show —
+    // and she has a record now, so what is left under test is that the
+    // screen still SAYS SO for whoever is in that position next, rather
+    // than quietly printing an empty age.
     expect(rosterLine(person(view, HER))).toContain('CHARACTER_STATE未登録');
   });
 
@@ -326,5 +332,43 @@ describe('it can only look', () => {
 
   it('uses one name for a personal line, so the definition cannot drift', () => {
     expect(PERSONAL_VINE).toBe('BECAUSE_OF');
+  });
+});
+
+describe('CHARACTER_STATE と家族関係', () => {
+  /** The real initial characters, as `World.open` would hand them over. */
+  const REAL: Record<string, CharacterState | undefined> = {
+    LINA: INITIAL_LINA_STATE,
+    BAKERY_OWNER: INITIAL_BAKERY_OWNER_STATE,
+  };
+  const withCanon = () =>
+    observeWorld(grownWorld(), RULES, WORLD_PEOPLE, ALDEN_REGION, REAL);
+
+  it('shows what canon now knows about the girl', () => {
+    const line = rosterLine(person(withCanon(), 'LINA'));
+    expect(line).toContain('生存 14歳');
+    expect(line).toContain('BAKERY_HELPER');
+    // No longer the "engine is growing futures for somebody no scene
+    // can show" case, which is what it said before she was registered.
+    expect(line).not.toContain('CHARACTER_STATE未登録');
+  });
+
+  it('says 年齢未定 rather than printing a null', () => {
+    // The baker's age is a decision nobody has made. A screen that
+    // rendered `null歳` would make that look like a bug.
+    const line = rosterLine(person(withCanon(), 'BAKERY_OWNER'));
+    expect(line).toContain('年齢未定');
+    expect(line).not.toContain('null');
+  });
+
+  it('reads the father and the daughter off one stored fact', () => {
+    const view = withCanon();
+    expect(person(view, 'BAKERY_OWNER').family).toContain('リナ（村娘）の親');
+    // The other direction is derived, not stored — so it cannot drift.
+    expect(person(view, 'LINA').family).toContain('パン屋の主人の子');
+  });
+
+  it('says 記録なし for somebody with no family written', () => {
+    expect(person(withCanon(), 'GALD').family).toBe('');
   });
 });

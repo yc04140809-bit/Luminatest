@@ -12,6 +12,8 @@ import galdWorker from './characters/gald/gald-worker.png';
 import galdBattleDamage from './characters/gald/gald-battle-damage.png';
 import galdBattleDown from './characters/gald/gald-battle-down.png';
 import galdBattleIdle from './characters/gald/gald-battle-idle.png';
+import linaFullbody from './characters/lina/lina-fullbody.png';
+import bakeryOwnerFullbody from './characters/bakery-owner/bakery-owner-fullbody.png';
 import heroBattleIdle from './characters/hero/hero-battle-idle.png';
 import kaosBattleIdle from './characters/kaos/kaos-battle-idle.png';
 import galdGrave from './events/event-gald-grave.webp';
@@ -20,6 +22,24 @@ import greenwoodField from './backgrounds/field-greenwood.png';
 import aldenVillage from './backgrounds/location-alden-village.webp';
 import aldenTavern from './backgrounds/location-alden-tavern.webp';
 import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
+
+/**
+ * THE PEOPLE OF ALDEN, as delivered.
+ *
+ * One standing figure each, transparent, used exactly as it came — no
+ * crop, no recolour, no regeneration. Both were delivered alongside
+ * reference sheets, and the sheets are NOT here on purpose: a reference
+ * sheet is for checking that a later drawing is still the same person,
+ * and anything written on one (ages, dreams, lines of dialogue) is the
+ * image generator talking, not canon. What is canon is in
+ * `src/content/characters/`.
+ */
+export const ALDEN_FIGURES = {
+  /** リナ — the baker's daughter, with the morning's basket. */
+  lina: linaFullbody,
+  /** パン屋の主人 — her father, in his apron. */
+  bakeryOwner: bakeryOwnerFullbody,
+} as const;
 
 export type KaosExpression = 'normal' | 'smile';
 

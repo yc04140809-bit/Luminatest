@@ -16,6 +16,8 @@ import {
   type NpcObservation,
 } from './godView';
 import { grownDemoWorld } from './worldLifeDemo';
+import { partyArtFor } from '../content/art';
+import { CharacterArt } from '../ui/art/CharacterArt';
 import { newsday, newsReport } from '../core/news/news';
 import { ALDEN_NEWS_PER_DAY, ALDEN_NOISE, ALDEN_SIGNALS } from '../content/news/aldenNews';
 import { toAbsoluteDay } from '../core/time/calendar';
@@ -354,13 +356,35 @@ function Detail({ person, onClear }: { person: NpcObservation; onClear: () => vo
         <button className="btn" style={BTN} data-testid="god-detail-clear" onClick={onClear}>
           絞り込みを解除
         </button>
+        {/* The registered artwork, at the size a thumbnail wants.
+            Here rather than on a screen of its own because the question
+            an author is asking is 「この人の絵は入っているか」, and the
+            place they are already looking at the person is this panel.
+            A character with nothing drawn gets the art layer's own
+            placeholder, which says who is missing. */}
+        <div data-testid="god-detail-art" style={{ flex: '1 1 100%' }}>
+          <CharacterArt
+            art={partyArtFor(person.npcId, 'fullbody')}
+            height={140}
+            className="god-art"
+            label={person.name}
+            testId={`god-art-${person.npcId}`}
+          />
+        </div>
         <div className="location-desc" style={MONO} data-testid="god-detail-core">
           {[
             `REGION    ${person.region}  /  ${person.standing}`,
             person.character
-              ? `CANON     ${person.character.alive ? '生存' : '死亡'} ${person.character.age}歳` +
+              ? `CANON     ${person.character.alive ? '生存' : '死亡'} ` +
+                (person.character.age === null
+                  ? '年齢未定（REQUIRED_CANON_DECISION）'
+                  : `${person.character.age}歳`) +
                 ` / ${person.character.occupation} / ${person.character.location}`
               : 'CANON     CHARACTER_STATE未登録（この人を映せるシーンはまだ無い）',
+            // Family, read the one direction it is stored in: a parent
+            // lists their children, and finding somebody's parent is a
+            // scan of the roster.
+            `FAMILY    ${person.family || '記録なし'}`,
             person.core
               ? `CORE      traits=[${person.core.traits.join(',')}] values=[${person.core.values.join(
                   ',',

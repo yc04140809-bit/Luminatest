@@ -64,7 +64,10 @@ test('the grown world shows the roster, the lonely, and the town at the end', as
   await page.getByTestId('god-source-DEMO').click();
 
   // 重要NPC and 一般NPC, each with what canon knows and what it does not.
-  await expect(page.getByTestId('god-npc-LINA')).toContainText('CHARACTER_STATE未登録');
+  // Lina used to read 「CHARACTER_STATE未登録」 here — the engine was
+  // growing four futures for somebody no scene could show. She has a
+  // record now, so the line says what canon knows instead.
+  await expect(page.getByTestId('god-npc-LINA')).toContainText('生存 14歳');
   await expect(page.getByTestId('god-npc-LINA')).toContainText('SEED:');
   await expect(page.getByTestId('god-npc-BAKERY_OWNER')).toBeVisible();
   await expect(page.getByTestId('god-npc-ALDEN_VILLAGE')).toBeVisible();
@@ -173,4 +176,46 @@ test('the author can see which of today’s gossip the world earned', async ({ p
   await expect(report).toContainText('沈黙');
   await expect(report).toContainText('signal_');
   await expect(report).toContainText('日常の在庫');
+});
+
+// ALDEN の正式ビジュアルとCANON登録。
+test('the baker and his daughter are registered, with their artwork', async ({ page }) => {
+  await newWorld(page);
+  await openGodView(page);
+
+  // On THIS save, not the demo: they are initial characters now, so a
+  // world one day old already knows them.
+  await expect(page.getByTestId('god-npc-LINA')).toContainText('生存 14歳');
+  await expect(page.getByTestId('god-npc-LINA')).toContainText('BAKERY_HELPER');
+  // And she is not a baker, a mage, or anything else yet.
+  await expect(page.getByTestId('god-npc-LINA')).not.toContainText('MAGE');
+
+  // His age is a decision nobody has made, and it says so rather than
+  // rendering a null.
+  await expect(page.getByTestId('god-npc-BAKERY_OWNER')).toContainText('年齢未定');
+  await expect(page.getByTestId('god-npc-BAKERY_OWNER')).not.toContainText('null');
+
+  // The delivered artwork loads for both.
+  for (const id of ['LINA', 'BAKERY_OWNER']) {
+    await page.getByTestId(`god-npc-${id}`).click();
+    await expect(page.getByTestId('god-detail-art')).toBeVisible();
+    const art = page.getByTestId(`god-art-${id}`);
+    await expect(art).toBeVisible();
+    const loaded = await art.evaluate((node) => {
+      const el = node as HTMLElement;
+      const img = el.tagName === 'IMG' ? (el as HTMLImageElement) : el.querySelector('img');
+      if (img) return img.complete && img.naturalWidth > 0;
+      // Drawn as a background image: having one at all is the check.
+      return /url\(/.test(getComputedStyle(el).backgroundImage);
+    });
+    expect(loaded, `${id} artwork loaded`).toBe(true);
+    await page.getByTestId('god-detail-clear').click();
+  }
+
+  // The family, read off the one stored fact in both directions.
+  await page.getByTestId('god-npc-BAKERY_OWNER').click();
+  await expect(page.getByTestId('god-detail-core')).toContainText('リナ（村娘）の親');
+  await page.getByTestId('god-detail-clear').click();
+  await page.getByTestId('god-npc-LINA').click();
+  await expect(page.getByTestId('god-detail-core')).toContainText('パン屋の主人の子');
 });

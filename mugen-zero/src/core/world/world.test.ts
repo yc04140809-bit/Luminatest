@@ -451,3 +451,48 @@ describe('World — RESET WORLD', () => {
     expect(reopened.getCharacter('GALD')?.age).toBe(27);
   });
 });
+
+describe('アルデンの新しい住人 — セーブ互換と年齢', () => {
+  it('appears in a world that was saved before they existed', async () => {
+    // A save made before Lina was a character has no stored row for
+    // her. `World.open` walks INITIAL_CHARACTERS and falls back to the
+    // initial state for anybody it has nothing stored about, so adding
+    // people is save-compatible by construction — this is the test that
+    // says so rather than the comment.
+    const dbName = freshDbName();
+    const first = await openWorld(dbName);
+    await first.recordGaldLifeChoice('SPARE');
+
+    const reopened = await openWorld(dbName);
+    const lina = reopened.getCharacter('LINA');
+    expect(lina, 'a save with no Lina row still has Lina').toBeDefined();
+    expect(lina!.age).toBe(14);
+    expect(lina!.occupation).toBe('BAKERY_HELPER');
+    // And the character that WAS stored is still what the save said.
+    expect(reopened.getGaldLifeChoice()).toBe('SPARE');
+  });
+
+  it('records the father listing his daughter', async () => {
+    const world = await openWorld(freshDbName());
+    expect(world.getCharacter('BAKERY_OWNER')?.childrenIds).toEqual(['LINA']);
+    // Stored one way round only. Finding a parent is a scan, so the two
+    // directions cannot disagree.
+    expect(world.getCharacter('LINA')?.childrenIds).toEqual([]);
+  });
+
+  it('ages the girl three years and leaves the undecided age alone', async () => {
+    // THE TRAP THIS TEST EXISTS FOR: `null + 3` is `3` in JavaScript, so
+    // a character whose age nobody has decided would come out of a
+    // three-year shift aged exactly three — a number no author chose,
+    // and indistinguishable a month later from one who did.
+    const world = await openWorld(freshDbName());
+    expect(world.getCharacter('LINA')?.age).toBe(14);
+    expect(world.getCharacter('BAKERY_OWNER')?.age).toBeNull();
+
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3);
+
+    expect(world.getCharacter('LINA')?.age, 'she is seventeen').toBe(17);
+    expect(world.getCharacter('BAKERY_OWNER')?.age, 'still undecided').toBeNull();
+  });
+});

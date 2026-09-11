@@ -132,3 +132,30 @@ src/dev/GodViewScreen.tsx
 
 **案1**。表示層だけの変更で、検出ロジックにも `PERSONAL_VINE` の定義にも触らない。
 指示があれば実装する。
+
+---
+
+## 【追記 2026-09】ALDEN NPC VISUAL + CHARACTER STATE BATCH v0.1 実施後
+
+A-2（LINA の CHARACTER_STATE）は**解決済み**。上の表のうち作者判断待ちだった
+`age` / `occupation` / `lifePhase` は指示書で確定した。
+
+未確定として残るのは以下1件のみ。
+
+### REQUIRED_CANON_DECISION — BAKERY_OWNER の年齢
+
+`src/content/characters/bakeryOwner.ts` に `age: null` として登録済み。
+
+- リファレンスシートには中年男性として描かれているが、**絵から読み取った数字は
+  1ヶ月後には作者が決めた数字と区別がつかなくなる**ため、記入していない。
+- `CharacterState.age` を `number` → `number | null` へ最小拡張した。
+  null は「欠落」ではなく「まだ決めていない」という**明示的な記録**。
+- `world.ts` の3年経過処理は `age === null` をスキップする。
+  これがないと `null + 3 = 3` になり、**誰も決めていない「3歳」が
+  正史として書き込まれていた**（型チェックが検出）。
+- GOD VIEW は `年齢未定（REQUIRED_CANON_DECISION）` と表示する。
+
+**必要な指定**: 世界開始時点（1年目1日目）のパン屋の主人の年齢。
+
+副次的に未確定: `lifePhase`。現在 `'ADULT'`（CHILD/YOUNG_ADULT/ADULT/ELDER のうち
+「子供でも老人でもない」という最も弱い主張）。年齢が決まれば整合させる。
