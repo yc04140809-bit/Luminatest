@@ -7,6 +7,7 @@ import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
 import { DevReviewHub } from './DevReviewHub';
+import { GodViewScreen } from './GodViewScreen';
 import {
   debugChaosIntervention,
   debugEncounterType,
@@ -144,6 +145,7 @@ export function DevAdminScreen({
   // The hub is a mode of the admin screen, not a new route: it is read
   // only, it is reached from here, and 「もどる」 comes straight back.
   const [showHub, setShowHub] = useState(false);
+  const [showGodView, setShowGodView] = useState(false);
 
   const run = async (label: string, op: () => Promise<unknown>) => {
     if (busy) return;
@@ -162,6 +164,7 @@ export function DevAdminScreen({
   };
 
   if (showHub) return <DevReviewHub world={world} onBack={() => setShowHub(false)} />;
+  if (showGodView) return <GodViewScreen world={world} onBack={() => setShowGodView(false)} />;
 
   const clock = world.getClock();
   const gald = world.getCharacter('GALD');
@@ -198,6 +201,19 @@ export function DevAdminScreen({
           onClick={() => setShowHub(true)}
         >
           DEV REVIEW HUB / QA REPORT
+        </button>
+
+        {/* The author's window on the world they are growing. Separate
+            from the hub because it answers a different question: the
+            hub asks 「このビルドは壊れていないか」, this asks 「書いた世界は
+            意図どおりに育っているか」. */}
+        <button
+          className="btn"
+          data-testid="god-view-entry"
+          style={{ marginBottom: 4 }}
+          onClick={() => setShowGodView(true)}
+        >
+          GOD VIEW / WORLD LIFE 観測
         </button>
 
         {/* ---- DASHBOARD ---- */}

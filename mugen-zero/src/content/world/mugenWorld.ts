@@ -28,6 +28,7 @@ import {
   ALDEN_CORES,
   ALDEN_SEED_KINDS,
   ALDEN_VILLAGE_ACTOR,
+  KAOS_ACTOR,
   LINA,
   PLAYER_ACTOR,
 } from './aldenLife';
@@ -265,5 +266,43 @@ export const MUGEN_WORLD_RULES = {
   blooms: joined<WorldBloomDef>('BLOOM', ALDEN_BLOOMS, GALD_BLOOMS, CROSSING_BLOOMS),
   crossings: WORLD_CROSSINGS,
 };
+
+/**
+ * WHO IS IN THE WORLD, and where, and how much they matter.
+ *
+ * Not part of the engine and deliberately so: the engine works on ids
+ * and does not care whether somebody is a principal, a villager or a
+ * place. This table is for a person LOOKING at the world — a roster to
+ * page through, a region to scope to, and a name to read instead of an
+ * id. Adding somebody to the engine without adding them here makes them
+ * invisible to the observer, which GOD VIEW reports rather than hides.
+ */
+export interface WorldPerson {
+  npcId: string;
+  /** What to call them where a developer reads it. */
+  name: string;
+  region: string;
+  /**
+   * 'PRINCIPAL' someone the story is about
+   * 'ORDINARY'  someone who lives there
+   * 'PLACE'     not a person at all — a village that holds seeds
+   */
+  standing: 'PRINCIPAL' | 'ORDINARY' | 'PLACE';
+}
+
+export const ALDEN_REGION = 'ALDEN';
+export const PORT_REGION = 'PORT_TOWN';
+
+export const WORLD_PEOPLE: readonly WorldPerson[] = [
+  { npcId: PLAYER_ACTOR, name: 'プレイヤー', region: ALDEN_REGION, standing: 'PRINCIPAL' },
+  { npcId: KAOS_ACTOR, name: 'ケイオス', region: ALDEN_REGION, standing: 'PRINCIPAL' },
+  { npcId: LINA.npcId, name: 'リナ（村娘）', region: ALDEN_REGION, standing: 'PRINCIPAL' },
+  { npcId: GALD, name: 'ガルド（元盗賊）', region: ALDEN_REGION, standing: 'PRINCIPAL' },
+  { npcId: ALDEN_GUARD, name: 'アルデンの衛兵', region: ALDEN_REGION, standing: 'PRINCIPAL' },
+  { npcId: BAKERY_OWNER, name: 'パン屋の主人', region: ALDEN_REGION, standing: 'ORDINARY' },
+  { npcId: 'alden_marta', name: 'マルタ（リナの母）', region: ALDEN_REGION, standing: 'ORDINARY' },
+  { npcId: ALDEN_VILLAGE_ACTOR, name: 'アルデン村そのもの', region: ALDEN_REGION, standing: 'PLACE' },
+  { npcId: NEL, name: 'ネル（港町の荷運び）', region: PORT_REGION, standing: 'ORDINARY' },
+];
 
 export { ALDEN_GUARD, GALD, LINA, PLAYER_ACTOR, ALDEN_VILLAGE_ACTOR };

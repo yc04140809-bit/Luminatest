@@ -520,6 +520,59 @@ export function runCrossingDemo(): CrossingDemo {
   };
 }
 
+/**
+ * THE DEMONSTRATION WORLD, as a world rather than as a printout.
+ *
+ * The same HELP route four years on that `runCrossingDemo` narrates,
+ * handed back whole so GOD VIEW can be pointed at it. An author whose
+ * save is one day old still needs something to look at, and a world
+ * built from the real rules is a better answer than fixtures.
+ */
+export function grownDemoWorld(days = 1500): WorldLifeState {
+  let world = emptyWorld(INITIAL_CLOCK);
+  for (const fact of GREENWOOD_PRELUDE) {
+    world = observe(world, { ...fact, witnesses: [...fact.witnesses] }, WORLD_RULES).state;
+  }
+  for (let i = 0; i < 5; i++) {
+    if (i > 0) world = advanceTime(world, 150, 'STORY_TIME_ADVANCE');
+    world = observe(
+      world,
+      {
+        action: 'SHOW_MAGIC',
+        actor: KAOS_ACTOR,
+        target: LINA_ID,
+        location: 'ALDEN_VILLAGE',
+        witnesses: [MARTA.npcId],
+      },
+      WORLD_RULES,
+    ).state;
+  }
+  world = replayCanon(
+    world,
+    canonAsWorldMemories(
+      CROSSING_CANON.map((spec) => {
+        const when = addDays(INITIAL_CLOCK, spec.day);
+        return {
+          id: `demo_cross_${spec.type}`,
+          type: spec.type,
+          worldYear: when.worldYear,
+          worldDay: when.worldDay,
+          location: spec.at,
+          actors: spec.actors,
+          importance: 'MAJOR' as const,
+          createdAt: new Date(0).toISOString(),
+        };
+      }),
+    ),
+    WORLD_RULES,
+  );
+  while (toAbsoluteDay(world.now) - 1 < days) {
+    const step = Math.min(180, days - (toAbsoluteDay(world.now) - 1));
+    world = settle(advanceTime(world, step, 'STORY_TIME_ADVANCE'), WORLD_RULES);
+  }
+  return settle(world, WORLD_RULES);
+}
+
 /** The whole thing as one block, for a console. */
 export function crossingDemoText(): string {
   const demo = runCrossingDemo();
