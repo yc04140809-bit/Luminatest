@@ -220,3 +220,39 @@ test.describe('on a phone', () => {
     await expect(page.getByTestId('qa-copy')).toBeVisible();
   });
 });
+
+// WORLD LIFE ENGINE.
+//
+// The round's own success condition, checked where a person can
+// actually look at it rather than only in a unit test: the chain from
+// an action to a candidate future has to be readable on a screen, in
+// order, by somebody who has not read the code.
+test('the hub shows the causal chain from an action to a possible future', async ({ page }) => {
+  await newWorld(page);
+  await openHub(page);
+
+  // Closed by default, like every section that is not the snapshot.
+  await page.getByTestId('hub-section-world-life').locator('summary').click();
+
+  const steps = page.getByTestId('hub-world-life-steps');
+  await expect(steps).toBeVisible();
+  // Each link of the chain, named.
+  await expect(steps).toContainText('ACTION SHOW_MAGIC');
+  await expect(steps).toContainText('MEMORY');
+  await expect(steps).toContainText('SEED 新規 MAGIC_DREAM');
+  await expect(steps).toContainText('STORY_TIME_ADVANCE');
+  await expect(steps).toContainText('SEED 補強');
+  await expect(steps).toContainText('BLOOM 候補が立った');
+
+  const trace = page.getByTestId('hub-world-life-trace');
+  await expect(trace).toContainText('CORE');
+  await expect(trace).toContainText('SEED   MAGIC_DREAM ROOTED');
+  await expect(trace).toContainText('VINE   INSPIRED_BY → PLAYER');
+  await expect(trace).toContainText('LINA_LEAVES_TO_STUDY_MAGIC CANDIDATE');
+
+  // And it changed nothing: the hub is read-only, so the world the
+  // player is in is exactly where they left it.
+  await page.getByTestId('hub-back').click();
+  await page.getByTestId('dev-admin-back').click();
+  await expect(page.getByTestId('world-clock')).toContainText('1年目');
+});

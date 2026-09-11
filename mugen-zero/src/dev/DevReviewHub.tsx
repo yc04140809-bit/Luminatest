@@ -5,6 +5,7 @@ import { direct } from '../core/experience/director';
 import { buildQaReport, renderQaReportMarkdown } from '../core/qa/qaReport';
 import type { QaStatus } from '../core/qa/types';
 import { collectQaInput } from './qaSnapshot';
+import { runAldenDemo } from './worldLifeDemo';
 
 interface Props {
   world: World;
@@ -406,6 +407,16 @@ export function DevReviewHub({ world, onBack }: Props) {
             </div>
           ))}
         </Section>
+
+        {/* ---- WORLD LIFE ENGINE ----
+
+            The causal chain, run on the one village that is alive and
+            printed step by step. Closed by default and computed only
+            when opened: it is a developer's answer to "is this actually
+            causal", not a thing the review pass has to read. */}
+        <Section title="WORLD LIFE ENGINE / ALDEN" id="world-life">
+          <WorldLifeTrace />
+        </Section>
       </div>
       <div className="screen-footer">
         <button className="btn" data-testid="hub-back" onClick={onBack}>
@@ -580,6 +591,39 @@ function Row({ label, value }: { label: string; value: string }) {
  * Collapsible, because this screen is read on a phone. Everything is one
  * tap away and nothing needs a sideways scroll to reach.
  */
+/**
+ * Four visits to a well over three years, and what the world made of
+ * them.
+ *
+ * Run on render rather than memoised: it is a pure function of nothing
+ * at all, it takes well under a millisecond, and a developer looking at
+ * this panel wants what the engine does TODAY rather than what it did
+ * when the screen was mounted.
+ */
+function WorldLifeTrace() {
+  const demo = runAldenDemo();
+  const line: React.CSSProperties = {
+    whiteSpace: 'pre-wrap',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+    fontSize: 11,
+    lineHeight: 1.5,
+  };
+  return (
+    <div data-testid="hub-world-life">
+      <div className="location-desc" style={line} data-testid="hub-world-life-steps">
+        {demo.steps.join('\n')}
+      </div>
+      <div
+        className="location-desc"
+        style={{ ...line, marginTop: 8 }}
+        data-testid="hub-world-life-trace"
+      >
+        {demo.trace.join('\n')}
+      </div>
+    </div>
+  );
+}
+
 function Section({
   title,
   id,
