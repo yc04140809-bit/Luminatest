@@ -1,0 +1,32 @@
+{
+  // TYPE-CHECKING THE TESTS, which the app's own config deliberately
+  // does not.
+  //
+  // `tsconfig.app.json` excludes `src/**/*.test.ts` because the build
+  // has no business compiling them — and the cost of that was silent:
+  // a test could call a function with a missing required argument and
+  // `tsc -b` would say nothing. It happened in this repository, to
+  // `checkBloom`, and the test passed anyway because the missing field
+  // was only read down a branch the test did not take.
+  //
+  // So this is a separate project rather than a change to that one:
+  // the build stays exactly as fast and as narrow as it was, and the
+  // tests get checked by `npm run typecheck:test`.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    // The tests are a separate compilation unit, so they need their own
+    // build-info file or the two projects fight over one.
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    // The specs import describe/it/expect explicitly rather than
+    // relying on globals, so vitest needs nothing here. `node` does:
+    // several e2e specs read and write temp files, and without it every
+    // `node:fs` import is an error before a single real problem is
+    // reached.
+    "types": ["node"]
+  },
+  // Everything the app config sees, PLUS the tests and the Playwright
+  // specs — an e2e that calls a helper wrongly is the same class of
+  // mistake and was equally invisible.
+  "include": ["src", "e2e"],
+  "exclude": []
+}

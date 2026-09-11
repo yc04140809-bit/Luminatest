@@ -38,7 +38,7 @@ describe('leaning on one of the numbers the fight already multiplies by', () => 
 
   it('takes nothing off the creature: it is not a small attack', () => {
     const before = unlocked();
-    expect(castMagic(before, STAR_HAZE, rngMid, 'GUARD').enemyHp).toBe(before.enemyHp);
+    expect(castMagic(before, STAR_HAZE, rngMid, 'ATTACK').enemyHp).toBe(before.enemyHp);
   });
 
   it('is standing for the creature’s reply to the very turn it was cast', () => {
@@ -53,20 +53,20 @@ describe('leaning on one of the numbers the fight already multiplies by', () => 
   });
 
   it('holds for the turns it says and then lets go, with nothing to tick', () => {
-    let state = castMagic(unlocked(), STAR_HAZE, rngMid, 'GUARD');
+    let state = castMagic(unlocked(), STAR_HAZE, rngMid, 'ATTACK');
     expect(boostHeld(state, 'enemyAttack')).toBe(true);
     // Four turns means four of the player's turns after the cast.
     for (let i = 0; i < 3; i++) {
-      state = playerAttack(state, rngMid, 'GUARD');
+      state = playerAttack(state, rngMid, 'ATTACK');
       expect(boostHeld(state, 'enemyAttack'), `turn ${i}`).toBe(true);
     }
-    state = playerAttack(state, rngMid, 'GUARD');
+    state = playerAttack(state, rngMid, 'ATTACK');
     expect(boostHeld(state, 'enemyAttack')).toBe(false);
     expect(pull(state, 'enemyAttack')).toBe(1);
   });
 
   it('says in the log what it did and how long for', () => {
-    const after = castMagic(unlocked(), STAR_HAZE, rngMid, 'GUARD');
+    const after = castMagic(unlocked(), STAR_HAZE, rngMid, 'ATTACK');
     const said = after.log.join('\n');
     expect(said).toContain('星霞');
     expect(said).toContain('鈍った');
@@ -116,9 +116,9 @@ describe('what the boosts may and may not do to a number', () => {
   });
 
   it('drops the spent ones rather than growing a list across a long fight', () => {
-    let state = castMagic(unlocked(), STAR_HAZE, rngMid, 'GUARD');
-    for (let i = 0; i < 6; i++) state = playerAttack(state, rngMid, 'GUARD');
-    state = castMagic(state, STAR_HAZE, rngMid, 'GUARD');
+    let state = castMagic(unlocked(), STAR_HAZE, rngMid, 'ATTACK');
+    for (let i = 0; i < 6; i++) state = playerAttack(state, rngMid, 'ATTACK');
+    state = castMagic(state, STAR_HAZE, rngMid, 'ATTACK');
     expect(state.boosts).toHaveLength(1);
     expect(liveBoosts(state)).toHaveLength(1);
   });
@@ -126,7 +126,7 @@ describe('what the boosts may and may not do to a number', () => {
   it('changes nothing when content writes a boost spell with no boost on it', () => {
     const broken: MagicDef = { ...STAR_HAZE, boost: undefined };
     const before = unlocked();
-    const after = castMagic(before, broken, rngMid, 'GUARD');
+    const after = castMagic(before, broken, rngMid, 'ATTACK');
     expect(after.boosts).toEqual([]);
     expect(after.playerMp).toBe(before.playerMp - broken.mpCost);
     expect(after.log.join('')).toContain('何も起こらなかった');
@@ -145,7 +145,7 @@ describe('an unattended player, given something that pays out later', () => {
 
   it('does not cast a second one over the first', () => {
     const going: BattleState = { ...unlocked(), turnsTaken: 2 };
-    const hazed = castMagic(going, STAR_HAZE, rngMid, 'GUARD');
+    const hazed = castMagic(going, STAR_HAZE, rngMid, 'ATTACK');
     expect(decideTurn(hazed, MAGIC_DEFS).magicId).not.toBe('star_haze');
   });
 

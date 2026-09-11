@@ -8,7 +8,6 @@ import {
   statesPresent,
   type ArtSet,
   type EnemyArtState,
-  type PartyArtState,
 } from './artStates';
 import { enemyArt, partyArt } from './artRegistry';
 

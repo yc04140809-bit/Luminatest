@@ -8,6 +8,7 @@ const event = (over: Partial<MemoryEvent>): MemoryEvent => ({
   type: 'PLAYER_SPARED_GALD',
   worldYear: 1,
   worldDay: 1,
+  location: 'GREENWOOD_FOREST',
   actors: ['PLAYER', 'GALD'],
   importance: 'CRITICAL',
   createdAt: '2026-01-01T00:00:00.000Z',

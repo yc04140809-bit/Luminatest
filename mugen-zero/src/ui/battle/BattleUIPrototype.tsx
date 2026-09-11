@@ -10,7 +10,14 @@ import { specOf } from '../../game/battle/enemySpec';
 import { castMagic, clearAwakeningLines } from '../../game/battle/battleLogic';
 import { availableMagic } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
-import { magicBlocked } from '../../game/battle/magicChoice';
+import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
+import {
+  DEFAULT_BATTLE_SPEED,
+  beatMs,
+  nextSpeed,
+  speedLabel,
+  type BattleSpeed,
+} from '../../game/battle/battleSpeed';
 import { MagicTray } from './MagicTray';
 import { AwakeningScene } from './AwakeningScene';
 import { spriteHeight } from '../../content/art/spriteFrames';
@@ -176,6 +183,17 @@ const BEAT_MS: Record<string, number> = {
 const KNOCKDOWN_MS = 340;
 
 /**
+ * How long AUTO waits after the theatre has finished before it acts.
+ *
+ * Long enough that a watched fight still reads as a fight rather than
+ * as a log scrolling past. The same numbers the old screen uses — this
+ * is a second SCREEN with AUTO on it, not a second AUTO.
+ */
+const AUTO_GAP_MS = 550;
+/** And how long it leaves the awakening on screen before moving on. */
+const AUTO_READ_MS = 2200;
+
+/**
  * How long her moment lasts before the fight starts.
  *
  * A remark and a name, not a scene. Long enough to read, short enough
@@ -312,7 +330,26 @@ export function BattleUIPrototype({
   const [skillOpen, setSkillOpen] = useState(false);
   const [magicOpen, setMagicOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  /**
+   * ×1 or ×2, and the structure holds ×3 the day somebody wants it.
+   *
+   * PRESENTATION ONLY. It reaches `beatMs` and the `--fx` custom
+   * property and nothing else — the battle itself imports nothing about
+   * speed and plays the same fight blow for blow at every one, which is
+   * a test rather than a promise (battleReadiness.test.ts).
+   */
+  const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
+  /**
+   * Whether an unattended player is taking the turns.
+   *
+   * It presses the same three commands a thumb does — see the effect
+   * below. There is no path from AUTO into the battle that the command
+   * row does not also take.
+   */
+  const [auto, setAuto] = useState(false);
   const timers = useRef<number[]>([]);
+  /** When the theatre currently on screen finishes, in epoch ms. */
+  const busyUntil = useRef(0);
   // How tall the battlefield actually is on this phone. Everybody
   // standing in it is sized as a fraction of that, so the three of them
   // keep their scale to the place rather than to a pixel count.
@@ -390,10 +427,10 @@ export function BattleUIPrototype({
     }
     if (battle.outcome === 'VICTORY' && stance === 'NORMAL') {
       // It goes down first, and only then is anything asked.
-      const t = setTimeout(() => setStance('DOWNED'), KNOCKDOWN_MS);
+      const t = setTimeout(() => setStance('DOWNED'), beatMs(KNOCKDOWN_MS, speed));
       return () => clearTimeout(t);
     }
-  }, [battle.outcome, stance, onDefeat]);
+  }, [battle.outcome, stance, onDefeat, speed]);
 
   const play = (sequence: string[]) => {
     timers.current.forEach(clearTimeout);
@@ -402,9 +439,11 @@ export function BattleUIPrototype({
     for (const step of sequence) {
       const delay = at;
       timers.current.push(window.setTimeout(() => setBeat(step), delay));
-      at += BEAT_MS[step] ?? 300;
+      at += beatMs(BEAT_MS[step] ?? 300, speed);
     }
     timers.current.push(window.setTimeout(() => setBeat('NONE'), at));
+    // What AUTO waits for. A person waits for the same thing.
+    busyUntil.current = Date.now() + at;
   };
 
   const answerOf = (next: BattleState): string[] =>
@@ -539,6 +578,43 @@ export function BattleUIPrototype({
   const showingDown = downed && enemyShown.state === 'down';
   /** The fight itself is suspended while any of it is happening. */
   const inAccident = accidentBeat !== 'NONE';
+
+  /**
+   * AUTO, which is one timer and no second battle.
+   *
+   * When it is on and nothing is playing, it asks `decideTurn` what to
+   * do with the turn and presses the command a player would have
+   * pressed. It reads the same state, the same spells and the same
+   * power, and it cannot do anything the player could not: every path
+   * out of here goes through `command` or `cast` — the two functions
+   * the three buttons call.
+   *
+   * Deliberately does nothing while Kaos is intervening, while an
+   * accident is crossing, or while the awakening is on screen: those
+   * are moments the fight is paused for, and an unattended player
+   * should watch them exactly as a person does.
+   *
+   * Turning it off clears this timer and nothing else, so the very next
+   * tap is a hand-played turn.
+   */
+  useEffect(() => {
+    if (!auto || battle.outcome !== 'ONGOING') return;
+    if (showingChaos || inAccident || battle.awakeningLines.length > 0) return;
+    const wait = Math.max(0, busyUntil.current - Date.now()) + beatMs(AUTO_GAP_MS, speed);
+    const t = window.setTimeout(() => {
+      const plan = decideTurn(battle, spells);
+      if (plan.action === 'MAGIC' && plan.magicId !== null) cast(plan.magicId);
+      else if (plan.action === 'GUARD') command('DEFEND');
+      else command('ATTACK');
+    }, wait);
+    return () => clearTimeout(t);
+    // `spells`, `cast` and `command` are rebuilt every render and all
+    // of them read the same `battle` this effect already watches.
+    // Listing them would clear and re-arm the timer on every repaint —
+    // including the several this screen does while a blow is playing —
+    // and AUTO would never reach the end of its own wait.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, battle, speed, showingChaos, inAccident]);
   const backdrop = locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
   /**
@@ -566,12 +642,22 @@ export function BattleUIPrototype({
   };
 
   return (
-    <div className="screen bp-screen" data-testid="battle-prototype">
+    <div
+      className="screen bp-screen"
+      data-testid="battle-prototype"
+      // Every spell effect reads its own duration from --fx, so at twice
+      // speed the whole lot is half as long and not one of the CSS rules
+      // has had to learn what speed is.
+      style={{ ['--fx' as string]: String(1 / speed) }}
+    >
       {/* She steps forward. Over the fight, which stays exactly where it
           was: nobody has taken a turn for this. */}
       {battle.awakeningLines.length > 0 && (
         <AwakeningScene
           lines={battle.awakeningLines}
+          // While nobody is watching, it reads itself at a reading pace
+          // rather than waiting for a tap that is not coming.
+          advanceMs={auto ? beatMs(AUTO_READ_MS, speed) : undefined}
           onDone={() => setBattle((b) => clearAwakeningLines(b))}
         />
       )}
@@ -945,6 +1031,32 @@ export function BattleUIPrototype({
               <span className="bp-cmd-en">ARCANA</span>
             </button>
           )}
+          {/* AUTO と 倍速。 Beside the commands rather than below them —
+              a landscape phone has width going spare and no height at
+              all, and the battlefield has to stay more than half the
+              screen. Narrow chips at the far end, so a thumb going for
+              攻撃 lands on a wide button at the other end of the row. */}
+          <div className="bp-modes" data-testid="bp-modes">
+            <button
+              className={auto ? 'bp-mode on' : 'bp-mode'}
+              data-testid="bp-auto"
+              aria-pressed={auto}
+              onClick={() => setAuto((on) => !on)}
+            >
+              <span className="bp-mode-jp">オート</span>
+              <span className="bp-mode-en">{auto ? 'AUTO ON' : 'AUTO'}</span>
+            </button>
+            <button
+              className={speed > 1 ? 'bp-mode on' : 'bp-mode'}
+              data-testid="bp-speed"
+              data-speed={speed}
+              aria-label={`速度 ${speedLabel(speed)}`}
+              onClick={() => setSpeed((at) => nextSpeed(at))}
+            >
+              <span className="bp-mode-jp">速さ</span>
+              <span className="bp-mode-en">{speedLabel(speed)}</span>
+            </button>
+          </div>
         </div>
       )}
       {!beaten && !showingChaos && !inAccident && magicOpen && (

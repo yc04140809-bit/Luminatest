@@ -69,10 +69,19 @@ export interface SignalNews {
   /**
    * How likely this is to be the thing that travels, 0..1. Internal.
    *
-   * A hook for whatever later decides which rumours reach the next
-   * town. Nothing reads it today, and it is written down now because
-   * guessing at it later, per line, is worse than writing it while the
-   * line is being written.
+   * CURRENTLY UNUSED BY ANY LOGIC — deliberately, and it is not dead
+   * code to be tidied away. Nothing reads this value except GOD VIEW,
+   * which prints it; no rumour reaches another town yet.
+   *
+   * It is written now because it can only be written well now. The
+   * question "would this story travel" is answered by whoever writes
+   * the line — a man drinking with the guard who used to hunt him
+   * travels, a girl doing something odd at night does not — and coming
+   * back to a hundred finished lines later to guess at it in bulk is
+   * how a world ends up with a hundred identical numbers.
+   *
+   * DO NOT DELETE as unused. The day rumours propagate between regions,
+   * this is the field that decides which ones.
    */
   propagationPotential?: number;
 }

@@ -2730,6 +2730,73 @@ body,
 .bp-cmd.open .bp-cmd-jp { color: var(--mugen-gold); }
 .bp-cmd.wide { flex: 1 1 100%; }
 
+/* AUTO と 倍速 — beside the commands, never under them.
+
+   They started as a row of their own and that was wrong twice over: it
+   pushed ARCANA off the command row, which a test requires to be beside
+   the other two, and it took the battlefield below half the screen,
+   which another test requires it to stay above. A landscape phone has
+   width going spare and no height at all, so anything new goes sideways.
+
+   `display: contents` on the wrapper keeps the two of them addressable
+   as a group while letting each chip be a flex item of the command row
+   itself — so the row's height, and therefore the forest's, is exactly
+   what it was before these existed.
+
+   Narrow, at the far end, and quieter than a command: these are not
+   turns. They are decisions about how the fight is WATCHED, and a
+   thumb going for 攻撃 lands on a wide button at the other end of the
+   row. */
+.bp-modes {
+  display: contents;
+}
+.bp-mode {
+  appearance: none;
+  /* Content-width rather than a share of the row: the three commands
+     keep the space, and these take what two short words need. */
+  flex: 0 0 auto;
+  min-width: 62px;
+  /* The same height as a command, so the row does not grow. */
+  min-height: 44px;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid var(--mugen-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--mugen-text-soft, var(--mugen-text));
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+.bp-mode-jp {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+.bp-mode-en {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  line-height: 1.2;
+  opacity: 0.75;
+}
+/* ON has to be readable at a glance and from an angle, so it is a
+   filled chip rather than a tint: a player who cannot tell whether AUTO
+   is on will tap it, and toggling AUTO off on the turn they meant to
+   turn it on is the whole of the frustration this state avoids. */
+.bp-mode.on {
+  border-color: var(--mugen-gold, #c6a660);
+  background: var(--mugen-gold-soft, rgba(198, 166, 96, 0.2));
+  color: var(--mugen-text);
+}
+.bp-mode.on .bp-mode-en {
+  opacity: 1;
+  font-weight: 700;
+}
+
 .bp-tray {
   display: flex;
   flex-direction: column;

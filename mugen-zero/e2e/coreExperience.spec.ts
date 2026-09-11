@@ -66,7 +66,6 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await encounter.click();
     await encounter.click();
     await expect(page.getByTestId('battle-screen')).toBeVisible();
-    const attack = page.getByTestId('attack-button');
     await swingUntil(page, 'attack-button', () =>
       page.getByTestId('life-choice-screen').isVisible().catch(() => false),
     );

@@ -24,15 +24,32 @@
 // into. Nobody's future is settled by a crossing; they just now know
 // each other.
 //
-// WHEN THEY FIRE. At story time, not on a clock. The engine has no tick
-// and is not getting one — crossings are evaluated when the world is
-// settled after something happened, so a meeting made possible by three
-// quiet years is recorded at the moment the story next moves. A world
-// walked in small steps therefore records meetings at each step, and a
-// world jumped three years in one go records them at the far end. That
-// is a real and deliberate limitation: the date on a crossing is when
-// the story looked, not when the two of them would first have passed in
-// the street.
+// WHEN THEY FIRE — 正式仕様, not a known issue.
+//
+// At story time, never on a clock. The engine has no tick and is not
+// getting one: crossings are evaluated when the world is settled after
+// something happened, so a meeting made possible by three quiet years
+// is recorded at the moment the story next moves. A world walked in
+// small steps records meetings at each step; a world jumped three years
+// in one go records them at the far end.
+//
+// The date on a crossing is therefore WHEN THE STORY LOOKED, not when
+// the two of them would first have passed in the street. That is the
+// adopted specification (decided 2026-09, with the WORLD LIFE ENGINE's
+// no-simulation rule) rather than an approximation to be fixed later.
+//
+// The alternative — working backwards to the day the conditions first
+// held — is deliberately NOT implemented. It would mean either keeping
+// a history of when every condition became true (a tick by another
+// name) or re-deriving the whole world at every past date (a search).
+// Both trade away the property this engine is built on: that a village
+// of a thousand costs nothing until somebody looks at one of them.
+//
+// The cost is real and is accepted: a seed planted by a late-recorded
+// meeting starts growing from the day it was recorded, so a chain that
+// was possible for two years before anybody looked is two years younger
+// than it "should" be. In a game where time moves at story beats rather
+// than continuously, that gap is bounded by the length of a chapter.
 
 import { toAbsoluteDay, type WorldClock } from '../time/calendar';
 import { seedKind, type SeedKindDef } from './defs';

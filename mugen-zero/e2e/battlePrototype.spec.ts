@@ -2,6 +2,31 @@ import { test, expect, type Page } from './fixtures';
 import { playToLifeChoice, enterDevAdmin, PHONES, RING_TAPS, viewportOf } from './helpers';
 
 /**
+ * THIS FILE'S TESTS RUN ALONGSIDE EACH OTHER.
+ *
+ * It is the slowest file in the suite by a wide margin — nineteen tests,
+ * eighteen of which boot a world from nothing: clear IndexedDB, reload,
+ * and click through the prologue. Serially, in one worker, that is about
+ * six minutes.
+ *
+ * With `fullyParallel` off (the project default) those six minutes are
+ * ONE worker's, while the other two finish everything else and go idle.
+ * The suite's tail is therefore this file running next to whatever the
+ * other workers picked up last — which is where the contention that
+ * makes wall-clock-budgeted tests flaky is at its worst.
+ *
+ * Spreading this file across the workers does not raise the peak: the
+ * `workers: 3` cap is unchanged, so at most three browsers ever run at
+ * once. It removes the long single-worker tail, which is a different
+ * thing and the one that was hurting.
+ *
+ * Safe here because every test is independent: each gets its own page
+ * and context, each clears storage itself in `freshWorld`, and the file
+ * holds no module-level mutable state.
+ */
+test.describe.configure({ mode: 'parallel' });
+
+/**
  * The battle UI prototype: a second battle screen, behind a dev flag,
  * that has not been adopted.
  *

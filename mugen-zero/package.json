@@ -6,12 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "build:singlefile": "vite build --config vite.config.singlefile.ts && node scripts/build-artifact-page.mjs && node scripts/check-artifact.mjs",
     "review": "node scripts/reviewPackage.mjs",
-    "review:shots": "playwright test --config playwright.review.config.ts"
+    "review:shots": "playwright test --config playwright.review.config.ts",
+    "verify": "npm run typecheck && npm run typecheck:test && npm run test && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "phaser": "^3.87.0",
@@ -20,6 +23,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
+    "@types/node": "^22.20.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",

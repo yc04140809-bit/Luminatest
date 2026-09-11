@@ -4,7 +4,6 @@ import {
   enterDevAdmin,
   playToLifeChoice,
   readMemoryEvents,
-  swingUntil,
   viewportOf,
   walkTheForestUntil,
 } from './helpers';
