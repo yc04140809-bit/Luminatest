@@ -23,6 +23,8 @@ import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
 import { EndingScreen } from './ui/screens/EndingScreen';
 import { LoadingScreen } from './ui/common/LoadingScreen';
 import { DEV_ADMIN_ENABLED, devUnlocked } from './dev/devMode';
+import { aldenNewsToday } from './core/news/aldenNewsday';
+import { WorldNewsScreen } from './ui/screens/WorldNewsScreen';
 import {
   loadSettings,
   saveSettings,
@@ -306,6 +308,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           // Display only: a projection of what the player already knows,
           // computed on the way in and never stored.
           memory={homeMemorySummary(world.getKnownEvents(), world.getNarrativeSeeds())}
+          onNews={() => flow.goTo('WORLD_NEWS')}
           onExplore={() => flow.goTo('EXPLORE')}
           onWorldMemory={() => flow.goTo('WORLD_MEMORY')}
           onTimeShift={() => flow.goTo('TIME_SHIFT')}
@@ -320,6 +323,18 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           // Once per run of the app, not once per save: the unlock
           // lives in memory and is gone when the app closes.
           onDevAdmin={() => flow.goTo(devUnlocked() ? 'DEV_ADMIN' : 'DEV_LOCK')}
+        />
+      );
+    case 'WORLD_NEWS':
+      return (
+        <WorldNewsScreen
+          clock={world.getClock()}
+          // Derived from canon on the way in and stored nowhere, so a
+          // reloaded save hears the same village — and `PlayerNews` is
+          // all that crosses, so the screen has no importance to
+          // accidentally render.
+          news={aldenNewsToday(world.getEvents(), world.getClock())}
+          onBack={() => flow.goTo('HOME')}
         />
       );
     case 'ARCHIVE':

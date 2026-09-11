@@ -23,6 +23,8 @@ interface Props {
   clock: WorldClock;
   /** What the world has recorded so far. Display only — see homeSummary. */
   memory: HomeMemorySummary;
+  /** Opens 村のうわさ. */
+  onNews: () => void;
   onExplore: () => void;
   onWorldMemory: () => void;
   /** REST: advances the world by one day. */
@@ -57,6 +59,7 @@ export function HomeScreen({
   locationId,
   clock,
   memory,
+  onNews,
   onExplore,
   onWorldMemory,
   onRest,
@@ -178,6 +181,7 @@ export function HomeScreen({
           )}
         </section>
 
+
         {/* ---- LEVEL 4: the one thing to do ---- */}
         <div className="home-act">
           <span className="home-act-rule" aria-hidden="true" />
@@ -191,6 +195,14 @@ export function HomeScreen({
 
         {/* ---- LEVEL 5: everything else, quietly ---- */}
         <nav className="home-rail">
+          {/* 村のうわさ. On the rail rather than on the plate: HOME is
+              exactly full at 390px, and a noticeboard laid out here
+              came to 190px and pushed the memory panel off the stage.
+              A thing you go and read is also closer to what it is. */}
+          <button className="home-rail-item" data-testid="news-button" onClick={onNews}>
+            <span className="glyph">◈</span>
+            村のうわさ
+          </button>
           <button className="home-rail-item" data-testid="archive-button" onClick={onArchive}>
             <span className="glyph">◇</span>
             人生の記録

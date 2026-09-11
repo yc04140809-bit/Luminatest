@@ -16,6 +16,9 @@ import {
   type NpcObservation,
 } from './godView';
 import { grownDemoWorld } from './worldLifeDemo';
+import { newsday, newsReport } from '../core/news/news';
+import { ALDEN_NEWS_PER_DAY, ALDEN_NOISE, ALDEN_SIGNALS } from '../content/news/aldenNews';
+import { toAbsoluteDay } from '../core/time/calendar';
 
 /**
  * GOD VIEW — the author looking at a world they are growing.
@@ -173,6 +176,14 @@ export function GodViewScreen({ world, onBack }: Props) {
         {/* ---- 選択したNPCだけ ---- */}
         {chosen && <Detail person={chosen} onClear={() => setSelected(null)} />}
 
+        {/* ---- WORLD NEWS ----
+
+            The only place the two halves of a day's news are ever shown
+            apart. A player sees five sentences; the author sees which
+            of them the world earned, what each is worth, and what the
+            village is currently unable to say. */}
+        {!chosen && <NewsPanel life={life} />}
+
         {/* ---- 世界全体 ---- */}
         {!chosen && (
           <>
@@ -230,6 +241,63 @@ export function GodViewScreen({ world, onBack }: Props) {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Today's news, with the half the player never sees.
+ *
+ * Worth having on this screen rather than only in a test, because the
+ * failure it catches is a tuning one: a village that is technically
+ * saying something every day but has been silent about the interesting
+ * thing for a week reads as broken to a player and as fine to a test.
+ */
+function NewsPanel({ life }: { life: WorldLifeState }) {
+  const day = toAbsoluteDay(life.now);
+  const today = newsday({
+    state: life,
+    kinds: WORLD_LIFE_RULES.kinds,
+    signals: ALDEN_SIGNALS,
+    noise: ALDEN_NOISE,
+    count: ALDEN_NEWS_PER_DAY,
+    day,
+  });
+  const report = newsReport(ALDEN_SIGNALS, life, WORLD_LIFE_RULES.kinds);
+
+  return (
+    <>
+      <Block title={`WORLD NEWS（${day}日目・プレイヤーが見る5行）`} id="news">
+        <div className="location-desc" style={MONO} data-testid="god-news-today">
+          {today
+            .map((item) =>
+              item.kind === 'NOISE'
+                ? `[日常]  ${item.text}`
+                : `[${item.importance}]  ${item.text}` +
+                  `\n        ← ${item.id}` +
+                  (item.seedEffect
+                    ? ` / seed ${item.seedEffect.type}@${item.seedEffect.npcId}`
+                    : '') +
+                  (item.vineEffect
+                    ? ` / vine ${item.vineEffect.source}→${item.vineEffect.target}`
+                    : '') +
+                  (item.propagationPotential !== undefined
+                    ? ` / 伝播 ${item.propagationPotential}`
+                    : ''),
+            )
+            .join('\n')}
+        </div>
+      </Block>
+      <Block title="村が今日言えること / まだ言えないこと" id="news-report">
+        <div className="location-desc" style={MONO} data-testid="god-news-report">
+          {[
+            `言える（${report.available.length}）: ` +
+              (report.available.map((s) => s.id).join(' / ') || 'なし'),
+            `沈黙（${report.silent.length}）: ` + (report.silent.join(' / ') || 'なし'),
+            `日常の在庫: ${ALDEN_NOISE.length}件`,
+          ].join('\n')}
+        </div>
+      </Block>
+    </>
   );
 }
 

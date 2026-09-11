@@ -156,6 +156,7 @@ for (const phone of PHONES) {
 
     for (const [id, where] of [
       ['world-memory-button', 'world-memory'],
+      ['news-button', 'world-news'],
       ['archive-button', 'archive'],
       ['settings-button', 'settings'],
     ] as const) {

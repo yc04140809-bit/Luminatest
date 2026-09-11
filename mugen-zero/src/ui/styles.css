@@ -4154,3 +4154,35 @@ body,
 :root[data-reduced-motion='on'] .bp-star-hit {
   animation: none;
 }
+
+/* 村のうわさ — the noticeboard screen.
+
+   One rule for every line, and that is the whole of the styling
+   decision: four in five are about a chicken and nothing says which
+   one is not. A weight, a colour or a marker that varied by item would
+   hand the player the importance field without ever rendering it. */
+.news-day {
+  margin: 0 0 6px;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--mugen-ink-soft, rgba(58, 50, 38, 0.6));
+}
+.news-list {
+  margin: 0 auto;
+  padding: 0;
+  max-width: 520px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.news-item {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--mugen-ink, rgba(58, 50, 38, 0.86));
+  padding: 8px 12px;
+  border-left: 1px solid var(--mugen-gold-soft, rgba(198, 168, 110, 0.35));
+  overflow-wrap: anywhere;
+}

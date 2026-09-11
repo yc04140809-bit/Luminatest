@@ -153,3 +153,24 @@ test.describe('on a phone', () => {
     });
   }
 });
+
+// WORLD NEWS, from the author's side — the only place the two halves of
+// a day's gossip are shown apart.
+test('the author can see which of today’s gossip the world earned', async ({ page }) => {
+  await newWorld(page);
+  await openGodView(page);
+  await page.getByTestId('god-source-DEMO').click();
+
+  const today = page.getByTestId('god-news-today');
+  await expect(today).toBeVisible();
+  // Chickens are labelled as chickens.
+  await expect(today).toContainText('[日常]');
+  // And the earned lines carry what they came from.
+  await expect(today).toContainText('伝播');
+
+  const report = page.getByTestId('god-news-report');
+  await expect(report).toContainText('言える');
+  await expect(report).toContainText('沈黙');
+  await expect(report).toContainText('signal_');
+  await expect(report).toContainText('日常の在庫');
+});

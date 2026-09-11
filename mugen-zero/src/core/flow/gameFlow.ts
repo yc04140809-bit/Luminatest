@@ -13,6 +13,7 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   HOME: [
     'EXPLORE',
     'WORLD_MEMORY',
+    'WORLD_NEWS',
     'TIME_SHIFT',
     'ARCHIVE',
     'ARCANA',
@@ -44,6 +45,7 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   LIFE_CHOICE: ['CHOICE_RESULT'],
   CHOICE_RESULT: ['HOME'],
   WORLD_MEMORY: ['HOME'],
+  WORLD_NEWS: ['HOME'],
   // After the first shift Kaos points at the map, not at an answer.
   TIME_SHIFT: ['HOME', 'EXPLORE'],
   DEV_LOCK: ['DEV_ADMIN', 'HOME'],

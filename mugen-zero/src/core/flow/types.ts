@@ -13,6 +13,8 @@ export type Screen =
   | 'CREATURE_LIFE_CHOICE'
   | 'CHOICE_RESULT'
   | 'WORLD_MEMORY'
+  /** 村のうわさ: what the village is saying today. */
+  | 'WORLD_NEWS'
   | 'TIME_SHIFT'
   | 'FUTURE_SITE'
   | 'TALK_SPOT'
