@@ -241,6 +241,7 @@ export function recompute(state: WorldLifeState, rules: WorldLifeRules): WorldLi
     seeds: state.seeds,
     vines,
     kinds: rules.kinds,
+    cores: rules.cores,
     now: state.now,
     since: state.memories[0]?.time ?? state.now,
   });
@@ -304,6 +305,7 @@ export function traceNpc(
     seeds: state.seeds,
     vines: state.vines,
     kinds: rules.kinds,
+    cores: rules.cores,
     now: state.now,
     since: state.memories[0]?.time ?? state.now,
   })) {

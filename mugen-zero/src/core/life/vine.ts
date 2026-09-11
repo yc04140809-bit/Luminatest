@@ -15,15 +15,23 @@ import type { WorldMemoryRecord, WorldSeed, WorldVine } from './types';
 /**
  * The two kinds there are, and two is the point.
  *
- * 'INSPIRED_BY' points at the person who was there when it started.
- * 'DRAWN_TO'    points at the thing itself, whoever showed it to them.
+ * 'BECAUSE_OF' points at whoever the wanting exists because of.
+ * 'DRAWN_TO'   points at the thing itself, whoever brought it to them.
+ *
+ * BECAUSE_OF is named for what it can honestly claim and no more. It
+ * was 'INSPIRED_BY' until a seed turned out to be plantable by a raid,
+ * and 「盗賊に触発された」 is not a line about a girl who watched her
+ * village burn — it is the same fact stated as a compliment. What the
+ * engine actually knows is that she would not be like this if that
+ * person had not been there, which is true of Kaos lighting a star and
+ * equally true of the men who came over the fields.
  *
  * A third kind is a design decision and should be argued for; the
  * temptation to add 'RESENTS', 'OWES', 'FEARS' and so on before
  * anything in the game reads even these two is exactly the temptation
  * that turns a small engine into an unfinished large one.
  */
-export type VineRelation = 'INSPIRED_BY' | 'DRAWN_TO';
+export type VineRelation = 'BECAUSE_OF' | 'DRAWN_TO';
 
 export interface VineInput {
   seeds: readonly WorldSeed[];
@@ -58,7 +66,7 @@ export function vinesOf(input: VineInput): WorldVine[] {
 
     const source = memories.find((memory) => memory.id === seed.sourceMemoryId);
     if (source && source.actor !== seed.targetNpcId) {
-      add(vines, seed.targetNpcId, source.actor, 'INSPIRED_BY', seed.id, status);
+      add(vines, seed.targetNpcId, source.actor, 'BECAUSE_OF', seed.id, status);
     }
   }
   return [...vines.values()];

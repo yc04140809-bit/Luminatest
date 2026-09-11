@@ -45,7 +45,7 @@ export const HELP_AFTER_BATTLE = 'PLAYER_HELPED_GALD';
  * somebody who cannot stand owing anything, which is a different thing
  * and is what makes the road out of the greenwood his own.
  *
- * The aptitude for MEDICINE is here because canon says he ends up
+ * The aptitude for HEALING is here because canon says he ends up
  * binding wounds on that road, and a world where that came out of
  * nowhere would be a world where his life was assigned to him. It is
  * low — he is not a natural — which is why it takes him four months.
@@ -54,7 +54,7 @@ export const GALD_CORE: NpcCore = {
   npcId: GALD,
   traits: ['PROUD', 'STUBBORN', 'GUARDED'],
   values: ['DEBTS_PAID', 'OWN_TWO_HANDS'],
-  aptitudes: { MEDICINE: 0.35, FIGHTING: 0.8 },
+  aptitudes: { HEALING: 0.35, FIGHTING: 0.8 },
   desires: ['TO_NOT_OWE_ANYBODY'],
 };
 
@@ -174,7 +174,7 @@ export const GALD_SEED_KINDS: readonly SeedKindDef[] = [
       traits: ['PROUD', 'STUBBORN'],
       values: ['DEBTS_PAID', 'OWN_TWO_HANDS'],
       desires: ['TO_NOT_OWE_ANYBODY'],
-      aptitude: 'MEDICINE',
+      aptitude: 'HEALING',
     },
     // Slow to fade. A debt a proud man cannot name does not wear off in
     // a season — but it does wear off, if he never does anything about
@@ -247,7 +247,7 @@ export const GALD_BLOOMS: readonly WorldBloomDef[] = [
     requirements: {
       seeds: [{ type: 'GALD_REDEMPTION', atLeast: 'ROOTED' }],
       // Somebody has to still be a person to him, or it is just shame.
-      vine: { target: PLAYER_ACTOR, relationType: 'INSPIRED_BY' },
+      vine: { target: PLAYER_ACTOR, relationType: 'BECAUSE_OF' },
       afterDays: 120,
     },
     result: '男は、自分の手で食っていく道を探している。',

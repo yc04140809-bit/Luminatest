@@ -183,8 +183,29 @@ export interface BloomRequirements {
   seeds: readonly SeedRequirement[];
   /** A line that must be held, if the shape needs one. */
   vine?: { target: WorldActorId; relationType: string };
+  /** What somebody has to actually be good at. */
+  aptitudes?: readonly AptitudeRequirement[];
   /** How long the world must have had to work on it, in days. */
   afterDays?: number;
+}
+
+/**
+ * SOMETHING SOMEBODY IS ACTUALLY GOOD AT, as a condition on a future.
+ *
+ * Wanting a thing and having a hand for it are different, and the
+ * difference is most of why two people who want the same thing do not
+ * end up in the same place. A seed cannot say this — a seed is what
+ * happened to you — so a future that turns on it has to ask directly.
+ *
+ * It is never sufficient on its own and must never be written as if it
+ * were: a girl with a hand for magic who was never shown any has no
+ * seed, and no amount of aptitude produces a future out of nothing.
+ */
+export interface AptitudeRequirement {
+  /** Whose. Defaults to the person whose bloom this is. */
+  npcId?: string;
+  name: string;
+  atLeast: number;
 }
 
 /**

@@ -15,13 +15,15 @@ import { toAbsoluteDay, type WorldClock } from '../time/calendar';
 import { seedKind, type SeedKindDef } from './defs';
 import { atLeast, grownSeed } from './growth';
 import { holdsVine } from './vine';
-import type { WorldBloom, WorldBloomDef, WorldSeed, WorldVine } from './types';
+import type { NpcCore, WorldBloom, WorldBloomDef, WorldSeed, WorldVine } from './types';
 
 export interface BloomInput {
   defs: readonly WorldBloomDef[];
   seeds: readonly WorldSeed[];
   vines: readonly WorldVine[];
   kinds: readonly SeedKindDef[];
+  /** Who these people are, for a future that turns on what they can do. */
+  cores: readonly NpcCore[];
   now: WorldClock;
   /** The day the world started, for `afterDays`. */
   since: WorldClock;
@@ -86,6 +88,18 @@ export function checkBloom(def: WorldBloomDef, input: BloomInput): BloomCheck {
       requirement: `vine ${wantVine.relationType} → ${wantVine.target}`,
       met,
       detail: met ? '結ばれている' : 'まだ結ばれていない',
+    });
+  }
+
+  for (const want of def.requirements.aptitudes ?? []) {
+    const whose = want.npcId ?? def.npcId;
+    const core = input.cores.find((c) => c.npcId === whose);
+    const has = core?.aptitudes[want.name] ?? 0;
+    reasons.push({
+      requirement:
+        `aptitude ${want.name} ≥ ${want.atLeast}` + (whose === def.npcId ? '' : ` of ${whose}`),
+      met: Number.isFinite(has) && has >= want.atLeast,
+      detail: core ? `${has}` : 'この世界に記録がない',
     });
   }
 

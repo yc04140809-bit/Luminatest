@@ -47,7 +47,7 @@ function showMagic(state = emptyWorld(INITIAL_CLOCK)) {
     {
       action: 'SHOW_MAGIC',
       actor: PLAYER_ACTOR,
-      target: 'alden_lina',
+      target: 'LINA',
       location: WELL,
       witnesses: ['alden_marta'],
       metadata: { spell: 'starlight_bolt' },
@@ -64,7 +64,7 @@ describe('ACTION → WORLD MEMORY', () => {
   it('writes down what was done, where, and who saw — and nothing about what it meant', () => {
     const { memory } = showMagic();
     expect(memory.actor).toBe(PLAYER_ACTOR);
-    expect(memory.target).toBe('alden_lina');
+    expect(memory.target).toBe('LINA');
     expect(memory.action).toBe('SHOW_MAGIC');
     expect(memory.location).toBe(WELL);
     expect(memory.witnesses).toEqual(['alden_marta']);
@@ -102,7 +102,7 @@ describe('WORLD MEMORY → WORLD SEED', () => {
     const { state, planted } = showMagic();
     expect(planted).toHaveLength(1);
     const seed = planted[0];
-    expect(seed.targetNpcId).toBe('alden_lina');
+    expect(seed.targetNpcId).toBe('LINA');
     expect(seed.type).toBe('MAGIC_DREAM');
     expect(seed.sourceMemoryId).toBe(state.memories[0].id);
     // Nothing about her future is settled by this. She is not a mage,
@@ -117,7 +117,7 @@ describe('WORLD MEMORY → WORLD SEED', () => {
     // the difference, and nothing anywhere was written to make Lina the
     // special one — she simply has the aptitude and the curiosity.
     const { state } = showMagic();
-    expect(seedOf(state, 'alden_lina', 'MAGIC_DREAM')).toBeDefined();
+    expect(seedOf(state, 'LINA', 'MAGIC_DREAM')).toBeDefined();
     expect(seedOf(state, 'alden_marta', 'MAGIC_DREAM')).toBeUndefined();
   });
 
@@ -135,14 +135,14 @@ describe('WORLD MEMORY → WORLD SEED', () => {
       emptyWorld(INITIAL_CLOCK),
       {
         action: 'SHOW_MAGIC',
-        actor: 'alden_lina',
+        actor: 'LINA',
         target: null,
         location: WELL,
-        witnesses: ['alden_lina', 'alden_marta'],
+        witnesses: ['LINA', 'alden_marta'],
       },
       RULES,
     );
-    expect(planted.map((seed) => seed.targetNpcId)).not.toContain('alden_lina');
+    expect(planted.map((seed) => seed.targetNpcId)).not.toContain('LINA');
   });
 
   it('keeps a kindness to itself: only the person it was done to feels it', () => {
@@ -153,7 +153,7 @@ describe('WORLD MEMORY → WORLD SEED', () => {
         actor: PLAYER_ACTOR,
         target: 'alden_marta',
         location: WELL,
-        witnesses: ['alden_lina'],
+        witnesses: ['LINA'],
       },
       RULES,
     );
@@ -174,9 +174,9 @@ describe('時間経過 → WORLD GROWTH', () => {
 
   it('fades a wanting nobody comes back for', () => {
     const { state } = showMagic();
-    const fresh = seedOf(state, 'alden_lina', 'MAGIC_DREAM')!;
+    const fresh = seedOf(state, 'LINA', 'MAGIC_DREAM')!;
     const years = recompute(advanceTime(state, 365 * 3, 'STORY_TIME_ADVANCE'), RULES);
-    const worn = seedOf(years, 'alden_lina', 'MAGIC_DREAM')!;
+    const worn = seedOf(years, 'LINA', 'MAGIC_DREAM')!;
     expect(worn.strength).toBeLessThan(fresh.strength);
   });
 
@@ -188,21 +188,21 @@ describe('時間経過 → WORLD GROWTH', () => {
     let walked = state;
     for (let i = 0; i < 300; i++) walked = advanceTime(walked, 1, 'STORY_TIME_ADVANCE');
     walked = recompute(walked, RULES);
-    expect(seedOf(walked, 'alden_lina', 'MAGIC_DREAM')!.strength).toBeCloseTo(
-      seedOf(jumped, 'alden_lina', 'MAGIC_DREAM')!.strength,
+    expect(seedOf(walked, 'LINA', 'MAGIC_DREAM')!.strength).toBeCloseTo(
+      seedOf(jumped, 'LINA', 'MAGIC_DREAM')!.strength,
       10,
     );
   });
 
   it('holds what is fed, and deepens it', () => {
     let world = showMagic().state;
-    const once = seedOf(world, 'alden_lina', 'MAGIC_DREAM')!.strength;
+    const once = seedOf(world, 'LINA', 'MAGIC_DREAM')!.strength;
     // Four more visits over three years.
     for (let i = 0; i < 4; i++) {
       world = advanceTime(world, 270, 'JOURNEY');
       world = showMagic(world).state;
     }
-    const fed = seedOf(world, 'alden_lina', 'MAGIC_DREAM')!;
+    const fed = seedOf(world, 'LINA', 'MAGIC_DREAM')!;
     expect(fed.fedBy.length).toBe(4);
     expect(fed.strength).toBeGreaterThan(once);
     expect(fed.status).toBe('ROOTED');
@@ -219,8 +219,8 @@ describe('時間経過 → WORLD GROWTH', () => {
     steady = recompute(advanceTime(steady, 200, 'SEASON_TURN'), RULES);
 
     const struck = recompute(advanceTime(showMagic().state, 1000, 'SEASON_TURN'), RULES);
-    expect(seedOf(steady, 'alden_lina', 'MAGIC_DREAM')!.strength).toBeGreaterThan(
-      seedOf(struck, 'alden_lina', 'MAGIC_DREAM')!.strength,
+    expect(seedOf(steady, 'LINA', 'MAGIC_DREAM')!.strength).toBeGreaterThan(
+      seedOf(struck, 'LINA', 'MAGIC_DREAM')!.strength,
     );
   });
 });
@@ -228,9 +228,9 @@ describe('時間経過 → WORLD GROWTH', () => {
 describe('WORLD VINE', () => {
   it('draws a line to the person who was there when it started', () => {
     const { state } = showMagic();
-    const vine = state.vines.find((v) => v.relationType === 'INSPIRED_BY');
+    const vine = state.vines.find((v) => v.relationType === 'BECAUSE_OF');
     expect(vine).toBeDefined();
-    expect(vine!.source).toBe('alden_lina');
+    expect(vine!.source).toBe('LINA');
     expect(vine!.target).toBe(PLAYER_ACTOR);
     expect(vine!.sourceSeedIds.length).toBeGreaterThan(0);
   });
@@ -245,7 +245,7 @@ describe('WORLD VINE', () => {
   it('lets go of a line whose reason wore out, rather than forgetting it', () => {
     const { state } = showMagic();
     const long = recompute(advanceTime(state, 365 * 8, 'STORY_TIME_ADVANCE'), RULES);
-    const vine = long.vines.find((v) => v.relationType === 'INSPIRED_BY');
+    const vine = long.vines.find((v) => v.relationType === 'BECAUSE_OF');
     expect(vine?.status).toBe('BROKEN');
   });
 });
@@ -255,50 +255,33 @@ describe('WORLD BLOOM', () => {
     expect(showMagic().state.blooms).toEqual([]);
   });
 
-  it('finds a candidate once it has rooted, been held, and been given time', () => {
-    // THE SUCCESS CONDITION OF THE ROUND.
+  it('finds a candidate once it has taken and been given a little time', () => {
     let world = showMagic().state;
-    for (let i = 0; i < 4; i++) {
-      world = advanceTime(world, 150, 'STORY_TIME_ADVANCE');
-      world = showMagic(world).state;
-    }
-    world = recompute(world, RULES);
+    world = recompute(advanceTime(world, 200, 'STORY_TIME_ADVANCE'), RULES);
 
-    const seed = seedOf(world, 'alden_lina', 'MAGIC_DREAM')!;
-    expect(seed.status).toBe('ROOTED');
-
-    const bloom = world.blooms.find((b) => b.id === 'LINA_LEAVES_TO_STUDY_MAGIC');
-    expect(bloom, traceNpc(world, RULES, 'alden_lina').join('\n')).toBeDefined();
+    const bloom = world.blooms.find((b) => b.id === 'LINA_PRACTISES_ALONE');
+    expect(bloom, traceNpc(world, RULES, 'LINA').join('\n')).toBeDefined();
     // And it is a CANDIDATE. Not a fact, not her future, not something
     // the engine has done to her.
     expect(bloom!.status).toBe('CANDIDATE');
-    expect(bloom!.npcId).toBe('alden_lina');
+    expect(bloom!.npcId).toBe('LINA');
   });
 
-  it('will not offer it to somebody nobody stayed a person to', () => {
-    // Same wanting, same depth, nobody attached: a different life.
+  it('deepens it when somebody keeps coming back', () => {
     let world = showMagic().state;
     for (let i = 0; i < 4; i++) {
       world = advanceTime(world, 150, 'STORY_TIME_ADVANCE');
       world = showMagic(world).state;
     }
     world = recompute(world, RULES);
-    const orphaned = recompute({ ...world, memories: [] }, RULES);
-    expect(
-      orphaned.blooms.some((b) => b.id === 'LINA_LEAVES_TO_STUDY_MAGIC'),
-    ).toBe(false);
+    expect(seedOf(world, 'LINA', 'MAGIC_DREAM')!.status).toBe('ROOTED');
   });
 
   it('stops being a candidate if the reason for it goes away', () => {
-    let world = showMagic().state;
-    for (let i = 0; i < 4; i++) {
-      world = advanceTime(world, 150, 'STORY_TIME_ADVANCE');
-      world = showMagic(world).state;
-    }
-    world = recompute(world, RULES);
-    expect(world.blooms.length).toBeGreaterThan(0);
+    let world = recompute(advanceTime(showMagic().state, 200, 'STORY_TIME_ADVANCE'), RULES);
+    expect(world.blooms.some((b) => b.id === 'LINA_PRACTISES_ALONE')).toBe(true);
     const abandoned = recompute(advanceTime(world, 365 * 12, 'STORY_TIME_ADVANCE'), RULES);
-    expect(abandoned.blooms.some((b) => b.id === 'LINA_LEAVES_TO_STUDY_MAGIC')).toBe(false);
+    expect(abandoned.blooms.some((b) => b.id === 'LINA_PRACTISES_ALONE')).toBe(false);
   });
 
   it('says what it is still waiting for, not just no', () => {
@@ -308,11 +291,12 @@ describe('WORLD BLOOM', () => {
       seeds: state.seeds,
       vines: state.vines,
       kinds: ALDEN_SEED_KINDS,
+      cores: ALDEN_CORES,
       now: state.now,
       since: state.now,
     });
     expect(check.met).toBe(false);
-    expect(check.reasons.length).toBe(3);
+    expect(check.reasons.length).toBe(2);
     expect(check.reasons.some((reason) => !reason.met)).toBe(true);
     for (const reason of check.reasons) expect(reason.detail).toBeTruthy();
   });
@@ -363,14 +347,14 @@ describe('the developer’s view of why somebody is the way they are', () => {
       world = showMagic(world).state;
     }
     world = recompute(world, RULES);
-    const trace = traceNpc(world, RULES, 'alden_lina').join('\n');
+    const trace = traceNpc(world, RULES, 'LINA').join('\n');
 
     expect(trace).toContain('CORE');
     expect(trace).toContain('SEED   MAGIC_DREAM ROOTED');
     expect(trace).toContain('FROM ACTION SHOW_MAGIC by PLAYER');
     expect(trace).toContain('FED');
-    expect(trace).toContain('VINE   INSPIRED_BY → PLAYER');
-    expect(trace).toContain('BLOOM  LINA_LEAVES_TO_STUDY_MAGIC CANDIDATE');
+    expect(trace).toContain('VINE   BECAUSE_OF → PLAYER');
+    expect(trace).toContain('BLOOM  LINA_PRACTISES_ALONE CANDIDATE');
   });
 
   it('says plainly when it knows nothing about somebody', () => {

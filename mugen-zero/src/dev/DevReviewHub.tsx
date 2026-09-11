@@ -5,7 +5,7 @@ import { direct } from '../core/experience/director';
 import { buildQaReport, renderQaReportMarkdown } from '../core/qa/qaReport';
 import type { QaStatus } from '../core/qa/types';
 import { collectQaInput } from './qaSnapshot';
-import { runAldenDemo, runGaldHelpDemo } from './worldLifeDemo';
+import { runAldenDemo, runGaldHelpDemo, runLinaFuturesDemo } from './worldLifeDemo';
 import { readGaldLife, GALD_LIFE_RULES } from '../core/life/galdReading';
 import { traceNpc } from '../core/life/engine';
 import { ALDEN_GUARD, GALD } from '../content/world/galdLife';
@@ -427,6 +427,16 @@ export function DevReviewHub({ world, onBack }: Props) {
             What is worth reading here is how little of it is the
             player: one action at the top, and then canon firing on its
             own and three years of nothing happening to a guard. */}
+        {/* ---- LINA, FOUR FUTURES ----
+
+            The claim the whole engine rests on, laid out so it can be
+            disbelieved: four worlds, one childhood, four women. What
+            differs between any two rows is in the 「起きたこと」 column
+            and nowhere else. */}
+        <Section title="WORLD LIFE ENGINE / LINA (同じSEED・異なる未来)" id="lina-futures">
+          <LinaFutures />
+        </Section>
+
         <Section title="WORLD LIFE ENGINE / GALD (HELP)" id="gald-life">
           <GaldLifeTrace />
         </Section>
@@ -637,6 +647,43 @@ function WorldLifeTrace() {
       >
         {demo.trace.join('\n')}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Four worlds that start with the same afternoon.
+ *
+ * Each row is what the world did and what her life could then become.
+ * The seed is identical in all four — same source, same strength, same
+ * day — so anything different below came from the village, not from
+ * her and not from the player.
+ */
+function LinaFutures() {
+  const worlds = runLinaFuturesDemo();
+  return (
+    <div data-testid="hub-lina-futures">
+      {worlds.map((world) => (
+        <div key={world.life} style={{ marginBottom: 10 }}>
+          <div style={{ ...TRACE, color: 'var(--accent)' }}>{world.life}</div>
+          <div className="location-desc" style={TRACE} data-testid={`hub-lina-${world.life[0]}`}>
+            {[
+              ...world.happened.map((line) => `  ${line}`),
+              ...world.futures.map((line) => `  → ${line}`),
+            ].join('\n')}
+          </div>
+        </div>
+      ))}
+      {/* One of them in full, so the column above can be checked
+          against the requirements it came from. */}
+      <details data-testid="hub-lina-why">
+        <summary style={{ cursor: 'pointer', fontSize: 11, padding: '6px 0' }}>
+          A の全トレース（なぜそうなったか）
+        </summary>
+        <div className="location-desc" style={TRACE}>
+          {worlds[0].trace.join('\n')}
+        </div>
+      </details>
     </div>
   );
 }

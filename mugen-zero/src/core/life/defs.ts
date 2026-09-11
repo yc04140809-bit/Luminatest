@@ -67,6 +67,17 @@ export interface SeedKindDef {
     aptitude?: string;
   };
   /**
+   * What in a person makes it take LESS.
+   *
+   * The other half of a personality, and a trait list without it is a
+   * list of advantages. A girl who is a little timid is not somebody
+   * the idea of leaving home fails to reach — it reaches her and lands
+   * softer, which is a different and more interesting thing than not
+   * catching at all. It never blocks: something that has caught is not
+   * un-caught by temperament, only made smaller.
+   */
+  dampens?: readonly string[];
+  /**
    * How much of it is left after a hundred days of nobody feeding it.
    *
    * 0.5 is a daydream; 0.95 is the kind of thing a person does not get
@@ -109,6 +120,16 @@ const PER_MATCH = 0.2;
 const APTITUDE_WEIGHT = 0.4;
 
 /**
+ * What one part of somebody that pulls the other way costs it.
+ *
+ * A quarter each, multiplied, so two of them is a little over half and
+ * no number of them reaches zero. Temperament makes things harder; it
+ * does not make them impossible, and a world where it did would have
+ * people who cannot be changed at all.
+ */
+export const DAMPEN_SHARE = 0.25;
+
+/**
  * WHETHER IT CATCHES ON THIS PERSON AT ALL.
  *
  * Asked before how much, and separately, because they are different
@@ -144,7 +165,10 @@ export function resonance(kind: SeedKindDef, core: NpcCore): number {
     const has = core.aptitudes[aptitude];
     if (Number.isFinite(has) && has > 0) value += Math.min(1, has) * APTITUDE_WEIGHT;
   }
-  return Math.min(RESONANCE_CEILING, value);
+  for (const trait of kind.dampens ?? []) {
+    if (core.traits.includes(trait)) value *= 1 - DAMPEN_SHARE;
+  }
+  return Math.max(RESONANCE_FLOOR * (1 - DAMPEN_SHARE), Math.min(RESONANCE_CEILING, value));
 }
 
 /** Looked up by id, with an honest answer when content is wrong. */

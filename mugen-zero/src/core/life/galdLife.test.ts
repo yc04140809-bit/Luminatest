@@ -331,7 +331,7 @@ describe('the developer’s view', () => {
     expect(gald).toContain('CORE');
     expect(gald).toContain('SEED   GALD_REDEMPTION ROOTED');
     expect(gald).toContain(`FROM ACTION ${HELP_AFTER_BATTLE} by PLAYER`);
-    expect(gald).toContain('VINE   INSPIRED_BY → PLAYER');
+    expect(gald).toContain('VINE   BECAUSE_OF → PLAYER');
     expect(gald).toContain('GALD_AND_THE_GUARD_SPEAK CANDIDATE');
 
     const guard = traceNpc(world, RULES, ALDEN_GUARD).join('\n');

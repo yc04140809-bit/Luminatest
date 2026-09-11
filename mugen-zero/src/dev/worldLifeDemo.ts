@@ -31,6 +31,10 @@ import {
   GALD_SEED_KINDS,
 } from '../content/world/galdLife';
 import {
+  ALDEN_VILLAGE_ACTOR,
+  KAOS_ACTOR,
+  LINA,
+  MARTA,
   ALDEN_ACTIONS,
   ALDEN_BLOOMS,
   ALDEN_CORES,
@@ -85,7 +89,7 @@ export function runAldenDemo(): WorldLifeDemo {
       {
         action: 'SHOW_MAGIC',
         actor: PLAYER_ACTOR,
-        target: 'alden_lina',
+        target: LINA.npcId,
         location: 'ALDEN_VILLAGE',
         witnesses: ['alden_marta'],
         metadata: { spell: 'starlight_bolt' },
@@ -107,7 +111,7 @@ export function runAldenDemo(): WorldLifeDemo {
   }
 
   world = recompute(world, RULES);
-  return { steps, trace: traceNpc(world, RULES, 'alden_lina'), state: world };
+  return { steps, trace: traceNpc(world, RULES, LINA.npcId), state: world };
 }
 
 /** The whole thing as one block, for a console or a dev panel. */
@@ -236,4 +240,155 @@ export function runGaldHelpDemo(): GaldLifeDemo {
 export function galdDemoText(): string {
   const demo = runGaldHelpDemo();
   return [...demo.steps, '', ...demo.gald, '', ...demo.guard].join('\n');
+}
+
+
+// ---------------------------------------------------------------------
+// LINA — one seed, four women.
+//
+// The second character the engine watches, and the claim that decides
+// whether a life-collecting game is possible at all: the same
+// SEED_MAGIC_DREAM, in the same girl, planted by the same afternoon,
+// becomes a different life depending only on what else the world did.
+//
+// Every world below opens identically. Nothing chooses between the
+// endings. Read the four side by side and the difference is never the
+// player — it is whether the village was raided, whether anybody bound
+// a wound in front of her, whether Kaos kept telling her what was out
+// there, and whether anybody came back at all.
+
+const LINA_RULES: WorldLifeRules = {
+  actions: ALDEN_ACTIONS,
+  kinds: ALDEN_SEED_KINDS,
+  cores: ALDEN_CORES,
+  blooms: ALDEN_BLOOMS,
+};
+
+const HER = LINA.npcId;
+
+function happens(
+  state: WorldLifeState,
+  action: string,
+  actor: string,
+  extra: { target?: string | null; witnesses?: string[] } = {},
+): WorldLifeState {
+  return observe(
+    state,
+    {
+      action,
+      actor,
+      target: extra.target ?? HER,
+      location: 'ALDEN_VILLAGE',
+      witnesses: extra.witnesses ?? [MARTA.npcId],
+    },
+    LINA_RULES,
+  ).state;
+}
+
+const on = (state: WorldLifeState, days: number) =>
+  advanceTime(state, days, 'STORY_TIME_ADVANCE');
+
+/** The one afternoon every life below starts from. */
+const theAfternoon = () =>
+  happens(emptyWorld(INITIAL_CLOCK), 'SHOW_MAGIC', KAOS_ACTOR);
+
+function comesBack(state: WorldLifeState, times: number): WorldLifeState {
+  let world = state;
+  for (let i = 0; i < times; i++) world = happens(on(world, 150), 'SHOW_MAGIC', KAOS_ACTOR);
+  return world;
+}
+
+const raid = (state: WorldLifeState) =>
+  happens(state, 'VILLAGE_ATTACKED', 'BANDITS', {
+    target: ALDEN_VILLAGE_ACTOR,
+    witnesses: [HER, MARTA.npcId],
+  });
+
+export interface LinaWorld {
+  /** What was different about this one, in one line. */
+  life: string;
+  /** What the world did, as a list. */
+  happened: readonly string[];
+  /** Which futures are open, with the sentence each would be. */
+  futures: readonly string[];
+  trace: readonly string[];
+}
+
+/**
+ * Four worlds, built from the same childhood.
+ *
+ * Each one is a handful of lines, and the difference between any two of
+ * them is what happened to a village.
+ */
+export function runLinaFuturesDemo(): LinaWorld[] {
+  const attacked = () => {
+    let w = comesBack(theAfternoon(), 4);
+    w = raid(on(w, 50));
+    w = raid(on(w, 300));
+    return recompute(on(w, 200), LINA_RULES);
+  };
+  const helped = () => {
+    let w = comesBack(theAfternoon(), 4);
+    for (let i = 0; i < 3; i++) {
+      w = happens(on(w, 150), 'TENDED_THE_HURT', KAOS_ACTOR, {
+        target: MARTA.npcId,
+        witnesses: [HER],
+      });
+    }
+    return recompute(on(w, 100), LINA_RULES);
+  };
+  const told = () => {
+    let w = theAfternoon();
+    for (let i = 0; i < 6; i++) {
+      w = happens(on(w, 150), 'TELL_OF_THE_WORLD', KAOS_ACTOR);
+      w = happens(w, 'SHOW_MAGIC', KAOS_ACTOR);
+    }
+    return recompute(on(w, 60), LINA_RULES);
+  };
+  const alone = () => recompute(on(theAfternoon(), 1500), LINA_RULES);
+
+  const worlds: { life: string; happened: string[]; build: () => WorldLifeState }[] = [
+    {
+      life: 'A  襲われた村',
+      happened: ['ケイオスが魔法を見せる ×5', '盗賊の襲撃 ×2（リナが見ている）'],
+      build: attacked,
+    },
+    {
+      life: 'B  傷を診ていた村',
+      happened: ['ケイオスが魔法を見せる ×5', '目の前で傷の手当て ×3'],
+      build: helped,
+    },
+    {
+      life: 'C  外を語られた村',
+      happened: ['ケイオスが魔法を見せる ×7', 'ケイオスが外の世界を語る ×6'],
+      build: told,
+    },
+    {
+      life: 'D  誰も戻らなかった村',
+      happened: ['ケイオスが魔法を見せる ×1', 'その後、四年間なにもない'],
+      build: alone,
+    },
+  ];
+
+  return worlds.map(({ life, happened, build }) => {
+    const world = build();
+    return {
+      life,
+      happened,
+      futures: world.blooms.map((bloom) => `${bloom.id} — ${bloom.result}`),
+      trace: traceNpc(world, LINA_RULES, HER),
+    };
+  });
+}
+
+/** The comparison as one block, for a console or a dev panel. */
+export function linaFuturesText(): string {
+  return runLinaFuturesDemo()
+    .flatMap((world) => [
+      `########## ${world.life}`,
+      ...world.happened.map((line) => `  ${line}`),
+      ...world.futures.map((line) => `  → ${line}`),
+      '',
+    ])
+    .join('\n');
 }

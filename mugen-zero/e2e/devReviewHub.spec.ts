@@ -247,8 +247,8 @@ test('the hub shows the causal chain from an action to a possible future', async
   const trace = page.getByTestId('hub-world-life-trace');
   await expect(trace).toContainText('CORE');
   await expect(trace).toContainText('SEED   MAGIC_DREAM ROOTED');
-  await expect(trace).toContainText('VINE   INSPIRED_BY → PLAYER');
-  await expect(trace).toContainText('LINA_LEAVES_TO_STUDY_MAGIC CANDIDATE');
+  await expect(trace).toContainText('VINE   BECAUSE_OF → PLAYER');
+  await expect(trace).toContainText('LINA_PRACTISES_ALONE CANDIDATE');
 
   // And it changed nothing: the hub is read-only, so the world the
   // player is in is exactly where they left it.
@@ -277,7 +277,7 @@ test('the hub shows what three years did to a man who was helped', async ({ page
   // His side: the debt, what fed it, and who it points at.
   await expect(trace).toContainText('SEED   GALD_REDEMPTION ROOTED');
   await expect(trace).toContainText('FROM ACTION PLAYER_HELPED_GALD by PLAYER');
-  await expect(trace).toContainText('VINE   INSPIRED_BY → PLAYER');
+  await expect(trace).toContainText('VINE   BECAUSE_OF → PLAYER');
   // And the guard's, which nobody acted on at all.
   await expect(trace).toContainText('SEED   GUARD_WARINESS FADED');
   await expect(trace).toContainText('GUARD_STOPS_WATCHING_HIM CANDIDATE');
@@ -304,4 +304,35 @@ test('the hub reads this playthrough through the same engine', async ({ page }) 
   // And nothing of the player's is, because they have not met him.
   await expect(live).toContainText('SEED   なし');
   await expect(live).toContainText('GALD_AND_THE_GUARD_SPEAK まだ');
+});
+
+// LINA — the claim the engine rests on, laid out so it can be
+// disbelieved: four worlds, one childhood, four women.
+test('the hub shows one seed becoming four different lives', async ({ page }) => {
+  await newWorld(page);
+  await openHub(page);
+  await page.getByTestId('hub-section-lina-futures').locator('summary').first().click();
+
+  const futures = page.getByTestId('hub-lina-futures');
+  await expect(futures).toBeVisible();
+
+  // Each world says what happened in it, and what her life could become.
+  await expect(page.getByTestId('hub-lina-A')).toContainText('盗賊の襲撃');
+  await expect(page.getByTestId('hub-lina-A')).toContainText('村の魔導士として頼られはじめている');
+  await expect(page.getByTestId('hub-lina-B')).toContainText('傷の手当て');
+  await expect(page.getByTestId('hub-lina-B')).toContainText('傷を診るための魔法');
+  await expect(page.getByTestId('hub-lina-C')).toContainText('外の世界を語る');
+  await expect(page.getByTestId('hub-lina-C')).toContainText('見たことのない場所');
+  await expect(page.getByTestId('hub-lina-D')).toContainText('四年間なにもない');
+  await expect(page.getByTestId('hub-lina-D')).toContainText('もう話さない');
+
+  // And they genuinely differ: the village mage only appears in A.
+  await expect(page.getByTestId('hub-lina-B')).not.toContainText('村の魔導士');
+  await expect(page.getByTestId('hub-lina-C')).not.toContainText('村の魔導士');
+
+  // The full reasoning behind one of them is one tap away.
+  await page.getByTestId('hub-lina-why').locator('summary').click();
+  await expect(page.getByTestId('hub-lina-why')).toContainText('SEED   MAGIC_DREAM ROOTED');
+  await expect(page.getByTestId('hub-lina-why')).toContainText('aptitude MAGIC ≥ 0.6');
+  await expect(page.getByTestId('hub-lina-why')).toContainText('LINA_WANDERING_MAGE まだ');
 });
