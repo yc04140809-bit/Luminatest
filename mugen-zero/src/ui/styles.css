@@ -252,23 +252,50 @@ body,
   height: 148px;
 }
 
-/* EVENT CG — a full illustration rather than a cut-out figure. It keeps
-   its own aspect ratio (never stretched, never cropped through a face),
-   fills the phone's width, and wears the black-and-gold frame the rest of
-   the game uses. */
+/* EVENT CG — a full illustration rather than a cut-out figure.
+   
+   It used to be `width: 100%` with the words below it, and the comment
+   here said it "fills the phone's width" — which it did, when the phone
+   was held upright. On a landscape stage the same rule fills the WIDTH
+   of a box that is wider than the picture, so `contain` shrinks a
+   portrait illustration to a postcard held up in the middle of the
+   screen with cream either side of it.
+   
+   So it is laid out the way the life-choice screen was: the picture
+   takes one side at full height, the words take the other. Still never
+   stretched and never cropped through a face — it just gets the room
+   the stage actually has. */
 .dialogue-scene-art.event-cg {
-  width: 100%;
-  height: auto;
-  max-height: 100%;
+  height: 100%;
+  width: auto;
+  max-width: 46%;
   object-fit: contain;
+  object-position: center;
   border-radius: var(--radius-md);
   border: 1px solid var(--mugen-border-strong);
   box-shadow: var(--mugen-shadow);
   filter: none;
 }
-/* A full-width CG wants the stage edges back. */
-.dialogue-stage:has(.event-cg) {
-  padding: 12px;
+/* The picture, held against the left of the stage and filling it. */
+.screen.dialogue-screen.dialogue-event-cg > .dialogue-stage,
+.screen.dialogue-screen.dialogue-event-cg.has-backdrop > .dialogue-stage,
+.dialogue-overlay.dialogue-event-cg > .dialogue-stage {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px 0 10px 12px;
+}
+/* And the words beside it rather than under it: narrower, so a line
+   keeps a readable measure, and centred against the height of the
+   picture rather than pinned to the floor. */
+.screen.dialogue-screen.dialogue-event-cg > .dialogue-box,
+.screen.dialogue-screen.dialogue-event-cg.has-backdrop > .dialogue-box,
+.dialogue-overlay.dialogue-event-cg > .dialogue-box {
+  /* Wide enough to sit next to the picture rather than across the room
+     from it: a portrait illustration at stage height is only about a
+     third of the width, so a box pinned to the right edge at half the
+     width leaves a corridor of empty page between the two. */
+  width: min(56%, 500px);
+  margin: auto 16px auto auto;
 }
 
 /* Scene art (Gald) stands in the place, feet on the bottom of the stage
@@ -283,12 +310,7 @@ body,
   object-position: center bottom;
   filter: drop-shadow(0 10px 26px rgba(92, 72, 38, 0.22));
 }
-/* An event illustration is a picture, not a person standing somewhere:
-   it keeps clear of the words instead of standing behind them. */
-.dialogue-stage:has(.event-cg) {
-  align-items: center;
-  padding: 10px 12px 108px;
-}
+
 
 .dialogue-portrait {
   position: relative;

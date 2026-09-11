@@ -95,6 +95,11 @@ export function DialogueSequence({
       className={[
         overlay ? 'dialogue-overlay dialogue-screen' : 'screen dialogue-screen',
         isKaos ? 'dialogue-kaos' : '',
+        // A whole illustration is laid out differently from a cut-out
+        // standing in a place: the picture takes one side of the stage
+        // and the words take the other. Said on the screen rather than
+        // on the image, because it is the screen that has to move.
+        portraitFit === 'scene' && sceneSrc ? 'dialogue-event-cg' : '',
         backdrop ? 'has-backdrop' : '',
       ]
         .filter(Boolean)
