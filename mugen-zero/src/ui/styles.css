@@ -1026,6 +1026,53 @@ body,
   inset: 0;
   pointer-events: none;
   z-index: 6;
+
+  /* WHAT A SPELL IS MADE OF, as four colours and nothing else.
+
+     This is the whole of the elemental effect foundation and it is
+     meant to stay that way for now. An element does not get its own
+     animation, its own shape, or its own timeline — it recolours the
+     beat that was already there. Which is enough for the only thing
+     that has to be true today: a player who sees two spells land can
+     tell they were not the same kind of thing.
+
+     `.el-star` is written out rather than left to these defaults so
+     that the default is a default and not secretly the star. Adding a
+     fifth element is four lines here and `elementClass` already hands
+     out the class. */
+  --el-core: #fff6dc;
+  --el-glow: var(--mugen-gold);
+  --el-halo: rgba(238, 214, 158, 0.85);
+  --el-wash: rgba(226, 200, 140, 0.55);
+  --el-fade: rgba(226, 200, 140, 0);
+}
+.fx.el-star {
+  --el-core: #fff6dc;
+  --el-glow: var(--mugen-gold);
+  --el-halo: rgba(238, 214, 158, 0.85);
+  --el-wash: rgba(226, 200, 140, 0.55);
+  --el-fade: rgba(226, 200, 140, 0);
+}
+.fx.el-fire {
+  --el-core: #ffdcb4;
+  --el-glow: #e2743a;
+  --el-halo: rgba(226, 116, 58, 0.82);
+  --el-wash: rgba(226, 116, 58, 0.5);
+  --el-fade: rgba(226, 116, 58, 0);
+}
+.fx.el-ice {
+  --el-core: #e2f4ff;
+  --el-glow: #6fb4d8;
+  --el-halo: rgba(142, 200, 232, 0.8);
+  --el-wash: rgba(142, 200, 232, 0.5);
+  --el-fade: rgba(142, 200, 232, 0);
+}
+.fx.el-thunder {
+  --el-core: #f2ecff;
+  --el-glow: #9a7ce0;
+  --el-halo: rgba(172, 142, 236, 0.82);
+  --el-wash: rgba(172, 142, 236, 0.5);
+  --el-fade: rgba(172, 142, 236, 0);
 }
 
 /* 星光弾 — a small light crosses the field and lands. */
@@ -1037,8 +1084,8 @@ body,
   height: 22px;
   margin: -11px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff 0%, #fff6dc 30%, var(--mugen-gold) 55%, rgba(220, 192, 132, 0) 74%);
-  box-shadow: 0 0 26px 10px rgba(238, 214, 158, 0.85);
+  background: radial-gradient(circle, #fff 0%, var(--el-core) 30%, var(--el-glow) 55%, var(--el-fade) 74%);
+  box-shadow: 0 0 26px 10px var(--el-halo);
   animation: fx-bolt-fly calc(0.34s * var(--fx, 1)) cubic-bezier(0.3, 0, 0.7, 1) forwards;
 }
 @keyframes fx-bolt-fly {
@@ -1056,7 +1103,7 @@ body,
   width: 22%;
   height: 46%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 252, 240, 0.9) 0%, rgba(226, 200, 140, 0) 70%);
+  background: radial-gradient(circle, rgba(255, 252, 240, 0.9) 0%, var(--el-fade) 70%);
   opacity: 0;
   animation: fx-flash calc(0.22s * var(--fx, 1)) ease-out calc(0.32s * var(--fx, 1)) forwards;
 }
@@ -1081,8 +1128,8 @@ body,
   margin-left: -7px;
   border-radius: 7px;
   transform-origin: bottom center;
-  background: linear-gradient(180deg, rgba(255, 250, 235, 0) 0%, rgba(255, 250, 235, 0.8) 32%, #fff 74%, var(--mugen-gold) 100%);
-  box-shadow: 0 0 34px 10px rgba(238, 214, 158, 0.75);
+  background: linear-gradient(180deg, rgba(255, 250, 235, 0) 0%, rgba(255, 250, 235, 0.8) 32%, #fff 74%, var(--el-glow) 100%);
+  box-shadow: 0 0 34px 10px var(--el-halo);
   filter: blur(0.6px);
   animation: fx-comet-fall calc(0.32s * var(--fx, 1)) cubic-bezier(0.5, 0, 0.9, 1) forwards;
 }
@@ -1099,7 +1146,7 @@ body,
   width: 32%;
   height: 56%;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 253, 244, 0.95) 0%, rgba(226, 200, 140, 0.55) 40%, rgba(226, 200, 140, 0) 72%);
+  background: radial-gradient(circle, rgba(255, 253, 244, 0.95) 0%, var(--el-wash) 40%, var(--el-fade) 72%);
   opacity: 0;
   animation: fx-flash calc(0.44s * var(--fx, 1)) ease-out calc(0.2s * var(--fx, 1)) forwards;
 }

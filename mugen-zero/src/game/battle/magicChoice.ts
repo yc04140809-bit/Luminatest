@@ -12,8 +12,9 @@
 // build; what is here is the shape AUTO will read.
 
 import { affinityMultiplier } from './damageType';
+import { boostHeld } from './battleLogic';
 import type { BattleState } from './battleLogic';
-import { harmsEnemy, isMending, isWarding, type MagicDef } from '../../core/magic/magic';
+import { harmsEnemy, isBoosting, isMending, isWarding, type MagicDef } from '../../core/magic/magic';
 
 /** Why a spell is not available to press right now. */
 export type MagicBlock = 'LOCKED' | 'NO_MP' | 'OVER' | null;
@@ -118,6 +119,21 @@ export const AUTO_MEND_AT = 0.45;
  */
 export const AUTO_WARD_AT = 0.8;
 
+/**
+ * HOW MUCH FIGHT HAS TO BE LEFT before a support spell is worth a turn.
+ *
+ * A spell that does nothing this turn and something every turn after it
+ * is only worth casting while there ARE turns after it. Two thirds of
+ * the creature still standing is a fight with enough left in it; the
+ * last third is not, and an unattended player who spends the turn
+ * before the finish leaning on a multiplier has simply lost that turn.
+ *
+ * The power floor is the other half of the same judgement: support is
+ * what she does with power she can spare, never with the last of it.
+ */
+export const AUTO_SUPPORT_ABOVE = 0.6;
+export const AUTO_SUPPORT_MP = 0.5;
+
 export function suggestAction(
   state: BattleState,
   magic: MagicDef | null,
@@ -152,13 +168,14 @@ export function suggestAction(
  * answer, "cast or swing" has stopped being the question and "which of
  * the four things" has started.
  *
- * Still not a brain, and still wired to nothing. Four rules, in the
+ * Still not a brain. Six rules, in the
  * order a person would apply them:
  *
  *   1. Hurt, and she can mend → mend. Before the last moment, not on it.
  *   2. Nothing in front of the next blow and blows are landing → shield.
  *   3. Nearly gone with nothing to spend → cover, and let her gather.
- *   4. The best of what hurts it, if it beats swinging → cast that.
+ *   4. A fight with a long way to go and power to spare → lean on it.
+ *   5. The best of what hurts it, if it beats swinging → cast that.
  *   5. Otherwise swing.
  *
  * Whoever wires AUTO up gets to argue with these in a test rather than
@@ -222,7 +239,36 @@ export function decideTurn(
     return COVER;
   }
 
-  // 4. The best of what hurts it — best by what it would actually do,
+  // 4. A long fight, power to spare, and nothing of hers already
+  //    leaning on that number. Deliberately after the three above:
+  //    being hurt, being unprotected and being nearly gone are all
+  //    about this turn, and this one is about the next five.
+  //
+  //    Checked against the stat rather than the spell so that two
+  //    spells which move the same multiplier never both go up — and so
+  //    that a shield she has standing is not re-cast by a second thing
+  //    that softens blows.
+  if (
+    // Not on the opening turn. Whether a fight is going to be long is
+    // not a thing anybody knows before it has started, and an
+    // unattended player who opens every single fight — including the
+    // ones that end in two swings — by leaning on a multiplier has
+    // turned a judgement into a tic.
+    state.turnsTaken > 0 &&
+    state.enemyHp > state.enemyMaxHp * AUTO_SUPPORT_ABOVE &&
+    state.playerMp >= state.playerMaxMp * AUTO_SUPPORT_MP
+  ) {
+    const support = usable.find(
+      (spell) =>
+        isBoosting(spell) &&
+        spell.boost !== undefined &&
+        !boostHeld(state, spell.boost.stat) &&
+        state.playerMp - spell.mpCost >= reserveMp,
+    );
+    if (support) return { action: 'MAGIC', magicId: support.id };
+  }
+
+  // 5. The best of what hurts it — best by what it would actually do,
   //    which is not the same as by its power, and not the same as by
   //    the biggest number either.
   //

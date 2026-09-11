@@ -1,14 +1,15 @@
 // The spells themselves.
 //
-// Four. On purpose: a starting spell that is strictly better than
+// Five. On purpose: a starting spell that is strictly better than
 // swinging a sword turns two characters into one character, and a list
-// of six nobody has enemies for is six things to balance and nothing to
+// of ten nobody has enemies for is ten things to balance and nothing to
 // choose between. These are not the same kind of answer — what she
 // does to the thing in front of you, what she does for you once it has
-// landed, and what she puts between you before it does — so the tray
-// asks a real question every time it is opened. Two of them do hurt
-// the creature, and they are not interchangeable either: one goes
-// through a raised guard and the other is what a raised guard is for.
+// landed, what she puts between you before it does, and what she does
+// to the shape of the whole fight — so the tray asks a real question
+// every time it is opened. Two of them do hurt the creature, and they
+// are not interchangeable either: one goes through a raised guard and
+// the other is what a raised guard is for.
 
 import type { MagicDef } from '../../core/magic/magic';
 
@@ -166,9 +167,51 @@ export const COMET_STRIKE: MagicDef = {
   poiseCost: 0,
 };
 
+/**
+ * 星霞 — provisional name.
+ *
+ * THE ONE THAT DOES NOTHING THIS TURN.
+ *
+ * Everything else she has pays out the moment it is cast: the bolt
+ * takes health off, the shield stands in front of the next blow, the
+ * light closes the gap. This one changes a number and hands the
+ * creature its turn, and a player who casts it on the last exchange of
+ * a fight has thrown away eight power and a turn.
+ *
+ * Which is the whole reason it exists. It is the first thing she can do
+ * that is a JUDGEMENT about how long the fight has left rather than an
+ * answer to what just happened — and it is the shape every support
+ * spell after it will have, so the shape is worth getting right once
+ * with something small.
+ *
+ * Deliberately modest: a fifth off what reaches the party, for four
+ * turns. Against the small creatures of the greenwood that is a point
+ * or two a blow, which is honest — it is not meant to end fights, it is
+ * meant to be worth casting in one that is going to be long.
+ */
+export const STAR_HAZE: MagicDef = {
+  id: 'star_haze',
+  name: '星霞',
+  line: 'ケイオスが息を吐くと、うすい星明かりが相手の目の前に流れた。',
+  mpCost: 8,
+  // A boost's numbers are in `boost`, the way a shield's are in `ward`.
+  power: 0,
+  type: 'MAGIC',
+  element: 'STAR',
+  target: 'ONE_ENEMY',
+  effect: 'DEBUFF',
+  boost: { stat: 'enemyAttack', factor: 0.8, turns: 4 },
+  animation: 'STAR_WARD',
+  unlock: 'AWAKENING',
+  // Neither of these means anything to a spell that strikes nobody.
+  blockedByGuard: false,
+  poiseCost: 0,
+};
+
 export const MAGIC_DEFS: readonly MagicDef[] = [
   STARLIGHT_BOLT,
   COMET_STRIKE,
   MENDING_LIGHT,
   STAR_SHIELD,
+  STAR_HAZE,
 ];

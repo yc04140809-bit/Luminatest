@@ -428,6 +428,7 @@ describe('the light that mends', () => {
       'comet_strike',
       'mending_light',
       'star_shield',
+      'star_haze',
     ]);
   });
 

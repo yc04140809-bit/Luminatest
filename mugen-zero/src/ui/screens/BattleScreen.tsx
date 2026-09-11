@@ -11,6 +11,7 @@ import {
 import { availableMagic, harmsEnemy, isMending } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
+import { elementClass, type Element } from '../../game/battle/damageType';
 import {
   DEFAULT_BATTLE_SPEED,
   beatMs,
@@ -202,6 +203,16 @@ export function BattleScreen({
    * Null the rest of the time, which is most of the time.
    */
   const [float, setFloat] = useState<{ key: number; amount: number } | null>(null);
+  /**
+   * What the spell now on screen was made of.
+   *
+   * Held rather than read off the battle because the battle does not
+   * keep it: nothing downstream of a cast needs to know, and the one
+   * thing that does is this screen, for one beat. Null for a beat that
+   * is not elemental at all — a heal, a shield, a sword — and that is
+   * why the class is only ever added, never a default one swapped out.
+   */
+  const [castElement, setCastElement] = useState<Element | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   const [fieldH, setFieldH] = useState(260);
   const beats = useRef<number[]>([]);
@@ -313,6 +324,11 @@ export function BattleScreen({
       ? Math.min(magic.power, battle.playerMaxHp - battle.playerHp)
       : 0;
     setFloat(mended > 0 ? { key: next.turnsTaken, amount: mended } : null);
+    // What it was made of, for the one beat it is on screen. Today
+    // every one of hers is a star and the field looks exactly as it
+    // did; a fire spell recolours itself here without this screen
+    // learning anything about fire.
+    setCastElement(harmsEnemy(magic) ? magic.element : null);
     // The spell's own beat. Each of the four looks like itself, and
     // only the one aimed at the creature also makes something flinch.
     const beat = SPELL_BEATS.has(magic.animation)
@@ -470,13 +486,21 @@ export function BattleScreen({
               reads its own duration from --fx, so twice speed is half
               as long without any of them knowing about speed. */}
           {reaction === 'STAR_BOLT' && (
-            <div className="fx fx-bolt" data-testid="fx-starlight" aria-hidden="true">
+            <div
+              className={`fx fx-bolt ${elementClass(castElement)}`.trim()}
+              data-testid="fx-starlight"
+              aria-hidden="true"
+            >
               <span className="fx-bolt-shot" />
               <span className="fx-bolt-flash" />
             </div>
           )}
           {reaction === 'STAR_COMET' && (
-            <div className="fx fx-comet" data-testid="fx-comet" aria-hidden="true">
+            <div
+              className={`fx fx-comet ${elementClass(castElement)}`.trim()}
+              data-testid="fx-comet"
+              aria-hidden="true"
+            >
               <span className="fx-comet-fall" />
               <span className="fx-comet-burst" />
             </div>

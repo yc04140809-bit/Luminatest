@@ -16,11 +16,46 @@ export type DamageType = 'PHYSICAL' | 'MAGIC';
 /**
  * What a magic blow is made of.
  *
- * One element so far, and deliberately: a table of eight elements
- * nobody has written enemies for is a table of eight things to balance
- * and nothing to play with. STAR is hers.
+ * STAR is hers, and for a long time it was the only one — a table of
+ * eight elements nobody had written enemies for would have been eight
+ * things to balance and nothing to play with.
+ *
+ * The three below are the ones the world is going to need, and they are
+ * here as NAMES and nothing else. There is no fire spell, no creature
+ * that hates ice, and no rule anywhere that treats thunder specially:
+ * what adding them buys is that a blow can now SAY what it is made of,
+ * which is the one thing a screen and an affinity table both need
+ * before either can be written. Everything that reads an element
+ * already reads it through `affinityMultiplier` and `ELEMENT_LABEL`, so
+ * the day a fire spell exists it is an entry in the spell table and a
+ * fraction in one creature's affinity — not a change here.
  */
-export type Element = 'STAR';
+export type Element = 'STAR' | 'FIRE' | 'ICE' | 'THUNDER';
+
+/** Every one of them, for anything that has to show the whole set. */
+export const ELEMENTS: readonly Element[] = ['STAR', 'FIRE', 'ICE', 'THUNDER'];
+
+/** What each is called where a player can read it. */
+export const ELEMENT_LABEL: Record<Element, string> = {
+  STAR: '星',
+  FIRE: '炎',
+  ICE: '氷',
+  THUNDER: '雷',
+};
+
+/**
+ * The class a screen hangs on an effect so the four look different.
+ *
+ * The whole of the visual foundation, deliberately: one class per
+ * element, carrying a colour and nothing else. No particle system, no
+ * per-element animation, no timeline — those are decisions for the day
+ * somebody is looking at a fire spell, and guessing at them now would
+ * mean throwing them away then. A blow with no element gets no class
+ * and looks exactly as it always did.
+ */
+export function elementClass(element: Element | null | undefined): string {
+  return element ? `el-${element.toLowerCase()}` : '';
+}
 
 /**
  * What a creature is tough against and what it is soft against.

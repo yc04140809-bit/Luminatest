@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ELEMENTS,
+  ELEMENT_LABEL,
   MAX_TAKEN,
   MIN_TAKEN,
   STAR_SHARE,
+  elementClass,
   affinityMultiplier,
   readAffinity,
   starAffinity,
@@ -141,5 +144,40 @@ describe('what a creature thinks of her light, in three words', () => {
     expect(affinityMultiplier(both, 'MAGIC', 'STAR')).toBeLessThanOrEqual(MAX_TAKEN);
     const neither: EnemyAffinity = { ...starAffinity('RESIST'), magicResistance: 9 };
     expect(affinityMultiplier(neither, 'MAGIC', 'STAR')).toBeGreaterThanOrEqual(MIN_TAKEN);
+  });
+});
+
+describe('what a blow is made of, now that it can be four things', () => {
+  it('names all four where a player can read them', () => {
+    expect(ELEMENTS).toEqual(['STAR', 'FIRE', 'ICE', 'THUNDER']);
+    for (const element of ELEMENTS) {
+      expect(ELEMENT_LABEL[element], element).toBeTruthy();
+    }
+  });
+
+  it('gives each one a class of its own, and a blow with no element none', () => {
+    const classes = ELEMENTS.map(elementClass);
+    expect(new Set(classes).size).toBe(ELEMENTS.length);
+    expect(elementClass('FIRE')).toBe('el-fire');
+    expect(elementClass(null)).toBe('');
+  });
+
+  it('lets a creature be soft to one of the new ones without any new code', () => {
+    // The whole claim of the elemental foundation: adding fire cost a
+    // name and nothing else. If this ever needs a change in
+    // affinityMultiplier, the foundation was not one.
+    const ashen = { elementWeakness: { FIRE: 0.5 } } as const;
+    expect(affinityMultiplier(ashen, 'MAGIC', 'FIRE')).toBeCloseTo(1.5);
+    expect(affinityMultiplier(ashen, 'MAGIC', 'ICE')).toBe(1);
+    expect(affinityMultiplier(ashen, 'MAGIC', 'STAR')).toBe(1);
+  });
+
+  it('holds every element to the same ceiling and floor', () => {
+    for (const element of ELEMENTS) {
+      const soft = { elementWeakness: { [element]: 9 } };
+      const hard = { elementResistance: { [element]: 0.99 }, magicResistance: 0.9 };
+      expect(affinityMultiplier(soft, 'MAGIC', element), element).toBe(MAX_TAKEN);
+      expect(affinityMultiplier(hard, 'MAGIC', element), element).toBe(MIN_TAKEN);
+    }
   });
 });

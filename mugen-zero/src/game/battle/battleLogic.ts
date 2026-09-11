@@ -2,7 +2,13 @@
 // v0.1 keeps battle intentionally minimal: attack / defend only.
 
 import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
-import { isMending, isWarding, type MagicDef } from '../../core/magic/magic';
+import {
+  isBoosting,
+  isMending,
+  isWarding,
+  type BoostStat,
+  type MagicDef,
+} from '../../core/magic/magic';
 import {
   hitPoise,
   phaseAt,
@@ -80,6 +86,91 @@ function applyDamage(raw: number, multipliers: number[]): number {
   let value = raw;
   for (const m of multipliers) value *= Number.isFinite(m) && m > 0 ? m : 1;
   return Math.max(1, Math.ceil(value));
+}
+
+/**
+ * ONE OF THOSE FOUR NUMBERS, WITH HER HAND ON IT.
+ *
+ * A buff is not a status effect. There is no register of conditions, no
+ * stack of icons, no per-turn tick that has to be remembered in five
+ * places — there is a list of things she has done, each of which says
+ * which of the four multipliers it moves and until when.
+ *
+ * `until` is a turn count rather than a countdown, and that is the
+ * whole trick: nothing has to decrement it, so there is no code path
+ * that can forget to. A boost is live while the fight has not yet
+ * reached that turn, and the fight reaching it is the boost ending.
+ * Two things fall out of that for free — a fight state that is copied,
+ * replayed or rewound carries its boosts correctly, and a battle that
+ * ends mid-buff leaves nothing behind to clean up.
+ */
+export interface ActiveBoost {
+  stat: BoostStat;
+  factor: number;
+  /** The value of `turnsTaken` at which it is over. */
+  until: number;
+  /** What to call it where the player can read it. */
+  name: string;
+  /** Whether it was meant to help or to hinder. For the log line only. */
+  kind: 'BUFF' | 'DEBUFF';
+}
+
+/**
+ * How far the whole stack of them may move one number.
+ *
+ * The battle owns this, not the spell, for the same reason it owns the
+ * ward ceiling: content must not be able to write a fight that is over
+ * before it starts. Three buffs on one number reach this and stop.
+ */
+export const BOOST_MIN = 0.5;
+export const BOOST_MAX = 2;
+
+/** Whether this one is still standing at this point in the fight. */
+function boostLive(boost: ActiveBoost, turnsTaken: number): boolean {
+  return turnsTaken < boost.until;
+}
+
+/**
+ * One of the four multipliers, with everything leaning on it.
+ *
+ * The base — whatever came from outside the fight — times whatever she
+ * has done to it. Every place that used to read `state.modifiers.x`
+ * reads this instead, which is why a buff needed no new arithmetic
+ * anywhere: there was already exactly one number per blow per source,
+ * and this is it.
+ *
+ * The ceiling is on HER SIDE OF THE MULTIPLICATION only, and that
+ * distinction matters. What comes in from outside the fight is the
+ * world's business — a story beat that says this fight is three times
+ * as dangerous is allowed to say so — and clamping it here would have
+ * been this function quietly overruling the thing that set it. What is
+ * clamped is the stack of spells, because that is the part content can
+ * grow without limit. A fight with no boosts in it therefore returns
+ * exactly what `state.modifiers.x` always returned, to the bit.
+ */
+export function pull(state: BattleState, stat: BoostStat): number {
+  let leaning = 1;
+  for (const boost of state.boosts) {
+    if (boostLive(boost, state.turnsTaken)) leaning *= boost.factor;
+  }
+  return state.modifiers[stat] * Math.min(BOOST_MAX, Math.max(BOOST_MIN, leaning));
+}
+
+/**
+ * Whether something of hers is already leaning on this number.
+ *
+ * Asked by AUTO before it spends a turn on a support spell: two spells
+ * pushing the same multiplier is most of a turn thrown away, and an
+ * unattended player that re-casts a shield every four turns is the
+ * thing this question exists to prevent.
+ */
+export function boostHeld(state: BattleState, stat: BoostStat): boolean {
+  return state.boosts.some((boost) => boost.stat === stat && boostLive(boost, state.turnsTaken));
+}
+
+/** The ones still standing, so the list cannot grow across a long fight. */
+export function liveBoosts(state: BattleState): ActiveBoost[] {
+  return state.boosts.filter((boost) => boostLive(boost, state.turnsTaken));
 }
 
 export interface EnemySpec {
@@ -222,6 +313,14 @@ export interface BattleState {
    */
   modifiers: BattleModifiers;
   /**
+   * What she has leaned on, and until when.
+   *
+   * Empty for every fight nobody has cast a support spell in, which is
+   * every fight the game had before this existed — so a battle with no
+   * buffs in it multiplies by exactly what it always multiplied by.
+   */
+  boosts: readonly ActiveBoost[];
+  /**
    * What the next blow to reach the player is cut by, once.
    *
    * Zero when there is nothing. Unlike the modifiers above it is spent
@@ -351,6 +450,7 @@ export function createBattle(
     awakening: spec.awakening ?? null,
     lastHitRead: 'PLAIN',
     modifiers: { ...modifiers },
+    boosts: [],
     wardCut: 0,
     wardTurns: 0,
     wardName: null,
@@ -428,8 +528,8 @@ function enemyTurn(
   // still never be less than one.
   const warded = state.wardCut > 0;
   const struck = applyDamage(roll(state.enemyAttackMin, state.enemyAttackMax, rng), [
-    state.modifiers.enemyAttack,
-    state.modifiers.playerDamageTaken,
+    pull(state, 'enemyAttack'),
+    pull(state, 'playerDamageTaken'),
     // What being hurt has made of it. A creature that fights harder as
     // it is cornered is the difference between a health bar and an
     // animal that does not want to die.
@@ -490,8 +590,8 @@ export function playerAttack(
   // What this creature thinks of a sword. Most think nothing.
   const affinity = affinityMultiplier(state.enemyAffinity, 'PHYSICAL');
   const dmg = applyDamage(roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng), [
-    state.modifiers.playerAttack,
-    state.modifiers.enemyDamageTaken,
+    pull(state, 'playerAttack'),
+    pull(state, 'enemyDamageTaken'),
     guarded ? state.enemySkill!.damageTaken : 1,
     // Off balance and open. This is the reward for having broken it.
     staggered ? (state.enemyPoiseSpec?.staggerDamageTaken ?? 1) : 1,
@@ -586,13 +686,14 @@ export function castMagic(
   // creature answers, which is the only thing all three have in common.
   if (isMending(magic)) return castMending(state, magic, rng, forcedEnemyAction);
   if (isWarding(magic)) return castWarding(state, magic, rng, forcedEnemyAction);
+  if (isBoosting(magic)) return castBoost(state, magic, rng, forcedEnemyAction);
 
   const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
   const staggered = state.enemyStaggerTurns > 0;
   const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
   const affinity = affinityMultiplier(state.enemyAffinity, magic.type, magic.element);
   const dmg = applyDamage(magic.power, [
-    state.modifiers.enemyDamageTaken,
+    pull(state, 'enemyDamageTaken'),
     // A raised guard stops a blow. Whether it stops a spell is the
     // spell's business, and hers it does not — which is the reason to
     // ever cast one at something that has no opinion about magic.
@@ -675,6 +776,87 @@ function castMending(
     ],
   });
   return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * Her hand on one of the numbers, for a few turns.
+ *
+ * The third thing she can do with a turn that is not a blow, and the
+ * one that makes her a support rather than a second sword: it does
+ * nothing at all this turn and changes every turn after it. Which is
+ * also why it is only worth casting in a fight that is going to last —
+ * exactly the judgement the player should be making.
+ *
+ * A spell written as a boost with no boost on it takes the turn and the
+ * power and changes nothing, rather than throwing: content being wrong
+ * must not be able to end a fight in an error dialog.
+ */
+function castBoost(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+): BattleState {
+  const turnsTaken = state.turnsTaken + 1;
+  const boost = magic.boost;
+  // Measured from AFTER this turn, so a three-turn boost is live for
+  // the creature's reply to this cast and the two player turns that
+  // follow — which is what a player counting on their fingers expects.
+  const added: ActiveBoost[] = boost
+    ? [
+        {
+          stat: boost.stat,
+          factor: boost.factor,
+          until: turnsTaken + Math.max(1, Math.floor(boost.turns)),
+          name: magic.name,
+          kind: magic.effect === 'BUFF' ? 'BUFF' : 'DEBUFF',
+        },
+      ]
+    : [];
+  const next = awaken({
+    ...state,
+    playerMp: state.playerMp - magic.mpCost,
+    turnsTaken,
+    // Dropping the spent ones here is the only pruning there is: a
+    // fight that never casts one never grows the list, and one that
+    // casts twenty holds at most the live ones.
+    boosts: [...liveBoosts({ ...state, turnsTaken }), ...added],
+    // Nothing was struck, so the last thing struck is not news.
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      magic.line,
+      boost
+        ? `《${magic.name}》！ ${boostLine(magic, boost.turns)}`
+        : `《${magic.name}》……何も起こらなかった。`,
+    ],
+  });
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * What the player is told a boost did, in the words of the thing it
+ * moved.
+ *
+ * Read off `stat` rather than written into each spell, so a second
+ * spell that lowers the creature's attack says the same sentence as the
+ * first and nobody has to keep two strings in agreement.
+ */
+function boostLine(magic: MagicDef, turns: number): string {
+  const up = (magic.boost?.factor ?? 1) > 1;
+  const held = `（${Math.max(1, Math.floor(turns))}ターン）`;
+  switch (magic.boost?.stat) {
+    case 'playerAttack':
+      return `${up ? '攻撃力が上がった' : '攻撃力が下がった'}。${held}`;
+    case 'playerDamageTaken':
+      return `${up ? '受けるダメージが増えた' : '身が軽くなった'}。${held}`;
+    case 'enemyAttack':
+      return `${up ? '敵の攻撃が鋭くなった' : '敵の攻撃が鈍った'}。${held}`;
+    case 'enemyDamageTaken':
+      return `${up ? '敵の守りが緩んだ' : '敵の守りが固くなった'}。${held}`;
+    default:
+      return `${held}`;
+  }
 }
 
 /**

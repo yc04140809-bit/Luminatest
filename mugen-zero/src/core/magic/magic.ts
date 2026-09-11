@@ -13,8 +13,18 @@
 
 import type { DamageType, Element } from '../../game/battle/damageType';
 
-/** Who a spell is aimed at. */
-export type MagicTarget = 'ONE_ENEMY' | 'ALLY';
+/**
+ * Who a spell is aimed at.
+ *
+ * The vocabulary, not a targeting system. With one creature on the
+ * field and one party health bar there is nothing for a player to
+ * CHOOSE between yet, and a picker that always has one entry is a tap
+ * in the way of the fight. What this buys is that every spell already
+ * says who it reaches, so the day there are two creatures the picker is
+ * a screen reading `needsTargetChoice` — not a pass over the spell
+ * table deciding retroactively what each one meant.
+ */
+export type MagicTarget = 'ONE_ENEMY' | 'ALL_ENEMIES' | 'ALLY' | 'PARTY';
 
 /**
  * What it does when it gets there.
@@ -28,9 +38,42 @@ export type MagicTarget = 'ONE_ENEMY' | 'ALLY';
  * what happened — the helpers below are unchanged from the outside.
  *
  * 'DAMAGE' hurts the creature. 'MEND' puts health back. 'WARD' takes
- * the edge off the blows that are coming.
+ * the edge off the blows that are coming. 'BUFF' and 'DEBUFF' lean on
+ * one of the numbers the fight already multiplies by — hers upward,
+ * the creature's downward — for a few turns.
  */
-export type MagicEffect = 'DAMAGE' | 'MEND' | 'WARD';
+export type MagicEffect = 'DAMAGE' | 'MEND' | 'WARD' | 'BUFF' | 'DEBUFF';
+
+/**
+ * The four numbers a fight already multiplies a blow by.
+ *
+ * Named exactly as `BattleModifiers` names them, because a boost IS one
+ * of those numbers moving — there is no second system underneath this,
+ * no status register, no stack of icons with durations. The battle has
+ * always multiplied damage by four things; a buff is her hand on one of
+ * them for a few turns.
+ */
+export type BoostStat = 'playerAttack' | 'playerDamageTaken' | 'enemyAttack' | 'enemyDamageTaken';
+
+/**
+ * What she does to one of those numbers, and for how long.
+ *
+ * `factor` multiplies, so above one raises the number and below one
+ * lowers it — and whether that HELPS depends on which number it is: a
+ * factor of 1.3 on `playerAttack` is a gift and the same factor on
+ * `enemyAttack` is a curse. Which is why BUFF and DEBUFF are separate
+ * effects even though they run through identical code: the difference
+ * is what the player is told, not what the arithmetic does.
+ *
+ * The battle holds the ceiling on how far the whole stack may move, the
+ * same way it holds the ceiling on a ward. Content asks.
+ */
+export interface MagicBoost {
+  stat: BoostStat;
+  factor: number;
+  /** How many of the player's turns it holds for. */
+  turns: number;
+}
 
 /**
  * What a shield is worth, and for how long.
@@ -86,6 +129,8 @@ export interface MagicDef {
   effect: MagicEffect;
   /** Only for a 'WARD', and required for one. */
   ward?: MagicWard;
+  /** Only for a 'BUFF' or a 'DEBUFF', and required for one. */
+  boost?: MagicBoost;
   /** Which short piece of theatre the screen plays. Never a filename. */
   animation: string;
   unlock: MagicUnlock;
@@ -135,6 +180,25 @@ export function isMending(def: MagicDef): boolean {
 /** Whether this one puts something between the party and what is coming. */
 export function isWarding(def: MagicDef): boolean {
   return def.effect === 'WARD';
+}
+
+/** Whether this one leans on one of the numbers the fight multiplies by. */
+export function isBoosting(def: MagicDef): boolean {
+  return def.effect === 'BUFF' || def.effect === 'DEBUFF';
+}
+
+/**
+ * Whether the player has a choice to make about where this one goes.
+ *
+ * Answered from the candidates rather than from the spell, so it is
+ * false today for every spell she has — one creature, one party — and
+ * becomes true on its own the day a field holds two of anything. A
+ * screen that asks this and skips the picker when it says no is a
+ * screen that needs no change on that day.
+ */
+export function needsTargetChoice(def: MagicDef, candidates: number): boolean {
+  if (candidates <= 1) return false;
+  return def.target === 'ONE_ENEMY' || def.target === 'ALLY';
 }
 
 /**
