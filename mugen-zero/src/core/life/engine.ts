@@ -141,8 +141,24 @@ export function observe(
     metadata: doing.metadata ?? {},
   };
 
-  // A record is written whether or not anybody was changed by it. Most
-  // of what happens in a world changes nobody, and a history that only
+  return witness(state, memory, rules);
+}
+
+/**
+ * A record that already knows when it happened, taken in.
+ *
+ * The half of `observe` that is not about stamping the clock. It exists
+ * separately because canon arrives this way: a fact from WORLD MEMORY
+ * carries its own date, and replaying one must not re-date it to
+ * whenever the replay happens to be.
+ */
+export function witness(
+  state: WorldLifeState,
+  memory: WorldMemoryRecord,
+  rules: WorldLifeRules,
+): ObserveResult {
+  // A record is kept whether or not anybody was changed by it. Most of
+  // what happens in a world changes nobody, and a history that only
   // keeps the consequential parts is a history that has already decided
   // what was consequential.
   if (state.memories.some((held) => held.id === memory.id)) {
@@ -166,7 +182,7 @@ export function observe(
   });
 
   const before = new Set(state.blooms.map((bloom) => bloom.id));
-  const next = recompute({ ...state, now: state.now, memories, seeds: [...seeds, ...planted] }, rules);
+  const next = recompute({ ...state, memories, seeds: [...seeds, ...planted] }, rules);
   return {
     state: next,
     memory,
@@ -174,6 +190,35 @@ export function observe(
     fed: next.seeds.filter((seed) => fedIds.has(seed.id)),
     newBlooms: next.blooms.filter((bloom) => !before.has(bloom.id)).map((bloom) => bloom.id),
   };
+}
+
+/**
+ * THE WORLD AS THE LIFE ENGINE READS IT, built from canon.
+ *
+ * Every canonical fact taken in at the date it happened, in order, with
+ * the clock moved to each in turn — so a world rebuilt from a save is
+ * identical to one that was watched live. This is the only way the
+ * engine ever learns about canon, and it learns by reading.
+ *
+ * Nothing is written back. The events handed in are not modified, not
+ * re-ordered in their own store, and not added to.
+ */
+export function replayCanon(
+  state: WorldLifeState,
+  records: readonly WorldMemoryRecord[],
+  rules: WorldLifeRules,
+): WorldLifeState {
+  let world = state;
+  for (const record of records) {
+    const at = toAbsoluteDay(record.time);
+    const here = toAbsoluteDay(world.now);
+    // Canon that predates where the engine has got to is taken in
+    // without winding the clock back: history is allowed to arrive out
+    // of order, but time is not allowed to run backwards.
+    if (at > here) world = { ...world, now: record.time };
+    world = witness(world, record, rules).state;
+  }
+  return recompute(world, rules);
 }
 
 /**

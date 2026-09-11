@@ -256,3 +256,52 @@ test('the hub shows the causal chain from an action to a possible future', async
   await page.getByTestId('dev-admin-back').click();
   await expect(page.getByTestId('world-clock')).toContainText('1年目');
 });
+
+// GALD, HELP ROUTE — the engine's first vertical slice on a canonical
+// character, read where a person can actually look at it.
+test('the hub shows what three years did to a man who was helped', async ({ page }) => {
+  await newWorld(page);
+  await openHub(page);
+  await page.getByTestId('hub-section-gald-life').locator('summary').click();
+
+  const steps = page.getByTestId('hub-gald-life-steps');
+  await expect(steps).toBeVisible();
+  await expect(steps).toContainText('ACTION PLAYER_HELPED_GALD (PLAYER → GALD');
+  await expect(steps).toContainText('SEED 新規 GALD_REDEMPTION');
+  // The line that says the round's constraint out loud.
+  await expect(steps).toContainText('この時点で更生は確定していない');
+  await expect(steps).toContainText('CANON  +124日 GALD_BECOMES_HEALER');
+  await expect(steps).toContainText('かつて追われていた男が、衛兵と普通に話している');
+
+  const trace = page.getByTestId('hub-gald-life-trace');
+  // His side: the debt, what fed it, and who it points at.
+  await expect(trace).toContainText('SEED   GALD_REDEMPTION ROOTED');
+  await expect(trace).toContainText('FROM ACTION PLAYER_HELPED_GALD by PLAYER');
+  await expect(trace).toContainText('VINE   INSPIRED_BY → PLAYER');
+  // And the guard's, which nobody acted on at all.
+  await expect(trace).toContainText('SEED   GUARD_WARINESS FADED');
+  await expect(trace).toContainText('GUARD_STOPS_WATCHING_HIM CANDIDATE');
+  // The future this route does not reach, with the reason it is waiting.
+  await expect(trace).toContainText('GALD_RETURNS_TO_THE_VILLAGE まだ');
+
+  // Nothing the player can read as a score.
+  await expect(trace).not.toContainText('+5');
+  await expect(page.getByTestId('world-clock')).toHaveCount(0);
+});
+
+// And the same rules read off the world the tester is actually in.
+// On a fresh world that is almost nothing, which is exactly what it
+// should say: the player has not done anything to him yet.
+test('the hub reads this playthrough through the same engine', async ({ page }) => {
+  await newWorld(page);
+  await openHub(page);
+  await page.getByTestId('hub-section-gald-live').locator('summary').click();
+
+  const live = page.getByTestId('hub-gald-live');
+  await expect(live).toBeVisible();
+  // The greenwood's own past is there before the player does anything.
+  await expect(live).toContainText('SEED   GUARD_WARINESS');
+  // And nothing of the player's is, because they have not met him.
+  await expect(live).toContainText('SEED   なし');
+  await expect(live).toContainText('GALD_AND_THE_GUARD_SPEAK まだ');
+});

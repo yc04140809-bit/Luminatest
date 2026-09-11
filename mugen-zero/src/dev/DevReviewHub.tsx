@@ -5,7 +5,10 @@ import { direct } from '../core/experience/director';
 import { buildQaReport, renderQaReportMarkdown } from '../core/qa/qaReport';
 import type { QaStatus } from '../core/qa/types';
 import { collectQaInput } from './qaSnapshot';
-import { runAldenDemo } from './worldLifeDemo';
+import { runAldenDemo, runGaldHelpDemo } from './worldLifeDemo';
+import { readGaldLife, GALD_LIFE_RULES } from '../core/life/galdReading';
+import { traceNpc } from '../core/life/engine';
+import { ALDEN_GUARD, GALD } from '../content/world/galdLife';
 
 interface Props {
   world: World;
@@ -417,6 +420,26 @@ export function DevReviewHub({ world, onBack }: Props) {
         <Section title="WORLD LIFE ENGINE / ALDEN" id="world-life">
           <WorldLifeTrace />
         </Section>
+
+        {/* ---- GALD, HELP ROUTE ----
+
+            The engine's first vertical slice on a canonical character.
+            What is worth reading here is how little of it is the
+            player: one action at the top, and then canon firing on its
+            own and three years of nothing happening to a guard. */}
+        <Section title="WORLD LIFE ENGINE / GALD (HELP)" id="gald-life">
+          <GaldLifeTrace />
+        </Section>
+
+        {/* ---- THIS SAVE ----
+
+            The same rules, read off the world the tester is actually
+            in. Almost always shorter than the demonstration above, and
+            that is the point: it says what THIS playthrough has done to
+            him so far, which on day one is nothing. */}
+        <Section title="WORLD LIFE ENGINE / THIS WORLD" id="gald-live">
+          <GaldLiveTrace world={world} />
+        </Section>
       </div>
       <div className="screen-footer">
         <button className="btn" data-testid="hub-back" onClick={onBack}>
@@ -602,20 +625,14 @@ function Row({ label, value }: { label: string; value: string }) {
  */
 function WorldLifeTrace() {
   const demo = runAldenDemo();
-  const line: React.CSSProperties = {
-    whiteSpace: 'pre-wrap',
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    fontSize: 11,
-    lineHeight: 1.5,
-  };
   return (
     <div data-testid="hub-world-life">
-      <div className="location-desc" style={line} data-testid="hub-world-life-steps">
+      <div className="location-desc" style={TRACE} data-testid="hub-world-life-steps">
         {demo.steps.join('\n')}
       </div>
       <div
         className="location-desc"
-        style={{ ...line, marginTop: 8 }}
+        style={{ ...TRACE, marginTop: 8 }}
         data-testid="hub-world-life-trace"
       >
         {demo.trace.join('\n')}
@@ -623,6 +640,61 @@ function WorldLifeTrace() {
     </div>
   );
 }
+
+/**
+ * The HELP route, three years of it, both men.
+ *
+ * Read-only in the strongest sense available: it is built from a
+ * demonstration history of its own rather than from the player's world,
+ * so opening this panel cannot touch a save and cannot be confused with
+ * one. What it shows is the ENGINE, not this playthrough.
+ */
+function GaldLifeTrace() {
+  const demo = runGaldHelpDemo();
+  return (
+    <div data-testid="hub-gald-life">
+      <div className="location-desc" style={TRACE} data-testid="hub-gald-life-steps">
+        {demo.steps.join('\n')}
+      </div>
+      <div
+        className="location-desc"
+        style={{ ...TRACE, marginTop: 8 }}
+        data-testid="hub-gald-life-trace"
+      >
+        {[...demo.gald, '', ...demo.guard].join('\n')}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What the player's own world has made of him, as of right now.
+ *
+ * Derived from canon on every render and stored nowhere — there is no
+ * life-engine save — so this cannot disagree with the history above it
+ * on this same screen. Read-only, like everything else in the hub.
+ */
+function GaldLiveTrace({ world }: { world: World }) {
+  const life = readGaldLife(world.getEvents(), world.getClock());
+  const lines = [
+    ...traceNpc(life, GALD_LIFE_RULES, GALD),
+    '',
+    ...traceNpc(life, GALD_LIFE_RULES, ALDEN_GUARD),
+  ];
+  return (
+    <div className="location-desc" style={TRACE} data-testid="hub-gald-live">
+      {lines.join('\n')}
+    </div>
+  );
+}
+
+/** Traces are read as columns of facts, so they are set as one. */
+const TRACE: React.CSSProperties = {
+  whiteSpace: 'pre-wrap',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 11,
+  lineHeight: 1.5,
+};
 
 function Section({
   title,

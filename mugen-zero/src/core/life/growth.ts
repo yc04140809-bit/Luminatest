@@ -68,12 +68,31 @@ export function strengthAt(seed: WorldSeed, kind: SeedKindDef, now: WorldClock):
     { at: planted, amount: seed.strength },
     ...seed.fedBy.map((fed) => ({ at: toAbsoluteDay(fed.at), amount: fed.amount })),
   ];
-  let raw = 0;
+  const raw = Math.min(1, totalAt(deposits, keeps(seed, kind), today));
+  if (!kind.permanentOnceRooted) return raw;
+
+  // Something that cannot be undone, once it genuinely happened. The
+  // peak is always the day of the last deposit — every deposit only
+  // wears down from where it went in, so nothing can be higher later —
+  // which means asking whether it EVER rooted costs one more sum and
+  // needs nothing remembered.
+  const last = deposits.reduce((latest, deposit) => Math.max(latest, deposit.at), planted);
+  const peak = Math.min(1, totalAt(deposits, keeps(seed, kind), last));
+  return peak >= ROOTED_AT ? Math.max(ROOTED_AT, raw) : raw;
+}
+
+/** Every deposit worn down to one day, and added up. */
+function totalAt(
+  deposits: readonly { at: number; amount: number }[],
+  keeps: number,
+  day: number,
+): number {
+  let total = 0;
   for (const deposit of deposits) {
-    const days = Math.max(0, today - deposit.at);
-    raw += deposit.amount * Math.pow(keeps(seed, kind), days / 100);
+    const days = Math.max(0, day - deposit.at);
+    total += deposit.amount * Math.pow(keeps, days / 100);
   }
-  return Math.min(1, raw);
+  return total;
 }
 
 /** What a hundred days takes off it, given how deep it already is. */

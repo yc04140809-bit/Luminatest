@@ -47,22 +47,33 @@ export function checkBloom(def: WorldBloomDef, input: BloomInput): BloomCheck {
   const reasons: { requirement: string; met: boolean; detail: string }[] = [];
 
   for (const want of def.requirements.seeds) {
-    const stored = seeds.find(
-      (seed) => seed.targetNpcId === def.npcId && seed.type === want.type,
-    );
+    const whose = want.npcId ?? def.npcId;
+    const label =
+      `seed ${want.type}` +
+      (whose === def.npcId ? '' : ` of ${whose}`) +
+      (want.atLeast ? ` ≥ ${want.atLeast}` : '') +
+      (want.atMost ? ` ≤ ${want.atMost}` : '');
+    const stored = seeds.find((seed) => seed.targetNpcId === whose && seed.type === want.type);
     const kind = stored ? seedKind(kinds, stored.type) : null;
+
     if (!stored || !kind) {
-      reasons.push({
-        requirement: `seed ${want.type} ≥ ${want.atLeast}`,
-        met: false,
-        detail: 'まだ蒔かれていない',
-      });
+      // Never planted. That fails a floor and — unless the content says
+      // otherwise — satisfies a ceiling: somebody who never had it does
+      // not have it now.
+      const met = want.atLeast === undefined && (want.absentCounts ?? true);
+      reasons.push({ requirement: label, met, detail: 'まだ蒔かれていない' });
       continue;
     }
     const seed = grownSeed(stored, kind, now);
-    const met = atLeast(seed.status, want.atLeast);
+    // Content that bounds a seed neither way has asked nothing; saying
+    // so out loud beats silently passing a requirement nobody wrote.
+    const bounded = want.atLeast !== undefined || want.atMost !== undefined;
+    const met =
+      bounded &&
+      (want.atLeast === undefined || atLeast(seed.status, want.atLeast)) &&
+      (want.atMost === undefined || !atLeast(seed.status, want.atMost) || seed.status === want.atMost);
     reasons.push({
-      requirement: `seed ${want.type} ≥ ${want.atLeast}`,
+      requirement: bounded ? label : `${label} (条件が書かれていない)`,
       met,
       detail: `${seed.status} (${seed.strength.toFixed(2)})`,
     });

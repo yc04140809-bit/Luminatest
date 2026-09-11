@@ -31,12 +31,21 @@ export interface WorldActionDef {
    *
    * 'TARGET'    the person it was done to, and nobody else
    * 'WITNESSES' everyone who was there, the target included
+   * 'ACTOR'     the person who did it, and nobody else
    *
    * A kindness done to one person in an empty room and the same
    * kindness done in a crowded square are different events in a living
-   * world, and this one field is the difference.
+   * world, and this field is the difference.
+   *
+   * 'ACTOR' is the one that needs saying out loud, because the default
+   * everywhere else is that doing a thing does not plant it in
+   * yourself — otherwise the player would germinate their own futures
+   * every time they cast a spell. But a man walking out of the forest
+   * with nobody watching is a thing that happens TO him, done BY him,
+   * and it is most of what actually changes anybody. Content has to ask
+   * for it, one entry at a time.
    */
-  reaches: 'TARGET' | 'WITNESSES';
+  reaches: 'TARGET' | 'WITNESSES' | 'ACTOR';
 }
 
 /**
@@ -65,6 +74,22 @@ export interface SeedKindDef {
    * about the wanting, not about the wanter.
    */
   keepsPer100Days: number;
+  /**
+   * Whether reaching ROOTED is a thing that cannot be undone.
+   *
+   * The difference between a wanting and a change. A dream can be let
+   * go of — Lina may stop practising behind the well, and a world where
+   * she cannot has no room for anybody giving up on anything. But a man
+   * who spent four months binding other people's wounds has not got a
+   * strong opinion, he has become somebody, and six quiet years do not
+   * put him back where he started.
+   *
+   * Off unless content asks for it, because the honest default is that
+   * things fade. Where it is on, the seed's strength never falls below
+   * the rooting threshold once it has genuinely been there — it can
+   * still deepen, and everything above the threshold still wears.
+   */
+  permanentOnceRooted?: boolean;
   /** What it is called where a developer has to read a trace. */
   label: string;
 }

@@ -70,7 +70,9 @@ export interface WorldMemoryRecord {
  *
  * 'DORMANT' landed, but has not taken
  * 'GROWING' taking, and would still fade if left
- * 'ROOTED'  part of who they are now; it will not simply go away
+ * 'ROOTED'  part of who they are now — and whether that can ever be
+ *           undone is the seed kind's business, not this type's: a
+ *           dream can be let go of, becoming somebody cannot
  * 'FADED'   nothing fed it and it is gone
  *
  * Read from strength rather than stored, so there is no state machine
@@ -177,12 +179,45 @@ export interface WorldBloomDef {
 }
 
 export interface BloomRequirements {
-  /** Seeds that must be in them, at least this grown. */
-  seeds: readonly { type: string; atLeast: SeedStatus }[];
+  /** What must be true of somebody's seeds. Usually their own. */
+  seeds: readonly SeedRequirement[];
   /** A line that must be held, if the shape needs one. */
   vine?: { target: WorldActorId; relationType: string };
   /** How long the world must have had to work on it, in days. */
   afterDays?: number;
+}
+
+/**
+ * ONE THING THAT MUST BE TRUE OF SOMEBODY, for a life to take a shape.
+ *
+ * `npcId` is the reason this is an interface rather than a pair: a
+ * future is very often not about one person. Whether a man who used to
+ * be hunted can stand in a village square and be spoken to normally is
+ * half about him and half about the man who used to hunt him, and a
+ * requirement that could only ask about one of them could not say so.
+ * Left out, it means the person whose bloom this is.
+ *
+ * `atMost` is the other half of the same thought. Most of what has to
+ * happen for somebody to be forgiven is something ELSE wearing out —
+ * so a requirement has to be able to say "and this has faded", not only
+ * "and this has grown". A requirement with neither bound asks nothing
+ * and is content being wrong; it is treated as unmet and says so.
+ */
+export interface SeedRequirement {
+  /** Whose seed. Defaults to the bloom's own npcId. */
+  npcId?: string;
+  type: string;
+  atLeast?: SeedStatus;
+  /** No further along than this. 'FADED' means gone. */
+  atMost?: SeedStatus;
+  /**
+   * Whether never having had it at all satisfies an `atMost`.
+   *
+   * True by default and it matters: a guard who was never wary of this
+   * man is not a guard whose wariness is unresolved. Set false where
+   * the seed having existed is part of the point.
+   */
+  absentCounts?: boolean;
 }
 
 export interface WorldBloom {

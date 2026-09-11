@@ -55,14 +55,18 @@ export interface SowInput {
 /**
  * Everyone this particular doing reaches, in the order it reaches them.
  *
- * The actor is never among them: doing a thing does not plant it in
- * yourself, and a world where it did would have the player germinating
- * their own futures every time they cast a spell.
+ * The actor is not among them unless the action says 'ACTOR'. The
+ * default matters — a world where doing a thing planted it in yourself
+ * would have the player germinating their own futures every time they
+ * cast a spell — and so does the exception: a man who walks out of a
+ * forest and spends four months binding other people's wounds is
+ * changed by that, and nobody was watching.
  */
 export function reachedBy(
   memory: WorldMemoryRecord,
   def: WorldActionDef,
 ): readonly string[] {
+  if (def.reaches === 'ACTOR') return [memory.actor];
   const reached =
     def.reaches === 'TARGET'
       ? memory.target
