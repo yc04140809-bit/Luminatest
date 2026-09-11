@@ -2530,10 +2530,22 @@ body,
   padding: 6px 12px 7px;
   border: 1px solid rgba(198, 166, 96, 0.55);
   border-radius: 4px;
-  background: rgba(26, 28, 22, 0.62);
+  /* Raised from 0.62. The plate was legible only because of the blur
+     below it, and the blur is the part that is not guaranteed: Safari
+     drops a backdrop-filter inside a transformed ancestor, and the
+     stage IS transformed whenever it is scaled to fit. At 0.72 the
+     text reads on its own and the blur is a nicety on top. */
+  background: rgba(26, 28, 22, 0.72);
   /* The second hairline is what makes it a plate rather than a box. */
   box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.16);
+  /* Both spellings. Safari wanted the prefixed one for years and this
+     file had only the bare one, so on those phones the blur simply was
+     not there — which is why the alpha above had to carry it alone. */
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
+  /* Its own layer, so Safari repaints it rather than leaving a stale
+     smear behind when the thing underneath moves. */
+  transform: translateZ(0);
   color: #f1ece0;
 }
 /* ---- the top band: who is in this ----
@@ -3787,7 +3799,9 @@ body,
      chip borrowed from the old palette. Slightly translucent so the key
      visual behind it is never quite hidden. */
   background: rgba(255, 253, 248, 0.86);
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
+  transform: translateZ(0);
   color: var(--mugen-text-muted);
   box-shadow: var(--mugen-shadow-soft);
   font-family: inherit;
