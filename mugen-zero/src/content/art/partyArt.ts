@@ -48,11 +48,13 @@ export const HERO_ART: PartyArtSet = {
     // rectangle that can go stale.
     battle_idle: {
       src: BATTLE_FIGURES.hero,
+      // He holds the sword up and across to his left and looks along
+      // it, so the drawing already faces the way the party does.
       facing: 'left',
       // His head, measured in the file, for the turn order and the
-      // party card. Without it the top-third rule crops his raised
+      // party HUD. Without it the top-third rule crops his raised
       // sword arm and half a cloak.
-      face: { fileW: 1024, fileH: 1536, x: 540, y: 20, width: 280, height: 280 },
+      face: { fileW: 1024, fileH: 1536, x: 300, y: 235, width: 195, height: 195 },
     },
     // The exploration sprite he used to fight in, kept as the whole-body
     // fallback for anything that has no drawing yet.
@@ -71,10 +73,20 @@ export const KAOS_ART: PartyArtSet = {
   states: {
     battle_idle: {
       src: BATTLE_FIGURES.kaos,
+      /**
+       * FACING, AND WHY IT MUST STAY 'left'.
+       *
+       * She is drawn reaching across to her right — the viewer's left —
+       * which is the way the party looks, so she is never flipped. That
+       * is not a preference: her white wing is on HER right and her
+       * black on HER left, and her right eye is gold and her left blue.
+       * Mirroring the drawing would swap all four, and the wings are
+       * CANON. A flip here is a lie about who she is.
+       */
       facing: 'left',
-      // Hers, between the two wings. The top third of her file is
+      // Her face, between the two wings. The top third of her file is
       // almost entirely wing, which is a beautiful crop of nobody.
-      face: { fileW: 1374, fileH: 1145, x: 610, y: 5, width: 290, height: 290 },
+      face: { fileW: 1024, fileH: 1536, x: 470, y: 195, width: 180, height: 180 },
     },
     fullbody: {
       src: KAOS_LEFT.url,
@@ -119,7 +131,17 @@ export const GALD_ART: PartyArtSet = {
   states: {
     // His fighting pose, delivered as a transparent PNG. He stands on
     // the left of the field and looks across it, so he faces right.
-    battle_idle: { src: BATTLE_FIGURES.gald, facing: 'right' },
+    battle_idle: {
+      src: BATTLE_FIGURES.gald,
+      // HIS DRAWING FACES LEFT — he lunges across to the viewer's left
+      // with both daggers out. He fights from the LEFT of the field and
+      // has to look across it, so this one IS mirrored. Nothing about
+      // him is handed: no wings, no eye colours, no asymmetric mark, so
+      // the mirror costs nothing and the alternative is a bandit
+      // attacking the trees.
+      facing: 'left',
+      face: { fileW: 1536, fileH: 1024, x: 1105, y: 175, width: 190, height: 190 },
+    },
     // Beaten and on one knee, twice: the same drawing with two
     // mattes, each in the place it is for.
     //

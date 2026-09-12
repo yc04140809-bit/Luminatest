@@ -58,7 +58,7 @@ import {
 } from '../cinematic/accidentCinematic';
 import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
-import { PartyCard, Readout, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
+import { PartyCard, PartyHud, Readout, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
 import {
   actingSideOf,
   memoryDepth,
@@ -1131,7 +1131,7 @@ export function BattleUIPrototype({
             <b>{placeMark}</b>
             <i>{placeName}</i>
           </div>
-          <div className="bx-party" data-testid="bx-party">
+          <PartyHud>
             {/* His health is what the fight keeps; the magic is hers.
                 Each card carries the one it has and says 「—」 on the
                 other, which is the truth until B-2 splits the pools. */}
@@ -1155,7 +1155,7 @@ export function BattleUIPrototype({
               }
               testId="bx-member-kaos"
             />
-          </div>
+          </PartyHud>
         </div>
 
         {/* LEFT BOTTOM — what the world has written down so far. */}

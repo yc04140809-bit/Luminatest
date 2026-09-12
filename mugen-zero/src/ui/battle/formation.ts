@@ -48,17 +48,24 @@ export const MAX_PARTY = 4;
  * the one number that turns a share of the OLD field into a share of
  * the new one.
  *
- * It is UNDER that ratio rather than equal to it, and by a real margin:
- * at parity everybody would be exactly the size they were, and the
- * brief asks for characters a little smaller than that with real ground
- * between them — and for a field that still reads when there are four
- * of them standing on it rather than two. At 0.5 the hero is about a
- * fifth shorter on screen than he was.
+ * It is UNDER that ratio rather than equal to it: at parity everybody
+ * would be exactly the size they were, and the brief asks for
+ * characters a little smaller than that with real ground between them —
+ * and for a field that still reads when there are four of them standing
+ * on it rather than two.
+ *
+ * RAISED FROM 0.5 once the party HUD stopped being a stack of framed
+ * cards. That column was a third of the screen's height and the cast
+ * had been shrunk to stay clear of it; the HUD is now a single panel a
+ * little over a quarter as tall, and the room it gave back belongs to
+ * the people on the field. The ceiling is what the top corners leave:
+ * the tallest head reaches about 0.63 of the field and the panels stop
+ * around 0.67.
  *
  * Applied by the battle screen at the point of drawing, so no other
  * screen in the game so much as notices.
  */
-export const FIELD_FIGURE_SCALE = 0.5;
+export const FIELD_FIGURE_SCALE = 0.56;
 
 /**
  * The formations, one row per party size.
@@ -186,14 +193,23 @@ export const PROTOTYPE_PLACEMENTS = {
    * camera, which is also the truth about the fight. You are at arm's
    * length from a man with a knife and half a clearing from a rabbit.
    */
-  enemyNear: { edge: 'left', inset: 0.06, bottom: 0.28 },
-  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.24 },
+  enemyNear: { edge: 'left', inset: 0.06, bottom: 0.26 },
+  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.23 },
   /**
    * He is nearest, on the right, between her and it. Nearest means
    * largest, but only just: too much and he stops being a person
    * standing closer and becomes a giant.
+   *
+   * HOW FAR IN HE MAY STAND IS FENCED ON BOTH SIDES. The camera
+   * reaches 0.14 further at the moment of contact, so a swing from much
+   * past a third of the field would carry him over the middle of it and
+   * through the creature he is swinging at — battleCamera.test.ts holds
+   * that. And a called memory stands at 0.46, in front of him, so he
+   * cannot walk forward into its place either: summon.spec.ts holds
+   * that one. Between the two there is about a fiftieth of the field to
+   * move in, and this is where it sits.
    */
-  hero: { edge: 'right', inset: 0.32, bottom: 0.27, depth: 2 },
+  hero: { edge: 'right', inset: 0.33, bottom: 0.27, depth: 2 },
   /**
    * She is a step behind him and a little further back, close enough to
    * read as one party rather than two people on the same side. Her wings
@@ -203,7 +219,7 @@ export const PROTOTYPE_PLACEMENTS = {
    * corner, and a wing disappearing under a panel is the one thing this
    * layout must not do.
    */
-  kaos: { edge: 'right', inset: 0.14, bottom: 0.33, depth: 1 },
+  kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
   /**
    * The player's side, in front of both of them: clear of the hero's
    * shoulder on one side and — because it stands much lower down the

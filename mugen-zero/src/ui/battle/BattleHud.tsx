@@ -227,7 +227,30 @@ export function Readout({
 }
 
 /**
- * One member of the party, on the right, in the pack's own card.
+ * THE PARTY, as one HUD rather than a stack of cards.
+ *
+ * It was one framed card per member, and at two members that was a
+ * third of the screen's height down the right-hand side — at four it
+ * would have been two thirds, which is the whole party column eating
+ * the battlefield it is supposed to sit beside.
+ *
+ * So the frame is drawn ONCE, around all of them, and each member is a
+ * row inside it: face, name, health, magic. Four rows cost four row
+ * heights and one frame, not four frames. That is the "一体化" the brief
+ * asks for, and it is also what makes a third and a fourth member a
+ * longer list rather than a different layout.
+ */
+export function PartyHud({ children }: { children: ReactNode }) {
+  return (
+    <div className="bx-party" data-testid="bx-party">
+      <span className="bx-panel-label">PARTY</span>
+      <div className="bx-party-rows">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * One member of the party, as a row of that HUD.
  *
  * BOTH RAILS ARE ALWAYS DRAWN, because the frame draws both: a card
  * with one of them blanked out would be a broken picture. What varies
@@ -261,12 +284,13 @@ export function PartyCard<S extends string>({
   return (
     <div className="bx-member" data-testid={testId}>
       {art ? (
-        <FaceMark art={art} size={38} label={name} />
+        <FaceMark art={art} size={30} label={name} />
       ) : (
         <span className="bx-face bx-face-blank" aria-hidden="true" />
       )}
       <span className="bx-member-head">
         <b className="bx-member-name">{name}</b>
+        <i className="bx-member-role">{role}</i>
         {/* Whichever of the two this member actually has — and it
             carries the testid, because it is where the number IS. A bar
             with no numeral on it is not what "read the health" means. */}
@@ -276,11 +300,10 @@ export function PartyCard<S extends string>({
           testId={hp.now !== null ? hp.testId : mp.testId}
         />
       </span>
-      <span className="bx-member-role" aria-hidden="true">
-        {role}
+      <span className="bx-member-bars">
+        <Meter kind="hp" now={hp.now} max={hp.max} bare />
+        <Meter kind="mp" now={mp.now} max={mp.max} bare />
       </span>
-      <Meter kind="hp" now={hp.now} max={hp.max} bare />
-      <Meter kind="mp" now={mp.now} max={mp.max} bare />
     </div>
   );
 }

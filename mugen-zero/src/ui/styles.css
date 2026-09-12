@@ -2800,14 +2800,11 @@ body,
 .bx-turn.acting {
   opacity: 1;
 }
-.bx-turn.acting .bx-face {
-  box-shadow: 0 0 12px rgba(243, 226, 182, 0.75);
-}
-/* The face inside the plate is lifted a little: these are 27 pixels of
+/* The face inside the plate is lifted a little: these are 26 pixels of
    somebody's head against a forest, and a dark-haired man at that. */
 .bx-face-art { filter: brightness(1.12) contrast(1.06); }
-.bx-turn:not(.acting) { opacity: 0.66; }
-.bx-turn:not(.acting) .bx-face-art { filter: brightness(0.92) saturate(0.85); }
+.bx-turn:not(.acting) { opacity: 0.62; }
+.bx-turn:not(.acting) .bx-face-art { filter: brightness(0.9) saturate(0.82); }
 .bx-turn.acting .bx-face-frame {
   filter: drop-shadow(0 0 5px rgba(243, 226, 182, 0.9)) brightness(1.15);
 }
@@ -2838,56 +2835,53 @@ body,
 }
 
 /* ---- a face, in a diamond ---- */
-/* A face in the pack's own octagonal portrait plate. The picture is
-   clipped to the octagon and the DELIVERED FRAME is laid over it, so
-   the gold edge is the drawn one rather than an approximation of it. */
+/* A face in the pack's own octagonal portrait plate.
+
+   THE FRAME GOES BEHIND, NOT OVER. It was drawn over the picture and
+   its gold bottom edge landed across everybody's chin, so a strip of
+   hair was all a 26-pixel slot ever showed. The plate is now the
+   frame's own shape — 96 by 108, so slightly taller than wide, which
+   is what the pack drew — with the frame filling it underneath and the
+   face centred on top, clipped to the same octagon the frame is cut to.
+   The gold then reads as a ring around a face rather than a bar across
+   one. */
 .bx-face {
   position: relative;
   display: block;
-  overflow: hidden;
   flex: 0 0 auto;
-  background: rgba(4, 9, 22, 0.62);
-  clip-path: polygon(
-    22% 0,
-    78% 0,
-    100% 22%,
-    100% 78%,
-    78% 100%,
-    22% 100%,
-    0 78%,
-    0 22%
-  );
+  overflow: visible;
+  background: none;
 }
-/* The frame itself, over the face. `turn-slot` is 96x108, so the plate
-   is drawn a little taller than it is wide — its own proportions, not
-   squared off. */
 .bx-face-frame {
   position: absolute;
-  left: -8%;
-  top: -8%;
-  width: 116%;
-  height: 116%;
+  inset: -7% -9%;
+  z-index: 0;
   background-image: var(--ui-turn-slot);
   background-size: 100% 100%;
   background-repeat: no-repeat;
   pointer-events: none;
 }
 .bx-face-art {
-  /* The crop already picks out the head; this only stops a wide
-     drawing from pushing its own box sideways out of the diamond. */
   position: absolute;
   left: 50%;
-  top: 0;
-  transform: translateX(-50%);
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  background-color: rgba(4, 9, 22, 0.55);
+  clip-path: polygon(
+    24% 2%,
+    76% 2%,
+    98% 24%,
+    98% 76%,
+    76% 98%,
+    24% 98%,
+    2% 76%,
+    2% 24%
+  );
 }
-.bx-turn.acting .bx-face-art,
 .bx-face-blank {
-  /* A blank is a face that has not loaded, not a missing person. */
-  background-color: rgba(4, 9, 22, 0.6);
-}
-.bx-face-blank {
-  width: 27px;
-  height: 27px;
+  width: 26px;
+  height: 29px;
 }
 
 /* ---- the creature's plate: the pack's frame, at its own shape -------
@@ -2929,26 +2923,35 @@ body,
   text-overflow: ellipsis;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
+/* ITS HEALTH, DRAWN THICKER THAN THE RAIL UNDER IT.
+   The pack's plate draws a rail 10.8% of its own height, which at the
+   size a phone runs this at is six pixels — right on paper and hard to
+   read in a fight. The live bar is drawn at 17% instead, centred on
+   that rail, with the pack's own empty rail behind it so the thicker
+   bar still sits in something rather than floating. The creature's
+   health is the one number the player checks most, and it is the one
+   the brief asked to make unmistakable. */
 .bx-enemy-plate .bx-meter {
   position: absolute;
   left: 24.5%;
   right: 9%;
-  top: 53.3%;
-  height: 10.8%;
+  top: 50.2%;
+  height: 17%;
   display: flex;
   align-items: center;
   gap: 6px;
 }
-/* Its plate carried a specimen bar too, emptied the same way. */
+/* Its plate carried a specimen bar too, emptied the same way — and
+   the rail is drawn HERE rather than left to the frame, because the
+   live bar is thicker than the frame's own rail. */
 .bx-enemy-plate .bx-meter-track {
-  background-image: none;
   height: 100%;
 }
 /* The creature's number goes on its name line for the same reason the
    party's does: the rail the pack draws is a bar, not a page. */
 .bx-enemy-read {
   flex: 0 0 auto;
-  font-size: 8.5px;
+  font-size: 8px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
@@ -3031,115 +3034,109 @@ body,
    A column, capped at four, and each card the same height whether it is
    showing a bar or a word — so a third and a fourth member arriving is
    a longer list and not a different layout. */
-/* ---- the party, down the right, on the pack's own cards ------------
-   `party-card.png` is 560x201 and each card is drawn at exactly that
-   ratio, so the frame is never distorted. Everything inside is placed
-   in MEASURED FRACTIONS OF THE CARD — the portrait window the frame
-   leaves open at x 9.5%-30%, the health rail at y 46.3%-52.7%, the
-   magic rail at y 62.7%-69.2% — so the live numbers land on the drawn
-   rails at whatever width the column ends up. Those fractions were read
-   off the file, not guessed: see the note in the commit. */
+/* ---- the party: ONE HUD down the right, not a stack of cards -------
+   It was one of the pack's framed cards per member, and at two of them
+   that was a third of the screen's height; at four it would have been
+   two thirds. The frame is drawn once now and the members are rows
+   inside it — four rows and one frame instead of four frames — which is
+   both the compaction the brief asks for and what keeps a four-person
+   party a longer list rather than a different layout.
+
+   The frame is the pack's message window, nine-sliced, so the ornament
+   at each end is drawn at its own proportions however tall the list
+   gets. The bars are the pack's own, revealed. */
 .bx-party {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  width: clamp(146px, calc(var(--stage-w, 100vw) * 0.215), 188px);
-}
-.bx-member {
-  position: relative;
-  aspect-ratio: 560 / 201;
-  display: block;
-  padding: 0;
-  border: 0;
-  background-image: var(--ui-party-card);
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  /* Wide enough that the frame's ornate ends are a border and not a
+     third of the panel: at 148 with a 17px end on each side the rows
+     had 114 pixels to live in. */
+  width: clamp(168px, calc(var(--stage-w, 100vw) * 0.235), 208px);
+  padding: 3px 4px 5px;
+  border: 0 solid transparent;
+  border-width: 7px 13px;
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
+  background-clip: padding-box;
+  border-image-source: var(--ui-message);
+  border-image-slice: 25 95 fill;
+  border-image-repeat: stretch;
   color: var(--bx-ink);
 }
-/* The face goes IN the window the frame leaves open, behind the gold. */
-.bx-member .bx-face {
-  position: absolute;
-  left: 9.5%;
-  top: 15%;
-  width: 20.5%;
-  height: 70%;
-  clip-path: none;
-  background: rgba(4, 9, 22, 0.5);
+.bx-party > .bx-panel-label {
+  font-size: 7.5px;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  margin-bottom: 2px;
 }
-.bx-member .bx-face-frame { display: none; }
-.bx-member-body { display: contents; }
-.bx-member-head {
-  position: absolute;
-  left: 40.7%;
-  right: 5.5%;
-  top: 24%;
-  height: 18%;
+.bx-party-rows {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 4px;
+}
+/* One member: a face, a name and two rails, on one line each. */
+.bx-member {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 2px;
+}
+.bx-member .bx-face {
+  grid-row: 1 / span 2;
+  width: 28px;
+  height: 31px;
+}
+.bx-member .bx-face-frame { display: block; }
+.bx-member-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px;
   min-width: 0;
 }
 .bx-member-name {
   overflow: hidden;
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   white-space: nowrap;
   text-overflow: ellipsis;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
-/* The two rails, exactly where the frame draws them. */
-.bx-member .bx-meter {
-  position: absolute;
-  left: 40.7%;
-  right: 5.5%;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.bx-member .bx-meter.hp { top: 46.3%; height: 6.4%; }
-.bx-member .bx-meter.mp { top: 62.7%; height: 6.5%; }
-/* THE CARD'S RAILS ARE EMPTY IN THE FILE. The pack drew specimen bars
-   into them — a full red one and a full blue one — and a card that
-   showed those would say a member is at full health whatever the fight
-   thinks, including a member this fight keeps no number on at all. So
-   the pack's own empty rail was laid into both of them when the piece
-   was cut (see the README), and the only bar on a card is the live one.
-   The track therefore draws no rail of its own: the frame has it. */
-.bx-member .bx-meter-track {
-  background-image: none;
-  height: 100%;
-}
-/* A card's meter is a BAR AND NOTHING ELSE: its number is on the name
-   line, where there is room for one. The meter is asked not to RENDER
-   one rather than told to hide it — see `bare` in BattleHud. */
 .bx-member-read {
   flex: 0 0 auto;
   font-size: 8.5px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
 .bx-member-read b { font-weight: 400; opacity: 0.5; }
 .bx-member-read.blank { opacity: 0.45; }
-/* The role word sits under the name, clear of both rails. */
+/* The two rails, stacked under the name. */
+.bx-member-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bx-member .bx-meter { height: 6px; }
+.bx-member .bx-meter-track { height: 100%; }
+/* The role word, beside the name rather than over the face: a label
+   printed across somebody's chin is not a label, it is a smudge. */
 .bx-member-role {
-  position: absolute;
-  left: 40.7%;
-  top: 40%;
-  font-size: 7px;
+  flex: 0 0 auto;
+  order: 2;
+  font-size: 7.5px;
   font-style: normal;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--bx-gold-lit);
-  opacity: 0.75;
+  opacity: 0.85;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
 
 /* A rail nobody is keeping a number on yet. NOT an empty bar, which
    would read as nought and frighten somebody about a character who is
-   perfectly well: the rail stays as the frame drew it and the number
+   perfectly well: the rail stays as the pack drew it and the number
    slot says so. */
 .bx-meter.blank .bx-meter-fill { display: none; }
 .bx-meter.blank .bx-meter-num { opacity: 0.5; }
