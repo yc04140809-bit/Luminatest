@@ -165,7 +165,7 @@ test.describe('the party column', () => {
     // His health is the one the fight keeps, and it is readable as a
     // pair of numbers rather than as a bar somebody has to estimate.
     await expect(page.getByTestId('bx-member-hero')).toContainText('あなた');
-    await expect(page.getByTestId('bp-player-hp')).toHaveText(/(\d+) \/ \1$/);
+    await expect(page.getByTestId('bp-player-hp')).toHaveText(/(\d+)\s*\/\s*\1$/);
 
     // Hers is the magic, which is what `playerMp` actually is. Before
     // she has reached past what she was doing there is no pool to show,

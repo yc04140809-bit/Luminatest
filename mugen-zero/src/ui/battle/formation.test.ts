@@ -102,6 +102,8 @@ describe('the prototype cast', () => {
     expect(PROTOTYPE_PLACEMENTS).toEqual({
       enemy: { edge: 'left', inset: 0.1, bottom: 0.42 },
       enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
+      enemyNear: { edge: 'left', inset: 0.06, bottom: 0.28 },
+      enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.24 },
       hero: { edge: 'right', inset: 0.32, bottom: 0.27, depth: 2 },
       kaos: { edge: 'right', inset: 0.14, bottom: 0.33, depth: 1 },
       summon: { edge: 'right', inset: 0.46, bottom: 0.28, depth: 2 },
@@ -117,7 +119,10 @@ describe('the prototype cast', () => {
    */
   it('leaves the corners of the field to the reading', () => {
     for (const [who, place] of Object.entries(PROTOTYPE_PLACEMENTS)) {
-      expect(place.bottom, `${who} stands above the commands`).toBeGreaterThanOrEqual(0.26);
+      // A beaten opponent lies lower than they stood, so the floor for
+      // those two is the lying-down one.
+      const floor = who.endsWith('Downed') ? 0.23 : 0.26;
+      expect(place.bottom, `${who} stands above the commands`).toBeGreaterThanOrEqual(floor);
       expect(place.bottom, `${who} stands under the panels`).toBeLessThanOrEqual(0.45);
     }
   });

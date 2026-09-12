@@ -59,10 +59,13 @@ import {
   debugStoryTrigger,
   debugSummon,
 } from './dev/debugEncounter';
-import { battleUi, startFinishable } from './dev/battleUiFlag';
+import { battleUi, previewOpponent, startFinishable } from './dev/battleUiFlag';
 import { useOpeningTheme } from './ui/opening/useOpeningTheme';
 import { OpeningSkip } from './ui/opening/OpeningSkip';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
+import { personOpponent } from './ui/battle/opponent';
+import { GALD_BATTLE } from './content/enemies/galdBattle';
+import { GALD } from './content/characters/gald';
 import { memoryEventLabel } from './content/events/creatureLifeChoice';
 import { clearObtainedItems } from './platform/discoveries';
 import { toAbsoluteDay } from './core/time/calendar';
@@ -428,8 +431,22 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
       return (
         <BattleUIPrototype
-          key="battle-prototype-preview"
+          key={`battle-prototype-preview-${previewOpponent()}`}
           species={MOSS_RABBIT}
+          // The preview can put the man on the other side of the field
+          // instead of the creature — same screen, same battle, the
+          // numbers and the drawings the story's own fight uses. The
+          // forest never asks for this; DEV ADMIN does.
+          opponent={
+            previewOpponent() === 'GALD'
+              ? personOpponent({
+                  artId: 'gald',
+                  name: GALD_BATTLE.name,
+                  defeatedText: `${GALD.name}は膝をついた。`,
+                  spec: GALD_BATTLE,
+                })
+              : undefined
+          }
           battleLocationId="GREENWOOD_FOREST"
           finishesInMugenChoice={debugStoryTrigger() === true}
           startFinishable={startFinishable()}

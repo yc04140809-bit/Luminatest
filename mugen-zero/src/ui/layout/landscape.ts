@@ -26,14 +26,36 @@ export const STAGE_ASPECT = 16 / 9;
  * had, which is the opposite of what the stage is for.
  *
  * So the floor is looser than the design target — but only for a
- * window that is already wider than it is tall. An UPRIGHT phone still
- * gets 16:9, because there the stage is scaled down to fit and a 4:3
- * stage at the height the screens are written for is a narrower play
- * area than they are written for: taller on the glass, and smaller in
- * the units the screens actually use. Landscape has no such trade —
- * there the stage is not scaled at all, so wider is simply more room.
+ * window that is already wider than it is tall, where the stage is not
+ * scaled at all and wider is simply more room. A window that is TALLER
+ * than it is wide has a floor of its own, MIN_PORTRAIT_ASPECT below,
+ * because there the trade runs the other way.
  */
 export const MIN_STAGE_ASPECT = 4 / 3;
+
+/**
+ * And the floor for a host that is TALLER than it is wide.
+ *
+ * Not the same number, and the difference is the whole of it. On a
+ * portrait host the stage cannot be wider than the host, so its width
+ * is fixed and the aspect decides its HEIGHT: a smaller aspect is a
+ * taller stage, which is a bigger game. It used to be STAGE_ASPECT, and
+ * 16:9 is the smallest game that shape can give.
+ *
+ * It cannot go all the way to MIN_STAGE_ASPECT, because a portrait host
+ * is also the case that gets SCALED — the stage is laid out at
+ * MIN_STAGE_HEIGHT and shrunk — so the aspect is also the layout's
+ * width in units of 360. At 16:9 the screens are laid out 640 wide; at
+ * 4:3 they would be 480, and the battle screen's bottom row alone —
+ * WORLD MEMORY, five commands, three chips — needs about 558 of them.
+ * A stage that is taller on the glass but too narrow to hold the game
+ * is not a bigger game.
+ *
+ * 1.6 is the largest stage that clears that, with room to spare: the
+ * screens are laid out 576 wide, and a portrait host gets a stage about
+ * a ninth taller than 16:9 gave it.
+ */
+export const MIN_PORTRAIT_ASPECT = 1.6;
 
 /**
  * The widest the stage is allowed to get.
@@ -53,8 +75,16 @@ export const MIN_STAGE_ASPECT = 4 / 3;
  *
  * Measured across the sizes this is judged on: side margin is nought at
  * 844×390, 915×412, 800×360, 844×340, 932×360 and 1000×360.
+ *
+ * RAISED AGAIN, from 3.2, for the box a published copy is played in. An
+ * artifact is shown inside a frame the page does not control, and that
+ * frame is often SHORTER than the phone it is on — 844×300 is 2.8 and
+ * fine, but 900×260 is 3.46 and was being handed an 832-wide stage with
+ * 68 pixels of bar down each side, for no reason a player could see.
+ * Four is past anything a phone produces and still short of the "two
+ * characters at opposite ends of a room" this cap exists to prevent.
  */
-export const MAX_STAGE_ASPECT = 3.2;
+export const MAX_STAGE_ASPECT = 4;
 
 export interface StageBox {
   /** The stage's width in CSS pixels. Always the longer side. */
@@ -91,7 +121,7 @@ export function stageFor(viewportWidth: number, viewportHeight: number): StageBo
   // A window already the right way round may keep whatever shape it
   // has; one that is not gets squared up to the shape the game is
   // drawn against before being fitted inside it.
-  const floor = w >= h ? MIN_STAGE_ASPECT : STAGE_ASPECT;
+  const floor = w >= h ? MIN_STAGE_ASPECT : MIN_PORTRAIT_ASPECT;
   const aspect = clamp(w / h, floor, MAX_STAGE_ASPECT);
   // Fit a box of that shape inside the window, touching whichever pair
   // of edges it reaches first.

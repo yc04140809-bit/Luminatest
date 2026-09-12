@@ -152,6 +152,12 @@ export const SWING_ROLES: Readonly<Record<PrototypeSlot, CameraRole>> = {
   kaos: 'ALLY',
   enemy: 'TARGET',
   enemyDowned: 'BYSTANDER',
+  // The same two parts, for an opponent who stands nearer than a small
+  // animal does. Which slot a fight uses is a fact about WHO is being
+  // fought, not about what the camera is doing — so the roles are the
+  // creature's roles and the shot is the same shot.
+  enemyNear: 'TARGET',
+  enemyNearDowned: 'BYSTANDER',
   summon: 'BYSTANDER',
 };
 

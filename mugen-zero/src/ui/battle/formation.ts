@@ -174,6 +174,21 @@ export const PROTOTYPE_PLACEMENTS = {
    */
   enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
   /**
+   * And where somebody STANDS, which is not where a small animal does.
+   *
+   * The two slots above were measured for a moss rabbit: sixty-odd
+   * pixels of creature, well up the path, small because it is far away.
+   * A person is twice that — Gald is the height the hero is — and put
+   * at the creature's ground line his head goes straight through the
+   * plate above him.
+   *
+   * So he stands NEARER: lower down the field, which is closer to the
+   * camera, which is also the truth about the fight. You are at arm's
+   * length from a man with a knife and half a clearing from a rabbit.
+   */
+  enemyNear: { edge: 'left', inset: 0.06, bottom: 0.28 },
+  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.24 },
+  /**
    * He is nearest, on the right, between her and it. Nearest means
    * largest, but only just: too much and he stops being a person
    * standing closer and becomes a giant.

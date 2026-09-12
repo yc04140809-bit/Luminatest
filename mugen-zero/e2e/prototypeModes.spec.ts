@@ -217,31 +217,39 @@ test('being ON is visible, not only announced', async ({ page }) => {
   await freshWorld(page);
   await openPrototype(page);
 
+  // THE CHIP IS A PICTURE NOW, so what is read is which picture.
+  //
+  // The asset pack drew AUTO and ×2 twice each — lit, with the word in
+  // gold and an ON tab under it, and dim with an OFF tab. Turning one on
+  // swaps one delivered drawing for the other, which is why ON is
+  // unmistakable: it is not a tint of OFF, it is a different painting.
+  // A colour read would answer `rgba(0,0,0,0)` for both and prove
+  // nothing, so this reads `backgroundImage` instead.
+  //
   // Read through the locator rather than `document.querySelector`, so
   // Playwright waits for the element instead of handing null to
   // getComputedStyle the moment the row has not rendered yet.
   const paint = async (id: string) =>
     page
       .getByTestId(id)
-      .evaluate((node) => getComputedStyle(node as HTMLElement).backgroundColor);
+      .evaluate((node) => getComputedStyle(node as HTMLElement).backgroundImage);
 
   const offAuto = await paint('bp-auto');
   const offSpeed = await paint('bp-speed');
+  expect(offAuto, 'OFF is a drawing, not an absence').not.toBe('none');
+  expect(offSpeed, 'OFF is a drawing, not an absence').not.toBe('none');
 
   await page.getByTestId('bp-auto').click();
   await page.getByTestId('bp-speed').click();
-  // The chips fade in over 0.16s; read them once they have landed, or
-  // the answer is whatever the transition was passing through.
   await page.waitForTimeout(400);
 
   // A player who cannot tell at a glance whether AUTO is on will tap it,
   // and turning it off on the turn they meant to turn it on is the whole
-  // of the frustration this state exists to avoid. So ON is a filled
-  // chip, and that it is filled is checked rather than assumed.
-  expect(await paint('bp-auto'), 'AUTO is painted when on').not.toBe(offAuto);
-  expect(await paint('bp-speed'), 'speed is painted when on').not.toBe(offSpeed);
-  expect(await paint('bp-auto')).not.toBe('rgba(0, 0, 0, 0)');
-  expect(await paint('bp-speed')).not.toBe('rgba(0, 0, 0, 0)');
+  // of the frustration this state exists to avoid.
+  expect(await paint('bp-auto'), 'AUTO is a different picture when on').not.toBe(offAuto);
+  expect(await paint('bp-speed'), 'speed is a different picture when on').not.toBe(offSpeed);
+  expect(await paint('bp-auto')).not.toBe('none');
+  expect(await paint('bp-speed')).not.toBe('none');
 });
 
 test('AUTO and ×2 are on at the same time', async ({ page }) => {

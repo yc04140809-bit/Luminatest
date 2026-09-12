@@ -6,7 +6,6 @@ import {
   type BattleState,
   type EnemyAction,
 } from '../../game/battle/battleLogic';
-import { specOf } from '../../game/battle/enemySpec';
 import { castMagic, clearAwakeningLines } from '../../game/battle/battleLogic';
 import { availableMagic } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
@@ -29,7 +28,7 @@ import {
   type CameraPhase,
 } from './battleCamera';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
-import { enemyArtFor, partyArtFor } from '../../content/art';
+import { partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
 import { CharacterArt } from '../art/CharacterArt';
 import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
@@ -59,7 +58,7 @@ import {
 } from '../cinematic/accidentCinematic';
 import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
-import { PartyCard, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
+import { PartyCard, Readout, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
 import {
   actingSideOf,
   memoryDepth,
@@ -68,7 +67,9 @@ import {
   type TurnActor,
 } from './battleHud';
 import { FIELD_FIGURE_SCALE } from './formation';
+import { creatureOpponent, type BattleOpponent } from './opponent';
 import { locationNameOf } from '../../content/locations/alden';
+import { BATTLE_UI } from '../../assets/manifest';
 
 /**
  * A piece of a picture, drawn at a given height with its own feet on the
@@ -82,7 +83,16 @@ import { locationNameOf } from '../../content/locations/alden';
  */
 
 interface Props {
+  /**
+   * WHO IS BEING FOUGHT. A creature by default, because the forest
+   * fight is one — but the type is `BattleOpponent`, which a person is
+   * too. The fight this slice is built to arrive at is against a man,
+   * and a screen that could only be handed a species could never show
+   * him without somebody making him into one.
+   */
   species: EnemySpeciesDef;
+  /** Somebody other than a creature. Overrides `species` when given. */
+  opponent?: BattleOpponent;
   /** Where the fight broke out. Supplies the battlefield itself. */
   battleLocationId: LocationId;
   /**
@@ -314,6 +324,7 @@ const CHAOS_MIN_MS = 1200;
  */
 export function BattleUIPrototype({
   species,
+  opponent: given,
   battleLocationId,
   finishesInMugenChoice,
   startFinishable = false,
@@ -360,8 +371,10 @@ export function BattleUIPrototype({
     plan.kind === 'SUMMON'
       ? (arcana.find((a) => a.arcanaId === plan.arcanaId) ?? null)
       : null;
+  /** Settled once: the fight cannot change who it is against. */
+  const [opponent] = useState<BattleOpponent>(() => given ?? creatureOpponent(species));
   const [battle, setBattle] = useState<BattleState>(() => {
-    const fresh = createBattle(specOf(species), modifiersOf(chaos), {
+    const fresh = createBattle(opponent.spec, modifiersOf(chaos), {
       // Whether she can already do this is the world's business, not
       // this fight's: she learned it somewhere else and did not forget.
       magicUnlocked,
@@ -733,7 +746,7 @@ export function BattleUIPrototype({
    */
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
   const view = { beat, downed };
-  const enemyShown = enemyArtFor(species.speciesId, enemyPose(view));
+  const enemyShown = opponent.artFor(enemyPose(view));
   const heroShown = partyArtFor('hero', heroPose(view));
   const kaosShown = partyArtFor('kaos', kaosPose(view));
   // It is only lying down on screen if a picture of it lying down
@@ -801,7 +814,7 @@ export function BattleUIPrototype({
   const figure = (id: string, state: string | null) =>
     Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE);
   const stage = {
-    enemy: figure(species.speciesId, enemyShown.state),
+    enemy: figure(opponent.artId, enemyShown.state),
     hero: figure('hero', heroShown.state),
     kaos: figure('kaos', kaosShown.state),
     summon: figure('arcana_summon', null),
@@ -818,7 +831,7 @@ export function BattleUIPrototype({
    */
   const turnRoster: TurnActor[] = [
     { id: 'hero', name: 'あなた', side: 'ALLY' },
-    { id: species.speciesId, name: battle.enemyName, side: 'ENEMY' },
+    { id: opponent.artId, name: battle.enemyName, side: 'ENEMY' },
   ];
   const actingSide = actingSideOf(beat === 'NONE' ? null : beat);
   const turnSlots = turnOrderLine(
@@ -832,6 +845,32 @@ export function BattleUIPrototype({
   const memoryPanelRows = memoryRows(memoryLines);
   const placeName = locationNameOf(battleLocationId);
   const placeMark = battleLocationId.replace(/_/g, ' ');
+
+  /**
+   * The pack's own pieces, as CSS variables.
+   *
+   * One object, built once, so the stylesheet can say
+   * `border-image-source: var(--ui-enemy-plate)` and never learn a path.
+   */
+  const uiVars: Record<string, string> = {
+    '--ui-enemy-plate': `url(${BATTLE_UI.enemyPlate})`,
+    '--ui-party-card': `url(${BATTLE_UI.partyCard})`,
+    '--ui-message': `url(${BATTLE_UI.messageWindow})`,
+    '--ui-memory': `url(${BATTLE_UI.memoryPanel})`,
+    '--ui-memory-star': `url(${BATTLE_UI.memoryStar})`,
+    '--ui-diamond': `url(${BATTLE_UI.commandDiamond})`,
+    '--ui-turn-slot': `url(${BATTLE_UI.turnSlot})`,
+    '--ui-turn-next': `url(${BATTLE_UI.turnNext})`,
+    '--ui-bar-rail': `url(${BATTLE_UI.barRail})`,
+    '--ui-bar-hp': `url(${BATTLE_UI.barHp})`,
+    '--ui-bar-mp': `url(${BATTLE_UI.barMp})`,
+    '--ui-auto-on': `url(${BATTLE_UI.autoOn})`,
+    '--ui-auto-off': `url(${BATTLE_UI.autoOff})`,
+    '--ui-speed-on': `url(${BATTLE_UI.speedOn})`,
+    '--ui-speed-off': `url(${BATTLE_UI.speedOff})`,
+    '--ui-escape-on': `url(${BATTLE_UI.escapeOn})`,
+    '--ui-escape-off': `url(${BATTLE_UI.escapeOff})`,
+  };
 
   /** Leaving. Only while there is a fight to leave. */
   const escape = () => {
@@ -862,6 +901,15 @@ export function BattleUIPrototype({
         ['--bp-hide' as string]: `${beatLength('HIDE', speed)}ms`,
         ['--bp-hurt' as string]: `${beatLength('HURT', speed)}ms`,
         ['--bp-fall' as string]: `${beatMs(KNOCKDOWN_MS, speed)}ms`,
+        // THE DELIVERED UI, handed to the stylesheet as urls.
+        //
+        // Through here rather than written into styles.css, for one
+        // build reason: the single-file artifact swaps every asset for a
+        // re-encoded copy by ALIASING THE IMPORT, and only a real import
+        // goes through that. A `url()` written into the stylesheet would
+        // be a second path to the same picture and the one the artifact
+        // does not know how to shrink.
+        ...uiVars,
       }}
     >
       {/* She steps forward. Over the fight, which stays exactly where it
@@ -906,7 +954,16 @@ export function BattleUIPrototype({
           ]
             .filter(Boolean)
             .join(' ')}
-          style={cameraStyle(showingDown ? 'enemyDowned' : 'enemy', camera)}
+          style={cameraStyle(
+            opponent.stands === 'NEAR'
+              ? showingDown
+                ? 'enemyNearDowned'
+                : 'enemyNear'
+              : showingDown
+                ? 'enemyDowned'
+                : 'enemy',
+            camera,
+          )}
           data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
           <span className="bp-shadow" aria-hidden="true" />
@@ -919,7 +976,7 @@ export function BattleUIPrototype({
             className="bp-art"
             // Enemies look across the field at the party.
             face="right"
-            label={species.name}
+            label={opponent.name}
             testId="bp-enemy-art"
           />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
@@ -1033,7 +1090,7 @@ export function BattleUIPrototype({
             this screen that tells the player nothing. */}
         <div className="bx-corner bx-tl">
           <TurnOrder slots={turnSlots} artOf={turnArtOf} />
-          <div className="bx-panel bx-enemy-plate" data-testid="bp-enemy-hp">
+          <div className="bx-enemy-plate" data-testid="bp-enemy-hp">
             <span className="bx-enemy-head">
               <b className="bx-enemy-name">{battle.enemyName}</b>
               {/* What it has become on the way down. One word, in its
@@ -1044,8 +1101,13 @@ export function BattleUIPrototype({
                   {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
                 </i>
               )}
+              <Readout
+                now={battle.enemyHp}
+                max={battle.enemyMaxHp}
+                className="bx-enemy-read"
+              />
             </span>
-            <Meter kind="enemy-hp" now={battle.enemyHp} max={battle.enemyMaxHp}>
+            <Meter kind="enemy-hp" now={battle.enemyHp} max={battle.enemyMaxHp} bare>
               {/* Its footing, under its health: the thing to aim at in
                   the middle of a fight. Only drawn for creatures that
                   have any. */}
@@ -1070,23 +1132,27 @@ export function BattleUIPrototype({
             <i>{placeName}</i>
           </div>
           <div className="bx-party" data-testid="bx-party">
+            {/* His health is what the fight keeps; the magic is hers.
+                Each card carries the one it has and says 「—」 on the
+                other, which is the truth until B-2 splits the pools. */}
             <PartyCard
               name="あなた"
               role="剣"
               art={heroShown}
               hp={{ now: battle.playerHp, max: battle.playerMaxHp, testId: 'bp-player-hp' }}
+              mp={{ now: null, max: null }}
               testId="bx-member-hero"
             />
             <PartyCard
               name="ケイオス"
               role="魔法"
               art={kaosShown}
+              hp={{ now: null, max: null }}
               mp={
                 battle.magicUnlocked
                   ? { now: battle.playerMp, max: battle.playerMaxMp, testId: 'bx-kaos-mp' }
-                  : undefined
+                  : { now: null, max: null }
               }
-              note={battle.magicUnlocked ? undefined : '見ている'}
               testId="bx-member-kaos"
             />
           </div>
@@ -1103,7 +1169,7 @@ export function BattleUIPrototype({
         <div className="bx-corner bx-br">
           <div className="bp-modes" data-testid="bp-modes">
             <button
-              className={auto ? 'bp-mode on' : 'bp-mode'}
+              className={`bp-mode bp-auto-chip${auto ? ' on' : ''}`}
               data-testid="bp-auto"
               aria-pressed={auto}
               onClick={() => setAuto((on) => !on)}
@@ -1116,7 +1182,7 @@ export function BattleUIPrototype({
               <span className="bp-mode-jp">オート</span>
             </button>
             <button
-              className={speed > 1 ? 'bp-mode on' : 'bp-mode'}
+              className={`bp-mode bp-speed-chip${speed > 1 ? ' on' : ''}`}
               data-testid="bp-speed"
               data-speed={speed}
               aria-label={`速度 ${speedLabel(speed)}`}
@@ -1187,7 +1253,7 @@ export function BattleUIPrototype({
                       fight rather than its ending: the player needs to
                       read what the breath just did before being told the
                       creature is lying down. */}
-                  {beaten && !finishesInMugenChoice && !inAccident ? species.defeatedText : lastLine}
+                  {beaten && !finishesInMugenChoice && !inAccident ? opponent.defeatedText : lastLine}
                 </p>
                 <Ornament kind="ring" size={26} className="bp-message-mark" />
               </>
@@ -1423,7 +1489,7 @@ export function BattleUIPrototype({
           {/* A different kind of moment, so a different ground under it:
               the fight's ivory gives way, and the question is asked in
               the dark. */}
-          <p className="bp-mugen-line">{species.defeatedText}</p>
+          <p className="bp-mugen-line">{opponent.defeatedText}</p>
           <div className="bp-mugen-grid">
             {MUGEN_CHOICES.map(({ id, jp, Icon }) => (
               <button

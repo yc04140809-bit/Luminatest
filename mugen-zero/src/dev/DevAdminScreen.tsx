@@ -29,6 +29,9 @@ import {
   battleUi,
   setBattleUi,
   setStartFinishable,
+  previewOpponent,
+  setPreviewOpponent,
+  type PreviewOpponent,
   startFinishable,
   type BattleUiChoice,
 } from './battleUiFlag';
@@ -139,6 +142,7 @@ export function DevAdminScreen({
   // is a switch, and OLD is what a player without it always gets.
   const [ui, setUi] = useState<BattleUiChoice>(() => battleUi());
   const [finishable, setFinishable] = useState(() => startFinishable());
+  const [opponent, setOpponent] = useState<PreviewOpponent>(() => previewOpponent());
   const [opRehearsal, setOpRehearsal] = useState(() => openingRehearsal());
   const [status, setStatus] = useState<string>('');
   const [confirming, setConfirming] = useState<'SCENARIO' | 'WORLD' | null>(null);
@@ -477,6 +481,25 @@ export function DevAdminScreen({
             }}
           >
             {choice === 'OLD' ? '現行の戦闘画面' : '新戦闘画面（試作）'}
+          </button>
+        ))}
+        {/* WHO THE PREVIEW FIGHTS. The forest is always the creature;
+            this is the preview only, and it is here because a battle
+            screen judged against a rabbit alone has not been judged —
+            the fight this slice arrives at is against a man twice its
+            height with a name that fills a plate. */}
+        {(['MOSS_RABBIT', 'GALD'] as const).map((who) => (
+          <button
+            key={who}
+            className={opponent === who ? 'btn primary' : 'btn'}
+            style={smallBtn}
+            data-testid={`preview-opponent-${who}`}
+            onClick={() => {
+              setPreviewOpponent(who);
+              setOpponent(who);
+            }}
+          >
+            {who === 'GALD' ? '試作：ガルド戦' : '試作：モスラビット'}
           </button>
         ))}
         <button

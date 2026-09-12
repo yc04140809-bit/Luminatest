@@ -128,6 +128,22 @@ export const REVIEW_ASSETS = [
     out: join(REVIEW_ASSET_DIR, `kaos-exploration-${facing}.webp`),
     quality: 62,
   })),
+  // THE BATTLE UI, cut from the delivered asset pack. Small pieces, but
+  // eighteen of them and every one carries an alpha channel, which PNG
+  // is poor at: 1.2 MB of PNG for art that draws at 30-180 CSS pixels.
+  // They keep a high number despite the size — they ARE this round, and
+  // a reviewer asked to judge the UI must not be judging the encoder.
+  ...[
+    'chip-auto-on', 'chip-auto-off', 'chip-x2-on', 'chip-x2-off',
+    'chip-escape-on', 'chip-escape-off', 'command-diamond',
+    'turn-slot', 'turn-next', 'party-card', 'enemy-plate',
+    'message-window', 'memory-panel', 'memory-star',
+    'bar-rail', 'bar-hp', 'bar-mp', 'bar-alt',
+  ].map((piece) => ({
+    source: join(APP_DIR, `src/assets/ui/battle/${piece}.png`),
+    out: join(REVIEW_ASSET_DIR, `${piece}.webp`),
+    quality: 88,
+  })),
 ];
 
 /**

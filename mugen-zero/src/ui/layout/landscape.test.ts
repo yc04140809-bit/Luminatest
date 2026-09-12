@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { stageFor, STAGE_ASPECT, MIN_STAGE_ASPECT, MAX_STAGE_ASPECT } from './landscape';
+import {
+  stageFor,
+  layoutFor,
+  STAGE_ASPECT,
+  MIN_STAGE_ASPECT,
+  MIN_PORTRAIT_ASPECT,
+  MAX_STAGE_ASPECT,
+} from './landscape';
 
 const aspect = (box: { width: number; height: number }) => box.width / box.height;
 
@@ -32,12 +39,61 @@ describe('the landscape stage', () => {
     // Landscape-shaped, as wide as the window, and small enough to sit
     // inside it with room to spare.
     expect(box.width).toBe(390);
-    // Still 16:9 here, and deliberately not the looser floor a
-    // landscape window gets: an upright phone is SCALED to fit, so a
-    // taller stage would be a narrower play area in the units the
-    // screens are written in. Landscape has no such trade.
-    expect(aspect(box)).toBeCloseTo(STAGE_ASPECT, 1);
+    expect(aspect(box)).toBeCloseTo(MIN_PORTRAIT_ASPECT, 1);
     expect(box.height).toBeLessThan(844);
+  });
+
+  /**
+   * WHY THE PORTRAIT FLOOR IS 1.6 AND NOT 16:9, AND NOT 4:3 EITHER.
+   *
+   * On a portrait host the stage is as wide as the host and no wider,
+   * so the aspect decides only its height — a smaller number is a
+   * taller stage and a bigger game. It used to be 16:9, which is the
+   * smallest stage that rule can produce.
+   *
+   * What stops it going all the way down to the landscape floor is that
+   * a portrait host is also the case that gets SCALED: the screens are
+   * laid out at MIN_STAGE_HEIGHT and shrunk, so the aspect is also the
+   * layout's width in units of 360. A stage that is taller on the glass
+   * but too narrow to lay the game out in is not a bigger game.
+   */
+  it('makes an upright phone bigger, without laying the game out too narrow', () => {
+    // The battle screen's bottom row is the widest thing in the game:
+    // WORLD MEMORY, five command diamonds and three chips, side by side.
+    // Measured at their minimum clamps it comes to a little under 560.
+    const BOTTOM_ROW_NEEDS = 560;
+    for (const [w, h] of [
+      [390, 600],
+      [390, 844],
+      [360, 540],
+      [430, 650],
+    ]) {
+      const box = stageFor(w, h);
+      const layout = layoutFor(box);
+      expect(layout.width, `${w}x${h}: the game still fits across`).toBeGreaterThanOrEqual(
+        BOTTOM_ROW_NEEDS,
+      );
+      // And it IS taller than the 16:9 it used to get.
+      const wasSixteenNine = Math.floor(w / STAGE_ASPECT);
+      expect(box.height, `${w}x${h}: taller than 16:9 gave it`).toBeGreaterThan(wasSixteenNine);
+    }
+  });
+
+  /**
+   * The box a published copy is played in is not the phone it is on: an
+   * artifact is shown inside a frame the page does not control, and
+   * that frame is often shorter than the screen. Those were losing
+   * width to the cap for being short.
+   */
+  it('gives a short wide host all of its width', () => {
+    for (const [w, h] of [
+      [900, 260],
+      [1000, 300],
+      [844, 300],
+    ]) {
+      const box = stageFor(w, h);
+      expect(box.width, `${w}x${h}: no bars down the sides`).toBe(w);
+    }
   });
 
   it('gives a landscape window all of itself, not just a phone-shaped one', () => {

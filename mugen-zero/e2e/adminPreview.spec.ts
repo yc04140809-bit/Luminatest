@@ -387,7 +387,7 @@ test.describe('a preview changes nothing', () => {
     // fourth member are three more cards, each with a name of its own,
     // and none of them has to have its name baked into its meter.
     await expect(page.getByTestId('bx-member-hero')).toContainText('あなた');
-    await expect(page.getByTestId('bp-player-hp')).toHaveText(/(\d+) \/ \1$/);
+    await expect(page.getByTestId('bp-player-hp')).toHaveText(/(\d+)\s*\/\s*\1$/);
 
     // And the book is where it was: 30%, one page, no sighting.
     await page.reload();

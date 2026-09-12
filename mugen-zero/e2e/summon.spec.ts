@@ -225,7 +225,7 @@ test.describe('an unfinished memory, at the start of a fight', () => {
     await expect(page.getByTestId('bp-summoned')).toHaveCount(0);
     expect(await playerHp(page)).toBe(await playerMaxHp(page));
     await expect(page.getByTestId('bp-commands')).toBeVisible();
-    await expect(page.getByTestId('bp-enemy-hp')).toHaveText(/モスラビット(\d+) \/ \1$/);
+    await expect(page.getByTestId('bp-enemy-hp')).toHaveText(/モスラビット(\d+)\s*\/\s*\1$/);
   });
 });
 

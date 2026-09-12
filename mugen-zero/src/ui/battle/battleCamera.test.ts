@@ -184,12 +184,26 @@ describe('who plays what in a swing', () => {
     }
   });
 
-  it('has exactly one actor and one target', () => {
+  /**
+   * One actor, and one target ON THE FIELD.
+   *
+   * The table names more TARGET slots than a fight has opponents,
+   * because who is being fought decides which of them is occupied: a
+   * creature stands in `enemy`, a person nearer the camera in
+   * `enemyNear`, and never both. What must hold is that the party has
+   * exactly one swinger, and that every slot an opponent can occupy is
+   * the target rather than a bystander — a shot that leaned towards
+   * nobody would be the bug this guards against.
+   */
+  it('has exactly one actor, and every opponent slot is the target', () => {
     const parts = SLOTS.map((s) => SWING_ROLES[s]);
     expect(parts.filter((p) => p === 'ACTOR')).toHaveLength(1);
-    expect(parts.filter((p) => p === 'TARGET')).toHaveLength(1);
     expect(SWING_ROLES.hero).toBe('ACTOR');
     expect(SWING_ROLES.enemy).toBe('TARGET');
+    expect(SWING_ROLES.enemyNear).toBe('TARGET');
+    // And a beaten one is not swung at, whichever slot they fell in.
+    expect(SWING_ROLES.enemyDowned).toBe('BYSTANDER');
+    expect(SWING_ROLES.enemyNearDowned).toBe('BYSTANDER');
   });
 });
 

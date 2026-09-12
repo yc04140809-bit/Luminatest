@@ -2699,13 +2699,22 @@ body,
 .bx-bl { grid-area: 3 / 1; justify-content: flex-end; align-items: flex-start; }
 .bx-br { grid-area: 3 / 3; justify-content: flex-end; align-items: flex-end; }
 
-/* ---- the panel, which is one recipe ----
-   Deep navy ground, a gold hairline, a second hairline inside it, and a
-   blue star at the top and bottom seams. That is the whole of the house
-   style as read off the delivered frame art — the ornamental corners of
-   those frames are deliberately NOT reproduced, because a corner piece
-   that has to stretch to fit an arbitrary panel distorts, and the brief
-   forbids distorting them. */
+/* ---- the panel, which is DELIVERED ART rather than a recipe ---------
+   Every frame on this screen is a piece of the BATTLE UI ASSET PACK,
+   cut out and nine-sliced. Nine-slicing is the whole reason it can be
+   the real art: `border-image` draws the four corners at their own
+   size, stretches only the four edges, and throws the middle away — so
+   a dragon's head at the end of the creature's plate is the size it was
+   drawn at whether the plate is 150 pixels wide or 400, and the brief's
+   "do not break the ratio" is kept by construction rather than by
+   choosing a lucky width.
+
+   The interior is ours: the packs' frames come with specimen contents
+   baked in (a red bar, four ？ rows, a 0%), and a screen that showed
+   those would be a picture of a fight rather than a fight. The slice
+   discards them and the live numbers are drawn in their place.
+
+   `.bx-panel` is the plain one, for boxes the pack has no frame for. */
 .bp-hud .bx-panel {
   position: relative;
   background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
@@ -2721,23 +2730,15 @@ body,
      behind a blurred panel when the thing under it moves. */
   transform: translateZ(0);
 }
-/* The seam stars. Drawn rather than delivered: two rotated squares in a
-   pseudo-element cost nothing and scale with the panel. */
-.bp-hud .bx-panel::before,
-.bp-hud .bx-panel::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  width: 7px;
-  height: 7px;
-  margin-left: -3.5px;
-  background: var(--bx-star);
-  box-shadow: 0 0 5px rgba(159, 208, 255, 0.85);
-  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
-  pointer-events: none;
+/* A framed panel: same navy ground, and the pack's own edge around it.
+   `border-style: solid` is required for border-image to paint at all,
+   and the colour underneath never shows because the image covers it. */
+.bp-hud .bx-framed {
+  border: 0 solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
 }
-.bp-hud .bx-panel::before { top: -3.5px; }
-.bp-hud .bx-panel::after { bottom: -3.5px; }
 
 .bx-panel-label {
   display: flex;
@@ -2762,13 +2763,13 @@ body,
 
 /* ---- TURN ORDER — horizontal, top left, read left to right ---- */
 .bx-turns {
-  padding: 4px 9px 5px;
+  padding: 3px 8px 5px;
 }
 .bx-turn-line {
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  margin: 2px 0 0;
+  align-items: center;
+  gap: 9px;
+  margin: 3px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -2780,68 +2781,72 @@ body,
   gap: 1px;
   opacity: 0.62;
 }
-/* The chevron between two turns: this reads as a sequence, not a set,
-   and it is a chevron rather than a dash because the delivered TURN
-   ORDER art marks each step with one. Gold before an ally, red before
-   the creature — so the shape of the fight ahead is legible before a
-   single face is. */
+/* The chevron between two turns — the pack's own, not a drawn one. It
+   is what makes the strip read as a sequence rather than a set. */
 .bx-turn + .bx-turn::before {
   content: '';
   position: absolute;
-  left: -5px;
-  top: 32%;
-  width: 5px;
-  height: 7px;
-  background: var(--bx-gold);
-  opacity: 0.85;
-  clip-path: polygon(0 0, 100% 50%, 0 100%, 30% 50%);
-}
-.bx-turn.enemy + .bx-turn::before,
-.bx-turn + .bx-turn.enemy::before {
-  background: #d86a54;
+  left: -9px;
+  top: 26%;
+  width: 8px;
+  height: 17px;
+  background-image: var(--ui-turn-next);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.9;
 }
 /* WHOSE TURN IT IS, said three ways — bigger, lit, and ringed in gold.
    One signal is not enough on a phone held at an angle in daylight. */
 .bx-turn.acting {
   opacity: 1;
 }
-.bx-turn.acting .bx-face::after {
-  box-shadow:
-    inset 0 0 0 1.5px var(--bx-gold-lit),
-    inset 0 0 9px rgba(159, 208, 255, 0.55);
+.bx-turn.acting .bx-face {
+  box-shadow: 0 0 12px rgba(243, 226, 182, 0.75);
 }
-.bx-turn.acting .bx-turn-name {
-  color: var(--bx-gold-lit);
+/* The face inside the plate is lifted a little: these are 27 pixels of
+   somebody's head against a forest, and a dark-haired man at that. */
+.bx-face-art { filter: brightness(1.12) contrast(1.06); }
+.bx-turn:not(.acting) { opacity: 0.66; }
+.bx-turn:not(.acting) .bx-face-art { filter: brightness(0.92) saturate(0.85); }
+.bx-turn.acting .bx-face-frame {
+  filter: drop-shadow(0 0 5px rgba(243, 226, 182, 0.9)) brightness(1.15);
 }
-.bx-turn.enemy .bx-face::after {
-  box-shadow: inset 0 0 0 1px rgba(216, 106, 84, 0.75);
+/* The creature's plate is the same delivered frame, tinted: the pack
+   marks its own enemy rows in red and this is that mark, applied to one
+   frame rather than shipping a second copy of it. */
+.bx-turn.enemy .bx-face-frame {
+  filter: hue-rotate(-32deg) saturate(1.5);
 }
-.bx-turn.enemy.acting .bx-face::after {
-  box-shadow:
-    inset 0 0 0 1.5px rgba(244, 168, 148, 0.95),
-    inset 0 0 9px rgba(216, 106, 84, 0.55);
+.bx-turn.enemy.acting .bx-face {
+  box-shadow: 0 0 12px rgba(216, 106, 84, 0.8);
 }
+.bx-turn.enemy.acting .bx-face-frame {
+  filter: hue-rotate(-32deg) saturate(1.5) drop-shadow(0 0 5px rgba(244, 168, 148, 0.9))
+    brightness(1.15);
+}
+/* THE NAMES ARE NOT DRAWN. Five of them across the top left corner was
+   a paragraph laid over the battlefield, and the strip is read at a
+   glance where a face is faster than a word. They stay in the DOM for a
+   screen reader, and for the tests that ask who is acting. */
 .bx-turn-name {
-  max-width: 7em;
+  position: absolute;
+  width: 1px;
+  height: 1px;
   overflow: hidden;
-  font-size: 8px;
-  font-style: normal;
+  clip-path: inset(50%);
   white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--bx-ink-dim);
 }
 
 /* ---- a face, in a diamond ---- */
-/* A face in a cut-cornered plate — an octagon, which is the shape the
-   delivered portrait frames are cut to. The clip is on a wrapper rather
-   than on the picture, so the corner is cut once and the drawing inside
-   is never touched. */
+/* A face in the pack's own octagonal portrait plate. The picture is
+   clipped to the octagon and the DELIVERED FRAME is laid over it, so
+   the gold edge is the drawn one rather than an approximation of it. */
 .bx-face {
   position: relative;
   display: block;
   overflow: hidden;
   flex: 0 0 auto;
-  background: rgba(4, 9, 22, 0.6);
+  background: rgba(4, 9, 22, 0.62);
   clip-path: polygon(
     22% 0,
     78% 0,
@@ -2853,13 +2858,18 @@ body,
     0 22%
   );
 }
-/* The gold edge, drawn as a second octagon under the first: a clipped
-   element cannot show a border, so the border is a ring behind it. */
-.bx-face::after {
-  content: '';
+/* The frame itself, over the face. `turn-slot` is 96x108, so the plate
+   is drawn a little taller than it is wide — its own proportions, not
+   squared off. */
+.bx-face-frame {
   position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 0 1px var(--bx-gold-line);
+  left: -8%;
+  top: -8%;
+  width: 116%;
+  height: 116%;
+  background-image: var(--ui-turn-slot);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
   pointer-events: none;
 }
 .bx-face-art {
@@ -2880,49 +2890,107 @@ body,
   height: 27px;
 }
 
-/* ---- the creature's plate, under the turn order ---- */
+/* ---- the creature's plate: the pack's frame, at its own shape -------
+   `enemy-plate.png` is 640x195 and the plate is drawn at that ratio, so
+   the dragon's head on its left and the star cluster on its right are
+   never squashed. Its health rail is drawn at y 53.3%-64.1% and the
+   name goes on the empty rail above it, both measured off the file. */
 .bx-enemy-plate {
-  min-width: clamp(150px, calc(var(--stage-w, 100vw) * 0.27), 260px);
-  padding: 5px 10px 7px;
+  position: relative;
+  width: clamp(196px, calc(var(--stage-w, 100vw) * 0.29), 258px);
+  aspect-ratio: 640 / 195;
+  padding: 0;
+  border: 0;
+  background-image: var(--ui-enemy-plate);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  color: var(--bx-ink);
 }
 .bx-enemy-head {
+  position: absolute;
+  left: 24.5%;
+  /* Clear of the star cluster the frame ends with: at 5.5% the last
+     digit of a full-health total was disappearing under it. */
+  right: 10%;
+  top: 26%;
+  height: 20%;
   display: flex;
-  align-items: baseline;
-  gap: 7px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
 }
 .bx-enemy-name {
-  font-size: 12px;
+  overflow: hidden;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
+.bx-enemy-plate .bx-meter {
+  position: absolute;
+  left: 24.5%;
+  right: 9%;
+  top: 53.3%;
+  height: 10.8%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Its plate carried a specimen bar too, emptied the same way. */
+.bx-enemy-plate .bx-meter-track {
+  background-image: none;
+  height: 100%;
+}
+/* The creature's number goes on its name line for the same reason the
+   party's does: the rail the pack draws is a bar, not a page. */
+.bx-enemy-read {
+  flex: 0 0 auto;
+  font-size: 8.5px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+.bx-enemy-read b { font-weight: 400; opacity: 0.5; }
 
-/* ---- a meter that can be read across a room ---- */
+/* ---- a meter, which is the PACK'S BAR, revealed -------------------
+   Not a coloured div: `bar-hp.png` and `bar-mp.png` are the delivered
+   gradients, chevron caps and all. The fill holds the whole bar at the
+   track's size and CLIPS IT FROM THE RIGHT, so at forty per cent the
+   player sees the left forty per cent of the drawn bar rather than the
+   whole of it squeezed into forty per cent of the room. Nothing is ever
+   drawn at a ratio it was not made at. */
 .bx-meter {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 3px;
+  min-width: 0;
 }
 .bx-meter-track {
   position: relative;
   flex: 1 1 auto;
-  min-width: 30px;
-  height: 7px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.5);
-  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
-  overflow: hidden;
+  min-width: 24px;
+  height: 9px;
+  background-image: var(--ui-bar-rail);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 .bx-meter-fill {
+  position: absolute;
+  inset: 0;
   display: block;
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.24s ease;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  /* The reveal. `--fill` is a percentage set by the screen. */
+  clip-path: inset(0 calc(100% - var(--fill, 100%)) 0 0);
+  transition: clip-path 0.24s ease;
 }
-.bx-meter.hp .bx-meter-fill { background: var(--bx-hp); }
-.bx-meter.mp .bx-meter-fill { background: var(--bx-mp); }
-.bx-meter.enemy-hp .bx-meter-fill { background: var(--bx-hp-enemy); }
-.bx-meter.enemy-hp .bx-meter-track { height: 9px; }
+.bx-meter.hp .bx-meter-fill,
+.bx-meter.enemy-hp .bx-meter-fill { background-image: var(--ui-bar-hp); }
+.bx-meter.mp .bx-meter-fill { background-image: var(--ui-bar-mp); }
+.bx-meter.enemy-hp .bx-meter-track { height: 11px; }
 .bx-meter-num {
   flex: 0 1 auto;
   white-space: nowrap;
@@ -2930,6 +2998,7 @@ body,
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   color: var(--bx-ink);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 .bx-meter-num i {
   font-style: normal;
@@ -2962,64 +3031,159 @@ body,
    A column, capped at four, and each card the same height whether it is
    showing a bar or a word — so a third and a fourth member arriving is
    a longer list and not a different layout. */
+/* ---- the party, down the right, on the pack's own cards ------------
+   `party-card.png` is 560x201 and each card is drawn at exactly that
+   ratio, so the frame is never distorted. Everything inside is placed
+   in MEASURED FRACTIONS OF THE CARD — the portrait window the frame
+   leaves open at x 9.5%-30%, the health rail at y 46.3%-52.7%, the
+   magic rail at y 62.7%-69.2% — so the live numbers land on the drawn
+   rails at whatever width the column ends up. Those fractions were read
+   off the file, not guessed: see the note in the commit. */
 .bx-party {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: clamp(146px, calc(var(--stage-w, 100vw) * 0.225), 192px);
+  gap: 3px;
+  width: clamp(146px, calc(var(--stage-w, 100vw) * 0.215), 188px);
 }
 .bx-member {
+  position: relative;
+  aspect-ratio: 560 / 201;
+  display: block;
+  padding: 0;
+  border: 0;
+  background-image: var(--ui-party-card);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  color: var(--bx-ink);
+}
+/* The face goes IN the window the frame leaves open, behind the gold. */
+.bx-member .bx-face {
+  position: absolute;
+  left: 9.5%;
+  top: 15%;
+  width: 20.5%;
+  height: 70%;
+  clip-path: none;
+  background: rgba(4, 9, 22, 0.5);
+}
+.bx-member .bx-face-frame { display: none; }
+.bx-member-body { display: contents; }
+.bx-member-head {
+  position: absolute;
+  left: 40.7%;
+  right: 5.5%;
+  top: 24%;
+  height: 18%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  /* Nothing leaves the card. A member whose numbers do not fit loses
-     the last digit of a total rather than half a bar off the screen,
-     and a 667px phone is exactly where that used to happen. */
-  overflow: hidden;
-  padding: 4px 7px 5px 4px;
-}
-.bx-member-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
+  justify-content: space-between;
+  gap: 4px;
   min-width: 0;
 }
-.bx-member-head {
+.bx-member-name {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+/* The two rails, exactly where the frame draws them. */
+.bx-member .bx-meter {
+  position: absolute;
+  left: 40.7%;
+  right: 5.5%;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: 5px;
 }
-.bx-member-name {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
+.bx-member .bx-meter.hp { top: 46.3%; height: 6.4%; }
+.bx-member .bx-meter.mp { top: 62.7%; height: 6.5%; }
+/* THE CARD'S RAILS ARE EMPTY IN THE FILE. The pack drew specimen bars
+   into them — a full red one and a full blue one — and a card that
+   showed those would say a member is at full health whatever the fight
+   thinks, including a member this fight keeps no number on at all. So
+   the pack's own empty rail was laid into both of them when the piece
+   was cut (see the README), and the only bar on a card is the live one.
+   The track therefore draws no rail of its own: the frame has it. */
+.bx-member .bx-meter-track {
+  background-image: none;
+  height: 100%;
 }
-.bx-member-role {
+/* A card's meter is a BAR AND NOTHING ELSE: its number is on the name
+   line, where there is room for one. The meter is asked not to RENDER
+   one rather than told to hide it — see `bare` in BattleHud. */
+.bx-member-read {
+  flex: 0 0 auto;
   font-size: 8.5px;
   font-style: normal;
-  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+.bx-member-read b { font-weight: 400; opacity: 0.5; }
+.bx-member-read.blank { opacity: 0.45; }
+/* The role word sits under the name, clear of both rails. */
+.bx-member-role {
+  position: absolute;
+  left: 40.7%;
+  top: 40%;
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.06em;
   color: var(--bx-gold-lit);
-  opacity: 0.8;
+  opacity: 0.75;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
-/* What somebody is doing, where their bar would be. Not a blank: a
-   member with no pool of their own yet says so in a word. */
-.bx-member-note {
-  margin-top: 3px;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: var(--bx-ink-dim);
-}
+
+/* A rail nobody is keeping a number on yet. NOT an empty bar, which
+   would read as nought and frighten somebody about a character who is
+   perfectly well: the rail stays as the frame drew it and the number
+   slot says so. */
+.bx-meter.blank .bx-meter-fill { display: none; }
+.bx-meter.blank .bx-meter-num { opacity: 0.5; }
 
 /* ---- WORLD MEMORY, bottom left ----
    Small, and still here. It is in a fight because a fight is one of the
    things this world writes down, and the unknown rows are left visibly
    unknown — an empty line the player can still fill is the feeling the
    panel exists for. */
+/* WORLD MEMORY sits in the pack's own panel, NINE-SLICED — which is
+   what lets it be the delivered frame and still hold live text. The
+   panel came with four ？ rows and a 0% drawn into it; the slice keeps
+   the gold edge and its corner ornaments and throws that interior away,
+   and what the player reads is the world's memory rather than a picture
+   of somebody else's. The border is drawn at 38/244 of the panel's
+   height so the corners keep their own proportions. */
 .bx-memory {
-  width: clamp(140px, calc(var(--stage-w, 100vw) * 0.21), 200px);
-  padding: 4px 9px 6px;
+  width: clamp(150px, calc(var(--stage-w, 100vw) * 0.225), 206px);
+  padding: 7px 6px 6px;
+  border: 0 solid transparent;
+  border-width: 11px 13px;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.86), rgba(4, 10, 26, 0.92));
+  background-clip: padding-box;
+  box-shadow: none;
+  border-image-source: var(--ui-memory);
+  border-image-slice: 38 fill;
+  border-image-outset: 0;
+  border-image-repeat: stretch;
+}
+.bx-memory .bx-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+/* The pack's own star, at the head of its own panel. */
+.bx-memory .bx-panel-label::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  background-image: var(--ui-memory-star);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 .bx-memory-list {
   margin: 2px 0 3px;
@@ -3190,20 +3354,26 @@ body,
   flex: 0 0 auto;
   align-self: stretch;
   margin: 0;
-  padding: 5px 16px;
-  min-height: 28px;
-  /* The house's own plate rather than the old ivory one, and pinched at
-     both ends: a message window in this world is a navy lozenge under a
-     gold hairline, not a rectangle. */
-  border: 1px solid var(--bx-gold-line);
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
-  box-shadow:
-    inset 0 0 0 1px var(--bx-gold-hair),
-    0 2px 10px rgba(0, 0, 0, 0.45);
+  /* THE PACK'S MESSAGE WINDOW, nine-sliced.
+     `message-window.png` is 720x223 with a winged ornament at each end
+     about 95 wide. Sliced there, the wings are drawn as corners at
+     their own 95:223 proportion and only the navy between them
+     stretches — so the plate is as wide as the sentence needs and no
+     part of the drawing is pulled out of shape. The border width is a
+     share of the plate's height, which is what keeps that true at every
+     size. */
+  padding: 7px 10px;
+  min-height: 40px;
+  border: 0 solid transparent;
+  border-width: 9px 19px;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
+  background-clip: padding-box;
+  box-shadow: none;
+  border-image-source: var(--ui-message);
+  border-image-slice: 25 95 fill;
+  border-image-repeat: stretch;
   color: var(--bx-ink);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
 }
 .bp-message-text {
   margin: 0;
@@ -3255,24 +3425,16 @@ body,
   font-family: inherit;
   cursor: pointer;
 }
-/* The diamond itself. A rotated square inset to 70.7% of the box, which
-   is exactly the side of the largest diamond that fits — so the plate
-   touches all four edges and no pixel of the tap target is wasted. */
+/* The plate is the PACK'S DIAMOND — `command-diamond.png`, 180x184, so
+   very nearly square, and drawn at its own ratio over a square button.
+   Nothing is rotated any more: the diamond is a drawing of a diamond. */
 .bp-cmd-plate {
   position: absolute;
-  left: 14.65%;
-  top: 14.65%;
-  width: 70.7%;
-  height: 70.7%;
-  transform: rotate(45deg);
-  border: 1px solid var(--bx-gold-line);
-  background: linear-gradient(140deg, var(--bx-navy), var(--bx-navy-deep));
-  box-shadow:
-    inset 0 0 0 1px var(--bx-gold-hair),
-    0 2px 9px rgba(0, 0, 0, 0.5);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  inset: -8% -8% -6%;
+  background-image: var(--ui-diamond);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  transition: filter 0.16s ease;
 }
 /* THE STACK SITS HIGH IN THE BOX ON PURPOSE. A diamond is widest across
    its middle and narrows to a point at the bottom, so a label centred in
@@ -3305,18 +3467,15 @@ body,
 }
 .bp-cmd.open .bp-cmd-plate,
 .bp-cmd:active .bp-cmd-plate {
-  border-color: var(--bx-gold-lit);
-  box-shadow:
-    inset 0 0 0 1px rgba(243, 226, 182, 0.34),
-    0 0 13px rgba(159, 208, 255, 0.55);
+  filter: brightness(1.28) drop-shadow(0 0 8px rgba(243, 226, 182, 0.8));
 }
 .bp-cmd.open .bp-cmd-jp { color: var(--bx-gold-lit); }
 .bp-cmd[disabled] { opacity: 0.45; }
 /* ARCANA is the one the collecting is for, so its plate is lit from
-   inside rather than being a sixth of the same thing. */
+   inside rather than being a sixth of the same thing. Same drawing,
+   turned toward her violet — no second asset for one button. */
 .bp-cmd.arcana .bp-cmd-plate {
-  border-color: rgba(243, 226, 182, 0.6);
-  background: linear-gradient(140deg, rgba(36, 30, 62, 0.9), rgba(9, 12, 34, 0.94));
+  filter: hue-rotate(38deg) saturate(1.25) brightness(1.08);
 }
 .bp-cmd-spent {
   margin: 0;
@@ -3350,79 +3509,59 @@ body,
 
    They were beside the commands while the screen was three bands and
    there was nowhere else for them. There is now. */
+/* A ROW of three, not a column. Each chip is a drawing with its own
+   height, and three of them stacked came to most of a phone's screen —
+   so they sit side by side in the corner the way the layout master puts
+   them, and the row is as tall as one chip instead of three. */
 .bp-modes {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: flex-end;
   gap: 4px;
-  /* One width for the three of them: a way out that is wider than the
-     two chips above it reads as the important one, and it is not. */
-  width: clamp(62px, calc(var(--stage-w, 100vw) * 0.092), 82px);
 }
+/* THE PACK DREW ALL THREE OF THESE, ON AND OFF.
+   AUTO, ×2 and 逃走 arrived as six finished buttons — the lit state and
+   the dim one, with the word, the reading and the ON/OFF tab already in
+   them. So there is no text and no border here at all: the chip IS the
+   drawing, at the ratio it was drawn at, and turning AUTO on swaps one
+   delivered picture for the other. That is why ON is unmistakable —
+   it is not a tint of OFF, it is a different painting. */
 .bp-mode {
   appearance: none;
   position: relative;
-  min-width: 60px;
-  /* Shorter than a command, and deliberately: these are read far more
-     often than they are pressed. Still over the 44px a thumb needs when
-     the three of them are stacked, because each one is pressed with the
-     hand already holding the phone. */
-  min-height: 30px;
-  padding: 3px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  border: 1px solid var(--bx-gold-line);
-  border-radius: 999px;
-  /* A flat COLOUR rather than a gradient, on purpose: whether a chip is
-     on has to be answerable from `backgroundColor`, and a gradient
-     computes to transparent there. Something the screen is built to say
-     clearly should be readable by the test that checks it says so. */
-  background-color: rgba(5, 11, 28, 0.86);
-  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
-  color: var(--bx-ink-dim);
+  width: clamp(46px, calc(var(--stage-w, 100vw) * 0.062), 58px);
+  aspect-ratio: 150 / 190;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: none;
   font-family: inherit;
   cursor: pointer;
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  transition: filter 0.16s ease;
 }
-.bp-mode-en {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-indent: 0.14em;
-  line-height: 1.15;
-}
+.bp-auto-chip { background-image: var(--ui-auto-off); }
+.bp-auto-chip.on { background-image: var(--ui-auto-on); }
+.bp-speed-chip { background-image: var(--ui-speed-off); }
+.bp-speed-chip.on { background-image: var(--ui-speed-on); }
+.bp-escape { aspect-ratio: 150 / 164; background-image: var(--ui-escape-off); }
+.bp-escape:not([disabled]) { background-image: var(--ui-escape-on); }
+.bp-mode:active { filter: brightness(1.2); }
+/* The words are in the pictures, so the spans are for a screen reader
+   and for the tests — never drawn, never in the way. */
+.bp-mode-en,
 .bp-mode-jp {
-  font-size: 7.5px;
-  letter-spacing: 0.1em;
-  text-indent: 0.1em;
-  line-height: 1.2;
-  opacity: 0.7;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
-/* ON has to be readable at a glance and from an angle, so it is a
-   filled chip rather than a tint: a player who cannot tell whether AUTO
-   is on will tap it, and toggling AUTO off on the turn they meant to
-   turn it on is the whole of the frustration this state avoids. */
-.bp-mode.on {
-  border-color: var(--bx-gold-lit);
-  background-color: rgba(96, 76, 30, 0.93);
-  color: var(--bx-gold-lit);
-  box-shadow:
-    inset 0 0 0 1px rgba(243, 226, 182, 0.3),
-    0 0 11px rgba(217, 184, 113, 0.4);
-}
-.bp-mode.on .bp-mode-jp { opacity: 0.92; }
 .bp-mode[disabled] { opacity: 0.4; }
-/* The way out is not one of the two beside it. Its own colour, so it is
-   never pressed by somebody reaching for ×2. */
-.bp-escape {
-  border-color: rgba(216, 106, 84, 0.55);
-  color: rgba(244, 205, 196, 0.9);
-}
 
 .bp-tray {
   display: flex;

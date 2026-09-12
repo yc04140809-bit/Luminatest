@@ -259,7 +259,7 @@ test.describe('battle UI prototype', () => {
     // Whole, whatever whole is: the creature's numbers are tuned for the
     // tempo of the fight, and what this test is about is that the screen
     // is running the real battle rather than a mock of it.
-    await expect(hp).toHaveText(/モスラビット(\d+) \/ \1$/);
+    await expect(hp).toHaveText(/モスラビット(\d+)\s*\/\s*\1$/);
     const before = await hp.textContent();
     await page.getByTestId('bp-attack').click();
     await expect(hp).not.toHaveText(before ?? '');
@@ -536,7 +536,7 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(page.locator('.bp-chaos-aura')).toHaveCount(0);
     // Straight into it: nothing to sit through.
     await expect(page.getByTestId('bp-commands')).toBeVisible();
-    await expect(page.getByTestId('bp-enemy-hp')).toHaveText(/モスラビット(\d+) \/ \1$/);
+    await expect(page.getByTestId('bp-enemy-hp')).toHaveText(/モスラビット(\d+)\s*\/\s*\1$/);
   });
 
   for (const c of CASES) {

@@ -22,6 +22,24 @@ import greenwoodField from './backgrounds/field-greenwood.png';
 import aldenVillage from './backgrounds/location-alden-village.webp';
 import aldenTavern from './backgrounds/location-alden-tavern.webp';
 import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
+import battleUiAutoOn from './ui/battle/chip-auto-on.png';
+import battleUiAutoOff from './ui/battle/chip-auto-off.png';
+import battleUiSpeedOn from './ui/battle/chip-x2-on.png';
+import battleUiSpeedOff from './ui/battle/chip-x2-off.png';
+import battleUiEscapeOn from './ui/battle/chip-escape-on.png';
+import battleUiEscapeOff from './ui/battle/chip-escape-off.png';
+import battleUiCommandDiamond from './ui/battle/command-diamond.png';
+import battleUiTurnSlot from './ui/battle/turn-slot.png';
+import battleUiTurnNext from './ui/battle/turn-next.png';
+import battleUiPartyCard from './ui/battle/party-card.png';
+import battleUiEnemyPlate from './ui/battle/enemy-plate.png';
+import battleUiMessageWindow from './ui/battle/message-window.png';
+import battleUiMemoryPanel from './ui/battle/memory-panel.png';
+import battleUiMemoryStar from './ui/battle/memory-star.png';
+import battleUiBarRail from './ui/battle/bar-rail.png';
+import battleUiBarHp from './ui/battle/bar-hp.png';
+import battleUiBarMp from './ui/battle/bar-mp.png';
+import battleUiBarAlt from './ui/battle/bar-alt.png';
 
 /**
  * THE PEOPLE OF ALDEN, as delivered.
@@ -248,3 +266,43 @@ export const SE_ASSETS: Record<SeId, string | null> = {
   timeshift: null,
   reunion: null,
 };
+
+/**
+ * THE BATTLE UI, as delivered.
+ *
+ * Cut from the BATTLE UI ASSET PACK v0.1 sheets. Each entry is one
+ * piece of that pack lifted out at its own aspect ratio and scaled
+ * down — nothing is redrawn, recoloured or recomposed, and nothing is
+ * stretched out of shape at the point of use: frames are nine-sliced so
+ * their ornaments keep their proportions, and meters are REVEALED
+ * rather than squashed.
+ *
+ * Provenance is in src/assets/ui/battle/README.md, with the source
+ * sheet and the exact rectangle each piece came from.
+ */
+export const BATTLE_UI = {
+  /** AUTO / ×2 / 逃走, in the two states the pack draws them in. */
+  autoOn: battleUiAutoOn,
+  autoOff: battleUiAutoOff,
+  speedOn: battleUiSpeedOn,
+  speedOff: battleUiSpeedOff,
+  escapeOn: battleUiEscapeOn,
+  escapeOff: battleUiEscapeOff,
+  /** The command plate — one diamond, the label goes on top. */
+  commandDiamond: battleUiCommandDiamond,
+  /** A turn order portrait frame, and the mark that points at the next. */
+  turnSlot: battleUiTurnSlot,
+  turnNext: battleUiTurnNext,
+  /** The three frames: a party member, the creature, and what is said. */
+  partyCard: battleUiPartyCard,
+  enemyPlate: battleUiEnemyPlate,
+  messageWindow: battleUiMessageWindow,
+  /** WORLD MEMORY's own panel, and the star it is headed with. */
+  memoryPanel: battleUiMemoryPanel,
+  memoryStar: battleUiMemoryStar,
+  /** And the meters, cap to cap. */
+  barRail: battleUiBarRail,
+  barHp: battleUiBarHp,
+  barMp: battleUiBarMp,
+  barAlt: battleUiBarAlt,
+} as const;

@@ -67,3 +67,31 @@ function write(key: string, value: string | null): void {
     /* blocked storage: the choice simply does not persist */
   }
 }
+
+const OPPONENT_KEY = 'mugen-battle-preview-opponent';
+
+/** Who the DEV ADMIN battle preview puts on the other side of the field. */
+export type PreviewOpponent = 'MOSS_RABBIT' | 'GALD';
+
+/**
+ * Which of them the preview shows.
+ *
+ * The forest fight is always the creature; this is the battle PREVIEW
+ * only, and it exists because the fight the whole slice is built to
+ * arrive at is against a man. A battle screen judged only against a
+ * rabbit has not been judged: he is twice the height, he is drawn
+ * facing across the field, and his plate has to hold 「盗賊 ガルド」
+ * rather than four kana.
+ */
+export function previewOpponent(): PreviewOpponent {
+  if (!DEV_ADMIN_ENABLED) return 'MOSS_RABBIT';
+  try {
+    return localStorage.getItem(OPPONENT_KEY) === 'GALD' ? 'GALD' : 'MOSS_RABBIT';
+  } catch {
+    return 'MOSS_RABBIT';
+  }
+}
+
+export function setPreviewOpponent(who: PreviewOpponent): void {
+  write(OPPONENT_KEY, who === 'GALD' ? 'GALD' : null);
+}
