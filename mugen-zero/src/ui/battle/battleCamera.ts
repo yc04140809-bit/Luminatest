@@ -75,21 +75,24 @@ const STILL: CameraOffset = { inset: 0, bottom: 0 };
  * a finished look — the brief for this pass was a structure that can be
  * tuned, not a tuning.
  *
- * The whole field stays on screen. A lean of six hundredths of the
- * field's width is about fifty pixels on a 844-wide phone: enough to
- * read as a step taken, nowhere near enough to crowd the creature being
- * hit or to turn the battlefield into somebody's face.
+ * The whole field stays on screen. A lean of eight hundredths of the
+ * field's width is about sixty-seven pixels on a 844-wide phone: enough
+ * to read as a step taken, nowhere near enough to crowd the creature
+ * being hit or to turn the battlefield into somebody's face.
+ *
+ * TUNED ON A PHONE. The first pass leaned 0.06 and reached 0.10, and
+ * the moves were too small to read at arm's length.
  */
-const LEAN = 0.06;
+const LEAN = 0.08;
 /** And a little further at the moment of contact. */
-const REACH = 0.1;
+const REACH = 0.14;
 /**
  * Standing back is drawn as standing further UP the path rather than
  * sideways: Kaos is already hard against her edge of the field, so she
  * has nowhere sideways to go, and up-the-path is the axis this
  * battlefield uses for distance anyway.
  */
-const STEP_BACK = 0.04;
+const STEP_BACK = 0.05;
 
 const OFFSETS: Readonly<Record<CameraPhase, Readonly<Record<CameraRole, CameraOffset>>>> = {
   IDLE: { ACTOR: STILL, ALLY: STILL, TARGET: STILL, BYSTANDER: STILL },
@@ -175,8 +178,16 @@ export function cameraStyle(
  * property rather than written down twice. It is scaled by the fight's
  * own speed like every other duration on this screen, so ×2 halves it
  * without the CSS learning what speed is.
+ *
+ * SHORTER THAN THE GAP IT TRAVELS IN, which is the whole point of the
+ * number. The first pass glided for 220ms while the phases beneath it
+ * were 96 and 102ms apart, so every move was still in flight when the
+ * next one retargeted it and no phase was ever actually reached — the
+ * field read as drifting rather than as stepping. At 120 a move arrives
+ * and is held before the next one begins, which is what makes FOCUS and
+ * IMPACT separate things to look at rather than one smear.
  */
-export const CAMERA_GLIDE_MS = 220;
+export const CAMERA_GLIDE_MS = 120;
 
 /** A phase, and how far into the turn it starts. */
 export interface CameraCue {
@@ -196,7 +207,9 @@ export interface CameraCue {
  * here, so the camera cannot drift away from the fight it is filming.
  *
  * The fractions are the shape of a blow: lean, give room, land at not
- * quite two thirds through, and spend what is left going home.
+ * quite three quarters through, and spend what is left going home. The
+ * landing sits later than it first did so that the lean has somewhere
+ * to be seen before the contact takes over.
  *
  * THE LAST CUE IS ALWAYS IDLE. That is the return guarantee, and it is
  * structural rather than remembered — a turn cannot end anywhere but
@@ -213,8 +226,8 @@ export function swingCues(actorBeatMs: number, turnMs: number, glideMs: number):
   const returnAt = Math.max(0, Math.min(beat, turnMs));
   return [
     { phase: 'FOCUS', at: 0 },
-    { phase: 'RETREAT', at: Math.round(beat * 0.3) },
-    { phase: 'IMPACT', at: Math.round(beat * 0.62) },
+    { phase: 'RETREAT', at: Math.round(beat * 0.34) },
+    { phase: 'IMPACT', at: Math.round(beat * 0.72) },
     { phase: 'RETURN', at: returnAt },
     { phase: 'IDLE', at: Math.max(turnMs, returnAt + Math.max(0, glideMs)) },
   ];
