@@ -38,13 +38,23 @@ export const MIN_STAGE_ASPECT = 4 / 3;
 /**
  * The widest the stage is allowed to get.
  *
- * A phone held sideways is about 2:1 and gets its whole screen, which
- * is the point of the exercise. A desktop window can be 3:1 or worse,
- * and a battlefield that wide is not a wider picture, it is two
- * characters at opposite ends of a room; past this the extra width
- * becomes letterbox instead.
+ * A desktop window can be 4:1 or worse, and a battlefield that wide is
+ * not a wider picture, it is two characters at opposite ends of a room.
+ * Past this the extra width becomes letterbox instead.
+ *
+ * RAISED FROM 2.4, WHICH WAS CUTTING INTO PHONES. A phone held sideways
+ * is about 2.2:1 with the browser's address bar showing — and about
+ * 2.5:1 the moment it retracts, which is most of the time anyone is
+ * actually playing. At 2.4 that retraction did not give the game the
+ * height back, it took width away: a 932×360 screen was handed an
+ * 864-wide stage and 68 pixels of bar down each side, for no reason a
+ * player could see. Every phone is now inside the cap and gets its
+ * whole screen, which was always the point of the exercise.
+ *
+ * Measured across the sizes this is judged on: side margin is nought at
+ * 844×390, 915×412, 800×360, 844×340, 932×360 and 1000×360.
  */
-export const MAX_STAGE_ASPECT = 2.4;
+export const MAX_STAGE_ASPECT = 3.2;
 
 export interface StageBox {
   /** The stage's width in CSS pixels. Always the longer side. */
@@ -103,6 +113,14 @@ export function stageFor(viewportWidth: number, viewportHeight: number): StageBo
  * game, it is a clipped one — so below this the game is laid out at
  * this height and SCALED to fit instead.
  */
+// LEFT AT 360 ON PURPOSE, and it was a candidate for lowering. It is
+// not what puts bars down the sides — the cap above was, and lowering
+// this removes nought pixels of margin at any size measured. What it
+// WOULD remove is the reason a window shorter than the game is drawn
+// for still shows all of it: at 844×340 the game is laid out at its own
+// 360 and drawn at 0.944, which is a slightly smaller game rather than
+// a clipped one. Dropping the floor to 320 would hand those screens
+// twenty fewer pixels than any layout in the game was written against.
 export const MIN_STAGE_HEIGHT = 360;
 
 export interface StageLayout {

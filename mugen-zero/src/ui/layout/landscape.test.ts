@@ -82,9 +82,35 @@ describe('the landscape stage', () => {
   });
 
   it('stops widening once the window is absurd', () => {
-    const box = stageFor(2560, 800);
+    // A window wider than the cap, so the cap is what is being tested
+    // rather than a coincidence. 2560×800 used to be absurd; it is 3.2
+    // exactly, which is now simply the widest allowed.
+    const box = stageFor(3440, 800);
     expect(aspect(box)).toBeLessThanOrEqual(MAX_STAGE_ASPECT + 0.01);
     expect(box.height).toBe(800);
+    expect(box.width).toBeLessThan(3440);
+  });
+
+  /**
+   * THE ONE THAT SENT THIS BACK TO BE FIXED.
+   *
+   * A phone held sideways with the address bar retracted is past 2.4:1,
+   * and at 2.4 that cost it width it could see rather than buying it
+   * height it could not. Every one of these gets its whole screen.
+   */
+  it('gives a phone held sideways the whole of its screen, bar or no bar', () => {
+    for (const [w, h] of [
+      [844, 390],
+      [915, 412],
+      [800, 360],
+      [844, 340],
+      [932, 360],
+      [1000, 360],
+    ]) {
+      const box = stageFor(w, h);
+      expect(box.width, `${w}x${h} uses the full width`).toBe(w);
+      expect(box.height, `${w}x${h} uses the full height`).toBe(h);
+    }
   });
 
   it('survives a zero-sized window instead of producing a negative stage', () => {

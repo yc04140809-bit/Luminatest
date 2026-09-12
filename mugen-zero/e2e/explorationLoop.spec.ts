@@ -60,14 +60,32 @@ async function intoForest(page: Page) {
 }
 
 /** Walks the ring spots in turn until something happens, or gives up. */
+/**
+ * Walk the forest until something is found, or say that nothing was.
+ *
+ * ROUND THE SPOTS TWICE. Only one ring stands in the forest at a time,
+ * so this taps each place it could be in turn and waits to see whether
+ * the walk arrived. Two seconds a spot is plenty of time to cross the
+ * clearing on an idle machine and not always enough on a loaded one —
+ * and a walk that ran out of time at the right spot then had the player
+ * walk AWAY from the ring to try the next one, which is how a forest
+ * with something in it reported having nothing.
+ *
+ * A second pass costs nothing when the first one works and is the
+ * difference between flaky and not when it does not. `walkIntoAFight`
+ * in battlePrototype.spec.ts has gone round twice for the same reason
+ * since it was written.
+ */
 async function walkUntil(page: Page, arrived: () => Promise<boolean>): Promise<boolean> {
   const box = await page.locator('.phaser-wrap canvas').boundingBox();
   if (!box) throw new Error('canvas bounding box unavailable');
-  for (const at of RING_TAPS) {
-    await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
-    for (let i = 0; i < 12; i++) {
-      await page.waitForTimeout(180);
-      if (await arrived()) return true;
+  for (let pass = 0; pass < 2; pass++) {
+    for (const at of RING_TAPS) {
+      await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);
+      for (let i = 0; i < 12; i++) {
+        await page.waitForTimeout(180);
+        if (await arrived()) return true;
+      }
     }
   }
   return false;

@@ -26,11 +26,13 @@ import {
 export const GAME_WIDTH = GREENWOOD_FIELD.width;
 export const GAME_HEIGHT = GREENWOOD_FIELD.height;
 
-// The player comes in from the right and the forest goes on to the left.
-// Given as places on the clearing rather than as pixels, so they hold
-// whatever shape the field turns out to be on this phone.
-const PLAYER_START_ON_GROUND = { along: 0.84, depth: 0.72 };
-const COMPANION_START_ON_GROUND = { along: 0.9, depth: 0.88 };
+import {
+  COMPANION_MIN_GAP,
+  COMPANION_START_ON_GROUND,
+  FOLLOW_DISTANCE,
+  PLAYER_START_ON_GROUND,
+} from './companionPlacement';
+
 /** The scripted first meeting, well down the path he is walking. */
 const ENCOUNTER_ON_GROUND = { along: 0.28, depth: 0.3 };
 const GALD_POINT_ID = 'GALD_ENCOUNTER';
@@ -67,31 +69,36 @@ const COMPANION_CHARACTER = 'KAOS' as const;
  * every phone, and the field's height is the one thing that does not
  * move.
  */
-// Raised from 0.3. The two numbers are not comparable as written and
-// that is what hid this: HIS is a WIDTH (his art is measured across the
-// shoulders) and HERS is a HEIGHT, so 0.28 against 0.3 looked like she
-// was the larger of the two while she was drawn at about two thirds of
-// him. His figure is 101 wide and 159 tall, which is 0.44 of the field;
-// at 0.3 she stood 0.3 of it, and read as something following him
-// rather than as the other person in the story.
+// Raised from 0.3, then from 0.42. The two numbers are not comparable
+// as written and that is what hid the first of these: HIS is a WIDTH
+// (his art is measured across the shoulders) and HERS is a HEIGHT, so
+// 0.28 against 0.3 looked like she was the larger of the two while she
+// was drawn at about two thirds of him. His figure is 101 wide and 160
+// tall, which is 0.44 of the field.
 //
-// 0.42 puts her at about 95% of his height — clearly the same size of
-// person, still the shorter of the two, and still a step behind. The
-// follow distance below moved with her, because a bigger companion
-// needs more room to not be standing inside him.
-const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.42);
+// 0.42 then put her at 96% of his HEIGHT and she still read as small on
+// a real phone, which sent somebody looking at the drawings rather than
+// at the numbers. The two of them are not drawn in the same style. His
+// head is a third of him; hers is a fifth of her — he is about three
+// heads tall and she is nearer seven and a half. Matching their heights
+// therefore does not match what the eye reads as their size: at 0.42
+// her head came out 58% of his, and in this art a character's head is
+// most of what "how big is that person" means.
+//
+// There is no one number that makes her head his size while keeping her
+// shorter than him; the styles will not allow it. 0.50 is the judged
+// compromise — her head 70% of his rather than 58%, clearly the other
+// member of the party rather than something following him, at the cost
+// of standing a head taller than he does. That she is the taller of the
+// two is a decision about who she is, and it was made deliberately
+// rather than fallen into.
+const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.5);
 /**
  * How far back along his path she walks. Far enough that the two of
  * them read as two people on a path rather than as one figure with
  * something stuck to it — which, at this size, takes most of a
  * character's height.
  */
-// Both raised with her size, by about what she gained: at 0.42 she is
-// some 80 wide against his 101, so half of each of them is 90 — and a
-// follow distance of 72 would have put her shoulder inside his.
-const FOLLOW_DISTANCE = 96;
-/** She never comes closer than this to him, whatever the path says. */
-const COMPANION_MIN_GAP = 64;
 /** A little faster than he is, so a gap she has lost can be closed. */
 const COMPANION_SPEED = 178;
 /** Close enough to her place on the path to stop walking. */
