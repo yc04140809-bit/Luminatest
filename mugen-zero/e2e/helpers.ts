@@ -302,13 +302,48 @@ export async function swingUntil(
   const deadline = Date.now() + budgetMs;
   while (Date.now() < deadline) {
     if (await done()) return true;
+    // PRESSED BY IDENTITY, NOT BY POSITION.
+    //
     // Between one blow and the next the commands are mid-animation, and
-    // Playwright's stability check will not press a button that is
-    // still moving — on a loaded machine that is most of them, and a
-    // fight that takes twenty-four swings never lands them. The button
-    // is a real button in a real place; pressing it without waiting for
-    // the animation to settle is what a player does.
-    await attack.click({ force: true, timeout: 2500 }).catch(() => {});
+    // Playwright will not press a button that is still moving — on a
+    // loaded machine that is most of them, and a fight that takes
+    // twenty-four swings never lands them. That is why this used to pass
+    // `force: true`.
+    //
+    // But forcing does not just skip the "is it still moving" check, it
+    // skips "is this element the one under the cursor" as well, and this
+    // loop runs right up to the moment the fight ends. What replaces the
+    // commands is the four answers — 殺す / 逃がす / 助ける / 捕らえる —
+    // so a forced swing dispatched a frame after the last blow landed on
+    // whichever answer had taken that spot, and the helper every story
+    // test in the suite depends on could choose a life while believing
+    // it swung a sword. (The awakening scene, a full-screen button laid
+    // over the fight at `inset: 0`, is the same hazard earlier in the
+    // same fight.)
+    //
+    // Resolving the test id and pressing THAT element has neither
+    // problem: no coordinate is involved, so nothing else can receive
+    // it, and there is no actionability wait to lose the race in. The
+    // `disabled` check is the one rule worth keeping from the real
+    // thing — it is what stops the fight being swung at after it is
+    // over — and it is read and acted on in the same page task, so
+    // nothing can change in between.
+    //
+    // The budget is not optional. The commands are unmounted outright
+    // while Kaos intervenes, while an accident plays, and for good once
+    // the creature is down — and without a timeout this waits for a
+    // button that is never coming back, so the loop stops re-reading its
+    // own deadline and the test dies of old age instead of reporting
+    // that the fight never ended.
+    await attack
+      .evaluate(
+        (el) => {
+          if (el instanceof HTMLButtonElement && !el.disabled) el.click();
+        },
+        undefined,
+        { timeout: 2500 },
+      )
+      .catch(() => {});
     await page.waitForTimeout(70);
   }
   return done();

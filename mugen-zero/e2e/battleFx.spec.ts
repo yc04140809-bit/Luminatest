@@ -35,6 +35,54 @@ async function cast(page: Page, id: string) {
   await page.getByTestId(`magic-${id}`).click();
 }
 
+/**
+ * How long the starlight bolt is actually on screen, in milliseconds.
+ *
+ * MEASURED IN THE PAGE. This used to be a fixed 400ms sleep in the
+ * driver either side of the 520/260ms boundary — about a hundred
+ * milliseconds of slack, starting whenever a click's round-trip happened
+ * to return rather than when the beat began. Worse, the ×2 half asked
+ * whether the effect was GONE, which is equally true of an effect that
+ * had not started yet, so it could pass without the bolt ever being
+ * drawn.
+ *
+ * A MutationObserver records the moment the bolt appears and the moment
+ * it leaves, so what comes back is the beat's real length and a bolt
+ * that never appeared is a timeout rather than a pass.
+ */
+async function boltLifetime(page: Page): Promise<number> {
+  const watch = () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __fx: { start: number | null; end: number | null } };
+      w.__fx = { start: null, end: null };
+      const drawn = () => Boolean(document.querySelector('[data-testid="fx-starlight"]'));
+      const observer = new MutationObserver(() => {
+        if (w.__fx.start === null) {
+          if (drawn()) w.__fx.start = performance.now();
+        } else if (w.__fx.end === null && !drawn()) {
+          w.__fx.end = performance.now();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.querySelector('[data-testid="battle-screen"]')!, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+      });
+    });
+  const read = () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __fx: { start: number | null; end: number | null } };
+      return w.__fx.start === null || w.__fx.end === null ? null : w.__fx.end - w.__fx.start;
+    });
+
+  // Watching before the cast, so the bolt cannot appear in the gap.
+  await watch();
+  await cast(page, 'starlight_bolt');
+  await expect.poll(read, { timeout: 15_000 }).not.toBeNull();
+  return (await read())!;
+}
+
 test.describe('what a spell looks like', () => {
   test('each of the four has its own, and none of them outlives its beat', async ({ page }) => {
     await intoFight(page);
@@ -110,19 +158,16 @@ test.describe('what a spell looks like', () => {
     // animation-duration here would be measuring the browser rather
     // than the game. How long the effect is ON SCREEN comes from
     // `beatMs`, and that is what actually shortens.
-    //
-    // The bolt is held 520ms at ×1, so 260 at ×2: gone by 400, and at
-    // ×1 it would still be there.
-    await cast(page, 'starlight_bolt');
-    await page.waitForTimeout(400);
-    await expect(page.getByTestId('fx-starlight')).toHaveCount(0);
+    const atTwo = await boltLifetime(page);
     await page.waitForTimeout(1400);
 
     await page.getByTestId('speed-button').click();
     expect(await fxVar()).toBe('1');
-    await cast(page, 'starlight_bolt');
-    await page.waitForTimeout(400);
-    await expect(page.getByTestId('fx-starlight')).toBeVisible();
+    const atOne = await boltLifetime(page);
+
+    // The bolt is held 520ms at ×1 and 260 at ×2.
+    expect(atOne, 'the bolt is held on screen, not flashed').toBeGreaterThan(400);
+    expect(atTwo, `×2 (${atTwo}ms) is about half of ×1 (${atOne}ms)`).toBeLessThan(atOne * 0.7);
   });
 
   test('nothing an effect does moves the commands', async ({ page }) => {

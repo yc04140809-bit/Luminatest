@@ -198,6 +198,13 @@ export function DevAdminScreen({
           className="btn"
           data-testid="dev-review-hub-entry"
           style={{ marginBottom: 4 }}
+          /* Shut while the world is being built, like every other button
+             here. The hub only READS the world, which is exactly why it
+             needs this: a preset is a reset, a choice and three years of
+             simulation, and a report generated in the middle of that
+             describes a world that does not exist yet — Route: NONE on
+             day 1 of a world that is about to be four years into SPARE. */
+          disabled={busy}
           onClick={() => setShowHub(true)}
         >
           DEV REVIEW HUB / QA REPORT

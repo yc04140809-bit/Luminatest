@@ -500,10 +500,12 @@ const RECIPES: Record<string, Shot[]> = {
         const scene = page.getByTestId('magic-awakening');
         for (let i = 0; i < 10; i += 1) {
           if (!(await scene.isVisible().catch(() => false))) break;
-          await scene.click({ force: true });
+          // Unforced: the scene can auto-advance out from under a
+          // forced click and let it through onto the fight below.
+          await scene.click({ timeout: 2500 }).catch(() => {});
           await page.waitForTimeout(120);
         }
-        await page.getByTestId('magic-button').click({ force: true });
+        await page.getByTestId('magic-button').click({ timeout: 2500 }).catch(() => {});
         await expect(page.getByTestId('magic-tray')).toBeVisible();
         await page.waitForTimeout(300);
       },

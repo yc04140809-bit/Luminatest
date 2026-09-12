@@ -18,21 +18,37 @@ import {
  * feature has quietly stopped being what it was for.
  */
 
-/** Play Gald until she steps forward, and read the scene. */
+/**
+ * Play Gald until she steps forward, and read the scene.
+ *
+ * NOT FORCED, and that is the point. The awakening scene is a full-screen
+ * button — `position: absolute; inset: 0; z-index: 30` — laid over the
+ * fight, so the moment it appears it is what sits on top of 「たたかう」.
+ * A forced click skips the check that the element is the one actually
+ * under the cursor, so a swing dispatched a frame too late pressed the
+ * scene instead of the button. Leaving the check on costs nothing here:
+ * a click that cannot land times out inside its own budget, is caught,
+ * and the next turn of the loop tries again — while a click that DOES
+ * land is guaranteed to have landed on 「たたかう」.
+ */
 async function awaken(page: Page) {
   const scene = page.getByTestId('magic-awakening');
   for (let i = 0; i < 24; i++) {
     if (await scene.isVisible().catch(() => false)) break;
     await page
       .getByTestId('attack-button')
-      .click({ force: true, timeout: 2500 })
+      .click({ timeout: 2500 })
       .catch(() => {});
     await page.waitForTimeout(110);
   }
   await expect(scene).toBeVisible();
   for (let i = 0; i < 10; i++) {
     if (!(await scene.isVisible().catch(() => false))) break;
-    await scene.click({ force: true });
+    // The scene advances on its own timer as well as on a tap, so it can
+    // go between the question above and the click below. Unforced, that
+    // is a caught timeout; forced, it was a click that went through the
+    // vanished overlay and onto the fight's commands underneath.
+    await scene.click({ timeout: 2500 }).catch(() => {});
     await page.waitForTimeout(110);
   }
   await expect(scene).toHaveCount(0);
@@ -63,9 +79,10 @@ test.describe('the awakening', () => {
     const scene = page.getByTestId('magic-awakening');
     for (let i = 0; i < 24; i++) {
       if (await scene.isVisible().catch(() => false)) break;
+      // Unforced: see awaken() — the scene is a full-screen button.
       await page
         .getByTestId('attack-button')
-        .click({ force: true, timeout: 2500 })
+        .click({ timeout: 2500 })
         .catch(() => {});
       await page.waitForTimeout(110);
     }
@@ -75,7 +92,7 @@ test.describe('the awakening', () => {
     await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
     for (let i = 0; i < 10; i++) {
       if (!(await scene.isVisible().catch(() => false))) break;
-      await scene.click({ force: true });
+      await scene.click({ timeout: 2500 }).catch(() => {});
       await page.waitForTimeout(110);
     }
     expect(hpOf(await enemyHp.textContent())).toBe(hurtDuring);
@@ -231,6 +248,10 @@ test.describe('the fight is still the fight', () => {
     const field = page.locator('.battle-field');
     const before = (await field.boundingBox())!;
     const hero = (await page.getByTestId('battle-hero-art').boundingBox())!;
+    // Forced, and safe: `awaken()` has just asserted the scene is gone,
+    // so nothing is laid over the commands and nothing is about to
+    // replace them — this is one click on a settled screen, not a click
+    // racing a swap.
     await page.getByTestId('magic-button').click({ force: true });
     await expect(page.getByTestId('magic-tray')).toBeVisible();
     await page.waitForTimeout(250);
@@ -258,25 +279,33 @@ test.describe('the fight is still the fight', () => {
     const deadline = Date.now() + 140_000;
     while (Date.now() < deadline) {
       if (await choice.isVisible().catch(() => false)) break;
+      // NONE OF THESE ARE FORCED. This loop runs until the fight ends,
+      // and what ends it is the four answers replacing the battle screen
+      // — 殺す / 逃がす / 助ける / 捕らえる arriving where the commands
+      // were. A forced click resolved a moment before that swap would be
+      // dispatched into whichever answer now occupies that spot, and the
+      // test would be making a life choice while believing it swung a
+      // sword. Every click below is given a short budget and allowed to
+      // miss; missing is a retry, pressing the wrong thing is not.
       if (!(await tray.isVisible().catch(() => false))) {
         await page
           .getByTestId('magic-button')
-          .click({ force: true, timeout: 2000 })
+          .click({ timeout: 2000 })
           .catch(() => {});
       }
       const castable =
         (await spell.isVisible().catch(() => false)) &&
         (await spell.isEnabled({ timeout: 1000 }).catch(() => false));
       if (castable) {
-        await spell.click({ force: true, timeout: 2000 }).catch(() => {});
+        await spell.click({ timeout: 2000 }).catch(() => {});
       } else {
         await page
           .getByTestId('magic-close')
-          .click({ force: true, timeout: 2000 })
+          .click({ timeout: 2000 })
           .catch(() => {});
         await page
           .getByTestId('attack-button')
-          .click({ force: true, timeout: 2000 })
+          .click({ timeout: 2000 })
           .catch(() => {});
       }
       await page.waitForTimeout(110);

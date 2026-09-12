@@ -350,6 +350,14 @@ test.describe('a finished memory', () => {
     const command = page.getByTestId('bp-arcana');
     await expect(command).toBeDisabled();
     await expect(page.getByTestId('bp-arcana-spent')).toBeVisible();
+    // FORCED ON PURPOSE, and safe here. The thing being tested is that a
+    // DISABLED command does nothing when pressed, and Playwright will not
+    // press a disabled element any other way. The hazard that forcing
+    // creates elsewhere — the screen swapping under the click, so the
+    // event lands on whatever now occupies that spot — does not exist on
+    // this line: the fight is mid-turn, nothing is replacing it, and the
+    // assertion two lines up has just confirmed this exact button is
+    // where it says it is.
     await command.click({ force: true });
     await expect(page.getByTestId('bp-arcana-tray')).toHaveCount(0);
 
