@@ -86,33 +86,56 @@ describe('party formation', () => {
 /**
  * THE FOREST FIGHT'S CAST.
  *
- * These numbers came out of the stylesheet unchanged when the prototype
- * stopped being placed by CSS. The screen is checked at three widths in
- * e2e/battleFormation.spec.ts; this is the same lock without a browser,
- * so a wrong edit is caught in a second rather than a minute.
+ * These numbers began as the stylesheet's, unchanged, when the
+ * prototype stopped being placed by CSS. The BATTLE SCREEN OVERHAUL
+ * moved them once and only once, because a share of the field means a
+ * different pixel now: the field WAS the middle band of a three-band
+ * screen and is now the whole of it, so everybody had to come down out
+ * of the panels above and up out of the commands below.
+ *
+ * The screen is checked at three widths in e2e/battleFormation.spec.ts;
+ * this is the same lock without a browser, so a wrong edit is caught in
+ * a second rather than a minute.
  */
 describe('the prototype cast', () => {
-  it('stands exactly where the stylesheet stood it', () => {
+  it('stands where the overhaul stood them', () => {
     expect(PROTOTYPE_PLACEMENTS).toEqual({
-      // .bp-enemy         left: 8%   bottom: 38%  (no z-index)
-      enemy: { edge: 'left', inset: 0.08, bottom: 0.38 },
-      // .bp-enemy.downed  left: 4%   bottom: 30%
-      enemyDowned: { edge: 'left', inset: 0.04, bottom: 0.3 },
-      // .bp-hero          right: 25% bottom: 7%   z-index: 2
-      hero: { edge: 'right', inset: 0.25, bottom: 0.07, depth: 2 },
-      // .bp-kaos          right: 0   bottom: 19%  z-index: 1
-      kaos: { edge: 'right', inset: 0.0, bottom: 0.19, depth: 1 },
-      // .bp-summon        right: 42% bottom: 9%   z-index: 2
-      summon: { edge: 'right', inset: 0.42, bottom: 0.09, depth: 2 },
+      enemy: { edge: 'left', inset: 0.1, bottom: 0.42 },
+      enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
+      hero: { edge: 'right', inset: 0.32, bottom: 0.27, depth: 2 },
+      kaos: { edge: 'right', inset: 0.14, bottom: 0.33, depth: 1 },
+      summon: { edge: 'right', inset: 0.46, bottom: 0.28, depth: 2 },
     });
   });
 
-  it('writes a placement as the percentages the stylesheet used', () => {
-    expect(prototypeStyle('enemy')).toEqual({ left: '8%', bottom: '38%' });
-    expect(prototypeStyle('enemyDowned')).toEqual({ left: '4%', bottom: '30%' });
-    expect(prototypeStyle('hero')).toEqual({ right: '25%', bottom: '7%', zIndex: 2 });
-    expect(prototypeStyle('kaos')).toEqual({ right: '0%', bottom: '19%', zIndex: 1 });
-    expect(prototypeStyle('summon')).toEqual({ right: '42%', bottom: '9%', zIndex: 2 });
+  /**
+   * The band everybody stands in, said as a rule rather than as five
+   * numbers: feet clear of the commands along the bottom, heads clear
+   * of the turn order and the party column along the top. It is the
+   * thing the overhaul is actually asking of this table, and it will
+   * still be asking it when the numbers are tuned again.
+   */
+  it('leaves the corners of the field to the reading', () => {
+    for (const [who, place] of Object.entries(PROTOTYPE_PLACEMENTS)) {
+      expect(place.bottom, `${who} stands above the commands`).toBeGreaterThanOrEqual(0.26);
+      expect(place.bottom, `${who} stands under the panels`).toBeLessThanOrEqual(0.45);
+    }
+  });
+
+  /** And that the middle of the field is nobody's, which is where the
+      fighting is drawn. */
+  it('keeps the middle of the field empty', () => {
+    for (const [who, place] of Object.entries(PROTOTYPE_PLACEMENTS)) {
+      expect(place.inset, `${who} stays on its own side`).toBeLessThan(0.5);
+    }
+  });
+
+  it('writes a placement as the percentages a stylesheet would have', () => {
+    expect(prototypeStyle('enemy')).toEqual({ left: '10%', bottom: '42%' });
+    expect(prototypeStyle('enemyDowned')).toEqual({ left: '6%', bottom: '36%' });
+    expect(prototypeStyle('hero')).toEqual({ right: '32%', bottom: '27%', zIndex: 2 });
+    expect(prototypeStyle('kaos')).toEqual({ right: '14%', bottom: '33%', zIndex: 1 });
+    expect(prototypeStyle('summon')).toEqual({ right: '46%', bottom: '28%', zIndex: 2 });
   });
 
   /**

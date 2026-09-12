@@ -2386,19 +2386,55 @@ body,
    ================================================================== */
 .bp-screen {
   position: relative;
+  /* Still a column, for the ADMIN PREVIEW, which borrows this shell to
+     letter a battlefield it is not fighting on. The BATTLE screen itself
+     is `.bp-field` below and is no longer a column at all. */
   display: flex;
   flex-direction: column;
   background: var(--mugen-bg);
   overflow: hidden;
+
+  /* ---- THE HOUSE PALETTE, read off the delivered UI frames ----------
+     Deep navy ground, a gold that is closer to white than to brass, a
+     four-pointed blue star at the seams. Declared here and nowhere else
+     so the whole battle screen can be re-toned by editing six lines,
+     and scoped to this screen so no other one moves. */
+  --bx-navy: rgba(10, 22, 51, 0.88);
+  --bx-navy-deep: rgba(5, 11, 28, 0.94);
+  --bx-gold: #d9b871;
+  --bx-gold-lit: #f3e2b6;
+  --bx-gold-line: rgba(217, 184, 113, 0.5);
+  --bx-gold-hair: rgba(243, 226, 182, 0.16);
+  --bx-star: #9fd0ff;
+  --bx-ink: #f4efe3;
+  --bx-ink-dim: rgba(244, 239, 227, 0.66);
+  --bx-hp: linear-gradient(90deg, #4e9a5c, #86d08d);
+  --bx-hp-enemy: linear-gradient(90deg, #8f2f2a, #d86a54);
+  --bx-mp: linear-gradient(90deg, #2f5da0, #7fb6f0);
+  /* One diamond's box. Everything in the command row is sized off this
+     so the row scales with the phone instead of wrapping on a small
+     one — and never below the 44px a thumb needs. */
+  --bx-cmd: clamp(50px, calc(var(--stage-w, 100vw) * 0.072), 60px);
 }
 
-/* ---- the battlefield ---- */
+/* ---- THE FIELD IS THE SCREEN ----
+   Only on the battle screen. The preview keeps the three-band shell it
+   was written against, because it is lettering a stage rather than
+   fighting on one and has no HUD to lay into the corners. */
+.bp-field {
+  display: block;
+}
 .bp-stage {
   position: relative;
-  /* The middle band: whatever the two thin bands do not need. */
+  /* The middle band, when there are bands. */
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+.bp-field .bp-stage {
+  position: absolute;
+  inset: 0;
+  flex: none;
 }
 .bp-bg {
   position: absolute;
@@ -2408,6 +2444,28 @@ body,
   object-fit: cover;
   /* The forest as it is: no veil, no fade, no washing out. */
   filter: none;
+}
+/* Aimed low, on the battle screen only.
+   The brief asks for a look down onto the battlefield
+     rather than a flat side view, and the honest way to get one from a
+   painted backdrop is to keep more of its ground and less of its sky:
+   the horizon rides up, the floor opens out, and the two sides read as
+   standing at different distances on one plane. */
+.bp-field .bp-bg {
+  object-position: 50% 64%;
+}
+/* The one thing laid over the field, and it is not UI: a breath of
+   shade top and bottom so white text in a corner has something to sit
+   against on a bright phone held outdoors. Both ends stop well short of
+   where anybody is standing. */
+.bp-field .bp-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4, 9, 22, 0.42) 0%, rgba(4, 9, 22, 0) 22%),
+    linear-gradient(0deg, rgba(4, 9, 22, 0.4) 0%, rgba(4, 9, 22, 0) 20%);
 }
 
 /* ---- three people standing at three distances ---- */
@@ -2595,6 +2653,462 @@ body,
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* =====================================================================
+   THE HUD — four corners and a hole in the middle.
+
+   A grid over the whole field whose centre cell is left empty on
+   purpose. That hole is where an attack, a spell and a summon happen,
+   and reserving it in the layout is what stops the next panel somebody
+   adds from ending up in front of the fight.
+
+       ┌──────────────┬───────────┬──────────────┐
+       │ TURN ORDER   │           │ place        │
+       │ enemy health │           │ the party    │
+       ├──────────────┼───────────┼──────────────┤
+       │              │  (empty)  │              │
+       ├──────────────┼───────────┼──────────────┤
+       │ WORLD MEMORY │ commands  │ AUTO ×2 逃走 │
+       └──────────────┴───────────┴──────────────┘
+
+   The layer itself is transparent to the thumb; only the controls in it
+   are not. A player swiping across the forest must not find that the
+   forest is a div.
+   ===================================================================== */
+.bp-hud {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  padding: 8px 10px calc(6px + env(safe-area-inset-bottom));
+  gap: 6px;
+  pointer-events: none;
+}
+.bx-corner {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  pointer-events: none;
+}
+.bx-corner > * {
+  pointer-events: auto;
+}
+.bx-tl { grid-area: 1 / 1; align-items: flex-start; }
+.bx-tr { grid-area: 1 / 3; align-items: flex-end; }
+.bx-bl { grid-area: 3 / 1; justify-content: flex-end; align-items: flex-start; }
+.bx-br { grid-area: 3 / 3; justify-content: flex-end; align-items: flex-end; }
+
+/* ---- the panel, which is one recipe ----
+   Deep navy ground, a gold hairline, a second hairline inside it, and a
+   blue star at the top and bottom seams. That is the whole of the house
+   style as read off the delivered frame art — the ornamental corners of
+   those frames are deliberately NOT reproduced, because a corner piece
+   that has to stretch to fit an arbitrary panel distorts, and the brief
+   forbids distorting them. */
+.bp-hud .bx-panel {
+  position: relative;
+  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px var(--bx-gold-hair),
+    0 2px 10px rgba(0, 0, 0, 0.45);
+  color: var(--bx-ink);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  /* Its own layer: Safari otherwise leaves a stale smear of the forest
+     behind a blurred panel when the thing under it moves. */
+  transform: translateZ(0);
+}
+/* The seam stars. Drawn rather than delivered: two rotated squares in a
+   pseudo-element cost nothing and scale with the panel. */
+.bp-hud .bx-panel::before,
+.bp-hud .bx-panel::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  background: var(--bx-star);
+  box-shadow: 0 0 5px rgba(159, 208, 255, 0.85);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  pointer-events: none;
+}
+.bp-hud .bx-panel::before { top: -3.5px; }
+.bp-hud .bx-panel::after { bottom: -3.5px; }
+
+.bx-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8.5px;
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  color: var(--bx-gold-lit);
+  opacity: 0.86;
+  white-space: nowrap;
+}
+/* The gold rule that runs out of a title and along the panel. Every
+   delivered frame letters its heading this way, and it is one
+   pseudo-element rather than a picture. */
+.bx-panel-label::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, var(--bx-gold-line), rgba(217, 184, 113, 0));
+}
+
+/* ---- TURN ORDER — horizontal, top left, read left to right ---- */
+.bx-turns {
+  padding: 4px 9px 5px;
+}
+.bx-turn-line {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.bx-turn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  opacity: 0.62;
+}
+/* The chevron between two turns: this reads as a sequence, not a set,
+   and it is a chevron rather than a dash because the delivered TURN
+   ORDER art marks each step with one. Gold before an ally, red before
+   the creature — so the shape of the fight ahead is legible before a
+   single face is. */
+.bx-turn + .bx-turn::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 32%;
+  width: 5px;
+  height: 7px;
+  background: var(--bx-gold);
+  opacity: 0.85;
+  clip-path: polygon(0 0, 100% 50%, 0 100%, 30% 50%);
+}
+.bx-turn.enemy + .bx-turn::before,
+.bx-turn + .bx-turn.enemy::before {
+  background: #d86a54;
+}
+/* WHOSE TURN IT IS, said three ways — bigger, lit, and ringed in gold.
+   One signal is not enough on a phone held at an angle in daylight. */
+.bx-turn.acting {
+  opacity: 1;
+}
+.bx-turn.acting .bx-face::after {
+  box-shadow:
+    inset 0 0 0 1.5px var(--bx-gold-lit),
+    inset 0 0 9px rgba(159, 208, 255, 0.55);
+}
+.bx-turn.acting .bx-turn-name {
+  color: var(--bx-gold-lit);
+}
+.bx-turn.enemy .bx-face::after {
+  box-shadow: inset 0 0 0 1px rgba(216, 106, 84, 0.75);
+}
+.bx-turn.enemy.acting .bx-face::after {
+  box-shadow:
+    inset 0 0 0 1.5px rgba(244, 168, 148, 0.95),
+    inset 0 0 9px rgba(216, 106, 84, 0.55);
+}
+.bx-turn-name {
+  max-width: 7em;
+  overflow: hidden;
+  font-size: 8px;
+  font-style: normal;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--bx-ink-dim);
+}
+
+/* ---- a face, in a diamond ---- */
+/* A face in a cut-cornered plate — an octagon, which is the shape the
+   delivered portrait frames are cut to. The clip is on a wrapper rather
+   than on the picture, so the corner is cut once and the drawing inside
+   is never touched. */
+.bx-face {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: rgba(4, 9, 22, 0.6);
+  clip-path: polygon(
+    22% 0,
+    78% 0,
+    100% 22%,
+    100% 78%,
+    78% 100%,
+    22% 100%,
+    0 78%,
+    0 22%
+  );
+}
+/* The gold edge, drawn as a second octagon under the first: a clipped
+   element cannot show a border, so the border is a ring behind it. */
+.bx-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px var(--bx-gold-line);
+  pointer-events: none;
+}
+.bx-face-art {
+  /* The crop already picks out the head; this only stops a wide
+     drawing from pushing its own box sideways out of the diamond. */
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+.bx-turn.acting .bx-face-art,
+.bx-face-blank {
+  /* A blank is a face that has not loaded, not a missing person. */
+  background-color: rgba(4, 9, 22, 0.6);
+}
+.bx-face-blank {
+  width: 27px;
+  height: 27px;
+}
+
+/* ---- the creature's plate, under the turn order ---- */
+.bx-enemy-plate {
+  min-width: clamp(150px, calc(var(--stage-w, 100vw) * 0.27), 260px);
+  padding: 5px 10px 7px;
+}
+.bx-enemy-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.bx-enemy-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* ---- a meter that can be read across a room ---- */
+.bx-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+.bx-meter-track {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 30px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
+  overflow: hidden;
+}
+.bx-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.24s ease;
+}
+.bx-meter.hp .bx-meter-fill { background: var(--bx-hp); }
+.bx-meter.mp .bx-meter-fill { background: var(--bx-mp); }
+.bx-meter.enemy-hp .bx-meter-fill { background: var(--bx-hp-enemy); }
+.bx-meter.enemy-hp .bx-meter-track { height: 9px; }
+.bx-meter-num {
+  flex: 0 1 auto;
+  white-space: nowrap;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--bx-ink);
+}
+.bx-meter-num i {
+  font-style: normal;
+  opacity: 0.5;
+}
+
+/* ---- where this is ---- */
+.bx-place {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  padding: 0 2px;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+.bx-place b {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--bx-gold-lit);
+}
+.bx-place i {
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  color: var(--bx-ink-dim);
+}
+
+/* ---- the party, down the right ----
+   A column, capped at four, and each card the same height whether it is
+   showing a bar or a word — so a third and a fourth member arriving is
+   a longer list and not a different layout. */
+.bx-party {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: clamp(146px, calc(var(--stage-w, 100vw) * 0.225), 192px);
+}
+.bx-member {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* Nothing leaves the card. A member whose numbers do not fit loses
+     the last digit of a total rather than half a bar off the screen,
+     and a 667px phone is exactly where that used to happen. */
+  overflow: hidden;
+  padding: 4px 7px 5px 4px;
+}
+.bx-member-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bx-member-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px;
+}
+.bx-member-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.bx-member-role {
+  font-size: 8.5px;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  color: var(--bx-gold-lit);
+  opacity: 0.8;
+}
+/* What somebody is doing, where their bar would be. Not a blank: a
+   member with no pool of their own yet says so in a word. */
+.bx-member-note {
+  margin-top: 3px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--bx-ink-dim);
+}
+
+/* ---- WORLD MEMORY, bottom left ----
+   Small, and still here. It is in a fight because a fight is one of the
+   things this world writes down, and the unknown rows are left visibly
+   unknown — an empty line the player can still fill is the feeling the
+   panel exists for. */
+.bx-memory {
+  width: clamp(140px, calc(var(--stage-w, 100vw) * 0.21), 200px);
+  padding: 4px 9px 6px;
+}
+.bx-memory-list {
+  margin: 2px 0 3px;
+  padding: 0;
+  list-style: none;
+}
+.bx-memory-list li {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  font-size: 9.5px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.bx-memory-list li i {
+  font-style: normal;
+  color: var(--bx-star);
+  opacity: 0.8;
+}
+.bx-memory-list li.unknown {
+  color: var(--bx-ink-dim);
+  opacity: 0.55;
+}
+.bx-memory-list li.unknown i {
+  color: var(--bx-gold);
+  opacity: 0.45;
+}
+.bx-memory-depth {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  color: var(--bx-ink-dim);
+}
+.bx-depth-track {
+  flex: 1 1 auto;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.bx-depth-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--bx-gold), var(--bx-star));
+}
+.bx-memory-depth b {
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bx-gold-lit);
+}
+
+/* =====================================================================
+   THE DOCK — what is being said, and what can be done about it.
+   Bottom centre, above the commands, and narrow: the brief's rule is
+   that a window is shown when there is something to read and never as a
+   permanent wall across the field.
+   ===================================================================== */
+.bp-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  /* The two bottom corners are reserved by hand rather than by the
+     grid: the dock is centred on the SCREEN, so the commands sit under
+     the middle of the fight and not under the middle of what is left. */
+  padding: 0 clamp(146px, calc(var(--stage-w, 100vw) * 0.215), 206px)
+    calc(6px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+.bp-dock > * {
+  pointer-events: auto;
+}
+/* Centred over the plate it belongs to, not shoved against its left
+   edge: the dock is a centred column and this chip is part of it. */
+.bp-chaos-badge { order: 0; align-self: center; }
+.bp-message { order: 1; }
+.bp-chaos-card { order: 2; }
+.bp-tray { order: 3; }
+.bp-cmd-spent { order: 4; }
+.bp-commands { order: 5; }
+
 /* ---- who is in this: a small framed plate, in a corner ---- */
 .bp-plate {
   display: inline-flex;
@@ -2621,32 +3135,11 @@ body,
   transform: translateZ(0);
   color: #f1ece0;
 }
-/* ---- the top band: who is in this ----
-   A landscape screen can show both sides at once, in the shape they
-   stand in: the creature on the left where the creature is, the party
-   on the right where the party is. It is a band across the top rather
-   than two plates laid on the forest, so no part of the battlefield is
-   spent on numbers. */
-.bp-band {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  flex: 0 0 auto;
-  padding: 7px 10px 6px;
-  background: var(--mugen-bg);
-  border-bottom: 1px solid var(--mugen-border);
-}
-/* One line each, not two: height is the scarce thing on a landscape
-   stage, and the band must not eat the battlefield. */
-.bp-band .bp-plate {
-  flex: 0 1 auto;
-  min-width: 0;
-  flex-direction: row;
-  align-items: center;
-  gap: 11px;
-  padding: 5px 12px;
-}
+/* THE TOP BAND IS GONE. It was a strip across the top of the battle
+   screen holding both healths, and the overhaul replaced it with the
+   two top corners of .bp-hud: the creature's plate under the turn order
+   on the left, the party column on the right. The plate rules below
+   stay because the ADMIN PREVIEW still letters a stage with them. */
 .bp-plate-enemy {
   /* Its bar grows from the creature's side of the screen outward. */
   align-items: flex-start;
@@ -2695,20 +3188,29 @@ body,
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  margin: 6px 10px 0;
-  padding: 7px 14px;
-  min-height: 36px;
-  border: 1px solid var(--mugen-border);
-  border-radius: 6px;
-  background: var(--mugen-surface);
-  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.14);
+  align-self: stretch;
+  margin: 0;
+  padding: 5px 16px;
+  min-height: 28px;
+  /* The house's own plate rather than the old ivory one, and pinched at
+     both ends: a message window in this world is a navy lozenge under a
+     gold hairline, not a rectangle. */
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
+  box-shadow:
+    inset 0 0 0 1px var(--bx-gold-hair),
+    0 2px 10px rgba(0, 0, 0, 0.45);
+  color: var(--bx-ink);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
 .bp-message-text {
   margin: 0;
   padding-right: 26px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--mugen-text);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--bx-ink);
 }
 .bp-message-mark {
   position: absolute;
@@ -2718,126 +3220,234 @@ body,
   opacity: 0.4;
 }
 
-/* ---- the commands ---- */
-/* ---- the bottom band: what you can do ----
-   Wide and short. On a landscape stage the height is the scarce thing,
-   so the commands spread sideways instead of stacking. */
+/* ---- the commands: a row of diamonds, bottom centre ----------------
+   The house shape. Each button is a SQUARE — so the whole of it takes
+   a thumb, which a rotated element does not — with a rotated plate
+   drawn behind the label. The square never goes under 52px, so the tap
+   target clears 44 at every width the game runs at.
+
+   Centred rather than stretched: this is the row the player's hand
+   goes to, and the two corners beside it are things they only read. */
 .bp-commands {
   display: flex;
-  gap: 9px;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(3px, calc(var(--stage-w, 100vw) * 0.008), 9px);
   flex: 0 0 auto;
-  padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
+  padding: 0;
 }
-/* Wide and short. A landscape stage has width going spare and no
-   height at all, so the name and its English sit on one line instead of
-   stacking — the button stays thumb-sized and the battlefield keeps the
-   twenty pixels. */
 .bp-cmd {
   appearance: none;
-  flex: 1;
-  min-height: 44px;
-  padding: 5px 8px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid var(--mugen-border-strong);
-  border-radius: 6px;
-  background: var(--mugen-surface);
-  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.14);
-  color: var(--mugen-text);
-  font-family: inherit;
-}
-.bp-cmd-mark { color: var(--mugen-gold); margin-bottom: 0; flex: 0 0 auto; }
-.bp-cmd-jp { font-size: 15px; letter-spacing: 0.18em; text-indent: 0.18em; }
-.bp-cmd-en { font-size: 8px; letter-spacing: 0.32em; text-indent: 0.32em; color: var(--mugen-text-muted); }
-.bp-cmd.open, .bp-cmd:active { border-color: var(--mugen-gold); }
-.bp-cmd.open .bp-cmd-jp { color: var(--mugen-gold); }
-.bp-cmd.wide { flex: 1 1 100%; }
-
-/* AUTO と 倍速 — beside the commands, never under them.
-
-   They started as a row of their own and that was wrong twice over: it
-   pushed ARCANA off the command row, which a test requires to be beside
-   the other two, and it took the battlefield below half the screen,
-   which another test requires it to stay above. A landscape phone has
-   width going spare and no height at all, so anything new goes sideways.
-
-   `display: contents` on the wrapper keeps the two of them addressable
-   as a group while letting each chip be a flex item of the command row
-   itself — so the row's height, and therefore the forest's, is exactly
-   what it was before these existed.
-
-   Narrow, at the far end, and quieter than a command: these are not
-   turns. They are decisions about how the fight is WATCHED, and a
-   thumb going for 攻撃 lands on a wide button at the other end of the
-   row. */
-.bp-modes {
-  display: contents;
-}
-.bp-mode {
-  appearance: none;
-  /* Content-width rather than a share of the row: the three commands
-     keep the space, and these take what two short words need. */
+  position: relative;
   flex: 0 0 auto;
-  min-width: 62px;
-  /* The same height as a command, so the row does not grow. */
+  width: var(--bx-cmd);
+  height: var(--bx-cmd);
   min-height: 44px;
-  padding: 4px 8px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  border: 1px solid var(--mugen-border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--mugen-text-soft, var(--mugen-text));
+  gap: 0;
+  border: 0;
+  background: none;
+  color: var(--bx-ink);
   font-family: inherit;
   cursor: pointer;
+}
+/* The diamond itself. A rotated square inset to 70.7% of the box, which
+   is exactly the side of the largest diamond that fits — so the plate
+   touches all four edges and no pixel of the tap target is wasted. */
+.bp-cmd-plate {
+  position: absolute;
+  left: 14.65%;
+  top: 14.65%;
+  width: 70.7%;
+  height: 70.7%;
+  transform: rotate(45deg);
+  border: 1px solid var(--bx-gold-line);
+  background: linear-gradient(140deg, var(--bx-navy), var(--bx-navy-deep));
+  box-shadow:
+    inset 0 0 0 1px var(--bx-gold-hair),
+    0 2px 9px rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+/* THE STACK SITS HIGH IN THE BOX ON PURPOSE. A diamond is widest across
+   its middle and narrows to a point at the bottom, so a label centred in
+   the SQUARE ends up where there is least room for it. Lifting the whole
+   stack a few pixels puts the Japanese name across the widest line and
+   the English under it while the shape still has width to give. */
+.bp-cmd-mark {
+  position: relative;
+  flex: 0 0 auto;
+  margin-top: -3px;
+  margin-bottom: 0;
+  color: var(--bx-gold-lit);
+  opacity: 0.9;
+}
+.bp-cmd-jp {
+  position: relative;
+  font-size: clamp(9.5px, calc(var(--bx-cmd) * 0.19), 11.5px);
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+.bp-cmd-en {
+  position: relative;
+  font-size: 6.5px;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--bx-ink-dim);
+}
+.bp-cmd.open .bp-cmd-plate,
+.bp-cmd:active .bp-cmd-plate {
+  border-color: var(--bx-gold-lit);
+  box-shadow:
+    inset 0 0 0 1px rgba(243, 226, 182, 0.34),
+    0 0 13px rgba(159, 208, 255, 0.55);
+}
+.bp-cmd.open .bp-cmd-jp { color: var(--bx-gold-lit); }
+.bp-cmd[disabled] { opacity: 0.45; }
+/* ARCANA is the one the collecting is for, so its plate is lit from
+   inside rather than being a sixth of the same thing. */
+.bp-cmd.arcana .bp-cmd-plate {
+  border-color: rgba(243, 226, 182, 0.6);
+  background: linear-gradient(140deg, rgba(36, 30, 62, 0.9), rgba(9, 12, 34, 0.94));
+}
+.bp-cmd-spent {
+  margin: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(5, 11, 28, 0.8);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--bx-ink-dim);
+}
+/* The one command that is a whole sentence — 森へ戻る, once the fight
+   is over — is a lozenge and not a diamond: it is a way out of the
+   screen rather than a turn. */
+.bp-cmd.wide {
+  width: auto;
+  height: auto;
+  min-height: 44px;
+  padding: 8px 26px;
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
+  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
+}
+.bp-cmd.wide .bp-cmd-jp { font-size: 14px; letter-spacing: 0.16em; }
+
+/* ---- AUTO / ×2 / 逃走 — the bottom right corner ---------------------
+   Three chips in a column, and none of them a turn: two are decisions
+   about how the fight is WATCHED and the third is a way out of it. That
+   is exactly why they are here rather than on the command row — a thumb
+   going for 攻撃 must not be able to land on 逃走.
+
+   They were beside the commands while the screen was three bands and
+   there was nowhere else for them. There is now. */
+.bp-modes {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  /* One width for the three of them: a way out that is wider than the
+     two chips above it reads as the important one, and it is not. */
+  width: clamp(62px, calc(var(--stage-w, 100vw) * 0.092), 82px);
+}
+.bp-mode {
+  appearance: none;
+  position: relative;
+  min-width: 60px;
+  /* Shorter than a command, and deliberately: these are read far more
+     often than they are pressed. Still over the 44px a thumb needs when
+     the three of them are stacked, because each one is pressed with the
+     hand already holding the phone. */
+  min-height: 30px;
+  padding: 3px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 999px;
+  /* A flat COLOUR rather than a gradient, on purpose: whether a chip is
+     on has to be answerable from `backgroundColor`, and a gradient
+     computes to transparent there. Something the screen is built to say
+     clearly should be readable by the test that checks it says so. */
+  background-color: rgba(5, 11, 28, 0.86);
+  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
+  color: var(--bx-ink-dim);
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
-.bp-mode-jp {
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-}
 .bp-mode-en {
-  font-size: 9px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  line-height: 1.15;
+}
+.bp-mode-jp {
+  font-size: 7.5px;
   letter-spacing: 0.1em;
+  text-indent: 0.1em;
   line-height: 1.2;
-  opacity: 0.75;
+  opacity: 0.7;
 }
 /* ON has to be readable at a glance and from an angle, so it is a
    filled chip rather than a tint: a player who cannot tell whether AUTO
    is on will tap it, and toggling AUTO off on the turn they meant to
    turn it on is the whole of the frustration this state avoids. */
 .bp-mode.on {
-  border-color: var(--mugen-gold, #c6a660);
-  background: var(--mugen-gold-soft, rgba(198, 166, 96, 0.2));
-  color: var(--mugen-text);
+  border-color: var(--bx-gold-lit);
+  background-color: rgba(96, 76, 30, 0.93);
+  color: var(--bx-gold-lit);
+  box-shadow:
+    inset 0 0 0 1px rgba(243, 226, 182, 0.3),
+    0 0 11px rgba(217, 184, 113, 0.4);
 }
-.bp-mode.on .bp-mode-en {
-  opacity: 1;
-  font-weight: 700;
+.bp-mode.on .bp-mode-jp { opacity: 0.92; }
+.bp-mode[disabled] { opacity: 0.4; }
+/* The way out is not one of the two beside it. Its own colour, so it is
+   never pressed by somebody reaching for ×2. */
+.bp-escape {
+  border-color: rgba(216, 106, 84, 0.55);
+  color: rgba(244, 205, 196, 0.9);
 }
 
 .bp-tray {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 0 10px 9px;
+  align-self: stretch;
+  gap: 5px;
+  max-height: 38vh;
+  overflow-y: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
+  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
 .bp-tray-item {
   appearance: none;
   text-align: left;
   min-height: var(--tap-min);
-  padding: 8px 13px;
-  border: 1px solid var(--mugen-border);
-  border-radius: 6px;
-  background: var(--mugen-surface);
-  color: var(--mugen-text);
+  padding: 7px 13px;
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 4px;
+  background: rgba(4, 9, 22, 0.5);
+  color: var(--bx-ink);
   font-family: inherit;
   font-size: 14px;
 }
@@ -2845,13 +3455,15 @@ body,
   display: block;
   margin-top: 1px;
   font-size: 11px;
-  color: var(--mugen-text-muted);
+  color: var(--bx-ink-dim);
 }
 .bp-tray-empty {
   margin: 0;
-  padding: 1px 3px 0;
-  font-size: 11px;
-  color: var(--mugen-text-muted);
+  padding: 5px 4px;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: var(--bx-ink-dim);
 }
 
 /* ---- and, separately, the question about a life ----
@@ -2861,6 +3473,31 @@ body,
   padding: 10px 10px calc(11px + env(safe-area-inset-bottom));
   background: #1b1d17;
   border-top: 1px solid rgba(198, 166, 96, 0.45);
+}
+/* THE TWO WAYS A FIGHT ENDS, on a screen that is no longer a column.
+   The field fills it, so anything that arrives after the fight has to
+   be laid onto the bottom of the field rather than stacked under it:
+   the four answers, and the one button out of an ordinary win. Both sit
+   above the HUD, because by then there is nothing left to read. */
+.bp-field .bp-mugen,
+.bp-field > .bp-commands {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+}
+.bp-field > .bp-commands {
+  justify-content: center;
+  padding: 0 10px calc(10px + env(safe-area-inset-bottom));
+}
+/* The ivory gives way, and on this screen it gives way over the forest
+   — so it needs a ground of its own dark enough to be a different kind
+   of moment rather than a panel. */
+.bp-field .bp-mugen {
+  background: linear-gradient(180deg, rgba(9, 10, 16, 0.86), rgba(9, 10, 16, 0.97));
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .bp-mugen-line {
   margin: 0 0 9px;
@@ -2975,14 +3612,22 @@ body,
   justify-items: start;
   column-gap: 16px;
   row-gap: 1px;
-  margin: 6px 10px calc(7px + env(safe-area-inset-bottom));
-  padding: 8px 14px;
-  min-height: 52px;
-  border: 1px solid rgba(198, 166, 96, 0.5);
+  align-self: stretch;
+  margin: 0;
+  padding: 7px 16px;
+  min-height: 48px;
+  /* The house's ground now rather than the old ivory: her moment is
+     still laid over the grass and still covers nobody, and it is now
+     made of the same navy and gold as everything else on the screen. */
+  border: 1px solid var(--bx-gold-line);
   border-radius: 6px;
-  background: #1a1c16;
-  box-shadow: inset 0 0 0 1px rgba(198, 166, 96, 0.16);
-  color: #f1ece0;
+  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
+  box-shadow:
+    inset 0 0 0 1px var(--bx-gold-hair),
+    0 2px 12px rgba(0, 0, 0, 0.5);
+  color: var(--bx-ink);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
   font-family: inherit;
   font-size: inherit;
   text-align: left;
@@ -4026,6 +4671,16 @@ body,
 .bp-track {
   position: relative;
   overflow: visible;
+}
+/* Its footing hangs just under its health, which means the bar it hangs
+   under may not clip. The fill is rounded in its own right, so letting
+   the creature's track overflow costs nothing and is what keeps the
+   poise bar — and the ring it becomes when broken — on screen. */
+.bx-meter.enemy-hp .bx-meter-track {
+  overflow: visible;
+}
+.bx-meter-track .bp-poise {
+  bottom: -4px;
 }
 /* One word for what it has become. Beside its name, in her colour. */
 .bp-phase {

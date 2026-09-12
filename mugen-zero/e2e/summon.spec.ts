@@ -133,8 +133,7 @@ async function playerMaxHp(page: Page): Promise<number> {
 
 /** Guards a turn and waits for the commands to come back. */
 async function guard(page: Page) {
-  await page.getByTestId('bp-skill').click();
-  await page.getByTestId('bp-skill-guard').click();
+  await page.getByTestId('bp-defend').click();
   await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 8_000 });
 }
 
@@ -179,11 +178,22 @@ test.describe('an unfinished memory, at the start of a fight', () => {
     await expect(page.locator('.bp-enemy')).toBeVisible();
     await expect(page.locator('.bp-hero')).toBeVisible();
     await expect(page.locator('.bp-kaos')).toBeVisible();
-    const stage = (await page.locator('.bp-stage').boundingBox())!;
+    // Said in the new layout's terms: the field is the whole screen, so
+    // "not over the battlefield" is "covers nobody standing on it and
+    // keeps to the bottom strip where the commands are".
     const box = (await card.boundingBox())!;
-    expect(box.y, 'her card is under the battlefield, not over it').toBeGreaterThanOrEqual(
-      stage.y + stage.height - 1,
-    );
+    for (const who of ['.bp-enemy', '.bp-hero', '.bp-kaos']) {
+      const body = (await page.locator(who).boundingBox())!;
+      const overlaps =
+        box.y < body.y + body.height &&
+        body.y < box.y + box.height &&
+        box.x < body.x + body.width &&
+        body.x < box.x + box.width;
+      expect(overlaps, `her card does not cover ${who}`).toBe(false);
+    }
+    const view = page.viewportSize()!;
+    expect(box.y, 'her card is in the bottom strip').toBeGreaterThan(view.height * 0.55);
+    expect(box.y + box.height, 'and fully on screen').toBeLessThanOrEqual(view.height + 1);
   });
 
   test('holds, and the creature does its own thing rather than the animal’s', async ({ page }) => {
@@ -258,22 +268,22 @@ test.describe('a finished memory', () => {
     const command = page.getByTestId('bp-arcana');
     await expect(command).toBeVisible();
     await expect(command).toBeEnabled();
-    await expect(command).toContainText('アルカナ');
-    // Beside the other two rather than under them: a landscape screen
-    // has the width for three commands and no height to spare, and the
-    // property that mattered — none of the three squeezed — is checked
-    // here directly instead of being inferred from the row it is on.
+    await expect(command).toContainText('ARCANA');
+    // ON THE COMMAND ROW, as one more diamond. A finished memory is the
+    // player's to spend, so it is a turn like the other five and not a
+    // special control off to one side — and none of the six may be
+    // squeezed below a thumb by the arrival of the sixth.
     const attack = (await page.getByTestId('bp-attack').boundingBox())!;
     const skill = (await page.getByTestId('bp-skill').boundingBox())!;
     const arcana = (await command.boundingBox())!;
-    expect(arcana.y, 'on the same row as the other two').toBeCloseTo(attack.y, 0);
+    expect(arcana.y, 'on the same row as the others').toBeCloseTo(attack.y, 0);
     for (const [name, box] of [
       ['attack', attack],
       ['skill', skill],
       ['arcana', arcana],
     ] as const) {
       expect(box.height, `${name} is thumb-sized`).toBeGreaterThanOrEqual(44);
-      expect(box.width, `${name} is not squeezed to a sliver`).toBeGreaterThanOrEqual(90);
+      expect(box.width, `${name} is thumb-sized`).toBeGreaterThanOrEqual(44);
     }
   });
 
@@ -576,10 +586,11 @@ for (const phone of PHONES) {
     expect(box.height, 'thumb-sized').toBeGreaterThanOrEqual(44);
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(phone.width);
-    // The two older commands are not squeezed by the new one.
-    for (const id of ['bp-attack', 'bp-skill']) {
+    // The other commands are not squeezed by the new one.
+    for (const id of ['bp-attack', 'bp-skill', 'bp-item', 'bp-defend']) {
       const other = (await page.getByTestId(id).boundingBox())!;
       expect(other.height, `${id} is still thumb-sized`).toBeGreaterThanOrEqual(44);
+      expect(other.width, `${id} is still thumb-sized`).toBeGreaterThanOrEqual(44);
     }
 
     await command.click();

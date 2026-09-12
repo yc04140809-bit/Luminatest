@@ -63,6 +63,7 @@ import { battleUi, startFinishable } from './dev/battleUiFlag';
 import { useOpeningTheme } from './ui/opening/useOpeningTheme';
 import { OpeningSkip } from './ui/opening/OpeningSkip';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
+import { memoryEventLabel } from './content/events/creatureLifeChoice';
 import { clearObtainedItems } from './platform/discoveries';
 import { toAbsoluteDay } from './core/time/calendar';
 import { ArcanaScreen } from './ui/screens/ArcanaScreen';
@@ -219,6 +220,15 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
    */
   const kaosAwakened = kaosHasAwakened(world.getKnownEvents().map((e) => e.type));
   const acquiredArcanaIds = world.getAcquiredArcanaIds();
+  /**
+   * What this world remembers, in its own words, for the battle corner.
+   *
+   * The same labels WORLD MEMORY itself writes — not a second wording
+   * of them — and only what the player actually knows. The panel takes
+   * the last few and says the rest in question marks, so this hands it
+   * everything and decides nothing about presentation.
+   */
+  const worldMemoryLines = world.getKnownEvents().map((e) => memoryEventLabel(e));
   const worldDay = toAbsoluteDay(world.getClock());
   /**
    * The player glimpsed something. Written down, and nothing more.
@@ -435,6 +445,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onNormalEnd={() => flow.goTo('DEV_ADMIN')}
           onMugenChoice={() => flow.goTo('DEV_ADMIN')}
           onDefeat={() => flow.goTo('DEV_ADMIN')}
+          memoryLines={worldMemoryLines}
+          onEscape={() => flow.goTo('DEV_ADMIN')}
         />
       );
     case 'TIME_SHIFT':
@@ -631,6 +643,18 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
               forestBattle.current = false;
               forestSession.current.clear();
               void flushArcana().finally(() => flow.goTo('HOME'));
+            }}
+            memoryLines={worldMemoryLines}
+            // Leaving is neither winning nor losing. No victory is
+            // resolved, no creature is named, nothing is written down —
+            // the player walks back out of the clearing and the animal
+            // is still in it. What HAS been seen this fight is still
+            // flushed: seeing something is not undone by walking away.
+            onEscape={() => {
+              forestBattle.current = false;
+              void flushArcana()
+                .catch((e) => console.error('Failed to record what was seen', e))
+                .finally(() => flow.goTo('GREENWOOD'));
             }}
           />
         );

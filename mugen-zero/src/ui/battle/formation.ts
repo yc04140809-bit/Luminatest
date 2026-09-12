@@ -35,6 +35,32 @@ export interface SlotPlacement {
 export const MAX_PARTY = 4;
 
 /**
+ * HOW BIG A PERSON IS ON A FIELD THAT IS NOW THE WHOLE SCREEN.
+ *
+ * `content/art/spriteFrames` says how tall somebody is as a share of
+ * the battlefield, and that is a fact about them which must not move:
+ * it is the same number on the story's battle screen, on the encounter
+ * and on the life choice.
+ *
+ * What moved is the battlefield. It used to be the middle of three
+ * bands — about two thirds of the screen's height — and it is now all
+ * of it, so the same share draws a half again bigger person. This is
+ * the one number that turns a share of the OLD field into a share of
+ * the new one.
+ *
+ * It is UNDER that ratio rather than equal to it, and by a real margin:
+ * at parity everybody would be exactly the size they were, and the
+ * brief asks for characters a little smaller than that with real ground
+ * between them — and for a field that still reads when there are four
+ * of them standing on it rather than two. At 0.5 the hero is about a
+ * fifth shorter on screen than he was.
+ *
+ * Applied by the battle screen at the point of drawing, so no other
+ * screen in the game so much as notices.
+ */
+export const FIELD_FIGURE_SCALE = 0.5;
+
+/**
  * The formations, one row per party size.
  *
  * TWO IS THE MEASURED ONE. Its numbers are the ones the landscape pass
@@ -91,22 +117,33 @@ export function partyFormation(count: number): readonly SlotPlacement[] {
 // named record here rather than another row of PARTY_FORMATIONS, which
 // would have had to pretend a creature is a party member.
 //
-// WHAT THESE NUMBERS ARE. Exactly what was in the stylesheet before
-// this table existed, converted from percentages to the shares
-// `SlotPlacement` is written in and nothing else:
+// WHAT THESE NUMBERS ARE, AND WHY THEY MOVED ONCE.
 //
-//   .bp-enemy         left: 8%   bottom: 38%   (no z-index)
-//   .bp-enemy.downed  left: 4%   bottom: 30%
-//   .bp-hero          right: 25% bottom: 7%    z-index: 2
-//   .bp-kaos          right: 0   bottom: 19%   z-index: 1
-//   .bp-summon        right: 42% bottom: 9%    z-index: 2
+// They began as exactly what the stylesheet held before this table
+// existed, converted from percentages to shares and not otherwise
+// touched. The BATTLE SCREEN OVERHAUL moved them once, and for one
+// reason: they are shares of the FIELD, and the field stopped being the
+// middle band of a three-band screen and became the whole of it. A
+// creature standing 38% up a 258-pixel band is standing 38% up a
+// 390-pixel screen after the change, which is half again higher and
+// most of the way into the panel above it.
 //
-// They are not improved, rounded or re-tuned. The whole point of moving
-// them was that a position which lives in a stylesheet cannot be
-// changed while a fight is running — a camera cannot lean towards
-// somebody standing at a constant. Where they stand today is not in
-// question and must not move; e2e/battleFormation.spec.ts holds them to
-// these exact values at three widths.
+// So every `bottom` here was re-derived against the screen the field is
+// now, and every `inset` against the corners the reading moved into:
+//
+//   - nobody's head reaches the panels. The top left corner holds the
+//     turn order and the creature's health and the top right the place
+//     and the party; the tallest head on the field comes up to about
+//     0.6 of it and both corners stop above that. e2e/battleHud.spec.ts
+//     is what actually holds that apart, by measuring the boxes rather
+//     than trusting the arithmetic in this comment;
+//   - the two sides are far enough apart that the middle of the field
+//     is empty, which is where an attack, a spell and a summon happen;
+//   - the party's own spacing is wide enough to take two more people.
+//     Where those two stand is PARTY_FORMATIONS above, not here.
+//
+// e2e/battleFormation.spec.ts holds them to these values at three
+// widths, so the next thing that moves them has to mean it.
 
 /** Which edge of the field a placement's inset is measured from. */
 export type FieldEdge = 'left' | 'right';
@@ -129,32 +166,35 @@ export const PROTOTYPE_PLACEMENTS = {
    * wide field, with the two of them at the other, so the ground
    * between them reads as a distance.
    */
-  enemy: { edge: 'left', inset: 0.08, bottom: 0.38 },
+  enemy: { edge: 'left', inset: 0.1, bottom: 0.42 },
   /**
    * Down, and still there — it stays on the field for the whole of the
    * question the player is about to be asked. It lies lower and further
    * into the grass than it stood.
    */
-  enemyDowned: { edge: 'left', inset: 0.04, bottom: 0.3 },
+  enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
   /**
    * He is nearest, on the right, between her and it. Nearest means
    * largest, but only just: too much and he stops being a person
    * standing closer and becomes a giant.
    */
-  hero: { edge: 'right', inset: 0.25, bottom: 0.07, depth: 2 },
+  hero: { edge: 'right', inset: 0.32, bottom: 0.27, depth: 2 },
   /**
    * She is a step behind him and a little further back, close enough to
    * read as one party rather than two people on the same side. Her wings
-   * make her drawing wider than it is tall, so she needs the whole of
-   * the right edge to stand clear of him.
+   * make her drawing wider than it is tall, so the gap to him is
+   * measured from their edges and not their feet. Off the screen's own
+   * edge now rather than hard against it: the party column is in that
+   * corner, and a wing disappearing under a panel is the one thing this
+   * layout must not do.
    */
-  kaos: { edge: 'right', inset: 0.0, bottom: 0.19, depth: 1 },
+  kaos: { edge: 'right', inset: 0.14, bottom: 0.33, depth: 1 },
   /**
    * The player's side, in front of both of them: clear of the hero's
    * shoulder on one side and — because it stands much lower down the
    * path — well clear of the creature being fought on the other.
    */
-  summon: { edge: 'right', inset: 0.42, bottom: 0.09, depth: 2 },
+  summon: { edge: 'right', inset: 0.46, bottom: 0.28, depth: 2 },
 } as const satisfies Readonly<Record<string, PrototypePlacement>>;
 
 export type PrototypeSlot = keyof typeof PROTOTYPE_PLACEMENTS;

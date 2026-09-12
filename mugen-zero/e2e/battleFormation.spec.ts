@@ -5,20 +5,19 @@ import { enterDevAdmin } from './helpers';
  * WHERE THE FIGHT'S CAST STANDS — a lock, not a description.
  *
  * The forest fight's four actors used to be placed by the stylesheet.
- * They are now placed from `src/ui/battle/formation.ts`, which the
- * screen reads and puts on the element as an inline style. Nothing about
- * the picture was supposed to change in that move.
+ * They are placed from `src/ui/battle/formation.ts` now, which the
+ * screen reads and puts on the element as an inline style.
  *
- * The numbers below ARE THE STYLESHEET'S, copied out of it before it was
- * touched, and they are written here as literals on purpose: the point
- * of the file is that a future edit to the formation table has to come
- * past a test that still remembers where everybody stood.
+ * THE NUMBERS MOVED ONCE, in the BATTLE SCREEN OVERHAUL, and only
+ * because what they are shares OF moved: the field was the middle band
+ * of a three-band screen and is now the whole of it, so a creature 38%
+ * up the old field was 38% up the new screen and halfway into the panel
+ * above it. Everybody came down out of the top corners and up out of
+ * the commands, and these are where they landed.
  *
- *   .bp-enemy         left: 8%    bottom: 38%   (no z-index)
- *   .bp-enemy.downed  left: 4%    bottom: 30%   (no z-index)
- *   .bp-hero          right: 25%  bottom: 7%    z-index: 2
- *   .bp-kaos          right: 0    bottom: 19%   z-index: 1
- *   .bp-summon        right: 42%  bottom: 9%    z-index: 2
+ * They are written here as literals on purpose: the point of the file
+ * is that the NEXT edit to the formation table has to come past a test
+ * that still remembers where everybody stood.
  *
  * Measured as SHARES OF THE FIELD rather than pixels, because the field
  * is allowed to be a different size on a different phone and a placement
@@ -38,11 +37,11 @@ interface Placed {
 }
 
 const EXPECTED: Record<string, Placed> = {
-  '.bp-enemy:not(.downed)': { edge: 'left', inset: 0.08, bottom: 0.38, zIndex: 'auto' },
-  '.bp-enemy.downed': { edge: 'left', inset: 0.04, bottom: 0.3, zIndex: 'auto' },
-  '.bp-hero': { edge: 'right', inset: 0.25, bottom: 0.07, zIndex: '2' },
-  '.bp-kaos': { edge: 'right', inset: 0.0, bottom: 0.19, zIndex: '1' },
-  '.bp-summon': { edge: 'right', inset: 0.42, bottom: 0.09, zIndex: '2' },
+  '.bp-enemy:not(.downed)': { edge: 'left', inset: 0.1, bottom: 0.42, zIndex: 'auto' },
+  '.bp-enemy.downed': { edge: 'left', inset: 0.06, bottom: 0.36, zIndex: 'auto' },
+  '.bp-hero': { edge: 'right', inset: 0.32, bottom: 0.27, zIndex: '2' },
+  '.bp-kaos': { edge: 'right', inset: 0.14, bottom: 0.33, zIndex: '1' },
+  '.bp-summon': { edge: 'right', inset: 0.46, bottom: 0.28, zIndex: '2' },
 };
 
 const VIEWPORTS = [
@@ -127,7 +126,7 @@ async function openPrototype(page: Page, opts: { summon?: boolean; finishable?: 
 }
 
 for (const size of VIEWPORTS) {
-  test(`the three of them stand where they always did (${size.width}x${size.height})`, async ({
+  test(`the three of them stand where the overhaul stood them (${size.width}x${size.height})`, async ({
     page,
   }) => {
     await page.setViewportSize(size);
@@ -138,7 +137,7 @@ for (const size of VIEWPORTS) {
   });
 }
 
-test('the beaten creature lies where the stylesheet used to put it', async ({ page }) => {
+test('the beaten creature lies where the formation puts it', async ({ page }) => {
   await openPrototype(page, { finishable: true });
   await page.getByTestId('bp-attack').click();
   await expect(page.getByTestId('bp-enemy-downed')).toBeVisible({ timeout: 5_000 });
@@ -147,7 +146,7 @@ test('the beaten creature lies where the stylesheet used to put it', async ({ pa
   expectPlaced(await read(page, '.bp-enemy.downed'), EXPECTED['.bp-enemy.downed'], 'downed');
 });
 
-test('a summoned memory stands where the stylesheet used to put it', async ({ page }) => {
+test('a summoned memory stands where the formation puts it', async ({ page }) => {
   await openPrototype(page, { summon: true });
   await expect(page.getByTestId('bp-summoned')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(500);
@@ -342,8 +341,7 @@ test('guarding is not filmed, and leaves the field where it found it', async ({ 
   // camera only does what it was taught" is the whole of this pass.
   await openPrototype(page);
   await watchCamera(page);
-  await page.getByTestId('bp-skill').click();
-  await page.getByTestId('bp-skill-guard').click();
+  await page.getByTestId('bp-defend').click();
   await page.waitForTimeout(1200);
   const shot = await filmed(page);
   expect(shot.phases.filter((p) => p !== 'IDLE'), 'nothing was filmed').toEqual([]);

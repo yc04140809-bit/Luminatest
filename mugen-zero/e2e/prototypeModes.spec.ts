@@ -53,30 +53,42 @@ test('both controls exist on the screen a forest fight uses', async ({ page }) =
   await expect(page.getByTestId('bp-modes')).toBeVisible();
   await expect(page.getByTestId('bp-auto')).toBeVisible();
   await expect(page.getByTestId('bp-speed')).toBeVisible();
-  // BESIDE the commands, not below them. They started below and that
-  // cost the battlefield its share of a 360px screen — so what is
-  // checked here is the two properties that actually matter.
+  // IN THE BOTTOM RIGHT CORNER, never on the command row.
+  //
+  // They were beside the commands while the battle screen was three
+  // bands and there was nowhere else to put them without stealing the
+  // field's height. There is a corner for them now, and being out of
+  // the command row is the point rather than a side effect: these are
+  // decisions about how the fight is WATCHED, and 逃走 is beside them —
+  // so a thumb going for 攻撃 in a hurry must not be able to reach any
+  // of the three.
   const attack = (await page.getByTestId('bp-attack').boundingBox())!;
   const auto = (await page.getByTestId('bp-auto').boundingBox())!;
   const speed = (await page.getByTestId('bp-speed').boundingBox())!;
+  const size = page.viewportSize()!;
 
-  // 1. On the command row, so the row — and the forest above it — is
-  //    exactly the height it was before these existed.
-  expect(auto.y).toBeCloseTo(attack.y, 0);
-  expect(speed.y).toBeCloseTo(attack.y, 0);
+  // 1. In the bottom right corner — right of the middle, and below it.
+  for (const [name, box] of [
+    ['AUTO', auto],
+    ['speed', speed],
+  ] as const) {
+    expect(box.x, `${name} is on the right`).toBeGreaterThan(size.width / 2);
+    expect(box.y + box.height, `${name} is at the bottom`).toBeGreaterThan(size.height / 2);
+    expect(box.x + box.width, `${name} is on screen`).toBeLessThanOrEqual(size.width + 1);
+  }
 
-  // 2. Well clear of 攻撃, which is the one a thumb reaches for in a
-  //    hurry, and never overlapping it.
+  // 2. Well clear of 攻撃, in both directions: never on its row, and
+  //    never above or below it either.
   const overlaps = (a: typeof auto, b: typeof auto) =>
     a.x < b.x + b.width && b.x < a.x + a.width;
-  expect(overlaps(auto, attack), 'AUTO is not under the attack thumb').toBe(false);
-  expect(overlaps(speed, attack), 'speed is not under the attack thumb').toBe(false);
+  expect(overlaps(auto, attack), 'AUTO is not over the attack thumb').toBe(false);
+  expect(overlaps(speed, attack), 'speed is not over the attack thumb').toBe(false);
   expect(auto.x).toBeGreaterThan(attack.x + attack.width);
+  expect(speed.x).toBeGreaterThan(attack.x + attack.width);
 
-  // 3. And the forest is still most of the screen.
+  // 3. And the forest is the screen, which is what the corner bought.
   const bg = (await page.locator('.bp-bg').boundingBox())!;
-  const size = page.viewportSize()!;
-  expect(bg.height / size.height, 'the forest is still most of the screen').toBeGreaterThan(0.5);
+  expect(bg.height / size.height, 'the forest is the screen').toBeGreaterThan(0.95);
 });
 
 test('AUTO is off, on, and off again — and the next turn is the player’s', async ({ page }) => {

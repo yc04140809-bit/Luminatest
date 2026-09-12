@@ -173,28 +173,68 @@ test.describe('the battlefield', () => {
     });
   }
 
-  test('is three bands, in order, that do not overlap', async ({ page }) => {
+  /**
+   * THE FIELD IS THE SCREEN, AND THE READING IS IN THE CORNERS.
+   *
+   * This used to check three bands in order, which was the shape the
+   * battle screen had: numbers on top, field in the middle, commands
+   * underneath. The overhaul made the field the whole surface and put
+   * every panel into a corner of it, so what is checked is the promise
+   * that shape was making — that the fight gets the screen, and the
+   * reading does not stand in front of it.
+   */
+  test('is one field with the reading laid into its corners', async ({ page }) => {
     await newWorld(page);
     await enterDevAdmin(page);
     await page.getByTestId('open-battle-prototype').click();
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
 
-    const band = (await page.locator('.bp-band').boundingBox())!;
-    const stage = (await page.locator('.bp-stage').boundingBox())!;
-    const commands = (await page.locator('.bp-commands').boundingBox())!;
-
-    expect(band.y + band.height, 'the band sits above the field').toBeLessThanOrEqual(stage.y + 1);
-    expect(stage.y + stage.height, 'the field sits above the commands').toBeLessThanOrEqual(
-      commands.y + 1,
-    );
-    // The middle band is the point of the screen and gets the room.
     const screen = (await page.locator('.bp-screen').boundingBox())!;
-    expect(stage.height / screen.height, 'the field is most of the screen').toBeGreaterThan(0.5);
+    const stage = (await page.locator('.bp-stage').boundingBox())!;
+    expect(stage.height / screen.height, 'the field is the screen').toBeGreaterThan(0.95);
+    expect(stage.width / screen.width, 'edge to edge').toBeGreaterThan(0.95);
+
+    // Each panel in its own corner, and the middle of the field left
+    // empty for the fighting to happen in.
+    const mid = { x: screen.x + screen.width / 2, y: screen.y + screen.height / 2 };
+    const corners = {
+      'bx-turn-order': ['left', 'top'],
+      'bp-enemy-hp': ['left', 'top'],
+      'bx-party': ['right', 'top'],
+      'bx-world-memory': ['left', 'bottom'],
+      'bp-modes': ['right', 'bottom'],
+      'bp-commands': ['centre', 'bottom'],
+    } as const;
+    for (const [id, [side, end]] of Object.entries(corners)) {
+      const box = (await page.getByTestId(id).boundingBox())!;
+      if (side === 'left') expect(box.x, `${id} is on the left`).toBeLessThan(mid.x);
+      if (side === 'right') {
+        expect(box.x + box.width, `${id} is on the right`).toBeGreaterThan(mid.x);
+      }
+      if (side === 'centre') {
+        const centre = box.x + box.width / 2;
+        expect(Math.abs(centre - mid.x), `${id} is centred`).toBeLessThan(screen.width * 0.06);
+      }
+      if (end === 'top') expect(box.y, `${id} is near the top`).toBeLessThan(mid.y);
+      if (end === 'bottom') {
+        expect(box.y + box.height, `${id} is near the bottom`).toBeGreaterThan(mid.y);
+      }
+      expect(box.x, `${id} is not off the left`).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width, `${id} is not off the right`).toBeLessThanOrEqual(
+        screen.x + screen.width + 1,
+      );
+    }
+
     // Both healths are readable at once, one on each side.
     const enemyHp = (await page.getByTestId('bp-enemy-hp').boundingBox())!;
     const playerHp = (await page.getByTestId('bp-player-hp').boundingBox())!;
     expect(enemyHp.x).toBeLessThan(playerHp.x);
     expect(enemyHp.x + enemyHp.width).toBeLessThanOrEqual(playerHp.x + 1);
+
+    // And there is no MUGEN ZERO logo in the corner of a fight: the
+    // brief took it out because a brand mark is the one thing on this
+    // screen that tells the player nothing.
+    await expect(page.locator('.bp-screen .home-crest-name, .bp-screen .title-logo')).toHaveCount(0);
   });
 });
 

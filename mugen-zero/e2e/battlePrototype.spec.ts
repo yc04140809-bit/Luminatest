@@ -267,18 +267,50 @@ test.describe('battle UI prototype', () => {
     await expect(page.getByTestId('bp-message')).toContainText('ダメージ');
   });
 
-  test('opens the skill tray without inventing a skill system', async ({ page }) => {
+  test('opens SKILL and ITEM without inventing either system', async ({ page }) => {
+    // Both commands are real — they open, they close, and they are
+    // honest about being empty. What they must never be is a list of
+    // things that do not exist, and what they must never do is go
+    // missing: a player who cannot find アイテム concludes the game has
+    // no items rather than that they are carrying none.
+    //
+    // 身構える used to live in the SKILL tray and is now 防御 on the
+    // command row, where a turn belongs. So this tray is genuinely
+    // empty, and says so.
     await freshWorld(page);
     await setup(page, { ui: 'PROTOTYPE', story: 'off' });
     await walkIntoAFight(page);
-    const tray = page.getByTestId('bp-skill-tray');
-    await expect(tray).toHaveCount(0);
+    for (const [command, trayId, empty] of [
+      ['bp-skill', 'bp-skill-tray', 'このさきに覚えるものが入ります。'],
+      ['bp-item', 'bp-item-tray', '持ち物はまだない。'],
+    ] as const) {
+      const tray = page.getByTestId(trayId);
+      await expect(tray).toHaveCount(0);
+      await page.getByTestId(command).click();
+      await expect(tray).toBeVisible();
+      await expect(tray).toContainText(empty);
+      await page.getByTestId(command).click();
+      await expect(tray).toHaveCount(0);
+    }
+    // And opening one closes the other, so the dock never stacks two.
     await page.getByTestId('bp-skill').click();
-    await expect(tray).toBeVisible();
-    // One thing that exists, and an honest gap where the rest will go.
-    await expect(page.getByTestId('bp-skill-guard')).toBeVisible();
-    await page.getByTestId('bp-skill').click();
-    await expect(tray).toHaveCount(0);
+    await expect(page.getByTestId('bp-skill-tray')).toBeVisible();
+    await page.getByTestId('bp-item').click();
+    await expect(page.getByTestId('bp-skill-tray')).toHaveCount(0);
+    await expect(page.getByTestId('bp-item-tray')).toBeVisible();
+  });
+
+  test('防御 is a command on the row, and guarding still halves the blow', async ({ page }) => {
+    await freshWorld(page);
+    await setup(page, { ui: 'PROTOTYPE', story: 'off', enemyAction: 'ATTACK' });
+    await walkIntoAFight(page);
+    const guard = page.getByTestId('bp-defend');
+    await expect(guard).toBeVisible();
+    await expect(guard).toContainText('防御');
+    const hp = page.getByTestId('bp-player-hp');
+    const full = await hp.textContent();
+    await guard.click();
+    await expect(hp).not.toHaveText(full ?? '');
   });
 
   test('an ordinary fight ends ordinarily, back on the path', async ({ page }) => {
@@ -427,13 +459,26 @@ test.describe('battle UI prototype', () => {
       expect(scrolls.x, 'no sideways scroll').toBe(false);
       expect(scrolls.y, 'no vertical scroll').toBe(false);
 
-      for (const id of ['bp-attack', 'bp-skill']) {
+      for (const id of ['bp-attack', 'bp-skill', 'bp-item', 'bp-defend']) {
         const box = (await page.getByTestId(id).boundingBox())!;
         expect(box.height, `${id} is thumb-sized`).toBeGreaterThanOrEqual(44);
+        expect(box.width, `${id} is thumb-sized`).toBeGreaterThanOrEqual(44);
       }
       // The message is on screen and readable, not clipped away.
+      //
+      // It used to be asked to be most of the width, which was the right
+      // rule when it was a band of its own: a band that is not the width
+      // of the screen is a band that has been clipped. It is now a plate
+      // in the bottom strip between two corner panels, so what is asked
+      // of it is that it is WHOLLY on screen and wide enough to read a
+      // line of Japanese in — which it would not be if the corners ever
+      // grew enough to squeeze it.
       const message = (await page.getByTestId('bp-message').boundingBox())!;
-      expect(message.width).toBeGreaterThan(phone.width * 0.8);
+      expect(message.x, 'not off the left').toBeGreaterThanOrEqual(0);
+      expect(message.x + message.width, 'not off the right').toBeLessThanOrEqual(phone.width + 1);
+      expect(message.width, 'wide enough for a line').toBeGreaterThan(
+        Math.max(240, phone.width * 0.4),
+      );
       expect(message.y + message.height).toBeLessThanOrEqual(phone.height);
     });
   }
@@ -520,11 +565,26 @@ test.describe('Kaos at the start of a fight', () => {
       await expect(page.locator('.bp-hero')).toBeVisible();
       await expect(page.locator('.bp-kaos')).toBeVisible();
       await expect(page.getByTestId('bp-enemy-hp')).toBeVisible();
-      const stage = (await page.locator('.bp-stage').boundingBox())!;
+      // WHERE HER CARD IS ALLOWED TO BE, now that the field is the whole
+      // screen. It used to be checked as "below the battlefield", which
+      // was the same rule said in the old layout's terms — there was a
+      // band under the field and she took it. There is no band now, so
+      // the rule is said in its own terms instead: she takes the bottom
+      // strip where the commands are, and covers nobody who is standing
+      // on the field.
       const box = (await card.boundingBox())!;
-      expect(box.y, 'her card is under the battlefield, not over it').toBeGreaterThanOrEqual(
-        stage.y + stage.height - 1,
-      );
+      for (const who of ['.bp-enemy', '.bp-hero', '.bp-kaos']) {
+        const body = (await page.locator(who).boundingBox())!;
+        const overlaps =
+          box.y < body.y + body.height &&
+          body.y < box.y + box.height &&
+          box.x < body.x + body.width &&
+          body.x < box.x + box.width;
+        expect(overlaps, `her card does not cover ${who}`).toBe(false);
+      }
+      const view = page.viewportSize()!;
+      expect(box.y, 'her card is in the bottom strip').toBeGreaterThan(view.height * 0.55);
+      expect(box.y + box.height, 'and fully on screen').toBeLessThanOrEqual(view.height + 1);
 
       // Commands wait for her, then come back.
       await expect(page.getByTestId('bp-commands')).toHaveCount(0);
@@ -559,8 +619,7 @@ test.describe('Kaos at the start of a fight', () => {
     // fight is still a fight by the third turn — helped blows would have
     // finished a 22 HP creature before the count was up.
     for (let i = 0; i < 3; i++) {
-      await page.getByTestId('bp-skill').click();
-      await page.getByTestId('bp-skill-guard').click();
+      await page.getByTestId('bp-defend').click();
       await expect(page.getByTestId('bp-commands')).toBeVisible({
         timeout: 5_000,
       });
@@ -587,8 +646,7 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(hp).toContainText('100 / 100');
     let before = Number.POSITIVE_INFINITY;
     for (let turn = 0; turn < 4; turn++) {
-      await page.getByTestId('bp-skill').click();
-      await page.getByTestId('bp-skill-guard').click();
+      await page.getByTestId('bp-defend').click();
       await expect(page.getByTestId('bp-commands')).toBeVisible({
         timeout: 5_000,
       });

@@ -45,6 +45,9 @@ export const MOSS_RABBIT_ART: EnemyArtSet = {
     front: {
       src: mossRabbitArt,
       box: { fileW: 1024, fileH: 1536, x: 129, y: 387, width: 703, height: 850 },
+      // Its face, for the turn order: ears out of frame on purpose, so
+      // a 27-pixel diamond is a face and not two ears and a nose.
+      face: { fileW: 1024, fileH: 1536, x: 400, y: 620, width: 380, height: 380 },
       facing: 'right',
     },
     // Lying in the grass with its ears spread: far wider than it is

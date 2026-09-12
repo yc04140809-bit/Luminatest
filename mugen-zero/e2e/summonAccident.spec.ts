@@ -101,8 +101,7 @@ async function enemyHp(page: Page): Promise<number> {
 
 /** Guards a turn and waits for the commands to come back. */
 async function guard(page: Page) {
-  await page.getByTestId('bp-skill').click();
-  await page.getByTestId('bp-skill-guard').click();
+  await page.getByTestId('bp-defend').click();
   await expect(page.getByTestId('bp-commands')).toBeVisible({ timeout: 8_000 });
 }
 

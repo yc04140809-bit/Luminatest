@@ -33,6 +33,17 @@ export interface ArtAsset {
   src: string;
   box?: ArtBox;
   /**
+   * And which box of it is their FACE, for somewhere that wants a head
+   * rather than a person: a turn order, a party card, a talking plate.
+   *
+   * Optional, and its absence is handled rather than a gap: a drawing
+   * with no face box is cropped to its top third by the rule in the art
+   * layer, which is nearly right for a standing figure and visibly
+   * approximate for anything else. Writing one down is what turns a
+   * head-and-shoulders guess into a portrait, and it costs six numbers.
+   */
+  face?: ArtBox;
+  /**
    * Which way the drawing faces in the file.
    *
    * The battlefield faces enemies right (they look at the party) and the

@@ -28,3 +28,15 @@ export const LOCATIONS: LocationDef[] = [
     enterable: true,
   },
 ];
+
+/**
+ * A place's own name, for a screen that has only its id.
+ *
+ * Falls back to the id with its underscores opened out, which is a
+ * readable label rather than a crash — a location that reaches a screen
+ * before it reaches this table says GREENWOOD FOREST and not
+ * `GREENWOOD_FOREST`.
+ */
+export function locationNameOf(locationId: string): string {
+  return LOCATIONS.find((l) => l.id === locationId)?.name ?? locationId.replace(/_/g, ' ');
+}

@@ -46,7 +46,14 @@ export const HERO_ART: PartyArtSet = {
     // delivered. No box: the drawing fills its own file, so the size on
     // screen comes from content/art/spriteFrames and nothing here has a
     // rectangle that can go stale.
-    battle_idle: { src: BATTLE_FIGURES.hero, facing: 'left' },
+    battle_idle: {
+      src: BATTLE_FIGURES.hero,
+      facing: 'left',
+      // His head, measured in the file, for the turn order and the
+      // party card. Without it the top-third rule crops his raised
+      // sword arm and half a cloak.
+      face: { fileW: 1024, fileH: 1536, x: 540, y: 20, width: 280, height: 280 },
+    },
     // The exploration sprite he used to fight in, kept as the whole-body
     // fallback for anything that has no drawing yet.
     fullbody: {
@@ -62,7 +69,13 @@ export const KAOS_ART: PartyArtSet = {
   id: 'kaos',
   label: 'ケイオス',
   states: {
-    battle_idle: { src: BATTLE_FIGURES.kaos, facing: 'left' },
+    battle_idle: {
+      src: BATTLE_FIGURES.kaos,
+      facing: 'left',
+      // Hers, between the two wings. The top third of her file is
+      // almost entirely wing, which is a beautiful crop of nobody.
+      face: { fileW: 1374, fileH: 1145, x: 610, y: 5, width: 290, height: 290 },
+    },
     fullbody: {
       src: KAOS_LEFT.url,
       box: {

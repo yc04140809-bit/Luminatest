@@ -59,6 +59,16 @@ import {
 } from '../cinematic/accidentCinematic';
 import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
+import { PartyCard, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
+import {
+  actingSideOf,
+  memoryDepth,
+  memoryRows,
+  turnOrderLine,
+  type TurnActor,
+} from './battleHud';
+import { FIELD_FIGURE_SCALE } from './formation';
+import { locationNameOf } from '../../content/locations/alden';
 
 /**
  * A piece of a picture, drawn at a given height with its own feet on the
@@ -136,6 +146,24 @@ interface Props {
   /** The other kind. The choice is real and is recorded by the caller. */
   onMugenChoice: (choice: LifeChoiceId) => void;
   onDefeat: () => void;
+  /**
+   * The fight is left rather than finished.
+   *
+   * Running away is not losing and is not winning: nothing is recorded,
+   * no life is decided about, and the creature is still out there. The
+   * caller puts the player back where they came from and writes
+   * nothing down. Absent means this fight cannot be left, and the
+   * command is not drawn.
+   */
+  onEscape?: () => void;
+  /**
+   * What this world already remembers, in its own words, oldest first.
+   *
+   * Handed in rather than read: the battle screen must not open WORLD
+   * MEMORY any more than it opens the book. Empty is a perfectly good
+   * answer and the corner panel says so, in question marks.
+   */
+  memoryLines?: readonly string[];
 }
 
 /**
@@ -302,6 +330,8 @@ export function BattleUIPrototype({
   onNormalEnd,
   onMugenChoice,
   onDefeat,
+  onEscape,
+  memoryLines = [],
 }: Props) {
   /**
    * What Kaos does about this fight.
@@ -395,6 +425,16 @@ export function BattleUIPrototype({
    */
   const [stance, setStance] = useState<'NORMAL' | 'DOWNED'>('NORMAL');
   const [skillOpen, setSkillOpen] = useState(false);
+  /**
+   * The bag, which is empty and says so.
+   *
+   * アイテム is a command the fight has to have: a player who cannot
+   * find it assumes the game has no items rather than that they have
+   * none. What it must not be is a fake inventory — so it opens, it is
+   * honest about being empty, and the day a bag exists it is handed in
+   * exactly where this tray already is.
+   */
+  const [itemOpen, setItemOpen] = useState(false);
   const [magicOpen, setMagicOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   /**
@@ -631,6 +671,7 @@ export function BattleUIPrototype({
   const command = (kind: 'ATTACK' | 'DEFEND') => {
     if (battle.outcome !== 'ONGOING') return;
     setSkillOpen(false);
+    setItemOpen(false);
     // The fight moves on, so the plate goes back to reporting it.
     setSaid(null);
     const next =
@@ -743,30 +784,65 @@ export function BattleUIPrototype({
   /**
    * Their sizes, as a share of the battlefield.
    *
-   * A moss rabbit is a small animal that has to read as one from across
-   * a clearing; the two of them are nearer the camera and so a little
-   * taller. What matters is not the numbers but that all three sit
-   * inside the same picture instead of on top of it.
-   */
-  /**
-   * Their sizes, as a share of the battlefield.
-   *
    * Not worked out here: every number lives in content/art/spriteFrames
    * and is read by every screen that draws somebody standing in a
    * place, so a moss rabbit is the same moss rabbit on this screen and
    * on the story one. What this screen decides is WHO is on the field;
    * how big they are is a fact about them.
+   *
+   * The one thing this screen does say is how big the FIELD is, and
+   * that changed: it was a band between two rows of numbers and is now
+   * the whole screen, so the same share draws a half again bigger
+   * person. `FIELD_FIGURE_SCALE` converts a share of the old field into
+   * a share of the new one — and sits a shade under the ratio, which is
+   * the "a little smaller, with ground between them" the overhaul asks
+   * for and the room three and four of them will stand in.
    */
+  const figure = (id: string, state: string | null) =>
+    Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE);
   const stage = {
-    enemy: spriteHeight(species.speciesId, enemyShown.state, stageH),
-    hero: spriteHeight('hero', heroShown.state, stageH),
-    kaos: spriteHeight('kaos', kaosShown.state, stageH),
-    summon: spriteHeight('arcana_summon', null, stageH),
+    enemy: figure(species.speciesId, enemyShown.state),
+    hero: figure('hero', heroShown.state),
+    kaos: figure('kaos', kaosShown.state),
+    summon: figure('arcana_summon', null),
+  };
+
+  /**
+   * WHO TAKES TURNS, and who is taking one now.
+   *
+   * Two today, and the strip is built from the list rather than drawn
+   * for two: a party of three plus a creature is a longer roster and no
+   * change here. Kaos is not in it — she acts on the fight without
+   * holding a place in its order — so she is in the party column and
+   * not in this line, which is the truth about how the fight runs.
+   */
+  const turnRoster: TurnActor[] = [
+    { id: 'hero', name: 'あなた', side: 'ALLY' },
+    { id: species.speciesId, name: battle.enemyName, side: 'ENEMY' },
+  ];
+  const actingSide = actingSideOf(beat === 'NONE' ? null : beat);
+  const turnSlots = turnOrderLine(
+    turnRoster,
+    turnRoster.findIndex((a) => a.side === actingSide),
+    5,
+  );
+  const turnArtOf = (actorId: string) =>
+    actorId === 'hero' ? heroShown : actorId === 'kaos' ? kaosShown : enemyShown;
+  const memoryDepthNow = memoryDepth(arcana);
+  const memoryPanelRows = memoryRows(memoryLines);
+  const placeName = locationNameOf(battleLocationId);
+  const placeMark = battleLocationId.replace(/_/g, ' ');
+
+  /** Leaving. Only while there is a fight to leave. */
+  const escape = () => {
+    if (battle.outcome !== 'ONGOING' || !onEscape) return;
+    setAuto(false);
+    onEscape();
   };
 
   return (
     <div
-      className="screen bp-screen"
+      className="screen bp-screen bp-field"
       data-testid="battle-prototype"
       // Every spell effect reads its own duration from --fx, so at twice
       // speed the whole lot is half as long and not one of the CSS rules
@@ -799,67 +875,12 @@ export function BattleUIPrototype({
           onDone={() => setBattle((b) => clearAwakeningLines(b))}
         />
       )}
-      {/* 1. WHO IS IN THIS. A landscape screen has room for both sides
-             at once, side by side, in the shape they stand in: the
-             creature's health on the left where the creature is, the
-             party's on the right where the party is. Reading a bar no
-             longer means looking away from the thing it belongs to. */}
-      <div className="bp-band">
-        <div className="bp-plate bp-plate-enemy" data-testid="bp-enemy-hp">
-          <span className="bp-plate-name">
-            {battle.enemyName}
-            {/* What it has become on the way down. One word, in its own
-                colour, so a phase is something the player SEES rather
-                than a line they may have tapped past. */}
-            {battle.enemyPhaseId && (
-              <i className="bp-phase" data-testid="bp-enemy-phase">
-                {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
-              </i>
-            )}
-          </span>
-          <span className="bp-plate-row">
-            <span className="bp-plate-num">
-              {battle.enemyHp} / {battle.enemyMaxHp}
-            </span>
-            <span className="bp-track">
-              <span
-                className="bp-fill enemy"
-                style={{ width: `${(battle.enemyHp / battle.enemyMaxHp) * 100}%` }}
-              />
-              {/* Its footing, under its health: the thing to aim at in
-                  the middle of a fight. Only drawn for creatures that
-                  have any. */}
-              {battle.enemyMaxPoise > 0 && (
-                <span
-                  className={`bp-poise${battle.enemyStaggerTurns > 0 ? ' broken' : ''}`}
-                  data-testid="bp-enemy-poise"
-                  data-broken={battle.enemyStaggerTurns > 0 ? 'yes' : undefined}
-                  style={{
-                    width: `${(battle.enemyPoise / battle.enemyMaxPoise) * 100}%`,
-                  }}
-                />
-              )}
-            </span>
-          </span>
-        </div>
-        <div className="bp-plate bp-plate-party" data-testid="bp-player-hp">
-          <span className="bp-plate-name">あなた</span>
-          <span className="bp-plate-row">
-            <span className="bp-plate-num">
-              {battle.playerHp} / {battle.playerMaxHp}
-            </span>
-            <span className="bp-track">
-              <span
-                className="bp-fill"
-                style={{ width: `${(battle.playerHp / battle.playerMaxHp) * 100}%` }}
-              />
-            </span>
-          </span>
-        </div>
-      </div>
-
-      {/* 2. THE BATTLEFIELD. Everything that is happening happens here,
-             and nothing is laid over it. */}
+      {/* 1. THE BATTLEFIELD, which is now the screen.
+             It used to be the middle of three bands, with the numbers
+             above it and the commands below. It is the whole surface
+             now and everything that has to be read is laid into the
+             corners of it — so the fight is what the player is looking
+             at, and the reading happens at the edges of their eye. */}
       <div
         className={`bp-stage${accidentStageClass(accidentBeat)}`}
         ref={stageRef}
@@ -999,192 +1020,87 @@ export function BattleUIPrototype({
 
       </div>
 
-      {/* Still in force. One chip, so a player who tapped past her
-          moment can still see that something is helping. */}
-      {chaos && !showingChaos && battle.outcome === 'ONGOING' && (
-        <p className={`bp-chaos-badge ${chaos.category.toLowerCase()}`} data-testid="bp-chaos-badge">
-          《{chaos.name}》
-        </p>
-      )}
-
-
-      {/* 5. One line, not a conversation box — except for the second
-             and a half a called memory is speaking, when it is three:
-             what came, what it did, and what came of it. The plate is
-             replaced rather than added to, so nothing below it moves. */}
-      {!(downed && finishesInMugenChoice && !inAccident) && (
-        <div
-          className={said ? 'bp-message bp-said' : 'bp-message'}
-          data-testid="bp-message"
-          data-said={said ? 'yes' : undefined}
-          role="status"
-          aria-live="polite"
-        >
-          {said ? (
-            // The same plate, saying three things instead of one. It
-            // keeps its identity on purpose: everything that watches
-            // this line — the rest of the suite included — must not
-            // find it missing for a second and a half.
-            <div className="bp-said-body" data-testid="bp-said">
-              <span className="bp-said-name">《{said.name}》</span>
-              <p className="bp-said-line">{said.line}</p>
-              <p className="bp-said-result" data-testid="bp-said-result">
-                {said.result}
-              </p>
-            </div>
-          ) : (
-            <>
-              <p className="bp-message-text">
-                {/* While something is crossing, the plate reports the
-                    fight rather than its ending: the player needs to
-                    read what the breath just did before being told the
-                    creature is lying down. */}
-                {beaten && !finishesInMugenChoice && !inAccident ? species.defeatedText : lastLine}
-              </p>
-              <Ornament kind="ring" size={26} className="bp-message-mark" />
-            </>
-          )}
+      {/* 2. THE HUD — four corners over one field.
+             Laid out as a grid whose middle cell is deliberately empty:
+             that hole in the centre is the room an attack, a spell or a
+             summon moves through, and it is reserved by the layout
+             rather than left over by luck. Nothing in here takes a tap
+             it was not given — the layer is transparent to the thumb
+             and only the controls inside it are not. */}
+      <div className="bp-hud" data-testid="bp-hud">
+        {/* LEFT TOP — the order, then who you are fighting. No logo:
+            a brand mark in the corner of a fight is the one thing on
+            this screen that tells the player nothing. */}
+        <div className="bx-corner bx-tl">
+          <TurnOrder slots={turnSlots} artOf={turnArtOf} />
+          <div className="bx-panel bx-enemy-plate" data-testid="bp-enemy-hp">
+            <span className="bx-enemy-head">
+              <b className="bx-enemy-name">{battle.enemyName}</b>
+              {/* What it has become on the way down. One word, in its
+                  own colour, so a phase is something the player SEES
+                  rather than a line they may have tapped past. */}
+              {battle.enemyPhaseId && (
+                <i className="bp-phase" data-testid="bp-enemy-phase">
+                  {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
+                </i>
+              )}
+            </span>
+            <Meter kind="enemy-hp" now={battle.enemyHp} max={battle.enemyMaxHp}>
+              {/* Its footing, under its health: the thing to aim at in
+                  the middle of a fight. Only drawn for creatures that
+                  have any. */}
+              {battle.enemyMaxPoise > 0 && (
+                <span
+                  className={`bp-poise${battle.enemyStaggerTurns > 0 ? ' broken' : ''}`}
+                  data-testid="bp-enemy-poise"
+                  data-broken={battle.enemyStaggerTurns > 0 ? 'yes' : undefined}
+                  style={{
+                    width: `${(battle.enemyPoise / battle.enemyMaxPoise) * 100}%`,
+                  }}
+                />
+              )}
+            </Meter>
+          </div>
         </div>
-      )}
 
-      {/* 6b. Her moment, in the place the commands were: a remark and a
-             name for a second or two, so nothing of the forest is
-             covered and nothing above this line moves. Tapping skips. */}
-      {showingChaos && chaos && (
-        <button
-          className="bp-chaos-card"
-          data-testid="bp-chaos-card"
-          data-chaos={chaos.id}
-          onClick={() => setShowingChaos(false)}
-          aria-label={`${chaos.name} — ${chaos.effect}`}
-        >
-          <span className="bp-chaos-who">ケイオス</span>
-          <span className="bp-chaos-line">「{chaos.line}」</span>
-          <span className="bp-chaos-rule" aria-hidden="true" />
-          <span className={`bp-chaos-name ${chaos.category.toLowerCase()}`}>《{chaos.name}》</span>
-          <span className="bp-chaos-effect">{chaos.effect}</span>
-        </button>
-      )}
+        {/* RIGHT TOP — where this is, and who is standing with you. */}
+        <div className="bx-corner bx-tr">
+          <div className="bx-place" data-testid="bx-place">
+            <b>{placeMark}</b>
+            <i>{placeName}</i>
+          </div>
+          <div className="bx-party" data-testid="bx-party">
+            <PartyCard
+              name="あなた"
+              role="剣"
+              art={heroShown}
+              hp={{ now: battle.playerHp, max: battle.playerMaxHp, testId: 'bp-player-hp' }}
+              testId="bx-member-hero"
+            />
+            <PartyCard
+              name="ケイオス"
+              role="魔法"
+              art={kaosShown}
+              mp={
+                battle.magicUnlocked
+                  ? { now: battle.playerMp, max: battle.playerMaxMp, testId: 'bx-kaos-mp' }
+                  : undefined
+              }
+              note={battle.magicUnlocked ? undefined : '見ている'}
+              testId="bx-member-kaos"
+            />
+          </div>
+        </div>
 
-      {/* 6c. The other thing she can do: reach for a memory that is not
-             all there. The same card, the same place, the same second
-             or two — the forest is not covered for this either. What it
-             shows instead of a blessing is which page she is reaching
-             for and how much of it there is, because that number is the
-             reason it works or does not. */}
-      {showingChaos && plan.kind === 'SUMMON' && openingSummon && (
-        <button
-          className={`bp-chaos-card bp-summon-card ${plan.outcome.toLowerCase()}`}
-          data-testid="bp-summon-card"
-          data-outcome={plan.outcome}
-          data-arcana={openingSummon.arcanaId}
-          onClick={() => setShowingChaos(false)}
-          aria-label={`${openingSummon.name} — ${plan.outcome === 'FAILURE' ? '不成立' : '召喚'}`}
-        >
-          <span className="bp-chaos-who">ケイオス</span>
-          <span className="bp-chaos-line">
-            {/* An accident starts the way an ordinary attempt starts.
-                She is reaching for the same page and says the same
-                thing; what arrives is not what she reached for. */}
-            「{plan.outcome === 'FAILURE' ? openingSummon.failureLine : openingSummon.incompleteLine}」
-          </span>
-          <span className="bp-chaos-rule" aria-hidden="true" />
-          <span className="bp-summon-id">
-            ARCANA #{String(openingSummon.number).padStart(3, '0')}
-            <i>{openingSummon.name}</i>
-          </span>
-          <span className="bp-summon-meter">
-            <span className="bp-summon-track" aria-hidden="true">
-              <span className="bp-summon-fill" style={{ width: `${openingSummon.progress}%` }} />
-            </span>
-            <span className="bp-summon-pct" data-testid="bp-summon-progress">
-              CONSTRUCTION {openingSummon.progress}%
-            </span>
-          </span>
-        </button>
-      )}
+        {/* LEFT BOTTOM — what the world has written down so far. */}
+        <div className="bx-corner bx-bl">
+          <WorldMemoryPanel rows={memoryPanelRows} depth={memoryDepthNow} />
+        </div>
 
-      {/* 6d. It was not what she reached for, and then nobody
-             explains it. Both cards come from the shared cinematic. */}
-      {accidentBeat === 'CROSS' && accident && (
-        <AccidentCard unknown={unknown} accidentId={accident.id} />
-      )}
-      {accidentBeat === 'TALK' && <AccidentTalk onSkip={stopAccident} />}
-
-      {/* 6. Fighting, and then — separately — deciding. */}
-      {!beaten && !showingChaos && !inAccident && (
-        <div className="bp-commands" data-testid="bp-commands">
-          <button className="bp-cmd" data-testid="bp-attack" onClick={() => command('ATTACK')}>
-            <SwordIcon size={19} className="bp-cmd-mark" />
-            <span className="bp-cmd-jp">攻撃</span>
-            <span className="bp-cmd-en">ATTACK</span>
-          </button>
-          {/* Hers. Only once she can, and never as an extra swing:
-              picking a spell IS this turn. */}
-          {battle.magicUnlocked && (
-            <button
-              className={magicOpen ? 'bp-cmd open' : 'bp-cmd'}
-              data-testid="bp-magic"
-              aria-expanded={magicOpen}
-              onClick={() => {
-                setSkillOpen(false);
-                setArcanaTrayOpen(false);
-                setMagicOpen((open) => !open);
-              }}
-            >
-              <SparkIcon size={19} className="bp-cmd-mark" />
-              <span className="bp-cmd-jp">魔法</span>
-              <span className="bp-cmd-en" data-testid="bp-mp">
-                MP {battle.playerMp}
-              </span>
-            </button>
-          )}
-          <button
-            className={skillOpen ? 'bp-cmd open' : 'bp-cmd'}
-            data-testid="bp-skill"
-            aria-expanded={skillOpen}
-            onClick={() => {
-              setMagicOpen(false);
-              setSkillOpen((open) => !open);
-            }}
-          >
-            <SparkIcon size={19} className="bp-cmd-mark" />
-            <span className="bp-cmd-jp">スキル</span>
-            <span className="bp-cmd-en">SKILL</span>
-          </button>
-          {/* A finished memory is the player's to spend, so it is a
-              command and not something that happens to them. Its own
-              row rather than a third column: at 360px three of these
-              side by side stop being readable, and this is the one the
-              collecting is for. */}
-          {completeArcana.length > 0 && (
-            <button
-              className={`bp-cmd wide arcana${arcanaTrayOpen ? ' open' : ''}`}
-              data-testid="bp-arcana"
-              aria-expanded={arcanaTrayOpen}
-              disabled={spent.length >= SUMMON_CONFIG.usesPerBattle}
-              onClick={() => {
-                setSkillOpen(false);
-                setArcanaTrayOpen((open) => !open);
-              }}
-            >
-              <Ornament kind="ring" size={17} className="bp-cmd-mark" />
-              <span className="bp-cmd-jp">
-                アルカナ
-                {spent.length >= SUMMON_CONFIG.usesPerBattle && (
-                  <i className="bp-cmd-spent" data-testid="bp-arcana-spent">
-                    この戦いではもう呼べない
-                  </i>
-                )}
-              </span>
-              <span className="bp-cmd-en">ARCANA</span>
-            </button>
-          )}
-          {/* AUTO と 倍速。 Beside the commands rather than below them —
-              a landscape phone has width going spare and no height at
-              all, and the battlefield has to stay more than half the
-              screen. Narrow chips at the far end, so a thumb going for
-              攻撃 lands on a wide button at the other end of the row. */}
+        {/* RIGHT BOTTOM — how the fight is WATCHED, and the way out.
+            Never a turn, so never in the command row: a thumb going
+            for 攻撃 must not be able to land on 逃走. */}
+        <div className="bx-corner bx-br">
           <div className="bp-modes" data-testid="bp-modes">
             <button
               className={auto ? 'bp-mode on' : 'bp-mode'}
@@ -1192,8 +1108,12 @@ export function BattleUIPrototype({
               aria-pressed={auto}
               onClick={() => setAuto((on) => !on)}
             >
-              <span className="bp-mode-jp">オート</span>
+              {/* ON is said as well as painted. A filled chip carries it
+                  for a player looking at the screen; the word carries it
+                  for one glancing at it, and the brief asks for the state
+                  to be unmistakable rather than merely present. */}
               <span className="bp-mode-en">{auto ? 'AUTO ON' : 'AUTO'}</span>
+              <span className="bp-mode-jp">オート</span>
             </button>
             <button
               className={speed > 1 ? 'bp-mode on' : 'bp-mode'}
@@ -1202,53 +1122,301 @@ export function BattleUIPrototype({
               aria-label={`速度 ${speedLabel(speed)}`}
               onClick={() => setSpeed((at) => nextSpeed(at))}
             >
-              <span className="bp-mode-jp">速さ</span>
               <span className="bp-mode-en">{speedLabel(speed)}</span>
+              <span className="bp-mode-jp">倍速</span>
             </button>
+            {onEscape && (
+              <button
+                className="bp-mode bp-escape"
+                data-testid="bp-escape"
+                disabled={battle.outcome !== 'ONGOING'}
+                onClick={escape}
+              >
+                <span className="bp-mode-en">ESCAPE</span>
+                <span className="bp-mode-jp">逃走</span>
+              </button>
+            )}
           </div>
         </div>
-      )}
-      {!beaten && !showingChaos && !inAccident && magicOpen && (
-        <MagicTray
-          spells={spells}
-          mp={battle.playerMp}
-          onCast={cast}
-          onClose={() => setMagicOpen(false)}
-        />
-      )}
-      {!beaten && !showingChaos && !inAccident && skillOpen && (
-        <div className="bp-tray" data-testid="bp-skill-tray">
-          <button className="bp-tray-item" data-testid="bp-skill-guard" onClick={() => command('DEFEND')}>
-            身構える
-            <span className="bp-tray-sub">受けるダメージを半分にする</span>
+      </div>
+
+      {/* 3. THE DOCK — the bottom centre strip.
+             What is being said, what can be chosen, and the commands
+             themselves, in one column at the foot of the field. It is
+             the narrow thing at the bottom of the picture rather than a
+             band the field has to make room for, and it is the place
+             her moment takes over when she has one. */}
+      <div className="bp-dock">
+        {/* Still in force. One chip, so a player who tapped past her
+            moment can still see that something is helping. */}
+        {chaos && !showingChaos && battle.outcome === 'ONGOING' && (
+          <p className={`bp-chaos-badge ${chaos.category.toLowerCase()}`} data-testid="bp-chaos-badge">
+            《{chaos.name}》
+          </p>
+        )}
+
+
+        {/* 5. One line, not a conversation box — except for the second
+               and a half a called memory is speaking, when it is three:
+               what came, what it did, and what came of it. The plate is
+               replaced rather than added to, so nothing below it moves. */}
+        {!(downed && finishesInMugenChoice && !inAccident) && (
+          <div
+            className={said ? 'bp-message bp-said' : 'bp-message'}
+            data-testid="bp-message"
+            data-said={said ? 'yes' : undefined}
+            role="status"
+            aria-live="polite"
+          >
+            {said ? (
+              // The same plate, saying three things instead of one. It
+              // keeps its identity on purpose: everything that watches
+              // this line — the rest of the suite included — must not
+              // find it missing for a second and a half.
+              <div className="bp-said-body" data-testid="bp-said">
+                <span className="bp-said-name">《{said.name}》</span>
+                <p className="bp-said-line">{said.line}</p>
+                <p className="bp-said-result" data-testid="bp-said-result">
+                  {said.result}
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="bp-message-text">
+                  {/* While something is crossing, the plate reports the
+                      fight rather than its ending: the player needs to
+                      read what the breath just did before being told the
+                      creature is lying down. */}
+                  {beaten && !finishesInMugenChoice && !inAccident ? species.defeatedText : lastLine}
+                </p>
+                <Ornament kind="ring" size={26} className="bp-message-mark" />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 6b. Her moment, in the place the commands were: a remark and a
+               name for a second or two, so nothing of the forest is
+               covered and nothing above this line moves. Tapping skips. */}
+        {showingChaos && chaos && (
+          <button
+            className="bp-chaos-card"
+            data-testid="bp-chaos-card"
+            data-chaos={chaos.id}
+            onClick={() => setShowingChaos(false)}
+            aria-label={`${chaos.name} — ${chaos.effect}`}
+          >
+            <span className="bp-chaos-who">ケイオス</span>
+            <span className="bp-chaos-line">「{chaos.line}」</span>
+            <span className="bp-chaos-rule" aria-hidden="true" />
+            <span className={`bp-chaos-name ${chaos.category.toLowerCase()}`}>《{chaos.name}》</span>
+            <span className="bp-chaos-effect">{chaos.effect}</span>
           </button>
-          <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
-        </div>
-      )}
-      {/* Which memory. One today; the list is built from the book, so a
-          hundred of them cost this screen nothing. */}
-      {!beaten && !showingChaos && !inAccident && arcanaTrayOpen && (
-        <div className="bp-tray" data-testid="bp-arcana-tray">
-          {completeArcana.map((entry) => (
+        )}
+
+        {/* 6c. The other thing she can do: reach for a memory that is not
+               all there. The same card, the same place, the same second
+               or two — the forest is not covered for this either. What it
+               shows instead of a blessing is which page she is reaching
+               for and how much of it there is, because that number is the
+               reason it works or does not. */}
+        {showingChaos && plan.kind === 'SUMMON' && openingSummon && (
+          <button
+            className={`bp-chaos-card bp-summon-card ${plan.outcome.toLowerCase()}`}
+            data-testid="bp-summon-card"
+            data-outcome={plan.outcome}
+            data-arcana={openingSummon.arcanaId}
+            onClick={() => setShowingChaos(false)}
+            aria-label={`${openingSummon.name} — ${plan.outcome === 'FAILURE' ? '不成立' : '召喚'}`}
+          >
+            <span className="bp-chaos-who">ケイオス</span>
+            <span className="bp-chaos-line">
+              {/* An accident starts the way an ordinary attempt starts.
+                  She is reaching for the same page and says the same
+                  thing; what arrives is not what she reached for. */}
+              「{plan.outcome === 'FAILURE' ? openingSummon.failureLine : openingSummon.incompleteLine}」
+            </span>
+            <span className="bp-chaos-rule" aria-hidden="true" />
+            <span className="bp-summon-id">
+              ARCANA #{String(openingSummon.number).padStart(3, '0')}
+              <i>{openingSummon.name}</i>
+            </span>
+            <span className="bp-summon-meter">
+              <span className="bp-summon-track" aria-hidden="true">
+                <span className="bp-summon-fill" style={{ width: `${openingSummon.progress}%` }} />
+              </span>
+              <span className="bp-summon-pct" data-testid="bp-summon-progress">
+                CONSTRUCTION {openingSummon.progress}%
+              </span>
+            </span>
+          </button>
+        )}
+
+        {/* 6d. It was not what she reached for, and then nobody
+               explains it. Both cards come from the shared cinematic. */}
+        {accidentBeat === 'CROSS' && accident && (
+          <AccidentCard unknown={unknown} accidentId={accident.id} />
+        )}
+        {accidentBeat === 'TALK' && <AccidentTalk onSkip={stopAccident} />}
+
+        {/* 6. Fighting, and then — separately — deciding.
+
+               Five commands and a diamond each, in the bottom centre:
+               the shape is the house's, and the row is centred because
+               it is the thing the player's thumb goes to and the two
+               corners beside it are things they only read. 防御 is one
+               of the five now rather than an item inside スキル — a
+               guard is a turn, and a turn belongs on the row of turns.
+               ARCANA joins them only when the book has a finished page,
+               because a command that is never available is furniture. */}
+        {!beaten && !showingChaos && !inAccident && (
+          <div className="bp-commands" data-testid="bp-commands">
+            <button className="bp-cmd" data-testid="bp-attack" onClick={() => command('ATTACK')}>
+              <span className="bp-cmd-plate" aria-hidden="true" />
+              <SwordIcon size={15} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">攻撃</span>
+              <span className="bp-cmd-en">ATTACK</span>
+            </button>
+            {/* Hers. Only once she can, and never as an extra swing:
+                picking a spell IS this turn. */}
+            {battle.magicUnlocked && (
+              <button
+                className={magicOpen ? 'bp-cmd open' : 'bp-cmd'}
+                data-testid="bp-magic"
+                aria-expanded={magicOpen}
+                onClick={() => {
+                  setSkillOpen(false);
+                  setItemOpen(false);
+                  setArcanaTrayOpen(false);
+                  setMagicOpen((open) => !open);
+                }}
+              >
+                <span className="bp-cmd-plate" aria-hidden="true" />
+                <SparkIcon size={15} className="bp-cmd-mark" />
+                <span className="bp-cmd-jp">魔法</span>
+                <span className="bp-cmd-en" data-testid="bp-mp">
+                  MP {battle.playerMp}
+                </span>
+              </button>
+            )}
             <button
-              key={entry.arcanaId}
-              className="bp-tray-item"
-              data-testid={`bp-arcana-${entry.arcanaId}`}
+              className={skillOpen ? 'bp-cmd open' : 'bp-cmd'}
+              data-testid="bp-skill"
+              aria-expanded={skillOpen}
               onClick={() => {
-                if (spent.includes(entry.arcanaId) || spent.length >= SUMMON_CONFIG.usesPerBattle) return;
+                setMagicOpen(false);
+                setItemOpen(false);
                 setArcanaTrayOpen(false);
-                setSpent((used) => [...used, entry.arcanaId]);
-                callArcana(entry, 'COMPLETE');
+                setSkillOpen((open) => !open);
               }}
             >
-              {entry.name}
-              <span className="bp-tray-sub">
-                《{entry.ability.name}》 — {entry.completeLine}
-              </span>
+              <span className="bp-cmd-plate" aria-hidden="true" />
+              <SparkIcon size={15} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">スキル</span>
+              <span className="bp-cmd-en">SKILL</span>
             </button>
-          ))}
-        </div>
-      )}
+            <button
+              className={itemOpen ? 'bp-cmd open' : 'bp-cmd'}
+              data-testid="bp-item"
+              aria-expanded={itemOpen}
+              onClick={() => {
+                setMagicOpen(false);
+                setSkillOpen(false);
+                setArcanaTrayOpen(false);
+                setItemOpen((open) => !open);
+              }}
+            >
+              <span className="bp-cmd-plate" aria-hidden="true" />
+              <LeafIcon size={15} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">アイテム</span>
+              <span className="bp-cmd-en">ITEM</span>
+            </button>
+            <button className="bp-cmd" data-testid="bp-defend" onClick={() => command('DEFEND')}>
+              <span className="bp-cmd-plate" aria-hidden="true" />
+              <CageIcon size={15} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">防御</span>
+              <span className="bp-cmd-en">DEFEND</span>
+            </button>
+            {/* A finished memory is the player's to spend, so it is a
+                command and not something that happens to them. */}
+            {completeArcana.length > 0 && (
+              <button
+                className={`bp-cmd arcana${arcanaTrayOpen ? ' open' : ''}`}
+                data-testid="bp-arcana"
+                aria-expanded={arcanaTrayOpen}
+                disabled={spent.length >= SUMMON_CONFIG.usesPerBattle}
+                onClick={() => {
+                  setSkillOpen(false);
+                  setItemOpen(false);
+                  setMagicOpen(false);
+                  setArcanaTrayOpen((open) => !open);
+                }}
+              >
+                <span className="bp-cmd-plate" aria-hidden="true" />
+                <Ornament kind="ring" size={14} className="bp-cmd-mark" />
+                <span className="bp-cmd-jp">記憶</span>
+                <span className="bp-cmd-en">ARCANA</span>
+              </button>
+            )}
+          </div>
+        )}
+        {/* Spent, and said outside the diamond: the note is a sentence
+            and a diamond is not a place to read one. */}
+        {!beaten && !showingChaos && !inAccident && completeArcana.length > 0 &&
+          spent.length >= SUMMON_CONFIG.usesPerBattle && (
+            <p className="bp-cmd-spent" data-testid="bp-arcana-spent">
+              この戦いではもう呼べない
+            </p>
+          )}
+        {!beaten && !showingChaos && !inAccident && magicOpen && (
+          <MagicTray
+            spells={spells}
+            mp={battle.playerMp}
+            onCast={cast}
+            onClose={() => setMagicOpen(false)}
+          />
+        )}
+        {/* SKILL is now genuinely what it says: the things this one
+            learns. 身構える left it and became 防御 on the command row,
+            where a turn belongs, so what is in here today is nothing —
+            and the tray says so rather than pretending otherwise. */}
+        {!beaten && !showingChaos && !inAccident && skillOpen && (
+          <div className="bp-tray" data-testid="bp-skill-tray">
+            <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
+          </div>
+        )}
+        {/* And the bag, which is empty for the same honest reason. */}
+        {!beaten && !showingChaos && !inAccident && itemOpen && (
+          <div className="bp-tray" data-testid="bp-item-tray">
+            <p className="bp-tray-empty">持ち物はまだない。</p>
+          </div>
+        )}
+        {/* Which memory. One today; the list is built from the book, so a
+            hundred of them cost this screen nothing. */}
+        {!beaten && !showingChaos && !inAccident && arcanaTrayOpen && (
+          <div className="bp-tray" data-testid="bp-arcana-tray">
+            {completeArcana.map((entry) => (
+              <button
+                key={entry.arcanaId}
+                className="bp-tray-item"
+                data-testid={`bp-arcana-${entry.arcanaId}`}
+                onClick={() => {
+                  if (spent.includes(entry.arcanaId) || spent.length >= SUMMON_CONFIG.usesPerBattle) return;
+                  setArcanaTrayOpen(false);
+                  setSpent((used) => [...used, entry.arcanaId]);
+                  callArcana(entry, 'COMPLETE');
+                }}
+              >
+                {entry.name}
+                <span className="bp-tray-sub">
+                  《{entry.ability.name}》 — {entry.completeLine}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+      </div>
 
       {downed && finishesInMugenChoice && !inAccident && (
         <div className="bp-mugen" data-testid="bp-mugen-choice">

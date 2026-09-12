@@ -133,7 +133,20 @@ function cropStyle(asset: ArtAsset, box: NonNullable<ArtAsset['box']>, height: n
 const BUST_HEIGHT = 0.38;
 const BUST_WIDTH = 0.56;
 
+/**
+ * WHY A MEASURED FACE IS PREFERRED. The rule below takes the top 38% of
+ * a figure's own box, centred. For somebody standing square in the
+ * middle of their file that is a head and shoulders. For a figure drawn
+ * off to one side — the hero holds his sword out to the left, so the
+ * box around him is far wider than he is — the same crop is mostly
+ * cloak. The face box in the registry is the fix, and the rule is the
+ * fallback for art that has not been measured yet.
+ */
+
 function bustBox(asset: ArtAsset): NonNullable<ArtAsset['box']> | undefined {
+  // A face somebody has actually measured beats the rule below every
+  // time, and the rule below is only here for the drawings nobody has.
+  if (asset.face) return asset.face;
   const box = asset.box;
   if (!box) return undefined;
   return {

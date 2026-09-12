@@ -382,7 +382,12 @@ test.describe('a preview changes nothing', () => {
     await expect(page.getByTestId('bp-message')).toContainText(/森の加護|回復/, {
       timeout: 8_000,
     });
-    await expect(page.getByTestId('bp-player-hp')).toHaveText(/あなた(\d+) \/ \1$/);
+    // Whose health it is, is said by the card the bar sits in — the bar
+    // itself is a bar. That split is the party column: a third and a
+    // fourth member are three more cards, each with a name of its own,
+    // and none of them has to have its name baked into its meter.
+    await expect(page.getByTestId('bx-member-hero')).toContainText('あなた');
+    await expect(page.getByTestId('bp-player-hp')).toHaveText(/(\d+) \/ \1$/);
 
     // And the book is where it was: 30%, one page, no sighting.
     await page.reload();
