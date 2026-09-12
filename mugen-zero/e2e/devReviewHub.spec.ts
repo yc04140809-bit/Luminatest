@@ -79,6 +79,16 @@ test('the report knows which world it is describing', async ({ page }) => {
   await newWorld(page);
   await enterDevAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
+  // Wait for the preset to LAND before reading a report about it.
+  //
+  // Building SPARE_3Y is a reset, a choice and three years of world,
+  // and every other button on the admin screen is `disabled` while it
+  // runs — so a click on one of those waits for it by itself. The hub
+  // entry is the single button that is not, which is why this test and
+  // no other could walk into a half-built world and be handed a report
+  // saying `Route: NONE`, day 1.
+  await expect(page.getByTestId('dev-choice')).toContainText('SPARE');
+  await expect(page.getByTestId('dev-clock')).toContainText('4年目');
   await page.getByTestId('dev-review-hub-entry').click();
   await page.getByTestId('qa-generate').click();
 

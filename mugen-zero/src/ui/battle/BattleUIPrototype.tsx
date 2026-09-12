@@ -21,6 +21,7 @@ import {
 import { MagicTray } from './MagicTray';
 import { AwakeningScene } from './AwakeningScene';
 import { spriteHeight } from '../../content/art/spriteFrames';
+import { prototypeStyle } from './formation';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
@@ -742,6 +743,7 @@ export function BattleUIPrototype({
           ]
             .filter(Boolean)
             .join(' ')}
+          style={prototypeStyle(showingDown ? 'enemyDowned' : 'enemy')}
           data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
           <span className="bp-shadow" aria-hidden="true" />
@@ -780,6 +782,7 @@ export function BattleUIPrototype({
           ]
             .filter(Boolean)
             .join(' ')}
+          style={prototypeStyle('kaos')}
         >
           <span className="bp-shadow" aria-hidden="true" />
           {(showingChaos || beat === 'MAGIC') && (
@@ -794,7 +797,10 @@ export function BattleUIPrototype({
             testId="bp-kaos-art"
           />
         </div>
-        <div className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}>
+        <div
+          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}
+          style={prototypeStyle('hero')}
+        >
           <span className="bp-shadow" aria-hidden="true" />
           {showingChaos && chaos?.target === 'PLAYER' && (
             <span className="bp-chaos-mark buff" aria-hidden="true" />
@@ -827,6 +833,7 @@ export function BattleUIPrototype({
         {summoned && (
           <div
             className={`bp-actor bp-summon ${summoned.kind.toLowerCase()}`}
+            style={prototypeStyle('summon')}
             data-testid="bp-summoned"
             data-arcana={summoned.arcana.arcanaId}
             data-kind={summoned.kind}

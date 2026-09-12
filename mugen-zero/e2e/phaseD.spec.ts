@@ -48,7 +48,15 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
   const go = page.getByTestId('time-shift-go');
   await go.click();
   // Double-tap must be inert: the button is either disabled or already gone.
-  await go.click({ force: true, timeout: 300 }).catch(() => {});
+  //
+  // Sent to THE BUTTON, not to the place the button was. A forced click
+  // skips the check that the element is still under the cursor, and the
+  // screen that replaces this one puts 「変化した場所を探す」 in exactly
+  // that spot — so under load the "second tap" landed on the explore
+  // button and navigated away, failing this test for a reason that had
+  // nothing to do with double-tapping. `dispatchEvent` re-resolves the
+  // test id, so it can only ever reach 旅立つ or nothing at all.
+  await go.dispatchEvent('click', {}, { timeout: 300 }).catch(() => {});
   await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('time-shift-return').click();
 

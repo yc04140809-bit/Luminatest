@@ -2434,32 +2434,19 @@ body,
   filter: blur(2px);
 }
 
-/* It is over there, on the left, further up the path. */
-/* Where the three of them stand on a wide field: the creature at one
-   end and further up the path, the two of them at the other, nearer,
-   and close enough together to read as one party rather than two people
-   who happen to be on the same side. */
+/* WHERE THE THREE OF THEM STAND IS NO LONGER HERE. It is in
+   ui/battle/formation.ts (PROTOTYPE_PLACEMENTS), and the screen puts it
+   on the element as an inline style — a position pinned by a stylesheet
+   cannot be leaned on by a camera mid-fight. The reasoning that chose
+   each place moved with the numbers. What is left below is how they
+   MOVE, which is this file's business and unchanged. */
 .bp-enemy {
-  left: 8%;
-  bottom: 38%;
   animation: bp-breathe 3.4s ease-in-out infinite;
 }
-/* He is nearest, on the right, between her and it. Nearest means
-   largest, but only just: too much and he stops being a person standing
-   closer and becomes a giant. */
 .bp-hero {
-  right: 25%;
-  bottom: 7%;
-  z-index: 2;
   animation: bp-breathe 3.6s ease-in-out infinite 0.2s;
 }
-/* She is a step behind him and a little further back. Her wings make
-   her drawing wider than it is tall, so she needs the whole of the
-   right edge to stand clear of him. */
 .bp-kaos {
-  right: 0;
-  bottom: 19%;
-  z-index: 1;
   animation: bp-breathe 3.9s ease-in-out infinite 0.4s;
 }
 @keyframes bp-breathe {
@@ -2551,10 +2538,9 @@ body,
 /* Down, and still there. It stays on the battlefield for the whole of
    the question the player is about to be asked — the four answers are
    about THIS animal, lying in front of them, not about a result screen.
-   It lies lower and further into the grass than it stood. */
+   Where it comes to rest is PROTOTYPE_PLACEMENTS.enemyDowned, which the
+   screen swaps in for .enemy on the same element. */
 .bp-enemy.downed {
-  bottom: 30%;
-  left: 4%;
   animation: bp-settle 0.4s ease-out;
 }
 @keyframes bp-settle {
@@ -3382,14 +3368,9 @@ body,
    is smaller, wears a ring of her light and is labelled — and
    not one pixel of the drawing itself is recoloured.
    ============================================================ */
+/* Its place on the player's side is PROTOTYPE_PLACEMENTS.summon. */
 .bp-summon {
-  /* The player's side, in front of both of them, clear of the hero's
-     shoulder on one side and — because it stands much lower down the
-     path — well clear of the creature being fought on the other. */
-  right: 42%;
-  bottom: 9%;
   animation: bp-summon-in 0.42s ease-out;
-  z-index: 2;
 }
 @keyframes bp-summon-in {
   0% { opacity: 0; transform: translateY(6px) scale(0.82); }

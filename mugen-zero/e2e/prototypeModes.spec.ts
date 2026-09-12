@@ -126,34 +126,63 @@ test('×2 shortens the theatre and nothing else', async ({ page }) => {
    * How long one hand-played turn is held on screen.
    *
    * MEASURED OFF THE SCREEN'S OWN CLASSES, which is the whole point and
-   * was the bug: this used to wait for `.bp-actor.bf-hit`, a class that
-   * belongs to the OTHER battle screen and never appears on this one.
-   * The wait therefore resolved instantly, both numbers were Playwright
-   * round-trip noise (46ms vs 48ms), and the test passed for two years'
-   * worth of the wrong reason until parallel load ordered the noise the
-   * other way.
+   * was the first bug here: this used to wait for `.bp-actor.bf-hit`, a
+   * class that belongs to the OTHER battle screen and never appears on
+   * this one. The wait resolved instantly, both numbers were Playwright
+   * round-trip noise (46ms vs 48ms), and the test passed for the wrong
+   * reason until parallel load ordered the noise the other way.
    *
-   * A turn is STRIKE(320) + the creature's reply — over a second at ×1
-   * and about half that at ×2, so the difference is far larger than any
-   * round-trip. The beats are `setTimeout`s in JS, not CSS animations,
-   * so reduced-motion does not flatten them.
+   * AND TIMED IN THE PAGE, which was the second. Driving the stopwatch
+   * from here with `expect.poll` measured with a ruler coarser than the
+   * thing being measured: its intervals ramp to a full second, so a turn
+   * of 500ms and a turn of 800ms both land on the same 850ms poll and
+   * read as identical — which is exactly what a loaded machine produced
+   * (865ms against 867ms). A MutationObserver on the field records both
+   * edges at the moment they happen, so the reading is the turn's length
+   * rather than the driver's polling granularity, and the coarse poll
+   * below only has to notice that a recorded answer exists.
+   *
+   * A turn is STRIKE(320) + the creature's reply — around a second at ×1
+   * and about half that at ×2. The beats are `setTimeout`s in JS, not
+   * CSS animations, so reduced-motion does not flatten them.
    */
+  const PLAYING = '.bp-hero.strike, .bp-hero.hurt, .bp-enemy.struck, .bp-enemy.tackle, .bp-enemy.hide';
+
   const theatre = async () => {
-    const playing = () =>
-      page.evaluate(() =>
-        Boolean(
-          document.querySelector(
-            '.bp-hero.strike, .bp-hero.hurt, .bp-enemy.struck, .bp-enemy.tackle, .bp-enemy.hide',
-          ),
-        ),
-      );
+    // Watching BEFORE the tap, so the opening beat cannot be missed in
+    // the round-trip: it has to start before it can end, or "finished"
+    // is just "not begun yet" with a stopwatch on it.
+    await page.evaluate((sel) => {
+      const w = window as unknown as { __theatre?: { start: number | null; end: number | null } };
+      const mark = { start: null as number | null, end: null as number | null };
+      w.__theatre = mark;
+      const playing = () => Boolean(document.querySelector(sel));
+      const observer = new MutationObserver(() => {
+        if (mark.start === null) {
+          if (playing()) mark.start = performance.now();
+        } else if (mark.end === null && !playing()) {
+          mark.end = performance.now();
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.querySelector('.bp-stage')!, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class'],
+      });
+    }, PLAYING);
+
     await page.getByTestId('bp-attack').click();
-    // It has to start before it can end, or "finished" is just "not
-    // begun yet" with a stopwatch on it.
-    await expect.poll(playing, { timeout: 10_000 }).toBe(true);
-    const started = Date.now();
-    await expect.poll(playing, { timeout: 20_000 }).toBe(false);
-    return Date.now() - started;
+
+    const recorded = () =>
+      page.evaluate(() => {
+        const w = window as unknown as { __theatre: { start: number | null; end: number | null } };
+        return w.__theatre.end === null || w.__theatre.start === null
+          ? null
+          : w.__theatre.end - w.__theatre.start;
+      });
+    await expect.poll(recorded, { timeout: 20_000 }).not.toBeNull();
+    return (await recorded())!;
   };
 
   const atOne = await theatre();
