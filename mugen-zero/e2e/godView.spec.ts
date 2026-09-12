@@ -201,14 +201,20 @@ test('the baker and his daughter are registered, with their artwork', async ({ p
     await expect(page.getByTestId('god-detail-art')).toBeVisible();
     const art = page.getByTestId(`god-art-${id}`);
     await expect(art).toBeVisible();
-    const loaded = await art.evaluate((node) => {
-      const el = node as HTMLElement;
-      const img = el.tagName === 'IMG' ? (el as HTMLImageElement) : el.querySelector('img');
-      if (img) return img.complete && img.naturalWidth > 0;
-      // Drawn as a background image: having one at all is the check.
-      return /url\(/.test(getComputedStyle(el).backgroundImage);
-    });
-    expect(loaded, `${id} artwork loaded`).toBe(true);
+    // POLLED, because being on screen and being decoded are different
+    // moments. `toBeVisible` only says the picture has a place in the
+    // layout; `complete` read once, right then, is read before the
+    // bytes have arrived on a loaded machine, and the artwork failed a
+    // check about whether it exists.
+    const loaded = () =>
+      art.evaluate((node) => {
+        const el = node as HTMLElement;
+        const img = el.tagName === 'IMG' ? (el as HTMLImageElement) : el.querySelector('img');
+        if (img) return img.complete && img.naturalWidth > 0;
+        // Drawn as a background image: having one at all is the check.
+        return /url\(/.test(getComputedStyle(el).backgroundImage);
+      });
+    await expect.poll(loaded, { message: `${id} artwork loaded`, timeout: 10_000 }).toBe(true);
     await page.getByTestId('god-detail-clear').click();
   }
 

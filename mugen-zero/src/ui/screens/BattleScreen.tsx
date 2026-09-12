@@ -339,7 +339,28 @@ export function BattleScreen({
     play([...(beat ? [beat] : []), ...answer(next)]);
   };
 
+  /**
+   * A fight that is over cannot be swung at, and says so here as well.
+   *
+   * `playerAttack` and `playerDefend` already hand a finished fight
+   * straight back, so the STATE was never at risk. What was not guarded
+   * is everything after them, which is this screen's own: `setFloat`
+   * clears the damage number still on screen, and `play` cancels every
+   * beat in flight — the victory sequence included — schedules the hit
+   * again over a creature already lying down, and pushes `busyUntil`,
+   * which is the clock AUTO waits on.
+   *
+   * NOTHING A PLAYER CAN DO REACHES THAT TODAY. Both buttons carry
+   * `disabled={!ongoing}`, AUTO's timer is cleared the moment the
+   * outcome changes, and this guard therefore alters no fight anybody
+   * can play. It is here because the caller is on its way to not being
+   * a button: AUTO already calls these directly, a camera and its beats
+   * will read the same clock, and `disabled` protects a button rather
+   * than a function. `cast` has refused this way since it was written —
+   * `magicBlocked` answers 'OVER' — so these two now match it.
+   */
   const attack = () => {
+    if (!ongoing) return;
     const next = playerAttack(battle, undefined, forcedEnemyAction);
     setBattle(next);
     // Last turn's number goes with last turn.
@@ -347,6 +368,7 @@ export function BattleScreen({
     play(['HIT', ...answer(next)]);
   };
   const defend = () => {
+    if (!ongoing) return;
     const next = playerDefend(battle, undefined, forcedEnemyAction);
     setBattle(next);
     setFloat(null);

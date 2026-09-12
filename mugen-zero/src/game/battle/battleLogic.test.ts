@@ -60,8 +60,13 @@ describe('battleLogic', () => {
   it('ignores commands once the battle is over', () => {
     let b = createBattle('盗賊');
     while (b.outcome === 'ONGOING') b = playerAttack(b, rngMax);
-    const after = playerAttack(b, rngMax);
-    expect(after).toEqual(b);
+    // Handed back UNCHANGED, and the same object rather than a copy of
+    // it: the screens set state with whatever comes back, and an equal
+    // but new object is a re-render of a fight nobody is playing.
+    expect(playerAttack(b, rngMax)).toBe(b);
+    // Both commands, not just the one. Guarding a finished fight would
+    // otherwise still gather MP and spend the creature's turn.
+    expect(playerDefend(b, rngMax)).toBe(b);
   });
 });
 

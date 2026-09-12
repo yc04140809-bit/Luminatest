@@ -217,13 +217,43 @@ test('the newest line of the battle log is always the one on screen', async ({ p
   await expect(battle).toBeVisible({ timeout: 20_000 });
 
   const log = page.getByTestId('battle-log');
+  const enemyHp = page.getByTestId('enemy-hp');
+  const hpOf = (text: string | null) =>
+    Number(/(\d+)\s*\/\s*(\d+)/.exec((text ?? '').replace(/\s+/g, ' '))?.[1] ?? NaN);
   for (let turn = 0; turn < 5; turn += 1) {
+    const hpBefore = hpOf(await enemyHp.textContent());
     const before = (await log.textContent()) ?? '';
     await page.getByTestId('attack-button').click();
     await page.waitForTimeout(900);
     if (!(await log.count())) break;
     const after = (await log.textContent()) ?? '';
-    expect(after, 'the log moved on').not.toBe(before);
+    // THE BOX ADVANCED, OR IT IS SHOWING THIS TURN ANYWAY.
+    //
+    // 「the text differs from last turn's」 alone looked like the right
+    // check and was not. The player rolls 8–12 and the creature 2–5, so
+    // twenty pairs write the whole two-line box, and two turns in a row
+    // landing the same pair write the same sentence — a correct log
+    // failing this test about once every four runs.
+    //
+    // 「it contains the damage just dealt」 alone is not right either:
+    // a creature that hides and then recovers writes two lines of its
+    // own, and the player's blow is pushed out of a window that holds
+    // two. The box is still showing the newest lines, which is what
+    // this test is named for.
+    //
+    // Either one is enough, and a box that had started keeping OLDER
+    // lines satisfies neither: its text would sit still while the
+    // number it shows stayed somebody else's. Five turns of that is
+    // caught on the first.
+    //
+    // The whole token rather than the digits, because a bare `4` would
+    // be found in a health bar reading 104.
+    const dealt = hpBefore - hpOf(await enemyHp.textContent());
+    expect(dealt, 'the blow landed').toBeGreaterThan(0);
+    expect(
+      after !== before || after.includes(`${dealt}のダメージ`),
+      `the box is showing this turn: ${JSON.stringify(after)} after ${dealt} damage`,
+    ).toBe(true);
     // And it is inside the stage, not hidden under anything.
     const box = (await log.boundingBox())!;
     expect(box.y).toBeGreaterThanOrEqual(0);
