@@ -69,43 +69,33 @@ const COMPANION_CHARACTER = 'KAOS' as const;
  * every phone, and the field's height is the one thing that does not
  * move.
  */
-// Raised from 0.3, then from 0.42. The two numbers are not comparable
-// as written and that is what hid the first of these: HIS is a WIDTH
-// (his art is measured across the shoulders) and HERS is a HEIGHT, so
-// 0.28 against 0.3 looked like she was the larger of the two while she
-// was drawn at about two thirds of him. His figure is 101 wide and 160
-// tall, which is 0.44 of the field.
+// Her height, head to sole, as a share of the field — and now simply
+// that, with no correction inside it.
 //
-// 0.42 then put her at 96% of his HEIGHT and she still read as small on
-// a real phone, which sent somebody looking at the drawings rather than
-// at the numbers. The two of them are not drawn in the same style. His
-// head is a third of him; hers is a fifth of her — he is about three
-// heads tall and she is nearer seven and a half. Matching their heights
-// therefore does not match what the eye reads as their size: at 0.42
-// her head came out 58% of his, and in this art a character's head is
-// most of what "how big is that person" means.
+// THE HISTORY IS WORTH KEEPING, because it is twice now that a number
+// here was asked to fix something that was not a number. 0.3 came from
+// comparing her HEIGHT against his WIDTH and reading it as like for
+// like. 0.42 put her at 96% of his height and she still read as small,
+// because the two were not drawn in the same style: his head was a
+// third of him and hers a fifth of her, so equal heights were not equal
+// presence. 0.50 bought that back at the cost of standing her a head
+// taller than him, and was recorded as a temporary display correction
+// rather than as anything about her.
 //
-// There is no one number that makes her head his size while keeping her
-// shorter than him; the styles will not allow it. 0.50 is the judged
-// compromise — her head 70% of his rather than 58%, clearly the other
-// member of the party rather than something following him.
+// She now has a forest sprite drawn in his style, so there is nothing
+// left to correct. 0.44 puts her head-to-sole height within a pixel of
+// his, which is what this number was always supposed to mean: all four
+// of her directions come out between 158.9 and 164.1 pixels against his
+// 158.4. One of the four sheets needs help to get there — see the note
+// beside KAOS_RIGHT_TEMP_SCALE in explorationSprites.ts.
 //
-// A RENDER SCALE, NOT A HEIGHT. She is drawn standing a head taller
-// than him here, and THAT IS NOT CANON: it is the correction for two
-// sprite sets drawn at different head counts, and nothing about how
-// tall either of them is may be read back out of it. Her battle
-// portrait, her event art and this sprite each carry their own display
-// scale for their own reasons, and none of the three is evidence about
-// the others.
-//
-// It is also temporary. The real answer is a forest sprite for her in
-// the same low-head-count style as his — front, back, left and right,
-// each with an idle and about three walk frames — at which point this
-// goes back to being a plain share of the field and the correction
-// disappears. Until that art exists the number stays at 0.50 and her
-// walk frames stay empty; see explorationSprites.ts. Nothing stands in
-// for the missing animation in the meantime.
-const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.5);
+// STILL A RENDER SCALE, NOT A HEIGHT. Two characters drawn the same
+// size on a field are not thereby the same height in the story, and
+// nothing about either of them may be read back out of this. Her battle
+// portrait, her event art and her forest sprite each carry their own
+// display scale for their own reasons, and none is evidence about the
+// others.
+const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.44);
 /**
  * How far back along his path she walks. Far enough that the two of
  * them read as two people on a path rather than as one figure with

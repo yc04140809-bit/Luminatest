@@ -108,7 +108,6 @@ export class ExplorationCharacter {
     this.sprite.setDepth(depth);
     this.baseScale = options.displaySize / this.set.referencePixels;
     this.applyFrame();
-    this.sprite.setScale(this.baseScale);
   }
 
   /** Turn them. Does nothing if they already face that way. */
@@ -183,7 +182,7 @@ export class ExplorationCharacter {
     if (!sprite || this.reducedMotion) return;
 
     if (this.state === 'walk') {
-      sprite.setScale(this.baseScale);
+      sprite.setScale(this.drawScale());
       const cycle = this.set.frames[this.direction].walk;
       // A character drawn standing only is carried by the movement
       // itself: a smooth walk with good art beats invented frames.
@@ -202,7 +201,8 @@ export class ExplorationCharacter {
     // at the feet, so their boots never leave the ground.
     this.breathClock += delta;
     const breath = Math.sin((this.breathClock / BREATH_MS) * Math.PI * 2);
-    sprite.setScale(this.baseScale, this.baseScale * (1 + breath * 0.014));
+    const scale = this.drawScale();
+    sprite.setScale(scale, scale * (1 + breath * 0.014));
   }
 
   destroy(): void {
@@ -243,6 +243,19 @@ export class ExplorationCharacter {
     return frames.idle;
   }
 
+  /**
+   * How big to draw the frame that is showing.
+   *
+   * The character's own scale, times whatever correction that frame
+   * asks for — which should be none. See `SpriteFrame.scale`: it is a
+   * hotfix for a sheet delivered at the wrong size, not a feature, and
+   * it is read here so that a mismatched sheet cannot make somebody
+   * change size when they turn.
+   */
+  private drawScale(): number {
+    return this.baseScale * (this.currentFrame().scale ?? 1);
+  }
+
   private applyFrame(): void {
     const sprite = this.sprite;
     if (!sprite) return;
@@ -254,6 +267,11 @@ export class ExplorationCharacter {
     // The anchor is the contact point of the feet, and every frame
     // states it in its own pixels, so art of any shape lands correctly.
     sprite.setOrigin(frame.anchor.x / sprite.frame.width, frame.anchor.y / sprite.frame.height);
+    // Set here as well as in `update`, because a direction can change
+    // while nothing is animating — and because scaling about an origin
+    // that is the feet means she grows upward rather than through the
+    // floor.
+    sprite.setScale(this.drawScale());
   }
 
 }
