@@ -570,10 +570,19 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       // when it is won; a fight in the forest puts the player back on the
       // path they were walking, where they were standing.
       if (forestBattle.current && battleUi() === 'PROTOTYPE') {
-        // THE PROTOTYPE. Reachable only through a DEV ADMIN flag that is
-        // off by default, applied only to the forest fight, and never to
-        // the story's own. The screen below is untouched and one tap
-        // away; nothing here has been adopted.
+        // THE PROTOTYPE, which is what a FOREST fight shows by default.
+        //
+        // The comment here used to say it was reachable only through a
+        // DEV ADMIN flag that was off by default. That stopped being
+        // true when `PREVIEW_DEFAULT` in dev/battleUiFlag.ts was set to
+        // 'PROTOTYPE' so the screen could be judged on a phone, and the
+        // comment did not move with it.
+        //
+        // What IS still true, and is the part worth saying: this is a
+        // PREVIEW rather than an adoption. It is applied only to the
+        // forest fight and never to the story's own, the old screen
+        // below is untouched and still built, and going back to it is
+        // one constant — or one tap in DEV ADMIN where that exists.
         return (
           <BattleUIPrototype
             key="battle-prototype"

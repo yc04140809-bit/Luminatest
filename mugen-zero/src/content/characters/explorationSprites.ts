@@ -132,6 +132,24 @@ export const EXPLORATION_SPRITES: Record<ExplorationCharacterId, ExplorationSpri
       },
     },
   },
+  /**
+   * Kaos, drawn from her own sheet rather than as a forest sprite.
+   *
+   * SHE IS WAITING FOR ART. The hero's set is sixteen frames cut for
+   * this screen: a low head count, four directions, a walk cycle each.
+   * Hers is her ordinary drawing at an ordinary head count, with one
+   * idle per direction and no walk at all — which is why she needs the
+   * display correction in GreenwoodScene and why she slides rather than
+   * walks.
+   *
+   * `walk: []` IS THE HONEST STATE AND IS MEANT TO STAY THAT WAY until
+   * a forest sprite for her exists in the hero's style, with an idle
+   * and about three walk frames for each of front, back, left and
+   * right. The structure below already holds exactly that — filling the
+   * four arrays is the whole of the change — and nothing is to be
+   * bolted on in the meantime. A bounce or a wobble standing in for a
+   * walk cycle would make the gap harder to see and easier to leave.
+   */
   KAOS: {
     id: 'kaos',
     // Her height, from the ring above her head to the soles of her

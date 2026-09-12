@@ -88,10 +88,23 @@ const COMPANION_CHARACTER = 'KAOS' as const;
 // There is no one number that makes her head his size while keeping her
 // shorter than him; the styles will not allow it. 0.50 is the judged
 // compromise — her head 70% of his rather than 58%, clearly the other
-// member of the party rather than something following him, at the cost
-// of standing a head taller than he does. That she is the taller of the
-// two is a decision about who she is, and it was made deliberately
-// rather than fallen into.
+// member of the party rather than something following him.
+//
+// A RENDER SCALE, NOT A HEIGHT. She is drawn standing a head taller
+// than him here, and THAT IS NOT CANON: it is the correction for two
+// sprite sets drawn at different head counts, and nothing about how
+// tall either of them is may be read back out of it. Her battle
+// portrait, her event art and this sprite each carry their own display
+// scale for their own reasons, and none of the three is evidence about
+// the others.
+//
+// It is also temporary. The real answer is a forest sprite for her in
+// the same low-head-count style as his — front, back, left and right,
+// each with an idle and about three walk frames — at which point this
+// goes back to being a plain share of the field and the correction
+// disappears. Until that art exists the number stays at 0.50 and her
+// walk frames stay empty; see explorationSprites.ts. Nothing stands in
+// for the missing animation in the meantime.
 const COMPANION_DISPLAY_HEIGHT = Math.round(GAME_HEIGHT * 0.5);
 /**
  * How far back along his path she walks. Far enough that the two of
