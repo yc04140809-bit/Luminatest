@@ -110,12 +110,24 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/enemies/moss-rabbit-down.png'),
     out: join(REVIEW_ASSET_DIR, 'moss-rabbit-down.webp'),
   },
-  // Kaos' walking sheet. Re-encoded at the same resolution, so the
-  // rectangles the game cuts her four views out of still line up.
-  {
-    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-exploration-sheet.png'),
-    out: join(REVIEW_ASSET_DIR, 'kaos-exploration-sheet.webp'),
-  },
+  // Kaos' four walking sheets, one a direction, four frames each. Every
+  // one is re-encoded at the SAME RESOLUTION it was delivered at, which
+  // is the whole rule for this list: the game cuts her frames out by
+  // pixel rectangle, so a sheet that came back a different size would
+  // have her walking with somebody else's head.
+  //
+  // They take the cut rather than the high number, and not because they
+  // matter less: they are DRAWN AT A QUARTER SIZE. Her sheets are 543
+  // pixels a frame and she stands about 130 tall in the forest, so the
+  // difference between 82 and 70 is spent on detail no reviewer can see
+  // while costing a quarter of a megabyte of an artifact that has to
+  // fit in sixteen. Four sheets replaced one here, which is most of a
+  // megabyte on its own.
+  ...['front', 'back', 'left', 'right'].map((facing) => ({
+    source: join(APP_DIR, `src/assets/characters/kaos/kaos-exploration-${facing}.png`),
+    out: join(REVIEW_ASSET_DIR, `kaos-exploration-${facing}.webp`),
+    quality: 62,
+  })),
 ];
 
 /**
