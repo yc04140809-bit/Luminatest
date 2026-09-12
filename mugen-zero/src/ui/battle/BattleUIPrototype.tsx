@@ -21,7 +21,12 @@ import {
 import { MagicTray } from './MagicTray';
 import { AwakeningScene } from './AwakeningScene';
 import { spriteHeight } from '../../content/art/spriteFrames';
-import { prototypeStyle } from './formation';
+import {
+  cameraStyle,
+  swingCues,
+  CAMERA_GLIDE_MS,
+  type CameraPhase,
+} from './battleCamera';
 import type { EnemySpeciesDef } from '../../content/enemies/species';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
@@ -321,6 +326,15 @@ export function BattleUIPrototype({
   const completeArcana = arcana.filter((a) => a.complete);
   const [beat, setBeat] = useState<string>('NONE');
   /**
+   * Where the fight is looking.
+   *
+   * Presentation, like `beat` beside it and like nothing else on this
+   * screen: it moves where people are DRAWN and reads nothing about the
+   * fight. IDLE is the formation exactly as written, so a turn nobody
+   * is taking looks like it always did.
+   */
+  const [camera, setCamera] = useState<CameraPhase>('IDLE');
+  /**
    * NORMAL while it is fighting; DOWNED once it is beaten.
    *
    * DOWNED is not dead. It is a creature lying in the grass that the
@@ -368,6 +382,24 @@ export function BattleUIPrototype({
   }, []);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  /**
+   * THE RETURN GUARANTEE.
+   *
+   * A turn that runs to the end returns by itself — the last cue of
+   * every track is IDLE, so the camera cannot finish anywhere but the
+   * formation. This is for the turns that do NOT run to the end.
+   *
+   * A fight that is won or lost, her moment beginning, an accident
+   * crossing the field: each of them takes the screen away mid-swing,
+   * and a phase left behind would hold the party in a lean nobody threw.
+   * Unmounting is covered by the line above, which drops every timer the
+   * camera's cues are scheduled in; a new turn is covered by `play`,
+   * which clears them before it schedules its own.
+   */
+  useEffect(() => {
+    if (battle.outcome !== 'ONGOING' || showingChaos || accidentBeat !== 'NONE') setCamera('IDLE');
+  }, [battle.outcome, showingChaos, accidentBeat]);
 
   useEffect(() => {
     if (!showingChaos) return;
@@ -433,18 +465,46 @@ export function BattleUIPrototype({
     }
   }, [battle.outcome, stance, onDefeat, speed]);
 
-  const play = (sequence: string[]) => {
+  /**
+   * The theatre for one turn — and, when the turn is a swing, the camera
+   * that films it.
+   *
+   * ONE TIMELINE. The camera's cues are scheduled from the same loop,
+   * with the same `beatMs`, into the same `timers` array that the beats
+   * use, so there is nothing here for a second timing system to drift
+   * against: cancelling the theatre cancels the camera, and twice speed
+   * halves both because it halved the numbers they are both built from.
+   *
+   * `filming` is the slot doing the acting, or null for a turn the
+   * camera has not been taught yet — guarding, magic, a summon. Those
+   * play exactly as they did, with the field at rest.
+   */
+  const play = (sequence: string[], filming: 'hero' | null = null) => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
     let at = 0;
+    let firstBeatMs = 0;
     for (const step of sequence) {
       const delay = at;
       timers.current.push(window.setTimeout(() => setBeat(step), delay));
-      at += beatMs(BEAT_MS[step] ?? 300, speed);
+      const held = beatMs(BEAT_MS[step] ?? 300, speed);
+      if (delay === 0) firstBeatMs = held;
+      at += held;
     }
     timers.current.push(window.setTimeout(() => setBeat('NONE'), at));
     // What AUTO waits for. A person waits for the same thing.
     busyUntil.current = Date.now() + at;
+
+    if (filming === null) {
+      // Not a shot this camera knows. Whatever it was doing, it stops
+      // doing it here rather than holding the last phase of the last
+      // turn over a turn it is not filming.
+      setCamera('IDLE');
+      return;
+    }
+    for (const cue of swingCues(firstBeatMs, at, beatMs(CAMERA_GLIDE_MS, speed))) {
+      timers.current.push(window.setTimeout(() => setCamera(cue.phase), cue.at));
+    }
   };
 
   const answerOf = (next: BattleState): string[] =>
@@ -472,6 +532,13 @@ export function BattleUIPrototype({
    * timer only takes it off the field again.
    */
   const callArcana = (entry: BattleArcana, kind: SummonKind) => {
+    // A fight that is over cannot be called into. `mendPlayer` already
+    // hands a finished fight straight back, so the state was safe — but
+    // the two lines below are this screen's own and would have put a
+    // creature on the field and a plate of its words over a fight
+    // nobody is fighting. `command` and `cast` have refused this way
+    // since they were written; this is the one that did not.
+    if (battle.outcome !== 'ONGOING') return;
     setSummoned({ arcana: entry, kind });
     const effect = summonEffectFor(entry.ability, kind);
     if (effect.kind === 'MEND') {
@@ -522,7 +589,9 @@ export function BattleUIPrototype({
     if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
     if (next.outcome === 'VICTORY') observe('WON_A_FIGHT');
     if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
-    play([kind === 'ATTACK' ? 'STRIKE' : 'GUARD', ...answerOf(next)]);
+    // One case, filmed: an ordinary swing. Guarding plays as it always
+    // has, with the field at rest, until somebody asks for its own shot.
+    play([kind === 'ATTACK' ? 'STRIKE' : 'GUARD', ...answerOf(next)], kind === 'ATTACK' ? 'hero' : null);
   };
 
   /**
@@ -649,7 +718,13 @@ export function BattleUIPrototype({
       // Every spell effect reads its own duration from --fx, so at twice
       // speed the whole lot is half as long and not one of the CSS rules
       // has had to learn what speed is.
-      style={{ ['--fx' as string]: String(1 / speed) }}
+      style={{
+        ['--fx' as string]: String(1 / speed),
+        // How long a camera move takes to be seen. Owned by
+        // battleCamera and scaled like every other duration here, so
+        // the stylesheet never learns a number or a speed.
+        ['--bp-cam' as string]: `${beatMs(CAMERA_GLIDE_MS, speed)}ms`,
+      }}
     >
       {/* She steps forward. Over the fight, which stays exactly where it
           was: nobody has taken a turn for this. */}
@@ -727,6 +802,11 @@ export function BattleUIPrototype({
         className={`bp-stage${accidentStageClass(accidentBeat)}`}
         ref={stageRef}
         data-accident={accidentBeat === 'NONE' ? undefined : accidentBeat}
+        // What the camera is doing, for the one CSS rule that needs to
+        // know: positions are only allowed to glide while it is working.
+        // At rest they snap, which is how the creature has always
+        // dropped into the grass when it is beaten.
+        data-camera={camera}
       >
         {backdrop && <img className="bp-bg" src={backdrop} alt="" aria-hidden="true" />}
 
@@ -743,7 +823,7 @@ export function BattleUIPrototype({
           ]
             .filter(Boolean)
             .join(' ')}
-          style={prototypeStyle(showingDown ? 'enemyDowned' : 'enemy')}
+          style={cameraStyle(showingDown ? 'enemyDowned' : 'enemy', camera)}
           data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
           <span className="bp-shadow" aria-hidden="true" />
@@ -782,7 +862,7 @@ export function BattleUIPrototype({
           ]
             .filter(Boolean)
             .join(' ')}
-          style={prototypeStyle('kaos')}
+          style={cameraStyle('kaos', camera)}
         >
           <span className="bp-shadow" aria-hidden="true" />
           {(showingChaos || beat === 'MAGIC') && (
@@ -799,7 +879,7 @@ export function BattleUIPrototype({
         </div>
         <div
           className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}
-          style={prototypeStyle('hero')}
+          style={cameraStyle('hero', camera)}
         >
           <span className="bp-shadow" aria-hidden="true" />
           {showingChaos && chaos?.target === 'PLAYER' && (
@@ -833,7 +913,7 @@ export function BattleUIPrototype({
         {summoned && (
           <div
             className={`bp-actor bp-summon ${summoned.kind.toLowerCase()}`}
-            style={prototypeStyle('summon')}
+            style={cameraStyle('summon', camera)}
             data-testid="bp-summoned"
             data-arcana={summoned.arcana.arcanaId}
             data-kind={summoned.kind}

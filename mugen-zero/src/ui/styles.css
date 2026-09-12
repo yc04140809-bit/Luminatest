@@ -2434,6 +2434,35 @@ body,
   filter: blur(2px);
 }
 
+/* ---- the camera, which is the only thing allowed to move anybody ----
+   Positions glide ONLY while a shot is being filmed. At rest the rule
+   below does not match, so the creature still drops into the grass the
+   instant it is beaten, exactly as it always has — a transition left on
+   all the time would have turned that snap into a slide.
+
+   The duration is `--bp-cam`, set by the screen from battleCamera's own
+   number and already scaled by the fight's speed, so twice speed halves
+   the move without this file knowing what speed is. Nothing else about
+   an actor is transitioned: the leaning is position, and the flinching,
+   striking and breathing are transforms that are none of its business.
+
+   `RETURN` is a phase, not rest, which is what gives the glide home
+   somewhere to happen — by the time IDLE arrives the field is already
+   back and there is nothing left to move. */
+.bp-stage[data-camera]:not([data-camera='IDLE']) .bp-actor {
+  transition:
+    left var(--bp-cam, 220ms) ease-out,
+    right var(--bp-cam, 220ms) ease-out,
+    bottom var(--bp-cam, 220ms) ease-out;
+}
+/* Contact is the one move that is not a glide: at IMPACT the actor is
+   already at full reach the moment the beat says so, and holds there.
+   That hold is the hit stop — a pause in the drawing, with nothing in
+   the fight itself stopped or delayed. */
+.bp-stage[data-camera='IMPACT'] .bp-actor {
+  transition: none;
+}
+
 /* WHERE THE THREE OF THEM STAND IS NO LONGER HERE. It is in
    ui/battle/formation.ts (PROTOTYPE_PLACEMENTS), and the screen puts it
    on the element as an inline style — a position pinned by a stylesheet
@@ -2860,10 +2889,14 @@ body,
 
 @media (prefers-reduced-motion: reduce) {
   .bp-enemy, .bp-hero, .bp-kaos { animation: none !important; }
+  /* The camera still frames the shot — the party still leans and stands
+     back — it simply arrives there rather than travelling. */
+  .bp-stage[data-camera] .bp-actor { transition: none !important; }
 }
 :root[data-reduced-motion='on'] .bp-enemy,
 :root[data-reduced-motion='on'] .bp-hero,
 :root[data-reduced-motion='on'] .bp-kaos { animation: none !important; }
+:root[data-reduced-motion='on'] .bp-stage[data-camera] .bp-actor { transition: none !important; }
 
 /* ---- when Kaos does something ----
    She is standing at the back of the field, so what she does happens ON
