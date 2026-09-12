@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PROTOTYPE_PLACEMENTS, prototypeStyle, type PrototypeSlot } from './formation';
 import {
   CAMERA_GLIDE_MS,
+  SHOT_FLOORS,
   SWING_ROLES,
   cameraOffset,
   cameraStyle,
@@ -189,5 +190,127 @@ describe('who plays what in a swing', () => {
     expect(parts.filter((p) => p === 'TARGET')).toHaveLength(1);
     expect(SWING_ROLES.hero).toBe('ACTOR');
     expect(SWING_ROLES.enemy).toBe('TARGET');
+  });
+});
+
+
+/**
+ * WHAT SPEED IS NOT ALLOWED TO TAKE AWAY.
+ *
+ * Twice speed halves the waiting. It must not halve the watching: a
+ * lean, a landing and a step back that each get eighty milliseconds are
+ * not a faster fight, they are a fight nobody can follow. These are the
+ * floors, and the shape of the check is always the same — at ×1 nothing
+ * binds and the shot is exactly what it was, at ×2 every span is still
+ * at least its floor.
+ */
+describe('the floors under a shot', () => {
+  // The turn as the prototype times it: a strike, then the creature's
+  // tackle and the flinch it causes.
+  const X1 = { beat: 320, turn: 320 + 460 + 300, glide: 120 };
+  const X2 = { beat: 160, turn: 160 + 230 + 150, glide: 120 };
+
+  const spans = (beat: number, turn: number, glide: number) => {
+    const cues = swingCues(beat, turn, glide);
+    const at = (p: string) => cues.find((c) => c.phase === p)!.at;
+    return {
+      anticipation: at('IMPACT') - at('FOCUS'),
+      hitStop: at('RETURN') - at('IMPACT'),
+      retreat: at('RETURN') - at('RETREAT'),
+      returnHome: at('IDLE') - at('RETURN'),
+      cues,
+    };
+  };
+
+  /**
+   * NORMAL SPEED IS UNTOUCHED, and this is the test that says so. The
+   * floors are every one of them a `max`, so a shot already over them
+   * passes through unchanged — and at ×1 every span is well over.
+   */
+  it('changes nothing at all about a shot at ×1', () => {
+    expect(swingCues(X1.beat, X1.turn, X1.glide).map((c) => c.at)).toEqual([0, 109, 230, 320, 1080]);
+  });
+
+  it('leaves every span at ×1 far above its floor, so none of them bind', () => {
+    const s = spans(X1.beat, X1.turn, X1.glide);
+    expect(s.anticipation).toBeGreaterThan(SHOT_FLOORS.anticipation);
+    expect(s.hitStop).toBeGreaterThan(SHOT_FLOORS.hitStop);
+    expect(s.retreat).toBeGreaterThan(SHOT_FLOORS.retreat);
+    expect(s.returnHome).toBeGreaterThan(SHOT_FLOORS.returnHome);
+  });
+
+  it('holds every span at or above its floor at ×2', () => {
+    const s = spans(X2.beat, X2.turn, X2.glide);
+    expect(s.anticipation, 'anticipation').toBeGreaterThanOrEqual(SHOT_FLOORS.anticipation);
+    expect(s.hitStop, 'hit stop').toBeGreaterThanOrEqual(SHOT_FLOORS.hitStop);
+    expect(s.retreat, 'retreat').toBeGreaterThanOrEqual(SHOT_FLOORS.retreat);
+    expect(s.returnHome, 'return home').toBeGreaterThanOrEqual(SHOT_FLOORS.returnHome);
+  });
+
+  /**
+   * The retreat is the one the floors exist for. Halved it came out at
+   * about a tenth of a second of travel and ten milliseconds standing
+   * back — one frame — which on a phone read as a twitch rather than as
+   * somebody giving the swing room.
+   */
+  it('keeps the ally away from the front long enough to be seen', () => {
+    expect(spans(X2.beat, X2.turn, X2.glide).retreat).toBeGreaterThanOrEqual(180);
+    // And she finishes arriving before she is sent home again.
+    const s = spans(X2.beat, X2.turn, X2.glide);
+    expect(s.retreat).toBeGreaterThan(X2.glide);
+  });
+
+  it('never lets a floor run the cues backwards, at any speed', () => {
+    for (const [beat, turn, glide] of [
+      [320, 1080, 120],
+      [160, 540, 120],
+      [107, 360, 120], // ×3
+      [90, 90, 120], // the shortest beat, and nothing answered
+      [0, 0, 0],
+    ]) {
+      const cues = swingCues(beat, turn, glide);
+      for (let i = 1; i < cues.length; i += 1) {
+        expect(cues[i].at, `${beat}/${turn}: ${cues[i].phase}`).toBeGreaterThanOrEqual(cues[i - 1].at);
+      }
+      expect(cues[cues.length - 1].phase).toBe('IDLE');
+    }
+  });
+
+  it('is still shorter at ×2 than at ×1 — floors raise, they do not invert', () => {
+    const one = swingCues(X1.beat, X1.turn, X1.glide);
+    const two = swingCues(X2.beat, X2.turn, X2.glide);
+    for (let i = 0; i < one.length; i += 1) {
+      expect(two[i].at, one[i].phase).toBeLessThanOrEqual(one[i].at);
+    }
+  });
+
+  it('takes the floors as an argument, so a shot can be given its own', () => {
+    const loose = swingCues(160, 540, 120, {
+      anticipation: 0,
+      hitStop: 0,
+      retreat: 0,
+      returnHome: 0,
+    });
+    expect(loose.map((c) => c.at)).toEqual([0, 54, 115, 160, 540]);
+  });
+});
+
+/** The step back, which the first two passes made too small to read. */
+describe('how far the ally stands back', () => {
+  it('is a retreat rather than a twitch', () => {
+    // A share of the field's height: on the 221px stage of an 844-wide
+    // phone this is about twenty-six pixels, where 0.04 was nine.
+    const back = cameraOffset('RETREAT', 'ALLY').bottom;
+    expect(back).toBeGreaterThanOrEqual(0.1);
+    expect(back * 221).toBeGreaterThanOrEqual(22);
+  });
+
+  it('does not stand her off the field or into the creature', () => {
+    const kaos = PROTOTYPE_PLACEMENTS.kaos;
+    const up = kaos.bottom + cameraOffset('RETREAT', 'ALLY').bottom;
+    expect(up).toBeLessThan(0.5);
+    // She is on the other edge from the creature, so height alone cannot
+    // put them on top of each other — but she stays below it regardless.
+    expect(up).toBeLessThan(PROTOTYPE_PLACEMENTS.enemy.bottom + 0.05);
   });
 });

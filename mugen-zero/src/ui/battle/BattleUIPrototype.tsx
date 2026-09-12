@@ -14,6 +14,7 @@ import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
 import {
   DEFAULT_BATTLE_SPEED,
   beatMs,
+  visualMs,
   nextSpeed,
   speedLabel,
   type BattleSpeed,
@@ -179,6 +180,44 @@ const BEAT_MS: Record<string, number> = {
 };
 
 /**
+ * And the shortest each can become before it stops being watchable.
+ *
+ * A beat is not a wait. The player is looking at a sword going in or a
+ * creature landing on them, and halving that past a point does not make
+ * the fight quicker to follow — it removes the part they were
+ * following. These are the floors `visualMs` holds the line at.
+ */
+const BEAT_MIN_MS: Record<string, number> = {
+  STRIKE: 110,
+  TACKLE: 140,
+  HIDE: 140,
+  HURT: 140,
+  MAGIC: 140,
+};
+
+/**
+ * A beat's length on screen at this speed — the timer AND the drawing.
+ *
+ * ONE NUMBER FOR BOTH, which is the whole of the ×2 fix. The beat and
+ * the animation of it were two halves of one motion and only the timer
+ * half knew about speed, so at ×2 the class came off at 53% and every
+ * character teleported back to its mark mid-swing. The creature's
+ * tackle was cut 61 pixels short of landing. What the stylesheet draws
+ * now lasts exactly as long as what this schedules, at every speed,
+ * because it is handed this number.
+ */
+function cameraGlideMs(speed: BattleSpeed): number {
+  // Floored like the beats, and for the same reason: a lean that
+  // arrives in 60ms has not arrived, it has appeared. `visualMs` will
+  // not stretch it past the 120ms it is authored at, so ×1 is untouched.
+  return visualMs(CAMERA_GLIDE_MS, speed, CAMERA_GLIDE_MS);
+}
+
+function beatLength(step: string, speed: BattleSpeed): number {
+  return visualMs(BEAT_MS[step] ?? 300, speed, BEAT_MIN_MS[step] ?? 140);
+}
+
+/**
  * How long it takes to go down.
  *
  * Short. Long enough that the creature is seen to fall rather than to
@@ -187,6 +226,9 @@ const BEAT_MS: Record<string, number> = {
  * has finished falling, so the picture and the question never disagree.
  */
 const KNOCKDOWN_MS = 340;
+
+/** How long a lost fight sits before the screen moves on. */
+const DEFEAT_WAIT_MS = 1200;
 
 /**
  * How long AUTO waits after the theatre has finished before it acts.
@@ -207,6 +249,16 @@ const AUTO_READ_MS = 2200;
  * it can be tapped away.
  */
 const CHAOS_BEAT_MS = 1800;
+/**
+ * And the shortest it may become at speed.
+ *
+ * NOT SIMPLY HALVED. This is her moment — a remark and a name, the one
+ * beat of the fight that is about somebody rather than about damage —
+ * and 900ms is not a faster version of that, it is a version nobody
+ * finishes reading. Twelve hundred is the floor a player at ×2 still
+ * gets to hear her in.
+ */
+const CHAOS_MIN_MS = 1200;
 
 /**
  * BATTLE UI — PROTOTYPE.
@@ -403,9 +455,9 @@ export function BattleUIPrototype({
 
   useEffect(() => {
     if (!showingChaos) return;
-    const t = setTimeout(() => setShowingChaos(false), CHAOS_BEAT_MS);
+    const t = setTimeout(() => setShowingChaos(false), visualMs(CHAOS_BEAT_MS, speed, CHAOS_MIN_MS));
     return () => clearTimeout(t);
-  }, [showingChaos]);
+  }, [showingChaos, speed]);
 
   /**
    * Her attempt resolves as her moment ends.
@@ -455,7 +507,8 @@ export function BattleUIPrototype({
 
   useEffect(() => {
     if (battle.outcome === 'DEFEAT') {
-      const t = setTimeout(onDefeat, 1200);
+      // A wait, not a motion: nothing is moving, so ×2 may shorten it.
+      const t = setTimeout(onDefeat, beatMs(DEFEAT_WAIT_MS, speed));
       return () => clearTimeout(t);
     }
     if (battle.outcome === 'VICTORY' && stance === 'NORMAL') {
@@ -487,7 +540,7 @@ export function BattleUIPrototype({
     for (const step of sequence) {
       const delay = at;
       timers.current.push(window.setTimeout(() => setBeat(step), delay));
-      const held = beatMs(BEAT_MS[step] ?? 300, speed);
+      const held = beatLength(step, speed);
       if (delay === 0) firstBeatMs = held;
       at += held;
     }
@@ -502,7 +555,7 @@ export function BattleUIPrototype({
       setCamera('IDLE');
       return;
     }
-    for (const cue of swingCues(firstBeatMs, at, beatMs(CAMERA_GLIDE_MS, speed))) {
+    for (const cue of swingCues(firstBeatMs, at, cameraGlideMs(speed))) {
       timers.current.push(window.setTimeout(() => setCamera(cue.phase), cue.at));
     }
   };
@@ -723,7 +776,16 @@ export function BattleUIPrototype({
         // How long a camera move takes to be seen. Owned by
         // battleCamera and scaled like every other duration here, so
         // the stylesheet never learns a number or a speed.
-        ['--bp-cam' as string]: `${beatMs(CAMERA_GLIDE_MS, speed)}ms`,
+        ['--bp-cam' as string]: `${cameraGlideMs(speed)}ms`,
+        // And how long each beat's drawing lasts, which MUST be how long
+        // its class is on the element. The stylesheet reads these rather
+        // than holding durations of its own; while it held its own, ×2
+        // took the class off at 53% and every motion snapped to its mark.
+        ['--bp-strike' as string]: `${beatLength('STRIKE', speed)}ms`,
+        ['--bp-tackle' as string]: `${beatLength('TACKLE', speed)}ms`,
+        ['--bp-hide' as string]: `${beatLength('HIDE', speed)}ms`,
+        ['--bp-hurt' as string]: `${beatLength('HURT', speed)}ms`,
+        ['--bp-fall' as string]: `${beatMs(KNOCKDOWN_MS, speed)}ms`,
       }}
     >
       {/* She steps forward. Over the fight, which stays exactly where it

@@ -48,6 +48,27 @@ export function beatMs(ms: number, speed: BattleSpeed): number {
   return Math.max(MIN_BEAT_MS, Math.round(asked / speed));
 }
 
+/**
+ * How long to hold a MOTION that normally takes `ms`.
+ *
+ * THE DIFFERENCE FROM `beatMs` IS THE WHOLE POINT. Speed is a promise
+ * about tempo, not about what the player is allowed to see: a wait can
+ * be halved and lose nothing, while a blow halved twice stops being a
+ * blow and becomes a flicker. So waits go through `beatMs` and motions
+ * come through here, where each one carries the shortest it can be and
+ * still be read.
+ *
+ * `minReadable` is a floor, never a stretch: a motion already shorter
+ * than its own floor at ×1 is left exactly as it was authored, because
+ * a "minimum" that made ×2 SLOWER than ×1 would be a bug wearing the
+ * word minimum. That is what the inner `Math.min` is for.
+ */
+export function visualMs(ms: number, speed: BattleSpeed, minReadable: number): number {
+  const asked = Number.isFinite(ms) ? Math.max(0, ms) : 0;
+  const floor = Number.isFinite(minReadable) ? Math.max(0, minReadable) : 0;
+  return Math.max(beatMs(asked, speed), Math.min(asked, floor));
+}
+
 /** The next one round the loop, for a control that cycles. */
 export function nextSpeed(speed: BattleSpeed): BattleSpeed {
   const at = BATTLE_SPEEDS.indexOf(speed);

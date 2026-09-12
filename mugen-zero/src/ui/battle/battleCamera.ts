@@ -91,8 +91,14 @@ const REACH = 0.14;
  * sideways: Kaos is already hard against her edge of the field, so she
  * has nowhere sideways to go, and up-the-path is the axis this
  * battlefield uses for distance anyway.
+ *
+ * TWELVE HUNDREDTHS, which is about twenty-six pixels on the phone this
+ * was judged on. The first two passes used four and five, and on a real
+ * screen they did not read as somebody standing back — they read as
+ * somebody twitching. A retreat has to be seen to be a retreat or it is
+ * noise, and it has cost the fight a beat for nothing.
  */
-const STEP_BACK = 0.05;
+const STEP_BACK = 0.12;
 
 const OFFSETS: Readonly<Record<CameraPhase, Readonly<Record<CameraRole, CameraOffset>>>> = {
   IDLE: { ACTOR: STILL, ALLY: STILL, TARGET: STILL, BYSTANDER: STILL },
@@ -197,6 +203,39 @@ export interface CameraCue {
 }
 
 /**
+ * THE SHORTEST EACH PART OF A SHOT CAN BE AND STILL BE SEEN.
+ *
+ * Speed shortens a fight's waiting, not its watching. Halving a hold
+ * that was already brief does not make the fight faster to read, it
+ * makes it impossible to read — and what the player loses is the
+ * causation: stepped in, hit it, stood back. These are the floors that
+ * keep that chain legible, measured from a real phone rather than
+ * derived from the ×1 numbers.
+ *
+ * Each one is a span between two cues, not a duration of its own, so
+ * they can only ever push a later cue LATER. At ×1 every span is
+ * already well over its floor and not one of them applies, which is how
+ * normal speed stays exactly what it was.
+ */
+export interface ShotFloors {
+  /** Leaning in, before contact: FOCUS to IMPACT. */
+  anticipation: number;
+  /** The blow held at full reach: IMPACT to RETURN. */
+  hitStop: number;
+  /** The ally away from the front: RETREAT to RETURN. */
+  retreat: number;
+  /** Coming home: RETURN to IDLE. */
+  returnHome: number;
+}
+
+export const SHOT_FLOORS: ShotFloors = {
+  anticipation: 120,
+  hitStop: 55,
+  retreat: 180,
+  returnHome: 160,
+};
+
+/**
  * THE CAMERA'S TRACK FOR ONE SWING.
  *
  * Laid over the beats the fight is already playing rather than beside
@@ -220,15 +259,41 @@ export interface CameraCue {
  * nothing at all the turn is one beat long, and without this the field
  * would be told to return and to be at rest in the same instant, which
  * is a snap rather than a return.
+ *
+ * `floors` is where speed stops being allowed to take things away. At
+ * ×1 none of them bind; at ×2 they are what keeps the shot readable
+ * instead of halving it into a twitch — the shot then runs a little
+ * past the actor's own beat, which it is free to do because the
+ * creature's reply is playing by then and the field has the whole of it
+ * to come home in.
  */
-export function swingCues(actorBeatMs: number, turnMs: number, glideMs: number): CameraCue[] {
+export function swingCues(
+  actorBeatMs: number,
+  turnMs: number,
+  glideMs: number,
+  floors: ShotFloors = SHOT_FLOORS,
+): CameraCue[] {
   const beat = Math.max(0, actorBeatMs);
-  const returnAt = Math.max(0, Math.min(beat, turnMs));
+  const glide = Math.max(0, glideMs);
+
+  // The shape, as the beat's own proportions. This is the ×1 shot and
+  // the only thing that decides it.
+  const retreatAt = Math.round(beat * 0.34);
+  let impactAt = Math.round(beat * 0.72);
+  let returnAt = Math.max(0, Math.min(beat, turnMs));
+
+  // The floors, applied in the order the eye reads them. Every one is a
+  // `max`, so a shot already long enough passes through untouched — and
+  // ×1 always is.
+  impactAt = Math.max(impactAt, floors.anticipation);
+  returnAt = Math.max(returnAt, impactAt + floors.hitStop, retreatAt + floors.retreat);
+  const idleAt = Math.max(turnMs, returnAt + Math.max(glide, floors.returnHome));
+
   return [
     { phase: 'FOCUS', at: 0 },
-    { phase: 'RETREAT', at: Math.round(beat * 0.34) },
-    { phase: 'IMPACT', at: Math.round(beat * 0.72) },
+    { phase: 'RETREAT', at: retreatAt },
+    { phase: 'IMPACT', at: impactAt },
     { phase: 'RETURN', at: returnAt },
-    { phase: 'IDLE', at: Math.max(turnMs, returnAt + Math.max(0, glideMs)) },
+    { phase: 'IDLE', at: idleAt },
   ];
 }

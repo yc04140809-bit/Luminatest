@@ -2434,6 +2434,17 @@ body,
   filter: blur(2px);
 }
 
+/* ---- how long a motion lasts ----
+   Every duration below is `var(--bp-…)`, set by the screen from the
+   SAME number that decides how long the class stays on the element.
+   That pairing is the point: these two used to be written down twice,
+   once here and once in BEAT_MS, and only the one in BEAT_MS knew what
+   speed the fight was being watched at. At ×2 the class came off at 53%
+   of the animation and the character teleported back to its mark — the
+   creature's tackle was cut 61 pixels short of ever landing. The
+   fallbacks are the ×1 values, so a screen that forgets to set them
+   looks exactly like it always did. */
+
 /* ---- the camera, which is the only thing allowed to move anybody ----
    Positions glide ONLY while a shot is being filmed. At rest the rule
    below does not match, so the creature still drops into the grass the
@@ -2483,19 +2494,19 @@ body,
   50% { transform: translateY(-3px); }
 }
 
-.bp-hero.strike { animation: bp-strike 0.32s ease-out; }
+.bp-hero.strike { animation: bp-strike var(--bp-strike, 0.32s) ease-out; }
 @keyframes bp-strike {
   0% { transform: translateX(0); }
   40% { transform: translateX(-30px) translateY(-6px); }
   100% { transform: translateX(0); }
 }
-.bp-hero.hurt, .bp-kaos.flinch { animation: bp-flinch 0.3s ease-out; }
+.bp-hero.hurt, .bp-kaos.flinch { animation: bp-flinch var(--bp-hurt, 0.3s) ease-out; }
 @keyframes bp-flinch {
   0% { transform: translateX(0); }
   30% { transform: translateX(10px); }
   100% { transform: translateX(0); }
 }
-.bp-enemy.struck { animation: bp-struck 0.32s ease-out; }
+.bp-enemy.struck { animation: bp-struck var(--bp-strike, 0.32s) ease-out; }
 @keyframes bp-struck {
   0% { transform: translateX(0); }
   30% { transform: translateX(-9px) rotate(-2deg); }
@@ -2504,7 +2515,7 @@ body,
 
 /* リーフタックル: it sinks, crosses the ground between them, and goes
    back. The creature moves; the forest does not. */
-.bp-enemy.tackle { animation: bp-tackle 0.46s ease-in-out; }
+.bp-enemy.tackle { animation: bp-tackle var(--bp-tackle, 0.46s) ease-in-out; }
 @keyframes bp-tackle {
   0% { transform: translate(0, 0) scaleY(1); }
   18% { transform: translate(-4px, 2px) scaleY(0.92); }
@@ -2536,7 +2547,7 @@ body,
 }
 
 /* 苔かくれ */
-.bp-enemy.hide { animation: bp-hide 0.56s ease-in-out; }
+.bp-enemy.hide { animation: bp-hide var(--bp-hide, 0.56s) ease-in-out; }
 @keyframes bp-hide {
   0%, 100% { transform: scale(1); }
   35%, 70% { transform: scale(0.9) translateY(5px); }
@@ -2557,7 +2568,7 @@ body,
 }
 /* Going down: it folds, and settles. Not a death — a small animal
    putting itself on the ground. */
-.bp-enemy.falling { animation: bp-fall 0.34s ease-in forwards; }
+.bp-enemy.falling { animation: bp-fall var(--bp-fall, 0.34s) ease-in forwards; }
 @keyframes bp-fall {
   0% { transform: translateY(0) scaleY(1); }
   55% { transform: translateY(6px) scaleY(0.88) scaleX(1.05); }

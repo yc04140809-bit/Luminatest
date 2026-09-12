@@ -290,3 +290,156 @@ test.describe('on a phone', () => {
     });
   }
 });
+
+/**
+ * ×2 SHORTENS THE WAITING, NOT THE WATCHING.
+ *
+ * THE BUG THESE EXIST FOR. Every character motion on this screen is two
+ * halves of one thing: a class the screen puts on for a measured number
+ * of milliseconds, and a CSS animation of the same length. Only the
+ * first half knew what speed the fight was being watched at, so at ×2
+ * the class came off at 53% of the animation and the character
+ * TELEPORTED back to its mark — the hero mid-swing from 29px out, the
+ * creature's tackle from 61px out, before it had ever reached the
+ * player. The fight still played correctly; you simply could not see
+ * what had happened.
+ *
+ * So these tests are not about duration. They are about where a
+ * character IS at the moment its motion is taken away: if the animation
+ * was allowed to finish, it is home already and the class coming off
+ * moves nothing.
+ *
+ * Motion has to be ON for any of this to mean anything, and the suite
+ * asks for `prefers-reduced-motion` everywhere — so these ask for it
+ * back, and only these.
+ */
+test.describe('twice speed keeps the fight watchable', () => {
+  interface Frame {
+    at: number;
+    hero: string;
+    enemy: string;
+    heroX: number;
+    enemyX: number;
+    /**
+     * How far off the ground line she is drawn, in pixels, read as the
+     * computed `bottom` rather than from a bounding box.
+     *
+     * She breathes — an endless three-pixel bob — and that is a
+     * transform, so a box never sits still and "moved more than two
+     * pixels" would be measuring her lungs. `bottom` is what the camera
+     * moves and what a transform cannot touch, and mid-glide it reports
+     * where she actually is rather than where she is headed.
+     */
+    kaosBottom: number;
+  }
+
+  async function film(page: Page) {
+    await page.evaluate(() => {
+      const w = window as unknown as { __f: unknown[] };
+      const shift = (el: Element) => Math.round(new DOMMatrixReadOnly(getComputedStyle(el).transform).m41);
+      w.__f = [];
+      const t0 = performance.now();
+      const frame = () => {
+        const hero = document.querySelector('.bp-hero')!;
+        const enemy = document.querySelector('.bp-enemy')!;
+        const kaos = document.querySelector('.bp-kaos')!;
+        (w.__f as unknown[]).push({
+          at: Math.round(performance.now() - t0),
+          hero: (hero.className.match(/strike|hurt/) ?? ['-'])[0],
+          enemy: (enemy.className.match(/tackle|struck|hide/) ?? ['-'])[0],
+          heroX: shift(hero),
+          enemyX: shift(enemy),
+          kaosBottom: Math.round(parseFloat(getComputedStyle(kaos).bottom)),
+        });
+      };
+      frame();
+      const tick = setInterval(frame, 16);
+      setTimeout(() => clearInterval(tick), 3000);
+    });
+  }
+
+  const frames = (page: Page): Promise<Frame[]> =>
+    page.evaluate(() => (window as never as { __f: Frame[] }).__f);
+
+  /**
+   * How much of its journey a motion still had left when it was ended,
+   * as a share of the furthest it got.
+   *
+   * A SHARE RATHER THAN PIXELS, because this is sampled on a 16ms timer
+   * and a loaded machine widens that: the last frame caught with the
+   * class on can be most of a frame before the class actually came off,
+   * which reads as further from home than the character ever was. A
+   * share is immune to that in a way a pixel budget is not — and it is
+   * the honest question anyway. A motion allowed to finish is home when
+   * it ends (a share near nought); the truncated ×2 tackle was ended at
+   * the far end of its own travel, having never arrived at all.
+   */
+  function unfinished(rows: Frame[], which: 'hero' | 'enemy', cls: string): number | null {
+    const px = (r: Frame) => Math.abs(which === 'hero' ? r.heroX : r.enemyX);
+    const playing = rows.filter((r) => r[which] === cls);
+    if (!playing.length) return null;
+    const peak = Math.max(...playing.map(px));
+    return peak === 0 ? 0 : px(playing[playing.length - 1]) / peak;
+  }
+
+  async function swingAt(page: Page, speed: 1 | 2) {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await freshWorld(page);
+    await enterDevAdmin(page);
+    await page.getByTestId('force-story-off').click();
+    // Settle what the creature does, so the tackle is always there to
+    // be measured rather than measured one run in three.
+    await page.getByTestId('force-enemy-ATTACK').click();
+    await page.getByTestId('open-battle-prototype').click();
+    await page.getByTestId('bp-modes').waitFor();
+    if (speed === 2) {
+      await page.getByTestId('bp-speed').click();
+      await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');
+    }
+    await film(page);
+    await page.getByTestId('bp-attack').click();
+    await expect.poll(async () => (await frames(page)).some((r) => r.enemy === 'tackle'), { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await frames(page)).at(-1)!.enemy === '-', { timeout: 10_000 }).toBe(true);
+    return frames(page);
+  }
+
+  for (const speed of [1, 2] as const) {
+    test(`nobody teleports at ×${speed}`, async ({ page }) => {
+      const rows = await swingAt(page, speed);
+
+      // The swing. Cut at ×2 it ended 29px out of a 30px lunge — the
+      // whole of it still to come back.
+      const strike = unfinished(rows, 'hero', 'strike');
+      expect(strike, 'the swing played at all').not.toBeNull();
+      expect(strike!, `the swing ended ${Math.round(strike! * 100)}% out`).toBeLessThanOrEqual(0.4);
+
+      // The creature landing on the player. Cut at ×2 it ended 61px out
+      // and had never reached him: the blow did not arrive on screen.
+      const tackle = unfinished(rows, 'enemy', 'tackle');
+      expect(tackle, 'the tackle played at all').not.toBeNull();
+      expect(tackle!, `the tackle ended ${Math.round(tackle! * 100)}% out`).toBeLessThanOrEqual(0.4);
+
+      // And it did reach him first: a tackle that never leaves home is
+      // not a tackle, and would pass the check above for the wrong
+      // reason entirely.
+      expect(Math.max(...rows.map((r) => Math.abs(r.enemyX))), 'it crossed the field').toBeGreaterThan(50);
+    });
+  }
+
+  test('the ally stands back far enough, and long enough, at ×2', async ({ page }) => {
+    const rows = await swingAt(page, 2);
+    const base = rows[0].kaosBottom;
+    const furthest = Math.max(...rows.map((r) => r.kaosBottom));
+
+    // FAR ENOUGH. Nine pixels read as a twitch on a real phone.
+    expect(furthest - base, 'she moved a distance somebody can see').toBeGreaterThanOrEqual(20);
+
+    // LONG ENOUGH. Halved, she was at the back for a single frame.
+    const away = rows.filter((r) => r.kaosBottom > base + 2);
+    const span = away.length ? away[away.length - 1].at - away[0].at : 0;
+    expect(span, 'she was away from the front for long enough to be seen').toBeGreaterThanOrEqual(150);
+
+    // And she is home at the end, where the formation lock expects her.
+    expect(rows.at(-1)!.kaosBottom).toBe(base);
+  });
+});
