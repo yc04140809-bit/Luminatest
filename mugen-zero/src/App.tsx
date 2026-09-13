@@ -32,6 +32,7 @@ import {
   type GameSettings,
 } from './platform/settings';
 import { audioManager } from './platform/audio';
+import { useSceneBgm } from './ui/audio/useSceneBgm';
 import { setHapticEnabled } from './platform/haptics';
 import { PlaytestFeedbackService, isSurveyAvailable } from './core/playtest/playtestService';
 import { IdbFeedbackStore } from './core/playtest/idbFeedbackStore';
@@ -113,6 +114,16 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // inherit it, which is what makes the fight happen in the forest the
   // player walked into rather than on a screen of its own.
   const [currentLocationId, setCurrentLocationId] = useState<LocationId>('ALDEN_VILLAGE');
+  /**
+   * Whether the prologue has got as far as her.
+   *
+   * Held here rather than inside PrologueScreen because it is the one
+   * fact about that screen the rest of the app needs — it is the only
+   * scene change that happens without the screen changing, and the
+   * music has to hear it. Reset on the way out so a second playthrough
+   * starts on the monologue's music again.
+   */
+  const [kaosSpeaking, setKaosSpeaking] = useState(false);
   // Where the two of them were standing when a fight took them off the
   // forest screen. Runtime only: never saved, never world truth, and
   // cleared the moment the player walks out of the forest on purpose.
@@ -259,6 +270,17 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       .map((s) => s.def.id),
   ]);
 
+  // WHAT THE GAME SOUNDS LIKE FROM HERE. One call, for the whole app:
+  // where the player is goes in, and the music that belongs there comes
+  // out of content/audio/sceneBgm. No screen below this line plays
+  // anything, which is what makes "why did the music change" a question
+  // with one place to look.
+  useSceneBgm({
+    screen: state.screen,
+    locationId: currentLocationId,
+    kaosSpeaking: state.screen === 'PROLOGUE' && kaosSpeaking,
+  });
+
   const screen = renderScreen();
 
   return (
@@ -290,6 +312,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onStart={() => {
             audioManager.unlock(); // first real gesture: audio may begin
             opening.begin(settings.openingMode, settings.bgmVolume);
+            // A second run through the prologue starts on the
+            // monologue, so it starts on the monologue's music.
+            setKaosSpeaking(false);
             flow.goTo('PROLOGUE');
           }}
           onContinue={() => {
@@ -310,7 +335,14 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
         />
       );
     case 'PROLOGUE':
-      return <PrologueScreen onComplete={() => flow.goTo('HOME')} />;
+      return (
+        <PrologueScreen
+          onComplete={() => flow.goTo('HOME')}
+          // Her arrival is a change of scene inside one screen, and the
+          // only thing outside this component that can know it.
+          onKaosArrives={() => setKaosSpeaking(true)}
+        />
+      );
     case 'HOME':
       return (
         <HomeScreen

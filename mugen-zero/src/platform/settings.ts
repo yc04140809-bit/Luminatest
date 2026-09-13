@@ -25,7 +25,17 @@ export interface GameSettings {
 }
 
 export const DEFAULT_SETTINGS: GameSettings = {
-  bgmVolume: 0.6,
+  /**
+   * QUIET BY DEFAULT — 0.35, down from 0.6.
+   *
+   * Music a player has not asked for arrives on a phone held close to
+   * a face, often in a room with other people in it, and the reaction
+   * to music that is too loud is not "I will turn it down", it is a
+   * thumb on the mute switch and no music for the rest of the game.
+   * Quiet enough to be an atmosphere and loud enough to be noticed,
+   * with the slider in SETTINGS for anybody who wants more.
+   */
+  bgmVolume: 0.35,
   seVolume: 0.8,
   hapticEnabled: true,
   reducedMotion: false,

@@ -224,18 +224,49 @@ export const FIELD_ART = {
 export const TITLE_KEY_VISUAL: string = titleKaosKeyVisual;
 
 /**
- * Audio slots. All null for now — no third-party audio is bundled.
- * AudioManager treats a null slot as silence, never as an error, so
- * dropping real files in later needs no code change beyond this map.
+ * THE SIX PIECES OF MUSIC THE GAME IS SCORED FOR.
+ *
+ * Named after the MOMENT rather than the file, because the mapping
+ * from a screen to a piece is a decision about the game and belongs in
+ * content/audio/sceneBgm.ts, not in a filename. Renaming a file must
+ * never mean touching a screen.
+ *
+ * All six slots are null while no audio is bundled, and AudioManager
+ * treats a null slot as SILENCE rather than as an error: every screen
+ * asks for its music exactly as it will when the files are here, the
+ * asking is real, and the game is simply quiet. Dropping the finished
+ * music in is, per track:
+ *
+ *   1. put the file at src/assets/audio/bgm/<name>.mp3
+ *   2. import it at the top of this file
+ *   3. put it in the map below
+ *
+ * and nothing else in the project changes — not a screen, not the
+ * player, not a test.
  */
-export type BgmId = 'title' | 'forest' | 'battle' | 'bakery';
+export type BgmId =
+  /** Title, and the monologue that opens the game. */
+  | 'OPENING'
+  /** Kaos, talking — the prologue introduction and the life choices. */
+  | 'KAOS_EVENT'
+  /** Alden, and every room of it the player reads in. */
+  | 'ALDEN_VILLAGE'
+  /** 月光亭 — the one room in Alden with a different air. */
+  | 'TAVERN'
+  /** The greenwood, walked. */
+  | 'GREENWOOD_FOREST'
+  /** A fight. Every fight: the story's and the forest's alike. */
+  | 'NORMAL_BATTLE';
+
 export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 
 export const BGM_ASSETS: Record<BgmId, string | null> = {
-  title: null,
-  forest: null,
-  battle: null,
-  bakery: null,
+  OPENING: null,
+  KAOS_EVENT: null,
+  ALDEN_VILLAGE: null,
+  TAVERN: null,
+  GREENWOOD_FOREST: null,
+  NORMAL_BATTLE: null,
 };
 
 /**
