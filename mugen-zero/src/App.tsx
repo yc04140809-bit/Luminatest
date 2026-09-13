@@ -63,9 +63,7 @@ import { battleUi, previewOpponent, startFinishable } from './dev/battleUiFlag';
 import { useOpeningTheme } from './ui/opening/useOpeningTheme';
 import { OpeningSkip } from './ui/opening/OpeningSkip';
 import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
-import { personOpponent } from './ui/battle/opponent';
-import { GALD_BATTLE } from './content/enemies/galdBattle';
-import { GALD } from './content/characters/gald';
+import { galdOpponent } from './ui/battle/galdOpponent';
 import { memoryEventLabel } from './content/events/creatureLifeChoice';
 import { clearObtainedItems } from './platform/discoveries';
 import { toAbsoluteDay } from './core/time/calendar';
@@ -437,16 +435,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           // instead of the creature — same screen, same battle, the
           // numbers and the drawings the story's own fight uses. The
           // forest never asks for this; DEV ADMIN does.
-          opponent={
-            previewOpponent() === 'GALD'
-              ? personOpponent({
-                  artId: 'gald',
-                  name: GALD_BATTLE.name,
-                  defeatedText: `${GALD.name}は膝をついた。`,
-                  spec: GALD_BATTLE,
-                })
-              : undefined
-          }
+          // The same man the story's fight puts on the field, from the
+          // same definition — a preview of somebody slightly different
+          // from the real thing is worth nothing.
+          opponent={previewOpponent() === 'GALD' ? galdOpponent() : undefined}
           battleLocationId="GREENWOOD_FOREST"
           finishesInMugenChoice={debugStoryTrigger() === true}
           startFinishable={startFinishable()}
@@ -595,23 +587,19 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
         <EncounterScreen locationId={currentLocationId} onBattleStart={() => flow.goTo('BATTLE')} />
       );
     case 'BATTLE':
-      // Two fights, one screen. The story's fight asks the life question
-      // when it is won; a fight in the forest puts the player back on the
-      // path they were walking, where they were standing.
+      // TWO FIGHTS, ONE SCREEN — and now that is true of the code as
+      // well as of the sentence. The story's fight asks the life
+      // question when it is won; a fight in the forest puts the player
+      // back on the path they were walking, where they were standing.
+      // What they no longer differ in is what they are drawn on.
       if (forestBattle.current && battleUi() === 'PROTOTYPE') {
-        // THE PROTOTYPE, which is what a FOREST fight shows by default.
+        // A FOREST FIGHT, on the game's battle screen.
         //
-        // The comment here used to say it was reachable only through a
-        // DEV ADMIN flag that was off by default. That stopped being
-        // true when `PREVIEW_DEFAULT` in dev/battleUiFlag.ts was set to
-        // 'PROTOTYPE' so the screen could be judged on a phone, and the
-        // comment did not move with it.
-        //
-        // What IS still true, and is the part worth saying: this is a
-        // PREVIEW rather than an adoption. It is applied only to the
-        // forest fight and never to the story's own, the old screen
-        // below is untouched and still built, and going back to it is
-        // one constant — or one tap in DEV ADMIN where that exists.
+        // The condition reads like a flag and is one, but it is no
+        // longer a preview switch: this branch is what a forest fight
+        // shows, and `battleUi()` is a developer's way of asking for
+        // the older screen back for comparison. Both fights are the
+        // same screen now — the story's, below, does not ask at all.
         return (
           <BattleUIPrototype
             key="battle-prototype"
@@ -721,12 +709,52 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           />
         );
       }
+      // THE STORY'S OWN FIGHT, ON THE SAME SCREEN AS EVERY OTHER.
+      //
+      // It was the last thing still on the old screen, and being last
+      // was the problem: the fight the whole vertical slice is built to
+      // arrive at was the one fight nobody could look at in the UI the
+      // game actually has. A screen that is right for the forest and
+      // absent from the story is not the game's battle screen, it is a
+      // preview with a long life.
+      //
+      // Nothing about the fight itself moves. He is the same man with
+      // the same numbers — `galdOpponent()` is the one definition of
+      // him, shared with the DEV ADMIN preview — his awakening beat
+      // rides on his spec exactly as it did, and both ways out go
+      // exactly where they went.
       return (
-        <BattleScreen
-          key="GALD"
+        <BattleUIPrototype
+          key="battle-gald"
+          // Required by the screen and unread: `opponent` is who this
+          // fight is with. A creature has to be passed because the
+          // forest's fight is one, and the story's is not.
+          species={MOSS_RABBIT}
+          opponent={galdOpponent()}
           battleLocationId={currentLocationId}
-          onVictory={() => flow.goTo('LIFE_CHOICE')}
+          // HIS four answers are a screen of their own — his portrait,
+          // his line, and the question asked about a man rather than
+          // about an animal. So this fight ends ordinarily and hands
+          // over to it; the creature's four answers are the other kind.
+          finishesInMugenChoice={false}
+          startFinishable={startFinishable()}
+          forcedEnemyAction={debugEnemyAction()}
+          // Read and then ignored: his spec carries the awakening, and
+          // a fight that carries it starts before it whatever the world
+          // has already decided. Passed rather than dropped so that
+          // this call site says the same thing as every other.
+          magicUnlocked={kaosAwakened}
+          memoryLines={worldMemoryLines}
+          onNormalEnd={() => flow.goTo('LIFE_CHOICE')}
+          // Unreachable — this fight never asks the creature's
+          // question — and the screen requires an answer for it, so the
+          // answer is the one that cannot quietly do the wrong thing.
+          onMugenChoice={() => flow.goTo('LIFE_CHOICE')}
           onDefeat={() => flow.goTo('HOME')}
+          // NO `onEscape`, which is what takes 逃走 off the screen. A
+          // man standing in the road at the start of the story is not
+          // something the player may walk around; the old screen had no
+          // way out of this fight either.
         />
       );
     case 'CREATURE_LIFE_CHOICE': {

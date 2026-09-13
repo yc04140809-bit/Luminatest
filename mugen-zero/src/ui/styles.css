@@ -4613,6 +4613,23 @@ body,
   line-height: 1.5;
   color: var(--mugen-text);
 }
+/* THE OTHER SIDE OF THE FIELD, SPEAKING.
+   Two things, not three — there is no outcome to report, the outcome is
+   that he is on the ground — so the third column is not left standing
+   empty. And his line is the plate's own ink rather than the softer
+   secondary the summon's remark uses: this is the last thing said
+   before the player is asked what becomes of him, and it is not an
+   aside. */
+.bp-enemy-said {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.bp-enemy-said .bp-said-name {
+  color: var(--bx-gold-lit);
+}
+.bp-enemy-said .bp-said-line {
+  font-size: 14px;
+  color: var(--bx-ink);
+}
 
 /* ---- the book's sightings ---- */
 .arcana-glimpsed {

@@ -161,9 +161,13 @@ export async function playToLifeChoice(
   await encounter.click();
   await encounter.click();
 
-  await expect(page.getByTestId('battle-screen')).toBeVisible();
+  // The game's battle screen — the story's fight is on it now, the
+  // same one the forest's is. Every spec that only wants to GET here
+  // reads these two ids from this helper and nowhere else, which is
+  // why moving the fight cost one line each rather than twenty.
+  await expect(page.getByTestId('battle-prototype')).toBeVisible();
   if (stopAt === 'BATTLE') return;
-  await swingUntil(page, 'attack-button', () =>
+  await swingUntil(page, 'bp-attack', () =>
     page.getByTestId('life-choice-screen').isVisible().catch(() => false),
   );
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({
@@ -335,13 +339,26 @@ export async function swingUntil(
     // button that is never coming back, so the loop stops re-reading its
     // own deadline and the test dies of old age instead of reporting
     // that the fight never ended.
+    //
+    // 800ms, DOWN FROM 2500, and the number matters now. Once the
+    // commands are gone this timeout IS the loop's blind spot: `done()`
+    // is not asked again until it expires. An ordinary win used to sit
+    // on screen behind a 森へ戻る button until somebody pressed it, so a
+    // blind spot of any size was harmless; the screen walks the player
+    // back by itself after VICTORY_WAIT_MS now, and at 2500 the loop
+    // stepped clean over that whole window — the fight was won, the
+    // creature lay down, the screen moved on, and every test watching
+    // for the beaten creature found the next screen instead. Anything
+    // comfortably under the victory wait works; this leaves a margin of
+    // more than a second and still lets a present button through at
+    // once.
     await attack
       .evaluate(
         (el) => {
           if (el instanceof HTMLButtonElement && !el.disabled) el.click();
         },
         undefined,
-        { timeout: 2500 },
+        { timeout: 800 },
       )
       .catch(() => {});
     await page.waitForTimeout(70);

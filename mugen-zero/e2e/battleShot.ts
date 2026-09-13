@@ -19,7 +19,7 @@
 
 import { test } from './fixtures';
 import { expect } from '@playwright/test';
-import { enterDevAdmin } from './helpers';
+import { enterDevAdmin, playToLifeChoice, swingUntil } from './helpers';
 
 const OUT = process.env.SHOT_DIR ?? 'test-results/shots';
 const TAG = process.env.SHOT_TAG ?? 'battle';
@@ -58,3 +58,27 @@ for (const who of OPPONENTS) {
     await page.screenshot({ path: `${OUT}/${TAG}-${who}.png` });
   });
 }
+
+/**
+ * AND THE STORY'S OWN FIGHT, THROUGH THE FRONT DOOR.
+ *
+ * Not the DEV ADMIN preview of him — the real thing, walked to from the
+ * title screen the way a player reaches it. The whole point of moving
+ * this fight onto the game's battle screen is that it can be looked at
+ * where it actually happens, so this is the shot that is worth having.
+ */
+test('STORY_GALD', async ({ page }) => {
+  test.setTimeout(200_000);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${OUT}/${TAG}-STORY_GALD.png` });
+
+  // And again once he is down, which is where his own line is.
+  await swingUntil(page, 'bp-attack', () =>
+    page.getByTestId('bp-enemy-downed').isVisible().catch(() => false),
+  );
+  await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: `${OUT}/${TAG}-STORY_GALD_DOWN.png` });
+});

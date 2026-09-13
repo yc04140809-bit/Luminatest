@@ -47,10 +47,40 @@ export interface BattleOpponent {
   name: string;
   /** What is said over them once they are down. */
   defeatedText: string;
+  /**
+   * Who is saying it — or nobody, which is the usual answer.
+   *
+   * The difference between 「モスラビットは草むらに倒れ込んだ。」 and
+   * 「……くそ……。」 is not decoration: the first is the fight telling
+   * the player what happened and the second is a man talking. They had
+   * been arriving through the same plate, in the same voice, so the one
+   * line in the whole slice where the person the player is about to
+   * decide the fate of speaks for himself read as narration.
+   *
+   * A creature leaves this null and is narrated. A person fills it in
+   * and is quoted, under their own name.
+   */
+  defeatedSpeaker: string | null;
   /** The fight's own numbers, exactly as the battle already uses them. */
   spec: EnemySpec;
   /** Where on the field they stand. */
   stands: StandsAt;
+  /**
+   * What their registry CALLS the picture of them lying down.
+   *
+   * The screen has one question it cannot answer for itself: has the
+   * down pose actually been drawn, or did the art layer quietly hand
+   * back the standing one? It answers it by comparing the pose it got
+   * with the pose it wanted — and the two registries do not use the
+   * same words. A creature's is 'down'; a person's is 'battle_down'.
+   *
+   * The screen used to hard-code the creature's word, so a PERSON was
+   * never seen to be lying down: Gald was drawn on his face and the
+   * screen believed he was still standing. Every reading of the moment
+   * followed from that, down to the four answers being asked over a man
+   * the screen thought was on his feet.
+   */
+  downPose: string;
   /**
    * Their picture for a pose, or the nearest thing that has been drawn.
    *
@@ -68,8 +98,12 @@ export function creatureOpponent(species: EnemySpeciesDef): BattleOpponent {
     artId: species.speciesId,
     name: species.name,
     defeatedText: species.defeatedText,
+    // Narrated. An animal going down is something the player is told
+    // about, not something it says.
+    defeatedSpeaker: null,
     spec: specOf(species),
     stands: 'FAR',
+    downPose: 'down',
     artFor: (state) => enemyArtFor(species.speciesId, state),
   };
 }
@@ -109,9 +143,13 @@ export function personOpponent(args: {
     artId: args.artId,
     name: args.name,
     defeatedText: args.defeatedText,
+    // Quoted, under his own name — see `defeatedSpeaker`.
+    defeatedSpeaker: args.name,
     spec: args.spec,
     // A person is fought at arm's length, and is drawn as tall as one.
     stands: 'NEAR',
+    // The party registry's word for it — see AS_PERSON above.
+    downPose: 'battle_down',
     artFor: (state) => partyArtFor(args.artId, AS_PERSON[state] ?? 'battle_idle'),
   };
 }

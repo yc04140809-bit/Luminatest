@@ -22,8 +22,6 @@ import {
 import { MagicTray } from '../battle/MagicTray';
 import { AwakeningScene } from '../battle/AwakeningScene';
 import { specOf } from '../../game/battle/enemySpec';
-import { GALD_BATTLE } from '../../content/enemies/galdBattle';
-import { GALD_DEFEATED_LINES } from '../../content/dialogue/galdEncounter';
 import { enemyArtFor, partyArtFor } from '../../content/art';
 import { CharacterArt } from '../art/CharacterArt';
 import { spriteHeight } from '../../content/art/spriteFrames';
@@ -41,12 +39,16 @@ interface Props {
    */
   battleLocationId: LocationId;
   /**
-   * Who the fight is with. Left out, it is Gald on the forest path —
-   * the story's one fight, with his art and his line when he goes down.
-   * Anything else that can be met while exploring passes itself here,
-   * and this screen learns nothing new about who it is.
+   * Who the fight is with. A CREATURE, and now always one.
+   *
+   * This used to be optional, and leaving it out meant Gald — the
+   * story's one fight, with his art and his line when he goes down.
+   * That fight is on the game's own battle screen now, so the branches
+   * that knew who he was have gone with it and this screen is what its
+   * name says: the older way of drawing a fight with an animal, kept
+   * reachable from DEV ADMIN while it is still worth comparing against.
    */
-  enemy?: EnemySpeciesDef;
+  enemy: EnemySpeciesDef;
   onVictory: () => void;
   onDefeat: () => void;
   /** Development only: make the enemy do one thing every turn. */
@@ -167,7 +169,7 @@ export function BattleScreen({
   // The bandit is named from the first line of the encounter, so the bar
   // above belongs to a person the player has already met.
   const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(enemy ? specOf(enemy) : GALD_BATTLE, undefined, { magicUnlocked }),
+    createBattle(specOf(enemy), undefined, { magicUnlocked }),
   );
   const [reaction, setReaction] = useState<Reaction>('NONE');
   /**
@@ -269,16 +271,11 @@ export function BattleScreen({
   /**
    * Who is standing where, asked for as poses rather than as files.
    *
-   * Gald has standing art at both moments; a creature met while
-   * exploring has whatever its own registry holds. Either way the size
-   * on screen comes from content/art/spriteFrames and the stage, never
-   * from the pixel size of the picture — which is what used to put his
-   * knees at the top of the screen and his head off it.
+   * The size on screen comes from content/art/spriteFrames and the
+   * stage, never from the pixel size of the picture.
    */
-  const enemyArt = enemy
-    ? enemyArtFor(enemy.speciesId, beaten ? 'down' : 'front')
-    : partyArtFor('gald', beaten ? 'battle_damage' : 'battle_idle');
-  const enemySpriteId = enemy ? enemy.speciesId : 'gald';
+  const enemyArt = enemyArtFor(enemy.speciesId, beaten ? 'down' : 'front');
+  const enemySpriteId = enemy.speciesId;
   /**
    * The party, as a list rather than as two variables.
    *
@@ -474,14 +471,8 @@ export function BattleScreen({
               height={spriteHeight(enemySpriteId, enemyArt.state, fieldH)}
               className="bf-art"
               face="right"
-              label={enemy ? enemy.name : '盗賊 ガルド'}
-              testId={
-                enemy
-                  ? `enemy-portrait-${enemy.speciesId}`
-                  : beaten
-                    ? 'gald-portrait-defeated'
-                    : 'gald-portrait-ready'
-              }
+              label={enemy.name}
+              testId={`enemy-portrait-${enemy.speciesId}`}
             />
             {reaction === 'GUARD' && <div className="battle-guard-mark" aria-hidden="true" />}
             {/* Its own attack: a few leaves come off as it hits. */}
@@ -558,14 +549,11 @@ export function BattleScreen({
       {beaten ? (
         <div
           className="battle-log"
-          data-testid={enemy ? 'enemy-defeated-line' : 'gald-defeated-line'}
+          data-testid="enemy-defeated-line"
           role="status"
           aria-live="polite"
         >
-          <div className="dialogue-speaker">{enemy ? null : GALD_DEFEATED_LINES[0].speaker}</div>
-          <div className="dialogue-text">
-            {enemy ? enemy.defeatedText : GALD_DEFEATED_LINES[0].text}
-          </div>
+          <div className="dialogue-text">{enemy.defeatedText}</div>
         </div>
       ) : (
         <div className="battle-log" data-testid="battle-log" role="status" aria-live="polite">

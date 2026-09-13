@@ -419,9 +419,22 @@ test.describe('battle UI prototype', () => {
     await expect(page.locator('.bp-bg')).toBeVisible();
   });
 
-  test("never touches the story's own fight, flag on or not", async ({ page }) => {
+  /**
+   * THE OTHER WAY ROUND, NOW.
+   *
+   * This test used to say the flag never touched the story's own fight
+   * — true, and the reason it was true was that the story's fight had
+   * no branch to touch: it was on the old screen unconditionally. That
+   * has been the whole complaint about this screen. The fight is on it
+   * now, and what is worth protecting is the same shape of claim with
+   * the conclusion inverted: the flag is about the FOREST, and Gald is
+   * fought on the game's battle screen whichever way it is set.
+   */
+  test("the story's own fight is on the game's screen, flag either way", async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(() => localStorage.setItem('mugen-battle-ui', 'PROTOTYPE'));
+    // Set the FOREST back to the old screen, which is the setting that
+    // would have taken him with it if he were still riding on it.
+    await page.evaluate(() => localStorage.setItem('mugen-battle-ui', 'OLD'));
     await page.evaluate(async () => {
       const dbs = (await indexedDB.databases?.()) ?? [];
       await Promise.all(
@@ -436,10 +449,11 @@ test.describe('battle UI prototype', () => {
       );
     });
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
-    // Gald is fought on the screen he has always been fought on.
-    await expect(page.getByTestId('battle-screen')).toBeVisible();
-    await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
-    await expect(page.getByTestId('battle-prototype')).toHaveCount(0);
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+    await expect(page.getByTestId('bp-enemy-normal')).toBeVisible();
+    await expect(page.getByTestId('bp-enemy-name')).toHaveText('盗賊 ガルド');
+    // And the old screen is not underneath it, or beside it.
+    await expect(page.getByTestId('battle-screen')).toHaveCount(0);
   });
 
   for (const phone of PHONES) {

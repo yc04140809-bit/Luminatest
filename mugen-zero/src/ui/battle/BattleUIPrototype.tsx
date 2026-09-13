@@ -789,9 +789,25 @@ export function BattleUIPrototype({
   // It is only lying down on screen if a picture of it lying down
   // exists; otherwise it stays standing rather than being drawn in a
   // pose that means something else.
-  const showingDown = downed && enemyShown.state === 'down';
+  //
+  // ASKED OF THE OPPONENT, not spelled out here. This read
+  // `=== 'down'`, which is a CREATURE's word for the pose; a person's
+  // registry calls it 'battle_down', so a person was never once seen to
+  // be lying down — Gald was drawn on his face while the screen went on
+  // believing he was standing.
+  const showingDown = downed && enemyShown.state === opponent.downPose;
   /** The fight itself is suspended while any of it is happening. */
   const inAccident = accidentBeat !== 'NONE';
+  /**
+   * Whether the plate is showing the ending rather than the fight.
+   *
+   * Not simply "is it won": while something is crossing, the plate
+   * reports the FIGHT — the player needs to read what the breath just
+   * did before being told the creature is lying down — and when the
+   * four answers are about to be asked, the ending has a card of its
+   * own further down and must not be said twice.
+   */
+  const showingDefeatLine = beaten && !finishesInMugenChoice && !inAccident;
 
   /**
    * AUTO, which is one timer and no second battle.
@@ -1181,13 +1197,23 @@ export function BattleUIPrototype({
           }}
         >
           <span className="bx-enemy-head">
-            <b className="bx-enemy-name">{displayName(battle.enemyName)}</b>
+            {/* Its own hook. The plate holds a name AND a number, so
+                "who is being fought" and "how much of them is left"
+                cannot both be read off the plate as a whole. */}
+            <b className="bx-enemy-name" data-testid="bp-enemy-name">
+              {displayName(battle.enemyName)}
+            </b>
             {battle.enemyPhaseId && (
               <i className="bp-phase" data-testid="bp-enemy-phase">
                 {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
               </i>
             )}
-            <Readout now={battle.enemyHp} max={battle.enemyMaxHp} className="bx-enemy-read" />
+            <Readout
+              now={battle.enemyHp}
+              max={battle.enemyMaxHp}
+              className="bx-enemy-read"
+              testId="bp-enemy-read"
+            />
           </span>
           <Meter kind="enemy-hp" now={battle.enemyHp} max={battle.enemyMaxHp} bare>
             {battle.enemyMaxPoise > 0 && (
@@ -1377,6 +1403,17 @@ export function BattleUIPrototype({
                   {said.result}
                 </p>
               </div>
+            ) : showingDefeatLine && opponent.defeatedSpeaker ? (
+              // SOMEBODY SPEAKING, not the fight narrating. The one
+              // moment in this slice where the person on the other side
+              // of the field says something of his own — 「……くそ……。」
+              // — and it had been arriving in the same voice as
+              // 「モスラビットが飛び出してきた。」. Quoted under his own
+              // name, the way her moment is quoted under hers.
+              <div className="bp-said-body bp-enemy-said" data-testid="bp-enemy-said">
+                <span className="bp-said-name">《{opponent.defeatedSpeaker}》</span>
+                <p className="bp-said-line">{opponent.defeatedText}</p>
+              </div>
             ) : (
               <>
                 <p className="bp-message-text">
@@ -1384,7 +1421,7 @@ export function BattleUIPrototype({
                       fight rather than its ending: the player needs to
                       read what the breath just did before being told the
                       creature is lying down. */}
-                  {beaten && !finishesInMugenChoice && !inAccident ? opponent.defeatedText : lastLine}
+                  {showingDefeatLine ? opponent.defeatedText : lastLine}
                 </p>
                 <Ornament kind="ring" size={26} className="bp-message-mark" />
               </>

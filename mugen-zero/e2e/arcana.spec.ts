@@ -94,11 +94,10 @@ async function walkIntoFight(page: Page) {
   await page.waitForTimeout(2200);
   const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
   const fighting = () =>
-    page
-      .getByTestId('battle-prototype')
-      .or(page.getByTestId('battle-screen'))
-      .isVisible()
-      .catch(() => false);
+    // One id, because there is one battle screen. This used to be an
+    // `.or()` of the new screen and the old, from the months when a
+    // fight could be either.
+    page.getByTestId('battle-prototype').isVisible().catch(() => false);
   for (let pass = 0; pass < 2; pass++) {
     for (const at of RING_TAPS) {
       await page.mouse.click(box.x + box.width * at.fx, box.y + box.height * at.fy);

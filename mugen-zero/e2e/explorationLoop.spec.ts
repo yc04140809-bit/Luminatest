@@ -156,7 +156,11 @@ test.describe('exploration loop', () => {
     expect(await walkUntil(page, visible(page, 'battle-prototype'))).toBe(true);
     // The forest's own creature, not the story's one bandit.
     await expect(page.getByTestId('bp-enemy-hp')).toContainText('モスラビット');
-    await expect(page.getByTestId('gald-portrait-ready')).toHaveCount(0);
+    // And it says so by NAME. This used to check that Gald's portrait
+    // was absent, which was a way of asking the same question back when
+    // he had a screen of his own; on one screen for both fights, the
+    // question is who the plate names.
+    await expect(page.getByTestId('bp-enemy-name')).not.toHaveText('盗賊 ガルド');
 
     // Kaos sometimes helps as a fight starts, and while she is speaking
     // the commands are not there to press. Nothing is pinned here on
@@ -174,7 +178,13 @@ test.describe('exploration loop', () => {
     const forest = page.locator('.phaser-wrap canvas');
     for (let i = 0; i < 40; i++) {
       if (await forest.isVisible().catch(() => false)) break;
-      if (await attack.isVisible().catch(() => false)) await attack.click();
+      // Asked, then pressed — and the two are separate moments, so the
+      // commands can be unmounted in between: the win takes them away
+      // and the screen starts walking back. A bare click would wait out
+      // the whole test budget for a button that is never returning.
+      if (await attack.isVisible().catch(() => false)) {
+        await attack.click({ timeout: 1000 }).catch(() => {});
+      }
       await page.waitForTimeout(140);
     }
 

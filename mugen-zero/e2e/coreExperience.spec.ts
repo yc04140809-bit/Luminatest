@@ -65,8 +65,8 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await expect(page.getByText('……止まれ。')).toBeVisible();
     await encounter.click();
     await encounter.click();
-    await expect(page.getByTestId('battle-screen')).toBeVisible();
-    await swingUntil(page, 'attack-button', () =>
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
+    await swingUntil(page, 'bp-attack', () =>
       page.getByTestId('life-choice-screen').isVisible().catch(() => false),
     );
 

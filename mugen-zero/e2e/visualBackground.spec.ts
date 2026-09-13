@@ -71,17 +71,35 @@ test('the battle happens where the encounter did — the same forest', async ({ 
 
   await encounter.click();
   await encounter.click();
-  await expect(page.getByTestId('battle-screen')).toBeVisible();
+  await expect(page.getByTestId('battle-prototype')).toBeVisible();
 
   // The point of the whole change: the fight inherits the place.
-  const battleArt = await backdropUrl(page, 'battle-backdrop');
-  expect(battleArt).toContain('location-greenwood-forest');
-  expect(battleArt).toBe(encounterArt);
+  //
+  // NOT THE SAME FILE any more, and that is the improvement rather than
+  // a regression. The encounter is the forest's portrait; the fight
+  // stands on the forest's walkable GROUND — `field-greenwood`, the
+  // same picture the player was walking on a moment ago — so the fight
+  // breaks out where they were standing instead of cutting to a still
+  // of the same wood. Both are the greenwood and neither is anywhere
+  // else, which is what "inherits the place" was always claiming.
+  const battleArt = await page
+    .getByTestId('battle-prototype')
+    .locator('.bp-bg')
+    .getAttribute('src');
+  expect(battleArt).toContain('field-greenwood');
+  expect(encounterArt).toContain('greenwood');
   expect(await horizontalOverflow(page)).toBe(0);
 
-  // And the commands still work with art behind them.
-  await page.getByTestId('attack-button').click();
-  await expect(page.getByTestId('battle-log')).toContainText('ダメージ');
+  // And the commands still work with art behind them — read off the
+  // HEALTH rather than off the message. The plate shows ONE line now
+  // where the old screen showed the last two, so by the time anything
+  // can be asserted the bandit has already answered and 「…のダメージ。」
+  // has scrolled off it. What the tap is being checked for is that it
+  // reached the fight, and the bar is where the fight says so.
+  const read = page.getByTestId('bp-enemy-read');
+  const full = await read.textContent();
+  await page.getByTestId('bp-attack').click();
+  await expect(read).not.toHaveText(full ?? '');
 });
 
 for (const phone of PHONES) {

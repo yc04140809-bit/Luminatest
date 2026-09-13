@@ -51,8 +51,8 @@ test('Phase A vertical flow: title to life choice', async ({ page }) => {
   await encounter.click();
 
   // BATTLE — attack until victory
-  await expect(page.getByTestId('battle-screen')).toBeVisible();
-  await swingUntil(page, 'attack-button', () =>
+  await expect(page.getByTestId('battle-prototype')).toBeVisible();
+  await swingUntil(page, 'bp-attack', () =>
     page.getByTestId('life-choice-screen').isVisible().catch(() => false),
   );
 

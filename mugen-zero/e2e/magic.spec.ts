@@ -36,7 +36,7 @@ async function awaken(page: Page) {
   for (let i = 0; i < 24; i++) {
     if (await scene.isVisible().catch(() => false)) break;
     await page
-      .getByTestId('attack-button')
+      .getByTestId('bp-attack')
       .click({ timeout: 2500 })
       .catch(() => {});
     await page.waitForTimeout(110);
@@ -58,30 +58,45 @@ function hpOf(text: string | null): number {
   return Number(/(\d+)\s*\/\s*(\d+)/.exec((text ?? '').replace(/\s+/g, ' '))?.[1] ?? NaN);
 }
 
+/**
+ * Her power, read off her own card.
+ *
+ * It is a REGEX rather than a string, and that is not fussiness: the
+ * readout is `{now} <b>/</b> {max}` — the slash is its own element so
+ * it can be dimmed — so the text is 「48 / 48」 with spaces the markup
+ * puts there. A test that wrote '48/48' was matching a coincidence of
+ * the old screen's formatting rather than the number.
+ */
+async function expectMp(page: Page, now: number, max = 48) {
+  await expect(page.getByTestId('bx-kaos-mp')).toHaveText(
+    new RegExp(`^${now}\\s*/\\s*${max}$`),
+  );
+}
+
 test.describe('the awakening', () => {
   test('is not offered at the start, and arrives partway through the fight', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     // 2 — locked until it happens.
-    await expect(page.getByTestId('magic-button')).toHaveCount(0);
+    await expect(page.getByTestId('bp-magic')).toHaveCount(0);
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
 
     // 1 — it happens in the fight, without leaving it.
     await awaken(page);
-    await expect(page.getByTestId('battle-screen')).toBeVisible();
+    await expect(page.getByTestId('battle-prototype')).toBeVisible();
     // 3 — and the command is on screen afterwards.
-    await expect(page.getByTestId('magic-button')).toBeVisible();
-    await expect(page.getByTestId('player-mp')).toContainText('48/48');
+    await expect(page.getByTestId('bp-magic')).toBeVisible();
+    await expectMp(page, 48);
   });
 
   test('reads over the fight and resets nothing behind it', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
-    const enemyHp = page.getByTestId('enemy-hp');
+    const enemyHp = page.getByTestId('bp-enemy-read');
     const scene = page.getByTestId('magic-awakening');
     for (let i = 0; i < 24; i++) {
       if (await scene.isVisible().catch(() => false)) break;
       // Unforced: see awaken() — the scene is a full-screen button.
       await page
-        .getByTestId('attack-button')
+        .getByTestId('bp-attack')
         .click({ timeout: 2500 })
         .catch(() => {});
       await page.waitForTimeout(110);
@@ -89,7 +104,7 @@ test.describe('the awakening', () => {
     await expect(scene).toBeVisible();
     const hurtDuring = hpOf(await enemyHp.textContent());
     // Both fighters are still there behind it, at the numbers they had.
-    await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
+    await expect(page.getByTestId('bp-enemy-normal')).toBeVisible();
     for (let i = 0; i < 10; i++) {
       if (!(await scene.isVisible().catch(() => false))) break;
       await scene.click({ timeout: 2500 }).catch(() => {});
@@ -104,11 +119,11 @@ test.describe('one action a turn', () => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
 
-    const enemyHp = page.getByTestId('enemy-hp');
+    const enemyHp = page.getByTestId('bp-enemy-read');
     const before = hpOf(await enemyHp.textContent());
 
     // 4, 5 — one action, and it is hers.
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     await expect(page.getByTestId('magic-tray')).toBeVisible();
     await page.getByTestId('magic-starlight_bolt').click();
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
@@ -125,20 +140,19 @@ test.describe('one action a turn', () => {
   test('spends MP, and stops offering what cannot be paid for', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
-    const mp = page.getByTestId('player-mp');
-    await expect(mp).toContainText('48/48');
+    await expectMp(page, 48);
 
     // 6 — eight casts at six each, and then it is gone.
     for (let cast = 0; cast < 8; cast += 1) {
-      await page.getByTestId('magic-button').click();
+      await page.getByTestId('bp-magic').click();
       const spell = page.getByTestId('magic-starlight_bolt');
       await expect(spell).toBeEnabled();
       await spell.click();
       await page.waitForTimeout(320);
       if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) return;
     }
-    await expect(mp).toContainText('0/48');
-    await page.getByTestId('magic-button').click();
+    await expectMp(page, 0);
+    await page.getByTestId('bp-magic').click();
     // Shown and refused rather than hidden: a player needs to know it is
     // there and why they cannot have it.
     await expect(page.getByTestId('magic-starlight_bolt')).toBeDisabled();
@@ -149,17 +163,17 @@ test.describe('one action a turn', () => {
   test('the big one costs more, hits harder, and is still one turn', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
-    const enemyHp = page.getByTestId('enemy-hp');
+    const enemyHp = page.getByTestId('bp-enemy-read');
 
     // The cheap one first, for something to measure against.
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     let before = hpOf(await enemyHp.textContent());
     await page.getByTestId('magic-starlight_bolt').click();
     await page.waitForTimeout(700);
     const bolt = before - hpOf(await enemyHp.textContent());
-    await expect(page.getByTestId('player-mp')).toContainText('42/48');
+    await expectMp(page, 42);
 
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     before = hpOf(await enemyHp.textContent());
     await page.getByTestId('magic-comet_strike').click();
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
@@ -175,64 +189,64 @@ test.describe('one action a turn', () => {
     expect([20, 9], 'open, or blunted by his guard').toContain(comet);
     // 42 - 16. And nothing else landed with it: a swing is 8–12, so
     // both in one turn would be past 30.
-    await expect(page.getByTestId('player-mp')).toContainText('26/48');
+    await expectMp(page, 26);
     expect(comet, 'and nothing else landed with it').toBeLessThan(30);
   });
 
   test('her other hand: mending puts health back and strikes nobody', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     // Both of hers arrive together, and they are not the same answer.
     await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
     const mend = page.getByTestId('magic-mending_light');
     await expect(mend).toBeVisible();
 
-    const hpBefore = hpOf(await page.getByTestId('player-hp').textContent());
-    const enemyBefore = hpOf(await page.getByTestId('enemy-hp').textContent());
+    const hpBefore = hpOf(await page.getByTestId('bp-player-hp').textContent());
+    const enemyBefore = hpOf(await page.getByTestId('bp-enemy-read').textContent());
     await mend.click();
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
     await page.waitForTimeout(600);
 
     // Twenty-two back, less whatever he took for the turn it cost.
-    expect(hpOf(await page.getByTestId('player-hp').textContent())).toBeGreaterThan(hpBefore);
+    expect(hpOf(await page.getByTestId('bp-player-hp').textContent())).toBeGreaterThan(hpBefore);
     // And he is exactly as he was: this is the one spell that is not a
     // blow, so if this ever changes it has become one.
-    expect(hpOf(await page.getByTestId('enemy-hp').textContent())).toBe(enemyBefore);
-    await expect(page.getByTestId('player-mp')).toContainText('36/48');
+    expect(hpOf(await page.getByTestId('bp-enemy-read').textContent())).toBe(enemyBefore);
+    await expectMp(page, 36);
   });
 
   test('her third answer: a shield strikes nobody and stands before the blow', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     // All three of hers, and no two of them the same kind of answer.
     await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
     await expect(page.getByTestId('magic-mending_light')).toBeVisible();
     const shield = page.getByTestId('magic-star_shield');
     await expect(shield).toBeVisible();
 
-    const enemyBefore = hpOf(await page.getByTestId('enemy-hp').textContent());
+    const enemyBefore = hpOf(await page.getByTestId('bp-enemy-read').textContent());
     await shield.click();
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
     await page.waitForTimeout(700);
 
     // Nobody was struck by it.
-    expect(hpOf(await page.getByTestId('enemy-hp').textContent())).toBe(enemyBefore);
-    await expect(page.getByTestId('player-mp')).toContainText('40/48');
-    await expect(page.getByTestId('battle-log')).toBeVisible();
+    expect(hpOf(await page.getByTestId('bp-enemy-read').textContent())).toBe(enemyBefore);
+    await expectMp(page, 40);
+    await expect(page.getByTestId('bp-message')).toBeVisible();
   });
 
   test('bracing gives her power back, which is what makes it worth a turn', async ({ page }) => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     await page.getByTestId('magic-starlight_bolt').click();
     await page.waitForTimeout(400);
-    await expect(page.getByTestId('player-mp')).toContainText('42/48');
-    await page.getByTestId('defend-button').click();
+    await expectMp(page, 42);
+    await page.getByTestId('bp-defend').click();
     await page.waitForTimeout(400);
-    await expect(page.getByTestId('player-mp')).toContainText('48/48');
+    await expectMp(page, 48);
   });
 });
 
@@ -245,18 +259,18 @@ test.describe('the fight is still the fight', () => {
     // see and one screenshot could.
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     await awaken(page);
-    const field = page.locator('.battle-field');
+    const field = page.locator('.bp-stage');
     const before = (await field.boundingBox())!;
-    const hero = (await page.getByTestId('battle-hero-art').boundingBox())!;
+    const hero = (await page.getByTestId('bp-hero-art').boundingBox())!;
     // Forced, and safe: `awaken()` has just asserted the scene is gone,
     // so nothing is laid over the commands and nothing is about to
     // replace them — this is one click on a settled screen, not a click
     // racing a swap.
-    await page.getByTestId('magic-button').click({ force: true });
+    await page.getByTestId('bp-magic').click({ force: true });
     await expect(page.getByTestId('magic-tray')).toBeVisible();
     await page.waitForTimeout(250);
     const after = (await field.boundingBox())!;
-    const heroAfter = (await page.getByTestId('battle-hero-art').boundingBox())!;
+    const heroAfter = (await page.getByTestId('bp-hero-art').boundingBox())!;
     expect(Math.round(after.height), 'the field keeps its height').toBe(Math.round(before.height));
     expect(Math.round(heroAfter.height), 'and so does he').toBe(Math.round(hero.height));
   });
@@ -289,7 +303,7 @@ test.describe('the fight is still the fight', () => {
       // miss; missing is a retry, pressing the wrong thing is not.
       if (!(await tray.isVisible().catch(() => false))) {
         await page
-          .getByTestId('magic-button')
+          .getByTestId('bp-magic')
           .click({ timeout: 2000 })
           .catch(() => {});
       }
@@ -304,7 +318,7 @@ test.describe('the fight is still the fight', () => {
           .click({ timeout: 2000 })
           .catch(() => {});
         await page
-          .getByTestId('attack-button')
+          .getByTestId('bp-attack')
           .click({ timeout: 2000 })
           .catch(() => {});
       }
@@ -322,7 +336,7 @@ test.describe('the fight is still the fight', () => {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
     const before = await readMemoryEvents(page);
     await awaken(page);
-    await page.getByTestId('magic-button').click();
+    await page.getByTestId('bp-magic').click();
     await page.getByTestId('magic-starlight_bolt').click();
     await page.waitForTimeout(500);
     // 12 — a spell is not a memory. Nothing about the fight is world truth
@@ -420,11 +434,11 @@ test.describe('on a phone', () => {
       expect(overflow.y).toBeLessThanOrEqual(1);
 
       for (const id of [
-        'attack-button',
-        'magic-button',
-        'defend-button',
-        'auto-button',
-        'speed-button',
+        'bp-attack',
+        'bp-magic',
+        'bp-defend',
+        'bp-auto',
+        'bp-speed',
       ]) {
         const box = (await page.getByTestId(id).boundingBox())!;
         expect(box, id).not.toBeNull();
@@ -434,7 +448,7 @@ test.describe('on a phone', () => {
         expect(box.height, `${id} thumb-sized`).toBeGreaterThanOrEqual(40);
       }
 
-      await page.getByTestId('magic-button').click();
+      await page.getByTestId('bp-magic').click();
       // Every spell in the tray, not just the first: the tray grows as
       // she learns things and it must still fit the shortest phone.
       for (const id of [

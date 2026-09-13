@@ -1,13 +1,16 @@
 // Which battle screen a fight in the forest uses.
 //
-// PREVIEW ROUTING, not adoption. The prototype is what a forest fight
-// shows by default right now, so that it can be judged on a phone — the
-// only way to answer "is this the right direction" is to hold it. The
-// old screen is untouched, still built, and still one line from being
-// the default again: change PREVIEW_DEFAULT below, or choose it in DEV
-// ADMIN where that is available.
+// A FALLBACK, and no longer a preview. It used to route the one fight
+// that had been allowed to try the new screen; the new screen is now
+// the game's battle screen, the story's own fight is on it, and this
+// decides only whether a FOREST fight is drawn the older way instead.
 //
-// Nothing else routes through this. The story's own fight never asks.
+// That door is worth keeping for a while — the old screen is the thing
+// the new one is judged against, and a comparison needs both halves —
+// but it is a developer's door and nothing in the game opens it. The
+// story's fight does not ask: there is nothing on the other side of
+// this flag for it to be, because the branches that knew who Gald was
+// left BattleScreen when he did.
 
 import { DEV_ADMIN_ENABLED } from './devMode';
 
@@ -19,9 +22,10 @@ export type BattleUiChoice = 'OLD' | 'PROTOTYPE';
 /**
  * What a forest fight shows when nobody has chosen otherwise.
  *
- * This one constant is the whole of the preview: setting it back to
- * 'OLD' returns every build to the screen that shipped before, with no
- * other change anywhere.
+ * No longer the whole story — setting this to 'OLD' now returns only
+ * the FOREST fight to the older screen, because the story's fight has
+ * no such branch any more. It is here so a developer comparing the two
+ * does not have to reach for DEV ADMIN on every reload.
  */
 const PREVIEW_DEFAULT: BattleUiChoice = 'PROTOTYPE';
 

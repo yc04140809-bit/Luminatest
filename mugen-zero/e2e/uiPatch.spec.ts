@@ -41,30 +41,34 @@ test('Gald is shown at the encounter, in battle, and beaten at the choice', asyn
   await encounter.click();
   await encounter.click();
 
-  // 2. Battle: the same man holds the middle, with both health bars.
-  await expect(page.getByTestId('battle-screen')).toBeVisible();
-  await expect(page.getByTestId('gald-portrait-ready')).toBeVisible();
-  await expect(page.getByTestId('enemy-hp')).toContainText('盗賊 ガルド');
+  // 2. Battle: THE GAME'S BATTLE SCREEN, not a second one kept for
+  //    him. The same man holds the left of the field, with both health
+  //    bars — his on the plate under his feet, the party's on the right.
+  await expect(page.getByTestId('battle-prototype')).toBeVisible();
+  await expect(page.getByTestId('bp-enemy-normal')).toBeVisible();
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('盗賊 ガルド');
   // At full health, whatever full health is this week: his numbers are
   // tuned for the tempo of the fight and the property here is that he
   // starts whole, not that he starts at any particular number.
-  const enemyHp = page.getByTestId('enemy-hp');
-  await expect(enemyHp).toHaveText(/盗賊 ガルド(\d+) \/ \1$/);
-  await expect(page.getByTestId('player-hp')).toContainText('100 / 100');
+  const enemyHp = page.getByTestId('bp-enemy-read');
+  await expect(enemyHp).toHaveText(/^(\d+)\s*\/\s*\1$/);
+  await expect(page.getByTestId('bp-player-hp')).toHaveText(/^100\s*\/\s*100$/);
+  // And 逃走 is not on the screen: there is no walking around a man
+  // standing in the road at the start of the story.
+  await expect(page.getByTestId('bp-escape')).toHaveCount(0);
 
-  const attack = page.getByTestId('attack-button');
   const before = await enemyHp.textContent();
-  await attack.click();
+  await page.getByTestId('bp-attack').click();
   await expect(enemyHp).not.toHaveText(before ?? ''); // damage lands
-  await page.getByTestId('defend-button').click();
+  await page.getByTestId('bp-defend').click();
 
-  await swingUntil(page, 'attack-button', () =>
-    page.getByTestId('gald-portrait-defeated').isVisible().catch(() => false),
+  await swingUntil(page, 'bp-attack', () =>
+    page.getByTestId('bp-enemy-downed').isVisible().catch(() => false),
   );
 
   // 3. HP 0: he switches to the beaten art and speaks — still alive.
-  await expect(page.getByTestId('gald-portrait-defeated')).toBeVisible();
-  await expect(page.getByTestId('gald-defeated-line')).toContainText('……くそ……。');
+  await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
+  await expect(page.getByTestId('bp-message')).toContainText('……くそ……。');
 
   // 4. The choice is made with him in view; all four routes offered.
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({
@@ -127,15 +131,15 @@ for (const size of PHONES) {
     await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
 
     await expectNoHorizontalScroll(page);
-    const portrait = (await page.getByTestId('gald-portrait-ready').boundingBox())!;
+    const portrait = (await page.getByTestId('bp-enemy-normal').boundingBox())!;
     expect(portrait.x).toBeGreaterThanOrEqual(0);
     expect(portrait.x + portrait.width).toBeLessThanOrEqual(size.width + 1);
     // Commands stay reachable at the bottom.
-    const cmd = (await page.getByTestId('attack-button').boundingBox())!;
+    const cmd = (await page.getByTestId('bp-attack').boundingBox())!;
     expect(cmd.y + cmd.height).toBeLessThanOrEqual(size.height + 1);
     expect(cmd.height).toBeGreaterThanOrEqual(40);
 
-    await swingUntil(page, 'attack-button', () =>
+    await swingUntil(page, 'bp-attack', () =>
       page.getByTestId('life-choice-screen').isVisible().catch(() => false),
     );
     await expect(page.getByTestId('life-choice-screen')).toBeVisible({
