@@ -65,10 +65,34 @@ const IN_THE_FOREST = new Set<LocationId>([
 export function bgmForScene(cue: SceneCue): BgmId | null {
   const { screen, locationId } = cue;
   switch (screen) {
-    // THE WAY IN. The title and the monologue under it are one
-    // continuous opening; her arrival at the end of it is not.
+    /**
+     * BEFORE THE TITLE, and silent until the player says otherwise.
+     *
+     * The whole point of the screen is that nothing has sounded yet:
+     * it is the first thing anybody touches, and what they touch is a
+     * choice about whether to hear the song at all. Answering 「聴く」
+     * is what starts it.
+     */
+    case 'THEME_CHOICE':
+      return null;
+
+    /**
+     * AND THE TITLE IS SILENT, WHICH IS A CHANGE.
+     *
+     * The theme used to be the title's room tone, looping under it.
+     * There is a screen before the title now whose whole subject is
+     * that song, so by the time anybody reaches the title they have
+     * either just heard it or said they would rather not — and both
+     * answers are spoiled by starting it again underneath them. 「スキッ
+     * プ」 in particular means not hearing the theme, and a title that
+     * played it anyway would be ignoring the only thing that screen
+     * asked.
+     *
+     * The game finds its voice again at the prologue, which is the
+     * game starting rather than the title waiting.
+     */
     case 'TITLE':
-      return 'OPENING';
+      return null;
     case 'PROLOGUE':
       return cue.kaosSpeaking ? 'KAOS_EVENT' : 'OPENING';
 

@@ -3,6 +3,9 @@ import { GameFlow } from './gameFlow';
 import type { Screen } from './types';
 
 const HAPPY_PATH: Screen[] = [
+  // The first screen is the one before the title now: the song, or
+  // straight on. Both answers lead here.
+  'TITLE',
   'PROLOGUE',
   'HOME',
   'EXPLORE',
@@ -13,13 +16,22 @@ const HAPPY_PATH: Screen[] = [
 ];
 
 describe('GameFlow', () => {
-  it('starts on TITLE with no life choice recorded', () => {
+  it('starts before the title, with no life choice recorded', () => {
     const flow = new GameFlow();
-    expect(flow.getState().screen).toBe('TITLE');
+    // THEME_CHOICE, not TITLE. The first screen is the question about
+    // the song — which is also the first thing anybody touches, and a
+    // phone makes no sound until they have.
+    expect(flow.getState().screen).toBe('THEME_CHOICE');
     expect(flow.getState().galdLifeChoice).toBeNull();
   });
 
-  it('walks the Phase A happy path TITLE -> LIFE_CHOICE', () => {
+  it('leads to the title whichever answer it is given', () => {
+    const flow = new GameFlow();
+    flow.goTo('TITLE');
+    expect(flow.getState().screen).toBe('TITLE');
+  });
+
+  it('walks the Phase A happy path THEME_CHOICE -> LIFE_CHOICE', () => {
     const flow = new GameFlow();
     for (const screen of HAPPY_PATH) {
       flow.goTo(screen);
@@ -30,7 +42,7 @@ describe('GameFlow', () => {
   it('rejects invalid transitions', () => {
     const flow = new GameFlow();
     expect(() => flow.goTo('BATTLE')).toThrow(/Invalid transition/);
-    expect(flow.getState().screen).toBe('TITLE');
+    expect(flow.getState().screen).toBe('THEME_CHOICE');
   });
 
   it('records the life choice and moves to CHOICE_RESULT', () => {
@@ -52,10 +64,10 @@ describe('GameFlow', () => {
     const flow = new GameFlow();
     let calls = 0;
     const unsub = flow.subscribe(() => calls++);
-    flow.goTo('PROLOGUE');
+    flow.goTo('TITLE');
     expect(calls).toBe(1);
     unsub();
-    flow.goTo('HOME');
+    flow.goTo('PROLOGUE');
     expect(calls).toBe(1);
   });
 });

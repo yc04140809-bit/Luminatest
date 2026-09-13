@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
 import { enterDevAdmin } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -42,6 +42,9 @@ test('the LIFE ARCHIVE record survives a full browser restart unchanged', async 
     // --- Session 1: reunited world via the admin, verify the record. ---
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
+    // Its own page, so it needs what the shared fixture gives every
+    // other one: start past the question about the song.
+    await pastTheSong(page);
     await goHomeFresh(page);
     await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();

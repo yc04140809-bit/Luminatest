@@ -25,6 +25,19 @@ vi.mock('../assets/manifest', () => ({
   SE_ASSETS: { select: null, memory: null, timeshift: null, reunion: null },
 }));
 
+/**
+ * And two sounds that do exist, because what is under test is the
+ * PLAYER's behaviour with sound present — which is the behaviour that
+ * has to be right on the day the files arrive.
+ */
+vi.mock('../content/audio/sfx', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../content/audio/sfx')>();
+  return {
+    ...real,
+    SFX_ASSETS: { ...real.SFX_ASSETS, battle_slash_hit: 'slash.mp3', ui_tap: 'tap.mp3' },
+  };
+});
+
 const { AudioManager, BGM_FADE_MS, OPENING_START_DELAY_MS } = await import('./audio');
 
 /** A stand-in for the browser's element, recording what was done to it. */
@@ -328,5 +341,183 @@ describe('the beat of quiet before the opening', () => {
     // taking a second to touch the screen.
     expect(sounding()).toHaveLength(1);
     expect(sounding()[0].src).toBe('opening.mp3');
+  });
+});
+
+/**
+ * THE MUSIC COMING BACK.
+ *
+ * Reported as "the exploration BGM does not restore after a fight",
+ * and the scene had been restoring it perfectly the whole time: what
+ * failed was the ELEMENT. A page that has been hidden, a phone that
+ * suspended its media, an autoplay policy that refused a `play()` —
+ * all three leave an element that exists and is silent, and every
+ * guard in here used to accept that as music. The game then sat there
+ * quiet for the rest of the session with nothing asking again.
+ */
+describe('an element that exists and is silent', () => {
+  it('is not mistaken for music when the same piece is asked for again', () => {
+    const manager = ready();
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    const first = FakeAudio.made[0];
+    expect(first.playing).toBe(true);
+
+    // The phone takes it away — a call, a lock screen, another app.
+    first.pause();
+    expect(manager.bgmState().sounding).toBe(false);
+
+    // Asking for the same forest again now DOES something, where it
+    // used to be swallowed as "already playing".
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('forest.mp3');
+  });
+
+  it('is put back on the air by asking, without being asked which piece', () => {
+    const manager = ready();
+    manager.playBgm('TAVERN');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    FakeAudio.made[0].pause();
+    expect(sounding()).toHaveLength(0);
+
+    manager.resumeIfSilent();
+    vi.advanceTimersByTime(100);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('tavern.mp3');
+  });
+
+  it('does nothing at all when the music is already sounding', () => {
+    const manager = ready();
+    manager.playBgm('TAVERN');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    const made = FakeAudio.made.length;
+    manager.resumeIfSilent();
+    manager.resumeIfSilent();
+    expect(FakeAudio.made).toHaveLength(made);
+  });
+
+  it('does nothing when the music is deliberately off', () => {
+    const manager = ready();
+    manager.playBgm('TAVERN');
+    manager.setVolumes(0, 0.8);
+    const made = FakeAudio.made.length;
+    manager.resumeIfSilent();
+    expect(FakeAudio.made).toHaveLength(made);
+    expect(sounding()).toHaveLength(0);
+  });
+});
+
+/**
+ * WHAT IS ON, AND WHAT WAS ON. For looking at — `previous` is a record
+ * of what happened and nothing decides with it. The scene is the truth
+ * about what should play, which is why coming out of a fight needs
+ * nothing remembered.
+ */
+describe('the state, as something that can be looked at', () => {
+  it('names the piece now and the piece before it', () => {
+    const manager = ready();
+    expect(manager.bgmState()).toEqual({ current: null, previous: null, sounding: false });
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    expect(manager.bgmState().current).toBe('GREENWOOD_FOREST');
+    expect(manager.bgmState().previous).toBeNull();
+    expect(manager.bgmState().sounding).toBe(true);
+
+    manager.playBgm('NORMAL_BATTLE'); // no file in the stand-in: silence
+    expect(manager.bgmState().current).toBe('NORMAL_BATTLE');
+    expect(manager.bgmState().previous).toBe('GREENWOOD_FOREST');
+
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    expect(manager.bgmState().current).toBe('GREENWOOD_FOREST');
+    expect(manager.bgmState().previous).toBe('NORMAL_BATTLE');
+  });
+
+  it('does not count asking for the same piece as a change', () => {
+    const manager = ready();
+    manager.playBgm('TAVERN');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    manager.playBgm('TAVERN');
+    manager.playBgm('TAVERN');
+    expect(manager.bgmState().previous).toBeNull();
+  });
+});
+
+/**
+ * SOUND EFFECTS — fired and forgotten, and one door for all of them.
+ */
+describe('a sound, by the name of the moment it belongs to', () => {
+  it('plays, and is not held on to', () => {
+    const manager = ready();
+    manager.playSfx('battle_slash_hit');
+    expect(FakeAudio.made).toHaveLength(1);
+    expect(FakeAudio.made[0].src).toBe('slash.mp3');
+    expect(FakeAudio.made[0].loop, 'a sound effect never loops').toBe(false);
+  });
+
+  it('is silent, and not an error, for a sound nobody has delivered', () => {
+    const manager = ready();
+    expect(() => manager.playSfx('battle_victory')).not.toThrow();
+    expect(FakeAudio.made).toHaveLength(0);
+  });
+
+  it('says nothing before the player has touched the page', () => {
+    const manager = new AudioManager();
+    manager.setVolumes(0.35, 0.8);
+    manager.playSfx('battle_slash_hit');
+    expect(FakeAudio.made).toHaveLength(0);
+  });
+
+  it('is silent when the effects are turned off', () => {
+    const manager = ready();
+    manager.setVolumes(0.35, 0);
+    manager.playSfx('battle_slash_hit');
+    expect(FakeAudio.made).toHaveLength(0);
+  });
+
+  /**
+   * Twice speed asks for the same blow twice as often, and a sound on
+   * every one of them is a machine-gun rather than a sword. The second
+   * inside the window simply does not play — the ear heard the first.
+   */
+  it('holds back the same sound arriving again too soon', () => {
+    const manager = ready();
+    manager.playSfx('battle_slash_hit');
+    manager.playSfx('battle_slash_hit');
+    manager.playSfx('battle_slash_hit');
+    expect(FakeAudio.made).toHaveLength(1);
+  });
+
+  it('does not hold back a DIFFERENT sound in the same moment', () => {
+    const manager = ready();
+    manager.playSfx('battle_slash_hit');
+    manager.playSfx('ui_tap');
+    expect(FakeAudio.made).toHaveLength(2);
+  });
+
+  it('plays it again once the window has passed', () => {
+    const manager = ready();
+    manager.playSfx('battle_slash_hit');
+    vi.advanceTimersByTime(400);
+    manager.playSfx('battle_slash_hit');
+    expect(FakeAudio.made).toHaveLength(2);
+  });
+
+  /** A sound trimmed in the table is quieter than the slider alone. */
+  it('trims the ones that would wear a player out', () => {
+    const manager = ready();
+    manager.setVolumes(0.35, 1);
+    manager.playSfx('ui_tap');
+    expect(FakeAudio.made[0].volume).toBeCloseTo(0.6, 5);
+  });
+
+  it('is never worth an error, however badly the browser behaves', () => {
+    vi.stubGlobal('Audio', function () {
+      throw new Error('no audio on this device');
+    });
+    const manager = ready();
+    expect(() => manager.playSfx('battle_slash_hit')).not.toThrow();
   });
 });

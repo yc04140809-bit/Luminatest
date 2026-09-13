@@ -5,6 +5,9 @@ import type { FlowState, LifeChoiceId, Screen } from './types';
 
 /** Allowed transitions for the Phase A vertical slice. */
 const TRANSITIONS: Record<Screen, Screen[]> = {
+  // Both answers go to the same place. What differs is whether a song
+  // is playing when they get there, which is not this table's business.
+  THEME_CHOICE: ['TITLE'],
   TITLE: ['PROLOGUE', 'HOME'], // TITLE -> HOME = continue with an existing world
   PROLOGUE: ['HOME'],
   // DEV_ADMIN is reachable from HOME only because the lock may already
@@ -61,7 +64,7 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
 type Listener = () => void;
 
 export class GameFlow {
-  private state: FlowState = { screen: 'TITLE', galdLifeChoice: null };
+  private state: FlowState = { screen: 'THEME_CHOICE', galdLifeChoice: null };
   private listeners = new Set<Listener>();
 
   getState(): FlowState {

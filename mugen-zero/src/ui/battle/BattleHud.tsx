@@ -29,6 +29,7 @@ import { useState, type ReactNode } from 'react';
 import { CharacterArt } from '../art/CharacterArt';
 import type { ResolvedArt } from '../../core/art/artStates';
 import { displayName } from './battleHud';
+import { playSfx } from '../../platform/audio';
 import type { TurnSlot } from './battleHud';
 
 /** The head of a drawing, in a diamond, at the size the strip wants. */
@@ -257,7 +258,14 @@ export function WorldMemoryPanel({
       data-open={open ? 'yes' : 'no'}
       aria-expanded={open}
       aria-label={open ? 'WORLD MEMORY を閉じる' : 'WORLD MEMORY をひらく'}
-      onClick={() => setOpen((was) => !was)}
+      onClick={() => {
+        // The tap makes the sound; the updater only computes the next
+        // state. A side effect inside an updater is fired twice under
+        // StrictMode for one tap, and a reducer is the wrong place to
+        // put a noise in any case.
+        playSfx(open ? 'ui_menu_close' : 'ui_memory_open');
+        setOpen((was) => !was);
+      }}
     >
       {body}
     </button>

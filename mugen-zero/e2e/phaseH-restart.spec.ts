@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
 import { enterDevAdmin } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -56,6 +56,9 @@ test('playtest feedback survives a full browser restart', async () => {
   try {
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
+    // Its own page, so it needs what the shared fixture gives every
+    // other one: start past the question about the song.
+    await pastTheSong(page);
     await goHomeFresh(page);
 
     // Reach the end state quickly through the admin (official APIs).

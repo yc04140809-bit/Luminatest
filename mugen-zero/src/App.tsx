@@ -5,6 +5,7 @@ import { IdbMemoryStore } from './core/memory/idbStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { kaosHasAwakened } from './core/magic/awakened';
 import { TitleScreen } from './ui/screens/TitleScreen';
+import { ThemeChoiceScreen } from './ui/screens/ThemeChoiceScreen';
 import { PrologueScreen } from './ui/screens/PrologueScreen';
 import { HomeScreen } from './ui/screens/HomeScreen';
 import { homeMemorySummary } from './ui/home/homeSummary';
@@ -126,6 +127,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
    * starts on the monologue's music again.
    */
   const [kaosSpeaking, setKaosSpeaking] = useState(false);
+
   /**
    * Which piece this player fights to.
    *
@@ -324,13 +326,49 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
 
   function renderScreen() {
   switch (state.screen) {
+    case 'THEME_CHOICE':
+      return (
+        <ThemeChoiceScreen
+          playing={opening.playing}
+          onListen={() => {
+            // THE TAP THAT UNLOCKS THE PHONE. Every browser wants a
+            // real gesture before it will make a sound, and this screen
+            // exists so that the first gesture is one the player made
+            // on purpose, about sound, rather than one they made to get
+            // past something.
+            audioManager.unlock();
+            // ALWAYS, whatever the settings say about how often the
+            // theme plays: somebody has just asked for it by name, and
+            // "once per session" is a rule about a song that starts by
+            // itself. `onDone` fires once however it ends — the song
+            // finishing, SKIP, or leaving the screen — so the title
+            // comes next exactly once.
+            opening.begin('ALWAYS', settings.bgmVolume, () => flow.goTo('TITLE'));
+          }}
+          onSkip={() => {
+            // Unlocked all the same — the rest of the game has music
+            // even when the theme does not play — and then straight on,
+            // with nothing left sounding behind it.
+            audioManager.unlock();
+            audioManager.stopOpeningTheme();
+            flow.goTo('TITLE');
+          }}
+        />
+      );
     case 'TITLE':
       return (
         <TitleScreen
           hasSave={world.hasProgress()}
           onStart={() => {
-            audioManager.unlock(); // first real gesture: audio may begin
-            opening.begin(settings.openingMode, settings.bgmVolume);
+            // THE THEME IS NOT STARTED HERE ANY MORE. It used to be —
+            // はじめる was the first real gesture, so it was the first
+            // moment a phone would make a sound. There is a screen
+            // before the title now whose whole subject is that song,
+            // and it is touched first, so the theme has one place it
+            // plays and this is not it. Starting it here as well would
+            // put a song over the prologue's own music and hold the
+            // scene's music off the air for as long as it lasted.
+            audioManager.unlock();
             // A second run through the prologue starts on the
             // monologue, so it starts on the monologue's music.
             setKaosSpeaking(false);
@@ -338,7 +376,6 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           }}
           onContinue={() => {
             audioManager.unlock();
-            opening.begin(settings.openingMode, settings.bgmVolume);
             flow.goTo('HOME');
           }}
           onReset={async () => {

@@ -5655,3 +5655,77 @@ body,
   border-left: 1px solid var(--mugen-gold-soft, rgba(198, 168, 110, 0.35));
   overflow-wrap: anywhere;
 }
+
+/* ---- BEFORE THE TITLE: the song, or straight on ------------------ */
+
+/* Two buttons and nothing else. A choice with a third option is a menu,
+   and a menu before the title is a thing to get past. */
+.theme-choice {
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  padding: calc(20px + env(safe-area-inset-top)) 24px calc(20px + env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 40%, #171726 0%, var(--bg) 72%);
+  text-align: center;
+}
+.theme-choice-mark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--mugen-gold);
+}
+.theme-choice-rule {
+  width: clamp(36px, calc(var(--stage-w, 100vw) * 0.08), 90px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--mugen-gold-soft), transparent);
+}
+.theme-choice-note {
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0.9;
+}
+.theme-choice-lead {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: clamp(17px, calc(var(--stage-w, 100vw) * 0.028), 24px);
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  color: var(--mugen-text);
+}
+.theme-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+/* Thumb-sized and then some: these are the first two things anybody
+   touches, and one of them is the gesture that lets the phone make a
+   sound at all. */
+.theme-choice-actions .btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: clamp(150px, calc(var(--stage-w, 100vw) * 0.24), 230px);
+  min-height: 52px;
+  padding: 10px 20px;
+}
+.theme-choice-jp {
+  font-size: 15px;
+  letter-spacing: 0.1em;
+}
+.theme-choice-en {
+  font-size: 9px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  color: var(--mugen-gold);
+}
+.theme-choice-note-line {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--mugen-text-muted);
+}
+.theme-choice-playing .theme-choice-lead {
+  font-size: clamp(19px, calc(var(--stage-w, 100vw) * 0.034), 28px);
+}

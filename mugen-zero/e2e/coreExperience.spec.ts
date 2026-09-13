@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
 import { GALD_TAP, swingUntil } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -34,6 +34,9 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
   try {
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
+    // Its own page, so it needs what the shared fixture gives every
+    // other one: start past the question about the song.
+    await pastTheSong(page);
 
     // --- TITLE / PROLOGUE ---
     await page.goto(`${BASE}/`);
@@ -155,6 +158,8 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     // --- Restart: the collected life is still there ---
     context = await launch(userDataDir);
     page = context.pages()[0] ?? (await context.newPage());
+    // A new browser, a new page: the same step again.
+    await pastTheSong(page);
     await page.goto(`${BASE}/`);
     await page.getByTestId('continue-button').click();
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');

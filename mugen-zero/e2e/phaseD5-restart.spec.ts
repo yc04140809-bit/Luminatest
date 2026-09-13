@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -36,6 +36,9 @@ test('admin-built state survives a full browser restart and matches the game', a
     // --- Session 1: build SPARE + 3 YEARS canon through the admin. ---
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
+    // Its own page, so it needs what the shared fixture gives every
+    // other one: start past the question about the song.
+    await pastTheSong(page);
     await goHomeFresh(page);
     await openAdmin(page);
     await page.getByTestId('preset-SPARE_3Y').click();

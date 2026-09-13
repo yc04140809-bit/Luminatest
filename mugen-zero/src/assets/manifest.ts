@@ -298,9 +298,17 @@ export const BGM_ASSETS: Record<BgmId, string | null> = {
 export type MusicId = 'OPENING_THEME';
 
 export const MUSIC_ASSETS: Record<MusicId, string | null> = {
-  // No song yet. A null slot is silence, never an error: the opening
-  // simply does not play and the game starts as it always has.
-  OPENING_THEME: null,
+  /**
+   * 「また、ここで。」 — the same file the OPENING room tone uses, in a
+   * second slot on purpose.
+   *
+   * They are two different things done with one recording. As a BGM it
+   * loops under a screen; as THE THEME it plays once, the game waits
+   * for it, and there is a SKIP control because a song somebody has
+   * already heard is a song they should be able to leave. The channel
+   * decides which of the two is happening, not the file.
+   */
+  OPENING_THEME: bgmOpening,
 };
 
 export const SE_ASSETS: Record<SeId, string | null> = {

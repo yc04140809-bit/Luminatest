@@ -20,8 +20,21 @@ const at = (screen: Screen, rest: Partial<SceneCue> = {}): SceneCue => ({
  * what holds it to what was actually asked for.
  */
 describe('the six scenes, by name', () => {
-  it('opens on the opening, title and monologue alike', () => {
-    expect(bgmForScene(at('TITLE'))).toBe('OPENING');
+  /**
+   * THE TITLE IS SILENT NOW, AND THAT IS THE CHANGE.
+   *
+   * The theme used to loop under the title. There is a screen before
+   * the title whose whole subject is that song, so by the time anybody
+   * reaches the title they have either just heard it or said they
+   * would rather not — and both answers are spoiled by starting it
+   * again underneath them.
+   */
+  it('says nothing before the title, and nothing on it', () => {
+    expect(bgmForScene(at('THEME_CHOICE'))).toBeNull();
+    expect(bgmForScene(at('TITLE'))).toBeNull();
+  });
+
+  it('finds its voice when the game itself starts', () => {
     expect(bgmForScene(at('PROLOGUE'))).toBe('OPENING');
   });
 
@@ -106,6 +119,7 @@ describe('the mapping as a whole', () => {
    */
   it('has an answer for every screen, and never an accidental one', () => {
     const screens: Screen[] = [
+      'THEME_CHOICE',
       'TITLE', 'PROLOGUE', 'HOME', 'EXPLORE', 'GREENWOOD', 'ENCOUNTER', 'BATTLE',
       'LIFE_CHOICE', 'CREATURE_LIFE_CHOICE', 'CHOICE_RESULT', 'WORLD_MEMORY', 'WORLD_NEWS',
       'TIME_SHIFT', 'FUTURE_SITE', 'TALK_SPOT', 'ARCHIVE', 'ARCANA', 'SETTINGS', 'ENDING',
@@ -127,7 +141,7 @@ describe('the mapping as a whole', () => {
   it('uses all six pieces', () => {
     const reached = new Set(
       [
-        at('TITLE'),
+        at('PROLOGUE'),
         at('PROLOGUE', { kaosSpeaking: true }),
         at('HOME'),
         at('TALK_SPOT', { locationId: 'MOONLIGHT_TAVERN' }),

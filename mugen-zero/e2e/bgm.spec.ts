@@ -128,21 +128,19 @@ test('the six scenes, each with its own music', async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto('/');
 
-  // 1. TITLE — nothing yet, because nothing has been touched. A phone
-  //    will not make a sound before the player does something, and the
-  //    game must not pretend otherwise.
-  expect(await made(page)).toHaveLength(0);
+  // 1. THE TITLE IS SILENT, and so is the screen before it. The theme
+  //    is a song somebody is asked about before the title; by the time
+  //    they are here they have either just heard it or said they would
+  //    rather not, and both answers are spoiled by starting it again
+  //    underneath them. (The fixture answered 「スキップ」 to get here.)
+  expect(await playing(page)).toBeNull();
 
-  // …and the very first tap starts what the title had already asked
-  //    for. Not a screen later: this tap.
+  // 2. PROLOGUE — the game itself starting, which is where it finds
+  //    its voice. A beat of quiet first, on purpose.
   await page.getByTestId('start-button').click();
-  expect(await playing(page)).toBe('opening.mp3');
-
-  // 2. PROLOGUE — the monologue is still the opening, and her arrival
-  //    is not.
   const monologue = page.getByTestId('prologue-monologue');
   await expect(monologue).toBeVisible();
-  expect(await playing(page)).toBe('opening.mp3');
+  await expectPlaying(page, 'opening.mp3');
   await monologue.click();
   const kaos = page.getByTestId('kaos-intro');
   await expect(kaos).toBeVisible();

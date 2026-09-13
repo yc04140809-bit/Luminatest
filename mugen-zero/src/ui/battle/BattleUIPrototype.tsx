@@ -20,6 +20,7 @@ import {
 } from '../../game/battle/battleSpeed';
 import { MagicTray } from './MagicTray';
 import { HitFx } from './HitFx';
+import { playSfx } from '../../platform/audio';
 import { CUT_IN_MS, SkillCutIn, type CutIn } from './SkillCutIn';
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
 import { AwakeningScene } from './AwakeningScene';
@@ -502,6 +503,14 @@ export function BattleUIPrototype({
   /** The cut-in now playing, if any. A new key replays it. */
   const [cutIn, setCutIn] = useState<{ key: number; cut: CutIn } | null>(null);
   const cutInKey = useRef(0);
+
+  /** The fight starting, and the fight won. Once each, whatever else. */
+  useEffect(() => {
+    playSfx('battle_start');
+  }, []);
+  useEffect(() => {
+    if (battle.outcome === 'VICTORY') playSfx('battle_victory');
+  }, [battle.outcome]);
   /**
    * Where the fight is looking.
    *
@@ -698,10 +707,20 @@ export function BattleUIPrototype({
    */
   const strike = (on: 'enemy' | 'hero', amount: number, after = 0) => {
     const contact = after + Math.round(beatLength(on === 'enemy' ? 'STRIKE' : 'TACKLE', speed) * CONTACT_AT);
+    // THE SWING, as it starts. Before the contact rather than with it:
+    // a weapon is heard moving and then heard landing, and two sounds
+    // on the same frame are one thicker sound.
+    timers.current.push(window.setTimeout(() => playSfx('battle_swing'), after));
     timers.current.push(
       window.setTimeout(() => {
         hitKey.current += 1;
         setHit({ key: hitKey.current, on, amount });
+        // ON THE SAME FRAME AS THE FLASH, from the same timer, so the
+        // two cannot drift: a hit that is seen a frame before it is
+        // heard reads as a mistake even when nobody can say why. The
+        // retrigger guard in the manager is what keeps twice speed from
+        // turning this into a machine-gun.
+        playSfx(on === 'hero' ? 'battle_hurt' : 'battle_slash_hit');
       }, contact),
     );
     timers.current.push(
@@ -718,6 +737,7 @@ export function BattleUIPrototype({
    */
   const cutTo = (cut: CutIn) => {
     const held = visualMs(CUT_IN_MS, speed, CUT_IN_FLOOR_MS);
+    playSfx('battle_magic_cast');
     cutInKey.current += 1;
     setCutIn({ key: cutInKey.current, cut });
     timers.current.push(window.setTimeout(() => setCutIn(null), held));
@@ -1787,6 +1807,9 @@ export function BattleUIPrototype({
                   setSkillOpen(false);
                   setItemOpen(false);
                   setArcanaTrayOpen(false);
+                  // Same rule as WORLD MEMORY: the tap makes the
+                  // sound, the updater only computes the next state.
+                  playSfx(magicOpen ? 'ui_menu_close' : 'ui_menu_open');
                   setMagicOpen((open) => !open);
                 }}
               >

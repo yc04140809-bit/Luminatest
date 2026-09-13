@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext } from './fixtures';
+import { test, expect, chromium, type BrowserContext, pastTheSong } from './fixtures';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -23,6 +23,9 @@ test('causality chain and character state survive a full browser restart', async
     // --- Session 1: spare Gald, let 3 days pass, close the browser. ---
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
+    // Its own page, so it needs what the shared fixture gives every
+    // other one: start past the question about the song.
+    await pastTheSong(page);
     await playToLifeChoice(page, BASE);
     await page.getByTestId('choice-SPARE').click();
     const result = page.getByTestId('choice-result-dialogue');

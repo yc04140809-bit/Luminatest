@@ -139,7 +139,34 @@ interface ActiveDiscovery {
   point: DiscoveryPointDef;
   parts: Phaser.GameObjects.Shape[];
   loops: Phaser.Tweens.Tween[];
+  /**
+   * A place that looks interesting, rather than the place something is.
+   *
+   * ONLY THE FIRST RING IS AN ARRIVAL, and the difference is not
+   * cosmetic: the second one was briefly a second place to arrive at,
+   * and the story's own encounter started happening at whichever of the
+   * two the player wandered into first. Walking to a hint is walking;
+   * the forest answers where the forest decided it would.
+   */
+  hint: boolean;
 }
+
+/**
+ * HOW MANY PLACES CAN LOOK INTERESTING AT ONCE.
+ *
+ * Two, and the second one is quieter than the first. Not because it is
+ * less likely to be anything — walking to either is the same walk and
+ * the same roll — but because a forest with two equally bright rings in
+ * it is a map with two pins in it, and this is meant to read as
+ * somewhere worth a look rather than as an objective list.
+ *
+ * One is still the common case: the second is only drawn when the
+ * clearing has somewhere far enough from the first to be a different
+ * place rather than the same place twice.
+ */
+const MOST_RINGS_AT_ONCE = 2;
+/** How far apart two of them have to be to be two places. */
+const RINGS_APART = 150;
 
 /**
  * Where the walk is in its one loop.
@@ -232,7 +259,15 @@ export class GreenwoodScene extends Phaser.Scene {
   private trail = new FollowTrail();
   private target: Phaser.Math.Vector2 | null = null;
   private phase: ExplorationPhase = 'walking';
-  private active: ActiveDiscovery | null = null;
+  /**
+   * Every ring standing in the forest, nearest-first.
+   *
+   * A list rather than one: walking to ANY of them is an arrival, and
+   * arriving at one takes them all off — the moment is over, and a ring
+   * left glowing beside a scene that has already happened is a promise
+   * the forest did not keep.
+   */
+  private active: ActiveDiscovery[] = [];
   /** Decided at hand-over, so a trip to the battle screen cannot move it. */
   private nextSpotId: string | null = null;
   private lastCategory: DiscoveryCategory | null = null;
@@ -428,7 +463,7 @@ export class GreenwoodScene extends Phaser.Scene {
     return this.pointFor(
       nextDiscoverySpot({
         spots: this.spots,
-        previousId: this.active?.point.id ?? null,
+        previousId: this.active[0]?.point.id ?? null,
         from: from ?? { x: this.player.x, y: this.player.y },
       }),
     );
@@ -447,28 +482,76 @@ export class GreenwoodScene extends Phaser.Scene {
    * still noticeable when the player has asked for less motion.
    */
   private createDiscovery(point: DiscoveryPointDef): void {
+    this.createRing(point, 1);
+    // AND A SECOND PLACE, quieter, when the clearing has one far enough
+    // away to be a different place. It is guidance rather than a
+    // promise: walking to it is the same walk and the same roll as
+    // walking to the first.
+    if (this.active.length >= MOST_RINGS_AT_ONCE) return;
+    const second = this.spots.find(
+      (s) =>
+        s.id !== point.id &&
+        Phaser.Math.Distance.Between(s.x, s.y, point.x, point.y) >= RINGS_APART,
+    );
+    if (second) this.createRing(this.pointFor(second), 0.62, true);
+  }
+
+  /**
+   * One ring, at a given brightness.
+   *
+   * `presence` scales every layer at once rather than each being tuned
+   * twice: the second ring is the same cue, quieter, and nothing about
+   * it is a different shape.
+   */
+  private createRing(point: DiscoveryPointDef, presence: number, hint = false): void {
     const still = this.options.reducedMotion === true;
     const parts: Phaser.GameObjects.Shape[] = [];
     const loops: Phaser.Tweens.Tween[] = [];
 
+    // A HALO, outside everything else and very soft. New, and it is what
+    // makes the cue findable at arm's length on a phone: the ring was
+    // legible against the shaded floor of the clearing and nearly gone
+    // against a sunlit patch of it, because a thin gold line on a gold
+    // background is a thin nothing. A wide, weak wash under it gives
+    // the line something to be seen against wherever it stands.
+    const halo = this.add.ellipse(
+      point.x,
+      point.y + 6,
+      point.radius * 4.2,
+      point.radius * 2.4,
+      GOLD,
+      0.13 * presence,
+    );
+    halo.setDepth(5);
+
     // Light on the ground. Soft, warm, wider than it is tall — the shape
-    // sunlight makes when it falls through leaves.
-    const glow = this.add.ellipse(point.x, point.y + 6, point.radius * 2.8, point.radius * 1.6, GOLD, 0.22);
+    // sunlight makes when it falls through leaves. Raised from 0.22:
+    // the same light, enough of it to read in daylight.
+    const glow = this.add.ellipse(
+      point.x,
+      point.y + 6,
+      point.radius * 2.8,
+      point.radius * 1.6,
+      GOLD,
+      0.32 * presence,
+    );
     glow.setDepth(6);
 
-    // The ring: the MUGEN mark, laid flat on the forest floor.
+    // The ring: the MUGEN mark, laid flat on the forest floor. A little
+    // thicker and a little brighter than it was, and no larger — this
+    // is meant to read as "something is here", not as a quest pin.
     const ring = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
-    ring.setStrokeStyle(1.6, GOLD, 0.85);
+    ring.setStrokeStyle(2, GOLD, 0.95 * presence);
     ring.setDepth(7);
 
     // A second, fainter one just inside it, so the cue reads as made
     // rather than as a lens flare.
     const inner = this.add.ellipse(point.x, point.y + 6, point.radius * 1.1, point.radius * 0.62);
-    inner.setStrokeStyle(1, GOLD, 0.5);
+    inner.setStrokeStyle(1.2, GOLD, 0.62 * presence);
     inner.setDepth(7);
-    parts.push(glow, ring, inner);
+    parts.push(halo, glow, ring, inner);
 
-    this.active = { point, parts, loops };
+    this.active.push({ point, parts, loops, hint });
     if (still) return;
 
     // The ring breathes rather than blinks.
@@ -485,10 +568,26 @@ export class GreenwoodScene extends Phaser.Scene {
       }),
     );
 
+    // The ground light breathes with it, slower and much less far. It
+    // is the part that is seen out of the corner of an eye, and a wash
+    // that pulses as hard as the line it is under reads as a beacon.
+    loops.push(
+      this.tweens.add({
+        targets: [halo, glow],
+        scaleX: 1.1,
+        scaleY: 1.1,
+        alpha: { from: 0.72, to: 1 },
+        duration: 2600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      }),
+    );
+
     // A ripple leaving the point every few seconds — the world still
     // remembering something that happened here.
     const ripple = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
-    ripple.setStrokeStyle(1, GOLD, 0.5);
+    ripple.setStrokeStyle(1.2, GOLD, 0.6 * presence);
     ripple.setDepth(7);
     parts.push(ripple);
     loops.push(
@@ -505,7 +604,13 @@ export class GreenwoodScene extends Phaser.Scene {
 
     // Two motes of light, drifting.
     for (let i = 0; i < 2; i++) {
-      const mote = this.add.circle(point.x + (i === 0 ? -7 : 8), point.y + 4, 1.6, GOLD, 0.85);
+      const mote = this.add.circle(
+        point.x + (i === 0 ? -7 : 8),
+        point.y + 4,
+        1.7,
+        GOLD,
+        0.9 * presence,
+      );
       mote.setDepth(8);
       parts.push(mote);
       loops.push(
@@ -527,12 +632,20 @@ export class GreenwoodScene extends Phaser.Scene {
    * gone — about four hundred milliseconds in total, because this is a
    * hand on a shoulder and not a prize ceremony.
    */
-  private dismissDiscovery(): void {
-    const active = this.active;
-    if (!active) return;
-    this.active = null;
-    for (const loop of active.loops) loop.stop();
-    const parts = active.parts;
+  private dismissDiscovery(arrivedAt?: DiscoveryPointDef): void {
+    const rings = this.active;
+    if (rings.length === 0) return;
+    this.active = [];
+    // EVERY ring goes, not only the one walked to. The moment is over,
+    // and a ring left glowing beside a scene that has already happened
+    // is a promise the forest did not keep.
+    for (const ring of rings) for (const loop of ring.loops) loop.stop();
+    const parts = rings.flatMap((ring) => ring.parts);
+    // The one pulse, though, belongs where the player is standing —
+    // the ring they walked to, or the real one if they got here some
+    // other way.
+    const active =
+      rings.find((r) => r.point.id === arrivedAt?.id) ?? rings.find((r) => !r.hint) ?? rings[0];
 
     if (this.options.reducedMotion === true) {
       for (const part of parts) part.destroy();
@@ -761,12 +874,23 @@ export class GreenwoodScene extends Phaser.Scene {
       return;
     }
 
-    const point = this.active?.point;
-    if (!point) return;
-    const reached =
-      Phaser.Math.Distance.Between(this.player.x, this.player.y, point.x, point.y) <=
-      point.radius + 10;
-    if (reached) this.arriveAt(point);
+    // THE REAL ONE ONLY. Two places can look interesting at once, but
+    // only one of them is a place the forest answers at: a hint is
+    // guidance, not a second appointment. It was briefly both, and the
+    // story's own encounter started happening at whichever ring the
+    // player wandered into first.
+    const reached = this.active.find(
+      (ring) =>
+        !ring.hint &&
+        Phaser.Math.Distance.Between(
+          this.player.x,
+          this.player.y,
+          ring.point.x,
+          ring.point.y,
+        ) <=
+        ring.point.radius + 10,
+    );
+    if (reached) this.arriveAt(reached.point);
   }
 }
 

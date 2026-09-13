@@ -19,8 +19,15 @@ import { OPENING_REHEARSAL_MS, openingRehearsal } from '../../dev/openingRehears
 export interface OpeningTheme {
   /** True only while there is something a SKIP would actually end. */
   playing: boolean;
-  /** Call from the first real user gesture, and only from there. */
-  begin: (mode: OpeningPlayMode, bgmVolume: number) => void;
+  /**
+   * Call from the first real user gesture, and only from there.
+   *
+   * `onFinished` fires once however the song ends — by finishing, by
+   * SKIP, or by leaving the screen — so whatever comes next comes next
+   * exactly once. Optional: the title screen's own call has nothing to
+   * do afterwards, and the choice screen before it has.
+   */
+  begin: (mode: OpeningPlayMode, bgmVolume: number, onFinished?: () => void) => void;
   skip: () => void;
 }
 
@@ -36,22 +43,36 @@ export function useOpeningTheme(): OpeningTheme {
    * once and by one route. Calling it twice — which SKIP does, once
    * directly and once when the fade finishes — is calling it once.
    */
+  const finished = useRef<(() => void) | null>(null);
   const end = useCallback(() => {
     if (rehearsalTimer.current) {
       clearTimeout(rehearsalTimer.current);
       rehearsalTimer.current = null;
     }
     setPlaying(false);
+    // Taken before it is called, so a handler that starts another song
+    // cannot be run twice by the second route into here.
+    const after = finished.current;
+    finished.current = null;
+    after?.();
   }, []);
 
   const begin = useCallback(
-    (mode: OpeningPlayMode, bgmVolume: number) => {
+    (mode: OpeningPlayMode, bgmVolume: number, onFinished?: () => void) => {
       // Already singing: a second tap is not a second song.
       if (audioManager.isOpeningPlaying()) return;
+      finished.current = onFinished ?? null;
       // Asked before anything is attempted, so that the DEV stand-in
       // below is refused by exactly the same rules as a real song:
       // music off, opening off, or already had one this run.
-      if (!shouldPlayOpening(mode, bgmVolume)) return;
+      //
+      // And refused is still finished. A player with the music turned
+      // off who asks to hear the theme gets no theme — but they must
+      // not get a screen that waits for one for ever.
+      if (!shouldPlayOpening(mode, bgmVolume)) {
+        end();
+        return;
+      }
       if (startOpeningTheme(mode, bgmVolume, end)) {
         setPlaying(true);
         return;
@@ -59,7 +80,14 @@ export function useOpeningTheme(): OpeningTheme {
       // Nothing began — no song in the slot, or autoplay refused. That
       // is silence and the game carries straight on, except in DEV
       // where the control itself is being looked at.
-      if (!openingRehearsal()) return;
+      //
+      // CARRIES ON MEANS CARRIES ON: whoever was waiting for the song
+      // is told it is over, or a screen that exists to play it would
+      // wait for ever on a device that would not.
+      if (!openingRehearsal()) {
+        end();
+        return;
+      }
       markOpeningPlayed();
       setPlaying(true);
       rehearsalTimer.current = setTimeout(end, OPENING_REHEARSAL_MS);

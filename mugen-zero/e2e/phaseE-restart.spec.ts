@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,6 +31,9 @@ test('baker Gald and the reunion survive a full browser restart', async () => {
     // --- Session 1: build the reunited world through the admin. ---
     let context = await launch(userDataDir);
     let page = context.pages()[0] ?? (await context.newPage());
+    // Its own page, so it needs what the shared fixture gives every
+    // other one: start past the question about the song.
+    await pastTheSong(page);
     await goHomeFresh(page);
     await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();

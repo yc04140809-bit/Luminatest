@@ -2,6 +2,15 @@
 // This module must stay free of React / Phaser imports.
 
 export type Screen =
+  /**
+   * Before the title: the song, or straight on.
+   *
+   * The first screen anybody sees, and the first thing anybody TOUCHES
+   * — which is the other half of what it is for. A phone makes no
+   * sound until the player has done something, and this is a screen
+   * whose whole content is a thing to do.
+   */
+  | 'THEME_CHOICE'
   | 'TITLE'
   | 'PROLOGUE'
   | 'HOME'
