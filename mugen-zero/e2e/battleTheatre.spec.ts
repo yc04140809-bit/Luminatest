@@ -153,3 +153,68 @@ test('a cut-in never eats a tap', async ({ page }) => {
   // And it takes itself off.
   await expect(cut).toHaveCount(0, { timeout: 6_000 });
 });
+
+/**
+ * THE OTHER SIDE'S BLOW, DRAWN THE SAME WAY.
+ *
+ * Nobody's turn is drawn better than anybody else's: the creature's
+ * attack gets the same five things the party's does. What must NOT be
+ * the same is the direction — the party swings right to left and the
+ * creature left to right, always — so the lean of the cut is checked
+ * as well as its presence.
+ */
+test('the creature’s blow is drawn too, and leans the other way', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+
+  const hp = page.getByTestId('bp-player-hp');
+  const fx = page.getByTestId('bp-hit-fx');
+  const hpOf = (t: string | null) => Number(/(\d+)/.exec((t ?? '').replace(/\s+/g, ''))?.[1] ?? NaN);
+
+  // GUARD UNTIL HE SWINGS. He does not swing every turn — he measures
+  // the distance, he resets his grip, his phase changes — so the test
+  // takes turns until the one that is a blow. Guarding rather than
+  // swinging so the only effect on screen is the one coming back.
+  let lean: string | null = null;
+  let shown = NaN;
+  let taken = NaN;
+  for (let turn = 0; turn < 14; turn++) {
+    const before = await hp.textContent();
+    await page.getByTestId('bp-defend').click({ timeout: 2_000 }).catch(() => {});
+    // Wait out the whole turn: his beat is queued behind the player's,
+    // so his blow lands about a beat later than theirs would.
+    for (let t = 0; t < 30; t++) {
+      if ((await fx.count()) > 0) break;
+      await page.waitForTimeout(60);
+    }
+    if ((await fx.count()) === 0) continue;
+    lean = await fx.evaluate((el) => getComputedStyle(el).getPropertyValue('--hit-lean').trim());
+    const damage = page.getByTestId('bp-hit-damage');
+    if ((await damage.count()) === 0) continue;
+    shown = Number((await damage.textContent())?.trim());
+    await expect(hp).not.toHaveText(before ?? '', { timeout: 3_000 });
+    taken = hpOf(before) - hpOf(await hp.textContent());
+    break;
+  }
+
+  expect(lean, 'the creature swings left to right').toBe('24deg');
+  expect(shown, 'a number floated off the party').toBeGreaterThan(0);
+  // And it is the fight's own number: the health it took off the party
+  // is the figure that floated off them. Read off the state rather than
+  // from the difference, which is why a turn that also mends cannot
+  // make the two disagree.
+  expect(taken, 'the number shown is the health taken').toBe(shown);
+});
+
+/** And the party's own blow still leans the way it always did. */
+test('the party’s blow leans right to left', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+  await page.getByTestId('bp-attack').click();
+  const fx = page.getByTestId('bp-hit-fx');
+  await expect(fx).toHaveCount(1, { timeout: 4_000 });
+  const lean = await fx.evaluate((el) => getComputedStyle(el).getPropertyValue('--hit-lean').trim());
+  expect(lean, 'the party swings right to left').toBe('-24deg');
+});

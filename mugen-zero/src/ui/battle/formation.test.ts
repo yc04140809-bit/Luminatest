@@ -108,15 +108,18 @@ describe('the prototype cast', () => {
     expect(PROTOTYPE_PLACEMENTS).toEqual({
       enemy: { edge: 'left', inset: 0.1, bottom: 0.42 },
       enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
-      enemyNear: { edge: 'left', inset: 0.05, bottom: 0.36 },
-      enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.3 },
+      // PUSHED BACK, so the three of them are three ground lines
+      // and not two: he and Kaos were within a thirtieth of the
+      // field of each other, which the eye reads as one row.
+      enemyNear: { edge: 'left', inset: 0.05, bottom: 0.39 },
+      enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.32 },
       // MOVED FOR DEPTH. He came forward and she stepped back, so the
       // party reads as two ranks rather than two people on one line:
       // the gap between them went from a twenty-fifth of the field to
       // an eleventh, and the gap from him to a man he is fighting from
       // 0.09 to 0.12. `depthScale` does the other half of the work.
       hero: { edge: 'right', inset: 0.33, bottom: 0.24, depth: 3 },
-      kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
+      kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
       summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
     });
   });
@@ -158,7 +161,7 @@ describe('the prototype cast', () => {
     expect(prototypeStyle('enemy')).toEqual({ left: '10%', bottom: '42%' });
     expect(prototypeStyle('enemyDowned')).toEqual({ left: '6%', bottom: '36%' });
     expect(prototypeStyle('hero')).toEqual({ right: '33%', bottom: '24%', zIndex: 3 });
-    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '33%', zIndex: 1 });
+    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '31%', zIndex: 1 });
     expect(prototypeStyle('summon')).toEqual({ right: '48%', bottom: '28%', zIndex: 2 });
   });
 
@@ -218,6 +221,28 @@ describe('how big somebody standing there is drawn', () => {
     for (const ground of [-1, 0, 0.25, 0.5, 2]) {
       expect(depthScale(ground)).toBeLessThanOrEqual(NEAR_SCALE);
       expect(depthScale(ground)).toBeGreaterThanOrEqual(FAR_SCALE);
+    }
+  });
+
+  /**
+   * THREE GROUND LINES, NOT TWO.
+   *
+   * The thing the eye actually reads is the FEET, and two characters
+   * whose feet are within a thirtieth of the field of each other are
+   * one row however different their sizes are. Measured on the built
+   * screen at 844x390 the three are 152, 121 and 94 pixels off the
+   * bottom; this is that rule, in shares.
+   */
+  it('stands the three of them on three different lines', () => {
+    const lines = [
+      PROTOTYPE_PLACEMENTS.enemyNear.bottom,
+      PROTOTYPE_PLACEMENTS.kaos.bottom,
+      PROTOTYPE_PLACEMENTS.hero.bottom,
+    ].sort((a, b) => a - b);
+    for (let i = 1; i < lines.length; i++) {
+      expect(lines[i] - lines[i - 1], `line ${i} is clear of the one before`).toBeGreaterThanOrEqual(
+        0.06,
+      );
     }
   });
 

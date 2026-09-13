@@ -255,6 +255,22 @@ export interface BattleState {
   /** What the enemy did on its last turn, for the screen to play. */
   lastEnemyAction: EnemyAction;
   /**
+   * What the creature's last blow actually cost, after guarding and
+   * after a ward.
+   *
+   * REPORTED, not recomputed. The number was already worked out here —
+   * it is the one in the log line — and the screen needs it to float
+   * it off the wound. Without this the screen would have to take the
+   * difference in health, which is the same number only while nothing
+   * else touched the player's health in the same turn: a spell that
+   * mends and is then answered does, and the floating number would
+   * quietly understate the blow.
+   *
+   * Nought whenever the last thing the creature did was not a blow, so
+   * the field never describes a turn it did not happen in.
+   */
+  lastEnemyDamage: number;
+  /**
    * Its footing, and what happens when it runs out.
    *
    * The middle of a fight needs something to aim at that is not "keep
@@ -433,6 +449,7 @@ export function createBattle(
     enemySkillCooldown: 0,
     enemySkillUses: 0,
     lastEnemyAction: 'NONE',
+    lastEnemyDamage: 0,
     enemyPoiseSpec: spec.poise ?? null,
     enemyPoise: spec.poise?.max ?? 0,
     enemyMaxPoise: spec.poise?.max ?? 0,
@@ -491,6 +508,7 @@ function enemyTurn(
       enemyStaggerTurns: back.staggerTurns,
       enemySkillCooldown: Math.max(0, state.enemySkillCooldown - 1),
       lastEnemyAction: 'NONE',
+    lastEnemyDamage: 0,
       log: back.recovered && state.enemyPoiseSpec
         ? [...state.log, state.enemyPoiseSpec.recoverLine]
         : state.log,
@@ -516,6 +534,7 @@ function enemyTurn(
       enemySkillCooldown: skill.cooldown,
       enemySkillUses: state.enemySkillUses + 1,
       lastEnemyAction: 'SKILL',
+      lastEnemyDamage: 0,
       log: [...state.log, skill.line],
     };
   }
@@ -568,6 +587,7 @@ function enemyTurn(
     playerHp,
     enemySkillCooldown: cooldown,
     lastEnemyAction: 'ATTACK',
+    lastEnemyDamage: dmg,
     wardCut: wardLeft > 0 ? state.wardCut : 0,
     wardTurns: wardLeft,
     wardName: wardLeft > 0 ? state.wardName : null,

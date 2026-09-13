@@ -2622,10 +2622,32 @@ body,
 /* THE COMMANDS AND THE CHIPS NEVER FADE. They are what a thumb is
    aiming at, and a control that is half there is a control a player
    is not sure they may press. They are also the bottom of the screen,
-   which is not where the blow is. */
-.bp-hud[data-stagecraft] .bx-corner.bx-br,
-.bp-hud[data-stagecraft] .bp-dock {
+   which is not where the blow is.
+
+   `.bp-dock` used to be named here as well and was styling nothing:
+   the dock is a SIBLING of the HUD, not a child, so the selector never
+   matched. It never needed to — the dock does not inherit the HUD's
+   levels either — and what it does need is below, where the plate and
+   the buttons inside it are told apart. */
+.bp-hud[data-stagecraft] .bx-corner.bx-br {
   opacity: 1;
+}
+
+/* AND THE PLATE AT THE FOOT OF THE FIELD IS READING, NOT A CONTROL.
+   It is a sentence about what just happened, it is the widest thing on
+   the screen, and it sits directly over the party — so it steps back
+   with the rest of the reading while a blow lands. The commands under
+   it do not: they are in the same column and they are what a thumb is
+   aiming at. */
+.bp-screen[data-stagecraft='ATTACK'] .bp-message,
+.bp-screen[data-stagecraft='CUT_IN'] .bp-message {
+  opacity: 0.45;
+}
+.bp-message {
+  transition: opacity 0.3s ease;
+}
+.bp-screen[data-stagecraft='ATTACK'] .bp-message {
+  transition: opacity 0.12s ease;
 }
 /* A request for less motion takes the TRANSITION, not the effect.
    Reduced motion is about things moving, and a panel that is quieter
@@ -2769,6 +2791,32 @@ body,
   100% { opacity: 0; transform: rotate(-34deg) scale(1.08); }
 }
 
+/* AND THE OTHER SIDE'S WEAPON, the same way. Mirrored, because the
+   direction of a blow is the one thing about this that must never be
+   ambiguous: the party swings RIGHT TO LEFT and the creature swings
+   LEFT TO RIGHT, always, and a trail leaning the wrong way would say
+   the fight had turned round. */
+.bp-enemy.tackle::after {
+  content: '';
+  position: absolute;
+  right: -6%;
+  top: 18%;
+  width: 76%;
+  height: 52%;
+  border-radius: 6% 50% 6% 50%;
+  background: linear-gradient(245deg, rgba(255, 236, 214, 0) 38%, rgba(255, 236, 214, 0.8) 62%, rgba(226, 160, 120, 0) 76%);
+  filter: blur(1px);
+  opacity: 0;
+  pointer-events: none;
+  animation: bp-trail-enemy var(--bp-tackle, 0.46s) ease-out;
+}
+@keyframes bp-trail-enemy {
+  0% { opacity: 0; transform: rotate(-28deg) scale(0.7); }
+  34% { opacity: 0.9; transform: rotate(6deg) scale(1); }
+  58% { opacity: 0.45; transform: rotate(26deg) scale(1.05); }
+  100% { opacity: 0; transform: rotate(34deg) scale(1.08); }
+}
+
 /* THE THING THAT WAS HIT goes white for a moment. Brightness on the
    drawing itself, so it works for every character and every creature
    without anybody drawing a second copy of them. */
@@ -2892,7 +2940,8 @@ body,
   .bp-hit-slash,
   .bp-hit-ring,
   .bp-hit-spark,
-  .bp-hero.strike::after {
+  .bp-hero.strike::after,
+  .bp-enemy.tackle::after {
     display: none;
   }
   .bp-stage.kick,
@@ -3869,8 +3918,12 @@ body,
      part of the drawing is pulled out of shape. The border width is a
      share of the plate's height, which is what keeps that true at every
      size. */
-  padding: 7px 10px;
-  min-height: 40px;
+  /* SLIMMER BY EIGHT PIXELS than it was. It is the widest thing on the
+     screen and it lies across the party's own ground line, so every
+     pixel of its height is a pixel of battlefield. One line of
+     Japanese at 13px needs 20; the rest was margin. */
+  padding: 5px 10px;
+  min-height: 34px;
   border: 0 solid transparent;
   /* The same arithmetic as the party HUD: slice `25 95`, so the sides
      are 95/25 of the top or the wings are drawn narrow. */

@@ -44,7 +44,7 @@ const EXPECTED: Record<string, Placed> = {
   // two people on one line; `depthScale` in formation.ts does the other
   // half by drawing the nearer of them a little larger.
   '.bp-hero': { edge: 'right', inset: 0.33, bottom: 0.24, zIndex: '3' },
-  '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.33, zIndex: '1' },
+  '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.31, zIndex: '1' },
   '.bp-summon': { edge: 'right', inset: 0.48, bottom: 0.28, zIndex: '2' },
 };
 

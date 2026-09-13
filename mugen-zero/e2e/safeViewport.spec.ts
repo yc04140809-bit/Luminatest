@@ -127,22 +127,84 @@ test.describe('with a notch, a cutout and a gesture bar', () => {
   });
 });
 
-test.describe('the smallest landscape phone, with furniture on it', () => {
-  test('nothing is cut off the right-hand side', async ({ page }) => {
-    test.setTimeout(240_000);
-    await page.setViewportSize({ width: 800, height: 360 });
-    await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
-    await applyInsets(page, { top: 16, right: 44, bottom: 24, left: 44 });
+/** The three phones the game is judged on, each with furniture on it. */
+const PHONES = [
+  { name: '800x360', width: 800, height: 360 },
+  { name: '844x390', width: 844, height: 390 },
+  { name: '915x412', width: 915, height: 412 },
+];
 
-    // The party column and the AUTO/×2 chips are the right-hand edge of
-    // the battle screen, and the first things a cutout takes.
-    for (const id of ['bx-party', 'bp-modes']) {
-      const b = await boxOf(page, id);
-      expect(b.x + b.width, `${id} inside the right cutout`).toBeLessThanOrEqual(800 - 44 + 1);
-    }
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(1);
+for (const phone of PHONES) {
+  test.describe(`${phone.name}, with furniture on it`, () => {
+    test('nothing is cut off any side, and everything is still pressable', async ({ page }) => {
+      test.setTimeout(240_000);
+      const insets = { top: 16, right: 44, bottom: 24, left: 44 };
+      await page.setViewportSize({ width: phone.width, height: phone.height });
+      await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+      await applyInsets(page, insets);
+
+      // THE RIGHT-HAND EDGE, which is what a landscape cutout takes
+      // first: the party column and the AUTO/×2 chips live there.
+      // And the left, where the creature and its health are.
+      for (const id of ['bx-party', 'bp-modes', 'bp-enemy-hp', 'bx-world-memory']) {
+        const b = await boxOf(page, id);
+        expect(b.x, `${id} clear of the left`).toBeGreaterThanOrEqual(insets.left - 1);
+        expect(b.x + b.width, `${id} clear of the right`).toBeLessThanOrEqual(
+          phone.width - insets.right + 1,
+        );
+        expect(b.y, `${id} clear of the top`).toBeGreaterThanOrEqual(insets.top - 1);
+        expect(b.y + b.height, `${id} clear of the bottom`).toBeLessThanOrEqual(
+          phone.height - insets.bottom + 1,
+        );
+      }
+
+      // And every control is both inside and actually under the thumb.
+      for (const id of BATTLE_CONTROLS) {
+        const b = await boxOf(page, id);
+        expect(b.y + b.height, `${id} clear of the gesture bar`).toBeLessThanOrEqual(
+          phone.height - insets.bottom + 1,
+        );
+        const hit = await page.evaluate(
+          ([x, y, wanted]) =>
+            document
+              .elementFromPoint(Number(x), Number(y))
+              ?.closest(`[data-testid="${wanted}"]`) !== null,
+          [String(b.x + b.width / 2), String(b.y + b.height / 2), id],
+        );
+        expect(hit, `${id} is what is under the thumb`).toBe(true);
+      }
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    });
   });
+}
+
+/**
+ * A DIALOGUE CHOICE is the other thing a gesture bar eats, and it is
+ * the one that cannot be worked around: a player who cannot press
+ * 「見逃す」 cannot finish the story.
+ */
+test('the four answers about a life are all pressable', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 800, height: 360 });
+  await playToLifeChoice(page);
+  await applyInsets(page, { top: 16, right: 44, bottom: 24, left: 44 });
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible();
+  for (const id of ['KILL', 'SPARE', 'HELP', 'CAPTURE']) {
+    const b = await boxOf(page, `choice-${id}`);
+    expect(b.x, `${id} clear of the left`).toBeGreaterThanOrEqual(43);
+    expect(b.x + b.width, `${id} clear of the right`).toBeLessThanOrEqual(757);
+    expect(b.y + b.height, `${id} clear of the gesture bar`).toBeLessThanOrEqual(337);
+    expect(b.height, `${id} is thumb-sized`).toBeGreaterThanOrEqual(36);
+    const hit = await page.evaluate(
+      ([x, y, wanted]) =>
+        document.elementFromPoint(Number(x), Number(y))?.closest(`[data-testid="${wanted}"]`) !==
+        null,
+      [String(b.x + b.width / 2), String(b.y + b.height / 2), `choice-${id}`],
+    );
+    expect(hit, `${id} is what is under the thumb`).toBe(true);
+  }
 });

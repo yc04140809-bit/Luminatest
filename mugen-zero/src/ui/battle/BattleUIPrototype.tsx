@@ -329,6 +329,15 @@ const HIT_FX_MS = 520;
 const HIT_FX_FLOOR_MS = 380;
 /** A cut-in may shorten at ×2, but not below being seen. */
 const CUT_IN_FLOOR_MS = 260;
+/**
+ * How far into a swing the blow lands.
+ *
+ * Two fifths, which is where the stylesheet puts the weight on the
+ * front foot for both of them — the hero's step and the creature's
+ * lunge are timed the same way, so one number covers both and a
+ * change to either keeps them together.
+ */
+const CONTACT_AT = 0.4;
 
 /** And how long it leaves the awakening on screen before moving on. */
 const AUTO_READ_MS = 2200;
@@ -687,8 +696,8 @@ export function BattleUIPrototype({
    * the step, which is where the stylesheet puts his weight on the
    * front foot — and clears itself when the beat is over.
    */
-  const strike = (on: 'enemy' | 'hero', amount: number) => {
-    const contact = Math.round(beatLength('STRIKE', speed) * 0.38);
+  const strike = (on: 'enemy' | 'hero', amount: number, after = 0) => {
+    const contact = after + Math.round(beatLength(on === 'enemy' ? 'STRIKE' : 'TACKLE', speed) * CONTACT_AT);
     timers.current.push(
       window.setTimeout(() => {
         hitKey.current += 1;
@@ -751,6 +760,25 @@ export function BattleUIPrototype({
     for (const cue of swingCues(firstBeatMs, at, cameraGlideMs(speed))) {
       timers.current.push(window.setTimeout(() => setCamera(cue.phase), cue.at));
     }
+  };
+
+  /**
+   * AND THE BLOW THAT COMES BACK.
+   *
+   * The creature answers in the same call the player acted in, and its
+   * beat is queued behind theirs — so its blow lands one whole beat
+   * later, and that is the offset. Same pipeline, same five things, the
+   * other way across the field: nobody's turn is drawn better than
+   * anybody else's.
+   *
+   * What it cost is READ OFF THE FIGHT rather than taken as the
+   * difference in health. The two are the same number only while
+   * nothing else touched the player in the same turn, and a spell that
+   * mends and is then answered is exactly that case.
+   */
+  const answerBlow = (next: BattleState, after: number) => {
+    if (next.lastEnemyAction !== 'ATTACK') return;
+    strike('hero', next.lastEnemyDamage, after);
   };
 
   const answerOf = (next: BattleState): string[] =>
@@ -852,6 +880,7 @@ export function BattleUIPrototype({
     if (kind === 'ATTACK') {
       strike('enemy', Math.max(0, battle.enemyHp - next.enemyHp));
     }
+    answerBlow(next, beatLength(kind === 'ATTACK' ? 'STRIKE' : 'GUARD', speed));
   };
 
   /**
@@ -875,6 +904,7 @@ export function BattleUIPrototype({
     if (next.outcome === 'VICTORY') observe('WON_A_FIGHT');
     if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
     play(['MAGIC', ...answerOf(next)]);
+    answerBlow(next, beatLength('MAGIC', speed));
     // AFTER `play`, for the reason written on `play` itself: it opens a
     // turn by cancelling everything the last one scheduled, so a
     // cut-in asked for before it is a cut-in whose removal timer is
@@ -1183,6 +1213,11 @@ export function BattleUIPrototype({
     <div
       className="screen bp-screen bp-field"
       data-testid="battle-prototype"
+      // What the screen is doing, said once at the top so anything
+      // outside the HUD — the plate at the foot of the field, which is
+      // a sibling of it rather than a child — can step back with the
+      // rest of the reading.
+      data-stagecraft={stagecraft}
       // Every spell effect reads its own duration from --fx, so at twice
       // speed the whole lot is half as long and not one of the CSS rules
       // has had to learn what speed is.

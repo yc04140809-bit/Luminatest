@@ -247,8 +247,8 @@ export const PROTOTYPE_PLACEMENTS = {
    * under his feet and has to stay clear of the commands along the
    * bottom. A creature's ground line is where its plate hangs from.
    */
-  enemyNear: { edge: 'left', inset: 0.05, bottom: 0.36 },
-  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.3 },
+  enemyNear: { edge: 'left', inset: 0.05, bottom: 0.39 },
+  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.32 },
   /**
    * He is nearest, on the right, between her and it. Nearest means
    * largest, but only just: too much and he stops being a person
@@ -273,7 +273,7 @@ export const PROTOTYPE_PLACEMENTS = {
    * corner, and a wing disappearing under a panel is the one thing this
    * layout must not do.
    */
-  kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
+  kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
   /**
    * The player's side, in front of both of them: clear of the hero's
    * shoulder on one side and — because it stands much lower down the
