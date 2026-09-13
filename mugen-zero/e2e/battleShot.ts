@@ -75,10 +75,27 @@ test('STORY_GALD', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/${TAG}-STORY_GALD.png` });
 
   // And again once he is down, which is where his own line is.
-  await swingUntil(page, 'bp-attack', () =>
-    page.getByTestId('bp-enemy-downed').isVisible().catch(() => false),
-  );
-  await expect(page.getByTestId('bp-enemy-downed')).toBeVisible();
+  //
+  // TAPPING HER SCENE AWAY FIRST, which a picture of this fight has to
+  // do. Kaos steps forward partway through and her scene waits for a
+  // tap — `swingUntil` presses the commands by identity and goes on
+  // fighting underneath it, which is right for a test and wrong for a
+  // photograph: it produced a shot of the awakening panel with the end
+  // of the fight showing round its edges, a screen no player ever sees.
+  const scene = page.getByTestId('magic-awakening');
+  const down = page.getByTestId('bp-enemy-downed');
+  for (let i = 0; i < 60; i++) {
+    if (await down.isVisible().catch(() => false)) break;
+    if (await scene.isVisible().catch(() => false)) {
+      await scene.click({ timeout: 1500 }).catch(() => {});
+      continue;
+    }
+    await swingUntil(page, 'bp-attack', async () =>
+      (await down.isVisible().catch(() => false)) ||
+      (await scene.isVisible().catch(() => false)),
+    );
+  }
+  await expect(down).toBeVisible();
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/${TAG}-STORY_GALD_DOWN.png` });
 });

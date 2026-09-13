@@ -1196,6 +1196,18 @@ export function BattleUIPrototype({
             bottom: `${Math.max(0, plateAt.foot * 100 - 8.5)}%`,
           }}
         >
+          {/* THE STATE THEY HAVE GOT THEMSELVES INTO — above the plate,
+              not inside it. It used to sit on the name line, between
+              the name and the number, and the three of them did not
+              fit: 「死に物狂い」 wrapped to two lines and 「盗賊 ガルド」
+              was cut to 「盗賊 …」 by a panel too narrow to hold all
+              three, whatever the ten-character rule said. A badge is
+              not worth a name, so the badge moved. */}
+          {battle.enemyPhaseId && (
+            <i className="bp-phase" data-testid="bp-enemy-phase">
+              {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
+            </i>
+          )}
           <span className="bx-enemy-head">
             {/* Its own hook. The plate holds a name AND a number, so
                 "who is being fought" and "how much of them is left"
@@ -1203,11 +1215,6 @@ export function BattleUIPrototype({
             <b className="bx-enemy-name" data-testid="bp-enemy-name">
               {displayName(battle.enemyName)}
             </b>
-            {battle.enemyPhaseId && (
-              <i className="bp-phase" data-testid="bp-enemy-phase">
-                {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
-              </i>
-            )}
             <Readout
               now={battle.enemyHp}
               max={battle.enemyMaxHp}
