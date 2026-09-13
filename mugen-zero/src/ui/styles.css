@@ -3058,6 +3058,52 @@ body,
    side. On one line the two names came to more than the strip above
    them is wide and the Japanese ran off the end; stacked they are two
    short lines that fit whatever the strip does. */
+/* The place name and the ♪ beside it, on one line under TURN ORDER.
+   The row is only as wide as its contents, so the chip cannot stretch
+   the group or push the turn order about. */
+.bx-place-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ♪ — SMALL ON PURPOSE. It is not part of the fight: it belongs to
+   the player's ear, not to the turn. Big enough for a thumb at the
+   44px the rest of the game promises, drawn much smaller than that —
+   the padding carries the target and the ink stays out of the way of
+   the name it sits next to. */
+.bx-bgm {
+  appearance: none;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid var(--bx-gold-line);
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
+  color: var(--bx-gold-lit);
+  font-family: inherit;
+  line-height: 1;
+  cursor: pointer;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+.bx-bgm:active {
+  filter: brightness(1.3);
+}
+.bx-bgm-mark {
+  font-size: 11px;
+}
+.bx-bgm-count {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
 .bx-place {
   display: flex;
   flex-direction: column;

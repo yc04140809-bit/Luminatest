@@ -168,6 +168,18 @@ interface Props {
    */
   onEscape?: () => void;
   /**
+   * Move to the next piece of fighting music.
+   *
+   * Absent means no control is drawn — the screen does not decide
+   * whether changing the music is on offer, the caller does, and a
+   * preview that is not a real fight has no business writing a
+   * preference. Pressing it must never be a turn: it changes what the
+   * player is listening to and nothing about the battle.
+   */
+  onCycleBattleBgm?: () => void;
+  /** What the control says it is on, e.g. 「1/1」. */
+  battleBgmLabel?: string;
+  /**
    * What this world already remembers, in its own words, oldest first.
    *
    * Handed in rather than read: the battle screen must not open WORLD
@@ -360,6 +372,8 @@ export function BattleUIPrototype({
   onMugenChoice,
   onDefeat,
   onEscape,
+  onCycleBattleBgm,
+  battleBgmLabel = '1/1',
   memoryLines = [],
 }: Props) {
   /**
@@ -1292,9 +1306,31 @@ export function BattleUIPrototype({
 
         <div className="bx-corner bx-tc">
           <TurnOrder slots={turnSlots} artOf={turnArtOf} />
-          <div className="bx-place" data-testid="bx-place">
-            <b>{placeMark}</b>
-            <i>{placeName}</i>
+          <div className="bx-place-row">
+            <div className="bx-place" data-testid="bx-place">
+              <b>{placeMark}</b>
+              <i>{placeName}</i>
+            </div>
+            {/* ♪ — WHICH PIECE THIS FIGHT IS FOUGHT TO.
+                Beside the place name rather than in it, and small: it
+                is not part of the fight and must not push the name or
+                the turn order about. It changes one preference and
+                nothing else — no turn is taken, no timer is touched,
+                and the battle does not know it happened. */}
+            {onCycleBattleBgm && (
+              <button
+                className="bx-bgm"
+                data-testid="bp-bgm-cycle"
+                onClick={onCycleBattleBgm}
+                aria-label={`戦闘BGMを切り替える（${battleBgmLabel}）`}
+                title={`戦闘BGM ${battleBgmLabel}`}
+              >
+                <span className="bx-bgm-mark" aria-hidden="true">♪</span>
+                <span className="bx-bgm-count" data-testid="bp-bgm-label">
+                  {battleBgmLabel}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 

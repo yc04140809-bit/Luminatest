@@ -21,6 +21,18 @@ import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
 import greenwoodField from './backgrounds/field-greenwood.png';
 import aldenVillage from './backgrounds/location-alden-village.webp';
 import aldenTavern from './backgrounds/location-alden-tavern.webp';
+// THE MUSIC, AS DELIVERED. Byte-for-byte the files that were handed
+// over: 48 kHz stereo, about 190 kbps, 16 minutes between them. The
+// ordinary build ships exactly these. Only the single-file review
+// artifact substitutes anything, and it substitutes SEPARATE copies
+// that scripts/review-encode-assets.mjs writes elsewhere — these files
+// are never rewritten, resampled or overwritten.
+import bgmOpening from './audio/bgm/opening.mp3';
+import bgmKaosEvent from './audio/bgm/kaos-event.mp3';
+import bgmAldenVillage from './audio/bgm/alden-village.mp3';
+import bgmTavern from './audio/bgm/tavern.mp3';
+import bgmGreenwoodForest from './audio/bgm/greenwood-forest.mp3';
+import bgmNormalBattle from './audio/bgm/normal-battle.mp3';
 import titleKaosKeyVisual from './backgrounds/title-kaos-keyvisual.webp';
 import battleUiAutoOn from './ui/battle/chip-auto-on.png';
 import battleUiAutoOff from './ui/battle/chip-auto-off.png';
@@ -261,12 +273,12 @@ export type BgmId =
 export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 
 export const BGM_ASSETS: Record<BgmId, string | null> = {
-  OPENING: null,
-  KAOS_EVENT: null,
-  ALDEN_VILLAGE: null,
-  TAVERN: null,
-  GREENWOOD_FOREST: null,
-  NORMAL_BATTLE: null,
+  OPENING: bgmOpening,
+  KAOS_EVENT: bgmKaosEvent,
+  ALDEN_VILLAGE: bgmAldenVillage,
+  TAVERN: bgmTavern,
+  GREENWOOD_FOREST: bgmGreenwoodForest,
+  NORMAL_BATTLE: bgmNormalBattle,
 };
 
 /**

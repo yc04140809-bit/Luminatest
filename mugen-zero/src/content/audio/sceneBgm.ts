@@ -14,6 +14,7 @@
 import type { Screen } from '../../core/flow/types';
 import type { LocationId } from '../locations/locationVisuals';
 import type { BgmId } from '../../assets/manifest';
+import { DEFAULT_BATTLE_BGM, isBattleBgm } from './battleBgm';
 
 /**
  * Where the player is, in the only three terms the music cares about.
@@ -36,6 +37,15 @@ export interface SceneCue {
    * thoughts, and then her. Only the second is her event.
    */
   kaosSpeaking?: boolean;
+  /**
+   * Which fighting piece the player has chosen.
+   *
+   * Passed in rather than read, because this function must stay a
+   * function: the choice lives in localStorage and is the caller's to
+   * fetch. Absent means the default, which is what a save with no
+   * choice in it and a first-ever fight both amount to.
+   */
+  battleBgmId?: BgmId | null;
 }
 
 /** The places that are the greenwood rather than Alden. */
@@ -75,7 +85,10 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     // what a developer hears is what a player hears.
     case 'BATTLE':
     case 'BATTLE_UI_PROTOTYPE':
-      return 'NORMAL_BATTLE';
+      // Whichever piece the ♪ control is on. One is registered today,
+      // so this is 'NORMAL_BATTLE' every time; the day a second joins
+      // the list, this line already does the right thing.
+      return isBattleBgm(cue.battleBgmId) ? cue.battleBgmId : DEFAULT_BATTLE_BGM;
 
     // THE FOREST, walked — and the man standing in the road is still
     // the forest until the first blow.

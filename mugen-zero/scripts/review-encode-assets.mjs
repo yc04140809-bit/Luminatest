@@ -128,6 +128,21 @@ export const REVIEW_ASSETS = [
     out: join(REVIEW_ASSET_DIR, `kaos-exploration-${facing}.webp`),
     quality: 62,
   })),
+  // The two full-body townspeople, 2.0 MB of PNG between them and the
+  // last heavy artwork nobody had listed. They join at the SAME number
+  // as everything else rather than at a cut one: they are only here
+  // because they are in the game, but there was no reason to pay for
+  // them in PNG when WebP holds them at a fifth the weight. The room
+  // this frees is what the review build's music is paid for with —
+  // nothing already in this list got worse to make space for a song.
+  {
+    source: join(APP_DIR, 'src/assets/characters/bakery-owner/bakery-owner-fullbody.png'),
+    out: join(REVIEW_ASSET_DIR, 'bakery-owner-fullbody.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/lina/lina-fullbody.png'),
+    out: join(REVIEW_ASSET_DIR, 'lina-fullbody.webp'),
+  },
   // THE BATTLE UI, cut from the delivered asset pack. Small pieces, but
   // eighteen of them and every one carries an alpha channel, which PNG
   // is poor at: 1.2 MB of PNG for art that draws at 30-180 CSS pixels.
@@ -181,6 +196,104 @@ assert before == after, f'resolution changed: {before} -> {after}'
 print(f'{before[0]}x{before[1]}')
 `;
 
+// ---------------------------------------------------------------- //
+// THE MUSIC, FOR THE REVIEW BUILD ONLY.
+//
+// The same rule as the artwork above, and a harder arithmetic. The six
+// delivered pieces are 23 MB of 48 kHz stereo MP3 — sixteen minutes of
+// music — and the artifact they have to fit inside may not exceed 16
+// MiB in total, base64 included. There is no encoding of sixteen
+// minutes that fits in what is left of that.
+//
+// So a review copy of a piece of music is not the piece: it is a
+// RECOGNISABLE EXCERPT of it, looping. Long enough to know which piece
+// is playing and to hear one scene cross into the next, short enough
+// that six of them fit. That is exactly what the artifact is for — 
+// checking that the right music plays in the right place on a real
+// phone — and it is not what the game ships. `npm run build` uses the
+// delivered files, untouched, at their delivered quality.
+//
+// The delivered files are never rewritten, resampled or overwritten.
+
+/** Where the excerpt starts. Past the intro, into the piece proper. */
+const REVIEW_AUDIO_FROM_S = 8;
+/**
+ * How much of it. Forty-five seconds is long enough to recognise a
+ * piece and to hear a crossfade land, and six of them fit.
+ */
+const REVIEW_AUDIO_SECONDS = 45;
+/**
+ * STEREO, deliberately, and the bitrate takes the cut instead.
+ *
+ * Mono would buy about a third and it would buy it in the one place
+ * that matters: what these pieces are being checked for is whether
+ * they belong in their scene, and half the width of a mix is half the
+ * evidence. 48 kbps joint stereo at 32 kHz is a poor copy of a good
+ * recording — and it is a copy of the right recording, in stereo.
+ */
+const REVIEW_AUDIO_BITRATE = '48k';
+const REVIEW_AUDIO_RATE = 32000;
+
+export const REVIEW_AUDIO = [
+  'opening',
+  'kaos-event',
+  'alden-village',
+  'tavern',
+  'greenwood-forest',
+  'normal-battle',
+].map((name) => ({
+  source: join(APP_DIR, `src/assets/audio/bgm/${name}.mp3`),
+  out: join(REVIEW_ASSET_DIR, `${name}.mp3`),
+}));
+
+/**
+ * Writes the review copies of the music.
+ *
+ * `-vn` is not optional: every one of these files carries a 360x640
+ * cover image as a video stream, and without it ffmpeg copies the
+ * artwork into the excerpt — which cost more than the audio did.
+ */
+export function encodeReviewAudio() {
+  mkdirSync(REVIEW_ASSET_DIR, { recursive: true });
+  const made = [];
+  for (const track of REVIEW_AUDIO) {
+    if (!existsSync(track.source)) {
+      throw new Error(`Review encoding: ${track.source} is missing.`);
+    }
+    try {
+      execFileSync(
+        'ffmpeg',
+        [
+          '-v', 'error', '-y',
+          '-ss', String(REVIEW_AUDIO_FROM_S),
+          '-i', track.source,
+          '-vn',                       // leave the cover art behind
+          '-t', String(REVIEW_AUDIO_SECONDS),
+          '-ac', '2',                  // stereo, on purpose
+          '-ar', String(REVIEW_AUDIO_RATE),
+          '-b:a', REVIEW_AUDIO_BITRATE,
+          '-map_metadata', '-1',       // no tags to carry
+          track.out,
+        ],
+        { encoding: 'utf-8' },
+      );
+    } catch (error) {
+      throw new Error(
+        `Review encoding needs ffmpeg to build the single-file artifact ` +
+          `(the delivered music is 23 MB and the artifact limit is 16 MiB). ` +
+          `Install it, or build with the regular config, which uses the ` +
+          `delivered MP3s exactly as they are.\n${error}`,
+      );
+    }
+    made.push({
+      out: track.out,
+      from: statSync(track.source).size,
+      to: statSync(track.out).size,
+    });
+  }
+  return made;
+}
+
 /**
  * Writes the review copies. Throws rather than letting a build quietly
  * ship the wrong thing — an artifact that silently lost its artwork is
@@ -222,5 +335,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const m of encodeReviewAssets()) {
     const pct = Math.round((m.to / m.from) * 100);
     console.log(`${m.out} ${m.size} ${(m.to / 1e6).toFixed(2)}MB (${pct}% of the PNG)`);
+  }
+  for (const m of encodeReviewAudio()) {
+    const pct = Math.round((m.to / m.from) * 100);
+    console.log(`${m.out} ${(m.to / 1e6).toFixed(2)}MB (${pct}% of the delivered MP3)`);
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { bgmForScene, type SceneCue } from './sceneBgm';
 import { BGM_ASSETS } from '../../assets/manifest';
 import type { Screen } from '../../core/flow/types';
+import { DEFAULT_BATTLE_BGM } from './battleBgm';
 
 const at = (screen: Screen, rest: Partial<SceneCue> = {}): SceneCue => ({
   screen,
@@ -135,5 +136,79 @@ describe('the mapping as a whole', () => {
       ].map(bgmForScene),
     );
     expect(reached).toEqual(new Set(Object.keys(BGM_ASSETS)));
+  });
+});
+
+/**
+ * COMING BACK OUT OF A FIGHT.
+ *
+ * 「戦闘終了後は直前の探索／村／酒場BGMへ復帰」 — and the reason this
+ * needs no machinery at all is worth writing down, because the obvious
+ * implementation of it (remember what was playing, restore it) is a
+ * second source of truth that can disagree with the first. The music
+ * is a function of where the player IS. Coming out of a fight puts
+ * them back where they were, so the music that belongs there is the
+ * music that was there. Nothing is remembered because nothing needs
+ * to be.
+ */
+describe('what is playing after a fight', () => {
+  it('is the forest again, for a fight in the forest', () => {
+    const walking = at('GREENWOOD');
+    expect(bgmForScene(walking)).toBe('GREENWOOD_FOREST');
+    expect(bgmForScene(at('BATTLE'))).toBe('NORMAL_BATTLE');
+    // Won, and back on the path they were walking.
+    expect(bgmForScene(walking)).toBe('GREENWOOD_FOREST');
+  });
+
+  it('is the village again, for a fight walked out of into the village', () => {
+    expect(bgmForScene(at('BATTLE'))).toBe('NORMAL_BATTLE');
+    expect(bgmForScene(at('HOME'))).toBe('ALDEN_VILLAGE');
+  });
+
+  it('is the tavern again, for somebody who was in the tavern', () => {
+    const inTheTavern = at('TALK_SPOT', { locationId: 'MOONLIGHT_TAVERN' });
+    expect(bgmForScene(inTheTavern)).toBe('TAVERN');
+    expect(bgmForScene(at('BATTLE'))).toBe('NORMAL_BATTLE');
+    expect(bgmForScene(inTheTavern)).toBe('TAVERN');
+  });
+
+  /** The same rule, for her scenes: after them, wherever the player is. */
+  it('is whatever the room is, after one of her scenes', () => {
+    expect(bgmForScene(at('LIFE_CHOICE'))).toBe('KAOS_EVENT');
+    expect(bgmForScene(at('CHOICE_RESULT'))).toBe('KAOS_EVENT');
+    expect(bgmForScene(at('HOME'))).toBe('ALDEN_VILLAGE');
+    expect(bgmForScene(at('GREENWOOD'))).toBe('GREENWOOD_FOREST');
+  });
+});
+
+/**
+ * WHICH FIGHT MUSIC — the ♪ control, from the map's side.
+ */
+describe('the piece a fight is fought to', () => {
+  it('is whichever the player last chose', () => {
+    expect(bgmForScene(at('BATTLE', { battleBgmId: DEFAULT_BATTLE_BGM }))).toBe(DEFAULT_BATTLE_BGM);
+  });
+
+  it('is the default for a save that has never chosen', () => {
+    expect(bgmForScene(at('BATTLE'))).toBe(DEFAULT_BATTLE_BGM);
+    expect(bgmForScene(at('BATTLE', { battleBgmId: null }))).toBe(DEFAULT_BATTLE_BGM);
+  });
+
+  /**
+   * A choice naming something that is not fighting music — a stale
+   * save, a hand-edited key — plays the default rather than putting
+   * the village theme over a battle.
+   */
+  it('refuses a choice that is not a piece of fighting music', () => {
+    expect(bgmForScene(at('BATTLE', { battleBgmId: 'ALDEN_VILLAGE' }))).toBe(DEFAULT_BATTLE_BGM);
+  });
+
+  it('changes nothing outside a fight', () => {
+    const chosen = { battleBgmId: DEFAULT_BATTLE_BGM } as const;
+    expect(bgmForScene(at('GREENWOOD', chosen))).toBe('GREENWOOD_FOREST');
+    expect(bgmForScene(at('HOME', chosen))).toBe('ALDEN_VILLAGE');
+    expect(bgmForScene(at('TALK_SPOT', { ...chosen, locationId: 'MOONLIGHT_TAVERN' }))).toBe(
+      'TAVERN',
+    );
   });
 });

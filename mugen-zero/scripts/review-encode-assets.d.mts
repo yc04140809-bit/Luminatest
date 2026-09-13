@@ -21,3 +21,21 @@ export interface ReviewEncodeResult {
 }
 
 export declare function encodeReviewAssets(): ReviewEncodeResult[];
+
+/**
+ * The music, for the review build only.
+ *
+ * Same shape as a ReviewAsset and a different kind of encode: a
+ * 45-second excerpt at 48 kbps stereo, because sixteen minutes of
+ * delivered music does not fit in a 16 MiB artifact at any bitrate.
+ * The delivered files are read and never written to.
+ */
+export declare const REVIEW_AUDIO: ReviewAsset[];
+
+export interface ReviewAudioResult {
+  out: string;
+  from: number;
+  to: number;
+}
+
+export declare function encodeReviewAudio(): ReviewAudioResult[];

@@ -33,6 +33,8 @@ import {
 } from './platform/settings';
 import { audioManager } from './platform/audio';
 import { useSceneBgm } from './ui/audio/useSceneBgm';
+import { battleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
+import { battleBgmLabel, nextBattleBgm } from './content/audio/battleBgm';
 import { setHapticEnabled } from './platform/haptics';
 import { PlaytestFeedbackService, isSurveyAvailable } from './core/playtest/playtestService';
 import { IdbFeedbackStore } from './core/playtest/idbFeedbackStore';
@@ -124,6 +126,22 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
    * starts on the monologue's music again.
    */
   const [kaosSpeaking, setKaosSpeaking] = useState(false);
+  /**
+   * Which piece this player fights to.
+   *
+   * Read from the preference on boot rather than defaulted, so the
+   * choice made in the last fight is the one this fight opens with.
+   * State as well as storage because the music has to change the
+   * moment ♪ is pressed, not the next time the app starts.
+   */
+  const [battleBgmId, setBattleBgmId] = useState(battleBgmChoice);
+  const cycleBattleBgm = useCallback(() => {
+    setBattleBgmId((at) => {
+      const next = nextBattleBgm(at);
+      setBattleBgmChoice(next);
+      return next;
+    });
+  }, []);
   // Where the two of them were standing when a fight took them off the
   // forest screen. Runtime only: never saved, never world truth, and
   // cleared the moment the player walks out of the forest on purpose.
@@ -279,6 +297,7 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
     screen: state.screen,
     locationId: currentLocationId,
     kaosSpeaking: state.screen === 'PROLOGUE' && kaosSpeaking,
+    battleBgmId,
   });
 
   const screen = renderScreen();
@@ -682,6 +701,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
               void flushArcana().finally(() => flow.goTo('HOME'));
             }}
             memoryLines={worldMemoryLines}
+            onCycleBattleBgm={cycleBattleBgm}
+            battleBgmLabel={battleBgmLabel(battleBgmId)}
             // Leaving is neither winning nor losing. No victory is
             // resolved, no creature is named, nothing is written down —
             // the player walks back out of the clearing and the animal
@@ -777,6 +798,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           // this call site says the same thing as every other.
           magicUnlocked={kaosAwakened}
           memoryLines={worldMemoryLines}
+          onCycleBattleBgm={cycleBattleBgm}
+          battleBgmLabel={battleBgmLabel(battleBgmId)}
           onNormalEnd={() => flow.goTo('LIFE_CHOICE')}
           // Unreachable — this fight never asks the creature's
           // question — and the screen requires an answer for it, so the

@@ -8,7 +8,12 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 import { execSync } from 'node:child_process';
 import { basename } from 'node:path';
-import { encodeReviewAssets, REVIEW_ASSETS } from './scripts/review-encode-assets.mjs';
+import {
+  encodeReviewAssets,
+  encodeReviewAudio,
+  REVIEW_ASSETS,
+  REVIEW_AUDIO,
+} from './scripts/review-encode-assets.mjs';
 
 /**
  * Build identity, so a QA REPORT can say which build it describes. Read
@@ -39,7 +44,8 @@ function gitCommit(): string {
  */
 function reviewAssetAliases(): { find: RegExp; replacement: string }[] {
   encodeReviewAssets();
-  return REVIEW_ASSETS.map((asset) => ({
+  encodeReviewAudio();
+  return [...REVIEW_ASSETS, ...REVIEW_AUDIO].map((asset) => ({
     // Matched against the import specifier and replaced whole: the
     // specifier is relative, so the pattern has to swallow the leading
     // ../.. as well as the tail that identifies the file.
@@ -51,8 +57,6 @@ function reviewAssetAliases(): { find: RegExp; replacement: string }[] {
   }));
 }
 
-/** Never inlined, however small the file happens to be today. */
-const AUDIO_EXTENSIONS = /\.(mp3|ogg|m4a|wav|aac|flac|opus|webm)$/i;
 
 const buildDefine = {
   __BUILD_COMMIT__: JSON.stringify(gitCommit()),
@@ -93,16 +97,23 @@ export default defineConfig({
   resolve: { alias: reviewAssetAliases() },
   build: {
     outDir: 'dist-singlefile',
-    // Inline every asset (the Kaos portraits) as data URIs — except
-    // audio. A song is the one kind of asset that is large by nature and
-    // gains nothing from being in the HTML: base64 adds a third again to
-    // a file that is already megabytes, and this artifact has a 16 MB
-    // limit it has already been up against once. Music stays an external
-    // file, which in a single-file artifact means the opening theme is
-    // silent there. The artifact is for looking at, not for listening
-    // to; the repository build serves the file normally.
-    assetsInlineLimit: (filePath: string) =>
-      AUDIO_EXTENSIONS.test(filePath) ? false : undefined,
+    /**
+     * INLINE EVERYTHING, MUSIC INCLUDED — which it was not, until now.
+     *
+     * This used to exclude audio on the grounds that a song is large by
+     * nature and gains nothing from being in the HTML. That was true of
+     * the delivered music and it had a consequence nobody wanted: in a
+     * single-file artifact an external file is a file that is not
+     * there, so the artifact was silent. "The artifact is for looking
+     * at, not for listening to" is not good enough for a round whose
+     * whole subject is the music.
+     *
+     * What is inlined is not the delivered music. `reviewAssetAliases`
+     * has already swapped every track for a 45-second excerpt at 48
+     * kbps — about a twelfth of the weight — and those are what the
+     * artifact carries. The repository build has no idea this exists
+     * and serves the delivered files whole.
+     */
     cssCodeSplit: false,
     rollupOptions: {
       output: {
