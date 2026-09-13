@@ -34,6 +34,23 @@ export const BGM_FADE_MS = 500;
 /** The same step as the opening's. One clock for all fading. */
 const BGM_FADE_STEP_MS = 40;
 
+/**
+ * How long the opening waits before it starts.
+ *
+ * A second, and only the opening: every other piece begins the moment
+ * the player walks into the room it belongs to. The title is not a
+ * room. It is a picture somebody has just arrived at, and music that
+ * arrives at the same instant arrives ON TOP of that rather than with
+ * it — the beat of quiet is what makes the first note land.
+ *
+ * It is a DELAY, not a schedule: whatever else happens in that second
+ * — the player taps through to the prologue, the music is turned off,
+ * a different piece is asked for — wins, because the timer checks
+ * what the game is currently asking for rather than replaying what it
+ * asked for a second ago.
+ */
+export const OPENING_START_DELAY_MS = 1000;
+
 /** Volumes are a browser API and it throws outside nought and one. */
 function clampVolume(v: number): number {
   return Math.max(0, Math.min(1, v));
@@ -51,6 +68,7 @@ export class AudioManager {
    * rooms must not end up listening to three pieces of music.
    */
   private bgmFade: ReturnType<typeof setInterval> | null = null;
+  private bgmDelay: ReturnType<typeof setTimeout> | null = null;
   private bgmOut: HTMLAudioElement | null = null;
   private gestureListening = false;
   private seVolume = 0.8;
@@ -263,7 +281,7 @@ export class AudioManager {
   playBgm(id: BgmId): void {
     if (this.currentBgmId === id && (this.bgm || !this.unlocked)) return;
     this.currentBgmId = id;
-    this.startBgm(id, { fade: true });
+    this.startBgm(id, { fade: true, wait: true });
   }
 
   /**
@@ -274,7 +292,40 @@ export class AudioManager {
    * the id is already current and nothing is playing, which is exactly
    * the case the guard exists to swallow.
    */
-  private startBgm(id: BgmId, { fade }: { fade: boolean }): void {
+  private startBgm(id: BgmId, { fade, wait = false }: { fade: boolean; wait?: boolean }): void {
+    // A pending opening is cancelled by anything at all: this is the
+    // next request arriving, and the one that was waiting is no longer
+    // what the game wants.
+    if (this.bgmDelay) {
+      clearTimeout(this.bgmDelay);
+      this.bgmDelay = null;
+    }
+    /**
+     * THE OPENING, AND ONLY THE OPENING, WAITS A BEAT.
+     *
+     * `wait` is passed rather than worked out, and that is the whole
+     * of why this is correct: the first version asked "is this the
+     * opening, and is nothing playing?" — which is still true a second
+     * later when the timer re-enters, so it set another timer, and the
+     * music never started at all. A caller says whether it is asking
+     * for the wait; the timer asks without it.
+     *
+     * It is a DELAY, not a schedule. A second later the game may want
+     * something else entirely — the player tapped through to the
+     * prologue, the music was turned off — so the timer checks what is
+     * being asked for NOW rather than replaying what was asked for
+     * then.
+     */
+    if (wait && id === 'OPENING') {
+      this.retireCurrentBgm(false);
+      this.bgmDelay = setTimeout(() => {
+        this.bgmDelay = null;
+        if (this.currentBgmId === 'OPENING' && !this.bgm) {
+          this.startBgm('OPENING', { fade: true, wait: false });
+        }
+      }, OPENING_START_DELAY_MS);
+      return;
+    }
     const src = BGM_ASSETS[id];
     // Whatever was playing stops either way: a scene with no music yet
     // is SILENT, not "the last room, still going".
@@ -366,6 +417,10 @@ export class AudioManager {
 
   stopBgm(): void {
     this.currentBgmId = null;
+    if (this.bgmDelay) {
+      clearTimeout(this.bgmDelay);
+      this.bgmDelay = null;
+    }
     this.endBgmFade();
     this.release(this.bgm);
     this.bgm = null;

@@ -154,6 +154,54 @@ export function partyFormation(count: number): readonly SlotPlacement[] {
 // e2e/battleFormation.spec.ts holds them to these values at three
 // widths, so the next thing that moves them has to mean it.
 
+// ---------------------------------------------------------------------
+// DEPTH — the field is looked DOWN on, not along.
+//
+// The fight was reading as a side-scroller: both sides at the same
+// height on the glass, a line rather than a clearing. What was missing
+// was not a new axis — `bottom` has always been one, because a ground
+// line further up the picture is ground further away — but the second
+// half of what that means. Something further away is also SMALLER, and
+// without that the picture has depth written into it and nothing on
+// screen showing it.
+//
+// So a figure's size now follows its ground line. Nothing else changes:
+// the same table, the same shares, the same left and right. A character
+// nearer the camera is drawn a little larger because they are nearer,
+// which is what a three-quarter view IS.
+//
+// THIS IS NOT A CHANGE TO HOW BIG ANYBODY IS. `content/art/spriteFrames`
+// says how tall a person is, head for head, and that is a fact about
+// them: Gald and the hero are the same size and were measured to be.
+// What this adds is perspective on top of it — the near man is bigger
+// on the glass in the way the near man in a photograph is, and the two
+// of them swap sizes if they swap places.
+
+/** The nearest ground line the camera is drawn for. */
+export const NEAR_GROUND = 0.02;
+/** And the furthest — past the enemy's own line, with room above it. */
+export const FAR_GROUND = 0.46;
+/** How much of themselves somebody standing at the near line gets. */
+export const NEAR_SCALE = 1.1;
+/** And at the far line. */
+export const FAR_SCALE = 0.86;
+
+/**
+ * How big somebody standing on this ground line is drawn.
+ *
+ * A straight line between the two ends, clamped: a ground line outside
+ * the camera's range is not an error, it is somebody standing at the
+ * limit of it. The spread is deliberately small — a quarter, end to
+ * end. Enough that two people a few feet apart are visibly not the same
+ * distance away; little enough that nobody becomes a giant, which is
+ * the failure this had the last time somebody's scale moved.
+ */
+export function depthScale(bottom: number): number {
+  const span = FAR_GROUND - NEAR_GROUND;
+  const t = Math.max(0, Math.min(1, (bottom - NEAR_GROUND) / span));
+  return NEAR_SCALE + (FAR_SCALE - NEAR_SCALE) * t;
+}
+
 /** Which edge of the field a placement's inset is measured from. */
 export type FieldEdge = 'left' | 'right';
 
@@ -215,7 +263,7 @@ export const PROTOTYPE_PLACEMENTS = {
    * that one. Between the two there is about a fiftieth of the field to
    * move in, and this is where it sits.
    */
-  hero: { edge: 'right', inset: 0.33, bottom: 0.27, depth: 2 },
+  hero: { edge: 'right', inset: 0.33, bottom: 0.24, depth: 3 },
   /**
    * She is a step behind him and a little further back, close enough to
    * read as one party rather than two people on the same side. Her wings
@@ -225,7 +273,7 @@ export const PROTOTYPE_PLACEMENTS = {
    * corner, and a wing disappearing under a panel is the one thing this
    * layout must not do.
    */
-  kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
+  kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
   /**
    * The player's side, in front of both of them: clear of the hero's
    * shoulder on one side and — because it stands much lower down the
@@ -233,6 +281,35 @@ export const PROTOTYPE_PLACEMENTS = {
    */
   summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
 } as const satisfies Readonly<Record<string, PrototypePlacement>>;
+
+/**
+ * THE FOUR PLACES A FIGHT IS DRAWN FOR, once there is more than one of
+ * anybody on either side.
+ *
+ * Named rather than derived, because they are a SHAPE — a front rank
+ * and a rank behind it, on each side, stepped up the path and away from
+ * the camera — and the shape is the thing that has to hold when the
+ * cast changes. One creature and two people today; the day a second
+ * enemy or a fourth ally arrives, this is where they stand and nothing
+ * else moves.
+ *
+ * Left is the enemy's and right is the party's, always. That is fixed
+ * elsewhere too, but it is worth saying here as well: these names are
+ * about DEPTH, and nothing in them may be read as permission to put
+ * anybody on the other side of the field.
+ */
+export const DEPTH_RANKS = {
+  /** Furthest from the camera, and smallest for it. */
+  enemyBack: { edge: 'left', inset: 0.02, bottom: 0.42, depth: 1 },
+  /** The one being fought, nearer. */
+  enemyFront: { edge: 'left', inset: 0.05, bottom: 0.34, depth: 2 },
+  /** The party's front rank, nearest the camera of anybody. */
+  playerFront: { edge: 'right', inset: 0.33, bottom: 0.22, depth: 4 },
+  /** And the rank behind it. */
+  playerRear: { edge: 'right', inset: 0.15, bottom: 0.34, depth: 3 },
+} as const satisfies Readonly<Record<string, PrototypePlacement>>;
+
+export type DepthRank = keyof typeof DEPTH_RANKS;
 
 export type PrototypeSlot = keyof typeof PROTOTYPE_PLACEMENTS;
 

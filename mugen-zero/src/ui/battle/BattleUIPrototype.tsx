@@ -19,6 +19,9 @@ import {
   type BattleSpeed,
 } from '../../game/battle/battleSpeed';
 import { MagicTray } from './MagicTray';
+import { HitFx } from './HitFx';
+import { CUT_IN_MS, SkillCutIn, type CutIn } from './SkillCutIn';
+import { stagecraftFor, stagecraftLevels } from './stagecraft';
 import { AwakeningScene } from './AwakeningScene';
 import { spriteHeight } from '../../content/art/spriteFrames';
 import {
@@ -67,7 +70,7 @@ import {
   turnOrderLine,
   type TurnActor,
 } from './battleHud';
-import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS } from './formation';
+import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS, depthScale } from './formation';
 import { creatureOpponent, type BattleOpponent } from './opponent';
 import { locationNameOf } from '../../content/locations/alden';
 import { BATTLE_UI } from '../../assets/manifest';
@@ -306,6 +309,27 @@ const VICTORY_WAIT_MS = 1900;
  * is a second SCREEN with AUTO on it, not a second AUTO.
  */
 const AUTO_GAP_MS = 550;
+/**
+ * How long the moment of contact is drawn for.
+ *
+ * `visualMs` rather than `beatMs`: at twice speed the FIGHT is twice as
+ * fast and an effect that also halved would be a flicker. The theatre
+ * shortens; what the eye has to catch does not shorten as much.
+ */
+const HIT_FX_MS = 520;
+/**
+ * And the shortest it may become.
+ *
+ * Twice speed halves the theatre, and half of this would put the
+ * number on and off the screen inside a third of a second — which is
+ * a flicker rather than something read. `visualMs` takes the longer of
+ * the halved figure and this floor, so ×2 is a faster fight and not an
+ * unreadable one.
+ */
+const HIT_FX_FLOOR_MS = 380;
+/** A cut-in may shorten at ×2, but not below being seen. */
+const CUT_IN_FLOOR_MS = 260;
+
 /** And how long it leaves the awakening on screen before moving on. */
 const AUTO_READ_MS = 2200;
 
@@ -452,6 +476,23 @@ export function BattleUIPrototype({
   const [arcanaTrayOpen, setArcanaTrayOpen] = useState(false);
   const completeArcana = arcana.filter((a) => a.complete);
   const [beat, setBeat] = useState<string>('NONE');
+  /**
+   * The blow now being drawn, if there is one.
+   *
+   * `key` is what replays it: a new blow is a new key, React replaces
+   * the element and every animation inside it starts from nought, so a
+   * second swing landing before the first has finished cannot leave
+   * half an effect on the field. Null between blows.
+   */
+  const [hit, setHit] = useState<{
+    key: number;
+    on: 'enemy' | 'hero';
+    amount: number;
+  } | null>(null);
+  const hitKey = useRef(0);
+  /** The cut-in now playing, if any. A new key replays it. */
+  const [cutIn, setCutIn] = useState<{ key: number; cut: CutIn } | null>(null);
+  const cutInKey = useRef(0);
   /**
    * Where the fight is looking.
    *
@@ -636,6 +677,54 @@ export function BattleUIPrototype({
    * camera has not been taught yet — guarding, magic, a summon. Those
    * play exactly as they did, with the field at rest.
    */
+  /**
+   * A blow, drawn at the moment it lands.
+   *
+   * NOT AT THE MOMENT IT IS DECIDED. The fight resolves the whole turn
+   * in one call and the theatre plays it afterwards, so firing this
+   * immediately would flash the creature before the hero had moved. It
+   * waits for the swing to arrive — about two fifths of the way through
+   * the step, which is where the stylesheet puts his weight on the
+   * front foot — and clears itself when the beat is over.
+   */
+  const strike = (on: 'enemy' | 'hero', amount: number) => {
+    const contact = Math.round(beatLength('STRIKE', speed) * 0.38);
+    timers.current.push(
+      window.setTimeout(() => {
+        hitKey.current += 1;
+        setHit({ key: hitKey.current, on, amount });
+      }, contact),
+    );
+    timers.current.push(
+      window.setTimeout(() => setHit(null), contact + beatLength('HURT', speed) + 260),
+    );
+  };
+
+  /**
+   * Put a cut-in on screen, and take it off again.
+   *
+   * Scheduled into the same `timers` array as everything else, so the
+   * next turn cancelling the theatre cancels this too — a cut-in must
+   * never outlive the beat it belongs to.
+   */
+  const cutTo = (cut: CutIn) => {
+    const held = visualMs(CUT_IN_MS, speed, CUT_IN_FLOOR_MS);
+    cutInKey.current += 1;
+    setCutIn({ key: cutInKey.current, cut });
+    timers.current.push(window.setTimeout(() => setCutIn(null), held));
+  };
+
+  /**
+   * ANYTHING SCHEDULED BEFORE THIS IS THROWN AWAY.
+   *
+   * `play` opens a turn by cancelling every timer the last one left —
+   * which is right, and is what stops a half-finished theatre running
+   * over the next move. It also means `strike` and `cutTo` must be
+   * called AFTER it, never before: both put their own timers in the
+   * same array, and both were written the wrong way round once. The
+   * symptom is not an error. It is an effect that never appears, or one
+   * that never leaves.
+   */
   const play = (sequence: string[], filming: 'hero' | null = null) => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
@@ -750,6 +839,19 @@ export function BattleUIPrototype({
     // One case, filmed: an ordinary swing. Guarding plays as it always
     // has, with the field at rest, until somebody asks for its own shot.
     play([kind === 'ATTACK' ? 'STRIKE' : 'GUARD', ...answerOf(next)], kind === 'ATTACK' ? 'hero' : null);
+    // AFTER `play`, NOT BEFORE IT. `play` starts a turn by cancelling
+    // everything the last one had scheduled — which is right, and which
+    // silently swallowed this when it was called first: the blow was
+    // scheduled and then cleared a line later, and no effect ever
+    // reached the screen.
+    //
+    // WHAT IT COST, read off the fight rather than out of its log. The
+    // difference in the creature's health IS the damage, so the number
+    // on screen cannot disagree with the number the fight applied —
+    // there is only one of them.
+    if (kind === 'ATTACK') {
+      strike('enemy', Math.max(0, battle.enemyHp - next.enemyHp));
+    }
   };
 
   /**
@@ -767,11 +869,22 @@ export function BattleUIPrototype({
     setSaid(null);
     const next = castMagic(battle, magic, undefined, forcedEnemyAction);
     setBattle(next);
+
     if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
     if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
     if (next.outcome === 'VICTORY') observe('WON_A_FIGHT');
     if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
     play(['MAGIC', ...answerOf(next)]);
+    // AFTER `play`, for the reason written on `play` itself: it opens a
+    // turn by cancelling everything the last one scheduled, so a
+    // cut-in asked for before it is a cut-in whose removal timer is
+    // thrown away — and it never leaves the screen.
+    //
+    // HER SKILL GETS A CUT-IN. A quarter of a second of punctuation —
+    // whose it is, what it is called — and then the field again. The
+    // foundation is the same for anybody: a character with a portrait
+    // registered gets a face in it, and one without gets the band.
+    cutTo({ actorId: 'kaos', skillName: magic.name });
   };
 
   const decide = (choice: LifeChoiceId) => {
@@ -892,13 +1005,37 @@ export function BattleUIPrototype({
    * the "a little smaller, with ground between them" the overhaul asks
    * for and the room three and four of them will stand in.
    */
-  const figure = (id: string, state: string | null) =>
-    Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE);
+  /**
+   * WHICH SLOT the other side is standing in.
+   *
+   * Named here rather than where the placement is read, because the
+   * ground line decides how big they are DRAWN as well as where they
+   * stand, and the sizing happens first.
+   */
+  const enemySlot =
+    opponent.stands === 'NEAR'
+      ? showingDown
+        ? ('enemyNearDowned' as const)
+        : ('enemyNear' as const)
+      : showingDown
+        ? ('enemyDowned' as const)
+        : ('enemy' as const);
+  const figure = (id: string, state: string | null, ground: number) =>
+    Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE * depthScale(ground));
+  // AND WHERE THEY ARE STANDING DECIDES HOW BIG THEY ARE DRAWN.
+  //
+  // Not how big they ARE — that is settled, head for head, in
+  // content/art/spriteFrames, and Gald and the hero are the same man's
+  // height there. This is the other thing a three-quarter view has to
+  // say: the near one is larger on the glass because he is nearer, the
+  // far one smaller because he is further, and they would swap if they
+  // swapped places. Without it the ground line is depth the picture
+  // never shows.
   const stage = {
-    enemy: figure(opponent.artId, enemyShown.state),
-    hero: figure('hero', heroShown.state),
-    kaos: figure('kaos', kaosShown.state),
-    summon: figure('arcana_summon', null),
+    enemy: figure(opponent.artId, enemyShown.state, PROTOTYPE_PLACEMENTS[enemySlot].bottom),
+    hero: figure('hero', heroShown.state, PROTOTYPE_PLACEMENTS.hero.bottom),
+    kaos: figure('kaos', kaosShown.state, PROTOTYPE_PLACEMENTS.kaos.bottom),
+    summon: figure('arcana_summon', null, PROTOTYPE_PLACEMENTS.summon.bottom),
   };
 
   /**
@@ -977,16 +1114,33 @@ export function BattleUIPrototype({
    * this is that, plus half a creature, and the measurement replaces it
    * on the first frame it can.
    */
-  const enemyHome =
-    PROTOTYPE_PLACEMENTS[
-      opponent.stands === 'NEAR'
-        ? showingDown
-          ? 'enemyNearDowned'
-          : 'enemyNear'
-        : showingDown
-          ? 'enemyDowned'
-          : 'enemy'
-    ];
+  const enemyHome = PROTOTYPE_PLACEMENTS[enemySlot];
+  /**
+   * Where on the field a blow is drawn.
+   *
+   * Chest height on whoever was hit, taken from their own slot: the
+   * formation already knows where they are standing, so the effect
+   * follows them without measuring anything and without a second copy
+   * of the placement. `x` is turned from an inset — which is measured
+   * from that character's OWN edge — into a share of the field.
+   */
+  /**
+   * HOW MUCH OF THE READING IS ON SCREEN.
+   *
+   * At rest, all of it. While a blow lands or a cut-in plays, the
+   * corners step back so the field is what the player is looking at —
+   * and the numbers that say how the fight is going step back less,
+   * because losing track of your own health to a prettier screen is
+   * not a trade anybody agreed to.
+   */
+  const stagecraft = stagecraftFor({ cutIn: cutIn !== null, hitting: hit !== null });
+  const levels = stagecraftLevels(stagecraft);
+
+  const hitSlot = hit?.on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : enemyHome;
+  const hitPoint = {
+    x: hitSlot.edge === 'left' ? hitSlot.inset + 0.08 : 1 - hitSlot.inset - 0.08,
+    y: hitSlot.bottom + 0.16,
+  };
   const plateAt = enemyBox ?? { mid: enemyHome.inset + 0.07, foot: enemyHome.bottom };
   useEffect(() => {
     const stageEl = stageRef.current;
@@ -1076,7 +1230,7 @@ export function BattleUIPrototype({
              corners of it — so the fight is what the player is looking
              at, and the reading happens at the edges of their eye. */}
       <div
-        className={`bp-stage${accidentStageClass(accidentBeat)}`}
+        className={`bp-stage${accidentStageClass(accidentBeat)}${hit ? ' kick' : ''}`}
         ref={stageRef}
         data-accident={accidentBeat === 'NONE' ? undefined : accidentBeat}
         // What the camera is doing, for the one CSS rule that needs to
@@ -1087,11 +1241,30 @@ export function BattleUIPrototype({
       >
         {backdrop && <img className="bp-bg" src={backdrop} alt="" aria-hidden="true" />}
 
+        {/* THE BLOW, where it landed. Drawn against the slot of whoever
+            was hit, so it follows them as the formation moves them and
+            needs no measurement of its own. Above the field and below
+            the reading — a player must never lose a health bar behind
+            an effect. */}
+        {hit && (
+          <HitFx
+            fxKey={hit.key}
+            at={hitPoint}
+            amount={hit.amount}
+            ms={visualMs(HIT_FX_MS, speed, HIT_FX_FLOOR_MS)}
+            facing={hit.on === 'enemy' ? 'left' : 'right'}
+          />
+        )}
+
+        {/* THE CUT-IN, over the field for a quarter of a second. */}
+        {cutIn && <SkillCutIn key={cutIn.key} cut={cutIn.cut} ms={visualMs(CUT_IN_MS, speed, CUT_IN_FLOOR_MS)} />}
+
         {/* 2. The creature: left, and further up the path than they are,
                which is what makes the ground between them a distance. */}
         <div
           className={[
             'bp-actor bp-enemy',
+            hit?.on === 'enemy' ? 'flash' : '',
             beat === 'TACKLE' ? 'tackle' : '',
             beat === 'HIDE' ? 'hide' : '',
             beat === 'STRIKE' || beat === 'MAGIC' ? 'struck' : '',
@@ -1164,7 +1337,9 @@ export function BattleUIPrototype({
           />
         </div>
         <div
-          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}`}
+          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}${
+            hit?.on === 'hero' ? ' flash' : ''
+          }`}
           style={cameraStyle('hero', camera)}
         >
           <span className="bp-shadow" aria-hidden="true" />
@@ -1288,7 +1463,15 @@ export function BattleUIPrototype({
              rather than left over by luck. Nothing in here takes a tap
              it was not given — the layer is transparent to the thumb
              and only the controls inside it are not. */}
-      <div className="bp-hud" data-testid="bp-hud">
+      <div
+        className="bp-hud"
+        data-testid="bp-hud"
+        data-stagecraft={stagecraft}
+        style={{
+          ['--ui-reading' as string]: String(levels.reading),
+          ['--ui-vitals' as string]: String(levels.vitals),
+        }}
+      >
         {/* TOP CENTRE — the order of play, and where this is.
             Both used to sit in opposite corners and between them they
             spanned the whole width; they are one compact group in the
@@ -1301,7 +1484,11 @@ export function BattleUIPrototype({
             here it is out of the creature's way and the bottom left is
             field again. */}
         <div className="bx-corner bx-tl">
-          <WorldMemoryPanel rows={memoryPanelRows} depth={memoryDepthNow} />
+          {/* Compact in a fight, and only in a fight: two lines, a
+              count and the meter, with the rest a tap away. The
+              battlefield is the subject of this screen and the reading
+              is at the edge of it. */}
+          <WorldMemoryPanel rows={memoryPanelRows} depth={memoryDepthNow} compact />
         </div>
 
         <div className="bx-corner bx-tc">

@@ -85,10 +85,39 @@ async function playing(page: Page): Promise<string | null> {
   return nameOf(live[0].src);
 }
 
-/** After a crossfade has landed, so only one of them is left sounding. */
-async function settled(page: Page): Promise<string | null> {
-  await page.waitForTimeout(900);
-  return playing(page);
+/**
+ * Waits until this is the piece that is playing, and says so.
+ *
+ * WAITS FOR THE ANSWER, not for a stopwatch and not for "one of them
+ * has stopped". Both of the simpler versions were wrong in ways that
+ * only showed up sometimes: a flat wait was long enough on an idle
+ * machine and not on one running three browsers, and "wait until
+ * exactly one is sounding" returns the OLD piece in the moment before
+ * the new one starts. Asking for the piece by name has neither
+ * problem, and it still fails loudly — the last thing it saw is in the
+ * message — when the wrong piece is playing or two are.
+ */
+async function expectPlaying(page: Page, wanted: string, budgetMs = 8_000): Promise<void> {
+  const deadline = Date.now() + budgetMs;
+  let last: string | null = null;
+  let overlap: unknown = null;
+  for (;;) {
+    try {
+      overlap = null;
+      last = await playing(page);
+      if (last === wanted) return;
+    } catch (twoAtOnce) {
+      // A crossfade still crossing, or the bug this file exists to
+      // catch. Waiting tells them apart.
+      overlap = twoAtOnce;
+    }
+    if (Date.now() >= deadline) {
+      if (overlap) throw overlap;
+      expect(last, `waited ${budgetMs}ms for ${wanted}`).toBe(wanted);
+      return;
+    }
+    await page.waitForTimeout(120);
+  }
 }
 
 test.beforeEach(async ({ page }) => {
@@ -117,17 +146,17 @@ test('the six scenes, each with its own music', async ({ page }) => {
   await monologue.click();
   const kaos = page.getByTestId('kaos-intro');
   await expect(kaos).toBeVisible();
-  expect(await settled(page)).toBe('kaos-event.mp3');
+  await expectPlaying(page, 'kaos-event.mp3');
 
   // 3. ALDEN — home, and every room off it.
   for (let i = 0; i < 6; i++) await kaos.click().catch(() => {});
   await expect(page.getByTestId('explore-button')).toBeVisible({ timeout: 20_000 });
-  expect(await settled(page)).toBe('alden-village.mp3');
+  await expectPlaying(page, 'alden-village.mp3');
 
   // 4. THE TAVERN — the one room in Alden with a different air.
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-MOONLIGHT_TAVERN').click();
-  expect(await settled(page)).toBe('tavern.mp3');
+  await expectPlaying(page, 'tavern.mp3');
 
   // …and leaving it is the village again, which is the whole of
   //    「イベント終了後は元のBGMへ復帰」: the music follows the room.
@@ -145,12 +174,12 @@ test('the six scenes, each with its own music', async ({ page }) => {
   // the room whoever is talking in it.
   expect(await playing(page)).toBe('tavern.mp3');
   await leave.click();
-  expect(await settled(page)).toBe('alden-village.mp3');
+  await expectPlaying(page, 'alden-village.mp3');
 
   // 5. THE FOREST.
   await page.getByTestId('location-GREENWOOD_FOREST').click();
   await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
-  expect(await settled(page)).toBe('greenwood-forest.mp3');
+  await expectPlaying(page, 'greenwood-forest.mp3');
 });
 
 test('a fight takes the music, and gives it back', async ({ page }) => {
@@ -177,13 +206,13 @@ test('a fight takes the music, and gives it back', async ({ page }) => {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
   await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
-  expect(await settled(page)).toBe('greenwood-forest.mp3');
+  await expectPlaying(page, 'greenwood-forest.mp3');
 
   // 6. THE FIGHT.
   const fighting = page.getByTestId('battle-prototype');
   await walkTheForestUntil(page, () => fighting.isVisible().catch(() => false));
   await expect(fighting).toBeVisible();
-  expect(await settled(page)).toBe('normal-battle.mp3');
+  await expectPlaying(page, 'normal-battle.mp3');
 
   // AND BACK. Nothing is remembered to make this work: the music is a
   // function of where the player is, and winning puts them back on the
@@ -194,7 +223,7 @@ test('a fight takes the music, and gives it back', async ({ page }) => {
   const forest = page.locator('.phaser-wrap canvas');
   await swingUntil(page, 'bp-attack', () => forest.isVisible().catch(() => false));
   await expect(forest).toBeVisible({ timeout: 20_000 });
-  expect(await settled(page)).toBe('greenwood-forest.mp3');
+  await expectPlaying(page, 'greenwood-forest.mp3');
 });
 
 test('the forest is never restarted by the screen redrawing itself', async ({ page }) => {
@@ -208,7 +237,7 @@ test('the forest is never restarted by the screen redrawing itself', async ({ pa
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-GREENWOOD_FOREST').click();
   await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
-  await settled(page);
+  await expectPlaying(page, 'greenwood-forest.mp3');
 
   const before = (await made(page)).length;
   // Walk about for a while: the screen redraws on every step, and the
@@ -225,7 +254,7 @@ test('the forest is never restarted by the screen redrawing itself', async ({ pa
 test('♪ is in the fight, small, and changes nothing about the fight', async ({ page }) => {
   test.setTimeout(240_000);
   await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
-  expect(await settled(page)).toBe('normal-battle.mp3');
+  await expectPlaying(page, 'normal-battle.mp3');
 
   const cycle = page.getByTestId('bp-bgm-cycle');
   await expect(cycle).toBeVisible();

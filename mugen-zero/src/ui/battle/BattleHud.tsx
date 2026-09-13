@@ -25,7 +25,7 @@
 // shown: the slice discards the interior and the live numbers are drawn
 // in its place, so the player is reading their own fight.
 
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { CharacterArt } from '../art/CharacterArt';
 import type { ResolvedArt } from '../../core/art/artStates';
 import { displayName } from './battleHud';
@@ -170,13 +170,63 @@ export function Meter({
  * band, and the unknown rows are left visibly unknown: an empty line
  * the player can still fill is the whole feeling this panel is for.
  */
-export function WorldMemoryPanel({ rows, depth }: { rows: readonly string[]; depth: number }) {
-  return (
-    <div className="bx-panel bx-memory" data-testid="bx-world-memory">
-      <span className="bx-panel-label">WORLD MEMORY</span>
+/**
+ * How many of the shown rows are something the world actually said.
+ *
+ * The panel pads itself out with question marks so it is always the
+ * same height; those are not memories, they are room for memories, and
+ * a count that included them would tell a player they know more than
+ * they do.
+ */
+function knownCount(rows: readonly string[]): number {
+  return rows.filter((line) => line !== UNKNOWN_ROW).length;
+}
+
+const UNKNOWN_ROW = '？？？';
+
+/**
+ * WORLD MEMORY, in the corner of a fight.
+ *
+ * SMALLER THAN IT WAS, AND NOT GONE. It had four lines and a title and
+ * a meter, and at that size it was a panel the battlefield had to make
+ * room for rather than something at the edge of it — in a corner of a
+ * screen whose whole subject is two people a few feet apart.
+ *
+ * Compact keeps what a player glances at: the name, HOW MANY things
+ * the world remembers, the newest two of them, and how deep the memory
+ * runs. The rest is a tap away and goes away again. Nothing is
+ * removed, and outside a fight the panel is unchanged.
+ */
+export function WorldMemoryPanel({
+  rows,
+  depth,
+  compact = false,
+  compactRows = 2,
+}: {
+  rows: readonly string[];
+  depth: number;
+  /** Small by default, with the rest one tap away. */
+  compact?: boolean;
+  /** How many lines the small form shows. */
+  compactRows?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const small = compact && !open;
+  const shown = small ? rows.slice(0, compactRows) : rows;
+  const body = (
+    <>
+      <span className="bx-panel-label">
+        WORLD MEMORY
+        {/* The count is the one number worth having at a glance, and it
+            is the thing the small form must never drop: a player who
+            cannot see the list still knows whether there is one. */}
+        <b className="bx-memory-count" data-testid="bx-memory-count">
+          {knownCount(rows)}
+        </b>
+      </span>
       <ul className="bx-memory-list">
-        {rows.map((line, at) => (
-          <li key={at} className={line === '？？？' ? 'unknown' : undefined}>
+        {shown.map((line, at) => (
+          <li key={at} className={line === UNKNOWN_ROW ? 'unknown' : undefined}>
             <i aria-hidden="true">◆</i>
             {line}
           </li>
@@ -189,7 +239,28 @@ export function WorldMemoryPanel({ rows, depth }: { rows: readonly string[]; dep
         </span>
         <b>{depth}%</b>
       </span>
-    </div>
+    </>
+  );
+
+  if (!compact) {
+    return (
+      <div className="bx-panel bx-memory" data-testid="bx-world-memory">
+        {body}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={`bx-panel bx-memory bx-memory-compact${open ? ' open' : ''}`}
+      data-testid="bx-world-memory"
+      data-open={open ? 'yes' : 'no'}
+      aria-expanded={open}
+      aria-label={open ? 'WORLD MEMORY を閉じる' : 'WORLD MEMORY をひらく'}
+      onClick={() => setOpen((was) => !was)}
+    >
+      {body}
+    </button>
   );
 }
 

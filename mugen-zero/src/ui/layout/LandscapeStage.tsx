@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { layoutFor, stageFor, type StageBox } from './landscape';
 
 function measure(): StageBox {
@@ -11,6 +11,31 @@ function measure(): StageBox {
   const vv = window.visualViewport;
   const width = vv?.width ?? window.innerWidth;
   const height = vv?.height ?? window.innerHeight;
+  return stageFor(width, height);
+}
+
+/**
+ * The same question, asked of the page instead of the window.
+ *
+ * `.landscape-root` is sized in `dvh` and padded by the four
+ * safe-area insets, so its CONTENT BOX is exactly the part of the glass
+ * that belongs to the game: bars, notches, cutouts and Android's
+ * gesture strip already taken out. Reading it back is how the stage
+ * learns about all of that without this file naming a single device.
+ *
+ * `clientWidth`/`clientHeight` include padding, so the padding is
+ * subtracted — which is also the only way to get an `env()` value into
+ * JavaScript at all.
+ */
+function measureInside(root: HTMLElement | null): StageBox | null {
+  if (!root) return null;
+  const style = getComputedStyle(root);
+  const px = (v: string) => Number.parseFloat(v) || 0;
+  const width = root.clientWidth - px(style.paddingLeft) - px(style.paddingRight);
+  const height = root.clientHeight - px(style.paddingTop) - px(style.paddingBottom);
+  // A box with no size yet — the first frame, a hidden tab — is not an
+  // answer. The window's own measurement stands until there is one.
+  if (width <= 0 || height <= 0) return null;
   return stageFor(width, height);
 }
 
@@ -29,11 +54,22 @@ function measure(): StageBox {
  * got there.
  */
 export function LandscapeStage({ children }: { children: ReactNode }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<StageBox>(measure);
 
-  useEffect(() => {
-    const update = () => setBox(measure());
+  // LAYOUT effect, not an ordinary one: the first measurement happens
+  // before the browser paints, so the game is never drawn once at the
+  // window's size and then again at the safe one.
+  useLayoutEffect(() => {
+    const update = () => setBox(measureInside(rootRef.current) ?? measure());
     update();
+    // The element itself changing size covers every cause at once —
+    // a rotation, a bar retracting, a keyboard, a host page resizing
+    // its frame — and it covers them without guessing which event a
+    // given browser will fire.
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => update());
+    if (rootRef.current && observer) observer.observe(rootRef.current);
     window.addEventListener('resize', update);
     // The visual viewport resizes without the window doing so — a
     // browser bar sliding away is exactly that — so it is watched too.
@@ -43,6 +79,7 @@ export function LandscapeStage({ children }: { children: ReactNode }) {
     // and a re-measure on the next frame.
     window.addEventListener('orientationchange', () => requestAnimationFrame(update));
     return () => {
+      observer?.disconnect();
       window.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
@@ -52,6 +89,7 @@ export function LandscapeStage({ children }: { children: ReactNode }) {
   const layout = layoutFor(box);
   return (
     <div
+      ref={rootRef}
       className="landscape-root"
       data-testid="landscape-root"
       data-portrait-host={box.portraitHost ? 'yes' : 'no'}

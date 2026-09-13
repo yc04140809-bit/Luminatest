@@ -39,8 +39,12 @@ interface Placed {
 const EXPECTED: Record<string, Placed> = {
   '.bp-enemy:not(.downed)': { edge: 'left', inset: 0.1, bottom: 0.42, zIndex: 'auto' },
   '.bp-enemy.downed': { edge: 'left', inset: 0.06, bottom: 0.36, zIndex: 'auto' },
-  '.bp-hero': { edge: 'right', inset: 0.33, bottom: 0.27, zIndex: '2' },
-  '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.31, zIndex: '1' },
+  // MOVED FOR DEPTH, and the numbers are the table's. He came forward
+  // and she stepped back so the party reads as two ranks rather than
+  // two people on one line; `depthScale` in formation.ts does the other
+  // half by drawing the nearer of them a little larger.
+  '.bp-hero': { edge: 'right', inset: 0.33, bottom: 0.24, zIndex: '3' },
+  '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.33, zIndex: '1' },
   '.bp-summon': { edge: 'right', inset: 0.48, bottom: 0.28, zIndex: '2' },
 };
 

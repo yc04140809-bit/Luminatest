@@ -200,7 +200,27 @@ test.describe('WORLD MEMORY, in a fight', () => {
     // A real percentage, whatever it is. A new world has collected
     // nothing, so the rows are the ones it can still fill.
     await expect(page.getByTestId('bx-memory-depth')).toHaveText(/\d+%$/);
+    // TWO LINES, NOT FOUR. The panel is compact in a fight — the
+    // battlefield is the subject of this screen and this is reading at
+    // the edge of it — and the count is what the small form must never
+    // drop: a player who cannot see the list still knows whether there
+    // is one.
+    await expect(panel.locator('.bx-memory-list li')).toHaveCount(2);
+    await expect(page.getByTestId('bx-memory-count')).toHaveText(/^\d+$/);
+  });
+
+  /** And the other two lines are a tap away, and go away again. */
+  test('opens to the whole list, and closes again', async ({ page }) => {
+    await freshWorld(page);
+    await openPreview(page);
+    const panel = page.getByTestId('bx-world-memory');
+    await expect(panel).toHaveAttribute('data-open', 'no');
+    await panel.click();
+    await expect(panel).toHaveAttribute('data-open', 'yes');
     await expect(panel.locator('.bx-memory-list li')).toHaveCount(4);
+    await panel.click();
+    await expect(panel).toHaveAttribute('data-open', 'no');
+    await expect(panel.locator('.bx-memory-list li')).toHaveCount(2);
   });
 
   test('does not stand in front of anybody on the field', async ({ page }) => {

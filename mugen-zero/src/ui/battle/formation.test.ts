@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEPTH_RANKS,
+  FAR_GROUND,
+  FAR_SCALE,
   MAX_PARTY,
+  NEAR_GROUND,
+  NEAR_SCALE,
   PARTY_FORMATIONS,
+  depthScale,
   partyFormation,
   PROTOTYPE_PLACEMENTS,
   prototypeStyle,
@@ -104,8 +110,13 @@ describe('the prototype cast', () => {
       enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
       enemyNear: { edge: 'left', inset: 0.05, bottom: 0.36 },
       enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.3 },
-      hero: { edge: 'right', inset: 0.33, bottom: 0.27, depth: 2 },
-      kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
+      // MOVED FOR DEPTH. He came forward and she stepped back, so the
+      // party reads as two ranks rather than two people on one line:
+      // the gap between them went from a twenty-fifth of the field to
+      // an eleventh, and the gap from him to a man he is fighting from
+      // 0.09 to 0.12. `depthScale` does the other half of the work.
+      hero: { edge: 'right', inset: 0.33, bottom: 0.24, depth: 3 },
+      kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
       summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
     });
   });
@@ -121,7 +132,15 @@ describe('the prototype cast', () => {
     for (const [who, place] of Object.entries(PROTOTYPE_PLACEMENTS)) {
       // A beaten opponent lies lower than they stood, so the floor for
       // those two is the lying-down one.
-      const floor = who.endsWith('Downed') ? 0.23 : 0.26;
+      //
+      // 0.26 DOWN TO 0.23 for somebody standing, and re-derived rather
+      // than relaxed: the command row was measured on the built screen
+      // at 844x390 and its top edge sits at 0.169 of the field. 0.23
+      // leaves a twentieth of the field — about twenty-four pixels —
+      // between the nearest pair of feet and the nearest button, which
+      // is the clearance this rule is actually about. The number it
+      // replaces was chosen before there was a screen to measure.
+      const floor = 0.23;
       expect(place.bottom, `${who} stands above the commands`).toBeGreaterThanOrEqual(floor);
       expect(place.bottom, `${who} stands under the panels`).toBeLessThanOrEqual(0.45);
     }
@@ -138,8 +157,8 @@ describe('the prototype cast', () => {
   it('writes a placement as the percentages a stylesheet would have', () => {
     expect(prototypeStyle('enemy')).toEqual({ left: '10%', bottom: '42%' });
     expect(prototypeStyle('enemyDowned')).toEqual({ left: '6%', bottom: '36%' });
-    expect(prototypeStyle('hero')).toEqual({ right: '33%', bottom: '27%', zIndex: 2 });
-    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '31%', zIndex: 1 });
+    expect(prototypeStyle('hero')).toEqual({ right: '33%', bottom: '24%', zIndex: 3 });
+    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '33%', zIndex: 1 });
     expect(prototypeStyle('summon')).toEqual({ right: '48%', bottom: '28%', zIndex: 2 });
   });
 
@@ -173,5 +192,91 @@ describe('the prototype cast', () => {
     expect(PROTOTYPE_PLACEMENTS.enemyDowned.bottom).toBeLessThan(PROTOTYPE_PLACEMENTS.enemy.bottom);
     expect(PROTOTYPE_PLACEMENTS.enemyDowned.inset).toBeLessThan(PROTOTYPE_PLACEMENTS.enemy.inset);
     expect(PROTOTYPE_PLACEMENTS.enemyDowned.edge).toBe(PROTOTYPE_PLACEMENTS.enemy.edge);
+  });
+});
+
+/**
+ * DEPTH — the half of a three-quarter view the picture has to SHOW.
+ *
+ * `bottom` has always been a depth axis: a ground line further up the
+ * picture is ground further away. What was missing is that something
+ * further away is also smaller, and without it the fight read as a
+ * side-scroller — both sides on one line, no clearing between them.
+ */
+describe('how big somebody standing there is drawn', () => {
+  it('is larger near the camera and smaller away from it', () => {
+    expect(depthScale(NEAR_GROUND)).toBeCloseTo(NEAR_SCALE, 5);
+    expect(depthScale(FAR_GROUND)).toBeCloseTo(FAR_SCALE, 5);
+    expect(depthScale(0.2)).toBeGreaterThan(depthScale(0.4));
+  });
+
+  it('never runs away with anybody', () => {
+    // A quarter, end to end. The failure this guards is the one the
+    // character sizes had last time somebody's scale moved: enough
+    // difference to read as distance, not enough to make a giant.
+    expect(NEAR_SCALE / FAR_SCALE).toBeLessThan(1.35);
+    for (const ground of [-1, 0, 0.25, 0.5, 2]) {
+      expect(depthScale(ground)).toBeLessThanOrEqual(NEAR_SCALE);
+      expect(depthScale(ground)).toBeGreaterThanOrEqual(FAR_SCALE);
+    }
+  });
+
+  it('holds the party apart, and the party apart from the enemy', () => {
+    const hero = depthScale(PROTOTYPE_PLACEMENTS.hero.bottom);
+    const kaos = depthScale(PROTOTYPE_PLACEMENTS.kaos.bottom);
+    const gald = depthScale(PROTOTYPE_PLACEMENTS.enemyNear.bottom);
+    // He is nearest; she is behind him; the man he is fighting is
+    // further still. None of it by much, and all of it visible.
+    expect(hero).toBeGreaterThan(kaos);
+    expect(kaos).toBeGreaterThan(gald);
+    expect(hero / gald).toBeGreaterThan(1.03);
+    expect(hero / gald).toBeLessThan(1.15);
+  });
+
+  /**
+   * PERSPECTIVE, NOT SIZE. Gald and the hero are the same man's height
+   * — measured head for head in content/art/spriteFrames — and this is
+   * the near one looking bigger because he is nearer. Put them on each
+   * other's ground lines and they swap.
+   */
+  it('is a fact about where they stand, not about who they are', () => {
+    const hero = PROTOTYPE_PLACEMENTS.hero.bottom;
+    const gald = PROTOTYPE_PLACEMENTS.enemyNear.bottom;
+    // Stand each of them on the other's ground line and the advantage
+    // changes hands exactly. That is what makes this perspective and
+    // not a thumb on the scale for whoever the player is.
+    expect(depthScale(hero)).toBeGreaterThan(depthScale(gald));
+    expect(depthScale(gald)).toBeLessThan(depthScale(hero));
+    const swapped = depthScale(gald) / depthScale(hero);
+    const asIs = depthScale(hero) / depthScale(gald);
+    expect(swapped).toBeCloseTo(1 / asIs, 10);
+  });
+});
+
+/**
+ * THE FOUR PLACES, once there is more than one of anybody.
+ */
+describe('the depth ranks', () => {
+  it('keeps the enemy left and the party right, whatever the depth', () => {
+    expect(DEPTH_RANKS.enemyBack.edge).toBe('left');
+    expect(DEPTH_RANKS.enemyFront.edge).toBe('left');
+    expect(DEPTH_RANKS.playerFront.edge).toBe('right');
+    expect(DEPTH_RANKS.playerRear.edge).toBe('right');
+  });
+
+  it('steps each side back away from the camera', () => {
+    expect(DEPTH_RANKS.enemyBack.bottom).toBeGreaterThan(DEPTH_RANKS.enemyFront.bottom);
+    expect(DEPTH_RANKS.playerRear.bottom).toBeGreaterThan(DEPTH_RANKS.playerFront.bottom);
+  });
+
+  it('draws the nearer rank in front of the one behind it', () => {
+    expect(DEPTH_RANKS.enemyFront.depth!).toBeGreaterThan(DEPTH_RANKS.enemyBack.depth!);
+    expect(DEPTH_RANKS.playerFront.depth!).toBeGreaterThan(DEPTH_RANKS.playerRear.depth!);
+  });
+
+  it('leaves the middle of the field to the fighting', () => {
+    for (const [who, place] of Object.entries(DEPTH_RANKS)) {
+      expect(place.inset, `${who} stays on its own side`).toBeLessThan(0.5);
+    }
   });
 });

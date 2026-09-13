@@ -25,7 +25,7 @@ vi.mock('../assets/manifest', () => ({
   SE_ASSETS: { select: null, memory: null, timeshift: null, reunion: null },
 }));
 
-const { AudioManager, BGM_FADE_MS } = await import('./audio');
+const { AudioManager, BGM_FADE_MS, OPENING_START_DELAY_MS } = await import('./audio');
 
 /** A stand-in for the browser's element, recording what was done to it. */
 class FakeAudio {
@@ -259,5 +259,74 @@ describe('when the browser will not cooperate', () => {
     expect(() => manager.setVolumes(0.3, 0.9)).not.toThrow();
     expect(() => manager.stopBgm()).not.toThrow();
     expect(() => manager.playSe('memory')).not.toThrow();
+  });
+});
+
+/**
+ * THE OPENING WAITS A BEAT, AND NOTHING ELSE DOES.
+ *
+ * A second of quiet before the first note, so the music arrives WITH
+ * the title rather than on top of it. It is a delay and not a
+ * schedule: whatever the game wants a second later is what happens.
+ */
+describe('the beat of quiet before the opening', () => {
+  it('does not sound for about a second, and then does', () => {
+    const manager = ready();
+    manager.playBgm('OPENING');
+    expect(sounding()).toHaveLength(0);
+    vi.advanceTimersByTime(OPENING_START_DELAY_MS - 50);
+    expect(sounding(), 'still quiet just before the beat is up').toHaveLength(0);
+    vi.advanceTimersByTime(100 + BGM_FADE_MS);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('opening.mp3');
+  });
+
+  it('is the opening\'s alone: every other room begins at once', () => {
+    const manager = ready();
+    manager.playBgm('ALDEN_VILLAGE');
+    vi.advanceTimersByTime(BGM_FADE_MS + 50);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('alden.mp3');
+  });
+
+  /**
+   * The case that makes this a delay. A player who taps straight past
+   * the title gets the room they walked into, not the piece that was
+   * still waiting to start behind them.
+   */
+  it('is cancelled by whatever the player does in that second', () => {
+    const manager = ready();
+    manager.playBgm('OPENING');
+    vi.advanceTimersByTime(400);
+    manager.playBgm('ALDEN_VILLAGE');
+    vi.advanceTimersByTime(OPENING_START_DELAY_MS + BGM_FADE_MS);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('alden.mp3');
+  });
+
+  it('is cancelled by stopping, and leaves nothing behind to fire', () => {
+    const manager = ready();
+    manager.playBgm('OPENING');
+    manager.stopBgm();
+    vi.advanceTimersByTime(OPENING_START_DELAY_MS + BGM_FADE_MS);
+    expect(sounding()).toHaveLength(0);
+  });
+
+  /**
+   * And the unlock case, which is the one a phone actually takes: the
+   * title asks for its music while nothing can be heard, the player
+   * taps, and the beat of quiet runs from THERE.
+   */
+  it('runs from the first touch when the page was not yet unlocked', () => {
+    const manager = new AudioManager();
+    manager.setVolumes(0.35, 0.8);
+    manager.playBgm('OPENING');
+    expect(FakeAudio.made).toHaveLength(0);
+    manager.unlock();
+    // Unlock starts what was asked for without a fade, and without the
+    // wait: the beat of quiet has already been served by the player
+    // taking a second to touch the screen.
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('opening.mp3');
   });
 });
