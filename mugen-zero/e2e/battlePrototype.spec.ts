@@ -219,9 +219,9 @@ test.describe('battle UI prototype', () => {
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
 
     await page.getByTestId('bp-attack').click();
-    await page.getByTestId('bp-normal-end').click();
-    // Straight back to where it was opened from.
-    await expect(page.getByTestId('dev-admin-back')).toBeVisible();
+    // No button: the preview sees itself out, straight back to where it
+    // was opened from.
+    await expect(page.getByTestId('dev-admin-back')).toBeVisible({ timeout: 20_000 });
 
     // And nothing was written: no victory counted, nobody named.
     const rows = await page.evaluate(
@@ -318,11 +318,9 @@ test.describe('battle UI prototype', () => {
     await setup(page, { ui: 'PROTOTYPE', story: 'off', finishable: true });
     await walkIntoAFight(page);
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
-      timeout: 5_000,
-    });
+    // Nobody is asked anything — this creature was not somebody — and
+    // with nothing to decide the screen returns by itself.
     await expect(page.getByTestId('bp-mugen-choice')).toHaveCount(0);
-    await page.getByTestId('bp-normal-end').click();
     await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
       timeout: 20_000,
     });
@@ -390,9 +388,9 @@ test.describe('battle UI prototype', () => {
     await expect(down).toBeVisible({ timeout: 5_000 });
     await expect(page.getByTestId('bp-enemy-normal')).toHaveCount(0);
 
-    // And it is still lying there when the fight is over — nothing
-    // clears the battlefield before the player has looked at it.
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible();
+    // And it is still lying there after the fight is over — nothing
+    // clears the battlefield before the player has looked at it, and
+    // the screen holds for a beat before walking back.
     await expect(down).toBeVisible();
     await expect(page.locator('.bp-bg')).toBeVisible();
 
@@ -704,7 +702,6 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(page.getByTestId('bp-chaos-card')).toBeVisible();
     await page.getByTestId('bp-chaos-card').click();
     await page.getByTestId('bp-attack').click();
-    await page.getByTestId('bp-normal-end').click();
     await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
       timeout: 20_000,
     });

@@ -280,8 +280,12 @@ test('AUTO plays a whole fight through, using only the commands', async ({ page 
   await page.getByTestId('bp-speed').click();
   await page.getByTestId('bp-auto').click();
 
-  // It reaches the end of the fight on its own.
-  await expect(page.getByTestId('bp-normal-end')).toBeVisible({ timeout: 60_000 });
+  // It reaches the end of the fight on its own, and the fight sees
+  // itself out: an ordinary win has nothing to decide, so there is no
+  // button to press — the screen simply hands the player back where
+  // they came from, which for a fight opened out of DEV ADMIN is DEV
+  // ADMIN and not the forest.
+  await expect(page.getByTestId('dev-admin-back')).toBeVisible({ timeout: 60_000 });
   // And the commands are gone, because the fight is over — not because
   // AUTO took some other path out of it.
   await expect(page.getByTestId('bp-attack')).toHaveCount(0);

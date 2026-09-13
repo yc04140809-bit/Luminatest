@@ -61,6 +61,7 @@ import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIco
 import { PartyCard, PartyHud, Readout, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
 import {
   actingSideOf,
+  displayName,
   memoryDepth,
   memoryRows,
   turnOrderLine,
@@ -267,6 +268,23 @@ const KNOCKDOWN_MS = 340;
 
 /** How long a lost fight sits before the screen moves on. */
 const DEFEAT_WAIT_MS = 1200;
+
+/**
+ * And how long a WON one sits, when there is nothing to ask about it.
+ *
+ * There used to be a 「森へ戻る」 button here. A button is for a
+ * decision, and this was not one: it had a single option, it was always
+ * the same option, and it sat across the bottom of the field being the
+ * last thing the player looked at. So the screen waits instead — long
+ * enough to watch the creature go down and read the line over it — and
+ * then goes back to the forest on its own.
+ *
+ * Longer than the defeat wait, because there is more to read: the blow
+ * lands, the creature falls, and the line about it arrives last. A
+ * player who wants to move on sooner is already moving — the walk back
+ * is where they were going.
+ */
+const VICTORY_WAIT_MS = 1900;
 
 /**
  * How long AUTO waits after the theatre has finished before it acts.
@@ -570,6 +588,25 @@ export function BattleUIPrototype({
       return () => clearTimeout(t);
     }
   }, [battle.outcome, stance, onDefeat, speed]);
+
+  /**
+   * An ordinary win ends by itself.
+   *
+   * Only when there is NO question waiting. A fight that turns out to
+   * be about somebody stops here and asks the four answers, and nothing
+   * may carry the player past that — so this is gated on the same flag
+   * the question is, and on the creature having actually finished
+   * falling. An accident still crossing holds it too: what crossed is
+   * the thing the player is watching.
+   */
+  useEffect(() => {
+    if (battle.outcome !== 'VICTORY') return;
+    if (stance !== 'DOWNED') return;
+    if (finishesInMugenChoice) return;
+    if (accidentBeat !== 'NONE') return;
+    const t = setTimeout(onNormalEnd, beatMs(VICTORY_WAIT_MS, speed));
+    return () => clearTimeout(t);
+  }, [battle.outcome, stance, finishesInMugenChoice, accidentBeat, onNormalEnd, speed]);
 
   /**
    * The theatre for one turn — and, when the turn is a swing, the camera
@@ -1144,7 +1181,7 @@ export function BattleUIPrototype({
           }}
         >
           <span className="bx-enemy-head">
-            <b className="bx-enemy-name">{battle.enemyName}</b>
+            <b className="bx-enemy-name">{displayName(battle.enemyName)}</b>
             {battle.enemyPhaseId && (
               <i className="bp-phase" data-testid="bp-enemy-phase">
                 {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
@@ -1210,6 +1247,16 @@ export function BattleUIPrototype({
             spanned the whole width; they are one compact group in the
             middle now, and the two top corners the fight had been
             squeezed between are given back to it. */}
+        {/* LEFT TOP — what the world has written down so far.
+            It was bottom left, which is where the creature stands and
+            where its health now hangs: three things stacked into one
+            corner, two of them about the fight and one of them not. Up
+            here it is out of the creature's way and the bottom left is
+            field again. */}
+        <div className="bx-corner bx-tl">
+          <WorldMemoryPanel rows={memoryPanelRows} depth={memoryDepthNow} />
+        </div>
+
         <div className="bx-corner bx-tc">
           <TurnOrder slots={turnSlots} artOf={turnArtOf} />
           <div className="bx-place" data-testid="bx-place">
@@ -1245,11 +1292,6 @@ export function BattleUIPrototype({
               testId="bx-member-kaos"
             />
           </PartyHud>
-        </div>
-
-        {/* LEFT BOTTOM — what the world has written down so far. */}
-        <div className="bx-corner bx-bl">
-          <WorldMemoryPanel rows={memoryPanelRows} depth={memoryDepthNow} />
         </div>
 
         {/* RIGHT BOTTOM — how the fight is WATCHED, and the way out.
@@ -1597,13 +1639,12 @@ export function BattleUIPrototype({
         </div>
       )}
 
-      {downed && !finishesInMugenChoice && !inAccident && (
-        <div className="bp-commands">
-          <button className="bp-cmd wide" data-testid="bp-normal-end" onClick={onNormalEnd}>
-            <span className="bp-cmd-jp">森へ戻る</span>
-          </button>
-        </div>
-      )}
+      {/* NOTHING HERE. An ordinary win used to put a 森へ戻る button
+          across the bottom of the field — one option, always the same
+          option, and the last thing the player saw of a fight they had
+          just won. The screen takes them back by itself now; see
+          VICTORY_WAIT_MS. The four answers are the only thing that
+          still stops here, because those are a real decision. */}
     </div>
   );
 }

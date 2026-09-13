@@ -28,6 +28,7 @@
 import type { ReactNode } from 'react';
 import { CharacterArt } from '../art/CharacterArt';
 import type { ResolvedArt } from '../../core/art/artStates';
+import { displayName } from './battleHud';
 import type { TurnSlot } from './battleHud';
 
 /** The head of a drawing, in a diamond, at the size the strip wants. */
@@ -289,7 +290,7 @@ export function PartyCard<S extends string>({
         <span className="bx-face bx-face-blank" aria-hidden="true" />
       )}
       <span className="bx-member-head">
-        <b className="bx-member-name">{name}</b>
+        <b className="bx-member-name">{displayName(name)}</b>
         <i className="bx-member-role">{role}</i>
         {/* Whichever of the two this member actually has — and it
             carries the testid, because it is where the number IS. A bar

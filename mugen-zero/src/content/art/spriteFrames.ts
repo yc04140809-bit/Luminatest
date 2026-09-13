@@ -83,19 +83,60 @@ export interface SpriteFrame {
 export const DEFAULT_FRAME: SpriteFrame = { band: 'HUMANOID', scale: 0.58, anchor: 'bottom-center' };
 
 export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
-  /* THE PARTY. Both have real battle figures now. */
+  /* THE PARTY. Both have real battle figures now.
+
+     HOW THESE NUMBERS ARE SET: BY HEAD, NOT BY CANVAS.
+
+     A scale here is a share of the stage, and what it scales is the
+     FILE — so two people drawn on differently shaped canvases, or in
+     differently sized poses, come out different sizes from the same
+     number. Matching the canvases is what produced a bandit with a head
+     half again the size of the hero's.
+
+     So the figures are sized so their HEADS match. A head is the one
+     measure that survives a change of pose: a crouching man is shorter
+     than a standing one and a flying woman is neither, but all three
+     have the same head. The face rectangles in content/art are what it
+     is measured from — head share of canvas = face height / file
+     height — and the arithmetic is in the commit that set them. */
   hero: { band: 'HUMANOID', scale: 0.64, anchor: 'bottom-center' },
-  // A step behind him and a little smaller for it, which is what makes
-  // the two of them read as front rank and back rank rather than as a
-  // pair standing side by side. Her drawing is wider than it is tall
-  // because of the wings, so a share of the HEIGHT is the only sane way
-  // to size her against him.
-  kaos: { band: 'HUMANOID', scale: 0.55, anchor: 'bottom-center' },
+  /**
+   * Was 0.55, which drew her head at four fifths of his.
+   *
+   * NOT ALL THE WAY TO PARITY, and this is the one place the head rule
+   * is bent on purpose. Parity is 0.69, and at 0.69 she was the largest
+   * figure on the field: she is drawn FLYING, with a full skirt and two
+   * wings spread around her, so the same head buys her half again the
+   * silhouette the hero gets from his. She was towering over the man
+   * she stands behind.
+   *
+   * 0.62 puts her head at about nine tenths of his — near enough that
+   * they read as the same species, short enough that the back rank
+   * still looks like the back rank.
+   */
+  kaos: { band: 'HUMANOID', scale: 0.62, anchor: 'bottom-center' },
 
   /* GALD. */
   gald: {
+    /**
+     * WAS 0.66, AND THAT MADE HIM A GIANT.
+     *
+     * His standing figure was redrawn and the new file is LANDSCAPE —
+     * 1536 by 1024, a wide lunge — where the old one was a portrait of
+     * a man standing up. The same share of the stage therefore drew a
+     * much bigger man: his head came out half again the size of the
+     * hero's, and two humans a few feet apart looked like a boss fight.
+     *
+     * 0.44 is the number that puts his head at the hero's size. He is
+     * shorter on screen than the hero now, which is correct and is the
+     * point: he is crouched over a lunge and the hero is upright.
+     *
+     * The kneeling and face-down states below keep their own numbers.
+     * Those are different files, they did not change, and each was set
+     * against its own drawing rather than against this one.
+     */
     band: 'HUMANOID',
-    scale: 0.66,
+    scale: 0.44,
     anchor: 'bottom-center',
     states: {
       // On one knee: the same man, lower to the ground, not a smaller

@@ -259,13 +259,18 @@ test.describe('the three ways an unfinished memory goes', () => {
     await talk.click();
     // The breath brought the creature to zero, so what comes back is
     // the end of an ordinary fight — never a decision made for the
-    // player by the thing that crossed them.
+    // player by the thing that crossed them. Which of the two endings
+    // that is depends on this creature: if it turned out to be somebody
+    // the four answers are asked, and if it did not the screen hands
+    // the player back where they came from by itself — which for a
+    // fight opened out of DEV ADMIN is DEV ADMIN. Either is correct; a
+    // DRAGON deciding it is not.
     await expect(
       page
-        .getByTestId('bp-commands')
-        .or(page.getByTestId('bp-mugen-choice'))
-        .or(page.getByTestId('bp-normal-end')),
-    ).toBeVisible({ timeout: 8_000 });
+        .getByTestId('bp-mugen-choice')
+        .or(page.getByTestId('bp-commands'))
+        .or(page.getByTestId('dev-admin-back')),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
 

@@ -105,7 +105,7 @@ describe('the prototype cast', () => {
       enemyNear: { edge: 'left', inset: 0.05, bottom: 0.36 },
       enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.3 },
       hero: { edge: 'right', inset: 0.33, bottom: 0.27, depth: 2 },
-      kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
+      kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
       summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
     });
   });
@@ -139,7 +139,7 @@ describe('the prototype cast', () => {
     expect(prototypeStyle('enemy')).toEqual({ left: '10%', bottom: '42%' });
     expect(prototypeStyle('enemyDowned')).toEqual({ left: '6%', bottom: '36%' });
     expect(prototypeStyle('hero')).toEqual({ right: '33%', bottom: '27%', zIndex: 2 });
-    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '33%', zIndex: 1 });
+    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '31%', zIndex: 1 });
     expect(prototypeStyle('summon')).toEqual({ right: '48%', bottom: '28%', zIndex: 2 });
   });
 

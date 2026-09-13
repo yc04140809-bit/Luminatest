@@ -102,6 +102,33 @@ export function memoryDepth(arcana: readonly BattleArcana[]): number {
   return Math.round(total / arcana.length);
 }
 
+/**
+ * HOW LONG A NAME MAY BE BEFORE IT IS CUT, and cut the same way for
+ * everybody.
+ *
+ * The panels used to let CSS do this, which meant a name was cut at
+ * whatever width its own panel happened to be — the creature's at one
+ * length, a party member's at another, and both of them mid-character
+ * with no mark to say anything was missing. A player reading 「盗賊 ガル」
+ * cannot tell whether that is the whole name.
+ *
+ * So it is a rule instead, in characters, applied to every name on the
+ * screen: ten through, and an ellipsis from the eleventh. Counted in
+ * CODE POINTS rather than UTF-16 units, so a character outside the
+ * basic plane counts as the one character it looks like.
+ *
+ * The stylesheet still ellipsises as a second net, for a name that is
+ * short enough by this rule and still too wide for a narrow phone.
+ */
+export const NAME_LIMIT = 10;
+
+export function displayName(name: string, limit: number = NAME_LIMIT): string {
+  const cap = Math.max(0, Math.floor(limit));
+  const glyphs = [...name];
+  if (glyphs.length <= cap) return name;
+  return `${glyphs.slice(0, cap).join('')}…`;
+}
+
 /** How many lines the corner panel has room for. */
 export const MEMORY_ROWS = 4;
 

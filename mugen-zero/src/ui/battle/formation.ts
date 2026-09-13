@@ -225,7 +225,7 @@ export const PROTOTYPE_PLACEMENTS = {
    * corner, and a wing disappearing under a panel is the one thing this
    * layout must not do.
    */
-  kaos: { edge: 'right', inset: 0.15, bottom: 0.33, depth: 1 },
+  kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
   /**
    * The player's side, in front of both of them: clear of the hero's
    * shoulder on one side and — because it stands much lower down the

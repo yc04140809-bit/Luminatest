@@ -166,20 +166,17 @@ test.describe('exploration loop', () => {
       timeout: 10_000,
     });
 
+    // Swing until the fight is over. What says it is over is the forest
+    // coming back: an ordinary win has nothing to decide, so the screen
+    // waits a beat and walks the player back by itself rather than
+    // leaving a button for the one thing they could have pressed.
     const attack = page.getByTestId('bp-attack');
+    const forest = page.locator('.phaser-wrap canvas');
     for (let i = 0; i < 40; i++) {
-      if (
-        await page
-          .getByTestId('bp-normal-end')
-          .isVisible()
-          .catch(() => false)
-      )
-        break;
+      if (await forest.isVisible().catch(() => false)) break;
       if (await attack.isVisible().catch(() => false)) await attack.click();
       await page.waitForTimeout(140);
     }
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible();
-    await page.getByTestId('bp-normal-end').click();
 
     // Back in the forest, not back at the village, and not at the door.
     await expect(page.locator('.phaser-wrap canvas')).toBeVisible({

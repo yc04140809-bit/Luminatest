@@ -196,10 +196,8 @@ test.describe('what a life writes into the book', () => {
     await walkIntoFight(page);
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
-      timeout: 8_000,
-    });
-    await page.getByTestId('bp-normal-end').click();
+    // No button: an ordinary win has nothing to decide, so the screen
+    // waits long enough to be read and walks back to the forest itself.
     await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
       timeout: 20_000,
     });
@@ -227,10 +225,8 @@ test.describe('what a life writes into the book', () => {
     // with it, which is exactly what this test must not do.
     await walkIntoFight(page);
     await page.getByTestId('bp-attack').click();
-    await expect(page.getByTestId('bp-normal-end')).toBeVisible({
-      timeout: 8_000,
-    });
-    await page.getByTestId('bp-normal-end').click();
+    // No button: an ordinary win has nothing to decide, so the screen
+    // waits long enough to be read and walks back to the forest itself.
     await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
       timeout: 20_000,
     });

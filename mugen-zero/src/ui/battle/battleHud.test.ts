@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   MEMORY_ROWS,
+  NAME_LIMIT,
   actingSideOf,
+  displayName,
   memoryDepth,
   memoryRows,
   turnOrderLine,
@@ -86,6 +88,49 @@ describe('who is acting', () => {
   it('treats nothing playing as the player being next', () => {
     expect(actingSideOf(null)).toBe('ALLY');
     expect(actingSideOf('NONE')).toBe('ALLY');
+  });
+});
+
+/**
+ * NAMES, CUT THE SAME WAY WHEREVER THEY APPEAR.
+ *
+ * The panels used to leave this to CSS, so a name was cut at whatever
+ * width its own panel happened to be — and cut mid-character, with no
+ * mark to say anything was missing. 「盗賊 ガル」 does not tell a player
+ * whether that is the whole name.
+ */
+describe('how long a name is allowed to be', () => {
+  it('shows a short name exactly as it is', () => {
+    expect(displayName('あなた')).toBe('あなた');
+    expect(displayName('盗賊 ガルド')).toBe('盗賊 ガルド');
+    expect(displayName('モスラビット')).toBe('モスラビット');
+  });
+
+  it('shows ten through, and marks the eleventh', () => {
+    expect(displayName('あいうえおかきくけこ')).toBe('あいうえおかきくけこ');
+    expect(displayName('あいうえおかきくけこさ')).toBe('あいうえおかきくけこ…');
+    expect(NAME_LIMIT).toBe(10);
+  });
+
+  it('cuts by CHARACTER, not by UTF-16 unit', () => {
+    // Each of these is one character and two units. Counting units
+    // would cut this in half — and half of one of them is not a
+    // character at all, it is a broken glyph.
+    const wide = '𠀋𠀋𠀋𠀋𠀋𠀋𠀋𠀋𠀋𠀋';
+    expect(displayName(wide)).toBe(wide);
+    expect([...displayName(`${wide}𠀋`)]).toHaveLength(11);
+    expect(displayName(`${wide}𠀋`).endsWith('…')).toBe(true);
+  });
+
+  it('never returns something longer than the rule allows', () => {
+    for (const name of ['', 'a', 'アルデン村のパン屋の主人', '盗賊 ガルド', '𠀋'.repeat(40)]) {
+      expect([...displayName(name)].length).toBeLessThanOrEqual(NAME_LIMIT + 1);
+    }
+  });
+
+  it('takes a different limit for a panel with different room', () => {
+    expect(displayName('あいうえおかき', 4)).toBe('あいうえ…');
+    expect(displayName('あいうえおかき', 0)).toBe('…');
   });
 });
 

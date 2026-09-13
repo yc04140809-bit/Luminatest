@@ -205,7 +205,11 @@ test.describe('the battlefield', () => {
       'bx-turn-order': ['centre', 'top'],
       'bx-place': ['centre', 'top'],
       'bx-party': ['right', 'top'],
-      'bx-world-memory': ['left', 'bottom'],
+      // WORLD MEMORY moved UP. The bottom left is where the creature
+      // stands and where its health now hangs, and three panels in one
+      // corner — two of them about the fight and one of them not — was
+      // the corner the fight most needed back.
+      'bx-world-memory': ['left', 'top'],
       'bp-modes': ['right', 'bottom'],
       'bp-commands': ['centre', 'bottom'],
     } as const;
