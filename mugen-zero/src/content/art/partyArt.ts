@@ -129,17 +129,26 @@ export const GALD_ART: PartyArtSet = {
   id: 'gald',
   label: '盗賊ガルド',
   states: {
-    // His fighting pose, delivered as a transparent PNG. He stands on
-    // the left of the field and looks across it, so he faces right.
+    /**
+     * His fighting pose, delivered as a transparent PNG and USED AS
+     * DELIVERED: he fights from the left of the field and the drawing
+     * already looks across it.
+     *
+     * FACING IS THE FACE, NOT THE BODY. This was registered 'left' for
+     * a while and the game mirrored him, because his lunge and his
+     * cloak both travel to the viewer's left and that is what got read.
+     * His HEAD does not: it is turned back over his leading shoulder
+     * and his eyes go right. Mirroring him therefore turned the one
+     * part of the drawing that was already correct the wrong way round,
+     * and a bandit two feet from the party was glaring into the trees.
+     *
+     * So the rule, for whatever arrives next: crop the head and look at
+     * it. A pose can travel one way while a face looks the other, and
+     * the face is the thing a player reads.
+     */
     battle_idle: {
       src: BATTLE_FIGURES.gald,
-      // HIS DRAWING FACES LEFT — he lunges across to the viewer's left
-      // with both daggers out. He fights from the LEFT of the field and
-      // has to look across it, so this one IS mirrored. Nothing about
-      // him is handed: no wings, no eye colours, no asymmetric mark, so
-      // the mirror costs nothing and the alternative is a bandit
-      // attacking the trees.
-      facing: 'left',
+      facing: 'right',
       face: { fileW: 1536, fileH: 1024, x: 1105, y: 175, width: 190, height: 190 },
     },
     // Beaten and on one knee, twice: the same drawing with two
