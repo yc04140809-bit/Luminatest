@@ -3551,20 +3551,11 @@ body,
   letter-spacing: 0.06em;
   color: var(--bx-ink-dim);
 }
-/* The one command that is a whole sentence — 森へ戻る, once the fight
-   is over — is a lozenge and not a diamond: it is a way out of the
-   screen rather than a turn. */
-.bp-cmd.wide {
-  width: auto;
-  height: auto;
-  min-height: 44px;
-  padding: 8px 26px;
-  border: 1px solid var(--bx-gold-line);
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--bx-navy), var(--bx-navy-deep));
-  box-shadow: inset 0 0 0 1px var(--bx-gold-hair);
-}
-.bp-cmd.wide .bp-cmd-jp { font-size: 14px; letter-spacing: 0.16em; }
+/* THE LOZENGE IS GONE WITH ITS BUTTON. `.bp-cmd.wide` dressed the one
+   command that was a whole sentence — 森へ戻る, once the fight was over
+   — as a pill rather than a diamond. There is no such command any more:
+   an ordinary win walks back on its own. Every command left on this row
+   is a turn, so every one of them is a diamond. */
 
 /* ---- AUTO / ×2 / 逃走 — the bottom right corner ---------------------
    Three chips in a column, and none of them a turn: two are decisions
