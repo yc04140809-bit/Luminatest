@@ -27,8 +27,37 @@
  */
 export type SizeBand = 'HUMANOID' | 'SMALL' | 'LARGE' | 'BOSS' | 'CHIBI' | 'SUMMON';
 
-export const SIZE_BANDS: Record<SizeBand, { min: number; max: number }> = {
-  HUMANOID: { min: 0.55, max: 0.7 },
+export interface SizeBandRange {
+  /** The share of the stage the whole FILE may be drawn at. */
+  min: number;
+  /** And the most. */
+  max: number;
+  /**
+   * And the same question asked of the HEAD, for a band whose members
+   * are drawn on canvases of different shapes.
+   *
+   * The min/max above measure the FILE, which is only a proxy for the
+   * person in it — and the proxy holds exactly as long as everybody in
+   * the band is drawn the same way up. It stopped holding the day
+   * Gald's standing figure came back as a 1536x1024 lunge while the
+   * hero stayed a 1024x1536 portrait: the same share of the stage drew
+   * a man half again the size, and the number that fixed it was outside
+   * a band written for portraits.
+   *
+   * So an entry that knows its own head (`headShare`) is judged on the
+   * head instead, and the file share is not asked about. A head is the
+   * one measure that survives both a change of canvas and a change of
+   * pose: a crouching man is shorter than a standing one, and both have
+   * the same head.
+   */
+  head?: { min: number; max: number };
+}
+
+export const SIZE_BANDS: Record<SizeBand, SizeBandRange> = {
+  /* The head range is the hero's 0.0813 with room either side — far
+     enough for a different build, near enough that nobody in this band
+     can be somebody else's species. */
+  HUMANOID: { min: 0.55, max: 0.7, head: { min: 0.068, max: 0.095 } },
   SMALL: { min: 0.25, max: 0.4 },
   LARGE: { min: 0.5, max: 0.75 },
   // Set per boss, deliberately wide: a boss whose scale is its whole
@@ -58,6 +87,18 @@ export interface SpriteFrame {
   band: SizeBand;
   /** Height as a share of the stage's height. */
   scale: number;
+  /**
+   * The head's height as a share of THIS FILE's height.
+   *
+   * Optional, and only worth setting for somebody whose drawing is not
+   * a plain upright portrait — but once it is set it is what the band
+   * is checked against, because `scale * headShare` is the head's share
+   * of the STAGE and that is comparable between any two people however
+   * they are drawn. Taken from the face rectangles in `partyArt.ts`:
+   * face height / file height, the same two numbers the turn-order
+   * diamonds crop with.
+   */
+  headShare?: number;
   /**
    * What the scale and the position are measured from. Only one for
    * now, and it is the one that matters: a character's feet.
@@ -99,7 +140,8 @@ export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
      have the same head. The face rectangles in content/art are what it
      is measured from — head share of canvas = face height / file
      height — and the arithmetic is in the commit that set them. */
-  hero: { band: 'HUMANOID', scale: 0.64, anchor: 'bottom-center' },
+  // 195 / 1536. Head on stage: 0.0813 — the size the other two are set to.
+  hero: { band: 'HUMANOID', scale: 0.64, headShare: 195 / 1536, anchor: 'bottom-center' },
   /**
    * Was 0.55, which drew her head at four fifths of his.
    *
@@ -114,7 +156,7 @@ export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
    * they read as the same species, short enough that the back rank
    * still looks like the back rank.
    */
-  kaos: { band: 'HUMANOID', scale: 0.62, anchor: 'bottom-center' },
+  kaos: { band: 'HUMANOID', scale: 0.62, headShare: 180 / 1536, anchor: 'bottom-center' },
 
   /* GALD. */
   gald: {
@@ -137,6 +179,8 @@ export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
      */
     band: 'HUMANOID',
     scale: 0.44,
+    // 190 / 1024 — a landscape canvas, which is the whole story.
+    headShare: 190 / 1024,
     anchor: 'bottom-center',
     states: {
       // On one knee: the same man, lower to the ground, not a smaller
