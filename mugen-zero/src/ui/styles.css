@@ -2451,8 +2451,12 @@ body,
    painted backdrop is to keep more of its ground and less of its sky:
    the horizon rides up, the floor opens out, and the two sides read as
    standing at different distances on one plane. */
+/* Aimed so the clearing's lit floor lands under the cast rather than
+   under the commands. The field painting is a bright stone floor along
+   its bottom third with the vista above it, and this is the crop that
+   puts people ON that floor. */
 .bp-field .bp-bg {
-  object-position: 50% 64%;
+  object-position: 50% 44%;
 }
 /* The one thing laid over the field, and it is not UI: a breath of
    shade top and bottom so white text in a corner has something to sit
@@ -2661,14 +2665,21 @@ body,
    and reserving it in the layout is what stops the next panel somebody
    adds from ending up in front of the fight.
 
-       ┌──────────────┬───────────┬──────────────┐
-       │ TURN ORDER   │           │ place        │
-       │ enemy health │           │ the party    │
-       ├──────────────┼───────────┼──────────────┤
-       │              │  (empty)  │              │
-       ├──────────────┼───────────┼──────────────┤
-       │ WORLD MEMORY │ commands  │ AUTO ×2 逃走 │
-       └──────────────┴───────────┴──────────────┘
+       ┌──────────────┬────────────┬──────────────┐
+       │              │ TURN ORDER │  the party   │
+       │              │  the place │              │
+       ├──────────────┼────────────┼──────────────┤
+       │              │  (empty)   │              │
+       ├──────────────┼────────────┼──────────────┤
+       │ WORLD MEMORY │  commands  │ AUTO ×2 逃走 │
+       └──────────────┴────────────┴──────────────┘
+
+   THE TOP LEFT IS DELIBERATELY EMPTY. It held the turn order and the
+   creature's health, and between that corner and the party column the
+   fight was playing in the gap. The order of play and the place name
+   are one compact group in the middle now, and the creature's health
+   went to the creature — see `.bx-enemy-plate`, which is drawn in the
+   field under its feet rather than in a corner it has to be matched to.
 
    The layer itself is transparent to the thumb; only the controls in it
    are not. A player swiping across the forest must not find that the
@@ -2694,7 +2705,13 @@ body,
 .bx-corner > * {
   pointer-events: auto;
 }
-.bx-tl { grid-area: 1 / 1; align-items: flex-start; }
+/* The top middle: narrow on purpose. It is a band of information, not
+   the subject, and anything it takes in width comes off the field. */
+.bx-tc {
+  grid-area: 1 / 2;
+  align-items: center;
+  gap: 3px;
+}
 .bx-tr { grid-area: 1 / 3; align-items: flex-end; }
 .bx-bl { grid-area: 3 / 1; justify-content: flex-end; align-items: flex-start; }
 .bx-br { grid-area: 3 / 3; justify-content: flex-end; align-items: flex-end; }
@@ -2763,13 +2780,23 @@ body,
 
 /* ---- TURN ORDER — horizontal, top left, read left to right ---- */
 .bx-turns {
-  padding: 3px 8px 5px;
+  padding: 2px 9px 4px;
 }
+/* In the middle the heading is a mark rather than a banner: the strip
+   is read for its faces and the words above it were most of its width. */
+.bx-tc .bx-turns .bx-panel-label {
+  justify-content: center;
+  font-size: 6.5px;
+  letter-spacing: 0.34em;
+  text-indent: 0.34em;
+  opacity: 0.7;
+}
+.bx-tc .bx-turns .bx-panel-label::after { display: none; }
 .bx-turn-line {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin: 3px 0 0;
+  gap: 8px;
+  margin: 1px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -2884,14 +2911,26 @@ body,
   height: 29px;
 }
 
-/* ---- the creature's plate: the pack's frame, at its own shape -------
-   `enemy-plate.png` is 640x195 and the plate is drawn at that ratio, so
-   the dragon's head on its left and the star cluster on its right are
-   never squashed. Its health rail is drawn at y 53.3%-64.1% and the
-   name goes on the empty rail above it, both measured off the file. */
-.bx-enemy-plate {
-  position: relative;
-  width: clamp(196px, calc(var(--stage-w, 100vw) * 0.29), 258px);
+/* ---- the creature's health, UNDER THE CREATURE ----------------------
+   It was a plate in the top left corner, which meant the player had to
+   match a number to an animal. It is drawn in the FIELD now, centred on
+   whatever is being fought and just under its feet, so there is nothing
+   to match: that bar belongs to the thing standing over it.
+
+   Positioned from a measurement rather than from the formation, because
+   the formation says where an actor's EDGE is and this has to be
+   centred on its middle — and a moss rabbit is eighty pixels wide where
+   Gald is two hundred and fifty. The screen measures the actor and
+   passes `left` and `bottom` inline; everything else is here.
+
+   It is a SIBLING of the actor and not a child, so the creature can
+   breathe, charge and flinch without dragging its own health bar
+   around with it. */
+.bp-field .bx-enemy-plate {
+  position: absolute;
+  z-index: 3;
+  transform: translateX(-50%);
+  width: clamp(168px, calc(var(--stage-w, 100vw) * 0.235), 226px);
   aspect-ratio: 640 / 195;
   padding: 0;
   border: 0;
@@ -2899,14 +2938,17 @@ body,
   background-size: 100% 100%;
   background-repeat: no-repeat;
   color: var(--bx-ink);
+  /* It glides with the camera rather than snapping, for the same reason
+     the actors do — but never while the fight is at rest. */
+  pointer-events: none;
 }
 .bx-enemy-head {
   position: absolute;
-  left: 24.5%;
-  /* Clear of the star cluster the frame ends with: at 5.5% the last
-     digit of a full-health total was disappearing under it. */
-  right: 10%;
-  top: 26%;
+  left: 23%;
+  /* Clear of the star cluster the frame ends with: the total was
+     disappearing under it. */
+  right: 11%;
+  top: 22%;
   height: 20%;
   display: flex;
   align-items: center;
@@ -2916,21 +2958,26 @@ body,
 }
 .bx-enemy-name {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   text-overflow: ellipsis;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
 }
+.bx-enemy-read {
+  flex: 0 0 auto;
+  font-size: 7.5px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+.bx-enemy-read b { font-weight: 400; opacity: 0.5; }
 /* ITS HEALTH, DRAWN THICKER THAN THE RAIL UNDER IT.
    The pack's plate draws a rail 10.8% of its own height, which at the
    size a phone runs this at is six pixels — right on paper and hard to
    read in a fight. The live bar is drawn at 17% instead, centred on
-   that rail, with the pack's own empty rail behind it so the thicker
-   bar still sits in something rather than floating. The creature's
-   health is the one number the player checks most, and it is the one
-   the brief asked to make unmistakable. */
+   that rail, with the pack's own empty rail behind it. */
 .bx-enemy-plate .bx-meter {
   position: absolute;
   left: 24.5%;
@@ -2941,22 +2988,11 @@ body,
   align-items: center;
   gap: 6px;
 }
-/* Its plate carried a specimen bar too, emptied the same way — and
-   the rail is drawn HERE rather than left to the frame, because the
-   live bar is thicker than the frame's own rail. */
+/* Its plate carried a specimen bar too, emptied when the piece was cut. */
 .bx-enemy-plate .bx-meter-track {
   height: 100%;
 }
-/* The creature's number goes on its name line for the same reason the
-   party's does: the rail the pack draws is a bar, not a page. */
-.bx-enemy-read {
-  flex: 0 0 auto;
-  font-size: 8px;
-  font-style: normal;
-  font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
-}
-.bx-enemy-read b { font-weight: 400; opacity: 0.5; }
+.bx-enemy-plate .bx-meter-num { display: none; }
 
 /* ---- a meter, which is the PACK'S BAR, revealed -------------------
    Not a coloured div: `bar-hp.png` and `bar-mp.png` are the delivered
@@ -3009,25 +3045,40 @@ body,
 }
 
 /* ---- where this is ---- */
+/* Where this is — under the order of play, on one line, small. It was
+   a two-line heading in the opposite corner and it was the other half
+   of what the top of the screen was spending its width on. */
+/* Where this is — under the order of play, STACKED rather than side by
+   side. On one line the two names came to more than the strip above
+   them is wide and the Japanese ran off the end; stacked they are two
+   short lines that fit whatever the strip does. */
 .bx-place {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0;
-  padding: 0 2px;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 12px 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(7, 15, 36, 0.72), rgba(4, 10, 26, 0.62));
+  white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95);
 }
 .bx-place b {
-  font-size: 10.5px;
+  font-size: 7.5px;
   font-weight: 600;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  line-height: 1.25;
   color: var(--bx-gold-lit);
+  opacity: 0.85;
 }
 .bx-place i {
   font-size: 9px;
   font-style: normal;
-  letter-spacing: 0.08em;
-  color: var(--bx-ink-dim);
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  color: var(--bx-ink);
 }
 
 /* ---- the party, down the right ----
@@ -3049,10 +3100,17 @@ body,
   /* Wide enough that the frame's ornate ends are a border and not a
      third of the panel: at 148 with a 17px end on each side the rows
      had 114 pixels to live in. */
-  width: clamp(168px, calc(var(--stage-w, 100vw) * 0.235), 208px);
-  padding: 3px 4px 5px;
+  position: relative;
+  width: clamp(186px, calc(var(--stage-w, 100vw) * 0.253), 218px);
+  padding: 4px 2px;
   border: 0 solid transparent;
-  border-width: 7px 13px;
+  /* 7 AND 27 IS NOT A GUESS. The slice is `25 95`, so the drawn
+     ornament is 95 wide for every 25 of top — and a border of 7px top
+     must therefore be 7/25 x 95 = 27px at the sides or the wing is
+     squashed to a gold smear. It was 10px, which drew it at forty per
+     cent of its width, and the brief's one rule about this art is that
+     it is not pulled out of shape. */
+  border-width: 7px 27px;
   background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
   background-clip: padding-box;
   border-image-source: var(--ui-message);
@@ -3060,16 +3118,20 @@ body,
   border-image-repeat: stretch;
   color: var(--bx-ink);
 }
+/* NO HEADING. A panel with two faces in it does not need a word saying
+   they are the party, and the word was the one thing in here that was
+   costing height rather than carrying information. */
 .bx-party > .bx-panel-label {
-  font-size: 7.5px;
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;
-  margin-bottom: 2px;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .bx-party-rows {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 /* One member: a face, a name and two rails, on one line each. */
 .bx-member {
@@ -3078,13 +3140,13 @@ body,
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
-  column-gap: 6px;
-  row-gap: 2px;
+  column-gap: 5px;
+  row-gap: 1px;
 }
 .bx-member .bx-face {
   grid-row: 1 / span 2;
-  width: 28px;
-  height: 31px;
+  width: 24px;
+  height: 27px;
 }
 .bx-member .bx-face-frame { display: block; }
 .bx-member-head {
@@ -3092,6 +3154,7 @@ body,
   align-items: baseline;
   justify-content: space-between;
   gap: 5px;
+  padding-right: 3px;
   min-width: 0;
 }
 .bx-member-name {
@@ -3116,16 +3179,16 @@ body,
 .bx-member-bars {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
-.bx-member .bx-meter { height: 6px; }
+.bx-member .bx-meter { height: 5px; }
 .bx-member .bx-meter-track { height: 100%; }
-/* The role word, beside the name rather than over the face: a label
-   printed across somebody's chin is not a label, it is a smudge. */
+/* The role word, beside the NAME rather than out at the edge: pushed
+   to the far right it was the thing the frame's wing cut in half.
+   Name, role, then the number, which is the one that has to be exact. */
 .bx-member-role {
   flex: 0 0 auto;
-  order: 2;
   font-size: 7.5px;
   font-style: normal;
   letter-spacing: 0.04em;
@@ -3157,7 +3220,9 @@ body,
   width: clamp(150px, calc(var(--stage-w, 100vw) * 0.225), 206px);
   padding: 7px 6px 6px;
   border: 0 solid transparent;
-  border-width: 11px 13px;
+  /* Sliced 38 all round on a 420x244 piece, so the border is square
+     too: one number, not two. */
+  border-width: 11px;
   border-radius: 0;
   background: linear-gradient(180deg, rgba(9, 19, 44, 0.86), rgba(4, 10, 26, 0.92));
   background-clip: padding-box;
@@ -3362,7 +3427,9 @@ body,
   padding: 7px 10px;
   min-height: 40px;
   border: 0 solid transparent;
-  border-width: 9px 19px;
+  /* The same arithmetic as the party HUD: slice `25 95`, so the sides
+     are 95/25 of the top or the wings are drawn narrow. */
+  border-width: 8px 30px;
   border-radius: 0;
   background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
   background-clip: padding-box;

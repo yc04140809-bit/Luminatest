@@ -31,7 +31,7 @@ import type { EnemySpeciesDef } from '../../content/enemies/species';
 import { partyArtFor } from '../../content/art';
 import { enemyPose, heroPose, kaosPose } from '../../game/battle/battleArtState';
 import { CharacterArt } from '../art/CharacterArt';
-import { locationBackground, type LocationId } from '../../content/locations/locationVisuals';
+import { fieldArt, locationBackground, type LocationId } from '../../content/locations/locationVisuals';
 import type { LifeChoiceId } from '../../core/flow/types';
 import { vibrate } from '../../platform/haptics';
 import { Ornament } from '../common/Ornament';
@@ -66,7 +66,7 @@ import {
   turnOrderLine,
   type TurnActor,
 } from './battleHud';
-import { FIELD_FIGURE_SCALE } from './formation';
+import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS } from './formation';
 import { creatureOpponent, type BattleOpponent } from './opponent';
 import { locationNameOf } from '../../content/locations/alden';
 import { BATTLE_UI } from '../../assets/manifest';
@@ -792,7 +792,21 @@ export function BattleUIPrototype({
     // and AUTO would never reach the end of its own wait.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, battle, speed, showingChaos, inAccident]);
-  const backdrop = locationBackground(battleLocationId);
+  /**
+   * WHAT THE FIGHT IS STANDING IN.
+   *
+   * The FIELD painting, which is the one the player was walking across
+   * a second ago — a lit clearing with a paved floor along the bottom —
+   * rather than the location's backdrop, which is the darker picture the
+   * place is seen AGAINST on a menu. Two reasons, and the brief gives
+   * both: the battle is brighter and easier to read people on, and it
+   * is the same ground they were exploring, so the fight happens where
+   * they were rather than somewhere that resembles it.
+   *
+   * Falls back to the backdrop for a place that has no field art, which
+   * is most of them — a fight in a tavern must not come out green.
+   */
+  const backdrop = fieldArt(battleLocationId) ?? locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
   /**
    * Their sizes, as a share of the battlefield.
@@ -871,6 +885,71 @@ export function BattleUIPrototype({
     '--ui-escape-on': `url(${BATTLE_UI.escapeOn})`,
     '--ui-escape-off': `url(${BATTLE_UI.escapeOff})`,
   };
+
+  /**
+   * WHERE THE CREATURE IS, so its health can sit under its feet.
+   *
+   * Measured rather than derived: the plate has to be centred on the
+   * thing it belongs to, and a moss rabbit is eighty pixels wide while
+   * Gald is two hundred and fifty. Nothing else on this screen needs to
+   * know how wide an actor came out, so this is one observer on one
+   * element rather than a layout system.
+   *
+   * The plate is a SIBLING of the actor, not a child: the actor breathes
+   * and charges and flinches, and a health bar that shook with it would
+   * be unreadable exactly when the player most wants to read it.
+   */
+  const [enemyBox, setEnemyBox] = useState<{ mid: number; foot: number } | null>(null);
+  /**
+   * Where to hang it before anything has been measured.
+   *
+   * The plate is NEVER conditional on the measurement. It was, and a
+   * stage that could not be measured — mid-cinematic, or before the
+   * creature's picture had loaded — simply had no enemy health on it at
+   * all. The formation already knows roughly where the creature stands;
+   * this is that, plus half a creature, and the measurement replaces it
+   * on the first frame it can.
+   */
+  const enemyHome =
+    PROTOTYPE_PLACEMENTS[
+      opponent.stands === 'NEAR'
+        ? showingDown
+          ? 'enemyNearDowned'
+          : 'enemyNear'
+        : showingDown
+          ? 'enemyDowned'
+          : 'enemy'
+    ];
+  const plateAt = enemyBox ?? { mid: enemyHome.inset + 0.07, foot: enemyHome.bottom };
+  useEffect(() => {
+    const stageEl = stageRef.current;
+    if (!stageEl) return;
+    const read = () => {
+      const actor = stageEl.querySelector('.bp-enemy');
+      if (!actor) return;
+      const s = stageEl.getBoundingClientRect();
+      const a = actor.getBoundingClientRect();
+      if (s.width <= 0 || s.height <= 0) return;
+      setEnemyBox({
+        mid: (a.left + a.width / 2 - s.left) / s.width,
+        foot: (s.bottom - a.bottom) / s.height,
+      });
+    };
+    read();
+    const observer = new ResizeObserver(read);
+    observer.observe(stageEl);
+    const actor = stageEl.querySelector('.bp-enemy');
+    if (actor) observer.observe(actor);
+    // Its picture arrives after the first paint, and an actor measured
+    // before its drawing has loaded is a box of nothing.
+    const t = window.setTimeout(read, 220);
+    return () => {
+      observer.disconnect();
+      clearTimeout(t);
+    };
+    // Re-measured when the creature's drawing changes, which is the one
+    // thing that changes its width.
+  }, [enemyShown.state, showingDown]);
 
   /** Leaving. Only while there is a fight to leave. */
   const escape = () => {
@@ -1044,6 +1123,47 @@ export function BattleUIPrototype({
                labelled; nothing about the drawing itself is recoloured. */}
         {/* What crossed, and its one move. Shared with the admin
             preview so the two can never drift apart. */}
+        {/* ITS HEALTH, UNDER ITS FEET.
+            In the corner it was a number that belonged to whichever
+            creature the player assumed; here there is no assuming. The
+            plate is a SIBLING of the actor rather than a child, so the
+            creature can charge and flinch without dragging its own
+            health bar around the field with it.
+
+            It is never conditional, and it follows the creature down:
+            the bar reaching nought is the last thing the player reads
+            before being asked what becomes of it, and a plate that
+            vanished at that moment would take the question's own
+            subject off the screen. */}
+        <div
+          className="bx-enemy-plate"
+          data-testid="bp-enemy-hp"
+          style={{
+            left: `${plateAt.mid * 100}%`,
+            bottom: `${Math.max(0, plateAt.foot * 100 - 8.5)}%`,
+          }}
+        >
+          <span className="bx-enemy-head">
+            <b className="bx-enemy-name">{battle.enemyName}</b>
+            {battle.enemyPhaseId && (
+              <i className="bp-phase" data-testid="bp-enemy-phase">
+                {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
+              </i>
+            )}
+            <Readout now={battle.enemyHp} max={battle.enemyMaxHp} className="bx-enemy-read" />
+          </span>
+          <Meter kind="enemy-hp" now={battle.enemyHp} max={battle.enemyMaxHp} bare>
+            {battle.enemyMaxPoise > 0 && (
+              <span
+                className={`bp-poise${battle.enemyStaggerTurns > 0 ? ' broken' : ''}`}
+                data-testid="bp-enemy-poise"
+                data-broken={battle.enemyStaggerTurns > 0 ? 'yes' : undefined}
+                style={{ width: `${(battle.enemyPoise / battle.enemyMaxPoise) * 100}%` }}
+              />
+            )}
+          </Meter>
+        </div>
+
         <AccidentStage
           beat={accidentBeat}
           unknown={unknown}
@@ -1085,52 +1205,21 @@ export function BattleUIPrototype({
              it was not given — the layer is transparent to the thumb
              and only the controls inside it are not. */}
       <div className="bp-hud" data-testid="bp-hud">
-        {/* LEFT TOP — the order, then who you are fighting. No logo:
-            a brand mark in the corner of a fight is the one thing on
-            this screen that tells the player nothing. */}
-        <div className="bx-corner bx-tl">
+        {/* TOP CENTRE — the order of play, and where this is.
+            Both used to sit in opposite corners and between them they
+            spanned the whole width; they are one compact group in the
+            middle now, and the two top corners the fight had been
+            squeezed between are given back to it. */}
+        <div className="bx-corner bx-tc">
           <TurnOrder slots={turnSlots} artOf={turnArtOf} />
-          <div className="bx-enemy-plate" data-testid="bp-enemy-hp">
-            <span className="bx-enemy-head">
-              <b className="bx-enemy-name">{battle.enemyName}</b>
-              {/* What it has become on the way down. One word, in its
-                  own colour, so a phase is something the player SEES
-                  rather than a line they may have tapped past. */}
-              {battle.enemyPhaseId && (
-                <i className="bp-phase" data-testid="bp-enemy-phase">
-                  {PHASE_WORD[battle.enemyPhaseId] ?? battle.enemyPhaseId}
-                </i>
-              )}
-              <Readout
-                now={battle.enemyHp}
-                max={battle.enemyMaxHp}
-                className="bx-enemy-read"
-              />
-            </span>
-            <Meter kind="enemy-hp" now={battle.enemyHp} max={battle.enemyMaxHp} bare>
-              {/* Its footing, under its health: the thing to aim at in
-                  the middle of a fight. Only drawn for creatures that
-                  have any. */}
-              {battle.enemyMaxPoise > 0 && (
-                <span
-                  className={`bp-poise${battle.enemyStaggerTurns > 0 ? ' broken' : ''}`}
-                  data-testid="bp-enemy-poise"
-                  data-broken={battle.enemyStaggerTurns > 0 ? 'yes' : undefined}
-                  style={{
-                    width: `${(battle.enemyPoise / battle.enemyMaxPoise) * 100}%`,
-                  }}
-                />
-              )}
-            </Meter>
-          </div>
-        </div>
-
-        {/* RIGHT TOP — where this is, and who is standing with you. */}
-        <div className="bx-corner bx-tr">
           <div className="bx-place" data-testid="bx-place">
             <b>{placeMark}</b>
             <i>{placeName}</i>
           </div>
+        </div>
+
+        {/* RIGHT — who is standing with you. */}
+        <div className="bx-corner bx-tr">
           <PartyHud>
             {/* His health is what the fight keeps; the magic is hers.
                 Each card carries the one it has and says 「—」 on the

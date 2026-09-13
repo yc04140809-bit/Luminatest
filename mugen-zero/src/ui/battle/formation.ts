@@ -54,18 +54,20 @@ export const MAX_PARTY = 4;
  * and for a field that still reads when there are four of them standing
  * on it rather than two.
  *
- * RAISED FROM 0.5 once the party HUD stopped being a stack of framed
- * cards. That column was a third of the screen's height and the cast
- * had been shrunk to stay clear of it; the HUD is now a single panel a
- * little over a quarter as tall, and the room it gave back belongs to
- * the people on the field. The ceiling is what the top corners leave:
- * the tallest head reaches about 0.63 of the field and the panels stop
- * around 0.67.
+ * RAISED TWICE, and both times because the UI gave room back rather
+ * than because anybody wanted bigger drawings. First when the party
+ * stopped being a stack of framed cards down the right; then again when
+ * the top LEFT corner emptied — the order of play and the place name
+ * became one compact group in the middle, and the creature's health
+ * went to the creature's feet, so the two corners the fight had been
+ * playing between are field now. The ceiling is what is left above:
+ * the tallest head reaches about 0.74 of the field and nothing is drawn
+ * over that column until the top group, which sits above 0.86.
  *
  * Applied by the battle screen at the point of drawing, so no other
  * screen in the game so much as notices.
  */
-export const FIELD_FIGURE_SCALE = 0.56;
+export const FIELD_FIGURE_SCALE = 0.66;
 
 /**
  * The formations, one row per party size.
@@ -192,9 +194,13 @@ export const PROTOTYPE_PLACEMENTS = {
    * So he stands NEARER: lower down the field, which is closer to the
    * camera, which is also the truth about the fight. You are at arm's
    * length from a man with a knife and half a clearing from a rabbit.
+   *
+   * Not as low as it could go, though, because his HEALTH now hangs
+   * under his feet and has to stay clear of the commands along the
+   * bottom. A creature's ground line is where its plate hangs from.
    */
-  enemyNear: { edge: 'left', inset: 0.06, bottom: 0.26 },
-  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.23 },
+  enemyNear: { edge: 'left', inset: 0.05, bottom: 0.36 },
+  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.3 },
   /**
    * He is nearest, on the right, between her and it. Nearest means
    * largest, but only just: too much and he stops being a person
@@ -225,7 +231,7 @@ export const PROTOTYPE_PLACEMENTS = {
    * shoulder on one side and — because it stands much lower down the
    * path — well clear of the creature being fought on the other.
    */
-  summon: { edge: 'right', inset: 0.46, bottom: 0.28, depth: 2 },
+  summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
 } as const satisfies Readonly<Record<string, PrototypePlacement>>;
 
 export type PrototypeSlot = keyof typeof PROTOTYPE_PLACEMENTS;

@@ -41,7 +41,7 @@ const EXPECTED: Record<string, Placed> = {
   '.bp-enemy.downed': { edge: 'left', inset: 0.06, bottom: 0.36, zIndex: 'auto' },
   '.bp-hero': { edge: 'right', inset: 0.33, bottom: 0.27, zIndex: '2' },
   '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.33, zIndex: '1' },
-  '.bp-summon': { edge: 'right', inset: 0.46, bottom: 0.28, zIndex: '2' },
+  '.bp-summon': { edge: 'right', inset: 0.48, bottom: 0.28, zIndex: '2' },
 };
 
 const VIEWPORTS = [

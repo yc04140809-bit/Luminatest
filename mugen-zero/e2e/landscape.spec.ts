@@ -198,8 +198,12 @@ test.describe('the battlefield', () => {
     // empty for the fighting to happen in.
     const mid = { x: screen.x + screen.width / 2, y: screen.y + screen.height / 2 };
     const corners = {
-      'bx-turn-order': ['left', 'top'],
-      'bp-enemy-hp': ['left', 'top'],
+      // The order of play and the place name are one group in the
+      // middle of the top now. They were in opposite corners and
+      // between them they spanned the width, which is what the fight
+      // was being squeezed by.
+      'bx-turn-order': ['centre', 'top'],
+      'bx-place': ['centre', 'top'],
       'bx-party': ['right', 'top'],
       'bx-world-memory': ['left', 'bottom'],
       'bp-modes': ['right', 'bottom'],
@@ -225,8 +229,19 @@ test.describe('the battlefield', () => {
       );
     }
 
-    // Both healths are readable at once, one on each side.
+    // THE CREATURE'S HEALTH IS NOT IN A CORNER. It hangs under the
+    // creature, so there is nothing for the player to match up: that
+    // bar belongs to the thing standing over it. Checked as exactly
+    // that — centred on the creature, and below it.
     const enemyHp = (await page.getByTestId('bp-enemy-hp').boundingBox())!;
+    const enemy = (await page.locator('.bp-enemy').boundingBox())!;
+    expect(
+      Math.abs(enemyHp.x + enemyHp.width / 2 - (enemy.x + enemy.width / 2)),
+      'the health is centred on the creature',
+    ).toBeLessThan(6);
+    expect(enemyHp.y, 'and hangs below it').toBeGreaterThan(enemy.y + enemy.height * 0.6);
+
+    // Both healths are still readable at once, one on each side.
     const playerHp = (await page.getByTestId('bp-player-hp').boundingBox())!;
     expect(enemyHp.x).toBeLessThan(playerHp.x);
     expect(enemyHp.x + enemyHp.width).toBeLessThanOrEqual(playerHp.x + 1);
