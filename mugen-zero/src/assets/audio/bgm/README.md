@@ -43,38 +43,69 @@ list and need no other change. Add it to `REVIEW_AUDIO` in
 `scripts/review-encode-assets.mjs` as well, or the artifact will have
 no copy of it to inline.
 
-## The review artifact, and why its music is not this music
+## The artifact's music is not this music
 
 `npm run build` — the ordinary build — emits these files as they are.
-Verified by hashing: every MP3 in `dist/assets/` is byte-identical to
-its source here.
+That is no longer a claim: `scripts/check-build-audio.mjs` runs at the
+end of that build, hashes every audio file it emitted and compares it
+against this folder. A file that is not byte-identical to one of these
+six fails the build, and a file that is byte-identical to one of the
+artifact's preview loops fails it by name. So a low-bitrate cut cannot
+reach a player even if somebody copies the wrong line between configs.
 
 `npm run build:singlefile` — the artifact reviewed on a phone — inlines
 every asset into one HTML file which may not exceed 16 MiB, base64
-included. Sixteen minutes of music does not fit in that at any bitrate.
-So `scripts/review-encode-assets.mjs` writes SEPARATE copies into
-`.review-assets/` and only that build is aliased to them:
+included. Sixteen minutes of music does not fit in that at any bitrate,
+and the artwork is not being made worse to find room. So
+`scripts/review-encode-assets.mjs` writes SEPARATE copies into
+`.review-assets/` and only that build is aliased to them.
 
-- **45 seconds** of each, starting 8 seconds in — past the intro, into
-  the piece proper.
+A preview copy is a **loop**, not a slice:
+
+- **45 to 75 seconds**, and the exact length is CHOSEN per piece. The
+  encoder looks for the point where the music most nearly repeats —
+  comparing the spectrum two seconds either side of every candidate
+  seam — and takes the best fit, refusing seams that land in a quiet
+  patch or that change loudness across the join. On a piece with a
+  regular structure that lands on a phrase or bar boundary.
+- **the start is chosen the same way**, rather than fixed.
+- **the seam is crossfaded into the file.** The three quarters of a
+  second that follow the loop point are faded down over the three
+  quarters of a second at the loop's start, so the wrap is a
+  continuation of the phrase rather than a cut to a different one.
+  Nothing at runtime knows: the file simply loops cleanly.
 - **48 kbps, stereo, 32 kHz.** Stereo deliberately, with the bitrate
   taking the cut instead: what these are being checked for is whether
   they belong in their scene, and half the width of a mix is half the
   evidence.
 - **no cover art** (`-vn`). Every file carries a 360x640 JPEG, and
-  without that flag ffmpeg copies it into the excerpt — where it cost
+  without that flag ffmpeg copies it into the preview — where it cost
   more than the audio did.
+- all six together are held under a **total seconds budget**, which is
+  the one number the artifact's size actually turns on. The encoder
+  finds the longest shared length cap that fits it, so a piece with a
+  good long loop gets one when its neighbours are short.
 
-About 0.27 MB each, a twelfth of the delivered weight. They are review
-copies and they are not the music: the loop seam of a 45-second cut is
-not the delivered music's seam, and the bitrate is well below what the
-game ships.
+They are review copies and they are not the music: a preview loop's
+seam is not the delivered music's, there is no seam in the delivered
+music at all, and the bitrate is a quarter of what the game ships.
 
-Room for them was found by adding the last two heavy PNGs nobody had
-listed — `bakery-owner-fullbody` and `lina-fullbody`, 2.0 MB between
-them — to the image list at the SAME quality as everything else.
-Nothing already in that list got worse to make space for a song.
+**The game's own looping is unchanged and always has been.** The audio
+manager sets `loop` on the element and the project sets no loop point
+anywhere, so every piece plays to the end of its own file and starts
+again — 3:14 of forest, 2:30 of battle. The preview loop exists inside
+the artifact and nowhere else.
 
-Building the artifact needs `ffmpeg` on PATH. Without it the build
-stops and says so rather than quietly shipping something wrong; the
-ordinary build does not need it.
+The loop points are cached in `.review-assets/loop-points.json`, keyed
+by the size and modification time of the six sources, so the search
+only runs when the music changes.
+
+Building the artifact needs `ffmpeg` and `python3` with `numpy` on
+PATH. Without them the build stops and says so rather than quietly
+shipping something wrong; the ordinary build needs neither.
+
+Room for the previews was found by adding the last two heavy PNGs
+nobody had listed — `bakery-owner-fullbody` and `lina-fullbody`, 2.0 MB
+between them — to the image list at the SAME quality as everything
+else. Nothing already in that list got worse to make space for a song,
+and nothing has since.

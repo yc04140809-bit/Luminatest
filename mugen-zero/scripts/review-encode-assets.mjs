@@ -19,8 +19,8 @@
 // Nothing is redrawn, regenerated, resized or recomposed.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -197,31 +197,80 @@ print(f'{before[0]}x{before[1]}')
 `;
 
 // ---------------------------------------------------------------- //
-// THE MUSIC, FOR THE REVIEW BUILD ONLY.
+// THE MUSIC — A PREVIEW LOOP, AND FOR THE ARTIFACT ONLY.
 //
-// The same rule as the artwork above, and a harder arithmetic. The six
-// delivered pieces are 23 MB of 48 kHz stereo MP3 — sixteen minutes of
-// music — and the artifact they have to fit inside may not exceed 16
-// MiB in total, base64 included. There is no encoding of sixteen
-// minutes that fits in what is left of that.
+// ============================================================== //
+//  NOTHING IN THIS SECTION EVER REACHES THE GAME.
 //
-// So a review copy of a piece of music is not the piece: it is a
-// RECOGNISABLE EXCERPT of it, looping. Long enough to know which piece
-// is playing and to hear one scene cross into the next, short enough
-// that six of them fit. That is exactly what the artifact is for — 
-// checking that the right music plays in the right place on a real
-// phone — and it is not what the game ships. `npm run build` uses the
-// delivered files, untouched, at their delivered quality.
+//  `npm run build` — the build a player would be given — serves
+//  src/assets/audio/bgm/*.mp3 exactly as they were delivered: full
+//  length, 48 kHz stereo, ~190 kbps, looping at each file's own end
+//  because the audio manager sets `loop` on the element and nothing
+//  in the project ever sets a loop point. scripts/check-build-audio
+//  .mjs runs after that build and fails it if a single byte of any
+//  shipped MP3 differs from its source, so a preview copy cannot
+//  reach production even by accident.
+//
+//  What is written below goes into `.review-assets/`, and ONLY
+//  vite.config.singlefile.ts — the one-file artifact shared for
+//  review on a phone — is aliased to it.
+// ============================================================== //
+//
+// WHY A PREVIEW LOOP EXISTS AT ALL. The artifact inlines every asset
+// as a data URI, base64 and all, into one HTML file that may not
+// exceed 16 MiB. The six delivered pieces are sixteen minutes of
+// music and 23 MB before base64; there is no encoding of that which
+// fits in what is left of the budget after the artwork, and the
+// artwork is not being made worse to find room.
+//
+// WHAT WAS WRONG WITH THE OLD PREVIEW, AND IS FIXED HERE. It took a
+// flat 45 seconds starting 8 seconds in and let the element loop it.
+// So the music stopped in the middle of a phrase and jumped back to
+// the middle of another one, every 45 seconds — which does not read
+// as "this is an excerpt", it reads as a bug in the game. The excerpt
+// is still an excerpt; it is now a LOOP:
+//
+//   1. the length is CHOSEN, not fixed. For each piece the encoder
+//      looks for the point where the music most nearly repeats — it
+//      compares the spectrum two seconds either side of every
+//      candidate seam and takes the best fit, refusing seams that
+//      fall in a quiet patch or that change loudness across the join.
+//      That lands on a phrase or bar boundary when the piece has one,
+//      which is the "musically natural division" this is for.
+//   2. the start is chosen the same way rather than fixed at 0:08.
+//   3. the seam is CROSSFADED INTO THE FILE. The three quarters of a
+//      second that follow the loop point are faded down over the
+//      three quarters of a second at the start, so when the element
+//      wraps it continues out of the material it was just playing
+//      instead of cutting to it. Nothing at runtime knows about this:
+//      the file simply loops cleanly, and the GAME's own files have
+//      no such seam because they are never cut.
 //
 // The delivered files are never rewritten, resampled or overwritten.
 
-/** Where the excerpt starts. Past the intro, into the piece proper. */
-const REVIEW_AUDIO_FROM_S = 8;
+/** Where a preview may start looking for its loop, in seconds. */
+const PREVIEW_STARTS = [0, 2, 4, 6, 8, 10, 12, 14, 16];
+/** How long a preview loop may be. The brief asks for 45–90 seconds. */
+const PREVIEW_MIN_S = 45;
+const PREVIEW_MAX_S = 75;
 /**
- * How much of it. Forty-five seconds is long enough to recognise a
- * piece and to hear a crossfade land, and six of them fit.
+ * How much music all six previews may come to, in seconds.
+ *
+ * THE ONE NUMBER THE ARTIFACT'S SIZE ACTUALLY TURNS ON. At the bitrate
+ * below a second of preview is about 6 kB, so this is about 1.95 MB of
+ * MP3 and about 2.6 MB once base64 has added its third — which leaves
+ * roughly a third of a megabyte of headroom under the 16 MiB limit
+ * with the artwork untouched at its current quality.
+ *
+ * The encoder spends it by finding the longest shared length cap that
+ * fits, so a piece with a good long loop gets one when its neighbours
+ * are short. Raise this and the artifact stops publishing; lower it
+ * and the previews get shorter. It is not a quality setting and it has
+ * nothing to do with the game.
  */
-const REVIEW_AUDIO_SECONDS = 45;
+const PREVIEW_TOTAL_BUDGET_S = 330;
+/** Faded into the start, so the wrap is a continuation rather than a cut. */
+const PREVIEW_CROSSFADE_S = 0.75;
 /**
  * STEREO, deliberately, and the bitrate takes the cut instead.
  *
@@ -230,9 +279,10 @@ const REVIEW_AUDIO_SECONDS = 45;
  * they belong in their scene, and half the width of a mix is half the
  * evidence. 48 kbps joint stereo at 32 kHz is a poor copy of a good
  * recording — and it is a copy of the right recording, in stereo.
+ * The game ships the delivered ~190 kbps files and never this.
  */
-const REVIEW_AUDIO_BITRATE = '48k';
-const REVIEW_AUDIO_RATE = 32000;
+const PREVIEW_BITRATE_KBPS = 48;
+const PREVIEW_RATE = 32000;
 
 export const REVIEW_AUDIO = [
   'opening',
@@ -247,36 +297,239 @@ export const REVIEW_AUDIO = [
 }));
 
 /**
- * Writes the review copies of the music.
+ * Where each piece most nearly repeats itself.
+ *
+ * Reads every track, compares the spectrum two seconds either side of
+ * every candidate seam, and prints one JSON object. Kept out of the
+ * build's hot path by the cache below: the answer only changes when
+ * the music does.
+ *
+ * The feature is a log-spaced band spectrum with the per-frame mean
+ * removed and the vector normalised, so what is being matched is the
+ * SHAPE of the music — the chord, the instrumentation, the place in
+ * the bar — rather than the waveform, which would only ever match a
+ * piece that had been rendered from a loop in the first place. Level
+ * is then compared separately and a mismatch penalised, because a seam
+ * that is musically right and eight decibels louder still sounds like
+ * a join.
+ */
+const FIND_LOOPS = `
+import json, subprocess, sys
+import numpy as np
+
+SR, HOP, NFFT = 11025, 256, 1024
+STARTS = json.loads(sys.argv[1])
+LO, HI, WIN = float(sys.argv[2]), float(sys.argv[3]), 2.0
+BUDGET = float(sys.argv[4])
+LEVEL_WEIGHT = 0.18
+QUIET_FLOOR = 0.35
+
+def pcm(path):
+    raw = subprocess.run(
+        ['ffmpeg', '-v', 'error', '-i', path, '-vn', '-ac', '1', '-ar', str(SR), '-f', 'f32le', '-'],
+        capture_output=True, check=True).stdout
+    return np.frombuffer(raw, dtype='<f4').astype(np.float32)
+
+def analyse(x):
+    n = 1 + (len(x) - NFFT) // HOP
+    idx = np.arange(NFFT)[None, :] + HOP * np.arange(n)[:, None]
+    frames = x[idx] * np.hanning(NFFT).astype(np.float32)
+    mag = np.abs(np.fft.rfft(frames, axis=1))
+    edges = np.unique(np.geomspace(2, mag.shape[1] - 1, 49).astype(int))
+    bands = np.stack([mag[:, a:b].sum(1) for a, b in zip(edges[:-1], edges[1:])], 1)
+    f = np.log1p(bands)
+    f -= f.mean(1, keepdims=True)
+    f /= np.maximum(np.linalg.norm(f, axis=1, keepdims=True), 1e-6)
+    return f, np.sqrt((frames ** 2).mean(1) + 1e-12)
+
+def candidates(path):
+    x = pcm(path)
+    f, rms = analyse(x)
+    fps = SR / HOP
+    W = int(WIN * fps)
+    floor = QUIET_FLOOR * float(np.sqrt((x ** 2).mean()))
+    found = []
+    for s in STARTS:
+        a = int(s * fps)
+        if a + W > len(f):
+            continue
+        A, ra = f[a:a + W], float(rms[a:a + W].mean())
+        for l in range(int(LO * fps), int(HI * fps)):
+            b = a + l
+            if b + W > len(f):
+                break
+            rb = float(rms[b:b + W].mean())
+            if min(ra, rb) < floor:
+                continue
+            fit = float((A * f[b:b + W]).sum() / W)
+            level = float(abs(np.log2(ra / rb)))
+            found.append((fit - LEVEL_WEIGHT * level, fit, level, float(s), l / fps))
+    if not found:
+        # Nothing passed the floor: fall back to the shortest allowed
+        # loop rather than failing a build over a quiet recording.
+        return [(0.0, 0.0, 0.0, float(STARTS[0]), LO)]
+    found.sort(reverse=True)
+    return found
+
+def best_under(rows, cap):
+    under = [r for r in rows if r[4] <= cap]
+    return max(under or rows, key=lambda r: r[0])
+
+tracks = json.loads(sys.argv[5])
+rows = {name: candidates(path) for name, path in tracks}
+# THE LONGEST SHARED CAP THAT FITS. Every piece picks its own best loop
+# no longer than the cap; the cap comes down a second at a time until
+# the six of them fit the budget. Longest-first rather than an even
+# split, so a piece with a good long loop gets one.
+cap = HI
+while cap > LO:
+    picks = {n: best_under(r, cap) for n, r in rows.items()}
+    if sum(p[4] for p in picks.values()) <= BUDGET:
+        break
+    cap -= 1.0
+picks = {n: best_under(r, max(cap, LO)) for n, r in rows.items()}
+print(json.dumps({
+    n: {'start': round(p[3], 3), 'length': round(p[4], 3),
+        'fit': round(p[1], 3), 'level': round(p[2], 3)}
+    for n, p in picks.items()
+}))
+`;
+
+/** What the analysis was run against, so a rebuild can skip it. */
+function loopCacheKey() {
+  const stamp = REVIEW_AUDIO.map((track) => {
+    const info = statSync(track.source);
+    return `${basename(track.source)}:${info.size}:${info.mtimeMs}`;
+  }).join('|');
+  return [
+    stamp,
+    PREVIEW_STARTS.join(','),
+    PREVIEW_MIN_S,
+    PREVIEW_MAX_S,
+    PREVIEW_TOTAL_BUDGET_S,
+  ].join('#');
+}
+
+/**
+ * The loop points, from the cache when the music has not changed.
+ *
+ * The search is a few seconds a track and its answer only moves when
+ * the recording does, so the result is written beside the previews and
+ * keyed by what it was computed from. A stale key re-runs the search
+ * rather than trusting it.
+ */
+function loopPoints() {
+  const key = loopCacheKey();
+  const cachePath = join(REVIEW_ASSET_DIR, 'loop-points.json');
+  if (existsSync(cachePath)) {
+    try {
+      const cached = JSON.parse(readFileSync(cachePath, 'utf-8'));
+      if (cached.key === key) return cached.points;
+    } catch {
+      // Unreadable cache is no cache.
+    }
+  }
+  const tracks = REVIEW_AUDIO.map((track) => [basename(track.source, '.mp3'), track.source]);
+  const out = execFileSync(
+    'python3',
+    [
+      '-c',
+      FIND_LOOPS,
+      JSON.stringify(PREVIEW_STARTS),
+      String(PREVIEW_MIN_S),
+      String(PREVIEW_MAX_S),
+      String(PREVIEW_TOTAL_BUDGET_S),
+      JSON.stringify(tracks),
+    ],
+    { encoding: 'utf-8', maxBuffer: 1 << 24 },
+  );
+  const points = JSON.parse(out.trim().split('\n').pop());
+  mkdirSync(REVIEW_ASSET_DIR, { recursive: true });
+  writeFileSync(cachePath, JSON.stringify({ key, points }, null, 2));
+  return points;
+}
+
+function ffmpeg(args) {
+  execFileSync('ffmpeg', ['-v', 'error', '-y', ...args], { encoding: 'utf-8' });
+}
+
+/**
+ * Bakes one preview loop.
+ *
+ * THE SEAM IS BUILT INTO THE FILE, which is why nothing at runtime has
+ * to know this exists. The preview is the music from `start` for
+ * `length` seconds, except that its first three quarters of a second
+ * are a crossfade: the material that FOLLOWS the loop point, fading
+ * out, over the material at the loop's start, fading in. So the last
+ * sample of the file runs into the first as a continuation of the same
+ * phrase rather than a cut to a different one.
+ *
+ * Equal-power (quarter-sine) fades, not linear ones: the two sides are
+ * different moments of the same piece and therefore uncorrelated, and
+ * a linear crossfade of uncorrelated material dips in the middle.
  *
  * `-vn` is not optional: every one of these files carries a 360x640
  * cover image as a video stream, and without it ffmpeg copies the
- * artwork into the excerpt — which cost more than the audio did.
+ * artwork into the preview — which cost more than the audio did.
+ */
+function bakeLoop(track, point) {
+  const { start, length } = point;
+  const x = PREVIEW_CROSSFADE_S;
+  const work = join(REVIEW_ASSET_DIR, `.loop-${basename(track.out, '.mp3')}`);
+  const head = `${work}-head.wav`;
+  const tail = `${work}-tail.wav`;
+  const seam = `${work}-seam.wav`;
+  const body = `${work}-body.wav`;
+  try {
+    // The start of the loop, fading in.
+    ffmpeg(['-ss', String(start), '-t', String(x), '-i', track.source, '-vn',
+      '-af', `afade=t=in:st=0:d=${x}:curve=qsin`, '-f', 'wav', head]);
+    // What comes after the loop point, fading out.
+    ffmpeg(['-ss', String(start + length), '-t', String(x), '-i', track.source, '-vn',
+      '-af', `afade=t=out:st=0:d=${x}:curve=qsin`, '-f', 'wav', tail]);
+    // The two of them, summed rather than averaged.
+    ffmpeg(['-i', head, '-i', tail, '-filter_complex',
+      '[0:a][1:a]amix=inputs=2:duration=longest:normalize=0', '-f', 'wav', seam]);
+    // And the rest of the loop, untouched.
+    ffmpeg(['-ss', String(start + x), '-t', String(length - x), '-i', track.source, '-vn',
+      '-f', 'wav', body]);
+    ffmpeg(['-i', seam, '-i', body, '-filter_complex', '[0:a][1:a]concat=n=2:v=0:a=1',
+      '-ac', '2', '-ar', String(PREVIEW_RATE), '-b:a', `${PREVIEW_BITRATE_KBPS}k`,
+      '-map_metadata', '-1', track.out]);
+  } finally {
+    for (const scrap of [head, tail, seam, body]) {
+      if (existsSync(scrap)) rmSync(scrap, { force: true });
+    }
+  }
+}
+
+/**
+ * Writes the artifact's preview loops. NEVER the game's music.
  */
 export function encodeReviewAudio() {
   mkdirSync(REVIEW_ASSET_DIR, { recursive: true });
-  const made = [];
   for (const track of REVIEW_AUDIO) {
     if (!existsSync(track.source)) {
       throw new Error(`Review encoding: ${track.source} is missing.`);
     }
+  }
+  let points;
+  try {
+    points = loopPoints();
+  } catch (error) {
+    throw new Error(
+      `Review encoding needs python3 with numpy to find the preview loop ` +
+        `points for the single-file artifact. The regular build does not ` +
+        `need it and uses the delivered MP3s exactly as they are.\n${error}`,
+    );
+  }
+  const made = [];
+  for (const track of REVIEW_AUDIO) {
+    const name = basename(track.source, '.mp3');
+    const point = points[name];
+    if (!point) throw new Error(`Review encoding: no loop point found for ${name}.`);
     try {
-      execFileSync(
-        'ffmpeg',
-        [
-          '-v', 'error', '-y',
-          '-ss', String(REVIEW_AUDIO_FROM_S),
-          '-i', track.source,
-          '-vn',                       // leave the cover art behind
-          '-t', String(REVIEW_AUDIO_SECONDS),
-          '-ac', '2',                  // stereo, on purpose
-          '-ar', String(REVIEW_AUDIO_RATE),
-          '-b:a', REVIEW_AUDIO_BITRATE,
-          '-map_metadata', '-1',       // no tags to carry
-          track.out,
-        ],
-        { encoding: 'utf-8' },
-      );
+      bakeLoop(track, point);
     } catch (error) {
       throw new Error(
         `Review encoding needs ffmpeg to build the single-file artifact ` +
@@ -289,6 +542,7 @@ export function encodeReviewAudio() {
       out: track.out,
       from: statSync(track.source).size,
       to: statSync(track.out).size,
+      ...point,
     });
   }
   return made;
