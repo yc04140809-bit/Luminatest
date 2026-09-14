@@ -4,6 +4,7 @@ import { World } from './world';
 import { IdbMemoryStore, WORLD_STATE_STORE } from '../memory/idbStore';
 import { openDatabase, txDone } from '../memory/idbSchema';
 import { itemDef } from '../../content/economy/itemDefs';
+import type { ShopOffer } from '../economy/shop';
 
 /**
  * THE BAG AND THE PURSE, on the world's side: what is written, what is
@@ -118,13 +119,24 @@ describe('the purse', () => {
  * NO SHOP EXISTS. These two are here because a purchase changes TWO
  * saved rows, and a shop built on `spendLumi` then `addItem` could be
  * interrupted between them — money gone, nothing bought.
+ *
+ * The price comes from the OFFER rather than the catalogue, which is
+ * the other thing being pinned down here: what a herb IS and what a
+ * herb COSTS are different facts, and the second belongs to whoever is
+ * selling it.
  */
 describe('the two moves a shop will make', () => {
+  const offer = (itemId: string, buyPrice: number, rest: Partial<ShopOffer> = {}): ShopOffer => ({
+    itemId,
+    buyPrice,
+    ...rest,
+  });
+
   it('takes the money and hands over the goods, together', async () => {
     const dbName = freshDbName();
     const world = await openWorld(dbName);
     await world.addLumi(100);
-    expect(await world.buyItem(HERB, 3, 10)).toBe(true);
+    expect(await world.buyItem(offer(HERB, 10), 3)).toBe(true);
     expect(world.getLumi()).toBe(70);
     expect(world.getItemCount(HERB)).toBe(3);
 
@@ -133,10 +145,24 @@ describe('the two moves a shop will make', () => {
     expect(reopened.getItemCount(HERB)).toBe(3);
   });
 
+  /**
+   * THE PRICE IS THE SHOP'S, NOT THE THING'S. The same herb at two
+   * prices is two shopkeepers, and neither of them has edited the
+   * catalogue.
+   */
+  it('charges what the offer says, not what the catalogue says', async () => {
+    const world = await openWorld(freshDbName());
+    await world.addLumi(100);
+    expect(await world.buyItem(offer(HERB, 3), 1)).toBe(true);
+    expect(world.getLumi()).toBe(97);
+    expect(await world.buyItem(offer(HERB, 40), 1)).toBe(true);
+    expect(world.getLumi()).toBe(57);
+  });
+
   it('sells nothing and takes nothing when the purse is short', async () => {
     const world = await openWorld(freshDbName());
     await world.addLumi(20);
-    expect(await world.buyItem(HERB, 3, 10)).toBe(false);
+    expect(await world.buyItem(offer(HERB, 10), 3)).toBe(false);
     expect(world.getLumi(), 'not a single LUMI moved').toBe(20);
     expect(world.getItemCount(HERB)).toBe(0);
   });
@@ -145,9 +171,46 @@ describe('the two moves a shop will make', () => {
     const world = await openWorld(freshDbName());
     await world.addLumi(10_000);
     const cap = itemDef(HERB)!.maxStack;
-    expect(await world.buyItem(HERB, cap, 1)).toBe(true);
-    expect(await world.buyItem(HERB, 1, 1)).toBe(false);
+    expect(await world.buyItem(offer(HERB, 1), cap)).toBe(true);
+    expect(await world.buyItem(offer(HERB, 1), 1)).toBe(false);
     expect(world.getItemCount(HERB)).toBe(cap);
+  });
+
+  it('refuses an offer whose price is not a price', async () => {
+    const world = await openWorld(freshDbName());
+    await world.addLumi(100);
+    for (const bad of [-5, Number.NaN]) {
+      expect(await world.buyItem(offer(HERB, bad), 1)).toBe(false);
+    }
+    expect(world.getLumi()).toBe(100);
+    expect(world.getItemCount(HERB)).toBe(0);
+  });
+
+  it('refuses something the catalogue has never heard of, at any price', async () => {
+    const world = await openWorld(freshDbName());
+    await world.addLumi(100);
+    expect(await world.buyItem(offer('NO_SUCH_THING', 1), 1)).toBe(false);
+    expect(world.getLumi()).toBe(100);
+  });
+
+  /**
+   * An offer that keeps count will not sell what it has not got. It is
+   * READ AND NOT SPENT: counting down is the shop's own state, and the
+   * shop round owns it.
+   */
+  it('will not sell more than the shopkeeper says they have', async () => {
+    const world = await openWorld(freshDbName());
+    await world.addLumi(100);
+    expect(await world.buyItem(offer(HERB, 5, { stock: 2 }), 3)).toBe(false);
+    expect(await world.buyItem(offer(HERB, 5, { stock: 2 }), 2)).toBe(true);
+    expect(world.getItemCount(HERB)).toBe(2);
+  });
+
+  it('treats a board that mentions no stock as having enough', async () => {
+    const world = await openWorld(freshDbName());
+    await world.addLumi(1000);
+    expect(await world.buyItem(offer(HERB, 1), 50)).toBe(true);
+    expect(world.getItemCount(HERB)).toBe(50);
   });
 
   it('pays the catalogue price for what is handed back', async () => {
@@ -157,6 +220,14 @@ describe('the two moves a shop will make', () => {
     expect(await world.sellItem(HERB, 2)).toBe(price * 2);
     expect(world.getLumi()).toBe(price * 2);
     expect(world.getItemCount(HERB)).toBe(0);
+  });
+
+  /** For the collector who wants arrowheads. */
+  it('pays over the odds when the offer says so', async () => {
+    const world = await openWorld(freshDbName());
+    await world.addItem(HERB, 1);
+    expect(await world.sellItem(HERB, 1, offer(HERB, 0, { sellPriceOverride: 40 }))).toBe(40);
+    expect(world.getLumi()).toBe(40);
   });
 
   /**
@@ -169,6 +240,9 @@ describe('the two moves a shop will make', () => {
     expect(itemDef(ACORN)!.sellPrice).toBe(0);
     expect(await world.sellItem(ACORN, 1)).toBe(0);
     expect(world.getItemCount(ACORN), 'and the acorn is still in the bag').toBe(1);
+    // Nor when a shopkeeper offers nothing for it in so many words.
+    expect(await world.sellItem(ACORN, 1, offer(ACORN, 0, { sellPriceOverride: 0 }))).toBe(0);
+    expect(world.getItemCount(ACORN)).toBe(1);
   });
 
   it('will not sell more than is held', async () => {

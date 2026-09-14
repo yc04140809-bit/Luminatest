@@ -65,6 +65,7 @@ import {
 } from '../economy/inventory';
 import { INITIAL_LUMI, addLumi, canAfford, readLumi, spendLumi } from '../economy/lumi';
 import { EMPTY_INVENTORY, type Inventory } from '../economy/items';
+import { buyPriceOf, inStock, sellPriceOf, type ShopOffer } from '../economy/shop';
 import { itemDef } from '../../content/economy/itemDefs';
 import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
 import {
@@ -1208,25 +1209,40 @@ export class World {
   // between them — money gone, nothing bought. One commit, both rows,
   // or neither.
   //
-  // The price is passed IN rather than read from the catalogue, because
-  // what a shop charges is the shop's business — stock, mark-up and
-  // whatever the village thinks of you — and none of that exists yet.
-  // Selling reads `sellPrice`, because what a thing is worth when you
-  // hand it over is a fact about the thing.
+  // THE PRICE ARRIVES WITH THE OFFER and is never read from the
+  // catalogue. What a herb IS belongs to content/economy/itemDefs; what
+  // a herb COSTS belongs to whoever is selling it, because a village
+  // with a bad harvest charges more and the next town charges something
+  // else again. A price written into the definition would be one price
+  // forever, everywhere. So a purchase takes a ShopOffer, and the shop
+  // round becomes a matter of writing offers rather than of touching
+  // any of this.
+  //
+  // Selling falls back to the catalogue's `sellPrice`, because what a
+  // thing is worth when you hand it over IS a fact about the thing —
+  // and an offer may still override it for the collector who wants
+  // arrowheads.
 
   /**
    * Money out, goods in — together or not at all.
    *
-   * Refused, having changed nothing, when the id is unknown, the purse
-   * is short, or the bag has no room for the whole order. A half-filled
-   * order is not a purchase.
+   * Refused, having changed nothing, when the offer names something
+   * the catalogue does not describe, its price is not a price, the
+   * shopkeeper has not got that many, the purse is short, or the bag
+   * has no room for the whole order. A half-filled order is not a
+   * purchase.
+   *
+   * The offer's `stock` is READ AND NOT SPENT: refusing to sell what
+   * is not there is a guard that cannot be wrong, and counting it down
+   * is the shop's own state, which does not exist yet.
    */
-  async buyItem(itemId: string, quantity: number, unitPrice: number): Promise<boolean> {
-    const def = itemDef(itemId);
+  async buyItem(offer: ShopOffer, quantity: number): Promise<boolean> {
+    const def = itemDef(offer.itemId);
     const want = Math.floor(quantity);
-    const price = Math.floor(unitPrice);
+    const price = buyPriceOf(offer);
     if (!def || !Number.isFinite(want) || want <= 0) return false;
-    if (!Number.isFinite(price) || price < 0) return false;
+    if (price === null) return false;
+    if (!inStock(offer, want)) return false;
     if (roomFor(this.inventory, def) < want) return false;
     const purse = spendLumi(this.lumi, price * want);
     if (purse === null) return false;
@@ -1248,18 +1264,24 @@ export class World {
    * Goods out, money in — together or not at all.
    *
    * A KEY ITEM IS NEVER SOLD, whatever price is offered and whichever
-   * category it is filed under: that is what the flag is for. Nor is
-   * something worth nought — a shop that took a pretty acorn and paid
-   * nothing for it would be taking it.
+   * category it is filed under: that is what the flag is for, and an
+   * override cannot buy its way past it. Nor is something worth nought
+   * — a shop that took a pretty acorn and paid nothing for it would be
+   * taking it.
+   *
+   * The offer is optional, because selling to somebody with nothing on
+   * their board still pays what the thing is worth.
    */
-  async sellItem(itemId: string, quantity: number): Promise<number> {
+  async sellItem(itemId: string, quantity: number, offer?: ShopOffer): Promise<number> {
     const def = itemDef(itemId);
     const want = Math.floor(quantity);
     if (!def || !Number.isFinite(want) || want <= 0) return 0;
-    if (def.isKeyItem || def.sellPrice <= 0) return 0;
+    if (def.isKeyItem) return 0;
+    const unit = sellPriceOf(def, offer);
+    if (unit <= 0) return 0;
     const bag = removeFromBag(this.inventory, itemId, want);
     if (bag.moved !== want) return 0;
-    const paid = def.sellPrice * want;
+    const paid = unit * want;
     const purse = addLumi(this.lumi, paid);
     await this.store.commit({
       putState: [
