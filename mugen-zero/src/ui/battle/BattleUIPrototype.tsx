@@ -1610,7 +1610,23 @@ export function BattleUIPrototype({
           data-testid="bp-enemy-hp"
           style={{
             left: `${plateAt.mid * 100}%`,
-            bottom: `${Math.max(0, plateAt.foot * 100 - 8.5)}%`,
+            // BELOW THE FEET, AND BELOW THE SHADOW UNDER THEM.
+            //
+            // 8.5 put the top of the plate ABOVE the creature's ground
+            // line — measured on the built screen, the plate's dark
+            // navy covered the band its own contact shadow is drawn in,
+            // and the creature was the one figure on the field with no
+            // visible ground under it at all. A health bar standing on
+            // somebody's feet is the same mistake the caption made when
+            // it lay across the party's.
+            //
+            // 14 IS THE FLOOR, NOT A TASTE. The plate follows the
+            // creature down when it falls, and a beaten one lies at
+            // 0.35 — so on the shortest phone the suite runs at, any
+            // more than this and the plate meets the command row.
+            // Between the feet above and the buttons below there is
+            // about that much room, and this is it.
+            bottom: `${Math.max(0, plateAt.foot * 100 - 14)}%`,
           }}
         >
           {/* THE STATE THEY HAVE GOT THEMSELVES INTO — above the plate,
