@@ -113,3 +113,74 @@ test('tapping LISTEN twice is tapping it once', async ({ page }) => {
   await page.waitForTimeout(600);
   expect(await sounding(page)).toEqual(['opening.mp3']);
 });
+
+/**
+ * IT IS READABLE. Caught by looking at it rather than by a test: this
+ * screen was given the title's own dark radial, and the title only
+ * carries that because it has a key visual laid over it. With nothing
+ * over it, on a cream page, it was a black smudge with the game's
+ * near-black body text sitting in the darkest part.
+ */
+test('the question is written on the ground the rest of the game is written on', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByTestId('theme-choice')).toBeVisible();
+  const lit = await page.evaluate(() => {
+    const paint = (sel: string) => {
+      const el = document.querySelector(sel) as HTMLElement;
+      const s = getComputedStyle(el);
+      return { color: s.color, image: s.backgroundImage };
+    };
+    return { screen: paint('.theme-choice'), body: getComputedStyle(document.body).backgroundColor };
+  });
+  // The page is cream and the words are near-black. Whatever is painted
+  // behind them must not be a dark field, or the words are on top of it.
+  const darks = lit.screen.image.match(/rgba?\((\d+), ?(\d+), ?(\d+)/g) ?? [];
+  for (const stop of darks) {
+    const [r, g, b] = stop.replace(/rgba?\(/, '').split(',').map((n) => Number(n));
+    const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    expect(luma, `a dark stop (${stop}) behind near-black text`).toBeGreaterThan(0.5);
+  }
+});
+
+/**
+ * 「BGM volume = 0 の場合、LISTENを押しても音を強制再生しない」 is
+ * already true, and from the player's side it looks like a button that
+ * does nothing. One line says why. It asks for nothing: no dialog, no
+ * dismiss, nothing to tap.
+ */
+test('a muted game says so, instead of a button that seems broken', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('theme-choice-muted')).toHaveCount(0);
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('mugen-zero-settings');
+    const settings = raw ? JSON.parse(raw) : {};
+    localStorage.setItem('mugen-zero-settings', JSON.stringify({ ...settings, bgmVolume: 0 }));
+  });
+  await page.reload();
+  await expect(page.getByTestId('theme-choice-muted')).toHaveText('BGM音量が0になっています');
+  // Still a question, still answerable, and the slider is untouched.
+  await page.getByTestId('theme-choice-listen').click();
+  await expect(page.getByTestId('start-button').or(page.getByTestId('continue-button')).first())
+    .toBeVisible({ timeout: 10_000 });
+  const kept = await page.evaluate(
+    () => JSON.parse(localStorage.getItem('mugen-zero-settings') ?? '{}').bgmVolume,
+  );
+  expect(kept, 'the button did not turn the music back up').toBe(0);
+});
+
+/** MASTER is over the top of BGM, so zero there says the same thing. */
+test('MASTER at zero says it too', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('mugen-zero-settings');
+    const settings = raw ? JSON.parse(raw) : {};
+    localStorage.setItem(
+      'mugen-zero-settings',
+      JSON.stringify({ ...settings, bgmVolume: 0.5, masterVolume: 0 }),
+    );
+  });
+  await page.reload();
+  await expect(page.getByTestId('theme-choice-muted')).toBeVisible();
+});

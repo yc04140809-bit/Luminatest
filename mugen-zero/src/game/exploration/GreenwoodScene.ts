@@ -178,8 +178,15 @@ export type RingWeight = 'MAIN' | 'SIDE';
 const MOST_RINGS_AT_ONCE = 2;
 /** How far apart two of them have to be to be two places. */
 const RINGS_APART = 150;
-/** How much of the cue a quieter ring gets. Weight, not truthfulness. */
-const SIDE_PRESENCE = 0.62;
+/**
+ * How much of the cue a quieter ring gets. Weight, not truthfulness.
+ *
+ * 0.75, up from 0.62. At 0.62 the side ring was not quieter, it was
+ * gone — on a real screen, against the sunlit floor of the clearing, I
+ * could not find it at all. Quieter has a floor, and the floor is
+ * "still noticeable at the edge of vision".
+ */
+const SIDE_PRESENCE = 0.75;
 
 /**
  * Where the walk is in its one loop.
@@ -557,12 +564,28 @@ export class GreenwoodScene extends Phaser.Scene {
     const parts: Phaser.GameObjects.Shape[] = [];
     const loops: Phaser.Tweens.Tween[] = [];
 
-    // A HALO, outside everything else and very soft. New, and it is what
-    // makes the cue findable at arm's length on a phone: the ring was
-    // legible against the shaded floor of the clearing and nearly gone
-    // against a sunlit patch of it, because a thin gold line on a gold
-    // background is a thin nothing. A wide, weak wash under it gives
-    // the line something to be seen against wherever it stands.
+    // A SHADE, UNDER EVERYTHING, and the part that actually made this
+    // work. Looking at the real screen, both rings were nearly invisible
+    // on the sunlit stone of the clearing — and not because they were
+    // too faint: the stroke was already at 0.95 alpha. Gold on sunlit
+    // sand is the same VALUE, so more gold only makes more of the same
+    // brightness. What a pale line needs on a pale floor is something
+    // darker directly behind it, exactly as text on a photograph needs
+    // a shadow. This is that shadow, and it is why the ring can stay
+    // quiet: it reads by contrast rather than by shouting.
+    const shade = this.add.ellipse(
+      point.x,
+      point.y + 7,
+      point.radius * 3.6,
+      point.radius * 2.05,
+      0x1a160f,
+      0.17 * presence,
+    );
+    shade.setDepth(4);
+
+    // A HALO, outside everything else and very soft. It is what makes
+    // the cue findable at arm's length on a phone: a wide, weak wash
+    // that lifts the line off whatever it is standing on.
     const halo = this.add.ellipse(
       point.x,
       point.y + 6,
@@ -590,15 +613,15 @@ export class GreenwoodScene extends Phaser.Scene {
     // thicker and a little brighter than it was, and no larger — this
     // is meant to read as "something is here", not as a quest pin.
     const ring = this.add.ellipse(point.x, point.y + 6, point.radius * 1.8, point.radius * 1.0);
-    ring.setStrokeStyle(2, GOLD, 0.95 * presence);
+    ring.setStrokeStyle(2.2, GOLD, 0.97 * presence);
     ring.setDepth(7);
 
     // A second, fainter one just inside it, so the cue reads as made
     // rather than as a lens flare.
     const inner = this.add.ellipse(point.x, point.y + 6, point.radius * 1.1, point.radius * 0.62);
-    inner.setStrokeStyle(1.2, GOLD, 0.62 * presence);
+    inner.setStrokeStyle(1.4, GOLD, 0.66 * presence);
     inner.setDepth(7);
-    parts.push(halo, glow, ring, inner);
+    parts.push(shade, halo, glow, ring, inner);
 
     this.active.push({ point, parts, loops, weight });
     if (still) return;
@@ -622,7 +645,7 @@ export class GreenwoodScene extends Phaser.Scene {
     // that pulses as hard as the line it is under reads as a beacon.
     loops.push(
       this.tweens.add({
-        targets: [halo, glow],
+        targets: [shade, halo, glow],
         scaleX: 1.1,
         scaleY: 1.1,
         alpha: { from: 0.72, to: 1 },

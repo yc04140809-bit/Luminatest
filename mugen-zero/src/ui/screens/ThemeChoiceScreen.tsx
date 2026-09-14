@@ -25,9 +25,18 @@ interface Props {
    * laid over every screen, so there is one of it rather than two.
    */
   playing?: boolean;
+  /**
+   * Whether anything would actually come out.
+   *
+   * The sliders are the player's and this screen does not touch them,
+   * so a muted player who taps 「聴く」 gets silence and the title —
+   * which is correct, and which looks exactly like a broken button.
+   * One line, so the silence is explained rather than mysterious.
+   */
+  muted?: boolean;
 }
 
-export function ThemeChoiceScreen({ onListen, onSkip, playing = false }: Props) {
+export function ThemeChoiceScreen({ onListen, onSkip, playing = false, muted = false }: Props) {
   if (playing) {
     return (
       <div className="screen theme-choice theme-choice-playing" data-testid="theme-choice">
@@ -69,8 +78,18 @@ export function ThemeChoiceScreen({ onListen, onSkip, playing = false }: Props) 
         </button>
       </div>
       {/* Said plainly, because a player who taps LISTEN on a phone in a
-          quiet room should know what is about to happen. */}
-      <p className="theme-choice-note-line">音が鳴ります</p>
+          quiet room should know what is about to happen — and, when the
+          music is turned down to nothing, that it will not. Neither
+          line asks for anything: no dialog, no dismiss, nothing to
+          tap. It is a label that tells the truth about the button
+          above it. */}
+      {muted ? (
+        <p className="theme-choice-note-line" data-testid="theme-choice-muted">
+          BGM音量が0になっています
+        </p>
+      ) : (
+        <p className="theme-choice-note-line">音が鳴ります</p>
+      )}
     </div>
   );
 }

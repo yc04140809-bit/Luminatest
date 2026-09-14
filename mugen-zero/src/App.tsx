@@ -367,6 +367,10 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       return (
         <ThemeChoiceScreen
           playing={opening.playing}
+          // Says so rather than letting a muted 「聴く」 read as a
+          // broken button. MASTER counts: it is over the top of BGM,
+          // so either one at zero is silence.
+          muted={settings.masterVolume * settings.bgmVolume <= 0}
           onListen={() => {
             // THE TAP THAT UNLOCKS THE PHONE. Every browser wants a
             // real gesture before it will make a sound, and this screen

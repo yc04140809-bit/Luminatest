@@ -5665,7 +5665,18 @@ body,
   align-items: center;
   gap: 18px;
   padding: calc(20px + env(safe-area-inset-top)) 24px calc(20px + env(safe-area-inset-bottom));
-  background: radial-gradient(ellipse at 50% 40%, #171726 0%, var(--bg) 72%);
+  /* LIGHT, BECAUSE THE GAME IS LIGHT.
+     This was the title screen's own dark radial, copied — and the title
+     only carries that because it has a key visual laid over it. With
+     nothing over it, on a cream page, it is a black smudge in the
+     middle of the screen with the game's near-black body text sitting
+     in the darkest part of it: 「音が鳴ります」 was invisible and the
+     question itself was hard to read. Caught by looking at it.
+     A warm bloom instead — the same shape, the other way up, so the
+     middle of the screen is the brightest part of it. */
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 253, 248, 0.95) 0%, rgba(246, 242, 233, 0) 58%),
+    var(--bg);
   text-align: center;
 }
 .theme-choice-mark {
