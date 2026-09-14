@@ -143,20 +143,54 @@ const BUST_WIDTH = 0.56;
  * fallback for art that has not been measured yet.
  */
 
+/**
+ * HOW MUCH ROOM A FACE IS GIVEN AROUND IT.
+ *
+ * A measured face box is exactly the face, and a portrait that is
+ * exactly the face is a portrait pressed against the glass: at the size
+ * these are drawn, Kaos arrived as an eye and a cheek. This opens every
+ * crop by a third — a sixth off each side — so there is some hair, some
+ * shoulder and some air inside the frame.
+ *
+ * One number for everybody rather than a table: it is a statement about
+ * how close the camera stands, not about any particular person's
+ * drawing, and a per-character version of it would be four numbers to
+ * maintain and to get wrong.
+ */
+const FACE_AIR = 0.34;
+
+/** The same box, opened up, and never off the edge of its own file. */
+function withAir(box: NonNullable<ArtAsset['box']>): NonNullable<ArtAsset['box']> {
+  const grownW = box.width * (1 + FACE_AIR);
+  const grownH = box.height * (1 + FACE_AIR);
+  // Clamped to the file: a crop that runs off the edge would be drawn
+  // with a strip of nothing down one side of somebody's head.
+  const width = Math.min(grownW, box.fileW);
+  const height = Math.min(grownH, box.fileH);
+  return {
+    fileW: box.fileW,
+    fileH: box.fileH,
+    x: Math.max(0, Math.min(box.fileW - width, box.x - (width - box.width) / 2)),
+    y: Math.max(0, Math.min(box.fileH - height, box.y - (height - box.height) / 2)),
+    width,
+    height,
+  };
+}
+
 function bustBox(asset: ArtAsset): NonNullable<ArtAsset['box']> | undefined {
   // A face somebody has actually measured beats the rule below every
   // time, and the rule below is only here for the drawings nobody has.
-  if (asset.face) return asset.face;
+  if (asset.face) return withAir(asset.face);
   const box = asset.box;
   if (!box) return undefined;
-  return {
+  return withAir({
     fileW: box.fileW,
     fileH: box.fileH,
     x: box.x + box.width * ((1 - BUST_WIDTH) / 2),
     y: box.y,
     width: box.width * BUST_WIDTH,
     height: box.height * BUST_HEIGHT,
-  };
+  });
 }
 
 /**

@@ -145,9 +145,19 @@ test.describe('what can be called at all', () => {
     // empty book means an ordinary fight, however the switch is set.
     await expect(page.getByTestId('bp-summon-card')).toHaveCount(0);
     await expect(page.getByTestId('bp-summoned')).toHaveCount(0);
-    // And nothing to spend, so no command for it.
+    // And nothing to spend — so the command is THERE AND LOCKED rather
+    // than absent. It used to be absent, on the grounds that a command
+    // which is never available is furniture; a command that appears out
+    // of nowhere mid-fight turned out to be worse, and a row of six
+    // with one of them not yet yours reads as a game with something in
+    // it. What must never happen is a command that can be pressed and
+    // does nothing, and that is what this asserts.
     await expect(page.getByTestId('bp-commands')).toBeVisible();
-    await expect(page.getByTestId('bp-arcana')).toHaveCount(0);
+    await expect(page.getByTestId('bp-arcana')).toBeDisabled();
+    await expect(page.getByTestId('bp-arcana-locked')).toHaveText('アルカナ 準備中');
+    // Locked means locked: tapping it opens nothing.
+    await page.getByTestId('bp-arcana').click({ force: true });
+    await expect(page.getByTestId('bp-arcana-tray')).toHaveCount(0);
   });
 
   test('an unfinished memory is hers to try, not the player’s to spend', async ({ page }) => {
@@ -155,8 +165,8 @@ test.describe('what can be called at all', () => {
     await openBattle(page, { arcana: '高', summon: 'SUCCESS' });
     await expect(page.getByTestId('bp-summon-card')).toBeVisible();
     await page.getByTestId('bp-summon-card').click();
-    // 95% is still not 100%: no command appears for it.
-    await expect(page.getByTestId('bp-arcana')).toHaveCount(0);
+    // 95% is still not 100%: the command is there and still locked.
+    await expect(page.getByTestId('bp-arcana')).toBeDisabled();
   });
 });
 

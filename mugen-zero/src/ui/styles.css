@@ -3664,13 +3664,24 @@ body,
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
-  column-gap: 5px;
-  row-gap: 1px;
+  column-gap: 7px;
+  row-gap: 2px;
+  /* AIR INSIDE THE FRAME, and more of it on the left: the panel's
+     ornate end reaches inwards past its own border, so a portrait
+     placed at the content edge sits on a gold wing. */
+  padding: 2px 4px 2px 9px;
 }
+/* NO SIZE OF ITS OWN, AND THAT IS THE FIX.
+   `FaceMark` sets the portrait's width and height inline, and the
+   drawing inside is built to exactly that — and this rule was
+   overriding it with something SMALLER. The picture was 30x30 in a
+   24x27 hole with `overflow: visible`, so it hung three pixels out of
+   its own frame on every side: which is the "the two of them overflow
+   the frame" in the report, measured.
+   The portrait is bigger now (36, up from 30) and the frame around it
+   is the size of the portrait, because it is the same number. */
 .bx-member .bx-face {
   grid-row: 1 / span 2;
-  width: 24px;
-  height: 27px;
 }
 .bx-member .bx-face-frame { display: block; }
 .bx-member-head {
@@ -3682,6 +3693,13 @@ body,
   min-width: 0;
 }
 .bx-member-name {
+  /* WITHOUT THIS THE ELLIPSIS NEVER HAPPENS. A flex item will not
+     shrink below its own content unless it is told it may, so
+     `overflow: hidden` and `text-overflow: ellipsis` below were dead
+     letters and the name simply pushed into the role beside it —
+     「あなた」 and 「剣」 were touching. */
+  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   font-size: 9px;
   font-weight: 600;
@@ -3903,13 +3921,17 @@ body,
   z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  /* LEFT, NOT CENTRED. The commands and the AUTO/×2/ESCAPE chips were
+     competing for the bottom of the screen from the middle and the
+     right, and between them they crowded the side the party stands on.
+     The turns go left, the way the fight is WATCHED stays right, and
+     the room that opens up is the room the two of them are drawn in. */
+  align-items: flex-start;
   gap: 5px;
-  /* The two bottom corners are reserved by hand rather than by the
-     grid: the dock is centred on the SCREEN, so the commands sit under
-     the middle of the fight and not under the middle of what is left. */
-  padding: 0 clamp(146px, calc(var(--stage-w, 100vw) * 0.215), 206px)
-    calc(6px + env(safe-area-inset-bottom));
+  /* Only the right-hand corner is reserved by hand now: the chips live
+     there. The left edge is the screen's own margin. */
+  padding: 0 clamp(104px, calc(var(--stage-w, 100vw) * 0.15), 150px)
+    calc(6px + env(safe-area-inset-bottom)) 10px;
   pointer-events: none;
 }
 .bp-dock > * {
@@ -3917,7 +3939,7 @@ body,
 }
 /* Centred over the plate it belongs to, not shoved against its left
    edge: the dock is a centred column and this chip is part of it. */
-.bp-chaos-badge { order: 0; align-self: center; }
+.bp-chaos-badge { order: 0; align-self: flex-start; }
 /* The plate left the dock for the top group; nothing here orders it. */
 .bp-chaos-card { order: 2; }
 .bp-tray { order: 3; }
@@ -4105,8 +4127,10 @@ body,
    goes to, and the two corners beside it are things they only read. */
 .bp-commands {
   display: flex;
-  justify-content: center;
+  /* Left, with the dock. See `.bp-dock`. */
+  justify-content: flex-start;
   align-items: flex-end;
+  flex-wrap: wrap;
   gap: clamp(3px, calc(var(--stage-w, 100vw) * 0.008), 9px);
   flex: 0 0 auto;
   padding: 0;
@@ -5004,32 +5028,35 @@ body,
   white-space: nowrap;
 }
 
-/* The command. Its own row, because at 360px a third column stops
-   being readable and this is the one the collecting is for. */
-/* Three commands side by side. Stacked, the ARCANA command took a
-   second row and pushed the battlefield under half the screen — which
-   is exactly the room a landscape stage has going spare across. */
-.bp-cmd.arcana {
-  min-height: 44px;
-  flex-direction: row;
-  gap: 9px;
-  border-color: var(--mugen-gold-soft);
-  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
-}
-.bp-cmd.arcana .bp-cmd-jp {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
+/* WHAT IS LEFT OF THE OLD ARCANA COMMAND.
+   It used to be a wide pill on a row of its own, laid out sideways with
+   a pale gold fill — and those rules outlived the redesign that made
+   every command a diamond. While the button only appeared once the book
+   had a finished page nobody saw them; now that it is always on the row
+   they drew a white box in the middle of the battlefield. The shape and
+   the tint live with the other commands, further up. */
 .bp-cmd-spent {
   font-style: normal;
   font-size: 10px;
   letter-spacing: 0.04em;
   color: var(--mugen-text-muted);
 }
-.bp-cmd.arcana:disabled {
-  opacity: 0.55;
-  background: var(--mugen-surface);
+
+/* LOCKED, AND SAID IN THE DRAWING.
+   Not merely dimmer: the plate loses its violet and goes to the grey of
+   something not yet yours, which reads at a glance as "not available"
+   rather than as "the screen is a bit dark here". `disabled` already
+   stops the tap; this is what stops the thumb going for it. */
+.bp-cmd.arcana.locked .bp-cmd-plate {
+  filter: grayscale(0.85) brightness(0.72);
+}
+.bp-cmd.arcana.locked .bp-cmd-mark {
+  opacity: 0.5;
+}
+.bp-cmd.arcana.locked .bp-cmd-jp,
+.bp-cmd.arcana.locked .bp-cmd-en {
+  color: var(--bx-ink);
+  opacity: 0.72;
 }
 
 @media (prefers-reduced-motion: reduce) {

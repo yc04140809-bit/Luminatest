@@ -518,6 +518,17 @@ export function BattleUIPrototype({
   const [spent, setSpent] = useState<string[]>([]);
   const [arcanaTrayOpen, setArcanaTrayOpen] = useState(false);
   const completeArcana = arcana.filter((a) => a.complete);
+  /**
+   * WHETHER THE COMMAND DOES ANYTHING IF IT IS PRESSED.
+   *
+   * Two ways for it not to: the book has no finished page yet, which is
+   * the state nearly every fight is in — and one has already been spent
+   * in this fight. Both are locked, and the note under the row says
+   * which. Nothing here changes when a memory IS finished: the tray, the
+   * summon and everything it does are exactly as they were.
+   */
+  const arcanaReady =
+    completeArcana.length > 0 && spent.length < SUMMON_CONFIG.usesPerBattle;
   const [beat, setBeat] = useState<string>('NONE');
   /**
    * The blow now being drawn, if there is one.
@@ -2071,37 +2082,52 @@ export function BattleUIPrototype({
               <span className="bp-cmd-jp">防御</span>
               <span className="bp-cmd-en">DEFEND</span>
             </button>
-            {/* A finished memory is the player's to spend, so it is a
-                command and not something that happens to them. */}
-            {completeArcana.length > 0 && (
-              <button
-                className={`bp-cmd arcana${arcanaTrayOpen ? ' open' : ''}`}
-                data-testid="bp-arcana"
-                aria-expanded={arcanaTrayOpen}
-                disabled={spent.length >= SUMMON_CONFIG.usesPerBattle}
-                onClick={() => {
-                  setSkillOpen(false);
-                  setItemOpen(false);
-                  setMagicOpen(false);
-                  setArcanaTrayOpen((open) => !open);
-                }}
-              >
-                <span className="bp-cmd-plate" aria-hidden="true" />
-                <Ornament kind="ring" size={14} className="bp-cmd-mark" />
-                <span className="bp-cmd-jp">記憶</span>
-                <span className="bp-cmd-en">ARCANA</span>
-              </button>
-            )}
+            {/* ALWAYS ON THE ROW, AND LOCKED UNTIL IT IS NOT.
+                It used to appear only once the book had a finished
+                page, on the grounds that a command which is never
+                available is furniture. The row reads better complete:
+                six commands, one of them not yet yours, is a game with
+                something in it — and a command that appears out of
+                nowhere mid-fight is a surprise nobody asked for.
+                Locked is SAID, not merely implied: `disabled` for a
+                thumb and for a screen reader, and a line under the row
+                for anybody who taps it anyway. */}
+            <button
+              className={`bp-cmd arcana${arcanaTrayOpen ? ' open' : ''}${arcanaReady ? '' : ' locked'}`}
+              data-testid="bp-arcana"
+              aria-expanded={arcanaReady ? arcanaTrayOpen : undefined}
+              aria-disabled={arcanaReady ? undefined : true}
+              disabled={!arcanaReady}
+              onClick={() => {
+                if (!arcanaReady) return;
+                setSkillOpen(false);
+                setItemOpen(false);
+                setMagicOpen(false);
+                setArcanaTrayOpen((open) => !open);
+              }}
+            >
+              <span className="bp-cmd-plate" aria-hidden="true" />
+              <Ornament kind="ring" size={14} className="bp-cmd-mark" />
+              <span className="bp-cmd-jp">アルカナ</span>
+              <span className="bp-cmd-en">ARCANA</span>
+            </button>
           </div>
         )}
-        {/* Spent, and said outside the diamond: the note is a sentence
-            and a diamond is not a place to read one. */}
+        {/* Why it is locked, said outside the diamond: the note is a
+            sentence and a diamond is not a place to read one. Two
+            reasons, and they are different things — one is "not yet",
+            the other is "not again today". */}
         {!beaten && !showingChaos && !inAccident && completeArcana.length > 0 &&
           spent.length >= SUMMON_CONFIG.usesPerBattle && (
             <p className="bp-cmd-spent" data-testid="bp-arcana-spent">
               この戦いではもう呼べない
             </p>
           )}
+        {!beaten && !showingChaos && !inAccident && completeArcana.length === 0 && (
+          <p className="bp-cmd-spent" data-testid="bp-arcana-locked">
+            アルカナ 準備中
+          </p>
+        )}
         {!beaten && !showingChaos && !inAccident && magicOpen && (
           <MagicTray
             spells={spells}
