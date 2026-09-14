@@ -370,3 +370,83 @@ test('the creature’s own damage number is not cut short by the swing before it
     expect(Math.round(ms), `a number was on screen for ${Math.round(ms)}ms`).toBeGreaterThan(260);
   }
 });
+
+/**
+ * THE PLATE IS OFF THE FIELD.
+ *
+ * It used to sit in the dock above the commands, which put it across
+ * the party's feet — over the floor shadows that are the one part of a
+ * three-quarter view saying there is a ground at all. A plate is a flat
+ * thing, and the whole point of the depth work is that this screen is
+ * not flat.
+ *
+ * So: under the place name, in the top group, touching nobody.
+ */
+test('what the fight says is said above the field, not across it', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+  await expect(page.getByTestId('bp-message')).toBeVisible();
+
+  const seen = await page.evaluate(() => {
+    const box = (sel: string) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+    };
+    return {
+      plate: box('[data-testid="bp-message"]'),
+      place: box('[data-testid="bx-place"]'),
+      actors: (['.bp-hero', '.bp-kaos', '.bp-enemy'] as const)
+        .map((sel) => ({ sel, r: box(sel) }))
+        .filter((a) => a.r),
+    };
+  });
+
+  expect(seen.plate, 'the plate is on screen').not.toBeNull();
+  expect(seen.place, 'the place name is on screen').not.toBeNull();
+  const plate = seen.plate!;
+
+  // UNDER THE PLACE NAME. That is the position the round asked for:
+  // DUNGEON / AREA NAME -> BATTLE MESSAGE -> BATTLE FIELD -> COMMANDS.
+  expect(plate.top, 'the plate is below the place name').toBeGreaterThanOrEqual(
+    seen.place!.bottom - 1,
+  );
+
+  // AND TOUCHING NOBODY. Not their heads, not their feet, and not the
+  // shadows under them.
+  for (const { sel, r } of seen.actors) {
+    const overlaps =
+      plate.left < r!.right && plate.right > r!.left && plate.top < r!.bottom && plate.bottom > r!.top;
+    expect(overlaps, `the plate lies across ${sel}`).toBe(false);
+  }
+
+  // The commands are still at the bottom, with the field between.
+  const commands = (await page.getByTestId('bp-commands').boundingBox())!;
+  expect(plate.bottom, 'the field is between the plate and the commands').toBeLessThan(commands.y);
+});
+
+/**
+ * AND IT SAYS IT SHORTLY. 「1〜2行」「長文は避ける」 — the plate is a
+ * reading of the log, never a printing of it: battleLogic goes on
+ * writing whole sentences and nothing about the log changed.
+ */
+test('what it says is a few characters and a number, never a sentence', async ({ page }) => {
+  test.setTimeout(240_000);
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+  const lead = page.getByTestId('bp-message-lead');
+  await expect(lead).toBeVisible();
+
+  for (let i = 0; i < 4; i++) {
+    const text = (await page.getByTestId('bp-message').textContent()) ?? '';
+    // No sentence enders, and short enough to take at a glance.
+    expect(text, `plate said: ${text}`).not.toMatch(/[。！]/);
+    expect([...text.replace(/\s+/g, '')].length, `plate said: ${text}`).toBeLessThanOrEqual(24);
+    const attack = page.getByTestId('bp-attack');
+    if (!(await attack.isEnabled().catch(() => false))) break;
+    await attack.click({ timeout: 5_000 }).catch(() => {});
+    await page.waitForTimeout(1400);
+    if ((await page.getByTestId('bp-attack').count()) === 0) break;
+  }
+});

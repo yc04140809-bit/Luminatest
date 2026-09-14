@@ -3856,7 +3856,7 @@ body,
 /* Centred over the plate it belongs to, not shoved against its left
    edge: the dock is a centred column and this chip is part of it. */
 .bp-chaos-badge { order: 0; align-self: center; }
-.bp-message { order: 1; }
+/* The plate left the dock for the top group; nothing here orders it. */
 .bp-chaos-card { order: 2; }
 .bp-tray { order: 3; }
 .bp-cmd-spent { order: 4; }
@@ -3941,7 +3941,6 @@ body,
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  align-self: stretch;
   margin: 0;
   /* THE PACK'S MESSAGE WINDOW, nine-sliced.
      `message-window.png` is 720x223 with a winged ornament at each end
@@ -3951,16 +3950,27 @@ body,
      part of the drawing is pulled out of shape. The border width is a
      share of the plate's height, which is what keeps that true at every
      size. */
-  /* SLIMMER BY EIGHT PIXELS than it was. It is the widest thing on the
-     screen and it lies across the party's own ground line, so every
-     pixel of its height is a pixel of battlefield. One line of
-     Japanese at 13px needs 20; the rest was margin. */
-  padding: 5px 10px;
-  min-height: 34px;
+  /* IT IS NOT THE WIDEST THING ON THE SCREEN ANY MORE.
+     It used to stretch the dock at the foot of the field, across the
+     party's own ground line. It sits under the place name now, in the
+     top group, and it is sized by what it holds: a few characters and
+     a number. `align-self: center` rather than `stretch`, so it is as
+     wide as it needs and not one pixel wider. */
+  align-self: center;
+  justify-content: center;
+  gap: 8px;
+  /* A little air under the place name, so the two read as two things
+     in one group rather than as one stack — and no more than a little.
+     The party's heads begin a few pixels under this plate, and every
+     pixel it grows downwards is a pixel of somebody. */
+  margin-top: 2px;
+  max-width: min(92vw, 320px);
+  padding: 2px 10px;
+  min-height: 24px;
   border: 0 solid transparent;
   /* The same arithmetic as the party HUD: slice `25 95`, so the sides
      are 95/25 of the top or the wings are drawn narrow. */
-  border-width: 8px 30px;
+  border-width: 6px 26px;
   border-radius: 0;
   background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
   background-clip: padding-box;
@@ -3970,19 +3980,50 @@ body,
   border-image-repeat: stretch;
   color: var(--bx-ink);
 }
-.bp-message-text {
-  margin: 0;
-  padding-right: 26px;
-  font-size: 13px;
-  line-height: 1.55;
+/* WHAT WAS DONE, and WHAT IT CAME TO. Two short things on one line,
+   never a sentence — see battleMessage.ts for why the log's own words
+   do not come up here. */
+.bp-message-lead {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
   color: var(--bx-ink);
+  white-space: nowrap;
 }
-.bp-message-mark {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
-  color: var(--mugen-gold-soft);
-  opacity: 0.4;
+/* The number, in the one form an eye can catch on the way past. */
+.bp-message-figure {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  color: var(--mugen-gold);
+  white-space: nowrap;
+}
+
+/* A PLATE THAT HOLDS, AND THEN GETS OUT OF THE WAY.
+   「通常戦闘では短時間表示」. An ordinary swing is over in a moment and
+   the eye belongs on the field; it is the character, the hit effect and
+   the number off the wound that carry a blow, not a caption about it.
+   So the plate is shown, held, and fades — and it is still IN THE
+   PAGE, because it is this element that reads the fight aloud to a
+   screen reader and a thing that is removed cannot be read.
+
+   Somebody SPEAKING is not brief: a called memory's moment and the one
+   line the man on the other side of the field says for himself both
+   stay until something else is said. They carry no [data-brief]. */
+.bp-message[data-brief] {
+  animation: bp-message-hold var(--bp-say, 2000ms) ease-in forwards;
+}
+@keyframes bp-message-hold {
+  0%, 62% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* The fade is the part that travels. Without it the plate would snap
+     off, which is more motion rather than less — so it simply stays. */
+  .bp-message[data-brief] {
+    animation: none;
+  }
 }
 
 /* ---- the commands: a row of diamonds, bottom centre ----------------

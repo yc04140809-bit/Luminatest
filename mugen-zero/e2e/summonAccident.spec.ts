@@ -190,7 +190,9 @@ test.describe('what a called memory does', () => {
     await expect(page.getByTestId('bp-summon-card')).toHaveCount(0);
     await guard(page);
     // Nothing carried over: the plate is reporting an ordinary blow.
-    await expect(page.getByTestId('bp-message')).toContainText('ダメージ');
+    // It reads the log rather than printing it now — see
+    // battleMessage.ts — so the number comes up as a figure.
+    await expect(page.getByTestId('bp-message-figure')).toContainText('DAMAGE');
   });
 });
 
@@ -368,8 +370,10 @@ test.describe('《エンシェントブレス》', () => {
     });
     await expect.poll(() => enemyHp(page), { timeout: 8_000 }).toBe(0);
     // Brought to zero, not killed. The creature goes down and lies
-    // there, exactly as it does when the player does it.
-    await expect(page.getByTestId('bp-message')).toContainText('膝をついた');
+    // there, exactly as it does when the player does it. The log still
+    // says 「……は膝をついた……。」 in its own words; the plate reads it
+    // as the name and one word.
+    await expect(page.getByTestId('bp-message-figure')).toHaveText('DOWN');
     expect(await playerHp(page)).toBe(await playerMaxHp(page));
   });
 

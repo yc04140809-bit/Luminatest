@@ -21,6 +21,7 @@ import {
 import { MagicTray } from './MagicTray';
 import { HitFx } from './HitFx';
 import { endBlow, landBlow, latestOn, motionSlot, type Blow } from './blows';
+import { sayOf } from './battleMessage';
 import { playSfx } from '../../platform/audio';
 import { CUT_IN_MS, SkillCutIn, type CutIn } from './SkillCutIn';
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
@@ -362,6 +363,16 @@ const CONTACT_AT = 0.4;
  */
 const REACTION_LAG_MS = 45;
 
+/**
+ * How long the plate holds a line before it gets out of the way.
+ *
+ * 「通常戦闘では短時間表示」. Long enough to be read at a glance and
+ * short enough that it is gone before the next thing happens — a
+ * caption is the least interesting thing on a battlefield. Somebody
+ * SPEAKING is not on this timer; see `data-brief`.
+ */
+const SAY_HOLD_MS = 2000;
+
 /** And how long it leaves the awakening on screen before moving on. */
 const AUTO_READ_MS = 2200;
 
@@ -489,7 +500,7 @@ export function BattleUIPrototype({
    * the player nothing" — it is not that nothing happened, it is that
    * one line at the bottom of a log was never enough room to say what.
    */
-  const [said, setSaid] = useState<{ name: string; line: string; result: string } | null>(null);
+  const [say, setSay] = useState<{ name: string; line: string; result: string } | null>(null);
   /**
    * The accident, if this fight has one, and which beat it is on.
    *
@@ -936,7 +947,7 @@ export function BattleUIPrototype({
         const hurt = current.playerHp < current.playerMaxHp;
         const line = hurt ? entry.ability.line : entry.ability.fullLine;
         const next = mendPlayer(current, effect, line);
-        setSaid({
+        setSay({
           name: entry.ability.name,
           line,
           result: next.log[next.log.length - 1] ?? '',
@@ -967,7 +978,7 @@ export function BattleUIPrototype({
     setSkillOpen(false);
     setItemOpen(false);
     // The fight moves on, so the plate goes back to reporting it.
-    setSaid(null);
+    setSay(null);
     const next =
       kind === 'ATTACK'
         ? playerAttack(battle, undefined, forcedEnemyAction)
@@ -1008,7 +1019,7 @@ export function BattleUIPrototype({
     const magic = spells.find((m) => m.id === id);
     if (!magic || magicBlocked(battle, magic) !== null) return;
     setMagicOpen(false);
-    setSaid(null);
+    setSay(null);
     const next = castMagic(battle, magic, undefined, forcedEnemyAction);
     setBattle(next);
 
@@ -1131,6 +1142,23 @@ export function BattleUIPrototype({
    */
   const backdrop = fieldArt(battleLocationId) ?? locationBackground(battleLocationId);
   const lastLine = battle.log[battle.log.length - 1];
+  /**
+   * THE LINE, READ RATHER THAN PRINTED.
+   *
+   * battleLogic goes on writing whole sentences and nothing about the
+   * log changes — this is the plate's reading of the newest one, which
+   * is at most a few characters and a number. See battleMessage.ts.
+   */
+  const plate = sayOf(showingDefeatLine ? opponent.defeatedText : lastLine);
+  /**
+   * A new thing said is a new plate.
+   *
+   * The key remounts it, which is what restarts the hold-and-fade: a
+   * plate that merely changed its text would keep whatever was left of
+   * the last line's time, and the second blow of a turn would get a
+   * plate already halfway through leaving.
+   */
+  const plateKey = `${battle.log.length}:${plate?.lead ?? ''}:${plate?.figure ?? ''}`;
   /**
    * Their sizes, as a share of the battlefield.
    *
@@ -1361,6 +1389,10 @@ export function BattleUIPrototype({
         // purpose, and the one duration on this list that speed does
         // not touch — see REACTION_LAG_MS.
         ['--bp-react' as string]: `${REACTION_LAG_MS}ms`,
+        // How long the plate holds before it gets out of the way. A
+        // wait rather than a motion, so ×2 halves it like every other
+        // wait in the fight.
+        ['--bp-say' as string]: `${beatMs(SAY_HOLD_MS, speed)}ms`,
         ['--bp-fall' as string]: `${beatMs(KNOCKDOWN_MS, speed)}ms`,
         // THE DELIVERED UI, handed to the stylesheet as urls.
         //
@@ -1715,6 +1747,79 @@ export function BattleUIPrototype({
               </button>
             )}
           </div>
+          {/* WHAT THE FIGHT IS SAYING — under the place name, and part
+              of the reading rather than part of the field.
+
+              IT USED TO BE AT THE BOTTOM, in the dock above the
+              commands, where it lay across the party's feet: over the
+              floor shadows that put them ON the ground, in front of the
+              one part of a three-quarter view that says there is a
+              ground at all. A plate is a flat thing, and the whole
+              point of the depth work is that this screen is not flat.
+
+              So it is up here with the place name, in the top group,
+              where there is nothing of the field behind it — and it is
+              short enough to be taken at a glance rather than read.
+              See battleMessage.ts. */}
+          {!(downed && finishesInMugenChoice && !inAccident) && (
+            <div
+              key={plateKey}
+              className={say ? 'bp-message bp-said' : 'bp-message'}
+              data-testid="bp-message"
+              data-said={say ? 'yes' : undefined}
+              // A plate that holds and then gets out of the way. An
+              // ordinary swing is over in a moment and the eye belongs on
+              // the field; somebody SPEAKING stays until something else
+              // is said. 「通常戦闘では短時間表示」.
+              data-brief={say || showingDefeatLine ? undefined : 'yes'}
+              role="status"
+              aria-live="polite"
+            >
+              {say ? (
+                // The same plate, saying three things instead of one. It
+                // keeps its identity on purpose: everything that watches
+                // this line — the rest of the suite included — must not
+                // find it missing for a second and a half.
+                <div className="bp-said-body" data-testid="bp-said">
+                  <span className="bp-said-name">《{say.name}》</span>
+                  <p className="bp-said-line">{say.line}</p>
+                  <p className="bp-said-result" data-testid="bp-said-result">
+                    {say.result}
+                  </p>
+                </div>
+              ) : showingDefeatLine && opponent.defeatedSpeaker ? (
+                // SOMEBODY SPEAKING, not the fight narrating. The one
+                // moment in this slice where the person on the other side
+                // of the field says something of his own — 「……くそ……。」
+                // — and it had been arriving in the same voice as
+                // 「モスラビットが飛び出してきた。」. Quoted under his own
+                // name, the way her moment is quoted under hers.
+                <div className="bp-said-body bp-enemy-said" data-testid="bp-enemy-said">
+                  <span className="bp-said-name">《{opponent.defeatedSpeaker}》</span>
+                  <p className="bp-said-line">{opponent.defeatedText}</p>
+                </div>
+              ) : (
+                plate && (
+                  // TWO SHORT THINGS, never a sentence: what was done,
+                  // and the number it came to. While something is
+                  // crossing, the plate reports the fight rather than its
+                  // ending — the player needs to read what the breath
+                  // just did before being told the creature is lying
+                  // down.
+                  <>
+                    <span className="bp-message-lead" data-testid="bp-message-lead">
+                      {plate.lead}
+                    </span>
+                    {plate.figure && (
+                      <b className="bp-message-figure" data-testid="bp-message-figure">
+                        {plate.figure}
+                      </b>
+                    )}
+                  </>
+                )
+              )}
+            </div>
+          )}
         </div>
 
         {/* RIGHT — who is standing with you. */}
@@ -1804,56 +1909,6 @@ export function BattleUIPrototype({
           </p>
         )}
 
-
-        {/* 5. One line, not a conversation box — except for the second
-               and a half a called memory is speaking, when it is three:
-               what came, what it did, and what came of it. The plate is
-               replaced rather than added to, so nothing below it moves. */}
-        {!(downed && finishesInMugenChoice && !inAccident) && (
-          <div
-            className={said ? 'bp-message bp-said' : 'bp-message'}
-            data-testid="bp-message"
-            data-said={said ? 'yes' : undefined}
-            role="status"
-            aria-live="polite"
-          >
-            {said ? (
-              // The same plate, saying three things instead of one. It
-              // keeps its identity on purpose: everything that watches
-              // this line — the rest of the suite included — must not
-              // find it missing for a second and a half.
-              <div className="bp-said-body" data-testid="bp-said">
-                <span className="bp-said-name">《{said.name}》</span>
-                <p className="bp-said-line">{said.line}</p>
-                <p className="bp-said-result" data-testid="bp-said-result">
-                  {said.result}
-                </p>
-              </div>
-            ) : showingDefeatLine && opponent.defeatedSpeaker ? (
-              // SOMEBODY SPEAKING, not the fight narrating. The one
-              // moment in this slice where the person on the other side
-              // of the field says something of his own — 「……くそ……。」
-              // — and it had been arriving in the same voice as
-              // 「モスラビットが飛び出してきた。」. Quoted under his own
-              // name, the way her moment is quoted under hers.
-              <div className="bp-said-body bp-enemy-said" data-testid="bp-enemy-said">
-                <span className="bp-said-name">《{opponent.defeatedSpeaker}》</span>
-                <p className="bp-said-line">{opponent.defeatedText}</p>
-              </div>
-            ) : (
-              <>
-                <p className="bp-message-text">
-                  {/* While something is crossing, the plate reports the
-                      fight rather than its ending: the player needs to
-                      read what the breath just did before being told the
-                      creature is lying down. */}
-                  {showingDefeatLine ? opponent.defeatedText : lastLine}
-                </p>
-                <Ornament kind="ring" size={26} className="bp-message-mark" />
-              </>
-            )}
-          </div>
-        )}
 
         {/* 6b. Her moment, in the place the commands were: a remark and a
                name for a second or two, so nothing of the forest is

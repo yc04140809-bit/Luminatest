@@ -263,8 +263,12 @@ test.describe('battle UI prototype', () => {
     const before = await hp.textContent();
     await page.getByTestId('bp-attack').click();
     await expect(hp).not.toHaveText(before ?? '');
-    await expect(page.getByTestId('bp-message')).toContainText('リーフタックル');
-    await expect(page.getByTestId('bp-message')).toContainText('ダメージ');
+    // The plate is a READING of the log now, not a printing of it: a
+    // few characters for what was done and the number it came to. The
+    // log itself still says 「モスラビットのリーフタックル！ 11のダメージ。」
+    // in battleLogic's own words — see battleMessage.ts.
+    await expect(page.getByTestId('bp-message-lead')).toHaveText('リーフタックル');
+    await expect(page.getByTestId('bp-message-figure')).toContainText('DAMAGE');
   });
 
   test('opens SKILL and ITEM without inventing either system', async ({ page }) => {
@@ -478,20 +482,24 @@ test.describe('battle UI prototype', () => {
       }
       // The message is on screen and readable, not clipped away.
       //
-      // It used to be asked to be most of the width, which was the right
-      // rule when it was a band of its own: a band that is not the width
-      // of the screen is a band that has been clipped. It is now a plate
-      // in the bottom strip between two corner panels, so what is asked
-      // of it is that it is WHOLLY on screen and wide enough to read a
-      // line of Japanese in — which it would not be if the corners ever
-      // grew enough to squeeze it.
+      // WHAT IS ASKED OF IT HAS CHANGED TWICE, and each time because
+      // the plate moved. It was a band of its own, so it had to be most
+      // of the width. Then it was a plate in the bottom strip, so it
+      // had to be wholly on screen and wide enough for a line. It is
+      // now a few characters and a number under the place name — being
+      // WIDE is no longer a virtue, and asking for it would be asking
+      // the caption to be big again.
       const message = (await page.getByTestId('bp-message').boundingBox())!;
       expect(message.x, 'not off the left').toBeGreaterThanOrEqual(0);
       expect(message.x + message.width, 'not off the right').toBeLessThanOrEqual(phone.width + 1);
-      expect(message.width, 'wide enough for a line').toBeGreaterThan(
-        Math.max(240, phone.width * 0.4),
-      );
+      expect(message.width, 'wide enough to read at all').toBeGreaterThan(80);
       expect(message.y + message.height).toBeLessThanOrEqual(phone.height);
+      // AND IT IS IN THE TOP GROUP, which is the whole of this change:
+      // off the party's feet, off the floor shadows, out of the way of
+      // the three-quarter view.
+      expect(message.y + message.height, 'the plate is in the top of the screen').toBeLessThan(
+        phone.height * 0.45,
+      );
     });
   }
 });
