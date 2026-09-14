@@ -175,6 +175,91 @@ test.describe('the party column', () => {
     await expect(page.getByTestId('bx-member-kaos')).toContainText('魔法');
   });
 
+  /**
+   * THE MOST IMPORTANT THING ABOUT THE CORNER PANEL.
+   *
+   * It is not a list of who is here — the turn order at the other
+   * corner is that. It is a MAP of where they are standing, and the
+   * whole of its value is that a player reads front and back off it
+   * without being told: whoever is nearest the camera is lowest in the
+   * panel, whoever is furthest up the path is highest, and left and
+   * right are kept.
+   *
+   * So it is checked against the FIELD rather than against numbers.
+   * Move somebody on the battlefield and this test follows them; let
+   * the panel stop agreeing with them and it fails, which is the only
+   * way a correspondence like this can be held.
+   */
+  test('says where everybody is standing, by agreeing with the field', async ({ page }) => {
+    await freshWorld(page);
+    await openPreview(page);
+
+    const boxOf = async (sel: string) => (await page.locator(sel).boundingBox())!;
+    const middle = (b: { x: number; y: number; width: number; height: number }) => ({
+      x: b.x + b.width / 2,
+      y: b.y + b.height / 2,
+      foot: b.y + b.height,
+    });
+
+    const heroField = middle(await boxOf('.bp-hero'));
+    const kaosField = middle(await boxOf('.bp-kaos'));
+    const heroPanel = middle(await boxOf('[data-testid="bx-member-hero"]'));
+    const kaosPanel = middle(await boxOf('[data-testid="bx-member-kaos"]'));
+
+    // He stands nearer the camera than she does — his feet are lower.
+    expect(heroField.foot, 'he is the nearer of the two on the field').toBeGreaterThan(
+      kaosField.foot,
+    );
+    // So he is the lower of the two in the panel.
+    expect(heroPanel.y, 'and so he is the lower of the two in the panel').toBeGreaterThan(
+      kaosPanel.y,
+    );
+
+    // He stands further toward the middle of the field than she does.
+    expect(heroField.x, 'he is the further in of the two on the field').toBeLessThan(kaosField.x);
+    // So he is the further left of the two in the panel.
+    expect(heroPanel.x, 'and so he is the further left of the two in the panel').toBeLessThan(
+      kaosPanel.x,
+    );
+  });
+
+  test('does not stand two portraits on top of each other', async ({ page }) => {
+    await freshWorld(page);
+    await openPreview(page);
+    const places = await page.locator('[data-testid="bx-party"] .bx-member').all();
+    const boxes = await Promise.all(places.map(async (one) => (await one.boundingBox())!));
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const apart =
+          boxes[i].x + boxes[i].width <= boxes[j].x + 1 ||
+          boxes[j].x + boxes[j].width <= boxes[i].x + 1 ||
+          boxes[i].y + boxes[i].height <= boxes[j].y + 1 ||
+          boxes[j].y + boxes[j].height <= boxes[i].y + 1;
+        expect(apart, `party places ${i + 1} and ${j + 1} are clear of each other`).toBe(true);
+      }
+    }
+  });
+
+  /**
+   * AND IT DOES NOT STAND IN FRONT OF ANYBODY, which is the rule that
+   * cost the old stack its height: a panel in the corner the party is
+   * drawn in has to stop above their heads.
+   */
+  test('stops above the heads of the people on the field', async ({ page }) => {
+    await freshWorld(page);
+    await openPreview(page);
+    const panel = (await page.getByTestId('bx-party').boundingBox())!;
+    for (const who of ['.bp-enemy', '.bp-hero', '.bp-kaos']) {
+      const body = (await page.locator(who).boundingBox())!;
+      const overlaps =
+        panel.y < body.y + body.height &&
+        body.y < panel.y + panel.height &&
+        panel.x < body.x + body.width &&
+        body.x < panel.x + panel.width;
+      expect(overlaps, `the party panel does not cover ${who}`).toBe(false);
+    }
+  });
+
   test('is on the right, and the creature’s plate is on the left', async ({ page }) => {
     await freshWorld(page);
     await openPreview(page);

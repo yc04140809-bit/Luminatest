@@ -31,6 +31,7 @@ import type { ResolvedArt } from '../../core/art/artStates';
 import { displayName } from './battleHud';
 import { playSfx } from '../../platform/audio';
 import type { TurnSlot } from './battleHud';
+import { hudSpots, type FieldSpot, type HudSpot } from './formation';
 
 /** The head of a drawing, in a diamond, at the size the strip wants. */
 function FaceMark<S extends string>({
@@ -307,82 +308,185 @@ export function Readout({
 }
 
 /**
- * THE PARTY, as one HUD rather than a stack of cards.
+ * THE PARTY, AS A MAP OF WHERE THEY ARE STANDING.
  *
- * It was one framed card per member, and at two members that was a
- * third of the screen's height down the right-hand side — at four it
- * would have been two thirds, which is the whole party column eating
- * the battlefield it is supposed to sit beside.
+ * It was a stack of rows down the right, and a stack says only the
+ * order somebody was added in. This is a CROSS — front, two flanks and
+ * a rear — and the whole point of it is the one thing the brief calls
+ * most important: THE PANEL'S SHAPE IS THE FIELD'S SHAPE.
  *
- * So the frame is drawn ONCE, around all of them, and each member is a
- * row inside it: face, name, health, magic. Four rows cost four row
- * heights and one frame, not four frames. That is the "一体化" the brief
- * asks for, and it is also what makes a third and a fourth member a
- * longer list rather than a different layout.
+ *   nearest the camera  →  lowest in the panel
+ *   furthest up the path →  highest in the panel
+ *   further toward the middle of the field → further left in the panel
+ *
+ * So a player who never reads a word of it still knows who is in front.
+ * `hudSpots` in `formation.ts` does that conversion, from the very same
+ * numbers the field is drawn from, which is what keeps the two honest:
+ * move somebody on the field and they move in here, with no second
+ * table to remember.
+ *
+ * A party of two fills two of the four places and leaves the others
+ * empty, and that is not a hole — it is the formation, drawn. Three and
+ * four arrive as more faces in the same diamond rather than as a
+ * different panel.
+ *
+ * THE MIDDLE IS LEFT EMPTY on purpose. It is where the fight's shared
+ * state goes — whose turn it is, a party link, a resonance — and none
+ * of that exists yet, so nothing is put there to be moved later.
  */
-export function PartyHud({ children }: { children: ReactNode }) {
-  return (
-    <div className="bx-party" data-testid="bx-party">
-      <span className="bx-panel-label">PARTY</span>
-      <div className="bx-party-rows">{children}</div>
-    </div>
-  );
-}
-
-/**
- * One member of the party, as a row of that HUD.
- *
- * BOTH RAILS ARE ALWAYS DRAWN, because the frame draws both: a card
- * with one of them blanked out would be a broken picture. What varies
- * is whether a rail carries a number.
- *
- * The fight keeps one health, which is the hero's, and one pool of
- * magic, which is hers — the battle's own comment on `playerMp` says so:
- * "what Kaos has left to spend". So each of them is given the resource
- * they actually have, and the other rail says 「—」 rather than nought.
- * That distinction is the whole reason `now` is nullable: an empty bar
- * on Kaos would tell the player she is about to die.
- *
- * B-2 gives every member their own pair, and on that day the nulls go
- * and nothing else about this card changes.
- */
-export function PartyCard<S extends string>({
-  name,
-  role,
-  art,
-  hp,
-  mp,
-  testId,
-}: {
+export interface PartyMember<S extends string> {
   name: string;
   role: string;
   art: ResolvedArt<S> | null;
   hp: { now: number | null; max: number | null; testId?: string };
   mp: { now: number | null; max: number | null; testId?: string };
+  /** Where this person is standing, in the field's own numbers. */
+  spot: FieldSpot;
+  /** Whose turn it is: a little larger, and the one carrying figures. */
+  acting?: boolean;
   testId?: string;
+}
+
+export function PartyHud<S extends string>({ members }: { members: readonly PartyMember<S>[] }) {
+  const spots = hudSpots(members.map((who) => who.spot));
+  return (
+    <div className="bx-party" data-testid="bx-party" data-size={members.length}>
+      <span className="bx-panel-label">PARTY</span>
+      <div className="bx-party-cross" data-testid="bx-party-cross">
+        {/* THE LINE BETWEEN THEM, and it is drawn from the same spots
+            the faces are placed at rather than from a fixed diamond:
+            two people make a diagonal, four make the diamond, and both
+            times the shape on the panel is the shape on the field. A
+            guide drawn at fixed corners would have been a decoration
+            that disagreed with the party standing on it. */}
+        <PartyLink spots={spots} />
+        {members.map((who, at) => (
+          <PartyCard key={who.testId ?? who.name} who={who} at={spots[at]} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---- the gauges -----------------------------------------------------
+   HP is the ring AROUND the portrait and MP the ring just inside it,
+   because at this size a bar is four pixels of colour and a ring is a
+   whole edge. `pathLength` makes the arithmetic disappear: the circle
+   is declared to be 100 units long whatever its radius, so the dash is
+   the percentage and nothing has to know about pi. */
+const HP_RADIUS = 22.5;
+const MP_RADIUS = 19.9;
+
+/**
+ * The formation, drawn as one line through everybody.
+ *
+ * Closed once there are three of them, because three points that are
+ * not joined up are three points; open at two, because two joined at
+ * both ends is the same line drawn twice.
+ */
+function PartyLink({ spots }: { spots: readonly HudSpot[] }) {
+  if (spots.length < 2) return null;
+  const path = spots.map((at) => `${at.x * 100},${at.y * 100}`);
+  if (spots.length > 2) path.push(path[0]);
+  return (
+    <svg
+      className="bx-cross-link"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <polyline points={path.join(' ')} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+function shareOf(now: number | null, max: number | null): number | null {
+  if (now === null || max === null || max <= 0) return null;
+  return Math.max(0, Math.min(1, now / max));
+}
+
+function Gauge({
+  kind,
+  radius,
+  share,
+}: {
+  kind: 'hp' | 'mp';
+  radius: number;
+  share: number | null;
 }) {
   return (
-    <div className="bx-member" data-testid={testId}>
-      {art ? (
-        <FaceMark art={art} size={34} label={name} />
-      ) : (
-        <span className="bx-face bx-face-blank" aria-hidden="true" />
+    <>
+      <circle className={`bx-ring-bed ${kind}`} cx="24" cy="24" r={radius} pathLength={100} />
+      {share !== null && (
+        <circle
+          className={`bx-ring-lit ${kind}`}
+          cx="24"
+          cy="24"
+          r={radius}
+          pathLength={100}
+          strokeDasharray={`${share * 100} 100`}
+        />
       )}
-      <span className="bx-member-head">
-        <b className="bx-member-name">{displayName(name)}</b>
-        <i className="bx-member-role">{role}</i>
-        {/* Whichever of the two this member actually has — and it
-            carries the testid, because it is where the number IS. A bar
-            with no numeral on it is not what "read the health" means. */}
+    </>
+  );
+}
+
+/**
+ * One member, at their own place in the cross.
+ *
+ * A face, two rings and one figure. The NAME IS NOT DRAWN — it is in
+ * the DOM for a screen reader and for the tests, and on a thirty-pixel
+ * portrait a face is read faster than a word in any case; the turn
+ * order at the other corner has worked that way since the overhaul.
+ *
+ * BOTH RINGS ARE ALWAYS THERE, because a member with one of them
+ * missing would be a different shape in the diamond. What varies is
+ * whether a ring is filled: the fight keeps one health, which is his,
+ * and one pool of magic, which is hers, so each of them lights the ring
+ * they actually have and the other stays an empty bed. An empty bed is
+ * not nought — nought would be a green ring drained to nothing, which
+ * says somebody is dying.
+ *
+ * The figure is small for everybody and LARGE for whoever is acting,
+ * which is the brief's rule about numbers: the gauges carry the fight
+ * and the digits are for the one person you are deciding about.
+ */
+export function PartyCard<S extends string>({
+  who,
+  at,
+}: {
+  who: PartyMember<S>;
+  at: HudSpot;
+}) {
+  const { name, role, art, hp, mp, acting = false, testId } = who;
+  return (
+    <div
+      className={`bx-member${acting ? ' acting' : ''}`}
+      data-testid={testId}
+      style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%` }}
+    >
+      <span className="bx-member-ring">
+        <svg className="bx-ring" viewBox="0 0 48 48" aria-hidden="true">
+          <Gauge kind="hp" radius={HP_RADIUS} share={shareOf(hp.now, hp.max)} />
+          <Gauge kind="mp" radius={MP_RADIUS} share={shareOf(mp.now, mp.max)} />
+        </svg>
+        {art ? (
+          <FaceMark art={art} size={31} label={name} />
+        ) : (
+          <span className="bx-face bx-face-blank" aria-hidden="true" />
+        )}
+        {/* Whichever of the two this member actually has, on a chip
+            across the bottom of the portrait — and it carries the
+            testid, because it is where the number IS. */}
         <Readout
           now={hp.now ?? mp.now}
           max={hp.max ?? mp.max}
           testId={hp.now !== null ? hp.testId : mp.testId}
         />
       </span>
-      <span className="bx-member-bars">
-        <Meter kind="hp" now={hp.now} max={hp.max} bare />
-        <Meter kind="mp" now={mp.now} max={mp.max} bare />
+      <span className="bx-member-said">
+        <b className="bx-member-name">{displayName(name)}</b>
+        <i className="bx-member-role">{role}</i>
       </span>
     </div>
   );

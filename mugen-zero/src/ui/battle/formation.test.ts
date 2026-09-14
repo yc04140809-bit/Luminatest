@@ -7,7 +7,10 @@ import {
   NEAR_GROUND,
   NEAR_SCALE,
   PARTY_FORMATIONS,
+  HUD_SPREAD_X,
+  HUD_SPREAD_Y,
   depthScale,
+  hudSpots,
   partyFormation,
   PROTOTYPE_PLACEMENTS,
   prototypeStyle,
@@ -74,12 +77,69 @@ describe('party formation', () => {
   it('keeps the front rank nearest the enemy and nearest the viewer', () => {
     for (const n of SIZES) {
       const slots = partyFormation(n);
+      const front = slots[0];
+      const rear = slots[slots.length - 1];
+      // The first named is the FRONT: nobody stands nearer the camera.
+      for (const other of slots.slice(1)) {
+        expect(other.bottom, `#1 of ${n} is nearest the camera`).toBeGreaterThan(front.bottom);
+      }
+      // And the last named is the REAR, by the same measure.
+      for (const other of slots.slice(0, -1)) {
+        expect(other.bottom, `the last of ${n} is furthest up the path`).toBeLessThan(rear.bottom);
+      }
+      // Front to rear is also a step AWAY from the enemy. Said of
+      // those two only, and not of everybody in between: a diamond's
+      // flanks spread sideways, so one of them stands further toward
+      // the middle of the field than the front rank does — which is
+      // what a flank IS, and not a front rank that has wandered.
+      if (n > 1) {
+        expect(front.inset, `#1 of ${n} is ahead of the rear`).toBeGreaterThan(rear.inset);
+      }
+    }
+  });
+
+  /**
+   * RANK ORDER, NOT A STRICT LINE.
+   *
+   * It used to demand that every slot be further back than the one
+   * before it, which is right for two and three — with that many, a
+   * diagonal IS the depth — and wrong for four: the diamond's two
+   * flanks stand at the SAME distance on opposite sides, and that
+   * equality is the shape. So the list is ordered front-to-back with
+   * ties allowed, and `never puts two of them in the same place`
+   * above is what keeps a tie from being a collision.
+   *
+   * Drawing order stays strict. Two figures at one ground line still
+   * have to be painted in some order, and a tie there is a flicker.
+   */
+  it('names them front to back, and paints them in that order', () => {
+    for (const n of SIZES) {
+      const slots = partyFormation(n);
       for (let i = 1; i < slots.length; i += 1) {
-        // Further back up the path, and further from the enemy.
-        expect(slots[i].inset).toBeLessThan(slots[i - 1].inset);
-        expect(slots[i].bottom).toBeGreaterThan(slots[i - 1].bottom);
+        expect(slots[i].bottom, `#${i + 1} of ${n} is no nearer than #${i}`).toBeGreaterThanOrEqual(
+          slots[i - 1].bottom,
+        );
         expect(depthOf(slots[i])).toBeLessThan(depthOf(slots[i - 1]));
       }
+    }
+  });
+
+  /**
+   * FOUR IS A DIAMOND, and the party HUD is a drawing of it — so a
+   * four that quietly became a line again would take the corner panel
+   * with it.
+   */
+  it('stands four of them in a diamond rather than in a queue', () => {
+    const [front, left, right, rear] = partyFormation(4);
+    // The two in the middle are the flanks: level with each other.
+    expect(left.bottom).toBe(right.bottom);
+    // On opposite sides of everybody else's ground.
+    expect(left.inset).toBeGreaterThan(front.inset);
+    expect(right.inset).toBeLessThan(rear.inset);
+    // And still entirely on the party's own half: the middle of the
+    // field is where the fighting is drawn.
+    for (const slot of partyFormation(4)) {
+      expect(slot.inset).toBeLessThan(0.5);
     }
   });
 
@@ -324,6 +384,139 @@ describe('the depth ranks', () => {
   it('leaves the middle of the field to the fighting', () => {
     for (const [who, place] of Object.entries(DEPTH_RANKS)) {
       expect(place.inset, `${who} stays on its own side`).toBeLessThan(0.5);
+    }
+  });
+});
+
+/**
+ * THE PARTY HUD IS A MAP OF THE FIELD.
+ *
+ * This is the brief's most important rule, and it is the one thing
+ * about the corner panel that can be checked without a browser: the
+ * panel's positions are DERIVED from the field's, by one function, so
+ * the two cannot drift apart. Everything below is that correspondence,
+ * said as arithmetic.
+ */
+describe('the party HUD’s places', () => {
+  it('puts whoever is nearest the camera lowest in the panel', () => {
+    const [front, rear] = hudSpots([
+      { inset: 0.3, bottom: 0.02 },
+      { inset: 0.3, bottom: 0.22 },
+    ]);
+    expect(front.y, 'the front rank is low in the panel').toBeGreaterThan(rear.y);
+  });
+
+  it('puts whoever is further toward the middle of the field further left', () => {
+    const [inward, outward] = hudSpots([
+      { inset: 0.33, bottom: 0.2 },
+      { inset: 0.15, bottom: 0.2 },
+    ]);
+    expect(inward.x, 'further in on the field is further left in the panel').toBeLessThan(
+      outward.x,
+    );
+  });
+
+  it('maps the forest fight’s two the way the field reads', () => {
+    // He is further toward the middle and nearer us; she is out at the
+    // edge and a step up the path. So: him lower-left, her upper-right.
+    const [hero, kaos] = hudSpots([PROTOTYPE_PLACEMENTS.hero, PROTOTYPE_PLACEMENTS.kaos]);
+    expect(hero.x).toBeLessThan(0.5);
+    expect(hero.y).toBeGreaterThan(0.5);
+    expect(kaos.x).toBeGreaterThan(0.5);
+    expect(kaos.y).toBeLessThan(0.5);
+  });
+
+  it('draws a party of four as a cross with an empty middle', () => {
+    const spots = hudSpots(partyFormation(4));
+    expect(spots).toHaveLength(4);
+    // Four places, four different points.
+    expect(new Set(spots.map((at) => `${at.x}/${at.y}`)).size).toBe(4);
+    // One at each compass point, and nobody in the centre.
+    const middles = spots.filter(
+      (at) => Math.abs(at.x - 0.5) < 1e-9 && Math.abs(at.y - 0.5) < 1e-9,
+    );
+    expect(middles, 'the middle of the cross is left empty').toHaveLength(0);
+    const [front, left, right, rear] = spots;
+    expect(front.y).toBeGreaterThan(rear.y);
+    expect(left.x).toBeLessThan(right.x);
+    // The two flanks are level with each other, because they are level
+    // on the field — that equality is the whole shape.
+    expect(left.y).toBeCloseTo(right.y, 10);
+  });
+
+  it('is taller than it is wide, as the brief asks', () => {
+    expect(HUD_SPREAD_Y).toBeGreaterThan(HUD_SPREAD_X);
+  });
+
+  it('never sends anybody outside the panel', () => {
+    for (const n of SIZES) {
+      for (const at of hudSpots(partyFormation(n))) {
+        expect(at.x).toBeGreaterThanOrEqual(0.5 - HUD_SPREAD_X - 1e-9);
+        expect(at.x).toBeLessThanOrEqual(0.5 + HUD_SPREAD_X + 1e-9);
+        expect(at.y).toBeGreaterThanOrEqual(0.5 - HUD_SPREAD_Y - 1e-9);
+        expect(at.y).toBeLessThanOrEqual(0.5 + HUD_SPREAD_Y + 1e-9);
+      }
+    }
+  });
+
+  /**
+   * FOUR PORTRAITS THAT DO NOT TOUCH.
+   *
+   * The panel is about a hundred pixels across and a place in it is a
+   * forty-pixel portrait with two gauge rings around it — so two places
+   * closer together than forty pixels are two faces overlapping, which
+   * is the one way this panel can be worse than the stack it replaced.
+   *
+   * The numbers below are the stylesheet's, written down here because
+   * they are the reason a formation may not be any shape at all: a
+   * table that put three of them almost on one spot on the field would
+   * put three portraits on one spot in the corner. e2e/battleHud.spec
+   * measures the rendered boxes; this catches it at the table.
+   */
+  const CROSS_W = 101;
+  const CROSS_H = 105;
+  const PLACE = 40;
+
+  it('never stands two portraits on top of each other', () => {
+    for (const n of SIZES) {
+      const spots = hudSpots(partyFormation(n));
+      for (let i = 0; i < spots.length; i += 1) {
+        for (let j = i + 1; j < spots.length; j += 1) {
+          const dx = (spots[i].x - spots[j].x) * CROSS_W;
+          const dy = (spots[i].y - spots[j].y) * CROSS_H;
+          expect(
+            Math.hypot(dx, dy),
+            `of a party of ${n}, #${i + 1} and #${j + 1} are clear of each other`,
+          ).toBeGreaterThanOrEqual(PLACE - 1);
+        }
+      }
+    }
+  });
+
+  it('keeps every portrait inside the panel', () => {
+    for (const n of SIZES) {
+      for (const at of hudSpots(partyFormation(n))) {
+        expect(at.x * CROSS_W - PLACE / 2).toBeGreaterThanOrEqual(0);
+        expect(at.x * CROSS_W + PLACE / 2).toBeLessThanOrEqual(CROSS_W);
+        expect(at.y * CROSS_H - PLACE / 2).toBeGreaterThanOrEqual(0);
+        expect(at.y * CROSS_H + PLACE / 2).toBeLessThanOrEqual(CROSS_H);
+      }
+    }
+  });
+
+  it('centres a party of one and answers an empty party with nothing', () => {
+    expect(hudSpots([])).toEqual([]);
+    expect(hudSpots([{ inset: 0.16, bottom: 0.03 }])).toEqual([{ x: 0.5, y: 0.5 }]);
+  });
+
+  it('does not divide by nothing when everybody shares a line', () => {
+    const level = hudSpots([
+      { inset: 0.2, bottom: 0.1 },
+      { inset: 0.2, bottom: 0.1 },
+    ]);
+    for (const at of level) {
+      expect(Number.isFinite(at.x)).toBe(true);
+      expect(Number.isFinite(at.y)).toBe(true);
     }
   });
 });

@@ -64,7 +64,7 @@ import {
 } from '../cinematic/accidentCinematic';
 import type { BattleArcana } from './battleArcana';
 import { CageIcon, HeartIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
-import { PartyCard, PartyHud, Readout, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
+import { PartyHud, Readout, TurnOrder, WorldMemoryPanel, Meter } from './BattleHud';
 import {
   actingSideOf,
   displayName,
@@ -1851,31 +1851,44 @@ export function BattleUIPrototype({
 
         {/* RIGHT — who is standing with you. */}
         <div className="bx-corner bx-tr">
-          <PartyHud>
-            {/* His health is what the fight keeps; the magic is hers.
-                Each card carries the one it has and says 「—」 on the
-                other, which is the truth until B-2 splits the pools. */}
-            <PartyCard
-              name="あなた"
-              role="剣"
-              art={heroShown}
-              hp={{ now: battle.playerHp, max: battle.playerMaxHp, testId: 'bp-player-hp' }}
-              mp={{ now: null, max: null }}
-              testId="bx-member-hero"
-            />
-            <PartyCard
-              name="ケイオス"
-              role="魔法"
-              art={kaosShown}
-              hp={{ now: null, max: null }}
-              mp={
-                battle.magicUnlocked
+          {/* THE PANEL IS A MAP OF THE FIELD. Each member is handed
+              the very placement they are drawn at, and `hudSpots` turns
+              it into where they go in the cross — he is further toward
+              the middle and nearer us, so he is the lower-left place;
+              she is out at the edge and a step up the path, so she is
+              the upper-right one. Nothing here says "top" or "bottom".
+
+              His health is what the fight keeps; the magic is hers.
+              Each lights the ring it has and leaves the other an empty
+              bed, which is the truth until B-2 splits the pools. */}
+          <PartyHud
+            members={[
+              {
+                name: 'あなた',
+                role: '剣',
+                art: heroShown,
+                hp: { now: battle.playerHp, max: battle.playerMaxHp, testId: 'bp-player-hp' },
+                mp: { now: null, max: null },
+                spot: PROTOTYPE_PLACEMENTS.hero,
+                // He is the one with a turn in this fight's line.
+                acting: actingSide === 'ALLY' && !cutIn,
+                testId: 'bx-member-hero',
+              },
+              {
+                name: 'ケイオス',
+                role: '魔法',
+                art: kaosShown,
+                hp: { now: null, max: null },
+                mp: battle.magicUnlocked
                   ? { now: battle.playerMp, max: battle.playerMaxMp, testId: 'bx-kaos-mp' }
-                  : { now: null, max: null }
-              }
-              testId="bx-member-kaos"
-            />
-          </PartyHud>
+                  : { now: null, max: null },
+                spot: PROTOTYPE_PLACEMENTS.kaos,
+                // Hers is the cut-in: the moment the spell is hers.
+                acting: cutIn !== null,
+                testId: 'bx-member-kaos',
+              },
+            ]}
+          />
         </div>
 
         {/* RIGHT BOTTOM — how the fight is WATCHED, and the way out.

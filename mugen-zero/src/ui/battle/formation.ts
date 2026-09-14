@@ -90,16 +90,54 @@ export const PARTY_FORMATIONS: Readonly<Record<number, readonly SlotPlacement[]>
     { inset: 0.25, bottom: 0.03, depth: 2 },
     { inset: 0.0, bottom: 0.13, depth: 1 },
   ],
+  /**
+   * THREE IS A STAGGER, and the middle one is the WIDE one.
+   *
+   * It used to be three points on one diagonal — 0.3, 0.09, 0.0 — and
+   * the last two of those are almost the same place sideways, which is
+   * a queue with a kink in it rather than a formation. Worse, the party
+   * HUD is a drawing of this table, and two places a hair apart on the
+   * field are two portraits on top of each other in the corner.
+   *
+   * So the second stands out at the party's own edge and the third
+   * comes back in behind the front rank: front, flank, rear, with real
+   * ground between all three.
+   */
   3: [
     { inset: 0.3, bottom: 0.02, depth: 3 },
-    { inset: 0.09, bottom: 0.11, depth: 2 },
-    { inset: 0.0, bottom: 0.2, depth: 1 },
+    { inset: 0.06, bottom: 0.12, depth: 2 },
+    { inset: 0.22, bottom: 0.22, depth: 1 },
   ],
+  /**
+   * FOUR STAND IN A DIAMOND, not in a line.
+   *
+   * Two stand on a diagonal, because with two a line IS the depth,
+   * and three stagger. Four in a line would be a queue — and the party
+   * HUD is a map of this table, so a queue in the corner says nothing
+   * about who is beside whom.
+   *
+   * Front, two flanking at the same distance, and one behind. The
+   * flanks are the pair the diagonal cannot express: they are the same
+   * distance from the camera and on opposite sides of the party's own
+   * ground, which is what makes the shape read as a formation rather
+   * than as an order of arrival.
+   *
+   * NEARLY SYMMETRIC, AND NOT QUITE. The front and the rear stand at
+   * almost the same inset — a hair apart rather than exactly level —
+   * because the corner HUD is a drawing of this table and four places
+   * spread evenly is what keeps the four portraits in it from touching.
+   * The hair is the front rank still being the one nearest the enemy,
+   * which is what a front rank is.
+   *
+   * Still entirely on the party's side — 0.4 is the furthest anybody
+   * goes toward the middle, and the middle is where the fighting is
+   * drawn.
+   */
   4: [
-    { inset: 0.34, bottom: 0.02, depth: 4 },
-    { inset: 0.15, bottom: 0.09, depth: 3 },
-    { inset: 0.06, bottom: 0.17, depth: 2 },
-    { inset: 0.0, bottom: 0.25, depth: 1 },
+    { inset: 0.25, bottom: 0.02, depth: 4 },
+    { inset: 0.4, bottom: 0.12, depth: 3 },
+    { inset: 0.08, bottom: 0.12, depth: 2 },
+    { inset: 0.23, bottom: 0.22, depth: 1 },
   ],
 };
 
@@ -339,6 +377,75 @@ export const DEPTH_RANKS = {
   /** And the rank behind it. */
   playerRear: { edge: 'right', inset: 0.15, bottom: 0.34, depth: 3 },
 } as const satisfies Readonly<Record<string, PrototypePlacement>>;
+
+// ---------------------------------------------------------------------
+// THE PARTY HUD IS A MAP OF THE FORMATION.
+//
+// This is the whole idea and it is worth saying plainly: the corner
+// panel does not have its own arrangement. It is a small picture of
+// where everybody is ACTUALLY STANDING, so a player reads who is in
+// front and who is behind without being told and without a legend.
+//
+// Nearest the camera on the field is lowest in the panel. Furthest is
+// highest. Further toward the middle of the field — which for a party
+// on the right means further LEFT on the glass — is further left in the
+// panel. Nothing here knows about anybody: it is given ground lines and
+// insets and hands back positions, so it is the same function for a
+// party of two, three or four and for a formation nobody has drawn yet.
+
+/** Where somebody is standing, as the formation tables say it. */
+export interface FieldSpot {
+  /** In from the party's own edge. Larger is further toward the middle. */
+  inset: number;
+  /** Off the ground line. Larger is further up the path, away from us. */
+  bottom: number;
+}
+
+/** Where they go in the panel, as a share of it. 0.5/0.5 is the middle. */
+export interface HudSpot {
+  x: number;
+  y: number;
+}
+
+/**
+ * How far from the middle of the panel the outermost slot sits.
+ *
+ * Taller than it is wide on purpose: the brief asks for a diamond that
+ * is 「少し縦長」, and the thing the panel is mostly saying is front and
+ * back rather than left and right.
+ */
+export const HUD_SPREAD_X = 0.27;
+export const HUD_SPREAD_Y = 0.29;
+
+/** The middle of a range, or 0.5 when everybody shares one value. */
+function shareOf(value: number, low: number, high: number): number {
+  return high - low < 1e-9 ? 0.5 : (value - low) / (high - low);
+}
+
+/**
+ * The panel's positions for a party standing like this.
+ *
+ * Normalised across the party rather than against fixed numbers, so a
+ * formation that is tight on the field still fills the panel — what the
+ * panel is for is the ORDER, and two people a hair apart are still one
+ * in front of the other.
+ */
+export function hudSpots(places: readonly FieldSpot[]): HudSpot[] {
+  if (places.length === 0) return [];
+  if (places.length === 1) return [{ x: 0.5, y: 0.5 }];
+  const insets = places.map((p) => p.inset);
+  const bottoms = places.map((p) => p.bottom);
+  const lowIn = Math.min(...insets);
+  const highIn = Math.max(...insets);
+  const lowBt = Math.min(...bottoms);
+  const highBt = Math.max(...bottoms);
+  return places.map((p) => ({
+    // Further toward the middle of the field is further LEFT here.
+    x: 0.5 + (0.5 - shareOf(p.inset, lowIn, highIn)) * 2 * HUD_SPREAD_X,
+    // Further up the path is higher here. Nearest the camera is lowest.
+    y: 0.5 + (0.5 - shareOf(p.bottom, lowBt, highBt)) * 2 * HUD_SPREAD_Y,
+  }));
+}
 
 export type DepthRank = keyof typeof DEPTH_RANKS;
 

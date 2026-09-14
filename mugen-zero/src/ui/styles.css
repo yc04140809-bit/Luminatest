@@ -3605,55 +3605,79 @@ body,
   color: var(--bx-ink);
 }
 
-/* ---- the party, down the right ----
-   A column, capped at four, and each card the same height whether it is
-   showing a bar or a word — so a third and a fourth member arriving is
-   a longer list and not a different layout. */
-/* ---- the party: ONE HUD down the right, not a stack of cards -------
-   It was one of the pack's framed cards per member, and at two of them
-   that was a third of the screen's height; at four it would have been
-   two thirds. The frame is drawn once now and the members are rows
-   inside it — four rows and one frame instead of four frames — which is
-   both the compaction the brief asks for and what keeps a four-person
-   party a longer list rather than a different layout.
+/* ---- the party: A CROSS, AND A MAP OF THE FIELD -------------------
+   It was a stack of rows, and a stack only ever says the order people
+   were added in. The four places are a diamond now — front, two flanks,
+   one rear — and the arrangement is not decorative: it is the SAME
+   arrangement the four of them are standing in out on the field.
 
-   The frame is the pack's message window, nine-sliced, so the ornament
-   at each end is drawn at its own proportions however tall the list
-   gets. The bars are the pack's own, revealed. */
+     nearest the camera   → lowest in the panel
+     furthest up the path → highest in the panel
+     further toward the middle of the field → further left in here
+
+   `hudSpots()` does that conversion from the formation tables, so the
+   panel cannot drift out of step with the field: there is one set of
+   numbers and this is a second view of it. The positions arrive as
+   inline percentages; everything below is only how a place looks.
+
+   THE FRAME IS NOT THE PACK'S WING. That art is a long horizontal
+   message window — nine-sliced it is right for a list and wrong for a
+   square, where its ornate ends would meet in the middle. This is a
+   stand-in in the same house style (deep navy, a gold hairline, cut
+   corners echoing the portrait octagon) until the square frame is
+   drawn, and on that day only these few lines change. */
 .bx-party {
-  /* Wide enough that the frame's ornate ends are a border and not a
-     third of the panel: at 148 with a 17px end on each side the rows
-     had 114 pixels to live in. */
   position: relative;
-  width: clamp(186px, calc(var(--stage-w, 100vw) * 0.253), 218px);
-  /* MORE ROOM UNDER THE LAST ROW THAN OVER THE FIRST, and it is not a
-     whim: the portrait's frame is drawn 7% LARGER than the portrait
-     (`.bx-face-frame` is inset negatively), so the bottom row's gold
-     corner reaches into the padding below it. At 4px there were about
-     one and a half pixels left between that corner and the edge of the
-     panel's own fill, and the second portrait read as hanging out of
-     the bottom of the frame — which is what it was reported as.
-     The panel does NOT grow to pay for this. It cannot: Kaos's head is
-     four pixels under it. The portraits give the room back instead. */
-  padding: 4px 2px 8px;
-  border: 0 solid transparent;
-  /* 7 AND 27 IS NOT A GUESS. The slice is `25 95`, so the drawn
-     ornament is 95 wide for every 25 of top — and a border of 7px top
-     must therefore be 7/25 x 95 = 27px at the sides or the wing is
-     squashed to a gold smear. It was 10px, which drew it at forty per
-     cent of its width, and the brief's one rule about this art is that
-     it is not pulled out of shape. */
-  border-width: 7px 27px;
-  background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
-  background-clip: padding-box;
-  border-image-source: var(--ui-message);
-  border-image-slice: 25 95 fill;
-  border-image-repeat: stretch;
+  /* Square-ish and a little TALLER than wide, because the thing the
+     panel is mostly saying is front and back. The ceiling is not a
+     taste: the top right corner runs out at the head of whoever is
+     standing under it. */
+  width: clamp(110px, calc(var(--stage-w, 100vw) * 0.132), 124px);
+  padding: 5px;
   color: var(--bx-ink);
+  /* The hairline is the outer fill showing through: a border cannot
+     follow a clip-path, so the plate is drawn twice — gold underneath,
+     navy inset by one pixel on top, both cut to the same octagon. */
+  background: linear-gradient(
+    155deg,
+    rgba(217, 184, 113, 0.62),
+    rgba(217, 184, 113, 0.22) 46%,
+    rgba(217, 184, 113, 0.5)
+  );
+  clip-path: polygon(
+    11% 0%,
+    89% 0%,
+    100% 11%,
+    100% 89%,
+    89% 100%,
+    11% 100%,
+    0% 89%,
+    0% 11%
+  );
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
-/* NO HEADING. A panel with two faces in it does not need a word saying
-   they are the party, and the word was the one thing in here that was
-   costing height rather than carrying information. */
+.bx-party::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(60, 92, 158, 0.34), rgba(0, 0, 0, 0) 68%),
+    linear-gradient(180deg, rgba(9, 19, 44, 0.74), rgba(5, 11, 28, 0.82));
+  clip-path: polygon(
+    11% 0%,
+    89% 0%,
+    100% 11%,
+    100% 89%,
+    89% 100%,
+    11% 100%,
+    0% 89%,
+    0% 11%
+  );
+  pointer-events: none;
+}
+/* NO HEADING. A panel with faces in it does not need a word saying they
+   are the party, and at this size the word is the whole top row. */
 .bx-party > .bx-panel-label {
   position: absolute;
   width: 1px;
@@ -3661,91 +3685,171 @@ body,
   overflow: hidden;
   clip-path: inset(50%);
 }
-.bx-party-rows {
+/* The cross itself: a square field of places, addressed in per cent. */
+.bx-party-cross {
+  position: relative;
+  z-index: 1;
+  /* A HAIR TALLER THAN WIDE — the 「少し縦長」 the brief asks for, and
+     also what keeps the two flanks from touching across the middle. */
+  aspect-ratio: 1 / 1.04;
+}
+/* THE LINE THROUGH THE PARTY. Drawn from the places themselves rather
+   than at fixed corners, so it is the formation and not an ornament: a
+   diagonal at two, a diamond at four. Faint on purpose — it is the
+   ground the faces are standing on, not a thing to read. */
+.bx-cross-link {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.bx-cross-link polyline {
+  fill: none;
+  stroke: var(--bx-gold-hair);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  stroke-dasharray: 3 3;
+}
+/* One member, centred on their own place. */
+.bx-member {
+  position: absolute;
+  transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  width: 40px;
 }
-/* One member: a face, a name and two rails, on one line each. */
-.bx-member {
+/* FORTY, AND THE RINGS ARE DRAWN TIGHT INSIDE IT — because four of
+   these have to stand in a diamond about a hundred pixels across
+   without touching, and every pixel the gauges take outside the face
+   comes off the distance between neighbours. Thirty-one of the forty
+   is portrait; the rest is two gauges and the hair between them. */
+.bx-member-ring {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 7px;
-  row-gap: 2px;
-  /* AIR INSIDE THE FRAME, and more of it on the left: the panel's
-     ornate end reaches inwards past its own border, so a portrait
-     placed at the content edge sits on a gold wing. */
-  padding: 2px 4px 2px 9px;
+  place-items: center;
+  width: 40px;
+  height: 40px;
 }
-/* NO SIZE OF ITS OWN, AND THAT IS THE FIX.
-   `FaceMark` sets the portrait's width and height inline, and the
-   drawing inside is built to exactly that — and this rule was
-   overriding it with something SMALLER. The picture was 30x30 in a
-   24x27 hole with `overflow: visible`, so it hung three pixels out of
-   its own frame on every side: which is the "the two of them overflow
-   the frame" in the report, measured.
-   The portrait is bigger now (36, up from 30) and the frame around it
-   is the size of the portrait, because it is the same number. */
+/* The two gauges. Rotated so both start at twelve o'clock and run
+   clockwise — a ring that began at three would read as half empty at
+   full health. */
+.bx-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+.bx-ring circle {
+  fill: none;
+  stroke-linecap: round;
+}
+/* THE EMPTY CHANNEL IS DRAWN. A bed the colour of the panel behind it
+   is not a gauge at rest, it is a missing gauge — which is exactly how
+   Kaos read before her magic is unlocked, with neither ring lit and
+   nothing at all around her face. A visible ring with nothing in it
+   says "there is a gauge here and it is not yours to spend yet". */
+.bx-ring-bed {
+  stroke: rgba(243, 226, 182, 0.15);
+}
+.bx-ring-bed.hp { stroke-width: 2.4; }
+.bx-ring-bed.mp { stroke-width: 1.6; }
+.bx-ring-lit.hp {
+  stroke: #86d08d;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 2px rgba(134, 208, 141, 0.55));
+  transition: stroke-dasharray 220ms ease-out;
+}
+.bx-ring-lit.mp {
+  stroke: #7fb6f0;
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 2px rgba(127, 182, 240, 0.5));
+  transition: stroke-dasharray 220ms ease-out;
+}
+/* The portrait sits in the middle of its rings, and the pack's gold
+   plate is NOT drawn around it: the rings are the ring now, and two
+   of them plus a gold octagon is three edges on a thirty-pixel face. */
 .bx-member .bx-face {
-  grid-row: 1 / span 2;
+  position: relative;
+  z-index: 1;
 }
-.bx-member .bx-face-frame { display: block; }
-.bx-member-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 5px;
-  padding-right: 3px;
-  min-width: 0;
+.bx-member .bx-face-frame { display: none; }
+/* A place whose art has not resolved is still a place, and it is the
+   size of the others: a smaller hole inside the rings would read as a
+   different kind of member rather than as a picture still loading. */
+.bx-member .bx-face-blank {
+  width: 31px;
+  height: 31px;
 }
-.bx-member-name {
-  /* WITHOUT THIS THE ELLIPSIS NEVER HAPPENS. A flex item will not
-     shrink below its own content unless it is told it may, so
-     `overflow: hidden` and `text-overflow: ellipsis` below were dead
-     letters and the name simply pushed into the role beside it —
-     「あなた」 and 「剣」 were touching. */
-  min-width: 0;
-  flex: 0 1 auto;
-  overflow: hidden;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
-}
+/* The figure, on a chip across the bottom of the portrait. Small for
+   everybody — the gauges are what the fight is read from — and it is
+   whoever is ACTING that gets a legible number, because they are the
+   one being decided about. */
+/* THE FIGURE IS WRITTEN ON THE FACE, NOT ON A PLATE OVER IT.
+   `100 / 100` will not go inside thirty-one pixels at a size anybody
+   can read, so it is wider than the portrait whatever is done — and a
+   black chip that wide is a bar laid across the health ring, hiding
+   the very gauge the brief made primary. Without the plate the digits
+   are thin enough that the green reads between them, and the shadow is
+   what makes them legible over a lit drawing. */
 .bx-member-read {
-  flex: 0 0 auto;
-  font-size: 8.5px;
+  position: absolute;
+  z-index: 2;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 6.5px;
   font-style: normal;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  letter-spacing: -0.01em;
+  word-spacing: -1.4px;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: var(--bx-ink-dim);
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.98),
+    0 0 3px rgba(0, 0, 0, 0.9),
+    0 0 6px rgba(0, 0, 0, 0.75);
 }
-.bx-member-read b { font-weight: 400; opacity: 0.5; }
-.bx-member-read.blank { opacity: 0.45; }
-/* The two rails, stacked under the name. */
-.bx-member-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.bx-member .bx-meter { height: 5px; }
-.bx-member .bx-meter-track { height: 100%; }
-/* The role word, beside the NAME rather than out at the edge: pushed
-   to the far right it was the thing the frame's wing cut in half.
-   Name, role, then the number, which is the one that has to be exact. */
-.bx-member-role {
-  flex: 0 0 auto;
+.bx-member-read b { font-weight: 400; opacity: 0.72; }
+.bx-member-read.blank { opacity: 0.5; }
+/* Whoever is acting gets the legible one. The gauges carry the fight;
+   the digits are for the person being decided about. */
+.bx-member.acting .bx-member-read {
   font-size: 7.5px;
-  font-style: normal;
-  letter-spacing: 0.04em;
-  color: var(--bx-gold-lit);
-  opacity: 0.85;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  color: var(--bx-ink);
+}
+/* Whoever is acting is a little larger and lit, which is the same
+   grammar the turn order uses at the opposite corner. */
+.bx-member.acting {
+  z-index: 3;
+}
+.bx-member.acting .bx-member-ring {
+  transform: scale(1.1);
+}
+/* LIFTED HARDER THAN THE TURN ORDER'S. These faces are cut out of
+   battle drawings, which are lit from behind in this forest — at
+   thirty-one pixels on a navy plate the hero was a silhouette. */
+.bx-member.acting .bx-face-art {
+  filter: brightness(1.34) contrast(1.02);
+}
+.bx-member:not(.acting) .bx-face-art {
+  filter: brightness(1.12) saturate(0.96);
+}
+/* NAME AND ROLE ARE NOT DRAWN. At thirty pixels a face is read faster
+   than a word, and four names inside a square is a paragraph. They stay
+   in the DOM for a screen reader — and the tests read them there. */
+.bx-member-said {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 /* A rail nobody is keeping a number on yet. NOT an empty bar, which
