@@ -106,21 +106,23 @@ describe('party formation', () => {
 describe('the prototype cast', () => {
   it('stands where the overhaul stood them', () => {
     expect(PROTOTYPE_PLACEMENTS).toEqual({
-      enemy: { edge: 'left', inset: 0.1, bottom: 0.42 },
-      enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
+      enemy: { edge: 'left', inset: 0.1, bottom: 0.45 },
+      enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.4 },
       // PUSHED BACK, so the three of them are three ground lines
       // and not two: he and Kaos were within a thirtieth of the
       // field of each other, which the eye reads as one row.
-      enemyNear: { edge: 'left', inset: 0.05, bottom: 0.39 },
-      enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.32 },
-      // MOVED FOR DEPTH. He came forward and she stepped back, so the
-      // party reads as two ranks rather than two people on one line:
-      // the gap between them went from a twenty-fifth of the field to
-      // an eleventh, and the gap from him to a man he is fighting from
-      // 0.09 to 0.12. `depthScale` does the other half of the work.
-      hero: { edge: 'right', inset: 0.33, bottom: 0.24, depth: 3 },
-      kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
-      summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
+      enemyNear: { edge: 'left', inset: 0.05, bottom: 0.42 },
+      enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.35 },
+      // MOVED FOR DEPTH, TWICE. He came forward and she stepped back
+      // so the party reads as two ranks rather than two people on one
+      // line — and then again when the camera was opened up, as far as
+      // the fences allow: his feet must clear the command row and the
+      // top of her head must clear the party panel. Forty-seven pixels
+      // of ground between them on the built screen, up from
+      // twenty-seven. `depthScale` carries the rest.
+      hero: { edge: 'right', inset: 0.33, bottom: 0.23, depth: 3 },
+      kaos: { edge: 'right', inset: 0.15, bottom: 0.34, depth: 1 },
+      summon: { edge: 'right', inset: 0.48, bottom: 0.27, depth: 2 },
     });
   });
 
@@ -158,11 +160,11 @@ describe('the prototype cast', () => {
   });
 
   it('writes a placement as the percentages a stylesheet would have', () => {
-    expect(prototypeStyle('enemy')).toEqual({ left: '10%', bottom: '42%' });
-    expect(prototypeStyle('enemyDowned')).toEqual({ left: '6%', bottom: '36%' });
-    expect(prototypeStyle('hero')).toEqual({ right: '33%', bottom: '24%', zIndex: 3 });
-    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '31%', zIndex: 1 });
-    expect(prototypeStyle('summon')).toEqual({ right: '48%', bottom: '28%', zIndex: 2 });
+    expect(prototypeStyle('enemy')).toEqual({ left: '10%', bottom: '45%' });
+    expect(prototypeStyle('enemyDowned')).toEqual({ left: '6%', bottom: '40%' });
+    expect(prototypeStyle('hero')).toEqual({ right: '33%', bottom: '23%', zIndex: 3 });
+    expect(prototypeStyle('kaos')).toEqual({ right: '15%', bottom: '34%', zIndex: 1 });
+    expect(prototypeStyle('summon')).toEqual({ right: '48%', bottom: '27%', zIndex: 2 });
   });
 
   /**
@@ -214,10 +216,25 @@ describe('how big somebody standing there is drawn', () => {
   });
 
   it('never runs away with anybody', () => {
-    // A quarter, end to end. The failure this guards is the one the
-    // character sizes had last time somebody's scale moved: enough
-    // difference to read as distance, not enough to make a giant.
-    expect(NEAR_SCALE / FAR_SCALE).toBeLessThan(1.35);
+    // The failure this guards is a real one — enough difference to read
+    // as distance, not enough to make a giant — and it used to be
+    // guarded in the wrong place: end to end of the RANGE, capped at a
+    // quarter.
+    //
+    // Nobody stands at either end of that range. The nearest ground
+    // line anybody occupies is 0.21 and the furthest is 0.45, so the
+    // end-to-end figure was always bigger than anything on the screen
+    // and the cap was biting a number no player can see. When the
+    // camera was opened up it bit hard enough to hold the screen flat:
+    // measured on the built field, the hero and Kaos were four per cent
+    // apart, which is a difference a ruler finds and an eye does not.
+    //
+    // So the cap is on the people who are actually STANDING somewhere,
+    // which is the thing that could look wrong, and the range keeps a
+    // looser end of its own.
+    const placed = Object.values(PROTOTYPE_PLACEMENTS).map((p) => depthScale(p.bottom));
+    expect(Math.max(...placed) / Math.min(...placed), 'nobody is a giant').toBeLessThan(1.35);
+    expect(NEAR_SCALE / FAR_SCALE).toBeLessThan(1.55);
     for (const ground of [-1, 0, 0.25, 0.5, 2]) {
       expect(depthScale(ground)).toBeLessThanOrEqual(NEAR_SCALE);
       expect(depthScale(ground)).toBeGreaterThanOrEqual(FAR_SCALE);
@@ -254,8 +271,13 @@ describe('how big somebody standing there is drawn', () => {
     // further still. None of it by much, and all of it visible.
     expect(hero).toBeGreaterThan(kaos);
     expect(kaos).toBeGreaterThan(gald);
-    expect(hero / gald).toBeGreaterThan(1.03);
-    expect(hero / gald).toBeLessThan(1.15);
+    // RAISED FROM 1.15, which was the ceiling that kept this screen
+    // reading as a row. "All of it visible" is the claim, and at eleven
+    // per cent it was not: the brief that opened the camera asked for a
+    // view anybody can see is a three-quarter one, and the number below
+    // is what that turned out to cost.
+    expect(hero / gald).toBeGreaterThan(1.12);
+    expect(hero / gald).toBeLessThan(1.3);
   });
 
   /**

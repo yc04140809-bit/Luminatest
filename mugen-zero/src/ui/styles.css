@@ -2468,6 +2468,17 @@ body,
   /* The forest as it is: no veil, no fade, no washing out. */
   filter: none;
 }
+/* EXPOSED A LITTLE HIGHER, ON THE BATTLE SCREEN ONLY.
+   Not a wash and not a veil — the same painting, read off a slightly
+   brighter print of itself. `contrast` DOWN is the part that does the
+   work: it lifts the blacks, which is where the clearing was losing its
+   floor, and it is the opposite of the usual instinct to turn contrast
+   up when a picture looks flat. A touch of saturation back, because
+   lifting blacks always costs some. Nothing here approaches a blown
+   highlight: 1.08 on a painting that never hits white. */
+.bp-field .bp-bg {
+  filter: brightness(1.08) contrast(0.94) saturate(1.06);
+}
 /* Aimed low, on the battle screen only.
    The brief asks for a look down onto the battlefield
      rather than a flat side view, and the honest way to get one from a
@@ -2491,8 +2502,31 @@ body,
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(180deg, rgba(4, 9, 22, 0.42) 0%, rgba(4, 9, 22, 0) 22%),
-    linear-gradient(0deg, rgba(4, 9, 22, 0.4) 0%, rgba(4, 9, 22, 0) 20%);
+    /* 木漏れ日. The painting already has light coming through the
+       canopy from the upper left; this agrees with it rather than
+       inventing a second sun. */
+    radial-gradient(
+      120% 62% at 26% 6%,
+      rgba(255, 246, 214, 0.13) 0%,
+      rgba(255, 246, 214, 0) 56%
+    ),
+    /* AERIAL PERSPECTIVE. Distance is pale. A breath of light across
+       the far part of the floor makes the ground go AWAY from the
+       camera rather than stop, and it is the cheapest honest depth cue
+       there is. It lies over the cast as well as behind them, which is
+       what haze does — and at a tenth of an alpha it takes nothing off
+       anybody's legibility. */
+    linear-gradient(
+      180deg,
+      rgba(216, 232, 255, 0) 30%,
+      rgba(216, 232, 255, 0.09) 48%,
+      rgba(216, 232, 255, 0) 68%
+    ),
+    /* And the breath of shade at the two ends, so white text in a
+       corner has something to sit against. Lighter than it was, and
+       less blue: the screen was reading heavy before it read dark. */
+    linear-gradient(180deg, rgba(12, 12, 18, 0.3) 0%, rgba(12, 12, 18, 0) 20%),
+    linear-gradient(0deg, rgba(12, 12, 18, 0.28) 0%, rgba(12, 12, 18, 0) 18%);
 }
 
 /* ---- three people standing at three distances ---- */
@@ -2506,16 +2540,35 @@ body,
   background-repeat: no-repeat;
   position: relative;
 }
-/* Contact, not a drop shadow. */
+/* CONTACT, NOT A DROP SHADOW — and the single strongest thing on this
+   screen saying the camera is above the floor rather than level with it.
+   A shadow seen from the side is a line. A shadow seen from above is a
+   DISC, and the more of a disc it is the higher the camera reads. So it
+   is wider and appreciably taller than it was, and a shade stronger:
+   this is the mark that puts somebody ON the ground rather than in
+   front of it.
+   It is sized in per cent of the figure, so it grows and shrinks with
+   the depth scale by itself — a near person casts a bigger shadow
+   because a near person is drawn bigger, which is also true. */
 .bp-shadow {
   position: absolute;
-  bottom: -2px;
+  bottom: -3px;
   left: 50%;
   transform: translateX(-50%);
-  width: 58%;
-  height: 8px;
+  width: 66%;
+  height: 13px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.24);
+  /* Dense where the feet are, open at the rim: a contact patch has an
+     edge, and a flat wash of grey has none. */
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(0, 0, 0, 0.46) 0%,
+    rgba(0, 0, 0, 0.3) 56%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  /* Enough blur to be a shadow and not enough to be a smudge: the floor
+     was brightened in the same pass, and a soft grey disc disappears
+     into sunlit stone. */
   filter: blur(2px);
 }
 
@@ -3063,10 +3116,15 @@ body,
 }
 /* Its own contact patch: wider and flatter, because it is lying down. */
 .bp-enemy.downed .bp-shadow {
-  width: 74%;
-  height: 7px;
+  width: 82%;
+  height: 11px;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.2);
+  background: radial-gradient(
+    50% 50% at 50% 50%,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.18) 58%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 
 /* =====================================================================
@@ -3152,7 +3210,9 @@ body,
   border-radius: 3px;
   box-shadow:
     inset 0 0 0 1px var(--bx-gold-hair),
-    0 2px 10px rgba(0, 0, 0, 0.45);
+    /* Softer, and less of it: a drop shadow this heavy under every
+       panel is what made the screen read heavy rather than dark. */
+    0 2px 8px rgba(0, 0, 0, 0.3);
   color: var(--bx-ink);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
@@ -3703,7 +3763,9 @@ body,
      too: one number, not two. */
   border-width: 11px;
   border-radius: 0;
-  background: linear-gradient(180deg, rgba(9, 19, 44, 0.86), rgba(4, 10, 26, 0.92));
+  /* Lighter, for the same reason as the caption: the corner reads at a
+     glance and does not need to be a solid block to do it. */
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.7), rgba(4, 10, 26, 0.78));
   background-clip: padding-box;
   box-shadow: none;
   border-image-source: var(--ui-memory);
@@ -3972,9 +4034,16 @@ body,
      are 95/25 of the top or the wings are drawn narrow. */
   border-width: 6px 26px;
   border-radius: 0;
-  background: linear-gradient(180deg, rgba(9, 19, 44, 0.9), rgba(5, 11, 28, 0.94));
+  /* LIGHTER. It is a caption over a battlefield, and it was reading as
+     a slab: near-opaque navy across the brightest part of the picture.
+     The forest comes through it now and the words still sit on
+     something. */
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.72), rgba(5, 11, 28, 0.78));
   background-clip: padding-box;
   box-shadow: none;
+  /* And the winged frame itself steps back with it: the ornament is
+     lovely and it is not the subject of the screen. */
+  opacity: 0.94;
   border-image-source: var(--ui-message);
   border-image-slice: 25 95 fill;
   border-image-repeat: stretch;

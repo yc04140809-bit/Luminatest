@@ -37,15 +37,19 @@ interface Placed {
 }
 
 const EXPECTED: Record<string, Placed> = {
-  '.bp-enemy:not(.downed)': { edge: 'left', inset: 0.1, bottom: 0.42, zIndex: 'auto' },
-  '.bp-enemy.downed': { edge: 'left', inset: 0.06, bottom: 0.36, zIndex: 'auto' },
-  // MOVED FOR DEPTH, and the numbers are the table's. He came forward
-  // and she stepped back so the party reads as two ranks rather than
-  // two people on one line; `depthScale` in formation.ts does the other
-  // half by drawing the nearer of them a little larger.
-  '.bp-hero': { edge: 'right', inset: 0.33, bottom: 0.24, zIndex: '3' },
-  '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.31, zIndex: '1' },
-  '.bp-summon': { edge: 'right', inset: 0.48, bottom: 0.28, zIndex: '2' },
+  '.bp-enemy:not(.downed)': { edge: 'left', inset: 0.1, bottom: 0.45, zIndex: 'auto' },
+  '.bp-enemy.downed': { edge: 'left', inset: 0.06, bottom: 0.4, zIndex: 'auto' },
+  // MOVED FOR DEPTH TWICE, and the numbers are the table's. He came
+  // forward and she stepped back so the party reads as two ranks rather
+  // than two people on one line; then the camera was opened up and they
+  // went as far again as the fences allow — his feet must clear the
+  // command row and the top of her head must clear the party panel.
+  // `depthScale` in formation.ts carries the rest by drawing the nearer
+  // of them appreciably larger, which is the half that was doing
+  // nothing while this screen read as a flat row.
+  '.bp-hero': { edge: 'right', inset: 0.33, bottom: 0.23, zIndex: '3' },
+  '.bp-kaos': { edge: 'right', inset: 0.15, bottom: 0.34, zIndex: '1' },
+  '.bp-summon': { edge: 'right', inset: 0.48, bottom: 0.27, zIndex: '2' },
 };
 
 const VIEWPORTS = [

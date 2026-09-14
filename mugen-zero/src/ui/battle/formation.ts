@@ -181,10 +181,23 @@ export function partyFormation(count: number): readonly SlotPlacement[] {
 export const NEAR_GROUND = 0.02;
 /** And the furthest — past the enemy's own line, with room above it. */
 export const FAR_GROUND = 0.46;
-/** How much of themselves somebody standing at the near line gets. */
-export const NEAR_SCALE = 1.1;
+/**
+ * How much of themselves somebody standing at the near line gets.
+ *
+ * WIDENED, because 1.10 and 0.86 were not enough to be seen. Measured
+ * on the real screen, the hero and Kaos differed by four per cent —
+ * which is a difference you can prove with a ruler and cannot see at
+ * all. Two people four per cent apart standing twenty-seven pixels
+ * apart is a ROW, whatever the numbers are called, and the screen read
+ * as a flat side view for exactly that reason.
+ *
+ * At 1.16 and 0.78 the same two are fourteen per cent apart, and the
+ * near end of the field is half again the far end. That is a camera
+ * looking down a plane rather than across one.
+ */
+export const NEAR_SCALE = 1.16;
 /** And at the far line. */
-export const FAR_SCALE = 0.86;
+export const FAR_SCALE = 0.78;
 
 /**
  * How big somebody standing on this ground line is drawn.
@@ -223,13 +236,13 @@ export const PROTOTYPE_PLACEMENTS = {
    * wide field, with the two of them at the other, so the ground
    * between them reads as a distance.
    */
-  enemy: { edge: 'left', inset: 0.1, bottom: 0.42 },
+  enemy: { edge: 'left', inset: 0.1, bottom: 0.45 },
   /**
    * Down, and still there — it stays on the field for the whole of the
    * question the player is about to be asked. It lies lower and further
    * into the grass than it stood.
    */
-  enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.36 },
+  enemyDowned: { edge: 'left', inset: 0.06, bottom: 0.4 },
   /**
    * And where somebody STANDS, which is not where a small animal does.
    *
@@ -247,8 +260,8 @@ export const PROTOTYPE_PLACEMENTS = {
    * under his feet and has to stay clear of the commands along the
    * bottom. A creature's ground line is where its plate hangs from.
    */
-  enemyNear: { edge: 'left', inset: 0.05, bottom: 0.39 },
-  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.32 },
+  enemyNear: { edge: 'left', inset: 0.05, bottom: 0.42 },
+  enemyNearDowned: { edge: 'left', inset: 0.03, bottom: 0.35 },
   /**
    * He is nearest, on the right, between her and it. Nearest means
    * largest, but only just: too much and he stops being a person
@@ -263,8 +276,26 @@ export const PROTOTYPE_PLACEMENTS = {
    * that one. Between the two there is about a fiftieth of the field to
    * move in, and this is where it sits.
    */
-  hero: { edge: 'right', inset: 0.33, bottom: 0.24, depth: 3 },
+  hero: { edge: 'right', inset: 0.33, bottom: 0.23, depth: 3 },
   /**
+   * A STEP BEHIND HIM, AND NOW FAR ENOUGH BACK TO BE SEEN TO BE.
+   *
+   * 0.31 put her twenty-seven pixels up the path from him and four per
+   * cent smaller, which is a difference a ruler finds and an eye does
+   * not: the two of them read as a row. At 0.34 there is fifty pixels
+   * of ground between their feet and she is drawn an eighth smaller —
+   * a front rank and a rank behind it, which is what the three-quarter
+   * view is FOR.
+   *
+   * NOT FURTHER BACK THAN THIS, AND HE COMES NO FURTHER FORWARD.
+   * 0.36 for her was better depth and put the top of her head into the
+   * party panel above her; 0.21 for him was better depth and left his
+   * feet sixteen pixels off the command row, where the rule is
+   * twenty-four. The field is fenced at both ends, so the rest of the
+   * distance between them is carried by how big they are drawn rather
+   * than by where they stand — which is the other half of a
+   * three-quarter view and the half that was doing nothing.
+   *
    * She is a step behind him and a little further back, close enough to
    * read as one party rather than two people on the same side. Her wings
    * make her drawing wider than it is tall, so the gap to him is
@@ -273,13 +304,13 @@ export const PROTOTYPE_PLACEMENTS = {
    * corner, and a wing disappearing under a panel is the one thing this
    * layout must not do.
    */
-  kaos: { edge: 'right', inset: 0.15, bottom: 0.31, depth: 1 },
+  kaos: { edge: 'right', inset: 0.15, bottom: 0.34, depth: 1 },
   /**
    * The player's side, in front of both of them: clear of the hero's
    * shoulder on one side and — because it stands much lower down the
    * path — well clear of the creature being fought on the other.
    */
-  summon: { edge: 'right', inset: 0.48, bottom: 0.28, depth: 2 },
+  summon: { edge: 'right', inset: 0.48, bottom: 0.27, depth: 2 },
 } as const satisfies Readonly<Record<string, PrototypePlacement>>;
 
 /**
