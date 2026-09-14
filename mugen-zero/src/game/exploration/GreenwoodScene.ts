@@ -5,6 +5,7 @@ import { FollowTrail } from './follow';
 import {
   GREENWOOD_GROUND_SPOTS,
   nextDiscoverySpot,
+  SIDE_ENCOUNTER_WEIGHTS,
   spotsOnGround,
   resolveExplorationEncounter,
   type DiscoveryCategory,
@@ -140,33 +141,45 @@ interface ActiveDiscovery {
   parts: Phaser.GameObjects.Shape[];
   loops: Phaser.Tweens.Tween[];
   /**
-   * A place that looks interesting, rather than the place something is.
+   * HOW MUCH THIS ONE MATTERS. Never shown as a word.
    *
-   * ONLY THE FIRST RING IS AN ARRIVAL, and the difference is not
-   * cosmetic: the second one was briefly a second place to arrive at,
-   * and the story's own encounter started happening at whichever of the
-   * two the player wandered into first. Walking to a hint is walking;
-   * the forest answers where the forest decided it would.
+   * Both are real places and both answer when walked to — there is no
+   * such thing here as a ring with nothing behind it. What the two
+   * differ in is weight: MAIN is what the forest most wants to say and
+   * is drawn a little stronger, SIDE is somewhere worth a look and is
+   * drawn quieter, and what each turns out to be follows from that.
+   *
+   * The player is never told which is which. 「何かありそう」 is the
+   * whole of the message; MAIN and SIDE are how the forest decides what
+   * to put there, not a label on the floor.
    */
-  hint: boolean;
+  weight: RingWeight;
 }
+
+export type RingWeight = 'MAIN' | 'SIDE';
 
 /**
  * HOW MANY PLACES CAN LOOK INTERESTING AT ONCE.
  *
- * Two, and the second one is quieter than the first. Not because it is
- * less likely to be anything — walking to either is the same walk and
- * the same roll — but because a forest with two equally bright rings in
- * it is a map with two pins in it, and this is meant to read as
- * somewhere worth a look rather than as an objective list.
+ * Two, and the second is quieter than the first — a forest with two
+ * equally bright rings in it is a map with two pins in it, and this is
+ * meant to read as somewhere worth a look rather than as an objective
+ * list.
  *
- * One is still the common case: the second is only drawn when the
- * clearing has somewhere far enough from the first to be a different
- * place rather than the same place twice.
+ * NEITHER OF THEM IS A DECOY. Both answer when walked to; the quiet one
+ * simply answers with a moment or a thing rather than a fight. A ring
+ * that turned out to be nothing would teach the player to stop trusting
+ * rings, which is the one thing this cue cannot afford.
+ *
+ * The second is only drawn when the clearing has somewhere far enough
+ * from the first to be a different place rather than the same place
+ * twice.
  */
 const MOST_RINGS_AT_ONCE = 2;
 /** How far apart two of them have to be to be two places. */
 const RINGS_APART = 150;
+/** How much of the cue a quieter ring gets. Weight, not truthfulness. */
+const SIDE_PRESENCE = 0.62;
 
 /**
  * Where the walk is in its one loop.
@@ -260,16 +273,20 @@ export class GreenwoodScene extends Phaser.Scene {
   private target: Phaser.Math.Vector2 | null = null;
   private phase: ExplorationPhase = 'walking';
   /**
-   * Every ring standing in the forest, nearest-first.
+   * Every ring standing in the forest, in the order they were drawn.
    *
-   * A list rather than one: walking to ANY of them is an arrival, and
-   * arriving at one takes them all off — the moment is over, and a ring
-   * left glowing beside a scene that has already happened is a promise
-   * the forest did not keep.
+   * A list rather than one: walking to ANY of them is a real arrival.
+   * What happens to the OTHERS depends on what was found — a fight or
+   * the scripted meeting takes the player off this screen and every
+   * ring goes with them, while a moment or a thing on the ground is
+   * read and closed with the forest still standing, so the place the
+   * player did not walk to is still there to walk to.
    */
   private active: ActiveDiscovery[] = [];
   /** Decided at hand-over, so a trip to the battle screen cannot move it. */
   private nextSpotId: string | null = null;
+  /** How much the ring he just walked to mattered. Decides what is in it. */
+  private weightArrivedAt: RingWeight = 'MAIN';
   private lastCategory: DiscoveryCategory | null = null;
   private callbacks: GreenwoodCallbacks;
   private options: GreenwoodOptions;
@@ -402,8 +419,22 @@ export class GreenwoodScene extends Phaser.Scene {
    */
   resumeExploration(): void {
     if (this.phase !== 'handedOver') return;
-    this.createDiscovery(this.spotById(this.nextSpotId) ?? this.freshPoint());
+    // A PLACE NOBODY IS ALREADY STANDING. The ring the player did not
+    // walk to is still out there when what they found was a moment or
+    // a thing on the ground, and the next one must not be drawn on top
+    // of it — two rings in one spot is one ring that will not close.
+    const held = this.spotById(this.nextSpotId);
+    const clear = held && this.noRingAt(held) ? held : this.freshPoint();
+    this.createDiscovery(this.noRingAt(clear) ? clear : this.freshPoint());
     this.phase = 'walking';
+  }
+
+  private noRingAt(point: DiscoveryPointDef): boolean {
+    return this.active.every(
+      (r) =>
+        r.point.id !== point.id &&
+        Phaser.Math.Distance.Between(point.x, point.y, r.point.x, r.point.y) >= RINGS_APART,
+    );
   }
 
   /**
@@ -460,9 +491,11 @@ export class GreenwoodScene extends Phaser.Scene {
   }
 
   private freshPoint(from?: { x: number; y: number }): DiscoveryPointDef {
+    // Anywhere a ring is already standing is not somewhere to put one.
+    const free = this.spots.filter((s) => this.noRingAt(this.pointFor(s)));
     return this.pointFor(
       nextDiscoverySpot({
-        spots: this.spots,
+        spots: free.length > 0 ? free : this.spots,
         previousId: this.active[0]?.point.id ?? null,
         from: from ?? { x: this.player.x, y: this.player.y },
       }),
@@ -482,18 +515,34 @@ export class GreenwoodScene extends Phaser.Scene {
    * still noticeable when the player has asked for less motion.
    */
   private createDiscovery(point: DiscoveryPointDef): void {
-    this.createRing(point, 1);
+    this.createRing(point, 1, 'MAIN');
+    // THE SCRIPTED MEETING STANDS ALONE. While it is still ahead of the
+    // player it is the only thing the forest has to say, and a second
+    // place to be somewhere else is a way of missing it. Two rings are
+    // for ordinary exploration, which is where 「気になる場所」 is
+    // guidance rather than a distraction from the one scene.
+    if (this.options.encounterEnabled) return;
     // AND A SECOND PLACE, quieter, when the clearing has one far enough
-    // away to be a different place. It is guidance rather than a
-    // promise: walking to it is the same walk and the same roll as
-    // walking to the first.
+    // away to be a different place rather than the same place twice.
+    // Quieter means less important, not less real: walking to it is a
+    // true arrival and the forest answers.
     if (this.active.length >= MOST_RINGS_AT_ONCE) return;
+    const taken = new Set(this.active.map((r) => r.point.id));
     const second = this.spots.find(
       (s) =>
         s.id !== point.id &&
+        !taken.has(s.id) &&
+        this.farFromEveryRing(s) &&
         Phaser.Math.Distance.Between(s.x, s.y, point.x, point.y) >= RINGS_APART,
     );
-    if (second) this.createRing(this.pointFor(second), 0.62, true);
+    if (second) this.createRing(this.pointFor(second), SIDE_PRESENCE, 'SIDE');
+  }
+
+  /** Far enough from everything already standing to read as elsewhere. */
+  private farFromEveryRing(spot: DiscoverySpot): boolean {
+    return this.active.every(
+      (r) => Phaser.Math.Distance.Between(spot.x, spot.y, r.point.x, r.point.y) >= RINGS_APART,
+    );
   }
 
   /**
@@ -503,7 +552,7 @@ export class GreenwoodScene extends Phaser.Scene {
    * twice: the second ring is the same cue, quieter, and nothing about
    * it is a different shape.
    */
-  private createRing(point: DiscoveryPointDef, presence: number, hint = false): void {
+  private createRing(point: DiscoveryPointDef, presence: number, weight: RingWeight): void {
     const still = this.options.reducedMotion === true;
     const parts: Phaser.GameObjects.Shape[] = [];
     const loops: Phaser.Tweens.Tween[] = [];
@@ -551,7 +600,7 @@ export class GreenwoodScene extends Phaser.Scene {
     inner.setDepth(7);
     parts.push(halo, glow, ring, inner);
 
-    this.active.push({ point, parts, loops, hint });
+    this.active.push({ point, parts, loops, weight });
     if (still) return;
 
     // The ring breathes rather than blinks.
@@ -631,21 +680,40 @@ export class GreenwoodScene extends Phaser.Scene {
    * "Found it." The ring gathers itself, gives out one pulse, and is
    * gone — about four hundred milliseconds in total, because this is a
    * hand on a shoulder and not a prize ceremony.
+   *
+   * ONE RING, the one walked to. What becomes of the others is decided
+   * by what was found, not by the arrival: see `handOver`.
    */
-  private dismissDiscovery(arrivedAt?: DiscoveryPointDef): void {
+  private dismissRing(arrivedAt: DiscoveryPointDef): void {
+    const ring = this.active.find((r) => r.point.id === arrivedAt.id);
+    if (!ring) return;
+    this.active = this.active.filter((r) => r !== ring);
+    this.closeRings([ring], ring.point);
+  }
+
+  /**
+   * EVERY ring, because the forest is about to stop being the screen.
+   *
+   * A fight and the scripted meeting both take the player somewhere
+   * else, and a ring left glowing beside a scene that has already
+   * happened is a promise the forest did not keep. The pulse is given
+   * where the player is standing.
+   */
+  private dismissAllRings(arrivedAt?: DiscoveryPointDef): void {
     const rings = this.active;
     if (rings.length === 0) return;
     this.active = [];
-    // EVERY ring goes, not only the one walked to. The moment is over,
-    // and a ring left glowing beside a scene that has already happened
-    // is a promise the forest did not keep.
+    const at =
+      rings.find((r) => r.point.id === arrivedAt?.id) ??
+      rings.find((r) => r.weight === 'MAIN') ??
+      rings[0];
+    this.closeRings(rings, at.point);
+  }
+
+  private closeRings(rings: ActiveDiscovery[], pulseAt: DiscoveryPointDef): void {
     for (const ring of rings) for (const loop of ring.loops) loop.stop();
     const parts = rings.flatMap((ring) => ring.parts);
-    // The one pulse, though, belongs where the player is standing —
-    // the ring they walked to, or the real one if they got here some
-    // other way.
-    const active =
-      rings.find((r) => r.point.id === arrivedAt?.id) ?? rings.find((r) => !r.hint) ?? rings[0];
+    const active = { point: pulseAt };
 
     if (this.options.reducedMotion === true) {
       for (const part of parts) part.destroy();
@@ -729,7 +797,11 @@ export class GreenwoodScene extends Phaser.Scene {
     this.phase = 'arriving';
     this.target = null;
     this.player.setState('idle');
-    this.dismissDiscovery();
+    // THE ONE HE WALKED TO. Whether the other place survives is decided
+    // by what turns out to be here, which is not known yet — so it is
+    // left standing until `handOver` knows.
+    this.weightArrivedAt = this.active.find((r) => r.point.id === point.id)?.weight ?? 'MAIN';
+    this.dismissRing(point);
     this.player.hop();
     this.time.delayedCall(COMPANION_REACTION_MS, () => this.companion.hop());
     this.time.delayedCall(ARRIVAL_MS, () => this.handOver(point));
@@ -741,7 +813,9 @@ export class GreenwoodScene extends Phaser.Scene {
     this.phase = 'handedOver';
 
     if (point.id === GALD_POINT_ID) {
-      // The scripted meeting, exactly as it always was.
+      // The scripted meeting, exactly as it always was. It leaves the
+      // forest, so nothing may be left glowing behind it.
+      this.dismissAllRings(point);
       this.cameras.main.fadeOut(350, 0, 0, 0);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.callbacks.onEncounter();
@@ -749,9 +823,16 @@ export class GreenwoodScene extends Phaser.Scene {
       return;
     }
 
+    // A QUIETER RING ANSWERS QUIETER. Both are real arrivals; what
+    // differs is what the forest is willing to put at each. The side
+    // one is a moment or a thing on the ground and never an ambush —
+    // a player jumped at the ring the game drew faintly would learn to
+    // stop taking detours, which is the one lesson this cue cannot
+    // afford to teach.
     const category = resolveExplorationEncounter({
       previous: this.lastCategory,
       forced: this.options.forcedCategory ?? null,
+      weights: this.weightArrivedAt === 'SIDE' ? SIDE_ENCOUNTER_WEIGHTS : undefined,
     });
     this.lastCategory = category;
     // Decide where the next ring goes now, while the forest still knows
@@ -769,6 +850,8 @@ export class GreenwoodScene extends Phaser.Scene {
       return;
     }
     if (category === 'BATTLE') {
+      // A fight happens on another screen. Everything goes with it.
+      this.dismissAllRings(point);
       this.battleWarning(() => this.callbacks.onDiscovery('BATTLE'));
       return;
     }
@@ -874,14 +957,13 @@ export class GreenwoodScene extends Phaser.Scene {
       return;
     }
 
-    // THE REAL ONE ONLY. Two places can look interesting at once, but
-    // only one of them is a place the forest answers at: a hint is
-    // guidance, not a second appointment. It was briefly both, and the
-    // story's own encounter started happening at whichever ring the
-    // player wandered into first.
+    // WHICHEVER OF THEM HE REACHES. Every ring standing here is a real
+    // place and the forest answers at all of them — a ring with nothing
+    // behind it would teach the player to stop trusting rings, and this
+    // cue has nothing else to work with. What differs between them is
+    // how much the forest had to say, not whether it had anything.
     const reached = this.active.find(
       (ring) =>
-        !ring.hint &&
         Phaser.Math.Distance.Between(
           this.player.x,
           this.player.y,

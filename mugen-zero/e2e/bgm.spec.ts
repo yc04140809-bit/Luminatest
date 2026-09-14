@@ -224,6 +224,81 @@ test('a fight takes the music, and gives it back', async ({ page }) => {
   await expectPlaying(page, 'greenwood-forest.mp3');
 });
 
+/**
+ * FOREST -> BATTLE -> FOREST, TWICE.
+ *
+ * 「1回成功だけでは合格にしない」, and that is the right instinct: the
+ * bug this replaces looked fine on the first round trip. What broke it
+ * was STATE LEFT OVER — an element the manager still held but that was
+ * no longer sounding — and a thing like that survives one exchange and
+ * shows up on the second, or the fifth, or after the phone has been
+ * put down once.
+ *
+ * Five checks, all of them on every leg:
+ *   - never silent
+ *   - never two at once (`playing` throws by itself when there are)
+ *   - the fight's music never left standing in the forest
+ *   - the forest's music actually back, by name
+ *   - AUTO and x2 change nothing at all about any of it
+ */
+test('the forest gives the music to a fight and takes it back, twice over', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click().catch(() => {});
+  await expect(page.getByTestId('explore-button')).toBeVisible({ timeout: 20_000 });
+
+  // A world with Gald already behind them, so the forest sends
+  // creatures rather than the story — and an ordinary win, which ends
+  // back on the path rather than on the four answers.
+  await enterDevAdmin(page);
+  await page.getByTestId('preset-SPARE_3Y').click();
+  await page.getByTestId('force-encounter-BATTLE').click();
+  await page.getByTestId('force-story-off').click();
+  await page.getByTestId('dev-admin-back').click();
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('location-GREENWOOD_FOREST').click();
+
+  const forest = page.locator('.phaser-wrap canvas');
+  const fighting = page.getByTestId('battle-prototype');
+  await expect(forest).toBeVisible({ timeout: 20_000 });
+  await expectPlaying(page, 'greenwood-forest.mp3');
+
+  for (const round of [1, 2]) {
+    // --- into the fight ---
+    await walkTheForestUntil(page, () => fighting.isVisible().catch(() => false));
+    await expect(fighting, `round ${round}: a fight`).toBeVisible();
+    await expectPlaying(page, 'normal-battle.mp3');
+
+    // AUTO and x2 are about the tempo of a fight, and the music is not
+    // part of the fight's tempo. Both on, mid-round, on the second pass.
+    if (round === 2) {
+      await page.getByTestId('bp-auto').click();
+      await page.getByTestId('bp-speed').click();
+      await page.waitForTimeout(600);
+      expect(await playing(page), 'round 2: AUTO and x2 left the music alone').toBe(
+        'normal-battle.mp3',
+      );
+    }
+
+    // --- and back out of it ---
+    await swingUntil(page, 'bp-attack', () => forest.isVisible().catch(() => false));
+    await expect(forest, `round ${round}: back on the path`).toBeVisible({ timeout: 20_000 });
+    await expectPlaying(page, 'greenwood-forest.mp3');
+
+    // Not merely "the forest is playing" — the fight's music is GONE.
+    // A battle element left sounding under the forest is the exact
+    // shape of the bug, and `playing` above would have thrown; this
+    // says it in the words of the thing being checked.
+    const live = (await made(page)).filter((a) => a.started && !a.stopped && a.volume > 0);
+    expect(live.map((a) => nameOf(a.src)), `round ${round}: one piece, and it is the forest`).toEqual(
+      ['greenwood-forest.mp3'],
+    );
+  }
+});
+
 test('the forest is never restarted by the screen redrawing itself', async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto('/');

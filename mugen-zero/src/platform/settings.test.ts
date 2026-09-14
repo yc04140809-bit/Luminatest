@@ -26,14 +26,53 @@ describe('settings (player preferences, never world state)', () => {
   it('round-trips saved settings', () => {
     installStorage();
     const next = {
+      masterVolume: 0.7,
       bgmVolume: 0.2,
-      seVolume: 0.4,
+      sfxVolume: 0.4,
+      voiceVolume: 0.6,
       hapticEnabled: false,
       reducedMotion: true,
       openingMode: 'OFF' as const,
     };
     saveSettings(next);
     expect(loadSettings()).toEqual(next);
+  });
+
+  it('starts with MASTER all the way up, and the other three under it', () => {
+    installStorage();
+    const loaded = loadSettings();
+    expect(loaded.masterVolume).toBe(1);
+    expect(loaded.bgmVolume).toBe(0.35);
+    expect(loaded.sfxVolume).toBe(0.8);
+    expect(loaded.voiceVolume).toBe(0.8);
+  });
+
+  /**
+   * The effects slider was `seVolume` when there was one of it.
+   * Somebody who turned effects down months ago must not find them
+   * loud again because the field was renamed.
+   */
+  it('reads an old seVolume as the effects slider it was', () => {
+    installStorage({
+      'mugen-zero-settings': JSON.stringify({ bgmVolume: 0.5, seVolume: 0.15 }),
+    });
+    expect(loadSettings().sfxVolume).toBe(0.15);
+  });
+
+  it('prefers the new name when a save carries both', () => {
+    installStorage({
+      'mugen-zero-settings': JSON.stringify({ sfxVolume: 0.9, seVolume: 0.1 }),
+    });
+    expect(loadSettings().sfxVolume).toBe(0.9);
+  });
+
+  it('reads a save from before MASTER and VOICE existed as their defaults', () => {
+    installStorage({
+      'mugen-zero-settings': JSON.stringify({ bgmVolume: 0.5, seVolume: 0.5 }),
+    });
+    const loaded = loadSettings();
+    expect(loaded.masterVolume).toBe(DEFAULT_SETTINGS.masterVolume);
+    expect(loaded.voiceVolume).toBe(DEFAULT_SETTINGS.voiceVolume);
   });
 
   it('plays the opening once per run of the app unless told otherwise', () => {
@@ -48,7 +87,7 @@ describe('settings (player preferences, never world state)', () => {
     installStorage({
       'mugen-zero-settings': JSON.stringify({
         bgmVolume: 0.5,
-        seVolume: 0.5,
+        sfxVolume: 0.5,
         hapticEnabled: true,
         reducedMotion: false,
       }),
@@ -71,14 +110,18 @@ describe('settings (player preferences, never world state)', () => {
   it('clamps out-of-range volumes and ignores wrong types', () => {
     installStorage({
       'mugen-zero-settings': JSON.stringify({
+        masterVolume: 4,
         bgmVolume: 9,
-        seVolume: -3,
+        sfxVolume: -3,
+        voiceVolume: 'loud',
         hapticEnabled: 'yes',
       }),
     });
     const loaded = loadSettings();
+    expect(loaded.masterVolume).toBe(1);
     expect(loaded.bgmVolume).toBe(1);
-    expect(loaded.seVolume).toBe(0);
+    expect(loaded.sfxVolume).toBe(0);
+    expect(loaded.voiceVolume).toBe(DEFAULT_SETTINGS.voiceVolume);
     expect(loaded.hapticEnabled).toBe(DEFAULT_SETTINGS.hapticEnabled);
   });
 

@@ -72,16 +72,25 @@ export class AudioManager {
   private bgmDelay: ReturnType<typeof setTimeout> | null = null;
   private bgmOut: HTMLAudioElement | null = null;
   private gestureListening = false;
-  private seVolume = 0.8;
   /**
-   * The effects slider, which is the same one today.
+   * THE EFFECTS BUS, AFTER MASTER.
    *
-   * Its own field rather than a second name for `seVolume` because the
-   * panel this is heading for has four — MASTER, BGM, SFX, VOICE — and
-   * the day it exists this is the one that already means the right
-   * thing.
+   * One field, not two. There were briefly a `seVolume` and an
+   * `sfxVolume` holding the same number, from the days when SE and SFX
+   * were different words for the one slider. The panel has four buses
+   * now and every one of them is a real number the player set, so the
+   * duplicate went.
    */
   private sfxVolume = 0.8;
+  /** MASTER, as last set. Kept only so the buses can be recomputed. */
+  private masterVolume = 1;
+  /**
+   * Reserved, and read by nothing: no line is spoken yet.
+   *
+   * Held so that the day a voice track exists, the number it plays at
+   * is already here and already the player's.
+   */
+  private voiceVolume = 0.8;
   /** When each sound last played, for the retrigger guard. */
   private sfxLastAt = new Map<SfxId, number>();
   private unlocked = false;
@@ -102,12 +111,24 @@ export class AudioManager {
   private openingDone: (() => void) | null = null;
   private watchingVisibility = false;
 
-  setVolumes(bgmVolume: number, seVolume: number): void {
+  /**
+   * The four buses, as the player has them.
+   *
+   * MASTER is folded in here and nowhere else: every field below is
+   * the level a sound ACTUALLY plays at, so the rest of the manager
+   * goes on reading one number per bus and there is no second place
+   * that could forget to apply it. MASTER at zero is silence by the
+   * same route as BGM at zero, which is the route already written.
+   *
+   * `master` and `voice` default so that the many callers who only
+   * ever cared about music and effects still read correctly.
+   */
+  setVolumes(bgmVolume: number, sfxVolume: number, masterVolume = 1, voiceVolume = 0.8): void {
+    this.masterVolume = clampVolume(masterVolume);
+    bgmVolume = clampVolume(this.masterVolume * bgmVolume);
     this.bgmVolume = bgmVolume;
-    this.seVolume = seVolume;
-    // One slider drives both today. When the four-way panel arrives,
-    // this is the line that stops being true and nothing else is.
-    this.sfxVolume = seVolume;
+    this.sfxVolume = clampVolume(this.masterVolume * sfxVolume);
+    this.voiceVolume = clampVolume(this.masterVolume * voiceVolume);
     // Not while a crossfade owns it: its volume is being driven on
     // purpose, and the fade sets the final level when it lands.
     if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(bgmVolume);
@@ -127,6 +148,22 @@ export class AudioManager {
     if (this.opening && !this.openingFade) this.opening.volume = bgmVolume;
     // Turned the music off mid-song: stop, do not merely go quiet.
     if (this.opening && bgmVolume <= 0) this.stopOpeningTheme();
+  }
+
+  /**
+   * The four buses as they actually come out, MASTER already folded in.
+   *
+   * For looking at — a settings screen showing what a slider will do,
+   * and the tests that check MASTER really is over the top of the
+   * other three. Nothing in the game decides anything from it.
+   */
+  volumes(): { master: number; bgm: number; sfx: number; voice: number } {
+    return {
+      master: this.masterVolume,
+      bgm: this.bgmVolume,
+      sfx: this.sfxVolume,
+      voice: this.voiceVolume,
+    };
   }
 
   /** Whether music is allowed to make a sound at all. */
@@ -526,7 +563,7 @@ export class AudioManager {
     if (!src || !this.unlocked) return;
     try {
       const audio = new Audio(src);
-      audio.volume = this.seVolume;
+      audio.volume = this.sfxVolume;
       void audio.play().catch(() => {});
     } catch {
       /* ignore */

@@ -415,6 +415,43 @@ describe('an element that exists and is silent', () => {
  * about what should play, which is why coming out of a fight needs
  * nothing remembered.
  */
+describe('MASTER, over the top of the other three', () => {
+  it('multiplies every bus, and is not a fourth thing to remember', () => {
+    const manager = new AudioManager();
+    manager.setVolumes(0.5, 0.8, 0.5, 0.6);
+    const v = manager.volumes();
+    expect(v.master).toBe(0.5);
+    expect(v.bgm).toBeCloseTo(0.25);
+    expect(v.sfx).toBeCloseTo(0.4);
+    expect(v.voice).toBeCloseTo(0.3);
+  });
+
+  it('at zero is silence, by the same route BGM at zero already was', () => {
+    const manager = new AudioManager();
+    manager.setVolumes(0.8, 0.8, 0);
+    expect(manager.volumes().bgm).toBe(0);
+    expect(manager.volumes().sfx).toBe(0);
+  });
+
+  it('leaves the buses alone when nobody has said otherwise', () => {
+    // The many callers that only ever cared about music and effects
+    // must go on reading correctly: MASTER defaults to all the way up.
+    const manager = new AudioManager();
+    manager.setVolumes(0.35, 0.8);
+    expect(manager.volumes().master).toBe(1);
+    expect(manager.volumes().bgm).toBeCloseTo(0.35);
+    expect(manager.volumes().sfx).toBeCloseTo(0.8);
+  });
+
+  it('never lets a bus out above one, whatever it is handed', () => {
+    const manager = new AudioManager();
+    manager.setVolumes(2, 2, 2);
+    const v = manager.volumes();
+    expect(v.bgm).toBe(1);
+    expect(v.sfx).toBe(1);
+  });
+});
+
 describe('the state, as something that can be looked at', () => {
   it('names the piece now and the piece before it', () => {
     const manager = ready();

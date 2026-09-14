@@ -43,6 +43,25 @@ export const EXPLORATION_ENCOUNTER_WEIGHTS: Readonly<Record<DiscoveryCategory, n
   BATTLE: 25,
 };
 
+/**
+ * WHAT A QUIETER RING TURNS OUT TO BE.
+ *
+ * Two places can look interesting at once, and the second is drawn
+ * quieter. That is a statement about IMPORTANCE, not about whether
+ * anything is there — walking to it is a real arrival and the forest
+ * always answers. What it answers with leans away from a fight: the
+ * quiet ring is a moment or a thing on the ground, the sort of find
+ * that rewards a detour rather than one that punishes it.
+ *
+ * A player jumped by a bandit at the ring the game drew faintly would
+ * learn the wrong lesson from it, and would stop taking detours.
+ */
+export const SIDE_ENCOUNTER_WEIGHTS: Readonly<Record<DiscoveryCategory, number>> = {
+  EVENT: 60,
+  ITEM: 40,
+  BATTLE: 0,
+};
+
 export type Rng = () => number;
 
 export interface ResolveOptions {

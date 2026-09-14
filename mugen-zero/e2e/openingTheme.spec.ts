@@ -123,20 +123,50 @@ test.describe('OPENING THEME', () => {
   });
 
   /**
-   * 「BGMを0にした人にオープニングは鳴らない」 — and the question is not
-   * asked either, because a question with one possible answer is a
-   * screen to get past rather than a choice.
+   * 「BGM volume = 0 の場合、LISTENを押しても音を強制再生しない」.
+   *
+   * THE QUESTION IS STILL ASKED. Hiding it would be the game deciding
+   * what a muted player meant; the switch that decides whether to ask
+   * is the one in SETTINGS called オープニングテーマ, and nothing else
+   * gets a vote. What a muted slider decides is what comes OUT — which
+   * is nothing — and the screen goes on to the title rather than
+   * waiting for a song that will never play.
    */
-  test('BGM turned off means no opening, and nothing to decline', async ({ page }) => {
+  test('BGM at zero: LISTEN plays nothing and forces nothing', async ({ page }) => {
     await clean(page);
     await intoTheWorld(page);
     await page.getByTestId('settings-button').click();
     await page.getByTestId('bgm-volume').fill('0');
     await page.getByTestId('settings-back').click();
     await page.reload();
-    // Straight to the title: no question, and no song behind it.
+
+    // Asked, because the opening switch is still ON.
+    await expect(page.getByTestId('theme-choice')).toBeVisible({ timeout: 10_000 });
+    await listen(page);
+    // Nothing to skip, because nothing began — and no screen left
+    // waiting for a song that will never end.
     await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId('theme-choice')).toHaveCount(0);
+    await expect(page.getByTestId('opening-skip')).toHaveCount(0);
+
+    // AND THE SLIDER IS STILL WHERE THEY LEFT IT. A button asking for
+    // the song is not permission to turn the music back up.
+    await page.getByTestId('continue-button').click();
+    await page.getByTestId('settings-button').click();
+    await expect(page.getByTestId('bgm-volume')).toHaveValue('0');
+  });
+
+  /** MASTER is over the top of BGM, so zero there is silence too. */
+  test('MASTER at zero: LISTEN plays nothing either', async ({ page }) => {
+    await clean(page);
+    await intoTheWorld(page);
+    await page.getByTestId('settings-button').click();
+    await page.getByTestId('master-volume').fill('0');
+    await page.getByTestId('settings-back').click();
+    await page.reload();
+
+    await expect(page.getByTestId('theme-choice')).toBeVisible({ timeout: 10_000 });
+    await listen(page);
+    await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId('opening-skip')).toHaveCount(0);
   });
 
@@ -150,6 +180,7 @@ test.describe('OPENING THEME', () => {
     await expect(toggle).toHaveText('OFF');
     await page.getByTestId('settings-back').click();
     await page.reload();
+    // OFF means the question is never asked: straight to the title.
     await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId('theme-choice')).toHaveCount(0);
     // And it is still off next time the app is opened.

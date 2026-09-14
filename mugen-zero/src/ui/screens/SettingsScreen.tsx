@@ -16,6 +16,23 @@ export function SettingsScreen({ settings, onChange, onBack }: Props) {
     <div className="screen" data-testid="settings-screen">
       <div className="screen-title">設定</div>
       <div className="location-list">
+        {/* MASTER first, because it is over the top of the other three:
+            a player who wants the game quieter reaches for this one and
+            keeps the balance they already set underneath it. */}
+        <div className="settings-row">
+          <label htmlFor="master-volume">
+            全体音量（{Math.round(settings.masterVolume * 100)}%）
+          </label>
+          <input
+            id="master-volume"
+            data-testid="master-volume"
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(settings.masterVolume * 100)}
+            onChange={(e) => set('masterVolume', Number(e.target.value) / 100)}
+          />
+        </div>
         <div className="settings-row">
           <label htmlFor="bgm-volume">BGM 音量（{Math.round(settings.bgmVolume * 100)}%）</label>
           <input
@@ -29,22 +46,43 @@ export function SettingsScreen({ settings, onChange, onBack }: Props) {
           />
         </div>
         <div className="settings-row">
-          <label htmlFor="se-volume">SE 音量（{Math.round(settings.seVolume * 100)}%）</label>
+          <label htmlFor="sfx-volume">SFX 音量（{Math.round(settings.sfxVolume * 100)}%）</label>
           <input
-            id="se-volume"
-            data-testid="se-volume"
+            id="sfx-volume"
+            data-testid="sfx-volume"
             type="range"
             min={0}
             max={100}
-            value={Math.round(settings.seVolume * 100)}
-            onChange={(e) => set('seVolume', Number(e.target.value) / 100)}
+            value={Math.round(settings.sfxVolume * 100)}
+            onChange={(e) => set('sfxVolume', Number(e.target.value) / 100)}
+          />
+        </div>
+        {/* RESERVED, AND SAID SO. Nothing in the game speaks yet, and a
+            live slider that changes nothing is worse than one that
+            admits it: the value is kept and will be the player's on the
+            day there is a voice to apply it to. */}
+        <div className="settings-row">
+          <label htmlFor="voice-volume">
+            ボイス音量（{Math.round(settings.voiceVolume * 100)}%）
+            <span style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)' }}>
+              ボイス実装後に有効になります
+            </span>
+          </label>
+          <input
+            id="voice-volume"
+            data-testid="voice-volume"
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round(settings.voiceVolume * 100)}
+            onChange={(e) => set('voiceVolume', Number(e.target.value) / 100)}
           />
         </div>
         <div className="settings-row">
           <label htmlFor="opening-toggle">
             オープニングテーマ
             <span style={{ display: 'block', fontSize: 11, color: 'var(--text-dim)' }}>
-              ONのとき、アプリを開いてから最初の1回だけ流れます
+              ONのとき、タイトル前に「聴く / スキップ」をたずねます
             </span>
           </label>
           <button

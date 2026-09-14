@@ -4,6 +4,7 @@ import {
   GREENWOOD_DISCOVERY_SPOTS,
   nextDiscoverySpot,
   resolveExplorationEncounter,
+  SIDE_ENCOUNTER_WEIGHTS,
   type DiscoveryCategory,
 } from './discovery';
 import {
@@ -131,5 +132,36 @@ describe('nextDiscoverySpot', () => {
         `${spot.id} must not sit in an edge zone`,
       ).toBeNull();
     }
+  });
+});
+
+/**
+ * MAIN / SIDE is about how much the forest had to say, never about
+ * whether it had anything. Both rings answer; the quiet one answers
+ * with a moment or a thing rather than a fight.
+ */
+describe('the quieter of two rings', () => {
+  it('is never an ambush, whatever the dice say', () => {
+    const rolls = [0, 0.25, 0.5, 0.75, 0.999];
+    for (const roll of rolls) {
+      const found = resolveExplorationEncounter({
+        weights: SIDE_ENCOUNTER_WEIGHTS,
+        rng: () => roll,
+      });
+      expect(found, `a side ring at roll ${roll}`).not.toBe('BATTLE');
+    }
+  });
+
+  it('still finds something: silence is not one of the answers', () => {
+    for (let i = 0; i < 200; i++) {
+      const found = resolveExplorationEncounter({ weights: SIDE_ENCOUNTER_WEIGHTS });
+      expect(['EVENT', 'ITEM']).toContain(found);
+    }
+  });
+
+  it('leaves the ordinary weights alone, fight and all', () => {
+    // The loud ring is unchanged: this is a second set of weights, not
+    // a change to the first.
+    expect(EXPLORATION_ENCOUNTER_WEIGHTS.BATTLE).toBeGreaterThan(0);
   });
 });

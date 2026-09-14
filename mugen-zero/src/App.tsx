@@ -301,7 +301,20 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
    * asked for the song by name and got it whatever the panel said,
    * which left a switch in SETTINGS that did nothing at all.
    */
-  const themeOnOffer = settings.openingMode !== 'OFF' && settings.bgmVolume > 0;
+  /**
+   * IS THE QUESTION WORTH ASKING?
+   *
+   * One switch decides, and it is the one in SETTINGS called
+   * 「オープニングテーマ」: ON puts the question before the title, OFF
+   * goes straight there. Nothing else gets a vote.
+   *
+   * NOT THE BGM SLIDER, which it briefly was. Somebody with the music
+   * at zero still gets asked, still taps 「聴く」 if they want to, and
+   * still hears nothing — because the level a sound plays at is the
+   * player's setting and a button must never overrule it. Hiding the
+   * question instead would be the game deciding what they meant.
+   */
+  const themeOnOffer = settings.openingMode !== 'OFF';
   useEffect(() => {
     if (themeOnOffer) return;
     // ASKED OF THE FLOW, not of the screen this render was drawn from.
@@ -367,7 +380,18 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             // itself. `onDone` fires once however it ends — the song
             // finishing, SKIP, or leaving the screen — so the title
             // comes next exactly once.
-            opening.begin('ALWAYS', settings.bgmVolume, () => flow.goTo('TITLE'));
+            //
+            // AT THE LEVEL THE PLAYER SET, MASTER INCLUDED. Asking for
+            // the song by name is not permission to be louder than the
+            // sliders say: with the music at zero this button unlocks
+            // the audio, plays nothing, and goes on to the title. A
+            // control that overruled a volume the player chose would be
+            // the rudest thing in the game.
+            opening.begin(
+              'ALWAYS',
+              settings.masterVolume * settings.bgmVolume,
+              () => flow.goTo('TITLE'),
+            );
           }}
           onSkip={() => {
             // Unlocked all the same — the rest of the game has music
@@ -925,7 +949,12 @@ export default function App() {
 
   useEffect(() => {
     applyReducedMotion(settings.reducedMotion);
-    audioManager.setVolumes(settings.bgmVolume, settings.seVolume);
+    audioManager.setVolumes(
+      settings.bgmVolume,
+      settings.sfxVolume,
+      settings.masterVolume,
+      settings.voiceVolume,
+    );
     setHapticEnabled(settings.hapticEnabled);
   }, [settings]);
 
