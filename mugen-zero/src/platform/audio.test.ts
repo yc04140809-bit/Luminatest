@@ -47,13 +47,23 @@ class FakeAudio {
   loop = false;
   volume = 1;
   playing = false;
-  paused = false;
+  paused = true;
+  ended = false;
+  /**
+   * WHERE IN THE PIECE IT IS. Not moved by this fake — nothing here
+   * advances a clock — but a restart sets it back to nought, and that
+   * is the difference the resume tests are actually about. A test that
+   * only counted elements could not tell a resume from a rebuild that
+   * happened to reuse the same file name.
+   */
+  currentTime = 0;
   constructor(src: string) {
     this.src = src;
     FakeAudio.made.push(this);
   }
   play() {
     this.playing = true;
+    this.paused = false;
     return Promise.resolve();
   }
   pause() {
@@ -224,16 +234,30 @@ describe('leaving, and coming back', () => {
     expect(sounding()).toHaveLength(1);
   });
 
-  it('stops rather than merely going quiet when the music is turned off', () => {
+  /**
+   * SILENT AT NOUGHT, AND STILL ON THE SAME BAR.
+   *
+   * This used to release the element, which is a mid-piece restart
+   * with a slider in front of it: drag BGM through zero and back and
+   * the forest began again from the top. Silence is what turning it
+   * off has to mean; starting over is not.
+   */
+  it('goes quiet without losing its place when the music is turned off', () => {
     const manager = ready();
     manager.playBgm('ALDEN_VILLAGE');
     vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    const piece = sounding()[0];
+    piece.currentTime = 61;
+
     manager.setVolumes(0, 0.8);
-    expect(sounding()).toHaveLength(0);
-    // And turning it back on picks the scene up again.
+    expect(sounding(), 'nothing is audible at nought').toHaveLength(0);
+
+    // And turning it back on is the same element, on the same bar.
     manager.setVolumes(0.5, 0.8);
     vi.advanceTimersByTime(BGM_FADE_MS + 100);
     expect(sounding()).toHaveLength(1);
+    expect(sounding()[0]).toBe(piece);
+    expect(sounding()[0].currentTime, 'the bar it was on').toBe(61);
     expect(sounding()[0].volume).toBeCloseTo(0.5, 5);
   });
 
@@ -384,6 +408,73 @@ describe('an element that exists and is silent', () => {
 
     manager.resumeIfSilent();
     vi.advanceTimersByTime(100);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0].src).toBe('tavern.mp3');
+  });
+
+  /**
+   * AND IT CARRIES ON RATHER THAN STARTING AGAIN.
+   *
+   * The bug this is here for was reported as "the music cuts off
+   * partway through and goes back to the beginning", and on a phone
+   * that is exactly what it was: the page is hidden, the element is
+   * paused, and every route back used to build a NEW element — which
+   * is the same piece of music from nought. A player who glanced at a
+   * message two minutes into the forest came back to the first bar.
+   */
+  it('carries the piece on from where it was, rather than starting it again', () => {
+    const manager = ready();
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    const piece = sounding()[0];
+    piece.currentTime = 127.5;
+    const made = FakeAudio.made.length;
+
+    // The phone is put away, and picked back up.
+    piece.pause();
+    manager.resumeIfSilent();
+    vi.advanceTimersByTime(100);
+
+    expect(FakeAudio.made, 'no second copy of the piece').toHaveLength(made);
+    expect(sounding()).toHaveLength(1);
+    expect(sounding()[0]).toBe(piece);
+    expect(sounding()[0].currentTime, 'the bar it was on').toBe(127.5);
+  });
+
+  /**
+   * The same, by the other door: a screen that re-rendered while the
+   * page was in the background asks for its own music again. That is
+   * not a scene change and must not sound like one.
+   */
+  it('does not restart the piece when the scene asks for it again while paused', () => {
+    const manager = ready();
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    const piece = sounding()[0];
+    piece.currentTime = 44;
+    const made = FakeAudio.made.length;
+
+    piece.pause();
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+
+    expect(FakeAudio.made).toHaveLength(made);
+    expect(sounding()[0]).toBe(piece);
+    expect(sounding()[0].currentTime).toBe(44);
+  });
+
+  /**
+   * A DIFFERENT piece is still a change, paused or not: walking out of
+   * the forest into another room is a scene change and sounds like one.
+   */
+  it('still changes piece when the scene does, even from a paused one', () => {
+    const manager = ready();
+    manager.playBgm('GREENWOOD_FOREST');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
+    FakeAudio.made[0].pause();
+
+    manager.playBgm('TAVERN');
+    vi.advanceTimersByTime(BGM_FADE_MS + 100);
     expect(sounding()).toHaveLength(1);
     expect(sounding()[0].src).toBe('tavern.mp3');
   });

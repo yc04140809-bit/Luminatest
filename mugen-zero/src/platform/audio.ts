@@ -132,14 +132,23 @@ export class AudioManager {
     // Not while a crossfade owns it: its volume is being driven on
     // purpose, and the fade sets the final level when it lands.
     if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(bgmVolume);
-    // Turned the music off mid-piece: stop, do not merely go quiet —
-    // a paused-at-zero element is still a piece of music waiting.
+    // TURNED DOWN TO NOTHING: HELD, NOT THROWN AWAY.
+    //
+    // It used to release the element, and that was a mid-track restart
+    // with a slider in front of it: a player who dragged BGM through
+    // zero and back came back to the top of the piece rather than to
+    // the bar they were on. The element is paused instead — silent by
+    // the same measure, since a paused element makes no sound — and
+    // picked back up where it was when the slider comes off nought.
     if (bgmVolume <= 0) {
       this.endBgmFade();
-      this.release(this.bgm);
-      this.bgm = null;
-    } else if (!this.bgm && this.currentBgmId) {
-      // Turned back on: pick up where the scene says it should be.
+      this.bgm?.pause();
+    } else if (this.bgm) {
+      // Turned back on: the same bar of the same piece.
+      this.resumeHeld();
+    } else if (this.currentBgmId) {
+      // Nothing held — the scene asked while the music was off, or a
+      // resume failed. Start what the scene says belongs here.
       this.startBgm(this.currentBgmId, { fade: true });
     }
     // The opening follows the same slider as everything else — there is
@@ -325,7 +334,48 @@ export class AudioManager {
   resumeIfSilent(): void {
     if (!this.currentBgmId || !this.musicIsOn()) return;
     if (this.bgmIsSounding()) return;
+    // THE PIECE WE ARE HOLDING IS PICKED BACK UP, NOT PLAYED AGAIN.
+    if (this.resumeHeld()) return;
     this.startBgm(this.currentBgmId, { fade: false });
+  }
+
+  /**
+   * Carry on with the piece already in hand, from the bar it is on.
+   *
+   * THIS IS THE DIFFERENCE BETWEEN RESUMING AND RESTARTING, and it is
+   * the whole of a bug that was reported as "the music cuts off partway
+   * and goes back to the top". A phone that is put away, locked, or
+   * interrupted by a call pauses the element; every route back used to
+   * build a NEW one, which is the same piece of music from nought —
+   * so a player who glanced at a message two minutes into the forest
+   * came back to the first bar of it.
+   *
+   * Returns whether there was something to carry on with, so the
+   * caller knows whether it still has to start one.
+   *
+   * A `play()` the browser refuses DROPS the element rather than
+   * leaving it held: the refusal usually means this element is no
+   * longer usable, and one that stays held would be resumed again and
+   * again forever. Letting it go means the next ask builds a fresh one,
+   * which is the old behaviour and the right fallback.
+   */
+  private resumeHeld(): boolean {
+    const held = this.bgm;
+    if (!held || !held.src || held.ended) return false;
+    if (!held.paused) return true;
+    try {
+      void Promise.resolve(held.play()).catch(() => {
+        if (this.bgm === held) {
+          this.release(held);
+          this.bgm = null;
+        }
+      });
+    } catch {
+      this.release(held);
+      this.bgm = null;
+      return false;
+    }
+    return true;
   }
 
   /** Called from a real user gesture; only then may audio start. */
@@ -410,6 +460,11 @@ export class AudioManager {
     // SOUNDING, not merely existing — see `bgmIsSounding`. A paused
     // element used to satisfy this, and the music never came back.
     if (this.currentBgmId === id && (this.bgmIsSounding() || !this.unlocked)) return;
+    // ASKED FOR AGAIN WHILE IT IS MERELY PAUSED — a screen that
+    // re-rendered while the page was in the background, say. That is
+    // not a scene change and must not sound like one: the piece we are
+    // holding carries on rather than starting over.
+    if (this.currentBgmId === id && this.musicIsOn() && this.resumeHeld()) return;
     if (this.currentBgmId !== id) this.previousBgmId = this.currentBgmId;
     this.currentBgmId = id;
     this.startBgm(id, { fade: true, wait: true });
