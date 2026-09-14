@@ -2580,13 +2580,22 @@ body,
 }
 
 .bp-hero.strike { animation: bp-strike var(--bp-strike, 0.32s) ease-out; }
-.bp-hero.hurt, .bp-kaos.flinch { animation: bp-flinch var(--bp-hurt, 0.3s) ease-out; }
+/* A BREATH BEHIND THE LIGHT.
+   The flash and the recoil now start from the same state, so without a
+   delay they would begin on the same frame — and perfectly simultaneous
+   is the one thing a real impact never is. The light arrives, then the
+   body answers it. See REACTION_LAG_MS. */
+.bp-hero.hurt, .bp-kaos.flinch {
+  animation: bp-flinch var(--bp-hurt, 0.3s) ease-out var(--bp-react, 45ms) both;
+}
 @keyframes bp-flinch {
   0% { transform: translateX(0); }
   30% { transform: translateX(10px); }
   100% { transform: translateX(0); }
 }
-.bp-enemy.struck { animation: bp-struck var(--bp-strike, 0.32s) ease-out; }
+.bp-enemy.struck {
+  animation: bp-struck var(--bp-strike, 0.32s) ease-out var(--bp-react, 45ms) both;
+}
 @keyframes bp-struck {
   0% { transform: translateX(0); }
   30% { transform: translateX(-9px) rotate(-2deg); }

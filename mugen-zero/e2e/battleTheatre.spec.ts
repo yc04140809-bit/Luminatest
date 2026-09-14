@@ -218,3 +218,135 @@ test('the party’s blow leans right to left', async ({ page }) => {
   const lean = await fx.evaluate((el) => getComputedStyle(el).getPropertyValue('--hit-lean').trim());
   expect(lean, 'the party swings right to left').toBe('-24deg');
 });
+
+/**
+ * THE BODY ANSWERS THE LIGHT, NOT THE NEXT BEAT.
+ *
+ * Measured at ×1 before this: the creature's blow flashed at 551ms and
+ * the player flinched at 826ms — a 276ms hole, because the recoil was
+ * its own beat queued behind the whole of the creature's lunge while
+ * contact happens two fifths of the way through it. It read as being
+ * hit and then, a moment later, deciding to react.
+ *
+ * The reaction hangs off the same state the flash does now, so the two
+ * cannot separate; what is left is one deliberate breath between them,
+ * because perfectly simultaneous is the one thing a real impact never
+ * is. This measures the gap by listening for the animations themselves
+ * — sampling the transform cannot tell a recoil from the actor's own
+ * lunge, and the camera lean moves the baseline under both.
+ */
+const WATCH_ANIMATIONS = `
+  window.__anim = [];
+  document.addEventListener('animationstart', (e) => {
+    const el = e.target;
+    const who = el.closest && el.closest('.bp-hero') ? 'hero'
+      : el.closest && el.closest('.bp-enemy') ? 'foe' : '?';
+    window.__anim.push({ name: e.animationName, who, t: performance.now() });
+  }, true);
+`;
+
+type Anim = { name: string; who: string; t: number };
+
+async function animations(page: import('@playwright/test').Page): Promise<Anim[]> {
+  return page.evaluate(() => (window as unknown as { __anim: Anim[] }).__anim ?? []);
+}
+
+/** The gap between a side being lit and that side moving. */
+function reactionGap(log: Anim[], who: string, recoil: string): number | null {
+  const flash = log.find((a) => a.name === 'bp-hit-flash' && a.who === who);
+  if (!flash) return null;
+  const react = log.find((a) => a.name === recoil && a.who === who && a.t >= flash.t - 40);
+  return react ? react.t - flash.t : null;
+}
+
+for (const speed of ['×1', '×2'] as const) {
+  test(`the blow and the body arrive together at ${speed}`, async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.addInitScript(WATCH_ANIMATIONS);
+    await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+    await expect(page.getByTestId('bp-attack')).toBeVisible();
+    if (speed === '×2') {
+      await page.getByTestId('bp-speed').click();
+      await expect(page.getByTestId('bp-speed')).toContainText('×2');
+    }
+
+    // Swing until both sides have been hit at least once, so the
+    // creature's blow — the one the hole was in — is measured too.
+    let creature: number | null = null;
+    let player: number | null = null;
+    for (let i = 0; i < 8 && (creature === null || player === null); i++) {
+      await page.evaluate(() => ((window as unknown as { __anim: Anim[] }).__anim.length = 0));
+      const attack = page.getByTestId('bp-attack');
+      if (!(await attack.isEnabled().catch(() => false))) break;
+      await attack.click({ timeout: 5_000 }).catch(() => {});
+      await page.waitForTimeout(speed === '×2' ? 1400 : 2200);
+      const log = await animations(page);
+      creature ??= reactionGap(log, 'foe', 'bp-struck');
+      player ??= reactionGap(log, 'hero', 'bp-flinch');
+      if (await page.getByTestId('bp-attack').count() === 0) break;
+    }
+
+    // 0〜80ms. Both of them, at both speeds — the gap is a perceptual
+    // constant and does not go through the beat machinery, so ×2 must
+    // not be any further apart than ×1.
+    expect(creature, 'the creature was never struck in eight swings').not.toBeNull();
+    expect(creature!, `creature: flash -> recoil at ${speed}`).toBeGreaterThanOrEqual(0);
+    expect(creature!, `creature: flash -> recoil at ${speed}`).toBeLessThanOrEqual(80);
+    if (player !== null) {
+      expect(player, `player: flash -> recoil at ${speed}`).toBeGreaterThanOrEqual(0);
+      expect(player, `player: flash -> recoil at ${speed}`).toBeLessThanOrEqual(80);
+    }
+  });
+}
+
+/**
+ * AND THE SECOND BLOW OF A TURN IS DRAWN FOR AS LONG AS THE FIRST.
+ *
+ * Both blows go through one `hit` slot, and the first one's clear timer
+ * used to fire in the middle of the second: measured at ×1, the
+ * creature's damage number was on screen for 184ms of the 520 it is
+ * drawn for. It now refuses to clear a blow that is not its own.
+ */
+test('the creature’s own damage number is not cut short by the swing before it', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await playToLifeChoice(page, '', { stopAt: 'BATTLE' });
+
+  const lives: number[] = [];
+  for (let i = 0; i < 6 && lives.length < 2; i++) {
+    const attack = page.getByTestId('bp-attack');
+    if (!(await attack.isEnabled().catch(() => false))) break;
+    await attack.click({ timeout: 5_000 }).catch(() => {});
+    // Watch the slot for the whole exchange and record how long each
+    // number it shows stays up.
+    const seen = await page.evaluate(async () => {
+      const out: number[] = [];
+      let shownAt: number | null = null;
+      let text: string | null = null;
+      const start = performance.now();
+      while (performance.now() - start < 2000) {
+        const el = document.querySelector('[data-testid="bp-hit-damage"]');
+        const now = el ? el.textContent : null;
+        if (now !== text) {
+          if (shownAt !== null) out.push(performance.now() - shownAt);
+          shownAt = now === null ? null : performance.now();
+          text = now;
+        }
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+      if (shownAt !== null) out.push(performance.now() - shownAt);
+      return out;
+    });
+    lives.push(...seen.filter((ms) => ms > 40));
+    if ((await page.getByTestId('bp-attack').count()) === 0) break;
+  }
+
+  expect(lives.length, 'no damage number was ever drawn').toBeGreaterThan(0);
+  // 184ms was the broken case. Every number gets most of its beat.
+  for (const ms of lives) {
+    expect(Math.round(ms), `a number was on screen for ${Math.round(ms)}ms`).toBeGreaterThan(260);
+  }
+});

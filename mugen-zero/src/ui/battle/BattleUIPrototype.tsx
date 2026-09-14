@@ -340,6 +340,27 @@ const CUT_IN_FLOOR_MS = 260;
  */
 const CONTACT_AT = 0.4;
 
+/**
+ * HOW LONG AFTER THE FLASH THE BODY MOVES.
+ *
+ * Not zero, on purpose. A blow reads as a blow when the light arrives
+ * and the body answers it a moment later — perfectly simultaneous is
+ * the one thing real impact never is. Forty-five milliseconds is under
+ * three frames: too short to be seen as a delay, long enough to be felt
+ * as cause and effect.
+ *
+ * THE SAME AT EVERY SPEED, and not through `visualMs`. It went through
+ * visualMs first, which looks right — every other duration here does —
+ * and it came out at 90ms at ×2, twice what it is at ×1. `visualMs`
+ * runs on `beatMs`, and `beatMs` floors everything at MIN_BEAT_MS
+ * because a BEAT shorter than that is not a beat. This is not a beat.
+ * It is the gap between two things, it is already shorter than that
+ * floor, and ×2 is a promise about tempo rather than about how the eye
+ * works: the light arrives and the body answers it a moment later at
+ * whatever speed the fight is being played.
+ */
+const REACTION_LAG_MS = 45;
+
 /** And how long it leaves the awakening on screen before moving on. */
 const AUTO_READ_MS = 2200;
 
@@ -750,11 +771,24 @@ export function BattleUIPrototype({
     timers.current.push(
       window.setTimeout(() => {
         hitKey.current += 1;
-        setHit({ key: hitKey.current, on, amount });
+        const mine = hitKey.current;
+        setHit({ key: mine, on, amount });
+        // CLEARS ITS OWN BLOW AND NOBODY ELSE'S.
+        //
+        // Both blows of a turn go through here and there is one slot,
+        // so a flat `setHit(null)` from the first one lands in the
+        // middle of the second: measured at ×1, the creature's damage
+        // number was on screen for 184ms of the 520 it is drawn for,
+        // wiped by a timer belonging to the swing before it. Scheduled
+        // from in here so the key is known, and refusing to clear a
+        // blow that is not the one it was scheduled for.
+        timers.current.push(
+          window.setTimeout(
+            () => setHit((current) => (current && current.key === mine ? null : current)),
+            beatLength('HURT', speed) + 260,
+          ),
+        );
       }, contact),
-    );
-    timers.current.push(
-      window.setTimeout(() => setHit(null), contact + beatLength('HURT', speed) + 260),
     );
   };
 
@@ -1284,6 +1318,10 @@ export function BattleUIPrototype({
         ['--bp-tackle' as string]: `${beatLength('TACKLE', speed)}ms`,
         ['--bp-hide' as string]: `${beatLength('HIDE', speed)}ms`,
         ['--bp-hurt' as string]: `${beatLength('HURT', speed)}ms`,
+        // The breath between the light and the body. A flat number, on
+        // purpose, and the one duration on this list that speed does
+        // not touch — see REACTION_LAG_MS.
+        ['--bp-react' as string]: `${REACTION_LAG_MS}ms`,
         ['--bp-fall' as string]: `${beatMs(KNOCKDOWN_MS, speed)}ms`,
         // THE DELIVERED UI, handed to the stylesheet as urls.
         //
@@ -1351,7 +1389,13 @@ export function BattleUIPrototype({
             hit?.on === 'enemy' ? 'flash' : '',
             beat === 'TACKLE' ? 'tackle' : '',
             beat === 'HIDE' ? 'hide' : '',
-            beat === 'STRIKE' || beat === 'MAGIC' ? 'struck' : '',
+            // The same rule as his, the other way across the field: the
+            // creature answers the blow, not the swing. It was
+            // `beat === 'STRIKE'`, which began the recoil as the sword
+            // STARTED moving — peaking 32ms before it arrived.
+            // MAGIC keeps the beat, because a spell has no one moment
+            // of contact for this screen to hang anything on.
+            hit?.on === 'enemy' || beat === 'MAGIC' ? 'struck' : '',
             beaten && !showingDown ? 'falling' : '',
             showingDown ? 'downed' : '',
           ]
@@ -1421,8 +1465,17 @@ export function BattleUIPrototype({
           />
         </div>
         <div
-          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${beat === 'HURT' ? ' hurt' : ''}${
-            hit?.on === 'hero' ? ' flash' : ''
+          // THE RECOIL BELONGS TO THE BLOW, NOT TO THE NEXT BEAT.
+          // It was `beat === 'HURT'`, and HURT is queued behind the
+          // creature's whole lunge — so he was struck at 184ms and
+          // flinched at 460ms, a 276ms hole between the flash and the
+          // body. Hung off the same `hit` the flash is hung off, the
+          // two cannot separate; the stylesheet holds the reaction a
+          // breath behind the light. The HURT beat stays in the
+          // sequence and still costs what it cost, so the turn is
+          // exactly as long as it was and AUTO and ×2 are untouched.
+          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${
+            hit?.on === 'hero' ? ' hurt flash' : ''
           }`}
           style={cameraStyle('hero', camera)}
         >
