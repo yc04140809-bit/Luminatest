@@ -364,7 +364,7 @@ export function PartyCard<S extends string>({
   return (
     <div className="bx-member" data-testid={testId}>
       {art ? (
-        <FaceMark art={art} size={36} label={name} />
+        <FaceMark art={art} size={34} label={name} />
       ) : (
         <span className="bx-face bx-face-blank" aria-hidden="true" />
       )}

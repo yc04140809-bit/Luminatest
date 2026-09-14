@@ -3626,7 +3626,16 @@ body,
      had 114 pixels to live in. */
   position: relative;
   width: clamp(186px, calc(var(--stage-w, 100vw) * 0.253), 218px);
-  padding: 4px 2px;
+  /* MORE ROOM UNDER THE LAST ROW THAN OVER THE FIRST, and it is not a
+     whim: the portrait's frame is drawn 7% LARGER than the portrait
+     (`.bx-face-frame` is inset negatively), so the bottom row's gold
+     corner reaches into the padding below it. At 4px there were about
+     one and a half pixels left between that corner and the edge of the
+     panel's own fill, and the second portrait read as hanging out of
+     the bottom of the frame — which is what it was reported as.
+     The panel does NOT grow to pay for this. It cannot: Kaos's head is
+     four pixels under it. The portraits give the room back instead. */
+  padding: 4px 2px 8px;
   border: 0 solid transparent;
   /* 7 AND 27 IS NOT A GUESS. The slice is `25 95`, so the drawn
      ornament is 95 wide for every 25 of top — and a border of 7px top
