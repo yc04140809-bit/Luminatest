@@ -20,6 +20,7 @@ import {
 } from '../../game/battle/battleSpeed';
 import { MagicTray } from './MagicTray';
 import { HitFx } from './HitFx';
+import { endBlow, landBlow, latestOn, motionSlot, type Blow } from './blows';
 import { playSfx } from '../../platform/audio';
 import { CUT_IN_MS, SkillCutIn, type CutIn } from './SkillCutIn';
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
@@ -515,12 +516,17 @@ export function BattleUIPrototype({
    * second swing landing before the first has finished cannot leave
    * half an effect on the field. Null between blows.
    */
-  const [hit, setHit] = useState<{
-    key: number;
-    on: 'enemy' | 'hero';
-    amount: number;
-  } | null>(null);
-  const hitKey = useRef(0);
+  /**
+   * EVERY BLOW ON THE FIELD, each one its own.
+   *
+   * A list, not a slot — see blows.ts. A turn has at least two blows in
+   * it and is meant to have more, and while there was one slot the
+   * second overwrote the first's drawing and the first's timer ended
+   * the second. Each entry here is drawn by its own <HitFx> and taken
+   * off by a timer that knows only its own name.
+   */
+  const [blows, setBlows] = useState<Blow[]>([]);
+  const blowId = useRef(0);
   /** The cut-in now playing, if any. A new key replays it. */
   const [cutIn, setCutIn] = useState<{ key: number; cut: CutIn } | null>(null);
   const cutInKey = useRef(0);
@@ -548,11 +554,26 @@ export function BattleUIPrototype({
     if (beat === 'STRIKE' || beat === 'TACKLE') playSfx('battle_swing');
   }, [beat]);
 
+  /**
+   * ONE NOISE PER BLOW, and never the same blow twice.
+   *
+   * Not "the newest blow changed", which is what a slot could tell you
+   * — two blows landing in one commit are two landings, and a list can
+   * say so. Counting up the ids means a blow makes its noise exactly
+   * once however many others arrive around it, and a combo is heard as
+   * a combo rather than as one thicker sound. (The manager's retrigger
+   * guard still refuses the SAME noise inside 60ms, which is what stops
+   * a fast combo turning into a machine-gun.)
+   */
+  const soundedBlow = useRef(0);
   useLayoutEffect(() => {
-    if (!hit) return;
-    // The landing. Whose ear it is decides which noise it is.
-    playSfx(hit.on === 'hero' ? 'battle_hurt' : 'battle_slash_hit');
-  }, [hit]);
+    for (const blow of blows) {
+      if (blow.id <= soundedBlow.current) continue;
+      soundedBlow.current = blow.id;
+      // The landing. Whose ear it is decides which noise it is.
+      playSfx(blow.on === 'hero' ? 'battle_hurt' : 'battle_slash_hit');
+    }
+  }, [blows]);
 
   useLayoutEffect(() => {
     if (cutIn) playSfx('battle_magic_cast');
@@ -770,21 +791,21 @@ export function BattleUIPrototype({
     // painted until the next frame.
     timers.current.push(
       window.setTimeout(() => {
-        hitKey.current += 1;
-        const mine = hitKey.current;
-        setHit({ key: mine, on, amount });
-        // CLEARS ITS OWN BLOW AND NOBODY ELSE'S.
+        blowId.current += 1;
+        const mine = blowId.current;
+        setBlows((live) => landBlow(live, { id: mine, on, amount }));
+        // AND THE TIMER THAT ENDS IT KNOWS ONLY ITS OWN NAME.
         //
-        // Both blows of a turn go through here and there is one slot,
-        // so a flat `setHit(null)` from the first one lands in the
-        // middle of the second: measured at ×1, the creature's damage
-        // number was on screen for 184ms of the 520 it is drawn for,
-        // wiped by a timer belonging to the swing before it. Scheduled
-        // from in here so the key is known, and refusing to clear a
-        // blow that is not the one it was scheduled for.
+        // Scheduled from in here, so `mine` is the blow that just
+        // landed rather than whichever one is newest when it fires.
+        // This is the whole of it: HIT_001's timer can say "HIT_001 is
+        // over" and has no way of saying anything else. Measured at ×1
+        // before this, the creature's damage number was drawn for 184ms
+        // of the 520 it is meant to have, because the swing before it
+        // owned the only slot and the only timer.
         timers.current.push(
           window.setTimeout(
-            () => setHit((current) => (current && current.key === mine ? null : current)),
+            () => setBlows((live) => endBlow(live, mine)),
             beatLength('HURT', speed) + 260,
           ),
         );
@@ -820,6 +841,15 @@ export function BattleUIPrototype({
   const play = (sequence: string[], filming: 'hero' | null = null) => {
     timers.current.forEach(clearTimeout);
     timers.current = [];
+    // AND THE FIELD IS CLEARED WITH THEM.
+    //
+    // A blow takes ITSELF off, by a timer in the array just emptied —
+    // so a turn beginning while one is still drawn would cancel the
+    // only thing that knew how to end it, and that blow would stay on
+    // the field for the rest of the fight. Blows never cut each other
+    // WITHIN a turn, which is the bug this all comes from; a new turn
+    // is a new picture, and always was.
+    setBlows([]);
     let at = 0;
     let firstBeatMs = 0;
     for (const step of sequence) {
@@ -1246,14 +1276,23 @@ export function BattleUIPrototype({
    * because losing track of your own health to a prettier screen is
    * not a trade anybody agreed to.
    */
-  const stagecraft = stagecraftFor({ cutIn: cutIn !== null, hitting: hit !== null });
+  const stagecraft = stagecraftFor({ cutIn: cutIn !== null, hitting: blows.length > 0 });
   const levels = stagecraftLevels(stagecraft);
 
-  const hitSlot = hit?.on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : enemyHome;
-  const hitPoint = {
-    x: hitSlot.edge === 'left' ? hitSlot.inset + 0.08 : 1 - hitSlot.inset - 0.08,
-    y: hitSlot.bottom + 0.16,
+  /** Where a blow on this side is drawn. */
+  const pointOf = (on: Blow['on']) => {
+    const slot = on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : enemyHome;
+    return {
+      x: slot.edge === 'left' ? slot.inset + 0.08 : 1 - slot.inset - 0.08,
+      y: slot.bottom + 0.16,
+    };
   };
+  // The one being felt on each side: the most recent, because that is
+  // the one whose flash and flinch are on screen. Everything OLDER is
+  // still drawn — its own <HitFx> is still up — it is just no longer
+  // the blow the body is answering.
+  const struckHero = latestOn(blows, 'hero');
+  const struckEnemy = latestOn(blows, 'enemy');
   const plateAt = enemyBox ?? { mid: enemyHome.inset + 0.07, foot: enemyHome.bottom };
   useEffect(() => {
     const stageEl = stageRef.current;
@@ -1352,7 +1391,7 @@ export function BattleUIPrototype({
              corners of it — so the fight is what the player is looking
              at, and the reading happens at the edges of their eye. */}
       <div
-        className={`bp-stage${accidentStageClass(accidentBeat)}${hit ? ' kick' : ''}`}
+        className={`bp-stage${accidentStageClass(accidentBeat)}${blows.length > 0 ? ' kick' : ''}`}
         ref={stageRef}
         data-accident={accidentBeat === 'NONE' ? undefined : accidentBeat}
         // What the camera is doing, for the one CSS rule that needs to
@@ -1368,15 +1407,22 @@ export function BattleUIPrototype({
             needs no measurement of its own. Above the field and below
             the reading — a player must never lose a health bar behind
             an effect. */}
-        {hit && (
+        {/* EVERY ONE OF THEM, not the newest. Two blows of a turn used
+            to share one element, so the first's slash, ring, spark and
+            number were replaced the moment the second landed — and a
+            combo would have shown one hit however many it dealt. Each
+            has its own element, keyed by its own name, and leaves when
+            its own timer says so. */}
+        {blows.map((blow) => (
           <HitFx
-            fxKey={hit.key}
-            at={hitPoint}
-            amount={hit.amount}
+            key={blow.id}
+            fxKey={blow.id}
+            at={pointOf(blow.on)}
+            amount={blow.amount}
             ms={visualMs(HIT_FX_MS, speed, HIT_FX_FLOOR_MS)}
-            facing={hit.on === 'enemy' ? 'left' : 'right'}
+            facing={blow.on === 'enemy' ? 'left' : 'right'}
           />
-        )}
+        ))}
 
         {/* THE CUT-IN, over the field for a quarter of a second. */}
         {cutIn && <SkillCutIn key={cutIn.key} cut={cutIn.cut} ms={visualMs(CUT_IN_MS, speed, CUT_IN_FLOOR_MS)} />}
@@ -1386,7 +1432,7 @@ export function BattleUIPrototype({
         <div
           className={[
             'bp-actor bp-enemy',
-            hit?.on === 'enemy' ? 'flash' : '',
+            struckEnemy ? 'flash' : '',
             beat === 'TACKLE' ? 'tackle' : '',
             beat === 'HIDE' ? 'hide' : '',
             // The same rule as his, the other way across the field: the
@@ -1395,12 +1441,15 @@ export function BattleUIPrototype({
             // STARTED moving — peaking 32ms before it arrived.
             // MAGIC keeps the beat, because a spell has no one moment
             // of contact for this screen to hang anything on.
-            hit?.on === 'enemy' || beat === 'MAGIC' ? 'struck' : '',
+            struckEnemy || beat === 'MAGIC' ? 'struck' : '',
             beaten && !showingDown ? 'falling' : '',
             showingDown ? 'downed' : '',
           ]
             .filter(Boolean)
             .join(' ')}
+          // Which spelling of the recoil this blow uses. See the same
+          // attribute on the party's side.
+          data-blow={motionSlot(struckEnemy)}
           style={cameraStyle(
             opponent.stands === 'NEAR'
               ? showingDown
@@ -1475,8 +1524,18 @@ export function BattleUIPrototype({
           // sequence and still costs what it cost, so the turn is
           // exactly as long as it was and AUTO and ×2 are untouched.
           className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${
-            hit?.on === 'hero' ? ' hurt flash' : ''
+            struckHero ? ' hurt flash' : ''
           }`}
+          // WHICH SPELLING OF THE FLINCH THIS BLOW USES.
+          //
+          // A CSS animation does not begin again because the same class
+          // was put on an element that already has it — so a second
+          // blow landing on somebody still flinching from the first
+          // would draw no flinch at all. Consecutive blows alternate
+          // between two identical motions, and the change is what
+          // restarts it. Nothing today lands twice on one body; the
+          // combos this is for do.
+          data-blow={motionSlot(struckHero)}
           style={cameraStyle('hero', camera)}
         >
           <span className="bp-shadow" aria-hidden="true" />

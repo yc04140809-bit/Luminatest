@@ -2588,9 +2588,33 @@ body,
 .bp-hero.hurt, .bp-kaos.flinch {
   animation: bp-flinch var(--bp-hurt, 0.3s) ease-out var(--bp-react, 45ms) both;
 }
+/* AND THE SECOND BLOW IS DRAWN TOO.
+   A CSS animation does not begin again because the same class was put
+   on an element that already has it, so a blow landing on somebody who
+   is still flinching from the last one would draw nothing at all — the
+   "reaction was skipped" of a combo. `data-blow` alternates a/b per
+   blow (see blows.ts) and the change of NAME is what restarts it.
+   bp-flinch-b and bp-struck-b are the same motions as the ones above,
+   under a second name, and must stay identical to them.
+   `:where()` so the attribute adds no specificity: `.bp-enemy.tackle`
+   is written further down and must still win over a recoil, and a
+   selector that quietly outranked it would show a creature that never
+   lunges again. */
+.bp-hero.hurt:where([data-blow='b']) { animation-name: bp-flinch-b; }
+.bp-enemy.struck:where([data-blow='b']) { animation-name: bp-struck-b; }
 @keyframes bp-flinch {
   0% { transform: translateX(0); }
   30% { transform: translateX(10px); }
+  100% { transform: translateX(0); }
+}
+@keyframes bp-flinch-b {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(10px); }
+  100% { transform: translateX(0); }
+}
+@keyframes bp-struck-b {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(-9px) rotate(-2deg); }
   100% { transform: translateX(0); }
 }
 .bp-enemy.struck {

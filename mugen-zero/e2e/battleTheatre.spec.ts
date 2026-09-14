@@ -22,8 +22,11 @@ test('a swing is seen, not just reported', async ({ page }) => {
 
   // THE NUMBER, on the field. And it is the fight's own number: the
   // health it took off the bar is the figure that floated off it.
-  const damage = page.getByTestId('bp-hit-damage');
-  await expect(damage).toHaveCount(1, { timeout: 3_000 });
+  // AT LEAST one: each blow of a turn draws its own now, so the
+  // creature's answer can be on screen beside the player's swing. The
+  // first one up is the swing that was just tapped.
+  const damage = page.getByTestId('bp-hit-damage').first();
+  await expect(damage).toBeVisible({ timeout: 3_000 });
   const shown = Number((await damage.textContent())?.trim());
   expect(Number.isFinite(shown)).toBe(true);
   expect(shown).toBeGreaterThan(0);
@@ -251,11 +254,28 @@ async function animations(page: import('@playwright/test').Page): Promise<Anim[]
   return page.evaluate(() => (window as unknown as { __anim: Anim[] }).__anim ?? []);
 }
 
-/** The gap between a side being lit and that side moving. */
+/**
+ * The gap between a side being lit and that side moving.
+ *
+ * The recoil has two spellings — consecutive blows alternate between
+ * them so that a second blow on the same body restarts the motion
+ * instead of being swallowed by the one already running — so both are
+ * accepted here. See blows.ts.
+ */
 function reactionGap(log: Anim[], who: string, recoil: string): number | null {
   const flash = log.find((a) => a.name === 'bp-hit-flash' && a.who === who);
   if (!flash) return null;
-  const react = log.find((a) => a.name === recoil && a.who === who && a.t >= flash.t - 40);
+  // WITHIN THIS BLOW'S OWN WINDOW. A recoil a third of a second after
+  // the flash is not that flash's recoil, it is the next blow's — and
+  // pairing the two would report a number belonging to neither. Out of
+  // range is "not measured here", and the caller swings again.
+  const react = log.find(
+    (a) =>
+      (a.name === recoil || a.name === `${recoil}-b`) &&
+      a.who === who &&
+      a.t >= flash.t - 40 &&
+      a.t <= flash.t + 200,
+  );
   return react ? react.t - flash.t : null;
 }
 
