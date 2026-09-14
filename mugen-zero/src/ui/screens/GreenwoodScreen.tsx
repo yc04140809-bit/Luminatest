@@ -23,6 +23,15 @@ interface Props {
   onEventSeen: (eventId: string) => Promise<void>;
   /** A fight in the forest. Leaves this screen for the battle. */
   onForestBattle: () => void;
+  /**
+   * Puts what was found into the bag.
+   *
+   * The screen does not own the bag and never has: it says WHAT was
+   * picked up and the world decides what that means — whether there is
+   * room, and what gets saved. Optional so the forest can still be
+   * opened by a preview that has no world behind it.
+   */
+  onItemTaken?: (itemId: string) => Promise<unknown>;
   /** Development only: force what the next arrival turns out to be. */
   forcedCategory?: DiscoveryCategory | null;
 }
@@ -55,6 +64,7 @@ export function GreenwoodScreen({
   pickForestEvent,
   onEventSeen,
   onForestBattle,
+  onItemTaken,
   forcedCategory = null,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -152,7 +162,21 @@ export function GreenwoodScreen({
         console.error('Failed to record the forest event', e);
       }
     }
-    if (current?.kind === 'ITEM') recordObtainedItem(current.item.id);
+    if (current?.kind === 'ITEM') {
+      // TWO THINGS, AND THEY ARE NOT THE SAME THING. The discovery log
+      // is a record that this was once found — capped, local, and only
+      // ever read to decorate the map. The bag is what the player OWNS,
+      // survives a reload and can be spent. Before this round only the
+      // first existed, which is why a hundred acorns came to nothing.
+      recordObtainedItem(current.item.itemId);
+      try {
+        await onItemTaken?.(current.item.itemId);
+      } catch (e) {
+        // The card was shown and the find was real; losing the write
+        // costs one item, not the walk.
+        console.error('Failed to put the find in the bag', e);
+      }
+    }
     sceneRef.current?.resumeExploration();
   };
 

@@ -55,6 +55,17 @@ import {
   type ArcanaRecord,
 } from '../arcana/arcana';
 import { ARCANA_DEFS, arcanaDef } from '../../content/arcana/arcanaDefs';
+import {
+  addItem as addToBag,
+  getItemCount as countInBag,
+  hasItem as bagHas,
+  readInventory,
+  removeItem as removeFromBag,
+  roomFor,
+} from '../economy/inventory';
+import { INITIAL_LUMI, addLumi, canAfford, readLumi, spendLumi } from '../economy/lumi';
+import { EMPTY_INVENTORY, type Inventory } from '../economy/items';
+import { itemDef } from '../../content/economy/itemDefs';
 import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
 import {
   emptyAccidentRecord,
@@ -119,6 +130,30 @@ const ARCANA_KEY = 'arcana_records';
  * has crossed yet" — the same answer a new world gives.
  */
 const ACCIDENTS_KEY = 'summon_accidents';
+/**
+ * THE BAG: what the player is actually carrying.
+ *
+ * One row per item — an id and a count, and nothing else. What a herb
+ * IS lives in the catalogue, so rebalancing a price or rewriting a
+ * description never touches a save: no save has ever recorded either.
+ *
+ * Deliberately NOT a WORLD MEMORY event. Picking a herb up is not
+ * something the world remembers about itself; it is something the
+ * player is holding, which is current state and belongs here with the
+ * clock and the characters.
+ *
+ * Absent in a save written before this build, which reads as an empty
+ * bag — the same answer a new world gives.
+ */
+const INVENTORY_KEY = 'inventory';
+/**
+ * THE PURSE, in LUMI.
+ *
+ * One number. Absent in an older save reads as nought, which is what a
+ * player who has never been paid holds — so a save from before the
+ * economy existed opens as a poor player rather than a broken one.
+ */
+const LUMI_KEY = 'lumi';
 
 interface ExperienceLog {
   /** eventId -> absolute day it last played. */
@@ -216,6 +251,8 @@ export class World {
   private enemyIndividuals: EnemyIndividual[];
   private arcana: Record<string, ArcanaRecord>;
   private accidents: Record<string, AccidentRecord>;
+  private inventory: Inventory;
+  private lumi: number;
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -228,6 +265,8 @@ export class World {
     enemyIndividuals: EnemyIndividual[],
     arcana: Record<string, ArcanaRecord>,
     accidents: Record<string, AccidentRecord>,
+    inventory: Inventory,
+    lumi: number,
   ) {
     this.events = events;
     this.clock = clock;
@@ -238,6 +277,8 @@ export class World {
     this.enemyIndividuals = enemyIndividuals;
     this.arcana = arcana;
     this.accidents = accidents;
+    this.inventory = inventory;
+    this.lumi = lumi;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -262,6 +303,11 @@ export class World {
     const arcanaRaw =
       ((await store.getStateValue(ARCANA_KEY)) as Record<string, unknown> | undefined) ?? {};
     const accidentsRaw = await store.getStateValue(ACCIDENTS_KEY);
+    // Both of these are absent in every save written before this build,
+    // and absent is a valid answer rather than a migration step: an
+    // empty bag and an empty purse are exactly what a new world holds.
+    const inventory = readInventory(await store.getStateValue(INVENTORY_KEY));
+    const lumi = readLumi(await store.getStateValue(LUMI_KEY));
     return new World(
       store,
       events,
@@ -273,6 +319,8 @@ export class World {
       enemyIndividuals,
       readArcanaRows(arcanaRaw),
       readAccidentRows(accidentsRaw),
+      inventory,
+      lumi,
     );
   }
 
@@ -1056,6 +1104,175 @@ export class World {
     this.emit();
   }
 
+  // ---- WHAT THE PLAYER IS CARRYING, AND WHAT THEY ARE WORTH ----
+  //
+  // The bag and the purse are current state, like the clock and the
+  // characters: they say where the player IS, not what the world
+  // remembers happening. Nothing here writes a WORLD MEMORY event —
+  // picking a herb up is not a fact about the world.
+  //
+  // Every write commits and then emits, in that order, so a screen that
+  // re-renders on the change is reading something already saved. A
+  // refused move — a full stack, a purse that is short — commits
+  // nothing and emits nothing, because nothing happened.
+
+  /** The bag, in the order things were first picked up. */
+  getInventory(): Inventory {
+    return this.inventory;
+  }
+
+  /** How many of one thing is being carried. */
+  getItemCount(itemId: string): number {
+    return countInBag(this.inventory, itemId);
+  }
+
+  /** Whether at least this many are being carried. */
+  hasItem(itemId: string, quantity = 1): boolean {
+    return bagHas(this.inventory, itemId, quantity);
+  }
+
+  /**
+   * Picks some up, and says how many actually went in.
+   *
+   * PARTIAL IS A REAL ANSWER: asking for five with room for two takes
+   * two and returns two, so a screen can say 「持ちきれない」 rather than
+   * pretending. Nought means nothing was taken — an unknown id, or a
+   * stack already full — and nothing was saved either.
+   */
+  async addItem(itemId: string, quantity = 1): Promise<number> {
+    const def = itemDef(itemId);
+    if (!def) return 0;
+    const change = addToBag(this.inventory, def, quantity);
+    if (change.moved === 0) return 0;
+    await this.store.commit({ putState: [{ key: INVENTORY_KEY, value: change.inventory }] });
+    this.inventory = change.inventory;
+    this.emit();
+    return change.moved;
+  }
+
+  /**
+   * Puts some down. ALL OR NOTHING — see `removeItem` in the bag
+   * module for why spending may not be partial.
+   */
+  async removeItem(itemId: string, quantity = 1): Promise<number> {
+    const change = removeFromBag(this.inventory, itemId, quantity);
+    if (change.moved === 0) return 0;
+    await this.store.commit({ putState: [{ key: INVENTORY_KEY, value: change.inventory }] });
+    this.inventory = change.inventory;
+    this.emit();
+    return change.moved;
+  }
+
+  /** What is in the purse. */
+  getLumi(): number {
+    return this.lumi;
+  }
+
+  /** Whether this price can be paid. */
+  canAfford(amount: number): boolean {
+    return canAfford(this.lumi, amount);
+  }
+
+  /** Paid. Returns the new total. */
+  async addLumi(amount: number): Promise<number> {
+    const next = addLumi(this.lumi, amount);
+    if (next === this.lumi) return this.lumi;
+    await this.store.commit({ putState: [{ key: LUMI_KEY, value: next }] });
+    this.lumi = next;
+    this.emit();
+    return next;
+  }
+
+  /**
+   * Spent, or not spent at all.
+   *
+   * Returns whether the money actually left. A purse that is short
+   * changes nothing and saves nothing, which is what stops a shop from
+   * ever handing over goods it was not paid for.
+   */
+  async spendLumi(amount: number): Promise<boolean> {
+    const next = spendLumi(this.lumi, amount);
+    if (next === null || next === this.lumi) return next !== null;
+    await this.store.commit({ putState: [{ key: LUMI_KEY, value: next }] });
+    this.lumi = next;
+    this.emit();
+    return true;
+  }
+
+  // ---- THE TWO MOVES A SHOP MAKES ----
+  //
+  // NO SHOP EXISTS YET, and these are not one: there is no screen, no
+  // stock list and no haggling. They are here because a purchase is the
+  // one thing in this file that changes TWO saved rows, and a shop
+  // written on top of `spendLumi` then `addItem` could be interrupted
+  // between them — money gone, nothing bought. One commit, both rows,
+  // or neither.
+  //
+  // The price is passed IN rather than read from the catalogue, because
+  // what a shop charges is the shop's business — stock, mark-up and
+  // whatever the village thinks of you — and none of that exists yet.
+  // Selling reads `sellPrice`, because what a thing is worth when you
+  // hand it over is a fact about the thing.
+
+  /**
+   * Money out, goods in — together or not at all.
+   *
+   * Refused, having changed nothing, when the id is unknown, the purse
+   * is short, or the bag has no room for the whole order. A half-filled
+   * order is not a purchase.
+   */
+  async buyItem(itemId: string, quantity: number, unitPrice: number): Promise<boolean> {
+    const def = itemDef(itemId);
+    const want = Math.floor(quantity);
+    const price = Math.floor(unitPrice);
+    if (!def || !Number.isFinite(want) || want <= 0) return false;
+    if (!Number.isFinite(price) || price < 0) return false;
+    if (roomFor(this.inventory, def) < want) return false;
+    const purse = spendLumi(this.lumi, price * want);
+    if (purse === null) return false;
+    const bag = addToBag(this.inventory, def, want);
+    if (bag.moved !== want) return false;
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: bag.inventory },
+        { key: LUMI_KEY, value: purse },
+      ],
+    });
+    this.inventory = bag.inventory;
+    this.lumi = purse;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * Goods out, money in — together or not at all.
+   *
+   * A KEY ITEM IS NEVER SOLD, whatever price is offered and whichever
+   * category it is filed under: that is what the flag is for. Nor is
+   * something worth nought — a shop that took a pretty acorn and paid
+   * nothing for it would be taking it.
+   */
+  async sellItem(itemId: string, quantity: number): Promise<number> {
+    const def = itemDef(itemId);
+    const want = Math.floor(quantity);
+    if (!def || !Number.isFinite(want) || want <= 0) return 0;
+    if (def.isKeyItem || def.sellPrice <= 0) return 0;
+    const bag = removeFromBag(this.inventory, itemId, want);
+    if (bag.moved !== want) return 0;
+    const paid = def.sellPrice * want;
+    const purse = addLumi(this.lumi, paid);
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: bag.inventory },
+        { key: LUMI_KEY, value: purse },
+      ],
+    });
+    this.inventory = bag.inventory;
+    this.lumi = purse;
+    this.emit();
+    return paid;
+  }
+
   /** NEW GAME / RESET WORLD: deletes all saved world data and restores defaults. */
   async resetWorld(): Promise<void> {
     await this.store.clearAll();
@@ -1074,6 +1291,9 @@ export class World {
     // anything it cannot explain, and the once-per-save sight is
     // available again because it is a new save.
     this.accidents = {};
+    // And it is carrying nothing and has never been paid.
+    this.inventory = EMPTY_INVENTORY;
+    this.lumi = INITIAL_LUMI;
     this.emit();
   }
 }

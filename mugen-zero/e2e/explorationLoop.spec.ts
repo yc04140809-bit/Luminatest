@@ -124,6 +124,68 @@ test.describe('exploration loop', () => {
     expect(await walkUntil(page, visible(page, 'forest-item')), 'a second arrival').toBe(true);
   });
 
+  /**
+   * WHAT A FIND IS WORTH, NOW THAT THERE IS A BAG.
+   *
+   * Before the economy round a find was a card and a line in a capped
+   * local log: the player read about a round acorn, closed the card,
+   * and owned nothing. It goes into the world's own inventory now, and
+   * the point of an inventory is that it is still there tomorrow — so
+   * this walks into a find, reads the bag, and then RELOADS THE PAGE
+   * and reads it again.
+   *
+   * Read through the world rather than through a bag screen, because
+   * there is no bag screen yet: this round is the data underneath one.
+   */
+  test('what was picked up is still owned after the game is closed and opened', async ({
+    page,
+  }) => {
+    await freshWorld(page);
+    await settleAndForce(page, 'ITEM');
+    await intoForest(page);
+
+    expect(await walkUntil(page, visible(page, 'forest-item')), 'an arrival happened').toBe(true);
+    await page.getByTestId('take-item').click();
+    await expect(page.getByTestId('forest-item')).toBeHidden();
+
+    /** The bag, straight out of the save. */
+    const bag = () =>
+      page.evaluate(
+        () =>
+          new Promise<{ itemId: string; quantity: number }[]>((resolve, reject) => {
+            const open = indexedDB.open('mugen-zero-save');
+            open.onerror = () => reject(open.error);
+            open.onsuccess = () => {
+              const db = open.result;
+              const rq = db
+                .transaction('world_state', 'readonly')
+                .objectStore('world_state')
+                .get('inventory');
+              rq.onsuccess = () => {
+                db.close();
+                resolve((rq.result?.value ?? []) as { itemId: string; quantity: number }[]);
+              };
+              rq.onerror = () => reject(rq.error);
+            };
+          }),
+      );
+
+    const held = await bag();
+    expect(held, 'the find is in the bag').toHaveLength(1);
+    expect(held[0].quantity).toBe(1);
+    const found = held[0].itemId;
+
+    // Closed and opened again — which is what "owning" means. The
+    // title it comes back to is the one a saved world gets, not the
+    // one a new world gets, so the wait is on the page rather than on
+    // a particular button.
+    await page.reload();
+    await page.waitForLoadState('load');
+    await expect(page.locator('.app')).toBeVisible({ timeout: 20_000 });
+    const afterReload = await bag();
+    expect(afterReload).toEqual([{ itemId: found, quantity: 1 }]);
+  });
+
   test('arriving can be a moment in the forest, played over the forest', async ({ page }) => {
     await freshWorld(page);
     await settleAndForce(page, 'EVENT');

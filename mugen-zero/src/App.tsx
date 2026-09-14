@@ -709,6 +709,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
               }) as TalkEventDef | null
             }
             onEventSeen={(eventId) => world.markExperienceSeen(eventId)}
+            // What was on the ground goes in the bag, and stays there.
+            onItemTaken={(itemId) => world.addItem(itemId, 1)}
             onForestBattle={() => {
               forestBattle.current = true;
               forestStory.current = rollIndividualStory({
