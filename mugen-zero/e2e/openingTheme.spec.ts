@@ -1,24 +1,26 @@
-import { test, expect, type Page } from './fixtures';
+import { test, expect, keepTheSong, type Page } from './fixtures';
 import { advanceDays, enterDevAdmin, PHONES, readMemoryEvents, viewportOf } from './helpers';
 
 /**
- * OPENING EXPERIENCE v0.1 — the title's theme, and the one control it has.
+ * OPENING THEME — the song, and the rules that govern it.
  *
- * There is no song in the slot yet, so what is proved here is mostly
- * what happens when there is nothing: no extra screen appears, nothing
- * is offered to skip, and the way into the game is the way it always
- * was. The DEV stand-in ("SKIP表示のリハーサル") puts the control on
- * screen without making a sound, so the control itself can be checked
- * on a phone-sized page.
+ * The screen the song is OFFERED on belongs to themeChoice.spec.ts.
+ * What is proved here is everything around it: that the switches in
+ * SETTINGS still decide whether there is a song at all, that the one
+ * control it has behaves and fits a phone, that it writes nothing to
+ * the world, and that DEV ADMIN can still rehearse it.
  *
- * The rules it must not break: the opening obeys the existing BGM
- * volume, obeys its own ON/OFF, ends by exactly one route however it
- * ends, and writes nothing to the save.
+ * THE THEME MOVED, AND THAT IS WHY THIS FILE READS DIFFERENTLY THAN IT
+ * DID. It used to begin on はじめる, so every test here started by
+ * tapping the title. There is a screen before the title now whose whole
+ * subject is that song, and the rules below are the same rules asked of
+ * the place the song actually lives.
  */
 
-/** DEV stand-in: the song's length when there is no song. See openingRehearsal.ts. */
-const REHEARSAL_MS = 6000;
-
+/** Left on the question about the song, which is the first screen. */
+test.beforeEach(async ({ page }) => {
+  await keepTheSong(page);
+});
 
 async function clean(page: Page) {
   await page.goto('/');
@@ -39,20 +41,25 @@ async function clean(page: Page) {
   await page.reload();
 }
 
-/** Turn the DEV stand-in on the way a tester would, then come back to the title. */
-async function rehearsalOn(page: Page) {
-  await page.evaluate(() => localStorage.setItem('mugen-opening-rehearsal', 'ON'));
-  await page.reload();
+/** 「スキップ」: past the question, to the title. */
+async function past(page: Page) {
+  await page.getByTestId('theme-choice-skip').click();
+}
+
+/** 「テーマソングを聴く」: the song, for real. */
+async function listen(page: Page) {
+  await page.getByTestId('theme-choice-listen').click();
 }
 
 async function newGame(page: Page) {
+  await past(page);
   await page.getByTestId('start-button').click();
 }
 
 /**
- * Through the prologue to HOME, from a page already at the title, with
- * one day passed so that the world has something in it. Without that
- * there is no save, and the title offers はじめる rather than つづきから.
+ * Through the prologue to HOME, from a page on the question, with one
+ * day passed so that the world has something in it. Without that there
+ * is no save, and the title offers はじめる rather than つづきから.
  */
 async function intoTheWorld(page: Page) {
   await newGame(page);
@@ -64,83 +71,72 @@ async function intoTheWorld(page: Page) {
 }
 
 test.describe('OPENING THEME', () => {
-  test('adds no screen: はじめる still goes straight into the prologue', async ({ page }) => {
+  test('adds no screen to the game itself: はじめる still goes straight into the prologue', async ({
+    page,
+  }) => {
     await clean(page);
     await newGame(page);
-    // No interstitial, no "press to continue", no title card of its own.
+    // The question is before the title, not between the title and the
+    // game. No interstitial, no "press to continue", no title card.
     await expect(page.getByTestId('prologue-monologue')).toBeVisible();
   });
 
-  test('offers nothing to skip when there is no song', async ({ page }) => {
+  test('offers nothing to skip when the song was declined', async ({ page }) => {
     await clean(page);
     await newGame(page);
     await expect(page.getByTestId('prologue-monologue')).toBeVisible();
     await expect(page.getByTestId('opening-skip')).toHaveCount(0);
   });
 
-  test('shows SKIP only once the theme has begun, never on the title itself', async ({ page }) => {
+  test('shows SKIP only once the theme has begun, never on the question itself', async ({
+    page,
+  }) => {
     await clean(page);
-    await rehearsalOn(page);
-    // The title is before the first gesture: audio cannot have started,
-    // so there is nothing to skip yet.
+    // Before the first gesture: audio cannot have started, so there is
+    // nothing to skip yet.
+    await expect(page.getByTestId('theme-choice')).toBeVisible();
     await expect(page.getByTestId('opening-skip')).toHaveCount(0);
-    await newGame(page);
+    await listen(page);
     await expect(page.getByTestId('opening-skip')).toBeVisible();
   });
 
-  test('SKIP takes the control away and leaves the game where it was', async ({ page }) => {
+  test('SKIP ends the song, and the title is what is behind it', async ({ page }) => {
     await clean(page);
-    await rehearsalOn(page);
-    await newGame(page);
+    await listen(page);
     const skip = page.getByTestId('opening-skip');
     await expect(skip).toBeVisible();
     await skip.click();
     await expect(skip).toHaveCount(0);
-    // SKIP ends the music, not the scene: the player is still reading
-    // the same page they were reading. Two exits into one, no double
-    // transition.
-    await expect(page.getByTestId('prologue-monologue')).toBeVisible();
-  });
-
-  test('the theme ending by itself takes the control away too', async ({ page }) => {
-    await clean(page);
-    await rehearsalOn(page);
-    await newGame(page);
-    await expect(page.getByTestId('opening-skip')).toBeVisible();
-    await expect(page.getByTestId('opening-skip')).toHaveCount(0, {
-      timeout: REHEARSAL_MS + 5_000,
-    });
-    await expect(page.getByTestId('prologue-monologue')).toBeVisible();
+    // One exit, whichever way the song ends: the control goes and the
+    // title arrives. No double transition, no screen left behind.
+    await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 10_000 });
   });
 
   test('a second tap during the theme cannot start a second one', async ({ page }) => {
     await clean(page);
-    await rehearsalOn(page);
-    await newGame(page);
+    await listen(page);
     await expect(page.getByTestId('opening-skip')).toHaveCount(1);
-    await page.getByTestId('prologue-monologue').click();
-    // Whatever else the player does, there is one theme and one control.
+    // Tapping the screen the song is playing over changes nothing:
+    // there is one theme and one control.
+    await page.getByTestId('theme-choice').click();
     await expect(page.getByTestId('opening-skip')).toHaveCount(1);
   });
 
-  test('つづきから gets the theme as well', async ({ page }) => {
-    await clean(page);
-    await intoTheWorld(page);
-    await rehearsalOn(page); // reload: a new run of the app, save intact
-    await page.getByTestId('continue-button').click();
-    await expect(page.getByTestId('opening-skip')).toBeVisible();
-    await expect(page.getByTestId('world-clock')).toBeVisible();
-  });
-
-  test('BGM turned off means no opening either', async ({ page }) => {
+  /**
+   * 「BGMを0にした人にオープニングは鳴らない」 — and the question is not
+   * asked either, because a question with one possible answer is a
+   * screen to get past rather than a choice.
+   */
+  test('BGM turned off means no opening, and nothing to decline', async ({ page }) => {
     await clean(page);
     await intoTheWorld(page);
     await page.getByTestId('settings-button').click();
     await page.getByTestId('bgm-volume').fill('0');
     await page.getByTestId('settings-back').click();
-    await rehearsalOn(page);
-    await page.getByTestId('continue-button').click();
-    await expect(page.getByTestId('world-clock')).toBeVisible();
+    await page.reload();
+    // Straight to the title: no question, and no song behind it.
+    await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('theme-choice')).toHaveCount(0);
     await expect(page.getByTestId('opening-skip')).toHaveCount(0);
   });
 
@@ -153,24 +149,24 @@ test.describe('OPENING THEME', () => {
     await toggle.click();
     await expect(toggle).toHaveText('OFF');
     await page.getByTestId('settings-back').click();
-    await rehearsalOn(page);
-    await page.getByTestId('continue-button').click();
-    await expect(page.getByTestId('world-clock')).toBeVisible();
-    await expect(page.getByTestId('opening-skip')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('theme-choice')).toHaveCount(0);
     // And it is still off next time the app is opened.
     await page.reload();
-    await page.getByTestId('continue-button').click();
-    await expect(page.getByTestId('opening-skip')).toHaveCount(0);
+    await expect(page.getByTestId('continue-button')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('theme-choice')).toHaveCount(0);
   });
 
   test('the theme writes nothing to the world', async ({ page }) => {
     await clean(page);
     await intoTheWorld(page);
     const before = await readMemoryEvents(page);
-    await rehearsalOn(page);
-    await page.getByTestId('continue-button').click();
+    await page.reload(); // a new run of the app, save intact
+    await listen(page);
     await expect(page.getByTestId('opening-skip')).toBeVisible();
     await page.getByTestId('opening-skip').click();
+    await page.getByTestId('continue-button').click();
     await expect(page.getByTestId('world-clock')).toBeVisible();
     const after = await readMemoryEvents(page);
     expect(after.map((e) => e.id).sort()).toEqual(before.map((e) => e.id).sort());
@@ -191,8 +187,7 @@ test.describe('OPENING THEME', () => {
     test(`fits and is usable on a ${phone.name} phone`, async ({ page }) => {
       await page.setViewportSize(viewportOf(phone));
       await clean(page);
-      await rehearsalOn(page);
-      await newGame(page);
+      await listen(page);
       const skip = page.getByTestId('opening-skip');
       await expect(skip).toBeVisible();
 

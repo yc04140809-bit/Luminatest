@@ -106,9 +106,8 @@ interface GameRootProps extends CoreBundle {
 }
 
 function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRootProps) {
-  // The opening theme rides on the existing way in rather than on a
-  // screen of its own: the title is already there, and the first tap on
-  // it is already the gesture that lets audio start.
+  // The opening theme has a screen of its own now, before the title,
+  // and the first tap on it is the gesture that lets audio start.
   const opening = useOpeningTheme();
   const [surveyAnswered, setSurveyAnswered] = useState(false);
   // Where the player currently is. It carries no game rules — no event,
@@ -289,6 +288,31 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       .filter((s) => !s.discovered)
       .map((s) => s.def.id),
   ]);
+
+  /**
+   * IS THERE ANYTHING TO ASK ABOUT?
+   *
+   * 「オープニングOFF」 and a muted BGM slider both mean there is no
+   * theme, and a question with one possible answer is not a question —
+   * it is a screen to get past. So when nothing is on offer the game
+   * starts at the title, exactly as it did before this screen existed.
+   *
+   * This is also what keeps the setting honest. Before this, LISTEN
+   * asked for the song by name and got it whatever the panel said,
+   * which left a switch in SETTINGS that did nothing at all.
+   */
+  const themeOnOffer = settings.openingMode !== 'OFF' && settings.bgmVolume > 0;
+  useEffect(() => {
+    if (themeOnOffer) return;
+    // ASKED OF THE FLOW, not of the screen this render was drawn from.
+    // StrictMode runs an effect twice on mount, and the second run
+    // still holds the first render's `state` — so a check against that
+    // sees THEME_CHOICE after the move has already happened and asks
+    // for a transition out of a screen the game has left. TITLE ->
+    // TITLE is not a legal move, and the throw takes the app down.
+    if (flow.getState().screen !== 'THEME_CHOICE') return;
+    flow.goTo('TITLE');
+  }, [state.screen, themeOnOffer, flow]);
 
   // WHAT THE GAME SOUNDS LIKE FROM HERE. One call, for the whole app:
   // where the player is goes in, and the music that belongs there comes

@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pageOf } from './fixtures';
 import { enterDevAdmin } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -55,10 +55,7 @@ test('playtest feedback survives a full browser restart', async () => {
   const userDataDir = mkdtempSync(join(tmpdir(), 'mugen-zero-h-'));
   try {
     let context = await launch(userDataDir);
-    let page = context.pages()[0] ?? (await context.newPage());
-    // Its own page, so it needs what the shared fixture gives every
-    // other one: start past the question about the song.
-    await pastTheSong(page);
+    let page = await pageOf(context);
     await goHomeFresh(page);
 
     // Reach the end state quickly through the admin (official APIs).
@@ -98,7 +95,7 @@ test('playtest feedback survives a full browser restart', async () => {
 
     // Restart: the answer is still there, and this session cannot answer twice.
     context = await launch(userDataDir);
-    page = context.pages()[0] ?? (await context.newPage());
+    page = await pageOf(context);
     await page.goto(`${BASE}/`);
     expect(await readFeedbackCount(page)).toBe(1);
 

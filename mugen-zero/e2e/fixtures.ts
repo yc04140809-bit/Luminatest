@@ -1,4 +1,4 @@
-import { test as base, type Page } from '@playwright/test';
+import { test as base, type BrowserContext, type Page } from '@playwright/test';
 
 /**
  * The suite's own `test`.
@@ -76,29 +76,82 @@ export async function pastTheSong(page: Page): Promise<void> {
 /**
  * If the question about the song is being asked, answer the skip.
  *
- * WAITS for it. `isVisible()` answers about this instant and the app
- * has not drawn yet when a navigation resolves, so asking then is
- * asking before there is anything to see.
+ * WAITS FOR THE APP TO BE SOMEWHERE, and this is the whole difficulty.
+ * `isVisible()` answers about this instant, and when a navigation
+ * resolves the app has not drawn yet — so asking then is asking before
+ * there is anything to see. But a fixed little timeout is just as
+ * wrong: three workers sharing four cores make a cold first paint take
+ * a great deal longer than five seconds, and a wait that gives up
+ * returns a page still sitting on the question with nobody left to
+ * answer it. That cost fourteen specs a 240-second timeout each, all
+ * of them stuck on a `start-button` that was one tap away.
  *
- * Failure is not an error: a page that is not the choice screen simply
- * never shows the button, and the test carries on to what it came for.
+ * So it waits for whichever of the two places the app can be — the
+ * question, or the title behind it — and only then decides. Slow is
+ * fine; guessing is not.
+ *
+ * Failure is not an error: a page that is neither simply never shows
+ * either, and the test carries on to what it came for.
  */
 async function answerTheQuestion(page: Page): Promise<void> {
-  if ((page as unknown as { __keepTheSong?: boolean }).__keepTheSong) return;
+  const marked = page as unknown as { __keepTheSong?: boolean; __answering?: Promise<void> };
+  if (marked.__keepTheSong) return;
   if (page.isClosed()) return;
+  // ONE AT A TIME PER PAGE. Both the `goto` wrapper and the `load`
+  // listener below want this done, and for a navigation Playwright
+  // started they both want it for the SAME load. Sharing the one run
+  // is what keeps them from racing each other for the same button.
+  if (marked.__answering) return marked.__answering;
+  const run = answerOnce(page).finally(() => {
+    marked.__answering = undefined;
+  });
+  marked.__answering = run;
+  return run;
+}
+
+async function answerOnce(page: Page): Promise<void> {
   const skip = page.getByTestId('theme-choice-skip');
-  const showing = await skip
-    .waitFor({ state: 'visible', timeout: 5_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!showing) return;
-  await skip.click().catch(() => {});
-  await page
-    .getByTestId('start-button')
-    .or(page.getByTestId('continue-button'))
+  const title = page.getByTestId('start-button').or(page.getByTestId('continue-button'));
+  await skip
+    .or(title)
     .first()
-    .waitFor({ state: 'visible', timeout: 10_000 })
+    .waitFor({ state: 'visible', timeout: 60_000 })
     .catch(() => {});
+  if (page.isClosed()) return;
+  const asking = await skip.isVisible().catch(() => false);
+  if (!asking) return;
+  await skip.click().catch(() => {});
+  await title
+    .first()
+    .waitFor({ state: 'visible', timeout: 30_000 })
+    .catch(() => {});
+}
+
+/**
+ * THE PAGE OF A BROWSER THIS SUITE LAUNCHED ITSELF.
+ *
+ * A handful of specs need a real browser profile on disk — they close
+ * the whole browser and open it again to prove the world survived it —
+ * so they run `chromium.launchPersistentContext` and take the page out
+ * of it themselves. Those pages come from Playwright direct and get
+ * none of what the `page` fixture arranges: not the reduced motion the
+ * whole suite measures against, and not the answer to the question
+ * about the song.
+ *
+ * That was written out by hand, once per spec, and it was written out
+ * for the FIRST session only — so every one of those specs relaunched
+ * the browser, landed on the question, and waited for a title that was
+ * one tap away. Seven specs, one missing line each.
+ *
+ * So it is a function, and there is one of it: every page this suite
+ * makes for itself comes out of here, arranged the same way, whichever
+ * session it belongs to.
+ */
+export async function pageOf(context: BrowserContext): Promise<Page> {
+  const page = context.pages()[0] ?? (await context.newPage());
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await pastTheSong(page);
+  return page;
 }
 
 /**

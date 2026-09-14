@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pageOf } from './fixtures';
 import { enterDevAdmin } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -41,10 +41,7 @@ test('the LIFE ARCHIVE record survives a full browser restart unchanged', async 
   try {
     // --- Session 1: reunited world via the admin, verify the record. ---
     let context = await launch(userDataDir);
-    let page = context.pages()[0] ?? (await context.newPage());
-    // Its own page, so it needs what the shared fixture gives every
-    // other one: start past the question about the song.
-    await pastTheSong(page);
+    let page = await pageOf(context);
     await goHomeFresh(page);
     await enterDevAdmin(page);
     await page.getByTestId('preset-REUNITED').click();
@@ -55,7 +52,7 @@ test('the LIFE ARCHIVE record survives a full browser restart unchanged', async 
 
     // --- Session 2: identical record after restart. ---
     context = await launch(userDataDir);
-    page = context.pages()[0] ?? (await context.newPage());
+    page = await pageOf(context);
     await page.goto(`${BASE}/`);
     await page.getByTestId('continue-button').click();
     await assertFullGaldRecord(page);

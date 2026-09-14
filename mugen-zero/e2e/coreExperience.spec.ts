@@ -1,4 +1,4 @@
-import { test, expect, chromium, type BrowserContext, type Page, pastTheSong } from './fixtures';
+import { test, expect, chromium, type BrowserContext, type Page, pageOf } from './fixtures';
 import { GALD_TAP, swingUntil } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,10 +33,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
   const userDataDir = mkdtempSync(join(tmpdir(), 'mugen-zero-core-'));
   try {
     let context = await launch(userDataDir);
-    let page = context.pages()[0] ?? (await context.newPage());
-    // Its own page, so it needs what the shared fixture gives every
-    // other one: start past the question about the song.
-    await pastTheSong(page);
+    let page = await pageOf(context);
 
     // --- TITLE / PROLOGUE ---
     await page.goto(`${BASE}/`);
@@ -157,9 +154,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
 
     // --- Restart: the collected life is still there ---
     context = await launch(userDataDir);
-    page = context.pages()[0] ?? (await context.newPage());
-    // A new browser, a new page: the same step again.
-    await pastTheSong(page);
+    page = await pageOf(context);
     await page.goto(`${BASE}/`);
     await page.getByTestId('continue-button').click();
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
