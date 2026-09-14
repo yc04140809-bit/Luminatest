@@ -62,8 +62,17 @@ export function CharacterArt<S extends string>({
   }
   const { asset } = art;
   // A close-up of a picture that is already a close-up is just the
-  // picture. Only a stand-in gets cropped.
-  const cropToBust = bust === true && art.state !== 'talk' && art.state !== 'portrait';
+  // picture — and what tells the two apart is whether the asset knows
+  // where its FACE is.
+  //
+  // This used to read `state !== 'talk' && state !== 'portrait'`, on the
+  // assumption that a talking picture IS a head. That stopped being
+  // true the day Kaos' talking art arrived as a whole standing figure:
+  // asking for a bust of her got her whole body in a 148-pixel circle.
+  // An asset that has been measured for a face box is a full drawing
+  // however it is filed, and a bust of it is that box.
+  const closeUp = asset.face === undefined && (art.state === 'talk' || art.state === 'portrait');
+  const cropToBust = bust === true && !closeUp;
   const box = cropToBust ? bustBox(asset) : asset.box;
   const flip = face !== undefined && asset.facing !== undefined && asset.facing !== face;
   const shared = {

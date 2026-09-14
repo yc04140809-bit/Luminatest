@@ -16,6 +16,7 @@ import {
   GALD_PORTRAITS,
   GALD_BATTLE_DAMAGE,
   GALD_BATTLE_DOWN,
+  KAOS_FIGURES,
   KAOS_PORTRAITS,
 } from '../../assets/manifest';
 import type { PartyArtRegistry, PartyArtSet } from '../../core/art/artRegistry';
@@ -27,8 +28,12 @@ export const PARTY_ART_STATES: readonly PartyArtState[] = [
   'battle_damage',
   'battle_skill_1',
   'battle_skill_2',
+  'battle_cast',
   'battle_down',
   'talk',
+  'talk_serious',
+  'awakened',
+  'menu',
   'portrait',
   'fullbody',
   'cutin',
@@ -67,26 +72,67 @@ export const HERO_ART: PartyArtSet = {
   },
 };
 
+/**
+ * KAOS — six standing pictures, one role each.
+ *
+ * THE FACING RULE, AND WHY IT IS THE SAME IN ALL SIX.
+ *
+ * She is never flipped. Her white wing is on HER right and her black on
+ * HER left; her right eye is gold and her left blue. Mirroring any of
+ * these drawings would swap all four, and the wings are CANON — a flip
+ * is a lie about who she is. Every one of them is drawn already looking
+ * the way the party looks, so `facing: 'left'` is a statement that no
+ * mirroring is needed rather than an instruction to mirror.
+ *
+ * Each face box is measured in its own file. Without one the art layer
+ * falls back to cropping the top third, and the top third of every one
+ * of these is wing — a beautiful crop of nobody.
+ *
+ * WHAT MOVED, AND WHY IT MATTERED. `battle_idle` used to be the
+ * drawing now registered as `awakened`: the star dress and the staff.
+ * So an ordinary fight with a moss rabbit was fought by her awakened
+ * form, every time, because there was only one battle picture and that
+ * was it. The roles are what make that impossible now.
+ */
 export const KAOS_ART: PartyArtSet = {
   id: 'kaos',
   label: 'ケイオス',
   states: {
+    /** ④ BATTLE_DEFAULT — on the field, between actions. */
     battle_idle: {
-      src: BATTLE_FIGURES.kaos,
-      /**
-       * FACING, AND WHY IT MUST STAY 'left'.
-       *
-       * She is drawn reaching across to her right — the viewer's left —
-       * which is the way the party looks, so she is never flipped. That
-       * is not a preference: her white wing is on HER right and her
-       * black on HER left, and her right eye is gold and her left blue.
-       * Mirroring the drawing would swap all four, and the wings are
-       * CANON. A flip here is a lie about who she is.
-       */
+      src: KAOS_FIGURES.battleDefault,
       facing: 'left',
-      // Her face, between the two wings. The top third of her file is
-      // almost entirely wing, which is a beautiful crop of nobody.
+      face: { fileW: 1145, fileH: 1374, x: 478, y: 120, width: 180, height: 180 },
+    },
+    /** ⑤ CAST — a circle open beside her, the dark coming off her arms. */
+    battle_cast: {
+      src: KAOS_FIGURES.cast,
+      facing: 'left',
+      face: { fileW: 1103, fileH: 1426, x: 488, y: 225, width: 165, height: 165 },
+    },
+    /** ⑥ AWAKEN — the star dress. Never an ordinary fight. */
+    awakened: {
+      src: KAOS_FIGURES.awaken,
+      facing: 'left',
       face: { fileW: 1024, fileH: 1536, x: 470, y: 195, width: 180, height: 180 },
+    },
+    /** ② TALK_DEFAULT — how she stands when she is talking to you. */
+    talk: {
+      src: KAOS_FIGURES.talkDefault,
+      facing: 'left',
+      face: { fileW: 1024, fileH: 1536, x: 430, y: 130, width: 175, height: 175 },
+    },
+    /** ③ TALK_RINSEN — the same girl with the air gone tight. */
+    talk_serious: {
+      src: KAOS_FIGURES.talkRinsen,
+      facing: 'left',
+      face: { fileW: 1086, fileH: 1448, x: 455, y: 155, width: 165, height: 165 },
+    },
+    /** ① MENU — still and lit, over the crystal hall. */
+    menu: {
+      src: KAOS_FIGURES.menu,
+      facing: 'left',
+      face: { fileW: 941, fileH: 1672, x: 392, y: 215, width: 175, height: 175 },
     },
     fullbody: {
       src: KAOS_LEFT.url,

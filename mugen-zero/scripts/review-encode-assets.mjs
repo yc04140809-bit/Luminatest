@@ -63,9 +63,61 @@ export const REVIEW_ASSETS = [
     source: join(APP_DIR, 'src/assets/characters/hero/hero-battle-idle.png'),
     out: join(REVIEW_ASSET_DIR, 'hero-battle-idle.webp'),
   },
+  // KAOS' SIX STANDING PICTURES. They arrived as a set with a role
+  // each — menu, talking, 臨戦, fighting, casting, awakened — and they
+  // are 11 MB of PNG between them, which is most of an artifact on
+  // their own. Every one of them is on screen in ordinary play except
+  // the menu, which has no screen yet and is here so a reviewer can see
+  // what it will be.
+  //
+  // THE THREE FIGHTING ONES COME DOWN IN SIZE AND THE TWO TALKING ONES
+  // DO NOT, and the split is about how each is SHOWN rather than about
+  // which matters more.
+  //
+  // A battle figure is drawn whole, about two hundred CSS pixels tall
+  // on a three-hundred-and-ninety pixel stage — so a 1145-pixel file is
+  // between three and six times more picture than any phone can put on
+  // screen, and six tenths of it is still oversampled at 2x. A TALKING
+  // figure is not drawn whole: the dialogue plate crops her FACE out of
+  // it, which is about a sixth of the file's width blown up to a
+  // hundred and forty-eight pixels. Shrinking those would be shrinking
+  // the one part of them anybody looks at.
+  //
+  // The delivered files are untouched either way; the game draws all
+  // six at full size. This is the artifact's copy of them and nothing
+  // else reads it.
   {
-    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-battle-idle.png'),
-    out: join(REVIEW_ASSET_DIR, 'kaos-battle-idle.webp'),
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-battle-default.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-battle-default.webp'),
+    scale: 0.6,
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-cast.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-cast.webp'),
+    scale: 0.6,
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-awaken.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-awaken.webp'),
+    scale: 0.6,
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-talk-default.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-talk-default.webp'),
+  },
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-talk-rinsen.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-talk-rinsen.webp'),
+  },
+  // NO SCREEN SHOWS THIS ONE YET. It is in the artifact only because
+  // the manifest imports it and the build inlines what is imported —
+  // so it is here at half size to cost as little as an unreachable
+  // picture should, and it goes back to the same terms as the others
+  // the day the menu screen exists to show it.
+  {
+    source: join(APP_DIR, 'src/assets/characters/kaos/kaos-menu.png'),
+    out: join(REVIEW_ASSET_DIR, 'kaos-menu.webp'),
+    scale: 0.5,
   },
   {
     source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-idle.png'),
@@ -183,17 +235,22 @@ const ENCODE = `
 import sys
 from PIL import Image
 src, out, quality = sys.argv[1], sys.argv[2], int(sys.argv[3])
+scale = float(sys.argv[4]) if len(sys.argv) > 4 else 1.0
 im = Image.open(src)
 before = im.size
-# Flattened onto nothing and re-encoded at the SAME size. No resize,
-# no crop, no recomposition: a reviewer must be looking at the same
-# picture, in the same frame, at the same resolution.
 if im.mode not in ('RGB', 'RGBA'):
     im = im.convert('RGBA')
+# SCALE 1.0 IS THE RULE AND THE DEFAULT. Same size, same frame, same
+# crop: a reviewer has to be looking at the same picture. An entry that
+# asks for less says why in its own comment, and the number is asserted
+# afterwards so a silent resize is impossible either way.
+if scale != 1.0:
+    im = im.resize((round(before[0] * scale), round(before[1] * scale)), Image.LANCZOS)
 im.save(out, format='WEBP', quality=quality, method=6)
 after = Image.open(out).size
-assert before == after, f'resolution changed: {before} -> {after}'
-print(f'{before[0]}x{before[1]}')
+want = (round(before[0] * scale), round(before[1] * scale))
+assert want == after, f'resolution is not what was asked for: {want} -> {after}'
+print(f'{before[0]}x{before[1]} -> {after[0]}x{after[1]}')
 `;
 
 // ---------------------------------------------------------------- //
@@ -564,7 +621,7 @@ export function encodeReviewAssets() {
     try {
       size = execFileSync(
         'python3',
-        ['-c', ENCODE, asset.source, asset.out, String(asset.quality ?? QUALITY)],
+        ['-c', ENCODE, asset.source, asset.out, String(asset.quality ?? QUALITY), String(asset.scale ?? 1)],
         { encoding: 'utf-8' },
       ).trim();
     } catch (error) {

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { DialogueLine } from '../../content/dialogue/prologue';
-import { kaosPortrait } from '../../assets/manifest';
+import { partyArtFor } from '../../content/art';
+import { kaosPortraitState, kaosTalkMode } from '../../content/characters/kaosPortraits';
+import { CharacterArt } from '../art/CharacterArt';
 import { ScreenBackdrop } from './ScreenBackdrop';
 import {
   locationBackground,
@@ -15,6 +17,15 @@ interface Props {
   /** Center the text on a black stage (used by the prologue monologue). */
   centered?: boolean;
   testId?: string;
+  /**
+   * THE WHOLE SCENE IS TENSE — 臨戦.
+   *
+   * A scene-wide default for the per-line `tense` flag, for a
+   * conversation that is strained from its first word: a confrontation,
+   * an argument, the moment before a fight. A line may still be marked
+   * individually, and a marked line wins.
+   */
+  tense?: boolean;
   /**
    * Standing art for the scene's speaker (Gald in the forest, say).
    * Kaos supplies her own portrait automatically.
@@ -58,6 +69,7 @@ export function DialogueSequence({
   lines,
   onComplete,
   centered = false,
+  tense = false,
   testId,
   portraitSrc,
   portraitAlt = '',
@@ -76,7 +88,19 @@ export function DialogueSequence({
   // Kaos speaks face to face — a round portrait sitting just above her
   // words, near the middle of the screen. Scene art (Gald) fills the
   // stage behind the box instead.
-  const kaosSrc = isKaos ? kaosPortrait('normal') : null;
+  /**
+   * WHICH KAOS IS SPEAKING.
+   *
+   * Her ordinary talking picture, or her 臨戦 one when the air is
+   * tight. The scene says how it feels and content/characters/
+   * kaosPortraits says which drawing that is — this never names one.
+   *
+   * The opening is not marked tense anywhere, so it comes out as
+   * TALK_DEFAULT by the ordinary rule rather than by a special case.
+   */
+  const kaosArt = isKaos
+    ? partyArtFor('kaos', kaosPortraitState(kaosTalkMode(line.tense ?? tense)))
+    : null;
   const sceneSrc =
     isKaos || artFailed || index < portraitFromLine ? null : (portraitSrc ?? null);
 
@@ -145,9 +169,21 @@ export function DialogueSequence({
       </div>
       {!centered && (
         <>
-          {kaosSrc && (
+          {kaosArt && (
             <div className="dialogue-portrait" data-testid="dialogue-portrait">
-              <img src={kaosSrc} alt="" aria-hidden="true" />
+              {/* HER FACE, OUT OF A WHOLE DRAWING. The round frame is
+                  unchanged — this is the same plate in the same place —
+                  and what fills it is now a crop of the standing art the
+                  scene asked for, so 臨戦 is a different face rather
+                  than a different file name nobody can see. */}
+              <CharacterArt
+                art={kaosArt}
+                height={148}
+                className="dialogue-portrait-art"
+                label="ケイオス"
+                bust
+                testId="dialogue-kaos-art"
+              />
             </div>
           )}
           <div className={isKaos ? 'dialogue-box kaos' : 'dialogue-box'}>

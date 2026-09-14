@@ -83,6 +83,10 @@ export const GALD_BATTLE: EnemySpec = {
   awakening: {
     afterTurns: 8,
     atOrBelowHp: 0.66,
+    // NOT MARKED 臨戦, though the words are: `AwakeningScene` draws no
+    // portrait at all — it is a line of text read over the battlefield —
+    // so a mark here would be data nobody looks at. It is the obvious
+    // home for her 臨戦 drawing the day that scene grows a picture.
     lines: [
       { speaker: null, text: '短剣が肩をかすめた。' },
       { speaker: 'ケイオス', text: '……そこまで。' },

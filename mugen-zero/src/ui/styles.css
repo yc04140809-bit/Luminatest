@@ -270,7 +270,8 @@ body,
 .dialogue-screen.dialogue-kaos .dialogue-box {
   margin-bottom: calc(var(--stage-h) * 0.14);
 }
-.dialogue-kaos .dialogue-portrait img {
+.dialogue-kaos .dialogue-portrait img,
+.dialogue-kaos .dialogue-portrait .dialogue-portrait-art {
   width: 148px;
   height: 148px;
 }
@@ -342,13 +343,26 @@ body,
   justify-content: center;
   margin-bottom: -6px;
 }
-.dialogue-portrait img {
+.dialogue-portrait img,
+.dialogue-portrait .dialogue-portrait-art {
   width: 120px;
   height: 120px;
   border-radius: 50%;
   border: 1px solid var(--mugen-border-strong);
   box-shadow: 0 0 0 4px var(--mugen-surface), var(--mugen-shadow-soft);
   background: var(--mugen-surface);
+}
+/* THE PLATE IS UNCHANGED; WHAT FILLS IT IS NOT.
+   Kaos' talking picture arrived as a whole standing figure, so the
+   round frame now holds a crop of her face out of it rather than a
+   small portrait file. The art layer sizes the element inline from the
+   face box it measured — square, so the circle stays a circle — and
+   these two lines only have to say that the crop is clipped to the
+   plate rather than drawn over its gold edge. */
+.dialogue-portrait .dialogue-portrait-art {
+  background-color: var(--mugen-surface);
+  background-repeat: no-repeat;
+  overflow: hidden;
 }
 .dialogue-box {
   /* Wide and short: a landscape box that leaves the picture visible
@@ -1968,7 +1982,8 @@ body,
 .dialogue-kaos .dialogue-portrait {
   animation: kaos-arrive 0.7s ease both;
 }
-.dialogue-kaos .dialogue-portrait img {
+.dialogue-kaos .dialogue-portrait img,
+.dialogue-kaos .dialogue-portrait .dialogue-portrait-art {
   box-shadow:
     0 0 0 4px var(--mugen-surface),
     0 0 0 5px var(--mugen-border-strong),

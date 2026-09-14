@@ -46,9 +46,15 @@ const BIRDS_GO_QUIET: TalkEventDef = {
   once: true,
   priority: 46,
   content: {
+    // ONE TENSE LINE, AND ONE THAT IS NOT — which is the whole of what
+    // 臨戦 is for. She goes guarded when the birds stop and comes back
+    // out of it when nothing is there, so the player sees her change
+    // face and change back inside four lines. The scene says how it
+    // FEELS; content/characters/kaosPortraits says which drawing that
+    // is, and neither of them names a file.
     lines: [
       { speaker: null, text: '鳥の声が、ふいにやんだ。' },
-      { speaker: 'ケイオス', text: '……なんかいる？' },
+      { speaker: 'ケイオス', text: '……なんかいる？', tense: true },
       { speaker: null, text: '数えるほどの間があって、また鳴きはじめた。' },
       { speaker: 'ケイオス', text: 'いなかったね。' },
     ],

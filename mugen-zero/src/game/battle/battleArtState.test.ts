@@ -64,3 +64,46 @@ describe('what the moss rabbit actually has drawn', () => {
     }
   });
 });
+
+/**
+ * KAOS ON THE FIELD — which of her six the fight is looking at.
+ *
+ * The order is the whole rule, and it is here rather than in a
+ * screenshot: awakening outranks a cast, a cast outranks being hit, and
+ * being hit outranks standing.
+ */
+describe('Kaos, and which drawing the fight asks for', () => {
+  const at = (over: Partial<Parameters<typeof kaosPose>[0]> = {}) =>
+    kaosPose({ beat: 'NONE', downed: false, ...over });
+
+  it('stands between actions', () => {
+    expect(at()).toBe('battle_idle');
+  });
+
+  it('has a drawing of her own for a spell, an arcana or a skill', () => {
+    expect(at({ casting: true })).toBe('battle_cast');
+  });
+
+  it('flinches when the party is hit', () => {
+    expect(at({ beat: 'HURT' })).toBe('battle_damage');
+  });
+
+  /** A higher form does not stop being one mid-spell, or mid-flinch. */
+  it('stays in her higher form whatever else is happening', () => {
+    expect(at({ awakened: true })).toBe('awakened');
+    expect(at({ awakened: true, casting: true })).toBe('awakened');
+    expect(at({ awakened: true, beat: 'HURT' })).toBe('awakened');
+  });
+
+  /**
+   * THE BUG THIS ROUND WAS ABOUT. Her star dress was the only battle
+   * drawing she had, so an ordinary rabbit was fought by her awakened
+   * form. Nothing but the flag may reach it.
+   */
+  it('never reaches the awakened drawing by accident', () => {
+    for (const beat of ['NONE', 'STRIKE', 'TACKLE', 'HIDE', 'HURT', 'MAGIC']) {
+      expect(at({ beat }), beat).not.toBe('awakened');
+      expect(at({ beat, casting: true }), `${beat} casting`).not.toBe('awakened');
+    }
+  });
+});

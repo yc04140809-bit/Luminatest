@@ -15,7 +15,12 @@ import galdBattleIdle from './characters/gald/gald-battle-idle.png';
 import linaFullbody from './characters/lina/lina-fullbody.png';
 import bakeryOwnerFullbody from './characters/bakery-owner/bakery-owner-fullbody.png';
 import heroBattleIdle from './characters/hero/hero-battle-idle.png';
-import kaosBattleIdle from './characters/kaos/kaos-battle-idle.png';
+import kaosMenu from './characters/kaos/kaos-menu.png';
+import kaosTalkDefault from './characters/kaos/kaos-talk-default.png';
+import kaosTalkRinsen from './characters/kaos/kaos-talk-rinsen.png';
+import kaosBattleDefault from './characters/kaos/kaos-battle-default.png';
+import kaosCast from './characters/kaos/kaos-cast.png';
+import kaosAwaken from './characters/kaos/kaos-awaken.png';
 import galdGrave from './events/event-gald-grave.webp';
 import greenwoodForest from './backgrounds/location-greenwood-forest.webp';
 import greenwoodField from './backgrounds/field-greenwood.png';
@@ -71,9 +76,56 @@ export const ALDEN_FIGURES = {
   bakeryOwner: bakeryOwnerFullbody,
 } as const;
 
+/**
+ * KAOS, IN ONE PLACE — the six standing pictures and what each is for.
+ *
+ * Delivered as a set, with a role for every one of them, and this is
+ * the only place in the project that names their files. Which ROLE gets
+ * which of these is content/characters/kaosPortraits; which scene asks
+ * for which role is the screens. Nothing anywhere else says
+ * `kaos-cast.png`.
+ *
+ *   menu           kaos-menu.png           still and lit, over the
+ *                                          crystal hall. The picture a
+ *                                          player looks at while they
+ *                                          are reading their own
+ *                                          numbers.
+ *   talkDefault    kaos-talk-default.png   how she stands when she is
+ *                                          talking to you. The opening
+ *                                          is this one.
+ *   talkRinsen     kaos-talk-rinsen.png    臨戦 — the same girl with the
+ *                                          air gone tight. Anger, guard,
+ *                                          meaning it.
+ *   battleDefault  kaos-battle-default.png on the field, between
+ *                                          actions.
+ *   cast           kaos-cast.png           a circle open beside her and
+ *                                          the dark coming off her arms.
+ *                                          Magic, an arcana, a skill.
+ *   awaken         kaos-awaken.png         the star dress and the staff.
+ *                                          NOT an ordinary fight.
+ *
+ * `awaken` was `kaos-battle-idle.png` until this set arrived, which
+ * means every moss rabbit in the forest has been fought by her
+ * awakened form. That is what the roles are for.
+ */
+export const KAOS_FIGURES = {
+  menu: kaosMenu,
+  talkDefault: kaosTalkDefault,
+  talkRinsen: kaosTalkRinsen,
+  battleDefault: kaosBattleDefault,
+  cast: kaosCast,
+  awaken: kaosAwaken,
+} as const;
+
 export type KaosExpression = 'normal' | 'smile';
 
-/** Official Kaos portraits (from the project's own art). */
+/**
+ * Her two small face portraits, from before the standing set.
+ *
+ * Still used by the screens that want a round face in a corner — the
+ * time shift, the ending, the survey. The standing pictures above are
+ * a different thing and go through the role map.
+ */
 export const KAOS_PORTRAITS: Record<KaosExpression, string | null> = {
   normal: kaosNormal,
   smile: kaosSmile,
@@ -188,7 +240,7 @@ export const GALD_BATTLE_DAMAGE: string = GALD_FILES.battleDamage;
  */
 export const BATTLE_FIGURES = {
   hero: heroBattleIdle,
-  kaos: kaosBattleIdle,
+  kaos: KAOS_FIGURES.battleDefault,
   gald: GALD_FILES.battleIdle,
 } as const;
 

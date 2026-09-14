@@ -3,6 +3,19 @@
 export interface DialogueLine {
   speaker: string | null;
   text: string;
+  /**
+   * WHETHER THE AIR HAS GONE TIGHT on this line — 臨戦.
+   *
+   * A line says how it FEELS, not which picture to draw. Anger, guard,
+   * a serious declaration, the beat before a fight: mark it, and Kaos
+   * is drawn with her 臨戦 art instead of her ordinary talking one. The
+   * scene never names a drawing, so the day 臨戦 is re-drawn, or a
+   * third level of tension exists, no line of dialogue changes.
+   *
+   * Absent means calm, which is what nearly every line is — and it is
+   * why the opening needs no marking to come out right.
+   */
+  tense?: boolean;
 }
 
 export const PROLOGUE_LINES: DialogueLine[] = [

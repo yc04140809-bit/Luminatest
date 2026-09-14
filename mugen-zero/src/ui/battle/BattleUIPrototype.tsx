@@ -1074,10 +1074,39 @@ export function BattleUIPrototype({
    * added to content/art, with no change to this screen.
    */
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
-  const view = { beat, downed };
+  // CASTING IS EITHER DOOR. The cut-in banner is an arcana or a named
+  // spell announcing itself; the MAGIC beat is the spell going off. Both
+  // are her doing something worth a different drawing.
+  const casting = cutIn !== null || beat === 'MAGIC';
+  /**
+   * SHE HAS AWAKENED IN THIS FIGHT — and only in this one.
+   *
+   * NOT `magicUnlocked`, and the difference is the whole point. Magic is
+   * something she learned in the fight with Gald and kept, so it is true
+   * in every rabbit fight afterwards; tying her ⑥ drawing to it would
+   * put her in the star dress against a rabbit, which is the thing this
+   * round exists to stop.
+   *
+   * A fight that CARRIES the awakening beat is the story's own moment:
+   * it begins with `magicUnlocked` false and turns it true when she
+   * steps forward. Both halves together are "she awakened here, just
+   * now" — which is exactly 覚醒, and which no ordinary fight can be.
+   */
+  const kaosAwakenedForm = battle.awakening !== null && battle.magicUnlocked;
+  const view = { beat, downed, casting, awakened: kaosAwakenedForm };
   const enemyShown = opponent.artFor(enemyPose(view));
   const heroShown = partyArtFor('hero', heroPose(view));
   const kaosShown = partyArtFor('kaos', kaosPose(view));
+  /**
+   * HER PICTURE IN THE CORNER DOES NOT FLICKER.
+   *
+   * The field swaps to her casting drawing for the length of a spell,
+   * which is the point of having one. A thirty-pixel face in the party
+   * panel doing the same thing twice a turn reads as a glitch rather
+   * than as a performance, so the panel is asked without the moment —
+   * her ordinary fighting picture, or her higher form if she is in one.
+   */
+  const kaosSteady = partyArtFor('kaos', kaosPose({ beat, downed, awakened: kaosAwakenedForm }));
   // It is only lying down on screen if a picture of it lying down
   // exists; otherwise it stays standing rather than being drawn in a
   // pose that means something else.
@@ -1240,7 +1269,7 @@ export function BattleUIPrototype({
     5,
   );
   const turnArtOf = (actorId: string) =>
-    actorId === 'hero' ? heroShown : actorId === 'kaos' ? kaosShown : enemyShown;
+    actorId === 'hero' ? heroShown : actorId === 'kaos' ? kaosSteady : enemyShown;
   const memoryDepthNow = memoryDepth(arcana);
   const memoryPanelRows = memoryRows(memoryLines);
   const placeName = locationNameOf(battleLocationId);
@@ -1877,7 +1906,7 @@ export function BattleUIPrototype({
               {
                 name: 'ケイオス',
                 role: '魔法',
-                art: kaosShown,
+                art: kaosSteady,
                 hp: { now: null, max: null },
                 mp: battle.magicUnlocked
                   ? { now: battle.playerMp, max: battle.playerMaxMp, testId: 'bx-kaos-mp' }

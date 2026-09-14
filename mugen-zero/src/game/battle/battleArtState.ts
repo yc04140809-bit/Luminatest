@@ -12,6 +12,7 @@
 // "add an attack pose" a one-line content change later.
 
 import type { EnemyArtState, PartyArtState } from '../../core/art/artStates';
+import { kaosBattleMode, kaosPortraitState } from '../../content/characters/kaosPortraits';
 
 /** What is happening on screen. 'NONE' is the fight sitting still. */
 export type BattleBeat = 'NONE' | 'STRIKE' | 'TACKLE' | 'HIDE' | 'HURT';
@@ -20,6 +21,23 @@ export interface BeatView {
   beat: string;
   /** The creature has been beaten and is lying down. Outranks the beat. */
   downed: boolean;
+  /**
+   * Kaos is mid-spell, mid-arcana or mid-skill.
+   *
+   * A MOMENT, not a state: it is true for the length of the effect and
+   * false again afterwards, so nothing has to remember to put her back.
+   */
+  casting?: boolean;
+  /**
+   * Kaos is in her higher form for this fight.
+   *
+   * Nothing in the game sets this yet — the awakening round is its
+   * caller. It is here and defaulted false so that her ⑥ drawing has
+   * exactly one way in, and so it cannot arrive by accident: see the
+   * `awakened` state's note in core/art/artStates about being in no
+   * fallback chain.
+   */
+  awakened?: boolean;
 }
 
 /**
@@ -62,11 +80,19 @@ export function heroPose({ beat }: BeatView): PartyArtState {
 /**
  * Kaos' pose.
  *
- * She is not the one swinging: she flinches when the party is hit and
- * otherwise stands. Her blessing and her summon are drawn as light
- * around her rather than as a pose, so there is no skill state here
- * until there is a drawing of one.
+ * She is not the one swinging: she flinches when the party is hit, she
+ * has a drawing of her own for casting, and otherwise she stands.
+ *
+ * THE ORDER IS THE RULE. Awakening outranks everything, because a
+ * higher form does not stop being one mid-spell; then a cast, which is
+ * the moment worth seeing; then being hit; then standing. Her pose goes
+ * through the role map rather than naming an art state, so which
+ * DRAWING is her casting picture is decided in one place and this only
+ * decides WHICH MOMENT this is.
  */
-export function kaosPose({ beat }: BeatView): PartyArtState {
-  return beat === 'HURT' ? 'battle_damage' : 'battle_idle';
+export function kaosPose({ beat, casting = false, awakened = false }: BeatView): PartyArtState {
+  if (awakened) return kaosPortraitState(kaosBattleMode({ awakened: true }));
+  if (casting) return kaosPortraitState(kaosBattleMode({ casting: true }));
+  if (beat === 'HURT') return 'battle_damage';
+  return kaosPortraitState(kaosBattleMode());
 }

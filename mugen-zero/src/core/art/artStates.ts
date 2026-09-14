@@ -91,6 +91,40 @@ export type PartyArtState =
   | 'battle_skill_2'
   | 'battle_down'
   | 'talk'
+  /**
+   * The same person, talking, with the air gone tight — 臨戦.
+   *
+   * Anger, guard, meaning it. A SEPARATE STATE rather than an
+   * expression on `talk`, because it is a different drawing of the
+   * whole figure and not a swapped face: the stance changes, and a
+   * scene either wants that stance or it does not.
+   */
+  | 'talk_serious'
+  /**
+   * Mid-cast: the moment a spell, an arcana or a skill goes off.
+   *
+   * Distinct from `battle_skill_1`, which is a slot for a particular
+   * named skill's pose. This is the general one — what somebody looks
+   * like doing something special — and it is what a battle swaps to for
+   * the length of an effect and back out of afterwards.
+   */
+  | 'battle_cast'
+  /**
+   * A higher form: a transformation, a limit, a story state.
+   *
+   * NEVER a fallback for anything. It is in the chains below for
+   * nothing, on purpose — a character who has one and is not in it must
+   * not be drawn in it because their ordinary pose is missing.
+   */
+  | 'awakened'
+  /**
+   * The picture a menu is built around: a status screen, a profile.
+   *
+   * Not a conversation and not a fight, which is why it is neither
+   * `talk` nor `fullbody`: those are pictures of somebody DOING
+   * something, and this is a picture of who they are.
+   */
+  | 'menu'
   | 'portrait'
   | 'fullbody'
   | 'cutin'
@@ -108,6 +142,19 @@ export const ENEMY_FALLBACK: readonly EnemyArtState[] = ['idle', 'side', 'front'
 export const PARTY_FALLBACK: readonly PartyArtState[] = ['battle_idle', 'fullbody', 'portrait'];
 
 /**
+ * AND `awakened` IS IN NO CHAIN AT ALL.
+ *
+ * Every other state falls back to something, because a missing drawing
+ * should show the nearest thing rather than a hole. A higher form is
+ * the one exception in both directions: asking for it and not having it
+ * must come back as the ORDINARY pose, and asking for anything else
+ * must never be answered with it. Kaos fought every rabbit in the
+ * forest in her star dress for months because the file in the
+ * `battle_idle` slot happened to be that drawing — the shape of this
+ * list is what stops that being possible again.
+ */
+
+/**
  * What to show in a conversation when there is no talking picture.
  *
  * A different chain from the battlefield's, and that is the point: a
@@ -117,13 +164,18 @@ export const PARTY_FALLBACK: readonly PartyArtState[] = ['battle_idle', 'fullbod
  * is what "a close-up is a way of showing, not a kind of picture" means
  * in practice.
  */
-export const TALK_FALLBACK: readonly PartyArtState[] = ['fullbody', 'portrait', 'battle_idle'];
+export const TALK_FALLBACK: readonly PartyArtState[] = [
+  'talk',
+  'fullbody',
+  'portrait',
+  'battle_idle',
+];
 
 /** Which chain a request belongs to. */
+const TALK_STATES = new Set<PartyArtState>(['talk', 'talk_serious', 'portrait', 'cutin', 'menu']);
+
 export function partyChainFor(state: PartyArtState): readonly PartyArtState[] {
-  return state === 'talk' || state === 'portrait' || state === 'cutin'
-    ? TALK_FALLBACK
-    : PARTY_FALLBACK;
+  return TALK_STATES.has(state) ? TALK_FALLBACK : PARTY_FALLBACK;
 }
 
 /** One character's pictures. Every state is optional, on purpose. */
