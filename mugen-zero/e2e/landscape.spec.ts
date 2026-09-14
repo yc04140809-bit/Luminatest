@@ -211,7 +211,13 @@ test.describe('the battlefield', () => {
       // the corner the fight most needed back.
       'bx-world-memory': ['left', 'top'],
       'bp-modes': ['right', 'bottom'],
-      'bp-commands': ['centre', 'bottom'],
+      // THE TURNS GO LEFT. They were centred, with the AUTO/×2/ESCAPE
+      // chips on the right — and between them they crowded the side the
+      // party is drawn on. What the bottom of the screen says now is
+      // that the left half is what you DO and the right half is how you
+      // watch, and the room that opened up is the room the two of them
+      // are standing in.
+      'bp-commands': ['left', 'bottom'],
     } as const;
     for (const [id, [side, end]] of Object.entries(corners)) {
       const box = (await page.getByTestId(id).boundingBox())!;
