@@ -26,9 +26,33 @@ async function applyInsets(page: Page, insets = INSETS) {
       padding: ${insets.top}px ${insets.right}px ${insets.bottom}px ${insets.left}px !important;
     }`,
   });
-  // The stage re-measures from a ResizeObserver, which fires on the
-  // next frame rather than on the next statement.
-  await page.waitForTimeout(300);
+  // WAIT FOR THE MEASUREMENT, NOT FOR A STOPWATCH.
+  //
+  // The stage re-measures from a ResizeObserver, which fires on a later
+  // frame rather than on the next statement — and under three browsers
+  // sharing four cores, "a later frame" is not reliably inside 300ms.
+  // A fixed wait here is a test that passes on an idle machine and
+  // fails on a loaded one: it reported the command row 18px below the
+  // bottom of the screen, which was the pre-inset layout measured
+  // before the stage had shrunk to fit the new one.
+  //
+  // So it waits for the thing it was waiting for.
+  const size = page.viewportSize() ?? { width: 844, height: 390 };
+  await expect
+    .poll(
+      async () => {
+        const b = await page.getByTestId('landscape-stage').boundingBox();
+        if (!b) return false;
+        return (
+          b.x >= insets.left - 1 &&
+          b.y >= insets.top - 1 &&
+          b.x + b.width <= size.width - insets.right + 1 &&
+          b.y + b.height <= size.height - insets.bottom + 1
+        );
+      },
+      { timeout: 20_000, message: 'the stage never moved inside the insets' },
+    )
+    .toBe(true);
 }
 
 interface Box {

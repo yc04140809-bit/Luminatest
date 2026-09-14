@@ -165,20 +165,45 @@ test.describe('one action a turn', () => {
     await awaken(page);
     const enemyHp = page.getByTestId('bp-enemy-read');
 
+    /**
+     * WHAT THE BAR SAYS ONCE IT HAS STOPPED SAYING ANYTHING NEW.
+     *
+     * This was a `waitForTimeout(700)` on each side of the cast, and
+     * 700ms is a guess about a machine. On a loaded one the reading
+     * before the spell was taken while the PREVIOUS turn's damage was
+     * still on its way to the DOM, and the spell was credited with a
+     * sword blow: nine came back as twelve. Nothing about the fight
+     * was wrong. The stopwatch was.
+     *
+     * Two identical readings in a row is the honest test for "the
+     * number has landed", and it costs nothing when it has.
+     */
+    const settled = async (): Promise<string> => {
+      for (let i = 0; i < 40; i++) {
+        const first = (await enemyHp.textContent()) ?? '';
+        await page.waitForTimeout(200);
+        if (((await enemyHp.textContent()) ?? '') === first) return first;
+      }
+      return (await enemyHp.textContent()) ?? '';
+    };
+    /** What this one action took off, waited for by its effect. */
+    const tookOff = async (was: string): Promise<number> => {
+      await expect(enemyHp).not.toHaveText(was, { timeout: 20_000 });
+      return hpOf(was) - hpOf(await settled());
+    };
+
     // The cheap one first, for something to measure against.
     await page.getByTestId('bp-magic').click();
-    let before = hpOf(await enemyHp.textContent());
+    let before = await settled();
     await page.getByTestId('magic-starlight_bolt').click();
-    await page.waitForTimeout(700);
-    const bolt = before - hpOf(await enemyHp.textContent());
+    const bolt = await tookOff(before);
     await expectMp(page, 42);
 
     await page.getByTestId('bp-magic').click();
-    before = hpOf(await enemyHp.textContent());
+    before = await settled();
     await page.getByTestId('magic-comet_strike').click();
     await expect(page.getByTestId('magic-tray')).toHaveCount(0);
-    await page.waitForTimeout(700);
-    const comet = before - hpOf(await enemyHp.textContent());
+    const comet = await tookOff(before);
 
     // Twenty when he is standing open, nine when he is behind his
     // guard — this is the one spell of hers a raised knife blunts, and
