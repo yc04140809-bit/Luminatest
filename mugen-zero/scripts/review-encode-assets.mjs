@@ -33,17 +33,28 @@ export const REVIEW_ASSET_DIR = join(APP_DIR, '.review-assets');
  * small enough to inline as delivered, and is left alone.
  */
 export const REVIEW_ASSETS = [
+  // THE TWO ARCANA CGS, AND THE ONE TIME THIS LIST HAS GONE BACKWARDS.
+  //
+  // They were the heaviest things left in the artifact — 1.4 MB of the
+  // 16 MiB between them — and Kaos' six standing pictures did not fit
+  // on top of them. Something had to come down, and seven tenths of a
+  // 1536-pixel illustration is 1075 pixels for a stage 390 tall: still
+  // nearly twice the pixels any phone can show of it, and the least
+  // harmful byte in the building.
+  //
+  // The delivered files are untouched; the game draws them whole. If
+  // the artifact ever gets room back, this is the first line to undo.
   {
     source: join(APP_DIR, 'src/assets/arcana/unknown-ancient-dragon.png'),
     out: join(REVIEW_ASSET_DIR, 'unknown-ancient-dragon.webp'),
-    // Reviewed two rounds ago and unchanged since.
     quality: 55,
+    scale: 0.7,
   },
   {
     source: join(APP_DIR, 'src/assets/arcana/ancient-breath.png'),
     out: join(REVIEW_ASSET_DIR, 'ancient-breath.webp'),
-    // Reviewed two rounds ago and unchanged since.
     quality: 55,
+    scale: 0.7,
   },
   // The forest field and Gald face down: 5.5 MB of PNG between them,
   // which put the artifact back over the limit the moment they landed.
@@ -77,7 +88,7 @@ export const REVIEW_ASSETS = [
   // A battle figure is drawn whole, about two hundred CSS pixels tall
   // on a three-hundred-and-ninety pixel stage — so a 1145-pixel file is
   // between three and six times more picture than any phone can put on
-  // screen, and six tenths of it is still oversampled at 2x. A TALKING
+  // screen, and half of it is still oversampled at 2x. A TALKING
   // figure is not drawn whole: the dialogue plate crops her FACE out of
   // it, which is about a sixth of the file's width blown up to a
   // hundred and forty-eight pixels. Shrinking those would be shrinking
@@ -89,17 +100,17 @@ export const REVIEW_ASSETS = [
   {
     source: join(APP_DIR, 'src/assets/characters/kaos/kaos-battle-default.png'),
     out: join(REVIEW_ASSET_DIR, 'kaos-battle-default.webp'),
-    scale: 0.6,
+    scale: 0.5,
   },
   {
     source: join(APP_DIR, 'src/assets/characters/kaos/kaos-cast.png'),
     out: join(REVIEW_ASSET_DIR, 'kaos-cast.webp'),
-    scale: 0.6,
+    scale: 0.5,
   },
   {
     source: join(APP_DIR, 'src/assets/characters/kaos/kaos-awaken.png'),
     out: join(REVIEW_ASSET_DIR, 'kaos-awaken.webp'),
-    scale: 0.6,
+    scale: 0.5,
   },
   {
     source: join(APP_DIR, 'src/assets/characters/kaos/kaos-talk-default.png'),
@@ -110,14 +121,15 @@ export const REVIEW_ASSETS = [
     out: join(REVIEW_ASSET_DIR, 'kaos-talk-rinsen.webp'),
   },
   // NO SCREEN SHOWS THIS ONE YET. It is in the artifact only because
-  // the manifest imports it and the build inlines what is imported —
-  // so it is here at half size to cost as little as an unreachable
-  // picture should, and it goes back to the same terms as the others
-  // the day the menu screen exists to show it.
+  // the manifest imports it and the build inlines what is imported, so
+  // it is here as a THUMBNAIL — twenty kilobytes for a picture nobody
+  // in the artifact can reach. It goes back to the same terms as the
+  // others the day the menu screen exists to show it.
   {
     source: join(APP_DIR, 'src/assets/characters/kaos/kaos-menu.png'),
     out: join(REVIEW_ASSET_DIR, 'kaos-menu.webp'),
-    scale: 0.5,
+    quality: 70,
+    scale: 0.25,
   },
   {
     source: join(APP_DIR, 'src/assets/characters/gald/gald-battle-idle.png'),
