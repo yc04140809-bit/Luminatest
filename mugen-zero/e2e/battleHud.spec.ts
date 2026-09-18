@@ -325,14 +325,23 @@ test.describe('WORLD MEMORY, in a fight', () => {
 });
 
 test.describe('the three commands the overhaul added', () => {
-  test('アイテム opens, is honest about being empty, and closes', async ({ page }) => {
+  /**
+   * IT USED TO SAY 「持ち物はまだない。」 AND THAT WAS TRUE.
+   *
+   * The bag has things in it now, so the honest empty state changed
+   * with it: this world has nothing USABLE, which is a different
+   * sentence from having nothing. The behaviour under test is the same
+   * as it always was — the command opens, says something true, and
+   * closes — and it is the sentence that moved, not the rule.
+   */
+  test('アイテム opens, is honest about what is in the bag, and closes', async ({ page }) => {
     await freshWorld(page);
     await openPreview(page);
     const tray = page.getByTestId('bp-item-tray');
     await expect(tray).toHaveCount(0);
     await page.getByTestId('bp-item').click();
     await expect(tray).toBeVisible();
-    await expect(tray).toContainText('持ち物はまだない。');
+    await expect(page.getByTestId('bp-item-empty')).toContainText('使えるものは持っていない。');
     await page.getByTestId('bp-item').click();
     await expect(tray).toHaveCount(0);
   });

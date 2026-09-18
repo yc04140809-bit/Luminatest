@@ -280,20 +280,22 @@ test.describe('battle UI prototype', () => {
 
   test('opens SKILL and ITEM without inventing either system', async ({ page }) => {
     // Both commands are real — they open, they close, and they are
-    // honest about being empty. What they must never be is a list of
-    // things that do not exist, and what they must never do is go
+    // honest about what is in them. What they must never be is a list
+    // of things that do not exist, and what they must never do is go
     // missing: a player who cannot find アイテム concludes the game has
     // no items rather than that they are carrying none.
     //
     // 身構える used to live in the SKILL tray and is now 防御 on the
-    // command row, where a turn belongs. So this tray is genuinely
-    // empty, and says so.
+    // command row, where a turn belongs, so that tray is genuinely
+    // empty. The bag is not empty any more — it has real things in it
+    // — but a fresh world is carrying nothing usable, which is a
+    // different sentence and the one it now says.
     await freshWorld(page);
     await setup(page, { ui: 'PROTOTYPE', story: 'off' });
     await walkIntoAFight(page);
     for (const [command, trayId, empty] of [
       ['bp-skill', 'bp-skill-tray', 'このさきに覚えるものが入ります。'],
-      ['bp-item', 'bp-item-tray', '持ち物はまだない。'],
+      ['bp-item', 'bp-item-tray', '使えるものは持っていない。'],
     ] as const) {
       const tray = page.getByTestId(trayId);
       await expect(tray).toHaveCount(0);
