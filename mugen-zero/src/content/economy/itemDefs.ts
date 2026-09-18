@@ -39,16 +39,17 @@ export const ITEM_DEFS: readonly ItemDef[] = [
      * party levels: the first herb a player buys should not still be
      * the best answer at level twenty.
      *
-     * BATTLE_ONLY is not a restriction, it is the truth about the
-     * game as it stands: health is restored in full at the start of
-     * every fight, so a herb taken on the road would heal nothing and
-     * be gone. Better to refuse it and say why than to let a player
-     * spend sixteen LUMI on nothing.
+     * BOTH, now that there is a wound outside a fight to close. It was
+     * BATTLE_ONLY, and that was the truth at the time rather than a
+     * restriction: health was restored in full at the start of every
+     * fight, so a herb taken on the road would have healed nothing and
+     * been gone. What changed is the game, not the herb — the party
+     * carries what a fight cost them out of it now.
      */
     use: {
       kind: 'HEAL',
       amount: 30,
-      where: 'BATTLE_ONLY',
+      where: 'BOTH',
       line: '薬草を使った。青い匂いが立つ。',
     },
   },
@@ -83,7 +84,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     use: {
       kind: 'RESTORE_MP',
       amount: 16,
-      where: 'BATTLE_ONLY',
+      where: 'BOTH',
       line: '魔力水を飲んだ。頭の奥が冷たくなる。',
     },
   },

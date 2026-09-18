@@ -6505,3 +6505,31 @@ body,
   text-align: center;
   color: var(--text-dim);
 }
+
+/* ---- 持ち物, the doing half ---- */
+.bag-condition {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: var(--text-dim);
+}
+.bag-use {
+  margin-top: 8px;
+  width: 100%;
+  min-height: var(--tap-min);
+  font-size: 13px;
+}
+.bag-use:disabled {
+  opacity: 0.55;
+}
+.bag-said {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--accent, #c9a227);
+  border-radius: 4px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--accent, #c9a227);
+}

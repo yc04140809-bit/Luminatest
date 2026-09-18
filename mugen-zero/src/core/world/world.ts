@@ -6,6 +6,13 @@
 import type { LifeChoiceId, Screen } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
 import { SAVE_VERSION, migrateRows } from './saveSchema';
+import { statsForLevels, type PartyStats } from '../progression/levelStats';
+import {
+  fullCondition,
+  readCondition,
+  type PartyCondition,
+} from '../party/condition';
+import { refuseUse, useYield, type ItemRefusal } from '../../game/battle/battleLogic';
 import {
   readBag,
   readCharacterState,
@@ -233,6 +240,19 @@ const CLAIMED_REWARDS_KEPT = 40;
  * the answer to being interrupted mid-battle: the fight is simply not
  * there any more, which is the same as never having been paid for it.
  */
+/**
+ * WHAT THE PARTY HAS LEFT, between fights.
+ *
+ * New this round, and the whole reason a herb can be drunk on the road
+ * at all: before it, every fight began full and nothing carried out of
+ * one, so there was no wound outside a fight for an item to close.
+ *
+ * Stored as absolute numbers and judged against today's ceiling when
+ * read — a level gained between sessions raises the maximum, and only
+ * the absolute number survives that.
+ */
+const CONDITION_KEY = 'party_condition';
+
 const SESSION_KEY = 'session';
 
 export type ResumeArea = 'HOME' | 'EXPLORE';
@@ -429,6 +449,8 @@ export class World {
   private progression: Record<string, LevelProgress>;
   private claimedRewards: string[];
   private resumeArea: ResumeArea;
+  /** Null while nothing has hurt them: a world with no row is whole. */
+  private condition: PartyCondition | null;
 
   private readonly health: SaveHealth;
 
@@ -452,6 +474,7 @@ export class World {
     this.progression = fields.progression;
     this.claimedRewards = fields.claimedRewards;
     this.resumeArea = fields.resumeArea;
+    this.condition = fields.condition;
     this.health = health;
   }
 
@@ -622,6 +645,117 @@ export class World {
   /** Where 「つづきから」 should put the player back. */
   getResumeArea(): ResumeArea {
     return this.resumeArea;
+  }
+
+  // ---- WHAT THE PARTY HAS LEFT ----
+
+  /** The ceilings, which come from the levels and are never stored. */
+  getPartyStats(): PartyStats {
+    return statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
+  }
+
+  /**
+   * What they have left, clamped against the party they are now.
+   *
+   * A world that has never been hurt has no row here and comes back
+   * whole, which is also what a new world is.
+   */
+  getCondition(): PartyCondition {
+    const stats = this.getPartyStats();
+    return this.condition ? readCondition(this.condition, stats) : fullCondition(stats);
+  }
+
+  /**
+   * What a fight left them with.
+   *
+   * Called on the way OUT of a battle, with the numbers the fight
+   * ended on. Clamped here rather than trusted: the caller is a
+   * screen, and a screen is the last place a ceiling should be
+   * enforced.
+   */
+  async setCondition(next: PartyCondition): Promise<void> {
+    const clamped = readCondition(next, this.getPartyStats());
+    if (this.condition && this.condition.hp === clamped.hp && this.condition.mp === clamped.mp) {
+      return;
+    }
+    await this.store.commit({ putState: [{ key: CONDITION_KEY, value: clamped }] });
+    this.condition = clamped;
+    this.emit();
+  }
+
+  /**
+   * Whole again — a night's rest, or being carried home beaten.
+   *
+   * THE FREE WAY BACK, and it has to stay free. Carrying a wound out
+   * of a fight means a player can be left too hurt to win the next
+   * one, and the answer to that must never be "buy a herb": somebody
+   * with no LUMI and no bag would be stranded in their own save.
+   */
+  async restoreParty(): Promise<void> {
+    if (this.condition === null) return;
+    await this.store.commit({ putState: [{ key: CONDITION_KEY, value: null }] });
+    this.condition = null;
+    this.emit();
+  }
+
+  /**
+   * USING SOMETHING OUT OF THE BAG, OUTSIDE A FIGHT.
+   *
+   * ONE COMMIT for the thing and the effect, which is the whole point
+   * of it living here rather than in the screen. A bag that called
+   * `removeItem` and then `setCondition` could be interrupted between
+   * them, and both halves of that are bugs a player would notice: a
+   * herb that vanished without healing, or one that healed for ever.
+   *
+   * It refuses before it touches anything, and it refuses with a
+   * REASON — the same reasons the tray in a fight gives, decided by
+   * the same function, so the two places can never disagree.
+   *
+   * `targetId` is accepted and, for now, ignored: the battle has
+   * shared one health bar since it was written, so there is exactly
+   * one thing to aim at. It is in the signature because the day there
+   * are four of them, this call should not have to change shape.
+   */
+  async useItemFromBag(itemId: string, targetId = 'party'): Promise<BagUseResult> {
+    const def = itemDef(itemId);
+    const held = countInBag(this.inventory, itemId);
+    if (!def?.use) return { ok: false, refusal: 'NONE_LEFT', given: 0, stat: 'HP', name: itemId, held };
+    const stats = this.getPartyStats();
+    const condition = this.getCondition();
+    const refusal = refuseUse(
+      { place: 'FIELD', hp: condition.hp, maxHp: stats.maxHp, mp: condition.mp, maxMp: stats.maxMp },
+      def.use,
+      held,
+    );
+    if (refusal) return { ok: false, refusal, given: 0, stat: 'HP', name: def.name, held };
+
+    const { given, stat } = useYield(def.use, {
+      hp: condition.hp,
+      maxHp: stats.maxHp,
+      mp: condition.mp,
+      maxMp: stats.maxMp,
+    });
+    const taken = removeFromBag(this.inventory, itemId, 1);
+    // Nothing above this line touched the world, so a refusal here
+    // costs nothing — and nothing below it can half-happen.
+    if (taken.moved === 0) {
+      return { ok: false, refusal: 'NONE_LEFT', given: 0, stat, name: def.name, held };
+    }
+    const next: PartyCondition = {
+      hp: stat === 'HP' ? condition.hp + given : condition.hp,
+      mp: stat === 'MP' ? condition.mp + given : condition.mp,
+    };
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: taken.inventory },
+        { key: CONDITION_KEY, value: next },
+      ],
+    });
+    this.inventory = taken.inventory;
+    this.condition = next;
+    this.emit();
+    void targetId;
+    return { ok: true, refusal: null, given, stat, name: def.name, held: held - 1 };
   }
 
   /**
@@ -1831,6 +1965,8 @@ export class World {
     // And they are standing in the village, because that is where a
     // world starts.
     this.resumeArea = 'HOME';
+    // And they are whole, because a new world has not been in a fight.
+    this.condition = null;
     this.emit();
   }
 
@@ -1882,6 +2018,9 @@ export class World {
     this.arcana = readArcanaRows({});
     this.accidents = {};
     this.resumeArea = 'HOME';
+    // Wound the story back, and the party's wounds with it: a fight
+    // that has not happened yet cannot have cost them anything.
+    this.condition = null;
     this.emit();
   }
 }
@@ -1898,6 +2037,35 @@ const BACKUP_META_KEY = 'worldBackup';
  * tool that does not exist yet, or for somebody reporting a bug.
  */
 const DAMAGED_META_KEY = 'worldDamaged';
+
+/** What using something out of the bag did, or why it did not. */
+export interface BagUseResult {
+  ok: boolean;
+  refusal: ItemRefusal | null;
+  /** How much actually went back — never more than there was room for. */
+  given: number;
+  stat: 'HP' | 'MP';
+  name: string;
+  /** How many are left afterwards. */
+  held: number;
+}
+
+/**
+ * The stored condition row, before it is judged against a ceiling.
+ *
+ * Kept raw on purpose: the ceiling comes from the levels, and the
+ * levels are read in the same pass as this. Clamping happens at every
+ * read instead, which is the only version that survives a level gained
+ * between one session and the next.
+ */
+function readStoredCondition(raw: unknown): PartyCondition | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const held = raw as { hp?: unknown; mp?: unknown };
+  const hp = Math.floor(Number(held.hp));
+  const mp = Math.floor(Number(held.mp));
+  if (!Number.isFinite(hp) || !Number.isFinite(mp)) return null;
+  return { hp, mp };
+}
 
 /** What was found in a save that could not be read, kept for looking at. */
 export interface DamagedSave {
@@ -1940,6 +2108,7 @@ interface WorldFields {
   progression: Record<string, LevelProgress>;
   claimedRewards: string[];
   resumeArea: ResumeArea;
+  condition: PartyCondition | null;
 }
 
 /** What reading a save had to say about it. */
@@ -2102,6 +2271,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       progression: take(PROGRESSION_KEY, readGrowth(byKey.get(PROGRESSION_KEY))),
       claimedRewards: claimed.slice(-CLAIMED_REWARDS_KEPT),
       resumeArea: readResumeArea(byKey.get(SESSION_KEY)),
+      condition: readStoredCondition(byKey.get(CONDITION_KEY)),
     },
     repairedKeys,
     unreadableKeys,

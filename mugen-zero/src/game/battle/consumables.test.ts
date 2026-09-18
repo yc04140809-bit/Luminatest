@@ -6,6 +6,7 @@ import {
   playerAttack,
   refuseItem,
   useItem,
+  useYield,
   type BattleState,
 } from './battleLogic';
 import { ITEM_DEFS, itemDef } from '../../content/economy/itemDefs';
@@ -40,6 +41,8 @@ const fixed = (n: number) => () => n;
  */
 const HARMLESS = { name: 'かかし', hp: 500, attackMin: 0, attackMax: 0 };
 
+const hurt50 = (state: BattleState): BattleState => hurt(state, 50);
+
 function hurt(state: BattleState, by: number): BattleState {
   return { ...state, playerHp: Math.max(1, state.playerHp - by) };
 }
@@ -48,10 +51,13 @@ describe('the herb itself', () => {
   it('says what it does, and where', () => {
     expect(USE.kind).toBe('HEAL');
     expect(USE.amount).toBeGreaterThan(0);
-    // In a fight only, and that is the truth about the game rather
-    // than a restriction: health is full at the start of every fight,
-    // so a herb on the road would heal nothing and be gone.
-    expect(USE.where).toBe('BATTLE_ONLY');
+    // IT WAS BATTLE_ONLY, and that was the truth at the time rather
+    // than a restriction: health was full at the start of every fight,
+    // so a herb on the road would have healed nothing and been gone.
+    // What changed is the game — the party carries what a fight cost
+    // them out of it now — so the herb is worth drinking in both
+    // places and says so.
+    expect(USE.where).toBe('BOTH');
   });
 
   it('is worth less than it costs to buy, but only just', () => {
@@ -119,10 +125,18 @@ describe('when it cannot be used', () => {
     expect(refuseItem(state, USE, 3)).toBe('FIGHT_OVER');
   });
 
-  it('because this is not a fight', () => {
-    expect(refuseItem(null, USE, 3)).toBe('NOT_IN_A_FIGHT');
-    const anywhere: ItemUse = { ...USE, where: 'ANYWHERE' };
-    expect(refuseItem(null, anywhere, 3)).toBeNull();
+  it('because of where the player is standing, either way round', () => {
+    // The herb is good in both places now, so the rule is tested with
+    // the two shapes that are NOT: a thing only a fight is good for,
+    // and a thing only the road is.
+    const inFightsOnly: ItemUse = { ...USE, where: 'BATTLE_ONLY' };
+    const onTheRoadOnly: ItemUse = { ...USE, where: 'FIELD_ONLY' };
+    expect(refuseItem(null, inFightsOnly, 3)).toBe('NOT_IN_A_FIGHT');
+    expect(refuseItem(null, USE, 3), 'and the herb is fine out here').toBeNull();
+
+    const hurt = hurt50(createBattle(HARMLESS));
+    expect(refuseItem(hurt, onTheRoadOnly, 3)).toBe('NOT_IN_THE_FIELD');
+    expect(refuseItem(hurt, inFightsOnly, 3)).toBeNull();
   });
 
   it('and a refused use changes nothing at all', () => {
@@ -231,5 +245,45 @@ describe('levels in a real fight', () => {
     expect(five.playerMaxHp).toBeGreaterThan(one.playerMaxHp);
     expect(five.playerMaxMp).toBeGreaterThan(one.playerMaxMp);
     expect(five.playerHp, 'and a fight starts full, whatever the bar is').toBe(five.playerMaxHp);
+  });
+});
+
+describe('what a fight is walked into with', () => {
+  /**
+   * NEW THIS ROUND, and the whole reason a herb can be drunk on the
+   * road: the party carries what a fight cost them out of it, so there
+   * is a wound out there for an item to close.
+   */
+  it('is whole when nothing says otherwise — every fight before this one', () => {
+    const fresh = createBattle(HARMLESS);
+    expect(fresh.playerHp).toBe(fresh.playerMaxHp);
+    expect(fresh.playerMp).toBe(fresh.playerMaxMp);
+  });
+
+  it('is what the world carried in', () => {
+    const carried = createBattle(HARMLESS, undefined, { condition: { hp: 42, mp: 7 } });
+    expect(carried.playerHp).toBe(42);
+    expect(carried.playerMp).toBe(7);
+    expect(carried.playerMaxHp, 'and the ceiling is still the level’s').toBe(100);
+  });
+
+  /** A saved condition must never become a bigger bar than the level allows. */
+  it('is never more than the party can hold', () => {
+    const over = createBattle(HARMLESS, undefined, { condition: { hp: 9999, mp: 9999 } });
+    expect(over.playerHp).toBe(over.playerMaxHp);
+    expect(over.playerMp).toBe(over.playerMaxMp);
+  });
+
+  it('is never nothing: nobody walks into a fight at zero', () => {
+    const ruined = createBattle(HARMLESS, undefined, { condition: { hp: 0, mp: -5 } });
+    expect(ruined.playerHp).toBe(1);
+    expect(ruined.playerMp).toBe(0);
+  });
+
+  it('and a herb drunk out there is worth exactly what it is worth in here', () => {
+    const wounded = { hp: 40, maxHp: 100, mp: 0, maxMp: 48 };
+    expect(useYield(USE, wounded).given).toBe(USE.amount);
+    const nearlyWell = { hp: 95, maxHp: 100, mp: 0, maxMp: 48 };
+    expect(useYield(USE, nearlyWell).given, 'only what there is room for').toBe(5);
   });
 });

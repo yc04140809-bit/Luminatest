@@ -85,9 +85,27 @@ export interface ItemUse {
   kind: ItemUseKind;
   /** How much, flat. Never a share of a maximum — see the item defs. */
   amount: number;
-  where: 'BATTLE_ONLY' | 'ANYWHERE';
+  where: ItemUseWhere;
   /** Said in the log as it is used, before what it did. */
   line: string;
+}
+
+/**
+ * WHERE A THING CAN BE USED.
+ *
+ * The fourth answer — a thing that cannot be used at all — is not in
+ * here on purpose: it is the ABSENCE of a `use`. An acorn with
+ * `where: 'NOWHERE'` would be a thing that claims to do something and
+ * then refuses, and every screen would have to know the difference
+ * between "no use" and "a use that never applies". One of those is a
+ * fact about the item; the other is a rule dressed up as one.
+ */
+export type ItemUseWhere = 'BATTLE_ONLY' | 'FIELD_ONLY' | 'BOTH';
+
+/** Whether this use applies where the player currently is. */
+export function usableIn(where: ItemUseWhere, place: 'BATTLE' | 'FIELD'): boolean {
+  if (where === 'BOTH') return true;
+  return place === 'BATTLE' ? where === 'BATTLE_ONLY' : where === 'FIELD_ONLY';
 }
 
 export type ItemUseKind = 'HEAL' | 'RESTORE_MP';

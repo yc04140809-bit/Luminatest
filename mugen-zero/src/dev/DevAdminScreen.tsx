@@ -3,6 +3,10 @@ import type { World } from '../core/world/world';
 import { toAbsoluteDay } from '../core/time/calendar';
 import { memoryEventLabel } from '../content/events/creatureLifeChoice';
 import { SCENARIO_PRESETS } from './presets';
+import { itemDef } from '../content/economy/itemDefs';
+
+/** The three things worth having in a bag while testing one. */
+const ITEM_TEST_GIFTS = ['FOREST_HERB', 'MANA_WATER', 'ROUND_ACORN'] as const;
 import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
@@ -159,6 +163,8 @@ export function DevAdminScreen({
    * debugging their own tooling.
    */
   const [keepBelongings, setKeepBelongings] = useState(false);
+  const condition = world.getCondition();
+  const partyStats = world.getPartyStats();
   const [showGodView, setShowGodView] = useState(false);
 
   const run = async (label: string, op: () => Promise<unknown>) => {
@@ -822,6 +828,67 @@ export function DevAdminScreen({
         撃破 {rabbit.defeated} 体 ／ 特殊個体なしの連続 {rabbit.sinceStory} 体 ／ 命名済み{' '}
         {rabbit.named} 体。次の勝利で特殊個体になる確率{' '}
         {Math.round(storyTriggerChance(rabbit.sinceStory + 1) * 100)}%。
+      </div>
+
+      {/* ---- ITEM / BAG TEST ----
+          Everything needed to check the bag by hand in ten seconds:
+          something to carry, and a wound to spend it on. Buttons
+          rather than a panel, because the thing being tested is a
+          different screen and this is only the way to get there. */}
+      <div style={sectionTitle}>ITEM / BAG TEST</div>
+      <div style={row}>
+        {ITEM_TEST_GIFTS.map((itemId) => (
+          <button
+            key={itemId}
+            className="btn"
+            style={smallBtn}
+            data-testid={`dev-give-${itemId}`}
+            disabled={busy}
+            onClick={() => run(`GIVE ${itemId}`, () => world.addItem(itemId, 1))}
+          >
+            + {itemDef(itemId)?.name ?? itemId}
+          </button>
+        ))}
+        <button
+          className="btn"
+          style={smallBtn}
+          data-testid="dev-hurt-party"
+          disabled={busy}
+          onClick={() =>
+            run('HURT', async () => {
+              const { hp, mp } = world.getCondition();
+              await world.setCondition({ hp: Math.max(1, hp - 40), mp });
+            })
+          }
+        >
+          HP -40
+        </button>
+        <button
+          className="btn"
+          style={smallBtn}
+          data-testid="dev-drain-party"
+          disabled={busy}
+          onClick={() =>
+            run('DRAIN', async () => {
+              const { hp, mp } = world.getCondition();
+              await world.setCondition({ hp, mp: Math.max(0, mp - 24) });
+            })
+          }
+        >
+          MP -24
+        </button>
+        <button
+          className="btn"
+          style={smallBtn}
+          data-testid="dev-restore-party"
+          disabled={busy}
+          onClick={() => run('RESTORE', () => world.restoreParty())}
+        >
+          全回復
+        </button>
+      </div>
+      <div className="location-desc" data-testid="dev-condition">
+        HP {condition.hp} / {partyStats.maxHp} ／ MP {condition.mp} / {partyStats.maxMp}
       </div>
 
       {/* ---- SAVE HEALTH ----

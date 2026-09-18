@@ -3,7 +3,7 @@
 
 import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
 import { BASE_STATS, type PartyStats } from '../../core/progression/levelStats';
-import type { ItemUse } from '../../core/economy/items';
+import { usableIn, type ItemUse } from '../../core/economy/items';
 import {
   isBoosting,
   isMending,
@@ -452,6 +452,18 @@ export interface BattleOptions {
    * this file used to hard-code.
    */
   stats?: PartyStats;
+  /**
+   * What the party walked in with.
+   *
+   * ABSENT MEANS WHOLE, which is what every fight was before this
+   * existed and what most fights still are. A wound carried in is the
+   * price of a wound being carried OUT, and the free way back to full
+   * is a night's rest — so nobody can be stranded by it.
+   *
+   * Clamped by the caller, not here: this file has never known what a
+   * maximum is except through `stats`, and it should not start.
+   */
+  condition?: { hp: number; mp: number };
 }
 
 export function createBattle(
@@ -461,13 +473,18 @@ export function createBattle(
 ): BattleState {
   const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
   const stats = options.stats ?? BASE_STATS;
+  // Whole unless the world says otherwise, and never more than the
+  // party can hold: a saved condition from before a level was lost
+  // must not become a bigger health bar than the level allows.
+  const startHp = Math.max(1, Math.min(stats.maxHp, options.condition?.hp ?? stats.maxHp));
+  const startMp = Math.max(0, Math.min(stats.maxMp, options.condition?.mp ?? stats.maxMp));
   return {
     // Raised from 40 with the tempo retune. Forty was two or three of a
     // bandit's blows, which is why every fight had to be over in two or
     // three of the player's — the health bar was what made a fight
     // short, not the enemy's. Everything that heals or protects is
     // written as a share of this, so the retune is one number.
-    playerHp: stats.maxHp,
+    playerHp: startHp,
     playerMaxHp: stats.maxHp,
     enemyHp: spec.hp,
     enemyMaxHp: spec.hp,
@@ -488,7 +505,7 @@ export function createBattle(
     enemyPhaseId: null,
     enemyPhases: spec.phases ?? null,
     enemyAffinity: spec.affinity ?? null,
-    playerMp: stats.maxMp,
+    playerMp: startMp,
     playerMaxMp: stats.maxMp,
     playerAttackMin: stats.attackMin,
     playerAttackMax: stats.attackMax,
@@ -994,24 +1011,90 @@ export function playerDefend(
 export type ItemRefusal =
   | 'FIGHT_OVER'
   | 'NOT_IN_A_FIGHT'
+  | 'NOT_IN_THE_FIELD'
   | 'NONE_LEFT'
   | 'ALREADY_WELL'
   | 'ALREADY_FULL';
 
+/**
+ * EVERYTHING A REFUSAL NEEDS TO KNOW, wherever it is being asked.
+ *
+ * The same question is now asked in two places — the tray in a fight
+ * and the bag on the road — and both must get the same answer for the
+ * same reason. So the rule takes a description of the situation rather
+ * than a battle: what the party has left, what their ceilings are, and
+ * where they are standing.
+ */
+export interface UseSituation {
+  place: 'BATTLE' | 'FIELD';
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
+  /** BATTLE only: the fight has already been decided. */
+  settled?: boolean;
+}
+
+export function refuseUse(
+  where: UseSituation,
+  use: ItemUse,
+  held: number,
+): ItemRefusal | null {
+  if (held <= 0) return 'NONE_LEFT';
+  if (!usableIn(use.where, where.place)) {
+    return where.place === 'BATTLE' ? 'NOT_IN_THE_FIELD' : 'NOT_IN_A_FIGHT';
+  }
+  if (where.place === 'BATTLE' && where.settled) return 'FIGHT_OVER';
+  // Spending something on a gap that is not there is not a decision,
+  // it is a mistake the game let the player make. Both kinds refuse
+  // the same way and for the same reason, in a fight and out of one.
+  if (use.kind === 'HEAL' && where.hp >= where.maxHp) return 'ALREADY_WELL';
+  if (use.kind === 'RESTORE_MP' && where.mp >= where.maxMp) return 'ALREADY_FULL';
+  return null;
+}
+
+/** The same question, asked of a fight. */
 export function refuseItem(
   state: BattleState | null,
   use: ItemUse,
   held: number,
 ): ItemRefusal | null {
-  if (held <= 0) return 'NONE_LEFT';
-  if (!state) return use.where === 'BATTLE_ONLY' ? 'NOT_IN_A_FIGHT' : null;
-  if (state.outcome !== 'ONGOING') return 'FIGHT_OVER';
-  // Spending something on a gap that is not there is not a decision,
-  // it is a mistake the game let the player make. Both kinds refuse
-  // the same way and for the same reason.
-  if (use.kind === 'HEAL' && state.playerHp >= state.playerMaxHp) return 'ALREADY_WELL';
-  if (use.kind === 'RESTORE_MP' && state.playerMp >= state.playerMaxMp) return 'ALREADY_FULL';
-  return null;
+  if (!state) {
+    // No fight and nothing else known: only the two answers that can
+    // be given without a party to look at.
+    if (held <= 0) return 'NONE_LEFT';
+    return usableIn(use.where, 'FIELD') ? null : 'NOT_IN_A_FIGHT';
+  }
+  return refuseUse(
+    {
+      place: 'BATTLE',
+      hp: state.playerHp,
+      maxHp: state.playerMaxHp,
+      mp: state.playerMp,
+      maxMp: state.playerMaxMp,
+      settled: state.outcome !== 'ONGOING',
+    },
+    use,
+    held,
+  );
+}
+
+/**
+ * WHAT A USE PUTS BACK, worked out once for both places.
+ *
+ * The bag on the road and the tray in a fight must agree to the
+ * number, so neither of them owns the arithmetic: this does, and both
+ * ask it.
+ */
+export function useYield(
+  use: ItemUse,
+  where: Pick<UseSituation, 'hp' | 'maxHp' | 'mp' | 'maxMp'>,
+): { given: number; stat: 'HP' | 'MP' } {
+  const room = use.kind === 'HEAL' ? where.maxHp - where.hp : where.maxMp - where.mp;
+  return {
+    given: Math.max(0, Math.min(use.amount, room)),
+    stat: use.kind === 'HEAL' ? 'HP' : 'MP',
+  };
 }
 
 /** What to tell the player, in their own language. */
@@ -1021,6 +1104,8 @@ export function itemRefusalLine(refusal: ItemRefusal, itemName: string): string 
       return `${itemName}は もう持っていない。`;
     case 'NOT_IN_A_FIGHT':
       return `${itemName}は 戦いの中でしか使えない。`;
+    case 'NOT_IN_THE_FIELD':
+      return `${itemName}は 戦いの中では使えない。`;
     case 'ALREADY_WELL':
       return '傷はない。';
     case 'ALREADY_FULL':
@@ -1050,14 +1135,14 @@ export function useItem(
   forcedEnemyAction: EnemyAction | null = null,
 ): BattleState {
   if (refuseItem(state, use, 1) !== null) return state;
-  // One shape for both kinds: what it fills, how much room there was,
-  // and what to call it. A third kind is three more words here.
-  const room =
-    use.kind === 'HEAL'
-      ? state.playerMaxHp - state.playerHp
-      : state.playerMaxMp - state.playerMp;
-  const given = Math.max(0, Math.min(use.amount, room));
-  const stat = use.kind === 'HEAL' ? 'HP' : 'MP';
+  // The arithmetic is shared with the bag on the road, so the two
+  // places can never disagree about what a herb is worth.
+  const { given, stat } = useYield(use, {
+    hp: state.playerHp,
+    maxHp: state.playerMaxHp,
+    mp: state.playerMp,
+    maxMp: state.playerMaxMp,
+  });
   const next = awaken({
     ...state,
     playerHp: use.kind === 'HEAL' ? state.playerHp + given : state.playerHp,

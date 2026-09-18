@@ -391,6 +391,21 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
    * player nothing they can see — they got the healing — and is not
    * worth interrupting a fight over.
    */
+  /**
+   * What a fight left them with, written down as it ends.
+   *
+   * The counterpart to handing `condition` in: a wound carried out of
+   * a fight is the whole reason a herb can be drunk on the road, and
+   * this is the one line that carries it.
+   */
+  const rememberCondition = useCallback(
+    (left: { hp: number; mp: number }) => {
+      void world.setCondition(left).catch((e) => {
+        console.error('Failed to record what the fight cost', e);
+      });
+    },
+    [world],
+  );
   const spendItem = useCallback(
     (itemId: string) => {
       void world.removeItem(itemId, 1).catch((e) => {
@@ -637,6 +652,13 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             // Event resolution is silent world truth — the player is not
             // notified automatically (knowledge stays separate from truth).
             await world.advanceDay();
+            // AND THEY SLEEP. This is the free way back to full, and it
+            // has to stay free: a wound carried out of a fight means a
+            // player can be left too hurt to win the next one, and the
+            // answer to that must never be "buy a herb" — somebody with
+            // no LUMI and an empty bag would be stranded in their own
+            // save.
+            await world.restoreParty();
           }}
           onArchive={() => flow.goTo('ARCHIVE')}
           onArcana={() => flow.goTo('ARCANA')}
@@ -756,8 +778,10 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           forcedEnemyAction={debugEnemyAction()}
           magicUnlocked={kaosAwakened}
           stats={partyStats}
+          condition={world.getCondition()}
           bag={world.getInventory()}
           onUseItem={spendItem}
+          onCondition={rememberCondition}
           forcedChaos={debugChaosIntervention()}
           arcana={battleArcana}
           forcedSummon={debugSummon()}
@@ -805,7 +829,17 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
       // has no way to change it — the one place a consumable is worth
       // spending is a fight, and that refusal is stated on the screen
       // rather than left as a button that does nothing.
-      return <BagScreen inventory={world.getInventory()} onBack={() => flow.goTo('HOME')} />;
+      return (
+        <BagScreen
+          inventory={world.getInventory()}
+          condition={world.getCondition()}
+          stats={partyStats}
+          // The world does the whole transaction in one commit: the
+          // screen asks and redraws whatever comes back.
+          onUse={(itemId) => world.useItemFromBag(itemId)}
+          onBack={() => flow.goTo('HOME')}
+        />
+      );
     case 'WORLD_MEMORY':
       // Player-facing view: known events only, never the full truth.
       return (
@@ -955,8 +989,10 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             forcedEnemyAction={debugEnemyAction()}
             magicUnlocked={kaosAwakened}
             stats={partyStats}
+            condition={world.getCondition()}
             bag={world.getInventory()}
             onUseItem={spendItem}
+            onCondition={rememberCondition}
             forcedChaos={debugChaosIntervention()}
             arcana={battleArcana}
             forcedSummon={debugSummon()}
@@ -1007,6 +1043,11 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             onDefeat={() => {
               forestBattle.current = false;
               forestSession.current.clear();
+              // CARRIED HOME, AND PUT BACK ON THEIR FEET. Being beaten
+              // already costs the fight; leaving the party at the
+              // health they lost on would mean losing once made losing
+              // again unavoidable.
+              void world.restoreParty().catch(() => {});
               void flushArcana().finally(() => flow.goTo('HOME'));
             }}
             memoryLines={worldMemoryLines}
@@ -1066,6 +1107,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             onDefeat={() => {
               forestBattle.current = false;
               forestSession.current.clear();
+              void world.restoreParty().catch(() => {});
               void flushArcana('FIRST_ENCOUNTER', 'LOST_A_FIGHT').finally(() => flow.goTo('HOME'));
             }}
           />
@@ -1107,8 +1149,10 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           // this call site says the same thing as every other.
           magicUnlocked={kaosAwakened}
           stats={partyStats}
+          condition={world.getCondition()}
           bag={world.getInventory()}
           onUseItem={spendItem}
+          onCondition={rememberCondition}
           memoryLines={worldMemoryLines}
           onCycleBattleBgm={cycleBattleBgm}
           battleBgmLabel={battleBgmLabel(battleBgmId)}

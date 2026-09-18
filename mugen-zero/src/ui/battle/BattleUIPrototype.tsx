@@ -189,6 +189,23 @@ interface Props {
    * left, no wound, fight over — so this is a use that happened.
    */
   onUseItem?: (itemId: string) => void;
+  /**
+   * What the party walked in with. Absent is whole.
+   *
+   * Handed in like every other fact about the world, and clamped by
+   * the caller: this screen has never known what a ceiling is.
+   */
+  condition?: { hp: number; mp: number };
+  /**
+   * What the fight left them with, reported as it ends.
+   *
+   * Fired once, on every way OUT of a fight that the party walks away
+   * from — an ordinary win, and a win that turned into a question
+   * about a life. Not on defeat: being beaten puts them back on their
+   * feet, and the caller does that rather than reading a number off a
+   * fight nobody won.
+   */
+  onCondition?: (left: { hp: number; mp: number }) => void;
   /** An ordinary fight, over. */
   onNormalEnd: () => void;
   /** The other kind. The choice is real and is recorded by the caller. */
@@ -473,8 +490,10 @@ export function BattleUIPrototype({
   acquiredArcanaIds = [],
   worldDay = null,
   stats,
+  condition,
   bag: bagAtTheStart = [],
   onUseItem,
+  onCondition,
   onAccidentObserved,
   onObserved,
   onNormalEnd,
@@ -524,6 +543,9 @@ export function BattleUIPrototype({
       // happens, and a swing that quietly got stronger halfway through
       // a fight would be impossible to reason about afterwards.
       stats,
+      // And what they walked in with. Absent is whole, which is what
+      // every fight was before a wound could be carried out of one.
+      condition,
     });
     return startFinishable ? { ...fresh, enemyHp: 1 } : fresh;
   });
@@ -830,7 +852,13 @@ export function BattleUIPrototype({
     if (stance !== 'DOWNED') return;
     if (finishesInMugenChoice) return;
     if (accidentBeat !== 'NONE') return;
-    const t = setTimeout(onNormalEnd, beatMs(VICTORY_WAIT_MS, speed));
+    const t = setTimeout(() => {
+      // WHAT IT COST THEM, handed over as the fight ends. Before the
+      // callback, so a caller that navigates on it is navigating
+      // after the world already knows.
+      onCondition?.({ hp: battle.playerHp, mp: battle.playerMp });
+      onNormalEnd();
+    }, beatMs(VICTORY_WAIT_MS, speed));
     return () => clearTimeout(t);
   }, [battle.outcome, stance, finishesInMugenChoice, accidentBeat, onNormalEnd, speed]);
 
@@ -1186,6 +1214,8 @@ export function BattleUIPrototype({
     if (saving) return;
     setSaving(true);
     vibrate(24); // a decision you feel
+    // The same walk away from the same fight, so the same report.
+    onCondition?.({ hp: battle.playerHp, mp: battle.playerMp });
     onMugenChoice(choice);
   };
 
