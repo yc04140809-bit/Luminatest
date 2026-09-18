@@ -1,0 +1,11 @@
+{
+  "name": "@mugen/assets",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/manifest.ts",
+  "exports": {
+    ".": "./src/manifest.ts",
+    "./files/*": "./files/*"
+  }
+}

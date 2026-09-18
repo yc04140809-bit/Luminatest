@@ -1,0 +1,24 @@
+{
+  "name": "@mugen/core",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./core/*": "./core/*.ts",
+    "./game/*": "./game/*.ts",
+    "./content/*": "./content/*.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@mugen/assets": "*",
+    "phaser": "^3.87.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
+    "vitest": "^3.2.7",
+    "@types/node": "^22.20.2"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "mugen-zero-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/mugen-assets",
+    "packages/mugen-core",
+    "packages/mugen-artifact",
+    "packages/mugen-app"
+  ],
+  "scripts": {
+    "test:core": "npm run test -w @mugen/core",
+    "verify:artifact": "npm run verify -w @mugen/artifact",
+    "dev:artifact": "npm run dev -w @mugen/artifact",
+    "dev:app": "npm run dev -w @mugen/app"
+  },
+  "devDependencies": {
+    "vite": "^6.4.3"
+  }
+}

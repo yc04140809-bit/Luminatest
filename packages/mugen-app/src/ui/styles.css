@@ -1,0 +1,71 @@
+/* APP ALPHA — deliberately plain.
+   The look is temporary and is meant to be replaced; what it must do
+   today is be legible on a phone and not pretend to be finished. */
+:root {
+  --ink: #e9e6f0;
+  --dim: #9a94ab;
+  --line: #3a3550;
+  --gold: #c9a227;
+  --danger: #c8524a;
+  --bg: #0b0b12;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.screen {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+  z-index: -1;
+}
+.logo { margin: 0; font-size: 28px; letter-spacing: 0.22em; }
+.sub { margin: 0 0 14px; font-size: 12px; letter-spacing: 0.3em; color: var(--dim); }
+.place { margin: 0 0 4px; font-size: 18px; letter-spacing: 0.12em; }
+.clock, .purse, .bar, .row { margin: 0; font-size: 13px; letter-spacing: 0.06em; }
+.party { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 12px; color: var(--dim); }
+.line, .log {
+  margin: 6px 0;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.9;
+  text-align: center;
+}
+.log { min-height: 3.6em; color: var(--dim); }
+.row.level { color: var(--gold); }
+.warn { margin: 8px 0 0; font-size: 12px; color: var(--danger); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+.btn {
+  appearance: none;
+  min-height: 44px;
+  min-width: 128px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+.btn.primary { border-color: var(--gold); color: var(--gold); }
+.btn:disabled { opacity: 0.45; }

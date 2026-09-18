@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@mugen/core/*": [
+        "./mugen-core/core/*"
+      ],
+      "@mugen/game/*": [
+        "./mugen-core/game/*"
+      ],
+      "@mugen/content/*": [
+        "./mugen-core/content/*"
+      ],
+      "@mugen/assets": [
+        "./mugen-assets/src/manifest.ts"
+      ],
+      "@mugen/assets/files/*": [
+        "./mugen-assets/files/*"
+      ]
+    }
+  }
+}
