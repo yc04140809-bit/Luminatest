@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { playToLifeChoice, readMemoryEvents, readSchemaVersion, walkToEncounterMarker } from './helpers';
+import { SAVE_SCHEMA_VERSION } from '../src/core/memory/idbStore';
 
 // PHASE B acceptance: each life choice becomes a distinct canonical
 // MEMORY_EVENT persisted in IndexedDB before the game advances.
@@ -31,7 +32,11 @@ for (const [choice, eventType] of CHOICES) {
     expect(event.importance).toBe('MAJOR');
     expect(Date.parse(event.createdAt)).not.toBeNaN();
 
-    expect(await readSchemaVersion(page)).toBe(2);
+    // READ FROM THE SOURCE, not written here by hand. This said `2`
+    // and went stale the moment the save schema moved to 3 — a test
+    // that has to be edited every time a version is bumped is a test
+    // that says nothing about whether the stamp is right.
+    expect(await readSchemaVersion(page)).toBe(SAVE_SCHEMA_VERSION);
   });
 }
 
