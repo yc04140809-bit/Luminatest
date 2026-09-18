@@ -66,6 +66,12 @@ import {
 import { INITIAL_LUMI, addLumi, canAfford, readLumi, spendLumi } from '../economy/lumi';
 import { EMPTY_INVENTORY, type Inventory } from '../economy/items';
 import { buyPriceOf, inStock, sellPriceOf, type ShopOffer } from '../economy/shop';
+import {
+  INITIAL_PROGRESS,
+  gainExp,
+  readProgressTable,
+  type LevelProgress,
+} from '../progression/levelCurve';
 import { itemDef } from '../../content/economy/itemDefs';
 import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
 import {
@@ -155,6 +161,30 @@ const INVENTORY_KEY = 'inventory';
  * economy existed opens as a poor player rather than a broken one.
  */
 const LUMI_KEY = 'lumi';
+/**
+ * LEVEL AND EXPERIENCE, one row per character.
+ *
+ * What FIGHTING has given them, and only that. The other half of how
+ * somebody grows in this game — what involving yourself in the world
+ * gives you — is WORLD MEMORY, the arcana and the resonance that is
+ * still to come, and none of those may ever be spent into this number.
+ * Two kinds of growth, two records, on purpose.
+ *
+ * Absent in a save written before this build, which reads as everybody
+ * at level one having earned nothing — the same answer a new world
+ * gives, so there is nothing to convert.
+ */
+const PROGRESSION_KEY = 'progression';
+
+/** What one character's share of a reward came to. */
+export interface LevelGainRecord {
+  characterId: string;
+  from: number;
+  to: number;
+  levelsGained: number;
+  /** How much experience actually landed. Nought when nothing did. */
+  earned: number;
+}
 
 interface ExperienceLog {
   /** eventId -> absolute day it last played. */
@@ -254,6 +284,7 @@ export class World {
   private accidents: Record<string, AccidentRecord>;
   private inventory: Inventory;
   private lumi: number;
+  private progression: Record<string, LevelProgress>;
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -268,6 +299,7 @@ export class World {
     accidents: Record<string, AccidentRecord>,
     inventory: Inventory,
     lumi: number,
+    progression: Record<string, LevelProgress>,
   ) {
     this.events = events;
     this.clock = clock;
@@ -280,6 +312,7 @@ export class World {
     this.accidents = accidents;
     this.inventory = inventory;
     this.lumi = lumi;
+    this.progression = progression;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -309,6 +342,7 @@ export class World {
     // empty bag and an empty purse are exactly what a new world holds.
     const inventory = readInventory(await store.getStateValue(INVENTORY_KEY));
     const lumi = readLumi(await store.getStateValue(LUMI_KEY));
+    const progression = readProgressTable(await store.getStateValue(PROGRESSION_KEY));
     return new World(
       store,
       events,
@@ -322,6 +356,7 @@ export class World {
       readAccidentRows(accidentsRaw),
       inventory,
       lumi,
+      progression,
     );
   }
 
@@ -1200,6 +1235,56 @@ export class World {
     return true;
   }
 
+  // ---- HOW FAR FIGHTING HAS TAKEN THEM ----
+  //
+  // LEVEL is the ordinary half of growth: what turning up and winning
+  // gives you. The other half — what the world gives back for having
+  // been involved in it — is WORLD MEMORY and the arcana, and it is
+  // deliberately not counted here. A game where caring about a creature
+  // is a slower way of levelling up is a game that has told the player
+  // which of the two actually matters.
+
+  /** What this character has earned. Level one and nothing, by default. */
+  getProgress(characterId: string): LevelProgress {
+    return this.progression[characterId] ?? { ...INITIAL_PROGRESS };
+  }
+
+  /** Their level, which is the number a screen usually wants. */
+  getLevel(characterId: string): number {
+    return this.getProgress(characterId).level;
+  }
+
+  /**
+   * Experience earned, and every level it crosses.
+   *
+   * Returns what happened rather than nothing, because the thing that
+   * granted it is usually about to say so on a result screen — and
+   * because "did that level anybody up" must not be worked out twice,
+   * once here and once by whoever is drawing.
+   *
+   * A gain of nothing is not an event: it saves nothing and announces
+   * nothing, so a reward with no experience in it cannot make the world
+   * look like it changed.
+   */
+  async grantExp(characterId: string, amount: number): Promise<LevelGainRecord> {
+    const before = this.getProgress(characterId);
+    const gain = gainExp(before, amount);
+    if (gain.progress.totalExp === before.totalExp) {
+      return { characterId, from: before.level, to: before.level, levelsGained: 0, earned: 0 };
+    }
+    const next = { ...this.progression, [characterId]: gain.progress };
+    await this.store.commit({ putState: [{ key: PROGRESSION_KEY, value: next }] });
+    this.progression = next;
+    this.emit();
+    return {
+      characterId,
+      from: gain.from,
+      to: gain.to,
+      levelsGained: gain.levelsGained,
+      earned: gain.progress.totalExp - before.totalExp,
+    };
+  }
+
   // ---- THE TWO MOVES A SHOP MAKES ----
   //
   // NO SHOP EXISTS YET, and these are not one: there is no screen, no
@@ -1316,6 +1401,8 @@ export class World {
     // And it is carrying nothing and has never been paid.
     this.inventory = EMPTY_INVENTORY;
     this.lumi = INITIAL_LUMI;
+    // And nobody has fought anything.
+    this.progression = {};
     this.emit();
   }
 }
