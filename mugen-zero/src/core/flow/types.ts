@@ -18,6 +18,15 @@ export type Screen =
   | 'GREENWOOD'
   | 'ENCOUNTER'
   | 'BATTLE'
+  /**
+   * What the fight was worth — experience, LUMI, what was picked up.
+   *
+   * A SCREEN OF ITS OWN rather than a panel over the battlefield, and
+   * that is what makes the reward safe: the fight is over, the forest
+   * is not back yet, and nothing the player taps can reach either of
+   * them until they close it.
+   */
+  | 'BATTLE_RESULT'
   | 'LIFE_CHOICE'
   | 'CREATURE_LIFE_CHOICE'
   | 'CHOICE_RESULT'

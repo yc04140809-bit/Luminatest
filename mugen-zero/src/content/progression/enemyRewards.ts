@@ -29,12 +29,18 @@ export const ENEMY_REWARDS: Record<SpeciesId, BattleReward> = {
    * enough that the first fight visibly does something, little enough
    * that the tenth is not a living.
    *
-   * 14 experience puts level 2 at the second fight and level 3 at about
-   * the fifth. The herb is the one thing in the catalogue a shop would
-   * actually want, which makes the forest and the shop the same loop.
+   * 16 is exactly what level 2 costs, so THE FIRST VICTORY LEVELS YOU
+   * UP — which is not a balance decision, it is a legibility one. A
+   * player whose first fight says only 「EXP +14」 has been shown a
+   * number; one whose first fight says 「Lv.1 → Lv.2」 has been shown a
+   * system. Level 3 then lands at the third fight and 4 at the fifth,
+   * which is the ordinary shape of a curve opening out.
+   *
+   * The herb is the one thing in the catalogue a shop would actually
+   * want, which makes the forest and the shop the same loop.
    */
   moss_rabbit: {
-    exp: 14,
+    exp: 16,
     lumi: 9,
     items: [{ itemId: 'FOREST_HERB', quantity: 1 }],
   },

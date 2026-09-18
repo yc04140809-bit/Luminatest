@@ -43,7 +43,15 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   // Beating Gald asks the life question. Beating something that lives in
   // the forest usually just puts the player back where they were
   // standing — unless that one turned out to have a life too.
-  BATTLE: ['LIFE_CHOICE', 'CREATURE_LIFE_CHOICE', 'GREENWOOD', 'HOME'],
+  BATTLE: ['BATTLE_RESULT', 'LIFE_CHOICE', 'CREATURE_LIFE_CHOICE', 'GREENWOOD', 'HOME'],
+  // WHAT IT WAS WORTH, AND THEN BACK TO THE PATH. One way out, so the
+  // forest cannot be reached around it: while this screen is up the
+  // fight is finished and the walk has not started, which is what makes
+  // the winnings safe to hand over exactly once.
+  //
+  // HOME is here for the developer's door into the prototype, which has
+  // no forest to go back to.
+  BATTLE_RESULT: ['GREENWOOD', 'HOME'],
   CREATURE_LIFE_CHOICE: ['GREENWOOD'],
   LIFE_CHOICE: ['CHOICE_RESULT'],
   CHOICE_RESULT: ['HOME'],

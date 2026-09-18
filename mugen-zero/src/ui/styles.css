@@ -6038,3 +6038,138 @@ body,
 .theme-choice-playing .theme-choice-lead {
   font-size: clamp(19px, calc(var(--stage-w, 100vw) * 0.034), 28px);
 }
+
+/* ---- BATTLE RESULT — what the fight was worth --------------------
+   A screen, not a panel over the battlefield, and it is laid out like
+   one: a single plate in the middle of a dark stage, the figures large
+   enough to read at a glance and one way out at the bottom.
+
+   NO ART, NO NEW ASSET. Everything here is CSS over the same navy and
+   gold the battle HUD is built from, so a result screen costs the
+   artifact nothing. */
+.result-screen {
+  align-items: center;
+  justify-content: center;
+  padding: calc(10px + env(safe-area-inset-top)) 16px calc(10px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(24, 38, 74, 0.9), rgba(0, 0, 0, 0) 70%),
+    linear-gradient(180deg, #060a16, #04070f);
+}
+.result-plate {
+  width: min(100%, 420px);
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 20px 12px;
+  color: var(--bx-ink, #f4efe3);
+  background: linear-gradient(180deg, rgba(9, 19, 44, 0.94), rgba(5, 11, 28, 0.96));
+  border: 1px solid rgba(217, 184, 113, 0.5);
+  border-radius: 3px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+.result-label {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-align: center;
+  color: #f3e2b6;
+}
+.result-rule {
+  display: block;
+  width: 72px;
+  height: 1px;
+  margin: 2px auto 6px;
+  background: linear-gradient(90deg, transparent, rgba(217, 184, 113, 0.7), transparent);
+}
+/* The two numbers, side by side: they are the same KIND of thing and a
+   list would have read as one being under the other. */
+.result-gains {
+  display: flex;
+  gap: 10px;
+  margin: 0;
+}
+.result-gain {
+  flex: 1 1 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 253, 244, 0.045);
+  border-radius: 2px;
+}
+.result-gain dt {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: rgba(244, 239, 227, 0.66);
+}
+.result-gain dd {
+  margin: 0;
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  color: #f3e2b6;
+}
+.result-heading {
+  margin: 4px 0 0;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: rgba(244, 239, 227, 0.55);
+}
+.result-items ul,
+.result-levels ul {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.result-items li,
+.result-levels li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  padding: 3px 2px;
+  border-bottom: 1px solid rgba(243, 226, 182, 0.1);
+}
+.result-item-count,
+.result-level-move {
+  font-variant-numeric: tabular-nums;
+  color: #f3e2b6;
+  white-space: nowrap;
+}
+.result-level-move i {
+  font-style: normal;
+  opacity: 0.6;
+  padding: 0 2px;
+}
+.result-none {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: rgba(244, 239, 227, 0.5);
+}
+/* ONE WAY OUT, and it is the only thing on this screen that can be
+   pressed — which is what makes the winnings safe to hand over once. */
+.result-done {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: 8px;
+  min-height: var(--tap-min, 44px);
+  padding: 9px 18px;
+  background: linear-gradient(180deg, rgba(255, 253, 244, 0.08), rgba(217, 184, 113, 0.14));
+  border: 1px solid rgba(217, 184, 113, 0.55);
+  border-radius: 2px;
+  color: #f4efe3;
+  font-family: inherit;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  cursor: pointer;
+}
+.result-done:active {
+  background: rgba(217, 184, 113, 0.22);
+}

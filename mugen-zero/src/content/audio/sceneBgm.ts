@@ -109,6 +109,13 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     // what a developer hears is what a player hears.
     case 'BATTLE':
     case 'BATTLE_UI_PROTOTYPE':
+    // AND THE SCREEN THAT COUNTS UP WHAT IT WAS WORTH. The same piece,
+    // still playing: the fight's music carries over its own winnings
+    // rather than cutting to silence for a moment and then to the
+    // forest. A fanfare of its own would be a new recording, and there
+    // is not one — so the honest answer is "the fight is not over
+    // yet", which is also how it feels.
+    case 'BATTLE_RESULT':
       // Whichever piece the ♪ control is on. One is registered today,
       // so this is 'NORMAL_BATTLE' every time; the day a second joins
       // the list, this line already does the right thing.

@@ -4,6 +4,8 @@ import { World } from './core/world/world';
 import { IdbMemoryStore } from './core/memory/idbStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { kaosHasAwakened } from './core/magic/awakened';
+import { NOTHING_APPLIED, NO_REWARD, type AppliedReward } from './core/progression/battleReward';
+import { rewardForSpecies } from './content/progression/enemyRewards';
 import { TitleScreen } from './ui/screens/TitleScreen';
 import { ThemeChoiceScreen } from './ui/screens/ThemeChoiceScreen';
 import { PrologueScreen } from './ui/screens/PrologueScreen';
@@ -82,6 +84,9 @@ import type { ArcanaConditionId, ArcanaGain } from './core/arcana/arcana';
 // first load. Both load on demand.
 const GreenwoodScreen = lazy(() =>
   import('./ui/screens/GreenwoodScreen').then((m) => ({ default: m.GreenwoodScreen })),
+);
+const BattleResultScreen = lazy(() =>
+  import('./ui/screens/BattleResultScreen').then((m) => ({ default: m.BattleResultScreen })),
 );
 const DevLockScreen = lazy(() =>
   import('./dev/DevLockScreen').then((m) => ({ default: m.DevLockScreen })),
@@ -168,6 +173,29 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   // the four answers. Runtime only — once answered it is world truth and
   // this goes back to null.
   const [metCreature, setMetCreature] = useState<EnemyIndividual | null>(null);
+
+  /**
+   * WHAT THE FIGHT THAT JUST ENDED WAS WORTH, once it has been paid.
+   *
+   * Runtime only, and it holds what LANDED rather than what was
+   * offered: the world decided how much the bag had room for and who
+   * was at the ceiling, and the result screen draws that answer.
+   *
+   * Null means there is nothing to show, which is what makes the
+   * screen's own guard simple.
+   */
+  const [battleWinnings, setBattleWinnings] = useState<AppliedReward | null>(null);
+  /**
+   * THE ID OF THE FIGHT NOW BEING PAID FOR.
+   *
+   * Minted when the fight starts, not when it ends, and that is the
+   * whole of the double-pay guard on this side: every route out of the
+   * battle hands the world the SAME id, so a second call — a timer that
+   * fired late, AUTO and the player arriving together, a re-render —
+   * is refused by the world rather than by whichever handler happened
+   * to run first.
+   */
+  const battleRewardId = useRef<string>('');
 
   // ---- ARCANA: what this playthrough has taught the player ----
   //
@@ -713,6 +741,8 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             onItemTaken={(itemId) => world.addItem(itemId, 1)}
             onForestBattle={() => {
               forestBattle.current = true;
+              // One id for this fight, from here to whatever ends it.
+              battleRewardId.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               forestStory.current = rollIndividualStory({
                 victoriesSinceStory:
                   world.getEnemyProgress(MOSS_RABBIT.speciesId).sinceStory + 1,
@@ -764,11 +794,24 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             onObserved={noteArcana}
             onNormalEnd={() => {
               forestBattle.current = false;
+              // WHAT THE WORLD REMEMBERS AND WHAT THE PLAYER WALKS AWAY
+              // WITH ARE TWO DIFFERENT WRITES, on purpose. The first is
+              // history — that this species was beaten — and is exactly
+              // the code that has always run. The second is the
+              // winnings, which the world applies in one commit and
+              // refuses to apply twice.
               void world
                 .resolveEnemyVictory(MOSS_RABBIT.speciesId, { forced: false })
                 .then(() => flushArcana())
+                .then(() =>
+                  world.applyBattleReward(
+                    battleRewardId.current,
+                    rewardForSpecies(MOSS_RABBIT.speciesId) ?? NO_REWARD,
+                  ),
+                )
+                .then((paid) => setBattleWinnings(paid))
                 .catch((e) => console.error('Failed to record the victory', e))
-                .finally(() => flow.goTo('GREENWOOD'));
+                .finally(() => flow.goTo('BATTLE_RESULT'));
             }}
             onMugenChoice={(choice) => {
               forestBattle.current = false;
@@ -902,6 +945,35 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           // something the player may walk around; the old screen had no
           // way out of this fight either.
         />
+      );
+    case 'BATTLE_RESULT':
+      return (
+        <Suspense fallback={<LoadingScreen message="戦果をまとめています……" />}>
+          <BattleResultScreen
+            // The reward was applied and saved before this screen was
+            // reached, so an empty one means the fight paid nothing —
+            // which is a real answer and is drawn as 「なし」 rather than
+            // as a gap. `NOTHING_APPLIED` is the same shape, so there
+            // is no branch here for "not ready yet".
+            reward={battleWinnings ?? NOTHING_APPLIED}
+            onDone={() => {
+              // AND THE SAME GUARD ON THIS SIDE. The screen disables
+              // its own button, but a flow asked to go where it already
+              // is throws — so the one place that can know whether the
+              // move has already happened checks before making it.
+              if (flow.getState().screen !== 'BATTLE_RESULT') return;
+              // Cleared on the way out, so a screen reached again by
+              // any route cannot show the last fight's figures.
+              setBattleWinnings(null);
+              // Back where the player was standing. The prototype's
+              // developer door has no forest, and goes home.
+              // A fight walked into from the forest has a place to go
+              // back to; the developer's door into the prototype does
+              // not, and goes home.
+              flow.goTo(forestSession.current.read() ? 'GREENWOOD' : 'HOME');
+            }}
+          />
+        </Suspense>
       );
     case 'CREATURE_LIFE_CHOICE': {
       const species = metCreature ? speciesOfIndividual(metCreature.individualId) : null;
