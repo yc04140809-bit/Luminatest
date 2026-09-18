@@ -183,11 +183,6 @@ export function BagScreen({ inventory, condition, stats, onUse, onBack }: Props)
           {said}
         </p>
       )}
-      {rows.some((row) => row.def.use?.where === 'BATTLE_ONLY') && (
-        <p className="bag-note" data-testid="bag-note">
-          戦いの中でしか使えないものもある。
-        </p>
-      )}
       <div className="screen-footer">
         <button className="btn" onClick={onBack}>
           もどる

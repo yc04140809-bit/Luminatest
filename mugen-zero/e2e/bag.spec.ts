@@ -138,7 +138,10 @@ test.describe('the bag', () => {
     await freshWorld(page);
     await give(page, 50, [{ itemId: HERB, quantity: 2 }]);
     await page.getByTestId('bag-button').click();
-    await expect(page.getByTestId('bag-note')).toContainText('戦いの中で');
+    // LOOKING IS NOT DOING. There is a 使う on a herb now, and the
+    // thing under test is that walking in and back out again — reading
+    // the list, pressing nothing — leaves the save exactly as it was.
+    await expect(page.getByTestId(`bag-use-button-${HERB}`)).toBeVisible();
     await page.getByRole('button', { name: 'もどる' }).click();
     await expect(page.getByTestId('world-clock')).toBeVisible();
     expect(await readWorldStateValue(page, 'inventory')).toEqual([
