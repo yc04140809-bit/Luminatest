@@ -14,8 +14,14 @@ import {
 
 export { DB_NAME, DB_VERSION, EVENTS_STORE, META_STORE, WORLD_STATE_STORE } from './idbSchema';
 
-/** Bumped when the shape of saved data changes, not when a store is added. */
-export const SAVE_SCHEMA_VERSION = 2;
+/**
+ * Bumped when the shape of saved data changes, not when a store is added.
+ *
+ * The number and the steps that reach it live together in
+ * core/world/saveSchema; this is the name the rest of the code has
+ * always used for it.
+ */
+export { SAVE_VERSION as SAVE_SCHEMA_VERSION } from '../world/saveSchema';
 
 export class IdbMemoryStore implements MemoryEventStore {
   private db: IDBDatabase | null = null;
@@ -25,24 +31,19 @@ export class IdbMemoryStore implements MemoryEventStore {
     this.dbName = dbName;
   }
 
+  /**
+   * Opens the database. It does NOT touch the version stamp.
+   *
+   * It used to: every load wrote SAVE_SCHEMA_VERSION over whatever was
+   * there, which made the number a record of when the game was last
+   * opened rather than of what the data looks like — and a version
+   * number that cannot be trusted is worse than none, because things
+   * get built on it. Stamping is now the last thing the migration does,
+   * after the rows it describes have actually been brought up to date.
+   */
   async init(): Promise<void> {
     if (this.db) return;
     this.db = await openDatabase(this.dbName);
-
-    // Stamp / upgrade the schema version. No migration engine yet —
-    // v1 saves only lacked the world_state store (absent rows fall back
-    // to defaults), so stamping forward is the whole migration.
-    const tx = this.db.transaction(META_STORE, 'readwrite');
-    const meta = tx.objectStore(META_STORE);
-    const existing = await promisify(meta.get('saveSchemaVersion'));
-    if (!existing || existing.value < SAVE_SCHEMA_VERSION) {
-      meta.put({ key: 'saveSchemaVersion', value: SAVE_SCHEMA_VERSION });
-    } else if (existing.value > SAVE_SCHEMA_VERSION) {
-      console.warn(
-        `Save schema version ${existing.value} is newer than supported ${SAVE_SCHEMA_VERSION}`,
-      );
-    }
-    await txDone(tx);
   }
 
   private requireDb(): IDBDatabase {
@@ -97,6 +98,26 @@ export class IdbMemoryStore implements MemoryEventStore {
     const tx = this.requireDb().transaction(WORLD_STATE_STORE, 'readonly');
     const row = await promisify(tx.objectStore(WORLD_STATE_STORE).get(key));
     return row ? (row as WorldStateRow).value : undefined;
+  }
+
+  async getAllState(): Promise<WorldStateRow[]> {
+    const tx = this.requireDb().transaction(WORLD_STATE_STORE, 'readonly');
+    const rows = await promisify(tx.objectStore(WORLD_STATE_STORE).getAll());
+    return (rows as WorldStateRow[]).filter(
+      (row): row is WorldStateRow => !!row && typeof row.key === 'string',
+    );
+  }
+
+  async getMeta(key: string): Promise<unknown | undefined> {
+    const tx = this.requireDb().transaction(META_STORE, 'readonly');
+    const row = await promisify(tx.objectStore(META_STORE).get(key));
+    return row ? (row as { value: unknown }).value : undefined;
+  }
+
+  async setMeta(key: string, value: unknown): Promise<void> {
+    const tx = this.requireDb().transaction(META_STORE, 'readwrite');
+    tx.objectStore(META_STORE).put({ key, value });
+    await txDone(tx);
   }
 
   async clearAll(): Promise<void> {

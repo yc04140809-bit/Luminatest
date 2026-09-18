@@ -129,6 +129,26 @@ export interface MemoryEventStore {
   }): Promise<void>;
   /** Reads one current-state row (world clock, character state, …). */
   getStateValue(key: string): Promise<unknown | undefined>;
+  /**
+   * Every current-state row at once.
+   *
+   * For the two jobs that are about the SAVE rather than about the
+   * world: bringing an old save up to this version, and taking a copy
+   * of one that loaded cleanly. Both need to see rows they do not
+   * understand — a row from a newer build must survive a round trip
+   * through an older one — so neither can work key by key.
+   */
+  getAllState(): Promise<WorldStateRow[]>;
+  /**
+   * Reads and writes the save's own bookkeeping: its version, its
+   * backup, the note left behind when a damaged save was recovered.
+   *
+   * Kept apart from world_state on purpose. This is what the save says
+   * about ITSELF, and mixing it in with the world would mean a backup
+   * containing a copy of a backup.
+   */
+  getMeta(key: string): Promise<unknown | undefined>;
+  setMeta(key: string, value: unknown): Promise<void>;
   /** Deletes all saved world data (NEW GAME / RESET WORLD). */
   clearAll(): Promise<void>;
   close(): void;

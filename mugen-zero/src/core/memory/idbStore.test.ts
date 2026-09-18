@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { IdbMemoryStore, SAVE_SCHEMA_VERSION } from './idbStore';
 import type { MemoryEvent } from './types';
+import { World } from '../world/world';
 
 let dbCounter = 0;
 function freshStore(): IdbMemoryStore {
@@ -23,8 +24,28 @@ function sampleEvent(overrides: Partial<MemoryEvent> = {}): MemoryEvent {
 }
 
 describe('IdbMemoryStore', () => {
-  it('stamps saveSchemaVersion on first init', async () => {
+  /**
+   * OPENING IS NOT MIGRATING, and this used to be one thing.
+   *
+   * `init` stamped the current version over whatever was there, on
+   * every single load, before anything had looked at the rows it was
+   * making a claim about. That made the number a record of when the
+   * game was last opened rather than of what the data looks like. The
+   * stamp is now the LAST thing the migration does, and this test is
+   * the guard that keeps the two apart.
+   */
+  it('does not stamp a version on init — migrating does that', async () => {
     const store = freshStore();
+    await store.init();
+    expect(await store.getSchemaVersion()).toBeNull();
+    store.close();
+  });
+
+  it('stamps the version once a world has actually been opened', async () => {
+    const name = `test-db-${++dbCounter}`;
+    const world = await World.open(new IdbMemoryStore(name));
+    expect(world.getSaveHealth().version).toBe(SAVE_SCHEMA_VERSION);
+    const store = new IdbMemoryStore(name);
     await store.init();
     expect(await store.getSchemaVersion()).toBe(SAVE_SCHEMA_VERSION);
     store.close();

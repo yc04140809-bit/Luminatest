@@ -5,6 +5,21 @@
 
 import type { LifeChoiceId } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
+import { SAVE_VERSION, migrateRows } from './saveSchema';
+import {
+  readBag,
+  readCharacterState,
+  readClaimedRewards,
+  readClock,
+  readEnemyIndividuals,
+  readEnemyProgressTable,
+  readExperienceLog,
+  readGrowth,
+  readIdList,
+  readPurse,
+  type ReadRow,
+  type RowHealth,
+} from './saveRead';
 import type { CharacterState } from '../characters/types';
 import type { LifeEventDef } from '../events/types';
 import { findDueLifeEvents } from '../events/eventEngine';
@@ -59,17 +74,15 @@ import {
   addItem as addToBag,
   getItemCount as countInBag,
   hasItem as bagHas,
-  readInventory,
   removeItem as removeFromBag,
   roomFor,
 } from '../economy/inventory';
-import { INITIAL_LUMI, addLumi, canAfford, readLumi, spendLumi } from '../economy/lumi';
+import { INITIAL_LUMI, addLumi, canAfford, spendLumi } from '../economy/lumi';
 import { EMPTY_INVENTORY, type Inventory, type ItemStack } from '../economy/items';
 import { buyPriceOf, inStock, sellPriceOf, type ShopOffer } from '../economy/shop';
 import {
   INITIAL_PROGRESS,
   gainExp,
-  readProgressTable,
   type LevelProgress,
 } from '../progression/levelCurve';
 import {
@@ -215,14 +228,13 @@ export interface LevelGainRecord {
   earned: number;
 }
 
-interface ExperienceLog {
+export interface ExperienceLog {
   /** eventId -> absolute day it last played. */
   lastSeenDay: Record<string, number>;
   /** Event ids in the order they were met, newest last. */
   order: string[];
 }
 
-const EMPTY_LOG: ExperienceLog = { lastSeenDay: {}, order: [] };
 /** Enough history to keep two or three beats from repeating a feeling. */
 const LOG_ORDER_LIMIT = 12;
 
@@ -349,85 +361,167 @@ export class World {
   private progression: Record<string, LevelProgress>;
   private claimedRewards: string[];
 
+  private readonly health: SaveHealth;
+
   private constructor(
     private readonly store: MemoryEventStore,
     events: MemoryEvent[],
-    clock: WorldClock,
-    characters: Record<string, CharacterState>,
-    seenExperience: string[],
-    experienceLog: ExperienceLog,
-    enemyProgress: Record<string, EnemyProgress>,
-    enemyIndividuals: EnemyIndividual[],
-    arcana: Record<string, ArcanaRecord>,
-    accidents: Record<string, AccidentRecord>,
-    inventory: Inventory,
-    lumi: number,
-    progression: Record<string, LevelProgress>,
-    claimedRewards: string[],
+    fields: WorldFields,
+    health: SaveHealth,
   ) {
     this.events = events;
-    this.clock = clock;
-    this.characters = characters;
-    this.seenExperience = new Set(seenExperience);
-    this.experienceLog = experienceLog;
-    this.enemyProgress = enemyProgress;
-    this.enemyIndividuals = enemyIndividuals;
-    this.arcana = arcana;
-    this.accidents = accidents;
-    this.inventory = inventory;
-    this.lumi = lumi;
-    this.progression = progression;
-    this.claimedRewards = claimedRewards;
+    this.clock = fields.clock;
+    this.characters = fields.characters;
+    this.seenExperience = new Set(fields.seenExperience);
+    this.experienceLog = fields.experienceLog;
+    this.enemyProgress = fields.enemyProgress;
+    this.enemyIndividuals = fields.enemyIndividuals;
+    this.arcana = fields.arcana;
+    this.accidents = fields.accidents;
+    this.inventory = fields.inventory;
+    this.lumi = fields.lumi;
+    this.progression = fields.progression;
+    this.claimedRewards = fields.claimedRewards;
+    this.health = health;
   }
 
-  /** Opens the store and restores history, clock and character states. */
+  /**
+   * Opens the save and restores the world from it.
+   *
+   * FOUR STEPS, AND THE ORDER MATTERS:
+   *
+   *   1. MIGRATE. Bring the rows up to this build's version, one step
+   *      at a time. A save from a LATER build is left completely alone.
+   *   2. READ. Every row through a reader that validates rather than a
+   *      cast that assumes, so damage is found here instead of on the
+   *      screen that first displays it.
+   *   3. RECOVER. If a row was not merely wrong but the wrong KIND of
+   *      thing, try the last copy that loaded cleanly — and keep the
+   *      damaged rows rather than throwing them away.
+   *   4. BACK UP. If this save loaded with nothing wrong at all, it
+   *      becomes the copy step 3 will reach for next time.
+   *
+   * WHAT IT NEVER DOES IS START A NEW GAME. A save that cannot be read
+   * is a save whose owner still deserves an answer better than an empty
+   * world; the worst outcome allowed here is "as much of it as could be
+   * read", and even then the unreadable rows are kept on disk.
+   */
   static async open(store: MemoryEventStore): Promise<World> {
     await store.init();
     const events = await store.getAll();
-    const clock =
-      ((await store.getStateValue(CLOCK_KEY)) as WorldClock | undefined) ?? INITIAL_CLOCK;
-    const characters: Record<string, CharacterState> = {};
-    for (const [id, initial] of Object.entries(INITIAL_CHARACTERS)) {
-      characters[id] =
-        ((await store.getStateValue(characterKey(id))) as CharacterState | undefined) ?? initial;
+    const stored = await store.getAllState();
+    const storedVersion = versionOf(await store.getMeta(SAVE_VERSION_META_KEY));
+
+    const migrated = migrateRows(stored, storedVersion, repairSavedRow);
+
+    // READ FIRST, REPAIR SECOND, and that order is the whole of the
+    // recovery. Reading reports how badly each row was wrong; repairing
+    // would hide it, because a `lumi` holding the string "gone" repairs
+    // to a perfectly good zero and the player's purse is quietly empty
+    // with nothing having gone visibly wrong. So the judgement is made
+    // on the rows as they were found.
+    let rows = migrated.rows;
+    let read = readWorldRows(rows);
+    let recoveredFromBackup = false;
+
+    // If a row was not merely wrong but the wrong KIND of thing, this
+    // save may not be this save any more. Try the last copy that loaded
+    // cleanly — and keep what was found, rather than destroying the only
+    // evidence of what went wrong.
+    if (read.unreadableKeys.length > 0) {
+      const backup = readBackup(await store.getMeta(BACKUP_META_KEY));
+      if (backup) {
+        const fromBackup = readWorldRows(backup.rows);
+        // Only if it is actually in better shape. A backup as broken as
+        // the save it would be rescuing is not a rescue, and swapping
+        // would throw away the newer of two damaged saves for nothing.
+        if (fromBackup.unreadableKeys.length < read.unreadableKeys.length) {
+          await store.setMeta(DAMAGED_META_KEY, {
+            savedAt: new Date().toISOString(),
+            unreadableKeys: read.unreadableKeys,
+            rows: stored,
+          });
+          rows = backup.rows;
+          read = fromBackup;
+          recoveredFromBackup = true;
+        }
+      }
     }
-    const seen = ((await store.getStateValue(SEEN_EXPERIENCE_KEY)) as string[] | undefined) ?? [];
-    const log =
-      ((await store.getStateValue(EXPERIENCE_LOG_KEY)) as ExperienceLog | undefined) ?? EMPTY_LOG;
-    const enemyProgress =
-      ((await store.getStateValue(ENEMY_PROGRESS_KEY)) as Record<string, EnemyProgress> | undefined) ??
-      {};
-    const enemyIndividuals =
-      ((await store.getStateValue(ENEMY_INDIVIDUALS_KEY)) as EnemyIndividual[] | undefined) ?? [];
-    const arcanaRaw =
-      ((await store.getStateValue(ARCANA_KEY)) as Record<string, unknown> | undefined) ?? {};
-    const accidentsRaw = await store.getStateValue(ACCIDENTS_KEY);
-    // Both of these are absent in every save written before this build,
-    // and absent is a valid answer rather than a migration step: an
-    // empty bag and an empty purse are exactly what a new world holds.
-    const inventory = readInventory(await store.getStateValue(INVENTORY_KEY));
-    const lumi = readLumi(await store.getStateValue(LUMI_KEY));
-    const progression = readProgressTable(await store.getStateValue(PROGRESSION_KEY));
-    const claimedRaw = await store.getStateValue(CLAIMED_REWARDS_KEY);
-    const claimed = Array.isArray(claimedRaw)
-      ? claimedRaw.filter((id): id is string => typeof id === 'string' && id !== '')
-      : [];
-    return new World(
-      store,
-      events,
-      clock,
-      characters,
-      seen,
-      { lastSeenDay: { ...log.lastSeenDay }, order: [...log.order] },
-      enemyProgress,
-      enemyIndividuals,
-      readArcanaRows(arcanaRaw),
-      readAccidentRows(accidentsRaw),
-      inventory,
-      lumi,
-      progression,
-      claimed.slice(-CLAIMED_REWARDS_KEPT),
-    );
+
+    // AND NOW THE REPAIR IS WRITTEN DOWN, every load, whatever the
+    // version says. Damage does not wait for a version boundary: a
+    // write cut off halfway leaves a bad row in a save that is
+    // perfectly up to date. Without this, such a row would be repaired
+    // on the way into memory and left on disk to be repaired again on
+    // every load forever — fixed each time and never actually fixed.
+    const persist = migrated.fromTheFuture
+      ? rows
+      : rows.map((row) => {
+          const fixed = repairSavedRow(row.key, row.value);
+          return fixed.changed ? { key: row.key, value: fixed.value } : row;
+        });
+
+    // Never for a save from a later build: the worst thing an older
+    // build can do to one is rewrite it into a shape the newer build no
+    // longer recognises.
+    if (!migrated.fromTheFuture && (recoveredFromBackup || !sameRows(stored, persist))) {
+      await store.commit({ putState: persist });
+    }
+    if (!migrated.fromTheFuture && storedVersion !== SAVE_VERSION) {
+      await store.setMeta(SAVE_VERSION_META_KEY, SAVE_VERSION);
+    }
+
+    const health: SaveHealth = {
+      version: migrated.fromTheFuture ? (storedVersion ?? SAVE_VERSION) : SAVE_VERSION,
+      health: read.unreadableKeys.length
+        ? 'unreadable'
+        : read.repairedKeys.length || migrated.changedKeys.length
+          ? 'repaired'
+          : 'ok',
+      repairedKeys: read.repairedKeys,
+      unreadableKeys: read.unreadableKeys,
+      migrationsApplied: migrated.applied,
+      recoveredFromBackup,
+      fromTheFuture: migrated.fromTheFuture,
+    };
+
+    const world = new World(store, events, read.fields, health);
+
+    // 4. BACK UP, but only a save that came through all of that with
+    //    nothing to report. "Last known good" has to mean good.
+    if (health.health === 'ok' && !migrated.fromTheFuture) {
+      await world.writeBackup(persist);
+    }
+    return world;
+  }
+
+  /**
+   * Takes a fresh copy of the save as the last known good one.
+   *
+   * Called when a world opens cleanly, and again when the page is about
+   * to go away — which is what keeps the copy from being a whole
+   * session out of date. It is a copy of the ROWS rather than of this
+   * object, so a row this build does not understand is copied too.
+   */
+  async snapshotBackup(): Promise<void> {
+    if (this.health.fromTheFuture) return;
+    if (this.health.health === 'unreadable') return;
+    await this.writeBackup(await this.store.getAllState());
+  }
+
+  private async writeBackup(rows: readonly WorldStateRow[]): Promise<void> {
+    const body = { version: SAVE_VERSION, savedAt: new Date().toISOString(), rows };
+    // Nothing to do when it would be the same copy again. Compared on
+    // the rows alone: the timestamp changes every time and is not a
+    // reason to write.
+    const existing = readBackup(await this.store.getMeta(BACKUP_META_KEY));
+    if (existing && sameRows(existing.rows, rows)) return;
+    await this.store.setMeta(BACKUP_META_KEY, body);
+  }
+
+  /** What reading this save had to say about it. */
+  getSaveHealth(): SaveHealth {
+    return this.health;
   }
 
   subscribe(listener: Listener): () => void {
@@ -1620,6 +1714,192 @@ export class World {
     this.claimedRewards = [];
     this.emit();
   }
+}
+
+/** The meta rows a save keeps about itself, rather than about the world. */
+const SAVE_VERSION_META_KEY = 'saveSchemaVersion';
+const BACKUP_META_KEY = 'worldBackup';
+/**
+ * Where a save that could not be read is kept.
+ *
+ * Nothing is ever thrown away here. A save that was recovered from a
+ * backup left rows behind that this build could not understand, and
+ * those rows are the only evidence of what went wrong — for a repair
+ * tool that does not exist yet, or for somebody reporting a bug.
+ */
+const DAMAGED_META_KEY = 'worldDamaged';
+
+/** Everything the world is restored from, once the reading is done. */
+interface WorldFields {
+  clock: WorldClock;
+  characters: Record<string, CharacterState>;
+  seenExperience: string[];
+  experienceLog: ExperienceLog;
+  enemyProgress: Record<string, EnemyProgress>;
+  enemyIndividuals: EnemyIndividual[];
+  arcana: Record<string, ArcanaRecord>;
+  accidents: Record<string, AccidentRecord>;
+  inventory: Inventory;
+  lumi: number;
+  progression: Record<string, LevelProgress>;
+  claimedRewards: string[];
+}
+
+/** What reading a save had to say about it. */
+export interface SaveHealth {
+  version: number;
+  health: RowHealth;
+  /** Rows that were the right kind of thing with something wrong inside. */
+  repairedKeys: string[];
+  /** Rows that were not that kind of thing at all. */
+  unreadableKeys: string[];
+  migrationsApplied: string[];
+  recoveredFromBackup: boolean;
+  /** The save says it was written by a later build than this one. */
+  fromTheFuture: boolean;
+}
+
+function versionOf(raw: unknown): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  return Math.floor(raw);
+}
+
+interface StoredBackup {
+  rows: WorldStateRow[];
+}
+
+/** A stored backup, or null if there is not one worth the name. */
+function readBackup(raw: unknown): StoredBackup | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const rows = (raw as { rows?: unknown }).rows;
+  if (!Array.isArray(rows)) return null;
+  const clean = rows.filter(
+    (row): row is WorldStateRow =>
+      !!row && typeof row === 'object' && typeof (row as WorldStateRow).key === 'string',
+  );
+  return clean.length > 0 ? { rows: clean } : null;
+}
+
+/** Whether two sets of rows say the same thing, order aside. */
+function sameRows(a: readonly WorldStateRow[], b: readonly WorldStateRow[]): boolean {
+  if (a.length !== b.length) return false;
+  const key = (rows: readonly WorldStateRow[]) =>
+    JSON.stringify(
+      [...rows].sort((x, y) => x.key.localeCompare(y.key)).map((row) => [row.key, row.value]),
+    );
+  return key(a) === key(b);
+}
+
+/**
+ * Reads one stored row, repaired, and says whether it had to change.
+ *
+ * The one place that knows which reader belongs to which key. A key
+ * this build has never heard of is returned exactly as it was: it
+ * belongs to a newer build, and an older one has no business deciding
+ * what it should look like.
+ */
+function repairSavedRow(key: string, value: unknown): { value: unknown; changed: boolean } {
+  const settle = <T>(read: ReadRow<T>): { value: unknown; changed: boolean } => ({
+    value: read.value,
+    changed: read.health !== 'ok',
+  });
+  if (key.startsWith('character_')) {
+    const id = key.slice('character_'.length);
+    const initial = INITIAL_CHARACTERS[id];
+    // Somebody this build does not have. Left alone rather than reset
+    // to a default that does not exist.
+    if (!initial) return { value, changed: false };
+    return settle(readCharacterState(value, initial));
+  }
+  switch (key) {
+    case CLOCK_KEY:
+      return settle(readClock(value));
+    case SEEN_EXPERIENCE_KEY:
+      return settle(readIdList(value));
+    case EXPERIENCE_LOG_KEY:
+      return settle(readExperienceLog(value));
+    case ENEMY_PROGRESS_KEY:
+      return settle(readEnemyProgressTable(value));
+    case ENEMY_INDIVIDUALS_KEY:
+      return settle(readEnemyIndividuals(value));
+    case INVENTORY_KEY:
+      return settle(readBag(value));
+    case LUMI_KEY:
+      return settle(readPurse(value));
+    case PROGRESSION_KEY:
+      return settle(readGrowth(value));
+    case CLAIMED_REWARDS_KEY:
+      return settle(readClaimedRewards(value));
+    default:
+      return { value, changed: false };
+  }
+}
+
+interface ReadWorld {
+  fields: WorldFields;
+  repairedKeys: string[];
+  unreadableKeys: string[];
+}
+
+/**
+ * Turns a set of stored rows into the world they describe.
+ *
+ * Every key is read through a validating reader, and the two lists
+ * coming back are what the recovery upstream decides on: `repaired`
+ * means something inside a row was wrong and has been fixed downward;
+ * `unreadable` means the row was not that kind of thing at all.
+ */
+function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
+  const byKey = new Map(rows.map((row) => [row.key, row.value]));
+  const repairedKeys: string[] = [];
+  const unreadableKeys: string[] = [];
+  const take = <T>(key: string, read: ReadRow<T>): T => {
+    if (read.health === 'repaired') repairedKeys.push(key);
+    if (read.health === 'unreadable') unreadableKeys.push(key);
+    return read.value;
+  };
+
+  const characters: Record<string, CharacterState> = {};
+  for (const [id, initial] of Object.entries(INITIAL_CHARACTERS)) {
+    const key = characterKey(id);
+    characters[id] = take(key, readCharacterState(byKey.get(key), initial));
+  }
+
+  const log = take(EXPERIENCE_LOG_KEY, readExperienceLog(byKey.get(EXPERIENCE_LOG_KEY)));
+  const claimed = take(CLAIMED_REWARDS_KEY, readClaimedRewards(byKey.get(CLAIMED_REWARDS_KEY)));
+  const arcanaRaw = byKey.get(ARCANA_KEY);
+
+  return {
+    fields: {
+      clock: take(CLOCK_KEY, readClock(byKey.get(CLOCK_KEY))),
+      characters,
+      seenExperience: take(SEEN_EXPERIENCE_KEY, readIdList(byKey.get(SEEN_EXPERIENCE_KEY))),
+      experienceLog: { lastSeenDay: { ...log.lastSeenDay }, order: [...log.order] },
+      enemyProgress: take(
+        ENEMY_PROGRESS_KEY,
+        readEnemyProgressTable(byKey.get(ENEMY_PROGRESS_KEY)),
+      ),
+      enemyIndividuals: take(
+        ENEMY_INDIVIDUALS_KEY,
+        readEnemyIndividuals(byKey.get(ENEMY_INDIVIDUALS_KEY)),
+      ),
+      // These two have carried their own repair since they were written,
+      // and both already treat anything they do not understand as an
+      // empty page rather than as damage.
+      arcana: readArcanaRows(
+        arcanaRaw && typeof arcanaRaw === 'object' && !Array.isArray(arcanaRaw)
+          ? (arcanaRaw as Record<string, unknown>)
+          : {},
+      ),
+      accidents: readAccidentRows(byKey.get(ACCIDENTS_KEY)),
+      inventory: take(INVENTORY_KEY, readBag(byKey.get(INVENTORY_KEY))),
+      lumi: take(LUMI_KEY, readPurse(byKey.get(LUMI_KEY))),
+      progression: take(PROGRESSION_KEY, readGrowth(byKey.get(PROGRESSION_KEY))),
+      claimedRewards: claimed.slice(-CLAIMED_REWARDS_KEPT),
+    },
+    repairedKeys,
+    unreadableKeys,
+  };
 }
 
 /**
