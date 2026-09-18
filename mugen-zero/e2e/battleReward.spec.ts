@@ -134,9 +134,16 @@ test.describe('what a fight is worth', () => {
     expect(progression.hero.totalExp).toBe(exp);
     expect(progression.kaos.totalExp, 'she was in the fight too').toBe(exp);
 
-    // Back to the path, and the forest is walkable again.
+    // Back out of the winnings and into the world again.
+    //
+    // NOT "the forest canvas is showing". The player is put back where
+    // they were standing, which is on the spot a creature was just
+    // found on — so a second encounter can start in the same breath,
+    // and then the canvas is behind a battle screen through no fault
+    // of anybody's. What this line means is that the result screen let
+    // go, and that is what it now says.
     await page.getByTestId('result-done').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('battle-result')).toHaveCount(0, { timeout: 20_000 });
 
     // Closed and opened again: still owned.
     await page.reload();
@@ -161,7 +168,7 @@ test.describe('what a fight is worth', () => {
     const done = page.getByTestId('result-done');
     // Hammer it: only the first can be the one that lands.
     for (let i = 0; i < 8; i++) await done.click({ timeout: 1500 }).catch(() => {});
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId('battle-result')).toHaveCount(0, { timeout: 20_000 });
     expect(await saved(page, 'lumi'), 'one fight, one purse').toBe(lumi);
 
     const claimed = (await saved(page, 'claimed_rewards')) as string[];
