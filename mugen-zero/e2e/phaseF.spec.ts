@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, advanceDays, enterDevAdmin } from './helpers';
+import { playToLifeChoice, advanceDays, enterDevAdmin, intoTheVillage } from './helpers';
 
 // PHASE F acceptance: the LIFE ARCHIVE grows only with the player's own
 // discoveries; the world's head start is never spoiled.
@@ -98,6 +98,7 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
   // And a full page reload restores it unchanged.
   await page.reload();
   await page.getByTestId('continue-button').click();
+  await intoTheVillage(page);
   await openGaldRecord(page);
   await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
   await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText('1年目 94日目');

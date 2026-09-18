@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin } from './helpers';
+import { enterDevAdmin, ontoTheMap } from './helpers';
 
 // PLAYTEST ROUND 2: the player should never be stuck wondering what to do
 // next — without ever being told the answer.
@@ -179,7 +179,9 @@ test('what the player has met survives a reload', async ({ page }) => {
 
   await page.reload();
   await page.getByTestId('continue-button').click();
-  await page.getByTestId('explore-button').click();
+  // Reloaded while out exploring, so the game puts them back out
+  // exploring — there is no 探索する to press from there.
+  await ontoTheMap(page);
   await page.getByTestId('location-MOONLIGHT_TAVERN').click();
   // The greeting does not play twice; the seed is what comes next.
   const scene = page.getByTestId('talk-MOONLIGHT_TAVERN');

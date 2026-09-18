@@ -1,5 +1,5 @@
 import { test, expect, chromium, type BrowserContext, type Page, pageOf } from './fixtures';
-import { GALD_TAP, swingUntil } from './helpers';
+import { GALD_TAP, intoTheVillage, swingUntil } from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -157,6 +157,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     page = await pageOf(context);
     await page.goto(`${BASE}/`);
     await page.getByTestId('continue-button').click();
+    await intoTheVillage(page);
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
     await page.getByTestId('archive-button').click();
     await page.getByTestId('archive-entry-GALD').click();

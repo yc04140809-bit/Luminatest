@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin } from './helpers';
+import { enterDevAdmin, ontoTheMap } from './helpers';
 
 // PHASE C + D: the world talks about itself from more than one mouth,
 // carries questions it does not answer, and has small things in it that
@@ -159,7 +159,8 @@ test('what the player has met survives a reload', async ({ page }) => {
 
   await page.reload();
   await page.getByTestId('continue-button').click();
-  await page.getByTestId('explore-button').click();
+  // Back where they were, which is already the map.
+  await ontoTheMap(page);
   const second = await visit(page, 'ALDEN_VILLAGE');
   expect(second).not.toBe(first);
   expect(second).not.toContain('まだ、間に合います'); // the letter does not replay

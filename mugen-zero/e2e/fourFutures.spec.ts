@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { readMemoryEvents, enterDevAdmin } from './helpers';
+import { readMemoryEvents, enterDevAdmin, intoTheVillage } from './helpers';
 
 // GALD FOUR FUTURES: whichever of the four choices the player made, three
 // years later the world holds something they can go and find — and it is
@@ -102,7 +102,9 @@ async function buildWorld(page: Page, preset: string) {
   } else {
     await page.getByTestId('continue-button').click();
   }
-  await expect(page.getByTestId('world-clock')).toBeVisible();
+  // 「つづきから」 puts the player back in the area they left, and the
+  // route before this one left them out on the map.
+  await intoTheVillage(page);
   await enterDevAdmin(page);
   await page.getByTestId(`preset-${preset}`).click();
   await expect(page.getByTestId('dev-clock')).toContainText('4年目');
@@ -228,7 +230,7 @@ for (const route of ROUTES) {
 
     await page.reload();
     await page.getByTestId('continue-button').click();
-    await expect(page.getByTestId('world-clock')).toBeVisible();
+    await intoTheVillage(page);
 
     // A revisit is an ordinary place — no second discovery, no second arc.
     await page.getByTestId('explore-button').click();
