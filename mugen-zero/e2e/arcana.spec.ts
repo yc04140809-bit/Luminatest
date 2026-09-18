@@ -222,11 +222,10 @@ test.describe('what a life writes into the book', () => {
     // with it, which is exactly what this test must not do.
     await walkIntoFight(page);
     await page.getByTestId('bp-attack').click();
-    // No button: an ordinary win has nothing to decide, so the screen
-    // waits long enough to be read and walks back to the forest itself.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
-      timeout: 20_000,
-    });
+    // The same way out as the first one: read the winnings, then the
+    // path. The winnings are real the second time — a fight always
+    // pays — and the BOOK is what must not move.
+    await backOnThePath(page);
     await expect(page.getByTestId('arcana-toast')).toHaveCount(0);
 
     await page.getByTestId('leave-forest').click();
