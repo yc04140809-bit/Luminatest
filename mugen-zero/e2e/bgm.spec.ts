@@ -1,5 +1,12 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin, playToLifeChoice, swingUntil, walkTheForestUntil } from './helpers';
+import {
+  backOnThePath,
+  enterDevAdmin,
+  fightIsOver,
+  playToLifeChoice,
+  swingUntil,
+  walkTheForestUntil,
+} from './helpers';
 
 /**
  * THE MUSIC, WITHOUT LISTENING TO IT.
@@ -218,9 +225,14 @@ test('a fight takes the music, and gives it back', async ({ page }) => {
   // Through the suite's own swinger, which presses by identity: the
   // commands are mid-animation most of the time and a fight that is
   // never swung at never ends.
-  const forest = page.locator('.phaser-wrap canvas');
-  await swingUntil(page, 'bp-attack', () => forest.isVisible().catch(() => false));
-  await expect(forest).toBeVisible({ timeout: 20_000 });
+  await swingUntil(page, 'bp-attack', () => fightIsOver(page));
+  // THE RESULT IS STILL THE FIGHT, as far as the music is concerned:
+  // the piece that was playing keeps playing while the winnings are
+  // read, and is handed back at the door rather than at the last blow.
+  // A fanfare of its own would be a new piece of music, and this round
+  // added none.
+  await expectPlaying(page, 'normal-battle.mp3');
+  await backOnThePath(page);
   await expectPlaying(page, 'greenwood-forest.mp3');
 });
 
@@ -284,7 +296,8 @@ test('the forest gives the music to a fight and takes it back, twice over', asyn
     }
 
     // --- and back out of it ---
-    await swingUntil(page, 'bp-attack', () => forest.isVisible().catch(() => false));
+    await swingUntil(page, 'bp-attack', () => fightIsOver(page));
+    await backOnThePath(page);
     await expect(forest, `round ${round}: back on the path`).toBeVisible({ timeout: 20_000 });
     await expectPlaying(page, 'greenwood-forest.mp3');
 

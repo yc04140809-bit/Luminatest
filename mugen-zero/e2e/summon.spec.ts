@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
+import { PHONES, RING_TAPS, backOnThePath, enterDevAdmin, viewportOf } from './helpers';
 
 /**
  * SUMMONING — a memory put back together on a battlefield.
@@ -383,11 +383,9 @@ test.describe('a finished memory', () => {
 
     // Out of the fight and into the next one: it is available again.
     await page.getByTestId('bp-attack').click();
-    // No button: an ordinary win has nothing to decide, so the screen
-    // waits long enough to be read and walks back to the forest itself.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
-      timeout: 20_000,
-    });
+    // No button to choose a life with: an ordinary win has nobody to
+    // decide about. It does have a RESULT to read, and then the path.
+    await backOnThePath(page);
 
     const box = (await page.locator('.phaser-wrap canvas').boundingBox())!;
     for (let pass = 0; pass < 2; pass++) {

@@ -365,3 +365,53 @@ export async function swingUntil(
   }
   return done();
 }
+
+/**
+ * AN ORDINARY VICTORY HAS A SCREEN IN IT NOW.
+ *
+ * It did not use to. A fight with nobody to decide about ended by
+ * walking the player back onto the path by itself, and a dozen specs
+ * say so by waiting for the forest's canvas to come back. Since the
+ * reward round there is a BATTLE RESULT in between — what the fight
+ * was worth, and who levelled — and it waits for a thumb, because
+ * winnings nobody was shown are winnings that may as well not have
+ * been paid.
+ *
+ * So "the fight is over" and "the player is back on the path" are two
+ * different questions now, and this answers the second by going
+ * through the first. It is written to hold either way round: the story
+ * fights still end on the four answers with no result screen at all,
+ * and the result step is skipped when there is nothing to read.
+ */
+export async function backOnThePath(page: Page, timeout = 20_000): Promise<void> {
+  const result = page.getByTestId('battle-result');
+  const forest = page.locator('.phaser-wrap canvas');
+  await expect(result.or(forest).first()).toBeVisible({ timeout });
+  if (await result.isVisible().catch(() => false)) {
+    await page.getByTestId('result-done').click();
+    await expect(result).toBeHidden({ timeout });
+  }
+  await expect(forest).toBeVisible({ timeout });
+}
+
+/**
+ * "Stop swinging" for a fight that ends in an ordinary win.
+ *
+ * Pass this to `swingUntil` rather than "the forest is back": between
+ * the last blow and the forest there is now a screen, and a loop that
+ * waits for the forest spends its whole budget pressing an attack
+ * button that is no longer on screen.
+ */
+export async function fightIsOver(page: Page): Promise<boolean> {
+  if (
+    await page
+      .getByTestId('battle-result')
+      .isVisible()
+      .catch(() => false)
+  )
+    return true;
+  return page
+    .locator('.phaser-wrap canvas')
+    .isVisible()
+    .catch(() => false);
+}

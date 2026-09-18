@@ -1,5 +1,12 @@
 import { test, expect, type Page } from './fixtures';
-import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
+import {
+  PHONES,
+  RING_TAPS,
+  backOnThePath,
+  enterDevAdmin,
+  fightIsOver,
+  viewportOf,
+} from './helpers';
 
 /**
  * The exploration loop: see a ring, walk to it, find out what it was,
@@ -232,14 +239,13 @@ test.describe('exploration loop', () => {
       timeout: 10_000,
     });
 
-    // Swing until the fight is over. What says it is over is the forest
-    // coming back: an ordinary win has nothing to decide, so the screen
-    // waits a beat and walks the player back by itself rather than
-    // leaving a button for the one thing they could have pressed.
+    // Swing until the fight is over. What says it is over is no longer
+    // the forest coming back but the RESULT screen: an ordinary win has
+    // nobody to decide about, so it says what the fight was worth and
+    // waits for one press before returning the player to the path.
     const attack = page.getByTestId('bp-attack');
-    const forest = page.locator('.phaser-wrap canvas');
     for (let i = 0; i < 40; i++) {
-      if (await forest.isVisible().catch(() => false)) break;
+      if (await fightIsOver(page)) break;
       // Asked, then pressed — and the two are separate moments, so the
       // commands can be unmounted in between: the win takes them away
       // and the screen starts walking back. A bare click would wait out
@@ -251,9 +257,7 @@ test.describe('exploration loop', () => {
     }
 
     // Back in the forest, not back at the village, and not at the door.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
-      timeout: 20_000,
-    });
+    await backOnThePath(page);
     await expect(page.getByTestId('leave-forest')).toBeVisible();
   });
 

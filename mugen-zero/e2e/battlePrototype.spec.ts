@@ -1,5 +1,12 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, enterDevAdmin, PHONES, RING_TAPS, viewportOf } from './helpers';
+import {
+  playToLifeChoice,
+  backOnThePath,
+  enterDevAdmin,
+  PHONES,
+  RING_TAPS,
+  viewportOf,
+} from './helpers';
 
 /**
  * THIS FILE'S TESTS RUN ALONGSIDE EACH OTHER.
@@ -325,9 +332,8 @@ test.describe('battle UI prototype', () => {
     // Nobody is asked anything — this creature was not somebody — and
     // with nothing to decide the screen returns by itself.
     await expect(page.getByTestId('bp-mugen-choice')).toHaveCount(0);
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
-      timeout: 20_000,
-    });
+    // What it does show is what the fight was worth, and then the path.
+    await backOnThePath(page);
   });
 
   test('the commands become the four answers only once there is a life to decide', async ({
@@ -724,9 +730,7 @@ test.describe('Kaos at the start of a fight', () => {
     await expect(page.getByTestId('bp-chaos-card')).toBeVisible();
     await page.getByTestId('bp-chaos-card').click();
     await page.getByTestId('bp-attack').click();
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
-      timeout: 20_000,
-    });
+    await backOnThePath(page);
 
     // Nothing of hers was written down. The only key that mentions her
     // is the dev switch this test set itself.

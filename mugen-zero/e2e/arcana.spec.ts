@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { PHONES, RING_TAPS, enterDevAdmin, viewportOf } from './helpers';
+import { PHONES, RING_TAPS, backOnThePath, enterDevAdmin, viewportOf } from './helpers';
 
 /**
  * ARCANA — the book, and the way a life fills it in.
@@ -195,11 +195,9 @@ test.describe('what a life writes into the book', () => {
     await walkIntoFight(page);
     await expect(page.getByTestId('battle-prototype')).toBeVisible();
     await page.getByTestId('bp-attack').click();
-    // No button: an ordinary win has nothing to decide, so the screen
-    // waits long enough to be read and walks back to the forest itself.
-    await expect(page.locator('.phaser-wrap canvas')).toBeVisible({
-      timeout: 20_000,
-    });
+    // No button to choose a life with: an ordinary win has nobody to
+    // decide about. It does have a RESULT to read, and then the path.
+    await backOnThePath(page);
 
     // A small word about it, and no more than that.
     const toast = page.getByTestId('arcana-toast');
