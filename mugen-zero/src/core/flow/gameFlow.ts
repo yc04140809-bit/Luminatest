@@ -88,11 +88,37 @@ export class GameFlow {
     return () => this.listeners.delete(listener);
   }
 
+  /**
+   * Whether the game may go there from where it is.
+   *
+   * STAYING PUT IS ALWAYS ALLOWED, and it is not in the table: the
+   * table says which screens are REACHABLE from each screen, and a
+   * screen does not reach itself. Asking to go where you already are
+   * is a question about a move that does not happen.
+   */
   canGoTo(next: Screen): boolean {
+    if (next === this.state.screen) return true;
     return TRANSITIONS[this.state.screen].includes(next);
   }
 
+  /**
+   * Go there. Asking for the screen already showing does nothing.
+   *
+   * THIS USED TO THROW, and the throw took the whole app down with it.
+   * The cause is never a bug in the flow: it is a second thumb on a
+   * button, a React StrictMode effect running twice, a timer firing
+   * after the screen it belonged to has already moved on. Every one of
+   * those is the app being asked to do what it has already done, and
+   * the honest answer to that is "yes, it is done" — not a crash on the
+   * player's phone while they are standing in a forest.
+   *
+   * THE TABLE IS NOT RELAXED BY THIS. A move to a DIFFERENT screen that
+   * the table does not allow still throws, exactly as before: that one
+   * is a real mistake in the code and must be loud. What changed is the
+   * one case that was never a mistake at all.
+   */
   goTo(next: Screen): void {
+    if (next === this.state.screen) return;
     if (!this.canGoTo(next)) {
       throw new Error(`Invalid transition: ${this.state.screen} -> ${next}`);
     }

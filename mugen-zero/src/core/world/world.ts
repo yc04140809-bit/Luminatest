@@ -285,6 +285,39 @@ export interface EnemyIndividual {
   reunionAvailable: boolean;
 }
 
+/**
+ * Whether somebody is exactly as the world first found them.
+ *
+ * Compared field by field rather than by JSON, because key order is not
+ * part of what a character IS: a save written by an older build can
+ * hold the same facts in a different order, and telling that player
+ * their story has moved on would be a lie in the safe direction — but
+ * telling them it has NOT is the dangerous one, so neither is allowed
+ * to be decided by an accident of serialisation.
+ */
+function sameCharacterState(
+  state: CharacterState | undefined,
+  initial: CharacterState,
+): boolean {
+  if (!state) return true;
+  const keys = new Set([...Object.keys(state), ...Object.keys(initial)]) as Set<
+    keyof CharacterState
+  >;
+  for (const key of keys) {
+    const a = state[key];
+    const b = initial[key];
+    if (Array.isArray(a) || Array.isArray(b)) {
+      const left = Array.isArray(a) ? a : [];
+      const right = Array.isArray(b) ? b : [];
+      if (left.length !== right.length) return false;
+      if (left.some((v, i) => v !== right[i])) return false;
+      continue;
+    }
+    if (a !== b) return false;
+  }
+  return true;
+}
+
 const EMPTY_PROGRESS: EnemyProgress = { defeated: 0, sinceStory: 0, named: 0 };
 
 /** What the four answers make a creature to the player, afterwards. */
@@ -430,12 +463,32 @@ export class World {
   }
 
   /**
-   * Whether this world has been lived in at all — recorded history OR a
-   * clock that has moved. Resting for a few days is progress too, so the
-   * title must offer to continue rather than silently starting over.
+   * Whether this world has been lived in at all.
+   *
+   * This is the question behind 「つづきから」, and getting it wrong in
+   * the direction of "no" is the worst answer the game can give: it
+   * offers a new game to somebody who has one, and if they take it,
+   * everything they had is gone. So the rule is that ANY of the things
+   * a player can accumulate counts, and the list has to be kept in step
+   * with the things a player can accumulate.
+   *
+   * IT MISSED THE ECONOMY AND THE GROWTH. When this was written there
+   * was no purse, no bag and no level; when they arrived, nobody came
+   * back here. A world where somebody had earned LUMI, filled a bag or
+   * reached Lv.2 without ALSO writing an event was a world this
+   * function called empty. In practice a victory writes an event too,
+   * so nothing was lost — but "in practice nothing was lost" is a
+   * statement about today's code, not a rule, and this is a place that
+   * has to be a rule.
+   *
+   * WHAT DOES NOT COUNT is anything about how the game is presented
+   * rather than what has happened in it: volume, the opening-theme
+   * setting, the battle-UI switch. Those live in localStorage and are
+   * not the world; turning the music down is not a playthrough.
    */
   hasProgress(): boolean {
     return (
+      // What happened.
       this.events.length > 0 ||
       this.seenExperience.size > 0 ||
       // Having come to know something is progress too. A player who met
@@ -443,6 +496,24 @@ export class World {
       // back, not a new one.
       Object.values(this.arcana).some((record) => record.met.length > 0) ||
       Object.keys(this.accidents).length > 0 ||
+      // What they are carrying. An empty bag and an empty purse are
+      // what a new world holds, so anything at all in either is a world
+      // somebody has been playing.
+      this.inventory.length > 0 ||
+      this.lumi > 0 ||
+      // What they have become. Compared against the total rather than
+      // against the level, because the total is what is stored and the
+      // level is derived from it.
+      Object.values(this.progression).some((p) => p.totalExp > 0 || p.level > 1) ||
+      // Where the story has got to. Compared against the same initial
+      // states `World.open` falls back to, so a save with no row for
+      // somebody reads as "nothing has happened to them" rather than as
+      // progress — which is what makes adding a character to the cast
+      // save-compatible.
+      Object.entries(INITIAL_CHARACTERS).some(
+        ([id, initial]) => !sameCharacterState(this.characters[id], initial),
+      ) ||
+      // And when they are.
       this.clock.worldYear !== INITIAL_CLOCK.worldYear ||
       this.clock.worldDay !== INITIAL_CLOCK.worldDay
     );
