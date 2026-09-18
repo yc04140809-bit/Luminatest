@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { GameFlow } from './core/flow/gameFlow';
-import { World } from './core/world/world';
+import { World, resumeAreaOf, type ResumeArea } from './core/world/world';
 import { IdbMemoryStore } from './core/memory/idbStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { kaosHasAwakened } from './core/magic/awakened';
@@ -257,6 +257,80 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
   );
+
+  /**
+   * WHERE THE PLAYER IS, WRITTEN DOWN.
+   *
+   * The world already saves itself on every change worth the name —
+   * LUMI, the bag, a level, a fact, the clock — because each of those
+   * is one atomic commit at the moment it happens. The one thing
+   * nobody was keeping was WHERE, so a player who closed the game in
+   * the middle of the map came back to the village.
+   *
+   * An AREA, not a screen. A screen is a moment — a fight mid-turn, a
+   * line half read — and restoring a moment means saving everything
+   * that moment stood on. A place is a fact, and it is the only part of
+   * "where was I" a player actually misses.
+   *
+   * Written a beat late on purpose. Walking into a shop and out again
+   * is three screen changes in two seconds, and the row is worth one
+   * write, not three. Whatever is still owed is paid below, when the
+   * page goes away.
+   */
+  const pendingArea = useRef<ResumeArea | null>(null);
+  useEffect(() => {
+    const area = resumeAreaOf(state.screen);
+    // Null is the title, the prologue and the developer's rooms: ways
+    // into a world rather than places in one. Nobody should come back
+    // from lunch into DEV ADMIN.
+    if (!area) return;
+    pendingArea.current = area;
+    const timer = window.setTimeout(() => {
+      pendingArea.current = null;
+      void world.setResumeArea(area).catch(() => {
+        /* a forgotten doorway is not worth interrupting anybody over */
+      });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [state.screen, world]);
+
+  /**
+   * THE PAGE GOING AWAY IS THE LAST CHANCE TO WRITE ANYTHING.
+   *
+   * On a phone the game is not closed, it is BACKGROUNDED — a call
+   * arrives, the browser is swapped away from — and the tab may never
+   * be given another frame. `visibilitychange` to hidden is the last
+   * event that reliably arrives; `pagehide` covers the actual close.
+   *
+   * Two things are owed at that moment: the doorway the effect above
+   * is still holding, and a fresh copy of the save as the last known
+   * good one, so the copy is minutes old rather than a whole session
+   * old. Everything else was committed when it happened.
+   *
+   * NOTHING IS OWED ON THE WAY BACK. A page restored from the
+   * browser's cache has never been torn down — the React tree, the
+   * world and its open database are all exactly as they were left — so
+   * there is nothing to initialise, and a `pageshow` handler that
+   * re-initialised anything would be the double-initialisation this is
+   * supposed to avoid.
+   */
+  useEffect(() => {
+    const flush = () => {
+      const owed = pendingArea.current;
+      pendingArea.current = null;
+      if (owed) void world.setResumeArea(owed).catch(() => {});
+      void world.snapshotBackup().catch(() => {});
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, [world]);
   // Re-render when world truth changes (clock, events, character states).
   useSyncExternalStore(
     (cb) => world.subscribe(cb),
@@ -460,6 +534,11 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           onContinue={() => {
             audioManager.unlock();
             flow.goTo('HOME');
+            // AND ONE STEP FURTHER, when that is where they left off.
+            // Always through the village rather than straight to the
+            // map: HOME is where a world is entered, and the flow's
+            // table is not worth loosening for a shortcut.
+            if (world.getResumeArea() === 'EXPLORE') flow.goTo('EXPLORE');
           }}
           onReset={async () => {
             await world.resetWorld();

@@ -3,7 +3,7 @@
 // and runs the EVENT ENGINE when time passes. The DB is the single source of
 // truth; React / Phaser only mirror what lives here.
 
-import type { LifeChoiceId } from '../flow/types';
+import type { LifeChoiceId, Screen } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
 import { SAVE_VERSION, migrateRows } from './saveSchema';
 import {
@@ -218,6 +218,63 @@ const CLAIMED_REWARDS_KEY = 'claimed_rewards';
 /** How many paid rewards are remembered. Long enough for any re-entry. */
 const CLAIMED_REWARDS_KEPT = 40;
 
+/**
+ * WHERE THE PLAYER WAS WHEN THE GAME STOPPED BEING LOOKED AT.
+ *
+ * Deliberately not "which screen was showing". A screen is a moment —
+ * a fight mid-turn, a line of dialogue half read, a shop with a
+ * confirmation open — and restoring a moment means saving everything
+ * that moment depended on. A PLACE is a fact, and it is the only part
+ * of "where was I" that a player actually misses.
+ *
+ * So there are two: the village, and out on the map. Everything that
+ * happens inside the forest, a fight included, resumes at the map with
+ * the forest one tap away. That is the safe direction, and it is also
+ * the answer to being interrupted mid-battle: the fight is simply not
+ * there any more, which is the same as never having been paid for it.
+ */
+const SESSION_KEY = 'session';
+
+export type ResumeArea = 'HOME' | 'EXPLORE';
+
+/** Where a screen puts the player back, if the game stops here. */
+const RESUME_AREA: Partial<Record<Screen, ResumeArea>> = {
+  HOME: 'HOME',
+  WORLD_MEMORY: 'HOME',
+  WORLD_NEWS: 'HOME',
+  ARCHIVE: 'HOME',
+  ARCANA: 'HOME',
+  SETTINGS: 'HOME',
+  TIME_SHIFT: 'HOME',
+  EXPLORE: 'EXPLORE',
+  ITEM_SHOP: 'EXPLORE',
+  TALK_SPOT: 'EXPLORE',
+  FUTURE_SITE: 'EXPLORE',
+  GREENWOOD: 'EXPLORE',
+  ENCOUNTER: 'EXPLORE',
+  BATTLE: 'EXPLORE',
+  BATTLE_RESULT: 'EXPLORE',
+  CREATURE_LIFE_CHOICE: 'EXPLORE',
+};
+
+/**
+ * Where a screen resumes to, or null for one that should not be
+ * resumed into at all.
+ *
+ * The title, the prologue and the developer's rooms are all null: the
+ * first two are the way IN to a world rather than a place in it, and
+ * nobody should come back from lunch into DEV ADMIN.
+ */
+export function resumeAreaOf(screen: Screen): ResumeArea | null {
+  return RESUME_AREA[screen] ?? null;
+}
+
+function readResumeArea(raw: unknown): ResumeArea {
+  if (!raw || typeof raw !== 'object') return 'HOME';
+  const screen = (raw as { screen?: unknown }).screen;
+  return screen === 'EXPLORE' ? 'EXPLORE' : 'HOME';
+}
+
 /** What one character's share of a reward came to. */
 export interface LevelGainRecord {
   characterId: string;
@@ -360,6 +417,7 @@ export class World {
   private lumi: number;
   private progression: Record<string, LevelProgress>;
   private claimedRewards: string[];
+  private resumeArea: ResumeArea;
 
   private readonly health: SaveHealth;
 
@@ -382,6 +440,7 @@ export class World {
     this.lumi = fields.lumi;
     this.progression = fields.progression;
     this.claimedRewards = fields.claimedRewards;
+    this.resumeArea = fields.resumeArea;
     this.health = health;
   }
 
@@ -522,6 +581,27 @@ export class World {
   /** What reading this save had to say about it. */
   getSaveHealth(): SaveHealth {
     return this.health;
+  }
+
+  /** Where 「つづきから」 should put the player back. */
+  getResumeArea(): ResumeArea {
+    return this.resumeArea;
+  }
+
+  /**
+   * Remembers where the player is.
+   *
+   * Does nothing at all when it is already what is stored, which is
+   * what keeps walking in and out of a shop from writing to the save
+   * twice a second. The caller is still expected not to ask on every
+   * frame; this is the floor, not the plan.
+   */
+  async setResumeArea(area: ResumeArea): Promise<void> {
+    if (this.resumeArea === area) return;
+    this.resumeArea = area;
+    await this.store.commit({
+      putState: [{ key: SESSION_KEY, value: { screen: area, savedAt: new Date().toISOString() } }],
+    });
   }
 
   subscribe(listener: Listener): () => void {
@@ -1712,6 +1792,9 @@ export class World {
     // And nobody has fought anything.
     this.progression = {};
     this.claimedRewards = [];
+    // And they are standing in the village, because that is where a
+    // world starts.
+    this.resumeArea = 'HOME';
     this.emit();
   }
 }
@@ -1743,6 +1826,7 @@ interface WorldFields {
   lumi: number;
   progression: Record<string, LevelProgress>;
   claimedRewards: string[];
+  resumeArea: ResumeArea;
 }
 
 /** What reading a save had to say about it. */
@@ -1830,6 +1914,14 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readGrowth(value));
     case CLAIMED_REWARDS_KEY:
       return settle(readClaimedRewards(value));
+    case SESSION_KEY: {
+      // The one row where being wrong costs nothing: the worst a
+      // damaged session can do is put the player in the village.
+      const area = readResumeArea(value);
+      const same =
+        !!value && typeof value === 'object' && (value as { screen?: unknown }).screen === area;
+      return same ? { value, changed: false } : { value: { screen: area }, changed: true };
+    }
     default:
       return { value, changed: false };
   }
@@ -1896,6 +1988,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       lumi: take(LUMI_KEY, readPurse(byKey.get(LUMI_KEY))),
       progression: take(PROGRESSION_KEY, readGrowth(byKey.get(PROGRESSION_KEY))),
       claimedRewards: claimed.slice(-CLAIMED_REWARDS_KEPT),
+      resumeArea: readResumeArea(byKey.get(SESSION_KEY)),
     },
     repairedKeys,
     unreadableKeys,
