@@ -1014,7 +1014,9 @@ export type ItemRefusal =
   | 'NOT_IN_THE_FIELD'
   | 'NONE_LEFT'
   | 'ALREADY_WELL'
-  | 'ALREADY_FULL';
+  | 'ALREADY_FULL'
+  /** Aimed at somebody who is not in the party. */
+  | 'NO_SUCH_TARGET';
 
 /**
  * EVERYTHING A REFUSAL NEEDS TO KNOW, wherever it is being asked.
@@ -1110,6 +1112,8 @@ export function itemRefusalLine(refusal: ItemRefusal, itemName: string): string 
       return '傷はない。';
     case 'ALREADY_FULL':
       return '魔力は満ちている。';
+    case 'NO_SUCH_TARGET':
+      return 'その相手には使えない。';
     case 'FIGHT_OVER':
       return 'もう戦いは終わっている。';
   }

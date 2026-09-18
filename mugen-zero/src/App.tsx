@@ -71,7 +71,7 @@ import {
 import { battleUi, previewOpponent, startFinishable } from './dev/battleUiFlag';
 import { useOpeningTheme } from './ui/opening/useOpeningTheme';
 import { OpeningSkip } from './ui/opening/OpeningSkip';
-import { BattleUIPrototype } from './ui/battle/BattleUIPrototype';
+import { BattleUIPrototype, type FinalCondition } from './ui/battle/BattleUIPrototype';
 import { galdOpponent } from './ui/battle/galdOpponent';
 import { memoryEventLabel } from './content/events/creatureLifeChoice';
 import { clearObtainedItems } from './platform/discoveries';
@@ -399,8 +399,8 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
    * this is the one line that carries it.
    */
   const rememberCondition = useCallback(
-    (left: { hp: number; mp: number }) => {
-      void world.setCondition(left).catch((e) => {
+    (left: FinalCondition) => {
+      void world.setBattleCondition(left).catch((e: unknown) => {
         console.error('Failed to record what the fight cost', e);
       });
     },
@@ -663,6 +663,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           onArchive={() => flow.goTo('ARCHIVE')}
           onArcana={() => flow.goTo('ARCANA')}
           onBag={() => flow.goTo('BAG')}
+          party={world.getPartyCondition()}
           onSettings={() => flow.goTo('SETTINGS')}
           // Once per run of the app, not once per save: the unlock
           // lives in memory and is gone when the app closes.
@@ -778,10 +779,9 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           forcedEnemyAction={debugEnemyAction()}
           magicUnlocked={kaosAwakened}
           stats={partyStats}
-          condition={world.getCondition()}
+          condition={world.getBattleCondition()}
           bag={world.getInventory()}
           onUseItem={spendItem}
-          onCondition={rememberCondition}
           forcedChaos={debugChaosIntervention()}
           arcana={battleArcana}
           forcedSummon={debugSummon()}
@@ -832,8 +832,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
       return (
         <BagScreen
           inventory={world.getInventory()}
-          condition={world.getCondition()}
-          stats={partyStats}
+          condition={world.getPartyCondition()}
           // The world does the whole transaction in one commit: the
           // screen asks and redraws whatever comes back.
           onUse={(itemId) => world.useItemFromBag(itemId)}
@@ -989,10 +988,9 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             forcedEnemyAction={debugEnemyAction()}
             magicUnlocked={kaosAwakened}
             stats={partyStats}
-            condition={world.getCondition()}
+            condition={world.getBattleCondition()}
             bag={world.getInventory()}
             onUseItem={spendItem}
-            onCondition={rememberCondition}
             forcedChaos={debugChaosIntervention()}
             arcana={battleArcana}
             forcedSummon={debugSummon()}
@@ -1003,8 +1001,11 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             // What the player actually saw. Held until the fight is
             // over, then written in one go.
             onObserved={noteArcana}
-            onNormalEnd={() => {
+            onNormalEnd={(final) => {
               forestBattle.current = false;
+              // WHAT THE FIGHT COST THEM, handed over as an argument
+              // rather than read off a screen mid-navigation.
+              rememberCondition(final);
               // WHAT THE WORLD REMEMBERS AND WHAT THE PLAYER WALKS AWAY
               // WITH ARE TWO DIFFERENT WRITES, on purpose. The first is
               // history — that this species was beaten — and is exactly
@@ -1024,8 +1025,9 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
                 .catch((e) => console.error('Failed to record the victory', e))
                 .finally(() => flow.goTo('BATTLE_RESULT'));
             }}
-            onMugenChoice={(choice) => {
+            onMugenChoice={(choice, final) => {
               forestBattle.current = false;
+              rememberCondition(final);
               // The real thing: the creature is named and what the
               // player decided is written into WORLD MEMORY, by exactly
               // the code the old screen's path uses.
@@ -1149,18 +1151,23 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           // this call site says the same thing as every other.
           magicUnlocked={kaosAwakened}
           stats={partyStats}
-          condition={world.getCondition()}
+          condition={world.getBattleCondition()}
           bag={world.getInventory()}
           onUseItem={spendItem}
-          onCondition={rememberCondition}
           memoryLines={worldMemoryLines}
           onCycleBattleBgm={cycleBattleBgm}
           battleBgmLabel={battleBgmLabel(battleBgmId)}
-          onNormalEnd={() => flow.goTo('LIFE_CHOICE')}
+          onNormalEnd={(final) => {
+            rememberCondition(final);
+            flow.goTo('LIFE_CHOICE');
+          }}
           // Unreachable — this fight never asks the creature's
           // question — and the screen requires an answer for it, so the
           // answer is the one that cannot quietly do the wrong thing.
-          onMugenChoice={() => flow.goTo('LIFE_CHOICE')}
+          onMugenChoice={(_choice, final) => {
+            rememberCondition(final);
+            flow.goTo('LIFE_CHOICE');
+          }}
           onDefeat={() => flow.goTo('HOME')}
           // NO `onEscape`, which is what takes 逃走 off the screen. A
           // man standing in the road at the start of the story is not

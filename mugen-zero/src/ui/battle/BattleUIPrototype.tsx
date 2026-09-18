@@ -24,6 +24,12 @@ import { ItemTray } from './ItemTray';
 import { itemDef } from '../../content/economy/itemDefs';
 import type { ItemStack } from '../../core/economy/items';
 import type { PartyStats } from '../../core/progression/levelStats';
+
+/** The two numbers a fight has, as it ends. */
+export interface FinalCondition {
+  hp: number;
+  mp: number;
+}
 import { HitFx } from './HitFx';
 import { endBlow, landBlow, latestOn, motionSlot, type Blow } from './blows';
 import { sayOf } from './battleMessage';
@@ -197,19 +203,20 @@ interface Props {
    */
   condition?: { hp: number; mp: number };
   /**
-   * What the fight left them with, reported as it ends.
+   * An ordinary fight, over — and what it left them with.
    *
-   * Fired once, on every way OUT of a fight that the party walks away
-   * from — an ordinary win, and a win that turned into a question
-   * about a life. Not on defeat: being beaten puts them back on their
-   * feet, and the caller does that rather than reading a number off a
-   * fight nobody won.
+   * THE NUMBERS ARE AN ARGUMENT, not something to go and read. They
+   * are captured at the instant the fight stops being ONGOING, inside
+   * the handler that stopped it, and carried to here in a ref. The
+   * alternative — an effect reading `battle` when its timer fires —
+   * is correct only while nothing between the last blow and the
+   * navigation touches the state, and that is a promise about every
+   * piece of theatre that will ever be added after the victory. This
+   * way there is nothing to promise.
    */
-  onCondition?: (left: { hp: number; mp: number }) => void;
-  /** An ordinary fight, over. */
-  onNormalEnd: () => void;
+  onNormalEnd: (final: FinalCondition) => void;
   /** The other kind. The choice is real and is recorded by the caller. */
-  onMugenChoice: (choice: LifeChoiceId) => void;
+  onMugenChoice: (choice: LifeChoiceId, final: FinalCondition) => void;
   onDefeat: () => void;
   /**
    * The fight is left rather than finished.
@@ -493,7 +500,6 @@ export function BattleUIPrototype({
   condition,
   bag: bagAtTheStart = [],
   onUseItem,
-  onCondition,
   onAccidentObserved,
   onObserved,
   onNormalEnd,
@@ -558,6 +564,25 @@ export function BattleUIPrototype({
    * thumb — or AUTO at double speed — spend the same herb twice.
    */
   const [bag, setBag] = useState<readonly ItemStack[]>(() => bagAtTheStart.map((s) => ({ ...s })));
+  /**
+   * WHAT THE FIGHT ENDED ON, CAUGHT AT THE MOMENT IT ENDED.
+   *
+   * Written by `settle` below, from inside the handler that produced
+   * the last state — never read later from a render. Everything that
+   * leaves this screen carrying numbers carries these.
+   */
+  const ended = useRef<FinalCondition | null>(null);
+  const settle = (next: BattleState) => {
+    if (next.outcome === 'ONGOING') return;
+    // FIRST ONE WINS. A fight ends once; a second call is a re-render
+    // or a timer, and it must not be allowed to describe a state that
+    // came after the ending.
+    if (ended.current) return;
+    ended.current = { hp: next.playerHp, mp: next.playerMp };
+  };
+  /** Whatever was caught, or the fight as it stands if it has not ended. */
+  const finalCondition = (): FinalCondition =>
+    ended.current ?? { hp: battle.playerHp, mp: battle.playerMp };
   /** Her moment, before the fight. Skipped entirely when she does not. */
   const [showingChaos, setShowingChaos] = useState(plan.kind !== 'NONE');
   /**
@@ -852,13 +877,7 @@ export function BattleUIPrototype({
     if (stance !== 'DOWNED') return;
     if (finishesInMugenChoice) return;
     if (accidentBeat !== 'NONE') return;
-    const t = setTimeout(() => {
-      // WHAT IT COST THEM, handed over as the fight ends. Before the
-      // callback, so a caller that navigates on it is navigating
-      // after the world already knows.
-      onCondition?.({ hp: battle.playerHp, mp: battle.playerMp });
-      onNormalEnd();
-    }, beatMs(VICTORY_WAIT_MS, speed));
+    const t = setTimeout(() => onNormalEnd(finalCondition()), beatMs(VICTORY_WAIT_MS, speed));
     return () => clearTimeout(t);
   }, [battle.outcome, stance, finishesInMugenChoice, accidentBeat, onNormalEnd, speed]);
 
@@ -1079,6 +1098,7 @@ export function BattleUIPrototype({
         ? playerAttack(battle, undefined, forcedEnemyAction)
         : playerDefend(battle, undefined, forcedEnemyAction);
     setBattle(next);
+    settle(next);
     if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
     if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
     if (next.outcome === 'VICTORY') observe('WON_A_FIGHT');
@@ -1117,6 +1137,7 @@ export function BattleUIPrototype({
     setSay(null);
     const next = castMagic(battle, magic, undefined, forcedEnemyAction);
     setBattle(next);
+    settle(next);
 
     if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
     if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
@@ -1166,6 +1187,7 @@ export function BattleUIPrototype({
     onUseItem?.(itemId);
     const next = useItemInBattle(battle, def.use, undefined, forcedEnemyAction);
     setBattle(next);
+    settle(next);
     if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
     if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
     if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
@@ -1214,9 +1236,7 @@ export function BattleUIPrototype({
     if (saving) return;
     setSaving(true);
     vibrate(24); // a decision you feel
-    // The same walk away from the same fight, so the same report.
-    onCondition?.({ hp: battle.playerHp, mp: battle.playerMp });
-    onMugenChoice(choice);
+    onMugenChoice(choice, finalCondition());
   };
 
   const beaten = battle.outcome === 'VICTORY';

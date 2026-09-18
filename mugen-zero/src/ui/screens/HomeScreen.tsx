@@ -9,9 +9,16 @@ import {
   locationBackgroundFocus,
   type LocationId,
 } from '../../content/locations/locationVisuals';
+import type { PartyCondition } from '../../core/party/condition';
 import { LOCATIONS } from '../../content/locations/alden';
 import { KAOS_HOME_ASIDES } from '../../content/dialogue/bakery';
 import type { HomeMemorySummary } from '../home/homeSummary';
+
+/** What to call each of them on this screen. */
+const PARTY_NAMES: Record<string, string> = {
+  hero: 'あなた',
+  kaos: 'ケイオス',
+};
 
 interface Props {
   /**
@@ -37,6 +44,8 @@ interface Props {
   onArcana: () => void;
   /** 持ち物: what the player is carrying, for looking at. */
   onBag: () => void;
+  /** What each of them has left. A line, not a status screen. */
+  party: PartyCondition;
   /** Opens player settings. */
   onSettings: () => void;
   /** Opens the DEV ADMIN lock screen (dev builds only). */
@@ -69,6 +78,7 @@ export function HomeScreen({
   onArchive,
   onArcana,
   onBag,
+  party,
   onSettings,
   onDevAdmin,
 }: Props) {
@@ -175,6 +185,26 @@ export function HomeScreen({
             </p>
             <p className="home-clock" data-testid="world-clock">
               {clock.worldYear}年目 {clock.worldDay}日目
+            </p>
+            {/* WHAT A FIGHT COST THEM, where they will see it before
+                walking into the next one.
+                Not a status screen — a line. The whole job is that a
+                player who finished a fight at half health can tell,
+                without opening anything, that they are still at half
+                health. Everything a proper status screen would add is
+                a different round's work. */}
+            <p className="home-party" data-testid="home-party">
+              {Object.entries(party).map(([id, row]) => (
+                <span className="home-party-one" key={id} data-testid={`home-party-${id}`}>
+                  <b>{PARTY_NAMES[id] ?? id}</b>
+                  <i className={row.currentHp < row.maxHp ? 'low' : undefined}>
+                    HP {row.currentHp}/{row.maxHp}
+                  </i>
+                  <i className={row.currentMp < row.maxMp ? 'low' : undefined}>
+                    MP {row.currentMp}/{row.maxMp}
+                  </i>
+                </span>
+              ))}
             </p>
           </div>
           {aside && (

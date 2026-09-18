@@ -6532,3 +6532,52 @@ body,
   text-align: center;
   color: var(--accent, #c9a227);
 }
+
+/* ---- what a fight cost them, on HOME ----
+   A line, not a status screen. The whole job is that somebody who
+   finished a fight at half health can tell without opening anything. */
+.home-party {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 12px;
+  margin: 3px 0 0;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.home-party-one {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.home-party-one b {
+  font-weight: 600;
+}
+.home-party-one i {
+  font-style: normal;
+}
+.home-party-one i.low {
+  color: var(--danger, #c8524a);
+}
+/* ---- and the same, in the bag ---- */
+.bag-party {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+.bag-condition {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+.bag-condition b {
+  font-weight: 600;
+}

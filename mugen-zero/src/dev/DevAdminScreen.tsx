@@ -163,8 +163,7 @@ export function DevAdminScreen({
    * debugging their own tooling.
    */
   const [keepBelongings, setKeepBelongings] = useState(false);
-  const condition = world.getCondition();
-  const partyStats = world.getPartyStats();
+  const party = world.getPartyCondition();
   const [showGodView, setShowGodView] = useState(false);
 
   const run = async (label: string, op: () => Promise<unknown>) => {
@@ -856,8 +855,13 @@ export function DevAdminScreen({
           disabled={busy}
           onClick={() =>
             run('HURT', async () => {
-              const { hp, mp } = world.getCondition();
-              await world.setCondition({ hp: Math.max(1, hp - 40), mp });
+              // Everybody, so a four-person party is still one press.
+              for (const [id, row] of Object.entries(world.getPartyCondition())) {
+                await world.setCharacterCondition(id, {
+                  hp: Math.max(1, row.currentHp - 40),
+                  mp: row.currentMp,
+                });
+              }
             })
           }
         >
@@ -870,8 +874,12 @@ export function DevAdminScreen({
           disabled={busy}
           onClick={() =>
             run('DRAIN', async () => {
-              const { hp, mp } = world.getCondition();
-              await world.setCondition({ hp, mp: Math.max(0, mp - 24) });
+              for (const [id, row] of Object.entries(world.getPartyCondition())) {
+                await world.setCharacterCondition(id, {
+                  hp: row.currentHp,
+                  mp: Math.max(0, row.currentMp - 24),
+                });
+              }
             })
           }
         >
@@ -888,7 +896,11 @@ export function DevAdminScreen({
         </button>
       </div>
       <div className="location-desc" data-testid="dev-condition">
-        HP {condition.hp} / {partyStats.maxHp} ／ MP {condition.mp} / {partyStats.maxMp}
+        {Object.entries(party).map(([id, row]) => (
+          <div key={id} data-testid={`dev-condition-${id}`}>
+            {id} — HP {row.currentHp} / {row.maxHp} ／ MP {row.currentMp} / {row.maxMp}
+          </div>
+        ))}
       </div>
 
       {/* ---- SAVE HEALTH ----

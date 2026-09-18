@@ -8,9 +8,16 @@ import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/typ
 import { SAVE_VERSION, migrateRows } from './saveSchema';
 import { statsForLevels, type PartyStats } from '../progression/levelStats';
 import {
-  fullCondition,
-  readCondition,
+  BATTLE_HP_HOLDER,
+  BATTLE_MP_HOLDER,
+  carryUp,
+  ceilingFor,
+  readLegacyShared,
+  readParty,
+  toStored,
+  type CharacterCondition,
   type PartyCondition,
+  type StoredParty,
 } from '../party/condition';
 import { refuseUse, useYield, type ItemRefusal } from '../../game/battle/battleLogic';
 import {
@@ -450,7 +457,7 @@ export class World {
   private claimedRewards: string[];
   private resumeArea: ResumeArea;
   /** Null while nothing has hurt them: a world with no row is whole. */
-  private condition: PartyCondition | null;
+  private condition: StoredParty | null;
 
   private readonly health: SaveHealth;
 
@@ -654,30 +661,109 @@ export class World {
     return statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
   }
 
+  /** Who this world's condition is kept for. Two today. */
+  private partyMembers(): readonly string[] {
+    return activeParty().map((member) => member.id);
+  }
+
   /**
-   * What they have left, clamped against the party they are now.
+   * WHAT EACH OF THEM HAS LEFT, against the party they are now.
    *
-   * A world that has never been hurt has no row here and comes back
-   * whole, which is also what a new world is.
+   * Per character, with the maxima worked out from the levels rather
+   * than read from disk: a stored maximum is a second copy of a truth
+   * the level already holds, and the two would disagree the first time
+   * the curve is retuned. A world nobody has hurt has no row here and
+   * everybody comes back whole.
    */
-  getCondition(): PartyCondition {
-    const stats = this.getPartyStats();
-    return this.condition ? readCondition(this.condition, stats) : fullCondition(stats);
+  getPartyCondition(): PartyCondition {
+    return readParty(
+      this.condition ?? {},
+      this.partyMembers(),
+      this.getLevel(BATTLE_HP_HOLDER),
+      this.getLevel(BATTLE_MP_HOLDER),
+    );
+  }
+
+  /** One of them, by id. Somebody nobody has heard of comes back whole. */
+  getCharacterCondition(characterId: string): CharacterCondition {
+    const party = this.getPartyCondition();
+    if (party[characterId]) return party[characterId];
+    const ceiling = ceilingFor(
+      characterId,
+      this.getLevel(BATTLE_HP_HOLDER),
+      this.getLevel(BATTLE_MP_HOLDER),
+    );
+    return {
+      currentHp: ceiling.maxHp,
+      maxHp: ceiling.maxHp,
+      currentMp: ceiling.maxMp,
+      maxMp: ceiling.maxMp,
+    };
+  }
+
+  /**
+   * WHAT THE FIGHT READS, and the only place the mapping lives.
+   *
+   * The battle has one health bar and one pool of magic. The bar is
+   * the front rank taking the blows and the magic is hers — the same
+   * split the level curve already makes. Two lines, in one function,
+   * so nothing else has to know it.
+   */
+  getBattleCondition(): { hp: number; mp: number } {
+    const party = this.getPartyCondition();
+    return {
+      hp: party[BATTLE_HP_HOLDER]?.currentHp ?? 0,
+      mp: party[BATTLE_MP_HOLDER]?.currentMp ?? 0,
+    };
   }
 
   /**
    * What a fight left them with.
    *
-   * Called on the way OUT of a battle, with the numbers the fight
-   * ended on. Clamped here rather than trusted: the caller is a
-   * screen, and a screen is the last place a ceiling should be
+   * Handed the two numbers a fight actually has, and puts them back
+   * where they came from. Clamped here rather than trusted: the caller
+   * is a screen, and a screen is the last place a ceiling should be
    * enforced.
    */
-  async setCondition(next: PartyCondition): Promise<void> {
-    const clamped = readCondition(next, this.getPartyStats());
-    if (this.condition && this.condition.hp === clamped.hp && this.condition.mp === clamped.mp) {
-      return;
-    }
+  async setBattleCondition(left: { hp: number; mp: number }): Promise<void> {
+    const party = this.getPartyCondition();
+    await this.writeParty({
+      ...toStored(party),
+      [BATTLE_HP_HOLDER]: {
+        hp: left.hp,
+        mp: party[BATTLE_HP_HOLDER]?.currentMp ?? 0,
+      },
+      [BATTLE_MP_HOLDER]: {
+        hp: party[BATTLE_MP_HOLDER]?.currentHp ?? 0,
+        mp: left.mp,
+      },
+    });
+  }
+
+  /** One person's, by id. For the developer panel and for tests. */
+  async setCharacterCondition(
+    characterId: string,
+    left: { hp: number; mp: number },
+  ): Promise<void> {
+    await this.writeParty({
+      ...toStored(this.getPartyCondition()),
+      [characterId]: { hp: left.hp, mp: left.mp },
+    });
+  }
+
+  private async writeParty(next: StoredParty): Promise<void> {
+    // Clamped by reading it straight back: one definition of what a
+    // stored row means, used for what goes in as well as what comes
+    // out, so nothing can be written that could not be read.
+    const clamped = toStored(
+      readParty(
+        next,
+        this.partyMembers(),
+        this.getLevel(BATTLE_HP_HOLDER),
+        this.getLevel(BATTLE_MP_HOLDER),
+      ),
+    );
+    if (JSON.stringify(this.condition ?? null) === JSON.stringify(clamped)) return;
     await this.store.commit({ putState: [{ key: CONDITION_KEY, value: clamped }] });
     this.condition = clamped;
     this.emit();
@@ -703,47 +789,57 @@ export class World {
    *
    * ONE COMMIT for the thing and the effect, which is the whole point
    * of it living here rather than in the screen. A bag that called
-   * `removeItem` and then `setCondition` could be interrupted between
-   * them, and both halves of that are bugs a player would notice: a
-   * herb that vanished without healing, or one that healed for ever.
+   * `removeItem` and then wrote a condition could be interrupted
+   * between them, and both halves of that are bugs a player would
+   * notice: a herb that vanished without healing, or one that healed
+   * for ever.
    *
    * It refuses before it touches anything, and it refuses with a
    * REASON — the same reasons the tray in a fight gives, decided by
    * the same function, so the two places can never disagree.
    *
-   * `targetId` is accepted and, for now, ignored: the battle has
-   * shared one health bar since it was written, so there is exactly
-   * one thing to aim at. It is in the signature because the day there
-   * are four of them, this call should not have to change shape.
+   * WHO IT IS USED ON. `targetId` is real and is honoured. Left out,
+   * it goes to whoever holds the bar the item fills — the front rank
+   * for health, her for magic — which is the only answer that means
+   * anything while the fight has one of each. A screen that asks
+   * 「誰に使う？」 passes the id and nothing here changes.
    */
-  async useItemFromBag(itemId: string, targetId = 'party'): Promise<BagUseResult> {
+  async useItemFromBag(itemId: string, targetId?: string): Promise<BagUseResult> {
     const def = itemDef(itemId);
     const held = countInBag(this.inventory, itemId);
-    if (!def?.use) return { ok: false, refusal: 'NONE_LEFT', given: 0, stat: 'HP', name: itemId, held };
-    const stats = this.getPartyStats();
-    const condition = this.getCondition();
-    const refusal = refuseUse(
-      { place: 'FIELD', hp: condition.hp, maxHp: stats.maxHp, mp: condition.mp, maxMp: stats.maxMp },
-      def.use,
-      held,
-    );
-    if (refusal) return { ok: false, refusal, given: 0, stat: 'HP', name: def.name, held };
+    const nobody = { ok: false, given: 0, stat: 'HP' as const, held };
+    if (!def?.use) return { ...nobody, refusal: 'NONE_LEFT', name: itemId, targetId: targetId ?? '' };
 
-    const { given, stat } = useYield(def.use, {
-      hp: condition.hp,
-      maxHp: stats.maxHp,
-      mp: condition.mp,
-      maxMp: stats.maxMp,
-    });
+    const on = targetId ?? (def.use.kind === 'HEAL' ? BATTLE_HP_HOLDER : BATTLE_MP_HOLDER);
+    const party = this.getPartyCondition();
+    const them = party[on];
+    // Somebody who is not in the party is not a target, and saying so
+    // is better than quietly healing the wrong person.
+    if (!them) return { ...nobody, refusal: 'NO_SUCH_TARGET', name: def.name, targetId: on };
+
+    const where = {
+      place: 'FIELD' as const,
+      hp: them.currentHp,
+      maxHp: them.maxHp,
+      mp: them.currentMp,
+      maxMp: them.maxMp,
+    };
+    const refusal = refuseUse(where, def.use, held);
+    if (refusal) return { ...nobody, refusal, name: def.name, targetId: on };
+
+    const { given, stat } = useYield(def.use, where);
     const taken = removeFromBag(this.inventory, itemId, 1);
     // Nothing above this line touched the world, so a refusal here
     // costs nothing — and nothing below it can half-happen.
     if (taken.moved === 0) {
-      return { ok: false, refusal: 'NONE_LEFT', given: 0, stat, name: def.name, held };
+      return { ...nobody, refusal: 'NONE_LEFT', stat, name: def.name, targetId: on };
     }
-    const next: PartyCondition = {
-      hp: stat === 'HP' ? condition.hp + given : condition.hp,
-      mp: stat === 'MP' ? condition.mp + given : condition.mp,
+    const next: StoredParty = {
+      ...toStored(party),
+      [on]: {
+        hp: stat === 'HP' ? them.currentHp + given : them.currentHp,
+        mp: stat === 'MP' ? them.currentMp + given : them.currentMp,
+      },
     };
     await this.store.commit({
       putState: [
@@ -754,8 +850,15 @@ export class World {
     this.inventory = taken.inventory;
     this.condition = next;
     this.emit();
-    void targetId;
-    return { ok: true, refusal: null, given, stat, name: def.name, held: held - 1 };
+    return {
+      ok: true,
+      refusal: null,
+      given,
+      stat,
+      name: def.name,
+      targetId: on,
+      held: held - 1,
+    };
   }
 
   /**
@@ -1718,6 +1821,46 @@ export class World {
    * nothing, so a reward with no experience in it cannot make the world
    * look like it changed.
    */
+  /**
+   * WHAT A LEVEL DOES TO SOMEBODY WHO IS ALREADY HURT.
+   *
+   * Levelling must not heal and must not wound. Somebody at 70 of 100
+   * who gains eight maximum health is at 78 of 108 — the same gap,
+   * carried up. Both alternatives are wrong in a way a player notices:
+   * leaving them at 70 of 108 makes levelling look like being hurt,
+   * and jumping to 108 of 108 makes it a free full heal they will
+   * learn to farm.
+   *
+   * Returns the row to write, or null when nothing needs to change —
+   * which is the common case, because most experience is not a level.
+   */
+  private conditionAfterLevels(
+    nextProgression: Record<string, LevelProgress>,
+  ): StoredParty | null {
+    // Nobody is hurt: there is no gap to carry, and a world with no
+    // row must not grow one just because somebody levelled.
+    if (this.condition === null) return null;
+    const heroBefore = this.getLevel(BATTLE_HP_HOLDER);
+    const kaosBefore = this.getLevel(BATTLE_MP_HOLDER);
+    const levelIn = (table: Record<string, LevelProgress>, id: string) =>
+      table[id]?.level ?? INITIAL_PROGRESS.level;
+    const heroAfter = levelIn(nextProgression, BATTLE_HP_HOLDER);
+    const kaosAfter = levelIn(nextProgression, BATTLE_MP_HOLDER);
+    if (heroAfter === heroBefore && kaosAfter === kaosBefore) return null;
+
+    const before = this.getPartyCondition();
+    const out: StoredParty = {};
+    for (const id of this.partyMembers()) {
+      const was = before[id];
+      out[id] = carryUp(
+        { hp: was.currentHp, mp: was.currentMp },
+        ceilingFor(id, heroBefore, kaosBefore),
+        ceilingFor(id, heroAfter, kaosAfter),
+      );
+    }
+    return out;
+  }
+
   async grantExp(characterId: string, amount: number): Promise<LevelGainRecord> {
     const before = this.getProgress(characterId);
     const gain = gainExp(before, amount);
@@ -1725,8 +1868,18 @@ export class World {
       return { characterId, from: before.level, to: before.level, levelsGained: 0, earned: 0 };
     }
     const next = { ...this.progression, [characterId]: gain.progress };
-    await this.store.commit({ putState: [{ key: PROGRESSION_KEY, value: next }] });
+    // A longer bar and the same gap in it, written in the same commit
+    // as the level that caused it — so there is no moment where the
+    // ceiling has moved and what is under it has not.
+    const carried = this.conditionAfterLevels(next);
+    await this.store.commit({
+      putState: [
+        { key: PROGRESSION_KEY, value: next },
+        ...(carried ? [{ key: CONDITION_KEY, value: carried }] : []),
+      ],
+    });
     this.progression = next;
+    if (carried) this.condition = carried;
     this.emit();
     return {
       characterId,
@@ -1819,6 +1972,12 @@ export class World {
     if (took.length > 0) rows.push({ key: INVENTORY_KEY, value: bag });
     if (purse !== this.lumi) rows.push({ key: LUMI_KEY, value: purse });
     if (expEarned > 0) rows.push({ key: PROGRESSION_KEY, value: progression });
+    // A LEVEL IN THE SAME COMMIT AS THE GAP IT WIDENS. The winnings
+    // already land all together or not at all; a longer health bar
+    // whose contents arrived separately would be the one part of a
+    // reward that could be interrupted halfway.
+    const carried = expEarned > 0 ? this.conditionAfterLevels(progression) : null;
+    if (carried) rows.push({ key: CONDITION_KEY, value: carried });
 
     // What the purse ACTUALLY gained, read before anything is replaced.
     const lumiEarned = purse - this.lumi;
@@ -1828,6 +1987,7 @@ export class World {
     if (took.length > 0) this.inventory = bag;
     this.lumi = purse;
     if (expEarned > 0) this.progression = progression;
+    if (carried) this.condition = carried;
     this.emit();
     return {
       exp: expEarned,
@@ -2046,6 +2206,8 @@ export interface BagUseResult {
   given: number;
   stat: 'HP' | 'MP';
   name: string;
+  /** Who it went to. Chosen by the caller, or by what the item fills. */
+  targetId: string;
   /** How many are left afterwards. */
   held: number;
 }
@@ -2058,13 +2220,27 @@ export interface BagUseResult {
  * read instead, which is the only version that survives a level gained
  * between one session and the next.
  */
-function readStoredCondition(raw: unknown): PartyCondition | null {
+function readStoredCondition(raw: unknown): StoredParty | null {
   if (!raw || typeof raw !== 'object') return null;
-  const held = raw as { hp?: unknown; mp?: unknown };
-  const hp = Math.floor(Number(held.hp));
-  const mp = Math.floor(Number(held.mp));
-  if (!Number.isFinite(hp) || !Number.isFinite(mp)) return null;
-  return { hp, mp };
+  // LAST ROUND'S SHAPE, which anybody who played that build has on
+  // disk. It is not discarded and not guessed at: the health it holds
+  // was the front rank's and the magic was hers, so that is where the
+  // two numbers go.
+  const legacy = readLegacyShared(raw);
+  if (legacy) return legacy;
+  const out: StoredParty = {};
+  for (const [id, row] of Object.entries(raw as Record<string, unknown>)) {
+    if (!row || typeof row !== 'object') continue;
+    const held = row as { hp?: unknown; mp?: unknown };
+    const hp = Math.floor(Number(held.hp));
+    const mp = Math.floor(Number(held.mp));
+    if (!Number.isFinite(hp) && !Number.isFinite(mp)) continue;
+    out[id] = {
+      hp: Number.isFinite(hp) ? hp : Number.POSITIVE_INFINITY,
+      mp: Number.isFinite(mp) ? mp : Number.POSITIVE_INFINITY,
+    };
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /** What was found in a save that could not be read, kept for looking at. */
@@ -2108,7 +2284,7 @@ interface WorldFields {
   progression: Record<string, LevelProgress>;
   claimedRewards: string[];
   resumeArea: ResumeArea;
-  condition: PartyCondition | null;
+  condition: StoredParty | null;
 }
 
 /** What reading a save had to say about it. */

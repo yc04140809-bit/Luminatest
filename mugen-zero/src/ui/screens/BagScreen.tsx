@@ -9,14 +9,35 @@ import {
 import { sellPriceOf } from '../../core/economy/shop';
 import { itemRefusalLine, refuseUse } from '../../game/battle/battleLogic';
 import type { BagUseResult } from '../../core/world/world';
-import type { PartyCondition } from '../../core/party/condition';
-import type { PartyStats } from '../../core/progression/levelStats';
+import {
+  BATTLE_HP_HOLDER,
+  BATTLE_MP_HOLDER,
+  type PartyCondition,
+} from '../../core/party/condition';
+import type { ItemUseKind } from '../../core/economy/items';
+
+/** What to call each of them here. Two today. */
+const PARTY_NAMES: Record<string, string> = {
+  hero: 'あなた',
+  kaos: 'ケイオス',
+};
+
+/** Who a thing is for, when nobody says. The same rule the world uses. */
+const targetFor = (kind: ItemUseKind): string =>
+  kind === 'HEAL' ? BATTLE_HP_HOLDER : BATTLE_MP_HOLDER;
 
 interface Props {
   inventory: Inventory;
-  /** What the party has left, and what they can hold. */
+  /**
+   * What each of them has left, and what they can hold.
+   *
+   * WHOSE ROW A BUTTON READS. A thing that heals is aimed at whoever
+   * holds the bar it fills — the front rank for health, her for magic
+   * — which is the same answer the world gives when nobody says. The
+   * day there is a 「誰に使う？」 this becomes a choice; today it is
+   * the only answer that means anything.
+   */
   condition: PartyCondition;
-  stats: PartyStats;
   /**
    * ONE CALL, AND THE WORLD DOES ALL OF IT.
    *
@@ -51,7 +72,7 @@ const SAID_MS = 2600;
  * the button, because "there is nothing to heal" is information and a
  * missing row is not.
  */
-export function BagScreen({ inventory, condition, stats, onUse, onBack }: Props) {
+export function BagScreen({ inventory, condition, onUse, onBack }: Props) {
   const [said, setSaid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const timer = useRef<number | null>(null);
@@ -101,10 +122,22 @@ export function BagScreen({ inventory, condition, stats, onUse, onBack }: Props)
   return (
     <div className="screen">
       <div className="screen-title">持ち物</div>
-      {/* What there is to put back, so a refusal is never a surprise. */}
-      <p className="bag-condition" data-testid="bag-condition">
-        HP {condition.hp} / {stats.maxHp} ・ MP {condition.mp} / {stats.maxMp}
-      </p>
+      {/* WHAT THERE IS TO PUT BACK, so a refusal is never a surprise —
+          and the one place outside a fight where a player can see
+          that a fight cost them something. */}
+      <div className="bag-party" data-testid="bag-party">
+        {Object.entries(condition).map(([id, row]) => (
+          <p className="bag-condition" key={id} data-testid={`bag-condition-${id}`}>
+            <b>{PARTY_NAMES[id] ?? id}</b>
+            <span>
+              HP {row.currentHp} / {row.maxHp}
+            </span>
+            <span>
+              MP {row.currentMp} / {row.maxMp}
+            </span>
+          </p>
+        ))}
+      </div>
       {rows.length === 0 ? (
         <p className="bag-empty" data-testid="bag-empty">
           何も持っていない。
@@ -113,15 +146,21 @@ export function BagScreen({ inventory, condition, stats, onUse, onBack }: Props)
         <div className="bag-list" data-testid="bag-list">
           {rows.map(({ stack, def }) => {
             const price = sellPriceOf(def);
+            // WHOSE ROW THIS READS. The same rule the world uses when
+            // nobody names a target, asked here so the button and the
+            // call can never disagree about who it was for.
+            const on = def.use
+              ? (condition[targetFor(def.use.kind)] ?? Object.values(condition)[0])
+              : null;
             const here =
-              def.use && usableIn(def.use.where, 'FIELD')
+              def.use && on && usableIn(def.use.where, 'FIELD')
                 ? refuseUse(
                     {
                       place: 'FIELD',
-                      hp: condition.hp,
-                      maxHp: stats.maxHp,
-                      mp: condition.mp,
-                      maxMp: stats.maxMp,
+                      hp: on.currentHp,
+                      maxHp: on.maxHp,
+                      mp: on.currentMp,
+                      maxMp: on.maxMp,
                     },
                     def.use,
                     stack.quantity,

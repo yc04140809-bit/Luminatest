@@ -53,10 +53,15 @@ async function armed(page: Page, { herbs = 1, waters = 0, hurt = false, drain = 
 
 const HERB = 'FOREST_HERB';
 const WATER = 'MANA_WATER';
-const hpOf = async (page: Page) =>
-  Number(((await page.getByTestId('bag-condition').textContent()) ?? '').match(/HP (\d+)/)?.[1]);
-const mpOf = async (page: Page) =>
-  Number(((await page.getByTestId('bag-condition').textContent()) ?? '').match(/MP (\d+)/)?.[1]);
+/** Somebody's own row, now that the bag has one each. */
+const hpOf = async (page: Page, who = 'hero') =>
+  Number(
+    ((await page.getByTestId(`bag-condition-${who}`).textContent()) ?? '').match(/HP (\d+)/)?.[1],
+  );
+const mpOf = async (page: Page, who = 'kaos') =>
+  Number(
+    ((await page.getByTestId(`bag-condition-${who}`).textContent()) ?? '').match(/MP (\d+)/)?.[1],
+  );
 
 test.describe('using a herb out of a fight', () => {
   test('closes the wound, spends one, and says so', async ({ page }) => {
@@ -93,7 +98,7 @@ test.describe('using a herb out of a fight', () => {
     await page.getByTestId('bag-button').click();
     await page.getByTestId(`bag-use-button-${HERB}`).click();
     await expect(page.getByTestId('bag-said')).toBeVisible();
-    const text = (await page.getByTestId('bag-condition').textContent()) ?? '';
+    const text = (await page.getByTestId('bag-condition-hero').textContent()) ?? '';
     const [now, max] = [...text.matchAll(/(\d+) \/ (\d+)/g)][0].slice(1).map(Number);
     expect(now).toBeLessThanOrEqual(max);
   });
@@ -212,8 +217,8 @@ test('buy, carry, fight, heal in the bag, and still be holding it afterwards', a
   await page.getByRole('button', { name: 'もどる' }).click();
   await page.getByTestId('bag-button').click();
   const hurt = await hpOf(page);
-  const text = (await page.getByTestId('bag-condition').textContent()) ?? '';
-  const max = Number(text.match(/HP \d+ \/ (\d+)/)?.[1]);
+  const text = (await page.getByTestId('bag-condition-hero').textContent()) ?? '';
+  const max = Number(text.match(/HP (?:\d+) \/ (\d+)/)?.[1]);
   expect(hurt, 'a fight costs something, and it is still costing it out here').toBeLessThan(max);
 
   // --- heal it, out of a fight ---
@@ -245,6 +250,9 @@ test('buy, carry, fight, heal in the bag, and still be holding it afterwards', a
   const bag = (await readWorldStateValue(page, 'inventory')) as { itemId: string; quantity: number }[];
   const left = bag.find((stack) => stack.itemId === HERB)?.quantity ?? 0;
   expect(left, 'the herb is still spent').toBe(carried - 1);
-  const saved = (await readWorldStateValue(page, 'party_condition')) as { hp: number };
-  expect(saved.hp, 'and the healing is still done').toBe(healed);
+  const saved = (await readWorldStateValue(page, 'party_condition')) as Record<
+    string,
+    { hp: number }
+  >;
+  expect(saved.hero.hp, 'and the healing is still done').toBe(healed);
 });
