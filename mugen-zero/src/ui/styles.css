@@ -4452,6 +4452,37 @@ body,
   text-align: center;
   color: var(--bx-ink-dim);
 }
+/* ---- the bag, in a fight ----
+   A thing that cannot be used right now is shown and disabled with
+   the reason under it, never hidden: a player who bought a herb and
+   cannot find it has been told the game is broken. */
+.bp-tray-item:disabled {
+  opacity: 0.55;
+  border-color: var(--bx-gold-hair);
+}
+.bp-tray-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bp-tray-count {
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  color: var(--bx-ink-dim);
+}
+.bp-tray-close {
+  appearance: none;
+  min-height: var(--tap-min);
+  border: 1px solid var(--bx-gold-hair);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bx-ink-dim);
+  font-family: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+}
 
 /* ---- and, separately, the question about a life ----
    The ivory gives way. A different kind of moment gets different

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { GameFlow } from './core/flow/gameFlow';
 import { World, resumeAreaOf, type ResumeArea } from './core/world/world';
+import { statsForLevels } from './core/progression/levelStats';
 import { IdbMemoryStore } from './core/memory/idbStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { kaosHasAwakened } from './core/magic/awakened';
@@ -357,6 +358,34 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   const kaosAwakened = kaosHasAwakened(world.getKnownEvents().map((e) => e.type));
   const acquiredArcanaIds = world.getAcquiredArcanaIds();
   /**
+   * HOW STRONG THEY ARE, WORKED OUT FRESH EVERY RENDER.
+   *
+   * Derived from the levels rather than stored beside them: a stat
+   * block in the save would be a second copy of a truth the level
+   * already holds, and the two would disagree the first time the curve
+   * is retuned. A fight takes a copy of this when it starts, so a
+   * level gained in one fight is felt in the NEXT one — which is also
+   * the only sane answer to "what happens if I level up mid-battle".
+   */
+  const partyStats = statsForLevels(world.getLevel('hero'), world.getLevel('kaos'));
+  /**
+   * One of something was used in a fight. Spend it.
+   *
+   * The fight has already refused every case it could and has already
+   * counted its own copy down, so this is a use that happened; all
+   * that is left is for the world to agree. A failure here costs the
+   * player nothing they can see — they got the healing — and is not
+   * worth interrupting a fight over.
+   */
+  const spendItem = useCallback(
+    (itemId: string) => {
+      void world.removeItem(itemId, 1).catch((e) => {
+        console.error('Failed to spend an item', e);
+      });
+    },
+    [world],
+  );
+  /**
    * What this world remembers, in its own words, for the battle corner.
    *
    * The same labels WORLD MEMORY itself writes — not a second wording
@@ -694,6 +723,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           startFinishable={startFinishable()}
           forcedEnemyAction={debugEnemyAction()}
           magicUnlocked={kaosAwakened}
+          stats={partyStats}
+          bag={world.getInventory()}
+          onUseItem={spendItem}
           forcedChaos={debugChaosIntervention()}
           arcana={battleArcana}
           forcedSummon={debugSummon()}
@@ -884,6 +916,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             startFinishable={startFinishable()}
             forcedEnemyAction={debugEnemyAction()}
             magicUnlocked={kaosAwakened}
+            stats={partyStats}
+            bag={world.getInventory()}
+            onUseItem={spendItem}
             forcedChaos={debugChaosIntervention()}
             arcana={battleArcana}
             forcedSummon={debugSummon()}
@@ -1033,6 +1068,9 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
           // has already decided. Passed rather than dropped so that
           // this call site says the same thing as every other.
           magicUnlocked={kaosAwakened}
+          stats={partyStats}
+          bag={world.getInventory()}
+          onUseItem={spendItem}
           memoryLines={worldMemoryLines}
           onCycleBattleBgm={cycleBattleBgm}
           battleBgmLabel={battleBgmLabel(battleBgmId)}

@@ -25,9 +25,32 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     maxStack: DEFAULT_MAX_STACK,
     description: '森に生える香りの強い薬草。小さな傷なら役に立ちそうだ。',
     // The one thing here a shop would actually want, because it is the
-    // one thing that will do something when the consumable round lands.
+    // one thing that does something.
     sellPrice: 8,
     isKeyItem: false,
+    /**
+     * THIRTY, AND IN A FIGHT ONLY.
+     *
+     * Thirty is a bit under a third of a level-one health bar, which
+     * is four or five of a moss rabbit's blows — enough to matter and
+     * nowhere near enough to be the answer to every fight, especially
+     * since using it IS the turn. It is a flat number rather than a
+     * share of the maximum so that it gets relatively weaker as the
+     * party levels: the first herb a player buys should not still be
+     * the best answer at level twenty.
+     *
+     * BATTLE_ONLY is not a restriction, it is the truth about the
+     * game as it stands: health is restored in full at the start of
+     * every fight, so a herb taken on the road would heal nothing and
+     * be gone. Better to refuse it and say why than to let a player
+     * spend sixteen LUMI on nothing.
+     */
+    use: {
+      kind: 'HEAL',
+      amount: 30,
+      where: 'BATTLE_ONLY',
+      line: '薬草を使った。青い匂いが立つ。',
+    },
   },
   {
     itemId: 'OLD_ARROWHEAD',

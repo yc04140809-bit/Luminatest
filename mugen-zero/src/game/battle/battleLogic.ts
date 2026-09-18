@@ -2,6 +2,8 @@
 // v0.1 keeps battle intentionally minimal: attack / defend only.
 
 import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
+import { BASE_STATS, type PartyStats } from '../../core/progression/levelStats';
+import type { ItemUse } from '../../core/economy/items';
 import {
   isBoosting,
   isMending,
@@ -298,6 +300,17 @@ export interface BattleState {
    */
   playerMp: number;
   playerMaxMp: number;
+  /**
+   * What a swing rolls between, this fight.
+   *
+   * ON THE STATE rather than read from a constant at the moment of the
+   * blow, because a fight is a thing that was started with somebody's
+   * numbers: levelling up between one turn and the next is not a thing
+   * that happens, and a swing that quietly got stronger halfway
+   * through would be impossible to reason about afterwards.
+   */
+  playerAttackMin: number;
+  playerAttackMax: number;
   /** How many turns the player has taken. The awakening counts them. */
   turnsTaken: number;
   /**
@@ -364,8 +377,15 @@ export interface BattleState {
 /** Random source, injectable for deterministic tests. Returns [0, 1). */
 export type Rng = () => number;
 
-const PLAYER_ATK_MIN = 8;
-const PLAYER_ATK_MAX = 12;
+/**
+ * WHAT A SWING IS WORTH BEFORE ANYBODY HAS LEVELLED.
+ *
+ * Exported so the growth curve can be checked against it rather than
+ * repeating it: two copies of a load-bearing number drift, and every
+ * fight in the game was tuned against these.
+ */
+export const PLAYER_ATK_MIN_BASE = 8;
+export const PLAYER_ATK_MAX_BASE = 12;
 /**
  * The hard ceiling on any one-blow ward, wherever it came from.
  *
@@ -422,6 +442,16 @@ export interface BattleOptions {
    * the battle. The fight that carries the awakening ignores it.
    */
   magicUnlocked?: boolean;
+  /**
+   * What the party brings to this fight, once their levels are counted.
+   *
+   * Handed IN rather than read here, for the same reason as the line
+   * above: how strong somebody is is the world's business, and a
+   * battle that looked levels up itself could not be tested without
+   * one. Absent means level one, which is exactly the four numbers
+   * this file used to hard-code.
+   */
+  stats?: PartyStats;
 }
 
 export function createBattle(
@@ -430,14 +460,15 @@ export function createBattle(
   options: BattleOptions = {},
 ): BattleState {
   const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
+  const stats = options.stats ?? BASE_STATS;
   return {
     // Raised from 40 with the tempo retune. Forty was two or three of a
     // bandit's blows, which is why every fight had to be over in two or
     // three of the player's — the health bar was what made a fight
     // short, not the enemy's. Everything that heals or protects is
     // written as a share of this, so the retune is one number.
-    playerHp: 100,
-    playerMaxHp: 100,
+    playerHp: stats.maxHp,
+    playerMaxHp: stats.maxHp,
     enemyHp: spec.hp,
     enemyMaxHp: spec.hp,
     enemyName: spec.name,
@@ -457,8 +488,10 @@ export function createBattle(
     enemyPhaseId: null,
     enemyPhases: spec.phases ?? null,
     enemyAffinity: spec.affinity ?? null,
-    playerMp: PLAYER_MAX_MP,
-    playerMaxMp: PLAYER_MAX_MP,
+    playerMp: stats.maxMp,
+    playerMaxMp: stats.maxMp,
+    playerAttackMin: stats.attackMin,
+    playerAttackMax: stats.attackMax,
     turnsTaken: 0,
     // A fight that carries the awakening beat starts before it; every
     // other fight starts after whatever the world has already decided.
@@ -609,7 +642,7 @@ export function playerAttack(
   const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
   // What this creature thinks of a sword. Most think nothing.
   const affinity = affinityMultiplier(state.enemyAffinity, 'PHYSICAL');
-  const dmg = applyDamage(roll(PLAYER_ATK_MIN, PLAYER_ATK_MAX, rng), [
+  const dmg = applyDamage(roll(state.playerAttackMin, state.playerAttackMax, rng), [
     pull(state, 'playerAttack'),
     pull(state, 'enemyDamageTaken'),
     guarded ? state.enemySkill!.damageTaken : 1,
@@ -946,6 +979,86 @@ export function playerDefend(
     ],
   });
   return enemyTurn(next, true, rng, forcedEnemyAction);
+}
+
+/**
+ * WHY SOMETHING IN THE BAG CANNOT BE USED RIGHT NOW.
+ *
+ * A reason rather than a boolean, and that is the whole point: a
+ * button that is simply not there teaches a player nothing, and one
+ * that is greyed out with no explanation teaches them that the game is
+ * broken. Every refusal here is something the screen can say out loud.
+ *
+ * Null means it can be used.
+ */
+export type ItemRefusal = 'FIGHT_OVER' | 'NOT_IN_A_FIGHT' | 'NONE_LEFT' | 'ALREADY_WELL';
+
+export function refuseItem(
+  state: BattleState | null,
+  use: ItemUse,
+  held: number,
+): ItemRefusal | null {
+  if (held <= 0) return 'NONE_LEFT';
+  if (!state) return use.where === 'BATTLE_ONLY' ? 'NOT_IN_A_FIGHT' : null;
+  if (state.outcome !== 'ONGOING') return 'FIGHT_OVER';
+  // Spending a herb on a scratch that is not there is not a decision,
+  // it is a mistake the game let the player make.
+  if (use.kind === 'HEAL' && state.playerHp >= state.playerMaxHp) return 'ALREADY_WELL';
+  return null;
+}
+
+/** What to tell the player, in their own language. */
+export function itemRefusalLine(refusal: ItemRefusal, itemName: string): string {
+  switch (refusal) {
+    case 'NONE_LEFT':
+      return `${itemName}は もう持っていない。`;
+    case 'NOT_IN_A_FIGHT':
+      return `${itemName}は 戦いの中でしか使えない。`;
+    case 'ALREADY_WELL':
+      return '傷はない。';
+    case 'FIGHT_OVER':
+      return 'もう戦いは終わっている。';
+  }
+}
+
+/**
+ * Using something out of the bag, which IS the turn.
+ *
+ * The same shape as casting and as bracing, and deliberately so: it
+ * ends the player's action and hands the creature its own. A game
+ * where drinking a potion is free is a game where the answer to being
+ * hurt is always "drink a potion", and the fight stops being a
+ * sequence of decisions.
+ *
+ * It does NOT take the item out of the bag — the bag belongs to the
+ * world and this file has never touched it. The caller spends it, and
+ * the caller is the one that can refuse.
+ */
+export function useItem(
+  state: BattleState,
+  use: ItemUse,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (refuseItem(state, use, 1) !== null) return state;
+  const healed = Math.min(use.amount, state.playerMaxHp - state.playerHp);
+  const next = awaken({
+    ...state,
+    playerHp: state.playerHp + healed,
+    turnsTaken: state.turnsTaken + 1,
+    // Nothing was struck, so there is no reading to report — the same
+    // reason 《身構える》 and her mending both leave it alone.
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      use.line,
+      // The refusal above means this is all but always the first
+      // branch. The second is here because "it did nothing" is still a
+      // thing that happened, and silence would read as a bug.
+      healed > 0 ? `HPが${healed}回復した。` : 'HPはもう満ちている。',
+    ],
+  });
+  return enemyTurn(next, false, rng, forcedEnemyAction);
 }
 
 /**

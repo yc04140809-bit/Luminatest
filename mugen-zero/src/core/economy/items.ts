@@ -56,7 +56,38 @@ export interface ItemDef {
   sellPrice: number;
   /** Story matter. Never sold, never dropped. */
   isKeyItem: boolean;
+  /**
+   * What happens when it is used, or absent for a thing that is not
+   * for using.
+   *
+   * A pretty acorn and an old arrowhead have no `use` and that is not
+   * an oversight: most of what a player picks up is material, and a
+   * bag where everything is a button is a bag with no decisions in it.
+   */
+  use?: ItemUse;
 }
+
+/**
+ * WHAT USING SOMETHING DOES.
+ *
+ * One kind so far, and it is written as a tagged union rather than as
+ * a loose `heal?: number` because the second kind — something that
+ * cures, something that wards, something that is only read — arrives
+ * as a new tag and no change to anything that already reads this.
+ *
+ * `where` is the refusal the player is most likely to meet, so it is a
+ * field rather than a rule buried in a screen: a thing usable only in
+ * a fight says so, and a screen outside a fight can say WHY the button
+ * is not there rather than simply not drawing it.
+ */
+export type ItemUse = {
+  kind: 'HEAL';
+  /** Health put back, flat. Not a share of the maximum. */
+  amount: number;
+  where: 'BATTLE_ONLY' | 'ANYWHERE';
+  /** Said in the log as it is used, before what it did. */
+  line: string;
+};
 
 /** How many of one thing the player is holding. Save data. */
 export interface ItemStack {

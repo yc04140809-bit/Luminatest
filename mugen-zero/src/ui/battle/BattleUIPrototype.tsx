@@ -7,6 +7,7 @@ import {
   type EnemyAction,
 } from '../../game/battle/battleLogic';
 import { castMagic, clearAwakeningLines } from '../../game/battle/battleLogic';
+import { refuseItem, useItem as useItemInBattle } from '../../game/battle/battleLogic';
 import { availableMagic } from '../../core/magic/magic';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { decideTurn, magicBlocked } from '../../game/battle/magicChoice';
@@ -19,6 +20,10 @@ import {
   type BattleSpeed,
 } from '../../game/battle/battleSpeed';
 import { MagicTray } from './MagicTray';
+import { ItemTray } from './ItemTray';
+import { itemDef } from '../../content/economy/itemDefs';
+import type { ItemStack } from '../../core/economy/items';
+import type { PartyStats } from '../../core/progression/levelStats';
 import { HitFx } from './HitFx';
 import { endBlow, landBlow, latestOn, motionSlot, type Blow } from './blows';
 import { sayOf } from './battleMessage';
@@ -158,6 +163,32 @@ interface Props {
    * learned it in the fight with Gald and did not forget it afterwards.
    */
   magicUnlocked?: boolean;
+  /**
+   * What the party brings to this fight, once their levels are counted.
+   *
+   * Handed in, like everything else about the world: the screen has
+   * never read a save and must not start now. Absent is level one,
+   * which is exactly what the battle hard-coded before levels meant
+   * anything.
+   */
+  stats?: PartyStats;
+  /**
+   * What is in the bag when the fight starts.
+   *
+   * A snapshot, not a live view. The fight counts down its own copy as
+   * things are used, for the same reason it holds its own MP: the
+   * world's write is a round trip, and a bag that only caught up after
+   * it would let a fast thumb spend the same herb twice.
+   */
+  bag?: readonly ItemStack[];
+  /**
+   * One of something was just used. Spend it.
+   *
+   * Reported rather than done here, because the bag belongs to the
+   * world. The screen has already refused every case it could — none
+   * left, no wound, fight over — so this is a use that happened.
+   */
+  onUseItem?: (itemId: string) => void;
   /** An ordinary fight, over. */
   onNormalEnd: () => void;
   /** The other kind. The choice is real and is recorded by the caller. */
@@ -433,6 +464,9 @@ export function BattleUIPrototype({
   accidentRecords = [],
   acquiredArcanaIds = [],
   worldDay = null,
+  stats,
+  bag: bagAtTheStart = [],
+  onUseItem,
   onAccidentObserved,
   onObserved,
   onNormalEnd,
@@ -477,9 +511,23 @@ export function BattleUIPrototype({
       // Whether she can already do this is the world's business, not
       // this fight's: she learned it somewhere else and did not forget.
       magicUnlocked,
+      // And so is how strong they are. Settled once, at the start:
+      // levelling up between one turn and the next is not a thing that
+      // happens, and a swing that quietly got stronger halfway through
+      // a fight would be impossible to reason about afterwards.
+      stats,
     });
     return startFinishable ? { ...fresh, enemyHp: 1 } : fresh;
   });
+  /**
+   * The bag, as this fight sees it.
+   *
+   * Its own copy, counted down as things are used, for exactly the
+   * reason the fight holds its own MP: the world's write is a round
+   * trip, and a bag that only caught up afterwards would let a fast
+   * thumb — or AUTO at double speed — spend the same herb twice.
+   */
+  const [bag, setBag] = useState<readonly ItemStack[]>(() => bagAtTheStart.map((s) => ({ ...s })));
   /** Her moment, before the fight. Skipped entirely when she does not. */
   const [showingChaos, setShowingChaos] = useState(plan.kind !== 'NONE');
   /**
@@ -1050,6 +1098,46 @@ export function BattleUIPrototype({
     // foundation is the same for anybody: a character with a portrait
     // registered gets a face in it, and one without gets the band.
     cutTo({ actorId: 'kaos', skillName: magic.name });
+  };
+
+  /**
+   * Something out of the bag, which IS the turn.
+   *
+   * The same shape as `cast` and `command` above: it ends the player's
+   * action and hands the creature its own. A game where drinking a
+   * potion is free is a game whose answer to being hurt is always
+   * "drink a potion", and the fight stops being a sequence of
+   * decisions.
+   */
+  const use = (itemId: string) => {
+    if (battle.outcome !== 'ONGOING') return;
+    const def = itemDef(itemId);
+    if (!def?.use) return;
+    const held = bag.find((stack) => stack.itemId === itemId)?.quantity ?? 0;
+    // Refused HERE, before anything is spent, and by the same function
+    // the tray greys the button with — so the reason on screen and the
+    // reason it did not happen can never be two different reasons.
+    if (refuseItem(battle, def.use, held) !== null) return;
+    setItemOpen(false);
+    setSay(null);
+    setBag((held) =>
+      held
+        .map((stack) =>
+          stack.itemId === itemId ? { ...stack, quantity: stack.quantity - 1 } : stack,
+        )
+        .filter((stack) => stack.quantity > 0),
+    );
+    onUseItem?.(itemId);
+    const next = useItemInBattle(battle, def.use, undefined, forcedEnemyAction);
+    setBattle(next);
+    if (next.lastEnemyAction === 'ATTACK') observe('OBSERVE_NORMAL_ATTACK');
+    if (next.lastEnemyAction === 'SKILL') observe('OBSERVE_UNIQUE_SKILL');
+    if (next.outcome === 'DEFEAT') observe('LOST_A_FIGHT');
+    // Filmed as a guard: the field at rest, nobody struck. There is no
+    // shot of somebody reaching into a bag yet, and borrowing the
+    // sword's would be a lie about what happened.
+    play(['GUARD', ...answerOf(next)], null);
+    answerBlow(next, beatLength('GUARD', speed));
   };
 
   const decide = (choice: LifeChoiceId) => {
@@ -2187,11 +2275,9 @@ export function BattleUIPrototype({
             <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
           </div>
         )}
-        {/* And the bag, which is empty for the same honest reason. */}
+        {/* And the bag, which has things in it now. */}
         {!beaten && !showingChaos && !inAccident && itemOpen && (
-          <div className="bp-tray" data-testid="bp-item-tray">
-            <p className="bp-tray-empty">持ち物はまだない。</p>
-          </div>
+          <ItemTray bag={bag} battle={battle} onUse={use} onClose={() => setItemOpen(false)} />
         )}
         {/* Which memory. One today; the list is built from the book, so a
             hundred of them cost this screen nothing. */}
