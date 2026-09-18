@@ -246,6 +246,16 @@ const RESUME_AREA: Partial<Record<Screen, ResumeArea>> = {
   ARCANA: 'HOME',
   SETTINGS: 'HOME',
   TIME_SHIFT: 'HOME',
+  // THE END OF THE STORY'S OWN FIGHT. Both of these have exactly one
+  // way out and it is the village, so that is where they resume — not
+  // the forest they happen to be standing in. Leaving them unmapped
+  // meant a player who closed the game while reading what their choice
+  // had done came back to the map, having skipped the walk home the
+  // scene was written to end with.
+  LIFE_CHOICE: 'HOME',
+  CHOICE_RESULT: 'HOME',
+  ENDING: 'HOME',
+  PLAYTEST_SURVEY: 'HOME',
   EXPLORE: 'EXPLORE',
   ITEM_SHOP: 'EXPLORE',
   TALK_SPOT: 'EXPLORE',

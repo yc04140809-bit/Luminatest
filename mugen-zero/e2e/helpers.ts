@@ -415,3 +415,28 @@ export async function fightIsOver(page: Page): Promise<boolean> {
     .isVisible()
     .catch(() => false);
 }
+
+/**
+ * ON THE MAP, however the player got back into the game.
+ *
+ * 「つづきから」 puts them back in the AREA they left, so a test that
+ * reloaded while out exploring is already standing on it — and
+ * pressing 探索する would be pressing a button that is not on screen.
+ * A test that reloaded in the village still has to walk out. One
+ * helper, so no spec has to know which of the two happened to it.
+ */
+export async function ontoTheMap(page: Page): Promise<void> {
+  const forest = page.getByTestId('location-GREENWOOD_FOREST');
+  if (await forest.isVisible().catch(() => false)) return;
+  await page.getByTestId('explore-button').click();
+  await expect(forest).toBeVisible({ timeout: 20_000 });
+}
+
+/** In the village, however the player got back into the game. */
+export async function intoTheVillage(page: Page): Promise<void> {
+  const clock = page.getByTestId('world-clock');
+  if (await clock.isVisible().catch(() => false)) return;
+  const back = page.getByRole('button', { name: 'もどる' });
+  if (await back.isVisible().catch(() => false)) await back.click();
+  await expect(clock).toBeVisible({ timeout: 20_000 });
+}
