@@ -244,6 +244,7 @@ const RESUME_AREA: Partial<Record<Screen, ResumeArea>> = {
   WORLD_NEWS: 'HOME',
   ARCHIVE: 'HOME',
   ARCANA: 'HOME',
+  BAG: 'HOME',
   SETTINGS: 'HOME',
   TIME_SHIFT: 'HOME',
   // THE END OF THE STORY'S OWN FIGHT. Both of these have exactly one
@@ -1829,6 +1830,57 @@ export class World {
     this.claimedRewards = [];
     // And they are standing in the village, because that is where a
     // world starts.
+    this.resumeArea = 'HOME';
+    this.emit();
+  }
+
+  /**
+   * DEV ONLY — winds the STORY back without emptying the player's
+   * pockets.
+   *
+   * A world reset is the right thing for a player who wants a new
+   * world, and it is untouched. It is the wrong thing for the job a
+   * developer actually does twenty times an hour: put the story at a
+   * known point and go and look at something. Doing that through a
+   * reset took the bag, the purse and the levels with it, so every
+   * test of the economy began by rebuilding the economy.
+   *
+   * WHAT GOES is everything the story is made of — what happened, who
+   * is where, what has been seen, what the book knows, what day it is.
+   * WHAT STAYS is everything the player accumulated that the story
+   * does not depend on: LUMI, the bag, levels, and the ledger of
+   * fights already paid for.
+   *
+   * THE LEDGER STAYS ON PURPOSE. Clearing it would let the same fight
+   * be paid for twice across a reset, which is the exact hole the
+   * ledger exists to close — and a developer tool that can mint money
+   * is a developer tool that will eventually be blamed for a balance
+   * problem it caused.
+   *
+   * Never reachable from the game: nothing in `src/ui` calls this, and
+   * the only caller is the dev panel.
+   */
+  async devResetScenario(): Promise<void> {
+    const kept: WorldStateRow[] = [
+      { key: INVENTORY_KEY, value: this.inventory },
+      { key: LUMI_KEY, value: this.lumi },
+      { key: PROGRESSION_KEY, value: this.progression },
+      { key: CLAIMED_REWARDS_KEY, value: this.claimedRewards },
+    ];
+    await this.store.clearAll();
+    // Written back in one commit, immediately: a crash between the
+    // clear and this would be a developer losing their test world,
+    // which is the thing this method exists to stop.
+    await this.store.commit({ putState: kept });
+    this.events = [];
+    this.clock = INITIAL_CLOCK;
+    this.characters = { ...INITIAL_CHARACTERS };
+    this.seenExperience = new Set();
+    this.experienceLog = { lastSeenDay: {}, order: [] };
+    this.enemyProgress = {};
+    this.enemyIndividuals = [];
+    this.arcana = readArcanaRows({});
+    this.accidents = {};
     this.resumeArea = 'HOME';
     this.emit();
   }

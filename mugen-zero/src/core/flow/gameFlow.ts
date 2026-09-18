@@ -20,6 +20,7 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
     'TIME_SHIFT',
     'ARCHIVE',
     'ARCANA',
+    'BAG',
     'SETTINGS',
     'DEV_LOCK',
     'DEV_ADMIN',
@@ -27,6 +28,9 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   ARCHIVE: ['HOME', 'ENDING', 'PLAYTEST_SURVEY'],
   // The book is read and closed; it changes nothing about the world.
   ARCANA: ['HOME'],
+  // And so is the bag: it is for looking at, and the one place a
+  // consumable is worth spending is a fight.
+  BAG: ['HOME'],
   ENDING: ['HOME', 'ARCHIVE', 'PLAYTEST_SURVEY'],
   PLAYTEST_SURVEY: ['HOME', 'ARCHIVE'],
   SETTINGS: ['HOME'],

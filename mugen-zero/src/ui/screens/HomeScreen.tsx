@@ -35,6 +35,8 @@ interface Props {
   onArchive: () => void;
   /** Opens the ARCANA book. */
   onArcana: () => void;
+  /** 持ち物: what the player is carrying, for looking at. */
+  onBag: () => void;
   /** Opens player settings. */
   onSettings: () => void;
   /** Opens the DEV ADMIN lock screen (dev builds only). */
@@ -66,6 +68,7 @@ export function HomeScreen({
   onTimeShift,
   onArchive,
   onArcana,
+  onBag,
   onSettings,
   onDevAdmin,
 }: Props) {
@@ -210,6 +213,10 @@ export function HomeScreen({
           <button className="home-rail-item" data-testid="arcana-button" onClick={onArcana}>
             <span className="glyph">✧</span>
             アルカナ
+          </button>
+          <button className="home-rail-item" data-testid="bag-button" onClick={onBag}>
+            <span className="glyph">◰</span>
+            持ち物
           </button>
           <button className="home-rail-item" data-testid="time-shift-button" onClick={onTimeShift}>
             <span className="glyph">◷</span>

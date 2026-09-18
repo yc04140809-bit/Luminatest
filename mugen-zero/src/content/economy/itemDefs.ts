@@ -52,6 +52,41 @@ export const ITEM_DEFS: readonly ItemDef[] = [
       line: '薬草を使った。青い匂いが立つ。',
     },
   },
+  /**
+   * 魔力水 — the second thing a turn can be spent on.
+   *
+   * ONE HERB IS NOT A CHOICE. With a single consumable the アイテム
+   * command is "press when hurt", which is a reflex rather than a
+   * decision; the tray only becomes interesting when two things in it
+   * are both worth having and only one of them is this turn.
+   *
+   * SIXTEEN, which is exactly one 《コメットストライク》 and exactly
+   * twice what 身構える gathers. That relationship is the whole of the
+   * balance: bracing costs a turn and gives eight, so a flask costs a
+   * turn and gives sixteen — better, because it also cost LUMI and is
+   * finite, and not SO much better that bracing stops being the answer
+   * in a fight where nobody bought anything.
+   *
+   * Dearer than a herb to buy and worth more to sell, because MP is
+   * the scarcer of the two: health comes back in full at the start of
+   * every fight, and magic does not come back at all except by
+   * spending a turn on it.
+   */
+  {
+    itemId: 'MANA_WATER',
+    name: '魔力水',
+    category: 'CONSUMABLE',
+    maxStack: DEFAULT_MAX_STACK,
+    description: '澄んだ水に星の匂いがする。飲むと頭の奥が冷たくなる。',
+    sellPrice: 12,
+    isKeyItem: false,
+    use: {
+      kind: 'RESTORE_MP',
+      amount: 16,
+      where: 'BATTLE_ONLY',
+      line: '魔力水を飲んだ。頭の奥が冷たくなる。',
+    },
+  },
   {
     itemId: 'OLD_ARROWHEAD',
     name: '古い矢じり',

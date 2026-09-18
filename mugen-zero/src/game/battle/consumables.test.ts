@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  GUARD_MP_GAIN,
   createBattle,
   itemRefusalLine,
   playerAttack,
@@ -7,7 +8,7 @@ import {
   useItem,
   type BattleState,
 } from './battleLogic';
-import { itemDef } from '../../content/economy/itemDefs';
+import { ITEM_DEFS, itemDef } from '../../content/economy/itemDefs';
 import type { ItemUse } from '../../core/economy/items';
 import { statsForLevels } from '../../core/progression/levelStats';
 
@@ -133,6 +134,68 @@ describe('when it cannot be used', () => {
     for (const reason of ['FIGHT_OVER', 'NOT_IN_A_FIGHT', 'NONE_LEFT', 'ALREADY_WELL'] as const) {
       expect(itemRefusalLine(reason, '薬草').length, reason).toBeGreaterThan(3);
     }
+  });
+});
+
+describe('the second thing in the bag', () => {
+  const WATER = itemDef('MANA_WATER')!;
+  const DRINK = WATER.use!;
+
+  it('fills the other bar', () => {
+    const start: BattleState = { ...createBattle(HARMLESS), playerMp: 10 };
+    const after = useItem(start, DRINK, fixed(0.5), 'NONE');
+    expect(after.playerMp).toBe(10 + DRINK.amount);
+    expect(after.playerHp, 'and leaves the first one alone').toBe(
+      start.playerHp - after.lastEnemyDamage,
+    );
+  });
+
+  it('is refused when the magic is already there', () => {
+    const full = createBattle(HARMLESS);
+    expect(refuseItem(full, DRINK, 2)).toBe('ALREADY_FULL');
+    expect(itemRefusalLine('ALREADY_FULL', WATER.name).length).toBeGreaterThan(3);
+    expect(useItem(full, DRINK, fixed(0.5), 'NONE'), 'and nothing happens').toBe(full);
+  });
+
+  it('never fills past the top', () => {
+    const start: BattleState = { ...createBattle(HARMLESS), playerMp: 44 };
+    const after = useItem(start, DRINK, fixed(0.5), 'NONE');
+    expect(after.playerMp).toBe(after.playerMaxMp);
+  });
+
+  it('costs the turn, exactly as the herb does', () => {
+    const start: BattleState = { ...createBattle(HARMLESS), playerMp: 10 };
+    const after = useItem(start, DRINK, fixed(0.5), 'ATTACK');
+    expect(after.turnsTaken).toBe(start.turnsTaken + 1);
+    expect(after.lastEnemyAction).toBe('ATTACK');
+  });
+
+  /**
+   * THE WHOLE OF THE BALANCE, in one assertion. Bracing costs a turn
+   * and gathers eight, so a flask costs a turn and gives more than
+   * that — it also cost LUMI and is finite — and not so much more that
+   * bracing stops being the answer in a fight where nobody bought
+   * anything.
+   */
+  it('is worth more than bracing and less than twice a fight\u2019s worth', () => {
+    expect(DRINK.amount).toBeGreaterThan(GUARD_MP_GAIN);
+    expect(DRINK.amount).toBeLessThanOrEqual(GUARD_MP_GAIN * 2);
+    expect(DRINK.amount).toBeLessThan(createBattle(HARMLESS).playerMaxMp / 2);
+  });
+
+  it('says which bar it filled, in the log', () => {
+    const start: BattleState = { ...createBattle(HARMLESS), playerMp: 10 };
+    const after = useItem(start, DRINK, fixed(0.5), 'NONE');
+    expect(after.log.some((l) => l.includes(`MPが${DRINK.amount}回復した`))).toBe(true);
+    expect(after.log.some((l) => l.includes('HPが')), 'and not the other one').toBe(false);
+  });
+
+  it('is a real choice: two usable things, and only one of them is this turn', () => {
+    const usable = ITEM_DEFS.filter((def) => def.use);
+    expect(usable.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(usable.map((def) => def.use!.kind)).size, 'and they do different things').toBe(
+      2,
+    );
   });
 });
 

@@ -991,7 +991,12 @@ export function playerDefend(
  *
  * Null means it can be used.
  */
-export type ItemRefusal = 'FIGHT_OVER' | 'NOT_IN_A_FIGHT' | 'NONE_LEFT' | 'ALREADY_WELL';
+export type ItemRefusal =
+  | 'FIGHT_OVER'
+  | 'NOT_IN_A_FIGHT'
+  | 'NONE_LEFT'
+  | 'ALREADY_WELL'
+  | 'ALREADY_FULL';
 
 export function refuseItem(
   state: BattleState | null,
@@ -1001,9 +1006,11 @@ export function refuseItem(
   if (held <= 0) return 'NONE_LEFT';
   if (!state) return use.where === 'BATTLE_ONLY' ? 'NOT_IN_A_FIGHT' : null;
   if (state.outcome !== 'ONGOING') return 'FIGHT_OVER';
-  // Spending a herb on a scratch that is not there is not a decision,
-  // it is a mistake the game let the player make.
+  // Spending something on a gap that is not there is not a decision,
+  // it is a mistake the game let the player make. Both kinds refuse
+  // the same way and for the same reason.
   if (use.kind === 'HEAL' && state.playerHp >= state.playerMaxHp) return 'ALREADY_WELL';
+  if (use.kind === 'RESTORE_MP' && state.playerMp >= state.playerMaxMp) return 'ALREADY_FULL';
   return null;
 }
 
@@ -1016,6 +1023,8 @@ export function itemRefusalLine(refusal: ItemRefusal, itemName: string): string 
       return `${itemName}は 戦いの中でしか使えない。`;
     case 'ALREADY_WELL':
       return '傷はない。';
+    case 'ALREADY_FULL':
+      return '魔力は満ちている。';
     case 'FIGHT_OVER':
       return 'もう戦いは終わっている。';
   }
@@ -1041,10 +1050,18 @@ export function useItem(
   forcedEnemyAction: EnemyAction | null = null,
 ): BattleState {
   if (refuseItem(state, use, 1) !== null) return state;
-  const healed = Math.min(use.amount, state.playerMaxHp - state.playerHp);
+  // One shape for both kinds: what it fills, how much room there was,
+  // and what to call it. A third kind is three more words here.
+  const room =
+    use.kind === 'HEAL'
+      ? state.playerMaxHp - state.playerHp
+      : state.playerMaxMp - state.playerMp;
+  const given = Math.max(0, Math.min(use.amount, room));
+  const stat = use.kind === 'HEAL' ? 'HP' : 'MP';
   const next = awaken({
     ...state,
-    playerHp: state.playerHp + healed,
+    playerHp: use.kind === 'HEAL' ? state.playerHp + given : state.playerHp,
+    playerMp: use.kind === 'RESTORE_MP' ? state.playerMp + given : state.playerMp,
     turnsTaken: state.turnsTaken + 1,
     // Nothing was struck, so there is no reading to report — the same
     // reason 《身構える》 and her mending both leave it alone.
@@ -1055,7 +1072,7 @@ export function useItem(
       // The refusal above means this is all but always the first
       // branch. The second is here because "it did nothing" is still a
       // thing that happened, and silence would read as a bug.
-      healed > 0 ? `HPが${healed}回復した。` : 'HPはもう満ちている。',
+      given > 0 ? `${stat}が${given}回復した。` : `${stat}はもう満ちている。`,
     ],
   });
   return enemyTurn(next, false, rng, forcedEnemyAction);

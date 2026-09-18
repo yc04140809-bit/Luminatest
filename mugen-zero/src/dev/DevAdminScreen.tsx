@@ -150,6 +150,15 @@ export function DevAdminScreen({
   // The hub is a mode of the admin screen, not a new route: it is read
   // only, it is reached from here, and 「もどる」 comes straight back.
   const [showHub, setShowHub] = useState(false);
+  /**
+   * Whether a preset winds the STORY back or builds a new world.
+   *
+   * Session-only and deliberately not remembered: a switch that
+   * silently persists is a switch somebody left on three days ago and
+   * has now forgotten about, which is how a developer ends up
+   * debugging their own tooling.
+   */
+  const [keepBelongings, setKeepBelongings] = useState(false);
   const [showGodView, setShowGodView] = useState(false);
 
   const run = async (label: string, op: () => Promise<unknown>) => {
@@ -269,6 +278,30 @@ export function DevAdminScreen({
 
         {/* ---- SCENARIO PRESET ---- */}
         <div style={sectionTitle}>SCENARIO PRESET</div>
+        {/* A PRESET IS A RESET, and that is right for a player who
+            wants a new world and wrong for the job actually done here
+            twenty times an hour: put the story at a known point and go
+            and look at something. Through a full reset that took the
+            bag, the purse and the levels with it, so every test of the
+            economy began by rebuilding the economy.
+
+            OFF BY DEFAULT on purpose. A preset means exactly what it
+            has always meant unless somebody asks for otherwise, so no
+            existing habit — or existing test — changes underneath
+            anybody. The ledger of paid fights is kept either way: a
+            developer tool that can mint money by winding the story
+            back is a tool that will be blamed for a balance problem it
+            caused. */}
+        <button
+          className="btn"
+          style={smallBtn}
+          data-testid="preset-keep-belongings"
+          aria-pressed={keepBelongings}
+          disabled={busy}
+          onClick={() => setKeepBelongings((on) => !on)}
+        >
+          {keepBelongings ? '☑ 所持品・LUMI・LEVELを残す' : '☐ 所持品・LUMI・LEVELを残す'}
+        </button>
         <div style={row}>
           {SCENARIO_PRESETS.map((preset) => (
             <button
@@ -277,7 +310,7 @@ export function DevAdminScreen({
               style={smallBtn}
               data-testid={`preset-${preset.id}`}
               disabled={busy}
-              onClick={() => run(preset.label, () => preset.run(world))}
+              onClick={() => run(preset.label, () => preset.run(world, { keepBelongings }))}
             >
               {preset.label}
             </button>

@@ -32,6 +32,10 @@ import type { ShopOffer } from '../../core/economy/shop';
  */
 export const ALDEN_SHOP_OFFERS: readonly ShopOffer[] = [
   { itemId: 'FOREST_HERB', buyPrice: 16 },
+  // Dearer than a herb, because MP is the scarcer of the two: health
+  // comes back in full at the start of every fight and magic does not
+  // come back at all except by spending a turn on it.
+  { itemId: 'MANA_WATER', buyPrice: 24 },
   { itemId: 'OLD_ARROWHEAD', buyPrice: 24 },
   { itemId: 'BROKEN_CLASP', buyPrice: 10 },
 ];

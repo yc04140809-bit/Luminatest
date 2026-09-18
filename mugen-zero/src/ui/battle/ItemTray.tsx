@@ -1,6 +1,6 @@
 import { itemDef } from '../../content/economy/itemDefs';
 import { itemRefusalLine, refuseItem, type BattleState } from '../../game/battle/battleLogic';
-import type { ItemStack } from '../../core/economy/items';
+import { useStatLabel, type ItemStack } from '../../core/economy/items';
 
 interface Props {
   /** The bag as this fight sees it, counted down as things are used. */
@@ -55,7 +55,7 @@ export function ItemTray({ bag, battle, onUse, onClose }: Props) {
             </span>
             <span className="bp-tray-sub">
               {refusal === null
-                ? `HPが${use.amount}回復する`
+                ? `${useStatLabel(use.kind)}が${use.amount}回復する`
                 : itemRefusalLine(refusal, def!.name)}
             </span>
           </button>

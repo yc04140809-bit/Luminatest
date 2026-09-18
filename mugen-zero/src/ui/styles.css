@@ -6439,3 +6439,69 @@ body,
 .dev-damaged-rows code {
   font-size: 10px;
 }
+
+/* ---- 持ち物 ----
+   Everything about a thing at once: what it is, how many, what kind,
+   what it does, whether it can be used now, whether anybody will buy
+   it. Nothing here is a button — the bag is for looking at. */
+.bag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+.bag-row {
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel, rgba(255, 255, 255, 0.02));
+}
+.bag-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bag-name {
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+.bag-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.bag-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 5px;
+}
+.bag-tag {
+  padding: 1px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.bag-tag.can {
+  border-color: var(--accent, #c9a227);
+  color: var(--accent, #c9a227);
+}
+.bag-desc {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--text-dim);
+}
+.bag-empty,
+.bag-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+  color: var(--text-dim);
+}

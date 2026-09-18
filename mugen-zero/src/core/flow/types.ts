@@ -38,6 +38,15 @@ export type Screen =
   | 'TALK_SPOT'
   /** アルデン道具屋: the one door in the village that takes LUMI. */
   | 'ITEM_SHOP'
+  /**
+   * 持ち物: everything the player is carrying, in one place.
+   *
+   * Off HOME rather than off the shop, because what a shopkeeper will
+   * take is a different list from what you own — and a player who
+   * wants to know what is in their bag should not have to walk to a
+   * counter and read the answer sideways.
+   */
+  | 'BAG'
   | 'ARCHIVE'
   /** ARCANA 図鑑: what the player has come to know about the world. */
   | 'ARCANA'

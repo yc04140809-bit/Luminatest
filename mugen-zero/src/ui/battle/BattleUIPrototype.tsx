@@ -406,6 +406,14 @@ const SAY_HOLD_MS = 2000;
 
 /** And how long it leaves the awakening on screen before moving on. */
 const AUTO_READ_MS = 2200;
+/**
+ * How long the plate holds what an item just did before AUTO moves on.
+ *
+ * Long enough to read two short Japanese lines and no longer: this is
+ * a hold, not a cutscene, and it is only ever reached by a player who
+ * pressed the button themselves.
+ */
+const ITEM_READ_MS = 900;
 
 /**
  * How long her moment lasts before the fight starts.
@@ -1137,6 +1145,40 @@ export function BattleUIPrototype({
     // shot of somebody reaching into a bag yet, and borrowing the
     // sword's would be a lie about what happened.
     play(['GUARD', ...answerOf(next)], null);
+    /**
+     * AND IT GETS TO BE READ.
+     *
+     * The plate normally shows the LAST line of the log, and using
+     * something writes three in one go — what was used, what it did,
+     * and then the creature's reply. So the message a player pressed a
+     * button to cause was on screen for about a frame before being
+     * written over by the answer to it.
+     *
+     * The same plate the summons use fixes it, and for the same
+     * reason: what it says is pinned until the fight moves on, which
+     * is the player's own next move. The two lines are taken out of
+     * the log by position rather than re-worded here — whatever the
+     * battle said it did is what the player reads.
+     */
+    const said = next.log.slice(battle.log.length);
+    setSay({
+      name: def.name,
+      line: said[0] ?? def.use.line,
+      result: said[1] ?? '',
+    });
+    /**
+     * AND AUTO WAITS FOR IT TOO, without AUTO knowing this exists.
+     *
+     * AUTO's wait is `busyUntil` — the end of whatever is playing —
+     * plus its own gap, so pushing that out is the whole of it. Scaled
+     * by speed like every other beat, because ×2 means "everything
+     * takes half as long" and a hold that ignored it would be the one
+     * thing in the fight that did not.
+     *
+     * It only ever applies to a hand-played turn: AUTO chooses between
+     * attacking, casting and bracing and has never reached for the bag.
+     */
+    busyUntil.current += beatMs(ITEM_READ_MS, speed);
     answerBlow(next, beatLength('GUARD', speed));
   };
 

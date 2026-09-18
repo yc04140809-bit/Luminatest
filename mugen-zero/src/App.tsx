@@ -77,6 +77,7 @@ import { memoryEventLabel } from './content/events/creatureLifeChoice';
 import { clearObtainedItems } from './platform/discoveries';
 import { toAbsoluteDay } from './core/time/calendar';
 import { ArcanaScreen } from './ui/screens/ArcanaScreen';
+import { BagScreen } from './ui/screens/BagScreen';
 import { ArcanaToast } from './ui/common/ArcanaToast';
 import { ARCANA_DEFS, MOSS_RABBIT_ARCANA } from './content/arcana/arcanaDefs';
 import { battleArcanaOf } from './ui/battle/battleArcana';
@@ -639,6 +640,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           }}
           onArchive={() => flow.goTo('ARCHIVE')}
           onArcana={() => flow.goTo('ARCANA')}
+          onBag={() => flow.goTo('BAG')}
           onSettings={() => flow.goTo('SETTINGS')}
           // Once per run of the app, not once per save: the unlock
           // lives in memory and is gone when the app closes.
@@ -798,6 +800,12 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           onBack={() => flow.goTo('HOME')}
         />
       );
+    case 'BAG':
+      // Looking, not doing. The bag is handed what the world holds and
+      // has no way to change it — the one place a consumable is worth
+      // spending is a fight, and that refusal is stated on the screen
+      // rather than left as a button that does nothing.
+      return <BagScreen inventory={world.getInventory()} onBack={() => flow.goTo('HOME')} />;
     case 'WORLD_MEMORY':
       // Player-facing view: known events only, never the full truth.
       return (

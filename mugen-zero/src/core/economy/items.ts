@@ -70,24 +70,52 @@ export interface ItemDef {
 /**
  * WHAT USING SOMETHING DOES.
  *
- * One kind so far, and it is written as a tagged union rather than as
- * a loose `heal?: number` because the second kind — something that
- * cures, something that wards, something that is only read — arrives
- * as a new tag and no change to anything that already reads this.
+ * A KIND and an AMOUNT rather than a loose `heal?: number`, because
+ * the second kind has arrived and cost nothing to add: everything that
+ * reads this switches on `kind`, so a third — something that cures,
+ * something that wards, something that is only read — is a new case in
+ * three places and no change anywhere else.
  *
  * `where` is the refusal the player is most likely to meet, so it is a
  * field rather than a rule buried in a screen: a thing usable only in
  * a fight says so, and a screen outside a fight can say WHY the button
  * is not there rather than simply not drawing it.
  */
-export type ItemUse = {
-  kind: 'HEAL';
-  /** Health put back, flat. Not a share of the maximum. */
+export interface ItemUse {
+  kind: ItemUseKind;
+  /** How much, flat. Never a share of a maximum — see the item defs. */
   amount: number;
   where: 'BATTLE_ONLY' | 'ANYWHERE';
   /** Said in the log as it is used, before what it did. */
   line: string;
-};
+}
+
+export type ItemUseKind = 'HEAL' | 'RESTORE_MP';
+
+/** What the thing this use puts back is called, on a screen. */
+export function useStatLabel(kind: ItemUseKind): string {
+  return kind === 'HEAL' ? 'HP' : 'MP';
+}
+
+/**
+ * What a category is called in front of a player.
+ *
+ * ONE PLACE, because a bag that calls something 消耗品 and a shop that
+ * calls the same thing 消費アイテム is a game that looks like it was
+ * written by two people who never met.
+ */
+export function categoryLabel(category: ItemCategory): string {
+  switch (category) {
+    case 'CONSUMABLE':
+      return '消耗品';
+    case 'MATERIAL':
+      return '素材';
+    case 'KEY_ITEM':
+      return '大切なもの';
+    case 'OTHER':
+      return 'その他';
+  }
+}
 
 /** How many of one thing the player is holding. Save data. */
 export interface ItemStack {
