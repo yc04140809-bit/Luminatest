@@ -128,6 +128,10 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
       return 'GREENWOOD_FOREST';
 
     // A PLACE. Which place decides, because 月光亭 is not the street.
+    // The shop is a room off the village square and sounds like the
+    // village, the same as the archive and the memory book do.
+    case 'ITEM_SHOP':
+      return 'ALDEN_VILLAGE';
     case 'TALK_SPOT':
     case 'FUTURE_SITE':
       if (locationId === 'MOONLIGHT_TAVERN') return 'TAVERN';

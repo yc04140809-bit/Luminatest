@@ -15,6 +15,14 @@ interface Props {
   /** Places the player can walk into and talk to someone. */
   onEnterSpot: (spotId: string) => void;
   /**
+   * The one door in the village that takes LUMI.
+   *
+   * A CARD IN THIS LIST rather than a button on HOME, because it is a
+   * place: the player walks to it, and it sits beside the forest and
+   * the tavern where somebody looking for somewhere to go will find it.
+   */
+  onEnterShop: () => void;
+  /**
    * Places where something is waiting that the player has not met yet.
    * Derived from WORLD MEMORY plus what they have already seen — never a
    * UI-only flag, and never a hint about WHAT is there.
@@ -28,6 +36,7 @@ export function ExploreScreen({
   sites,
   onEnterSite,
   onEnterSpot,
+  onEnterShop,
   changedLocations,
 }: Props) {
   // 「✦」 says only "there is something here". Which is the whole point:
@@ -60,6 +69,20 @@ export function ExploreScreen({
             <div className="location-desc">{loc.description}</div>
           </button>
         ))}
+        {/* The shop. Not in LOCATIONS because that list is places the
+            WORLD has, and a counter inside the village is not a place
+            the map needs an entry for — it is a door off the square,
+            the way the memory book is a door off HOME. */}
+        <button
+          className="location-card"
+          data-testid="location-ALDEN_ITEM_SHOP"
+          onClick={onEnterShop}
+        >
+          <div className="location-name">アルデン道具屋</div>
+          <div className="location-desc">
+            薬草や拾いものを売り買いできる。店主は無口だ。
+          </div>
+        </button>
         {sites.map(({ def, discovered }) => (
           <button
             key={def.id}

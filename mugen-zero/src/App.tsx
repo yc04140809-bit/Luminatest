@@ -85,6 +85,9 @@ import type { ArcanaConditionId, ArcanaGain } from './core/arcana/arcana';
 const GreenwoodScreen = lazy(() =>
   import('./ui/screens/GreenwoodScreen').then((m) => ({ default: m.GreenwoodScreen })),
 );
+const ItemShopScreen = lazy(() =>
+  import('./ui/screens/ItemShopScreen').then((m) => ({ default: m.ItemShopScreen })),
+);
 const BattleResultScreen = lazy(() =>
   import('./ui/screens/BattleResultScreen').then((m) => ({ default: m.BattleResultScreen })),
 );
@@ -679,8 +682,28 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
             setCurrentLocationId(spotId as LocationId);
             flow.goTo('TALK_SPOT');
           }}
+          onEnterShop={() => {
+            setCurrentLocationId('ALDEN_VILLAGE');
+            flow.goTo('ITEM_SHOP');
+          }}
           changedLocations={changedLocations}
         />
+      );
+    case 'ITEM_SHOP':
+      return (
+        <Suspense fallback={<LoadingScreen message="店に入っています……" />}>
+          <ItemShopScreen
+            lumi={world.getLumi()}
+            inventory={world.getInventory()}
+            // THE WORLD'S ATOMIC PAIR, PASSED STRAIGHT THROUGH. The
+            // screen decides what, and one commit does it — a shop that
+            // called spendLumi and then addItem could be interrupted
+            // between them.
+            onBuy={(offer, quantity) => world.buyItem(offer, quantity)}
+            onSell={(itemId, quantity) => world.sellItem(itemId, quantity)}
+            onLeave={() => flow.goTo('EXPLORE')}
+          />
+        </Suspense>
       );
     case 'TALK_SPOT': {
       const spot = LOCATIONS.find((l) => l.id === currentLocationId);

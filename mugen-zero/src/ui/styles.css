@@ -6173,3 +6173,159 @@ body,
 .result-done:active {
   background: rgba(217, 184, 113, 0.22);
 }
+
+/* ---- アルデン道具屋 — the smallest shop that is really a shop ------
+   A list, a purse and two tabs. Built from the same village palette as
+   every other room the player reads in, and with no art of its own:
+   the artifact pays nothing for a counter. */
+.shop-screen {
+  padding: calc(10px + env(safe-area-inset-top)) 14px calc(10px + env(safe-area-inset-bottom));
+  gap: 6px;
+}
+.shop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--mugen-border);
+}
+.shop-name {
+  margin: 0;
+  font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+}
+.shop-purse {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--mugen-text-secondary);
+  white-space: nowrap;
+}
+.shop-purse b {
+  font-size: 17px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--mugen-gold);
+}
+.shop-tabs {
+  display: flex;
+  gap: 6px;
+}
+.shop-tab {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 4px 18px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--mugen-text-muted);
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+.shop-tab.on {
+  color: var(--mugen-text);
+  border-bottom-color: var(--mugen-gold-soft);
+}
+.shop-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0;
+}
+/* One line a thing: what it is, what it costs, how many you have, and
+   the one button. Wraps to two rows on a narrow phone rather than
+   squeezing the name. */
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  background: var(--mugen-surface);
+  border: 1px solid var(--mugen-border);
+  border-radius: 4px;
+}
+.shop-row-words {
+  flex: 1 1 180px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.shop-row-name {
+  font-size: 14px;
+}
+.shop-row-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--mugen-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shop-row-price {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--mugen-gold);
+  white-space: nowrap;
+}
+.shop-row-held {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--mugen-text-muted);
+  white-space: nowrap;
+}
+.shop-act {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 5px 16px;
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+  border: 1px solid var(--mugen-gold-soft);
+  border-radius: 2px;
+  color: var(--mugen-text);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+/* A PRICE YOU CANNOT AFFORD IS A GREYED BUTTON, not an error after the
+   fact. The world refuses it as well — this is the half the player can
+   see before they press. */
+.shop-act:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+.shop-empty,
+.shop-said {
+  margin: 0;
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--mugen-text-secondary);
+}
+.shop-leave {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: var(--tap-min);
+  padding: 8px 18px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--mugen-border);
+  color: var(--mugen-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}

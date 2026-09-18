@@ -30,7 +30,11 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   ENDING: ['HOME', 'ARCHIVE', 'PLAYTEST_SURVEY'],
   PLAYTEST_SURVEY: ['HOME', 'ARCHIVE'],
   SETTINGS: ['HOME'],
-  EXPLORE: ['GREENWOOD', 'FUTURE_SITE', 'TALK_SPOT', 'HOME'],
+  EXPLORE: ['GREENWOOD', 'FUTURE_SITE', 'TALK_SPOT', 'ITEM_SHOP', 'HOME'],
+  // A door off the village square. Walked into and walked back out of,
+  // like the tavern: it changes what the player is carrying and nothing
+  // about where they are.
+  ITEM_SHOP: ['EXPLORE'],
   // One screen for all four routes' future sites: bakery, waystation,
   // workyard, grave. Which one it shows is a location, not a screen.
   FUTURE_SITE: ['EXPLORE', 'ENDING'],
