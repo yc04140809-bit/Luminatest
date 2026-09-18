@@ -593,6 +593,31 @@ export class World {
     return this.health;
   }
 
+  /**
+   * The rows a past load could not read, if any were ever kept.
+   *
+   * THE POINT OF KEEPING THEM IS BEING ABLE TO LOOK. Recovery already
+   * put the damaged rows somewhere rather than destroying them, on the
+   * grounds that they are the only evidence of what went wrong — and
+   * evidence nobody can read is the same as no evidence. This is the
+   * reading end, for the developer panel: a save that has never been
+   * damaged returns null and says nothing.
+   */
+  async getDamagedRows(): Promise<DamagedSave | null> {
+    return readDamaged(await this.store.getMeta(DAMAGED_META_KEY));
+  }
+
+  /**
+   * Forgets the damaged rows.
+   *
+   * Only for after somebody has actually looked. Nothing in the game
+   * calls this; the developer panel does, so a save that has been
+   * investigated stops reporting the same fault for ever.
+   */
+  async clearDamagedRows(): Promise<void> {
+    await this.store.setMeta(DAMAGED_META_KEY, null);
+  }
+
   /** Where 「つづきから」 should put the player back. */
   getResumeArea(): ResumeArea {
     return this.resumeArea;
@@ -1821,6 +1846,32 @@ const BACKUP_META_KEY = 'worldBackup';
  * tool that does not exist yet, or for somebody reporting a bug.
  */
 const DAMAGED_META_KEY = 'worldDamaged';
+
+/** What was found in a save that could not be read, kept for looking at. */
+export interface DamagedSave {
+  /** When the damage was noticed, not when it happened. */
+  savedAt: string;
+  /** The rows that were not the kind of thing they should have been. */
+  unreadableKeys: string[];
+  /** Everything the save held at that moment, damage included. */
+  rows: WorldStateRow[];
+}
+
+function readDamaged(raw: unknown): DamagedSave | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const held = raw as Partial<DamagedSave>;
+  if (!Array.isArray(held.rows)) return null;
+  return {
+    savedAt: typeof held.savedAt === 'string' ? held.savedAt : '',
+    unreadableKeys: Array.isArray(held.unreadableKeys)
+      ? held.unreadableKeys.filter((k): k is string => typeof k === 'string')
+      : [],
+    rows: held.rows.filter(
+      (row): row is WorldStateRow =>
+        !!row && typeof row === 'object' && typeof (row as WorldStateRow).key === 'string',
+    ),
+  };
+}
 
 /** Everything the world is restored from, once the reading is done. */
 interface WorldFields {

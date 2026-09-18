@@ -6,13 +6,23 @@ import { TITLE_KEY_VISUAL } from '../../assets/manifest';
 interface Props {
   /** True when a saved world exists in WORLD MEMORY. */
   hasSave: boolean;
+  /**
+   * Whether this browser can keep anything at all.
+   *
+   * False is not an error and not a refusal to start: the game is
+   * entirely playable, and 「つづきから」 works for as long as the tab
+   * is open, because in that case the world in memory IS the save.
+   * What it will not do is survive being closed — and the title is
+   * where that promise is made, so it is where it has to be withdrawn.
+   */
+  canSave?: boolean;
   onStart: () => void;
   onContinue: () => void;
   /** Deletes the saved world. The parent reloads afterwards. */
   onReset: () => Promise<void>;
 }
 
-export function TitleScreen({ hasSave, onStart, onContinue, onReset }: Props) {
+export function TitleScreen({ hasSave, canSave = true, onStart, onContinue, onReset }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
@@ -94,6 +104,13 @@ export function TitleScreen({ hasSave, onStart, onContinue, onReset }: Props) {
           <button className="btn primary" data-testid="start-button" onClick={onStart}>
             はじめる
           </button>
+        )}
+        {!canSave && (
+          <p className="title-no-save" data-testid="title-no-save">
+            このブラウザでは保存できません。
+            <br />
+            タブを閉じると記録は消えます。
+          </p>
         )}
       </div>
     </div>

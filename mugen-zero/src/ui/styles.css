@@ -6360,3 +6360,82 @@ body,
   letter-spacing: 0.14em;
   cursor: pointer;
 }
+
+/* ---- WHEN NOTHING CAN BE KEPT ----
+   A browser that refuses IndexedDB gets the whole game and no save.
+   Both of these say so: the mark rides over every screen for the
+   whole session, and the title says it again where the promise to
+   keep a world is actually made.
+
+   `pointer-events: none` is the load-bearing line. This is a
+   statement, not a dialogue, and a notice that can swallow a tap in
+   a fight is worse than the thing it is warning about. */
+.no-save-mark {
+  position: fixed;
+  top: max(4px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  margin: 0;
+  max-width: min(92vw, 420px);
+  box-sizing: border-box;
+  padding: 3px 11px;
+  border: 1px solid var(--danger, #c8524a);
+  border-radius: 999px;
+  background: rgba(10, 6, 8, 0.84);
+  color: var(--danger, #c8524a);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.title-no-save {
+  margin: 2px 0 0;
+  max-width: 30ch;
+  color: var(--danger, #c8524a);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ---- DEV: what the save says about itself ----
+   A report, not a screen. Plain on purpose: the whole point is seeing
+   what is actually stored rather than a tidied version of it. */
+.dev-save-health {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dev-damaged-rows {
+  margin: 6px 0 8px;
+  padding: 0;
+  list-style: none;
+  max-height: 34vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dev-damaged-rows li {
+  padding: 4px 6px;
+  border: 1px solid var(--border, #3a3a44);
+  border-radius: 3px;
+  font-size: 10.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.dev-damaged-rows li.bad {
+  border-color: var(--danger, #c8524a);
+}
+.dev-damaged-rows b {
+  display: block;
+  color: var(--text-dim);
+  letter-spacing: 0.04em;
+}
+.dev-damaged-rows code {
+  font-size: 10px;
+}

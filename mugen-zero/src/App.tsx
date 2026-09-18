@@ -3,6 +3,8 @@ import { GameFlow } from './core/flow/gameFlow';
 import { World, resumeAreaOf, type ResumeArea } from './core/world/world';
 import { statsForLevels } from './core/progression/levelStats';
 import { IdbMemoryStore } from './core/memory/idbStore';
+import { MemoryOnlyStore } from './core/memory/memoryOnlyStore';
+import { MemoryOnlyFeedbackStore } from './core/playtest/memoryOnlyFeedbackStore';
 import { GALD_LIFE_CHOICE_EVENT_TYPE } from './content/events/galdLifeChoice';
 import { kaosHasAwakened } from './core/magic/awakened';
 import { NOTHING_APPLIED, NO_REWARD, type AppliedReward } from './core/progression/battleReward';
@@ -107,6 +109,17 @@ interface CoreBundle {
   world: World;
   /** Playtest feedback is a separate layer: never world canon. */
   playtest: PlaytestFeedbackService;
+  /**
+   * Whether anything written this session will still be here tomorrow.
+   *
+   * False means the game is running on a save that lives in memory
+   * only. Everything works — 「つづきから」 included, because within
+   * one session that IS the save — and all of it goes when the tab
+   * does. The player is told, plainly and continuously, because the
+   * one thing worse than losing a playthrough is losing one you were
+   * told was being kept.
+   */
+  saving: boolean;
 }
 
 interface GameRootProps extends CoreBundle {
@@ -114,7 +127,7 @@ interface GameRootProps extends CoreBundle {
   onSettingsChange: (next: GameSettings) => void;
 }
 
-function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRootProps) {
+function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }: GameRootProps) {
   // The opening theme has a screen of its own now, before the title,
   // and the first tap on it is the gesture that lets audio start.
   const opening = useOpeningTheme();
@@ -478,6 +491,17 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
   return (
     <>
       {screen}
+      {/* SAID CONTINUOUSLY, NOT ONCE.
+          A player who is told at the title that nothing will be kept
+          has been told at the one moment they are least able to care
+          about it. This sits over everything, all session, and takes
+          no taps: it is a statement, not a dialogue, and it must never
+          be in the way of a thumb. */}
+      {!saving && (
+        <p className="no-save-mark" data-testid="no-save-warning" role="status">
+          このブラウザでは保存できません — 記録は残りません
+        </p>
+      )}
       {/* Only while the theme is actually sounding, so it never offers
           to skip silence. */}
       {opening.playing && <OpeningSkip onSkip={opening.skip} />}
@@ -545,6 +569,12 @@ function GameRoot({ flow, world, playtest, settings, onSettingsChange }: GameRoo
       return (
         <TitleScreen
           hasSave={world.hasProgress()}
+          // Said again HERE, where the promise is actually made:
+          // 「つづきから」 still works within this session, because in
+          // this session the world in memory IS the save — but it will
+          // not be offered tomorrow, and that is worth knowing before
+          // somebody spends an evening on it.
+          canSave={saving}
           onStart={() => {
             // THE THEME IS NOT STARTED HERE ANY MORE. It used to be —
             // はじめる was the first real gesture, so it was the first
@@ -1181,17 +1211,61 @@ export default function App() {
     saveSettings(next);
   }, []);
 
+  /**
+   * OPENING THE GAME, WHETHER OR NOT THERE IS ANYWHERE TO KEEP IT.
+   *
+   * IndexedDB is not always there: a browser in private mode may
+   * refuse it, a strict site-data setting may block it, an embedded
+   * webview may not have it, a full disk fails the open. All of those
+   * used to end here, in an error screen, with no game at all.
+   *
+   * THE DECISION: playable without saving, rather than refusing to
+   * start. MUGEN ZERO is looked at far more often than it is played
+   * through — an Artifact somebody opens once, on whatever browser
+   * they happen to be holding — and "you cannot play" teaches that
+   * person nothing about the game, while "you can play, and it will
+   * not be here tomorrow" teaches them everything except the saving.
+   *
+   * It is the SAME interface with a Map behind it, so the world, the
+   * migrations, the readers and the recovery all run unchanged and do
+   * not know the difference. There is no code path where the game
+   * behaves differently because the save is in memory — which is
+   * exactly what makes falling back to it safe.
+   *
+   * The two stores are opened separately on purpose. Feedback that
+   * cannot be written is a shame; a survey that takes the game down
+   * with it is not.
+   */
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      let saving = true;
+      let world: World;
       try {
-        const world = await World.open(new IdbMemoryStore());
-        const playtest = await PlaytestFeedbackService.open(new IdbFeedbackStore());
-        if (!cancelled) setBundle({ flow: new GameFlow(), world, playtest });
+        world = await World.open(new IdbMemoryStore());
       } catch (e) {
-        console.error('Failed to open the saved world', e);
-        if (!cancelled) setInitError('セーブデータの読み込みに失敗しました。');
+        console.error('No save is available — playing without one', e);
+        saving = false;
+        try {
+          world = await World.open(new MemoryOnlyStore());
+        } catch (fatal) {
+          // Nothing left to fall back to: the world itself refused to
+          // open with a store that cannot fail. That is a bug in the
+          // game, not a browser being strict, and it is worth saying so.
+          console.error('Failed to open a world at all', fatal);
+          if (!cancelled) setInitError('ゲームを開始できませんでした。');
+          return;
+        }
       }
+      let playtest: PlaytestFeedbackService;
+      try {
+        playtest = await PlaytestFeedbackService.open(new IdbFeedbackStore());
+      } catch (e) {
+        console.error('Playtest feedback has nowhere to go', e);
+        saving = false;
+        playtest = await PlaytestFeedbackService.open(new MemoryOnlyFeedbackStore());
+      }
+      if (!cancelled) setBundle({ flow: new GameFlow(), world, playtest, saving });
     })();
     return () => {
       cancelled = true;
@@ -1229,6 +1303,7 @@ export default function App() {
       flow={bundle.flow}
       world={bundle.world}
       playtest={bundle.playtest}
+      saving={bundle.saving}
       settings={settings}
       onSettingsChange={handleSettingsChange}
     />

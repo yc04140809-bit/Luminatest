@@ -6,6 +6,7 @@ import { SCENARIO_PRESETS } from './presets';
 import { buildGaldLifeArchive } from '../core/archive/lifeArchive';
 import type { PlaytestFeedbackService } from '../core/playtest/playtestService';
 import { DevPlaytestPanel } from './DevPlaytestPanel';
+import { DevSaveHealthPanel } from './DevSaveHealthPanel';
 import { DevReviewHub } from './DevReviewHub';
 import { GodViewScreen } from './GodViewScreen';
 import {
@@ -789,6 +790,15 @@ export function DevAdminScreen({
         {rabbit.named} 体。次の勝利で特殊個体になる確率{' '}
         {Math.round(storyTriggerChance(rabbit.sinceStory + 1) * 100)}%。
       </div>
+
+      {/* ---- SAVE HEALTH ----
+          What the save says about ITSELF: which version, whether
+          anything had to be repaired to read it, and the rows a past
+          load could not read at all. Recovery keeps those rather than
+          destroying them, and this is the reading end — evidence
+          nobody can look at is the same as no evidence. */}
+      <div style={sectionTitle}>SAVE HEALTH</div>
+      <DevSaveHealthPanel world={world} />
 
       </div>
       <div className="screen-footer">

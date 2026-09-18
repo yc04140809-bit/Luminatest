@@ -260,3 +260,38 @@ describe('a reset', () => {
     expect(after.getLumi()).toBe(0);
   });
 });
+
+describe('looking at what could not be read', () => {
+  /**
+   * The point of keeping the damaged rows is being able to look at
+   * them. Evidence nobody can read is the same as no evidence.
+   */
+  it('hands back the rows and the reason, for the developer panel', async () => {
+    const dbName = freshDbName();
+    await aPlayedWorld(dbName);
+    await put(dbName, WORLD_STATE_STORE, [{ key: 'lumi', value: 'gone' }]);
+    const world = await open(dbName);
+    expect(world.getSaveHealth().recoveredFromBackup).toBe(true);
+
+    const damaged = await world.getDamagedRows();
+    expect(damaged).not.toBeNull();
+    expect(damaged!.unreadableKeys).toContain('lumi');
+    expect(damaged!.rows.find((r) => r.key === 'lumi')?.value).toBe('gone');
+    expect(Date.parse(damaged!.savedAt)).not.toBeNaN();
+  });
+
+  it('says nothing at all about a save that has never been damaged', async () => {
+    const world = await open(freshDbName());
+    expect(await world.getDamagedRows()).toBeNull();
+  });
+
+  it('forgets them once somebody has actually looked', async () => {
+    const dbName = freshDbName();
+    await aPlayedWorld(dbName);
+    await put(dbName, WORLD_STATE_STORE, [{ key: 'lumi', value: 'gone' }]);
+    const world = await open(dbName);
+    expect(await world.getDamagedRows()).not.toBeNull();
+    await world.clearDamagedRows();
+    expect(await world.getDamagedRows()).toBeNull();
+  });
+});
