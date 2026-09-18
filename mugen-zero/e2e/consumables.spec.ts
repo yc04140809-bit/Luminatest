@@ -72,13 +72,20 @@ async function give(page: Page, lumi: number, items: { itemId: string; quantity:
   await expect(page.getByTestId('world-clock')).toBeVisible({ timeout: 20_000 });
 }
 
-async function armAForestFight(page: Page) {
+async function armAForestFight(page: Page, { alwaysAttacks = false } = {}) {
   await enterDevAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
   await page.getByTestId('battle-ui-PROTOTYPE').click();
   await page.getByTestId('force-encounter-BATTLE').click();
   await page.getByTestId('force-story-off').click();
   await page.getByTestId('force-chaos-NONE').click();
+  // A CREATURE THAT ALWAYS SWINGS, for the one test that needs a
+  // wound to heal. Left to itself a moss rabbit hides, gets knocked
+  // off its footing and skips turns, so "keep swinging until the
+  // player has lost thirty health" is a race against killing it —
+  // and when the fight ended first the health bar went with it and
+  // the test waited five minutes for an element that had gone.
+  if (alwaysAttacks) await page.getByTestId('force-enemy-ATTACK').click();
   await page.getByTestId('dev-admin-back').click();
   await expect(page.getByTestId('home-memory')).toBeVisible();
 }
@@ -116,7 +123,7 @@ test.describe('a herb in a fight', () => {
   test('is in the bag, costs the turn, heals the wound, and is gone', async ({ page }) => {
     test.setTimeout(300_000);
     await freshWorld(page);
-    await armAForestFight(page);
+    await armAForestFight(page, { alwaysAttacks: true });
     await give(page, 0, [{ itemId: HERB, quantity: 2 }]);
     await walkIntoAFight(page);
 
@@ -133,18 +140,38 @@ test.describe('a herb in a fight', () => {
     // Take some damage first — the creature answers every swing.
     const hp = page.getByTestId('bp-player-hp');
     const full = hpOf(await hp.textContent());
-    await swingUntil(page, 'bp-attack', async () => hpOf(await hp.textContent()) < full - 30);
+    // ENOUGH OF A WOUND TO BE WORTH A HERB, AND NOT ONE BLOW MORE.
+    //
+    // A moss rabbit hits for two to five and has a hundred and
+    // twenty-four health, so "keep swinging until the player has lost
+    // thirty" is a race against killing it — and losing that race
+    // takes the health bar off the screen along with the fight. Ten is
+    // three or four of its blows and is reached long before the
+    // creature is in any danger.
+    const wounded = async () => {
+      const now = hpOf(await hp.textContent().catch(() => null));
+      return Number.isFinite(now) && now <= full - 10;
+    };
+    await swingUntil(page, 'bp-attack', wounded);
     const hurt = hpOf(await hp.textContent());
-    expect(hurt).toBeLessThan(full);
+    expect(hurt, 'the creature got a few blows in').toBeLessThanOrEqual(full - 10);
 
     await page.getByTestId('bp-item').click();
     await expect(row).toBeEnabled();
     await row.click();
 
-    // The herb healed, and the creature still got its turn — so the
-    // health afterwards is the healing minus whatever it hit for.
+    // THE WOUND CLOSES. Using it hands the creature its turn as well,
+    // so what is on the bar afterwards is the healing minus whatever
+    // answered it — which is still upward, because the herb is worth
+    // at least ten and the creature hits for at most seven.
+    //
+    // The message plate is deliberately NOT what is read here: it
+    // shows the LAST line of the log, and the last line by the time
+    // anything settles is the creature's reply, not the herb. How much
+    // it heals exactly is arithmetic, and arithmetic is unit-tested
+    // where it lives.
     await expect
-      .poll(async () => hpOf(await hp.textContent()), { timeout: 20_000 })
+      .poll(async () => hpOf(await hp.textContent().catch(() => null)), { timeout: 20_000 })
       .toBeGreaterThan(hurt);
 
     // One fewer, on screen and in the save.
