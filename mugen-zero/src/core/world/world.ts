@@ -64,7 +64,7 @@ import {
   roomFor,
 } from '../economy/inventory';
 import { INITIAL_LUMI, addLumi, canAfford, readLumi, spendLumi } from '../economy/lumi';
-import { EMPTY_INVENTORY, type Inventory } from '../economy/items';
+import { EMPTY_INVENTORY, type Inventory, type ItemStack } from '../economy/items';
 import { buyPriceOf, inStock, sellPriceOf, type ShopOffer } from '../economy/shop';
 import {
   INITIAL_PROGRESS,
@@ -72,6 +72,13 @@ import {
   readProgressTable,
   type LevelProgress,
 } from '../progression/levelCurve';
+import {
+  NOTHING_APPLIED,
+  readReward,
+  type AppliedReward,
+  type BattleReward,
+} from '../progression/battleReward';
+import { activeParty } from '../../game/party/battleParty';
 import { itemDef } from '../../content/economy/itemDefs';
 import { SUMMON_ACCIDENTS } from '../../content/summon/accidents';
 import {
@@ -175,6 +182,28 @@ const LUMI_KEY = 'lumi';
  * gives, so there is nothing to convert.
  */
 const PROGRESSION_KEY = 'progression';
+/**
+ * THE REWARDS ALREADY PAID, so none of them is paid twice.
+ *
+ * A battle screen can call its own ending more than once — a re-render,
+ * a double tap, AUTO and the player arriving at the same moment, a
+ * timer that fired after the state had already moved on. Every one of
+ * those is ordinary, and every one of them would otherwise be a second
+ * helping of experience and a second herb.
+ *
+ * So a reward carries an id and the world remembers which ids it has
+ * honoured. Only the most recent are kept: this is a guard against a
+ * double-tap, not a ledger of everything that ever happened, and a save
+ * that grew one row per fight forever would be a save that grows
+ * forever.
+ *
+ * Absent in an older save, which reads as "nothing has been paid" — and
+ * that is correct, because an older save also has no reward in flight.
+ */
+const CLAIMED_REWARDS_KEY = 'claimed_rewards';
+
+/** How many paid rewards are remembered. Long enough for any re-entry. */
+const CLAIMED_REWARDS_KEPT = 40;
 
 /** What one character's share of a reward came to. */
 export interface LevelGainRecord {
@@ -285,6 +314,7 @@ export class World {
   private inventory: Inventory;
   private lumi: number;
   private progression: Record<string, LevelProgress>;
+  private claimedRewards: string[];
 
   private constructor(
     private readonly store: MemoryEventStore,
@@ -300,6 +330,7 @@ export class World {
     inventory: Inventory,
     lumi: number,
     progression: Record<string, LevelProgress>,
+    claimedRewards: string[],
   ) {
     this.events = events;
     this.clock = clock;
@@ -313,6 +344,7 @@ export class World {
     this.inventory = inventory;
     this.lumi = lumi;
     this.progression = progression;
+    this.claimedRewards = claimedRewards;
   }
 
   /** Opens the store and restores history, clock and character states. */
@@ -343,6 +375,10 @@ export class World {
     const inventory = readInventory(await store.getStateValue(INVENTORY_KEY));
     const lumi = readLumi(await store.getStateValue(LUMI_KEY));
     const progression = readProgressTable(await store.getStateValue(PROGRESSION_KEY));
+    const claimedRaw = await store.getStateValue(CLAIMED_REWARDS_KEY);
+    const claimed = Array.isArray(claimedRaw)
+      ? claimedRaw.filter((id): id is string => typeof id === 'string' && id !== '')
+      : [];
     return new World(
       store,
       events,
@@ -357,6 +393,7 @@ export class World {
       inventory,
       lumi,
       progression,
+      claimed.slice(-CLAIMED_REWARDS_KEPT),
     );
   }
 
@@ -1285,6 +1322,112 @@ export class World {
     };
   }
 
+  /**
+   * A FIGHT'S WINNINGS, ALL OF THEM OR NONE.
+   *
+   * Experience, money and goods land in ONE commit, so there is no
+   * moment where a player has the herb and not the LUMI. That is the
+   * same rule `buyItem` follows and for the same reason: a reward
+   * applied in three calls can be interrupted after the first.
+   *
+   * PAID ONCE, WHATEVER HAPPENS UPSTREAM. A battle screen calls its own
+   * ending more than once — a re-render, a double tap, AUTO and the
+   * player arriving together, a timer firing after the state moved on —
+   * and the id is what makes all of those harmless. A repeat is not an
+   * error: it comes back saying the reward was already claimed, with
+   * nothing applied and nothing saved, so a result screen redrawn after
+   * a reload shows what happened rather than paying again.
+   *
+   * WHAT LANDED, NOT WHAT WAS OFFERED. A bag with no room takes fewer
+   * items and a character at the ceiling earns nothing, so the answer
+   * describes what actually happened — a screen that drew the offer
+   * would congratulate a player on something they did not get.
+   *
+   * Only the three real fields are applied. `worldMemory`, `resonance`
+   * and `arcanaProgress` are declared on a reward and deliberately
+   * inert; what the world remembers about a fight is still
+   * `resolveEnemyVictory`'s, which does it properly.
+   */
+  async applyBattleReward(
+    rewardId: string,
+    raw: BattleReward,
+    options: { earners?: readonly { id: string; label: string }[] } = {},
+  ): Promise<AppliedReward> {
+    if (typeof rewardId !== 'string' || rewardId === '') return NOTHING_APPLIED;
+    if (this.claimedRewards.includes(rewardId)) {
+      return { ...NOTHING_APPLIED, alreadyClaimed: true };
+    }
+    const reward = readReward(raw);
+    const earners = options.earners ?? activeParty();
+
+    // Worked out first, committed second: nothing below touches this
+    // world until every row is known, so a refusal costs nothing.
+    let bag = this.inventory;
+    const took: ItemStack[] = [];
+    for (const stack of reward.items) {
+      const def = itemDef(stack.itemId);
+      if (!def) continue;
+      const change = addToBag(bag, def, stack.quantity);
+      if (change.moved <= 0) continue;
+      bag = change.inventory;
+      took.push({ itemId: stack.itemId, quantity: change.moved });
+    }
+    const purse = addLumi(this.lumi, reward.lumi);
+
+    const progression = { ...this.progression };
+    const levels: {
+      characterId: string;
+      label: string;
+      from: number;
+      to: number;
+      levelsGained: number;
+    }[] = [];
+    for (const earner of earners) {
+      const before = progression[earner.id] ?? { ...INITIAL_PROGRESS };
+      const gain = gainExp(before, reward.exp);
+      progression[earner.id] = gain.progress;
+      levels.push({
+        characterId: earner.id,
+        label: earner.label,
+        from: gain.from,
+        to: gain.to,
+        levelsGained: gain.levelsGained,
+      });
+    }
+    const expEarned = levels.length > 0 ? reward.exp : 0;
+
+    // AN EMPTY REWARD IS STILL CLAIMED. A fight worth nothing has been
+    // fought, and letting its id through unrecorded would leave the
+    // guard open for a reward that is not empty later.
+    const nextClaimed = [...this.claimedRewards, rewardId].slice(-CLAIMED_REWARDS_KEPT);
+    const rows: WorldStateRow[] = [{ key: CLAIMED_REWARDS_KEY, value: nextClaimed }];
+    if (took.length > 0) rows.push({ key: INVENTORY_KEY, value: bag });
+    if (purse !== this.lumi) rows.push({ key: LUMI_KEY, value: purse });
+    if (expEarned > 0) rows.push({ key: PROGRESSION_KEY, value: progression });
+
+    // What the purse ACTUALLY gained, read before anything is replaced.
+    const lumiEarned = purse - this.lumi;
+
+    await this.store.commit({ putState: rows });
+    this.claimedRewards = nextClaimed;
+    if (took.length > 0) this.inventory = bag;
+    this.lumi = purse;
+    if (expEarned > 0) this.progression = progression;
+    this.emit();
+    return {
+      exp: expEarned,
+      lumi: lumiEarned,
+      items: took,
+      levels: expEarned > 0 ? levels : [],
+      alreadyClaimed: false,
+    };
+  }
+
+  /** Whether this reward has already been paid. For a redrawn screen. */
+  hasClaimedReward(rewardId: string): boolean {
+    return this.claimedRewards.includes(rewardId);
+  }
+
   // ---- THE TWO MOVES A SHOP MAKES ----
   //
   // NO SHOP EXISTS YET, and these are not one: there is no screen, no
@@ -1403,6 +1546,7 @@ export class World {
     this.lumi = INITIAL_LUMI;
     // And nobody has fought anything.
     this.progression = {};
+    this.claimedRewards = [];
     this.emit();
   }
 }
