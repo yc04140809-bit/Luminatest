@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { DialogueSequence } from '../common/DialogueSequence';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import type { FutureSiteDef } from '@mugen/content/world/futureSites';
-import { kaosPortrait } from '@mugen/assets';
+import { eventCgSrc, kaosPortrait } from '@mugen/assets';
 import { vibrate } from '../../platform/haptics';
 
 interface Props {
@@ -74,7 +74,7 @@ export function FutureSiteScreen({
         lines={site.firstVisitLines}
         onComplete={afterFirstScene}
         testId={`${id}-first-visit`}
-        portraitSrc={site.eventCg}
+        portraitSrc={eventCgSrc(site.eventCg)}
         portraitAlt={site.eventCgAlt}
         portraitFit={site.eventCgFit}
         portraitFromLine={site.eventCgFromLine}
@@ -115,7 +115,7 @@ export function FutureSiteScreen({
         lines={lines}
         onComplete={commitDiscovery}
         testId={`${id}-after-reply`}
-        portraitSrc={site.eventCg}
+        portraitSrc={eventCgSrc(site.eventCg)}
         portraitAlt={site.eventCgAlt}
         portraitFit={site.eventCgFit}
         backdropLocationId={site.id}
@@ -183,7 +183,7 @@ function RevisitScene({ site, onLeave }: { site: FutureSiteDef; onLeave: () => v
         lines={site.revisitLines as DialogueLine[]}
         onComplete={() => setDone(true)}
         testId={`${id}-revisit`}
-        portraitSrc={site.eventCg}
+        portraitSrc={eventCgSrc(site.eventCg)}
         portraitAlt={site.eventCgAlt}
         portraitFit={site.eventCgFit}
         backdropLocationId={site.id}

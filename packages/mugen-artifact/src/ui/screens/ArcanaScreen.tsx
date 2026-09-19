@@ -1,3 +1,4 @@
+import { arcanaVisual } from '@mugen/content/art';
 import { useState } from 'react';
 import {
   fragmentsOf,
@@ -33,7 +34,11 @@ function pad(n: number): string {
 
 /** The drawing, cut out of its own file by CSS. No pixel is edited. */
 function ArcanaArt({ def, height }: { def: ArcanaDef; height: number }) {
-  const box = def.visual.box;
+  // The definition names its art; the registry has the file and the
+  // rectangle. Null means undrawn, and an undrawn page shows its frame.
+  const visual = arcanaVisual(def.visual);
+  if (!visual) return null;
+  const box = visual.box;
   const k = height / box.height;
   return (
     <div
@@ -43,7 +48,7 @@ function ArcanaArt({ def, height }: { def: ArcanaDef; height: number }) {
       style={{
         width: box.width * k,
         height,
-        backgroundImage: `url(${def.visual.src})`,
+        backgroundImage: `url(${visual.src})`,
         backgroundSize: `${box.fileW * k}px ${box.fileH * k}px`,
         backgroundPosition: `${-box.x * k}px ${-box.y * k}px`,
       }}

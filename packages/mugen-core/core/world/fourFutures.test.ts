@@ -5,7 +5,8 @@ import { IdbMemoryStore } from '../memory/idbStore';
 import type { LifeChoiceId } from '../flow/types';
 import type { MemoryEventType } from '../memory/types';
 import { FUTURE_SITE_DEFS } from '../../content/world/futureSites';
-import { EVENT_CG, GALD_PORTRAITS } from '@mugen/assets';
+import { EVENT_CG, GALD_PORTRAITS, eventCgSrc } from '@mugen/assets';
+import { EVENT_CG_KEYS } from '@mugen/assets/keys';
 
 // GALD FOUR FUTURES: every one of the four choices leaves something in the
 // world three years later, and no route can ever see another route's.
@@ -223,10 +224,31 @@ describe('four futures — nothing fires twice', () => {
 });
 
 describe('four futures — every route has its own event CG', () => {
+  /**
+   * THESE USED TO COMPARE URLS, and they compare NAMES and then what
+   * the names resolve to.
+   *
+   * The site definitions hold an `EventCgKey` now instead of an
+   * imported image: content that names a picture no longer carries
+   * one, which is what stopped `world.ts` from dragging all 75 images
+   * and six MP3s behind it. Every guarantee below is the one that was
+   * here before — one picture each, no two the same, the grave is a
+   * place and not a living man — asserted in two halves, because there
+   * are now two places to get it wrong: the key the content chose, and
+   * what the resolver turns that key into. The second half is new
+   * coverage, not a weakening: nothing tested `eventCgSrc` before it
+   * existed.
+   */
   it('gives each site one picture, and no two sites the same one', () => {
-    const cgs = FUTURE_SITE_DEFS.map((d) => d.eventCg);
-    expect(cgs.every((cg) => typeof cg === 'string' && cg.length > 0)).toBe(true);
-    expect(new Set(cgs).size).toBe(cgs.length);
+    const keys = FUTURE_SITE_DEFS.map((d) => d.eventCg);
+    expect(keys.every((k) => typeof k === 'string' && k.length > 0)).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
+
+    // And the keys are not merely distinct strings: they resolve to
+    // distinct pictures that actually exist.
+    const srcs = keys.map((k) => eventCgSrc(k));
+    expect(srcs.every((src) => typeof src === 'string' && src.length > 0)).toBe(true);
+    expect(new Set(srcs).size).toBe(srcs.length);
   });
 
   it('describes each picture for a screen reader', () => {
@@ -239,9 +261,10 @@ describe('four futures — every route has its own event CG', () => {
 
   it('the KILL picture is a place, not a living man', () => {
     const grave = FUTURE_SITE_DEFS.find((d) => d.id === 'GREENWOOD_GRAVE')!;
-    expect(grave.eventCg).toBe(EVENT_CG.GALD_GRAVE);
+    expect(grave.eventCg).toBe('GALD_GRAVE');
+    expect(eventCgSrc(grave.eventCg)).toBe(EVENT_CG.GALD_GRAVE);
     // Not one of the portraits of a man who is alive.
-    expect(Object.values(GALD_PORTRAITS)).not.toContain(grave.eventCg);
+    expect(Object.values(GALD_PORTRAITS)).not.toContain(eventCgSrc(grave.eventCg));
     // And it waits for the line that walks the player up to the stones.
     expect(grave.eventCgFromLine).toBeGreaterThan(0);
     expect(grave.firstVisitLines.length).toBeGreaterThan(grave.eventCgFromLine!);
@@ -249,9 +272,26 @@ describe('four futures — every route has its own event CG', () => {
 
   it('the surviving routes each show their own point in one life', () => {
     const byId = Object.fromEntries(FUTURE_SITE_DEFS.map((d) => [d.id, d]));
-    expect(byId.ALDEN_BAKERY.eventCg).toBe(GALD_PORTRAITS.baker);
-    expect(byId.GREENWOOD_WAYSTATION.eventCg).toBe(GALD_PORTRAITS.healer);
-    expect(byId.ALDEN_WORKYARD.eventCg).toBe(GALD_PORTRAITS.worker);
+    expect(byId.ALDEN_BAKERY.eventCg).toBe('GALD_BAKER');
+    expect(byId.GREENWOOD_WAYSTATION.eventCg).toBe('GALD_HEALER');
+    expect(byId.ALDEN_WORKYARD.eventCg).toBe('GALD_WORKER');
+
+    // The same three, as pictures, which is what the player sees.
+    expect(eventCgSrc(byId.ALDEN_BAKERY.eventCg)).toBe(GALD_PORTRAITS.baker);
+    expect(eventCgSrc(byId.GREENWOOD_WAYSTATION.eventCg)).toBe(GALD_PORTRAITS.healer);
+    expect(eventCgSrc(byId.ALDEN_WORKYARD.eventCg)).toBe(GALD_PORTRAITS.worker);
+  });
+
+  it('every key a site can name is one the resolver knows', () => {
+    // The union type says so at compile time; this says so at runtime,
+    // so that adding a fifth future without teaching the resolver
+    // about it fails here rather than as a blank scene.
+    for (const key of EVENT_CG_KEYS) {
+      expect(eventCgSrc(key), key).toBeTruthy();
+    }
+    for (const def of FUTURE_SITE_DEFS) {
+      expect(EVENT_CG_KEYS, def.id).toContain(def.eventCg);
+    }
   });
 
   it('shows every route the way its own picture was drawn', () => {
@@ -261,7 +301,7 @@ describe('four futures — every route has its own event CG', () => {
     // chalked his own line onto — so he is a scene like the other two,
     // and all three of his lives are shown the same way.
     const bakery = FUTURE_SITE_DEFS.find((d) => d.id === 'ALDEN_BAKERY')!;
-    expect(bakery.eventCg).toBe(GALD_PORTRAITS.baker);
+    expect(eventCgSrc(bakery.eventCg)).toBe(GALD_PORTRAITS.baker);
     expect(bakery.eventCgFromLine).toBeUndefined();
     for (const id of ['ALDEN_BAKERY', 'GREENWOOD_WAYSTATION', 'ALDEN_WORKYARD']) {
       const site = FUTURE_SITE_DEFS.find((d) => d.id === id)!;

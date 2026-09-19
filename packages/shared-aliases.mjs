@@ -28,6 +28,9 @@ export function mugenAliases() {
     { find: '@mugen/game', replacement: resolve(PACKAGES, 'mugen-core/game') },
     { find: '@mugen/content', replacement: resolve(PACKAGES, 'mugen-core/content') },
     { find: '@mugen/assets/files', replacement: resolve(PACKAGES, 'mugen-assets/files') },
+    // Names of art, with no art behind them. Before the manifest entry
+    // for the same reason `files` is: first match wins.
+    { find: '@mugen/assets/keys', replacement: resolve(PACKAGES, 'mugen-assets/src/keys.ts') },
     { find: '@mugen/assets', replacement: resolve(PACKAGES, 'mugen-assets/src/manifest.ts') },
   ];
 }

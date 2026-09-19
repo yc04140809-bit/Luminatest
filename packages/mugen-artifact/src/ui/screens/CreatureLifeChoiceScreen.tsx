@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import type { LifeChoiceId } from '@mugen/core/flow/types';
 import type { EnemySpeciesDef } from '@mugen/content/enemies/species';
+// The species knows its own id; the art registry knows its pictures.
+// Resolved here, where the drawing happens, rather than carried on
+// the definition — see the note where `portrait` used to be.
+import { enemyArtFor } from '@mugen/content/art';
 import { DialogueSequence } from '../common/DialogueSequence';
 import { vibrate } from '../../platform/haptics';
 
@@ -28,6 +32,7 @@ interface Props {
  * they decided.
  */
 export function CreatureLifeChoiceScreen({ species, individualId, onChoose, onDone }: Props) {
+  const portrait = enemyArtFor(species.speciesId, 'portrait').asset?.src ?? null;
   const [phase, setPhase] = useState<'SCENE' | 'CHOICE' | 'AFTER'>('SCENE');
   const [chosen, setChosen] = useState<LifeChoiceId | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,7 +61,7 @@ export function CreatureLifeChoiceScreen({ species, individualId, onChoose, onDo
         lines={species.individual.scene}
         onComplete={() => setPhase('CHOICE')}
         testId={`creature-scene-${species.speciesId}`}
-        portraitSrc={species.portrait}
+        portraitSrc={portrait}
         portraitAlt={species.name}
         backdropLocationId="GREENWOOD_FOREST"
       />
@@ -86,11 +91,11 @@ export function CreatureLifeChoiceScreen({ species, individualId, onChoose, onDo
       aria-label={species.individual.prompt}
     >
       <div className="life-choice-figure">
-        {species.portrait && (
+        {portrait && (
           <img
             className="life-choice-portrait creature"
             data-testid="creature-life-choice-portrait"
-            src={species.portrait}
+            src={portrait}
             alt={species.name}
           />
         )}

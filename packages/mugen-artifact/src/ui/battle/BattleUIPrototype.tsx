@@ -1905,12 +1905,9 @@ export function BattleUIPrototype({
             <span className="bp-summon-ring" aria-hidden="true" />
             <span className="bp-summon-tag">ARCANA</span>
             <CharacterArt
-              art={{
-                asset: { src: summoned.arcana.visual.src, box: summoned.arcana.visual.box },
-                state: 'front',
-                substituted: false,
-                placeholder: false,
-              }}
+              // Resolved in battleArcana, where the book meets the
+              // battlefield, so there is nothing to assemble here.
+              art={summoned.arcana.visual}
               height={stage.summon}
               className="bp-art"
               testId="bp-summon-art"

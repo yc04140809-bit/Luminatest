@@ -14,7 +14,12 @@
 import type { DialogueLine } from '../dialogue/prologue';
 import type { LifeEventType, PlayerEventType } from '../../core/memory/types';
 import type { LocationId } from '../locations/locationVisuals';
-import { galdPortrait, EVENT_CG } from '@mugen/assets';
+// A NAME, NOT A PICTURE. Importing the manifest here would give
+// every module that reaches these definitions all 75 images and all
+// six MP3s — and `world.ts` reaches them, so that was everything the
+// game has, loaded to read a list of discovery types. `keys` imports
+// nothing at all; whoever draws the scene resolves the key.
+import type { EventCgKey } from '@mugen/assets/keys';
 import {
   BAKERY_FIRST_VISIT_LINES,
   BAKERY_REVISIT_LINES,
@@ -69,11 +74,12 @@ export interface FutureSiteDef {
   /** Kaos, immediately after the discovery is committed to the DB. */
   kaosLines: string[];
   /**
-   * The scene's event CG, or null where no art exists yet. Purely
-   * presentational: the scene plays, the discovery commits and the
-   * archive updates identically if it fails to load.
+   * WHICH event CG the scene shows — a key, not a URL, and null where
+   * no art exists yet. Purely presentational: the scene plays, the
+   * discovery commits and the archive updates identically if the
+   * picture fails to load or is never resolved at all.
    */
-  eventCg: string | null;
+  eventCg: EventCgKey | null;
   eventCgAlt: string;
   /**
    * How the art sits on the stage. 'figure' is the Phase E cut-out look
@@ -102,7 +108,7 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: BAKERY_REVISIT_LINES,
     revisitClosing: '棚には、焼きたてのパンが並んでいる。',
     kaosLines: [KAOS_AFTER_REUNION_LINE],
-    eventCg: galdPortrait('baker'),
+    eventCg: 'GALD_BAKER',
     eventCgAlt: '粉まみれの前掛けで生地をこねる店の男',
     // 'scene' with his redesign. The old baker was a cut-out figure and
     // this was 'figure' to match it; the new one is a whole bakery —
@@ -126,7 +132,7 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: WAYSTATION_REVISIT_LINES,
     revisitClosing: '棚の薬草が、少しだけ減っている。',
     kaosLines: KAOS_AFTER_WAYSTATION_LINES,
-    eventCg: galdPortrait('healer'),
+    eventCg: 'GALD_HEALER',
     eventCgAlt: '街道の休憩所で、旅人の腕に包帯を巻く男',
     eventCgFit: 'scene',
   },
@@ -143,7 +149,7 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     revisitLines: WORKYARD_REVISIT_LINES,
     revisitClosing: '石を積む音が、まだ続いている。',
     kaosLines: KAOS_AFTER_WORKYARD_LINES,
-    eventCg: galdPortrait('worker'),
+    eventCg: 'GALD_WORKER',
     eventCgAlt: '村の復旧作業場で、衛兵と並んで働く男',
     eventCgFit: 'scene',
   },
@@ -162,7 +168,7 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     kaosLines: KAOS_AFTER_GRAVE_LINES,
     // No Gald to draw here. The picture is of what the world kept, and
     // it waits until the player walks up to the stones.
-    eventCg: EVENT_CG.GALD_GRAVE,
+    eventCg: 'GALD_GRAVE',
     eventCgAlt: '森の入口の墓標と、供えられた白い花',
     eventCgFit: 'scene',
     eventCgFromLine: 14,

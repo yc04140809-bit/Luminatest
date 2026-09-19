@@ -5,6 +5,8 @@
 // change to the battle. So the caller flattens the book into this, and
 // the screen only ever asks "what can I call, and what does it do".
 
+import { enemyArtFor } from '@mugen/content/art';
+import type { EnemyArtState, ResolvedArt } from '@mugen/core/art/artStates';
 import { isComplete, progressOf, type ArcanaDef, type ArcanaRecord } from '@mugen/core/arcana/arcana';
 import type { SummonAbilityDef } from '@mugen/core/summon/summon';
 
@@ -20,7 +22,15 @@ export interface BattleArcana {
   incompleteLine: string;
   failureLine: string;
   completeLine: string;
-  visual: ArcanaDef['visual'];
+  /**
+   * The page's drawing, ALREADY LOOKED UP.
+   *
+   * The definition names its art rather than carrying it (see
+   * ArcanaVisualRef), and this is the one place between the book and
+   * the battlefield, so the name is resolved here and the screen is
+   * handed something it can paint directly.
+   */
+  visual: ResolvedArt<EnemyArtState>;
 }
 
 /**
@@ -51,7 +61,7 @@ export function battleArcanaOf(
       incompleteLine: def.summon.incompleteLine,
       failureLine: def.summon.failureLine,
       completeLine: def.summon.completeLine,
-      visual: def.visual,
+      visual: enemyArtFor(def.visual.artId, def.visual.state),
     });
   }
   return out;

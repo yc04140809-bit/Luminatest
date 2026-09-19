@@ -17,7 +17,7 @@
 // points forward and the only place that change will have to touch.
 // Nothing today reads it.
 
-import type { ArcanaVisual } from '../../core/arcana/arcana';
+import type { ArcanaVisualRef } from '../../core/arcana/arcana';
 
 export interface UnknownArcanaDef {
   arcanaId: string;
@@ -38,7 +38,7 @@ export interface UnknownArcanaDef {
    * So the frame is built and the slot is empty. When the drawing
    * arrives this becomes a visual and nothing else changes.
    */
-  visual: ArcanaVisual | null;
+  visual: ArcanaVisualRef | null;
   /**
    * The ARCANA this becomes when the world finally contains it.
    *

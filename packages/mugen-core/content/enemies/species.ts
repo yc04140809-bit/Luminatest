@@ -11,7 +11,6 @@
 // one normal attack, one skill, numbers in the units the battle already
 // speaks, and lines that let an animal be an animal.
 
-import { MOSS_RABBIT_ART } from '../art/enemyArt';
 import { starAffinity } from '../../game/battle/damageType';
 import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviour';
 import type { EnemyAffinity } from '../../game/battle/damageType';
@@ -49,14 +48,23 @@ export interface EnemySpeciesDef {
   name: string;
   /** Where it lives. One place for now; a list when there are two. */
   habitat: string;
-  /**
-   * Official art, or null while a species has none drawn.
-   *
-   * Read from the art registry rather than imported here: content/art
-   * is the only place in the project that names an image file, so
-   * adding a creature's pictures never means editing this file too.
-   */
-  portrait: string | null;
+  // THERE IS NO `portrait` FIELD, and that is deliberate.
+  //
+  // There was one, holding the URL the art registry gave for this
+  // creature's `front` state. It was already a copy of something the
+  // registry knew — the registry is keyed by the same `speciesId` sat
+  // a few lines above — and holding the copy meant this file imported
+  // two pictures of a rabbit, 4.9 MB of them, so that the BATTLE
+  // NUMBERS below could be read. Every front end importing a
+  // creature's stats bought its portraits.
+  //
+  // A screen that wants the picture asks the resolver for it:
+  //
+  //     enemyArtFor(species.speciesId, 'portrait').asset?.src
+  //
+  // which gives the same image through the same fallback chain, and
+  // gives it only to whoever actually draws.
+
   /** Battle numbers, in the units the existing battle already uses. */
   hp: number;
   /**
@@ -122,7 +130,6 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
   speciesId: 'moss_rabbit',
   name: 'モスラビット',
   habitat: 'GREENWOOD_FOREST',
-  portrait: MOSS_RABBIT_ART.states.front?.src ?? null,
   // Raised from 22, and NOT because a bigger number is more exciting.
   // At 22 the fight was over in two or three taps: no music got heard,
   // the creature never got to do the one thing it does, and the four

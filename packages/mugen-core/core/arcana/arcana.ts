@@ -70,6 +70,7 @@ export interface ArcanaConditionDef {
   planned?: boolean;
 }
 
+import type { EnemyArtState } from '../art/artStates';
 import type { SummonAbilityDef } from '../summon/summon';
 
 /** A piece of what is known, readable once the memory is clear enough. */
@@ -81,10 +82,35 @@ export interface ArcanaFragmentDef {
   text: string;
 }
 
+/**
+ * A drawing, once somebody has looked it up. The RESOLVED shape.
+ *
+ * What a screen needs in order to paint: a file to point at and the
+ * rectangle the drawing occupies inside it. Produced by the resolver,
+ * never written down in a definition — see `ArcanaVisualRef`.
+ */
 export interface ArcanaVisual {
   src: string;
   /** Where the drawing actually is inside its file. Nothing is edited. */
   box: { fileW: number; fileH: number; x: number; y: number; width: number; height: number };
+}
+
+/**
+ * WHICH drawing a page shows — a name, carrying no picture.
+ *
+ * This used to be an `ArcanaVisual`, with the file's URL written into
+ * the definition. That meant `arcanaDefs.ts` imported two pictures of
+ * a moss rabbit, and since `world.ts` reads the arcana definitions,
+ * every front end that opened a save loaded 4.9 MB of rabbit whether
+ * or not it ever drew one. A reference costs two short strings and
+ * resolves to exactly the same picture through exactly the same
+ * fallback chain the battlefield uses.
+ */
+export interface ArcanaVisualRef {
+  /** The art registry's id for the subject — e.g. the species id. */
+  artId: string;
+  /** Which of its states the page illustrates. */
+  state: EnemyArtState;
 }
 
 export interface ArcanaDef {
@@ -93,7 +119,7 @@ export interface ArcanaDef {
   arcanaId: string;
   name: string;
   category: ArcanaCategory;
-  visual: ArcanaVisual;
+  visual: ArcanaVisualRef;
   /** One line, readable from the moment it is discovered at all. */
   summary: string;
   conditions: readonly ArcanaConditionDef[];

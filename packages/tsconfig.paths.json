@@ -15,6 +15,9 @@
       ],
       "@mugen/assets/files/*": [
         "./mugen-assets/files/*"
+      ],
+      "@mugen/assets/keys": [
+        "./mugen-assets/src/keys.ts"
       ]
     }
   }

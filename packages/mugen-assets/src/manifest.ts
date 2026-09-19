@@ -2,6 +2,11 @@
 // caches it; everything not yet drawn or recorded stays null, and the UI
 // falls back to a placeholder rather than breaking.
 
+// The names of the art, which carry no art with them. Re-exported at
+// the bottom of this file so that a screen already importing the
+// manifest does not need a second import to name a key.
+import type { BackgroundKey, EventCgKey, FieldArtKey } from './keys';
+
 import kaosNormal from '../files/characters/kaos/kaos-normal.webp';
 import kaosSmile from '../files/characters/kaos/kaos-smile.webp';
 import galdReady from '../files/characters/gald/gald-ready.png';
@@ -409,3 +414,41 @@ export const BATTLE_UI = {
   barMp: battleUiBarMp,
   barAlt: battleUiBarAlt,
 } as const;
+
+// ---- NAMES INTO PICTURES ----
+//
+// The content layer names art with a key from `keys.ts` and imports no
+// picture at all (see the note at the top of that file). These turn a
+// key into something a `src` will accept, EAGERLY — every branch is a
+// value that was imported above, so anything importing this module
+// still gets the whole manifest, which is exactly right for the
+// Artifact: it ships every asset anyway and inlines them all into one
+// file. A front end that wants them one at a time resolves the same
+// keys through its own lazy resolver instead of this one.
+
+/** The event CG for one of the four futures, or null if undrawn. */
+export function eventCgSrc(key: EventCgKey | null): string | null {
+  if (!key) return null;
+  switch (key) {
+    case 'GALD_BAKER':
+      return GALD_PORTRAITS.baker;
+    case 'GALD_HEALER':
+      return GALD_PORTRAITS.healer;
+    case 'GALD_WORKER':
+      return GALD_PORTRAITS.worker;
+    case 'GALD_GRAVE':
+      return EVENT_CG.GALD_GRAVE;
+  }
+}
+
+/** A place's backdrop, or null where the place has none drawn yet. */
+export function backgroundSrc(key: BackgroundKey | null): string | null {
+  return key ? (BACKGROUNDS[key] ?? null) : null;
+}
+
+/** The walkable painting of a place, or null where there is no field. */
+export function fieldArtSrc(key: FieldArtKey | null): string | null {
+  return key ? (FIELD_ART[key] ?? null) : null;
+}
+
+export type { BackgroundKey, EventCgKey, FieldArtKey } from './keys';

@@ -18,13 +18,7 @@
 // KILL appears in none of them as a requirement, which is the point.
 
 import type { ArcanaDef } from '../../core/arcana/arcana';
-import { MOSS_RABBIT_ART } from '../art/enemyArt';
 import { MOSS_RABBIT } from '../enemies/species';
-
-/* The book illustrates the creature with the same standing picture the
-   battlefield uses, taken from the art registry rather than imported
-   again here. One file, one entry, two screens. */
-const MOSS_RABBIT_FRONT = MOSS_RABBIT_ART.states.front!;
 
 /**
  * MOSS RABBIT.
@@ -39,9 +33,11 @@ export const MOSS_RABBIT_ARCANA: ArcanaDef = {
   arcanaId: 'moss_rabbit',
   name: MOSS_RABBIT.name,
   category: 'CREATURE',
-  // The same file the battlefield uses, and the same box: no second
-  // export, no recolour, no crop written to disk.
-  visual: { src: MOSS_RABBIT_FRONT.src, box: MOSS_RABBIT_FRONT.box! },
+  // The same drawing the battlefield uses, NAMED rather than imported:
+  // the book asks the art registry for the creature's standing picture
+  // at the moment it draws the page. One file, one entry, two screens,
+  // and a definition that carries no megabytes.
+  visual: { artId: 'moss_rabbit', state: 'front' },
   summary: 'グリーンウッドの森にいる、小さな生き物。苔と葉を身にまとっている。',
 
   conditions: [
