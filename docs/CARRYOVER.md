@@ -164,3 +164,20 @@ App の未来観測は `world.timeShift()` を使わないため影響を受け�
 
 **引き継ぎ**: 項目3（Artifact の TIME SHIFT を正式CANONへ合わせる）と
 同じラウンドで、core 側の扱いも併せて決める。
+
+## 8. Artifact の TIME SHIFT 依存範囲（Round 7 調査）
+
+項目3の削除作業を見積もるための実測。
+
+| 箇所 | 内容 |
+|---|---|
+| `HomeScreen.tsx:251` | `time-shift-button`（`App.tsx:650` で接続） |
+| `App.tsx:799` | `TIME_SHIFT` 画面 |
+| `TimeShiftScreen.tsx` | 180行 |
+| `WorldMemoryScreen.tsx:51` | `WORLD_TIME_SHIFTED` の from/to 表示 |
+| `dev/qaSnapshot.ts:64` | timeShifts の集計 |
+| **e2e** | **9ファイル・50箇所**（navigation / phaseD / phaseD-restart / phaseE / phaseF / phaseH / coreExperience / arcana / uiPatch） |
+
+多くの spec が「TIME SHIFT で3年進めてから後日譚を見る」導線を近道として使っている。
+単純にボタンを消すと、それらの spec は別の到達手段（93日以上の休息など）が必要になる。
+削除は小差分では済まないため、独立したラウンドを推奨。

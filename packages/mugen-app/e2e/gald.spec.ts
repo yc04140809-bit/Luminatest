@@ -44,6 +44,20 @@ async function toTheForest(page: Page) {
   await expect(page.getByTestId('encounter-button')).toBeVisible();
 }
 
+/**
+ * Through the one look ahead: she asks, she shows, she brings them
+ * back. These tests are about the four answers and the awakening, so
+ * they walk it and carry on.
+ */
+async function walkTheVision(page: Page) {
+  await expect(page.getByTestId('future-vision')).toBeVisible();
+  for (let i = 0; i < 4; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
+}
+
 /** Through his two lines and into the fight. */
 async function meetGald(page: Page) {
   await page.getByTestId('gald-button').click();
@@ -122,9 +136,9 @@ test('the four answers are offered, and only once per world', async ({ page }) =
     if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }
-  // The scene ends on the one look ahead. This test is about the four
-  // answers, so it closes the vision and walks on.
-  await page.getByTestId('future-vision-done').click();
+  // The scene ends on the one look ahead — she asks, shows, returns.
+  // This test is about the four answers, so it walks through and on.
+  await walkTheVision(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   // HE IS NOT OUT THERE ANY MORE. The world holds an answer, so the
@@ -146,7 +160,7 @@ test('the answer, and what it unlocked, survive a restart', async ({ page }) => 
     if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }
-  await page.getByTestId('future-vision-done').click();
+  await walkTheVision(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   await page.reload();

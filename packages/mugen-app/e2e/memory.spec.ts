@@ -76,9 +76,12 @@ async function decideGald(
   // to accept or decline — the decision was the four answers, and this
   // is Kaos showing where it goes.
   await expect(page.getByTestId('future-vision')).toBeVisible();
-  // 'LOOK' leaves them standing in it, which is the only place the
-  // words can be read.
+  // She asks, she shows, she brings them back. 'LOOK' stops on the
+  // middle beat, where the three years themselves are on screen.
+  await page.getByTestId('future-vision-next').click();
+  await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'SEE');
   if (vision === 'LOOK') return;
+  await page.getByTestId('future-vision-next').click();
   await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
@@ -284,10 +287,16 @@ test('an unfinished look is owed again after a restart', async ({ page }) => {
   await page.reload();
   await page.getByTestId('continue-button').click();
 
-  // It comes back, and the four answers are NOT asked again.
+  // It comes back — from its first beat, since it was never finished
+  // — and the four answers are NOT asked again.
   await expect(page.getByTestId('future-vision')).toBeVisible();
+  await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'ASK');
   await expect(page.getByTestId('life-choice-screen')).toHaveCount(0);
 
+  for (let i = 0; i < 4; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
   await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 });
@@ -315,18 +324,58 @@ test('the line about him moving is not said over his grave', async ({ page }) =>
   await decideGald(page, 'KILL', 'LOOK');
 
   await expect(page.getByTestId('future-vision-years')).toHaveText('――3年後。');
+  // What she shows is the grave and the flowers left on it.
   await expect(page.getByTestId('vision-GALD_IS_BURIED')).toBeVisible();
-  // HE IS NOT SAID TO BE OUT THERE.
-  await expect(page.getByTestId('future-vision-guidance')).toHaveCount(0);
-  await expect(page.getByTestId('future-vision')).not.toContainText('どこかで動いてる');
+  await expect(page.getByTestId('vision-GALD_GRAVE_TENDED')).toBeVisible();
+  // AND NOTHING SAYS HE IS STILL OUT THERE. Not a living occupation,
+  // not a reunion, not a word about him moving.
+  const shown = page.getByTestId('future-vision');
+  for (const alive of ['パン屋', '救護所', '作業場', '動いてる', '再会']) {
+    await expect(shown, alive).not.toContainText(alive);
+  }
+  await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toHaveCount(0);
 });
 
 test('and it IS said where he is alive', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
   await decideGald(page, 'SPARE', 'LOOK');
-  // The same beat, on a route where he lives, keeps the line — so the
-  // KILL case above is a deliberate omission and not a broken screen.
-  await expect(page.getByTestId('future-vision-guidance')).toBeVisible();
-  await expect(page.getByTestId('future-vision')).toContainText('どこかで動いてる');
+  // The same beat on a route where he lives shows a life being lived,
+  // so the KILL case above is a difference in his future and not a
+  // broken screen.
+  await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toBeVisible();
+  await expect(page.getByTestId('future-vision')).toContainText('パン屋');
+  await expect(page.getByTestId('vision-GALD_IS_BURIED')).toHaveCount(0);
+});
+
+test('she says it is one future, and will not say why it cannot be retaken', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await decideGald(page, 'SPARE', 'LOOK');
+  // ONE future, not the future.
+  await expect(page.getByTestId('future-vision-one')).toContainText('ひとつの未来');
+
+  await page.getByTestId('future-vision-next').click();
+  const back = page.getByTestId('future-vision-return');
+  await expect(back).toContainText('あなたが決めた直後に戻してあげたよ');
+  await expect(back).toContainText('それぞれの3年間があるから');
+  await expect(back).toContainText('やり直せないよ');
+  // The reason is hers, and this scene does not give it away.
+  await expect(back).toContainText('またいずれ知ることになる');
+});
+
+test('no ordinary screen can reach a TIME SHIFT', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await decideGald(page, 'SPARE');
+
+  // The village, the map and the forest, after the one look is spent.
+  await expect(page.getByTestId('time-shift-button')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision')).toHaveCount(0);
+  await page.getByTestId('explore-button').click();
+  await expect(page.getByTestId('time-shift-button')).toHaveCount(0);
+  await page.getByTestId('forest-button').click();
+  await expect(page.getByTestId('time-shift-button')).toHaveCount(0);
+  // And he is not on the path again either.
+  await expect(page.getByTestId('gald-button')).toHaveCount(0);
 });

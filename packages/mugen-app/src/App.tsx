@@ -174,7 +174,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * is the right default.
    */
   const visionOwed = () =>
-    world.getGaldLifeChoice() !== null && !world.hasSeenExperience(GALD_FUTURE_VISION_ID);
+    world.getGaldLifeChoice() !== null &&
+    !world.hasSeenExperience(GALD_FUTURE_VISION_ID) &&
+    // A SAVE FROM THE OLD BUILD, where the shift really did spend
+    // three years. Such a world is at year four with his whole life
+    // already behind it, and offering to SHOW it three years ahead
+    // would be both empty and a lie about what happened. It is left
+    // exactly as it is — not rewound, not rewritten, not migrated —
+    // and simply not offered the look. This reads
+    // `WORLD_TIME_SHIFTED` to recognise an old save, which is not the
+    // same as using it as the new completion marker.
+    !world.hasEventOfType('WORLD_TIME_SHIFTED');
 
   /**
    * ONE NIGHT AT A TIME.
@@ -364,7 +374,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'TIME_SHIFT':
       return (
         <FutureVisionScreen
-          choice={world.getGaldLifeChoice()}
           // PURE. Reads the chain forward from a date this world has
           // not reached and commits nothing.
           future={world.previewLifeEvents(GALD_FUTURE_VISION_YEARS)}

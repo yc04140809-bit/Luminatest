@@ -153,3 +153,81 @@ describe('remembering that the look was taken', () => {
     expect((await openWorld(dbName)).hasSeenExperience(GALD_FUTURE_VISION_ID)).toBe(true);
   });
 });
+
+describe('a save from the build that really did spend the years', () => {
+  /**
+   * The old TIME SHIFT moved the clock. A world written by that build
+   * is at year four with Gald's whole life already behind it — real
+   * history, not a picture. It must not be rewound, rewritten or
+   * migrated, and it must not be offered a look at three years ahead,
+   * which for it would be both empty and untrue.
+   */
+  const legacy = async (dbName: string) => {
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    await world.timeShift(3); // what the old build did
+    return world;
+  };
+
+  it('is left exactly as it was — nothing rewound, nothing rewritten', async () => {
+    const dbName = freshDbName();
+    const old = await legacy(dbName);
+    const before = photograph(old);
+
+    const reopened = await openWorld(dbName);
+    expect(photograph(reopened), 'the new build changes nothing on open').toEqual(before);
+    expect(reopened.getClock().worldYear, 'still year four').toBe(4);
+    expect(reopened.hasEventOfType('GALD_BECOMES_BAKER'), 'his life really happened').toBe(true);
+  });
+
+  it('is not owed the look, because its three years were real', async () => {
+    const world = await legacy(freshDbName());
+    // The App's rule, spelled out: decided, not yet seen — but the
+    // years already went by, so there is nothing ahead to show.
+    const owed =
+      world.getGaldLifeChoice() !== null &&
+      !world.hasSeenExperience(GALD_FUTURE_VISION_ID) &&
+      !world.hasEventOfType('WORLD_TIME_SHIFTED');
+    expect(owed).toBe(false);
+    // And the preview would indeed have had nothing to say.
+    expect(world.previewLifeEvents(GALD_FUTURE_VISION_YEARS)).toEqual([]);
+  });
+});
+
+describe('looking again cannot leave a mark', () => {
+  it('any number of looks adds no event and moves no clock', async () => {
+    const dbName = freshDbName();
+    const world = await openWorld(dbName);
+    await world.recordGaldLifeChoice('SPARE');
+    const before = photograph(world);
+
+    for (let i = 0; i < 5; i++) world.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
+    // Even with the "seen" mark written in between, which IS a real
+    // write — it records that they looked, never what they saw.
+    await world.markExperienceSeen(GALD_FUTURE_VISION_ID);
+    for (let i = 0; i < 5; i++) world.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
+
+    const after = photograph(world);
+    expect(after.clock).toEqual(before.clock);
+    expect(after.events, 'no world event was added').toEqual(before.events);
+    expect(after.known, 'and none became known').toEqual(before.known);
+    expect(after.characters).toEqual(before.characters);
+    expect(photograph(await openWorld(dbName)).events).toEqual(before.events);
+  });
+
+  it('the ordinary road to his future is untouched by any of this', async () => {
+    // TIME is still the only thing that makes his life actually
+    // happen. Looking at it changes neither the schedule nor the fact.
+    const world = await openWorld(freshDbName());
+    await world.recordGaldLifeChoice('SPARE');
+    world.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
+    await world.markExperienceSeen(GALD_FUTURE_VISION_ID);
+
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+    await world.advanceDays(93); // day 94
+    expect(world.hasEventOfType('GALD_BECOMES_BAKER'), 'it happens when it was always going to').toBe(
+      true,
+    );
+    expect(world.getClock().worldDay).toBe(94);
+  });
+});

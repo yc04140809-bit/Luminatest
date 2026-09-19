@@ -50,3 +50,37 @@ export const CHOICE_RESULT_LINES: Record<LifeChoiceId, DialogueLine[]> = {
     { speaker: null, text: '最後まで、一言も話さなかった。' },
   ],
 };
+
+/**
+ * THE ONE LOOK AHEAD — what Kaos says while she shows it.
+ *
+ * Authored for this beat rather than borrowed from the old TIME SHIFT
+ * screen, whose lines were written for a player choosing to spend
+ * three years. Nothing is spent here: she shows them one future that
+ * follows from the answer they just gave, and puts them back where
+ * they were standing.
+ *
+ * Her register is the one she already has — short, unhurried, a
+ * little familiar — and `それぞれの3年間があるから` is deliberately the
+ * prologue's 「この世界で出会う人には、みんな続きがあるから。」 said again
+ * about the people this player is not looking at.
+ *
+ * WHAT IS NOT SAID HERE IS THE POINT OF IT. She tells them the choice
+ * cannot be retaken and that the reason will come later, and then
+ * stops. The reason is hers and belongs to a part of the story that
+ * has not happened yet; nothing in this file may explain it.
+ */
+export const FUTURE_VISION_INTRO_LINES: DialogueLine[] = [
+  { speaker: 'ケイオス', text: '……ねえ。あなたが今選んだこと、その先がどうなるか、見てみたい？' },
+];
+
+/** Said over the three years themselves. ONE future, not the future. */
+export const FUTURE_VISION_SEEN_LINE = 'これが、あなたの選択から続く、ひとつの未来。';
+
+/** Bringing them back, and the one thing she will not explain. */
+export const FUTURE_VISION_RETURN_LINES: DialogueLine[] = [
+  { speaker: 'ケイオス', text: '今回は特別ね。あなたが決めた直後に戻してあげたよ。' },
+  { speaker: 'ケイオス', text: 'ほかの人たちにも、それぞれの3年間があるから。' },
+  { speaker: 'ケイオス', text: '……でも、さっきの選択はやり直せないよ。' },
+  { speaker: 'ケイオス', text: '理由は、またいずれ知ることになるよ……。' },
+];
