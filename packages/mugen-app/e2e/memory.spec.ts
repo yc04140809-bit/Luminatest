@@ -177,3 +177,39 @@ test('going to the place is what turns his life into something known', async ({ 
   await expect(page.getByTestId('memory-GALD_BECOMES_BAKER')).toBeVisible();
   await expect(page.getByTestId('memory-PLAYER_REUNITED_WITH_GALD')).toBeVisible();
 });
+
+test('nights counted through the UI are never lost or doubled', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await spareGald(page);
+
+  /**
+   * THE CLOCK IS THE ASSERTION.
+   *
+   * `advanceDay` reads the clock, works out tomorrow and commits, so
+   * two of them in flight together used to come out one day older
+   * instead of two — and on a day when a life event fell due the
+   * second commit was refused outright. The world serialises them now,
+   * and the App also shuts the button while a night passes, so this
+   * walks the real UI as fast as it will go and checks the arithmetic
+   * survives it.
+   */
+  const rest = page.getByTestId('rest-button');
+  const dayNow = async () =>
+    Number((await page.getByTestId('world-clock').textContent())?.match(/(\d+)日目/)?.[1] ?? 0);
+
+  expect(await dayNow()).toBe(1);
+  for (let i = 0; i < 10; i++) {
+    await rest.click();
+    await expect(rest).toBeEnabled({ timeout: 10_000 });
+  }
+  expect(await dayNow(), 'ten nights are ten days').toBe(11);
+
+  // Day 4 fell inside that run, so he left the bandits during it —
+  // once, and still not in front of the player.
+  await page.getByTestId('memory-button').click();
+  await expect(page.getByTestId('memory-count'), 'his leaving is not theirs to know').toHaveText(
+    '1 件',
+  );
+  await expect(page.getByTestId('memory-GALD_LEAVES_BANDITS')).toHaveCount(0);
+});

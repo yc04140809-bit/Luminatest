@@ -445,6 +445,42 @@ export class World {
   private version = 0;
   private timePassing = false;
 
+  /**
+   * ONE NIGHT AT A TIME, whoever is asking.
+   *
+   * Every persisted move of the clock goes through here. The reason is
+   * that none of them is atomic across their awaits: `advanceDay`
+   * reads the clock, works out tomorrow, resolves what is due and only
+   * then commits, so two calls in flight together both start from
+   * TODAY. They compute the same tomorrow and write the same rows, and
+   * the world comes out one day older instead of two — or, on a day
+   * when a life event falls due, the second commit is refused outright
+   * because history is write-once and the id is already taken.
+   *
+   * IT SERIALISES RATHER THAN REFUSES, and the difference is the
+   * point. A second night asked for is a real second night: it waits
+   * for the first, then runs from the clock the first left behind, so
+   * two requests are two days. What is prevented is a night applied
+   * twice or lost, not a player who is in a hurry. TIME SHIFT keeps
+   * its own separate refusal on top of this, because a shift IS a
+   * one-off and a double tap on it is a stutter.
+   *
+   * The gate reopens on failure as well as on success — a lock left
+   * shut by one bad commit would be a world that can never age again.
+   */
+  private timeLock: Promise<unknown> = Promise.resolve();
+
+  private passTime<T>(work: () => Promise<T>): Promise<T> {
+    // `then(work, work)` so a predecessor's failure still lets the next
+    // one run, and the queue never rejects on somebody else's behalf.
+    const run = this.timeLock.then(work, work);
+    this.timeLock = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
   private seenExperience: Set<string>;
   private experienceLog: ExperienceLog;
   private enemyProgress: Record<string, EnemyProgress>;
@@ -1264,6 +1300,16 @@ export class World {
    * separately what the player gets to notice; no automatic popups).
    */
   async advanceDay(): Promise<MemoryEvent[]> {
+    return this.passTime(() => this.oneNight());
+  }
+
+  /**
+   * The night itself, which may only be run through `passTime`.
+   *
+   * Reads the clock at the moment it actually runs rather than at the
+   * moment it was asked for, which is the whole of the fix.
+   */
+  private async oneNight(): Promise<MemoryEvent[]> {
     const nextClock = addDays(this.clock, 1);
     const resolved = this.resolveLifeEvents(nextClock);
     const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
@@ -1290,43 +1336,50 @@ export class World {
     }
     this.timePassing = true;
     try {
-      const from = { ...this.clock };
-      const to = addYears(this.clock, years);
+      // THE REFUSAL ABOVE AND THE QUEUE HERE DO DIFFERENT JOBS. The
+      // flag keeps a second SHIFT from being started at all, which is
+      // the behaviour this has always had. The queue keeps the shift
+      // from running on top of a night that is already in flight —
+      // both move the clock, and before this one of them lost it.
+      return await this.passTime(async () => {
+        const from = { ...this.clock };
+        const to = addYears(this.clock, years);
 
-      const resolved = this.resolveLifeEvents(to);
-      const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
+        const resolved = this.resolveLifeEvents(to);
+        const { characters, changedIds } = this.applyCharacterEffects(this.characters, resolved);
 
-      // NPC AGE: living characters walk their own years; the dead stay
-      // still, and so does anybody whose age nobody has decided.
-      //
-      // That last case is the one worth saying out loud. `null + years`
-      // is `years` in JavaScript, so a character with an undecided age
-      // would come out of a three-year shift aged exactly three — a
-      // number nobody chose, indistinguishable afterwards from one
-      // somebody did. Undecided stays undecided until an author decides.
-      for (const [id, state] of Object.entries(characters)) {
-        if (!state.alive) continue;
-        if (state.age === null) continue;
-        characters[id] = { ...state, age: state.age + years };
-        changedIds.add(id);
-      }
+        // NPC AGE: living characters walk their own years; the dead stay
+        // still, and so does anybody whose age nobody has decided.
+        //
+        // That last case is the one worth saying out loud. `null + years`
+        // is `years` in JavaScript, so a character with an undecided age
+        // would come out of a three-year shift aged exactly three — a
+        // number nobody chose, indistinguishable afterwards from one
+        // somebody did. Undecided stays undecided until an author decides.
+        for (const [id, state] of Object.entries(characters)) {
+          if (!state.alive) continue;
+          if (state.age === null) continue;
+          characters[id] = { ...state, age: state.age + years };
+          changedIds.add(id);
+        }
 
-      const shift: MemoryEvent = {
-        id: `evt_world_time_shifted_y${to.worldYear}d${to.worldDay}`,
-        type: 'WORLD_TIME_SHIFTED',
-        worldYear: to.worldYear,
-        worldDay: to.worldDay,
-        location: 'WORLD',
-        actors: ['WORLD'],
-        importance: 'MAJOR',
-        createdAt: new Date().toISOString(),
-        from,
-        to: { ...to },
-        yearsElapsed: years,
-      };
+        const shift: MemoryEvent = {
+          id: `evt_world_time_shifted_y${to.worldYear}d${to.worldDay}`,
+          type: 'WORLD_TIME_SHIFTED',
+          worldYear: to.worldYear,
+          worldDay: to.worldDay,
+          location: 'WORLD',
+          actors: ['WORLD'],
+          importance: 'MAJOR',
+          createdAt: new Date().toISOString(),
+          from,
+          to: { ...to },
+          yearsElapsed: years,
+        };
 
-      await this.commitTimePassage(to, [shift], resolved, characters, changedIds);
-      return { shift, lifeEvents: resolved.map((r) => r.event) };
+        await this.commitTimePassage(to, [shift], resolved, characters, changedIds);
+        return { shift, lifeEvents: resolved.map((r) => r.event) };
+      });
     } finally {
       this.timePassing = false;
     }
