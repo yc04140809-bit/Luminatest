@@ -11,8 +11,33 @@ import type { ArcanaVisual, ArcanaVisualRef } from '../../core/arcana/arcana';
 import { ENEMY_ART } from './enemyArt';
 import { PARTY_ART } from './partyArt';
 
+/**
+ * THE SAME ANSWER, AND THE SAME OBJECT.
+ *
+ * `ENEMY_ART` is a module constant, so this is a pure function of its
+ * two arguments and the result can be kept. Keeping it is not a speed
+ * optimisation — the lookup is three property reads — it is about
+ * IDENTITY.
+ *
+ * An arcana definition used to carry its picture as a constant, and
+ * `battleArcanaOf` handed that same object down on every render.
+ * Naming the art instead (see ArcanaVisualRef) meant resolving it, and
+ * a resolver that mints a fresh object each time turns a stable prop
+ * into a changing one: `battleArcanaOf` runs in App's render body, so
+ * the battlefield began receiving a new `visual` on every frame of a
+ * fight. That is real churn in a tree that is animating to a
+ * stopwatch, and it showed up as an animation-timing test tipping
+ * over. Caching restores exactly the identity the constant had.
+ */
+const RESOLVED_ENEMY_ART = new Map<string, ResolvedArt<EnemyArtState>>();
+
 export function enemyArtFor(id: string, state: EnemyArtState): ResolvedArt<EnemyArtState> {
-  return enemyArt(ENEMY_ART, id, state);
+  const key = `${id}\u0000${state}`;
+  const kept = RESOLVED_ENEMY_ART.get(key);
+  if (kept) return kept;
+  const resolved = enemyArt(ENEMY_ART, id, state);
+  RESOLVED_ENEMY_ART.set(key, resolved);
+  return resolved;
 }
 
 export function partyArtFor(id: string, state: PartyArtState): ResolvedArt<PartyArtState> {
@@ -35,11 +60,18 @@ export function partyArtFor(id: string, state: PartyArtState): ResolvedArt<Party
  * it. Callers show their empty frame instead, which is what the
  * undrawn pages already do.
  */
+const RESOLVED_ARCANA_VISUAL = new Map<string, ArcanaVisual | null>();
+
 export function arcanaVisual(ref: ArcanaVisualRef | null): ArcanaVisual | null {
   if (!ref) return null;
-  const { asset } = enemyArt(ENEMY_ART, ref.artId, ref.state);
-  if (!asset?.src || !asset.box) return null;
-  return { src: asset.src, box: asset.box };
+  // Kept for the same reason as `enemyArtFor` above: a page's picture
+  // must not become a different object every time it is drawn.
+  const key = `${ref.artId}\u0000${ref.state}`;
+  if (RESOLVED_ARCANA_VISUAL.has(key)) return RESOLVED_ARCANA_VISUAL.get(key)!;
+  const { asset } = enemyArtFor(ref.artId, ref.state);
+  const visual = asset?.src && asset.box ? { src: asset.src, box: asset.box } : null;
+  RESOLVED_ARCANA_VISUAL.set(key, visual);
+  return visual;
 }
 
 export { ENEMY_ART, ENEMY_ART_STATES, MOSS_RABBIT_ART } from './enemyArt';

@@ -232,9 +232,24 @@ export function MapScreen({
 }
 
 export function GreenwoodScreen({
+  galdWaiting,
+  onGald,
   onFight,
   onLeave,
 }: {
+  /**
+   * WHETHER HE IS STILL OUT THERE.
+   *
+   * Not a flag this screen keeps. The caller asks the world
+   * `getGaldLifeChoice() === null`, which is the same question the
+   * Artifact asks for the same purpose: once one of the four answers
+   * is on disk, that encounter is over for this world and cannot be
+   * offered again. Nothing here counts, remembers or decides — which
+   * is what makes "re-offering is impossible" true rather than
+   * guarded.
+   */
+  galdWaiting: boolean;
+  onGald: () => void;
   onFight: () => void;
   onLeave: () => void;
 }) {
@@ -242,7 +257,12 @@ export function GreenwoodScreen({
     <Place area="GREENWOOD" title="グリーンウッドの森">
       <p className="line">下草が揺れている。何かがいる。</p>
       <div className="actions">
-        <button className="btn primary" data-testid="encounter-button" onClick={onFight}>
+        {galdWaiting && (
+          <button className="btn primary" data-testid="gald-button" onClick={onGald}>
+            人影がこちらを見ている
+          </button>
+        )}
+        <button className="btn" data-testid="encounter-button" onClick={onFight}>
           近づく
         </button>
         <button className="btn" data-testid="leave-forest" onClick={onLeave}>

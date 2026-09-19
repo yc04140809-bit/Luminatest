@@ -14,6 +14,13 @@ import {
   TitleScreen,
 } from './ui/screens';
 import { BagScreen } from './ui/bag';
+import {
+  ChoiceResultScreen,
+  GaldEncounterScreen,
+  LifeChoiceScreen,
+} from './ui/gald';
+import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
+import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
 import { BattleScreen, ResultScreen } from './ui/battle';
 
@@ -134,6 +141,32 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     };
   }, [world]);
 
+  /**
+   * WHICH FIGHT IS ON, kept beside the flow rather than inside it.
+   *
+   * The shared flow table has one BATTLE screen and is right to: what
+   * differs is who is standing there. This is the App's note of which
+   * door was walked through, and it decides nothing about the world.
+   */
+  const story = useRef(false);
+
+  /**
+   * HE IS BEATEN, AND THAT IS NOT A REWARD.
+   *
+   * The story's fight pays no experience and drops nothing: what is on
+   * the other side of it is the question. The wounds still carry out,
+   * because they are the party's and not the fight's.
+   */
+  const wonTheStory = useCallback(
+    (final: { hp: number; mp: number }) => {
+      void world
+        .setBattleCondition(final)
+        .catch((e) => console.error('Failed to carry the wounds out', e))
+        .finally(() => flow.goTo('LIFE_CHOICE'));
+    },
+    [flow, world],
+  );
+
   const won = useCallback(
     (final: { hp: number; mp: number }) => {
       void world
@@ -196,24 +229,58 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'GREENWOOD':
       return (
         <GreenwoodScreen
+          // THE WORLD DECIDES WHETHER HE IS THERE, not a flag here.
+          // Once one of the four answers is on disk this is false for
+          // good, which is what makes the encounter unrepeatable.
+          galdWaiting={world.getGaldLifeChoice() === null}
+          onGald={() => {
+            story.current = true;
+            flow.goTo('ENCOUNTER');
+          }}
           onFight={() => {
+            story.current = false;
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             flow.goTo('BATTLE');
           }}
           onLeave={() => flow.goTo('EXPLORE')}
         />
       );
+    case 'ENCOUNTER':
+      return <GaldEncounterScreen onBattle={() => flow.goTo('BATTLE')} />;
     case 'BATTLE':
       return (
         <BattleScreen
+          // One screen, two fights, and the numbers are the only
+          // difference between them. Both specs are content.
+          key={story.current ? 'gald' : 'rabbit'}
+          spec={story.current ? GALD_BATTLE : specOf(MOSS_RABBIT)}
           world={world}
-          onWon={won}
+          onWon={story.current ? wonTheStory : won}
           onLost={() => {
             // Carried home and put back on their feet, exactly as in
             // the Artifact: losing once must not make losing again
             // unavoidable.
             void world.restoreParty().finally(() => flow.goTo('HOME'));
           }}
+        />
+      );
+    case 'LIFE_CHOICE':
+      return (
+        <LifeChoiceScreen
+          onChoose={async (choice) => {
+            // WORLD MEMORY FIRST. The screen advances only once the
+            // database has confirmed the write, so a choice the player
+            // made can never be a choice the world does not hold.
+            await world.recordGaldLifeChoice(choice);
+            flow.chooseGaldLife(choice);
+          }}
+        />
+      );
+    case 'CHOICE_RESULT':
+      return (
+        <ChoiceResultScreen
+          choice={state.galdLifeChoice ?? 'SPARE'}
+          onHome={() => flow.goTo('HOME')}
         />
       );
     case 'BATTLE_RESULT':

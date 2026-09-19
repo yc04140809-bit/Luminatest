@@ -10,8 +10,7 @@ import {
   useItem,
   type BattleState,
 } from '@mugen/game/battle/battleLogic';
-import { specOf } from '@mugen/game/battle/enemySpec';
-import { MOSS_RABBIT } from '@mugen/content/enemies/species';
+import type { EnemySpec } from '@mugen/game/battle/battleLogic';
 import { availableMagic } from '@mugen/core/magic/magic';
 import { kaosHasAwakened } from '@mugen/core/magic/awakened';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
@@ -37,10 +36,21 @@ import type { World } from '@mugen/core/world/world';
  */
 export function BattleScreen({
   world,
+  spec,
   onWon,
   onLost,
 }: {
   world: World;
+  /**
+   * WHO IS BEING FOUGHT, handed in rather than decided here.
+   *
+   * Two fights arrive on this screen — a moss rabbit in the forest and
+   * the one the story turns on — and they differ in their numbers and
+   * in nothing else. Choosing between them is the caller's business;
+   * `GALD_BATTLE` and `specOf(MOSS_RABBIT)` are both content, and this
+   * screen is not allowed an opinion about which it is looking at.
+   */
+  spec: EnemySpec;
   onWon: (final: { hp: number; mp: number }) => void;
   onLost: () => void;
 }) {
@@ -51,7 +61,7 @@ export function BattleScreen({
     () => world.getVersion(),
   );
   const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(specOf(MOSS_RABBIT), undefined, {
+    createBattle(spec, undefined, {
       stats: statsForLevels(world.getLevel('hero'), world.getLevel('kaos')),
       condition: world.getBattleCondition(),
       /**
