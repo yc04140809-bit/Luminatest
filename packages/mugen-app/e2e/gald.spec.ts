@@ -119,9 +119,12 @@ test('the four answers are offered, and only once per world', async ({ page }) =
   await page.getByTestId('choice-SPARE').click();
   await expect(page.getByTestId('choice-result')).toHaveAttribute('data-choice', 'SPARE');
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('world-clock').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('time-shift-confirm').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }
+  // The scene ends on the one shift she ever offers. This test is
+  // about the four answers, so it declines and walks on.
+  await page.getByTestId('time-shift-stay').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   // HE IS NOT OUT THERE ANY MORE. The world holds an answer, so the
@@ -140,9 +143,10 @@ test('the answer, and what it unlocked, survive a restart', async ({ page }) => 
   await beatGald(page);
   await page.getByTestId('choice-SPARE').click();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('world-clock').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('time-shift-confirm').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }
+  await page.getByTestId('time-shift-stay').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   await page.reload();

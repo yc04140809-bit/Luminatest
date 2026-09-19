@@ -24,6 +24,7 @@ import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
+import { TimeShiftScreen } from './ui/timeShift';
 import { BattleScreen, ResultScreen } from './ui/battle';
 
 /**
@@ -314,6 +315,40 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       return (
         <ChoiceResultScreen
           choice={state.galdLifeChoice ?? 'SPARE'}
+          onHome={() => {
+            /**
+             * THE OFFER IS THE TAIL OF THIS SCENE, not a thing the
+             * village does. Kaos raises it once, here, where the
+             * player has just decided what becomes of a man — which
+             * is the only reason the offer means anything.
+             *
+             * The condition is read from the world rather than
+             * remembered: a shift has happened or it has not, and
+             * `WORLD_TIME_SHIFTED` says which. That survives a
+             * restart and cannot fire twice.
+             *
+             * CHOICE_RESULT cannot reach TIME_SHIFT directly — the
+             * shared table routes it through HOME, which is also
+             * where declining leaves them.
+             */
+            flow.goTo('HOME');
+            if (!world.hasEventOfType('WORLD_TIME_SHIFTED')) flow.goTo('TIME_SHIFT');
+          }}
+        />
+      );
+    case 'TIME_SHIFT':
+      return (
+        <TimeShiftScreen
+          choice={world.getGaldLifeChoice()}
+          onConfirm={async () => {
+            // The world moves first. The screen only advances once
+            // this resolves, so the view can never be three years
+            // ahead of the save.
+            await world.timeShift(3);
+          }}
+          // 「まだ残る」 passes no time at all and writes nothing.
+          onStay={() => flow.goTo('HOME')}
+          onExplore={() => flow.goTo('EXPLORE')}
           onHome={() => flow.goTo('HOME')}
         />
       );
