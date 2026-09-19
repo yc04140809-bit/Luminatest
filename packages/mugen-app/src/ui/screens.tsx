@@ -163,11 +163,18 @@ export function AldenScreen({
   world,
   onExplore,
   onBag,
+  onMemory,
+  onArchive,
+  resting,
   onRest,
 }: {
   world: World;
   onExplore: () => void;
   onBag: () => void;
+  onMemory: () => void;
+  onArchive: () => void;
+  /** True while a night is already passing — see App's note. */
+  resting: boolean;
   onRest: () => void;
 }) {
   const clock = world.getClock();
@@ -187,7 +194,13 @@ export function AldenScreen({
         <button className="btn" data-testid="bag-button" onClick={onBag}>
           持ち物
         </button>
-        <button className="btn" data-testid="rest-button" onClick={onRest}>
+        <button className="btn" data-testid="memory-button" onClick={onMemory}>
+          世界の記憶
+        </button>
+        <button className="btn" data-testid="archive-button" onClick={onArchive}>
+          人生の記録
+        </button>
+        <button className="btn" data-testid="rest-button" disabled={resting} onClick={onRest}>
           休息する
         </button>
       </div>
@@ -206,12 +219,21 @@ export function AldenScreen({
  * ITEM_SHOP is reached from EXPLORE, and it was right.
  */
 export function MapScreen({
+  places,
   onShop,
   onForest,
+  onPlaces,
   onHome,
 }: {
+  /**
+   * How many places the world has opened because of what the player
+   * decided. Asked of `getOpenFutureSites()` by the caller; this screen
+   * only needs to know whether the door is worth drawing.
+   */
+  places: number;
   onShop: () => void;
   onForest: () => void;
+  onPlaces: () => void;
   onHome: () => void;
 }) {
   return (
@@ -223,6 +245,11 @@ export function MapScreen({
         <button className="btn primary" data-testid="forest-button" onClick={onForest}>
           グリーンウッドの森
         </button>
+        {places > 0 && (
+          <button className="btn" data-testid="places-button" onClick={onPlaces}>
+            気になる場所（{places}）
+          </button>
+        )}
         <button className="btn" data-testid="back-to-village" onClick={onHome}>
           村へもどる
         </button>

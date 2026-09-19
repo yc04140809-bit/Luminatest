@@ -22,6 +22,8 @@ import {
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
 import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
+import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
+import { FutureSiteScreen } from './ui/futureSite';
 import { BattleScreen, ResultScreen } from './ui/battle';
 
 /**
@@ -151,6 +153,20 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const story = useRef(false);
 
   /**
+   * ONE NIGHT AT A TIME.
+   *
+   * `advanceDay` is not re-entrant: it reads the clock, works out
+   * tomorrow and commits, so two calls in flight together both start
+   * from today and one night is quietly lost. `timeShift` guards
+   * itself against exactly this; `advanceDay` does not. Resting used
+   * to be a thing a player did once, and is now something they may do
+   * many times in a row to let a life play out, so the door has to be
+   * shut while one is in progress. The guard is here rather than in
+   * the world because it is this screen that can fire twice.
+   */
+  const [resting, setResting] = useState(false);
+
+  /**
    * HE IS BEATEN, AND THAT IS NOT A REWARD.
    *
    * The story's fight pays no experience and drops nothing: what is on
@@ -209,23 +225,41 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           world={world}
           onExplore={() => flow.goTo('EXPLORE')}
           onBag={() => flow.goTo('BAG')}
+          onMemory={() => flow.goTo('WORLD_MEMORY')}
+          onArchive={() => flow.goTo('ARCHIVE')}
+          resting={resting}
           onRest={() => {
-            void world.advanceDay().then(() => world.restoreParty());
+            if (resting) return;
+            setResting(true);
+            void world
+              .advanceDay()
+              .then(() => world.restoreParty())
+              .catch((e) => console.error('The night did not pass', e))
+              .finally(() => setResting(false));
           }}
         />
       );
     case 'BAG':
       return <BagScreen world={world} onBack={() => flow.goTo('HOME')} />;
+    case 'WORLD_MEMORY':
+      return <WorldMemoryScreen world={world} onBack={() => flow.goTo('HOME')} />;
+    case 'ARCHIVE':
+      return <ArchiveScreen world={world} onBack={() => flow.goTo('HOME')} />;
     case 'EXPLORE':
       return (
         <MapScreen
+          // Opened by what the player decided, not by this screen.
+          places={world.getOpenFutureSites().length}
           onShop={() => flow.goTo('ITEM_SHOP')}
           onForest={() => flow.goTo('GREENWOOD')}
+          onPlaces={() => flow.goTo('FUTURE_SITE')}
           onHome={() => flow.goTo('HOME')}
         />
       );
     case 'ITEM_SHOP':
       return <ItemShopScreen world={world} onLeave={() => flow.goTo('EXPLORE')} />;
+    case 'FUTURE_SITE':
+      return <FutureSiteScreen world={world} onLeave={() => flow.goTo('EXPLORE')} />;
     case 'GREENWOOD':
       return (
         <GreenwoodScreen

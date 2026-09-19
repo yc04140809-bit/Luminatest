@@ -99,3 +99,20 @@ body {
 .status-row { margin: 2px 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
 .actions.magic .btn,
 .actions.items .btn { min-width: 0; font-size: 13px; }
+
+/* WORLD MEMORY / ARCHIVE — a record, read as a list.
+   Deliberately plain: the round it was built in asked for "readable"
+   rather than "designed", and a record has to survive being long. */
+.memory-list { list-style: none; margin: 10px 0; padding: 0; width: 100%; }
+.memory-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.memory-when { color: var(--gold); font-size: 12px; }
+.memory-label { font-size: 14px; line-height: 1.6; }
+.memory-meta { color: var(--dim); font-size: 11px; line-height: 1.6; word-break: break-all; }
+.memory-count { color: var(--dim); font-size: 12px; margin: 0; }
