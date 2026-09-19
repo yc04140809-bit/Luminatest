@@ -65,10 +65,30 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
   CHOICE_RESULT: ['HOME'],
   WORLD_MEMORY: ['HOME'],
   WORLD_NEWS: ['HOME'],
-  // After the first shift Kaos points at the map, not at an answer.
-  TIME_SHIFT: ['HOME', 'EXPLORE'],
+  /**
+   * ONE SCREEN ID, TWO VERY DIFFERENT THINGS BEHIND IT — and they
+   * belong to different front ends, so they never meet.
+   *
+   * In the Artifact this is the old TIME SHIFT, now developer-only:
+   * DEV_ADMIN is the only way in and the way back. In the App it is
+   * the story's one FUTURE VISION, which Kaos gives immediately after
+   * the four answers and which moves no time whatsoever; it is reached
+   * from HOME because the scene routes through it, and leaves to HOME
+   * or the map.
+   *
+   * HOME is therefore still listed, and not as a door for the
+   * Artifact: nothing there navigates here any more, and the screen
+   * itself refuses to render outside a dev build.
+   */
+  TIME_SHIFT: ['HOME', 'EXPLORE', 'DEV_ADMIN'],
   DEV_LOCK: ['DEV_ADMIN', 'HOME'],
-  DEV_ADMIN: ['HOME', 'BATTLE_UI_PROTOTYPE', 'CINEMATIC_PREVIEW'],
+  // TIME_SHIFT is here because it is a DEVELOPER'S tool now. The free
+  // one that used to sit on the village screen is gone: skipping years
+  // at will is not something MUGEN ZERO offers a player, and the only
+  // look ahead the story has is the one Kaos gives once, which does not
+  // move the clock at all. What remains is the old machinery, kept for
+  // testing and reachable only from behind the dev gate.
+  DEV_ADMIN: ['HOME', 'BATTLE_UI_PROTOTYPE', 'CINEMATIC_PREVIEW', 'TIME_SHIFT'],
   // Looking at a piece of theatre. It leads back to DEV ADMIN and
   // nowhere else — a preview is not a way into the game.
   CINEMATIC_PREVIEW: ['DEV_ADMIN'],

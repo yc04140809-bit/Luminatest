@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, advanceDays, enterDevAdmin } from './helpers';
+import { advanceDays, devTimeShift, enterDevAdmin, playToLifeChoice } from './helpers';
 
 // PHASE H: the post-play survey. Feedback is a separate layer — it must
 // never touch world canon, never spoil unreached content, and never be
@@ -57,10 +57,7 @@ async function completeCoreExperience(page: Page) {
   await page.getByTestId('return-home-button').click();
 
   await advanceDays(page, 3);
-  await page.getByTestId('time-shift-button').click();
-  await page.getByTestId('time-shift-go').click();
-  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('time-shift-return').click();
+  await devTimeShift(page);
 
   await page.getByTestId('explore-button').click();
   await page.getByTestId('location-ALDEN_BAKERY').click();

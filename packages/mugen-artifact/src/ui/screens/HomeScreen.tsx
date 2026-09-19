@@ -36,8 +36,6 @@ interface Props {
   onWorldMemory: () => void;
   /** REST: advances the world by one day. */
   onRest: () => Promise<void>;
-  /** Opens the TIME SHIFT confirmation screen. */
-  onTimeShift: () => void;
   /** Opens the LIFE ARCHIVE. */
   onArchive: () => void;
   /** Opens the ARCANA book. */
@@ -74,7 +72,6 @@ export function HomeScreen({
   onExplore,
   onWorldMemory,
   onRest,
-  onTimeShift,
   onArchive,
   onArcana,
   onBag,
@@ -247,11 +244,6 @@ export function HomeScreen({
           <button className="home-rail-item" data-testid="bag-button" onClick={onBag}>
             <span className="glyph">◰</span>
             持ち物
-          </button>
-          <button className="home-rail-item" data-testid="time-shift-button" onClick={onTimeShift}>
-            <span className="glyph">◷</span>
-            旅立つ
-            <span className="sub">+3年</span>
           </button>
           <button
             className="home-rail-item"

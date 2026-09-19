@@ -1,5 +1,11 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, readMemoryEvents, advanceDays, enterDevAdmin } from './helpers';
+import {
+  advanceDays,
+  devTimeShift,
+  enterDevAdmin,
+  playToLifeChoice,
+  readMemoryEvents,
+} from './helpers';
 
 // PHASE E acceptance: the spared bandit's life continues off-screen, the
 // player discovers the new bakery through ordinary exploration — never a
@@ -19,10 +25,7 @@ async function spareGaldAndReturnHome(page: Page) {
 }
 
 async function timeShift3y(page: Page) {
-  await page.getByTestId('time-shift-button').click();
-  await page.getByTestId('time-shift-go').click();
-  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('time-shift-return').click();
+  await devTimeShift(page);
 }
 
 test('the first reunion: spare, let life move on, discover the bakery, 「……見るな。」', async ({

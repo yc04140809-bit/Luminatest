@@ -2,7 +2,13 @@ import { test, expect, chromium, type BrowserContext, pageOf } from './fixtures'
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { playToLifeChoice, readMemoryEvents, readWorldStateValue, enterDevAdmin } from './helpers';
+import {
+  devTimeShift,
+  enterDevAdmin,
+  playToLifeChoice,
+  readMemoryEvents,
+  readWorldStateValue,
+} from './helpers';
 
 const BASE = 'http://localhost:5173';
 
@@ -32,10 +38,7 @@ test('clock, age and events survive a full browser restart after a TIME SHIFT', 
     await page.getByTestId('choice-recorded-screen').waitFor();
     await page.getByTestId('return-home-button').click();
 
-    await page.getByTestId('time-shift-button').click();
-    await page.getByTestId('time-shift-go').click();
-    await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
-    await page.getByTestId('time-shift-return').click();
+    await devTimeShift(page);
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 1日目');
     await context.close(); // full browser shutdown
 

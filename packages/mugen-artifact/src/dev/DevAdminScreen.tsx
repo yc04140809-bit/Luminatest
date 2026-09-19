@@ -103,6 +103,17 @@ interface Props {
   onOpenBattlePrototype: () => void;
   /** Opens the cinematic preview — theatre only, never the game. */
   onOpenCinematicPreview: () => void;
+  /**
+   * Opens the old TIME SHIFT, which lives here now.
+   *
+   * It used to sit on the village screen, where a player could spend
+   * three years whenever they liked. That is not a thing MUGEN ZERO
+   * offers: the story's one look ahead is Kaos's, it happens once, and
+   * it moves no time at all. The machinery is kept because tests and
+   * authoring need a world that is genuinely three years older — which
+   * is a developer's need, not a player's.
+   */
+  onOpenTimeShift: () => void;
   world: World;
   /** Feedback layer — read here for analysis only, never fed into the world. */
   playtest: PlaytestFeedbackService;
@@ -132,6 +143,7 @@ export function DevAdminScreen({
   onBack,
   onOpenBattlePrototype,
   onOpenCinematicPreview,
+  onOpenTimeShift,
 }: Props) {
   const [busy, setBusy] = useState(false);
   // What the next arrival in the forest will turn out to be. Reading it
@@ -205,6 +217,20 @@ export function DevAdminScreen({
           onClick={onOpenCinematicPreview}
         >
           演出プレビュー（ゲームデータを変更しません）
+        </button>
+      </div>
+      {/* THE OLD TIME SHIFT, retired to this room. It really does spend
+          three years of world time — the label says so, because from
+          here it is a tool and the person pressing it should know what
+          it costs. */}
+      <div style={row}>
+        <button
+          className="btn"
+          style={{ ...smallBtn, flex: '1 1 100%' }}
+          data-testid="open-time-shift"
+          onClick={onOpenTimeShift}
+        >
+          TIME SHIFT +3年（開発用・実際に世界時間が進みます）
         </button>
       </div>
       {/* Everything the panel holds, in one scrolling region. A landscape

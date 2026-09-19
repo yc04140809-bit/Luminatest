@@ -1,10 +1,12 @@
-# 引き継ぎ事項 — APP ALPHA PHASE 2 / ROUND 6 時点
+# 引き継ぎ事項 — APP ALPHA PHASE 2 / ROUND 8 時点
 
 ROUND 6：**条件付き完了**
+ROUND 7：**承認**（実機確認は作者側で未実施）
+ROUND 8：Artifact の TIME SHIFT を開発専用へ退避
 APP ALPHA PHASE 2：**継続**
 App移行の最終完了判定：**保留**
 
-記録時点のコミット: Round 7 時点で更新
+記録時点のコミット: Round 8 時点で更新
 
 > **この文書は HANDOFF MASTER ではない。**
 > HANDOFF MASTER はリポジトリ外にある正式文書であり、本ファイルは
@@ -79,23 +81,32 @@ e2e で保証されており（`packages/mugen-app/e2e/memory.spec.ts` の
 
 **REQUIRED_CANON_DECISION**: 1 と併せて判断。SAVE schema を増やすかどうかを含む。
 
-## 3. Artifact 側の自由使用 TIME SHIFT ボタンが正式CANONと矛盾
+## 3. Artifact 側の自由使用 TIME SHIFT ボタン — **Round 8 で解決**
 
-**状態**: 現状維持（暫定措置）。**正式仕様として扱わないこと。**
+通常プレイからの到達経路を廃止し、開発専用へ退避した。
+
+- `HomeScreen.tsx` の `time-shift-button` と `onTimeShift` prop を削除。
+  村の画面に「旅立つ」は無い。
+- `TIME_SHIFT` 画面への入口は DEV ADMIN の
+  `open-time-shift`（「TIME SHIFT +3年（開発用・実際に世界時間が進みます）」）
+  のみ。出口も DEV ADMIN（「変化した場所を探す」は従来どおり地図へ）。
+- `App.tsx` の `case 'TIME_SHIFT'` に `DEV_ADMIN_ENABLED` ガードを追加。
+  フラグの無いビルドでは、どうやって遷移させても画面が存在しない。
+  Android の通常プレイ用ビルドはこのフラグを立てないため、
+  DEV_ADMIN も開発用 TIME SHIFT も到達不能。
+- `TimeShiftScreen.tsx` は無変更。「旅立つ／まだ残る」の選択も、
+  初回案内も、そのまま残っている（削除・改変しないという指示による）。
+- App 側の FUTURE VISION（Round 7）は `TIME_SHIFT` 画面IDを共有するが、
+  別実装であり世界時間を進めない。フロー表 `HOME -> TIME_SHIFT` は
+  そのために残している。Artifact 側からは何も遷移しない。
+
+~~## 3（旧）Artifact 側の自由使用 TIME SHIFT ボタンが正式CANONと矛盾~~
 
 `HomeScreen.tsx:251` の `time-shift-button`（`App.tsx:650` で
 `flow.goTo('TIME_SHIFT')` に接続）から `TIME_SHIFT` 画面へ遷移でき、
-3年・回数無制限で実行できる。`TimeShiftScreen.tsx` の冒頭コメントには
-「TIME SHIFT never happens automatically — the player decides.」と
-明記されており、これは
+3年・回数無制限で実行できた。
 「ケイオスが最初のガルド関連イベントで一度だけ使用する物語上の
-特殊演出」という正式CANONと矛盾する。
-
-Round 6 では実装範囲を限定するため Artifact に手を触れていない
-（Artifact のビルドは Round 5 とバイト単位で同一）。
-
-**閉じるために必要なもの**: 削除か仕様変更かの決定。
-**App移行の最終完了判定の前に整合を取る必要がある。**
+特殊演出」という正式CANONと矛盾していた。
 
 ## 4. `magic.spec.ts:163` の既知の不安定性
 
@@ -151,7 +162,8 @@ per-render のオブジェクト同一性の破壊が原因で、Round 3 で修�
 **現状の実害**: なし。新しい未来観測は世界時間を進めないため、
 本編でリナが歳を取る経路が現在は存在しない。通常の `advanceDay` でも
 `age` は進まない（加齢は `timeShift` のみ）ので、通常プレイでは
-不一致は発生しない。Artifact の自由使用ボタン経由でのみ起こりうる。
+不一致は発生しない。Round 8 で Artifact のボタンも開発専用になったため、
+起こりうるのは開発ビルドの中だけになった。
 
 ## 7. core は2回目以降の `timeShift` を拒否しない
 
@@ -162,22 +174,34 @@ per-render のオブジェクト同一性の破壊が原因で、Round 3 で修�
 Artifact の繰り返し可能なボタンにとっては正しい挙動。
 App の未来観測は `world.timeShift()` を使わないため影響を受けない。
 
-**引き継ぎ**: 項目3（Artifact の TIME SHIFT を正式CANONへ合わせる）と
-同じラウンドで、core 側の扱いも併せて決める。
+**Round 8 の判断**: core の `timeShift` は変更しなかった。
+繰り返し実行できることは開発ツールとしては正しい挙動であり、
+WORLD LIFE ENGINE と共用の時間処理に全面禁止を入れないよう
+指示されているため。到達経路を DEV 専用にしたことで、
+通常プレイで2回目が起こる経路そのものが無い。
 
-## 8. Artifact の TIME SHIFT 依存範囲（Round 7 調査）
+**未解決として残る点**: 開発ビルドの中では今も無制限に実行できる。
+禁止するとすれば core ではなく呼び出し側の判断になる。
 
-項目3の削除作業を見積もるための実測。
+## 8. Artifact の TIME SHIFT 依存範囲 — **Round 8 で処理済み**
 
-| 箇所 | 内容 |
+項目3の作業実績。Round 7 の見積もりどおり e2e が広く依存していた。
+
+| 箇所 | Round 8 での扱い |
 |---|---|
-| `HomeScreen.tsx:251` | `time-shift-button`（`App.tsx:650` で接続） |
-| `App.tsx:799` | `TIME_SHIFT` 画面 |
-| `TimeShiftScreen.tsx` | 180行 |
-| `WorldMemoryScreen.tsx:51` | `WORLD_TIME_SHIFTED` の from/to 表示 |
-| `dev/qaSnapshot.ts:64` | timeShifts の集計 |
-| **e2e** | **9ファイル・50箇所**（navigation / phaseD / phaseD-restart / phaseE / phaseF / phaseH / coreExperience / arcana / uiPatch） |
+| `HomeScreen.tsx` の `time-shift-button` | 削除 |
+| `App.tsx` の `TIME_SHIFT` 画面 | `DEV_ADMIN_ENABLED` ガード追加、出口を DEV ADMIN へ |
+| `DevAdminScreen.tsx` | `open-time-shift` を新設（唯一の入口） |
+| `TimeShiftScreen.tsx`（180行） | 無変更 |
+| `WorldMemoryScreen.tsx:51` | 無変更（過去のシフト記録は今も読める） |
+| `dev/qaSnapshot.ts:64` | 無変更 |
+| **e2e 9ファイル・50箇所** | ヘルパー3本（`openDevTimeShift` / `devTimeShiftGo` / `devTimeShift`）に集約し、DEV 経路へ張り替え |
 
-多くの spec が「TIME SHIFT で3年進めてから後日譚を見る」導線を近道として使っている。
-単純にボタンを消すと、それらの spec は別の到達手段（93日以上の休息など）が必要になる。
-削除は小差分では済まないため、独立したラウンドを推奨。
+「93日以上の休息」への置き換えは行っていない。テストが確かめている
+のは「3年経った世界の真実」であって到達手段ではないため、
+同じ画面を DEV 経路から動かすほうが検証内容を保てる。
+
+`navigation.spec.ts` の初回案内テストだけは検証対象そのものが
+通常プレイから消えたため、「通常UIから到達できない」ことを確かめる
+テストへ置き換えたうえで、案内の内容そのものは DEV 経路で
+引き続き検証している（差引きでテストは1本増）。

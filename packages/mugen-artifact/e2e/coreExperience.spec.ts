@@ -1,5 +1,11 @@
 import { test, expect, chromium, type BrowserContext, type Page, pageOf } from './fixtures';
-import { GALD_TAP, intoTheVillage, swingUntil } from './helpers';
+import {
+  GALD_TAP,
+  devTimeShiftGo,
+  intoTheVillage,
+  leaveDevTimeShift,
+  swingUntil,
+} from './helpers';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -89,13 +95,9 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     // --- Time passes: three days, then three years ---
     await advanceDays(page, 3);
     await expect(page.getByTestId('world-clock')).toHaveText('1年目 4日目');
-    await page.getByTestId('time-shift-button').click();
-    await page.getByTestId('time-shift-go').click();
-    await expect(page.getByTestId('time-shift-done')).toBeVisible({
-      timeout: 10_000,
-    });
+    await devTimeShiftGo(page);
     await expect(page.getByText('――3年後。')).toBeVisible();
-    await page.getByTestId('time-shift-return').click();
+    await leaveDevTimeShift(page);
     await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
 
     // --- No spoilers anywhere before the discovery ---

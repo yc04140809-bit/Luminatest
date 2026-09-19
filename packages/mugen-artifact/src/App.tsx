@@ -647,7 +647,6 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           onNews={() => flow.goTo('WORLD_NEWS')}
           onExplore={() => flow.goTo('EXPLORE')}
           onWorldMemory={() => flow.goTo('WORLD_MEMORY')}
-          onTimeShift={() => flow.goTo('TIME_SHIFT')}
           onRest={async () => {
             // Event resolution is silent world truth — the player is not
             // notified automatically (knowledge stays separate from truth).
@@ -753,6 +752,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             onBack={() => flow.goTo('HOME')}
             onOpenBattlePrototype={() => flow.goTo('BATTLE_UI_PROTOTYPE')}
             onOpenCinematicPreview={() => flow.goTo('CINEMATIC_PREVIEW')}
+            onOpenTimeShift={() => flow.goTo('TIME_SHIFT')}
           />
         </Suspense>
       );
@@ -797,6 +797,19 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
         />
       );
     case 'TIME_SHIFT':
+      /**
+       * A DEVELOPER'S TOOL, AND ONLY THAT.
+       *
+       * Skipping years at will is not something MUGEN ZERO offers a
+       * player: the story's one look ahead is Kaos's, it happens once,
+       * and it moves no time at all. The village screen no longer has
+       * a door to this, and the guard below is the rest of the answer
+       * — in any build without the dev flag there is nothing here to
+       * arrive at, however somebody got the flow to point at it. The
+       * same guard already covers DEV LOCK, DEV ADMIN and the
+       * previews, so a production build ships none of them.
+       */
+      if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
       return (
         <TimeShiftScreen
           years={3}
@@ -806,10 +819,10 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             // core drops it for a page nobody has opened.
             await flushArcana('TIME_PASSED');
           }}
-          onStay={() => flow.goTo('HOME')}
-          onDone={() => flow.goTo('HOME')}
-          // Guidance is for the first shift only — after that the player
-          // knows how time works here.
+          onStay={() => flow.goTo('DEV_ADMIN')}
+          onDone={() => flow.goTo('DEV_ADMIN')}
+          // Guidance is for the first shift only — after that the
+          // developer knows how time works here.
           firstShift={!world.hasEventOfType('WORLD_TIME_SHIFTED')}
           onExplore={() => flow.goTo('EXPLORE')}
         />

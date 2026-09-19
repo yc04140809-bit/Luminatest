@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './fixtures';
-import { enterDevAdmin, ontoTheMap } from './helpers';
+import { devTimeShiftGo, enterDevAdmin, ontoTheMap } from './helpers';
 
 // PLAYTEST ROUND 2: the player should never be stuck wondering what to do
 // next — without ever being told the answer.
@@ -37,13 +37,45 @@ async function playScene(page: Page, testId: string, maxClicks = 20): Promise<st
   return text;
 }
 
-test('the first TIME SHIFT points at the map, not at the answer', async ({ page }) => {
+/**
+ * THE VILLAGE NO LONGER SELLS YEARS.
+ *
+ * 旅立つ used to sit on the HOME screen and skip three of them for
+ * anybody who pressed it. It is gone: the only look ahead MUGEN ZERO
+ * offers is the one Kaos gives once, in the App, and that one moves no
+ * time at all. What this checks is the absence itself — not that a
+ * button is hidden, but that ordinary play has nowhere to press.
+ */
+test('the normal game never offers to skip years', async ({ page }) => {
   await newWorld(page);
   await usePreset(page, 'SPARE');
 
-  await page.getByTestId('time-shift-button').click();
-  await page.getByTestId('time-shift-go').click();
-  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
+  // HOME: no button, and none of the ones that are there is it wearing
+  // a different name.
+  await expect(page.getByTestId('time-shift-button')).toHaveCount(0);
+  const home = await page.locator('.screen button').allInnerTexts();
+  expect(home.join('\n')).not.toContain('旅立つ');
+  await expect(page.getByTestId('time-shift-confirm')).toHaveCount(0);
+
+  // And the map is a map: places to walk to, no years to spend.
+  await page.getByTestId('explore-button').click();
+  await expect(page.getByTestId('location-GREENWOOD_FOREST')).toBeVisible();
+  await expect(page.getByTestId('time-shift-button')).toHaveCount(0);
+  const map = await page.locator('.screen button').allInnerTexts();
+  expect(map.join('\n')).not.toContain('旅立つ');
+});
+
+/**
+ * The machinery survives behind the dev gate, and so does what it says.
+ * A developer who spends three years is told the world moved — never
+ * who, where, or what, which is the property the playtest round bought
+ * and the move behind the gate must not spend.
+ */
+test('the developer TIME SHIFT points at the map, not at the answer', async ({ page }) => {
+  await newWorld(page);
+  await usePreset(page, 'SPARE');
+
+  await devTimeShiftGo(page);
 
   const guidance = page.getByTestId('time-shift-guidance');
   await expect(guidance).toBeVisible();
@@ -61,9 +93,7 @@ test('the first TIME SHIFT points at the map, not at the answer', async ({ page 
 test('the guidance is for the first shift only', async ({ page }) => {
   await newWorld(page);
   await usePreset(page, 'SPARE_3Y'); // already shifted once
-  await page.getByTestId('time-shift-button').click();
-  await page.getByTestId('time-shift-go').click();
-  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
+  await devTimeShiftGo(page);
   await expect(page.getByTestId('time-shift-guidance')).toHaveCount(0);
   await expect(page.getByTestId('time-shift-return')).toBeVisible();
 });

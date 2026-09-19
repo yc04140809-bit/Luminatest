@@ -100,7 +100,9 @@ test('HOME leads in Japanese', async ({ page }) => {
   await startAndOpenHome(page);
   await expect(page.getByTestId('explore-button')).toContainText('探索する');
   await expect(page.getByTestId('world-memory-button')).toContainText('世界の記憶');
-  await expect(page.getByTestId('time-shift-button')).toContainText('旅立つ');
+  // 旅立つ was here. Skipping years is a developer's tool now, so HOME
+  // has one fewer button rather than one renamed one.
+  await expect(page.getByTestId('time-shift-button')).toHaveCount(0);
   await expect(page.getByTestId('settings-button')).toContainText('設定');
   await expect(page.getByTestId('archive-button')).toContainText('人生の記録');
   await expect(page.getByTestId('rest-button')).toContainText('休息する');

@@ -129,6 +129,71 @@ describe('GameFlow', () => {
     expect(() => flow.chooseGaldLife('KILL')).toThrow();
   });
 
+  /**
+   * TIME SHIFT IS TWO THINGS BEHIND ONE ID, AND THE TABLE SAYS SO.
+   *
+   * The Artifact's is the developer's old year-skipper: DEV ADMIN is
+   * the only door to it and the way back out. The App's is the story's
+   * FUTURE VISION, reached from HOME because the scene routes through
+   * it, and moving no time at all. Neither front end lets an ordinary
+   * screen of PLAY reach it — the map, the forest, a fight and the
+   * memory screens have no door to years.
+   */
+  describe('TIME SHIFT is reached from DEV ADMIN and from the story, not from play', () => {
+    it('DEV ADMIN opens it, and it comes back', () => {
+      const flow = new GameFlow();
+      flow.goTo('TITLE');
+      flow.goTo('HOME');
+      flow.goTo('DEV_ADMIN');
+      expect(flow.canGoTo('TIME_SHIFT')).toBe(true);
+      flow.goTo('TIME_SHIFT');
+      expect(flow.canGoTo('DEV_ADMIN')).toBe(true);
+    });
+
+    it('the story reaches it from HOME and leaves to HOME or the map', () => {
+      const flow = new GameFlow();
+      flow.goTo('TITLE');
+      flow.goTo('HOME');
+      flow.goTo('TIME_SHIFT');
+      expect(flow.canGoTo('HOME')).toBe(true);
+      expect(flow.canGoTo('EXPLORE')).toBe(true);
+    });
+
+    it('no screen of ordinary play has a door to it', () => {
+      // Every screen a player can actually be standing on, and the way
+      // the game walks them there. Written out rather than searched
+      // for: a route the test discovers by itself is a route nobody
+      // has read.
+      const routes: Record<string, Screen[]> = {
+        EXPLORE: ['EXPLORE'],
+        GREENWOOD: ['EXPLORE', 'GREENWOOD'],
+        BATTLE: ['EXPLORE', 'GREENWOOD', 'BATTLE'],
+        BATTLE_RESULT: ['EXPLORE', 'GREENWOOD', 'BATTLE', 'BATTLE_RESULT'],
+        LIFE_CHOICE: ['EXPLORE', 'GREENWOOD', 'BATTLE', 'LIFE_CHOICE'],
+        CHOICE_RESULT: ['EXPLORE', 'GREENWOOD', 'BATTLE', 'LIFE_CHOICE', 'CHOICE_RESULT'],
+        ITEM_SHOP: ['EXPLORE', 'ITEM_SHOP'],
+        TALK_SPOT: ['EXPLORE', 'TALK_SPOT'],
+        FUTURE_SITE: ['EXPLORE', 'FUTURE_SITE'],
+        WORLD_MEMORY: ['WORLD_MEMORY'],
+        WORLD_NEWS: ['WORLD_NEWS'],
+        ARCHIVE: ['ARCHIVE'],
+        ARCANA: ['ARCANA'],
+        BAG: ['BAG'],
+        SETTINGS: ['SETTINGS'],
+        ENDING: ['ARCHIVE', 'ENDING'],
+      };
+
+      for (const [screen, route] of Object.entries(routes)) {
+        const flow = new GameFlow();
+        flow.goTo('TITLE');
+        flow.goTo('HOME');
+        for (const step of route) flow.goTo(step);
+        expect(flow.getState().screen, `${screen} route is wrong`).toBe(screen);
+        expect(flow.canGoTo('TIME_SHIFT'), `${screen} must not reach TIME_SHIFT`).toBe(false);
+      }
+    });
+  });
+
   it('notifies subscribers on transition', () => {
     const flow = new GameFlow();
     let calls = 0;

@@ -1,13 +1,20 @@
 import { test, expect } from './fixtures';
 import {
+  advanceDays,
+  openDevTimeShift,
   playToLifeChoice,
   readMemoryEvents,
   readWorldStateValue,
-  advanceDays,
 } from './helpers';
 
 // PHASE D acceptance: REST advances real time, TIME SHIFT skips years with
-// player confirmation, ages the living, and never swallows mid-span events.
+// confirmation, ages the living, and never swallows mid-span events.
+//
+// TIME SHIFT is a DEVELOPER'S tool now — the village no longer offers to
+// skip years, and the story's one look ahead moves no time at all. What
+// Phase D bought is the world truth on the far side of a skipped span,
+// and that is unchanged: these drive the same screen from behind the dev
+// gate and assert exactly what they always did.
 
 async function spareGaldAndReturnHome(page: import('@playwright/test').Page) {
   await playToLifeChoice(page);
@@ -34,9 +41,9 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
   expect(events.filter((e) => e.type === 'GALD_LEAVES_BANDITS')).toHaveLength(1);
 
   // "まだ残る" changes nothing.
-  await page.getByTestId('time-shift-button').click();
-  await expect(page.getByTestId('time-shift-confirm')).toBeVisible();
+  await openDevTimeShift(page);
   await page.getByTestId('time-shift-stay').click();
+  await page.getByTestId('dev-admin-back').click();
   await expect(page.getByTestId('world-clock')).toHaveText('1年目 4日目');
   events = await readMemoryEvents(page);
   expect(events.filter((e) => e.type === 'WORLD_TIME_SHIFTED')).toHaveLength(0);
@@ -44,7 +51,7 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
   expect(galdBefore.age).toBe(27);
 
   // "旅立つ": +3 years, exactly once even if tapped twice.
-  await page.getByTestId('time-shift-button').click();
+  await openDevTimeShift(page);
   const go = page.getByTestId('time-shift-go');
   await go.click();
   // Double-tap must be inert: the button is either disabled or already gone.
@@ -59,6 +66,7 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
   await go.dispatchEvent('click', {}, { timeout: 300 }).catch(() => {});
   await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('time-shift-return').click();
+  await page.getByTestId('dev-admin-back').click();
 
   await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
   events = await readMemoryEvents(page);
@@ -85,10 +93,11 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
 test('TIME SHIFT right after SPARE does not swallow GALD_LEAVES_BANDITS', async ({ page }) => {
   await spareGaldAndReturnHome(page);
 
-  await page.getByTestId('time-shift-button').click();
+  await openDevTimeShift(page);
   await page.getByTestId('time-shift-go').click();
   await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
   await page.getByTestId('time-shift-return').click();
+  await page.getByTestId('dev-admin-back').click();
   await expect(page.getByTestId('world-clock')).toHaveText('4年目 1日目');
 
   const events = await readMemoryEvents(page);

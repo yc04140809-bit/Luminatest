@@ -1,5 +1,11 @@
 import { test, expect, type Page } from './fixtures';
-import { playToLifeChoice, advanceDays, enterDevAdmin, intoTheVillage } from './helpers';
+import {
+  advanceDays,
+  devTimeShift,
+  enterDevAdmin,
+  intoTheVillage,
+  playToLifeChoice,
+} from './helpers';
 
 // PHASE F acceptance: the LIFE ARCHIVE grows only with the player's own
 // discoveries; the world's head start is never spoiled.
@@ -53,10 +59,7 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
   await closeArchive(page);
 
   // +3 years: baker in truth — still not a word of it in the archive.
-  await page.getByTestId('time-shift-button').click();
-  await page.getByTestId('time-shift-go').click();
-  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('time-shift-return').click();
+  await devTimeShift(page);
 
   await openGaldRecord(page);
   const detailText = await page.getByTestId('archive-detail').innerText();

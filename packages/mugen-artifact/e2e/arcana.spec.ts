@@ -1,5 +1,13 @@
 import { test, expect, type Page } from './fixtures';
-import { PHONES, RING_TAPS, backOnThePath, enterDevAdmin, viewportOf } from './helpers';
+import {
+  PHONES,
+  RING_TAPS,
+  backOnThePath,
+  devTimeShiftGo,
+  enterDevAdmin,
+  leaveDevTimeShift,
+  viewportOf,
+} from './helpers';
 
 /**
  * ARCANA — the book, and the way a life fills it in.
@@ -259,10 +267,9 @@ test.describe('what a life writes into the book', () => {
   test('time only teaches you about something you have already met', async ({ page }) => {
     await freshWorld(page);
     // Nothing has been met: a time shift must not open the book.
-    await page.getByTestId('time-shift-button').click();
-    await page.getByTestId('time-shift-go').click();
+    await devTimeShiftGo(page);
     await expect(page.getByTestId('arcana-toast')).toHaveCount(0);
-    await page.getByTestId('time-shift-return').click();
+    await leaveDevTimeShift(page);
     await openBook(page);
     await expect(page.getByTestId('arcana-count')).toContainText('0 / 1');
     await expect(page.getByTestId('arcana-card-moss_rabbit')).toHaveAttribute('data-found', 'no');
@@ -270,8 +277,7 @@ test.describe('what a life writes into the book', () => {
 
     // Once it is known, the same three years are worth something.
     await setArcana(page, '低');
-    await page.getByTestId('time-shift-button').click();
-    await page.getByTestId('time-shift-go').click();
+    await devTimeShiftGo(page);
     const toast = page.getByTestId('arcana-toast');
     await expect(toast).toBeVisible({ timeout: 10_000 });
     await expect(toast).toContainText('10%');
@@ -283,8 +289,7 @@ test.describe('a memory that becomes complete', () => {
   test('says so once, and never again', async ({ page }) => {
     await freshWorld(page);
     await setArcana(page, 'あと一歩');
-    await page.getByTestId('time-shift-button').click();
-    await page.getByTestId('time-shift-go').click();
+    await devTimeShiftGo(page);
 
     const toast = page.getByTestId('arcana-toast');
     await expect(toast).toBeVisible({ timeout: 10_000 });

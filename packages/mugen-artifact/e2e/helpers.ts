@@ -440,3 +440,60 @@ export async function intoTheVillage(page: Page): Promise<void> {
   if (await back.isVisible().catch(() => false)) await back.click();
   await expect(clock).toBeVisible({ timeout: 20_000 });
 }
+
+/**
+ * SPEND THREE YEARS, THE WAY A DEVELOPER NOW HAS TO.
+ *
+ * `openDevTimeShift` stops on the confirmation, for the specs that
+ * press 旅立つ / まだ残る themselves. `devTimeShiftGo` stops on the
+ * aftermath screen, for the specs that need to read what the three
+ * years did — the arcana toast, the year on the clock. `devTimeShift`
+ * closes it and walks away.
+ *
+ * The village screen used to carry a TIME SHIFT button and most of
+ * these specs used it as a shortcut to "three years later". It is gone
+ * — spending years at will is not something the game offers a player —
+ * and the machinery moved behind the dev gate, so the shortcut moved
+ * with it. One helper, so the eight specs that need an older world do
+ * not each grow their own idea of how to get one.
+ *
+ * Leaves the player wherever `then` says: DEV ADMIN by default, or the
+ * map for the specs that were going there anyway.
+ */
+export async function openDevTimeShift(page: Page): Promise<void> {
+  await enterDevAdmin(page);
+  await page.getByTestId('open-time-shift').click();
+  await expect(page.getByTestId('time-shift-confirm')).toBeVisible({ timeout: 20_000 });
+}
+
+export async function devTimeShiftGo(page: Page): Promise<void> {
+  await openDevTimeShift(page);
+  await page.getByTestId('time-shift-go').click();
+  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * Out of the aftermath screen and all the way back to the village.
+ *
+ * The screen's own 「もどる」 leads to DEV ADMIN now, because that is
+ * where it was opened from. Specs that carry on playing need one more
+ * step to be standing in Alden again.
+ */
+export async function leaveDevTimeShift(page: Page): Promise<void> {
+  await page.getByTestId('time-shift-return').click();
+  await page.getByTestId('dev-admin-back').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible({ timeout: 20_000 });
+}
+
+/** The same three years, closed behind them. */
+export async function devTimeShift(
+  page: Page,
+  then: 'DEV' | 'EXPLORE' = 'DEV',
+): Promise<void> {
+  await devTimeShiftGo(page);
+  if (then === 'EXPLORE') {
+    await page.getByTestId('time-shift-explore').click();
+    return;
+  }
+  await leaveDevTimeShift(page);
+}
