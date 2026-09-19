@@ -41,6 +41,19 @@ async function intoTheVillage(page: Page) {
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 
+/**
+ * The village, the map, then the trees.
+ *
+ * EXPLORE is アルデン地方 — the shared flow table's own idea of it,
+ * with the shop as a door off it — so the forest is one step further
+ * out than it was when the map had nothing else on it.
+ */
+async function intoTheForest(page: Page) {
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('forest-button').click();
+  await expect(page.getByTestId('encounter-button')).toBeVisible();
+}
+
 /** Swings until the fight is decided. */
 async function win(page: Page) {
   const attack = page.getByTestId('attack-button');
@@ -63,8 +76,8 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(0);
   const full = numberIn(await page.getByTestId('party-hero').textContent(), 'HP');
 
-  // ALDEN → GREENWOOD → BATTLE
-  await page.getByTestId('explore-button').click();
+  // ALDEN → MAP → GREENWOOD → BATTLE
+  await intoTheForest(page);
   await page.getByTestId('encounter-button').click();
   await expect(page.getByTestId('enemy-hp')).toBeVisible();
   await win(page);
@@ -80,6 +93,7 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   await page.getByTestId('result-done').click();
   await expect(page.getByTestId('encounter-button')).toBeVisible();
   await page.getByTestId('leave-forest').click();
+  await page.getByTestId('back-to-village').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   // What the fight cost and paid, carried out of it.
@@ -100,11 +114,12 @@ test('a night’s rest puts them back, and the day moves', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
   const day = await page.getByTestId('world-clock').textContent();
-  await page.getByTestId('explore-button').click();
+  await intoTheForest(page);
   await page.getByTestId('encounter-button').click();
   await win(page);
   await page.getByTestId('result-done').click();
   await page.getByTestId('leave-forest').click();
+  await page.getByTestId('back-to-village').click();
 
   const full = numberIn(await page.getByTestId('party-hero').textContent(), 'HP');
   await page.getByTestId('rest-button').click();

@@ -6,7 +6,15 @@ import { NOTHING_APPLIED, NO_REWARD, type AppliedReward } from '@mugen/core/prog
 import { rewardForSpecies } from '@mugen/content/progression/enemyRewards';
 import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { openAppWorld } from './platform/save';
-import { AldenScreen, GreenwoodScreen, OpeningScreen, TitleScreen } from './ui/screens';
+import {
+  AldenScreen,
+  GreenwoodScreen,
+  MapScreen,
+  OpeningScreen,
+  TitleScreen,
+} from './ui/screens';
+import { BagScreen } from './ui/bag';
+import { ItemShopScreen } from './ui/shop';
 import { BattleScreen, ResultScreen } from './ui/battle';
 
 /**
@@ -167,23 +175,34 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         <AldenScreen
           world={world}
           onExplore={() => flow.goTo('EXPLORE')}
+          onBag={() => flow.goTo('BAG')}
           onRest={() => {
             void world.advanceDay().then(() => world.restoreParty());
           }}
         />
       );
+    case 'BAG':
+      return <BagScreen world={world} onBack={() => flow.goTo('HOME')} />;
     case 'EXPLORE':
+      return (
+        <MapScreen
+          onShop={() => flow.goTo('ITEM_SHOP')}
+          onForest={() => flow.goTo('GREENWOOD')}
+          onHome={() => flow.goTo('HOME')}
+        />
+      );
+    case 'ITEM_SHOP':
+      return <ItemShopScreen world={world} onLeave={() => flow.goTo('EXPLORE')} />;
+    case 'GREENWOOD':
       return (
         <GreenwoodScreen
           onFight={() => {
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            flow.goTo('GREENWOOD');
             flow.goTo('BATTLE');
           }}
-          onLeave={() => flow.goTo('HOME')}
+          onLeave={() => flow.goTo('EXPLORE')}
         />
       );
-    case 'GREENWOOD':
     case 'BATTLE':
       return (
         <BattleScreen
@@ -205,7 +224,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             if (flow.getState().screen !== 'BATTLE_RESULT') return;
             setWinnings(null);
             flow.goTo('GREENWOOD');
-            flow.goTo('EXPLORE');
           }}
         />
       );

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
+import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
 
 /**
@@ -105,38 +106,125 @@ export function OpeningScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+/**
+ * WHAT THE PARTY IS, IN NUMBERS THE CORE ALREADY KNOWS.
+ *
+ * Not one value here is worked out on this screen. The level and the
+ * experience are `world.getProgress`, the distance to the next level
+ * is `expToNextLevel`, the ceilings and the swing are
+ * `world.getPartyStats` — which is `statsForLevels`, the same function
+ * the battle builds its fighters from. If this panel and the fight
+ * ever disagreed about a maximum, the fight would be right and this
+ * would be a second calculation that should not exist.
+ *
+ * 防御力 and 魔力 are not shown because the core has no such stats
+ * yet: `PartyStats` is maxHp, maxMp and an attack range. Inventing
+ * numbers to fill a heading would be the one thing this screen must
+ * never do.
+ */
+export function StatusPanel({ world }: { world: World }) {
+  const stats = world.getPartyStats();
+  const party = world.getPartyCondition();
+  return (
+    <div className="status" data-testid="status-panel">
+      {(['hero', 'kaos'] as const).map((id) => {
+        const progress = world.getProgress(id);
+        const toNext = expToNextLevel(progress);
+        const them = party[id];
+        return (
+          <p className="status-row" key={id} data-testid={`status-${id}`}>
+            <span data-testid={`status-${id}-level`}>Lv.{progress.level}</span>{' '}
+            <span data-testid={`status-${id}-exp`}>EXP {progress.totalExp}</span>{' '}
+            <span data-testid={`status-${id}-next`}>
+              {toNext === null ? '（最大）' : `つぎまで ${toNext}`}
+            </span>
+            {them && (
+              <span data-testid={`party-${id}`}>
+                {' '}
+                HP {them.currentHp}/{them.maxHp} MP {them.currentMp}/{them.maxMp}
+              </span>
+            )}
+          </p>
+        );
+      })}
+      <p className="status-row" data-testid="status-stats">
+        <span data-testid="status-maxhp">最大HP {stats.maxHp}</span>{' '}
+        <span data-testid="status-maxmp">最大MP {stats.maxMp}</span>{' '}
+        <span data-testid="status-attack">
+          攻撃 {stats.attackMin}〜{stats.attackMax}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+/** アルデン村 — the hub. What they are carrying, and how they are. */
 export function AldenScreen({
   world,
   onExplore,
+  onBag,
   onRest,
 }: {
   world: World;
   onExplore: () => void;
+  onBag: () => void;
   onRest: () => void;
 }) {
   const clock = world.getClock();
-  const party = world.getPartyCondition();
   return (
     <Place area="ALDEN" title="アルデン村">
       <p className="clock" data-testid="world-clock">
         {clock.worldYear}年目 {clock.worldDay}日目
       </p>
-      <p className="party" data-testid="party-condition">
-        {Object.entries(party).map(([id, row]) => (
-          <span key={id} data-testid={`party-${id}`}>
-            {id} HP {row.currentHp}/{row.maxHp} MP {row.currentMp}/{row.maxMp}
-          </span>
-        ))}
-      </p>
+      <StatusPanel world={world} />
       <p className="purse" data-testid="lumi">
         LUMI {world.getLumi()}
       </p>
       <div className="actions">
         <button className="btn primary" data-testid="explore-button" onClick={onExplore}>
-          グリーンウッドの森へ
+          アルデン地方を探索する
+        </button>
+        <button className="btn" data-testid="bag-button" onClick={onBag}>
+          持ち物
         </button>
         <button className="btn" data-testid="rest-button" onClick={onRest}>
           休息する
+        </button>
+      </div>
+    </Place>
+  );
+}
+
+/**
+ * THE MAP — アルデン地方.
+ *
+ * This is what the shared flow table has always meant by EXPLORE: the
+ * outdoors, with the shop as "a door off the village square" and the
+ * forest as somewhere to walk to. Phase 1 pointed EXPLORE straight at
+ * the forest, which worked while there was nothing else out here and
+ * stopped working the moment there was a shop — the table says
+ * ITEM_SHOP is reached from EXPLORE, and it was right.
+ */
+export function MapScreen({
+  onShop,
+  onForest,
+  onHome,
+}: {
+  onShop: () => void;
+  onForest: () => void;
+  onHome: () => void;
+}) {
+  return (
+    <Place area="ALDEN" title="アルデン地方">
+      <div className="actions">
+        <button className="btn" data-testid="shop-button" onClick={onShop}>
+          アルデン道具屋
+        </button>
+        <button className="btn primary" data-testid="forest-button" onClick={onForest}>
+          グリーンウッドの森
+        </button>
+        <button className="btn" data-testid="back-to-village" onClick={onHome}>
+          村へもどる
         </button>
       </div>
     </Place>
@@ -158,7 +246,7 @@ export function GreenwoodScreen({
           近づく
         </button>
         <button className="btn" data-testid="leave-forest" onClick={onLeave}>
-          村へもどる
+          地方図へもどる
         </button>
       </div>
     </Place>

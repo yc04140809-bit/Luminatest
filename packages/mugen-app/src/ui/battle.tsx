@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import {
+  castMagic,
+  clearAwakeningLines,
   createBattle,
+  itemRefusalLine,
   playerAttack,
   playerDefend,
+  refuseItem,
+  useItem,
   type BattleState,
 } from '@mugen/game/battle/battleLogic';
 import { specOf } from '@mugen/game/battle/enemySpec';
 import { MOSS_RABBIT } from '@mugen/content/enemies/species';
+import { availableMagic } from '@mugen/core/magic/magic';
+import { kaosHasAwakened } from '@mugen/core/magic/awakened';
+import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
+import { itemDef } from '@mugen/content/economy/itemDefs';
 import { statsForLevels } from '@mugen/core/progression/levelStats';
 import type { AppliedReward } from '@mugen/core/progression/battleReward';
 import type { World } from '@mugen/core/world/world';
@@ -15,10 +24,11 @@ import type { World } from '@mugen/core/world/world';
  * THE FIGHT, DRIVEN BY THE SHARED CORE AND NOTHING ELSE.
  *
  * Every number on this screen comes from `@mugen/game/battle` —
- * `createBattle`, `playerAttack`, `playerDefend` — which is the same
- * code, in the same file, that the Artifact's battle runs on. There is
- * no second damage calculation, no second enemy definition and no
- * second idea of what a level is worth. What is different is only what
+ * `createBattle`, `playerAttack`, `playerDefend`, `castMagic`,
+ * `useItem` — which is the same code, in the same file, that the
+ * Artifact's battle runs on. There is no second damage calculation, no
+ * second enemy definition, no second idea of what a spell costs and no
+ * second idea of what a herb is worth. What is different is only what
  * is drawn, which is the thing an app is allowed to differ about.
  *
  * It carries the party's condition in and hands what is left back out,
@@ -34,19 +44,92 @@ export function BattleScreen({
   onWon: (final: { hp: number; mp: number }) => void;
   onLost: () => void;
 }) {
+  // The bag can change mid-fight, so this screen watches the world the
+  // same way the shell does rather than reading a stale copy.
+  useSyncExternalStore(
+    (cb) => world.subscribe(cb),
+    () => world.getVersion(),
+  );
   const [battle, setBattle] = useState<BattleState>(() =>
     createBattle(specOf(MOSS_RABBIT), undefined, {
       stats: statsForLevels(world.getLevel('hero'), world.getLevel('kaos')),
       condition: world.getBattleCondition(),
+      /**
+       * WHETHER SHE HAS WOKEN, ASKED OF THE WORLD.
+       *
+       * A creature with no awakening beat of its own — a moss rabbit —
+       * never turns magic on mid-fight, so a fight that started with
+       * it off would never have it. Whether Kaos can cast at all is a
+       * fact about the WORLD, not about the rabbit, and
+       * `kaosHasAwakened` is the core's own reading of it from what
+       * the world remembers. The Artifact asks the identical question
+       * of the identical function.
+       */
+      magicUnlocked: kaosHasAwakened(world.getKnownEvents().map((e) => e.type)),
     }),
   );
+  /**
+   * One action at a time.
+   *
+   * Spending an item writes to the save, which takes a moment, and
+   * during that moment `getItemCount` still reports the old number. A
+   * second tap inside the window would pass a refusal check made
+   * against a count that no longer exists — one herb drunk twice. The
+   * flag closes the window; it is not a spinner.
+   */
+  const [busy, setBusy] = useState(false);
   const over = battle.outcome !== 'ONGOING';
+  const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
+  const carried = world.getInventory().filter((stack) => itemDef(stack.itemId)?.use);
 
   const act = (next: BattleState) => {
     setBattle(next);
     if (next.outcome === 'VICTORY') onWon({ hp: next.playerHp, mp: next.playerMp });
     if (next.outcome === 'DEFEAT') onLost();
   };
+
+  const drink = (itemId: string) => {
+    if (busy || over) return;
+    const def = itemDef(itemId);
+    if (!def?.use) return;
+    const held = world.getItemCount(itemId);
+    // Refused HERE, before anything is spent, and by the same function
+    // that greys the button — so the reason shown and the reason it
+    // did not happen can never be two different reasons.
+    if (refuseItem(battle, def.use, held) !== null) return;
+    setBusy(true);
+    void world
+      .removeItem(itemId, 1)
+      .then((moved) => {
+        // Nothing left the bag, so nothing happens in the fight
+        // either. The alternative is a free drink.
+        if (moved > 0) act(useItem(battle, def.use!));
+      })
+      .catch(() => {})
+      .finally(() => setBusy(false));
+  };
+
+  // The awakening is a beat, not a line: it is read, then it becomes
+  // the log's one-line record. Same order as the Artifact.
+  if (battle.awakeningLines.length > 0) {
+    return (
+      <div className="screen battle" data-testid="awakening">
+        {/* A speaker and a line, the same pair the Artifact reads out. */}
+        {battle.awakeningLines.map((line, i) => (
+          <p className="line" key={i}>
+            {line.speaker ? `${line.speaker}「${line.text}」` : line.text}
+          </p>
+        ))}
+        <button
+          className="btn primary"
+          data-testid="awakening-done"
+          onClick={() => setBattle((b) => clearAwakeningLines(b))}
+        >
+          つづける
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="screen battle">
@@ -65,7 +148,7 @@ export function BattleScreen({
         <button
           className="btn primary"
           data-testid="attack-button"
-          disabled={over}
+          disabled={over || busy}
           onClick={() => act(playerAttack(battle))}
         >
           攻撃
@@ -73,11 +156,51 @@ export function BattleScreen({
         <button
           className="btn"
           data-testid="defend-button"
-          disabled={over}
+          disabled={over || busy}
           onClick={() => act(playerDefend(battle))}
         >
           防御
         </button>
+      </div>
+
+      {battle.magicUnlocked && (
+        <div className="actions magic" data-testid="magic-tray">
+          {spells.map((magic) => (
+            <button
+              className="btn"
+              key={magic.id}
+              data-testid={`magic-${magic.id}`}
+              disabled={over || busy || battle.playerMp < magic.mpCost}
+              onClick={() => act(castMagic(battle, magic))}
+            >
+              {magic.name}（MP{magic.mpCost}）
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="actions items" data-testid="battle-items">
+        {carried.length === 0 && (
+          <span className="bag-reason" data-testid="battle-items-empty">
+            使えるものを持っていない。
+          </span>
+        )}
+        {carried.map((stack) => {
+          const def = itemDef(stack.itemId)!;
+          const refusal = refuseItem(battle, def.use!, stack.quantity);
+          return (
+            <button
+              className="btn"
+              key={stack.itemId}
+              data-testid={`battle-item-${stack.itemId}`}
+              title={refusal ? itemRefusalLine(refusal, def.name) : undefined}
+              disabled={busy || refusal !== null}
+              onClick={() => drink(stack.itemId)}
+            >
+              {def.name} ×{stack.quantity}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

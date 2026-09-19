@@ -69,3 +69,33 @@ body {
 }
 .btn.primary { border-color: var(--gold); color: var(--gold); }
 .btn:disabled { opacity: 0.45; }
+
+/* THE BAG, THE BOARD AND THE NUMBERS.
+   One row per thing, readable at phone width: the name and the count
+   on the first line, what it is and whether it can be used under it. */
+.bag-list,
+.shop-list { list-style: none; margin: 10px 0; padding: 0; width: 100%; }
+.bag-row,
+.shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.bag-name,
+.shop-name { font-size: 15px; }
+.bag-count,
+.shop-price,
+.shop-held { color: var(--gold); font-size: 13px; }
+.bag-category { color: var(--dim); font-size: 12px; }
+.bag-desc,
+.shop-desc { flex-basis: 100%; color: var(--dim); font-size: 12px; line-height: 1.6; }
+.bag-reason { color: var(--dim); font-size: 12px; }
+.say { margin: 10px 0 0; font-size: 13px; color: var(--gold); }
+.status { margin: 6px 0; width: 100%; }
+.status-row { margin: 2px 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
+.actions.magic .btn,
+.actions.items .btn { min-width: 0; font-size: 13px; }
