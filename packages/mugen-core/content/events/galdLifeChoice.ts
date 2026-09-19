@@ -15,6 +15,28 @@ import type { CharacterState } from '../../core/characters/types';
  */
 export const GALD_LIFE_CHOICE_EVENT_ID = 'evt_gald_first_encounter_life_choice';
 
+/**
+ * THE ONE LOOK AHEAD, AND THE FACT THAT IT HAS BEEN TAKEN.
+ *
+ * Kaos shows the player the far end of the decision they have just
+ * made, once. What she shows them is not something that happened —
+ * the world's clock does not move and nothing enters WORLD MEMORY —
+ * so there is no event to record and nothing here is world canon.
+ *
+ * What DOES have to be remembered is that they have seen it, or a
+ * restart would replay it. That goes in the existing "experiences the
+ * player has met" set, which is a plain list of ids, already
+ * persisted, and reads as empty on a save written before this existed
+ * — which is exactly the right default. It is deliberately NOT
+ * `WORLD_TIME_SHIFTED`: that means three years actually passed, and
+ * here they did not.
+ */
+export const GALD_FUTURE_VISION_ID = 'evt_kaos_future_vision';
+
+/** How far ahead she looks. Content already fixes it: every one of
+ *  Gald's reunion chapters opens with 「三年後。」. */
+export const GALD_FUTURE_VISION_YEARS = 3;
+
 export const GALD_LIFE_CHOICE_EVENT_TYPE: Record<LifeChoiceId, GaldLifeChoiceEventType> = {
   KILL: 'PLAYER_KILLED_GALD',
   SPARE: 'PLAYER_SPARED_GALD',

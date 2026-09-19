@@ -46,8 +46,8 @@ async function intoTheVillage(page: Page) {
 async function decideGald(
   page: Page,
   answer: 'SPARE' | 'KILL' | 'HELP' | 'CAPTURE' = 'SPARE',
-  /** 'LOOK' takes the years and stays on the aftermath screen. */
-  timeShift: 'STAY' | 'GO' | 'LOOK' = 'STAY',
+  /** 'LOOK' stops inside the vision, where its words can be read. */
+  vision: 'CLOSE' | 'LOOK' = 'CLOSE',
 ) {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
@@ -69,21 +69,17 @@ async function decideGald(
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
   await page.getByTestId(`choice-${answer}`).click();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('time-shift-confirm').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }
-  await expect(page.getByTestId('time-shift-confirm')).toBeVisible();
-  if (timeShift === 'STAY') {
-    await page.getByTestId('time-shift-stay').click();
-    await expect(page.getByTestId('world-clock')).toBeVisible();
-    return;
-  }
-  await page.getByTestId('time-shift-go').click();
-  await expect(page.getByTestId('time-shift-done')).toBeVisible({ timeout: 20_000 });
-  // 'LOOK' leaves them standing in the aftermath, which is the only
-  // place the words can be read.
-  if (timeShift === 'LOOK') return;
-  await page.getByTestId('time-shift-return').click();
+  // The scene ends in the one look ahead. There is no longer anything
+  // to accept or decline — the decision was the four answers, and this
+  // is Kaos showing where it goes.
+  await expect(page.getByTestId('future-vision')).toBeVisible();
+  // 'LOOK' leaves them standing in it, which is the only place the
+  // words can be read.
+  if (vision === 'LOOK') return;
+  await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 
@@ -110,7 +106,7 @@ test('a decision is remembered, with the fields a record needs', async ({ page }
   await expect(page.getByTestId('memory-empty')).toBeVisible();
   await page.getByTestId('memory-back').click();
 
-  await decideGald(page, 'SPARE', 'STAY');
+  await decideGald(page, 'SPARE');
 
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-count')).toHaveText('1 件');
@@ -127,7 +123,7 @@ test('a decision is remembered, with the fields a record needs', async ({ page }
 test('the archive holds one chapter and admits there is more', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  await decideGald(page, 'SPARE', 'STAY');
+  await decideGald(page, 'SPARE');
 
   await page.getByTestId('archive-button').click();
   // HE IS STILL 「盗賊」 — a man they fought, not a man they know. The
@@ -151,7 +147,7 @@ test('going to the place is what turns his life into something known', async ({ 
   // no TIME SHIFT anywhere in it, the world getting on with his life
   // one night at a time. It stays because the game must not require
   // the shift to reach his future.
-  await decideGald(page, 'SPARE', 'STAY');
+  await decideGald(page, 'SPARE');
 
   // THE WORLD GETS ON WITH IT OFF SCREEN. He leaves the bandits on day
   // 4, reaches Alden on 34 and is baking by 94 — none of which the
@@ -208,7 +204,7 @@ test('going to the place is what turns his life into something known', async ({ 
 test('nights counted through the UI are never lost or doubled', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  await decideGald(page, 'SPARE', 'STAY');
+  await decideGald(page, 'SPARE');
 
   /**
    * THE CLOCK IS THE ASSERTION.
@@ -241,81 +237,88 @@ test('nights counted through the UI are never lost or doubled', async ({ page })
   await expect(page.getByTestId('memory-GALD_LEAVES_BANDITS')).toHaveCount(0);
 });
 
-test('taking the three years reaches the same life, without the ninety nights', async ({ page }) => {
+test('the look ahead costs the world nothing', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  // THE STORY ROUTE. Kaos offers it once, at the end of the scene in
-  // which his life was decided, and this is the player saying yes.
-  await decideGald(page, 'SPARE', 'GO');
+  const before = await page.getByTestId('world-clock').textContent();
+  await decideGald(page, 'SPARE');
 
-  // THREE YEARS, IN THE WORLD AND NOT ONLY ON SCREEN.
-  await expect(page.getByTestId('world-clock')).toHaveText(/4年目/);
+  // NOT A DAY PASSED. She showed them three years; the world stayed
+  // where it was, which is the whole of the new design.
+  await expect(page.getByTestId('world-clock')).toHaveText(before!);
 
-  // AND STILL NOTHING IS GIVEN AWAY. The bakery exists now, but they
-  // have not been to it, so his life is not theirs to read yet.
+  // AND NOTHING SHE SHOWED WAS WRITTEN DOWN. Their own decision is the
+  // only thing the world remembers — no shift, and none of his future.
   await page.getByTestId('memory-button').click();
-  // TWO, and the second is the shift itself: the player plainly knows
-  // that time passed, so `WORLD_TIME_SHIFTED` is always theirs. What
-  // they still do not know is what he did with those years.
-  await expect(page.getByTestId('memory-count')).toHaveText('2 件');
-  await expect(page.getByTestId('memory-WORLD_TIME_SHIFTED')).toBeVisible();
+  await expect(page.getByTestId('memory-count')).toHaveText('1 件');
+  await expect(page.getByTestId('memory-PLAYER_SPARED_GALD')).toBeVisible();
+  await expect(page.getByTestId('memory-WORLD_TIME_SHIFTED')).toHaveCount(0);
   await expect(page.getByTestId('memory-GALD_BECOMES_BAKER')).toHaveCount(0);
   await expect(page.getByTestId('memory-GALD_LEAVES_BANDITS')).toHaveCount(0);
   await page.getByTestId('memory-back').click();
 
-  // The place is open, and going to it is what tells them.
+  // The bakery is still years away, because those years did not happen.
   await page.getByTestId('explore-button').click();
-  await page.getByTestId('places-button').click();
-  await page.getByTestId('future-site-ALDEN_BAKERY').click();
-  await expect(page.getByTestId('future-site-seen')).toBeVisible();
-  await page.getByTestId('future-site-done').click();
-  await page.getByTestId('back-to-village').click();
-
-  await page.getByTestId('memory-button').click();
-  await expect(page.getByTestId('memory-GALD_BECOMES_BAKER')).toBeVisible();
-  await expect(page.getByTestId('memory-PLAYER_REUNITED_WITH_GALD')).toBeVisible();
+  await expect(page.getByTestId('places-button')).toHaveCount(0);
 });
 
-test('she offers it once, and never again once time has moved', async ({ page }) => {
+test('what she shows is the route the player chose', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  await decideGald(page, 'SPARE', 'GO');
+  await decideGald(page, 'SPARE', 'LOOK');
+  // His life on THIS route, in the words WORLD MEMORY would use if it
+  // ever did happen.
+  await expect(page.getByTestId('vision-GALD_LEAVES_BANDITS')).toBeVisible();
+  await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toBeVisible();
+  await expect(page.getByTestId('future-vision-list')).toContainText('パン屋として生き始めた');
+  // And not another route's.
+  await expect(page.getByTestId('vision-GALD_IS_BURIED')).toHaveCount(0);
+});
+
+test('an unfinished look is owed again after a restart', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  // Stop INSIDE the vision and close the app — the case that used to
+  // lose the scene entirely.
+  await decideGald(page, 'SPARE', 'LOOK');
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+
+  // It comes back, and the four answers are NOT asked again.
+  await expect(page.getByTestId('future-vision')).toBeVisible();
+  await expect(page.getByTestId('life-choice-screen')).toHaveCount(0);
+
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+});
+
+test('and once finished it never returns', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await decideGald(page, 'SPARE');
   const day = await page.getByTestId('world-clock').textContent();
 
-  // A RESTART MUST NOT REPLAY IT. The guard is the world's own
-  // WORLD_TIME_SHIFTED, so it survives being closed and opened.
   await page.reload();
   await page.getByTestId('continue-button').click();
   if (await page.getByTestId('back-to-village').isVisible().catch(() => false)) {
     await page.getByTestId('back-to-village').click();
   }
-  await expect(page.getByTestId('time-shift-confirm')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision')).toHaveCount(0);
   await expect(page.getByTestId('world-clock')).toHaveText(day!);
-});
-
-test('declining costs nothing: not a day passes', async ({ page }) => {
-  await freshApp(page);
-  await intoTheVillage(page);
-  const before = await page.getByTestId('world-clock').textContent();
-  await decideGald(page, 'SPARE', 'STAY');
-  // HER OFFER IS AN OFFER. Saying no leaves the world exactly where
-  // it was — the fight took no time, and neither did refusing.
-  await expect(page.getByTestId('world-clock')).toHaveText(before!);
 });
 
 test('the line about him moving is not said over his grave', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  // KILL. He is buried thirty days later and somebody tends the stones
-  // three hundred after that — his story continues, but he does not.
+  // KILL. His story continues — somebody tends the stones — but he
+  // does not.
   await decideGald(page, 'KILL', 'LOOK');
 
-  // The route-neutral words are still said: time passed, and other
-  // people went on living. That is true over a grave.
-  await expect(page.getByTestId('time-shift-years')).toHaveText('――3年後。');
+  await expect(page.getByTestId('future-vision-years')).toHaveText('――3年後。');
+  await expect(page.getByTestId('vision-GALD_IS_BURIED')).toBeVisible();
   // HE IS NOT SAID TO BE OUT THERE.
-  await expect(page.getByTestId('time-shift-guidance')).toHaveCount(0);
-  await expect(page.getByTestId('time-shift-done')).not.toContainText('どこかで動いてる');
+  await expect(page.getByTestId('future-vision-guidance')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision')).not.toContainText('どこかで動いてる');
 });
 
 test('and it IS said where he is alive', async ({ page }) => {
@@ -324,6 +327,6 @@ test('and it IS said where he is alive', async ({ page }) => {
   await decideGald(page, 'SPARE', 'LOOK');
   // The same beat, on a route where he lives, keeps the line — so the
   // KILL case above is a deliberate omission and not a broken screen.
-  await expect(page.getByTestId('time-shift-guidance')).toBeVisible();
-  await expect(page.getByTestId('time-shift-done')).toContainText('どこかで動いてる');
+  await expect(page.getByTestId('future-vision-guidance')).toBeVisible();
+  await expect(page.getByTestId('future-vision')).toContainText('どこかで動いてる');
 });

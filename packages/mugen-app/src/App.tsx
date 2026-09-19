@@ -24,7 +24,11 @@ import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
-import { TimeShiftScreen } from './ui/timeShift';
+import { FutureVisionScreen } from './ui/futureVision';
+import {
+  GALD_FUTURE_VISION_ID,
+  GALD_FUTURE_VISION_YEARS,
+} from '@mugen/content/events/galdLifeChoice';
 import { BattleScreen, ResultScreen } from './ui/battle';
 
 /**
@@ -154,6 +158,25 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const story = useRef(false);
 
   /**
+   * IS THE ONE LOOK AHEAD STILL OWED?
+   *
+   * Three states, and all three are read from the world rather than
+   * remembered here, so a restart answers the same question:
+   *
+   *   A  the four answers are not decided  → nothing owed
+   *   B  decided, vision not finished      → owed
+   *   C  vision finished                   → never again
+   *
+   * C is NOT `WORLD_TIME_SHIFTED`: that would mean three years really
+   * passed, and in this design they do not. It is the existing
+   * "experiences the player has met" set — already saved, already a
+   * plain list of ids, and empty on a save written before this, which
+   * is the right default.
+   */
+  const visionOwed = () =>
+    world.getGaldLifeChoice() !== null && !world.hasSeenExperience(GALD_FUTURE_VISION_ID);
+
+  /**
    * ONE NIGHT AT A TIME.
    *
    * `advanceDay` is not re-entrant: it reads the clock, works out
@@ -212,8 +235,15 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onContinue={() => {
             if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
             flow.goTo('HOME');
-            // Back where they were: the one thing 「つづきから」 owes
-            // beyond the world itself.
+            // AN UNFINISHED LOOK AHEAD IS RESUMED, and it comes first:
+            // the four answers are already saved, so the player is
+            // never asked to decide again — only to finish seeing.
+            if (visionOwed()) {
+              flow.goTo('TIME_SHIFT');
+              return;
+            }
+            // Otherwise, back where they were: the one thing
+            // 「つづきから」 owes beyond the world itself.
             if (world.getResumeArea() === 'EXPLORE') flow.goTo('EXPLORE');
           }}
         />
@@ -317,39 +347,35 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           choice={state.galdLifeChoice ?? 'SPARE'}
           onHome={() => {
             /**
-             * THE OFFER IS THE TAIL OF THIS SCENE, not a thing the
-             * village does. Kaos raises it once, here, where the
-             * player has just decided what becomes of a man — which
-             * is the only reason the offer means anything.
+             * THE LOOK AHEAD IS THE TAIL OF THIS SCENE.
              *
-             * The condition is read from the world rather than
-             * remembered: a shift has happened or it has not, and
-             * `WORLD_TIME_SHIFTED` says which. That survives a
-             * restart and cannot fire twice.
-             *
-             * CHOICE_RESULT cannot reach TIME_SHIFT directly — the
-             * shared table routes it through HOME, which is also
-             * where declining leaves them.
+             * One story sequence: the fight, the four answers, the
+             * write to WORLD MEMORY, and then — with no village and no
+             * free action in between — Kaos showing them where it
+             * ends. CHOICE_RESULT cannot reach that screen directly,
+             * so the shared table routes it through HOME; both moves
+             * happen in one handler, so HOME is never drawn.
              */
             flow.goTo('HOME');
-            if (!world.hasEventOfType('WORLD_TIME_SHIFTED')) flow.goTo('TIME_SHIFT');
+            if (visionOwed()) flow.goTo('TIME_SHIFT');
           }}
         />
       );
     case 'TIME_SHIFT':
       return (
-        <TimeShiftScreen
+        <FutureVisionScreen
           choice={world.getGaldLifeChoice()}
-          onConfirm={async () => {
-            // The world moves first. The screen only advances once
-            // this resolves, so the view can never be three years
-            // ahead of the save.
-            await world.timeShift(3);
+          // PURE. Reads the chain forward from a date this world has
+          // not reached and commits nothing.
+          future={world.previewLifeEvents(GALD_FUTURE_VISION_YEARS)}
+          onDone={() => {
+            // Marked seen only now, and the screen waits for the write
+            // before leaving: closing the app mid-vision leaves it owed.
+            void world
+              .markExperienceSeen(GALD_FUTURE_VISION_ID)
+              .catch((e) => console.error('Could not remember the vision', e))
+              .finally(() => flow.goTo('HOME'));
           }}
-          // 「まだ残る」 passes no time at all and writes nothing.
-          onStay={() => flow.goTo('HOME')}
-          onExplore={() => flow.goTo('EXPLORE')}
-          onHome={() => flow.goTo('HOME')}
         />
       );
     case 'BATTLE_RESULT':

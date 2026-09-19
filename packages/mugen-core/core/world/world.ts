@@ -35,8 +35,7 @@ import {
   type RowHealth,
 } from './saveRead';
 import type { CharacterState } from '../characters/types';
-import type { LifeEventDef } from '../events/types';
-import { findDueLifeEvents } from '../events/eventEngine';
+import { resolveDueLifeEvents, type ResolvedLifeEvent } from '../events/eventEngine';
 import { buildGaldLifeArchive, type LifeArchiveEntry } from '../archive/lifeArchive';
 import {
   type WorldClock,
@@ -44,7 +43,6 @@ import {
   addDays,
   addYears,
   toAbsoluteDay,
-  fromAbsoluteDay,
 } from '../time/calendar';
 import {
   GALD_LIFE_CHOICE_EVENT_ID,
@@ -262,6 +260,13 @@ const CONDITION_KEY = 'party_condition';
 
 const SESSION_KEY = 'session';
 
+/**
+ * The `createdAt` on a previewed event. Previews are not moments in
+ * anybody's day, and a real timestamp would make the same look
+ * different every time it was taken.
+ */
+const PREVIEW_TIMESTAMP = '';
+
 export type ResumeArea = 'HOME' | 'EXPLORE';
 
 /** Where a screen puts the player back, if the game stops here. */
@@ -346,11 +351,6 @@ const INITIAL_CHARACTERS: Record<string, CharacterState> = {
   LINA: INITIAL_LINA_STATE,
   BAKERY_OWNER: INITIAL_BAKERY_OWNER_STATE,
 };
-
-interface ResolvedLifeEvent {
-  event: MemoryEvent;
-  def: LifeEventDef;
-}
 
 /** A future site that world truth has put on the map, and whether the
  *  player has actually been there. */
@@ -1043,6 +1043,32 @@ export class World {
     );
   }
 
+  /**
+   * WHAT WOULD BECOME OF HIM, WITHOUT LIVING THROUGH IT.
+   *
+   * A pure look ahead: the same chain resolver the clock uses, run
+   * against a date this world has not reached, returning the events
+   * that WOULD follow. Nothing is committed, no clock moves, no
+   * character ages and nothing enters WORLD MEMORY — calling this
+   * twice returns the same answer and changes nothing either time.
+   *
+   * It exists for the one scene that shows a player the far end of the
+   * decision they just made. What comes back is a picture, not a fact:
+   * it must never be written down as something that happened, because
+   * in this world it has not.
+   */
+  previewLifeEvents(years: number): MemoryEvent[] {
+    if (!Number.isInteger(years) || years <= 0) return [];
+    return resolveDueLifeEvents(
+      LIFE_EVENT_DEFS,
+      this.events,
+      addYears(this.clock, years),
+      // A fixed stamp: a preview is not a moment, and handing back
+      // `new Date()` would make two identical looks compare unequal.
+      () => PREVIEW_TIMESTAMP,
+    ).map((r) => r.event);
+  }
+
   /** Whether the player has been to this particular place. */
   hasDiscoveredSite(siteId: string): boolean {
     const def = futureSiteDef(siteId);
@@ -1224,33 +1250,7 @@ export class World {
    * swallows in-between history.
    */
   private resolveLifeEvents(atClock: WorldClock): ResolvedLifeEvent[] {
-    const all = [...this.events];
-    const resolved: ResolvedLifeEvent[] = [];
-    const maxPasses = LIFE_EVENT_DEFS.length + 1;
-    for (let pass = 0; pass < maxPasses; pass++) {
-      const due = findDueLifeEvents(LIFE_EVENT_DEFS, all, atClock);
-      if (due.length === 0) break;
-      for (const { def, cause } of due) {
-        const dueAbsolute =
-          toAbsoluteDay({ worldYear: cause.worldYear, worldDay: cause.worldDay }) +
-          def.minElapsedDays;
-        const recordedAt = fromAbsoluteDay(Math.min(dueAbsolute, toAbsoluteDay(atClock)));
-        const event: MemoryEvent = {
-          id: def.eventId,
-          type: def.type,
-          worldYear: recordedAt.worldYear,
-          worldDay: recordedAt.worldDay,
-          location: def.location,
-          actors: [...def.actors],
-          importance: def.importance,
-          createdAt: new Date().toISOString(),
-          causedBy: [def.requiredMemory],
-        };
-        all.push(event);
-        resolved.push({ event, def });
-      }
-    }
-    return resolved;
+    return resolveDueLifeEvents(LIFE_EVENT_DEFS, this.events, atClock);
   }
 
   /** Applies life-event character effects; returns the new map + changed ids. */
