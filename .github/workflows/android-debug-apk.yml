@@ -69,9 +69,31 @@ jobs:
 
       - name: Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # `packages` の既定値は `tools platform-tools` だが、`tools` は
+          # 廃止済みで cmdline-tools 16 のリポジトリには存在しない。
+          # action はそれを入れようとして
+          #   Warning: Failed to find package 'tools'
+          #   Error: sdkmanager failed with exit code 1
+          # で落ちる。ここではライセンス承諾だけを任せ、必要なものは
+          # 次の step で明示的に入れる。
+          packages: ''
 
+      # AGP 8.13 / compileSdk 36 に必要な2つだけ。バージョンを固定するのは、
+      # 取得に失敗したときログにパッケージ名がそのまま出るようにするため。
       - name: SDK packages
-        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort -r | head -n1)"
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $SDK"
+            exit 1
+          fi
+          echo "using $SDKMANAGER"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
 
       # ゲーム本体。Web版とまったく同じビルドで、Android専用の作り直しはしない。
       - name: Build the web game
