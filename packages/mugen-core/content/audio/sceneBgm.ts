@@ -128,28 +128,51 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
       return 'GREENWOOD_FOREST';
 
     // A PLACE. Which place decides, because 月光亭 is not the street.
-    // The shop is a room off the village square and sounds like the
-    // village, the same as the archive and the memory book do.
-    case 'ITEM_SHOP':
-      return 'ALDEN_VILLAGE';
     case 'TALK_SPOT':
     case 'FUTURE_SITE':
       if (locationId === 'MOONLIGHT_TAVERN') return 'TAVERN';
       return locationId && IN_THE_FOREST.has(locationId) ? 'GREENWOOD_FOREST' : 'ALDEN_VILLAGE';
 
-    // ALDEN, and every room the player reads in. These are all doors
-    // off the same village square — the memory book, the archive, the
-    // settings — and a player who opens one has not gone anywhere.
+    /**
+     * STANDING IN ALDEN, and every page read from there.
+     *
+     * The village screen has a piece of its own now. What made that
+     * worth a second recording is that HOME is not somewhere the
+     * player passes through: it is where they are between one thing
+     * and the next, reading the clock, the party, the bag, the book.
+     *
+     * AND EVERY ONE OF THOSE PAGES IS THE SAME PIECE, which is the
+     * point rather than an economy. Opening the bag is not going
+     * anywhere, so the music must not notice: one id across the whole
+     * group means `playBgm` is handed what is already playing and
+     * refuses it, and nothing stops, restarts or crossfades because a
+     * thumb opened a menu.
+     */
     case 'HOME':
-    case 'EXPLORE':
     case 'WORLD_NEWS':
     case 'WORLD_MEMORY':
-    case 'TIME_SHIFT':
     case 'ARCHIVE':
     case 'ARCANA':
     // The bag is a pocket of the village, the same as the book is.
     case 'BAG':
     case 'SETTINGS':
+      return 'ALDEN_HOME';
+
+    /**
+     * ALDEN AS A PLACE TO WALK, which is a different thing.
+     *
+     * 探索する is going somewhere — the map of the region, and the shop
+     * that opens off its square — so it keeps the village's walking
+     * music and the change of piece is the change of activity.
+     *
+     * TIME_SHIFT stays here deliberately. In the Artifact it is the
+     * developer's year-skipper, which is not a room in the village and
+     * should not sound like one; in the App it is Kaos's one look
+     * ahead. Neither wants the home piece starting under it.
+     */
+    case 'EXPLORE':
+    case 'ITEM_SHOP':
+    case 'TIME_SHIFT':
       return 'ALDEN_VILLAGE';
 
     // NOT THE GAME. The ending has no piece of its own yet and the

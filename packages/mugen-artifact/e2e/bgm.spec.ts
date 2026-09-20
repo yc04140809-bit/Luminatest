@@ -131,7 +131,7 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(REGISTER);
 });
 
-test('the six scenes, each with its own music', async ({ page }) => {
+test('the seven scenes, each with its own music', async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto('/');
 
@@ -153,13 +153,18 @@ test('the six scenes, each with its own music', async ({ page }) => {
   await expect(kaos).toBeVisible();
   await expectPlaying(page, 'kaos-event.mp3');
 
-  // 3. ALDEN — home, and every room off it.
+  // 3. ALDEN, STOOD IN — the village screen has a piece of its own.
   for (let i = 0; i < 6; i++) await kaos.click().catch(() => {});
   await expect(page.getByTestId('explore-button')).toBeVisible({ timeout: 20_000 });
+  await expectPlaying(page, 'alden-home.mp3');
+
+  // 4. ALDEN, WALKED — going somewhere is a different piece from
+  //    standing still, and that is the whole reason there are two.
+  await page.getByTestId('explore-button').click();
+  await expect(page.getByTestId('location-MOONLIGHT_TAVERN')).toBeVisible({ timeout: 20_000 });
   await expectPlaying(page, 'alden-village.mp3');
 
-  // 4. THE TAVERN — the one room in Alden with a different air.
-  await page.getByTestId('explore-button').click();
+  // 5. THE TAVERN — the one room in Alden with a different air.
   await page.getByTestId('location-MOONLIGHT_TAVERN').click();
   await expectPlaying(page, 'tavern.mp3');
 
@@ -181,10 +186,66 @@ test('the six scenes, each with its own music', async ({ page }) => {
   await leave.click();
   await expectPlaying(page, 'alden-village.mp3');
 
-  // 5. THE FOREST.
+  // 6. THE FOREST.
   await page.getByTestId('location-GREENWOOD_FOREST').click();
   await expect(page.locator('.phaser-wrap canvas')).toBeVisible({ timeout: 20_000 });
   await expectPlaying(page, 'greenwood-forest.mp3');
+});
+
+/**
+ * A MENU IS NOT A PLACE.
+ *
+ * The village screen got a piece of its own so that HOME would not be
+ * silent after the theme — and the moment there are two village
+ * pieces, the interesting question is not whether the new one plays
+ * but whether the OLD one comes back every time a thumb opens
+ * something. 持ち物, 人生の記録, 世界の記憶 and 設定 are pages read
+ * while standing in Alden, not journeys out of it.
+ *
+ * Counted by ELEMENTS CONSTRUCTED rather than by what is audible: a
+ * stop and an identical restart sound almost the same and are not the
+ * same, and the count is the thing that tells them apart.
+ */
+test('opening a menu does not restart the village', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click().catch(() => {});
+  await expect(page.getByTestId('explore-button')).toBeVisible({ timeout: 20_000 });
+  await expectPlaying(page, 'alden-home.mp3');
+
+  const before = (await made(page)).length;
+
+  // Four pages, opened and closed. None of them is going anywhere.
+  // The bag's way out is the footer button, which has no id of its own.
+  const pages: [string, string | null][] = [
+    ['bag-button', null],
+    ['archive-button', 'archive-back'],
+    ['world-memory-button', 'world-memory-back'],
+    ['settings-button', 'settings-back'],
+  ];
+  for (const [open, close] of pages) {
+    await page.getByTestId(open).click();
+    await page.waitForTimeout(900);
+    expect(await playing(page), `${open} must not change the music`).toBe('alden-home.mp3');
+    if (close) await page.getByTestId(close).click();
+    else await page.locator('.screen-footer .btn').first().click();
+    await expect(page.getByTestId('explore-button')).toBeVisible({ timeout: 20_000 });
+  }
+
+  expect(
+    (await made(page)).length,
+    'not one new element: the village never stopped',
+  ).toBe(before);
+  expect(await playing(page)).toBe('alden-home.mp3');
+
+  // And walking out DOES change it, or the two pieces would be one.
+  await page.getByTestId('explore-button').click();
+  await expectPlaying(page, 'alden-village.mp3');
+  await page.locator('.screen-footer .btn').first().click();
+  await expectPlaying(page, 'alden-home.mp3');
 });
 
 test('a fight takes the music, and gives it back', async ({ page }) => {

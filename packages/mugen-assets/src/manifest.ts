@@ -39,6 +39,7 @@ import aldenTavern from '../files/backgrounds/location-alden-tavern.webp';
 // are never rewritten, resampled or overwritten.
 import bgmOpening from '../files/audio/bgm/opening.mp3';
 import bgmKaosEvent from '../files/audio/bgm/kaos-event.mp3';
+import bgmAldenHome from '../files/audio/bgm/alden-home.mp3';
 import bgmAldenVillage from '../files/audio/bgm/alden-village.mp3';
 import bgmTavern from '../files/audio/bgm/tavern.mp3';
 import bgmGreenwoodForest from '../files/audio/bgm/greenwood-forest.mp3';
@@ -300,7 +301,7 @@ export const TITLE_KEY_VISUAL: string = titleKaosKeyVisual;
  * content/audio/sceneBgm.ts, not in a filename. Renaming a file must
  * never mean touching a screen.
  *
- * All six slots are null while no audio is bundled, and AudioManager
+ * Every slot is null while no audio is bundled, and AudioManager
  * treats a null slot as SILENCE rather than as an error: every screen
  * asks for its music exactly as it will when the files are here, the
  * asking is real, and the game is simply quiet. Dropping the finished
@@ -318,7 +319,16 @@ export type BgmId =
   | 'OPENING'
   /** Kaos, talking — the prologue introduction and the life choices. */
   | 'KAOS_EVENT'
-  /** Alden, and every room of it the player reads in. */
+  /**
+   * THE VILLAGE AS A PLACE TO STAND, and every page read from it.
+   *
+   * Where the player actually lives between one thing and the next:
+   * the clock, the party, the bag, the book, the record, the
+   * settings. Opening any of those is not going anywhere, so they all
+   * sound the same and the music never restarts under a thumb.
+   */
+  | 'ALDEN_HOME'
+  /** Alden as a place to WALK: the map, and the shop off its square. */
   | 'ALDEN_VILLAGE'
   /** 月光亭 — the one room in Alden with a different air. */
   | 'TAVERN'
@@ -332,6 +342,7 @@ export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 export const BGM_ASSETS: Record<BgmId, string | null> = {
   OPENING: bgmOpening,
   KAOS_EVENT: bgmKaosEvent,
+  ALDEN_HOME: bgmAldenHome,
   ALDEN_VILLAGE: bgmAldenVillage,
   TAVERN: bgmTavern,
   GREENWOOD_FOREST: bgmGreenwoodForest,

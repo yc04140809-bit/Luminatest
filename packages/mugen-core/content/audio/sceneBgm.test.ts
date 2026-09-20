@@ -44,17 +44,31 @@ describe('the six scenes, by name', () => {
     expect(bgmForScene(at('PROLOGUE', { kaosSpeaking: true }))).toBe('KAOS_EVENT');
   });
 
-  it('is the village at home, and in every room off it', () => {
+  /**
+   * THE WHOLE POINT OF THE SECOND VILLAGE PIECE.
+   *
+   * HOME and every page read from it are ONE id, so that opening the
+   * bag or the book hands `playBgm` what is already playing and it
+   * refuses. If any of these ever answered differently, a thumb on a
+   * menu would stop the music and start it again.
+   */
+  it('is the home piece at home, and on every page read from there', () => {
     for (const screen of [
       'HOME',
-      'EXPLORE',
       'WORLD_NEWS',
       'WORLD_MEMORY',
-      'TIME_SHIFT',
       'ARCHIVE',
       'ARCANA',
+      'BAG',
       'SETTINGS',
     ] as const) {
+      expect(bgmForScene(at(screen)), screen).toBe('ALDEN_HOME');
+    }
+  });
+
+  /** And walking out of it is a change of activity, so a change of piece. */
+  it('is the walking piece on the map and in the shop', () => {
+    for (const screen of ['EXPLORE', 'ITEM_SHOP', 'TIME_SHIFT'] as const) {
       expect(bgmForScene(at(screen)), screen).toBe('ALDEN_VILLAGE');
     }
   });
@@ -137,13 +151,14 @@ describe('the mapping as a whole', () => {
     expect(bgmForScene(cue)).toBe(bgmForScene(cue));
   });
 
-  /** Every one of the six is reachable; none is a name with no scene. */
-  it('uses all six pieces', () => {
+  /** Every one of the seven is reachable; none is a name with no scene. */
+  it('uses all seven pieces', () => {
     const reached = new Set(
       [
         at('PROLOGUE'),
         at('PROLOGUE', { kaosSpeaking: true }),
         at('HOME'),
+        at('EXPLORE'),
         at('TALK_SPOT', { locationId: 'MOONLIGHT_TAVERN' }),
         at('GREENWOOD'),
         at('BATTLE'),
@@ -176,7 +191,7 @@ describe('what is playing after a fight', () => {
 
   it('is the village again, for a fight walked out of into the village', () => {
     expect(bgmForScene(at('BATTLE'))).toBe('NORMAL_BATTLE');
-    expect(bgmForScene(at('HOME'))).toBe('ALDEN_VILLAGE');
+    expect(bgmForScene(at('HOME'))).toBe('ALDEN_HOME');
   });
 
   it('is the tavern again, for somebody who was in the tavern', () => {
@@ -190,7 +205,7 @@ describe('what is playing after a fight', () => {
   it('is whatever the room is, after one of her scenes', () => {
     expect(bgmForScene(at('LIFE_CHOICE'))).toBe('KAOS_EVENT');
     expect(bgmForScene(at('CHOICE_RESULT'))).toBe('KAOS_EVENT');
-    expect(bgmForScene(at('HOME'))).toBe('ALDEN_VILLAGE');
+    expect(bgmForScene(at('HOME'))).toBe('ALDEN_HOME');
     expect(bgmForScene(at('GREENWOOD'))).toBe('GREENWOOD_FOREST');
   });
 });
@@ -220,7 +235,7 @@ describe('the piece a fight is fought to', () => {
   it('changes nothing outside a fight', () => {
     const chosen = { battleBgmId: DEFAULT_BATTLE_BGM } as const;
     expect(bgmForScene(at('GREENWOOD', chosen))).toBe('GREENWOOD_FOREST');
-    expect(bgmForScene(at('HOME', chosen))).toBe('ALDEN_VILLAGE');
+    expect(bgmForScene(at('HOME', chosen))).toBe('ALDEN_HOME');
     expect(bgmForScene(at('TALK_SPOT', { ...chosen, locationId: 'MOONLIGHT_TAVERN' }))).toBe(
       'TAVERN',
     );
