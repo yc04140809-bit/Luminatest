@@ -42,6 +42,7 @@ import { useSceneBgm } from './ui/audio/useSceneBgm';
 import { battleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
 import { battleBgmLabel, nextBattleBgm } from '@mugen/content/audio/battleBgm';
 import { setHapticEnabled } from './platform/haptics';
+import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import { PlaytestFeedbackService, isSurveyAvailable } from '@mugen/core/playtest/playtestService';
 import { IdbFeedbackStore } from '@mugen/core/playtest/idbFeedbackStore';
 import { startNewPlaySession } from '@mugen/core/playtest/playSession';
@@ -224,6 +225,9 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
   // on the way out, instead of interrupting three turns in a row.
   const pendingArcana = useRef<Set<ArcanaConditionId>>(new Set());
   const [arcanaGain, setArcanaGain] = useState<ArcanaGain | null>(null);
+  // Android's back button, asked at the title. Never true on the web:
+  // nothing there can set it.
+  const [confirmingExit, setConfirmingExit] = useState(false);
   const noteArcana = useCallback((id: ArcanaConditionId) => {
     pendingArcana.current.add(id);
   }, []);
@@ -310,6 +314,22 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
   }, [state.screen, world]);
 
   /**
+   * Awaitable, because ANDROID HAS A THIRD WAY OUT.
+   *
+   * `pagehide` and `visibilitychange` are the browser's two, and both
+   * are fire-and-forget: the page is already going and all that can be
+   * done is start the writes. Closing the app from the back button is
+   * different — the game decides when to go — so the same two writes
+   * can be finished first, and there the promise matters.
+   */
+  const flushOwedWrites = useCallback(async () => {
+    const owed = pendingArea.current;
+    pendingArea.current = null;
+    if (owed) await world.setResumeArea(owed).catch(() => {});
+    await world.snapshotBackup().catch(() => {});
+  }, [world]);
+
+  /**
    * THE PAGE GOING AWAY IS THE LAST CHANCE TO WRITE ANYTHING.
    *
    * On a phone the game is not closed, it is BACKGROUNDED — a call
@@ -330,12 +350,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
    * supposed to avoid.
    */
   useEffect(() => {
-    const flush = () => {
-      const owed = pendingArea.current;
-      pendingArea.current = null;
-      if (owed) void world.setResumeArea(owed).catch(() => {});
-      void world.snapshotBackup().catch(() => {});
-    };
+    const flush = () => void flushOwedWrites();
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush();
     };
@@ -345,7 +360,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', flush);
     };
-  }, [world]);
+  }, [flushOwedWrites]);
   // Re-render when world truth changes (clock, events, character states).
   useSyncExternalStore(
     (cb) => world.subscribe(cb),
@@ -502,6 +517,52 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
     battleBgmId,
   });
 
+  /**
+   * OUT OF THE MAP AND BACK INTO THE VILLAGE.
+   *
+   * Two things, not one: the screen changes AND the player is standing
+   * in Alden again, which is what the music is chosen from. Lifted out
+   * of the map screen's own button so the Android back button can be
+   * the same act rather than a similar-looking one.
+   */
+  const leaveExplore = useCallback(() => {
+    setCurrentLocationId('ALDEN_VILLAGE');
+    flow.goTo('HOME');
+  }, [flow]);
+
+  /**
+   * THE HARDWARE BACK BUTTON. Android only — on the web this hook binds
+   * nothing at all and the browser keeps its own behaviour.
+   *
+   * Every decision about WHERE it may lead is in `backTarget.ts`; this
+   * only carries it out. A `null` target is a press that is swallowed
+   * on purpose, which is the answer on every screen where going back
+   * would let the four answers be taken again, leave a scene that
+   * records something halfway, or interrupt a commit in flight.
+   */
+  useAndroidBackButton(() => {
+    // The question the button itself asked. Answering it with the
+    // button means "no".
+    if (confirmingExit) {
+      setConfirmingExit(false);
+      return;
+    }
+    const target = backTargetFor(flow.getState().screen);
+    if (target === null) return;
+    if (target === 'EXIT') {
+      setConfirmingExit(true);
+      return;
+    }
+    if (flow.getState().screen === 'EXPLORE' && target === 'HOME') {
+      leaveExplore();
+      return;
+    }
+    // Belt and braces: `goTo` throws on a move the table refuses, and
+    // a crash is a worse answer to a stray press than doing nothing.
+    if (!flow.canGoTo(target)) return;
+    flow.goTo(target);
+  });
+
   const screen = renderScreen();
 
   return (
@@ -521,6 +582,42 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
       {/* Only while the theme is actually sounding, so it never offers
           to skip silence. */}
       {opening.playing && <OpeningSkip onSkip={opening.skip} />}
+      {/* ANDROID'S BACK BUTTON, ASKED OUT LOUD.
+          Only the title screen offers this, and only inside the Android
+          shell — a browser can never set the flag. Leaving is a
+          decision, so it is a question with two answers rather than a
+          gesture that happens to close the game. */}
+      {confirmingExit && (
+        <div className="exit-confirm" data-testid="exit-confirm" role="dialog" aria-modal="true">
+          <div className="exit-confirm-box">
+            <p className="exit-confirm-text">ゲームを終了しますか？</p>
+            <p className="exit-confirm-sub">
+              ここまでの記録は保存されています。
+            </p>
+            <div className="exit-confirm-actions">
+              <button
+                className="btn primary"
+                data-testid="exit-confirm-yes"
+                onClick={() => {
+                  // The doorway and the backup, finished before the
+                  // app goes: `pagehide` is not promised on the way out
+                  // of a native shell.
+                  void flushOwedWrites().finally(() => void exitNativeApp());
+                }}
+              >
+                終了する
+              </button>
+              <button
+                className="btn"
+                data-testid="exit-confirm-no"
+                onClick={() => setConfirmingExit(false)}
+              >
+                続ける
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* One small line about what was just learned, over whatever the
           player is already looking at. It blocks nothing, covers no
           part of the world, and goes away on its own. */}
@@ -864,10 +961,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
             setCurrentLocationId('GREENWOOD_FOREST');
             flow.goTo('GREENWOOD');
           }}
-          onBack={() => {
-            setCurrentLocationId('ALDEN_VILLAGE');
-            flow.goTo('HOME');
-          }}
+          onBack={leaveExplore}
           sites={world.getOpenFutureSites()}
           onEnterSite={(siteId) => {
             setCurrentLocationId(siteId as LocationId);

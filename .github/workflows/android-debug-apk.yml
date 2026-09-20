@@ -1,0 +1,122 @@
+# MUGEN ZERO — Android Debug APK
+#
+# 実機確認用のDebug APKをGitHub Actions上で生成します。
+#
+# なぜCIで作るのか:
+#   Androidのビルドには Android SDK と、Googleのサーバー(dl.google.com)
+#   から取得する Android Gradle Plugin が必要です。開発用のサンドボックス
+#   からは dl.google.com へ接続できないため(403)、SDKが標準搭載されていて
+#   ネットワーク制限のない GitHub の ubuntu ランナー上でビルドします。
+#
+# これは「開発用のDebug APK」です。
+#   Play Store 公開用の署名は行いません。Androidが自動生成するdebug鍵で
+#   署名されるため、端末に入れるには「提供元不明のアプリ」の許可が要ります。
+#
+# 生成物の受け取り方:
+#   Actions のこのワークフローの実行結果を開き、ページ下部の Artifacts から
+#   mugen-zero-debug-apk をダウンロードします(スマホのブラウザで可)。
+name: Android Debug APK
+
+on:
+  # 手動実行。スマホのGitHubサイトからでも押せます。
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/mugen-zero-v01-implementation-qanh8u
+    paths:
+      - 'packages/mugen-artifact/**'
+      - 'packages/mugen-core/**'
+      - 'packages/mugen-assets/**'
+      - 'packages/shared-aliases.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-debug-apk.yml'
+
+# 同じブランチで走っている古いビルドは打ち切る。APKは最新の1つで足りる。
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # ブラウザは要らない。Playwrightのダウンロードを止めて数分節約する。
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      # Capacitor 8 のテンプレートは Java 21 / AGP 8.13 / compileSdk 36。
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: SDK packages
+        run: sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
+
+      # ゲーム本体。Web版とまったく同じビルドで、Android専用の作り直しはしない。
+      - name: Build the web game
+        run: npm run build -w @mugen/artifact
+
+      # dist を android/app/src/main/assets/public へ複製し、プラグインを同期。
+      - name: Capacitor sync
+        working-directory: packages/mugen-artifact
+        run: npx cap sync android
+
+      # capacitor.settings.gradle points at ../../../node_modules, i.e. the
+      # WORKSPACE ROOT, because npm hoists the Capacitor packages there. If a
+      # future version conflict ever un-hoists them, Gradle's error is
+      # "project directory does not exist", which says nothing about why.
+      # Fail here instead, where the reason is written down.
+      - name: Check the native modules are where Gradle expects
+        run: |
+          for d in node_modules/@capacitor/android/capacitor node_modules/@capacitor/app/android; do
+            if [ ! -d "$d" ]; then
+              echo "::error::$d is missing. capacitor.settings.gradle resolves the native"
+              echo "::error::projects from the workspace root; npm must hoist @capacitor/* there."
+              exit 1
+            fi
+          done
+          echo "native modules OK"
+
+      - name: Assemble debug APK
+        working-directory: packages/mugen-artifact/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      # 何が入ったAPKなのかを実行ログに残す。中身の取り違えはここで防ぐ。
+      - name: APK details
+        run: |
+          APK=packages/mugen-artifact/android/app/build/outputs/apk/debug/app-debug.apk
+          ls -l "$APK"
+          echo "size: $(stat -c%s "$APK") bytes"
+          echo "commit: ${{ github.sha }}"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mugen-zero-debug-apk
+          path: packages/mugen-artifact/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          # 90日は要らない。実機確認が終われば作り直せる。
+          retention-days: 14

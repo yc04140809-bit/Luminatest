@@ -14,16 +14,22 @@
     "build:singlefile": "vite build --config vite.config.singlefile.ts && node scripts/build-artifact-page.mjs && node scripts/check-artifact.mjs",
     "review": "node scripts/reviewPackage.mjs",
     "review:shots": "playwright test --config playwright.review.config.ts",
-    "verify": "npm run typecheck && npm run typecheck:test && npm run test && npm run build && npm run test:e2e"
+    "verify": "npm run typecheck && npm run typecheck:test && npm run test && npm run build && npm run test:e2e",
+    "android:sync": "npm run build && cap sync android",
+    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.2",
+    "@mugen/assets": "*",
+    "@mugen/core": "*",
     "phaser": "^3.87.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@mugen/core": "*",
-    "@mugen/assets": "*"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.2",
     "@playwright/test": "^1.49.0",
     "@types/node": "^22.20.2",
     "@types/react": "^18.3.12",
