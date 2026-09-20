@@ -37,6 +37,7 @@ describe('the Android back button', () => {
     expect(answer('ARCHIVE')).toBe('HOME');
     expect(answer('ARCANA')).toBe('HOME');
     expect(answer('BAG')).toBe('HOME');
+    expect(answer('STATUS')).toBe('HOME');
     expect(answer('SETTINGS')).toBe('HOME');
     expect(answer('EXPLORE')).toBe('HOME');
     expect(answer('GREENWOOD')).toBe('EXPLORE');
@@ -93,6 +94,7 @@ describe('the Android back button', () => {
       ARCHIVE: ['ARCHIVE'],
       ARCANA: ['ARCANA'],
       BAG: ['BAG'],
+      STATUS: ['STATUS'],
       SETTINGS: ['SETTINGS'],
       DEV_LOCK: ['DEV_LOCK'],
       DEV_ADMIN: ['DEV_ADMIN'],

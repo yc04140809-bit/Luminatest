@@ -161,6 +161,7 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     case 'WORLD_MEMORY':
     case 'ARCHIVE':
     case 'ARCANA':
+    case 'STATUS':
     // The bag is a pocket of the village, the same as the book is.
     case 'BAG':
     case 'SETTINGS':

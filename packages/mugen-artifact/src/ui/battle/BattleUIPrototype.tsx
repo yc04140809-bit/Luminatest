@@ -32,6 +32,8 @@ export interface FinalCondition {
 }
 import { HitFx } from './HitFx';
 import { endBlow, landBlow, latestOn, motionSlot, type Blow } from './blows';
+import { attackSfxFor } from '@mugen/content/audio/weaponSfx';
+import { battleProfileOf } from '@mugen/content/characters/battleProfiles';
 import { sayOf } from './battleMessage';
 import { playSfx } from '../../platform/audio';
 import { CUT_IN_MS, SkillCutIn, type CutIn } from './SkillCutIn';
@@ -674,9 +676,19 @@ export function BattleUIPrototype({
    * because there is no state for the sound to hang off.
    */
   useLayoutEffect(() => {
-    // The swing, as the weapon starts moving. STRIKE is his, TACKLE is
-    // the creature's; nothing else on the list is a thing being swung.
-    if (beat === 'STRIKE' || beat === 'TACKLE') playSfx('battle_attack_slash');
+    /**
+     * THE SWING, AS THE WEAPON STARTS MOVING — and which noise that is
+     * comes from what is in the hand, not from whose hand it is.
+     *
+     * STRIKE is the front rank's, and `attackSfxFor` reads their
+     * weapon: a long sword today, a spear the day somebody carries
+     * one, with nothing here changed. TACKLE is the creature's, and a
+     * creature is not carrying anything — it IS the weapon — so it
+     * keeps the ordinary swing until something gives creatures
+     * profiles of their own.
+     */
+    if (beat === 'STRIKE') playSfx(attackSfxFor(battleProfileOf('hero')));
+    if (beat === 'TACKLE') playSfx('battle_attack_slash');
     // Bracing is a beat of its own, and it is the one action with no
     // blow at the end of it — so without this the turn is silent.
     if (beat === 'GUARD') playSfx('battle_guard');
@@ -698,7 +710,16 @@ export function BattleUIPrototype({
     for (const blow of blows) {
       if (blow.id <= soundedBlow.current) continue;
       soundedBlow.current = blow.id;
-      // The landing. Whose ear it is decides which noise it is.
+      /**
+       * A BLOW THAT COST NOTHING IS NOT A LANDING.
+       *
+       * `amount: 0` is a real blow and draws no number — a swing that
+       * was guarded away, or turned aside — and it must not make the
+       * sound of connecting. The sword has already been heard; what
+       * this is for is the moment something actually lands on somebody.
+       */
+      if (blow.amount <= 0) continue;
+      // Whose ear it is decides which noise it is.
       playSfx(blow.on === 'hero' ? 'battle_damage' : 'battle_hit');
     }
   }, [blows]);

@@ -21,11 +21,16 @@ const TRANSITIONS: Record<Screen, Screen[]> = {
     'ARCHIVE',
     'ARCANA',
     'BAG',
+    'STATUS',
     'SETTINGS',
     'DEV_LOCK',
     'DEV_ADMIN',
   ],
   ARCHIVE: ['HOME', 'ENDING', 'PLAYTEST_SURVEY'],
+  // Looked at and closed, like the book and the bag. It changes
+  // nothing about the world — there is no equipment to change yet —
+  // so there is one way out and it is the village.
+  STATUS: ['HOME'],
   // The book is read and closed; it changes nothing about the world.
   ARCANA: ['HOME'],
   // And so is the bag: it is for looking at, and the one place a

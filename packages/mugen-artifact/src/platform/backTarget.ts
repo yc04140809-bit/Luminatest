@@ -52,6 +52,7 @@ const BACK: Record<Screen, BackAction> = {
   WORLD_NEWS: 'HOME',
   ARCHIVE: 'HOME',
   ARCANA: 'HOME',
+  STATUS: 'HOME',
   BAG: 'HOME',
   SETTINGS: 'HOME',
 

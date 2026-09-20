@@ -50,7 +50,13 @@ export const SFX_IDS = [
   'explore_marker',
   // ---- BATTLE ----
   'battle_start',
+  // ONE PER WEAPON, not one per character. Two people holding long
+  // swords share a swing; which of these a turn asks for is decided by
+  // what is in the attacker's hands — see content/audio/weaponSfx.ts.
   'battle_attack_slash',
+  'battle_attack_dagger',
+  'battle_attack_thrust',
+  'battle_attack_bow',
   'battle_hit',
   'magic_cast',
   'battle_magic_hit',
@@ -112,5 +118,10 @@ export const SFX_GAIN: Partial<Record<SfxId, number>> = {
   // The two that fire most often in a fight, and the two that would
   // wear a player out first.
   battle_attack_slash: 0.7,
+  // A pair of daggers is two strikes where a sword is one, so the same
+  // slider leaves it louder than the swing it replaces.
+  battle_attack_dagger: 0.6,
+  battle_attack_thrust: 0.7,
+  battle_attack_bow: 0.7,
   ui_tap: 0.6,
 };

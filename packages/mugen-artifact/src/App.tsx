@@ -25,6 +25,7 @@ import { FutureSiteScreen } from './ui/screens/FutureSiteScreen';
 import { TalkSpotScreen } from './ui/screens/TalkSpotScreen';
 import { ArchiveScreen } from './ui/screens/ArchiveScreen';
 import { SettingsScreen } from './ui/screens/SettingsScreen';
+import { StatusScreen } from './ui/screens/StatusScreen';
 import { PlaytestSurveyScreen } from './ui/screens/PlaytestSurveyScreen';
 import { EndingScreen } from './ui/screens/EndingScreen';
 import { LoadingScreen } from './ui/common/LoadingScreen';
@@ -759,6 +760,7 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
           onArchive={() => flow.goTo('ARCHIVE')}
           onArcana={() => flow.goTo('ARCANA')}
           onBag={() => flow.goTo('BAG')}
+          onStatus={() => flow.goTo('STATUS')}
           party={world.getPartyCondition()}
           onSettings={() => flow.goTo('SETTINGS')}
           // Once per run of the app, not once per save: the unlock
@@ -931,6 +933,16 @@ function GameRoot({ flow, world, playtest, saving, settings, onSettingsChange }:
         <ArcanaScreen
           records={world.getArcanaRecords()}
           observedAccidents={observedAccidents}
+          onBack={() => flow.goTo('HOME')}
+        />
+      );
+    case 'STATUS':
+      // READ-ONLY. It is handed the same level and condition the rest
+      // of the village reads, and has no way to change either.
+      return (
+        <StatusScreen
+          levels={{ hero: world.getLevel('hero'), kaos: world.getLevel('kaos') }}
+          party={world.getPartyCondition()}
           onBack={() => flow.goTo('HOME')}
         />
       );

@@ -48,6 +48,8 @@ export type Screen =
    */
   | 'BAG'
   | 'ARCHIVE'
+  /** The party, as people: who they are and what they fight with. */
+  | 'STATUS'
   /** ARCANA 図鑑: what the player has come to know about the world. */
   | 'ARCANA'
   | 'SETTINGS'

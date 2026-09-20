@@ -6666,3 +6666,66 @@ body,
   text-align: center;
   backdrop-filter: blur(2px);
 }
+
+/* STATUS — who the party are, rather than how they are doing.
+   A card each: the figure on one side, the facts on the other, and
+   room for the rows that arrive when there is equipment to name. */
+.status-screen {
+  justify-content: flex-start;
+  gap: 8px;
+}
+.status-list {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  overflow-y: auto;
+  align-items: stretch;
+}
+.status-card {
+  display: flex;
+  flex: 1 1 0;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line, #3a3550);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  text-align: left;
+}
+.status-figure {
+  flex: 0 0 auto;
+  width: 78px;
+  display: flex;
+  align-items: flex-end;
+}
+.status-figure img {
+  width: 100%;
+  height: auto;
+  max-height: 168px;
+  object-fit: contain;
+}
+.status-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.status-name {
+  margin: 0 0 4px;
+  font-size: var(--font-size-md, 15px);
+  letter-spacing: 0.08em;
+}
+.status-row {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--font-size-sm, 12px);
+  line-height: 1.7;
+}
+.status-key {
+  /* Wide enough for 「戦闘スタイル」, which is the longest label there
+     is and was wrapping its last character onto a line of its own. */
+  flex: 0 0 6.5em;
+  white-space: nowrap;
+  color: var(--text-dim, #9a94ab);
+}

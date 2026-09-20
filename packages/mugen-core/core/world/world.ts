@@ -275,6 +275,7 @@ const RESUME_AREA: Partial<Record<Screen, ResumeArea>> = {
   WORLD_MEMORY: 'HOME',
   WORLD_NEWS: 'HOME',
   ARCHIVE: 'HOME',
+  STATUS: 'HOME',
   ARCANA: 'HOME',
   BAG: 'HOME',
   SETTINGS: 'HOME',

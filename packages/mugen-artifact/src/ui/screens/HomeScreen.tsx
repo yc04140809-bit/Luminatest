@@ -42,6 +42,8 @@ interface Props {
   onArcana: () => void;
   /** 持ち物: what the player is carrying, for looking at. */
   onBag: () => void;
+  /** ステータス: who the party are, and what they fight with. */
+  onStatus: () => void;
   /** What each of them has left. A line, not a status screen. */
   party: PartyCondition;
   /** Opens player settings. */
@@ -75,6 +77,7 @@ export function HomeScreen({
   onArchive,
   onArcana,
   onBag,
+  onStatus,
   party,
   onSettings,
   onDevAdmin,
@@ -244,6 +247,10 @@ export function HomeScreen({
           <button className="home-rail-item" data-testid="bag-button" onClick={onBag}>
             <span className="glyph">◰</span>
             持ち物
+          </button>
+          <button className="home-rail-item" data-testid="status-button" onClick={onStatus}>
+            <span className="glyph">◈</span>
+            ステータス
           </button>
           <button
             className="home-rail-item"

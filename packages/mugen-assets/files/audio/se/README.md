@@ -25,7 +25,10 @@
 | ファイル名 | 鳴る瞬間 |
 |---|---|
 | `battle_start.mp3` | 戦闘開始時に1回 |
-| `battle_attack_slash.mp3` | 武器を振り始めた瞬間 |
+| `battle_attack_slash.mp3` | 長剣を振り始めた瞬間（LONG_SWORD / 剣術） |
+| `battle_attack_dagger.mp3` | 二刀短剣（DUAL_DAGGERS）※装備者は現在いません |
+| `battle_attack_thrust.mp3` | 槍（SPEAR）※装備者は現在いません |
+| `battle_attack_bow.mp3` | 弓（BOW）※装備者は現在いません |
 | `battle_hit.mp3` | 敵に命中した瞬間 |
 | `battle_damage.mp3` | 自分が被弾した瞬間 |
 | `battle_guard.mp3` | 防御の構え |
@@ -36,6 +39,23 @@
 | `ui_menu_open.mp3` | コマンドの引き出しを開く |
 | `ui_menu_close.mp3` | 戦闘中の世界の記憶を閉じる |
 | `ui_memory_open.mp3` | 戦闘中の世界の記憶を開く |
+
+### 武器種と攻撃音の対応
+
+`packages/mugen-core/content/audio/weaponSfx.ts` が唯一の正です。
+**キャラクター名はこの表に一切出てきません** — 同じ武器を持つ人は
+自動的に同じ音になります。
+
+| 武器種 / 戦闘スタイル | 攻撃音 | 現在の装備者 |
+|---|---|---|
+| `LONG_SWORD`（長剣） | `battle_attack_slash` | 主人公 |
+| `DUAL_DAGGERS`（二刀短剣） | `battle_attack_dagger` | なし |
+| `SPEAR`（槍） | `battle_attack_thrust` | なし |
+| `BOW`（弓） | `battle_attack_bow` | なし |
+| `MAGIC`（魔法特化） | `magic_cast` | ケイオス |
+
+選ばれる順番は **① スキル専用音 → ② 手に持っている武器 → ③ 戦い方**。
+①がカットイン・アルカナ召喚・ボス固有技の受け口です。
 
 ### 名前はあるが未配線
 
