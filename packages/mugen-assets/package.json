@@ -6,6 +6,7 @@
   "main": "src/manifest.ts",
   "exports": {
     ".": "./src/manifest.ts",
-    "./files/*": "./files/*"
+    "./files/*": "./files/*",
+    "./sfx": "./src/sfx.ts"
   }
 }

@@ -8,7 +8,8 @@ import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 
 import { execSync } from 'node:child_process';
-import { basename } from 'node:path';
+import { basename, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   encodeReviewAssets,
   encodeReviewAudio,
@@ -59,6 +60,9 @@ function reviewAssetAliases(): { find: RegExp; replacement: string }[] {
 }
 
 
+/** packages/, so the artifact can aim an alias at a sibling package. */
+const PACKAGES_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
 const buildDefine = {
   __BUILD_COMMIT__: JSON.stringify(gitCommit()),
   __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
@@ -105,7 +109,25 @@ export default defineConfig({
   // the package alias that would otherwise resolve it to the delivered
   // file. Both are arrays, so this is a concatenation and cannot
   // silently become an object with numeric keys — see shared-aliases.
-  resolve: { alias: [...reviewAssetAliases(), ...mugenAliases()] },
+  resolve: {
+    alias: [
+      /**
+       * NO SOUND EFFECTS IN THE ARTIFACT, by decision rather than by
+       * accident. The page may not exceed 16 MiB with base64 included,
+       * every byte of that is wanted by the artwork, and whether a
+       * sword sounds right is a question for the APK — where there is
+       * no limit and the delivered files ship whole.
+       *
+       * Before the package aliases, because first match wins.
+       */
+      {
+        find: '@mugen/assets/sfx',
+        replacement: resolve(PACKAGES_DIR, 'mugen-assets/src/sfxNone.ts'),
+      },
+      ...reviewAssetAliases(),
+      ...mugenAliases(),
+    ],
+  },
   build: {
     outDir: 'dist-singlefile',
     /**

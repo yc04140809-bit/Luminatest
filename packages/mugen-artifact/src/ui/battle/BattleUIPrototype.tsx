@@ -676,7 +676,10 @@ export function BattleUIPrototype({
   useLayoutEffect(() => {
     // The swing, as the weapon starts moving. STRIKE is his, TACKLE is
     // the creature's; nothing else on the list is a thing being swung.
-    if (beat === 'STRIKE' || beat === 'TACKLE') playSfx('battle_swing');
+    if (beat === 'STRIKE' || beat === 'TACKLE') playSfx('battle_attack_slash');
+    // Bracing is a beat of its own, and it is the one action with no
+    // blow at the end of it — so without this the turn is silent.
+    if (beat === 'GUARD') playSfx('battle_guard');
   }, [beat]);
 
   /**
@@ -696,12 +699,12 @@ export function BattleUIPrototype({
       if (blow.id <= soundedBlow.current) continue;
       soundedBlow.current = blow.id;
       // The landing. Whose ear it is decides which noise it is.
-      playSfx(blow.on === 'hero' ? 'battle_hurt' : 'battle_slash_hit');
+      playSfx(blow.on === 'hero' ? 'battle_damage' : 'battle_hit');
     }
   }, [blows]);
 
   useLayoutEffect(() => {
-    if (cutIn) playSfx('battle_magic_cast');
+    if (cutIn) playSfx('magic_cast');
   }, [cutIn]);
 
   /** The fight starting, and the fight won. Once each, whatever else. */
@@ -709,7 +712,7 @@ export function BattleUIPrototype({
     playSfx('battle_start');
   }, []);
   useEffect(() => {
-    if (battle.outcome === 'VICTORY') playSfx('battle_victory');
+    if (battle.outcome === 'VICTORY') playSfx('battle_win');
   }, [battle.outcome]);
   /**
    * Where the fight is looking.
@@ -1089,6 +1092,10 @@ export function BattleUIPrototype({
 
   const command = (kind: 'ATTACK' | 'DEFEND') => {
     if (battle.outcome !== 'ONGOING') return;
+    // THE TAP THAT COMMITS A TURN, and the only one: every way a
+    // player says "this is my move" arrives here, so the sound is
+    // here and not on six buttons.
+    playSfx('ui_decide');
     setSkillOpen(false);
     setItemOpen(false);
     // The fight moves on, so the plate goes back to reporting it.
@@ -2251,7 +2258,10 @@ export function BattleUIPrototype({
                   setArcanaTrayOpen(false);
                   // Same rule as WORLD MEMORY: the tap makes the
                   // sound, the updater only computes the next state.
-                  playSfx(magicOpen ? 'ui_menu_close' : 'ui_menu_open');
+                  // Closing a tray without choosing is the player
+                  // saying no, which is a different sound from a panel
+                  // moving. One rule for all four trays.
+                  playSfx(magicOpen ? 'ui_cancel' : 'ui_menu_open');
                   setMagicOpen((open) => !open);
                 }}
               >
@@ -2271,6 +2281,7 @@ export function BattleUIPrototype({
                 setMagicOpen(false);
                 setItemOpen(false);
                 setArcanaTrayOpen(false);
+                playSfx(skillOpen ? 'ui_cancel' : 'ui_menu_open');
                 setSkillOpen((open) => !open);
               }}
             >
@@ -2287,6 +2298,7 @@ export function BattleUIPrototype({
                 setMagicOpen(false);
                 setSkillOpen(false);
                 setArcanaTrayOpen(false);
+                playSfx(itemOpen ? 'ui_cancel' : 'ui_menu_open');
                 setItemOpen((open) => !open);
               }}
             >

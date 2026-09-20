@@ -10,7 +10,15 @@ import {
   type BgmId,
   type SeId,
 } from '@mugen/assets';
-import { SFX_ASSETS, SFX_GAIN, SFX_RETRIGGER_MS, type SfxId } from '@mugen/content/audio/sfx';
+import {
+  SFX_GAIN,
+  SFX_PRELOAD,
+  SFX_RETRIGGER_MS,
+  type SfxId,
+} from '@mugen/content/audio/sfx';
+// The delivered sound files, read from the folder they were put in.
+// The artifact aliases this module to an empty one; see sfxNone.ts.
+import { SFX_FILES } from '@mugen/assets/sfx';
 
 /**
  * How long the opening theme takes to get out of the way.
@@ -93,6 +101,8 @@ export class AudioManager {
   private voiceVolume = 0.8;
   /** When each sound last played, for the retrigger guard. */
   private sfxLastAt = new Map<SfxId, number>();
+  /** Fetched and decoded on the first touch; see `primeSfx`. */
+  private sfxPrimed = new Map<SfxId, HTMLAudioElement>();
   private unlocked = false;
   private currentBgmId: BgmId | null = null;
   /** What was on before it. Reported, never used to decide. */
@@ -382,6 +392,8 @@ export class AudioManager {
   unlock(): void {
     if (this.unlocked) return;
     this.unlocked = true;
+    // The fight's noises, fetched now rather than mid-swing.
+    this.primeSfx();
     // Whatever the game asked for while it could not be heard starts
     // now. This is what makes the title's music begin on the very tap
     // that leaves the title, rather than a screen later.
@@ -646,14 +658,30 @@ export class AudioManager {
    * already heard it.
    */
   playSfx(id: SfxId): void {
-    const src = SFX_ASSETS[id];
+    const src = sfxSrc(id);
     if (!src || !this.unlocked || this.sfxVolume <= 0) return;
     const now = Date.now();
     const last = this.sfxLastAt.get(id) ?? 0;
     if (now - last < SFX_RETRIGGER_MS) return;
     this.sfxLastAt.set(id, now);
     try {
-      const audio = new Audio(src);
+      /**
+       * THE PRIMED ELEMENT FIRST, IF IT IS FREE.
+       *
+       * A primed element has already been fetched and decoded, so it
+       * starts on the frame it is asked for rather than whenever the
+       * file arrives — which is the whole point of priming, because a
+       * swing is drawn on the frame its noise belongs to.
+       *
+       * ONLY IF IT IS FREE. Two blows landing together are two
+       * noises, and rewinding the one that is still sounding would
+       * turn them into one. So the second one builds an element of
+       * its own: overlap is normal for sound effects and only the
+       * FIRST of a burst needs to be prompt.
+       */
+      const primed = this.sfxPrimed.get(id);
+      const audio = primed && (primed.paused || primed.ended) ? primed : new Audio(src);
+      audio.currentTime = 0;
       audio.volume = clampVolume(this.sfxVolume * (SFX_GAIN[id] ?? 1));
       void audio.play().catch(() => {
         /* refused, or no device — a sound effect is never worth an error */
@@ -662,6 +690,47 @@ export class AudioManager {
       /* ignore */
     }
   }
+
+  /**
+   * FETCH AND DECODE THE FIGHT'S NOISES WHILE NOTHING IS HAPPENING.
+   *
+   * Called from `unlock`, which is the player's first touch: the game
+   * is on the title or the theme screen, nothing is being timed, and
+   * the five short files this wants are the ones that would otherwise
+   * each be late exactly once — on the first swing, the first hit, the
+   * first spell of the first fight.
+   *
+   * Every part of it is optional. A sound with no file is skipped, a
+   * browser that refuses to preload simply plays it late the first
+   * time, and nothing here can fail in a way the game notices.
+   */
+  private primeSfx(): void {
+    if (this.sfxPrimed.size > 0) return;
+    for (const id of SFX_PRELOAD) {
+      const src = sfxSrc(id);
+      if (!src) continue;
+      try {
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.volume = clampVolume(this.sfxVolume * (SFX_GAIN[id] ?? 1));
+        audio.load();
+        this.sfxPrimed.set(id, audio);
+      } catch {
+        /* a sound that will not preload is a sound that plays late once */
+      }
+    }
+  }
+}
+
+/**
+ * The file for a sound, or null when none has been delivered.
+ *
+ * An id IS a filename here — that is the arrangement the assets
+ * package makes, and it is why a delivered sound needs no line of
+ * code anywhere. Null is silence and never an error.
+ */
+function sfxSrc(id: SfxId): string | null {
+  return SFX_FILES[id] ?? null;
 }
 
 export const audioManager = new AudioManager();

@@ -6,11 +6,18 @@
 // screen that says `playSfx('ui_confirm')` keeps saying the right thing
 // after somebody replaces the file.
 //
-// EVERY SLOT IS EMPTY, and that is the shipping state until sounds are
-// delivered. A null slot is SILENCE, never an error and never a
-// placeholder: the asking is real from the first day, so the day the
-// files arrive nothing but this map changes. A stand-in beep would be
-// worse than silence — nobody can tell a placeholder from a choice.
+// NO SOUND IS BUNDLED YET, and that is the shipping state until they
+// are delivered. A missing sound is SILENCE, never an error and never
+// a placeholder: the asking is real from the first day, so the day the
+// files arrive NOTHING IN THE PROJECT CHANGES AT ALL. A stand-in beep
+// would be worse than silence — nobody can tell a placeholder from a
+// choice.
+//
+// WHERE A SOUND GOES: packages/mugen-assets/files/audio/se/<id>.mp3,
+// named after the id below and nothing else. The assets package reads
+// that folder itself, so a delivered file is wired by being put there.
+// This file holds the VOCABULARY — which moments the game can make a
+// noise about — and never a path.
 
 /**
  * Every sound the game can ask for.
@@ -18,69 +25,70 @@
  * Grouped by where it happens, because that is how they are
  * commissioned and how a missing one is noticed.
  */
-export type SfxId =
+/**
+ * Every sound the game can ask for — ONE LIST, and the type is read
+ * from it rather than written twice.
+ *
+ * Grouped by where it happens, because that is how they are
+ * commissioned and how a missing one is noticed. A list rather than a
+ * bare union because the tests, and the assets package's check that no
+ * delivered file is misnamed, both need to READ the vocabulary at
+ * runtime; a union exists only at compile time and cannot be read.
+ */
+export const SFX_IDS = [
   // ---- UI: things the player does to the game itself ----
-  | 'ui_confirm'
-  | 'ui_cancel'
-  | 'ui_menu_open'
-  | 'ui_menu_close'
-  | 'ui_tap'
-  | 'ui_memory_open'
+  'ui_decide',
+  'ui_cancel',
+  'ui_menu_open',
+  'ui_menu_close',
+  'ui_tap',
+  'ui_memory_open',
   // ---- EXPLORATION: the forest answering back ----
-  | 'explore_found'
-  | 'explore_event_start'
-  | 'explore_encounter'
-  | 'explore_marker'
+  'explore_found',
+  'explore_event_start',
+  'explore_encounter',
+  'explore_marker',
   // ---- BATTLE ----
-  | 'battle_start'
-  | 'battle_swing'
-  | 'battle_slash_hit'
-  | 'battle_magic_cast'
-  | 'battle_magic_hit'
-  | 'battle_hurt'
-  | 'battle_heal'
-  | 'battle_buff'
-  | 'battle_debuff'
-  | 'battle_critical'
-  | 'battle_victory'
+  'battle_start',
+  'battle_attack_slash',
+  'battle_hit',
+  'magic_cast',
+  'battle_magic_hit',
+  'battle_damage',
+  'battle_guard',
+  'battle_heal',
+  'battle_buff',
+  'battle_debuff',
+  'battle_critical',
+  'battle_win',
   // ---- STORY: the moments the game is actually about ----
-  | 'story_choice'
-  | 'story_event'
-  | 'story_memory_written';
+  'story_choice',
+  'story_event',
+  'story_memory_written',
+] as const;
+
+export type SfxId = (typeof SFX_IDS)[number];
 
 /**
- * The file for each, or null while nobody has drawn that sound yet.
+ * WHICH SOUNDS ARE PRIMED BEFORE THE FIRST ONE IS NEEDED.
  *
- * Adding one is: put the file in src/assets/audio/sfx, import it at
- * the top of assets/manifest.ts, and name it here. Nothing else in the
- * project changes — no screen, no manager, no test.
+ * A fight is the one place where a sound arriving late is worse than
+ * no sound: the swing is drawn on the frame the noise belongs to, and
+ * a first-play decode lands it after the blow. These are built and
+ * loaded on the player's first touch, while nothing is happening yet,
+ * so the first swing of the first fight is as prompt as the tenth.
+ *
+ * Deliberately NOT everything. Priming a sound is holding a decoded
+ * buffer for a moment that may never come, and the UI's own noises are
+ * short, rare, and nobody notices ten milliseconds on a menu.
  */
-export const SFX_ASSETS: Record<SfxId, string | null> = {
-  ui_confirm: null,
-  ui_cancel: null,
-  ui_menu_open: null,
-  ui_menu_close: null,
-  ui_tap: null,
-  ui_memory_open: null,
-  explore_found: null,
-  explore_event_start: null,
-  explore_encounter: null,
-  explore_marker: null,
-  battle_start: null,
-  battle_swing: null,
-  battle_slash_hit: null,
-  battle_magic_cast: null,
-  battle_magic_hit: null,
-  battle_hurt: null,
-  battle_heal: null,
-  battle_buff: null,
-  battle_debuff: null,
-  battle_critical: null,
-  battle_victory: null,
-  story_choice: null,
-  story_event: null,
-  story_memory_written: null,
-};
+export const SFX_PRELOAD: readonly SfxId[] = [
+  'battle_attack_slash',
+  'battle_hit',
+  'battle_damage',
+  'battle_guard',
+  'magic_cast',
+];
 
 /**
  * The shortest gap between two of the same sound.
@@ -103,6 +111,6 @@ export const SFX_RETRIGGER_MS = 60;
 export const SFX_GAIN: Partial<Record<SfxId, number>> = {
   // The two that fire most often in a fight, and the two that would
   // wear a player out first.
-  battle_swing: 0.7,
+  battle_attack_slash: 0.7,
   ui_tap: 0.6,
 };

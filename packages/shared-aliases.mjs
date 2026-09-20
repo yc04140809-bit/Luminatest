@@ -31,6 +31,11 @@ export function mugenAliases() {
     // Names of art, with no art behind them. Before the manifest entry
     // for the same reason `files` is: first match wins.
     { find: '@mugen/assets/keys', replacement: resolve(PACKAGES, 'mugen-assets/src/keys.ts') },
+    // The sound-effect folder, read as a folder. Its own entry rather
+    // than part of the manifest because the ARTIFACT swaps it for an
+    // empty one — a sixteen-megabyte page spends its last megabyte on
+    // artwork, not on a sword — and a swap needs something to aim at.
+    { find: '@mugen/assets/sfx', replacement: resolve(PACKAGES, 'mugen-assets/src/sfx.ts') },
     { find: '@mugen/assets', replacement: resolve(PACKAGES, 'mugen-assets/src/manifest.ts') },
   ];
 }

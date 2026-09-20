@@ -31,6 +31,16 @@ const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // The delivered music lives in the assets package now, beside the rest
 // of what was handed over, rather than inside this app.
 const DELIVERED_DIR = resolve(APP_DIR, '../mugen-assets/files/audio/bgm');
+/**
+ * AND THE SOUND EFFECTS, which are delivered the same way and get the
+ * same promise: what the phone plays is the file that was handed over.
+ *
+ * They differ from the music in one way that matters here — the
+ * artifact carries none of them at all — so a sound effect appearing
+ * in a single-file build is its own kind of wrong, caught by the same
+ * comparison from the other direction.
+ */
+const DELIVERED_SE_DIR = resolve(APP_DIR, '../mugen-assets/files/audio/se');
 const REVIEW_DIR = join(APP_DIR, '.review-assets');
 const DIST_DIR = resolve(process.argv[2] ?? join(APP_DIR, 'dist'));
 
@@ -52,6 +62,13 @@ function walk(dir) {
 const delivered = new Map();
 for (const name of readdirSync(DELIVERED_DIR)) {
   if (AUDIO.test(name)) delivered.set(digest(join(DELIVERED_DIR, name)), name);
+}
+/** Music that must be emitted, kept apart from sound that may not be. */
+const deliveredMusicCount = delivered.size;
+if (existsSync(DELIVERED_SE_DIR)) {
+  for (const name of readdirSync(DELIVERED_SE_DIR)) {
+    if (AUDIO.test(name)) delivered.set(digest(join(DELIVERED_SE_DIR, name)), name);
+  }
 }
 const previews = new Map();
 if (existsSync(REVIEW_DIR)) {
@@ -82,17 +99,25 @@ for (const path of shipped) {
   }
   if (!delivered.has(hash)) {
     failures.push(
-      `${short} (${statSync(path).size} bytes) matches no file in src/assets/audio/bgm. ` +
+      `${short} (${statSync(path).size} bytes) matches no delivered file in ` +
+        `packages/mugen-assets/files/audio (bgm or se). ` +
         `The game ships the delivered music exactly as it was handed over; ` +
         `anything else here has been re-encoded somewhere it should not be.`,
     );
   }
 }
 
-// And every delivered piece has to have actually been emitted: a build
-// that dropped the forest's music would otherwise pass this silently.
+// And every delivered PIECE OF MUSIC has to have actually been
+// emitted: a build that dropped the forest's music would otherwise
+// pass this silently.
+//
+// Sound effects are deliberately not held to that. A sound nobody has
+// wired to a moment yet is a file in the folder that the bundler never
+// sees a reference to, which is correct and must not fail a build.
 const shippedHashes = new Set(shipped.map(digest));
+let checked = 0;
 for (const [hash, name] of delivered) {
+  if (checked++ >= deliveredMusicCount) break;
   if (!shippedHashes.has(hash)) failures.push(`${name} was not emitted by the build at all.`);
 }
 

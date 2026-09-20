@@ -29,20 +29,31 @@ vi.mock('@mugen/assets', () => ({
  * And two sounds that do exist, because what is under test is the
  * PLAYER's behaviour with sound present — which is the behaviour that
  * has to be right on the day the files arrive.
+ *
+ * The folder is what decides which sounds exist now, so this stands in
+ * for the folder. `battle_hit` is in SFX_PRELOAD, so unlocking builds
+ * an element for it before any test does anything — which is the
+ * point of priming and is why `ready()` forgets what it saw.
  */
-vi.mock('@mugen/content/audio/sfx', async (importOriginal) => {
-  const real = await importOriginal<typeof import('@mugen/content/audio/sfx')>();
-  return {
-    ...real,
-    SFX_ASSETS: { ...real.SFX_ASSETS, battle_slash_hit: 'slash.mp3', ui_tap: 'tap.mp3' },
-  };
-});
+vi.mock('@mugen/assets/sfx', () => ({
+  SFX_FILES: { battle_hit: 'slash.mp3', ui_tap: 'tap.mp3' },
+}));
 
 const { AudioManager, BGM_FADE_MS, OPENING_START_DELAY_MS } = await import('./audio');
+const { SFX_RETRIGGER_MS } = await import('@mugen/content/audio/sfx');
 
 /** A stand-in for the browser's element, recording what was done to it. */
 class FakeAudio {
   static made: FakeAudio[] = [];
+  /**
+   * HOW MANY TIMES EACH FILE WAS ACTUALLY STARTED.
+   *
+   * Counting ELEMENTS stopped answering "did the sound play?" the day
+   * primed sounds began reusing one — the element already exists, so
+   * nothing is constructed and the sound is heard anyway. Counting
+   * plays answers it either way.
+   */
+  static plays: Record<string, number> = {};
   src: string;
   loop = false;
   volume = 1;
@@ -64,12 +75,20 @@ class FakeAudio {
   play() {
     this.playing = true;
     this.paused = false;
+    FakeAudio.plays[this.src] = (FakeAudio.plays[this.src] ?? 0) + 1;
     return Promise.resolve();
   }
   pause() {
     this.playing = false;
     this.paused = true;
   }
+  /**
+   * PRIMING CALLS THIS, and a fake without it makes the manager throw
+   * — which it catches, so the sound is quietly never primed and the
+   * whole feature tests as a no-op. The real element has always had it.
+   */
+  preload = '';
+  load() {}
   addEventListener() {}
   removeEventListener() {}
 }
@@ -79,8 +98,12 @@ function sounding(): FakeAudio[] {
   return FakeAudio.made.filter((a) => a.playing && a.volume > 0);
 }
 
+/** How many times that file was started since the last reset. */
+const playsOf = (src: string) => FakeAudio.plays[src] ?? 0;
+
 beforeEach(() => {
   FakeAudio.made = [];
+  FakeAudio.plays = {};
   vi.useFakeTimers();
   vi.stubGlobal('Audio', FakeAudio);
 });
@@ -94,8 +117,61 @@ function ready() {
   const manager = new AudioManager();
   manager.setVolumes(0.35, 0.8);
   manager.unlock();
+  // UNLOCKING IS SETUP, NOT BEHAVIOUR. The first touch primes the
+  // fight's sounds — that is what makes the first swing prompt — and
+  // every test below counts the elements the MUSIC makes. So the
+  // register is cleared here, once, rather than every test learning
+  // to subtract the priming.
+  FakeAudio.made = [];
+  FakeAudio.plays = {};
   return manager;
 }
+
+/**
+ * PRIMING: the fight's noises, fetched while nothing is happening.
+ *
+ * A swing is drawn on the frame its noise belongs to, and a sound
+ * fetched at that moment arrives after it. So the first touch — the
+ * title, the theme screen, nothing being timed — builds and loads the
+ * handful the fight will need.
+ */
+describe('the fight’s sounds, made ready in advance', () => {
+  it('builds them on the first touch, and not before it', () => {
+    const manager = new AudioManager();
+    manager.setVolumes(0.35, 0.8);
+    expect(FakeAudio.made, 'nothing at all until the player touches').toHaveLength(0);
+    manager.unlock();
+    const primed = FakeAudio.made.filter((a) => a.src === 'slash.mp3');
+    expect(primed, 'a delivered fight sound is fetched up front').toHaveLength(1);
+    expect(primed[0].playing, 'fetched, not played').toBe(false);
+  });
+
+  it('touches nothing twice', () => {
+    const manager = ready();
+    manager.unlock();
+    expect(FakeAudio.made.filter((a) => a.src === 'slash.mp3')).toHaveLength(0);
+  });
+
+  /** A primed sound is reused rather than rebuilt, which is the gain. */
+  it('plays the one it already has', () => {
+    const manager = ready();
+    manager.playSfx('battle_hit');
+    expect(playsOf('slash.mp3'), 'it sounded').toBe(1);
+    expect(FakeAudio.made, 'and nothing was built to do it').toHaveLength(0);
+  });
+
+  /**
+   * UNLESS IT IS STILL SOUNDING. Two blows landing together are two
+   * noises; rewinding the first would make them one.
+   */
+  it('builds a second only when the first is still going', () => {
+    const manager = ready();
+    manager.playSfx('battle_hit');
+    vi.advanceTimersByTime(SFX_RETRIGGER_MS + 10);
+    manager.playSfx('battle_hit');
+    expect(FakeAudio.made, 'the overlap gets an element of its own').toHaveLength(1);
+  });
+});
 
 describe('nothing sounds before the player has touched the page', () => {
   it('constructs no audio at all until it is unlocked', () => {
@@ -116,9 +192,10 @@ describe('nothing sounds before the player has touched the page', () => {
     manager.playBgm('OPENING');
     expect(FakeAudio.made).toHaveLength(0);
     manager.unlock();
-    expect(FakeAudio.made).toHaveLength(1);
-    expect(FakeAudio.made[0].src).toBe('opening.mp3');
-    expect(FakeAudio.made[0].playing).toBe(true);
+    // The music it was asked for, alongside whatever the touch primed.
+    const music = FakeAudio.made.filter((a) => a.src === 'opening.mp3');
+    expect(music).toHaveLength(1);
+    expect(music[0].playing).toBe(true);
   });
 });
 
@@ -579,29 +656,30 @@ describe('the state, as something that can be looked at', () => {
 describe('a sound, by the name of the moment it belongs to', () => {
   it('plays, and is not held on to', () => {
     const manager = ready();
-    manager.playSfx('battle_slash_hit');
-    expect(FakeAudio.made).toHaveLength(1);
-    expect(FakeAudio.made[0].src).toBe('slash.mp3');
-    expect(FakeAudio.made[0].loop, 'a sound effect never loops').toBe(false);
+    manager.playSfx('battle_hit');
+    expect(playsOf('slash.mp3')).toBe(1);
+    // Whichever element carried it — a primed one or a fresh one — a
+    // sound effect is never a loop.
+    for (const a of FakeAudio.made) expect(a.loop, 'a sound effect never loops').toBe(false);
   });
 
   it('is silent, and not an error, for a sound nobody has delivered', () => {
     const manager = ready();
-    expect(() => manager.playSfx('battle_victory')).not.toThrow();
+    expect(() => manager.playSfx('battle_win')).not.toThrow();
     expect(FakeAudio.made).toHaveLength(0);
   });
 
   it('says nothing before the player has touched the page', () => {
     const manager = new AudioManager();
     manager.setVolumes(0.35, 0.8);
-    manager.playSfx('battle_slash_hit');
+    manager.playSfx('battle_hit');
     expect(FakeAudio.made).toHaveLength(0);
   });
 
   it('is silent when the effects are turned off', () => {
     const manager = ready();
     manager.setVolumes(0.35, 0);
-    manager.playSfx('battle_slash_hit');
+    manager.playSfx('battle_hit');
     expect(FakeAudio.made).toHaveLength(0);
   });
 
@@ -612,25 +690,26 @@ describe('a sound, by the name of the moment it belongs to', () => {
    */
   it('holds back the same sound arriving again too soon', () => {
     const manager = ready();
-    manager.playSfx('battle_slash_hit');
-    manager.playSfx('battle_slash_hit');
-    manager.playSfx('battle_slash_hit');
-    expect(FakeAudio.made).toHaveLength(1);
+    manager.playSfx('battle_hit');
+    manager.playSfx('battle_hit');
+    manager.playSfx('battle_hit');
+    expect(playsOf('slash.mp3'), 'three asks, one sword').toBe(1);
   });
 
   it('does not hold back a DIFFERENT sound in the same moment', () => {
     const manager = ready();
-    manager.playSfx('battle_slash_hit');
+    manager.playSfx('battle_hit');
     manager.playSfx('ui_tap');
-    expect(FakeAudio.made).toHaveLength(2);
+    expect(playsOf('slash.mp3')).toBe(1);
+    expect(playsOf('tap.mp3')).toBe(1);
   });
 
   it('plays it again once the window has passed', () => {
     const manager = ready();
-    manager.playSfx('battle_slash_hit');
+    manager.playSfx('battle_hit');
     vi.advanceTimersByTime(400);
-    manager.playSfx('battle_slash_hit');
-    expect(FakeAudio.made).toHaveLength(2);
+    manager.playSfx('battle_hit');
+    expect(playsOf('slash.mp3')).toBe(2);
   });
 
   /** A sound trimmed in the table is quieter than the slider alone. */
@@ -638,7 +717,8 @@ describe('a sound, by the name of the moment it belongs to', () => {
     const manager = ready();
     manager.setVolumes(0.35, 1);
     manager.playSfx('ui_tap');
-    expect(FakeAudio.made[0].volume).toBeCloseTo(0.6, 5);
+    const tap = FakeAudio.made.find((a) => a.src === 'tap.mp3')!;
+    expect(tap.volume).toBeCloseTo(0.6, 5);
   });
 
   it('is never worth an error, however badly the browser behaves', () => {
@@ -646,6 +726,6 @@ describe('a sound, by the name of the moment it belongs to', () => {
       throw new Error('no audio on this device');
     });
     const manager = ready();
-    expect(() => manager.playSfx('battle_slash_hit')).not.toThrow();
+    expect(() => manager.playSfx('battle_hit')).not.toThrow();
   });
 });
