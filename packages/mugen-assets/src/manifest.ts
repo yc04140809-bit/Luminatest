@@ -45,6 +45,7 @@ import bgmTavern from '../files/audio/bgm/tavern.mp3';
 import bgmGreenwoodForest from '../files/audio/bgm/greenwood-forest.mp3';
 import bgmNormalBattle from '../files/audio/bgm/normal-battle.mp3';
 import titleKaosKeyVisual from '../files/backgrounds/title-kaos-keyvisual.webp';
+import themeSongCover from '../files/backgrounds/theme-song-cover.webp';
 import battleUiAutoOn from '../files/ui/battle/chip-auto-on.png';
 import battleUiAutoOff from '../files/ui/battle/chip-auto-off.png';
 import battleUiSpeedOn from '../files/ui/battle/chip-x2-on.png';
@@ -292,6 +293,16 @@ export const FIELD_ART = {
 
 /** The Kaos key visual behind the title. Not a place: a cover image. */
 export const TITLE_KEY_VISUAL: string = titleKaosKeyVisual;
+
+/**
+ * 「また、ここで。」 — the theme song's own cover.
+ *
+ * Shown on the one screen that is ABOUT the song, while it is playing.
+ * The art carries the title and the lyric itself, so the screen over it
+ * draws neither: what the UI still owes the player is the one line the
+ * picture cannot say, which is what happens when the song ends.
+ */
+export const THEME_SONG_COVER: string = themeSongCover;
 
 /**
  * THE SIX PIECES OF MUSIC THE GAME IS SCORED FOR.

@@ -58,6 +58,25 @@ export const REVIEW_ASSETS = [
     quality: 55,
     scale: 0.7,
   },
+  /**
+   * THE THEME SONG'S COVER — shown whole on the phone, lightened here.
+   *
+   * 374 KB of WebP is nothing in an APK and nearly everything in what
+   * is left of 16 MiB: base64 would make it about 500 KB against 467 KB
+   * of headroom. So the artifact carries a smaller copy and the game
+   * carries the delivered one, which is the arrangement every line in
+   * this list exists for.
+   *
+   * A DIFFERENT NAME ON THE WAY OUT, because this is the first entry
+   * whose source is already a .webp: an alias whose replacement has the
+   * same basename as its pattern can match its own output.
+   */
+  {
+    source: join(ASSETS_DIR, 'files/backgrounds/theme-song-cover.webp'),
+    out: join(REVIEW_ASSET_DIR, 'theme-song-cover-review.webp'),
+    quality: 60,
+    scale: 0.62,
+  },
   // The forest field and Gald face down: 5.5 MB of PNG between them,
   // which put the artifact back over the limit the moment they landed.
   {

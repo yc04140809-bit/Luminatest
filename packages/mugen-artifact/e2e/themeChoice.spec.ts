@@ -88,7 +88,12 @@ test('LISTEN plays the theme, and offers a way out of it', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('theme-choice-listen').click();
 
-  await expect(page.getByTestId('theme-choice-now')).toBeVisible({ timeout: 5_000 });
+  // The screen turns into the song's own cover, and keeps the one line
+  // the picture cannot say: what happens when it is over.
+  const nowPlaying = page.getByTestId('theme-choice-now');
+  await expect(nowPlaying).toBeVisible({ timeout: 5_000 });
+  await expect(nowPlaying).toHaveText('聴き終わると、タイトルへ進みます');
+  await expect(page.getByTestId('theme-cover')).toBeVisible();
   expect(await sounding(page)).toEqual(['opening.mp3']);
   // Still the choice screen: the title comes after the song.
   await expect(page.getByTestId('start-button')).toHaveCount(0);

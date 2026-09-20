@@ -11,6 +11,9 @@
 // Two buttons and nothing else. A choice with a third option is a
 // menu, and a menu before the title is a thing to get past.
 
+import { ScreenBackdrop } from '../common/ScreenBackdrop';
+import { THEME_SONG_COVER } from '@mugen/assets';
+
 interface Props {
   /** Play it, and go on when it is over or when they say so. */
   onListen: () => void;
@@ -39,19 +42,26 @@ interface Props {
 export function ThemeChoiceScreen({ onListen, onSkip, playing = false, muted = false }: Props) {
   if (playing) {
     return (
-      <div className="screen theme-choice theme-choice-playing" data-testid="theme-choice">
-        <div className="theme-choice-mark" aria-hidden="true">
-          <span className="theme-choice-rule" />
-          <span className="theme-choice-note">♪</span>
-          <span className="theme-choice-rule" />
-        </div>
-        <p className="theme-choice-lead" data-testid="theme-choice-now">
-          また、ここで。
+      <div
+        className="screen theme-choice theme-choice-playing has-backdrop"
+        data-testid="theme-choice"
+      >
+        {/* THE SONG'S OWN COVER, while the song is playing.
+            It is the one screen that is ABOUT a piece of music, so it
+            is the one screen where the art may be the whole of it. */}
+        <ScreenBackdrop src={THEME_SONG_COVER} variant="cover" testId="theme-cover" />
+        {/* WHAT THE PICTURE CANNOT SAY.
+            The cover already carries the title and the lyric, so
+            drawing 「また、ここで。」 again would print it twice. What
+            is still owed is what happens when the song ends, and it is
+            kept — on a plate of its own, so it stays readable over a
+            bright illustration rather than dissolving into it. */}
+        <p className="theme-choice-note-line theme-choice-plate" data-testid="theme-choice-now">
+          聴き終わると、タイトルへ進みます
         </p>
         {/* No second SKIP. The game's own is already on screen over
             this, and two controls that do the same thing is one of them
             doing nothing. */}
-        <p className="theme-choice-note-line">聴き終わると、タイトルへ進みます</p>
       </div>
     );
   }

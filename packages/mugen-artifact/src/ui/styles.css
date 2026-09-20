@@ -6624,3 +6624,45 @@ body,
   gap: 10px;
   margin-top: 4px;
 }
+
+/* THE THEME SONG'S COVER, while the song is playing.
+   Every other backdrop is scenery behind a screen and is dimmed until
+   it stops competing with the words. This one is the SUBJECT — it is
+   the sleeve of the piece the player chose to sit and listen to — so
+   it is shown whole and barely touched, and the only thing over it is
+   the one line the picture cannot say. */
+.backdrop-cover .screen-backdrop-art {
+  /* TOP-WEIGHTED, because a phone is wider than the sleeve is.
+     The art is 16:9 and a landscape phone is nearer 2.2:1, so filling
+     the width overflows the height and something must go. What must
+     NOT go is the top: the song's name is up there. So the crop is
+     taken from the foot, where the picture is flowers and the plate is
+     sitting anyway. */
+  background-position: 50% 14%;
+  background-size: cover;
+}
+.backdrop-cover .screen-backdrop-veil {
+  /* Just enough at the foot to seat the line, and nothing across the
+     picture itself. */
+  background: linear-gradient(180deg, transparent 0%, transparent 62%, rgba(12, 10, 20, 0.55) 100%);
+}
+.theme-choice-playing.has-backdrop {
+  /* The plate goes at the foot, under the art rather than across it. */
+  justify-content: flex-end;
+  padding-bottom: max(18px, env(safe-area-inset-bottom));
+}
+/* READABLE OVER ANYTHING. The cover is bright at the top and dark at
+   the bottom, and a line of grey text would vanish into one or the
+   other — so the line brings its own background with it. */
+.theme-choice-plate {
+  margin: 0;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: rgba(12, 10, 20, 0.62);
+  color: #f2ede4;
+  font-size: var(--font-size-sm, 13px);
+  letter-spacing: 0.08em;
+  line-height: 1.7;
+  text-align: center;
+  backdrop-filter: blur(2px);
+}
