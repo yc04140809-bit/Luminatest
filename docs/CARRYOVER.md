@@ -1,12 +1,13 @@
-# 引き継ぎ事項 — APP ALPHA PHASE 2 / ROUND 8 時点
+# 引き継ぎ事項 — APP ALPHA PHASE 2 / ROUND 9 時点
 
 ROUND 6：**条件付き完了**
 ROUND 7：**承認**（実機確認は作者側で未実施）
 ROUND 8：Artifact の TIME SHIFT を開発専用へ退避
+ROUND 9：Android Debug APK 生成・ガルド四択4経路の実UI検証
 APP ALPHA PHASE 2：**継続**
 App移行の最終完了判定：**保留**
 
-記録時点のコミット: Round 8 時点で更新
+記録時点のコミット: Round 9 時点で更新
 
 > **この文書は HANDOFF MASTER ではない。**
 > HANDOFF MASTER はリポジトリ外にある正式文書であり、本ファイルは
@@ -205,3 +206,84 @@ WORLD LIFE ENGINE と共用の時間処理に全面禁止を入れないよう
 通常プレイから消えたため、「通常UIから到達できない」ことを確かめる
 テストへ置き換えたうえで、案内の内容そのものは DEV 経路で
 引き続き検証している（差引きでテストは1本増）。
+
+---
+
+# Round 9 で新たに記録した事項
+
+## 9. Artifact に FUTURE VISION を接続するための調査（実装は未着手）
+
+Round 7 で App に実装した「四択の直後に3年後を一度だけ観測する」演出を、
+実機で動いている Artifact 版にも入れるための下調べ。**今回は調査のみ。**
+
+### 結論：core と content は完成済み。足りないのは Artifact の配線だけ
+
+| 必要なもの | 状態 |
+|---|---|
+| 3年後の導出（純粋・非永続） | ✅ `world.previewLifeEvents(3)` |
+| 「観測済み」の記録 | ✅ `markExperienceSeen(GALD_FUTURE_VISION_ID)` |
+| 観測済みかの判定 | ✅ `hasSeenExperience()` |
+| イベントID・年数 | ✅ `content/events/galdLifeChoice.ts` |
+| ケイオスの台詞（6行） | ✅ `content/dialogue/galdEncounter.ts` |
+| CANONのテスト（16件） | ✅ `core/world/futureVision.test.ts` |
+| **SAVE schema の変更** | **不要**。`experience_seen` は既存の行で、Artifact も既に書いている |
+| Artifact の画面 | ❌ 未実装 |
+| Artifact の遷移 | ❌ 未実装 |
+
+`core/world/futureVision.test.ts` は front-end を問わない16件で、正式仕様の
+6項目（3年後を見せる／世界時間を進めない／元の時間に戻す／四択を再表示しない／
+唯一の結末に固定しない／旧SAVE互換）をすべて既に固定している。
+**Artifact に接続しても core は一行も変えなくてよい。**
+
+### 最大の障害：`TIME_SHIFT` という画面IDが Artifact では埋まっている
+
+App は未来観測を `TIME_SHIFT` の画面IDに載せている。Artifact では同じIDが
+**Round 8 で開発専用に退避した旧TIME SHIFT**に使われており、
+`App.tsx` の `case 'TIME_SHIFT'` は
+
+```ts
+if (!DEV_ADMIN_ENABLED) return <div className="screen" />;
+```
+
+で始まる。つまり **App と同じやり方をそのまま持ってくると、
+実機のAPKでは真っ白な画面になる。**
+
+### 推奨する解決策：`FUTURE_VISION` という画面IDを新設する
+
+`case 'TIME_SHIFT'` の中で分岐させる案は却下。1つのIDに
+「開発用の年送り」と「物語の演出」を同居させることになり、
+Round 8 で切り離したばかりのものを元に戻すことになる。
+
+新IDが触る箇所は4つで、**うち3つはコンパイラが強制する**。
+
+| ファイル | 変更 | 強制 |
+|---|---|---|
+| `core/flow/types.ts` | `Screen` に1行追加 | — |
+| `core/flow/gameFlow.ts` | `TRANSITIONS`（`Record<Screen,…>`） | ✅ |
+| `core/world/world.ts` | `RESUME_AREA` に `FUTURE_VISION: 'HOME'` | ❌ **`Partial` なので手で入れる必要あり** |
+| `mugen-artifact/src/platform/backTarget.ts` | `BACK`（`Record<Screen,…>`）→ 答えは `null` | ✅ |
+| 両 App の `switch` | Artifact は `default:` が無いので強制。App は `default:` があるので任意 | 一部 |
+
+**REQUIRED_CANON_DECISION**: `Screen` は共有語彙なので、新IDの追加は
+実装前に承認を求めること。
+
+### Artifact 側に新規で要るもの
+
+1. **画面コンポーネント** — App版は120行のプレーンな作り。Artifact には
+   `DialogueSequence`・立ち絵・背景があるので、同じ台詞を Artifact の
+   演出水準で出し直すことになる（台詞データは共有なので書き足さない）。
+2. **`visionOwed()` 相当** — App の `App.tsx:176` と同じ3条件:
+   四択が確定している／まだ観測していない／`WORLD_TIME_SHIFTED` が無い。
+3. **CHOICE_RESULT の出口** — 現在は `onReturnHome={() => flow.goTo('HOME')}`。
+   ここに「未観測なら演出へ」を足す。
+4. **CONTINUE の復帰** — 観測の途中で閉じた場合に再開する。
+   `RESUME_AREA` が `HOME` を返すので、HOME に戻ってから `visionOwed()` で
+   再提示する App と同じ形でよい。
+
+### 旧SAVE互換は Artifact のほうが重要
+
+App の `WORLD_TIME_SHIFTED` ガードは、Artifact では **より当たりやすい**。
+開発用 TIME SHIFT は今も実際に3年進めて `WORLD_TIME_SHIFTED` を書くし、
+Round 8 以前の公開ビルドには自由に押せるボタンがあった。
+そういう世界は既に4年目で人生が終わっており、「3年後を見せる」意味が無い。
+**巻き戻さず、書き換えず、ただ演出を提示しない**という App と同じ扱いにする。

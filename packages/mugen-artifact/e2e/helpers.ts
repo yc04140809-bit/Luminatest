@@ -497,3 +497,44 @@ export async function devTimeShift(
   }
   await leaveDevTimeShift(page);
 }
+
+/**
+ * THE ONE DECISION THE GAME DOES NOT LET ANYBODY TAKE AGAIN.
+ *
+ * Presses one of the four answers and reads the aftermath through to
+ * the screen that names what was written down.
+ *
+ * The dialogue is TAPPED UNTIL IT IS OVER rather than a fixed number
+ * of times, because the four routes do not say the same amount: SPARE
+ * has three lines and the other three have two. Every spec that did
+ * this by hand hard-coded SPARE's three, which is why only SPARE was
+ * ever tested this way.
+ */
+export async function decideGaldLife(
+  page: Page,
+  choice: 'SPARE' | 'HELP' | 'CAPTURE' | 'KILL',
+): Promise<void> {
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId(`choice-${choice}`).click();
+
+  const dialogue = page.getByTestId('choice-result-dialogue');
+  const recorded = page.getByTestId('choice-recorded-screen');
+  await expect(dialogue.or(recorded).first()).toBeVisible({ timeout: 20_000 });
+  for (let i = 0; i < 12; i++) {
+    if (await recorded.isVisible().catch(() => false)) break;
+    // The last tap detaches the scene while it commits, so a click that
+    // loses its element is how this finishes, not a failure.
+    await dialogue.click({ timeout: 3000 }).catch(() => {});
+  }
+  await expect(recorded).toBeVisible({ timeout: 20_000 });
+}
+
+/** The MEMORY_EVENT each answer writes. One id, four possible types. */
+export const GALD_CHOICE_EVENT_TYPE = {
+  SPARE: 'PLAYER_SPARED_GALD',
+  HELP: 'PLAYER_HELPED_GALD',
+  CAPTURE: 'PLAYER_CAPTURED_GALD',
+  KILL: 'PLAYER_KILLED_GALD',
+} as const;
+
+export const GALD_CHOICE_EVENT_ID = 'evt_gald_first_encounter_life_choice';
