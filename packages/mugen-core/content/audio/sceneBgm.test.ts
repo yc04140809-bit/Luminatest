@@ -19,19 +19,29 @@ const at = (screen: Screen, rest: Partial<SceneCue> = {}): SceneCue => ({
  * game" and never named. So the mapping is a pure function and this is
  * what holds it to what was actually asked for.
  */
-describe('the six scenes, by name', () => {
+describe('the seven scenes, by name', () => {
   /**
-   * THE TITLE IS SILENT NOW, AND THAT IS THE CHANGE.
+   * SILENT BEFORE THE TITLE, AND NOT ON IT.
    *
-   * The theme used to loop under the title. There is a screen before
-   * the title whose whole subject is that song, so by the time anybody
-   * reaches the title they have either just heard it or said they
-   * would rather not — and both answers are spoiled by starting it
-   * again underneath them.
+   * The screen that ASKS about the song stays silent — its whole
+   * subject is a song that has not started, and the tap that answers
+   * it is also the tap that lets a phone make any sound at all.
+   *
+   * The title itself is the village's piece. Not the theme: somebody
+   * who pressed 「スキップ」 said they would rather not hear that, and
+   * a title that played it anyway would ignore the only thing the
+   * previous screen asked. But not silence either — the title was the
+   * one screen in the build with nothing playing, and on a phone that
+   * reads as the sound having broken rather than as a pause.
    */
-  it('says nothing before the title, and nothing on it', () => {
+  it('says nothing before the title, and the village on it', () => {
     expect(bgmForScene(at('THEME_CHOICE'))).toBeNull();
-    expect(bgmForScene(at('TITLE'))).toBeNull();
+    expect(bgmForScene(at('TITLE'))).toBe('ALDEN_HOME');
+  });
+
+  /** And never the theme, whatever else it is. */
+  it('never answers the theme on the title', () => {
+    expect(bgmForScene(at('TITLE'))).not.toBe('OPENING');
   });
 
   it('finds its voice when the game itself starts', () => {

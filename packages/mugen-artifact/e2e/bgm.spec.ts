@@ -135,12 +135,11 @@ test('the seven scenes, each with its own music', async ({ page }) => {
   test.setTimeout(240_000);
   await page.goto('/');
 
-  // 1. THE TITLE IS SILENT, and so is the screen before it. The theme
-  //    is a song somebody is asked about before the title; by the time
-  //    they are here they have either just heard it or said they would
-  //    rather not, and both answers are spoiled by starting it again
-  //    underneath them. (The fixture answered 「スキップ」 to get here.)
-  expect(await playing(page)).toBeNull();
+  // 1. THE TITLE PLAYS THE VILLAGE, one screen early. Not the theme —
+  //    the fixture answered 「スキップ」 to get here, which is somebody
+  //    saying they would rather not hear that song — and not silence,
+  //    which is how the title read on a phone before this.
+  await expectPlaying(page, 'alden-home.mp3');
 
   // 2. PROLOGUE — the game itself starting, which is where it finds
   //    its voice. A beat of quiet first, on purpose.

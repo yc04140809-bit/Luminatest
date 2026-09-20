@@ -66,17 +66,20 @@ test('both answers are thumb-sized and both lead to the title', async ({ page })
 });
 
 /**
- * スキップ: 「Opening Themeを再生せず、Title Screenへ即遷移」. Not
- * started, and nothing left sounding behind it — which is the half
- * that is worth a test, because "it was never started" and "it was
- * started and then stopped" look the same from the title.
+ * スキップ: 「Opening Themeを再生せず、Title Screenへ即遷移」.
+ *
+ * THE THEME is what must not be heard — that is the whole meaning of
+ * the button, and it is worth a test because "never started" and
+ * "started and then stopped" look the same from the title. The title
+ * is not silent any more: it plays the village, which is not the song
+ * that was declined.
  */
-test('SKIP plays nothing at all, and leaves nothing playing', async ({ page }) => {
+test('SKIP plays the theme not at all, and the village instead', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('theme-choice-skip').click();
   await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 10_000 });
-  await page.waitForTimeout(1600); // past the beat of quiet, had there been one
-  expect(await sounding(page)).toEqual([]);
+  await page.waitForTimeout(1600);
+  expect(await sounding(page)).toEqual(['alden-home.mp3']);
 });
 
 /**
@@ -102,11 +105,12 @@ test('LISTEN plays the theme, and offers a way out of it', async ({ page }) => {
   await expect(skip).toBeVisible({ timeout: 5_000 });
   await skip.click();
 
-  // And that is the way to the title — with the song gone, not merely
-  // quieter, and with the title left silent behind it.
+  // And that is the way to the title — with the song GONE, not merely
+  // quieter. What is behind it now is the village's piece, which is
+  // the one thing the title may play: it is not the song just declined.
   await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(1200);
-  expect(await sounding(page)).toEqual([]);
+  expect(await sounding(page)).toEqual(['alden-home.mp3']);
 });
 
 /** One song. A second tap on 聴く is not a second copy of it. */

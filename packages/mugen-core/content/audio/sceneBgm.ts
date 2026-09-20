@@ -77,22 +77,30 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
       return null;
 
     /**
-     * AND THE TITLE IS SILENT, WHICH IS A CHANGE.
+     * THE TITLE IS THE VILLAGE'S PIECE, PLAYED EARLY.
      *
-     * The theme used to be the title's room tone, looping under it.
-     * There is a screen before the title now whose whole subject is
-     * that song, so by the time anybody reaches the title they have
-     * either just heard it or said they would rather not — and both
-     * answers are spoiled by starting it again underneath them. 「スキッ
-     * プ」 in particular means not hearing the theme, and a title that
-     * played it anyway would be ignoring the only thing that screen
-     * asked.
+     * It was silent, and the reasoning was sound as far as it went:
+     * the theme used to be the title's room tone, there is now a
+     * screen before the title whose whole subject is that song, and
+     * by the time anybody arrives here they have either just heard it
+     * or said they would rather not. Starting the theme again
+     * underneath them ignores both answers, and 「スキップ」 most of
+     * all — which is why it is still not the theme that plays here.
      *
-     * The game finds its voice again at the prologue, which is the
-     * game starting rather than the title waiting.
+     * What the reasoning missed is that a player who has just sat
+     * through three and a half minutes of song, or skipped past it,
+     * does not arrive wanting SILENCE. They arrive wanting the game.
+     * Reported from a phone: the title was the only screen in the
+     * whole build with nothing playing, and it read as the sound
+     * having broken.
+     *
+     * So the village's own piece starts here, one screen early. It is
+     * quiet, it is not the theme, and it is what HOME is about to play
+     * anyway — so pressing はじめる changes the music no more than
+     * opening the bag does.
      */
     case 'TITLE':
-      return null;
+      return 'ALDEN_HOME';
     case 'PROLOGUE':
       return cue.kaosSpeaking ? 'KAOS_EVENT' : 'OPENING';
 
