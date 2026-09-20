@@ -3,6 +3,7 @@ import { ATTACK_SFX_BY_STYLE, ATTACK_SFX_BY_WEAPON, attackSfxFor } from './weapo
 import { SFX_IDS } from './sfx';
 import {
   BATTLE_PROFILES,
+  WEAPON_CANON,
   battleProfileOf,
   weaponLabelOf,
   type BattleProfile,
@@ -79,5 +80,31 @@ describe('what somebody fights with', () => {
 
   it('is content, so no world has to store it', () => {
     expect(battleProfileOf('nobody')).toBeNull();
+  });
+
+  /**
+   * CANON FOR PEOPLE WHO ARE NOT HERE YET. Levi, Aria and Gald have a
+   * weapon and nothing else decided, so the weapon is written down and
+   * the four fields nobody has chosen are not invented around it.
+   */
+  it('remembers what the unwritten carry, without inventing the rest', () => {
+    expect(WEAPON_CANON.levi).toBe('SPEAR');
+    expect(WEAPON_CANON.aria).toBe('BOW');
+    expect(WEAPON_CANON.gald).toBe('DUAL_DAGGER');
+    for (const id of ['levi', 'aria', 'gald']) {
+      expect(battleProfileOf(id), `${id} has no invented profile`).toBeNull();
+    }
+  });
+
+  /** 魔法 is a style, not a thing in her hands. */
+  it('does not give Kaos a weapon she has not been given', () => {
+    expect('kaos' in WEAPON_CANON).toBe(false);
+  });
+
+  /** Everything named there is a weapon the sound table can answer. */
+  it('can make a noise for every weapon in canon', () => {
+    for (const [who, weapon] of Object.entries(WEAPON_CANON)) {
+      expect(ATTACK_SFX_BY_WEAPON[weapon], `${who}'s weapon has a sound`).toBeTruthy();
+    }
   });
 });

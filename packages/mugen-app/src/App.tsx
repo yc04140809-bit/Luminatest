@@ -25,6 +25,7 @@ import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
 import { FutureVisionScreen } from './ui/futureVision';
+import { StatusScreen } from './ui/status';
 import {
   GALD_FUTURE_VISION_ID,
   GALD_FUTURE_VISION_YEARS,
@@ -268,6 +269,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onBag={() => flow.goTo('BAG')}
           onMemory={() => flow.goTo('WORLD_MEMORY')}
           onArchive={() => flow.goTo('ARCHIVE')}
+          onStatus={() => flow.goTo('STATUS')}
           resting={resting}
           onRest={() => {
             if (resting) return;
@@ -286,6 +288,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       return <WorldMemoryScreen world={world} onBack={() => flow.goTo('HOME')} />;
     case 'ARCHIVE':
       return <ArchiveScreen world={world} onBack={() => flow.goTo('HOME')} />;
+    case 'STATUS':
+      // READ-ONLY. It is handed the world and has no way to change it.
+      return <StatusScreen world={world} onBack={() => flow.goTo('HOME')} />;
     case 'EXPLORE':
       return (
         <MapScreen

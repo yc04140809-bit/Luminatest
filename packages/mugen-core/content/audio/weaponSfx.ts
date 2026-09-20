@@ -19,7 +19,7 @@ import type { SfxId } from './sfx';
 /** What each weapon sounds like when it is swung, thrust or loosed. */
 export const ATTACK_SFX_BY_WEAPON: Record<WeaponType, SfxId> = {
   LONG_SWORD: 'battle_attack_slash',
-  DUAL_DAGGERS: 'battle_attack_dagger',
+  DUAL_DAGGER: 'battle_attack_dagger',
   SPEAR: 'battle_attack_thrust',
   BOW: 'battle_attack_bow',
 };

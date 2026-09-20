@@ -165,6 +165,7 @@ export function AldenScreen({
   onBag,
   onMemory,
   onArchive,
+  onStatus,
   resting,
   onRest,
 }: {
@@ -173,6 +174,7 @@ export function AldenScreen({
   onBag: () => void;
   onMemory: () => void;
   onArchive: () => void;
+  onStatus: () => void;
   /** True while a night is already passing — see App's note. */
   resting: boolean;
   onRest: () => void;
@@ -199,6 +201,9 @@ export function AldenScreen({
         </button>
         <button className="btn" data-testid="archive-button" onClick={onArchive}>
           人生の記録
+        </button>
+        <button className="btn" data-testid="status-button" onClick={onStatus}>
+          ステータス
         </button>
         <button className="btn" data-testid="rest-button" disabled={resting} onClick={onRest}>
           休息する

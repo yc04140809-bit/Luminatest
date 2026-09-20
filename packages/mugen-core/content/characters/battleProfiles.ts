@@ -21,7 +21,7 @@
 // until somebody decides. Null here means "not decided", never "none"
 // and never "unarmed".
 
-export type WeaponType = 'LONG_SWORD' | 'DUAL_DAGGERS' | 'SPEAR' | 'BOW';
+export type WeaponType = 'LONG_SWORD' | 'DUAL_DAGGER' | 'SPEAR' | 'BOW';
 
 export type BattleStyle = 'SWORDSMANSHIP' | 'MAGIC';
 
@@ -52,15 +52,43 @@ export interface BattleProfile {
 }
 
 /**
- * The roster, by id.
+ * WHAT EACH NAMED CHARACTER CARRIES. Canon, and only canon.
+ *
+ * Separate from the profiles below because it answers a smaller
+ * question and can therefore answer it about MORE PEOPLE. Levi, Aria
+ * and Gald have a weapon in canon and nothing else decided — no
+ * levels, no picture, no place in the party — so a full profile for
+ * them would be four invented fields around one real one. This is the
+ * one real one, written down, waiting.
+ *
+ * KAOS IS DELIBERATELY ABSENT. 魔法 is how she fights, not a thing in
+ * her hands, and what she might hold is undecided. The status line
+ * still reads 魔法 for her, from her style — see `weaponLabelOf`.
+ *
+ * GALD IS AN ENEMY and being in this map does not change that. It
+ * records what he fights with, nothing more: no route through the four
+ * answers puts him in the party, and nothing here should ever be read
+ * as doing so.
+ */
+export const WEAPON_CANON: Record<string, WeaponType> = {
+  hero: 'LONG_SWORD',
+  levi: 'SPEAR',
+  aria: 'BOW',
+  gald: 'DUAL_DAGGER',
+};
+
+/**
+ * The full profiles: everybody the game can currently DRAW and show.
  *
  * Two entries, because two people fight. A third is a line here and
- * nothing else — that is the whole point of the shape.
+ * nothing else — that is the whole point of the shape — and the day
+ * Levi joins, her weapon is already above and this is where the rest
+ * of her arrives.
  */
 export const BATTLE_PROFILES: Record<string, BattleProfile> = {
   hero: {
     characterId: 'hero',
-    weaponType: 'LONG_SWORD',
+    weaponType: WEAPON_CANON.hero,
     battleStyle: 'SWORDSMANSHIP',
     portraitKey: 'hero',
     skinId: 'default',
@@ -82,7 +110,7 @@ export function battleProfileOf(characterId: string): BattleProfile | null {
 /** Japanese, for the one screen that shows these to a player. */
 export const WEAPON_LABELS: Record<WeaponType, string> = {
   LONG_SWORD: '長剣',
-  DUAL_DAGGERS: '二刀短剣',
+  DUAL_DAGGER: '二刀短剣',
   SPEAR: '槍',
   BOW: '弓',
 };
