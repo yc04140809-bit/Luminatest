@@ -332,6 +332,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  /* CLIPPED TEXT MUST NOT LOOK BROKEN.
+     `overflow: hidden` cuts through the middle of a line of kana and
+     the result reads as a rendering fault, not as an abbreviation.
+     Fading the last few pixels turns the same cut into something that
+     looks meant — the line trails off instead of being sliced. */
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent 100%);
 }
 .st-name {
   margin: 0;
@@ -368,10 +375,13 @@ body {
   color: var(--st-dim);
 }
 .st-style-note {
-  /* Gives way after the prose, before anything with a number in it. */
+  /* Gives way after the prose, before anything with a number in it,
+     and fades rather than being sliced for the same reason. */
   flex: 0 1 auto;
   min-height: 0;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 10px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 10px), transparent 100%);
   margin-top: 2px;
   color: var(--st-dim);
 }
@@ -445,6 +455,9 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
+  /* Both marks, or the screen is lying about what somebody fights
+     with. They are allowed to get small; they are not allowed to go. */
+  min-width: 0;
 }
 .st-mark {
   display: flex;
@@ -454,18 +467,46 @@ body {
   border: 1px solid var(--st-gold-soft);
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.5);
-  font-size: 10px;
+  /* 「近接攻撃 / オールラウンダー」 is long enough to wrap the row onto
+     a second line, and on a very short screen that second line falls
+     off. Shrinking with the height keeps both marks on one row. */
+  font-size: clamp(8.5px, 2.8vh, 10px);
+  white-space: nowrap;
 }
 .st-mark span {
   color: var(--st-dim);
   letter-spacing: 0.1em;
+}
+/* THE ORNAMENT GOES BEFORE THE FACT DOES.
+   Below about 315px of height the two marks wrap onto a second row —
+   「近接攻撃 / オールラウンダー」 is long — and that second row was
+   falling off the bottom: measured, 50px of chrome for 38px of text.
+   So on a screen that short the frames are dropped and they become
+   plain aligned rows, which is the spec's own order: spacing and
+   decoration give way, the information does not. No real handset is
+   this short; this is the floor holding. */
+@media (max-height: 315px) {
+  .st-marks {
+    margin-top: 3px;
+    gap: 0;
+    flex-direction: column;
+  }
+  .st-mark {
+    padding: 0;
+    border: 0;
+    background: none;
+    gap: 10px;
+  }
+  .st-mark span {
+    min-width: 56px;
+  }
 }
 .st-mark b {
   /* 400 only: shipping a second weight would be another 1.36MB for one
      line, and a synthesised bold on a 明朝 looks like a mistake.
      Emphasis here is size and colour. */
   font-weight: 400;
-  font-size: 12px;
+  font-size: clamp(10px, 3.3vh, 12px);
 }
 
 /* ── BOTTOM: the way out, and what is coming ──────────────────── */
