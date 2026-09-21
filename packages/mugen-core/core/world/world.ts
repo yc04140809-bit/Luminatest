@@ -891,6 +891,33 @@ export class World {
   }
 
   /**
+   * Handing somebody a piece of equipment.
+   *
+   * A REAL ROUTE, not a test hatch: a shop sale, a chest and a drop
+   * all end here, and until one of those exists the only caller is an
+   * e2e — which is a reason to keep it honest, not to hide it. It
+   * refuses an id this build does not know rather than recording a
+   * possession that can never be worn.
+   */
+  async grantEquipment(equipmentId: string, quantity = 1): Promise<boolean> {
+    const count = Math.floor(quantity);
+    if (!weaponDefOf(equipmentId) || count <= 0) return false;
+    const next: OwnedTable = {
+      ...this.ownedEquipment,
+      [equipmentId]: (this.ownedEquipment[equipmentId] ?? 0) + count,
+    };
+    await this.store.commit({
+      putState: [
+        { key: OWNED_EQUIPMENT_KEY, value: next },
+        { key: EQUIPMENT_KEY, value: this.equipment },
+      ],
+    });
+    this.ownedEquipment = next;
+    this.emit();
+    return true;
+  }
+
+  /**
    * Putting something on, or taking it off with null.
    *
    * REFUSED RATHER THAN WRITTEN when it is not theirs to hold or they

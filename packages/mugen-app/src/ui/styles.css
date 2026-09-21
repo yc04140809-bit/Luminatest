@@ -610,7 +610,11 @@ body {
 .eq-pick {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  /* SCROLLS RATHER THAN CLIPS. A list whose later entries cannot be
+     reached is not a list — and this is the one interaction on the
+     screen, so it must survive a bag with ten swords in it. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   margin-top: 6px;
   padding: 5px 7px;
   border: 1px solid var(--st-gold-soft);

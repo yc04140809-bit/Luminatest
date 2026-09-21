@@ -119,6 +119,102 @@ test('is a leaf of the status screen, not a screen off the village', async ({ pa
  * every world made by every build until now — and must open with its
  * starting kit rather than empty-handed.
  */
+/**
+ * THE FULL SWAP, which needs two swords in one pair of hands.
+ *
+ * The second one is GRANTED rather than added to the starting kit:
+ * the brief forbids a test's kit reaching the real game, and
+ * `INITIAL_EQUIPMENT` deliberately does not hold the training sword.
+ * `grantEquipment` is the route a shop or a drop will use, reached
+ * here through a handle the production bundle does not contain.
+ */
+async function grantTrainingSword(page: Page) {
+  const ok = await page.evaluate(async () => {
+    const w = (window as unknown as { __mugenWorld?: { grantEquipment(id: string): Promise<boolean> } })
+      .__mugenWorld;
+    if (!w) return false;
+    return w.grantEquipment('weapon/training_long_sword');
+  });
+  expect(ok, 'the dev handle must exist in a dev build').toBe(true);
+}
+
+test('changes weapon, takes it off, puts it back, and remembers', async ({ page }) => {
+  await intoTheVillage(page);
+  await grantTrainingSword(page);
+  await openEquipment(page);
+
+  // ① 初期装備
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('使い込まれた長剣');
+
+  // ② 訓練用の長剣へ変更 → ③ 名前が変わる
+  await page.getByTestId('equip-slot-WEAPON').click();
+  // REACHABLE, not merely present. A row clipped out of the panel
+  // still has a box and still passes `toBeVisible`, which is exactly
+  // how the first build shipped a list showing only 「外す」.
+  for (const id of ['weapon/worn_long_sword', 'weapon/training_long_sword']) {
+    const row = page.getByTestId(`equip-choice-${id}`);
+    await expect(row).toBeVisible();
+    const reachable = await row.evaluate((e) => {
+      const panel = e.closest('.eq-pick')!.getBoundingClientRect();
+      const r = e.getBoundingClientRect();
+      // Inside the panel as it stands, or scrollable into it.
+      return r.top >= panel.top - 1 && r.bottom <= panel.bottom + 1;
+    });
+    expect(reachable, `${id} must be inside the list`).toBe(true);
+  }
+  await page.getByTestId('equip-choice-weapon/training_long_sword').click();
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('訓練用の長剣');
+  // Same weapon type either way, so the type line does not move.
+  await expect(page.getByTestId('equip-weapon-type')).toHaveText('長剣');
+
+  // ④ 装備を外す
+  await page.getByTestId('equip-slot-WEAPON').click();
+  await page.getByTestId('equip-remove').click();
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('装備なし');
+  // An empty hand still knows what he fights with: that is CANON,
+  // not equipment, and the two must not be confused.
+  await expect(page.getByTestId('equip-weapon-type')).toHaveText('長剣');
+  // Nothing to take off now, so nothing offers to.
+  await page.getByTestId('equip-slot-WEAPON').click();
+  await expect(page.getByTestId('equip-remove')).toHaveCount(0);
+
+  // ⑤ 元の長剣を再装備
+  await page.getByTestId('equip-choice-weapon/worn_long_sword').click();
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('使い込まれた長剣');
+
+  // ⑥ 変更を保存して ⑦ 読み直す。最後の変更が残っていること。
+  await page.getByTestId('equip-slot-WEAPON').click();
+  await page.getByTestId('equip-choice-weapon/training_long_sword').click();
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('訓練用の長剣');
+  await page.getByTestId('equip-back').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await openEquipment(page);
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('訓練用の長剣');
+  // And the status screen agrees, because both read the same row.
+  await page.getByTestId('equip-to-status').click();
+  await expect(page.getByTestId('status-equipped')).toHaveText('訓練用の長剣');
+});
+
+test('an unequipped hand survives a restart too', async ({ page }) => {
+  await intoTheVillage(page);
+  await openEquipment(page);
+  await page.getByTestId('equip-slot-WEAPON').click();
+  await page.getByTestId('equip-remove').click();
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('装備なし');
+  await page.getByTestId('equip-back').click();
+
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await openEquipment(page);
+  // TAKING IT OFF IS A DECISION, and must not be undone by the
+  // starting kit being reapplied on the way back in.
+  await expect(page.getByTestId('equip-weapon-name')).toHaveText('装備なし');
+});
+
 test('survives a restart, including a save that predates equipment', async ({ page }) => {
   await intoTheVillage(page);
   await openEquipment(page);

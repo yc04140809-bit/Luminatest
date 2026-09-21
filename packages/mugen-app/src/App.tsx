@@ -92,6 +92,25 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
   );
+
+  /**
+   * A HANDLE ON THE WORLD, IN DEVELOPMENT BUILDS ONLY.
+   *
+   * The e2e has to put a second sword in somebody's hands to test
+   * changing weapons, and the alternative was adding it to the real
+   * starting kit — which the brief forbids, and rightly: a test must
+   * not change the game to suit itself.
+   *
+   * `import.meta.env.DEV` is compile-time, so this is not in the
+   * shipped bundle at all rather than merely unreachable in it.
+   */
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __mugenWorld?: World }).__mugenWorld = world;
+    return () => {
+      delete (window as unknown as { __mugenWorld?: World }).__mugenWorld;
+    };
+  }, [world]);
   // Redrawn when world truth changes, the same way the Artifact does it.
   useSyncExternalStore(
     (cb) => world.subscribe(cb),

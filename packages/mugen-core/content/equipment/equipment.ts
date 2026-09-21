@@ -114,6 +114,15 @@ export const WEAPON_DEFS: Record<string, WeaponDefinition> = {
     description: '幾度もの戦いを経て、刃には無数の傷が刻まれている。',
     effect: NO_EFFECT,
   },
+  'weapon/training_long_sword': {
+    equipmentId: 'weapon/training_long_sword',
+    name: '訓練用の長剣',
+    slot: 'WEAPON',
+    attackKind: 'PHYSICAL',
+    weaponType: 'LONG_SWORD',
+    description: '剣の扱いを覚えるために作られた、簡素な長剣。',
+    effect: NO_EFFECT,
+  },
   'weapon/old_grimoire': {
     equipmentId: 'weapon/old_grimoire',
     name: '古い魔導書',
@@ -126,7 +135,15 @@ export const WEAPON_DEFS: Record<string, WeaponDefinition> = {
   },
 };
 
-/** What each character starts the game holding and wearing. */
+/**
+ * What each character starts the game holding and wearing.
+ *
+ * THE TRAINING SWORD IS DELIBERATELY NOT HERE. It exists in the world
+ * and can be held, but nobody starts with it — the brief is explicit
+ * that a second weapon for testing must not reach the real starting
+ * kit, and a test that granted itself one by editing this would have
+ * changed the game to suit itself.
+ */
 export const INITIAL_EQUIPMENT: Record<string, Partial<Record<EquipmentSlot, string>>> = {
   hero: { WEAPON: 'weapon/worn_long_sword' },
   kaos: { WEAPON: 'weapon/old_grimoire' },

@@ -79,7 +79,7 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
   const owned = world.getOwnedEquipment();
   const nameScale = Math.max(0.68, Math.min(1, 8 / heroNameLength(who.label)));
 
-  const wear = (id: string) => {
+  const wear = (id: string | null) => {
     void world.setEquipped(who.id, 'WEAPON', id).then(() => setPicking(null));
   };
 
@@ -145,6 +145,12 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
               const operable = OPERABLE_SLOTS.includes(slot);
               // Nobody who could hold nothing gets a row offering it.
               if (operable && choices.length === 0) return null;
+              // WHILE CHOOSING, THE SLOTS THAT CANNOT BE CHOSEN STEP
+              // ASIDE. On a 321px handset the list had room for one
+              // row and the swords were clipped out of sight; the
+              // three unbuilt slots were using the space. They come
+              // back the moment the list closes.
+              if (!operable && picking) return null;
               if (!operable) {
                 return (
                   <div className="eq-slot soon" key={slot} aria-disabled="true">
@@ -176,6 +182,20 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
           {picking ? (
             <div className="eq-pick" data-testid="equip-picker">
               <p>もちもの — {weaponType ? WEAPON_LABELS[weaponType] : '魔法'}</p>
+              {/* TAKING IT OFF IS A CHOICE IN THE SAME LIST, offered
+                  only when there is something to take off — an 「外す」
+                  on an empty hand is a button that does nothing. */}
+              {equippedId && (
+                <button
+                  className="eq-row"
+                  data-testid="equip-remove"
+                  onClick={() => wear(null)}
+                >
+                  <em />
+                  <u>外す</u>
+                  <s>装備なし</s>
+                </button>
+              )}
               {choices.map((weapon) => (
                 <button
                   className={weapon.equipmentId === equippedId ? 'eq-row on' : 'eq-row'}
