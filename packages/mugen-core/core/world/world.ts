@@ -6,6 +6,7 @@
 import type { LifeChoiceId, Screen } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
 import { SAVE_VERSION, migrateRows } from './saveSchema';
+import { DEFAULT_HERO_NAME, normaliseHeroName, readHeroName } from './heroName';
 import { statsForLevels, type PartyStats } from '../progression/levelStats';
 import {
   BATTLE_HP_HOLDER,
@@ -257,6 +258,13 @@ const CLAIMED_REWARDS_KEPT = 40;
  * the absolute number survives that.
  */
 const CONDITION_KEY = 'party_condition';
+/**
+ * WHAT THE PLAYER CALLS THEMSELVES. A display name and nothing else —
+ * `hero` remains the id everywhere. A save from before this row
+ * existed simply has none, which reads as the default, so no schema
+ * version moved and no migration step was written. See `heroName.ts`.
+ */
+const HERO_NAME_KEY = 'hero_name';
 
 const SESSION_KEY = 'session';
 
@@ -495,6 +503,10 @@ export class World {
   private resumeArea: ResumeArea;
   /** Null while nothing has hurt them: a world with no row is whole. */
   private condition: StoredParty | null;
+  /** The display name only. `hero` is still the id everywhere. */
+  private heroName: string;
+  /** Whether the save actually held one — see `WorldFields.heroNamed`. */
+  private heroNamed: boolean;
 
   private readonly health: SaveHealth;
 
@@ -506,6 +518,8 @@ export class World {
   ) {
     this.events = events;
     this.clock = fields.clock;
+    this.heroName = fields.heroName;
+    this.heroNamed = fields.heroNamed;
     this.characters = fields.characters;
     this.seenExperience = new Set(fields.seenExperience);
     this.experienceLog = fields.experienceLog;
@@ -788,6 +802,50 @@ export class World {
     });
   }
 
+  /**
+   * WHAT THE PLAYER CALLS THEMSELVES, for anything that shows a name.
+   *
+   * A save from before naming existed has no row, and that reads as
+   * the default — so an old world opens showing 「主人公」 rather than
+   * showing nothing, and nothing had to be migrated to make that true.
+   */
+  getHeroName(): string {
+    return this.heroName;
+  }
+
+  /** Whether a name has ever been chosen, however it was spelled. */
+  hasNamedHero(): boolean {
+    return this.heroNamed;
+  }
+
+  /**
+   * Naming, or renaming. THE ID DOES NOT MOVE.
+   *
+   * `hero` stays `hero`: the battle, WORLD MEMORY, the four answers
+   * about Gald and every event id are keyed off it and none of them
+   * can see this. Renaming is therefore never a way to take a story
+   * decision again — it changes a word on a screen.
+   *
+   * A name that is not a name is refused rather than written, and the
+   * caller is told, so a blank confirm can never leave somebody
+   * nameless.
+   */
+  async setHeroName(name: string): Promise<boolean> {
+    const clean = normaliseHeroName(name);
+    if (clean === null) return false;
+    if (this.heroNamed && clean === this.heroName) return true;
+    await this.store.commit({ putState: [{ key: HERO_NAME_KEY, value: clean }] });
+    this.heroName = clean;
+    this.heroNamed = true;
+    this.emit();
+    return true;
+  }
+
+  /** Confirming without typing anything: the default, recorded as chosen. */
+  async acceptDefaultHeroName(): Promise<void> {
+    await this.setHeroName(DEFAULT_HERO_NAME);
+  }
+
   private async writeParty(next: StoredParty): Promise<void> {
     // Clamped by reading it straight back: one definition of what a
     // stored row means, used for what goes in as well as what comes
@@ -975,6 +1033,13 @@ export class World {
       // What happened.
       this.events.length > 0 ||
       this.seenExperience.size > 0 ||
+      // HAVING SAID WHO YOU ARE IS PROGRESS. A player who answered the
+      // naming question and closed the game has done something, and it
+      // was saved; without this they would be offered only 「はじめる」,
+      // lose the name, and be asked it a second time — which is the one
+      // thing the naming spec says must never happen. Always false in
+      // the Artifact, which has no naming screen, so nothing there moves.
+      this.heroNamed ||
       // Having come to know something is progress too. A player who met
       // a moss rabbit and closed the game must be offered their world
       // back, not a new one.
@@ -2339,6 +2404,16 @@ interface WorldFields {
   claimedRewards: string[];
   resumeArea: ResumeArea;
   condition: StoredParty | null;
+  /** The display name only. `hero` is still the id everywhere. */
+  heroName: string;
+  /**
+   * Whether the row was actually there.
+   *
+   * Absent is NOT the same as 「主人公」 chosen: a save from before
+   * naming existed shows the default without ever having been asked,
+   * and this is what tells the two apart without a second stored flag.
+   */
+  heroNamed: boolean;
 }
 
 /** What reading a save had to say about it. */
@@ -2426,6 +2501,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readGrowth(value));
     case CLAIMED_REWARDS_KEY:
       return settle(readClaimedRewards(value));
+    case HERO_NAME_KEY:
+      return settle(readHeroName(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -2502,6 +2579,8 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       claimedRewards: claimed.slice(-CLAIMED_REWARDS_KEPT),
       resumeArea: readResumeArea(byKey.get(SESSION_KEY)),
       condition: readStoredCondition(byKey.get(CONDITION_KEY)),
+      heroName: take(HERO_NAME_KEY, readHeroName(byKey.get(HERO_NAME_KEY))),
+      heroNamed: byKey.get(HERO_NAME_KEY) !== undefined,
     },
     repairedKeys,
     unreadableKeys,

@@ -315,6 +315,9 @@ body {
   font-size: 21px;
   letter-spacing: 0.1em;
 }
+.st-name b {
+  font-weight: 400;
+}
 .st-name i {
   font-style: italic;
   font-size: 11px;
@@ -463,3 +466,22 @@ body {
   letter-spacing: 0.12em;
   color: var(--st-dim);
 }
+
+/* NAMING — asked once, between the opening and the village.
+   Plain on purpose: it is a question, and the answer is the only thing
+   on the screen that matters. */
+.naming-input {
+  width: min(280px, 80vw);
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: inherit;
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+.naming-input::placeholder { color: var(--dim); }
+.naming-count { margin: 6px 0 0; font-size: 12px; color: var(--dim); }

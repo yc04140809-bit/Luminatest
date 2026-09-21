@@ -26,6 +26,7 @@ import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
+import { NamingScreen } from './ui/naming';
 import {
   GALD_FUTURE_VISION_ID,
   GALD_FUTURE_VISION_YEARS,
@@ -72,6 +73,9 @@ export default function App() {
 }
 
 function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: boolean }) {
+  // Asked once, on the way out of the opening. See `case 'PROLOGUE'`.
+  const [naming, setNaming] = useState(false);
+  const [namingBusy, setNamingBusy] = useState(false);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -260,7 +264,35 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         />
       );
     case 'PROLOGUE':
-      return <OpeningScreen onDone={() => flow.goTo('HOME')} />;
+      // NAMING SITS BETWEEN THE OPENING AND THE VILLAGE, and stays out
+      // of the `Screen` union: that union is shared with the Artifact,
+      // whose `backTarget.ts` is a total `Record<Screen, …>`, and the
+      // Artifact may not be touched this round. Keeping it here also
+      // means 「つづきから」 — which goes straight to HOME — cannot
+      // reach it, so a returning player is never asked twice without
+      // any flag being consulted to arrange that.
+      if (naming) {
+        return (
+          <NamingScreen
+            busy={namingBusy}
+            onConfirm={(name) => {
+              if (namingBusy) return;
+              setNamingBusy(true);
+              // SAVED BEFORE THE VILLAGE IS SHOWN. A name confirmed and
+              // then lost to a crash on the way in would be asked for
+              // again, and the second asking is the bug.
+              void world
+                .setHeroName(name)
+                .finally(() => {
+                  setNaming(false);
+                  setNamingBusy(false);
+                  flow.goTo('HOME');
+                });
+            }}
+          />
+        );
+      }
+      return <OpeningScreen onDone={() => setNaming(true)} />;
     case 'HOME':
       return (
         <AldenScreen

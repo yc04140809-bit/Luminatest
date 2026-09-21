@@ -38,6 +38,9 @@ async function intoTheVillage(page: Page) {
   await page.getByTestId('start-button').click();
   const next = page.getByTestId('opening-next');
   for (let i = 0; i < 3; i++) await next.click();
+  // Naming sits between the opening and the village now. Taking the
+  // default keeps every test in this file about what it was about.
+  await page.getByTestId('naming-default').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 

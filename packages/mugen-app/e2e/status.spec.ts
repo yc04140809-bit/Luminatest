@@ -37,6 +37,9 @@ async function intoTheVillage(page: Page) {
   await page.getByTestId('start-button').click();
   const next = page.getByTestId('opening-next');
   for (let i = 0; i < 3; i++) await next.click();
+  // Naming now sits between the opening and the village. Taking the
+  // default, so what this file asserts stays about the status screen.
+  await page.getByTestId('naming-default').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 
@@ -59,7 +62,9 @@ async function pictureReady(page: Page) {
 test('shows what the world knows, for whoever is actually in the party', async ({ page }) => {
   await openStatus(page);
 
-  await expect(page.getByTestId('status-name')).toContainText('あなた');
+  // 主人公 is the default name, taken in the helper above — not a
+  // label written into the roster.
+  await expect(page.getByTestId('status-name-text')).toHaveText('主人公');
   await expect(page.getByTestId('status-level')).toHaveText('1');
   // Straight out of `levelCurve`: nothing on this screen works it out.
   await expect(page.getByTestId('status-next')).toHaveText('16');
@@ -114,7 +119,7 @@ test('names the screens that do not exist without offering them', async ({ page 
   // The only controls on the screen are the tabs and the way out.
   const buttons = await page.locator('.status-screen button').allInnerTexts();
   expect(new Set(buttons.map((b) => b.trim()))).toEqual(
-    new Set(['あなた', 'ケイオス', 'もどる']),
+    new Set(['主人公', 'ケイオス', 'もどる']),
   );
 });
 
@@ -129,7 +134,7 @@ test('switches between the two people who are here, and invents nobody else', as
 
   const before = await (await pictureReady(page)).getAttribute('src');
   await page.getByTestId('status-tab-kaos').click();
-  await expect(page.getByTestId('status-name')).toContainText('ケイオス');
+  await expect(page.getByTestId('status-name-text')).toHaveText('ケイオス');
   // 魔法 is a STYLE. She has not been given a weapon, so the weapon
   // line says how she fights rather than naming a staff or a grimoire
   // that nobody decided she carries.

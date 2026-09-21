@@ -59,7 +59,9 @@ interface Row {
 }
 
 export function StatusScreen({ world, onBack }: Props) {
-  const party = activeParty();
+  // THE SAVED NAME, not the roster's written label. The id stays
+  // `hero`; only the word shown changes.
+  const party = activeParty({ hero: world.getHeroName() });
   const [at, setAt] = useState(0);
   const who = party[Math.min(at, party.length - 1)];
   const profile = battleProfileOf(who.id);
@@ -175,7 +177,9 @@ export function StatusScreen({ world, onBack }: Props) {
 
         <div className="st-info">
           <p className="st-name" data-testid="status-name">
-            {who.label}
+            {/* The name alone, so a test can assert it exactly rather
+                than against the roman subtitle sitting beside it. */}
+            <b data-testid="status-name-text">{who.label}</b>
             {says && <i>{says.roman}</i>}
           </p>
           {/* 肩書き is absent until the author writes one. */}
