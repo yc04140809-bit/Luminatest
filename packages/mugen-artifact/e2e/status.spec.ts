@@ -27,7 +27,9 @@ test('the party, as people: name, level, health, weapon and style', async ({ pag
   await expect(page.getByTestId('status-level-hero')).toHaveText('1');
   await expect(page.getByTestId('status-hp-hero')).toContainText('/');
   await expect(page.getByTestId('status-weapon-hero')).toHaveText('長剣');
-  await expect(page.getByTestId('status-style-hero')).toHaveText('剣術');
+  await expect(page.getByTestId('status-style-hero')).toHaveText(
+    '近接攻撃 / オールラウンダー',
+  );
 
   /**
    * HER: 魔法 on the weapon line, because what she HOLDS is not decided

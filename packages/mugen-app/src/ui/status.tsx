@@ -1,3 +1,16 @@
+// 明朝, SELF-HOSTED. Noto Serif JP under the SIL Open Font License
+// 1.1 — free to embed and redistribute in a commercial game, and the
+// licence text ships with it. See `docs/FONTS.md` for provenance and
+// what the credit requirements actually are.
+//
+// IMPORTED HERE RATHER THAN GLOBALLY, and only the two subsets this
+// screen can need. `@font-face` alone downloads nothing: the 1.36MB
+// Japanese file is fetched when a glyph is first matched to the
+// family, and the family is scoped to `.status-screen`, so a player
+// who never opens this screen never pays for it. On Android it is a
+// local file and there is no fetch at all.
+import '@fontsource/noto-serif-jp/latin-400.css';
+import '@fontsource/noto-serif-jp/japanese-400.css';
 import { useEffect, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { MAX_LEVEL, expToNextLevel, levelBand } from '@mugen/core/progression/levelCurve';

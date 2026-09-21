@@ -72,7 +72,7 @@ test('shows what the world knows, for whoever is actually in the party', async (
   await expect(page.getByTestId('status-mp')).toHaveText('48 / 48');
   await expect(page.getByTestId('status-attack-range')).toHaveText('8〜12');
   await expect(page.getByTestId('status-weapon')).toHaveText('長剣');
-  await expect(page.getByTestId('status-style')).toHaveText('剣術');
+  await expect(page.getByTestId('status-style')).toHaveText('近接攻撃 / オールラウンダー');
 });
 
 test('says nothing about stats and equipment this build does not have', async ({ page }) => {

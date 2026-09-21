@@ -168,6 +168,12 @@ body {
   gap: 0;
   padding: 0;
   color: var(--st-ink);
+  /* 明朝 for this screen and this screen only. The fallbacks are the
+     system serifs an Android or an iOS handset already has, so the
+     shape is right even in the moment before the file arrives — and
+     stays right if it never does. */
+  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP',
+    serif;
   /* Light from the upper right, where the visual is. */
   background:
     radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--st-paper) 42%, var(--st-paper-2) 100%);
@@ -304,7 +310,7 @@ body {
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   overflow: hidden;
 }
 .st-name {
@@ -312,7 +318,7 @@ body {
   display: flex;
   align-items: baseline;
   gap: 9px;
-  font-size: 21px;
+  font-size: 20px;
   letter-spacing: 0.1em;
 }
 .st-name b {
@@ -326,7 +332,7 @@ body {
 }
 .st-epithet {
   margin: 0;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   color: var(--st-dim);
 }
@@ -334,8 +340,8 @@ body {
 .st-intro,
 .st-style-note {
   margin: 0;
-  font-size: 10.5px;
-  line-height: 1.65;
+  font-size: 9.5px;
+  line-height: 1.55;
   color: #5d5445;
 }
 .st-intro {
@@ -346,7 +352,7 @@ body {
   color: var(--st-dim);
 }
 .st-level {
-  margin-top: 4px;
+  margin-top: 3px;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -355,7 +361,7 @@ body {
   color: var(--st-dim);
 }
 .st-level b {
-  font-size: 25px;
+  font-size: 22px;
   font-weight: 400;
   line-height: 1;
   color: var(--st-ink);
@@ -385,12 +391,12 @@ body {
   background: linear-gradient(90deg, #8e7338, #d9c290);
 }
 .st-rows {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 1px 16px;
-  font-size: 13px;
-  line-height: 1.55;
+  gap: 0 16px;
+  font-size: 12px;
+  line-height: 1.5;
 }
 .st-rows .st-row {
   display: contents;
@@ -403,32 +409,35 @@ body {
 }
 .st-rows dd {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
 }
 /* A kind of weapon and a way of fighting: two marks, not two stats. */
 .st-marks {
-  margin-top: 6px;
+  margin-top: 5px;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 .st-mark {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 5px 11px;
+  padding: 3px 9px;
   border: 1px solid var(--st-gold-soft);
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.5);
-  font-size: 11px;
+  font-size: 10px;
 }
 .st-mark span {
   color: var(--st-dim);
   letter-spacing: 0.1em;
 }
 .st-mark b {
-  font-weight: 500;
-  font-size: 12.5px;
+  /* 400 only: shipping a second weight would be another 1.36MB for one
+     line, and a synthesised bold on a 明朝 looks like a mistake.
+     Emphasis here is size and colour. */
+  font-weight: 400;
+  font-size: 12px;
 }
 
 /* ── BOTTOM: the way out, and what is coming ──────────────────── */

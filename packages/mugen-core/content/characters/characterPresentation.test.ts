@@ -15,13 +15,20 @@ describe('what the status screen says about somebody', () => {
   });
 
   /**
-   * NO 肩書き HAS BEEN GIVEN, so the field is absent rather than
-   * filled. A screen must draw nothing there — an invented title is
-   * the story being written by whoever needed a value.
+   * The author has now given both. The field STAYS OPTIONAL, because
+   * somebody may join before their title is written and the screen
+   * must draw nothing rather than invent one — so what is asserted is
+   * that a title, where present, is a real line and not a placeholder.
    */
-  it('leaves the epithet absent rather than inventing one', () => {
+  it('carries the titles the author gave, and no placeholder', () => {
+    expect(CHARACTER_PRESENTATIONS.hero.epithet).toBe('記憶を辿る剣の旅人');
+    expect(CHARACTER_PRESENTATIONS.kaos.epithet).toBe('記憶を導く双翼の少女');
     for (const p of Object.values(CHARACTER_PRESENTATIONS)) {
-      expect(p.epithet).toBeUndefined();
+      if (p.epithet === undefined) continue;
+      expect(p.epithet.trim()).not.toBe('');
+      for (const filler of ['未実装', '—', 'TODO', '仮']) {
+        expect(p.epithet, `${p.characterId}`).not.toContain(filler);
+      }
     }
   });
 

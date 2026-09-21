@@ -121,7 +121,7 @@ export const WEAPON_LABELS: Record<WeaponType, string> = {
 };
 
 export const BATTLE_STYLE_LABELS: Record<BattleStyle, string> = {
-  SWORDSMANSHIP: '剣術',
+  SWORDSMANSHIP: '近接攻撃 / オールラウンダー',
   MAGIC: '魔法特化',
 };
 

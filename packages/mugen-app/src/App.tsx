@@ -27,6 +27,7 @@ import { FutureSiteScreen } from './ui/futureSite';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
+import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
   GALD_FUTURE_VISION_YEARS,
@@ -85,6 +86,27 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     (cb) => world.subscribe(cb),
     () => world.getVersion(),
   );
+
+  /**
+   * ANDROID'S BACK BUTTON. Native only — the web build keeps the
+   * browser's own. Asks the CURRENT screen where to go, and swallows
+   * the press wherever leaving would undo something: see
+   * `androidBack.ts` for which screens those are and why.
+   *
+   * The naming question swallows it too, and not by being in that
+   * table: there is no answer yet to go back to, and walking out
+   * would leave a player nameless in their own village.
+   */
+  useAndroidBackButton(() => {
+    if (naming) return;
+    const target = backTargetFor(state.screen);
+    if (target === null) return;
+    if (target === 'EXIT') {
+      exitNativeApp();
+      return;
+    }
+    flow.goTo(target);
+  });
 
   const [winnings, setWinnings] = useState<AppliedReward | null>(null);
   /**
