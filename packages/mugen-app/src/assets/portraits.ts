@@ -31,6 +31,8 @@ export type PortraitKey = 'hero' | 'kaos';
  * without the other, and replacing either never touches the screen.
  */
 const VISUALS: Partial<Record<PortraitKey, () => Promise<string>>> = {
+  hero: async () =>
+    (await import('@mugen/assets/files/characters/hero/hero-status-visual.png')).default,
   kaos: async () =>
     (await import('@mugen/assets/files/characters/kaos/kaos-status-visual.png')).default,
 };

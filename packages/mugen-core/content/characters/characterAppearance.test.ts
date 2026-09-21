@@ -83,9 +83,29 @@ describe('how somebody looks, kept apart from what they are', () => {
     expect(statusArtOf('kaos')).toEqual({ key: 'kaos', kind: 'VISUAL' });
   });
 
-  it('falls back to the cut-out master where no rectangle exists', () => {
-    expect(statusVisualKeyOf('hero')).toBeNull();
-    expect(statusArtOf('hero')).toEqual({ key: 'hero', kind: 'PORTRAIT' });
+  /**
+   * WRITTEN AGAINST THE REGISTRY, not against who happens to have what
+   * today. Both characters have a visual now; the rule that must hold
+   * is that the kind reported always matches what the skin declares,
+   * so a third character arriving with only a master is still framed
+   * as a master without anybody remembering to change a test.
+   */
+  it('reports the kind the skin actually declares, whoever it is', () => {
+    for (const [id, appearance] of Object.entries(CHARACTER_APPEARANCES)) {
+      const skin = SKIN_DEFINITIONS[appearance.defaultSkinId];
+      const art = statusArtOf(id);
+      if (skin.assetRefs.statusVisual) {
+        expect(art, `${id} has a visual`).toEqual({
+          key: skin.assetRefs.statusVisual,
+          kind: 'VISUAL',
+        });
+      } else {
+        expect(art, `${id} falls back to the master`).toEqual({
+          key: skin.assetRefs.statusPortrait,
+          kind: 'PORTRAIT',
+        });
+      }
+    }
   });
 
   it('has nothing to draw for somebody with neither', () => {

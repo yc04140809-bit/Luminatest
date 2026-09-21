@@ -32,7 +32,10 @@ const MASTERS = [
   ['hero', 'hero/hero-battle-idle.png'],
   ['kaos', 'kaos/kaos-battle-default.png'],
 ];
-const VISUALS = [['kaos', 'kaos/kaos-status-visual.png']];
+const VISUALS = [
+  ['hero', 'hero/hero-status-visual.png'],
+  ['kaos', 'kaos/kaos-status-visual.png'],
+];
 
 let bad = 0;
 console.log(`立ち絵マスター仕様: ${CANVAS.w}x${CANVAS.h} (2:3), 足元基準線 y=${BASELINE}\n`);

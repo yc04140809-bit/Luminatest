@@ -90,7 +90,7 @@ export const SKIN_DEFINITIONS: Record<string, SkinDefinition> = {
     skinId: 'hero/default',
     characterId: 'hero',
     displayName: '既定',
-    assetRefs: { statusPortrait: 'hero' },
+    assetRefs: { statusVisual: 'hero', statusPortrait: 'hero' },
     availability: 'DEFAULT',
     version: 1,
   },
