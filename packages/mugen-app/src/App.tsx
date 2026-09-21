@@ -27,6 +27,7 @@ import { FutureSiteScreen } from './ui/futureSite';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
+import { EquipmentScreen } from './ui/equipment';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
@@ -77,6 +78,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   // Asked once, on the way out of the opening. See `case 'PROLOGUE'`.
   const [naming, setNaming] = useState(false);
   const [namingBusy, setNamingBusy] = useState(false);
+  /**
+   * EQUIPMENT IS A LEAF OF STATUS, not a screen of its own.
+   *
+   * `Screen` is shared with the Artifact, whose `backTarget.ts` is a
+   * total `Record<Screen, …>` and which may not be touched — the same
+   * reason naming stayed out of the union. Holding it here also makes
+   * the relationship true: 装備 belongs under ステータス, and もどる
+   * from it goes back there rather than to the village.
+   */
+  const [equipment, setEquipment] = useState(false);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -97,8 +108,19 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * table: there is no answer yet to go back to, and walking out
    * would leave a player nameless in their own village.
    */
+  // Leaving STATUS closes the equipment leaf: coming back to the
+  // status screen and landing on equipment would be a surprise.
+  useEffect(() => {
+    if (state.screen !== 'STATUS' && equipment) setEquipment(false);
+  }, [state.screen, equipment]);
+
   useAndroidBackButton(() => {
     if (naming) return;
+    // Back out of equipment to status first, not out to the village.
+    if (state.screen === 'STATUS' && equipment) {
+      setEquipment(false);
+      return;
+    }
     const target = backTargetFor(state.screen);
     if (target === null) return;
     if (target === 'EXIT') {
@@ -343,8 +365,22 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'ARCHIVE':
       return <ArchiveScreen world={world} onBack={() => flow.goTo('HOME')} />;
     case 'STATUS':
-      // READ-ONLY. It is handed the world and has no way to change it.
-      return <StatusScreen world={world} onBack={() => flow.goTo('HOME')} />;
+      if (equipment) {
+        return (
+          <EquipmentScreen
+            world={world}
+            onBack={() => flow.goTo('HOME')}
+            onStatus={() => setEquipment(false)}
+          />
+        );
+      }
+      return (
+        <StatusScreen
+          world={world}
+          onBack={() => flow.goTo('HOME')}
+          onEquipment={() => setEquipment(true)}
+        />
+      );
     case 'EXPLORE':
       return (
         <MapScreen

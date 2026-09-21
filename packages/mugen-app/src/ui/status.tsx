@@ -21,6 +21,7 @@ import {
   weaponLabelOf,
 } from '@mugen/content/characters/battleProfiles';
 import { statusArtOf } from '@mugen/content/characters/characterAppearance';
+import { weaponDefOf } from '@mugen/content/equipment/equipment';
 import { presentationOf } from '@mugen/content/characters/characterPresentation';
 import { heroNameLength } from '@mugen/core/world/heroName';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
@@ -54,6 +55,7 @@ import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits
 interface Props {
   world: World;
   onBack: () => void;
+  onEquipment: () => void;
 }
 
 /**
@@ -72,7 +74,7 @@ interface Row {
   value: string;
 }
 
-export function StatusScreen({ world, onBack }: Props) {
+export function StatusScreen({ world, onBack, onEquipment }: Props) {
   // THE SAVED NAME, not the roster's written label. The id stays
   // `hero`; only the word shown changes.
   const party = activeParty({ hero: world.getHeroName() });
@@ -125,6 +127,11 @@ export function StatusScreen({ world, onBack }: Props) {
    * rather than shrinking without limit.
    */
   const nameScale = Math.max(0.68, Math.min(1, 8 / heroNameLength(who.label)));
+
+  // What they are actually holding. Absent for anybody with an empty
+  // hand — 「装備なし」 belongs on the equipment screen, not here.
+  const equippedId = world.getEquipped(who.id, 'WEAPON');
+  const equippedWeapon = equippedId ? weaponDefOf(equippedId) : null;
 
   const rows: Row[] = [];
   if (condition) {
@@ -188,16 +195,29 @@ export function StatusScreen({ world, onBack }: Props) {
           {/* NOT BUTTONS. No handler, no press state, no cursor — the
               reference names them, and naming is all this build may
               honestly do. */}
-          {MENU_SOON.map((label) => (
-            <span
-              className="st-menu-item soon"
-              key={label}
-              aria-disabled="true"
-              data-testid={`status-menu-soon-${label}`}
-            >
-              {label}
-            </span>
-          ))}
+          {MENU_SOON.map((label) =>
+            // 装備 IS a screen now, so it gets a frame and a handler at
+            // the same moment — never one without the other.
+            label === '装備' ? (
+              <button
+                className="st-menu-item live"
+                key={label}
+                data-testid="status-to-equipment"
+                onClick={onEquipment}
+              >
+                {label}
+              </button>
+            ) : (
+              <span
+                className="st-menu-item soon"
+                key={label}
+                aria-disabled="true"
+                data-testid={`status-menu-soon-${label}`}
+              >
+                {label}
+              </span>
+            ),
+          )}
         </nav>
 
         <div className="st-info">
@@ -247,6 +267,14 @@ export function StatusScreen({ world, onBack }: Props) {
             ))}
           </dl>
 
+          {equippedWeapon && (
+            <div className="st-marks">
+              <div className="st-mark">
+                <span>装備</span>
+                <b data-testid="status-equipped">{equippedWeapon.name}</b>
+              </div>
+            </div>
+          )}
           {profile && (
             <div className="st-marks">
               <div className="st-mark">

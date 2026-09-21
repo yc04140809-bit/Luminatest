@@ -545,6 +545,122 @@ body {
   color: var(--st-dim);
 }
 
+/* ── 装備枠。ステータス画面の .st-mark と同じ質感で、行として並ぶ。 */
+.eq-slots {
+  flex: 0 0 auto;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eq-slot {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--st-ink);
+  font: inherit;
+  font-size: clamp(9px, 3vh, 10.5px);
+  text-align: left;
+}
+.eq-slot.open {
+  border-color: #a5873f;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 1px rgba(178, 145, 79, 0.25);
+}
+/* NOT A CONTROL. No frame, no background, no handler — the same line
+   the left menu holds for a screen that does not exist yet. */
+.eq-slot.soon {
+  border-color: transparent;
+  background: none;
+  color: rgba(125, 115, 95, 0.45);
+  min-height: 0;
+  padding: 2px 9px;
+  cursor: default;
+  user-select: none;
+}
+.eq-slot u {
+  text-decoration: none;
+  color: var(--st-dim);
+  letter-spacing: 0.06em;
+  flex: 0 0 66px;
+  white-space: nowrap;
+}
+.eq-slot.soon u { color: inherit; }
+.eq-slot b {
+  font-weight: 400;
+  font-size: clamp(10px, 3.4vh, 12px);
+  letter-spacing: 0.04em;
+}
+.eq-kind {
+  margin-left: auto;
+  font-size: clamp(8px, 2.6vh, 9px);
+  color: var(--st-dim);
+  letter-spacing: 0.1em;
+}
+.eq-slot s { text-decoration: none; font-size: 10px; color: var(--st-gold); }
+
+/* ── もちもの。説明文と入れ替わりで出る。 */
+.eq-pick {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.8);
+}
+.eq-pick > p {
+  margin: 0 0 4px;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--st-dim);
+}
+.eq-row {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--st-ink);
+  font: inherit;
+  font-size: clamp(9.5px, 3.2vh, 11px);
+  text-align: left;
+}
+.eq-row.on {
+  background: linear-gradient(90deg, rgba(178, 145, 79, 0.22), rgba(178, 145, 79, 0.06));
+}
+.eq-row:disabled { opacity: 0.45; }
+.eq-row em { font-style: normal; font-size: 9px; color: var(--st-gold); min-width: 42px; }
+.eq-row u { text-decoration: none; flex: 1; }
+.eq-row s { text-decoration: none; font-size: 9px; color: var(--st-dim); }
+
+/* A menu entry that IS a door gets a real tap target. */
+.st-menu-item.live {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #7d735f;
+  text-align: left;
+  min-height: 30px;
+  cursor: pointer;
+}
+
 /* ══ NAMING — asked once, between the opening and the village.
    THE SAME WORLD AS THE STATUS SCREEN. It used to be App Alpha's plain
    dark, which made the first thing a player is ever asked look like a

@@ -15,6 +15,7 @@
 
 import type { BattleProfile, BattleStyle, WeaponType } from '../characters/battleProfiles';
 import type { SfxId } from './sfx';
+import { attackKindOf } from '../equipment/equipResolve';
 
 /** What each weapon sounds like when it is swung, thrust or loosed. */
 export const ATTACK_SFX_BY_WEAPON: Record<WeaponType, SfxId> = {
@@ -60,4 +61,27 @@ export function attackSfxFor(
   if (profile?.weaponType) return ATTACK_SFX_BY_WEAPON[profile.weaponType];
   if (profile) return ATTACK_SFX_BY_STYLE[profile.battleStyle];
   return 'battle_attack_slash';
+}
+
+/**
+ * The sound of an attack made by somebody HOLDING SOMETHING.
+ *
+ * This is where equipment reaches the ear: the weapon answers what
+ * kind of attack it is, and the kind picks the sound. Change sword and
+ * the noise changes, with no new wiring anywhere — which is the point
+ * of `attackKindOf` returning a kind rather than a weapon type.
+ *
+ * `attackSfxFor` above stays for callers with no world to ask — the
+ * Artifact, which has no equipment, and every test that predates it.
+ */
+export function equippedAttackSfxFor(
+  characterId: string,
+  equippedId: string | null,
+  skillSfx?: SfxId | null,
+): SfxId {
+  if (skillSfx) return skillSfx;
+  const kind = attackKindOf(characterId, equippedId);
+  return kind.kind === 'PHYSICAL'
+    ? ATTACK_SFX_BY_WEAPON[kind.weaponType]
+    : ATTACK_SFX_BY_STYLE.MAGIC;
 }

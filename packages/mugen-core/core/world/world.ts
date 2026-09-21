@@ -7,6 +7,18 @@ import type { LifeChoiceId, Screen } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
 import { SAVE_VERSION, migrateRows } from './saveSchema';
 import { DEFAULT_HERO_NAME, normaliseHeroName, readHeroName } from './heroName';
+import {
+  readEquipment,
+  readOwned,
+  type EquipmentTable,
+  type OwnedTable,
+} from './equipmentState';
+import {
+  INITIAL_EQUIPMENT,
+  weaponDefOf,
+  type EquipmentSlot,
+} from '../../content/equipment/equipment';
+import { canEquip } from '../../content/equipment/equipResolve';
 import { statsForLevels, type PartyStats } from '../progression/levelStats';
 import {
   BATTLE_HP_HOLDER,
@@ -265,6 +277,13 @@ const CONDITION_KEY = 'party_condition';
  * version moved and no migration step was written. See `heroName.ts`.
  */
 const HERO_NAME_KEY = 'hero_name';
+/**
+ * WHAT IS WORN, AND WHAT IS HELD. Two rows because they are two
+ * questions — see `equipmentState.ts`. Neither existed before, and an
+ * absent row reads as nothing, so no schema version moved.
+ */
+const EQUIPMENT_KEY = 'character_equipment';
+const OWNED_EQUIPMENT_KEY = 'owned_equipment';
 
 const SESSION_KEY = 'session';
 
@@ -507,6 +526,8 @@ export class World {
   private heroName: string;
   /** Whether the save actually held one — see `WorldFields.heroNamed`. */
   private heroNamed: boolean;
+  private equipment: EquipmentTable;
+  private ownedEquipment: OwnedTable;
 
   private readonly health: SaveHealth;
 
@@ -520,6 +541,19 @@ export class World {
     this.clock = fields.clock;
     this.heroName = fields.heroName;
     this.heroNamed = fields.heroNamed;
+    // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
+    // memory only: nothing is written until the player actually
+    // changes something, so opening an old save does not rewrite it.
+    if (fields.equipmentStarted) {
+      this.equipment = fields.equipment;
+      this.ownedEquipment = fields.ownedEquipment;
+    } else {
+      this.equipment = structuredClone(INITIAL_EQUIPMENT) as EquipmentTable;
+      this.ownedEquipment = {};
+      for (const slots of Object.values(INITIAL_EQUIPMENT)) {
+        for (const id of Object.values(slots)) this.ownedEquipment[id] = 1;
+      }
+    }
     this.characters = fields.characters;
     this.seenExperience = new Set(fields.seenExperience);
     this.experienceLog = fields.experienceLog;
@@ -844,6 +878,54 @@ export class World {
   /** Confirming without typing anything: the default, recorded as chosen. */
   async acceptDefaultHeroName(): Promise<void> {
     await this.setHeroName(DEFAULT_HERO_NAME);
+  }
+
+  /** What somebody has in a slot, or null for an empty one. */
+  getEquipped(characterId: string, slot: EquipmentSlot): string | null {
+    return this.equipment[characterId]?.[slot] ?? null;
+  }
+
+  /** How many of an equipment id is held. */
+  getOwnedEquipment(): Readonly<OwnedTable> {
+    return this.ownedEquipment;
+  }
+
+  /**
+   * Putting something on, or taking it off with null.
+   *
+   * REFUSED RATHER THAN WRITTEN when it is not theirs to hold or they
+   * do not own it — the caller is told, so a screen can never leave
+   * somebody carrying a weapon the rules forbid.
+   *
+   * ONE COMMIT for both rows, so a crash between them cannot leave
+   * a sword equipped that is not owned.
+   */
+  async setEquipped(
+    characterId: string,
+    slot: EquipmentSlot,
+    equipmentId: string | null,
+  ): Promise<boolean> {
+    if (equipmentId !== null) {
+      const def = weaponDefOf(equipmentId);
+      if (!def || def.slot !== slot) return false;
+      if (!canEquip(characterId, def)) return false;
+      if ((this.ownedEquipment[equipmentId] ?? 0) <= 0) return false;
+    }
+    const slots = { ...(this.equipment[characterId] ?? {}) };
+    if (equipmentId === null) delete slots[slot];
+    else slots[slot] = equipmentId;
+    const next: EquipmentTable = { ...this.equipment, [characterId]: slots };
+    if (Object.keys(slots).length === 0) delete next[characterId];
+    if (JSON.stringify(next) === JSON.stringify(this.equipment)) return true;
+    await this.store.commit({
+      putState: [
+        { key: EQUIPMENT_KEY, value: next },
+        { key: OWNED_EQUIPMENT_KEY, value: this.ownedEquipment },
+      ],
+    });
+    this.equipment = next;
+    this.emit();
+    return true;
   }
 
   private async writeParty(next: StoredParty): Promise<void> {
@@ -2414,6 +2496,17 @@ interface WorldFields {
    * and this is what tells the two apart without a second stored flag.
    */
   heroNamed: boolean;
+  equipment: EquipmentTable;
+  ownedEquipment: OwnedTable;
+  /**
+   * Whether the equipment row existed at all.
+   *
+   * Absent means a world that predates equipment, and such a world is
+   * given its starting kit on first read rather than being left
+   * empty-handed — which is different from a world that has one and
+   * has deliberately taken everything off.
+   */
+  equipmentStarted: boolean;
 }
 
 /** What reading a save had to say about it. */
@@ -2503,6 +2596,10 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readClaimedRewards(value));
     case HERO_NAME_KEY:
       return settle(readHeroName(value));
+    case EQUIPMENT_KEY:
+      return settle(readEquipment(value));
+    case OWNED_EQUIPMENT_KEY:
+      return settle(readOwned(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -2581,6 +2678,9 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       condition: readStoredCondition(byKey.get(CONDITION_KEY)),
       heroName: take(HERO_NAME_KEY, readHeroName(byKey.get(HERO_NAME_KEY))),
       heroNamed: byKey.get(HERO_NAME_KEY) !== undefined,
+      equipment: take(EQUIPMENT_KEY, readEquipment(byKey.get(EQUIPMENT_KEY))),
+      ownedEquipment: take(OWNED_EQUIPMENT_KEY, readOwned(byKey.get(OWNED_EQUIPMENT_KEY))),
+      equipmentStarted: byKey.get(EQUIPMENT_KEY) !== undefined,
     },
     repairedKeys,
     unreadableKeys,

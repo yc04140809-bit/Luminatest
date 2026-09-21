@@ -99,7 +99,10 @@ test('says nothing about stats and equipment this build does not have', async ({
 test('names the screens that do not exist without offering them', async ({ page }) => {
   await openStatus(page);
 
-  for (const label of ['スキル', '装備', 'ストーリー']) {
+  // 装備 IS a screen now, so it is no longer in this list — it gained
+  // its frame and its handler at the same moment, which is the rule
+  // this file exists to hold. It is covered by `equipment.spec.ts`.
+  for (const label of ['スキル', 'ストーリー']) {
     const item = page.getByTestId(`status-menu-soon-${label}`);
     await expect(item).toBeVisible();
     // A span, not a button, and nothing a screen reader will call
@@ -116,10 +119,16 @@ test('names the screens that do not exist without offering them', async ({ page 
   // 装備 is in the menu and NOT repeated below: the reference puts it
   // in both places, and two entries for one unbuilt screen is worse.
   await expect(page.getByTestId('status-detail-soon-装備')).toHaveCount(0);
-  // The only controls on the screen are the tabs and the way out.
+  // 装備 is a real control and says so.
+  const equip = page.getByTestId('status-to-equipment');
+  await expect(equip).toHaveJSProperty('tagName', 'BUTTON');
+  await expect(equip).toBeEnabled();
+
+  // And it is the ONLY one the menu has gained: the controls on this
+  // screen are the two tabs, 装備, and the way out.
   const buttons = await page.locator('.status-screen button').allInnerTexts();
   expect(new Set(buttons.map((b) => b.trim()))).toEqual(
-    new Set(['主人公', 'ケイオス', 'もどる']),
+    new Set(['主人公', 'ケイオス', '装備', 'もどる']),
   );
 });
 
