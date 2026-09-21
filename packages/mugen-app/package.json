@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:portraits": "node scripts/check-portrait-masters.mjs"
   },
   "dependencies": {
     "@mugen/assets": "*",

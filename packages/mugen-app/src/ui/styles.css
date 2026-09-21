@@ -137,6 +137,15 @@ body {
    With `min-height` the picture pushed the screen past the viewport and
    the page scrolled — measured at 844x390: 184px of overflow. */
 .status-screen {
+  /* THE ART'S AREA, in one place.
+     A CUT-OUT MASTER gets 32% x 82%, pinned right and bottom, as the
+     portrait spec says. A FINISHED RECTANGLE gets its own numbers
+     below, because it is a picture with a painted background rather
+     than a figure standing on a floor. Everything else on the screen
+     reserves exactly this strip, so retuning either area is one line
+     and nothing else — no component knows the numbers. */
+  --portrait-w: 32%;
+  --portrait-h: 82%;
   height: 100%;
   min-height: 0;
   justify-content: flex-start;
@@ -147,7 +156,7 @@ body {
    reserve the same strip — otherwise the character tabs sit behind a
    shoulder, which is exactly what the first measured build did. */
 .status-screen > * {
-  padding-right: 36%;
+  padding-right: var(--portrait-w);
 }
 .status-head {
   display: flex;
@@ -249,30 +258,41 @@ body {
 }
 .status-mark span { color: var(--dim); letter-spacing: 0.08em; }
 .status-mark b { font-weight: 500; font-size: 13px; }
-/* THE FIGURE STANDS IN THE WHOLE SCREEN, not in a row of it.
-   The art direction has them full height against the right edge, and
-   inside the flex row they only ever got what was left after the
-   header and the back button — 254px of 390 when measured. Taken out
-   of the flow they get all 390. `pointer-events: none` because they
-   sit over the back button's row and must never eat a tap. */
+/* A FINISHED RECTANGLE IS A PICTURE, not a figure on a floor.
+   Its own background is painted in, so it wants the full height and a
+   width that matches its shape — 26% x 100% is exactly the delivered
+   visual's 941x1672 at 844x390, which is why nothing is letterboxed
+   and nothing is cropped. A visual of another shape changes these two
+   numbers and nothing else. */
+.status-screen[data-art='VISUAL'] {
+  --portrait-w: 26%;
+  --portrait-h: 100%;
+}
+
+/* A BOX FOR THE PICTURE, AND THE UI STAYS OUT OF IT.
+   Right-fixed, bottom-aligned, clipped. The UI never draws inside it
+   and the picture can never escape it, which is what makes the art and
+   the screen replaceable one without the other. `pointer-events: none`
+   because it sits over the back button's row and must never eat a tap. */
 .status-portrait {
   position: absolute;
-  top: 0;
   right: 0;
   bottom: 0;
-  width: 36%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
+  width: var(--portrait-w);
+  height: var(--portrait-h);
+  overflow: hidden;
   pointer-events: none;
 }
-/* CONTAIN, NEVER COVER. A landscape phone is much wider than a
-   standing figure, and cropping one to fill a box takes the face off
-   the top of it. */
+/* CONTAIN, NEVER COVER, and stood on the floor of the box.
+   `contain` because a file that does not yet match the master canvas
+   must still show whole rather than have a face cropped off; `bottom`
+   because characters stand on the same line, so switching between two
+   of them must not make the ground move. When every master shares the
+   canvas and the baseline of `docs/PORTRAIT_MASTER.md`, this lines
+   them up exactly; until then it lines up whatever each file has. */
 .status-portrait img {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  object-position: bottom center;
 }

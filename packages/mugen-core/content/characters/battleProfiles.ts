@@ -21,6 +21,8 @@
 // until somebody decides. Null here means "not decided", never "none"
 // and never "unarmed".
 
+import { CHARACTER_APPEARANCES, statusPortraitKeyOf } from './characterAppearance';
+
 export type WeaponType = 'LONG_SWORD' | 'DUAL_DAGGER' | 'SPEAR' | 'BOW';
 
 export type BattleStyle = 'SWORDSMANSHIP' | 'MAGIC';
@@ -38,16 +40,19 @@ export interface BattleProfile {
    */
   weaponType: WeaponType | null;
   battleStyle: BattleStyle;
-  /** Which standing figure to draw. A key, never a path. */
-  portraitKey: string;
   /**
-   * FOR THE DAY THERE ARE CLOTHES TO CHANGE.
+   * APPEARANCE, AND NO LONGER OWNED HERE.
    *
-   * 'default' for everybody, and the field exists so that adding a
-   * second outfit is a value here rather than a new column through
-   * every screen that draws a person. Nothing reads it yet, which is
-   * the correct amount of skin system to have built today.
+   * How somebody LOOKS now lives in `characterAppearance.ts`, because
+   * a screen redesign must not force an art change and an art change
+   * must not force a screen redesign. These two fields are filled from
+   * that registry so the Artifact — which reads `portraitKey` and
+   * which this round is not allowed to touch — keeps working unchanged.
+   *
+   * New code reads `statusPortraitKeyOf` / `skinOf` directly. These go
+   * the next time the Artifact's own status screen is opened up.
    */
+  portraitKey: string;
   skinId: string;
 }
 
@@ -90,16 +95,16 @@ export const BATTLE_PROFILES: Record<string, BattleProfile> = {
     characterId: 'hero',
     weaponType: WEAPON_CANON.hero,
     battleStyle: 'SWORDSMANSHIP',
-    portraitKey: 'hero',
-    skinId: 'default',
+    portraitKey: statusPortraitKeyOf('hero') ?? 'hero',
+    skinId: CHARACTER_APPEARANCES.hero.defaultSkinId,
   },
   kaos: {
     characterId: 'kaos',
     // NOT DECIDED, and not to be decided by whoever needs a value here.
     weaponType: null,
     battleStyle: 'MAGIC',
-    portraitKey: 'kaos',
-    skinId: 'default',
+    portraitKey: statusPortraitKeyOf('kaos') ?? 'kaos',
+    skinId: CHARACTER_APPEARANCES.kaos.defaultSkinId,
   },
 };
 

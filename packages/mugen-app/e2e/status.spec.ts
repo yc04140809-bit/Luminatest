@@ -88,10 +88,73 @@ test('switches between the two people who are here, and invents nobody else', as
   await expect(page.getByTestId('status-style')).toHaveText('魔法特化');
 });
 
+/**
+ * THE FIGURE'S OWN AREA: 32% of the width, 82% of the height, pinned
+ * to the right and to the floor, and clipped. The UI never draws into
+ * it and the picture never escapes it — that separation is what lets
+ * the art and the screen be replaced one without the other, so it is
+ * worth a test rather than a comment.
+ */
+const artArea = (page: Page) =>
+  page.locator('.status-portrait').evaluate((e) => {
+    const r = e.getBoundingClientRect();
+    return {
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+      right: Math.round(window.innerWidth - r.right),
+      bottom: Math.round(window.innerHeight - r.bottom),
+      overflow: getComputedStyle(e).overflow,
+    };
+  });
+
+test('gives a cut-out master the floor: 32% x 82%, bottom right', async ({ page }) => {
+  await openStatus(page);
+  await expect(page.getByTestId('status-screen')).toHaveAttribute('data-art', 'PORTRAIT');
+
+  const area = await artArea(page);
+  expect(area.w).toBe(Math.round(844 * 0.32));
+  expect(area.h).toBe(Math.round(390 * 0.82));
+  expect(area.right).toBe(0);
+  expect(area.bottom).toBe(0);
+  expect(area.overflow).toBe('hidden');
+});
+
+/**
+ * A FINISHED RECTANGLE IS A PICTURE. Its background is painted in, so
+ * it takes the full height and a width cut to its own shape — which is
+ * what makes it fill the area with nothing letterboxed and nothing
+ * cropped. Get the width wrong and either bars appear beside it or the
+ * character loses her head, so the drawn rectangle is measured here
+ * rather than the element box.
+ */
+test('frames a finished visual whole: full height, nothing cropped', async ({ page }) => {
+  await openStatus(page);
+  await page.getByTestId('status-tab-kaos').click();
+  await expect(page.getByTestId('status-screen')).toHaveAttribute('data-art', 'VISUAL');
+
+  const area = await artArea(page);
+  expect(area.h).toBe(390);
+  expect(area.right).toBe(0);
+  expect(area.bottom).toBe(0);
+  expect(area.overflow).toBe('hidden');
+
+  const img = page.locator('.status-portrait img');
+  await expect.poll(async () => img.evaluate((e: HTMLImageElement) => e.naturalWidth))
+    .toBeGreaterThan(0);
+  const fill = await img.evaluate((e: HTMLImageElement) => {
+    const box = e.getBoundingClientRect();
+    const ratio = e.naturalWidth / e.naturalHeight;
+    const drawnH = Math.min(box.height, box.width / ratio);
+    return { gapX: box.width - drawnH * ratio, gapY: box.height - drawnH };
+  });
+  expect(fill.gapX).toBeLessThan(2);
+  expect(fill.gapY).toBeLessThan(2);
+});
+
 test('draws each portrait whole, and gives the screen back', async ({ page }) => {
   await openStatus(page);
 
-  /** Loaded, and laid out without being cropped or overflowing. */
+  /** Loaded, and drawn at its own shape inside the area. */
   const portraitIsWhole = async () => {
     const img = page.locator('.status-portrait img');
     await expect(img).toBeVisible();
@@ -100,14 +163,30 @@ test('draws each portrait whole, and gives the screen back', async ({ page }) =>
       .toBeGreaterThan(0);
     const fit = await img.evaluate((e: HTMLImageElement) => {
       const box = e.getBoundingClientRect();
+      const style = getComputedStyle(e);
+      // The element fills the area; `contain` decides what is actually
+      // painted inside it. That painted rect is what must keep the
+      // picture's shape — a landscape phone must never crop a face off.
+      const ratio = e.naturalWidth / e.naturalHeight;
+      const drawnH = Math.min(box.height, box.width / ratio);
+      const drawnW = drawnH * ratio;
       return {
-        // `contain`, so the drawn box keeps the picture's own shape:
-        // a landscape phone must never take a face off the top.
-        skew: Math.abs(box.width / box.height - e.naturalWidth / e.naturalHeight),
-        inside: box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1,
+        fit: style.objectFit,
+        position: style.objectPosition,
+        skew: Math.abs(drawnW / drawnH - ratio),
+        // Standing on the floor of the area, so switching characters
+        // does not make the ground move.
+        onTheFloor: Math.abs(window.innerHeight - box.bottom) < 1,
+        inside:
+          drawnW <= box.width + 1 &&
+          box.right <= window.innerWidth + 1 &&
+          box.bottom <= window.innerHeight + 1,
       };
     });
+    expect(fit.fit).toBe('contain');
+    expect(fit.position).toBe('50% 100%');
     expect(fit.skew).toBeLessThan(0.02);
+    expect(fit.onTheFloor).toBe(true);
     expect(fit.inside).toBe(true);
   };
 

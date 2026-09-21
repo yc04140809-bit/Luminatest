@@ -7,7 +7,8 @@ import {
   battleStyleLabelOf,
   weaponLabelOf,
 } from '@mugen/content/characters/battleProfiles';
-import { isPortraitKey, portraitArt } from '../assets/portraits';
+import { statusArtOf } from '@mugen/content/characters/characterAppearance';
+import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
 
 /**
  * THE STATUS SCREEN: one character at a time, picture and numbers.
@@ -58,6 +59,8 @@ export function StatusScreen({ world, onBack }: Props) {
   const who = party[Math.min(at, party.length - 1)];
   const profile = battleProfileOf(who.id);
   const [portrait, setPortrait] = useState<string | null>(null);
+  const art = statusArtOf(who.id);
+  const kind = art?.kind ?? 'PORTRAIT';
 
   /**
    * The picture for whoever is being looked at NOW.
@@ -69,15 +72,24 @@ export function StatusScreen({ world, onBack }: Props) {
   useEffect(() => {
     let alive = true;
     setPortrait(null);
-    const key = profile?.portraitKey ?? who.id;
+    // WHAT THEY ARE WEARING decides this, never who they are: the id
+    // goes to the appearance registry and a picture comes back. That
+    // is the whole skin seam, and it is why a second outfit will not
+    // touch this screen.
+    //
+    // A FINISHED RECTANGLE WINS over a cut-out master when one exists,
+    // because the painted scene behind them is the screen's richness
+    // and CSS cannot stand in for it. Neither kind waits on the other.
+    const key = art?.key ?? who.id;
     if (!isPortraitKey(key)) return;
-    void portraitArt(key).then((src) => {
+    const load = kind === 'VISUAL' ? statusVisualArt : portraitArt;
+    void load(key).then((src) => {
       if (alive) setPortrait(src);
     });
     return () => {
       alive = false;
     };
-  }, [profile?.portraitKey, who.id]);
+  }, [art?.key, kind, who.id]);
 
   const stats = world.getPartyStats();
   const condition = world.getPartyCondition()[who.id];
@@ -104,7 +116,7 @@ export function StatusScreen({ world, onBack }: Props) {
   });
 
   return (
-    <div className="screen status-screen" data-testid="status-screen">
+    <div className="screen status-screen" data-art={kind} data-testid="status-screen">
       <div className="status-head">
         <p className="place status-title">ステータス</p>
 
@@ -176,8 +188,15 @@ export function StatusScreen({ world, onBack }: Props) {
           )}
         </div>
 
-        {/* RIGHT: the picture, at its own aspect. `contain` rather than
-            `cover`, so a landscape phone never crops a face off. */}
+        {/* RIGHT: THE ART'S OWN AREA, and nothing else's.
+            A box pinned right and bottom that the UI never draws into
+            and the picture never escapes. `contain` inside it, so a
+            file that does not match the canvas still shows whole
+            rather than cropped, and swapping one in needs no code.
+            The numbers are CSS variables and differ by kind — a
+            finished rectangle is framed as a picture, a cut-out figure
+            is stood on the floor — so retuning either is one line,
+            without touching a component. */}
         <div className="status-portrait" aria-hidden="true">
           {portrait && <img src={portrait} alt="" data-testid={`status-portrait-${who.id}`} />}
         </div>
