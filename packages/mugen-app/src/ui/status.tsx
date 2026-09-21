@@ -22,6 +22,7 @@ import {
 } from '@mugen/content/characters/battleProfiles';
 import { statusArtOf } from '@mugen/content/characters/characterAppearance';
 import { presentationOf } from '@mugen/content/characters/characterPresentation';
+import { heroNameLength } from '@mugen/core/world/heroName';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
 
 /**
@@ -114,6 +115,17 @@ export function StatusScreen({ world, onBack }: Props) {
   // At the ceiling nothing is owed, so the bar is full rather than empty.
   const filled = band ? Math.max(0, Math.min(1, band.into / band.span)) : 1;
 
+  /**
+   * A LONG NAME SHRINKS RATHER THAN WRAPPING.
+   *
+   * Ten characters are allowed and 「ケイオス師匠」 is already six, so
+   * the name has to survive being long. Wrapping would push every
+   * number down a line; a smaller name costs nothing. Nothing happens
+   * below eight — the common case is untouched — and it bottoms out
+   * rather than shrinking without limit.
+   */
+  const nameScale = Math.max(0.68, Math.min(1, 8 / heroNameLength(who.label)));
+
   const rows: Row[] = [];
   if (condition) {
     rows.push(
@@ -192,13 +204,27 @@ export function StatusScreen({ world, onBack }: Props) {
           <p className="st-name" data-testid="status-name">
             {/* The name alone, so a test can assert it exactly rather
                 than against the roman subtitle sitting beside it. */}
-            <b data-testid="status-name-text">{who.label}</b>
+            <b
+              data-testid="status-name-text"
+              style={nameScale < 1 ? { fontSize: `${(nameScale * 100).toFixed(0)}%` } : undefined}
+            >
+              {who.label}
+            </b>
             {says && <i>{says.roman}</i>}
           </p>
           {/* 肩書き is absent until the author writes one. */}
           {says?.epithet && <p className="st-epithet">{says.epithet}</p>}
-          {says?.quote && <p className="st-quote">{says.quote}</p>}
-          {says?.intro && <p className="st-intro">{says.intro}</p>}
+          {/* THE PROSE IS WHAT GIVES WAY. On a short handset something
+              has to, and it must never be the numbers: a status screen
+              that has lost 攻撃力 is broken, while one showing a
+              shortened introduction is merely smaller. This block
+              shrinks and clips; everything below it cannot. */}
+          {(says?.quote || says?.intro) && (
+            <div className="st-prose">
+              {says?.quote && <p className="st-quote">{says.quote}</p>}
+              {says?.intro && <p className="st-intro">{says.intro}</p>}
+            </div>
+          )}
 
           <div className="st-level">
             <span className="st-level-label">LEVEL</span>

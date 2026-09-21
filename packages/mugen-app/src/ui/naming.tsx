@@ -1,3 +1,8 @@
+// The same 明朝 the status screen uses. This is the first thing a
+// player is asked, so it must already look like the game rather than
+// like a form that happens to come before it.
+import '@fontsource/noto-serif-jp/latin-400.css';
+import '@fontsource/noto-serif-jp/japanese-400.css';
 import { useState } from 'react';
 import {
   DEFAULT_HERO_NAME,
@@ -34,14 +39,24 @@ export function NamingScreen({ onConfirm, busy = false }: Props) {
   const [typed, setTyped] = useState('');
   const trimmedLength = heroNameLength(typed.trim());
   const usable = isUsableHeroName(typed);
-  // Nothing typed is not an error: it means the default, which is
-  // offered as its own button rather than hidden behind a blank field.
-  const empty = typed.trim() === '';
+  /**
+   * A LONG NAME SHRINKS RATHER THAN OVERFLOWING ITS FIELD.
+   *
+   * Ten are allowed, and at the field's size ten would run out of it.
+   * Nothing happens below eight, so the ordinary case is untouched —
+   * and it is the SAME rule the status screen applies to the same
+   * name, so what is typed here is what is seen there.
+   */
+  const scale = Math.max(0.68, Math.min(1, 8 / Math.max(1, trimmedLength)));
 
   return (
     <div className="screen naming-screen" data-testid="naming-screen">
-      <p className="place">なまえ</p>
-      <p className="line">あなたの名前を教えてください。</p>
+      <p className="naming-wordmark">
+        <b>NAME</b>
+        <i>MUGEN ZERO</i>
+      </p>
+      <p className="naming-title">なまえ</p>
+      <p className="naming-ask">あなたの名前を教えてください。</p>
 
       <input
         className="naming-input"
@@ -55,6 +70,7 @@ export function NamingScreen({ onConfirm, busy = false }: Props) {
         autoCorrect="off"
         spellCheck={false}
         enterKeyHint="done"
+        style={scale < 1 ? { fontSize: `${(scale * 100).toFixed(0)}%` } : undefined}
         onChange={(e) => setTyped(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && usable && !busy) onConfirm(typed);
@@ -65,25 +81,27 @@ export function NamingScreen({ onConfirm, busy = false }: Props) {
         {trimmedLength > HERO_NAME_MAX_LENGTH && '（長すぎます）'}
       </p>
 
-      <div className="actions">
+      {/* BOTH ALWAYS. The default used to appear only while the field
+          was empty, so typing made a button vanish from under the
+          thumb — and somebody who changed their mind had to clear the
+          field to get it back. It is a standing offer, not a state. */}
+      <div className="naming-actions">
         <button
-          className="btn primary"
+          className="naming-confirm"
           data-testid="naming-confirm"
           disabled={!usable || busy}
           onClick={() => onConfirm(typed)}
         >
-          けってい
+          決定
         </button>
-        {empty && (
-          <button
-            className="btn"
-            data-testid="naming-default"
-            disabled={busy}
-            onClick={() => onConfirm(DEFAULT_HERO_NAME)}
-          >
-            「{DEFAULT_HERO_NAME}」のまま
-          </button>
-        )}
+        <button
+          className="naming-keep"
+          data-testid="naming-default"
+          disabled={busy}
+          onClick={() => onConfirm(DEFAULT_HERO_NAME)}
+        >
+          「{DEFAULT_HERO_NAME}」のまま
+        </button>
       </div>
     </div>
   );

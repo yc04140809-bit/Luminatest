@@ -7,8 +7,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CANVAS = { w: 1200, h: 1800 };
-const BASELINE = 1746; // 不透明部分の下端。キャンバス下端から 3%。
+const CANVAS = { w: 1200, h: 2000 };
+const BASELINE = 1940; // 不透明部分の下端。キャンバス下端から 3%。
 const TOLERANCE = 2; // px
 
 const ROOT = fileURLToPath(
@@ -38,7 +38,7 @@ const VISUALS = [
 ];
 
 let bad = 0;
-console.log(`立ち絵マスター仕様: ${CANVAS.w}x${CANVAS.h} (2:3), 足元基準線 y=${BASELINE}\n`);
+console.log(`立ち絵マスター仕様: ${CANVAS.w}x${CANVAS.h} (3:5), 足元基準線 y=${BASELINE}\n`);
 for (const [key, rel] of MASTERS) {
   const size = pngSize(join(ROOT, rel));
   if (!size) {
@@ -50,8 +50,8 @@ for (const [key, rel] of MASTERS) {
   if (Math.abs(size.w - CANVAS.w) > TOLERANCE || Math.abs(size.h - CANVAS.h) > TOLERANCE) {
     faults.push(`キャンバス ${size.w}x${size.h}（要 ${CANVAS.w}x${CANVAS.h}）`);
   }
-  if (Math.abs(size.w / size.h - 2 / 3) > 0.01) {
-    faults.push(`比率 1:${(size.h / size.w).toFixed(3)}（要 1:1.500）`);
+  if (Math.abs(size.w / size.h - 1200 / 2000) > 0.01) {
+    faults.push(`比率 1:${(size.h / size.w).toFixed(3)}（要 1:1.667）`);
   }
   if (faults.length === 0) {
     console.log(`  o ${key}  ${rel}  ${size.w}x${size.h}`);

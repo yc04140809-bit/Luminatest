@@ -3,3 +3,7 @@
 .env.local
 .env*.local
 node_modules
+
+# 使い捨ての計測スクリプト。リポジトリに残すものではない。
+vpsweep.mjs
+ov.mjs
