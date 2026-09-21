@@ -136,163 +136,330 @@ body {
    unless every box above it is allowed to be SHORTER than its content.
    With `min-height` the picture pushed the screen past the viewport and
    the page scrolled — measured at 844x390: 184px of overflow. */
+/* ══ STATUS — the author's two reference images, built.
+   A menu down the left, who they are in the middle, the main visual
+   filling the right. Pale gold and ivory: this one screen carries the
+   bright cathedral on its own while the rest of the app stays dark, so
+   every colour it needs is declared here and nowhere else. */
 .status-screen {
-  /* THE ART'S AREA, in one place.
-     A CUT-OUT MASTER gets 32% x 82%, pinned right and bottom, as the
-     portrait spec says. A FINISHED RECTANGLE gets its own numbers
-     below, because it is a picture with a painted background rather
-     than a figure standing on a floor. Everything else on the screen
-     reserves exactly this strip, so retuning either area is one line
-     and nothing else — no component knows the numbers. */
-  --portrait-w: 32%;
-  --portrait-h: 82%;
+  /* THE THREE COLUMNS, as fractions OF THE SCREEN — which is why
+     they are `vw` and not `%`. A percentage inside `.st-body` is a
+     percentage of what is left after the visual, so `18%` there came
+     out as 10% of the screen when measured; `vw` means what the spec
+     means. Visual 41, menu 18, and the middle takes the 41 that is
+     left.
+     The delivered picture is 941x1672 and is shown `contain`, so at
+     844x390 it draws 219 wide inside a 346 area — the rest is the
+     gradient below, NEVER a second copy of her to fill the gap. */
+  --st-visual-w: 40vw;
+  --st-menu-w: 17vw;
+
+  --st-paper: #f7f3ea;
+  --st-paper-2: #ece3d2;
+  --st-ink: #40372b;
+  --st-dim: #8a7f6b;
+  --st-gold: #b2914f;
+  --st-gold-soft: rgba(178, 145, 79, 0.34);
+
   height: 100%;
   min-height: 0;
   justify-content: flex-start;
-  gap: 8px;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  color: var(--st-ink);
+  /* Light from the upper right, where the visual is. */
+  background:
+    radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--st-paper) 42%, var(--st-paper-2) 100%);
 }
-/* EVERY ROW KEEPS OFF THE FIGURE. The picture is positioned over the
-   whole screen, so the header, the numbers and the back button all
-   reserve the same strip — otherwise the character tabs sit behind a
-   shoulder, which is exactly what the first measured build did. */
-.status-screen > * {
-  padding-right: var(--portrait-w);
+
+/* ── THE MAIN VISUAL ──────────────────────────────────────────────
+   The UI stays out of this box and the picture never leaves it. */
+.st-visual {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--st-visual-w);
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* The leftover area, pitched at the picture's own pale gold so the
+     rectangle's edge stops announcing itself. This is the DISPLAY
+     side doing the blending — the file itself is never touched. */
+  background:
+    radial-gradient(78% 66% at 58% 32%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 74%),
+    linear-gradient(90deg, rgba(251, 247, 239, 0) 0%, rgba(251, 247, 239, 0.75) 26%, #f6f1e6 100%);
 }
-.status-head {
+/* CONTAIN, NEVER COVER, NEVER STRETCHED. A forced fit crops a face or
+   distorts a wing, and this screen exists to show her properly. */
+.st-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  /* A few pixels of softening at the very edges, well clear of her —
+     enough to lose the hard rectangle, not enough to cut anything. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 94%, transparent 100%);
+}
+
+/* ── TOP: wordmark and who you are looking at ─────────────────── */
+.st-head {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
+  gap: 16px;
+  padding: 10px 12px 0;
+  padding-right: calc(var(--st-visual-w) + 10px);
 }
-.status-title { margin: 0; }
-.status-tabs {
+.st-wordmark {
+  margin: 0;
+  line-height: 1.05;
+}
+.st-wordmark b {
+  display: block;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: var(--st-gold);
+}
+.st-wordmark i {
+  display: block;
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: 0.4em;
+  color: var(--st-dim);
+  margin-top: 2px;
+}
+.st-tabs {
+  margin-left: auto;
   display: flex;
   gap: 8px;
 }
-.status-tabs .btn {
-  min-width: 0;
-  min-height: 36px;
-  padding: 6px 18px;
+/* A REAL CONTROL, so it gets a real tap target. */
+.st-tab {
+  appearance: none;
+  min-height: 34px;
+  min-width: 96px;
+  padding: 7px 18px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--st-dim);
+  font: inherit;
   font-size: 13px;
+  letter-spacing: 0.16em;
 }
-.status-body {
-  display: flex;
-  gap: 14px;
-  width: 100%;
+.st-tab.on {
+  color: #f7f1e2;
+  border-color: #a5873f;
+  background: linear-gradient(180deg, #6d5a34, #40351f);
+}
+
+/* ── MIDDLE: menu, then the person ────────────────────────────── */
+.st-body {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  align-items: stretch;
+  display: flex;
+  gap: 10px;
+  padding: 8px 12px 0;
+  padding-right: calc(var(--st-visual-w) + 10px);
 }
-.status-facts {
+.st-menu {
+  flex: 0 0 var(--st-menu-w);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.st-menu-item {
+  padding: 8px 10px;
+  border-radius: 2px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--st-dim);
+  white-space: nowrap;
+}
+.st-menu-item.on {
+  color: #f7f1e2;
+  background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.6));
+  border: 1px solid #a5873f;
+}
+/* NOT A CONTROL. No hover, no cursor, no press — naming a screen that
+   does not exist must never look like a door that does. */
+.st-menu-item.soon,
+.st-detail.soon {
+  opacity: 0.42;
+  cursor: default;
+  user-select: none;
+}
+
+.st-info {
   flex: 1 1 auto;
   min-width: 0;
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
+  overflow: hidden;
 }
-.status-who {
+.st-name {
   margin: 0;
-  font-size: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 21px;
   letter-spacing: 0.1em;
 }
-/* LEVEL, read the way the reference reads it: the number is the thing,
-   the ceiling and what is owed are small beside it. */
-.status-level {
-  max-width: 330px;
+.st-name i {
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--st-gold);
+}
+.st-epithet {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--st-dim);
+}
+.st-quote,
+.st-intro,
+.st-style-note {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.65;
+  color: #5d5445;
+}
+.st-intro {
+  color: var(--st-dim);
+}
+.st-style-note {
+  margin-top: 2px;
+  color: var(--st-dim);
+}
+.st-level {
+  margin-top: 4px;
   display: flex;
   align-items: baseline;
   gap: 8px;
-  color: var(--dim);
-  font-size: 12px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--st-dim);
+}
+.st-level b {
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--st-ink);
+}
+.st-level s {
+  text-decoration: none;
+  font-size: 11px;
+}
+.st-next {
+  margin-left: auto;
   letter-spacing: 0.12em;
 }
-.status-level-value {
-  color: var(--ink);
-  font-size: 34px;
-  line-height: 1;
-  letter-spacing: 0.04em;
+.st-next b {
+  font-size: 13px;
+  color: var(--st-gold);
 }
-.status-next { margin-left: auto; letter-spacing: 0.08em; }
-.status-next b { color: var(--gold); font-weight: 500; }
-/* The bar is `levelBand`, never a second sum done here. */
-.status-bar {
-  max-width: 330px;
-  height: 4px;
+/* `levelBand`, never a second sum done here. */
+.st-bar {
+  height: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(140, 122, 88, 0.18);
   overflow: hidden;
 }
-.status-bar i {
+.st-bar i {
   display: block;
   height: 100%;
-  background: var(--gold);
+  background: linear-gradient(90deg, #8e7338, #d9c290);
 }
-.status-rows {
-  margin: 2px 0 0;
+.st-rows {
+  margin: 5px 0 0;
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 2px 14px;
+  gap: 1px 16px;
   font-size: 13px;
-  line-height: 1.8;
+  line-height: 1.55;
 }
-.status-rows .status-row { display: contents; }
-.status-rows dt { color: var(--dim); white-space: nowrap; }
-.status-rows dd { margin: 0; }
+.st-rows .st-row {
+  display: contents;
+}
+.st-rows dt {
+  color: var(--st-dim);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+.st-rows dd {
+  margin: 0;
+  font-size: 14px;
+}
 /* A kind of weapon and a way of fighting: two marks, not two stats. */
-.status-marks {
+.st-marks {
+  margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: auto;
+  gap: 6px;
 }
-.status-mark {
+.st-mark {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 5px 11px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
 }
-.status-mark span { color: var(--dim); letter-spacing: 0.08em; }
-.status-mark b { font-weight: 500; font-size: 13px; }
-/* A FINISHED RECTANGLE IS A PICTURE, not a figure on a floor.
-   Its own background is painted in, so it wants the full height and a
-   width that matches its shape — 26% x 100% is exactly the delivered
-   visual's 941x1672 at 844x390, which is why nothing is letterboxed
-   and nothing is cropped. A visual of another shape changes these two
-   numbers and nothing else. */
-.status-screen[data-art='VISUAL'] {
-  --portrait-w: 26%;
-  --portrait-h: 100%;
+.st-mark span {
+  color: var(--st-dim);
+  letter-spacing: 0.1em;
+}
+.st-mark b {
+  font-weight: 500;
+  font-size: 12.5px;
 }
 
-/* A BOX FOR THE PICTURE, AND THE UI STAYS OUT OF IT.
-   Right-fixed, bottom-aligned, clipped. The UI never draws inside it
-   and the picture can never escape it, which is what makes the art and
-   the screen replaceable one without the other. `pointer-events: none`
-   because it sits over the back button's row and must never eat a tap. */
-.status-portrait {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: var(--portrait-w);
-  height: var(--portrait-h);
-  overflow: hidden;
-  pointer-events: none;
+/* ── BOTTOM: the way out, and what is coming ──────────────────── */
+.st-foot {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px max(10px, env(safe-area-inset-bottom));
+  padding-right: calc(var(--st-visual-w) + 10px);
 }
-/* CONTAIN, NEVER COVER, and stood on the floor of the box.
-   `contain` because a file that does not yet match the master canvas
-   must still show whole rather than have a face cropped off; `bottom`
-   because characters stand on the same line, so switching between two
-   of them must not make the ground move. When every master shares the
-   canvas and the baseline of `docs/PORTRAIT_MASTER.md`, this lines
-   them up exactly; until then it lines up whatever each file has. */
-.status-portrait img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: bottom center;
+/* A REAL CONTROL, and the only one besides the tabs. 44px tall so a
+   thumb can find it on a handset. */
+.st-back {
+  appearance: none;
+  min-height: 40px;
+  min-width: 118px;
+  padding: 9px 22px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--st-ink);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+}
+.st-details {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+}
+.st-detail {
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  color: var(--st-dim);
 }

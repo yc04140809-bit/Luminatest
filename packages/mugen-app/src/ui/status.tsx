@@ -8,44 +8,49 @@ import {
   weaponLabelOf,
 } from '@mugen/content/characters/battleProfiles';
 import { statusArtOf } from '@mugen/content/characters/characterAppearance';
+import { presentationOf } from '@mugen/content/characters/characterPresentation';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
 
 /**
- * THE STATUS SCREEN: one character at a time, picture and numbers.
+ * THE STATUS SCREEN — built to the author's two reference images.
  *
- * Landscape, because the game is. The composition follows the art
- * direction we were given for this screen — the standing figure on the
- * RIGHT at full height, who they are and what they are worth on the
- * left, the people you can look at across the top — and stops exactly
- * where that picture stops being true of this build. See
- * `docs/STATUS_SCREEN.md` for the line-by-line reading of it.
+ * Landscape: a menu down the left, who they are in the middle, and the
+ * main visual filling the right. Pale gold and ivory, because the
+ * reference is a bright cathedral, and this screen carries that on its
+ * own while the rest of the app stays dark.
  *
- * NOT ONE NUMBER IS WORKED OUT HERE. The level and the experience are
- * `world.getProgress` read through `levelCurve` — `levelBand` exists so
- * that a bar can be drawn WITHOUT a screen inventing a second copy of
- * the curve — the ceilings and the swing are `world.getPartyStats`,
- * which is the same function the battle builds its fighters from, and
- * what is LEFT is `world.getPartyCondition`. If this screen and the
- * fight ever disagreed about a maximum, the fight would be right and
- * this would be a second calculation that should not exist.
+ * NOT ONE NUMBER IS WORKED OUT HERE. The level and what is owed come
+ * from `levelCurve` — `levelBand` exists so a bar can be drawn WITHOUT
+ * a screen inventing a second copy of the curve — the ceilings and the
+ * swing from `getPartyStats`, which is what the battle builds its
+ * fighters from, and the remainder from `getPartyCondition`. If this
+ * screen and the fight disagreed about a maximum, the fight would be
+ * right and this would be a second sum that should not exist.
  *
- * WHAT IS NOT ON IT: 防御力, 魔力, 素早さ, and the name of an equipped
- * weapon. The core has no defence, no magic and no speed stat —
- * `PartyStats` is two ceilings and an attack range — and there is no
- * equipment system at all. They are not shown as 「0」, as 「—」 or as
- * 「未実装」, because a placeholder is a number nobody chose and this
- * screen would be telling the player something false. The rows below
- * are a list, so the day those exist they are entries in it.
+ * WHAT IS NOT ON IT: 防御力, 魔力, 素早さ, and an equipped weapon's
+ * name. The core has none of them, so they are absent — not 「0」, not
+ * 「—」, not 「未実装」. They join the list on the day they are real.
  *
- * WHO IS ON IT comes from the party roster, never from a list written
- * here: the day somebody joins, they are on this screen without it
- * being touched. Levi, Aria and Gald have weapons in canon and are not
- * in the party, so they are not here — and nothing invents them.
+ * NOTHING HERE PRETENDS TO WORK. スキル, 装備, ストーリー, プロフィール
+ * and スキン are named because the reference names them, and they are
+ * rendered as plain text with no handler, no button and no press
+ * state, so a player cannot mistake them for a door. The one live
+ * entry is ステータス, which is this screen.
  */
 interface Props {
   world: World;
   onBack: () => void;
 }
+
+/**
+ * Named in the reference, and not built.
+ *
+ * 装備 is deliberately NOT repeated below: the reference puts it in
+ * both places, and two entries for one unbuilt screen is worse than
+ * one. It stays in the menu, where its neighbours are.
+ */
+const MENU_SOON = ['スキル', '装備', 'ストーリー'] as const;
+const DETAIL_SOON = ['プロフィール', 'スキン'] as const;
 
 interface Row {
   key: string;
@@ -58,33 +63,28 @@ export function StatusScreen({ world, onBack }: Props) {
   const [at, setAt] = useState(0);
   const who = party[Math.min(at, party.length - 1)];
   const profile = battleProfileOf(who.id);
-  const [portrait, setPortrait] = useState<string | null>(null);
+  const says = presentationOf(who.id);
   const art = statusArtOf(who.id);
   const kind = art?.kind ?? 'PORTRAIT';
+  const [picture, setPicture] = useState<string | null>(null);
 
   /**
    * The picture for whoever is being looked at NOW.
    *
-   * `alive` rather than a bare setState, because switching quickly
-   * would otherwise let a slow fetch for the previous character land
-   * on top of the current one.
+   * A FINISHED RECTANGLE WINS over a cut-out master when one exists,
+   * because the painted scene behind them is the screen's richness and
+   * CSS cannot stand in for it. `alive` rather than a bare setState,
+   * because switching quickly would otherwise let a slow fetch for the
+   * previous character land on top of the current one.
    */
   useEffect(() => {
     let alive = true;
-    setPortrait(null);
-    // WHAT THEY ARE WEARING decides this, never who they are: the id
-    // goes to the appearance registry and a picture comes back. That
-    // is the whole skin seam, and it is why a second outfit will not
-    // touch this screen.
-    //
-    // A FINISHED RECTANGLE WINS over a cut-out master when one exists,
-    // because the painted scene behind them is the screen's richness
-    // and CSS cannot stand in for it. Neither kind waits on the other.
+    setPicture(null);
     const key = art?.key ?? who.id;
     if (!isPortraitKey(key)) return;
     const load = kind === 'VISUAL' ? statusVisualArt : portraitArt;
     void load(key).then((src) => {
-      if (alive) setPortrait(src);
+      if (alive) setPicture(src);
     });
     return () => {
       alive = false;
@@ -96,8 +96,7 @@ export function StatusScreen({ world, onBack }: Props) {
   const progress = world.getProgress(who.id);
   const toNext = expToNextLevel(progress);
   const band = levelBand(progress);
-  // At the ceiling there is no band and no "next", so the bar is full
-  // rather than empty: nothing is owed.
+  // At the ceiling nothing is owed, so the bar is full rather than empty.
   const filled = band ? Math.max(0, Math.min(1, band.into / band.span)) : 1;
 
   const rows: Row[] = [];
@@ -117,15 +116,30 @@ export function StatusScreen({ world, onBack }: Props) {
 
   return (
     <div className="screen status-screen" data-art={kind} data-testid="status-screen">
-      <div className="status-head">
-        <p className="place status-title">ステータス</p>
+      {/* THE MAIN VISUAL, in an area the UI never draws into.
+          Its own painted background is the richness, so it takes the
+          full height and keeps its own shape — `contain`, never a
+          forced stretch, and never a second copy of her tiled behind
+          to fill the gap. What is left over is a gradient pitched at
+          the picture's own pale gold, so the rectangle's edge stops
+          announcing itself. */}
+      <div className="st-visual" aria-hidden="true">
+        {picture && <img src={picture} alt="" data-testid={`status-portrait-${who.id}`} />}
+      </div>
 
-        {/* Switching: only ever between people who are actually here. */}
+      <div className="st-head">
+        <p className="st-wordmark">
+          <b>STATUS</b>
+          <i>MUGEN ZERO</i>
+        </p>
+        {/* Only people who are actually in the party. Switching changes
+            the middle and the right together, because they are one
+            person being looked at. */}
         {party.length > 1 && (
-          <div className="status-tabs" role="tablist">
+          <div className="st-tabs" role="tablist">
             {party.map((member, i) => (
               <button
-                className={i === at ? 'btn primary' : 'btn'}
+                className={i === at ? 'st-tab on' : 'st-tab'}
                 key={member.id}
                 role="tab"
                 aria-selected={i === at}
@@ -139,73 +153,90 @@ export function StatusScreen({ world, onBack }: Props) {
         )}
       </div>
 
-      <div className="status-body">
-        {/* LEFT: what the world already knows about them. */}
-        <div className="status-facts">
-          <p className="status-who" data-testid="status-name">
-            {who.label}
-          </p>
-
-          <div className="status-level">
-            <span className="status-level-label">LEVEL</span>
-            <span className="status-level-value" data-testid="status-level">
-              {progress.level}
+      <div className="st-body">
+        <nav className="st-menu">
+          <span className="st-menu-item on" aria-current="page">
+            ステータス
+          </span>
+          {/* NOT BUTTONS. No handler, no press state, no cursor — the
+              reference names them, and naming is all this build may
+              honestly do. */}
+          {MENU_SOON.map((label) => (
+            <span
+              className="st-menu-item soon"
+              key={label}
+              aria-disabled="true"
+              data-testid={`status-menu-soon-${label}`}
+            >
+              {label}
             </span>
-            <span className="status-level-max">/ {MAX_LEVEL}</span>
-            <span className="status-next">
-              NEXT{' '}
-              <b data-testid="status-next">{toNext === null ? '（最大）' : String(toNext)}</b>
+          ))}
+        </nav>
+
+        <div className="st-info">
+          <p className="st-name" data-testid="status-name">
+            {who.label}
+            {says && <i>{says.roman}</i>}
+          </p>
+          {/* 肩書き is absent until the author writes one. */}
+          {says?.epithet && <p className="st-epithet">{says.epithet}</p>}
+          {says?.quote && <p className="st-quote">{says.quote}</p>}
+          {says?.intro && <p className="st-intro">{says.intro}</p>}
+
+          <div className="st-level">
+            <span className="st-level-label">LEVEL</span>
+            <b data-testid="status-level">{progress.level}</b>
+            <s>/ {MAX_LEVEL}</s>
+            <span className="st-next">
+              NEXT <b data-testid="status-next">{toNext === null ? '（最大）' : String(toNext)}</b>
             </span>
           </div>
-          <div className="status-bar" aria-hidden="true">
+          <div className="st-bar" aria-hidden="true">
             <i style={{ width: `${(filled * 100).toFixed(1)}%` }} />
           </div>
 
-          <dl className="status-rows">
+          <dl className="st-rows">
             {rows.map((row) => (
-              <div className="status-row" key={row.key}>
+              <div className="st-row" key={row.key}>
                 <dt>{row.label}</dt>
                 <dd data-testid={`status-${row.key}`}>{row.value}</dd>
               </div>
             ))}
           </dl>
 
-          {/* What they FIGHT as. A kind of weapon and a way of fighting
-              are two different things, and a character may have the
-              second without the first — so they are two marks, not one
-              line, and neither is an equipment slot. */}
           {profile && (
-            <div className="status-marks">
-              <div className="status-mark">
+            <div className="st-marks">
+              <div className="st-mark">
                 <span>武器種</span>
                 <b data-testid="status-weapon">{weaponLabelOf(profile)}</b>
               </div>
-              <div className="status-mark">
+              <div className="st-mark">
                 <span>戦闘スタイル</span>
                 <b data-testid="status-style">{battleStyleLabelOf(profile)}</b>
               </div>
             </div>
           )}
-        </div>
-
-        {/* RIGHT: THE ART'S OWN AREA, and nothing else's.
-            A box pinned right and bottom that the UI never draws into
-            and the picture never escapes. `contain` inside it, so a
-            file that does not match the canvas still shows whole
-            rather than cropped, and swapping one in needs no code.
-            The numbers are CSS variables and differ by kind — a
-            finished rectangle is framed as a picture, a cut-out figure
-            is stood on the floor — so retuning either is one line,
-            without touching a component. */}
-        <div className="status-portrait" aria-hidden="true">
-          {portrait && <img src={portrait} alt="" data-testid={`status-portrait-${who.id}`} />}
+          {says?.styleNote && <p className="st-style-note">{says.styleNote}</p>}
         </div>
       </div>
 
-      <div className="actions">
-        <button className="btn" data-testid="status-back" onClick={onBack}>
+      <div className="st-foot">
+        <button className="st-back" data-testid="status-back" onClick={onBack}>
           もどる
         </button>
+        {/* Named, never offered. Same rule as the menu. */}
+        <div className="st-details">
+          {DETAIL_SOON.map((label) => (
+            <span
+              className="st-detail soon"
+              key={label}
+              aria-disabled="true"
+              data-testid={`status-detail-soon-${label}`}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
