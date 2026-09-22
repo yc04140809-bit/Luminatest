@@ -382,6 +382,7 @@ export const REVIEW_AUDIO = [
   'tavern',
   'greenwood-forest',
   'normal-battle',
+  'boss-battle',
 ].map((name) => ({
   source: join(ASSETS_DIR, `files/audio/bgm/${name}.mp3`),
   out: join(REVIEW_ASSET_DIR, `${name}.mp3`),

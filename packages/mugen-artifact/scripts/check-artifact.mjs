@@ -126,6 +126,18 @@ export function checkArtifact(file) {
 
 const mb = (n) => `${(n / 1024 / 1024).toFixed(3)} MB`;
 
+/**
+ * WHAT THE ARTIFACT MUST FIT IN, and the check that was missing.
+ *
+ * A single published artifact is capped at 16 MiB. This script has
+ * always verified that the embedded assets are byte-identical to their
+ * sources and that no line is too long — everything except the one
+ * number the whole preview system exists to satisfy. So adding a piece
+ * of music built an artifact 5.4 MB over the limit and reported
+ * success, which is exactly the failure a check is for.
+ */
+const MAX_ARTIFACT_BYTES = 16 * 1024 * 1024;
+
 const target = process.argv[2] ?? join(APP_DIR, 'dist-singlefile/artifact.html');
 const { report, problems } = checkArtifact(target);
 console.log(`  artifact           : ${mb(report.totalBytes)} (${report.totalBytes} bytes)`);
@@ -140,6 +152,14 @@ console.log(
 );
 console.log(`  images decoded     : ${mb(report.decodedImageBytes)}`);
 console.log(`  strings continued  : ${report.continuedStrings} (value-preserving, verified above)`);
+if (report.totalBytes > MAX_ARTIFACT_BYTES) {
+  problems.push(
+    `artifact is ${mb(report.totalBytes)} — over the ${mb(MAX_ARTIFACT_BYTES)} limit by ` +
+      `${mb(report.totalBytes - MAX_ARTIFACT_BYTES)}. An asset is going in at full size: ` +
+      `check that every bgm file is listed in REVIEW_AUDIO and every heavy image in ` +
+      `REVIEW_IMAGES (scripts/review-encode-assets.mjs).`,
+  );
+}
 if (problems.length) {
   console.error('\nartifact check FAILED:');
   for (const p of problems) console.error(`  - ${p}`);
