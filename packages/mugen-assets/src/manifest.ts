@@ -44,6 +44,7 @@ import bgmAldenVillage from '../files/audio/bgm/alden-village.mp3';
 import bgmTavern from '../files/audio/bgm/tavern.mp3';
 import bgmGreenwoodForest from '../files/audio/bgm/greenwood-forest.mp3';
 import bgmNormalBattle from '../files/audio/bgm/normal-battle.mp3';
+import bgmBossBattle from '../files/audio/bgm/boss-battle.mp3';
 import titleKaosKeyVisual from '../files/backgrounds/title-kaos-keyvisual.webp';
 import themeSongCover from '../files/backgrounds/theme-song-cover.webp';
 import battleUiAutoOn from '../files/ui/battle/chip-auto-on.png';
@@ -345,8 +346,16 @@ export type BgmId =
   | 'TAVERN'
   /** The greenwood, walked. */
   | 'GREENWOOD_FOREST'
-  /** A fight. Every fight: the story's and the forest's alike. */
-  | 'NORMAL_BATTLE';
+  /** An ordinary fight: the forest's, and any other nobody wrote. */
+  | 'NORMAL_BATTLE'
+  /**
+   * THE FIGHTS THAT ARE ABOUT SOMETHING — an event, and a boss.
+   *
+   * Gald's is the one the story turns on, and it is the only one
+   * today. A fight that matters sounds different from a fight that
+   * happens, and which fights those are is `FORCED_BATTLE_BGM`.
+   */
+  | 'BOSS_BATTLE';
 
 export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 
@@ -358,6 +367,7 @@ export const BGM_ASSETS: Record<BgmId, string | null> = {
   TAVERN: bgmTavern,
   GREENWOOD_FOREST: bgmGreenwoodForest,
   NORMAL_BATTLE: bgmNormalBattle,
+  BOSS_BATTLE: bgmBossBattle,
 };
 
 /**

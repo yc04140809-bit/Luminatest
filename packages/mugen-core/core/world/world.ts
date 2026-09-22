@@ -19,6 +19,11 @@ import {
   type EquipmentSlot,
 } from '../../content/equipment/equipment';
 import { canEquip } from '../../content/equipment/equipResolve';
+import {
+  INITIAL_UNLOCKED_BATTLE_BGM,
+  isBattleBgm,
+  type BattleBgmId,
+} from '../../content/audio/battleBgm';
 import { statsForLevels, type PartyStats } from '../progression/levelStats';
 import {
   BATTLE_HP_HOLDER,
@@ -284,6 +289,16 @@ const HERO_NAME_KEY = 'hero_name';
  */
 const EQUIPMENT_KEY = 'character_equipment';
 const OWNED_EQUIPMENT_KEY = 'owned_equipment';
+/**
+ * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
+ *
+ * PROGRESS, NOT PREFERENCE, which is why it is here and not in
+ * localStorage beside the chosen piece: it is a fact about what
+ * happened in this game, it should travel with the save, and it must
+ * not be something a player can simply set. An absent row is the
+ * starting set, so no schema version moved.
+ */
+const UNLOCKED_BGM_KEY = 'unlocked_battle_bgm';
 
 const SESSION_KEY = 'session';
 
@@ -528,6 +543,7 @@ export class World {
   private heroNamed: boolean;
   private equipment: EquipmentTable;
   private ownedEquipment: OwnedTable;
+  private unlockedBgm: BattleBgmId[];
 
   private readonly health: SaveHealth;
 
@@ -541,6 +557,7 @@ export class World {
     this.clock = fields.clock;
     this.heroName = fields.heroName;
     this.heroNamed = fields.heroNamed;
+    this.unlockedBgm = fields.unlockedBgm;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -888,6 +905,29 @@ export class World {
   /** How many of an equipment id is held. */
   getOwnedEquipment(): Readonly<OwnedTable> {
     return this.ownedEquipment;
+  }
+
+  /** The fighting music this world may choose between. */
+  getUnlockedBattleBgm(): readonly BattleBgmId[] {
+    return this.unlockedBgm;
+  }
+
+  /**
+   * WON, NOT HEARD. Called when a fight is come through, never when
+   * one starts — the rule is that a piece becomes yours by beating a
+   * fight to it, so hearing the boss music and fleeing leaves it
+   * locked.
+   *
+   * Idempotent, and silent when there is nothing to add: a player wins
+   * many fights to the same piece and none of them should write.
+   */
+  async unlockBattleBgm(id: string): Promise<boolean> {
+    if (!isBattleBgm(id) || this.unlockedBgm.includes(id)) return false;
+    const next = [...this.unlockedBgm, id];
+    await this.store.commit({ putState: [{ key: UNLOCKED_BGM_KEY, value: next }] });
+    this.unlockedBgm = next;
+    this.emit();
+    return true;
   }
 
   /**
@@ -2534,6 +2574,7 @@ interface WorldFields {
    * has deliberately taken everything off.
    */
   equipmentStarted: boolean;
+  unlockedBgm: BattleBgmId[];
 }
 
 /** What reading a save had to say about it. */
@@ -2582,6 +2623,38 @@ function sameRows(a: readonly WorldStateRow[], b: readonly WorldStateRow[]): boo
 }
 
 /**
+ * The unlocked music out of a save, repaired.
+ *
+ * NEVER FAILS and never returns nothing: an unreadable row is the
+ * starting set, because a world that cannot choose its battle music
+ * must still be able to play a fight. Ids this build does not know are
+ * dropped rather than kept — unlike a possession, an unknown piece
+ * cannot be played, so holding onto it would only let it be chosen and
+ * then fall back.
+ */
+function readUnlockedBgm(raw: unknown): { value: BattleBgmId[]; health: 'ok' | 'repaired' } {
+  const initial = [...INITIAL_UNLOCKED_BATTLE_BGM];
+  if (raw === undefined) return { value: initial, health: 'ok' };
+  if (!Array.isArray(raw)) return { value: initial, health: 'repaired' };
+  const kept: BattleBgmId[] = [];
+  let changed = false;
+  for (const id of raw) {
+    if (isBattleBgm(id)) {
+      if (!kept.includes(id)) kept.push(id);
+      else changed = true;
+    } else changed = true;
+  }
+  // The starting piece is always in: it is what a fight falls back to.
+  for (const id of INITIAL_UNLOCKED_BATTLE_BGM) {
+    if (!kept.includes(id)) {
+      kept.unshift(id);
+      changed = true;
+    }
+  }
+  return { value: kept, health: changed ? 'repaired' : 'ok' };
+}
+
+/**
  * Reads one stored row, repaired, and says whether it had to change.
  *
  * The one place that knows which reader belongs to which key. A key
@@ -2627,6 +2700,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readEquipment(value));
     case OWNED_EQUIPMENT_KEY:
       return settle(readOwned(value));
+    case UNLOCKED_BGM_KEY:
+      return settle(readUnlockedBgm(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -2708,6 +2783,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       equipment: take(EQUIPMENT_KEY, readEquipment(byKey.get(EQUIPMENT_KEY))),
       ownedEquipment: take(OWNED_EQUIPMENT_KEY, readOwned(byKey.get(OWNED_EQUIPMENT_KEY))),
       equipmentStarted: byKey.get(EQUIPMENT_KEY) !== undefined,
+      unlockedBgm: take(UNLOCKED_BGM_KEY, readUnlockedBgm(byKey.get(UNLOCKED_BGM_KEY))),
     },
     repairedKeys,
     unreadableKeys,

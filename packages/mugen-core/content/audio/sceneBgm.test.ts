@@ -162,7 +162,19 @@ describe('the mapping as a whole', () => {
   });
 
   /** Every one of the seven is reachable; none is a name with no scene. */
-  it('uses all seven pieces', () => {
+  /**
+   * EVERY PIECE IS USED, and the ones a SCENE cannot reach are named
+   * rather than left as a gap.
+   *
+   * A scene answers "where are you", and that decides every piece but
+   * one: the boss music is chosen by WHO YOU ARE FIGHTING, which a
+   * screen position cannot know. So it is excluded here deliberately,
+   * and `battleBgm.test.ts` is where it is held to account — a piece
+   * that no scene reaches and no fight either would be a file nobody
+   * plays, and this pair of tests is what would catch that.
+   */
+  it('uses every piece a scene can reach', () => {
+    const chosenByTheFight = new Set(['BOSS_BATTLE']);
     const reached = new Set(
       [
         at('PROLOGUE'),
@@ -174,7 +186,8 @@ describe('the mapping as a whole', () => {
         at('BATTLE'),
       ].map(bgmForScene),
     );
-    expect(reached).toEqual(new Set(Object.keys(BGM_ASSETS)));
+    const sceneReachable = Object.keys(BGM_ASSETS).filter((id) => !chosenByTheFight.has(id));
+    expect(reached).toEqual(new Set(sceneReachable));
   });
 });
 

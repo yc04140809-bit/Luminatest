@@ -10,7 +10,14 @@ this folder is ever rewritten, resampled or overwritten by any build.
 | `alden-village.mp3` | アルデン村のテーマ | `ALDEN_VILLAGE` | Alden — home, the map, and every room read in |
 | `tavern.mp3` | 酒場のテーマ | `TAVERN` | 月光亭 |
 | `greenwood-forest.mp3` | 森林探索のテーマ | `GREENWOOD_FOREST` | the greenwood, walked, and the man standing in the road |
-| `normal-battle.mp3` | 通常戦闘① | `NORMAL_BATTLE` | every fight — the story's and the forest's alike |
+| `normal-battle.mp3` | 通常戦闘① | `NORMAL_BATTLE` | an ordinary fight: the forest's, and any other nobody wrote |
+| `boss-battle.mp3` | 勇敢 | `BOSS_BATTLE` | the fights that are about something — Gald's, today |
+
+Every one of them carries `yc04140809` as its artist tag: this is the
+author's own music, written for this game. There is no third-party
+licence to honour and no credit owed to anybody else — which is worth
+writing down, because the question will be asked again the next time a
+file arrives.
 
 They were identified by the TITLE TAG INSIDE EACH FILE, not by its
 name: the names they arrived under were mangled in transit and five of

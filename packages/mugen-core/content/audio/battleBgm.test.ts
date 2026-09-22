@@ -2,76 +2,105 @@ import { describe, expect, it } from 'vitest';
 import {
   BATTLE_BGM_IDS,
   DEFAULT_BATTLE_BGM,
+  FORCED_BATTLE_BGM,
+  INITIAL_UNLOCKED_BATTLE_BGM,
+  battleBgmFor,
   battleBgmLabel,
+  canChooseBattleBgm,
   isBattleBgm,
+  moreThanOneBattleBgm,
   nextBattleBgm,
+  unlockedBattleBgm,
 } from './battleBgm';
-import { BGM_ASSETS } from '@mugen/assets';
 
-/**
- * THE FIGHTING MUSIC, AND ROOM FOR MORE OF IT.
- *
- * One piece is registered — 通常戦闘① — and the ① in its own title says
- * what is coming. Everything here is written so that the day a second
- * one is added, the only change is a line in the list: the control, the
- * saved choice, the cycling order and the fallback all read it.
- */
-describe('the list of fighting music', () => {
-  it('is never empty, because a fight has to sound like something', () => {
-    expect(BATTLE_BGM_IDS.length).toBeGreaterThan(0);
-    expect(DEFAULT_BATTLE_BGM).toBe(BATTLE_BGM_IDS[0]);
+const BOTH = ['NORMAL_BATTLE', 'BOSS_BATTLE'] as const;
+
+describe('which piece a fight is fought to', () => {
+  it('knows the two pieces, and starts with only the ordinary one', () => {
+    expect(BATTLE_BGM_IDS).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+    expect(DEFAULT_BATTLE_BGM).toBe('NORMAL_BATTLE');
+    expect(INITIAL_UNLOCKED_BATTLE_BGM).toEqual(['NORMAL_BATTLE']);
   });
 
-  it('names only pieces the game actually has', () => {
-    for (const id of BATTLE_BGM_IDS) {
-      expect(id in BGM_ASSETS, id).toBe(true);
-      expect(BGM_ASSETS[id], `${id} has a file`).toBeTruthy();
-    }
-  });
-
-  it('knows one of its own from anything else', () => {
-    expect(isBattleBgm(DEFAULT_BATTLE_BGM)).toBe(true);
-    expect(isBattleBgm('ALDEN_VILLAGE')).toBe(false);
-    expect(isBattleBgm('NORMAL_BATTLE_Z')).toBe(false);
-    expect(isBattleBgm(null)).toBe(false);
-    expect(isBattleBgm(undefined)).toBe(false);
-    expect(isBattleBgm('')).toBe(false);
-  });
-});
-
-describe('pressing ♪', () => {
   /**
-   * With one piece registered, pressing it returns the same piece —
-   * and that is the correct answer rather than a special case. The
-   * player presses, nothing changes, nothing breaks, and the day a
-   * second piece is added the same press starts doing something.
+   * THE RULE THE FEATURE EXISTS FOR. A piece you have not won a fight
+   * to cannot be chosen — so the first time the boss music plays, it
+   * cannot be switched away from.
    */
-  it('moves to the next one, and comes round again', () => {
-    let at: string = DEFAULT_BATTLE_BGM;
-    const seen = new Set<string>();
-    for (let i = 0; i < BATTLE_BGM_IDS.length; i++) {
-      seen.add(at);
-      at = nextBattleBgm(at);
-    }
-    expect(seen.size).toBe(BATTLE_BGM_IDS.length);
-    expect(at).toBe(DEFAULT_BATTLE_BGM); // all the way round
+  describe('before it has been won', () => {
+    it('offers nothing but the ordinary piece', () => {
+      expect(unlockedBattleBgm(undefined)).toEqual(['NORMAL_BATTLE']);
+      expect(unlockedBattleBgm(['NORMAL_BATTLE'])).toEqual(['NORMAL_BATTLE']);
+      expect(moreThanOneBattleBgm(['NORMAL_BATTLE'])).toBe(false);
+      expect(battleBgmLabel('NORMAL_BATTLE', ['NORMAL_BATTLE'])).toBe('1/1');
+    });
+
+    it('will not hand it over by cycling', () => {
+      expect(nextBattleBgm('NORMAL_BATTLE', ['NORMAL_BATTLE'])).toBe('NORMAL_BATTLE');
+    });
+
+    /** Nor by a save that names it — edited, or from another build. */
+    it('will not honour a choice that was never earned', () => {
+      expect(battleBgmFor(null, 'BOSS_BATTLE', ['NORMAL_BATTLE'])).toBe('NORMAL_BATTLE');
+    });
   });
 
-  it('always lands on something playable, whatever it was handed', () => {
-    for (const junk of [null, undefined, '', 'ALDEN_VILLAGE', 'NORMAL_BATTLE_Z']) {
-      expect(isBattleBgm(nextBattleBgm(junk)), String(junk)).toBe(true);
-    }
+  describe('once it has been won', () => {
+    it('lets it be chosen freely, for any fight', () => {
+      expect(unlockedBattleBgm(BOTH)).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+      expect(moreThanOneBattleBgm(BOTH)).toBe(true);
+      expect(nextBattleBgm('NORMAL_BATTLE', BOTH)).toBe('BOSS_BATTLE');
+      expect(nextBattleBgm('BOSS_BATTLE', BOTH)).toBe('NORMAL_BATTLE');
+      expect(battleBgmFor(null, 'BOSS_BATTLE', BOTH)).toBe('BOSS_BATTLE');
+      expect(battleBgmLabel('BOSS_BATTLE', BOTH)).toBe('2/2');
+    });
   });
-});
 
-describe('what the control says', () => {
-  it('counts rather than names: the titles are long and the chip is small', () => {
-    expect(battleBgmLabel(DEFAULT_BATTLE_BGM)).toBe(`1/${BATTLE_BGM_IDS.length}`);
+  /**
+   * A FIGHT THAT IS ABOUT SOMETHING BRINGS ITS OWN MUSIC, and the
+   * choice is not offered rather than being offered and refused.
+   */
+  describe('the fight the story turns on', () => {
+    it('plays the boss piece whatever anybody chose', () => {
+      expect(FORCED_BATTLE_BGM.GALD).toBe('BOSS_BATTLE');
+      expect(battleBgmFor('GALD', 'NORMAL_BATTLE', BOTH)).toBe('BOSS_BATTLE');
+      expect(battleBgmFor('GALD', null, ['NORMAL_BATTLE'])).toBe('BOSS_BATTLE');
+    });
+
+    it('hides the control there, even for somebody who has won it', () => {
+      expect(canChooseBattleBgm('GALD', BOTH)).toBe(false);
+      expect(canChooseBattleBgm(null, BOTH)).toBe(true);
+      expect(canChooseBattleBgm(null, ['NORMAL_BATTLE'])).toBe(false);
+    });
   });
 
-  /** 1/1 also tells a player who pressed it why nothing happened. */
-  it('reads as the first of however many there are, for an unknown choice', () => {
-    expect(battleBgmLabel(null)).toBe(`1/${BATTLE_BGM_IDS.length}`);
-    expect(battleBgmLabel('ALDEN_VILLAGE')).toBe(`1/${BATTLE_BGM_IDS.length}`);
+  /**
+   * THE DEFAULT ARGUMENT IS A SAFETY CATCH. Anything written before
+   * unlocking existed calls these with one argument, and must keep
+   * cycling within the ordinary piece rather than being handed the
+   * boss music for free.
+   */
+  it('gives an un-taught caller only the starting set', () => {
+    expect(nextBattleBgm('NORMAL_BATTLE')).toBe('NORMAL_BATTLE');
+    expect(moreThanOneBattleBgm()).toBe(false);
+    expect(battleBgmLabel('NORMAL_BATTLE')).toBe('1/1');
+    expect(battleBgmFor(null, 'BOSS_BATTLE')).toBe('NORMAL_BATTLE');
+  });
+
+  /**
+   * THE OTHER HALF OF `sceneBgm.test.ts`. No scene reaches the boss
+   * piece, so if no fight did either it would be a file nobody plays.
+   * Something must bring it, and this is where that is asserted.
+   */
+  it('is brought by a fight, since no scene brings it', () => {
+    const broughtByAFight = new Set(Object.values(FORCED_BATTLE_BGM));
+    expect(broughtByAFight.has('BOSS_BATTLE')).toBe(true);
+  });
+
+  it('can always play a fight, whatever it is handed', () => {
+    expect(unlockedBattleBgm([])).toEqual(['NORMAL_BATTLE']);
+    expect(unlockedBattleBgm(['nonsense'])).toEqual(['NORMAL_BATTLE']);
+    expect(isBattleBgm('BOSS_BATTLE')).toBe(true);
+    expect(isBattleBgm('OPENING')).toBe(false);
   });
 });
