@@ -806,3 +806,88 @@ body {
   background: linear-gradient(180deg, #a49881, #7c735f);
   border-color: rgba(165, 135, 63, 0.4);
 }
+
+/* ── STAGES: a backdrop, one standing figure, the words beside it ──
+   Landscape only, so the figure gets the screen's full height on one
+   side and the words the other; nothing is ever laid over a face. */
+.stage-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+  z-index: 0;
+}
+/* The key visual is a white picture: held far back, so meeting her is
+   stepping into the image the title showed, not reading over it. */
+.stage-backdrop.key-visual { opacity: 0.16; }
+.stage-figure {
+  position: absolute;
+  bottom: 0;
+  height: 96%;
+  max-width: 44%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+.stage-left .stage-figure { left: 3%; }
+.stage-right .stage-figure { right: 3%; }
+/* Gald beaten is a whole painting on black, not a cut-out: its edges
+   are feathered into the forest so it reads as him, not as a box. */
+.stage-figure[data-who="gald"][data-state="portrait"] {
+  height: 86%;
+  bottom: 7%;
+  /* closest-side: 100% is the picture's own edge, so every edge ends
+     fully transparent and no trace of the black rectangle is left. */
+  -webkit-mask-image: radial-gradient(closest-side, #000 58%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 58%, transparent 100%);
+}
+.stage-words {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.stage.has-figure .stage-words { width: 54%; }
+.stage-left.has-figure .stage-words { align-self: flex-end; }
+.stage-right.has-figure .stage-words { align-self: flex-start; }
+.stage-speaker { margin: 0; }
+.stage-line { margin: 2px 0; }
+/* The world, alone, before anybody speaks. */
+.stage-monologue { background: #000; }
+.line.monologue {
+  white-space: pre-line;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  line-height: 2.1;
+  max-width: none;
+}
+/* The four answers, two by two, so they fit beside him. */
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 420px;
+}
+.choice-grid .btn { width: 100%; }
+
+/* ── THE TITLE'S KEY VISUAL, beside the name ── */
+.title-key {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  aspect-ratio: 1;
+  max-width: 50vw;
+  object-fit: cover;
+  -webkit-mask-image: linear-gradient(90deg, #000 72%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 72%, transparent 100%);
+  z-index: 0;
+}
+.screen.title.has-key { padding-left: calc(min(100vh, 50vw) + 16px); }
+.screen.title.has-key > :not(.title-key) { position: relative; z-index: 1; }

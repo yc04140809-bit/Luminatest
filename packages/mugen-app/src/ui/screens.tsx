@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
+import { titleKeyVisual } from '../assets/sceneArt';
+import { usePicture } from './scene';
 
 /**
  * THE APP ALPHA'S SCREENS — every one of them deliberately plain.
@@ -59,8 +61,23 @@ export function TitleScreen({
   onStart: () => void;
   onContinue: () => void;
 }) {
+  // THE KEY VISUAL — Kaos in silhouette against the moon, the picture
+  // the Artifact's title is built on. Beside the name rather than under
+  // it: it is a white picture and the App is dark, so words laid over
+  // it would have to fight it, and a title that has to be squinted at
+  // is a worse title than one with no picture.
+  const keyVisual = usePicture(titleKeyVisual, 'title-key-visual');
   return (
-    <div className="screen title">
+    <div className={`screen title${keyVisual ? ' has-key' : ''}`}>
+      {keyVisual && (
+        <img
+          className="title-key"
+          src={keyVisual}
+          alt=""
+          aria-hidden="true"
+          data-testid="title-key-visual"
+        />
+      )}
       <h1 className="logo">MUGEN ZERO</h1>
       <p className="sub">App Alpha</p>
       {hasSave ? (
@@ -77,31 +94,6 @@ export function TitleScreen({
           このブラウザでは保存できません。
         </p>
       )}
-    </div>
-  );
-}
-
-const OPENING = [
-  'その剣は、ひとつの人生を終わらせることも、始めることもできる。',
-  'アルデン地方、グリーンウッドの森。',
-  '——旅は、ここから。',
-];
-
-export function OpeningScreen({ onDone }: { onDone: () => void }) {
-  const [at, setAt] = useState(0);
-  const last = at >= OPENING.length - 1;
-  return (
-    <div className="screen opening">
-      <p className="line" data-testid="opening-line">
-        {OPENING[at]}
-      </p>
-      <button
-        className="btn"
-        data-testid="opening-next"
-        onClick={() => (last ? onDone() : setAt((n) => n + 1))}
-      >
-        {last ? 'はじめる' : 'つぎへ'}
-      </button>
     </div>
   );
 }

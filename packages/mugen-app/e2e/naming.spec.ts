@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { throughTheOpening } from './opening';
 
 /**
  * NAMING — asked once, on the way out of the opening.
@@ -29,10 +30,10 @@ async function freshApp(page: Page) {
   await page.reload();
 }
 
-async function throughTheOpening(page: Page) {
+/** はじめる, then the whole prologue, to the question of a name. */
+async function toNaming(page: Page) {
   await page.getByTestId('start-button').click();
-  const next = page.getByTestId('opening-next');
-  for (let i = 0; i < 3; i++) await next.click();
+  await throughTheOpening(page);
 }
 
 async function openStatus(page: Page) {
@@ -42,7 +43,7 @@ async function openStatus(page: Page) {
 
 test('asks after the opening and before the village, then keeps the name', async ({ page }) => {
   await freshApp(page);
-  await throughTheOpening(page);
+  await toNaming(page);
 
   // Before the village, not after: the clock is not up yet.
   await expect(page.getByTestId('naming-screen')).toBeVisible();
@@ -58,7 +59,7 @@ test('asks after the opening and before the village, then keeps the name', async
 
 test('will not take a name that is only space, in either width', async ({ page }) => {
   await freshApp(page);
-  await throughTheOpening(page);
+  await toNaming(page);
 
   const input = page.getByTestId('naming-input');
   const confirm = page.getByTestId('naming-confirm');
@@ -83,7 +84,7 @@ test('will not take a name that is only space, in either width', async ({ page }
 
 test('lets them keep the default, and records that as chosen', async ({ page }) => {
   await freshApp(page);
-  await throughTheOpening(page);
+  await toNaming(page);
 
   await page.getByTestId('naming-default').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
@@ -93,7 +94,7 @@ test('lets them keep the default, and records that as chosen', async ({ page }) 
 
 test('survives a restart, and CONTINUE never asks again', async ({ page }) => {
   await freshApp(page);
-  await throughTheOpening(page);
+  await toNaming(page);
   await page.getByTestId('naming-input').fill('リナ');
   await page.getByTestId('naming-confirm').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();

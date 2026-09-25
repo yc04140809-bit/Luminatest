@@ -8,7 +8,14 @@ import {
   FUTURE_VISION_SEEN_LINE,
 } from '@mugen/content/dialogue/galdEncounter';
 import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
-import { Place } from './screens';
+import { Stage, kaosFigureFor } from './scene';
+
+/**
+ * She is the one talking through all three beats — asking, showing,
+ * bringing them back — so she stands there for all of it, drawn by
+ * the same rule as every other line of hers.
+ */
+const HER = kaosFigureFor({ speaker: 'ケイオス', text: '' });
 
 /**
  * THREE YEARS LOOKED AT, NOT LIVED THROUGH.
@@ -55,20 +62,20 @@ export function FutureVisionScreen({
 
   if (beat === 'ASK') {
     return (
-      <Place area="ALDEN" title="">
+      <Stage backdrop="ALDEN" figure={HER} side="left">
         <div data-testid="future-vision" data-beat="ASK">
           <Lines lines={FUTURE_VISION_INTRO_LINES} />
           <button className="btn primary" data-testid="future-vision-next" onClick={() => setBeat('SEE')}>
             見る
           </button>
         </div>
-      </Place>
+      </Stage>
     );
   }
 
   if (beat === 'SEE') {
     return (
-      <Place area="ALDEN" title="">
+      <Stage backdrop="ALDEN" figure={HER} side="left">
         <div data-testid="future-vision" data-beat="SEE">
           <p className="seasons">春 — 夏 — 秋 — 冬</p>
           <p className="line" data-testid="future-vision-years">
@@ -90,12 +97,12 @@ export function FutureVisionScreen({
             つづける
           </button>
         </div>
-      </Place>
+      </Stage>
     );
   }
 
   return (
-    <Place area="ALDEN" title="">
+    <Stage backdrop="ALDEN" figure={HER} side="left">
       <div data-testid="future-vision" data-beat="BACK">
         <div data-testid="future-vision-return">
           <Lines lines={FUTURE_VISION_RETURN_LINES} />
@@ -115,6 +122,6 @@ export function FutureVisionScreen({
           現在へもどる
         </button>
       </div>
-    </Place>
+    </Stage>
   );
 }

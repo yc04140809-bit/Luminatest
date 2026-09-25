@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { throughTheOpening } from './opening';
 
 /**
  * THE SAME GAME, DRIVEN WITH A FINGER.
@@ -63,7 +64,7 @@ async function intoTheVillageByTouch(page: Page) {
   expect(await page.evaluate(() => 'ontouchstart' in window)).toBe(true);
 
   await page.getByTestId('start-button').tap();
-  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').tap();
+  await throughTheOpening(page, { tap: true });
 
   await tappable(page, 'naming-confirm');
   await tappable(page, 'naming-default');

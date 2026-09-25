@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { throughTheOpening } from './opening';
 
 /**
  * EQUIPMENT — what is held, what may be held, and that it survives.
@@ -29,8 +30,7 @@ async function intoTheVillage(page: Page) {
   });
   await page.reload();
   await page.getByTestId('start-button').click();
-  const next = page.getByTestId('opening-next');
-  for (let i = 0; i < 3; i++) await next.click();
+  await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }

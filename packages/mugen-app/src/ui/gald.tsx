@@ -9,6 +9,7 @@ import {
   LIFE_CHOICE_PROMPT,
 } from '@mugen/content/dialogue/galdEncounter';
 import { Place } from './screens';
+import { Stage, StagedLines, kaosFigureFor } from './scene';
 
 /**
  * THE ONE FIGHT THE SLICE IS BUILT TO ARRIVE AT.
@@ -54,20 +55,26 @@ function Scene({
   );
 }
 
-/** He stops you on the path. */
+/** He stops you on the path — standing in it, knives out. */
 export function GaldEncounterScreen({ onBattle }: { onBattle: () => void }) {
   return (
-    <Place area="GREENWOOD" title="グリーンウッドの森">
-      <div data-testid="gald-encounter">
-        <Scene
-          lines={GALD_ENCOUNTER_LINES}
-          testId="encounter-line"
-          nextTestId="encounter-next"
-          doneLabel="戦う"
-          onDone={onBattle}
-        />
-      </div>
-    </Place>
+    <StagedLines
+      lines={GALD_ENCOUNTER_LINES}
+      backdrop="GREENWOOD"
+      // His TALKING picture, asked for by state. He has none, and the
+      // core's talk chain answers with his full standing figure — the
+      // same drawing the Artifact shows here, by the same rule.
+      figureFor={(line) =>
+        kaosFigureFor(line) ?? { who: 'gald', state: 'talk', alt: '森で行く手をふさぐ盗賊' }
+      }
+      side="right"
+      title="グリーンウッドの森"
+      testId="gald-encounter"
+      lineTestId="encounter-line"
+      nextTestId="encounter-next"
+      doneLabel="戦う"
+      onDone={onBattle}
+    />
   );
 }
 
@@ -101,35 +108,42 @@ export function LifeChoiceScreen({
   };
 
   return (
-    <Place area="GREENWOOD" title="グリーンウッドの森">
-      <div data-testid="life-choice-screen">
-        <p className="line" data-testid="life-choice-line">
-          {GALD_LIFE_CHOICE_LINE}
-        </p>
-        <p className="line" data-testid="life-choice-prompt">
-          {LIFE_CHOICE_PROMPT}
-        </p>
-        <div className="actions">
-          {LIFE_CHOICE_OPTIONS.map((opt) => (
-            <button
-              className="btn"
-              key={opt.id}
-              data-testid={`choice-${opt.id}`}
-              disabled={saving}
-              onClick={() => choose(opt.id)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-        {saving && <p className="say">記録しています……</p>}
-        {failed && (
-          <p className="warn" data-testid="save-error">
-            記録できませんでした。もう一度選んでください。
-          </p>
-        )}
+    <Stage
+      backdrop="GREENWOOD"
+      // Beaten, on one knee: a person being decided, not a menu.
+      figure={{ who: 'gald', state: 'portrait', alt: '膝をついた盗賊' }}
+      side="left"
+      className="life-choice"
+      testId="life-choice-screen"
+    >
+      <h1 className="place">グリーンウッドの森</h1>
+      <p className="speaker stage-speaker">盗賊 ガルド</p>
+      <p className="line stage-line" data-testid="life-choice-line">
+        「{GALD_LIFE_CHOICE_LINE}」
+      </p>
+      <p className="line stage-line" data-testid="life-choice-prompt">
+        {LIFE_CHOICE_PROMPT}
+      </p>
+      <div className="actions choice-grid">
+        {LIFE_CHOICE_OPTIONS.map((opt) => (
+          <button
+            className="btn"
+            key={opt.id}
+            data-testid={`choice-${opt.id}`}
+            disabled={saving}
+            onClick={() => choose(opt.id)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
-    </Place>
+      {saving && <p className="say">記録しています……</p>}
+      {failed && (
+        <p className="warn" data-testid="save-error">
+          記録できませんでした。もう一度選んでください。
+        </p>
+      )}
+    </Stage>
   );
 }
 

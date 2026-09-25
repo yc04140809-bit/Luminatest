@@ -10,7 +10,6 @@ import {
   AldenScreen,
   GreenwoodScreen,
   MapScreen,
-  OpeningScreen,
   TitleScreen,
 } from './ui/screens';
 import { BagScreen } from './ui/bag';
@@ -44,6 +43,7 @@ import {
   GALD_FUTURE_VISION_YEARS,
 } from '@mugen/content/events/galdLifeChoice';
 import { BattleScreen, ResultScreen } from './ui/battle';
+import { PrologueScreen } from './ui/prologue';
 
 /**
  * MUGEN ZERO — APP ALPHA.
@@ -87,6 +87,15 @@ export default function App() {
 function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: boolean }) {
   // Asked once, on the way out of the opening. See `case 'PROLOGUE'`.
   const [naming, setNaming] = useState(false);
+  /**
+   * WHETHER SHE HAS ARRIVED IN THE PROLOGUE — the one fact the music
+   * needs that the flow does not hold. The prologue is two scenes on
+   * one screen, the world and then her, and they are scored
+   * differently. Held through naming, which follows her directly, so
+   * the music does not step back to the opening between her last line
+   * and the village.
+   */
+  const [kaosArrived, setKaosArrived] = useState(false);
   const [namingBusy, setNamingBusy] = useState(false);
   /**
    * EQUIPMENT IS A LEAF OF STATUS, not a screen of its own.
@@ -294,7 +303,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // must not reintroduce it by inheriting a screen it does not show.
     screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : state.screen,
     locationId: null,
-    kaosSpeaking: false,
+    kaosSpeaking: state.screen === 'PROLOGUE' && kaosArrived,
     battleBgmId,
   });
 
@@ -435,7 +444,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           />
         );
       }
-      return <OpeningScreen onDone={() => setNaming(true)} />;
+      return (
+        <PrologueScreen onKaosArrives={() => setKaosArrived(true)} onDone={() => setNaming(true)} />
+      );
     case 'HOME':
       return (
         <AldenScreen

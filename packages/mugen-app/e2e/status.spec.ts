@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { throughTheOpening } from './opening';
 
 /**
  * THE STATUS SCREEN, built to the author's two reference images.
@@ -35,8 +36,7 @@ async function intoTheVillage(page: Page) {
   });
   await page.reload();
   await page.getByTestId('start-button').click();
-  const next = page.getByTestId('opening-next');
-  for (let i = 0; i < 3; i++) await next.click();
+  await throughTheOpening(page);
   // Naming now sits between the opening and the village. Taking the
   // default, so what this file asserts stays about the status screen.
   await page.getByTestId('naming-default').click();

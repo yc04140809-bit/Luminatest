@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { throughTheOpening } from './opening';
 
 /**
  * THE MUSIC, in the App.
@@ -118,10 +119,16 @@ test('plays the right piece on every screen, one at a time', async ({ page }) =>
     }),
   ).toMatch(/^title-main.*\.mp3$/);
 
-  // OPENING — a different piece, and the title's has stopped.
+  // OPENING — the world, alone: a different piece, the title's stopped.
   await page.getByTestId('start-button').click();
   await expectPlaying(page, 'OPENING');
-  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
+  // …and she arrives: her piece, as in the Artifact, held through the
+  // naming that follows her.
+  await page.getByTestId('opening-next').click();
+  await expect(page.getByTestId('stage-figure')).toHaveAttribute('data-who', 'kaos');
+  await expectPlaying(page, 'KAOS_EVENT');
+  await throughTheOpening(page);
+  await expectPlaying(page, 'KAOS_EVENT');
   await page.getByTestId('naming-default').click();
 
   // ALDEN_HOME — the house plays the village's theme.
@@ -229,7 +236,7 @@ async function beatGald(page: Page, whileFighting?: () => Promise<void>) {
 test('the boss piece is unlocked by beating Gald, in that save only', async ({ page }) => {
   await freshTitle(page);
   await page.getByTestId('start-button').click();
-  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
+  await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
 
   // LOCKED: an ordinary fight has one piece and nothing to switch.
@@ -275,7 +282,7 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
   await page.reload();
   expect(await page.evaluate(() => localStorage.getItem('mugen-battle-bgm'))).toBe('BOSS_BATTLE');
   await page.getByTestId('start-button').click();
-  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
+  await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
   await toTheRabbit(page);
   await expectPlaying(page, 'NORMAL_BATTLE');
@@ -289,7 +296,7 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
 test('plays the boss piece for Gald, and her piece after', async ({ page }) => {
   await freshTitle(page);
   await page.getByTestId('start-button').click();
-  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
+  await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
