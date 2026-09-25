@@ -28,6 +28,9 @@ import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
 import { EquipmentScreen } from './ui/equipment';
+import { useSceneBgm } from './ui/audio/useSceneBgm';
+import { audioManager } from './platform/audio';
+import { battleBgmFor } from '@mugen/content/audio/battleBgm';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
@@ -107,8 +110,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     (window as unknown as { __mugenWorld?: World }).__mugenWorld = world;
+    // And the player, so a test can ask what is SOUNDING rather than
+    // what was asked for — the two differ exactly when something is
+    // wrong, which is when it matters.
+    (window as unknown as { __mugenAudio?: typeof audioManager }).__mugenAudio = audioManager;
     return () => {
       delete (window as unknown as { __mugenWorld?: World }).__mugenWorld;
+      delete (window as unknown as { __mugenAudio?: typeof audioManager }).__mugenAudio;
     };
   }, [world]);
   // Redrawn when world truth changes, the same way the Artifact does it.
@@ -148,6 +156,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     }
     flow.goTo(target);
   });
+
 
   const [winnings, setWinnings] = useState<AppliedReward | null>(null);
   /**
@@ -224,6 +233,39 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * door was walked through, and it decides nothing about the world.
    */
   const story = useRef(false);
+
+  /**
+   * THE MUSIC. One call, before any screen is chosen.
+   *
+   * Every piece is decided by `bgmForScene` in core — the same map the
+   * Artifact plays by — so the App and the Artifact cannot disagree
+   * about what a place sounds like.
+   *
+   * THE FIGHT THAT MATTERS BRINGS ITS OWN MUSIC. `story` marks the Gald
+   * sequence from the road to the four answers, and `battleBgmFor`
+   * turns that into BOSS_BATTLE whatever anybody chose — which is why
+   * the result screen after his fight keeps the boss piece rather than
+   * dropping back to the ordinary one mid-scene. Choosing and unlocking
+   * pieces is the NEXT step; for now every other fight is the ordinary
+   * piece, which is exactly what an un-taught caller of `battleBgmFor`
+   * gets.
+   *
+   * `locationId` is null because the App's screens carry no place: the
+   * talk spots that need it are not in the App, and the future site is
+   * the bakery in Alden, which null already answers correctly.
+   */
+  useSceneBgm({
+    // THE APP HAS NO THEME-CHOICE SCREEN. The flow starts on
+    // THEME_CHOICE and the App draws the title for it, so to the player
+    // it IS the title — and the map says THEME_CHOICE is silent, which
+    // left the one screen everybody sees first with nothing playing.
+    // The Artifact fixed exactly this complaint from a phone; the App
+    // must not reintroduce it by inheriting a screen it does not show.
+    screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : state.screen,
+    locationId: null,
+    kaosSpeaking: false,
+    battleBgmId: battleBgmFor(story.current ? 'GALD' : null, null),
+  });
 
   /**
    * IS THE ONE LOOK AHEAD STILL OWED?
