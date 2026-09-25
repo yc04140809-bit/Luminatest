@@ -11,13 +11,14 @@
 
 | 用語 | 指すもの | コード上の画面（scene key） |
 |---|---|---|
-| **TITLE_SCREEN** | MUGEN ZERO のロゴ ＋「はじめる」ボタンの画面 | `TITLE`（App版は `THEME_CHOICE` の間もこの画面を描くので同じ扱い） |
+| **TITLE_SCREEN**（タイトル画面） | MUGEN ZERO のロゴ ＋「はじめる」ボタンの画面。**「タイトル画面」はこの画面だけを指す** | `TITLE`（App版は `THEME_CHOICE` の間もこの画面を描くので同じ扱い） |
 | **OPENING** | タイトルの後の導入シーン（独白） | `PROLOGUE`（ケイオスが話し出す前） |
-| **ALDEN_HOME** | アルデン（家）の画面。「探索する」「ステータス」などがある村の拠点 | `HOME` ほか下表 |
-| **ALDEN_VILLAGE** | アルデン村（地図・店） | `EXPLORE` ほか下表 |
+| **ALDEN_HOME** | アルデン（家）の画面。「探索する」「ステータス」などがある村の拠点 | `HOME` |
+| **ALDEN_VILLAGE** | アルデン村（地図・店） | `EXPLORE`, `ITEM_SHOP` |
 
-「ホーム画面」という言葉は使わないでください。タイトル画面と家の画面の
-どちらにも読めて、実際に一度取り違えました（下の「経緯」）。
+- OPENING や ALDEN_HOME を「タイトル画面」と呼ばないこと。
+- 「ホーム画面」という言葉は使わないこと（タイトル画面と家の画面のどちらにも読めて、実際に取り違えた。下の「経緯」）。
+- ALDEN_HOME は**画面の名前**で、曲のIDではない。家専用の曲は作らない（正式決定）。
 
 ## 全BGM
 
@@ -26,8 +27,7 @@
 | `TITLE_MAIN` | MUGEN ZERO タイトル画面 | `title-main.mp3` | `TITLE` **のみ** |
 | `OPENING` | また、ここで。 (Remastered) | `opening.mp3` | `PROLOGUE`（ケイオスが話す前） |
 | `KAOS_EVENT` | ケイオスちゃんのテーマ会話シーン | `kaos-event.mp3` | `PROLOGUE`（ケイオス登場後）, `LIFE_CHOICE`, `CREATURE_LIFE_CHOICE`, `CHOICE_RESULT` |
-| `ALDEN_HOME` | **（保留・専用曲なし）** | **なし → 無音** | `HOME`, `STATUS`, `BAG`, `WORLD_MEMORY`, `WORLD_NEWS`, `ARCHIVE`, `ARCANA`, `SETTINGS` |
-| `ALDEN_VILLAGE` | アルデン村のテーマ | `alden-village.mp3` | `EXPLORE`, `ITEM_SHOP`, `TIME_SHIFT`, 村の `TALK_SPOT` / `FUTURE_SITE` |
+| `ALDEN_VILLAGE` | アルデン村のテーマ | `alden-village.mp3` | **ALDEN_HOME**（`HOME`）、家から開くページ（`STATUS`, `BAG`, `WORLD_MEMORY`, `WORLD_NEWS`, `ARCHIVE`, `ARCANA`, `SETTINGS`）、**ALDEN_VILLAGE**（`EXPLORE`, `ITEM_SHOP`）、`TIME_SHIFT`、村の `TALK_SPOT` / `FUTURE_SITE` |
 | `TAVERN` | 酒場のテーマ | `tavern.mp3` | `TALK_SPOT` / `FUTURE_SITE` の月光亭（App版にはまだ無い） |
 | `GREENWOOD_FOREST` | 森林探索のテーマ | `greenwood-forest.mp3` | `GREENWOOD`, `ENCOUNTER`, 森の `TALK_SPOT` / `FUTURE_SITE` |
 | `NORMAL_BATTLE` | 通常戦闘① | `normal-battle.mp3` | `BATTLE`, `BATTLE_RESULT`（初期状態・選んだとき） |
@@ -44,17 +44,26 @@
 |---|---|
 | TITLE_SCREEN | `TITLE_MAIN`（MUGEN ZERO タイトル画面） |
 | ↓ OPENING | `OPENING`（また、ここで。） |
-| ↓ ALDEN_HOME | 無音（専用曲を保留中。タイトルやオープニングの曲は持ち越さない） |
-| ↓ ALDEN_VILLAGE | `ALDEN_VILLAGE`（アルデン村のテーマ） |
+| ↓ ALDEN_HOME | `ALDEN_VILLAGE`（アルデン村のテーマ） |
+| ↔ STATUS | 同じ曲が**そのまま続く** |
+| ↔ ALDEN_VILLAGE | 同じ曲が**そのまま続く** |
+
+## 同じ曲は続けて鳴らす
+
+家・村・ステータスなどは**同じ trackId（`ALDEN_VILLAGE`）**にしてあります。
+次の画面が今鳴っているのと同じ trackId を求めた場合、再生側（`playBgm`）は
+何もしません。止めない、頭に戻さない、フェードもしない。
+
+例：村 → 家 → ステータス → 家 → 村。この間ずっと同じ曲が途切れずに続きます
+（App版・Artifact版ともにテストで確認済み。同じ再生要素のまま、再生位置が戻らないこと）。
+
+別の曲を割り当てる画面を増やすときは、同じ曲のつもりなら**同じ trackId** にしてください。
+同じファイルを別の trackId で登録すると、画面が変わるたびに頭から再生し直します。
 
 ## ファイルについての注意
 
 - `alden-home.mp3` は **`title-main.mp3` と中身が同じファイル**（同じ録音）です。
   削除・リネームせずに残していますが、どこからも参照していません。
-- ALDEN_HOME 専用曲が届いたら：ファイルを `bgm/` に置き、`manifest.ts` の
-  `ALDEN_HOME: null` をそのファイルにするだけです。画面側の変更は要りません。
-  Artifact の単一ファイル版に入れるには `REVIEW_AUDIO`
-  （`packages/mugen-artifact/scripts/review-encode-assets.mjs`）にも追加します。
 
 ## 経緯（2026-09-20 → 09-25）
 
@@ -63,4 +72,5 @@
 3. 実機で「タイトルだけ無音」と報告され、タイトルにも `ALDEN_HOME` を割り当てた。
    → タイトルと家が同じ曲になっていた。
 4. 2026-09-25：用語を固定し、この曲を `TITLE_MAIN` としてタイトル専用に分離。
-   `ALDEN_HOME` は専用曲が決まるまで保留（無音）。
+5. 2026-09-25（正式決定）：家の専用曲は作らない。ALDEN_HOME はアルデン村のテーマ
+   （`ALDEN_VILLAGE`）をそのまま使い、村・家・ステータスの間で曲を途切れさせない。

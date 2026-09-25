@@ -41,9 +41,10 @@ import bgmOpening from '../files/audio/bgm/opening.mp3';
 import bgmKaosEvent from '../files/audio/bgm/kaos-event.mp3';
 // alden-home.mp3 IS NOT IMPORTED, and stays in the folder. It is the
 // same recording as title-main.mp3 — 「MUGEN ZERO タイトル画面」 —
-// which was registered as the village-home piece through a
-// misunderstanding of the word "HOME". It belongs to the title, and
-// ALDEN_HOME is waiting for a piece of its own (see BGM_ASSETS).
+// which was once registered as a village-home piece through a
+// misunderstanding of the word "HOME". It belongs to the title. The
+// house in Alden has no piece of its own by decision: it plays the
+// village's (docs/BGM_MAP.md).
 import bgmTitleMain from '../files/audio/bgm/title-main.mp3';
 import bgmAldenVillage from '../files/audio/bgm/alden-village.mp3';
 import bgmTavern from '../files/audio/bgm/tavern.mp3';
@@ -344,15 +345,10 @@ export type BgmId =
   /** Kaos, talking — the prologue introduction and the life choices. */
   | 'KAOS_EVENT'
   /**
-   * THE VILLAGE AS A PLACE TO STAND, and every page read from it.
-   *
-   * Where the player actually lives between one thing and the next:
-   * the clock, the party, the bag, the book, the record, the
-   * settings. Opening any of those is not going anywhere, so they all
-   * sound the same and the music never restarts under a thumb.
+   * ALDEN — the house, the village, the map, the shop, and every page
+   * read while there (status, bag, book…). One piece for all of it, so
+   * moving between them never restarts it.
    */
-  | 'ALDEN_HOME'
-  /** Alden as a place to WALK: the map, and the shop off its square. */
   | 'ALDEN_VILLAGE'
   /** 月光亭 — the one room in Alden with a different air. */
   | 'TAVERN'
@@ -375,14 +371,6 @@ export const BGM_ASSETS: Record<BgmId, string | null> = {
   TITLE_MAIN: bgmTitleMain,
   OPENING: bgmOpening,
   KAOS_EVENT: bgmKaosEvent,
-  /**
-   * PENDING — no piece of its own yet, so silence.
-   *
-   * The screens that ask for ALDEN_HOME keep asking; the day its own
-   * recording arrives it goes here and nothing else changes. Until
-   * then nothing is borrowed: the title's piece belongs to the title.
-   */
-  ALDEN_HOME: null,
   ALDEN_VILLAGE: bgmAldenVillage,
   TAVERN: bgmTavern,
   GREENWOOD_FOREST: bgmGreenwoodForest,

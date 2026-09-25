@@ -53,14 +53,31 @@ async function expectPlaying(page: Page, id: string) {
 }
 
 /**
- * Asked for, and nothing to play yet — ALDEN_HOME is pending. What is
- * checked is that NOTHING sounds: in particular not the piece from the
- * screen before, carried over because nothing replaced it.
+ * The element that is playing, tagged, with where it has got to.
+ *
+ * Moving between screens that share a piece must leave THIS element
+ * playing — a stop and restart would build a new one, and a seek back
+ * to the top would show as time going backwards.
  */
-async function expectPending(page: Page, id: string) {
-  await expect.poll(async () => (await sounding(page)).current, { timeout: 8000 }).toBe(id);
-  await expect.poll(async () => (await sounding(page)).live, { timeout: 4000 }).toBe(0);
-  expect((await sounding(page)).sounding).toBe(false);
+async function tagPlaying(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const a = (window as unknown as { __mugenAudio: { bgm: HTMLAudioElement & { __tag?: string } } })
+      .__mugenAudio;
+    a.bgm.__tag = 'kept';
+    return a.bgm.currentTime;
+  });
+}
+
+async function stillTheSame(page: Page, since: number): Promise<number> {
+  const now = await page.evaluate(() => {
+    const a = (window as unknown as { __mugenAudio: { bgm: (HTMLAudioElement & { __tag?: string }) | null } })
+      .__mugenAudio;
+    return { tag: a.bgm?.__tag ?? null, paused: a.bgm?.paused ?? true, t: a.bgm?.currentTime ?? -1 };
+  });
+  expect(now.tag, 'the same element, never stopped and rebuilt').toBe('kept');
+  expect(now.paused).toBe(false);
+  expect(now.t, 'carried on, not started over').toBeGreaterThanOrEqual(since);
+  return now.t;
 }
 
 async function freshTitle(page: Page) {
@@ -107,16 +124,28 @@ test('plays the right piece on every screen, one at a time', async ({ page }) =>
   for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
   await page.getByTestId('naming-default').click();
 
-  // ALDEN_HOME — pending: asked for, silent, and NOT the title's piece
-  // or the opening's carried over.
-  await expectPending(page, 'ALDEN_HOME');
-  // Reading a page from the house is still the house.
-  await page.getByTestId('status-button').click();
-  await expectPending(page, 'ALDEN_HOME');
-  await page.getByTestId('status-back').click();
+  // ALDEN_HOME — the house plays the village's theme.
+  await expectPlaying(page, 'ALDEN_VILLAGE');
 
+  // AND IT NEVER STARTS OVER, however the player moves around Alden:
+  // house → status → house → village → house → village.
+  let t = await tagPlaying(page);
+  await page.getByTestId('status-button').click();
+  await expectPlaying(page, 'ALDEN_VILLAGE');
+  t = await stillTheSame(page, t);
+  await page.getByTestId('status-back').click();
+  await expectPlaying(page, 'ALDEN_VILLAGE');
+  t = await stillTheSame(page, t);
   await page.getByTestId('explore-button').click();
   await expectPlaying(page, 'ALDEN_VILLAGE');
+  t = await stillTheSame(page, t);
+  await page.getByTestId('back-to-village').click();
+  await expectPlaying(page, 'ALDEN_VILLAGE');
+  t = await stillTheSame(page, t);
+  await page.getByTestId('explore-button').click();
+  await expectPlaying(page, 'ALDEN_VILLAGE');
+  await stillTheSame(page, t);
+
   await page.getByTestId('forest-button').click();
   await expectPlaying(page, 'GREENWOOD_FOREST');
   await page.getByTestId('encounter-button').click();

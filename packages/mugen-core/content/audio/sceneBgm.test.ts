@@ -52,10 +52,10 @@ describe('the seven scenes, by name', () => {
     expect(withTitle).toEqual(['TITLE']);
   });
 
-  /** And neither the opening theme nor the house. */
+  /** And neither the opening theme nor the village's. */
   it('is not the opening, and not the house', () => {
     expect(bgmForScene(at('TITLE'))).not.toBe('OPENING');
-    expect(bgmForScene(at('TITLE'))).not.toBe('ALDEN_HOME');
+    expect(bgmForScene(at('TITLE'))).not.toBe('ALDEN_VILLAGE');
   });
 
   it('finds its voice when the game itself starts', () => {
@@ -69,30 +69,28 @@ describe('the seven scenes, by name', () => {
   });
 
   /**
-   * THE WHOLE POINT OF THE SECOND VILLAGE PIECE.
+   * ALDEN IS ONE PIECE — the house, every page read from it, the map
+   * and the shop.
    *
-   * HOME and every page read from it are ONE id, so that opening the
-   * bag or the book hands `playBgm` what is already playing and it
-   * refuses. If any of these ever answered differently, a thumb on a
-   * menu would stop the music and start it again.
+   * One id across the whole group is what keeps the music going: going
+   * from the village to the house to the status page and back hands
+   * `playBgm` what is already playing, and it refuses. If any of these
+   * ever answered differently, the piece would stop and start again.
    */
-  it('is the home piece at home, and on every page read from there', () => {
+  it('is the village theme in the house, on every page, on the map and in the shop', () => {
     for (const screen of [
       'HOME',
+      'STATUS',
       'WORLD_NEWS',
       'WORLD_MEMORY',
       'ARCHIVE',
       'ARCANA',
       'BAG',
       'SETTINGS',
+      'EXPLORE',
+      'ITEM_SHOP',
+      'TIME_SHIFT',
     ] as const) {
-      expect(bgmForScene(at(screen)), screen).toBe('ALDEN_HOME');
-    }
-  });
-
-  /** And walking out of it is a change of activity, so a change of piece. */
-  it('is the walking piece on the map and in the shop', () => {
-    for (const screen of ['EXPLORE', 'ITEM_SHOP', 'TIME_SHIFT'] as const) {
       expect(bgmForScene(at(screen)), screen).toBe('ALDEN_VILLAGE');
     }
   });
@@ -205,13 +203,9 @@ describe('the mapping as a whole', () => {
     expect(reached).toEqual(new Set(sceneReachable));
   });
 
-  /**
-   * ALDEN_HOME IS ASKED FOR AND HAS NOTHING YET — on purpose, and
-   * pinned so that "pending" cannot quietly become "borrowed". When its
-   * own recording arrives this is the test that changes.
-   */
-  it('has no piece for the house yet, rather than somebody else\'s', () => {
-    expect(BGM_ASSETS.ALDEN_HOME).toBeNull();
+  /** The house has no id of its own — by decision, not as a gap. */
+  it('has no separate piece for the house', () => {
+    expect(Object.keys(BGM_ASSETS)).not.toContain('ALDEN_HOME');
     expect(BGM_ASSETS.TITLE_MAIN).not.toBeNull();
   });
 });
@@ -239,7 +233,7 @@ describe('what is playing after a fight', () => {
 
   it('is the village again, for a fight walked out of into the village', () => {
     expect(bgmForScene(at('BATTLE'))).toBe('NORMAL_BATTLE');
-    expect(bgmForScene(at('HOME'))).toBe('ALDEN_HOME');
+    expect(bgmForScene(at('HOME'))).toBe('ALDEN_VILLAGE');
   });
 
   it('is the tavern again, for somebody who was in the tavern', () => {
@@ -253,7 +247,7 @@ describe('what is playing after a fight', () => {
   it('is whatever the room is, after one of her scenes', () => {
     expect(bgmForScene(at('LIFE_CHOICE'))).toBe('KAOS_EVENT');
     expect(bgmForScene(at('CHOICE_RESULT'))).toBe('KAOS_EVENT');
-    expect(bgmForScene(at('HOME'))).toBe('ALDEN_HOME');
+    expect(bgmForScene(at('HOME'))).toBe('ALDEN_VILLAGE');
     expect(bgmForScene(at('GREENWOOD'))).toBe('GREENWOOD_FOREST');
   });
 });
@@ -283,7 +277,7 @@ describe('the piece a fight is fought to', () => {
   it('changes nothing outside a fight', () => {
     const chosen = { battleBgmId: DEFAULT_BATTLE_BGM } as const;
     expect(bgmForScene(at('GREENWOOD', chosen))).toBe('GREENWOOD_FOREST');
-    expect(bgmForScene(at('HOME', chosen))).toBe('ALDEN_HOME');
+    expect(bgmForScene(at('HOME', chosen))).toBe('ALDEN_VILLAGE');
     expect(bgmForScene(at('TALK_SPOT', { ...chosen, locationId: 'MOONLIGHT_TAVERN' }))).toBe(
       'TAVERN',
     );

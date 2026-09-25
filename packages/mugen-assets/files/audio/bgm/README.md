@@ -10,9 +10,9 @@ this folder is ever rewritten, resampled or overwritten by any build.
 |---|---|---|---|
 | `title-main.mp3` | MUGEN ZERO タイトル画面 | `TITLE_MAIN` | TITLE_SCREEN only (logo + 「はじめる」) |
 | `opening.mp3` | また、ここで。 (Remastered) | `OPENING` | the monologue after the title (and the one-off theme song) |
-| `alden-home.mp3` | MUGEN ZERO タイトル画面 | — (not referenced) | same recording as `title-main.mp3`; kept, not deleted. `ALDEN_HOME` has no piece yet |
+| `alden-home.mp3` | MUGEN ZERO タイトル画面 | — (not referenced) | same recording as `title-main.mp3`; kept, not deleted |
 | `kaos-event.mp3` | ケイオスちゃんのテーマ会話シーン | `KAOS_EVENT` | her introduction; the four answers about a life |
-| `alden-village.mp3` | アルデン村のテーマ | `ALDEN_VILLAGE` | Alden walked — the map and the shop |
+| `alden-village.mp3` | アルデン村のテーマ | `ALDEN_VILLAGE` | all of Alden — the house, its pages (status, bag…), the map, the shop |
 | `tavern.mp3` | 酒場のテーマ | `TAVERN` | 月光亭 |
 | `greenwood-forest.mp3` | 森林探索のテーマ | `GREENWOOD_FOREST` | the greenwood, walked, and the man standing in the road |
 | `normal-battle.mp3` | 通常戦闘① | `NORMAL_BATTLE` | an ordinary fight: the forest's, and any other nobody wrote |
