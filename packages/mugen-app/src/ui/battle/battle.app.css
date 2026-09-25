@@ -1,0 +1,29 @@
+/* THE APP'S SIDE OF THE ARTIFACT'S BATTLE STYLESHEET.
+
+   battle.generated.css is the Artifact's own rules, untouched. These are
+   the few things the Artifact gets from its page and the App's page does
+   not give the same way — and nothing else. Each one is the Artifact's
+   value, restated for the one screen that needs it. */
+
+/* The App's generic .screen pads and centres its children; the
+   Artifact's .screen is a bare full-size column. The battlefield is
+   laid out edge to edge in its own coordinates, so it takes the
+   Artifact's. */
+.screen.bp-screen {
+  padding: 0;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+/* The Artifact's page font and ink, which its battle rules inherit. */
+.bp-screen {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.bp-screen * {
+  -webkit-tap-highlight-color: transparent;
+}
