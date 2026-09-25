@@ -36,6 +36,8 @@ export function mugenAliases() {
     // empty one — a sixteen-megabyte page spends its last megabyte on
     // artwork, not on a sword — and a swap needs something to aim at.
     { find: '@mugen/assets/sfx', replacement: resolve(PACKAGES, 'mugen-assets/src/sfx.ts') },
+    // The music, without the pictures. See mugen-assets/src/music.ts.
+    { find: '@mugen/assets/music', replacement: resolve(PACKAGES, 'mugen-assets/src/music.ts') },
     { find: '@mugen/assets', replacement: resolve(PACKAGES, 'mugen-assets/src/manifest.ts') },
   ];
 }

@@ -7,6 +7,7 @@
   "exports": {
     ".": "./src/manifest.ts",
     "./files/*": "./files/*",
-    "./sfx": "./src/sfx.ts"
+    "./sfx": "./src/sfx.ts",
+    "./music": "./src/music.ts"
   }
 }

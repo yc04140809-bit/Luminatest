@@ -21,7 +21,7 @@ import {
   SE_ASSETS,
   type BgmId,
   type SeId,
-} from '@mugen/assets';
+} from '@mugen/assets/music';
 import {
   SFX_GAIN,
   SFX_PRELOAD,
