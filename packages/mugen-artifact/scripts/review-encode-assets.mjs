@@ -375,9 +375,9 @@ const PREVIEW_BITRATE_KBPS = 48;
 const PREVIEW_RATE = 32000;
 
 export const REVIEW_AUDIO = [
+  'title-main',
   'opening',
   'kaos-event',
-  'alden-home',
   'alden-village',
   'tavern',
   'greenwood-forest',

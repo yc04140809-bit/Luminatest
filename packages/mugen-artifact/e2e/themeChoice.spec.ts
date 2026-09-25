@@ -71,15 +71,15 @@ test('both answers are thumb-sized and both lead to the title', async ({ page })
  * THE THEME is what must not be heard — that is the whole meaning of
  * the button, and it is worth a test because "never started" and
  * "started and then stopped" look the same from the title. The title
- * is not silent any more: it plays the village, which is not the song
- * that was declined.
+ * plays its own piece, TITLE_MAIN, which is not the song that was
+ * declined.
  */
-test('SKIP plays the theme not at all, and the village instead', async ({ page }) => {
+test('SKIP plays the theme not at all, and the title piece instead', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('theme-choice-skip').click();
   await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(1600);
-  expect(await sounding(page)).toEqual(['alden-home.mp3']);
+  expect(await sounding(page)).toEqual(['title-main.mp3']);
 });
 
 /**
@@ -106,11 +106,11 @@ test('LISTEN plays the theme, and offers a way out of it', async ({ page }) => {
   await skip.click();
 
   // And that is the way to the title — with the song GONE, not merely
-  // quieter. What is behind it now is the village's piece, which is
-  // the one thing the title may play: it is not the song just declined.
+  // quieter. What is behind it now is the title's own piece, which is
+  // not the song just left.
   await expect(page.getByTestId('start-button')).toBeVisible({ timeout: 10_000 });
   await page.waitForTimeout(1200);
-  expect(await sounding(page)).toEqual(['alden-home.mp3']);
+  expect(await sounding(page)).toEqual(['title-main.mp3']);
 });
 
 /** One song. A second tap on 聴く is not a second copy of it. */

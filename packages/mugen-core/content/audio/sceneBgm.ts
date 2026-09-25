@@ -77,30 +77,18 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
       return null;
 
     /**
-     * THE TITLE IS THE VILLAGE'S PIECE, PLAYED EARLY.
+     * TITLE_SCREEN — the MUGEN ZERO logo and 「はじめる」 — HAS ITS OWN
+     * PIECE, and nothing else plays it.
      *
-     * It was silent, and the reasoning was sound as far as it went:
-     * the theme used to be the title's room tone, there is now a
-     * screen before the title whose whole subject is that song, and
-     * by the time anybody arrives here they have either just heard it
-     * or said they would rather not. Starting the theme again
-     * underneath them ignores both answers, and 「スキップ」 most of
-     * all — which is why it is still not the theme that plays here.
-     *
-     * What the reasoning missed is that a player who has just sat
-     * through three and a half minutes of song, or skipped past it,
-     * does not arrive wanting SILENCE. They arrive wanting the game.
-     * Reported from a phone: the title was the only screen in the
-     * whole build with nothing playing, and it read as the sound
-     * having broken.
-     *
-     * So the village's own piece starts here, one screen early. It is
-     * quiet, it is not the theme, and it is what HOME is about to play
-     * anyway — so pressing はじめる changes the music no more than
-     * opening the bag does.
+     * For a while it played the village-home piece instead. That came
+     * from one word read two ways: 「タイトル画面曲」, then "HOME曲",
+     * meant the screen with the logo, and was taken to mean the house
+     * in Alden. The recording's own title tag was right all along:
+     * 「MUGEN ZERO タイトル画面」. The fixed vocabulary is in
+     * docs/BGM_MAP.md so it cannot happen twice.
      */
     case 'TITLE':
-      return 'ALDEN_HOME';
+      return 'TITLE_MAIN';
     case 'PROLOGUE':
       return cue.kaosSpeaking ? 'KAOS_EVENT' : 'OPENING';
 
@@ -144,10 +132,12 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     /**
      * STANDING IN ALDEN, and every page read from there.
      *
-     * The village screen has a piece of its own now. What made that
-     * worth a second recording is that HOME is not somewhere the
-     * player passes through: it is where they are between one thing
-     * and the next, reading the clock, the party, the bag, the book.
+     * The village screen asks for a piece of its own, because HOME is
+     * not somewhere the player passes through: it is where they are
+     * between one thing and the next, reading the clock, the party,
+     * the bag, the book. THAT PIECE IS PENDING — its slot in the
+     * manifest is empty, so these screens are quiet until it arrives,
+     * rather than borrowing the title's.
      *
      * AND EVERY ONE OF THOSE PAGES IS THE SAME PIECE, which is the
      * point rather than an economy. Opening the bag is not going

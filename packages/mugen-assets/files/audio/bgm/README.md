@@ -1,13 +1,18 @@
-# BGM — the six pieces
+# BGM
+
+**画面との対応表の正本は `docs/BGM_MAP.md`。** 用語（TITLE_SCREEN / OPENING /
+ALDEN_HOME / ALDEN_VILLAGE）もそちらで固定しています。
 
 The delivered music, byte for byte as it was handed over. Nothing in
 this folder is ever rewritten, resampled or overwritten by any build.
 
 | file | delivered title | id | where it is heard |
 |---|---|---|---|
-| `opening.mp3` | また、ここで。 (Remastered) | `OPENING` | title screen, and the monologue that opens the game |
+| `title-main.mp3` | MUGEN ZERO タイトル画面 | `TITLE_MAIN` | TITLE_SCREEN only (logo + 「はじめる」) |
+| `opening.mp3` | また、ここで。 (Remastered) | `OPENING` | the monologue after the title (and the one-off theme song) |
+| `alden-home.mp3` | MUGEN ZERO タイトル画面 | — (not referenced) | same recording as `title-main.mp3`; kept, not deleted. `ALDEN_HOME` has no piece yet |
 | `kaos-event.mp3` | ケイオスちゃんのテーマ会話シーン | `KAOS_EVENT` | her introduction; the four answers about a life |
-| `alden-village.mp3` | アルデン村のテーマ | `ALDEN_VILLAGE` | Alden — home, the map, and every room read in |
+| `alden-village.mp3` | アルデン村のテーマ | `ALDEN_VILLAGE` | Alden walked — the map and the shop |
 | `tavern.mp3` | 酒場のテーマ | `TAVERN` | 月光亭 |
 | `greenwood-forest.mp3` | 森林探索のテーマ | `GREENWOOD_FOREST` | the greenwood, walked, and the man standing in the road |
 | `normal-battle.mp3` | 通常戦闘① | `NORMAL_BATTLE` | an ordinary fight: the forest's, and any other nobody wrote |

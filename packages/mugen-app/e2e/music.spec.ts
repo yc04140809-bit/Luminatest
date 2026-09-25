@@ -52,6 +52,17 @@ async function expectPlaying(page: Page, id: string) {
   expect((await sounding(page)).sounding).toBe(true);
 }
 
+/**
+ * Asked for, and nothing to play yet — ALDEN_HOME is pending. What is
+ * checked is that NOTHING sounds: in particular not the piece from the
+ * screen before, carried over because nothing replaced it.
+ */
+async function expectPending(page: Page, id: string) {
+  await expect.poll(async () => (await sounding(page)).current, { timeout: 8000 }).toBe(id);
+  await expect.poll(async () => (await sounding(page)).live, { timeout: 4000 }).toBe(0);
+  expect((await sounding(page)).sounding).toBe(false);
+}
+
 async function freshTitle(page: Page) {
   await page.goto('/');
   await page.evaluate(async () => {
@@ -78,20 +89,30 @@ async function freshTitle(page: Page) {
 test('plays the right piece on every screen, one at a time', async ({ page }) => {
   await freshTitle(page);
 
-  // THE TITLE IS NOT SILENT. The App draws the title for THEME_CHOICE,
-  // a screen it does not have, and inherited that screen's silence
-  // until this was caught — the same complaint the Artifact fixed.
-  await expectPlaying(page, 'ALDEN_HOME');
+  // TITLE_SCREEN — the logo and 「はじめる」 — plays its own piece.
+  // The App draws the title for THEME_CHOICE, a screen it does not
+  // have, and must not inherit that screen's silence.
+  await expectPlaying(page, 'TITLE_MAIN');
+  // And by FILE, not only by id: the recording written for the title.
+  expect(
+    await page.evaluate(() => {
+      const a = (window as unknown as { __mugenAudio: { bgm: HTMLAudioElement | null } }).__mugenAudio;
+      return decodeURIComponent(a.bgm?.src ?? '').split('/').pop()?.replace(/\?.*$/, '');
+    }),
+  ).toMatch(/^title-main.*\.mp3$/);
 
+  // OPENING — a different piece, and the title's has stopped.
   await page.getByTestId('start-button').click();
   await expectPlaying(page, 'OPENING');
   for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
   await page.getByTestId('naming-default').click();
 
-  await expectPlaying(page, 'ALDEN_HOME');
-  // Reading a page from the village does not restart the music.
+  // ALDEN_HOME — pending: asked for, silent, and NOT the title's piece
+  // or the opening's carried over.
+  await expectPending(page, 'ALDEN_HOME');
+  // Reading a page from the house is still the house.
   await page.getByTestId('status-button').click();
-  await expectPlaying(page, 'ALDEN_HOME');
+  await expectPending(page, 'ALDEN_HOME');
   await page.getByTestId('status-back').click();
 
   await page.getByTestId('explore-button').click();

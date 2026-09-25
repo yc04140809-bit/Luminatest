@@ -39,7 +39,12 @@ import aldenTavern from '../files/backgrounds/location-alden-tavern.webp';
 // are never rewritten, resampled or overwritten.
 import bgmOpening from '../files/audio/bgm/opening.mp3';
 import bgmKaosEvent from '../files/audio/bgm/kaos-event.mp3';
-import bgmAldenHome from '../files/audio/bgm/alden-home.mp3';
+// alden-home.mp3 IS NOT IMPORTED, and stays in the folder. It is the
+// same recording as title-main.mp3 — 「MUGEN ZERO タイトル画面」 —
+// which was registered as the village-home piece through a
+// misunderstanding of the word "HOME". It belongs to the title, and
+// ALDEN_HOME is waiting for a piece of its own (see BGM_ASSETS).
+import bgmTitleMain from '../files/audio/bgm/title-main.mp3';
 import bgmAldenVillage from '../files/audio/bgm/alden-village.mp3';
 import bgmTavern from '../files/audio/bgm/tavern.mp3';
 import bgmGreenwoodForest from '../files/audio/bgm/greenwood-forest.mp3';
@@ -327,7 +332,14 @@ export const THEME_SONG_COVER: string = themeSongCover;
  * player, not a test.
  */
 export type BgmId =
-  /** Title, and the monologue that opens the game. */
+  /**
+   * TITLE_SCREEN ONLY — the MUGEN ZERO logo and 「はじめる」.
+   *
+   * 「MUGEN ZERO タイトル画面」, written for that one screen. Not the
+   * opening, not the village, not anywhere else: see docs/BGM_MAP.md.
+   */
+  | 'TITLE_MAIN'
+  /** The monologue that opens the game, after the title. */
   | 'OPENING'
   /** Kaos, talking — the prologue introduction and the life choices. */
   | 'KAOS_EVENT'
@@ -360,9 +372,17 @@ export type BgmId =
 export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 
 export const BGM_ASSETS: Record<BgmId, string | null> = {
+  TITLE_MAIN: bgmTitleMain,
   OPENING: bgmOpening,
   KAOS_EVENT: bgmKaosEvent,
-  ALDEN_HOME: bgmAldenHome,
+  /**
+   * PENDING — no piece of its own yet, so silence.
+   *
+   * The screens that ask for ALDEN_HOME keep asking; the day its own
+   * recording arrives it goes here and nothing else changes. Until
+   * then nothing is borrowed: the title's piece belongs to the title.
+   */
+  ALDEN_HOME: null,
   ALDEN_VILLAGE: bgmAldenVillage,
   TAVERN: bgmTavern,
   GREENWOOD_FOREST: bgmGreenwoodForest,

@@ -21,27 +21,41 @@ const at = (screen: Screen, rest: Partial<SceneCue> = {}): SceneCue => ({
  */
 describe('the seven scenes, by name', () => {
   /**
-   * SILENT BEFORE THE TITLE, AND NOT ON IT.
+   * SILENT BEFORE THE TITLE, AND ITS OWN PIECE ON IT.
    *
    * The screen that ASKS about the song stays silent — its whole
-   * subject is a song that has not started, and the tap that answers
-   * it is also the tap that lets a phone make any sound at all.
-   *
-   * The title itself is the village's piece. Not the theme: somebody
-   * who pressed 「スキップ」 said they would rather not hear that, and
-   * a title that played it anyway would ignore the only thing the
-   * previous screen asked. But not silence either — the title was the
-   * one screen in the build with nothing playing, and on a phone that
-   * reads as the sound having broken rather than as a pause.
+   * subject is a song that has not started. TITLE_SCREEN, the logo
+   * and 「はじめる」, plays TITLE_MAIN: the piece written for it.
    */
-  it('says nothing before the title, and the village on it', () => {
+  it('says nothing before the title, and the title piece on it', () => {
     expect(bgmForScene(at('THEME_CHOICE'))).toBeNull();
-    expect(bgmForScene(at('TITLE'))).toBe('ALDEN_HOME');
+    expect(bgmForScene(at('TITLE'))).toBe('TITLE_MAIN');
   });
 
-  /** And never the theme, whatever else it is. */
-  it('never answers the theme on the title', () => {
+  /**
+   * TITLE_MAIN BELONGS TO THE TITLE AND NOWHERE ELSE — the confusion
+   * this pins down is the title's piece turning up in the house.
+   */
+  it('plays the title piece on the title only', () => {
+    const screens: Screen[] = [
+      'THEME_CHOICE', 'TITLE', 'PROLOGUE', 'LIFE_CHOICE', 'CREATURE_LIFE_CHOICE',
+      'CHOICE_RESULT', 'BATTLE', 'BATTLE_UI_PROTOTYPE', 'BATTLE_RESULT', 'GREENWOOD',
+      'ENCOUNTER', 'TALK_SPOT', 'FUTURE_SITE', 'HOME', 'WORLD_NEWS', 'WORLD_MEMORY',
+      'ARCHIVE', 'ARCANA', 'STATUS', 'BAG', 'SETTINGS', 'EXPLORE', 'ITEM_SHOP',
+      'TIME_SHIFT', 'ENDING', 'PLAYTEST_SURVEY', 'DEV_LOCK', 'DEV_ADMIN', 'CINEMATIC_PREVIEW',
+    ];
+    const withTitle = screens.filter(
+      (screen) =>
+        bgmForScene(at(screen)) === 'TITLE_MAIN' ||
+        bgmForScene(at(screen, { kaosSpeaking: true })) === 'TITLE_MAIN',
+    );
+    expect(withTitle).toEqual(['TITLE']);
+  });
+
+  /** And neither the opening theme nor the house. */
+  it('is not the opening, and not the house', () => {
     expect(bgmForScene(at('TITLE'))).not.toBe('OPENING');
+    expect(bgmForScene(at('TITLE'))).not.toBe('ALDEN_HOME');
   });
 
   it('finds its voice when the game itself starts', () => {
@@ -177,6 +191,7 @@ describe('the mapping as a whole', () => {
     const chosenByTheFight = new Set(['BOSS_BATTLE']);
     const reached = new Set(
       [
+        at('TITLE'),
         at('PROLOGUE'),
         at('PROLOGUE', { kaosSpeaking: true }),
         at('HOME'),
@@ -188,6 +203,16 @@ describe('the mapping as a whole', () => {
     );
     const sceneReachable = Object.keys(BGM_ASSETS).filter((id) => !chosenByTheFight.has(id));
     expect(reached).toEqual(new Set(sceneReachable));
+  });
+
+  /**
+   * ALDEN_HOME IS ASKED FOR AND HAS NOTHING YET — on purpose, and
+   * pinned so that "pending" cannot quietly become "borrowed". When its
+   * own recording arrives this is the test that changes.
+   */
+  it('has no piece for the house yet, rather than somebody else\'s', () => {
+    expect(BGM_ASSETS.ALDEN_HOME).toBeNull();
+    expect(BGM_ASSETS.TITLE_MAIN).not.toBeNull();
   });
 });
 
