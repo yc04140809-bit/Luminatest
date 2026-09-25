@@ -6,6 +6,7 @@ import { statsForLevels } from '@mugen/core/progression/levelStats';
 import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
 import { BattleStage, type BattleOpponentView } from '../ui/battle/BattleStage';
+import { BATTLE_BACKGROUND_KEYS } from '@mugen/assets/keys';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — development builds only.
@@ -20,6 +21,9 @@ import { BattleStage, type BattleOpponentView } from '../ui/battle/BattleStage';
  *   ?preview=battle              the forest's moss rabbit, level 1
  *   ?preview=battle&enemy=gald   Gald, as the story fights him
  *   &magic=1                     after she has woken (the 魔法 command)
+ *   &bg=FOREST|RUINS|SWAMP|CITY|BEACH|GRASSLAND
+ *                                fight on another of the battle paintings
+ *                                (default: the greenwood's own, FOREST)
  *   &escape=1 / &escape=0        force the 逃走 chip on or off. By default
  *                                it is there for a creature and not for
  *                                Gald, as in the Artifact's real fights.
@@ -38,12 +42,15 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
     : { artId: 'moss_rabbit', stands: 'FAR' };
   const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
   const [auto, setAuto] = useState(false);
+  const bg = params.get('bg');
+  const background = BATTLE_BACKGROUND_KEYS.find((key) => key === bg);
   const escape = params.has('escape') ? params.get('escape') === '1' : !gald;
   return (
     <BattleStage
       battle={battle}
       opponent={opponent}
       locationId="GREENWOOD_FOREST"
+      background={background}
       memoryLines={[]}
       memoryDepth={0}
       arcanaReady={false}

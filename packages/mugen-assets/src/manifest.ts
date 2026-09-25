@@ -374,4 +374,4 @@ export function fieldArtSrc(key: FieldArtKey | null): string | null {
   return key ? (FIELD_ART[key] ?? null) : null;
 }
 
-export type { BackgroundKey, EventCgKey, FieldArtKey } from './keys';
+export type { BackgroundKey, BattleBackgroundKey, EventCgKey, FieldArtKey } from './keys';

@@ -41,6 +41,27 @@ export type BackgroundKey = 'ALDEN_VILLAGE' | 'ALDEN_TAVERN' | 'GREENWOOD_FOREST
 export type FieldArtKey = 'GREENWOOD_FOREST';
 
 /**
+ * THE GROUND A FIGHT IS FOUGHT ON — one painting per kind of place.
+ *
+ * Named after the KIND of place, not a particular one: FOREST is every
+ * wood the party fights in, not the greenwood alone, and which place
+ * uses which is content's decision (content/locations/battleBackgrounds).
+ * Each is a landscape painting with a ground that runs back at an angle,
+ * made for the party on the right and the enemy on the left.
+ */
+export type BattleBackgroundKey = 'FOREST' | 'RUINS' | 'SWAMP' | 'CITY' | 'BEACH' | 'GRASSLAND';
+
+/** Every one there is, in the order they were delivered. */
+export const BATTLE_BACKGROUND_KEYS: readonly BattleBackgroundKey[] = [
+  'FOREST',
+  'RUINS',
+  'SWAMP',
+  'CITY',
+  'BEACH',
+  'GRASSLAND',
+];
+
+/**
  * Every event CG key there is, for tests that want to check the set is
  * covered rather than check one entry.
  */

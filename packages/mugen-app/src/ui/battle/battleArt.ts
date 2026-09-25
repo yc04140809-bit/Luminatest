@@ -17,7 +17,6 @@ import heroBattleIdle from '@mugen/assets/files/characters/hero/hero-battle-idle
 import kaosBattleDefault from '@mugen/assets/files/characters/kaos/kaos-battle-default.png';
 import galdBattleIdle from '@mugen/assets/files/characters/gald/gald-battle-idle.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
-import fieldGreenwood from '@mugen/assets/files/backgrounds/field-greenwood.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -44,7 +43,6 @@ import {
   type PartyArtState,
   type ResolvedArt,
 } from '@mugen/core/art/artStates';
-import type { LocationId } from '@mugen/content/locations/locationVisuals';
 
 /** The people who can stand on the App's battlefield. */
 const PARTY: Record<'hero' | 'kaos' | 'gald', ArtSet<PartyArtState>> = {
@@ -122,15 +120,6 @@ export const AS_PERSON: Partial<Record<EnemyArtState, PartyArtState>> = {
   down: 'battle_down',
   portrait: 'portrait',
 };
-
-/** The field a fight is fought on, where the place has one. */
-const FIELD: Partial<Record<LocationId, string>> = {
-  GREENWOOD_FOREST: fieldGreenwood,
-};
-
-export function battleFieldArt(locationId: LocationId): string | null {
-  return FIELD[locationId] ?? null;
-}
 
 /** The delivered UI frames, by the same names as the manifest's BATTLE_UI. */
 export const BATTLE_UI_FRAMES = {

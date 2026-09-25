@@ -44,6 +44,7 @@ import {
 } from '@mugen/content/events/galdLifeChoice';
 import { BattleScreen, ResultScreen } from './ui/battle';
 import { PrologueScreen } from './ui/prologue';
+import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 
 /**
  * MUGEN ZERO — APP ALPHA.
@@ -537,6 +538,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           world={world}
           onWon={story.current ? wonTheStory : won}
           music={music}
+          // Both of the App's fights are in the greenwood; the ground is
+          // the place's, as content says.
+          background={battleBackgroundFor('GREENWOOD_FOREST')}
           onLost={() => {
             // Carried home and put back on their feet, exactly as in
             // the Artifact: losing once must not make losing again

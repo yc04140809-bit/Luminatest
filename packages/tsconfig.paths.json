@@ -21,6 +21,9 @@
       ],
       "@mugen/assets/music": [
         "./mugen-assets/src/music.ts"
+      ],
+      "@mugen/assets/battleBackgrounds": [
+        "./mugen-assets/src/battleBackgrounds.ts"
       ]
     }
   }

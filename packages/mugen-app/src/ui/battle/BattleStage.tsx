@@ -9,6 +9,10 @@ import {
 import { spriteHeight } from '@mugen/content/art/spriteFrames';
 import { locationNameOf } from '@mugen/content/locations/alden';
 import type { LocationId } from '@mugen/content/locations/locationVisuals';
+import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
+import type { BattleBackgroundKey } from '@mugen/assets/keys';
+import { battleBackgroundArt } from '../../assets/battleBackground';
+import { usePicture } from '../scene';
 import { CharacterArt } from '../art/CharacterArt';
 import { Ornament } from '../common/Ornament';
 import { CageIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
@@ -22,7 +26,6 @@ import {
   AS_PERSON,
   BATTLE_UI_FRAMES,
   battleEnemyArt,
-  battleFieldArt,
   battlePartyArt,
 } from './battleArt';
 import './battle.generated.css';
@@ -65,6 +68,12 @@ export interface BattleStageProps {
   battle: BattleState;
   opponent: BattleOpponentView;
   locationId: LocationId;
+  /**
+   * The ground this fight is fought on. Absent: the place's own, from
+   * content (content/locations/battleBackgrounds). A boss or an event
+   * that wants a different ground passes it here.
+   */
+  background?: BattleBackgroundKey | null;
   /** What the world remembers, newest last — the WORLD MEMORY panel. */
   memoryLines: readonly string[];
   /** How deep that memory runs, 0–100. */
@@ -88,6 +97,7 @@ export function BattleStage({
   battle,
   opponent,
   locationId,
+  background,
   memoryLines,
   memoryDepth,
   arcanaReady,
@@ -138,7 +148,13 @@ export function BattleStage({
     kaos: figure('kaos', kaosShown.state, PROTOTYPE_PLACEMENTS.kaos.bottom),
   };
 
-  const backdrop = battleFieldArt(locationId);
+  // THE GROUND. The new battle paintings rather than the Artifact's
+  // field — the Artifact's layout, on the App's own backgrounds.
+  const ground = background === undefined ? battleBackgroundFor(locationId) : background;
+  const backdrop = usePicture(
+    ground ? () => battleBackgroundArt(ground) : null,
+    `battle-bg:${ground ?? 'none'}`,
+  );
   const plate = sayOf(battle.log[battle.log.length - 1]);
 
   const turnRoster: TurnActor[] = [
@@ -223,7 +239,16 @@ export function BattleStage({
       style={{ ['--fx' as string]: String(1 / speed), ...uiVars } as CSSProperties}
     >
       <div className="bp-stage" ref={stageRef} data-camera={camera}>
-        {backdrop && <img className="bp-bg" src={backdrop} alt="" aria-hidden="true" />}
+        {backdrop && (
+          <img
+            className="bp-bg"
+            src={backdrop}
+            alt=""
+            aria-hidden="true"
+            data-testid="bp-battle-bg"
+            data-background={ground ?? undefined}
+          />
+        )}
 
         {/* The creature: left, and further up the path. */}
         <div

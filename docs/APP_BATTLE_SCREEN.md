@@ -17,6 +17,7 @@ npx vite --port 5174
 | `…?preview=battle&enemy=gald` | ガルド戦の開始時（逃走なし＝本編と同じ） |
 | `…?preview=battle&magic=1` | ケイオス覚醒後（魔法コマンドあり） |
 | `…&escape=1` / `&escape=0` | 逃走チップを強制的に出す／消す（比較用） |
+| `…&bg=RUINS` など | 戦闘背景6種の切り替え（`docs/BATTLE_BACKGROUNDS.md`） |
 
 この確認画面は **開発ビルドにだけ存在** し、リリース（APK）には含まれない
 （`import.meta.env.DEV` でビルド時に削除。リリースのサイズは 52MB のまま）。
@@ -40,7 +41,13 @@ npx vite --port 5174
   どの絵を出すかは共通部分の規則で決め、`battleArt.test.ts` がArtifactと同じファイル・
   同じ顔位置になることを確認する。
 
-## Artifactとの比較（ピクセル比較）
+## 戦闘背景（2026-09-25 追加）
+
+背景はArtifactの `field-greenwood.png` ではなく、**App版の正式な戦闘背景**（`docs/BATTLE_BACKGROUNDS.md`）。
+グリーンウッドの森は `FOREST`。引き継いでいるのはArtifactの画面の構造（味方右・敵左・各パネル・コマンド）で、
+背景の絵そのものは一致させない。下の比較は背景を差し替える前のもの。
+
+## Artifactとの比較（ピクセル比較・背景差し替え前）
 
 同じ開始状態を、同じ3機種サイズで撮って比べた結果：
 

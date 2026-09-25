@@ -18,6 +18,9 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { statsForLevels } from '@mugen/core/progression/levelStats';
 import type { AppliedReward } from '@mugen/core/progression/battleReward';
 import type { World } from '@mugen/core/world/world';
+import type { BattleBackgroundKey } from '@mugen/assets/keys';
+import { battleBackgroundArt } from '../assets/battleBackground';
+import { usePicture } from './scene';
 
 /**
  * THE FIGHT, DRIVEN BY THE SHARED CORE AND NOTHING ELSE.
@@ -40,6 +43,7 @@ export function BattleScreen({
   onWon,
   onLost,
   music,
+  background = null,
 }: {
   world: World;
   /**
@@ -63,7 +67,28 @@ export function BattleScreen({
    * Which it is is the caller's to decide; this screen only shows it.
    */
   music?: { label: string; onCycle: () => void };
+  /**
+   * The ground the fight is fought on — a battle background key, from
+   * content (content/locations/battleBackgrounds). Drawn behind the
+   * fight and dimmed like every place's backdrop, so nothing on this
+   * screen is harder to read. Null: the plain ground.
+   */
+  background?: BattleBackgroundKey | null;
 }) {
+  const ground = usePicture(
+    background ? () => battleBackgroundArt(background) : null,
+    `battle-bg:${background ?? 'none'}`,
+  );
+  const backdrop = ground && (
+    <img
+      className="backdrop"
+      src={ground}
+      alt=""
+      aria-hidden="true"
+      data-testid="battle-bg"
+      data-background={background ?? undefined}
+    />
+  );
   // The bag can change mid-fight, so this screen watches the world the
   // same way the shell does rather than reading a stale copy.
   useSyncExternalStore(
@@ -134,6 +159,7 @@ export function BattleScreen({
   if (battle.awakeningLines.length > 0) {
     return (
       <div className="screen battle" data-testid="awakening">
+        {backdrop}
         {/* A speaker and a line, the same pair the Artifact reads out. */}
         {battle.awakeningLines.map((line, i) => (
           <p className="line" key={i}>
@@ -153,6 +179,7 @@ export function BattleScreen({
 
   return (
     <div className="screen battle">
+      {backdrop}
       <div className="battle-head">
         <h1 className="place">{battle.enemyName}</h1>
         {/* ♪ — WHICH PIECE THIS FIGHT IS FOUGHT TO. It changes one

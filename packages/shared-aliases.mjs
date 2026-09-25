@@ -38,6 +38,12 @@ export function mugenAliases() {
     { find: '@mugen/assets/sfx', replacement: resolve(PACKAGES, 'mugen-assets/src/sfx.ts') },
     // The music, without the pictures. See mugen-assets/src/music.ts.
     { find: '@mugen/assets/music', replacement: resolve(PACKAGES, 'mugen-assets/src/music.ts') },
+    // The battle backgrounds, loaded one at a time and never through the
+    // manifest. See mugen-assets/src/battleBackgrounds.ts.
+    {
+      find: '@mugen/assets/battleBackgrounds',
+      replacement: resolve(PACKAGES, 'mugen-assets/src/battleBackgrounds.ts'),
+    },
     { find: '@mugen/assets', replacement: resolve(PACKAGES, 'mugen-assets/src/manifest.ts') },
   ];
 }

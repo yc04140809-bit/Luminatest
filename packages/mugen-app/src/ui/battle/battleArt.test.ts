@@ -3,14 +3,12 @@ import { describe, expect, it } from 'vitest';
 // test — nothing here is bundled — and they are the thing to agree with.
 import { enemyArtFor, partyArtFor } from '@mugen/content/art';
 import { BATTLE_UI } from '@mugen/assets';
-import { fieldArt } from '@mugen/content/locations/locationVisuals';
 import { heroPose, kaosPose, enemyPose } from '@mugen/game/battle/battleArtState';
 import type { ResolvedArt } from '@mugen/core/art/artStates';
 import {
   AS_PERSON,
   BATTLE_UI_FRAMES,
   battleEnemyArt,
-  battleFieldArt,
   battlePartyArt,
 } from './battleArt';
 
@@ -51,10 +49,6 @@ describe('battle art', () => {
   it('draws Gald, fought as a person, as the Artifact does', () => {
     const state = AS_PERSON[enemyPose(still)] ?? 'battle_idle';
     same(battlePartyArt('gald', state), partyArtFor('gald', state));
-  });
-
-  it('lays the forest field under the fight', () => {
-    expect(file(battleFieldArt('GREENWOOD_FOREST'))).toBe(file(fieldArt('GREENWOOD_FOREST')));
   });
 
   it('carries every UI frame the Artifact draws, by the same name', () => {
