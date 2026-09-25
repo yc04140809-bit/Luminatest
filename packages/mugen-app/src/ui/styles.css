@@ -41,6 +41,17 @@ body {
 .logo { margin: 0; font-size: 28px; letter-spacing: 0.22em; }
 .sub { margin: 0 0 14px; font-size: 12px; letter-spacing: 0.3em; color: var(--dim); }
 .place { margin: 0 0 4px; font-size: 18px; letter-spacing: 0.12em; }
+/* The fight's name with the ♪ chip beside it — beside, so the chip can
+   never push the name about. 38px tall: the same finger target as the
+   rest of the App. */
+.battle-head { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.bgm-cycle {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 38px; padding: 0 10px; margin: 0 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 19px;
+  background: rgba(0, 0, 0, 0.35); color: inherit;
+  font: inherit; font-size: 13px; letter-spacing: 0.06em; cursor: pointer;
+}
 .clock, .purse, .bar, .row { margin: 0; font-size: 13px; letter-spacing: 0.06em; }
 .party { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 12px; color: var(--dim); }
 .line, .log {

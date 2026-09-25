@@ -565,11 +565,7 @@ export class World {
       this.equipment = fields.equipment;
       this.ownedEquipment = fields.ownedEquipment;
     } else {
-      this.equipment = structuredClone(INITIAL_EQUIPMENT) as EquipmentTable;
-      this.ownedEquipment = {};
-      for (const slots of Object.values(INITIAL_EQUIPMENT)) {
-        for (const id of Object.values(slots)) this.ownedEquipment[id] = 1;
-      }
+      ({ equipment: this.equipment, owned: this.ownedEquipment } = startingKit());
     }
     this.characters = fields.characters;
     this.seenExperience = new Set(fields.seenExperience);
@@ -2395,6 +2391,15 @@ export class World {
     this.resumeArea = 'HOME';
     // And they are whole, because a new world has not been in a fight.
     this.condition = null;
+    // And nobody has named them, they carry what everybody starts with,
+    // and the only fighting music they own is the piece everybody
+    // starts with. Leaving any of these in memory would let a world
+    // that was just erased keep a name, a sword or a song from the one
+    // before it until the next reload.
+    this.heroName = DEFAULT_HERO_NAME;
+    this.heroNamed = false;
+    ({ equipment: this.equipment, owned: this.ownedEquipment } = startingKit());
+    this.unlockedBgm = [...INITIAL_UNLOCKED_BATTLE_BGM];
     this.emit();
   }
 
@@ -2632,6 +2637,16 @@ function sameRows(a: readonly WorldStateRow[], b: readonly WorldStateRow[]): boo
  * cannot be played, so holding onto it would only let it be chosen and
  * then fall back.
  */
+/** What every world carries before anybody has changed anything. */
+function startingKit(): { equipment: EquipmentTable; owned: OwnedTable } {
+  const equipment = structuredClone(INITIAL_EQUIPMENT) as EquipmentTable;
+  const owned: OwnedTable = {};
+  for (const slots of Object.values(INITIAL_EQUIPMENT)) {
+    for (const id of Object.values(slots)) owned[id] = 1;
+  }
+  return { equipment, owned };
+}
+
 function readUnlockedBgm(raw: unknown): { value: BattleBgmId[]; health: 'ok' | 'repaired' } {
   const initial = [...INITIAL_UNLOCKED_BATTLE_BGM];
   if (raw === undefined) return { value: initial, health: 'ok' };

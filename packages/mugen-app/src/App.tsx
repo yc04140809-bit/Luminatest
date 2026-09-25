@@ -30,7 +30,14 @@ import { NamingScreen } from './ui/naming';
 import { EquipmentScreen } from './ui/equipment';
 import { useSceneBgm } from './ui/audio/useSceneBgm';
 import { audioManager } from './platform/audio';
-import { battleBgmFor } from '@mugen/content/audio/battleBgm';
+import {
+  FORCED_BATTLE_BGM,
+  battleBgmFor,
+  battleBgmLabel,
+  canChooseBattleBgm,
+  nextBattleBgm,
+} from '@mugen/content/audio/battleBgm';
+import { battleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
@@ -234,6 +241,26 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    */
   const story = useRef(false);
 
+  const [chosenBgm, setChosenBgm] = useState(battleBgmChoice);
+  const unlockedBgm = world.getUnlockedBattleBgm();
+  const fightKey = story.current ? 'GALD' : null;
+  const battleBgmId = battleBgmFor(fightKey, chosenBgm, unlockedBgm);
+  /**
+   * THE ♪ CONTROL, only where there is something to choose: not in a
+   * fight that brought its own music, and not while this save has won
+   * only the one piece. Hidden rather than refusing.
+   */
+  const music = canChooseBattleBgm(fightKey, unlockedBgm)
+    ? {
+        label: battleBgmLabel(battleBgmId, unlockedBgm),
+        onCycle: () => {
+          const next = nextBattleBgm(battleBgmId, unlockedBgm);
+          setBattleBgmChoice(next);
+          setChosenBgm(next);
+        },
+      }
+    : undefined;
+
   /**
    * THE MUSIC. One call, before any screen is chosen.
    *
@@ -245,10 +272,14 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * sequence from the road to the four answers, and `battleBgmFor`
    * turns that into BOSS_BATTLE whatever anybody chose — which is why
    * the result screen after his fight keeps the boss piece rather than
-   * dropping back to the ordinary one mid-scene. Choosing and unlocking
-   * pieces is the NEXT step; for now every other fight is the ordinary
-   * piece, which is exactly what an un-taught caller of `battleBgmFor`
-   * gets.
+   * dropping back to the ordinary one mid-scene.
+   *
+   * EVERY OTHER FIGHT PLAYS WHAT WAS CHOSEN, IF THIS SAVE HAS WON IT.
+   * Two facts meet here and nowhere else: `chosenBgm` is the player's
+   * preference (localStorage, per device), `unlockedBgm` is what this
+   * world has won (the save). `battleBgmFor` honours the first only
+   * inside the second, so a preference left by another save cannot
+   * play a piece this one has not earned.
    *
    * `locationId` is null because the App's screens carry no place: the
    * talk spots that need it are not in the App, and the future site is
@@ -264,7 +295,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : state.screen,
     locationId: null,
     kaosSpeaking: false,
-    battleBgmId: battleBgmFor(story.current ? 'GALD' : null, null),
+    battleBgmId,
   });
 
   /**
@@ -316,12 +347,19 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * The story's fight pays no experience and drops nothing: what is on
    * the other side of it is the question. The wounds still carry out,
    * because they are the party's and not the fight's.
+   *
+   * WHAT IT DOES GIVE IS HIS MUSIC. The piece his fight forced on the
+   * player becomes theirs to choose — on winning, never on hearing, so
+   * a fight lost or left leaves it locked. It is written to this save
+   * and nowhere else.
    */
   const wonTheStory = useCallback(
     (final: { hp: number; mp: number }) => {
       void world
         .setBattleCondition(final)
         .catch((e) => console.error('Failed to carry the wounds out', e))
+        .then(() => world.unlockBattleBgm(FORCED_BATTLE_BGM.GALD))
+        .catch((e) => console.error('Failed to keep his music', e))
         .finally(() => flow.goTo('LIFE_CHOICE'));
     },
     [flow, world],
@@ -487,6 +525,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           spec={story.current ? GALD_BATTLE : specOf(MOSS_RABBIT)}
           world={world}
           onWon={story.current ? wonTheStory : won}
+          music={music}
           onLost={() => {
             // Carried home and put back on their feet, exactly as in
             // the Artifact: losing once must not make losing again

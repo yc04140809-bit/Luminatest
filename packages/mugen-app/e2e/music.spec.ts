@@ -102,6 +102,136 @@ test('plays the right piece on every screen, one at a time', async ({ page }) =>
   await expectPlaying(page, 'NORMAL_BATTLE');
 });
 
+/** Forgets the save but not the device's preferences — a new world. */
+async function wipeSave(page: Page) {
+  await page.evaluate(async () => {
+    const dbs = (await indexedDB.databases?.()) ?? [];
+    await Promise.all(
+      dbs.map(
+        (d) =>
+          new Promise((resolve) => {
+            if (!d.name) return resolve(null);
+            const req = indexedDB.deleteDatabase(d.name);
+            req.onsuccess = req.onerror = req.onblocked = () => resolve(null);
+          }),
+      ),
+    );
+  });
+}
+
+/** Closing the game and opening it again, then 「つづきから」. */
+async function restartAndContinue(page: Page) {
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+}
+
+/** From the village, or wherever 「つづきから」 left them, to the map. */
+async function toTheMap(page: Page) {
+  const village = page.getByTestId('explore-button');
+  const map = page.getByTestId('forest-button');
+  await expect(village.or(map)).toBeVisible();
+  if (await village.isVisible()) await village.click();
+  await expect(map).toBeVisible();
+}
+
+/** From the village or the map, to the forest's ordinary fight. */
+async function toTheRabbit(page: Page) {
+  await toTheMap(page);
+  await page.getByTestId('forest-button').click();
+  await page.getByTestId('encounter-button').click();
+  await expect(page.getByTestId('enemy-hp')).toBeVisible();
+}
+
+/** Through the road to Gald, and his fight to the end. */
+async function beatGald(page: Page, whileFighting?: () => Promise<void>) {
+  await page.getByTestId('gald-button').click();
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('enemy-hp').isVisible().catch(() => false)) break;
+    await page.getByTestId('encounter-next').click();
+  }
+  await expectPlaying(page, 'BOSS_BATTLE');
+  await whileFighting?.();
+  const attack = page.getByTestId('attack-button');
+  for (let i = 0; i < 80; i++) {
+    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
+      await page.getByTestId('awakening-done').click();
+      continue;
+    }
+    if (!(await attack.isEnabled().catch(() => false))) {
+      await page.waitForTimeout(250);
+      continue;
+    }
+    await attack.click({ timeout: 3000 }).catch(() => {});
+  }
+  await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
+}
+
+/**
+ * HIS MUSIC IS WON, AND WON BY ONE SAVE.
+ *
+ * Before him there is nothing to choose and no ♪ at all. His fight
+ * plays his piece and offers no choice. Beating him makes it choosable
+ * in an ordinary fight, the choice comes back after a restart, and a
+ * brand-new world — on the same device, with the same preference still
+ * stored — has not won it and does not play it.
+ */
+test('the boss piece is unlocked by beating Gald, in that save only', async ({ page }) => {
+  await freshTitle(page);
+  await page.getByTestId('start-button').click();
+  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
+  await page.getByTestId('naming-default').click();
+
+  // LOCKED: an ordinary fight has one piece and nothing to switch.
+  await toTheRabbit(page);
+  await expectPlaying(page, 'NORMAL_BATTLE');
+  await expect(page.getByTestId('bgm-cycle')).toHaveCount(0);
+
+  // HIS FIGHT: his piece, and no control even though a preference exists.
+  await restartAndContinue(page);
+  await toTheMap(page);
+  await page.getByTestId('forest-button').click();
+  await beatGald(page, async () => {
+    await expect(page.getByTestId('bgm-cycle')).toHaveCount(0);
+  });
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { __mugenWorld: { getUnlockedBattleBgm(): string[] } }).__mugenWorld.getUnlockedBattleBgm(),
+    ),
+  ).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+
+  // UNLOCKED, and it survived closing the game.
+  await restartAndContinue(page);
+  await toTheRabbit(page);
+  await expectPlaying(page, 'NORMAL_BATTLE');
+  await expect(page.getByTestId('bgm-label')).toHaveText('1/2');
+  await page.getByTestId('bgm-cycle').click();
+  await expectPlaying(page, 'BOSS_BATTLE');
+  await expect(page.getByTestId('bgm-label')).toHaveText('2/2');
+
+  // THE CHOICE COMES BACK TOO.
+  await restartAndContinue(page);
+  await toTheRabbit(page);
+  await expectPlaying(page, 'BOSS_BATTLE');
+  await expect(page.getByTestId('bgm-label')).toHaveText('2/2');
+  // And round again to the start.
+  await page.getByTestId('bgm-cycle').click();
+  await expectPlaying(page, 'NORMAL_BATTLE');
+  await page.getByTestId('bgm-cycle').click();
+  await expectPlaying(page, 'BOSS_BATTLE');
+
+  // ANOTHER WORLD HAS NOT WON IT, whatever this device prefers.
+  await wipeSave(page);
+  await page.reload();
+  expect(await page.evaluate(() => localStorage.getItem('mugen-battle-bgm'))).toBe('BOSS_BATTLE');
+  await page.getByTestId('start-button').click();
+  for (let i = 0; i < 3; i++) await page.getByTestId('opening-next').click();
+  await page.getByTestId('naming-default').click();
+  await toTheRabbit(page);
+  await expectPlaying(page, 'NORMAL_BATTLE');
+  await expect(page.getByTestId('bgm-cycle')).toHaveCount(0);
+});
+
 /**
  * THE FIGHT THAT MATTERS BRINGS ITS OWN MUSIC. Gald's is BOSS_BATTLE,
  * and the four answers that follow are hers.

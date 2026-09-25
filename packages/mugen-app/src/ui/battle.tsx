@@ -39,6 +39,7 @@ export function BattleScreen({
   spec,
   onWon,
   onLost,
+  music,
 }: {
   world: World;
   /**
@@ -53,6 +54,15 @@ export function BattleScreen({
   spec: EnemySpec;
   onWon: (final: { hp: number; mp: number }) => void;
   onLost: () => void;
+  /**
+   * THE ♪ CONTROL, or nothing.
+   *
+   * Absent means there is nothing to choose — a fight that brought its
+   * own music, or a save that has won only the one piece — and the
+   * control is then not drawn at all rather than drawn and refusing.
+   * Which it is is the caller's to decide; this screen only shows it.
+   */
+  music?: { label: string; onCycle: () => void };
 }) {
   // The bag can change mid-fight, so this screen watches the world the
   // same way the shell does rather than reading a stale copy.
@@ -143,7 +153,23 @@ export function BattleScreen({
 
   return (
     <div className="screen battle">
-      <h1 className="place">{battle.enemyName}</h1>
+      <div className="battle-head">
+        <h1 className="place">{battle.enemyName}</h1>
+        {/* ♪ — WHICH PIECE THIS FIGHT IS FOUGHT TO. It changes one
+            preference and nothing else: no turn is taken and the
+            battle does not know it happened. */}
+        {music && (
+          <button
+            className="bgm-cycle"
+            data-testid="bgm-cycle"
+            onClick={music.onCycle}
+            aria-label={`戦闘BGMを切り替える（${music.label}）`}
+          >
+            <span aria-hidden="true">♪</span>
+            <span data-testid="bgm-label">{music.label}</span>
+          </button>
+        )}
+      </div>
       <p className="bar" data-testid="enemy-hp">
         敵 HP {battle.enemyHp} / {battle.enemyMaxHp}
       </p>
