@@ -111,12 +111,14 @@ for (const def of MAGIC_DEFS) {
       }[def.id],
     );
 
-    // NOTHING CHANGES ON SCREEN BEFORE IT LANDS: the creature's health and
-    // her MP read as before the spell, all through the cut-in and aura.
+    // HER MP IS SPENT WHEN THE SPELL IS DECIDED — already down through
+    // her cut-in — and NOTHING THE SPELL DOES shows before it lands: the
+    // creature's health reads as before, all through the cut-in and aura.
+    const mpOf = (text: string) => Number(text.split('/')[0].replace(/\D/g, ''));
+    for (const x of f.slice(cut, land)) expect(mpOf(x.mp)).toBe(48 - def.mpCost);
     for (const x of f.slice(0, land)) {
       if (!x.hp) continue;
       expect(hpOf(x.hp)).toBe(startHp);
-      expect(x.mp).toContain('48');
     }
     // After it: her MP is down by exactly the spell's cost.
     const last = f[f.length - 1];
@@ -193,6 +195,31 @@ test('pressing 攻撃 again and again while she casts takes no extra turn', asyn
   // One number, and the health lost is the spell's and nothing else.
   expect(new Set(numbers).size).toBe(1);
   expect(startHp - (await enemyHp(page))[0]).toBe(Number(numbers[0]));
+});
+
+test('while her cut-in plays, nothing underneath answers — ×2 included — and the speed holds', async ({
+  page,
+}) => {
+  // Cast from the magic command itself: 魔法 → the spell, at ×2.
+  await page.goto('/?preview=battle&debug=0&magic=1');
+  await readyToAct(page);
+  await page.getByTestId('bp-speed').click();
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');
+  const speed = (await page.getByTestId('bp-speed').boundingBox())!;
+  const defend = (await page.getByTestId('bp-defend').boundingBox())!;
+  const magicButton = (await page.getByTestId('bp-magic').boundingBox())!;
+  await page.getByTestId('bp-magic').click();
+  await page.getByTestId('magic-comet_strike').click();
+  await expect(page.getByTestId('cut-in')).toBeVisible();
+  // At ×2 a finisher's cut-in still holds its floor.
+  await expect(page.getByTestId('cut-in')).toHaveAttribute('data-ms', '1800');
+  for (const box of [speed, defend, magicButton]) {
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  }
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');
+  await expect(page.getByTestId('bp-picker')).toHaveCount(0);
+  await settled(page);
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');
 });
 
 test('cast again from the panel mid-spell: a clean new fight, the same numbers', async ({

@@ -6,7 +6,7 @@ import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { statsForLevels } from '@mugen/core/progression/levelStats';
 import { BATTLE_SPEEDS } from '@mugen/game/battle/battleSpeed';
 import { SPELL_FLOOR_MS, SPELL_MS, spellDamage, spellShowOf, spellStepMs } from './spellShow';
-import { spellCutIn } from './spellCutIn';
+import { SPELL_CUT_INS, spellCutIn } from './spellCutIn';
 
 const byId = (id: string) => MAGIC_DEFS.find((d) => d.id === id)!;
 /** A fight she can cast in, with the dice fixed so the numbers repeat. */
@@ -49,12 +49,20 @@ describe('how each of her spells is shown', () => {
 
   it("puts the spell's own name and line on her cut-in", () => {
     for (const def of MAGIC_DEFS) {
-      const cut = spellCutIn(def);
+      const cut = spellCutIn(def)!;
       expect(cut.name).toBe(def.name);
       expect(cut.sub).toBe(def.line);
       expect(cut.theme).toBe('chaos');
       expect(cut.tier).toBe(spellShowOf(def).tier);
     }
+  });
+
+  it('has a cut-in for exactly the five spells the game has — and none for any other', () => {
+    expect(Object.keys(SPELL_CUT_INS).sort()).toEqual(MAGIC_DEFS.map((d) => d.id).sort());
+    // A spell the table does not know is 未接続: no cut-in, nobody's picture borrowed.
+    expect(
+      spellCutIn({ ...byId('starlight_bolt'), id: 'not_a_spell_yet', name: '未定' }),
+    ).toBeNull();
   });
 });
 

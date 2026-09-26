@@ -279,11 +279,8 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     setCamera('IDLE');
     setPlaying(true);
 
-    // 1. Her cut-in, with the spell's own name. Stopped — by a newer turn
-    //    or by the screen going — and nothing after it happens.
-    void cutIns.play(spellCutIn(def)).then((ended) => {
-      if (ended !== 'done' || showing.current !== mine) return;
-
+    // 2–4, once her cut-in is over (or at once, for a spell that has none).
+    const afterCutIn = () => {
       // 2. She channels: her casting pose, and the aura round her.
       setBeat('MAGIC');
       setSpell({ id: mine, kind: show.kind, lands: show.lands, phase: 'channel', ms: channel });
@@ -310,6 +307,19 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
       later(() => setSpell(null), channel + impact);
       const over = playAnswer(next, channel + impact);
       later(() => setPlaying(false), over);
+    };
+
+    // 1. Her cut-in, with the spell's own name. Stopped — by a newer turn
+    //    or by the screen going — and nothing after it happens. A spell
+    //    with no cut-in in the table (spellCutIn.ts) goes straight on.
+    const cutIn = spellCutIn(def);
+    if (!cutIn) {
+      afterCutIn();
+      return;
+    }
+    void cutIns.play(cutIn).then((ended) => {
+      if (ended !== 'done' || showing.current !== mine) return;
+      afterCutIn();
     });
   };
 

@@ -367,7 +367,10 @@ function PreviewFight({
   }, []);
 
   /** Until a spell lands, the fight as it was (see battle.tsx). */
-  const shown = theatre.holding ?? battle;
+  // Her MP is spent the moment the spell is decided — before her cut-in —
+  // as the order of a cast has it; everything the spell DOES waits for it
+  // to land.
+  const shown = theatre.holding ? { ...theatre.holding, playerMp: battle.playerMp } : battle;
 
   const drink = (itemId: string) => {
     if (!idle) return;
