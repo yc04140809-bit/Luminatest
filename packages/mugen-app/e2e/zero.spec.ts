@@ -179,8 +179,10 @@ test('×2: quicker, and the red moon still held at least 1.4s', async ({ page })
     await expect(page.locator('.bp-stage[data-scene="zero"]')).toHaveCount(0, { timeout: 12_000 });
     const f = await stop(page);
     await leftNothing(page);
-    const moon = f.filter((x) => x.step === 'moon');
-    expect(moon[moon.length - 1].t - moon[0].t).toBeGreaterThanOrEqual(1350);
+    // From the frame it begins to the frame it is over.
+    const moonFrom = firstT(f, (x) => x.step === 'moon');
+    const moonTo = firstT(f, (x) => x.t > moonFrom && x.step !== 'moon');
+    expect(moonTo - moonFrom).toBeGreaterThanOrEqual(1350);
     for (const seen of [(x: Frame) => x.cut, (x: Frame) => x.brk, (x: Frame) => x.blood > 0])
       expect(f.some(seen)).toBe(true);
     const on = f.filter((x) => x.step !== '');
