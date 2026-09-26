@@ -158,6 +158,16 @@
   pointer-events: none;
   animation: bp-told var(--bp-told) ease-out forwards;
 }
+/* Two short lines: the spell, then what it did. */
+.bp-told-name,
+.bp-told-result {
+  display: block;
+}
+.bp-told-name {
+  color: #ffe7a8;
+  letter-spacing: 0.08em;
+}
+
 @keyframes bp-told {
   0% { opacity: 0; transform: translate(-50%, 4px); }
   8%, 82% { opacity: 1; transform: translate(-50%, 0); }

@@ -33,6 +33,16 @@ import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
 import { SwordSlash, type SlashView } from './slash/SwordSlash';
 
+/**
+ * A spell's result sentence as two short lines: the spell ("《彗星撃》！")
+ * and what it did ("モスラビットに30のダメージ。…"). The battle's own words,
+ * cut where the name ends — nothing added, nothing reworded.
+ */
+function toldParts(line: string): [string, string] {
+  const named = line.match(/^(《[^》]+》！?)\s*(.*)$/);
+  return named ? [named[1], named[2]] : [line, ''];
+}
+
 /** How long a spell's result line holds before it fades, and its least at ×2. */
 const TOLD_MS = 3200;
 const TOLD_FLOOR_MS = 2200;
@@ -596,7 +606,14 @@ export function BattleStage({
               aria-live="polite"
               style={{ '--bp-told': `${visualMs(TOLD_MS, speed, TOLD_FLOOR_MS)}ms` } as CSSProperties}
             >
-              {told}
+              <span className="bp-told-name" data-testid="bp-told-name">
+                {toldParts(told)[0]}
+              </span>
+              {toldParts(told)[1] && (
+                <span className="bp-told-result" data-testid="bp-told-result">
+                  {toldParts(told)[1]}
+                </span>
+              )}
             </p>
         )}
 

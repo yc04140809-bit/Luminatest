@@ -300,7 +300,12 @@ test("in the game's own fight with Gald, her spells are shown in full and the fi
   // Only what rises after it lands: the last swing's number may still be
   // fading when the spell is chosen.
   const landed = f.findIndex((x) => x.phase === 'impact');
-  const shown = Number(f.slice(landed).flatMap((x) => x.enemyHits).find(Boolean));
+  const shown = Number(
+    f
+      .slice(landed)
+      .flatMap((x) => x.enemyHits)
+      .find(Boolean),
+  );
   expect(shown).toBe(before - (await enemyHp(page))[0]);
   expect(f.some((x) => x.said.includes('《星光弾》'))).toBe(true);
 
@@ -333,5 +338,142 @@ test("in the game's own fight with Gald, her spells are shown in full and the fi
     },
   );
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
+  expect(errors).toEqual([]);
+});
+
+/**
+ * ALL FIVE, IN THE GAME'S OWN FIGHTS — and nothing of them carried into
+ * the next fight.
+ *
+ * Her MP will not stretch to all five in one fight (6+16+12+8+8 = 50 of
+ * her 48), so: three in the story fight with Gald, a night's rest, and
+ * the other two in a moss rabbit fight — where she can cast because the
+ * world now remembers him. Then that fight is won, a new one is started,
+ * and it must be exactly a fresh fight: no cut-in, no effect, no result
+ * line, ×1.
+ */
+test("all five of her spells in the game's own fights, and a clean next fight after", async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  const castInGame = async (id: string, name: string) => {
+    await readyToAct(page, 15_000);
+    const [before] = await enemyHp(page);
+    await record(page);
+    await page.getByTestId('bp-magic').click();
+    await page.getByTestId(`magic-${id}`).click();
+    await settled(page);
+    const f = await stopRecording(page);
+    const landed = f.findIndex((x) => x.phase === 'impact');
+    expect(
+      f.some((x) => x.cut === name),
+      `${name}: her cut-in names it`,
+    ).toBe(true);
+    expect(landed, `${name}: it lands`).toBeGreaterThan(0);
+    expect(
+      f.some((x) => x.plate),
+      `${name}: no framed plate`,
+    ).toBe(false);
+    expect(f.slice(landed).find((x) => x.said)?.said ?? '', `${name}: the result line`).toContain(
+      `《${name}》`,
+    );
+    const numbers = f
+      .slice(landed)
+      .flatMap((x) => x.enemyHits)
+      .filter(Boolean);
+    const lost = before - (await enemyHp(page))[0];
+    if (id === 'starlight_bolt' || id === 'comet_strike') expect(Number(numbers[0])).toBe(lost);
+    else expect(numbers).toEqual([]);
+  };
+
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const d of (await indexedDB.databases?.()) ?? [])
+      if (d.name) indexedDB.deleteDatabase(d.name);
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('forest-button').click();
+  await page.getByTestId('gald-button').click();
+  for (let i = 0; i < 6; i++) {
+    if (
+      await page
+        .getByTestId('battle-screen')
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    await page.getByTestId('encounter-next').click();
+  }
+  const awakening = page.getByTestId('magic-awakening');
+  await fightUntil(page, () => awakening.isVisible().catch(() => false), { maxTurns: 200 });
+  await throughTheAwakening(page);
+
+  // Three in the story fight.
+  await castInGame('starlight_bolt', '星光弾');
+  await castInGame('mending_light', '癒しの光');
+  await castInGame('star_shield', '星盾');
+  await fightUntil(
+    page,
+    () =>
+      page
+        .getByTestId('life-choice-screen')
+        .isVisible()
+        .catch(() => false),
+    {
+      maxTurns: 200,
+    },
+  );
+  await page.getByTestId('choice-SPARE').click();
+  for (let i = 0; i < 6; i++) {
+    if (
+      await page
+        .getByTestId('future-vision')
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    await page.getByTestId('choice-result-next').click();
+  }
+  for (let i = 0; i < 4; i++) {
+    if (
+      await page
+        .getByTestId('future-vision-done')
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+
+  // A night's rest, then the other two against a moss rabbit.
+  await page.getByTestId('rest-button').click();
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('forest-button').click();
+  await page.getByTestId('encounter-button').click();
+  await castInGame('comet_strike', '彗星撃');
+  await castInGame('star_haze', '星霞');
+  await fightUntil(page, () =>
+    page
+      .getByTestId('result-exp')
+      .isVisible()
+      .catch(() => false),
+  );
+  await page.getByTestId('result-done').click();
+
+  // The next fight is a fresh one: nothing of the last is left.
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(
+    page.locator('.sfx, .ci, [data-testid="bp-told"], [data-testid="bp-cinematic"]'),
+  ).toHaveCount(0);
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '1');
   expect(errors).toEqual([]);
 });
