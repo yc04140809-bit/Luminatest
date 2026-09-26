@@ -39,12 +39,14 @@ async function record(page: Page) {
       w.__frames.push({
         t: Math.round(performance.now() - t0),
         cut: document.querySelector('[data-testid="cut-in-name"]')?.textContent ?? null,
-        cutMs: Number(document.querySelector('[data-testid="cut-in"]')?.getAttribute('data-ms')) || null,
+        cutMs:
+          Number(document.querySelector('[data-testid="cut-in"]')?.getAttribute('data-ms')) || null,
         phase: fx?.getAttribute('data-phase') ?? null,
         kind: fx?.getAttribute('data-kind') ?? null,
         hp: document.querySelector('[data-testid="bp-enemy-read"]')?.textContent ?? '',
         mp: document.querySelector('[data-testid="bx-kaos-mp"]')?.textContent ?? '',
-        locked: document.querySelector('[data-testid="bp-commands"]')?.getAttribute('data-locked') ?? '',
+        locked:
+          document.querySelector('[data-testid="bp-commands"]')?.getAttribute('data-locked') ?? '',
         enemyHits: [...document.querySelectorAll<HTMLElement>('.bp-hit')]
           .filter((h) => parseFloat(h.style.left) < 50)
           .map((h) => h.querySelector('.bp-hit-damage')?.textContent ?? ''),
@@ -94,9 +96,13 @@ for (const def of MAGIC_DEFS) {
     expect(aura).toBeGreaterThan(cut);
     expect(land).toBeGreaterThan(aura);
     expect(f[land].kind).toBe(
-      { starlight_bolt: 'BOLT', comet_strike: 'COMET', mending_light: 'MEND', star_shield: 'WARD', star_haze: 'HAZE' }[
-        def.id
-      ],
+      {
+        starlight_bolt: 'BOLT',
+        comet_strike: 'COMET',
+        mending_light: 'MEND',
+        star_shield: 'WARD',
+        star_haze: 'HAZE',
+      }[def.id],
     );
 
     // NOTHING CHANGES ON SCREEN BEFORE IT LANDS: the creature's health and
@@ -177,7 +183,9 @@ test('pressing 攻撃 again and again while she casts takes no extra turn', asyn
   expect(startHp - (await enemyHp(page))[0]).toBe(Number(numbers[0]));
 });
 
-test('cast again from the panel mid-spell: a clean new fight, the same numbers', async ({ page }) => {
+test('cast again from the panel mid-spell: a clean new fight, the same numbers', async ({
+  page,
+}) => {
   await page.goto('/?preview=battle');
   await page.getByTestId('debug-toggle').click();
   await page.getByTestId('debug-spell-starlight_bolt').click();
@@ -207,12 +215,15 @@ test('leaving in the middle of a spell leaves no error and nothing behind', asyn
   expect(errors).toEqual([]);
 });
 
-test('in the game\'s own fight with Gald, her spells are shown in full and the fight goes on', async ({ page }) => {
+test("in the game's own fight with Gald, her spells are shown in full and the fight goes on", async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto('/');
   await page.evaluate(async () => {
-    for (const d of (await indexedDB.databases?.()) ?? []) if (d.name) indexedDB.deleteDatabase(d.name);
+    for (const d of (await indexedDB.databases?.()) ?? [])
+      if (d.name) indexedDB.deleteDatabase(d.name);
   });
   await page.reload();
   await page.getByTestId('start-button').click();
@@ -222,7 +233,13 @@ test('in the game\'s own fight with Gald, her spells are shown in full and the f
   await page.getByTestId('forest-button').click();
   await page.getByTestId('gald-button').click();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
+    if (
+      await page
+        .getByTestId('battle-screen')
+        .isVisible()
+        .catch(() => false)
+    )
+      break;
     await page.getByTestId('encounter-next').click();
   }
   // Until she wakes.
@@ -257,9 +274,17 @@ test('in the game\'s own fight with Gald, her spells are shown in full and the f
   expect(f.flatMap((x) => x.enemyHits).filter(Boolean)).toEqual([]);
 
   // And the fight is still the game's: on to the four answers.
-  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), {
-    maxTurns: 200,
-  });
+  await fightUntil(
+    page,
+    () =>
+      page
+        .getByTestId('life-choice-screen')
+        .isVisible()
+        .catch(() => false),
+    {
+      maxTurns: 200,
+    },
+  );
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
   expect(errors).toEqual([]);
 });

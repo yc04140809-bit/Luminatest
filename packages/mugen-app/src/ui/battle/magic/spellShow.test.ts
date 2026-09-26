@@ -20,7 +20,13 @@ const dice = () => 0.5;
 
 describe('how each of her spells is shown', () => {
   it('covers the five spells the game has — by their data, not their names', () => {
-    expect(MAGIC_DEFS.map((d) => spellShowOf(d).kind)).toEqual(['BOLT', 'COMET', 'MEND', 'WARD', 'HAZE']);
+    expect(MAGIC_DEFS.map((d) => spellShowOf(d).kind)).toEqual([
+      'BOLT',
+      'COMET',
+      'MEND',
+      'WARD',
+      'HAZE',
+    ]);
   });
 
   it('lands the two that hurt and the haze on the creature, the others on the party', () => {
@@ -32,10 +38,16 @@ describe('how each of her spells is shown', () => {
   });
 
   it('holds the comet — her big one — as a finisher, the rest as ordinary skills', () => {
-    expect(MAGIC_DEFS.map((d) => spellShowOf(d).tier)).toEqual(['SKILL', 'FINISHER', 'SKILL', 'SKILL', 'SKILL']);
+    expect(MAGIC_DEFS.map((d) => spellShowOf(d).tier)).toEqual([
+      'SKILL',
+      'FINISHER',
+      'SKILL',
+      'SKILL',
+      'SKILL',
+    ]);
   });
 
-  it('puts the spell\'s own name and line on her cut-in', () => {
+  it("puts the spell's own name and line on her cut-in", () => {
     for (const def of MAGIC_DEFS) {
       const cut = spellCutIn(def);
       expect(cut.name).toBe(def.name);
@@ -73,7 +85,8 @@ describe('the steps after her cut-in', () => {
     for (const step of ['CHANNEL', 'IMPACT'] as const) {
       expect(spellStepMs(step, 1)).toBe(SPELL_MS[step]);
       expect(spellStepMs(step, 2)).toBeLessThan(spellStepMs(step, 1));
-      for (const speed of BATTLE_SPEEDS) expect(spellStepMs(step, speed)).toBeGreaterThanOrEqual(SPELL_FLOOR_MS[step]);
+      for (const speed of BATTLE_SPEEDS)
+        expect(spellStepMs(step, speed)).toBeGreaterThanOrEqual(SPELL_FLOOR_MS[step]);
     }
   });
 });

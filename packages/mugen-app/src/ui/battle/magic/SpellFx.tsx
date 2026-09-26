@@ -34,7 +34,15 @@ interface Point {
 
 const at = (p: Point): CSSProperties => ({ left: `${p.x * 100}%`, top: `${(1 - p.y) * 100}%` });
 
-export function SpellFx({ spell, caster, target }: { spell: SpellFxView; caster: Point; target: Point }) {
+export function SpellFx({
+  spell,
+  caster,
+  target,
+}: {
+  spell: SpellFxView;
+  caster: Point;
+  target: Point;
+}) {
   const style = { '--fx-step': `${spell.ms}ms` } as CSSProperties;
   return (
     <div
@@ -46,7 +54,12 @@ export function SpellFx({ spell, caster, target }: { spell: SpellFxView; caster:
       aria-hidden="true"
     >
       {spell.phase === 'channel' ? (
-        <div key={`aura-${spell.id}`} className="sfx-aura" data-testid="spell-aura" style={at(caster)}>
+        <div
+          key={`aura-${spell.id}`}
+          className="sfx-aura"
+          data-testid="spell-aura"
+          style={at(caster)}
+        >
           <span className="sfx-aura-domain" />
           <span className="sfx-aura-field" />
           <span className="sfx-aura-sigil sfx-aura-sigil-outer" />

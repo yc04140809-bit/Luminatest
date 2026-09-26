@@ -76,6 +76,9 @@ import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
  *   &spell=starlight_bolt|…      cast that spell of hers once on opening
  *                                (the moss rabbit, she awake, full MP)
  *   &hurt=1                      he starts at half health
+ *   &slash=0                     his 攻撃 without the sword's trail and bite
+ *                                (as the game's own fight draws it today)
+ *   &swing=1                     one 攻撃 on opening
  *
  * HER SPELLS (STEP C). The DEBUG panel casts each of the five in the
  * game's spell data on a fresh fight, through the very pipeline the
@@ -105,6 +108,9 @@ function fixedDice(seed = SEED): Rng {
 
 type Answer = EnemyAction | 'CORE';
 
+/** Asked of a fresh fight in place of a spell: one 攻撃. */
+const SWING = '@attack';
+
 interface Setup {
   gald: boolean;
   magic: boolean;
@@ -114,6 +120,8 @@ interface Setup {
   escape: boolean | null;
   /** He starts at half health — for seeing her mending do something. */
   hurt: boolean;
+  /** His 攻撃 drawn with the sword's trail and bite (STEP D). */
+  slash: boolean;
 }
 
 function setupFrom(params: URLSearchParams): Setup {
@@ -130,6 +138,7 @@ function setupFrom(params: URLSearchParams): Setup {
     answer: answer === 'ATTACK' || answer === 'SKILL' ? answer : 'CORE',
     escape: params.has('escape') ? params.get('escape') === '1' : null,
     hurt: params.get('hurt') === '1',
+    slash: params.get('slash') !== '0',
   };
 }
 
@@ -181,7 +190,9 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   }, []);
 
   /** A spell to cast as soon as the next fresh fight is on screen. */
-  const [autoCast, setAutoCast] = useState<string | null>(() => params.get('spell'));
+  const [autoCast, setAutoCast] = useState<string | null>(() =>
+    params.get('swing') === '1' ? SWING : params.get('spell'),
+  );
 
   const change = (patch: Partial<Setup>) => {
     stopCutIns();
@@ -196,6 +207,14 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
    * the spell cast at once. Against the moss rabbit: the story's Gald
    * fight begins before she has woken, so she cannot cast at its start.
    */
+  /** HIS 攻撃, FROM THE TOP: a fresh fight, the same dice, one swing. */
+  const swingOnFresh = () => {
+    stopCutIns();
+    setPanel(false);
+    setAutoCast(SWING);
+    setRun((n) => n + 1);
+  };
+
   const castOnFresh = (spellId: string) => {
     stopCutIns();
     // Out of the way, as for a cut-in sample: the spell is what is watched.
@@ -234,6 +253,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
             setRun((n) => n + 1);
           }}
           onCastSpell={castOnFresh}
+          onSwing={swingOnFresh}
           cutIns={{
             playing: director.playing,
             tierOverride,
@@ -286,7 +306,7 @@ function PreviewFight({
   const [auto, setAuto] = useState(false);
   const [downed, setDowned] = useState(false);
   const [say, setSay] = useState<{ name: string; line: string; result: string } | null>(null);
-  const theatre = useBattleTheatre(speed);
+  const theatre = useBattleTheatre(speed, { slash: setup.slash });
   const forced: EnemyAction | null = setup.answer === 'CORE' ? null : setup.answer;
 
   const opponent: BattleOpponentView = setup.gald
@@ -338,7 +358,8 @@ function PreviewFight({
   // A spell asked for from the DEBUG panel: cast the moment this fresh
   // fight is on screen.
   useEffect(() => {
-    if (autoCast) cast(autoCast);
+    if (autoCast === SWING) onCommand('ATTACK');
+    else if (autoCast) cast(autoCast);
   }, []);
 
   /** Until a spell lands, the fight as it was (see battle.tsx). */
@@ -381,6 +402,7 @@ function PreviewFight({
       }}
       cinematic={theatre.cinematic ?? cinematic}
       spell={theatre.spell}
+      slash={theatre.slash}
       downed={downed}
       say={say}
       speed={speed}
@@ -434,6 +456,7 @@ function DebugPanel({
   onReplay,
   onCycleSpeed,
   onCastSpell,
+  onSwing,
   cutIns,
 }: {
   open: boolean;
@@ -445,6 +468,7 @@ function DebugPanel({
   onReplay: () => void;
   onCycleSpeed: () => void;
   onCastSpell: (spellId: string) => void;
+  onSwing: () => void;
   cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
@@ -502,6 +526,16 @@ function DebugPanel({
           <p style={styles.note}>
             速度 ×{speed}（右下のチップで切替）。上の「直前のターン」は、押してから次に押せるまでの時間。
             オート（AUTO）はまだ作っていないので、1ターンずつ押して比べてください。保存はされません。
+          </p>
+          <p style={styles.heading}>主人公の通常攻撃（強化演出・本編は未接続）</p>
+          <button style={styles.btn} data-testid="debug-swing" onClick={onSwing}>
+            ⚔ 通常攻撃を1回（新しい戦闘で）
+          </button>
+          <button style={styles.btn} data-testid="debug-slash" onClick={() => onChange({ slash: !setup.slash })}>
+            剣の軌跡：{setup.slash ? 'あり（強化）' : 'なし（今の本編）'}
+          </button>
+          <p style={styles.note}>
+            下の「攻撃」ボタンでも同じ演出で戦えます（倒すまで）。数字と HP は本編と同じ計算です。
           </p>
           <p style={styles.heading}>ケイオスの魔法（本編と同じ処理・同じ演出）</p>
           {MAGIC_DEFS.map((def) => (

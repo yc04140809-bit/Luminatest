@@ -26,6 +26,8 @@ import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
 import { SPELL_CONTACT_AT, spellDamage, spellShowOf, spellStepMs } from './magic/spellShow';
 import type { SpellFxView } from './magic/SpellFx';
+import type { SlashView } from './slash/SwordSlash';
+import { slashMs } from './slash/slashTiming';
 
 /** How long each beat is held at ×1 — the Artifact's BEAT_MS. */
 export const BEAT_MS: Record<string, number> = {
@@ -141,9 +143,19 @@ export interface Theatre {
   holding: BattleState | null;
   /** Her cut-in, while one plays (for BattleStage's `cinematic`). */
   cinematic: ReactElement | null;
+  /** His sword's trail and bite, while a swing shows (only if asked for). */
+  slash: SlashView | null;
 }
 
-export function useBattleTheatre(speed: BattleSpeed): Theatre {
+export interface TheatreOptions {
+  /**
+   * Draw his sword's trail and bite on a 攻撃 (slash/SwordSlash). A swing
+   * only: never a spell, an item, a guard, or the creature's own blow.
+   */
+  slash?: boolean;
+}
+
+export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {}): Theatre {
   const [beat, setBeat] = useState('NONE');
   const [camera, setCamera] = useState<CameraPhase>('IDLE');
   const [blows, setBlows] = useState<Blow[]>([]);
@@ -152,6 +164,7 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
   const blowId = useRef(0);
   const [spell, setSpell] = useState<SpellFxView | null>(null);
   const [holding, setHolding] = useState<BattleState | null>(null);
+  const [slash, setSlash] = useState<SlashView | null>(null);
   const cutIns = useCutInDirector(speed);
   /** Which turn is being shown; a newer one makes an older one's cues no-ops. */
   const showing = useRef(0);
@@ -190,6 +203,7 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
     setBlows([]);
     setSpell(null);
     setHolding(null);
+    setSlash(null);
   };
 
   /** The creature's answer, from `from` ms on; returns when it is over. */
@@ -229,6 +243,19 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
       }
       // THE NUMBER IS THE CORE'S: what the enemy had, less what it has.
       strike('enemy', Math.max(0, before.enemyHp - next.enemyHp));
+      // His sword, seen: the trail through the swing, the bite on contact.
+      if (options.slash) {
+        const id = showing.current;
+        const view: SlashView = {
+          id,
+          arcMs: slashMs('ARC', speed),
+          biteMs: slashMs('BITE', speed),
+          biteAt: Math.round(beatLength(first, speed) * CONTACT_AT),
+        };
+        // With the swing's own first beat, not a frame before it.
+        later(() => setSlash(view), 0);
+        later(() => setSlash((now) => (now?.id === id ? null : now)), Math.max(view.arcMs, view.biteAt + view.biteMs));
+      }
     } else {
       setCamera('IDLE');
     }
@@ -296,5 +323,6 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
     spell,
     holding,
     cinematic: cutIns.element,
+    slash,
   };
 }

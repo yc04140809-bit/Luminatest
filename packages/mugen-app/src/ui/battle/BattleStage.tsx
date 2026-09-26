@@ -31,6 +31,7 @@ import { MagicTray } from './MagicTray';
 import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
+import { SwordSlash, type SlashView } from './slash/SwordSlash';
 import { AwakeningScene } from './AwakeningScene';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
@@ -122,6 +123,8 @@ export interface BattleStageProps {
   cinematic?: ReactNode;
   /** Her aura or a spell's landing, while one shows (`useBattleTheatre().spell`). */
   spell?: SpellFxView | null;
+  /** His sword's trail and bite, while a swing shows (`useBattleTheatre().slash`). */
+  slash?: SlashView | null;
   /** Absent: no AUTO chip (AUTO is a later phase). */
   onToggleAuto?: () => void;
   onCycleSpeed?: () => void;
@@ -151,6 +154,7 @@ export function BattleStage({
   onAwakeningDone,
   cinematic,
   spell = null,
+  slash = null,
   onToggleAuto,
   onCycleSpeed,
   onEscape,
@@ -414,6 +418,7 @@ export function BattleStage({
             testId="bp-enemy-art"
           />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
+          {slash && <SwordSlash slash={slash} />}
           {beat === 'TACKLE' && (
             <span className="bp-leaves" aria-hidden="true">
               {[0, 1, 2, 3, 4].map((i) => (
