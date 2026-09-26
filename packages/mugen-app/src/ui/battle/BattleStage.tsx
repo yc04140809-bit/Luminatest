@@ -32,6 +32,8 @@ import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
 import { SwordSlash, type SlashView } from './slash/SwordSlash';
+import type { ReachView } from './battleTheatre';
+import './slash/reach.css';
 
 /**
  * A spell's result sentence as two short lines: the spell ("《彗星撃》！")
@@ -145,6 +147,14 @@ export interface BattleStageProps {
   spell?: SpellFxView | null;
   /** His sword's trail and bite, while a swing shows (`useBattleTheatre().slash`). */
   slash?: SlashView | null;
+  /**
+   * THE ENHANCED 攻撃 (v18 `playAttack`) is being drawn: he is wrapped so
+   * he can walk to the creature and swing, and `reach` says where in that
+   * he is (`useBattleTheatre().reach`). Off: the Artifact's swing, and his
+   * drawing exactly as before.
+   */
+  swordplay?: boolean;
+  reach?: ReachView | null;
   /** Absent: no AUTO chip (AUTO is a later phase). */
   onToggleAuto?: () => void;
   onCycleSpeed?: () => void;
@@ -176,6 +186,8 @@ export function BattleStage({
   cinematic,
   spell = null,
   slash = null,
+  swordplay = false,
+  reach = null,
   onToggleAuto,
   onCycleSpeed,
   onEscape,
@@ -299,6 +311,32 @@ export function BattleStage({
     const party = centre('.bp-hero .bp-art');
     if (caster && enemy && party) setSpellAt({ caster, enemy, party });
   }, [spellId]);
+  // HOW FAR HE WALKS: measured when a swing starts, off the drawings, to
+  // stop with his blade's reach just short of the creature — whichever
+  // creature, however far up the path. In his own (possibly scaled)
+  // coordinates, so the transform lands where it was measured.
+  const [reachTo, setReachTo] = useState({ x: 0, y: 0 });
+  const reachId = reach?.id ?? null;
+  useEffect(() => {
+    const stageEl = stageRef.current;
+    if (reachId === null || !stageEl) return;
+    const heroActor = stageEl.querySelector<HTMLElement>('.bp-hero');
+    const heroArt = stageEl.querySelector('.bp-hero .bp-art');
+    const enemyArt = stageEl.querySelector('.bp-enemy .bp-art');
+    if (!heroActor || !heroArt || !enemyArt) return;
+    const h = heroArt.getBoundingClientRect();
+    const e = enemyArt.getBoundingClientRect();
+    const scale = heroActor.offsetWidth > 0 ? heroActor.getBoundingClientRect().width / heroActor.offsetWidth : 1;
+    // v18's own rule (travelToEnemy): his left edge stops 7.5% of the
+    // field's width past the creature's right edge, his feet on its
+    // ground line and a touch below — and he always goes at least a
+    // quarter of the field, so a creature standing close is still walked to.
+    const s = stageEl.getBoundingClientRect();
+    const dx = Math.min(-s.width * 0.24, e.right + s.width * 0.075 - h.left);
+    const dy = e.bottom - h.bottom + s.height * 0.015;
+    setReachTo({ x: dx / (scale || 1), y: dy / (scale || 1) });
+  }, [reachId]);
+
   const struckHero = latestOn(blows, 'hero');
   const struckEnemy = latestOn(blows, 'enemy');
 
@@ -467,21 +505,50 @@ export function BattleStage({
           />
         </div>
         <div
-          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${
+          className={`bp-actor bp-hero${beat === 'STRIKE' && !swordplay ? ' strike' : ''}${
             struckHero ? ' hurt flash' : ''
           }`}
           data-blow={motionSlot(struckHero)}
           style={cameraStyle('hero', camera)}
         >
-          <span className="bp-shadow" aria-hidden="true" />
-          <CharacterArt
-            art={heroShown}
-            height={heights.hero}
-            className="bp-art"
-            face="left"
-            label="あなた"
-            testId="bp-hero-art"
-          />
+          {swordplay ? (
+            <span
+              className="bp-reach"
+              data-testid="bp-reach"
+              data-phase={reach?.phase ?? 'home'}
+              style={
+                {
+                  '--reach-ms': `${reach?.ms ?? 0}ms`,
+                  '--reach-x': `${reachTo.x}px`,
+                  '--reach-y': `${reachTo.y}px`,
+                } as CSSProperties
+              }
+            >
+              <span className="bp-shadow" aria-hidden="true" />
+              <span className="bp-swing">
+                <CharacterArt
+                  art={heroShown}
+                  height={heights.hero}
+                  className="bp-art"
+                  face="left"
+                  label="あなた"
+                  testId="bp-hero-art"
+                />
+              </span>
+            </span>
+          ) : (
+            <>
+              <span className="bp-shadow" aria-hidden="true" />
+              <CharacterArt
+                art={heroShown}
+                height={heights.hero}
+                className="bp-art"
+                face="left"
+                label="あなた"
+                testId="bp-hero-art"
+              />
+            </>
+          )}
         </div>
 
         {/* Its health, under its feet — and following it down. */}

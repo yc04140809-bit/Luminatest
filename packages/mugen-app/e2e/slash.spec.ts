@@ -14,6 +14,8 @@ import { throughTheOpening } from './opening';
 interface Frame {
   t: number;
   beat: string;
+  reach: string;
+  heroLeft: number;
   slash: boolean;
   slashInEnemy: boolean;
   enemyHits: string[];
@@ -31,6 +33,10 @@ async function record(page: Page) {
       w.__frames.push({
         t: Math.round(performance.now() - t0),
         beat: document.querySelector('.bp-stage')?.getAttribute('data-beat') ?? '',
+        reach: document.querySelector('[data-testid="bp-reach"]')?.getAttribute('data-phase') ?? '',
+        heroLeft: Math.round(
+          document.querySelector('.bp-hero .bp-art')?.getBoundingClientRect().left ?? 0,
+        ),
         slash: !!s,
         slashInEnemy: !!s?.closest('.bp-enemy'),
         enemyHits: [...document.querySelectorAll<HTMLElement>('.bp-hit')]
@@ -202,4 +208,62 @@ test("the game's own fight does not draw it yet — joined after the device chec
   await readyToAct(page);
   expect((await stop(page)).some((x) => x.slash)).toBe(false);
   await fightToResult(page);
+});
+
+test('he walks to it, winds up, swings, and walks back — then it answers', async ({ page }) => {
+  await page.goto('/?preview=battle&debug=0&answer=ATTACK');
+  await readyToAct(page);
+  const home = Math.round((await page.getByTestId('bp-hero-art').boundingBox())!.x);
+  const enemy = (await page.getByTestId('bp-enemy-art').boundingBox())!;
+  await record(page);
+  await page.getByTestId('bp-attack').click();
+  await readyToAct(page);
+  await page.waitForTimeout(200);
+  const f = await stop(page);
+
+  // v18's order.
+  const order = f.map((x) => x.reach).filter((p, i, all) => p && p !== all[i - 1]);
+  expect(order).toEqual(['home', 'approach', 'windup', 'strike', 'recover', 'return', 'home']);
+  // He really goes there: at the swing he stands just right of it, clear of it.
+  const atStrike = f.find((x) => x.reach === 'strike')!;
+  expect(atStrike.heroLeft).toBeLessThan(home - 150);
+  expect(atStrike.heroLeft).toBeGreaterThan(enemy.x + enemy.width - 10);
+  // And comes all the way back.
+  expect(Math.abs(f[f.length - 1].heroLeft - home)).toBeLessThanOrEqual(2);
+  // The creature's answer only once he is home.
+  const firstAnswer = f.findIndex((x) => x.beat === 'TACKLE');
+  expect(firstAnswer).toBeGreaterThan(0);
+  expect(f[firstAnswer].reach).toBe('home');
+  // The trail belongs to the swing itself.
+  expect(f.find((x) => x.slash)!.reach).toBe('strike');
+});
+
+test('×2: the walk is quicker and the swing still seen', async ({ page }) => {
+  const turn = async (speed: 1 | 2) => {
+    await page.goto('/?preview=battle&debug=0&answer=SKILL');
+    await readyToAct(page);
+    if (speed === 2) await page.getByTestId('bp-speed').click();
+    await record(page);
+    await page.getByTestId('bp-attack').click();
+    await readyToAct(page);
+    await page.waitForTimeout(150);
+    const f = await stop(page);
+    const out = f.find((x) => x.reach === 'approach')!.t;
+    const back = f.findLast((x) => x.reach === 'return')!.t;
+    return {
+      ms: back - out,
+      strike: f.some((x) => x.reach === 'strike'),
+      slash: f.some((x) => x.slash),
+    };
+  };
+  const slow = await turn(1);
+  const fast = await turn(2);
+  expect(fast.ms).toBeLessThan(slow.ms);
+  expect(fast.strike && fast.slash).toBe(true);
+});
+
+test('switched off, he does not walk: the swing as the game draws it today', async ({ page }) => {
+  await page.goto('/?preview=battle&debug=0&slash=0');
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-reach')).toHaveCount(0);
 });

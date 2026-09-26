@@ -410,6 +410,8 @@ function PreviewFight({
       cinematic={theatre.cinematic ?? cinematic}
       spell={theatre.spell}
       slash={theatre.slash}
+      swordplay={setup.slash}
+      reach={theatre.reach}
       downed={downed}
       say={say}
       told={told}
