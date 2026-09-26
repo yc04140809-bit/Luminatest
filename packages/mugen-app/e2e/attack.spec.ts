@@ -45,6 +45,8 @@ interface Frame {
   beat: string;
   camera: string;
   hero: string;
+  /** Where he is in the walk-and-swing (bp-reach data-phase). */
+  reach: string;
   enemy: string;
   locked: string;
   hits: { side: 'enemy' | 'hero'; amount: string }[];
@@ -63,6 +65,7 @@ async function record(page: Page, ms: number) {
         beat: stage?.dataset.beat ?? '',
         camera: stage?.dataset.camera ?? '',
         hero: document.querySelector('.bp-hero')?.className ?? '',
+        reach: document.querySelector<HTMLElement>('[data-testid="bp-reach"]')?.dataset.phase ?? '',
         enemy: document.querySelector('.bp-enemy')?.className ?? '',
         locked:
           document.querySelector<HTMLElement>('[data-testid="bp-commands"]')?.dataset.locked ?? '',
@@ -89,21 +92,23 @@ const lockedFor = (f: Frame[]) => {
   return on && off ? off.t - on.t : Infinity;
 };
 
-test('one 攻撃 is one turn: he steps in, it flinches, the real number, the real health', async ({
+test('one 攻撃 is one turn: he walks in and swings, it flinches, the real number, the real health', async ({
   page,
 }) => {
   await intoAFight(page);
   const [before] = await enemyHp(page);
-  await record(page, 1600);
+  await record(page, 3000);
   await page.getByTestId('bp-attack').click();
-  await page.waitForTimeout(1700);
+  await page.waitForTimeout(3100);
   const f = await frames(page);
   await readyToAct(page);
   const [after] = await enemyHp(page);
 
-  // He steps in: the camera works and his swing is drawn.
-  expect(f.some((x) => x.beat === 'STRIKE' && x.hero.includes('strike'))).toBe(true);
-  expect(f.some((x) => x.camera === 'FOCUS' || x.camera === 'IMPACT')).toBe(true);
+  // He walks to it and swings (v18's 攻撃, STEP 3), then walks back.
+  expect(f.some((x) => x.reach === 'approach')).toBe(true);
+  expect(f.some((x) => x.beat === 'STRIKE' && x.reach === 'strike')).toBe(true);
+  expect(f.some((x) => x.reach === 'return')).toBe(true);
+  expect(f[f.length - 1].reach).toBe('home');
   // It flinches.
   expect(f.some((x) => x.enemy.includes('struck'))).toBe(true);
   // THE NUMBER IS THE CORE'S: exactly what its health lost.
@@ -136,25 +141,25 @@ test('pressing again and again while it plays is still one turn', async ({ page 
 
 test('×2 is quicker and still shows every part of the turn', async ({ page }) => {
   await intoAFight(page);
-  await record(page, 1600);
+  await record(page, 3000);
   await page.getByTestId('bp-attack').click();
-  await page.waitForTimeout(1700);
+  await page.waitForTimeout(3100);
   const slow = lockedFor(await frames(page));
   await readyToAct(page);
 
   await page.getByTestId('bp-speed').click();
   await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');
   const [before] = await enemyHp(page);
-  await record(page, 1200);
+  await record(page, 2000);
   await page.getByTestId('bp-attack').click();
-  await page.waitForTimeout(1300);
+  await page.waitForTimeout(2100);
   const f = await frames(page);
   await readyToAct(page);
   const [after] = await enemyHp(page);
   const fast = lockedFor(f);
 
   expect(fast).toBeLessThan(slow);
-  expect(f.some((x) => x.hero.includes('strike'))).toBe(true);
+  expect(f.some((x) => x.reach === 'strike')).toBe(true);
   expect(f.some((x) => x.enemy.includes('struck'))).toBe(true);
   const shown = f.flatMap((x) => x.hits).find((h) => h.side === 'enemy');
   expect(Number(shown!.amount)).toBe(before - after);

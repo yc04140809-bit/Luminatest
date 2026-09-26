@@ -56,11 +56,11 @@
   パネルに当たること、背面のボタンに当たらないこと、実戦闘で背面の攻撃位置を押してもターンが進まないこと）、
   `e2e/gald.spec.ts`（ガルド戦の魔法パネルで同じ確認）。
 
-## 主人公の通常攻撃の強化（STEP D ＋ ロードマップ STEP 3、2026-09-26）— DEBUGプレビューのみ・本編は未接続
+## 主人公の通常攻撃の強化（STEP D ＋ ロードマップ STEP 3、2026-09-26）— **本編に接続済み**
 
-v18 の通常攻撃にあった「大きな剣の軌跡」と「斬った瞬間」を、主人公の《攻撃》に足す。
-**今は DEBUG プレビューだけ**で出る。Android 実機確認で OK が出たら、本編の `BattleScreen` で
-`useBattleTheatre(speed, { slash: true })` にする（1行）ことで接続する。
+v18 の通常攻撃（接近・振りかぶり・大きな剣の軌跡・斬った瞬間・帰還）を、主人公の《攻撃》に足した。
+Android 実機確認 OK（STEP 4）を受けて、本編の `BattleScreen` で `useBattleTheatre(speed, { slash: true })`
+に接続した。DEBUG プレビューでは「剣の軌跡：なし」で以前の攻撃と見比べられる。
 
 - **部品**：`src/ui/battle/slash/`
   - `SwordSlash.tsx` + `slash.css`：v18 `.sword-arc`（明るい外縁・金の内縁・光の筋の三日月）を、

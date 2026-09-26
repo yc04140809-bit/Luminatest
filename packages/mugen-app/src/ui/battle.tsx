@@ -99,7 +99,9 @@ export function BattleScreen({
   // HOW FAST IT IS WATCHED — this fight only, starting at ×1, as in the
   // Artifact. It changes the showing, never the fighting.
   const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
-  const theatre = useBattleTheatre(speed);
+  // His 攻撃 is v18's (STEP 3, checked on a device): the walk to the
+  // creature, the swing with the sword's trail and bite, the walk back.
+  const theatre = useBattleTheatre(speed, { slash: true });
 
   /**
    * One thing at a time. Using an item writes to the save first, and
@@ -253,6 +255,9 @@ export function BattleScreen({
       onAwakeningDone={() => setBattle((b) => clearAwakeningLines(b))}
       spell={theatre.spell}
       cinematic={theatre.cinematic}
+      slash={theatre.slash}
+      swordplay
+      reach={theatre.reach}
       bgm={music}
       testId="battle-screen"
     />

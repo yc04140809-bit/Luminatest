@@ -187,7 +187,7 @@ test('the same swing, the same number, every time', async ({ page }) => {
   expect(await once()).toBe(await once());
 });
 
-test("the game's own fight does not draw it yet — joined after the device check", async ({
+test("the game's own fight draws it now — his 攻撃 walks, swings and comes back", async ({
   page,
 }) => {
   await page.goto('/');
@@ -206,7 +206,10 @@ test("the game's own fight does not draw it yet — joined after the device chec
   await record(page);
   await page.getByTestId('bp-attack').click();
   await readyToAct(page);
-  expect((await stop(page)).some((x) => x.slash)).toBe(false);
+  const f = await stop(page);
+  expect(f.some((x) => x.slash)).toBe(true);
+  expect(f.some((x) => x.reach === 'approach')).toBe(true);
+  expect(f[f.length - 1].reach).toBe('home');
   await fightToResult(page);
 });
 
