@@ -13,6 +13,7 @@
 // into a flicker.
 
 import { visualMs, type BattleSpeed } from '@mugen/game/battle/battleSpeed';
+import { stepTimes } from '../../ui/battle/scene/stepTimes';
 
 export const ARIA_MS = {
   /** She appears where he stood. */
@@ -63,9 +64,7 @@ export interface AriaPlan {
 }
 
 export function ariaPlan(speed: BattleSpeed): AriaPlan {
-  const ms = Object.fromEntries(
-    (Object.keys(ARIA_MS) as AriaStep[]).map((step) => [step, ariaMs(step, speed)]),
-  ) as Record<AriaStep, number>;
+  const ms = stepTimes(ARIA_MS, ARIA_FLOOR_MS, speed);
   const draw = ms.ENTER;
   const shot = draw + ms.DRAW;
   const land = Math.round(shot + ms.SHOT * SHOT_LAND_AT);

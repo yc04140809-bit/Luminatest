@@ -182,7 +182,7 @@
   100% { opacity: 0; transform: translate(-50%, 0); }
 }
 
-/* A SCENE ON THE FIELD (fieldScene.ts). Its figures stand among the
+/* A SCENE ON THE FIELD (scene/fieldScene.ts). Its figures stand among the
    people — over them, under the HUD — and take nothing. */
 .bp-scene-field {
   position: absolute;

@@ -33,7 +33,7 @@ import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
 import { SwordSlash, type SlashView } from './slash/SwordSlash';
 import type { ReachView } from './battleTheatre';
-import type { FieldBox, FieldMarks, FieldScene } from './fieldScene';
+import type { FieldBox, FieldMarks, FieldScene } from './scene/fieldScene';
 import './slash/reach.css';
 
 /**
@@ -157,7 +157,7 @@ export interface BattleStageProps {
   swordplay?: boolean;
   reach?: ReachView | null;
   /**
-   * A scene played on the field (fieldScene.ts) — somebody stepping in,
+   * A scene played on the field (scene/fieldScene.ts) — somebody stepping in,
    * things arriving at the creature. Null or absent: nothing. Today only
    * the debug preview passes one.
    */

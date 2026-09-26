@@ -14,6 +14,7 @@
 // watched, and a moon cut in half in less than that is not seen.
 
 import { visualMs, type BattleSpeed } from '@mugen/game/battle/battleSpeed';
+import { stepTimes } from '../../ui/battle/scene/stepTimes';
 
 export const ZERO_MS = {
   /** His sword gathering, the red glow on him. */
@@ -69,9 +70,7 @@ export interface ZeroPlan {
 }
 
 export function zeroPlan(speed: BattleSpeed): ZeroPlan {
-  const ms = Object.fromEntries(
-    (Object.keys(ZERO_MS) as ZeroStep[]).map((step) => [step, zeroMs(step, speed)]),
-  ) as Record<ZeroStep, number>;
+  const ms = stepTimes(ZERO_MS, ZERO_FLOOR_MS, speed);
   const dash = ms.CHARGE;
   const hitstop = dash + ms.DASH;
   const moon = hitstop + ms.HITSTOP;

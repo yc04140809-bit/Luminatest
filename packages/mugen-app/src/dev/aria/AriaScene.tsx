@@ -2,7 +2,7 @@
 //
 // v18's 天弓・蒼薔薇祝界 (playAriaSkill + the .aria-* rules in styles.css),
 // rebuilt as a part the battle screen plays through its field-scene joint
-// (ui/battle/fieldScene.ts):
+// (ui/battle/scene/fieldScene.ts):
 //
 //   she steps in where he stood → leans back and draws her bow at the
 //   sky → the arrow flies up over the field and bursts in a star of light
@@ -24,7 +24,7 @@
 import type { CSSProperties } from 'react';
 import ariaBattle from '@mugen/assets/files/characters/aria/aria-battle.png';
 import roseSigil from '@mugen/assets/files/characters/aria/aria-blue-rose-sigil.png';
-import type { FieldBox, FieldMarks } from '../../ui/battle/fieldScene';
+import type { FieldBox, FieldMarks } from '../../ui/battle/scene/fieldScene';
 import type { AriaPlan } from './ariaTiming';
 import './aria.css';
 

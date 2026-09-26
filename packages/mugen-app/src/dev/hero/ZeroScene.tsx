@@ -2,7 +2,7 @@
 //
 // v18's hero skill (playHeroSkill + the .hero-skill-* / .hero-moon-*
 // rules in styles.css), rebuilt as a part the battle screen plays through
-// its field-scene joint (ui/battle/fieldScene.ts), in the roadmap's order:
+// its field-scene joint (ui/battle/scene/fieldScene.ts), in the roadmap's order:
 //
 //   his sword gathers → he dashes through, past the creature → 暗転 → the
 //   RED MOON → one cut across it → the moon and the screen split in two →
@@ -20,7 +20,7 @@
 
 import type { CSSProperties } from 'react';
 import bloodMoon from '@mugen/assets/files/effects/blood-moon-v1.png';
-import type { FieldMarks } from '../../ui/battle/fieldScene';
+import type { FieldMarks } from '../../ui/battle/scene/fieldScene';
 import type { ZeroPlan } from './zeroTiming';
 import './zero.css';
 

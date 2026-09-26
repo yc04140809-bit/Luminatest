@@ -2,7 +2,7 @@
 //
 // v18's 冥槍・黒葬封界 (playLeviSkill + the .levi-* rules in styles.css),
 // rebuilt as a part the battle screen plays through its field-scene joint
-// (ui/battle/fieldScene.ts), in the order this step asks for:
+// (ui/battle/scene/fieldScene.ts), in the order this step asks for:
 //
 //   she steps in where he stood → her stance → six phantom spears form
 //   round the creature → they go in one after another → she drives in
@@ -20,7 +20,7 @@
 
 import type { CSSProperties } from 'react';
 import leviBattle from '@mugen/assets/files/characters/levi/levi-battle.png';
-import type { FieldMarks } from '../../ui/battle/fieldScene';
+import type { FieldMarks } from '../../ui/battle/scene/fieldScene';
 import type { LeviPlan } from './leviTiming';
 import './levi.css';
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import {
   castMagic,
   clearAwakeningLines,
@@ -31,8 +31,9 @@ import { BattleStage, type BattleCommand, type BattleOpponentView } from '../ui/
 import { KNOCKDOWN_MS, useBattleTheatre, type TurnKind } from '../ui/battle/battleTheatre';
 import { useCutInDirector, type CutInSpec } from '../ui/battle/cutin/CutIn';
 import { cutInMs, type CutInTier } from '../ui/battle/cutin/cutInTiming';
-import type { FieldScene } from '../ui/battle/fieldScene';
+import type { FieldScene } from '../ui/battle/scene/fieldScene';
 import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
+import type { SceneEnd } from '../ui/battle/scene/useScenePlayer';
 import { useLeviDirector } from './levi/useLeviDirector';
 import { leviPlan } from './levi/leviTiming';
 import { useAriaDirector } from './aria/useAriaDirector';
@@ -188,18 +189,21 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const [lastCutIn, setLastCutIn] = useState<{ ms: number; speed: BattleSpeed; tier: CutInTier } | null>(
     null,
   );
-  // LEVI'S PHANTOM SPEARS — the part, played from the panel.
-  const levi = useLeviDirector(speed, director);
-  const [leviCutIn, setLeviCutIn] = useState(params.get('levi') !== 'bare');
-  const [lastLevi, setLastLevi] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
-  // ARIA'S BLUE-ROSE ARROW — the part, played from the panel.
-  const aria = useAriaDirector(speed, director);
-  const [ariaCutIn, setAriaCutIn] = useState(params.get('aria') !== 'bare');
-  const [lastAria, setLastAria] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
-  // HIS 零閃・天衝 — the part, played from the panel.
-  const zero = useZeroDirector(speed, director);
-  const [zeroCutIn, setZeroCutIn] = useState(params.get('zero') !== 'bare');
-  const [lastZero, setLastZero] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
+  // THE SHOWING PARTS (Levi, Aria, his 零閃・天衝), played from the panel —
+  // each on the shared scene clock (ui/battle/scene/useScenePlayer).
+  const parts: Record<ScenePartId, PartDirector> = {
+    levi: useLeviDirector(speed, director),
+    aria: useAriaDirector(speed, director),
+    zero: useZeroDirector(speed, director),
+  };
+  const [partCutIn, setPartCutIn] = useState<Record<ScenePartId, boolean>>(() => ({
+    levi: params.get('levi') !== 'bare',
+    aria: params.get('aria') !== 'bare',
+    zero: params.get('zero') !== 'bare',
+  }));
+  const [lastPart, setLastPart] = useState<Partial<Record<ScenePartId, { ms: number; speed: BattleSpeed }>>>(
+    {},
+  );
   const speedAt = useRef(speed);
   speedAt.current = speed;
   const shaped = (spec: CutInSpec): CutInSpec => (tierOverride ? { ...spec, tier: tierOverride } : spec);
@@ -220,54 +224,28 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const stopCutIns = () => {
     sequence.current += 1;
     director.stop();
-    levi.stop();
-    aria.stop();
-    zero.stop();
+    for (const part of SCENE_PARTS) parts[part.id].stop();
   };
 
-  /** Levi's spears, from the top: a fresh fight, then the part. */
-  const playLevi = async (withCutIn: boolean) => {
+  /** One of the showing parts, from the top: a fresh fight, then the part. */
+  const playPart = async (part: ScenePart, withCutIn: boolean) => {
     stopCutIns();
     setAutoCast(null);
     setPanel(false);
     setRun((n) => n + 1);
     const started = performance.now();
     const at = speedAt.current;
-    const end = await levi.play(withCutIn ? LEVI_CUT_IN.spec : null);
-    if (end === 'done') setLastLevi({ ms: performance.now() - started, speed: at });
-  };
-
-  /** Aria's arrow, from the top: a fresh fight, then the part. */
-  const playAria = async (withCutIn: boolean) => {
-    stopCutIns();
-    setAutoCast(null);
-    setPanel(false);
-    setRun((n) => n + 1);
-    const started = performance.now();
-    const at = speedAt.current;
-    const end = await aria.play(withCutIn ? ARIA_CUT_IN.spec : null);
-    if (end === 'done') setLastAria({ ms: performance.now() - started, speed: at });
-  };
-
-  /** His 零閃・天衝, from the top: a fresh fight, then the part. */
-  const playZero = async (withCutIn: boolean) => {
-    stopCutIns();
-    setAutoCast(null);
-    setPanel(false);
-    setRun((n) => n + 1);
-    const started = performance.now();
-    const at = speedAt.current;
-    const end = await zero.play(withCutIn ? ZERO_CUT_IN.spec : null);
-    if (end === 'done') setLastZero({ ms: performance.now() - started, speed: at });
+    const end = await parts[part.id].play(withCutIn ? part.cutIn.spec : null);
+    if (end === 'done') setLastPart((l) => ({ ...l, [part.id]: { ms: performance.now() - started, speed: at } }));
   };
 
   // `&cutin=…`: one sample on opening, for a link straight to it.
   useEffect(() => {
     const first = CUT_IN_SAMPLES.find((c) => c.id === params.get('cutin'));
     if (first) void playCutIns([first]);
-    if (params.has('levi')) void playLevi(params.get('levi') !== 'bare');
-    if (params.has('aria')) void playAria(params.get('aria') !== 'bare');
-    if (params.has('zero')) void playZero(params.get('zero') !== 'bare');
+    // `&levi=…` / `&aria=…` / `&zero=…`: that part on opening.
+    for (const part of SCENE_PARTS)
+      if (params.has(part.id)) void playPart(part, params.get(part.id) !== 'bare');
   }, []);
 
   /** A spell to cast as soon as the next fresh fight is on screen. */
@@ -316,8 +294,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
         onTurnWatched={(ms) => setLastTurn({ ms, speed })}
         cinematic={director.element}
-        cinematicPlaying={director.playing || levi.playing || aria.playing || zero.playing}
-        scene={levi.scene ?? aria.scene ?? zero.scene}
+        cinematicPlaying={director.playing || SCENE_PARTS.some((p) => parts[p.id].playing)}
+        scene={SCENE_PARTS.map((p) => parts[p.id].scene).find((scene) => scene !== null) ?? null}
         autoCast={autoCast}
       />
       {showPanel && (
@@ -336,24 +314,13 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
           }}
           onCastSpell={castOnFresh}
           onSwing={swingOnFresh}
-          levi={{
-            withCutIn: leviCutIn,
-            last: lastLevi,
-            onPlay: () => void playLevi(leviCutIn),
-            onCutIn: () => setLeviCutIn((on) => !on),
-          }}
-          aria={{
-            withCutIn: ariaCutIn,
-            last: lastAria,
-            onPlay: () => void playAria(ariaCutIn),
-            onCutIn: () => setAriaCutIn((on) => !on),
-          }}
-          zero={{
-            withCutIn: zeroCutIn,
-            last: lastZero,
-            onPlay: () => void playZero(zeroCutIn),
-            onCutIn: () => setZeroCutIn((on) => !on),
-          }}
+          parts={SCENE_PARTS.map((part) => ({
+            part,
+            withCutIn: partCutIn[part.id],
+            last: lastPart[part.id] ?? null,
+            onPlay: () => void playPart(part, partCutIn[part.id]),
+            onCutIn: () => setPartCutIn((on) => ({ ...on, [part.id]: !on[part.id] })),
+          }))}
           cutIns={{
             playing: director.playing,
             tierOverride,
@@ -545,20 +512,75 @@ interface CutInControls {
   onTier: (tier: CutInTier | null) => void;
 }
 
-/** Levi's or Aria's part, as the panel drives it. */
-interface LeviControls {
+/**
+ * THE SHOWING PARTS, as the panel lists them. Each is joined to no skill
+ * of the game's; its cut-in is v18's sample (names provisional, except
+ * 零閃・天衝, which is confirmed). One row here is one section of the panel
+ * and one `&<id>=1|bare` in the URL.
+ */
+type ScenePartId = 'levi' | 'aria' | 'zero';
+interface ScenePart {
+  id: ScenePartId;
+  heading: string;
+  button: string;
+  /** How the DEBUG chip names its last playing. */
+  chip: string;
+  cutIn: CutInSample;
+  /** The order it plays in, for the note under its buttons. */
+  flow: string;
+  /** What it does not show, and why. */
+  withheld: string;
+  /** Its length without the cut-in. */
+  ms: (speed: BattleSpeed) => number;
+}
+interface PartDirector {
+  play: (cutIn?: CutInSpec | null) => Promise<SceneEnd>;
+  stop: () => void;
+  playing: boolean;
+  scene: FieldScene | null;
+}
+const sampleOf = (id: string) => CUT_IN_SAMPLES.find((c) => c.id === id)!;
+const SCENE_PARTS: readonly ScenePart[] = [
+  {
+    id: 'levi',
+    heading: 'レヴィ「幻影槍6本」（演出見本・本編未接続）',
+    button: '▶ 幻影槍6本を再生',
+    chip: 'レヴィ',
+    cutIn: sampleOf('levi'),
+    flow: '構え → 幻影槍6本が出現 → 1本ずつ順に刺さる → レヴィ自身の突きでフィニッシュ。',
+    withheld: 'ダメージ数字は出ません（本編の技ではないため）。技名は v18 の仮称です。',
+    ms: (at) => leviPlan(at).end,
+  },
+  {
+    id: 'aria',
+    heading: 'アリア「蒼薔薇の矢」（演出見本・本編未接続）',
+    button: '▶ アリアの弓を再生',
+    chip: 'アリア',
+    cutIn: sampleOf('aria'),
+    flow: '弓を空へ → 矢が空で星に → 青薔薇が開く → 光と花びらが味方へ（味方へのバフ）。',
+    withheld: 'ダメージ数字・能力値の表示は出ません（本編の技ではないため）。技名は v18 の仮称です。',
+    ms: (at) => ariaPlan(at).end,
+  },
+  {
+    id: 'zero',
+    heading: '主人公「零閃・天衝」（演出マスター・本編未接続）',
+    button: '▶ 零閃・天衝を再生',
+    chip: '零閃',
+    cutIn: sampleOf('hero'),
+    flow: '駆け抜け → 暗転 → 紅い月 → 斬撃 → 月と画面が真っ二つ → 落下 → 復帰 → 黒い血飛沫 → 帰還。',
+    withheld: 'ダメージ数字は出ません（技の性能は未決定のため）。',
+    ms: (at) => zeroPlan(at).end,
+  },
+];
+
+/** One part, as the panel drives it. */
+interface PartControls {
+  part: ScenePart;
   withCutIn: boolean;
   last: { ms: number; speed: BattleSpeed } | null;
   onPlay: () => void;
   onCutIn: () => void;
 }
-
-/** Her cut-in before the spears: v18's sample, as it is (仮称). */
-const LEVI_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'levi')!;
-/** Hers before the arrow: v18's sample, as it is (仮称, v18's long 必殺技 hold). */
-const ARIA_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'aria')!;
-/** His before 零閃・天衝: v18's sample (必殺技 hold). */
-const ZERO_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'hero')!;
 
 const TIER_LABEL: Record<CutInTier, string> = { SKILL: '通常技', FINISHER: '必殺技' };
 
@@ -585,9 +607,7 @@ function DebugPanel({
   onCycleSpeed,
   onCastSpell,
   onSwing,
-  levi,
-  aria,
-  zero,
+  parts,
   cutIns,
 }: {
   open: boolean;
@@ -600,9 +620,7 @@ function DebugPanel({
   onCycleSpeed: () => void;
   onCastSpell: (spellId: string) => void;
   onSwing: () => void;
-  levi: LeviControls;
-  aria: LeviControls;
-  zero: LeviControls;
+  parts: readonly PartControls[];
   cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
@@ -619,23 +637,14 @@ function DebugPanel({
             ・直前のターン {(lastTurn.ms / 1000).toFixed(2)}秒（×{lastTurn.speed}）
           </span>
         )}
-        {levi.last && (
-          <span data-testid="debug-last-levi">
-            {' '}
-            ・直前のレヴィ {(levi.last.ms / 1000).toFixed(2)}秒（×{levi.last.speed}）
-          </span>
-        )}
-        {aria.last && (
-          <span data-testid="debug-last-aria">
-            {' '}
-            ・直前のアリア {(aria.last.ms / 1000).toFixed(2)}秒（×{aria.last.speed}）
-          </span>
-        )}
-        {zero.last && (
-          <span data-testid="debug-last-zero">
-            {' '}
-            ・直前の零閃 {(zero.last.ms / 1000).toFixed(2)}秒（×{zero.last.speed}）
-          </span>
+        {parts.map(
+          ({ part, last }) =>
+            last && (
+              <span key={part.id} data-testid={`debug-last-${part.id}`}>
+                {' '}
+                ・直前の{part.chip} {(last.ms / 1000).toFixed(2)}秒（×{last.speed}）
+              </span>
+            ),
         )}
         {cutIns.last && (
           <span data-testid="debug-last-cutin">
@@ -706,42 +715,21 @@ function DebugPanel({
           <p style={styles.note}>
             押すたびに新しい戦闘（MP満タン・同じ乱数）で1回唱えます。癒しの光の回復を見るときは HP を「半分から」に。
           </p>
-          <p style={styles.heading}>レヴィ「幻影槍6本」（演出見本・本編未接続）</p>
-          <button style={styles.btn} data-testid="debug-levi" onClick={levi.onPlay}>
-            ▶ 幻影槍6本を再生
-          </button>
-          <button style={styles.btn} data-testid="debug-levi-cutin" onClick={levi.onCutIn}>
-            先にカットイン：{levi.withCutIn ? 'あり' : 'なし'}
-          </button>
-          <p style={styles.note}>
-            構え → 幻影槍6本が出現 → 1本ずつ順に刺さる → レヴィ自身の突きでフィニッシュ。
-            槍だけで ×1 {(leviPlan(1).end / 1000).toFixed(1)}秒・×2 {(leviPlan(2).end / 1000).toFixed(1)}秒
-            （カットイン別）。ダメージ数字は出ません（本編の技ではないため）。技名は v18 の仮称です。
-          </p>
-          <p style={styles.heading}>アリア「蒼薔薇の矢」（演出見本・本編未接続）</p>
-          <button style={styles.btn} data-testid="debug-aria" onClick={aria.onPlay}>
-            ▶ アリアの弓を再生
-          </button>
-          <button style={styles.btn} data-testid="debug-aria-cutin" onClick={aria.onCutIn}>
-            先にカットイン：{aria.withCutIn ? 'あり' : 'なし'}
-          </button>
-          <p style={styles.note}>
-            弓を引く → 敵へ矢 → 着弾 → 青薔薇が開く → 光と花びらが味方へ。
-            ×1 {(ariaPlan(1).end / 1000).toFixed(1)}秒・×2 {(ariaPlan(2).end / 1000).toFixed(1)}秒（カットイン別）。
-            ダメージ数字・能力値の表示は出ません（本編の技ではないため）。技名は v18 の仮称です。
-          </p>
-          <p style={styles.heading}>主人公「零閃・天衝」（演出マスター・本編未接続）</p>
-          <button style={styles.btn} data-testid="debug-zero" onClick={zero.onPlay}>
-            ▶ 零閃・天衝を再生
-          </button>
-          <button style={styles.btn} data-testid="debug-zero-cutin" onClick={zero.onCutIn}>
-            先にカットイン：{zero.withCutIn ? 'あり' : 'なし'}
-          </button>
-          <p style={styles.note}>
-            駆け抜け → 暗転 → 紅い月 → 斬撃 → 月と画面が真っ二つ → 落下 → 復帰 → 黒い血飛沫 → 帰還。
-            ×1 {(zeroPlan(1).end / 1000).toFixed(1)}秒・×2 {(zeroPlan(2).end / 1000).toFixed(1)}秒（カットイン別）。
-            ダメージ数字は出ません（技の性能は未決定のため）。
-          </p>
+          {parts.map(({ part, withCutIn, onPlay, onCutIn }) => (
+            <Fragment key={part.id}>
+              <p style={styles.heading}>{part.heading}</p>
+              <button style={styles.btn} data-testid={`debug-${part.id}`} onClick={onPlay}>
+                {part.button}
+              </button>
+              <button style={styles.btn} data-testid={`debug-${part.id}-cutin`} onClick={onCutIn}>
+                先にカットイン：{withCutIn ? 'あり' : 'なし'}
+              </button>
+              <p style={styles.note}>
+                {part.flow} ×1 {(part.ms(1) / 1000).toFixed(1)}秒・×2 {(part.ms(2) / 1000).toFixed(1)}秒
+                （カットイン別）。{part.withheld}
+              </p>
+            </Fragment>
+          ))}
           <p style={styles.heading}>カットイン（v18 見本・本編未接続）</p>
           {CUT_IN_SAMPLES.map((sample) => (
             <button

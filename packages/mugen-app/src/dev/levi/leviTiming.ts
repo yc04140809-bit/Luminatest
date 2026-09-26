@@ -13,6 +13,7 @@
 // shortens the whole and never turns a part into a flicker.
 
 import { visualMs, type BattleSpeed } from '@mugen/game/battle/battleSpeed';
+import { stepTimes } from '../../ui/battle/scene/stepTimes';
 
 export const SPEAR_COUNT = 6;
 
@@ -82,9 +83,7 @@ export interface LeviPlan {
 }
 
 export function leviPlan(speed: BattleSpeed): LeviPlan {
-  const ms = Object.fromEntries(
-    (Object.keys(LEVI_MS) as LeviStep[]).map((step) => [step, leviMs(step, speed)]),
-  ) as Record<LeviStep, number>;
+  const ms = stepTimes(LEVI_MS, LEVI_FLOOR_MS, speed);
   const each = Array.from({ length: SPEAR_COUNT }, (_, i) => i);
   const stance = ms.ENTER;
   const form = each.map((i) => Math.round(stance + ms.STANCE * FORM_FROM + i * ms.FORM_STEP));
