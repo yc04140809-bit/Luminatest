@@ -10,7 +10,8 @@
 // the fight under it is not touched.
 //
 // Today only the debug preview plays them (src/dev/levi — STEP 5,
-// src/dev/aria — STEP 7); the game's own fights pass none.
+// src/dev/aria — STEP 7, src/dev/hero — STEP 9); the game's own fights
+// pass none.
 
 import type { ReactNode } from 'react';
 
@@ -47,6 +48,13 @@ export interface FieldScene {
   enemy?: string;
   /** What he is going through, once back — `data-scene-hero` on him. */
   hero?: string;
+  /**
+   * Measures the scene's stylesheet needs (a distance, a point), set as
+   * CSS variables on the field and on the layer over it — so it can move
+   * the people themselves (`data-scene-hero` / `data-scene-enemy`)
+   * without the stage knowing how.
+   */
+  vars?: (marks: FieldMarks) => Record<string, string>;
   /** Drawn on the field, among the people (under the HUD). */
   field?: (marks: FieldMarks) => ReactNode;
   /** Drawn over the field and the HUD, in the effects layer. */

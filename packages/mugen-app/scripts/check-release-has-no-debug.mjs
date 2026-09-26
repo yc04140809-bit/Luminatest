@@ -32,6 +32,10 @@ const MARKERS = [
   'debug-aria',
   'aria-rose',
   'ar-arrow',
+  // His 零閃・天衝 (src/dev/hero, STEP 9).
+  'debug-zero',
+  'zero-moon',
+  'zr-moon',
 ];
 
 /** Every source file under a folder. */

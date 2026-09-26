@@ -371,6 +371,7 @@ export function BattleStage({
       setSceneAt({ stage: { width: s.width, height: s.height }, enemy, hero, kaos: box('.bp-kaos .bp-art') });
   }, [sceneId]);
   const sceneOn = scene !== null && sceneAt !== null;
+  const sceneVars = sceneOn && scene.vars ? (scene.vars(sceneAt) as CSSProperties) : undefined;
 
   const struckHero = latestOn(blows, 'hero');
   const struckEnemy = latestOn(blows, 'enemy');
@@ -460,6 +461,7 @@ export function BattleStage({
         data-beat={beat}
         data-scene={sceneOn ? scene.name : undefined}
         data-scene-step={sceneOn ? scene.step : undefined}
+        style={sceneVars}
       >
         {backdrop && (
           <img
@@ -903,6 +905,7 @@ export function BattleStage({
           data-testid="bp-scene-over"
           data-scene={scene.name}
           data-scene-step={scene.step}
+          style={sceneVars}
         >
           {scene.over(sceneAt)}
         </div>

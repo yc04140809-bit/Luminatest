@@ -37,6 +37,8 @@ import { useLeviDirector } from './levi/useLeviDirector';
 import { leviPlan } from './levi/leviTiming';
 import { useAriaDirector } from './aria/useAriaDirector';
 import { ariaPlan } from './aria/ariaTiming';
+import { useZeroDirector } from './hero/useZeroDirector';
+import { zeroPlan } from './hero/zeroTiming';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — for checking how a fight LOOKS.
@@ -87,6 +89,7 @@ import { ariaPlan } from './aria/ariaTiming';
  *   &levi=1 / &levi=bare         Levi's phantom spears once on opening
  *                                (bare: without her cut-in first)
  *   &aria=1 / &aria=bare         Aria's blue-rose arrow once on opening
+ *   &zero=1 / &zero=bare         his 零閃・天衝 once on opening
  *
  * LEVI'S PHANTOM SPEARS (STEP 5). A showing part and nothing more
  * (./levi): she steps in, six phantom spears form round the creature and
@@ -98,6 +101,11 @@ import { ariaPlan } from './aria/ariaTiming';
  * steps in, draws her bow at the creature, the arrow lands, a blue rose
  * opens over the field and its light falls on the party with petals. No
  * number, no health taken, none of v18's stat tags; name provisional.
+ *
+ * HIS 零閃・天衝 (STEP 9). The same kind of part (./hero): he dashes
+ * through the creature, a red moon is cut in two and falls, and back on
+ * the field the cut lands in black blood. The name is the confirmed one;
+ * what the skill costs or does is not decided, so no number, no health.
  *
  * HER SPELLS (STEP C). The DEBUG panel casts each of the five in the
  * game's spell data on a fresh fight, through the very pipeline the
@@ -188,6 +196,10 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const aria = useAriaDirector(speed, director);
   const [ariaCutIn, setAriaCutIn] = useState(params.get('aria') !== 'bare');
   const [lastAria, setLastAria] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
+  // HIS 零閃・天衝 — the part, played from the panel.
+  const zero = useZeroDirector(speed, director);
+  const [zeroCutIn, setZeroCutIn] = useState(params.get('zero') !== 'bare');
+  const [lastZero, setLastZero] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
   const speedAt = useRef(speed);
   speedAt.current = speed;
   const shaped = (spec: CutInSpec): CutInSpec => (tierOverride ? { ...spec, tier: tierOverride } : spec);
@@ -210,6 +222,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
     director.stop();
     levi.stop();
     aria.stop();
+    zero.stop();
   };
 
   /** Levi's spears, from the top: a fresh fight, then the part. */
@@ -236,12 +249,25 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
     if (end === 'done') setLastAria({ ms: performance.now() - started, speed: at });
   };
 
+  /** His 零閃・天衝, from the top: a fresh fight, then the part. */
+  const playZero = async (withCutIn: boolean) => {
+    stopCutIns();
+    setAutoCast(null);
+    setPanel(false);
+    setRun((n) => n + 1);
+    const started = performance.now();
+    const at = speedAt.current;
+    const end = await zero.play(withCutIn ? ZERO_CUT_IN.spec : null);
+    if (end === 'done') setLastZero({ ms: performance.now() - started, speed: at });
+  };
+
   // `&cutin=…`: one sample on opening, for a link straight to it.
   useEffect(() => {
     const first = CUT_IN_SAMPLES.find((c) => c.id === params.get('cutin'));
     if (first) void playCutIns([first]);
     if (params.has('levi')) void playLevi(params.get('levi') !== 'bare');
     if (params.has('aria')) void playAria(params.get('aria') !== 'bare');
+    if (params.has('zero')) void playZero(params.get('zero') !== 'bare');
   }, []);
 
   /** A spell to cast as soon as the next fresh fight is on screen. */
@@ -290,8 +316,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
         onTurnWatched={(ms) => setLastTurn({ ms, speed })}
         cinematic={director.element}
-        cinematicPlaying={director.playing || levi.playing || aria.playing}
-        scene={levi.scene ?? aria.scene}
+        cinematicPlaying={director.playing || levi.playing || aria.playing || zero.playing}
+        scene={levi.scene ?? aria.scene ?? zero.scene}
         autoCast={autoCast}
       />
       {showPanel && (
@@ -321,6 +347,12 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
             last: lastAria,
             onPlay: () => void playAria(ariaCutIn),
             onCutIn: () => setAriaCutIn((on) => !on),
+          }}
+          zero={{
+            withCutIn: zeroCutIn,
+            last: lastZero,
+            onPlay: () => void playZero(zeroCutIn),
+            onCutIn: () => setZeroCutIn((on) => !on),
           }}
           cutIns={{
             playing: director.playing,
@@ -525,6 +557,8 @@ interface LeviControls {
 const LEVI_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'levi')!;
 /** Hers before the arrow: v18's sample, as it is (仮称, v18's long 必殺技 hold). */
 const ARIA_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'aria')!;
+/** His before 零閃・天衝: v18's sample (必殺技 hold). */
+const ZERO_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'hero')!;
 
 const TIER_LABEL: Record<CutInTier, string> = { SKILL: '通常技', FINISHER: '必殺技' };
 
@@ -553,6 +587,7 @@ function DebugPanel({
   onSwing,
   levi,
   aria,
+  zero,
   cutIns,
 }: {
   open: boolean;
@@ -567,6 +602,7 @@ function DebugPanel({
   onSwing: () => void;
   levi: LeviControls;
   aria: LeviControls;
+  zero: LeviControls;
   cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
@@ -593,6 +629,12 @@ function DebugPanel({
           <span data-testid="debug-last-aria">
             {' '}
             ・直前のアリア {(aria.last.ms / 1000).toFixed(2)}秒（×{aria.last.speed}）
+          </span>
+        )}
+        {zero.last && (
+          <span data-testid="debug-last-zero">
+            {' '}
+            ・直前の零閃 {(zero.last.ms / 1000).toFixed(2)}秒（×{zero.last.speed}）
           </span>
         )}
         {cutIns.last && (
@@ -687,6 +729,18 @@ function DebugPanel({
             弓を引く → 敵へ矢 → 着弾 → 青薔薇が開く → 光と花びらが味方へ。
             ×1 {(ariaPlan(1).end / 1000).toFixed(1)}秒・×2 {(ariaPlan(2).end / 1000).toFixed(1)}秒（カットイン別）。
             ダメージ数字・能力値の表示は出ません（本編の技ではないため）。技名は v18 の仮称です。
+          </p>
+          <p style={styles.heading}>主人公「零閃・天衝」（演出マスター・本編未接続）</p>
+          <button style={styles.btn} data-testid="debug-zero" onClick={zero.onPlay}>
+            ▶ 零閃・天衝を再生
+          </button>
+          <button style={styles.btn} data-testid="debug-zero-cutin" onClick={zero.onCutIn}>
+            先にカットイン：{zero.withCutIn ? 'あり' : 'なし'}
+          </button>
+          <p style={styles.note}>
+            駆け抜け → 暗転 → 紅い月 → 斬撃 → 月と画面が真っ二つ → 落下 → 復帰 → 黒い血飛沫 → 帰還。
+            ×1 {(zeroPlan(1).end / 1000).toFixed(1)}秒・×2 {(zeroPlan(2).end / 1000).toFixed(1)}秒（カットイン別）。
+            ダメージ数字は出ません（技の性能は未決定のため）。
           </p>
           <p style={styles.heading}>カットイン（v18 見本・本編未接続）</p>
           {CUT_IN_SAMPLES.map((sample) => (
