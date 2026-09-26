@@ -297,7 +297,10 @@ test("in the game's own fight with Gald, her spells are shown in full and the fi
   expect(f.some((x) => x.cut === '星光弾')).toBe(true);
   expect(f.some((x) => x.phase === 'channel')).toBe(true);
   expect(f.some((x) => x.phase === 'impact')).toBe(true);
-  const shown = Number(f.flatMap((x) => x.enemyHits).find(Boolean));
+  // Only what rises after it lands: the last swing's number may still be
+  // fading when the spell is chosen.
+  const landed = f.findIndex((x) => x.phase === 'impact');
+  const shown = Number(f.slice(landed).flatMap((x) => x.enemyHits).find(Boolean));
   expect(shown).toBe(before - (await enemyHp(page))[0]);
   expect(f.some((x) => x.said.includes('《星光弾》'))).toBe(true);
 
@@ -310,7 +313,12 @@ test("in the game's own fight with Gald, her spells are shown in full and the fi
   expect(f.some((x) => x.cut === '癒しの光')).toBe(true);
   expect(f.some((x) => x.kind === 'MEND' && x.phase === 'impact')).toBe(true);
   expect(f.some((x) => x.said.includes('《癒しの光》'))).toBe(true);
-  expect(f.flatMap((x) => x.enemyHits).filter(Boolean)).toEqual([]);
+  expect(
+    f
+      .slice(f.findIndex((x) => x.phase === 'impact'))
+      .flatMap((x) => x.enemyHits)
+      .filter(Boolean),
+  ).toEqual([]);
 
   // And the fight is still the game's: on to the four answers.
   await fightUntil(
