@@ -26,6 +26,10 @@ interface Frame {
   locked: string;
   enemyHits: string[];
   said: string;
+  /** The framed plate (bp-said) — never drawn for a spell. */
+  plate: boolean;
+  /** Everything written on the screen, for looking for the flavour line. */
+  text: string;
 }
 
 async function record(page: Page) {
@@ -50,7 +54,9 @@ async function record(page: Page) {
         enemyHits: [...document.querySelectorAll<HTMLElement>('.bp-hit')]
           .filter((h) => parseFloat(h.style.left) < 50)
           .map((h) => h.querySelector('.bp-hit-damage')?.textContent ?? ''),
-        said: document.querySelector('[data-testid="bp-said-result"]')?.textContent ?? '',
+        said: document.querySelector('[data-testid="bp-told"]')?.textContent ?? '',
+        plate: !!document.querySelector('[data-testid="bp-said"]'),
+        text: document.querySelector('.bp-screen')?.textContent ?? '',
       });
       if (w.__recording) requestAnimationFrame(tick);
     };
@@ -129,8 +135,14 @@ for (const def of MAGIC_DEFS) {
       expect(numbers).toEqual([]);
       expect(endHp).toBe(startHp);
     }
-    // The plate says what the core's own log says it did.
-    expect(f.some((x) => x.said.includes(`《${def.name}》`))).toBe(true);
+    // One light line says what the core's own log says it did — the result
+    // sentence, naming the spell — and nothing else: no framed plate, and
+    // the spell's flavour line appears nowhere on the fight's screen (her
+    // cut-in still carries it; that is drawn outside it).
+    const told = f.find((x) => x.said)?.said ?? '';
+    expect(told).toContain(`《${def.name}》`);
+    expect(f.some((x) => x.plate)).toBe(false);
+    expect(f.some((x) => !x.cut && x.text.includes(def.line))).toBe(false);
     // And the fight goes on: one more swing works as ever.
     await page.getByTestId('bp-attack').click();
     await readyToAct(page);

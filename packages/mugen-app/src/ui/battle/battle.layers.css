@@ -129,3 +129,45 @@
   color: var(--bx-ink);
   font-weight: 600;
 }
+
+/* WHAT A SPELL DID — one light line where the plate sits (under the
+   place name), in place of the framed plate: the battle's own result
+   sentence and nothing else. No frame and no flavour line, only a thin
+   dark band that fades out at both ends so the white words read over a
+   bright forest; the field, the party and the creature stay in view.
+   It holds long enough to read at ×1 and ×2, then fades away. */
+.bp-told {
+  --bp-told: 3200ms;
+  /* Where the plate sits — centred, under the place name — but on its
+     own, not in the top group the screen dims while a blow lands. */
+  position: absolute;
+  left: 50%;
+  top: calc(6px + 23.5vh);
+  width: max-content;
+  max-width: min(92vw, 560px);
+  margin: 0;
+  padding: 3px 26px 4px;
+  background: linear-gradient(90deg, transparent, rgba(5, 11, 28, 0.62) 16%, rgba(5, 11, 28, 0.62) 84%, transparent);
+  color: #fffdf6;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  animation: bp-told var(--bp-told) ease-out forwards;
+}
+@keyframes bp-told {
+  0% { opacity: 0; transform: translate(-50%, 4px); }
+  8%, 82% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-told { animation-name: bp-told-still; }
+}
+:root[data-reduced-motion='on'] .bp-told { animation-name: bp-told-still; }
+@keyframes bp-told-still {
+  0%, 82% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, 0); }
+}

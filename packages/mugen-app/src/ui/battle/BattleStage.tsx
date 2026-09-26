@@ -32,6 +32,10 @@ import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
 import { SwordSlash, type SlashView } from './slash/SwordSlash';
+
+/** How long a spell's result line holds before it fades, and its least at ×2. */
+const TOLD_MS = 3200;
+const TOLD_FLOOR_MS = 2200;
 import { AwakeningScene } from './AwakeningScene';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
@@ -107,6 +111,12 @@ export interface BattleStageProps {
   downed?: boolean;
   /** An item's line on the plate, while it is being read. */
   say?: { name: string; line: string; result: string } | null;
+  /**
+   * WHAT A SPELL DID, IN ONE LINE — the battle's own result sentence
+   * ("《彗星撃》！ モスラビットに30のダメージ。"), shown light and brief in
+   * place of the plate: no frame, no flavour line.
+   */
+  told?: string | null;
   speed?: BattleSpeed;
   auto?: boolean;
   onCommand?: (command: BattleCommand) => void;
@@ -146,6 +156,7 @@ export function BattleStage({
   turn = AT_REST,
   downed = false,
   say = null,
+  told = null,
   speed = DEFAULT_BATTLE_SPEED,
   auto = false,
   onCommand,
@@ -532,6 +543,7 @@ export function BattleStage({
               </button>
             )}
           </div>
+          {!told && (
           <div
             key={plateKey}
             className={say ? 'bp-message bp-said' : 'bp-message'}
@@ -569,7 +581,24 @@ export function BattleStage({
               )
             )}
           </div>
+          )}
         </div>
+
+        {/* A spell's result: outside the top group, which the screen dims
+            while a blow lands, so the line stays readable through the
+            creature's answer. */}
+        {told && (
+            <p
+              key={`told:${battle.log.length}:${told}`}
+              className="bp-told"
+              data-testid="bp-told"
+              role="status"
+              aria-live="polite"
+              style={{ '--bp-told': `${visualMs(TOLD_MS, speed, TOLD_FLOOR_MS)}ms` } as CSSProperties}
+            >
+              {told}
+            </p>
+        )}
 
         <div className="bx-corner bx-tr">
           <PartyHud

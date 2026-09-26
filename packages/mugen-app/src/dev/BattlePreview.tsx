@@ -306,6 +306,8 @@ function PreviewFight({
   const [auto, setAuto] = useState(false);
   const [downed, setDowned] = useState(false);
   const [say, setSay] = useState<{ name: string; line: string; result: string } | null>(null);
+  /** A spell's result line (BattleStage `told`), until the next command. */
+  const [told, setTold] = useState<string | null>(null);
   const theatre = useBattleTheatre(speed, { slash: setup.slash });
   const forced: EnemyAction | null = setup.answer === 'CORE' ? null : setup.answer;
 
@@ -334,6 +336,7 @@ function PreviewFight({
   const onCommand = (command: BattleCommand) => {
     if (!idle) return;
     setSay(null);
+    setTold(null);
     if (command === 'ATTACK') turn(playerAttack(battle, dice.current, forced), 'ATTACK');
     if (command === 'DEFEND') turn(playerDefend(battle, dice.current, forced), 'DEFEND');
   };
@@ -345,14 +348,15 @@ function PreviewFight({
     const magic = spells.find((m) => m.id === id);
     if (!magic || magicBlocked(battle, magic) !== null) return;
     setSay(null);
+    setTold(null);
     const before = battle;
     const next = castMagic(battle, magic, dice.current, forced);
     setBattle(next);
     startedAt.current = performance.now();
-    const said = next.log.slice(before.log.length);
-    theatre.playSpell(before, next, magic, () =>
-      setSay({ name: magic.name, line: said[0] ?? magic.line, result: said[1] ?? '' }),
-    );
+    // Only the battle's own result sentence — the line that names the
+    // spell ("《彗星撃》！ …のダメージ。") — shown light, once it lands.
+    const result = next.log.slice(before.log.length).find((l) => l.includes(`《${magic.name}》`));
+    theatre.playSpell(before, next, magic, () => setTold(result ?? `《${magic.name}》`));
   };
 
   // A spell asked for from the DEBUG panel: cast the moment this fresh
@@ -405,6 +409,7 @@ function PreviewFight({
       slash={theatre.slash}
       downed={downed}
       say={say}
+      told={told}
       speed={speed}
       auto={auto}
       // Drawn so the screen can be judged with them; neither is built.
