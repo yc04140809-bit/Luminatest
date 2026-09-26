@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { fightToResult } from './battle';
 
 /**
  * THE ONE LOOP APP ALPHA EXISTS TO PROVE.
@@ -59,13 +60,7 @@ async function intoTheForest(page: Page) {
 
 /** Swings until the fight is decided. */
 async function win(page: Page) {
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 60; i++) {
-    if (await page.getByTestId('result-exp').isVisible().catch(() => false)) return;
-    if (!(await attack.isEnabled().catch(() => false))) break;
-    await attack.click({ timeout: 2000 }).catch(() => {});
-  }
-  await expect(page.getByTestId('result-exp')).toBeVisible({ timeout: 20_000 });
+  await fightToResult(page);
 }
 
 test('the whole loop, and it is still there after a restart', async ({ page }) => {
@@ -82,7 +77,7 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   // ALDEN → MAP → GREENWOOD → BATTLE
   await intoTheForest(page);
   await page.getByTestId('encounter-button').click();
-  await expect(page.getByTestId('enemy-hp')).toBeVisible();
+  await expect(page.getByTestId('battle-screen')).toBeVisible();
   await win(page);
 
   // RESULT — the winnings are the core's, not this screen's.

@@ -19,6 +19,7 @@ import {
   LifeChoiceScreen,
 } from './ui/gald';
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
+import { GALD_DEFEATED_LINES } from '@mugen/content/dialogue/galdEncounter';
 import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
@@ -535,6 +536,19 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // difference between them. Both specs are content.
           key={story.current ? 'gald' : 'rabbit'}
           spec={story.current ? GALD_BATTLE : specOf(MOSS_RABBIT)}
+          // How they are drawn, as the Artifact draws the same two: Gald
+          // is a person at arm's length who speaks when beaten; the
+          // rabbit a creature up the path, with its own line.
+          opponent={
+            story.current
+              ? {
+                  artId: 'gald',
+                  stands: 'NEAR',
+                  defeated: { speaker: GALD_BATTLE.name, text: GALD_DEFEATED_LINES[0].text },
+                }
+              : { artId: 'moss_rabbit', stands: 'FAR', defeated: { text: MOSS_RABBIT.defeatedText } }
+          }
+          locationId="GREENWOOD_FOREST"
           world={world}
           onWon={story.current ? wonTheStory : won}
           music={music}

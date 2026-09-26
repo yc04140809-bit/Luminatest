@@ -7,6 +7,8 @@ import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
 import { BattleStage, type BattleOpponentView } from '../ui/battle/BattleStage';
 import { BATTLE_BACKGROUND_KEYS } from '@mugen/assets/keys';
+import { availableMagic } from '@mugen/core/magic/magic';
+import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — development builds only.
@@ -51,6 +53,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
       opponent={opponent}
       locationId="GREENWOOD_FOREST"
       background={background}
+      // Her spells, as the fight would offer them; casting does nothing here.
+      magic={{ spells: availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked }), onCast: () => {} }}
       memoryLines={[]}
       memoryDepth={0}
       arcanaReady={false}

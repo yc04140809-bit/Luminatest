@@ -7,8 +7,9 @@
 // CSS and keeps, rule for rule and byte for byte, exactly the parts the
 // battle screen uses:
 //
-//   - every rule whose selector names a battle class (`bp-…`, `bx-…`),
-//     including inside @media / @supports, which are kept around them;
+//   - every rule whose selector names a battle class (`bp-…`, `bx-…`,
+//     and the spell tray / awakening pieces it borrows), including
+//     inside @media / @supports, which are kept around them;
 //   - every @keyframes one of those rules animates with;
 //   - the Artifact's design tokens, re-scoped from `:root` to
 //     `.bp-screen` so they cannot recolour any other App screen (the two
@@ -26,8 +27,12 @@ const ARTIFACT_TOKENS = here('../../mugen-artifact/src/ui/styles/tokens.css');
 const ARTIFACT_STYLES = here('../../mugen-artifact/src/ui/styles.css');
 export const OUTPUT = here('../src/ui/battle/battle.generated.css');
 
-/** A selector the battle screen draws with. */
-const BATTLE_CLASS = /\.(bp|bx)-[\w-]+/;
+/**
+ * A selector the battle screen draws with: its own `bp-`/`bx-` classes,
+ * and the two pieces it borrows — the spell tray (`magic-tray…`) and
+ * the moment Kaos steps forward (`awakening…`).
+ */
+const BATTLE_CLASS = /\.(bp|bx)-[\w-]+|\.magic-tray\b|\.magic-tray-[\w-]+|\.awakening-[\w-]+/;
 
 function keepsBattle(rule) {
   return rule.type === 'rule' && BATTLE_CLASS.test(rule.selector);

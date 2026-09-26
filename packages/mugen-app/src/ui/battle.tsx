@@ -1,9 +1,8 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
   castMagic,
   clearAwakeningLines,
   createBattle,
-  itemRefusalLine,
   playerAttack,
   playerDefend,
   refuseItem,
@@ -11,16 +10,33 @@ import {
   type BattleState,
 } from '@mugen/game/battle/battleLogic';
 import type { EnemySpec } from '@mugen/game/battle/battleLogic';
+import { magicBlocked } from '@mugen/game/battle/magicChoice';
+import {
+  DEFAULT_BATTLE_SPEED,
+  beatMs,
+  nextSpeed,
+  type BattleSpeed,
+} from '@mugen/game/battle/battleSpeed';
 import { availableMagic } from '@mugen/core/magic/magic';
 import { kaosHasAwakened } from '@mugen/core/magic/awakened';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
+import { ARCANA_DEFS } from '@mugen/content/arcana/arcanaDefs';
 import { itemDef } from '@mugen/content/economy/itemDefs';
+import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
+import type { LocationId } from '@mugen/content/locations/locationVisuals';
 import { statsForLevels } from '@mugen/core/progression/levelStats';
 import type { AppliedReward } from '@mugen/core/progression/battleReward';
 import type { World } from '@mugen/core/world/world';
 import type { BattleBackgroundKey } from '@mugen/assets/keys';
-import { battleBackgroundArt } from '../assets/battleBackground';
-import { usePicture } from './scene';
+import { BattleStage, type BattleCommand, type BattleOpponentView } from './battle/BattleStage';
+import {
+  DEFEAT_WAIT_MS,
+  KNOCKDOWN_MS,
+  VICTORY_WAIT_MS,
+  useBattleTheatre,
+  type TurnKind,
+} from './battle/battleTheatre';
+import { arcanaReading } from './battle/arcanaDepth';
 
 /**
  * THE FIGHT, DRIVEN BY THE SHARED CORE AND NOTHING ELSE.
@@ -40,6 +56,8 @@ import { usePicture } from './scene';
 export function BattleScreen({
   world,
   spec,
+  opponent,
+  locationId,
   onWon,
   onLost,
   music,
@@ -47,50 +65,21 @@ export function BattleScreen({
 }: {
   world: World;
   /**
-   * WHO IS BEING FOUGHT, handed in rather than decided here.
-   *
-   * Two fights arrive on this screen — a moss rabbit in the forest and
-   * the one the story turns on — and they differ in their numbers and
-   * in nothing else. Choosing between them is the caller's business;
-   * `GALD_BATTLE` and `specOf(MOSS_RABBIT)` are both content, and this
-   * screen is not allowed an opinion about which it is looking at.
+   * WHO IS BEING FOUGHT, handed in rather than decided here: the moss
+   * rabbit and the story's Gald differ in their numbers and nothing else.
    */
   spec: EnemySpec;
+  /** How they are drawn: whose pictures, how near, what they say beaten. */
+  opponent: BattleOpponentView;
+  /** Where — the place's name on the screen. */
+  locationId: LocationId;
   onWon: (final: { hp: number; mp: number }) => void;
   onLost: () => void;
-  /**
-   * THE ♪ CONTROL, or nothing.
-   *
-   * Absent means there is nothing to choose — a fight that brought its
-   * own music, or a save that has won only the one piece — and the
-   * control is then not drawn at all rather than drawn and refusing.
-   * Which it is is the caller's to decide; this screen only shows it.
-   */
   music?: { label: string; onCycle: () => void };
-  /**
-   * The ground the fight is fought on — a battle background key, from
-   * content (content/locations/battleBackgrounds). Drawn behind the
-   * fight and dimmed like every place's backdrop, so nothing on this
-   * screen is harder to read. Null: the plain ground.
-   */
+  /** The ground the fight is fought on (content/locations/battleBackgrounds). */
   background?: BattleBackgroundKey | null;
 }) {
-  const ground = usePicture(
-    background ? () => battleBackgroundArt(background) : null,
-    `battle-bg:${background ?? 'none'}`,
-  );
-  const backdrop = ground && (
-    <img
-      className="backdrop"
-      src={ground}
-      alt=""
-      aria-hidden="true"
-      data-testid="battle-bg"
-      data-background={background ?? undefined}
-    />
-  );
-  // The bag can change mid-fight, so this screen watches the world the
-  // same way the shell does rather than reading a stale copy.
+  // The bag can change mid-fight, so this screen watches the world.
   useSyncExternalStore(
     (cb) => world.subscribe(cb),
     () => world.getVersion(),
@@ -100,182 +89,143 @@ export function BattleScreen({
       stats: statsForLevels(world.getLevel('hero'), world.getLevel('kaos')),
       condition: world.getBattleCondition(),
       /**
-       * WHETHER SHE HAS WOKEN, ASKED OF THE WORLD.
-       *
-       * A creature with no awakening beat of its own — a moss rabbit —
-       * never turns magic on mid-fight, so a fight that started with
-       * it off would never have it. Whether Kaos can cast at all is a
-       * fact about the WORLD, not about the rabbit, and
-       * `kaosHasAwakened` is the core's own reading of it from what
-       * the world remembers. The Artifact asks the identical question
-       * of the identical function.
+       * WHETHER SHE HAS WOKEN, ASKED OF THE WORLD — the core's own
+       * reading of what the world remembers, as the Artifact asks it.
        */
       magicUnlocked: kaosHasAwakened(world.getKnownEvents().map((e) => e.type)),
     }),
   );
+
+  // HOW FAST IT IS WATCHED — this fight only, starting at ×1, as in the
+  // Artifact. It changes the showing, never the fighting.
+  const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
+  const theatre = useBattleTheatre(speed);
+
   /**
-   * One action at a time.
-   *
-   * Spending an item writes to the save, which takes a moment, and
-   * during that moment `getItemCount` still reports the old number. A
-   * second tap inside the window would pass a refusal check made
-   * against a count that no longer exists — one herb drunk twice. The
-   * flag closes the window; it is not a spinner.
+   * One thing at a time. Using an item writes to the save first, and
+   * until it has, the bag still shows the old count — a second tap in
+   * that window would drink one herb twice.
    */
   const [busy, setBusy] = useState(false);
-  const over = battle.outcome !== 'ONGOING';
+  const [say, setSay] = useState<{ name: string; line: string; result: string } | null>(null);
+  /** The creature has finished going down. */
+  const [downed, setDowned] = useState(false);
+  /** What the party carries out, fixed the moment the fight is decided. */
+  const ended = useRef<{ hp: number; mp: number } | null>(null);
+
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
   const carried = world.getInventory().filter((stack) => itemDef(stack.itemId)?.use);
+  const reading = arcanaReading(ARCANA_DEFS, world.getArcanaRecords());
+  const memoryLines = world.getKnownEvents().map((e) => memoryEventLabel(e));
 
-  const act = (next: BattleState) => {
+  /** A turn the core has decided: kept, and shown. */
+  const turn = (next: BattleState, kind: TurnKind) => {
+    const before = battle;
     setBattle(next);
-    if (next.outcome === 'VICTORY') onWon({ hp: next.playerHp, mp: next.playerMp });
-    if (next.outcome === 'DEFEAT') onLost();
+    if (next.outcome !== 'ONGOING' && !ended.current) {
+      ended.current = { hp: next.playerHp, mp: next.playerMp };
+    }
+    theatre.playTurn(before, next, kind);
+  };
+
+  const idle = battle.outcome === 'ONGOING' && !busy && !theatre.playing;
+
+  const onCommand = (command: BattleCommand) => {
+    if (!idle) return;
+    setSay(null);
+    if (command === 'ATTACK') turn(playerAttack(battle), 'ATTACK');
+    if (command === 'DEFEND') turn(playerDefend(battle), 'DEFEND');
+    // SKILL opens its own (empty) tray; ARCANA is locked in the App.
+  };
+
+  const cast = (id: string) => {
+    if (!idle) return;
+    const magic = spells.find((m) => m.id === id);
+    if (!magic || magicBlocked(battle, magic) !== null) return;
+    setSay(null);
+    turn(castMagic(battle, magic), 'MAGIC');
   };
 
   const drink = (itemId: string) => {
-    if (busy || over) return;
+    if (!idle) return;
     const def = itemDef(itemId);
     if (!def?.use) return;
-    const held = world.getItemCount(itemId);
-    // Refused HERE, before anything is spent, and by the same function
-    // that greys the button — so the reason shown and the reason it
-    // did not happen can never be two different reasons.
-    if (refuseItem(battle, def.use, held) !== null) return;
+    // Refused HERE, before anything is spent, by the same function the
+    // tray greys its button with.
+    if (refuseItem(battle, def.use, world.getItemCount(itemId)) !== null) return;
     setBusy(true);
+    setSay(null);
+    const before = battle;
     void world
       .removeItem(itemId, 1)
       .then((moved) => {
-        // Nothing left the bag, so nothing happens in the fight
-        // either. The alternative is a free drink.
-        if (moved > 0) act(useItem(battle, def.use!));
+        // Nothing left the bag, so nothing happens in the fight either.
+        if (moved <= 0) return;
+        const next = useItem(before, def.use!);
+        turn(next, 'ITEM');
+        const said = next.log.slice(before.log.length);
+        setSay({ name: def.name, line: said[0] ?? def.use!.line, result: said[1] ?? '' });
       })
       .catch(() => {})
       .finally(() => setBusy(false));
   };
 
-  // The awakening is a beat, not a line: it is read, then it becomes
-  // the log's one-line record. Same order as the Artifact.
-  if (battle.awakeningLines.length > 0) {
-    return (
-      <div className="screen battle" data-testid="awakening">
-        {backdrop}
-        {/* A speaker and a line, the same pair the Artifact reads out. */}
-        {battle.awakeningLines.map((line, i) => (
-          <p className="line" key={i}>
-            {line.speaker ? `${line.speaker}「${line.text}」` : line.text}
-          </p>
-        ))}
-        <button
-          className="btn primary"
-          data-testid="awakening-done"
-          onClick={() => setBattle((b) => clearAwakeningLines(b))}
-        >
-          つづける
-        </button>
-      </div>
-    );
-  }
+  /**
+   * DECIDED, AND THEN SHOWN BEING DECIDED — the Artifact's order and
+   * waits. A lost fight sits a moment and moves on. A won one lets the
+   * creature go down, lets its line be read, and then hands back what
+   * the party carries out. Every wait is cleared if the screen goes.
+   */
+  useEffect(() => {
+    if (battle.outcome === 'DEFEAT') {
+      const t = setTimeout(onLost, beatMs(DEFEAT_WAIT_MS, speed));
+      return () => clearTimeout(t);
+    }
+    if (battle.outcome === 'VICTORY' && !downed) {
+      const t = setTimeout(() => setDowned(true), beatMs(KNOCKDOWN_MS, speed));
+      return () => clearTimeout(t);
+    }
+    if (battle.outcome === 'VICTORY' && downed) {
+      const t = setTimeout(
+        () => onWon(ended.current ?? { hp: battle.playerHp, mp: battle.playerMp }),
+        beatMs(VICTORY_WAIT_MS, speed),
+      );
+      return () => clearTimeout(t);
+    }
+    return undefined;
+    // The handlers are the parent's and stable in effect; the fight's
+    // outcome and the fall are what these waits hang on.
+  }, [battle.outcome, downed, speed]);
 
   return (
-    <div className="screen battle">
-      {backdrop}
-      <div className="battle-head">
-        <h1 className="place">{battle.enemyName}</h1>
-        {/* ♪ — WHICH PIECE THIS FIGHT IS FOUGHT TO. It changes one
-            preference and nothing else: no turn is taken and the
-            battle does not know it happened. */}
-        {music && (
-          <button
-            className="bgm-cycle"
-            data-testid="bgm-cycle"
-            onClick={music.onCycle}
-            aria-label={`戦闘BGMを切り替える（${music.label}）`}
-          >
-            <span aria-hidden="true">♪</span>
-            <span data-testid="bgm-label">{music.label}</span>
-          </button>
-        )}
-      </div>
-      <p className="bar" data-testid="enemy-hp">
-        敵 HP {battle.enemyHp} / {battle.enemyMaxHp}
-      </p>
-      <p className="bar" data-testid="player-hp">
-        味方 HP {battle.playerHp} / {battle.playerMaxHp} ・ MP {battle.playerMp} /{' '}
-        {battle.playerMaxMp}
-      </p>
-      <p className="log" data-testid="battle-log">
-        {battle.log[battle.log.length - 1]}
-      </p>
-      <div className="actions">
-        <button
-          className="btn primary"
-          data-testid="attack-button"
-          disabled={over || busy}
-          onClick={() => act(playerAttack(battle))}
-        >
-          攻撃
-        </button>
-        <button
-          className="btn"
-          data-testid="defend-button"
-          disabled={over || busy}
-          onClick={() => act(playerDefend(battle))}
-        >
-          防御
-        </button>
-      </div>
-
-      {battle.magicUnlocked && (
-        <div className="actions magic" data-testid="magic-tray">
-          {spells.map((magic) => (
-            <button
-              className="btn"
-              key={magic.id}
-              data-testid={`magic-${magic.id}`}
-              disabled={over || busy || battle.playerMp < magic.mpCost}
-              onClick={() => act(castMagic(battle, magic))}
-            >
-              {magic.name}（MP{magic.mpCost}）
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="actions items" data-testid="battle-items">
-        {carried.length === 0 && (
-          <span className="bag-reason" data-testid="battle-items-empty">
-            使えるものを持っていない。
-          </span>
-        )}
-        {carried.map((stack) => {
-          const def = itemDef(stack.itemId)!;
-          const refusal = refuseItem(battle, def.use!, stack.quantity);
-          return (
-            <button
-              className="btn"
-              key={stack.itemId}
-              data-testid={`battle-item-${stack.itemId}`}
-              title={refusal ? itemRefusalLine(refusal, def.name) : undefined}
-              disabled={busy || refusal !== null}
-              onClick={() => drink(stack.itemId)}
-            >
-              {def.name} ×{stack.quantity}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+    <BattleStage
+      battle={battle}
+      opponent={opponent}
+      locationId={locationId}
+      background={background}
+      memoryLines={memoryLines}
+      memoryDepth={reading.depth}
+      arcanaReady={reading.anyComplete}
+      turn={{
+        beat: theatre.beat,
+        camera: theatre.camera,
+        blows: theatre.blows,
+        playing: theatre.playing || busy,
+      }}
+      downed={downed}
+      say={say}
+      speed={speed}
+      onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
+      onCommand={onCommand}
+      magic={{ spells, onCast: cast }}
+      items={{ bag: carried, onUse: drink }}
+      onAwakeningDone={() => setBattle((b) => clearAwakeningLines(b))}
+      bgm={music}
+      testId="battle-screen"
+    />
   );
 }
 
-/**
- * WHAT THE FIGHT WAS WORTH.
- *
- * Handed the reward the WORLD applied rather than one worked out here,
- * so the screen can only ever show what actually landed — the same
- * rule the Artifact's result screen follows and for the same reason.
- */
 export function ResultScreen({
   reward,
   onDone,

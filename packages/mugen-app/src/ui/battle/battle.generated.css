@@ -298,6 +298,17 @@
     transform: scale(0.9);
   }
 }
+.screen.has-backdrop > .awakening-scene,
+.screen.has-backdrop > .magic-tray,
+.screen.has-backdrop > .dialogue-stage {
+  position: absolute;
+}
+.screen.has-backdrop > .awakening-scene {
+  z-index: 30;
+}
+.screen.has-backdrop > .magic-tray {
+  z-index: 20;
+}
 .bp-screen {
   position: relative;
   /* Still a column, for the ADMIN PREVIEW, which borrows this shell to
@@ -2221,6 +2232,89 @@
 :root[data-reduced-motion='on'] .bp-poise.broken {
   animation: none;
 }
+.magic-tray {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  /* Tightened from 6/14/12 when she learned a fourth spell: five rows
+     at the old rhythm reached over the health bars, and choosing
+     between a small spell and a big one is exactly the decision that
+     needs to see how much of the creature is left. */
+  gap: 4px;
+  width: 100%;
+  padding: 8px max(14px, calc((100% - 620px) / 2)) 8px;
+  /* And a guard rail rather than a promise: whatever she learns next,
+     the drawer stays inside the stage and scrolls instead of running
+     off the top of it. */
+  max-height: calc(var(--stage-h, 100vh) - 108px);
+  overflow-y: auto;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 16, 14, 0) 0%,
+    rgba(18, 16, 14, 0.82) 26%,
+    rgba(18, 16, 14, 0.9) 100%
+  );
+}
+.magic-tray-item {
+  appearance: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 8px 14px;
+  border: 1px solid var(--mugen-border-strong);
+  border-radius: 6px;
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, var(--mugen-gold-wash) 100%);
+  color: var(--mugen-text);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.magic-tray-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: var(--mugen-surface);
+}
+.magic-tray-name {
+  letter-spacing: 0.08em;
+}
+.magic-tray-cost {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--mugen-gold);
+}
+.magic-tray-short {
+  font-size: 10px;
+  color: var(--mugen-text-muted);
+}
+.magic-tray-empty {
+  margin: 0;
+  padding: 2px 4px;
+  font-size: 11px;
+  /* On the drawer's own dark ground now, not on the page. */
+  color: rgba(255, 253, 248, 0.78);
+}
+.magic-tray-close {
+  appearance: none;
+  /* Explicit, because a <button> with no background is not transparent:
+     it is whatever the browser paints one, which over the drawer is a
+     pale slab with pale type on it. */
+  background: rgba(255, 253, 248, 0.07);
+  border: 1px solid rgba(255, 253, 248, 0.2);
+  border-radius: 6px;
+  min-height: var(--tap-min);
+  color: rgba(255, 253, 248, 0.88);
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
 .bp-star-hit {
   position: absolute;
   inset: 6%;
@@ -2231,6 +2325,54 @@
     0 0 16px rgba(220, 192, 132, 0.5);
   animation: bp-star-hit 0.52s ease-out;
   pointer-events: none;
+}
+.screen > .awakening-scene,
+.screen.has-backdrop > .awakening-scene {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+  border: none;
+  background: linear-gradient(180deg, transparent 45%, rgba(12, 12, 18, 0.55) 100%);
+  color: var(--mugen-text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.awakening-body {
+  width: min(100%, 680px);
+  margin: 0 auto;
+  padding: 14px 18px;
+  border: 1px solid var(--mugen-border-strong);
+  border-radius: 10px;
+  background: rgba(255, 253, 248, 0.95);
+  box-shadow: var(--mugen-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.awakening-speaker {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--mugen-gold);
+}
+.awakening-text {
+  font-size: 15px;
+  line-height: 1.8;
+}
+.awakening-next {
+  width: min(100%, 680px);
+  margin: 0 auto;
+  text-align: right;
+  font-size: 11px;
+  color: rgba(255, 253, 248, 0.85);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
 }
 @media (prefers-reduced-motion: reduce) {
   .bp-star-hit {

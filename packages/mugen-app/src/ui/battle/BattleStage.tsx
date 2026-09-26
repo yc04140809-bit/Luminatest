@@ -4,8 +4,11 @@ import { enemyPose, heroPose, kaosPose } from '@mugen/game/battle/battleArtState
 import {
   DEFAULT_BATTLE_SPEED,
   speedLabel,
+  visualMs,
   type BattleSpeed,
 } from '@mugen/game/battle/battleSpeed';
+import type { MagicDef } from '@mugen/core/magic/magic';
+import type { ItemStack } from '@mugen/core/economy/items';
 import { spriteHeight } from '@mugen/content/art/spriteFrames';
 import { locationNameOf } from '@mugen/content/locations/alden';
 import type { LocationId } from '@mugen/content/locations/locationVisuals';
@@ -22,9 +25,16 @@ import { sayOf } from './battleMessage';
 import { cameraStyle, type CameraPhase } from './battleCamera';
 import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS, depthScale } from './formation';
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
+import { latestOn, motionSlot, type Blow } from './blows';
+import { HitFx } from './HitFx';
+import { MagicTray } from './MagicTray';
+import { ItemTray } from './ItemTray';
+import { AwakeningScene } from './AwakeningScene';
+import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
   AS_PERSON,
   BATTLE_UI_FRAMES,
+  DOWN_POSE,
   battleEnemyArt,
   battlePartyArt,
 } from './battleArt';
@@ -32,37 +42,46 @@ import './battle.generated.css';
 import './battle.app.css';
 
 /**
- * THE ARTIFACT'S BATTLE SCREEN, DRAWN BY THE APP — AT REST.
+ * THE ARTIFACT'S BATTLE SCREEN, DRAWN BY THE APP.
  *
- * The same markup, the same class names and the same stylesheet as the
- * Artifact's `BattleUIPrototype`, laid out by the same formation,
- * camera and HUD modules (copied, and held identical by
- * `artifactCopies.test.ts`). What it draws is a REAL `BattleState` from
- * the shared core: every number on it — health, magic, the enemy's name,
- * the line on the plate — is the core's, and none is decided here.
+ * The same markup, class names and stylesheet as the Artifact's
+ * `BattleUIPrototype`, laid out by the same formation, camera and HUD
+ * modules (copied, and held identical by `artifactCopies.test.ts`).
  *
- * WHAT IT DOES NOT DO, ON PURPOSE (Phase 1):
- *   - no turns: it is handed a state and draws it; nothing here calls
- *     the battle logic. Commands report a press through the optional
- *     handlers and do nothing when none is given;
- *   - no motion: the camera is at rest and nobody is mid-blow, so no
- *     hit numbers, no cut-in, no spell effect — those are later phases;
- *   - none of the Artifact's systems the App's fight does not have:
- *     Kaos's interventions (《ケイオスの守護》), arcana summons and
- *     their accidents, the magic/item/skill trays.
+ * IT DRAWS; IT DOES NOT DECIDE. It is handed a real `BattleState` from
+ * the shared core and, while a turn is being shown, the theatre's beat,
+ * camera and blows (`battleTheatre.ts`) — which are themselves read off
+ * the core's states. Every number on it is the core's. Commands only
+ * report a press; the screen that owns the fight decides what it means.
+ *
+ * NOT HERE, ON PURPOSE (later phases): cut-ins, skill-specific effects,
+ * Kaos's interventions (《ケイオスの守護》), arcana summons, escaping,
+ * AUTO. The spell's own light (her aura, the star that lands) is also
+ * left out until the effects phase: a spell here is her casting pose and
+ * the creature's flinch.
  */
 
-export type BattleCommand = 'ATTACK' | 'MAGIC' | 'SKILL' | 'ITEM' | 'DEFEND' | 'ARCANA';
+export type BattleCommand = 'ATTACK' | 'SKILL' | 'DEFEND' | 'ARCANA';
 
 export interface BattleOpponentView {
   /** Whose drawings: a creature's id, or 'gald' for a person. */
   artId: 'moss_rabbit' | 'gald';
-  /**
-   * A creature stands up the path; a person at arm's length. The
-   * Artifact's `stands`: FAR for creatures, NEAR for people.
-   */
+  /** A creature stands up the path (FAR); a person at arm's length (NEAR). */
   stands: 'FAR' | 'NEAR';
+  /** What is said over it once it is beaten, and by whom (a person only). */
+  defeated?: { speaker?: string; text: string };
 }
+
+/** What is being shown of a turn right now — from `useBattleTheatre`. */
+export interface TurnView {
+  beat: string;
+  camera: CameraPhase;
+  blows: readonly Blow[];
+  /** A turn is being shown: presses are ignored until it is over. */
+  playing: boolean;
+}
+
+const AT_REST: TurnView = { beat: 'NONE', camera: 'IDLE', blows: [], playing: false };
 
 export interface BattleStageProps {
   battle: BattleState;
@@ -70,8 +89,7 @@ export interface BattleStageProps {
   locationId: LocationId;
   /**
    * The ground this fight is fought on. Absent: the place's own, from
-   * content (content/locations/battleBackgrounds). A boss or an event
-   * that wants a different ground passes it here.
+   * content (content/locations/battleBackgrounds).
    */
   background?: BattleBackgroundKey | null;
   /** What the world remembers, newest last — the WORLD MEMORY panel. */
@@ -80,13 +98,24 @@ export interface BattleStageProps {
   memoryDepth: number;
   /** Whether a finished arcana page exists — the ARCANA command's lock. */
   arcanaReady: boolean;
+  turn?: TurnView;
+  /** The creature has finished falling (after the knock-down beat). */
+  downed?: boolean;
+  /** An item's line on the plate, while it is being read. */
+  say?: { name: string; line: string; result: string } | null;
   speed?: BattleSpeed;
   auto?: boolean;
-  /** A press on the command row. Absent: the row is drawn and inert. */
   onCommand?: (command: BattleCommand) => void;
+  /** Her spells. Absent, or before she can cast: no 魔法 command. */
+  magic?: { spells: readonly MagicDef[]; onCast: (id: string) => void };
+  /** The bag, as this fight can use it. */
+  items?: { bag: readonly ItemStack[]; onUse: (itemId: string) => void };
+  /** She steps forward — the awakening lines, and moving past them. */
+  onAwakeningDone?: () => void;
+  /** Absent: no AUTO chip (AUTO is a later phase). */
   onToggleAuto?: () => void;
   onCycleSpeed?: () => void;
-  /** Absent: no 逃走 chip, as in a fight that cannot be left. */
+  /** Absent: no 逃走 chip. */
   onEscape?: () => void;
   /** The ♪ control, where this fight has one. */
   bgm?: { label: string; onCycle: () => void };
@@ -101,19 +130,25 @@ export function BattleStage({
   memoryLines,
   memoryDepth,
   arcanaReady,
+  turn = AT_REST,
+  downed = false,
+  say = null,
   speed = DEFAULT_BATTLE_SPEED,
   auto = false,
   onCommand,
+  magic,
+  items,
+  onAwakeningDone,
   onToggleAuto,
   onCycleSpeed,
   onEscape,
   bgm,
   testId = 'battle-stage',
 }: BattleStageProps) {
-  // At rest. The Artifact's beat and camera, before anybody moves.
-  const beat = 'NONE';
-  const camera: CameraPhase = 'IDLE';
-  const downed = false;
+  const { beat, camera, blows, playing } = turn;
+  const [magicOpen, setMagicOpen] = useState(false);
+  const [skillOpen, setSkillOpen] = useState(false);
+  const [itemOpen, setItemOpen] = useState(false);
 
   // HOW TALL THE FIELD IS ON THIS PHONE — measured, as in the Artifact,
   // because everybody standing in it is sized as a fraction of it.
@@ -129,17 +164,31 @@ export function BattleStage({
     return () => observer.disconnect();
   }, []);
 
+  const beaten = battle.outcome === 'VICTORY';
+  const ongoing = battle.outcome === 'ONGOING';
+  const casting = beat === 'MAGIC';
   const awakened = battle.awakening !== null && battle.magicUnlocked;
-  const view = { beat, downed, awakened };
+  const view = { beat, downed, casting, awakened };
   const heroShown = battlePartyArt('hero', heroPose(view));
   const kaosShown = battlePartyArt('kaos', kaosPose(view));
+  // Her picture in the corner does not flicker with the spell.
+  const kaosSteady = battlePartyArt('kaos', kaosPose({ beat, downed, awakened }));
   const enemyState = enemyPose(view);
-  const enemyShown =
-    opponent.artId === 'gald'
-      ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')
-      : battleEnemyArt(opponent.artId, enemyState);
+  const person = opponent.artId === 'gald';
+  const enemyShown = person
+    ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')
+    : battleEnemyArt(opponent.artId, enemyState);
+  // It is only lying down on screen if a picture of it lying down exists.
+  const showingDown = downed && enemyShown.state === (person ? DOWN_POSE.person : DOWN_POSE.creature);
 
-  const enemySlot = opponent.stands === 'NEAR' ? ('enemyNear' as const) : ('enemy' as const);
+  const enemySlot =
+    opponent.stands === 'NEAR'
+      ? showingDown
+        ? ('enemyNearDowned' as const)
+        : ('enemyNear' as const)
+      : showingDown
+        ? ('enemyDowned' as const)
+        : ('enemy' as const);
   const figure = (id: string, state: string | null, ground: number) =>
     Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE * depthScale(ground));
   const heights = {
@@ -148,35 +197,48 @@ export function BattleStage({
     kaos: figure('kaos', kaosShown.state, PROTOTYPE_PLACEMENTS.kaos.bottom),
   };
 
-  // THE GROUND. The new battle paintings rather than the Artifact's
-  // field — the Artifact's layout, on the App's own backgrounds.
+  // THE GROUND — the App's battle paintings.
   const ground = background === undefined ? battleBackgroundFor(locationId) : background;
   const backdrop = usePicture(
     ground ? () => battleBackgroundArt(ground) : null,
     `battle-bg:${ground ?? 'none'}`,
   );
-  const plate = sayOf(battle.log[battle.log.length - 1]);
+
+  // What the plate says: the last line of the fight — or, once it is
+  // beaten, what it says or is said about it.
+  const showingDefeatLine = beaten && opponent.defeated !== undefined;
+  const plate = sayOf(showingDefeatLine ? opponent.defeated!.text : battle.log[battle.log.length - 1]);
+  const plateKey = `${battle.log.length}:${plate?.lead ?? ''}:${plate?.figure ?? ''}`;
 
   const turnRoster: TurnActor[] = [
     { id: 'hero', name: 'あなた', side: 'ALLY' },
     { id: opponent.artId, name: battle.enemyName, side: 'ENEMY' },
   ];
-  const actingSide = actingSideOf(null);
+  const actingSide = actingSideOf(beat === 'NONE' ? null : beat);
   const turnSlots = turnOrderLine(
     turnRoster,
     turnRoster.findIndex((a) => a.side === actingSide),
     5,
   );
   const turnArtOf = (actorId: string) =>
-    actorId === 'hero' ? heroShown : actorId === 'kaos' ? kaosShown : enemyShown;
+    actorId === 'hero' ? heroShown : actorId === 'kaos' ? kaosSteady : enemyShown;
   const placeName = locationNameOf(locationId);
   const placeMark = locationId.replace(/_/g, ' ');
 
-  const stagecraft = stagecraftFor({ cutIn: false, hitting: false });
+  const stagecraft = stagecraftFor({ cutIn: false, hitting: blows.length > 0 });
   const levels = stagecraftLevels(stagecraft);
 
-  // WHERE ITS HEALTH HANGS: under its feet, measured off the drawing —
-  // the Artifact's own rule, so the plate follows the creature.
+  const pointOf = (on: Blow['on']) => {
+    const slot = on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : PROTOTYPE_PLACEMENTS[enemySlot];
+    return {
+      x: slot.edge === 'left' ? slot.inset + 0.08 : 1 - slot.inset - 0.08,
+      y: slot.bottom + 0.16,
+    };
+  };
+  const struckHero = latestOn(blows, 'hero');
+  const struckEnemy = latestOn(blows, 'enemy');
+
+  // WHERE ITS HEALTH HANGS: under its feet, measured off the drawing.
   const enemyHome = PROTOTYPE_PLACEMENTS[enemySlot];
   const [enemyBox, setEnemyBox] = useState<{ mid: number; foot: number } | null>(null);
   const plateAt = enemyBox ?? { mid: enemyHome.inset + 0.07, foot: enemyHome.bottom };
@@ -204,7 +266,7 @@ export function BattleStage({
       observer.disconnect();
       clearTimeout(t);
     };
-  }, [enemyShown.state]);
+  }, [enemyShown.state, showingDown]);
 
   const ui = BATTLE_UI_FRAMES;
   const uiVars: Record<string, string> = {
@@ -227,8 +289,20 @@ export function BattleStage({
     '--ui-escape-off': `url(${ui.escapeOff})`,
   };
 
-  const press = (command: BattleCommand) => () => onCommand?.(command);
-  const ongoing = battle.outcome === 'ONGOING';
+  // ONE TURN AT A TIME. The row keeps its look while a turn is shown —
+  // the Artifact's never dims — and a press in that time is not a turn.
+  const locked = playing || !ongoing || battle.awakeningLines.length > 0;
+  const press = (command: BattleCommand) => () => {
+    if (locked) return;
+    closeTrays();
+    onCommand?.(command);
+  };
+  const closeTrays = () => {
+    setMagicOpen(false);
+    setSkillOpen(false);
+    setItemOpen(false);
+  };
+  const canCast = battle.magicUnlocked && magic !== undefined;
 
   return (
     <div
@@ -236,9 +310,18 @@ export function BattleStage({
       data-testid={testId}
       data-stagecraft={stagecraft}
       data-connected={onCommand ? 'yes' : 'no'}
-      style={{ ['--fx' as string]: String(1 / speed), ...uiVars } as CSSProperties}
+      style={{ ...theatreVars(speed), ...uiVars } as CSSProperties}
     >
-      <div className="bp-stage" ref={stageRef} data-camera={camera}>
+      {battle.awakeningLines.length > 0 && onAwakeningDone && (
+        <AwakeningScene lines={battle.awakeningLines} onDone={onAwakeningDone} />
+      )}
+
+      <div
+        className={`bp-stage${blows.length > 0 ? ' kick' : ''}`}
+        ref={stageRef}
+        data-camera={camera}
+        data-beat={beat}
+      >
         {backdrop && (
           <img
             className="bp-bg"
@@ -250,11 +333,34 @@ export function BattleStage({
           />
         )}
 
+        {/* EVERY BLOW, where it landed, with the core's own number. */}
+        {blows.map((blow) => (
+          <HitFx
+            key={blow.id}
+            fxKey={blow.id}
+            at={pointOf(blow.on)}
+            amount={blow.amount}
+            ms={visualMs(HIT_FX_MS, speed, HIT_FX_FLOOR_MS)}
+            facing={blow.on === 'enemy' ? 'left' : 'right'}
+          />
+        ))}
+
         {/* The creature: left, and further up the path. */}
         <div
-          className="bp-actor bp-enemy"
+          className={[
+            'bp-actor bp-enemy',
+            struckEnemy ? 'flash' : '',
+            beat === 'TACKLE' ? 'tackle' : '',
+            beat === 'HIDE' ? 'hide' : '',
+            struckEnemy || beat === 'MAGIC' ? 'struck' : '',
+            beaten && !showingDown ? 'falling' : '',
+            showingDown ? 'downed' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-blow={motionSlot(struckEnemy)}
           style={cameraStyle(enemySlot, camera)}
-          data-testid="bp-enemy-normal"
+          data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
           <span className="bp-shadow" aria-hidden="true" />
           <CharacterArt
@@ -265,10 +371,23 @@ export function BattleStage({
             label={battle.enemyName}
             testId="bp-enemy-art"
           />
+          {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
+          {beat === 'TACKLE' && (
+            <span className="bp-leaves" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <i key={i} className={`bp-leaf bp-leaf-${i}`} />
+              ))}
+            </span>
+          )}
         </div>
 
         {/* The two of them, on the right, nearer. */}
-        <div className="bp-actor bp-kaos" style={cameraStyle('kaos', camera)}>
+        <div
+          className={['bp-actor bp-kaos', beat === 'HURT' ? 'flinch' : '', casting ? 'casting' : '']
+            .filter(Boolean)
+            .join(' ')}
+          style={cameraStyle('kaos', camera)}
+        >
           <span className="bp-shadow" aria-hidden="true" />
           <CharacterArt
             art={kaosShown}
@@ -279,7 +398,13 @@ export function BattleStage({
             testId="bp-kaos-art"
           />
         </div>
-        <div className="bp-actor bp-hero" style={cameraStyle('hero', camera)}>
+        <div
+          className={`bp-actor bp-hero${beat === 'STRIKE' ? ' strike' : ''}${
+            struckHero ? ' hurt flash' : ''
+          }`}
+          data-blow={motionSlot(struckHero)}
+          style={cameraStyle('hero', camera)}
+        >
           <span className="bp-shadow" aria-hidden="true" />
           <CharacterArt
             art={heroShown}
@@ -291,7 +416,7 @@ export function BattleStage({
           />
         </div>
 
-        {/* Its health, under its feet. */}
+        {/* Its health, under its feet — and following it down. */}
         <div
           className="bx-enemy-plate"
           data-testid="bp-enemy-hp"
@@ -361,23 +486,40 @@ export function BattleStage({
             )}
           </div>
           <div
-            className="bp-message"
+            key={plateKey}
+            className={say ? 'bp-message bp-said' : 'bp-message'}
             data-testid="bp-message"
-            data-brief="yes"
+            data-said={say ? 'yes' : undefined}
+            data-brief={say || showingDefeatLine ? undefined : 'yes'}
             role="status"
             aria-live="polite"
           >
-            {plate && (
-              <>
-                <span className="bp-message-lead" data-testid="bp-message-lead">
-                  {plate.lead}
-                </span>
-                {plate.figure && (
-                  <b className="bp-message-figure" data-testid="bp-message-figure">
-                    {plate.figure}
-                  </b>
-                )}
-              </>
+            {say ? (
+              <div className="bp-said-body" data-testid="bp-said">
+                <span className="bp-said-name">《{say.name}》</span>
+                <p className="bp-said-line">{say.line}</p>
+                <p className="bp-said-result" data-testid="bp-said-result">
+                  {say.result}
+                </p>
+              </div>
+            ) : showingDefeatLine && opponent.defeated?.speaker ? (
+              <div className="bp-said-body bp-enemy-said" data-testid="bp-enemy-said">
+                <span className="bp-said-name">《{opponent.defeated.speaker}》</span>
+                <p className="bp-said-line">{opponent.defeated.text}</p>
+              </div>
+            ) : (
+              plate && (
+                <>
+                  <span className="bp-message-lead" data-testid="bp-message-lead">
+                    {plate.lead}
+                  </span>
+                  {plate.figure && (
+                    <b className="bp-message-figure" data-testid="bp-message-figure">
+                      {plate.figure}
+                    </b>
+                  )}
+                </>
+              )
             )}
           </div>
         </div>
@@ -398,13 +540,13 @@ export function BattleStage({
               {
                 name: 'ケイオス',
                 role: '魔法',
-                art: kaosShown,
+                art: kaosSteady,
                 hp: { now: null, max: null },
                 mp: battle.magicUnlocked
                   ? { now: battle.playerMp, max: battle.playerMaxMp, testId: 'bx-kaos-mp' }
                   : { now: null, max: null },
                 spot: PROTOTYPE_PLACEMENTS.kaos,
-                acting: false,
+                acting: casting,
                 testId: 'bx-member-kaos',
               },
             ]}
@@ -413,15 +555,17 @@ export function BattleStage({
 
         <div className="bx-corner bx-br">
           <div className="bp-modes" data-testid="bp-modes">
-            <button
-              className={`bp-mode bp-auto-chip${auto ? ' on' : ''}`}
-              data-testid="bp-auto"
-              aria-pressed={auto}
-              onClick={onToggleAuto}
-            >
-              <span className="bp-mode-en">{auto ? 'AUTO ON' : 'AUTO'}</span>
-              <span className="bp-mode-jp">オート</span>
-            </button>
+            {onToggleAuto && (
+              <button
+                className={`bp-mode bp-auto-chip${auto ? ' on' : ''}`}
+                data-testid="bp-auto"
+                aria-pressed={auto}
+                onClick={onToggleAuto}
+              >
+                <span className="bp-mode-en">{auto ? 'AUTO ON' : 'AUTO'}</span>
+                <span className="bp-mode-jp">オート</span>
+              </button>
+            )}
             <button
               className={`bp-mode bp-speed-chip${speed > 1 ? ' on' : ''}`}
               data-testid="bp-speed"
@@ -448,16 +592,30 @@ export function BattleStage({
       </div>
 
       <div className="bp-dock">
-        {ongoing && (
-          <div className="bp-commands" data-testid="bp-commands">
+        {!beaten && (
+          <div
+            className="bp-commands"
+            data-testid="bp-commands"
+            data-locked={locked ? 'yes' : 'no'}
+          >
             <button className="bp-cmd" data-testid="bp-attack" onClick={press('ATTACK')}>
               <span className="bp-cmd-plate" aria-hidden="true" />
               <SwordIcon size={15} className="bp-cmd-mark" />
               <span className="bp-cmd-jp">攻撃</span>
               <span className="bp-cmd-en">ATTACK</span>
             </button>
-            {battle.magicUnlocked && (
-              <button className="bp-cmd" data-testid="bp-magic" onClick={press('MAGIC')}>
+            {canCast && (
+              <button
+                className={magicOpen ? 'bp-cmd open' : 'bp-cmd'}
+                data-testid="bp-magic"
+                aria-expanded={magicOpen}
+                onClick={() => {
+                  if (locked) return;
+                  setSkillOpen(false);
+                  setItemOpen(false);
+                  setMagicOpen((open) => !open);
+                }}
+              >
                 <span className="bp-cmd-plate" aria-hidden="true" />
                 <SparkIcon size={15} className="bp-cmd-mark" />
                 <span className="bp-cmd-jp">魔法</span>
@@ -466,13 +624,33 @@ export function BattleStage({
                 </span>
               </button>
             )}
-            <button className="bp-cmd" data-testid="bp-skill" onClick={press('SKILL')}>
+            <button
+              className={skillOpen ? 'bp-cmd open' : 'bp-cmd'}
+              data-testid="bp-skill"
+              aria-expanded={skillOpen}
+              onClick={() => {
+                if (locked) return;
+                setMagicOpen(false);
+                setItemOpen(false);
+                setSkillOpen((open) => !open);
+              }}
+            >
               <span className="bp-cmd-plate" aria-hidden="true" />
               <SparkIcon size={15} className="bp-cmd-mark" />
               <span className="bp-cmd-jp">スキル</span>
               <span className="bp-cmd-en">SKILL</span>
             </button>
-            <button className="bp-cmd" data-testid="bp-item" onClick={press('ITEM')}>
+            <button
+              className={itemOpen ? 'bp-cmd open' : 'bp-cmd'}
+              data-testid="bp-item"
+              aria-expanded={itemOpen}
+              onClick={() => {
+                if (locked) return;
+                setMagicOpen(false);
+                setSkillOpen(false);
+                setItemOpen((open) => !open);
+              }}
+            >
               <span className="bp-cmd-plate" aria-hidden="true" />
               <LeafIcon size={15} className="bp-cmd-mark" />
               <span className="bp-cmd-jp">アイテム</span>
@@ -498,10 +676,39 @@ export function BattleStage({
             </button>
           </div>
         )}
-        {ongoing && !arcanaReady && (
+        {!beaten && !arcanaReady && (
           <p className="bp-cmd-spent" data-testid="bp-arcana-locked">
             アルカナ 準備中
           </p>
+        )}
+        {!beaten && magicOpen && canCast && (
+          <MagicTray
+            spells={magic.spells}
+            mp={battle.playerMp}
+            onCast={(id) => {
+              if (locked) return;
+              setMagicOpen(false);
+              magic.onCast(id);
+            }}
+            onClose={() => setMagicOpen(false)}
+          />
+        )}
+        {!beaten && skillOpen && (
+          <div className="bp-tray" data-testid="bp-skill-tray">
+            <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
+          </div>
+        )}
+        {!beaten && itemOpen && items && (
+          <ItemTray
+            bag={items.bag}
+            battle={battle}
+            onUse={(itemId) => {
+              if (locked) return;
+              setItemOpen(false);
+              items.onUse(itemId);
+            }}
+            onClose={() => setItemOpen(false)}
+          />
         )}
       </div>
     </div>

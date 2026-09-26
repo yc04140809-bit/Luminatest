@@ -26,6 +26,11 @@ export const COPIED_FROM_ARTIFACT = [
   'ui/battle/BattleIcons.tsx',
   'ui/battle/battleMessage.ts',
   'ui/battle/stagecraft.ts',
+  'ui/battle/HitFx.tsx',
+  'ui/battle/blows.ts',
+  'ui/battle/MagicTray.tsx',
+  'ui/battle/ItemTray.tsx',
+  'ui/battle/AwakeningScene.tsx',
   'ui/art/CharacterArt.tsx',
   'ui/common/Ornament.tsx',
 ] as const;

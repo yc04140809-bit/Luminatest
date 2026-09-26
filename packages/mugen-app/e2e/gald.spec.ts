@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { fightUntil, readyToAct, throughTheAwakening } from './battle';
 
 /**
  * THE FIRST COMPLETE TURN OF THE GAME'S OWN LOOP.
@@ -66,10 +67,10 @@ async function meetGald(page: Page) {
   await page.getByTestId('gald-button').click();
   await expect(page.getByTestId('gald-encounter')).toBeVisible();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('enemy-hp').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
     await page.getByTestId('encounter-next').click();
   }
-  await expect(page.getByTestId('enemy-hp')).toBeVisible();
+  await expect(page.getByTestId('battle-screen')).toBeVisible();
 }
 
 /**
@@ -81,16 +82,9 @@ async function meetGald(page: Page) {
  * the whole of the strategy; there is no need for a good one.
  */
 async function beatGald(page: Page) {
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 200; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) return;
-    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
-      await page.getByTestId('awakening-done').click();
-      continue;
-    }
-    if (!(await attack.isEnabled().catch(() => false))) break;
-    await attack.click({ timeout: 2000 }).catch(() => {});
-  }
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), {
+    maxTurns: 200,
+  });
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
 }
 
@@ -103,20 +97,19 @@ test('she wakes during his fight, which is the only way she ever does', async ({
   // THE AWAKENING IS HIS FIGHT'S, not a rabbit's: a moss rabbit has no
   // awakening beat, which is why magic was unreachable before this
   // round existed. Somewhere in here she steps forward.
-  const attack = page.getByTestId('attack-button');
-  let woke = false;
-  for (let i = 0; i < 200; i++) {
-    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
-      woke = true;
-      break;
-    }
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (!(await attack.isEnabled().catch(() => false))) break;
-    await attack.click({ timeout: 2000 }).catch(() => {});
-  }
-  expect(woke, 'Kaos should wake during the story fight').toBe(true);
-  await page.getByTestId('awakening-done').click();
-  // And from that moment the tray is there, with her spells on it.
+  const awakening = page.getByTestId('magic-awakening');
+  await fightUntil(
+    page,
+    async () =>
+      (await awakening.isVisible().catch(() => false)) ||
+      (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)),
+    { maxTurns: 200 },
+  );
+  expect(await awakening.isVisible(), 'Kaos should wake during the story fight').toBe(true);
+  await throughTheAwakening(page);
+  // And from that moment 魔法 is on the row, with her spells in it.
+  await readyToAct(page);
+  await page.getByTestId('bp-magic').click();
   await expect(page.getByTestId('magic-tray')).toBeVisible();
   await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
 });
@@ -185,7 +178,9 @@ test('the answer, and what it unlocked, survive a restart', async ({ page }) => 
    * spells available. This is the assertion that the gate moved.
    */
   await page.getByTestId('encounter-button').click();
-  await expect(page.getByTestId('enemy-hp')).toBeVisible();
+  await expect(page.getByTestId('battle-screen')).toBeVisible();
+  await readyToAct(page);
+  await page.getByTestId('bp-magic').click();
   await expect(page.getByTestId('magic-tray')).toBeVisible();
   await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
 });

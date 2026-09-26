@@ -51,6 +51,29 @@ describe('battle art', () => {
     same(battlePartyArt('gald', state), partyArtFor('gald', state));
   });
 
+  /** EVERY STATE A TURN CAN PUT SOMEBODY IN, on both tables. */
+  const beats = ['NONE', 'STRIKE', 'TACKLE', 'HIDE', 'HURT', 'MAGIC'];
+  for (const beat of beats) {
+    for (const downed of [false, true]) {
+      for (const casting of [false, true]) {
+        for (const awakened of [false, true]) {
+          const view = { beat, downed, casting, awakened };
+          const label = JSON.stringify(view);
+          it(`matches the Artifact for ${label}`, () => {
+            same(battlePartyArt('hero', heroPose(view)), partyArtFor('hero', heroPose(view)));
+            same(battlePartyArt('kaos', kaosPose(view)), partyArtFor('kaos', kaosPose(view)));
+            same(
+              battleEnemyArt('moss_rabbit', enemyPose(view)),
+              enemyArtFor('moss_rabbit', enemyPose(view)),
+            );
+            const person = AS_PERSON[enemyPose(view)] ?? 'battle_idle';
+            same(battlePartyArt('gald', person), partyArtFor('gald', person));
+          });
+        }
+      }
+    }
+  }
+
   it('carries every UI frame the Artifact draws, by the same name', () => {
     // `barAlt` is registered in the manifest and drawn by nothing in the
     // Artifact's battle screen, so the App does not ship it either.

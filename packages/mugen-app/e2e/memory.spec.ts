@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { fightUntil } from './battle';
 
 /**
  * WHAT THE PLAYER CAN SAY THEY KNOW, AND WHEN.
@@ -56,19 +57,12 @@ async function decideGald(
   await page.getByTestId('forest-button').click();
   await page.getByTestId('gald-button').click();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('enemy-hp').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
     await page.getByTestId('encounter-next').click();
   }
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 200; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
-      await page.getByTestId('awakening-done').click();
-      continue;
-    }
-    if (!(await attack.isEnabled().catch(() => false))) break;
-    await attack.click({ timeout: 2000 }).catch(() => {});
-  }
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), {
+    maxTurns: 200,
+  });
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
   await page.getByTestId(`choice-${answer}`).click();
   for (let i = 0; i < 6; i++) {

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { fightUntil } from './battle';
 
 /**
  * THE MUSIC, in the App.
@@ -196,31 +197,21 @@ async function toTheRabbit(page: Page) {
   await toTheMap(page);
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();
-  await expect(page.getByTestId('enemy-hp')).toBeVisible();
+  await expect(page.getByTestId('battle-screen')).toBeVisible();
 }
 
 /** Through the road to Gald, and his fight to the end. */
 async function beatGald(page: Page, whileFighting?: () => Promise<void>) {
   await page.getByTestId('gald-button').click();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('enemy-hp').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
     await page.getByTestId('encounter-next').click();
   }
   await expectPlaying(page, 'BOSS_BATTLE');
   await whileFighting?.();
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 80; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
-      await page.getByTestId('awakening-done').click();
-      continue;
-    }
-    if (!(await attack.isEnabled().catch(() => false))) {
-      await page.waitForTimeout(250);
-      continue;
-    }
-    await attack.click({ timeout: 3000 }).catch(() => {});
-  }
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), {
+    maxTurns: 80,
+  });
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
 }
 
@@ -242,14 +233,14 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
   // LOCKED: an ordinary fight has one piece and nothing to switch.
   await toTheRabbit(page);
   await expectPlaying(page, 'NORMAL_BATTLE');
-  await expect(page.getByTestId('bgm-cycle')).toHaveCount(0);
+  await expect(page.getByTestId('bp-bgm-cycle')).toHaveCount(0);
 
   // HIS FIGHT: his piece, and no control even though a preference exists.
   await restartAndContinue(page);
   await toTheMap(page);
   await page.getByTestId('forest-button').click();
   await beatGald(page, async () => {
-    await expect(page.getByTestId('bgm-cycle')).toHaveCount(0);
+    await expect(page.getByTestId('bp-bgm-cycle')).toHaveCount(0);
   });
   expect(
     await page.evaluate(() =>
@@ -261,20 +252,20 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
   await restartAndContinue(page);
   await toTheRabbit(page);
   await expectPlaying(page, 'NORMAL_BATTLE');
-  await expect(page.getByTestId('bgm-label')).toHaveText('1/2');
-  await page.getByTestId('bgm-cycle').click();
+  await expect(page.getByTestId('bp-bgm-label')).toHaveText('1/2');
+  await page.getByTestId('bp-bgm-cycle').click();
   await expectPlaying(page, 'BOSS_BATTLE');
-  await expect(page.getByTestId('bgm-label')).toHaveText('2/2');
+  await expect(page.getByTestId('bp-bgm-label')).toHaveText('2/2');
 
   // THE CHOICE COMES BACK TOO.
   await restartAndContinue(page);
   await toTheRabbit(page);
   await expectPlaying(page, 'BOSS_BATTLE');
-  await expect(page.getByTestId('bgm-label')).toHaveText('2/2');
+  await expect(page.getByTestId('bp-bgm-label')).toHaveText('2/2');
   // And round again to the start.
-  await page.getByTestId('bgm-cycle').click();
+  await page.getByTestId('bp-bgm-cycle').click();
   await expectPlaying(page, 'NORMAL_BATTLE');
-  await page.getByTestId('bgm-cycle').click();
+  await page.getByTestId('bp-bgm-cycle').click();
   await expectPlaying(page, 'BOSS_BATTLE');
 
   // ANOTHER WORLD HAS NOT WON IT, whatever this device prefers.
@@ -286,7 +277,7 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
   await page.getByTestId('naming-default').click();
   await toTheRabbit(page);
   await expectPlaying(page, 'NORMAL_BATTLE');
-  await expect(page.getByTestId('bgm-cycle')).toHaveCount(0);
+  await expect(page.getByTestId('bp-bgm-cycle')).toHaveCount(0);
 });
 
 /**
@@ -302,24 +293,14 @@ test('plays the boss piece for Gald, and her piece after', async ({ page }) => {
   await page.getByTestId('forest-button').click();
   await page.getByTestId('gald-button').click();
   for (let i = 0; i < 6; i++) {
-    if (await page.getByTestId('enemy-hp').isVisible().catch(() => false)) break;
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
     await page.getByTestId('encounter-next').click();
   }
   await expectPlaying(page, 'BOSS_BATTLE');
 
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 80; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
-      await page.getByTestId('awakening-done').click();
-      continue;
-    }
-    if (!(await attack.isEnabled().catch(() => false))) {
-      await page.waitForTimeout(250);
-      continue;
-    }
-    await attack.click({ timeout: 3000 }).catch(() => {});
-  }
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), {
+    maxTurns: 80,
+  });
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
   await expectPlaying(page, 'KAOS_EVENT');
 });

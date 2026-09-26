@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { command, fightToResult, readyToAct } from './battle';
 
 /**
  * THE WALK THE ROUND WAS ASKED FOR, END TO END.
@@ -52,13 +53,7 @@ async function earn(page: Page, until: number) {
     await page.getByTestId('explore-button').click();
     await page.getByTestId('forest-button').click();
     await page.getByTestId('encounter-button').click();
-    const attack = page.getByTestId('attack-button');
-    for (let i = 0; i < 60; i++) {
-      if (await page.getByTestId('result-exp').isVisible().catch(() => false)) break;
-      if (!(await attack.isEnabled().catch(() => false))) break;
-      await attack.click({ timeout: 2000 }).catch(() => {});
-    }
-    await expect(page.getByTestId('result-exp')).toBeVisible({ timeout: 20_000 });
+    await fightToResult(page);
     await page.getByTestId('result-done').click();
     await page.getByTestId('leave-forest').click();
     await page.getByTestId('back-to-village').click();
@@ -130,8 +125,9 @@ test('a herb drunk in a fight puts health back, and is gone afterwards', async (
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();
 
-  const hp = page.getByTestId('player-hp');
-  const hpNow = async () => numberIn(await hp.textContent(), 'HP');
+  const hp = page.getByTestId('bp-player-hp');
+  // The party card reads "now / max"; the first number is what is left.
+  const hpNow = async () => Number(((await hp.textContent()) ?? '').split('/')[0].replace(/\D/g, ''));
   const full = await hpNow();
 
   /**
@@ -156,35 +152,33 @@ test('a herb drunk in a fight puts health back, and is gone afterwards', async (
    * creature goes on answering until the wound is deep enough to
    * measure a herb against.
    */
-  const defend = page.getByTestId('defend-button');
   for (let i = 0; i < 80; i++) {
     if (full - (await hpNow()) >= DEEP) break;
-    if (!(await defend.isEnabled().catch(() => false))) break;
-    await defend.click({ timeout: 2000 }).catch(() => {});
+    await command(page, 'bp-defend');
   }
   const hurt = await hpNow();
   expect(full - hurt, 'the rabbit should have landed enough blows to matter').toBeGreaterThanOrEqual(
     DEEP,
   );
 
-  const carried = Number(
-    (await page.getByTestId('battle-item-FOREST_HERB').textContent())?.match(/×(\d+)/)?.[1],
-  );
-  await page.getByTestId('battle-item-FOREST_HERB').click();
+  // THE HERB, from the bag in the fight — the item tray.
+  const count = async () => {
+    const shown = page.getByTestId('bp-item-count-FOREST_HERB');
+    return (await shown.count()) === 0 ? 0 : Number((await shown.textContent())?.match(/×(\d+)/)?.[1]);
+  };
+  await readyToAct(page);
+  await page.getByTestId('bp-item').click();
+  const carried = await count();
+  await page.getByTestId('bp-item-FOREST_HERB').click();
   await expect
     .poll(async () => await hpNow(), { timeout: 10_000 })
     .toBeGreaterThan(hurt);
-  // One spent: the count drops by exactly one, or the button goes
-  // with the last of them.
-  await expect
-    .poll(async () =>
-      (await page.getByTestId('battle-item-FOREST_HERB').count()) === 0
-        ? 0
-        : Number(
-            (await page.getByTestId('battle-item-FOREST_HERB').textContent())?.match(/×(\d+)/)?.[1],
-          ),
-    )
-    .toBe(carried - 1);
+  // One spent: the count drops by exactly one, or the herb leaves the
+  // tray with the last of them.
+  await readyToAct(page);
+  await page.getByTestId('bp-item').click();
+  await expect(page.getByTestId('bp-item-tray')).toBeVisible();
+  await expect.poll(count).toBe(carried - 1);
 });
 
 /**
@@ -204,14 +198,14 @@ test('she cannot cast until the world remembers Gald', async ({ page }) => {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();
-  await expect(page.getByTestId('enemy-hp')).toBeVisible();
+  await expect(page.getByTestId('battle-screen')).toBeVisible();
 
   // Defending advances turns without touching the creature, so the
   // fight cannot end underneath the assertion.
-  for (let i = 0; i < 12; i++) {
-    if (!(await page.getByTestId('defend-button').isEnabled().catch(() => false))) break;
-    await page.getByTestId('defend-button').click({ timeout: 2000 }).catch(() => {});
-  }
+  for (let i = 0; i < 4; i++) await command(page, 'bp-defend');
+  await readyToAct(page);
+  // No 魔法 on the row, so no way to a tray.
+  await expect(page.getByTestId('bp-magic')).toHaveCount(0);
   await expect(page.getByTestId('magic-tray')).toHaveCount(0);
 });
 

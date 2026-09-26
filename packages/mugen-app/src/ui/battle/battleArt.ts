@@ -15,8 +15,13 @@
 
 import heroBattleIdle from '@mugen/assets/files/characters/hero/hero-battle-idle.png';
 import kaosBattleDefault from '@mugen/assets/files/characters/kaos/kaos-battle-default.png';
+import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
+import kaosAwaken from '@mugen/assets/files/characters/kaos/kaos-awaken.png';
 import galdBattleIdle from '@mugen/assets/files/characters/gald/gald-battle-idle.png';
+import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage.png';
+import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
+import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -66,6 +71,18 @@ const PARTY: Record<'hero' | 'kaos' | 'gald', ArtSet<PartyArtState>> = {
         facing: 'left',
         face: { fileW: 1145, fileH: 1374, x: 478, y: 120, width: 180, height: 180 },
       },
+      /** Casting — for the length of a spell. */
+      battle_cast: {
+        src: kaosCast,
+        facing: 'left',
+        face: { fileW: 1103, fileH: 1426, x: 488, y: 225, width: 165, height: 165 },
+      },
+      /** Her higher form, in the fight she wakes in. */
+      awakened: {
+        src: kaosAwaken,
+        facing: 'left',
+        face: { fileW: 1024, fileH: 1536, x: 470, y: 195, width: 180, height: 180 },
+      },
     },
   },
   gald: {
@@ -77,6 +94,10 @@ const PARTY: Record<'hero' | 'kaos' | 'gald', ArtSet<PartyArtState>> = {
         facing: 'right',
         face: { fileW: 1536, fileH: 1024, x: 1105, y: 175, width: 190, height: 190 },
       },
+      /** Struck. */
+      battle_damage: { src: galdBattleDamage },
+      /** Beaten, on the ground. */
+      battle_down: { src: galdBattleDown },
     },
   },
 };
@@ -91,6 +112,12 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
         src: mossRabbit,
         box: { fileW: 1024, fileH: 1536, x: 129, y: 387, width: 703, height: 850 },
         face: { fileW: 1024, fileH: 1536, x: 400, y: 620, width: 380, height: 380 },
+        facing: 'right',
+      },
+      /** Beaten, lying in the grass. */
+      down: {
+        src: mossRabbitDown,
+        box: { fileW: 1536, fileH: 1024, x: 6, y: 218, width: 1523, height: 659 },
         facing: 'right',
       },
     },
@@ -108,6 +135,9 @@ export function battlePartyArt(id: BattlePartyId, state: PartyArtState): Resolve
 export function battleEnemyArt(id: string, state: EnemyArtState): ResolvedArt<EnemyArtState> {
   return resolveArt(ENEMIES[id], state, ENEMY_FALLBACK);
 }
+
+/** What an opponent lies down as — the Artifact's `downPose`. */
+export const DOWN_POSE = { creature: 'down', person: 'battle_down' } as const;
 
 /**
  * A PERSON FOUGHT AS AN OPPONENT reads the enemy's states in party words.

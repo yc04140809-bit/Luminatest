@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { fightUntil } from './battle';
 
 /**
  * THE PICTURES, PHASE 1 — the title's key visual, Kaos in the
@@ -69,23 +70,13 @@ async function staysOutOfTheWay(page: Page, img: Locator, size: { width: number;
 
 /** From his first line in the road to the four answers. */
 async function beatGald(page: Page) {
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 80; i++) {
-    if (await page.getByTestId('life-choice-screen').isVisible().catch(() => false)) break;
-    if (await page.getByTestId('encounter-next').isVisible().catch(() => false)) {
-      await page.getByTestId('encounter-next').click();
-      continue;
-    }
-    if (await page.getByTestId('awakening-done').isVisible().catch(() => false)) {
-      await page.getByTestId('awakening-done').click();
-      continue;
-    }
-    if (!(await attack.isEnabled().catch(() => false))) {
-      await page.waitForTimeout(250);
-      continue;
-    }
-    await attack.click({ timeout: 3000 }).catch(() => {});
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
+    await page.getByTestId('encounter-next').click();
   }
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), {
+    maxTurns: 80,
+  });
   await expect(page.getByTestId('life-choice-screen')).toBeVisible({ timeout: 20_000 });
 }
 

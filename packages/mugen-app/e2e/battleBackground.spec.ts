@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { fightToResult } from './battle';
 
 /**
  * THE GROUND A FIGHT IS FOUGHT ON.
@@ -49,16 +50,6 @@ async function onTop(page: Page, control: Locator) {
   expect(hit).toBe(await control.getAttribute('data-testid'));
 }
 
-async function win(page: Page) {
-  const attack = page.getByTestId('attack-button');
-  for (let i = 0; i < 60; i++) {
-    if (await page.getByTestId('result-exp').isVisible().catch(() => false)) return;
-    if (!(await attack.isEnabled().catch(() => false))) break;
-    await attack.click({ timeout: 2000 }).catch(() => {});
-  }
-  await expect(page.getByTestId('result-exp')).toBeVisible({ timeout: 20_000 });
-}
-
 test('the greenwood\'s fight is fought on FOREST, and it leaves with the fight', async ({ page }) => {
   await freshApp(page);
   await page.getByTestId('start-button').click();
@@ -68,26 +59,26 @@ test('the greenwood\'s fight is fought on FOREST, and it leaves with the fight',
   await page.getByTestId('forest-button').click();
 
   // Not in the forest itself: that is the forest's own picture.
-  await expect(page.getByTestId('battle-bg')).toHaveCount(0);
+  await expect(page.getByTestId('bp-battle-bg')).toHaveCount(0);
 
   await page.getByTestId('encounter-button').click();
-  const bg = page.getByTestId('battle-bg');
+  const bg = page.getByTestId('bp-battle-bg');
   await expect(bg).toHaveAttribute('data-background', 'FOREST');
   expect(await painting(bg)).toMatch(/^forest.*\.png$/);
   // Behind the fight, never over it.
-  await onTop(page, page.getByTestId('attack-button'));
-  await onTop(page, page.getByTestId('defend-button'));
+  await onTop(page, page.getByTestId('bp-attack'));
+  await onTop(page, page.getByTestId('bp-defend'));
 
   // Won, and gone with the fight.
-  await win(page);
+  await fightToResult(page);
   await page.getByTestId('result-done').click();
   await expect(page.getByTestId('encounter-button')).toBeVisible();
-  await expect(page.getByTestId('battle-bg')).toHaveCount(0);
+  await expect(page.getByTestId('bp-battle-bg')).toHaveCount(0);
 
   // And there again for the next one.
   await page.getByTestId('encounter-button').click();
-  await expect(page.getByTestId('battle-bg')).toHaveAttribute('data-background', 'FOREST');
-  expect(await painting(page.getByTestId('battle-bg'))).toMatch(/^forest.*\.png$/);
+  await expect(page.getByTestId('bp-battle-bg')).toHaveAttribute('data-background', 'FOREST');
+  expect(await painting(page.getByTestId('bp-battle-bg'))).toMatch(/^forest.*\.png$/);
 });
 
 for (const key of ['FOREST', 'RUINS', 'SWAMP', 'CITY', 'BEACH', 'GRASSLAND']) {
