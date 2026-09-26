@@ -64,11 +64,21 @@ async function record(page: Page) {
   });
 }
 async function stopRecording(page: Page): Promise<Frame[]> {
-  return page.evaluate(() => {
-    const w = window as unknown as { __frames: Frame[]; __recording: boolean };
-    w.__recording = false;
-    return w.__frames;
-  });
+  // Two more frames first: what the test has just seen on the page (the
+  // row freed, say) is recorded before the recording ends — on a busy
+  // machine the frame that saw it can still be waiting to run.
+  return page.evaluate(
+    () =>
+      new Promise<Frame[]>((resolve) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const w = window as unknown as { __frames: Frame[]; __recording: boolean };
+            w.__recording = false;
+            resolve(w.__frames);
+          }),
+        ),
+      ),
+  );
 }
 const hpOf = (text: string) => Number(text.split('/')[0].replace(/\D/g, ''));
 const first = (f: Frame[], test: (x: Frame) => boolean) => f.findIndex(test);

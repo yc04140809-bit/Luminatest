@@ -16,6 +16,13 @@ import { command, fightToResult, readyToAct } from './battle';
  * show them and not to contradict them.
  */
 
+// THESE ARE JOURNEYS, fought in the game's own fights until the purse
+// can afford the shop — several whole fights each. Since his 攻撃 walks
+// to the creature and back (STEP 3) every turn is longer to watch, and a
+// journey no longer fits the suite's two minutes. The time is the
+// fights' own; nothing here is waited for any longer than before.
+test.describe.configure({ timeout: 300_000 });
+
 async function freshApp(page: Page) {
   await page.goto('/');
   await page.evaluate(async () => {
