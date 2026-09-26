@@ -367,7 +367,8 @@ export function BattleStage({
     };
     const enemy = box('.bp-enemy .bp-art');
     const hero = box('.bp-hero .bp-art');
-    if (enemy && hero) setSceneAt({ stage: { width: s.width, height: s.height }, enemy, hero });
+    if (enemy && hero)
+      setSceneAt({ stage: { width: s.width, height: s.height }, enemy, hero, kaos: box('.bp-kaos .bp-art') });
   }, [sceneId]);
   const sceneOn = scene !== null && sceneAt !== null;
 
@@ -546,6 +547,7 @@ export function BattleStage({
             struckHero ? ' hurt flash' : ''
           }${sceneOn && scene.heroAside ? ' aside' : ''}`}
           data-blow={motionSlot(struckHero)}
+          data-scene-hero={sceneOn ? scene.hero : undefined}
           style={cameraStyle('hero', camera)}
         >
           {swordplay ? (

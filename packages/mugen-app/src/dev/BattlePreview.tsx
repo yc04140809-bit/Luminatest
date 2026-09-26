@@ -35,6 +35,8 @@ import type { FieldScene } from '../ui/battle/fieldScene';
 import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
 import { useLeviDirector } from './levi/useLeviDirector';
 import { leviPlan } from './levi/leviTiming';
+import { useAriaDirector } from './aria/useAriaDirector';
+import { ariaPlan } from './aria/ariaTiming';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — for checking how a fight LOOKS.
@@ -84,12 +86,18 @@ import { leviPlan } from './levi/leviTiming';
  *   &swing=1                     one 攻撃 on opening
  *   &levi=1 / &levi=bare         Levi's phantom spears once on opening
  *                                (bare: without her cut-in first)
+ *   &aria=1 / &aria=bare         Aria's blue-rose arrow once on opening
  *
  * LEVI'S PHANTOM SPEARS (STEP 5). A showing part and nothing more
  * (./levi): she steps in, six phantom spears form round the creature and
  * go in one after another, and she finishes it herself. It is joined to
  * no skill of the game's — no number, no health taken, the fight under
  * it untouched — and v18's name for it is provisional (仮称).
+ *
+ * ARIA'S BLUE-ROSE ARROW (STEP 7). The same kind of part (./aria): she
+ * steps in, draws her bow at the creature, the arrow lands, a blue rose
+ * opens over the field and its light falls on the party with petals. No
+ * number, no health taken, none of v18's stat tags; name provisional.
  *
  * HER SPELLS (STEP C). The DEBUG panel casts each of the five in the
  * game's spell data on a fresh fight, through the very pipeline the
@@ -176,6 +184,10 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const levi = useLeviDirector(speed, director);
   const [leviCutIn, setLeviCutIn] = useState(params.get('levi') !== 'bare');
   const [lastLevi, setLastLevi] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
+  // ARIA'S BLUE-ROSE ARROW — the part, played from the panel.
+  const aria = useAriaDirector(speed, director);
+  const [ariaCutIn, setAriaCutIn] = useState(params.get('aria') !== 'bare');
+  const [lastAria, setLastAria] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
   const speedAt = useRef(speed);
   speedAt.current = speed;
   const shaped = (spec: CutInSpec): CutInSpec => (tierOverride ? { ...spec, tier: tierOverride } : spec);
@@ -197,6 +209,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
     sequence.current += 1;
     director.stop();
     levi.stop();
+    aria.stop();
   };
 
   /** Levi's spears, from the top: a fresh fight, then the part. */
@@ -211,11 +224,24 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
     if (end === 'done') setLastLevi({ ms: performance.now() - started, speed: at });
   };
 
+  /** Aria's arrow, from the top: a fresh fight, then the part. */
+  const playAria = async (withCutIn: boolean) => {
+    stopCutIns();
+    setAutoCast(null);
+    setPanel(false);
+    setRun((n) => n + 1);
+    const started = performance.now();
+    const at = speedAt.current;
+    const end = await aria.play(withCutIn ? ARIA_CUT_IN.spec : null);
+    if (end === 'done') setLastAria({ ms: performance.now() - started, speed: at });
+  };
+
   // `&cutin=…`: one sample on opening, for a link straight to it.
   useEffect(() => {
     const first = CUT_IN_SAMPLES.find((c) => c.id === params.get('cutin'));
     if (first) void playCutIns([first]);
     if (params.has('levi')) void playLevi(params.get('levi') !== 'bare');
+    if (params.has('aria')) void playAria(params.get('aria') !== 'bare');
   }, []);
 
   /** A spell to cast as soon as the next fresh fight is on screen. */
@@ -264,8 +290,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
         onTurnWatched={(ms) => setLastTurn({ ms, speed })}
         cinematic={director.element}
-        cinematicPlaying={director.playing || levi.playing}
-        scene={levi.scene}
+        cinematicPlaying={director.playing || levi.playing || aria.playing}
+        scene={levi.scene ?? aria.scene}
         autoCast={autoCast}
       />
       {showPanel && (
@@ -289,6 +315,12 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
             last: lastLevi,
             onPlay: () => void playLevi(leviCutIn),
             onCutIn: () => setLeviCutIn((on) => !on),
+          }}
+          aria={{
+            withCutIn: ariaCutIn,
+            last: lastAria,
+            onPlay: () => void playAria(ariaCutIn),
+            onCutIn: () => setAriaCutIn((on) => !on),
           }}
           cutIns={{
             playing: director.playing,
@@ -481,6 +513,7 @@ interface CutInControls {
   onTier: (tier: CutInTier | null) => void;
 }
 
+/** Levi's or Aria's part, as the panel drives it. */
 interface LeviControls {
   withCutIn: boolean;
   last: { ms: number; speed: BattleSpeed } | null;
@@ -490,6 +523,8 @@ interface LeviControls {
 
 /** Her cut-in before the spears: v18's sample, as it is (仮称). */
 const LEVI_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'levi')!;
+/** Hers before the arrow: v18's sample, as it is (仮称, v18's long 必殺技 hold). */
+const ARIA_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'aria')!;
 
 const TIER_LABEL: Record<CutInTier, string> = { SKILL: '通常技', FINISHER: '必殺技' };
 
@@ -517,6 +552,7 @@ function DebugPanel({
   onCastSpell,
   onSwing,
   levi,
+  aria,
   cutIns,
 }: {
   open: boolean;
@@ -530,6 +566,7 @@ function DebugPanel({
   onCastSpell: (spellId: string) => void;
   onSwing: () => void;
   levi: LeviControls;
+  aria: LeviControls;
   cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
@@ -550,6 +587,12 @@ function DebugPanel({
           <span data-testid="debug-last-levi">
             {' '}
             ・直前のレヴィ {(levi.last.ms / 1000).toFixed(2)}秒（×{levi.last.speed}）
+          </span>
+        )}
+        {aria.last && (
+          <span data-testid="debug-last-aria">
+            {' '}
+            ・直前のアリア {(aria.last.ms / 1000).toFixed(2)}秒（×{aria.last.speed}）
           </span>
         )}
         {cutIns.last && (
@@ -632,6 +675,18 @@ function DebugPanel({
             構え → 幻影槍6本が出現 → 1本ずつ順に刺さる → レヴィ自身の突きでフィニッシュ。
             槍だけで ×1 {(leviPlan(1).end / 1000).toFixed(1)}秒・×2 {(leviPlan(2).end / 1000).toFixed(1)}秒
             （カットイン別）。ダメージ数字は出ません（本編の技ではないため）。技名は v18 の仮称です。
+          </p>
+          <p style={styles.heading}>アリア「蒼薔薇の矢」（演出見本・本編未接続）</p>
+          <button style={styles.btn} data-testid="debug-aria" onClick={aria.onPlay}>
+            ▶ アリアの弓を再生
+          </button>
+          <button style={styles.btn} data-testid="debug-aria-cutin" onClick={aria.onCutIn}>
+            先にカットイン：{aria.withCutIn ? 'あり' : 'なし'}
+          </button>
+          <p style={styles.note}>
+            弓を引く → 敵へ矢 → 着弾 → 青薔薇が開く → 光と花びらが味方へ。
+            ×1 {(ariaPlan(1).end / 1000).toFixed(1)}秒・×2 {(ariaPlan(2).end / 1000).toFixed(1)}秒（カットイン別）。
+            ダメージ数字・能力値の表示は出ません（本編の技ではないため）。技名は v18 の仮称です。
           </p>
           <p style={styles.heading}>カットイン（v18 見本・本編未接続）</p>
           {CUT_IN_SAMPLES.map((sample) => (

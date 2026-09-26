@@ -9,8 +9,8 @@
 // stylesheet to act on). It decides nothing: a scene has no numbers, and
 // the fight under it is not touched.
 //
-// Today only the debug preview plays one (src/dev/levi — STEP 5); the
-// game's own fights pass none.
+// Today only the debug preview plays them (src/dev/levi — STEP 5,
+// src/dev/aria — STEP 7); the game's own fights pass none.
 
 import type { ReactNode } from 'react';
 
@@ -30,6 +30,8 @@ export interface FieldMarks {
   enemy: FieldBox;
   /** His drawing. */
   hero: FieldBox;
+  /** Hers, when she is on the field. */
+  kaos: FieldBox | null;
 }
 
 export interface FieldScene {
@@ -43,6 +45,8 @@ export interface FieldScene {
   heroAside: boolean;
   /** What the creature is going through — `data-scene-enemy` on it. */
   enemy?: string;
+  /** What he is going through, once back — `data-scene-hero` on him. */
+  hero?: string;
   /** Drawn on the field, among the people (under the HUD). */
   field?: (marks: FieldMarks) => ReactNode;
   /** Drawn over the field and the HUD, in the effects layer. */

@@ -28,6 +28,10 @@ const MARKERS = [
   'debug-levi',
   'levi-spear',
   'lv-spear',
+  // Aria's blue-rose arrow (src/dev/aria, STEP 7).
+  'debug-aria',
+  'aria-rose',
+  'ar-arrow',
 ];
 
 /** Every source file under a folder. */

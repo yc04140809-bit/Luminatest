@@ -1,0 +1,437 @@
+/* ARIA'S BLUE-ROSE ARROW — debug preview only (STEP 7).
+   v18's .aria-* rules (styles.css), rebuilt for the App's battle screen
+   and driven by the steps of AriaScene.tsx. `ar-` so nothing here can
+   touch a rule of the game's. Loaded only with the preview. */
+
+/* ── The field, while she is on it ─────────────────────────────── */
+
+/* The field dims to her sky (v18 .is-aria-skill), and clears as she goes. */
+.bp-stage[data-scene='aria'] .bp-bg {
+  transition: filter 240ms ease;
+}
+.bp-stage[data-scene='aria']:not([data-scene-step='recover']) .bp-bg {
+  filter: brightness(0.5) saturate(0.75) hue-rotate(-8deg);
+}
+
+/* The creature, as her arrow lands: a jolt and a cold light. */
+.bp-enemy[data-scene-enemy='struck'] {
+  animation: ar-jolt 240ms ease-out both;
+}
+.bp-enemy[data-scene-enemy='struck'] .bp-art {
+  animation: ar-struck 420ms ease-out both;
+}
+@keyframes ar-jolt {
+  0% { transform: translate3d(0, 0, 0); }
+  30% { transform: translate3d(-7px, 1px, 0) scale(0.96); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+@keyframes ar-struck {
+  0% { filter: brightness(1); }
+  20% { filter: drop-shadow(0 0 14px rgba(72, 235, 225, 0.95)) brightness(2.6) saturate(0.5); }
+  100% { filter: brightness(1); }
+}
+
+/* Him, back in the rose's light (v18 .hero.is-blessed). */
+.bp-hero[data-scene-hero='blessed'] .bp-art {
+  filter: drop-shadow(0 0 10px rgba(108, 255, 231, 0.9)) drop-shadow(0 0 22px rgba(72, 137, 255, 0.6))
+    brightness(1.25) saturate(1.14);
+  transition: filter 200ms ease;
+}
+
+/* The blue rose opening makes the field lean in a little (v18's camera). */
+.bp-stage[data-scene='aria'][data-scene-step='bloom'],
+.bp-scene-over[data-scene='aria'][data-scene-step='bloom'] {
+  transform-origin: 50% 40%;
+  animation: ar-lean 800ms cubic-bezier(0.18, 0.72, 0.16, 1) both;
+}
+@keyframes ar-lean {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  22% { transform: translate3d(0, 3px, 0) scale(1.012); }
+  64% { transform: translate3d(0, 5px, 0) scale(1.03); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* ── Her ───────────────────────────────────────────────────────── */
+
+.ar-aria {
+  position: absolute;
+  pointer-events: none;
+}
+.ar-shadow {
+  position: absolute;
+  left: 58%;
+  bottom: 0;
+  width: 44%;
+  height: 12px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+  filter: blur(2px);
+}
+.ar-motion {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 46% 58%;
+}
+.ar-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/* Stepping in where he stood (v18 .aria.is-present). */
+.ar-aria[data-step='enter'] {
+  animation: ar-enter var(--ar-enter) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ar-enter {
+  from { opacity: 0; transform: translate3d(5%, 3%, 0) scale(0.95); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Her draw (v18 ariaDraw), held once drawn. */
+.ar-aria[data-step='draw'] .ar-motion {
+  animation: ar-draw var(--ar-draw) cubic-bezier(0.18, 0.76, 0.16, 1) both;
+}
+@keyframes ar-draw {
+  0% { transform: translate3d(8px, 7px, 0) rotate(1deg) scale(0.965); filter: brightness(0.68) saturate(0.86); }
+  58% {
+    transform: translate3d(2px, 0, 0) rotate(0deg) scale(1);
+    filter: brightness(1.08) saturate(1.14) drop-shadow(0 0 10px rgba(29, 210, 218, 0.5));
+  }
+  100% {
+    transform: translate3d(0, -2px, 0) rotate(-0.5deg) scale(1.018);
+    filter: brightness(1.45) saturate(1.24) drop-shadow(0 0 18px rgba(42, 225, 221, 0.8));
+  }
+}
+/* The light gathering at her arrow's point. */
+.ar-charge {
+  position: absolute;
+  width: 18%;
+  aspect-ratio: 1;
+  margin: -9% 0 0 -9%;
+  border-radius: 50%;
+  opacity: 0;
+  background: radial-gradient(circle, #fff 0 7%, #9efff1 9% 18%, rgba(23, 220, 212, 0.72) 24%, transparent 68%);
+  box-shadow: 0 0 18px rgba(41, 225, 218, 0.86), 0 0 38px rgba(38, 134, 255, 0.52);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+.ar-aria[data-step='draw'] .ar-charge {
+  animation: ar-charge var(--ar-draw) cubic-bezier(0.18, 0.76, 0.16, 1) both;
+}
+@keyframes ar-charge {
+  0%, 18% { opacity: 0; transform: scale(0.12) rotate(-28deg); }
+  58% { opacity: 0.72; transform: scale(0.72) rotate(11deg); }
+  86% { opacity: 1; transform: scale(1.18) rotate(38deg); }
+  100% { opacity: 0.9; transform: scale(1.1) rotate(52deg); }
+}
+/* The loose (v18 ariaRelease). */
+.ar-aria[data-step='shot'] .ar-motion {
+  animation: ar-loose var(--ar-shot) cubic-bezier(0.08, 0.8, 0.12, 1) both;
+}
+@keyframes ar-loose {
+  0% { transform: translate3d(0, -2px, 0) rotate(-0.5deg) scale(1.018); filter: brightness(1.45) saturate(1.24); }
+  18% { transform: translate3d(9px, 4px, 0) rotate(1.4deg) scale(1.02); filter: brightness(2.3) saturate(1.4); }
+  100% { transform: translate3d(5px, 3px, 0) rotate(1deg) scale(1.012); filter: brightness(1.08) saturate(1.08); }
+}
+.ar-aria:is([data-step='bloom'], [data-step='bless']) .ar-motion {
+  transform: translate3d(5px, 3px, 0) rotate(1deg) scale(1.012);
+  filter: brightness(1.12) saturate(1.1) drop-shadow(0 0 12px rgba(42, 225, 221, 0.6));
+}
+/* Gone as he comes back (v18 .aria.is-returning). */
+.ar-aria[data-back='yes'] {
+  opacity: 0;
+  transform: translate3d(5%, -3%, 0) scale(1.04);
+  filter: brightness(1.7) saturate(1.25);
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease,
+    filter 260ms ease;
+}
+.ar-aria[data-step='recover'] {
+  opacity: 0;
+}
+
+/* ── Over the field ────────────────────────────────────────────── */
+
+.ar-over {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* Her sky, lighter than v18's: the HUD under it must stay readable. */
+.ar-veil {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 50% 18%, rgba(37, 181, 231, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(1, 7, 19, 0.5), rgba(6, 19, 42, 0.36) 55%, rgba(3, 17, 26, 0.18));
+  transition: opacity 240ms ease;
+}
+.ar-over:is([data-step='bloom'], [data-step='bless']) .ar-veil {
+  opacity: 1;
+}
+
+/* THE ARROW (v18 .aria-shot-trail): from her arrow's point to the
+   creature — it grows from her bow, its bright head leading. */
+.ar-arrow {
+  position: absolute;
+  height: 0;
+  transform-origin: 0 50%;
+}
+.ar-arrow i {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  transform-origin: 0 50%;
+}
+.ar-arrow-wide {
+  top: -14px;
+  height: 28px;
+  background: linear-gradient(90deg, transparent 0, rgba(53, 123, 255, 0.36) 46%, rgba(33, 229, 218, 0.72) 89%, rgba(41, 235, 224, 0));
+  filter: blur(4px) drop-shadow(0 0 15px rgba(34, 220, 218, 0.82));
+  clip-path: polygon(0 39%, 92% 13%, 100% 50%, 92% 87%, 0 61%);
+  animation: ar-flight var(--ar-shot) cubic-bezier(0.06, 0.78, 0.12, 1) both;
+}
+.ar-arrow-core {
+  top: -2.5px;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0, #5391ff 42%, #37ddd8 73%, #9affef 95%, #fff 98%);
+  box-shadow: 0 0 8px #fff, 0 0 19px rgba(41, 224, 218, 0.92);
+  animation: ar-flight var(--ar-shot) cubic-bezier(0.06, 0.78, 0.12, 1) 18ms both;
+}
+.ar-arrow-core::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  width: 32px;
+  height: 20px;
+  background: linear-gradient(270deg, #fff, #87fff0 48%, #3e8cff);
+  clip-path: polygon(100% 50%, 0 0, 25% 50%, 0 100%);
+  filter: drop-shadow(0 0 8px rgba(100, 255, 239, 0.96));
+  transform: translateY(-50%);
+}
+@keyframes ar-flight {
+  0% { opacity: 0; transform: scaleX(0.03); }
+  12% { opacity: 0.45; }
+  54% { opacity: 1; transform: scaleX(1); }
+  72% { opacity: 0.94; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+/* Where it lands: a star of light on the creature (v18 .aria-star-impact). */
+.ar-star {
+  position: absolute;
+  width: var(--ar-star);
+  height: var(--ar-star);
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent 47%, rgba(255, 255, 255, 0.98) 49% 51%, transparent 53%),
+    linear-gradient(0deg, transparent 47%, rgba(255, 255, 255, 0.98) 49% 51%, transparent 53%),
+    radial-gradient(circle, #fff 0 5%, #9fffee 8%, rgba(64, 132, 255, 0.72) 22%, transparent 67%);
+  filter: drop-shadow(0 0 18px rgba(72, 235, 225, 0.96));
+  mix-blend-mode: screen;
+  animation: ar-star calc(var(--ar-shot) * 0.45) cubic-bezier(0.12, 0.76, 0.14, 1) both;
+}
+@keyframes ar-star {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.08) rotate(-24deg); }
+  40% { opacity: 1; transform: translate(-50%, -50%) scale(1.2) rotate(6deg); }
+  70% { opacity: 0.74; transform: translate(-50%, -50%) scale(0.82) rotate(17deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5) rotate(34deg); }
+}
+
+/* THE BLUE ROSE (v18 .aria-rose-domain): opening over the field, then
+   releasing its light. */
+.ar-rose {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.ar-over[data-step='bloom'] .ar-rose {
+  animation: ar-bloom var(--ar-bloom) cubic-bezier(0.12, 0.76, 0.14, 1) both;
+}
+.ar-over[data-step='bless'] .ar-rose {
+  animation: ar-release var(--ar-bless) cubic-bezier(0.16, 0.68, 0.2, 1) both;
+}
+.ar-sigil {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(39, 199, 255, 0.76));
+  -webkit-user-drag: none;
+}
+.ar-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+.ar-ring-outer {
+  width: 112%;
+  height: 112%;
+  border: 1px solid rgba(148, 250, 242, 0.68);
+  box-shadow: 0 0 16px rgba(52, 217, 216, 0.5), inset 0 0 19px rgba(77, 113, 255, 0.38);
+  animation: ar-spin var(--ar-bloom) linear both;
+}
+.ar-ring-inner {
+  width: 83%;
+  height: 83%;
+  border: 1px dashed rgba(244, 225, 151, 0.72);
+  box-shadow: 0 0 12px rgba(255, 229, 155, 0.34);
+  animation: ar-spin-back var(--ar-bloom) linear both;
+}
+@keyframes ar-bloom {
+  0%, 8% { opacity: 0; transform: translate(-50%, -50%) scale(0.06) rotate(-34deg); filter: brightness(0.7) blur(6px); }
+  31% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.42) rotate(-18deg); filter: brightness(1.4) blur(1px); }
+  64% { opacity: 1; transform: translate(-50%, -50%) scale(1.14) rotate(4deg); filter: brightness(1.35) saturate(1.2); }
+  78% { opacity: 1; transform: translate(-50%, -50%) scale(0.96) rotate(-2deg); filter: brightness(1.1) saturate(1.16); }
+  100% { opacity: 0.98; transform: translate(-50%, -50%) scale(1) rotate(0deg); filter: brightness(1.15) saturate(1.16); }
+}
+@keyframes ar-release {
+  0% { opacity: 0.98; transform: translate(-50%, -50%) scale(1) rotate(0deg); filter: brightness(1.15); }
+  24% { opacity: 1; transform: translate(-50%, -50%) scale(1.12) rotate(7deg); filter: brightness(1.6); }
+  48% { opacity: 0.78; transform: translate(-50%, -50%) scale(1.26) rotate(13deg); filter: brightness(1.9) blur(0.4px); }
+  82% { opacity: 0.18; transform: translate(-50%, -50%) scale(1.6) rotate(24deg); filter: brightness(2.2) blur(2px); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.85) rotate(31deg); filter: brightness(2.4) blur(4px); }
+}
+@keyframes ar-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(176deg); }
+}
+@keyframes ar-spin-back {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(-142deg); }
+}
+
+/* Its light, falling on the party (v18 .aria-party-rays). */
+.ar-rays i {
+  position: absolute;
+  top: -12%;
+  width: 40px;
+  height: 112%;
+  opacity: 0;
+  background: linear-gradient(180deg, transparent, rgba(129, 255, 235, 0.08) 12%, rgba(111, 191, 255, 0.55) 53%, rgba(255, 244, 189, 0.2) 78%, transparent);
+  clip-path: polygon(39% 0, 61% 0, 100% 100%, 0 100%);
+  filter: blur(2px) drop-shadow(0 0 11px rgba(78, 232, 223, 0.5));
+  transform: translateX(-50%) scaleY(0.12);
+  transform-origin: top center;
+  animation: ar-ray calc(var(--ar-bless) * 0.82) ease-out calc(var(--ar-bless) * var(--ar-delay)) both;
+}
+@keyframes ar-ray {
+  0% { opacity: 0; transform: translateX(-50%) scaleY(0.08); }
+  22% { opacity: 0.74; }
+  46% { opacity: 1; transform: translateX(-50%) scaleY(1.06); }
+  76% { opacity: 0.65; transform: translateX(-50%) scaleY(1); }
+  100% { opacity: 0; transform: translateX(-50%) scaleY(0.92); }
+}
+/* A small rose on each of them (v18 .aria-blessing-crests). */
+.ar-crest {
+  position: absolute;
+  width: var(--ar-crest);
+  height: var(--ar-crest);
+  object-fit: contain;
+  opacity: 0;
+  filter: drop-shadow(0 0 12px rgba(75, 225, 219, 0.76));
+  -webkit-user-drag: none;
+  animation: ar-crest calc(var(--ar-bless) * 0.78) cubic-bezier(0.16, 0.76, 0.18, 1) calc(var(--ar-bless) * var(--ar-delay)) both;
+}
+@keyframes ar-crest {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.14) rotate(-28deg); }
+  35% { opacity: 0.76; transform: translate(-50%, -50%) scale(1.08) rotate(7deg); }
+  67% { opacity: 0.62; transform: translate(-50%, -50%) scale(0.92) rotate(16deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.28) rotate(29deg); }
+}
+/* Petals (v18 .aria-petal-rain). */
+.ar-petals i {
+  --x: 50%;
+  --d: 0;
+  --drift: 22px;
+  --r: 160deg;
+  position: absolute;
+  left: var(--x);
+  top: -9%;
+  width: 11px;
+  height: 18px;
+  opacity: 0;
+  border-radius: 90% 8% 90% 14%;
+  background: linear-gradient(145deg, #d9fff8, #2cded8 46%, #245bd4 100%);
+  box-shadow: 0 0 9px rgba(55, 220, 216, 0.72);
+  animation: ar-petal calc(var(--ar-bless) * 0.72) cubic-bezier(0.18, 0.58, 0.34, 1) calc(var(--ar-bless) * var(--d)) both;
+}
+.ar-petals i:nth-child(1) { --x: 8%; --d: 0.03; --drift: 38px; --r: 228deg; }
+.ar-petals i:nth-child(2) { --x: 14%; --d: 0.18; --drift: -24px; --r: 310deg; }
+.ar-petals i:nth-child(3) { --x: 21%; --d: 0.08; --drift: 48px; --r: 196deg; }
+.ar-petals i:nth-child(4) { --x: 29%; --d: 0.24; --drift: -31px; --r: 272deg; }
+.ar-petals i:nth-child(5) { --x: 36%; --d: 0.12; --drift: 26px; --r: 344deg; }
+.ar-petals i:nth-child(6) { --x: 43%; --d: 0.29; --drift: -42px; --r: 216deg; }
+.ar-petals i:nth-child(7) { --x: 49%; --d: 0.05; --drift: 34px; --r: 298deg; }
+.ar-petals i:nth-child(8) { --x: 55%; --d: 0.21; --drift: -19px; --r: 186deg; }
+.ar-petals i:nth-child(9) { --x: 61%; --d: 0.14; --drift: 44px; --r: 256deg; }
+.ar-petals i:nth-child(10) { --x: 66%; --d: 0.33; --drift: -37px; --r: 328deg; }
+.ar-petals i:nth-child(11) { --x: 71%; --d: 0.08; --drift: 22px; --r: 238deg; }
+.ar-petals i:nth-child(12) { --x: 76%; --d: 0.26; --drift: -28px; --r: 354deg; }
+.ar-petals i:nth-child(13) { --x: 81%; --d: 0.16; --drift: 36px; --r: 210deg; }
+.ar-petals i:nth-child(14) { --x: 86%; --d: 0.36; --drift: -43px; --r: 286deg; }
+.ar-petals i:nth-child(15) { --x: 91%; --d: 0.1; --drift: 18px; --r: 336deg; }
+.ar-petals i:nth-child(16) { --x: 95%; --d: 0.23; --drift: -25px; --r: 204deg; }
+.ar-petals i:nth-child(17) { --x: 52%; --d: 0.39; --drift: 51px; --r: 318deg; }
+.ar-petals i:nth-child(18) { --x: 33%; --d: 0.42; --drift: -46px; --r: 244deg; }
+@keyframes ar-petal {
+  0% { opacity: 0; transform: translate3d(0, -10vh, 0) rotate(0deg) scale(0.38); }
+  18% { opacity: 0.92; }
+  78% { opacity: 0.84; }
+  100% { opacity: 0; transform: translate3d(var(--drift), 112vh, 0) rotate(var(--r)) scale(0.86); }
+}
+/* One soft flash as the light falls, gentler than v18's. */
+.ar-flash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.8), rgba(94, 246, 230, 0.34) 18%, rgba(59, 104, 255, 0.14) 43%, transparent 72%);
+  mix-blend-mode: screen;
+  animation: ar-flash var(--ar-bless) linear both;
+}
+@keyframes ar-flash {
+  0% { opacity: 0.6; }
+  8% { opacity: 0.14; }
+  16%, 68% { opacity: 0; }
+  76% { opacity: 0.24; }
+  100% { opacity: 0; }
+}
+
+/* ── Still, for those who asked for less motion ────────────────── */
+/* Every step is still drawn — she, the arrow, the landing, the rose, the
+   light — only without the travel between. */
+@media (prefers-reduced-motion: reduce) {
+  .ar-aria,
+  .ar-motion,
+  .ar-charge,
+  .ar-ring,
+  .bp-stage[data-scene='aria'],
+  .bp-scene-over[data-scene='aria'],
+  .bp-enemy[data-scene-enemy='struck'],
+  .bp-enemy[data-scene-enemy='struck'] .bp-art {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+:root[data-reduced-motion='on'] :is(.ar-aria, .ar-motion, .ar-charge, .ar-ring),
+:root[data-reduced-motion='on'] .bp-stage[data-scene='aria'],
+:root[data-reduced-motion='on'] .bp-scene-over[data-scene='aria'],
+:root[data-reduced-motion='on'] .bp-enemy[data-scene-enemy='struck'],
+:root[data-reduced-motion='on'] .bp-enemy[data-scene-enemy='struck'] .bp-art {
+  animation: none !important;
+  transition: none !important;
+}
