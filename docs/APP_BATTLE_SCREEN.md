@@ -58,7 +58,8 @@
 
 - **入れる所**：開発サーバー（`npx vite`）と **デバッグAPK**（CI の `npm run build:debug`、`.env.debug` の
   `VITE_MUGEN_DEBUG_TOOLS=1`）。**リリース用の `npm run build` には、この画面も入口も入らない**
-  （ビルド時に削除。ビルド結果の JS を検索して、含まれないことを確認済み）。
+  （ビルド時に削除）。`npm run check:release` が実際にリリース用ビルドを作って JS を検索し、
+  入っていたら失敗する。この確認はデバッグAPKのCIでも毎回走る。
 - **入口**：タイトル画面の左下「DEBUG 戦闘演出プレビュー」（デバッグビルドにだけ出る）。
   ブラウザでは `?preview=battle` でも開ける。
 - **本編と同じ戦闘計算**：`playerAttack` / `playerDefend` / `castMagic` / `useItem`（共通部分）を

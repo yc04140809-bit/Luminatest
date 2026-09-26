@@ -104,6 +104,10 @@ jobs:
           echo "using $SDKMANAGER"
           "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
 
+      # リリース用ビルドにデバッグ用の道具が入らないことの確認（入っていたら失敗）。
+      - name: Release build has no debug tools
+        run: npm run check:release -w @mugen/app
+
       # ゲーム本体。Web版と同じビルドに、デバッグ用の道具（戦闘演出プレビューと
       # タイトルの DEBUG ボタン）だけを加えたもの（.env.debug）。これはデバッグAPK
       # 専用で、リリース用の `npm run build` には含まれない。

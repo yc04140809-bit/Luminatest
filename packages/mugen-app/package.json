@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "playwright test",
+    "check:release": "node scripts/check-release-has-no-debug.mjs",
     "check:portraits": "node scripts/check-portrait-masters.mjs",
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run build:debug && cap sync android && cd android && ./gradlew assembleDebug",
