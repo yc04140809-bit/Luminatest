@@ -138,13 +138,35 @@ export function BattleScreen({
     // SKILL opens its own (empty) tray; ARCANA is locked in the App.
   };
 
+  /**
+   * HER SPELL: decided by the core in one call, as always, and then shown
+   * in full — her cut-in with the spell's name, her aura, the landing, the
+   * creature's answer (battleTheatre.playSpell). When it lands, the plate
+   * says what it did in the battle's own words, as an item's does.
+   */
   const cast = (id: string) => {
     if (!idle) return;
     const magic = spells.find((m) => m.id === id);
     if (!magic || magicBlocked(battle, magic) !== null) return;
     setSay(null);
-    turn(castMagic(battle, magic), 'MAGIC');
+    const before = battle;
+    const next = castMagic(battle, magic);
+    setBattle(next);
+    if (next.outcome !== 'ONGOING' && !ended.current) {
+      ended.current = { hp: next.playerHp, mp: next.playerMp };
+    }
+    const said = next.log.slice(before.log.length);
+    theatre.playSpell(before, next, magic, () =>
+      setSay({ name: magic.name, line: said[0] ?? magic.line, result: said[1] ?? '' }),
+    );
   };
+
+  /**
+   * What is drawn: the battle as it is — except while a spell is still on
+   * its way, when it is the battle as it was. The end of the fight waits
+   * for the same moment, so nothing falls down before it has been hit.
+   */
+  const shown = theatre.holding ?? battle;
 
   const drink = (itemId: string) => {
     if (!idle) return;
@@ -177,15 +199,15 @@ export function BattleScreen({
    * the party carries out. Every wait is cleared if the screen goes.
    */
   useEffect(() => {
-    if (battle.outcome === 'DEFEAT') {
+    if (shown.outcome === 'DEFEAT') {
       const t = setTimeout(onLost, beatMs(DEFEAT_WAIT_MS, speed));
       return () => clearTimeout(t);
     }
-    if (battle.outcome === 'VICTORY' && !downed) {
+    if (shown.outcome === 'VICTORY' && !downed) {
       const t = setTimeout(() => setDowned(true), beatMs(KNOCKDOWN_MS, speed));
       return () => clearTimeout(t);
     }
-    if (battle.outcome === 'VICTORY' && downed) {
+    if (shown.outcome === 'VICTORY' && downed) {
       const t = setTimeout(
         () => onWon(ended.current ?? { hp: battle.playerHp, mp: battle.playerMp }),
         beatMs(VICTORY_WAIT_MS, speed),
@@ -195,11 +217,11 @@ export function BattleScreen({
     return undefined;
     // The handlers are the parent's and stable in effect; the fight's
     // outcome and the fall are what these waits hang on.
-  }, [battle.outcome, downed, speed]);
+  }, [shown.outcome, downed, speed]);
 
   return (
     <BattleStage
-      battle={battle}
+      battle={shown}
       opponent={opponent}
       locationId={locationId}
       background={background}
@@ -220,6 +242,8 @@ export function BattleScreen({
       magic={{ spells, onCast: cast }}
       items={{ bag: carried, onUse: drink }}
       onAwakeningDone={() => setBattle((b) => clearAwakeningLines(b))}
+      spell={theatre.spell}
+      cinematic={theatre.cinematic}
       bgm={music}
       testId="battle-screen"
     />

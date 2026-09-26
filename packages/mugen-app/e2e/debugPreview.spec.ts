@@ -30,7 +30,7 @@ test('the title has a way in, on a debug build', async ({ page }) => {
 });
 
 test('played again, the same presses give the same numbers', async ({ page }) => {
-  await page.goto('/?preview=battle&answer=NONE');
+  await page.goto('/?preview=battle');
   const first = [await strikeOnce(page), await strikeOnce(page), await strikeOnce(page)];
   expect(first.every((d) => d > 0)).toBe(true);
 
@@ -52,7 +52,7 @@ test('the enemy can be told what to answer with, every turn', async ({ page }) =
 });
 
 test('beaten, it goes down and stays down — no result screen, no world', async ({ page }) => {
-  await page.goto('/?preview=battle&answer=NONE');
+  await page.goto('/?preview=battle');
   const until = Date.now() + 60_000;
   while (Date.now() < until && !(await page.getByTestId('bp-enemy-downed').isVisible())) {
     const free = await page.evaluate(
@@ -76,7 +76,7 @@ test('beaten, it goes down and stays down — no result screen, no world', async
 });
 
 test("against Gald she wakes, and her spell is the core's", async ({ page }) => {
-  await page.goto('/?preview=battle&enemy=gald&answer=NONE');
+  await page.goto('/?preview=battle&enemy=gald');
   const awakening = page.getByTestId('magic-awakening');
   const until = Date.now() + 90_000;
   while (Date.now() < until && !(await awakening.isVisible())) {

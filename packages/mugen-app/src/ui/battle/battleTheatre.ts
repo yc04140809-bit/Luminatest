@@ -16,11 +16,16 @@
 // component that uses the hook clearing it on unmount clears them all,
 // so leaving a fight mid-swing leaves nothing running behind it.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { BattleState } from '@mugen/game/battle/battleLogic';
+import type { MagicDef } from '@mugen/core/magic/magic';
 import { beatMs, visualMs, type BattleSpeed } from '@mugen/game/battle/battleSpeed';
 import { CAMERA_GLIDE_MS, swingCues, type CameraPhase } from './battleCamera';
 import { endBlow, landBlow, type Blow } from './blows';
+import { useCutInDirector } from './cutin/CutIn';
+import { spellCutIn } from './magic/spellCutIn';
+import { SPELL_CONTACT_AT, spellDamage, spellShowOf, spellStepMs } from './magic/spellShow';
+import type { SpellFxView } from './magic/SpellFx';
 
 /** How long each beat is held at ×1 — the Artifact's BEAT_MS. */
 export const BEAT_MS: Record<string, number> = {
@@ -119,6 +124,23 @@ export interface Theatre {
   playing: boolean;
   /** Show a turn: the state before it and the state it produced. */
   playTurn: (before: BattleState, next: BattleState, kind: TurnKind) => void;
+  /**
+   * Show one of her spells: cut-in, aura, landing, then the creature's
+   * answer. `onLanded` is called the moment it lands — the time to say
+   * what it did.
+   */
+  playSpell: (before: BattleState, next: BattleState, spell: MagicDef, onLanded?: () => void) => void;
+  /** Her aura or the spell's landing, while one is showing. */
+  spell: SpellFxView | null;
+  /**
+   * THE STATE TO DRAW UNTIL A SPELL LANDS. A spell is decided at once and
+   * shown over seconds; until it lands the health bars, the knock-down
+   * and the end of the fight must all still read as before it. Null the
+   * rest of the time: draw the battle as it is.
+   */
+  holding: BattleState | null;
+  /** Her cut-in, while one plays (for BattleStage's `cinematic`). */
+  cinematic: ReactElement | null;
 }
 
 export function useBattleTheatre(speed: BattleSpeed): Theatre {
@@ -128,10 +150,16 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
   const [playing, setPlaying] = useState(false);
   const timers = useRef<number[]>([]);
   const blowId = useRef(0);
+  const [spell, setSpell] = useState<SpellFxView | null>(null);
+  const [holding, setHolding] = useState<BattleState | null>(null);
+  const cutIns = useCutInDirector(speed);
+  /** Which turn is being shown; a newer one makes an older one's cues no-ops. */
+  const showing = useRef(0);
 
   // Leaving the screen stops everything it started.
   useEffect(
     () => () => {
+      showing.current += 1;
       timers.current.forEach(clearTimeout);
       timers.current = [];
     },
@@ -153,11 +181,34 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
     }, contact);
   };
 
-  const playTurn = (before: BattleState, next: BattleState, kind: TurnKind) => {
-    // One turn at a time: whatever was still showing is over.
+  /** One turn at a time: whatever was still showing is over. */
+  const clearStage = () => {
+    showing.current += 1;
     timers.current.forEach(clearTimeout);
     timers.current = [];
+    cutIns.stop();
     setBlows([]);
+    setSpell(null);
+    setHolding(null);
+  };
+
+  /** The creature's answer, from `from` ms on; returns when it is over. */
+  const playAnswer = (next: BattleState, from: number): number => {
+    let at = from;
+    for (const step of answerOf(next)) {
+      const delay = at;
+      later(() => setBeat(step), delay);
+      at += beatLength(step, speed);
+    }
+    if (answered(next) && next.lastEnemyAction === 'ATTACK') {
+      strike('hero', next.lastEnemyDamage, from);
+    }
+    later(() => setBeat('NONE'), at);
+    return at;
+  };
+
+  const playTurn = (before: BattleState, next: BattleState, kind: TurnKind) => {
+    clearStage();
 
     const first = openingBeat(kind);
     const sequence = [first, ...answerOf(next)];
@@ -190,5 +241,60 @@ export function useBattleTheatre(speed: BattleSpeed): Theatre {
     later(() => setPlaying(false), end);
   };
 
-  return { beat, camera, blows, playing, playTurn };
+  const playSpell = (before: BattleState, next: BattleState, def: MagicDef, onLanded?: () => void) => {
+    clearStage();
+    const mine = showing.current;
+    const show = spellShowOf(def);
+    const channel = spellStepMs('CHANNEL', speed);
+    const impact = spellStepMs('IMPACT', speed);
+    setHolding(before);
+    setBeat('NONE');
+    setCamera('IDLE');
+    setPlaying(true);
+
+    // 1. Her cut-in, with the spell's own name. Stopped — by a newer turn
+    //    or by the screen going — and nothing after it happens.
+    void cutIns.play(spellCutIn(def)).then((ended) => {
+      if (ended !== 'done' || showing.current !== mine) return;
+
+      // 2. She channels: her casting pose, and the aura round her.
+      setBeat('MAGIC');
+      setSpell({ id: mine, kind: show.kind, lands: show.lands, phase: 'channel', ms: channel });
+
+      // 3. It lands. From here the battle is drawn as it now is, and the
+      //    number — the two that hurt only — is the core's own.
+      later(() => {
+        setSpell({ id: mine, kind: show.kind, lands: show.lands, phase: 'impact', ms: impact });
+        setBeat('NONE');
+        setHolding(null);
+        onLanded?.();
+        const damage = spellDamage(before, next, show);
+        if (show.hurts) {
+          later(() => {
+            blowId.current += 1;
+            const id = blowId.current;
+            setBlows((live) => landBlow(live, { id, on: 'enemy', amount: damage }));
+            later(() => setBlows((live) => endBlow(live, id)), beatLength('HURT', speed) + 260);
+          }, Math.round(impact * SPELL_CONTACT_AT));
+        }
+      }, channel);
+
+      // 4. The landing clears, and the creature answers as it always does.
+      later(() => setSpell(null), channel + impact);
+      const over = playAnswer(next, channel + impact);
+      later(() => setPlaying(false), over);
+    });
+  };
+
+  return {
+    beat,
+    camera,
+    blows,
+    playing,
+    playTurn,
+    playSpell,
+    spell,
+    holding,
+    cinematic: cutIns.element,
+  };
 }

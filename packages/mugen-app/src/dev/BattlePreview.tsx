@@ -64,14 +64,23 @@ import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
  *                                fight on another of the battle paintings
  *                                (default: the greenwood's own, FOREST)
  *   &bag=1                       one of every item the game defines
- *   &answer=ATTACK|SKILL|NONE    what the enemy does every turn (default:
- *                                whatever the core decides)
+ *   &answer=ATTACK|SKILL         what the enemy does every turn (default:
+ *                                whatever the core decides). SKILL only
+ *                                when its skill is ready, as in the game.
  *   &escape=1 / &escape=0        force the 逃走 chip on or off. By default
  *                                it is there for a creature and not for
  *                                Gald, as in the Artifact's real fights.
  *                                It is only drawn: escape is not built.
  *   &debug=0                     hide the DEBUG panel (for screenshots)
  *   &cutin=chaos|hero|levi|aria  play that sample cut-in once on opening
+ *   &spell=starlight_bolt|…      cast that spell of hers once on opening
+ *                                (the moss rabbit, she awake, full MP)
+ *   &hurt=1                      he starts at half health
+ *
+ * HER SPELLS (STEP C). The DEBUG panel casts each of the five in the
+ * game's spell data on a fresh fight, through the very pipeline the
+ * game's battle screen uses (battleTheatre.playSpell): cut-in with the
+ * spell's name, aura, landing, the core's own numbers and words.
  *
  * CUT-INS (STEP B). The DEBUG panel plays the cut-in part
  * (ui/battle/cutin) with v18's four samples (./cutInSamples): one at a
@@ -103,18 +112,24 @@ interface Setup {
   background: BattleBackgroundKey | undefined;
   answer: Answer;
   escape: boolean | null;
+  /** He starts at half health — for seeing her mending do something. */
+  hurt: boolean;
 }
 
 function setupFrom(params: URLSearchParams): Setup {
+  const spell = params.get('spell');
   const bg = params.get('bg');
   const answer = params.get('answer');
   return {
-    gald: params.get('enemy') === 'gald',
-    magic: params.get('magic') === '1',
+    gald: spell ? false : params.get('enemy') === 'gald',
+    magic: spell ? true : params.get('magic') === '1',
     bag: params.get('bag') === '1',
     background: BATTLE_BACKGROUND_KEYS.find((key) => key === bg),
-    answer: answer === 'ATTACK' || answer === 'SKILL' || answer === 'NONE' ? answer : 'CORE',
+    // Only what the core can be told: 'NONE' is not an order it takes (it
+    // decides as usual), so it is not offered — it would be a lie.
+    answer: answer === 'ATTACK' || answer === 'SKILL' ? answer : 'CORE',
     escape: params.has('escape') ? params.get('escape') === '1' : null,
+    hurt: params.get('hurt') === '1',
   };
 }
 
@@ -165,9 +180,28 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
     if (first) void playCutIns([first]);
   }, []);
 
+  /** A spell to cast as soon as the next fresh fight is on screen. */
+  const [autoCast, setAutoCast] = useState<string | null>(() => params.get('spell'));
+
   const change = (patch: Partial<Setup>) => {
     stopCutIns();
+    setAutoCast(null);
     setSetup((s) => ({ ...s, ...patch }));
+    setRun((n) => n + 1);
+  };
+
+  /**
+   * ONE OF HER SPELLS, FROM THE TOP, EVERY TIME: a fresh fight (fresh
+   * dice, full MP, the same numbers each time) in which she can cast, and
+   * the spell cast at once. Against the moss rabbit: the story's Gald
+   * fight begins before she has woken, so she cannot cast at its start.
+   */
+  const castOnFresh = (spellId: string) => {
+    stopCutIns();
+    // Out of the way, as for a cut-in sample: the spell is what is watched.
+    setPanel(false);
+    setSetup((s) => ({ ...s, magic: true, gald: false }));
+    setAutoCast(spellId);
     setRun((n) => n + 1);
   };
 
@@ -183,6 +217,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         onTurnWatched={(ms) => setLastTurn({ ms, speed })}
         cinematic={director.element}
         cinematicPlaying={director.playing}
+        autoCast={autoCast}
       />
       {showPanel && (
         <DebugPanel
@@ -195,8 +230,10 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
           onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
           onReplay={() => {
             stopCutIns();
+            setAutoCast(null);
             setRun((n) => n + 1);
           }}
+          onCastSpell={castOnFresh}
           cutIns={{
             playing: director.playing,
             tierOverride,
@@ -221,6 +258,7 @@ function PreviewFight({
   onTurnWatched,
   cinematic,
   cinematicPlaying,
+  autoCast,
 }: {
   setup: Setup;
   speed: BattleSpeed;
@@ -228,12 +266,18 @@ function PreviewFight({
   onTurnWatched: (ms: number) => void;
   cinematic: ReactElement | null;
   cinematicPlaying: boolean;
+  autoCast: string | null;
 }) {
   const dice = useRef<Rng>(fixedDice());
   const [battle, setBattle] = useState<BattleState>(() =>
     createBattle(setup.gald ? GALD_BATTLE : specOf(MOSS_RABBIT), undefined, {
       stats: statsForLevels(1, 1),
       magicUnlocked: setup.magic,
+      // Half his health, if asked: a starting condition, the way the game
+      // hands a fight the party's wounds — not a change to any number.
+      condition: setup.hurt
+        ? { hp: Math.round(statsForLevels(1, 1).maxHp / 2), mp: statsForLevels(1, 1).maxMp }
+        : undefined,
     }),
   );
   const [bag, setBag] = useState(() =>
@@ -274,13 +318,31 @@ function PreviewFight({
     if (command === 'DEFEND') turn(playerDefend(battle, dice.current, forced), 'DEFEND');
   };
 
+  // Her spell, shown exactly as the game's battle screen shows it
+  // (battleTheatre.playSpell) — on the core's own result.
   const cast = (id: string) => {
     if (!idle) return;
     const magic = spells.find((m) => m.id === id);
     if (!magic || magicBlocked(battle, magic) !== null) return;
     setSay(null);
-    turn(castMagic(battle, magic, dice.current, forced), 'MAGIC');
+    const before = battle;
+    const next = castMagic(battle, magic, dice.current, forced);
+    setBattle(next);
+    startedAt.current = performance.now();
+    const said = next.log.slice(before.log.length);
+    theatre.playSpell(before, next, magic, () =>
+      setSay({ name: magic.name, line: said[0] ?? magic.line, result: said[1] ?? '' }),
+    );
   };
+
+  // A spell asked for from the DEBUG panel: cast the moment this fresh
+  // fight is on screen.
+  useEffect(() => {
+    if (autoCast) cast(autoCast);
+  }, []);
+
+  /** Until a spell lands, the fight as it was (see battle.tsx). */
+  const shown = theatre.holding ?? battle;
 
   const drink = (itemId: string) => {
     if (!idle) return;
@@ -296,15 +358,15 @@ function PreviewFight({
 
   // Beaten, it goes down — and stays down, until it is played again.
   useEffect(() => {
-    if (battle.outcome !== 'VICTORY' || downed) return undefined;
+    if (shown.outcome !== 'VICTORY' || downed) return undefined;
     const t = setTimeout(() => setDowned(true), beatMs(KNOCKDOWN_MS, speed));
     return () => clearTimeout(t);
-  }, [battle.outcome, downed, speed]);
+  }, [shown.outcome, downed, speed]);
 
   const escape = setup.escape ?? !setup.gald;
   return (
     <BattleStage
-      battle={battle}
+      battle={shown}
       opponent={opponent}
       locationId="GREENWOOD_FOREST"
       background={setup.background}
@@ -317,7 +379,8 @@ function PreviewFight({
         blows: theatre.blows,
         playing: theatre.playing || cinematicPlaying,
       }}
-      cinematic={cinematic}
+      cinematic={theatre.cinematic ?? cinematic}
+      spell={theatre.spell}
       downed={downed}
       say={say}
       speed={speed}
@@ -353,7 +416,6 @@ const ANSWERS: { id: Answer; label: string }[] = [
   { id: 'CORE', label: 'おまかせ' },
   { id: 'ATTACK', label: '攻撃' },
   { id: 'SKILL', label: '技' },
-  { id: 'NONE', label: 'なし' },
 ];
 
 /**
@@ -371,6 +433,7 @@ function DebugPanel({
   onChange,
   onReplay,
   onCycleSpeed,
+  onCastSpell,
   cutIns,
 }: {
   open: boolean;
@@ -381,6 +444,7 @@ function DebugPanel({
   onChange: (patch: Partial<Setup>) => void;
   onReplay: () => void;
   onCycleSpeed: () => void;
+  onCastSpell: (spellId: string) => void;
   cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
@@ -438,6 +502,23 @@ function DebugPanel({
           <p style={styles.note}>
             速度 ×{speed}（右下のチップで切替）。上の「直前のターン」は、押してから次に押せるまでの時間。
             オート（AUTO）はまだ作っていないので、1ターンずつ押して比べてください。保存はされません。
+          </p>
+          <p style={styles.heading}>ケイオスの魔法（本編と同じ処理・同じ演出）</p>
+          {MAGIC_DEFS.map((def) => (
+            <button
+              key={def.id}
+              style={styles.btn}
+              data-testid={`debug-spell-${def.id}`}
+              onClick={() => onCastSpell(def.id)}
+            >
+              ✦ {def.name}（MP{def.mpCost}）
+            </button>
+          ))}
+          <button style={styles.btn} data-testid="debug-hurt" onClick={() => onChange({ hurt: !setup.hurt })}>
+            主人公のHP：{setup.hurt ? '半分から' : '満タン'}
+          </button>
+          <p style={styles.note}>
+            押すたびに新しい戦闘（MP満タン・同じ乱数）で1回唱えます。癒しの光の回復を見るときは HP を「半分から」に。
           </p>
           <p style={styles.heading}>カットイン（v18 見本・本編未接続）</p>
           {CUT_IN_SAMPLES.map((sample) => (

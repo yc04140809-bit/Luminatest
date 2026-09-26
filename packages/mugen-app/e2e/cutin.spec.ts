@@ -118,7 +118,7 @@ for (const motion of ['no-preference', 'reduce'] as const)
   });
 
 test('nothing can be pressed through a cut-in', async ({ page }) => {
-  await page.goto('/?preview=battle&answer=NONE');
+  await page.goto('/?preview=battle');
   await readyToAct(page);
   const [before] = await enemyHp(page);
   const attack = (await page.getByTestId('bp-attack').boundingBox())!;
@@ -216,7 +216,9 @@ test('closing the preview in the middle of one leaves no error and nothing behin
   expect(errors).toEqual([]);
 });
 
-test("the game's own fights play no cut-in: nothing is joined to a skill yet", async ({ page }) => {
+// Her spells have cut-ins in the game's fight now (magic.spec). A swing
+// of the sword is not a skill and has none.
+test("a sword swing in the game's own fight plays no cut-in", async ({ page }) => {
   await page.goto('/');
   await page.evaluate(async () => {
     for (const d of (await indexedDB.databases?.()) ?? [])

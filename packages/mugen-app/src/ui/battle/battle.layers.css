@@ -3,12 +3,21 @@
    The battle screen draws, back to front:
      background → the people on the field (their depth, up to the enemy
      plate) → HUD and commands → the awakening scene (30)
-     → effects (35, reserved: nothing is drawn there yet)
+     → effects (35: her aura and a spell's landing, magic/SpellFx.tsx)
      → a choice panel (40, BattlePicker.tsx)
      → a cut-in (45, cutin/CutIn.tsx) — its name is part of it, so it
        is drawn with it, over everything else.
    A choice panel and a cut-in never show together: a panel opens only
    between turns, a cut-in plays only inside one. */
+
+/* A SPELL HAPPENING — over the people and the HUD, and taking nothing:
+   presses are already refused while a turn is being shown. */
+.bp-effects {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  pointer-events: none;
+}
 
 /* A CUT-IN, over the fight. It takes every press while it plays, so
    nothing underneath — a command, the speed chip, the BGM chip — is
@@ -87,4 +96,36 @@
   font-size: 12px;
   font-weight: 700;
   color: #6e5010;
+}
+
+/* THE LINE THAT SAYS WHAT AN ITEM OR A SPELL DID — given a width.
+   The Artifact's said plate is a grid whose middle column may shrink to
+   nothing, inside a plate that is only as wide as its content: together
+   they collapse the sentence to one character per line, a tall dark
+   column across the middle of the field. Here it is as wide as the
+   sentence needs, up to a readable limit, with the name and her line on
+   the first row and the battle's own result under them. */
+.bp-message.bp-said {
+  width: min(92vw, 520px);
+  max-width: min(92vw, 520px);
+}
+.bp-said .bp-said-body {
+  grid-template-columns: auto minmax(0, 1fr);
+  row-gap: 2px;
+}
+.bp-said .bp-said-result {
+  grid-column: 1 / -1;
+}
+/* And its words in the HUD's own light inks: the Artifact colours them
+   for a pearl card (charcoal), and on this navy plate they could not be
+   read at all. */
+.bp-said .bp-said-name {
+  color: var(--bx-gold-lit);
+}
+.bp-said .bp-said-line {
+  color: var(--bx-ink-dim);
+}
+.bp-said .bp-said-result {
+  color: var(--bx-ink);
+  font-weight: 600;
 }

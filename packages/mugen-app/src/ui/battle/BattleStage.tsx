@@ -30,6 +30,7 @@ import { HitFx } from './HitFx';
 import { MagicTray } from './MagicTray';
 import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
+import { SpellFx, type SpellFxView } from './magic/SpellFx';
 import { AwakeningScene } from './AwakeningScene';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
@@ -119,6 +120,8 @@ export interface BattleStageProps {
    * HUD and the commands (battle.layers.css). Null or absent: nothing.
    */
   cinematic?: ReactNode;
+  /** Her aura or a spell's landing, while one shows (`useBattleTheatre().spell`). */
+  spell?: SpellFxView | null;
   /** Absent: no AUTO chip (AUTO is a later phase). */
   onToggleAuto?: () => void;
   onCycleSpeed?: () => void;
@@ -147,6 +150,7 @@ export function BattleStage({
   items,
   onAwakeningDone,
   cinematic,
+  spell = null,
   onToggleAuto,
   onCycleSpeed,
   onEscape,
@@ -243,6 +247,33 @@ export function BattleStage({
       y: slot.bottom + 0.16,
     };
   };
+  // WHERE A SPELL HAPPENS, measured off the drawings when it starts —
+  // her chest for the aura, the middle of whoever it lands on — so it is
+  // on them whoever they are, however near they stand, on any phone.
+  const [spellAt, setSpellAt] = useState<{
+    caster: { x: number; y: number };
+    enemy: { x: number; y: number };
+    party: { x: number; y: number };
+  } | null>(null);
+  const spellId = spell?.id ?? null;
+  useEffect(() => {
+    const stageEl = stageRef.current;
+    if (spellId === null || !stageEl) return;
+    const s = stageEl.getBoundingClientRect();
+    const centre = (selector: string, lift = 0) => {
+      const art = stageEl.querySelector(selector);
+      if (!art || s.width === 0 || s.height === 0) return null;
+      const a = art.getBoundingClientRect();
+      return {
+        x: (a.left + a.width / 2 - s.left) / s.width,
+        y: 1 - (a.top + a.height * (0.5 - lift) - s.top) / s.height,
+      };
+    };
+    const caster = centre('.bp-kaos .bp-art', 0.12);
+    const enemy = centre('.bp-enemy .bp-art');
+    const party = centre('.bp-hero .bp-art');
+    if (caster && enemy && party) setSpellAt({ caster, enemy, party });
+  }, [spellId]);
   const struckHero = latestOn(blows, 'hero');
   const struckEnemy = latestOn(blows, 'enemy');
 
@@ -360,7 +391,10 @@ export function BattleStage({
             struckEnemy ? 'flash' : '',
             beat === 'TACKLE' ? 'tackle' : '',
             beat === 'HIDE' ? 'hide' : '',
-            struckEnemy || beat === 'MAGIC' ? 'struck' : '',
+            // The Artifact flinches it for her whole cast. With the spell
+            // shown in full, it flinches when a spell that hurts lands —
+            // the blow — and not while she is only gathering it.
+            struckEnemy || (beat === 'MAGIC' && !spell) ? 'struck' : '',
             beaten && !showingDown ? 'falling' : '',
             showingDown ? 'downed' : '',
           ]
@@ -690,6 +724,13 @@ export function BattleStage({
           </p>
         )}
       </div>
+
+      {/* A spell happening: over the people and the HUD, under a cut-in. */}
+      {spell && spellAt && (
+        <div className="bp-effects" data-testid="bp-effects">
+          <SpellFx spell={spell} caster={spellAt.caster} target={spellAt[spell.lands]} />
+        </div>
+      )}
 
       {/* A cut-in, over the fight and its HUD — and taking every press
           while it plays. */}
