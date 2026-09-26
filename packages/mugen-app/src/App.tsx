@@ -38,6 +38,7 @@ import {
   nextBattleBgm,
 } from '@mugen/content/audio/battleBgm';
 import { battleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
+import { DebugEntry } from './dev/DebugEntry';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
   GALD_FUTURE_VISION_ID,
@@ -394,28 +395,32 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'THEME_CHOICE':
     case 'TITLE':
       return (
-        <TitleScreen
-          hasSave={world.hasProgress()}
-          saving={saving}
-          onStart={() => {
-            if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
-            flow.goTo('PROLOGUE');
-          }}
-          onContinue={() => {
-            if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
-            flow.goTo('HOME');
-            // AN UNFINISHED LOOK AHEAD IS RESUMED, and it comes first:
-            // the four answers are already saved, so the player is
-            // never asked to decide again — only to finish seeing.
-            if (visionOwed()) {
-              flow.goTo('TIME_SHIFT');
-              return;
-            }
-            // Otherwise, back where they were: the one thing
-            // 「つづきから」 owes beyond the world itself.
-            if (world.getResumeArea() === 'EXPLORE') flow.goTo('EXPLORE');
-          }}
-        />
+        <>
+          {/* Debug builds only — compile time, see src/dev/DebugEntry. */}
+          {(import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') && <DebugEntry />}
+          <TitleScreen
+            hasSave={world.hasProgress()}
+            saving={saving}
+            onStart={() => {
+              if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
+              flow.goTo('PROLOGUE');
+            }}
+            onContinue={() => {
+              if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
+              flow.goTo('HOME');
+              // AN UNFINISHED LOOK AHEAD IS RESUMED, and it comes first:
+              // the four answers are already saved, so the player is
+              // never asked to decide again — only to finish seeing.
+              if (visionOwed()) {
+                flow.goTo('TIME_SHIFT');
+                return;
+              }
+              // Otherwise, back where they were: the one thing
+              // 「つづきから」 owes beyond the world itself.
+              if (world.getResumeArea() === 'EXPLORE') flow.goTo('EXPLORE');
+            }}
+          />
+        </>
       );
     case 'PROLOGUE':
       // NAMING SITS BETWEEN THE OPENING AND THE VILLAGE, and stays out

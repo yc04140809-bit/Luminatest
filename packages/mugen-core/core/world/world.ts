@@ -20,6 +20,7 @@ import {
 } from '../../content/equipment/equipment';
 import { canEquip } from '../../content/equipment/equipResolve';
 import {
+  FORCED_BATTLE_BGM,
   INITIAL_UNLOCKED_BATTLE_BGM,
   isBattleBgm,
   type BattleBgmId,
@@ -690,6 +691,10 @@ export class World {
     if (health.health === 'ok' && !migrated.fromTheFuture) {
       await world.writeBackup(persist);
     }
+
+    // 5. WHAT WAS EARNED BEFORE THE SAVE KEPT A NOTE OF IT. Never in a
+    //    save from a later build, which is not this build's to write.
+    if (!migrated.fromTheFuture) await world.recoverEarnedBattleBgm();
     return world;
   }
 
@@ -924,6 +929,34 @@ export class World {
     this.unlockedBgm = next;
     this.emit();
     return true;
+  }
+
+  /**
+   * MUSIC WON BEFORE THE SAVE REMEMBERED WINNING IT.
+   *
+   * Gald's piece became something a save keeps after some worlds had
+   * already beaten him — and his fight is fought once per world, so
+   * those worlds could never earn it again. This gives it back to them,
+   * from proof and only from proof:
+   *
+   *   HIS FOUR-WAY ANSWER. It is asked on the screen that only a WON
+   *   fight with him leads to (a lost one goes back to the village), and
+   *   every build that has had the fight has led there the same way. A
+   *   world holding the answer has beaten him.
+   *
+   * Nothing weaker counts. Having met him, having lost to him, having
+   * seen Kaos wake in his fight: none of those is a win, and none of
+   * them is read here. A world with no answer on record stays as it is,
+   * and the rule for everybody else is unchanged — the piece is earned
+   * the moment he is beaten.
+   *
+   * No new version and no migration: this fills in one missing row from
+   * a record the save already has. Idempotent and silent — a world that
+   * already holds the piece, or holds no proof, writes nothing.
+   */
+  private async recoverEarnedBattleBgm(): Promise<void> {
+    if (!this.getGaldLifeChoice()) return;
+    await this.unlockBattleBgm(FORCED_BATTLE_BGM.GALD);
   }
 
   /**

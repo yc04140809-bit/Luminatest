@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build:debug": "tsc -p tsconfig.json --noEmit && vite build --mode debug",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "playwright test",
     "check:portraits": "node scripts/check-portrait-masters.mjs",
     "android:sync": "npm run build && cap sync android",
-    "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:apk": "npm run build:debug && cap sync android && cd android && ./gradlew assembleDebug",
     "test": "vitest run"
   },
   "dependencies": {

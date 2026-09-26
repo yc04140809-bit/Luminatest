@@ -104,9 +104,11 @@ jobs:
           echo "using $SDKMANAGER"
           "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
 
-      # ゲーム本体。Web版とまったく同じビルドで、Android専用の作り直しはしない。
-      - name: Build the web game
-        run: npm run build -w @mugen/app
+      # ゲーム本体。Web版と同じビルドに、デバッグ用の道具（戦闘演出プレビューと
+      # タイトルの DEBUG ボタン）だけを加えたもの（.env.debug）。これはデバッグAPK
+      # 専用で、リリース用の `npm run build` には含まれない。
+      - name: Build the web game (debug tools on)
+        run: npm run build:debug -w @mugen/app
 
       # dist を android/app/src/main/assets/public へ複製し、プラグインを同期。
       - name: Capacitor sync

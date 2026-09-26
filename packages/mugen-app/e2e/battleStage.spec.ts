@@ -3,7 +3,7 @@ import { test, expect, type Page } from '@playwright/test';
 /**
  * THE ARTIFACT'S BATTLE SCREEN, DRAWN BY THE APP — Phase 1, at rest.
  *
- * Reached through the development-only `?preview=battle`, because it
+ * Reached through the debug-build-only `?preview=battle`, because it
  * is not connected to the game yet. What is checked is what a player
  * would see: the field, both sides where the Artifact puts them, every
  * picture actually drawn, every reading and every control on the
@@ -114,15 +114,12 @@ test('draws Gald at arm\'s length, without a way out', async ({ page }) => {
   await expect(page.getByTestId('bp-escape')).toHaveCount(0);
 });
 
-test('is not connected: a command changes nothing, the chips only change themselves', async ({
-  page,
-}) => {
+test('touches no world: a fight played here opens no save at all', async ({ page }) => {
   await open(page);
-  await expect(page.getByTestId('battle-preview')).toHaveAttribute('data-connected', 'no');
-  const before = await page.getByTestId('bp-enemy-read').textContent();
   await page.getByTestId('bp-attack').click();
-  await page.waitForTimeout(300);
-  await expect(page.getByTestId('bp-enemy-read')).toHaveText(before!);
+  await expect(page.getByTestId('bp-commands')).toHaveAttribute('data-locked', 'no', { timeout: 10_000 });
+  // No database was ever opened: no world was read, and none written.
+  expect(await page.evaluate(async () => (await indexedDB.databases()).length)).toBe(0);
 
   await page.getByTestId('bp-speed').click();
   await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');

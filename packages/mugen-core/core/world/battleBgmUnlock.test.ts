@@ -73,4 +73,61 @@ describe('a reset forgets the rest of what the last world added, too', () => {
       }
     }
   });
+
+});
+
+describe('a save that beat Gald before saves kept his music', () => {
+  // Such a save holds his four-way answer — only a won fight leads to
+  // it — and no note of the piece: exactly what recording the answer
+  // without the App's unlock leaves behind.
+  const oldSaveThatBeatHim = async (name: string) => {
+    const world = await open(name);
+    await world.recordGaldLifeChoice('SPARE');
+    expect(world.getUnlockedBattleBgm()).toEqual(['NORMAL_BATTLE']);
+  };
+
+  it('gets the piece back when it is opened, and keeps it', async () => {
+    const name = freshDbName();
+    await oldSaveThatBeatHim(name);
+    const opened = await open(name);
+    expect(opened.getUnlockedBattleBgm()).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+    // Written into the save, not only remembered for this session.
+    const store = new IdbMemoryStore(name);
+    await store.init();
+    const row = (await store.getAllState()).find((r) => r.key === 'unlocked_battle_bgm');
+    expect(row?.value).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+  });
+
+  it('whichever of the four answers was given', async () => {
+    for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
+      const name = freshDbName();
+      await (await open(name)).recordGaldLifeChoice(choice);
+      expect((await open(name)).getUnlockedBattleBgm()).toContain('BOSS_BATTLE');
+    }
+  });
+
+  it('writes nothing more once it has it', async () => {
+    const name = freshDbName();
+    await oldSaveThatBeatHim(name);
+    await open(name);
+    const again = await open(name);
+    expect(again.getUnlockedBattleBgm()).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+    expect(again.getVersion()).toBe((await open(name)).getVersion());
+  });
+
+  it('is not given to a save with no proof of beating him', async () => {
+    const name = freshDbName();
+    const world = await open(name);
+    // Days go by and the world moves; he is never beaten.
+    await world.advanceDay();
+    expect((await open(name)).getUnlockedBattleBgm()).toEqual(['NORMAL_BATTLE']);
+  });
+
+  it('does not survive a reset along with the answer it came from', async () => {
+    const name = freshDbName();
+    await oldSaveThatBeatHim(name);
+    const opened = await open(name);
+    await opened.resetWorld();
+    expect((await open(name)).getUnlockedBattleBgm()).toEqual(['NORMAL_BATTLE']);
+  });
 });
