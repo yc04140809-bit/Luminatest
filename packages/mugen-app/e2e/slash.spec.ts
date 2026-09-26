@@ -173,6 +173,8 @@ for (const bg of ['FOREST', 'RUINS', 'SWAMP', 'CITY', 'BEACH', 'GRASSLAND']) {
 test('the same swing, the same number, every time', async ({ page }) => {
   const once = async () => {
     await page.goto('/?preview=battle&debug=0&swing=1');
+    // The swing starts a moment after the page does: wait for it to land.
+    await expect.poll(async () => (await enemyHp(page))[0]).toBeLessThan(124);
     await readyToAct(page);
     return (await enemyHp(page))[0];
   };
