@@ -112,6 +112,20 @@ test('she wakes during his fight, which is the only way she ever does', async ({
   await page.getByTestId('bp-magic').click();
   await expect(page.getByTestId('magic-tray')).toBeVisible();
   await expect(page.getByTestId('magic-starlight_bolt')).toBeVisible();
+  // In front of Gald, his plate, the two of them and the row: every
+  // spell's name, its MP and やめる are what a finger there touches.
+  const rows = page.getByTestId('magic-tray').locator('button');
+  for (let i = 0; i < (await rows.count()); i++) {
+    await rows.nth(i).scrollIntoViewIfNeeded();
+    const box = (await rows.nth(i).boundingBox())!;
+    for (const fx of [0.08, 0.5, 0.92]) {
+      const onPanel = await page.evaluate(
+        ({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.bp-picker-panel'),
+        { x: box.x + box.width * fx, y: box.y + box.height / 2 },
+      );
+      expect(onPanel, `spell row ${i} at ${fx}`).toBe(true);
+    }
+  }
 });
 
 test('the four answers are offered, and only once per world', async ({ page }) => {

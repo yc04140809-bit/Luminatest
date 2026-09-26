@@ -29,6 +29,7 @@ import { latestOn, motionSlot, type Blow } from './blows';
 import { HitFx } from './HitFx';
 import { MagicTray } from './MagicTray';
 import { ItemTray } from './ItemTray';
+import { BattlePicker } from './BattlePicker';
 import { AwakeningScene } from './AwakeningScene';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
@@ -40,6 +41,7 @@ import {
 } from './battleArt';
 import './battle.generated.css';
 import './battle.app.css';
+import './battle.layers.css';
 
 /**
  * THE ARTIFACT'S BATTLE SCREEN, DRAWN BY THE APP.
@@ -681,7 +683,12 @@ export function BattleStage({
             アルカナ 準備中
           </p>
         )}
-        {!beaten && magicOpen && canCast && (
+      </div>
+
+      {/* Every choice the fight asks for is made in front of everything
+          else on the screen — see BattlePicker. */}
+      {!beaten && magicOpen && canCast && (
+        <BattlePicker label="魔法を選ぶ" onClose={closeTrays}>
           <MagicTray
             spells={magic.spells}
             mp={battle.playerMp}
@@ -690,15 +697,22 @@ export function BattleStage({
               setMagicOpen(false);
               magic.onCast(id);
             }}
-            onClose={() => setMagicOpen(false)}
+            onClose={closeTrays}
           />
-        )}
-        {!beaten && skillOpen && (
+        </BattlePicker>
+      )}
+      {!beaten && skillOpen && (
+        <BattlePicker label="スキルを選ぶ" onClose={closeTrays}>
           <div className="bp-tray" data-testid="bp-skill-tray">
             <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
+            <button className="bp-tray-close" data-testid="bp-skill-close" onClick={closeTrays}>
+              やめる
+            </button>
           </div>
-        )}
-        {!beaten && itemOpen && items && (
+        </BattlePicker>
+      )}
+      {!beaten && itemOpen && items && (
+        <BattlePicker label="アイテムを選ぶ" onClose={closeTrays}>
           <ItemTray
             bag={items.bag}
             battle={battle}
@@ -707,10 +721,10 @@ export function BattleStage({
               setItemOpen(false);
               items.onUse(itemId);
             }}
-            onClose={() => setItemOpen(false)}
+            onClose={closeTrays}
           />
-        )}
-      </div>
+        </BattlePicker>
+      )}
     </div>
   );
 }

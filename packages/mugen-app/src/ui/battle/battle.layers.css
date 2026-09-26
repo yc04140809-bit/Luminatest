@@ -1,0 +1,59 @@
+/* THE CHOICE LAYER — the App's own rule, on top of the Artifact's sheet.
+
+   The battle screen draws, back to front:
+     background → the people on the field (their depth, up to the enemy
+     plate) → HUD and commands → the awakening scene (30)
+   and every panel that asks for a choice goes over all of that. See
+   BattlePicker.tsx for why. */
+
+.bp-picker {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+}
+
+/* The fight is still there, only quieter. */
+.bp-picker-veil {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 8, 18, 0.46);
+}
+
+/* The panel keeps the command row in sight under the veil — the
+   Artifact's own 78px — and never runs off the top; longer than the
+   room, it scrolls. */
+.bp-picker-panel {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(620px, calc(100% - 28px));
+  top: calc(10px + env(safe-area-inset-top));
+  bottom: calc(78px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.bp-picker-panel > * {
+  pointer-events: auto;
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The Artifact's spell drawer is placed against the dock; here it is
+   the panel's content, on a ground dark enough to read from its first
+   row (the Artifact's fades in over a quarter of its height). */
+.bp-picker .magic-tray {
+  position: static;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(18, 16, 14, 0.96);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.45);
+}
+.bp-picker .bp-tray {
+  align-self: stretch;
+}

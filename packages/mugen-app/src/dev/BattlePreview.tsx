@@ -9,6 +9,7 @@ import { BattleStage, type BattleOpponentView } from '../ui/battle/BattleStage';
 import { BATTLE_BACKGROUND_KEYS } from '@mugen/assets/keys';
 import { availableMagic } from '@mugen/core/magic/magic';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
+import { ITEM_DEFS } from '@mugen/content/economy/itemDefs';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — development builds only.
@@ -26,6 +27,9 @@ import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
  *   &bg=FOREST|RUINS|SWAMP|CITY|BEACH|GRASSLAND
  *                                fight on another of the battle paintings
  *                                (default: the greenwood's own, FOREST)
+ *   &bag=1                       one of every item the game defines, in
+ *                                the bag (the アイテム panel; using does
+ *                                nothing here)
  *   &escape=1 / &escape=0        force the 逃走 chip on or off. By default
  *                                it is there for a creature and not for
  *                                Gald, as in the Artifact's real fights.
@@ -46,6 +50,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const [auto, setAuto] = useState(false);
   const bg = params.get('bg');
   const background = BATTLE_BACKGROUND_KEYS.find((key) => key === bg);
+  const bag = params.get('bag') === '1' ? ITEM_DEFS.map((def) => ({ itemId: def.itemId, quantity: 1 })) : [];
   const escape = params.has('escape') ? params.get('escape') === '1' : !gald;
   return (
     <BattleStage
@@ -55,6 +60,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
       background={background}
       // Her spells, as the fight would offer them; casting does nothing here.
       magic={{ spells: availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked }), onCast: () => {} }}
+      items={{ bag, onUse: () => {} }}
       memoryLines={[]}
       memoryDepth={0}
       arcanaReady={false}
