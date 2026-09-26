@@ -57,3 +57,21 @@
 .bp-picker .bp-tray {
   align-self: stretch;
 }
+
+/* READABLE MP, SAME LOOK. The Artifact's rows fade from pearl to a 12%
+   gold wash, so over the dark panel the middle of each row — where the
+   MP sits — is a mid grey, and its antique gold on that grey measured
+   about 1.2:1 on a phone. Here the row stays pearl-to-sand all the way
+   down (opaque), and the MP is the same gold, deeper: 6:1 or better
+   against every part of the row. Nothing moves and nothing is renamed. */
+.bp-picker .magic-tray-item {
+  background: linear-gradient(180deg, var(--mugen-surface) 0%, #efe6d2 100%);
+}
+.bp-picker .magic-tray-item:disabled {
+  background: #e9e2d3;
+}
+.bp-picker .magic-tray-cost {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6e5010;
+}

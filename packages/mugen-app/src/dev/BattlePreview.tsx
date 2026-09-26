@@ -113,6 +113,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);
   const [run, setRun] = useState(0);
   const [panel, setPanel] = useState(false);
+  /** How long the last turn took to watch, and at what speed — for judging ×2 without AUTO. */
+  const [lastTurn, setLastTurn] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
   const showPanel = params.get('debug') !== '0';
 
   const change = (patch: Partial<Setup>) => {
@@ -129,6 +131,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         setup={setup}
         speed={speed}
         onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
+        onTurnWatched={(ms) => setLastTurn({ ms, speed })}
       />
       {showPanel && (
         <DebugPanel
@@ -136,6 +139,7 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
           onToggle={() => setPanel((o) => !o)}
           setup={setup}
           speed={speed}
+          lastTurn={lastTurn}
           onChange={change}
           onReplay={() => setRun((n) => n + 1)}
         />
@@ -148,10 +152,12 @@ function PreviewFight({
   setup,
   speed,
   onCycleSpeed,
+  onTurnWatched,
 }: {
   setup: Setup;
   speed: BattleSpeed;
   onCycleSpeed: () => void;
+  onTurnWatched: (ms: number) => void;
 }) {
   const dice = useRef<Rng>(fixedDice());
   const [battle, setBattle] = useState<BattleState>(() =>
@@ -179,7 +185,16 @@ function PreviewFight({
     const before = battle;
     setBattle(next);
     theatre.playTurn(before, next, kind);
+    startedAt.current = performance.now();
   };
+
+  // From the press to the row being free again: what ×2 is meant to shorten.
+  const startedAt = useRef<number | null>(null);
+  useEffect(() => {
+    if (theatre.playing || startedAt.current === null) return;
+    onTurnWatched(performance.now() - startedAt.current);
+    startedAt.current = null;
+  }, [theatre.playing]);
 
   const onCommand = (command: BattleCommand) => {
     if (!idle) return;
@@ -261,6 +276,7 @@ function DebugPanel({
   onToggle,
   setup,
   speed,
+  lastTurn,
   onChange,
   onReplay,
 }: {
@@ -268,6 +284,7 @@ function DebugPanel({
   onToggle: () => void;
   setup: Setup;
   speed: BattleSpeed;
+  lastTurn: { ms: number; speed: BattleSpeed } | null;
   onChange: (patch: Partial<Setup>) => void;
   onReplay: () => void;
 }) {
@@ -279,6 +296,12 @@ function DebugPanel({
     <div style={styles.wrap} data-testid="debug-panel">
       <button style={styles.chip} data-testid="debug-toggle" onClick={onToggle}>
         DEBUG {open ? '▴' : '▾'}
+        {lastTurn && (
+          <span data-testid="debug-last-turn">
+            {' '}
+            ・直前のターン {(lastTurn.ms / 1000).toFixed(2)}秒（×{lastTurn.speed}）
+          </span>
+        )}
       </button>
       {open && (
         <div style={styles.box}>
@@ -305,7 +328,10 @@ function DebugPanel({
           <button style={styles.btn} data-testid="debug-answer" onClick={() => onChange({ answer: nextAnswer.id })}>
             敵の行動：{ANSWERS[answerIndex].label}
           </button>
-          <p style={styles.note}>速度 ×{speed}（右下のチップで切替）・保存されません</p>
+          <p style={styles.note}>
+            速度 ×{speed}（右下のチップで切替）。上の「直前のターン」は、押してから次に押せるまでの時間。
+            オート（AUTO）はまだ作っていないので、1ターンずつ押して比べてください。保存はされません。
+          </p>
           <button
             style={styles.btn}
             data-testid="debug-exit"

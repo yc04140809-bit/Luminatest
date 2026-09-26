@@ -281,6 +281,77 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
 });
 
 /**
+ * A SAVE THAT BEAT HIM BEFORE SAVES KEPT HIS MUSIC gets it back.
+ *
+ * Made the way such a save really looks: Gald beaten and his four-way
+ * answer given, and no note of the piece (removed from the save here,
+ * as an older build never wrote it). Opened again, the answer is the
+ * proof, and ♪ is there in an ordinary fight.
+ */
+test('an older save that beat Gald and answered gets ♪ back when it is opened', async ({ page }) => {
+  await freshTitle(page);
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await toTheMap(page);
+  await page.getByTestId('forest-button').click();
+  await beatGald(page);
+  await page.getByTestId('choice-SPARE').click();
+  await expect(page.getByTestId('choice-result')).toHaveAttribute('data-choice', 'SPARE');
+  // And on through the look ahead, back to the world, as a player would.
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
+    await page.getByTestId('choice-result-next').click();
+  }
+  for (let i = 0; i < 4; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+
+  // As an older build left it: the answer, and no unlock.
+  const unlockRow = () =>
+    page.evaluate(
+      () =>
+        new Promise<unknown>((resolve, reject) => {
+          const open = indexedDB.open('mugen-zero-app');
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const get = open.result.transaction('world_state').objectStore('world_state').get('unlocked_battle_bgm');
+            get.onsuccess = () => {
+              resolve(get.result?.value ?? null);
+              open.result.close();
+            };
+          };
+        }),
+    );
+  expect(await unlockRow()).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('mugen-zero-app');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const tx = open.result.transaction('world_state', 'readwrite');
+          tx.objectStore('world_state').delete('unlocked_battle_bgm');
+          tx.oncomplete = () => {
+            open.result.close();
+            resolve();
+          };
+        };
+      }),
+  );
+  expect(await unlockRow()).toBeNull();
+
+  // Opened again: given back, written down, and there in a fight.
+  await restartAndContinue(page);
+  expect(await unlockRow()).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+  await toTheRabbit(page);
+  await expect(page.getByTestId('bp-bgm-label')).toHaveText('1/2');
+});
+
+/**
  * THE FIGHT THAT MATTERS BRINGS ITS OWN MUSIC. Gald's is BOSS_BATTLE,
  * and the four answers that follow are hers.
  */

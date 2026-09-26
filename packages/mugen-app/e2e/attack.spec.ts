@@ -160,6 +160,26 @@ test('×2 is quicker and still shows every part of the turn', async ({ page }) =
   expect(Number(shown!.amount)).toBe(before - after);
 });
 
+test('×2 lasts one fight: the next one starts at ×1 again', async ({ page }) => {
+  await intoAFight(page);
+  await page.getByTestId('bp-speed').click();
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '2');
+  await fightToResult(page);
+  await page.getByTestId('result-done').click();
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '1');
+  // And nothing about it was kept for the next session either.
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  const village = page.getByTestId('explore-button');
+  if (await village.isVisible().catch(() => false)) await village.click();
+  await page.getByTestId('forest-button').click();
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-speed')).toHaveAttribute('data-speed', '1');
+});
+
 test('beaten, it goes down, and the game carries on from there', async ({ page }) => {
   await intoAFight(page);
   // Swing until it falls, watching for it lying down on the way out.
