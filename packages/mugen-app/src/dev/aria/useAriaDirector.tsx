@@ -18,7 +18,7 @@ interface AriaNow {
   id: number;
   plan: AriaPlan;
   step: AriaStep;
-  /** Her arrow has landed. */
+  /** Her arrow has burst in the sky. */
   landed: boolean;
   /** He is back, in the rose's light, and she is going. */
   back: boolean;
@@ -115,7 +115,6 @@ export function useAriaDirector(speed: BattleSpeed, cutIns: CutInDirector): Aria
         name: 'aria',
         step: now.step,
         heroAside: !now.back,
-        enemy: now.step === 'shot' && now.landed ? 'struck' : undefined,
         hero: now.back && now.step === 'bless' ? 'blessed' : undefined,
         field: (marks) => <AriaFigure marks={marks} step={now.step} back={now.back} plan={now.plan} />,
         over: (marks) => <AriaBloom marks={marks} step={now.step} landed={now.landed} plan={now.plan} />,

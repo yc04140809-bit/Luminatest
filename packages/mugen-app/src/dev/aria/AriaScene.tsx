@@ -4,19 +4,20 @@
 // rebuilt as a part the battle screen plays through its field-scene joint
 // (ui/battle/fieldScene.ts):
 //
-//   she steps in where he stood → draws her bow → the arrow flies at the
-//   creature and lands in a star of light → a blue rose opens over the
-//   field → its light falls on the party with a rain of petals, and he is
-//   back in its glow as she goes.
+//   she steps in where he stood → leans back and draws her bow at the
+//   sky → the arrow flies up over the field and bursts in a star of light
+//   → a blue rose opens over the field → its light falls on the party
+//   with a rain of petals, and he is back in its glow as she goes.
 //
-// SHE AIMS AT THE CREATURE. Her bow, her body and the arrow's line point
-// left, at it — never at the party. (v18 loosed the arrow into the sky
-// above the creature's side; here it lands ON the creature, so the shot
-// is seen to land.)
+// A BLESSING, SHOT INTO THE SKY — not at the creature (as v18, and as the
+// user has confirmed it is meant: 「弓を上に向けてバフ」). Nothing touches
+// the creature. Her picture draws the bow level, so she leans back from
+// her feet to raise it, and the arrow leaves along the bow — up and to
+// the left, over the creature's side, never toward the party.
 //
-// DRAWING ONLY. No number, no health taken, and none of v18's tags — its
+// DRAWING ONLY. No number, no health, and none of v18's tags — its
 // PARTY BLESSING / ATK ▲ / SPD ▲ / CRIT ▲ name stats the game does not
-// have. What the skill does, if it becomes one, is not decided here.
+// have. What the blessing does, if it becomes a skill, is not decided here.
 //
 // Everything is placed off the drawings, measured when it starts.
 
@@ -35,6 +36,8 @@ const ART_ASPECT = 1024 / 1536;
 const ART_TIP = { x: 0.012, y: 0.302 };
 const ART_BODY_X = 0.6;
 const ART_FEET_Y = 0.985;
+/** How far she leans back from her feet to raise her bow at the sky (degrees). */
+export const ARIA_LEAN = 20;
 
 const px = (n: number) => `${Math.round(n)}px`;
 
@@ -51,7 +54,7 @@ const inPixels = (b: FieldBox, marks: FieldMarks): Box => ({
   height: b.height * marks.stage.height,
 });
 
-/** Where she stands, where her arrow points and lands — in field pixels. */
+/** Where she stands, where her arrow goes and bursts — in field pixels. */
 export function ariaGeometry(marks: FieldMarks) {
   const W = marks.stage.width;
   const H = marks.stage.height;
@@ -61,8 +64,12 @@ export function ariaGeometry(marks: FieldMarks) {
   const heroFeet = hero.top + hero.height;
 
   // A little taller than his drawing (her bow reaches over her head),
-  // but never off the top, and her arrow's point short of the creature.
-  let height = Math.min(hero.height * 1.3, (heroFeet - 4) / ART_FEET_Y);
+  // but never off the top — leaning back, the picture's top corner is its
+  // highest point — and her arrow's point short of the creature.
+  const lean = (ARIA_LEAN * Math.PI) / 180;
+  // (her top-left corner, turned about her feet, rises this many heights)
+  const cornerRise = ART_ASPECT * ART_BODY_X * Math.sin(lean) + ART_FEET_Y * Math.cos(lean);
+  let height = Math.min(hero.height * 1.3, (heroFeet - 4) / cornerRise);
   let width = height * ART_ASPECT;
   const tipNoCloserThan = enemy.left + enemy.width + W * 0.05;
   if (heroMid - width * (ART_BODY_X - ART_TIP.x) < tipNoCloserThan) {
@@ -71,8 +78,18 @@ export function ariaGeometry(marks: FieldMarks) {
   }
   const left = heroMid - width * ART_BODY_X;
   const top = heroFeet - height * ART_FEET_Y;
-  const tip = { x: left + width * ART_TIP.x, y: top + height * ART_TIP.y };
-  const target = { x: enemy.left + enemy.width * 0.5, y: enemy.top + enemy.height * 0.5 };
+  // Leaning back from her feet turns her arrow's point up with the bow.
+  const pivot = { x: left + width * ART_BODY_X, y: top + height * ART_FEET_Y };
+  const rad = lean;
+  const rel = { x: width * (ART_TIP.x - ART_BODY_X), y: height * (ART_TIP.y - ART_FEET_Y) };
+  const tip = {
+    x: pivot.x + rel.x * Math.cos(rad) - rel.y * Math.sin(rad),
+    y: pivot.y + rel.x * Math.sin(rad) + rel.y * Math.cos(rad),
+  };
+  // Along the bow, up and to the left, until it is high over the field.
+  const skyY = Math.max(20, H * 0.08);
+  const run = Math.max(40, Math.min((tip.y - skyY) / Math.sin(rad), (tip.x - W * 0.12) / Math.cos(rad)));
+  const sky = { x: tip.x - Math.cos(rad) * run, y: tip.y - Math.sin(rad) * run };
 
   // The party: him, and her if she is there.
   const party = [hero, ...(marks.kaos ? [inPixels(marks.kaos, marks)] : [])];
@@ -81,7 +98,7 @@ export function ariaGeometry(marks: FieldMarks) {
   return {
     aria: { left, top, width, height },
     tip,
-    target,
+    sky,
     rose: { x: W * 0.5, y: H * 0.4, size: Math.min(H * 0.5, W * 0.28, 210) },
     rays: Array.from({ length: 5 }, (_, i) => from + ((to - from) * (i + 0.5)) / 5),
     crests: party.map((b) => ({ x: b.left + b.width / 2, y: b.top + b.height * 0.52 })),
@@ -111,6 +128,8 @@ export function AriaFigure({
     '--ar-enter': `${plan.ms.ENTER}ms`,
     '--ar-draw': `${plan.ms.DRAW}ms`,
     '--ar-shot': `${plan.ms.SHOT}ms`,
+    '--ar-lean': `${ARIA_LEAN}deg`,
+    '--ar-pivot': `${ART_BODY_X * 100}% ${ART_FEET_Y * 100}%`,
   } as CSSProperties;
   return (
     <div
@@ -122,15 +141,17 @@ export function AriaFigure({
       aria-hidden="true"
     >
       <span className="ar-shadow" />
-      <div className="ar-motion">
-        <img className="ar-art" src={ariaBattle} alt="" draggable={false} data-testid="aria-art" />
-        <span className="ar-charge" style={{ left: `${ART_TIP.x * 100}%`, top: `${ART_TIP.y * 100}%` }} />
+      <div className="ar-lean">
+        <div className="ar-motion">
+          <img className="ar-art" src={ariaBattle} alt="" draggable={false} data-testid="aria-art" />
+          <span className="ar-charge" style={{ left: `${ART_TIP.x * 100}%`, top: `${ART_TIP.y * 100}%` }} />
+        </div>
       </div>
     </div>
   );
 }
 
-/** The arrow, its landing, the rose, and its light on the party — over the field. */
+/** The arrow, its burst in the sky, the rose, and its light on the party — over the field. */
 export function AriaBloom({
   marks,
   step,
@@ -143,8 +164,8 @@ export function AriaBloom({
   plan: AriaPlan;
 }) {
   const g = ariaGeometry(marks);
-  const dx = g.target.x - g.tip.x;
-  const dy = g.target.y - g.tip.y;
+  const dx = g.sky.x - g.tip.x;
+  const dy = g.sky.y - g.tip.y;
   const style = {
     '--ar-shot': `${plan.ms.SHOT}ms`,
     '--ar-bloom': `${plan.ms.BLOOM}ms`,
@@ -172,7 +193,7 @@ export function AriaBloom({
         </span>
       )}
       {step === 'shot' && landed && (
-        <span className="ar-star" data-testid="aria-landing" style={{ left: px(g.target.x), top: px(g.target.y) }} />
+        <span className="ar-star" data-testid="aria-star" style={{ left: px(g.sky.x), top: px(g.sky.y) }} />
       )}
       {blooming && (
         <span

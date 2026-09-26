@@ -5,14 +5,15 @@ import { throughTheOpening } from './opening';
 /**
  * ARIA'S BLUE-ROSE ARROW, IN THE DEBUG PREVIEW (STEP 7).
  *
- * A showing part, joined to no skill of the game's: she steps in where
- * he stood, draws her bow AT THE CREATURE, the arrow lands on it, a blue
- * rose opens over the field and its light falls on the party with petals
- * as he comes back. Checked: the order, that she and her arrow face the
- * creature and the arrow lands on it, that it all stays on the screen,
- * that the fight under it is untouched (no number, no health, no stat
- * tags, no press), that nothing is left after, ×2 — and that the game's
- * own fight never plays it.
+ * A showing part, joined to no skill of the game's: a BLESSING. She steps
+ * in where he stood, leans back and draws her bow at the sky, the arrow
+ * flies up and bursts in a star high over the field, a blue rose opens
+ * and its light falls on the party with petals as he comes back. The
+ * creature is never touched. Checked: the order, that the arrow goes up
+ * and away from the party and bursts in the sky, that it all stays on the
+ * screen, that the fight under it is untouched (no number, no health, no
+ * stat tags, no press), that nothing is left after, ×2 — and that the
+ * game's own fight never plays it.
  */
 
 interface Frame {
@@ -20,14 +21,14 @@ interface Frame {
   step: string;
   back: boolean;
   arrow: boolean;
-  landing: boolean;
+  star: boolean;
   rose: boolean;
   crests: number;
   petals: boolean;
   cutIn: string;
   heroAside: boolean;
   heroBlessed: boolean;
-  enemyStruck: boolean;
+  enemyTouched: boolean;
   hits: number;
   told: boolean;
   statWords: boolean;
@@ -49,14 +50,14 @@ async function record(page: Page) {
         step: figure?.dataset.step ?? '',
         back: figure?.dataset.back === 'yes',
         arrow: has('aria-arrow'),
-        landing: has('aria-landing'),
+        star: has('aria-star'),
         rose: has('aria-rose'),
         crests: document.querySelectorAll('[data-testid="aria-crest"]').length,
         petals: has('aria-petals'),
         cutIn: document.querySelector('[data-testid="cut-in-name"]')?.textContent ?? '',
         heroAside: !!document.querySelector('.bp-hero.aside'),
         heroBlessed: !!document.querySelector('.bp-hero[data-scene-hero="blessed"]'),
-        enemyStruck: !!document.querySelector('.bp-enemy[data-scene-enemy="struck"]'),
+        enemyTouched: !!document.querySelector('.bp-enemy[data-scene-enemy]'),
         hits: document.querySelectorAll('.bp-hit').length,
         told: !!document.querySelector('.bp-told'),
         statWords: /ATK|SPD|CRIT|PARTY BLESSING/.test(
@@ -109,7 +110,7 @@ for (const motion of ['no-preference', 'reduce'] as const)
   test.describe(`motion: ${motion}`, () => {
     test.use({ reducedMotion: motion });
 
-    test('from the DEBUG panel: her cut-in, the draw, the arrow lands, the rose, its light — and nothing left', async ({
+    test('from the DEBUG panel: her cut-in, the draw, the arrow bursts in the sky, the rose, its light — and nothing left', async ({
       page,
     }) => {
       await page.goto('/?preview=battle');
@@ -135,18 +136,17 @@ for (const motion of ['no-preference', 'reduce'] as const)
       expect(at('draw')).toBeGreaterThan(at('enter'));
       expect(at('shot')).toBeGreaterThan(at('draw'));
       expect(firstT(f, (x) => x.arrow)).toBeGreaterThanOrEqual(at('shot'));
-      expect(firstT(f, (x) => x.landing)).toBeGreaterThan(firstT(f, (x) => x.arrow));
-      expect(at('bloom')).toBeGreaterThan(firstT(f, (x) => x.landing));
+      expect(firstT(f, (x) => x.star)).toBeGreaterThan(firstT(f, (x) => x.arrow));
+      expect(at('bloom')).toBeGreaterThan(firstT(f, (x) => x.star));
       expect(firstT(f, (x) => x.rose)).toBeGreaterThanOrEqual(at('bloom'));
       expect(at('bless')).toBeGreaterThan(at('bloom'));
       expect(firstT(f, (x) => x.petals)).toBeGreaterThanOrEqual(at('bless'));
       expect(firstT(f, (x) => x.back)).toBeGreaterThan(at('bless'));
       expect(at('recover')).toBeGreaterThan(firstT(f, (x) => x.back));
 
-      // The arrow only in flight; the creature jolts as it lands.
+      // The arrow only in flight — and the creature never touched: a blessing.
       expect(f.filter((x) => x.arrow).every((x) => x.step === 'shot')).toBe(true);
-      expect(f.some((x) => x.enemyStruck)).toBe(true);
-      expect(f.filter((x) => x.enemyStruck).every((x) => x.landing)).toBe(true);
+      expect(f.some((x) => x.enemyTouched)).toBe(false);
       // A small rose on each of the two of them.
       expect(Math.max(...f.map((x) => x.crests))).toBe(2);
 
@@ -179,7 +179,7 @@ test('×2: quicker, and still every part of it', async ({ page }) => {
     await expect(page.getByTestId('aria-figure')).toBeVisible();
     await expect(page.getByTestId('aria-figure')).toHaveCount(0, { timeout: 10_000 });
     const f = await stop(page);
-    for (const seen of [(x: Frame) => x.arrow, (x: Frame) => x.landing, (x: Frame) => x.rose, (x: Frame) => x.petals])
+    for (const seen of [(x: Frame) => x.arrow, (x: Frame) => x.star, (x: Frame) => x.rose, (x: Frame) => x.petals])
       expect(f.some(seen)).toBe(true);
     await leftNothing(page);
     const on = f.filter((x) => x.step !== '');
@@ -196,56 +196,61 @@ for (const [label, query, size] of [
   ['Gald', '&enemy=gald', { width: 844, height: 390 }],
   ['a small phone', '', { width: 667, height: 320 }],
 ] as const)
-  test(`where it happens — ${label}: she and her arrow face the creature, it lands on it, all on the screen`, async ({
+  test(`where it happens — ${label}: she leans back, the arrow goes up and bursts in the sky, all on the screen`, async ({
     page,
   }) => {
     await page.setViewportSize(size);
     await page.goto(`/?preview=battle&debug=0&aria=bare${query}`);
-    // Measured on the frame the arrow lands.
+    // Measured on the frame the arrow bursts.
     const at = await page.evaluate(
       () =>
         new Promise<{
           W: number;
           H: number;
-          aria: { left: number; right: number; top: number; bottom: number };
+          art: { left: number; right: number; top: number; bottom: number };
           enemy: { left: number; right: number; top: number; bottom: number };
           arrow: { left: number; right: number; top: number; bottom: number };
-          landing: { x: number; y: number };
+          star: { x: number; y: number };
+          tip: { x: number; y: number };
         }>((resolve) => {
           const box = (s: string) => {
             const r = document.querySelector(s)!.getBoundingClientRect();
             return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
           };
           const tick = () => {
-            const landing = document.querySelector('[data-testid="aria-landing"]');
-            if (!landing) return void requestAnimationFrame(tick);
-            const l = landing as HTMLElement;
+            const star = document.querySelector<HTMLElement>('[data-testid="aria-star"]');
+            const arrow = document.querySelector<HTMLElement>('[data-testid="aria-arrow"]');
+            if (!star || !arrow) return void requestAnimationFrame(tick);
             resolve({
               W: window.innerWidth,
               H: window.innerHeight,
-              aria: box('[data-testid="aria-figure"]'),
+              // Her picture as drawn, leaning back included.
+              art: box('[data-testid="aria-art"]'),
               enemy: box('.bp-enemy .bp-art'),
               arrow: box('[data-testid="aria-arrow"]'),
-              landing: { x: parseFloat(l.style.left), y: parseFloat(l.style.top) },
+              star: { x: parseFloat(star.style.left), y: parseFloat(star.style.top) },
+              tip: { x: parseFloat(arrow.style.left), y: parseFloat(arrow.style.top) },
             });
           };
           requestAnimationFrame(tick);
         }),
     );
-    // She stands clear of the creature, on the screen.
-    expect(at.aria.left).toBeGreaterThan(at.enemy.right);
-    expect(at.aria.right).toBeLessThanOrEqual(at.W);
-    expect(at.aria.top).toBeGreaterThanOrEqual(0);
-    expect(at.aria.bottom).toBeLessThanOrEqual(at.H);
-    // Her arrow runs from her, leftward, to the creature — never toward the party.
-    expect(at.arrow.left).toBeLessThan(at.aria.left);
-    expect(at.arrow.right).toBeLessThanOrEqual(at.aria.left + 4);
+    // She stands clear of the creature, on the screen, leaning back included.
+    expect(at.art.left).toBeGreaterThan(at.enemy.right);
+    expect(at.art.right).toBeLessThanOrEqual(at.W);
+    expect(at.art.top).toBeGreaterThanOrEqual(0);
+    expect(at.art.bottom).toBeLessThanOrEqual(at.H);
+    // The arrow goes UP and to the left — away from the party, into the sky.
+    expect(at.star.y).toBeLessThan(at.tip.y - at.H * 0.05);
+    expect(at.star.x).toBeLessThan(at.tip.x);
+    // It bursts high over the field — above the creature, not on it.
+    expect(at.star.y).toBeLessThan(at.enemy.top);
+    expect(at.star.y).toBeLessThanOrEqual(at.H * 0.2);
+    // And all of it on the screen.
     expect(at.arrow.left).toBeGreaterThanOrEqual(0);
-    // And lands inside the creature's drawing.
-    expect(at.landing.x).toBeGreaterThanOrEqual(at.enemy.left);
-    expect(at.landing.x).toBeLessThanOrEqual(at.enemy.right);
-    expect(at.landing.y).toBeGreaterThanOrEqual(at.enemy.top);
-    expect(at.landing.y).toBeLessThanOrEqual(at.enemy.bottom);
+    expect(at.arrow.top).toBeGreaterThanOrEqual(0);
+    expect(at.star.x).toBeGreaterThanOrEqual(0);
+    expect(at.star.y).toBeGreaterThanOrEqual(0);
   });
 
 test('the rose over the field, and its small roses on the party', async ({ page }) => {

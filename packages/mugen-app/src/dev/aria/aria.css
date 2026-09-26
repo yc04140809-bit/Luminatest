@@ -13,24 +13,6 @@
   filter: brightness(0.5) saturate(0.75) hue-rotate(-8deg);
 }
 
-/* The creature, as her arrow lands: a jolt and a cold light. */
-.bp-enemy[data-scene-enemy='struck'] {
-  animation: ar-jolt 240ms ease-out both;
-}
-.bp-enemy[data-scene-enemy='struck'] .bp-art {
-  animation: ar-struck 420ms ease-out both;
-}
-@keyframes ar-jolt {
-  0% { transform: translate3d(0, 0, 0); }
-  30% { transform: translate3d(-7px, 1px, 0) scale(0.96); }
-  100% { transform: translate3d(0, 0, 0); }
-}
-@keyframes ar-struck {
-  0% { filter: brightness(1); }
-  20% { filter: drop-shadow(0 0 14px rgba(72, 235, 225, 0.95)) brightness(2.6) saturate(0.5); }
-  100% { filter: brightness(1); }
-}
-
 /* Him, back in the rose's light (v18 .hero.is-blessed). */
 .bp-hero[data-scene-hero='blessed'] .bp-art {
   filter: drop-shadow(0 0 10px rgba(108, 255, 231, 0.9)) drop-shadow(0 0 22px rgba(72, 137, 255, 0.6))
@@ -83,6 +65,18 @@
   object-position: center bottom;
   -webkit-user-drag: none;
   user-select: none;
+}
+
+/* Raising her bow at the sky: she leans back from her feet as she draws,
+   and holds it until she goes. */
+.ar-lean {
+  position: absolute;
+  inset: 0;
+  transform-origin: var(--ar-pivot);
+  transition: transform calc(var(--ar-draw) * 0.7) cubic-bezier(0.18, 0.76, 0.16, 1);
+}
+.ar-aria:is([data-step='draw'], [data-step='shot'], [data-step='bloom'], [data-step='bless']) .ar-lean {
+  transform: rotate(var(--ar-lean));
 }
 
 /* Stepping in where he stood (v18 .aria.is-present). */
@@ -180,8 +174,8 @@
   opacity: 1;
 }
 
-/* THE ARROW (v18 .aria-shot-trail): from her arrow's point to the
-   creature — it grows from her bow, its bright head leading. */
+/* THE ARROW (v18 .aria-shot-trail): from her arrow's point up into the
+   sky — it grows from her bow, its bright head leading. */
 .ar-arrow {
   position: absolute;
   height: 0;
@@ -229,7 +223,7 @@
   100% { opacity: 0; transform: scaleX(1); }
 }
 
-/* Where it lands: a star of light on the creature (v18 .aria-star-impact). */
+/* Where it bursts, high over the field: a star of light (v18 .aria-star-impact). */
 .ar-star {
   position: absolute;
   width: var(--ar-star);
@@ -412,26 +406,23 @@
 }
 
 /* ── Still, for those who asked for less motion ────────────────── */
-/* Every step is still drawn — she, the arrow, the landing, the rose, the
+/* Every step is still drawn — she, the arrow, its star, the rose, the
    light — only without the travel between. */
 @media (prefers-reduced-motion: reduce) {
   .ar-aria,
+  .ar-lean,
   .ar-motion,
   .ar-charge,
   .ar-ring,
   .bp-stage[data-scene='aria'],
-  .bp-scene-over[data-scene='aria'],
-  .bp-enemy[data-scene-enemy='struck'],
-  .bp-enemy[data-scene-enemy='struck'] .bp-art {
+  .bp-scene-over[data-scene='aria'] {
     animation: none !important;
     transition: none !important;
   }
 }
-:root[data-reduced-motion='on'] :is(.ar-aria, .ar-motion, .ar-charge, .ar-ring),
+:root[data-reduced-motion='on'] :is(.ar-aria, .ar-lean, .ar-motion, .ar-charge, .ar-ring),
 :root[data-reduced-motion='on'] .bp-stage[data-scene='aria'],
-:root[data-reduced-motion='on'] .bp-scene-over[data-scene='aria'],
-:root[data-reduced-motion='on'] .bp-enemy[data-scene-enemy='struck'],
-:root[data-reduced-motion='on'] .bp-enemy[data-scene-enemy='struck'] .bp-art {
+:root[data-reduced-motion='on'] .bp-scene-over[data-scene='aria'] {
   animation: none !important;
   transition: none !important;
 }

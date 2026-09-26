@@ -4,9 +4,10 @@
 // ariaRecover 320), trimmed by about a fifth — v18 played it on its own,
 // with nothing before or after — and kept in v18's order:
 //
-//   she steps in where he stood → draws her bow → the arrow flies at the
-//   creature and lands → a blue rose opens over the field → its light
-//   falls on the party with the petals, he is back → the last of it fades.
+//   she steps in where he stood → draws her bow at the sky → the arrow
+//   flies up and bursts in a star → a blue rose opens over the field → its
+//   light falls on the party with the petals, he is back → the last of it
+//   fades.
 //
 // Every step has a floor, so ×2 shortens the whole and never turns a part
 // into a flicker.
@@ -18,7 +19,7 @@ export const ARIA_MS = {
   ENTER: 200,
   /** Her draw: the bow bent, the light gathering at the arrow. */
   DRAW: 600,
-  /** The arrow's flight, to its landing and the star it makes there. */
+  /** The arrow's flight up, and the star it bursts into. */
   SHOT: 480,
   /** The blue rose opening over the field. */
   BLOOM: 1200,
@@ -43,7 +44,7 @@ export function ariaMs(step: AriaStep, speed: BattleSpeed): number {
   return visualMs(ARIA_MS[step], speed, ARIA_FLOOR_MS[step]);
 }
 
-/** Where in the flight the arrow lands (v18: the star at 48–68% of the shot). */
+/** Where in the flight the arrow bursts (v18: the star at 48–68% of the shot). */
 export const SHOT_LAND_AT = 0.55;
 /** Where in the blessing he is back and she goes (v18 `revealAt`, 56%). */
 export const BLESS_RETURN_AT = 0.56;
