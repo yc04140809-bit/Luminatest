@@ -19,7 +19,16 @@ import { fileURLToPath } from 'node:url';
 
 const APP = fileURLToPath(new URL('..', import.meta.url));
 // Strings that exist only in the debug tools' own files.
-const MARKERS = ['debug-battle-preview', 'debug-panel', 'debug-replay', 'DEBUG 戦闘演出プレビュー'];
+const MARKERS = [
+  'debug-battle-preview',
+  'debug-panel',
+  'debug-replay',
+  'DEBUG 戦闘演出プレビュー',
+  // Levi's phantom spears (src/dev/levi, STEP 5).
+  'debug-levi',
+  'levi-spear',
+  'lv-spear',
+];
 
 /** Every source file under a folder. */
 function sources(dir) {

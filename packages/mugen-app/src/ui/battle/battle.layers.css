@@ -181,3 +181,23 @@
   0%, 82% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, 0); }
 }
+
+/* A SCENE ON THE FIELD (fieldScene.ts). Its figures stand among the
+   people — over them, under the HUD — and take nothing. */
+.bp-scene-field {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+/* He steps out of the way while somebody else's scene plays (v18
+   `.hero.is-suppressed`), and back when it is over. */
+.bp-hero {
+  transition:
+    opacity 130ms ease,
+    filter 130ms ease;
+}
+.bp-hero.aside {
+  opacity: 0;
+  filter: blur(3px);
+}

@@ -33,6 +33,7 @@ import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
 import { SwordSlash, type SlashView } from './slash/SwordSlash';
 import type { ReachView } from './battleTheatre';
+import type { FieldBox, FieldMarks, FieldScene } from './fieldScene';
 import './slash/reach.css';
 
 /**
@@ -155,6 +156,12 @@ export interface BattleStageProps {
    */
   swordplay?: boolean;
   reach?: ReachView | null;
+  /**
+   * A scene played on the field (fieldScene.ts) — somebody stepping in,
+   * things arriving at the creature. Null or absent: nothing. Today only
+   * the debug preview passes one.
+   */
+  scene?: FieldScene | null;
   /** Absent: no AUTO chip (AUTO is a later phase). */
   onToggleAuto?: () => void;
   onCycleSpeed?: () => void;
@@ -188,6 +195,7 @@ export function BattleStage({
   slash = null,
   swordplay = false,
   reach = null,
+  scene = null,
   onToggleAuto,
   onCycleSpeed,
   onEscape,
@@ -337,6 +345,32 @@ export function BattleStage({
     setReachTo({ x: dx / (scale || 1), y: dy / (scale || 1) });
   }, [reachId]);
 
+  // WHERE A FIELD SCENE HAPPENS, measured off the drawings when it
+  // starts, as for a spell.
+  const [sceneAt, setSceneAt] = useState<FieldMarks | null>(null);
+  const sceneId = scene?.id ?? null;
+  useEffect(() => {
+    const stageEl = stageRef.current;
+    if (sceneId === null || !stageEl) return;
+    const s = stageEl.getBoundingClientRect();
+    if (s.width === 0 || s.height === 0) return;
+    const box = (selector: string): FieldBox | null => {
+      const art = stageEl.querySelector(selector);
+      if (!art) return null;
+      const a = art.getBoundingClientRect();
+      return {
+        left: (a.left - s.left) / s.width,
+        top: (a.top - s.top) / s.height,
+        width: a.width / s.width,
+        height: a.height / s.height,
+      };
+    };
+    const enemy = box('.bp-enemy .bp-art');
+    const hero = box('.bp-hero .bp-art');
+    if (enemy && hero) setSceneAt({ stage: { width: s.width, height: s.height }, enemy, hero });
+  }, [sceneId]);
+  const sceneOn = scene !== null && sceneAt !== null;
+
   const struckHero = latestOn(blows, 'hero');
   const struckEnemy = latestOn(blows, 'enemy');
 
@@ -423,6 +457,8 @@ export function BattleStage({
         ref={stageRef}
         data-camera={camera}
         data-beat={beat}
+        data-scene={sceneOn ? scene.name : undefined}
+        data-scene-step={sceneOn ? scene.step : undefined}
       >
         {backdrop && (
           <img
@@ -464,6 +500,7 @@ export function BattleStage({
             .filter(Boolean)
             .join(' ')}
           data-blow={motionSlot(struckEnemy)}
+          data-scene-enemy={sceneOn ? scene.enemy : undefined}
           style={cameraStyle(enemySlot, camera)}
           data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
@@ -507,7 +544,7 @@ export function BattleStage({
         <div
           className={`bp-actor bp-hero${beat === 'STRIKE' && !swordplay ? ' strike' : ''}${
             struckHero ? ' hurt flash' : ''
-          }`}
+          }${sceneOn && scene.heroAside ? ' aside' : ''}`}
           data-blow={motionSlot(struckHero)}
           style={cameraStyle('hero', camera)}
         >
@@ -550,6 +587,13 @@ export function BattleStage({
             </>
           )}
         </div>
+
+        {/* A scene's own figures, on the field among the people. */}
+        {sceneOn && scene.field && (
+          <div className="bp-scene-field" data-testid="bp-scene-field">
+            {scene.field(sceneAt)}
+          </div>
+        )}
 
         {/* Its health, under its feet — and following it down. */}
         <div
@@ -847,6 +891,18 @@ export function BattleStage({
       {spell && spellAt && (
         <div className="bp-effects" data-testid="bp-effects">
           <SpellFx spell={spell} caster={spellAt.caster} target={spellAt[spell.lands]} />
+        </div>
+      )}
+
+      {/* A scene's effects: over the people and the HUD, like a spell's. */}
+      {sceneOn && scene.over && (
+        <div
+          className="bp-effects bp-scene-over"
+          data-testid="bp-scene-over"
+          data-scene={scene.name}
+          data-scene-step={scene.step}
+        >
+          {scene.over(sceneAt)}
         </div>
       )}
 

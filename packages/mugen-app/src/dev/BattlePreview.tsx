@@ -31,7 +31,10 @@ import { BattleStage, type BattleCommand, type BattleOpponentView } from '../ui/
 import { KNOCKDOWN_MS, useBattleTheatre, type TurnKind } from '../ui/battle/battleTheatre';
 import { useCutInDirector, type CutInSpec } from '../ui/battle/cutin/CutIn';
 import { cutInMs, type CutInTier } from '../ui/battle/cutin/cutInTiming';
+import type { FieldScene } from '../ui/battle/fieldScene';
 import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
+import { useLeviDirector } from './levi/useLeviDirector';
+import { leviPlan } from './levi/leviTiming';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — for checking how a fight LOOKS.
@@ -79,6 +82,14 @@ import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
  *   &slash=0                     his 攻撃 without the sword's trail and bite
  *                                (as the game's own fight draws it today)
  *   &swing=1                     one 攻撃 on opening
+ *   &levi=1 / &levi=bare         Levi's phantom spears once on opening
+ *                                (bare: without her cut-in first)
+ *
+ * LEVI'S PHANTOM SPEARS (STEP 5). A showing part and nothing more
+ * (./levi): she steps in, six phantom spears form round the creature and
+ * go in one after another, and she finishes it herself. It is joined to
+ * no skill of the game's — no number, no health taken, the fight under
+ * it untouched — and v18's name for it is provisional (仮称).
  *
  * HER SPELLS (STEP C). The DEBUG panel casts each of the five in the
  * game's spell data on a fresh fight, through the very pipeline the
@@ -161,6 +172,10 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const [lastCutIn, setLastCutIn] = useState<{ ms: number; speed: BattleSpeed; tier: CutInTier } | null>(
     null,
   );
+  // LEVI'S PHANTOM SPEARS — the part, played from the panel.
+  const levi = useLeviDirector(speed, director);
+  const [leviCutIn, setLeviCutIn] = useState(params.get('levi') !== 'bare');
+  const [lastLevi, setLastLevi] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
   const speedAt = useRef(speed);
   speedAt.current = speed;
   const shaped = (spec: CutInSpec): CutInSpec => (tierOverride ? { ...spec, tier: tierOverride } : spec);
@@ -181,12 +196,26 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const stopCutIns = () => {
     sequence.current += 1;
     director.stop();
+    levi.stop();
+  };
+
+  /** Levi's spears, from the top: a fresh fight, then the part. */
+  const playLevi = async (withCutIn: boolean) => {
+    stopCutIns();
+    setAutoCast(null);
+    setPanel(false);
+    setRun((n) => n + 1);
+    const started = performance.now();
+    const at = speedAt.current;
+    const end = await levi.play(withCutIn ? LEVI_CUT_IN.spec : null);
+    if (end === 'done') setLastLevi({ ms: performance.now() - started, speed: at });
   };
 
   // `&cutin=…`: one sample on opening, for a link straight to it.
   useEffect(() => {
     const first = CUT_IN_SAMPLES.find((c) => c.id === params.get('cutin'));
     if (first) void playCutIns([first]);
+    if (params.has('levi')) void playLevi(params.get('levi') !== 'bare');
   }, []);
 
   /** A spell to cast as soon as the next fresh fight is on screen. */
@@ -235,7 +264,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
         onTurnWatched={(ms) => setLastTurn({ ms, speed })}
         cinematic={director.element}
-        cinematicPlaying={director.playing}
+        cinematicPlaying={director.playing || levi.playing}
+        scene={levi.scene}
         autoCast={autoCast}
       />
       {showPanel && (
@@ -254,6 +284,12 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
           }}
           onCastSpell={castOnFresh}
           onSwing={swingOnFresh}
+          levi={{
+            withCutIn: leviCutIn,
+            last: lastLevi,
+            onPlay: () => void playLevi(leviCutIn),
+            onCutIn: () => setLeviCutIn((on) => !on),
+          }}
           cutIns={{
             playing: director.playing,
             tierOverride,
@@ -278,6 +314,7 @@ function PreviewFight({
   onTurnWatched,
   cinematic,
   cinematicPlaying,
+  scene,
   autoCast,
 }: {
   setup: Setup;
@@ -286,6 +323,7 @@ function PreviewFight({
   onTurnWatched: (ms: number) => void;
   cinematic: ReactElement | null;
   cinematicPlaying: boolean;
+  scene: FieldScene | null;
   autoCast: string | null;
 }) {
   const dice = useRef<Rng>(fixedDice());
@@ -412,6 +450,7 @@ function PreviewFight({
       slash={theatre.slash}
       swordplay={setup.slash}
       reach={theatre.reach}
+      scene={scene}
       downed={downed}
       say={say}
       told={told}
@@ -442,6 +481,16 @@ interface CutInControls {
   onTier: (tier: CutInTier | null) => void;
 }
 
+interface LeviControls {
+  withCutIn: boolean;
+  last: { ms: number; speed: BattleSpeed } | null;
+  onPlay: () => void;
+  onCutIn: () => void;
+}
+
+/** Her cut-in before the spears: v18's sample, as it is (仮称). */
+const LEVI_CUT_IN = CUT_IN_SAMPLES.find((c) => c.id === 'levi')!;
+
 const TIER_LABEL: Record<CutInTier, string> = { SKILL: '通常技', FINISHER: '必殺技' };
 
 const ANSWERS: { id: Answer; label: string }[] = [
@@ -467,6 +516,7 @@ function DebugPanel({
   onCycleSpeed,
   onCastSpell,
   onSwing,
+  levi,
   cutIns,
 }: {
   open: boolean;
@@ -479,6 +529,7 @@ function DebugPanel({
   onCycleSpeed: () => void;
   onCastSpell: (spellId: string) => void;
   onSwing: () => void;
+  levi: LeviControls;
   cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
@@ -493,6 +544,12 @@ function DebugPanel({
           <span data-testid="debug-last-turn">
             {' '}
             ・直前のターン {(lastTurn.ms / 1000).toFixed(2)}秒（×{lastTurn.speed}）
+          </span>
+        )}
+        {levi.last && (
+          <span data-testid="debug-last-levi">
+            {' '}
+            ・直前のレヴィ {(levi.last.ms / 1000).toFixed(2)}秒（×{levi.last.speed}）
           </span>
         )}
         {cutIns.last && (
@@ -563,6 +620,18 @@ function DebugPanel({
           </button>
           <p style={styles.note}>
             押すたびに新しい戦闘（MP満タン・同じ乱数）で1回唱えます。癒しの光の回復を見るときは HP を「半分から」に。
+          </p>
+          <p style={styles.heading}>レヴィ「幻影槍6本」（演出見本・本編未接続）</p>
+          <button style={styles.btn} data-testid="debug-levi" onClick={levi.onPlay}>
+            ▶ 幻影槍6本を再生
+          </button>
+          <button style={styles.btn} data-testid="debug-levi-cutin" onClick={levi.onCutIn}>
+            先にカットイン：{levi.withCutIn ? 'あり' : 'なし'}
+          </button>
+          <p style={styles.note}>
+            構え → 幻影槍6本が出現 → 1本ずつ順に刺さる → レヴィ自身の突きでフィニッシュ。
+            槍だけで ×1 {(leviPlan(1).end / 1000).toFixed(1)}秒・×2 {(leviPlan(2).end / 1000).toFixed(1)}秒
+            （カットイン別）。ダメージ数字は出ません（本編の技ではないため）。技名は v18 の仮称です。
           </p>
           <p style={styles.heading}>カットイン（v18 見本・本編未接続）</p>
           {CUT_IN_SAMPLES.map((sample) => (
