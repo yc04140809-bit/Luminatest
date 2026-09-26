@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { BattleState } from '@mugen/game/battle/battleLogic';
 import { enemyPose, heroPose, kaosPose } from '@mugen/game/battle/battleArtState';
 import {
@@ -114,6 +114,11 @@ export interface BattleStageProps {
   items?: { bag: readonly ItemStack[]; onUse: (itemId: string) => void };
   /** She steps forward — the awakening lines, and moving past them. */
   onAwakeningDone?: () => void;
+  /**
+   * A cut-in playing now (`useCutInDirector().element`), drawn over the
+   * HUD and the commands (battle.layers.css). Null or absent: nothing.
+   */
+  cinematic?: ReactNode;
   /** Absent: no AUTO chip (AUTO is a later phase). */
   onToggleAuto?: () => void;
   onCycleSpeed?: () => void;
@@ -141,6 +146,7 @@ export function BattleStage({
   magic,
   items,
   onAwakeningDone,
+  cinematic,
   onToggleAuto,
   onCycleSpeed,
   onEscape,
@@ -684,6 +690,14 @@ export function BattleStage({
           </p>
         )}
       </div>
+
+      {/* A cut-in, over the fight and its HUD — and taking every press
+          while it plays. */}
+      {cinematic && (
+        <div className="bp-cinematic" data-testid="bp-cinematic">
+          {cinematic}
+        </div>
+      )}
 
       {/* Every choice the fight asks for is made in front of everything
           else on the screen — see BattlePicker. */}

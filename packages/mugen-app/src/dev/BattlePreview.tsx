@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactElement } from 'react';
 import {
   castMagic,
   clearAwakeningLines,
@@ -29,6 +29,9 @@ import { ITEM_DEFS, itemDef } from '@mugen/content/economy/itemDefs';
 import { BATTLE_BACKGROUND_KEYS, type BattleBackgroundKey } from '@mugen/assets/keys';
 import { BattleStage, type BattleCommand, type BattleOpponentView } from '../ui/battle/BattleStage';
 import { KNOCKDOWN_MS, useBattleTheatre, type TurnKind } from '../ui/battle/battleTheatre';
+import { useCutInDirector, type CutInSpec } from '../ui/battle/cutin/CutIn';
+import { cutInMs, type CutInTier } from '../ui/battle/cutin/cutInTiming';
+import { CUT_IN_SAMPLES, type CutInSample } from './cutInSamples';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — for checking how a fight LOOKS.
@@ -68,6 +71,14 @@ import { KNOCKDOWN_MS, useBattleTheatre, type TurnKind } from '../ui/battle/batt
  *                                Gald, as in the Artifact's real fights.
  *                                It is only drawn: escape is not built.
  *   &debug=0                     hide the DEBUG panel (for screenshots)
+ *   &cutin=chaos|hero|levi|aria  play that sample cut-in once on opening
+ *
+ * CUT-INS (STEP B). The DEBUG panel plays the cut-in part
+ * (ui/battle/cutin) with v18's four samples (./cutInSamples): one at a
+ * time, all four in a row, stopped part-way, played again — at ×1 or
+ * ×2, at a sample's own length or forced to 通常技 / 必殺技. They are
+ * joined to no skill and change nothing in the fight: while one plays,
+ * the fight only waits.
  */
 
 /** The fixed dice: mulberry32, from one seed. Not a battle rule — just repeatable. */
@@ -117,7 +128,45 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const [lastTurn, setLastTurn] = useState<{ ms: number; speed: BattleSpeed } | null>(null);
   const showPanel = params.get('debug') !== '0';
 
+  // CUT-INS — the part, played from the panel.
+  const director = useCutInDirector(speed);
+  /** Which run of cut-ins is current; bumping it ends a sequence. */
+  const sequence = useRef(0);
+  const [tierOverride, setTierOverride] = useState<CutInTier | null>(null);
+  const [lastPlayed, setLastPlayed] = useState<readonly CutInSample[] | null>(null);
+  const [lastCutIn, setLastCutIn] = useState<{ ms: number; speed: BattleSpeed; tier: CutInTier } | null>(
+    null,
+  );
+  const speedAt = useRef(speed);
+  speedAt.current = speed;
+  const shaped = (spec: CutInSpec): CutInSpec => (tierOverride ? { ...spec, tier: tierOverride } : spec);
+
+  const playCutIns = async (samples: readonly CutInSample[]) => {
+    const mine = ++sequence.current;
+    setLastPlayed(samples);
+    setPanel(false);
+    for (const sample of samples) {
+      if (sequence.current !== mine) return;
+      const spec = shaped(sample.spec);
+      const started = performance.now();
+      const end = await director.play(spec);
+      if (end !== 'done') return;
+      setLastCutIn({ ms: performance.now() - started, speed: speedAt.current, tier: spec.tier });
+    }
+  };
+  const stopCutIns = () => {
+    sequence.current += 1;
+    director.stop();
+  };
+
+  // `&cutin=…`: one sample on opening, for a link straight to it.
+  useEffect(() => {
+    const first = CUT_IN_SAMPLES.find((c) => c.id === params.get('cutin'));
+    if (first) void playCutIns([first]);
+  }, []);
+
   const change = (patch: Partial<Setup>) => {
+    stopCutIns();
     setSetup((s) => ({ ...s, ...patch }));
     setRun((n) => n + 1);
   };
@@ -132,6 +181,8 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
         speed={speed}
         onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
         onTurnWatched={(ms) => setLastTurn({ ms, speed })}
+        cinematic={director.element}
+        cinematicPlaying={director.playing}
       />
       {showPanel && (
         <DebugPanel
@@ -141,7 +192,22 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
           speed={speed}
           lastTurn={lastTurn}
           onChange={change}
-          onReplay={() => setRun((n) => n + 1)}
+          onCycleSpeed={() => setSpeed((at) => nextSpeed(at))}
+          onReplay={() => {
+            stopCutIns();
+            setRun((n) => n + 1);
+          }}
+          cutIns={{
+            playing: director.playing,
+            tierOverride,
+            last: lastCutIn,
+            canReplay: lastPlayed !== null,
+            onPlay: (sample) => void playCutIns([sample]),
+            onPlayAll: () => void playCutIns(CUT_IN_SAMPLES),
+            onReplay: () => lastPlayed && void playCutIns(lastPlayed),
+            onStop: stopCutIns,
+            onTier: setTierOverride,
+          }}
         />
       )}
     </>
@@ -153,11 +219,15 @@ function PreviewFight({
   speed,
   onCycleSpeed,
   onTurnWatched,
+  cinematic,
+  cinematicPlaying,
 }: {
   setup: Setup;
   speed: BattleSpeed;
   onCycleSpeed: () => void;
   onTurnWatched: (ms: number) => void;
+  cinematic: ReactElement | null;
+  cinematicPlaying: boolean;
 }) {
   const dice = useRef<Rng>(fixedDice());
   const [battle, setBattle] = useState<BattleState>(() =>
@@ -179,7 +249,8 @@ function PreviewFight({
     ? { artId: 'gald', stands: 'NEAR', defeated: { speaker: GALD_BATTLE.name, text: GALD_DEFEATED_LINES[0].text } }
     : { artId: 'moss_rabbit', stands: 'FAR', defeated: { text: MOSS_RABBIT.defeatedText } };
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
-  const idle = battle.outcome === 'ONGOING' && !theatre.playing;
+  // A cut-in on screen is a turn being shown: no command until it is over.
+  const idle = battle.outcome === 'ONGOING' && !theatre.playing && !cinematicPlaying;
 
   const turn = (next: BattleState, kind: TurnKind) => {
     const before = battle;
@@ -240,7 +311,13 @@ function PreviewFight({
       memoryLines={[]}
       memoryDepth={0}
       arcanaReady={false}
-      turn={{ beat: theatre.beat, camera: theatre.camera, blows: theatre.blows, playing: theatre.playing }}
+      turn={{
+        beat: theatre.beat,
+        camera: theatre.camera,
+        blows: theatre.blows,
+        playing: theatre.playing || cinematicPlaying,
+      }}
+      cinematic={cinematic}
       downed={downed}
       say={say}
       speed={speed}
@@ -257,6 +334,20 @@ function PreviewFight({
     />
   );
 }
+
+interface CutInControls {
+  playing: boolean;
+  tierOverride: CutInTier | null;
+  last: { ms: number; speed: BattleSpeed; tier: CutInTier } | null;
+  canReplay: boolean;
+  onPlay: (sample: CutInSample) => void;
+  onPlayAll: () => void;
+  onReplay: () => void;
+  onStop: () => void;
+  onTier: (tier: CutInTier | null) => void;
+}
+
+const TIER_LABEL: Record<CutInTier, string> = { SKILL: '通常技', FINISHER: '必殺技' };
 
 const ANSWERS: { id: Answer; label: string }[] = [
   { id: 'CORE', label: 'おまかせ' },
@@ -279,6 +370,8 @@ function DebugPanel({
   lastTurn,
   onChange,
   onReplay,
+  onCycleSpeed,
+  cutIns,
 }: {
   open: boolean;
   onToggle: () => void;
@@ -287,6 +380,8 @@ function DebugPanel({
   lastTurn: { ms: number; speed: BattleSpeed } | null;
   onChange: (patch: Partial<Setup>) => void;
   onReplay: () => void;
+  onCycleSpeed: () => void;
+  cutIns: CutInControls;
 }) {
   const bgIndex = setup.background ? BATTLE_BACKGROUND_KEYS.indexOf(setup.background) : 0;
   const nextBg = BATTLE_BACKGROUND_KEYS[(bgIndex + 1) % BATTLE_BACKGROUND_KEYS.length];
@@ -302,7 +397,19 @@ function DebugPanel({
             ・直前のターン {(lastTurn.ms / 1000).toFixed(2)}秒（×{lastTurn.speed}）
           </span>
         )}
+        {cutIns.last && (
+          <span data-testid="debug-last-cutin">
+            {' '}
+            ・直前のカットイン {(cutIns.last.ms / 1000).toFixed(2)}秒（×{cutIns.last.speed}・
+            {TIER_LABEL[cutIns.last.tier]}）
+          </span>
+        )}
       </button>
+      {cutIns.playing && (
+        <button style={styles.stop} data-testid="debug-cutin-stop" onClick={cutIns.onStop}>
+          ■ カットインを途中終了
+        </button>
+      )}
       {open && (
         <div style={styles.box}>
           <button style={styles.btn} data-testid="debug-replay" onClick={onReplay}>
@@ -331,6 +438,47 @@ function DebugPanel({
           <p style={styles.note}>
             速度 ×{speed}（右下のチップで切替）。上の「直前のターン」は、押してから次に押せるまでの時間。
             オート（AUTO）はまだ作っていないので、1ターンずつ押して比べてください。保存はされません。
+          </p>
+          <p style={styles.heading}>カットイン（v18 見本・本編未接続）</p>
+          {CUT_IN_SAMPLES.map((sample) => (
+            <button
+              key={sample.id}
+              style={styles.btn}
+              data-testid={`debug-cutin-${sample.id}`}
+              onClick={() => cutIns.onPlay(sample)}
+            >
+              ▶ {sample.label}（{TIER_LABEL[sample.spec.tier]}）
+            </button>
+          ))}
+          <button style={styles.btn} data-testid="debug-cutin-all" onClick={cutIns.onPlayAll}>
+            ▶ 4つを連続再生
+          </button>
+          <button
+            style={styles.btn}
+            data-testid="debug-cutin-again"
+            disabled={!cutIns.canReplay}
+            onClick={cutIns.onReplay}
+          >
+            ↻ 直前のカットインを再実行
+          </button>
+          <button
+            style={styles.btn}
+            data-testid="debug-cutin-tier"
+            onClick={() =>
+              cutIns.onTier(
+                cutIns.tierOverride === null ? 'SKILL' : cutIns.tierOverride === 'SKILL' ? 'FINISHER' : null,
+              )
+            }
+          >
+            長さ：{cutIns.tierOverride === null ? '見本どおり' : TIER_LABEL[cutIns.tierOverride]}
+          </button>
+          <button style={styles.btn} data-testid="debug-speed" onClick={onCycleSpeed}>
+            速度：×{speed}
+          </button>
+          <p style={styles.note}>
+            通常技 ×1 {(cutInMs('SKILL', 1) / 1000).toFixed(1)}秒・×2 {(cutInMs('SKILL', 2) / 1000).toFixed(1)}秒／
+            必殺技 ×1 {(cutInMs('FINISHER', 1) / 1000).toFixed(1)}秒・×2 {(cutInMs('FINISHER', 2) / 1000).toFixed(1)}秒。
+            再生中は戦闘の操作を受け付けません。
           </p>
           <button
             style={styles.btn}
@@ -393,5 +541,20 @@ const styles: Record<string, CSSProperties> = {
     gridColumn: '1 / -1',
     margin: 0,
     color: '#d8c79a',
+  },
+  heading: {
+    gridColumn: '1 / -1',
+    margin: '4px 0 0',
+    color: '#ffd76a',
+    letterSpacing: '0.06em',
+  },
+  stop: {
+    minHeight: 40,
+    padding: '4px 14px',
+    border: '1px solid #ff9b7a',
+    borderRadius: 20,
+    background: 'rgba(90, 16, 8, 0.9)',
+    color: '#ffe0d4',
+    font: 'inherit',
   },
 };

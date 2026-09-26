@@ -1,10 +1,23 @@
-/* THE CHOICE LAYER — the App's own rule, on top of the Artifact's sheet.
+/* THE APP'S LAYERS — its own rules, on top of the Artifact's sheet.
 
    The battle screen draws, back to front:
      background → the people on the field (their depth, up to the enemy
      plate) → HUD and commands → the awakening scene (30)
-   and every panel that asks for a choice goes over all of that. See
-   BattlePicker.tsx for why. */
+     → effects (35, reserved: nothing is drawn there yet)
+     → a choice panel (40, BattlePicker.tsx)
+     → a cut-in (45, cutin/CutIn.tsx) — its name is part of it, so it
+       is drawn with it, over everything else.
+   A choice panel and a cut-in never show together: a panel opens only
+   between turns, a cut-in plays only inside one. */
+
+/* A CUT-IN, over the fight. It takes every press while it plays, so
+   nothing underneath — a command, the speed chip, the BGM chip — is
+   reached through it. */
+.bp-cinematic {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+}
 
 .bp-picker {
   position: absolute;

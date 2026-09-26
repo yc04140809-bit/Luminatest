@@ -1,0 +1,631 @@
+/* THE CUT-IN — the v18 battle-animation prototype's, rebuilt as one part.
+
+   Ported from v18 `prototype/styles.css` (.skill-cut-in and its four
+   character variants): the same veil, sweeping panel, faint word,
+   figure, name plate, gold and blue edges and flash, in the same
+   colours, at the same places. What changed, and why:
+
+   - Class names carry a `ci-` prefix so nothing here can meet the
+     Artifact's battle sheet (which has its own, older `.bp-cutin`).
+   - A cut-in is drawn only while it plays (the component mounts for it
+     and unmounts after), so v18's `.is-active` switch is not needed:
+     the animations run from the moment it appears.
+   - EVERY cut-in uses v18's HOLD curve — the one v18 gave Aria's cut-in
+     when its name could not be read at ×2 (aria-cutin-*-hold). The name
+     is fully shown from 17% to 88%. cutInTiming.ts depends on those two
+     numbers and its test reads them from here.
+   - Its place in the battle screen's layers is set by the layer that
+     holds it (`.bp-cinematic`, battle.layers.css), above the HUD. */
+
+.ci {
+  --ci-ms: 1400ms;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
+}
+
+.ci-veil,
+.ci-flash,
+.ci-edge {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ci-veil {
+  z-index: 0;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 70% 44%, rgba(75, 70, 142, 0.36), transparent 48%),
+    rgba(1, 4, 8, 0.86);
+  animation: ci-veil var(--ci-ms) linear both;
+}
+
+.ci-panel {
+  position: absolute;
+  z-index: 2;
+  top: 4%;
+  right: -5%;
+  bottom: 4%;
+  left: 13%;
+  overflow: hidden;
+  opacity: 0;
+  clip-path: polygon(9% 0, 100% 0, 91% 100%, 0 100%);
+  transform: translate3d(112%, 0, 0);
+  background:
+    radial-gradient(circle at 74% 38%, rgba(137, 93, 198, 0.52), transparent 34%),
+    linear-gradient(112deg, rgba(23, 15, 34, 0.99) 0 44%, rgba(20, 31, 66, 0.98) 72%, rgba(6, 10, 19, 0.99));
+  box-shadow:
+    inset 12px 0 0 rgba(255, 210, 104, 0.86),
+    inset -12px 0 0 rgba(85, 190, 255, 0.86),
+    0 0 42px rgba(0, 0, 0, 0.92);
+  animation: ci-panel-hold var(--ci-ms) cubic-bezier(.2,.75,.2,1) both;
+}
+
+.ci-panel::before,
+.ci-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ci-panel::before {
+  z-index: 6;
+  border-top: clamp(2px, 0.55vh, 4px) solid rgba(255, 224, 144, 0.92);
+  border-bottom: clamp(2px, 0.55vh, 4px) solid rgba(105, 199, 255, 0.92);
+  box-shadow:
+    inset 0 10px 26px rgba(255, 204, 91, 0.1),
+    inset 0 -10px 26px rgba(75, 166, 255, 0.12);
+}
+
+.ci-panel::after {
+  z-index: 1;
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    -14deg,
+    transparent 0 15px,
+    rgba(255, 255, 255, 0.14) 16px 18px,
+    transparent 19px 34px
+  );
+  transform: translateX(18%);
+}
+
+.ci-energy {
+  position: absolute;
+  z-index: 1;
+  inset: -18%;
+  background:
+    radial-gradient(circle at 35% 48%, rgba(255, 199, 69, 0.36), transparent 30%),
+    radial-gradient(circle at 78% 42%, rgba(75, 178, 255, 0.4), transparent 34%),
+    conic-gradient(from 70deg at 67% 48%, transparent, rgba(255, 255, 255, 0.2), transparent 20%);
+  filter: blur(3px);
+  transform: scale(0.74) rotate(-8deg);
+  animation: ci-energy var(--ci-ms) ease-out both;
+}
+
+.ci-word {
+  position: absolute;
+  z-index: 1;
+  right: 4%;
+  top: 1%;
+  color: rgba(255, 255, 255, 0.075);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(64px, 15vw, 150px);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  white-space: nowrap;
+}
+
+.ci-art {
+  position: absolute;
+  z-index: 3;
+  right: 1%;
+  bottom: -72%;
+  width: auto;
+  max-width: none;
+  height: 178%;
+  object-fit: contain;
+  filter:
+    drop-shadow(-10px 0 18px rgba(0, 0, 0, 0.82))
+    drop-shadow(0 0 14px rgba(189, 163, 255, 0.46));
+  transform-origin: 63% 36%;
+  animation: ci-art-hold var(--ci-ms) cubic-bezier(.2,.78,.18,1) both;
+}
+
+.ci-copy {
+  position: absolute;
+  z-index: 5;
+  left: 12%;
+  bottom: 12%;
+  display: grid;
+  align-items: start;
+  opacity: 0;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.96);
+  animation: ci-copy-hold var(--ci-ms) cubic-bezier(.18,.76,.2,1) both;
+}
+
+.ci-kicker {
+  width: max-content;
+  margin-bottom: 2px;
+  padding: 2px 8px 3px;
+  border-left: 3px solid #ffd271;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.76), transparent);
+  color: #ffe7a8;
+  font-size: clamp(8px, 1.25vw, 12px);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+
+.ci-name {
+  color: #fffdf2;
+  font-size: clamp(25px, 5.8vw, 54px);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: 0.08em;
+  text-shadow:
+    0 3px 0 rgba(45, 25, 57, 0.95),
+    0 0 12px rgba(255, 210, 107, 0.72),
+    0 0 22px rgba(91, 185, 255, 0.5);
+  white-space: nowrap;
+}
+
+.ci-sub {
+  margin-top: 4px;
+  color: rgba(232, 239, 255, 0.78);
+  font-size: clamp(7px, 1vw, 10px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.ci-edge {
+  z-index: 4;
+  top: -20%;
+  width: clamp(5px, 0.85vw, 9px);
+  height: 145%;
+  opacity: 0;
+  transform: rotate(11deg);
+}
+
+.ci-edge-gold {
+  left: 17%;
+  background: linear-gradient(180deg, transparent, #fff5bd 22%, #f6b738 52%, #fff5bd 78%, transparent);
+  box-shadow: 0 0 16px 5px rgba(255, 194, 67, 0.7);
+  animation: ci-edge-gold var(--ci-ms) ease-out both;
+}
+
+.ci-edge-blue {
+  right: 3%;
+  background: linear-gradient(180deg, transparent, #dff6ff 22%, #56bfff 52%, #dff6ff 78%, transparent);
+  box-shadow: 0 0 16px 5px rgba(69, 172, 255, 0.72);
+  animation: ci-edge-blue var(--ci-ms) ease-out both;
+}
+
+.ci-flash {
+  z-index: 8;
+  inset: 0;
+  opacity: 0;
+  background: linear-gradient(105deg, rgba(255, 217, 122, 0.88), #fff 50%, rgba(91, 190, 255, 0.88));
+  mix-blend-mode: screen;
+  animation: ci-flash var(--ci-ms) linear both;
+}
+
+@keyframes ci-veil {
+  0% { opacity: 0; }
+  6%, 90% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* v18 aria-cutin-panel-hold */
+@keyframes ci-panel-hold {
+  0% { opacity: 0; transform: translate3d(112%, 0, 0); }
+  10% { opacity: 1; transform: translate3d(0, 0, 0); }
+  90% { opacity: 1; transform: translate3d(-1.5%, 0, 0); }
+  100% { opacity: 0; transform: translate3d(-112%, 0, 0); }
+}
+
+/* v18 aria-cutin-art-hold */
+@keyframes ci-art-hold {
+  0%, 5% { opacity: 0; transform: translate3d(15%, 0, 0) scale(1.07); }
+  13% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  91% { opacity: 1; transform: translate3d(-1%, 0, 0) scale(1.012); }
+  100% { opacity: 0; transform: translate3d(-9%, 0, 0) scale(1.04); }
+}
+
+/* v18 aria-cutin-copy-hold — the name, whole, from 17% to 88%. */
+@keyframes ci-copy-hold {
+  0%, 9% { opacity: 0; transform: translate3d(34px, 7px, 0); }
+  17%, 88% { opacity: 1; transform: translate3d(0, 0, 0); }
+  97%, 100% { opacity: 0; transform: translate3d(-22px, 0, 0); }
+}
+
+@keyframes ci-energy {
+  0% { opacity: 0; transform: scale(0.66) rotate(-12deg); }
+  26% { opacity: 1; }
+  100% { opacity: 0.68; transform: scale(1.16) rotate(9deg); }
+}
+
+@keyframes ci-edge-gold {
+  0%, 5% { opacity: 0; transform: translate3d(120vw, 0, 0) rotate(11deg); }
+  15%, 82% { opacity: 1; transform: translate3d(0, 0, 0) rotate(11deg); }
+  100% { opacity: 0; transform: translate3d(-110vw, 0, 0) rotate(11deg); }
+}
+
+@keyframes ci-edge-blue {
+  0%, 8% { opacity: 0; transform: translate3d(100vw, 0, 0) rotate(11deg); }
+  18%, 84% { opacity: 1; transform: translate3d(0, 0, 0) rotate(11deg); }
+  100% { opacity: 0; transform: translate3d(-120vw, 0, 0) rotate(11deg); }
+}
+
+@keyframes ci-flash {
+  0% { opacity: 0; }
+  4% { opacity: 0.74; }
+  10%, 86% { opacity: 0; }
+  92% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+/* ---- HERO: from the left, crimson and gold (v18 .hero-cut-in) ---- */
+
+.ci[data-theme='hero'] .ci-veil {
+  background:
+    radial-gradient(circle at 30% 44%, rgba(145, 18, 42, 0.38), transparent 46%),
+    rgba(2, 3, 7, 0.9);
+}
+
+.ci[data-theme='hero'] .ci-panel {
+  right: 13%;
+  left: -5%;
+  clip-path: polygon(0 0, 91% 0, 100% 100%, 9% 100%);
+  background:
+    radial-gradient(circle at 27% 40%, rgba(146, 21, 42, 0.56), transparent 35%),
+    linear-gradient(248deg, rgba(30, 18, 19, 0.99) 0 42%, rgba(77, 16, 26, 0.98) 70%, rgba(7, 8, 12, 0.99));
+  box-shadow:
+    inset -12px 0 0 rgba(255, 205, 103, 0.9),
+    inset 12px 0 0 rgba(183, 22, 48, 0.9),
+    0 0 42px rgba(0, 0, 0, 0.94);
+  transform: translate3d(-112%, 0, 0);
+  animation-name: ci-panel-hold-left;
+}
+
+.ci[data-theme='hero'] .ci-panel::before {
+  border-top-color: rgba(255, 225, 145, 0.94);
+  border-bottom-color: rgba(214, 34, 61, 0.92);
+  box-shadow:
+    inset 0 10px 26px rgba(255, 204, 91, 0.12),
+    inset 0 -10px 28px rgba(179, 18, 46, 0.18);
+}
+
+.ci[data-theme='hero'] .ci-panel::after {
+  background: repeating-linear-gradient(
+    14deg,
+    transparent 0 17px,
+    rgba(255, 236, 191, 0.13) 18px 20px,
+    transparent 21px 37px
+  );
+  transform: translateX(-18%);
+}
+
+.ci[data-theme='hero'] .ci-energy {
+  background:
+    radial-gradient(circle at 66% 48%, rgba(255, 198, 72, 0.32), transparent 28%),
+    radial-gradient(circle at 24% 42%, rgba(199, 22, 51, 0.5), transparent 36%),
+    conic-gradient(from 250deg at 34% 48%, transparent, rgba(255, 255, 255, 0.18), transparent 20%);
+}
+
+.ci[data-theme='hero'] .ci-word {
+  right: auto;
+  left: 4%;
+  color: rgba(255, 221, 177, 0.075);
+}
+
+.ci[data-theme='hero'] .ci-art {
+  right: auto;
+  left: 1%;
+  bottom: -70%;
+  height: 178%;
+  filter:
+    drop-shadow(10px 0 18px rgba(0, 0, 0, 0.86))
+    drop-shadow(0 0 15px rgba(213, 33, 58, 0.46));
+  transform-origin: 38% 36%;
+  animation-name: ci-art-hold-left;
+}
+
+.ci[data-theme='hero'] .ci-copy {
+  right: 11%;
+  left: auto;
+  justify-items: end;
+  text-align: right;
+}
+
+.ci[data-theme='hero'] .ci-kicker {
+  border-right: 3px solid #ffd271;
+  border-left: 0;
+  background: linear-gradient(270deg, rgba(0, 0, 0, 0.8), transparent);
+  color: #ffe4a0;
+}
+
+.ci[data-theme='hero'] .ci-name {
+  text-shadow:
+    0 3px 0 rgba(57, 8, 18, 0.96),
+    0 0 14px rgba(255, 210, 107, 0.78),
+    0 0 25px rgba(204, 25, 52, 0.58);
+}
+
+.ci[data-theme='hero'] .ci-edge-gold {
+  right: 17%;
+  left: auto;
+}
+
+.ci[data-theme='hero'] .ci-edge-blue {
+  right: auto;
+  left: 3%;
+  background: linear-gradient(180deg, transparent, #ffd5dc 22%, #c81c3d 52%, #ffe2c5 78%, transparent);
+  box-shadow: 0 0 16px 5px rgba(201, 23, 53, 0.76);
+}
+
+.ci[data-theme='hero'] .ci-flash {
+  background: linear-gradient(255deg, rgba(202, 26, 52, 0.88), #fff 50%, rgba(255, 202, 91, 0.88));
+}
+
+/* The hold curve, mirrored for a panel that comes from the left. */
+@keyframes ci-panel-hold-left {
+  0% { opacity: 0; transform: translate3d(-112%, 0, 0); }
+  10% { opacity: 1; transform: translate3d(0, 0, 0); }
+  90% { opacity: 1; transform: translate3d(1.5%, 0, 0); }
+  100% { opacity: 0; transform: translate3d(112%, 0, 0); }
+}
+
+@keyframes ci-art-hold-left {
+  0%, 5% { opacity: 0; transform: translate3d(-15%, 0, 0) scale(1.07); }
+  13% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  91% { opacity: 1; transform: translate3d(1%, 0, 0) scale(1.012); }
+  100% { opacity: 0; transform: translate3d(9%, 0, 0) scale(1.04); }
+}
+
+/* ---- LEVI: abyss blue and old gold (v18 .levi-cut-in) ---- */
+
+.ci[data-theme='levi'] .ci-veil {
+  background:
+    radial-gradient(circle at 73% 43%, rgba(47, 46, 150, .42), transparent 44%),
+    linear-gradient(90deg, rgba(2, 1, 7, .94), rgba(11, 5, 28, .9));
+}
+
+.ci[data-theme='levi'] .ci-panel {
+  background:
+    radial-gradient(circle at 72% 38%, rgba(70, 73, 196, .56), transparent 34%),
+    radial-gradient(circle at 48% 58%, rgba(25, 8, 56, .76), transparent 45%),
+    linear-gradient(112deg, rgba(8, 6, 15, .995) 0 38%, rgba(21, 18, 62, .985) 68%, rgba(4, 10, 24, .995));
+  box-shadow:
+    inset 12px 0 0 rgba(191, 161, 75, .9),
+    inset -12px 0 0 rgba(76, 96, 232, .9),
+    0 0 46px rgba(0, 0, 0, .96);
+}
+
+.ci[data-theme='levi'] .ci-panel::before {
+  border-top-color: rgba(231, 209, 135, .94);
+  border-bottom-color: rgba(105, 125, 255, .94);
+  box-shadow:
+    inset 0 11px 28px rgba(191, 151, 63, .1),
+    inset 0 -11px 30px rgba(50, 69, 194, .2);
+}
+
+.ci[data-theme='levi'] .ci-panel::after {
+  opacity: .5;
+  background: repeating-linear-gradient(
+    -10deg,
+    transparent 0 20px,
+    rgba(126, 139, 255, .14) 21px 23px,
+    transparent 24px 42px
+  );
+}
+
+.ci[data-theme='levi'] .ci-energy {
+  background:
+    radial-gradient(circle at 75% 44%, rgba(89, 104, 255, .48), transparent 31%),
+    radial-gradient(circle at 31% 50%, rgba(195, 158, 64, .28), transparent 30%),
+    conic-gradient(from 70deg at 68% 48%, transparent, rgba(194, 207, 255, .2), transparent 20%);
+}
+
+.ci[data-theme='levi'] .ci-word {
+  right: 2%;
+  color: rgba(153, 169, 255, .09);
+}
+
+.ci[data-theme='levi'] .ci-art {
+  right: -4%;
+  bottom: -43%;
+  height: 154%;
+  filter:
+    drop-shadow(-11px 0 20px rgba(0, 0, 0, .9))
+    drop-shadow(0 0 16px rgba(82, 103, 255, .5));
+  transform-origin: 76% 38%;
+}
+
+.ci[data-theme='levi'] .ci-copy {
+  left: 8%;
+  bottom: 11%;
+}
+
+.ci[data-theme='levi'] .ci-kicker {
+  border-left-color: #7f91ff;
+  color: #dce3ff;
+}
+
+.ci[data-theme='levi'] .ci-name {
+  font-size: clamp(21px, 4.8vw, 46px);
+  letter-spacing: .035em;
+  text-shadow:
+    0 3px 0 rgba(18, 7, 41, .98),
+    0 0 13px rgba(230, 205, 120, .68),
+    0 0 25px rgba(74, 95, 242, .65);
+}
+
+.ci[data-theme='levi'] .ci-sub {
+  color: rgba(218, 225, 255, .8);
+}
+
+.ci[data-theme='levi'] .ci-edge-gold {
+  background: linear-gradient(180deg, transparent, #f4e6ae 22%, #bfa34b 52%, #f8edc1 78%, transparent);
+  box-shadow: 0 0 16px 5px rgba(191, 156, 56, .68);
+}
+
+.ci[data-theme='levi'] .ci-edge-blue {
+  background: linear-gradient(180deg, transparent, #e2e7ff 22%, #6176ef 52%, #dce4ff 78%, transparent);
+  box-shadow: 0 0 17px 6px rgba(70, 91, 228, .78);
+}
+
+.ci[data-theme='levi'] .ci-flash {
+  background: linear-gradient(105deg, rgba(184, 151, 61, .82), #fff 50%, rgba(78, 99, 237, .9));
+}
+
+/* ---- ARIA: sea-glass and pale gold, the picture fills the panel (v18 .aria-cut-in) ---- */
+
+.ci[data-theme='aria'] .ci-veil {
+  background:
+    radial-gradient(circle at 64% 42%, rgba(27, 214, 204, .34), transparent 46%),
+    linear-gradient(90deg, rgba(1, 10, 20, .95), rgba(8, 31, 53, .91));
+}
+
+.ci[data-theme='aria'] .ci-panel {
+  background:
+    radial-gradient(circle at 70% 38%, rgba(30, 210, 204, .38), transparent 38%),
+    radial-gradient(circle at 43% 62%, rgba(27, 92, 154, .32), transparent 42%),
+    linear-gradient(112deg, rgba(3, 17, 27, .995), rgba(13, 61, 83, .985) 68%, rgba(5, 15, 35, .995));
+  box-shadow:
+    inset 12px 0 0 rgba(234, 210, 126, .9),
+    inset -12px 0 0 rgba(49, 221, 211, .9),
+    0 0 46px rgba(0, 0, 0, .96);
+}
+
+.ci[data-theme='aria'] .ci-panel::before {
+  border-top-color: rgba(247, 229, 163, .94);
+  border-bottom-color: rgba(96, 255, 237, .94);
+  box-shadow:
+    inset 0 11px 28px rgba(228, 194, 101, .11),
+    inset 0 -11px 30px rgba(35, 215, 206, .2);
+}
+
+.ci[data-theme='aria'] .ci-panel::after {
+  opacity: .52;
+  background: repeating-linear-gradient(
+    -12deg,
+    transparent 0 19px,
+    rgba(108, 246, 232, .13) 20px 22px,
+    transparent 23px 42px
+  );
+}
+
+.ci[data-theme='aria'] .ci-energy {
+  background:
+    radial-gradient(circle at 72% 43%, rgba(72, 255, 234, .36), transparent 31%),
+    radial-gradient(circle at 31% 52%, rgba(226, 199, 108, .25), transparent 30%),
+    conic-gradient(from 76deg at 68% 48%, transparent, rgba(117, 225, 255, .19), transparent 21%);
+}
+
+.ci[data-theme='aria'] .ci-word {
+  right: 2%;
+  color: rgba(107, 255, 239, .09);
+}
+
+.ci[data-theme='aria'] .ci-art {
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 43%;
+  filter:
+    drop-shadow(-8px 0 18px rgba(0, 0, 0, .82))
+    drop-shadow(0 0 16px rgba(57, 224, 214, .46));
+  transform-origin: 65% 42%;
+}
+
+.ci[data-theme='aria'] .ci-copy {
+  left: 7%;
+  bottom: 9%;
+}
+
+.ci[data-theme='aria'] .ci-kicker {
+  border-left-color: #64f1df;
+  color: #dffdf6;
+}
+
+.ci[data-theme='aria'] .ci-name {
+  font-size: clamp(20px, 4.6vw, 45px);
+  letter-spacing: .03em;
+  text-shadow:
+    0 3px 0 rgba(2, 22, 29, .98),
+    0 0 13px rgba(244, 217, 128, .66),
+    0 0 25px rgba(45, 224, 207, .62);
+}
+
+.ci[data-theme='aria'] .ci-sub {
+  color: rgba(221, 255, 250, .82);
+}
+
+.ci[data-theme='aria'] .ci-edge-gold {
+  background: linear-gradient(180deg, transparent, #fff0b8 22%, #c6a84e 52%, #fff4c9 78%, transparent);
+  box-shadow: 0 0 16px 5px rgba(205, 171, 73, .66);
+}
+
+.ci[data-theme='aria'] .ci-edge-blue {
+  background: linear-gradient(180deg, transparent, #e7fffb 22%, #36ddcf 52%, #c9fff6 78%, transparent);
+  box-shadow: 0 0 17px 6px rgba(39, 218, 205, .78);
+}
+
+.ci[data-theme='aria'] .ci-flash {
+  background: linear-gradient(105deg, rgba(202, 171, 73, .82), #fff 50%, rgba(57, 226, 212, .9));
+}
+
+/* ---- A PHONE HELD SIDEWAYS: v18's low-height adjustments ---- */
+
+@media (max-height: 380px) and (orientation: landscape) {
+  .ci-panel { top: 2%; bottom: 2%; }
+  .ci-art { right: -2%; bottom: -76%; height: 184%; }
+  .ci-copy { left: 10%; bottom: 9%; }
+  .ci[data-theme='hero'] .ci-art { right: auto; left: -2%; bottom: -76%; height: 184%; }
+  .ci[data-theme='hero'] .ci-copy { right: 10%; left: auto; bottom: 9%; }
+  .ci[data-theme='levi'] .ci-art { right: -5%; bottom: -47%; height: 158%; }
+  .ci[data-theme='levi'] .ci-copy { left: 7%; bottom: 8%; }
+  .ci[data-theme='aria'] .ci-art { right: 0; bottom: 0; width: 100%; height: 100%; }
+  .ci[data-theme='aria'] .ci-copy { left: 6%; bottom: 7%; }
+}
+
+/* ---- LESS MOTION: still shown, for the same time, without moving (v18) ----
+   `.ci[data-theme]` so these outrank every theme's own starting place
+   (the hero's panel starts off to the left): standing still must mean
+   standing IN place, for all four. */
+
+@media (prefers-reduced-motion: reduce) {
+  .ci[data-theme] .ci-veil,
+  .ci[data-theme] .ci-panel,
+  .ci[data-theme] .ci-art,
+  .ci[data-theme] .ci-copy,
+  .ci[data-theme] .ci-energy {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .ci[data-theme] .ci-edge,
+  .ci[data-theme] .ci-flash {
+    display: none;
+  }
+}
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-veil,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-panel,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-art,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-copy,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-energy {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-edge,
+:root[data-reduced-motion='on'] .ci[data-theme] .ci-flash {
+  display: none;
+}
