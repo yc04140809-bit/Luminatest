@@ -16,6 +16,22 @@ FORGE JSON → AUTHORING IMPORT → VALIDATION → NORMALIZATION（語彙アダ�
   → MUGEN ZERO 正式 Character Definition → ゲーム BUILD → lifeActor のキャラだけ WORLD LIFE ENGINE
 ```
 
+## 0. 作者の正式決定（2026-09-27・確定）
+
+1. **AUTHORING IMPORT**：正式定義は `packages/mugen-core/content/forge/` に置き、ビルドに入れる。SAVE には何も書かない。
+   登録は開発サーバー画面または `forge:import` コマンド。preview（確認のみ）→ 作者確認 → `--apply` で反映。
+2. **voidIds**：`schemaVersion: 1` / `voidIds: [{ characterId, status: "VOID" }]` を正式形式とする。読み込んだ VOID ID は `void.json` に永続保存。
+   台帳登録前に拒否。採用済み ID が VOID として届いたら何も書かず停止し、既存 NPC を削除して解決しない。
+3. **Vocabulary Adapter**：UNMAPPED は警告のみ（エラーにしない）。似た値へ自動変換しない。FORGE の元の値は残す。
+   性格・価値観・願いの対応表は当面空（FORGE の性格等は Life Engine の種の育ち方に影響させない）。実データを見ながら後で追加する。
+4. **ADOPTED と Life Engine 対象**：採用キャラは全員人物台帳に入れる。WORLD LIFE ENGINE／GOD VIEW に入れるのは `lifeActor = true` だけ。
+   初期方針は「人間は対象」「モンスター（通常／BOSS）は対象外」。例外は作者判断で切り替える。
+5. **Character ID → NPC_ID**：採用時に NPC_ID 入力必須。大文字定数形式、1 人に 1 つ、採用後は変更不可・再利用不可。既存人物を指定した場合、その人物の ID と名前は変えない。
+6. **importance**：当面「一般NPC → ORDINARY」の 1 件だけ。
+7. **次の段階**：実 FORGE JSON 1 件で preview のみ実行 → 作者確認 → `--apply` → Android 実機確認項目を順に確認。
+
+SAVE_VERSION=3 と保存形式は変えない。RESET WORLD／はじめるの後も採用済み一覧は変わらない（採用済みキャラの存在はビルド内容であり、SAVE には書かない）。
+
 ---
 
 ## 1. 正式定義の置き場所（コンテンツ）
