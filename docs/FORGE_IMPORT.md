@@ -228,3 +228,14 @@ FORGE → ZERO の書き出し JSON の正式形式：
    ZERO 側で推測して作らず、FORGE の定義をもらって表にする（`forgeVocabularyAdapter` と同じく 1 か所に置く）。
 2. 年齢帯の境目の扱い（例：境目に近い値は WARNING にしない、など）。
 3. 体型・髪型は、JSON の中に照合相手になる項目が無いので対象外（キャラクターシートとの照合は機械ではできない）。
+
+### 9b. 2026-09-28 追記：同じ JSON で preview 再実行（作者の最終指示）
+
+作者の最終指示により、§9 の保留は「visualDiversity を FORGE 側の生成補助／多様性管理情報として扱い、ゲームでは使わない」
+方針に置き換わった。同じ JSON（hash `sha256:69c9e867…3afb`）で preview を再実行し、作者の OK 待ち（まだ `--apply` しない）。
+
+- `visualDiversity` などゲームが意味付けしない項目は **SOURCE DATA PRESERVED / GAME MAPPING = UNUSED** として preview に一覧表示する
+  （`forgeVocabularyAdapter.ts` の `FORGE_SOURCE_ONLY_FIELDS`／`sourceOnlyFields`。表示だけで、変換・補正はしない）。
+  外見・Life Engine（SEED／GROWTH／VINE／BLOOM）・性格・能力・イベント判定のどれにも使わない（どんな visualDiversity でもゲームの定義が同じになることをテストで確認）。
+- FORGE ↔ ZERO の間に自動送信・API・同期は無い。FORGE の「更新データを再送」は「最新データを JSON として書き出し直す」意味。
+  作者が JSON を手で渡し → preview → 作者確認 → apply → content/forge → commit／push → ビルド。

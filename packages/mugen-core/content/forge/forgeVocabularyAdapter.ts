@@ -206,6 +206,50 @@ export function zeroCharacterDefinition(
   };
 }
 
+/**
+ * FORGE FIELDS THE GAME KEEPS BUT NEVER USES — SOURCE DATA PRESERVED,
+ * GAME MAPPING = UNUSED.
+ *
+ * Kept verbatim in content/forge/characters/<ID>.json and read by nothing
+ * in the game: not the character's looks, not the WORLD LIFE ENGINE
+ * (SEED / GROWTH / VINE / BLOOM), not personality, abilities or event
+ * conditions. `visualDiversity` in particular is FORGE's own generation
+ * and diversity bookkeeping (decided 2026-09-28): what it says is never
+ * checked against, corrected by, or turned into anything in the game.
+ * Listed so the review screen can say so, field by field.
+ */
+export const FORGE_SOURCE_ONLY_FIELDS: readonly string[] = [
+  'visualDiversity',
+  'visualDirection',
+  'visualReviewStatus',
+  'visualReviewChecklist',
+  'lifeAxis',
+  'worldViewAxis',
+  'relationshipPotential',
+  'relationshipRefs',
+  'equipment',
+  'seeds',
+  'dramaHooks',
+  'worldMemory',
+  'worldLifeEngine',
+  'worldAssignment',
+  'productionChecklist',
+  'characterHistory',
+  'combat',
+  'bossEncounter',
+  'assets',
+];
+
+/** The source-only fields this file actually carries (non-empty), each with a short look at its value. */
+export function sourceOnlyFields(definition: ForgeDeployPackage): { field: string; value: string }[] {
+  const empty = (v: unknown) =>
+    v === null || v === undefined || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0);
+  return FORGE_SOURCE_ONLY_FIELDS.filter((field) => !empty((definition as Record<string, unknown>)[field])).map((field) => {
+    const text = JSON.stringify((definition as Record<string, unknown>)[field]);
+    return { field, value: text.length > 160 ? `${text.slice(0, 160)}…` : text };
+  });
+}
+
 /** The adapter's report for the review screen and the ledger: one warning per UNMAPPED value. */
 export function unmappedIssues(definition: ForgeDeployPackage): ForgeIssue[] {
   return adaptForgeVocabulary(definition).unmapped.map((u) => ({

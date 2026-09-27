@@ -33,7 +33,7 @@ import {
 import { FORGE_KIND_LABEL, forgeKindOf } from '../core/forge/record';
 import { isForgeExport, readForgeExport, type ForgeAdoptionPlan } from '../core/forge/content';
 import { isObject } from '../core/forge/validate';
-import { zeroCharacterDefinition } from '../content/forge/forgeVocabularyAdapter';
+import { sourceOnlyFields, zeroCharacterDefinition } from '../content/forge/forgeVocabularyAdapter';
 
 const DECISION: Record<string, string> = {
   NEW: '新規登録',
@@ -109,6 +109,10 @@ function report(plan: ForgeAdoptionPlan): void {
   }
   for (const e of [...plan.errors, ...plan.npcErrors]) console.log(`  × ${e.message}`);
   for (const w of [...plan.warnings, ...plan.npcNotes, ...plan.unmapped]) console.log(`  ! ${w.message}`);
+  if (plan.payload) {
+    console.log('SOURCE DATA PRESERVED / GAME MAPPING = UNUSED（元の値のまま保存し、ゲームでは使わない項目）:');
+    for (const f of sourceOnlyFields(plan.payload)) console.log(`  - ${f.field}: ${f.value}`);
+  }
   if (plan.diff && plan.decision === 'UPDATE') {
     for (const entry of plan.diff.entries.filter((e) => e.change !== 'SAME')) console.log(`  変更: ${entry.path}`);
   }

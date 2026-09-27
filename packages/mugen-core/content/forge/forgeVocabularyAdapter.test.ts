@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORGE_VOCABULARY, adaptForgeVocabulary, unmappedIssues, zeroCharacterDefinition } from './forgeVocabularyAdapter';
+import { FORGE_VOCABULARY, adaptForgeVocabulary, sourceOnlyFields, unmappedIssues, zeroCharacterDefinition } from './forgeVocabularyAdapter';
 import { canonicalJson } from '../../core/forge/canonical';
 import { asReal } from '../../core/forge/fixtures/load';
 import { MUGEN_WORLD_RULES } from '../world/mugenWorld';
@@ -165,5 +165,23 @@ describe('decided 2026-09-27: what is mapped today, and what waits for the autho
     expect((forge.profile.core as { personality: string[] }).personality).toEqual(['慎重', '世話焼き', '負けず嫌い']);
     // And the real table is as it was.
     expect(FORGE_VOCABULARY.trait).toEqual({});
+  });
+});
+
+describe('visualDiversity and the other source-only fields: preserved, never used', () => {
+  it('are listed as SOURCE DATA PRESERVED / GAME MAPPING = UNUSED', () => {
+    const fields = sourceOnlyFields(asReal('human')).map((f) => f.field);
+    expect(fields).toEqual(expect.arrayContaining(['visualDiversity', 'lifeAxis', 'worldViewAxis', 'seeds']));
+  });
+
+  it('change nothing the game reads: any visualDiversity gives the same definition', () => {
+    const young = asReal('human');
+    const odd = asReal('human', (p) => {
+      p.visualDiversity = { ageGroup: 'older_adult', bodyBuild: 'heavy', heightImpression: 'very_tall', hair: { color: 'salt_and_pepper', length: 'very_short' } };
+    });
+    expect(adaptForgeVocabulary(odd)).toEqual(adaptForgeVocabulary(young));
+    expect(unmappedIssues(odd)).toEqual(unmappedIssues(young));
+    // And the odd values are kept exactly as sent.
+    expect(odd.visualDiversity).toEqual({ ageGroup: 'older_adult', bodyBuild: 'heavy', heightImpression: 'very_tall', hair: { color: 'salt_and_pepper', length: 'very_short' } });
   });
 });

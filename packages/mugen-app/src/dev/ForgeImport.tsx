@@ -11,7 +11,7 @@ import {
   type ForgeExport,
 } from '@mugen/core/forge/content';
 import { FORGE_PLACEABLE_REGIONS, forgeAdoptionView } from '@mugen/content/forge/adoptionView';
-import { zeroCharacterDefinition } from '@mugen/content/forge/forgeVocabularyAdapter';
+import { sourceOnlyFields, zeroCharacterDefinition } from '@mugen/content/forge/forgeVocabularyAdapter';
 import './forgeImport.css';
 
 /**
@@ -764,6 +764,14 @@ function Normalized({ plan }: { plan: ForgeAdoptionPlan }) {
       ) : (
         <p className="fi-quiet" data-testid="forge-unmapped">UNMAPPED の値はありません。</p>
       )}
+      <details className="fi-details" data-testid="forge-source-only">
+        <summary>SOURCE DATA PRESERVED / GAME MAPPING = UNUSED（元の値のまま保存し、ゲームでは使わない項目）</summary>
+        <ul className="fi-list fi-compact">
+          {sourceOnlyFields(plan.payload).map((f) => (
+            <li key={f.field}>{f.field}</li>
+          ))}
+        </ul>
+      </details>
     </div>
   );
 }
