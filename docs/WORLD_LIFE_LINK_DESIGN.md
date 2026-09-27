@@ -1,6 +1,6 @@
-# NPC／CHARACTER FORGE／WORLD LIFE ENGINE 連携設計（PRIORITY 1・調査と設計案）
+# NPC／CHARACTER FORGE／WORLD LIFE ENGINE 連携設計（PRIORITY 1）
 
-2026-09-26。**設計のみ。コードは書いていない**（このファイルの追加だけ）。作者の確認後に最小実装へ進む。
+2026-09-26 調査と設計案 → 2026-09-27 作者の方針決定（§9）→ 最小実装 C-1・C-2 完了（§10）。
 戦闘計算 CORE・SAVE・WORLD MEMORY・SAVE_VERSION=3 には触れない前提で書いている。
 
 ---
@@ -353,3 +353,76 @@ interface TalkCandidate {
 4. **関係の数値**：親密度・信頼・対立を「保存する数値」ではなく「正史と種から毎回読む値」にする案でよいか
    （保存する数値にすると、保存行の追加と「誰が数値を動かすか」の決まりが必要になる）。
 5. **感情状態・現在の目的**：保存項目にせず、種の見え方と望みから読む案でよいか。
+
+---
+
+## 9. 作者の方針決定（2026-09-27・正式）
+
+| 事項 | 決定 |
+|---|---|
+| 外部ツール | CHARACTER FORGE と NPC アプリは**ゲーム本体とは別の外部ツール／別リポジトリ／別アプリ**。やり取りは**版付き JSON**。既存の形式が無いので、**§3 の案（`core/link/types.ts`）を暫定正式案**とする。ゲームは相手の中身を知らず、JSON の契約だけを知る |
+| 正式 ID | **大文字の定数形式**（`GALD`・`LINA`・`MARTA`）。`alden_marta` のような小文字・地名付き ID は正式 ID にしない |
+| 別名（alias） | 互換のため、**import／検証／境界で別名として受け取る**のは可。既存 ID は壊さない |
+| 絵の ID | `hero`・`gald` などの絵の ID と NPC_ID は**別物・別フィールド** |
+| MARTA | ID `MARTA` は定義してよい。**「MARTA＝リナの母」は正式確定しない**。家族関係・配偶情報は作者の決定まで未確定。自動で付与しない |
+| 親密度・信頼・対立 | SAVE に保存する固定数値にしない。**出来事と種から毎回計算**。実行中の一時キャッシュは可、永続保存はしない |
+| 感情状態・現在の目的 | SAVE に保存しない。**種の見え方・本人の望み・記録された出来事から読む** |
+| SAVE | 保存するのは出来事・時計・変わった人の現在状態だけ。**SAVE_VERSION は上げない**（3 のまま） |
+| 最初の実装範囲 | **C-1（境界の型）と C-2（正式な名簿と ID 検証テスト）だけ**。UI・SAVE 形式・イベントの出し分け・Forge import 本実装・会話候補の本接続・人生エンジンの改修はまだやらない |
+| 次の順番 | ① 読むだけの関数（人の様子・イベント候補・会話候補。場所・人で絞る）→ ② 体験イベントの条件追加（種の状態・BLOOM 候補・経過日数・排他グループ）→ ③ BLOOM に「何の出来事で実現扱いか」→ ④ Forge の形式が分かり次第 import |
+| 変えてはいけない | 戦闘計算 CORE、SAVE_VERSION=3、既存の保存形式、出来事を書き換えないこと、人生エンジンが出来事を書かないこと、既存 ID、ガルドの4結末とその後の流れ、TIME SHIFT は一度だけ・プレイヤーは時間を動かせない、人生エンジンの思想（時間を刻まない・BLOOM は候補まで・全員×全員をしない・雑談は意味を持たない・知っていることだけ見せる） |
+
+戦闘側の残り1件（古い SAVE での ♪ 自動解放の実機確認）は、この作業とは切り離して並行扱い（ブロッカーではない）。
+
+## 10. 最小実装 C-1・C-2（2026-09-27）
+
+**画面・保存・動きは変えていない**。新しいモジュールはどこからも使われていない（名簿がID規則を使うだけ）。
+
+### 追加したファイル
+
+| ファイル | 中身 |
+|---|---|
+| `packages/mugen-core/core/link/types.ts` | 境界の型（契約）。`LINK_SCHEMA_VERSION = 1`（SAVE_VERSION とは別物）、`LINK_FORMAT = 'mugen-zero.link'`、`NpcId`・`ArtId`・`RegionId`・`LocationId`、`PersonKind`・`PersonStanding`、`PersonDefinition`（人の定義）、`PersonState`（人の今の様子：`current`＝現在状態、`reading`＝読み取り値〔人生段階・感情・目的・種〕、保存しない）、`LifeStage`（QUIET／SEED／GROWTH／VINE／BLOOM／NEW_SEED）、`RelationshipView`・`RelationshipKind`（親密・信頼・対立など、境界の出力値）、`ConditionSummary`、`EventCandidate`（候補ID・対象人物・場所・優先度・排他グループ・条件の要約・実現する出来事の種類）、`ConversationCandidate`（候補ID・話者／相手・場所・種類・表示条件の要約・優先度・会話の参照）、`LinkDocumentKind`・`LinkPayloads`・`LinkDocument`（JSON の包み：形式名・種類・版・作成ツール・作成時刻・中身） |
+| `packages/mugen-core/core/link/npcId.ts` | 正式 ID の規則 `NPC_ID_PATTERN = /^[A-Z][A-Z0-9_]*$/`、`isFormalNpcId`、名簿の1行 `NpcRegistryEntry`（ID・表示名・種類・地域・重要度・**絵の ID は別フィールド**・別名）、`aliasTable`、`resolveNpcId`（正式 ID→そのまま／別名→正式 ID／それ以外→null。大文字小文字を勝手に揃えない）、`registryProblems`（不正 ID・重複・空の名前・別名の衝突）、`unresolvedIds`（誰でもない参照を場所付きで報告） |
+| `packages/mugen-core/content/people/registry.ts` | **正式な名簿 `NPC_REGISTRY`**（`WORLD_PEOPLE` を土台に、GRAVE と WORLD を追加）と `registryEntry` |
+| `packages/mugen-core/content/people/registry.test.ts` | 名簿と ID の検証（14件） |
+| `packages/mugen-core/core/link/link.test.ts` | 境界の文書が JSON を往復しても変わらないこと、版が SAVE とは別であること（2件） |
+
+### 正式 ID と別名
+
+| 正式 ID | 表示名 | 種類 | 地域 | 絵の ID | 別名 |
+|---|---|---|---|---|---|
+| `PLAYER` | プレイヤー | PLAYER | ALDEN | `hero` | — |
+| `KAOS` | ケイオス | COMPANION | ALDEN | `kaos` | — |
+| `GALD` | ガルド | PERSON | ALDEN | `gald` | — |
+| `LINA` | リナ | PERSON | ALDEN | `LINA` | — |
+| `ALDEN_GUARD` | アルデンの衛兵 | PERSON | ALDEN | — | — |
+| `BAKERY_OWNER` | パン屋の主人 | PERSON | ALDEN | `BAKERY_OWNER` | — |
+| `MARTA` | マルタ | PERSON | ALDEN | — | `alden_marta` |
+| `GRAVE` | グレイヴ | PERSON | ALDEN | — | — |
+| `ALDEN_VILLAGE` | アルデン村 | PLACE | ALDEN | — | — |
+| `NEL` | ネル | PERSON | PORT_TOWN | — | — |
+| `WORLD` | 世界 | SYSTEM | WORLD | — | — |
+
+- `alden_marta` は人生エンジンの content の中では今のまま動く（改名しない）。境界では `MARTA` として読む。
+- MARTA には家族・配偶・現在状態を付けていない（テストで確認）。
+- `GRAVE`（酒場の主人）は、体験イベントと伏線ですでに登場人物として使われていたが、名簿に無かったので追加した。
+- `WORLD` は、時間の経過や行為者の書かれていない正史の行為者（`advanceTime`・`canonBridge`・`World.timeShift`）。
+- 魔物の個体 ID（四択の対象）は人ではないので名簿に入れない。
+
+### ID 検証テストが確かめること
+
+- 名簿：正式 ID の形、重複なし、表示名あり、別名が誰かの正式 ID と衝突しない・二人を指さない。
+- **content が使う ID がすべて名簿の誰かを指す**：現在状態（ID・配偶者・子）、人生エンジンの人・BLOOM・交差・前史、
+  正史の人生イベントの関係者と状態変化の対象、`World` が書く行為者、体験イベントの登場人物、伏線の関係者、`WORLD_PEOPLE`。
+  （どの出どころからも実際に ID を読めていることも別に確認し、検査が空振りしないようにしている）
+- `WORLD_PEOPLE` と名簿の地域・重要度が一致すること。
+- 絵の ID は別フィールドで、書かれた絵が実在すること。小文字の絵の ID（`hero` など）は人の ID として通らないこと。
+- MARTA：`alden_marta` → `MARTA`、家族として誰にも登録されていないこと。
+- 検査そのものが働くこと：不正 ID・重複・別名の衝突・誰でもない参照・大文字小文字の違いを、わざと作って落ちることを確認。
+
+### テスト結果
+
+- 新規：16件すべて通過（名簿14・境界2）。
+- 既存：CORE 1337件（既存1321＋新規16）すべて通過、App 単体127件すべて通過、型チェック（CORE・App）エラーなし。
+- 画面・保存・戦闘のコードは変更していないため、e2e は今回は再実行していない（前回 STEP 12 で158件通過）。
