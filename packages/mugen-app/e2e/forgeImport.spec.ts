@@ -18,6 +18,8 @@ import { join } from 'node:path';
 
 const FIXTURES = new URL('../../mugen-core/core/forge/fixtures/', import.meta.url);
 const REPO_ROSTER = new URL('../../mugen-core/content/forge/roster.json', import.meta.url);
+/** The repository's own ledger as it was when this file started — the tests write only to sandboxes. */
+const REPO_ROSTER_AT_START = readFileSync(REPO_ROSTER, 'utf8');
 type Name = 'human' | 'normal-monster' | 'boss-monster';
 const sampleText = (name: Name) => readFileSync(new URL(`${name}-deploy.sample.json`, FIXTURES), 'utf8');
 function real(name: Name, change: (p: Record<string, any>) => void = () => {}): string {
@@ -271,5 +273,5 @@ test('WORLD LIFE ENGINE: a person by default, a monster not — decided at adopt
 });
 
 test('none of this touched the repository’s own content', async () => {
-  expect(JSON.parse(readFileSync(REPO_ROSTER, 'utf8')).characters).toEqual([]);
+  expect(readFileSync(REPO_ROSTER, 'utf8')).toBe(REPO_ROSTER_AT_START);
 });
