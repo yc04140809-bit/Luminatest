@@ -169,3 +169,62 @@ FORGE → ZERO の書き出し JSON の正式形式：
   読めるように型とラベルは残し、進行・プレイヤーの知識・life engine からは今まで通り除外。旧 `forge_*` 行は書き換えずに残る。
 - 「WORLD MEMORY 初期イベント」（資料 §13）は、採用が世界の中の出来事ではないため、**台帳（roster.json）の取込履歴**として記録する形に変えた。
 - SAVE_VERSION は 3 のまま。SAVE の形式は何も変えていない。
+
+## 9. 保留中の採用：HUM-000001 リゼル（2026-09-28・登録しない）
+
+作者判断：**B（FORGE 側で修正・再書き出ししてから preview → 差分確認 → `--apply`）**。受け取った JSON は正式登録しない。
+`content/forge` への書き込みは一切していない（台帳は空のまま）。
+
+**preview の結果（受け取った JSON：送出版 0.1-r2、送出日時 2026-09-27T21:51:51.207Z、hash `sha256:69c9e867e36b68867cc62275de6b812c40f9db2bcf9cc6530d522361c5403afb`）**
+
+- 形式：1 キャラ分の DEPLOY JSON として正常。検証エラーなし。voidIds なし（台帳も空）。判定は NEW。
+- FORGE ID：HUM-000001 ／ NPC_ID 予定：RIZEL（既存の人物・別名・Life Engine の人物・GOD VIEW・FORGE 台帳のどれとも衝突なし）。
+- characterType：human（entityType PERSON）／ lifeActor：対象（人間の既定）／ 地域：未配置。
+- 正式定義：standing UNMAPPED、Life Engine aptitudes は MAGIC 0.28・SWORD 0.62・HEALING 0.53 のみ、traits／values／desires は空。
+- UNMAPPED（10）：importance「重要」、性格「情に厚い」「臆病」「世話焼き」、価値観「友情」「平和」、願い「静かに暮らしたい」
+  「誰かに必要とされたい」、aptitudes commerce・social。
+- 警告：REL-000001（HUM-000005 との FAMILY_SIBLING、PROVISIONAL）は保留、画像 VIS-HUM-000001-001 は実ファイルなし、primary 画像なし。
+- 元データ保持：書かれる予定だった `characters/HUM-000001.json` は受け取った JSON と完全に同一（改変なし）。
+
+**登録しない理由**：`visualDiversity` がキャラクターシート（作者の CANON）と明確に矛盾する
+（`ageGroup` と `lifeStage.visualAge` が older_adult、`bodyBuild` heavy、`hair.color` salt_and_pepper、`hair.length` very_short）。
+
+**リゼルの CANON（作者指定・2026-09-28）**
+
+- Character ID：HUM-000001 ／ NPC_ID 予定：RIZEL ／ 名前：リゼル ／ 年齢：20 ／ 性別：女性 ／ 出身：アルデン村
+- 外見：20 歳の若い成人女性、細身、銀灰色の髪、髪は後ろでまとめている。
+  very_short ではない・salt_and_pepper ではない・heavy ではない・older_adult ではない。
+  very_tall は正式設定として確認できないため推測しない。
+- キャラクターシートにない身長・体型・髪型などは補完しない。ZERO 側は FORGE のデータを直さない（直すのは FORGE 側）。
+
+**再書き出しを受け取ったら**：preview（書き込みなし）→ 受け取った JSON との差分確認（特に `visualDiversity`・`lifeStage.visualAge`、
+性格・価値観・願い）→ 作者確認 → `--apply`（NPC_ID RIZEL）。ZERO に未登録なので、再送出分も判定は NEW になる。
+参考：キャラクターシートの Personality Keywords（社交的・世話焼き・無口・責任を抱え込みすぎる・強さへの憧れ・村への忠誠・
+誰かを守りたい・外の世界を見たい・権力者を信用しない）も、今回の JSON の性格・価値観・願いと大きく違う（共通は「世話焼き」だけ）。
+どちらが正かは FORGE 側で確認する。
+
+## 10. 提案（未実装）：preview での年齢・外見の食い違い WARNING
+
+リゼルの件の再発防止案。**作者の OK が出るまで実装しない。** 実装する場合も、次の約束を守る：
+
+- 出すのは WARNING だけ。エラーにしない・採用を止めない。
+- 自動補正しない。FORGE の元データは一切書き換えない（どちらが正しいかは作者が FORGE 側で決める）。
+- 判定の材料は JSON の中の項目どうしだけ。画像や外部の資料から推測しない。
+
+候補とする照合（どれも「両方に値があって、明らかに食い違う時だけ」出す）：
+
+| 照合 | 例（リゼル） |
+|---|---|
+| `profile.age`（数値） ↔ `visualDiversity.ageGroup` | 20 ↔ older_adult |
+| `profile.age` ↔ `lifeStage.visualAge` | 20 ↔ older_adult |
+| `visualDiversity.ageGroup` ↔ `lifeStage.visualAge` | （今回は一致） |
+| `lifeStage.stage` ↔ `profile.age`（ADULT／CHILD／TEEN など） | ADULT ↔ 20：一致 |
+| `profile.gender` ↔ `visualDiversity.genderExpression` | 女性 ↔ androgynous：**矛盾とはしない**（表現の幅なので WARNING 対象外にする案） |
+| `identity` の命名状態 ↔ 内容（例：nameStatus CANON なのに name が空） | 既に検証済み（エラー） |
+
+実装前に決めること：
+
+1. FORGE の `ageGroup`／`visualAge` の正式な語彙一覧と、それぞれが何歳ぐらいを指すか（年齢帯の表）。
+   ZERO 側で推測して作らず、FORGE の定義をもらって表にする（`forgeVocabularyAdapter` と同じく 1 か所に置く）。
+2. 年齢帯の境目の扱い（例：境目に近い値は WARNING にしない、など）。
+3. 体型・髪型は、JSON の中に照合相手になる項目が無いので対象外（キャラクターシートとの照合は機械ではできない）。
