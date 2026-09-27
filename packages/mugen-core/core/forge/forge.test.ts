@@ -8,11 +8,13 @@ import {
   EMPTY_VOID_LEDGER,
   applyForgeAdoption,
   applyForgeRollback,
+  applyLifeActorChange,
   applyVoidExport,
   contentFromData,
   generateForgeIndex,
+  isForgeExport,
   planForgeAdoption,
-  readForgeVoidExport,
+  readForgeExport,
   resultOfPlan,
   type ForgeAdoptionInput,
 } from './content';
@@ -33,8 +35,8 @@ const AT = '2026-09-27T02:00:00.000Z';
 
 const EMPTY: ForgeContent = { roster: EMPTY_ROSTER, baselines: {}, previous: {}, voidIds: [], damaged: [] };
 
-const plan = (input: unknown, content: ForgeContent = EMPTY, choice: ForgeAdoptionInput = {}) =>
-  planForgeAdoption(typeof input === 'string' ? input : JSON.stringify(input), forgeAdoptionView(content), choice);
+const plan = (input: unknown, content: ForgeContent = EMPTY, choice: ForgeAdoptionInput = {}, extraVoidIds: string[] = []) =>
+  planForgeAdoption(typeof input === 'string' ? input : JSON.stringify(input), forgeAdoptionView(content, extraVoidIds), choice);
 
 /**
  * Adopts a payload into a content object, and reads the result back the
@@ -299,30 +301,60 @@ describe('the NPC_ID the author adopts them as', () => {
   });
 });
 
-describe('FORGE’s retired ids (VOID)', () => {
-  it('reads the shapes a FORGE export can take, and says what it could not read', () => {
-    expect(readForgeVoidExport(['HUM-000004', 'MON-000002']).ids).toEqual(['HUM-000004', 'MON-000002']);
-    expect(readForgeVoidExport({ voidIds: ['HUM-000004'], discardedIds: ['HUM-000005'] }).ids).toEqual(['HUM-000004', 'HUM-000005']);
-    expect(
-      readForgeVoidExport({
-        characters: [
-          { characterId: 'HUM-000001', status: 'DEPLOYED' },
-          { characterId: 'HUM-000002', status: 'VOID' },
-          { characterId: 'MON-000003', status: 'DISCARDED' },
-        ],
-      }).ids,
-    ).toEqual(['HUM-000002', 'MON-000003']);
-    const odd = readForgeVoidExport({ voidIds: ['HUM-000004', 'nonsense'] });
-    expect(odd.ids).toEqual(['HUM-000004']);
-    expect(odd.issues).toHaveLength(1);
-    expect(readForgeVoidExport({ hello: 1 }).ids).toEqual([]);
+describe('FORGE’s retired ids — the official export field `voidIds`', () => {
+  const official = (voidIds: unknown[], characters: unknown[] = []) => ({
+    schemaVersion: 1,
+    exportedAt: '2026-09-27T03:00:00.000Z',
+    characters,
+    voidIds,
   });
 
-  it('a retired id is never adopted', () => {
-    const content: ForgeContent = { ...EMPTY, voidIds: ['HUM-900001'] };
-    const p = plan(asReal('human'), content, { npcId: 'SERA' });
-    expect(p.decision).toBe('BLOCKED_RESERVED_ID');
-    expect(p.errors.at(-1)?.message).toMatch(/VOID/);
+  it('reads the official shape: { characterId, status: "VOID" }, extra fields allowed', () => {
+    const read = readForgeExport(
+      official([
+        { characterId: 'HUM-000004', status: 'VOID' },
+        { characterId: 'MON-000002', status: 'VOID', reason: '破棄', voidedAt: '2026-09-20T00:00:00.000Z' },
+      ]),
+    );
+    expect(read.format).toBe('OFFICIAL');
+    expect(read.voidIds).toEqual(['HUM-000004', 'MON-000002']);
+    expect(read.issues).toEqual([]);
+  });
+
+  it('skips what is not VOID or not an id, and says so', () => {
+    const read = readForgeExport(
+      official([
+        { characterId: 'HUM-000004', status: 'VOID' },
+        { characterId: 'HUM-000005', status: 'ACTIVE' },
+        { characterId: 'nonsense', status: 'VOID' },
+        'HUM-000006',
+      ]),
+    );
+    expect(read.voidIds).toEqual(['HUM-000004', 'HUM-000006']);
+    expect(read.issues.map((i) => i.code)).toEqual(['EXPORT_FORMAT', 'EXPORT_FORMAT', 'EXPORT_LEGACY_FORMAT']);
+  });
+
+  it('refuses an export version it does not know, and reads older trial shapes as legacy', () => {
+    expect(readForgeExport({ schemaVersion: 2, voidIds: [{ characterId: 'HUM-000004', status: 'VOID' }] }).voidIds).toEqual([]);
+    const legacy = readForgeExport({ voidIds: ['HUM-000004'], discardedIds: ['HUM-000005'] });
+    expect(legacy.format).toBe('LEGACY');
+    expect(legacy.voidIds).toEqual(['HUM-000004', 'HUM-000005']);
+    expect(legacy.issues[0].code).toBe('EXPORT_LEGACY_FORMAT');
+  });
+
+  it('tells an export from a single deploy file', () => {
+    expect(isForgeExport(official([]))).toBe(true);
+    expect(isForgeExport(asReal('human'))).toBe(false);
+    expect(readForgeExport(official([], [asReal('human'), asReal('boss-monster')])).characters).toHaveLength(2);
+  });
+
+  it('a retired id is never adopted — from the ledger, or straight from the export it came in', () => {
+    expect(plan(asReal('human'), { ...EMPTY, voidIds: ['HUM-900001'] }, { npcId: 'SERA' }).decision).toBe('BLOCKED_RESERVED_ID');
+    const inExport = plan(asReal('human'), EMPTY, { npcId: 'SERA' }, ['HUM-900001']);
+    expect(inExport.decision).toBe('BLOCKED_RESERVED_ID');
+    expect(inExport.errors.at(-1)?.message).toMatch(/VOID/);
+    // Not even as an existing person.
+    expect(plan(asReal('human'), EMPTY, { npcId: 'LINA' }, ['HUM-900001']).ready).toBe(false);
   });
 
   it('the ledger only grows, and refuses — writing nothing — to retire somebody already adopted', () => {
@@ -332,6 +364,36 @@ describe('FORGE’s retired ids (VOID)', () => {
     expect(two.added).toEqual(['HUM-000009']);
     const held = adopt(EMPTY, asReal('human'), { npcId: 'SERA' });
     expect(() => applyVoidExport(held, two.ledger, ['HUM-900001'], AT, 'c.json')).toThrow(/採用済み/);
+  });
+});
+
+describe('ADOPTED is not "has a life": the WORLD LIFE ENGINE decision', () => {
+  it('defaults to yes for a human and no for a monster — boss included', () => {
+    expect(plan(asReal('human'), EMPTY, { npcId: 'SERA' }).lifeActor).toBe(true);
+    expect(plan(asReal('normal-monster'), EMPTY, { npcId: 'MOSS' }).lifeActor).toBe(false);
+    expect(plan(asReal('boss-monster'), EMPTY, { npcId: 'WARDEN' }).lifeActor).toBe(false);
+  });
+
+  it('is the author’s to decide at adoption — a background human out, a tracked creature in', () => {
+    const mob = adopt(EMPTY, asReal('human'), { npcId: 'VILLAGER', lifeActor: false });
+    expect(entryOf(mob, 'HUM-900001').lifeActor).toBe(false);
+    const warden = adopt(EMPTY, asReal('boss-monster'), { npcId: 'MON_ROOTRING', lifeActor: true });
+    expect(entryOf(warden, 'MON-900002').lifeActor).toBe(true);
+  });
+
+  it('is kept by a re-send, and changed only on purpose, with a line in the history', () => {
+    const held = adopt(EMPTY, asReal('boss-monster'), { npcId: 'MON_ROOTRING' });
+    const r2 = resent(asReal('boss-monster'), 2);
+    expect(plan(r2, held, { lifeActor: true }).npcErrors.map((e) => e.code)).toEqual(['LIFE_ACTOR_FIXED']);
+    const updated = adopt(held, r2, {});
+    expect(entryOf(updated, 'MON-900002').lifeActor).toBe(false);
+    const change = applyLifeActorChange(updated, 'MON-900002', true, AT);
+    expect(Object.keys(change.files)).toEqual(['roster.json']);
+    const after = reread(updated, change.files);
+    expect(entryOf(after, 'MON-900002').lifeActor).toBe(true);
+    expect(entryOf(after, 'MON-900002').history.at(-1)?.result).toBe('LIFE_ACTOR_CHANGED');
+    expect(after.baselines['MON-900002']).toEqual(updated.baselines['MON-900002']);
+    expect(() => applyLifeActorChange(after, 'MON-900002', true, AT)).toThrow();
   });
 });
 

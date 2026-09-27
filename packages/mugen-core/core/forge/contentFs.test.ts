@@ -9,6 +9,7 @@ import {
   loadForgeContent,
   planOnDisk,
   rollbackOnDisk,
+  setLifeActorOnDisk,
 } from '../../scripts/forgeContentFs';
 import { generateForgeIndex } from './content';
 import { asReal, resent, sampleText } from './fixtures/load';
@@ -86,12 +87,30 @@ describe('adopting into content files', () => {
     expect(planOnDisk(dir, text(resent(asReal('human'), 2)), {}).decision).toBe('BLOCKED_SAVE_DAMAGED');
   });
 
-  it('takes FORGE’s VOID export into the ledger, and then refuses those ids', () => {
+  it('takes FORGE’s export (official voidIds) into the ledger, and then refuses those ids', () => {
     const dir = freshDir();
-    const { change } = importVoidOnDisk(dir, text({ voidIds: ['HUM-900001'] }), 'void-export.json');
+    const exported = { schemaVersion: 1, exportedAt: '2026-09-27T03:00:00.000Z', characters: [], voidIds: [{ characterId: 'HUM-900001', status: 'VOID' }] };
+    const { change } = importVoidOnDisk(dir, text(exported), 'forge-export.json');
     expect(change.added).toEqual(['HUM-900001']);
     expect(loadForgeContent(dir).content.voidIds).toEqual(['HUM-900001']);
     expect(planOnDisk(dir, text(asReal('human')), { npcId: 'SERA' }).decision).toBe('BLOCKED_RESERVED_ID');
-    expect(() => importVoidOnDisk(dir, text({ nothing: true }), 'x.json')).toThrow();
+    expect(() => importVoidOnDisk(dir, text({ schemaVersion: 1, characters: [], voidIds: [] }), 'x.json')).toThrow();
+  });
+
+  it('refuses, from an export, a character the same export retires — before the ledger has it', () => {
+    const dir = freshDir();
+    expect(planOnDisk(dir, text(asReal('human')), { npcId: 'SERA' }, ['HUM-900001']).decision).toBe('BLOCKED_RESERVED_ID');
+  });
+
+  it('switches WORLD LIFE ENGINE participation in the ledger only', () => {
+    const dir = freshDir();
+    const file = text(asReal('boss-monster'));
+    const plan = planOnDisk(dir, file, { npcId: 'MON_ROOTRING' });
+    adoptOnDisk(dir, file, { npcId: 'MON_ROOTRING' }, { decision: plan.decision, payloadHash: plan.payloadHash });
+    const before = readFileSync(join(dir, 'characters', 'MON-900002.json'), 'utf8');
+    const { written } = setLifeActorOnDisk(dir, 'MON-900002', true);
+    expect(written).toEqual(['roster.json']);
+    expect(loadForgeContent(dir).content.roster.characters[0].lifeActor).toBe(true);
+    expect(readFileSync(join(dir, 'characters', 'MON-900002.json'), 'utf8')).toBe(before);
   });
 });

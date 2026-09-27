@@ -69,3 +69,7 @@
   min-height: 40px; padding: 6px 10px; border-radius: 8px; border: 1px solid #8a7342;
   background: #0f0d0a; color: #efe6d2; font: inherit;
 }
+.fi-check { align-items: flex-start; flex-wrap: nowrap; margin-top: 8px; }
+.fi-check input { flex: none; }
+.fi-check input { width: 20px; height: 20px; margin-top: 3px; }
+.fi-export { margin-top: 10px; padding: 8px 10px; border: 1px dashed #6b5a36; border-radius: 8px; }

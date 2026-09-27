@@ -18,10 +18,11 @@ import {
   VOID_FILE,
   applyForgeAdoption,
   applyForgeRollback,
+  applyLifeActorChange,
   applyVoidExport,
   contentFromData,
   planForgeAdoption,
-  readForgeVoidExport,
+  readForgeExport,
   readVoidLedger,
   type ForgeAdoptionInput,
   type ForgeAdoptionPlan,
@@ -100,9 +101,15 @@ export function ensureForgeContentDir(dir: string): void {
   }
 }
 
-export function planOnDisk(dir: string, text: string, choice: ForgeAdoptionInput): ForgeAdoptionPlan {
+/** `extraVoidIds`: the voidIds of the FORGE export the file came in, if any. */
+export function planOnDisk(
+  dir: string,
+  text: string,
+  choice: ForgeAdoptionInput,
+  extraVoidIds: readonly string[] = [],
+): ForgeAdoptionPlan {
   const { content } = loadForgeContent(dir);
-  return planForgeAdoption(text, forgeAdoptionView(content), choice);
+  return planForgeAdoption(text, forgeAdoptionView(content, extraVoidIds), choice);
 }
 
 /**
@@ -116,9 +123,10 @@ export function adoptOnDisk(
   choice: ForgeAdoptionInput,
   expected: { decision: string; payloadHash: string | null },
   at: string = new Date().toISOString(),
+  extraVoidIds: readonly string[] = [],
 ): { plan: ForgeAdoptionPlan; change: ForgeContentChange; written: string[] } {
   const { content } = loadForgeContent(dir);
-  const plan = planForgeAdoption(text, forgeAdoptionView(content), choice);
+  const plan = planForgeAdoption(text, forgeAdoptionView(content, extraVoidIds), choice);
   if (plan.decision !== expected.decision || plan.payloadHash !== expected.payloadHash) {
     throw new Error('確認してから内容が変わりました。もう一度読み込んで確認してください。');
   }
@@ -149,9 +157,20 @@ export function importVoidOnDisk(
   } catch (e) {
     throw new Error(`JSON として読めません: ${e instanceof Error ? e.message : String(e)}`);
   }
-  const read = readForgeVoidExport(value);
-  if (!read.ids.length) throw new Error(read.issues.map((i) => i.message).join(' / ') || 'VOID ID がありません。');
+  const read = readForgeExport(value);
+  if (!read.voidIds.length) throw new Error(read.issues.map((i) => i.message).join(' / ') || 'voidIds がありません。');
   const ledger = readVoidLedger(readJson(join(dir, VOID_FILE), []));
-  const change = applyVoidExport(content, ledger, read.ids, at, fileName);
+  const change = applyVoidExport(content, ledger, read.voidIds, at, fileName);
   return { change, issues: read.issues.map((i) => i.message), written: writeForgeFiles(dir, change.files) };
+}
+
+export function setLifeActorOnDisk(
+  dir: string,
+  characterId: string,
+  lifeActor: boolean,
+  at: string = new Date().toISOString(),
+): { change: ForgeContentChange; written: string[] } {
+  const { content } = loadForgeContent(dir);
+  const change = applyLifeActorChange(content, characterId, lifeActor, at);
+  return { change, written: writeForgeFiles(dir, change.files) };
 }

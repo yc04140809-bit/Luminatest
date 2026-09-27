@@ -158,7 +158,13 @@ export type ForgeIssueCode =
   | 'NPC_ID_CHANGE'
   | 'NPC_ID_EXISTING_PERSON'
   | 'NPC_ID_NAME_DIFFERS'
-  | 'REGION_UNKNOWN';
+  | 'REGION_UNKNOWN'
+  | 'LIFE_ACTOR_FIXED'
+  // From the vocabulary adapter (content/forge/forgeVocabularyAdapter.ts).
+  | 'UNMAPPED_VOCABULARY'
+  // About a FORGE export file (several characters and voidIds).
+  | 'EXPORT_FORMAT'
+  | 'EXPORT_LEGACY_FORMAT';
 
 /**
  * What the game decides about a file.
@@ -187,7 +193,7 @@ export type ForgeDecision =
   | 'BLOCKED_SAVE_DAMAGED';
 
 /** What happened on one import, as the ledger keeps it. */
-export type ForgeHistoryResult = 'NEW' | 'UPDATED' | 'ROLLED_BACK';
+export type ForgeHistoryResult = 'NEW' | 'UPDATED' | 'ROLLED_BACK' | 'LIFE_ACTOR_CHANGED';
 
 export interface ForgeImportHistoryEntry {
   importId: string;
@@ -233,6 +239,14 @@ export interface ForgeRosterEntry {
   encounterRole: ForgeEncounterRole;
   /** The region the author placed them in at adoption; null = not placed (未配置). */
   region: string | null;
+  /**
+   * Whether the WORLD LIFE ENGINE follows this one as an individual with a
+   * life of its own (seeds, growth, vines, blooms). A separate decision
+   * from adoption: ADOPTED means "official content", nothing more. People
+   * are followed by default; a creature only when the author says it is
+   * one particular individual the story tracks.
+   */
+  lifeActor: boolean;
   payloadHash: string;
   sourceSchemaVersion: string;
   deployedVersion: string;

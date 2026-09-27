@@ -130,6 +130,7 @@ function readRoster(value: unknown, problems: string[]): ForgeRoster {
       typeof raw.npcId !== 'string' ||
       !isFormalNpcId(raw.npcId) ||
       typeof raw.payloadHash !== 'string' ||
+      typeof raw.lifeActor !== 'boolean' ||
       !Array.isArray(raw.history)
     ) {
       problems.push(`${ROSTER_FILE}: 読めない行があります: ${JSON.stringify(raw).slice(0, 80)}`);
@@ -166,6 +167,12 @@ export interface ForgeAdoptionView extends ForgeWorldView {
   people: readonly NpcRegistryEntry[];
   /** Regions a character can be placed in. */
   regions: readonly string[];
+  /**
+   * The vocabulary adapter (content/forge/forgeVocabularyAdapter.ts):
+   * what in the file has no counterpart in the game's own vocabulary.
+   * Reported, never refused, never guessed.
+   */
+  unmapped?: (payload: ForgeDeployPackage) => ForgeIssue[];
 }
 
 export interface ForgeAdoptionInput {
@@ -173,6 +180,12 @@ export interface ForgeAdoptionInput {
   npcId?: string | null;
   /** Where to place them. Optional; null leaves them unplaced (未配置). */
   region?: string | null;
+  /**
+   * Whether the WORLD LIFE ENGINE follows them. Null: the default — a
+   * human yes, a monster no. Fixed at adoption; changed later only on
+   * purpose (`applyLifeActorChange`).
+   */
+  lifeActor?: boolean | null;
 }
 
 export interface ForgeAdoptionPlan extends ForgePlan {
@@ -185,6 +198,10 @@ export interface ForgeAdoptionPlan extends ForgePlan {
   npcErrors: ForgeIssue[];
   /** Things worth saying about the NPC_ID that do not stop it. */
   npcNotes: ForgeIssue[];
+  /** Whether they will be (or are) a WORLD LIFE ENGINE actor. */
+  lifeActor: boolean | null;
+  /** FORGE values with no counterpart in the game's vocabulary (UNMAPPED). */
+  unmapped: ForgeIssue[];
   /** True when there is something to write and everything needed to write it. */
   ready: boolean;
 }
@@ -211,23 +228,33 @@ export function planForgeAdoption(
         issue('NPC_ID_CHANGE', 'npcId', `${existing.characterId} は NPC_ID ${existing.npcId} として採用済みです。NPC_ID は変更できません。`),
       );
     }
+    if (typeof choice.lifeActor === 'boolean' && choice.lifeActor !== existing.lifeActor) {
+      npcErrors.push(
+        issue(
+          'LIFE_ACTOR_FIXED',
+          'lifeActor',
+          `WORLD LIFE ENGINE の対象かどうかは採用時に決まっています（現在: ${existing.lifeActor ? '対象' : '対象外'}）。変えるときは採用済み一覧の切り替えを使ってください。`,
+        ),
+      );
+    }
     const person = view.people.find((p) => p.npcId === existing.npcId) ?? null;
-    return finish(plan, existing.npcId, existing.region, person, npcErrors, npcNotes);
+    return finish(plan, view, existing.npcId, existing.region, existing.lifeActor, person, npcErrors, npcNotes);
   }
-  if (!plan.canRegister || !plan.payload) return finish(plan, wanted, wantedRegion, null, npcErrors, npcNotes);
+  if (!plan.canRegister || !plan.payload) return finish(plan, view, wanted, wantedRegion, null, null, npcErrors, npcNotes);
+  const lifeActor = typeof choice.lifeActor === 'boolean' ? choice.lifeActor : plan.payload.characterType === 'human';
 
   const payload = plan.payload;
   if (!wanted) {
     npcErrors.push(
       issue('NPC_ID_REQUIRED', 'npcId', 'このキャラクターの MUGEN ZERO 側の NPC_ID を決めてください（大文字・数字・_、例: SERA）。'),
     );
-    return finish(plan, null, wantedRegion, null, npcErrors, npcNotes);
+    return finish(plan, view, null, wantedRegion, lifeActor, null, npcErrors, npcNotes);
   }
   if (!isFormalNpcId(wanted)) {
     npcErrors.push(
       issue('NPC_ID_INVALID', 'npcId', `「${wanted}」は正式な NPC_ID の形ではありません（英大文字で始まり、英大文字・数字・_ のみ）。`),
     );
-    return finish(plan, wanted, wantedRegion, null, npcErrors, npcNotes);
+    return finish(plan, view, wanted, wantedRegion, lifeActor, null, npcErrors, npcNotes);
   }
   const taken = view.content.roster.characters.find((entry) => entry.npcId === wanted);
   if (taken) {
@@ -278,13 +305,15 @@ export function planForgeAdoption(
       issue('REGION_UNKNOWN', 'region', `地域「${region}」は本編にありません（${view.regions.join(' / ')}）。空欄なら未配置のまま登録します。`),
     );
   }
-  return finish(plan, wanted, region, person, npcErrors, npcNotes);
+  return finish(plan, view, wanted, region, lifeActor, person, npcErrors, npcNotes);
 }
 
 function finish(
   plan: ForgePlan,
+  view: ForgeAdoptionView,
   npcId: string | null,
   region: string | null,
+  lifeActor: boolean | null,
   existingPerson: NpcRegistryEntry | null,
   npcErrors: ForgeIssue[],
   npcNotes: ForgeIssue[],
@@ -293,10 +322,12 @@ function finish(
     ...plan,
     npcId,
     region,
+    lifeActor,
     existingPerson,
     npcErrors,
     npcNotes,
-    ready: plan.canRegister && npcErrors.length === 0 && !!npcId,
+    unmapped: plan.payload && view.unmapped ? view.unmapped(plan.payload) : [],
+    ready: plan.canRegister && npcErrors.length === 0 && !!npcId && lifeActor !== null,
   };
 }
 
@@ -346,7 +377,7 @@ export function applyForgeAdoption(plan: ForgeAdoptionPlan, content: ForgeConten
     deployedAt: payload.deployment.deployedAt,
     importedAt: at,
     result: existing ? 'UPDATED' : 'NEW',
-    warnings: [...plan.warnings, ...plan.npcNotes],
+    warnings: [...plan.warnings, ...plan.npcNotes, ...plan.unmapped],
     snapshotRef: previous?.snapshotRef ?? null,
   };
   const next: ForgeRosterEntry = {
@@ -355,6 +386,7 @@ export function applyForgeAdoption(plan: ForgeAdoptionPlan, content: ForgeConten
     characterType: payload.characterType,
     encounterRole: payload.encounterRole,
     region: plan.region,
+    lifeActor: existing?.lifeActor ?? plan.lifeActor!,
     payloadHash: hash,
     sourceSchemaVersion: payload.schemaVersion,
     deployedVersion: payload.deployment.deployedVersion,
@@ -443,6 +475,60 @@ export function applyForgeRollback(content: ForgeContent, characterId: string, a
   };
 }
 
+/**
+ * Turns WORLD LIFE ENGINE participation on or off for one adopted
+ * character — the author's decision that, say, a boss has become an
+ * individual the story follows. Only the ledger changes: the definition
+ * stays, and nothing in any save is touched (the engine's reading is
+ * rebuilt from WORLD MEMORY every time and is never saved).
+ */
+export function applyLifeActorChange(
+  content: ForgeContent,
+  characterId: string,
+  lifeActor: boolean,
+  at: string,
+): ForgeContentChange {
+  const current = content.roster.characters.find((entry) => entry.characterId === characterId);
+  if (!current) throw new Error(`${characterId} は採用されていません。`);
+  if (current.lifeActor === lifeActor) throw new Error(`${characterId} はすでに WORLD LIFE ENGINE の${lifeActor ? '対象' : '対象外'}です。`);
+  const entry: ForgeImportHistoryEntry = {
+    importId: `LFA-${compact(at)}-${characterId}`,
+    characterId,
+    npcId: current.npcId,
+    payloadHash: current.payloadHash,
+    sourceSchemaVersion: current.sourceSchemaVersion,
+    deployedVersion: current.deployedVersion,
+    deployedAt: current.deployedAt,
+    importedAt: at,
+    result: 'LIFE_ACTOR_CHANGED',
+    warnings: [
+      issue('LIFE_ACTOR_FIXED', 'lifeActor', `WORLD LIFE ENGINE: ${current.lifeActor ? '対象' : '対象外'} → ${lifeActor ? '対象' : '対象外'}`),
+    ],
+    snapshotRef: null,
+  };
+  const roster = withEntry(content.roster, { ...current, lifeActor, history: [...current.history, entry] });
+  return {
+    files: { [ROSTER_FILE]: contentJson(roster) },
+    roster,
+    entry,
+    result: {
+      schemaVersion: '1.0',
+      importId: entry.importId,
+      characterId,
+      result: 'UNCHANGED',
+      importedAt: at,
+      payloadHash: current.payloadHash,
+      sourceDeployment: { deployedVersion: current.deployedVersion, deployedAt: current.deployedAt },
+      warnings: entry.warnings,
+      errors: [],
+      diffSummary: { added: [], changed: ['lifeActor'], preserved: [], gameOwned: [] },
+      rollback: { available: false, snapshotRef: null },
+      decision: 'UNCHANGED',
+      npcId: current.npcId,
+    },
+  };
+}
+
 function withEntry(roster: ForgeRoster, entry: ForgeRosterEntry): ForgeRoster {
   const others = roster.characters.filter((e) => e.characterId !== entry.characterId);
   return {
@@ -481,46 +567,101 @@ export function generateForgeIndex(roster: ForgeRoster): string {
 // ---- FORGE's retired ids ---------------------------------------------------
 
 /**
- * The retired (VOID / DISCARDED) ids in a file FORGE exported.
+ * A FILE FORGE EXPORTED FOR MUGEN ZERO — the official shape:
  *
- * FORGE's exact export shape is not fixed yet, so this reads the shapes
- * such a file can reasonably take — a list of ids; `{ voidIds: [...] }`
- * (or `discardedIds`); a list or `{ characters | entries | ids: [...] }`
- * of `{ characterId, status }` where status is VOID or DISCARDED; or
- * this game's own ledger — and says what it could not read rather than
- * guessing.
+ *   {
+ *     "schemaVersion": 1,
+ *     "exportedAt": "...",
+ *     "characters": [ <deploy package>, ... ],
+ *     "voidIds": [ { "characterId": "HUM-000004", "status": "VOID" } ]
+ *   }
+ *
+ * `voidIds` is how FORGE hands over the ids it has retired: an id FORGE
+ * issued is never used again, even after it was discarded or reset, and
+ * the game refuses to adopt one. Only `characterId` and
+ * `status: "VOID"` are required; anything else on an entry (reason,
+ * voidedAt, …) is kept out of the way and never needed.
+ *
+ * Older trial shapes (a bare list of ids, `discardedIds`, entries marked
+ * DISCARDED) are still read, and said to be old.
  */
-export function readForgeVoidExport(value: unknown): { ids: string[]; issues: ForgeIssue[] } {
+export interface ForgeExport {
+  format: 'OFFICIAL' | 'LEGACY';
+  schemaVersion: number | null;
+  exportedAt: string | null;
+  /** The characters in it, each a deploy package to be checked on its own. */
+  characters: unknown[];
+  voidIds: string[];
+  issues: ForgeIssue[];
+}
+
+export const FORGE_EXPORT_SCHEMA_VERSION = 1;
+
+/** Whether a parsed file is an export (characters and/or voidIds) rather than one deploy package. */
+export function isForgeExport(value: unknown): boolean {
+  if (Array.isArray(value)) return true;
+  if (!isObject(value) || 'characterId' in value) return false;
+  return Array.isArray(value.voidIds) || Array.isArray(value.characters) || Array.isArray(value.discardedIds);
+}
+
+export function readForgeExport(value: unknown): ForgeExport {
   const issues: ForgeIssue[] = [];
-  const found: unknown[] = [];
-  const retired = (status: unknown) => typeof status === 'string' && /^(VOID|VOIDED|DISCARDED)$/i.test(status);
-  const take = (list: unknown[]) => {
-    for (const item of list) {
-      if (typeof item === 'string') found.push(item);
-      else if (isObject(item)) {
-        const id = item.characterId ?? item.id;
-        if (retired(item.status)) found.push(id);
-      }
-    }
+  const found: string[] = [];
+  const addId = (id: unknown, where: string) => {
+    if (typeof id === 'string' && CHARACTER_ID_PATTERN.test(id)) found.push(id);
+    else issues.push(issue('EXPORT_FORMAT', where, `「${String(id)}」は Character ID の形ではないため読み飛ばしました。`));
   };
-  if (Array.isArray(value)) take(value);
+  const done = (format: ForgeExport['format'], schemaVersion: number | null, exportedAt: string | null, characters: unknown[]) => ({
+    format,
+    schemaVersion,
+    exportedAt,
+    characters,
+    voidIds: [...new Set(found)].sort(),
+    issues,
+  });
+
+  if (isObject(value) && value.schemaVersion === FORGE_EXPORT_SCHEMA_VERSION) {
+    const characters = Array.isArray(value.characters) ? value.characters : [];
+    if (!Array.isArray(value.characters)) issues.push(issue('EXPORT_FORMAT', 'characters', 'characters（配列）がありません。'));
+    if (!Array.isArray(value.voidIds)) {
+      issues.push(issue('EXPORT_FORMAT', 'voidIds', 'voidIds（配列）がありません。VOID ID は 0 件として扱います。'));
+    } else {
+      value.voidIds.forEach((entry, i) => {
+        const where = `voidIds.${i}`;
+        if (isObject(entry)) {
+          if (entry.status === 'VOID') addId(entry.characterId, where);
+          else issues.push(issue('EXPORT_FORMAT', where, `${String(entry.characterId)} の status が VOID ではありません（${String(entry.status)}）。読み飛ばしました。`));
+        } else if (typeof entry === 'string') {
+          issues.push(issue('EXPORT_LEGACY_FORMAT', where, `${entry}: 文字列だけの指定は旧形式です。正式形式は { "characterId", "status": "VOID" } です。`));
+          addId(entry, where);
+        } else {
+          issues.push(issue('EXPORT_FORMAT', where, `${where} を読めません。`));
+        }
+      });
+    }
+    return done('OFFICIAL', FORGE_EXPORT_SCHEMA_VERSION, typeof value.exportedAt === 'string' ? value.exportedAt : null, characters);
+  }
+  if (isObject(value) && typeof value.schemaVersion === 'number') {
+    issues.push(issue('EXPORT_FORMAT', 'schemaVersion', `書き出しの schemaVersion ${value.schemaVersion} には対応していません（対応: 1）。何も読みません。`));
+    return done('OFFICIAL', value.schemaVersion, null, []);
+  }
+
+  // Older trial shapes.
+  issues.push(issue('EXPORT_LEGACY_FORMAT', '', '旧形式の書き出しです。正式形式は { schemaVersion: 1, characters, voidIds: [{ characterId, status: "VOID" }] } です。'));
+  const retired = (status: unknown) => typeof status === 'string' && /^(VOID|VOIDED|DISCARDED)$/i.test(status);
+  const take = (list: unknown[], where: string) =>
+    list.forEach((item, i) => {
+      if (typeof item === 'string') addId(item, `${where}.${i}`);
+      else if (isObject(item) && retired(item.status)) addId(item.characterId ?? item.id, `${where}.${i}`);
+    });
+  if (Array.isArray(value)) take(value, '');
   else if (isObject(value)) {
-    for (const key of ['voidIds', 'discardedIds', 'voidedIds', 'ids']) {
-      if (Array.isArray(value[key])) take(value[key] as unknown[]);
-    }
-    for (const key of ['characters', 'entries', 'ledger']) {
-      if (Array.isArray(value[key])) take((value[key] as unknown[]).filter(isObject));
-    }
+    for (const key of ['voidIds', 'discardedIds', 'voidedIds']) if (Array.isArray(value[key])) take(value[key] as unknown[], key);
+    for (const key of ['entries', 'ledger']) if (Array.isArray(value[key])) take(value[key] as unknown[], key);
   } else {
-    issues.push(issue('SCHEMA', '', 'VOID ID の書き出しファイルとして読めません。'));
+    issues.push(issue('EXPORT_FORMAT', '', 'FORGE の書き出しファイルとして読めません。'));
   }
-  const ids: string[] = [];
-  for (const id of found) {
-    if (typeof id === 'string' && CHARACTER_ID_PATTERN.test(id)) ids.push(id);
-    else issues.push(issue('SCHEMA', '', `「${String(id)}」は Character ID の形ではないため読み飛ばしました。`));
-  }
-  if (!ids.length && !issues.length) issues.push(issue('SCHEMA', '', 'VOID / DISCARDED の ID が見つかりませんでした。'));
-  return { ids: [...new Set(ids)].sort(), issues };
+  return done('LEGACY', null, null, []);
 }
 
 export interface ForgeVoidChange {

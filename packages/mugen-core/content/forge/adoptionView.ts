@@ -18,13 +18,18 @@ import type { ForgeContent } from '../../core/forge/types';
 import { NPC_REGISTRY } from '../people/registry';
 import { LOCATIONS } from '../locations/alden';
 import { ENEMY_SPECIES } from '../enemies/species';
+import { unmappedIssues } from './forgeVocabularyAdapter';
 
 /** Regions an adopted character can be placed in (the registry's, minus the world itself). */
 export const FORGE_PLACEABLE_REGIONS: readonly string[] = [
   ...new Set(NPC_REGISTRY.filter((entry) => entry.kind !== 'SYSTEM').map((entry) => entry.region)),
 ];
 
-export function forgeAdoptionView(content: ForgeContent): ForgeAdoptionView {
+/**
+ * `extraVoidIds`: retired ids carried by the FORGE export the file came
+ * in, refused even before they reach the ledger.
+ */
+export function forgeAdoptionView(content: ForgeContent, extraVoidIds: readonly string[] = []): ForgeAdoptionView {
   return {
     content,
     people: NPC_REGISTRY,
@@ -38,5 +43,7 @@ export function forgeAdoptionView(content: ForgeContent): ForgeAdoptionView {
     ]),
     // The game holds no FORGE picture files yet: every asset is metadata only.
     knownAssetIds: new Set(),
+    unmapped: unmappedIssues,
+    extraVoidIds,
   };
 }

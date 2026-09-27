@@ -58,6 +58,11 @@ export interface ForgeWorldView {
   locations: Readonly<Record<string, string>>;
   /** Picture ids the game holds files for. */
   knownAssetIds: ReadonlySet<string>;
+  /**
+   * Retired ids carried by the FORGE export this file came in, if any —
+   * refused even before they reach the content's ledger.
+   */
+  extraVoidIds?: readonly string[];
 }
 
 /** What step 1 shows: enough to recognise the file, read even from a file that fails. */
@@ -137,7 +142,7 @@ export function planForgeImport(input: string | unknown, world: ForgeWorldView):
     );
     return refused('BLOCKED_SAVE_DAMAGED', summary, value, errors, warnings, hash);
   }
-  if (world.content.voidIds.includes(id)) {
+  if (world.content.voidIds.includes(id) || (world.extraVoidIds ?? []).includes(id)) {
     errors.push(
       issue('RESERVED_ID', 'characterId', `${id} は FORGE で VOID（破棄）になったIDです。一度発行されたIDは別のキャラクターに再利用できません。`),
     );

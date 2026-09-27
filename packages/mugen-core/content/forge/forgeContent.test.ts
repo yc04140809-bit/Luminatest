@@ -80,47 +80,46 @@ describe('the content this build carries (content/forge)', () => {
 describe('how the game sees an adopted character', () => {
   const content = adopted(
     [asReal('human'), { npcId: 'SERA', region: 'ALDEN' }],
-    [asReal('boss-monster'), { npcId: 'ROOTRING_WARDEN' }],
+    [asReal('normal-monster'), { npcId: 'MOSS_ROLLER' }],
+    [asReal('boss-monster'), { npcId: 'MON_ROOTRING', lifeActor: true }],
   );
 
-  it('joins the registry of who exists — a person, or a creature — under its NPC_ID', () => {
+  it('every adopted character joins the registry of who exists, under its NPC_ID — life actor or not', () => {
     const entries = forgeRegistryEntries(NPC_REGISTRY, content);
-    expect(entries).toEqual([
-      { npcId: 'SERA', displayName: 'セラ', kind: 'PERSON', region: 'ALDEN', standing: 'ORDINARY', artId: null, aliases: [] },
-      { npcId: 'ROOTRING_WARDEN', displayName: '根環の森守', kind: 'CREATURE', region: UNPLACED_REGION, standing: 'ORDINARY', artId: null, aliases: [] },
+    expect(entries.map((e) => [e.npcId, e.displayName, e.kind, e.region])).toEqual([
+      ['SERA', 'セラ', 'PERSON', 'ALDEN'],
+      ['MOSS_ROLLER', '苔綿ころがし', 'CREATURE', UNPLACED_REGION],
+      ['MON_ROOTRING', '根環の森守', 'CREATURE', UNPLACED_REGION],
     ]);
     expect(registryProblems([...NPC_REGISTRY, ...entries])).toEqual([]);
-    expect(forgeCorrespondence(content)).toEqual({ 'HUM-900001': 'SERA', 'MON-900002': 'ROOTRING_WARDEN' });
+    expect(forgeCorrespondence(content)).toEqual({ 'HUM-900001': 'SERA', 'MON-900001': 'MOSS_ROLLER', 'MON-900002': 'MON_ROOTRING' });
   });
 
-  it('becomes a person in the WORLD LIFE ENGINE, in FORGE’s own words', () => {
-    const [sera, warden] = forgeCores(MUGEN_WORLD_RULES.cores, content);
-    expect(sera).toEqual({
-      npcId: 'SERA',
-      traits: ['慎重', '世話焼き', '負けず嫌い'],
-      values: ['家族第一', '約束を守る'],
-      desires: ['家族を幸せにしたい', '外の世界を見たい'],
-      // Potential, in the engine's spelling. Never current skill.
-      aptitudes: { MAGIC: 0.78, SWORD: 0.21, HEALING: 0.74, COMMERCE: 0.45, SOCIAL: 0.58 },
-    });
-    // A monster's combat potential is not a life aptitude.
-    expect(warden).toEqual({ npcId: 'ROOTRING_WARDEN', traits: [], values: [], desires: ['巣の防衛'], aptitudes: {} });
+  it('only LIFE ACTORS become people in the WORLD LIFE ENGINE — with mapped vocabulary only', () => {
+    const cores = forgeCores(MUGEN_WORLD_RULES.cores, content);
+    expect(cores.map((c) => c.npcId)).toEqual(['SERA', 'MON_ROOTRING']);
+    expect(cores[0]).toEqual({ npcId: 'SERA', traits: [], values: [], desires: [], aptitudes: { MAGIC: 0.78, SWORD: 0.21, HEALING: 0.74 } });
+    expect(cores[1]).toEqual({ npcId: 'MON_ROOTRING', traits: [], values: [], desires: [], aptitudes: {} });
+    // The common monster is adopted content with no life of its own.
+    expect(cores.map((c) => c.npcId)).not.toContain('MOSS_ROLLER');
   });
 
-  it('is read by the WORLD LIFE ENGINE: what happens in front of them takes root in them', () => {
+  it('the WORLD LIFE ENGINE reads a life actor: what happens in front of them takes root in them', () => {
     const rules = { ...WORLD_LIFE_RULES, cores: [...WORLD_LIFE_RULES.cores, ...forgeCores(WORLD_LIFE_RULES.cores, content)] };
-    const shown = { action: 'SHOW_MAGIC', actor: 'PLAYER', target: null, location: 'ALDEN_VILLAGE', witnesses: ['SERA'] };
-    const withSera = observe(emptyWorld({ worldYear: 1, worldDay: 1 }), shown, rules);
-    expect(withSera.planted.map((seed) => seed.targetNpcId)).toContain('SERA');
-    // Without her core, the same afternoon plants nothing in her.
-    const without = observe(emptyWorld({ worldYear: 1, worldDay: 1 }), shown, WORLD_LIFE_RULES);
-    expect(without.planted.map((seed) => seed.targetNpcId)).not.toContain('SERA');
+    const shown = { action: 'SHOW_MAGIC', actor: 'PLAYER', target: null, location: 'ALDEN_VILLAGE', witnesses: ['SERA', 'MOSS_ROLLER'] };
+    const planted = observe(emptyWorld({ worldYear: 1, worldDay: 1 }), shown, rules).planted.map((seed) => seed.targetNpcId);
+    expect(planted).toContain('SERA');
+    // Not the common monster standing next to her.
+    expect(planted).not.toContain('MOSS_ROLLER');
+    // And without her core, nothing lands on her either.
+    const without = observe(emptyWorld({ worldYear: 1, worldDay: 1 }), shown, WORLD_LIFE_RULES).planted.map((s) => s.targetNpcId);
+    expect(without).not.toContain('SERA');
   });
 
-  it('appears on GOD VIEW’s roster', () => {
+  it('GOD VIEW’s life roster lists life actors only', () => {
     expect(forgeWorldPeople([], content).map((p) => [p.npcId, p.name, p.region])).toEqual([
       ['SERA', 'セラ', 'ALDEN'],
-      ['ROOTRING_WARDEN', '根環の森守', UNPLACED_REGION],
+      ['MON_ROOTRING', '根環の森守', UNPLACED_REGION],
     ]);
   });
 
@@ -129,7 +128,6 @@ describe('how the game sees an adopted character', () => {
     expect(forgeRegistryEntries(NPC_REGISTRY, lina)).toEqual([]);
     expect(forgeCores(MUGEN_WORLD_RULES.cores, lina)).toEqual([]);
     expect(forgeWorldPeople(['LINA'], lina)).toEqual([]);
-    // Nor a second MARTA where the engine still spells her alden_marta.
     const marta = adopted([asReal('human'), { npcId: 'MARTA' }]);
     expect(forgeCores(MUGEN_WORLD_RULES.cores, marta)).toEqual([]);
     expect(forgeWorldPeople(['alden_marta'], marta)).toEqual([]);

@@ -2,8 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ForgePlan } from '@mugen/core/forge/plan';
 import type { ForgeContent, ForgeDecision, ForgeImportResult, ForgeIssue, ForgeKind } from '@mugen/core/forge/types';
 import { FORGE_KIND_LABEL, forgeDisplayName, forgeHumanCurrentFacts, forgeKindOf } from '@mugen/core/forge/record';
-import { planForgeAdoption, resultOfPlan, type ForgeAdoptionPlan } from '@mugen/core/forge/content';
+import {
+  isForgeExport,
+  planForgeAdoption,
+  readForgeExport,
+  resultOfPlan,
+  type ForgeAdoptionPlan,
+  type ForgeExport,
+} from '@mugen/core/forge/content';
 import { FORGE_PLACEABLE_REGIONS, forgeAdoptionView } from '@mugen/content/forge/adoptionView';
+import { zeroCharacterDefinition } from '@mugen/content/forge/forgeVocabularyAdapter';
 import './forgeImport.css';
 
 /**
@@ -71,6 +79,9 @@ export function ForgeImport() {
   const [pasted, setPasted] = useState('');
   const [npcId, setNpcId] = useState('');
   const [region, setRegion] = useState('');
+  const [lifeActor, setLifeActor] = useState<boolean | null>(null);
+  /** A FORGE export file (several characters and voidIds), when that is what was read. */
+  const [exported, setExported] = useState<{ file: ForgeExport; text: string; name: string } | null>(null);
   const [done, setDone] = useState<ForgeImportResult | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,18 +99,40 @@ export function ForgeImport() {
     void reload();
   }, [reload]);
 
+  const exportVoidIds = exported?.file.voidIds ?? [];
   const plan: ForgeAdoptionPlan | null =
     source && text !== null
-      ? planForgeAdoption(text, forgeAdoptionView(source.content), { npcId, region: region || null })
+      ? planForgeAdoption(text, forgeAdoptionView(source.content, exportVoidIds), { npcId, region: region || null, lifeActor })
       : null;
 
-  const read = (value: string, label: string) => {
+  /** One character's file to check: from a file, a paste, or picked out of an export. */
+  const check = (value: string, label: string) => {
     setFrom(label);
     setText(value);
     setDone(null);
     setFailure(null);
     setNpcId('');
     setRegion('');
+    setLifeActor(null);
+  };
+
+  const read = (value: string, label: string) => {
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      // Not JSON: the planner says so, in Japanese.
+    }
+    if (isForgeExport(parsed)) {
+      setExported({ file: readForgeExport(parsed), text: value, name: label });
+      setText(null);
+      setFrom(label);
+      setDone(null);
+      setFailure(null);
+      return;
+    }
+    setExported(null);
+    check(value, label);
   };
 
   const onFile = async (file: File | undefined) => {
@@ -117,6 +150,8 @@ export function ForgeImport() {
         text,
         npcId: plan.npcId,
         region: plan.region,
+        lifeActor: plan.lifeActor,
+        voidIds: exportVoidIds,
         decision: plan.decision,
         payloadHash: plan.payloadHash,
       });
@@ -137,6 +172,8 @@ export function ForgeImport() {
     setPasted('');
     setNpcId('');
     setRegion('');
+    setLifeActor(null);
+    setExported(null);
   };
 
   if (!source) {
@@ -211,6 +248,15 @@ export function ForgeImport() {
             </button>
           </div>
         )}
+        {exported && (
+          <ExportFile
+            exported={exported}
+            content={source.content}
+            authoring={authoring}
+            onPick={(character, id) => check(JSON.stringify(character), `${exported.name} › ${id}`)}
+            onChanged={reload}
+          />
+        )}
         {plan && <Summary plan={plan} source={from} />}
       </section>
 
@@ -221,7 +267,16 @@ export function ForgeImport() {
             <span className="fi-num">2</span>内容を確認
           </h2>
           <Review plan={plan} />
-          <Adoption plan={plan} npcId={npcId} setNpcId={setNpcId} region={region} setRegion={setRegion} />
+          <Adoption
+            plan={plan}
+            npcId={npcId}
+            setNpcId={setNpcId}
+            region={region}
+            setRegion={setRegion}
+            lifeActor={lifeActor}
+            setLifeActor={setLifeActor}
+          />
+          <Normalized plan={plan} />
         </section>
       )}
 
@@ -292,12 +347,16 @@ function Adoption({
   setNpcId,
   region,
   setRegion,
+  lifeActor,
+  setLifeActor,
 }: {
   plan: ForgeAdoptionPlan;
   npcId: string;
   setNpcId: (v: string) => void;
   region: string;
   setRegion: (v: string) => void;
+  lifeActor: boolean | null;
+  setLifeActor: (v: boolean | null) => void;
 }) {
   if (!plan.payload) return null;
   const fixed = !!plan.existing;
@@ -306,7 +365,8 @@ function Adoption({
       <h3>MUGEN ZERO 側の NPC_ID</h3>
       {fixed ? (
         <p data-testid="forge-npc-fixed">
-          <b>{plan.npcId}</b>（採用済み・変更できません）　地域: {plan.region ?? '未配置'}
+          <b>{plan.npcId}</b>（採用済み・変更できません）　地域: {plan.region ?? '未配置'}　WORLD LIFE ENGINE:{' '}
+          {plan.lifeActor ? '対象' : '対象外'}
         </p>
       ) : (
         <>
@@ -332,6 +392,21 @@ function Adoption({
               ))}
             </select>
           </div>
+          <label className="fi-row fi-check">
+            <input
+              type="checkbox"
+              data-testid="forge-life-actor"
+              checked={lifeActor ?? plan.lifeActor ?? false}
+              onChange={(e) => setLifeActor(e.target.checked)}
+            />
+            <span>
+              WORLD LIFE ENGINE の対象にする（個体として人生・状態・因果を追う）
+              <span className="fi-quiet">
+                {' '}— 既定は{plan.payload.characterType === 'human' ? '人間なので「対象」' : 'モンスターなので「対象外」'}。
+                採用（正式コンテンツ）と、人生を持つかどうかは別の判断です。
+              </span>
+            </span>
+          </label>
         </>
       )}
       {plan.npcErrors.length > 0 && <IssueList issues={plan.npcErrors} testId="forge-npc-errors" tone="fi-bad" />}
@@ -643,12 +718,140 @@ function UnregisteredResult({ plan }: { plan: ForgePlan }) {
   );
 }
 
+/** What the vocabulary adapter makes of the file: the game's own definition, and what it could not map. */
+function Normalized({ plan }: { plan: ForgeAdoptionPlan }) {
+  if (!plan.payload) return null;
+  const def = zeroCharacterDefinition(plan.payload, {
+    characterId: plan.payload.characterId,
+    npcId: plan.npcId ?? '（未定）',
+    region: plan.region,
+    lifeActor: plan.lifeActor ?? false,
+    encounterRole: plan.payload.encounterRole,
+  });
+  const words = (list: string[]) => (list.length ? list.join('・') : '（なし）');
+  return (
+    <div data-testid="forge-normalized">
+      <h3>MUGEN ZERO 正式定義（語彙アダプターの変換結果）</h3>
+      <dl className="fi-summary">
+        <dt>entityType</dt>
+        <dd data-testid="forge-entity-type">{def.entityType}</dd>
+        <dt>standing</dt>
+        <dd>{def.standing ?? 'UNMAPPED'}</dd>
+        {def.species && (
+          <>
+            <dt>species</dt>
+            <dd>
+              {def.species.name}
+              {def.species.speciesId ? `（既存: ${def.species.speciesId}）` : '（本編に既存の種族なし）'}
+            </dd>
+          </>
+        )}
+        <dt>habitat</dt>
+        <dd>{def.habitat ?? '—'}</dd>
+        <dt>Life Engine</dt>
+        <dd data-testid="forge-life-engine">
+          {def.lifeActor
+            ? `対象 — traits ${words(def.life.traits)} ／ values ${words(def.life.values)} ／ desires ${words(def.life.desires)} ／ aptitudes ${
+                Object.entries(def.life.aptitudes)
+                  .map(([k, v]) => `${k} ${v}`)
+                  .join('・') || '（なし）'
+              }`
+            : '対象外（正式コンテンツとして採用はされます）'}
+        </dd>
+      </dl>
+      {plan.unmapped.length > 0 ? (
+        <IssueList issues={plan.unmapped} testId="forge-unmapped" tone="fi-warn" />
+      ) : (
+        <p className="fi-quiet" data-testid="forge-unmapped">UNMAPPED の値はありません。</p>
+      )}
+    </div>
+  );
+}
+
+/** A FORGE export: its voidIds, and the characters in it to check one at a time. */
+function ExportFile({
+  exported,
+  content,
+  authoring,
+  onPick,
+  onChanged,
+}: {
+  exported: { file: ForgeExport; text: string; name: string };
+  content: ForgeContent;
+  authoring: boolean;
+  onPick: (character: unknown, id: string) => void;
+  onChanged: () => Promise<void>;
+}) {
+  const { file } = exported;
+  const fresh = file.voidIds.filter((id) => !content.voidIds.includes(id));
+  const [message, setMessage] = useState<string | null>(null);
+  const takeVoids = async () => {
+    try {
+      const data = await post('void', { text: exported.text, fileName: exported.name });
+      setMessage(`VOID 台帳へ追加しました: ${(data.added as string[]).join('、') || 'なし'}`);
+      await onChanged();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <div className="fi-export" data-testid="forge-export" data-format={file.format}>
+      <h3>
+        FORGE 書き出しファイル（{file.format === 'OFFICIAL' ? `正式形式 schemaVersion ${file.schemaVersion}` : '旧形式'}）
+        {file.exportedAt && <span className="fi-quiet">　{formatTime(file.exportedAt)}</span>}
+      </h3>
+      <p data-testid="forge-export-voids">
+        voidIds: {file.voidIds.length ? file.voidIds.map((id) => `${id}${content.voidIds.includes(id) ? '（台帳にあり）' : '（新規）'}`).join('、') : 'なし'}
+      </p>
+      {file.issues.length > 0 && <IssueList issues={file.issues} testId="forge-export-issues" tone="fi-warn" />}
+      {authoring ? (
+        <button className="fi-btn" data-testid="forge-void-import" disabled={fresh.length === 0} onClick={() => void takeVoids()}>
+          VOID ID を台帳へ取り込む（{fresh.length}件）
+        </button>
+      ) : (
+        fresh.length > 0 && <p className="fi-note">VOID 台帳への取り込みは PC の開発サーバーかコマンドで行います。</p>
+      )}
+      {message && (
+        <p className="fi-note" data-testid="forge-void-message">
+          {message}
+        </p>
+      )}
+      <ul className="fi-list">
+        {file.characters.map((c, i) => {
+          const character = c as Record<string, unknown>;
+          const id = typeof character?.characterId === 'string' ? character.characterId : `#${i + 1}`;
+          const name = (character?.identity as Record<string, unknown> | undefined)?.name;
+          return (
+            <li key={`${id}-${i}`}>
+              {id}　{String(character?.characterType ?? '')}　{typeof name === 'string' ? name : ''}{' '}
+              <button className="fi-btn" data-testid={`forge-export-pick-${id}`} onClick={() => onPick(c, id)}>
+                この人を確認する
+              </button>
+            </li>
+          );
+        })}
+        {file.characters.length === 0 && <li className="fi-quiet">characters は空です。</li>}
+      </ul>
+    </div>
+  );
+}
+
 // ---- Who has been adopted -------------------------------------------------
 
 function Registered({ source, onChanged }: { source: Source; onChanged: () => Promise<void> }) {
   const roster = source.content.roster.characters;
   const [confirming, setConfirming] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const toggleLife = async (id: string, next: boolean) => {
+    try {
+      await post('life-actor', { characterId: id, lifeActor: next });
+      setMessage(`${id} を WORLD LIFE ENGINE の${next ? '対象' : '対象外'}にしました。`);
+      await onChanged();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const rollback = async (id: string) => {
     try {
@@ -684,6 +887,18 @@ function Registered({ source, onChanged }: { source: Source; onChanged: () => Pr
               <span className="fi-quiet">
                 送出版 {entry.deployedVersion}・地域 {entry.region ?? '未配置'}・{formatTime(entry.lastImportedAt)}
               </span>
+              <span className={entry.lifeActor ? 'fi-good' : 'fi-quiet'} data-testid={`forge-life-${entry.characterId}`}>
+                Life Engine {entry.lifeActor ? '対象' : '対象外'}
+              </span>
+              {source.mode === 'AUTHORING' && (
+                <button
+                  className="fi-btn"
+                  data-testid={`forge-life-toggle-${entry.characterId}`}
+                  onClick={() => void toggleLife(entry.characterId, !entry.lifeActor)}
+                >
+                  {entry.lifeActor ? '対象外にする' : '対象にする'}
+                </button>
+              )}
             </div>
             <ol className="fi-history">
               {entry.history.map((h) => (
@@ -717,7 +932,7 @@ function Registered({ source, onChanged }: { source: Source; onChanged: () => Pr
   );
 }
 
-const HISTORY_TEXT = { NEW: '新規登録', UPDATED: '更新', ROLLED_BACK: '直前へ戻した' } as const;
+const HISTORY_TEXT = { NEW: '新規登録', UPDATED: '更新', ROLLED_BACK: '直前へ戻した', LIFE_ACTOR_CHANGED: 'Life Engine 対象を変更' } as const;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);

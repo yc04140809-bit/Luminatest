@@ -98,10 +98,24 @@ function forgeAuthoring(): Plugin {
             const done = fs.adoptOnDisk(
               dir,
               String(input.text ?? ''),
-              { npcId: (input.npcId as string) ?? null, region: (input.region as string) ?? null },
+              {
+                npcId: (input.npcId as string) ?? null,
+                region: (input.region as string) ?? null,
+                lifeActor: typeof input.lifeActor === 'boolean' ? input.lifeActor : null,
+              },
               { decision: String(input.decision ?? ''), payloadHash: (input.payloadHash as string) ?? null },
+              undefined,
+              Array.isArray(input.voidIds) ? (input.voidIds as string[]) : [],
             );
             return send(200, { result: done.change.result, entry: done.change.entry, written: done.written });
+          }
+          if (url.pathname === '/void') {
+            const done = fs.importVoidOnDisk(dir, String(input.text ?? ''), (input.fileName as string) ?? null);
+            return send(200, { added: done.change.added, total: done.change.ledger.ids.length, issues: done.issues });
+          }
+          if (url.pathname === '/life-actor') {
+            const done = fs.setLifeActorOnDisk(dir, String(input.characterId ?? ''), input.lifeActor === true);
+            return send(200, { entry: done.change.entry, written: done.written });
           }
           if (url.pathname === '/rollback') {
             const done = fs.rollbackOnDisk(dir, String(input.characterId ?? ''));

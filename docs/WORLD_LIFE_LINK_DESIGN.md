@@ -449,3 +449,6 @@ SAVE には、その NPC について起きたこと・変わった状態だけ�
 - §11 の対応表は台帳 `content/forge/roster.json`（Character ID → NPC_ID）。採用時に作者が NPC_ID を決め、以後変えない。
 - 人物台帳は `ALL_NPCS`（手書き `NPC_REGISTRY` ＋採用キャラ）。`PersonKind` に `CREATURE` を追加（採用したモンスター）。
 - WORLD LIFE ENGINE の `cores` に採用キャラを追加（FORGE の言葉のまま、推測で英語 ID に置き換えない）。
+- 残課題 3 点の正式回答（2026-09-27）：VOID ID は書き出しの `voidIds`（`{characterId, status: "VOID"}`）で受け取る。
+  FORGE の語彙は `content/forge/forgeVocabularyAdapter.ts` の対応表だけを通して ZERO の語彙に変換し、未知の値は UNMAPPED として報告する
+  （CORE の語彙は改名しない）。ADOPTED と WORLD LIFE ENGINE 対象（`lifeActor`）は別の軸：人間は既定で対象、モンスターは既定で対象外。

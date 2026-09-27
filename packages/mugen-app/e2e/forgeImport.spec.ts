@@ -216,6 +216,60 @@ test('C7 / D4 / D6: wrong type for the id, unjustified equipment, and a child’
   await expect(page.getByTestId('forge-occupation')).toContainText('将来の希望: 騎士');
 });
 
+test('a FORGE export: its voidIds go to the ledger and are refused; a character is picked out of it and adopted', async ({ page }) => {
+  await openTool(page);
+  const exported = {
+    schemaVersion: 1,
+    exportedAt: '2026-09-27T03:00:00.000Z',
+    characters: [JSON.parse(real('human')), JSON.parse(real('boss-monster', (p) => (p.characterId = 'MON-000004')))],
+    voidIds: [{ characterId: 'MON-000004', status: 'VOID' }],
+  };
+  await choose(page, 'forge-export.json', JSON.stringify(exported));
+  await expect(page.getByTestId('forge-export')).toHaveAttribute('data-format', 'OFFICIAL');
+  await expect(page.getByTestId('forge-export-voids')).toContainText('MON-000004（新規）');
+
+  // The retired one is refused, even before the ledger has it.
+  await page.getByTestId('forge-export-pick-MON-000004').click();
+  await expect(decision(page)).toHaveAttribute('data-decision', 'BLOCKED_RESERVED_ID');
+  await expect(page.getByTestId('forge-errors')).toContainText('VOID');
+
+  await page.getByTestId('forge-void-import').click();
+  await expect(page.getByTestId('forge-void-message')).toContainText('MON-000004');
+  await expect(page.getByTestId('forge-export-voids')).toContainText('MON-000004（台帳にあり）');
+  expect(JSON.parse(readFileSync(join(sandboxDir(), 'void.json'), 'utf8')).ids).toEqual(['MON-000004']);
+
+  // The human in the same export is adopted as usual.
+  await page.getByTestId('forge-export-pick-HUM-900001').click();
+  await expect(decision(page)).toHaveText('新規登録');
+  await adoptAs(page, 'SERA');
+});
+
+test('WORLD LIFE ENGINE: a person by default, a monster not — decided at adoption, switchable later; UNMAPPED is shown', async ({ page }) => {
+  await openTool(page);
+  await paste(page, real('human'));
+  await expect(page.getByTestId('forge-life-actor')).toBeChecked();
+  await expect(page.getByTestId('forge-entity-type')).toHaveText('PERSON');
+  await expect(page.getByTestId('forge-life-engine')).toContainText('MAGIC 0.78');
+  await expect(page.getByTestId('forge-unmapped')).toContainText('UNMAPPED: profile.core.personality「慎重」');
+  await expect(page.getByTestId('forge-unmapped')).toContainText('aptitudes「commerce」');
+  await adoptAs(page, 'SERA');
+  await expect(page.getByTestId('forge-life-HUM-900001')).toHaveText('Life Engine 対象');
+
+  await paste(page, real('boss-monster'));
+  await expect(page.getByTestId('forge-life-actor')).not.toBeChecked();
+  await expect(page.getByTestId('forge-entity-type')).toHaveText('CREATURE');
+  await expect(page.getByTestId('forge-life-engine')).toContainText('対象外');
+  await expect(page.getByTestId('forge-unmapped')).toContainText('活動時間');
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/forge-boss-lifeactor.png` });
+  await adoptAs(page, 'MON_ROOTRING');
+  await expect(page.getByTestId('forge-life-MON-900002')).toHaveText('Life Engine 対象外');
+
+  // The boss has become an individual the story follows.
+  await page.getByTestId('forge-life-toggle-MON-900002').click();
+  await expect(page.getByTestId('forge-life-MON-900002')).toHaveText('Life Engine 対象');
+  await expect(page.getByTestId('forge-record-MON-900002')).toContainText('Life Engine 対象を変更');
+});
+
 test('none of this touched the repository’s own content', async () => {
   expect(JSON.parse(readFileSync(REPO_ROSTER, 'utf8')).characters).toEqual([]);
 });
