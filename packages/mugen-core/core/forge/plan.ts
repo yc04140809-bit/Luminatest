@@ -1,20 +1,22 @@
 // NEW, UPDATE, UNCHANGED — OR NOT AT ALL.
 //
-// The import planner. Given a file and what the save already holds, it
-// says what registering it would do, and why, without doing any of it.
-// Pure: the World asks it before showing the author anything, and asks
-// it again at the moment of registering, so what is written is always
-// what was planned against the save as it is now.
+// The import planner. Given a file and what the game's content already
+// holds (content/forge), it says what adopting it would do, and why,
+// without doing any of it. Pure: the import screen asks it before
+// showing the author anything, and the writer asks it again against the
+// files on disk at the moment of writing, so what is written is always
+// what the content allows now. Choosing the NPC_ID is a further step on
+// top of this (content.ts `planForgeAdoption`).
 //
 // THE ORDER OF THE CHECKS IS THE ORDER OF WHAT MUST NEVER HAPPEN:
 //
 //   1. A file that is not JSON, or not a deploy package 1.0 — refused.
 //   2. A sample (`sampleOnly: true`) — refused. The bridge's example
 //      files are for checking tools, and are never anybody's character.
-//   3. A character whose saved record cannot be read — refused, because
+//   3. A character whose content file cannot be read — refused, because
 //      writing over it would destroy the only copy.
-//   4. An id the game uses for something else, or FORGE retired —
-//      refused. An id is one character forever.
+//   4. An id FORGE retired (VOID), or one the game uses for something
+//      else — refused. An id is one character forever.
 //   5. The same id arriving as the other type — refused. Same id,
 //      different being, is the one thing an id exists to prevent.
 //   6. The exact file already held — nothing to do.
@@ -30,11 +32,11 @@
 
 import { payloadHash } from './canonical';
 import { diffBaselines } from './diff';
-import type { ForgeState } from './record';
 import { forgeDisplayName, forgeKindOf } from './record';
 import type {
-  ForgeCharacterRecord,
+  ForgeContent,
   ForgeDecision,
+  ForgeRosterEntry,
   ForgeDeployPackage,
   ForgeDiff,
   ForgeIssue,
@@ -44,11 +46,12 @@ import { issue, isObject, parseDeployJson, validateDeployPackage } from './valid
 
 /** What the planner needs to know about the game. */
 export interface ForgeWorldView {
-  state: ForgeState;
+  /** The adopted characters, as the content holds them. */
+  content: ForgeContent;
   /**
-   * Ids that are not free: used by the game for something that is not a
-   * FORGE character, or retired (VOID) in FORGE. A FORGE character is
-   * never registered under one.
+   * Ids that are not free besides FORGE's retired ones (which come with
+   * the content): ids the game already uses for something else. A FORGE
+   * character is never registered under one.
    */
   reservedIds: ReadonlySet<string>;
   /** Places the game knows, id → name, to say whether a wished-for place exists. Never added to. */
@@ -85,22 +88,20 @@ export interface ForgePlan {
   warnings: ForgeIssue[];
   /** Baseline differences. Against nothing for NEW; null when refused before comparison. */
   diff: ForgeDiff | null;
-  /** The record held today, if any. */
-  existing: ForgeCharacterRecord | null;
+  /** The ledger entry held today, if any. */
+  existing: ForgeRosterEntry | null;
   /** What registering does not touch, in words (変更対象外). */
   gameOwned: string[];
 }
 
-/** What an import never touches. Shown on the review step, and true of every import. */
+/** What adopting a character never touches. Shown on the review step, and true of every import. */
 export const FORGE_GAME_OWNED: readonly string[] = [
-  'WORLD MEMORY に記録済みの出来事（消さず、書き換えません）',
-  '本編での状態 runtimeState（位置・進行・関係・所持品・HP など）',
-  '本編で得た名前と、その由来',
+  'プレイヤーのSAVE（WORLD MEMORY・現在状態・進行・所持品・時刻）',
+  '既存の人物のID・名前・現在状態の初期値',
   '本編で追加された関係',
   '戦闘の計算式とバランス値',
   '画像ファイルの実体',
-  'NPC_ID との対応（作者が決めるまで未設定のまま）',
-  '世界の時刻と TIME SHIFT',
+  '一度決めた NPC_ID（変更しません）',
 ];
 
 export function planForgeImport(input: string | unknown, world: ForgeWorldView): ForgePlan {
@@ -126,14 +127,21 @@ export function planForgeImport(input: string | unknown, world: ForgeWorldView):
   const payload = validation.payload;
   const id = payload.characterId;
   const hash = payloadHash(payload);
-  const existing = world.state.records[id] ?? null;
-  const history = world.state.histories[id] ?? [];
+  const existing = world.content.roster.characters.find((entry) => entry.characterId === id) ?? null;
+  const held = existing ? (world.content.baselines[id] ?? null) : null;
+  const history = existing?.history ?? [];
 
-  if (world.state.damaged.includes(id)) {
+  if (world.content.damaged.includes(id) || (existing && !held)) {
     errors.push(
-      issue('SAVE_DAMAGED', 'characterId', `${id} の保存データを読めませんでした。上書きすると元のデータが失われるため、取り込みを止めています。`),
+      issue('SAVE_DAMAGED', 'characterId', `${id} の登録済みデータ（content/forge）を読めませんでした。上書きすると元のデータが失われるため、取り込みを止めています。`),
     );
     return refused('BLOCKED_SAVE_DAMAGED', summary, value, errors, warnings, hash);
+  }
+  if (world.content.voidIds.includes(id)) {
+    errors.push(
+      issue('RESERVED_ID', 'characterId', `${id} は FORGE で VOID（破棄）になったIDです。一度発行されたIDは別のキャラクターに再利用できません。`),
+    );
+    return refused('BLOCKED_RESERVED_ID', summary, value, errors, warnings, hash);
   }
   if (world.reservedIds.has(id)) {
     errors.push(
@@ -154,25 +162,25 @@ export function planForgeImport(input: string | unknown, world: ForgeWorldView):
 
   warnings.push(...referenceWarnings(payload, world));
 
-  if (existing && existing.importMetadata.payloadHash === hash) {
+  if (existing && existing.payloadHash === hash) {
     return {
       ...base(summary, payload, hash, existing, warnings, errors),
       decision: 'UNCHANGED',
       canRegister: false,
-      diff: diffBaselines(existing.forgeBaseline, payload),
+      diff: diffBaselines(held, payload),
     };
   }
 
   if (existing) {
-    const held = Date.parse(existing.importMetadata.deployedAt);
+    const heldAt = Date.parse(existing.deployedAt);
     const offered = Date.parse(payload.deployment.deployedAt);
-    if (!(offered > held)) {
+    if (!(offered > heldAt)) {
       errors.push(
         issue(
           'DEPLOYMENT_CONFLICT',
           'deployment.deployedAt',
-          offered < held
-            ? `登録済みのデータ（${existing.importMetadata.deployedVersion}、${existing.importMetadata.deployedAt}）より古い送出です。新しい設定を古い設定で上書きしないため、取り込みません。`
+          offered < heldAt
+            ? `登録済みのデータ（${existing.deployedVersion}、${existing.deployedAt}）より古い送出です。新しい設定を古い設定で上書きしないため、取り込みません。`
             : `登録済みのデータと送出日時が同じなのに内容が異なります。どちらが正しいかFORGEで確認してください。`,
         ),
       );
@@ -196,7 +204,7 @@ export function planForgeImport(input: string | unknown, world: ForgeWorldView):
       ...base(summary, payload, hash, existing, warnings, errors),
       decision: 'UPDATE',
       canRegister: true,
-      diff: diffBaselines(existing.forgeBaseline, payload),
+      diff: diffBaselines(held, payload),
     };
   }
 
@@ -300,7 +308,7 @@ function base(
   summary: ForgeSummary | null,
   payload: ForgeDeployPackage,
   hash: string,
-  existing: ForgeCharacterRecord | null,
+  existing: ForgeRosterEntry | null,
   warnings: ForgeIssue[],
   errors: ForgeIssue[],
 ): Omit<ForgePlan, 'decision' | 'canRegister' | 'diff'> {
@@ -313,15 +321,8 @@ function base(
     errors,
     warnings,
     existing,
-    gameOwned: gameOwnedFor(existing),
+    gameOwned: [...FORGE_GAME_OWNED],
   };
-}
-
-function gameOwnedFor(existing: ForgeCharacterRecord | null): string[] {
-  const kept = Object.keys(existing?.runtimeState ?? {});
-  return kept.length
-    ? [...FORGE_GAME_OWNED, `この人物の本編での状態: ${kept.join('、')}`]
-    : [...FORGE_GAME_OWNED];
 }
 
 function refused(
@@ -331,7 +332,7 @@ function refused(
   errors: ForgeIssue[],
   warnings: ForgeIssue[],
   hash: string | null = null,
-  existing: ForgeCharacterRecord | null = null,
+  existing: ForgeRosterEntry | null = null,
 ): ForgePlan {
   return {
     decision,
@@ -345,6 +346,6 @@ function refused(
     warnings,
     diff: null,
     existing,
-    gameOwned: gameOwnedFor(existing),
+    gameOwned: [...FORGE_GAME_OWNED],
   };
 }

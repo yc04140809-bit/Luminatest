@@ -440,9 +440,12 @@ interface TalkCandidate {
 
 ---
 
-## 12. FORGE 受信側の取込（2026-09-27）
+## 12. FORGE の採用（AUTHORING / CONTENT IMPORT・2026-09-27）
 
-`mugen-character-forge-to-zero-bridge-v1.0` に沿って、MUGEN ZERO 側のキャラクター取込を実装した。詳細は
-[`docs/FORGE_IMPORT.md`](./FORGE_IMPORT.md)。§7 との違い：取り込んだ人は**その端末のセーブ**（`forge_character_<ID>` など）
-に入り、WORLD MEMORY に到着の出来事が 1 件残る。ビルドの content に入れて全員に配る段階は、まだ無い。
-Forge の ID は `characterId`（§11 の `forgeId`）のまま保存し、NPC_ID との対応（`npcId`）は null のまま。
+作者の方針修正により、FORGE で採用したキャラクターは**全プレイヤー共通の正式 NPC（コンテンツ）**として
+`packages/mugen-core/content/forge/` に入れ、ビルドに含める。§7 の「Forge の人の定義はビルドに入る content（保存しない）」の通り。
+SAVE には、その NPC について起きたこと・変わった状態だけを置く。詳細は [`docs/FORGE_IMPORT.md`](./FORGE_IMPORT.md)。
+
+- §11 の対応表は台帳 `content/forge/roster.json`（Character ID → NPC_ID）。採用時に作者が NPC_ID を決め、以後変えない。
+- 人物台帳は `ALL_NPCS`（手書き `NPC_REGISTRY` ＋採用キャラ）。`PersonKind` に `CREATURE` を追加（採用したモンスター）。
+- WORLD LIFE ENGINE の `cores` に採用キャラを追加（FORGE の言葉のまま、推測で英語 ID に置き換えない）。

@@ -7,6 +7,7 @@ import {
   type NpcRegistryEntry,
 } from '../../core/link/npcId';
 import { NPC_REGISTRY, registryEntry } from './registry';
+import { ALL_NPCS, personEntry } from './allPeople';
 import { MUGEN_WORLD_RULES, WORLD_PEOPLE } from '../world/mugenWorld';
 import { GREENWOOD_PRELUDE } from '../world/galdLife';
 import { INITIAL_GALD_STATE } from '../characters/gald';
@@ -89,6 +90,8 @@ function contentReferences(): Ref[] {
 describe('the registry of who exists', () => {
   it('has no problems: formal ids, each once, named, aliases unambiguous', () => {
     expect(registryProblems(NPC_REGISTRY)).toEqual([]);
+    // And still none with every adopted FORGE character added.
+    expect(registryProblems(ALL_NPCS)).toEqual([]);
   });
 
   it('uses the formal upper-case ids the game already has', () => {
@@ -109,13 +112,14 @@ describe('the registry of who exists', () => {
   });
 
   it('means somebody by every id the content uses — none points at nobody', () => {
-    expect(unresolvedIds(contentReferences(), NPC_REGISTRY)).toEqual([]);
+    expect(unresolvedIds(contentReferences(), ALL_NPCS)).toEqual([]);
   });
 
   it('agrees with WORLD_PEOPLE on where everybody belongs and how much the story is about them', () => {
+    // Everybody, including characters adopted from CHARACTER FORGE (content/forge).
     for (const person of WORLD_PEOPLE) {
-      const id = resolveNpcId(person.npcId, NPC_REGISTRY)!;
-      const entry = registryEntry(id)!;
+      const id = resolveNpcId(person.npcId, ALL_NPCS)!;
+      const entry = personEntry(id)!;
       expect(entry.region, person.npcId).toBe(person.region);
       expect(entry.standing, person.npcId).toBe(person.standing);
     }

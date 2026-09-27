@@ -15,5 +15,5 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": ["core", "game", "content", "../mugen-assets/src", "../shared-aliases.d.mts"]
+  "include": ["core", "game", "content", "scripts", "../mugen-assets/src", "../shared-aliases.d.mts"]
 }

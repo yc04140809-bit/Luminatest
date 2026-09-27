@@ -60,10 +60,10 @@ export function asWorldMemory(event: MemoryEvent): WorldMemoryRecord {
  */
 export function canonAsWorldMemories(events: readonly MemoryEvent[]): WorldMemoryRecord[] {
   return events
-    // A character arriving from CHARACTER FORGE is the author adding to
-    // the world's record, not something that happened in anybody's day.
-    // Read as a life fact it would move the engine's clock and sit among
-    // what people remember; it is neither, so it is not read at all.
+    // The legacy FORGE import events (memory/types.ts ForgeEventType) are
+    // the author's bookkeeping, not something that happened in anybody's
+    // day. Read as life facts they would move the engine's clock and sit
+    // among what people remember; they are neither, so they are skipped.
     .filter((event) => !isForgeEventType(event.type))
     .map(asWorldMemory)
     .sort(

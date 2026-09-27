@@ -66,16 +66,17 @@ export type CreatureLifeChoiceEventType =
 export type WorldEventType = 'WORLD_TIME_SHIFTED';
 
 /**
- * A character arriving from CHARACTER FORGE (core/forge), and a later
- * send of them being accepted.
+ * LEGACY, READ ONLY: a character arriving from CHARACTER FORGE, and a
+ * later send of them being accepted.
  *
- * Facts about the WORLD'S RECORD rather than about anybody's day: the
- * author handed somebody over, and the game took them in. Kept in WORLD
- * MEMORY like every other fact — write-once, never deleted — so the
- * record of who came in, and when, cannot be rewritten. But they are not
- * something a player did, so they are not progress (`hasProgress`), not
- * something the player knows (`getKnownEvents`), and not a life event
- * the WORLD LIFE ENGINE reads (`canonAsWorldMemories`).
+ * Written only by the debug build of 2026-09-27 (commit e180a76), which
+ * kept imported characters in the save. That was the wrong place: an
+ * adopted character is CONTENT, the same for every player
+ * (core/forge/content.ts), and nothing writes these any more. They stay
+ * in the union so a save that build touched still reads — and, as then,
+ * they are not progress (`hasProgress`), not player knowledge
+ * (`getKnownEvents`), and not read by the WORLD LIFE ENGINE
+ * (`canonAsWorldMemories`).
  */
 export type ForgeEventType = 'CHARACTER_IMPORTED_FROM_FORGE' | 'CHARACTER_UPDATED_FROM_FORGE';
 

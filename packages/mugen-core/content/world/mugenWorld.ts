@@ -22,6 +22,7 @@
 import type { WorldCrossingDef } from '../../core/life/crossing';
 import type { SeedKindDef, WorldActionDef } from '../../core/life/defs';
 import type { NpcCore, WorldBloomDef } from '../../core/life/types';
+import { forgeCores, forgeWorldPeople } from '../forge/forgeContent';
 import {
   ALDEN_ACTIONS,
   ALDEN_BLOOMS,
@@ -262,7 +263,15 @@ function joined<T extends { id: string } | { type: string } | { npcId: string }>
 export const MUGEN_WORLD_RULES = {
   actions: joined<WorldActionDef>('ACTION', ALDEN_ACTIONS, GALD_ACTIONS, CROSSING_ACTIONS),
   kinds: joined<SeedKindDef>('SEED KIND', ALDEN_SEED_KINDS, GALD_SEED_KINDS, CROSSING_SEED_KINDS),
-  cores: joined<NpcCore>('NPC', ALDEN_CORES, GALD_CORES, [BAKERY_OWNER_CORE, NEL_CORE]),
+  cores: joined<NpcCore>(
+    'NPC',
+    ALDEN_CORES,
+    GALD_CORES,
+    [BAKERY_OWNER_CORE, NEL_CORE],
+    // Characters adopted from CHARACTER FORGE (content/forge) that have no
+    // hand-written core — people in the world like anybody else.
+    forgeCores([...ALDEN_CORES, ...GALD_CORES, BAKERY_OWNER_CORE, NEL_CORE]),
+  ),
   blooms: joined<WorldBloomDef>('BLOOM', ALDEN_BLOOMS, GALD_BLOOMS, CROSSING_BLOOMS),
   crossings: WORLD_CROSSINGS,
 };
@@ -293,7 +302,7 @@ export interface WorldPerson {
 export const ALDEN_REGION = 'ALDEN';
 export const PORT_REGION = 'PORT_TOWN';
 
-export const WORLD_PEOPLE: readonly WorldPerson[] = [
+const HAND_WORLD_PEOPLE: readonly WorldPerson[] = [
   { npcId: PLAYER_ACTOR, name: 'プレイヤー', region: ALDEN_REGION, standing: 'PRINCIPAL' },
   { npcId: KAOS_ACTOR, name: 'ケイオス', region: ALDEN_REGION, standing: 'PRINCIPAL' },
   { npcId: LINA.npcId, name: 'リナ（村娘）', region: ALDEN_REGION, standing: 'PRINCIPAL' },
@@ -303,6 +312,12 @@ export const WORLD_PEOPLE: readonly WorldPerson[] = [
   { npcId: 'alden_marta', name: 'マルタ（リナの母）', region: ALDEN_REGION, standing: 'ORDINARY' },
   { npcId: ALDEN_VILLAGE_ACTOR, name: 'アルデン村そのもの', region: ALDEN_REGION, standing: 'PLACE' },
   { npcId: NEL, name: 'ネル（港町の荷運び）', region: PORT_REGION, standing: 'ORDINARY' },
+];
+
+/** The hand-written roster, and every character adopted from CHARACTER FORGE not already on it. */
+export const WORLD_PEOPLE: readonly WorldPerson[] = [
+  ...HAND_WORLD_PEOPLE,
+  ...forgeWorldPeople(HAND_WORLD_PEOPLE.map((person) => person.npcId)),
 ];
 
 export { ALDEN_GUARD, GALD, LINA, PLAYER_ACTOR, ALDEN_VILLAGE_ACTOR };

@@ -1,59 +1,105 @@
-import { useEffect, useRef, useState } from 'react';
-import { openAppWorld, APP_DB_NAME, type OpenedWorld } from '../platform/save';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ForgePlan } from '@mugen/core/forge/plan';
-import type { ForgeDecision, ForgeImportResult, ForgeIssue, ForgeKind } from '@mugen/core/forge/types';
+import type { ForgeContent, ForgeDecision, ForgeImportResult, ForgeIssue, ForgeKind } from '@mugen/core/forge/types';
 import { FORGE_KIND_LABEL, forgeDisplayName, forgeHumanCurrentFacts, forgeKindOf } from '@mugen/core/forge/record';
-import { resultOfPlan } from '@mugen/core/forge/commit';
+import { planForgeAdoption, resultOfPlan, type ForgeAdoptionPlan } from '@mugen/core/forge/content';
+import { FORGE_PLACEABLE_REGIONS, forgeAdoptionView } from '@mugen/content/forge/adoptionView';
 import './forgeImport.css';
 
 /**
- * CHARACTER FORGE → MUGEN ZERO: キャラクター取込（デバッグビルド限定）.
+ * CHARACTER FORGE → MUGEN ZERO: キャラクター採用（デバッグビルド限定）.
  *
- * The author's screen for taking one FORGE deploy file into this
- * device's save, in the three steps the bridge contract asks for:
- * データを選ぶ → 内容を確認 → 登録. Nothing is written until the last
- * button; everything before it is `World.planForgeImport`, which only
- * reads. The rules themselves (what is new, what is a conflict, what an
- * update may touch) live in the shared core (core/forge) and are tested
- * there — this file only shows them.
+ * FORGE is the author's tool for making characters and adopting them as
+ * official NPCs. An adopted character is CONTENT — files under
+ * packages/mugen-core/content/forge/ that ship in the build, the same for
+ * every player — never something kept in one device's save. So:
+ *
+ *   on the dev server (a PC with the repository), 登録 writes those files
+ *   through the dev server (vite.config.ts `forgeAuthoring`), and they go
+ *   through git like any other content;
+ *
+ *   in a debug APK there is no repository to write into: the screen
+ *   checks a file against what is built in and shows the adopted roster,
+ *   and writes nothing.
+ *
+ * The three steps are the bridge contract's: データを選ぶ → 内容を確認 →
+ * 登録. The rules (new / update / unchanged / conflict, which NPC_ID) live
+ * in the shared core (core/forge) and are tested there.
  *
  * Reached from the title's DEBUG button, or `?tool=forge-import`. A
  * release build contains none of it (vite.config.ts, check:release).
  */
+
+/** Where the content comes from, and whether this screen may write it. */
+type Source =
+  | { mode: 'AUTHORING'; content: ForgeContent; problems: string[]; dir: string; sandbox: string | null }
+  | { mode: 'READ_ONLY'; content: ForgeContent; problems: string[] };
+
+const SANDBOX = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('sandbox') : null;
+const withSandbox = (path: string) => (SANDBOX ? `${path}?sandbox=${encodeURIComponent(SANDBOX)}` : path);
+
+async function loadSource(): Promise<Source> {
+  if (import.meta.env.DEV) {
+    const response = await fetch(withSandbox('/__mugen/forge/content'));
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error ?? '読み込めませんでした');
+    return { mode: 'AUTHORING', content: data.content, problems: data.problems, dir: data.dir, sandbox: data.sandbox ? SANDBOX : null };
+  }
+  // A build: what is built in. Imported only here, so the dev screen never
+  // reloads when a file it wrote changes the build's index.
+  const built = await import('@mugen/content/forge/forgeContent');
+  return { mode: 'READ_ONLY', content: built.FORGE_CONTENT, problems: [...built.FORGE_CONTENT_PROBLEMS] };
+}
+
+async function post(path: string, value: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const response = await fetch(`/__mugen/forge/${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...value, sandbox: SANDBOX ?? undefined }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? '書き込めませんでした');
+  return data;
+}
+
 export function ForgeImport() {
-  const [opened, setOpened] = useState<OpenedWorld | null>(null);
-  const [, setVersion] = useState(0);
-  const [source, setSource] = useState<string | null>(null);
+  const [source, setSource] = useState<Source | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [from, setFrom] = useState<string | null>(null);
+  const [text, setText] = useState<string | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasted, setPasted] = useState('');
-  const [plan, setPlan] = useState<ForgePlan | null>(null);
+  const [npcId, setNpcId] = useState('');
+  const [region, setRegion] = useState('');
   const [done, setDone] = useState<ForgeImportResult | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    let alive = true;
-    let stop = () => {};
-    void openAppWorld().then((o) => {
-      if (!alive) return;
-      setOpened(o);
-      stop = o.world.subscribe(() => setVersion((v) => v + 1));
-    });
-    return () => {
-      alive = false;
-      stop();
-    };
+  const reload = useCallback(async () => {
+    try {
+      setSource(await loadSource());
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e));
+    }
   }, []);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
-  const world = opened?.world ?? null;
+  const plan: ForgeAdoptionPlan | null =
+    source && text !== null
+      ? planForgeAdoption(text, forgeAdoptionView(source.content), { npcId, region: region || null })
+      : null;
 
-  const read = (text: string, from: string) => {
-    if (!world) return;
-    setSource(from);
+  const read = (value: string, label: string) => {
+    setFrom(label);
+    setText(value);
     setDone(null);
     setFailure(null);
-    setPlan(world.planForgeImport(text));
+    setNpcId('');
+    setRegion('');
   };
 
   const onFile = async (file: File | undefined) => {
@@ -63,13 +109,19 @@ export function ForgeImport() {
   };
 
   const register = async () => {
-    if (!world || !plan) return;
+    if (!plan || text === null || source?.mode !== 'AUTHORING') return;
     setBusy(true);
     setFailure(null);
     try {
-      setDone(await world.commitForgeImport(plan));
-      // What is on screen now is what the save holds now.
-      setPlan(world.planForgeImport(plan.payload));
+      const data = await post('adopt', {
+        text,
+        npcId: plan.npcId,
+        region: plan.region,
+        decision: plan.decision,
+        payloadHash: plan.payloadHash,
+      });
+      setDone(data.result as ForgeImportResult);
+      await reload();
     } catch (e) {
       setFailure(e instanceof Error ? e.message : String(e));
     } finally {
@@ -78,33 +130,51 @@ export function ForgeImport() {
   };
 
   const cancel = () => {
-    setPlan(null);
-    setSource(null);
+    setText(null);
+    setFrom(null);
     setDone(null);
     setFailure(null);
     setPasted('');
+    setNpcId('');
+    setRegion('');
   };
 
-  if (!world) {
+  if (!source) {
     return (
       <div className="fi-root" data-testid="forge-import">
-        <p className="fi-note">セーブを開いています…</p>
+        <p className="fi-note">{loadError ? `読み込めませんでした: ${loadError}` : '登録済みのキャラクターを読み込んでいます…'}</p>
       </div>
     );
   }
+  const authoring = source.mode === 'AUTHORING';
 
   return (
-    <div className="fi-root" data-testid="forge-import">
+    <div className="fi-root" data-testid="forge-import" data-mode={source.mode}>
       <header className="fi-header">
-        <h1>キャラクター取込（CHARACTER FORGE → MUGEN ZERO）</h1>
+        <h1>キャラクター採用（CHARACTER FORGE → MUGEN ZERO）</h1>
         <button className="fi-link" onClick={() => window.location.assign(window.location.pathname)}>
           タイトルへ戻る
         </button>
       </header>
-      <p className="fi-note">
-        この端末のセーブ（{APP_DB_NAME}）へ登録します。確認画面までは何も書き込みません。
-        {!opened!.saving && <strong className="fi-bad"> この環境では保存できません（閉じると消えます）。</strong>}
-      </p>
+      {authoring ? (
+        <p className="fi-note" data-testid="forge-target">
+          登録先: {source.sandbox ? <strong className="fi-warn">サンドボックス（{source.sandbox}・一時フォルダ）</strong> : 'リポジトリの content/forge'}
+          — 採用したキャラクターは全プレイヤー共通の正式NPC（ゲームのコンテンツ）になります。端末のSAVEには入りません。
+          登録後は git に入れてビルドしてください。
+        </p>
+      ) : (
+        <p className="fi-note fi-warn" data-testid="forge-target">
+          この端末では確認だけできます（書き込みません）。採用の登録は、PCの開発サーバー（npm run dev:app）か、コマンド
+          （npm run forge:import -w @mugen/core）で行い、git に入れてビルドします。
+        </p>
+      )}
+      {source.problems.length > 0 && (
+        <ul className="fi-list fi-bad" data-testid="forge-content-problems">
+          {source.problems.map((p) => (
+            <li key={p}>{p}</li>
+          ))}
+        </ul>
+      )}
 
       {/* ---- STEP 1 ---- */}
       <section className="fi-step" data-testid="forge-step-1">
@@ -141,7 +211,7 @@ export function ForgeImport() {
             </button>
           </div>
         )}
-        {plan && <Summary plan={plan} source={source} />}
+        {plan && <Summary plan={plan} source={from} />}
       </section>
 
       {/* ---- STEP 2 ---- */}
@@ -151,6 +221,7 @@ export function ForgeImport() {
             <span className="fi-num">2</span>内容を確認
           </h2>
           <Review plan={plan} />
+          <Adoption plan={plan} npcId={npcId} setNpcId={setNpcId} region={region} setRegion={setRegion} />
         </section>
       )}
 
@@ -164,22 +235,27 @@ export function ForgeImport() {
             <Done result={done} />
           ) : (
             <>
-              {!plan.canRegister && (
+              {(!plan.ready || !authoring) && (
                 <p className="fi-reason" data-testid="forge-blocked-reason">
-                  {blockedReason(plan)}
+                  {blockedReason(plan, authoring)}
                 </p>
               )}
               {!plan.canRegister && <UnregisteredResult plan={plan} />}
               <div className="fi-row">
                 {plan.decision === 'UPDATE' ? (
-                  <button className="fi-btn fi-primary" data-testid="forge-update" disabled={busy} onClick={() => void register()}>
+                  <button
+                    className="fi-btn fi-primary"
+                    data-testid="forge-update"
+                    disabled={busy || !plan.ready || !authoring}
+                    onClick={() => void register()}
+                  >
                     差分を反映
                   </button>
                 ) : (
                   <button
                     className="fi-btn fi-primary"
                     data-testid="forge-register"
-                    disabled={busy || !plan.canRegister}
+                    disabled={busy || !plan.ready || !authoring}
                     onClick={() => void register()}
                   >
                     このキャラクターを登録
@@ -204,7 +280,62 @@ export function ForgeImport() {
         </section>
       )}
 
-      <Registered world={world} />
+      <Registered source={source} onChanged={reload} />
+    </div>
+  );
+}
+
+/** Which NPC_ID the character becomes — asked for a new one, fixed for one already adopted. */
+function Adoption({
+  plan,
+  npcId,
+  setNpcId,
+  region,
+  setRegion,
+}: {
+  plan: ForgeAdoptionPlan;
+  npcId: string;
+  setNpcId: (v: string) => void;
+  region: string;
+  setRegion: (v: string) => void;
+}) {
+  if (!plan.payload) return null;
+  const fixed = !!plan.existing;
+  return (
+    <div data-testid="forge-adoption">
+      <h3>MUGEN ZERO 側の NPC_ID</h3>
+      {fixed ? (
+        <p data-testid="forge-npc-fixed">
+          <b>{plan.npcId}</b>（採用済み・変更できません）　地域: {plan.region ?? '未配置'}
+        </p>
+      ) : (
+        <>
+          <p className="fi-note">
+            大文字・数字・_ の正式ID（例: SERA）。既存の人物（例: LINA）を指定すると、その人の正式定義として対応づけます（既存のIDと名前は変えません）。
+          </p>
+          <div className="fi-row">
+            <input
+              className="fi-input"
+              data-testid="forge-npc-id"
+              value={npcId}
+              onChange={(e) => setNpcId(e.target.value)}
+              placeholder="NPC_ID"
+              autoCapitalize="characters"
+              spellCheck={false}
+            />
+            <select className="fi-input" data-testid="forge-region" value={region} onChange={(e) => setRegion(e.target.value)}>
+              <option value="">地域: 未配置</option>
+              {FORGE_PLACEABLE_REGIONS.map((r) => (
+                <option key={r} value={r}>
+                  地域: {r}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      )}
+      {plan.npcErrors.length > 0 && <IssueList issues={plan.npcErrors} testId="forge-npc-errors" tone="fi-bad" />}
+      {plan.npcNotes.length > 0 && <IssueList issues={plan.npcNotes} testId="forge-npc-notes" tone="fi-warn" />}
     </div>
   );
 }
@@ -466,10 +597,12 @@ function IssueList({ issues, testId, tone }: { issues: ForgeIssue[]; testId: str
   );
 }
 
-function blockedReason(plan: ForgePlan): string {
-  if (plan.decision === 'UNCHANGED') return '同じ送出データはすでに登録済みです。二重登録はしません。';
-  const first = plan.errors[0]?.message;
-  return first ? `登録できません: ${first}` : '登録できません。';
+function blockedReason(plan: ForgeAdoptionPlan, authoring: boolean): string {
+  if (plan.decision === 'UNCHANGED') return '同じ送出データはすでに採用済みです。二重登録はしません。';
+  const first = plan.errors[0]?.message ?? plan.npcErrors[0]?.message;
+  if (first) return `登録できません: ${first}`;
+  if (!authoring) return 'この端末では登録できません（確認のみ）。登録はPCの開発サーバーかコマンドで行います。';
+  return '登録できません。';
 }
 
 // ---- Step 3: what happened ----------------------------------------------
@@ -480,11 +613,15 @@ function Done({ result }: { result: ForgeImportResult }) {
       <p className="fi-done">MUGEN ZEROへ受け入れました。</p>
       <dl className="fi-summary">
         <dt>結果</dt>
-        <dd>{result.result === 'NEW' ? '新規登録' : '更新'}</dd>
+        <dd>{result.result === 'NEW' ? '新規採用' : '更新'}</dd>
+        <dt>NPC_ID</dt>
+        <dd data-testid="forge-done-npc">{result.npcId}</dd>
         <dt>取込ID</dt>
         <dd>{result.importId}</dd>
         <dt>ロールバック</dt>
         <dd>{result.rollback.available ? `可能（${result.rollback.snapshotRef}）` : '新規のため戻す前の状態はありません'}</dd>
+        <dt>次にすること</dt>
+        <dd>content/forge の変更を git に入れてビルドすると、全プレイヤーのゲームに入ります。</dd>
       </dl>
       <details className="fi-details">
         <summary>取込結果（import result 1.0）</summary>
@@ -506,18 +643,18 @@ function UnregisteredResult({ plan }: { plan: ForgePlan }) {
   );
 }
 
-// ---- Who has been taken in ------------------------------------------------
+// ---- Who has been adopted -------------------------------------------------
 
-function Registered({ world }: { world: OpenedWorld['world'] }) {
-  const records = world.getForgeCharacters();
-  const damaged = world.getDamagedForgeIds();
+function Registered({ source, onChanged }: { source: Source; onChanged: () => Promise<void> }) {
+  const roster = source.content.roster.characters;
   const [confirming, setConfirming] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const rollback = async (id: string) => {
     try {
-      await world.rollbackForgeImport(id);
-      setMessage(`${id} を直前の状態に戻しました。本編での状態と WORLD MEMORY はそのままです。`);
+      await post('rollback', { characterId: id });
+      setMessage(`${id} を直前の送出へ戻しました。NPC_ID と採用はそのままです。`);
+      await onChanged();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : String(e));
     } finally {
@@ -527,36 +664,41 @@ function Registered({ world }: { world: OpenedWorld['world'] }) {
 
   return (
     <section className="fi-step" data-testid="forge-records">
-      <h2>登録済みのキャラクター（{records.length}）</h2>
-      {message && <p className="fi-note" data-testid="forge-records-message">{message}</p>}
-      {damaged.length > 0 && <p className="fi-bad">読めない保存データ: {damaged.join('、')}（書き換えずに残しています）</p>}
-      {records.length === 0 && <p className="fi-quiet">まだありません。</p>}
-      {records.map((record) => {
-        const history = world.getForgeImportHistory(record.characterId);
-        const kind = forgeKindOf(record);
+      <h2>採用済みのキャラクター（{roster.length}）</h2>
+      {message && (
+        <p className="fi-note" data-testid="forge-records-message">
+          {message}
+        </p>
+      )}
+      {roster.length === 0 && <p className="fi-quiet">まだありません。</p>}
+      {roster.map((entry) => {
+        const kind = forgeKindOf(entry);
+        const definition = source.content.baselines[entry.characterId];
         return (
-          <div className="fi-record" key={record.characterId} data-testid={`forge-record-${record.characterId}`} data-kind={kind}>
+          <div className="fi-record" key={entry.characterId} data-testid={`forge-record-${entry.characterId}`} data-kind={kind}>
             <div className="fi-record-head">
-              <b>{record.characterId}</b>
+              <b>{entry.characterId}</b>
+              <span>→ {entry.npcId}</span>
               <span className="fi-kind">{FORGE_KIND_LABEL[kind]}</span>
-              <span>{forgeDisplayName(record.forgeBaseline)}</span>
+              <span>{definition ? forgeDisplayName(definition) : '（読めません）'}</span>
               <span className="fi-quiet">
-                送出版 {record.importMetadata.deployedVersion}・{formatTime(record.importMetadata.lastImportedAt)} 取込
+                送出版 {entry.deployedVersion}・地域 {entry.region ?? '未配置'}・{formatTime(entry.lastImportedAt)}
               </span>
             </div>
             <ol className="fi-history">
-              {history.map((entry) => (
-                <li key={entry.importId}>
-                  {HISTORY_TEXT[entry.result]}　{entry.deployedVersion}　{formatTime(entry.importedAt)}
-                  {entry.warnings.length > 0 && <span className="fi-warn">　警告 {entry.warnings.length}</span>}
+              {entry.history.map((h) => (
+                <li key={h.importId}>
+                  {HISTORY_TEXT[h.result]}　{h.deployedVersion}　{formatTime(h.importedAt)}
+                  {h.warnings.length > 0 && <span className="fi-warn">　警告 {h.warnings.length}</span>}
                 </li>
               ))}
             </ol>
-            {world.canRollBackForge(record.characterId) &&
-              (confirming === record.characterId ? (
+            {source.mode === 'AUTHORING' &&
+              entry.previous &&
+              (confirming === entry.characterId ? (
                 <div className="fi-row">
-                  <span>直前の送出に戻しますか？（FORGE基礎設定だけが戻ります）</span>
-                  <button className="fi-btn fi-primary" data-testid="forge-rollback-confirm" onClick={() => void rollback(record.characterId)}>
+                  <span>直前の送出（{entry.previous.deployedVersion}）に戻しますか？</span>
+                  <button className="fi-btn fi-primary" data-testid="forge-rollback-confirm" onClick={() => void rollback(entry.characterId)}>
                     戻す
                   </button>
                   <button className="fi-btn" onClick={() => setConfirming(null)}>
@@ -564,7 +706,7 @@ function Registered({ world }: { world: OpenedWorld['world'] }) {
                   </button>
                 </div>
               ) : (
-                <button className="fi-btn" data-testid={`forge-rollback-${record.characterId}`} onClick={() => setConfirming(record.characterId)}>
+                <button className="fi-btn" data-testid={`forge-rollback-${entry.characterId}`} onClick={() => setConfirming(entry.characterId)}>
                   直前の状態に戻す
                 </button>
               ))}

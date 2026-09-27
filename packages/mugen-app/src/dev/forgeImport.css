@@ -65,3 +65,7 @@
 .fi-warn { color: #f0c870; }
 .fi-bad { color: #ff9c86; }
 .fi-quiet { color: #8f8468; }
+.fi-input {
+  min-height: 40px; padding: 6px 10px; border-radius: 8px; border: 1px solid #8a7342;
+  background: #0f0d0a; color: #efe6d2; font: inherit;
+}

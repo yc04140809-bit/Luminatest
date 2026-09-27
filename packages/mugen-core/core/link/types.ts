@@ -61,10 +61,12 @@ export type LocationId = string;
  * 'PERSON'     somebody with a life of their own
  * 'PLAYER'     the one the player plays
  * 'COMPANION'  who travels with the player (Kaos)
+ * 'CREATURE'   a creature with a life of its own — a monster adopted
+ *              from CHARACTER FORGE (core/forge/content.ts)
  * 'PLACE'      not a person at all — a village that holds seeds
  * 'SYSTEM'     the world itself, as the author of time passing
  */
-export type PersonKind = 'PERSON' | 'PLAYER' | 'COMPANION' | 'PLACE' | 'SYSTEM';
+export type PersonKind = 'PERSON' | 'PLAYER' | 'COMPANION' | 'CREATURE' | 'PLACE' | 'SYSTEM';
 
 /** How much the story is about them (for people looking at the world, never read by rules). */
 export type PersonStanding = 'PRINCIPAL' | 'ORDINARY' | 'PLACE' | 'SYSTEM';

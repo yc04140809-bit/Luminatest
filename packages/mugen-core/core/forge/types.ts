@@ -7,12 +7,18 @@
 // forge-deploy-package 1.0). This file is the game's side of that
 // contract: the shape it expects, and the shape it stores.
 //
+// WHAT IS KEPT IS CONTENT, NOT SAVE DATA. FORGE is the author's tool
+// for making and adopting characters; an adopted character is an
+// official NPC of the game, the same for every player. Its definition
+// goes into the repository's content (content/forge/) and ships in the
+// build. A save only ever holds what has HAPPENED to them in one world.
+//
 // THE KEY IS THE CHARACTER ID. `HUM-000001`, `MON-000001` — FORGE's
 // permanent id, never renumbered, never reused, never given to anyone
-// else. The game takes it as it comes and keys everything on it. It is
-// a different thing from a formal NPC_ID (`GALD`); the two are joined,
-// when the author decides to, by a correspondence table
-// (docs/WORLD_LIFE_LINK_DESIGN.md §11) and never by renaming either.
+// else. The game takes it as it comes. It is a different thing from a
+// formal NPC_ID (`GALD`, `LINA`); the author fixes which NPC_ID a
+// character is when adopting it, and the ledger keeps the pair for
+// good (docs/WORLD_LIFE_LINK_DESIGN.md §11). Neither is ever renamed.
 //
 // BOSS IS NOT A THIRD TYPE. A boss is a monster whose `encounterRole`
 // is BOSS. The type stays `monster`; `ForgeKind` below is a label for
@@ -143,7 +149,16 @@ export type ForgeIssueCode =
   | 'FUTURE_TENDENCY_KEPT'
   | 'FUTURE_ASPIRATION_KEPT'
   | 'ENCOUNTER_ROLE_CHANGED'
-  | 'PAYLOAD_SEEN_BEFORE';
+  | 'PAYLOAD_SEEN_BEFORE'
+  // About the NPC_ID the author adopts the character as.
+  | 'NPC_ID_REQUIRED'
+  | 'NPC_ID_INVALID'
+  | 'NPC_ID_TAKEN'
+  | 'NPC_ID_KIND_MISMATCH'
+  | 'NPC_ID_CHANGE'
+  | 'NPC_ID_EXISTING_PERSON'
+  | 'NPC_ID_NAME_DIFFERS'
+  | 'REGION_UNKNOWN';
 
 /**
  * What the game decides about a file.
@@ -156,7 +171,7 @@ export type ForgeIssueCode =
  *                                (older, or the same moment with other
  *                                contents). Taking it would put an older
  *                                baseline over a newer one.
- *   BLOCKED_SAVE_DAMAGED         the save's own record of this character
+ *   BLOCKED_SAVE_DAMAGED         the content's own file for this character
  *                                could not be read. Writing over it would
  *                                destroy the only copy of what was there.
  */
@@ -171,51 +186,14 @@ export type ForgeDecision =
   | 'BLOCKED_DEPLOYMENT_CONFLICT'
   | 'BLOCKED_SAVE_DAMAGED';
 
-/**
- * WHAT THE GAME KEEPS OF A CHARACTER FORGE SENT.
- *
- * Four parts, kept apart so that a re-send can only ever touch one:
- *
- *   forgeBaseline   the deploy file exactly as it arrived — FORGE's
- *                   decision about who they are. Replaced, whole, by an
- *                   accepted update, and by nothing else.
- *   runtimeState    what the GAME has made of them since: where they
- *                   are, what they have been through, a name earned in
- *                   the world. Empty when they arrive. No import ever
- *                   writes it.
- *   importMetadata  which file the baseline is, and when it came.
- *   npcId           the formal NPC_ID they correspond to, once the
- *                   author decides one (§11). Null until then; never
- *                   guessed, never written by an import.
- *
- * Their WORLD MEMORY facts are events in the event store, like every
- * other fact, and are not copied here.
- */
-export interface ForgeCharacterRecord {
-  recordVersion: 1;
-  characterId: string;
-  characterType: ForgeCharacterType;
-  encounterRole: ForgeEncounterRole;
-  npcId: string | null;
-  forgeBaseline: ForgeDeployPackage;
-  runtimeState: Record<string, unknown>;
-  importMetadata: {
-    payloadHash: string;
-    sourceSchemaVersion: string;
-    deployedVersion: string;
-    deployedAt: string;
-    firstImportedAt: string;
-    lastImportedAt: string;
-    lastImportId: string;
-  };
-}
-
-/** What happened on one import, as the history keeps it. */
+/** What happened on one import, as the ledger keeps it. */
 export type ForgeHistoryResult = 'NEW' | 'UPDATED' | 'ROLLED_BACK';
 
 export interface ForgeImportHistoryEntry {
   importId: string;
   characterId: string;
+  /** The NPC_ID the character was adopted as. */
+  npcId: string;
   payloadHash: string;
   sourceSchemaVersion: string;
   deployedVersion: string;
@@ -223,18 +201,75 @@ export interface ForgeImportHistoryEntry {
   importedAt: string;
   result: ForgeHistoryResult;
   warnings: ForgeIssue[];
-  /** The snapshot taken before this import changed anything; null when there was nothing before. */
+  /** The previous definition kept for one rollback; null when there was nothing before. */
   snapshotRef: string | null;
 }
 
-/** The record as it was before the last change — what one rollback returns to. */
-export interface ForgeSnapshot {
+/** Which file the previous definition is — the one step a rollback goes back to. */
+export interface ForgePreviousRef {
   snapshotRef: string;
-  characterId: string;
-  takenAt: string;
+  payloadHash: string;
+  sourceSchemaVersion: string;
+  deployedVersion: string;
+  deployedAt: string;
   /** The import that replaced it. */
-  importId: string;
-  record: ForgeCharacterRecord;
+  replacedBy: string;
+}
+
+/**
+ * ONE ADOPTED CHARACTER, in the content ledger (content/forge/roster.json).
+ *
+ * The definition itself is the deploy file, kept verbatim next to it
+ * (content/forge/characters/<ID>.json). This entry is what the game
+ * needs to know ABOUT it: which NPC_ID the author adopted it as, which
+ * send it is, and how it got here. Content, in the build, the same for
+ * every player — never in anybody's save.
+ */
+export interface ForgeRosterEntry {
+  characterId: string;
+  /** The formal NPC_ID (upper-case), fixed at adoption and never changed. */
+  npcId: string;
+  characterType: ForgeCharacterType;
+  encounterRole: ForgeEncounterRole;
+  /** The region the author placed them in at adoption; null = not placed (未配置). */
+  region: string | null;
+  payloadHash: string;
+  sourceSchemaVersion: string;
+  deployedVersion: string;
+  deployedAt: string;
+  adoptedAt: string;
+  lastImportedAt: string;
+  lastImportId: string;
+  previous: ForgePreviousRef | null;
+  history: ForgeImportHistoryEntry[];
+}
+
+export const FORGE_ROSTER_FORMAT = 'mugen-zero.forge-roster';
+
+export interface ForgeRoster {
+  format: typeof FORGE_ROSTER_FORMAT;
+  version: 1;
+  characters: ForgeRosterEntry[];
+}
+
+/**
+ * EVERYTHING THE CONTENT HOLDS ABOUT FORGE CHARACTERS, read into memory.
+ *
+ * In the game this comes from the build (content/forge/forgeContent.ts),
+ * where `previous` is empty — the game never needs an old definition.
+ * The authoring tools read it from the repository's files, including
+ * `previous` (for one rollback) and any file they could not read.
+ */
+export interface ForgeContent {
+  roster: ForgeRoster;
+  /** content/forge/characters/<ID>.json — the adopted deploy file, verbatim. */
+  baselines: Readonly<Record<string, ForgeDeployPackage>>;
+  /** content/forge/previous/<ID>.json — the definition before the last update. */
+  previous: Readonly<Record<string, ForgeDeployPackage>>;
+  /** FORGE's retired ids (content/forge/void.json). Never adopted, ever. */
+  voidIds: readonly string[];
+  /** Characters whose content files could not be read. Nothing is written for them. */
+  damaged: readonly string[];
 }
 
 /** One field that differs between the baseline held and the one offered. */
@@ -271,4 +306,6 @@ export interface ForgeImportResult {
   diffSummary: { added: string[]; changed: string[]; preserved: string[]; gameOwned: string[] };
   rollback: { available: boolean; snapshotRef: string | null };
   decision: ForgeDecision;
+  /** The NPC_ID the character was adopted as, when it was. */
+  npcId?: string;
 }

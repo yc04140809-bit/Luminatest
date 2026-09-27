@@ -6,23 +6,6 @@
 import type { LifeChoiceId, Screen } from '../flow/types';
 import type { MemoryEvent, MemoryEventStore, WorldStateRow } from '../memory/types';
 import { isForgeEventType } from '../memory/types';
-import {
-  EMPTY_FORGE_STATE,
-  isForgeRowKey,
-  readForgeRows,
-  type ForgeState,
-} from '../forge/record';
-import { planForgeImport, type ForgePlan } from '../forge/plan';
-import { applyForgePlan, applyForgeRollback } from '../forge/commit';
-import type {
-  ForgeCharacterRecord,
-  ForgeImportHistoryEntry,
-  ForgeImportResult,
-} from '../forge/types';
-import { FORGE_VOID_IDS } from '../../content/people/forgeIds';
-import { NPC_REGISTRY } from '../../content/people/registry';
-import { LOCATIONS } from '../../content/locations/alden';
-import { ENEMY_SPECIES } from '../../content/enemies/species';
 import { SAVE_VERSION, migrateRows } from './saveSchema';
 import { DEFAULT_HERO_NAME, normaliseHeroName, readHeroName } from './heroName';
 import {
@@ -563,8 +546,6 @@ export class World {
   private equipment: EquipmentTable;
   private ownedEquipment: OwnedTable;
   private unlockedBgm: BattleBgmId[];
-  /** Characters taken in from CHARACTER FORGE (core/forge). */
-  private forge: ForgeState;
 
   private readonly health: SaveHealth;
 
@@ -601,7 +582,6 @@ export class World {
     this.claimedRewards = fields.claimedRewards;
     this.resumeArea = fields.resumeArea;
     this.condition = fields.condition;
-    this.forge = fields.forge;
     this.health = health;
   }
 
@@ -1229,10 +1209,11 @@ export class World {
    */
   hasProgress(): boolean {
     return (
-      // What happened. Not a character arriving from CHARACTER FORGE:
-      // that is the author adding to the world's record, not anybody
-      // playing it, and a fresh save the author imported somebody into
-      // must still open on 「はじめる」.
+      // What happened. Not the two FORGE event types: nothing writes
+      // them any more (adopted characters are content, not save data —
+      // core/forge/content.ts), but a debug build of 2026-09-27 could, and
+      // a save it touched must still open on 「はじめる」 if that is all
+      // it holds.
       this.events.some((event) => !isForgeEventType(event.type)) ||
       this.seenExperience.size > 0 ||
       // HAVING SAID WHO YOU ARE IS PROGRESS. A player who answered the
@@ -2419,149 +2400,6 @@ export class World {
     return paid;
   }
 
-  // ---- CHARACTERS FROM CHARACTER FORGE (core/forge) ----
-  //
-  // The author writes people and creatures in CHARACTER FORGE and sends
-  // them here one file at a time. Nothing arrives by itself: a file is
-  // PLANNED (checked, compared, decided — nothing written), shown to the
-  // author, and only REGISTERED when they say so. A registration is one
-  // store commit: the record, its history, the snapshot of what it
-  // replaced and one WORLD MEMORY event, together or not at all.
-
-  /** Every character taken in from FORGE, by Character ID. */
-  getForgeCharacters(): ForgeCharacterRecord[] {
-    return Object.values(this.forge.records).sort((a, b) => a.characterId.localeCompare(b.characterId));
-  }
-
-  getForgeCharacter(characterId: string): ForgeCharacterRecord | null {
-    return this.forge.records[characterId] ?? null;
-  }
-
-  /** What was imported for one character, oldest first. */
-  getForgeImportHistory(characterId: string): ForgeImportHistoryEntry[] {
-    return [...(this.forge.histories[characterId] ?? [])];
-  }
-
-  /** Whether the last update of a character can be undone (one step). */
-  canRollBackForge(characterId: string): boolean {
-    return !!this.forge.snapshots[characterId] && !!this.forge.records[characterId];
-  }
-
-  /** Characters whose saved FORGE rows could not be read. Imports for them are refused. */
-  getDamagedForgeIds(): string[] {
-    return [...this.forge.damaged];
-  }
-
-  /**
-   * What registering a file would do. Writes nothing.
-   *
-   * `input` is the file's text, or an already-parsed value.
-   */
-  planForgeImport(input: string | unknown): ForgePlan {
-    return planForgeImport(input, {
-      state: this.forge,
-      reservedIds: this.forgeReservedIds(),
-      locations: Object.fromEntries(LOCATIONS.map((place) => [place.id, place.name])),
-      // The game holds no FORGE picture files yet: every asset is metadata only.
-      knownAssetIds: new Set(),
-    });
-  }
-
-  /**
-   * Registers a planned file — NEW or UPDATE — and returns the contract's
-   * import result.
-   *
-   * THE PLAN IS MADE AGAIN HERE, against the save as it is now, and must
-   * come out the same. A plan shown a minute ago may be stale (the same
-   * file registered in another tab, a newer send taken in since), and
-   * what is written must be what the save's current state allows — not
-   * what it allowed when the screen was drawn.
-   */
-  async commitForgeImport(
-    plan: ForgePlan,
-    importedAt: string = new Date().toISOString(),
-  ): Promise<ForgeImportResult> {
-    return this.serialForge(async () => {
-      if (!plan.canRegister || !plan.payload) throw new Error(`登録できない判定です: ${plan.decision}`);
-      const fresh = this.planForgeImport(plan.payload);
-      if (fresh.decision !== plan.decision || fresh.payloadHash !== plan.payloadHash) {
-        throw new Error('確認してから状況が変わりました。もう一度読み込んで確認してください。');
-      }
-      const known = new Set(this.events.map((event) => event.id));
-      const done = applyForgePlan(fresh, this.forge, importedAt, this.clock, (id) => known.has(id));
-      await this.store.commit({
-        addEvents: done.event ? [done.event] : [],
-        putState: done.rows,
-      });
-      if (done.event) this.events = [...this.events, done.event];
-      const id = done.record.characterId;
-      const snapshots = { ...this.forge.snapshots };
-      if (done.snapshot) snapshots[id] = done.snapshot;
-      this.forge = {
-        ...this.forge,
-        records: { ...this.forge.records, [id]: done.record },
-        histories: { ...this.forge.histories, [id]: done.history },
-        snapshots,
-      };
-      this.emit();
-      return done.result;
-    });
-  }
-
-  /**
-   * Undoes the last update of one character: its FORGE baseline goes back
-   * to the snapshot taken before that update. The game's own state for
-   * them and every WORLD MEMORY event stay as they are.
-   */
-  async rollbackForgeImport(
-    characterId: string,
-    at: string = new Date().toISOString(),
-  ): Promise<ForgeImportHistoryEntry> {
-    return this.serialForge(async () => {
-      if (this.forge.damaged.includes(characterId)) {
-        throw new Error(`${characterId} の保存データを読めないため、戻せません。`);
-      }
-      const back = applyForgeRollback(this.forge, characterId, at);
-      await this.store.commit({ putState: back.rows });
-      const snapshots = { ...this.forge.snapshots };
-      delete snapshots[characterId];
-      this.forge = {
-        ...this.forge,
-        records: { ...this.forge.records, [characterId]: back.record },
-        histories: { ...this.forge.histories, [characterId]: back.history },
-        snapshots,
-      };
-      this.emit();
-      return back.entry;
-    });
-  }
-
-  /**
-   * Ids a FORGE character can never take: FORGE's retired ids, and every
-   * id the game already uses for somebody or something else.
-   */
-  private forgeReservedIds(): Set<string> {
-    return new Set([
-      ...FORGE_VOID_IDS,
-      ...NPC_REGISTRY.flatMap((entry) => [entry.npcId, ...entry.aliases]),
-      ...Object.keys(INITIAL_CHARACTERS),
-      ...Object.keys(ENEMY_SPECIES),
-      ...this.enemyIndividuals.map((one) => one.individualId),
-    ]);
-  }
-
-  private forgeLock: Promise<unknown> = Promise.resolve();
-
-  /** One registration at a time: a double tap is two plans for one file, and only the first may write. */
-  private serialForge<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.forgeLock.then(work, work);
-    this.forgeLock = run.then(
-      () => undefined,
-      () => undefined,
-    );
-    return run;
-  }
-
   /** NEW GAME / RESET WORLD: deletes all saved world data and restores defaults. */
   async resetWorld(): Promise<void> {
     await this.store.clearAll();
@@ -2600,8 +2438,6 @@ export class World {
     this.heroNamed = false;
     ({ equipment: this.equipment, owned: this.ownedEquipment } = startingKit());
     this.unlockedBgm = [...INITIAL_UNLOCKED_BATTLE_BGM];
-    // A new world has taken nobody in.
-    this.forge = EMPTY_FORGE_STATE;
     this.emit();
   }
 
@@ -2632,26 +2468,18 @@ export class World {
    * the only caller is the dev panel.
    */
   async devResetScenario(): Promise<void> {
-    // CHARACTERS FROM FORGE STAY, with the record of their arrival.
-    // They are not the story's progress but the author's work, and a
-    // tool for winding the story back must not quietly throw the
-    // author's imports away. Their rows are copied as they are on disk,
-    // unreadable ones included.
-    const forgeRows = (await this.store.getAllState()).filter((row) => isForgeRowKey(row.key));
-    const forgeEvents = this.events.filter((event) => isForgeEventType(event.type));
     const kept: WorldStateRow[] = [
       { key: INVENTORY_KEY, value: this.inventory },
       { key: LUMI_KEY, value: this.lumi },
       { key: PROGRESSION_KEY, value: this.progression },
       { key: CLAIMED_REWARDS_KEY, value: this.claimedRewards },
-      ...forgeRows,
     ];
     await this.store.clearAll();
     // Written back in one commit, immediately: a crash between the
     // clear and this would be a developer losing their test world,
     // which is the thing this method exists to stop.
-    await this.store.commit({ putState: kept, addEvents: forgeEvents });
-    this.events = [...forgeEvents];
+    await this.store.commit({ putState: kept });
+    this.events = [];
     this.clock = INITIAL_CLOCK;
     this.characters = { ...INITIAL_CHARACTERS };
     this.seenExperience = new Set();
@@ -2790,7 +2618,6 @@ interface WorldFields {
    */
   equipmentStarted: boolean;
   unlockedBgm: BattleBgmId[];
-  forge: ForgeState;
 }
 
 /** What reading a save had to say about it. */
@@ -3010,10 +2837,6 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       ownedEquipment: take(OWNED_EQUIPMENT_KEY, readOwned(byKey.get(OWNED_EQUIPMENT_KEY))),
       equipmentStarted: byKey.get(EQUIPMENT_KEY) !== undefined,
       unlockedBgm: take(UNLOCKED_BGM_KEY, readUnlockedBgm(byKey.get(UNLOCKED_BGM_KEY))),
-      // Read on their own terms: a FORGE row that cannot be read holds
-      // up only its own character, and is never counted as damage to
-      // the save (which would send it to the backup).
-      forge: readForgeRows(rows),
     },
     repairedKeys,
     unreadableKeys,

@@ -25,6 +25,7 @@
       "@mugen/assets/battleBackgrounds": [
         "./mugen-assets/src/battleBackgrounds.ts"
       ]
-    }
+    },
+    "resolveJsonModule": true
   }
 }

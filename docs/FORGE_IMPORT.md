@@ -1,121 +1,109 @@
-# CHARACTER FORGE → MUGEN ZERO キャラクター取込（受信側 v1.0）
+# CHARACTER FORGE → MUGEN ZERO キャラクター採用（AUTHORING / CONTENT IMPORT）
 
-2026-09-27 実装。根拠資料：`mugen-character-forge-to-zero-bridge-v1.0.zip`（README／00_START_HERE／INTEGRATION_CONTRACT／
-schemas 2 本／ACCEPTANCE_TESTS）。資料と実コードが違う所は実コードを正本とし、違いは §7 に書いた。
+2026-09-27。根拠：`mugen-character-forge-to-zero-bridge-v1.0.zip` と、作者の方針修正（同日）。
+
+> **CHARACTER FORGE は、作者が候補を作って採用し、MUGEN ZERO の正式 NPC として登録するための開発用ツール。**
+> 採用した NPC は**全プレイヤー共通のコンテンツ**（ゲームのビルドに入る）。端末の SAVE には入れない。
+> SAVE が持つのは、その NPC について**その世界で起きたこと・変わった状態**だけ。
+
+最初の実装（e180a76）は取り込んだ人物を端末の SAVE に入れていた。これは目的と違うため作り直した（§8）。
+プレイヤー個人がキャラクターを足す「RUNTIME / PLAYER IMPORT」は今回は実装しない。
 
 ---
 
-## 1. どこにあるか
+## 1. 正式定義の置き場所（コンテンツ）
 
-| 役割（資料 §3） | ファイル | 性質 |
+`packages/mugen-core/content/forge/`（リポジトリ内。git で管理し、ビルドに入る）
+
+| ファイル | 中身 | ビルドに入るか |
 |---|---|---|
-| Parser | `packages/mugen-core/core/forge/validate.ts` `parseDeployJson` | 純粋・例外を投げない |
-| Validator | 同 `validateDeployPackage` | 純粋。Schema＋意味検証（FORGE の `tools/validate-deploy.mjs` と同じ規則） |
-| 正規化 JSON・hash | `core/forge/canonical.ts` | 純粋・同期の SHA-256。FORGE のツールが出した 3 サンプルの hash と一致をテストで確認 |
-| Resolver／Import Planner | `core/forge/plan.ts` `planForgeImport` | 純粋。NEW／UPDATE／UNCHANGED／BLOCKED_* を決める |
-| Diff Builder | `core/forge/diff.ts` | 純粋。2 階層まで・配列はまとめて比較・`deployment` は比較しない |
-| Import Committer | `core/forge/commit.ts`（純粋）＋ `World.commitForgeImport`（1 回の store.commit） | 全部書くか、何も書かない |
-| Import History／snapshot | `core/forge/record.ts`（保存行の形と読み取り） | 読めない行は書き換えない |
-| UI | `packages/mugen-app/src/dev/ForgeImport.tsx`（＋`forgeImport.css`） | **デバッグビルド限定**（dev サーバー・debug APK） |
-| 予約 ID・対応表 | `packages/mugen-core/content/people/forgeIds.ts` | `FORGE_VOID_IDS`／`FORGE_NPC_CORRESPONDENCE`（どちらも今は空・手で書く） |
+| `roster.json` | 採用台帳：Character ID → NPC_ID、種類・役割、地域、送出版・送出日時・hash、採用日時、取込履歴（NEW／UPDATED／ROLLED_BACK と警告）、直前定義の参照 | 入る |
+| `characters/<ID>.json` | 採用した DEPLOY JSON そのもの（未知の項目も含めて保持） | 入る |
+| `previous/<ID>.json` | 直前の更新の前の定義（ロールバック 1 段用） | **入らない**（ツール専用） |
+| `void.json` | FORGE の VOID／DISCARDED ID 台帳（増えるだけ） | 入る |
+| `index.generated.ts` | 上のファイルを読み込む生成モジュール。手で編集しない（テストが台帳との一致を確認） | 入る |
 
-入口：タイトルの **「DEBUG キャラクター取込」** ボタン、または `?tool=forge-import`。
-リリースビルドには入らない（`vite.config.ts` の `withoutDebugTools` と `npm run check:release` のマーカーで確認）。
+ゲームは `content/forge/forgeContent.ts` で一度だけ読み、次の形で各所へ渡す：
 
-## 2. 判定
+- **人物台帳**：`content/people/allPeople.ts` の `ALL_NPCS` ＝ 手書きの `NPC_REGISTRY` ＋ 採用キャラ（人間は `PERSON`、モンスターは新設の `CREATURE`）。
+  `NPC_REGISTRY` 自体は手書きのまま、ツールは書かない。
+- **WORLD LIFE ENGINE**：`content/world/mugenWorld.ts` の `cores` に `forgeCores(...)` を追加（§4）。
+- **GOD VIEW の名簿**：`WORLD_PEOPLE` に `forgeWorldPeople(...)` を追加。
 
-チェックの順番は「絶対に起きてはいけないこと」の順（`plan.ts` 冒頭）。
+## 2. FORGE Character ID → NPC_ID
 
-| 判定 | 条件 | 画面の表示 |
+- **採用時に作者が NPC_ID を決める**（必須）。決めるまで登録ボタンは押せない。
+- NPC_ID は正式形（英大文字で始まり、英大文字・数字・`_`）。1 つの NPC_ID は 1 人だけ。別名（`alden_marta` など）は使えない。
+- **既存の人物を指定できる**（例：FORGE の HUM-000003 → `LINA`）。その人の正式定義として対応づけるだけで、
+  既存の ID・名前・現在状態の初期値・地域・life engine の core は**変えない**（名前が違えば警告を出し、本編の名前を使う）。
+  PLAYER／KAOS／場所／WORLD、または人間でない人物への対応づけは拒否。モンスターを既存の人物に対応づけることも拒否。
+- 採用後は **NPC_ID を変更できない**（再送出で別の NPC_ID を指定すると拒否）。台帳に永久に残る。
+- 地域は任意（`ALDEN`／`PORT_TOWN`、空欄＝未配置 `UNPLACED`）。FORGE の希望配置（worldAssignment）から自動では決めない。
+
+## 3. RESET WORLD／はじめる
+
+- 正式定義はビルドの中にあるので、**RESET WORLD・はじめる・再インストールでは消えない**。
+- 初期化されるのは、その世界で起きた出来事と現在状態（SAVE）だけ。
+- 採用キャラの「ゲーム中に変化した状態」は、既存の人物と同じく NPC_ID をキーに SAVE に置く設計（`character_<NPC_ID>` のように、
+  行が無い＝コンテンツの初期状態）。**現時点で採用キャラの状態を書き込むゲーム処理はまだ無い**ので、SAVE に行は増えない。
+
+## 4. WORLD LIFE ENGINE からの参照
+
+`forgeCores(handCores, content)` が採用キャラを life engine の人物（`NpcCore`）にする：
+
+| NpcCore | 人間 | モンスター |
 |---|---|---|
-| `BLOCKED_VALIDATION` | JSON 構文エラー／source・target 不正／schemaVersion が 1.x 以外／ID 形式不正／HUM-ID×monster など／BOSS の必須項目が空・未設定／`equipment.validation.permitted:false`／assets に data URL | 取込不可（形式エラー） |
-| `BLOCKED_SAMPLE_DATA` | `sampleOnly: true` | 取込不可（サンプルデータ） |
-| `BLOCKED_SAVE_DAMAGED` | その ID の保存行が読めない（上書きすると唯一のコピーが消える） | 取込不可（保存データを読めません） |
-| `BLOCKED_RESERVED_ID` | FORGE の VOID ID、または本編がすでに別のものに使っている ID | 取込不可（予約済みID） |
-| `BLOCKED_ID_TYPE_CONFLICT` | 登録済みの ID が別の characterType | 競合 — 取込不可 |
-| `UNCHANGED` | 登録済みと同じ payload hash（キー順・空白は無関係） | 変更なし（登録ボタン無効・「二重登録はしません」） |
-| `BLOCKED_DEPLOYMENT_CONFLICT` | 同じ ID で内容が違うのに、送出日時が登録済みより**新しくない**（古い／同時刻） | 競合 — 取込不可 |
-| `UPDATE` | 同じ ID・同じ type・より新しい送出 | 更新候補 → **[差分を反映]** |
-| `NEW` | 未登録の ID | 新規登録 → **[このキャラクターを登録]** |
+| traits | `profile.core.personality`（FORGE の言葉のまま） | なし |
+| values | `profile.core.values` | なし |
+| desires | `profile.core.desires` | `ecology.desire` |
+| aptitudes | `aptitudes` をキー大文字化（MAGIC・SWORD・HEALING…）。どちらも「潜在適性」で意味が同じ | なし（種族の戦闘潜在値は人生の適性ではない） |
 
-- `schemaVersion` `1.1` など同じ major の新しい版は警告付きで 1.0 の規則で読む（契約 §7）。`2.0` などは BLOCK。
-- BOSS は `monster + encounterRole: BOSS`。保存上の type は `monster` のまま。「HUMAN／通常モンスター／BOSS」は画面用に毎回計算する。
-- **警告であって拒否しないもの**：未解決の `relationshipRefs`（UNRESOLVED_REFERENCE）、画像の実ファイルなし（MISSING_ASSET）、
-  primary 画像なし、希望配置の場所が本編に無い（WORLD_ASSIGNMENT_UNRESOLVED）／名前が一致（…NAME_MATCH・自動配置はしない）、
-  見た目レビュー未承認、未知の項目（保持する）、`FUTURE_TENDENCY`／`FUTURE_ASPIRATION`（現在の事実にしない）、
-  遭遇の役割の変更（NORMAL↔BOSS）、以前に取り込んだことのある payload（ロールバック後の再取込）。
+- 既存の人物（手書き core がある NPC_ID、別名 `alden_marta` 含む）は追加しない＝二重にならない。
+- **言葉の対応は推測しない**：既存の種の種類は `CURIOUS`・`FAMILY` など英語 ID で共鳴を判定するので、「慎重」などの FORGE の言葉は
+  そのままでは共鳴しない（最低値で育つ）。作者がその言葉に反応する種を書くか、語彙の対応表を決めたら効くようになる。
+- テストで確認：採用キャラの前で「魔法を見せる」が起きると、そのキャラに種が植わる（core が無ければ植わらない）。
 
-## 3. 保存するもの（SAVE_VERSION は 3 のまま・migration なし）
+## 5. 採用の流れと道具
 
-キャラクター 1 人につき `world_state` に 3 行。**新しい行なので migration は不要**（「行が無い＝何も取り込んでいない」）。
-セーブの修復処理はこのキーを知らないので、読み込み時に書き換えない。バックアップ（`worldBackup`）には他の行と同じく入る。
+判定は以前と同じ（NEW／UPDATE／UNCHANGED／BLOCKED_*。古い送出・同時刻で内容違いは拒否、サンプルは拒否、未解決の関係・画像・場所は警告）。
+その上で NPC_ID の確認（§2）が加わる。すべて純粋関数（`core/forge/plan.ts`・`content.ts`）。
 
-| キー | 中身 |
+| 道具 | できること |
 |---|---|
-| `forge_character_<ID>` | `ForgeCharacterRecord`：`characterId`・`characterType`・`encounterRole`・`npcId`（null）・`forgeBaseline`（受け取った JSON そのまま・未知の項目も含む）・`runtimeState`（本編の状態。取込は書かない）・`importMetadata`（hash・契約版・送出版・送出日時・初回／最終取込時刻・取込 ID） |
-| `forge_history_<ID>` | 取込履歴（importId・characterId・payloadHash・sourceSchemaVersion・deployedVersion・deployedAt・importedAt・result NEW/UPDATED/ROLLED_BACK・warnings・snapshotRef） |
-| `forge_snapshot_<ID>` | 直前 1 回分の記録（更新の前に取る）。ロールバックで使い切ると null |
+| 開発サーバーの画面（PC、`npm run dev:app` → タイトルの「DEBUG キャラクター取込」または `?tool=forge-import`） | 検証 → 差分確認（NPC_ID・地域の入力）→ 登録。リポジトリの `content/forge` へ書く。ロールバック。 |
+| コマンド | `npm run forge:import -w @mugen/core -- <deploy.json> --npc-id SERA [--region ALDEN] [--apply]`（`--apply` なしは確認のみ）／`-- --rollback <ID> --apply`／`-- --void <FORGEのVOID書き出し.json> --apply`／`-- --list` |
+| debug APK（実機） | 同じ画面が**確認専用**で開く。ビルドに入っている採用済みキャラの一覧と、ファイルの検証・差分。書き込みはしない。 |
 
-1 人 3 行にしたのは、読めない行があってもその 1 人だけが止まり、他の人の取込は続けられるようにするため。
+- 書き込みは毎回ディスクを読み直して計画し直し、画面で確認した判定・hash と違えば何も書かない。
+- 書いた後は `content/forge` の変更を git に入れてビルドすると全プレイヤーのゲームに入る。
+- 開発サーバーの書き込み口（`/__mugen/forge/*`）は `vite serve` のときだけ存在し、どのビルドにも入らない。
+  `&sandbox=<名前>` を付けると OS の一時フォルダに書く（e2e テスト用）。
 
-**WORLD MEMORY**（出来事ストア・書き込み 1 回きり）に 1 件ずつ足す：
+## 6. VOID／DISCARDED ID
 
-| 出来事 | id | いつ |
+- `void.json` に永久保存（増えるだけ、消さない）。FORGE の書き出しファイルから取り込む（`--void`）。
+  FORGE の正式な書き出し形式が未確定なので、ID の配列、`{voidIds|discardedIds: [...]}`、`{characters|entries: [{characterId, status: VOID|DISCARDED}]}` を読む。
+  読めなかった値は理由を返す。
+- VOID の ID は採用できない（BLOCKED_RESERVED_ID）。
+- **採用済みの ID が VOID として届いたら、何も書かずに止める**（NPC を消して解決しない。作者が FORGE と照合）。
+
+## 7. テスト
+
+| テスト | 件数 | 内容 |
 |---|---|---|
-| `CHARACTER_IMPORTED_FROM_FORGE` | `evt_forge_import_<ID>`（1 人 1 回きり） | 新規登録 |
-| `CHARACTER_UPDATED_FROM_FORGE` | `evt_forge_update_<importId>` | 更新 |
+| `core/forge/forge.test.ts` | 40 | hash、A1〜A6、B（コンテンツとして）、C1〜C7、古い送出、ファイル改ざん、NPC_ID の規則、VOID、D1〜D6、E1〜E6、F1〜F5、未知の項目、結果スキーマ、差分、生成 index |
+| `core/forge/contentFs.test.ts` | 6 | 一時フォルダで実際にファイルを書く：採用・同じファイル再読込・確認後に変わったら書かない・サンプルは書かない・更新とロールバック・手で編集された定義の検出・VOID 取込 |
+| `content/forge/forgeContent.test.ts` | 11 | ビルドの content が読めて index が生成物と一致、サンプル・VOID・NPC_ID 重複なし、人物台帳・life engine・GOD VIEW への反映、**life engine が採用キャラに種を植える**、既存人物への対応づけで何も増えない、SAVE に FORGE 行が無い、RESET WORLD で消えない、e180a76 の SAVE（FORGE 行・出来事入り）がそのまま開ける |
+| `mugen-app/e2e/forgeImport.spec.ts` | 6 | 画面の 3 段階（サンドボックスに書く）、NPC_ID 入力、HUMAN／通常モンスター／BOSS、サンプル・壊れた JSON、二重登録なし、再送出の差分、ロールバック、既存人物への対応、リポジトリの content を触っていないこと |
 
-actors は `[<ID>]`、importance は AMBIENT、日付は今の世界の時刻、`forge` 欄に source・送出版・送出日時・hash・importId・
-`canonStatus: 'CANON'`。この 2 種類は「作者が世界の記録に人を加えた」事実であって、誰かの一日に起きたことではないので：
+「非サンプルの FORGE JSON」：実データはまだ手元に無いので、FORGE のサンプルから `sampleOnly` を外したコピー（テストの中だけ）で確認している。
+作者の実データは `npm run forge:import -w @mugen/core -- <file> --npc-id <ID>`（`--apply` なし）でそのまま確認できる。
 
-- `hasProgress()`（タイトルの「つづきから」）に数えない — 取り込んだだけの新しいセーブは「はじめる」のまま
-- `getKnownEvents()`（プレイヤーが知っていること）に入らない — actors に PLAYER がいないため、既存の規則のまま
-- WORLD LIFE ENGINE は読まない（`canonAsWorldMemories` で除外）— 入れると時計が進み、記憶の数が変わり、読みがずれる（テスト G4 で確認）
+## 8. e180a76（SAVE 方式）から変わったこと
 
-## 4. 更新・ロールバックで変わるもの／変わらないもの
-
-- **更新で変わる**：`forgeBaseline`（丸ごと差し替え）と `importMetadata`。履歴に 1 行、WORLD MEMORY に 1 件、スナップショット 1 件。
-- **更新で変わらない**：`runtimeState`・`npcId`・既存の WORLD MEMORY・時計・所持品・LUMI・他の人物・戦闘の値・画像ファイル。
-- **ロールバック**：`forgeBaseline` と `importMetadata` をスナップショットへ戻す（初回取込時刻は保つ）。`runtimeState`・`npcId`・
-  WORLD MEMORY はそのまま（「更新を受け入れた」事実も残る）。1 段だけ・スナップショットは使い切り。新規登録は戻せない（戻す前が無い）。
-- 本編がまだ `forgeBaseline` を書き換えないので、v1 では「FORGE と本編が同じ項目を別々に変えた」競合は起きない。
-  将来 `runtimeState` に名前などを持たせたら、項目単位の「FORGE を採用／本編を維持」をここに足す。
-
-## 5. 安全規則（資料 §9・§10）がどこで守られているか
-
-- 潜在適性から技能・職業・装備を作らない：取込は `forgeBaseline` を受け取ったまま保存するだけで、何も導出しない。
-  現在の事実を読むときは `forgeHumanCurrentFacts`（`currentSkills` そのまま、職業は `CURRENT_FACT` の時だけ、
-  `FUTURE_ASPIRATION` は「将来の希望」として別に返す）。
-- 個体名が null なら null のまま。表示だけ種族名で代わりにする（`forgeDisplayName`）。
-- BOSS の遭遇設計は 19 項目すべて保持するが、戦闘の数値・身体構造には変換しない。通常モンスターの `bossEncounter` は null を要求。
-- 関係・場所・画像は推測で作らない。
-
-## 6. テスト
-
-- `core/forge/forge.test.ts`（32）：hash（FIPS ベクタ＋FORGE の 3 サンプル）、A1〜A6、B（純粋部分）、C1・C2・C6・C7、古い送出の拒否、
-  D1〜D6、E1〜E6、F1〜F5、未知の項目、予約 ID、保存行破損、結果スキーマ、差分。
-- `core/world/forgeImport.test.ts`（17）：fake-indexeddb で実際に保存・再読込。B1〜B8、A2・A6（保存が変わらない）、C1〜C6、
-  古い計画の拒否、二度押し、G1〜G6（既存の行・出来事・人物が 1 バイトも変わらない、migration なし、TIME SHIFT・WORLD LIFE・
-  ニュースが取込の有無で同じ、戦闘の値が同じ）、「はじめる」のまま、保存行破損、dev の SCENARIO RESET、RESET WORLD。
-- `mugen-app/e2e/forgeImport.spec.ts`（5）：画面で 3 段階、HUMAN／通常モンスター／BOSS、サンプル・壊れた JSON、二重登録なし、
-  再送出の差分、ロールバック、取り込まない、タイトルが「はじめる」のまま。
-
-サンプル（`sampleOnly: true`）はテスト用フィクスチャとしてそのまま置き（`core/forge/fixtures/`）、登録できないことをテストする。
-登録のテストは、テストの中でだけ sampleOnly を外したコピーを、使い捨てのストアへ入れる。
-
-## 7. 資料との違い・作者に確認したいこと
-
-1. **取り込んだ人はその端末のセーブに入る**（資料どおり「本編データへ登録」＝ WORLD MEMORY・履歴・スナップショットを持つ）。
-   連携設計 §7 で想定していた「Forge の人の定義はビルドに入る content（保存しない）」とは違う置き場所になる。
-   全プレイヤーに同じ人物を配るには、登録済みの人を content（ビルド）へ書き出す段階が別に要る（未実装）。
-   また `resetWorld`（Artifact の NEW GAME／dev の RESET WORLD）はセーブごと消すので、取り込んだ人も消える。
-   App の「はじめる」はリセットしないので消えない。dev の SCENARIO RESET は取り込んだ人と到着の出来事を残す。
-2. **古い送出は拒否（BLOCKED_DEPLOYMENT_CONFLICT）**。資料の判定表に無いケースなので、新しい基礎設定を古いもので上書き
-   しない側に倒した。同時刻で内容が違う場合も同じ。
-3. **結果（import result 1.0）の保存**：登録した取込（NEW／UPDATED／ROLLED_BACK）は履歴に保存。UNCHANGED・BLOCKED は画面に
-   結果を作って表示するが保存しない（ID の無い壊れた JSON は保存先の鍵が無い）。
-4. **BLOCKED_ID_TYPE_CONFLICT はほぼ起きない**：ID の接頭辞（HUM／MON）が type と一致しないファイルはその前の検証で止まる
-   （A5）。登録済みの記録自体の type が食い違っている時だけこの判定になる。どちらでも取り込まれない。
-5. **ZERO 側に FORGE の VOID 台帳は無い**。`FORGE_VOID_IDS` を作ったので、作者が退役させた ID をここへ書く。
-   本編の NPC_ID・別名・敵の種族 ID・敵個体 ID との衝突も BLOCK する（形が違うので実際には起きない）。
-6. `npcId`（NPC_ID との対応）は null のまま。§11 の対応表 `FORGE_NPC_CORRESPONDENCE` は空。
+- `World` の FORGE 用メソッド・行（`forge_character_*` など）・到着イベントの書き込みを**削除**。`World` の変更は `hasProgress` の 1 行だけ残した
+  （下記の旧イベントを進行とみなさない）。
+- `CHARACTER_IMPORTED_FROM_FORGE`／`CHARACTER_UPDATED_FROM_FORGE` はもう書かない。ただし e180a76 の debug ビルドで取り込んだ SAVE を
+  読めるように型とラベルは残し、進行・プレイヤーの知識・life engine からは今まで通り除外。旧 `forge_*` 行は書き換えずに残る。
+- 「WORLD MEMORY 初期イベント」（資料 §13）は、採用が世界の中の出来事ではないため、**台帳（roster.json）の取込履歴**として記録する形に変えた。
+- SAVE_VERSION は 3 のまま。SAVE の形式は何も変えていない。
