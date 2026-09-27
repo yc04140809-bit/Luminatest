@@ -239,3 +239,11 @@ FORGE → ZERO の書き出し JSON の正式形式：
   外見・Life Engine（SEED／GROWTH／VINE／BLOOM）・性格・能力・イベント判定のどれにも使わない（どんな visualDiversity でもゲームの定義が同じになることをテストで確認）。
 - FORGE ↔ ZERO の間に自動送信・API・同期は無い。FORGE の「更新データを再送」は「最新データを JSON として書き出し直す」意味。
   作者が JSON を手で渡し → preview → 作者確認 → apply → content/forge → commit／push → ビルド。
+
+### 9c. 2026-09-28：HUM-000001 → RIZEL を採用（実データ 1 件目）
+
+作者 OK のうえ `npm run forge:import -w @mugen/core -- <JSON> --npc-id RIZEL --life-actor yes --apply` で登録。
+書き込み：`content/forge/characters/HUM-000001.json`（受け取った JSON とバイト単位で同一）、`roster.json`、`index.generated.ts`。
+RIZEL：人間・PERSON・lifeActor true・地域 未配置・standing 表示 ORDINARY（importance「重要」は UNMAPPED のため表示用の既定値）。
+Life Engine には aptitudes（MAGIC・SWORD・HEALING）だけが入り、traits／values／desires は空。visualDiversity は SOURCE DATA PRESERVED / GAME MAPPING = UNUSED。
+専用テスト `content/forge/rizel.test.ts`（ビルドの実 content を読む。モックなし）。

@@ -1,5 +1,103 @@
 {
   "format": "mugen-zero.forge-roster",
   "version": 1,
-  "characters": []
+  "characters": [
+    {
+      "characterId": "HUM-000001",
+      "npcId": "RIZEL",
+      "characterType": "human",
+      "encounterRole": null,
+      "region": null,
+      "lifeActor": true,
+      "payloadHash": "sha256:69c9e867e36b68867cc62275de6b812c40f9db2bcf9cc6530d522361c5403afb",
+      "sourceSchemaVersion": "1.0",
+      "deployedVersion": "0.1-r2",
+      "deployedAt": "2026-09-27T21:51:51.207Z",
+      "adoptedAt": "2026-09-27T22:48:16.488Z",
+      "lastImportedAt": "2026-09-27T22:48:16.488Z",
+      "lastImportId": "IMP-20260927T224816488Z-HUM-000001-69c9e867",
+      "previous": null,
+      "history": [
+        {
+          "importId": "IMP-20260927T224816488Z-HUM-000001-69c9e867",
+          "characterId": "HUM-000001",
+          "npcId": "RIZEL",
+          "payloadHash": "sha256:69c9e867e36b68867cc62275de6b812c40f9db2bcf9cc6530d522361c5403afb",
+          "sourceSchemaVersion": "1.0",
+          "deployedVersion": "0.1-r2",
+          "deployedAt": "2026-09-27T21:51:51.207Z",
+          "importedAt": "2026-09-27T22:48:16.488Z",
+          "result": "NEW",
+          "warnings": [
+            {
+              "code": "UNRESOLVED_REFERENCE",
+              "path": "relationshipRefs",
+              "message": "関係ID REL-000001 は本編にまだありません。関係は作らずに保留し、キャラクター本体は取り込みます。"
+            },
+            {
+              "code": "MISSING_ASSET",
+              "path": "assets",
+              "message": "画像 VIS-HUM-000001-001（HUM-000001_CONCEPT_001.webp）の実ファイルは本編に未登録です。メタ情報だけを保持します。"
+            },
+            {
+              "code": "NO_PRIMARY_ASSET",
+              "path": "assets",
+              "message": "primary: true の画像がありません。代表画像は未設定として扱います。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.importance",
+              "message": "UNMAPPED: profile.importance「重要」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「情に厚い」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「臆病」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「世話焼き」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「友情」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「平和」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「静かに暮らしたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「誰かに必要とされたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「commerce」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「social」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            }
+          ],
+          "snapshotRef": null
+        }
+      ]
+    }
+  ]
 }

@@ -4,8 +4,10 @@
 
 import roster from './roster.json';
 import voidLedger from './void.json';
+import HUM_000001 from './characters/HUM-000001.json';
 
 export const FORGE_ROSTER_DATA: unknown = roster;
 export const FORGE_VOID_DATA: unknown = voidLedger;
 export const FORGE_BASELINE_DATA: Readonly<Record<string, unknown>> = {
+  'HUM-000001': HUM_000001,
 };

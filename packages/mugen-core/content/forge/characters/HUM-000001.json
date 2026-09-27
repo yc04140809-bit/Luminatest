@@ -1,0 +1,312 @@
+{
+  "schemaVersion": "1.0",
+  "source": "MUGEN_CHARACTER_FORGE",
+  "characterId": "HUM-000001",
+  "characterType": "human",
+  "encounterRole": null,
+  "status": "CANONIZED",
+  "identity": {
+    "name": "リゼル",
+    "speciesName": null,
+    "individualName": null,
+    "nameStatus": "CANON",
+    "speciesNameStatus": null,
+    "individualNameStatus": null,
+    "nameOrigin": null,
+    "speciesNameOrigin": null,
+    "individualNameOrigin": null
+  },
+  "profile": {
+    "age": "20",
+    "gender": "女性",
+    "origin": "アルデン村",
+    "currentRegion": "アルデン村",
+    "family": "",
+    "occupation": "",
+    "role": "",
+    "appearance": "",
+    "affiliation": "",
+    "importance": "重要",
+    "core": {
+      "personality": [
+        "情に厚い",
+        "臆病",
+        "世話焼き"
+      ],
+      "values": [
+        "友情",
+        "平和"
+      ],
+      "weakness": "見栄っ張り",
+      "desires": [
+        "静かに暮らしたい",
+        "誰かに必要とされたい"
+      ],
+      "tendency": "普段と戦闘時で性格が変わる"
+    },
+    "specialTendency": "普段と戦闘時で性格が変わる",
+    "notes": "",
+    "recruitment": {
+      "adoptionNotes": "",
+      "adoptionStatus": "",
+      "adoptionReason": "",
+      "roleCandidate": "",
+      "importanceCandidate": "",
+      "seedCandidates": [],
+      "worldLifeHooks": [],
+      "visualNotes": "",
+      "updatedAt": "2026-09-27T13:15:14.862Z",
+      "shortlistedAt": "2026-09-09T13:45:47.712Z",
+      "adoptedAt": "2026-09-09T13:47:15.209Z",
+      "rejectedAt": "",
+      "visualizedAt": "2026-09-09T13:51:33.096Z",
+      "canonizedAt": "2026-09-10T12:02:00.036Z",
+      "deployedAt": "2026-09-27T13:15:14.862Z",
+      "archivedAt": ""
+    }
+  },
+  "lifeAxis": {
+    "morality": "利己的",
+    "altruism": 0.76,
+    "ruleCompliance": 0.57,
+    "marriageDesire": "どちらでもよい",
+    "romanceStyle": "奥手",
+    "solitudeStyle": "一人を好む",
+    "familyOrientation": "家族観が薄い",
+    "responsibility": "強い",
+    "recognitionNeed": "普通",
+    "riskStyle": "大胆",
+    "trustStyle": "普通",
+    "forgiveness": "普通",
+    "dependence": "自立",
+    "changeTolerance": "慣れれば対応",
+    "moneySense": "普通",
+    "powerOrientation": "普通",
+    "secrecy": "隠しやすい"
+  },
+  "worldViewAxis": {
+    "homelandLove": "中立",
+    "faith": "信仰がある",
+    "statusAwareness": "普通",
+    "otherSpeciesAttitude": "好意的",
+    "magicAttitude": "実用的",
+    "rulerLoyalty": "不信",
+    "crimeTolerance": "抵抗が薄い",
+    "deathFear": "恐れる",
+    "honorDesire": "普通",
+    "lineageAttachment": "普通"
+  },
+  "relationshipPotential": [
+    "嫉妬しやすい",
+    "年上に懐きやすい",
+    "狭く深い"
+  ],
+  "aptitudes": {
+    "magic": 0.28,
+    "sword": 0.62,
+    "healing": 0.53,
+    "commerce": 0.74,
+    "social": 0.64
+  },
+  "aptitudeSemantics": "POTENTIAL_NOT_ACQUIRED_SKILL",
+  "currentSkills": {
+    "magic": "UNLEARNED",
+    "sword": "UNLEARNED",
+    "healing": "UNLEARNED",
+    "commerce": "UNLEARNED",
+    "social": "UNLEARNED"
+  },
+  "equipment": {
+    "requested": "",
+    "environmentBasis": "",
+    "experienceBasis": "",
+    "validation": {
+      "status": "NO_EQUIPMENT_REQUIRED",
+      "permitted": true,
+      "requestedTypes": [],
+      "grounds": [],
+      "missingTypes": [],
+      "potentialAptitudeUsed": false,
+      "message": "武器・魔法具・職業装備は要求されていません。"
+    }
+  },
+  "lifeStage": {
+    "stage": "ADULT",
+    "source": "VISUAL_AGE",
+    "visualAge": "older_adult",
+    "adultAxisMode": "CURRENT_TENDENCY",
+    "occupationMode": "UNSET",
+    "futureFields": [],
+    "note": "成人向けLIFE AXISは現在傾向として扱える。"
+  },
+  "visualDiversity": {
+    "engineVersion": "1.0",
+    "generated": true,
+    "ageGroup": "older_adult",
+    "genderExpression": "androgynous",
+    "bodyBuild": "heavy",
+    "heightImpression": "very_tall",
+    "faceShape": "square",
+    "facialImpression": "confident",
+    "hair": {
+      "color": "salt_and_pepper",
+      "length": "very_short",
+      "volume": "thick",
+      "texture": "straight",
+      "trait": "flyaway_hair",
+      "styling": "covered_by_work_cloth"
+    },
+    "skinLifeMarks": [
+      "風雨による肌荒れ",
+      "なし"
+    ],
+    "posture": "light_footed",
+    "clothingCondition": "ordinary",
+    "occupationCue": "地域の気候に合わせた重ね着",
+    "equipmentStyle": "手ぶら",
+    "signatures": [
+      "笑うと深く出る片側の皺",
+      "なし",
+      "不揃いな前髪"
+    ],
+    "rarityTags": [],
+    "similarity": {
+      "warning": false,
+      "score": 0,
+      "comparedAgainst": []
+    }
+  },
+  "visualDirection": {
+    "overallImpression": "COMICAL",
+    "intensity": "SUBTLE",
+    "customInstruction": ""
+  },
+  "visualReviewStatus": "APPROVED",
+  "visualReviewChecklist": {},
+  "worldAssignment": {},
+  "productionChecklist": {},
+  "relationshipRefs": [
+    "REL-000001"
+  ],
+  "characterHistory": [
+    {
+      "event": "SHORTLISTED",
+      "at": "2026-09-09T13:45:47.712Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "CANDIDATE"
+      }
+    },
+    {
+      "event": "NAME_CONFIRMED",
+      "at": "2026-09-09T13:46:16.559Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "AUTO_CANDIDATE",
+        "nextStatus": "CANON"
+      }
+    },
+    {
+      "event": "ADOPTED",
+      "at": "2026-09-09T13:47:15.209Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "SHORTLISTED"
+      }
+    },
+    {
+      "event": "VISUAL_REVIEW_APPROVED",
+      "at": "2026-09-09T13:51:27.003Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "UNREVIEWED"
+      }
+    },
+    {
+      "event": "VISUALIZED",
+      "at": "2026-09-09T13:51:33.096Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "ADOPTED"
+      }
+    },
+    {
+      "event": "VISUAL_GENERATED",
+      "at": "2026-09-09T13:51:33.096Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "UNSET"
+      }
+    },
+    {
+      "event": "CANONIZED",
+      "at": "2026-09-10T12:02:00.036Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "VISUALIZED"
+      }
+    },
+    {
+      "event": "RELATION_CREATED",
+      "at": "2026-09-11T01:36:27.826Z",
+      "origin": "SYNAPSE",
+      "details": {
+        "relationshipId": "REL-000001",
+        "relationType": "FAMILY_SIBLING",
+        "counterpartCharacterId": "HUM-000005",
+        "canonStatus": "PROVISIONAL"
+      }
+    },
+    {
+      "event": "DEPLOYED",
+      "at": "2026-09-27T13:15:14.862Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "CANONIZED"
+      }
+    }
+  ],
+  "ecology": null,
+  "combat": null,
+  "bossEncounter": null,
+  "seeds": [
+    "恐怖",
+    "冒険への憧れ",
+    "知識への渇望"
+  ],
+  "dramaHooks": [],
+  "worldMemory": {
+    "registered": false,
+    "events": [],
+    "memo": ""
+  },
+  "worldLifeEngine": {
+    "enabled": true
+  },
+  "assets": [
+    {
+      "assetId": "VIS-HUM-000001-001",
+      "assetType": "CONCEPT",
+      "fileName": "HUM-000001_CONCEPT_001.webp",
+      "internalFileName": "HUM-000001_CONCEPT_001.webp",
+      "originalFileName": "1000084520.png",
+      "originalMimeType": "image/png",
+      "mimeType": "image/webp",
+      "width": 1225,
+      "height": 1284,
+      "originalByteSize": 3031303,
+      "storedByteSize": 423420,
+      "imageStorageKey": "VIS-HUM-000001-001",
+      "memo": "",
+      "createdAt": "2026-09-10T12:01:54.722Z",
+      "approved": true,
+      "primary": false
+    }
+  ],
+  "deployment": {
+    "source": "MUGEN_CHARACTER_FORGE",
+    "target": "MUGEN_ZERO",
+    "deployedAt": "2026-09-27T21:51:51.207Z",
+    "deployedVersion": "0.1-r2"
+  }
+}
