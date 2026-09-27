@@ -17,6 +17,7 @@
 // longer be four routes.
 
 import type { MemoryEvent } from '../memory/types';
+import { isForgeEventType } from '../memory/types';
 import type { WorldMemoryRecord } from './types';
 
 /**
@@ -58,7 +59,12 @@ export function asWorldMemory(event: MemoryEvent): WorldMemoryRecord {
  * other, and a store is under no obligation to hand them back in order.
  */
 export function canonAsWorldMemories(events: readonly MemoryEvent[]): WorldMemoryRecord[] {
-  return [...events]
+  return events
+    // A character arriving from CHARACTER FORGE is the author adding to
+    // the world's record, not something that happened in anybody's day.
+    // Read as a life fact it would move the engine's clock and sit among
+    // what people remember; it is neither, so it is not read at all.
+    .filter((event) => !isForgeEventType(event.type))
     .map(asWorldMemory)
     .sort(
       (a, b) =>

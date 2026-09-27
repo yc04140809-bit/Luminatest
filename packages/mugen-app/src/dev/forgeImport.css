@@ -1,0 +1,67 @@
+/* CHARACTER FORGE import (debug builds only). One column, readable on a
+   phone held either way; the page scrolls on its own because the game's
+   body does not. */
+.fi-root {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+  padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+  background: #14110d;
+  color: #efe6d2;
+  font: 14px/1.6 system-ui, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+.fi-root * { box-sizing: border-box; }
+.fi-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.fi-header h1 { font-size: 16px; margin: 0; color: #ffd76a; letter-spacing: 0.04em; }
+.fi-root h2 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.fi-root h3 { font-size: 13px; margin: 14px 0 4px; color: #d8c79f; }
+.fi-num {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  background: #e0b84a; color: #14110d; font-size: 13px; font-weight: 700;
+}
+.fi-step {
+  max-width: 760px; margin: 12px auto 0; padding: 12px 14px;
+  border: 1px solid #4a3d27; border-radius: 10px; background: #1d1913;
+}
+.fi-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fi-btn {
+  min-height: 40px; padding: 6px 16px; border-radius: 8px; border: 1px solid #8a7342;
+  background: #2a2317; color: #efe6d2; font: inherit; cursor: pointer;
+}
+.fi-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.fi-primary { background: #e0b84a; color: #14110d; border-color: #e0b84a; font-weight: 700; }
+.fi-link { background: none; border: none; color: #9fc3ff; font: inherit; text-decoration: underline; cursor: pointer; min-height: 36px; }
+.fi-paste { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.fi-paste textarea {
+  width: 100%; font: 12px/1.4 ui-monospace, monospace; background: #0f0d0a; color: #efe6d2;
+  border: 1px solid #4a3d27; border-radius: 6px; padding: 8px;
+}
+.fi-summary { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 10px 0 0; }
+.fi-summary dt { color: #b3a37c; }
+.fi-summary dd { margin: 0; word-break: break-all; }
+.fi-decision-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fi-decision { padding: 2px 12px; border-radius: 999px; border: 1px solid currentColor; font-weight: 700; }
+.fi-kind { padding: 1px 8px; border-radius: 4px; background: #3a2f1c; font-size: 12px; }
+.fi-list { margin: 0; padding-left: 20px; }
+.fi-list li { margin: 2px 0; }
+.fi-compact { columns: 2 220px; }
+.fi-change { font-size: 12px; word-break: break-all; }
+.fi-before { color: #c9a5a5; }
+.fi-after { color: #a8d8a8; }
+.fi-table { border-collapse: collapse; }
+.fi-table th, .fi-table td { padding: 1px 10px 1px 0; text-align: left; font-weight: normal; }
+.fi-details { margin-top: 8px; }
+.fi-pre { max-height: 240px; overflow: auto; font-size: 11px; background: #0f0d0a; padding: 8px; border-radius: 6px; }
+.fi-record { border-top: 1px solid #3a2f1c; padding: 8px 0; }
+.fi-record-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fi-history { margin: 4px 0; padding-left: 20px; font-size: 12px; }
+.fi-note { font-size: 12px; color: #b3a37c; max-width: 760px; margin: 6px auto; }
+.fi-reason { color: #ffb4a0; }
+.fi-done { font-size: 16px; font-weight: 700; color: #ffd76a; margin: 0 0 8px; }
+.fi-good { color: #9fd89f; }
+.fi-warn { color: #f0c870; }
+.fi-bad { color: #ff9c86; }
+.fi-quiet { color: #8f8468; }

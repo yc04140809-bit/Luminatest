@@ -437,3 +437,12 @@ interface TalkCandidate {
     新しい人として受け取らない。
 - Forge 側の実装（DEPLOY PACKAGE・検証・配属履歴・「行ってらっしゃい」・JSON 書き出し）は、Forge のコードが
   このセッションから見えるようになってから行う（現時点でアクセスできる別リポジトリ `yc04140809-bit/-` は空）。
+
+---
+
+## 12. FORGE 受信側の取込（2026-09-27）
+
+`mugen-character-forge-to-zero-bridge-v1.0` に沿って、MUGEN ZERO 側のキャラクター取込を実装した。詳細は
+[`docs/FORGE_IMPORT.md`](./FORGE_IMPORT.md)。§7 との違い：取り込んだ人は**その端末のセーブ**（`forge_character_<ID>` など）
+に入り、WORLD MEMORY に到着の出来事が 1 件残る。ビルドの content に入れて全員に配る段階は、まだ無い。
+Forge の ID は `characterId`（§11 の `forgeId`）のまま保存し、NPC_ID との対応（`npcId`）は null のまま。

@@ -11,7 +11,21 @@ const params = new URLSearchParams(window.location.search);
 // APK (`npm run build:debug`). Both halves of the check are compile
 // time, so a release build (`npm run build`) contains neither the check
 // nor the preview.
+// `?tool=forge-import` — CHARACTER FORGE's deploy files into this
+// device's save (src/dev/ForgeImport.tsx). Debug builds only, the same
+// compile-time way.
 if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('tool') === 'forge-import'
+) {
+  void import('./dev/ForgeImport').then(({ ForgeImport }) =>
+    root.render(
+      <StrictMode>
+        <ForgeImport />
+      </StrictMode>,
+    ),
+  );
+} else if (
   (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
   params.get('preview') === 'battle'
 ) {

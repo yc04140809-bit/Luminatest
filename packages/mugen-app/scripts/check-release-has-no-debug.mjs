@@ -36,6 +36,10 @@ const MARKERS = [
   'debug-zero',
   'zero-moon',
   'zr-moon',
+  // CHARACTER FORGE import (src/dev/ForgeImport.tsx).
+  'debug-forge-import',
+  'forge-import',
+  'MUGEN ZEROへ受け入れました',
 ];
 
 /** Every source file under a folder. */

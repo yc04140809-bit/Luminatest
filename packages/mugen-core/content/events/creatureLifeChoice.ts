@@ -15,6 +15,7 @@ import type {
 } from '../../core/memory/types';
 import { individualName } from '../enemies/species';
 import { MEMORY_EVENT_LABEL } from './galdLifeChoice';
+import { isForgeEventType } from '../../core/memory/types';
 
 export const CREATURE_LIFE_CHOICE_EVENT_TYPE: Record<LifeChoiceId, CreatureLifeChoiceEventType> = {
   KILL: 'PLAYER_KILLED_CREATURE',
@@ -55,5 +56,7 @@ export function memoryEventLabel(event: Pick<MemoryEvent, 'type' | 'actors'>): s
     const subject = event.actors.find((actor) => actor !== 'PLAYER') ?? '';
     return CREATURE_LABEL[event.type](individualName(subject));
   }
+  // A FORGE fact is about one character, named by its FORGE id.
+  if (isForgeEventType(event.type)) return `${MEMORY_EVENT_LABEL[event.type]}（${event.actors[0] ?? ''}）`;
   return MEMORY_EVENT_LABEL[event.type] ?? event.type;
 }

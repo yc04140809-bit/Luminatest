@@ -65,12 +65,36 @@ export type CreatureLifeChoiceEventType =
 /** World-scale events (large passages of time, …). */
 export type WorldEventType = 'WORLD_TIME_SHIFTED';
 
+/**
+ * A character arriving from CHARACTER FORGE (core/forge), and a later
+ * send of them being accepted.
+ *
+ * Facts about the WORLD'S RECORD rather than about anybody's day: the
+ * author handed somebody over, and the game took them in. Kept in WORLD
+ * MEMORY like every other fact — write-once, never deleted — so the
+ * record of who came in, and when, cannot be rewritten. But they are not
+ * something a player did, so they are not progress (`hasProgress`), not
+ * something the player knows (`getKnownEvents`), and not a life event
+ * the WORLD LIFE ENGINE reads (`canonAsWorldMemories`).
+ */
+export type ForgeEventType = 'CHARACTER_IMPORTED_FROM_FORGE' | 'CHARACTER_UPDATED_FROM_FORGE';
+
+export const FORGE_EVENT_TYPES: readonly ForgeEventType[] = [
+  'CHARACTER_IMPORTED_FROM_FORGE',
+  'CHARACTER_UPDATED_FROM_FORGE',
+];
+
+export function isForgeEventType(type: string): type is ForgeEventType {
+  return (FORGE_EVENT_TYPES as readonly string[]).includes(type);
+}
+
 export type MemoryEventType =
   | GaldLifeChoiceEventType
   | LifeEventType
   | PlayerEventType
   | CreatureLifeChoiceEventType
-  | WorldEventType;
+  | WorldEventType
+  | ForgeEventType;
 
 export interface MemoryEvent {
   id: string;
@@ -94,6 +118,16 @@ export interface MemoryEvent {
   to?: { worldYear: number; worldDay: number };
   /** WORLD_TIME_SHIFTED only: whole years skipped. */
   yearsElapsed?: number;
+  /** FORGE events only: which send of which character was taken in. */
+  forge?: {
+    source: 'MUGEN_CHARACTER_FORGE';
+    characterId: string;
+    deployedVersion: string;
+    deployedAt: string;
+    payloadHash: string;
+    importId: string;
+    canonStatus: 'CANON';
+  };
 }
 
 /** Current world state persisted alongside history (clock, character states). */

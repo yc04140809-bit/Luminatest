@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "1.0",
+  "source": "MUGEN_CHARACTER_FORGE",
+  "sampleOnly": true,
+  "characterId": "HUM-900001",
+  "characterType": "human",
+  "encounterRole": null,
+  "status": "CANONIZED",
+  "identity": {
+    "name": "セラ",
+    "speciesName": null,
+    "individualName": null,
+    "nameStatus": "CANON",
+    "speciesNameStatus": null,
+    "individualNameStatus": null,
+    "nameOrigin": "作者命名",
+    "speciesNameOrigin": null,
+    "individualNameOrigin": null
+  },
+  "profile": {
+    "age": "38",
+    "gender": "女性",
+    "origin": "アルデン地方",
+    "currentRegion": "アルデン村",
+    "family": "母と弟",
+    "occupation": "薬草採集人",
+    "role": "森の道を知る一般住民",
+    "appearance": "日焼けした肌、作業で荒れた手、修繕した上着",
+    "affiliation": "アルデン村",
+    "importance": "一般NPC",
+    "core": {
+      "personality": ["慎重", "世話焼き", "負けず嫌い"],
+      "values": ["家族第一", "約束を守る"],
+      "weakness": "責任を抱え込みすぎる",
+      "desires": ["家族を幸せにしたい", "外の世界を見たい"],
+      "tendency": "一度受けた恩を忘れない"
+    },
+    "specialTendency": "一度受けた恩を忘れない",
+    "notes": "サンプルデータ。本番登録禁止。",
+    "recruitment": {
+      "adoptionStatus": "ADOPTED",
+      "adoptionReason": "森の生活導線を支える人物候補"
+    }
+  },
+  "lifeAxis": {
+    "morality": "善寄り",
+    "altruism": 0.82,
+    "ruleCompliance": 0.42,
+    "marriageDesire": "どちらでもよい",
+    "romanceStyle": "慎重",
+    "solitudeStyle": "少人数を好む",
+    "familyOrientation": "家族を大切にする",
+    "responsibility": "背負い込みすぎる",
+    "recognitionNeed": "普通",
+    "riskStyle": "慎重",
+    "trustStyle": "慎重",
+    "forgiveness": "条件付き",
+    "dependence": "相互依存",
+    "changeTolerance": "慣れれば対応",
+    "moneySense": "堅実",
+    "powerOrientation": "興味なし",
+    "secrecy": "選んで話す"
+  },
+  "worldViewAxis": {
+    "homelandLove": "強い",
+    "faith": "生活習慣として信仰",
+    "statusAwareness": "身分を意識する",
+    "otherSpeciesAttitude": "慎重だが対話可能",
+    "magicAttitude": "実用的",
+    "rulerLoyalty": "中立",
+    "crimeTolerance": "事情次第",
+    "deathFear": "怖いが受け入れる",
+    "honorDesire": "低い",
+    "lineageAttachment": "家系を大切にする"
+  },
+  "relationshipPotential": ["狭く深い", "年下の面倒を見やすい"],
+  "aptitudes": {
+    "magic": 0.78,
+    "sword": 0.21,
+    "healing": 0.74,
+    "commerce": 0.45,
+    "social": 0.58
+  },
+  "aptitudeSemantics": "POTENTIAL_NOT_ACQUIRED_SKILL",
+  "currentSkills": {
+    "magic": "UNLEARNED",
+    "sword": "UNLEARNED",
+    "healing": "PRACTICAL",
+    "commerce": "BASIC",
+    "social": "BASIC"
+  },
+  "equipment": {
+    "requested": "薬草籠と小型の採集鎌",
+    "environmentBasis": "森で薬草を採集する生活",
+    "experienceBasis": "母から薬草の見分け方と採集方法を学んだ",
+    "validation": {
+      "status": "EVIDENCE_CONFIRMED",
+      "permitted": true,
+      "grounds": ["職業", "現在技能", "生活環境", "経験"],
+      "missingTypes": [],
+      "potentialAptitudeUsed": false
+    }
+  },
+  "lifeStage": {
+    "visualAge": "adult",
+    "adultAxisMode": "CURRENT_TENDENCY",
+    "occupationMode": "CURRENT_FACT"
+  },
+  "visualDiversity": {
+    "ageGroup": "adult",
+    "bodyBuild": "stocky",
+    "heightImpression": "short",
+    "faceShape": "round",
+    "facialImpression": "tired",
+    "hair": "黒髪、肩まで、後ろで実用的に結ぶ",
+    "skinLifeMarks": "日焼け、手荒れ、目の下に軽い疲労",
+    "posture": "work_worn",
+    "clothingCondition": "patched",
+    "occupationalVisual": "薬草の汁と土が付いた実用着",
+    "visualSignature": ["非常に大きな手", "修繕だらけの上着"]
+  },
+  "visualDirection": {
+    "overallImpression": "PLAIN",
+    "intensity": "NORMAL",
+    "customInstruction": "森で働く生活感を優先"
+  },
+  "visualReviewStatus": "APPROVED",
+  "visualReviewChecklist": {
+    "age": true,
+    "occupation": true,
+    "equipment": true
+  },
+  "worldAssignment": {
+    "world": "MUGEN ZERO",
+    "region": "アルデン地方",
+    "settlement": "アルデン村",
+    "group": "薬草採集者"
+  },
+  "productionChecklist": {
+    "identityConfirmed": true,
+    "settingsReviewed": true
+  },
+  "relationshipRefs": ["REL-900001"],
+  "characterHistory": [
+    { "event": "GENERATED", "at": "2026-09-27T00:00:00.000Z", "origin": "FORGE", "details": {} },
+    { "event": "CANONIZED", "at": "2026-09-27T00:30:00.000Z", "origin": "FORGE", "details": {} }
+  ],
+  "ecology": null,
+  "combat": null,
+  "bossEncounter": null,
+  "seeds": ["外の世界への憧れ", "家族への責任", "知識への渇望"],
+  "dramaHooks": ["外へ出たいが家族を置いていけない"],
+  "worldMemory": { "registered": false, "events": [], "memo": "" },
+  "worldLifeEngine": { "enabled": true },
+  "assets": [
+    {
+      "assetId": "VIS-HUM-900001-001",
+      "assetType": "FULL_BODY",
+      "fileName": "HUM-900001_FULL_BODY_001.webp",
+      "internalFileName": "HUM-900001_FULL_BODY_001.webp",
+      "originalFileName": "sera-fullbody.png",
+      "originalMimeType": "image/png",
+      "mimeType": "image/webp",
+      "width": 900,
+      "height": 1400,
+      "originalByteSize": 1800000,
+      "storedByteSize": 420000,
+      "imageStorageKey": "VIS-HUM-900001-001",
+      "memo": "全身立ち絵",
+      "createdAt": "2026-09-27T00:20:00.000Z",
+      "approved": true,
+      "primary": true
+    }
+  ],
+  "deployment": {
+    "source": "MUGEN_CHARACTER_FORGE",
+    "target": "MUGEN_ZERO",
+    "deployedAt": "2026-09-27T01:00:00.000Z",
+    "deployedVersion": "0.1"
+  }
+}

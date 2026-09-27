@@ -82,6 +82,10 @@ export const MEMORY_EVENT_LABEL: Record<
   PLAYER_MET_GALD_IN_ALDEN: '村外れの作業場で、あの盗賊と再会した',
   PLAYER_FOUND_GALD_GRAVE: '森の墓で、あの盗賊の名を見つけた',
   WORLD_TIME_SHIFTED: '世界の時が、大きく流れた',
+  // The author's record, not anybody's day. Never shown to a player
+  // (getKnownEvents), only on developer screens.
+  CHARACTER_IMPORTED_FROM_FORGE: 'CHARACTER FORGE から人物を受け入れた',
+  CHARACTER_UPDATED_FROM_FORGE: 'CHARACTER FORGE から基礎設定の更新を受け入れた',
 };
 
 /**
