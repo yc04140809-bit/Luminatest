@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FORGE_VOCABULARY, adaptForgeVocabulary, unmappedIssues, zeroCharacterDefinition } from './forgeVocabularyAdapter';
+import { canonicalJson } from '../../core/forge/canonical';
 import { asReal } from '../../core/forge/fixtures/load';
 import { MUGEN_WORLD_RULES } from '../world/mugenWorld';
 import { LOCATIONS } from '../locations/alden';
@@ -105,5 +106,64 @@ describe('the MUGEN ZERO definition and its report', () => {
     const issues = unmappedIssues(asReal('boss-monster'));
     expect(issues.length).toBeGreaterThan(0);
     expect(issues.every((i) => i.code === 'UNMAPPED_VOCABULARY' && i.message.startsWith('UNMAPPED'))).toBe(true);
+  });
+});
+
+describe('decided 2026-09-27: what is mapped today, and what waits for the author', () => {
+  it('importance: only 一般NPC → ORDINARY', () => {
+    expect(FORGE_VOCABULARY.importance).toEqual({ 一般NPC: 'ORDINARY' });
+  });
+
+  it('every other importance — 重要人物, 主要人物, 特殊NPC … — is UNMAPPED, never guessed', () => {
+    for (const importance of ['重要人物', '主要人物', '特殊NPC', '主要NPC', '一般', 'ORDINARY', '一般NPC ']) {
+      const adapted = adaptForgeVocabulary(asReal('human', (p) => (p.profile.importance = importance)));
+      if (importance.trim() === '一般NPC') {
+        expect(adapted.standing, importance).toBe('ORDINARY');
+      } else {
+        expect(adapted.standing, importance).toBeNull();
+        expect(adapted.unmapped.map((u) => u.field), importance).toContain('profile.importance');
+      }
+    }
+  });
+
+  it('personality, values and desires: the tables stay empty until FORGE’s official word lists are seen', () => {
+    // If this fails, an entry was added. That needs the author's formal
+    // decision (docs/FORGE_IMPORT.md §0) before it may ship.
+    expect(FORGE_VOCABULARY.trait).toEqual({});
+    expect(FORGE_VOCABULARY.value).toEqual({});
+    expect(FORGE_VOCABULARY.desire).toEqual({});
+  });
+
+  it('so today FORGE’s personality, values and desires reach no seed: the life engine gets none of them', () => {
+    const noisy = asReal('human', (p) => {
+      p.profile.core = { personality: ['好奇心旺盛', '優しい', '臆病'], values: ['家族', '驚き'], desires: ['魔法を学びたい'] };
+    });
+    const life = adaptForgeVocabulary(noisy).life;
+    expect([life.traits, life.values, life.desires]).toEqual([[], [], []]);
+    // Even words that look like translations of the engine's own (CURIOUS, GENTLE, TIMID, FAMILY, WONDER).
+    expect(adaptForgeVocabulary(noisy).unmapped.filter((u) => u.field.startsWith('profile.core')).map((u) => u.value)).toEqual([
+      '好奇心旺盛',
+      '優しい',
+      '臆病',
+      '家族',
+      '驚き',
+      '魔法を学びたい',
+    ]);
+  });
+
+  it('a table entry added later maps the value — and FORGE’s original value is still there, untouched', () => {
+    const forge = asReal('human');
+    const before = canonicalJson(forge);
+    // A pairing decided in the future, tried here without touching the real table.
+    const later = { ...FORGE_VOCABULARY, trait: { 慎重: 'CAUTIOUS' }, importance: { ...FORGE_VOCABULARY.importance } };
+    const adapted = adaptForgeVocabulary(forge, later);
+    expect(adapted.life.traits).toEqual(['CAUTIOUS']);
+    // Words still without a pairing stay UNMAPPED.
+    expect(adapted.unmapped.map((u) => u.value)).toContain('世話焼き');
+    // The FORGE file is not changed by mapping it; its own words are all still in it.
+    expect(canonicalJson(forge)).toBe(before);
+    expect((forge.profile.core as { personality: string[] }).personality).toEqual(['慎重', '世話焼き', '負けず嫌い']);
+    // And the real table is as it was.
+    expect(FORGE_VOCABULARY.trait).toEqual({});
   });
 });

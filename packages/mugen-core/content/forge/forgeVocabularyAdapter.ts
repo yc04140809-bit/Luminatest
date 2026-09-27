@@ -28,30 +28,52 @@ import { forgeDisplayName } from '../../core/forge/record';
 import { LOCATIONS } from '../locations/alden';
 import { ENEMY_SPECIES } from '../enemies/species';
 
+/** The shape of the tables — also what a test passes to try a future entry. */
+export interface ForgeVocabulary {
+  characterType: Readonly<Record<string, PersonKind>>;
+  importance: Readonly<Record<string, PersonStanding>>;
+  aptitude: Readonly<Record<string, string>>;
+  trait: Readonly<Record<string, string>>;
+  value: Readonly<Record<string, string>>;
+  desire: Readonly<Record<string, string>>;
+}
+
 /**
  * THE TABLES. Every entry is a decision that the FORGE word and the game
  * word mean the same thing. Empty tables are deliberate: no pairing has
  * been decided yet, so every such value is reported as UNMAPPED.
+ *
+ * DECIDED 2026-09-27 (docs/FORGE_IMPORT.md §0):
+ *   - importance: only 一般NPC → ORDINARY. 重要人物・主要人物・特殊NPC
+ *     and every other value stay UNMAPPED until the author fixes the
+ *     criteria.
+ *   - trait / value / desire: EMPTY until FORGE's official word lists
+ *     have been seen and the pairing is decided. Until then FORGE's
+ *     personality, values and desires do not touch the life engine's
+ *     seeds or growth at all.
+ * Adding an entry never loses anything: FORGE's own value stays in
+ * content/forge/characters/<ID>.json, and the definition is rebuilt
+ * from it on every build.
  */
-export const FORGE_VOCABULARY = {
+export const FORGE_VOCABULARY: ForgeVocabulary = {
   /** characterType → the game's kind of entity (core/link/types.ts PersonKind). */
-  characterType: { human: 'PERSON', monster: 'CREATURE' } as Readonly<Record<string, PersonKind>>,
+  characterType: { human: 'PERSON', monster: 'CREATURE' },
   /** profile.importance → standing (how much the story is about them; never read by rules). */
-  importance: { 一般NPC: 'ORDINARY' } as Readonly<Record<string, PersonStanding>>,
+  importance: { 一般NPC: 'ORDINARY' },
   /**
    * aptitudes key → the WORLD LIFE ENGINE's aptitude (content/world: MAGIC,
    * SWORD, HEALING). Humans only: a FORGE human's aptitudes are potential,
    * which is what the engine means. The engine has no commerce or social
    * aptitude, so those stay UNMAPPED rather than inventing one.
    */
-  aptitude: { magic: 'MAGIC', sword: 'SWORD', healing: 'HEALING' } as Readonly<Record<string, string>>,
+  aptitude: { magic: 'MAGIC', sword: 'SWORD', healing: 'HEALING' },
   /** profile.core.personality → engine trait (CURIOUS, GENTLE, TIMID, …). None decided yet. */
-  trait: {} as Readonly<Record<string, string>>,
+  trait: {},
   /** profile.core.values → engine value (FAMILY, WONDER, …). None decided yet. */
-  value: {} as Readonly<Record<string, string>>,
+  value: {},
   /** profile.core.desires / ecology.desire → engine desire. None decided yet. */
-  desire: {} as Readonly<Record<string, string>>,
-} as const;
+  desire: {},
+};
 
 /**
  * Fields matched by the game's own names rather than a table: a habitat
@@ -105,7 +127,10 @@ const words = (value: unknown): string[] =>
 const text = (value: unknown): string | null => (typeof value === 'string' && value.trim() ? value.trim() : null);
 
 /** FORGE's values, turned into the game's where a table says so. Pure. */
-export function adaptForgeVocabulary(definition: ForgeDeployPackage): {
+export function adaptForgeVocabulary(
+  definition: ForgeDeployPackage,
+  vocabulary: ForgeVocabulary = FORGE_VOCABULARY,
+): {
   entityType: PersonKind;
   standing: PersonStanding | null;
   species: ZeroCharacterDefinition['species'];
@@ -128,9 +153,9 @@ export function adaptForgeVocabulary(definition: ForgeDeployPackage): {
     });
 
   const profile = definition.profile;
-  const entityType = lookup(FORGE_VOCABULARY.characterType, 'characterType', definition.characterType) ?? 'PERSON';
+  const entityType = lookup(vocabulary.characterType, 'characterType', definition.characterType) ?? 'PERSON';
   const importance = text(profile.importance);
-  const standing = importance ? lookup(FORGE_VOCABULARY.importance, 'profile.importance', importance) : null;
+  const standing = importance ? lookup(vocabulary.importance, 'profile.importance', importance) : null;
 
   for (const [field, label] of Object.entries(NO_GAME_VOCABULARY)) {
     const value = text(profile[field.slice('profile.'.length)]);
@@ -150,14 +175,14 @@ export function adaptForgeVocabulary(definition: ForgeDeployPackage): {
     const name = definition.identity.speciesName ?? '';
     species = { name, speciesId: SPECIES_BY_NAME.get(name) ?? null };
     const desire = text(definition.ecology?.desire);
-    if (desire) life.desires = listed(FORGE_VOCABULARY.desire, 'ecology.desire', [desire]);
+    if (desire) life.desires = listed(vocabulary.desire, 'ecology.desire', [desire]);
   } else {
     const core = (profile.core ?? {}) as Record<string, unknown>;
-    life.traits = listed(FORGE_VOCABULARY.trait, 'profile.core.personality', words(core.personality));
-    life.values = listed(FORGE_VOCABULARY.value, 'profile.core.values', words(core.values));
-    life.desires = listed(FORGE_VOCABULARY.desire, 'profile.core.desires', words(core.desires));
+    life.traits = listed(vocabulary.trait, 'profile.core.personality', words(core.personality));
+    life.values = listed(vocabulary.value, 'profile.core.values', words(core.values));
+    life.desires = listed(vocabulary.desire, 'profile.core.desires', words(core.desires));
     for (const [key, value] of Object.entries(definition.aptitudes)) {
-      const mapped = lookup(FORGE_VOCABULARY.aptitude, 'aptitudes', key);
+      const mapped = lookup(vocabulary.aptitude, 'aptitudes', key);
       if (mapped) life.aptitudes[mapped] = value;
     }
   }

@@ -27,7 +27,10 @@ FORGE JSON → AUTHORING IMPORT → VALIDATION → NORMALIZATION（語彙アダ�
 4. **ADOPTED と Life Engine 対象**：採用キャラは全員人物台帳に入れる。WORLD LIFE ENGINE／GOD VIEW に入れるのは `lifeActor = true` だけ。
    初期方針は「人間は対象」「モンスター（通常／BOSS）は対象外」。例外は作者判断で切り替える。
 5. **Character ID → NPC_ID**：採用時に NPC_ID 入力必須。大文字定数形式、1 人に 1 つ、採用後は変更不可・再利用不可。既存人物を指定した場合、その人物の ID と名前は変えない。
-6. **importance**：当面「一般NPC → ORDINARY」の 1 件だけ。
+6. **importance**：当面「一般NPC → ORDINARY」の 1 件だけ。重要人物・主要人物・特殊NPC などは、作者が正式な基準を決めるまで UNMAPPED（推測・変換しない）。
+   性格・価値観・願いの対応表は、FORGE 側の正式な語彙一覧を確認してから決める。それまでは空のまま、SEED／GROWTH 等の計算に影響させない。
+   テスト（`forgeVocabularyAdapter.test.ts`）が、この 2 つの表の中身を固定している（正式決定なしに値が入ると失敗する）。
+   将来対応表に追加しても FORGE 元の値は `characters/<ID>.json` に残り、失われない（テストで確認）。
 7. **次の段階**：実 FORGE JSON 1 件で preview のみ実行 → 作者確認 → `--apply` → Android 実機確認項目を順に確認。
 
 SAVE_VERSION=3 と保存形式は変えない。RESET WORLD／はじめるの後も採用済み一覧は変わらない（採用済みキャラの存在はビルド内容であり、SAVE には書かない）。
