@@ -426,3 +426,14 @@ interface TalkCandidate {
 - 新規：16件すべて通過（名簿14・境界2）。
 - 既存：CORE 1337件（既存1321＋新規16）すべて通過、App 単体127件すべて通過、型チェック（CORE・App）エラーなし。
 - 画面・保存・戦闘のコードは変更していないため、e2e は今回は再実行していない（前回 STEP 12 で158件通過）。
+
+## 11. Forge の永久 ID と NPC_ID（作者の決定・2026-09-27）
+
+- CHARACTER FORGE の仕様「MUGEN ZERO DEPLOY BRIDGE PREPARATION SPEC」（2026-09-27）を受領。Forge の Character ID は
+  `HUM-000006` のような**ハイフン入りの永久 ID**で、MUGEN ZERO の正式 NPC_ID の規則（大文字・数字・下線のみ）と形が違う。
+- **決定：別フィールドで対応する**。どちらの規則も変えない。
+  - Forge の ID は **`forgeId`** として、DEPLOY PACKAGE からゲーム側まで必ず持ち運ぶ（書き換えない・再利用しない）。
+  - MUGEN ZERO 側の NPC_ID（例 `ORDO` や `HUM_000006`）とは**対応表**で結ぶ。再送（Deployment #2 以降）でも同じ対応を使い、
+    新しい人として受け取らない。
+- Forge 側の実装（DEPLOY PACKAGE・検証・配属履歴・「行ってらっしゃい」・JSON 書き出し）は、Forge のコードが
+  このセッションから見えるようになってから行う（現時点でアクセスできる別リポジトリ `yc04140809-bit/-` は空）。
