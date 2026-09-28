@@ -865,6 +865,9 @@ function StateLine({ entry, content }: { entry: ForgeContent['roster']['characte
   );
 }
 
+const STATE_TEXT: Record<DeviceCheckRow['state'], string> = { PASS: 'PASS', FAIL: 'FAIL', UNCHECKED: '未確認', INFO: '—' };
+const STATE_CLASS: Record<DeviceCheckRow['state'], string> = { PASS: 'fi-good', FAIL: 'fi-bad', UNCHECKED: 'fi-quiet', INFO: 'fi-quiet' };
+
 /** 実機確認（RIZEL）: reads the build and this device's save; writes nothing. */
 function DeviceCheck() {
   const [rows, setRows] = useState<DeviceCheckRow[] | null>(null);
@@ -882,7 +885,8 @@ function DeviceCheck() {
     <section className="fi-step" data-testid="forge-device-check">
       <h2>実機確認（RIZEL）</h2>
       <p className="fi-note">
-        ビルドの採用済みデータと、この端末のセーブを読むだけです（何も書き込みません）。RESET WORLD 相当（Android の「ストレージを消去」）や「はじめる」の後にも、もう一度押して確かめてください。
+        ビルドの採用済みデータと、この端末のセーブを読むだけです（何も書き込みません）。5〜7 はセーブの状態で判定が変わります。
+        「未確認」の項目は、説明の手順（つづきから／データ消去／はじめる）の後にもう一度押してください。
       </p>
       <button className="fi-btn" data-testid="forge-device-check-run" onClick={() => void run()}>
         確認を実行
@@ -892,9 +896,9 @@ function DeviceCheck() {
         <table className="fi-table fi-check-table">
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} data-testid={`forge-device-check-${row.id}`} data-pass={String(row.pass)}>
+              <tr key={row.id} data-testid={`forge-device-check-${row.id}`} data-state={row.state}>
                 <th>{row.id}</th>
-                <td className={row.pass ? 'fi-good' : 'fi-bad'}>{row.id === '状態' ? '—' : row.pass ? 'PASS' : 'FAIL'}</td>
+                <td className={`fi-verdict ${STATE_CLASS[row.state]}`}>{STATE_TEXT[row.state]}</td>
                 <td>
                   {row.label}
                   <div className="fi-quiet">{row.detail}</div>

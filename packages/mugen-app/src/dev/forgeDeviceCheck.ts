@@ -18,10 +18,17 @@ import { APP_DB_NAME } from '../platform/save';
 export const CHECK_FORGE_ID = 'HUM-000001';
 export const CHECK_NPC_ID = 'RIZEL';
 
+/**
+ * PASS / FAIL, or UNCHECKED: the item can only be judged in a save state
+ * the phone is not in right now (e.g. #6 needs a wiped save). The detail
+ * says what to do to check it.
+ */
+export type DeviceCheckState = 'PASS' | 'FAIL' | 'UNCHECKED' | 'INFO';
+
 export interface DeviceCheckRow {
   id: string;
   label: string;
-  pass: boolean;
+  state: DeviceCheckState;
   detail: string;
 }
 
@@ -30,18 +37,20 @@ const VISUAL_MISMATCH = ['older_adult', 'heavy', 'very_tall', 'salt_and_pepper',
 
 export async function runForgeDeviceCheck(): Promise<DeviceCheckRow[]> {
   const rows: DeviceCheckRow[] = [];
-  const add = (id: string, label: string, pass: boolean, detail: string) => rows.push({ id, label, pass, detail });
+  const add = (id: string, label: string, pass: boolean, detail: string) =>
+    rows.push({ id, label, state: pass ? 'PASS' : 'FAIL', detail });
+  const addState = (id: string, label: string, state: DeviceCheckState, detail: string) => rows.push({ id, label, state, detail });
 
   // ---- The build.
   const entry = FORGE_CONTENT.roster.characters.find((e) => e.characterId === CHECK_FORGE_ID);
-  add('1', '採用済み一覧に RIZEL がいる', !!entry && FORGE_CONTENT_PROBLEMS.length === 0,
+  add('1', '採用済み一覧に HUM-000001 → RIZEL がある', !!entry && entry.npcId === CHECK_NPC_ID && FORGE_CONTENT_PROBLEMS.length === 0,
     entry ? `採用済み ${FORGE_CONTENT.roster.characters.length} 人（${FORGE_CONTENT.roster.characters.map((e) => e.npcId).join('、')}）` : '見つかりません');
   add('2', 'NPC_ID = RIZEL', entry?.npcId === CHECK_NPC_ID && personEntry(CHECK_NPC_ID)?.displayName === 'リゼル',
     `NPC_ID ${entry?.npcId ?? '—'}／人物台帳 ${personEntry(CHECK_NPC_ID) ? `${personEntry(CHECK_NPC_ID)!.displayName}（${personEntry(CHECK_NPC_ID)!.kind}）` : 'なし'}`);
   add('3', 'HUM-000001 ↔ RIZEL の対応', entry?.characterId === CHECK_FORGE_ID && entry?.npcId === CHECK_NPC_ID,
     entry ? `${entry.characterId} → ${entry.npcId}（送出版 ${entry.deployedVersion}）` : '—');
   const core = WORLD_LIFE_RULES.cores.find((c) => c.npcId === CHECK_NPC_ID);
-  add('4', 'lifeActor = true（Life Engine の対象）', entry?.lifeActor === true && !!core,
+  add('4', '一覧に「Life Engine 対象」（lifeActor = true）', entry?.lifeActor === true && !!core,
     `lifeActor ${String(entry?.lifeActor)}／Life Engine の人物 ${core ? 'あり' : 'なし'}`);
 
   // ---- This device's save, read without opening a World.
@@ -60,8 +69,20 @@ export async function runForgeDeviceCheck(): Promise<DeviceCheckRow[]> {
   } finally {
     store.close();
   }
-  add('5', 'この端末のセーブが読める', saveError === null,
-    saveError ?? `出来事 ${events.length} 件・状態 ${stateRows.length} 行（${events.length || stateRows.length ? 'プレイ中のセーブ' : '空のセーブ'}）`);
+  const adopted = !!entry && entry.npcId === CHECK_NPC_ID;
+  const empty = saveError === null && events.length === 0 && stateRows.length === 0;
+  const saveSummary = saveError ?? `出来事 ${events.length} 件・状態 ${stateRows.length} 行`;
+  // 5: judged only on a save that has been played.
+  if (saveError !== null) add('5', '既存セーブ（つづきから）でも RIZEL が採用済みのまま', false, `セーブを読めません: ${saveError}`);
+  else if (empty) addState('5', '既存セーブ（つづきから）でも RIZEL が採用済みのまま', 'UNCHECKED', `このセーブは空です（${saveSummary}）。プレイ中のセーブを「つづきから」で開いた後に押してください。`);
+  else add('5', '既存セーブ（つづきから）でも RIZEL が採用済みのまま', adopted, `プレイ中のセーブ（${saveSummary}）で RIZEL ${adopted ? '採用済み' : 'なし'}`);
+  // 6: judged only right after 「データ消去」.
+  if (saveError !== null) add('6', 'データ消去後、App のセーブが完全に空', false, `セーブを読めません: ${saveError}`);
+  else if (empty) add('6', 'データ消去後、App のセーブが完全に空', true, `空です（${saveSummary}）`);
+  else addState('6', 'データ消去後、App のセーブが完全に空', 'UNCHECKED', `このセーブにはデータがあります（${saveSummary}）。設定 → アプリ → MUGEN ZERO → ストレージ → データ消去 の後、アプリを開き直してすぐ押してください。`);
+  // 7: RIZEL is in the build, so she is there whatever the save holds.
+  add('7', '「はじめる」で開始しても RIZEL が採用済み一覧に残る', adopted,
+    `${adopted ? 'RIZEL 採用済み' : 'RIZEL なし'}（このセーブ: ${empty ? '空' : saveSummary}）。データ消去 →「はじめる」の後に押して確認してください。`);
   add('8', 'SAVE_VERSION = 3', SAVE_VERSION === 3 && (storedVersion === undefined || storedVersion === 3),
     `ビルド ${SAVE_VERSION}／このセーブ ${storedVersion === undefined ? '（未記録＝新しいセーブ）' : String(storedVersion)}`);
   const text = JSON.stringify({ events, stateRows });
@@ -76,16 +97,16 @@ export async function runForgeDeviceCheck(): Promise<DeviceCheckRow[]> {
   const definition = forgeDefinitions().find((d) => d.characterId === CHECK_FORGE_ID);
   const readByGame = JSON.stringify({ definition, core, person: personEntry(CHECK_NPC_ID) });
   const leaked = VISUAL_MISMATCH.filter((v) => readByGame.includes(v));
-  add('10', 'visualDiversity の不一致値からゲームのデータを作っていない', !!definition && leaked.length === 0,
+  add('10', 'visualDiversity の不一致値（age 20 ／ ageGroup older_adult など）がゲーム側に反映・修正されていない', !!definition && leaked.length === 0,
     leaked.length ? `反映されている値: ${leaked.join('、')}` : `元データには ${VISUAL_MISMATCH.join('・')} が残り、ゲーム側の定義には無い`);
-  add('11', '性格・価値観・願い（UNMAPPED）から Life Engine の状態を作っていない',
+  add('11', '性格・価値観・願いから Life Engine の traits／values／desires を作っていない（0 のまま）',
     !!core && core.traits.length === 0 && core.values.length === 0 && core.desires.length === 0,
     core ? `traits ${core.traits.length}・values ${core.values.length}・desires ${core.desires.length}（aptitudes: ${Object.keys(core.aptitudes).join('・')}）` : 'Life Engine の人物なし');
 
   // ---- Separate states (not a pass/fail: shown for the record).
   if (entry) {
     const state = forgeRegistrationState(entry, FORGE_CONTENT);
-    add('状態', 'キャラクター／Life Engine／画像／関係（別々の状態）', true,
+    addState('状態', 'キャラクター／Life Engine／画像／関係（別々の状態）', 'INFO',
       `キャラクター 登録済み／Life Engine ${state.lifeEngine === 'ACTOR' ? '対象' : '対象外'}／画像 ${state.image === 'REGISTERED' ? '登録済み' : '未登録'}` +
         state.relationships.map((r) => `／関係 ${r.relationshipId} 保留`).join(''));
   }

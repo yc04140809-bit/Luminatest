@@ -75,3 +75,4 @@
 .fi-export { margin-top: 10px; padding: 8px 10px; border: 1px dashed #6b5a36; border-radius: 8px; }
 .fi-state { margin: 2px 0 0; }
 .fi-check-table th, .fi-check-table td { vertical-align: top; padding: 4px 10px 4px 0; }
+.fi-verdict { font-weight: 700; white-space: nowrap; }

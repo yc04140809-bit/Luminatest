@@ -273,18 +273,22 @@ test('WORLD LIFE ENGINE: a person by default, a monster not — decided at adopt
   await expect(page.getByTestId('forge-record-MON-900002')).toContainText('Life Engine 対象を変更');
 });
 
-test('実機確認（RIZEL）: an empty save, a played save, and after the save is wiped and a new game begins', async ({ page }) => {
-  const MUST_PASS = ['1', '2', '3', '4', '5', '8', '9', '10', '11'];
-  const check = async (label: string) => {
+test('実機確認（RIZEL）: 11 items across the phone procedure — empty save, つづきから, data wipe, はじめる', async ({ page }) => {
+  const ALWAYS = ['1', '2', '3', '4', '7', '8', '9', '10', '11'];
+  const check = async (label: string, expected: Record<string, string>) => {
     await page.goto('/?tool=forge-import');
     await page.getByTestId('forge-device-check-run').click();
-    for (const id of MUST_PASS) {
-      await expect(page.getByTestId(`forge-device-check-${id}`), `${label} #${id}`).toHaveAttribute('data-pass', 'true');
+    for (const id of ALWAYS) {
+      await expect(page.getByTestId(`forge-device-check-${id}`), `${label} #${id}`).toHaveAttribute('data-state', 'PASS');
+    }
+    for (const [id, state] of Object.entries(expected)) {
+      await expect(page.getByTestId(`forge-device-check-${id}`), `${label} #${id}`).toHaveAttribute('data-state', state);
     }
     await expect(page.getByTestId('forge-device-check-状態')).toContainText('画像 未登録');
     await expect(page.getByTestId('forge-device-check-状態')).toContainText('関係 REL-000001 保留');
   };
   const wipe = async () => {
+    // What Android's 設定 → アプリ → MUGEN ZERO → ストレージ → データ消去 does to the app's save.
     await page.evaluate(async () => {
       const dbs = (await indexedDB.databases?.()) ?? [];
       await Promise.all(dbs.map((d) => new Promise((resolve) => {
@@ -297,28 +301,29 @@ test('実機確認（RIZEL）: an empty save, a played save, and after the save 
 
   await page.goto('/');
   await wipe();
-  await check('empty save');
-  await expect(page.getByTestId('forge-device-check-5')).toContainText('空のセーブ');
+  await check('empty save', { '5': 'UNCHECKED', '6': 'PASS' });
 
-  // A played save: the opening, and a name.
+  // An existing save: played, closed, and reopened with 「つづきから」.
   await page.goto('/');
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await check('played save');
-  await expect(page.getByTestId('forge-device-check-5')).toContainText('プレイ中のセーブ');
-  // Opening the save through the title afterwards still works.
   await page.goto('/');
-  await expect(page.getByTestId('continue-button')).toBeVisible();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await check('after つづきから', { '5': 'PASS', '6': 'UNCHECKED' });
 
-  // The save wiped (what Android's 「ストレージを消去」 does), then はじめる.
+  // データ消去: the save is gone completely.
   await wipe();
+  await check('after data wipe', { '5': 'UNCHECKED', '6': 'PASS' });
+
+  // はじめる on the wiped save.
   await page.goto('/');
   await expect(page.getByTestId('start-button')).toBeVisible();
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
-  await check('after wipe + はじめる');
+  await check('after はじめる', {});
 });
 
 test('none of this touched the repository’s own content', async () => {
