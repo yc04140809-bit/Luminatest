@@ -12,6 +12,8 @@ import {
 } from '@mugen/core/forge/content';
 import { FORGE_PLACEABLE_REGIONS, forgeAdoptionView } from '@mugen/content/forge/adoptionView';
 import { sourceOnlyFields, zeroCharacterDefinition } from '@mugen/content/forge/forgeVocabularyAdapter';
+import { forgeRegistrationState } from '@mugen/content/forge/forgeStatus';
+import type { DeviceCheckRow } from './forgeDeviceCheck';
 import './forgeImport.css';
 
 /**
@@ -336,6 +338,7 @@ export function ForgeImport() {
       )}
 
       <Registered source={source} onChanged={reload} />
+      <DeviceCheck />
     </div>
   );
 }
@@ -764,6 +767,7 @@ function Normalized({ plan }: { plan: ForgeAdoptionPlan }) {
       ) : (
         <p className="fi-quiet" data-testid="forge-unmapped">UNMAPPED の値はありません。</p>
       )}
+      {plan.consistency.length > 0 && <IssueList issues={plan.consistency} testId="forge-consistency" tone="fi-warn" />}
       <details className="fi-details" data-testid="forge-source-only">
         <summary>SOURCE DATA PRESERVED / GAME MAPPING = UNUSED（元の値のまま保存し、ゲームでは使わない項目）</summary>
         <ul className="fi-list fi-compact">
@@ -844,6 +848,66 @@ function ExportFile({
   );
 }
 
+/** Character, Life Engine, picture and relationships — separate states; one missing never voids another. */
+function StateLine({ entry, content }: { entry: ForgeContent['roster']['characters'][number]; content: ForgeContent }) {
+  const state = forgeRegistrationState(entry, content);
+  return (
+    <div className="fi-note fi-state" data-testid={`forge-state-${entry.characterId}`}>
+      キャラクター: 登録済み ／ Life Engine: {state.lifeEngine === 'ACTOR' ? '対象' : '対象外'} ／ 画像:{' '}
+      {state.image === 'REGISTERED' ? '登録済み' : '未登録'}（メタ情報 {state.assetMetadataCount} 件・代表 {state.primaryAssetId ?? 'なし'}）
+      {state.relationships.map((r) => (
+        <div key={r.relationshipId} data-testid={`forge-relation-${r.relationshipId}`}>
+          関係 {r.relationshipId}: 保留 — {r.reason}
+          {r.relationType ? `（${r.relationType}${r.canonStatus ? `・${r.canonStatus}` : ''}）` : ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 実機確認（RIZEL）: reads the build and this device's save; writes nothing. */
+function DeviceCheck() {
+  const [rows, setRows] = useState<DeviceCheckRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setError(null);
+    try {
+      const { runForgeDeviceCheck } = await import('./forgeDeviceCheck');
+      setRows(await runForgeDeviceCheck());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  return (
+    <section className="fi-step" data-testid="forge-device-check">
+      <h2>実機確認（RIZEL）</h2>
+      <p className="fi-note">
+        ビルドの採用済みデータと、この端末のセーブを読むだけです（何も書き込みません）。RESET WORLD 相当（Android の「ストレージを消去」）や「はじめる」の後にも、もう一度押して確かめてください。
+      </p>
+      <button className="fi-btn" data-testid="forge-device-check-run" onClick={() => void run()}>
+        確認を実行
+      </button>
+      {error && <p className="fi-bad">{error}</p>}
+      {rows && (
+        <table className="fi-table fi-check-table">
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id} data-testid={`forge-device-check-${row.id}`} data-pass={String(row.pass)}>
+                <th>{row.id}</th>
+                <td className={row.pass ? 'fi-good' : 'fi-bad'}>{row.id === '状態' ? '—' : row.pass ? 'PASS' : 'FAIL'}</td>
+                <td>
+                  {row.label}
+                  <div className="fi-quiet">{row.detail}</div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
 // ---- Who has been adopted -------------------------------------------------
 
 function Registered({ source, onChanged }: { source: Source; onChanged: () => Promise<void> }) {
@@ -908,6 +972,7 @@ function Registered({ source, onChanged }: { source: Source; onChanged: () => Pr
                 </button>
               )}
             </div>
+            <StateLine entry={entry} content={source.content} />
             <ol className="fi-history">
               {entry.history.map((h) => (
                 <li key={h.importId}>

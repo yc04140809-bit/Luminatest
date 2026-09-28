@@ -2,7 +2,8 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { FORGE_CONTENT, FORGE_CONTENT_PROBLEMS, forgeCorrespondence, forgeDefinitions } from './forgeContent';
-import { sourceOnlyFields, unmappedIssues } from './forgeVocabularyAdapter';
+import { consistencyIssues, sourceOnlyFields, unmappedIssues } from './forgeVocabularyAdapter';
+import { forgeRegistrationState } from './forgeStatus';
 import { ALL_NPCS, personEntry } from '../people/allPeople';
 import { NPC_REGISTRY } from '../people/registry';
 import { MUGEN_WORLD_RULES, WORLD_PEOPLE } from '../world/mugenWorld';
@@ -142,6 +143,41 @@ describe('RIZEL is adopted, as content', () => {
     const forgeActors = WORLD_LIFE_RULES.cores.filter((c) => forgeCorrespondenceIds().includes(c.npcId)).map((c) => c.npcId);
     expect(forgeActors).toEqual(['RIZEL']);
     expect(FORGE_CONTENT.roster.characters.filter((e) => e.characterType === 'monster' && e.lifeActor)).toEqual([]);
+  });
+});
+
+describe('RIZEL — decided 2026-09-28', () => {
+  it('her age is profile.age = 20; the older_adult picture aid is only warned about, never corrected', () => {
+    const issues = consistencyIssues(stored);
+    expect(issues.map((i) => i.code)).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
+    expect(issues[0].message).toContain('SOURCE AGE: 20');
+    expect(issues[0].message).toContain('VISUAL AGE GROUP: older_adult');
+    expect(stored.profile.age).toBe('20');
+    expect(stored.visualDiversity.ageGroup).toBe('older_adult');
+    expect(payloadHash(FORGE_CONTENT.baselines['HUM-000001'])).toBe(HASH);
+  });
+
+  it('her data, her Life Engine place and her picture are separate: no picture, and she is still registered and a life actor', () => {
+    expect(forgeRegistrationState(entry, FORGE_CONTENT)).toEqual({
+      characterId: 'HUM-000001',
+      npcId: 'RIZEL',
+      character: 'REGISTERED',
+      lifeEngine: 'ACTOR',
+      image: 'NOT_REGISTERED',
+      assetMetadataCount: 1,
+      primaryAssetId: null,
+      relationships: [
+        {
+          relationshipId: 'REL-000001',
+          counterpartCharacterId: 'HUM-000005',
+          relationType: 'FAMILY_SIBLING',
+          canonStatus: 'PROVISIONAL',
+          counterpartAdopted: false,
+          state: 'PENDING',
+          reason: '相手（HUM-000005）が未採用のため保留',
+        },
+      ],
+    });
   });
 });
 

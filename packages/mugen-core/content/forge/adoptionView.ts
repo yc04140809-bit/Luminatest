@@ -18,7 +18,7 @@ import type { ForgeContent } from '../../core/forge/types';
 import { NPC_REGISTRY } from '../people/registry';
 import { LOCATIONS } from '../locations/alden';
 import { ENEMY_SPECIES } from '../enemies/species';
-import { unmappedIssues } from './forgeVocabularyAdapter';
+import { consistencyIssues, unmappedIssues } from './forgeVocabularyAdapter';
 
 /** Regions an adopted character can be placed in (the registry's, minus the world itself). */
 export const FORGE_PLACEABLE_REGIONS: readonly string[] = [
@@ -44,6 +44,7 @@ export function forgeAdoptionView(content: ForgeContent, extraVoidIds: readonly 
     // The game holds no FORGE picture files yet: every asset is metadata only.
     knownAssetIds: new Set(),
     unmapped: unmappedIssues,
+    consistency: consistencyIssues,
     extraVoidIds,
   };
 }

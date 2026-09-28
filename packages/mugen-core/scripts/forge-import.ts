@@ -34,6 +34,7 @@ import { FORGE_KIND_LABEL, forgeKindOf } from '../core/forge/record';
 import { isForgeExport, readForgeExport, type ForgeAdoptionPlan } from '../core/forge/content';
 import { isObject } from '../core/forge/validate';
 import { sourceOnlyFields, zeroCharacterDefinition } from '../content/forge/forgeVocabularyAdapter';
+import { forgeRegistrationState } from '../content/forge/forgeStatus';
 
 const DECISION: Record<string, string> = {
   NEW: '新規登録',
@@ -108,7 +109,7 @@ function report(plan: ForgeAdoptionPlan): void {
     );
   }
   for (const e of [...plan.errors, ...plan.npcErrors]) console.log(`  × ${e.message}`);
-  for (const w of [...plan.warnings, ...plan.npcNotes, ...plan.unmapped]) console.log(`  ! ${w.message}`);
+  for (const w of [...plan.warnings, ...plan.npcNotes, ...plan.unmapped, ...plan.consistency]) console.log(`  ! ${w.message}`);
   if (plan.payload) {
     console.log('SOURCE DATA PRESERVED / GAME MAPPING = UNUSED（元の値のまま保存し、ゲームでは使わない項目）:');
     for (const f of sourceOnlyFields(plan.payload)) console.log(`  - ${f.field}: ${f.value}`);
@@ -131,6 +132,13 @@ function main(): number {
       console.log(
         `  ${e.characterId} → ${e.npcId}  ${FORGE_KIND_LABEL[forgeKindOf(e)]}  ${e.deployedVersion}  ${e.region ?? '未配置'}  ${e.lifeActor ? 'lifeActor' : '—'}${e.previous ? '  (戻せる)' : ''}`,
       );
+      const state = forgeRegistrationState(e, content);
+      console.log(
+        `      キャラクター: 登録済み ／ Life Engine: ${state.lifeEngine === 'ACTOR' ? '対象' : '対象外'} ／ 画像: ${state.image === 'REGISTERED' ? '登録済み' : '未登録'}（メタ情報 ${state.assetMetadataCount} 件・代表 ${state.primaryAssetId ?? 'なし'}）`,
+      );
+      for (const r of state.relationships) {
+        console.log(`      関係 ${r.relationshipId}: 保留（${r.reason}${r.relationType ? `・${r.relationType}` : ''}${r.canonStatus ? `・${r.canonStatus}` : ''}）`);
+      }
     }
     for (const p of problems) console.log(`  × ${p}`);
     return problems.length ? 1 : 0;

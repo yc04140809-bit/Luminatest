@@ -35,6 +35,25 @@ FORGE JSON → AUTHORING IMPORT → VALIDATION → NORMALIZATION（語彙アダ�
 
 SAVE_VERSION=3 と保存形式は変えない。RESET WORLD／はじめるの後も採用済み一覧は変わらない（採用済みキャラの存在はビルド内容であり、SAVE には書かない）。
 
+**作者判断（2026-09-28・確定）**
+
+8. **性格・価値観・願い**：FORGE の正式な語彙一覧が揃うまで対応表を増やさない。元データ保存・推測変換なし・似た語への自動変換なし・
+   UNMAPPED 警告・SEED／GROWTH／VINE／BLOOM などの計算に使わない。「意味が似ているから」での対応づけは禁止。語彙一覧の取得後、作者確認を経て追加する。
+9. **importance**：有効なのは「一般NPC → ORDINARY」だけ。重要・主要人物・特殊NPC・イベントNPC・その他未知の値は UNMAPPED
+   （採用は止めない。元の値を保持・警告・自動変換しない・補完しない・Life Engine の重要度計算に使わない）。
+10. **年齢**：正は `profile.age`。`visualDiversity.ageGroup` は見た目生成用の補助情報で、正式年齢ではない。明らかに矛盾しても
+    どちらも書き換えず、`WARNING: AGE / VISUAL AGE GROUP MISMATCH`（SOURCE AGE・VISUAL AGE GROUP・SOURCE DATA PRESERVED・
+    GAME DATA NOT AUTO-CORRECTED）を出すだけ。採用は止めない。
+11. **警告判定用の暫定年齢帯**（この警告の比較だけに使う。年齢から ageGroup を作る仕様ではない）：child 0〜12、teen 13〜17、
+    young_adult 18〜29、adult 30〜49、older_adult 50〜。この 5 つ以外の ageGroup は UNMAPPED（比較しない）。
+    実装：`forgeVocabularyAdapter.ts` の `FORGE_AGE_GROUP_BANDS`／`consistencyIssues`。
+12. **RIZEL**：正式年齢は 20。visualDiversity の不一致（older_adult・heavy・very_tall・salt_and_pepper・very_short）は FORGE 側データの
+    残課題。ZERO 側は元データ保存・GAME MAPPING = UNUSED・警告のみ・自動補正なし。登録は取り消さない。
+13. **画像**：キャラクターデータ登録・Life Engine 対象・画像登録は別々の状態（`content/forge/forgeStatus.ts`、表示専用）。
+    画像未登録を理由に人物データを無効化しない。正式画像登録は後続作業。
+14. **関係 REL-000001**：相手（HUM-000005）が正式採用され、関係内容を作者が確認するまで保留。片方だけの状態で RELATIONSHIP を作らない。
+    FORGE の `relationshipRefs` と `characterHistory` の記録（相手・種類・状態）は元データに残り、状態表示で「保留」と分かる。
+
 ---
 
 ## 1. 正式定義の置き場所（コンテンツ）
@@ -247,3 +266,25 @@ FORGE → ZERO の書き出し JSON の正式形式：
 RIZEL：人間・PERSON・lifeActor true・地域 未配置・standing 表示 ORDINARY（importance「重要」は UNMAPPED のため表示用の既定値）。
 Life Engine には aptitudes（MAGIC・SWORD・HEALING）だけが入り、traits／values／desires は空。visualDiversity は SOURCE DATA PRESERVED / GAME MAPPING = UNUSED。
 専用テスト `content/forge/rizel.test.ts`（ビルドの実 content を読む。モックなし）。
+
+### 9d. Android 実機確認（debug APK）
+
+debug APK のタイトル →「DEBUG キャラクター取込」→ 画面下の **実機確認（RIZEL）** →「確認を実行」。
+ビルドの採用済みデータとこの端末のセーブを**読むだけ**（World を開かず IndexedDB を直接読む。何も書かない）。
+
+| # | 項目 | 画面での確認 |
+|---|---|---|
+| 1 | RIZEL が採用済み一覧に表示 | 採用済み一覧の「HUM-000001 → RIZEL」／確認 1 |
+| 2 | NPC_ID = RIZEL | 確認 2 |
+| 3 | HUM-000001 との対応 | 確認 3 |
+| 4 | lifeActor = true | 一覧の「Life Engine 対象」／確認 4 |
+| 5 | 既存 SAVE がそのまま開く | タイトルの「つづきから」で村に戻れる → 確認 5（プレイ中のセーブ） |
+| 6 | RESET WORLD 後も RIZEL が消えない | **App には RESET WORLD ボタンが無い**ため、Android の「設定 → アプリ → MUGEN ZERO → ストレージを消去」（セーブを完全に消す＝RESET WORLD 相当）の後、確認 1〜4 が PASS |
+| 7 | 「はじめる」後も消えない | ストレージ消去後にタイトルの「はじめる」→ プロローグ → 確認 1〜4 が PASS |
+| 8 | SAVE_VERSION = 3 | 確認 8（ビルドとこのセーブ） |
+| 9 | WORLD MEMORY に FORGE データを書かない | 確認 9（出来事・状態のどちらにも FORGE のデータなし） |
+| 10 | visualDiversity 不一致からゲームデータを作らない | 確認 10 |
+| 11 | UNMAPPED から Life Engine 状態を作らない | 確認 11（traits・values・desires が 0） |
+
+「状態」行：キャラクター 登録済み／Life Engine 対象／画像 未登録／関係 REL-000001 保留。
+ストレージ消去は端末上のそのアプリのセーブをすべて消す。必要なら先に別の端末・別のアプリ（Artifact 版は別アプリで影響しない）で確認する。

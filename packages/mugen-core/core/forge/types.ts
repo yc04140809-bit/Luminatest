@@ -162,6 +162,8 @@ export type ForgeIssueCode =
   | 'LIFE_ACTOR_FIXED'
   // From the vocabulary adapter (content/forge/forgeVocabularyAdapter.ts).
   | 'UNMAPPED_VOCABULARY'
+  // Consistency inside the file (content/forge/forgeVocabularyAdapter.ts). Warnings only, never corrected.
+  | 'AGE_VISUAL_GROUP_MISMATCH'
   // About a FORGE export file (several characters and voidIds).
   | 'EXPORT_FORMAT'
   | 'EXPORT_LEGACY_FORMAT';

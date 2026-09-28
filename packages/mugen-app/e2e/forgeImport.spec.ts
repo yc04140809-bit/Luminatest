@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { throughTheOpening } from './opening';
 
 /**
  * CHARACTER FORGE → MUGEN ZERO, on the screen (debug builds only).
@@ -270,6 +271,54 @@ test('WORLD LIFE ENGINE: a person by default, a monster not — decided at adopt
   await page.getByTestId('forge-life-toggle-MON-900002').click();
   await expect(page.getByTestId('forge-life-MON-900002')).toHaveText('Life Engine 対象');
   await expect(page.getByTestId('forge-record-MON-900002')).toContainText('Life Engine 対象を変更');
+});
+
+test('実機確認（RIZEL）: an empty save, a played save, and after the save is wiped and a new game begins', async ({ page }) => {
+  const MUST_PASS = ['1', '2', '3', '4', '5', '8', '9', '10', '11'];
+  const check = async (label: string) => {
+    await page.goto('/?tool=forge-import');
+    await page.getByTestId('forge-device-check-run').click();
+    for (const id of MUST_PASS) {
+      await expect(page.getByTestId(`forge-device-check-${id}`), `${label} #${id}`).toHaveAttribute('data-pass', 'true');
+    }
+    await expect(page.getByTestId('forge-device-check-状態')).toContainText('画像 未登録');
+    await expect(page.getByTestId('forge-device-check-状態')).toContainText('関係 REL-000001 保留');
+  };
+  const wipe = async () => {
+    await page.evaluate(async () => {
+      const dbs = (await indexedDB.databases?.()) ?? [];
+      await Promise.all(dbs.map((d) => new Promise((resolve) => {
+        if (!d.name) return resolve(null);
+        const rq = indexedDB.deleteDatabase(d.name);
+        rq.onsuccess = rq.onerror = rq.onblocked = () => resolve(null);
+      })));
+    });
+  };
+
+  await page.goto('/');
+  await wipe();
+  await check('empty save');
+  await expect(page.getByTestId('forge-device-check-5')).toContainText('空のセーブ');
+
+  // A played save: the opening, and a name.
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await check('played save');
+  await expect(page.getByTestId('forge-device-check-5')).toContainText('プレイ中のセーブ');
+  // Opening the save through the title afterwards still works.
+  await page.goto('/');
+  await expect(page.getByTestId('continue-button')).toBeVisible();
+
+  // The save wiped (what Android's 「ストレージを消去」 does), then はじめる.
+  await wipe();
+  await page.goto('/');
+  await expect(page.getByTestId('start-button')).toBeVisible();
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await check('after wipe + はじめる');
 });
 
 test('none of this touched the repository’s own content', async () => {

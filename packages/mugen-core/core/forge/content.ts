@@ -173,6 +173,11 @@ export interface ForgeAdoptionView extends ForgeWorldView {
    * Reported, never refused, never guessed.
    */
   unmapped?: (payload: ForgeDeployPackage) => ForgeIssue[];
+  /**
+   * Consistency inside the file (e.g. profile.age against the visual age
+   * group). Warnings only: never corrected, never refused.
+   */
+  consistency?: (payload: ForgeDeployPackage) => ForgeIssue[];
 }
 
 export interface ForgeAdoptionInput {
@@ -202,6 +207,8 @@ export interface ForgeAdoptionPlan extends ForgePlan {
   lifeActor: boolean | null;
   /** FORGE values with no counterpart in the game's vocabulary (UNMAPPED). */
   unmapped: ForgeIssue[];
+  /** Contradictions inside the file, said out loud and left exactly as they are. */
+  consistency: ForgeIssue[];
   /** True when there is something to write and everything needed to write it. */
   ready: boolean;
 }
@@ -327,6 +334,7 @@ function finish(
     npcErrors,
     npcNotes,
     unmapped: plan.payload && view.unmapped ? view.unmapped(plan.payload) : [],
+    consistency: plan.payload && view.consistency ? view.consistency(plan.payload) : [],
     ready: plan.canRegister && npcErrors.length === 0 && !!npcId && lifeActor !== null,
   };
 }
@@ -377,7 +385,7 @@ export function applyForgeAdoption(plan: ForgeAdoptionPlan, content: ForgeConten
     deployedAt: payload.deployment.deployedAt,
     importedAt: at,
     result: existing ? 'UPDATED' : 'NEW',
-    warnings: [...plan.warnings, ...plan.npcNotes, ...plan.unmapped],
+    warnings: [...plan.warnings, ...plan.npcNotes, ...plan.unmapped, ...plan.consistency],
     snapshotRef: previous?.snapshotRef ?? null,
   };
   const next: ForgeRosterEntry = {

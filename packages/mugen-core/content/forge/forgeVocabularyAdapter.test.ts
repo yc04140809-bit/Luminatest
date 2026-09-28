@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { FORGE_VOCABULARY, adaptForgeVocabulary, sourceOnlyFields, unmappedIssues, zeroCharacterDefinition } from './forgeVocabularyAdapter';
+import {
+  FORGE_AGE_GROUP_BANDS,
+  FORGE_VOCABULARY,
+  adaptForgeVocabulary,
+  consistencyIssues,
+  sourceOnlyFields,
+  unmappedIssues,
+  zeroCharacterDefinition,
+} from './forgeVocabularyAdapter';
 import { canonicalJson } from '../../core/forge/canonical';
 import { asReal } from '../../core/forge/fixtures/load';
 import { MUGEN_WORLD_RULES } from '../world/mugenWorld';
@@ -183,5 +191,63 @@ describe('visualDiversity and the other source-only fields: preserved, never use
     expect(unmappedIssues(odd)).toEqual(unmappedIssues(young));
     // And the odd values are kept exactly as sent.
     expect(odd.visualDiversity).toEqual({ ageGroup: 'older_adult', bodyBuild: 'heavy', heightImpression: 'very_tall', hair: { color: 'salt_and_pepper', length: 'very_short' } });
+  });
+});
+
+describe('decided 2026-09-28: profile.age is the age; ageGroup is a picture aid — warn, never correct', () => {
+  const withAge = (age: unknown, ageGroup: unknown) =>
+    asReal('human', (p) => {
+      p.profile.age = age;
+      p.visualDiversity = { ...(p.visualDiversity as object), ageGroup };
+    });
+
+  it('uses the author’s bands, for this warning only', () => {
+    expect(FORGE_AGE_GROUP_BANDS).toEqual({
+      child: { min: 0, max: 12 },
+      teen: { min: 13, max: 17 },
+      young_adult: { min: 18, max: 29 },
+      adult: { min: 30, max: 49 },
+      older_adult: { min: 50, max: Number.POSITIVE_INFINITY },
+    });
+  });
+
+  it('warns AGE / VISUAL AGE GROUP MISMATCH — the RIZEL case — and changes nothing', () => {
+    const p = withAge('20', 'older_adult');
+    const before = canonicalJson(p);
+    const issues = consistencyIssues(p);
+    expect(issues).toHaveLength(1);
+    expect(issues[0].code).toBe('AGE_VISUAL_GROUP_MISMATCH');
+    for (const part of ['AGE / VISUAL AGE GROUP MISMATCH', 'SOURCE AGE: 20', 'VISUAL AGE GROUP: older_adult', 'SOURCE DATA PRESERVED', 'GAME DATA NOT AUTO-CORRECTED'])
+      expect(issues[0].message).toContain(part);
+    expect(canonicalJson(p)).toBe(before);
+    expect(p.profile.age).toBe('20');
+    expect((p.visualDiversity as { ageGroup: string }).ageGroup).toBe('older_adult');
+  });
+
+  it('stays quiet when they agree, at every band edge', () => {
+    for (const [age, group] of [['0', 'child'], ['12', 'child'], ['13', 'teen'], ['17', 'teen'], ['18', 'young_adult'], ['29', 'young_adult'], ['30', 'adult'], ['49', 'adult'], ['50', 'older_adult'], ['90', 'older_adult'], [20, 'young_adult']] as const)
+      expect(consistencyIssues(withAge(age, group)), `${age} ${group}`).toEqual([]);
+    for (const [age, group] of [['12', 'teen'], ['18', 'teen'], ['29', 'adult'], ['50', 'adult'], ['49', 'older_adult']] as const)
+      expect(consistencyIssues(withAge(age, group)).map((i) => i.code), `${age} ${group}`).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
+  });
+
+  it('an ageGroup outside the five is UNMAPPED and not compared; an age that is not a number is not compared', () => {
+    const odd = consistencyIssues(withAge('20', 'middle_aged'));
+    expect(odd.map((i) => i.code)).toEqual(['UNMAPPED_VOCABULARY']);
+    expect(odd[0].message).toContain('middle_aged');
+    expect(consistencyIssues(withAge('二十歳', 'older_adult'))).toEqual([]);
+    expect(consistencyIssues(withAge('', 'older_adult'))).toEqual([]);
+    // No visual age group at all (monsters): nothing to say.
+    expect(consistencyIssues(asReal('boss-monster'))).toEqual([]);
+  });
+
+  it('is a warning at adoption, never a refusal', async () => {
+    const { planForgeAdoption, EMPTY_ROSTER } = await import('../../core/forge/content');
+    const { forgeAdoptionView } = await import('./adoptionView');
+    const content = { roster: EMPTY_ROSTER, baselines: {}, previous: {}, voidIds: [], damaged: [] };
+    const plan = planForgeAdoption(JSON.stringify(withAge('20', 'older_adult')), forgeAdoptionView(content), { npcId: 'SOMEONE' });
+    expect(plan.ready).toBe(true);
+    expect(plan.consistency.map((i) => i.code)).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
+    expect(plan.errors).toEqual([]);
   });
 });

@@ -250,6 +250,57 @@ export function sourceOnlyFields(definition: ForgeDeployPackage): { field: strin
   });
 }
 
+/**
+ * AGE BANDS FOR ONE WARNING ONLY (decided 2026-09-28, docs/FORGE_IMPORT.md §0).
+ *
+ * `profile.age` is the character's age — the fact. `visualDiversity.ageGroup`
+ * is FORGE's picture-making aid, not an age. These bands exist only to
+ * notice when the two plainly disagree and say so:
+ *
+ *   - never used to make an ageGroup from an age, or an age from an ageGroup;
+ *   - never used to correct either side — both stay exactly as FORGE sent them;
+ *   - an ageGroup that is not one of these five is UNMAPPED and not compared.
+ */
+export const FORGE_AGE_GROUP_BANDS: Readonly<Record<string, { min: number; max: number }>> = {
+  child: { min: 0, max: 12 },
+  teen: { min: 13, max: 17 },
+  young_adult: { min: 18, max: 29 },
+  adult: { min: 30, max: 49 },
+  older_adult: { min: 50, max: Number.POSITIVE_INFINITY },
+};
+
+/**
+ * Contradictions inside one FORGE file, as warnings. Nothing is corrected
+ * and adoption is never stopped. Today: profile.age against
+ * visualDiversity.ageGroup.
+ */
+export function consistencyIssues(definition: ForgeDeployPackage): ForgeIssue[] {
+  const out: ForgeIssue[] = [];
+  const rawAge = definition.profile?.age;
+  const ageText = typeof rawAge === 'number' ? String(rawAge) : typeof rawAge === 'string' ? rawAge.trim() : '';
+  const age = /^\d{1,3}$/.test(ageText) ? Number(ageText) : null;
+  const visual = definition.visualDiversity as Record<string, unknown> | null;
+  const group = visual && typeof visual.ageGroup === 'string' ? visual.ageGroup.trim() : '';
+  if (!group) return out;
+  const band = Object.prototype.hasOwnProperty.call(FORGE_AGE_GROUP_BANDS, group) ? FORGE_AGE_GROUP_BANDS[group] : null;
+  if (!band) {
+    out.push({
+      code: 'UNMAPPED_VOCABULARY',
+      path: 'visualDiversity.ageGroup',
+      message: `UNMAPPED: visualDiversity.ageGroup「${group}」— 警告判定用の年齢帯（child／teen／young_adult／adult／older_adult）にない値です。比較せず、そのまま保持します。`,
+    });
+    return out;
+  }
+  if (age !== null && (age < band.min || age > band.max)) {
+    out.push({
+      code: 'AGE_VISUAL_GROUP_MISMATCH',
+      path: 'visualDiversity.ageGroup',
+      message: `WARNING: AGE / VISUAL AGE GROUP MISMATCH — SOURCE AGE: ${age} ／ VISUAL AGE GROUP: ${group} ／ SOURCE DATA PRESERVED ／ GAME DATA NOT AUTO-CORRECTED（年齢の正は profile.age。どちらも書き換えません）`,
+    });
+  }
+  return out;
+}
+
 /** The adapter's report for the review screen and the ledger: one warning per UNMAPPED value. */
 export function unmappedIssues(definition: ForgeDeployPackage): ForgeIssue[] {
   return adaptForgeVocabulary(definition).unmapped.map((u) => ({
