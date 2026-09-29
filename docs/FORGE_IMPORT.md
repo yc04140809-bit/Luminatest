@@ -290,3 +290,68 @@ debug APK のタイトル →「DEBUG キャラクター取込」→ 画面下�
 **App には RESET WORLD ボタンが無い**（追加しない）。代わりに Android の
 「設定 → アプリ → MUGEN ZERO → ストレージ → データ消去」でセーブを完全に消す（その端末の App 版のセーブがすべて消える。Artifact 版は別アプリで影響しない）。
 e2e（`e2e/forgeImport.spec.ts` の「実機確認（RIZEL）」）が同じ手順（空 → つづきから → データ消去 → はじめる）で各項目の判定を確認している。
+
+### 9e. 2026-09-29：Android 実機確認 完了（正式記録）
+
+**FORGE → MUGEN ZERO AUTHORING IMPORT 基盤 ／ RIZEL（HUM-000001）／ Android 実機確認完了**（作者確認済み）
+
+- APK：CI run #47（`android-debug-apk-app.yml`）、commit `601cabe`、アーティファクト `mugen-zero-app-debug-apk`。
+- 実機（MUGEN ZERO App 1.0）で §9d の 11 項目すべて PASS。
+
+| 確認した内容 | 項目 | 実機での結果 |
+|---|---|---|
+| HUM-000001 → RIZEL の登録が維持される | 1〜4 | PASS（lifeActor true・Life Engine の人物あり） |
+| 既存 SAVE から起動しても RIZEL は採用済み一覧に残る | 5 | PASS（プレイ中のセーブ：出来事 0 件・状態 3 行／2 行） |
+| アプリのストレージを完全消去（ユーザーデータ 0 B）した後も、RIZEL はビルドコンテンツとして残る | 6・7 | PASS（出来事 0 件・状態 0 行、RIZEL 採用済み） |
+| 「はじめる」で新規開始した後も RIZEL は採用済み一覧から消えない | 7 | PASS（出来事 0 件・状態 2 行のセーブで採用済み） |
+| SAVE_VERSION = 3 のまま・既存 SAVE 形式は変更なし | 8 | PASS（ビルド 3／セーブ 3） |
+| FORGE の元データは SAVE へ書き込まれていない | 9 | PASS |
+| visualDiversity 等の FORGE 専用データがゲーム側の人物状態へ混入していない | 10 | PASS |
+| personality／values／desires から Life Engine の状態を自動生成していない | 11 | PASS（traits／values／desires 0） |
+
+Android の「ストレージを消去」（機種により「データ消去」）が §9d の「データ消去」にあたる（「キャッシュを削除」ではない）。
+
+## 11. AUTHORING IMPORT 基盤の固定（2026-09-29）
+
+作者指示：**RIZEL の IMPORT 基盤そのものには追加修正を入れない。** 基準は commit `601cabe`（実機確認済み）。
+以下は、作者が変更を正式に指示しない限り変えない。
+
+- 純粋コア：`packages/mugen-core/core/forge/`（validate・plan・content・diff・record・types・canonical hash）
+- ディスク操作と CLI：`packages/mugen-core/scripts/forgeContentFs.ts`・`scripts/forge-import.ts`
+- 語彙アダプターと状態：`content/forge/forgeVocabularyAdapter.ts`（表は §0 の決定どおり。性格・価値観・願いは空、importance は一般NPC だけ）・`forgeStatus.ts`・`adoptionView.ts`
+- 画面：`packages/mugen-app/src/dev/ForgeImport.tsx`・`forgeDeviceCheck.ts`、開発サーバーの書き込み口（`vite.config.ts` の `/__mugen/forge/*`）
+- 採用済みデータ：`content/forge/roster.json`・`void.json`・`characters/HUM-000001.json`（受け取った JSON とバイト単位で同一）
+
+2 人目以降の採用で変わるのは `content/forge/` のデータ（`roster.json`・`characters/<ID>.json`・生成物 `index.generated.ts`・必要なら `void.json`）と、
+そのキャラ専用の確認テストだけ。仕組みは増やさない。
+
+## 12. 今後の優先順位（2026-09-29・作者指示）
+
+1. **PRIORITY 1：FORGE との正式な受け渡し仕様を完成させる。** 対象と現状：
+
+   | 項目 | 現状（ZERO 側） | 決めるのに必要なもの |
+   |---|---|---|
+   | personality／values／desires | 表は空。すべて UNMAPPED・元データ保存・計算に使わない | FORGE の正式語彙一覧 → 作者が承認した対応表 |
+   | importance | 一般NPC → ORDINARY だけ。ほかは UNMAPPED | FORGE の正式語彙一覧と、作者の基準 |
+   | visualDiversity | SOURCE DATA PRESERVED / GAME MAPPING = UNUSED。ageGroup は年齢不一致 WARNING の比較だけ | FORGE の ageGroup 等の正式語彙（年齢帯を含む） |
+   | characterType | human → PERSON、monster → CREATURE | 他の値があるかの確認 |
+   | lifeActor | 人間は対象・モンスター（BOSS 含む）は対象外が既定。作者判断でだけ変える | —（決定済み） |
+   | VOID ID | `{schemaVersion:1, voidIds:[{characterId, status:"VOID"}]}`。台帳は増えるだけ | —（決定済み） |
+   | Character ID | FORGE の ID（HUM-／MON-）。NPC_ID とは別 | —（決定済み） |
+   | NPC_ID | 採用時に作者が指定。大文字・1 人 1 つ・変更不可・再利用不可 | —（決定済み） |
+
+   FORGE の元データは自動補正しない。正式対応していない語は UNMAPPED として保持・警告。類義語変換・推測変換は禁止。
+   Life Engine の語彙へ変換するのは、作者が正式承認した対応表だけ。
+
+2. **PRIORITY 2：2 人目の実キャラクターで同じ手順を通す**（再現性確認。新しい仕組みは増やさない）：
+   FORGE 書き出し → preview → 差分確認 → 作者確認 → `--apply` → `content/forge` 登録 → commit／push → APK（CI）→ Android 実機確認。
+   手順は §7「実データ 1 件での登録試験の手順」と同じ。
+   - 2026-09-29 時点の受け入れ準備：`forge:import --list` で採用済み 1 人（RIZEL）・VOID 0 件・内容の問題なし。FORGE 関連テスト 105 件 PASS
+     （2 人以上の採用・生成 index・NPC_ID 重複なしは `contentFs.test.ts`／`adoptedBuild.test.ts` で確認済み）。
+   - 実機確認の画面（§9d）は RIZEL 専用（`CHECK_FORGE_ID`／`CHECK_NPC_ID` 固定）。2 人目の実機確認で同じ 11 項目を見るには、
+     この画面の対象を切り替えられるようにする必要がある（未実装・作者の指示待ち。§11 の固定範囲内の変更のため）。
+     それまでは、同じ画面の「採用済み一覧」で登録・NPC_ID・Life Engine 対象を見られ、SAVE に関する項目（5〜11）は RIZEL の行で同じ性質を確認できる。
+3. **PRIORITY 3**（2 人目が通ってから）：CHARACTER FORGE → MUGEN ZERO → WORLD LIFE ENGINE → WORLD MAP → NPC イベントの連携設計。
+
+**今回やらない（別フェーズ）**：RESET WORLD ボタン、自動送信、API 同期、WORLD MAP 実装、NPC イベント実装、RIZEL 画像登録、
+REL-000001 の確定、importance の推測拡張、personality／values／desires の自動変換。
