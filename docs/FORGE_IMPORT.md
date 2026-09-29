@@ -365,6 +365,28 @@ Android の「ストレージを消去」（機種により「データ消去」
      FORGE JSON の到着後に preview（書き込みなし）→ 確認 → 問題がなければ `--apply`。
      NPC_ID は JSON の正式名から決め、既存の人物・別名・Life Engine の人物・FORGE 台帳と重複しないこと。lifeActor は human なら true、
      地域は JSON に正式値がある場合だけ使い、無ければ未配置。対応表（personality・values・desires・importance・visualDiversity・ageGroup・characterType）は増やさない。
+   - **2026-09-29：HUM-000002 → EDDA を採用（実データ 2 件目）**。RIZEL と同じ手順・同じ道具で、仕組みは何も増やしていない。
+     `npm run forge:import -w @mugen/core -- <JSON> --npc-id EDDA --life-actor yes --apply`。
+     書き込み：`characters/HUM-000002.json`（受け取った JSON と内容同一。ファイル末尾の改行 1 バイトだけが付く保存形式で、RIZEL と同じ）、`roster.json`、`index.generated.ts`。
+
+     | 確認項目 | preview の結果 |
+     |---|---|
+     | Character ID／名前 | HUM-000002／エッダ（nameStatus CANON） |
+     | characterType | human → PERSON |
+     | NPC_ID | EDDA（正式名エッダから。既存の人物・別名・Life Engine の人物・FORGE 台帳のどれとも重複なし） |
+     | lifeActor | true（human の既定） |
+     | 地域 | 未配置（`profile.currentRegion` が空。補完しない） |
+     | 正式定義 | PERSON／standing なし（importance が空）／traits・values・desires 空／aptitudes MAGIC 0.91・SWORD 0.28・HEALING 0.45 |
+     | UNMAPPED | personality（皮肉屋・頑固・短気）、values（友情・強さ）、desires（故郷を守りたい・誰かを守れる人になりたい）、aptitudes（commerce・social）、visualDiversity.ageGroup「elderly」 |
+     | visualDiversity 警告 | AGE / VISUAL AGE GROUP MISMATCH は出ない（`profile.age` が空で、elderly は 5 つの年齢帯にない＝比較しない）。SOURCE DATA PRESERVED / GAME MAPPING = UNUSED |
+     | personality／values／desires | すべて UNMAPPED。Life Engine の traits／values／desires は 0 |
+     | importance | 空（値なし）。UNMAPPED 扱いで standing は未設定、人物台帳・GOD VIEW の表示用既定は ORDINARY |
+     | VOID ID との競合 | なし（VOID 台帳 0 件。この JSON は 1 人分の DEPLOY JSON で voidIds なし） |
+     | 画像・関係 | 画像 VIS-HUM-000002-001 はメタ情報のみ（未登録・代表なし）。relationshipRefs なし |
+
+     FORGE 側の値で空のもの（ZERO 側では埋めない）：`profile.age`・`gender`・`origin`・`currentRegion`・`occupation`・`importance` など。
+     テスト：`content/forge/edda.test.ts`（ビルドの実 content。モックなし）。`rizel.test.ts` の「採用済みは RIZEL だけ」という前提の 3 か所は
+     「RIZEL が含まれる」に変更（RIZEL 自身の確認内容は同じ）。
 3. **PRIORITY 3**（2 人目が通ってから）：CHARACTER FORGE → MUGEN ZERO → WORLD LIFE ENGINE → WORLD MAP → NPC イベントの連携設計。
 
 **今回やらない（別フェーズ）**：RESET WORLD ボタン、自動送信、API 同期、WORLD MAP 実装、NPC イベント実装、RIZEL 画像登録、

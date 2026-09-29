@@ -98,6 +98,98 @@
           "snapshotRef": null
         }
       ]
+    },
+    {
+      "characterId": "HUM-000002",
+      "npcId": "EDDA",
+      "characterType": "human",
+      "encounterRole": null,
+      "region": null,
+      "lifeActor": true,
+      "payloadHash": "sha256:1037c00e4f0464be54f152d4a008799bac326b60bbbf1f309fed3e1cc09b37d9",
+      "sourceSchemaVersion": "1.0",
+      "deployedVersion": "0.1",
+      "deployedAt": "2026-09-29T16:52:45.329Z",
+      "adoptedAt": "2026-09-29T17:00:17.524Z",
+      "lastImportedAt": "2026-09-29T17:00:17.524Z",
+      "lastImportId": "IMP-20260929T170017524Z-HUM-000002-1037c00e",
+      "previous": null,
+      "history": [
+        {
+          "importId": "IMP-20260929T170017524Z-HUM-000002-1037c00e",
+          "characterId": "HUM-000002",
+          "npcId": "EDDA",
+          "payloadHash": "sha256:1037c00e4f0464be54f152d4a008799bac326b60bbbf1f309fed3e1cc09b37d9",
+          "sourceSchemaVersion": "1.0",
+          "deployedVersion": "0.1",
+          "deployedAt": "2026-09-29T16:52:45.329Z",
+          "importedAt": "2026-09-29T17:00:17.524Z",
+          "result": "NEW",
+          "warnings": [
+            {
+              "code": "MISSING_ASSET",
+              "path": "assets",
+              "message": "画像 VIS-HUM-000002-001（HUM-000002_CONCEPT_001.webp）の実ファイルは本編に未登録です。メタ情報だけを保持します。"
+            },
+            {
+              "code": "NO_PRIMARY_ASSET",
+              "path": "assets",
+              "message": "primary: true の画像がありません。代表画像は未設定として扱います。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「皮肉屋」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「頑固」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「短気」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「友情」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「強さ」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「故郷を守りたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「誰かを守れる人になりたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「commerce」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「social」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "visualDiversity.ageGroup",
+              "message": "UNMAPPED: visualDiversity.ageGroup「elderly」— 警告判定用の年齢帯（child／teen／young_adult／adult／older_adult）にない値です。比較せず、そのまま保持します。"
+            }
+          ],
+          "snapshotRef": null
+        }
+      ]
     }
   ]
 }

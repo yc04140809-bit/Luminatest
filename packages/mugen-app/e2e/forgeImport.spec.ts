@@ -296,6 +296,17 @@ test('実機確認: the build’s adopted characters to choose from, choosing wr
   await page.getByTestId('forge-device-check-run').click();
   await expect(page.getByTestId('forge-device-check-table')).toHaveAttribute('data-character', 'HUM-000001');
   await expect(page.getByTestId('forge-device-check-6')).toHaveAttribute('data-state', 'PASS');
+  // Switching to each adopted character asks the same 11 items of them.
+  for (const id of roster) {
+    await page.getByTestId(`forge-device-check-target-${id}`).click();
+    await expect(page.getByTestId(`forge-device-check-target-${id}`)).toHaveAttribute('aria-checked', 'true');
+    await page.getByTestId('forge-device-check-run').click();
+    await expect(page.getByTestId('forge-device-check-table')).toHaveAttribute('data-character', id);
+    for (const item of ['1', '2', '3', '4', '6', '7', '8', '9', '10', '11']) {
+      await expect(page.getByTestId(`forge-device-check-${item}`), `${id} #${item}`).toHaveAttribute('data-state', 'PASS');
+    }
+    await expect(page.getByTestId('forge-device-check-5')).toHaveAttribute('data-state', 'UNCHECKED');
+  }
   const stored = await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }));
   expect(stored).toEqual({ local: 0, session: 0 });
 });

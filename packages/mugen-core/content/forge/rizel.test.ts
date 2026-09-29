@@ -44,7 +44,7 @@ describe('RIZEL is adopted, as content', () => {
   });
 
   it('2. HUM-000001 corresponds to RIZEL — a human, a life actor, from deploy 0.1-r2', () => {
-    expect(forgeCorrespondence()).toEqual({ 'HUM-000001': 'RIZEL' });
+    expect(forgeCorrespondence()['HUM-000001']).toBe('RIZEL');
     expect(entry).toMatchObject({
       npcId: 'RIZEL',
       characterType: 'human',
@@ -139,9 +139,9 @@ describe('RIZEL is adopted, as content', () => {
     expect(definitionFacts().skills).toEqual({ magic: 'UNLEARNED', sword: 'UNLEARNED', healing: 'UNLEARNED', commerce: 'UNLEARNED', social: 'UNLEARNED' });
   });
 
-  it('12. a common monster is still not a life actor; she is the only FORGE life actor', () => {
+  it('12. a common monster is still not a life actor; she is a FORGE life actor', () => {
     const forgeActors = WORLD_LIFE_RULES.cores.filter((c) => forgeCorrespondenceIds().includes(c.npcId)).map((c) => c.npcId);
-    expect(forgeActors).toEqual(['RIZEL']);
+    expect(forgeActors).toContain('RIZEL');
     expect(FORGE_CONTENT.roster.characters.filter((e) => e.characterType === 'monster' && e.lifeActor)).toEqual([]);
   });
 });
@@ -209,16 +209,16 @@ describe('RIZEL and the save', () => {
     await world.recordGaldLifeChoice('HELP');
     await world.resetWorld();
     const adopted = () => [
-      FORGE_CONTENT.roster.characters.map((e) => e.npcId),
+      FORGE_CONTENT.roster.characters.map((e) => e.npcId).includes('RIZEL'),
       !!personEntry('RIZEL'),
       WORLD_LIFE_RULES.cores.some((c) => c.npcId === 'RIZEL'),
     ];
-    expect(adopted()).toEqual([['RIZEL'], true, true]);
+    expect(adopted()).toEqual([true, true, true]);
     // はじめる: a fresh open of the now-empty save.
     const fresh = await World.open(new IdbMemoryStore(db));
     expect(fresh.getEvents()).toEqual([]);
     expect(fresh.hasProgress()).toBe(false);
-    expect(adopted()).toEqual([['RIZEL'], true, true]);
+    expect(adopted()).toEqual([true, true, true]);
     expect(JSON.stringify(await rowsOf(db))).not.toMatch(/RIZEL|HUM-000001|forge_/);
   });
 });

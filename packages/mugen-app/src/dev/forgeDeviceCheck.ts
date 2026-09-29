@@ -183,12 +183,12 @@ export function evaluateForgeDeviceCheck(characterId: string, save: DeviceSave):
   const visual = npc ? strings((npc.forge as unknown as Record<string, unknown>).visualDiversity) : new Set<string>();
   const leaked = [...visual].filter((v) => gameStrings.has(v));
   const sourceKeys = definition ? FORGE_SOURCE_ONLY_FIELDS.filter((f) => f in definition) : [];
-  const warnings = npc ? consistencyIssues(npc.forge).length : 0;
+  const warnings = npc ? consistencyIssues(npc.forge).filter((i) => i.code === 'AGE_VISUAL_GROUP_MISMATCH').length : 0;
   add('10', 'visualDiversity（FORGE 専用データ）がゲーム側に反映・修正されていない',
     !!definition && leaked.length === 0 && sourceKeys.length === 0,
     leaked.length || sourceKeys.length
       ? `反映されている値: ${[...leaked, ...sourceKeys].join('、')}`
-      : `元データの visualDiversity は ${visual.size ? 'そのまま保持' : 'なし'}・ゲーム側の定義には無い（年齢・外見の不一致 WARNING ${warnings} 件、修正なし）`);
+      : `元データの visualDiversity は ${visual.size ? 'そのまま保持' : 'なし'}・ゲーム側の定義には無い（年齢と見た目の年齢帯の不一致 WARNING ${warnings} 件、修正なし）`);
   // 11: nothing made from personality, values or desires — in the game's
   // definition, and in the life engine for a character FORGE created.
   const life = definition?.life;
