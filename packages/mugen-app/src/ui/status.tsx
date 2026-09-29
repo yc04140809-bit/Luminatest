@@ -220,7 +220,7 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
           )}
         </nav>
 
-        <div className="st-info">
+        <div className="st-info st-scroll" data-testid="status-scroll">
           <p className="st-name" data-testid="status-name">
             {/* The name alone, so a test can assert it exactly rather
                 than against the roman subtitle sitting beside it. */}
@@ -234,11 +234,8 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
           </p>
           {/* 肩書き is absent until the author writes one. */}
           {says?.epithet && <p className="st-epithet">{says.epithet}</p>}
-          {/* THE PROSE IS WHAT GIVES WAY. On a short handset something
-              has to, and it must never be the numbers: a status screen
-              that has lost 攻撃力 is broken, while one showing a
-              shortened introduction is merely smaller. This block
-              shrinks and clips; everything below it cannot. */}
+          {/* Shown whole. On a short handset the column scrolls
+              rather than cutting this, or anything below it. */}
           {(says?.quote || says?.intro) && (
             <div className="st-prose">
               {says?.quote && <p className="st-quote">{says.quote}</p>}

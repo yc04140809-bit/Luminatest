@@ -244,3 +244,49 @@ test('gives the screen back, and never scrolls', async ({ page }) => {
   await back.click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 });
+
+test('scrolls the middle column to its last line, on any height, and nothing else moves', async ({ page }) => {
+  await openStatus(page);
+
+  const measure = () =>
+    page.evaluate(() => {
+      const scroll = document.querySelector('[data-testid="status-scroll"]') as HTMLElement;
+      scroll.scrollTop = scroll.scrollHeight;
+      const box = (e: Element) => e.getBoundingClientRect();
+      const last = scroll.lastElementChild!;
+      return {
+        scrolls: scroll.scrollHeight > scroll.clientHeight,
+        atBottom: Math.abs(scroll.scrollTop + scroll.clientHeight - scroll.scrollHeight) <= 1,
+        lastBottom: box(last).bottom,
+        scrollBottom: box(scroll).bottom,
+        footTop: box(document.querySelector('.st-foot')!).top,
+        footBottom: box(document.querySelector('.st-foot')!).bottom,
+        visualTop: box(document.querySelector('.st-visual')!).top,
+        page: document.documentElement.scrollHeight - window.innerHeight,
+      };
+    });
+
+  // A short handset: the column has more than it can show at once.
+  for (const who of ['hero', 'kaos']) {
+    if (who === 'kaos') await page.getByTestId('status-tab-kaos').click();
+    for (const [width, height] of [[844, 390], [720, 320]]) {
+      await page.setViewportSize({ width, height });
+      const m = await measure();
+      const at = `${who} ${width}x${height}`;
+      expect(m.atBottom, at).toBe(true);
+      // The last line is reachable, and is not under the foot.
+      expect(m.lastBottom, at).toBeLessThanOrEqual(m.scrollBottom);
+      expect(m.lastBottom, at).toBeLessThanOrEqual(m.footTop);
+      // The foot stays at the bottom, the picture and the menu at the top,
+      // and the page itself never scrolls — only the column does.
+      expect(m.footBottom, at).toBe(height);
+      expect(m.visualTop, at).toBe(0);
+      expect(m.page, at).toBe(0);
+    }
+  }
+  await page.setViewportSize({ width: 720, height: 320 });
+  expect((await measure()).scrolls).toBe(true);
+  // Everything that was below 装備 on the handset is in the column.
+  await expect(page.getByTestId('status-scroll')).toContainText('武器種');
+  await expect(page.getByTestId('status-scroll')).toContainText('戦闘スタイル');
+});

@@ -319,26 +319,35 @@ body {
   gap: 2px;
   overflow: hidden;
 }
-/* WHAT GIVES WAY ON A SHORT SCREEN.
-   A handset in landscape can be 310 CSS pixels tall, and the first
-   build of this screen simply ran off the bottom of one: the numbers
-   went, and a status screen without 攻撃力 is broken. So the prose is
-   the only thing allowed to shrink, and everything below it is pinned.
-   Measured on a real device, not assumed. */
+/* THE BODY SCROLLS; NOTHING IN IT IS CUT.
+   Clipping to fit hid what was below 装備 on a real handset (the author,
+   2026-09-29), so the middle column scrolls instead and every child
+   keeps its full height. Only this column moves: the menu, the picture
+   and the foot stay where they are. The foot is laid out BELOW this
+   box, not over it — its height and the safe area are already taken
+   off — and the padding keeps the last line clear of its edge. */
+.st-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--st-gold-soft) transparent;
+}
+.st-scroll > * {
+  flex-shrink: 0;
+}
+.st-scroll .st-style-note {
+  flex-shrink: 0;
+  overflow: visible;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
 .st-prose {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  /* CLIPPED TEXT MUST NOT LOOK BROKEN.
-     `overflow: hidden` cuts through the middle of a line of kana and
-     the result reads as a rendering fault, not as an abbreviation.
-     Fading the last few pixels turns the same cut into something that
-     looks meant — the line trails off instead of being sliced. */
-  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent 100%);
-  mask-image: linear-gradient(180deg, #000 calc(100% - 14px), transparent 100%);
 }
 .st-name {
   margin: 0;
