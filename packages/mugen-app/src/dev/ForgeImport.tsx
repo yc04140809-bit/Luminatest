@@ -13,7 +13,7 @@ import {
 import { FORGE_PLACEABLE_REGIONS, forgeAdoptionView } from '@mugen/content/forge/adoptionView';
 import { sourceOnlyFields, zeroCharacterDefinition } from '@mugen/content/forge/forgeVocabularyAdapter';
 import { forgeRegistrationState } from '@mugen/content/forge/forgeStatus';
-import type { DeviceCheckRow } from './forgeDeviceCheck';
+import type { DeviceCheckRow, DeviceCheckTarget } from './forgeDeviceCheck';
 import './forgeImport.css';
 
 /**
@@ -868,32 +868,83 @@ function StateLine({ entry, content }: { entry: ForgeContent['roster']['characte
 const STATE_TEXT: Record<DeviceCheckRow['state'], string> = { PASS: 'PASS', FAIL: 'FAIL', UNCHECKED: '未確認', INFO: '—' };
 const STATE_CLASS: Record<DeviceCheckRow['state'], string> = { PASS: 'fi-good', FAIL: 'fi-bad', UNCHECKED: 'fi-quiet', INFO: 'fi-quiet' };
 
-/** 実機確認（RIZEL）: reads the build and this device's save; writes nothing. */
+/**
+ * 実機確認: choose an adopted character, then the same 11 items for them.
+ * Reads the build and this device's save; writes nothing — choosing is
+ * only this screen's state. The choices are the build's own roster.
+ */
 function DeviceCheck() {
+  const [targets, setTargets] = useState<DeviceCheckTarget[] | null>(null);
+  const [chosen, setChosen] = useState<string | null>(null);
   const [rows, setRows] = useState<DeviceCheckRow[] | null>(null);
+  const [checked, setChecked] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void import('./forgeDeviceCheck')
+      .then(({ forgeDeviceCheckTargets }) => {
+        if (!alive) return;
+        const list = forgeDeviceCheckTargets();
+        setTargets(list);
+        setChosen((c) => c ?? list[0]?.characterId ?? null);
+      })
+      .catch((e: unknown) => alive && setError(e instanceof Error ? e.message : String(e)));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const choose = (id: string) => {
+    setChosen(id);
+    setRows(null);
+    setChecked(null);
+  };
   const run = async () => {
+    if (!chosen) return;
     setError(null);
     try {
       const { runForgeDeviceCheck } = await import('./forgeDeviceCheck');
-      setRows(await runForgeDeviceCheck());
+      setRows(await runForgeDeviceCheck(chosen));
+      setChecked(chosen);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
   };
+  const target = targets?.find((t) => t.characterId === chosen) ?? null;
   return (
     <section className="fi-step" data-testid="forge-device-check">
-      <h2>実機確認（RIZEL）</h2>
+      <h2>実機確認（採用済みキャラクター）</h2>
       <p className="fi-note">
-        ビルドの採用済みデータと、この端末のセーブを読むだけです（何も書き込みません）。5〜7 はセーブの状態で判定が変わります。
+        ビルドの採用済みデータと、この端末のセーブを読むだけです（何も書き込みません）。確認するキャラクターを選び、
+        同じ 11 項目を確認します。5〜7 はセーブの状態で判定が変わります。
         「未確認」の項目は、説明の手順（つづきから／データ消去／はじめる）の後にもう一度押してください。
       </p>
-      <button className="fi-btn" data-testid="forge-device-check-run" onClick={() => void run()}>
-        確認を実行
+      {targets && targets.length === 0 && <p className="fi-quiet">このビルドには採用済みのキャラクターがいません。</p>}
+      {targets && targets.length > 0 && (
+        <div className="fi-check-targets" role="radiogroup" aria-label="確認するキャラクター" data-testid="forge-device-check-targets">
+          {targets.map((t) => (
+            <button
+              key={t.characterId}
+              className={t.characterId === chosen ? 'fi-btn fi-target on' : 'fi-btn fi-target'}
+              role="radio"
+              aria-checked={t.characterId === chosen}
+              data-testid={`forge-device-check-target-${t.characterId}`}
+              onClick={() => choose(t.characterId)}
+            >
+              {t.npcId}
+              <span className="fi-quiet">
+                {' '}
+                {t.name}・{t.characterId}・{t.kindLabel}・{t.lifeActor ? 'Life Engine 対象' : 'Life Engine 対象外'}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button className="fi-btn" data-testid="forge-device-check-run" disabled={!target} onClick={() => void run()}>
+        {target ? `${target.npcId} を確認` : '確認を実行'}
       </button>
       {error && <p className="fi-bad">{error}</p>}
-      {rows && (
-        <table className="fi-table fi-check-table">
+      {rows && checked && (
+        <table className="fi-table fi-check-table" data-testid="forge-device-check-table" data-character={checked}>
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} data-testid={`forge-device-check-${row.id}`} data-state={row.state}>

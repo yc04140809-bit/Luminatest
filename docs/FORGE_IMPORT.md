@@ -269,7 +269,8 @@ Life Engine には aptitudes（MAGIC・SWORD・HEALING）だけが入り、trait
 
 ### 9d. Android 実機確認（debug APK）
 
-debug APK のタイトル →「DEBUG キャラクター取込」→ 画面下の **実機確認（RIZEL）** →「確認を実行」。
+debug APK のタイトル →「DEBUG キャラクター取込」→ 画面下の **実機確認（採用済みキャラクター）** → 確認するキャラクターを選ぶ →「<NPC_ID> を確認」。
+（2026-09-29 までは RIZEL 固定の「実機確認（RIZEL）」。§12 の作者指示で、同じ 11 項目を採用済みの誰にでも使う形にした。）
 ビルドの採用済みデータとこの端末のセーブを**読むだけ**（World を開かず IndexedDB を直接読む。何も書かない）。
 各行は **PASS**（緑）／**FAIL**（赤）／**未確認**（灰：今のセーブの状態では判定できない。説明の手順の後にもう一度押す）。
 
@@ -348,9 +349,22 @@ Android の「ストレージを消去」（機種により「データ消去」
    手順は §7「実データ 1 件での登録試験の手順」と同じ。
    - 2026-09-29 時点の受け入れ準備：`forge:import --list` で採用済み 1 人（RIZEL）・VOID 0 件・内容の問題なし。FORGE 関連テスト 105 件 PASS
      （2 人以上の採用・生成 index・NPC_ID 重複なしは `contentFs.test.ts`／`adoptedBuild.test.ts` で確認済み）。
-   - 実機確認の画面（§9d）は RIZEL 専用（`CHECK_FORGE_ID`／`CHECK_NPC_ID` 固定）。2 人目の実機確認で同じ 11 項目を見るには、
-     この画面の対象を切り替えられるようにする必要がある（未実装・作者の指示待ち。§11 の固定範囲内の変更のため）。
-     それまでは、同じ画面の「採用済み一覧」で登録・NPC_ID・Life Engine 対象を見られ、SAVE に関する項目（5〜11）は RIZEL の行で同じ性質を確認できる。
+   - **実機確認画面の汎用化（2026-09-29・作者指示・実装済み）**：§9d の画面は RIZEL 固定をやめ、採用済みキャラクターから確認対象を選ぶ。
+     - 選べるのはビルドの `content/forge` に実際に登録済みで、定義ファイルがある人物だけ（VOID ID・未採用・存在しない ID は出ない）。
+     - 選んだ人物について同じ 11 項目を、その人物のファイルから評価する（キャラクターごとのコードは書かない）。
+       RIZEL で決めた項目はそのまま。人物に合わせたのは次の点だけ：
+       2 は FORGE の名前（既存の人物に採用した場合はゲームの名前のまま）、
+       4 は lifeActor = false の人物なら「Life Engine 対象外で、Life Engine に入っていない」、
+       10 はその人物自身の visualDiversity の値がゲーム側の定義・人物台帳・Life Engine のどれにも無いこと、
+       9 は FORGE の Character ID（HUM／MON）・形式名・送出 hash・FORGE 専用の出来事と行がセーブに無いこと（NPC_ID はゲーム側の ID なので対象外）。
+     - 判定できない項目は PASS にせず「未確認」、登録されていない人物は FAIL。読むだけで、選択・確認はセーブにも端末の保存領域にも何も書かない。
+     - DEBUG 専用（`src/dev/`、リリースビルドには入らない）。テスト：`mugen-app/src/dev/forgeDeviceCheck.test.ts`（3 人入りのビルドを模擬）、
+       `e2e/forgeImport.spec.ts`（一覧がリポジトリの roster と一致・HUM-000005 が出ない・選択で何も書かない・RIZEL の手順）。
+   - **2 人目：HUM-000002 エッダ**（作者指定 2026-09-29）。HUM-000005 は CHARACTER FORGE に存在しないため対象にしない
+     （生成しない・欠番を埋めない・別人に割り当てない）。REL-000001 は相手未確定のまま保留。
+     FORGE JSON の到着後に preview（書き込みなし）→ 確認 → 問題がなければ `--apply`。
+     NPC_ID は JSON の正式名から決め、既存の人物・別名・Life Engine の人物・FORGE 台帳と重複しないこと。lifeActor は human なら true、
+     地域は JSON に正式値がある場合だけ使い、無ければ未配置。対応表（personality・values・desires・importance・visualDiversity・ageGroup・characterType）は増やさない。
 3. **PRIORITY 3**（2 人目が通ってから）：CHARACTER FORGE → MUGEN ZERO → WORLD LIFE ENGINE → WORLD MAP → NPC イベントの連携設計。
 
 **今回やらない（別フェーズ）**：RESET WORLD ボタン、自動送信、API 同期、WORLD MAP 実装、NPC イベント実装、RIZEL 画像登録、

@@ -76,3 +76,6 @@
 .fi-state { margin: 2px 0 0; }
 .fi-check-table th, .fi-check-table td { vertical-align: top; padding: 4px 10px 4px 0; }
 .fi-verdict { font-weight: 700; white-space: nowrap; }
+.fi-check-targets { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.fi-target { text-align: left; }
+.fi-target.on { outline: 2px solid #e0b84a; }

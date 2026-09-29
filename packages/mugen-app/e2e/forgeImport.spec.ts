@@ -273,11 +273,40 @@ test('WORLD LIFE ENGINE: a person by default, a monster not — decided at adopt
   await expect(page.getByTestId('forge-record-MON-900002')).toContainText('Life Engine 対象を変更');
 });
 
+test('実機確認: the build’s adopted characters to choose from, choosing writes nothing', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const dbs = (await indexedDB.databases?.()) ?? [];
+    await Promise.all(dbs.map((d) => new Promise((resolve) => {
+      if (!d.name) return resolve(null);
+      const rq = indexedDB.deleteDatabase(d.name);
+      rq.onsuccess = rq.onerror = rq.onblocked = () => resolve(null);
+    })));
+  });
+  await page.goto('/?tool=forge-import');
+  // Exactly the roster in the repository's content/forge — nobody else.
+  const roster = (JSON.parse(REPO_ROSTER_AT_START) as { characters: { characterId: string }[] }).characters.map((c) => c.characterId);
+  const buttons = page.getByTestId('forge-device-check-targets').getByRole('radio');
+  await expect(buttons).toHaveCount(roster.length);
+  for (const id of roster) await expect(page.getByTestId(`forge-device-check-target-${id}`)).toBeVisible();
+  await expect(page.getByTestId('forge-device-check-target-HUM-000005')).toHaveCount(0);
+  await expect(page.getByTestId('forge-device-check-target-HUM-000001')).toHaveAttribute('aria-checked', 'true');
+  // Choosing (again) and checking leave the save exactly as empty as it was.
+  await page.getByTestId('forge-device-check-target-HUM-000001').click();
+  await page.getByTestId('forge-device-check-run').click();
+  await expect(page.getByTestId('forge-device-check-table')).toHaveAttribute('data-character', 'HUM-000001');
+  await expect(page.getByTestId('forge-device-check-6')).toHaveAttribute('data-state', 'PASS');
+  const stored = await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }));
+  expect(stored).toEqual({ local: 0, session: 0 });
+});
+
 test('実機確認（RIZEL）: 11 items across the phone procedure — empty save, つづきから, data wipe, はじめる', async ({ page }) => {
   const ALWAYS = ['1', '2', '3', '4', '7', '8', '9', '10', '11'];
   const check = async (label: string, expected: Record<string, string>) => {
     await page.goto('/?tool=forge-import');
+    await page.getByTestId('forge-device-check-target-HUM-000001').click();
     await page.getByTestId('forge-device-check-run').click();
+    await expect(page.getByTestId('forge-device-check-table')).toHaveAttribute('data-character', 'HUM-000001');
     for (const id of ALWAYS) {
       await expect(page.getByTestId(`forge-device-check-${id}`), `${label} #${id}`).toHaveAttribute('data-state', 'PASS');
     }
