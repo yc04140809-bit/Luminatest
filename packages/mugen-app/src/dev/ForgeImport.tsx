@@ -631,7 +631,7 @@ function Particulars({ plan }: { plan: ForgePlan }) {
               <tr key={key}>
                 <th>{SKILL_NAME[key] ?? key}</th>
                 <td>{SKILL_TEXT[level] ?? level}</td>
-                <td className="fi-quiet">潜在 {typeof p.aptitudes[key] === 'number' ? p.aptitudes[key].toFixed(2) : '—'}</td>
+                <td className="fi-quiet">潜在 {typeof p.aptitudes?.[key] === 'number' ? p.aptitudes[key].toFixed(2) : '—'}</td>
               </tr>
             ))}
           </tbody>
