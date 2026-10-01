@@ -255,7 +255,10 @@ export function summarize(value: unknown): ForgeSummary | null {
 
 function referenceWarnings(payload: ForgeDeployPackage, world: ForgeWorldView): ForgeIssue[] {
   const out: ForgeIssue[] = [];
-  for (const ref of payload.relationshipRefs) {
+  // Read only what is there: a field FORGE did not send is not a reason to fail.
+  const refs = Array.isArray(payload.relationshipRefs) ? payload.relationshipRefs.filter((r): r is string => typeof r === 'string') : [];
+  const assets = Array.isArray(payload.assets) ? payload.assets.filter((a) => isObject(a)) : [];
+  for (const ref of refs) {
     out.push(
       issue(
         'UNRESOLVED_REFERENCE',
@@ -264,7 +267,7 @@ function referenceWarnings(payload: ForgeDeployPackage, world: ForgeWorldView): 
       ),
     );
   }
-  for (const asset of payload.assets) {
+  for (const asset of assets) {
     if (!world.knownAssetIds.has(asset.assetId)) {
       out.push(
         issue(
@@ -275,10 +278,10 @@ function referenceWarnings(payload: ForgeDeployPackage, world: ForgeWorldView): 
       );
     }
   }
-  if (payload.assets.length > 0 && !payload.assets.some((asset) => asset.primary === true)) {
+  if (assets.length > 0 && !assets.some((asset) => asset.primary === true)) {
     out.push(issue('NO_PRIMARY_ASSET', 'assets', 'primary: true の画像がありません。代表画像は未設定として扱います。'));
   }
-  if (payload.visualReviewStatus !== 'APPROVED') {
+  if ('visualReviewStatus' in payload && payload.visualReviewStatus !== 'APPROVED') {
     out.push(
       issue('VISUAL_NOT_APPROVED', 'visualReviewStatus', `見た目のレビューが未承認です（${payload.visualReviewStatus}）。`),
     );
@@ -286,7 +289,7 @@ function referenceWarnings(payload: ForgeDeployPackage, world: ForgeWorldView): 
 
   // Where the author would like them. Said back, never acted on.
   const names = new Map(Object.entries(world.locations).map(([id, name]) => [name, id]));
-  const assignment = payload.worldAssignment;
+  const assignment: Record<string, unknown> = isObject(payload.worldAssignment) ? payload.worldAssignment : {};
   for (const key of ['settlement', 'region'] as const) {
     const wanted = typeof assignment[key] === 'string' ? (assignment[key] as string).trim() : '';
     if (!wanted) continue;

@@ -738,8 +738,10 @@ function Normalized({ plan }: { plan: ForgeAdoptionPlan }) {
       <dl className="fi-summary">
         <dt>entityType</dt>
         <dd data-testid="forge-entity-type">{def.entityType}</dd>
-        <dt>standing</dt>
-        <dd>{def.standing ?? 'UNMAPPED'}</dd>
+        <dt>importance</dt>
+        <dd data-testid="forge-importance">
+          {def.importance === null ? '（空）' : `「${def.importance}」（FORGE の自由入力・そのまま保持し解釈しない）`}
+        </dd>
         {def.species && (
           <>
             <dt>species</dt>
@@ -809,7 +811,7 @@ function ExportFile({
   return (
     <div className="fi-export" data-testid="forge-export" data-format={file.format}>
       <h3>
-        FORGE 書き出しファイル（{file.format === 'OFFICIAL' ? `正式形式 schemaVersion ${file.schemaVersion}` : '旧形式'}）
+        FORGE まとめ書き出しファイル（LEGACY / OPTIONAL・{file.format === 'OFFICIAL' ? `schemaVersion ${file.schemaVersion}` : '旧試験形式'}）
         {file.exportedAt && <span className="fi-quiet">　{formatTime(file.exportedAt)}</span>}
       </h3>
       <p data-testid="forge-export-voids">

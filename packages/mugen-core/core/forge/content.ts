@@ -575,7 +575,14 @@ export function generateForgeIndex(roster: ForgeRoster): string {
 // ---- FORGE's retired ids ---------------------------------------------------
 
 /**
- * A FILE FORGE EXPORTED FOR MUGEN ZERO — the official shape:
+ * A BUNDLE OF CHARACTERS AND RETIRED IDS — LEGACY / OPTIONAL.
+ *
+ * NOT THE SPECIFICATION (author decision C4, 2026-10-02). FORGE's
+ * official route is one DEPLOY PACKAGE per character; a package carries
+ * no voidIds, FORGE keeps its own ID registry and guarantees no id is
+ * reused, and MUGEN ZERO never infers a VOID from a gap in the numbers.
+ * This bundle shape (decided 2026-09-27, before FORGE's source was read)
+ * is still read so nothing that used it breaks:
  *
  *   {
  *     "schemaVersion": 1,
@@ -640,7 +647,7 @@ export function readForgeExport(value: unknown): ForgeExport {
           if (entry.status === 'VOID') addId(entry.characterId, where);
           else issues.push(issue('EXPORT_FORMAT', where, `${String(entry.characterId)} の status が VOID ではありません（${String(entry.status)}）。読み飛ばしました。`));
         } else if (typeof entry === 'string') {
-          issues.push(issue('EXPORT_LEGACY_FORMAT', where, `${entry}: 文字列だけの指定は旧形式です。正式形式は { "characterId", "status": "VOID" } です。`));
+          issues.push(issue('EXPORT_LEGACY_FORMAT', where, `${entry}: 文字列だけの指定は旧試験形式です（まとめ書き出しは LEGACY / OPTIONAL。行の形は { "characterId", "status": "VOID" }）。`));
           addId(entry, where);
         } else {
           issues.push(issue('EXPORT_FORMAT', where, `${where} を読めません。`));
@@ -655,7 +662,7 @@ export function readForgeExport(value: unknown): ForgeExport {
   }
 
   // Older trial shapes.
-  issues.push(issue('EXPORT_LEGACY_FORMAT', '', '旧形式の書き出しです。正式形式は { schemaVersion: 1, characters, voidIds: [{ characterId, status: "VOID" }] } です。'));
+  issues.push(issue('EXPORT_LEGACY_FORMAT', '', '旧試験形式の書き出しです（まとめ書き出しは LEGACY / OPTIONAL。正式な経路は 1 キャラごとの DEPLOY PACKAGE です）。'));
   const retired = (status: unknown) => typeof status === 'string' && /^(VOID|VOIDED|DISCARDED)$/i.test(status);
   const take = (list: unknown[], where: string) =>
     list.forEach((item, i) => {

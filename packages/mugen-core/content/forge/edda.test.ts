@@ -84,7 +84,8 @@ describe('EDDA is adopted, as content, the same way RIZEL was', () => {
 
   it('UNMAPPED stays UNMAPPED: nothing made from personality, values, desires or an empty importance', () => {
     const definition = forgeDefinitions().find((d) => d.characterId === 'HUM-000002')!;
-    expect(definition.standing).toBeNull();
+    // FORGE sent no importance: nothing to keep, nothing derived.
+    expect(definition.importance).toBeNull();
     expect(unmappedIssues(stored).map((i) => `${i.path}:${i.message.match(/「(.+?)」/)?.[1]}`)).toEqual([
       'profile.core.personality:皮肉屋',
       'profile.core.personality:頑固',
@@ -98,12 +99,11 @@ describe('EDDA is adopted, as content, the same way RIZEL was', () => {
     ]);
   });
 
-  it('visualDiversity is SOURCE DATA PRESERVED / GAME MAPPING = UNUSED; ageGroup elderly is UNMAPPED and not compared', () => {
+  it('visualDiversity is SOURCE DATA PRESERVED / GAME MAPPING = UNUSED; elderly is one of FORGE’s seven ageGroups', () => {
     expect(stored.visualDiversity).toMatchObject({ ageGroup: 'elderly', bodyBuild: 'lean', hair: { length: 'shaved' } });
     expect(sourceOnlyFields(stored).map((f) => f.field)).toContain('visualDiversity');
-    // No age was sent and elderly is not one of the five bands: reported UNMAPPED, never
-    // compared — so no AGE / VISUAL AGE GROUP MISMATCH — and nothing corrected.
-    expect(consistencyIssues(stored).map((i) => [i.code, i.path])).toEqual([['UNMAPPED_VOCABULARY', 'visualDiversity.ageGroup']]);
+    // elderly is official (SOURCE VERIFIED); no age was sent, so there is nothing to compare — and nothing is corrected.
+    expect(consistencyIssues(stored)).toEqual([]);
     const readByGame = JSON.stringify({ ...forgeDefinitions().find((d) => d.characterId === 'HUM-000002'), unmapped: [] });
     for (const value of ['elderly', 'feminine', 'lean', 'shaved', 'tight_curl', 'work_stained', 'nervous']) expect(readByGame, value).not.toContain(value);
   });

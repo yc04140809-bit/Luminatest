@@ -102,25 +102,38 @@ describe('A. 構文・検証', () => {
     }
   });
 
-  it('A3: a wrong source or target is refused', () => {
-    expect(plan(asReal('human', (p) => ((p as { source: string }).source = 'ELSEWHERE'))).decision).toBe('BLOCKED_VALIDATION');
-    expect(plan(asReal('human', (p) => ((p.deployment as { target: string }).target = 'OTHER'))).decision).toBe('BLOCKED_VALIDATION');
+  it('A3: a wrong source or target is said out loud, not refused (known only from the old bridge package)', () => {
+    for (const odd of [
+      asReal('human', (p) => ((p as { source: string }).source = 'ELSEWHERE')),
+      asReal('human', (p) => ((p.deployment as { target: string }).target = 'OTHER')),
+    ]) {
+      const p = plan(odd, EMPTY, { npcId: 'SERA' });
+      expect(p.decision).toBe('NEW');
+      expect(p.warnings.map((w) => w.code)).toContain('UNVERIFIED_CONTRACT');
+    }
   });
 
-  it('A4: an unsupported schemaVersion is refused; a newer minor is read with a warning', () => {
-    for (const version of ['2.0', '0.9', '', 'v1']) {
-      const p = plan(asReal('human', (x) => (x.schemaVersion = version)));
-      expect(p.decision, version).toBe('BLOCKED_VALIDATION');
-      expect(p.errors[0].code).toBe('UNSUPPORTED_SCHEMA_VERSION');
+  it('A4: schemaVersion must be there; "1.0" is FORGE’s, any other is read with a warning, never coerced', () => {
+    for (const version of ['', null]) {
+      const p = plan(asReal('human', (x) => ((x as { schemaVersion: unknown }).schemaVersion = version)));
+      expect(p.decision, String(version)).toBe('BLOCKED_VALIDATION');
+    }
+    expect(plan(asReal('human', (x) => delete (x as { schemaVersion?: unknown }).schemaVersion)).decision).toBe('BLOCKED_VALIDATION');
+    for (const version of ['2.0', '0.9', 'v1', 1]) {
+      const p = plan(asReal('human', (x) => ((x as { schemaVersion: unknown }).schemaVersion = version)), EMPTY, { npcId: 'SERA' });
+      expect(p.decision, String(version)).toBe('NEW');
+      expect(p.warnings.map((w) => w.code)).toContain('UNKNOWN_SCHEMA_VERSION');
+      // Kept exactly as sent.
+      expect(p.payload!.schemaVersion).toBe(version);
     }
     const minor = plan(asReal('human', (x) => (x.schemaVersion = '1.1')), EMPTY, { npcId: 'SERA' });
     expect(minor.decision).toBe('NEW');
     expect(minor.warnings.map((w) => w.code)).toContain('NEWER_MINOR_VERSION');
   });
 
-  it('A5: a HUM id on a monster (and a MON id on a human) is refused', () => {
-    expect(plan(asReal('normal-monster', (p) => (p.characterId = 'HUM-900001'))).errors.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
-    expect(plan(asReal('human', (p) => (p.characterId = 'MON-900001'))).errors.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
+  it('A5: a HUM id on a monster (and a MON id on a human) is warned about; an id not in the HUM-/MON- form is refused', () => {
+    expect(plan(asReal('normal-monster', (p) => (p.characterId = 'HUM-900001'))).warnings.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
+    expect(plan(asReal('human', (p) => (p.characterId = 'MON-900001'))).warnings.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
     for (const bad of ['HUM-1', 'hum-000001', 'NPC-000001', 'HUM-00000A']) {
       expect(plan(asReal('human', (p) => (p.characterId = bad))).decision, bad).toBe('BLOCKED_VALIDATION');
     }
@@ -451,9 +464,11 @@ describe('E. MONSTER / BOSS安全性', () => {
     expect(adopt(EMPTY, asReal('boss-monster'), { npcId: 'B' }).baselines['MON-900002'].bossEncounter).toEqual(sample('boss-monster').bossEncounter);
   });
 
-  it('refuses a boss without its encounter design, and a normal monster with one', () => {
-    expect(plan(asReal('boss-monster', (p) => ((p.bossEncounter as Record<string, unknown>).coreMechanic = '未設定'))).decision).toBe('BLOCKED_VALIDATION');
+  it('refuses a normal monster with an encounter design (verified); a boss’s missing design is only warned about (old package)', () => {
     expect(plan(asReal('normal-monster', (p) => (p.bossEncounter = sample('boss-monster').bossEncounter))).decision).toBe('BLOCKED_VALIDATION');
+    const thin = plan(asReal('boss-monster', (p) => ((p.bossEncounter as Record<string, unknown>).coreMechanic = '未設定')), EMPTY, { npcId: 'MON_ROOTRING' });
+    expect(thin.ready).toBe(true);
+    expect(thin.warnings.find((w) => w.path === 'bossEncounter.coreMechanic')?.code).toBe('UNVERIFIED_CONTRACT');
   });
 });
 
@@ -523,5 +538,93 @@ describe('the rest of the contract', () => {
     expect(index).toContain("import HUM_900001 from './characters/HUM-900001.json';");
     expect(index).toContain("  'MON-900002': MON_900002,");
     expect(index).not.toContain('previous/');
+  });
+});
+
+// SOURCE VERIFIED 2026-10-02 (docs/FORGE_IMPORT.md): what FORGE's own
+// implementation guarantees is checked as an error; what only the old
+// bridge package v1.0 said is a warning. The old samples are LEGACY TEST
+// FIXTURES — the cases below change them in memory to stand for both.
+describe('SOURCE VERIFIED 2026-10-02: verified rules refuse, old-package rules only warn', () => {
+  const refused = (p: ForgeDeployPackage) => plan(p, EMPTY, { npcId: 'SOMEONE' }).decision === 'BLOCKED_VALIDATION';
+
+  it('refuses what FORGE itself never sends', () => {
+    const cases: [string, ForgeDeployPackage][] = [
+      ['status not CANONIZED', asReal('human', (p) => ((p as { status: string }).status = 'DEPLOYED'))],
+      ['characterType npc', asReal('human', (p) => ((p as { characterType: string }).characterType = 'npc'))],
+      ['characterType boss', asReal('boss-monster', (p) => ((p as { characterType: string }).characterType = 'boss'))],
+      ['human with an encounterRole', asReal('human', (p) => ((p as { encounterRole: string }).encounterRole = 'BOSS'))],
+      ['monster without one', asReal('normal-monster', (p) => ((p as { encounterRole: null }).encounterRole = null))],
+      ['human name not settled', asReal('human', (p) => (p.identity.nameStatus = 'AUTO_CANDIDATE'))],
+      ['monster species name missing', asReal('normal-monster', (p) => (p.identity.speciesName = ''))],
+      ['visual review REVISION_REQUIRED', asReal('human', (p) => (p.visualReviewStatus = 'REVISION_REQUIRED'))],
+      ['impermissible equipment evidence', asReal('human', (p) => (((p.equipment as Record<string, unknown>).validation as Record<string, unknown>).permitted = false))],
+      ['a picture inside the package', asReal('human', (p) => ((p.assets[0] as unknown as Record<string, unknown>).memo = 'data:image/png;base64,AAAA'))],
+      ['no characterId', asReal('human', (p) => delete (p as { characterId?: string }).characterId)],
+    ];
+    for (const [what, p] of cases) expect(refused(p), what).toBe(true);
+    const revision = plan(asReal('human', (p) => (p.visualReviewStatus = 'REVISION_REQUIRED')));
+    expect(revision.errors.map((e) => e.code)).toContain('VISUAL_REVISION_REQUIRED');
+  });
+
+  it('only warns about what the old bridge package alone said — the character still comes in', () => {
+    const cases: [string, ForgeDeployPackage][] = [
+      ['an asset type not in the old list', asReal('human', (p) => ((p.assets[0] as unknown as Record<string, unknown>).assetType = 'PORTRAIT'))],
+      ['a skill level not in the old list', asReal('human', (p) => ((p.currentSkills as Record<string, string>).magic = 'NOVICE'))],
+      ['a visual review value not in the old list', asReal('human', (p) => ((p as { visualReviewStatus: string }).visualReviewStatus = 'PENDING'))],
+      ['another aptitudeSemantics', asReal('human', (p) => ((p as { aptitudeSemantics: string }).aptitudeSemantics = 'POTENTIAL'))],
+      ['a relationship id in another form', asReal('human', (p) => (p.relationshipRefs = ['R-1']))],
+      ['a human with ecology', asReal('human', (p) => (p.ecology = { desire: '平穏' }))],
+      ['a human without lifeAxis', asReal('human', (p) => delete (p as { lifeAxis?: unknown }).lifeAxis)],
+      ['a human without currentSkills', asReal('human', (p) => delete (p as { currentSkills?: unknown }).currentSkills)],
+      ['a monster with a lifeStage', asReal('normal-monster', (p) => (p.lifeStage = { stage: 'ADULT' }))],
+      ['a boss with a thin encounter design', asReal('boss-monster', (p) => delete (p.bossEncounter as Record<string, unknown>).arena)],
+      ['a boss with no encounter design', asReal('boss-monster', (p) => (p.bossEncounter = null))],
+      ['no assets list', asReal('human', (p) => delete (p as { assets?: unknown }).assets)],
+    ];
+    for (const [what, p] of cases) {
+      const result = plan(p, EMPTY, { npcId: 'SOMEONE' });
+      expect(result.errors, what).toEqual([]);
+      expect(result.ready, what).toBe(true);
+      expect(result.warnings.map((w) => w.code), what).toContain('UNVERIFIED_CONTRACT');
+    }
+  });
+
+  it('tells a boss by encounterRole, never by characterType', () => {
+    expect(forgeKindOf(asReal('boss-monster'))).toBe('BOSS');
+    expect(asReal('boss-monster').characterType).toBe('monster');
+    expect(forgeKindOf(asReal('normal-monster'))).toBe('MONSTER');
+    expect(forgeKindOf(asReal('human'))).toBe('HUMAN');
+  });
+
+  it('keeps unknown strings exactly as FORGE wrote them — no normalising', () => {
+    const odd = asReal('human', (p) => {
+      p.profile.core = { personality: ['未知の性格', '頑固', '頑固'], values: ['  余白つき  '], desires: [] };
+      p.profile.importance = '最重要';
+      p.visualDiversity = { ...(p.visualDiversity as object), ageGroup: 'middle_aged' };
+      p.visualDirection = { overallImpression: 'CUTE', intensity: 'SUBTLE', customInstruction: '' };
+    });
+    const content = adopt(EMPTY, odd, { npcId: 'SERA' });
+    expect(canonicalJson(content.baselines['HUM-900001'])).toBe(canonicalJson(odd));
+  });
+
+  it('A2: the occupation is current when FORGE says CURRENT_OR_AGE_APPROPRIATE; FORGE’s lifeStage is read, never recomputed', () => {
+    const at = (mode: string) =>
+      asReal('human', (p) => {
+        p.profile.occupation = '薬草採集人';
+        p.lifeStage = { ...(p.lifeStage as object), occupationMode: mode };
+      });
+    expect(forgeHumanCurrentFacts(at('CURRENT_OR_AGE_APPROPRIATE'))).toMatchObject({ occupation: '薬草採集人', aspiration: null });
+    expect(forgeHumanCurrentFacts(at('FUTURE_ASPIRATION'))).toMatchObject({ occupation: null, aspiration: '薬草採集人' });
+    expect(forgeHumanCurrentFacts(at('UNSET'))).toMatchObject({ occupation: null, aspiration: null });
+    // LEGACY: the old samples' CURRENT_FACT still reads, so the old fixtures keep working. Never written.
+    expect(forgeHumanCurrentFacts(at('CURRENT_FACT'))).toMatchObject({ occupation: '薬草採集人' });
+    const p = at('CURRENT_OR_AGE_APPROPRIATE');
+    const before = canonicalJson(p);
+    forgeHumanCurrentFacts(p);
+    expect(canonicalJson(p)).toBe(before);
+    // Potential never stands in for skills, even when currentSkills is missing.
+    const noSkills = asReal('human', (x) => delete (x as { currentSkills?: unknown }).currentSkills);
+    expect(forgeHumanCurrentFacts(noSkills)!.skills).toEqual({});
   });
 });

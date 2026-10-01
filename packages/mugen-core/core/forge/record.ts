@@ -33,25 +33,40 @@ export function forgeDisplayName(payload: ForgeDeployPackage): string {
 }
 
 /**
+ * FORGE's occupationMode values (SOURCE VERIFIED 2026-10-02): UNSET,
+ * FUTURE_ASPIRATION, CURRENT_OR_AGE_APPROPRIATE. FORGE derives it; the
+ * game only reads it, never works it out again.
+ */
+export const OCCUPATION_CURRENT = 'CURRENT_OR_AGE_APPROPRIATE';
+/**
+ * LEGACY, read only: the bridge package v1.0's samples wrote
+ * `CURRENT_FACT`, which FORGE itself never outputs. Kept so the old test
+ * fixtures still read; never written, never the specification.
+ */
+const LEGACY_OCCUPATION_CURRENT = 'CURRENT_FACT';
+
+/**
  * WHAT IS TRUE OF A HUMAN NOW, as opposed to what they could become.
  *
  * Skills are `currentSkills` exactly — the aptitudes (potential) are
  * not consulted, so a gifted swordsman who has never held a sword has no
- * sword skill here. The occupation is theirs only when FORGE marks it a
- * current fact; a child's "wants to be a knight" comes back as an
- * aspiration and nothing else. Monsters have none of this: null.
+ * sword skill here. The occupation is theirs only when FORGE's lifeStage
+ * says it is current (or fitting their age); a child's "wants to be a
+ * knight" comes back as an aspiration and nothing else. FORGE's lifeStage
+ * is taken as it is: nothing here recomputes it. Monsters have none of
+ * this: null.
  */
 export function forgeHumanCurrentFacts(payload: ForgeDeployPackage): {
   skills: Record<string, ForgeSkillLevel>;
   occupation: string | null;
   aspiration: string | null;
 } | null {
-  if (payload.characterType !== 'human' || !payload.currentSkills) return null;
-  const occupation = typeof payload.profile.occupation === 'string' ? payload.profile.occupation : null;
+  if (payload.characterType !== 'human') return null;
+  const occupation = typeof payload.profile?.occupation === 'string' && payload.profile.occupation ? payload.profile.occupation : null;
   const mode = payload.lifeStage?.occupationMode;
   return {
-    skills: { ...payload.currentSkills },
-    occupation: mode === 'CURRENT_FACT' ? occupation : null,
+    skills: { ...(payload.currentSkills ?? {}) },
+    occupation: mode === OCCUPATION_CURRENT || mode === LEGACY_OCCUPATION_CURRENT ? occupation : null,
     aspiration: mode === 'FUTURE_ASPIRATION' ? occupation : null,
   };
 }

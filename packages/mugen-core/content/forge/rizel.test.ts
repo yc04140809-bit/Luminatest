@@ -147,11 +147,9 @@ describe('RIZEL is adopted, as content', () => {
 });
 
 describe('RIZEL — decided 2026-09-28', () => {
-  it('her age is profile.age = 20; the older_adult picture aid is only warned about, never corrected', () => {
-    const issues = consistencyIssues(stored);
-    expect(issues.map((i) => i.code)).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
-    expect(issues[0].message).toContain('SOURCE AGE: 20');
-    expect(issues[0].message).toContain('VISUAL AGE GROUP: older_adult');
+  it('her age 20 and her older_adult visual age are both kept; by FORGE’s own rules both are ADULT, so no warning (C1, 2026-10-02)', () => {
+    // MUGEN ZERO does not overrule FORGE's visual age with a band table of its own.
+    expect(consistencyIssues(stored)).toEqual([]);
     expect(stored.profile.age).toBe('20');
     expect(stored.visualDiversity.ageGroup).toBe('older_adult');
     expect(payloadHash(FORGE_CONTENT.baselines['HUM-000001'])).toBe(HASH);

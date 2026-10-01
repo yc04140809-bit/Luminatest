@@ -132,6 +132,7 @@ export type ForgeIssueCode =
   | 'SAMPLE_ONLY'
   | 'ID_TYPE_MISMATCH'
   | 'EQUIPMENT_NOT_PERMITTED'
+  | 'VISUAL_REVISION_REQUIRED'
   | 'RESERVED_ID'
   | 'ID_TYPE_CONFLICT'
   | 'DEPLOYMENT_CONFLICT'
@@ -139,6 +140,9 @@ export type ForgeIssueCode =
   // Taken in, and said out loud.
   | 'UNKNOWN_FIELD'
   | 'NEWER_MINOR_VERSION'
+  | 'UNKNOWN_SCHEMA_VERSION'
+  /** A rule known only from the old bridge package v1.0: said, never refused on. */
+  | 'UNVERIFIED_CONTRACT'
   | 'UNRESOLVED_REFERENCE'
   | 'MISSING_ASSET'
   | 'NO_PRIMARY_ASSET'

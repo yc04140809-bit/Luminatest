@@ -85,7 +85,8 @@ describe('実機確認 for any adopted character', () => {
     expect(empty).toMatchObject({ '1': 'PASS', '2': 'PASS', '3': 'PASS', '4': 'PASS', '5': 'UNCHECKED', '6': 'PASS', '7': 'PASS', '8': 'PASS', '9': 'PASS', '10': 'PASS', '11': 'PASS' });
     const rows = evaluateForgeDeviceCheck('HUM-000001', PLAYED);
     expect(rows.find((r) => r.id === '4')!.label).toBe('一覧に「Life Engine 対象」（lifeActor = true）');
-    expect(rows.find((r) => r.id === '10')!.detail).toContain('WARNING 1 件');
+    // By FORGE's own life-stage rules, age 20 and older_adult are both ADULT: no warning (C1, 2026-10-02).
+    expect(rows.find((r) => r.id === '10')!.detail).toContain('WARNING 0 件');
     expect(rows.find((r) => r.id === '状態')!.detail).toContain('関係 REL-000001 保留');
   });
 

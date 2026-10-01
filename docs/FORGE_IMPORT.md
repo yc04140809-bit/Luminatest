@@ -1,6 +1,7 @@
 # CHARACTER FORGE → MUGEN ZERO キャラクター採用（AUTHORING / CONTENT IMPORT）
 
-2026-09-27。根拠：`mugen-character-forge-to-zero-bridge-v1.0.zip` と、作者の方針修正（同日）。
+2026-09-27 作成。**正本は §S「SOURCE VERIFIED 2026-10-02」**（FORGE 本体の実装を確認した結果）。
+旧連携 ZIP `mugen-character-forge-to-zero-bridge-v1.0.zip` は実装根拠にしない（§S-7）。§0 以降の記述が §S と食い違う場合は §S が優先。
 
 > **CHARACTER FORGE は、作者が候補を作って採用し、MUGEN ZERO の正式 NPC として登録するための開発用ツール。**
 > 採用した NPC は**全プレイヤー共通のコンテンツ**（ゲームのビルドに入る）。端末の SAVE には入れない。
@@ -16,18 +17,93 @@ FORGE JSON → AUTHORING IMPORT → VALIDATION → NORMALIZATION（語彙アダ�
   → MUGEN ZERO 正式 Character Definition → ゲーム BUILD → lifeActor のキャラだけ WORLD LIFE ENGINE
 ```
 
+## S. FORGE → MUGEN ZERO 連携仕様（SOURCE VERIFIED 2026-10-02・正本）
+
+作者が CHARACTER FORGE の実装を確認した結果（2026-10-02）。旧仕様・旧サンプル・旧 ZIP・ZERO 側の仮対応と食い違う場合はこちらが優先。
+原則：**FORGE → ZERO は「正本を受け取り、保持し、必要最低限だけ解釈する」**。ZERO 側で FORGE の値を推測・補正・再定義しない。
+優先順位：① DEPLOY PACKAGE の元データ保持 ② SOURCE VERIFIED 仕様 ③ ZERO 内部で必要な派生表示 ④ LEGACY 互換。
+ZERO 内部の派生値は FORGE の原文を失わせない（元 JSON は `characters/<ID>.json` に受け取ったまま残る）。
+
+### S-1. 受け取るもの
+
+- 正本は FORGE の `buildDeployPackage()` が出力した **1 キャラ 1 ファイルの DEPLOY PACKAGE**（`{CharacterID}_MUGEN_ZERO_{版}.json`、`JSON.stringify(…, null, 2)`）。
+  FORGE 内部のキャラクターオブジェクトの構造を ZERO で再現しない。ZERO が読む位置は PACKAGE の最終出力（例：`profile.core.personality`）。
+- 送出版は `0.1`・`0.1-r2`・`0.1-r3`…。PACKAGE 内の status は常に `CANONIZED`。schemaVersion は実出力どおり文字列 `"1.0"`（数値の 1 へ変換しない）。
+- PACKAGE に含まれないもの：FORGE 内部 UUID、LOCK、UNDO、ID Registry・VOID 履歴・ID Counters、Relationship 本体、SYNAPSE 座標、
+  画像バイナリ、`visual.primaryAssetId`、全 deploymentHistory、AUTO NAME の候補一覧、species aliases、regionalNames など。
+
+### S-2. 項目ごとの扱い
+
+| 項目 | FORGE の実装 | ZERO の扱い |
+|---|---|---|
+| personality／values／desires | 生成候補から均等抽選（3／2／2 個）。EDIT で候補外の任意文字列・重複も保存可。**候補リストは enum ではない** | **自由文字列配列**としてそのまま保持。未知の語も拒否しない。対応表は空のまま（Life Engine の traits／values／desires は 0）。UNMAPPED 警告のみ |
+| importance | **自由入力文字列**（初期値 `""`）。入力例「一般／準重要／重要」「通常敵／特殊個体候補」、BOSS 切替時「BOSS候補」。並び替え用辞書は enum ではない。`recruitment.importanceCandidate` は別項目 | **自由文字列**としてそのまま保持（定義の `importance`）。enum 化・自動変換しない。Life Engine の計算根拠にしない。UNMAPPED 警告（FREE_TEXT）は出す。人物一覧の standing は ZERO 内部の既定表示 ORDINARY で、importance から導かない |
+| characterType | `human`／`monster` の 2 種だけ | human／monster だけを受け付ける（他はエラー） |
+| BOSS | characterType ではない。`monster` + `encounterRole: "BOSS"`。通常は `NORMAL`、人間は `null` | BOSS 判定は encounterRole。通常モンスターの `bossEncounter` は null（違えばエラー） |
+| visualDiversity.ageGroup | 正式候補 7 種：child／teen／young_adult／adult／middle_aged／older_adult／elderly（重み 2/3/4/7/6/4/3）。旧データは `UNSET` | 7 種すべてそのまま保持。再抽選・変換しない。7 種以外は UNMAPPED として保持 |
+| profile.age | 手動入力の文字列。ランダム生成しない | そのまま保持 |
+| lifeStage／visualAge | visualAge は ageGroup と同じ値。lifeStage は ageGroup 優先・次に数値 age から導出（送出時に再計算） | **FORGE 出力を正本**とし、ZERO で再計算・上書きしない |
+| occupationMode | `UNSET`／`FUTURE_ASPIRATION`／**`CURRENT_OR_AGE_APPROPRIATE`** | `CURRENT_OR_AGE_APPROPRIATE` のときだけ職業を「現在」と表示。旧サンプルの `CURRENT_FACT` は LEGACY テストデータの読み取り互換のみ |
+| adultAxisMode | child／teen では `FUTURE_TENDENCY` | 将来の傾向として保持（警告表示のみ） |
+| visualDirection.intensity | `SUBTLE`／`STANDARD`／`STRONG`（`NORMAL` は使わない） | 検査せずそのまま保持（SOURCE DATA PRESERVED / GAME MAPPING = UNUSED） |
+| 代表画像 | `visual.primaryAssetId` は PACKAGE に出ない | `assets[]` の `primary` から扱う。画像はメタ情報のみ |
+| 潜在適性 | 潜在適性 ≠ 現在技能 | 現在技能・職業・武器・装備を推測しない（現在技能は `currentSkills` だけ） |
+| relationshipRefs | Relationship ID の参照だけ | 関係内容を推測しない。関係は作らず「保留」表示 |
+| VOID | ID Registry・Counters は FORGE 全体の管理情報で PACKAGE に入らない。FORGE が非再利用を保証 | 個別 PACKAGE に voidIds 不要。**欠番から VOID を推測しない**。確認は既存人物との ID 衝突だけ |
+| 未知の文字列 | — | ERROR・自動補正・近似語への変換をせず SOURCE DATA PRESERVED / UNMAPPED として保持 |
+
+### S-3. 年齢と ageGroup の警告（作者決定 C1）
+
+ZERO 独自の年齢帯表（child 0〜12 … older_adult 50〜）は**廃止**。FORGE の lifeStage 規則だけで比べ、違うときだけ
+`WARNING: AGE / VISUAL AGE GROUP MISMATCH` を出す（採用は止めない・どちらも書き換えない）。
+
+- 数値 age 側：13 未満 → CHILD、13 以上 18 未満 → TEEN、18 以上 → ADULT
+- ageGroup 側：child → CHILD、teen → TEEN、young_adult／adult／middle_aged／older_adult／elderly → ADULT
+- age が数値でない・空、ageGroup が `UNSET` なら比べない。7 種以外の ageGroup は UNMAPPED として保持し比べない。
+- 例：age 20 と older_adult は ADULT 対 ADULT で警告なし。これは「20 歳に older_adult が適切」と ZERO が判断する意味ではなく、
+  FORGE が意図的に設定した visual age を ZERO の独自ルールで否定しないため。
+- 実装：`forgeVocabularyAdapter.ts` の `FORGE_AGE_GROUP_LIFE_STAGE`／`forgeLifeStageOfAge`／`consistencyIssues`。
+
+### S-4. 取込時の検査（作者決定 C2）
+
+| 種類 | 検査 | 結果 |
+|---|---|---|
+| SOURCE VERIFIED | schemaVersion・characterId がある／characterId が HUM-/MON- の形（ファイル名に使うため）／characterType が human・monster／status が CANONIZED／人間は name と nameStatus（CANON・IN_WORLD_ACQUIRED）、モンスターは speciesName と speciesNameStatus／encounterRole（人間 null、モンスター NORMAL・BOSS）／通常モンスターの bossEncounter が null／visualReviewStatus が REVISION_REQUIRED でない／人間の装備根拠が不正でない（permitted false でない）／assets に画像データが入っていない／送出版が 0.1・0.1-rN、送出日時が日時／取込が読む identity・profile・deployment がある | **ERROR**（取り込まない） |
+| 旧 ZIP v1.0 だけで確認できる条件 | assetType の一覧、currentSkills の段階（UNLEARNED〜MASTER）と 5 項目、visualReviewStatus の他の値、aptitudeSemantics の値、bossEncounter の必須項目、REL ID の形式、人間・モンスター別の null／必須構造、source・deployment.source／target の値、ID 接頭辞と characterType の食い違い（ID_TYPE_MISMATCH）、その他の項目の有無・型 | **WARNING**（`UNVERIFIED_CONTRACT` など。取り込みは止めない） |
+| 版 | schemaVersion が `"1.0"` 以外：`1.x` は NEWER_MINOR_VERSION、それ以外は UNKNOWN_SCHEMA_VERSION | WARNING（値は変えずに保持） |
+
+### S-5. LEGACY として残すもの
+
+- **まとめ書き出し `{ schemaVersion: 1, characters, voidIds }` と VOID 台帳 `void.json`**（作者決定 C4）：読み取り可能な
+  LEGACY / OPTIONAL IMPORT として残す。新しい正本ではない。voidIds は必須にしない。FORGE 全体の VOID Registry を ZERO で再現しない。
+- **旧 ZIP のサンプル 3 件**（作者決定 C5）：`core/forge/fixtures/legacy-bridge-v1.0/` に移し LEGACY TEST FIXTURE と明記。
+  `CURRENT_FACT`・`intensity: "NORMAL"` などを新仕様の根拠にしない。実 FORGE の PACKAGE が増えたら SOURCE VERIFIED fixture へ差し替える。
+- **`CURRENT_FACT` の読み取り**：旧サンプル互換のためだけ。新規出力・新規仕様・ドキュメントでは使わない。
+- 採用時に台帳（roster.json）に記録した当時の警告は、取込履歴として書き換えない。
+
+### S-6. 今は決めていないもの
+
+- モンスター用の項目（habitat・classification・activityTime・ecology.desire・speciesName の照合）は、実 FORGE の monster PACKAGE が届いてから
+  確認する（作者決定 C3）。今は旧サンプルを根拠に正式化せず、ある値を壊さず保持するだけ。
+- Relationship Package・画像ファイル連携は FORGE 側で別出力が必要（今回は対象外）。
+
+### S-7. 旧連携 ZIP v1.0 との違い（ZIP を実装根拠にしない）
+
+occupationMode は `CURRENT_FACT` ではなく `CURRENT_OR_AGE_APPROPRIATE`／visualDirection.intensity は `SUBTLE`／`STANDARD`／`STRONG`（`NORMAL` なし）／
+`visual.primaryAssetId` は PACKAGE に出ない／lifeStage は FORGE の実際の導出構造に従う。
+
 ## 0. 作者の正式決定（2026-09-27・確定）
 
 1. **AUTHORING IMPORT**：正式定義は `packages/mugen-core/content/forge/` に置き、ビルドに入れる。SAVE には何も書かない。
    登録は開発サーバー画面または `forge:import` コマンド。preview（確認のみ）→ 作者確認 → `--apply` で反映。
-2. **voidIds**：`schemaVersion: 1` / `voidIds: [{ characterId, status: "VOID" }]` を正式形式とする。読み込んだ VOID ID は `void.json` に永続保存。
+2. **voidIds**（→ §S-5 で LEGACY / OPTIONAL に変更）：`schemaVersion: 1` / `voidIds: [{ characterId, status: "VOID" }]` を正式形式とする。読み込んだ VOID ID は `void.json` に永続保存。
    台帳登録前に拒否。採用済み ID が VOID として届いたら何も書かず停止し、既存 NPC を削除して解決しない。
 3. **Vocabulary Adapter**：UNMAPPED は警告のみ（エラーにしない）。似た値へ自動変換しない。FORGE の元の値は残す。
    性格・価値観・願いの対応表は当面空（FORGE の性格等は Life Engine の種の育ち方に影響させない）。実データを見ながら後で追加する。
 4. **ADOPTED と Life Engine 対象**：採用キャラは全員人物台帳に入れる。WORLD LIFE ENGINE／GOD VIEW に入れるのは `lifeActor = true` だけ。
    初期方針は「人間は対象」「モンスター（通常／BOSS）は対象外」。例外は作者判断で切り替える。
 5. **Character ID → NPC_ID**：採用時に NPC_ID 入力必須。大文字定数形式、1 人に 1 つ、採用後は変更不可・再利用不可。既存人物を指定した場合、その人物の ID と名前は変えない。
-6. **importance**：当面「一般NPC → ORDINARY」の 1 件だけ。重要人物・主要人物・特殊NPC などは、作者が正式な基準を決めるまで UNMAPPED（推測・変換しない）。
+6. **importance**（→ §S-2 で置き換え：対応表は廃止、自由文字列として保持）：当面「一般NPC → ORDINARY」の 1 件だけ。重要人物・主要人物・特殊NPC などは、作者が正式な基準を決めるまで UNMAPPED（推測・変換しない）。
    性格・価値観・願いの対応表は、FORGE 側の正式な語彙一覧を確認してから決める。それまでは空のまま、SEED／GROWTH 等の計算に影響させない。
    テスト（`forgeVocabularyAdapter.test.ts`）が、この 2 つの表の中身を固定している（正式決定なしに値が入ると失敗する）。
    将来対応表に追加しても FORGE 元の値は `characters/<ID>.json` に残り、失われない（テストで確認）。
@@ -39,15 +115,15 @@ SAVE_VERSION=3 と保存形式は変えない。RESET WORLD／はじめるの後
 
 8. **性格・価値観・願い**：FORGE の正式な語彙一覧が揃うまで対応表を増やさない。元データ保存・推測変換なし・似た語への自動変換なし・
    UNMAPPED 警告・SEED／GROWTH／VINE／BLOOM などの計算に使わない。「意味が似ているから」での対応づけは禁止。語彙一覧の取得後、作者確認を経て追加する。
-9. **importance**：有効なのは「一般NPC → ORDINARY」だけ。重要・主要人物・特殊NPC・イベントNPC・その他未知の値は UNMAPPED
+9. **importance**（→ §S-2 で置き換え）：有効なのは「一般NPC → ORDINARY」だけ。重要・主要人物・特殊NPC・イベントNPC・その他未知の値は UNMAPPED
    （採用は止めない。元の値を保持・警告・自動変換しない・補完しない・Life Engine の重要度計算に使わない）。
-10. **年齢**：正は `profile.age`。`visualDiversity.ageGroup` は見た目生成用の補助情報で、正式年齢ではない。明らかに矛盾しても
+10. **年齢**（→ §S-3 で比較方法を置き換え）：正は `profile.age`。`visualDiversity.ageGroup` は見た目生成用の補助情報で、正式年齢ではない。明らかに矛盾しても
     どちらも書き換えず、`WARNING: AGE / VISUAL AGE GROUP MISMATCH`（SOURCE AGE・VISUAL AGE GROUP・SOURCE DATA PRESERVED・
     GAME DATA NOT AUTO-CORRECTED）を出すだけ。採用は止めない。
-11. **警告判定用の暫定年齢帯**（この警告の比較だけに使う。年齢から ageGroup を作る仕様ではない）：child 0〜12、teen 13〜17、
+11. **警告判定用の暫定年齢帯**（→ §S-3 で**廃止**。FORGE の lifeStage 規則だけで比べる）（この警告の比較だけに使う。年齢から ageGroup を作る仕様ではない）：child 0〜12、teen 13〜17、
     young_adult 18〜29、adult 30〜49、older_adult 50〜。この 5 つ以外の ageGroup は UNMAPPED（比較しない）。
     実装：`forgeVocabularyAdapter.ts` の `FORGE_AGE_GROUP_BANDS`／`consistencyIssues`。
-12. **RIZEL**：正式年齢は 20。visualDiversity の不一致（older_adult・heavy・very_tall・salt_and_pepper・very_short）は FORGE 側データの
+12. **RIZEL**（→ §S-3 以降、FORGE の lifeStage 規則では 20 と older_adult はどちらも ADULT のため年齢不一致警告は出ない）：正式年齢は 20。visualDiversity の不一致（older_adult・heavy・very_tall・salt_and_pepper・very_short）は FORGE 側データの
     残課題。ZERO 側は元データ保存・GAME MAPPING = UNUSED・警告のみ・自動補正なし。登録は取り消さない。
 13. **画像**：キャラクターデータ登録・Life Engine 対象・画像登録は別々の状態（`content/forge/forgeStatus.ts`、表示専用）。
     画像未登録を理由に人物データを無効化しない。正式画像登録は後続作業。
@@ -110,7 +186,7 @@ SAVE_VERSION=3 と保存形式は変えない。RESET WORLD／はじめるの後
 | FORGE | MUGEN ZERO | 対応の仕方 |
 |---|---|---|
 | characterType | entityType（`PersonKind`） | 表：human→PERSON、monster→CREATURE |
-| profile.importance | standing | 表：一般NPC→ORDINARY（ほかは UNMAPPED） |
+| profile.importance | importance（原文のまま） | 表なし（§S-2）。自由文字列として保持し解釈しない |
 | aptitudes（人間） | life engine の aptitude | 表：magic→MAGIC、sword→SWORD、healing→HEALING。commerce／social は engine に無いので UNMAPPED |
 | profile.core.personality／values／desires、ecology.desire | life engine の traits／values／desires | 表は**空**（まだ対応が決まっていない）→ すべて UNMAPPED |
 | profile.habitat | habitat（場所 ID） | 本編の場所の**正式名と完全一致**だけ（「グリーンウッドの森」→GREENWOOD_FOREST）。「森」は場所ではないので UNMAPPED |
@@ -139,7 +215,7 @@ SAVE_VERSION=3 と保存形式は変えない。RESET WORLD／はじめるの後
 - 開発サーバーの書き込み口（`/__mugen/forge/*`）は `vite serve` のときだけ存在し、どのビルドにも入らない。
   `&sandbox=<名前>` を付けると OS の一時フォルダに書く（e2e テスト用）。
 
-## 6. VOID ID（正式形式 `voidIds`）
+## 6. VOID ID（まとめ書き出しの `voidIds`・LEGACY / OPTIONAL — §S-5）
 
 FORGE → ZERO の書き出し JSON の正式形式：
 

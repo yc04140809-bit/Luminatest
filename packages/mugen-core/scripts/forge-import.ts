@@ -13,9 +13,12 @@
 // map. With --apply it writes under packages/mugen-core/content/forge/,
 // which then goes through git and ships in the build.
 //
-// A FORGE export (`{ schemaVersion: 1, characters, voidIds }`): with
-// --apply its voidIds go into the ledger first (only ever added), then
-// the character chosen with --pick, if any, is adopted.
+// The normal route is one DEPLOY PACKAGE per character, exactly as FORGE
+// downloads it ({CharacterID}_MUGEN_ZERO_{version}.json); it needs no
+// voidIds. LEGACY / OPTIONAL: a bundle (`{ schemaVersion: 1, characters,
+// voidIds }`) is still read — with --apply its voidIds go into the ledger
+// first (only ever added), then the character chosen with --pick, if any,
+// is adopted. FORGE does not produce bundles today; it is not the spec.
 // `--content-dir <dir>` points it at another folder (tests, rehearsal).
 
 import { readFileSync } from 'node:fs';
@@ -104,7 +107,7 @@ function report(plan: ForgeAdoptionPlan): void {
       encounterRole: plan.payload.encounterRole,
     });
     console.log(
-      `正式定義: entityType ${def.entityType} / standing ${def.standing ?? 'UNMAPPED'} / habitat ${def.habitat ?? '—'}` +
+      `正式定義: entityType ${def.entityType} / importance ${def.importance === null ? '（空）' : `「${def.importance}」（自由入力・解釈しない）`} / habitat ${def.habitat ?? '—'}` +
         ` / life traits[${def.life.traits.join(',')}] values[${def.life.values.join(',')}] desires[${def.life.desires.join(',')}] aptitudes ${JSON.stringify(def.life.aptitudes)}`,
     );
   }
@@ -178,7 +181,7 @@ function main(): number {
   if (isForgeExport(parsed)) {
     const exported = readForgeExport(parsed);
     extraVoidIds = exported.voidIds;
-    console.log(`${basename(opt.file)}: FORGE 書き出し（${exported.format === 'OFFICIAL' ? '正式形式' : '旧形式'}） ${mode}`);
+    console.log(`${basename(opt.file)}: FORGE まとめ書き出し（LEGACY / OPTIONAL・${exported.format === 'OFFICIAL' ? `schemaVersion ${exported.schemaVersion}` : '旧試験形式'}） ${mode}`);
     console.log(`  characters: ${exported.characters.length} 人   voidIds: ${exported.voidIds.join('、') || 'なし'}`);
     for (const i of exported.issues) console.log(`  ! ${i.message}`);
     for (const c of exported.characters) {

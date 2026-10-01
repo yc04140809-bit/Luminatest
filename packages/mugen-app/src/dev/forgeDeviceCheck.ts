@@ -188,7 +188,7 @@ export function evaluateForgeDeviceCheck(characterId: string, save: DeviceSave):
     !!definition && leaked.length === 0 && sourceKeys.length === 0,
     leaked.length || sourceKeys.length
       ? `反映されている値: ${[...leaked, ...sourceKeys].join('、')}`
-      : `元データの visualDiversity は ${visual.size ? 'そのまま保持' : 'なし'}・ゲーム側の定義には無い（年齢と見た目の年齢帯の不一致 WARNING ${warnings} 件、修正なし）`);
+      : `元データの visualDiversity は ${visual.size ? 'そのまま保持' : 'なし'}・ゲーム側の定義には無い（FORGE の lifeStage 規則での年齢不一致 WARNING ${warnings} 件、修正なし）`);
   // 11: nothing made from personality, values or desires — in the game's
   // definition, and in the life engine for a character FORGE created.
   const life = definition?.life;

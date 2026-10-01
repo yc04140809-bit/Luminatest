@@ -109,9 +109,9 @@ export function forgeRegistryEntries(
       displayName: npc.forgeName,
       kind: npc.definition.entityType,
       region: npc.region ?? UNPLACED_REGION,
-      // For people looking at the world only (never read by rules). An
-      // UNMAPPED importance shows as ORDINARY here and stays reported.
-      standing: npc.definition.standing ?? 'ORDINARY',
+      // ZERO's own default for display (never read by rules). Not derived
+      // from FORGE's importance, which is a free string kept verbatim.
+      standing: 'ORDINARY',
       artId: null,
       aliases: [],
     }));
@@ -137,7 +137,8 @@ export function forgeWorldPeople(
       npcId: npc.npcId,
       name: npc.forgeName,
       region: npc.region ?? UNPLACED_REGION,
-      standing: npc.definition.standing === 'PRINCIPAL' ? 'PRINCIPAL' : 'ORDINARY',
+      // ZERO's display default, as above — never FORGE's importance read as a rank.
+      standing: 'ORDINARY',
     }));
 }
 

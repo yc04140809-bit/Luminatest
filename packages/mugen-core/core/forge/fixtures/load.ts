@@ -1,11 +1,17 @@
 // TEST FIXTURES ONLY — never imported by the game.
 //
-// The three files next to this are CHARACTER FORGE's own example
-// deploy files, byte for byte (bridge package v1.0, examples/). They are
-// marked `sampleOnly: true`, and the importer refuses to register them;
-// the tests prove that. To test registering, `asReal` makes an in-memory
-// copy with the sample mark taken off, which only ever lives in a test's
-// throwaway store. No sample is ever registered in a real save.
+// LEGACY TEST FIXTURES (author decision C5, 2026-10-02): the three files
+// in legacy-bridge-v1.0/ are the old bridge package v1.0's example deploy
+// files, byte for byte. They are NOT the specification — that is FORGE's
+// own implementation (docs/FORGE_IMPORT.md, "SOURCE VERIFIED 2026-10-02")
+// — and carry values FORGE does not output (occupationMode CURRENT_FACT,
+// visualDirection.intensity NORMAL). No rule is derived from them; they
+// are replaced by SOURCE VERIFIED fixtures as real packages arrive.
+//
+// They are marked `sampleOnly: true`, and the importer refuses to register
+// them; the tests prove that. To test registering, `asReal` makes an
+// in-memory copy with the sample mark taken off, which only ever lives in
+// a test's throwaway store. No sample is ever registered in a real save.
 
 import { readFileSync } from 'node:fs';
 import type { ForgeDeployPackage } from '../types';
@@ -14,7 +20,7 @@ export type SampleName = 'human' | 'normal-monster' | 'boss-monster';
 
 /** The sample file's text, exactly as shipped. */
 export function sampleText(name: SampleName): string {
-  return readFileSync(new URL(`./${name}-deploy.sample.json`, import.meta.url), 'utf8');
+  return readFileSync(new URL(`./legacy-bridge-v1.0/${name}-deploy.sample.json`, import.meta.url), 'utf8');
 }
 
 /** The sample, parsed. Still `sampleOnly: true`. */

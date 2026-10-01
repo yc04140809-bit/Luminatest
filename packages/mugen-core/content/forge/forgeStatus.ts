@@ -48,10 +48,11 @@ export function forgeRegistrationState(
   knownAssetIds: ReadonlySet<string> = new Set(),
 ): ForgeRegistrationState {
   const definition = content.baselines[entry.characterId];
-  const assets = definition?.assets ?? [];
+  const assets = Array.isArray(definition?.assets) ? definition.assets.filter((a) => a && typeof a === 'object') : [];
   const adopted = new Set(content.roster.characters.map((e) => e.characterId));
-  const history = definition?.characterHistory ?? [];
-  const relationships = (definition?.relationshipRefs ?? []).map((relationshipId): ForgePendingRelationship => {
+  const history = Array.isArray(definition?.characterHistory) ? definition.characterHistory.filter((h) => h && typeof h === 'object') : [];
+  const refs = Array.isArray(definition?.relationshipRefs) ? definition.relationshipRefs.filter((r): r is string => typeof r === 'string') : [];
+  const relationships = refs.map((relationshipId): ForgePendingRelationship => {
     const created = history.find((h) => h.details?.relationshipId === relationshipId);
     const text = (v: unknown) => (typeof v === 'string' && v ? v : null);
     const counterpart = text(created?.details?.counterpartCharacterId);

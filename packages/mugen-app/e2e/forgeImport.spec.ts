@@ -17,7 +17,7 @@ import { throughTheOpening } from './opening';
  * taken off, which happens here, in the test, into the sandbox.
  */
 
-const FIXTURES = new URL('../../mugen-core/core/forge/fixtures/', import.meta.url);
+const FIXTURES = new URL('../../mugen-core/core/forge/fixtures/legacy-bridge-v1.0/', import.meta.url);
 const REPO_ROSTER = new URL('../../mugen-core/content/forge/roster.json', import.meta.url);
 /** The repository's own ledger as it was when this file started — the tests write only to sandboxes. */
 const REPO_ROSTER_AT_START = readFileSync(REPO_ROSTER, 'utf8');
@@ -198,11 +198,16 @@ test('an existing person can be the one adopted — their id and name stay', asy
   await expect(page.getByTestId('forge-register')).toBeDisabled();
 });
 
-test('C7 / D4 / D6: wrong type for the id, unjustified equipment, and a child’s dream job', async ({ page }) => {
+test('C7 / D4 / D6: wrong type for the id (a warning), a revision-required visual, unjustified equipment, and a child’s dream job', async ({ page }) => {
   await openTool(page);
+  // A HUM id on a monster: known only from the old bridge package, so said out loud, not refused (C2, 2026-10-02).
   await paste(page, real('normal-monster', (p) => (p.characterId = 'HUM-900001')));
+  await expect(decision(page)).not.toHaveAttribute('data-decision', 'BLOCKED_VALIDATION');
+  await expect(page.getByTestId('forge-warnings')).toContainText('モンスター（MON-）の番号ではありません');
+  // A visual review FORGE never sends (verified): refused.
+  await paste(page, real('human', (p) => (p.visualReviewStatus = 'REVISION_REQUIRED')));
   await expect(decision(page)).toHaveAttribute('data-decision', 'BLOCKED_VALIDATION');
-  await expect(page.getByTestId('forge-errors')).toContainText('モンスター（MON-）の番号ではありません');
+  await expect(page.getByTestId('forge-errors')).toContainText('REVISION_REQUIRED');
 
   await paste(page, real('human', (p) => (p.equipment.validation.permitted = false)));
   await expect(page.getByTestId('forge-errors')).toContainText('装備の根拠が不足しています');

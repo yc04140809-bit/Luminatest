@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  FORGE_AGE_GROUP_BANDS,
+  FORGE_AGE_GROUP_LIFE_STAGE,
   FORGE_VOCABULARY,
+  forgeLifeStageOfAge,
   adaptForgeVocabulary,
   consistencyIssues,
   sourceOnlyFields,
@@ -41,9 +42,10 @@ describe('the tables', () => {
 describe('a human', () => {
   const adapted = adaptForgeVocabulary(asReal('human'));
 
-  it('maps what a table covers — type, importance, the aptitudes the engine knows', () => {
+  it('maps what a table covers — type and the aptitudes the engine knows; importance is kept as written', () => {
     expect(adapted.entityType).toBe('PERSON');
-    expect(adapted.standing).toBe('ORDINARY');
+    // The legacy sample's importance, verbatim — not turned into ORDINARY.
+    expect(adapted.importance).toBe('一般NPC');
     expect(adapted.life.aptitudes).toEqual({ MAGIC: 0.78, SWORD: 0.21, HEALING: 0.74 });
   });
 
@@ -63,7 +65,7 @@ describe('a human', () => {
         'aptitudes:social',
       ]),
     );
-    expect(adapted.unmapped.every((u) => u.reason === 'NOT_IN_TABLE')).toBe(true);
+    expect(adapted.unmapped.filter((u) => u.field !== 'profile.importance').every((u) => u.reason === 'NOT_IN_TABLE')).toBe(true);
   });
 });
 
@@ -86,8 +88,8 @@ describe('a monster', () => {
     // 「森」 is a kind of place, not a place: not matched to GREENWOOD_FOREST.
     expect(byField['profile.habitat']).toMatchObject({ value: '森', reason: 'NOT_IN_TABLE' });
     expect(adapted.habitat).toBeNull();
-    expect(byField['profile.importance']).toMatchObject({ value: '地域BOSS' });
-    expect(adapted.standing).toBeNull();
+    expect(byField['profile.importance']).toMatchObject({ value: '地域BOSS', reason: 'FREE_TEXT' });
+    expect(adapted.importance).toBe('地域BOSS');
     expect(byField['ecology.desire']).toMatchObject({ value: '巣の防衛' });
   });
 
@@ -117,21 +119,33 @@ describe('the MUGEN ZERO definition and its report', () => {
   });
 });
 
-describe('decided 2026-09-27: what is mapped today, and what waits for the author', () => {
-  it('importance: only 一般NPC → ORDINARY', () => {
-    expect(FORGE_VOCABULARY.importance).toEqual({ 一般NPC: 'ORDINARY' });
+describe('decided: what is mapped today, and what waits for the author', () => {
+  it('importance has no table (SOURCE VERIFIED 2026-10-02): FORGE’s free string is kept verbatim', () => {
+    expect(Object.keys(FORGE_VOCABULARY)).not.toContain('importance');
+    // FORGE's own examples, its sort words, the old 一般NPC — and anything else.
+    for (const importance of ['一般', '準重要', '重要', '最重要', '通常敵', '特殊個体候補', 'BOSS候補', '一般NPC', '地域BOSS', 'ORDINARY', '何でも', ' 重要 ']) {
+      const adapted = adaptForgeVocabulary(asReal('human', (p) => (p.profile.importance = importance)));
+      expect(adapted.importance, importance).toBe(importance);
+      const reported = adapted.unmapped.find((u) => u.field === 'profile.importance');
+      expect(reported, importance).toMatchObject({ value: importance, reason: 'FREE_TEXT' });
+    }
+    // Reported as UNMAPPED — a warning, never an error, never a conversion.
+    const [issue] = unmappedIssues(asReal('human', (p) => (p.profile.importance = '重要'))).filter((i) => i.path === 'profile.importance');
+    expect(issue.message).toContain('自由入力');
   });
 
-  it('every other importance — 重要人物, 主要人物, 特殊NPC … — is UNMAPPED, never guessed', () => {
-    for (const importance of ['重要人物', '主要人物', '特殊NPC', '主要NPC', '一般', 'ORDINARY', '一般NPC ']) {
-      const adapted = adaptForgeVocabulary(asReal('human', (p) => (p.profile.importance = importance)));
-      if (importance.trim() === '一般NPC') {
-        expect(adapted.standing, importance).toBe('ORDINARY');
-      } else {
-        expect(adapted.standing, importance).toBeNull();
-        expect(adapted.unmapped.map((u) => u.field), importance).toContain('profile.importance');
-      }
+  it('an empty importance is just empty: null, nothing reported', () => {
+    for (const empty of ['', '   ', null, undefined]) {
+      const adapted = adaptForgeVocabulary(asReal('human', (p) => (p.profile.importance = empty)));
+      expect(adapted.importance).toBeNull();
+      expect(adapted.unmapped.map((u) => u.field)).not.toContain('profile.importance');
     }
+  });
+
+  it('importance reaches nothing the life engine computes with', () => {
+    const plain = adaptForgeVocabulary(asReal('human', (p) => (p.profile.importance = '一般'))).life;
+    const vital = adaptForgeVocabulary(asReal('human', (p) => (p.profile.importance = '最重要'))).life;
+    expect(vital).toEqual(plain);
   });
 
   it('personality, values and desires: the tables stay empty until FORGE’s official word lists are seen', () => {
@@ -163,7 +177,7 @@ describe('decided 2026-09-27: what is mapped today, and what waits for the autho
     const forge = asReal('human');
     const before = canonicalJson(forge);
     // A pairing decided in the future, tried here without touching the real table.
-    const later = { ...FORGE_VOCABULARY, trait: { 慎重: 'CAUTIOUS' }, importance: { ...FORGE_VOCABULARY.importance } };
+    const later = { ...FORGE_VOCABULARY, trait: { 慎重: 'CAUTIOUS' } };
     const adapted = adaptForgeVocabulary(forge, later);
     expect(adapted.life.traits).toEqual(['CAUTIOUS']);
     // Words still without a pairing stay UNMAPPED.
@@ -194,49 +208,61 @@ describe('visualDiversity and the other source-only fields: preserved, never use
   });
 });
 
-describe('decided 2026-09-28: profile.age is the age; ageGroup is a picture aid — warn, never correct', () => {
+describe('decided 2026-10-02 (C1): age against ageGroup by FORGE’s own life-stage rules only — warn, never correct', () => {
   const withAge = (age: unknown, ageGroup: unknown) =>
     asReal('human', (p) => {
       p.profile.age = age;
       p.visualDiversity = { ...(p.visualDiversity as object), ageGroup };
     });
 
-  it('uses the author’s bands, for this warning only', () => {
-    expect(FORGE_AGE_GROUP_BANDS).toEqual({
-      child: { min: 0, max: 12 },
-      teen: { min: 13, max: 17 },
-      young_adult: { min: 18, max: 29 },
-      adult: { min: 30, max: 49 },
-      older_adult: { min: 50, max: Number.POSITIVE_INFINITY },
+  it('uses FORGE’s rules and no band table of MUGEN ZERO’s own', () => {
+    expect(FORGE_AGE_GROUP_LIFE_STAGE).toEqual({
+      child: 'CHILD',
+      teen: 'TEEN',
+      young_adult: 'ADULT',
+      adult: 'ADULT',
+      middle_aged: 'ADULT',
+      older_adult: 'ADULT',
+      elderly: 'ADULT',
     });
+    expect([0, 12, 13, 17, 18, 120].map(forgeLifeStageOfAge)).toEqual(['CHILD', 'CHILD', 'TEEN', 'TEEN', 'ADULT', 'ADULT']);
   });
 
-  it('warns AGE / VISUAL AGE GROUP MISMATCH — the RIZEL case — and changes nothing', () => {
+  it('age 20 with older_adult is ADULT against ADULT: no warning (the RIZEL case), and nothing changes', () => {
     const p = withAge('20', 'older_adult');
     const before = canonicalJson(p);
-    const issues = consistencyIssues(p);
-    expect(issues).toHaveLength(1);
-    expect(issues[0].code).toBe('AGE_VISUAL_GROUP_MISMATCH');
-    for (const part of ['AGE / VISUAL AGE GROUP MISMATCH', 'SOURCE AGE: 20', 'VISUAL AGE GROUP: older_adult', 'SOURCE DATA PRESERVED', 'GAME DATA NOT AUTO-CORRECTED'])
-      expect(issues[0].message).toContain(part);
+    expect(consistencyIssues(p)).toEqual([]);
     expect(canonicalJson(p)).toBe(before);
     expect(p.profile.age).toBe('20');
     expect((p.visualDiversity as { ageGroup: string }).ageGroup).toBe('older_adult');
   });
 
-  it('stays quiet when they agree, at every band edge', () => {
-    for (const [age, group] of [['0', 'child'], ['12', 'child'], ['13', 'teen'], ['17', 'teen'], ['18', 'young_adult'], ['29', 'young_adult'], ['30', 'adult'], ['49', 'adult'], ['50', 'older_adult'], ['90', 'older_adult'], [20, 'young_adult']] as const)
-      expect(consistencyIssues(withAge(age, group)), `${age} ${group}`).toEqual([]);
-    for (const [age, group] of [['12', 'teen'], ['18', 'teen'], ['29', 'adult'], ['50', 'adult'], ['49', 'older_adult']] as const)
-      expect(consistencyIssues(withAge(age, group)).map((i) => i.code), `${age} ${group}`).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
+  it('every one of the seven official ageGroups is compared, none is UNMAPPED', () => {
+    for (const group of ['young_adult', 'adult', 'middle_aged', 'older_adult', 'elderly'])
+      expect(consistencyIssues(withAge('40', group)), group).toEqual([]);
+    expect(consistencyIssues(withAge('8', 'child'))).toEqual([]);
+    expect(consistencyIssues(withAge('15', 'teen'))).toEqual([]);
   });
 
-  it('an ageGroup outside the five is UNMAPPED and not compared; an age that is not a number is not compared', () => {
-    const odd = consistencyIssues(withAge('20', 'middle_aged'));
+  it('warns only when the two life stages differ — and changes nothing', () => {
+    for (const [age, group] of [['12', 'teen'], ['8', 'elderly'], ['15', 'adult'], ['18', 'teen'], ['30', 'child'], ['17', 'middle_aged']] as const) {
+      const p = withAge(age, group);
+      const before = canonicalJson(p);
+      const issues = consistencyIssues(p);
+      expect(issues.map((i) => i.code), `${age} ${group}`).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
+      for (const part of ['AGE / VISUAL AGE GROUP MISMATCH', `SOURCE AGE: ${age}`, `VISUAL AGE GROUP: ${group}`, 'SOURCE DATA PRESERVED', 'GAME DATA NOT AUTO-CORRECTED'])
+        expect(issues[0].message).toContain(part);
+      expect(canonicalJson(p)).toBe(before);
+    }
+  });
+
+  it('an ageGroup outside FORGE’s seven is UNMAPPED and not compared; UNSET, a non-number age or no age is not compared', () => {
+    const odd = consistencyIssues(withAge('20', 'ancient'));
     expect(odd.map((i) => i.code)).toEqual(['UNMAPPED_VOCABULARY']);
-    expect(odd[0].message).toContain('middle_aged');
-    expect(consistencyIssues(withAge('二十歳', 'older_adult'))).toEqual([]);
-    expect(consistencyIssues(withAge('', 'older_adult'))).toEqual([]);
+    expect(odd[0].message).toContain('ancient');
+    expect(consistencyIssues(withAge('20', 'UNSET'))).toEqual([]);
+    expect(consistencyIssues(withAge('二十歳', 'child'))).toEqual([]);
+    expect(consistencyIssues(withAge('', 'child'))).toEqual([]);
     // No visual age group at all (monsters): nothing to say.
     expect(consistencyIssues(asReal('boss-monster'))).toEqual([]);
   });
@@ -245,7 +271,7 @@ describe('decided 2026-09-28: profile.age is the age; ageGroup is a picture aid 
     const { planForgeAdoption, EMPTY_ROSTER } = await import('../../core/forge/content');
     const { forgeAdoptionView } = await import('./adoptionView');
     const content = { roster: EMPTY_ROSTER, baselines: {}, previous: {}, voidIds: [], damaged: [] };
-    const plan = planForgeAdoption(JSON.stringify(withAge('20', 'older_adult')), forgeAdoptionView(content), { npcId: 'SOMEONE' });
+    const plan = planForgeAdoption(JSON.stringify(withAge('8', 'elderly')), forgeAdoptionView(content), { npcId: 'SOMEONE' });
     expect(plan.ready).toBe(true);
     expect(plan.consistency.map((i) => i.code)).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
     expect(plan.errors).toEqual([]);
