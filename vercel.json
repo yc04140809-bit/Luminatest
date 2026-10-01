@@ -2,6 +2,9 @@
   "functions": {
     "api/kaosu-chat.js": {
       "maxDuration": 15
+    },
+    "api/uranai-chat.js": {
+      "maxDuration": 20
     }
   }
 }

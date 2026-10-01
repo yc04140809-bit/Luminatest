@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1230">
+<title>ルミナ占い</title>
+<style>
+/* =========================================================
+   ルミナ占い (MVP)
+   - 日本特有の占い(おみくじ/九星気学/干支/血液型)＋定番(星座/タロット/数秘術/相性)
+   - 結果はローカル計算(同じ日・同じ人なら同じ結果)。サーバー不要で動く
+   - 「AIに相談」だけ /api/uranai-chat (Vercel) を呼ぶ。失敗時は簡易応答に自動切替
+   - 個人情報(ニックネーム/誕生日/血液型)は端末内(localStorage)のみに保存
+   ========================================================= */
+:root{
+  --bg:#0f1230; --bg2:#1a1f4a; --card:rgba(255,255,255,.06);
+  --line:rgba(232,201,122,.28); --gold:#e8c97a; --gold-hi:#fff0c2;
+  --text:#f3efe6; --sub:rgba(243,239,230,.68); --red:#e2574c; --pink:#ff9cc2;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%;background:var(--bg);color:var(--text);
+  font-family:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;-webkit-tap-highlight-color:transparent}
+body{background:radial-gradient(120% 60% at 50% 0%,#2a2f6e 0%,var(--bg) 60%) fixed}
+button,input,select,textarea{font-family:inherit;font-size:16px}
+.app{max-width:480px;margin:0 auto;min-height:100dvh;padding:0 16px 96px;position:relative}
+
+/* ---------- ヘッダー ---------- */
+header{display:flex;align-items:center;gap:10px;padding:16px 0 10px}
+header h1{flex:1;font-size:21px;color:var(--gold-hi);letter-spacing:.08em;text-shadow:0 0 12px rgba(255,240,194,.4)}
+header .date{font-size:12px;color:var(--sub)}
+.iconbtn{background:none;border:1px solid var(--line);color:var(--gold-hi);border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer}
+.premium-badge{background:linear-gradient(160deg,var(--gold-hi),var(--gold));color:#2a1e05;border:none;font-weight:700}
+
+/* ---------- 共通 ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:12px 0}
+.hidden{display:none!important}
+.btn{display:block;width:100%;border:none;border-radius:12px;padding:14px;font-weight:700;cursor:pointer;
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold));color:#2a1e05;font-size:16px}
+.btn.ghost{background:transparent;color:var(--gold-hi);border:1px solid var(--line)}
+.btn:disabled{opacity:.5}
+label{display:block;font-size:13px;color:var(--sub);margin:12px 0 6px}
+input,select,textarea{width:100%;background:rgba(0,0,0,.25);border:1px solid var(--line);color:var(--text);
+  border-radius:10px;padding:12px}
+.note{font-size:11.5px;color:var(--sub);line-height:1.6}
+h2{font-size:16px;color:var(--gold-hi);margin-bottom:8px}
+
+/* ---------- 今日のひとこと ---------- */
+.today{text-align:center}
+.today .big{font-size:15px;line-height:1.8}
+
+/* ---------- メニュー ---------- */
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.menu{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 10px;text-align:center;
+  cursor:pointer;color:var(--text);position:relative}
+.menu .ic{font-size:30px;display:block;margin-bottom:6px}
+.menu b{font-size:14.5px;display:block}
+.menu small{font-size:11px;color:var(--sub)}
+.menu .tag{position:absolute;top:6px;left:6px;font-size:9.5px;background:var(--red);color:#fff;border-radius:6px;padding:1px 5px}
+.menu.wide{grid-column:span 2;background:linear-gradient(160deg,rgba(255,156,194,.18),rgba(232,201,122,.12))}
+
+/* ---------- 結果 ---------- */
+.result-head{text-align:center;padding:8px 0}
+.result-head .ic{font-size:44px}
+.result-head .main{font-size:30px;font-weight:800;color:var(--gold-hi);margin:6px 0;text-shadow:0 0 14px rgba(255,240,194,.45)}
+.result-head .sub{font-size:13px;color:var(--sub)}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:12px 0}
+.scores div{font-size:13.5px;display:flex;justify-content:space-between}
+.stars{color:var(--gold);letter-spacing:1px}
+.msg{font-size:14.5px;line-height:1.9;white-space:pre-wrap}
+.lucky{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.lucky span{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:4px 10px}
+.omikuji-list div{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px;line-height:1.6}
+.omikuji-list b{flex:none;width:3.5em;color:var(--gold)}
+.fadein{animation:fade .5s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.shake{animation:shake .9s ease}
+@keyframes shake{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(10deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(6deg)}}
+
+/* ---------- AIチャット ---------- */
+.chatlog{display:flex;flex-direction:column;gap:10px;margin:8px 0 12px}
+.bubble{max-width:86%;padding:10px 13px;border-radius:14px;font-size:14.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word}
+.bubble.ai{background:rgba(255,255,255,.08);border:1px solid var(--line);align-self:flex-start;border-top-left-radius:4px}
+.bubble.me{background:#5b4a2a;align-self:flex-end;border-top-right-radius:4px}
+.bubble.typing{opacity:.7}
+.chatbar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  background:rgba(15,18,48,.96);border-top:1px solid var(--line)}
+.chatbar .inner{max-width:448px;margin:0 auto;display:flex;gap:8px}
+.chatbar textarea{flex:1;resize:none;height:46px;padding:11px}
+.chatbar button{flex:none;width:72px;border-radius:10px}
+.quota{font-size:11.5px;color:var(--sub);text-align:center;max-width:448px;margin:0 auto 6px}
+.suggest{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.suggest button{background:none;border:1px solid var(--line);color:var(--text);border-radius:99px;padding:6px 11px;font-size:12.5px;cursor:pointer}
+
+/* ---------- モーダル ---------- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.sheet{width:100%;max-width:480px;background:var(--bg2);border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+  max-height:92dvh;overflow:auto;border-top:1px solid var(--line)}
+.plan{border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0;display:flex;justify-content:space-between;align-items:center}
+.plan.best{border-color:var(--gold);background:rgba(232,201,122,.1)}
+.plan b{font-size:15px}
+.plan .price{font-size:18px;font-weight:800;color:var(--gold-hi)}
+ul.benefits{list-style:none;margin:10px 0}
+ul.benefits li{font-size:14px;padding:4px 0}
+footer{text-align:center;margin-top:24px}
+.toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#000c;color:#fff;padding:10px 16px;border-radius:99px;font-size:13px;z-index:60}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>✦ ルミナ占い</h1>
+    <span class="date" id="todayLabel"></span>
+    <button class="iconbtn" id="btnPremium">👑</button>
+  </header>
+
+  <!-- ============ プロフィール登録 ============ -->
+  <section id="viewProfile" class="hidden">
+    <div class="card fadein">
+      <h2>はじめに教えてください</h2>
+      <p class="note">入力内容はこの端末の中だけに保存され、外部には送信されません（AI相談を使う時のみ、占いに必要な範囲で送信します）。</p>
+      <label for="inName">ニックネーム</label>
+      <input id="inName" maxlength="20" placeholder="例：ゆい">
+      <label for="inBirth">生年月日</label>
+      <input id="inBirth" type="date" min="1920-01-01">
+      <label for="inBlood">血液型（任意）</label>
+      <select id="inBlood">
+        <option value="">わからない・答えない</option>
+        <option>A</option><option>B</option><option>O</option><option>AB</option>
+      </select>
+      <div style="height:16px"></div>
+      <button class="btn" id="btnSaveProfile">占いをはじめる</button>
+    </div>
+  </section>
+
+  <!-- ============ ホーム ============ -->
+  <section id="viewHome" class="hidden">
+    <div class="card today fadein">
+      <p class="note" id="helloLabel"></p>
+      <p class="big" id="todayMessage"></p>
+    </div>
+    <div class="grid" id="menuGrid"></div>
+    <footer>
+      <button class="iconbtn" id="btnEditProfile">プロフィール変更</button>
+      <p class="note" style="margin-top:12px">※占い結果はエンターテインメントです。医療・法律・お金など重要な判断は専門家にご相談ください。</p>
+    </footer>
+  </section>
+
+  <!-- ============ 結果 ============ -->
+  <section id="viewResult" class="hidden">
+    <button class="iconbtn" data-back style="margin:4px 0">← もどる</button>
+    <div id="resultBody"></div>
+    <button class="btn" id="btnAskAI">🔮 この結果をAIにくわしく相談する</button>
+    <div style="height:10px"></div>
+    <button class="btn ghost" id="btnShare">結果をシェアする</button>
+  </section>
+
+  <!-- ============ 相性占い入力 ============ -->
+  <section id="viewCompat" class="hidden">
+    <button class="iconbtn" data-back style="margin:4px 0">← もどる</button>
+    <div class="card fadein">
+      <h2>💞 相性占い</h2>
+      <label for="inPName">お相手のニックネーム</label>
+      <input id="inPName" maxlength="20" placeholder="例：たくみ">
+      <label for="inPBirth">お相手の生年月日</label>
+      <input id="inPBirth" type="date" min="1920-01-01">
+      <div style="height:16px"></div>
+      <button class="btn" id="btnCompat">相性を占う</button>
+    </div>
+  </section>
+
+  <!-- ============ AIチャット ============ -->
+  <section id="viewChat" class="hidden">
+    <button class="iconbtn" data-back style="margin:4px 0">← もどる</button>
+    <div class="chatlog" id="chatLog"></div>
+  </section>
+</div>
+
+<!-- チャット入力バー(チャット画面の時だけ表示) -->
+<div class="chatbar hidden" id="chatBar">
+  <div class="quota" id="quotaLabel"></div>
+  <div class="inner" style="flex-direction:column">
+    <div class="suggest" id="suggest"></div>
+    <div style="display:flex;gap:8px">
+      <textarea id="chatInput" maxlength="400" placeholder="悩みや聞きたいことを入力…"></textarea>
+      <button class="btn" id="btnSend">送信</button>
+    </div>
+  </div>
+</div>
+
+<!-- プレミアム案内 -->
+<div class="modal hidden" id="premiumModal">
+  <div class="sheet">
+    <h2>👑 ルミナ占い プレミアム</h2>
+    <ul class="benefits">
+      <li>🔮 AI相談が<b>無制限</b>（無料は1日1回）</li>
+      <li>📅 毎朝の「今日の運勢」通知</li>
+      <li>📜 年間運勢・月間運勢の詳細レポート</li>
+      <li>🚫 広告なし</li>
+    </ul>
+    <div class="plan best"><div><b>年額プラン</b><br><span class="note">3日間無料 → 月あたり約317円</span></div><div class="price">¥3,800</div></div>
+    <div class="plan"><div><b>月額プラン</b><br><span class="note">いつでも解約OK</span></div><div class="price">¥480</div></div>
+    <button class="btn" id="btnSubscribe">3日間無料で試す</button>
+    <div style="height:8px"></div>
+    <button class="btn ghost" data-close>閉じる</button>
+    <p class="note" style="margin-top:10px">※決済機能は準備中です（現在はテスト表示）。</p>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================
+   設定
+   ========================================================= */
+// AI相談APIのURL。Vercelで同じプロジェクトに置く場合は相対パスのままでOK。
+// GitHub Pages等の別ドメインから使う場合は Vercel のURLに書き換える。
+const AI_ENDPOINT = "/api/uranai-chat";
+const AI_TIMEOUT_MS = 20000;
+const FREE_AI_PER_DAY = 1;          // 無料ユーザーのAI相談回数/日
+const STORAGE_KEY = "lumina-uranai-v1";
+
+/* =========================================================
+   保存まわり(プライベートモード等で失敗しても動くようtry/catch)
+   ========================================================= */
+function loadState(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ /* 保存できなくても続行 */ }
+}
+const state = loadState();   // { profile, aiUsage:{date,count}, premium }
+
+/* =========================================================
+   日付・乱数ユーティリティ
+   「同じ日・同じ人・同じ占い」なら同じ結果になるよう、文字列から乱数を作る
+   ========================================================= */
+function todayKey(d = new Date()){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function hashStr(s){                 // FNV-1a 32bit
+  let h = 2166136261;
+  for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function seededRandom(seedStr){       // mulberry32
+  let a = hashStr(seedStr);
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const pick = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+function parseBirth(str){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str || "");
+  if(!m) return null;
+  const y=+m[1], mo=+m[2], d=+m[3];
+  const dt = new Date(y, mo-1, d);
+  if (dt.getMonth() !== mo-1 || y < 1900 || dt > new Date()) return null;
+  return { y, m:mo, d };
+}
+const stars = n => "★".repeat(n) + "☆".repeat(5-n);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* =========================================================
+   占いデータ
+   ========================================================= */
+const LUCKY_COLORS = ["ゴールド","桜色","藍色","若草色","白","ラベンダー","朱色","水色","ベージュ","ネイビー","山吹色","ミントグリーン"];
+const LUCKY_ITEMS  = ["お守り","ハンカチ","温かいお茶","手帳","香りのよいハンドクリーム","和菓子","手鏡","イヤホン","ボールペン","観葉植物","文庫本","小銭入れ"];
+const LUCKY_ACTIONS= ["朝に窓を開ける","神社に立ち寄る","いつもと違う道を歩く","机を片付ける","感謝を言葉にする","早めに寝る","好きな音楽を聴く","水を多めに飲む","10分散歩する","誰かをほめる"];
+
+// 運勢スコアに応じた総合メッセージ(高→低)
+const MSG_BY_LEVEL = [
+  ["流れが大きく味方する一日。迷っていたことに一歩踏み出すと、思った以上の結果につながります。","自分を信じて動くほど運が開く日。直感を大切にしましょう。"],
+  ["穏やかな追い風が吹いています。人とのつながりからうれしい知らせが届きそう。","コツコツ続けてきたことが評価される兆し。笑顔を忘れずに。"],
+  ["平穏で安定した日。無理に動くより、目の前のことを丁寧に。","小さな幸せに気づくほど運気が上がります。"],
+  ["少しペースを落とすのが吉。予定を詰め込みすぎないように。","焦りは禁物。深呼吸してから判断しましょう。"],
+  ["今日は充電の日。結果を急がず、自分をいたわる時間を作って。","慎重さが身を守ります。大きな決断は明日以降に。"]
+];
+
+// おみくじ(日本の伝統的な項目)
+const OMIKUJI = [
+  { rank:"大吉", w:16, level:0, poem:"春風に 花ひらく道 迷いなし" },
+  { rank:"中吉", w:20, level:1, poem:"雲間より さす光あり 歩み出せ" },
+  { rank:"小吉", w:18, level:1, poem:"小川にも 海へとつづく 流れあり" },
+  { rank:"吉",   w:20, level:2, poem:"月まどか 静けき夜に 願いこめ" },
+  { rank:"末吉", w:16, level:3, poem:"冬の芽の 内に春まつ 力あり" },
+  { rank:"凶",   w:10, level:4, poem:"雨やめば 虹のかかるを 待つがよし" }
+];
+const OMIKUJI_ITEMS = {
+  "願望":[["思いのほか早く叶う","人の助けを得て叶う"],["焦らず待てば叶う","努力が実を結ぶ"],["時間はかかるが道は開ける","一度あきらめず見直すとよい"]],
+  "恋愛":[["想いが通じる。素直に伝えよ","良縁あり。身近な人を大切に"],["誠実さが実を結ぶ","焦らず相手を思いやれ"],["今は自分を磨く時","言葉選びに気をつけよ"]],
+  "仕事":[["思い切った挑戦が吉","実力が認められる"],["地道な努力が評価される","協力者を大切に"],["準備を整える時期","確認を怠るな"]],
+  "金運":[["臨時収入の兆しあり","投資より自己投資が吉"],["堅実にすれば増える","無駄遣いに注意すれば安泰"],["出費多し。計画的に","貸し借りは控えよ"]],
+  "健康":[["心身ともに充実","よく眠れば万事よし"],["軽い運動を心がけよ","食事を整えよ"],["無理は禁物。休め","早めの養生が吉"]],
+  "待人":[["来る。便りあり","思わぬところから来る"],["遅れて来る","連絡を待て"],["来ず。自ら動け","今は待つ時にあらず"]]
+};
+
+// 九星気学(日本独自)
+const KYUSEI = [
+  null,
+  { name:"一白水星", trait:"柔軟で人の気持ちに寄り添える人。水のようにどんな環境にもなじみます。" },
+  { name:"二黒土星", trait:"面倒見がよく粘り強い努力家。周りを支える縁の下の力持ち。" },
+  { name:"三碧木星", trait:"明るく行動力のあるチャレンジャー。新しいことを始める力があります。" },
+  { name:"四緑木星", trait:"人当たりがよく調和を大切にする人。信頼と縁を運ぶタイプ。" },
+  { name:"五黄土星", trait:"強いリーダーシップと存在感の持ち主。困難を乗り越える力があります。" },
+  { name:"六白金星", trait:"責任感が強く理想が高い人。まっすぐな正義感が魅力。" },
+  { name:"七赤金星", trait:"社交的で華やか。話し上手で人を楽しませる才能があります。" },
+  { name:"八白土星", trait:"コツコツ積み上げる堅実派。変化をチャンスに変える力があります。" },
+  { name:"九紫火星", trait:"感性が鋭く美的センスに優れた人。情熱と直感で道を照らします。" }
+];
+
+// 干支(十二支)
+const ETO = [
+  { name:"子（ねずみ）", ic:"🐭", trait:"機転がきき、チャンスをつかむのが上手。" },
+  { name:"丑（うし）",   ic:"🐮", trait:"誠実で忍耐強く、着実に結果を出す人。" },
+  { name:"寅（とら）",   ic:"🐯", trait:"勇気と行動力があり、決めたら一直線。" },
+  { name:"卯（うさぎ）", ic:"🐰", trait:"穏やかで気配り上手。人を癒す存在。" },
+  { name:"辰（たつ）",   ic:"🐲", trait:"スケールが大きく、夢を形にする力がある。" },
+  { name:"巳（へび）",   ic:"🐍", trait:"洞察力が鋭く、粘り強く目標を追う。" },
+  { name:"午（うま）",   ic:"🐴", trait:"明るく自由。行動範囲の広さが魅力。" },
+  { name:"未（ひつじ）", ic:"🐑", trait:"優しく協調性があり、周りを和ませる。" },
+  { name:"申（さる）",   ic:"🐵", trait:"器用で好奇心旺盛。発想力が武器。" },
+  { name:"酉（とり）",   ic:"🐔", trait:"几帳面で努力家。こだわりが成果を生む。" },
+  { name:"戌（いぬ）",   ic:"🐶", trait:"誠実で義理堅く、信頼される人。" },
+  { name:"亥（いのしし）",ic:"🐗", trait:"まっすぐで情熱的。突破力がある。" }
+];
+
+// 血液型(日本で人気)
+const BLOOD = {
+  A:{ trait:"思いやりがあり計画的。周りへの気配りが光ります。", tip:"完璧を目指しすぎず「7割でOK」を意識して。" },
+  B:{ trait:"自由でマイペース、好きなことへの集中力は抜群。", tip:"思いついたアイデアはすぐメモを。" },
+  O:{ trait:"おおらかで面倒見がよいリーダー気質。", tip:"頼られた時こそ、自分の休息も忘れずに。" },
+  AB:{ trait:"冷静さと感性をあわせ持つ個性派。", tip:"ひとり時間で気持ちを整えると運気アップ。" }
+};
+
+// 12星座 [名前, アイコン, 開始月, 開始日, 元素]
+const ZODIAC = [
+  ["山羊座","♑",12,22,"地"],["水瓶座","♒",1,20,"風"],["魚座","♓",2,19,"水"],["牡羊座","♈",3,21,"火"],
+  ["牡牛座","♉",4,20,"地"],["双子座","♊",5,21,"風"],["蟹座","♋",6,22,"水"],["獅子座","♌",7,23,"火"],
+  ["乙女座","♍",8,23,"地"],["天秤座","♎",9,23,"風"],["蠍座","♏",10,24,"水"],["射手座","♐",11,23,"火"]
+];
+
+// タロット(大アルカナ22枚)
+const TAROT = [
+  ["愚者","自由な一歩","軽率さに注意"],["魔術師","才能を発揮する時","準備不足に注意"],["女教皇","直感と知性","考えすぎに注意"],
+  ["女帝","豊かさと愛情","甘えすぎに注意"],["皇帝","リーダーシップ","頑固さに注意"],["教皇","信頼と助言","形式にとらわれない"],
+  ["恋人","大切な選択・良縁","迷いが生じやすい"],["戦車","前進と勝利","空回りに注意"],["力","優しさの強さ","自信を取り戻して"],
+  ["隠者","内省と気づき","孤立しすぎない"],["運命の輪","チャンス到来","流れを待つ時"],["正義","バランスと公正","判断を急がない"],
+  ["吊るされた男","視点を変える","我慢しすぎない"],["死神","終わりと新しい始まり","変化を恐れないで"],["節制","調和と癒し","バランスを整えて"],
+  ["悪魔","欲望と向き合う","執着を手放して"],["塔","突然の変化","衝撃は小さく済む"],["星","希望と癒し","理想を高くしすぎない"],
+  ["月","不安の中の直感","誤解が晴れていく"],["太陽","成功と喜び","少し休息を"],["審判","復活・再スタート","過去にとらわれない"],["世界","完成と達成","あと一歩で完成"]
+];
+
+// 数秘術
+const NUMEROLOGY = {
+  1:"始まりとリーダーシップの数。自分の道を切り開く人。",
+  2:"調和と協力の数。人の心をつなぐ名サポーター。",
+  3:"表現と喜びの数。明るさで周りを笑顔にする人。",
+  4:"安定と努力の数。信頼を積み上げる堅実派。",
+  5:"自由と変化の数。好奇心と行動力で世界を広げる人。",
+  6:"愛と責任の数。家族や仲間を大切にする人。",
+  7:"探究と知性の数。物事の本質を見抜く人。",
+  8:"成功と豊かさの数。目標を現実にするパワーの持ち主。",
+  9:"博愛と完成の数。人の痛みがわかる優しい人。",
+  11:"直感とインスピレーションのマスターナンバー。",
+  22:"大きな夢を形にするマスターナンバー。",
+  33:"無償の愛と癒しのマスターナンバー。"
+};
+
+/* =========================================================
+   計算ロジック
+   ========================================================= */
+// 九星: 立春(2/4)より前は前年扱い。年の各桁を1桁まで足し、11から引く
+function calcKyusei(b){
+  let y = b.y;
+  if (b.m < 2 || (b.m === 2 && b.d < 4)) y -= 1;
+  let s = String(y).split("").reduce((a,c)=>a+ +c, 0);
+  while (s > 9) s = String(s).split("").reduce((a,c)=>a+ +c, 0);
+  let star = 11 - s;
+  if (star > 9) star -= 9;
+  return star;
+}
+function calcEto(b){ return ((b.y - 4) % 12 + 12) % 12; }
+function calcZodiac(b){
+  // 開始日が遅い順に判定
+  const md = b.m * 100 + b.d;
+  const order = [...ZODIAC].sort((a,c)=>(c[2]*100+c[3])-(a[2]*100+a[3]));
+  for (const z of order){ if (md >= z[2]*100 + z[3]) return z; }
+  return ZODIAC[0]; // 1/1〜1/19 は山羊座
+}
+function calcLifePath(b){
+  let s = `${b.y}${String(b.m).padStart(2,"0")}${String(b.d).padStart(2,"0")}`.split("").reduce((a,c)=>a+ +c,0);
+  while (s > 9 && ![11,22,33].includes(s)) s = String(s).split("").reduce((a,c)=>a+ +c,0);
+  return s;
+}
+
+// 今日の運勢スコア(総合/恋愛/仕事/金運)。key で占いごと・人ごとに変える
+function dailyLuck(key){
+  const rng = seededRandom(`${todayKey()}|${key}`);
+  const r = () => 1 + Math.floor(rng() * 5);           // 1〜5
+  const total = Math.max(1, Math.min(5, Math.round((r()+r()+r()+2)/3.4)));
+  return {
+    total, love:r(), work:r(), money:r(),
+    level: 5 - total,                                  // MSG_BY_LEVEL のindex
+    color: pick(rng, LUCKY_COLORS), item: pick(rng, LUCKY_ITEMS), action: pick(rng, LUCKY_ACTIONS),
+    rng
+  };
+}
+
+/* =========================================================
+   各占いの結果生成
+   各関数は { ic, title, main, sub, html, summary } を返す
+   summary は AI相談時に送る「結果の要約テキスト」
+   ========================================================= */
+function luckBlock(L){
+  return `
+    <div class="scores">
+      <div>総合 <span class="stars">${stars(L.total)}</span></div>
+      <div>恋愛 <span class="stars">${stars(L.love)}</span></div>
+      <div>仕事 <span class="stars">${stars(L.work)}</span></div>
+      <div>金運 <span class="stars">${stars(L.money)}</span></div>
+    </div>
+    <p class="msg">${pick(L.rng, MSG_BY_LEVEL[L.level])}</p>
+    <div class="lucky"><span>🎨 ${L.color}</span><span>🍀 ${L.item}</span><span>✨ ${L.action}</span></div>`;
+}
+function luckSummary(L){
+  return `総合${L.total}/5 恋愛${L.love}/5 仕事${L.work}/5 金運${L.money}/5、ラッキーカラー${L.color}、ラッキーアイテム${L.item}`;
+}
+
+const FORTUNES = {
+  omikuji(p){
+    const rng = seededRandom(`${todayKey()}|omikuji|${p.name}|${p.birth}`);
+    const total = OMIKUJI.reduce((a,o)=>a+o.w,0);
+    let x = rng() * total, res = OMIKUJI[0];
+    for (const o of OMIKUJI){ if ((x -= o.w) < 0){ res = o; break; } }
+    const tier = res.level <= 1 ? 0 : res.level === 2 ? 1 : 2;
+    const items = Object.entries(OMIKUJI_ITEMS).map(([k,v]) => [k, pick(rng, v[tier])]);
+    return {
+      ic:"🎋", title:"今日のおみくじ", main:res.rank, sub:`「${res.poem}」`,
+      html:`<div class="omikuji-list">${items.map(([k,v])=>`<div><b>${k}</b><span>${v}</span></div>`).join("")}</div>
+            <p class="note" style="margin-top:10px">${res.level>=3?"凶や末吉は「これから良くなる」サイン。結んで運気を変えましょう。":"良い結果は持ち帰ってお守りにしましょう。"}</p>`,
+      summary:`おみくじ「${res.rank}」。${items.map(([k,v])=>`${k}:${v}`).join("、")}`,
+      shake:true
+    };
+  },
+  kyusei(p, b){
+    const st = KYUSEI[calcKyusei(b)], L = dailyLuck(`kyusei|${st.name}`);
+    return { ic:"⭐", title:"九星気学", main:st.name, sub:st.trait, html:luckBlock(L),
+      summary:`本命星は${st.name}（${st.trait}）。今日の運勢：${luckSummary(L)}` };
+  },
+  eto(p, b){
+    const e = ETO[calcEto(b)], L = dailyLuck(`eto|${e.name}`);
+    return { ic:e.ic, title:"干支占い", main:e.name, sub:e.trait, html:luckBlock(L),
+      summary:`干支は${e.name}（${e.trait}）。今日の運勢：${luckSummary(L)}` };
+  },
+  blood(p){
+    if (!BLOOD[p.blood]) return { needBlood:true };
+    const bl = BLOOD[p.blood], L = dailyLuck(`blood|${p.blood}`);
+    return { ic:"🩸", title:"血液型占い", main:`${p.blood}型`, sub:bl.trait,
+      html:luckBlock(L) + `<p class="note" style="margin-top:10px">💡 ${bl.tip}</p>`,
+      summary:`${p.blood}型（${bl.trait}）。今日の運勢：${luckSummary(L)}` };
+  },
+  zodiac(p, b){
+    const z = calcZodiac(b), L = dailyLuck(`zodiac|${z[0]}`);
+    return { ic:z[1], title:"12星座占い", main:z[0], sub:`${z[4]}の星座`, html:luckBlock(L),
+      summary:`${z[0]}（${z[4]}のエレメント）。今日の運勢：${luckSummary(L)}` };
+  },
+  tarot(p){
+    const rng = seededRandom(`${todayKey()}|tarot|${p.name}|${p.birth}`);
+    const i = Math.floor(rng()*TAROT.length), up = rng() < 0.6, c = TAROT[i];
+    const pos = up ? "正位置" : "逆位置", meaning = up ? c[1] : c[2];
+    return { ic:"🃏", title:"今日のタロット", main:`${c[0]}`, sub:`${pos}：${meaning}`,
+      html:`<p class="msg">今日あなたに届いたカードは「${c[0]}」の${pos}。キーワードは「${meaning}」です。\n${up?"このカードの力を素直に受け取り、前向きに過ごしましょう。":"逆位置は「立ち止まって見直す合図」。ひと呼吸おくことで流れが整います。"}</p>`,
+      summary:`タロット「${c[0]}」${pos}（${meaning}）` };
+  },
+  numerology(p, b){
+    const n = calcLifePath(b), L = dailyLuck(`num|${n}`);
+    return { ic:"🔢", title:"数秘術", main:`運命数 ${n}`, sub:NUMEROLOGY[n], html:luckBlock(L),
+      summary:`数秘術の運命数${n}（${NUMEROLOGY[n]}）。今日の運勢：${luckSummary(L)}` };
+  }
+};
+
+// 相性: 星座の元素の相性 + 名前と誕生日からの固定値
+const ELEMENT_COMPAT = { "火火":85,"火風":92,"火地":62,"火水":58,"地地":86,"地水":91,"地風":60,"水水":88,"水風":63,"風風":84 };
+function calcCompat(p, b, partner){
+  const pb = parseBirth(partner.birth);
+  const z1 = calcZodiac(b), z2 = calcZodiac(pb);
+  const key = [z1[4], z2[4]].sort((a,c)=>"火地水風".indexOf(a)-"火地水風".indexOf(c)).join("");
+  const base = ELEMENT_COMPAT[key] ?? ELEMENT_COMPAT[key.split("").reverse().join("")] ?? 70;
+  const rng = seededRandom([p.name+p.birth, partner.name+partner.birth].sort().join("|"));
+  const score = Math.max(40, Math.min(99, base + Math.floor(rng()*15) - 7));
+  const comment = score >= 85 ? "自然体でいられる最高の相性。言葉にしなくても通じ合える関係です。"
+    : score >= 70 ? "お互いを高め合える良い相性。違いを楽しむほど絆が深まります。"
+    : score >= 55 ? "ゆっくり育てていく相性。相手のペースを尊重すると上手くいきます。"
+    : "刺激し合う相性。素直に気持ちを伝えることが鍵になります。";
+  return { ic:"💞", title:"相性占い", main:`${score}%`, sub:`${esc(p.name)}（${z1[0]}）× ${esc(partner.name)}（${z2[0]}）`,
+    html:`<p class="msg">${comment}</p>`,
+    summary:`${p.name}（${z1[0]}）と${partner.name}（${z2[0]}）の相性は${score}%。${comment}` };
+}
+
+/* =========================================================
+   メニュー定義
+   ========================================================= */
+const MENUS = [
+  { id:"omikuji",    ic:"🎋", name:"おみくじ",     desc:"毎日引ける本格おみくじ", tag:"日本" },
+  { id:"kyusei",     ic:"⭐", name:"九星気学",     desc:"本命星でみる今日の運勢", tag:"日本" },
+  { id:"eto",        ic:"🐲", name:"干支占い",     desc:"十二支でみる性格と運勢", tag:"日本" },
+  { id:"blood",      ic:"🩸", name:"血液型占い",   desc:"A・B・O・AB型の運勢",   tag:"日本" },
+  { id:"zodiac",     ic:"♈", name:"12星座占い",   desc:"星座別の今日の運勢" },
+  { id:"tarot",      ic:"🃏", name:"タロット",     desc:"今日の1枚を引く" },
+  { id:"numerology", ic:"🔢", name:"数秘術",       desc:"生年月日の運命数" },
+  { id:"compat",     ic:"💞", name:"相性占い",     desc:"気になる人との相性" },
+  { id:"chat",       ic:"🔮", name:"AI占い師に相談", desc:"恋愛・仕事・人間関係の悩みをAIが占いで回答", wide:true }
+];
+
+/* =========================================================
+   画面制御
+   ========================================================= */
+const $ = id => document.getElementById(id);
+const views = ["viewProfile","viewHome","viewResult","viewCompat","viewChat"];
+let current = { menu:null, result:null };
+let chatHistory = [];   // [{role:"user"|"assistant", content}]
+
+function show(id){
+  views.forEach(v => $(v).classList.toggle("hidden", v !== id));
+  $("chatBar").classList.toggle("hidden", id !== "viewChat");
+  window.scrollTo(0,0);
+}
+function toast(msg){
+  const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 2200);
+}
+
+function renderHome(){
+  const p = state.profile;
+  $("helloLabel").textContent = `${p.name}さん、こんにちは`;
+  const L = dailyLuck(`home|${p.name}|${p.birth}`);
+  $("todayMessage").innerHTML = `今日の総合運 <span class="stars">${stars(L.total)}</span><br>${pick(L.rng, MSG_BY_LEVEL[L.level])}`;
+  $("menuGrid").innerHTML = MENUS.map(m => `
+    <button class="menu${m.wide?" wide":""}" data-menu="${m.id}">
+      ${m.tag?`<span class="tag">${m.tag}</span>`:""}
+      <span class="ic">${m.ic}</span><b>${m.name}</b><small>${m.desc}</small>
+    </button>`).join("");
+  show("viewHome");
+}
+
+function openMenu(id){
+  const p = state.profile, b = parseBirth(p.birth);
+  if (id === "chat"){ current = { menu:"chat", result:null }; openChat(); return; }
+  if (id === "compat"){ show("viewCompat"); return; }
+  const r = FORTUNES[id](p, b);
+  if (r.needBlood){ toast("プロフィールで血液型を設定してください"); openProfile(); return; }
+  current = { menu:id, result:r };
+  renderResult(r);
+}
+
+function renderResult(r){
+  $("resultBody").innerHTML = `
+    <div class="card fadein">
+      <div class="result-head">
+        <div class="ic ${r.shake?"shake":""}">${r.ic}</div>
+        <div class="sub">${esc(r.title)}・${todayKey().replace(/-/g,"/")}</div>
+        <div class="main">${esc(r.main)}</div>
+        <div class="sub">${r.sub}</div>
+      </div>
+      ${r.html}
+    </div>`;
+  show("viewResult");
+}
+
+function openProfile(){
+  const p = state.profile || {};
+  $("inName").value = p.name || ""; $("inBirth").value = p.birth || ""; $("inBlood").value = p.blood || "";
+  $("inBirth").max = todayKey();
+  show("viewProfile");
+}
+
+/* =========================================================
+   AI相談
+   ========================================================= */
+// 命に関わる相談は占いで答えず、相談窓口を案内する(クライアント側の一次チェック)
+const CRISIS_WORDS = ["死にたい","しにたい","自殺","消えたい","殺したい","リストカット","自傷"];
+const CRISIS_REPLY = "つらい気持ちを話してくれてありがとう。あなたのことがとても大切だからこそ、この相談は占いではなく、話を聞いてくれる専門の窓口につながってほしいです。\n\n・よりそいホットライン 0120-279-338（24時間・無料）\n・こころの健康相談統一ダイヤル 0570-064-556\n\n今すぐ危険を感じる時は 119 / 110 へ。ひとりで抱えこまないでくださいね。";
+
+function aiQuotaLeft(){
+  if (state.premium) return Infinity;
+  const u = state.aiUsage || {};
+  return u.date === todayKey() ? Math.max(0, FREE_AI_PER_DAY - u.count) : FREE_AI_PER_DAY;
+}
+function useAiQuota(){
+  const u = state.aiUsage && state.aiUsage.date === todayKey() ? state.aiUsage : { date:todayKey(), count:0 };
+  u.count++; state.aiUsage = u; saveState();
+}
+function renderQuota(){
+  const left = aiQuotaLeft();
+  $("quotaLabel").textContent = left === Infinity ? "👑 プレミアム：相談し放題" : `今日の無料相談 あと${left}回`;
+}
+
+function addBubble(role, text, extraClass=""){
+  const div = document.createElement("div");
+  div.className = `bubble ${role==="user"?"me":"ai"} ${extraClass}`;
+  div.textContent = text;
+  $("chatLog").appendChild(div);
+  div.scrollIntoView({ behavior:"smooth", block:"end" });
+  return div;
+}
+
+function openChat(){
+  chatHistory = [];
+  $("chatLog").innerHTML = "";
+  const r = current.result;
+  const first = r
+    ? `${r.title}の結果「${r.main}」について、もっとくわしく占いますね。気になっていることを教えてください。`
+    : `${state.profile.name}さん、ようこそ。ルミナと申します🔮\n恋愛・仕事・人間関係など、どんなお悩みでもどうぞ。生年月日の星からあなたに合ったアドバイスをお伝えします。`;
+  addBubble("assistant", first);
+  const sug = r ? ["今日気をつけることは？","恋愛運をもっとくわしく","仕事で意識することは？"]
+                : ["好きな人との今後は？","転職すべきか迷っています","人間関係に疲れています"];
+  $("suggest").innerHTML = sug.map(s=>`<button data-sug="${esc(s)}">${esc(s)}</button>`).join("");
+  renderQuota();
+  show("viewChat");
+}
+
+// サーバーが使えない時の簡易応答(オフラインでも体験が途切れないように)
+function fallbackReply(question){
+  const p = state.profile, b = parseBirth(p.birth);
+  const st = KYUSEI[calcKyusei(b)], z = calcZodiac(b);
+  const L = dailyLuck(`fallback|${question}`);
+  const c = TAROT[Math.floor(L.rng()*TAROT.length)];
+  return `${p.name}さんの本命星は${st.name}、星座は${z[0]}。今のご相談に「${c[0]}」のカードが出ました。キーワードは「${c[1]}」。\n\n${pick(L.rng, MSG_BY_LEVEL[L.level])}\n\nラッキーアクションは「${L.action}」。小さな一歩から流れを変えていきましょう。\n\n（※通信できなかったため簡易鑑定でお伝えしています）`;
+}
+
+async function requestAI(question){
+  const p = state.profile;
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), AI_TIMEOUT_MS);
+  try{
+    const res = await fetch(AI_ENDPOINT, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        menu: current.menu || "chat",
+        profile: { name:p.name, birth:p.birth, blood:p.blood || "" },
+        resultSummary: current.result ? current.result.summary : "",
+        history: chatHistory.slice(-8),
+        question
+      })
+    });
+    if (res.status === 429) throw new Error("rate_limited");
+    if (!res.ok) throw new Error("http_" + res.status);
+    const data = await res.json();
+    if (!data || typeof data.reply !== "string" || !data.reply.trim()) throw new Error("empty");
+    return data.reply.trim();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+let sending = false;
+async function sendChat(text){
+  const q = (text ?? $("chatInput").value).trim();
+  if (!q || sending) return;
+  if (aiQuotaLeft() <= 0){ openPremium(); return; }
+
+  sending = true; $("btnSend").disabled = true;
+  $("chatInput").value = ""; $("suggest").innerHTML = "";
+  addBubble("user", q);
+
+  // 危機ワードは占いをせず相談窓口を案内(回数も消費しない)
+  if (CRISIS_WORDS.some(w => q.includes(w))){
+    addBubble("assistant", CRISIS_REPLY);
+    sending = false; $("btnSend").disabled = false; return;
+  }
+
+  const typing = addBubble("assistant", "🔮 星を読んでいます…", "typing");
+  let reply;
+  try{
+    reply = await requestAI(q);
+  }catch(e){
+    console.warn("[uranai] AI fallback:", e && e.message);
+    reply = fallbackReply(q);
+  }
+  typing.remove();
+  addBubble("assistant", reply);
+  chatHistory.push({ role:"user", content:q }, { role:"assistant", content:reply });
+  useAiQuota(); renderQuota();
+  sending = false; $("btnSend").disabled = false;
+}
+
+/* =========================================================
+   プレミアム(決済は未実装: Stripe等の接続ポイント)
+   ========================================================= */
+function openPremium(){ $("premiumModal").classList.remove("hidden"); }
+function closePremium(){ $("premiumModal").classList.add("hidden"); }
+
+/* =========================================================
+   イベント
+   ========================================================= */
+$("btnSaveProfile").addEventListener("click", () => {
+  const name = $("inName").value.trim(), birth = $("inBirth").value, blood = $("inBlood").value;
+  if (!name){ toast("ニックネームを入力してください"); return; }
+  if (!parseBirth(birth)){ toast("生年月日を正しく入力してください"); return; }
+  state.profile = { name, birth, blood }; saveState();
+  renderHome();
+});
+$("btnEditProfile").addEventListener("click", openProfile);
+$("menuGrid").addEventListener("click", e => {
+  const btn = e.target.closest("[data-menu]"); if (btn) openMenu(btn.dataset.menu);
+});
+document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", renderHome));
+$("btnAskAI").addEventListener("click", openChat);
+$("btnCompat").addEventListener("click", () => {
+  const partner = { name:$("inPName").value.trim(), birth:$("inPBirth").value };
+  if (!partner.name){ toast("お相手のニックネームを入力してください"); return; }
+  if (!parseBirth(partner.birth)){ toast("お相手の生年月日を正しく入力してください"); return; }
+  const r = calcCompat(state.profile, parseBirth(state.profile.birth), partner);
+  current = { menu:"compat", result:r };
+  renderResult(r);
+});
+$("btnShare").addEventListener("click", async () => {
+  const r = current.result; if (!r) return;
+  const text = `【ルミナ占い】${r.title}の結果は「${r.main}」でした✨ #ルミナ占い #今日の運勢`;
+  try{
+    if (navigator.share) await navigator.share({ text, url: location.href });
+    else { await navigator.clipboard.writeText(`${text} ${location.href}`); toast("コピーしました"); }
+  }catch(e){ /* キャンセル時は何もしない */ }
+});
+$("btnSend").addEventListener("click", () => sendChat());
+$("chatInput").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); sendChat(); }
+});
+$("suggest").addEventListener("click", e => {
+  const b = e.target.closest("[data-sug]"); if (b) sendChat(b.dataset.sug);
+});
+$("btnPremium").addEventListener("click", openPremium);
+$("premiumModal").addEventListener("click", e => {
+  if (e.target.id === "premiumModal" || e.target.closest("[data-close]")) closePremium();
+});
+$("btnSubscribe").addEventListener("click", () => toast("決済機能は準備中です"));
+
+/* =========================================================
+   起動
+   ========================================================= */
+(function init(){
+  const d = new Date();
+  $("todayLabel").textContent = `${d.getMonth()+1}/${d.getDate()}`;
+  if (state.profile && state.profile.name && parseBirth(state.profile.birth)) renderHome();
+  else openProfile();
+})();
+</script>
+</body>
+</html>
