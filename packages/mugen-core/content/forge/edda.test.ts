@@ -27,7 +27,7 @@ describe('EDDA is adopted, as content, the same way RIZEL was', () => {
   it('is registered next to RIZEL, and the build reads both cleanly', () => {
     expect(FORGE_CONTENT_PROBLEMS).toEqual([]);
     expect(FORGE_CONTENT.damaged).toEqual([]);
-    expect(forgeCorrespondence()).toEqual({ 'HUM-000001': 'RIZEL', 'HUM-000002': 'EDDA' });
+    expect(forgeCorrespondence()).toMatchObject({ 'HUM-000001': 'RIZEL', 'HUM-000002': 'EDDA' });
     expect(FORGE_CONTENT.voidIds).toEqual([]);
   });
 

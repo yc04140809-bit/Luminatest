@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 // THE DEVICE CHECK, FOR WHOEVER IS CHOSEN — in a build with more than one
 // adopted character. The generated index is replaced for this file only:
-// the real adopted characters (RIZEL, EDDA: real files and ledger) plus the bridge's own
+// the real adopted characters (RIZEL, EDDA, NUMAWATARI: real files and ledger) plus the bridge's own
 // examples made non-sample IN MEMORY (test fixtures, never content) — a
 // human life actor and a common monster that is not one — and a VOID id.
 // Nothing here is a FORGE character that exists; nothing is written.
@@ -15,8 +15,9 @@ vi.mock('@mugen/content/forge/index.generated', async () => {
   const realRoster = (await import('@mugen/content/forge/roster.json')).default;
   const rizel = (await import('@mugen/content/forge/characters/HUM-000001.json')).default;
   const edda = (await import('@mugen/content/forge/characters/HUM-000002.json')).default;
+  const numawatari = (await import('@mugen/content/forge/characters/MON-000001.json')).default;
   let roster: unknown = realRoster;
-  const baselines: Record<string, unknown> = { 'HUM-000001': rizel, 'HUM-000002': edda };
+  const baselines: Record<string, unknown> = { 'HUM-000001': rizel, 'HUM-000002': edda, 'MON-000001': numawatari };
   const list = [
     [asReal('human'), { npcId: 'SERA', region: 'ALDEN' }],
     [asReal('normal-monster'), { npcId: 'MOSS_ROLLER' }],
@@ -57,6 +58,7 @@ describe('実機確認 for any adopted character', () => {
       ['HUM-000001', 'RIZEL', true],
       ['HUM-000002', 'EDDA', true],
       ['HUM-900001', 'SERA', true],
+      ['MON-000001', 'NUMAWATARI', false],
       ['MON-900001', 'MOSS_ROLLER', false],
     ]);
     expect(targets.find((t) => t.characterId === 'HUM-000001')?.name).toBe('リゼル');
@@ -96,6 +98,12 @@ describe('実機確認 for any adopted character', () => {
     expect(rows.find((r) => r.id === '1')!.label).toBe('採用済み一覧に HUM-000002 → EDDA がある');
     expect(rows.find((r) => r.id === '10')!.detail).toContain('WARNING 0 件');
     expect(rows.find((r) => r.id === '状態')!.detail).not.toContain('関係');
+  });
+
+  it('NUMAWATARI: the same 11 items for a real NORMAL monster that is not a life actor', () => {
+    expect(states(evaluateForgeDeviceCheck('MON-000001', EMPTY))).toMatchObject({ '1': 'PASS', '2': 'PASS', '3': 'PASS', '4': 'PASS', '5': 'UNCHECKED', '6': 'PASS', '7': 'PASS', '8': 'PASS', '9': 'PASS', '10': 'PASS', '11': 'PASS' });
+    const rows = evaluateForgeDeviceCheck('MON-000001', PLAYED);
+    expect(rows.find((r) => r.id === '4')!.label).toBe('一覧に「Life Engine 対象外」（lifeActor = false）');
   });
 
   it('a character who is not a life actor is checked as one: not in the Life Engine, and that passes', () => {

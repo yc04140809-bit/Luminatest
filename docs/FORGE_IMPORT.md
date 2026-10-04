@@ -463,6 +463,17 @@ Android の「ストレージを消去」（機種により「データ消去」
      FORGE 側の値で空のもの（ZERO 側では埋めない）：`profile.age`・`gender`・`origin`・`currentRegion`・`occupation`・`importance` など。
      テスト：`content/forge/edda.test.ts`（ビルドの実 content。モックなし）。`rizel.test.ts` の「採用済みは RIZEL だけ」という前提の 3 か所は
      「RIZEL が含まれる」に変更（RIZEL 自身の確認内容は同じ）。
+   - **2026-10-04：MON-000001 → NUMAWATARI を採用（実モンスター 1 件目・通常モンスター）**。preview → 作者確認 → `--apply`
+     （`--npc-id NUMAWATARI --life-actor no`）。仕組みは増やしていない。
+     - characterType `monster`／encounterRole `NORMAL`／bossEncounter `null`／currentSkills・equipment・lifeStage `null`。
+       Life Engine 対象外（作者判断。FORGE の `worldLifeEngine.enabled: true` は全員に入る固定の初期値で、lifeActor には使わない）。地域 未配置。
+     - 検証：ERROR なし、旧 ZIP 由来の警告（UNVERIFIED_CONTRACT）なし（旧資料のモンスター構造と実データが一致）。
+       WARNING：画像未登録・代表画像なし・UNMAPPED（classification「魔獣」、activityTime「薄明性」、habitat「沼地」、ecology.desire「安全な場所」）。
+     - 原文は `characters/MON-000001.json` に受け取ったまま保存（hash `sha256:839e333b…051d`）。ecology・combat・visualDiversity・profile.body などは変換・補完しない。
+     - **FORGE 側への報告事項（ZERO では直さない）**：キャラクターシート（太い 4 本脚で歩く大型の獣）と構造データ
+       （`profile.body`：脚なし・蛇型・腕 2 本・多角・骨の頭、`visualDiversity`：serpentine・slither）の食い違い。
+       `combat.uniqueSkillCandidates` に「なし」が候補の 1 つとして入っている。
+     - テスト：`content/forge/numawatari.test.ts`（ビルドの実 content。モックなし）。
 3. **PRIORITY 3**（2 人目が通ってから）：CHARACTER FORGE → MUGEN ZERO → WORLD LIFE ENGINE → WORLD MAP → NPC イベントの連携設計。
 
 **今回やらない（別フェーズ）**：RESET WORLD ボタン、自動送信、API 同期、WORLD MAP 実装、NPC イベント実装、RIZEL 画像登録、

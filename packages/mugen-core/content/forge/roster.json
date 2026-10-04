@@ -190,6 +190,68 @@
           "snapshotRef": null
         }
       ]
+    },
+    {
+      "characterId": "MON-000001",
+      "npcId": "NUMAWATARI",
+      "characterType": "monster",
+      "encounterRole": "NORMAL",
+      "region": null,
+      "lifeActor": false,
+      "payloadHash": "sha256:839e333ba64fba5c1a2d6385a8e77bad1818b40d4ecec2805178f6dae1fa051d",
+      "sourceSchemaVersion": "1.0",
+      "deployedVersion": "0.1",
+      "deployedAt": "2026-10-04T06:17:03.968Z",
+      "adoptedAt": "2026-10-04T06:25:04.386Z",
+      "lastImportedAt": "2026-10-04T06:25:04.386Z",
+      "lastImportId": "IMP-20261004T062504386Z-MON-000001-839e333b",
+      "previous": null,
+      "history": [
+        {
+          "importId": "IMP-20261004T062504386Z-MON-000001-839e333b",
+          "characterId": "MON-000001",
+          "npcId": "NUMAWATARI",
+          "payloadHash": "sha256:839e333ba64fba5c1a2d6385a8e77bad1818b40d4ecec2805178f6dae1fa051d",
+          "sourceSchemaVersion": "1.0",
+          "deployedVersion": "0.1",
+          "deployedAt": "2026-10-04T06:17:03.968Z",
+          "importedAt": "2026-10-04T06:25:04.386Z",
+          "result": "NEW",
+          "warnings": [
+            {
+              "code": "MISSING_ASSET",
+              "path": "assets",
+              "message": "画像 VIS-MON-000001-001（MON-000001_CONCEPT_001.webp）の実ファイルは本編に未登録です。メタ情報だけを保持します。"
+            },
+            {
+              "code": "NO_PRIMARY_ASSET",
+              "path": "assets",
+              "message": "primary: true の画像がありません。代表画像は未設定として扱います。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.classification（種族分類）",
+              "message": "UNMAPPED: profile.classification（種族分類）「魔獣」— MUGEN ZERO にまだこの分類がありません。FORGE の値は保持し、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.activityTime（活動時間）",
+              "message": "UNMAPPED: profile.activityTime（活動時間）「薄明性」— MUGEN ZERO にまだこの分類がありません。FORGE の値は保持し、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.habitat",
+              "message": "UNMAPPED: profile.habitat「沼地」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "ecology.desire",
+              "message": "UNMAPPED: ecology.desire「安全な場所」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            }
+          ],
+          "snapshotRef": null
+        }
+      ]
     }
   ]
 }

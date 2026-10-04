@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "1.0",
+  "source": "MUGEN_CHARACTER_FORGE",
+  "characterId": "MON-000001",
+  "characterType": "monster",
+  "encounterRole": "NORMAL",
+  "status": "CANONIZED",
+  "identity": {
+    "name": "ヌマワタリ",
+    "speciesName": "ヌマワタリ",
+    "individualName": null,
+    "nameStatus": null,
+    "speciesNameStatus": "CANON",
+    "individualNameStatus": "UNSET",
+    "nameOrigin": null,
+    "speciesNameOrigin": null,
+    "individualNameOrigin": null
+  },
+  "profile": {
+    "importance": "",
+    "encounterRole": "NORMAL",
+    "creatureShapeImpression": "未設定",
+    "classification": "魔獣",
+    "basicAppearance": "",
+    "habitat": "沼地",
+    "activityTime": "薄明性",
+    "ecologicalRole": "未設定",
+    "body": {
+      "size": "超巨大",
+      "skeleton": "蛇型",
+      "headType": "骨",
+      "horns": "多角",
+      "arms": "2本",
+      "legs": "なし",
+      "wings": "羽毛",
+      "tail": "長い",
+      "skin": "甲殻",
+      "specialParts": [
+        "複眼",
+        "発光器官"
+      ]
+    },
+    "element": {
+      "primary": "土",
+      "secondary": "炎",
+      "affinity": 0.91
+    },
+    "individual": {
+      "individualId": "IND-691DAF41",
+      "personalityVariance": "人間の行動を真似る",
+      "specialState": "人間を追跡中",
+      "humanAttitude": "中立",
+      "relationships": "",
+      "injury": "",
+      "specialExperience": ""
+    },
+    "notes": "",
+    "recruitment": {
+      "adoptionNotes": "",
+      "adoptionStatus": "",
+      "adoptionReason": "",
+      "roleCandidate": "",
+      "importanceCandidate": "",
+      "seedCandidates": [],
+      "worldLifeHooks": [],
+      "visualNotes": "",
+      "updatedAt": "2026-09-10T12:02:29.962Z",
+      "shortlistedAt": "",
+      "adoptedAt": "2026-09-08T20:54:51.038Z",
+      "rejectedAt": "",
+      "visualizedAt": "2026-09-10T12:02:26.479Z",
+      "canonizedAt": "2026-09-10T12:02:29.962Z",
+      "deployedAt": "",
+      "archivedAt": ""
+    }
+  },
+  "lifeAxis": null,
+  "worldViewAxis": null,
+  "relationshipPotential": [],
+  "aptitudes": {
+    "physical": 0.54,
+    "magic": 0.72,
+    "defense": 0.6,
+    "speed": 0.46,
+    "special": 0.7
+  },
+  "aptitudeSemantics": "SPECIES_COMBAT_POTENTIAL",
+  "currentSkills": null,
+  "equipment": null,
+  "lifeStage": null,
+  "visualDiversity": {
+    "engineVersion": "1.0",
+    "generated": true,
+    "scale": "colossal",
+    "bodyMass": "light",
+    "symmetry": "bilateral",
+    "bodyStructure": "serpentine",
+    "headStructure": "skull",
+    "eyeConfiguration": "compound",
+    "surface": "shell",
+    "movement": "slither",
+    "silhouette": "thin",
+    "visualTone": "アンバランス",
+    "ecologicalAdaptation": "環境中の胞子や鉱粉を蓄える層",
+    "signatures": [
+      "移動時だけ開く細い裂け目",
+      "地面に擦れる羽毛",
+      "節ごとに太さが違う胴体"
+    ],
+    "structureConflicts": [],
+    "rarityTags": [],
+    "similarity": {
+      "warning": false,
+      "score": 0,
+      "comparedAgainst": []
+    }
+  },
+  "visualDirection": {
+    "overallImpression": "UNSET",
+    "intensity": "STANDARD",
+    "customInstruction": ""
+  },
+  "visualReviewStatus": "APPROVED",
+  "visualReviewChecklist": {},
+  "worldAssignment": {},
+  "productionChecklist": {},
+  "relationshipRefs": [],
+  "characterHistory": [
+    {
+      "event": "VISUALIZED",
+      "at": "2026-09-10T12:02:26.479Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "ADOPTED"
+      }
+    },
+    {
+      "event": "CANONIZED",
+      "at": "2026-09-10T12:02:29.962Z",
+      "origin": "FORGE",
+      "details": {
+        "previousStatus": "VISUALIZED"
+      }
+    }
+  ],
+  "ecology": {
+    "aggression": 0.42,
+    "intelligence": 0.52,
+    "caution": 0.69,
+    "curiosity": 0.98,
+    "packTendency": 0.87,
+    "territoriality": 0.4,
+    "humanCaution": 0.52,
+    "companionAttachment": 0.73,
+    "role": "未設定",
+    "desire": "安全な場所"
+  },
+  "combat": {
+    "aptitude": {
+      "physical": 0.54,
+      "magic": 0.72,
+      "defense": 0.6,
+      "speed": 0.46,
+      "special": 0.7
+    },
+    "normalAttackCandidate": "吸収",
+    "uniqueSkillCandidates": [
+      "反射障壁",
+      "なし",
+      "地中潜行"
+    ],
+    "weaknesses": [
+      "光に弱い",
+      "乾燥に弱い"
+    ]
+  },
+  "bossEncounter": null,
+  "seeds": [
+    "仲間への憧れ",
+    "群れから追放された",
+    "人間への憎悪"
+  ],
+  "dramaHooks": [],
+  "worldMemory": {
+    "registered": false,
+    "events": [],
+    "memo": ""
+  },
+  "worldLifeEngine": {
+    "enabled": true
+  },
+  "assets": [
+    {
+      "assetId": "VIS-MON-000001-001",
+      "assetType": "CONCEPT",
+      "fileName": "MON-000001_CONCEPT_001.webp",
+      "internalFileName": "MON-000001_CONCEPT_001.webp",
+      "originalFileName": "1000084524.png",
+      "originalMimeType": "image/png",
+      "mimeType": "image/webp",
+      "width": 1312,
+      "height": 1199,
+      "originalByteSize": 2851654,
+      "storedByteSize": 379173,
+      "imageStorageKey": "VIS-MON-000001-001",
+      "memo": "",
+      "createdAt": "2026-09-10T12:02:26.478Z",
+      "approved": true,
+      "primary": false
+    }
+  ],
+  "deployment": {
+    "source": "MUGEN_CHARACTER_FORGE",
+    "target": "MUGEN_ZERO",
+    "deployedAt": "2026-10-04T06:17:03.968Z",
+    "deployedVersion": "0.1"
+  }
+}
