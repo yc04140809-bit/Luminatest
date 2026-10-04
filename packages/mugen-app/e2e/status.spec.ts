@@ -269,7 +269,9 @@ test('scrolls the middle column to its last line, on any height, and nothing els
   // A short handset: the column has more than it can show at once.
   for (const who of ['hero', 'kaos']) {
     if (who === 'kaos') await page.getByTestId('status-tab-kaos').click();
-    for (const [width, height] of [[844, 390], [720, 320]]) {
+    // Android landscape sizes in CSS pixels (Pixel 7, Pixel 5, a common 360-tall
+    // handset, a narrow one) and a very short floor.
+    for (const [width, height] of [[915, 412], [851, 393], [844, 390], [800, 360], [640, 360], [640, 300]]) {
       await page.setViewportSize({ width, height });
       const m = await measure();
       const at = `${who} ${width}x${height}`;
@@ -289,4 +291,22 @@ test('scrolls the middle column to its last line, on any height, and nothing els
   // Everything that was below 装備 on the handset is in the column.
   await expect(page.getByTestId('status-scroll')).toContainText('武器種');
   await expect(page.getByTestId('status-scroll')).toContainText('戦闘スタイル');
+});
+
+test('the middle column scrolls with the wheel (a finger), down to what was hidden below 装備', async ({ page }) => {
+  await openStatus(page);
+  await page.getByTestId('status-tab-kaos').click();
+  await page.setViewportSize({ width: 800, height: 360 });
+  const scroll = page.getByTestId('status-scroll');
+  const box = (await scroll.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 2000);
+  await expect.poll(() => scroll.evaluate((s) => Math.round(s.scrollTop + s.clientHeight - s.scrollHeight))).toBeGreaterThanOrEqual(-1);
+  // The last items, and above the foot.
+  for (const id of ['status-weapon', 'status-style']) await expect(page.getByTestId(id)).toBeInViewport();
+  const footTop = await page.locator('.st-foot').evaluate((e) => e.getBoundingClientRect().top);
+  const styleBottom = await page.getByTestId('status-style').evaluate((e) => e.getBoundingClientRect().bottom);
+  expect(styleBottom).toBeLessThanOrEqual(footTop);
+  // The page itself did not move: the foot and the picture are where they were.
+  expect(await page.evaluate(() => document.documentElement.scrollTop)).toBe(0);
 });
