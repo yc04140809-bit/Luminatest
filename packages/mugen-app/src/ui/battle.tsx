@@ -283,7 +283,7 @@ export function ResultScreen({
       <p className="row" data-testid="result-items">
         {reward.items.length === 0
           ? 'ITEM なし'
-          : reward.items.map((i) => `${i.itemId} ×${i.quantity}`).join(' / ')}
+          : reward.items.map((i) => `${itemDef(i.itemId)?.name ?? i.itemId} ×${i.quantity}`).join(' / ')}
       </p>
       {reward.levels.length > 0 && (
         <p className="row level" data-testid="result-levels">

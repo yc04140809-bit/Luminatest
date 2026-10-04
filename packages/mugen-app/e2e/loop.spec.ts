@@ -86,6 +86,8 @@ test('the whole loop, and it is still there after a restart', async ({ page }) =
   expect(exp).toBeGreaterThan(0);
   expect(lumi).toBeGreaterThan(0);
   await expect(page.getByTestId('result-levels'), 'the first victory is a level').toBeVisible();
+  // What was found is said by name, never by its internal id.
+  await expect(page.getByTestId('result-items')).not.toContainText(/[A-Z]+_[A-Z_]+/);
 
   // 探索復帰
   await page.getByTestId('result-done').click();
