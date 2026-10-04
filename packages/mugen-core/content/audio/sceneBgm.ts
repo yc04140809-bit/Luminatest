@@ -112,9 +112,9 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     // is not one — so the honest answer is "the fight is not over
     // yet", which is also how it feels.
     case 'BATTLE_RESULT':
-      // Whichever piece the ♪ control is on. One is registered today,
-      // so this is 'NORMAL_BATTLE' every time; the day a second joins
-      // the list, this line already does the right thing.
+      // Whichever piece the fight resolved to — the caller passes
+      // `battleBgmFor(...)` (forced boss piece, else the ♪ choice if
+      // unlocked, else the default). Anything else falls back here.
       return isBattleBgm(cue.battleBgmId) ? cue.battleBgmId : DEFAULT_BATTLE_BGM;
 
     // THE FOREST, walked — and the man standing in the road is still

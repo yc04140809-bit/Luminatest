@@ -4,7 +4,7 @@
 曲の割り当てを変えたら、この表も必ず同じコミットで直してください。
 
 - 割り当ての実装：`packages/mugen-core/content/audio/sceneBgm.ts`（画面 → trackId）
-- 音源の登録：`packages/mugen-assets/src/manifest.ts`（trackId → ファイル）
+- 音源の登録：`packages/mugen-assets/src/music.ts`（trackId → ファイル。`manifest.ts` が再エクスポート）
 - 音源ファイル：`packages/mugen-assets/files/audio/bgm/`
 
 ## 用語（固定）
