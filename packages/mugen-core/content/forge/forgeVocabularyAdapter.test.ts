@@ -46,7 +46,7 @@ describe('a human', () => {
     expect(adapted.entityType).toBe('PERSON');
     // The legacy sample's importance, verbatim — not turned into ORDINARY.
     expect(adapted.importance).toBe('一般NPC');
-    expect(adapted.life.aptitudes).toEqual({ MAGIC: 0.78, SWORD: 0.21, HEALING: 0.74 });
+    expect(adapted.life.aptitudes).toEqual({ MAGIC: 0.29, SWORD: 0.46, HEALING: 0.45 });
   });
 
   it('reports the rest as UNMAPPED and passes none of it on — no guessing, no invented aptitude', () => {
@@ -83,14 +83,14 @@ describe('a monster', () => {
 
   it('says which fields the game has no vocabulary for yet, and which values no table covers', () => {
     const byField = Object.fromEntries(adapted.unmapped.map((u) => [u.field, u]));
-    expect(byField['profile.classification（種族分類）']).toMatchObject({ value: '植物', reason: 'NO_GAME_VOCABULARY' });
-    expect(byField['profile.activityTime（活動時間）']).toMatchObject({ value: '常時', reason: 'NO_GAME_VOCABULARY' });
-    // 「森」 is a kind of place, not a place: not matched to GREENWOOD_FOREST.
-    expect(byField['profile.habitat']).toMatchObject({ value: '森', reason: 'NOT_IN_TABLE' });
+    expect(byField['profile.classification（種族分類）']).toMatchObject({ value: '精霊', reason: 'NO_GAME_VOCABULARY' });
+    expect(byField['profile.activityTime（活動時間）']).toMatchObject({ value: '昼行性', reason: 'NO_GAME_VOCABULARY' });
+    // 「洞窟」 is a kind of place, not a place: not matched to any of the game's.
+    expect(byField['profile.habitat']).toMatchObject({ value: '洞窟', reason: 'NOT_IN_TABLE' });
     expect(adapted.habitat).toBeNull();
     expect(byField['profile.importance']).toMatchObject({ value: '地域BOSS', reason: 'FREE_TEXT' });
     expect(adapted.importance).toBe('地域BOSS');
-    expect(byField['ecology.desire']).toMatchObject({ value: '巣の防衛' });
+    expect(byField['ecology.desire']).toMatchObject({ value: '子供の保護' });
   });
 
   it('matches a habitat only by a place’s exact official name', () => {

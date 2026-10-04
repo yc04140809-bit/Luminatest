@@ -98,7 +98,7 @@ describe('how the game sees an adopted character', () => {
   it('only LIFE ACTORS become people in the WORLD LIFE ENGINE — with mapped vocabulary only', () => {
     const cores = forgeCores(MUGEN_WORLD_RULES.cores, content);
     expect(cores.map((c) => c.npcId)).toEqual(['SERA', 'MON_ROOTRING']);
-    expect(cores[0]).toEqual({ npcId: 'SERA', traits: [], values: [], desires: [], aptitudes: { MAGIC: 0.78, SWORD: 0.21, HEALING: 0.74 } });
+    expect(cores[0]).toEqual({ npcId: 'SERA', traits: [], values: [], desires: [], aptitudes: { MAGIC: 0.29, SWORD: 0.46, HEALING: 0.45 } });
     expect(cores[1]).toEqual({ npcId: 'MON_ROOTRING', traits: [], values: [], desires: [], aptitudes: {} });
     // The common monster is adopted content with no life of its own.
     expect(cores.map((c) => c.npcId)).not.toContain('MOSS_ROLLER');

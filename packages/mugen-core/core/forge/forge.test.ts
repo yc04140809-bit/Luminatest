@@ -19,7 +19,7 @@ import {
   type ForgeAdoptionInput,
 } from './content';
 import type { ForgeContent, ForgeDeployPackage } from './types';
-import { asReal, resent, sample, sampleText, TOOL_HASHES, type SampleName } from './fixtures/load';
+import { asReal, legacySampleText, resent, sample, sampleText, TOOL_HASHES, type SampleName } from './fixtures/load';
 import { forgeAdoptionView } from '../../content/forge/adoptionView';
 
 // CHARACTER FORGE → MUGEN ZERO, the pure half: checking a deploy file
@@ -102,38 +102,24 @@ describe('A. 構文・検証', () => {
     }
   });
 
-  it('A3: a wrong source or target is said out loud, not refused (known only from the old bridge package)', () => {
-    for (const odd of [
-      asReal('human', (p) => ((p as { source: string }).source = 'ELSEWHERE')),
-      asReal('human', (p) => ((p.deployment as { target: string }).target = 'OTHER')),
-    ]) {
-      const p = plan(odd, EMPTY, { npcId: 'SERA' });
-      expect(p.decision).toBe('NEW');
-      expect(p.warnings.map((w) => w.code)).toContain('UNVERIFIED_CONTRACT');
-    }
+  it('A3: a wrong source or target is refused (contract)', () => {
+    expect(plan(asReal('human', (p) => ((p as { source: string }).source = 'ELSEWHERE'))).decision).toBe('BLOCKED_VALIDATION');
+    expect(plan(asReal('human', (p) => ((p.deployment as { target: string }).target = 'OTHER'))).decision).toBe('BLOCKED_VALIDATION');
   });
 
-  it('A4: schemaVersion must be there; "1.0" is FORGE’s, any other is read with a warning, never coerced', () => {
-    for (const version of ['', null]) {
+  it('A4: only schemaVersion "1.0" is taken — never coerced; a newer or other version is refused', () => {
+    for (const version of ['2.0', '0.9', '', 'v1', '1.1', 1, null]) {
       const p = plan(asReal('human', (x) => ((x as { schemaVersion: unknown }).schemaVersion = version)));
       expect(p.decision, String(version)).toBe('BLOCKED_VALIDATION');
+      expect(p.errors.map((e) => e.code)).toContain('UNSUPPORTED_SCHEMA_VERSION');
     }
     expect(plan(asReal('human', (x) => delete (x as { schemaVersion?: unknown }).schemaVersion)).decision).toBe('BLOCKED_VALIDATION');
-    for (const version of ['2.0', '0.9', 'v1', 1]) {
-      const p = plan(asReal('human', (x) => ((x as { schemaVersion: unknown }).schemaVersion = version)), EMPTY, { npcId: 'SERA' });
-      expect(p.decision, String(version)).toBe('NEW');
-      expect(p.warnings.map((w) => w.code)).toContain('UNKNOWN_SCHEMA_VERSION');
-      // Kept exactly as sent.
-      expect(p.payload!.schemaVersion).toBe(version);
-    }
-    const minor = plan(asReal('human', (x) => (x.schemaVersion = '1.1')), EMPTY, { npcId: 'SERA' });
-    expect(minor.decision).toBe('NEW');
-    expect(minor.warnings.map((w) => w.code)).toContain('NEWER_MINOR_VERSION');
+    expect(plan(asReal('human'), EMPTY, { npcId: 'SERA' }).decision).toBe('NEW');
   });
 
-  it('A5: a HUM id on a monster (and a MON id on a human) is warned about; an id not in the HUM-/MON- form is refused', () => {
-    expect(plan(asReal('normal-monster', (p) => (p.characterId = 'HUM-900001'))).warnings.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
-    expect(plan(asReal('human', (p) => (p.characterId = 'MON-900001'))).warnings.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
+  it('A5: a HUM id on a monster (and a MON id on a human) is refused', () => {
+    expect(plan(asReal('normal-monster', (p) => (p.characterId = 'HUM-900001'))).errors.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
+    expect(plan(asReal('human', (p) => (p.characterId = 'MON-900001'))).errors.map((e) => e.code)).toContain('ID_TYPE_MISMATCH');
     for (const bad of ['HUM-1', 'hum-000001', 'NPC-000001', 'HUM-00000A']) {
       expect(plan(asReal('human', (p) => (p.characterId = bad))).decision, bad).toBe('BLOCKED_VALIDATION');
     }
@@ -192,7 +178,7 @@ describe('B. 新規登録 — as content', () => {
       payloadHash: p.payloadHash,
       sourceSchemaVersion: '1.0',
       deployedVersion: '0.1',
-      deployedAt: '2026-09-27T01:00:00.000Z',
+      deployedAt: '2026-10-02T01:00:00.000Z',
       importedAt: AT,
       result: 'NEW',
       snapshotRef: null,
@@ -434,7 +420,17 @@ describe('D. HUMAN安全性', () => {
   it('D5–D6: a child’s future stays future — no marriage fact, no current job', () => {
     const child = asReal('human', (x) => {
       x.profile.occupation = '騎士';
-      x.lifeStage = { visualAge: 'child', adultAxisMode: 'FUTURE_TENDENCY', occupationMode: 'FUTURE_ASPIRATION' };
+      x.visualDiversity = { ...(x.visualDiversity as object), ageGroup: 'child' };
+      // FORGE's own lifeStage for a child with an adult job, in full (bridge v1.1).
+      x.lifeStage = {
+        stage: 'CHILD',
+        source: 'VISUAL_AGE',
+        visualAge: 'child',
+        adultAxisMode: 'FUTURE_TENDENCY',
+        occupationMode: 'FUTURE_ASPIRATION',
+        futureFields: ['marriageDesire', 'romanceStyle', 'occupation', 'independence', 'adultCareer'],
+        note: '未成年の成人向け項目は将来傾向として扱う。',
+      };
     });
     const p = plan(child, EMPTY, { npcId: 'SERA' });
     expect(p.warnings.map((w) => w.code)).toEqual(expect.arrayContaining(['FUTURE_TENDENCY_KEPT', 'FUTURE_ASPIRATION_KEPT']));
@@ -464,27 +460,29 @@ describe('E. MONSTER / BOSS安全性', () => {
     expect(adopt(EMPTY, asReal('boss-monster'), { npcId: 'B' }).baselines['MON-900002'].bossEncounter).toEqual(sample('boss-monster').bossEncounter);
   });
 
-  it('refuses a normal monster with an encounter design (verified); a boss’s missing design is only warned about (old package)', () => {
+  it('refuses a boss without its encounter design, and a normal monster with one', () => {
+    expect(plan(asReal('boss-monster', (p) => ((p.bossEncounter as Record<string, unknown>).coreMechanic = '未設定'))).decision).toBe('BLOCKED_VALIDATION');
+    expect(plan(asReal('boss-monster', (p) => (p.bossEncounter = null))).decision).toBe('BLOCKED_VALIDATION');
+    expect(plan(asReal('boss-monster', (p) => delete (p.bossEncounter as Record<string, unknown>).arena)).decision).toBe('BLOCKED_VALIDATION');
     expect(plan(asReal('normal-monster', (p) => (p.bossEncounter = sample('boss-monster').bossEncounter))).decision).toBe('BLOCKED_VALIDATION');
-    const thin = plan(asReal('boss-monster', (p) => ((p.bossEncounter as Record<string, unknown>).coreMechanic = '未設定')), EMPTY, { npcId: 'MON_ROOTRING' });
-    expect(thin.ready).toBe(true);
-    expect(thin.warnings.find((w) => w.path === 'bossEncounter.coreMechanic')?.code).toBe('UNVERIFIED_CONTRACT');
   });
 });
 
 describe('F. 参照・アセット', () => {
   it('F1–F2: unresolved relationship ids warn, and the character still comes in with no relationship made', () => {
-    const p = plan(asReal('human'), EMPTY, { npcId: 'SERA' });
+    const related = asReal('human', (x) => (x.relationshipRefs = ['REL-900001']));
+    const p = plan(related, EMPTY, { npcId: 'SERA' });
     expect(p.ready).toBe(true);
     expect(p.warnings.filter((w) => w.code === 'UNRESOLVED_REFERENCE')).toHaveLength(1);
-    const content = adopt(EMPTY, asReal('human'), { npcId: 'SERA' });
+    const content = adopt(EMPTY, related, { npcId: 'SERA' });
     expect(content.baselines['HUM-900001'].relationshipRefs).toEqual(['REL-900001']);
     expect(content.roster.characters).toHaveLength(1);
   });
 
   it('F3: a wished-for place that does not exist is left unplaced, never invented', () => {
-    expect(plan(asReal('boss-monster')).warnings.map((w) => `${w.code}:${w.path}`)).toContain('WORLD_ASSIGNMENT_UNRESOLVED:worldAssignment.region');
-    expect(plan(asReal('human')).warnings.map((w) => `${w.code}:${w.path}`)).toContain('WORLD_ASSIGNMENT_NAME_MATCH:worldAssignment.settlement');
+    const wished = (name: 'human' | 'boss-monster', where: Record<string, string>) => asReal(name, (x) => (x.worldAssignment = where));
+    expect(plan(wished('boss-monster', { region: 'アルデン地方' })).warnings.map((w) => `${w.code}:${w.path}`)).toContain('WORLD_ASSIGNMENT_UNRESOLVED:worldAssignment.region');
+    expect(plan(wished('human', { settlement: 'アルデン村' })).warnings.map((w) => `${w.code}:${w.path}`)).toContain('WORLD_ASSIGNMENT_NAME_MATCH:worldAssignment.settlement');
   });
 
   it('F4–F5: asset metadata is kept; a missing picture file is a warning', () => {
@@ -517,7 +515,7 @@ describe('the rest of the contract', () => {
     for (const key of ['schemaVersion', 'importId', 'characterId', 'result', 'importedAt', 'sourceDeployment', 'warnings', 'errors', 'diffSummary', 'rollback'])
       expect(result, key).toHaveProperty(key);
     expect(result.characterId).toMatch(/^(HUM|MON)-[0-9]{6,}$/);
-    expect(result.sourceDeployment).toEqual({ deployedVersion: '0.1', deployedAt: '2026-09-27T01:00:00.000Z' });
+    expect(result.sourceDeployment).toEqual({ deployedVersion: '0.1', deployedAt: '2026-10-02T01:00:00.000Z' });
     expect(JSON.parse(JSON.stringify(result))).toEqual(result);
     expect(resultOfPlan(plan(sampleText('human')), AT)?.result).toBe('BLOCKED');
     expect(resultOfPlan(plan('nope'), AT)).toBeNull();
@@ -541,53 +539,101 @@ describe('the rest of the contract', () => {
   });
 });
 
-// SOURCE VERIFIED 2026-10-02 (docs/FORGE_IMPORT.md): what FORGE's own
-// implementation guarantees is checked as an error; what only the old
-// bridge package v1.0 said is a warning. The old samples are LEGACY TEST
-// FIXTURES — the cases below change them in memory to stand for both.
-describe('SOURCE VERIFIED 2026-10-02: verified rules refuse, old-package rules only warn', () => {
-  const refused = (p: ForgeDeployPackage) => plan(p, EMPTY, { npcId: 'SOMEONE' }).decision === 'BLOCKED_VALIDATION';
+// THE CONTRACT — bridge v1.1 (author decision 2026-10-05). A breach of
+// FORGE's DEPLOY PACKAGE contract is an error; an unknown extra field is
+// not; free strings stay free; nothing is ever recomputed or corrected.
+// The bridge v1.1 samples (SOURCE VERIFIED fixtures) meet the contract;
+// the old v1.0 samples (LEGACY fixtures) do not, and are refused.
+describe('the contract (bridge v1.1, 2026-10-05): breaches refuse, extras and free strings do not', () => {
+  const refused = (p: unknown) => plan(p, EMPTY, { npcId: 'SOMEONE' }).decision === 'BLOCKED_VALIDATION';
 
-  it('refuses what FORGE itself never sends', () => {
-    const cases: [string, ForgeDeployPackage][] = [
-      ['status not CANONIZED', asReal('human', (p) => ((p as { status: string }).status = 'DEPLOYED'))],
-      ['characterType npc', asReal('human', (p) => ((p as { characterType: string }).characterType = 'npc'))],
-      ['characterType boss', asReal('boss-monster', (p) => ((p as { characterType: string }).characterType = 'boss'))],
-      ['human with an encounterRole', asReal('human', (p) => ((p as { encounterRole: string }).encounterRole = 'BOSS'))],
-      ['monster without one', asReal('normal-monster', (p) => ((p as { encounterRole: null }).encounterRole = null))],
-      ['human name not settled', asReal('human', (p) => (p.identity.nameStatus = 'AUTO_CANDIDATE'))],
-      ['monster species name missing', asReal('normal-monster', (p) => (p.identity.speciesName = ''))],
-      ['visual review REVISION_REQUIRED', asReal('human', (p) => (p.visualReviewStatus = 'REVISION_REQUIRED'))],
-      ['impermissible equipment evidence', asReal('human', (p) => (((p.equipment as Record<string, unknown>).validation as Record<string, unknown>).permitted = false))],
-      ['a picture inside the package', asReal('human', (p) => ((p.assets[0] as unknown as Record<string, unknown>).memo = 'data:image/png;base64,AAAA'))],
-      ['no characterId', asReal('human', (p) => delete (p as { characterId?: string }).characterId)],
-    ];
-    for (const [what, p] of cases) expect(refused(p), what).toBe(true);
-    const revision = plan(asReal('human', (p) => (p.visualReviewStatus = 'REVISION_REQUIRED')));
-    expect(revision.errors.map((e) => e.code)).toContain('VISUAL_REVISION_REQUIRED');
+  it('the three v1.1 samples meet it with no error and no warning from the validator', () => {
+    for (const name of ['human', 'normal-monster', 'boss-monster'] as const) {
+      const { errors, warnings } = validateDeployPackage(asReal(name));
+      expect(errors, name).toEqual([]);
+      expect(warnings, name).toEqual([]);
+    }
   });
 
-  it('only warns about what the old bridge package alone said — the character still comes in', () => {
-    const cases: [string, ForgeDeployPackage][] = [
-      ['an asset type not in the old list', asReal('human', (p) => ((p.assets[0] as unknown as Record<string, unknown>).assetType = 'PORTRAIT'))],
-      ['a skill level not in the old list', asReal('human', (p) => ((p.currentSkills as Record<string, string>).magic = 'NOVICE'))],
-      ['a visual review value not in the old list', asReal('human', (p) => ((p as { visualReviewStatus: string }).visualReviewStatus = 'PENDING'))],
-      ['another aptitudeSemantics', asReal('human', (p) => ((p as { aptitudeSemantics: string }).aptitudeSemantics = 'POTENTIAL'))],
-      ['a relationship id in another form', asReal('human', (p) => (p.relationshipRefs = ['R-1']))],
-      ['a human with ecology', asReal('human', (p) => (p.ecology = { desire: '平穏' }))],
-      ['a human without lifeAxis', asReal('human', (p) => delete (p as { lifeAxis?: unknown }).lifeAxis)],
-      ['a human without currentSkills', asReal('human', (p) => delete (p as { currentSkills?: unknown }).currentSkills)],
+  it('the old v1.0 samples are refused: CURRENT_FACT, intensity NORMAL, an incomplete lifeStage', () => {
+    const human = validateDeployPackage(JSON.parse(legacySampleText('human')));
+    expect(human.payload).toBeNull();
+    expect(human.errors.map((e) => e.path)).toEqual(expect.arrayContaining(['lifeStage.occupationMode', 'visualDirection.intensity', 'lifeStage.stage']));
+    expect(validateDeployPackage(JSON.parse(legacySampleText('normal-monster'))).errors.map((e) => e.path)).toContain('visualDirection.intensity');
+  });
+
+  it('refuses each breach of the contract', () => {
+    const human = (change: (p: ForgeDeployPackage) => void) => asReal('human', change);
+    const cases: [string, unknown][] = [
+      ['status not CANONIZED', human((p) => ((p as { status: string }).status = 'DEPLOYED'))],
+      ['characterType npc', human((p) => ((p as { characterType: string }).characterType = 'npc'))],
+      ['characterType boss', asReal('boss-monster', (p) => ((p as { characterType: string }).characterType = 'boss'))],
+      ['human with an encounterRole', human((p) => ((p as { encounterRole: string }).encounterRole = 'BOSS'))],
+      ['monster without one', asReal('normal-monster', (p) => ((p as { encounterRole: null }).encounterRole = null))],
+      ['human name not settled', human((p) => (p.identity.nameStatus = 'AUTO_CANDIDATE'))],
+      ['monster species name missing', asReal('normal-monster', (p) => (p.identity.speciesName = ''))],
+      ['visual review REVISION_REQUIRED', human((p) => (p.visualReviewStatus = 'REVISION_REQUIRED'))],
+      ['visual review not a FORGE value', human((p) => ((p as { visualReviewStatus: string }).visualReviewStatus = 'PENDING'))],
+      ['impermissible equipment evidence', human((p) => (((p.equipment as Record<string, unknown>).validation as Record<string, unknown>).permitted = false))],
+      ['a picture inside the package', human((p) => ((p.assets[0] as unknown as Record<string, unknown>).memo = 'data:image/png;base64,AAAA'))],
+      ['no characterId', human((p) => delete (p as { characterId?: string }).characterId)],
+      ['an asset type not FORGE’s', human((p) => ((p.assets[0] as unknown as Record<string, unknown>).assetType = 'PORTRAIT'))],
+      ['a skill level not FORGE’s', human((p) => ((p.currentSkills as Record<string, string>).magic = 'NOVICE'))],
+      ['a skill missing', human((p) => delete (p.currentSkills as Record<string, string>).social)],
+      ['another aptitudeSemantics', human((p) => ((p as { aptitudeSemantics: string }).aptitudeSemantics = 'POTENTIAL'))],
+      ['a relationship id in another form', human((p) => (p.relationshipRefs = ['R-1']))],
+      ['a human with ecology', human((p) => (p.ecology = { desire: '平穏' }))],
+      ['a human without lifeAxis', human((p) => delete (p as { lifeAxis?: unknown }).lifeAxis)],
       ['a monster with a lifeStage', asReal('normal-monster', (p) => (p.lifeStage = { stage: 'ADULT' }))],
       ['a boss with a thin encounter design', asReal('boss-monster', (p) => delete (p.bossEncounter as Record<string, unknown>).arena)],
-      ['a boss with no encounter design', asReal('boss-monster', (p) => (p.bossEncounter = null))],
-      ['no assets list', asReal('human', (p) => delete (p as { assets?: unknown }).assets)],
+      ['deployment.target not MUGEN_ZERO', human((p) => ((p.deployment as { target: string }).target = 'ELSEWHERE'))],
+      // B1 lifeStage: shape and FORGE's values only.
+      ['lifeStage missing a field', human((p) => delete (p.lifeStage as Record<string, unknown>).note)],
+      ['lifeStage.stage not FORGE’s', human((p) => ((p.lifeStage as Record<string, unknown>).stage = 'ELDER'))],
+      ['lifeStage.occupationMode CURRENT_FACT', human((p) => ((p.lifeStage as Record<string, unknown>).occupationMode = 'CURRENT_FACT'))],
+      ['lifeStage.futureFields not strings', human((p) => ((p.lifeStage as Record<string, unknown>).futureFields = [1]))],
+      ['an adult’s adult axis as a future tendency', human((p) => ((p.lifeStage as Record<string, unknown>).adultAxisMode = 'FUTURE_TENDENCY'))],
+      // B2 / B3 visualDirection.
+      ['intensity NORMAL', human((p) => ((p.visualDirection as Record<string, unknown>).intensity = 'NORMAL'))],
+      ['overallImpression not FORGE’s', human((p) => ((p.visualDirection as Record<string, unknown>).overallImpression = 'MYSTERIOUS'))],
+      // B5 profile.core: present and typed.
+      ['no profile.core', human((p) => delete (p.profile as Record<string, unknown>).core)],
+      ['personality not a list of strings', human((p) => (((p.profile.core as Record<string, unknown>).personality = '慎重')))],
+      ['tendency not a string', human((p) => (((p.profile.core as Record<string, unknown>).tendency = null)))],
+      // B4 importance: a string — only the type.
+      ['importance not a string', human((p) => (p.profile.importance = null))],
+      ['ageGroup not FORGE’s', human((p) => (p.visualDiversity = { ...(p.visualDiversity as object), ageGroup: 'ancient' }))],
     ];
-    for (const [what, p] of cases) {
-      const result = plan(p, EMPTY, { npcId: 'SOMEONE' });
-      expect(result.errors, what).toEqual([]);
-      expect(result.ready, what).toBe(true);
-      expect(result.warnings.map((w) => w.code), what).toContain('UNVERIFIED_CONTRACT');
+    for (const [what, p] of cases) expect(refused(p), what).toBe(true);
+    expect(plan(human((p) => (p.visualReviewStatus = 'REVISION_REQUIRED'))).errors.map((e) => e.code)).toContain('VISUAL_REVISION_REQUIRED');
+  });
+
+  it('never refuses a free string or an extra field', () => {
+    const odd = asReal('human', (p) => {
+      p.profile.core = { personality: ['未知の性格', '頑固', '頑固'], values: ['  余白つき  '], desires: [], weakness: '', tendency: '' };
+      p.profile.importance = '';
+      (p as Record<string, unknown>).futureField = { anything: true };
+      (p.identity as Record<string, unknown>).nickname = 'セラちゃん';
+    });
+    const result = plan(odd, EMPTY, { npcId: 'SERA' });
+    expect(result.errors).toEqual([]);
+    expect(result.ready).toBe(true);
+    expect(result.warnings.filter((w) => w.code === 'UNKNOWN_FIELD').map((w) => w.path)).toEqual(['futureField', 'identity.nickname']);
+    for (const importance of ['一般', '準重要', '重要', '最重要', 'BOSS候補', '何でも']) {
+      expect(plan(asReal('human', (p) => (p.profile.importance = importance)), EMPTY, { npcId: 'SERA' }).ready, importance).toBe(true);
     }
+    // Kept exactly as sent.
+    const content = adopt(EMPTY, odd, { npcId: 'SERA' });
+    expect(canonicalJson(content.baselines['HUM-900001'])).toBe(canonicalJson(odd));
+  });
+
+  it('checks FORGE’s lifeStage, never works one out: the stage it sent is the one kept', () => {
+    // An adult visual age with a numeric child age: FORGE derives the stage from the visual age; ZERO keeps it.
+    const p = asReal('human', (x) => (x.profile.age = '9'));
+    const result = plan(p, EMPTY, { npcId: 'SERA' });
+    expect(result.errors).toEqual([]);
+    expect(result.consistency.map((i) => i.code)).toEqual(['AGE_VISUAL_GROUP_MISMATCH']);
+    expect(adopt(EMPTY, p, { npcId: 'SERA' }).baselines['HUM-900001'].lifeStage).toEqual(p.lifeStage);
   });
 
   it('tells a boss by encounterRole, never by characterType', () => {
@@ -597,34 +643,13 @@ describe('SOURCE VERIFIED 2026-10-02: verified rules refuse, old-package rules o
     expect(forgeKindOf(asReal('human'))).toBe('HUMAN');
   });
 
-  it('keeps unknown strings exactly as FORGE wrote them — no normalising', () => {
-    const odd = asReal('human', (p) => {
-      p.profile.core = { personality: ['未知の性格', '頑固', '頑固'], values: ['  余白つき  '], desires: [] };
-      p.profile.importance = '最重要';
-      p.visualDiversity = { ...(p.visualDiversity as object), ageGroup: 'middle_aged' };
-      p.visualDirection = { overallImpression: 'CUTE', intensity: 'SUBTLE', customInstruction: '' };
-    });
-    const content = adopt(EMPTY, odd, { npcId: 'SERA' });
-    expect(canonicalJson(content.baselines['HUM-900001'])).toBe(canonicalJson(odd));
-  });
-
-  it('A2: the occupation is current when FORGE says CURRENT_OR_AGE_APPROPRIATE; FORGE’s lifeStage is read, never recomputed', () => {
-    const at = (mode: string) =>
-      asReal('human', (p) => {
-        p.profile.occupation = '薬草採集人';
-        p.lifeStage = { ...(p.lifeStage as object), occupationMode: mode };
-      });
-    expect(forgeHumanCurrentFacts(at('CURRENT_OR_AGE_APPROPRIATE'))).toMatchObject({ occupation: '薬草採集人', aspiration: null });
-    expect(forgeHumanCurrentFacts(at('FUTURE_ASPIRATION'))).toMatchObject({ occupation: null, aspiration: '薬草採集人' });
-    expect(forgeHumanCurrentFacts(at('UNSET'))).toMatchObject({ occupation: null, aspiration: null });
-    // LEGACY: the old samples' CURRENT_FACT still reads, so the old fixtures keep working. Never written.
-    expect(forgeHumanCurrentFacts(at('CURRENT_FACT'))).toMatchObject({ occupation: '薬草採集人' });
-    const p = at('CURRENT_OR_AGE_APPROPRIATE');
+  it('A2: the occupation is current only when FORGE says CURRENT_OR_AGE_APPROPRIATE', () => {
+    expect(forgeHumanCurrentFacts(asReal('human'))).toMatchObject({ occupation: '薬草採集人', aspiration: null });
+    const unset = asReal('human', (x) => ((x.lifeStage as Record<string, unknown>).occupationMode = 'UNSET'));
+    expect(forgeHumanCurrentFacts(unset)).toMatchObject({ occupation: null, aspiration: null });
+    const p = asReal('human');
     const before = canonicalJson(p);
     forgeHumanCurrentFacts(p);
     expect(canonicalJson(p)).toBe(before);
-    // Potential never stands in for skills, even when currentSkills is missing.
-    const noSkills = asReal('human', (x) => delete (x as { currentSkills?: unknown }).currentSkills);
-    expect(forgeHumanCurrentFacts(noSkills)!.skills).toEqual({});
   });
 });

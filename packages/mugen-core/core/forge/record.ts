@@ -38,12 +38,6 @@ export function forgeDisplayName(payload: ForgeDeployPackage): string {
  * game only reads it, never works it out again.
  */
 export const OCCUPATION_CURRENT = 'CURRENT_OR_AGE_APPROPRIATE';
-/**
- * LEGACY, read only: the bridge package v1.0's samples wrote
- * `CURRENT_FACT`, which FORGE itself never outputs. Kept so the old test
- * fixtures still read; never written, never the specification.
- */
-const LEGACY_OCCUPATION_CURRENT = 'CURRENT_FACT';
 
 /**
  * WHAT IS TRUE OF A HUMAN NOW, as opposed to what they could become.
@@ -66,7 +60,7 @@ export function forgeHumanCurrentFacts(payload: ForgeDeployPackage): {
   const mode = payload.lifeStage?.occupationMode;
   return {
     skills: { ...(payload.currentSkills ?? {}) },
-    occupation: mode === OCCUPATION_CURRENT || mode === LEGACY_OCCUPATION_CURRENT ? occupation : null,
+    occupation: mode === OCCUPATION_CURRENT ? occupation : null,
     aspiration: mode === 'FUTURE_ASPIRATION' ? occupation : null,
   };
 }

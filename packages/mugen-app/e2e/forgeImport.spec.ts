@@ -17,7 +17,7 @@ import { throughTheOpening } from './opening';
  * taken off, which happens here, in the test, into the sandbox.
  */
 
-const FIXTURES = new URL('../../mugen-core/core/forge/fixtures/legacy-bridge-v1.0/', import.meta.url);
+const FIXTURES = new URL('../../mugen-core/core/forge/fixtures/bridge-v1.1/', import.meta.url);
 const REPO_ROSTER = new URL('../../mugen-core/content/forge/roster.json', import.meta.url);
 /** The repository's own ledger as it was when this file started — the tests write only to sandboxes. */
 const REPO_ROSTER_AT_START = readFileSync(REPO_ROSTER, 'utf8');
@@ -94,7 +94,8 @@ test('B / C: HUMAN, 通常モンスター and BOSS are adopted once each as NPC_
   await openTool(page);
 
   // ---- HUMAN, by file. Nothing can be written until the NPC_ID is decided.
-  await choose(page, 'HUM-900001_MUGEN_ZERO_0-1.json', real('human'));
+  // The v1.1 sample names no relationship; one is added here to show it is held, not made.
+  await choose(page, 'HUM-900001_MUGEN_ZERO_0-1.json', real('human', (p) => (p.relationshipRefs = ['REL-900001'])));
   await expect(page.getByTestId('forge-summary-id')).toHaveText('HUM-900001');
   await expect(page.getByTestId('forge-kind')).toHaveAttribute('data-kind', 'HUMAN');
   await expect(decision(page)).toHaveText('新規登録');
@@ -113,7 +114,7 @@ test('B / C: HUMAN, 通常モンスター and BOSS are adopted once each as NPC_
   expect(JSON.parse(readFileSync(join(sandboxDir(), 'characters', 'HUM-900001.json'), 'utf8')).characterId).toBe('HUM-900001');
 
   // ---- The same file again: 変更なし, and the NPC_ID shown as fixed.
-  await choose(page, 'again.json', real('human'));
+  await choose(page, 'again.json', real('human', (p) => (p.relationshipRefs = ['REL-900001'])));
   await expect(decision(page)).toHaveText('変更なし');
   await expect(page.getByTestId('forge-npc-fixed')).toContainText('SERA');
   await expect(page.getByTestId('forge-register')).toBeDisabled();
@@ -153,7 +154,7 @@ test('B / C: HUMAN, 通常モンスター and BOSS are adopted once each as NPC_
     page,
     real('human', (p) => {
       p.deployment.deployedVersion = '0.1-r2';
-      p.deployment.deployedAt = '2026-09-28T01:00:00.000Z';
+      p.deployment.deployedAt = '2026-10-03T01:00:00.000Z';
       p.profile.occupation = '薬師';
     }),
   );
@@ -175,7 +176,7 @@ test('B / C: HUMAN, 通常モンスター and BOSS are adopted once each as NPC_
   await expect(page.getByTestId('forge-rollback-HUM-900001')).toHaveCount(0);
 
   // ---- 取り込まない clears the screen and writes nothing.
-  await paste(page, real('human', (p) => ((p.deployment.deployedAt = '2026-09-29T01:00:00.000Z'), (p.deployment.deployedVersion = '0.1-r3'))));
+  await paste(page, real('human', (p) => ((p.deployment.deployedAt = '2026-10-04T01:00:00.000Z'), (p.deployment.deployedVersion = '0.1-r3'))));
   await expect(decision(page)).toHaveText('更新候補');
   await page.getByTestId('forge-cancel').click();
   await expect(page.getByTestId('forge-step-2')).toHaveCount(0);
@@ -198,13 +199,15 @@ test('an existing person can be the one adopted — their id and name stay', asy
   await expect(page.getByTestId('forge-register')).toBeDisabled();
 });
 
-test('C7 / D4 / D6: wrong type for the id (a warning), a revision-required visual, unjustified equipment, and a child’s dream job', async ({ page }) => {
+test('C7 / D4 / D6: wrong type for the id, a revision-required visual, intensity NORMAL, unjustified equipment, and a child’s dream job', async ({ page }) => {
   await openTool(page);
-  // A HUM id on a monster: known only from the old bridge package, so said out loud, not refused (C2, 2026-10-02).
+  // Breaches of the contract (bridge v1.1) are refused.
   await paste(page, real('normal-monster', (p) => (p.characterId = 'HUM-900001')));
-  await expect(decision(page)).not.toHaveAttribute('data-decision', 'BLOCKED_VALIDATION');
-  await expect(page.getByTestId('forge-warnings')).toContainText('モンスター（MON-）の番号ではありません');
-  // A visual review FORGE never sends (verified): refused.
+  await expect(decision(page)).toHaveAttribute('data-decision', 'BLOCKED_VALIDATION');
+  await expect(page.getByTestId('forge-errors')).toContainText('モンスター（MON-）の番号ではありません');
+  await paste(page, real('human', (p) => (p.visualDirection.intensity = 'NORMAL')));
+  await expect(decision(page)).toHaveAttribute('data-decision', 'BLOCKED_VALIDATION');
+  await expect(page.getByTestId('forge-errors')).toContainText('SUBTLE / STANDARD / STRONG');
   await paste(page, real('human', (p) => (p.visualReviewStatus = 'REVISION_REQUIRED')));
   await expect(decision(page)).toHaveAttribute('data-decision', 'BLOCKED_VALIDATION');
   await expect(page.getByTestId('forge-errors')).toContainText('REVISION_REQUIRED');
@@ -217,7 +220,16 @@ test('C7 / D4 / D6: wrong type for the id (a warning), a revision-required visua
     page,
     real('human', (p) => {
       p.profile.occupation = '騎士';
-      p.lifeStage = { visualAge: 'child', adultAxisMode: 'FUTURE_TENDENCY', occupationMode: 'FUTURE_ASPIRATION' };
+      p.visualDiversity.ageGroup = 'child';
+      p.lifeStage = {
+        stage: 'CHILD',
+        source: 'VISUAL_AGE',
+        visualAge: 'child',
+        adultAxisMode: 'FUTURE_TENDENCY',
+        occupationMode: 'FUTURE_ASPIRATION',
+        futureFields: ['marriageDesire', 'romanceStyle', 'occupation', 'independence', 'adultCareer'],
+        note: '未成年の成人向け項目は将来傾向として扱う。',
+      };
     }),
   );
   await expect(page.getByTestId('forge-occupation')).toContainText('現在の職業: （なし）');
@@ -257,7 +269,7 @@ test('WORLD LIFE ENGINE: a person by default, a monster not — decided at adopt
   await paste(page, real('human'));
   await expect(page.getByTestId('forge-life-actor')).toBeChecked();
   await expect(page.getByTestId('forge-entity-type')).toHaveText('PERSON');
-  await expect(page.getByTestId('forge-life-engine')).toContainText('MAGIC 0.78');
+  await expect(page.getByTestId('forge-life-engine')).toContainText('MAGIC 0.29');
   await expect(page.getByTestId('forge-unmapped')).toContainText('UNMAPPED: profile.core.personality「慎重」');
   await expect(page.getByTestId('forge-unmapped')).toContainText('aptitudes「commerce」');
   await adoptAs(page, 'SERA');

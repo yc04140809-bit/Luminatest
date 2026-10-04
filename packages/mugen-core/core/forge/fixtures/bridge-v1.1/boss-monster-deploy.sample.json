@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "1.0",
+  "source": "MUGEN_CHARACTER_FORGE",
+  "characterId": "MON-900002",
+  "characterType": "monster",
+  "encounterRole": "BOSS",
+  "status": "CANONIZED",
+  "identity": {
+    "name": "根環の森守",
+    "speciesName": "根環の森守",
+    "individualName": null,
+    "nameStatus": null,
+    "speciesNameStatus": "CANON",
+    "individualNameStatus": "UNSET",
+    "nameOrigin": null,
+    "speciesNameOrigin": "森辺の村に伝わる呼称",
+    "individualNameOrigin": null
+  },
+  "profile": {
+    "importance": "地域BOSS",
+    "encounterRole": "BOSS",
+    "creatureShapeImpression": "威圧的",
+    "classification": "精霊",
+    "basicAppearance": "",
+    "habitat": "洞窟",
+    "activityTime": "昼行性",
+    "ecologicalRole": "巣の守護者",
+    "body": {
+      "size": "小型",
+      "skeleton": "二足",
+      "headType": "結晶状",
+      "horns": "二本",
+      "arms": "2本",
+      "legs": "2本",
+      "wings": "羽毛",
+      "tail": "長い",
+      "skin": "金属質",
+      "specialParts": [
+        "外骨格",
+        "複眼"
+      ]
+    },
+    "element": {
+      "primary": "土",
+      "secondary": "なし",
+      "affinity": 0.23
+    },
+    "individual": {
+      "individualId": "IND-00000003",
+      "personalityVariance": "群れに馴染めない",
+      "specialState": "通常",
+      "humanAttitude": "強く警戒",
+      "relationships": "",
+      "injury": "",
+      "specialExperience": ""
+    },
+    "notes": "サンプルデータ。本番登録禁止。",
+    "recruitment": {
+      "adoptionNotes": "",
+      "adoptionStatus": "ADOPTED",
+      "adoptionReason": "",
+      "roleCandidate": "",
+      "importanceCandidate": "",
+      "seedCandidates": [],
+      "worldLifeHooks": [],
+      "visualNotes": "",
+      "updatedAt": "",
+      "shortlistedAt": "",
+      "adoptedAt": "",
+      "rejectedAt": "",
+      "visualizedAt": "",
+      "canonizedAt": "",
+      "deployedAt": "",
+      "archivedAt": ""
+    }
+  },
+  "lifeAxis": null,
+  "worldViewAxis": null,
+  "relationshipPotential": [],
+  "aptitudes": {
+    "physical": 0.49,
+    "magic": 0.12,
+    "defense": 0.32,
+    "speed": 0.53,
+    "special": 0.08
+  },
+  "aptitudeSemantics": "SPECIES_COMBAT_POTENTIAL",
+  "currentSkills": null,
+  "equipment": null,
+  "lifeStage": null,
+  "visualDiversity": {
+    "engineVersion": "1.0",
+    "generated": true,
+    "scale": "small",
+    "bodyMass": "dense",
+    "symmetry": "bilateral",
+    "bodyStructure": "biped",
+    "headStructure": "crystal",
+    "eyeConfiguration": "compound_pair",
+    "surface": "metallic",
+    "movement": "run",
+    "silhouette": "spindly",
+    "visualTone": "不気味",
+    "ecologicalAdaptation": "乾燥を防ぐ折り重なった表皮",
+    "signatures": [
+      "脚先だけ半透明",
+      "極端に長い後脚",
+      "偽眼だけが鮮やか"
+    ],
+    "structureConflicts": [],
+    "rarityTags": [],
+    "similarity": {
+      "warning": false,
+      "score": null,
+      "comparedAgainst": []
+    }
+  },
+  "visualDirection": {
+    "overallImpression": "MYSTICAL",
+    "intensity": "STRONG",
+    "customInstruction": "巨大化だけに頼らず生態と空洞シルエットでBOSS性を出す"
+  },
+  "visualReviewStatus": "APPROVED",
+  "visualReviewChecklist": {},
+  "worldAssignment": {},
+  "productionChecklist": {},
+  "relationshipRefs": [],
+  "characterHistory": [
+    {
+      "event": "GENERATED",
+      "at": "2026-10-04T18:51:57.199Z",
+      "origin": "FORGE",
+      "details": {}
+    }
+  ],
+  "ecology": {
+    "aggression": 0.76,
+    "intelligence": 0.09,
+    "caution": 0.35,
+    "curiosity": 0.68,
+    "packTendency": 0.92,
+    "territoriality": 0.3,
+    "humanCaution": 0.48,
+    "companionAttachment": 0.33,
+    "role": "巣の守護者",
+    "desire": "子供の保護"
+  },
+  "combat": {
+    "aptitude": {
+      "physical": 0.49,
+      "magic": 0.12,
+      "defense": 0.32,
+      "speed": 0.53,
+      "special": 0.08
+    },
+    "normalAttackCandidate": "毒針",
+    "uniqueSkillCandidates": [
+      "捕縛",
+      "恐怖の咆哮",
+      "なし"
+    ],
+    "weaknesses": [
+      "乾燥に弱い",
+      "なし"
+    ]
+  },
+  "bossEncounter": {
+    "generated": true,
+    "rank": "フィールドボス",
+    "narrativeFunction": "生態系の頂点",
+    "encounterReason": "奪われたものを取り戻そうとしている",
+    "arena": "吹雪で視界が変わる雪原",
+    "phaseCount": "2段階",
+    "openingBehavior": "弱点を隠しながら慎重に接近する",
+    "phaseTransition": "取り巻きとの連携方法を変える",
+    "coreMechanic": "プレイヤーの反復行動へ生態的に適応する",
+    "counterplayClue": "鳴き声の回数で攻撃種別が分かる",
+    "signatureMove": "感覚器官を利用した幻惑",
+    "enrageCondition": "なし（暴走せず冷静に戦法を変える）",
+    "minionPattern": "分離した身体組織",
+    "defeatOutcome": "封印状態へ戻る",
+    "resolutionPolicy": "撃破のみ",
+    "rewardDirection": "特殊な知識",
+    "entranceDirection": "通常個体の行動変化が前触れになる",
+    "seedCandidates": [
+      "過去の戦いの傷が残っている",
+      "本当は戦いを望んでいない",
+      "第三者の支配から解放できる"
+    ],
+    "notes": ""
+  },
+  "seeds": [
+    "子供を守っている",
+    "特定人物への恩義",
+    "縄張りを奪われた"
+  ],
+  "dramaHooks": [
+    "凶暴に見える行動が、実は幼体や巣を守るためだった可能性がある。"
+  ],
+  "worldMemory": {
+    "registered": false,
+    "events": [],
+    "memo": ""
+  },
+  "worldLifeEngine": {
+    "enabled": true
+  },
+  "assets": [],
+  "deployment": {
+    "source": "MUGEN_CHARACTER_FORGE",
+    "target": "MUGEN_ZERO",
+    "deployedAt": "2026-10-02T01:20:00.000Z",
+    "deployedVersion": "0.1"
+  },
+  "sampleOnly": true
+}

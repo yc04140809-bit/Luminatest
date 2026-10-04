@@ -32,7 +32,10 @@ describe('separate states', () => {
     const content = adopt(EMPTY, asReal('human'), 'SERA');
     const state = forgeRegistrationState(content.roster.characters[0], content);
     expect(state).toMatchObject({ character: 'REGISTERED', lifeEngine: 'ACTOR', image: 'NOT_REGISTERED', assetMetadataCount: 1 });
-    expect(state.primaryAssetId).toBe('VIS-HUM-900001-001');
+    // FORGE's asset carries no primary mark here: no primary picture, and the first is not taken as one.
+    expect(state.primaryAssetId).toBeNull();
+    const marked = adopt(EMPTY, asReal('human', (p) => ((p.assets[0] as unknown as Record<string, unknown>).primary = true)), 'SERA');
+    expect(forgeRegistrationState(marked.roster.characters[0], marked).primaryAssetId).toBe('VIS-HUM-900001-001');
     // Once the game holds the file, the picture state alone changes.
     expect(forgeRegistrationState(content.roster.characters[0], content, new Set(['VIS-HUM-900001-001'])).image).toBe('REGISTERED');
   });

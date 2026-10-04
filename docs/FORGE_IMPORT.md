@@ -64,21 +64,29 @@ ZERO 独自の年齢帯表（child 0〜12 … older_adult 50〜）は**廃止**�
   FORGE が意図的に設定した visual age を ZERO の独自ルールで否定しないため。
 - 実装：`forgeVocabularyAdapter.ts` の `FORGE_AGE_GROUP_LIFE_STAGE`／`forgeLifeStageOfAge`／`consistencyIssues`。
 
-### S-4. 取込時の検査（作者決定 C2）
+### S-4. 取込時の検査（作者決定 2026-10-05 — 連携資料 v1.1 の契約。C2 を置き換え）
+
+連携資料 v1.1（FORGE ソース commit `36b7091` で確認済み・JSON Schema・検査ツール）を **FORGE → ZERO の Character Package の正式契約**とし、
+**契約違反は ERROR**（取り込まない）。実データ 4 件（RIZEL・EDDA・ヌマワタリ・セキリュウガ）はすべて v1.1 の検査を通過。
+ZERO の役割は「FORGE の Package が契約を満たしているかの確認」で、再計算・補正・変換はしない。
 
 | 種類 | 検査 | 結果 |
 |---|---|---|
-| SOURCE VERIFIED | schemaVersion・characterId がある／characterId が HUM-/MON- の形（ファイル名に使うため）／characterType が human・monster／status が CANONIZED／人間は name と nameStatus（CANON・IN_WORLD_ACQUIRED）、モンスターは speciesName と speciesNameStatus／encounterRole（人間 null、モンスター NORMAL・BOSS）／通常モンスターの bossEncounter が null／visualReviewStatus が REVISION_REQUIRED でない／人間の装備根拠が不正でない（permitted false でない）／assets に画像データが入っていない／送出版が 0.1・0.1-rN、送出日時が日時／取込が読む identity・profile・deployment がある | **ERROR**（取り込まない） |
-| 旧 ZIP v1.0 だけで確認できる条件 | assetType の一覧、currentSkills の段階（UNLEARNED〜MASTER）と 5 項目、visualReviewStatus の他の値、aptitudeSemantics の値、bossEncounter の必須項目、REL ID の形式、人間・モンスター別の null／必須構造、source・deployment.source／target の値、ID 接頭辞と characterType の食い違い（ID_TYPE_MISMATCH）、その他の項目の有無・型 | **WARNING**（`UNVERIFIED_CONTRACT` など。取り込みは止めない） |
-| 版 | schemaVersion が `"1.0"` 以外：`1.x` は NEWER_MINOR_VERSION、それ以外は UNKNOWN_SCHEMA_VERSION | WARNING（値は変えずに保持） |
+| 契約（v1.1） | ルート 33 項目がすべてある／schemaVersion が `"1.0"`（それ以外・数値・新しい版は不可、変換しない）／source・deployment.source が MUGEN_CHARACTER_FORGE、deployment.target が MUGEN_ZERO／characterId が HUM-／MON- の形で characterType と一致／characterType が human・monster／status が CANONIZED／encounterRole（人間 null、モンスター NORMAL・BOSS）／名前の条件／aptitudeSemantics（人間 POTENTIAL_NOT_ACQUIRED_SKILL、モンスター SPECIES_COMBAT_POTENTIAL）／aptitudes が 0〜1／人間・モンスター別の null・必須構造／currentSkills の 5 項目と段階（UNLEARNED〜MASTER）／assetType の 9 種・assets の項目の型・画像データなし／visualReviewStatus（UNREVIEWED・APPROVED。REVISION_REQUIRED は送出不可）／REL ID の形／characterHistory・worldMemory・worldLifeEngine・identity の項目と型／命名状態の値／送出版 0.1・0.1-rN と送出日時／通常モンスターの bossEncounter が null、BOSS の bossEncounter が生成済みで 19 項目・型・必須欄が「未設定」でない | **ERROR** |
+| 契約（v1.1）で追加 | **lifeStage**（人間）：7 項目（stage・source・visualAge・adultAxisMode・occupationMode・futureFields・note）・各項目の FORGE の値・型、FORGE の検査ツールと同じ「CHILD／TEEN なら adultAxisMode は FUTURE_TENDENCY、それ以外は CURRENT_TENDENCY」。**年齢や ageGroup から lifeStage を作り直すことはしない**／**visualDirection**：intensity は SUBTLE・STANDARD・STRONG（NORMAL は不可）、overallImpression は FORGE の 15 値、customInstruction は文字列／**profile.core**（人間）：あること、personality・values・desires は文字列の配列（中身は自由）、weakness・tendency は文字列／**profile.importance**：文字列であること（中身は自由、空でもよい）／**visualDiversity.ageGroup**（人間）：7 種と UNSET | **ERROR** |
+| 契約外 | ルート・identity・deployment・assets・bossEncounter の**未知の追加項目** | WARNING（UNKNOWN_FIELD。保持し、取り込みは止めない） |
+| 情報 | 未成年の成人軸（FUTURE_TENDENCY_KEPT）、将来の希望の職業（FUTURE_ASPIRATION_KEPT）、装備根拠に潜在適性（EQUIPMENT_FROM_POTENTIAL）、関係 ID 未解決、画像未登録・代表画像なし、見た目レビュー未承認、希望配置の照合、UNMAPPED、年齢と ageGroup の lifeStage 不一致（§S-3） | WARNING（取り込みは止めない・何も直さない） |
+
+自由文字列（personality・values・desires・importance）を enum で検査することはしない。
 
 ### S-5. LEGACY として残すもの
 
 - **まとめ書き出し `{ schemaVersion: 1, characters, voidIds }` と VOID 台帳 `void.json`**（作者決定 C4）：読み取り可能な
   LEGACY / OPTIONAL IMPORT として残す。新しい正本ではない。voidIds は必須にしない。FORGE 全体の VOID Registry を ZERO で再現しない。
-- **旧 ZIP のサンプル 3 件**（作者決定 C5）：`core/forge/fixtures/legacy-bridge-v1.0/` に移し LEGACY TEST FIXTURE と明記。
-  `CURRENT_FACT`・`intensity: "NORMAL"` などを新仕様の根拠にしない。実 FORGE の PACKAGE が増えたら SOURCE VERIFIED fixture へ差し替える。
-- **`CURRENT_FACT` の読み取り**：旧サンプル互換のためだけ。新規出力・新規仕様・ドキュメントでは使わない。
+- **テスト用サンプル**：2026-10-05、連携資料 v1.1 のサンプル 3 件（FORGE の現行 `buildDeployPackage()` から生成）を
+  `core/forge/fixtures/bridge-v1.1/` に **SOURCE VERIFIED fixture** として置き、テストはこれを使う。
+  旧 v1.0 のサンプル 3 件は `legacy-bridge-v1.0/` に LEGACY TEST FIXTURE として残し（削除しない）、「契約に合わないので取り込まない」ことの確認だけに使う。
+- **`CURRENT_FACT` の読み取り**は 2026-10-05 に廃止（契約上 occupationMode の値ではないため、取込自体が ERROR になる）。
 - 採用時に台帳（roster.json）に記録した当時の警告は、取込履歴として書き換えない。
 
 ### S-6. 今は決めていないもの
@@ -87,7 +95,7 @@ ZERO 独自の年齢帯表（child 0〜12 … older_adult 50〜）は**廃止**�
   確認する（作者決定 C3）。今は旧サンプルを根拠に正式化せず、ある値を壊さず保持するだけ。
 - Relationship Package・画像ファイル連携は FORGE 側で別出力が必要（今回は対象外）。
 
-### S-7. 旧連携 ZIP v1.0 との違い（ZIP を実装根拠にしない）
+### S-7. 旧連携 ZIP v1.0 との違い（v1.0 は実装根拠にしない。v1.1 が契約）
 
 occupationMode は `CURRENT_FACT` ではなく `CURRENT_OR_AGE_APPROPRIATE`／visualDirection.intensity は `SUBTLE`／`STANDARD`／`STRONG`（`NORMAL` なし）／
 `visual.primaryAssetId` は PACKAGE に出ない／lifeStage は FORGE の実際の導出構造に従う。

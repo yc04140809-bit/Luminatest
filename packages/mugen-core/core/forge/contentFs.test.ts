@@ -72,7 +72,7 @@ describe('adopting into content files', () => {
     expect(existsSync(join(dir, 'previous', 'MON-900002.json'))).toBe(false);
     const loaded = loadForgeContent(dir);
     expect(loaded.problems).toEqual([]);
-    expect(loaded.content.baselines['MON-900002'].bossEncounter!.arena).toBe('根が張り巡らされた地下空洞');
+    expect(loaded.content.baselines['MON-900002'].bossEncounter!.arena).toBe('吹雪で視界が変わる雪原');
     expect(loaded.content.roster.characters[0].history.map((h) => h.result)).toEqual(['NEW', 'UPDATED', 'ROLLED_BACK']);
   });
 

@@ -4,24 +4,20 @@
 // of FORGE's buildDeployPackage()). Pure: text in, findings out, nothing
 // touched.
 //
-// TWO KINDS OF RULE (author decision 2026-10-02, docs/FORGE_IMPORT.md):
+// THE CONTRACT is the bridge package v1.1 (2026-10-05): FORGE's own
+// implementation, confirmed from its source (FORGE commit 36b7091), its
+// JSON Schema (schemas/forge-deploy-package.schema.json) and its checker
+// (tools/validate-deploy.mjs). Author decision 2026-10-05: a breach of
+// that contract is an ERROR — the file is not taken. Every real FORGE
+// package so far (RIZEL, EDDA, NUMAWATARI, SEKIRYUGA) meets it.
 //
-//   - SOURCE VERIFIED — read from FORGE's own implementation. These are
-//     ERRORS: the file is not taken. schemaVersion and characterId
-//     present, characterType human / monster, status CANONIZED, the name
-//     conditions, encounterRole (human null, monster NORMAL / BOSS, a
-//     NORMAL monster's bossEncounter null), visualReviewStatus not
-//     REVISION_REQUIRED, no impermissible equipment evidence, assets as
-//     metadata only, the deployedVersion form 0.1 / 0.1-r2 … — plus the
-//     few objects the import itself reads (identity, profile, deployment).
-//   - Known only from the old bridge package v1.0 (its JSON Schema and
-//     samples). These are WARNINGS (UNVERIFIED_CONTRACT): said out loud,
-//     never a reason to refuse — asset types, skill levels, the full
-//     visualReviewStatus list, aptitudeSemantics, the bossEncounter field
-//     list, the REL id form, and which fields a human or a monster must
-//     have or leave null.
-//
-// Nothing is ever converted or corrected: an unknown string is kept.
+// WHAT THIS DOES NOT DO:
+//   - It never recomputes, corrects or converts anything. FORGE's
+//     lifeStage is checked for shape and FORGE's own values, never
+//     worked out again from age or ageGroup.
+//   - Free strings stay free: profile.importance and the personality,
+//     values and desires lists must be strings, never members of a list.
+//   - An unknown extra field is never an error: it is kept, and said.
 //
 // Every message is Japanese, because the person reading it is the
 // author with the file in front of them.
@@ -34,7 +30,7 @@ import type { ForgeDeployPackage, ForgeIssue, ForgeIssueCode } from './types';
 
 export const FORGE_SOURCE = 'MUGEN_CHARACTER_FORGE';
 export const FORGE_TARGET = 'MUGEN_ZERO';
-/** The version real FORGE packages carry ("1.0", a string). Others are read with a warning. */
+/** The one DEPLOY PACKAGE version the contract supports — a string, as FORGE writes it. */
 export const FORGE_SCHEMA_VERSION = '1.0';
 
 /** Also a file name in content/forge/characters, so it must stay this plain. */
@@ -46,27 +42,27 @@ const DEPLOYED_VERSION = /^0\.1(?:-r(?:[2-9]|[1-9][0-9]+))?$/;
 /** RFC 3339 date-time, as JSON Schema's `format: date-time` means it. */
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
-// ---- From the old bridge package v1.0 only: checked as WARNINGS.
+// ---- FORGE's fixed values (bridge v1.1). Free-string fields have none.
 const SKILL_LEVELS = ['UNLEARNED', 'EXPOSURE', 'BASIC', 'PRACTICAL', 'SKILLED', 'MASTER'];
 const SKILL_KEYS = ['magic', 'sword', 'healing', 'commerce', 'social'];
 const NAME_STATUSES = ['UNSET', 'AUTO_CANDIDATE', 'CANON', 'IN_WORLD_ACQUIRED'];
-const ASSET_TYPES = [
-  'CONCEPT',
-  'FULL_BODY',
-  'TURNAROUND',
-  'EXPRESSION',
-  'BATTLE',
-  'DOWN',
-  'EXPLORATION',
-  'EVENT_CG',
-  'OTHER',
-];
-const VISUAL_REVIEW = ['UNREVIEWED', 'APPROVED', 'REVISION_REQUIRED'];
-
-// ---- SOURCE VERIFIED.
 const SETTLED_NAME = ['CANON', 'IN_WORLD_ACQUIRED'];
+const ASSET_TYPES = ['CONCEPT', 'FULL_BODY', 'TURNAROUND', 'EXPRESSION', 'BATTLE', 'DOWN', 'EXPLORATION', 'EVENT_CG', 'OTHER'];
+const VISUAL_REVIEW = ['UNREVIEWED', 'APPROVED', 'REVISION_REQUIRED'];
+/** visualDiversity.ageGroup and lifeStage.visualAge: FORGE's seven, and UNSET for old records. */
+export const VISUAL_AGES = ['child', 'teen', 'young_adult', 'adult', 'middle_aged', 'older_adult', 'elderly', 'UNSET'];
+const LIFE_STAGES = ['CHILD', 'TEEN', 'ADULT', 'ADULT_OR_UNSET'];
+const LIFE_STAGE_SOURCES = ['VISUAL_AGE', 'AGE', 'UNSET'];
+const ADULT_AXIS_MODES = ['FUTURE_TENDENCY', 'CURRENT_TENDENCY'];
+const OCCUPATION_MODES = ['UNSET', 'FUTURE_ASPIRATION', 'CURRENT_OR_AGE_APPROPRIATE'];
+const LIFE_STAGE_FIELDS = ['stage', 'source', 'visualAge', 'adultAxisMode', 'occupationMode', 'futureFields', 'note'];
+const INTENSITIES = ['SUBTLE', 'STANDARD', 'STRONG'];
+const OVERALL_IMPRESSIONS = [
+  'NATURAL', 'CUTE', 'COOL', 'BEAUTIFUL', 'PLAIN', 'FRIENDLY', 'EERIE', 'GROTESQUE',
+  'INTIMIDATING', 'MYSTICAL', 'STRANGE', 'COMICAL', 'TRAGIC', 'INORGANIC', 'UNSET',
+];
 
-/** What buildDeployPackage() puts at the root (SOURCE VERIFIED list). */
+/** What buildDeployPackage() puts at the root — every one required. */
 export const ROOT_FIELDS = [
   'schemaVersion',
   'source',
@@ -102,8 +98,6 @@ export const ROOT_FIELDS = [
   'assets',
   'deployment',
 ] as const;
-/** Root fields whose absence stops the import: the verified conditions, and what the import reads. */
-const REQUIRED_ROOT_FIELDS = ['schemaVersion', 'characterId', 'characterType', 'status', 'identity', 'profile', 'deployment'];
 /** Allowed at the root without being required. */
 const OPTIONAL_ROOT_FIELDS = ['sampleOnly'];
 
@@ -119,7 +113,7 @@ const IDENTITY_FIELDS = [
   'individualNameOrigin',
 ];
 const DEPLOYMENT_FIELDS = ['source', 'target', 'deployedAt', 'deployedVersion'];
-/** The old bridge package's bossEncounter list — a WARNING if something is missing. */
+/** A boss's encounter design, field by field (bridge v1.1). */
 export const BOSS_FIELDS = [
   'generated',
   'rank',
@@ -141,7 +135,7 @@ export const BOSS_FIELDS = [
   'seedCandidates',
   'notes',
 ];
-/** Boss fields the old bridge package wanted filled in. */
+/** Boss fields that must actually say something. */
 const BOSS_ESSENTIAL = ['rank', 'encounterReason', 'coreMechanic', 'counterplayClue', 'defeatOutcome'];
 const ASSET_FIELDS = [
   'assetId',
@@ -202,9 +196,6 @@ export function validateDeployPackage(value: unknown): Validation {
   const warnings: ForgeIssue[] = [];
   const err = (code: ForgeIssueCode, path: string, message: string) => errors.push(issue(code, path, message));
   const warn = (code: ForgeIssueCode, path: string, message: string) => warnings.push(issue(code, path, message));
-  // Known only from the old bridge package: said, never refused on.
-  const legacy: Report = (_code, path, message) =>
-    warnings.push(issue('UNVERIFIED_CONTRACT', path, `${message}（旧連携資料 v1.0 だけで確認できる条件のため、警告として表示し取り込みは止めません）`));
 
   if (!isObject(value)) {
     err('SCHEMA', '', 'ファイルの中身がオブジェクト（{ … }）ではありません。');
@@ -212,31 +203,21 @@ export function validateDeployPackage(value: unknown): Validation {
   }
   const v = value;
 
-  // ---- The version FORGE wrote. Read as it is; never coerced.
-  const version = v.schemaVersion;
-  if (!('schemaVersion' in v) || version === null || version === '') {
-    err('SCHEMA', 'schemaVersion', 'schemaVersion: 必須項目がありません。');
-  } else if (version === FORGE_SCHEMA_VERSION) {
-    // The version real FORGE packages carry.
-  } else if (typeof version === 'string' && /^1\.\d+$/.test(version)) {
-    warn('NEWER_MINOR_VERSION', 'schemaVersion', `schemaVersion ${version} は 1.0 より新しい版です。知らない項目はそのまま保持します。`);
-  } else {
-    warn('UNKNOWN_SCHEMA_VERSION', 'schemaVersion', `schemaVersion「${String(version)}」はこれまでの FORGE 出力（"1.0"）と違います。値は変えずに保持し、読める範囲で確認します。`);
+  // ---- The contract version: "1.0" only. Never coerced.
+  if ('schemaVersion' in v && v.schemaVersion !== FORGE_SCHEMA_VERSION) {
+    err('UNSUPPORTED_SCHEMA_VERSION', 'schemaVersion', `schemaVersion「${String(v.schemaVersion)}」には対応していません（対応版: "1.0"）。データは変更しません。`);
   }
 
-  for (const key of ROOT_FIELDS) {
-    if (key in v || key === 'schemaVersion') continue;
-    if (REQUIRED_ROOT_FIELDS.includes(key)) err('SCHEMA', key, `${key}: 必須項目がありません。`);
-    else legacy('SCHEMA', key, `${key}: 項目がありません`);
-  }
+  for (const key of ROOT_FIELDS) if (!(key in v)) err('SCHEMA', key, `${key}: 必須項目がありません。`);
+  // An unknown extra field is kept and said — never a reason to refuse.
   for (const key of Object.keys(v)) {
     if (!(ROOT_FIELDS as readonly string[]).includes(key) && !OPTIONAL_ROOT_FIELDS.includes(key)) {
       warn('UNKNOWN_FIELD', key, `未知の項目「${key}」があります。取り込みには使わず、そのまま保持します。`);
     }
   }
 
-  if ('source' in v && v.source !== FORGE_SOURCE) legacy('SCHEMA', 'source', `source が ${FORGE_SOURCE} ではありません`);
-  if ('sampleOnly' in v && typeof v.sampleOnly !== 'boolean') legacy('SCHEMA', 'sampleOnly', 'sampleOnly が true / false ではありません');
+  if ('source' in v && v.source !== FORGE_SOURCE) err('SCHEMA', 'source', `source が ${FORGE_SOURCE} ではありません。`);
+  if ('sampleOnly' in v && typeof v.sampleOnly !== 'boolean') err('SCHEMA', 'sampleOnly', 'sampleOnly が true / false ではありません。');
   if ('status' in v && v.status !== 'CANONIZED') err('SCHEMA', 'status', 'status が CANONIZED ではありません。');
 
   const id = v.characterId;
@@ -244,86 +225,86 @@ export function validateDeployPackage(value: unknown): Validation {
     err('SCHEMA', 'characterId', `characterId「${String(id)}」は HUM-000001 / MON-000001 の形式ではありません。`);
   }
 
-  // ---- What the import itself reads.
-  if ('profile' in v && !isObject(v.profile)) err('SCHEMA', 'profile', 'profile がオブジェクトではありません。');
-
-  // ---- Shapes from the old bridge package only.
-  expectNullableObject(v, 'lifeAxis', legacy);
-  expectNullableObject(v, 'worldViewAxis', legacy);
-  if ('relationshipPotential' in v) expectStringArray(v, 'relationshipPotential', legacy);
+  if ('profile' in v) {
+    if (!isObject(v.profile)) err('SCHEMA', 'profile', 'profile がオブジェクトではありません。');
+    // A free string (FORGE has no list for it); empty is fine. Only the type is the contract.
+    else if (typeof v.profile.importance !== 'string') err('SCHEMA', 'profile.importance', 'profile.importance が文字列ではありません（自由入力の文字列。空でもよい）。');
+  }
+  expectNullableObject(v, 'lifeAxis', err);
+  expectNullableObject(v, 'worldViewAxis', err);
+  if ('relationshipPotential' in v) expectStringArray(v, 'relationshipPotential', err);
   if ('aptitudes' in v) {
-    if (!isObject(v.aptitudes)) legacy('SCHEMA', 'aptitudes', 'aptitudes がオブジェクトではありません');
+    if (!isObject(v.aptitudes)) err('SCHEMA', 'aptitudes', 'aptitudes がオブジェクトではありません。');
     else {
       for (const [key, n] of Object.entries(v.aptitudes)) {
         if (typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1) {
-          legacy('SCHEMA', `aptitudes.${key}`, `aptitudes.${key} が 0.00〜1.00 の数ではありません`);
+          err('SCHEMA', `aptitudes.${key}`, `aptitudes.${key} が 0.00〜1.00 の数ではありません。`);
         }
       }
     }
   }
   if ('aptitudeSemantics' in v && v.aptitudeSemantics !== 'POTENTIAL_NOT_ACQUIRED_SKILL' && v.aptitudeSemantics !== 'SPECIES_COMBAT_POTENTIAL') {
-    legacy('SCHEMA', 'aptitudeSemantics', `aptitudeSemantics「${String(v.aptitudeSemantics)}」は旧資料の値（POTENTIAL_NOT_ACQUIRED_SKILL / SPECIES_COMBAT_POTENTIAL）にありません`);
+    err('SCHEMA', 'aptitudeSemantics', `aptitudeSemantics「${String(v.aptitudeSemantics)}」は POTENTIAL_NOT_ACQUIRED_SKILL / SPECIES_COMBAT_POTENTIAL ではありません。`);
   }
-  expectNullableObject(v, 'equipment', legacy);
-  expectNullableObject(v, 'lifeStage', legacy);
-  expectNullableObject(v, 'visualDiversity', legacy);
-  expectNullableObject(v, 'visualDirection', legacy);
+  expectNullableObject(v, 'equipment', err);
+  expectNullableObject(v, 'lifeStage', err);
+  expectNullableObject(v, 'visualDiversity', err);
+  if ('visualDirection' in v) validateVisualDirection(v.visualDirection, err);
 
-  // ---- visualReviewStatus: FORGE does not send REVISION_REQUIRED (verified); the rest of the list is the old package's.
   if (v.visualReviewStatus === 'REVISION_REQUIRED') {
     err('VISUAL_REVISION_REQUIRED', 'visualReviewStatus', '見た目のレビューが「修正が必要（REVISION_REQUIRED）」です。FORGE はこの状態では送出しません。FORGE で直してから送出してください。');
   } else if ('visualReviewStatus' in v && !VISUAL_REVIEW.includes(v.visualReviewStatus as string)) {
-    legacy('SCHEMA', 'visualReviewStatus', `visualReviewStatus「${String(v.visualReviewStatus)}」は旧資料の値（UNREVIEWED / APPROVED）にありません`);
+    err('SCHEMA', 'visualReviewStatus', `visualReviewStatus「${String(v.visualReviewStatus)}」は UNREVIEWED / APPROVED ではありません。`);
   }
   for (const key of ['visualReviewChecklist', 'worldAssignment', 'productionChecklist']) {
-    if (key in v && !isObject(v[key])) legacy('SCHEMA', key, `${key} がオブジェクトではありません`);
+    if (key in v && !isObject(v[key])) err('SCHEMA', key, `${key} がオブジェクトではありません。`);
   }
   if ('relationshipRefs' in v) {
-    if (!Array.isArray(v.relationshipRefs)) legacy('SCHEMA', 'relationshipRefs', 'relationshipRefs が配列ではありません');
+    if (!Array.isArray(v.relationshipRefs)) err('SCHEMA', 'relationshipRefs', 'relationshipRefs が配列ではありません。');
     else {
       v.relationshipRefs.forEach((ref, i) => {
         if (typeof ref !== 'string' || !RELATIONSHIP_ID.test(ref)) {
-          legacy('SCHEMA', `relationshipRefs.${i}`, `relationshipRefs の「${String(ref)}」は旧資料の形式（REL-000001）ではありません`);
+          err('SCHEMA', `relationshipRefs.${i}`, `relationshipRefs の「${String(ref)}」は REL-000001 の形式ではありません。`);
         }
       });
     }
   }
   if ('characterHistory' in v) {
-    if (!Array.isArray(v.characterHistory)) legacy('SCHEMA', 'characterHistory', 'characterHistory が配列ではありません');
+    if (!Array.isArray(v.characterHistory)) err('SCHEMA', 'characterHistory', 'characterHistory が配列ではありません。');
     else {
       v.characterHistory.forEach((entry, i) => {
         const at = `characterHistory.${i}`;
-        if (!isObject(entry)) return legacy('SCHEMA', at, `${at} がオブジェクトではありません`);
-        if (typeof entry.event !== 'string' || !entry.event) legacy('SCHEMA', `${at}.event`, `${at}.event がありません`);
-        if (!isDateTime(entry.at)) legacy('SCHEMA', `${at}.at`, `${at}.at が ISO 日時ではありません`);
-        if (typeof entry.origin !== 'string') legacy('SCHEMA', `${at}.origin`, `${at}.origin が文字列ではありません`);
-        if (!isObject(entry.details)) legacy('SCHEMA', `${at}.details`, `${at}.details がオブジェクトではありません`);
+        if (!isObject(entry)) return err('SCHEMA', at, `${at} がオブジェクトではありません。`);
+        if (typeof entry.event !== 'string' || !entry.event) err('SCHEMA', `${at}.event`, `${at}.event がありません。`);
+        if (!isDateTime(entry.at)) err('SCHEMA', `${at}.at`, `${at}.at が ISO 日時ではありません。`);
+        if (typeof entry.origin !== 'string') err('SCHEMA', `${at}.origin`, `${at}.origin が文字列ではありません。`);
+        if (!isObject(entry.details)) err('SCHEMA', `${at}.details`, `${at}.details がオブジェクトではありません。`);
       });
     }
   }
-  expectNullableObject(v, 'ecology', legacy);
-  expectNullableObject(v, 'combat', legacy);
-  expectNullableObject(v, 'bossEncounter', legacy);
-  if ('seeds' in v) expectStringArray(v, 'seeds', legacy);
-  if ('dramaHooks' in v) expectStringArray(v, 'dramaHooks', legacy);
+  expectNullableObject(v, 'ecology', err);
+  expectNullableObject(v, 'combat', err);
+  expectNullableObject(v, 'bossEncounter', err);
+  if ('seeds' in v) expectStringArray(v, 'seeds', err);
+  if ('dramaHooks' in v) expectStringArray(v, 'dramaHooks', err);
   if ('worldMemory' in v) {
-    if (!isObject(v.worldMemory)) legacy('SCHEMA', 'worldMemory', 'worldMemory がオブジェクトではありません');
+    if (!isObject(v.worldMemory)) err('SCHEMA', 'worldMemory', 'worldMemory がオブジェクトではありません。');
     else {
-      if (typeof v.worldMemory.registered !== 'boolean') legacy('SCHEMA', 'worldMemory.registered', 'worldMemory.registered が true / false ではありません');
-      if (!Array.isArray(v.worldMemory.events)) legacy('SCHEMA', 'worldMemory.events', 'worldMemory.events が配列ではありません');
-      if (typeof v.worldMemory.memo !== 'string') legacy('SCHEMA', 'worldMemory.memo', 'worldMemory.memo が文字列ではありません');
+      if (typeof v.worldMemory.registered !== 'boolean') err('SCHEMA', 'worldMemory.registered', 'worldMemory.registered が true / false ではありません。');
+      if (!Array.isArray(v.worldMemory.events)) err('SCHEMA', 'worldMemory.events', 'worldMemory.events が配列ではありません。');
+      if (typeof v.worldMemory.memo !== 'string') err('SCHEMA', 'worldMemory.memo', 'worldMemory.memo が文字列ではありません。');
     }
   }
   if ('worldLifeEngine' in v && (!isObject(v.worldLifeEngine) || typeof v.worldLifeEngine.enabled !== 'boolean')) {
-    legacy('SCHEMA', 'worldLifeEngine.enabled', 'worldLifeEngine.enabled が true / false ではありません');
+    err('SCHEMA', 'worldLifeEngine.enabled', 'worldLifeEngine.enabled が true / false ではありません。');
   }
-  if ('assets' in v) validateAssets(v.assets, err, warn, legacy);
-  if ('identity' in v) validateIdentity(v.identity, err, warn, legacy);
-  if ('deployment' in v) validateDeployment(v.deployment, err, warn, legacy);
+  if ('assets' in v) validateAssets(v.assets, err, warn);
+  if ('identity' in v) validateIdentity(v.identity, err, warn);
+  if ('deployment' in v) validateDeployment(v.deployment, err, warn);
 
-  // ---- The two kinds of character (SOURCE VERIFIED: human / monster only).
-  if (v.characterType === 'human') validateHuman(v, err, warn, legacy);
-  else if (v.characterType === 'monster') validateMonster(v, err, warn, legacy);
+  // ---- The two kinds of character: human / monster only. A boss is a monster.
+  if (v.characterType === 'human') validateHuman(v, err, warn);
+  else if (v.characterType === 'monster') validateMonster(v, err, warn);
   else if ('characterType' in v) err('SCHEMA', 'characterType', `characterType「${String(v.characterType)}」は human / monster ではありません。`);
 
   return { payload: errors.length ? null : (v as unknown as ForgeDeployPackage), errors, warnings };
@@ -331,17 +312,61 @@ export function validateDeployPackage(value: unknown): Validation {
 
 type Report = (code: ForgeIssueCode, path: string, message: string) => void;
 
-function validateHuman(v: Record<string, unknown>, err: Report, warn: Report, legacy: Report): void {
+function validateHuman(v: Record<string, unknown>, err: Report, warn: Report): void {
   if (typeof v.characterId === 'string' && CHARACTER_ID_PATTERN.test(v.characterId) && !HUMAN_ID.test(v.characterId)) {
-    warn('ID_TYPE_MISMATCH', 'characterId', `characterId「${v.characterId}」は人間（HUM-）の番号ではありませんが、characterType は human です。FORGE での確認をおすすめします（ID はそのまま使います）。`);
+    err('ID_TYPE_MISMATCH', 'characterId', `characterId「${v.characterId}」は人間（HUM-）の番号ではありません。characterType は human です。`);
   }
-  // SOURCE VERIFIED.
   if (v.encounterRole !== null) err('SCHEMA', 'encounterRole', '人間の encounterRole は null です。');
+  if (v.aptitudeSemantics !== 'POTENTIAL_NOT_ACQUIRED_SKILL') {
+    err('SCHEMA', 'aptitudeSemantics', '人間の aptitudeSemantics は POTENTIAL_NOT_ACQUIRED_SKILL（潜在適性）です。');
+  }
+  for (const key of ['lifeAxis', 'worldViewAxis', 'equipment', 'lifeStage']) {
+    if (!isObject(v[key])) err('SCHEMA', key, `人間には ${key} が必要です。`);
+  }
+  for (const key of ['ecology', 'combat', 'bossEncounter']) {
+    if (v[key] !== null) err('SCHEMA', key, `人間にモンスター専用の ${key} があります（null であるべきです）。`);
+  }
   const identity = isObject(v.identity) ? v.identity : {};
   if (typeof identity.name !== 'string' || !identity.name) err('SCHEMA', 'identity.name', '人間の名前（identity.name）がありません。');
   if (!SETTLED_NAME.includes(identity.nameStatus as string)) {
     err('SCHEMA', 'identity.nameStatus', '人間の名前が確定していません（nameStatus は CANON / IN_WORLD_ACQUIRED）。');
   }
+  if (identity.speciesName !== null) err('SCHEMA', 'identity.speciesName', '人間の identity.speciesName は null です。');
+  if (identity.individualName !== null) err('SCHEMA', 'identity.individualName', '人間の identity.individualName は null です。');
+
+  // The only skills a human has now. Potential (aptitudes) never stands in for them.
+  if (!isObject(v.currentSkills)) err('SCHEMA', 'currentSkills', '人間の現在技能（currentSkills）がありません。');
+  else {
+    for (const key of SKILL_KEYS) {
+      if (!SKILL_LEVELS.includes(v.currentSkills[key] as string)) {
+        err('SCHEMA', `currentSkills.${key}`, `currentSkills.${key} が不正な技能段階です（UNLEARNED〜MASTER）。`);
+      }
+    }
+  }
+
+  // profile.core: present, its fields typed. The lists are open: any strings.
+  const profile = isObject(v.profile) ? v.profile : {};
+  if (!isObject(profile.core)) err('SCHEMA', 'profile.core', '人間の profile.core がありません。');
+  else {
+    for (const key of ['personality', 'values', 'desires']) {
+      const list = profile.core[key];
+      if (!Array.isArray(list) || !list.every((item) => typeof item === 'string')) {
+        err('SCHEMA', `profile.core.${key}`, `profile.core.${key} が文字列の配列ではありません（中身はどんな文字列でもよい）。`);
+      }
+    }
+    for (const key of ['weakness', 'tendency']) {
+      if (typeof profile.core[key] !== 'string') err('SCHEMA', `profile.core.${key}`, `profile.core.${key} が文字列ではありません。`);
+    }
+  }
+
+  // visualDiversity.ageGroup: one of FORGE's values. Kept as it is.
+  if (isObject(v.visualDiversity) || v.visualDiversity === null) {
+    const group = isObject(v.visualDiversity) ? v.visualDiversity.ageGroup : undefined;
+    if (!VISUAL_AGES.includes(group as string)) {
+      err('SCHEMA', 'visualDiversity.ageGroup', `visualDiversity.ageGroup「${String(group)}」は FORGE の値（child / teen / young_adult / adult / middle_aged / older_adult / elderly / UNSET）ではありません。`);
+    }
+  }
+
   if (isObject(v.equipment)) {
     const check = isObject(v.equipment.validation) ? v.equipment.validation : null;
     if (check?.permitted === false) {
@@ -359,48 +384,77 @@ function validateHuman(v: Record<string, unknown>, err: Report, warn: Report, le
       );
     }
   }
-  if (isObject(v.lifeStage)) {
-    // FORGE's lifeStage, as FORGE derived it: said back, never recomputed.
-    if (v.lifeStage.adultAxisMode === 'FUTURE_TENDENCY') {
-      warn('FUTURE_TENDENCY_KEPT', 'lifeStage.adultAxisMode', '結婚・恋愛などの成人軸は「将来の傾向」です。現在の事実にはせず、そのまま保持します。');
-    }
-    if (v.lifeStage.occupationMode === 'FUTURE_ASPIRATION') {
-      warn('FUTURE_ASPIRATION_KEPT', 'lifeStage.occupationMode', '職業は「将来の希望」です。現在の職業としては登録しません。');
-    }
-  }
+  if (isObject(v.lifeStage)) validateLifeStage(v.lifeStage, err, warn);
+}
 
-  // From the old bridge package only.
-  if (v.aptitudeSemantics !== undefined && v.aptitudeSemantics !== 'POTENTIAL_NOT_ACQUIRED_SKILL') {
-    legacy('SCHEMA', 'aptitudeSemantics', '人間の aptitudeSemantics が POTENTIAL_NOT_ACQUIRED_SKILL（潜在適性）ではありません');
-  }
-  for (const key of ['lifeAxis', 'worldViewAxis', 'equipment', 'lifeStage']) {
-    if (key in v && !isObject(v[key])) legacy('SCHEMA', key, `人間の ${key} がありません`);
-  }
-  for (const key of ['ecology', 'combat', 'bossEncounter']) {
-    if (key in v && v[key] !== null) legacy('SCHEMA', key, `人間にモンスター用の ${key} があります`);
-  }
-  if ('speciesName' in identity && identity.speciesName !== null) legacy('SCHEMA', 'identity.speciesName', '人間の identity.speciesName が null ではありません');
-  if ('individualName' in identity && identity.individualName !== null) legacy('SCHEMA', 'identity.individualName', '人間の identity.individualName が null ではありません');
-  // The only skills a human has now. Potential (aptitudes) never stands in for them.
-  if ('currentSkills' in v) {
-    if (!isObject(v.currentSkills)) legacy('SCHEMA', 'currentSkills', '人間の現在技能（currentSkills）がありません');
-    else {
-      for (const key of SKILL_KEYS) {
-        if (!SKILL_LEVELS.includes(v.currentSkills[key] as string)) {
-          legacy('SCHEMA', `currentSkills.${key}`, `currentSkills.${key}「${String(v.currentSkills[key])}」は旧資料の技能段階（UNLEARNED〜MASTER）にありません`);
-        }
-      }
+/**
+ * FORGE's lifeStage, checked as FORGE wrote it: the seven fields, FORGE's
+ * own values, and the one rule FORGE's checker holds every package to
+ * (a CHILD / TEEN's adult axis is a future tendency, an adult's a current
+ * one). Nothing here works a stage out from age or ageGroup, and nothing
+ * is corrected — a breach refuses the file and FORGE fixes it.
+ */
+function validateLifeStage(stage: Record<string, unknown>, err: Report, warn: Report): void {
+  for (const key of LIFE_STAGE_FIELDS) if (!(key in stage)) err('SCHEMA', `lifeStage.${key}`, `lifeStage.${key}: 必須項目がありません。`);
+  const oneOf = (key: string, allowed: string[]) => {
+    if (key in stage && !allowed.includes(stage[key] as string)) {
+      err('SCHEMA', `lifeStage.${key}`, `lifeStage.${key}「${String(stage[key])}」は FORGE の値（${allowed.join(' / ')}）ではありません。`);
     }
+  };
+  oneOf('stage', LIFE_STAGES);
+  oneOf('source', LIFE_STAGE_SOURCES);
+  oneOf('visualAge', VISUAL_AGES);
+  oneOf('adultAxisMode', ADULT_AXIS_MODES);
+  oneOf('occupationMode', OCCUPATION_MODES);
+  if ('futureFields' in stage && (!Array.isArray(stage.futureFields) || !stage.futureFields.every((f) => typeof f === 'string'))) {
+    err('SCHEMA', 'lifeStage.futureFields', 'lifeStage.futureFields が文字列の配列ではありません。');
+  }
+  if ('note' in stage && typeof stage.note !== 'string') err('SCHEMA', 'lifeStage.note', 'lifeStage.note が文字列ではありません。');
+  if (LIFE_STAGES.includes(stage.stage as string) && ADULT_AXIS_MODES.includes(stage.adultAxisMode as string)) {
+    const minor = stage.stage === 'CHILD' || stage.stage === 'TEEN';
+    const expected = minor ? 'FUTURE_TENDENCY' : 'CURRENT_TENDENCY';
+    if (stage.adultAxisMode !== expected) {
+      err('SCHEMA', 'lifeStage.adultAxisMode', `lifeStage が ${String(stage.stage)} なのに adultAxisMode が ${String(stage.adultAxisMode)} です（FORGE の契約では ${expected}）。直さずに取り込みを止めます。`);
+    }
+  }
+  // Said back, never acted on.
+  if (stage.adultAxisMode === 'FUTURE_TENDENCY') {
+    warn('FUTURE_TENDENCY_KEPT', 'lifeStage.adultAxisMode', '結婚・恋愛などの成人軸は「将来の傾向」です。現在の事実にはせず、そのまま保持します。');
+  }
+  if (stage.occupationMode === 'FUTURE_ASPIRATION') {
+    warn('FUTURE_ASPIRATION_KEPT', 'lifeStage.occupationMode', '職業は「将来の希望」です。現在の職業としては登録しません。');
   }
 }
 
-function validateMonster(v: Record<string, unknown>, err: Report, warn: Report, legacy: Report): void {
-  if (typeof v.characterId === 'string' && CHARACTER_ID_PATTERN.test(v.characterId) && !MONSTER_ID.test(v.characterId)) {
-    warn('ID_TYPE_MISMATCH', 'characterId', `characterId「${v.characterId}」はモンスター（MON-）の番号ではありませんが、characterType は monster です。FORGE での確認をおすすめします（ID はそのまま使います）。`);
+function validateVisualDirection(direction: unknown, err: Report): void {
+  if (!isObject(direction)) {
+    err('SCHEMA', 'visualDirection', 'visualDirection がオブジェクトではありません。');
+    return;
   }
-  // SOURCE VERIFIED.
+  if (!INTENSITIES.includes(direction.intensity as string)) {
+    err('SCHEMA', 'visualDirection.intensity', `visualDirection.intensity「${String(direction.intensity)}」は SUBTLE / STANDARD / STRONG ではありません。`);
+  }
+  if (!OVERALL_IMPRESSIONS.includes(direction.overallImpression as string)) {
+    err('SCHEMA', 'visualDirection.overallImpression', `visualDirection.overallImpression「${String(direction.overallImpression)}」は FORGE の値ではありません。`);
+  }
+  if (typeof direction.customInstruction !== 'string') err('SCHEMA', 'visualDirection.customInstruction', 'visualDirection.customInstruction が文字列ではありません。');
+}
+
+function validateMonster(v: Record<string, unknown>, err: Report, _warn: Report): void {
+  if (typeof v.characterId === 'string' && CHARACTER_ID_PATTERN.test(v.characterId) && !MONSTER_ID.test(v.characterId)) {
+    err('ID_TYPE_MISMATCH', 'characterId', `characterId「${v.characterId}」はモンスター（MON-）の番号ではありません。characterType は monster です。`);
+  }
   if (v.encounterRole !== 'NORMAL' && v.encounterRole !== 'BOSS') {
     err('SCHEMA', 'encounterRole', 'モンスターの encounterRole は NORMAL / BOSS です。');
+  }
+  if (v.aptitudeSemantics !== 'SPECIES_COMBAT_POTENTIAL') {
+    err('SCHEMA', 'aptitudeSemantics', 'モンスターの aptitudeSemantics は SPECIES_COMBAT_POTENTIAL（種族の戦闘潜在値）です。');
+  }
+  for (const key of ['lifeAxis', 'worldViewAxis', 'currentSkills', 'equipment', 'lifeStage']) {
+    if (v[key] !== null) err('SCHEMA', key, `モンスターの ${key} は null です。`);
+  }
+  for (const key of ['ecology', 'combat']) {
+    if (!isObject(v[key])) err('SCHEMA', key, `モンスターには ${key} が必要です。`);
   }
   const identity = isObject(v.identity) ? v.identity : {};
   if (typeof identity.speciesName !== 'string' || !identity.speciesName) {
@@ -409,70 +463,61 @@ function validateMonster(v: Record<string, unknown>, err: Report, warn: Report, 
   if (!SETTLED_NAME.includes(identity.speciesNameStatus as string)) {
     err('SCHEMA', 'identity.speciesNameStatus', '種族名が確定していません（speciesNameStatus は CANON / IN_WORLD_ACQUIRED）。');
   }
-  if (v.encounterRole === 'NORMAL' && 'bossEncounter' in v && v.bossEncounter !== null) {
+  if (v.encounterRole === 'BOSS') validateBoss(v.bossEncounter, err, _warn);
+  else if (v.bossEncounter !== null) {
     err('SCHEMA', 'bossEncounter', '通常モンスター（encounterRole NORMAL）の bossEncounter は null です。');
   }
-
-  // From the old bridge package only.
-  if (v.aptitudeSemantics !== undefined && v.aptitudeSemantics !== 'SPECIES_COMBAT_POTENTIAL') {
-    legacy('SCHEMA', 'aptitudeSemantics', 'モンスターの aptitudeSemantics が SPECIES_COMBAT_POTENTIAL（種族の戦闘潜在値）ではありません');
-  }
-  for (const key of ['lifeAxis', 'worldViewAxis', 'currentSkills', 'equipment', 'lifeStage']) {
-    if (key in v && v[key] !== null) legacy('SCHEMA', key, `モンスターの ${key} が null ではありません`);
-  }
-  for (const key of ['ecology', 'combat']) {
-    if (key in v && !isObject(v[key])) legacy('SCHEMA', key, `モンスターの ${key} がありません`);
-  }
-  if (v.encounterRole === 'BOSS') validateBoss(v.bossEncounter, legacy);
 }
 
-function validateBoss(boss: unknown, legacy: Report): void {
+function validateBoss(boss: unknown, err: Report, warn: Report): void {
   if (!isObject(boss) || boss.generated !== true) {
-    legacy('SCHEMA', 'bossEncounter', 'BOSSの遭遇設計（bossEncounter）が生成済みではありません');
+    err('SCHEMA', 'bossEncounter', 'BOSSの遭遇設計（bossEncounter）が生成済みではありません。');
     return;
   }
   for (const key of BOSS_FIELDS) {
-    if (!(key in boss)) legacy('SCHEMA', `bossEncounter.${key}`, `bossEncounter.${key} がありません`);
+    if (!(key in boss)) err('SCHEMA', `bossEncounter.${key}`, `bossEncounter.${key}: 必須項目がありません。`);
   }
   for (const key of BOSS_FIELDS) {
     if (key === 'generated' || !(key in boss)) continue;
     if (key === 'seedCandidates') {
       if (!Array.isArray(boss[key]) || !(boss[key] as unknown[]).every((s) => typeof s === 'string')) {
-        legacy('SCHEMA', 'bossEncounter.seedCandidates', 'bossEncounter.seedCandidates が文字列の配列ではありません');
+        err('SCHEMA', 'bossEncounter.seedCandidates', 'bossEncounter.seedCandidates が文字列の配列ではありません。');
       }
     } else if (typeof boss[key] !== 'string') {
-      legacy('SCHEMA', `bossEncounter.${key}`, `bossEncounter.${key} が文字列ではありません`);
+      err('SCHEMA', `bossEncounter.${key}`, `bossEncounter.${key} が文字列ではありません。`);
     }
   }
   for (const key of BOSS_ESSENTIAL) {
     const text = boss[key];
     if (typeof text === 'string' && (!text.trim() || text === '未設定')) {
-      legacy('SCHEMA', `bossEncounter.${key}`, `bossEncounter.${key} が未設定です`);
+      err('SCHEMA', `bossEncounter.${key}`, `bossEncounter.${key} が未設定です。`);
     }
   }
   for (const key of Object.keys(boss)) {
-    if (!BOSS_FIELDS.includes(key)) legacy('UNKNOWN_FIELD', `bossEncounter.${key}`, `未知の項目「bossEncounter.${key}」があります。そのまま保持します`);
+    if (!BOSS_FIELDS.includes(key)) {
+      warn('UNKNOWN_FIELD', `bossEncounter.${key}`, `未知の項目「bossEncounter.${key}」があります。そのまま保持します。`);
+    }
   }
 }
 
-function validateIdentity(identity: unknown, err: Report, warn: Report, legacy: Report): void {
+function validateIdentity(identity: unknown, err: Report, warn: Report): void {
   if (!isObject(identity)) {
     err('SCHEMA', 'identity', 'identity がオブジェクトではありません。');
     return;
   }
   for (const key of IDENTITY_FIELDS) {
-    if (!(key in identity)) legacy('SCHEMA', `identity.${key}`, `identity.${key} がありません`);
+    if (!(key in identity)) err('SCHEMA', `identity.${key}`, `identity.${key}: 必須項目がありません。`);
   }
-  if ('name' in identity && identity.name !== null && typeof identity.name !== 'string') legacy('SCHEMA', 'identity.name', 'identity.name が文字列ではありません');
+  if (typeof identity.name !== 'string') err('SCHEMA', 'identity.name', 'identity.name が文字列ではありません。');
   for (const key of ['speciesName', 'individualName', 'nameOrigin', 'speciesNameOrigin', 'individualNameOrigin']) {
     if (key in identity && identity[key] !== null && typeof identity[key] !== 'string') {
-      legacy('SCHEMA', `identity.${key}`, `identity.${key} が文字列でも null でもありません`);
+      err('SCHEMA', `identity.${key}`, `identity.${key} が文字列でも null でもありません。`);
     }
   }
   for (const key of ['nameStatus', 'speciesNameStatus', 'individualNameStatus']) {
     const status = identity[key];
     if (key in identity && status !== null && !NAME_STATUSES.includes(status as string)) {
-      legacy('SCHEMA', `identity.${key}`, `identity.${key}「${String(status)}」は旧資料の命名状態にありません`);
+      err('SCHEMA', `identity.${key}`, `identity.${key}「${String(status)}」は不正な命名状態です。`);
     }
   }
   for (const key of Object.keys(identity)) {
@@ -482,18 +527,17 @@ function validateIdentity(identity: unknown, err: Report, warn: Report, legacy: 
   }
 }
 
-function validateDeployment(deployment: unknown, err: Report, warn: Report, legacy: Report): void {
+function validateDeployment(deployment: unknown, err: Report, warn: Report): void {
   if (!isObject(deployment)) {
     err('SCHEMA', 'deployment', 'deployment（送出情報）がオブジェクトではありません。');
     return;
   }
-  // SOURCE VERIFIED: 0.1, 0.1-r2, 0.1-r3 … — and the import orders sends by these two.
+  if (deployment.source !== FORGE_SOURCE) err('SCHEMA', 'deployment.source', `deployment.source が ${FORGE_SOURCE} ではありません。`);
+  if (deployment.target !== FORGE_TARGET) err('SCHEMA', 'deployment.target', `deployment.target が ${FORGE_TARGET} ではありません。`);
   if (!isDateTime(deployment.deployedAt)) err('SCHEMA', 'deployment.deployedAt', 'deployment.deployedAt が ISO 日時ではありません。');
   if (typeof deployment.deployedVersion !== 'string' || !DEPLOYED_VERSION.test(deployment.deployedVersion)) {
     err('SCHEMA', 'deployment.deployedVersion', `deployment.deployedVersion「${String(deployment.deployedVersion)}」は 0.1 / 0.1-r2 … の形式ではありません。`);
   }
-  if (deployment.source !== FORGE_SOURCE) legacy('SCHEMA', 'deployment.source', `deployment.source が ${FORGE_SOURCE} ではありません`);
-  if (deployment.target !== FORGE_TARGET) legacy('SCHEMA', 'deployment.target', `deployment.target が ${FORGE_TARGET} ではありません`);
   for (const key of Object.keys(deployment)) {
     if (!DEPLOYMENT_FIELDS.includes(key)) {
       warn('UNKNOWN_FIELD', `deployment.${key}`, `未知の項目「deployment.${key}」があります。そのまま保持します。`);
@@ -501,30 +545,28 @@ function validateDeployment(deployment: unknown, err: Report, warn: Report, lega
   }
 }
 
-function validateAssets(assets: unknown, err: Report, warn: Report, legacy: Report): void {
+function validateAssets(assets: unknown, err: Report, warn: Report): void {
   if (!Array.isArray(assets)) {
-    legacy('SCHEMA', 'assets', 'assets が配列ではありません');
+    err('SCHEMA', 'assets', 'assets が配列ではありません。');
     return;
   }
   assets.forEach((asset, i) => {
     const at = `assets.${i}`;
-    if (!isObject(asset)) return legacy('SCHEMA', at, `${at} がオブジェクトではありません`);
-    if (typeof asset.assetId !== 'string' || !asset.assetId) legacy('SCHEMA', `${at}.assetId`, `${at}.assetId がありません`);
-    if ('assetType' in asset && !ASSET_TYPES.includes(asset.assetType as string)) {
-      legacy('SCHEMA', `${at}.assetType`, `${at}.assetType「${String(asset.assetType)}」は旧資料の種類一覧にありません`);
-    }
+    if (!isObject(asset)) return err('SCHEMA', at, `${at} がオブジェクトではありません。`);
+    if (typeof asset.assetId !== 'string' || !asset.assetId) err('SCHEMA', `${at}.assetId`, `${at}.assetId がありません。`);
+    if (!ASSET_TYPES.includes(asset.assetType as string)) err('SCHEMA', `${at}.assetType`, `${at}.assetType「${String(asset.assetType)}」は不正です。`);
     for (const key of ['width', 'height', 'originalByteSize', 'storedByteSize']) {
       if (key in asset && (typeof asset[key] !== 'number' || (asset[key] as number) < 0)) {
-        legacy('SCHEMA', `${at}.${key}`, `${at}.${key} が 0 以上の数ではありません`);
+        err('SCHEMA', `${at}.${key}`, `${at}.${key} が 0 以上の数ではありません。`);
       }
     }
     for (const key of ['approved', 'primary']) {
-      if (key in asset && typeof asset[key] !== 'boolean') legacy('SCHEMA', `${at}.${key}`, `${at}.${key} が true / false ではありません`);
+      if (key in asset && typeof asset[key] !== 'boolean') err('SCHEMA', `${at}.${key}`, `${at}.${key} が true / false ではありません。`);
     }
     for (const key of ['fileName', 'internalFileName', 'originalFileName', 'originalMimeType', 'mimeType', 'imageStorageKey', 'memo', 'createdAt']) {
-      if (key in asset && typeof asset[key] !== 'string') legacy('SCHEMA', `${at}.${key}`, `${at}.${key} が文字列ではありません`);
+      if (key in asset && typeof asset[key] !== 'string') err('SCHEMA', `${at}.${key}`, `${at}.${key} が文字列ではありません。`);
     }
-    // SOURCE VERIFIED: assets are metadata only — never the picture itself.
+    // Assets are metadata only — never the picture itself.
     for (const [key, field] of Object.entries(asset)) {
       if (typeof field === 'string' && field.startsWith('data:')) {
         err('SCHEMA', `${at}.${key}`, `${at}.${key} に画像データ（data URL）が含まれています。DEPLOY JSON はメタ情報のみです。`);
@@ -537,12 +579,12 @@ function validateAssets(assets: unknown, err: Report, warn: Report, legacy: Repo
 }
 
 function expectNullableObject(v: Record<string, unknown>, key: string, err: Report): void {
-  if (key in v && v[key] !== null && !isObject(v[key])) err('SCHEMA', key, `${key} がオブジェクトでも null でもありません`);
+  if (key in v && v[key] !== null && !isObject(v[key])) err('SCHEMA', key, `${key} がオブジェクトでも null でもありません。`);
 }
 
 function expectStringArray(v: Record<string, unknown>, key: string, err: Report): void {
-  if (!Array.isArray(v[key])) err('SCHEMA', key, `${key} が配列ではありません`);
-  else if (!(v[key] as unknown[]).every((s) => typeof s === 'string')) err('SCHEMA', key, `${key} に文字列でない要素があります`);
+  if (!Array.isArray(v[key])) err('SCHEMA', key, `${key} が配列ではありません。`);
+  else if (!(v[key] as unknown[]).every((s) => typeof s === 'string')) err('SCHEMA', key, `${key} に文字列でない要素があります。`);
 }
 
 export function isObject(value: unknown): value is Record<string, unknown> {
