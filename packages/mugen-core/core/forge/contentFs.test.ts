@@ -54,7 +54,8 @@ describe('adopting into content files', () => {
     const dir = freshDir();
     const plan = planOnDisk(dir, sampleText('human'), { npcId: 'SERA' });
     expect(plan.decision).toBe('BLOCKED_SAMPLE_DATA');
-    expect(() => adoptOnDisk(dir, sampleText('human'), { npcId: 'SERA' }, { decision: plan.decision, payloadHash: plan.payloadHash })).toThrow();
+    // Stopped by 事前検証 before anything else: an ERROR is never applied.
+    expect(() => adoptOnDisk(dir, sampleText('human'), { npcId: 'SERA' }, { decision: plan.decision, payloadHash: plan.payloadHash })).toThrow(/事前検証が ERROR/);
     expect(existsSync(join(dir, 'characters', 'HUM-900001.json'))).toBe(false);
   });
 

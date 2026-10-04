@@ -38,6 +38,7 @@ import { isForgeExport, readForgeExport, type ForgeAdoptionPlan } from '../core/
 import { isObject } from '../core/forge/validate';
 import { sourceOnlyFields, zeroCharacterDefinition } from '../content/forge/forgeVocabularyAdapter';
 import { forgeRegistrationState } from '../content/forge/forgeStatus';
+import { preflightForgePackage } from '../core/forge/preflight';
 
 const DECISION: Record<string, string> = {
   NEW: '新規登録',
@@ -200,8 +201,11 @@ function main(): number {
   const choice = { npcId: opt.npcId ?? null, region: opt.region ?? null, lifeActor: opt.lifeActor ?? null };
   const plan = planOnDisk(dir, text, choice, extraVoidIds);
   console.log(`${opt.pick ?? basename(opt.file)} ${mode}`);
+  const preflight = preflightForgePackage(text, loadForgeContent(dir).content);
+  console.log(`事前検証: ${preflight.result}${preflight.canApply ? '' : '（apply 不可）'}`);
+  for (const item of preflight.items) console.log(`  [${item.level}] ${item.path || '全体'}: ${item.message}`);
   report(plan);
-  if (!plan.ready) return plan.decision === 'UNCHANGED' ? 0 : 1;
+  if (!plan.ready || !preflight.canApply) return plan.decision === 'UNCHANGED' ? 0 : 1;
   if (!opt.apply) return 0;
   const { change, written } = adoptOnDisk(dir, text, choice, { decision: plan.decision, payloadHash: plan.payloadHash }, undefined, extraVoidIds);
   console.log(`MUGEN ZEROへ受け入れました。 ${change.entry.characterId} → ${change.entry.npcId}（${change.result.result}）`);

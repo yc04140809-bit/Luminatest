@@ -79,6 +79,22 @@ ZERO の役割は「FORGE の Package が契約を満たしているかの確認
 
 自由文字列（personality・values・desires・importance）を enum で検査することはしない。
 
+### S-4b. 事前検証（preflight、2026-10-05 追加）
+
+`core/forge/preflight.ts` の `preflightForgePackage(json, content?)`。取込（apply）の前に PACKAGE 単体と、ZERO が保持している内容とを照らし、
+**PASS／WARNING／ERROR** で返す。**ERROR があれば apply しない**（CLI・開発サーバーの書き込み口 `adoptOnDisk` の両方で止める）。WARNING だけなら preview でき、作者確認のうえ登録できる。
+既存の取込判定（validate／plan）は変えず、その上に独立して乗せた。何も補正・変換しない。
+
+| 層 | 内容 | 区分 |
+|---|---|---|
+| 契約 | §S-4 の検査（v1.1）の ERROR／WARNING をそのまま | ERROR／WARNING |
+| PACKAGE 内の整合 | 候補リストに「なし」「未設定」が他の候補と混在（combat.uniqueSkillCandidates・weaknesses、profile.body.specialParts、visualDiversity.signatures・skinLifeMarks、relationshipPotential、seeds、bossEncounter.seedCandidates）／同じ値の重複／combat.aptitude と aptitudes の食い違い／profile.encounterRole と encounterRole の食い違い／FORGE 自身の visualDiversity.structureConflicts・similarity.warning／モンスターの classification・habitat・activityTime・ecologicalRole・creatureShapeImpression・importance の未入力・「未設定」／profile.body（身体）の型・未入力／profile.element（属性）の型と affinity 0〜1／combat の通常攻撃候補・候補リストの型／visualDirection.overallImpression が UNSET／人間の age・gender・origin・currentRegion・occupation・importance の未入力 | WARNING |
+| ZERO が保持する内容との照合 | サンプル／VOID ID／採用済み ID の characterType 違い／登録済みより新しくない送出（内容が違う場合） | ERROR |
+| 〃 | 遭遇の役割（encounterRole）・名前・種族名の変更／送出版の番号が登録済みより新しくない | WARNING |
+
+できないこと：キャラクターシートと構造データの照合（シートは機械で読めない）。身体の日本語の語と visualDiversity の英語コードの対応づけ（ZERO 独自の対応表は作らない方針）。
+これらは FORGE が出す `structureConflicts` を見るだけにとどめ、作者の目視確認に任せる。
+
 ### S-5. LEGACY として残すもの
 
 - **まとめ書き出し `{ schemaVersion: 1, characters, voidIds }` と VOID 台帳 `void.json`**（作者決定 C4）：読み取り可能な

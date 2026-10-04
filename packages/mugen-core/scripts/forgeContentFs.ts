@@ -31,6 +31,7 @@ import {
 } from '../core/forge/content';
 import type { ForgeContent } from '../core/forge/types';
 import { forgeAdoptionView } from '../content/forge/adoptionView';
+import { preflightForgePackage } from '../core/forge/preflight';
 
 /** The repository's own FORGE content folder. */
 export const FORGE_CONTENT_DIR = fileURLToPath(new URL('../content/forge/', import.meta.url));
@@ -126,6 +127,11 @@ export function adoptOnDisk(
   extraVoidIds: readonly string[] = [],
 ): { plan: ForgeAdoptionPlan; change: ForgeContentChange; written: string[] } {
   const { content } = loadForgeContent(dir);
+  // 事前検証: an ERROR means the file is never applied, whatever else agrees.
+  const preflight = preflightForgePackage(text, content);
+  if (!preflight.canApply) {
+    throw new Error(`事前検証が ERROR のため取り込みません: ${preflight.items.filter((i) => i.level === 'ERROR').map((i) => i.message).join(' / ')}`);
+  }
   const plan = planForgeAdoption(text, forgeAdoptionView(content, extraVoidIds), choice);
   if (plan.decision !== expected.decision || plan.payloadHash !== expected.payloadHash) {
     throw new Error('確認してから内容が変わりました。もう一度読み込んで確認してください。');

@@ -84,8 +84,14 @@ test('A2 / A6: a broken file and a sample are refused, and nothing is written', 
   for (const name of ['human', 'normal-monster', 'boss-monster'] as const) {
     await choose(page, `${name}.json`, sampleText(name));
     await expect(decision(page)).toHaveText('取込不可（サンプルデータ）');
+    await expect(page.getByTestId('forge-preflight')).toHaveAttribute('data-result', 'ERROR');
+    await expect(page.getByTestId('forge-preflight-items')).toContainText('サンプルデータ');
     await expect(page.getByTestId('forge-register')).toBeDisabled();
   }
+  // A package that may be applied after a look: WARNING, with what to look at.
+  await paste(page, real('normal-monster'));
+  await expect(page.getByTestId('forge-preflight')).toHaveAttribute('data-result', 'WARNING');
+  await expect(page.getByTestId('forge-preflight-items')).toContainText('combat.uniqueSkillCandidates');
   await expect(page.getByTestId('forge-records')).toContainText('まだありません');
   expect(existsSync(join(sandboxDir(), 'characters', 'HUM-900001.json'))).toBe(false);
 });

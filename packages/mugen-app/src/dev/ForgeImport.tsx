@@ -13,6 +13,7 @@ import {
 import { FORGE_PLACEABLE_REGIONS, forgeAdoptionView } from '@mugen/content/forge/adoptionView';
 import { sourceOnlyFields, zeroCharacterDefinition } from '@mugen/content/forge/forgeVocabularyAdapter';
 import { forgeRegistrationState } from '@mugen/content/forge/forgeStatus';
+import { preflightForgePackage } from '@mugen/core/forge/preflight';
 import type { DeviceCheckRow, DeviceCheckTarget } from './forgeDeviceCheck';
 import './forgeImport.css';
 
@@ -268,6 +269,7 @@ export function ForgeImport() {
           <h2>
             <span className="fi-num">2</span>内容を確認
           </h2>
+          {text !== null && source && <Preflight text={text} content={source.content} />}
           <Review plan={plan} />
           <Adoption
             plan={plan}
@@ -513,6 +515,42 @@ function fieldLabel(path: string): string {
   const label = FIELD_LABEL[head];
   if (!label) return path;
   return rest.length ? `${label} › ${rest.join('.')}` : `${label}（${head}）`;
+}
+
+const PREFLIGHT_TEXT = { PASS: 'PASS', WARNING: 'WARNING', ERROR: 'ERROR' } as const;
+const PREFLIGHT_TONE = { PASS: 'fi-good', WARNING: 'fi-warn', ERROR: 'fi-bad' } as const;
+
+/**
+ * 事前検証 (core/forge/preflight.ts): PASS / WARNING / ERROR for the file
+ * as it is, before anything is applied. ERROR means it cannot be applied;
+ * WARNING means look first. Nothing is corrected.
+ */
+function Preflight({ text, content }: { text: string; content: ForgeContent }) {
+  const report = preflightForgePackage(text, content);
+  return (
+    <div className="fi-preflight" data-testid="forge-preflight" data-result={report.result}>
+      <h3>
+        事前検証：<span className={PREFLIGHT_TONE[report.result]} data-testid="forge-preflight-result">{PREFLIGHT_TEXT[report.result]}</span>
+      </h3>
+      <p className="fi-note">
+        {report.result === 'ERROR'
+          ? '取り込めません（apply 不可）。FORGE で直して送出し直してください。'
+          : report.result === 'WARNING'
+            ? '確認が必要な点があります。内容を見たうえで登録できます。'
+            : '問題はありません。'}
+      </p>
+      {report.items.length > 0 && (
+        <ul className="fi-issues" data-testid="forge-preflight-items">
+          {report.items.map((item, i) => (
+            <li key={i} className={item.level === 'ERROR' ? 'fi-bad' : 'fi-warn'}>
+              {item.level}：{item.message}
+              <span className="fi-quiet">（{item.path || '全体'}）</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function Review({ plan }: { plan: ForgePlan }) {
