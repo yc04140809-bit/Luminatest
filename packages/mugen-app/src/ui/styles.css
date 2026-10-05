@@ -1172,6 +1172,8 @@ body {
   font-size: 13px;
   line-height: 1.7;
   text-align: center;
+  /* A point may say two short lines; they break where they were written. */
+  white-space: pre-line;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 .walk-events {

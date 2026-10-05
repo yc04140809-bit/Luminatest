@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ambientLinesFor, figuresFor, pointLine, walkConditionHolds, type WalkWorldView } from './walkScene';
+import { ambientLinesFor, figuresFor, pointLine, pointsFor, walkConditionHolds, type WalkWorldView } from './walkScene';
 import { GREENWOOD_WALK } from './greenwoodWalk';
 
 const view = (known: string[] = [], day = 1): WalkWorldView => ({ known: new Set(known), day });
@@ -16,15 +16,27 @@ describe('walk scene conditions — read only, never written', () => {
 });
 
 describe('グリーンウッドの森, walked', () => {
-  it('has at least two things to look at, each in the painting and each with a line in any world', () => {
-    expect(GREENWOOD_WALK.points.length).toBeGreaterThanOrEqual(2);
-    for (const p of GREENWOOD_WALK.points) {
-      expect(p.at.x).toBeGreaterThan(0);
-      expect(p.at.x).toBeLessThan(1);
-      expect(p.at.y).toBeGreaterThan(0);
-      expect(p.at.y).toBeLessThan(1);
-      expect(pointLine(p, view()), p.id).toBeTruthy();
-      expect(pointLine(p, view(['PLAYER_KILLED_GALD'])), p.id).toBeTruthy();
+  it('has at least two things to look at in any world, each in the painting and each with a line there', () => {
+    for (const world of [view(), view(['PLAYER_KILLED_GALD'])]) {
+      const points = pointsFor(GREENWOOD_WALK, world);
+      expect(points.length).toBeGreaterThanOrEqual(2);
+      for (const p of points) {
+        expect(p.at.x).toBeGreaterThan(0);
+        expect(p.at.x).toBeLessThan(1);
+        expect(p.at.y).toBeGreaterThan(0);
+        expect(p.at.y).toBeLessThan(1);
+        expect(pointLine(p, world), p.id).toBeTruthy();
+      }
+    }
+  });
+
+  it('fresh footprints: one person, away from the village — nobody named, and only before the four answers', () => {
+    const prints = GREENWOOD_WALK.points.find((p) => p.id === 'FRESH_FOOTPRINTS')!;
+    expect(pointLine(prints, view())).toBe('湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。');
+    expect(pointLine(prints, view())).not.toMatch(/ガルド|盗賊/);
+    expect(pointsFor(GREENWOOD_WALK, view()).map((p) => p.id)).toContain('FRESH_FOOTPRINTS');
+    for (const answered of ['PLAYER_KILLED_GALD', 'PLAYER_SPARED_GALD', 'PLAYER_HELPED_GALD', 'PLAYER_CAPTURED_GALD']) {
+      expect(pointsFor(GREENWOOD_WALK, view([answered])).map((p) => p.id), answered).not.toContain('FRESH_FOOTPRINTS');
     }
   });
 

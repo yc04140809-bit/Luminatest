@@ -1,10 +1,11 @@
 // グリーンウッドの森 — walked, in the App.
 //
-// The first place in the walk template (`walkScene.ts`). Three things
-// along the way, picked from what the painting already shows — the
-// puddle on the right of the path, the fallen log by the water, the old
-// tree on the left — and placed on them by the painting's own
-// coordinates.
+// The first place in the walk template (`walkScene.ts`). Things along
+// the way picked from what the painting already shows — the puddle on
+// the right of the path, the fallen log by the water, the old tree on
+// the left — placed on them by the painting's own coordinates; and, on
+// the bare earth of the path, fresh footprints while there is somebody
+// out there to have made them.
 //
 // THE WORDS ONLY NOTICE. Nothing here explains the forest or decides
 // anything about anybody. The one thing that changes is the one the
@@ -36,6 +37,17 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       label: '水たまり',
       at: { x: 0.72, y: 0.7 },
       lines: [{ text: '水たまりに、木漏れ日が揺れている。' }],
+    },
+    {
+      // A TRACE, NOT A CLUE WITH AN ANSWER. Somebody walked here, alone,
+      // away from the village — and that is all it says. It names nobody
+      // and settles nothing; it is only on the ground while the man in
+      // the road is still out there, and gone once the four answers are.
+      id: 'FRESH_FOOTPRINTS',
+      label: '新しい足跡',
+      at: { x: 0.55, y: 0.74 },
+      when: BEFORE_THE_ANSWER,
+      lines: [{ text: '湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。' }],
     },
     {
       id: 'FALLEN_LOG',

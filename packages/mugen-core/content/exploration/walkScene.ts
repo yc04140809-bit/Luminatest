@@ -46,6 +46,12 @@ export interface WalkPoint {
    * so put the most particular first and an unconditional one last.
    */
   lines: readonly WalkLine[];
+  /**
+   * Whether the thing is there at all. Absent means always: a trace that
+   * belongs to one moment of the world — fresh footprints, say — is
+   * only on the ground while that moment lasts.
+   */
+  when?: WalkCondition;
 }
 
 /** The ambient things a place can do, drawn by the App. */
@@ -96,6 +102,11 @@ export function walkConditionHolds(when: WalkCondition | undefined, view: WalkWo
 /** The line a point says in this world, or null if none applies. */
 export function pointLine(point: WalkPoint, view: WalkWorldView): string | null {
   return point.lines.find((l) => walkConditionHolds(l.when, view))?.text ?? null;
+}
+
+/** The things along the way that are there in this world. */
+export function pointsFor(scene: WalkSceneDef, view: WalkWorldView): WalkPoint[] {
+  return scene.points.filter((p) => walkConditionHolds(p.when, view));
 }
 
 /** The ambient lines that apply in this world, in their written order. */

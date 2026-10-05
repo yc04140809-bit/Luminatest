@@ -23,7 +23,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」 | |
 | 酒場 | `tavern`（村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブ不変、横画面 5 サイズでマスターが切れない） | |
 | パン屋 | `bakery`（村 → パン屋 → 背景・主人・リナ・会話 → 村、BGM は村の曲のまま、セーブ不変、横画面 5 サイズで 2 人が切れず会話欄と重ならない） | Android の戻るボタンはブラウザから押せないため実機で確認 |
-| 森 | `regression`、`loop`、`battleBackground`、`explore`（右→左の歩行・実フレームで歩く・パララックス・調査ポイント・環境テキスト・環境演出・人影・戦闘/ガルドへの出口・セーブ不変・四択後の変化・動きを減らす設定・横画面 5 サイズ）、core `walkScene.test.ts`・App `walkPath.test.ts` | 歩行の滑らかさとパララックスの見え方は実機で確認 |
+| 森 | `regression`、`loop`、`battleBackground`、`explore`（右→左の歩行・実フレームで歩く・パララックス・調査ポイント・新しい足跡（四択前だけ・セーブ不変）・環境テキスト・環境演出・人影・戦闘/ガルドへの出口・セーブ不変・四択後の変化・動きを減らす設定・横画面 5 サイズ）、core `walkScene.test.ts`・App `walkPath.test.ts` | 歩行の滑らかさとパララックスの見え方は実機で確認 |
 | 戦闘開始 | `regression`、`attack`、`battleStage`（配置） | |
 | 勝利 | `regression`、`loop`（経験値・LUMI・レベル・アイテム名）、`attack`「beaten, it goes down…」 | |
 | CUT-IN | `regression`（本編）、`magic`（本編の全 5 魔法）、`cutin`（DEBUG プレビュー） | |

@@ -193,12 +193,12 @@ test('stop to stop: a thing in reach, 調べる, a short line — at least two o
       await look.click();
       const line = (await page.getByTestId('walk-caption').textContent()) ?? '';
       expect(line.length).toBeGreaterThan(0);
-      expect(line.length, 'short, not explanation').toBeLessThanOrEqual(30);
+      for (const l of line.split('\n')) expect(l.length, 'short, not explanation').toBeLessThanOrEqual(30);
       seen.push(point);
     }
   }
   expect(seen.length).toBeGreaterThanOrEqual(2);
-  expect(seen).toEqual(expect.arrayContaining(['PUDDLE', 'FALLEN_LOG']));
+  expect(seen).toEqual(expect.arrayContaining(['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG']));
   // Before the four answers, the log has been trodden.
   // And back the way they came.
   const end = await heroX(page);
@@ -294,16 +294,18 @@ test('after the four answers: the man is gone from the road, and the log has bee
   await intoTheForest(page);
   await expect(page.getByTestId('gald-button')).toHaveCount(0);
   await expect(page.getByTestId('walk-figure-GALD')).toHaveCount(0);
+  const reached: string[] = [];
   for (let i = 0; i < 6; i++) {
     await stepLeft(page);
-    if (
-      (await page
-        .getByTestId('walk-look')
-        .getAttribute('data-point')
-        .catch(() => null)) === 'FALLEN_LOG'
-    )
-      break;
+    const point = await page
+      .getByTestId('walk-look')
+      .getAttribute('data-point')
+      .catch(() => null);
+    if (point) reached.push(point);
+    if (point === 'FALLEN_LOG') break;
   }
+  // The fresh footprints are gone with him.
+  expect(reached).not.toContain('FRESH_FOOTPRINTS');
   await page.getByTestId('walk-look').click();
   await expect(page.getByTestId('walk-caption')).toHaveText('剥げていた苔が、また丸太を覆いはじめている。');
 });
@@ -362,3 +364,33 @@ for (const [w, h] of [
     }
   });
 }
+
+test('fresh footprints, before the four answers: one person, away from the village — nobody named, nothing given', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await intoTheForest(page);
+  await page.waitForTimeout(500);
+  const before = await everythingSaved(page);
+  for (let i = 0; i < 6; i++) {
+    await stepLeft(page);
+    const point = await page
+      .getByTestId('walk-look')
+      .getAttribute('data-point')
+      .catch(() => null);
+    if (point === 'FRESH_FOOTPRINTS') break;
+  }
+  await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'FRESH_FOOTPRINTS');
+  await expect(page.getByTestId('walk-look')).toHaveAttribute('aria-label', '調べる：新しい足跡');
+  await page.getByTestId('walk-look').click();
+  const caption = page.getByTestId('walk-caption');
+  expect(await caption.evaluate((e) => (e as HTMLElement).innerText)).toBe(
+    '湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。',
+  );
+  await expect(caption).not.toContainText(/ガルド|盗賊/);
+  // Nothing found, nothing given, nothing written.
+  await page.waitForTimeout(300);
+  expect(await everythingSaved(page)).toEqual(before);
+  // The man in the road is still where he was.
+  await page.getByTestId('gald-button').click();
+  await expect(page.getByTestId('gald-encounter')).toBeVisible();
+});

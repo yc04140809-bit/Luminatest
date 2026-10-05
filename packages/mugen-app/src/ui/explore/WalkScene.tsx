@@ -3,6 +3,7 @@ import {
   ambientLinesFor,
   figuresFor,
   pointLine,
+  pointsFor,
   type WalkPoint,
   type WalkSceneDef,
   type WalkWorldView,
@@ -98,7 +99,9 @@ export function WalkScene({
   const calm = useMemo(prefersLessMotion, []);
 
   // ---- the walk itself ----
-  const stops = useMemo(() => stopsFor(scene.points.map((p) => p.at.x)), [scene]);
+  // Only the things that are there in this world (a trace can be gone).
+  const points = useMemo(() => pointsFor(scene, view), [scene]);
+  const stops = useMemo(() => stopsFor(points.map((p) => p.at.x)), [points]);
   const [t, setT] = useState(0);
   const tNow = useRef(0);
   const [target, setTarget] = useState(0);
@@ -193,7 +196,7 @@ export function WalkScene({
 
   // Arriving somewhere: something in reach, or something noticed.
   const atPoint: WalkPoint | null = !walking && entering <= 0
-    ? (scene.points.find((p) => Math.abs(stopFor(p.at.x) - t) < 0.02) ?? null)
+    ? (points.find((p) => Math.abs(stopFor(p.at.x) - t) < 0.02) ?? null)
     : null;
   useEffect(() => {
     if (walking || entering > 0) return;
