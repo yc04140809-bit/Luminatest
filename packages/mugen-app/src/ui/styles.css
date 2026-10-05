@@ -954,3 +954,33 @@ body {
   background: rgba(11, 11, 18, 0.78);
 }
 .tavern-words .line { max-width: 40ch; }
+
+/* ── TIME SHIFT, the beat she shows: つづける always on screen ──
+   The stage is held to the screen's height instead of growing with the
+   words; the words shrink into their own scrolling column and the
+   button sits under it, never past the bottom edge. Only this beat. */
+.stage.vision-see {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+.vision-see .stage-words {
+  max-height: 100%;
+  min-height: 0;
+}
+.vision-see-words {
+  /* The same column as before — shrink-wrapped, centred by the stage,
+     lines and button flush left — only now it may not outgrow the screen. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: 100%;
+  min-height: 0;
+}
+.vision-see-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.vision-see-words > .btn { flex: none; margin-top: 8px; }

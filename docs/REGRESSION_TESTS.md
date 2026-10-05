@@ -29,7 +29,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 四択 | `regression`、`gald`（4 択の表示・1 回限り・再起動後も保持） | 4 つのうち本編で通すのは SPARE。残り 3 つの結果は core の単体テスト |
 | WORLD MEMORY 保存 | `regression`、`memory`（記録の中身・日付・場所・人物・重み、再起動） | |
 | TIME SHIFT 特殊イベント | `regression`、`memory`「the look ahead costs the world nothing」ほか 7 本 | 時間が進まない・途中で終えたら再起動後にまた出る・終えたら二度と出ない |
-| 未来 CG（ガルド） | `futureCg`（TIME SHIFT は選んだ未来の 1 枚だけ・4 ルート、場所に入ったらその場所の CG・4 ルート、横画面 5 サイズで欠けない）、App 単体 `futureVision.test.ts`・`eventCg.test.ts` | 640×300 では TIME SHIFT の文章が画面より長く、スクロールで読む（CG 追加前から同じ） |
+| 未来 CG（ガルド） | `futureCg`（TIME SHIFT は選んだ未来の 1 枚だけ・4 ルート、場所に入ったらその場所の CG・4 ルート、横画面 5 サイズで CG が欠けず「つづける」が画面内）、App 単体 `futureVision.test.ts`・`eventCg.test.ts` | 高さの低い画面（640×300）では TIME SHIFT の本文だけが縦スクロールし、「つづける」は常に画面内 |
 | ステータス画面 | `regression`、`status`（9 本、Android 横画面 6 サイズでのスクロール含む）、`equipment` | |
 | NPC DEPLOY プレビュー | `forgeImport`（取り込み・差分・実機確認） | 書き込み先は content（セーブではない） |
 | NPC DEPLOY 検証 | `forgeImport`「A2 / A6…」「C7 / D4 / D6…」（事前検証 PASS/WARNING/ERROR を含む）、core `forge/preflight.test.ts`・`forge/validate.test.ts` | |

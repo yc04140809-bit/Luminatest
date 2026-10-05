@@ -104,24 +104,29 @@ export function FutureVisionScreen({
         figure={vision ? null : HER}
         picture={vision && cg ? { src: cg, alt: vision.alt, testId: 'future-vision-cg' } : null}
         side="left"
+        // A LOW SCREEN NEVER HIDES THE WAY ON. The words scroll inside
+        // their own column if they must; つづける stays on screen.
+        className="vision-see"
       >
-        <div data-testid="future-vision" data-beat="SEE">
-          <p className="seasons">春 — 夏 — 秋 — 冬</p>
-          <p className="line" data-testid="future-vision-years">
-            ――{GALD_FUTURE_VISION_YEARS}年後。
-          </p>
-          <ul className="memory-list" data-testid="future-vision-list">
-            {future.map((event) => (
-              <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
-                <span className="memory-label">{memoryEventLabel(event)}</span>
-              </li>
-            ))}
-          </ul>
-          {/* ONE future, not the future — she says so herself. */}
-          <p className="speaker">ケイオス</p>
-          <p className="line" data-testid="future-vision-one">
-            「{FUTURE_VISION_SEEN_LINE}」
-          </p>
+        <div data-testid="future-vision" data-beat="SEE" className="vision-see-words">
+          <div className="vision-see-body" data-testid="future-vision-body">
+            <p className="seasons">春 — 夏 — 秋 — 冬</p>
+            <p className="line" data-testid="future-vision-years">
+              ――{GALD_FUTURE_VISION_YEARS}年後。
+            </p>
+            <ul className="memory-list" data-testid="future-vision-list">
+              {future.map((event) => (
+                <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
+                  <span className="memory-label">{memoryEventLabel(event)}</span>
+                </li>
+              ))}
+            </ul>
+            {/* ONE future, not the future — she says so herself. */}
+            <p className="speaker">ケイオス</p>
+            <p className="line" data-testid="future-vision-one">
+              「{FUTURE_VISION_SEEN_LINE}」
+            </p>
+          </div>
           <button className="btn primary" data-testid="future-vision-next" onClick={() => setBeat('BACK')}>
             つづける
           </button>

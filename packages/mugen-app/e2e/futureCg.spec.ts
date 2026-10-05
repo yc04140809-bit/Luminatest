@@ -189,23 +189,35 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: the look ahead's picture is whole and its words readable`, async ({ page }) => {
+  test(`${w}×${h}: the look ahead's picture is whole, つづける on screen, the words readable`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await freshVillage(page);
     await answerAndContinue(page, 'SPARE');
     await page.getByTestId('future-vision-next').click();
     const cg = await drawn(page, 'future-vision-cg');
     expectWhole(cg);
-    for (const id of ['future-vision-years', 'future-vision-one', 'future-vision-next']) {
-      // At 640×300 the vision's words were already taller than the
-      // screen before the picture joined it (the button sits ~36px
-      // below, reached by scrolling) — the picture changes nothing
-      // about that. So: readable where it is, or once scrolled to.
+    // Not shrunk to make room: the picture keeps the screen's height.
+    expect(cg.bottom - cg.top).toBeGreaterThanOrEqual(h * 0.88);
+
+    // つづける is on screen as it stands — nothing scrolled — and the page
+    // itself does not scroll.
+    const next = (await page.getByTestId('future-vision-next').boundingBox())!;
+    expect(next.y).toBeGreaterThanOrEqual(0);
+    expect(next.y + next.height).toBeLessThanOrEqual(h);
+    expect(next.x).toBeGreaterThanOrEqual(cg.right - 1);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(h);
+
+    // Every line can be read: where it is, or scrolled to inside its own
+    // column — and scrolling it never moves the button.
+    for (const id of ['future-vision-years', 'vision-GALD_BECOMES_BAKER', 'future-vision-one']) {
       await page.getByTestId(id).scrollIntoViewIfNeeded();
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.x, id).toBeGreaterThanOrEqual(cg.right - 1);
       expect(b.y, id).toBeGreaterThanOrEqual(0);
-      expect(b.y + b.height, id).toBeLessThanOrEqual(h);
+      expect(b.y + b.height, id).toBeLessThanOrEqual(next.y + 1);
     }
+    expect(await page.getByTestId('future-vision-next').boundingBox()).toEqual(next);
+    await page.getByTestId('future-vision-next').click();
+    await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'BACK');
   });
 }
