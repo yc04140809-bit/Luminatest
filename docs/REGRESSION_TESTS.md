@@ -22,6 +22,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 名前入力 | `regression`、`naming`（4 本：入力・空白拒否・既定名・再起動） | |
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」 | |
 | 酒場 | `tavern`（村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブ不変、横画面 5 サイズでマスターが切れない） | |
+| パン屋 | `bakery`（村 → パン屋 → 背景・主人・リナ・会話 → 村、BGM は村の曲のまま、セーブ不変、横画面 5 サイズで 2 人が切れず会話欄と重ならない） | Android の戻るボタンはブラウザから押せないため実機で確認 |
 | 森 | `regression`、`loop`、`battleBackground` | |
 | 戦闘開始 | `regression`、`attack`、`battleStage`（配置） | |
 | 勝利 | `regression`、`loop`（経験値・LUMI・レベル・アイテム名）、`attack`「beaten, it goes down…」 | |

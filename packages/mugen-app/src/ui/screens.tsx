@@ -159,6 +159,7 @@ export function AldenScreen({
   onArchive,
   onStatus,
   onTavern,
+  onBakery,
   resting,
   onRest,
 }: {
@@ -166,6 +167,8 @@ export function AldenScreen({
   onExplore: () => void;
   /** 月灯りの酒場 — a door off the village, held by the App (see App.tsx). */
   onTavern: () => void;
+  /** パン屋 — Lina's father's shop, a door off the village like the tavern. */
+  onBakery: () => void;
   onBag: () => void;
   onMemory: () => void;
   onArchive: () => void;
@@ -190,6 +193,9 @@ export function AldenScreen({
         </button>
         <button className="btn" data-testid="tavern-button" onClick={onTavern}>
           月灯りの酒場
+        </button>
+        <button className="btn" data-testid="bakery-button" onClick={onBakery}>
+          パン屋
         </button>
         <button className="btn" data-testid="bag-button" onClick={onBag}>
           持ち物

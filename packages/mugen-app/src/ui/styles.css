@@ -984,3 +984,60 @@ body {
   overscroll-behavior: contain;
 }
 .vision-see-words > .btn { flex: none; margin-top: 8px; }
+
+/* ── パン屋: the tavern's three layers, with two people ──
+   The shop, then the owner and Lina, then the words. Both portraits keep
+   their own shape (contain, never stretched), stand on the floor with a
+   little under their feet, and are sized from one unit so they stay in
+   proportion to each other: the unit is the screen's height, or less on
+   a narrow screen, where two people beside the words would not fit.
+   Lina — the shorter of the two — stands a little in front of her
+   father, over the empty edge of his picture, never over his face. */
+.screen.bakery {
+  --bakery-u: min(100vh, 48vw);
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+.bakery-room {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.bakery-owner,
+.bakery-lina {
+  position: absolute;
+  bottom: 2%;
+  width: auto;
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+}
+.bakery-owner {
+  right: max(1%, env(safe-area-inset-right));
+  height: calc(var(--bakery-u) * 0.94);
+  z-index: 1;
+}
+.bakery-lina {
+  right: calc(max(1%, env(safe-area-inset-right)) + var(--bakery-u) * 0.4);
+  height: calc(var(--bakery-u) * 0.78);
+  z-index: 2;
+}
+.bakery-words {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 50%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 11, 18, 0.78);
+}
+.bakery-words .line { max-width: 40ch; }

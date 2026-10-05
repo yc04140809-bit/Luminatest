@@ -101,7 +101,10 @@ export const FUTURE_SITE_DEFS: readonly FutureSiteDef[] = [
     requiredMemory: 'GALD_BECOMES_BAKER',
     discovery: { eventId: 'evt_player_reunited_with_gald', type: 'PLAYER_REUNITED_WITH_GALD' },
     unknownName: '？？？',
-    unknownDescription: '以前は空き店舗だった場所に、新しい店ができている。',
+    // The bakery Lina's father runs — the one bakery in Alden, already
+    // there today. Before the player has been, it says only that
+    // something about the shop has changed, never who or why.
+    unknownDescription: 'リナの父が営むパン屋。近ごろ、店の奥が少し賑やかになったらしい。',
     knownName: 'パン屋',
     knownDescription: '焼きたてのパンの匂いがする、小さな店。',
     firstVisitLines: BAKERY_FIRST_VISIT_LINES,

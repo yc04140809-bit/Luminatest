@@ -25,6 +25,7 @@ import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
 import { TavernScreen } from './ui/tavern';
+import { BakeryScreen } from './ui/bakery';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
@@ -123,6 +124,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    */
   const [tavern, setTavern] = useState(false);
   const [tavernMet, setTavernMet] = useState(false);
+  /**
+   * パン屋 — the same kind of door off the village as the tavern, held
+   * here for the same reason, and recording nothing in the world.
+   */
+  const [bakery, setBakery] = useState(false);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -176,6 +182,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (state.screen !== 'HOME' && tavern) setTavern(false);
   }, [state.screen, tavern]);
+  useEffect(() => {
+    if (state.screen !== 'HOME' && bakery) setBakery(false);
+  }, [state.screen, bakery]);
 
   useAndroidBackButton(() => {
     if (naming) return;
@@ -187,6 +196,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // Out of the tavern to the village, not out of the village.
     if (state.screen === 'HOME' && tavern) {
       setTavern(false);
+      return;
+    }
+    // And out of the bakery the same way.
+    if (state.screen === 'HOME' && bakery) {
+      setBakery(false);
       return;
     }
     const target = backTargetFor(state.screen);
@@ -326,11 +340,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // left the one screen everybody sees first with nothing playing.
     // The Artifact fixed exactly this complaint from a phone; the App
     // must not reintroduce it by inheriting a screen it does not show.
-    screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : tavern ? 'TALK_SPOT' : state.screen,
+    screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : tavern || bakery ? 'TALK_SPOT' : state.screen,
     // THE TAVERN IS A TALK SPOT IN 月灯りの酒場 to the shared map, which
     // already answers that with the tavern's own piece. Everywhere else
     // the App's screens carry no place (see above).
-    locationId: tavern ? 'MOONLIGHT_TAVERN' : null,
+    // The bakery is a talk spot in Alden, which the map answers with the
+    // village's own piece — so walking in carries the music on unbroken.
+    locationId: tavern ? 'MOONLIGHT_TAVERN' : bakery ? 'ALDEN_BAKERY' : null,
     kaosSpeaking: state.screen === 'PROLOGUE' && kaosArrived,
     battleBgmId,
   });
@@ -489,6 +505,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           />
         );
       }
+      if (bakery) return <BakeryScreen onLeave={() => setBakery(false)} />;
       return (
         <AldenScreen
           world={world}
@@ -498,6 +515,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onArchive={() => flow.goTo('ARCHIVE')}
           onStatus={() => flow.goTo('STATUS')}
           onTavern={() => setTavern(true)}
+          onBakery={() => setBakery(true)}
           resting={resting}
           onRest={() => {
             if (resting) return;
