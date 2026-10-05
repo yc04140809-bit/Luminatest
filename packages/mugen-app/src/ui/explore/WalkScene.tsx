@@ -13,8 +13,8 @@ import { walkerSprites, walkPainting, type WalkPlaceId, type Walkers } from '../
 import { sceneArt } from '../../assets/sceneArt';
 import { playSfx } from '../../platform/audio';
 import { WalkSprite } from './WalkSprite';
-import { Ambience, NearFoliage, pickAmbience } from './Ambience';
-import { DEPTH, PAN, heroX, layerShift, nextStop, stopFor, stopsFor } from './walkPath';
+import { Ambience, Moment, NearFoliage, pickAmbience, pickMoment, type MomentKind } from './Ambience';
+import { DEPTH, PAN, glintStrength, heroX, layerShift, nextStop, stopFor, stopsFor } from './walkPath';
 
 /**
  * A PLACE, WALKED — the App's exploration template.
@@ -54,6 +54,9 @@ const HERO_SOURCE_HEIGHT = 169;
 const KAOS_HEIGHT = 0.376;
 /** How far behind him (to his right) she walks, as a share of the screen's height. */
 const KAOS_BEHIND = 0.18;
+/** The first quiet moment comes after this long, then one every so often. */
+const MOMENT_FIRST_MS: [number, number] = [5000, 9000];
+const MOMENT_GAP_MS: [number, number] = [9000, 16000];
 /** A distant figure's height, as a share of the screen's height. */
 const FIGURE_HEIGHT = 0.2;
 
@@ -116,6 +119,10 @@ export function WalkScene({
   const [looked, setLooked] = useState<string | null>(null);
   const picked = useMemo(() => (calm ? [] : pickAmbience(scene.ambience)), [scene, calm]);
   const figures = useMemo(() => figuresFor(scene, view), [scene]);
+  // A QUIET MOMENT now and then — a leaf passing, the light shifting, a
+  // bird's shadow far off. One at a time, never constant, decoration only.
+  const [moment, setMoment] = useState<{ kind: MomentKind; n: number } | null>(null);
+  const restingAtPoint = useRef(false);
 
   useEffect(() => {
     const el = host.current;
@@ -210,6 +217,40 @@ export function WalkScene({
     }
   }, [walking, atPoint?.id]);
 
+  // The nearest thing ahead or behind, and how strongly it glints from here.
+  const near = useMemo(() => {
+    let best: { point: WalkPoint; strength: number } | null = null;
+    for (const p of points) {
+      const strength = glintStrength(t - stopFor(p.at.x));
+      if (strength > 0 && (!best || strength > best.strength)) best = { point: p, strength };
+    }
+    return best;
+  }, [points, t]);
+  restingAtPoint.current = !!atPoint;
+
+  useEffect(() => {
+    if (calm) return;
+    let timer = 0;
+    let clear = 0;
+    const between = ([lo, hi]: [number, number]) => lo + Math.random() * (hi - lo);
+    const schedule = (wait: number) => {
+      timer = window.setTimeout(() => {
+        // Never over a thing being looked at: let that moment be its own.
+        if (!restingAtPoint.current) {
+          const kind = pickMoment();
+          setMoment((m) => ({ kind, n: (m?.n ?? 0) + 1 }));
+          clear = window.setTimeout(() => setMoment(null), 4200);
+        }
+        schedule(between(MOMENT_GAP_MS));
+      }, wait);
+    };
+    schedule(between(MOMENT_FIRST_MS));
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(clear);
+    };
+  }, [calm]);
+
   const go = (way: 'left' | 'right') => {
     if (walking || entering > 0) return;
     const to = nextStop(stops, t, way);
@@ -254,6 +295,7 @@ export function WalkScene({
       data-t={t.toFixed(3)}
       data-walking={moving ? 'yes' : 'no'}
       data-ambient={picked.join(',')}
+      data-moment={moment?.kind ?? ''}
     >
       {/* THE PAINTING, and what stands on it. */}
       <div className="walk-layer walk-painting" style={{ width: paintW, transform: `translateX(${shift(DEPTH.painting)}px)` }}>
@@ -283,11 +325,12 @@ export function WalkScene({
               }}
             />
           ))}
-        {atPoint && (
+        {near && (
           <span
-            className={`walk-point ${looked === atPoint.id ? 'is-looked' : ''}`}
-            data-testid={`walk-point-${atPoint.id}`}
-            style={atPaint(atPoint.at.x, atPoint.at.y)}
+            className={`walk-point ${looked === near.point.id ? 'is-looked' : ''} ${near.strength >= 0.999 ? 'is-here' : ''}`}
+            data-testid={`walk-point-${near.point.id}`}
+            data-strength={near.strength.toFixed(2)}
+            style={{ ...atPaint(near.point.at.x, near.point.at.y), opacity: looked === near.point.id ? 0.35 : near.strength }}
             aria-hidden="true"
           />
         )}
@@ -322,6 +365,7 @@ export function WalkScene({
       )}
 
       <Ambience picked={picked} />
+      {moment && <Moment key={moment.n} kind={moment.kind} />}
 
       {/* THE NEAREST LEAVES, sliding fastest. */}
       <div

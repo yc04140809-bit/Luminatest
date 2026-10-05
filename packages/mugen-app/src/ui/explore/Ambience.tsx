@@ -104,6 +104,36 @@ function Motes() {
   );
 }
 
+/** The quiet moments that happen now and then, one at a time. */
+export type MomentKind = 'LEAF_PASS' | 'LIGHT_SHIFT' | 'BIRD_SHADOW';
+const MOMENTS: readonly MomentKind[] = ['LEAF_PASS', 'LIGHT_SHIFT', 'BIRD_SHADOW'];
+
+export function pickMoment(rnd: () => number = Math.random): MomentKind {
+  return MOMENTS[Math.floor(rnd() * MOMENTS.length) % MOMENTS.length];
+}
+
+/**
+ * ONE QUIET MOMENT, played once and gone: a single leaf drifting across,
+ * the light through the canopy brightening and settling, or a bird's
+ * shadow crossing far off. Pure decoration — nothing to press, nothing
+ * that changes anything.
+ */
+export function Moment({ kind }: { kind: MomentKind }) {
+  return (
+    <div className={`amb amb-moment amb-moment-${kind}`} data-testid="walk-moment" data-kind={kind} aria-hidden="true">
+      {kind === 'LEAF_PASS' && <span className="amb-moment-leaf" />}
+      {kind === 'LIGHT_SHIFT' && <span className="amb-moment-light" />}
+      {kind === 'BIRD_SHADOW' && (
+        <span className="amb-moment-bird">
+          <svg width="34" height="14" viewBox="0 0 20 8">
+            <path d="M0 5 Q5 0 10 5 Q15 0 20 5" />
+          </svg>
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function Ambience({ picked }: { picked: readonly WalkAmbience[] }) {
   return (
     <>

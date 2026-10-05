@@ -171,6 +171,56 @@ test.describe('in motion', () => {
     expect(await page.getByTestId('walk-hero').getAttribute('data-frame')).toContain('left-idle');
     expect(errors).toEqual([]);
   });
+
+  test('a thing ahead is noticed only when near: no glint mid-path, faint coming close, full beside it', async ({ page }) => {
+    await freshApp(page);
+    await intoTheVillage(page);
+    await intoTheForest(page);
+    await stepLeft(page); // to the puddle
+    await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'PUDDLE');
+    // Watched frame by frame on the way to the next thing.
+    await page.evaluate(() => {
+      const w = window as unknown as { __glint: string[] };
+      w.__glint = [];
+      const t0 = performance.now();
+      const tick = () => {
+        const g = document.querySelector('[data-testid="walk-point-FRESH_FOOTPRINTS"]') as HTMLElement | null;
+        const p = document.querySelector('[data-testid="walk-point-PUDDLE"]') as HTMLElement | null;
+        w.__glint.push(`${g?.dataset.strength ?? '-'}|${p?.dataset.strength ?? '-'}`);
+        if (performance.now() - t0 < 3000) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await stepLeft(page); // to the footprints
+    await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'FRESH_FOOTPRINTS');
+    const trail = await page.evaluate(() => (window as unknown as { __glint: string[] }).__glint);
+    const prints = trail.map((x) => x.split('|')[0]).filter((x) => x !== '-').map(Number);
+    // Somewhere between the two, nothing glints at all.
+    expect(trail).toContain('-|-');
+    // Coming close it is faint first, and only full on arrival.
+    expect(prints.length).toBeGreaterThan(3);
+    expect(Math.min(...prints)).toBeLessThan(0.6);
+    expect(prints[prints.length - 1]).toBe(1);
+    await expect(page.getByTestId('walk-point-FRESH_FOOTPRINTS')).toHaveAttribute('data-strength', '1.00');
+  });
+
+  test('now and then a quiet moment — a leaf, the light, a bird’s shadow — once, gone, and never in the way', async ({ page }) => {
+    await freshApp(page);
+    await intoTheVillage(page);
+    await intoTheForest(page);
+    // Not constant: nothing at first.
+    await expect(scene(page)).toHaveAttribute('data-moment', '');
+    // Then, within the first quiet stretch, one of the three.
+    await expect(scene(page)).toHaveAttribute('data-moment', /LEAF_PASS|LIGHT_SHIFT|BIRD_SHADOW/, { timeout: 15_000 });
+    const moment = page.getByTestId('walk-moment');
+    await expect(moment).toHaveCount(1);
+    expect(await moment.evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none');
+    // While it plays, the walk and the doors answer as ever.
+    await page.getByTestId('walk-forward').click();
+    await expect(scene(page)).toHaveAttribute('data-walking', 'no');
+    // And it goes.
+    await expect(page.getByTestId('walk-moment')).toHaveCount(0, { timeout: 8_000 });
+  });
 });
 
 test('stop to stop: a thing in reach, 調べる, a short line — at least two of them, then back the way they came', async ({

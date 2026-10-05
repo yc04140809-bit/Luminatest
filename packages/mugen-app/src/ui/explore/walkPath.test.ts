@@ -40,3 +40,26 @@ describe('the walk, as arithmetic', () => {
     expect(nextStop(stops, stops[stops.length - 1], 'left')).toBeNull();
   });
 });
+
+describe('a thing ahead is noticed only when near', () => {
+  it('no glint from afar; faint as they come near; full beside it', async () => {
+    const { APPROACH, glintStrength } = await import('./walkPath');
+    expect(glintStrength(APPROACH)).toBe(0);
+    expect(glintStrength(0.5)).toBe(0);
+    expect(glintStrength(APPROACH * 0.9)).toBeGreaterThan(0);
+    expect(glintStrength(APPROACH * 0.9)).toBeLessThan(0.5);
+    expect(glintStrength(APPROACH * 0.5)).toBeLessThan(glintStrength(APPROACH * 0.1));
+    expect(glintStrength(0)).toBe(1);
+  });
+});
+
+describe('between two things, nothing glints', () => {
+  it('neighbouring things in the forest are further apart than both their glints together', async () => {
+    const { APPROACH } = await import('./walkPath');
+    for (const world of [[], ['PLAYER_SPARED_GALD']]) {
+      const { pointsFor } = await import('@mugen/content/exploration/walkScene');
+      const xs = pointsFor(GREENWOOD_WALK, { known: new Set(world), day: 1 }).map((p) => stopFor(p.at.x)).sort((a, b) => a - b);
+      for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeGreaterThan(2 * APPROACH);
+    }
+  });
+});

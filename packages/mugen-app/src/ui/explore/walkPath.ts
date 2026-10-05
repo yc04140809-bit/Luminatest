@@ -22,11 +22,27 @@ export const STOP_GAP = 0.05;
 
 /** Parallax factors: 1 is the painting, the ground the party walks on. */
 export const DEPTH = {
-  light: 0.5,
-  mist: 0.35,
+  // Widened a little from 0.5 / 0.35 / 1.7: enough that the near leaves
+  // and the far light part company as the party walks, never so much
+  // that the backdrop pulls the eye from the people or turns a stomach.
+  light: 0.4,
+  mist: 0.25,
   painting: 1,
-  near: 1.7,
+  near: 1.9,
 } as const;
+
+/** How near, in t, the party must be before a thing ahead begins to glint. */
+export const APPROACH = 0.11;
+
+/**
+ * How strongly a thing glints at this distance: nothing beyond APPROACH,
+ * a faint light as they come near, full only when standing beside it.
+ */
+export function glintStrength(distance: number): number {
+  const d = Math.abs(distance);
+  if (d >= APPROACH) return 0;
+  return 0.4 + 0.6 * (1 - d / APPROACH) ** 2;
+}
 
 /** The leader's x, as a share of the screen width. */
 export function heroX(t: number): number {
