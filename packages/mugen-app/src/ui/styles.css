@@ -859,10 +859,15 @@ body {
 /* A whole illustration in the figure's place — a future seen, a place
    found. All four are 2:3, so at this height the picture sets its own
    width and the box is exactly the picture: whole, never cropped or
-   stretched, with a frame so it reads as a painting, not a cut-out. */
+   stretched, with a frame so it reads as a painting, not a cut-out.
+   Sized against the VIEWPORT, not the stage: where the words are taller
+   than the screen (640×300) the stage grows past it, and a picture sized
+   to the stage would run off the bottom. Anchored from the top so it is
+   whole on screen before anything is scrolled. */
 .stage-picture {
-  height: 92%;
-  bottom: 4%;
+  top: min(4%, 4vh);
+  bottom: auto;
+  height: min(92%, 92vh);
   border-radius: 6px;
   box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.45), 0 8px 24px rgba(0, 0, 0, 0.6);
 }
