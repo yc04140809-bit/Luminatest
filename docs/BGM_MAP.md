@@ -28,7 +28,7 @@
 | `OPENING` | また、ここで。 (Remastered) | `opening.mp3` | `PROLOGUE`（ケイオスが話す前） |
 | `KAOS_EVENT` | ケイオスちゃんのテーマ会話シーン | `kaos-event.mp3` | `PROLOGUE`（ケイオス登場後）, `LIFE_CHOICE`, `CREATURE_LIFE_CHOICE`, `CHOICE_RESULT` |
 | `ALDEN_VILLAGE` | アルデン村のテーマ | `alden-village.mp3` | **ALDEN_HOME**（`HOME`）、家から開くページ（`STATUS`, `BAG`, `WORLD_MEMORY`, `WORLD_NEWS`, `ARCHIVE`, `ARCANA`, `SETTINGS`）、**ALDEN_VILLAGE**（`EXPLORE`, `ITEM_SHOP`）、`TIME_SHIFT`、村の `TALK_SPOT` / `FUTURE_SITE` |
-| `TAVERN` | 酒場のテーマ | `tavern.mp3` | `TALK_SPOT` / `FUTURE_SITE` の月光亭（App版にはまだ無い） |
+| `TAVERN` | 酒場のテーマ | `tavern.mp3` | `TALK_SPOT` / `FUTURE_SITE` の月光亭。App版はアルデン村の「月灯りの酒場」（`TALK_SPOT` ＋ `MOONLIGHT_TAVERN` として渡す） |
 | `GREENWOOD_FOREST` | 森林探索のテーマ | `greenwood-forest.mp3` | `GREENWOOD`, `ENCOUNTER`, 森の `TALK_SPOT` / `FUTURE_SITE` |
 | `NORMAL_BATTLE` | 通常戦闘① | `normal-battle.mp3` | `BATTLE`, `BATTLE_RESULT`（初期状態・選んだとき） |
 | `BOSS_BATTLE` | 勇敢 | `boss-battle.mp3` | ガルド戦（固定・♪なし）。ガルドに勝った後は ♪ で通常戦闘でも選べる |

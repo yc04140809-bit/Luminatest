@@ -889,3 +889,48 @@ body {
 }
 .screen.title.has-key { padding-left: calc(min(100vh, 50vw) + 16px); }
 .screen.title.has-key > :not(.title-key) { position: relative; z-index: 1; }
+
+/* ── 月灯りの酒場: THREE LAYERS — the room, the master, the words ──
+   The master is a separate cut-out, never painted into the room. He
+   keeps his own shape (contain, never stretched), is centred in his
+   box, stands on its bottom edge with a little floor under his boots,
+   and his box is tall enough for his whole head and both feet. */
+.screen.tavern {
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+.tavern-room {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.tavern-master {
+  position: absolute;
+  right: max(3%, env(safe-area-inset-right));
+  bottom: 2%;
+  width: 36%;
+  height: 94%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+.tavern-words {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 56%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 11, 18, 0.78);
+}
+.tavern-words .line { max-width: 40ch; }

@@ -21,7 +21,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | OP | `regression`、`scenes`「the prologue is the world alone, then Kaos…」、`music`（曲） | |
 | 名前入力 | `regression`、`naming`（4 本：入力・空白拒否・既定名・再起動） | |
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」 | |
-| 酒場 | **なし（自動化できない）** | App に酒場の画面がまだ無い。曲の割り当てだけ `sceneBgm.test.ts` で確認済み（`docs/AUDIO_AUDIT_2026-10.md` 候補 1） |
+| 酒場 | `tavern`（村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブ不変、横画面 5 サイズでマスターが切れない） | |
 | 森 | `regression`、`loop`、`battleBackground` | |
 | 戦闘開始 | `regression`、`attack`、`battleStage`（配置） | |
 | 勝利 | `regression`、`loop`（経験値・LUMI・レベル・アイテム名）、`attack`「beaten, it goes down…」 | |
@@ -37,4 +37,3 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 
 - **実機の音**：Android で実際に鳴るか・音量・最初のタッチで鳴り始めるか。自動テストは「どの曲を頼んだか」までで、スピーカーの出力は見られない。
 - **実機の画面端**：切り欠き・ジェスチャーバーとの重なり（`docs/BATTLE_AUDIT_2026-10.md`）。
-- **酒場**：画面ができたら `regression.spec.ts` に 1 段足す。

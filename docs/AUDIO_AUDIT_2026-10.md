@@ -37,7 +37,7 @@
 
 ## 気づいた点（大きいので実装せず候補として報告）
 
-1. **酒場の BGM が App で鳴らない**：App は `useSceneBgm` に `locationId: null` を固定で渡している（App に月光亭の画面が無いため）。
+1. **酒場の BGM が App で鳴らない**（→ 2026-10-05 App に酒場画面を追加して解消。`TALK_SPOT` ＋ `MOONLIGHT_TAVERN` を渡して `TAVERN` が鳴る）：App は `useSceneBgm` に `locationId: null` を固定で渡している（App に月光亭の画面が無いため）。
    酒場の画面を App に作るときは、その画面の場所 ID（`MOONLIGHT_TAVERN`）を `locationId` として渡せば `TAVERN` が鳴る。割り当て側の準備は済んでいる。
 2. **効果音ファイルが 1 つも無い**：`mugen-assets/files/audio/se/` は README だけ。呼び出し（`playSfx('battle_hit')` など）は既に本物で、ファイルを置けば鳴る。現状は無音（仕様どおり）。
 3. **`playSe`（旧い SE 経路）**：`SE_ASSETS` は全部 null、App からの呼び出しは無い。`playSfx` が現行の経路。削除はしていない（Artifact と同じコードを保つため）。

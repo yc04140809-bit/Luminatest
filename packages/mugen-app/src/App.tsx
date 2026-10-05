@@ -24,6 +24,7 @@ import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
+import { TavernScreen } from './ui/tavern';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
@@ -110,6 +111,18 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * from it goes back there rather than to the village.
    */
   const [equipment, setEquipment] = useState(false);
+  /**
+   * 月灯りの酒場 IS A DOOR OFF THE VILLAGE, held here for the same
+   * reason equipment is: `Screen` is shared with the Artifact and may
+   * not grow. While it is open the flow is still on HOME, and もどる
+   * (or Android's back) closes it to exactly where the player was.
+   *
+   * `tavernMet` is whether the master has been talked to THIS SESSION.
+   * It decides only which of his lines are read and is never saved:
+   * the tavern records nothing in the world.
+   */
+  const [tavern, setTavern] = useState(false);
+  const [tavernMet, setTavernMet] = useState(false);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -159,12 +172,21 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (state.screen !== 'STATUS' && equipment) setEquipment(false);
   }, [state.screen, equipment]);
+  // The tavern is a leaf of HOME in the same way.
+  useEffect(() => {
+    if (state.screen !== 'HOME' && tavern) setTavern(false);
+  }, [state.screen, tavern]);
 
   useAndroidBackButton(() => {
     if (naming) return;
     // Back out of equipment to status first, not out to the village.
     if (state.screen === 'STATUS' && equipment) {
       setEquipment(false);
+      return;
+    }
+    // Out of the tavern to the village, not out of the village.
+    if (state.screen === 'HOME' && tavern) {
+      setTavern(false);
       return;
     }
     const target = backTargetFor(state.screen);
@@ -304,8 +326,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // left the one screen everybody sees first with nothing playing.
     // The Artifact fixed exactly this complaint from a phone; the App
     // must not reintroduce it by inheriting a screen it does not show.
-    screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : state.screen,
-    locationId: null,
+    screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : tavern ? 'TALK_SPOT' : state.screen,
+    // THE TAVERN IS A TALK SPOT IN 月灯りの酒場 to the shared map, which
+    // already answers that with the tavern's own piece. Everywhere else
+    // the App's screens carry no place (see above).
+    locationId: tavern ? 'MOONLIGHT_TAVERN' : null,
     kaosSpeaking: state.screen === 'PROLOGUE' && kaosArrived,
     battleBgmId,
   });
@@ -455,6 +480,15 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         <PrologueScreen onKaosArrives={() => setKaosArrived(true)} onDone={() => setNaming(true)} />
       );
     case 'HOME':
+      if (tavern) {
+        return (
+          <TavernScreen
+            metBefore={tavernMet}
+            onMet={() => setTavernMet(true)}
+            onLeave={() => setTavern(false)}
+          />
+        );
+      }
       return (
         <AldenScreen
           world={world}
@@ -463,6 +497,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onMemory={() => flow.goTo('WORLD_MEMORY')}
           onArchive={() => flow.goTo('ARCHIVE')}
           onStatus={() => flow.goTo('STATUS')}
+          onTavern={() => setTavern(true)}
           resting={resting}
           onRest={() => {
             if (resting) return;
