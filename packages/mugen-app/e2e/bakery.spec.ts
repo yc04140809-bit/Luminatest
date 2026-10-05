@@ -143,6 +143,9 @@ test('village → bakery → the shop, the owner and Lina, a talk → back to th
   await page.getByTestId('bakery-button').click();
   await expect(page.getByTestId('bakery-screen')).toBeVisible();
   await expect(page.getByTestId('bakery-screen').locator('h1')).toHaveText('パン屋');
+  // Today's shop, said plainly: nothing here hints at Gald's future.
+  await expect(page.getByTestId('bakery-description')).toHaveText('リナの父が営むパン屋。焼きたてのパンの匂いがする。');
+  await expect(page.getByTestId('bakery-screen')).not.toContainText('賑やか');
   await loaded(page);
 
   // Four layers, in order: the shop, her father, Lina in front of him, the words.

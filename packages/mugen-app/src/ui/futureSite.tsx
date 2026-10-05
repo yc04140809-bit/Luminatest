@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
-import { futureSiteDef } from '@mugen/content/world/futureSites';
+import { futureSiteDef, type FutureSiteDef } from '@mugen/content/world/futureSites';
 import { Place } from './screens';
 import { Stage, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
@@ -28,6 +28,32 @@ import { eventCg } from '../assets/eventCg';
  * presentational: a picture that fails to load leaves the words exactly
  * as they were.
  */
+/**
+ * WHAT THE APP SAYS OF A PLACE NOT YET VISITED — where it differs.
+ *
+ * ALDEN_BAKERY is the bakery Lina's father runs today, and the App has
+ * that shop in the village. The shared content's card was written for
+ * the Artifact, where it calls the place a new shop in an empty unit;
+ * here, and only here, it says what is true of the App's Alden. Matched
+ * on the exact shared sentence, as the tavern's narration is, so a
+ * change to the content shows through rather than being papered over.
+ * The Artifact, the content and every other place are untouched, and
+ * the line appears only on this list of places to look into — never in
+ * the bakery the player walks into from the village.
+ */
+const APP_UNKNOWN_DESCRIPTION: Partial<Record<string, { shared: string; app: string }>> = {
+  ALDEN_BAKERY: {
+    shared: '以前は空き店舗だった場所に、新しい店ができている。',
+    app: 'リナの父が営むパン屋。近ごろ、店の奥が少し賑やかになったらしい。',
+  },
+};
+
+/** The not-yet-visited description, as the App shows it. */
+export function appUnknownDescription(def: FutureSiteDef): string {
+  const own = APP_UNKNOWN_DESCRIPTION[def.id];
+  return own && def.unknownDescription === own.shared ? own.app : def.unknownDescription;
+}
+
 export function FutureSiteScreen({
   world,
   onLeave,
@@ -91,8 +117,8 @@ export function FutureSiteScreen({
                 >
                   {discovered ? def.knownName : def.unknownName}
                 </button>
-                <span className="memory-meta">
-                  {discovered ? def.knownDescription : def.unknownDescription}
+                <span className="memory-meta" data-testid={`future-site-about-${def.id}`}>
+                  {discovered ? def.knownDescription : appUnknownDescription(def)}
                 </span>
               </li>
             ))}

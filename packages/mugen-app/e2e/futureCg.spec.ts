@@ -166,6 +166,13 @@ for (const { choice, file, site } of ROUTES) {
     await page.getByTestId('places-button').click();
     // On the list it is still 「？？？」, and there is no picture.
     await expect(page.getByTestId(`future-site-${site}`)).toHaveText('？？？');
+    // The bakery's card is the App's own line — the shared content (the
+    // Artifact's) calls it a new shop in an empty unit, and is unchanged.
+    if (site === 'ALDEN_BAKERY') {
+      await expect(page.getByTestId(`future-site-about-${site}`)).toHaveText(
+        'リナの父が営むパン屋。近ごろ、店の奥が少し賑やかになったらしい。',
+      );
+    }
     await expect(page.getByTestId('future-site-cg')).toHaveCount(0);
 
     await page.getByTestId(`future-site-${site}`).click();
