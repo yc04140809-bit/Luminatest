@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
 import { titleKeyVisual } from '../assets/sceneArt';
 import { usePicture } from './scene';
+import { WalkScene } from './explore/WalkScene';
+import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 
 /**
  * THE APP ALPHA'S SCREENS — every one of them deliberately plain.
@@ -269,6 +271,8 @@ export function MapScreen({
 
 export function GreenwoodScreen({
   galdWaiting,
+  known,
+  day,
   onGald,
   onFight,
   onLeave,
@@ -285,26 +289,37 @@ export function GreenwoodScreen({
    * guarded.
    */
   galdWaiting: boolean;
+  /** What the player knows happened (`getKnownEvents`), for what the forest notices. */
+  known: readonly string[];
+  /** Which day of the world it is. */
+  day: number;
   onGald: () => void;
   onFight: () => void;
   onLeave: () => void;
 }) {
+  // THE FOREST, WALKED (ui/explore/WalkScene). Its two doors are the
+  // ones it always had — the man in the road, and whatever is moving in
+  // the undergrowth — offered as quiet choices over the walk.
+  const view = useMemo(() => ({ known: new Set(known), day }), [known.join(','), day]);
   return (
-    <Place area="GREENWOOD" title="グリーンウッドの森">
-      <p className="line">下草が揺れている。何かがいる。</p>
-      <div className="actions">
-        {galdWaiting && (
-          <button className="btn primary" data-testid="gald-button" onClick={onGald}>
-            人影がこちらを見ている
+    <WalkScene
+      scene={GREENWOOD_WALK}
+      place="GREENWOOD_FOREST"
+      view={view}
+      onLeave={onLeave}
+      leaveLabel="地方図へもどる"
+      events={
+        <>
+          {galdWaiting && (
+            <button className="btn walk-event primary" data-testid="gald-button" onClick={onGald}>
+              人影がこちらを見ている
+            </button>
+          )}
+          <button className="btn walk-event" data-testid="encounter-button" onClick={onFight}>
+            揺れる下草へ近づく
           </button>
-        )}
-        <button className="btn" data-testid="encounter-button" onClick={onFight}>
-          近づく
-        </button>
-        <button className="btn" data-testid="leave-forest" onClick={onLeave}>
-          地方図へもどる
-        </button>
-      </div>
-    </Place>
+        </>
+      }
+    />
   );
 }

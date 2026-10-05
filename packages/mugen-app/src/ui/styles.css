@@ -1041,3 +1041,176 @@ body {
   background: rgba(11, 11, 18, 0.78);
 }
 .bakery-words .line { max-width: 40ch; }
+
+/* ── A PLACE, WALKED (ui/explore/WalkScene) ──
+   One screen, right to left. Every layer is absolutely placed and slid
+   by the walk; only the controls sit still. */
+.screen.walk {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #0d150f;
+  touch-action: manipulation;
+}
+.walk-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  will-change: transform;
+  pointer-events: none;
+}
+.walk-painting { z-index: 0; }
+.walk-painting-img { position: absolute; left: 0; display: block; max-width: none; }
+/* Light through the canopy, a little farther off than the ground. */
+.walk-light {
+  z-index: 1;
+  width: 120%;
+  background:
+    linear-gradient(105deg, transparent 18%, rgba(255, 236, 170, 0.16) 22%, transparent 27%),
+    linear-gradient(105deg, transparent 38%, rgba(255, 236, 170, 0.12) 41%, transparent 46%),
+    linear-gradient(105deg, transparent 60%, rgba(255, 236, 170, 0.1) 63%, transparent 67%);
+  mix-blend-mode: screen;
+  animation: walk-light-breathe 9s ease-in-out infinite alternate;
+}
+@keyframes walk-light-breathe { from { opacity: 0.55; } to { opacity: 1; } }
+/* Mist along the water, drifting on its own. */
+.walk-mist {
+  z-index: 1;
+  width: 140%;
+  background: radial-gradient(ellipse 60% 14% at 50% 52%, rgba(220, 235, 240, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 10% at 15% 56%, rgba(220, 235, 240, 0.16), transparent 70%);
+  animation: walk-mist-drift 26s linear infinite alternate;
+}
+@keyframes walk-mist-drift { from { margin-left: -4%; } to { margin-left: 4%; } }
+.walk-figure {
+  position: absolute;
+  width: auto;
+  transform: translateX(-50%);
+  filter: brightness(0.22) saturate(0) blur(0.6px);
+  opacity: 0.8;
+  animation: walk-figure-sway 5s ease-in-out infinite alternate;
+}
+@keyframes walk-figure-sway { from { transform: translateX(-50%) rotate(-0.6deg); } to { transform: translateX(-50%) rotate(0.6deg); } }
+/* Something in reach: a soft glint on the thing itself, never a beacon. */
+.walk-point {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 210, 0.95) 0 18%, rgba(255, 230, 150, 0.35) 40%, transparent 70%);
+  animation: walk-point-glint 1.8s ease-in-out infinite;
+}
+.walk-point.is-looked { opacity: 0.35; animation: none; }
+@keyframes walk-point-glint { 0%, 100% { transform: scale(0.8); opacity: 0.6; } 50% { transform: scale(1.15); opacity: 1; } }
+
+.walk-party { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.walk-sprite { position: absolute; }
+.walk-sprite img { position: absolute; transform-origin: 0 0; max-width: none; image-rendering: auto; }
+
+.amb { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.amb-bird { position: absolute; left: 105%; animation: amb-fly linear infinite; }
+.amb-bird svg { display: block; overflow: visible; }
+.amb-wing { fill: none; stroke: rgba(20, 28, 24, 0.75); stroke-width: 1.6; stroke-linecap: round; animation: amb-flap 0.5s ease-in-out infinite alternate; transform-origin: 50% 60%; }
+@keyframes amb-fly { from { left: 105%; } to { left: -10%; } }
+@keyframes amb-flap { from { transform: scaleY(1); } to { transform: scaleY(0.35); } }
+.amb-leaf { position: absolute; top: -6%; width: 9px; height: 5px; border-radius: 9px 0; opacity: 0; animation: amb-fall linear infinite; }
+.amb-leaf-gold { background: rgba(214, 170, 74, 0.85); }
+.amb-leaf-green { background: rgba(120, 160, 70, 0.85); }
+@keyframes amb-fall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.9; }
+  90% { opacity: 0.8; }
+  100% { transform: translate(var(--drift), 105vh) rotate(540deg); opacity: 0; }
+}
+.amb-mote { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: rgba(255, 244, 200, 0.9); box-shadow: 0 0 6px rgba(255, 236, 170, 0.9); opacity: 0; animation: amb-rise ease-in-out infinite; }
+@keyframes amb-rise { 0% { transform: translate(0, 0); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translate(10px, -40px); opacity: 0; } }
+
+/* The nearest leaves: dark, soft, low, and fastest of all. */
+.walk-near { z-index: 4; }
+.walk-near-foliage { position: absolute; left: 0; bottom: -2%; width: 100%; height: 22%; filter: blur(2.5px); }
+.walk-near-clump path { fill: rgba(8, 20, 12, 0.88); }
+
+/* The controls: the name, what is noticed, the place's doors, the walk. */
+.walk-top {
+  position: absolute;
+  z-index: 5;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.walk-title { margin: 0; font-size: 15px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85); }
+.walk-leave {
+  pointer-events: auto;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid rgba(233, 230, 240, 0.25);
+  border-radius: 18px;
+  background: rgba(11, 11, 18, 0.55);
+  color: var(--ink);
+  font-size: 12px;
+}
+.walk-caption {
+  position: absolute;
+  z-index: 5;
+  top: calc(max(8px, env(safe-area-inset-top)) + 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(70%, 34em);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(11, 11, 18, 0.62);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.walk-events {
+  position: absolute;
+  z-index: 5;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  /* Room is left on the right for 調べる and the two steps. */
+  max-width: calc(100% - 250px);
+}
+.walk-event { min-width: 0; min-height: 40px; padding: 6px 12px; font-size: 13px; white-space: nowrap; background: rgba(11, 11, 18, 0.7); }
+@media (max-height: 330px) {
+  .walk-event, .walk-look { font-size: 12px; padding: 6px 10px; }
+}
+.walk-controls {
+  position: absolute;
+  z-index: 5;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.walk-look { min-width: 0; min-height: 40px; padding: 6px 14px; font-size: 13px; }
+.walk-step {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(233, 230, 240, 0.3);
+  border-radius: 50%;
+  background: rgba(11, 11, 18, 0.6);
+  color: var(--ink);
+  font-size: 16px;
+}
+.walk-step:disabled { opacity: 0.3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .walk-light, .walk-mist, .walk-figure, .walk-point, .amb { animation: none !important; }
+  .amb { display: none; }
+}

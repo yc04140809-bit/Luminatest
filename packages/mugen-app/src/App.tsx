@@ -573,6 +573,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // Once one of the four answers is on disk this is false for
           // good, which is what makes the encounter unrepeatable.
           galdWaiting={world.getGaldLifeChoice() === null}
+          // Read, never written: what the forest notices depends on it.
+          known={world.getKnownEvents().map((e) => e.type)}
+          day={world.getClock().worldDay}
           onGald={() => {
             story.current = true;
             flow.goTo('ENCOUNTER');
