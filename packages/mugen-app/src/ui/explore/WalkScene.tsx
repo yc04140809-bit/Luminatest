@@ -84,6 +84,7 @@ export function WalkScene({
   events,
   onLeave,
   leaveLabel,
+  leaveTestId = 'leave-forest',
 }: {
   scene: WalkSceneDef;
   place: WalkPlaceId;
@@ -93,6 +94,8 @@ export function WalkScene({
   events?: ReactNode;
   onLeave: () => void;
   leaveLabel: string;
+  /** The way out's test id — the forest's, unless the place has its own. */
+  leaveTestId?: string;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -269,7 +272,8 @@ export function WalkScene({
   const { w, h } = size;
   const paintW = w * (1 + PAN);
   const paintH = paintW / (1672 / 941);
-  const paintTop = h - paintH;
+  // Cropped from the top and bottom in the proportion the place asks for.
+  const paintTop = (h - paintH) * Math.min(1, Math.max(0, scene.framing ?? 1));
   const shift = (depth: number) => layerShift(t, depth) * w;
   const atPaint = (x: number, y: number) => ({ left: x * paintW, top: paintTop + y * paintH });
 
@@ -379,7 +383,7 @@ export function WalkScene({
       {/* THE CONTROLS — as few as the moment needs. */}
       <div className="walk-top">
         <h1 className="place walk-title">{scene.title}</h1>
-        <button className="walk-leave" data-testid="leave-forest" onClick={onLeave}>
+        <button className="walk-leave" data-testid={leaveTestId} onClick={onLeave}>
           {leaveLabel}
         </button>
       </div>

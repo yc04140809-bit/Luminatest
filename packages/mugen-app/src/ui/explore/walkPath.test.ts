@@ -63,3 +63,16 @@ describe('between two things, nothing glints', () => {
     }
   });
 });
+
+describe('古代遺跡 on the same walk', () => {
+  it('every thing is reachable, and no two glints overlap', async () => {
+    const { APPROACH } = await import('./walkPath');
+    const { RUINS_WALK } = await import('@mugen/content/exploration/ruinsWalk');
+    const ts = RUINS_WALK.points.map((p) => stopFor(p.at.x)).sort((a, b) => a - b);
+    for (const t of ts) {
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThanOrEqual(1);
+    }
+    for (let i = 1; i < ts.length; i++) expect(ts[i] - ts[i - 1]).toBeGreaterThan(2 * APPROACH);
+  });
+});

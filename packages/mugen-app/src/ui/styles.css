@@ -1108,7 +1108,13 @@ body {
 /* Its brightness is how near the party is (set inline): nothing from
    afar, faint as they come close, full beside it. The pulse is slow and
    small — a breath, not a blink. */
-.walk-point { transition: opacity 0.25s linear; animation-duration: 2.8s; }
+.walk-point {
+  transition: opacity 0.25s linear;
+  animation-duration: 2.8s;
+  /* A faint dark edge, so the light still reads on pale stone or sand;
+     on dark ground it is invisible. */
+  filter: drop-shadow(0 0 2px rgba(20, 14, 6, 0.55));
+}
 .walk-point.is-looked { animation: none; }
 @keyframes walk-point-glint { 0%, 100% { transform: scale(0.85); } 50% { transform: scale(1.08); } }
 
@@ -1204,9 +1210,11 @@ body {
   align-items: center;
   gap: 8px;
 }
-.walk-look { min-width: 0; min-height: 40px; padding: 6px 14px; font-size: 13px; }
+.walk-look { min-width: 0; min-height: 40px; padding: 6px 14px; font-size: 13px; background: rgba(11, 11, 18, 0.7); }
 .walk-step {
   width: 44px;
+  /* The steps sit over the painting too: kept dark so pale ground never
+     swallows them. */
   height: 44px;
   border: 1px solid rgba(233, 230, 240, 0.3);
   border-radius: 50%;
@@ -1214,7 +1222,7 @@ body {
   color: var(--ink);
   font-size: 16px;
 }
-.walk-step:disabled { opacity: 0.3; }
+.walk-step:disabled { color: rgba(233, 230, 240, 0.3); border-color: rgba(233, 230, 240, 0.15); }
 
 /* Quiet moments, one at a time: a leaf passing, the light shifting, a
    bird's shadow far off. Each plays once (about 4s) and is gone. */

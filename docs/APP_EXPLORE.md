@@ -45,10 +45,32 @@
 - SAVE・WORLD MEMORY・TIME SHIFT・戦闘・四択には触れない。探索中は世界に何も書き込まない（e2e でセーブの全行が不変であることを確認）。
 - BGM は従来どおり森の曲。SE は既存の `explore_marker`（調査ポイントに着いた）と `explore_found`（調べた）を呼ぶだけで、ファイルが無い今は無音（仮音源は追加していない）。風・鳥・足音などの環境 SE は ID がまだ無いので未対応。
 
+## 登録済みの場所（2026-10-05）
+
+場所の ID と表示名は `mugen-core/content/exploration/walkPlaces.ts` の 1 か所で管理（名前の変更は 1 行）。仮の名前は `provisional: true`。
+
+| ID | 表示名 | 絵 | 状態 |
+|---|---|---|---|
+| `GREENWOOD_FOREST` | グリーンウッドの森 | `field-greenwood.png` | 本編（地方図から） |
+| `ANCIENT_RUINS` | 古代遺跡（仮） | `battle/ruins.png` | 探索画面あり。**DEBUG 入口のみ**（タイトルの「DEBUG 探索（古代遺跡）」＝`?preview=walk&place=ANCIENT_RUINS`）。世界を開かず、何も保存しない |
+| `CASTLE_TOWN` | 城下町（仮） | `battle/city.png` | 登録のみ |
+| `GRASSLAND` | 草原（仮） | `battle/grassland.png` | 登録のみ |
+| `SWAMP` | 沼地（仮） | `battle/swamp.png` | 登録のみ |
+| `SEASHORE` | 海辺（仮） | `battle/beach.png` | 登録のみ |
+
+- 5 枚の絵は戦闘背景と同じファイルをそのまま参照（複製・加工なし）。
+- 古代遺跡：調査ポイント 3 つ（石造りのアーチ／古い旗／崩れた石段）、環境テキスト 3 つ（見えるものだけ）、環境演出（葉・光の粒・鳥）。人影・条件・出来事なし（`ruinsWalk.ts`）。
+
+### 遺跡で見つかった共通基盤の調整（森の見た目はほぼ不変）
+
+- `framing`（場所の定義）：絵のどの高さを見せるか（0＝上端・1＝下端、既定 1）。戦闘背景は主役（アーチ・旗・山）が絵の上半分にあり、下端基準だと切れていたため。遺跡は 0.3。森は未指定（従来どおり）。
+- 明るい地面で読めなくなる部品に暗い下地：「調べる」に背景、◀▶ は無効時も下地を残して矢印だけ薄くする、地面の光に薄い影。
+- 戻るボタンのテスト用 ID を場所ごとに渡せるように（森は `leave-forest` のまま）。
+
 ## 他の場所への流用
 
 1. `WalkSceneDef` を 1 つ書く（名前・調査ポイント・環境テキスト・環境演出・人影）
-2. `src/assets/walk.ts` の `PAINTINGS` に場所の絵を 1 行足す（1672×941 前後の横長、地面が下半分にある絵）
+2. `walkPlaces.ts` に ID と表示名、`src/assets/walk.ts` の `PAINTINGS` に絵を 1 行足す（1672×941 前後の横長）。主役が絵の上半分にあるなら `framing` を 1 未満に
 3. 画面側は `<WalkScene scene={…} place="…" view={…} events={…} />` を置くだけ（`GreenwoodScreen` が見本）
 
 ## 実機で確認すること

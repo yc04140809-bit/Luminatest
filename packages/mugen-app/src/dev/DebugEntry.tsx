@@ -31,6 +31,13 @@ export function DebugEntry() {
         DEBUG 戦闘演出プレビュー
       </button>
       <button
+        data-testid="debug-walk-ruins"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=walk&place=ANCIENT_RUINS`)}
+        style={DOOR}
+      >
+        DEBUG 探索（古代遺跡）
+      </button>
+      <button
         data-testid="debug-forge-import"
         onClick={() => window.location.assign(`${window.location.pathname}?tool=forge-import`)}
         style={DOOR}

@@ -7,11 +7,23 @@
 // from the shared registry, which names its own files.
 
 import type { ExplorationSpriteSet } from '@mugen/content/characters/explorationSprites';
+import type { WalkPlaceId } from '@mugen/content/exploration/walkPlaces';
 
-export type WalkPlaceId = 'GREENWOOD_FOREST';
+export type { WalkPlaceId };
 
+/**
+ * The painting each place is walked across, as delivered. The five
+ * besides the forest are the battle backgrounds of the same places —
+ * the very same files, referenced rather than copied, so a place looks
+ * the same whether it is walked or fought in.
+ */
 const PAINTINGS: Record<WalkPlaceId, () => Promise<{ default: string }>> = {
   GREENWOOD_FOREST: () => import('@mugen/assets/files/backgrounds/field-greenwood.png'),
+  ANCIENT_RUINS: () => import('@mugen/assets/files/backgrounds/battle/ruins.png'),
+  CASTLE_TOWN: () => import('@mugen/assets/files/backgrounds/battle/city.png'),
+  GRASSLAND: () => import('@mugen/assets/files/backgrounds/battle/grassland.png'),
+  SWAMP: () => import('@mugen/assets/files/backgrounds/battle/swamp.png'),
+  SEASHORE: () => import('@mugen/assets/files/backgrounds/battle/beach.png'),
 };
 
 const paintings = new Map<WalkPlaceId, Promise<string | null>>();

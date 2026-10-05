@@ -79,6 +79,15 @@ export interface WalkSceneDef {
   ambience: readonly WalkAmbience[];
   /** Figures seen in the distance, while their condition holds. */
   figures?: readonly WalkFigure[];
+  /**
+   * WHICH PART OF THE PAINTING THE SCREEN SHOWS, top to bottom: 0 keeps
+   * its top edge, 1 (the default) its bottom edge. A landscape screen
+   * always crops a little of the painting's height, and a painting with
+   * its ground in the middle (the forest) wants the bottom kept, while
+   * one whose arches and banners stand in the upper half wants to look
+   * higher. Presentation only.
+   */
+  framing?: number;
 }
 
 /** What a condition is asked against: what the player knows, and when it is. */

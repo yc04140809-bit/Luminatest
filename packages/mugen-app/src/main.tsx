@@ -36,6 +36,20 @@ if (
       </StrictMode>,
     ),
   );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('preview') === 'walk'
+) {
+  // `?preview=walk&place=ANCIENT_RUINS` — a place walked on its own
+  // (src/dev/WalkPreview.tsx), for places no door in the game leads to
+  // yet. Debug builds only, the same compile-time way.
+  void import('./dev/WalkPreview').then(({ WalkPreview }) =>
+    root.render(
+      <StrictMode>
+        <WalkPreview params={params} />
+      </StrictMode>,
+    ),
+  );
 } else {
   root.render(
     <StrictMode>
