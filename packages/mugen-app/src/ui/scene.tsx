@@ -64,9 +64,21 @@ export function usePicture(load: (() => Promise<string | null>) | null, key: str
   return src && src.key === key ? src.src : null;
 }
 
+/**
+ * A WHOLE ILLUSTRATION standing where a figure would — a future seen,
+ * a place found. Already fetched by the caller; drawn whole, never
+ * cropped, on the figure's side of the stage.
+ */
+export interface StagePicture {
+  src: string;
+  alt: string;
+  testId: string;
+}
+
 export function Stage({
   backdrop,
   figure,
+  picture,
   side = 'left',
   className = '',
   testId,
@@ -74,6 +86,8 @@ export function Stage({
 }: {
   backdrop: Backdrop;
   figure?: FigureCue | null;
+  /** In place of a figure, when there is none. */
+  picture?: StagePicture | null;
   /** Which side the figure stands on; the words take the other. */
   side?: 'left' | 'right';
   className?: string;
@@ -95,9 +109,10 @@ export function Stage({
     figureKey,
   );
   const showPerson = figure && person && failed !== person;
+  const showPicture = !showPerson && picture && failed !== picture.src;
   return (
     <div
-      className={`screen stage stage-${side} ${showPerson ? 'has-figure' : ''} ${className}`}
+      className={`screen stage stage-${side} ${showPerson || showPicture ? 'has-figure' : ''} ${className}`}
       data-testid={testId}
     >
       {back && (
@@ -118,6 +133,15 @@ export function Stage({
           data-who={figure.who}
           data-state={figure.state}
           onError={() => setFailed(person)}
+        />
+      )}
+      {showPicture && (
+        <img
+          className="stage-figure stage-picture"
+          src={picture.src}
+          alt={picture.alt}
+          data-testid={picture.testId}
+          onError={() => setFailed(picture.src)}
         />
       )}
       <div className="stage-words">{children}</div>

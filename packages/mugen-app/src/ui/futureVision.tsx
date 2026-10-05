@@ -8,7 +8,10 @@ import {
   FUTURE_VISION_SEEN_LINE,
 } from '@mugen/content/dialogue/galdEncounter';
 import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
-import { Stage, kaosFigureFor } from './scene';
+import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
+import type { EventCgKey } from '@mugen/assets/keys';
+import { Stage, kaosFigureFor, usePicture } from './scene';
+import { eventCg } from '../assets/eventCg';
 
 /**
  * She is the one talking through all three beats — asking, showing,
@@ -36,6 +39,24 @@ const HER = kaosFigureFor({ speaker: 'ケイオス', text: '' });
  * Three beats, in the order the scene is specified: she asks, she
  * shows, she brings them back.
  */
+/**
+ * THE ONE PICTURE OF THE FUTURE SHE SHOWS — the player's own, and no other.
+ *
+ * Read off what is already defined, never chosen here: `future` is the
+ * chain previewed from the answer the player gave (`lifeEvents.ts`),
+ * and each future site names the life event it belongs to
+ * (`requiredMemory`) and its picture (`eventCg`). The site whose event
+ * is in this preview is the future being shown. Exactly one, or no
+ * picture at all: this never guesses, never offers the others, and
+ * never lets the player pick.
+ */
+export function visionCgOf(future: readonly MemoryEvent[]): { key: EventCgKey; alt: string } | null {
+  const types = new Set(future.map((e) => e.type));
+  const sites = FUTURE_SITE_DEFS.filter((d) => d.eventCg && types.has(d.requiredMemory));
+  if (sites.length !== 1 || !sites[0].eventCg) return null;
+  return { key: sites[0].eventCg, alt: sites[0].eventCgAlt };
+}
+
 function Lines({ lines }: { lines: readonly DialogueLine[] }) {
   return (
     <>
@@ -59,6 +80,8 @@ export function FutureVisionScreen({
 }) {
   const [beat, setBeat] = useState<'ASK' | 'SEE' | 'BACK'>('ASK');
   const [leaving, setLeaving] = useState(false);
+  const vision = visionCgOf(future);
+  const cg = usePicture(vision ? () => eventCg(vision.key) : null, `event-cg:${vision?.key ?? 'none'}`);
 
   if (beat === 'ASK') {
     return (
@@ -74,8 +97,14 @@ export function FutureVisionScreen({
   }
 
   if (beat === 'SEE') {
+    // What she shows stands where she stood, for this one beat.
     return (
-      <Stage backdrop="ALDEN" figure={HER} side="left">
+      <Stage
+        backdrop="ALDEN"
+        figure={vision ? null : HER}
+        picture={vision && cg ? { src: cg, alt: vision.alt, testId: 'future-vision-cg' } : null}
+        side="left"
+      >
         <div data-testid="future-vision" data-beat="SEE">
           <p className="seasons">春 — 夏 — 秋 — 冬</p>
           <p className="line" data-testid="future-vision-years">

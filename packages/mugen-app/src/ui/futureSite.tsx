@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { futureSiteDef } from '@mugen/content/world/futureSites';
 import { Place } from './screens';
+import { Stage, usePicture } from './scene';
+import { eventCg } from '../assets/eventCg';
 
 /**
  * THE PLACE THE CHOICE LED TO.
@@ -18,8 +20,13 @@ import { Place } from './screens';
  * `world.recordFutureSiteDiscovery`, which refuses a place the world
  * has not opened and returns the existing event if it has already
  * happened. The Artifact's version of this screen plays the scene with
- * dialogue and art; this one states the fact. Nothing about WHICH
- * facts, or when, differs between them.
+ * dialogue and art; this one states the fact, beside the same picture.
+ * Nothing about WHICH facts, or when, differs between them.
+ *
+ * THE PICTURE IS THE SITE'S OWN `eventCg`, and only once the player is
+ * inside — never on the list, where the place is still 「？？？」. It is
+ * presentational: a picture that fails to load leaves the words exactly
+ * as they were.
  */
 export function FutureSiteScreen({
   world,
@@ -43,9 +50,16 @@ export function FutureSiteScreen({
   };
 
   const seen = openId ? futureSiteDef(openId) : null;
+  const cgKey = seen?.eventCg ?? null;
+  const cg = usePicture(cgKey ? () => eventCg(cgKey) : null, `event-cg:${cgKey}`);
   if (seen) {
     return (
-      <Place area="ALDEN" title={seen.knownName}>
+      <Stage
+        backdrop="ALDEN"
+        picture={cg ? { src: cg, alt: seen.eventCgAlt, testId: 'future-site-cg' } : null}
+        side="left"
+      >
+        <h1 className="place">{seen.knownName}</h1>
         <div data-testid="future-site-seen" data-site={seen.id}>
           <p className="line" data-testid="future-site-description">
             {seen.knownDescription}
@@ -54,7 +68,7 @@ export function FutureSiteScreen({
             もどる
           </button>
         </div>
-      </Place>
+      </Stage>
     );
   }
 

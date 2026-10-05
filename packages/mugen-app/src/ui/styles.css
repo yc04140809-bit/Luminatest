@@ -856,6 +856,16 @@ body {
 .stage-right.has-figure .stage-words { align-self: flex-start; }
 .stage-speaker { margin: 0; }
 .stage-line { margin: 2px 0; }
+/* A whole illustration in the figure's place — a future seen, a place
+   found. All four are 2:3, so at this height the picture sets its own
+   width and the box is exactly the picture: whole, never cropped or
+   stretched, with a frame so it reads as a painting, not a cut-out. */
+.stage-picture {
+  height: 92%;
+  bottom: 4%;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.45), 0 8px 24px rgba(0, 0, 0, 0.6);
+}
 /* The world, alone, before anybody speaks. */
 .stage-monologue { background: #000; }
 .line.monologue {
