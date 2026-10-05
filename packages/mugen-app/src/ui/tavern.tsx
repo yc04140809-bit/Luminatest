@@ -22,8 +22,25 @@ import { tavernArt, type TavernArt } from '../assets/tavern';
 const lineOf = (eventId: string): readonly DialogueLine[] =>
   ALDEN_EXPERIENCE_EVENTS.find((e) => e.eventId === eventId)?.content.lines ?? [];
 
-/** Meeting him: the Artifact's first visit, as written. */
-export const TAVERN_MEETING_LINES = lineOf('MOONLIGHT_TAVERN_FIRST_VISIT');
+/**
+ * THE ONE LINE THAT DESCRIBES HIM, AS THE APP DRAWS HIM.
+ *
+ * The content's first meeting was written for the Artifact's tavern,
+ * where he is painted behind the bar with his arms folded. The App's
+ * master stands with a hand on his hip, laughing — so here, and only
+ * here, that one line of narration says what the player can see. The
+ * event, every other line and the Artifact's text are untouched.
+ */
+const ARMS_FOLDED = 'カウンターの奥に、腕を組んだ大男が立っている。';
+const AS_DRAWN: readonly DialogueLine[] = [
+  { speaker: null, text: 'カウンターの奥に、大柄な男が立っている。' },
+  { speaker: null, text: '片手を腰に当て、豪快な笑みを浮かべていた。' },
+];
+
+/** Meeting him: the Artifact's first visit, with him described as drawn here. */
+export const TAVERN_MEETING_LINES: readonly DialogueLine[] = lineOf('MOONLIGHT_TAVERN_FIRST_VISIT').flatMap(
+  (l) => (l.speaker === null && l.text === ARMS_FOLDED ? AS_DRAWN : [l]),
+);
 /** Every talk after that: his ordinary greeting, as written. */
 export const TAVERN_GREETING_LINES = lineOf('TAVERN_MASTER_IDLE');
 

@@ -125,6 +125,11 @@ test('village → tavern → the room, the master, a talk → back to the villag
   const meeting = await readTalk(page);
   expect(meeting[0]).toBe('扉を押すと、煮込みと安い酒の匂いがした。');
   expect(meeting).toContain('「グレイヴだ。ここの主人をやってる。」');
+  // He is described as he is drawn here: a hand on his hip, laughing.
+  expect(meeting).toEqual(
+    expect.arrayContaining(['カウンターの奥に、大柄な男が立っている。', '片手を腰に当て、豪快な笑みを浮かべていた。']),
+  );
+  expect(meeting.join('')).not.toContain('腕を組んだ');
   // And after that, his ordinary greeting.
   const greeting = await readTalk(page);
   expect(greeting[0]).toBe('「また来たな。そこ空いてるぞ。」');

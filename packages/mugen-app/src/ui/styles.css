@@ -911,7 +911,12 @@ body {
 }
 .tavern-master {
   position: absolute;
-  right: max(3%, env(safe-area-inset-right));
+  /* 10%, not flush right: the room's near chair sits at 59–80% across
+     the screen (the room is always fitted by width on a landscape
+     phone, so that holds at every size). Flush right put his boot on
+     the chair's corner; here his legs stand in front of it, and his
+     elbow still clears the words on a 640-wide screen. */
+  right: max(10%, env(safe-area-inset-right));
   bottom: 2%;
   width: 36%;
   height: 94%;
