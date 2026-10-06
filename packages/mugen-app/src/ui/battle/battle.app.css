@@ -27,3 +27,56 @@
 .bp-screen * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ---- A BOSS (セキリュウガ): its plate, its roar, its warning ----
+   App only. The roar is a beat with no blow in it — it rears back and
+   the air around it glows — and from then until it lets go a red 「！」
+   stands over it: the next blow is the one worth bracing for. */
+.bx-boss-tag {
+  /* Over the name, not beside it: the plate's head has no room to spare. */
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 2px);
+  padding: 0 4px;
+  border-radius: 2px;
+  background: #8e2a1f;
+  color: #fff3e0;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+.bp-enemy.roar { animation: bp-roar var(--bp-hide, 0.56s) ease-out; }
+@keyframes bp-roar {
+  0% { transform: translateX(0) scale(1); }
+  25% { transform: translateX(6px) scale(1.06); }
+  45% { transform: translateX(-4px) scale(1.04); }
+  65% { transform: translateX(3px) scale(1.05); }
+  100% { transform: translateX(0) scale(1); }
+}
+.bp-enemy.charging .bp-art,
+.bp-enemy.roar .bp-art {
+  filter: drop-shadow(0 0 10px rgba(214, 64, 40, 0.85)) drop-shadow(0 0 22px rgba(214, 64, 40, 0.45));
+}
+.bp-tell {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  z-index: 3;
+  color: #e0362b;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 4px #fff, 0 2px 6px rgba(0, 0, 0, 0.6);
+  animation: bp-tell 0.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes bp-tell {
+  from { transform: translateX(-50%) translateY(0) scale(1); }
+  to { transform: translateX(-50%) translateY(-4px) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-enemy.roar, .bp-tell { animation: none; }
+}

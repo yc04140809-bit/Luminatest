@@ -98,9 +98,11 @@ export const SFX_TUNING: Partial<Record<SfxId, SfxTuning>> = {
   battle_start: { gain: 0.85 },
   // Guarding, a parry (delivered 2026-10-06): a short mid clang, 0.34s.
   battle_guard: { gain: 0.78, pitch: 0.03 },
-  // Not wired yet — fleeing is not built, nor is any entrance from below.
   battle_escape: { gain: 0.9 },
+  // セキリュウガ's entrance: its name on the screen, the shape coming up out of the dark.
   battle_boss_emerge: { gain: 0.5 },
+  // The low rumble in the quiet before it (the earth spell's quake, lower and shorter).
+  story_rumble: { source: 'battle_magic_earth', gain: 0.75, maxMs: 3200 },
 
   // ---- ambience (loops; no player for them yet) ----
   // Set to sit under the music: the delivered levels run −20 to −27 dB.

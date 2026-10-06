@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <!-- 仮影絵 — NOT セキリュウガ'S OFFICIAL ART. Brought to a stop: the same
+       haze, lower. It decides no pose, size, build, colour or species. -->
+  <defs>
+    <filter id="haze" x="0" y="0" width="600" height="600" filterUnits="userSpaceOnUse">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="4" seed="11" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="90" xChannelSelector="R" yChannelSelector="A" result="moved"/>
+      <feGaussianBlur in="moved" stdDeviation="14"/>
+    </filter>
+    <radialGradient id="core" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#0d0b10"/>
+      <stop offset="60%" stop-color="#15121a" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#1c1822" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g filter="url(#haze)" transform="translate(40 -20)">
+    <ellipse cx="300" cy="460" rx="250" ry="110" fill="url(#core)"/>
+    <ellipse cx="240" cy="450" rx="130" ry="70" fill="#100e14" fill-opacity="0.8"/>
+    <ellipse cx="370" cy="480" rx="150" ry="60" fill="#100e14" fill-opacity="0.8"/>
+    <ellipse cx="300" cy="530" rx="240" ry="34" fill="#0d0b10" fill-opacity="0.85"/>
+  </g>
+  <g font-family="sans-serif" text-anchor="middle">
+    <circle cx="340" cy="462" r="30" fill="none" stroke="#d9cfc2" stroke-opacity="0.55" stroke-width="2.5" stroke-dasharray="6 5"/>
+    <text x="340" y="474" font-size="32" fill="#d9cfc2" fill-opacity="0.6">仮</text>
+  </g>
+</svg>

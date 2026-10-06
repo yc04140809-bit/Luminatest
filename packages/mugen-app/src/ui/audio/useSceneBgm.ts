@@ -16,8 +16,10 @@ import { useEffect } from 'react';
 import { audioManager } from '../../platform/audio';
 import { bgmForScene, type SceneCue } from '@mugen/content/audio/sceneBgm';
 
-export function useSceneBgm(cue: SceneCue): void {
-  const want = bgmForScene(cue);
+export function useSceneBgm(cue: SceneCue, hush = false): void {
+  // HUSHED: the music let down for a moment the scene holds its breath in
+  // (the way in to セキリュウガ), whatever the place would play.
+  const want = hush ? null : bgmForScene(cue);
 
   // A phone makes no sound until the person has touched it, and the
   // touch that counts is ANY touch. Whatever the game has asked for by
@@ -28,9 +30,10 @@ export function useSceneBgm(cue: SceneCue): void {
 
   useEffect(() => {
     if (want === null) {
-      audioManager.stopBgm();
+      if (hush) audioManager.fadeOutBgm();
+      else audioManager.stopBgm();
       return;
     }
     audioManager.playBgm(want);
-  }, [want]);
+  }, [want, hush]);
 }

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
+import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import { ALDEN_SHOP_NAME, ALDEN_SHOP_OFFERS } from '@mugen/content/economy/aldenShop';
 import { buyPriceOf, inStock } from '@mugen/core/economy/shop';
 import { itemDef } from '@mugen/content/economy/itemDefs';
@@ -19,8 +20,26 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
  * affordability, or write either number itself. It asks, and it shows
  * what came back.
  */
-export function ItemShopScreen({ world, onLeave }: { world: World; onLeave: () => void }) {
+export function ItemShopScreen({
+  world,
+  onLeave,
+  rumor = null,
+  onRumor,
+}: {
+  world: World;
+  onLeave: () => void;
+  /**
+   * THE KEEPER'S RUMOUR (the first boss route) — said over the counter as
+   * the door opens, there being no talking at a shop board. Heard by being
+   * shown: `onRumor` is told once, when it is.
+   */
+  rumor?: DialogueLine | null;
+  onRumor?: () => void;
+}) {
   const [said, setSaid] = useState<string | null>(null);
+  useEffect(() => {
+    if (rumor) onRumor?.();
+  }, []);
   const [busy, setBusy] = useState(false);
   const lumi = world.getLumi();
 
@@ -49,6 +68,11 @@ export function ItemShopScreen({ world, onLeave }: { world: World; onLeave: () =
       <p className="purse" data-testid="shop-lumi">
         LUMI {lumi}
       </p>
+      {rumor && (
+        <p className="say shop-keeper" data-testid="shop-keeper-line">
+          {rumor.speaker}「{rumor.text.replace(/\n/g, '')}」
+        </p>
+      )}
       <ul className="shop-list">
         {ALDEN_SHOP_OFFERS.map((offer) => {
           const def = itemDef(offer.itemId);

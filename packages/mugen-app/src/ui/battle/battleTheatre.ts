@@ -70,9 +70,17 @@ export const REACTION_LAG_MS = 45;
 /** How long a said line holds before getting out of the way. */
 export const SAY_HOLD_MS = 2000;
 
+/**
+ * THE APP'S OWN BEATS, held as long as one of the Artifact's (whose table
+ * above stays exactly the Artifact's): a boss's roar is held as long as a
+ * creature diving into the moss — a moment with no blow in it.
+ */
+const HELD_AS: Record<string, string> = { ROAR: 'HIDE' };
+
 /** A beat's length on screen at this speed — the timer AND the drawing. */
 export function beatLength(step: string, speed: BattleSpeed): number {
-  return visualMs(BEAT_MS[step] ?? 300, speed, BEAT_MIN_MS[step] ?? 140);
+  const as = HELD_AS[step] ?? step;
+  return visualMs(BEAT_MS[as] ?? 300, speed, BEAT_MIN_MS[as] ?? 140);
 }
 
 /** How long a camera move takes to be seen. */
@@ -97,9 +105,14 @@ export function answered(next: BattleState): boolean {
   return next.outcome !== 'VICTORY' && next.lastEnemyAction !== 'NONE';
 }
 
-/** The creature's answer, in beats — the Artifact's `answerOf`. */
+/**
+ * The creature's answer, in beats — the Artifact's `answerOf`, and one
+ * more of the App's: a boss gathering itself (its roar) is ROAR, not the
+ * moss rabbit's dive.
+ */
 export function answerOf(next: BattleState): string[] {
   if (!answered(next)) return [];
+  if (next.lastEnemyMove === 'CHARGE') return ['ROAR'];
   return next.lastEnemyAction === 'SKILL'
     ? ['HIDE']
     : next.lastEnemyAction === 'ATTACK'

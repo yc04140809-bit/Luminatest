@@ -60,6 +60,8 @@ export const INITIAL_UNLOCKED_BATTLE_BGM: readonly BattleBgmId[] = [DEFAULT_BATT
  */
 export const FORCED_BATTLE_BGM: Record<string, BattleBgmId> = {
   GALD: 'BOSS_BATTLE',
+  // The first boss route's セキリュウガ (App only): the same boss piece.
+  SEKIRYUGA: 'BOSS_BATTLE',
 };
 
 /** Whether this is one of them — the guard a stored choice goes through. */

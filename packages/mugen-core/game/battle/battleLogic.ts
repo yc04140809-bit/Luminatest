@@ -175,6 +175,46 @@ export function liveBoosts(state: BattleState): ActiveBoost[] {
   return state.boosts.filter((boost) => boostLive(boost, state.turnsTaken));
 }
 
+/**
+ * A CREATURE WITH MORE THAN ONE WAY TO HIT — a boss.
+ *
+ * Optional, and absent from every fight there was before it: a creature
+ * without it chooses exactly as it always did, consuming the same dice in
+ * the same order. With it, each of its turns is one of three things —
+ *
+ *   its ordinary blow   (`attackName`, `attackMin`–`attackMax`)
+ *   a harder one        (`heavy`), sometimes, instead
+ *   the gathering       (`charge`): a turn with no blow at all, said out
+ *                       loud, and on its NEXT turn the blow it gathered
+ *                       for (`charge.release`). The saying is the tell:
+ *                       one turn's warning to brace (身構える halves it,
+ *                       as it halves anything).
+ *
+ * Nothing new in how a blow is worked out: a move's `power` is one more
+ * multiplier in the same list every blow already goes through.
+ */
+export interface EnemyMoveSet {
+  /** A harder blow, thrown instead of the ordinary one this often. */
+  heavy: { name: string; power: number; chance: number };
+  charge: {
+    /** What the gathering is called. */
+    name: string;
+    /** Said as it gathers — the tell. */
+    line: string;
+    /** How likely it is to gather on a turn it may. A phase's `skillChance` overrides it. */
+    chance: number;
+    /** Its turns before it may gather again, counted from the release. */
+    cooldown: number;
+    /** Its turns at the start of a fight before it may gather at all. */
+    firstAfter: number;
+    /** The blow it gathered for. */
+    release: { name: string; power: number };
+  };
+}
+
+/** Which of its moves the creature just made, for the screen to play. */
+export type EnemyMoveKind = 'BLOW' | 'HEAVY' | 'CHARGE' | 'RELEASE';
+
 export interface EnemySpec {
   name: string;
   hp: number;
@@ -206,6 +246,8 @@ export interface EnemySpec {
    * of them.
    */
   awakening?: MagicAwakening;
+  /** More than one way to hit, if this one has them. See `EnemyMoveSet`. */
+  moves?: EnemyMoveSet;
 }
 
 /**
@@ -372,6 +414,17 @@ export interface BattleState {
   wardName: string | null;
   log: string[];
   outcome: BattleOutcome;
+  /**
+   * ONLY FOR A CREATURE WITH MOVES (see `EnemyMoveSet`) — absent from
+   * every other fight's state, so those states are exactly what they were.
+   */
+  enemyMoves?: EnemyMoveSet;
+  /** It gathered last turn: its next turn is the release. */
+  enemyCharging?: boolean;
+  /** Its turns before it may gather again. */
+  enemyChargeCooldown?: number;
+  /** Which move it made on its last turn. Null when it made none. */
+  lastEnemyMove?: EnemyMoveKind | null;
 }
 
 /** Random source, injectable for deterministic tests. Returns [0, 1). */
@@ -523,6 +576,14 @@ export function createBattle(
     wardName: null,
     log: [spec.appearLine ?? `${spec.name}が現れた！`],
     outcome: 'ONGOING',
+    ...(spec.moves
+      ? {
+          enemyMoves: spec.moves,
+          enemyCharging: false,
+          enemyChargeCooldown: spec.moves.charge.firstAfter,
+          lastEnemyMove: null,
+        }
+      : {}),
   };
 }
 
@@ -559,6 +620,7 @@ function enemyTurn(
       enemySkillCooldown: Math.max(0, state.enemySkillCooldown - 1),
       lastEnemyAction: 'NONE',
     lastEnemyDamage: 0,
+      ...(state.enemyMoves ? { lastEnemyMove: null } : {}),
       log: back.recovered && state.enemyPoiseSpec
         ? [...state.log, state.enemyPoiseSpec.recoverLine]
         : state.log,
@@ -567,6 +629,7 @@ function enemyTurn(
 
   const phase = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
   const cooldown = Math.max(0, state.enemySkillCooldown - 1);
+  if (state.enemyMoves) return movesTurn(state, state.enemyMoves, defending, rng, forced, phase, cooldown);
   const skill = state.enemySkill;
   const mayHide =
     skill !== null &&
@@ -589,6 +652,24 @@ function enemyTurn(
     };
   }
 
+  return landBlow(state, defending, rng, phase, cooldown, null);
+}
+
+/**
+ * ONE BLOW REACHING THE PLAYER — the ordinary one, or a move's.
+ *
+ * `move` null is the creature's ordinary blow, worked out exactly as it
+ * always was (no extra multiplier, the same dice). A move adds its
+ * `power` to the same list and its own name to the log.
+ */
+function landBlow(
+  state: BattleState,
+  defending: boolean,
+  rng: Rng,
+  phase: EnemyPhase | null,
+  cooldown: number,
+  move: { name: string; power: number; kind: EnemyMoveKind } | null,
+): BattleState {
   // What reaches the player, in this order and no other: what it can
   // hit for, what Kaos took off it, what she put between them, whether
   // he braced, and last whatever a summoned memory left behind.
@@ -604,6 +685,7 @@ function enemyTurn(
     // animal that does not want to die.
     phase?.attack ?? 1,
     defending ? 0.5 : 1,
+    ...(move ? [move.power] : []),
   ]);
   // The ward is taken off, not multiplied in — and it always takes at
   // least one point. A fifth off a blow of four is 3.2, which rounds
@@ -614,7 +696,8 @@ function enemyTurn(
   const soften = warded ? Math.max(1, Math.round(struck * state.wardCut)) : 0;
   const dmg = Math.max(1, struck - soften);
   const playerHp = Math.max(0, state.playerHp - dmg);
-  const move = state.enemyAttackName ? `${state.enemyName}の${state.enemyAttackName}` : `${state.enemyName}の攻撃`;
+  const named = move ? move.name : state.enemyAttackName;
+  const said = named ? `${state.enemyName}の${named}` : `${state.enemyName}の攻撃`;
   // Said before the blow, not after: the last line of the log is what
   // the screen shows, and what the player needs to read there is the
   // damage. Spent whether it saved much or little — it was one blow's
@@ -629,7 +712,7 @@ function enemyTurn(
     // Said when it actually goes, not every time it works: a line that
     // appears on all four blows of a shield is a line nobody reads.
     ...(wardGone ? [`《${state.wardName ?? ARCANA_WARD_NAME}》が、そっと解けた。`] : []),
-    defending ? `${move}。防御して${dmg}のダメージ。` : `${move}！ ${dmg}のダメージ。`,
+    defending ? `${said}。防御して${dmg}のダメージ。` : `${said}！ ${dmg}のダメージ。`,
   ];
   const outcome: BattleOutcome = playerHp <= 0 ? 'DEFEAT' : state.outcome;
   return {
@@ -643,7 +726,67 @@ function enemyTurn(
     wardName: wardLeft > 0 ? state.wardName : null,
     log,
     outcome,
+    ...(state.enemyMoves ? { lastEnemyMove: move?.kind ?? 'BLOW' } : {}),
   };
+}
+
+
+/**
+ * A TURN FOR A CREATURE WITH MOVES. See `EnemyMoveSet`.
+ *
+ *   gathered last turn  → the release, whatever the dice say
+ *   may gather          → gathers, this often (no blow; the tell is said)
+ *   otherwise           → the harder blow this often, else the ordinary one
+ *
+ * Forced like any other turn, for the previews and the tests: 'SKILL' is
+ * the gathering (when it may), 'ATTACK' the ordinary blow.
+ */
+function movesTurn(
+  state: BattleState,
+  moves: EnemyMoveSet,
+  defending: boolean,
+  rng: Rng,
+  forced: EnemyAction | null,
+  phase: EnemyPhase | null,
+  cooldown: number,
+): BattleState {
+  if (state.enemyCharging) {
+    const released = landBlow(state, defending, rng, phase, cooldown, {
+      name: moves.charge.release.name,
+      power: moves.charge.release.power,
+      kind: 'RELEASE',
+    });
+    return { ...released, enemyCharging: false, enemyChargeCooldown: moves.charge.cooldown };
+  }
+  const chargeCooldown = Math.max(0, (state.enemyChargeCooldown ?? 0) - 1);
+  const mayGather = (state.enemyChargeCooldown ?? 0) === 0;
+  const gatherChance = phase?.skillChance ?? moves.charge.chance;
+  const gathers =
+    forced === 'SKILL' ? mayGather : forced === 'ATTACK' ? false : mayGather && rng() < gatherChance;
+  if (gathers) {
+    return {
+      ...state,
+      enemySkillCooldown: cooldown,
+      enemyCharging: true,
+      enemyChargeCooldown: chargeCooldown,
+      // Reported as its trick, so a screen that knows nothing of moves
+      // still sees "it did something that was not a blow".
+      lastEnemyAction: 'SKILL',
+      lastEnemyDamage: 0,
+      lastEnemyMove: 'CHARGE',
+      log: [...state.log, moves.charge.line],
+    };
+  }
+  const heavy = forced !== 'ATTACK' && rng() < moves.heavy.chance;
+  const struck = landBlow(
+    { ...state, enemyChargeCooldown: chargeCooldown },
+    defending,
+    rng,
+    phase,
+    cooldown,
+    heavy ? { name: moves.heavy.name, power: moves.heavy.power, kind: 'HEAVY' } : null,
+  );
+  return struck;
 }
 
 export function playerAttack(

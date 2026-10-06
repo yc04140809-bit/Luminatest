@@ -3,7 +3,9 @@
 // The second place in the walk template (`walkScene.ts`), and the first
 // that is not the forest: the same walk, glints and ambience across a
 // different painting and different ground. Reached only from a
-// developer's door for now — no map, no story, no memory.
+// developer's door, and — once the tavern's master has told of what was
+// sealed here — from the map (the first boss route, content/story/
+// sekiryugaArc.ts). No memory.
 //
 // THE WORDS ONLY SAY WHAT THE PAINTING SHOWS. The stairs, the banners,
 // the arches, the water far off — nothing about who built it, when, or
@@ -12,6 +14,7 @@
 
 import type { WalkSceneDef } from './walkScene';
 import { WALK_PLACES } from './walkPlaces';
+import { RUINS_PAST_BATTLE_TRACES } from '../story/sekiryugaArc';
 
 export const RUINS_WALK: WalkSceneDef = {
   id: 'ANCIENT_RUINS',
@@ -108,6 +111,9 @@ export const RUINS_WALK: WalkSceneDef = {
       { id: 'WORN_LETTERS', label: '風化した文字', text: '石に文字のようなものが刻まれている。\n風化して、もう読めない。' },
       { id: 'FEATHER', label: '落ちている羽根', text: '小さな鳥の羽根が一枚、石畳に落ちている。' },
       { id: 'WARM_STONE', label: '日だまりの石', text: '日だまりの石が、ほんのり温かい。' },
+      // AND TRACES OF A FIGHT, long ago — a sword's scar, a scorch, a worn
+      // seat. Whose, nothing says (content/story/sekiryugaArc.ts).
+      ...RUINS_PAST_BATTLE_TRACES,
     ],
     // GOLDEN: rarer, and only a line for now — nothing is handed over
     // (each could carry a `reward` the day the bag can take one).

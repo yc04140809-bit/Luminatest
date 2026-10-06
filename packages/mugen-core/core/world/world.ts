@@ -15,6 +15,7 @@ import {
   type OwnedTable,
 } from './equipmentState';
 import { readRareFinds, readVisits, type RareFindTable, type VisitTable } from './explorationState';
+import { advanceStage, arcOpen, readSekiryugaStage, type SekiryugaStage } from './storyArc';
 import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
@@ -70,6 +71,7 @@ import {
   GALD_LIFE_CHOICE_EVENT_TYPE,
   GALD_LIFE_CHOICE_TYPE_TO_CHOICE,
   GALD_LIFE_CHOICE_STATE_EFFECTS,
+  GALD_FUTURE_VISION_ID,
 } from '../../content/events/galdLifeChoice';
 import { LIFE_EVENT_DEFS } from '../../content/events/lifeEvents';
 import {
@@ -300,6 +302,11 @@ const OWNED_EQUIPMENT_KEY = 'owned_equipment';
  */
 const RARE_FINDS_KEY = 'explorationRareFinds';
 const VISITS_KEY = 'explorationVisits';
+/**
+ * THE FIRST BOSS ROUTE: the furthest stage this world has reached on it —
+ * see `storyArc.ts`. Absent reads as NONE, so no schema version moved.
+ */
+const SEKIRYUGA_ARC_KEY = 'sekiryugaArc';
 /**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
@@ -557,6 +564,7 @@ export class World {
   private unlockedBgm: BattleBgmId[];
   private rareFinds: RareFindTable;
   private visits: VisitTable;
+  private sekiryugaStage: SekiryugaStage;
 
   private readonly health: SaveHealth;
 
@@ -573,6 +581,7 @@ export class World {
     this.unlockedBgm = fields.unlockedBgm;
     this.rareFinds = fields.rareFinds;
     this.visits = fields.visits;
+    this.sekiryugaStage = fields.sekiryugaStage;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1034,6 +1043,37 @@ export class World {
       ],
     });
     this.equipment = next;
+    this.emit();
+    return true;
+  }
+
+  /**
+   * THE FIRST BOSS ROUTE — whether it has begun (after Gald, whichever of
+   * the four answers), and how far along it this world is. See `storyArc.ts`.
+   */
+  isSekiryugaArcOpen(): boolean {
+    return arcOpen({
+      galdDecided: this.getGaldLifeChoice() !== null,
+      visionSeen: this.hasSeenExperience(GALD_FUTURE_VISION_ID),
+      oldShift: this.hasEventOfType('WORLD_TIME_SHIFTED'),
+    });
+  }
+
+  getSekiryugaStage(): SekiryugaStage {
+    return this.sekiryugaStage;
+  }
+
+  /**
+   * Moves the route on to `stage`. Forward only: asking for a stage
+   * already passed writes nothing and returns false. Refused, too, while
+   * the route has not begun — nothing about it can be heard before Gald.
+   */
+  async advanceSekiryugaArc(stage: SekiryugaStage): Promise<boolean> {
+    if (!this.isSekiryugaArcOpen()) return false;
+    const next = advanceStage(this.sekiryugaStage, stage);
+    if (next === this.sekiryugaStage) return false;
+    await this.store.commit({ putState: [{ key: SEKIRYUGA_ARC_KEY, value: next }] });
+    this.sekiryugaStage = next;
     this.emit();
     return true;
   }
@@ -2507,6 +2547,7 @@ export class World {
     // And it has been nowhere and found nothing.
     this.rareFinds = {};
     this.visits = {};
+    this.sekiryugaStage = 'NONE';
     this.emit();
   }
 
@@ -2565,6 +2606,7 @@ export class World {
     // screen never shows a find the save no longer has.
     this.rareFinds = {};
     this.visits = {};
+    this.sekiryugaStage = 'NONE';
     this.emit();
   }
 }
@@ -2693,6 +2735,7 @@ interface WorldFields {
   unlockedBgm: BattleBgmId[];
   rareFinds: RareFindTable;
   visits: VisitTable;
+  sekiryugaStage: SekiryugaStage;
 }
 
 /** What reading a save had to say about it. */
@@ -2834,6 +2877,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readRareFinds(value));
     case VISITS_KEY:
       return settle(readVisits(value));
+    case SEKIRYUGA_ARC_KEY:
+      return settle(readSekiryugaStage(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -2918,6 +2963,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       unlockedBgm: take(UNLOCKED_BGM_KEY, readUnlockedBgm(byKey.get(UNLOCKED_BGM_KEY))),
       rareFinds: take(RARE_FINDS_KEY, readRareFinds(byKey.get(RARE_FINDS_KEY))),
       visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
+      sekiryugaStage: take(SEKIRYUGA_ARC_KEY, readSekiryugaStage(byKey.get(SEKIRYUGA_ARC_KEY))),
     },
     repairedKeys,
     unreadableKeys,

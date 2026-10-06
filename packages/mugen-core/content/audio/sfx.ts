@@ -133,6 +133,8 @@ export const SFX_IDS = [
   'story_choice',
   'story_event',
   'story_memory_written',
+  // The ground, low, before something is seen (the way in to セキリュウガ).
+  'story_rumble',
 ] as const;
 
 export type SfxId = (typeof SFX_IDS)[number];

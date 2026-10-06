@@ -22,6 +22,9 @@ import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-da
 import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
 import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
+// セキリュウガ's official art is not delivered yet: a placeholder shadow (see ENEMIES.sekiryuga).
+import sekiryugaPlaceholder from '../../assets/placeholder/sekiryuga-silhouette.svg';
+import sekiryugaPlaceholderStopped from '../../assets/placeholder/sekiryuga-silhouette-stopped.svg';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -118,6 +121,31 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
       down: {
         src: mossRabbitDown,
         box: { fileW: 1536, fileH: 1024, x: 6, y: 218, width: 1523, height: 659 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * セキリュウガ (FORGE MON-000007) — A PLACEHOLDER, NOT ITS ART.
+   *
+   * A dark, shapeless mass marked 「仮」, so nobody mistakes it for the
+   * real thing, and it decides nothing about it: no size, build, colour
+   * or kind. When the official art is delivered, these two `src` lines
+   * (and their boxes) are the whole change.
+   */
+  sekiryuga: {
+    id: 'sekiryuga',
+    label: 'セキリュウガ',
+    states: {
+      front: {
+        src: sekiryugaPlaceholder,
+        box: { fileW: 600, fileH: 600, x: 120, y: 150, width: 460, height: 400 },
+        facing: 'right',
+      },
+      /** Brought to a stop — never killed. */
+      down: {
+        src: sekiryugaPlaceholderStopped,
+        box: { fileW: 600, fileH: 600, x: 110, y: 320, width: 480, height: 240 },
         facing: 'right',
       },
     },

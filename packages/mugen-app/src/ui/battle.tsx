@@ -77,7 +77,7 @@ export function BattleScreen({
   /** How they are drawn: whose pictures, how near, what they say beaten. */
   opponent: BattleOpponentView;
   /** Where — the place's name on the screen. */
-  locationId: LocationId;
+  locationId: LocationId | 'ANCIENT_RUINS';
   onWon: (final: { hp: number; mp: number }) => void;
   onLost: () => void;
   /**

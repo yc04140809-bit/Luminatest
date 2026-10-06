@@ -50,6 +50,15 @@ import { BattleScreen, ResultScreen } from './ui/battle';
 import type { RoamMemory } from './ui/explore/RoamScene';
 import { PrologueScreen } from './ui/prologue';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
+import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
+import { SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
+import { stageReached } from '@mugen/core/world/storyArc';
+import {
+  RuinsWalkScreen,
+  SealApproachScreen,
+  SekiryugaAftermathScreen,
+  type RuinsPhase,
+} from './ui/ruins';
 
 /**
  * MUGEN ZERO — APP ALPHA.
@@ -130,6 +139,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * here for the same reason, and recording nothing in the world.
    */
   const [bakery, setBakery] = useState(false);
+  /**
+   * 古代遺跡 — A DOOR OFF THE MAP, held here for the reason the tavern is:
+   * `Screen` is shared with the Artifact and may not grow. While it is
+   * open the flow is on EXPLORE (the boss's fight goes through BATTLE and
+   * comes back to it). Which part is showing: the walk, the way in to
+   * what is sealed there, or what comes after the fight.
+   */
+  const [ruins, setRuins] = useState<RuinsPhase | null>(null);
+  /** The music let down, on the way in — from her 「……止まって。」 to the fight. */
+  const [hushed, setHushed] = useState(false);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -186,6 +205,14 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (state.screen !== 'HOME' && bakery) setBakery(false);
   }, [state.screen, bakery]);
+  // The ruins are a leaf of the map — kept through the boss's fight, closed anywhere else.
+  useEffect(() => {
+    if (ruins && state.screen !== 'EXPLORE' && state.screen !== 'BATTLE') setRuins(null);
+  }, [state.screen, ruins]);
+  // The music comes back the moment the way in is over, whichever way it ended.
+  useEffect(() => {
+    if (ruins !== 'approach' && hushed) setHushed(false);
+  }, [ruins, hushed]);
 
   useAndroidBackButton(() => {
     if (naming) return;
@@ -202,6 +229,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // And out of the bakery the same way.
     if (state.screen === 'HOME' && bakery) {
       setBakery(false);
+      return;
+    }
+    // Out of the ruins' walk to the map; the way in and what follows the
+    // fight are read to their end, not backed out of.
+    if (state.screen === 'EXPLORE' && ruins) {
+      if (ruins === 'walk') setRuins(null);
       return;
     }
     const target = backTargetFor(state.screen);
@@ -289,6 +322,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * door was walked through, and it decides nothing about the world.
    */
   const story = useRef(false);
+  /** And whether it is セキリュウガ's — the first boss route's fight, in the ruins. */
+  const boss = useRef(false);
+  // THE RUINS' WALK, kept the same way across the way in and the fight.
+  const ruinsWalk = useRef<RoamMemory | null>(null);
+  const resumeRuins = useRef(false);
   // THE FOREST WALK, KEPT ACROSS A FIGHT: where it had got to, and whether
   // the next showing of the forest picks it up (a fight fled from) or
   // walks in afresh (any other way in).
@@ -297,7 +335,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
 
   const [chosenBgm, setChosenBgm] = useState(battleBgmChoice);
   const unlockedBgm = world.getUnlockedBattleBgm();
-  const fightKey = story.current ? 'GALD' : null;
+  const fightKey = story.current ? 'GALD' : boss.current ? 'SEKIRYUGA' : null;
   const battleBgmId = battleBgmFor(fightKey, chosenBgm, unlockedBgm);
   /**
    * THE ♪ CONTROL, only where there is something to choose: not in a
@@ -346,7 +384,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // left the one screen everybody sees first with nothing playing.
     // The Artifact fixed exactly this complaint from a phone; the App
     // must not reintroduce it by inheriting a screen it does not show.
-    screen: state.screen === 'THEME_CHOICE' ? 'TITLE' : tavern || bakery ? 'TALK_SPOT' : state.screen,
+    screen:
+      state.screen === 'THEME_CHOICE'
+        ? 'TITLE'
+        : tavern || bakery
+          ? 'TALK_SPOT'
+          : // THE RUINS HAVE NO PIECE OF THEIR OWN YET: walked, they play the
+            // forest's field piece rather than the village's map music.
+            state.screen === 'EXPLORE' && ruins
+            ? 'GREENWOOD'
+            : state.screen,
     // THE TAVERN IS A TALK SPOT IN 月灯りの酒場 to the shared map, which
     // already answers that with the tavern's own piece. Everywhere else
     // the App's screens carry no place (see above).
@@ -355,7 +402,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     locationId: tavern ? 'MOONLIGHT_TAVERN' : bakery ? 'ALDEN_BAKERY' : null,
     kaosSpeaking: state.screen === 'PROLOGUE' && kaosArrived,
     battleBgmId,
-  });
+  },
+  // Let down on the way in to セキリュウガ, and held off after its fight: what is
+  // seen then is seen in quiet.
+  state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath'));
 
   /**
    * IS THE ONE LOOK AHEAD STILL OWED?
@@ -385,6 +435,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // `WORLD_TIME_SHIFTED` to recognise an old save, which is not the
     // same as using it as the new completion marker.
     !world.hasEventOfType('WORLD_TIME_SHIFTED');
+
+  /**
+   * THE FIRST BOSS ROUTE'S RUMOURS (bakery, shop): said once the route has
+   * begun — after Gald, whichever answer — until セキリュウガ has been
+   * faced. Hearing one is the route's first step; the tavern does the rest.
+   */
+  const rumorSaid = () =>
+    world.isSekiryugaArcOpen() && !stageReached(world.getSekiryugaStage(), 'BEATEN');
+  const heardRumor = () => {
+    void world.advanceSekiryugaArc('RUMOR').catch(() => {});
+  };
 
   /**
    * ONE NIGHT AT A TIME.
@@ -420,6 +481,29 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         .then(() => world.unlockBattleBgm(FORCED_BATTLE_BGM.GALD))
         .catch((e) => console.error('Failed to keep his music', e))
         .finally(() => flow.goTo('LIFE_CHOICE'));
+    },
+    [flow, world],
+  );
+
+  /**
+   * セキリュウガ IS BROUGHT TO A STOP — not killed, and not a reward: no
+   * experience, nothing dropped, as with Gald. The wounds carry out; the
+   * route moves on; and the ruins show what is seen after it stops.
+   */
+  const stoppedTheBoss = useCallback(
+    (final: { hp: number; mp: number }) => {
+      void world
+        .setBattleCondition(final)
+        .catch((e) => console.error('Failed to carry the wounds out', e))
+        .then(() => world.advanceSekiryugaArc('BEATEN'))
+        .catch((e) => console.error('Failed to record the boss stopped', e))
+        .finally(() => {
+          // BATTLE cannot reach the map directly; through the forest's
+          // screen in one handler, so it is never drawn.
+          flow.goTo('GREENWOOD');
+          flow.goTo('EXPLORE');
+          setRuins('aftermath');
+        });
     },
     [flow, world],
   );
@@ -508,10 +592,25 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             metBefore={tavernMet}
             onMet={() => setTavernMet(true)}
             onLeave={() => setTavern(false)}
+            heroName={world.getHeroName()}
+            arc={{
+              open: world.isSekiryugaArcOpen(),
+              stage: world.getSekiryugaStage(),
+              onRumor: () => void world.advanceSekiryugaArc('RUMOR').catch(() => {}),
+              onTold: () => void world.advanceSekiryugaArc('TOLD').catch(() => {}),
+            }}
           />
         );
       }
-      if (bakery) return <BakeryScreen onLeave={() => setBakery(false)} />;
+      if (bakery) {
+        return (
+          <BakeryScreen
+            onLeave={() => setBakery(false)}
+            rumor={rumorSaid() ? SEKIRYUGA_RUMORS.BAKERY : null}
+            onRumor={heardRumor}
+          />
+        );
+      }
       return (
         <AldenScreen
           world={world}
@@ -557,7 +656,60 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onEquipment={() => setEquipment(true)}
         />
       );
-    case 'EXPLORE':
+    case 'EXPLORE': {
+      const stage = world.getSekiryugaStage();
+      if (ruins === 'approach') {
+        return (
+          <SealApproachScreen
+            heroName={world.getHeroName()}
+            onHush={setHushed}
+            onFight={() => {
+              story.current = false;
+              boss.current = true;
+              fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+              // The map cannot reach a fight directly; through the
+              // forest's screen in one handler, so it is never drawn.
+              flow.goTo('GREENWOOD');
+              flow.goTo('BATTLE');
+            }}
+            onBack={() => {
+              resumeRuins.current = true;
+              setRuins('walk');
+            }}
+          />
+        );
+      }
+      if (ruins === 'aftermath') {
+        return (
+          <SekiryugaAftermathScreen
+            heroName={world.getHeroName()}
+            onDone={() => {
+              void world
+                .advanceSekiryugaArc('SETTLED')
+                .catch((e) => console.error('Failed to record what was seen', e))
+                .finally(() => {
+                  resumeRuins.current = true;
+                  setRuins('walk');
+                });
+            }}
+          />
+        );
+      }
+      if (ruins === 'walk') {
+        return (
+          <RuinsWalkScreen
+            world={world}
+            deep={stage === 'TOLD' ? 'APPROACH' : stage === 'BEATEN' ? 'AFTERMATH' : null}
+            onDeep={() => setRuins(stage === 'BEATEN' ? 'aftermath' : 'approach')}
+            onLeave={() => {
+              resumeRuins.current = false;
+              setRuins(null);
+            }}
+            memory={ruinsWalk}
+            resume={resumeRuins.current}
+          />
+        );
+      }
       return (
         <MapScreen
           // Opened by what the player decided, not by this screen.
@@ -566,10 +718,24 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onForest={() => flow.goTo('GREENWOOD')}
           onPlaces={() => flow.goTo('FUTURE_SITE')}
           onHome={() => flow.goTo('HOME')}
+          // Opened by the tavern's master telling what was sealed there.
+          ruins={stageReached(stage, 'TOLD')}
+          onRuins={() => {
+            resumeRuins.current = false;
+            setRuins('walk');
+          }}
         />
       );
+    }
     case 'ITEM_SHOP':
-      return <ItemShopScreen world={world} onLeave={() => flow.goTo('EXPLORE')} />;
+      return (
+        <ItemShopScreen
+          world={world}
+          onLeave={() => flow.goTo('EXPLORE')}
+          rumor={rumorSaid() ? SEKIRYUGA_RUMORS.SHOP : null}
+          onRumor={heardRumor}
+        />
+      );
     case 'FUTURE_SITE':
       return <FutureSiteScreen world={world} onLeave={() => flow.goTo('EXPLORE')} />;
     case 'GREENWOOD':
@@ -587,11 +753,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onGald={() => {
             resumeForest.current = false;
             story.current = true;
+            boss.current = false;
             flow.goTo('ENCOUNTER');
           }}
           onFight={() => {
             resumeForest.current = false;
             story.current = false;
+            boss.current = false;
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             flow.goTo('BATTLE');
           }}
@@ -604,6 +772,39 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'ENCOUNTER':
       return <GaldEncounterScreen onBattle={() => flow.goTo('BATTLE')} />;
     case 'BATTLE':
+      if (boss.current) {
+        return (
+          <BattleScreen
+            key="sekiryuga"
+            spec={SEKIRYUGA_BATTLE}
+            // A placeholder shadow, at arm's length as Gald stands — a boss fills the field; marked BOSS.
+            opponent={{
+              artId: 'sekiryuga',
+              stands: 'NEAR',
+              boss: true,
+              defeated: { text: `${SEKIRYUGA_BATTLE.name}は膝をつき、動きを止めた。` },
+            }}
+            locationId="ANCIENT_RUINS"
+            world={world}
+            onWon={stoppedTheBoss}
+            // 「無理なら逃げろ」— and it can be: back to the ruins as they were.
+            onEscape={() => {
+              resumeRuins.current = true;
+              flow.goTo('GREENWOOD');
+              flow.goTo('EXPLORE');
+              setRuins('walk');
+            }}
+            music={music}
+            background="RUINS"
+            onLost={() => {
+              void world.restoreParty().finally(() => {
+                setRuins(null);
+                flow.goTo('HOME');
+              });
+            }}
+          />
+        );
+      }
       return (
         <BattleScreen
           // One screen, two fights, and the numbers are the only

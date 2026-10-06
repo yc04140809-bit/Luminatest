@@ -41,16 +41,16 @@ import もマップへの追記も要りません。`src/sfx.ts` がこのフォ
 | `battle_magic_ice.mp3` | 氷魔法 | 同上 |
 | `battle_magic_thunder.mp3` | 雷魔法 | 同上 |
 | `battle_magic_wind.mp3` | 風魔法 | 同上 |
-| `battle_magic_earth.mp3` | 土魔法（地震など） | 同上 |
+| `battle_magic_earth.mp3` | 土魔法（地震など） | 魔法には未使用。封印地点の地響き（`story_rumble`）として借用 |
 | `battle_magic_dark.mp3` | 闇魔法・暗黒魔法 | 同上 |
 | `battle_magic_holy.mp3` | 聖魔法 | 同上 |
-| `battle_charge_aura.mp3` | タメ技などオーラが出る大技 | 該当する技がまだ無い |
+| `battle_charge_aura.mp3` | タメ技などオーラが出る大技 | ケイオスの《彗星撃》の溜め、セキリュウガの咆哮 |
 | `battle_evade.mp3` | 回避時 | 戦闘に回避の処理がまだ無い（処理ができれば鳴る） |
 | `battle_hide.mp3` | 潜ったり隠れたり（2 回続けて鳴らす） | モンスターが苔に潜った時（2 回） |
 | `battle_guard.mp3` | 防御・パリィ | 防御の構え、味方への攻撃を 0 ダメージで防いだ時 |
 | `battle_start.mp3` | 戦闘突入時 | 戦闘の開始時に 1 回 |
 | `battle_escape.mp3` | 逃走時 | 「逃走」で戦闘から逃げた時（通常戦闘のみ） |
-| `battle_boss_emerge.mp3` | 地下からボスや巨大な敵 | 該当する敵がまだいない |
+| `battle_boss_emerge.mp3` | 地下からボスや巨大な敵 | セキリュウガ登場（名前と影が出た瞬間）。`story_rumble`（封印地点の地響き）は `battle_magic_earth` を借りて鳴る |
 | `explore_ambient_snow_mountain.mp3` | 雪山ダンジョンなど（環境音） | 該当する場所がまだ無い |
 | `explore_ambient_storm.mp3` | 悪天候（環境音） | 天候の仕組みがまだ無い |
 | `explore_ambient_rain.mp3` | 雨天（環境音） | 同上 |

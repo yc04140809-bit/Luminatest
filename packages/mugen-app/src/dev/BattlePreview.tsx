@@ -23,6 +23,7 @@ import { statsForLevels } from '@mugen/core/progression/levelStats';
 import { availableMagic } from '@mugen/core/magic/magic';
 import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { GALD_BATTLE } from '@mugen/content/enemies/galdBattle';
+import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { GALD_DEFEATED_LINES } from '@mugen/content/dialogue/galdEncounter';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { ITEM_DEFS, itemDef } from '@mugen/content/economy/itemDefs';
@@ -66,6 +67,7 @@ import { zeroPlan } from './hero/zeroTiming';
  * Reached from the title screen's DEBUG chip on a device, or by URL:
  *
  *   ?preview=battle              the forest's moss rabbit, level 1
+ *   &enemy=sekiryuga             セキリュウガ, the first boss (placeholder shadow, the ruins)
  *   &enemy=gald                  Gald, as the story fights him (she wakes
  *                                in the fight, as she does in the game)
  *   &magic=1                     she has already woken (the 魔法 command)
@@ -142,6 +144,8 @@ const SWING = '@attack';
 
 interface Setup {
   gald: boolean;
+  /** セキリュウガ instead of the moss rabbit (Gald wins if both are asked). */
+  boss: boolean;
   magic: boolean;
   bag: boolean;
   background: BattleBackgroundKey | undefined;
@@ -159,6 +163,7 @@ function setupFrom(params: URLSearchParams): Setup {
   const answer = params.get('answer');
   return {
     gald: spell ? false : params.get('enemy') === 'gald',
+    boss: spell ? false : params.get('enemy') === 'sekiryuga',
     magic: spell ? true : params.get('magic') === '1',
     bag: params.get('bag') === '1',
     background: BATTLE_BACKGROUND_KEYS.find((key) => key === bg),
@@ -363,7 +368,7 @@ function PreviewFight({
 }) {
   const dice = useRef<Rng>(fixedDice());
   const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(setup.gald ? GALD_BATTLE : specOf(MOSS_RABBIT), undefined, {
+    createBattle(setup.gald ? GALD_BATTLE : setup.boss ? SEKIRYUGA_BATTLE : specOf(MOSS_RABBIT), undefined, {
       stats: statsForLevels(1, 1),
       magicUnlocked: setup.magic,
       // Half his health, if asked: a starting condition, the way the game
@@ -386,7 +391,9 @@ function PreviewFight({
 
   const opponent: BattleOpponentView = setup.gald
     ? { artId: 'gald', stands: 'NEAR', defeated: { speaker: GALD_BATTLE.name, text: GALD_DEFEATED_LINES[0].text } }
-    : { artId: 'moss_rabbit', stands: 'FAR', defeated: { text: MOSS_RABBIT.defeatedText } };
+    : setup.boss
+      ? { artId: 'sekiryuga', stands: 'NEAR', boss: true, defeated: { text: `${SEKIRYUGA_BATTLE.name}は膝をつき、動きを止めた。` } }
+      : { artId: 'moss_rabbit', stands: 'FAR', defeated: { text: MOSS_RABBIT.defeatedText } };
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
   // A cut-in on screen is a turn being shown: no command until it is over.
   const idle = battle.outcome === 'ONGOING' && !theatre.playing && !cinematicPlaying;
@@ -469,8 +476,8 @@ function PreviewFight({
     <BattleStage
       battle={shown}
       opponent={opponent}
-      locationId="GREENWOOD_FOREST"
-      background={setup.background}
+      locationId={setup.boss && !setup.gald ? 'ANCIENT_RUINS' : 'GREENWOOD_FOREST'}
+      background={setup.background ?? (setup.boss && !setup.gald ? 'RUINS' : undefined)}
       memoryLines={[]}
       memoryDepth={0}
       arcanaReady={false}

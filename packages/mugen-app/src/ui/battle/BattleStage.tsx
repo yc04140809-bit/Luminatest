@@ -12,6 +12,7 @@ import type { ItemStack } from '@mugen/core/economy/items';
 import { spriteHeight } from '@mugen/content/art/spriteFrames';
 import { locationNameOf } from '@mugen/content/locations/alden';
 import type { LocationId } from '@mugen/content/locations/locationVisuals';
+import { WALK_PLACES } from '@mugen/content/exploration/walkPlaces';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import type { BattleBackgroundKey } from '@mugen/assets/keys';
 import { battleBackgroundArt } from '../../assets/battleBackground';
@@ -87,7 +88,12 @@ export type BattleCommand = 'ATTACK' | 'SKILL' | 'DEFEND' | 'ARCANA';
 
 export interface BattleOpponentView {
   /** Whose drawings: a creature's id, or 'gald' for a person. */
-  artId: 'moss_rabbit' | 'gald';
+  artId: 'moss_rabbit' | 'gald' | 'sekiryuga';
+  /**
+   * A boss: its name is marked BOSS on its plate, and its hits and fall
+   * are the heavier sounds. Absent: Gald's fight is the boss fight.
+   */
+  boss?: boolean;
   /** A creature stands up the path (FAR); a person at arm's length (NEAR). */
   stands: 'FAR' | 'NEAR';
   /** What is said over it once it is beaten, and by whom (a person only). */
@@ -108,7 +114,11 @@ const AT_REST: TurnView = { beat: 'NONE', camera: 'IDLE', blows: [], playing: fa
 export interface BattleStageProps {
   battle: BattleState;
   opponent: BattleOpponentView;
-  locationId: LocationId;
+  /**
+   * Where — a place on the village's map, or a walked place that is not
+   * one (the ruins, named by its walk-place title).
+   */
+  locationId: LocationId | 'ANCIENT_RUINS';
   /**
    * The ground this fight is fought on. Absent: the place's own, from
    * content (content/locations/battleBackgrounds).
@@ -233,12 +243,15 @@ export function BattleStage({
   const kaosSteady = battlePartyArt('kaos', kaosPose({ beat, downed, awakened }));
   const enemyState = enemyPose(view);
   const person = opponent.artId === 'gald';
+  const boss = opponent.boss ?? opponent.artId === 'gald';
+  // It gathered last turn (a boss's roar): its next turn is the big one, and the field says so.
+  const charging = !!battle.enemyCharging && battle.outcome === 'ONGOING';
   // The fight's noises, over the same beats and blows the stage draws.
   useBattleSounds({
     beat,
     blows,
-    // Gald's is the one boss fight (it plays the boss music): heavier hits, a heavier fall.
-    opponent: { artId: opponent.artId, person, boss: opponent.artId === 'gald' },
+    // A boss fight (it plays the boss music): heavier hits, a heavier fall.
+    opponent: { artId: opponent.artId, person, boss },
     opponentMaxHp: battle.enemyMaxHp,
     won: beaten,
     cutIn: !!cinematic,
@@ -270,7 +283,8 @@ export function BattleStage({
   };
 
   // THE GROUND — the App's battle paintings.
-  const ground = background === undefined ? battleBackgroundFor(locationId) : background;
+  const ground =
+    background === undefined ? (locationId === 'ANCIENT_RUINS' ? null : battleBackgroundFor(locationId)) : background;
   const backdrop = usePicture(
     ground ? () => battleBackgroundArt(ground) : null,
     `battle-bg:${ground ?? 'none'}`,
@@ -294,7 +308,7 @@ export function BattleStage({
   );
   const turnArtOf = (actorId: string) =>
     actorId === 'hero' ? heroShown : actorId === 'kaos' ? kaosSteady : enemyShown;
-  const placeName = locationNameOf(locationId);
+  const placeName = locationId === 'ANCIENT_RUINS' ? WALK_PLACES.ANCIENT_RUINS.title : locationNameOf(locationId);
   const placeMark = locationId.replace(/_/g, ' ');
 
   const stagecraft = stagecraftFor({ cutIn: false, hitting: blows.length > 0 });
@@ -508,6 +522,9 @@ export function BattleStage({
             struckEnemy ? 'flash' : '',
             beat === 'TACKLE' ? 'tackle' : '',
             beat === 'HIDE' ? 'hide' : '',
+            // A boss gathering itself: the roar, and the warning held until it lets go.
+            beat === 'ROAR' ? 'roar' : '',
+            charging ? 'charging' : '',
             // The Artifact flinches it for her whole cast. With the spell
             // shown in full, it flinches when a spell that hurts lands —
             // the blow — and not while she is only gathering it.
@@ -532,6 +549,11 @@ export function BattleStage({
             testId="bp-enemy-art"
           />
           {beat === 'HIDE' && <span className="bp-moss" aria-hidden="true" />}
+          {(charging || beat === 'ROAR') && (
+            <span className="bp-tell" data-testid="bp-enemy-tell" role="img" aria-label="強い攻撃が来る">
+              ！
+            </span>
+          )}
           {slash && <SwordSlash slash={slash} />}
           {beat === 'TACKLE' && (
             <span className="bp-leaves" aria-hidden="true">
@@ -624,6 +646,11 @@ export function BattleStage({
           }}
         >
           <span className="bx-enemy-head">
+            {boss && opponent.boss && (
+              <i className="bx-boss-tag" data-testid="bp-boss-tag">
+                BOSS
+              </i>
+            )}
             <b className="bx-enemy-name" data-testid="bp-enemy-name">
               {displayName(battle.enemyName)}
             </b>

@@ -6,6 +6,7 @@ import { titleKeyVisual } from '../assets/sceneArt';
 import { usePicture } from './scene';
 import { RoamScene, type RoamMemory } from './explore/RoamScene';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
+import { WALK_PLACES } from '@mugen/content/exploration/walkPlaces';
 
 /**
  * THE APP ALPHA'S SCREENS — every one of them deliberately plain.
@@ -235,6 +236,8 @@ export function MapScreen({
   onForest,
   onPlaces,
   onHome,
+  ruins = false,
+  onRuins,
 }: {
   /**
    * How many places the world has opened because of what the player
@@ -246,6 +249,12 @@ export function MapScreen({
   onForest: () => void;
   onPlaces: () => void;
   onHome: () => void;
+  /**
+   * WHETHER 古代遺跡 IS ON THE MAP — opened by the tavern's master telling
+   * what was sealed there (the first boss route), never before.
+   */
+  ruins?: boolean;
+  onRuins?: () => void;
 }) {
   return (
     <Place area="ALDEN" title="アルデン地方">
@@ -256,6 +265,11 @@ export function MapScreen({
         <button className="btn primary" data-testid="forest-button" onClick={onForest}>
           グリーンウッドの森
         </button>
+        {ruins && (
+          <button className="btn primary" data-testid="ruins-button" onClick={onRuins}>
+            {WALK_PLACES.ANCIENT_RUINS.title}
+          </button>
+        )}
         {places > 0 && (
           <button className="btn" data-testid="places-button" onClick={onPlaces}>
             気になる場所（{places}）

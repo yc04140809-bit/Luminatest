@@ -642,6 +642,23 @@ export class AudioManager {
     }
   }
 
+  /**
+   * THE MUSIC LET DOWN TO NOTHING over a fade's length, and left off — a
+   * held breath before something, not a cut. The next `playBgm` brings
+   * the scene's piece back in as any other change would.
+   */
+  fadeOutBgm(): void {
+    if (this.currentBgmId) this.previousBgmId = this.currentBgmId;
+    this.currentBgmId = null;
+    if (this.bgmDelay) {
+      clearTimeout(this.bgmDelay);
+      this.bgmDelay = null;
+    }
+    if (!this.bgm) return;
+    this.retireCurrentBgm(true);
+    this.runBgmFade();
+  }
+
   stopBgm(): void {
     if (this.currentBgmId) this.previousBgmId = this.currentBgmId;
     this.currentBgmId = null;

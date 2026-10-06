@@ -57,6 +57,9 @@ export function beatSfx(beat: string, opponent: OpponentSound): SfxId | null {
     case 'GUARD':
       // Bracing — and see blowSfx: a blow it turns aside entirely clangs too.
       return 'battle_guard';
+    case 'ROAR':
+      // A boss gathering itself for the next blow: the gathering aura.
+      return 'battle_charge_aura';
     case 'TACKLE':
       // A person fought is not in the party's profiles, but their weapon is
       // canon (Gald: two daggers); somebody with none written strikes bare-handed.

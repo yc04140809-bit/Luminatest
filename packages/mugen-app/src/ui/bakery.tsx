@@ -11,11 +11,23 @@ import { bakeryArt, type BakeryArt } from '../assets/bakery';
  * over all three — separate layers, never one picture.
  *
  * WHAT IS SAID IS THE CONTENT'S (`bakeryShop.ts`), a minimal
- * introduction and nothing more. This screen records nothing: a save,
- * WORLD MEMORY and the story are exactly as they were before the door
- * was opened.
+ * introduction and nothing more — and, once the first boss route has
+ * begun, the owner's one rumour after it (content/story/sekiryugaArc).
+ * Nothing about Lina, Gald or the four answers. The only thing this
+ * screen records is that rumour having been heard, through `onRumor`;
+ * WORLD MEMORY and the rest of the save are as they were.
  */
-export function BakeryScreen({ onLeave }: { onLeave: () => void }) {
+export function BakeryScreen({
+  onLeave,
+  rumor = null,
+  onRumor,
+}: {
+  onLeave: () => void;
+  /** The owner's rumour, said after the usual lines — while the route wants it said. */
+  rumor?: DialogueLine | null;
+  /** Told when a talk with the rumour in it has been read to its end. */
+  onRumor?: () => void;
+}) {
   const [art, setArt] = useState<BakeryArt>({ room: null, owner: null, lina: null });
   const [talking, setTalking] = useState<readonly DialogueLine[] | null>(null);
   const [at, setAt] = useState(0);
@@ -32,15 +44,18 @@ export function BakeryScreen({ onLeave }: { onLeave: () => void }) {
     };
   }, []);
 
-  const line = talking?.[at];
+  const raw = talking?.[at];
+  // Written breaks run together, as the box always has.
+  const line = raw ? { ...raw, text: raw.text.replace(/\n/g, '') } : undefined;
   const last = !!talking && at >= talking.length - 1;
 
   const talk = () => {
     setAt(0);
-    setTalking(BAKERY_SHOP_LINES);
+    setTalking(rumor ? [...BAKERY_SHOP_LINES, rumor] : BAKERY_SHOP_LINES);
   };
   const next = () => {
     if (!last) return setAt((n) => n + 1);
+    if (rumor) onRumor?.();
     setTalking(null);
   };
 

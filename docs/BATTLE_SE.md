@@ -131,6 +131,15 @@
 - `battle_boss_emerge`（地下から現れる敵がまだいない）
 - 環境音 4 種 `explore_ambient_*`（雪山・天候の場所がまだ無い。ループ再生の仕組みもまだ無いので、使う場所ができた時に足す）
 
+## 7b. セキリュウガ編で加えた割り当て（2026-10-06）
+
+| 瞬間 | 音 | 備考 |
+|---|---|---|
+| 咆哮（BOSS の溜め、新しい拍 `ROAR`） | `battle_charge_aura` | |
+| 封印地点の静けさの地響き | `story_rumble`（新 ID） | `battle_magic_earth` を借用、gain 0.75、3.2 秒で切る |
+| セキリュウガ登場 | `battle_boss_emerge` | 納品時の用途「地下からボスや巨大な敵」 |
+| セキリュウガへの命中・撃破 | `battle_boss_hit`・`battle_boss_defeat` | `BattleOpponentView.boss` で BOSS 扱い |
+
 ## 8. 実機で確認すること
 
 - 主人公：剣 → 斬撃 → 命中のテンポ、命中音（短い「ドッ」）の強さ

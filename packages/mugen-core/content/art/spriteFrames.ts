@@ -222,6 +222,21 @@ export const SPRITE_FRAMES: Record<string, SpriteFrame> = {
       down: { scale: 0.24 },
     },
   },
+
+  /**
+   * セキリュウガ — FOR ITS PLACEHOLDER SHADOW ONLY (the App's battleArt).
+   *
+   * FORGE's canon makes it smallish; nothing here says how big it is. This
+   * is how much of the stage a shapeless haze marked 「仮」 fills so that a
+   * boss's fight reads as one — set again when the official art arrives.
+   */
+  sekiryuga: {
+    band: 'BOSS',
+    scale: 0.6,
+    anchor: 'bottom-center',
+    standIn: true,
+    states: { down: { scale: 0.36 } },
+  },
 };
 
 export function frameOf(characterId: string): SpriteFrame {
