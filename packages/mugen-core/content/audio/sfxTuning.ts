@@ -91,6 +91,23 @@ export const SFX_TUNING: Partial<Record<SfxId, SfxTuning>> = {
   // ---- ready, not yet used by the fight ----
   // Its own file since 2026-10-06 (a short, low swish, 0.15s).
   battle_evade: { gain: 0.9, pitch: 0.04 },
+  // A rustle (0.87s), quiet as delivered (−30 dB): full gain. Heard twice
+  // for one dive, so each drifts a little and is cut before the next beat.
+  battle_hide: { gain: 1, pitch: 0.04, maxMs: 600 },
+  // Entering a fight (1.9s): a little under the swing, it opens every fight.
+  battle_start: { gain: 0.85 },
+  // Guarding, a parry (delivered 2026-10-06): a short mid clang, 0.34s.
+  battle_guard: { gain: 0.78, pitch: 0.03 },
+  // Not wired yet — fleeing is not built, nor is any entrance from below.
+  battle_escape: { gain: 0.9 },
+  battle_boss_emerge: { gain: 0.5 },
+
+  // ---- ambience (loops; no player for them yet) ----
+  // Set to sit under the music: the delivered levels run −20 to −27 dB.
+  explore_ambient_snow_mountain: { gain: 0.55 },
+  explore_ambient_storm: { gain: 0.75 },
+  explore_ambient_rain: { gain: 1 },
+  explore_ambient_strong_wind: { gain: 0.75 },
 };
 
 /** The delivered file a moment plays. */

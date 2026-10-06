@@ -165,3 +165,23 @@ test('×2: Levi’s six spears are heard as three, so they never become a buzz',
   const order = (await played(page)).map((src) => src.split('/').pop()!);
   expect(order.filter((n) => n.startsWith('battle_attack_thrust')).length).toBe(3);
 });
+
+test('the creature diving into the moss: the rustle, twice in a row', async ({ page }) => {
+  await listen(page);
+  await page.goto('/?preview=battle&debug=0&answer=SKILL');
+  await readyToAct(page);
+  await command(page, 'bp-attack');
+  await expect
+    .poll(async () => (await played(page)).filter((p) => p.includes('/battle_hide')).length, { timeout: 15_000 })
+    .toBe(2);
+  // Not the heavy blow: it did not attack.
+  expect(await heard(page, 'battle_attack_heavy_strike')).toBe(false);
+});
+
+test('guarding: the clang as he braces', async ({ page }) => {
+  await listen(page);
+  await page.goto('/?preview=battle&debug=0');
+  await readyToAct(page);
+  await command(page, 'bp-defend');
+  await expect.poll(() => heard(page, 'battle_guard'), { timeout: 15_000 }).toBe(true);
+});

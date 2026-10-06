@@ -1,6 +1,6 @@
 # SE — 効果音
 
-**2026-10-06 に 23 種が納品されました。** 納品されたファイルを**そのまま**（再エンコードせず）
+**2026-10-06 に 31 種が納品されました。** 納品されたファイルを**そのまま**（再エンコードせず）
 `<id>.mp3` の名前で置いています。
 
 ## 音源の置き方
@@ -46,6 +46,15 @@ import もマップへの追記も要りません。`src/sfx.ts` がこのフォ
 | `battle_magic_holy.mp3` | 聖魔法 | 同上 |
 | `battle_charge_aura.mp3` | タメ技などオーラが出る大技 | 該当する技がまだ無い |
 | `battle_evade.mp3` | 回避時 | 戦闘に回避の処理がまだ無い（処理ができれば鳴る） |
+| `battle_hide.mp3` | 潜ったり隠れたり（2 回続けて鳴らす） | モンスターが苔に潜った時（2 回） |
+| `battle_guard.mp3` | 防御・パリィ | 防御の構え、味方への攻撃を 0 ダメージで防いだ時 |
+| `battle_start.mp3` | 戦闘突入時 | 戦闘の開始時に 1 回 |
+| `battle_escape.mp3` | 逃走時 | 逃走の処理がまだ無い |
+| `battle_boss_emerge.mp3` | 地下からボスや巨大な敵 | 該当する敵がまだいない |
+| `explore_ambient_snow_mountain.mp3` | 雪山ダンジョンなど（環境音） | 該当する場所がまだ無い |
+| `explore_ambient_storm.mp3` | 悪天候（環境音） | 天候の仕組みがまだ無い |
+| `explore_ambient_rain.mp3` | 雨天（環境音） | 同上 |
+| `explore_ambient_strong_wind.mp3` | 強風（環境音） | 同上 |
 
 App の戦闘で音を鳴らすのは `mugen-app/src/ui/battle/battleSounds.ts`（戦闘の計算・進行・演出の
 タイミングは変えず、既にある「攻撃の瞬間」「命中の瞬間」に音を付けるだけ）。
@@ -54,9 +63,7 @@ App の戦闘で音を鳴らすのは `mugen-app/src/ui/battle/battleSounds.ts`�
 
 | ファイル名 | App で鳴る場所 |
 |---|---|
-| `battle_start.mp3` | 戦闘開始時に 1 回 |
 | `battle_hit.mp3` | 攻撃が敵に命中した瞬間（ダメージがあった時だけ） |
-| `battle_guard.mp3` | 防御の構え |
 | `battle_win.mp3` | 勝利 |
 | `explore_marker.mp3` / `explore_found.mp3` | 探索：調査ポイントに着いた／調べた |
 | `explore_rare_found.mp3` / `explore_rainbow_found.mp3` | 探索：金色の発見／虹の発見 |

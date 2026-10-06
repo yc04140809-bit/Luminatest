@@ -105,6 +105,14 @@ export const SFX_IDS = [
   'battle_bow_hit',
   'battle_skill_slash',
   'battle_evade',
+  // Diving, hiding — a creature going into the moss. Played twice in a
+  // row for the one movement (delivered 2026-10-06).
+  'battle_hide',
+  // Something huge coming up from below — a boss, a giant (a long rumble,
+  // ~4s). Delivered 2026-10-06; no such entrance yet.
+  'battle_boss_emerge',
+  // Fleeing a fight (逃走). The command is drawn but not built yet.
+  'battle_escape',
   'battle_damage',
   'battle_guard',
   'battle_heal',
@@ -112,6 +120,15 @@ export const SFX_IDS = [
   'battle_debuff',
   'battle_critical',
   'battle_win',
+  // ---- AMBIENCE: a place's weather, long and meant to loop ----
+  // Delivered 2026-10-06, ahead of any place or weather that uses them:
+  // a snowy mountain (24s), a storm (9s), rain (30s), strong wind (83s).
+  // A loop is held and stopped, unlike an effect, so these wait for a
+  // player of their own; nothing plays them yet.
+  'explore_ambient_snow_mountain',
+  'explore_ambient_storm',
+  'explore_ambient_rain',
+  'explore_ambient_strong_wind',
   // ---- STORY: the moments the game is actually about ----
   'story_choice',
   'story_event',

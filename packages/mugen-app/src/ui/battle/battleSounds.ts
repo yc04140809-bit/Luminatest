@@ -6,6 +6,7 @@ import { playSfx } from '../../platform/audio';
 import type { Blow } from './blows';
 import type { SpellFxView } from './magic/SpellFx';
 import type { FieldScene } from './scene/fieldScene';
+import { beatLength } from './battleTheatre';
 
 /**
  * THE FIGHT'S NOISES, laid over what the stage already draws.
@@ -19,7 +20,8 @@ import type { FieldScene } from './scene/fieldScene';
  * THREE LEVELS, and each a different sound, not only a louder one:
  *
  *   ordinary   his swing → the hit; her spell's circle → its burst;
- *              Gald's knives; a creature's heavy blow
+ *              Gald's knives; a creature's heavy blow; a creature
+ *              diving into the moss (the rustle, twice in a row)
  *   skill      a heavier swing; a stronger landing
  *   special    a cut-in, the gathering (溜め), the move, and its own
  *              finishing blow — two or three of those, never all at once
@@ -39,11 +41,22 @@ export interface OpponentSound {
   boss: boolean;
 }
 
+/** The second rustle of a dive comes this share of the way into the HIDE beat. */
+export const HIDE_SECOND_AT = 0.45;
+
+/** When the two rustles of a dive play, in ms from its start, at this speed. */
+export function hideRustles(speed: number): [number, number] {
+  return [0, Math.round(beatLength('HIDE', speed > 1 ? 2 : 1) * HIDE_SECOND_AT)];
+}
+
 /** Which noise a beat makes, or null for none. Pure, for the tests. */
 export function beatSfx(beat: string, opponent: OpponentSound): SfxId | null {
   switch (beat) {
     case 'STRIKE':
       return attackSfxFor(battleProfileOf('hero'));
+    case 'GUARD':
+      // Bracing — and see blowSfx: a blow it turns aside entirely clangs too.
+      return 'battle_guard';
     case 'TACKLE':
       // A person fought is not in the party's profiles, but their weapon is
       // canon (Gald: two daggers); somebody with none written strikes bare-handed.
@@ -60,8 +73,9 @@ export function beatSfx(beat: string, opponent: OpponentSound): SfxId | null {
  * a boss's own, heavier, whatever the amount.
  */
 export function blowSfx(blow: Blow, opponent: OpponentSound, opponentMaxHp: number): SfxId | null {
+  // A blow on the party that cost nothing was guarded away, or parried: the clang.
+  if (blow.on === 'hero') return blow.amount > 0 ? 'battle_damage' : 'battle_guard';
   if (blow.amount <= 0) return null;
-  if (blow.on === 'hero') return 'battle_damage';
   if (opponent.boss) return 'battle_boss_hit';
   const share = opponentMaxHp > 0 ? blow.amount / opponentMaxHp : 0;
   if (share >= 0.15) return 'battle_hit_heavy';
@@ -157,6 +171,11 @@ export function useBattleSounds({
   // Before paint, so the noise leaves with the picture.
   useLayoutEffect(() => {
     play(beatSfx(beat, opponent));
+    if (beat !== 'HIDE') return;
+    // Diving into the moss: the rustle twice, the second inside the beat.
+    play('battle_hide');
+    const timer = window.setTimeout(() => play('battle_hide'), hideRustles(speed)[1]);
+    return () => window.clearTimeout(timer);
   }, [beat]);
 
   // Her spell: the circle as it gathers, and its burst as it lands —
