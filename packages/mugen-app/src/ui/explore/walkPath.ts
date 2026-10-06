@@ -80,3 +80,37 @@ export function nextStop(stops: readonly number[], t: number, way: 'left' | 'rig
   for (let i = stops.length - 1; i >= 0; i--) if (stops[i] < t - 1e-6) return stops[i];
   return null;
 }
+
+/**
+ * WHERE A TAP ON THE GROUND SENDS THE PARTY — the t at which the leader's
+ * feet stand under the spot that was touched.
+ *
+ * `screenX` is the tap as a share of the screen's width, `t` where the
+ * walk is now. The spot is read off the painting as it lies at this
+ * moment, so a tap means the place in the picture, not the place on the
+ * glass. Only the horizontal matters: the walk is a line across the
+ * place, and a tap above or below it is rounded onto it. Clamped to the
+ * walk's two ends.
+ */
+export function tapToT(screenX: number, t: number): number {
+  const px = (screenX - layerShift(t, DEPTH.painting)) / (1 + PAN);
+  const to = (HERO_START + PAN - px * (1 + PAN)) / (HERO_START - HERO_END + PAN);
+  return Math.min(1, Math.max(0, to));
+}
+
+/** How near a thing a tap must land to be taken as "go to that thing". */
+export const SNAP = 0.09;
+
+/**
+ * Where a walk to `to` should end: beside the nearest thing, if the tap
+ * was meant for it (within SNAP of where one stops to look at it);
+ * otherwise exactly where it was tapped — anywhere along the walk.
+ */
+export function settleAt(to: number, pointXs: readonly number[]): number {
+  let best: number | null = null;
+  for (const x of pointXs) {
+    const s = stopFor(x);
+    if (Math.abs(s - to) <= SNAP && (best === null || Math.abs(s - to) < Math.abs(best - to))) best = s;
+  }
+  return best ?? to;
+}

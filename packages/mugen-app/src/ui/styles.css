@@ -1047,6 +1047,10 @@ body {
    by the walk; only the controls sit still. */
 .screen.walk {
   position: relative;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
   height: 100vh;
   height: 100dvh;
   min-height: 0;
@@ -1125,7 +1129,7 @@ body {
 .amb { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
 .amb-bird { position: absolute; left: 105%; animation: amb-fly linear infinite; }
 .amb-bird svg { display: block; overflow: visible; }
-.amb-wing { fill: none; stroke: rgba(20, 28, 24, 0.75); stroke-width: 1.6; stroke-linecap: round; animation: amb-flap 0.5s ease-in-out infinite alternate; transform-origin: 50% 60%; }
+.amb-wing { fill: rgba(22, 26, 24, 0.7); animation: amb-flap 0.18s ease-in-out infinite alternate; transform-origin: 50% 55%; }
 @keyframes amb-fly { from { left: 105%; } to { left: -10%; } }
 @keyframes amb-flap { from { transform: scaleY(1); } to { transform: scaleY(0.35); } }
 .amb-leaf { position: absolute; top: -6%; width: 9px; height: 5px; border-radius: 9px 0; opacity: 0; animation: amb-fall linear infinite; }
@@ -1211,18 +1215,39 @@ body {
   gap: 8px;
 }
 .walk-look { min-width: 0; min-height: 40px; padding: 6px 14px; font-size: 13px; background: rgba(11, 11, 18, 0.7); }
-.walk-step {
-  width: 44px;
-  /* The steps sit over the painting too: kept dark so pale ground never
-     swallows them. */
-  height: 44px;
-  border: 1px solid rgba(233, 230, 240, 0.3);
+/* Where the ground was touched: a small ring that opens and fades. */
+.walk-tap-ring {
+  position: absolute;
+  z-index: 5;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid rgba(255, 248, 225, 0.95);
   border-radius: 50%;
-  background: rgba(11, 11, 18, 0.6);
-  color: var(--ink);
-  font-size: 16px;
+  /* A dark edge either side, so it reads on pale stone and sand too. */
+  box-shadow: 0 0 0 1px rgba(30, 20, 8, 0.45), inset 0 0 0 1px rgba(30, 20, 8, 0.35), 0 0 8px rgba(30, 20, 8, 0.35);
+  pointer-events: none;
+  animation: walk-tap 0.7s ease-out forwards;
 }
-.walk-step:disabled { color: rgba(233, 230, 240, 0.3); border-color: rgba(233, 230, 240, 0.15); }
+@keyframes walk-tap-still { from { opacity: 0.9; } to { opacity: 0; } }
+@keyframes walk-tap { 0% { transform: scale(0.45); opacity: 1; } 45% { opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
+/* Until the first touch: how to walk, said once, quietly. */
+.walk-hint {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 52px);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: rgba(11, 11, 18, 0.6);
+  color: rgba(233, 230, 240, 0.85);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  white-space: nowrap;
+}
 
 /* Quiet moments, one at a time: a leaf passing, the light shifting, a
    bird's shadow far off. Each plays once (about 4s) and is gone. */
@@ -1255,13 +1280,14 @@ body {
 @keyframes amb-light-shift { 0% { opacity: 0; } 45% { opacity: 1; } 100% { opacity: 0; } }
 .amb-moment-bird {
   position: absolute;
-  top: 9%;
+  top: 7%;
   left: -6%;
-  filter: blur(1.2px);
+  filter: blur(0.6px);
   opacity: 0;
   animation: amb-bird-shadow 1.8s linear forwards;
 }
-.amb-moment-bird path { fill: none; stroke: rgba(10, 16, 14, 0.55); stroke-width: 1.8; stroke-linecap: round; }
+.amb-moment-bird svg { animation: amb-flap 0.16s ease-in-out infinite alternate; transform-origin: 50% 55%; }
+.amb-moment-bird path, .amb-moment-bird ellipse { fill: rgba(14, 18, 16, 0.55); }
 @keyframes amb-bird-shadow {
   0% { transform: translateX(0); opacity: 0; }
   15% { opacity: 0.8; }
@@ -1271,5 +1297,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .walk-light, .walk-mist, .walk-figure, .walk-point, .amb { animation: none !important; }
+  .walk-tap-ring { animation: walk-tap-still 0.5s linear forwards !important; }
   .amb { display: none; }
 }

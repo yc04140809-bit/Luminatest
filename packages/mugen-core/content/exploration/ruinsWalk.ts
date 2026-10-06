@@ -46,5 +46,6 @@ export const RUINS_WALK: WalkSceneDef = {
     { text: '遠くで、水の落ちる音がする。' },
     { text: '白い花びらが、風に舞っている。' },
   ],
-  ambience: ['LEAVES', 'MOTES', 'BIRDS'],
+  // Petals and motes of light; no flock crossing — the ruins are still.
+  ambience: ['LEAVES', 'MOTES'],
 };

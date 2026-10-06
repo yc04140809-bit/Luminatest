@@ -14,7 +14,7 @@ import { sceneArt } from '../../assets/sceneArt';
 import { playSfx } from '../../platform/audio';
 import { WalkSprite } from './WalkSprite';
 import { Ambience, Moment, NearFoliage, pickAmbience, pickMoment, type MomentKind } from './Ambience';
-import { DEPTH, PAN, glintStrength, heroX, layerShift, nextStop, stopFor, stopsFor } from './walkPath';
+import { DEPTH, PAN, glintStrength, heroX, layerShift, settleAt, stopFor, tapToT } from './walkPath';
 
 /**
  * A PLACE, WALKED — the App's exploration template.
@@ -107,7 +107,7 @@ export function WalkScene({
   // ---- the walk itself ----
   // Only the things that are there in this world (a trace can be gone).
   const points = useMemo(() => pointsFor(scene, view), [scene]);
-  const stops = useMemo(() => stopsFor(points.map((p) => p.at.x)), [points]);
+  const pointXs = useMemo(() => points.map((p) => p.at.x), [points]);
   const [t, setT] = useState(0);
   const tNow = useRef(0);
   const [target, setTarget] = useState(0);
@@ -126,6 +126,13 @@ export function WalkScene({
   // bird's shadow far off. One at a time, never constant, decoration only.
   const [moment, setMoment] = useState<{ kind: MomentKind; n: number } | null>(null);
   const restingAtPoint = useRef(false);
+  // Where the last line was noticed, so a few short taps in a row do not
+  // each bring a new one.
+  const saidAt = useRef(0);
+  // The spot just touched, shown for a moment; and whether the player has
+  // touched the ground yet this visit (until then, a quiet hint).
+  const [ring, setRing] = useState<{ x: number; y: number; n: number } | null>(null);
+  const [tapped, setTapped] = useState(false);
 
   useEffect(() => {
     const el = host.current;
@@ -214,7 +221,8 @@ export function WalkScene({
       playSfx('explore_marker');
       return;
     }
-    if (t > 0 && ambient.length > 0) {
+    if (Math.abs(t - saidAt.current) >= 0.18 && ambient.length > 0) {
+      saidAt.current = t;
       setCaption(ambient[said % ambient.length]);
       setSaid((n) => n + 1);
     }
@@ -254,10 +262,25 @@ export function WalkScene({
     };
   }, [calm]);
 
-  const go = (way: 'left' | 'right') => {
-    if (walking || entering > 0) return;
-    const to = nextStop(stops, t, way);
-    if (to === null) return;
+  /**
+   * A TOUCH ON THE PLACE ITSELF: walk there.
+   *
+   * Anything that is a control (a button, the way out) is its own and
+   * never moves anybody. Everywhere else is ground: the spot touched is
+   * read off the painting, and the party walks to stand under it — or
+   * beside the thing it was meant for, when it lands near one. A second
+   * touch while walking simply changes where they are going.
+   */
+  const onGround = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (entering > 0) return;
+    if ((e.target as Element).closest('button, a, [role="button"]')) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - box.left;
+    const y = e.clientY - box.top;
+    const to = settleAt(tapToT(x / box.width, tNow.current), pointXs);
+    setTapped(true);
+    setRing((r) => ({ x, y, n: (r?.n ?? 0) + 1 }));
+    if (Math.abs(to - tNow.current) < 1e-4) return;
     setLooked(null);
     setTarget(to);
   };
@@ -299,6 +322,11 @@ export function WalkScene({
       data-t={t.toFixed(3)}
       data-walking={moving ? 'yes' : 'no'}
       data-ambient={picked.join(',')}
+      data-target={target.toFixed(3)}
+      // For tests and on-device checks: each thing here, where it is in the
+      // painting, and where along the walk one stops beside it.
+      data-stops={points.map((p) => `${p.id}:${p.at.x}:${stopFor(p.at.x).toFixed(4)}`).join(' ')}
+      onPointerDown={onGround}
       data-moment={moment?.kind ?? ''}
     >
       {/* THE PAINTING, and what stands on it. */}
@@ -369,7 +397,7 @@ export function WalkScene({
       )}
 
       <Ambience picked={picked} />
-      {moment && <Moment key={moment.n} kind={moment.kind} />}
+      {moment && <Moment key={`moment-${moment.n}`} kind={moment.kind} />}
 
       {/* THE NEAREST LEAVES, sliding fastest. */}
       <div
@@ -395,6 +423,20 @@ export function WalkScene({
       <div className="walk-events" data-testid="walk-events">
         {events}
       </div>
+      {ring && (
+        <span
+          key={`ring-${ring.n}`}
+          className="walk-tap-ring"
+          data-testid="walk-tap-ring"
+          style={{ left: ring.x, top: ring.y }}
+          aria-hidden="true"
+        />
+      )}
+      {!tapped && entering <= 0 && (
+        <p className="walk-hint" data-testid="walk-hint">
+          地面をタップして歩く
+        </p>
+      )}
       <div className="walk-controls">
         {atPoint && (
           <button
@@ -407,24 +449,6 @@ export function WalkScene({
             調べる
           </button>
         )}
-        <button
-          className="walk-step"
-          data-testid="walk-forward"
-          aria-label="先へ進む"
-          disabled={moving || nextStop(stops, t, 'left') === null}
-          onClick={() => go('left')}
-        >
-          ◀
-        </button>
-        <button
-          className="walk-step"
-          data-testid="walk-back"
-          aria-label="来た道を戻る"
-          disabled={moving || nextStop(stops, t, 'right') === null}
-          onClick={() => go('right')}
-        >
-          ▶
-        </button>
       </div>
     </div>
   );

@@ -27,7 +27,7 @@ function Birds() {
         top: 6 + Math.random() * 18,
         delay: i * 0.9 + Math.random() * 1.5,
         duration: 11 + Math.random() * 6,
-        size: 10 + Math.random() * 6,
+        size: 6 + Math.random() * 3,
       })),
     [],
   );
@@ -40,7 +40,10 @@ function Birds() {
           style={{ top: `${b.top}%`, animationDelay: `${b.delay}s`, animationDuration: `${b.duration}s` }}
         >
           <svg width={b.size * 2} height={b.size} viewBox="0 0 20 10">
-            <path className="amb-wing" d="M0 6 Q5 0 10 6 Q15 0 20 6" />
+            <g className="amb-wing">
+              <path d={SMALL_BIRD} />
+              <ellipse cx="10" cy="5.6" rx="2.1" ry="1.4" />
+            </g>
           </svg>
         </span>
       ))}
@@ -104,12 +107,30 @@ function Motes() {
   );
 }
 
+/**
+ * A SMALL LAND BIRD, seen from below — short pointed wings either side of
+ * a small body, like a swallow or a finch. Not the long shallow "m" of a
+ * gull, which reads as the sea.
+ */
+const SMALL_BIRD = 'M10 5.4 C8.6 3.6 5.6 1.6 1.4 2.4 C4.4 3.4 6.6 4.6 8.4 6 Z M10 5.4 C11.4 3.6 14.4 1.6 18.6 2.4 C15.6 3.4 13.4 4.6 11.6 6 Z';
+
 /** The quiet moments that happen now and then, one at a time. */
 export type MomentKind = 'LEAF_PASS' | 'LIGHT_SHIFT' | 'BIRD_SHADOW';
-const MOMENTS: readonly MomentKind[] = ['LEAF_PASS', 'LIGHT_SHIFT', 'BIRD_SHADOW'];
+
+/** How often each comes up: a passing bird least of all. */
+const MOMENT_WEIGHTS: readonly [MomentKind, number][] = [
+  ['LEAF_PASS', 0.45],
+  ['LIGHT_SHIFT', 0.4],
+  ['BIRD_SHADOW', 0.15],
+];
 
 export function pickMoment(rnd: () => number = Math.random): MomentKind {
-  return MOMENTS[Math.floor(rnd() * MOMENTS.length) % MOMENTS.length];
+  let r = rnd();
+  for (const [kind, weight] of MOMENT_WEIGHTS) {
+    if (r < weight) return kind;
+    r -= weight;
+  }
+  return 'LEAF_PASS';
 }
 
 /**
@@ -125,8 +146,9 @@ export function Moment({ kind }: { kind: MomentKind }) {
       {kind === 'LIGHT_SHIFT' && <span className="amb-moment-light" />}
       {kind === 'BIRD_SHADOW' && (
         <span className="amb-moment-bird">
-          <svg width="34" height="14" viewBox="0 0 20 8">
-            <path d="M0 5 Q5 0 10 5 Q15 0 20 5" />
+          <svg width="18" height="9" viewBox="0 0 20 10">
+            <path d={SMALL_BIRD} />
+            <ellipse cx="10" cy="5.6" rx="2.1" ry="1.4" />
           </svg>
         </span>
       )}

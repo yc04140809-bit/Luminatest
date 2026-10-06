@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { atFarEnd, nextLeft, nextRight, settled, stops, tapGround, walkT, walkToThing } from './walk';
 
 /**
  * 古代遺跡 (working title), WALKED — the forest's walk across another place.
@@ -21,7 +22,7 @@ async function openRuins(page: Page) {
 }
 
 async function stepLeft(page: Page) {
-  await page.getByTestId('walk-forward').click();
+  await nextLeft(page);
   await expect(scene(page)).toHaveAttribute('data-walking', 'no');
 }
 
@@ -46,7 +47,7 @@ test('right to left, stop to stop: the arch, the banner, the steps — each glin
   };
   let last = await x();
   const said: Record<string, string> = {};
-  for (let i = 0; i < 5 && !(await page.getByTestId('walk-forward').isDisabled()); i++) {
+  for (let i = 0; i < 5 && !(await atFarEnd(page)); i++) {
     await stepLeft(page);
     const now = await x();
     expect(now, 'always further left').toBeLessThan(last);
@@ -89,7 +90,7 @@ test('it opens no world: no save is created by walking the ruins', async ({ page
   });
   await openRuins(page);
   expect(await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name))).toEqual([]);
-  for (let i = 0; i < 5 && !(await page.getByTestId('walk-forward').isDisabled()); i++) {
+  for (let i = 0; i < 5 && !(await atFarEnd(page)); i++) {
     await stepLeft(page);
     if (await page.getByTestId('walk-look').isVisible()) await page.getByTestId('walk-look').click();
   }
@@ -115,8 +116,7 @@ test.describe('in motion', () => {
     expect(dl).toBeGreaterThan(0);
     expect(((await scene(page).getAttribute('data-ambient')) ?? '').length).toBeGreaterThan(0);
     // Walk back to open ground, where nothing is being looked at, and wait for one.
-    await page.getByTestId('walk-back').click();
-    await expect(scene(page)).toHaveAttribute('data-walking', 'no');
+    await nextRight(page);
     await expect(scene(page)).toHaveAttribute('data-moment', /LEAF_PASS|LIGHT_SHIFT|BIRD_SHADOW/, { timeout: 20_000 });
     expect(await page.getByTestId('walk-moment').evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none');
   });
@@ -125,8 +125,7 @@ test.describe('in motion', () => {
 test('less motion asked for: no drifting touches, and a step is a step', async ({ page }) => {
   await openRuins(page);
   await expect(page.locator('.amb')).toHaveCount(0);
-  await page.getByTestId('walk-forward').click();
-  await expect(scene(page)).toHaveAttribute('data-walking', 'no');
+  await nextLeft(page);
   await expect(page.getByTestId('walk-look')).toBeVisible();
 });
 
@@ -153,14 +152,86 @@ for (const [w, h] of [
       await inside('walk-kaos');
       await inside('walk-caption');
       await inside('walk-preview-leave');
-      await inside('walk-forward');
       if (await page.getByTestId('walk-look').isVisible()) {
         await inside('walk-look');
         const id = (await page.getByTestId('walk-look').getAttribute('data-point'))!;
         await inside(`walk-point-${id}`);
       }
-      if (await page.getByTestId('walk-forward').isDisabled()) break;
+      if (await atFarEnd(page)) break;
       await stepLeft(page);
     }
   });
 }
+
+test.describe('walking by touch', () => {
+  test('touching the ground left, middle and right walks there — and stops where it was touched, on free ground', async ({ page }) => {
+    await openRuins(page);
+    await expect(page.getByTestId('walk-hint')).toHaveText('地面をタップして歩く');
+    const hero = async () => {
+      const b = (await page.getByTestId('walk-hero').boundingBox())!;
+      return b.x + b.width / 2;
+    };
+    // Left of him: he walks left, and stands under the spot touched.
+    const vw = page.viewportSize()!.width;
+    const start = await hero();
+    await tapGround(page, 0.45);
+    await settled(page);
+    await expect(page.getByTestId('walk-hint')).toHaveCount(0);
+    await expect(page.getByTestId('walk-tap-ring')).toHaveCount(1);
+    const afterLeft = await hero();
+    expect(afterLeft).toBeLessThan(start);
+    // Then well right of him: he walks back right.
+    await tapGround(page, 0.92);
+    await settled(page);
+    const afterRight = await hero();
+    expect(afterRight).toBeGreaterThan(afterLeft);
+    // Touching free ground between two things stops there: nothing in reach.
+    const [a, b] = (await stops(page)).slice(0, 2);
+    const mid = (a.px + b.px) / 2;
+    await walkToThing(page, mid);
+    const t = await walkT(page);
+    expect(Math.abs(t - a.t)).toBeGreaterThan(0.05);
+    expect(Math.abs(t - b.t)).toBeGreaterThan(0.05);
+    await expect(page.getByTestId('walk-look')).toHaveCount(0);
+    expect(vw).toBeGreaterThan(0);
+  });
+
+  test('touching near a thing walks to stand beside it, and 調べる appears; reading it, then walking on, works', async ({ page }) => {
+    await openRuins(page);
+    const all = await stops(page);
+    for (const s of all) {
+      // A little off the thing itself: still taken as "go to that thing".
+      await walkToThing(page, s.px + 0.02);
+      expect(await walkT(page)).toBeCloseTo(s.t, 3);
+      await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', s.id);
+      await page.getByTestId('walk-look').click();
+      await expect(page.getByTestId('walk-caption')).not.toBeEmpty();
+    }
+  });
+
+  test('controls are not ground: 調べる and the way out never move anybody', async ({ page }) => {
+    await openRuins(page);
+    const first = (await stops(page))[0];
+    await walkToThing(page, first.px);
+    const t = await walkT(page);
+    await page.getByTestId('walk-look').click();
+    await page.waitForTimeout(300);
+    expect(await walkT(page)).toBe(t);
+    expect(await page.getByTestId('walk-scene').getAttribute('data-target')).toBe(t.toFixed(3));
+  });
+
+  test.describe('in motion', () => {
+    test.use({ reducedMotion: 'no-preference' });
+    test('a second touch while walking changes where they are going', async ({ page }) => {
+      await openRuins(page);
+      await tapGround(page, 0.02);
+      await expect(page.getByTestId('walk-scene')).toHaveAttribute('data-walking', 'yes');
+      const firstTarget = Number(await page.getByTestId('walk-scene').getAttribute('data-target'));
+      await page.waitForTimeout(250);
+      await tapGround(page, 0.9);
+      await settled(page);
+      const t = await walkT(page);
+      expect(t).toBeLessThan(firstTarget);
+    });
+  });
+});

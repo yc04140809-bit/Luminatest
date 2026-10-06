@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
+import { atFarEnd, nextLeft, nextRight, tapGround, walkT } from './walk';
 
 /**
  * グリーンウッドの森, WALKED — the App's exploration template, first place.
@@ -62,14 +63,16 @@ async function shiftOf(page: Page, selector: string) {
 }
 
 /** One step to the left, sampling the hero's frame while he walks. */
+/** On to the next thing to the left (or the end), by touch, sampling the hero's frame on the way. */
 async function stepLeft(page: Page) {
   const frames = new Set<string>();
-  await page.getByTestId('walk-forward').click();
-  for (let i = 0; i < 40; i++) {
-    frames.add((await page.getByTestId('walk-hero').getAttribute('data-frame')) ?? '');
-    if ((await scene(page).getAttribute('data-walking')) === 'no') break;
-    await page.waitForTimeout(60);
-  }
+  await nextLeft(page, async () => {
+    for (let i = 0; i < 40; i++) {
+      frames.add((await page.getByTestId('walk-hero').getAttribute('data-frame')) ?? '');
+      if ((await scene(page).getAttribute('data-walking')) === 'no') break;
+      await page.waitForTimeout(60);
+    }
+  });
   await expect(scene(page)).toHaveAttribute('data-walking', 'no');
   return frames;
 }
@@ -216,7 +219,7 @@ test.describe('in motion', () => {
     await expect(moment).toHaveCount(1);
     expect(await moment.evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none');
     // While it plays, the walk and the doors answer as ever.
-    await page.getByTestId('walk-forward').click();
+    await tapGround(page, 0.4);
     await expect(scene(page)).toHaveAttribute('data-walking', 'no');
     // And it goes.
     await expect(page.getByTestId('walk-moment')).toHaveCount(0, { timeout: 8_000 });
@@ -231,10 +234,10 @@ test('stop to stop: a thing in reach, 調べる, a short line — at least two o
   await intoTheForest(page);
   // Nothing in reach at the start: no 調べる.
   await expect(page.getByTestId('walk-look')).toHaveCount(0);
-  await expect(page.getByTestId('walk-back')).toBeDisabled();
+  expect(await walkT(page)).toBe(0);
 
   const seen: string[] = [];
-  for (let i = 0; i < 6 && !(await page.getByTestId('walk-forward').isDisabled()); i++) {
+  for (let i = 0; i < 6 && !(await atFarEnd(page)); i++) {
     await stepLeft(page);
     const look = page.getByTestId('walk-look');
     if (await look.isVisible()) {
@@ -252,7 +255,7 @@ test('stop to stop: a thing in reach, 調べる, a short line — at least two o
   // Before the four answers, the log has been trodden.
   // And back the way they came.
   const end = await heroX(page);
-  await page.getByTestId('walk-back').click();
+  await nextRight(page);
   await expect(scene(page)).toHaveAttribute('data-walking', 'no');
   expect(await heroX(page)).toBeGreaterThan(end);
 });
@@ -263,7 +266,7 @@ test('the forest’s doors are where they were: the undergrowth is a fight, the 
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
-  await page.getByTestId('walk-forward').click();
+  await tapGround(page, 0.4);
   await expect(scene(page)).toHaveAttribute('data-walking', 'no');
   // Mid-walk, the fight is still one press away.
   await page.getByTestId('encounter-button').click();
@@ -285,11 +288,11 @@ test('walking, stopping and looking write nothing; the save and WORLD MEMORY are
   await page.waitForTimeout(500);
   const before = await everythingSaved(page);
 
-  for (let i = 0; i < 6 && !(await page.getByTestId('walk-forward').isDisabled()); i++) {
+  for (let i = 0; i < 6 && !(await atFarEnd(page)); i++) {
     await stepLeft(page);
     if (await page.getByTestId('walk-look').isVisible()) await page.getByTestId('walk-look').click();
   }
-  await page.getByTestId('walk-back').click();
+  await nextRight(page);
   await expect(scene(page)).toHaveAttribute('data-walking', 'no');
   await page.waitForTimeout(500);
   expect(await everythingSaved(page)).toEqual(before);
@@ -367,7 +370,8 @@ test('for a player who asked for less motion: no drifting touches, and a step is
   await intoTheVillage(page);
   await intoTheForest(page);
   await expect(page.locator('.amb')).toHaveCount(0);
-  await page.getByTestId('walk-forward').click();
+  // A touch on the first thing: there at once, beside it.
+  await nextLeft(page);
   await expect(scene(page)).toHaveAttribute('data-walking', 'no');
   await expect(page.getByTestId('walk-look')).toBeVisible();
   await context.close();
@@ -401,7 +405,6 @@ for (const [w, h] of [
       await inside('walk-kaos');
       await inside('walk-caption');
       await inside('leave-forest');
-      await inside('walk-forward');
       const doors = [await inside('gald-button'), await inside('encounter-button')];
       if (await page.getByTestId('walk-look').isVisible()) {
         const look = await inside('walk-look');
@@ -409,7 +412,7 @@ for (const [w, h] of [
       }
       // The party stands above the doors, never behind them.
       for (const d of doors) expect(hero.y + hero.height, 'party above the doors').toBeLessThanOrEqual(d.y + 2);
-      if (await page.getByTestId('walk-forward').isDisabled()) break;
+      if (await atFarEnd(page)) break;
       await stepLeft(page);
     }
   });

@@ -76,3 +76,41 @@ describe('古代遺跡 on the same walk', () => {
     for (let i = 1; i < ts.length; i++) expect(ts[i] - ts[i - 1]).toBeGreaterThan(2 * APPROACH);
   });
 });
+
+describe('a tap on the ground', () => {
+  it('sends the leader to stand under the spot that was touched', async () => {
+    const { tapToT } = await import('./walkPath');
+    for (const t of [0, 0.3, 0.7]) {
+      for (const x of [0.3, 0.5, 0.7]) {
+        const to = tapToT(x, t);
+        if (to <= 0 || to >= 1) continue;
+        // Where the touched spot of the painting will be once he is there.
+        const px = (x - layerShift(t, 1)) / 1.3;
+        expect(heroX(to)).toBeCloseTo(paintingX(px, to));
+      }
+    }
+  });
+
+  it('left of him walks left, right of him walks right, and the walk’s ends hold', async () => {
+    const { tapToT } = await import('./walkPath');
+    const t = 0.5;
+    expect(tapToT(heroX(t) - 0.2, t)).toBeGreaterThan(t);
+    expect(tapToT(heroX(t) + 0.2, t)).toBeLessThan(t);
+    expect(tapToT(-5, t)).toBe(1);
+    expect(tapToT(5, t)).toBe(0);
+  });
+
+  it('near a thing it stops beside the thing; anywhere else it stops where it was told', async () => {
+    const { settleAt, SNAP } = await import('./walkPath');
+    const xs = GREENWOOD_WALK.points.map((p) => p.at.x);
+    for (const x of xs) {
+      const s = stopFor(x);
+      expect(settleAt(s + SNAP * 0.8, xs)).toBe(s);
+      expect(settleAt(s - SNAP * 0.8, xs)).toBe(s);
+    }
+    // Halfway between the first two things: free ground.
+    const ss = xs.map(stopFor).sort((a, b) => a - b);
+    const mid = (ss[0] + ss[1]) / 2;
+    expect(settleAt(mid, xs)).toBe(mid);
+  });
+});
