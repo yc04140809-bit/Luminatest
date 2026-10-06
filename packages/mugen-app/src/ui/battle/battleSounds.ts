@@ -5,77 +5,135 @@ import type { SfxId } from '@mugen/content/audio/sfx';
 import { playSfx } from '../../platform/audio';
 import type { Blow } from './blows';
 import type { SpellFxView } from './magic/SpellFx';
-
-/** The noise of a spell reaching its mark, by what kind of spell it is. */
-export function spellLandSfx(spell: Pick<SpellFxView, 'kind' | 'phase'> | null): SfxId | null {
-  if (!spell || spell.phase !== 'impact') return null;
-  if (spell.kind === 'MEND') return 'battle_heal';
-  if (spell.kind === 'COMET') return 'battle_finisher_hit';
-  return null;
-}
+import type { FieldScene } from './scene/fieldScene';
 
 /**
  * THE FIGHT'S NOISES, laid over what the stage already draws.
  *
- * The same moments the Artifact's battle sounds at (BattleUIPrototype),
- * hung off the same things — the theatre's beat and the blows — so the
- * App adds sound without the fight changing in any way: nothing here
- * decides, delays or moves anything. A sound whose file has not been
- * delivered is silence, as everywhere.
+ * Hung off the things the stage is handed — the theatre's beat, the
+ * blows, her spell's drawing, a cut-in, a scene — so the App adds sound
+ * without the fight changing in any way: nothing here decides, delays or
+ * moves anything. Which file each moment plays, how loud and how long,
+ * is content/audio/sfxTuning.ts.
  *
- *   STRIKE   the hero's swing, by what he fights with (a long sword)
- *   TACKLE   the opponent's attack: a person by their weapon (Gald's
- *            knives), a creature by its body (the heavy blow)
- *   GUARD    bracing
- *   a cut-in starting (a skill, a special move)
- *   MAGIC    a spell being cast — the magic circle opening, at her casting
- *            pose (after the cut-in, when there is one)
- *   a heal   landing (her 癒しの光), as it reaches the party
- *   a finisher landing (彗星撃): the special move's own blow
- *   the opponent going down — as it lands on the ground
- *   a blow   landing, once each, only when it cost something
- *   the fight starting, and the fight won
+ * THREE LEVELS, and each a different sound, not only a louder one:
+ *
+ *   ordinary   his swing → the hit; her spell's circle → its burst;
+ *              Gald's knives; a creature's heavy blow
+ *   skill      a heavier swing; a stronger landing
+ *   special    a cut-in, the gathering (溜め), the move, and its own
+ *              finishing blow — two or three of those, never all at once
+ *
+ * NOT ON TOP OF EACH OTHER. A spell's own landing replaces the ordinary
+ * hit of the same blow rather than joining it, and a burst of spears at
+ * ×2 sounds every other one.
  */
 
+/** A spell's landing replaces the ordinary hit of its blow for this long. */
+const SPELL_COVERS_HIT_MS = 320;
+
+export interface OpponentSound {
+  artId: string;
+  person: boolean;
+  /** A boss fight (Gald): heavier hits on it, a heavier fall. */
+  boss: boolean;
+}
+
 /** Which noise a beat makes, or null for none. Pure, for the tests. */
-export function beatSfx(beat: string, opponentArtId: string, opponentIsPerson: boolean): SfxId | null {
+export function beatSfx(beat: string, opponent: OpponentSound): SfxId | null {
   switch (beat) {
     case 'STRIKE':
       return attackSfxFor(battleProfileOf('hero'));
     case 'TACKLE':
       // A person fought is not in the party's profiles, but their weapon is
       // canon (Gald: two daggers); somebody with none written strikes bare-handed.
-      if (!opponentIsPerson) return CREATURE_ATTACK_SFX;
-      return WEAPON_CANON[opponentArtId] ? ATTACK_SFX_BY_WEAPON[WEAPON_CANON[opponentArtId]] : 'battle_attack_strike';
-    case 'GUARD':
-      return 'battle_guard';
-    case 'MAGIC':
-      return 'magic_cast';
+      if (!opponent.person) return CREATURE_ATTACK_SFX;
+      return WEAPON_CANON[opponent.artId] ? ATTACK_SFX_BY_WEAPON[WEAPON_CANON[opponent.artId]] : 'battle_attack_strike';
     default:
       return null;
   }
 }
 
-/** The noise of a blow landing, by whose side it lands on. */
-export function blowSfx(blow: Blow): SfxId | null {
+/**
+ * The noise of a blow landing. On the party: being hit. On the opponent:
+ * by how much it cost — a light one, an ordinary one, a heavy one — and
+ * a boss's own, heavier, whatever the amount.
+ */
+export function blowSfx(blow: Blow, opponent: OpponentSound, opponentMaxHp: number): SfxId | null {
   if (blow.amount <= 0) return null;
-  return blow.on === 'enemy' ? 'battle_hit' : 'battle_damage';
+  if (blow.on === 'hero') return 'battle_damage';
+  if (opponent.boss) return 'battle_boss_hit';
+  const share = opponentMaxHp > 0 ? blow.amount / opponentMaxHp : 0;
+  if (share >= 0.15) return 'battle_hit_heavy';
+  if (share <= 0.04) return 'battle_hit_light';
+  return 'battle_hit';
+}
+
+/** Her spell, as it gathers (the circle) and as it lands. */
+export function spellSfx(spell: Pick<SpellFxView, 'kind' | 'phase'> | null): SfxId | null {
+  if (!spell) return null;
+  if (spell.phase === 'channel') return spell.kind === 'COMET' ? 'battle_charge_aura' : 'magic_cast';
+  switch (spell.kind) {
+    case 'BOLT':
+      return 'battle_magic_hit';
+    case 'COMET':
+      return 'battle_finisher_hit';
+    case 'MEND':
+      return 'battle_heal';
+    case 'WARD':
+      return 'battle_buff';
+    case 'HAZE':
+      return 'battle_debuff';
+    default:
+      return null;
+  }
+}
+
+/** The opponent going down. */
+export function downSfx(opponent: OpponentSound): SfxId {
+  return opponent.boss ? 'battle_boss_defeat' : 'battle_enemy_defeat';
+}
+
+/**
+ * A SCENE'S NOISES, by who is on and which step it is at — the special
+ * moves (today only the DEBUG preview plays them). Two or three a move:
+ *
+ *   レヴィ  her stance (the dark gathering) → each spear going in →
+ *           her drive → the finish
+ *   アリア  the arrow loosed → the rose opening over the field → its
+ *           light reaching the party
+ *   主人公  his sword gathering → the dash through → the cut landing
+ */
+export function sceneStepSfx(name: string, step: string): SfxId | null {
+  const table: Record<string, Record<string, SfxId>> = {
+    levi: { stance: 'battle_debuff', rush: 'battle_attack_heavy_weapon', impact: 'battle_finisher_hit' },
+    aria: { shot: 'battle_attack_bow', bloom: 'battle_buff', bless: 'battle_heal' },
+    zero: { charge: 'battle_charge_aura', dash: 'battle_skill_slash', break: 'battle_finisher_hit' },
+  };
+  return table[name]?.[step] ?? null;
+}
+
+/** Whether the nth spear going in is heard (1 is the first): all at ×1, every other at ×2. */
+export function spearHeard(n: number, speed: number): boolean {
+  return speed > 1 ? n % 2 === 1 : true;
 }
 
 export function useBattleSounds({
   beat,
   blows,
-  opponentArtId,
-  opponentIsPerson,
+  opponent,
+  opponentMaxHp,
   won,
   cutIn,
   spell,
   downed = false,
+  scene = null,
+  speed = 1,
 }: {
   beat: string;
   blows: readonly Blow[];
-  opponentArtId: string;
-  opponentIsPerson: boolean;
+  opponent: OpponentSound;
+  opponentMaxHp: number;
   won: boolean;
   /** A cut-in is on screen now. */
   cutIn: boolean;
@@ -83,28 +141,33 @@ export function useBattleSounds({
   spell?: SpellFxView | null;
   /** The opponent has fallen and lies on the ground. */
   downed?: boolean;
+  /** A scene (a special move) playing on the field. */
+  scene?: FieldScene | null;
+  speed?: number;
 }) {
-  // A spell reaching its mark, once per spell.
-  useLayoutEffect(() => {
-    const sfx = spellLandSfx(spell ?? null);
-    if (sfx) playSfx(sfx);
-  }, [spell?.id, spell?.phase]);
+  const play = (id: SfxId | null) => {
+    if (id) playSfx(id, { speed });
+  };
 
   // A cut-in starting.
   useLayoutEffect(() => {
-    if (cutIn) playSfx('battle_cutin');
+    if (cutIn) play('battle_cutin');
   }, [cutIn]);
 
-  // Before paint, so the noise leaves with the picture (see the Artifact's note).
+  // Before paint, so the noise leaves with the picture.
   useLayoutEffect(() => {
-    const sfx = beatSfx(beat, opponentArtId, opponentIsPerson);
-    if (sfx) playSfx(sfx);
+    play(beatSfx(beat, opponent));
   }, [beat]);
 
-  // Down.
+  // Her spell: the circle as it gathers, and its burst as it lands —
+  // which stands in for the ordinary hit of that same blow.
+  const spellLandedAt = useRef(-Infinity);
   useLayoutEffect(() => {
-    if (downed) playSfx('battle_down');
-  }, [downed]);
+    const sfx = spellSfx(spell ?? null);
+    if (!sfx) return;
+    if (spell?.phase === 'impact') spellLandedAt.current = performance.now();
+    play(sfx);
+  }, [spell?.id, spell?.phase]);
 
   // One noise per blow, never the same blow twice.
   const sounded = useRef(0);
@@ -112,15 +175,35 @@ export function useBattleSounds({
     for (const blow of blows) {
       if (blow.id <= sounded.current) continue;
       sounded.current = blow.id;
-      const sfx = blowSfx(blow);
-      if (sfx) playSfx(sfx);
+      if (blow.on === 'enemy' && performance.now() - spellLandedAt.current < SPELL_COVERS_HIT_MS) continue;
+      play(blowSfx(blow, opponent, opponentMaxHp));
     }
   }, [blows]);
 
+  // Down.
+  useLayoutEffect(() => {
+    if (downed) play(downSfx(opponent));
+  }, [downed]);
+
+  // A special move's steps, and Levi's spears one by one.
+  useLayoutEffect(() => {
+    if (scene) play(sceneStepSfx(scene.name, scene.step));
+  }, [scene?.id, scene?.step]);
+  const spears = useRef(0);
+  useLayoutEffect(() => {
+    if (!scene || scene.name !== 'levi') {
+      spears.current = 0;
+      return;
+    }
+    if (!scene.enemy?.startsWith('pierced')) return;
+    spears.current += 1;
+    if (spearHeard(spears.current, speed)) play('battle_attack_thrust');
+  }, [scene?.id, scene?.enemy]);
+
   useEffect(() => {
-    playSfx('battle_start');
+    play('battle_start');
   }, []);
   useEffect(() => {
-    if (won) playSfx('battle_win');
+    if (won) play('battle_win');
   }, [won]);
 }

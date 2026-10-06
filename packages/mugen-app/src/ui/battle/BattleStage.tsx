@@ -234,7 +234,19 @@ export function BattleStage({
   const enemyState = enemyPose(view);
   const person = opponent.artId === 'gald';
   // The fight's noises, over the same beats and blows the stage draws.
-  useBattleSounds({ beat, blows, opponentArtId: opponent.artId, opponentIsPerson: person, won: beaten, cutIn: !!cinematic, spell, downed: !!downed });
+  useBattleSounds({
+    beat,
+    blows,
+    // Gald's is the one boss fight (it plays the boss music): heavier hits, a heavier fall.
+    opponent: { artId: opponent.artId, person, boss: opponent.artId === 'gald' },
+    opponentMaxHp: battle.enemyMaxHp,
+    won: beaten,
+    cutIn: !!cinematic,
+    spell,
+    downed: !!downed,
+    scene,
+    speed,
+  });
   const enemyShown = person
     ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')
     : battleEnemyArt(opponent.artId, enemyState);

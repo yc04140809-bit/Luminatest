@@ -17,6 +17,8 @@ import もマップへの追記も要りません。`src/sfx.ts` がこのフォ
 
 ## 納品済み（2026-10-06）
 
+> 戦闘での割り当て・音量補正・×2 対策の全体は `docs/BATTLE_SE.md`。ファイルを持たない瞬間（`battle_hit` など）は、`mugen-core/content/audio/sfxTuning.ts` で納品ファイルを借りて鳴らす。
+
 「鳴る場所」は **App 版**のこと。Artifact 版には効果音は入りません（下記）。
 
 | ファイル名 | 用途（納品時の指定） | App で鳴る場所 |

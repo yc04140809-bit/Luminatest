@@ -94,6 +94,17 @@ export const SFX_IDS = [
   // Gathering power for a big move — a charge, an aura rising round the
   // one about to strike. Delivered 2026-10-06; no such move yet.
   'battle_charge_aura',
+  // MOMENTS THAT BORROW A DELIVERED FILE (sfxTuning.ts says which), so
+  // a fight can tell a light hit from a boss's, or a beaten creature
+  // from a beaten boss, before every one of them has a recording.
+  'battle_hit_light',
+  'battle_hit_heavy',
+  'battle_boss_hit',
+  'battle_enemy_defeat',
+  'battle_boss_defeat',
+  'battle_bow_hit',
+  'battle_skill_slash',
+  'battle_evade',
   'battle_damage',
   'battle_guard',
   'battle_heal',

@@ -31,6 +31,20 @@ import {
 // The delivered sound files, read from the folder they were put in.
 // The artifact aliases this module to an empty one; see sfxNone.ts.
 import { SFX_FILES } from '@mugen/assets/sfx';
+import { SFX_TUNING, sfxRateFor, sfxRingMs, sfxSourceOf } from '@mugen/content/audio/sfxTuning';
+
+/** How loud a sound plays relative to the SFX slider: its tuning, else the shared table. */
+function sfxGain(id: SfxId): number {
+  return SFX_TUNING[id]?.gain ?? SFX_GAIN[id] ?? 1;
+}
+
+/** The fade at the end of a sound cut short (`maxMs`). */
+const SFX_FADE_MS = 140;
+
+/** How one playing of a sound may differ: the fight's speed shortens a long one. */
+export interface SfxOptions {
+  speed?: number;
+}
 
 /**
  * How long the opening theme takes to get out of the way.
@@ -672,7 +686,7 @@ export class AudioManager {
    * twice speed asks for the same blow twice as often and the ear has
    * already heard it.
    */
-  playSfx(id: SfxId): void {
+  playSfx(id: SfxId, options: SfxOptions = {}): void {
     const src = sfxSrc(id);
     if (!src || !this.unlocked || this.sfxVolume <= 0) return;
     const now = Date.now();
@@ -697,10 +711,33 @@ export class AudioManager {
       const primed = this.sfxPrimed.get(id);
       const audio = primed && (primed.paused || primed.ended) ? primed : new Audio(src);
       audio.currentTime = 0;
-      audio.volume = clampVolume(this.sfxVolume * (SFX_GAIN[id] ?? 1));
+      const volume = clampVolume(this.sfxVolume * sfxGain(id));
+      audio.volume = volume;
+      // Pitch with speed: a small drift, or the moment's own fixed pitch.
+      const rate = sfxRateFor(id);
+      (audio as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = false;
+      audio.playbackRate = rate;
       void audio.play().catch(() => {
         /* refused, or no device — a sound effect is never worth an error */
       });
+      // A long one rings only so long — shorter at ×2 — then fades.
+      const ring = sfxRingMs(id, options.speed ?? 1);
+      if (ring !== null) {
+        const fadeAt = Math.max(0, ring - SFX_FADE_MS);
+        window.setTimeout(() => {
+          const t0 = performance.now();
+          const step = () => {
+            const k = Math.min(1, (performance.now() - t0) / SFX_FADE_MS);
+            audio.volume = clampVolume(volume * (1 - k));
+            if (k < 1) requestAnimationFrame(step);
+            else {
+              audio.pause();
+              audio.volume = volume;
+            }
+          };
+          requestAnimationFrame(step);
+        }, fadeAt);
+      }
     } catch {
       /* ignore */
     }
@@ -727,7 +764,7 @@ export class AudioManager {
       try {
         const audio = new Audio(src);
         audio.preload = 'auto';
-        audio.volume = clampVolume(this.sfxVolume * (SFX_GAIN[id] ?? 1));
+        audio.volume = clampVolume(this.sfxVolume * sfxGain(id));
         audio.load();
         this.sfxPrimed.set(id, audio);
       } catch {
@@ -745,7 +782,8 @@ export class AudioManager {
  * code anywhere. Null is silence and never an error.
  */
 function sfxSrc(id: SfxId): string | null {
-  return SFX_FILES[id] ?? null;
+  // A moment with no file of its own borrows the one its tuning names.
+  return SFX_FILES[id] ?? SFX_FILES[sfxSourceOf(id)] ?? null;
 }
 
 export const audioManager = new AudioManager();
@@ -758,6 +796,6 @@ export const audioManager = new AudioManager();
  * the whole of the interface, and there is exactly one implementation
  * of it behind that name.
  */
-export function playSfx(id: SfxId): void {
-  audioManager.playSfx(id);
+export function playSfx(id: SfxId, options?: SfxOptions): void {
+  audioManager.playSfx(id, options);
 }
