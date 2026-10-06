@@ -26,6 +26,14 @@ export const ATTACK_SFX_BY_WEAPON: Record<WeaponType, SfxId> = {
 };
 
 /**
+ * What a CREATURE's attack sounds like. A creature carries nothing — it
+ * is the weapon — so it is not in the weapon table; its blow is the
+ * heavy, bodily one. (The Artifact still uses the ordinary swing for
+ * creatures; this is read by the App.)
+ */
+export const CREATURE_ATTACK_SFX: SfxId = 'battle_attack_heavy_strike';
+
+/**
  * And what a way of fighting sounds like, for somebody with nothing in
  * their hands to make the noise.
  *

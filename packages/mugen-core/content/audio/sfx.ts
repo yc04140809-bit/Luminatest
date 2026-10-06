@@ -61,9 +61,39 @@ export const SFX_IDS = [
   'battle_attack_dagger',
   'battle_attack_thrust',
   'battle_attack_bow',
+  // Delivered 2026-10-06 with no weapon of their own yet — named for the
+  // kind of blow, ready for whoever first makes it:
+  //   strike        a bare fist, a kick, a club — blunt blows in general
+  //   heavy_strike  a big man's or a monster's blow (creatures use it now)
+  //   heavy_weapon  an axe, a great scythe — a heavy weapon swung
+  //   whip          a whip
+  'battle_attack_strike',
+  'battle_attack_heavy_strike',
+  'battle_attack_heavy_weapon',
+  'battle_attack_whip',
   'battle_hit',
   'magic_cast',
   'battle_magic_hit',
+  // Wind, thunder, ice, fire, dark, earth (an earthquake…) and holy
+  // spells being cast. Delivered 2026-10-06 before any spell is one of them
+  // (hers are all star): ready for the first.
+  'battle_magic_wind',
+  'battle_magic_thunder',
+  'battle_magic_ice',
+  'battle_magic_fire',
+  'battle_magic_dark',
+  'battle_magic_earth',
+  'battle_magic_holy',
+  // A cut-in starting (a skill, a special move) — the moment the picture
+  // cuts in, before the spell itself.
+  'battle_cutin',
+  // Somebody going down — the beaten one landing on the ground.
+  'battle_down',
+  // A special move (a finisher) landing: heavier than an ordinary hit.
+  'battle_finisher_hit',
+  // Gathering power for a big move — a charge, an aura rising round the
+  // one about to strike. Delivered 2026-10-06; no such move yet.
+  'battle_charge_aura',
   'battle_damage',
   'battle_guard',
   'battle_heal',
@@ -98,6 +128,10 @@ export const SFX_PRELOAD: readonly SfxId[] = [
   'battle_damage',
   'battle_guard',
   'magic_cast',
+  // The opponent's swing, which in the App is the knife (Gald) or the
+  // heavy blow (a creature): heard on the first enemy turn of a fight.
+  'battle_attack_dagger',
+  'battle_attack_heavy_strike',
 ];
 
 /**

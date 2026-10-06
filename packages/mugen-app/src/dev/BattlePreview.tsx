@@ -38,6 +38,7 @@ import { useLeviDirector } from './levi/useLeviDirector';
 import { leviPlan } from './levi/leviTiming';
 import { useAriaDirector } from './aria/useAriaDirector';
 import { ariaPlan } from './aria/ariaTiming';
+import { audioManager } from '../platform/audio';
 import { useZeroDirector } from './hero/useZeroDirector';
 import { zeroPlan } from './hero/zeroTiming';
 
@@ -171,6 +172,9 @@ function setupFrom(params: URLSearchParams): Setup {
 }
 
 export function BattlePreview({ params }: { params: URLSearchParams }) {
+  // The fight's sounds can be checked here too: like the game, sound
+  // starts on the first touch of the page (a phone allows nothing sooner).
+  useEffect(() => audioManager.listenForFirstGesture(), []);
   const [setup, setSetup] = useState<Setup>(() => setupFrom(params));
   // Kept across replays: a move judged at ×2 is replayed at ×2.
   const [speed, setSpeed] = useState<BattleSpeed>(DEFAULT_BATTLE_SPEED);

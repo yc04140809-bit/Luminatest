@@ -27,6 +27,7 @@ import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS, depthScale } from './formatio
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
 import { latestOn, motionSlot, type Blow } from './blows';
 import { HitFx } from './HitFx';
+import { useBattleSounds } from './battleSounds';
 import { MagicTray } from './MagicTray';
 import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
@@ -232,6 +233,8 @@ export function BattleStage({
   const kaosSteady = battlePartyArt('kaos', kaosPose({ beat, downed, awakened }));
   const enemyState = enemyPose(view);
   const person = opponent.artId === 'gald';
+  // The fight's noises, over the same beats and blows the stage draws.
+  useBattleSounds({ beat, blows, opponentArtId: opponent.artId, opponentIsPerson: person, won: beaten, cutIn: !!cinematic, spell, downed: !!downed });
   const enemyShown = person
     ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')
     : battleEnemyArt(opponent.artId, enemyState);

@@ -1,6 +1,7 @@
 import { mugenAliases } from '../shared-aliases.mjs';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 
 import { execSync } from 'node:child_process';
 
@@ -26,7 +27,23 @@ export default defineConfig({
   base: './',
   define: buildDefine,
   plugins: [react()],
-  resolve: { alias: mugenAliases() },
+  resolve: {
+    alias: [
+      /**
+       * NO SOUND EFFECTS IN THE ARTIFACT'S PHONE BUILD EITHER — kept as it
+       * was. The sound effects delivered in 2026-10 are for the App (its
+       * battle sounds them); the Artifact is frozen, and its own battle
+       * would otherwise start sounding them too (its creatures' tackle
+       * as a sword swing). The same alias as the single-file build.
+       * Before the package aliases, because first match wins.
+       */
+      {
+        find: '@mugen/assets/sfx',
+        replacement: fileURLToPath(new URL('../mugen-assets/src/sfxNone.ts', import.meta.url)),
+      },
+      ...mugenAliases(),
+    ],
+  },
   server: {
     watch: {
       /**
