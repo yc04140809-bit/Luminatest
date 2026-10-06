@@ -321,10 +321,20 @@ test('the way in, セキリュウガ, and after: not killed — and not looking 
   // A few seconds of quiet, and the low rumble…
   await expect(page.getByTestId('seal-quiet')).toBeVisible();
   await expect.poll(() => heard(page, 'battle_magic_earth')).toBe(true);
-  // …and it is there: its name, its placeholder shadow, the heavy entrance.
+  // …and it is there: its name, its drawing (as delivered, whole, turned to them), the heavy entrance.
   await expect(page.getByTestId('seal-entrance')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId('seal-boss-name')).toContainText('セキリュウガ');
-  await expect(page.getByTestId('seal-shadow')).toHaveAttribute('data-placeholder', 'yes');
+  const figure = page.getByTestId('seal-figure');
+  await expect(figure).toHaveAttribute('data-facing', 'party');
+  await expect.poll(() => figure.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+  const art = await figure.evaluate((i: HTMLImageElement) => ({
+    src: decodeURIComponent(i.currentSrc || i.src),
+    natural: [i.naturalWidth, i.naturalHeight],
+    fit: getComputedStyle(i).objectFit,
+  }));
+  expect(art.src).toContain('sekiryuga.png');
+  expect(art.natural).toEqual([1122, 1402]);
+  expect(art.fit).toBe('contain');
   await expect.poll(() => heard(page, 'battle_boss_emerge')).toBe(true);
   // ⑤ セキリュウガ登場
   await page.waitForTimeout(1500);
@@ -354,7 +364,10 @@ test('the way in, セキリュウガ, and after: not killed — and not looking 
   const after: string[] = [];
   for (let i = 0; i < 30; i++) {
     after.push((await page.getByTestId('seal-line').textContent()) ?? '');
-    if (after[after.length - 1] === '「ずっと、\nあっちを見てる。」' || after[after.length - 1].includes('あっちを見てる')) {
+    if (after[after.length - 1].includes('こちらを見ていない')) {
+      await expect(page.getByTestId('seal-figure')).toHaveAttribute('data-facing', 'away');
+    }
+    if (after[after.length - 1].includes('あっちを見てる')) {
       // ⑦ 戦闘後イベント
       await shot(page, '7-after');
     }
@@ -364,6 +377,7 @@ test('the way in, セキリュウガ, and after: not killed — and not looking 
     if (done) break;
   }
   expect(after).toEqual(expect.arrayContaining(['「この子。」', '「私たちを見てない。」', '「奥。」']));
+  // By then it had turned away — looking deeper in, not at them.
   expect(after.join('')).not.toMatch(/死|幼体|守/);
   await expect.poll(() => stage(page)).toBe('SETTLED');
   // Back in the ruins, the way deeper closed for now.

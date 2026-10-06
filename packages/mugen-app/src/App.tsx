@@ -777,7 +777,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           <BattleScreen
             key="sekiryuga"
             spec={SEKIRYUGA_BATTLE}
-            // A placeholder shadow, at arm's length as Gald stands — a boss fills the field; marked BOSS.
+            // At arm's length, as Gald stands — a boss fills the field; marked BOSS.
             opponent={{
               artId: 'sekiryuga',
               stands: 'NEAR',

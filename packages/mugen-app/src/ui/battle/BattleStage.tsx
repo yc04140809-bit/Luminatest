@@ -530,6 +530,8 @@ export function BattleStage({
             // the blow — and not while she is only gathering it.
             struckEnemy || (beat === 'MAGIC' && !spell) ? 'struck' : '',
             beaten && !showingDown ? 'falling' : '',
+            // A named boss with no drawing of it down goes down without being squashed.
+            beaten && !showingDown && opponent.boss ? 'boss-kneel' : '',
             showingDown ? 'downed' : '',
           ]
             .filter(Boolean)

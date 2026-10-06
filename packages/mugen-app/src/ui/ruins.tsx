@@ -25,7 +25,7 @@ import { playSfx } from '../platform/audio';
  *               「遺跡の奥へ進む」
  *   approach    the way in: signs a little at a time, Kaos stopping them,
  *               the music let down, a few seconds' quiet and a low
- *               rumble, and then it is there — its name, its shadow
+ *               rumble, and then it is there — its name, and it
  *   aftermath   after the fight: it is not dead, and it is not looking at
  *               them (content/story/sekiryugaArc)
  *
@@ -110,17 +110,22 @@ function useRuinsPainting(): string | null {
   return src;
 }
 
-/** The placeholder shadow (battleArt's — one reference, swapped there when the real art comes). */
-function Shadow({ stopped = false }: { stopped?: boolean }) {
-  const art = battleEnemyArt('sekiryuga', stopped ? 'down' : 'front');
+/**
+ * セキリュウガ, as the fight draws it (battleArt's one reference). Shown
+ * whole at its own shape. `toward`: turned to face the party (the drawing
+ * faces right; mirrored on screen, never edited). `stopped`: brought to a
+ * stop — lowered and dimmed, there being no drawing of it down.
+ */
+function Figure({ toward, stopped = false }: { toward: boolean; stopped?: boolean }) {
+  const art = battleEnemyArt('sekiryuga', 'front');
   if (!art.asset) return null;
   return (
     <img
-      className={`seal-shadow${stopped ? ' stopped' : ''}`}
+      className={`seal-figure${toward ? ' toward' : ''}${stopped ? ' stopped' : ''}`}
       src={art.asset.src}
-      alt={`${SEKIRYUGA_NAME}（仮の影絵）`}
-      data-testid="seal-shadow"
-      data-placeholder="yes"
+      alt={SEKIRYUGA_NAME}
+      data-testid="seal-figure"
+      data-facing={toward ? 'party' : 'away'}
     />
   );
 }
@@ -188,7 +193,7 @@ export function SealApproachScreen({
       <div className={`seal-dark seal-dark-${step}`} aria-hidden="true" />
       {step === 'there' && (
         <div className="seal-entrance" data-testid="seal-entrance">
-          <Shadow />
+          <Figure toward />
           <div className="seal-name" data-testid="seal-boss-name">
             <i>BOSS</i>
             <b>{SEKIRYUGA_NAME}</b>
@@ -240,14 +245,16 @@ export function SekiryugaAftermathScreen({ heroName, onDone }: { heroName: strin
   const [at, setAt] = useState(0);
   const line = shown(SEKIRYUGA_AFTERMATH[at], heroName);
   const last = at >= SEKIRYUGA_AFTERMATH.length - 1;
-  // It is down for the first two lines; then it rises — and looks away.
+  // It is down for the first two lines; then it rises — and, from 「だが、
+  // セキリュウガはこちらを見ていない。」 on, it is turned away, deeper in.
   const stopped = at < 2;
+  const away = at >= 4;
   return (
     <div className="screen seal" data-testid="seal-aftermath" data-at={at}>
       {painting && <img className="seal-painting" src={painting} alt="" aria-hidden="true" />}
       <div className="seal-dark seal-dark-there" aria-hidden="true" />
       <div className="seal-entrance after">
-        <Shadow stopped={stopped} />
+        <Figure toward={!away} stopped={stopped} />
       </div>
       <div className="seal-words">
         {line.speaker && <p className="speaker">{line.speaker}</p>}

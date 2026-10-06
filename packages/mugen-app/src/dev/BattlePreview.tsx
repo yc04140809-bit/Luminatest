@@ -67,7 +67,7 @@ import { zeroPlan } from './hero/zeroTiming';
  * Reached from the title screen's DEBUG chip on a device, or by URL:
  *
  *   ?preview=battle              the forest's moss rabbit, level 1
- *   &enemy=sekiryuga             セキリュウガ, the first boss (placeholder shadow, the ruins)
+ *   &enemy=sekiryuga             セキリュウガ, the first boss (the ruins)
  *   &enemy=gald                  Gald, as the story fights him (she wakes
  *                                in the fight, as she does in the game)
  *   &magic=1                     she has already woken (the 魔法 command)

@@ -80,3 +80,12 @@
 @media (prefers-reduced-motion: reduce) {
   .bp-enemy.roar, .bp-tell { animation: none; }
 }
+
+/* At nought a boss with no drawing of it brought down (セキリュウガ) sinks and
+   dims instead of the creatures' squash — its delivered drawing is never
+   stretched. */
+.bp-enemy.falling.boss-kneel { animation: bp-kneel var(--bp-fall, 0.34s) ease-in forwards; }
+@keyframes bp-kneel {
+  0% { transform: translateY(0); filter: none; }
+  100% { transform: translateY(12px); filter: brightness(0.6) saturate(0.7); }
+}

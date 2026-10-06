@@ -1500,8 +1500,8 @@ body {
 
 /* ── 古代遺跡の奥 — the way in to セキリュウガ, and after ──
    The ruins' painting under a darkness that deepens step by step; the
-   words in the tavern's box, bottom left; the placeholder shadow and its
-   name card on the right. Nothing here is セキリュウガ's art. */
+   words in the tavern's box, bottom left; セキリュウガ (its delivered
+   drawing, whole) and its name card on the right. */
 .screen.seal {
   position: relative;
   overflow: hidden;
@@ -1557,15 +1557,20 @@ body {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.seal-shadow {
+.seal-figure {
   width: 100%;
   height: 100%;
   min-height: 0;
+  /* The delivered drawing, whole and at its own shape. */
   object-fit: contain;
   object-position: 50% 100%;
-  filter: drop-shadow(0 0 18px rgba(170, 40, 30, 0.45));
+  filter: drop-shadow(0 0 16px rgba(120, 170, 230, 0.45));
+  transition: transform 0.6s ease, filter 0.6s ease, opacity 0.6s ease;
 }
-.seal-shadow.stopped { filter: none; opacity: 0.85; }
+/* Turned to face the party: the drawing faces right, so it is mirrored on screen. */
+.seal-figure.toward { transform: scaleX(-1); }
+.seal-figure.stopped { filter: brightness(0.55) saturate(0.7); opacity: 0.9; }
+.seal-figure.toward.stopped { transform: scaleX(-1) translateY(6%); }
 .seal-name {
   position: absolute;
   top: 4%;

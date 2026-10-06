@@ -22,9 +22,7 @@ import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-da
 import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
 import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
-// セキリュウガ's official art is not delivered yet: a placeholder shadow (see ENEMIES.sekiryuga).
-import sekiryugaPlaceholder from '../../assets/placeholder/sekiryuga-silhouette.svg';
-import sekiryugaPlaceholderStopped from '../../assets/placeholder/sekiryuga-silhouette-stopped.svg';
+import sekiryuga from '@mugen/assets/files/enemies/sekiryuga.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -126,26 +124,21 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
     },
   },
   /**
-   * セキリュウガ (FORGE MON-000007) — A PLACEHOLDER, NOT ITS ART.
+   * セキリュウガ (FORGE MON-000007) — its official art, delivered
+   * 2026-10-06 as a transparent PNG and placed as delivered.
    *
-   * A dark, shapeless mass marked 「仮」, so nobody mistakes it for the
-   * real thing, and it decides nothing about it: no size, build, colour
-   * or kind. When the official art is delivered, these two `src` lines
-   * (and their boxes) are the whole change.
+   * One drawing: standing. There is no drawing of it brought down, so it
+   * is not given one — at nought it stays this drawing and the stage
+   * lowers and dims it (battle.app.css, `boss-kneel`), never squashing it.
    */
   sekiryuga: {
     id: 'sekiryuga',
     label: 'セキリュウガ',
     states: {
       front: {
-        src: sekiryugaPlaceholder,
-        box: { fileW: 600, fileH: 600, x: 120, y: 150, width: 460, height: 400 },
-        facing: 'right',
-      },
-      /** Brought to a stop — never killed. */
-      down: {
-        src: sekiryugaPlaceholderStopped,
-        box: { fileW: 600, fileH: 600, x: 110, y: 320, width: 480, height: 240 },
+        src: sekiryuga,
+        box: { fileW: 1122, fileH: 1402, x: 9, y: 11, width: 1113, height: 1382 },
+        face: { fileW: 1122, fileH: 1402, x: 870, y: 175, width: 230, height: 230 },
         facing: 'right',
       },
     },
