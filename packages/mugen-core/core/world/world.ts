@@ -14,6 +14,7 @@ import {
   type EquipmentTable,
   type OwnedTable,
 } from './equipmentState';
+import { readRareFinds, readVisits, type RareFindTable, type VisitTable } from './explorationState';
 import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
@@ -292,6 +293,14 @@ const HERO_NAME_KEY = 'hero_name';
 const EQUIPMENT_KEY = 'character_equipment';
 const OWNED_EQUIPMENT_KEY = 'owned_equipment';
 /**
+ * WALKING PLACES: whose once-in-a-world find has been taken, and how
+ * many real visits each place has had — see `explorationState.ts`.
+ * Neither existed before; an absent row reads as nothing taken and no
+ * visits, so no schema version moved.
+ */
+const RARE_FINDS_KEY = 'explorationRareFinds';
+const VISITS_KEY = 'explorationVisits';
+/**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
  * PROGRESS, NOT PREFERENCE, which is why it is here and not in
@@ -546,6 +555,8 @@ export class World {
   private equipment: EquipmentTable;
   private ownedEquipment: OwnedTable;
   private unlockedBgm: BattleBgmId[];
+  private rareFinds: RareFindTable;
+  private visits: VisitTable;
 
   private readonly health: SaveHealth;
 
@@ -560,6 +571,8 @@ export class World {
     this.heroName = fields.heroName;
     this.heroNamed = fields.heroNamed;
     this.unlockedBgm = fields.unlockedBgm;
+    this.rareFinds = fields.rareFinds;
+    this.visits = fields.visits;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1021,6 +1034,59 @@ export class World {
       ],
     });
     this.equipment = next;
+    this.emit();
+    return true;
+  }
+
+  /** Whether a place's once-in-a-world find has been taken in this world. */
+  hasRareFind(place: string): boolean {
+    return this.rareFinds[place] === true;
+  }
+
+  /** How many real visits a place has had in this world. */
+  getExplorationVisits(place: string): number {
+    return this.visits[place] ?? 0;
+  }
+
+  /**
+   * One more real visit to a place. Called by the walk screen once a
+   * visit has amounted to something (it decides what counts), and only
+   * once per visit. Returns the new count.
+   */
+  async recordExplorationVisit(place: string): Promise<number> {
+    if (!place) return 0;
+    const next: VisitTable = { ...this.visits, [place]: (this.visits[place] ?? 0) + 1 };
+    await this.store.commit({ putState: [{ key: VISITS_KEY, value: next }] });
+    this.visits = next;
+    this.emit();
+    return next[place];
+  }
+
+  /**
+   * TAKING A PLACE'S ONCE-IN-A-WORLD FIND: the mark that it is gone,
+   * and the thing itself into the player's hands.
+   *
+   * ONE COMMIT for both, so a crash between them can neither leave the
+   * find marked taken with nothing held nor hand it over twice. Refused
+   * — nothing written — when it was already taken, or when the thing is
+   * not equipment this build knows.
+   */
+  async claimRareFind(place: string, equipmentId: string): Promise<boolean> {
+    if (!place || this.rareFinds[place] === true || !weaponDefOf(equipmentId)) return false;
+    const finds: RareFindTable = { ...this.rareFinds, [place]: true };
+    const owned: OwnedTable = {
+      ...this.ownedEquipment,
+      [equipmentId]: (this.ownedEquipment[equipmentId] ?? 0) + 1,
+    };
+    await this.store.commit({
+      putState: [
+        { key: RARE_FINDS_KEY, value: finds },
+        { key: OWNED_EQUIPMENT_KEY, value: owned },
+        { key: EQUIPMENT_KEY, value: this.equipment },
+      ],
+    });
+    this.rareFinds = finds;
+    this.ownedEquipment = owned;
     this.emit();
     return true;
   }
@@ -2438,6 +2504,9 @@ export class World {
     this.heroNamed = false;
     ({ equipment: this.equipment, owned: this.ownedEquipment } = startingKit());
     this.unlockedBgm = [...INITIAL_UNLOCKED_BATTLE_BGM];
+    // And it has been nowhere and found nothing.
+    this.rareFinds = {};
+    this.visits = {};
     this.emit();
   }
 
@@ -2492,6 +2561,10 @@ export class World {
     // Wound the story back, and the party's wounds with it: a fight
     // that has not happened yet cannot have cost them anything.
     this.condition = null;
+    // The rows went with the clear above; memory follows them, so the
+    // screen never shows a find the save no longer has.
+    this.rareFinds = {};
+    this.visits = {};
     this.emit();
   }
 }
@@ -2618,6 +2691,8 @@ interface WorldFields {
    */
   equipmentStarted: boolean;
   unlockedBgm: BattleBgmId[];
+  rareFinds: RareFindTable;
+  visits: VisitTable;
 }
 
 /** What reading a save had to say about it. */
@@ -2755,6 +2830,10 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readOwned(value));
     case UNLOCKED_BGM_KEY:
       return settle(readUnlockedBgm(value));
+    case RARE_FINDS_KEY:
+      return settle(readRareFinds(value));
+    case VISITS_KEY:
+      return settle(readVisits(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -2837,6 +2916,8 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       ownedEquipment: take(OWNED_EQUIPMENT_KEY, readOwned(byKey.get(OWNED_EQUIPMENT_KEY))),
       equipmentStarted: byKey.get(EQUIPMENT_KEY) !== undefined,
       unlockedBgm: take(UNLOCKED_BGM_KEY, readUnlockedBgm(byKey.get(UNLOCKED_BGM_KEY))),
+      rareFinds: take(RARE_FINDS_KEY, readRareFinds(byKey.get(RARE_FINDS_KEY))),
+      visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
     },
     repairedKeys,
     unreadableKeys,

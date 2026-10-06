@@ -137,8 +137,11 @@ describe('what somebody is carrying', () => {
     expect(INITIAL_EQUIPMENT.hero.WEAPON).toBe('weapon/worn_long_sword');
   });
 
-  it('offers him both longswords and her neither', () => {
+  it('offers him the longswords and her neither', () => {
+    // 《星紋の遺剣》 is a long sword he can hold; the equipment screen
+    // leaves it off the list until it has been found (`foundOnly`).
     expect(equippableWeapons('hero').map((w) => w.equipmentId).sort()).toEqual([
+      'weapon/star_crest_relic_sword',
       'weapon/training_long_sword',
       'weapon/worn_long_sword',
     ]);
@@ -183,5 +186,37 @@ describe('what somebody is carrying', () => {
     expect(equippedAttackSfxFor('hero', 'weapon/worn_long_sword', 'battle_guard')).toBe(
       'battle_guard',
     );
+  });
+});
+
+describe('《星紋の遺剣》 — the ruins’ once-in-a-world find', () => {
+  const sword = WEAPON_DEFS['weapon/star_crest_relic_sword'];
+
+  it('a long sword for him, found and not sold, in nobody’s starting kit', () => {
+    expect(sword).toMatchObject({
+      name: '星紋の遺剣',
+      attackKind: 'PHYSICAL',
+      weaponType: 'LONG_SWORD',
+      foundOnly: true,
+      description: '欠けた星の紋様が刻まれた古い剣。長い眠りから目覚めたように、刃に淡い光が宿っている。',
+    });
+    expect(canEquip('hero', sword)).toBe(true);
+    expect(canEquip('kaos', sword)).toBe(false);
+    expect(Object.values(INITIAL_EQUIPMENT).flatMap((s) => Object.values(s))).not.toContain(sword.equipmentId);
+  });
+
+  it('its strength is written down but NOT in effect: the correction stays zero', () => {
+    expect(sword.effect).toEqual({ attack: 0, magic: 0 });
+    expect(hasNoCorrection(sword)).toBe(true);
+    expect(sword.planned).toEqual({
+      attack: 2,
+      ability: {
+        id: 'FIRST_FLASH',
+        name: '先手の一閃',
+        description: 'HP満タンのとき、戦闘の最初の一撃だけ威力1.25倍。',
+        trigger: 'FULL_HP_FIRST_STRIKE',
+        multiplier: 1.25,
+      },
+    });
   });
 });

@@ -144,3 +144,61 @@ describe('the ruins, walked about in', () => {
     expect(REACH).toBeLessThan(SNAP);
   });
 });
+
+describe('how rare a find is', () => {
+  it('the rainbow’s chance is visit × 0.3%, up to 3%', async () => {
+    const { rainbowChance } = await import('./roam');
+    expect(rainbowChance(1)).toBeCloseTo(0.003, 9);
+    expect(rainbowChance(3)).toBeCloseTo(0.009, 9);
+    expect(rainbowChance(10)).toBeCloseTo(0.03, 9);
+    expect(rainbowChance(50)).toBeCloseTo(0.03, 9);
+  });
+
+  it('a roll under the chance is the rainbow; golden at 8%; otherwise NORMAL', async () => {
+    const { rollGrade } = await import('./roam');
+    // First visit: 0.3%.
+    expect(rollGrade(0, 1, true, () => 0.0029)).toBe('RAINBOW');
+    const seq = (...xs: number[]) => () => xs.shift()!;
+    expect(rollGrade(0, 1, true, seq(0.5, 0.05))).toBe('RARE');
+    expect(rollGrade(0, 1, true, seq(0.5, 0.5))).toBe('NORMAL');
+    // Taken (or already seen this visit): never the rainbow, whatever the roll.
+    expect(rollGrade(0, 1, false, () => 0)).toBe('RARE');
+    expect(rollGrade(20, 9, false, () => 0.9)).toBe('NORMAL');
+  });
+
+  it('certain on the eighth real visit, as its fifth find — and on any visit after, until taken', async () => {
+    const { rollGrade } = await import('./roam');
+    const never = () => 0.99;
+    for (let f = 1; f <= 4; f++) expect(rollGrade(7, f, true, never)).not.toBe('RAINBOW');
+    expect(rollGrade(7, 5, true, never)).toBe('RAINBOW');
+    expect(rollGrade(6, 5, true, never)).not.toBe('RAINBOW');
+    expect(rollGrade(9, 6, true, never)).toBe('RAINBOW');
+    expect(rollGrade(7, 5, false, never)).not.toBe('RAINBOW');
+  });
+
+  it('across visits of fifteen finds it is likelier each time, and nobody needs more than eight', async () => {
+    const { rainbowChance } = await import('./roam');
+    let miss = 1;
+    const by: number[] = [];
+    for (let v = 1; v <= 7; v++) {
+      miss *= (1 - rainbowChance(v)) ** 15;
+      by.push(1 - miss);
+    }
+    expect(by[0]).toBeGreaterThan(0.03);
+    expect(by[0]).toBeLessThan(0.06);
+    expect(by[4]).toBeGreaterThan(0.4);
+    expect(by[4]).toBeLessThan(0.6);
+    for (let i = 1; i < by.length; i++) expect(by[i]).toBeGreaterThan(by[i - 1]);
+  });
+
+  it('the ruins carry golden finds and their rainbow find', () => {
+    expect(roam.rareDiscoveries!.map((d) => d.text)).toEqual(
+      expect.arrayContaining(['古いコインが落ちている。', '珍しい鉱石の欠片を見つけた。', '古びた金具が土に埋もれている。']),
+    );
+    // A golden find is a line for now: it hands nothing over.
+    for (const d of roam.rareDiscoveries!) expect(d.reward).toBeUndefined();
+    expect(roam.rainbow).toEqual({ id: 'STAR_CREST_RELIC_SWORD', label: '虹色の光', equipmentId: 'weapon/star_crest_relic_sword' });
+    const ids = [...roam.discoveries, ...roam.rareDiscoveries!].map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});

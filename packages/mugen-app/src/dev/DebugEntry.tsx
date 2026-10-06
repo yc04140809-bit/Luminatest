@@ -37,6 +37,21 @@ export function DebugEntry() {
       >
         DEBUG 探索（古代遺跡）
       </button>
+      {/* The same walk with finds of one grade, to check them on a phone. */}
+      <button
+        data-testid="debug-walk-ruins-rare"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=walk&place=ANCIENT_RUINS&find=RARE`)}
+        style={DOOR}
+      >
+        DEBUG 探索（古代遺跡・金色を出す）
+      </button>
+      <button
+        data-testid="debug-walk-ruins-rainbow"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=walk&place=ANCIENT_RUINS&find=RAINBOW`)}
+        style={DOOR}
+      >
+        DEBUG 探索（古代遺跡・虹を出す）
+      </button>
       <button
         data-testid="debug-forge-import"
         onClick={() => window.location.assign(`${window.location.pathname}?tool=forge-import`)}

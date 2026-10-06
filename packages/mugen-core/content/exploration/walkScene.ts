@@ -123,6 +123,49 @@ export interface WalkDiscovery {
   /** What it is called on the 「調べる」 control. */
   label: string;
   text: string;
+  /**
+   * FOR LATER, UNUSED TODAY: a real thing to hand over (a material, a
+   * collectible, something to sell). Nothing reads it yet — a find
+   * gives nothing until the bag is ready to take it.
+   */
+  reward?: DiscoveryReward;
+  /**
+   * FOR LATER, UNUSED TODAY: the WORLD MEMORY event a find would write,
+   * for the day a find belongs to somebody's life rather than only to
+   * the player. Nothing reads it yet and nothing is written.
+   */
+  remember?: MemoryEventType;
+}
+
+/**
+ * HOW RARE A FIND IS.
+ *
+ *   NORMAL   the small finds: a flower, a feather, a puddle.
+ *   RARE     golden: an old coin, a fragment of ore — less often.
+ *   RAINBOW  once in a world per place: a real thing, kept in the save.
+ *   SPECIAL  for later — a travelling merchant, a hidden somebody, old
+ *            letters, a strange sky. Named so the shape has room; there
+ *            are none.
+ */
+export type DiscoveryGrade = 'NORMAL' | 'RARE' | 'RAINBOW' | 'SPECIAL';
+
+/** What a find might one day hand over. Shape only: nothing gives one yet. */
+export interface DiscoveryReward {
+  kind: 'MATERIAL' | 'COLLECTIBLE' | 'VALUABLE';
+  itemId: string;
+  quantity?: number;
+}
+
+/**
+ * A PLACE'S ONCE-IN-A-WORLD FIND: a piece of equipment, taken once and
+ * kept in the save (`explorationRareFinds`), never there again after.
+ */
+export interface WalkRainbowFind {
+  id: string;
+  /** What it is called on the 「調べる」 control before it is known. */
+  label: string;
+  /** The equipment it is (content/equipment/equipment.ts). */
+  equipmentId: string;
 }
 
 /**
@@ -151,6 +194,10 @@ export interface WalkRoam {
   spots: readonly PaintingPoint[];
   /** What may be found there — picked so the same one does not come round again soon. */
   discoveries: readonly WalkDiscovery[];
+  /** The golden finds — the same kind of line, less often. */
+  rareDiscoveries?: readonly WalkDiscovery[];
+  /** The place's once-in-a-world find. */
+  rainbow?: WalkRainbowFind;
 }
 
 /** What a condition is asked against: what the player knows, and when it is. */

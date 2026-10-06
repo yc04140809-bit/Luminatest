@@ -72,11 +72,12 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
   // person you were looking at.
   useEffect(() => setPicking(null), [who.id]);
 
-  const choices = equippableWeapons(who.id);
+  const owned = world.getOwnedEquipment();
+  // A find is not listed before it is found: a greyed row would give it away.
+  const choices = equippableWeapons(who.id).filter((w) => !w.foundOnly || (owned[w.equipmentId] ?? 0) > 0);
   const equippedId = world.getEquipped(who.id, 'WEAPON');
   const equipped = equippedId ? weaponDefOf(equippedId) : null;
   const weaponType = weaponTypeOf(who.id, equippedId);
-  const owned = world.getOwnedEquipment();
   const nameScale = Math.max(0.68, Math.min(1, 8 / heroNameLength(who.label)));
 
   const wear = (id: string | null) => {

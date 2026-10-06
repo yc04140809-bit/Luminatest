@@ -109,5 +109,16 @@ export const RUINS_WALK: WalkSceneDef = {
       { id: 'FEATHER', label: '落ちている羽根', text: '小さな鳥の羽根が一枚、石畳に落ちている。' },
       { id: 'WARM_STONE', label: '日だまりの石', text: '日だまりの石が、ほんのり温かい。' },
     ],
+    // GOLDEN: rarer, and only a line for now — nothing is handed over
+    // (each could carry a `reward` the day the bag can take one).
+    rareDiscoveries: [
+      { id: 'OLD_COIN', label: '古いコイン', text: '古いコインが落ちている。' },
+      { id: 'ORE_SHARD', label: '鉱石の欠片', text: '珍しい鉱石の欠片を見つけた。' },
+      { id: 'OLD_FITTING', label: '古びた金具', text: '古びた金具が土に埋もれている。' },
+      { id: 'GOLD_CLASP', label: '金の留め具', text: '金色の小さな留め具が、石のすき間で光っている。' },
+      { id: 'GLASS_BEAD', label: '硝子玉', text: '色の褪せた硝子玉が、陽を受けてきらめいている。' },
+    ],
+    // ONCE IN A WORLD: 《星紋の遺剣》.
+    rainbow: { id: 'STAR_CREST_RELIC_SWORD', label: '虹色の光', equipmentId: 'weapon/star_crest_relic_sword' },
   },
 };

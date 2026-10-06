@@ -48,6 +48,10 @@ export const SFX_IDS = [
   'explore_event_start',
   'explore_encounter',
   'explore_marker',
+  // A golden find, and a place's once-in-a-world rainbow find: each its
+  // own moment, so the rare ones never sound like the everyday one.
+  'explore_rare_found',
+  'explore_rainbow_found',
   // ---- BATTLE ----
   'battle_start',
   // ONE PER WEAPON, not one per character. Two people holding long

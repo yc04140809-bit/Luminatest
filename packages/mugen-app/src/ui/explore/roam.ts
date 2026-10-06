@@ -155,3 +155,53 @@ export function pickSpot(
 export function standBeside(p: PaintingPoint, floor: readonly PaintingPoint[]): PaintingPoint {
   return toFloor({ x: p.x + 0.05, y: p.y }, floor);
 }
+
+// ---- HOW RARE EACH FIND IS ----
+//
+// Decided as each small find turns up. NORMAL most of the time; golden
+// (RARE) now and then; the place's once-in-a-world RAINBOW find very
+// rarely — a little less rarely each real visit, and certain on the
+// eighth, so nobody walks for ever and never sees it. Once taken, never.
+
+/** A golden find, per find. */
+export const RARE_CHANCE = 0.08;
+/** The rainbow find, per find, per real visit: visit n gives n × this … */
+export const RAINBOW_STEP = 0.003;
+/** … up to this. */
+export const RAINBOW_CAP = 0.03;
+/** On this real visit (and any after it, while it has not been taken) it is certain … */
+export const RAINBOW_SURE_VISIT = 8;
+/** … as this find of the visit (1 is the first). */
+export const RAINBOW_SURE_FIND = 5;
+/** A visit counts as real once this many finds have turned up in it. */
+export const VISIT_COUNTS_AT = 3;
+
+/** The rainbow find's chance on a given real visit (1 is the first). */
+export function rainbowChance(visit: number): number {
+  return Math.min(RAINBOW_CAP, Math.max(0, Math.floor(visit)) * RAINBOW_STEP);
+}
+
+export type FindGrade = 'NORMAL' | 'RARE' | 'RAINBOW';
+
+/**
+ * WHAT THIS FIND IS.
+ *
+ * `visitsBefore` is how many real visits the place had before this one;
+ * `findNumber` which find of this visit it is (1 first); `rainbowOpen`
+ * whether the rainbow may turn up at all — not taken in this world, and
+ * not already turned up this visit (one per visit; if it is walked past
+ * it is gone, and the next visit's chance carries on rising).
+ */
+export function rollGrade(
+  visitsBefore: number,
+  findNumber: number,
+  rainbowOpen: boolean,
+  rnd: () => number = Math.random,
+): FindGrade {
+  if (rainbowOpen) {
+    const visit = visitsBefore + 1;
+    if (visit >= RAINBOW_SURE_VISIT && findNumber >= RAINBOW_SURE_FIND) return 'RAINBOW';
+    if (rnd() < rainbowChance(visit)) return 'RAINBOW';
+  }
+  return rnd() < RARE_CHANCE ? 'RARE' : 'NORMAL';
+}

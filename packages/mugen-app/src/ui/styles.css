@@ -1259,6 +1259,127 @@ body {
   animation: roam-sign-twinkle 2.6s ease-in-out infinite;
 }
 @keyframes roam-sign-twinkle { 0%, 100% { opacity: 0.55; transform: scale(0.75); } 50% { opacity: 1; transform: scale(1.1); } }
+/* FINDS BY RARITY. Gold: the same 「！」 and glint in gold. Rainbow: a
+   small glint in slowly turning colour with a few faint motes rising,
+   and up close a four-pointed star instead of a 「！」 — a find of
+   another kind at a glance, never loud enough to take over the place. */
+.walk-marker.v-rare .walk-marker-bar, .walk-marker.v-rare .walk-marker-dot { fill: #f2b52c; }
+.walk-marker.v-rare.is-here .walk-marker-bar, .walk-marker.v-rare.is-here .walk-marker-dot { fill: #ffc94a; }
+.walk-marker.v-rare { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 5px rgba(255, 196, 60, 0.6)); }
+.walk-marker.v-rainbow {
+  width: clamp(26px, 8.5vh, 36px);
+  height: clamp(26px, 8.5vh, 36px);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.55));
+  animation: walk-marker-breathe 3s ease-in-out infinite;
+}
+.walk-marker-star { stroke: #fff; stroke-width: 2.4; paint-order: stroke; stroke-linejoin: round; }
+.walk-marker.v-rainbow svg { animation: roam-hue 6s linear infinite; }
+.walk-marker-core { fill: #fff; }
+@keyframes roam-hue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+.roam-sign.g-rare {
+  background: radial-gradient(circle, #fff6d0 0 12%, rgba(255, 200, 70, 0.85) 30%, rgba(255, 170, 0, 0.3) 52%, transparent 70%);
+}
+.roam-sign.g-rainbow {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  background: none;
+  filter: drop-shadow(0 0 2px rgba(20, 14, 6, 0.7));
+  animation: roam-rainbow-pulse 3.4s ease-in-out infinite;
+}
+/* The colour itself, turning slowly; masked soft at the edge. Its own
+   layer, so the mask never swallows the halo or the motes. */
+.roam-sign.g-rainbow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0 15%, transparent 17%),
+    conic-gradient(from 0deg, #ff6b8b, #ffd25e, #7cf0a8, #6fb8ff, #c58bff, #ff6b8b);
+  -webkit-mask-image: radial-gradient(circle, #000 36%, rgba(0, 0, 0, 0.6) 52%, transparent 70%);
+  mask-image: radial-gradient(circle, #000 36%, rgba(0, 0, 0, 0.6) 52%, transparent 70%);
+  animation: roam-hue 7s linear infinite;
+}
+/* A faint halo, so it reads on pale stone as well as in shade. */
+.roam-sign.g-rainbow::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.12) 45%, transparent 68%);
+}
+@keyframes roam-rainbow-pulse { 0%, 100% { opacity: 0.75; transform: scale(0.86); } 50% { opacity: 1; transform: scale(1.1); } }
+.roam-mote {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px #fff, 0 0 7px rgba(190, 160, 255, 0.9);
+  opacity: 0;
+  animation: roam-mote-rise 3.6s ease-out infinite;
+}
+.roam-mote.m0 { --dx: -9px; animation-delay: 0s; }
+.roam-mote.m1 { --dx: 7px; animation-delay: 0.9s; }
+.roam-mote.m2 { --dx: -3px; animation-delay: 1.8s; }
+.roam-mote.m3 { --dx: 11px; animation-delay: 2.7s; }
+@keyframes roam-mote-rise {
+  0% { opacity: 0; transform: translate(0, 0); }
+  25% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(var(--dx), -30px); }
+}
+.walk-caption.g-rare { color: #ffe39a; box-shadow: inset 0 0 0 1px rgba(255, 200, 80, 0.55); }
+.walk-caption.g-rainbow {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgba(11, 11, 18, 0.72), rgba(11, 11, 18, 0.72)) padding-box,
+    linear-gradient(90deg, #ff6b8b, #ffd25e, #7cf0a8, #6fb8ff, #c58bff) border-box;
+}
+/* The moment it is taken: one soft flash of colour over everything, then gone. */
+.roam-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 107, 139, 0.5), rgba(255, 210, 94, 0.5), rgba(124, 240, 168, 0.5), rgba(111, 184, 255, 0.5), rgba(197, 139, 255, 0.5));
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: roam-flash 0.9s ease-out forwards;
+}
+@keyframes roam-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.roam-prize {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 82vw);
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 12px 20px 14px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background:
+    linear-gradient(rgba(14, 14, 22, 0.93), rgba(14, 14, 22, 0.93)) padding-box,
+    linear-gradient(120deg, #ff6b8b, #ffd25e, #7cf0a8, #6fb8ff, #c58bff) border-box;
+  text-align: center;
+  animation: roam-prize-in 0.45s ease-out 0.25s both;
+}
+@keyframes roam-prize-in { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.roam-prize p { margin: 0; }
+.roam-prize-kind { font-size: 11px; letter-spacing: 0.2em; color: #d9d2ff; }
+.roam-prize-name { margin-top: 4px !important; font-size: 19px; font-weight: 700; color: #fff4d6; text-shadow: 0 0 10px rgba(255, 230, 160, 0.5); }
+.roam-prize-text { margin-top: 8px !important; font-size: 12.5px; line-height: 1.75; color: #ece8f4; }
+.roam-prize-line { display: block; }
+.roam-prize-got { margin-top: 8px !important; font-size: 11.5px; color: #b9b3c9; }
+.roam-prize-note { margin-top: 4px !important; font-size: 11px; color: #ffb3a1; }
+.roam-prize-close { margin-top: 10px; min-height: 36px; padding: 6px 22px; font-size: 13px; }
 /* Where the ground was touched: a small ring that opens and fades. */
 .walk-tap-ring {
   position: absolute;
@@ -1340,7 +1461,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .roam-sign, .amb { animation: none !important; }
+  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .walk-marker svg, .roam-sign, .roam-sign::before, .roam-prize, .amb { animation: none !important; }
+  .roam-mote { display: none; }
+  .roam-flash { animation-duration: 0.4s !important; }
   .walk-tap-ring { animation: walk-tap-still 0.5s linear forwards !important; }
   .amb { display: none; }
 }

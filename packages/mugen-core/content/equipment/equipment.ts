@@ -61,6 +61,30 @@ export interface EquipmentEffect {
 
 export const NO_EFFECT: EquipmentEffect = { attack: 0, magic: 0 };
 
+/**
+ * WHAT A PIECE IS MEANT TO DO ONE DAY — written down, NOT IN EFFECT.
+ *
+ * Kept apart from `effect` on purpose: `effect` is what the battle
+ * would apply and must stay zero until the battle reads it (see
+ * `hasNoCorrection`), while this is the design for when it does. No
+ * screen shows it and no fight reads it; wiring it in is a separate
+ * piece of work that moves these numbers into `effect` and the guard
+ * with them.
+ */
+export interface PlannedTraits {
+  /** The attack it is designed to add, once corrections apply. */
+  attack: number;
+  /** Its own ability, once abilities exist in the battle. */
+  ability?: {
+    id: string;
+    name: string;
+    description: string;
+    /** HP full, the battle's first blow only: that blow times `multiplier`. */
+    trigger: 'FULL_HP_FIRST_STRIKE';
+    multiplier: number;
+  };
+}
+
 interface EquipmentBase {
   equipmentId: string;
   name: string;
@@ -68,6 +92,14 @@ interface EquipmentBase {
   /** Two lines at most: this is read standing up, in a forest. */
   description: string;
   effect: EquipmentEffect;
+  /**
+   * FOUND, NOT SOLD: not offered on any list until it is owned, so a
+   * once-in-a-world find is not given away by a greyed-out row before
+   * anybody has come across it.
+   */
+  foundOnly?: boolean;
+  /** The design for later — never shown, never applied. See `PlannedTraits`. */
+  planned?: PlannedTraits;
 }
 
 /**
@@ -132,6 +164,30 @@ export const WEAPON_DEFS: Record<string, WeaponDefinition> = {
     attackKind: 'MAGIC',
     description: '持ち主の魔力に反応し、忘れられた文字が静かに浮かび上がる。',
     effect: NO_EFFECT,
+  },
+  // 古代遺跡の虹の発見 — once in a world, found walking the ruins
+  // (content/exploration/ruinsWalk.ts). Its strength is designed and
+  // written down (`planned`), and is NOT applied: the battle does not
+  // read equipment yet, so today it fights exactly like any long sword.
+  'weapon/star_crest_relic_sword': {
+    equipmentId: 'weapon/star_crest_relic_sword',
+    name: '星紋の遺剣',
+    slot: 'WEAPON',
+    attackKind: 'PHYSICAL',
+    weaponType: 'LONG_SWORD',
+    description: '欠けた星の紋様が刻まれた古い剣。長い眠りから目覚めたように、刃に淡い光が宿っている。',
+    effect: NO_EFFECT,
+    foundOnly: true,
+    planned: {
+      attack: 2,
+      ability: {
+        id: 'FIRST_FLASH',
+        name: '先手の一閃',
+        description: 'HP満タンのとき、戦闘の最初の一撃だけ威力1.25倍。',
+        trigger: 'FULL_HP_FIRST_STRIKE',
+        multiplier: 1.25,
+      },
+    },
   },
 };
 

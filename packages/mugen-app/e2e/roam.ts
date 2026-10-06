@@ -21,6 +21,7 @@ export interface RoamThing {
   id: string;
   stand: P;
   mark: P;
+  grade: 'NORMAL' | 'RARE' | 'RAINBOW';
 }
 
 const pair = (s: string): P => {
@@ -50,8 +51,8 @@ export async function things(page: Page): Promise<RoamThing[]> {
     .split(' ')
     .filter(Boolean)
     .map((s) => {
-      const [kind, id, stand, mark] = s.split(':');
-      return { kind: kind as RoamThing['kind'], id, stand: pair(stand), mark: pair(mark) };
+      const [kind, id, stand, mark, grade] = s.split(':');
+      return { kind: kind as RoamThing['kind'], id, stand: pair(stand), mark: pair(mark), grade: grade as RoamThing['grade'] };
     });
 }
 

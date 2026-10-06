@@ -17,6 +17,7 @@ import { WalkSprite } from './WalkSprite';
 import { Ambience, Moment, pickAmbience, pickMoment, type MomentKind } from './Ambience';
 import { PointMarker } from './PointMarker';
 import { DEPTH, PAN, markTipY } from './walkPath';
+import { weaponDefOf } from '@mugen/content/equipment/equipment';
 import {
   FIND_MEMORY,
   FIND_WAIT_MS,
@@ -28,7 +29,10 @@ import {
   REACH,
   SNAP,
   SPOT_MEMORY,
+  VISIT_COUNTS_AT,
   alongTrail,
+  rollGrade,
+  type FindGrade,
   depthScale,
   dist,
   pickFind,
@@ -95,6 +99,8 @@ function shuffle<T>(xs: readonly T[]): T[] {
 interface Thing {
   id: string;
   kind: 'point' | 'find';
+  /** How rare a find is; the place's own things are NORMAL. */
+  grade: FindGrade;
   label: string;
   /** Where it is looked at from. */
   stand: PaintingPoint;
@@ -106,7 +112,32 @@ interface Thing {
 interface Find {
   find: WalkDiscovery;
   spot: number;
+  grade: FindGrade;
 }
+
+/**
+ * WHAT A WALK KEEPS, handed in by whoever opened the world: how many
+ * real visits the place has had before this one, whether its
+ * once-in-a-world find is already taken, and the two writes — one more
+ * real visit, and taking the find. `keeps` is false when nothing will
+ * outlive the session (no save), which the screen says when it matters.
+ */
+export interface RoamKeeper {
+  visitsBefore: number;
+  rainbowTaken: boolean;
+  keeps: boolean;
+  recordVisit(): void;
+  takeRainbow(): Promise<boolean>;
+}
+
+/** Without a save: nothing is kept, and the rainbow may still be seen. */
+const SESSION_ONLY: RoamKeeper = {
+  visitsBefore: 0,
+  rainbowTaken: false,
+  keeps: false,
+  recordVisit: () => {},
+  takeRainbow: async () => true,
+};
 
 const fmt = (p: PaintingPoint) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`;
 
@@ -119,6 +150,8 @@ export function RoamScene({
   onLeave,
   leaveLabel,
   leaveTestId,
+  keeper = SESSION_ONLY,
+  forceGrade,
 }: {
   scene: WalkSceneDef;
   roam: WalkRoam;
@@ -128,6 +161,13 @@ export function RoamScene({
   onLeave: () => void;
   leaveLabel: string;
   leaveTestId: string;
+  keeper?: RoamKeeper;
+  /**
+   * DEBUG ONLY: make finds this grade, to check them on a phone without
+   * walking for an hour. RAINBOW still turns up only while it has not
+   * been taken in this world — the rule being checked is never bent.
+   */
+  forceGrade?: 'RARE' | 'RAINBOW';
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
@@ -167,9 +207,26 @@ export function RoamScene({
   // ---- what is there ----
   const points = useMemo(() => pointsFor(scene, view), [scene]);
   const [read, setRead] = useState<ReadonlySet<string>>(new Set());
-  const [finds, setFinds] = useState<readonly Find[]>([]);
+  const [finds, setFindsState] = useState<readonly Find[]>([]);
+  // The same list, readable at once: finds are put down from effects and
+  // timers, never from inside a state update, so nothing runs twice.
+  const findsNow = useRef<readonly Find[]>([]);
+  const setFinds = (next: readonly Find[]) => {
+    findsNow.current = next;
+    setFindsState(next);
+  };
   const recentFinds = useRef<string[]>([]);
   const recentSpots = useRef<number[]>([]);
+  // This visit: how many finds have turned up, whether it has counted as
+  // a real visit yet, and whether the rainbow has turned up in it.
+  const findsThisVisit = useRef(0);
+  const visitCounted = useRef(false);
+  const rainbowSeen = useRef(false);
+  const [rainbowTaken, setRainbowTaken] = useState(keeper.rainbowTaken);
+  const rainbowTakenNow = useRef(keeper.rainbowTaken);
+  // The moment it is taken: a flash, then what it is.
+  const [prize, setPrize] = useState<{ name: string; description: string; kept: boolean; n: number } | null>(null);
+  const [captionGrade, setCaptionGrade] = useState<FindGrade>('NORMAL');
 
   const things: Thing[] = useMemo(
     () => [
@@ -178,14 +235,16 @@ export function RoamScene({
         .map((p) => ({
           id: p.id,
           kind: 'point' as const,
+          grade: 'NORMAL' as const,
           label: p.label,
           stand: toFloor(p.stand ?? p.at, roam.floor),
           mark: markerAt(p),
           text: pointLine(p, view) ?? '',
         })),
-      ...finds.map(({ find, spot }) => ({
+      ...finds.map(({ find, spot, grade }) => ({
         id: find.id,
         kind: 'find' as const,
+        grade,
         label: find.label,
         stand: standBeside(roam.spots[spot], roam.floor),
         mark: roam.spots[spot],
@@ -240,21 +299,42 @@ export function RoamScene({
     };
   }, [place]);
 
-  /** Put a new small find somewhere else on the floor, if there is room for one. */
-  const turnUp = (current: readonly Find[]): readonly Find[] => {
-    if (current.length >= MAX_FINDS) return current;
-    const find = pickFind(roam.discoveries, recentFinds.current, current.map((f) => f.find.id));
-    if (!find) return current;
+  /**
+   * Put a new find somewhere else on the floor, if there is room for one:
+   * how rare it is first, then which, then where. The third find of a
+   * visit makes it a real visit, counted once.
+   */
+  const turnUp = () => {
+    const current = findsNow.current;
+    if (current.length >= MAX_FINDS) return;
+    const number = findsThisVisit.current + 1;
+    const rainbowOpen = !!roam.rainbow && !rainbowTakenNow.current && !rainbowSeen.current;
+    let grade = rollGrade(keeper.visitsBefore, number, rainbowOpen);
+    if (forceGrade === 'RAINBOW' && rainbowOpen) grade = 'RAINBOW';
+    else if (forceGrade === 'RARE' && grade !== 'RAINBOW') grade = 'RARE';
+    const waiting = current.map((f) => f.find.id);
+    const find: WalkDiscovery | null =
+      grade === 'RAINBOW' && roam.rainbow
+        ? { id: roam.rainbow.id, label: roam.rainbow.label, text: '' }
+        : pickFind(grade === 'RARE' && roam.rareDiscoveries?.length ? roam.rareDiscoveries : roam.discoveries, recentFinds.current, waiting);
+    if (!find) return;
+    if (grade === 'RARE' && !roam.rareDiscoveries?.length) grade = 'NORMAL';
     const avoid = [
       ...points.filter((p) => !read.has(p.id)).map((p) => toFloor(p.stand ?? p.at, roam.floor)),
       ...current.map((f) => roam.spots[f.spot]),
     ];
     const spot = pickSpot(roam.spots, heroNow.current, avoid, [...recentSpots.current, ...current.map((f) => f.spot)]);
-    if (spot === null) return current;
+    if (spot === null) return;
     recentSpots.current = [...recentSpots.current, spot].slice(-SPOT_MEMORY);
     walkedForFind.current = 0;
     findAt.current = performance.now();
-    return [...current, { find, spot }];
+    findsThisVisit.current = number;
+    if (grade === 'RAINBOW') rainbowSeen.current = true;
+    if (number >= VISIT_COUNTS_AT && !visitCounted.current) {
+      visitCounted.current = true;
+      keeper.recordVisit();
+    }
+    setFinds([...current, { find, spot, grade }]);
   };
 
   // The walk itself: straight toward where was touched, a little slower farther back.
@@ -327,7 +407,7 @@ export function RoamScene({
   // Arriving: something in reach, or a line noticed; and maybe a new find somewhere else.
   useEffect(() => {
     if (!arrived) return;
-    if (arrivals <= 1 && finds.length === 0) setFinds((f) => turnUp(f));
+    if (arrivals <= 1 && findsNow.current.length === 0) turnUp();
     if (atThing) {
       playSfx('explore_marker');
     } else if (walkedForWords.current >= SAY_WALK && ambient.length > 0) {
@@ -338,13 +418,13 @@ export function RoamScene({
     // Standing still, Kaos turns to face him.
     if (Math.abs(heroNow.current.x - kaosNow.current.x) > 0.01)
       setKaosFacing(heroNow.current.x < kaosNow.current.x ? 'left' : 'right');
-    if (arrivals <= 1 || finds.length >= MAX_FINDS || walkedForFind.current < FIND_WALK) return;
+    if (arrivals <= 1 || findsNow.current.length >= MAX_FINDS || walkedForFind.current < FIND_WALK) return;
     const wait = FIND_WAIT_MS - (performance.now() - findAt.current);
     if (wait <= 0) {
-      setFinds((f) => turnUp(f));
+      turnUp();
       return;
     }
-    const timer = window.setTimeout(() => setFinds((f) => turnUp(f)), wait);
+    const timer = window.setTimeout(turnUp, wait);
     return () => window.clearTimeout(timer);
   }, [arrivals]);
 
@@ -383,7 +463,8 @@ export function RoamScene({
    */
   const onGround = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!arrived) return;
-    if ((e.target as Element).closest('button, a, [role="button"]')) return;
+    if ((e.target as Element).closest('button, a, [role="button"], [data-no-walk]')) return;
+    if (prize) return;
     const box = e.currentTarget.getBoundingClientRect();
     const sx = e.clientX - box.left;
     const sy = e.clientY - box.top;
@@ -402,16 +483,35 @@ export function RoamScene({
 
   const look = () => {
     if (!atThing) return;
-    playSfx('explore_found');
-    setCaption(atThing.text);
-    if (atThing.kind === 'point') {
-      setRead((r) => new Set(r).add(atThing.id));
-    } else {
-      recentFinds.current = [...recentFinds.current.filter((id) => id !== atThing.id), atThing.id].slice(-FIND_MEMORY);
-      walkedForFind.current = 0;
-      findAt.current = performance.now();
-      setFinds((f) => f.filter((x) => x.find.id !== atThing.id));
+    const thing = atThing;
+    if (thing.kind === 'point') {
+      playSfx('explore_found');
+      setCaptionGrade('NORMAL');
+      setCaption(thing.text);
+      setRead((r) => new Set(r).add(thing.id));
+      return;
     }
+    walkedForFind.current = 0;
+    findAt.current = performance.now();
+    setFinds(findsNow.current.filter((x) => x.find.id !== thing.id));
+    if (thing.grade === 'RAINBOW') {
+      // THE ONCE-IN-A-WORLD FIND: marked taken at once, so nothing can
+      // put it down again this visit, then kept in the save.
+      const def = roam.rainbow ? weaponDefOf(roam.rainbow.equipmentId) : null;
+      rainbowTakenNow.current = true;
+      setRainbowTaken(true);
+      playSfx('explore_rainbow_found');
+      const name = def ? `《${def.name}》` : thing.label;
+      setCaptionGrade('RAINBOW');
+      setCaption(`${name}を手に入れた。`);
+      setPrize((was) => ({ name, description: def?.description ?? '', kept: keeper.keeps, n: (was?.n ?? 0) + 1 }));
+      void keeper.takeRainbow();
+      return;
+    }
+    recentFinds.current = [...recentFinds.current.filter((id) => id !== thing.id), thing.id].slice(-FIND_MEMORY);
+    playSfx(thing.grade === 'RARE' ? 'explore_rare_found' : 'explore_found');
+    setCaptionGrade(thing.grade);
+    setCaption(thing.text);
   };
 
   // ---- the party, drawn ----
@@ -440,7 +540,8 @@ export function RoamScene({
       data-kaos={fmt(kaos)}
       data-kaos-scale={depthScale(kaos.y, roam.far, roam.near).toFixed(3)}
       data-view={`${camX.toFixed(2)},${paintW.toFixed(2)},${paintTop.toFixed(2)},${paintH.toFixed(2)}`}
-      data-things={things.map((t) => `${t.kind}:${t.id}:${fmt(t.stand)}:${fmt(t.mark)}`).join(' ')}
+      data-things={things.map((t) => `${t.kind}:${t.id}:${fmt(t.stand)}:${fmt(t.mark)}:${t.grade}`).join(' ')}
+      data-rainbow={rainbowTaken ? 'taken' : 'open'}
       data-noticed={noticed.map((t) => t.id).join(' ')}
       data-read={[...read].join(' ')}
       data-ambient={picked.join(',')}
@@ -459,14 +560,18 @@ export function RoamScene({
             style={{ width: paintW, height: paintH, top: paintTop }}
           />
         )}
-        {finds.map(({ find, spot }) => (
+        {finds.map(({ find, spot, grade }) => (
           <span
             key={`sign-${find.id}`}
-            className="roam-sign"
+            className={`roam-sign g-${grade.toLowerCase()}`}
             data-testid={`walk-sign-${find.id}`}
+            data-grade={grade}
             style={{ left: roam.spots[spot].x * paintW, top: paintTop + roam.spots[spot].y * paintH }}
             aria-hidden="true"
-          />
+          >
+            {/* The rainbow's faint motes, rising and gone. */}
+            {grade === 'RAINBOW' && [0, 1, 2, 3].map((i) => <i key={i} className={`roam-mote m${i}`} />)}
+          </span>
         ))}
       </div>
 
@@ -509,6 +614,7 @@ export function RoamScene({
             left={t.mark.x * paintW}
             top={markTipY(paintTop + t.mark.y * paintH, h, wordsEnd)}
             state={atThing?.id === t.id ? 'here' : 'near'}
+            variant={t.grade === 'RAINBOW' ? 'rainbow' : t.grade === 'RARE' ? 'rare' : 'normal'}
             testId={`walk-marker-${t.id}`}
           />
         ))}
@@ -524,7 +630,13 @@ export function RoamScene({
         </button>
       </div>
       {caption && (
-        <p ref={captionEl} className="walk-caption" data-testid="walk-caption" aria-live="polite">
+        <p
+          ref={captionEl}
+          className={`walk-caption g-${captionGrade.toLowerCase()}`}
+          data-testid="walk-caption"
+          data-grade={captionGrade}
+          aria-live="polite"
+        >
           {caption}
         </p>
       )}
@@ -552,6 +664,7 @@ export function RoamScene({
             data-testid="walk-look"
             data-point={atThing.id}
             data-kind={atThing.kind}
+            data-grade={atThing.grade}
             aria-label={`調べる：${atThing.label}`}
             onClick={look}
           >
@@ -559,6 +672,36 @@ export function RoamScene({
           </button>
         )}
       </div>
+
+      {/* THE ONCE-IN-A-WORLD FIND: a flash of colour, then what it is. */}
+      {prize && (
+        <>
+          <div key={`flash-${prize.n}`} className="roam-flash" data-testid="walk-prize-flash" aria-hidden="true" />
+          <div className="roam-prize" data-testid="walk-prize" data-no-walk role="dialog" aria-label={prize.name}>
+            <p className="roam-prize-kind">虹の発見</p>
+            <p className="roam-prize-name" data-testid="walk-prize-name">
+              {prize.name}
+            </p>
+            <p className="roam-prize-text" data-testid="walk-prize-text">
+              {/* A sentence to a line, so none breaks in the middle of a word. */}
+              {prize.description.split(/(?<=。)/).map((line, i) => (
+                <span key={i} className="roam-prize-line">
+                  {line}
+                </span>
+              ))}
+            </p>
+            <p className="roam-prize-got">装備品として手に入れた。</p>
+            {!prize.kept && (
+              <p className="roam-prize-note" data-testid="walk-prize-unsaved">
+                セーブが無いため、この発見は記録されません。
+              </p>
+            )}
+            <button className="btn primary roam-prize-close" data-testid="walk-prize-close" onClick={() => setPrize(null)}>
+              とじる
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
