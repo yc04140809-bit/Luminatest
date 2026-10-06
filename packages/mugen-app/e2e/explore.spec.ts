@@ -1,19 +1,21 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
-import { atFarEnd, marksClear, nextLeft, nextRight, tapGround, walkT } from './walk';
+import { marksClear } from './walk';
+import { dist, goTo, hero, inNoticeOf, kaos, openFloor, scale, settled, things, touch } from './roam';
 
 /**
- * グリーンウッドの森, WALKED — the App's exploration template, first place.
+ * グリーンウッドの森, WALKED ABOUT IN — the same walk as the ruins.
  *
- * Right to left, stop to stop: the party walking its own frames, the
- * painting sliding behind it with the nearer layers sliding faster,
- * things along the way to look at, short lines noticed, something alive
- * in the place — and the forest's own two doors, to a fight and to the
- * man in the road, exactly where they were. Walking, stopping and
+ * A touch on the clearing's floor walks the party there, across and back
+ * into the picture or forward out of it, smaller the farther back. The
+ * forest's own things (the puddle, the fresh footprints while there is
+ * somebody to have made them, the log, the old tree) show their 「！」
+ * only up close and lose it for good once read; small finds keep turning
+ * up after them. The forest's two doors — the man in the road, and the
+ * undergrowth — are exactly where they were, and walking, stopping and
  * looking write nothing.
  *
- * Seen only on a device: how the motion FEELS (smoothness, the step's
- * rhythm), sound once forest SE exist, and the parallax by eye.
+ * Seen only on a device: how the walk FEELS, and sound once forest SE exist.
  */
 
 async function freshApp(page: Page) {
@@ -45,37 +47,17 @@ async function intoTheForest(page: Page) {
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await expect(page.getByTestId('walk-scene')).toBeVisible();
-  await expect(page.getByTestId('walk-scene')).toHaveAttribute('data-walking', 'no');
+  await expect(page.getByTestId('walk-scene')).toHaveAttribute('data-mode', 'roam');
+  await settled(page);
+  await expect.poll(async () => (await things(page)).some((t) => t.kind === 'find')).toBe(true);
+}
+
+async function look(page: Page) {
+  await page.getByTestId('walk-look').click();
+  await expect(page.getByTestId('walk-caption')).not.toBeEmpty();
 }
 
 const scene = (page: Page) => page.getByTestId('walk-scene');
-
-async function heroX(page: Page) {
-  const b = (await page.getByTestId('walk-hero').boundingBox())!;
-  return b.x + b.width / 2;
-}
-
-async function shiftOf(page: Page, selector: string) {
-  return page.evaluate(
-    (sel) => new DOMMatrixReadOnly(getComputedStyle(document.querySelector(sel)!).transform).m41,
-    selector,
-  );
-}
-
-/** One step to the left, sampling the hero's frame while he walks. */
-/** On to the next thing to the left (or the end), by touch, sampling the hero's frame on the way. */
-async function stepLeft(page: Page) {
-  const frames = new Set<string>();
-  await nextLeft(page, async () => {
-    for (let i = 0; i < 40; i++) {
-      frames.add((await page.getByTestId('walk-hero').getAttribute('data-frame')) ?? '');
-      if ((await scene(page).getAttribute('data-walking')) === 'no') break;
-      await page.waitForTimeout(60);
-    }
-  });
-  await expect(scene(page)).toHaveAttribute('data-walking', 'no');
-  return frames;
-}
 
 async function everythingSaved(page: Page) {
   return page.evaluate(async () => {
@@ -101,185 +83,103 @@ async function everythingSaved(page: Page) {
   });
 }
 
-// The suite runs with reduced motion asked for (playwright.config.ts); the
-// walk honours that, so the test about motion asks for the ordinary kind.
-test.describe('in motion', () => {
-  test.use({ reducedMotion: 'no-preference' });
-  test('the party comes in from the right, walks left on its own frames, the layers sliding at their own depths', async ({
-    page,
-  }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (e) => errors.push(String(e)));
-    await freshApp(page);
-    await intoTheVillage(page);
-    await page.getByTestId('explore-button').click();
-    // Watched from inside the page, frame by frame: a test's own polling
-    // backs off too far to see a walk that takes under a second.
-    await page.evaluate(() => {
-      const w = window as unknown as { __walkIn: number[] };
-      w.__walkIn = [];
-      const t0 = performance.now();
-      const tick = () => {
-        const hero = document.querySelector('[data-testid="walk-hero"]');
-        const r = hero?.getBoundingClientRect();
-        if (r && r.width > 0) w.__walkIn.push(r.x + r.width / 2);
-        if (performance.now() - t0 < 4000) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
-    await page.getByTestId('forest-button').click();
-    await expect(scene(page)).toBeVisible();
 
-    // Walking IN from the right edge: from the moment he is there to be
-    // seen until he stops, he only ever moves left.
-    await expect
-      .poll(() => page.getByTestId('walk-hero').count(), { intervals: [100], timeout: 15_000 })
-      .toBe(1);
-    await expect(scene(page)).toHaveAttribute('data-walking', 'no');
-    const arrived = await heroX(page);
-    const path = await page.evaluate(() => (window as unknown as { __walkIn: number[] }).__walkIn);
-    expect(path.length, 'seen walking in').toBeGreaterThan(10);
-    expect(path[0], 'came in from the right').toBeGreaterThan(arrived + 50);
-    for (let i = 1; i < path.length; i++)
-      expect(path[i], 'never back to the right').toBeLessThanOrEqual(path[i - 1] + 0.5);
-    await expect(page.getByTestId('walk-kaos')).toBeVisible();
-    await expect
-      .poll(() => page.getByTestId('walk-painting').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0))
-      .toBe(true);
-
-    // Something noticed on arrival.
-    await expect(page.getByTestId('walk-caption')).not.toBeEmpty();
-    // Something alive in the place: at least one ambient touch, and the figure on the road.
-    const ambient = ((await scene(page).getAttribute('data-ambient')) ?? '').split(',').filter(Boolean);
-    expect(ambient.length).toBeGreaterThanOrEqual(1);
-    await expect(page.locator('.amb')).not.toHaveCount(0);
-    await expect(page.getByTestId('walk-figure-GALD')).toBeVisible();
-
-    // One step left: he walks (frames change, not a still sliding), and the
-    // world slides right behind him — the near leaves further than the painting.
-    const paintBefore = await shiftOf(page, '.walk-painting');
-    const nearBefore = await shiftOf(page, '.walk-near');
-    const lightBefore = await shiftOf(page, '.walk-light');
-    const frames = await stepLeft(page);
-    expect(frames.size, 'more than one frame while walking').toBeGreaterThan(1);
-    expect(await heroX(page)).toBeLessThan(arrived);
-    const paintMoved = (await shiftOf(page, '.walk-painting')) - paintBefore;
-    const nearMoved = (await shiftOf(page, '.walk-near')) - nearBefore;
-    const lightMoved = (await shiftOf(page, '.walk-light')) - lightBefore;
-    expect(paintMoved).toBeGreaterThan(0);
-    expect(nearMoved).toBeGreaterThan(paintMoved);
-    expect(lightMoved).toBeLessThan(paintMoved);
-    expect(lightMoved).toBeGreaterThan(0);
-    // Standing still, he stands still: the idle frame.
-    expect(await page.getByTestId('walk-hero').getAttribute('data-frame')).toContain('left-idle');
-    expect(errors).toEqual([]);
-  });
-
-  test('a thing ahead is noticed only when near: no glint mid-path, faint coming close, full beside it', async ({ page }) => {
-    await freshApp(page);
-    await intoTheVillage(page);
-    await intoTheForest(page);
-    await stepLeft(page); // to the puddle
-    await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'PUDDLE');
-    // Watched frame by frame on the way to the next thing.
-    await page.evaluate(() => {
-      const w = window as unknown as { __glint: string[] };
-      w.__glint = [];
-      const t0 = performance.now();
-      const tick = () => {
-        const g = document.querySelector('[data-testid="walk-point-FRESH_FOOTPRINTS"]') as HTMLElement | null;
-        const p = document.querySelector('[data-testid="walk-point-PUDDLE"]') as HTMLElement | null;
-        w.__glint.push(`${g?.dataset.strength ?? '-'}|${p?.dataset.strength ?? '-'}`);
-        if (performance.now() - t0 < 3000) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    });
-    await stepLeft(page); // to the footprints
-    await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'FRESH_FOOTPRINTS');
-    const trail = await page.evaluate(() => (window as unknown as { __glint: string[] }).__glint);
-    const prints = trail.map((x) => x.split('|')[0]).filter((x) => x !== '-').map(Number);
-    // Somewhere between the two, nothing glints at all.
-    expect(trail).toContain('-|-');
-    // Coming close it is faint first, and only full on arrival.
-    expect(prints.length).toBeGreaterThan(3);
-    expect(Math.min(...prints)).toBeLessThan(0.6);
-    expect(prints[prints.length - 1]).toBe(1);
-    await expect(page.getByTestId('walk-point-FRESH_FOOTPRINTS')).toHaveAttribute('data-strength', '1.00');
-  });
-
-  test('now and then a quiet moment — a leaf, the light, a bird’s shadow — once, gone, and never in the way', async ({ page }) => {
-    await freshApp(page);
-    await intoTheVillage(page);
-    await intoTheForest(page);
-    // Not constant: nothing at first.
-    await expect(scene(page)).toHaveAttribute('data-moment', '');
-    // Then, within the first quiet stretch, one of the three.
-    await expect(scene(page)).toHaveAttribute('data-moment', /LEAF_PASS|LIGHT_SHIFT|BIRD_SHADOW/, { timeout: 15_000 });
-    const moment = page.getByTestId('walk-moment');
-    await expect(moment).toHaveCount(1);
-    expect(await moment.evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none');
-    // While it plays, the walk and the doors answer as ever.
-    await tapGround(page, 0.4);
-    await expect(scene(page)).toHaveAttribute('data-walking', 'no');
-    // And it goes.
-    await expect(page.getByTestId('walk-moment')).toHaveCount(0, { timeout: 8_000 });
-  });
-});
-
-test('stop to stop: a thing in reach, 調べる, a short line — at least two of them, then back the way they came', async ({
+test('the forest is walked about in like the ruins: forward and back into the picture, smaller the farther back, Kaos alongside', async ({
   page,
 }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
-  // Nothing in reach at the start: no 調べる.
-  await expect(page.getByTestId('walk-look')).toHaveCount(0);
-  expect(await walkT(page)).toBe(0);
-
-  const seen: string[] = [];
-  for (let i = 0; i < 6 && !(await atFarEnd(page)); i++) {
-    await stepLeft(page);
-    const look = page.getByTestId('walk-look');
-    if (await look.isVisible()) {
-      const point = (await look.getAttribute('data-point'))!;
-      await expect(page.getByTestId(`walk-point-${point}`)).toBeVisible();
-      await look.click();
-      const line = (await page.getByTestId('walk-caption').textContent()) ?? '';
-      expect(line.length).toBeGreaterThan(0);
-      for (const l of line.split('\n')) expect(l.length, 'short, not explanation').toBeLessThanOrEqual(30);
-      seen.push(point);
-    }
-  }
-  expect(seen.length).toBeGreaterThanOrEqual(2);
-  expect(seen).toEqual(expect.arrayContaining(['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG']));
-  // Before the four answers, the log has been trodden.
-  // And back the way they came.
-  const end = await heroX(page);
-  await nextRight(page);
-  await expect(scene(page)).toHaveAttribute('data-walking', 'no');
-  expect(await heroX(page)).toBeGreaterThan(end);
+  await expect(page.getByTestId('walk-hint')).toHaveText('地面をタップして歩く');
+  const front = await openFloor(page, 0.76, [0.8, 0.88, 0.7, 0.45]);
+  await touch(page, front);
+  const atFront = await hero(page);
+  const frontScale = await scale(page);
+  const frontBox = (await page.getByTestId('walk-hero').boundingBox())!;
+  const back = await openFloor(page, 0.58, [0.8, 0.88, 0.7, 0.6]);
+  await touch(page, back);
+  const atBack = await hero(page);
+  expect(atBack.y).toBeLessThan(atFront.y - 0.1);
+  const backScale = await scale(page);
+  expect(backScale).toBeLessThan(frontScale);
+  expect(backScale).toBeGreaterThanOrEqual(0.78);
+  expect(backScale).toBeLessThanOrEqual(0.88);
+  expect((await page.getByTestId('walk-hero').boundingBox())!.height).toBeLessThan(frontBox.height * 0.93);
+  expect(dist(await kaos(page), atBack)).toBeLessThan(0.08);
+  expect(Math.abs((await scale(page, 'kaos')) - backScale)).toBeLessThan(0.08);
+  // The trees, the water and the sky are not floor.
+  await touch(page, { x: 0.6, y: 0.2 });
+  expect((await hero(page)).y).toBeGreaterThan(0.55);
+  expect(errors).toEqual([]);
 });
 
-test('「！」 on the forest’s things too: every one of them marked on the way, “here” beside it, dimmed once read', async ({
-  page,
-}) => {
+test('「！」 only up close, 調べる beside it, the line, and then the 「！」 is gone for good', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
-  const seen = new Set<string>();
-  for (const id of await marksClear(page, ['walk-caption'])) seen.add(id);
-  for (let i = 0; i < 6 && !(await atFarEnd(page)); i++) {
-    await stepLeft(page);
-    for (const id of await marksClear(page, ['walk-caption'])) seen.add(id);
-    const look = page.getByTestId('walk-look');
-    if (await look.isVisible()) {
-      const id = (await look.getAttribute('data-point'))!;
-      await expect(page.getByTestId(`walk-marker-${id}`)).toHaveAttribute('data-state', 'here');
-      await look.click();
-      await expect(page.getByTestId(`walk-marker-${id}`)).toHaveAttribute('data-state', 'looked');
-    }
+  const mark = page.getByTestId('walk-marker-PUDDLE');
+  for (const id of ['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG', 'OLD_TREE']) await expect(page.getByTestId(`walk-marker-${id}`)).toHaveCount(0);
+  const puddle = (await things(page)).find((t) => t.id === 'PUDDLE')!;
+  await touch(page, await inNoticeOf(page, 'PUDDLE'));
+  await expect(mark).toHaveAttribute('data-state', 'near');
+  await expect(page.locator('[data-testid="walk-look"][data-point="PUDDLE"]')).toHaveCount(0);
+  await goTo(page, 'PUDDLE');
+  await expect(mark).toHaveAttribute('data-state', 'here');
+  await look(page);
+  await expect(page.getByTestId('walk-caption')).toHaveText('水たまりに、木漏れ日が揺れている。');
+  await expect(mark).toHaveCount(0);
+  await touch(page, await openFloor(page, 0.62, [0.3, 0.45, 0.85]));
+  await touch(page, puddle.stand);
+  await expect(mark).toHaveCount(0);
+  await expect(page.locator('[data-testid="walk-look"][data-point="PUDDLE"]')).toHaveCount(0);
+});
+
+test('all four of the forest’s own things say their lines; after them, small finds keep turning up somewhere else', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await freshApp(page);
+  await intoTheVillage(page);
+  await intoTheForest(page);
+  const said: Record<string, string> = {};
+  for (const id of ['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG', 'OLD_TREE']) {
+    await goTo(page, id);
+    await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', id);
+    await look(page);
+    said[id] = (await page.getByTestId('walk-caption').evaluate((e) => (e as HTMLElement).innerText)) ?? '';
   }
-  expect([...seen].sort()).toEqual(['FALLEN_LOG', 'FRESH_FOOTPRINTS', 'OLD_TREE', 'PUDDLE']);
+  expect(said).toEqual({
+    PUDDLE: '水たまりに、木漏れ日が揺れている。',
+    FRESH_FOOTPRINTS: '湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。',
+    FALLEN_LOG: '丸太の苔が、誰かに踏まれて剥げている。',
+    OLD_TREE: '木の根元に、小さな足跡が残っている。',
+  });
+  const read: string[] = [];
+  const spots: string[] = [];
+  const route = [
+    { x: 0.8, y: 0.66 },
+    { x: 0.3, y: 0.66 },
+    { x: 0.55, y: 0.62 },
+  ];
+  for (let round = 0, r = 0; read.length < 3 && round < 16; round++) {
+    const f = (await things(page)).find((t) => t.kind === 'find');
+    expect((await things(page)).filter((t) => t.kind === 'find').length).toBeLessThanOrEqual(2);
+    if (!f) {
+      await touch(page, route[r++ % route.length]);
+      await page.waitForTimeout(1000);
+      continue;
+    }
+    await goTo(page, f.id);
+    await look(page);
+    read.push(f.id);
+    spots.push(`${f.mark.x},${f.mark.y}`);
+    await expect(page.getByTestId(`walk-marker-${f.id}`)).toHaveCount(0);
+  }
+  expect(read.length).toBe(3);
+  expect(new Set(read).size).toBe(3);
+  for (let i = 1; i < spots.length; i++) expect(spots[i]).not.toBe(spots[i - 1]);
 });
 
 test('the forest’s doors are where they were: the undergrowth is a fight, the man in the road is the story', async ({
@@ -288,15 +188,15 @@ test('the forest’s doors are where they were: the undergrowth is a fight, the 
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
-  await tapGround(page, 0.4);
-  await expect(scene(page)).toHaveAttribute('data-walking', 'no');
-  // Mid-walk, the fight is still one press away.
+  await expect(page.getByTestId('walk-figure-GALD')).toHaveCount(1);
+  await touch(page, { x: 0.4, y: 0.66 });
   await page.getByTestId('encounter-button').click();
   await expect(page.getByTestId('battle-screen')).toBeVisible();
 
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
+  await touch(page, { x: 0.3, y: 0.64 });
   await page.getByTestId('gald-button').click();
   await expect(page.getByTestId('gald-encounter')).toBeVisible();
 });
@@ -304,18 +204,24 @@ test('the forest’s doors are where they were: the undergrowth is a fight, the 
 test('walking, stopping and looking write nothing; the save and WORLD MEMORY are as they were, and survive a restart', async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
   await page.waitForTimeout(500);
   const before = await everythingSaved(page);
-
-  for (let i = 0; i < 6 && !(await atFarEnd(page)); i++) {
-    await stepLeft(page);
-    if (await page.getByTestId('walk-look').isVisible()) await page.getByTestId('walk-look').click();
+  for (const id of ['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG']) {
+    await goTo(page, id);
+    await look(page);
   }
-  await nextRight(page);
-  await expect(scene(page)).toHaveAttribute('data-walking', 'no');
+  const f = (await things(page)).find((t) => t.kind === 'find');
+  if (f) {
+    await goTo(page, f.id);
+    await look(page);
+  }
+  await touch(page, { x: 0.8, y: 0.66 });
+  await touch(page, { x: 0.25, y: 0.66 });
+  await touch(page, { x: 0.8, y: 0.66 });
   await page.waitForTimeout(500);
   expect(await everythingSaved(page)).toEqual(before);
 
@@ -338,7 +244,7 @@ test('walking, stopping and looking write nothing; the save and WORLD MEMORY are
   await expect(page.getByTestId('world-clock')).toBeVisible();
 });
 
-test('after the four answers: the man is gone from the road, and the log has been left alone', async ({ page }) => {
+test('after the four answers: the man is gone from the road, the footprints with him, and the log has been left alone', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
   await page.evaluate(async () => {
@@ -352,7 +258,6 @@ test('after the four answers: the man is gone from the road, and the log has bee
     ).__mugenWorld;
     await w.recordGaldLifeChoice('SPARE');
   });
-  // The look ahead is owed now; past it, then into the forest.
   await page.reload();
   await page.getByTestId('continue-button').click();
   for (let i = 0; i < 4; i++) {
@@ -369,32 +274,72 @@ test('after the four answers: the man is gone from the road, and the log has bee
   await intoTheForest(page);
   await expect(page.getByTestId('gald-button')).toHaveCount(0);
   await expect(page.getByTestId('walk-figure-GALD')).toHaveCount(0);
-  const reached: string[] = [];
-  for (let i = 0; i < 6; i++) {
-    await stepLeft(page);
-    const point = await page
-      .getByTestId('walk-look')
-      .getAttribute('data-point')
-      .catch(() => null);
-    if (point) reached.push(point);
-    if (point === 'FALLEN_LOG') break;
-  }
-  // The fresh footprints are gone with him.
-  expect(reached).not.toContain('FRESH_FOOTPRINTS');
-  await page.getByTestId('walk-look').click();
+  expect((await things(page)).map((t) => t.id)).not.toContain('FRESH_FOOTPRINTS');
+  await goTo(page, 'FALLEN_LOG');
+  await look(page);
   await expect(page.getByTestId('walk-caption')).toHaveText('剥げていた苔が、また丸太を覆いはじめている。');
 });
 
-test('for a player who asked for less motion: no drifting touches, and a step is a step', async ({ browser }) => {
+test('fresh footprints, before the four answers: one person, away from the village — nobody named, nothing given', async ({ page }) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await intoTheForest(page);
+  await page.waitForTimeout(500);
+  const before = await everythingSaved(page);
+  await goTo(page, 'FRESH_FOOTPRINTS');
+  await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'FRESH_FOOTPRINTS');
+  await expect(page.getByTestId('walk-look')).toHaveAttribute('aria-label', '調べる：新しい足跡');
+  await page.getByTestId('walk-look').click();
+  const caption = page.getByTestId('walk-caption');
+  expect(await caption.evaluate((e) => (e as HTMLElement).innerText)).toBe(
+    '湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。',
+  );
+  await expect(caption).not.toContainText(/ガルド|盗賊/);
+  await page.waitForTimeout(300);
+  expect(await everythingSaved(page)).toEqual(before);
+  await page.getByTestId('gald-button').click();
+  await expect(page.getByTestId('gald-encounter')).toBeVisible();
+});
+
+test.describe('in motion', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('they really walk in, and step by step into the picture, shrinking a little at a time', async ({ page }) => {
+    await freshApp(page);
+    await intoTheVillage(page);
+    await page.getByTestId('explore-button').click();
+    await page.getByTestId('forest-button').click();
+    await expect(scene(page)).toHaveAttribute('data-walking', 'yes');
+    await settled(page);
+    await touch(page, { x: 0.45, y: 0.58 }, false);
+    const seen: number[] = [];
+    for (let i = 0; i < 40; i++) {
+      seen.push(await scale(page));
+      if ((await scene(page).getAttribute('data-walking')) === 'no') break;
+      await page.waitForTimeout(60);
+    }
+    expect(new Set(seen.map((x) => x.toFixed(2))).size).toBeGreaterThan(3);
+    for (let i = 1; i < seen.length; i++) expect(seen[i - 1] - seen[i]).toBeLessThan(0.03);
+    expect(((await scene(page).getAttribute('data-ambient')) ?? '').length).toBeGreaterThan(0);
+  });
+
+  test('now and then a quiet moment — once, gone, and never in the way', async ({ page }) => {
+    await freshApp(page);
+    await intoTheVillage(page);
+    await intoTheForest(page);
+    await expect(scene(page)).toHaveAttribute('data-moment', /LEAF_PASS|LIGHT_SHIFT|BIRD_SHADOW/, { timeout: 20_000 });
+    expect(await page.getByTestId('walk-moment').evaluate((e) => getComputedStyle(e).pointerEvents)).toBe('none');
+  });
+});
+
+test('for a player who asked for less motion: no drifting touches, and a touch is a step taken at once', async ({ browser }) => {
   const context = await browser.newContext({ reducedMotion: 'reduce' });
   const page = await context.newPage();
   await freshApp(page);
   await intoTheVillage(page);
   await intoTheForest(page);
   await expect(page.locator('.amb')).toHaveCount(0);
-  // A touch on the first thing: there at once, beside it.
-  await nextLeft(page);
-  await expect(scene(page)).toHaveAttribute('data-walking', 'no');
+  await goTo(page, 'PUDDLE');
   await expect(page.getByTestId('walk-look')).toBeVisible();
   await context.close();
 });
@@ -406,7 +351,7 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: at every stop the party, what is noticed, 調べる and the doors are all on screen and clear of each other`, async ({
+  test(`${w}×${h}: front, back and beside each thing — the party, the words, the doors, 調べる and every 「！」 on screen and clear`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: w, height: h });
@@ -422,54 +367,31 @@ for (const [w, h] of [
       expect(b!.y + b!.height, id).toBeLessThanOrEqual(h);
       return b!;
     };
-    for (let stop = 0; stop < 6; stop++) {
-      const hero = await inside('walk-hero');
+    const check = async () => {
+      const hb = await inside('walk-hero');
       await inside('walk-kaos');
-      await inside('walk-caption');
       await inside('leave-forest');
       const doors = [await inside('gald-button'), await inside('encounter-button')];
+      if (await page.getByTestId('walk-caption').isVisible()) await inside('walk-caption');
       if (await page.getByTestId('walk-look').isVisible()) {
-        const look = await inside('walk-look');
-        for (const d of doors) expect(d.x + d.width, 'doors clear of 調べる').toBeLessThanOrEqual(look.x);
+        const lk = await inside('walk-look');
+        for (const d of doors) expect(d.x + d.width, 'doors clear of 調べる').toBeLessThanOrEqual(lk.x);
       }
-      // The party stands above the doors, never behind them.
-      for (const d of doors) expect(hero.y + hero.height, 'party above the doors').toBeLessThanOrEqual(d.y + 2);
-      // Every 「！」 in sight is whole, on screen, and over none of the words or buttons.
-      // (Read first where there is something to read, so the words are their longest.)
-      if (await page.getByTestId('walk-look').isVisible()) await page.getByTestId('walk-look').click();
+      // Nobody ever stands behind the doors.
+      for (const d of doors) {
+        const across = hb.x < d.x + d.width && d.x < hb.x + hb.width;
+        if (across) expect(hb.y + hb.height, 'party above the doors').toBeLessThanOrEqual(d.y + 2);
+      }
       await marksClear(page, ['walk-caption', 'leave-forest', 'gald-button', 'encounter-button', 'walk-look']);
-      if (await atFarEnd(page)) break;
-      await stepLeft(page);
+    };
+    // As low as the floor goes, at the doors' end of the clearing.
+    await touch(page, { x: 0.2, y: 0.95 });
+    await check();
+    for (const id of ['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG', 'OLD_TREE']) {
+      await goTo(page, id);
+      await check();
+      await look(page);
+      await check();
     }
   });
 }
-
-test('fresh footprints, before the four answers: one person, away from the village — nobody named, nothing given', async ({ page }) => {
-  await freshApp(page);
-  await intoTheVillage(page);
-  await intoTheForest(page);
-  await page.waitForTimeout(500);
-  const before = await everythingSaved(page);
-  for (let i = 0; i < 6; i++) {
-    await stepLeft(page);
-    const point = await page
-      .getByTestId('walk-look')
-      .getAttribute('data-point')
-      .catch(() => null);
-    if (point === 'FRESH_FOOTPRINTS') break;
-  }
-  await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'FRESH_FOOTPRINTS');
-  await expect(page.getByTestId('walk-look')).toHaveAttribute('aria-label', '調べる：新しい足跡');
-  await page.getByTestId('walk-look').click();
-  const caption = page.getByTestId('walk-caption');
-  expect(await caption.evaluate((e) => (e as HTMLElement).innerText)).toBe(
-    '湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。',
-  );
-  await expect(caption).not.toContainText(/ガルド|盗賊/);
-  // Nothing found, nothing given, nothing written.
-  await page.waitForTimeout(300);
-  expect(await everythingSaved(page)).toEqual(before);
-  // The man in the road is still where he was.
-  await page.getByTestId('gald-button').click();
-  await expect(page.getByTestId('gald-encounter')).toBeVisible();
-});

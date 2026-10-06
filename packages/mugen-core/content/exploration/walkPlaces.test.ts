@@ -44,9 +44,11 @@ describe('古代遺跡, walked', () => {
     for (const l of [...RUINS_WALK.ambientLines, ...RUINS_WALK.points.flatMap((p) => p.lines)]) expect(l.when).toBeUndefined();
   });
 
-  it('looks higher up its painting than the forest, which keeps the bottom as before', () => {
-    expect(RUINS_WALK.framing).toBeLessThan(1);
-    expect(GREENWOOD_WALK.framing ?? 1).toBe(1);
+  it('looks higher up its painting than the forest does, and the forest higher than its bottom edge', () => {
+    // Both walked about in now: each shows enough above its floor that a
+    // walker at the back stays whole on the screen.
+    expect(RUINS_WALK.framing).toBeLessThan(GREENWOOD_WALK.framing!);
+    expect(GREENWOOD_WALK.framing).toBeLessThan(1);
   });
 });
 
@@ -106,7 +108,20 @@ describe('古代遺跡, walked about in — small finds', () => {
     expect(Math.max(...xs)).toBeGreaterThan(0.8);
   });
 
-  it('the forest is still walked along: it has no floor to walk about on', () => {
-    expect(GREENWOOD_WALK.roam).toBeUndefined();
+  it('the forest is walked about in too — with small finds of its own, and no golden or rainbow ones yet', () => {
+    const roam = GREENWOOD_WALK.roam!;
+    expect(roam.floor.length).toBeGreaterThanOrEqual(3);
+    expect(roam.far).toBeLessThan(roam.near);
+    expect(roam.discoveries.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(roam.discoveries.map((d) => d.id)).size).toBe(roam.discoveries.length);
+    expect(roam.rareDiscoveries).toBeUndefined();
+    expect(roam.rainbow).toBeUndefined();
+    // Its small finds are plants, animals and weather — never a person,
+    // and nothing that speaks for the man in the road.
+    const all = roam.discoveries.map((d) => d.text + d.label).join('\n');
+    expect(all).not.toMatch(/ガルド|盗賊|人影|誰か|一人|男/);
+    // Its own things are all still there, each looked at from the floor.
+    expect(GREENWOOD_WALK.points.map((p) => p.id)).toEqual(['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG', 'OLD_TREE']);
+    for (const p of GREENWOOD_WALK.points) expect(p.stand, p.id).toBeDefined();
   });
 });

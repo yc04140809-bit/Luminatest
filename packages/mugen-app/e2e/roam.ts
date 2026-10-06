@@ -96,3 +96,24 @@ export async function openFloor(page: Page, y: number, xs = [0.62, 0.7, 0.55, 0.
   expect(p, `open floor at ${y}`).toBeTruthy();
   return p!;
 }
+
+/**
+ * A spot on the floor from which this thing is in notice but not in
+ * reach — and that no touch would take for any thing at all.
+ */
+export async function inNoticeOf(page: Page, id: string): Promise<P> {
+  const all = await things(page);
+  const t = all.find((x) => x.id === id)!;
+  // Clear of everything if it can be; else clear of the place's own things
+  // (a small find lies wherever it turned up).
+  for (const ts of [all, all.filter((x) => x.kind === 'point')]) {
+    for (let r = 0.1; r <= 0.14; r += 0.01) {
+      for (let a = 0; a < 36; a++) {
+        const q = { x: t.stand.x + r * Math.cos((a * Math.PI) / 18), y: t.stand.y + ((r * Math.sin((a * Math.PI) / 18)) * 1672) / 941 };
+        if (q.y < 0.55 || q.y > 0.74 || q.x < 0.05 || q.x > 0.95) continue;
+        if (ts.every((o) => dist(q, o.stand) > 0.09 && dist(q, o.mark) > 0.09)) return q;
+      }
+    }
+  }
+  throw new Error(`no spot in notice of ${id}`);
+}

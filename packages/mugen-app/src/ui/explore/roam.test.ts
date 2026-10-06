@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RUINS_WALK } from '@mugen/content/exploration/ruinsWalk';
+import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 import {
   FAR_SCALE,
   NOTICE,
@@ -200,5 +201,26 @@ describe('how rare a find is', () => {
     expect(roam.rainbow).toEqual({ id: 'STAR_CREST_RELIC_SWORD', label: '虹色の光', equipmentId: 'weapon/star_crest_relic_sword' });
     const ids = [...roam.discoveries, ...roam.rareDiscoveries!].map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('グリーンウッドの森, walked about in the same way', () => {
+  const forest = GREENWOOD_WALK.roam!;
+
+  it('the start, every spot and where each thing is looked from are on the floor', () => {
+    expect(onFloor(forest.start, forest.floor)).toBe(true);
+    for (const s of forest.spots) expect(onFloor(s, forest.floor)).toBe(true);
+    for (const p of GREENWOOD_WALK.points) expect(onFloor(toFloor(p.stand!, forest.floor), forest.floor), p.id).toBe(true);
+  });
+
+  it('nothing is noticed from where they first stand', () => {
+    for (const p of GREENWOOD_WALK.points) expect(dist(p.stand!, forest.start), p.id).toBeGreaterThan(NOTICE);
+  });
+
+  it('its spots keep clear of its things, and high enough to stay above the forest’s doors', () => {
+    for (const s of forest.spots) {
+      for (const p of GREENWOOD_WALK.points) expect(dist(s, p.stand!)).toBeGreaterThan(SNAP);
+      expect(s.y).toBeLessThanOrEqual(0.72);
+    }
   });
 });

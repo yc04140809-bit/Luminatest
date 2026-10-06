@@ -4,7 +4,7 @@ import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
 import { titleKeyVisual } from '../assets/sceneArt';
 import { usePicture } from './scene';
-import { WalkScene } from './explore/WalkScene';
+import { RoamScene } from './explore/RoamScene';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 
 /**
@@ -44,7 +44,7 @@ export function Place({
     };
   }, [area]);
   return (
-    <div className="screen">
+    <div className="screen" data-area={area}>
       {art && <img className="backdrop" src={art} alt="" aria-hidden="true" />}
       <h1 className="place">{title}</h1>
       {children}
@@ -297,17 +297,19 @@ export function GreenwoodScreen({
   onFight: () => void;
   onLeave: () => void;
 }) {
-  // THE FOREST, WALKED (ui/explore/WalkScene). Its two doors are the
+  // THE FOREST, WALKED ABOUT IN (ui/explore/RoamScene, as the ruins are). Its two doors are the
   // ones it always had — the man in the road, and whatever is moving in
   // the undergrowth — offered as quiet choices over the walk.
   const view = useMemo(() => ({ known: new Set(known), day }), [known.join(','), day]);
   return (
-    <WalkScene
+    <RoamScene
       scene={GREENWOOD_WALK}
+      roam={GREENWOOD_WALK.roam!}
       place="GREENWOOD_FOREST"
       view={view}
       onLeave={onLeave}
       leaveLabel="地方図へもどる"
+      leaveTestId="leave-forest"
       events={
         <>
           {galdWaiting && (

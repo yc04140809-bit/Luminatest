@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ambientLinesFor,
+  figuresFor,
   markerAt,
   pointLine,
   pointsFor,
@@ -13,6 +14,7 @@ import {
 import type { SpriteFrame } from '@mugen/content/characters/explorationSprites';
 import { walkerSprites, walkPainting, type WalkPlaceId, type Walkers } from '../../assets/walk';
 import { playSfx } from '../../platform/audio';
+import { sceneArt } from '../../assets/sceneArt';
 import { WalkSprite } from './WalkSprite';
 import { Ambience, Moment, pickAmbience, pickMoment, type MomentKind } from './Ambience';
 import { PointMarker } from './PointMarker';
@@ -73,8 +75,12 @@ const HERO_SOURCE_HEIGHT = 169;
 const KAOS_HEIGHT = 0.376;
 /** No walker stands lower on the screen than this share of its height: the controls are below. */
 const LOWEST_FEET = 0.9;
+/** … and never into the strip the place's own doors take along the bottom (in px). */
+const DOORS_BAND = 64;
 /** Walking this far again since the last line brings the next one. */
 const SAY_WALK = 0.2;
+/** A distant figure's height, as a share of the screen's height — as on the walk along. */
+const FIGURE_HEIGHT = 0.2;
 const MOMENT_FIRST_MS: [number, number] = [5000, 9000];
 const MOMENT_GAP_MS: [number, number] = [9000, 16000];
 
@@ -173,15 +179,22 @@ export function RoamScene({
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [painting, setPainting] = useState<string | null>(null);
   const [walkers, setWalkers] = useState<Walkers | null>(null);
+  const [figureArt, setFigureArt] = useState<string | null>(null);
   const calm = useMemo(prefersLessMotion, []);
+  // Figures seen far off, while the world says they are there (the man in the road).
+  const figures = useMemo(() => figuresFor(scene, view), [scene]);
   const { w, h } = size;
 
   // ---- where everything is drawn ----
   const paintW = w * (1 + PAN);
   const paintH = paintW / (1672 / 941);
   const paintTop = (h - paintH) * Math.min(1, Math.max(0, scene.framing ?? 1));
-  /** The lowest painting height a walker may stand at on this screen. */
-  const lowest = (LOWEST_FEET * h - paintTop) / paintH;
+  /**
+   * The lowest painting height a walker may stand at on this screen —
+   * higher still where the place has its own doors along the bottom
+   * (the forest's), so nobody ever walks behind them.
+   */
+  const lowest = ((events ? Math.min(LOWEST_FEET * h, h - DOORS_BAND) : LOWEST_FEET * h) - paintTop) / paintH;
 
   // ---- the walk ----
   // In from the right edge, at the height of where they stop.
@@ -294,6 +307,7 @@ export function RoamScene({
     let gone = false;
     void walkPainting(place).then((src) => !gone && setPainting(src));
     void walkerSprites().then((x) => !gone && setWalkers(x));
+    if (figures.some((f) => f.id === 'GALD')) void sceneArt('gald', 'fullbody').then((src) => !gone && setFigureArt(src));
     return () => {
       gone = true;
     };
@@ -560,6 +574,22 @@ export function RoamScene({
             style={{ width: paintW, height: paintH, top: paintTop }}
           />
         )}
+        {figureArt &&
+          figures.map((f) => (
+            <img
+              key={f.id}
+              className="walk-figure"
+              src={figureArt}
+              alt=""
+              aria-hidden="true"
+              data-testid={`walk-figure-${f.id}`}
+              style={{
+                left: f.at.x * paintW,
+                top: paintTop + f.at.y * paintH - FIGURE_HEIGHT * h,
+                height: FIGURE_HEIGHT * h,
+              }}
+            />
+          ))}
         {finds.map(({ find, spot, grade }) => (
           <span
             key={`sign-${find.id}`}

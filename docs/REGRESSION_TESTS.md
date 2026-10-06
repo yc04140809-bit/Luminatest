@@ -20,10 +20,10 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | ゲーム開始 | `regression`、`loop`「the whole loop…」 | 初回は「はじめる」だけ、再起動後は「つづきから」 |
 | OP | `regression`、`scenes`「the prologue is the world alone, then Kaos…」、`music`（曲） | |
 | 名前入力 | `regression`、`naming`（4 本：入力・空白拒否・既定名・再起動） | |
-| 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」 | |
+| 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」 | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。640×300 ではボタンの 2 段目が画面外にはみ出す（配色変更の前から同じ） |
 | 酒場 | `tavern`（村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブ不変、横画面 5 サイズでマスターが切れない） | |
 | パン屋 | `bakery`（村 → パン屋 → 背景・主人・リナ・会話 → 村、BGM は村の曲のまま、セーブ不変、横画面 5 サイズで 2 人が切れず会話欄と重ならない） | Android の戻るボタンはブラウザから押せないため実機で確認 |
-| 森 | `regression`、`loop`、`battleBackground`、`explore`（右→左の歩行・実フレームで歩く・パララックス・調査ポイント・「！」マーカー（4 か所すべてに出る・here／looked）・新しい足跡（四択前だけ・セーブ不変）・環境テキスト・環境演出・人影・戦闘/ガルドへの出口・セーブ不変・四択後の変化・動きを減らす設定・横画面 5 サイズ（「！」が画面内で文字・ボタンと重ならないことも））、core `walkScene.test.ts`・`walkPlaces.test.ts`・App `walkPath.test.ts` | 歩行の滑らかさとパララックスの見え方、「！」の見やすさは実機で確認 |
+| 森 | `regression`、`loop`、`battleBackground`、`explore`（古代遺跡と同じ歩き回り：手前／奥で大きさが変わる・ケイオスが同じ奥行き・木や空は最寄りの床へ・「！」は近づいたときだけ・調べたら完全に消える・固定 4 か所の一言・その後も小さな発見が別の場所に出続ける・新しい足跡（四択前だけ・セーブ不変）・ガルド／戦闘への出口・セーブ不変・四択後の変化・動きを減らす設定・横画面 5 サイズで出口ボタンの後ろに立たない）、core `walkScene.test.ts`・`walkPlaces.test.ts`、App `roam.test.ts` | 歩き心地は実機で確認 |
 | 古代遺跡（DEBUG） | `exploreRuins`（DEBUG 入口・2D タップ移動（手前／奥で大きさが変わる・壁や空は最寄りの床へ・ケイオスが同じ奥行きでついて来る・歩行中の再タップ・実際に少しずつ歩く）・「！」（最初は出ない・近づくと出る・調べたら完全に消える・同時に最大 2 個）・固定 3 ポイントの一言・3 つ調べた後も小さな発見が別の場所に出続ける（文章の重複なし・待つのは最大 2 つ）・ボタンでは歩かない・動きを減らす設定・世界を開かない・横画面 5 サイズ）、core `walkPlaces.test.ts`、App `roam.test.ts`・`walkPath.test.ts` | 通常進行からは入れない。森は従来の右→左のまま |
 | 古代遺跡の発見の格・虹装備（DEBUG） | `exploreRareFinds`（NORMAL → 金色 → 虹 → 取得の光・名前・説明 → セーブ → 再起動 → 所持したまま装備できる → 同じ遺跡で虹が二度と出ない・有効訪問は 3 つ目の発見で 1 回だけ数える・セーブが無いときは何も作らず「記録されません」）、core `explorationState.test.ts`・`equipment.test.ts`、App `roam.test.ts`（確率・8 回目の確定） | 戦闘への性能反映はまだ無い（別指示） |
 | 戦闘開始 | `regression`、`attack`、`battleStage`（配置） | |
