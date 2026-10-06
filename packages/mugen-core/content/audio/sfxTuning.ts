@@ -89,7 +89,8 @@ export const SFX_TUNING: Partial<Record<SfxId, SfxTuning>> = {
   battle_magic_holy: { gain: 1, maxMs: 1500 },
 
   // ---- ready, not yet used by the fight ----
-  battle_evade: { source: 'battle_attack_whip', gain: 0.6, maxMs: 400 },
+  // Its own file since 2026-10-06 (a short, low swish, 0.15s).
+  battle_evade: { gain: 0.9, pitch: 0.04 },
 };
 
 /** The delivered file a moment plays. */

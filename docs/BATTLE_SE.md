@@ -1,6 +1,6 @@
 # 戦闘 SE 割り当て（App）Ver.1.0 — 2026-10-06
 
-効果音ラボの納品 22 ファイルを分類し、App の戦闘に割り当てた記録。
+効果音ラボの納品 22 ファイル（＋回避音 1、2026-10-06 追加）を分類し、App の戦闘に割り当てた記録。
 **戦闘ロジック・ダメージ計算・ターン順・アニメーションは変更していない**（既にある「攻撃の瞬間」「命中の瞬間」などに音を付けただけ）。
 
 - ファイル：`packages/mugen-assets/files/audio/se/<id>.mp3`（納品物そのまま。削除・改名・再エンコードなし）
@@ -37,8 +37,9 @@
 | `battle_magic_earth` | 魔法（土・地震） | 3.7s | −19.6dB | 超低域、長い |
 | `battle_magic_dark` | 魔法（闇）／デバフ | 3.8s | −24.2dB | 中域、暗い |
 | `battle_magic_holy` | 魔法（聖）／バフ | 1.7s | −22.8dB | 高域、明るい |
+| `battle_evade` | 回避（追加納品） | 0.15s | −20.8dB | ごく短い低めの風切り |
 
-回避・防御に向く素材：回避＝`battle_attack_whip`（風切り）を `battle_evade` として準備済み。**防御（金属衝突）に合う素材は無い**ため `battle_guard` は無音のまま。
+回避：専用の `battle_evade` が追加納品された（それまでは `battle_attack_whip` を借りる予定だった）。**防御（金属衝突）に合う素材は無い**ため `battle_guard` は無音のまま。
 
 ## 2. 瞬間ごとの割り当て（借用を含む）
 
@@ -58,7 +59,7 @@
 | `battle_enemy_defeat` | `battle_down` | 通常敵の撃破 |
 | `battle_boss_defeat` | `battle_finisher_hit` | ボスの撃破（通常より重い） |
 | `battle_critical` | `battle_attack_slash`（高く・短く） | クリティカルの強調音。**判定が無いので未配線**（通常ヒットに重ねる設計のみ） |
-| `battle_evade` | `battle_attack_whip` | 回避。**処理が無いので未配線** |
+| `battle_evade` | `battle_evade`（専用ファイル） | 回避。**戦闘に回避の処理が無いので未配線**（処理ができれば置き換え無しで鳴る） |
 
 ## 3. キャラクター別
 
@@ -110,9 +111,10 @@
 ## 7. 未使用の SE 候補
 
 - `battle_magic_fire` `battle_magic_thunder` `battle_magic_wind` `battle_magic_earth`（火・雷・風・土の魔法がまだ無い）
-- `battle_attack_whip`（鞭の使い手がいない。回避音 `battle_evade` として準備）
+- `battle_attack_whip`（鞭の使い手がいない）
+- `battle_evade`（専用ファイルあり。戦闘に回避の処理が無いので未配線）
 - `battle_attack_heavy_weapon` は通常攻撃では未使用（斧・大鎌がいない）。レヴィの突進にだけ使用
-- `battle_bow_hit` `battle_critical` `battle_evade`（ID と割り当てだけ準備）
+- `battle_bow_hit` `battle_critical`（ID と割り当てだけ準備）
 - 防御 `battle_guard`：合う素材が無い
 
 ## 8. 実機で確認すること
