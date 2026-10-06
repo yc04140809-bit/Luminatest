@@ -4,7 +4,7 @@ import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
 import { titleKeyVisual } from '../assets/sceneArt';
 import { usePicture } from './scene';
-import { RoamScene } from './explore/RoamScene';
+import { RoamScene, type RoamMemory } from './explore/RoamScene';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 
 /**
@@ -276,6 +276,8 @@ export function GreenwoodScreen({
   onGald,
   onFight,
   onLeave,
+  memory,
+  resume = false,
 }: {
   /**
    * WHETHER HE IS STILL OUT THERE.
@@ -296,6 +298,10 @@ export function GreenwoodScreen({
   onGald: () => void;
   onFight: () => void;
   onLeave: () => void;
+  /** Where the walk had got to, kept by the App across a fight. */
+  memory?: { current: RoamMemory | null };
+  /** Pick the walk up where it was (a fight fled from), not walk in afresh. */
+  resume?: boolean;
 }) {
   // THE FOREST, WALKED ABOUT IN (ui/explore/RoamScene, as the ruins are). Its two doors are the
   // ones it always had — the man in the road, and whatever is moving in
@@ -310,6 +316,8 @@ export function GreenwoodScreen({
       onLeave={onLeave}
       leaveLabel="地方図へもどる"
       leaveTestId="leave-forest"
+      memory={memory}
+      resume={resume}
       events={
         <>
           {galdWaiting && (

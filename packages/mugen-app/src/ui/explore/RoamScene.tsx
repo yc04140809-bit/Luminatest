@@ -147,6 +147,30 @@ const SESSION_ONLY: RoamKeeper = {
 
 const fmt = (p: PaintingPoint) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`;
 
+/**
+ * WHERE A WALK HAD GOT TO — kept by whoever holds the screen, so a walk
+ * interrupted (a fight fled from) picks up exactly where it was: the
+ * party standing where they stood, what was read still read, the finds
+ * still waiting where they lay. The same visit, not a new one.
+ */
+export interface RoamMemory {
+  hero: PaintingPoint;
+  kaos: PaintingPoint;
+  facing: 'left' | 'right';
+  kaosFacing: 'left' | 'right';
+  read: string[];
+  finds: Find[];
+  recentFinds: string[];
+  recentSpots: number[];
+  findsThisVisit: number;
+  visitCounted: boolean;
+  rainbowSeen: boolean;
+  said: number;
+  caption: string | null;
+  captionGrade: FindGrade;
+  tapped: boolean;
+}
+
 export function RoamScene({
   scene,
   roam,
@@ -158,6 +182,8 @@ export function RoamScene({
   leaveTestId,
   keeper = SESSION_ONLY,
   forceGrade,
+  memory,
+  resume = false,
 }: {
   scene: WalkSceneDef;
   roam: WalkRoam;
@@ -174,7 +200,13 @@ export function RoamScene({
    * been taken in this world — the rule being checked is never bent.
    */
   forceGrade?: 'RARE' | 'RAINBOW';
+  /** Where this walk has got to, kept up to date here for whoever holds it. */
+  memory?: { current: RoamMemory | null };
+  /** Pick the walk up from `memory` instead of walking in afresh. */
+  resume?: boolean;
 }) {
+  // A walk picked up where it was left: no walking in, everything as it stood.
+  const was = resume ? (memory?.current ?? null) : null;
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [painting, setPainting] = useState<string | null>(null);
@@ -199,16 +231,19 @@ export function RoamScene({
   // ---- the walk ----
   // In from the right edge, at the height of where they stop.
   const entry = { x: 1.04, y: roam.start.y };
-  const [hero, setHero] = useState<PaintingPoint>(calm ? roam.start : entry);
-  const heroNow = useRef<PaintingPoint>(calm ? roam.start : entry);
-  const trail = useRef<PaintingPoint[]>([{ x: (calm ? roam.start.x : entry.x) + KAOS_GAP, y: roam.start.y }, heroNow.current]);
+  const firstAt = was ? was.hero : calm ? roam.start : entry;
+  const [hero, setHero] = useState<PaintingPoint>(firstAt);
+  const heroNow = useRef<PaintingPoint>(firstAt);
+  const trail = useRef<PaintingPoint[]>(
+    was ? [was.kaos, was.hero] : [{ x: (calm ? roam.start.x : entry.x) + KAOS_GAP, y: roam.start.y }, heroNow.current],
+  );
   const [kaos, setKaos] = useState<PaintingPoint>(trail.current[0]);
   const kaosNow = useRef<PaintingPoint>(trail.current[0]);
-  const [target, setTarget] = useState<PaintingPoint | null>(calm ? null : roam.start);
-  const [arrived, setArrived] = useState(calm);
+  const [target, setTarget] = useState<PaintingPoint | null>(was || calm ? null : roam.start);
+  const [arrived, setArrived] = useState(calm || !!was);
   const [frame, setFrame] = useState(0);
-  const [facing, setFacing] = useState<'left' | 'right'>('left');
-  const [kaosFacing, setKaosFacing] = useState<'left' | 'right'>('left');
+  const [facing, setFacing] = useState<'left' | 'right'>(was?.facing ?? 'left');
+  const [kaosFacing, setKaosFacing] = useState<'left' | 'right'>(was?.kaosFacing ?? 'left');
   const walking = target !== null;
   // How far walked since a find last turned up or was read, and since the last line.
   const walkedForFind = useRef(0);
@@ -219,27 +254,27 @@ export function RoamScene({
 
   // ---- what is there ----
   const points = useMemo(() => pointsFor(scene, view), [scene]);
-  const [read, setRead] = useState<ReadonlySet<string>>(new Set());
-  const [finds, setFindsState] = useState<readonly Find[]>([]);
+  const [read, setRead] = useState<ReadonlySet<string>>(() => new Set(was?.read ?? []));
+  const [finds, setFindsState] = useState<readonly Find[]>(was?.finds ?? []);
   // The same list, readable at once: finds are put down from effects and
   // timers, never from inside a state update, so nothing runs twice.
-  const findsNow = useRef<readonly Find[]>([]);
+  const findsNow = useRef<readonly Find[]>(was?.finds ?? []);
   const setFinds = (next: readonly Find[]) => {
     findsNow.current = next;
     setFindsState(next);
   };
-  const recentFinds = useRef<string[]>([]);
-  const recentSpots = useRef<number[]>([]);
+  const recentFinds = useRef<string[]>(was?.recentFinds ?? []);
+  const recentSpots = useRef<number[]>(was?.recentSpots ?? []);
   // This visit: how many finds have turned up, whether it has counted as
   // a real visit yet, and whether the rainbow has turned up in it.
-  const findsThisVisit = useRef(0);
-  const visitCounted = useRef(false);
-  const rainbowSeen = useRef(false);
+  const findsThisVisit = useRef(was?.findsThisVisit ?? 0);
+  const visitCounted = useRef(was?.visitCounted ?? false);
+  const rainbowSeen = useRef(was?.rainbowSeen ?? false);
   const [rainbowTaken, setRainbowTaken] = useState(keeper.rainbowTaken);
   const rainbowTakenNow = useRef(keeper.rainbowTaken);
   // The moment it is taken: a flash, then what it is.
   const [prize, setPrize] = useState<{ name: string; description: string; kept: boolean; n: number } | null>(null);
-  const [captionGrade, setCaptionGrade] = useState<FindGrade>('NORMAL');
+  const [captionGrade, setCaptionGrade] = useState<FindGrade>(was?.captionGrade ?? 'NORMAL');
 
   const things: Thing[] = useMemo(
     () => [
@@ -277,8 +312,8 @@ export function RoamScene({
 
   // ---- what is noticed ----
   const ambient = useMemo(() => shuffle(ambientLinesFor(scene, view)), [scene]);
-  const said = useRef(0);
-  const [caption, setCaption] = useState<string | null>(null);
+  const said = useRef(was?.said ?? 0);
+  const [caption, setCaption] = useState<string | null>(was?.caption ?? null);
   const captionEl = useRef<HTMLParagraphElement>(null);
   const [wordsEnd, setWordsEnd] = useState(0);
   useLayoutEffect(() => {
@@ -291,7 +326,30 @@ export function RoamScene({
   const restingAtThing = useRef(false);
   restingAtThing.current = !!atThing;
   const [ring, setRing] = useState<{ x: number; y: number; n: number } | null>(null);
-  const [tapped, setTapped] = useState(false);
+  const [tapped, setTapped] = useState(was?.tapped ?? false);
+
+  // Keep whoever holds the walk up to date with where it has got to —
+  // only once standing still, never mid-stride.
+  useEffect(() => {
+    if (!memory || !arrived || target) return;
+    memory.current = {
+      hero: heroNow.current,
+      kaos: kaosNow.current,
+      facing,
+      kaosFacing,
+      read: [...read],
+      finds: [...findsNow.current],
+      recentFinds: [...recentFinds.current],
+      recentSpots: [...recentSpots.current],
+      findsThisVisit: findsThisVisit.current,
+      visitCounted: visitCounted.current,
+      rainbowSeen: rainbowSeen.current,
+      said: said.current,
+      caption,
+      captionGrade,
+      tapped,
+    };
+  }, [arrived, target, hero, read, finds, caption, facing, kaosFacing, tapped]);
 
   useEffect(() => {
     const el = host.current;

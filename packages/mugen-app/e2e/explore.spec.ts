@@ -97,7 +97,12 @@ test('the forest is walked about in like the ruins: forward and back into the pi
   await touch(page, front);
   const atFront = await hero(page);
   const frontScale = await scale(page);
-  const frontBox = (await page.getByTestId('walk-hero').boundingBox())!;
+  // Measured once his standing picture has loaded (a frame not yet loaded measures 0).
+  const tall = async () => {
+    await expect.poll(async () => (await page.getByTestId('walk-hero').boundingBox())?.height ?? 0).toBeGreaterThan(0);
+    return (await page.getByTestId('walk-hero').boundingBox())!.height;
+  };
+  const frontBox = { height: await tall() };
   const back = await openFloor(page, 0.58, [0.8, 0.88, 0.7, 0.6]);
   await touch(page, back);
   const atBack = await hero(page);
@@ -106,7 +111,7 @@ test('the forest is walked about in like the ruins: forward and back into the pi
   expect(backScale).toBeLessThan(frontScale);
   expect(backScale).toBeGreaterThanOrEqual(0.78);
   expect(backScale).toBeLessThanOrEqual(0.88);
-  expect((await page.getByTestId('walk-hero').boundingBox())!.height).toBeLessThan(frontBox.height * 0.93);
+  expect(await tall()).toBeLessThan(frontBox.height * 0.93);
   expect(dist(await kaos(page), atBack)).toBeLessThan(0.08);
   expect(Math.abs((await scale(page, 'kaos')) - backScale)).toBeLessThan(0.08);
   // The trees, the water and the sky are not floor.

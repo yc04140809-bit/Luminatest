@@ -83,6 +83,7 @@
 
 - 味方の被弾：`battle_damage`。撃破：通常敵＝`battle_enemy_defeat`、ボス＝`battle_boss_defeat`。
 - 戦闘突入：`battle_start`（戦闘の開始時に 1 回）。
+- 逃走：`battle_escape`（「逃走」を押した時。通常戦闘のみ）。
 - 防御：防御の構えで `battle_guard`。味方への攻撃が 0 ダメージで防がれた時（パリィ）も `battle_guard`。
 - モンスターが苔に潜る（敵のスキル「隠れる」）：`battle_hide` を 2 回続けて（2 回目は動きの 45% の時点。×2 でも動きの内側に収まる）。
 - レヴィ・アリア・ゼロの必殺技は DEBUG の戦闘演出プレビューでのみ再生できる（本編未接続）。
@@ -127,7 +128,6 @@
 - `battle_evade`（専用ファイルあり。戦闘に回避の処理が無いので未配線）
 - `battle_attack_heavy_weapon` は通常攻撃では未使用（斧・大鎌がいない）。レヴィの突進にだけ使用
 - `battle_bow_hit` `battle_critical`（ID と割り当てだけ準備）
-- `battle_escape`（逃走の処理がまだ無い。ボタンは表示だけ）
 - `battle_boss_emerge`（地下から現れる敵がまだいない）
 - 環境音 4 種 `explore_ambient_*`（雪山・天候の場所がまだ無い。ループ再生の仕組みもまだ無いので、使う場所ができた時に足す）
 

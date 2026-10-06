@@ -49,7 +49,7 @@ import もマップへの追記も要りません。`src/sfx.ts` がこのフォ
 | `battle_hide.mp3` | 潜ったり隠れたり（2 回続けて鳴らす） | モンスターが苔に潜った時（2 回） |
 | `battle_guard.mp3` | 防御・パリィ | 防御の構え、味方への攻撃を 0 ダメージで防いだ時 |
 | `battle_start.mp3` | 戦闘突入時 | 戦闘の開始時に 1 回 |
-| `battle_escape.mp3` | 逃走時 | 逃走の処理がまだ無い |
+| `battle_escape.mp3` | 逃走時 | 「逃走」で戦闘から逃げた時（通常戦闘のみ） |
 | `battle_boss_emerge.mp3` | 地下からボスや巨大な敵 | 該当する敵がまだいない |
 | `explore_ambient_snow_mountain.mp3` | 雪山ダンジョンなど（環境音） | 該当する場所がまだ無い |
 | `explore_ambient_storm.mp3` | 悪天候（環境音） | 天候の仕組みがまだ無い |

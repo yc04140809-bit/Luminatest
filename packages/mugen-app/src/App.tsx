@@ -47,6 +47,7 @@ import {
   GALD_FUTURE_VISION_YEARS,
 } from '@mugen/content/events/galdLifeChoice';
 import { BattleScreen, ResultScreen } from './ui/battle';
+import type { RoamMemory } from './ui/explore/RoamScene';
 import { PrologueScreen } from './ui/prologue';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 
@@ -288,6 +289,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * door was walked through, and it decides nothing about the world.
    */
   const story = useRef(false);
+  // THE FOREST WALK, KEPT ACROSS A FIGHT: where it had got to, and whether
+  // the next showing of the forest picks it up (a fight fled from) or
+  // walks in afresh (any other way in).
+  const forestWalk = useRef<RoamMemory | null>(null);
+  const resumeForest = useRef(false);
 
   const [chosenBgm, setChosenBgm] = useState(battleBgmChoice);
   const unlockedBgm = world.getUnlockedBattleBgm();
@@ -576,16 +582,23 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // Read, never written: what the forest notices depends on it.
           known={world.getKnownEvents().map((e) => e.type)}
           day={world.getClock().worldDay}
+          memory={forestWalk}
+          resume={resumeForest.current}
           onGald={() => {
+            resumeForest.current = false;
             story.current = true;
             flow.goTo('ENCOUNTER');
           }}
           onFight={() => {
+            resumeForest.current = false;
             story.current = false;
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             flow.goTo('BATTLE');
           }}
-          onLeave={() => flow.goTo('EXPLORE')}
+          onLeave={() => {
+            resumeForest.current = false;
+            flow.goTo('EXPLORE');
+          }}
         />
       );
     case 'ENCOUNTER':
@@ -612,6 +625,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           locationId="GREENWOOD_FOREST"
           world={world}
           onWon={story.current ? wonTheStory : won}
+          // 逃げる: back into the forest as it was before the fight. Not
+          // from the story's fight — Gald's is faced, not fled.
+          onEscape={
+            story.current
+              ? undefined
+              : () => {
+                  resumeForest.current = true;
+                  flow.goTo('GREENWOOD');
+                }
+          }
           music={music}
           // Both of the App's fights are in the greenwood; the ground is
           // the place's, as content says.

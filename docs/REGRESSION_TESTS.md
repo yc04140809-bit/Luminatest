@@ -27,6 +27,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 古代遺跡（DEBUG） | `exploreRuins`（DEBUG 入口・2D タップ移動（手前／奥で大きさが変わる・壁や空は最寄りの床へ・ケイオスが同じ奥行きでついて来る・歩行中の再タップ・実際に少しずつ歩く）・「！」（最初は出ない・近づくと出る・調べたら完全に消える・同時に最大 2 個）・固定 3 ポイントの一言・3 つ調べた後も小さな発見が別の場所に出続ける（文章の重複なし・待つのは最大 2 つ）・ボタンでは歩かない・動きを減らす設定・世界を開かない・横画面 5 サイズ）、core `walkPlaces.test.ts`、App `roam.test.ts`・`walkPath.test.ts` | 通常進行からは入れない。森は従来の右→左のまま |
 | 古代遺跡の発見の格・虹装備（DEBUG） | `exploreRareFinds`（NORMAL → 金色 → 虹 → 取得の光・名前・説明 → セーブ → 再起動 → 所持したまま装備できる → 同じ遺跡で虹が二度と出ない・有効訪問は 3 つ目の発見で 1 回だけ数える・セーブが無いときは何も作らず「記録されません」）、core `explorationState.test.ts`・`equipment.test.ts`、App `roam.test.ts`（確率・8 回目の確定） | 戦闘への性能反映はまだ無い（別指示） |
 | 戦闘開始 | `regression`、`attack`、`battleStage`（配置） | |
+| 逃走 | `escape`（森が戦闘前と同じ：立ち位置・調べ済み・小発見・一言、HP/MP・薬草・EXP・LUMI が戦闘前のまま、逃走音、地図から入り直すと最初から、ガルド戦には逃走が無い） | |
 | 戦闘の効果音（App） | `battleSounds`（斬撃 → 命中の順・ピッチの揺らぎ、モンスター＝重い打撃、ガルド＝ナイフ・ボスヒット・被弾、撃破、彗星撃／癒しの光／星光弾の各段、ゼロ・レヴィ・アリアの必殺技の段、×2 でレヴィの槍が半分）、App 単体 `battleSounds.test.ts`、core `sfxTuning.test.ts`・`sfxFiles.test.ts`。割り当て表は `docs/BATTLE_SE.md` | 実際の音量・聞こえ方は実機で確認。Artifact には効果音が入らないこと（`check-build-audio`） |
 | 勝利 | `regression`、`loop`（経験値・LUMI・レベル・アイテム名）、`attack`「beaten, it goes down…」 | |
 | CUT-IN | `regression`（本編）、`magic`（本編の全 5 魔法）、`cutin`（DEBUG プレビュー） | |

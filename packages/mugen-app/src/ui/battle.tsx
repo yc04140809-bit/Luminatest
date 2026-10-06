@@ -37,6 +37,10 @@ import {
   type TurnKind,
 } from './battle/battleTheatre';
 import { arcanaReading } from './battle/arcanaDepth';
+import { playSfx } from '../platform/audio';
+
+/** How long the escape is heard before the fight is gone, at ×1. */
+export const ESCAPE_WAIT_MS = 520;
 
 /**
  * THE FIGHT, DRIVEN BY THE SHARED CORE AND NOTHING ELSE.
@@ -60,6 +64,7 @@ export function BattleScreen({
   locationId,
   onWon,
   onLost,
+  onEscape,
   music,
   background = null,
 }: {
@@ -75,6 +80,11 @@ export function BattleScreen({
   locationId: LocationId;
   onWon: (final: { hp: number; mp: number }) => void;
   onLost: () => void;
+  /**
+   * 逃げる — back to where the fight began, as if it had not happened.
+   * Absent for a fight that cannot be fled (the story's).
+   */
+  onEscape?: () => void;
   music?: { label: string; onCycle: () => void };
   /** The ground the fight is fought on (content/locations/battleBackgrounds). */
   background?: BattleBackgroundKey | null;
@@ -116,6 +126,8 @@ export function BattleScreen({
   const [downed, setDowned] = useState(false);
   /** What the party carries out, fixed the moment the fight is decided. */
   const ended = useRef<{ hp: number; mp: number } | null>(null);
+  /** What was drunk in this fight, so fleeing it can put it back. */
+  const drunk = useRef(new Map<string, number>());
 
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
   const carried = world.getInventory().filter((stack) => itemDef(stack.itemId)?.use);
@@ -193,6 +205,7 @@ export function BattleScreen({
       .then((moved) => {
         // Nothing left the bag, so nothing happens in the fight either.
         if (moved <= 0) return;
+        drunk.current.set(itemId, (drunk.current.get(itemId) ?? 0) + moved);
         const next = useItem(before, def.use!);
         turn(next, 'ITEM');
         const said = next.log.slice(before.log.length);
@@ -200,6 +213,30 @@ export function BattleScreen({
       })
       .catch(() => {})
       .finally(() => setBusy(false));
+  };
+
+  /**
+   * 逃げる: BACK TO BEFORE THE FIGHT.
+   *
+   * Nothing a fight changes is kept unless it is won: its wounds and the
+   * MP it cost are only ever handed back by a win, so fleeing simply
+   * never hands them back — the party is as it was when it walked in.
+   * The one thing that has already left is anything drunk from the bag,
+   * and that is put back before leaving. No EXP, no LUMI, nothing found.
+   * Only between turns, and only once.
+   */
+  const escape = () => {
+    if (!idle || !onEscape) return;
+    setBusy(true);
+    setSay(null);
+    setTold(null);
+    playSfx('battle_escape', { speed });
+    const back = [...drunk.current].map(([itemId, n]) => world.addItem(itemId, n));
+    drunk.current.clear();
+    const leave = new Promise((resolve) => setTimeout(resolve, beatMs(ESCAPE_WAIT_MS, speed)));
+    void Promise.all([...back, leave])
+      .catch(() => {})
+      .finally(() => onEscape());
   };
 
   /**
@@ -259,6 +296,7 @@ export function BattleScreen({
       swordplay
       reach={theatre.reach}
       bgm={music}
+      onEscape={onEscape ? escape : undefined}
       testId="battle-screen"
     />
   );
