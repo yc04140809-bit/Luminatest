@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WALK_PLACES, WALK_PLACE_IDS } from './walkPlaces';
 import { RUINS_WALK } from './ruinsWalk';
 import { GREENWOOD_WALK } from './greenwoodWalk';
-import { ambientLinesFor, pointLine, pointsFor } from './walkScene';
+import { ambientLinesFor, markerAt, pointLine, pointsFor } from './walkScene';
 
 const empty = { known: new Set<string>(), day: 1 };
 
@@ -47,5 +47,33 @@ describe('古代遺跡, walked', () => {
   it('looks higher up its painting than the forest, which keeps the bottom as before', () => {
     expect(RUINS_WALK.framing).toBeLessThan(1);
     expect(GREENWOOD_WALK.framing ?? 1).toBe(1);
+  });
+});
+
+describe('「！」 — where each thing’s mark stands', () => {
+  it('on the thing itself: its own place when given, else just above where it is', () => {
+    expect(markerAt({ id: 'A', label: 'a', at: { x: 0.4, y: 0.6 }, lines: [] })).toEqual({ x: 0.4, y: 0.57 });
+    expect(markerAt({ id: 'B', label: 'b', at: { x: 0.4, y: 0.6 }, marker: { x: 0.42, y: 0.3 }, lines: [] })).toEqual({
+      x: 0.42,
+      y: 0.3,
+    });
+  });
+
+  it('every place’s marks are inside its painting, never below where the walk stops for the thing', () => {
+    for (const scene of [GREENWOOD_WALK, RUINS_WALK]) {
+      for (const p of scene.points) {
+        const m = markerAt(p);
+        expect(m.x, p.id).toBeGreaterThan(0);
+        expect(m.x, p.id).toBeLessThan(1);
+        expect(m.y, p.id).toBeGreaterThan(0);
+        expect(m.y, p.id).toBeLessThan(1);
+        // Over the thing, never far off to one side of it.
+        expect(Math.abs(m.x - p.at.x), p.id).toBeLessThan(0.05);
+      }
+    }
+  });
+
+  it('the ruins’ marks stand up on the arch, the banner and the steps, off the floor', () => {
+    for (const p of RUINS_WALK.points) expect(markerAt(p).y, p.id).toBeLessThan(p.at.y);
   });
 });

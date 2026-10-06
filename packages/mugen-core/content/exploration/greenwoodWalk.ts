@@ -53,6 +53,8 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       id: 'FALLEN_LOG',
       label: '倒れた丸太',
       at: { x: 0.36, y: 0.52 },
+      // On the log's near edge: the top of it is up under the words.
+      marker: { x: 0.36, y: 0.56 },
       lines: [
         { text: '丸太の苔が、誰かに踏まれて剥げている。', when: BEFORE_THE_ANSWER },
         { text: '剥げていた苔が、また丸太を覆いはじめている。', when: AFTER_THE_ANSWER },
@@ -62,6 +64,8 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       id: 'OLD_TREE',
       label: '古い大樹',
       at: { x: 0.14, y: 0.46 },
+      // At the roots, where the footprints are.
+      marker: { x: 0.14, y: 0.58 },
       lines: [{ text: '木の根元に、小さな足跡が残っている。' }],
     },
   ],

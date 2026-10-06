@@ -24,6 +24,8 @@ export const RUINS_WALK: WalkSceneDef = {
       id: 'STONE_ARCH',
       label: '石造りのアーチ',
       at: { x: 0.5, y: 0.42 },
+      // On the arch's pillars, where the eye goes.
+      marker: { x: 0.5, y: 0.38 },
       lines: [{ text: '欠けた石のアーチが、遠い山々を切り取っている。' }],
     },
     {
@@ -32,12 +34,16 @@ export const RUINS_WALK: WalkSceneDef = {
       // The glint sits on the floor at the foot of the banner's pillar,
       // as the forest's do on the ground: up among the ivy it is lost.
       at: { x: 0.3, y: 0.47 },
+      // Just under the banner's fringe, on the pillar it hangs from.
+      marker: { x: 0.3, y: 0.36 },
       lines: [{ text: '色褪せた旗が、風に小さく揺れている。' }],
     },
     {
       id: 'BROKEN_STEPS',
       label: '崩れた石段',
       at: { x: 0.12, y: 0.44 },
+      // On the steps themselves.
+      marker: { x: 0.14, y: 0.39 },
       lines: [{ text: '崩れた石段に、白い花が根を張っている。' }],
     },
   ],

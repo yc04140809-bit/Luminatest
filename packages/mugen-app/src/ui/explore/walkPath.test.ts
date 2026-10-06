@@ -114,3 +114,27 @@ describe('a tap on the ground', () => {
     expect(settleAt(mid, xs)).toBe(mid);
   });
 });
+
+describe('「！」 on screen', () => {
+  it('seen from well before the glint, so "there is something over there" comes first', async () => {
+    const { APPROACH, MARK_RANGE } = await import('./walkPath');
+    expect(MARK_RANGE).toBeGreaterThan(3 * APPROACH);
+  });
+
+  it('as tall as a thumb can find on a phone held sideways, never a sign that fills the screen', async () => {
+    const { markHeight } = await import('./walkPath');
+    expect(markHeight(300)).toBe(27);
+    expect(markHeight(390)).toBeCloseTo(35.1, 5);
+    expect(markHeight(900)).toBe(40);
+  });
+
+  it('stands at the thing, but never up under the name and the words', async () => {
+    const { MARK_CEILING, markHeight, markTipY } = await import('./walkPath');
+    expect(markTipY(250, 412)).toBe(250);
+    expect(markTipY(20, 412)).toBe(MARK_CEILING + markHeight(412));
+    expect(markTipY(-100, 300) - markHeight(300)).toBe(MARK_CEILING);
+    // A caption that runs to two lines ends further down; the marks stand under it.
+    expect(markTipY(20, 412, 108)).toBe(108 + markHeight(412));
+    expect(markTipY(20, 412, 30)).toBe(MARK_CEILING + markHeight(412));
+  });
+});

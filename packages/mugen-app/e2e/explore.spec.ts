@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening } from './opening';
-import { atFarEnd, nextLeft, nextRight, tapGround, walkT } from './walk';
+import { atFarEnd, marksClear, nextLeft, nextRight, tapGround, walkT } from './walk';
 
 /**
  * グリーンウッドの森, WALKED — the App's exploration template, first place.
@@ -260,6 +260,28 @@ test('stop to stop: a thing in reach, 調べる, a short line — at least two o
   expect(await heroX(page)).toBeGreaterThan(end);
 });
 
+test('「！」 on the forest’s things too: every one of them marked on the way, “here” beside it, dimmed once read', async ({
+  page,
+}) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await intoTheForest(page);
+  const seen = new Set<string>();
+  for (const id of await marksClear(page, ['walk-caption'])) seen.add(id);
+  for (let i = 0; i < 6 && !(await atFarEnd(page)); i++) {
+    await stepLeft(page);
+    for (const id of await marksClear(page, ['walk-caption'])) seen.add(id);
+    const look = page.getByTestId('walk-look');
+    if (await look.isVisible()) {
+      const id = (await look.getAttribute('data-point'))!;
+      await expect(page.getByTestId(`walk-marker-${id}`)).toHaveAttribute('data-state', 'here');
+      await look.click();
+      await expect(page.getByTestId(`walk-marker-${id}`)).toHaveAttribute('data-state', 'looked');
+    }
+  }
+  expect([...seen].sort()).toEqual(['FALLEN_LOG', 'FRESH_FOOTPRINTS', 'OLD_TREE', 'PUDDLE']);
+});
+
 test('the forest’s doors are where they were: the undergrowth is a fight, the man in the road is the story', async ({
   page,
 }) => {
@@ -412,6 +434,10 @@ for (const [w, h] of [
       }
       // The party stands above the doors, never behind them.
       for (const d of doors) expect(hero.y + hero.height, 'party above the doors').toBeLessThanOrEqual(d.y + 2);
+      // Every 「！」 in sight is whole, on screen, and over none of the words or buttons.
+      // (Read first where there is something to read, so the words are their longest.)
+      if (await page.getByTestId('walk-look').isVisible()) await page.getByTestId('walk-look').click();
+      await marksClear(page, ['walk-caption', 'leave-forest', 'gald-button', 'encounter-button', 'walk-look']);
       if (await atFarEnd(page)) break;
       await stepLeft(page);
     }

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { atFarEnd, nextLeft, nextRight, settled, stops, tapGround, walkT, walkToThing } from './walk';
+import { atFarEnd, marksClear, nextLeft, nextRight, settled, stops, tapGround, walkT, walkToThing } from './walk';
 
 /**
  * 古代遺跡 (working title), WALKED — the forest's walk across another place.
@@ -72,6 +72,50 @@ test('right to left, stop to stop: the arch, the banner, the steps — each glin
   expect(errors).toEqual([]);
 });
 
+test('「！」 on each thing in sight: on the arch from the start, the banner and the steps as they come near — then quieter once read', async ({
+  page,
+}) => {
+  await openRuins(page);
+  const mark = (id: string) => page.getByTestId(`walk-marker-${id}`);
+  // From where they come in, the arch is in sight; the banner and the steps are not yet.
+  await expect(mark('STONE_ARCH')).toBeVisible();
+  await expect(mark('STONE_ARCH')).toHaveAttribute('data-state', 'near');
+  await expect(mark('OLD_BANNER')).toHaveCount(0);
+  await expect(mark('BROKEN_STEPS')).toHaveCount(0);
+  // It stands on the thing, up off the floor: above where the walk stops for it.
+  const arch = (await mark('STONE_ARCH').boundingBox())!;
+  const feet = (await page.getByTestId('walk-hero').boundingBox())!;
+  expect(arch.y + arch.height).toBeLessThan(feet.y + feet.height - 40);
+  // The mark is a sign, not a control: 調べる is still what looks.
+  await expect(page.getByTestId('walk-look')).toHaveCount(0);
+  // Beside the arch: its mark says "here", and the banner's has come into sight.
+  await nextLeft(page);
+  await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'STONE_ARCH');
+  await expect(mark('STONE_ARCH')).toHaveAttribute('data-state', 'here');
+  await expect(mark('OLD_BANNER')).toHaveAttribute('data-state', 'near');
+  // Read: it stays, dimmed — where one has been is still plain.
+  await page.getByTestId('walk-look').click();
+  await expect(mark('STONE_ARCH')).toHaveAttribute('data-state', 'looked');
+  expect(await mark('STONE_ARCH').evaluate((e) => Number(getComputedStyle(e).opacity))).toBeLessThan(1);
+  expect(await mark('OLD_BANNER').evaluate((e) => Number(getComputedStyle(e).opacity))).toBe(1);
+  // On to the banner and the steps: each says "here" in its turn, and the arch stays read.
+  await nextLeft(page);
+  await expect(mark('OLD_BANNER')).toHaveAttribute('data-state', 'here');
+  await expect(mark('BROKEN_STEPS')).toHaveAttribute('data-state', 'near');
+  await nextLeft(page);
+  await expect(mark('BROKEN_STEPS')).toHaveAttribute('data-state', 'here');
+  // The arch is left far behind: out of sight, its mark goes.
+  await expect(mark('STONE_ARCH')).toHaveCount(0);
+});
+
+test('touching a 「！」 is touching the ground there: the party walks to the thing it stands on', async ({ page }) => {
+  await openRuins(page);
+  const b = (await page.getByTestId('walk-marker-STONE_ARCH').boundingBox())!;
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  await settled(page);
+  await expect(page.getByTestId('walk-look')).toHaveAttribute('data-point', 'STONE_ARCH');
+});
+
 test('it opens no world: no save is created by walking the ruins', async ({ page }) => {
   // Cleared from inside the preview, which holds nothing open.
   await page.goto('/?preview=walk&place=ANCIENT_RUINS');
@@ -136,7 +180,7 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: the party, the glint, 調べる and the words are on screen at every stop`, async ({ page }) => {
+  test(`${w}×${h}: the party, the glint, 調べる, the words and every 「！」 are on screen at every stop`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await openRuins(page);
     const inside = async (id: string) => {
@@ -157,6 +201,11 @@ for (const [w, h] of [
         const id = (await page.getByTestId('walk-look').getAttribute('data-point'))!;
         await inside(`walk-point-${id}`);
       }
+      // Every mark in sight is whole, on screen, and over none of the words or buttons.
+      // (Read first where there is something to read, so the words are their longest.)
+      if (await page.getByTestId('walk-look').isVisible()) await page.getByTestId('walk-look').click();
+      const shown = await marksClear(page, ['walk-caption', 'walk-preview-leave', 'walk-look']);
+      expect(shown.length, 'something is always in sight').toBeGreaterThan(0);
       if (await atFarEnd(page)) break;
       await stepLeft(page);
     }

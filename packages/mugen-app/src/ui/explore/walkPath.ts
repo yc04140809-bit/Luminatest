@@ -31,6 +31,32 @@ export const DEPTH = {
   near: 1.9,
 } as const;
 
+/**
+ * How near, in t, a thing must be for its 「！」 to show — wide on purpose:
+ * far enough that "there is something over there" is plain from a good
+ * way off, which is the whole job of the mark.
+ */
+export const MARK_RANGE = 0.45;
+
+/** How tall the 「！」 stands on a screen this high (styles.css `.walk-marker`). */
+export function markHeight(h: number): number {
+  return Math.min(40, Math.max(27, 0.09 * h));
+}
+
+/**
+ * The top of the screen belongs to the words: the place's name and, under
+ * it, what was noticed. No 「！」 rises into them; one on a thing painted
+ * that high stands at their foot. MARK_CEILING is that foot for a
+ * one-line caption (from 48px, about 34px tall); a caption that runs to
+ * more lines pushes it down — the scene passes where its caption ends.
+ */
+export const MARK_CEILING = 86;
+
+/** Where a 「！」's bottom tip goes, in px: at the thing, but never up under the words. */
+export function markTipY(paintY: number, h: number, wordsEnd = MARK_CEILING): number {
+  return Math.max(paintY, Math.max(MARK_CEILING, wordsEnd) + markHeight(h));
+}
+
 /** How near, in t, the party must be before a thing ahead begins to glint. */
 export const APPROACH = 0.11;
 

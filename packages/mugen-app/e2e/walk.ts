@@ -101,3 +101,38 @@ export async function atFarEnd(page: Page): Promise<boolean> {
   const ahead = (await stops(page)).some((s) => s.t > t + 0.02);
   return !ahead && t >= 0.95;
 }
+
+/**
+ * Every 「！」 now showing: on screen, under the title row, and clear of
+ * the given controls and words — a mark nobody can miss, over nothing
+ * that has to be read or pressed. Returns the ids of the marks shown.
+ */
+export async function marksClear(page: Page, avoid: readonly string[]): Promise<string[]> {
+  const vp = page.viewportSize()!;
+  const marks = page.locator('[data-testid^="walk-marker-"]');
+  const ids: string[] = [];
+  const keepOut = [];
+  for (const id of avoid) {
+    const el = page.getByTestId(id);
+    if (await el.isVisible()) keepOut.push({ id, box: (await el.boundingBox())! });
+  }
+  for (let i = 0; i < (await marks.count()); i++) {
+    const m = marks.nth(i);
+    const id = (await m.getAttribute('data-testid'))!;
+    ids.push(id.replace('walk-marker-', ''));
+    expect(await m.evaluate((e) => getComputedStyle(e).pointerEvents), id).toBe('none');
+    const b = (await m.boundingBox())!;
+    // Wholly on screen, sideways and below the place's name.
+    if (b.x + b.width < 0 || b.x > vp.width) continue; // slid off the side with the painting: not showing
+    expect(b.x, id).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width, id).toBeLessThanOrEqual(vp.width);
+    expect(b.y, id).toBeGreaterThanOrEqual(40);
+    expect(b.y + b.height, id).toBeLessThanOrEqual(vp.height);
+    for (const k of keepOut) {
+      const apart =
+        b.x + b.width <= k.box.x || k.box.x + k.box.width <= b.x || b.y + b.height <= k.box.y || k.box.y + k.box.height <= b.y;
+      expect(apart, `${id} clear of ${k.id}`).toBe(true);
+    }
+  }
+  return ids;
+}

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ambientLinesFor,
   figuresFor,
+  markerAt,
   pointLine,
   pointsFor,
   type WalkPoint,
@@ -14,7 +15,8 @@ import { sceneArt } from '../../assets/sceneArt';
 import { playSfx } from '../../platform/audio';
 import { WalkSprite } from './WalkSprite';
 import { Ambience, Moment, NearFoliage, pickAmbience, pickMoment, type MomentKind } from './Ambience';
-import { DEPTH, PAN, glintStrength, heroX, layerShift, settleAt, stopFor, tapToT } from './walkPath';
+import { PointMarker } from './PointMarker';
+import { DEPTH, MARK_RANGE, PAN, glintStrength, heroX, layerShift, markTipY, settleAt, stopFor, tapToT } from './walkPath';
 
 /**
  * A PLACE, WALKED — the App's exploration template.
@@ -119,7 +121,18 @@ export function WalkScene({
   const ambient = useMemo(() => shuffle(ambientLinesFor(scene, view)), [scene]);
   const [said, setSaid] = useState(0);
   const [caption, setCaption] = useState<string | null>(null);
+  // Where the caption ends on screen, so no 「！」 stands under the words —
+  // measured, since a long line wraps on a narrow phone.
+  const captionEl = useRef<HTMLParagraphElement>(null);
+  const [wordsEnd, setWordsEnd] = useState(0);
+  useLayoutEffect(() => {
+    const el = captionEl.current;
+    const at = host.current?.getBoundingClientRect().top ?? 0;
+    setWordsEnd(el ? Math.ceil(el.getBoundingClientRect().bottom - at) + 4 : 0);
+  }, [caption, size]);
   const [looked, setLooked] = useState<string | null>(null);
+  // Everything read this visit, so its 「！」 can say "already seen".
+  const [read, setRead] = useState<ReadonlySet<string>>(new Set());
   const picked = useMemo(() => (calm ? [] : pickAmbience(scene.ambience)), [scene, calm]);
   const figures = useMemo(() => figuresFor(scene, view), [scene]);
   // A QUIET MOMENT now and then — a leaf passing, the light shifting, a
@@ -288,6 +301,7 @@ export function WalkScene({
     if (!atPoint) return;
     playSfx('explore_found');
     setLooked(atPoint.id);
+    setRead((r) => new Set(r).add(atPoint.id));
     setCaption(pointLine(atPoint, view));
   };
 
@@ -357,6 +371,22 @@ export function WalkScene({
               }}
             />
           ))}
+        {/* THE 「！」 OF EVERY THING WITHIN SIGHT — the guide, on the thing itself. */}
+        {points
+          .filter((p) => Math.abs(t - stopFor(p.at.x)) < MARK_RANGE)
+          .map((p) => {
+            const m = markerAt(p);
+            const here = atPoint?.id === p.id;
+            return (
+              <PointMarker
+                key={`marker-${p.id}`}
+                left={m.x * paintW}
+                top={markTipY(paintTop + m.y * paintH, h, wordsEnd)}
+                state={read.has(p.id) ? 'looked' : here ? 'here' : 'near'}
+                testId={`walk-marker-${p.id}`}
+              />
+            );
+          })}
         {near && (
           <span
             className={`walk-point ${looked === near.point.id ? 'is-looked' : ''} ${near.strength >= 0.999 ? 'is-here' : ''}`}
@@ -416,7 +446,7 @@ export function WalkScene({
         </button>
       </div>
       {caption && (
-        <p className="walk-caption" data-testid="walk-caption" aria-live="polite">
+        <p ref={captionEl} className="walk-caption" data-testid="walk-caption" aria-live="polite">
           {caption}
         </p>
       )}

@@ -1215,6 +1215,34 @@ body {
   gap: 8px;
 }
 .walk-look { min-width: 0; min-height: 40px; padding: 6px 14px; font-size: 13px; background: rgba(11, 11, 18, 0.7); }
+/* 「！」 — the guide to a thing that can be looked at. Bold, red-orange,
+   a white edge and a dark shadow, so it reads on any ground; it stands on
+   the thing (bottom tip at the point) and breathes slowly. */
+.walk-marker {
+  position: absolute;
+  width: clamp(16px, 5.4vh, 24px);
+  height: clamp(27px, 9vh, 40px);
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.45));
+  animation: walk-marker-breathe 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.walk-marker svg { display: block; overflow: visible; }
+.walk-marker-bar, .walk-marker-dot {
+  fill: #e8462a;
+  stroke: #fff;
+  stroke-width: 2.6;
+  paint-order: stroke;
+}
+.walk-marker.is-here .walk-marker-bar, .walk-marker.is-here .walk-marker-dot { fill: #ff5230; }
+/* Already read: still there, quieter — where one has been stays plain. */
+.walk-marker.is-looked { animation: none; opacity: 0.55; }
+.walk-marker.is-looked .walk-marker-bar, .walk-marker.is-looked .walk-marker-dot { fill: #9a6a5e; }
+@keyframes walk-marker-breathe {
+  0%, 100% { transform: translate(-50%, -100%) scale(1); }
+  50% { transform: translate(-50%, -100%) scale(1.12); }
+}
 /* Where the ground was touched: a small ring that opens and fades. */
 .walk-tap-ring {
   position: absolute;
@@ -1296,7 +1324,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .walk-light, .walk-mist, .walk-figure, .walk-point, .amb { animation: none !important; }
+  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .amb { animation: none !important; }
   .walk-tap-ring { animation: walk-tap-still 0.5s linear forwards !important; }
   .amb { display: none; }
 }

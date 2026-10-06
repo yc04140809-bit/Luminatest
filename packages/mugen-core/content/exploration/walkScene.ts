@@ -42,6 +42,13 @@ export interface WalkPoint {
    */
   at: { x: number; y: number };
   /**
+   * WHERE ITS 「！」 STANDS — on the thing itself, in the painting's own
+   * coordinates: the bottom tip of the mark. The banner's is under the
+   * banner, the steps' on the steps, not down on the floor where `at`
+   * puts the walk. Absent means just above `at`.
+   */
+  marker?: { x: number; y: number };
+  /**
    * What looking at it says. The first line whose condition holds wins,
    * so put the most particular first and an unconditional one last.
    */
@@ -126,4 +133,9 @@ export function ambientLinesFor(scene: WalkSceneDef, view: WalkWorldView): strin
 /** The distant figures present in this world. */
 export function figuresFor(scene: WalkSceneDef, view: WalkWorldView): WalkFigure[] {
   return (scene.figures ?? []).filter((f) => walkConditionHolds(f.when, view));
+}
+
+/** Where a thing's 「！」 stands: its own `marker`, or just above where it is. */
+export function markerAt(point: WalkPoint): { x: number; y: number } {
+  return point.marker ?? { x: point.at.x, y: point.at.y - 0.03 };
 }
