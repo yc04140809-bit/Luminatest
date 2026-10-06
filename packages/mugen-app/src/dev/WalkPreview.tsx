@@ -3,6 +3,7 @@ import { RUINS_WALK } from '@mugen/content/exploration/ruinsWalk';
 import type { WalkSceneDef } from '@mugen/content/exploration/walkScene';
 import type { WalkPlaceId } from '@mugen/content/exploration/walkPlaces';
 import { WalkScene } from '../ui/explore/WalkScene';
+import { RoamScene } from '../ui/explore/RoamScene';
 
 /**
  * A PLACE WALKED ON ITS OWN, for looking at — DEBUG BUILDS ONLY.
@@ -21,6 +22,19 @@ export function WalkPreview({ params }: { params: URLSearchParams }) {
   const id = (params.get('place') ?? 'ANCIENT_RUINS') as WalkPlaceId;
   const scene = PREVIEWABLE[id] ?? RUINS_WALK;
   const view = useMemo(() => ({ known: new Set<string>(), day: 1 }), []);
+  // A place walked about in (the ruins) has its own screen; others walk along.
+  if (scene.roam)
+    return (
+      <RoamScene
+        scene={scene}
+        roam={scene.roam}
+        place={scene.id as WalkPlaceId}
+        view={view}
+        onLeave={() => window.location.assign(window.location.pathname)}
+        leaveLabel="タイトルへもどる"
+        leaveTestId="walk-preview-leave"
+      />
+    );
   return (
     <WalkScene
       scene={scene}

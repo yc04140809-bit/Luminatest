@@ -77,3 +77,36 @@ describe('「！」 — where each thing’s mark stands', () => {
     for (const p of RUINS_WALK.points) expect(markerAt(p).y, p.id).toBeLessThan(p.at.y);
   });
 });
+
+describe('古代遺跡, walked about in — small finds', () => {
+  const roam = RUINS_WALK.roam!;
+
+  it('a dozen of them, each its own, each a short line that only notices', () => {
+    expect(roam.discoveries.length).toBeGreaterThanOrEqual(10);
+    expect(new Set(roam.discoveries.map((d) => d.id)).size).toBe(roam.discoveries.length);
+    expect(new Set(roam.discoveries.map((d) => d.text)).size).toBe(roam.discoveries.length);
+    for (const d of roam.discoveries) {
+      expect(d.label.length, d.id).toBeGreaterThan(0);
+      expect(d.text.length, d.id).toBeGreaterThan(0);
+      expect(d.text.length, d.id).toBeLessThan(60);
+    }
+  });
+
+  it('they name nobody and give nothing: no one from the story, no reward', () => {
+    const all = roam.discoveries.map((d) => d.text + d.label).join('\n');
+    expect(all).not.toMatch(/ガルド|盗賊|ケイオス|リナ|エッダ|赤龍|手に入れた|獲得|LUMI|アイテム/);
+  });
+
+  it('the floor is an outline of at least three points, far behind near, the spots spread across it', () => {
+    expect(roam.floor.length).toBeGreaterThanOrEqual(3);
+    expect(roam.far).toBeLessThan(roam.near);
+    expect(roam.spots.length).toBeGreaterThanOrEqual(8);
+    const xs = roam.spots.map((s) => s.x);
+    expect(Math.min(...xs)).toBeLessThan(0.2);
+    expect(Math.max(...xs)).toBeGreaterThan(0.8);
+  });
+
+  it('the forest is still walked along: it has no floor to walk about on', () => {
+    expect(GREENWOOD_WALK.roam).toBeUndefined();
+  });
+});

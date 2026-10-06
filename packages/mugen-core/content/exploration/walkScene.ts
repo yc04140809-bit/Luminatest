@@ -49,6 +49,13 @@ export interface WalkPoint {
    */
   marker?: { x: number; y: number };
   /**
+   * WHERE THE PARTY STANDS TO LOOK AT IT, on a place walked in two
+   * dimensions (`roam`): a spot on the floor a little to the thing's
+   * right, so the one looking never stands in front of its 「！」.
+   * Absent means `at`, brought onto the floor.
+   */
+  stand?: { x: number; y: number };
+  /**
    * What looking at it says. The first line whose condition holds wins,
    * so put the most particular first and an unconditional one last.
    */
@@ -95,6 +102,55 @@ export interface WalkSceneDef {
    * higher. Presentation only.
    */
   framing?: number;
+  /** Walked about in two dimensions, with small finds turning up (see `WalkRoam`). */
+  roam?: WalkRoam;
+}
+
+/** A point in a painting, as fractions of its width and height. */
+export interface PaintingPoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * A SMALL FIND — something noticed on the ground while walking about: a
+ * flower in a crack, a feather, a worn carving. Not one of the place's
+ * own things (`points`), only a little of the world being there. It
+ * gives nothing, records nothing and decides nothing.
+ */
+export interface WalkDiscovery {
+  id: string;
+  /** What it is called on the 「調べる」 control. */
+  label: string;
+  text: string;
+}
+
+/**
+ * A PLACE WALKED ABOUT IN, NOT ALONG — in two dimensions: anywhere on
+ * its floor, back into the picture and forward out of it. Without this
+ * a place is walked right to left as before.
+ */
+export interface WalkRoam {
+  /**
+   * The floor, as an outline in painting fractions (points in order).
+   * Walls, cliffs, pillars and sky are outside it; a touch there walks
+   * to the nearest floor instead.
+   */
+  floor: readonly PaintingPoint[];
+  /**
+   * The painting heights of the farthest and the nearest floor: a
+   * walker is drawn smaller the farther back they stand (0.8 at `far`,
+   * 1 at `near`), which is all the depth there is — the painting is not
+   * cut up.
+   */
+  far: number;
+  near: number;
+  /** Where the party stops after walking in from the right. */
+  start: PaintingPoint;
+  /** Spots on the floor where a small find may turn up, one at a time. */
+  spots: readonly PaintingPoint[];
+  /** What may be found there — picked so the same one does not come round again soon. */
+  discoveries: readonly WalkDiscovery[];
 }
 
 /** What a condition is asked against: what the player knows, and when it is. */

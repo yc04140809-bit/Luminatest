@@ -1243,6 +1243,22 @@ body {
   0%, 100% { transform: translate(-50%, -100%) scale(1); }
   50% { transform: translate(-50%, -100%) scale(1.12); }
 }
+/* THE WALK ABOUT (RoamScene). The 「！」 ride over the party, so nobody
+   stands in front of one. */
+.roam-marks { z-index: 3; }
+/* A small find waiting on the floor: a faint glint seen from anywhere —
+   the hint that something is there, before its 「！」 when near. */
+.roam-sign {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf0 0 12%, rgba(255, 240, 180, 0.75) 30%, rgba(255, 226, 140, 0.25) 52%, transparent 70%);
+  filter: drop-shadow(0 0 2px rgba(20, 14, 6, 0.7));
+  animation: roam-sign-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes roam-sign-twinkle { 0%, 100% { opacity: 0.55; transform: scale(0.75); } 50% { opacity: 1; transform: scale(1.1); } }
 /* Where the ground was touched: a small ring that opens and fades. */
 .walk-tap-ring {
   position: absolute;
@@ -1324,7 +1340,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .amb { animation: none !important; }
+  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .roam-sign, .amb { animation: none !important; }
   .walk-tap-ring { animation: walk-tap-still 0.5s linear forwards !important; }
   .amb { display: none; }
 }

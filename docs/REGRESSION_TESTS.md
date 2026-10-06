@@ -24,7 +24,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 酒場 | `tavern`（村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブ不変、横画面 5 サイズでマスターが切れない） | |
 | パン屋 | `bakery`（村 → パン屋 → 背景・主人・リナ・会話 → 村、BGM は村の曲のまま、セーブ不変、横画面 5 サイズで 2 人が切れず会話欄と重ならない） | Android の戻るボタンはブラウザから押せないため実機で確認 |
 | 森 | `regression`、`loop`、`battleBackground`、`explore`（右→左の歩行・実フレームで歩く・パララックス・調査ポイント・「！」マーカー（4 か所すべてに出る・here／looked）・新しい足跡（四択前だけ・セーブ不変）・環境テキスト・環境演出・人影・戦闘/ガルドへの出口・セーブ不変・四択後の変化・動きを減らす設定・横画面 5 サイズ（「！」が画面内で文字・ボタンと重ならないことも））、core `walkScene.test.ts`・`walkPlaces.test.ts`・App `walkPath.test.ts` | 歩行の滑らかさとパララックスの見え方、「！」の見やすさは実機で確認 |
-| 古代遺跡（DEBUG） | `exploreRuins`（DEBUG 入口・タップ移動（左/中央/右・自由な位置で停止・ポイント付近で横に停止・ボタンでは歩かない・歩行中の再タップ）・調査ポイント 3 つ・「！」マーカー（範囲内だけ出る・near→here→looked・タップでその物へ歩く）・接近時の光・奥行き・環境演出・動きを減らす設定・世界を開かない・横画面 5 サイズ（「！」含む））、core `walkPlaces.test.ts`、App `walkPath.test.ts` | 通常進行からは入れない |
+| 古代遺跡（DEBUG） | `exploreRuins`（DEBUG 入口・2D タップ移動（手前／奥で大きさが変わる・壁や空は最寄りの床へ・ケイオスが同じ奥行きでついて来る・歩行中の再タップ・実際に少しずつ歩く）・「！」（最初は出ない・近づくと出る・調べたら完全に消える・同時に最大 2 個）・固定 3 ポイントの一言・3 つ調べた後も小さな発見が別の場所に出続ける（文章の重複なし・待つのは最大 2 つ）・ボタンでは歩かない・動きを減らす設定・世界を開かない・横画面 5 サイズ）、core `walkPlaces.test.ts`、App `roam.test.ts`・`walkPath.test.ts` | 通常進行からは入れない。森は従来の右→左のまま |
 | 戦闘開始 | `regression`、`attack`、`battleStage`（配置） | |
 | 勝利 | `regression`、`loop`（経験値・LUMI・レベル・アイテム名）、`attack`「beaten, it goes down…」 | |
 | CUT-IN | `regression`（本編）、`magic`（本編の全 5 魔法）、`cutin`（DEBUG プレビュー） | |
