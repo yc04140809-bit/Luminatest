@@ -189,23 +189,37 @@ body {
 .shop-empty { color: var(--dim); font-size: 13px; }
 
 /* ── ミレイ, BEHIND THE COUNTER (NPCタッチ反応, 2026-10-07) ──
-   Landscape: she stands on the left, the full height of the screen, her
-   counter along the bottom edge; what she says and the goods are on the
-   right. The picture is the file as delivered, drawn whole at its own
-   shape (contain), and the whole of her is the thing to tap. */
+   Three layers, as the tavern: the empty shop over the whole screen, ミレイ
+   standing in it, and the counter in front of her on the bottom edge at
+   the left (sizes and places from `shopStage`, assets/shop.ts). Every
+   picture is the file as delivered, drawn at its own shape. The shop
+   itself is on the right, on a dark panel over the room. */
 .screen.shop {
   flex-direction: row;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 14px;
+  gap: 0;
   padding-bottom: 0;
 }
-.shop-keeper-figure {
-  flex: 0 0 auto;
-  align-self: flex-end;
+.shop-room {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  max-width: 40%;
-  aspect-ratio: 1086 / 1448;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+.shop-stage {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: max(8px, env(safe-area-inset-left));
+  z-index: 1;
+}
+.shop-keeper-figure {
+  position: absolute;
+  z-index: 1;
   margin: 0;
   padding: 0;
   border: 0;
@@ -222,17 +236,30 @@ body {
   pointer-events: none;
   user-select: none;
 }
+/* In front of her, and not in the way of touching her. */
+.shop-counter-art {
+  position: absolute;
+  z-index: 2;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
 /* A tap: the smallest lift, and back. */
 .shop-keeper-img.pop { animation: shop-keeper-pop 0.24s ease-out; transform-origin: 50% 100%; }
 @keyframes shop-keeper-pop { 0% { transform: scale(1); } 45% { transform: scale(1.015); } 100% { transform: scale(1); } }
 .shop-side {
+  position: relative;
+  z-index: 3;
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  /* The full height and out to the right edge, over the screen's own padding. */
+  margin: calc(-1 * max(16px, env(safe-area-inset-top))) calc(-1 * max(16px, env(safe-area-inset-right))) 0 0;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) 14px;
+  background: linear-gradient(90deg, rgba(11, 11, 18, 0.55), rgba(11, 11, 18, 0.86) 18%);
 }
 .shop-touch-line { color: #f3e6c8; }
 @media (prefers-reduced-motion: reduce) {

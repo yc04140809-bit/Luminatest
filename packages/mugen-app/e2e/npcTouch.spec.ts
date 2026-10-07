@@ -60,31 +60,45 @@ async function savedRows(page: Page): Promise<Record<string, unknown>> {
 
 const her = (page: Page) => page.getByTestId('shop-keeper-touch');
 
-test('ミレイ: her picture as delivered — transparent, whole, at its own shape — and her greeting', async ({ page }) => {
+test('the shop in three layers — the room, ミレイ, the counter in front — each as delivered, and her greeting', async ({
+  page,
+}) => {
   await intoTheShop(page);
-  const img = page.getByTestId('shop-keeper-image');
-  const facts = await img.evaluate((i: HTMLImageElement) => {
-    const c = document.createElement('canvas');
-    c.width = i.naturalWidth;
-    c.height = i.naturalHeight;
-    const g = c.getContext('2d')!;
-    g.drawImage(i, 0, 0);
-    const alpha = (x: number, y: number) => g.getImageData(x, y, 1, 1).data[3];
-    const s = getComputedStyle(i);
-    return {
-      natural: [i.naturalWidth, i.naturalHeight],
-      corner: alpha(2, 2),
-      face: alpha(Math.round(i.naturalWidth * 0.5), Math.round(i.naturalHeight * 0.2)),
-      fit: s.objectFit,
-      position: s.objectPosition,
+  for (const id of ['shop-room', 'shop-counter-art']) {
+    await expect.poll(() => page.getByTestId(id).evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+  }
+  const pictures = await page.evaluate(() => {
+    const read = (id: string) => {
+      const i = document.querySelector(`[data-testid="${id}"]`) as HTMLImageElement;
+      const c = document.createElement('canvas');
+      c.width = i.naturalWidth;
+      c.height = i.naturalHeight;
+      const g = c.getContext('2d')!;
+      g.drawImage(i, 0, 0);
+      const alpha = (x: number, y: number) => g.getImageData(x, y, 1, 1).data[3];
+      const s = getComputedStyle(i);
+      return {
+        natural: [i.naturalWidth, i.naturalHeight],
+        corner: alpha(2, 2),
+        middle: alpha(Math.round(i.naturalWidth * 0.5), Math.round(i.naturalHeight * 0.5)),
+        fit: s.objectFit,
+        z: Number(getComputedStyle(i.closest('button') ?? i).zIndex),
+      };
     };
+    return { room: read('shop-room'), her: read('shop-keeper-image'), counter: read('shop-counter-art') };
   });
-  expect(facts.natural).toEqual([1086, 1448]);
-  expect(facts.corner).toBe(0);
-  expect(facts.face).toBeGreaterThan(240);
-  expect(facts.fit).toBe('contain');
-  expect(facts.position).toBe('50% 100%');
-  await expect(img).toHaveAttribute('data-face', 'NORMAL');
+  expect(pictures.room.natural).toEqual([1672, 941]);
+  expect(pictures.room.fit).toBe('cover');
+  expect(pictures.her.natural).toEqual([1086, 1448]);
+  expect(pictures.her.corner).toBe(0);
+  expect(pictures.her.middle).toBeGreaterThan(240);
+  expect(pictures.her.fit).toBe('contain');
+  expect(pictures.counter.natural).toEqual([1672, 941]);
+  expect(pictures.counter.corner).toBe(0);
+  expect(pictures.counter.middle).toBeGreaterThan(240);
+  // The counter is in front of her.
+  expect(pictures.counter.z).toBeGreaterThan(pictures.her.z);
+  await expect(page.getByTestId('shop-keeper-image')).toHaveAttribute('data-face', 'NORMAL');
   await expect(her(page)).toHaveAttribute('data-expression', 'NORMAL');
   await expect(page.getByTestId('shop-greeting')).toHaveText(GREETING);
 });
@@ -136,23 +150,26 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: she is whole on screen, standing at the bottom, and the shop beside her all reachable`, async ({ page }) => {
+  test(`${w}×${h}: the counter on the bottom edge, her hand on it, her head on screen, and the shop beside her all reachable`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await intoTheShop(page);
-    // Where `contain` actually draws her inside her box (her own shape, never stretched).
-    const b = await page.getByTestId('shop-keeper-image').evaluate((i: HTMLImageElement) => {
-      const r = i.getBoundingClientRect();
-      const scale = Math.min(r.width / i.naturalWidth, r.height / i.naturalHeight);
-      const dw = i.naturalWidth * scale;
-      const dh = i.naturalHeight * scale;
-      return { x: r.left + (r.width - dw) / 2, y: r.bottom - dh, width: dw, height: dh };
-    });
-    expect(b.x).toBeGreaterThanOrEqual(0);
-    expect(b.y).toBeGreaterThanOrEqual(0);
-    expect(b.x + b.width).toBeLessThanOrEqual(w * 0.45);
-    // Standing on the bottom edge: her counter is the bottom of the screen.
-    expect(Math.abs(b.y + b.height - h)).toBeLessThanOrEqual(2);
-    expect(b.height).toBeGreaterThan(h * 0.6);
+    const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
+    const c = await box('shop-counter-art');
+    const m = await box('shop-keeper-image');
+    // Each at its own shape.
+    expect(c.width / c.height).toBeCloseTo(1672 / 941, 2);
+    expect(m.width / m.height).toBeCloseTo(1086 / 1448, 2);
+    // The counter on the bottom edge, at the left; she is whole above it, head on screen.
+    expect(Math.abs(c.y + c.height - h)).toBeLessThanOrEqual(2);
+    expect(c.x).toBeGreaterThanOrEqual(0);
+    expect(c.x + c.width).toBeLessThanOrEqual(w * 0.5);
+    expect(m.y).toBeGreaterThanOrEqual(0);
+    expect(m.x).toBeGreaterThanOrEqual(c.x);
+    expect(m.x + m.width).toBeLessThanOrEqual(c.x + c.width);
+    // Her resting hand (1215/1448 down her picture) on the counter's top (275/941 down its).
+    expect(Math.abs(m.y + m.height * (1215 / 1448) - (c.y + c.height * (275 / 941)))).toBeLessThanOrEqual(2);
+    expect(m.height).toBeGreaterThan(h * 0.6);
+    const b = c;
     for (const id of ['shop-tab-buy', 'shop-tab-sell', 'shop-leave', 'shop-greeting']) {
       await expect(page.getByTestId(id), id).toBeInViewport();
     }

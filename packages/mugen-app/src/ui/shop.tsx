@@ -7,7 +7,7 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
-import { mireiArt, mireiFace, type MireiArt } from '../assets/shop';
+import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
 
 /**
  * THE DOOR AT ALDEN.
@@ -28,9 +28,11 @@ import { mireiArt, mireiFace, type MireiArt } from '../assets/shop';
  * commit the other way: the thing out, the LUMI in. A key item (古代の破片)
  * is never sold, and the row says so rather than hiding it.
  *
- * LAID OUT FOR A COUNTER: ミレイ behind it on the left (NPCタッチ反応,
- * 2026-10-07), and on the right what she says, the purse and the two tabs,
- * the goods below. One at a time for now; `buy(itemId, quantity)` takes the
+ * LAID OUT FOR A COUNTER (NPCタッチ反応, 2026-10-07): three layers, as the
+ * tavern's — the empty shop over the whole screen, ミレイ standing in it,
+ * and the counter in front of her on the bottom edge at the left, her hand
+ * resting on it (`shopStage`). On the right, over the room, what she says,
+ * the purse and the two tabs, the goods below. One at a time for now; `buy(itemId, quantity)` takes the
  * count a 5 / MAX picker would.
  *
  * TOUCHING HER: a tap draws one short line and a face (core/npc/
@@ -63,15 +65,29 @@ export function ItemShopScreen({
   const lumi = world.getLumi();
   const bag = world.getInventory();
 
-  // ---- ミレイ, behind the counter ----
-  const [art, setArt] = useState<MireiArt>({});
+  // ---- the room, ミレイ and the counter ----
+  const [art, setArt] = useState<ShopArt>({ room: null, counter: null, mirei: {} });
+  // Pictures that fail to load are dropped; the shop never waits for art.
+  const [failed, setFailed] = useState<{ room?: boolean; counter?: boolean }>({});
   useEffect(() => {
     let gone = false;
-    void mireiArt().then((a) => !gone && setArt(a));
+    void shopArt().then((a) => !gone && setArt(a));
     return () => {
       gone = true;
     };
   }, []);
+  const host = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    const measure = () => setSize({ w: el.clientWidth || window.innerWidth, h: el.clientHeight || window.innerHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const stage = shopStage(size.w, size.h);
   const [touch, setTouch] = useState<(TouchReaction & { n: number }) | null>(null);
   const [face, setFace] = useState<NpcExpression>(SHOP_MIREI.baseExpression);
   const taps = useRef(0);
@@ -102,7 +118,13 @@ export function ItemShopScreen({
       window.clearTimeout(quiet);
     };
   }, [touch]);
-  const drawn = mireiFace(art, face);
+  const drawn = mireiFace(art.mirei, face);
+  const px = (r: { left: number; bottom: number; width: number; height: number }) => ({
+    left: r.left,
+    bottom: r.bottom,
+    width: r.width,
+    height: r.height,
+  });
 
   const buy = (itemId: string, quantity = 1) => {
     if (busy) return;
@@ -136,28 +158,52 @@ export function ItemShopScreen({
   };
 
   return (
-    <div className="screen shop" data-testid="shop-screen" data-tab={tab}>
-      {/* ミレイ, behind the counter — the file as delivered, whole, at its own shape. */}
-      <button
-        className="shop-keeper-figure"
-        data-testid="shop-keeper-touch"
-        data-expression={face}
-        data-taps={touch?.n ?? taps.current}
-        aria-label={`${SHOP_MIREI.name}に話しかける`}
-        onClick={touchHer}
-      >
-        {drawn.src && (
+    <div ref={host} className="screen shop" data-testid="shop-screen" data-tab={tab}>
+      {art.room && !failed.room && (
+        <img
+          className="shop-room"
+          src={art.room}
+          alt=""
+          aria-hidden="true"
+          data-testid="shop-room"
+          onError={() => setFailed((f) => ({ ...f, room: true }))}
+        />
+      )}
+      {/* ミレイ behind the counter — each picture the file as delivered, at its own shape. */}
+      <div className="shop-stage" data-testid="shop-stage" style={{ width: stage.width }}>
+        <button
+          style={px(stage.mirei)}
+          className="shop-keeper-figure"
+          data-testid="shop-keeper-touch"
+          data-expression={face}
+          data-taps={touch?.n ?? taps.current}
+          aria-label={`${SHOP_MIREI.name}に話しかける`}
+          onClick={touchHer}
+        >
+          {drawn.src && (
+            <img
+              key={touch?.n ?? 0}
+              className={touch ? 'shop-keeper-img pop' : 'shop-keeper-img'}
+              src={drawn.src}
+              alt={SHOP_MIREI.name}
+              data-testid="shop-keeper-image"
+              data-face={drawn.drawn}
+            />
+          )}
+        </button>
+        {art.counter && !failed.counter && (
           <img
-            key={touch?.n ?? 0}
-            className={touch ? 'shop-keeper-img pop' : 'shop-keeper-img'}
-            src={drawn.src}
-            alt={SHOP_MIREI.name}
-            data-testid="shop-keeper-image"
-            data-face={drawn.drawn}
+            className="shop-counter-art"
+            style={px(stage.counter)}
+            src={art.counter}
+            alt=""
+            aria-hidden="true"
+            data-testid="shop-counter-art"
+            onError={() => setFailed((f) => ({ ...f, counter: true }))}
           />
         )}
-      </button>
-      <div className="shop-side">
+      </div>
+      <div className="shop-side" style={{ marginLeft: stage.width + 12 }}>
         <div className="shop-keeper-area" data-testid="shop-keeper-area" data-keeper={ALDEN_SHOPKEEPER.id}>
           <h1 className="place">{ALDEN_SHOP_NAME}</h1>
           {touch ? (
