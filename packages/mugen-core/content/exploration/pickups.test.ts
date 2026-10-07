@@ -126,8 +126,9 @@ describe('the App’s board at Alden', () => {
     ]);
   });
 
-  it('the keeper is a placeholder, with no name of their own', () => {
-    expect(ALDEN_SHOPKEEPER.id).toBe('SHOPKEEPER_PLACEHOLDER');
-    expect(ALDEN_SHOPKEEPER.label).toBe('店主');
+  it('behind the counter: ミレイ (NPCタッチ反応システム), greeting with her own everyday line', () => {
+    expect(ALDEN_SHOPKEEPER.id).toBe('shop_mirei');
+    expect(ALDEN_SHOPKEEPER.label).toBe('ミレイ');
+    expect(ALDEN_SHOPKEEPER.greeting).toBe('いらっしゃい。今日は何を探してるの？');
   });
 });

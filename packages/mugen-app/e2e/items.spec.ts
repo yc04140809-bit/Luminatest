@@ -228,9 +228,9 @@ test('the shop: 買う — LUMI down, one more held; too little LUMI says so; ke
   await world(page, `(w) => w.addLumi(50)`);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('shop-button').click();
-  // A placeholder keeper, by role only.
-  await expect(page.getByTestId('shop-greeting')).toContainText('店主「');
-  await expect(page.getByTestId('shop-keeper-area')).toHaveAttribute('data-keeper', 'SHOPKEEPER_PLACEHOLDER');
+  // ミレイ behind the counter (npcTouch.spec).
+  await expect(page.getByTestId('shop-greeting')).toContainText('ミレイ「');
+  await expect(page.getByTestId('shop-keeper-area')).toHaveAttribute('data-keeper', 'shop_mirei');
   // The board: 薬草, 上薬草, 魔力草, 魔力水.
   for (const [id, price] of [
     ['FOREST_HERB', 16],

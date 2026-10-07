@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import { ALDEN_SHOP_NAME, ALDEN_SHOPKEEPER, ALDEN_TOOL_SHOP_OFFERS } from '@mugen/content/economy/aldenShop';
 import { buyPriceOf, inStock, sellPriceOf } from '@mugen/core/economy/shop';
 import { itemDef } from '@mugen/content/economy/itemDefs';
+import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
+import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
+import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
+import { mireiArt, mireiFace, type MireiArt } from '../assets/shop';
 
 /**
  * THE DOOR AT ALDEN.
@@ -24,10 +28,15 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
  * commit the other way: the thing out, the LUMI in. A key item (古代の破片)
  * is never sold, and the row says so rather than hiding it.
  *
- * LAID OUT FOR A COUNTER: the top for whoever is behind it (today a
- * placeholder, `ALDEN_SHOPKEEPER` — no keeper is decided), the purse and
- * the two tabs where the counter would be, the goods below. One at a time
- * for now; `buy(itemId, quantity)` takes the count a 5 / MAX picker would.
+ * LAID OUT FOR A COUNTER: ミレイ behind it on the left (NPCタッチ反応,
+ * 2026-10-07), and on the right what she says, the purse and the two tabs,
+ * the goods below. One at a time for now; `buy(itemId, quantity)` takes the
+ * count a 5 / MAX picker would.
+ *
+ * TOUCHING HER: a tap draws one short line and a face (core/npc/
+ * touchReaction, content/npc/shopMirei) — held a moment, then back to her
+ * ordinary face and greeting. Taps in quick succession are taken one per
+ * `cooldownMs`. Nothing about touching her is saved.
  */
 export function ItemShopScreen({
   world,
@@ -53,6 +62,47 @@ export function ItemShopScreen({
   const [busy, setBusy] = useState(false);
   const lumi = world.getLumi();
   const bag = world.getInventory();
+
+  // ---- ミレイ, behind the counter ----
+  const [art, setArt] = useState<MireiArt>({});
+  useEffect(() => {
+    let gone = false;
+    void mireiArt().then((a) => !gone && setArt(a));
+    return () => {
+      gone = true;
+    };
+  }, []);
+  const [touch, setTouch] = useState<(TouchReaction & { n: number }) | null>(null);
+  const [face, setFace] = useState<NpcExpression>(SHOP_MIREI.baseExpression);
+  const taps = useRef(0);
+  const lastTapAt = useRef(-Infinity);
+  // The greeting is already on screen: the first tap says something else.
+  const lastLine = useRef<string | null>(ALDEN_SHOPKEEPER.greeting);
+  const touchHer = () => {
+    const now = performance.now();
+    if (now - lastTapAt.current < TOUCH_TIMING.cooldownMs) return;
+    lastTapAt.current = now;
+    taps.current += 1;
+    const facts = {
+      galdDecided: world.getGaldLifeChoice() !== null,
+      arcStage: SEKIRYUGA_STAGES.indexOf(world.getSekiryugaStage()),
+    };
+    const said = pickTouchReaction(SHOP_MIREI, taps.current, facts, lastLine.current);
+    lastLine.current = said.text;
+    setFace(said.expression);
+    setTouch({ ...said, n: taps.current });
+  };
+  // A face held a moment, the line a little longer, then back to the ordinary.
+  useEffect(() => {
+    if (!touch) return;
+    const back = window.setTimeout(() => setFace(SHOP_MIREI.baseExpression), TOUCH_TIMING.faceMs);
+    const quiet = window.setTimeout(() => setTouch(null), TOUCH_TIMING.lineMs);
+    return () => {
+      window.clearTimeout(back);
+      window.clearTimeout(quiet);
+    };
+  }, [touch]);
+  const drawn = mireiFace(art, face);
 
   const buy = (itemId: string, quantity = 1) => {
     if (busy) return;
@@ -87,135 +137,166 @@ export function ItemShopScreen({
 
   return (
     <div className="screen shop" data-testid="shop-screen" data-tab={tab}>
-      {/* WHO IS BEHIND THE COUNTER — a placeholder until a keeper is decided. */}
-      <div className="shop-keeper-area" data-testid="shop-keeper-area" data-keeper={ALDEN_SHOPKEEPER.id}>
-        <h1 className="place">{ALDEN_SHOP_NAME}</h1>
-        {rumor ? (
-          <p className="say shop-keeper" data-testid="shop-keeper-line">
-            {rumor.speaker}「{rumor.text.replace(/\n/g, '')}」
-          </p>
-        ) : (
-          <p className="shop-greeting" data-testid="shop-greeting">
-            {ALDEN_SHOPKEEPER.label}「{ALDEN_SHOPKEEPER.greeting}」
-          </p>
+      {/* ミレイ, behind the counter — the file as delivered, whole, at its own shape. */}
+      <button
+        className="shop-keeper-figure"
+        data-testid="shop-keeper-touch"
+        data-expression={face}
+        data-taps={touch?.n ?? taps.current}
+        aria-label={`${SHOP_MIREI.name}に話しかける`}
+        onClick={touchHer}
+      >
+        {drawn.src && (
+          <img
+            key={touch?.n ?? 0}
+            className={touch ? 'shop-keeper-img pop' : 'shop-keeper-img'}
+            src={drawn.src}
+            alt={SHOP_MIREI.name}
+            data-testid="shop-keeper-image"
+            data-face={drawn.drawn}
+          />
         )}
-      </div>
-      {/* THE COUNTER: the purse, and buying or selling. */}
-      <div className="shop-counter">
-        <p className="purse" data-testid="shop-lumi">
-          LUMI {lumi}
-        </p>
-        <div className="shop-tabs" role="tablist">
-          {(['BUY', 'SELL'] as const).map((t) => (
-            <button
-              key={t}
-              className={`shop-tab${tab === t ? ' on' : ''}`}
-              role="tab"
-              aria-selected={tab === t}
-              data-testid={`shop-tab-${t.toLowerCase()}`}
-              onClick={() => {
-                setTab(t);
-                setSaid(null);
-              }}
+      </button>
+      <div className="shop-side">
+        <div className="shop-keeper-area" data-testid="shop-keeper-area" data-keeper={ALDEN_SHOPKEEPER.id}>
+          <h1 className="place">{ALDEN_SHOP_NAME}</h1>
+          {touch ? (
+            <p
+              className="shop-greeting shop-touch-line"
+              data-testid="shop-touch-line"
+              data-kind={touch.kind}
+              data-expression={touch.expression}
+              aria-live="polite"
             >
-              {t === 'BUY' ? '買う' : '売る'}
-            </button>
-          ))}
+              {SHOP_MIREI.name}「{touch.text}」
+            </p>
+          ) : rumor ? (
+            <p className="say shop-keeper" data-testid="shop-keeper-line">
+              {rumor.speaker}「{rumor.text.replace(/\n/g, '')}」
+            </p>
+          ) : (
+            <p className="shop-greeting" data-testid="shop-greeting">
+              {ALDEN_SHOPKEEPER.label}「{ALDEN_SHOPKEEPER.greeting}」
+            </p>
+          )}
         </div>
-      </div>
-      <div className="shop-goods" data-testid="shop-goods">
-        {tab === 'BUY' ? (
-          <ul className="shop-list">
-            {ALDEN_TOOL_SHOP_OFFERS.map((offer) => {
-              const def = itemDef(offer.itemId);
-              const price = buyPriceOf(offer);
-              if (!def || price === null) return null;
-              const held = world.getItemCount(offer.itemId);
-              const full = held >= def.maxStack;
-              const short = lumi < price;
-              const affordable = !short && !full && inStock(offer, 1);
-              return (
-                <li className="shop-row" key={offer.itemId} data-testid={`shop-row-${offer.itemId}`}>
-                  <span className="shop-info">
-                    <span className="shop-name">{def.name}</span>
-                    <span className="shop-price" data-testid={`shop-price-${offer.itemId}`}>
-                      {price} LUMI
-                    </span>
-                    <span className="shop-held" data-testid={`shop-held-${offer.itemId}`}>
-                      所持 {held}
-                    </span>
-                    {(full || short) && (
-                      <span className="shop-why" data-testid={`shop-why-${offer.itemId}`}>
-                        {full ? 'これ以上持てない' : 'LUMIが足りない'}
+        {/* THE COUNTER: the purse, and buying or selling. */}
+        <div className="shop-counter">
+          <p className="purse" data-testid="shop-lumi">
+            LUMI {lumi}
+          </p>
+          <div className="shop-tabs" role="tablist">
+            {(['BUY', 'SELL'] as const).map((t) => (
+              <button
+                key={t}
+                className={`shop-tab${tab === t ? ' on' : ''}`}
+                role="tab"
+                aria-selected={tab === t}
+                data-testid={`shop-tab-${t.toLowerCase()}`}
+                onClick={() => {
+                  setTab(t);
+                  setSaid(null);
+                }}
+              >
+                {t === 'BUY' ? '買う' : '売る'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="shop-goods" data-testid="shop-goods">
+          {tab === 'BUY' ? (
+            <ul className="shop-list">
+              {ALDEN_TOOL_SHOP_OFFERS.map((offer) => {
+                const def = itemDef(offer.itemId);
+                const price = buyPriceOf(offer);
+                if (!def || price === null) return null;
+                const held = world.getItemCount(offer.itemId);
+                const full = held >= def.maxStack;
+                const short = lumi < price;
+                const affordable = !short && !full && inStock(offer, 1);
+                return (
+                  <li className="shop-row" key={offer.itemId} data-testid={`shop-row-${offer.itemId}`}>
+                    <span className="shop-info">
+                      <span className="shop-name">{def.name}</span>
+                      <span className="shop-price" data-testid={`shop-price-${offer.itemId}`}>
+                        {price} LUMI
                       </span>
-                    )}
-                    <span className="shop-desc">{def.description}</span>
-                  </span>
-                  <button
-                    className="btn"
-                    data-testid={`shop-buy-${offer.itemId}`}
-                    disabled={busy || !affordable}
-                    onClick={() => buy(offer.itemId)}
-                  >
-                    買う
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <ul className="shop-list">
-            {bag.length === 0 && (
-              <li className="shop-row shop-empty" data-testid="shop-sell-empty">
-                売れるものを持っていない。
-              </li>
-            )}
-            {bag.map((stack) => {
-              const def = itemDef(stack.itemId);
-              if (!def) return null;
-              // Never sold: a key item, or a thing the shop would pay nothing for.
-              const price = def.isKeyItem ? 0 : sellPriceOf(def);
-              return (
-                <li className="shop-row" key={stack.itemId} data-testid={`shop-sell-row-${stack.itemId}`}>
-                  <span className="shop-info">
-                    <span className="shop-name">{def.name}</span>
-                    <span className="shop-held" data-testid={`shop-sell-held-${stack.itemId}`}>
-                      所持 {stack.quantity}
+                      <span className="shop-held" data-testid={`shop-held-${offer.itemId}`}>
+                        所持 {held}
+                      </span>
+                      {(full || short) && (
+                        <span className="shop-why" data-testid={`shop-why-${offer.itemId}`}>
+                          {full ? 'これ以上持てない' : 'LUMIが足りない'}
+                        </span>
+                      )}
+                      <span className="shop-desc">{def.description}</span>
                     </span>
-                    {price > 0 ? (
-                      <span className="shop-price" data-testid={`shop-sell-price-${stack.itemId}`}>
-                        売値 {price} LUMI
-                      </span>
-                    ) : (
-                      <span className="shop-why" data-testid={`shop-sell-refused-${stack.itemId}`}>
-                        売れない
-                      </span>
-                    )}
-                  </span>
-                  {price > 0 && (
                     <button
                       className="btn"
-                      data-testid={`shop-sell-${stack.itemId}`}
-                      disabled={busy}
-                      onClick={() => sell(stack.itemId)}
+                      data-testid={`shop-buy-${offer.itemId}`}
+                      disabled={busy || !affordable}
+                      onClick={() => buy(offer.itemId)}
                     >
-                      1つ売る
+                      買う
                     </button>
-                  )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <ul className="shop-list">
+              {bag.length === 0 && (
+                <li className="shop-row shop-empty" data-testid="shop-sell-empty">
+                  売れるものを持っていない。
                 </li>
-              );
-            })}
-          </ul>
+              )}
+              {bag.map((stack) => {
+                const def = itemDef(stack.itemId);
+                if (!def) return null;
+                // Never sold: a key item, or a thing the shop would pay nothing for.
+                const price = def.isKeyItem ? 0 : sellPriceOf(def);
+                return (
+                  <li className="shop-row" key={stack.itemId} data-testid={`shop-sell-row-${stack.itemId}`}>
+                    <span className="shop-info">
+                      <span className="shop-name">{def.name}</span>
+                      <span className="shop-held" data-testid={`shop-sell-held-${stack.itemId}`}>
+                        所持 {stack.quantity}
+                      </span>
+                      {price > 0 ? (
+                        <span className="shop-price" data-testid={`shop-sell-price-${stack.itemId}`}>
+                          売値 {price} LUMI
+                        </span>
+                      ) : (
+                        <span className="shop-why" data-testid={`shop-sell-refused-${stack.itemId}`}>
+                          売れない
+                        </span>
+                      )}
+                    </span>
+                    {price > 0 && (
+                      <button
+                        className="btn"
+                        data-testid={`shop-sell-${stack.itemId}`}
+                        disabled={busy}
+                        onClick={() => sell(stack.itemId)}
+                      >
+                        1つ売る
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        {said && (
+          <p className="say" data-testid="shop-message">
+            {said}
+          </p>
         )}
+        <button className="btn primary" data-testid="shop-leave" onClick={onLeave}>
+          店を出る
+        </button>
       </div>
-      {said && (
-        <p className="say" data-testid="shop-message">
-          {said}
-        </p>
-      )}
-      <button className="btn primary" data-testid="shop-leave" onClick={onLeave}>
-        店を出る
-      </button>
     </div>
   );
 }

@@ -62,12 +62,12 @@ export const ALDEN_TOOL_SHOP_OFFERS: readonly ShopOffer[] = [
 ];
 
 /**
- * WHO IS BEHIND THE COUNTER — not decided. A placeholder, so the screen
- * has a voice and the day a keeper is written is a change to this one
- * object. No name, history or life is fixed here.
+ * WHO IS BEHIND THE COUNTER — ミレイ (NPCタッチ反応システム, 2026-10-07).
+ * Her lines and faces are content/npc/shopMirei; this is only what the
+ * screen greets with. Nothing more about her is fixed here.
  */
 export const ALDEN_SHOPKEEPER = {
-  id: 'SHOPKEEPER_PLACEHOLDER',
-  label: '店主',
-  greeting: 'いらっしゃい。ゆっくり見ていってくれ。',
+  id: 'shop_mirei',
+  label: 'ミレイ',
+  greeting: 'いらっしゃい。今日は何を探してるの？',
 } as const;
