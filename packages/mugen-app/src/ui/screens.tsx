@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { World } from '@mugen/core/world/world';
-import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
 import { titleKeyVisual } from '../assets/sceneArt';
 import { usePicture } from './scene';
@@ -57,6 +56,81 @@ export function Place({
   );
 }
 
+/**
+ * A PLACE AS A PICTURE AND A PAGE (2026-10-07): the place's painting on the
+ * left, clear, and a page of the paper theme on the right — the shape of
+ * ステータス and the shop, so the village reads as the same book. `aside`
+ * sits beside the title (the date, the purse).
+ */
+export function PanelPlace({
+  area,
+  title,
+  aside,
+  children,
+}: {
+  area: AreaId;
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const [art, setArt] = useState<string | null>(null);
+  useEffect(() => {
+    let gone = false;
+    void areaArt(area).then((a) => {
+      if (!gone) setArt(a.background);
+    });
+    return () => {
+      gone = true;
+    };
+  }, [area]);
+  return (
+    <div className="screen place-panel" data-area={area}>
+      {art && <img className="place-art" src={art} alt="" aria-hidden="true" />}
+      <div className="place-page paper-panel" data-testid="place-page">
+        <header className="pp-head">
+          <h1 className="place">{title}</h1>
+          {aside && <div className="pp-aside">{aside}</div>}
+        </header>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ONE LINE OF A PAGE'S MENU — a word with a small gold mark, not a box: the
+ * way ステータス's menu reads. `primary` is the way onward, set in dark gold.
+ */
+function MenuItem({
+  testId,
+  onClick,
+  primary = false,
+  disabled = false,
+  className = '',
+  children,
+  ...rest
+}: {
+  testId: string;
+  onClick?: () => void;
+  primary?: boolean;
+  disabled?: boolean;
+  className?: string;
+  children: React.ReactNode;
+  'data-new'?: string;
+}) {
+  return (
+    <button
+      className={`pp-item${primary ? ' primary' : ''}${className ? ` ${className}` : ''}`}
+      data-testid={testId}
+      disabled={disabled}
+      onClick={onClick}
+      {...rest}
+    >
+      <span className="pp-item-label">{children}</span>
+    </button>
+  );
+}
+
 export function TitleScreen({
   hasSave,
   saving,
@@ -105,58 +179,6 @@ export function TitleScreen({
   );
 }
 
-/**
- * WHAT THE PARTY IS, IN NUMBERS THE CORE ALREADY KNOWS.
- *
- * Not one value here is worked out on this screen. The level and the
- * experience are `world.getProgress`, the distance to the next level
- * is `expToNextLevel`, the ceilings and the swing are
- * `world.getPartyStats` — which is `statsForLevels`, the same function
- * the battle builds its fighters from. If this panel and the fight
- * ever disagreed about a maximum, the fight would be right and this
- * would be a second calculation that should not exist.
- *
- * 防御力 and 魔力 are not shown because the core has no such stats
- * yet: `PartyStats` is maxHp, maxMp and an attack range. Inventing
- * numbers to fill a heading would be the one thing this screen must
- * never do.
- */
-export function StatusPanel({ world }: { world: World }) {
-  const stats = world.getPartyStats();
-  const party = world.getPartyCondition();
-  return (
-    <div className="status" data-testid="status-panel">
-      {(['hero', 'kaos'] as const).map((id) => {
-        const progress = world.getProgress(id);
-        const toNext = expToNextLevel(progress);
-        const them = party[id];
-        return (
-          <p className="status-row" key={id} data-testid={`status-${id}`}>
-            <span data-testid={`status-${id}-level`}>Lv.{progress.level}</span>{' '}
-            <span data-testid={`status-${id}-exp`}>EXP {progress.totalExp}</span>{' '}
-            <span data-testid={`status-${id}-next`}>
-              {toNext === null ? '（最大）' : `つぎまで ${toNext}`}
-            </span>
-            {them && (
-              <span data-testid={`party-${id}`}>
-                {' '}
-                HP {them.currentHp}/{them.maxHp} MP {them.currentMp}/{them.maxMp}
-              </span>
-            )}
-          </p>
-        );
-      })}
-      <p className="status-row" data-testid="status-stats">
-        <span data-testid="status-maxhp">最大HP {stats.maxHp}</span>{' '}
-        <span data-testid="status-maxmp">最大MP {stats.maxMp}</span>{' '}
-        <span data-testid="status-attack">
-          攻撃 {stats.attackMin}〜{stats.attackMax}
-        </span>
-      </p>
-    </div>
-  );
-}
-
 /** アルデン村 — the hub. What they are carrying, and how they are. */
 export function AldenScreen({
   world,
@@ -198,52 +220,95 @@ export function AldenScreen({
   onRest: () => void;
 }) {
   const clock = world.getClock();
+  const party = world.getPartyCondition();
   return (
-    <Place area="ALDEN" title="アルデン村">
-      <p className="clock" data-testid="world-clock">
-        {clock.worldYear}年目 {clock.worldDay}日目
-      </p>
-      <StatusPanel world={world} />
-      <p className="purse" data-testid="lumi">
-        LUMI {world.getLumi()}
-      </p>
-      <div className="actions">
-        <button className="btn primary" data-testid="explore-button" onClick={onExplore}>
+    <PanelPlace
+      area="ALDEN"
+      title="アルデン村"
+      aside={
+        <>
+          <p className="clock" data-testid="world-clock">
+            {clock.worldYear}年目 {clock.worldDay}日目
+          </p>
+          <p className="purse" data-testid="lumi">
+            LUMI {world.getLumi()}
+          </p>
+        </>
+      }
+    >
+      {/* The two of them: who, how far along, how they are. The rest is ステータス's. */}
+      <div className="pp-party" data-testid="status-panel">
+        {(
+          [
+            ['hero', world.getHeroName()],
+            ['kaos', 'ケイオス'],
+          ] as const
+        ).map(([id, name]) => {
+          const progress = world.getProgress(id);
+          const them = party[id];
+          return (
+            <p className="pp-member" key={id} data-testid={`status-${id}`}>
+              <b className="pp-name">{name}</b>
+              <span className="pp-level" data-testid={`status-${id}-level`}>
+                Lv.{progress.level}
+              </span>
+              <span className="pp-exp" data-testid={`status-${id}-exp`}>
+                EXP {progress.totalExp}
+              </span>
+              {them && (
+                <span className="pp-bars" data-testid={`party-${id}`}>
+                  HP {them.currentHp}/{them.maxHp}　MP {them.currentMp}/{them.maxMp}
+                </span>
+              )}
+            </p>
+          );
+        })}
+      </div>
+      <nav className="pp-menu" aria-label="アルデン村">
+        <MenuItem testId="explore-button" primary onClick={onExplore}>
           アルデン地方を探索する
           <NewBadge show={news.explore} testId="explore-new" />
-        </button>
-        <button className="btn" data-testid="tavern-button" onClick={onTavern}>
-          月灯りの酒場
-        </button>
-        <button className="btn" data-testid="bakery-button" onClick={onBakery}>
-          パン屋
-        </button>
-        {onRumors && (
-          <button className="btn" data-testid="rumor-button" onClick={onRumors}>
-            噂話
-            <NewBadge show={news.rumors} testId="rumor-new" />
-          </button>
-        )}
-        <button className="btn" data-testid="bag-button" onClick={onBag}>
-          持ち物
-        </button>
-        <button className="btn" data-testid="memory-button" onClick={onMemory}>
-          世界の記憶
-          <NewBadge show={news.memory} testId="memory-new" />
-        </button>
-        <button className="btn" data-testid="archive-button" onClick={onArchive}>
-          人生の記録
-        </button>
-        <button className="btn" data-testid="status-button" onClick={onStatus}>
-          ステータス
-          <NewBadge show={news.status} testId="status-new" />
-        </button>
-        <button className="btn" data-testid="rest-button" disabled={resting} onClick={onRest}>
-          休息する
-        </button>
-      </div>
+        </MenuItem>
+        <div className="pp-columns">
+          <div className="pp-group">
+            <p className="pp-caption">出かける</p>
+            <MenuItem testId="tavern-button" onClick={onTavern}>
+              月灯りの酒場
+            </MenuItem>
+            <MenuItem testId="bakery-button" onClick={onBakery}>
+              パン屋
+            </MenuItem>
+            {onRumors && (
+              <MenuItem testId="rumor-button" onClick={onRumors}>
+                噂話
+                <NewBadge show={news.rumors} testId="rumor-new" />
+              </MenuItem>
+            )}
+            <MenuItem testId="rest-button" disabled={resting} onClick={onRest}>
+              休息する
+            </MenuItem>
+          </div>
+          <div className="pp-group">
+            <p className="pp-caption">ふたりのこと</p>
+            <MenuItem testId="status-button" onClick={onStatus}>
+              ステータス
+              <NewBadge show={news.status} testId="status-new" />
+            </MenuItem>
+            <MenuItem testId="bag-button" onClick={onBag}>
+              持ち物
+            </MenuItem>
+            <MenuItem testId="memory-button" onClick={onMemory}>
+              世界の記憶
+              <NewBadge show={news.memory} testId="memory-new" />
+            </MenuItem>
+            <MenuItem testId="archive-button" onClick={onArchive}>
+              人生の記録
+            </MenuItem>
+          </div>
+        </div>
+      </nav>
       {notice}
-    </Place>
+    </PanelPlace>
   );
 }
 
@@ -290,36 +355,39 @@ export function MapScreen({
   notice?: ReactNode;
 }) {
   return (
-    <Place area="ALDEN" title="アルデン地方">
-      <div className="actions">
-        <button className="btn" data-testid="shop-button" onClick={onShop}>
-          アルデン道具屋
-        </button>
-        <button className="btn primary" data-testid="forest-button" onClick={onForest}>
+    <PanelPlace area="ALDEN" title="アルデン地方">
+      <nav className="pp-menu" aria-label="アルデン地方">
+        <p className="pp-caption">行き先</p>
+        <MenuItem testId="forest-button" primary onClick={onForest}>
           グリーンウッドの森
-        </button>
+        </MenuItem>
         {ruins && (
-          <button
-            className={`btn primary${ruinsNew ? ' pulse-new' : ''}`}
-            data-testid="ruins-button"
+          <MenuItem
+            testId="ruins-button"
+            primary
+            className={ruinsNew ? 'pulse-new' : ''}
             data-new={ruinsNew ? 'yes' : 'no'}
             onClick={onRuins}
           >
             {WALK_PLACES.ANCIENT_RUINS.title}
             <NewBadge show={ruinsNew} testId="ruins-new" />
-          </button>
+          </MenuItem>
         )}
+        <MenuItem testId="shop-button" onClick={onShop}>
+          アルデン道具屋
+        </MenuItem>
         {places > 0 && (
-          <button className="btn" data-testid="places-button" onClick={onPlaces}>
+          <MenuItem testId="places-button" onClick={onPlaces}>
             気になる場所（{places}）
-          </button>
+          </MenuItem>
         )}
-        <button className="btn" data-testid="back-to-village" onClick={onHome}>
+        <p className="pp-caption">村</p>
+        <MenuItem testId="back-to-village" onClick={onHome}>
           村へもどる
-        </button>
-      </div>
+        </MenuItem>
+      </nav>
       {notice}
-    </Place>
+    </PanelPlace>
   );
 }
 

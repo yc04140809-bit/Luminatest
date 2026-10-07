@@ -214,17 +214,13 @@ body {
   user-select: none;
 }
 /* In front of her, and not in the way of touching her: the counter as
-   painted, carried down past the bottom edge (pieces of its own file). */
+   painted, across the bottom of the screen. */
 .shop-counter-art {
   position: absolute;
   z-index: 2;
+  object-fit: contain;
   pointer-events: none;
   user-select: none;
-}
-.shop-counter-piece {
-  position: absolute;
-  display: block;
-  background-repeat: no-repeat;
 }
 .shop-keeper-img { transform-origin: 50% 100%; }
 .shop-side {
@@ -2066,4 +2062,137 @@ body {
   border-color: #a5873f;
   background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.75));
   color: #f7f1e2;
+}
+
+/* ══ A PLACE AS A PICTURE AND A PAGE (アルデン村・アルデン地方, 2026-10-07) ══
+   「アルデン村のメニューUIももっとスッキリ」: the shape of ステータス and the
+   shop — the place's painting on the left, clear, and a page of paper on
+   the right with the title, the date and the purse, the two of them in a
+   line each, and the menu as words with a small gold mark rather than a
+   wall of boxes. */
+.screen.place-panel {
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+.place-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+.place-page {
+  position: relative;
+  z-index: 1;
+  width: min(48%, 460px);
+  min-width: 300px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: max(12px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) 30px;
+  overflow-y: auto;
+  background: linear-gradient(90deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.92) 26px, rgba(242, 235, 221, 0.95) 100%);
+}
+.pp-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--p-gold-soft);
+}
+.pp-head .place { margin: 0; font-size: 22px; letter-spacing: 0.22em; }
+.pp-aside { text-align: right; }
+.pp-aside .clock,
+.pp-aside .purse { margin: 0; font-size: 12px; line-height: 1.5; letter-spacing: 0.08em; }
+.pp-aside .clock { color: var(--p-dim); }
+.pp-party { display: flex; flex-direction: column; gap: 2px; }
+.pp-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--p-dim);
+}
+.pp-name { min-width: 4.5em; font-weight: 400; font-size: 14px; color: var(--p-ink); letter-spacing: 0.08em; }
+.pp-level { color: var(--p-gold-ink); }
+.pp-bars { color: var(--p-ink); }
+.pp-menu { display: flex; flex-direction: column; gap: 2px; }
+.pp-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.pp-group { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pp-caption {
+  margin: 6px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--p-dim);
+}
+.pp-item {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(178, 145, 79, 0.18);
+  border-radius: 0;
+  background: none;
+  color: var(--p-ink);
+  font: inherit;
+  font-family: var(--p-serif);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pp-item::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--p-gold);
+  transform: rotate(45deg);
+}
+.pp-item-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.pp-item:active:not(:disabled) { background: rgba(178, 145, 79, 0.12); }
+.pp-item:focus-visible { outline: 2px solid var(--p-gold); outline-offset: -2px; }
+.pp-item:disabled { opacity: 0.45; cursor: default; }
+/* The way onward: ステータス's chosen-item gold. */
+.pp-item.primary {
+  min-height: 40px;
+  margin: 2px 0 4px;
+  border: 1px solid #a5873f;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.78));
+  color: #f7f1e2;
+  font-size: 15px;
+}
+.pp-item.primary::before { border-color: #e7d29c; }
+.pp-item.primary:active:not(:disabled) { background: linear-gradient(90deg, #5b4a2a, rgba(52, 43, 25, 0.85)); }
+/* A short screen: the same page, a little tighter. */
+@media (max-height: 340px) {
+  .place-page { gap: 4px; }
+  .pp-head .place { font-size: 18px; }
+  .pp-item { min-height: 28px; padding: 2px 8px; font-size: 13px; }
+  .pp-item.primary { min-height: 32px; margin: 1px 0 2px; }
+  .pp-caption { margin: 3px 0 1px; }
+}
+/* A narrow page: each of them on one line — the experience is ステータス's to show. */
+@media (max-width: 720px) {
+  .pp-member { flex-wrap: nowrap; gap: 0 8px; white-space: nowrap; }
+  .pp-exp { display: none; }
+  .pp-name { min-width: 0; }
 }

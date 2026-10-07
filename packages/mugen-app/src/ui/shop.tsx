@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import { ALDEN_SHOP_NAME, ALDEN_SHOPKEEPER, ALDEN_TOOL_SHOP_OFFERS } from '@mugen/content/economy/aldenShop';
@@ -7,7 +7,7 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
-import { COUNTER, mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
+import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
 
 /**
  * THE DOOR AT ALDEN.
@@ -40,41 +40,6 @@ import { COUNTER, mireiFace, shopArt, shopStage, type ShopArt } from '../assets/
  * ordinary face and greeting. Taps in quick succession are taken one per
  * `cooldownMs`. Nothing about touching her is saved.
  */
-/**
- * THE COUNTER IN PIECES, each a rectangle of its file drawn into a rectangle
- * on screen: the counter as painted (to row 874), then its posts and its
- * plinth's face drawn `extension` taller, then its foot as painted.
- */
-function counterPieces(src: string, s: number, extension: number): CSSProperties[] {
-  const piece = (sx0: number, sx1: number, sy0: number, sy1: number, top: number, height: number): CSSProperties => {
-    const kx = s;
-    const ky = height / (sy1 - sy0);
-    return {
-      left: sx0 * kx,
-      top,
-      width: (sx1 - sx0) * kx,
-      // A hair longer, so no seam shows between one piece and the next.
-      height: height + 1,
-      backgroundImage: `url(${src})`,
-      backgroundSize: `${COUNTER.width * kx}px ${COUNTER.height * ky}px`,
-      backgroundPosition: `${-sx0 * kx}px ${-sy0 * ky}px`,
-    };
-  };
-  const body = COUNTER.bodyTo * s;
-  const [p0, p1] = COUNTER.posts;
-  const [f0, f1] = COUNTER.plinth;
-  const pieces = [piece(0, COUNTER.width, 0, COUNTER.bodyTo, 0, body)];
-  if (extension > 0) {
-    pieces.push(
-      piece(0, COUNTER.postLeftTo, p0, p1, body, extension),
-      piece(COUNTER.postLeftTo, COUNTER.postRightFrom, f0, f1, body, extension),
-      piece(COUNTER.postRightFrom, COUNTER.width, p0, p1, body, extension),
-    );
-  }
-  pieces.push(piece(0, COUNTER.width, COUNTER.footFrom, COUNTER.height, body + extension, (COUNTER.height - COUNTER.footFrom) * s));
-  return pieces;
-}
-
 export function ItemShopScreen({
   world,
   onLeave,
@@ -109,13 +74,8 @@ export function ItemShopScreen({
     void shopArt().then((a) => {
       if (gone) return;
       setArt(a);
-      // Her other faces fetched now, so a tap never waits on one; and the counter, to know it loads.
+      // Her other faces fetched now, so a tap never waits on one.
       for (const src of Object.values(a.mirei)) new Image().src = src;
-      if (a.counter) {
-        const probe = new Image();
-        probe.onerror = () => setFailed((f) => ({ ...f, counter: true }));
-        probe.src = a.counter;
-      }
     });
     return () => {
       gone = true;
@@ -244,20 +204,17 @@ export function ItemShopScreen({
             />
           )}
         </button>
-        {/* The counter as painted, carried down to the floor below the screen (assets/shop.ts COUNTER). */}
+        {/* The counter as painted, across the bottom of the screen (assets/shop.ts COUNTER). */}
         {art.counter && !failed.counter && (
-          <div
+          <img
             className="shop-counter-art"
-            data-testid="shop-counter-art"
-            data-scale={stage.scale.toFixed(5)}
-            data-extension={Math.round(stage.extension)}
-            aria-hidden="true"
             style={px(stage.counter)}
-          >
-            {counterPieces(art.counter, stage.scale, stage.extension).map((piece, i) => (
-              <i key={i} className="shop-counter-piece" style={piece} />
-            ))}
-          </div>
+            src={art.counter}
+            alt=""
+            aria-hidden="true"
+            data-testid="shop-counter-art"
+            onError={() => setFailed((f) => ({ ...f, counter: true }))}
+          />
         )}
       </div>
       <div className="shop-side paper-panel" style={{ marginLeft: stage.width + 12 }}>

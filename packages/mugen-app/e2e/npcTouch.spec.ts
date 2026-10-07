@@ -67,23 +67,9 @@ test('the shop in three layers — the room, ミレイ, the counter in front —
 }) => {
   await intoTheShop(page);
   await expect.poll(() => page.getByTestId('shop-room').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
-  // The counter is drawn from its file (unchanged) — load that file and look at it as delivered.
-  const counterSrc = await page
-    .getByTestId('shop-counter-art')
-    .evaluate((d) => getComputedStyle(d.querySelector('.shop-counter-piece')!).backgroundImage.replace(/^url\("?|"?\)$/g, ''));
-  await page.evaluate(
-    (src) =>
-      new Promise<void>((resolve) => {
-        const i = new Image();
-        i.dataset.testid = 'counter-file';
-        i.setAttribute('data-testid', 'counter-file');
-        i.style.display = 'none';
-        i.onload = () => resolve();
-        i.src = src;
-        document.body.appendChild(i);
-      }),
-    counterSrc,
-  );
+  await expect
+    .poll(() => page.getByTestId('shop-counter-art').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0))
+    .toBe(true);
   const pictures = await page.evaluate(() => {
     const read = (id: string) => {
       const i = document.querySelector(`[data-testid="${id}"]`) as HTMLImageElement;
@@ -106,7 +92,7 @@ test('the shop in three layers — the room, ミレイ, the counter in front —
     return {
       room: read('shop-room'),
       her: read('shop-keeper-image'),
-      counter: { ...read('counter-file'), z: z('shop-counter-art') },
+      counter: { ...read('shop-counter-art'), z: z('shop-counter-art') },
     };
   });
   expect(pictures.room.natural).toEqual([1672, 941]);
@@ -175,16 +161,17 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: her head on screen, the counter's top at her waist and the counter on down past the bottom edge (standing), and the shop beside her all reachable`, async ({ page }) => {
+  test(`${w}×${h}: the counter across the bottom (its base off screen), her above it, centred, her head on screen, and the shop beside her all reachable`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await intoTheShop(page);
     const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
     const c = await box('shop-counter-art');
     const m = await box('shop-keeper-image');
-    // Her at her own shape.
+    // Each at its own shape.
+    expect(c.width / c.height).toBeCloseTo(1672 / 941, 2);
     expect(m.width / m.height).toBeCloseTo(1086 / 1448, 2);
-    // The counter at the left, running on past the bottom edge to a floor below it.
-    expect(c.y + c.height).toBeGreaterThan(h + 10);
+    // The counter covers the bottom: the screen's edge cuts it through its panels (row 760), its base below.
+    expect(Math.abs(c.y + 760 * (c.width / 1672) - h)).toBeLessThanOrEqual(2);
     expect(c.x).toBeGreaterThanOrEqual(0);
     // At most half the screen, beside the safe-area gutter.
     expect(c.x + c.width).toBeLessThanOrEqual(w * 0.5 + 8);
@@ -194,9 +181,8 @@ for (const [w, h] of [
     // The counter's top at her waist (腰上: 58% down her picture); drawn at its own scale across.
     const scale = c.width / 1672;
     expect(Math.abs(m.y + m.height * 0.58 - (c.y + COUNTER_TOP * scale))).toBeLessThanOrEqual(2);
-    // Painted as it is down to its plinth: the first piece is the file's rows 0–874 at that same scale.
-    const body = (await page.locator('.shop-counter-piece').first().boundingBox())!;
-    expect(Math.abs(body.height - 874 * scale)).toBeLessThanOrEqual(2);
+    // Centred on it.
+    expect(Math.abs(m.x + m.width / 2 - (c.x + c.width / 2))).toBeLessThanOrEqual(2);
     expect(m.height).toBeGreaterThan(h * 0.6);
     const b = c;
     for (const id of ['shop-tab-buy', 'shop-tab-sell', 'shop-leave', 'shop-greeting']) {
