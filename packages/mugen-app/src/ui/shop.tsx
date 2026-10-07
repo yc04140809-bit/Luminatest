@@ -260,7 +260,7 @@ export function ItemShopScreen({
           </div>
         )}
       </div>
-      <div className="shop-side" style={{ marginLeft: stage.width + 12 }}>
+      <div className="shop-side paper-panel" style={{ marginLeft: stage.width + 12 }}>
         <div className="shop-keeper-area" data-testid="shop-keeper-area" data-keeper={ALDEN_SHOPKEEPER.id}>
           <h1 className="place">{ALDEN_SHOP_NAME}</h1>
           {touch ? (

@@ -388,7 +388,7 @@ export function ResultScreen({
   onDone: () => void;
 }) {
   return (
-    <div className="screen result">
+    <div className="screen result paper">
       <h1 className="place">BATTLE RESULT</h1>
       <p className="row" data-testid="result-exp">
         EXP +{reward.exp}

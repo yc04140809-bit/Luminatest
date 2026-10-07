@@ -190,7 +190,13 @@ test('shows the picture whole, at its own shape, never stretched', async ({ page
   await openStatus(page);
 
   const check = async (whose: string) => {
-    const img = await pictureReady(page);
+    // THIS person's picture, decoded — not the one before a tab switch,
+    // which can still be on screen for a moment while the next loads.
+    const img = page.getByTestId(`status-portrait-${whose}`);
+    await expect(img).toBeVisible();
+    await expect
+      .poll(async () => img.evaluate((e: HTMLImageElement) => e.naturalWidth), { timeout: 15_000 })
+      .toBeGreaterThan(0);
     const fit = await img.evaluate((e: HTMLImageElement) => {
       const box = e.getBoundingClientRect();
       const style = getComputedStyle(e);

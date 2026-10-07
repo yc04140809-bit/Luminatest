@@ -70,35 +70,12 @@ body {
 .btn.primary { border-color: var(--gold); color: var(--gold); }
 .btn:disabled { opacity: 0.45; }
 
-/* アルデン村の選択肢 — the status screen's own palette (ivory paper,
-   gold, a quiet brown ink), so the village menu reads as the same book
-   as ステータス and 装備. Translucent enough that the village shows
-   through; the picture behind is untouched. Only the colours: sizes,
-   order and what each button does are as before. */
-.screen[data-area="ALDEN"] .actions .btn {
-  border: 1px solid rgba(178, 145, 79, 0.6);
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgba(250, 247, 239, 0.9), rgba(236, 227, 210, 0.86));
-  color: #40372b;
-  font-weight: 500;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 2px 6px rgba(0, 0, 0, 0.35);
-  text-shadow: none;
-}
-/* The way onward: pale gold, with a gold edge. */
-.screen[data-area="ALDEN"] .actions .btn.primary {
-  border: 1.5px solid #b2914f;
-  background: linear-gradient(180deg, rgba(247, 236, 205, 0.95), rgba(229, 210, 162, 0.92));
-  color: #5a4320;
-  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-.screen[data-area="ALDEN"] .actions .btn:active:not(:disabled) {
-  background: linear-gradient(180deg, rgba(236, 227, 210, 0.95), rgba(222, 208, 180, 0.92));
-}
+/* アルデン村の選択肢 — the status screen's palette: now the paper theme's
+   buttons (「THE PAPER THEME」 below), as on every paper screen. */
 .screen[data-area="ALDEN"] .actions .btn:focus-visible {
   outline: 2px solid #b2914f;
   outline-offset: 2px;
 }
-.screen[data-area="ALDEN"] .actions .btn:disabled { opacity: 0.55; }
 
 /* THE BAG, THE BOARD AND THE NUMBERS.
    One row per thing, readable at phone width: the name and the count
@@ -1951,6 +1928,8 @@ body {
    screen. Taller screens are exactly as before. */
 @media (max-height: 420px) {
   .screen[data-area="ALDEN"] { gap: 4px; }
+  .screen[data-area="ALDEN"] .paper-sheet { gap: 3px; padding: 6px 14px 8px; }
+  .screen[data-area="ALDEN"] .status { margin: 2px 0; }
   .screen[data-area="ALDEN"] .actions { gap: 6px; margin-top: 2px; }
   .screen[data-area="ALDEN"] .actions .btn {
     min-height: 34px;
@@ -1958,4 +1937,133 @@ body {
     padding: 5px 12px;
     font-size: 13px;
   }
+}
+
+/* ══ THE PAPER THEME (2026-10-07) ══
+   ステータス's palette, app-wide, at the author's request: 「ステータス画面の
+   色使いで統一して欲しい。右半分黒とかネイビー背景のままだと制作途中感と古臭い
+   感じがする」. Ivory paper lit from the upper right, a quiet brown ink, gold
+   for what matters, 明朝. `.paper` is a whole screen in it (the village and
+   its doors, the bag, the rumours, a fight's result); `.paper-panel` is a
+   panel in it over a painted room (the shop). Only colours, type and
+   edges — sizes, order and what anything does are as they were. */
+:root {
+  --p-paper: #f7f3ea;
+  --p-paper-2: #ece3d2;
+  --p-ink: #40372b;
+  --p-dim: #8a7f6b;
+  --p-gold: #b2914f;
+  --p-gold-ink: #8a6a2c;
+  --p-gold-soft: rgba(178, 145, 79, 0.34);
+  --p-serif: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
+}
+.paper {
+  /* Its own stacking context, so a place's picture (z-index -1) sits on
+     the paper rather than behind it. */
+  isolation: isolate;
+  color: var(--p-ink);
+  font-family: var(--p-serif);
+  background: radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--p-paper) 42%, var(--p-paper-2) 100%);
+}
+/* A place's picture, softened into the paper: still there, never a dark wall. */
+.paper .backdrop { opacity: 0.55; filter: sepia(0.15); }
+/* The place's words and doors, on a sheet of paper over it. */
+.paper-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: min(780px, 100%);
+  padding: 12px 22px 16px;
+  border: 1px solid var(--p-gold-soft);
+  border-radius: 4px;
+  background: radial-gradient(118% 132% at 72% -18%, rgba(255, 255, 255, 0.95) 0%, rgba(247, 243, 234, 0.93) 42%, rgba(236, 227, 210, 0.92) 100%);
+  box-shadow: 0 4px 18px rgba(64, 55, 43, 0.28);
+}
+.paper-sheet .status { width: auto; }
+.paper-panel {
+  color: var(--p-ink);
+  font-family: var(--p-serif);
+  background: linear-gradient(90deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.9) 22px, rgba(242, 235, 221, 0.94) 100%);
+  box-shadow: inset 1px 0 0 var(--p-gold-soft);
+}
+.paper .place,
+.paper-panel .place {
+  color: var(--p-ink);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+}
+.paper .clock,
+.paper .purse,
+.paper-panel .purse { color: var(--p-gold-ink); }
+.paper .status-row,
+.paper .line,
+.paper .log,
+.paper .memory-count,
+.paper .memory-meta { color: var(--p-dim); }
+.paper .line { color: var(--p-ink); }
+.paper .row { color: var(--p-ink); }
+.paper .row.level,
+.paper .say,
+.paper-panel .say,
+.paper .memory-when,
+.paper .bag-group-title,
+.paper .rumor-category { color: var(--p-gold-ink); }
+.paper .warn { color: #a3413a; }
+
+/* Buttons: the village's ivory, everywhere on paper. */
+.paper .btn,
+.paper-panel .btn {
+  border: 1px solid rgba(178, 145, 79, 0.6);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(250, 247, 239, 0.96), rgba(236, 227, 210, 0.94));
+  color: var(--p-ink);
+  font-family: var(--p-serif);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 4px rgba(64, 55, 43, 0.22);
+}
+.paper .btn.primary,
+.paper-panel .btn.primary {
+  border: 1.5px solid var(--p-gold);
+  background: linear-gradient(180deg, rgba(247, 236, 205, 0.98), rgba(229, 210, 162, 0.95));
+  color: #5a4320;
+}
+.paper .btn:active:not(:disabled),
+.paper-panel .btn:active:not(:disabled) {
+  background: linear-gradient(180deg, rgba(236, 227, 210, 0.98), rgba(222, 208, 180, 0.95));
+}
+.paper .btn:disabled,
+.paper-panel .btn:disabled { opacity: 0.5; }
+
+/* Lists: gold hairlines, brown ink, gold for counts and prices. */
+.paper .bag-row,
+.paper .memory-row,
+.paper .rumor-row,
+.paper-panel .shop-row { border-top-color: var(--p-gold-soft); }
+.paper .rumor-row { color: var(--p-ink); }
+.paper .rumor-row.open { background: rgba(178, 145, 79, 0.08); }
+.paper .bag-count,
+.paper-panel .shop-price,
+.paper-panel .shop-held { color: var(--p-gold-ink); }
+.paper .bag-category,
+.paper .bag-desc,
+.paper .bag-reason,
+.paper-panel .shop-desc,
+.paper-panel .shop-why,
+.paper-panel .shop-empty { color: var(--p-dim); }
+.paper-panel .shop-greeting,
+.paper-panel .shop-touch-line,
+.paper-panel .shop-keeper { color: var(--p-ink); }
+.paper-panel .shop-counter { border-color: var(--p-gold-soft); }
+/* 買う／売る: as ステータス's menu — the chosen one dark gold, the other paper. */
+.paper-panel .shop-tab {
+  border: 1px solid var(--p-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--p-dim);
+  font-family: var(--p-serif);
+}
+.paper-panel .shop-tab.on {
+  border-color: #a5873f;
+  background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.75));
+  color: #f7f1e2;
 }

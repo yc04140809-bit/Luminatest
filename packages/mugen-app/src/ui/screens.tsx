@@ -46,10 +46,13 @@ export function Place({
     };
   }, [area]);
   return (
-    <div className="screen" data-area={area}>
+    <div className="screen paper" data-area={area}>
       {art && <img className="backdrop" src={art} alt="" aria-hidden="true" />}
-      <h1 className="place">{title}</h1>
-      {children}
+      {/* The place's words and doors on a sheet of the paper theme, the place around it. */}
+      <div className="paper-sheet" data-testid="paper-sheet">
+        <h1 className="place">{title}</h1>
+        {children}
+      </div>
     </div>
   );
 }

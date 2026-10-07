@@ -1,6 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+// 明朝 for the paper theme (ステータス's palette, used app-wide since
+// 2026-10-07 — ui/styles.css 「THE PAPER THEME」). Self-hosted, OFL 1.1.
+import '@fontsource/noto-serif-jp/latin-400.css';
+import '@fontsource/noto-serif-jp/japanese-400.css';
 import './ui/styles.css';
 
 const root = createRoot(document.getElementById('root')!);

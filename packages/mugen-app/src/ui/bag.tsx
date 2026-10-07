@@ -86,7 +86,7 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
   };
 
   return (
-    <div className="screen bag" data-testid="bag-screen">
+    <div className="screen bag paper" data-testid="bag-screen">
       <h1 className="place">持ち物</h1>
       {bag.length === 0 && (
         <p className="line" data-testid="bag-empty">

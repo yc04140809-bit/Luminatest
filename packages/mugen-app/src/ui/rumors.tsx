@@ -37,7 +37,7 @@ export function RumorScreen({ world, onLeave }: { world: World; onLeave: () => v
   };
 
   return (
-    <div className="screen rumors" data-testid="rumor-screen">
+    <div className="screen rumors paper" data-testid="rumor-screen">
       <h1 className="place">噂話</h1>
       <div className="rumor-list" data-testid="rumor-list">
         {ORDER.map((category) => {
