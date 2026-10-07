@@ -5,12 +5,15 @@ import {
   createBattle,
   playerAttack,
   playerDefend,
+  playerSkill,
+  skillReadyIn,
   refuseItem,
   useItem,
   type BattleState,
 } from '@mugen/game/battle/battleLogic';
 import type { EnemySpec } from '@mugen/game/battle/battleLogic';
-import { magicBlocked } from '@mugen/game/battle/magicChoice';
+import { decideTurn, magicBlocked } from '@mugen/game/battle/magicChoice';
+import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
 import {
   DEFAULT_BATTLE_SPEED,
   beatMs,
@@ -38,6 +41,15 @@ import {
 } from './battle/battleTheatre';
 import { arcanaReading } from './battle/arcanaDepth';
 import { playSfx } from '../platform/audio';
+import { bossCutInFor } from './battle/cutin/bossCutIn';
+
+/** AUTO's breath between one shown turn and the next, at ×1 — the Artifact's. */
+const AUTO_GAP_MS = 550;
+
+/** What each of his skills says of itself in the tray. */
+const SKILL_NOTE: Record<string, string> = {
+  shundan: '通常攻撃の2倍・3ターンに1回',
+};
 
 /** How long the escape is heard before the fight is gone, at ×1. */
 export const ESCAPE_WAIT_MS = 520;
@@ -67,6 +79,7 @@ export function BattleScreen({
   onEscape,
   music,
   background = null,
+  autoAvailable = false,
 }: {
   world: World;
   /**
@@ -88,6 +101,11 @@ export function BattleScreen({
   music?: { label: string; onCycle: () => void };
   /** The ground the fight is fought on (content/locations/battleBackgrounds). */
   background?: BattleBackgroundKey | null;
+  /**
+   * AUTO is open to this world (after Gald's fight). Absent or false: no
+   * AUTO chip at all.
+   */
+  autoAvailable?: boolean;
 }) {
   // The bag can change mid-fight, so this screen watches the world.
   useSyncExternalStore(
@@ -141,7 +159,9 @@ export function BattleScreen({
     if (next.outcome !== 'ONGOING' && !ended.current) {
       ended.current = { hp: next.playerHp, mp: next.playerMp };
     }
-    theatre.playTurn(before, next, kind);
+    // A boss's one great move gets its cut-in, between his turn and its answer.
+    const cutIn = bossCutInFor(opponent.artId, next);
+    theatre.playTurn(before, next, kind, { skill: kind === 'SKILL', ...(cutIn ? { answerCutIn: cutIn } : {}) });
   };
 
   const idle = battle.outcome === 'ONGOING' && !busy && !theatre.playing;
@@ -152,7 +172,22 @@ export function BattleScreen({
     setTold(null);
     if (command === 'ATTACK') turn(playerAttack(battle), 'ATTACK');
     if (command === 'DEFEND') turn(playerDefend(battle), 'DEFEND');
-    // SKILL opens its own (empty) tray; ARCANA is locked in the App.
+    // SKILL opens its tray (his skills, below); ARCANA is locked in the App.
+  };
+
+  /**
+   * ONE OF HIS SKILLS (《瞬断》): decided by the core like any swing, shown
+   * as his swing with its own trail and sound. Using it is looking at it:
+   * its NEW is cleared.
+   */
+  const swingSkill = (id: string) => {
+    if (!idle) return;
+    const skill = HERO_STARTING_SKILLS.find((k) => k.id === id);
+    if (!skill || skillReadyIn(battle, skill) > 0) return;
+    setSay(null);
+    setTold(null);
+    turn(playerSkill(battle, skill), 'SKILL');
+    void world.markRead([`skill:${id}`]).catch(() => {});
   };
 
   /**
@@ -266,6 +301,32 @@ export function BattleScreen({
     // outcome and the fall are what these waits hang on.
   }, [shown.outcome, downed, speed]);
 
+  /**
+   * AUTO — open once Gald's fight is behind the player (`autoAvailable`).
+   * Each turn, once the last one has been shown: brace if the creature is
+   * gathering itself (its roar), else the core's own AUTO brain
+   * (`decideTurn`, the Artifact's) — and a swing becomes 《瞬断》 whenever
+   * it has come round. Never through her awakening. Off clears the timer
+   * and nothing else, so the next tap is a hand-played turn.
+   */
+  const [auto, setAuto] = useState(false);
+  useEffect(() => {
+    if (!auto || !idle || battle.awakeningLines.length > 0) return;
+    const t = window.setTimeout(() => {
+      if (battle.enemyCharging) return onCommand('DEFEND');
+      const plan = decideTurn(battle, spells);
+      if (plan.action === 'MAGIC' && plan.magicId) return cast(plan.magicId);
+      if (plan.action === 'GUARD') return onCommand('DEFEND');
+      const ready = HERO_STARTING_SKILLS.find((k) => skillReadyIn(battle, k) === 0);
+      if (ready) return swingSkill(ready.id);
+      return onCommand('ATTACK');
+    }, beatMs(AUTO_GAP_MS, speed));
+    return () => clearTimeout(t);
+    // The handlers read the same `battle` this already watches; listing them
+    // would re-arm the timer on every repaint (as the Artifact's notes say).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, idle, battle, speed]);
+
   return (
     <BattleStage
       battle={shown}
@@ -297,6 +358,20 @@ export function BattleScreen({
       reach={theatre.reach}
       bgm={music}
       onEscape={onEscape ? escape : undefined}
+      skills={{
+        list: HERO_STARTING_SKILLS.map((k) => ({
+          id: k.id,
+          name: k.name,
+          note: SKILL_NOTE[k.id] ?? '',
+          readyIn: skillReadyIn(battle, k),
+          isNew: !world.isRead(`skill:${k.id}`),
+        })),
+        onUse: swingSkill,
+      }}
+      skillSwing={theatre.skillSwing}
+      frost={theatre.frost !== null}
+      auto={auto}
+      onToggleAuto={autoAvailable ? () => setAuto((on) => !on) : undefined}
       testId="battle-screen"
     />
   );

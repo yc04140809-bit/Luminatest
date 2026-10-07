@@ -25,6 +25,8 @@ import { weaponDefOf } from '@mugen/content/equipment/equipment';
 import { presentationOf } from '@mugen/content/characters/characterPresentation';
 import { heroNameLength } from '@mugen/core/world/heroName';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
+import { NewBadge } from './common/NewBadge';
+import { newEquipmentIds } from './equipment';
 
 /**
  * THE STATUS SCREEN — built to the author's two reference images.
@@ -206,6 +208,7 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
                 onClick={onEquipment}
               >
                 {label}
+                <NewBadge show={newEquipmentIds(world).length > 0} testId="status-equipment-new" />
               </button>
             ) : (
               <span

@@ -27,6 +27,7 @@ import { spellCutIn } from './magic/spellCutIn';
 import { SPELL_CONTACT_AT, spellDamage, spellShowOf, spellStepMs } from './magic/spellShow';
 import type { SpellFxView } from './magic/SpellFx';
 import type { SlashView } from './slash/SwordSlash';
+import type { CutInSpec } from './cutin/CutIn';
 import { REACH_CONTACT_AT, reachMs, slashMs } from './slash/slashTiming';
 
 /** Where he is in the walk-and-swing of an enhanced 攻撃 (slash/reach.css). */
@@ -89,7 +90,7 @@ export function cameraGlideMs(speed: BattleSpeed): number {
 }
 
 /** What a turn was, for the choice of beats. */
-export type TurnKind = 'ATTACK' | 'DEFEND' | 'MAGIC' | 'ITEM';
+export type TurnKind = 'ATTACK' | 'SKILL' | 'DEFEND' | 'MAGIC' | 'ITEM';
 
 /**
  * WHETHER THE CREATURE ANSWERED THIS TURN AT ALL.
@@ -122,7 +123,7 @@ export function answerOf(next: BattleState): string[] {
 
 /** The player's own beat for a kind of turn. */
 export function openingBeat(kind: TurnKind): string {
-  return kind === 'ATTACK' ? 'STRIKE' : kind === 'MAGIC' ? 'MAGIC' : 'GUARD';
+  return kind === 'ATTACK' || kind === 'SKILL' ? 'STRIKE' : kind === 'MAGIC' ? 'MAGIC' : 'GUARD';
 }
 
 /** CSS custom properties the stylesheet reads its durations from. */
@@ -147,7 +148,7 @@ export interface Theatre {
   /** True from the first beat of a turn until its last cue: no command. */
   playing: boolean;
   /** Show a turn: the state before it and the state it produced. */
-  playTurn: (before: BattleState, next: BattleState, kind: TurnKind) => void;
+  playTurn: (before: BattleState, next: BattleState, kind: TurnKind, extra?: TurnExtras) => void;
   /**
    * Show one of her spells: cut-in, aura, landing, then the creature's
    * answer. `onLanded` is called the moment it lands — the time to say
@@ -169,6 +170,22 @@ export interface Theatre {
   slash: SlashView | null;
   /** His walk to the creature and back, while an enhanced swing shows. */
   reach: ReachView | null;
+  /** The swing being shown is one of his skills (its own trail and sound). */
+  skillSwing: boolean;
+  /** The creature's great move is landing (its ice over the field), while it shows. */
+  frost: number | null;
+}
+
+/** What a turn carries beyond its kind. */
+export interface TurnExtras {
+  /** His swing is a skill's (《瞬断》): its own trail and sound. */
+  skill?: boolean;
+  /**
+   * A BOSS'S GREAT MOVE: its cut-in, played after his turn and before its
+   * answer — then the answer, with its ice over the field. Only for a turn
+   * the creature answered.
+   */
+  answerCutIn?: CutInSpec;
 }
 
 export interface TheatreOptions {
@@ -192,6 +209,8 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
   const [holding, setHolding] = useState<BattleState | null>(null);
   const [slash, setSlash] = useState<SlashView | null>(null);
   const [reach, setReach] = useState<ReachView | null>(null);
+  const [skillSwing, setSkillSwing] = useState(false);
+  const [frost, setFrost] = useState<number | null>(null);
   const cutIns = useCutInDirector(speed);
   /** Which turn is being shown; a newer one makes an older one's cues no-ops. */
   const showing = useRef(0);
@@ -232,6 +251,8 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     setHolding(null);
     setSlash(null);
     setReach(null);
+    setSkillSwing(false);
+    setFrost(null);
   };
 
   /** The creature's answer, from `from` ms on; returns when it is over. */
@@ -254,8 +275,9 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
    * and only then its answer. The number is still the core's, landing
    * the moment the blade arrives.
    */
-  const playSwing = (before: BattleState, next: BattleState) => {
+  const playSwing = (before: BattleState, next: BattleState, skill = false): number => {
     const id = showing.current;
+    setSkillSwing(skill);
     const ms = {
       approach: reachMs('APPROACH', speed),
       windup: reachMs('WINDUP', speed),
@@ -285,6 +307,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
         arcMs: slashMs('ARC', speed),
         biteMs: slashMs('BITE', speed),
         biteAt: contactAt - strikeAt,
+        skill,
       });
     }, strikeAt);
     // THE NUMBER IS THE CORE'S: what the enemy had, less what it has.
@@ -304,16 +327,42 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
 
     // Home again: the creature answers as it always does.
     const over = playAnswer(next, homeAt);
+    later(() => setSkillSwing(false), homeAt);
     setPlaying(true);
     later(() => setPlaying(false), over);
+    return over;
   };
 
-  const playTurn = (before: BattleState, next: BattleState, kind: TurnKind) => {
+  const playTurn = (before: BattleState, next: BattleState, kind: TurnKind, extra: TurnExtras = {}) => {
     clearStage();
-    if (kind === 'ATTACK' && options.slash) {
-      playSwing(before, next);
+    const swings = (kind === 'ATTACK' || kind === 'SKILL') && options.slash;
+    const cutIn = extra.answerCutIn;
+    if (cutIn && answered(next)) {
+      // HIS TURN FIRST, WITH NO ANSWER IN IT; then its cut-in; then its answer.
+      const mine = showing.current;
+      const quiet: BattleState = { ...next, lastEnemyAction: 'NONE' };
+      const end = swings ? playSwing(before, quiet, extra.skill) : playPlain(before, quiet, kind);
+      later(() => {
+        setPlaying(true);
+        void cutIns.play(cutIn).then((ended) => {
+          if (ended !== 'done' || showing.current !== mine) return;
+          setFrost(mine);
+          const over = playAnswer(next, 0);
+          later(() => setFrost((now) => (now === mine ? null : now)), over + 200);
+          later(() => setPlaying(false), over);
+        });
+      }, end);
       return;
     }
+    if (swings) {
+      playSwing(before, next, extra.skill);
+      return;
+    }
+    playPlain(before, next, kind);
+  };
+
+  /** A turn the Artifact's way: its beat, then the creature's answer. Returns when it is over. */
+  const playPlain = (before: BattleState, next: BattleState, kind: TurnKind): number => {
 
     const first = openingBeat(kind);
     const sequence = [first, ...answerOf(next)];
@@ -327,7 +376,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     let end = at;
 
     // The camera follows a swing, and only a swing — as in the Artifact.
-    if (kind === 'ATTACK') {
+    if (kind === 'ATTACK' || kind === 'SKILL') {
       for (const cue of swingCues(beatLength(first, speed), at, cameraGlideMs(speed))) {
         later(() => setCamera(cue.phase), cue.at);
         end = Math.max(end, cue.at);
@@ -344,6 +393,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
 
     setPlaying(true);
     later(() => setPlaying(false), end);
+    return end;
   };
 
   const playSpell = (before: BattleState, next: BattleState, def: MagicDef, onLanded?: () => void) => {
@@ -413,5 +463,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     cinematic: cutIns.element,
     slash,
     reach,
+    skillSwing,
+    frost,
   };
 }

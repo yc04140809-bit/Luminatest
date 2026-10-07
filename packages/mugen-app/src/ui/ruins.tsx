@@ -14,6 +14,11 @@ import { RoamScene, type RoamKeeper, type RoamMemory } from './explore/RoamScene
 import { walkPainting } from '../assets/walk';
 import { battleEnemyArt } from './battle/battleArt';
 import { playSfx } from '../platform/audio';
+import { NewBadge } from './common/NewBadge';
+import { OnceNotice } from './common/OnceNotice';
+
+/** The way deeper, as a destination (core/world/readMarks.ts `dest:`). */
+export const SEAL_DESTINATION = 'dest:SEKIRYUGA_SEAL';
 
 /**
  * 古代遺跡 — THE RUINS, FROM THE MAP, and the way in to what is sealed there.
@@ -69,6 +74,7 @@ export function RuinsWalkScreen({
   const view = useMemo(() => ({ known: new Set(known), day }), [known.join(','), day]);
   // Read once for the visit: the walk owns the counts from here on.
   const keeper = useMemo(() => ruinsKeeper(world), []);
+  const deepNew = !!deep && !world.isRead(SEAL_DESTINATION);
   return (
     <RoamScene
       scene={RUINS_WALK}
@@ -83,9 +89,28 @@ export function RuinsWalkScreen({
       resume={resume}
       events={
         deep && (
-          <button className="btn walk-event primary" data-testid="deep-button" onClick={onDeep}>
-            遺跡の奥へ進む
-          </button>
+          <>
+            {/* NEW, and a few slow glows as it first shows, until it is touched. */}
+            <button
+              className={`btn walk-event primary${deepNew ? ' pulse-new' : ''}`}
+              data-testid="deep-button"
+              data-new={deepNew ? 'yes' : 'no'}
+              onClick={() => {
+                void world.markRead([SEAL_DESTINATION]).catch(() => {});
+                onDeep();
+              }}
+            >
+              遺跡の奥へ進む
+              <NewBadge show={deepNew} testId="deep-new" />
+            </button>
+            <OnceNotice
+              world={world}
+              mark={`note:${SEAL_DESTINATION}`}
+              text="新しい目的地が追加されました"
+              show={deepNew}
+              testId="destination-notice"
+            />
+          </>
         )
       }
     />

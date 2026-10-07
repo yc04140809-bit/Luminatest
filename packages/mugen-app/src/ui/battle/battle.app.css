@@ -98,3 +98,52 @@
   0% { transform: translateY(0); filter: none; }
   100% { transform: translateY(12px); filter: brightness(0.6) saturate(0.7); }
 }
+
+/* ---- His skills (《瞬断》) in the skill tray, and NEW on the command ---- */
+.bp-cmd { position: relative; }
+.bp-cmd .new-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  margin: 0;
+  z-index: 2;
+}
+.bp-skill-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(201, 169, 97, 0.6);
+  border-radius: 6px;
+  background: rgba(18, 16, 26, 0.86);
+  color: #fdf6e6;
+  text-align: left;
+  cursor: pointer;
+}
+.bp-skill-row:disabled { opacity: 0.55; cursor: default; }
+.bp-skill-name { font-size: 14px; letter-spacing: 0.06em; }
+.bp-skill-note { grid-column: 1; font-size: 11px; opacity: 0.8; }
+.bp-skill-ready { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 11px; color: #ffe2a0; }
+.bp-skill-row[data-ready='no'] .bp-skill-ready { color: #c9c2b4; }
+
+/* ---- A boss's great move: ice over the field (《氷晶咆哮》) ---- */
+.bp-frost {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 70% 60%, rgba(196, 232, 255, 0.55), transparent 60%),
+    linear-gradient(180deg, rgba(150, 205, 255, 0.28), rgba(225, 245, 255, 0.4));
+  mix-blend-mode: screen;
+  animation: bp-frost 900ms ease-out both;
+}
+@keyframes bp-frost {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-frost { animation: none; opacity: 0.6; }
+}

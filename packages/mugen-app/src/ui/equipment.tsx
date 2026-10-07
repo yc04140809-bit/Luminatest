@@ -16,6 +16,22 @@ import {
 import { equippableWeapons, weaponTypeOf } from '@mugen/content/equipment/equipResolve';
 import { WEAPON_LABELS } from '@mugen/content/characters/battleProfiles';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
+import { NewBadge } from './common/NewBadge';
+
+/** The read mark a found piece of equipment is cleared with. */
+export const equipMark = (equipmentId: string): string => `equip:${equipmentId}`;
+
+/**
+ * FOUND EQUIPMENT NOT YET LOOKED AT — what is NEW here. Only finds (a
+ * weapon listed only once found, 《星紋の遺剣》): the kit everybody starts
+ * with is not news.
+ */
+export function newEquipmentIds(world: World): string[] {
+  const owned = world.getOwnedEquipment();
+  return Object.keys(owned).filter(
+    (id) => (owned[id] ?? 0) > 0 && weaponDefOf(id)?.foundOnly === true && !world.isRead(equipMark(id)),
+  );
+}
 
 /**
  * THE EQUIPMENT SCREEN — the status screen's骨格, a different middle.
@@ -79,6 +95,25 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
   const equipped = equippedId ? weaponDefOf(equippedId) : null;
   const weaponType = weaponTypeOf(who.id, equippedId);
   const nameScale = Math.max(0.68, Math.min(1, 8 / heroNameLength(who.label)));
+
+  /**
+   * WHAT WAS NEW WHEN THE LIST OPENED. The list shows each find whole —
+   * its name, what it gives — so opening the list that holds it is looking
+   * at it: it is marked as read then, and keeps its NEW for as long as the
+   * list stays open, so the player sees which one it was.
+   */
+  const [freshInList, setFreshInList] = useState<ReadonlySet<string>>(new Set());
+  const fresh = new Set(newEquipmentIds(world));
+  const slotHasNew = choices.some((w) => fresh.has(w.equipmentId));
+  useEffect(() => {
+    if (!picking) return setFreshInList(new Set());
+    const listed = choices.map((w) => w.equipmentId).filter((id) => fresh.has(id));
+    if (listed.length === 0) return;
+    setFreshInList(new Set(listed));
+    void world.markRead(listed.map(equipMark)).catch(() => {});
+    // Read when the list opens, not on every repaint while it is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picking]);
 
   const wear = (id: string | null) => {
     void world.setEquipped(who.id, 'WEAPON', id).then(() => setPicking(null));
@@ -172,6 +207,7 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
                   <span className="eq-kind" data-testid="equip-weapon-type">
                     {weaponType ? WEAPON_LABELS[weaponType] : '魔法'}
                   </span>
+                  <NewBadge show={slotHasNew && !picking} testId="equip-slot-new" />
                   <s>›</s>
                 </button>
               );
@@ -206,7 +242,10 @@ export function EquipmentScreen({ world, onBack, onStatus }: Props) {
                   onClick={() => wear(weapon.equipmentId)}
                 >
                   <em>{weapon.equipmentId === equippedId ? '装備中' : ''}</em>
-                  <u>{weapon.name}</u>
+                  <u>
+                    {weapon.name}
+                    <NewBadge show={freshInList.has(weapon.equipmentId)} testId={`equip-new-${weapon.equipmentId}`} />
+                  </u>
                   <s>攻撃 +{weapon.effect.attack}</s>
                 </button>
               ))}

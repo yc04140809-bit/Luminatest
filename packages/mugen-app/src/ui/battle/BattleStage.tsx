@@ -13,6 +13,7 @@ import { spriteHeight } from '@mugen/content/art/spriteFrames';
 import { locationNameOf } from '@mugen/content/locations/alden';
 import type { LocationId } from '@mugen/content/locations/locationVisuals';
 import { WALK_PLACES } from '@mugen/content/exploration/walkPlaces';
+import { NewBadge } from '../common/NewBadge';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import type { BattleBackgroundKey } from '@mugen/assets/keys';
 import { battleBackgroundArt } from '../../assets/battleBackground';
@@ -153,6 +154,19 @@ export interface BattleStageProps {
   speed?: BattleSpeed;
   auto?: boolean;
   onCommand?: (command: BattleCommand) => void;
+  /**
+   * HIS SKILLS (《瞬断》…): each with how many turns until it comes round
+   * again (0: now) and whether it is new to the player. Absent: the tray
+   * says there is nothing yet, as it always did.
+   */
+  skills?: {
+    list: readonly { id: string; name: string; note: string; readyIn: number; isNew: boolean }[];
+    onUse: (id: string) => void;
+  };
+  /** His swing being shown is a skill's (`useBattleTheatre().skillSwing`). */
+  skillSwing?: boolean;
+  /** A boss's great move is landing: its ice over the field (`useBattleTheatre().frost`). */
+  frost?: boolean;
   /** Her spells. Absent, or before she can cast: no 魔法 command. */
   magic?: { spells: readonly MagicDef[]; onCast: (id: string) => void };
   /** The bag, as this fight can use it. */
@@ -241,6 +255,9 @@ export function BattleStage({
   onCycleSpeed,
   onEscape,
   bgm,
+  skills,
+  skillSwing = false,
+  frost = false,
   testId = 'battle-stage',
 }: BattleStageProps) {
   const { beat, camera, blows, playing } = turn;
@@ -292,6 +309,8 @@ export function BattleStage({
     downed: !!downed,
     scene,
     speed,
+    skillSwing,
+    frost,
   });
   const enemyShown = person
     ? battlePartyArt('gald', AS_PERSON[enemyState] ?? 'battle_idle')
@@ -686,6 +705,9 @@ export function BattleStage({
           </div>
         )}
 
+        {/* A boss's great move landing: ice across the field, for the length of its answer. */}
+        {frost && <div className="bp-frost" data-testid="bp-frost" aria-hidden="true" />}
+
         {/* Its health, under its feet — and following it down. */}
         <div
           className="bx-enemy-plate"
@@ -939,6 +961,7 @@ export function BattleStage({
               <SparkIcon size={15} className="bp-cmd-mark" />
               <span className="bp-cmd-jp">スキル</span>
               <span className="bp-cmd-en">SKILL</span>
+              <NewBadge show={!!skills?.list.some((k) => k.isNew)} testId="bp-skill-new" />
             </button>
             <button
               className={itemOpen ? 'bp-cmd open' : 'bp-cmd'}
@@ -1030,7 +1053,33 @@ export function BattleStage({
       {!beaten && skillOpen && (
         <BattlePicker label="スキルを選ぶ" onClose={closeTrays}>
           <div className="bp-tray" data-testid="bp-skill-tray">
-            <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
+            {skills && skills.list.length > 0 ? (
+              skills.list.map((skill) => (
+                <button
+                  key={skill.id}
+                  className="bp-skill-row"
+                  data-testid={`skill-${skill.id}`}
+                  data-ready={skill.readyIn === 0 ? 'yes' : 'no'}
+                  disabled={skill.readyIn > 0 || locked}
+                  onClick={() => {
+                    if (locked || skill.readyIn > 0) return;
+                    setSkillOpen(false);
+                    skills.onUse(skill.id);
+                  }}
+                >
+                  <b className="bp-skill-name">
+                    《{skill.name}》
+                    <NewBadge show={skill.isNew} testId={`skill-${skill.id}-new`} />
+                  </b>
+                  <span className="bp-skill-note">{skill.note}</span>
+                  <span className="bp-skill-ready" data-testid={`skill-${skill.id}-ready`}>
+                    {skill.readyIn === 0 ? '使える' : `あと${skill.readyIn}ターン`}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <p className="bp-tray-empty">このさきに覚えるものが入ります。</p>
+            )}
             <button className="bp-tray-close" data-testid="bp-skill-close" onClick={closeTrays}>
               やめる
             </button>

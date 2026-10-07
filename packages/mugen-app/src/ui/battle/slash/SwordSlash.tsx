@@ -22,6 +22,8 @@ export interface SlashView {
   biteMs: number;
   /** When, from the start of the swing, the blade arrives. */
   biteAt: number;
+  /** One of his skills (《瞬断》): a second, crossing cut and a colder light. */
+  skill?: boolean;
 }
 
 export function SwordSlash({ slash }: { slash: SlashView }) {
@@ -31,12 +33,20 @@ export function SwordSlash({ slash }: { slash: SlashView }) {
     '--slash-at': `${slash.biteAt}ms`,
   } as CSSProperties;
   return (
-    <span key={slash.id} className="sw" data-testid="sword-slash" style={style} aria-hidden="true">
+    <span
+      key={slash.id}
+      className={slash.skill ? 'sw skill' : 'sw'}
+      data-testid="sword-slash"
+      data-skill={slash.skill ? 'yes' : undefined}
+      style={style}
+      aria-hidden="true"
+    >
       <span className="sw-arc" />
       <span className="sw-bite">
         <span className="sw-flare" />
         <span className="sw-ring" />
         <span className="sw-cut" />
+        {slash.skill && <span className="sw-cut sw-cut-cross" />}
       </span>
     </span>
   );

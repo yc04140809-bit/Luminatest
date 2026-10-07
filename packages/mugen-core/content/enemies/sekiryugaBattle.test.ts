@@ -6,6 +6,8 @@ import {
   createBattle,
   playerAttack,
   playerDefend,
+  playerSkill,
+  skillReadyIn,
   useItem,
   type BattleState,
   type EnemySpec,
@@ -17,6 +19,7 @@ import { GALD_BATTLE } from './galdBattle';
 import { MOSS_RABBIT } from './species';
 import { specOf } from '../../game/battle/enemySpec';
 import { SEKIRYUGA_BATTLE, SEKIRYUGA_CHARACTER_ID, SEKIRYUGA_NAME } from './sekiryugaBattle';
+import { SHUNDAN } from '../skills/heroSkills';
 
 /**
  * セキリュウガ — THE FIRST BOSS'S NUMBERS AND MOVES.
@@ -140,56 +143,104 @@ describe('every other fight is untouched', () => {
 });
 
 describe('the measured length (2000 seeded fights each)', () => {
-  const comet = MAGIC_DEFS.find((m) => m.id === 'comet_strike')!;
   const mend = MAGIC_DEFS.find((m) => m.id === 'mending_light')!;
   const herb = itemDef('FOREST_HERB')!.use!;
 
-  function fight(spec: EnemySpec, level: number, careful: boolean, seed: number) {
+  /** plain: 攻撃 only · skill: 《瞬断》 whenever ready · careful: and braces, mends, drinks. */
+  function fight(spec: EnemySpec, level: number, how: 'plain' | 'skill' | 'careful', seed: number) {
     const rng = seeded(seed);
-    let s = createBattle(spec, undefined, { stats: statsForLevels(level, level), magicUnlocked: careful });
-    let herbs = careful ? 2 : 0;
+    let s = createBattle(spec, undefined, { stats: statsForLevels(level, level), magicUnlocked: how === 'careful' });
+    let herbs = how === 'careful' ? 2 : 0;
     let turns = 0;
     while (s.outcome === 'ONGOING' && turns < 80) {
       turns++;
-      if (!careful) s = playerAttack(s, rng);
-      else if (s.enemyCharging) s = playerDefend(s, rng);
-      else if (s.playerHp < s.playerMaxHp * 0.3 && herbs > 0) (herbs--, (s = useItem(s, herb, rng)));
-      else if (s.playerHp < s.playerMaxHp * 0.3 && s.playerMp >= mend.mpCost) s = castMagic(s, mend, rng);
-      else if (s.playerMp >= comet.mpCost + mend.mpCost) s = castMagic(s, comet, rng);
+      if (how === 'careful' && s.enemyCharging) s = playerDefend(s, rng);
+      else if (how === 'careful' && s.playerHp < s.playerMaxHp * 0.3 && herbs > 0) (herbs--, (s = useItem(s, herb, rng)));
+      else if (how === 'careful' && s.playerHp < s.playerMaxHp * 0.3 && s.playerMp >= mend.mpCost) s = castMagic(s, mend, rng);
+      else if (how !== 'plain' && skillReadyIn(s, SHUNDAN) === 0) s = playerSkill(s, SHUNDAN, rng);
       else s = playerAttack(s, rng);
     }
     return { won: s.outcome === 'VICTORY', turns };
   }
-  function measure(spec: EnemySpec, level: number, careful: boolean) {
+  function measure(spec: EnemySpec, level: number, how: 'plain' | 'skill' | 'careful') {
     const N = 2000;
     let won = 0;
     let turns = 0;
     for (let i = 1; i <= N; i++) {
-      const r = fight(spec, level, careful, i);
+      const r = fight(spec, level, how, i);
       if (r.won) won++;
       turns += r.turns;
     }
     return { win: won / N, turns: turns / N };
   }
 
-  it('longer than the forest’s ordinary creature, shorter than Gald', () => {
-    const rabbit = measure(specOf(MOSS_RABBIT), 2, false);
-    const gald = measure({ ...GALD_BATTLE, awakening: undefined }, 2, false);
-    const boss = measure(SEKIRYUGA_BATTLE, 2, false);
+  it('longer than the forest’s ordinary creature, shorter than Gald — 《瞬断》 used as it comes round', () => {
+    const rabbit = measure(specOf(MOSS_RABBIT), 2, 'skill');
+    const gald = measure({ ...GALD_BATTLE, awakening: undefined }, 2, 'skill');
+    const boss = measure(SEKIRYUGA_BATTLE, 2, 'skill');
     expect(boss.turns).toBeGreaterThan(rabbit.turns);
     expect(boss.turns).toBeLessThan(gald.turns);
-    expect(boss.turns).toBeGreaterThanOrEqual(12);
-    expect(boss.turns).toBeLessThanOrEqual(16);
+    expect(boss.turns).toBeGreaterThanOrEqual(10);
+    expect(boss.turns).toBeLessThanOrEqual(14);
   });
 
-  it('not a fight lost on first sight: careful play wins at level one, plain swinging mostly wins at two', () => {
-    expect(measure(SEKIRYUGA_BATTLE, 1, true).win).toBeGreaterThanOrEqual(0.99);
-    expect(measure(SEKIRYUGA_BATTLE, 2, false).win).toBeGreaterThanOrEqual(0.95);
+  it('not a fight lost on first sight: careful play wins at level one, using 《瞬断》 wins at two', () => {
+    expect(measure(SEKIRYUGA_BATTLE, 1, 'careful').win).toBeGreaterThanOrEqual(0.99);
+    expect(measure(SEKIRYUGA_BATTLE, 2, 'skill').win).toBeGreaterThanOrEqual(0.98);
   });
 
-  it('but swinging alone at level one can lose it: mending, bracing and herbs matter', () => {
-    const plain = measure(SEKIRYUGA_BATTLE, 1, false).win;
-    expect(plain).toBeLessThan(0.9);
-    expect(plain).toBeGreaterThan(0.5);
+  it('but ignoring 《瞬断》 can lose it: the skill, bracing, mending and herbs matter', () => {
+    expect(measure(SEKIRYUGA_BATTLE, 2, 'plain').win).toBeLessThan(0.9);
+    expect(measure(SEKIRYUGA_BATTLE, 1, 'plain').win).toBeLessThan(0.5);
+  });
+});
+
+describe('《氷晶咆哮》 — its one great move', () => {
+  it('the first of its turns at half health or below, once, reaching both — and bracing halves it', () => {
+    let s = createBattle(SEKIRYUGA_BATTLE);
+    s = { ...s, enemyHp: 86 };
+    const hit = playerAttack(s, always(0.99), 'ATTACK');
+    expect(hit.lastEnemyMove).toBe('SIGNATURE');
+    expect(hit.enemySignatureUsed).toBe(true);
+    expect(hit.log).toContain('凍てつく咆哮が、二人をまとめて呑みこんだ。');
+    expect(last(hit)).toMatch(/^セキリュウガの《氷晶咆哮》！ \d+のダメージ。$/);
+    // Never again in this fight.
+    const after = playerAttack(hit, always(0.99), 'ATTACK');
+    expect(after.lastEnemyMove).not.toBe('SIGNATURE');
+    // Braced: half.
+    const braced = playerDefend({ ...s, enemyHp: 80 }, always(0.99));
+    expect(braced.lastEnemyMove).toBe('SIGNATURE');
+    expect(braced.lastEnemyDamage).toBeLessThan(hit.lastEnemyDamage);
+  });
+
+  it('not above half', () => {
+    const s = playerAttack(createBattle(SEKIRYUGA_BATTLE), always(0.5), 'ATTACK');
+    expect(s.lastEnemyMove).not.toBe('SIGNATURE');
+  });
+});
+
+describe('《瞬断》 — his skill', () => {
+  it('twice his swing, no MP, then every third turn', () => {
+    const start = createBattle(specOf(MOSS_RABBIT));
+    const plain = playerAttack(start, always(0.99), 'ATTACK');
+    const skilled = playerSkill(start, SHUNDAN, always(0.99), 'ATTACK');
+    expect(start.enemyHp - skilled.enemyHp).toBe(2 * (start.enemyHp - plain.enemyHp));
+    expect(skilled.playerMp).toBe(start.playerMp);
+    expect(skilled.log).toContain(`《瞬断》！ ${start.enemyName}に${start.enemyHp - skilled.enemyHp}のダメージ。`);
+    // Turn 2 and 3: not ready; refused, the state as it was.
+    expect(skillReadyIn(skilled, SHUNDAN)).toBe(2);
+    expect(playerSkill(skilled, SHUNDAN, always(0.5))).toBe(skilled);
+    const t2 = playerAttack(skilled, always(0.5), 'ATTACK');
+    expect(skillReadyIn(t2, SHUNDAN)).toBe(1);
+    const t3 = playerDefend(t2, always(0.5), 'ATTACK');
+    // Turn 4: ready again.
+    expect(skillReadyIn(t3, SHUNDAN)).toBe(0);
+    expect(playerSkill(t3, SHUNDAN, always(0.5), 'ATTACK')).not.toBe(t3);
+  });
+
+  it('a fight he never uses it in carries no trace of it', () => {
+    let s = createBattle(GALD_BATTLE);
+    for (let i = 0; i < 4; i++) s = playerAttack(s, seeded(i + 1));
+    expect('skillUsedAt' in s).toBe(false);
   });
 });

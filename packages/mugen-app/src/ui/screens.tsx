@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
@@ -7,6 +7,7 @@ import { usePicture } from './scene';
 import { RoamScene, type RoamMemory } from './explore/RoamScene';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 import { WALK_PLACES } from '@mugen/content/exploration/walkPlaces';
+import { NewBadge } from './common/NewBadge';
 
 /**
  * THE APP ALPHA'S SCREENS — every one of them deliberately plain.
@@ -165,8 +166,21 @@ export function AldenScreen({
   onBakery,
   resting,
   onRest,
+  onRumors,
+  news = {},
+  notice,
 }: {
   world: World;
+  /** 噂話 — what the village is talking about (ui/rumors). Absent: no button. */
+  onRumors?: () => void;
+  /**
+   * Which menus hold something not yet looked at (NEW). Worked out by the
+   * caller from the world; a menu opened is not a thing looked at, so these
+   * clear only as the things inside are.
+   */
+  news?: { explore?: boolean; rumors?: boolean; memory?: boolean; status?: boolean };
+  /** A notice over the village (「AUTO戦闘が使用可能になりました。」). */
+  notice?: ReactNode;
   onExplore: () => void;
   /** 月灯りの酒場 — a door off the village, held by the App (see App.tsx). */
   onTavern: () => void;
@@ -193,6 +207,7 @@ export function AldenScreen({
       <div className="actions">
         <button className="btn primary" data-testid="explore-button" onClick={onExplore}>
           アルデン地方を探索する
+          <NewBadge show={news.explore} testId="explore-new" />
         </button>
         <button className="btn" data-testid="tavern-button" onClick={onTavern}>
           月灯りの酒場
@@ -200,22 +215,31 @@ export function AldenScreen({
         <button className="btn" data-testid="bakery-button" onClick={onBakery}>
           パン屋
         </button>
+        {onRumors && (
+          <button className="btn" data-testid="rumor-button" onClick={onRumors}>
+            噂話
+            <NewBadge show={news.rumors} testId="rumor-new" />
+          </button>
+        )}
         <button className="btn" data-testid="bag-button" onClick={onBag}>
           持ち物
         </button>
         <button className="btn" data-testid="memory-button" onClick={onMemory}>
           世界の記憶
+          <NewBadge show={news.memory} testId="memory-new" />
         </button>
         <button className="btn" data-testid="archive-button" onClick={onArchive}>
           人生の記録
         </button>
         <button className="btn" data-testid="status-button" onClick={onStatus}>
           ステータス
+          <NewBadge show={news.status} testId="status-new" />
         </button>
         <button className="btn" data-testid="rest-button" disabled={resting} onClick={onRest}>
           休息する
         </button>
       </div>
+      {notice}
     </Place>
   );
 }
@@ -238,6 +262,8 @@ export function MapScreen({
   onHome,
   ruins = false,
   onRuins,
+  ruinsNew = false,
+  notice,
 }: {
   /**
    * How many places the world has opened because of what the player
@@ -255,6 +281,10 @@ export function MapScreen({
    */
   ruins?: boolean;
   onRuins?: () => void;
+  /** 古代遺跡 is a destination not yet touched: NEW, and a few slow glows. */
+  ruinsNew?: boolean;
+  /** A notice over the map (「新しい目的地が追加されました」). */
+  notice?: ReactNode;
 }) {
   return (
     <Place area="ALDEN" title="アルデン地方">
@@ -266,8 +296,14 @@ export function MapScreen({
           グリーンウッドの森
         </button>
         {ruins && (
-          <button className="btn primary" data-testid="ruins-button" onClick={onRuins}>
+          <button
+            className={`btn primary${ruinsNew ? ' pulse-new' : ''}`}
+            data-testid="ruins-button"
+            data-new={ruinsNew ? 'yes' : 'no'}
+            onClick={onRuins}
+          >
             {WALK_PLACES.ANCIENT_RUINS.title}
+            <NewBadge show={ruinsNew} testId="ruins-new" />
           </button>
         )}
         {places > 0 && (
@@ -279,6 +315,7 @@ export function MapScreen({
           村へもどる
         </button>
       </div>
+      {notice}
     </Place>
   );
 }

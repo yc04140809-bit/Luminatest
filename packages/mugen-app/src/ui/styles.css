@@ -1617,3 +1617,113 @@ body {
   .screen.seal[data-shake='yes'] .seal-painting,
   .seal-entrance { animation: none; }
 }
+
+/* ── NEW: something here not yet looked at (ui/common/NewBadge) ──
+   Small, red, readable on ivory buttons and dark panels alike: its own
+   red ground and a light rim, never just red text. */
+.new-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 240, 220, 0.9);
+  border-radius: 3px;
+  background: #c8281e;
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 14px;
+  vertical-align: middle;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* ── A notice, once (ui/common/OnceNotice) — top centre, out of the way ── */
+.once-notice {
+  position: fixed;
+  z-index: 50;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid rgba(220, 192, 132, 0.85);
+  border-radius: 999px;
+  background: rgba(16, 14, 22, 0.9);
+  color: #fdf3dc;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  animation: once-notice 2800ms ease both;
+  pointer-events: none;
+}
+@keyframes once-notice {
+  0% { opacity: 0; transform: translate(-50%, -8px); }
+  10%, 85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -4px); }
+}
+
+/* ── A destination just added: a few slow glows, then as it always is ──
+   Three pulses and no more (never a permanent blink). A dark ring under a
+   light one, so it reads on the forest's greens and the ruins' stone. */
+.pulse-new {
+  animation: pulse-new 1.3s ease-in-out 3;
+}
+@keyframes pulse-new {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0), 0 0 0 0 rgba(255, 233, 170, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(20, 14, 6, 0.65), 0 0 18px 6px rgba(255, 228, 150, 0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-new { animation: none; box-shadow: 0 0 0 2px rgba(255, 228, 150, 0.9); }
+  .once-notice { animation: none; }
+}
+
+/* ── 噂話 (ui/rumors) — a list that scrolls; the button always on screen ── */
+.screen.rumors {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  justify-content: flex-start;
+}
+.rumor-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(680px, 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.rumor-group { margin-bottom: 10px; }
+.rumor-category {
+  margin: 4px 0;
+  color: var(--gold, #c9a961);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.rumor-row {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.rumor-row.open { background: rgba(255, 255, 255, 0.04); }
+.rumor-title { font-size: 14px; }
+.rumor-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.92;
+}
+.rumor-from {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+}

@@ -9,6 +9,14 @@ import {
   TAVERN_AFTER_TOLD_LINE,
 } from '@mugen/content/story/sekiryugaArc';
 import type { SekiryugaStage } from '@mugen/core/world/storyArc';
+import { dueTalks, sitting, startsOnEntry, type TalkEvent, type TalkStep } from '@mugen/core/talk/talkQueue';
+import {
+  GRAVE_MEETING_ID,
+  GRAVE_MEETING_PRIORITY,
+  GRAVE_SEKIRYUGA_STORY_ID,
+  GRAVE_STORY_TALKS,
+  type GraveTalkContext,
+} from '@mugen/content/talk/graveTalks';
 import { tavernArt, type TavernArt } from '../assets/tavern';
 
 /**
@@ -58,6 +66,19 @@ export const TAVERN_MEETING_LINES: readonly DialogueLine[] = lineOf('MOONLIGHT_T
 /** Every talk after that: his ordinary greeting, as written. */
 export const TAVERN_GREETING_LINES = lineOf('TAVERN_MASTER_IDLE');
 
+/**
+ * HIS FIRST MEETING, as the talk queue sees it: owed while he has not been
+ * talked to this session, highest of everything he owes. Alone it waits for
+ * 「話す」, as it always has; with a story owed, it opens the sitting.
+ */
+const graveMeeting: TalkEvent<GraveTalkContext> = {
+  id: GRAVE_MEETING_ID,
+  priority: GRAVE_MEETING_PRIORITY,
+  onEntry: false,
+  due: (c) => !c.met,
+  lines: TAVERN_MEETING_LINES,
+};
+
 /** His greeting's last line — "nothing worth hearing tonight" — which the route's lines replace. */
 const NOTHING_TONIGHT = '今夜は、めぼしい話は入ってきてねぇ。';
 
@@ -105,19 +126,43 @@ export function TavernScreen({
   onMet: () => void;
   onLeave: () => void;
   /**
-   * The first boss route, where it has got to, and its two steps here:
-   * his rumour heard, his story told. Absent: the tavern as it always was.
+   * The first boss route, where it has got to, and what this screen tells
+   * the world: his rumour heard, his story told, a one-time talk heard to
+   * its end (`onHeard`, by id). Absent: the tavern as it always was.
    */
-  arc?: { open: boolean; stage: SekiryugaStage; onRumor: () => void; onTold: () => void };
+  arc?: {
+    open: boolean;
+    stage: SekiryugaStage;
+    heard: (id: string) => boolean;
+    onRumor: () => void;
+    onTold: () => void;
+    onHeard: (id: string) => void;
+  };
   /** What the hero is called, for the lines they speak in his story. */
   heroName?: string;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
-  // HIS STORY IS DUE on walking in, once any rumour has been heard.
-  const due = !!arc?.open && arc.stage === 'RUMOR';
-  const [talking, setTalking] = useState<readonly DialogueLine[] | null>(due ? SEKIRYUGA_TAVERN_EVENT : null);
-  // What the talk on screen is: an ordinary one (ending on his rumour or not), or his story.
-  const [kind, setKind] = useState<'TALK' | 'RUMOR' | 'STORY'>(due ? 'STORY' : 'TALK');
+  /**
+   * WHAT HE OWES, AS THE DOOR OPENS (core/talk/talkQueue): his first
+   * meeting — highest — and whatever story the world has made due. If a
+   * story is owed it all starts by itself, in one sitting: meeting first
+   * (when he has not been talked to), then each story after its bridge.
+   * Read once, on walking in.
+   */
+  const [owed] = useState(() =>
+    arc
+      ? dueTalks([graveMeeting, ...GRAVE_STORY_TALKS], {
+          met: metBefore,
+          arcOpen: arc.open,
+          stage: arc.stage,
+          heard: arc.heard,
+        })
+      : [],
+  );
+  const [steps, setSteps] = useState<readonly TalkStep[] | null>(() => (startsOnEntry(owed) ? sitting(owed) : null));
+  const [stepAt, setStepAt] = useState(0);
+  // An ordinary talk on screen (ending on his rumour or not), outside a sitting.
+  const [talk, setTalk] = useState<{ lines: readonly DialogueLine[]; rumor: boolean } | null>(null);
   const [at, setAt] = useState(0);
   // Pictures that fail to load are dropped; the words never wait for art.
   const [failed, setFailed] = useState<{ room?: boolean; master?: boolean }>({});
@@ -132,38 +177,52 @@ export function TavernScreen({
     };
   }, []);
 
+  const talking = steps ? steps[stepAt].lines : (talk?.lines ?? null);
   const raw = talking?.[at];
   const line = raw ? shown(raw, heroName) : undefined;
   const last = !!talking && at >= talking.length - 1;
+  // The last line of the last step closes; a rumour's last line goes on into his story.
+  const closes = last && (steps ? stepAt >= steps.length - 1 : !talk?.rumor);
   const description = LOCATIONS.find((l) => l.id === TAVERN_ID)?.description ?? '';
 
-  const talk = () => {
+  const begin = () => {
     const { lines, rumor } = tavernTalkLines(metBefore ? TAVERN_GREETING_LINES : TAVERN_MEETING_LINES, arc);
     setAt(0);
-    setKind(rumor ? 'RUMOR' : 'TALK');
-    setTalking(lines);
+    setTalk({ lines, rumor });
   };
-  const next = () => {
-    if (!last) return setAt((n) => n + 1);
-    if (kind === 'STORY') {
+  /** One step of a sitting read to its end: what it means for the world. */
+  const finished = (id: string) => {
+    if (id === GRAVE_MEETING_ID) onMet();
+    else if (id === GRAVE_SEKIRYUGA_STORY_ID) {
       // Told: the ruins open. (And he has been talked to, whichever way in.)
       arc?.onTold();
       if (!metBefore) onMet();
-      setKind('TALK');
-      setTalking(null);
+    } else arc?.onHeard(id);
+  };
+  const next = () => {
+    if (!last) return setAt((n) => n + 1);
+    if (steps) {
+      finished(steps[stepAt].id);
+      if (stepAt < steps.length - 1) {
+        setStepAt(stepAt + 1);
+        setAt(0);
+        return;
+      }
+      setSteps(null);
       return;
     }
     if (!metBefore) onMet();
-    if (kind === 'RUMOR') {
+    if (talk?.rumor) {
       // His own rumour was the first: no need to walk out and in again —
-      // his story follows straight on.
+      // his story follows straight on (no bridge: he is already talking about it).
       arc?.onRumor();
+      setTalk(null);
       setAt(0);
-      setKind('STORY');
-      setTalking(SEKIRYUGA_TAVERN_EVENT);
+      setStepAt(0);
+      setSteps([{ id: GRAVE_SEKIRYUGA_STORY_ID, lines: SEKIRYUGA_TAVERN_EVENT }]);
       return;
     }
-    setTalking(null);
+    setTalk(null);
   };
 
   return (
@@ -196,7 +255,7 @@ export function TavernScreen({
               {line.speaker ? `「${line.text}」` : line.text}
             </p>
             <button className="btn primary" data-testid="tavern-next" onClick={next}>
-              {last && kind !== 'RUMOR' ? 'もどる' : 'つぎへ'}
+              {closes ? 'もどる' : 'つぎへ'}
             </button>
           </>
         ) : (
@@ -205,7 +264,7 @@ export function TavernScreen({
               {description}
             </p>
             <div className="actions">
-              <button className="btn primary" data-testid="tavern-talk" onClick={talk}>
+              <button className="btn primary" data-testid="tavern-talk" onClick={begin}>
                 話す
               </button>
               <button className="btn" data-testid="tavern-leave" onClick={onLeave}>

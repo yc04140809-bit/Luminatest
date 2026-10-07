@@ -20,19 +20,22 @@
 //
 // THE NUMBERS, AND WHY (measured — see sekiryugaBattle.test.ts):
 //
-//   The swing is 8–12 at level one, +1 a level. Measured over 2000
-//   seeded fights each: the moss rabbit (124 health) takes 12–13 turns at
-//   level one to two, Gald (220) 21–23. The brief's "5–8 turns" would make
-//   the first boss SHORTER than the forest's ordinary creature, which reads
-//   as a let-down rather than a boss — so, as the brief allows when the
-//   measured game says otherwise, the length is set between the two: 150
-//   health, about fourteen turns at level two (12–13 at level three).
+//   The swing is 8–12 at level one, +1 a level, and from 2026-10-07 he
+//   has 《瞬断》 (twice a swing, every third turn) from the start, which
+//   makes every fight about a quarter shorter. Measured over 2000 seeded
+//   fights each, using 《瞬断》 whenever it is ready: the moss rabbit (124
+//   health) takes about 9 turns at level two, Gald (220) about 16. The
+//   brief's "5–8 turns" would make the first boss shorter than the
+//   forest's ordinary creature, which reads as a let-down — so, as the
+//   brief allows when the measured game says otherwise, it sits between
+//   the two: 170 health, about 12 turns at level two.
 //
 //   It hits harder than either (4–7, against their 2–5 and 3–5), with a
-//   heavier bite and a roared blow worth bracing for. Attack-only at level
-//   one it wins about one fight in four; at level two the player wins but
-//   ends on about a quarter of their health. Bracing after the roar,
-//   mending or a herb wins every time — which is the point of them. Its toughness (FORGE gives it a high defence aptitude) is
+//   heavier bite, a roared blow worth bracing for, and once a fight its
+//   《氷晶咆哮》. At level two the player who uses 《瞬断》 wins every time
+//   on about a third of their health; one who never does loses about one
+//   fight in five. Bracing after the roar, mending or a herb wins at level
+//   one as well — which is the point of them. Its toughness (FORGE gives it a high defence aptitude) is
 //   carried by health and footing — the battle has no defence number for
 //   creatures, and the formula is not changed for it.
 
@@ -46,7 +49,7 @@ export const SEKIRYUGA_NAME = 'セキリュウガ';
 
 export const SEKIRYUGA_BATTLE: EnemySpec = {
   name: SEKIRYUGA_NAME,
-  hp: 150,
+  hp: 170,
   // 爪撃 — its ordinary blow.
   attackMin: 4,
   attackMax: 7,
@@ -63,6 +66,14 @@ export const SEKIRYUGA_BATTLE: EnemySpec = {
       cooldown: 3,
       firstAfter: 2,
       release: { name: '渾身の裂牙', power: 2.2 },
+    },
+    // 《氷晶咆哮》 — its one great move: the first of its turns once it is
+    // down to half, with its own cut-in on the App's screen. Reaches both.
+    signature: {
+      name: '氷晶咆哮',
+      atOrBelow: 0.5,
+      power: 1.8,
+      line: '凍てつく咆哮が、二人をまとめて呑みこんだ。',
     },
   },
   /**

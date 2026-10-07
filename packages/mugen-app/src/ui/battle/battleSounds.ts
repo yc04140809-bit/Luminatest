@@ -50,10 +50,11 @@ export function hideRustles(speed: number): [number, number] {
 }
 
 /** Which noise a beat makes, or null for none. Pure, for the tests. */
-export function beatSfx(beat: string, opponent: OpponentSound): SfxId | null {
+export function beatSfx(beat: string, opponent: OpponentSound, skill = false): SfxId | null {
   switch (beat) {
     case 'STRIKE':
-      return attackSfxFor(battleProfileOf('hero'));
+      // 《瞬断》: its own swing — the slash, lower and heavier (sfxTuning).
+      return skill ? 'battle_skill_slash' : attackSfxFor(battleProfileOf('hero'));
     case 'GUARD':
       // Bracing — and see blowSfx: a blow it turns aside entirely clangs too.
       return 'battle_guard';
@@ -146,6 +147,8 @@ export function useBattleSounds({
   downed = false,
   scene = null,
   speed = 1,
+  skillSwing = false,
+  frost = false,
 }: {
   beat: string;
   blows: readonly Blow[];
@@ -161,6 +164,10 @@ export function useBattleSounds({
   /** A scene (a special move) playing on the field. */
   scene?: FieldScene | null;
   speed?: number;
+  /** His swing is one of his skills. */
+  skillSwing?: boolean;
+  /** A boss's great move is landing: its ice. */
+  frost?: boolean;
 }) {
   const play = (id: SfxId | null) => {
     if (id) playSfx(id, { speed });
@@ -173,7 +180,7 @@ export function useBattleSounds({
 
   // Before paint, so the noise leaves with the picture.
   useLayoutEffect(() => {
-    play(beatSfx(beat, opponent));
+    play(beatSfx(beat, opponent, skillSwing));
     if (beat !== 'HIDE') return;
     // Diving into the moss: the rustle twice, the second inside the beat.
     play('battle_hide');
@@ -201,6 +208,11 @@ export function useBattleSounds({
       play(blowSfx(blow, opponent, opponentMaxHp));
     }
   }, [blows]);
+
+  // A boss's great move landing: the ice, once.
+  useLayoutEffect(() => {
+    if (frost) play('battle_magic_ice');
+  }, [frost]);
 
   // Down.
   useLayoutEffect(() => {

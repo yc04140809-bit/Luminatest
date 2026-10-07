@@ -133,6 +133,42 @@ export const SEKIRYUGA_TAVERN_EVENT: readonly DialogueLine[] = [
 ];
 
 /**
+ * WHEN HIS STORY FOLLOWS HIS FIRST MEETING in one sitting (the player walked
+ * in for the first time with a rumour already heard): the turn between the
+ * two, so the story does not start as if he had been introduced already.
+ */
+export const SEKIRYUGA_TAVERN_BRIDGE: readonly DialogueLine[] = [
+  { speaker: null, text: 'グレイヴはグラスを拭く手を止めずに、ふと顔を上げた。' },
+  { speaker: MASTER, text: 'そういや……お前ら、遺跡の話は聞いたか？' },
+];
+
+/**
+ * AFTER セキリュウガ — what the master says the first time they walk in
+ * once it has been seen to stop. Not thanks, not a verdict: he knew it,
+ * he sealed it, and what they saw is left with them. Nothing is explained
+ * (not why it was sealed, not what it guards); his silence is the hint.
+ */
+export const SEKIRYUGA_AFTER_TALK: readonly DialogueLine[] = [
+  { speaker: null, text: 'グレイヴは、拭いていたグラスをそっと置いた。' },
+  { speaker: HERO, text: '遺跡の奥で、セキリュウガに会った。' },
+  { speaker: MASTER, text: '……そうか。' },
+  { speaker: MASTER, text: 'あいつ、まだあそこにいたか。' },
+  { speaker: null, text: '少し、間があった。' },
+  { speaker: MASTER, text: '倒した……って顔じゃねぇな。' },
+  { speaker: HERO, text: '止まっただけだ。それに……' },
+  { speaker: HERO, text: 'あいつ、俺たちを見てなかった。' },
+  { speaker: null, text: 'グレイヴは何か言いかけて、やめた。' },
+  { speaker: MASTER, text: '……まあいい。' },
+  { speaker: MASTER, text: 'お前らが見たもんは、お前らが覚えてりゃいい。' },
+  { speaker: null, text: 'グレイヴはまたグラスを拭きはじめた。さっきより、少しだけ手がゆっくりだった。' },
+];
+
+/** The same, after his first meeting in one sitting. */
+export const SEKIRYUGA_AFTER_BRIDGE: readonly DialogueLine[] = [
+  { speaker: MASTER, text: '……で。遺跡、行ってきたんだろ。' },
+];
+
+/**
  * His ordinary talk while the ruins are open and the seal not yet looked
  * at: the greeting's last line ("nothing worth hearing tonight") would
  * contradict what he has just told — so, in the App only, it is this.

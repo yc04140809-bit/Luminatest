@@ -53,6 +53,13 @@ import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds'
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
 import { stageReached } from '@mugen/core/world/storyArc';
+
+/** 古代遺跡 on the map, as a destination (core/world/readMarks.ts `dest:`). */
+const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
+import { RumorScreen, rumorsOf } from './ui/rumors';
+import { OnceNotice } from './ui/common/OnceNotice';
+import { newEquipmentIds } from './ui/equipment';
+import { memoryMark } from './ui/memory';
 import {
   RuinsWalkScreen,
   SealApproachScreen,
@@ -147,6 +154,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * what is sealed there, or what comes after the fight.
    */
   const [ruins, setRuins] = useState<RuinsPhase | null>(null);
+  /** 噂話 — a door off the village like the tavern, held here for the same reason. */
+  const [rumors, setRumors] = useState(false);
   /** The music let down, on the way in — from her 「……止まって。」 to the fight. */
   const [hushed, setHushed] = useState(false);
   const state = useSyncExternalStore(
@@ -205,6 +214,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (state.screen !== 'HOME' && bakery) setBakery(false);
   }, [state.screen, bakery]);
+  useEffect(() => {
+    if (state.screen !== 'HOME' && rumors) setRumors(false);
+  }, [state.screen, rumors]);
   // The ruins are a leaf of the map — kept through the boss's fight, closed anywhere else.
   useEffect(() => {
     if (ruins && state.screen !== 'EXPLORE' && state.screen !== 'BATTLE') setRuins(null);
@@ -229,6 +241,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // And out of the bakery the same way.
     if (state.screen === 'HOME' && bakery) {
       setBakery(false);
+      return;
+    }
+    // And out of 噂話.
+    if (state.screen === 'HOME' && rumors) {
+      setRumors(false);
       return;
     }
     // Out of the ruins' walk to the map; the way in and what follows the
@@ -441,6 +458,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * begun — after Gald, whichever answer — until セキリュウガ has been
    * faced. Hearing one is the route's first step; the tavern does the rest.
    */
+  /** AUTO is open once Gald's fight is behind the player (whichever answer). */
+  const autoOpen = world.getGaldLifeChoice() !== null;
+
   const rumorSaid = () =>
     world.isSekiryugaArcOpen() && !stageReached(world.getSekiryugaStage(), 'BEATEN');
   const heardRumor = () => {
@@ -596,12 +616,15 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             arc={{
               open: world.isSekiryugaArcOpen(),
               stage: world.getSekiryugaStage(),
+              heard: (id) => world.isRead(`talk:${id}`),
               onRumor: () => void world.advanceSekiryugaArc('RUMOR').catch(() => {}),
               onTold: () => void world.advanceSekiryugaArc('TOLD').catch(() => {}),
+              onHeard: (id) => void world.markRead([`talk:${id}`]).catch(() => {}),
             }}
           />
         );
       }
+      if (rumors) return <RumorScreen world={world} onLeave={() => setRumors(false)} />;
       if (bakery) {
         return (
           <BakeryScreen
@@ -621,6 +644,23 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onStatus={() => flow.goTo('STATUS')}
           onTavern={() => setTavern(true)}
           onBakery={() => setBakery(true)}
+          onRumors={() => setRumors(true)}
+          news={{
+            explore: stageReached(world.getSekiryugaStage(), 'TOLD') && !world.isRead(RUINS_DESTINATION),
+            rumors: rumorsOf(world).unread > 0,
+            memory: world.getKnownEvents().some((e) => !world.isRead(memoryMark(e.id))),
+            status: newEquipmentIds(world).length > 0,
+          }}
+          notice={
+            // AUTO opens with Gald's fight behind them; said once, back in the village.
+            <OnceNotice
+              world={world}
+              mark="note:auto_battle"
+              text="AUTO戦闘が使用可能になりました。"
+              show={autoOpen}
+              testId="auto-notice"
+            />
+          }
           resting={resting}
           onRest={() => {
             if (resting) return;
@@ -720,7 +760,18 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onHome={() => flow.goTo('HOME')}
           // Opened by the tavern's master telling what was sealed there.
           ruins={stageReached(stage, 'TOLD')}
+          ruinsNew={stageReached(stage, 'TOLD') && !world.isRead(RUINS_DESTINATION)}
+          notice={
+            <OnceNotice
+              world={world}
+              mark={`note:${RUINS_DESTINATION}`}
+              text="新しい目的地が追加されました"
+              show={stageReached(stage, 'TOLD') && !world.isRead(RUINS_DESTINATION)}
+              testId="destination-notice"
+            />
+          }
           onRuins={() => {
+            void world.markRead([RUINS_DESTINATION]).catch(() => {});
             resumeRuins.current = false;
             setRuins('walk');
           }}
@@ -795,6 +846,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               setRuins('walk');
             }}
             music={music}
+            autoAvailable={autoOpen}
             background="RUINS"
             onLost={() => {
               void world.restoreParty().finally(() => {
@@ -837,6 +889,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                 }
           }
           music={music}
+          // AUTO, once Gald's fight is behind them — never in his own fight.
+          autoAvailable={autoOpen && !story.current}
           // Both of the App's fights are in the greenwood; the ground is
           // the place's, as content says.
           background={battleBackgroundFor('GREENWOOD_FOREST')}

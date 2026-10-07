@@ -629,3 +629,57 @@
 :root[data-reduced-motion='on'] .ci[data-theme] .ci-flash {
   display: none;
 }
+
+/* ---- BOSS: a boss's one great move — darker, colder (bossCutIn.ts) ----
+   The screen goes nearly black under it, the panel is ice on night, and
+   the figure stands larger, facing the party. Only ever for a boss's
+   signature move, so at most once a fight. */
+.ci[data-theme='boss'] .ci-veil {
+  background:
+    radial-gradient(circle at 34% 48%, rgba(120, 190, 255, 0.28), transparent 52%),
+    rgba(0, 2, 8, 0.92);
+}
+.ci[data-theme='boss'] .ci-panel {
+  background:
+    radial-gradient(circle at 30% 42%, rgba(150, 210, 255, 0.5), transparent 38%),
+    linear-gradient(112deg, rgba(6, 14, 30, 0.99) 0 40%, rgba(14, 40, 78, 0.98) 72%, rgba(3, 6, 14, 0.99));
+  box-shadow:
+    inset 12px 0 0 rgba(196, 232, 255, 0.86),
+    inset -12px 0 0 rgba(85, 160, 255, 0.86),
+    0 0 42px rgba(0, 0, 0, 0.95);
+}
+.ci[data-theme='boss'] .ci-energy {
+  background:
+    radial-gradient(circle at 30% 48%, rgba(200, 236, 255, 0.42), transparent 30%),
+    radial-gradient(circle at 78% 42%, rgba(75, 150, 255, 0.4), transparent 34%),
+    conic-gradient(from 70deg at 35% 48%, transparent, rgba(255, 255, 255, 0.22), transparent 20%);
+}
+.ci[data-theme='boss'] .ci-art {
+  right: auto;
+  left: 2%;
+  bottom: -18%;
+  height: 128%;
+  /* Mirrored to face the party — with `scale`, so the hold animation's
+     own transform still runs on top. */
+  scale: -1 1;
+  filter:
+    drop-shadow(10px 0 18px rgba(0, 0, 0, 0.85))
+    drop-shadow(0 0 16px rgba(150, 210, 255, 0.6));
+}
+.ci[data-theme='boss'] .ci-copy {
+  left: auto;
+  right: 10%;
+}
+.ci[data-theme='boss'] .ci-kicker {
+  border-left-color: #9fd6ff;
+  color: #d6efff;
+}
+.ci[data-theme='boss'] .ci-name {
+  text-shadow:
+    0 3px 0 rgba(8, 20, 45, 0.95),
+    0 0 12px rgba(160, 220, 255, 0.85),
+    0 0 26px rgba(80, 150, 255, 0.6);
+}
+.ci[data-theme='boss'] .ci-flash {
+  background: linear-gradient(105deg, rgba(170, 220, 255, 0.9), #fff 50%, rgba(90, 160, 255, 0.9));
+}

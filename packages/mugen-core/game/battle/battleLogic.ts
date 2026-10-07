@@ -210,10 +210,31 @@ export interface EnemyMoveSet {
     /** The blow it gathered for. */
     release: { name: string; power: number };
   };
+  /**
+   * ITS ONE GREAT MOVE, once a fight: the first of its turns after it is
+   * hurt to `atOrBelow` of its health, whatever the dice. No warning turn —
+   * the screen gives it its own cut-in instead — and one blow that reaches
+   * both of them (the party shares its health, so it is one blow, said as
+   * reaching both). Bracing halves it, as it halves anything.
+   */
+  signature?: { name: string; atOrBelow: number; power: number; line: string };
 }
 
 /** Which of its moves the creature just made, for the screen to play. */
-export type EnemyMoveKind = 'BLOW' | 'HEAVY' | 'CHARGE' | 'RELEASE';
+export type EnemyMoveKind = 'BLOW' | 'HEAVY' | 'CHARGE' | 'RELEASE' | 'SIGNATURE';
+
+/**
+ * ONE OF HIS SWORD'S MOVES — a hero skill. No MP: what it costs is time,
+ * `cooldown` turns from one use to the next (a cooldown of 3 is usable
+ * every third turn). `power` is one more multiplier on his swing, in the
+ * same list every swing goes through.
+ */
+export interface HeroSkillSpec {
+  id: string;
+  name: string;
+  power: number;
+  cooldown: number;
+}
 
 export interface EnemySpec {
   name: string;
@@ -425,6 +446,14 @@ export interface BattleState {
   enemyChargeCooldown?: number;
   /** Which move it made on its last turn. Null when it made none. */
   lastEnemyMove?: EnemyMoveKind | null;
+  /** Its great move has been used in this fight. */
+  enemySignatureUsed?: boolean;
+  /**
+   * WHEN HIS SKILLS WERE LAST USED, as `turnsTaken` just after — absent in
+   * any fight he has not used one in, which is every fight there was
+   * before skills existed. Readiness is worked out from it (skillReadyIn).
+   */
+  skillUsedAt?: Readonly<Record<string, number>>;
 }
 
 /** Random source, injectable for deterministic tests. Returns [0, 1). */
@@ -759,6 +788,23 @@ function movesTurn(
     return { ...released, enemyCharging: false, enemyChargeCooldown: moves.charge.cooldown };
   }
   const chargeCooldown = Math.max(0, (state.enemyChargeCooldown ?? 0) - 1);
+  const signature = moves.signature;
+  if (
+    signature &&
+    !state.enemySignatureUsed &&
+    state.enemyMaxHp > 0 &&
+    state.enemyHp / state.enemyMaxHp <= signature.atOrBelow
+  ) {
+    const struck = landBlow(
+      { ...state, enemyChargeCooldown: chargeCooldown, log: [...state.log, signature.line] },
+      defending,
+      rng,
+      phase,
+      cooldown,
+      { name: `《${signature.name}》`, power: signature.power, kind: 'SIGNATURE' },
+    );
+    return { ...struck, enemySignatureUsed: true };
+  }
   const mayGather = (state.enemyChargeCooldown ?? 0) === 0;
   const gatherChance = phase?.skillChance ?? moves.charge.chance;
   const gathers =
@@ -794,6 +840,38 @@ export function playerAttack(
   rng: Rng = Math.random,
   forcedEnemyAction: EnemyAction | null = null,
 ): BattleState {
+  return swing(state, rng, forcedEnemyAction, null);
+}
+
+/** How many turns until his skill may be used again; 0 is now. */
+export function skillReadyIn(state: BattleState, skill: HeroSkillSpec): number {
+  const usedAt = state.skillUsedAt?.[skill.id];
+  if (usedAt === undefined) return 0;
+  return Math.max(0, usedAt + skill.cooldown - 1 - state.turnsTaken);
+}
+
+/**
+ * ONE OF HIS SKILLS: his swing, made harder by the skill's power, and then
+ * the creature's turn as after any swing. Refused (the state as it was)
+ * while it is not ready or the fight is over.
+ */
+export function playerSkill(
+  state: BattleState,
+  skill: HeroSkillSpec,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (state.outcome !== 'ONGOING' || skillReadyIn(state, skill) > 0) return state;
+  return swing(state, rng, forcedEnemyAction, skill);
+}
+
+/** His swing — plain (`skill` null, exactly as 攻撃 always was) or a skill's. */
+function swing(
+  state: BattleState,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+  skill: HeroSkillSpec | null,
+): BattleState {
   if (state.outcome !== 'ONGOING') return state;
   // Whatever the enemy put between itself and the blow, it is worn
   // through by taking one.
@@ -811,6 +889,7 @@ export function playerAttack(
     // Some creatures get harder to hurt as they get serious.
     wasIn?.damageTaken ?? 1,
     affinity,
+    ...(skill ? [skill.power] : []),
   ]);
   const enemyHp = Math.max(0, state.enemyHp - dmg);
   // Its footing, taken by the blow. A blow that lands on a guard takes
@@ -824,11 +903,12 @@ export function playerAttack(
     enemyGuardTurns: footing.broke ? 0 : Math.max(0, state.enemyGuardTurns - 1),
     enemyPoise: footing.poise,
     enemyStaggerTurns: footing.staggerTurns,
+    ...(skill ? { skillUsedAt: { ...state.skillUsedAt, [skill.id]: state.turnsTaken + 1 } } : {}),
     log: [
       ...state.log,
       guarded
-        ? `攻撃！ ${state.enemySkill!.name}に阻まれ、${dmg}のダメージ。`
-        : `攻撃！ ${state.enemyName}に${dmg}のダメージ。`,
+        ? `${skill ? `《${skill.name}》` : '攻撃'}！ ${state.enemySkill!.name}に阻まれ、${dmg}のダメージ。`
+        : `${skill ? `《${skill.name}》` : '攻撃'}！ ${state.enemyName}に${dmg}のダメージ。`,
       // Losing its footing is a moment, so it gets its own line rather
       // than being buried in the damage number.
       ...(footing.broke && state.enemyPoiseSpec ? [state.enemyPoiseSpec.breakLine] : []),

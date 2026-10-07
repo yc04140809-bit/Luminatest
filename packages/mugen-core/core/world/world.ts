@@ -16,6 +16,7 @@ import {
 } from './equipmentState';
 import { readRareFinds, readVisits, type RareFindTable, type VisitTable } from './explorationState';
 import { advanceStage, arcOpen, readSekiryugaStage, type SekiryugaStage } from './storyArc';
+import { readReadMarks, withMarks } from './readMarks';
 import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
@@ -307,6 +308,8 @@ const VISITS_KEY = 'explorationVisits';
  * see `storyArc.ts`. Absent reads as NONE, so no schema version moved.
  */
 const SEKIRYUGA_ARC_KEY = 'sekiryugaArc';
+/** What the player has actually looked at — every NEW (see `readMarks.ts`). Absent reads as nothing read. */
+const READ_MARKS_KEY = 'readMarks';
 /**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
@@ -565,6 +568,8 @@ export class World {
   private rareFinds: RareFindTable;
   private visits: VisitTable;
   private sekiryugaStage: SekiryugaStage;
+  private readMarks: Set<string>;
+  private readMarkList: string[];
 
   private readonly health: SaveHealth;
 
@@ -582,6 +587,8 @@ export class World {
     this.rareFinds = fields.rareFinds;
     this.visits = fields.visits;
     this.sekiryugaStage = fields.sekiryugaStage;
+    this.readMarkList = fields.readMarks;
+    this.readMarks = new Set(fields.readMarks);
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1074,6 +1081,25 @@ export class World {
     if (next === this.sekiryugaStage) return false;
     await this.store.commit({ putState: [{ key: SEKIRYUGA_ARC_KEY, value: next }] });
     this.sekiryugaStage = next;
+    this.emit();
+    return true;
+  }
+
+  /** Whether the player has actually looked at this (`readMarks.ts`). */
+  isRead(id: string): boolean {
+    return this.readMarks.has(id);
+  }
+
+  /**
+   * Marks these as looked at. Writes only when something is new to the
+   * list; returns whether it wrote.
+   */
+  async markRead(ids: readonly string[]): Promise<boolean> {
+    const next = withMarks(this.readMarkList, ids);
+    if (next.length === this.readMarkList.length && next.every((id, i) => id === this.readMarkList[i])) return false;
+    await this.store.commit({ putState: [{ key: READ_MARKS_KEY, value: next }] });
+    this.readMarkList = next;
+    this.readMarks = new Set(next);
     this.emit();
     return true;
   }
@@ -2548,6 +2574,8 @@ export class World {
     this.rareFinds = {};
     this.visits = {};
     this.sekiryugaStage = 'NONE';
+    this.readMarkList = [];
+    this.readMarks = new Set();
     this.emit();
   }
 
@@ -2607,6 +2635,8 @@ export class World {
     this.rareFinds = {};
     this.visits = {};
     this.sekiryugaStage = 'NONE';
+    this.readMarkList = [];
+    this.readMarks = new Set();
     this.emit();
   }
 }
@@ -2736,6 +2766,7 @@ interface WorldFields {
   rareFinds: RareFindTable;
   visits: VisitTable;
   sekiryugaStage: SekiryugaStage;
+  readMarks: string[];
 }
 
 /** What reading a save had to say about it. */
@@ -2879,6 +2910,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readVisits(value));
     case SEKIRYUGA_ARC_KEY:
       return settle(readSekiryugaStage(value));
+    case READ_MARKS_KEY:
+      return settle(readReadMarks(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -2964,6 +2997,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       rareFinds: take(RARE_FINDS_KEY, readRareFinds(byKey.get(RARE_FINDS_KEY))),
       visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
       sekiryugaStage: take(SEKIRYUGA_ARC_KEY, readSekiryugaStage(byKey.get(SEKIRYUGA_ARC_KEY))),
+      readMarks: take(READ_MARKS_KEY, readReadMarks(byKey.get(READ_MARKS_KEY))),
     },
     repairedKeys,
     unreadableKeys,

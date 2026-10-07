@@ -4,6 +4,10 @@ import type { MemoryEvent } from '@mugen/core/memory/types';
 import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
 import { UNKNOWN_CONTINUATION_TEXT } from '@mugen/content/archive/galdChapters';
 import { Place } from './screens';
+import { NewBadge } from './common/NewBadge';
+
+/** The read mark a WORLD MEMORY entry is cleared with. */
+export const memoryMark = (eventId: string): string => `memory:${eventId}`;
 
 /**
  * WHAT THE PLAYER KNOWS — read, and nothing else.
@@ -11,8 +15,10 @@ import { Place } from './screens';
  * Both screens here are pure projections. WORLD MEMORY is
  * `world.getKnownEvents()` and LIFE ARCHIVE is `world.getLifeArchive()`,
  * which is itself a projection over the same knowledge. Neither writes
- * a row, neither adds a saved key, and neither can: there is no state
- * in this file at all beyond which entry is open on screen.
+ * to WORLD MEMORY, and neither can. The one thing WORLD MEMORY's screen
+ * does record is that an entry was LOOKED AT — tapped — which clears its
+ * NEW (core/world/readMarks.ts `memory:<id>`, a separate row). Opening
+ * the screen clears nothing.
  *
  * THE FILTER IS THE FEATURE, and it is the core's, not this screen's.
  * `getKnownEvents` hides events the player has not witnessed — the
@@ -23,10 +29,21 @@ import { Place } from './screens';
  * why it reads the filtered list and has no access to the other one.
  */
 
-/** One fact, with the fields a record needs to be checkable. */
-function EventRow({ event }: { event: MemoryEvent }) {
+/** One fact, with the fields a record needs to be checkable — tapped, it is looked at. */
+function EventRow({ event, isNew, onLook }: { event: MemoryEvent; isNew: boolean; onLook: () => void }) {
   return (
-    <li className="memory-row" data-testid={`memory-${event.type}`}>
+    <li
+      className={`memory-row${isNew ? ' new' : ''}`}
+      data-testid={`memory-${event.type}`}
+      data-new={isNew ? 'yes' : 'no'}
+      role="button"
+      tabIndex={0}
+      onClick={onLook}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onLook();
+      }}
+    >
+      <NewBadge show={isNew} testId={`memory-new-${event.type}`} />
       <span className="memory-when" data-testid={`memory-when-${event.type}`}>
         {event.worldYear}年目 {event.worldDay}日目
       </span>
@@ -64,7 +81,12 @@ export function WorldMemoryScreen({ world, onBack }: { world: World; onBack: () 
         ) : (
           <ul className="memory-list">
             {events.map((event) => (
-              <EventRow key={event.id} event={event} />
+              <EventRow
+                key={event.id}
+                event={event}
+                isNew={!world.isRead(memoryMark(event.id))}
+                onLook={() => void world.markRead([memoryMark(event.id)]).catch(() => {})}
+              />
             ))}
           </ul>
         )}

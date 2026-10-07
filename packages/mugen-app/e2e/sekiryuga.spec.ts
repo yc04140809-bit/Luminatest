@@ -132,9 +132,10 @@ async function hearTheShopRumor(page: Page) {
 
 async function hearTheMaster(page: Page) {
   await page.getByTestId('tavern-button').click();
-  // His story starts as the door opens.
-  await expect(page.getByTestId('tavern-line')).toHaveText('グラスを拭いていたグレイヴの手が、止まった。');
+  // It starts as the door opens — his first meeting this session, then the story (uxRound.spec).
+  await expect(page.getByTestId('tavern-line')).toHaveText('扉を押すと、煮込みと安い酒の匂いがした。');
   const lines = await readTavern(page);
+  expect(lines).toContain('グラスを拭いていたグレイヴの手が、止まった。');
   await expect.poll(() => stage(page)).toBe('TOLD');
   await page.getByTestId('tavern-leave').click();
   return lines;
@@ -220,11 +221,14 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
   await pastGald(page);
   await hearTheShopRumor(page);
   await page.getByTestId('tavern-button').click();
-  await expect(page.getByTestId('tavern-line')).toHaveText('グラスを拭いていたグレイヴの手が、止まった。');
+  // It starts by itself: his first meeting this session, then the story.
+  await expect(page.getByTestId('tavern-line')).toHaveText('扉を押すと、煮込みと安い酒の匂いがした。');
   // The room, the master and the box are where they always are.
   for (const id of ['tavern-room', 'tavern-master', 'tavern-words']) await expect(page.getByTestId(id)).toBeVisible();
-  // ② 酒場マスターイベント — a few lines in, his name for it.
-  for (let i = 0; i < 10; i++) await page.getByTestId('tavern-next').click();
+  // ② 酒場マスターイベント — on into the story, to his name for it.
+  for (let i = 0; i < 40 && (await page.getByTestId('tavern-line').textContent()) !== '「セキリュウガ。」'; i++) {
+    await page.getByTestId('tavern-next').click();
+  }
   await expect(page.getByTestId('tavern-line')).toHaveText('「セキリュウガ。」');
   await shot(page, '2-tavern');
   const rest = await readTavern(page);
@@ -241,7 +245,7 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
   expect(again.join('')).not.toContain('めぼしい話は入ってきてねぇ');
   await page.getByTestId('tavern-leave').click();
   await page.getByTestId('explore-button').click();
-  await expect(page.getByTestId('ruins-button')).toHaveText('古代遺跡');
+  await expect(page.getByTestId('ruins-button')).toContainText('古代遺跡');
 });
 
 test('the first rumour from the master himself: his story follows straight on, no walking out and in', async ({ page }) => {

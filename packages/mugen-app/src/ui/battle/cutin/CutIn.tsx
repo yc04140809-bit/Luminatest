@@ -16,8 +16,8 @@ import type { BattleSpeed } from '@mugen/game/battle/battleSpeed';
 import { cutInMs, type CutInTier } from './cutInTiming';
 import './cutin.css';
 
-/** Whose colours and layout — v18's four cut-ins. */
-export type CutInTheme = 'chaos' | 'hero' | 'levi' | 'aria';
+/** Whose colours and layout — v18's four cut-ins, and a boss's great move. */
+export type CutInTheme = 'chaos' | 'hero' | 'levi' | 'aria' | 'boss';
 
 export interface CutInSpec {
   /** Colours, and where the figure and name stand. */
