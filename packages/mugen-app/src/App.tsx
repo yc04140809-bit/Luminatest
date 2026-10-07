@@ -657,7 +657,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               world={world}
               mark="note:auto_battle"
               text="AUTO戦闘が使用可能になりました。"
-              show={autoOpen}
+              // Back in the village after the look ahead, not before it.
+              show={autoOpen && world.isSekiryugaArcOpen()}
               testId="auto-notice"
             />
           }

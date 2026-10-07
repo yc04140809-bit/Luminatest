@@ -570,6 +570,8 @@ export class World {
   private sekiryugaStage: SekiryugaStage;
   private readMarks: Set<string>;
   private readMarkList: string[];
+  /** The read-mark writes, one after another (see `markRead`). */
+  private readMarkQueue: Promise<unknown> = Promise.resolve();
 
   private readonly health: SaveHealth;
 
@@ -1094,14 +1096,21 @@ export class World {
    * Marks these as looked at. Writes only when something is new to the
    * list; returns whether it wrote.
    */
-  async markRead(ids: readonly string[]): Promise<boolean> {
-    const next = withMarks(this.readMarkList, ids);
-    if (next.length === this.readMarkList.length && next.every((id, i) => id === this.readMarkList[i])) return false;
-    await this.store.commit({ putState: [{ key: READ_MARKS_KEY, value: next }] });
-    this.readMarkList = next;
-    this.readMarks = new Set(next);
-    this.emit();
-    return true;
+  markRead(ids: readonly string[]): Promise<boolean> {
+    // ONE AT A TIME. Several things are often looked at in quick
+    // succession (a row of rumours tapped through); each write starts from
+    // the list the one before it left, so none is lost to another.
+    const run = this.readMarkQueue.then(async () => {
+      const next = withMarks(this.readMarkList, ids);
+      if (next.length === this.readMarkList.length && next.every((id, i) => id === this.readMarkList[i])) return false;
+      await this.store.commit({ putState: [{ key: READ_MARKS_KEY, value: next }] });
+      this.readMarkList = next;
+      this.readMarks = new Set(next);
+      this.emit();
+      return true;
+    });
+    this.readMarkQueue = run.catch(() => false);
+    return run;
   }
 
   /** Whether a place's once-in-a-world find has been taken in this world. */

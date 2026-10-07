@@ -20,7 +20,8 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | ゲーム開始 | `regression`、`loop`「the whole loop…」 | 初回は「はじめる」だけ、再起動後は「つづきから」 |
 | OP | `regression`、`scenes`「the prologue is the world alone, then Kaos…」、`music`（曲） | |
 | 名前入力 | `regression`、`naming`（4 本：入力・空白拒否・既定名・再起動） | |
-| 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」 | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。640×300 ではボタンの 2 段目が画面外にはみ出す（配色変更の前から同じ） |
+| 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」、`uxRound`（横画面 5 サイズで「噂話」まで画面内） | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。高さ 420px 以下ではボタンと間隔を詰めて、9 つの選択肢すべてを画面内に収める（2026-10-07。以前は 640×300 で 2 段目がはみ出していた） |
+| 序盤UX（酒場の初訪問順・《瞬断》・AUTO 解禁・BOSS カットイン・戦闘後の酒場・目的地通知・噂話・NEW） | `uxRound`（15 本）、core `talkQueue.test.ts`・`readMarks.test.ts`・`villageRumors.test.ts`・`sekiryugaBattle.test.ts` | 内容は `docs/UX_EARLY_GAME.md` |
 | 酒場 | `tavern`（村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブ不変、横画面 5 サイズでマスターが切れない） | |
 | パン屋 | `bakery`（村 → パン屋 → 背景・主人・リナ・会話 → 村、BGM は村の曲のまま、セーブ不変、横画面 5 サイズで 2 人が切れず会話欄と重ならない） | Android の戻るボタンはブラウザから押せないため実機で確認 |
 | 森 | `regression`、`loop`、`battleBackground`、`explore`（古代遺跡と同じ歩き回り：手前／奥で大きさが変わる・ケイオスが同じ奥行き・木や空は最寄りの床へ・「！」は近づいたときだけ・調べたら完全に消える・固定 4 か所の一言・その後も小さな発見が別の場所に出続ける・新しい足跡（四択前だけ・セーブ不変）・ガルド／戦闘への出口・セーブ不変・四択後の変化・動きを減らす設定・横画面 5 サイズで出口ボタンの後ろに立たない）、core `walkScene.test.ts`・`walkPlaces.test.ts`、App `roam.test.ts` | 歩き心地は実機で確認 |

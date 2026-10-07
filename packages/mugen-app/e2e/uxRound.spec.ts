@@ -157,7 +157,7 @@ test('P1: 《瞬断》 from the first fight — twice a swing, its own trail, ev
   await expect(page.getByTestId('skill-shundan-ready')).toHaveText('使える');
   await expect(page.getByTestId('skill-shundan-new')).toBeVisible();
   // A slash with the skill's own cross-cut.
-  const crossed = page.waitForSelector('[data-testid="sword-slash"][data-skill="yes"]', { timeout: 15_000 });
+  const crossed = page.waitForSelector('[data-testid="sword-slash"][data-skill="yes"]', { state: 'attached', timeout: 15_000 });
   await page.getByTestId('skill-shundan').click();
   await crossed;
   await readyToAct(page, 20_000);
@@ -238,6 +238,8 @@ test('P1: 《氷晶咆哮》 — its own cut-in, once, when セキリュウガ i
 // ---------------- P2: destinations ----------------
 
 test('P2: a destination just added glows a few times, says so once, and is NEW until touched', async ({ page }) => {
+  // The glow is motion: seen as a player with motion on sees it.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await freshVillage(page);
   await pastGald(page);
   await world(page, `(w) => w.advanceSekiryugaArc('TOLD')`);

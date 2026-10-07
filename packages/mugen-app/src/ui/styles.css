@@ -1727,3 +1727,20 @@ body {
   font-size: 11px;
   opacity: 0.7;
 }
+
+/* ── THE VILLAGE ON A SHORT LANDSCAPE SCREEN ──
+   Nine doors no longer fit in two rows of full-size buttons under the
+   status lines on a 300–420px-high phone: the last row went off the
+   bottom, out of reach. Below 420px high the buttons and the gaps
+   tighten (the same buttons, the same colours) so every door stays on
+   screen. Taller screens are exactly as before. */
+@media (max-height: 420px) {
+  .screen[data-area="ALDEN"] { gap: 4px; }
+  .screen[data-area="ALDEN"] .actions { gap: 6px; margin-top: 2px; }
+  .screen[data-area="ALDEN"] .actions .btn {
+    min-height: 34px;
+    min-width: 100px;
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+}

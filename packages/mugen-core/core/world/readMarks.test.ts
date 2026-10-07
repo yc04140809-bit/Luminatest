@@ -48,6 +48,16 @@ describe('a world', () => {
     expect(world.getKnownEvents().length).toBe(events);
   });
 
+  it('many marked at once, none lost', async () => {
+    const name = fresh();
+    const world = await open(name);
+    const ids = Array.from({ length: 12 }, (_, i) => `rumor:R${i}`);
+    await Promise.all(ids.map((id) => world.markRead([id])));
+    for (const id of ids) expect(world.isRead(id)).toBe(true);
+    const again = await open(name);
+    for (const id of ids) expect(again.isRead(id)).toBe(true);
+  });
+
   it('erasing the world forgets them', async () => {
     const name = fresh();
     const world = await open(name);
