@@ -236,18 +236,18 @@ body {
   pointer-events: none;
   user-select: none;
 }
-/* In front of her, and not in the way of touching her. Drawn from the
-   counter's file by border-image: the top (rows 0–665) and the foot
-   (880–941) at their own scale, the band between taller. */
+/* In front of her, and not in the way of touching her: the counter as
+   painted, carried down past the bottom edge (pieces of its own file). */
 .shop-counter-art {
   position: absolute;
   z-index: 2;
-  box-sizing: border-box;
-  border-style: solid;
-  border-color: transparent;
-  border-image-repeat: stretch;
   pointer-events: none;
   user-select: none;
+}
+.shop-counter-piece {
+  position: absolute;
+  display: block;
+  background-repeat: no-repeat;
 }
 .shop-keeper-img { transform-origin: 50% 100%; }
 .shop-side {

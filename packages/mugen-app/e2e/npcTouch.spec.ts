@@ -9,9 +9,7 @@ import { throughTheOpening } from './opening';
  */
 
 const FACES = ['NORMAL', 'HAPPY', 'AMAZED', 'SAD', 'ANGRY', 'EMBARRASSED', 'EXASPERATED', 'SMILE_EYES_CLOSED', 'JITO', 'SHY'];
-/** The counter's file is drawn with rows 665–880 of 941 taller (×1.9): its drawn height per width. */
-const COUNTER_ROWS = 941 + (880 - 665) * 0.9;
-/** Its top, rows from its own top. */
+/** The counter's top, in rows of its file (1672 wide) from the file's top. */
 const COUNTER_TOP = 275;
 const GREETING = 'ミレイ「いらっしゃい。今日は何を探してるの？」';
 
@@ -72,7 +70,7 @@ test('the shop in three layers — the room, ミレイ, the counter in front —
   // The counter is drawn from its file (unchanged) — load that file and look at it as delivered.
   const counterSrc = await page
     .getByTestId('shop-counter-art')
-    .evaluate((d) => getComputedStyle(d).borderImageSource.replace(/^url\("?|"?\)$/g, ''));
+    .evaluate((d) => getComputedStyle(d.querySelector('.shop-counter-piece')!).backgroundImage.replace(/^url\("?|"?\)$/g, ''));
   await page.evaluate(
     (src) =>
       new Promise<void>((resolve) => {
@@ -177,24 +175,28 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: the counter on the bottom edge, its top at her waist, her head on screen, and the shop beside her all reachable`, async ({ page }) => {
+  test(`${w}×${h}: her head on screen, the counter's top at her waist and the counter on down past the bottom edge (standing), and the shop beside her all reachable`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await intoTheShop(page);
     const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
     const c = await box('shop-counter-art');
     const m = await box('shop-keeper-image');
-    // Her at her own shape; the counter at its own width, taller by its one band.
-    expect(c.width / c.height).toBeCloseTo(1672 / COUNTER_ROWS, 2);
+    // Her at her own shape.
     expect(m.width / m.height).toBeCloseTo(1086 / 1448, 2);
-    // The counter on the bottom edge, at the left; she is whole above it, head on screen.
-    expect(Math.abs(c.y + c.height - h)).toBeLessThanOrEqual(2);
+    // The counter at the left, running on past the bottom edge to a floor below it.
+    expect(c.y + c.height).toBeGreaterThan(h + 10);
     expect(c.x).toBeGreaterThanOrEqual(0);
-    expect(c.x + c.width).toBeLessThanOrEqual(w * 0.5);
+    // At most half the screen, beside the safe-area gutter.
+    expect(c.x + c.width).toBeLessThanOrEqual(w * 0.5 + 8);
     expect(m.y).toBeGreaterThanOrEqual(0);
     expect(m.x).toBeGreaterThanOrEqual(c.x);
     expect(m.x + m.width).toBeLessThanOrEqual(c.x + c.width);
-    // The counter's top at her waist (腰上: 58% down her picture).
-    expect(Math.abs(m.y + m.height * 0.58 - (c.y + c.height * (COUNTER_TOP / COUNTER_ROWS)))).toBeLessThanOrEqual(2);
+    // The counter's top at her waist (腰上: 58% down her picture); drawn at its own scale across.
+    const scale = c.width / 1672;
+    expect(Math.abs(m.y + m.height * 0.58 - (c.y + COUNTER_TOP * scale))).toBeLessThanOrEqual(2);
+    // Painted as it is down to its plinth: the first piece is the file's rows 0–874 at that same scale.
+    const body = (await page.locator('.shop-counter-piece').first().boundingBox())!;
+    expect(Math.abs(body.height - 874 * scale)).toBeLessThanOrEqual(2);
     expect(m.height).toBeGreaterThan(h * 0.6);
     const b = c;
     for (const id of ['shop-tab-buy', 'shop-tab-sell', 'shop-leave', 'shop-greeting']) {

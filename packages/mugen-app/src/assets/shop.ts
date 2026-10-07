@@ -72,48 +72,70 @@ export function mireiFace(art: MireiArt, face: NpcExpression): { src: string | n
 }
 
 /**
- * THE COUNTER, TALLER (author's instruction, 2026-10-07: 「カウンターは高さが
- * 低すぎるから引き伸ばして違和感無いように（腰上ぐらいの高さまで）」).
+ * THE COUNTER, TALLER — DOWNWARDS (author's instructions, 2026-10-07:
+ * 「腰上ぐらいの高さまで」, then 「ミレイが立って接客してる様に見える様に
+ * カウンターの高さを縦方向に伸ばして。下方向に伸ばしてくれたらいいだけ」).
  *
- * The file is not changed. On screen, one band of it is drawn taller — rows
- * 665–880 of 941: the banner's fringe and tassels, the lower panels and the
- * plinth, which read as a longer cloth and a taller base. The top, everything
- * standing on it, the wolf crest and the panel ornaments keep their shape.
+ * The file is not changed, and the counter itself is drawn at its own
+ * shape: its top meets her at the waist, everything on it, the banner and
+ * the panels as painted. Below its plinth it is carried on DOWNWARDS to
+ * the floor a standing woman would stand on — by drawing the plain parts
+ * of its base taller: the two corner posts (rows 830–862) and the plinth's
+ * face below the tassel (rows 874–882). The floor is below the screen, so
+ * the counter runs off the bottom edge, as anything near the camera does.
  */
-export const COUNTER = { width: 1672, height: 941, surface: 275, bandFrom: 665, bandTo: 880, stretch: 1.9 } as const;
+export const COUNTER = {
+  width: 1672,
+  height: 941,
+  /** Its top surface, rows from the file's top. */
+  surface: 275,
+  /** Drawn as painted down to here … */
+  bodyTo: 874,
+  /** … then carried down: the posts from these rows, the plinth's face from these … */
+  posts: [830, 862] as const,
+  plinth: [874, 882] as const,
+  /** Where the posts are, across (left post ends, right post starts). */
+  postLeftTo: 172,
+  postRightFrom: 1500,
+  /** … and the foot as painted, from here to the bottom of the file. */
+  footFrom: 882,
+} as const;
 export const MIREI_ASPECT = 1086 / 1448;
 /** Where the counter's top meets her: about the top of her hips (腰上), as a share of her height from the top. */
 export const MIREI_WAIST = 0.58;
+/**
+ * Where the floor is below her waist, in her picture's heights (the picture
+ * ends at mid-thigh; standing, her feet are well below it).
+ */
+export const FLOOR_BELOW_WAIST = 1.1;
 /** The counter is this much wider than she is. */
 export const COUNTER_OVER_MIREI = 1.35;
 /** Her left edge, as a share of the counter's width from its left. */
 export const MIREI_LEFT = 0.13;
 
-/** The counter's drawn height and its top, per pixel of its width. */
-const band = COUNTER.bandTo - COUNTER.bandFrom;
-const drawnRows = COUNTER.height + band * (COUNTER.stretch - 1);
-const surfaceRows = drawnRows - COUNTER.surface;
-
 /**
- * The stage in pixels, for a screen of this size: the counter on the
- * bottom edge at the left, her behind it with its top at her waist, and
- * her head a little below the top — never wider than `maxShare` of it.
+ * The stage in pixels, for a screen of this size: her head a little below
+ * the top, the counter's top at her waist, the counter carried down to the
+ * floor (below the screen) — never wider than `maxShare` of the screen.
  */
-export function shopStage(w: number, h: number, maxShare = 0.46) {
+export function shopStage(w: number, h: number, maxShare = 0.5) {
   const widthPerHeight = COUNTER_OVER_MIREI * MIREI_ASPECT; // counter width per her height
-  const surfacePerHeight = (surfaceRows / COUNTER.width) * widthPerHeight;
-  const fromHeight = (h * 0.98) / (surfacePerHeight + MIREI_WAIST);
-  const fromWidth = (w * maxShare) / widthPerHeight;
-  const mireiH = Math.min(fromHeight, fromWidth);
+  const mireiH = Math.min(h, (w * maxShare) / widthPerHeight);
   const mireiW = mireiH * MIREI_ASPECT;
   const counterW = mireiH * widthPerHeight;
   const scale = counterW / COUNTER.width;
-  const surface = surfaceRows * scale;
+  // Her head 2% below the top; her waist, and the counter's top with it.
+  const waist = h * 0.98 - mireiH * MIREI_WAIST;
+  const floor = waist - FLOOR_BELOW_WAIST * mireiH;
+  const top = waist + COUNTER.surface * scale;
+  const painted = (COUNTER.bodyTo + (COUNTER.height - COUNTER.footFrom)) * scale;
   return {
     width: counterW,
-    /** Pixels per row of the counter's file (top and bottom slices). */
+    /** Pixels per pixel of the counter's file. */
     scale,
-    counter: { left: 0, bottom: 0, width: counterW, height: drawnRows * scale },
-    mirei: { left: counterW * MIREI_LEFT, bottom: surface - (1 - MIREI_WAIST) * mireiH, width: mireiW, height: mireiH },
+    counter: { left: 0, bottom: floor, width: counterW, height: top - floor },
+    /** How much taller than painted it is drawn (the carried-down part). */
+    extension: Math.max(0, top - floor - painted),
+    mirei: { left: counterW * MIREI_LEFT, bottom: waist - (1 - MIREI_WAIST) * mireiH, width: mireiW, height: mireiH },
   };
 }
