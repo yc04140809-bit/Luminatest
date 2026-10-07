@@ -54,6 +54,9 @@ import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
 import { stageReached } from '@mugen/core/world/storyArc';
 
+/** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
+const AUTO_NOTICE = 'note:auto_battle';
+
 /** 古代遺跡 on the map, as a destination (core/world/readMarks.ts `dest:`). */
 const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
 import { RumorScreen, rumorsOf } from './ui/rumors';
@@ -458,7 +461,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * begun — after Gald, whichever answer — until セキリュウガ has been
    * faced. Hearing one is the route's first step; the tavern does the rest.
    */
-  /** AUTO is open once Gald's fight is behind the player (whichever answer). */
+  /**
+   * AUTO IS OPEN ONCE GALD'S FIGHT IS WON AND HIS ANSWER GIVEN — whichever
+   * answer, and whatever the look ahead has or has not shown: the fight
+   * against him is where fighting by hand alone ends. From then on, every
+   * ordinary fight and every boss fight (never his own).
+   */
   const autoOpen = world.getGaldLifeChoice() !== null;
 
   const rumorSaid = () =>
@@ -652,13 +660,14 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             status: newEquipmentIds(world).length > 0,
           }}
           notice={
-            // AUTO opens with Gald's fight behind them; said once, back in the village.
+            // Said at the end of Gald's part of the story (CHOICE_RESULT);
+            // here only for a world that got past it before it was said
+            // (a save from an earlier build). Never tied to TIME SHIFT.
             <OnceNotice
               world={world}
-              mark="note:auto_battle"
+              mark={AUTO_NOTICE}
               text="AUTO戦闘が使用可能になりました。"
-              // Back in the village after the look ahead, not before it.
-              show={autoOpen && world.isSekiryugaArcOpen()}
+              show={autoOpen}
               testId="auto-notice"
             />
           }
@@ -919,6 +928,18 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       return (
         <ChoiceResultScreen
           choice={state.galdLifeChoice ?? 'SPARE'}
+          // GALD'S FIGHT IS THE END OF FIGHTING BY HAND ALONE: with the last
+          // of what his answer left behind, AUTO is said to be open — once,
+          // before (and apart from) the look ahead.
+          atEnd={
+            <OnceNotice
+              world={world}
+              mark={AUTO_NOTICE}
+              text="AUTO戦闘が使用可能になりました。"
+              show={autoOpen}
+              testId="auto-notice"
+            />
+          }
           onHome={() => {
             /**
              * THE LOOK AHEAD IS THE TAIL OF THIS SCENE.

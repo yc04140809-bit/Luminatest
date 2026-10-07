@@ -175,27 +175,51 @@ test('P1: 《瞬断》 from the first fight — twice a swing, its own trail, ev
 
 // ---------------- P1: AUTO ----------------
 
-test('P1: AUTO is not there before Gald; after him a short notice, once, and AUTO fights by itself', async ({ page }) => {
+test('P1: AUTO — not before Gald nor in his fight; said once at the end of his part, before TIME SHIFT; then in every fight', async ({ page }) => {
   await freshVillage(page);
+  // Strong enough that his fight is short; the fight itself is gald.spec's.
+  await world(page, `(w) => w.applyBattleReward('e2e-levels', { exp: 2000, lumi: 0, items: [] })`);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await settled(page);
+  // An ordinary fight before Gald: no AUTO.
   await page.getByTestId('encounter-button').click();
   await readyToAct(page);
   await expect(page.getByTestId('bp-auto')).toHaveCount(0);
   await page.getByTestId('bp-escape').click();
-  await page.getByTestId('leave-forest').click();
-  await page.getByTestId('back-to-village').click();
-
-  await pastGald(page);
+  await settled(page);
+  // His fight: no AUTO in it either.
+  await page.getByTestId('gald-button').click();
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('battle-screen').isVisible().catch(() => false)) break;
+    await page.getByTestId('encounter-next').click();
+  }
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-auto')).toHaveCount(0);
+  await fightUntil(page, () => page.getByTestId('life-choice-screen').isVisible().catch(() => false), { maxTurns: 200 });
+  await expect(page.getByTestId('auto-notice')).toHaveCount(0);
+  // The four answers, then what the answer left behind — and with its last line, the notice.
+  await page.getByTestId('choice-SPARE').click();
+  await expect(page.getByTestId('choice-result')).toBeVisible();
+  for (let i = 0; i < 12 && (await page.getByTestId('choice-result-next').textContent()) !== '村へもどる'; i++) {
+    await expect(page.getByTestId('auto-notice')).toHaveCount(0);
+    await page.getByTestId('choice-result-next').click();
+  }
   await expect(page.getByTestId('auto-notice')).toHaveText('AUTO戦闘が使用可能になりました。');
-  await expect(page.getByTestId('auto-notice')).toHaveCount(0, { timeout: 6000 });
-  await page.reload();
-  await page.getByTestId('continue-button').click();
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('note:auto_battle')`)).toBe(true);
+  // Then the look ahead, with no notice of its own, and the village with none either.
+  await page.getByTestId('choice-result-next').click();
+  await expect(page.getByTestId('future-vision')).toBeVisible();
+  await expect(page.getByTestId('auto-notice')).toHaveCount(0);
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
   await page.waitForTimeout(500);
   await expect(page.getByTestId('auto-notice')).toHaveCount(0);
-
+  // From now on: AUTO in an ordinary fight, and it fights by itself.
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await settled(page);
@@ -203,6 +227,20 @@ test('P1: AUTO is not there before Gald; after him a short notice, once, and AUT
   await readyToAct(page);
   await page.getByTestId('bp-auto').click();
   await expect(page.getByTestId('result-exp')).toBeVisible({ timeout: 90_000 });
+});
+
+test('P1: AUTO is open without the look ahead — a world that closes the game before TIME SHIFT has it', async ({ page }) => {
+  await freshVillage(page);
+  // His answer recorded, the look ahead not yet seen (still owed).
+  await world(page, `(w) => w.recordGaldLifeChoice('HELP')`);
+  // A save from before this build that is past his answer: the notice, once, in the village.
+  await expect(page.getByTestId('auto-notice')).toHaveText('AUTO戦闘が使用可能になりました。');
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('forest-button').click();
+  await settled(page);
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-auto')).toBeVisible();
 });
 
 // ---------------- P1: the boss's great move ----------------

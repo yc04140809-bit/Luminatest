@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { LifeChoiceId } from '@mugen/core/flow/types';
 import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import {
@@ -29,18 +29,22 @@ function Scene({
   nextTestId,
   doneLabel,
   onDone,
+  atEnd,
 }: {
   lines: readonly DialogueLine[];
   testId: string;
   nextTestId: string;
   doneLabel: string;
   onDone: () => void;
+  /** Shown with the last line, and only then. */
+  atEnd?: ReactNode;
 }) {
   const [at, setAt] = useState(0);
   const last = at >= lines.length - 1;
   const line = lines[at];
   return (
     <>
+      {last && atEnd}
       <p className="line" data-testid={testId}>
         {line.speaker ? `${line.speaker}「${line.text}」` : line.text}
       </p>
@@ -151,9 +155,15 @@ export function LifeChoiceScreen({
 export function ChoiceResultScreen({
   choice,
   onHome,
+  atEnd,
 }: {
   choice: LifeChoiceId;
   onHome: () => void;
+  /**
+   * Shown with its last line — the end of Gald's part of the story, the
+   * moment AUTO is said to be open (「AUTO戦闘が使用可能になりました。」).
+   */
+  atEnd?: ReactNode;
 }) {
   return (
     <Place area="GREENWOOD" title="グリーンウッドの森">
@@ -164,6 +174,7 @@ export function ChoiceResultScreen({
           nextTestId="choice-result-next"
           doneLabel="村へもどる"
           onDone={onHome}
+          atEnd={atEnd}
         />
       </div>
     </Place>
