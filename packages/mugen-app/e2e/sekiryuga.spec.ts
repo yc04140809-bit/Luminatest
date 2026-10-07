@@ -472,3 +472,50 @@ for (const [w, h] of [
     for (const id of ['seal-line', 'boss-fight', 'boss-retreat', 'seal-boss-name']) await inside(id);
   });
 }
+
+for (const [w, h] of [
+  [915, 412],
+  [844, 390],
+  [800, 360],
+  [640, 360],
+  [640, 300],
+] as const) {
+  test(`${w}×${h}: in the fight セキリュウガ is drawn nearer and larger — its shape kept, clear of the panels and the row`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    // Its shape: the drawing's own box, 1113 × 1382.
+    const RATIO = 1113 / 1382;
+    const boxOf = (id: string) => page.getByTestId(id).boundingBox().then((b) => b!);
+    // The moss rabbit's fight, for what an unstaged creature at the same edge looks like.
+    await page.goto('/?preview=battle&debug=0');
+    await readyToAct(page);
+    const rabbit = await boxOf('bp-enemy-art');
+    await page.goto('/?preview=battle&debug=0&enemy=sekiryuga&answer=SKILL');
+    await readyToAct(page);
+    const boss = await boxOf('bp-enemy-art');
+    expect(Math.abs(boss.width / boss.height - RATIO) / RATIO).toBeLessThan(0.02);
+    // Further in from the edge than a creature's slot, and its feet further down the field.
+    expect(boss.x).toBeGreaterThan(rabbit.x - 1);
+    expect(boss.y + boss.height).toBeGreaterThan(rabbit.y + rabbit.height);
+    // Still a size the party's: no taller than the hero is drawn.
+    const hero = await boxOf('bp-hero-art');
+    expect(boss.height).toBeLessThanOrEqual(hero.height * 1.1);
+    // Its roar's warning, beside it and clear of the WORLD MEMORY panel.
+    for (let i = 0; i < 3; i++) await command(page, 'bp-attack');
+    await readyToAct(page);
+    const tell = await boxOf('bp-enemy-tell');
+    const panel = await page.locator('.bx-tl > *').first().boundingBox();
+    const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    expect(overlaps(tell, panel!)).toBe(false);
+    // Its head (the drawing's top right; its top left is empty air above the tail) clear of the panel too.
+    const head = { x: boss.x + boss.width * 0.7, y: boss.y, width: boss.width * 0.3, height: boss.height * 0.2 };
+    expect(overlaps(head, panel!)).toBe(false);
+    // Its plate stays clear of the command row and of the 「アルカナ 準備中」 line above it.
+    const plate = await boxOf('bp-enemy-hp');
+    const row = await boxOf('bp-commands');
+    expect(plate.y + plate.height).toBeLessThanOrEqual(row.y);
+    const locked = page.getByTestId('bp-arcana-locked');
+    if (await locked.isVisible()) expect(overlaps(plate, (await locked.boundingBox())!)).toBe(false);
+    expect(boss.x).toBeGreaterThanOrEqual(0);
+  });
+}

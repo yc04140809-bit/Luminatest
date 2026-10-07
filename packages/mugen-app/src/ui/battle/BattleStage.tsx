@@ -23,8 +23,8 @@ import { CageIcon, LeafIcon, SparkIcon, SwordIcon } from './BattleIcons';
 import { Meter, PartyHud, Readout, TurnOrder, WorldMemoryPanel } from './BattleHud';
 import { actingSideOf, displayName, memoryRows, turnOrderLine, type TurnActor } from './battleHud';
 import { sayOf } from './battleMessage';
-import { cameraStyle, type CameraPhase } from './battleCamera';
-import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS, depthScale } from './formation';
+import { SWING_ROLES, cameraOffset, cameraStyle, type CameraPhase } from './battleCamera';
+import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS, depthScale, placementStyle, type PrototypeSlot } from './formation';
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
 import { latestOn, motionSlot, type Blow } from './blows';
 import { HitFx } from './HitFx';
@@ -55,6 +55,7 @@ import { AwakeningScene } from './AwakeningScene';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
   AS_PERSON,
+  BATTLE_PRESENCE,
   BATTLE_UI_FRAMES,
   DOWN_POSE,
   battleEnemyArt,
@@ -94,6 +95,14 @@ export interface BattleOpponentView {
    * are the heavier sounds. Absent: Gald's fight is the boss fight.
    */
   boss?: boolean;
+  /**
+   * HOW IT IS SHOWN IN THIS FIGHT, AND ONLY HERE — never what it is.
+   * Drawn `scale` times its usual height (its shape kept: the height is
+   * the one number, the width follows the drawing), and stood `inset`
+   * further in from its edge and `bottom` further down the field (shares
+   * of the field), nearer the camera. Absent: exactly its slot.
+   */
+  presence?: { scale: number; inset: number; bottom: number };
   /** A creature stands up the path (FAR); a person at arm's length (NEAR). */
   stands: 'FAR' | 'NEAR';
   /** What is said over it once it is beaten, and by whom (a person only). */
@@ -183,6 +192,27 @@ export interface BattleStageProps {
   testId?: string;
 }
 
+/**
+ * `cameraStyle` (the Artifact's, kept a copy) with one fighter's own step
+ * off its slot added — a boss stood nearer (`presence`). No step: exactly
+ * `cameraStyle`.
+ */
+function steppedStyle(slot: PrototypeSlot, phase: CameraPhase, step: { inset: number; bottom: number }) {
+  if (step.inset === 0 && step.bottom === 0) return cameraStyle(slot, phase);
+  const base = PROTOTYPE_PLACEMENTS[slot];
+  const shift = cameraOffset(phase, SWING_ROLES[slot]);
+  return placementStyle({
+    ...base,
+    inset: base.inset + shift.inset + step.inset,
+    bottom: base.bottom + shift.bottom + step.bottom,
+  });
+}
+
+/** How far under its feet a plate hangs, as a share of the field. */
+const PLATE_HANG = 0.14;
+/** And the least room, in pixels, kept between it and the commands. */
+const PLATE_CLEAR = 4;
+
 export function BattleStage({
   battle,
   opponent,
@@ -244,6 +274,9 @@ export function BattleStage({
   const enemyState = enemyPose(view);
   const person = opponent.artId === 'gald';
   const boss = opponent.boss ?? opponent.artId === 'gald';
+  // Its own step off its slot in this fight (`presence`), if it has one.
+  const presence = opponent.presence ?? BATTLE_PRESENCE[opponent.artId];
+  const enemyStep = { inset: presence?.inset ?? 0, bottom: presence?.bottom ?? 0 };
   // It gathered last turn (a boss's roar): its next turn is the big one, and the field says so.
   const charging = !!battle.enemyCharging && battle.outcome === 'ONGOING';
   // The fight's noises, over the same beats and blows the stage draws.
@@ -277,7 +310,9 @@ export function BattleStage({
   const figure = (id: string, state: string | null, ground: number) =>
     Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE * depthScale(ground));
   const heights = {
-    enemy: figure(opponent.artId, enemyShown.state, PROTOTYPE_PLACEMENTS[enemySlot].bottom),
+    enemy: Math.round(
+      figure(opponent.artId, enemyShown.state, PROTOTYPE_PLACEMENTS[enemySlot].bottom) * (presence?.scale ?? 1),
+    ),
     hero: figure('hero', heroShown.state, PROTOTYPE_PLACEMENTS.hero.bottom),
     kaos: figure('kaos', kaosShown.state, PROTOTYPE_PLACEMENTS.kaos.bottom),
   };
@@ -315,7 +350,9 @@ export function BattleStage({
   const levels = stagecraftLevels(stagecraft);
 
   const pointOf = (on: Blow['on']) => {
-    const slot = on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : PROTOTYPE_PLACEMENTS[enemySlot];
+    const home = on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : PROTOTYPE_PLACEMENTS[enemySlot];
+    const step = on === 'enemy' ? enemyStep : { inset: 0, bottom: 0 };
+    const slot = { ...home, inset: home.inset + step.inset, bottom: home.bottom + step.bottom };
     return {
       x: slot.edge === 'left' ? slot.inset + 0.08 : 1 - slot.inset - 0.08,
       y: slot.bottom + 0.16,
@@ -408,7 +445,10 @@ export function BattleStage({
   // WHERE ITS HEALTH HANGS: under its feet, measured off the drawing.
   const enemyHome = PROTOTYPE_PLACEMENTS[enemySlot];
   const [enemyBox, setEnemyBox] = useState<{ mid: number; foot: number } | null>(null);
-  const plateAt = enemyBox ?? { mid: enemyHome.inset + 0.07, foot: enemyHome.bottom };
+  const plateAt = enemyBox ?? {
+    mid: enemyHome.inset + enemyStep.inset + 0.07,
+    foot: enemyHome.bottom + enemyStep.bottom,
+  };
   useEffect(() => {
     const stageEl = stageRef.current;
     if (!stageEl) return;
@@ -418,10 +458,18 @@ export function BattleStage({
       const s = stageEl.getBoundingClientRect();
       const a = actor.getBoundingClientRect();
       if (s.width <= 0 || s.height <= 0) return;
-      setEnemyBox({
-        mid: (a.left + a.width / 2 - s.left) / s.width,
-        foot: (s.bottom - a.bottom) / s.height,
-      });
+      let foot = (s.bottom - a.bottom) / s.height;
+      // A fighter stood nearer (`presence`) keeps its plate under its feet
+      // — unless that would put it into the commands (or the 「アルカナ
+      // 準備中」 line over them) on a short screen: then the plate rises
+      // just enough to clear them, over its feet. Nobody else is moved.
+      if (presence) {
+        const tops = ['bp-arcana-locked', 'bp-commands']
+          .map((id) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect().top)
+          .filter((top): top is number => top !== undefined && top > 0);
+        if (tops.length > 0) foot = Math.max(foot, PLATE_HANG + (s.bottom - Math.min(...tops) + PLATE_CLEAR) / s.height);
+      }
+      setEnemyBox({ mid: (a.left + a.width / 2 - s.left) / s.width, foot });
     };
     read();
     const observer = new ResizeObserver(read);
@@ -538,7 +586,7 @@ export function BattleStage({
             .join(' ')}
           data-blow={motionSlot(struckEnemy)}
           data-scene-enemy={sceneOn ? scene.enemy : undefined}
-          style={cameraStyle(enemySlot, camera)}
+          style={steppedStyle(enemySlot, camera, enemyStep)}
           data-testid={showingDown ? 'bp-enemy-downed' : 'bp-enemy-normal'}
         >
           <span className="bp-shadow" aria-hidden="true" />
@@ -644,7 +692,7 @@ export function BattleStage({
           data-testid="bp-enemy-hp"
           style={{
             left: `${plateAt.mid * 100}%`,
-            bottom: `${Math.max(0, plateAt.foot * 100 - 14)}%`,
+            bottom: `${Math.max(0, (plateAt.foot - PLATE_HANG) * 100)}%`,
           }}
         >
           <span className="bx-enemy-head">

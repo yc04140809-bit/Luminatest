@@ -145,6 +145,22 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
   },
 };
 
+/**
+ * HOW AN OPPONENT IS SHOWN IN A FIGHT, beyond its slot — the App's battle
+ * screen only (BattleStage `presence`). Not what it IS: its size in the
+ * world (spriteFrames, FORGE) is unchanged; this is staging.
+ *
+ * セキリュウガ (2026-10-07, author's adjustment): smallish by canon, and
+ * read as standing too far back for a boss. In the fight only, drawn
+ * 1.2× (shape kept) and a step nearer: a twentieth of the field further
+ * in from the edge, and its feet a twentieth further down the field
+ * (its plate still under its feet, lifted only where a short screen
+ * would put it into the commands — BattleStage).
+ */
+export const BATTLE_PRESENCE: Partial<Record<string, { scale: number; inset: number; bottom: number }>> = {
+  sekiryuga: { scale: 1.2, inset: 0.05, bottom: -0.05 },
+};
+
 export type BattlePartyId = keyof typeof PARTY;
 
 /** A party member (or a person fought as one) in a state. */
