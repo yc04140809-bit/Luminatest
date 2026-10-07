@@ -83,6 +83,20 @@ async function hearTheShopRumor(page: Page) {
   await page.getByTestId('back-to-village').click();
 }
 
+/**
+ * Taps every NEW row until none is left. A tap's read mark is written a
+ * moment later, so the row counted may already be read by the time it is
+ * clicked: each click is short and allowed to miss, and the count is
+ * asked again after it.
+ */
+async function tapAllNew(page: Page, rows: ReturnType<Page['locator']>) {
+  for (let i = 0; i < 40 && (await rows.count()) > 0; i++) {
+    await rows.first().click({ timeout: 1500 }).catch(() => {});
+    await page.waitForTimeout(100);
+  }
+  await expect(rows).toHaveCount(0);
+}
+
 test.describe.configure({ timeout: 180_000 });
 
 // ---------------- P0 ----------------
@@ -326,7 +340,7 @@ test('P2: 噂話 — NEW stays through opening the menu, and goes as each rumour
   await expect(page.getByTestId('rumor-SHOPKEEPER_FISH')).toHaveAttribute('data-new', 'yes');
   // Read them all: the village's NEW goes.
   const rows = page.locator('[data-testid^="rumor-"][data-new="yes"]');
-  for (let i = 0; i < 30 && (await rows.count()) > 0; i++) await rows.first().click();
+  await tapAllNew(page, rows);
   await page.getByTestId('rumor-leave').click();
   await expect(page.getByTestId('rumor-new')).toHaveCount(0);
   // After Gald, new ones arrive — and the NEW with them.
@@ -346,7 +360,7 @@ test('P2: WORLD MEMORY — NEW on the menu and each entry until the entry itself
   await expect(page.getByTestId('memory-new')).toBeVisible();
   await page.getByTestId('memory-button').click();
   const rows = page.locator('li[data-new="yes"]');
-  for (let i = 0; i < 20 && (await rows.count()) > 0; i++) await rows.first().click();
+  await tapAllNew(page, rows);
   await page.getByTestId('memory-back').click();
   await expect(page.getByTestId('memory-new')).toHaveCount(0);
 });
