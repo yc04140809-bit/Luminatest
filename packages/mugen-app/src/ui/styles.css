@@ -236,17 +236,20 @@ body {
   pointer-events: none;
   user-select: none;
 }
-/* In front of her, and not in the way of touching her. */
+/* In front of her, and not in the way of touching her. Drawn from the
+   counter's file by border-image: the top (rows 0–665) and the foot
+   (880–941) at their own scale, the band between taller. */
 .shop-counter-art {
   position: absolute;
   z-index: 2;
-  object-fit: contain;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: transparent;
+  border-image-repeat: stretch;
   pointer-events: none;
   user-select: none;
 }
-/* A tap: the smallest lift, and back. */
-.shop-keeper-img.pop { animation: shop-keeper-pop 0.24s ease-out; transform-origin: 50% 100%; }
-@keyframes shop-keeper-pop { 0% { transform: scale(1); } 45% { transform: scale(1.015); } 100% { transform: scale(1); } }
+.shop-keeper-img { transform-origin: 50% 100%; }
 .shop-side {
   position: relative;
   z-index: 3;
@@ -262,9 +265,6 @@ body {
   background: linear-gradient(90deg, rgba(11, 11, 18, 0.55), rgba(11, 11, 18, 0.86) 18%);
 }
 .shop-touch-line { color: #f3e6c8; }
-@media (prefers-reduced-motion: reduce) {
-  .shop-keeper-img.pop { animation: none; }
-}
 .say { margin: 10px 0 0; font-size: 13px; color: var(--gold); }
 .status { margin: 6px 0; width: 100%; }
 .status-row { margin: 2px 0; font-size: 12px; color: var(--dim); line-height: 1.7; }

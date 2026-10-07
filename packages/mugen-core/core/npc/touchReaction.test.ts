@@ -82,7 +82,7 @@ describe('the draw', () => {
     const tired = draw(9, BEFORE);
     expect(tired.out.NORMAL).toBe(0);
     for (const face of tired.faces) {
-      expect(['EXASPERATED', 'EMBARRASSED', 'ANGRY', 'HAPPY', 'NORMAL'], face).toContain(face);
+      expect(['EXASPERATED', 'EMBARRASSED', 'ANGRY', 'JITO', 'SMILE_EYES_CLOSED', 'SHY', 'NORMAL', 'SAD'], face).toContain(face);
     }
     expect(tired.faces.has('ANGRY')).toBe(true);
     // The rare line a little likelier when tired.
@@ -100,8 +100,22 @@ describe('the draw', () => {
     }
   });
 
-  it('every face a line comes with is one of hers, and every line is hers', () => {
-    const { faces } = draw(5, AFTER, 6000);
-    for (const f of faces) expect(BASIC_EXPRESSIONS).toContain(f);
+  it('every face a line comes with is one she has a picture for', () => {
+    const drawn = [...BASIC_EXPRESSIONS, 'SMILE_EYES_CLOSED', 'JITO', 'SHY'];
+    for (const tap of [1, 5, 9]) for (const f of draw(tap, AFTER, 6000).faces) expect(drawn).toContain(f);
+  });
+
+  it('a line may be said with a face of its own: 「……また忘れ物？」 is ジト目, the rare ones their own faces', () => {
+    const rng = seeded(3);
+    let seen = false;
+    for (let i = 0; i < 4000 && !seen; i++) {
+      const r = pickTouchReaction(SHOP_MIREI, 9, AFTER, null, rng);
+      if (r.text === '……また忘れ物？') {
+        expect(r.expression).toBe('JITO');
+        seen = true;
+      }
+    }
+    expect(seen).toBe(true);
+    expect(SHOP_MIREI.premium.find((p) => p.text === '……あなたが来る気がしてた')!.expression).toBe('SMILE_EYES_CLOSED');
   });
 });

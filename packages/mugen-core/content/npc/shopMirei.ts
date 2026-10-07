@@ -5,9 +5,9 @@
 // her teacher, the whip, a day she might fight beside them — is the spec's
 // memo for later and is NOT decided here: nothing in this file says it.
 //
-// Pictures: shop_mirei_<face>.png (mugen-assets/files/characters/shop-mirei).
-// Only the ordinary face has been delivered; a face not yet drawn shows
-// the ordinary one, and the line still changes.
+// Pictures: shop_mirei_<face>.png (mugen-assets/files/characters/shop-mirei),
+// all ten delivered 2026-10-07: the basic seven, and 目を閉じて笑う, ジト目 and
+// 照れ笑い, which the rare lines and one 呆れ line are said with.
 
 import type { NpcTouchDef } from '../../core/npc/touchReaction';
 
@@ -38,12 +38,12 @@ export const SHOP_MIREI: NpcTouchDef = {
     { text: '帰ってくるまでが旅よ', expression: 'SAD', when: { kind: 'ARC_AT_LEAST', stage: RUINS_OPEN } },
   ],
   premium: [
-    { text: '……あなたが来る気がしてた', expression: 'HAPPY' },
-    { text: '他のお客には、ここまで話さないんだけど', expression: 'EMBARRASSED' },
+    { text: '……あなたが来る気がしてた', expression: 'SMILE_EYES_CLOSED' },
+    { text: '他のお客には、ここまで話さないんだけど', expression: 'SHY' },
     { text: '戦う時が来たら……私も後ろにいるわ', expression: 'NORMAL' },
-    { text: '師匠に似てるのよ。放っておけないところが', expression: 'HAPPY' },
-    { text: 'ガルドのこと、気になってるんでしょう？', expression: 'NORMAL', when: { kind: 'GALD_DECIDED' } },
-    { text: '道具屋に見える？……それだけなら、安心ね', expression: 'HAPPY' },
+    { text: '師匠に似てるのよ。放っておけないところが', expression: 'SMILE_EYES_CLOSED' },
+    { text: 'ガルドのこと、気になってるんでしょう？', expression: 'JITO', when: { kind: 'GALD_DECIDED' } },
+    { text: '道具屋に見える？……それだけなら、安心ね', expression: 'SHY' },
   ],
   // The spec's first weights: 70 / 20 / 7 / 3.
   weights: { NORMAL: 70, EMOTION: 20, CONDITIONAL: 7, PREMIUM: 3 },
@@ -54,6 +54,8 @@ export const SHOP_MIREI: NpcTouchDef = {
     warm: ['HAPPY', 'AMAZED', 'EMBARRASSED', 'EXASPERATED'],
     tired: ['EXASPERATED', 'EMBARRASSED', 'ANGRY'],
   },
+  // 呆れ, but the first of them with a look rather than a sigh.
+  lineFaces: { '……また忘れ物？': 'JITO' },
 };
 
 /** How long a line is shown, and a face held, after a tap; and the pause between taps. */

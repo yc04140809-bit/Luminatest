@@ -7,7 +7,7 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
-import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
+import { COUNTER, mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
 
 /**
  * THE DOOR AT ALDEN.
@@ -71,11 +71,22 @@ export function ItemShopScreen({
   const [failed, setFailed] = useState<{ room?: boolean; counter?: boolean }>({});
   useEffect(() => {
     let gone = false;
-    void shopArt().then((a) => !gone && setArt(a));
+    void shopArt().then((a) => {
+      if (gone) return;
+      setArt(a);
+      // Her other faces fetched now, so a tap never waits on one; and the counter, to know it loads.
+      for (const src of Object.values(a.mirei)) new Image().src = src;
+      if (a.counter) {
+        const probe = new Image();
+        probe.onerror = () => setFailed((f) => ({ ...f, counter: true }));
+        probe.src = a.counter;
+      }
+    });
     return () => {
       gone = true;
     };
   }, []);
+  const faceImg = useRef<HTMLImageElement>(null);
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   useEffect(() => {
@@ -107,6 +118,13 @@ export function ItemShopScreen({
     lastLine.current = said.text;
     setFace(said.expression);
     setTouch({ ...said, n: taps.current });
+    // The smallest lift, and back (none when less motion is asked for).
+    if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      faceImg.current?.animate?.(
+        [{ transform: 'scale(1)' }, { transform: 'scale(1.015)', offset: 0.45 }, { transform: 'scale(1)' }],
+        { duration: 240, easing: 'ease-out' },
+      );
+    }
   };
   // A face held a moment, the line a little longer, then back to the ordinary.
   useEffect(() => {
@@ -182,8 +200,8 @@ export function ItemShopScreen({
         >
           {drawn.src && (
             <img
-              key={touch?.n ?? 0}
-              className={touch ? 'shop-keeper-img pop' : 'shop-keeper-img'}
+              ref={faceImg}
+              className="shop-keeper-img"
               src={drawn.src}
               alt={SHOP_MIREI.name}
               data-testid="shop-keeper-image"
@@ -191,15 +209,19 @@ export function ItemShopScreen({
             />
           )}
         </button>
+        {/* The counter, drawn from its file with one lower band taller (assets/shop.ts COUNTER). */}
         {art.counter && !failed.counter && (
-          <img
+          <div
             className="shop-counter-art"
-            style={px(stage.counter)}
-            src={art.counter}
-            alt=""
-            aria-hidden="true"
             data-testid="shop-counter-art"
-            onError={() => setFailed((f) => ({ ...f, counter: true }))}
+            data-stretch={COUNTER.stretch}
+            aria-hidden="true"
+            style={{
+              ...px(stage.counter),
+              borderWidth: `${COUNTER.bandFrom * stage.scale}px 0 ${(COUNTER.height - COUNTER.bandTo) * stage.scale}px 0`,
+              borderImageSource: `url(${art.counter})`,
+              borderImageSlice: `${COUNTER.bandFrom} 0 ${COUNTER.height - COUNTER.bandTo} 0 fill`,
+            }}
           />
         )}
       </div>

@@ -19,7 +19,10 @@
 // Room left, not built: visit counts, time of day, years passed and other
 // people's lines are more `TouchCondition` kinds — the draw does not change.
 
-/** The faces a person can make. The first seven are the basic set. */
+/**
+ * The faces a person can make. The first seven are the basic set; the
+ * rest are the spec's extra faces (目を閉じて笑う, ジト目) and 照れ笑い.
+ */
 export type NpcExpression =
   | 'NORMAL'
   | 'HAPPY'
@@ -27,7 +30,10 @@ export type NpcExpression =
   | 'SAD'
   | 'ANGRY'
   | 'EMBARRASSED'
-  | 'EXASPERATED';
+  | 'EXASPERATED'
+  | 'SMILE_EYES_CLOSED'
+  | 'JITO'
+  | 'SHY';
 
 export const BASIC_EXPRESSIONS: readonly NpcExpression[] = [
   'NORMAL',
@@ -73,6 +79,11 @@ export interface NpcTouchDef {
   chain: { warm: number; tired: number };
   /** Which faces the EMOTION draw picks from, by mood. */
   moods: { calm: readonly NpcExpression[]; warm: readonly NpcExpression[]; tired: readonly NpcExpression[] };
+  /**
+   * A line said with a face other than its group's (e.g. 「……また忘れ物？」
+   * is 呆れ, said with ジト目). By the line's text.
+   */
+  lineFaces?: Readonly<Record<string, NpcExpression>>;
 }
 
 /** What the draw reads of the world. */
@@ -159,5 +170,6 @@ export function pickTouchReaction(
   }
   const fresh = pool.filter((l) => l.text !== last);
   const line = pickOne(fresh.length > 0 ? fresh : pool, rng);
-  return { kind, expression: line?.expression ?? def.baseExpression, text: line?.text ?? '' };
+  const text = line?.text ?? '';
+  return { kind, expression: def.lineFaces?.[text] ?? line?.expression ?? def.baseExpression, text };
 }

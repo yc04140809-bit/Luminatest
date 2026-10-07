@@ -8,7 +8,11 @@ import { throughTheOpening } from './opening';
  * shift her mood; nothing about touching her is saved.
  */
 
-const FACES = ['NORMAL', 'HAPPY', 'AMAZED', 'SAD', 'ANGRY', 'EMBARRASSED', 'EXASPERATED'];
+const FACES = ['NORMAL', 'HAPPY', 'AMAZED', 'SAD', 'ANGRY', 'EMBARRASSED', 'EXASPERATED', 'SMILE_EYES_CLOSED', 'JITO', 'SHY'];
+/** The counter's file is drawn with rows 665–880 of 941 taller (×1.9): its drawn height per width. */
+const COUNTER_ROWS = 941 + (880 - 665) * 0.9;
+/** Its top, rows from its own top. */
+const COUNTER_TOP = 275;
 const GREETING = 'ミレイ「いらっしゃい。今日は何を探してるの？」';
 
 async function intoTheShop(page: Page) {
@@ -64,9 +68,24 @@ test('the shop in three layers — the room, ミレイ, the counter in front —
   page,
 }) => {
   await intoTheShop(page);
-  for (const id of ['shop-room', 'shop-counter-art']) {
-    await expect.poll(() => page.getByTestId(id).evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
-  }
+  await expect.poll(() => page.getByTestId('shop-room').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
+  // The counter is drawn from its file (unchanged) — load that file and look at it as delivered.
+  const counterSrc = await page
+    .getByTestId('shop-counter-art')
+    .evaluate((d) => getComputedStyle(d).borderImageSource.replace(/^url\("?|"?\)$/g, ''));
+  await page.evaluate(
+    (src) =>
+      new Promise<void>((resolve) => {
+        const i = new Image();
+        i.dataset.testid = 'counter-file';
+        i.setAttribute('data-testid', 'counter-file');
+        i.style.display = 'none';
+        i.onload = () => resolve();
+        i.src = src;
+        document.body.appendChild(i);
+      }),
+    counterSrc,
+  );
   const pictures = await page.evaluate(() => {
     const read = (id: string) => {
       const i = document.querySelector(`[data-testid="${id}"]`) as HTMLImageElement;
@@ -85,7 +104,12 @@ test('the shop in three layers — the room, ミレイ, the counter in front —
         z: Number(getComputedStyle(i.closest('button') ?? i).zIndex),
       };
     };
-    return { room: read('shop-room'), her: read('shop-keeper-image'), counter: read('shop-counter-art') };
+    const z = (id: string) => Number(getComputedStyle(document.querySelector(`[data-testid="${id}"]`)!).zIndex);
+    return {
+      room: read('shop-room'),
+      her: read('shop-keeper-image'),
+      counter: { ...read('counter-file'), z: z('shop-counter-art') },
+    };
   });
   expect(pictures.room.natural).toEqual([1672, 941]);
   expect(pictures.room.fit).toBe('cover');
@@ -119,8 +143,11 @@ test('a tap: one of her lines and a face, held a moment, then back to her ordina
   const face = (await line.getAttribute('data-expression'))!;
   expect(FACES).toContain(face);
   await expect(her(page)).toHaveAttribute('data-expression', face);
-  // Only her ordinary face is drawn so far: any face shows it.
-  await expect(page.getByTestId('shop-keeper-image')).toHaveAttribute('data-face', 'NORMAL');
+  // Every face has its own picture now: the one drawn is the one she makes.
+  await expect(page.getByTestId('shop-keeper-image')).toHaveAttribute('data-face', face);
+  await expect
+    .poll(() => page.getByTestId('shop-keeper-image').evaluate((i: HTMLImageElement) => decodeURIComponent(i.src)))
+    .toContain(`shop_mirei_${face.toLowerCase()}`);
   // Back: the face first, then the line.
   await expect(her(page)).toHaveAttribute('data-expression', 'NORMAL', { timeout: 4000 });
   await expect(line).toHaveCount(0, { timeout: 4000 });
@@ -150,14 +177,14 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: the counter on the bottom edge, her hand on it, her head on screen, and the shop beside her all reachable`, async ({ page }) => {
+  test(`${w}×${h}: the counter on the bottom edge, its top at her waist, her head on screen, and the shop beside her all reachable`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await intoTheShop(page);
     const box = async (id: string) => (await page.getByTestId(id).boundingBox())!;
     const c = await box('shop-counter-art');
     const m = await box('shop-keeper-image');
-    // Each at its own shape.
-    expect(c.width / c.height).toBeCloseTo(1672 / 941, 2);
+    // Her at her own shape; the counter at its own width, taller by its one band.
+    expect(c.width / c.height).toBeCloseTo(1672 / COUNTER_ROWS, 2);
     expect(m.width / m.height).toBeCloseTo(1086 / 1448, 2);
     // The counter on the bottom edge, at the left; she is whole above it, head on screen.
     expect(Math.abs(c.y + c.height - h)).toBeLessThanOrEqual(2);
@@ -166,8 +193,8 @@ for (const [w, h] of [
     expect(m.y).toBeGreaterThanOrEqual(0);
     expect(m.x).toBeGreaterThanOrEqual(c.x);
     expect(m.x + m.width).toBeLessThanOrEqual(c.x + c.width);
-    // Her resting hand (1215/1448 down her picture) on the counter's top (275/941 down its).
-    expect(Math.abs(m.y + m.height * (1215 / 1448) - (c.y + c.height * (275 / 941)))).toBeLessThanOrEqual(2);
+    // The counter's top at her waist (腰上: 58% down her picture).
+    expect(Math.abs(m.y + m.height * 0.58 - (c.y + c.height * (COUNTER_TOP / COUNTER_ROWS)))).toBeLessThanOrEqual(2);
     expect(m.height).toBeGreaterThan(h * 0.6);
     const b = c;
     for (const id of ['shop-tab-buy', 'shop-tab-sell', 'shop-leave', 'shop-greeting']) {

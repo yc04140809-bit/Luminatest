@@ -37,13 +37,31 @@ async function load(file: () => Promise<{ default: string }>, what: string): Pro
   }
 }
 
+/** Her faces, each its own file (and its own chunk). */
+const FACES: readonly [NpcExpression, () => Promise<{ default: string }>][] = [
+  ['NORMAL', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_normal.png')],
+  ['HAPPY', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_happy.png')],
+  ['AMAZED', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_amazed.png')],
+  ['SAD', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_sad.png')],
+  ['ANGRY', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_angry.png')],
+  ['EMBARRASSED', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_embarrassed.png')],
+  ['EXASPERATED', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_exasperated.png')],
+  ['SMILE_EYES_CLOSED', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_smile_eyes_closed.png')],
+  ['JITO', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_jito.png')],
+  ['SHY', () => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_shy.png')],
+];
+
 /** All the shop's pictures. Cached, so walking in twice fetches once. */
 export function shopArt(): Promise<ShopArt> {
   held ??= Promise.all([
     load(() => import('@mugen/assets/files/backgrounds/location-alden-shop-interior.png'), 'room'),
     load(() => import('@mugen/assets/files/backgrounds/location-alden-shop-counter.png'), 'counter'),
-    load(() => import('@mugen/assets/files/characters/shop-mirei/shop_mirei_normal.png'), 'ミレイ (NORMAL)'),
-  ]).then(([room, counter, normal]) => ({ room, counter, mirei: normal ? { NORMAL: normal } : {} }));
+    Promise.all(FACES.map(async ([face, file]) => [face, await load(file, `ミレイ (${face})`)] as const)),
+  ]).then(([room, counter, faces]) => {
+    const mirei: MireiArt = {};
+    for (const [face, src] of faces) if (src) mirei[face] = src;
+    return { room, counter, mirei };
+  });
   return held;
 }
 
@@ -54,38 +72,48 @@ export function mireiFace(art: MireiArt, face: NpcExpression): { src: string | n
 }
 
 /**
- * WHERE THE COUNTER AND SHE STAND, measured off the delivered files:
- * the counter's top surface is 275/941 down its picture, and the bottom
- * of her resting hand 1215/1448 down hers — so her hand is set on the
- * counter, and everything of her below it is behind it.
+ * THE COUNTER, TALLER (author's instruction, 2026-10-07: 「カウンターは高さが
+ * 低すぎるから引き伸ばして違和感無いように（腰上ぐらいの高さまで）」).
+ *
+ * The file is not changed. On screen, one band of it is drawn taller — rows
+ * 665–880 of 941: the banner's fringe and tassels, the lower panels and the
+ * plinth, which read as a longer cloth and a taller base. The top, everything
+ * standing on it, the wolf crest and the panel ornaments keep their shape.
  */
-export const COUNTER_SURFACE = 275 / 941;
-export const COUNTER_ASPECT = 1672 / 941;
-export const MIREI_HAND = 1215 / 1448;
+export const COUNTER = { width: 1672, height: 941, surface: 275, bandFrom: 665, bandTo: 880, stretch: 1.9 } as const;
 export const MIREI_ASPECT = 1086 / 1448;
+/** Where the counter's top meets her: about the top of her hips (腰上), as a share of her height from the top. */
+export const MIREI_WAIST = 0.58;
 /** The counter is this much wider than she is. */
 export const COUNTER_OVER_MIREI = 1.35;
 /** Her left edge, as a share of the counter's width from its left. */
-export const MIREI_LEFT = 0.12;
+export const MIREI_LEFT = 0.13;
+
+/** The counter's drawn height and its top, per pixel of its width. */
+const band = COUNTER.bandTo - COUNTER.bandFrom;
+const drawnRows = COUNTER.height + band * (COUNTER.stretch - 1);
+const surfaceRows = drawnRows - COUNTER.surface;
 
 /**
  * The stage in pixels, for a screen of this size: the counter on the
- * bottom edge at the left, her behind it with her hand on it, and her head
- * a little below the top — never wider than `maxShare` of the screen.
+ * bottom edge at the left, her behind it with its top at her waist, and
+ * her head a little below the top — never wider than `maxShare` of it.
  */
 export function shopStage(w: number, h: number, maxShare = 0.46) {
-  // Her height, from the screen's height: counter-top + her above the hand fits the screen.
-  const counterOverHeight = COUNTER_OVER_MIREI * MIREI_ASPECT / COUNTER_ASPECT; // counter height per her height
-  const fromHeight = (h * 0.98) / ((1 - COUNTER_SURFACE) * counterOverHeight + MIREI_HAND);
-  const fromWidth = (w * maxShare) / (COUNTER_OVER_MIREI * MIREI_ASPECT);
+  const widthPerHeight = COUNTER_OVER_MIREI * MIREI_ASPECT; // counter width per her height
+  const surfacePerHeight = (surfaceRows / COUNTER.width) * widthPerHeight;
+  const fromHeight = (h * 0.98) / (surfacePerHeight + MIREI_WAIST);
+  const fromWidth = (w * maxShare) / widthPerHeight;
   const mireiH = Math.min(fromHeight, fromWidth);
   const mireiW = mireiH * MIREI_ASPECT;
-  const counterW = mireiW * COUNTER_OVER_MIREI;
-  const counterH = counterW / COUNTER_ASPECT;
-  const surface = counterH * (1 - COUNTER_SURFACE);
+  const counterW = mireiH * widthPerHeight;
+  const scale = counterW / COUNTER.width;
+  const surface = surfaceRows * scale;
   return {
     width: counterW,
-    counter: { left: 0, bottom: 0, width: counterW, height: counterH },
-    mirei: { left: counterW * MIREI_LEFT, bottom: surface - mireiH * (1 - MIREI_HAND), width: mireiW, height: mireiH },
+    /** Pixels per row of the counter's file (top and bottom slices). */
+    scale,
+    counter: { left: 0, bottom: 0, width: counterW, height: drawnRows * scale },
+    mirei: { left: counterW * MIREI_LEFT, bottom: surface - (1 - MIREI_WAIST) * mireiH, width: mireiW, height: mireiH },
   };
 }
