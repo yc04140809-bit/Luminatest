@@ -65,6 +65,36 @@ export interface ItemDef {
    * bag where everything is a button is a bag with no decisions in it.
    */
   use?: ItemUse;
+  /**
+   * HOW RARE IT IS (2026-10-07). Absent reads as COMMON. Says how a find
+   * of it is shown — a rare one a little apart — and nothing about price.
+   */
+  rarity?: ItemRarity;
+  /**
+   * WHERE IT COMES FROM, as kinds of place (shop, a forest floor, ruins…).
+   * Information for screens and later rounds; nothing hands an item out
+   * because of this list — the shop's board and a place's pickups do that.
+   */
+  sources?: readonly ItemSourceKind[];
+  /**
+   * Free labels for later rounds (a recipe, a gift, a quest), e.g. 'FOOD',
+   * 'LORE'. Nothing reads them yet.
+   */
+  tags?: readonly string[];
+}
+
+/**
+ * How rare a thing is. COMMON is the default; RARE is shown a little
+ * apart when found (never a gacha flash).
+ */
+export type ItemRarity = 'COMMON' | 'UNCOMMON' | 'RARE';
+
+/** Where things come from. Room for more (an enemy, a chest, a person). */
+export type ItemSourceKind = 'SHOP' | 'FOREST' | 'RUINS' | 'BATTLE';
+
+/** Its rarity, absent read as COMMON. */
+export function rarityOf(def: ItemDef): ItemRarity {
+  return def.rarity ?? 'COMMON';
 }
 
 /**

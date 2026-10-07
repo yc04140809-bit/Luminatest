@@ -198,6 +198,53 @@ export interface WalkRoam {
   rareDiscoveries?: readonly WalkDiscovery[];
   /** The place's once-in-a-world find. */
   rainbow?: WalkRainbowFind;
+  /**
+   * THINGS TO PICK UP (2026-10-07): a few fixed places on the floor with
+   * something in them — a herb in the grass, a coin in a broken pot. Each
+   * is taken once in a world (`explorationPickups`) and never comes back.
+   */
+  pickups?: readonly WalkPickup[];
+}
+
+/**
+ * ONE PLACE TO PICK SOMETHING UP. Its id is for ever (it is what the save
+ * remembers); what is in it is rolled once, when it is taken.
+ *
+ * Room left for later, not built: something that grows back after some
+ * days, or that somebody else gathers first, is a field here plus a
+ * reader of the taken list — the list itself stays as it is.
+ */
+export interface WalkPickup {
+  /** For ever: `forest_pickup_001`, `ruins_pickup_001`… */
+  id: string;
+  /** What it is called on the 「調べる」 control: 草むら, 壊れた壺… */
+  label: string;
+  /** Where it is, on the floor, in painting fractions. */
+  at: PaintingPoint;
+  /** What looking into it says, before what was got. */
+  line: string;
+  /** What may be in it — one row is a fixed find; more are weighed. */
+  items: readonly PickupRoll[];
+}
+
+/** One thing a pickup may hold, and how likely, against its other rows. */
+export interface PickupRoll {
+  itemId: string;
+  quantity: number;
+  /** Relative weight. Absent is 1. */
+  weight?: number;
+}
+
+/** What a pickup holds this time: one of its rows, by weight. */
+export function rollPickup(pickup: WalkPickup, rng: () => number = Math.random): PickupRoll {
+  const rows = pickup.items;
+  const total = rows.reduce((sum, r) => sum + Math.max(0, r.weight ?? 1), 0);
+  let left = Math.min(0.999999, Math.max(0, rng())) * total;
+  for (const row of rows) {
+    left -= Math.max(0, row.weight ?? 1);
+    if (left < 0) return row;
+  }
+  return rows[rows.length - 1];
 }
 
 /** What a condition is asked against: what the player knows, and when it is. */

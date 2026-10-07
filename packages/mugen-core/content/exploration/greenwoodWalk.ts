@@ -113,6 +113,39 @@ export const GREENWOOD_WALK: WalkSceneDef = {
     start: { x: 0.84, y: 0.66 },
     // Never low on the floor: the forest's two doors sit along the
     // bottom of the screen, and a find under them could not be reached.
+    // THINGS TO PICK UP — three, so a walk now and then turns up something
+    // to carry home, never a floor of glints. Out of sight of where the
+    // party walks in (further in, to the left), and clear of the forest's
+    // own things and of the spots where small finds turn up.
+    pickups: [
+      {
+        id: 'forest_pickup_001',
+        label: '草むら',
+        at: { x: 0.25, y: 0.595 },
+        line: '草むらをかき分けると、香りの強い草が生えていた。',
+        items: [
+          { itemId: 'FOREST_HERB', quantity: 1, weight: 65 },
+          { itemId: 'MANA_HERB', quantity: 1, weight: 35 },
+        ],
+      },
+      {
+        id: 'forest_pickup_002',
+        label: '木の根元',
+        at: { x: 0.16, y: 0.71 },
+        line: '木の根元に、固い木の実がいくつも落ちていた。',
+        items: [{ itemId: 'FOREST_NUT', quantity: 2 }],
+      },
+      {
+        id: 'forest_pickup_003',
+        label: '岩陰',
+        at: { x: 0.41, y: 0.71 },
+        line: '岩の陰に、何か光るものが挟まっていた。',
+        items: [
+          { itemId: 'IRON_ORE', quantity: 1, weight: 85 },
+          { itemId: 'MANA_SHARD', quantity: 1, weight: 15 },
+        ],
+      },
+    ],
     spots: [
       { x: 0.08, y: 0.68 },
       { x: 0.24, y: 0.72 },

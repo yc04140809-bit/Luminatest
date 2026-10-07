@@ -11,6 +11,7 @@ import {
 } from '@mugen/content/story/sekiryugaArc';
 import { SEKIRYUGA_NAME } from '@mugen/content/enemies/sekiryugaBattle';
 import { RoamScene, type RoamKeeper, type RoamMemory } from './explore/RoamScene';
+import { pickupKeeper } from './explore/pickupKeeper';
 import { walkPainting } from '../assets/walk';
 import { battleEnemyArt } from './battle/battleArt';
 import { playSfx } from '../platform/audio';
@@ -74,6 +75,8 @@ export function RuinsWalkScreen({
   const view = useMemo(() => ({ known: new Set(known), day }), [known.join(','), day]);
   // Read once for the visit: the walk owns the counts from here on.
   const keeper = useMemo(() => ruinsKeeper(world), []);
+  // Its pickups, read as the walk opens (taken ones stay taken).
+  const pickups = useMemo(() => pickupKeeper(world), []);
   const deepNew = !!deep && !world.isRead(SEAL_DESTINATION);
   return (
     <RoamScene
@@ -85,6 +88,7 @@ export function RuinsWalkScreen({
       leaveLabel="地方図へもどる"
       leaveTestId="leave-ruins"
       keeper={keeper}
+      pickupKeeper={pickups}
       memory={memory}
       resume={resume}
       events={

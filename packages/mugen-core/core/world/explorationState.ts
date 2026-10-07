@@ -60,3 +60,36 @@ export function readVisits(raw: unknown): { value: VisitTable; health: 'ok' | 'r
   }
   return { value: out, health: changed ? 'repaired' : 'ok' };
 }
+
+/**
+ * THE PICKUPS TAKEN (2026-10-07): the ids of a place's fixed things to
+ * pick up (content/exploration `pickups`) that have been taken in this
+ * world. A third row, the same rules: absent is nothing taken, repaired
+ * when read, never WORLD MEMORY. One taken is gone for good — a later
+ * round that lets something grow back reads this list, it does not
+ * change its shape.
+ */
+export type PickupsTaken = readonly string[];
+
+/** A list no save could honestly reach; anything past it is damage. */
+const PICKUPS_CAP = 10_000;
+
+/** The pickups taken, out of a save, repaired. Never fails. */
+export function readPickupsTaken(raw: unknown): { value: string[]; health: 'ok' | 'repaired' } {
+  if (raw === undefined) return { value: [], health: 'ok' };
+  if (!Array.isArray(raw)) return { value: [], health: 'repaired' };
+  const out: string[] = [];
+  let changed = false;
+  for (const id of raw) {
+    if (typeof id !== 'string' || id === '' || out.includes(id)) {
+      changed = true;
+      continue;
+    }
+    out.push(id);
+  }
+  if (out.length > PICKUPS_CAP) {
+    out.length = PICKUPS_CAP;
+    changed = true;
+  }
+  return { value: out, health: changed ? 'repaired' : 'ok' };
+}

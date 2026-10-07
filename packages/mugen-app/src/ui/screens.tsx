@@ -4,7 +4,7 @@ import { expToNextLevel } from '@mugen/core/progression/levelCurve';
 import { areaArt, type AreaId } from '../assets/areas';
 import { titleKeyVisual } from '../assets/sceneArt';
 import { usePicture } from './scene';
-import { RoamScene, type RoamMemory } from './explore/RoamScene';
+import { RoamScene, type PickupKeeper, type RoamMemory } from './explore/RoamScene';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 import { WALK_PLACES } from '@mugen/content/exploration/walkPlaces';
 import { NewBadge } from './common/NewBadge';
@@ -329,6 +329,7 @@ export function GreenwoodScreen({
   onLeave,
   memory,
   resume = false,
+  pickupKeeper,
 }: {
   /**
    * WHETHER HE IS STILL OUT THERE.
@@ -353,6 +354,8 @@ export function GreenwoodScreen({
   memory?: { current: RoamMemory | null };
   /** Pick the walk up where it was (a fight fled from), not walk in afresh. */
   resume?: boolean;
+  /** The save's side of the forest's pickups (ui/explore/pickupKeeper). */
+  pickupKeeper?: PickupKeeper;
 }) {
   // THE FOREST, WALKED ABOUT IN (ui/explore/RoamScene, as the ruins are). Its two doors are the
   // ones it always had — the man in the road, and whatever is moving in
@@ -369,6 +372,7 @@ export function GreenwoodScreen({
       leaveTestId="leave-forest"
       memory={memory}
       resume={resume}
+      pickupKeeper={pickupKeeper}
       events={
         <>
           {galdWaiting && (

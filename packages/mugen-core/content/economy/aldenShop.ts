@@ -47,3 +47,27 @@ export const ALDEN_SHOP_NAME = 'アルデン道具屋';
 export function aldenOfferFor(itemId: string): ShopOffer | null {
   return ALDEN_SHOP_OFFERS.find((offer) => offer.itemId === itemId) ?? null;
 }
+
+/**
+ * THE APP'S BOARD (探索アイテム＋道具屋基盤, 2026-10-07): the things to
+ * use — 薬草, 上薬草, 魔力草, and the 魔力水 already sold. Materials are
+ * not sold here (they are found and brought in). The Artifact keeps the
+ * board above, unchanged.
+ */
+export const ALDEN_TOOL_SHOP_OFFERS: readonly ShopOffer[] = [
+  { itemId: 'FOREST_HERB', buyPrice: 16 },
+  { itemId: 'FINE_HERB', buyPrice: 40 },
+  { itemId: 'MANA_HERB', buyPrice: 18 },
+  { itemId: 'MANA_WATER', buyPrice: 24 },
+];
+
+/**
+ * WHO IS BEHIND THE COUNTER — not decided. A placeholder, so the screen
+ * has a voice and the day a keeper is written is a change to this one
+ * object. No name, history or life is fixed here.
+ */
+export const ALDEN_SHOPKEEPER = {
+  id: 'SHOPKEEPER_PLACEHOLDER',
+  label: '店主',
+  greeting: 'いらっしゃい。ゆっくり見ていってくれ。',
+} as const;

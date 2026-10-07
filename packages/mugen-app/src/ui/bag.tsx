@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { itemDef } from '@mugen/content/economy/itemDefs';
-import { categoryLabel, type ItemDef } from '@mugen/core/economy/items';
+import { categoryLabel, type ItemDef, type ItemStack } from '@mugen/core/economy/items';
 import { itemRefusalLine, refuseUse } from '@mugen/game/battle/battleLogic';
 import { BATTLE_HP_HOLDER, BATTLE_MP_HOLDER } from '@mugen/core/party/condition';
 
@@ -20,6 +20,25 @@ import { BATTLE_HP_HOLDER, BATTLE_MP_HOLDER } from '@mugen/core/party/condition'
  * the core rather than a difference of opinion between two screens —
  * which is the entire reason it is written this way.
  */
+/**
+ * THE BAG'S THREE SHELVES (2026-10-07): 回復 (things to use), 素材 (things
+ * to sell or keep for later), 大事なもの (never sold — the key-item flag).
+ * Within a shelf, the order things were first picked up.
+ */
+export type BagGroup = 'RECOVERY' | 'MATERIAL' | 'KEY';
+
+export const BAG_GROUPS: readonly { id: BagGroup; label: string }[] = [
+  { id: 'RECOVERY', label: '回復' },
+  { id: 'MATERIAL', label: '素材' },
+  { id: 'KEY', label: '大事なもの' },
+];
+
+export function bagGroupOf(def: ItemDef): BagGroup {
+  if (def.isKeyItem || def.category === 'KEY_ITEM') return 'KEY';
+  if (def.category === 'CONSUMABLE') return 'RECOVERY';
+  return 'MATERIAL';
+}
+
 export function BagScreen({ world, onBack }: { world: World; onBack: () => void }) {
   const [said, setSaid] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,48 +93,62 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
           なにも持っていない。
         </p>
       )}
-      <ul className="bag-list">
-        {bag.map((stack) => {
-          const def = itemDef(stack.itemId);
-          if (!def) return null;
-          const where = situationFor(def);
-          // No `use` block at all is a thing that is carried and not
-          // drunk — the acorn. That is not a refusal, so it is not
-          // phrased as one.
-          const refusal = def.use && where ? refuseUse(where, def.use, stack.quantity) : null;
-          const usableHere = Boolean(def.use) && where !== null && refusal === null;
+      <div className="bag-shelves" data-testid="bag-shelves">
+        {BAG_GROUPS.map((group) => {
+          const rows = bag.filter((stack: ItemStack) => {
+            const def = itemDef(stack.itemId);
+            return !!def && bagGroupOf(def) === group.id;
+          });
+          if (rows.length === 0) return null;
           return (
-            <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
-              <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
-                {def.name}
-              </span>
-              <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
-                ×{stack.quantity}
-              </span>
-              <span className="bag-category">{categoryLabel(def.category)}</span>
-              <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
-                {def.description}
-              </span>
-              {usableHere ? (
-                <button
-                  className="btn"
-                  data-testid={`bag-use-${stack.itemId}`}
-                  disabled={busy}
-                  onClick={() => use(stack.itemId)}
-                >
-                  使う
-                </button>
-              ) : (
-                <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
-                  {def.use && where
-                    ? itemRefusalLine(refusal!, def.name)
-                    : 'ここでは使えない。'}
-                </span>
-              )}
-            </li>
+            <section className="bag-group" key={group.id} data-testid={`bag-group-${group.id}`}>
+              <h2 className="bag-group-title">{group.label}</h2>
+              <ul className="bag-list">
+                {rows.map((stack) => {
+                  const def = itemDef(stack.itemId);
+                  if (!def) return null;
+                  const where = situationFor(def);
+                  // No `use` block at all is a thing that is carried and not
+                  // drunk — the acorn. That is not a refusal, so it is not
+                  // phrased as one.
+                  const refusal = def.use && where ? refuseUse(where, def.use, stack.quantity) : null;
+                  const usableHere = Boolean(def.use) && where !== null && refusal === null;
+                  return (
+                    <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
+                      <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
+                        {def.name}
+                      </span>
+                      <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
+                        ×{stack.quantity}
+                      </span>
+                      <span className="bag-category">{categoryLabel(def.category)}</span>
+                      <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
+                        {def.description}
+                      </span>
+                      {usableHere ? (
+                        <button
+                          className="btn"
+                          data-testid={`bag-use-${stack.itemId}`}
+                          disabled={busy}
+                          onClick={() => use(stack.itemId)}
+                        >
+                          使う
+                        </button>
+                      ) : (
+                        <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
+                          {def.use && where
+                            ? itemRefusalLine(refusal!, def.name)
+                            : 'ここでは使えない。'}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           );
         })}
-      </ul>
+      </div>
       {said && (
         <p className="say" data-testid="bag-message">
           {said}

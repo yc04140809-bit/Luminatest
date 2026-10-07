@@ -84,6 +84,43 @@ export const RUINS_WALK: WalkSceneDef = {
     start: { x: 0.76, y: 0.62 },
     // Spread over the open floor, clear of where the arch, the banner and
     // the steps are looked at from.
+    // THINGS TO PICK UP — four, among the stones, all above the band the
+    // way deeper takes along the bottom, and clear of where small finds
+    // turn up. The fragment is said to be found, and nothing more: what it
+    // is, is not told.
+    pickups: [
+      {
+        id: 'ruins_pickup_001',
+        label: '壊れた壺',
+        at: { x: 0.4, y: 0.49 },
+        line: '割れた壺の底に、古い硬貨が残っていた。',
+        items: [{ itemId: 'OLD_COIN', quantity: 2 }],
+      },
+      {
+        id: 'ruins_pickup_002',
+        label: '瓦礫',
+        at: { x: 0.58, y: 0.62 },
+        line: '崩れた石の下に、何かが埋もれていた。',
+        items: [
+          { itemId: 'IRON_ORE', quantity: 1, weight: 70 },
+          { itemId: 'FOREST_HERB', quantity: 1, weight: 30 },
+        ],
+      },
+      {
+        id: 'ruins_pickup_003',
+        label: '床の光',
+        at: { x: 0.32, y: 0.605 },
+        line: '石畳のすき間で、小さな光が揺れていた。',
+        items: [{ itemId: 'MANA_SHARD', quantity: 1 }],
+      },
+      {
+        id: 'ruins_pickup_004',
+        label: '古い箱',
+        at: { x: 0.2, y: 0.62 },
+        line: '朽ちかけた箱の中に、小さな破片がひとつ。',
+        items: [{ itemId: 'ANCIENT_SHARD', quantity: 1 }],
+      },
+    ],
     spots: [
       { x: 0.07, y: 0.56 },
       { x: 0.26, y: 0.62 },

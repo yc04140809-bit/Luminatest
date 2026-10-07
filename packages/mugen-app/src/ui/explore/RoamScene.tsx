@@ -5,8 +5,10 @@ import {
   markerAt,
   pointLine,
   pointsFor,
+  rollPickup,
   type PaintingPoint,
   type WalkDiscovery,
+  type WalkPickup,
   type WalkRoam,
   type WalkSceneDef,
   type WalkWorldView,
@@ -20,6 +22,7 @@ import { Ambience, Moment, pickAmbience, pickMoment, type MomentKind } from './A
 import { PointMarker } from './PointMarker';
 import { DEPTH, PAN, markTipY } from './walkPath';
 import { weaponDefOf } from '@mugen/content/equipment/equipment';
+import { itemDef } from '@mugen/content/economy/itemDefs';
 import {
   FIND_MEMORY,
   FIND_WAIT_MS,
@@ -59,8 +62,15 @@ import {
  * shows its 「！」 until the party is near it; read, the 「！」 is gone for
  * good. A find read is not put back where it was: after some walking, a
  * new one turns up somewhere else, never more than two waiting — so the
- * place does not run out after its three things. Nothing found gives or
- * records anything: the world is read, never written, from this screen.
+ * place does not run out after its three things. Small finds give and
+ * record nothing.
+ *
+ * THINGS TO PICK UP (2026-10-07): a few fixed places (`roam.pickups`) with
+ * something in them. Taken through `pickupKeeper` — into the bag and
+ * marked taken in the save, once in a world — with a short notice of what
+ * was got. A pickup shows only a faint glint until the party stands at it
+ * (then its 「！」 and 調べる), so it never crowds the place's own things.
+ * Taken, it is not drawn again.
  */
 
 /** Walking speed at the nearest floor, in screen widths a second; slower farther back. */
@@ -101,10 +111,10 @@ function shuffle<T>(xs: readonly T[]): T[] {
   return out;
 }
 
-/** Something that can be looked at right now: one of the place's own, or a small find. */
+/** Something that can be looked at right now: one of the place's own, a small find, or a pickup. */
 interface Thing {
   id: string;
-  kind: 'point' | 'find';
+  kind: 'point' | 'find' | 'pickup';
   /** How rare a find is; the place's own things are NORMAL. */
   grade: FindGrade;
   label: string;
@@ -135,6 +145,23 @@ export interface RoamKeeper {
   recordVisit(): void;
   takeRainbow(): Promise<boolean>;
 }
+
+/**
+ * WHAT THE SAVE KEEPS OF A PLACE'S PICKUPS: which are taken, and taking
+ * one (the thing into the bag and the mark, in one write). Returns how
+ * many went in the bag — nought is a refusal (no room), and the pickup
+ * stays. Absent (no save): no pickups are shown at all.
+ */
+export interface PickupKeeper {
+  taken: ReadonlySet<string>;
+  take(pickupId: string, itemId: string, quantity: number): Promise<number>;
+}
+
+/** How near its glint a touch must be to walk to a pickup. */
+const PICKUP_SNAP = 0.045;
+
+/** How long the notice of what was picked up stays. */
+const GOT_MS = 2600;
 
 /** Without a save: nothing is kept, and the rainbow may still be seen. */
 const SESSION_ONLY: RoamKeeper = {
@@ -184,6 +211,7 @@ export function RoamScene({
   forceGrade,
   memory,
   resume = false,
+  pickupKeeper,
 }: {
   scene: WalkSceneDef;
   roam: WalkRoam;
@@ -204,6 +232,8 @@ export function RoamScene({
   memory?: { current: RoamMemory | null };
   /** Pick the walk up from `memory` instead of walking in afresh. */
   resume?: boolean;
+  /** The save's side of the place's pickups. Absent (no save): no pickups are shown. */
+  pickupKeeper?: PickupKeeper;
 }) {
   // A walk picked up where it was left: no walking in, everything as it stood.
   const was = resume ? (memory?.current ?? null) : null;
@@ -275,6 +305,19 @@ export function RoamScene({
   // The moment it is taken: a flash, then what it is.
   const [prize, setPrize] = useState<{ name: string; description: string; kept: boolean; n: number } | null>(null);
   const [captionGrade, setCaptionGrade] = useState<FindGrade>(was?.captionGrade ?? 'NORMAL');
+  // The place's pickups still there: not taken in the save, nor this walk.
+  // Only with a save to keep them: without one, nothing picked up could be
+  // carried home, so none are shown (the DEBUG walk).
+  const pickups: readonly WalkPickup[] = pickupKeeper ? (roam.pickups ?? []) : [];
+  const [taken, setTaken] = useState<ReadonlySet<string>>(() => new Set(pickupKeeper?.taken ?? []));
+  const takingPickup = useRef(false);
+  // The short notice of what was picked up.
+  const [got, setGot] = useState<{ text: string; special: boolean; n: number } | null>(null);
+  useEffect(() => {
+    if (!got) return;
+    const t = window.setTimeout(() => setGot(null), GOT_MS);
+    return () => window.clearTimeout(t);
+  }, [got]);
 
   const things: Thing[] = useMemo(
     () => [
@@ -298,14 +341,33 @@ export function RoamScene({
         mark: roam.spots[spot],
         text: find.text,
       })),
+      ...pickups
+        .filter((p) => !taken.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          kind: 'pickup' as const,
+          grade: 'NORMAL' as const,
+          label: p.label,
+          stand: standBeside(p.at, roam.floor),
+          mark: p.at,
+          text: p.line,
+        })),
     ],
-    [points, read, finds, roam],
+    [points, read, finds, roam, taken],
   );
   // In notice: what is near, and never more than the nearest two at once.
-  const noticed = things
-    .filter((t) => dist(hero, t.stand) < NOTICE)
-    .sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))
-    .slice(0, MAX_NOTICED);
+  // A pickup is noticed by its own faint glint, and shows its 「！」 only
+  // once the party stands at it — so it never crowds the place's own things.
+  const noticed = [
+    ...things
+      .filter((t) => t.kind !== 'pickup' && dist(hero, t.stand) < NOTICE)
+      .sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))
+      .slice(0, MAX_NOTICED),
+    ...things
+      .filter((t) => t.kind === 'pickup' && dist(hero, t.stand) < REACH)
+      .sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))
+      .slice(0, 1),
+  ];
   const atThing: Thing | null = !walking && arrived
     ? (noticed.filter((t) => dist(hero, t.stand) < REACH).sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))[0] ?? null)
     : null;
@@ -542,8 +604,12 @@ export function RoamScene({
     const sy = e.clientY - box.top;
     const touched = { x: (sx - camX) / paintW, y: (sy - paintTop) / paintH };
     let to = toFloor({ x: touched.x, y: Math.min(touched.y, lowest) }, roam.floor);
+    // A pickup is walked to when its own glint is touched, not the ground near it.
     const meant = things
-      .map((t) => ({ t, d: Math.min(dist(to, t.stand), dist(touched, t.mark)) }))
+      .map((t) => ({
+        t,
+        d: t.kind === 'pickup' ? (dist(touched, t.mark) < PICKUP_SNAP ? 0 : Infinity) : Math.min(dist(to, t.stand), dist(touched, t.mark)),
+      }))
       .filter((c) => c.d < SNAP)
       .sort((a, b) => a.d - b.d)[0];
     if (meant) to = meant.t.stand;
@@ -556,6 +622,36 @@ export function RoamScene({
   const look = () => {
     if (!atThing) return;
     const thing = atThing;
+    if (thing.kind === 'pickup') {
+      const pickup = pickups.find((p) => p.id === thing.id);
+      if (!pickup || takingPickup.current) return;
+      takingPickup.current = true;
+      const roll = rollPickup(pickup);
+      const def = itemDef(roll.itemId);
+      const name = def?.name ?? roll.itemId;
+      // Something with a meaning is FOUND, a little apart; the rest is got.
+      const special = !!def && (def.rarity === 'RARE' || def.isKeyItem);
+      const gotText = special ? `「${name}」を見つけた。` : `${name} ×${roll.quantity} を手に入れた`;
+      const done = (moved: number) => {
+        takingPickup.current = false;
+        if (moved <= 0) {
+          setCaptionGrade('NORMAL');
+          setCaption(`${name}を見つけたが、これ以上は持てない。`);
+          return;
+        }
+        playSfx(special ? 'explore_rare_found' : 'explore_found');
+        setCaptionGrade(special ? 'RARE' : 'NORMAL');
+        setCaption(pickup.line);
+        setTaken((t) => new Set(t).add(pickup.id));
+        setGot((was) => ({ text: gotText, special, n: (was?.n ?? 0) + 1 }));
+      };
+      if (!pickupKeeper) return;
+      void pickupKeeper
+        .take(pickup.id, roll.itemId, roll.quantity)
+        .then(done)
+        .catch(() => done(0));
+      return;
+    }
     if (thing.kind === 'point') {
       playSfx('explore_found');
       setCaptionGrade('NORMAL');
@@ -614,6 +710,7 @@ export function RoamScene({
       data-view={`${camX.toFixed(2)},${paintW.toFixed(2)},${paintTop.toFixed(2)},${paintH.toFixed(2)}`}
       data-things={things.map((t) => `${t.kind}:${t.id}:${fmt(t.stand)}:${fmt(t.mark)}:${t.grade}`).join(' ')}
       data-rainbow={rainbowTaken ? 'taken' : 'open'}
+      data-pickups-taken={[...taken].join(' ')}
       data-noticed={noticed.map((t) => t.id).join(' ')}
       data-read={[...read].join(' ')}
       data-ambient={picked.join(',')}
@@ -661,6 +758,18 @@ export function RoamScene({
             {grade === 'RAINBOW' && [0, 1, 2, 3].map((i) => <i key={i} className={`roam-mote m${i}`} />)}
           </span>
         ))}
+        {/* A pickup: a fainter glint, slower — noticed, not announced. */}
+        {pickups
+          .filter((p) => !taken.has(p.id))
+          .map((p) => (
+            <span
+              key={`pickup-${p.id}`}
+              className="roam-sign g-pickup"
+              data-testid={`walk-pickup-${p.id}`}
+              style={{ left: p.at.x * paintW, top: paintTop + p.at.y * paintH }}
+              aria-hidden="true"
+            />
+          ))}
       </div>
 
       <div className="walk-layer walk-light" style={{ transform: `translateX(${camX * DEPTH.light}px)` }} aria-hidden="true" />
@@ -726,6 +835,17 @@ export function RoamScene({
           aria-live="polite"
         >
           {caption}
+        </p>
+      )}
+      {got && (
+        <p
+          key={`got-${got.n}`}
+          className={`walk-got${got.special ? ' special' : ''}`}
+          data-testid="walk-got"
+          data-special={got.special ? 'yes' : 'no'}
+          role="status"
+        >
+          {got.text}
         </p>
       )}
       <div className="walk-events" data-testid="walk-events">

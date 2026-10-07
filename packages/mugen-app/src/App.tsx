@@ -53,6 +53,7 @@ import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds'
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
 import { GRAVE_MEETING_MARK, hasMetGrave } from '@mugen/content/talk/graveTalks';
+import { pickupKeeper } from './ui/explore/pickupKeeper';
 import { stageReached } from '@mugen/core/world/storyArc';
 
 /** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
@@ -817,6 +818,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           day={world.getClock().worldDay}
           memory={forestWalk}
           resume={resumeForest.current}
+          // Read as the walk opens; taking one writes it (ui/explore/pickupKeeper).
+          pickupKeeper={pickupKeeper(world)}
           onGald={() => {
             resumeForest.current = false;
             story.current = true;

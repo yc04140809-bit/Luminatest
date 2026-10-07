@@ -52,6 +52,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
       where: 'BOTH',
       line: '薬草を使った。青い匂いが立つ。',
     },
+    sources: ['SHOP', 'FOREST', 'RUINS'],
   },
   /**
    * 魔力水 — the second thing a turn can be spent on.
@@ -87,6 +88,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
       where: 'BOTH',
       line: '魔力水を飲んだ。頭の奥が冷たくなる。',
     },
+    sources: ['SHOP'],
   },
   {
     itemId: 'OLD_ARROWHEAD',
@@ -119,6 +121,121 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     // whole reason this round exists.
     sellPrice: 0,
     isKeyItem: false,
+  },
+
+  // ---- 探索アイテム＋道具屋基盤 (2026-10-07) ----
+  //
+  // Two things to buy (a bigger herb and a herb for magic), and what the
+  // forest and the ruins now let a player pick up (content/exploration's
+  // `pickups`). Every number is set against what was already here: a herb
+  // heals 30 for 16 LUMI, a flask gives 16 MP for 24, and the shop pays
+  // half what it asks.
+
+  /**
+   * 上薬草 — twice a herb (60), for a little more than twice the price.
+   * Shop only: no floor has one, so it is not had in quantity early on.
+   */
+  {
+    itemId: 'FINE_HERB',
+    name: '上薬草',
+    category: 'CONSUMABLE',
+    maxStack: DEFAULT_MAX_STACK,
+    description: 'よく育った薬草を干して束ねたもの。薬草より深い傷に効く。',
+    sellPrice: 20,
+    isKeyItem: false,
+    use: {
+      kind: 'HEAL',
+      amount: 60,
+      where: 'BOTH',
+      line: '上薬草を使った。苦い香りが広がる。',
+    },
+    rarity: 'UNCOMMON',
+    sources: ['SHOP'],
+  },
+  /**
+   * 魔力草 — the herb for magic: 12 MP, between bracing (8) and a flask
+   * (16), at the flask's own price per point (18 LUMI for 12).
+   */
+  {
+    itemId: 'MANA_HERB',
+    name: '魔力草',
+    category: 'CONSUMABLE',
+    maxStack: DEFAULT_MAX_STACK,
+    description: '葉脈がかすかに青く光る草。噛むと、頭の奥がすっと冴える。',
+    sellPrice: 9,
+    isKeyItem: false,
+    use: {
+      kind: 'RESTORE_MP',
+      amount: 12,
+      where: 'BOTH',
+      line: '魔力草を噛んだ。頭の奥がすっと冴える。',
+    },
+    sources: ['SHOP', 'FOREST'],
+  },
+  {
+    itemId: 'OLD_COIN',
+    name: '古びた硬貨',
+    category: 'MATERIAL',
+    maxStack: DEFAULT_MAX_STACK,
+    description: '長い年月で表面が擦り減った古い硬貨。今では通貨として使えないが、収集価値はある。',
+    // Sold for now — and kept as a thing with a history (tags), not junk.
+    sellPrice: 15,
+    isKeyItem: false,
+    rarity: 'UNCOMMON',
+    sources: ['RUINS'],
+    tags: ['RUINS', 'HISTORY'],
+  },
+  {
+    itemId: 'IRON_ORE',
+    name: '鉄鉱石',
+    category: 'MATERIAL',
+    maxStack: DEFAULT_MAX_STACK,
+    description: 'ずしりと重い石。割れ目に鉄の色がのぞいている。',
+    sellPrice: 10,
+    isKeyItem: false,
+    sources: ['FOREST', 'RUINS'],
+    tags: ['ORE'],
+  },
+  {
+    itemId: 'MANA_SHARD',
+    name: '魔力の欠片',
+    category: 'MATERIAL',
+    maxStack: DEFAULT_MAX_STACK,
+    description: '指先ほどの透き通った欠片。触れると、かすかに温かい。',
+    sellPrice: 30,
+    isKeyItem: false,
+    rarity: 'RARE',
+    sources: ['FOREST', 'RUINS'],
+    tags: ['MAGIC'],
+  },
+  {
+    itemId: 'FOREST_NUT',
+    name: '森の木の実',
+    category: 'MATERIAL',
+    maxStack: DEFAULT_MAX_STACK,
+    description: '森で拾った固い木の実。煎れば食べられるかもしれない。',
+    // A material for now; 'FOOD' keeps it ready for cooking, a gift or a
+    // use of its own later.
+    sellPrice: 3,
+    isKeyItem: false,
+    sources: ['FOREST'],
+    tags: ['FOOD'],
+  },
+  /**
+   * 古代の破片 — WHAT IT IS IS NOT SAID. Kept for the ruins' story to
+   * come: never sold (the key-item flag), filed with the materials.
+   */
+  {
+    itemId: 'ANCIENT_SHARD',
+    name: '古代の破片',
+    category: 'MATERIAL',
+    maxStack: DEFAULT_MAX_STACK,
+    description: '何かの一部と思われる小さな破片。表面には、見慣れない模様が刻まれている。',
+    sellPrice: 0,
+    isKeyItem: true,
+    rarity: 'RARE',
+    sources: ['RUINS'],
+    tags: ['LORE', 'RUINS'],
   },
 ];
 

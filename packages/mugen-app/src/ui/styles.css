@@ -124,6 +124,69 @@ body {
 .bag-desc,
 .shop-desc { flex-basis: 100%; color: var(--dim); font-size: 12px; line-height: 1.6; }
 .bag-reason { color: var(--dim); font-size: 12px; }
+
+/* THE BAG AND THE SHOP AS A PAGE THAT FITS (2026-10-07): the list scrolls
+   in the middle, the way out always on screen — a landscape phone is
+   390px tall and a bag now holds more than four things. */
+.screen.bag,
+.screen.shop {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.bag-shelves,
+.shop-goods {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(680px, 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.bag-shelves .bag-list,
+.shop-goods .shop-list { margin: 0 0 6px; }
+.bag-group-title {
+  margin: 6px 0 2px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: left;
+}
+/* The keeper's place (a placeholder today), then the counter. */
+.shop-keeper-area { width: min(680px, 100%); text-align: center; }
+.shop-greeting { margin: 0; font-size: 13px; color: var(--ink); }
+.shop-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(680px, 100%);
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.shop-tabs { display: flex; gap: 6px; }
+.shop-tab {
+  min-width: 72px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+.shop-tab.on { color: var(--ink); border-color: var(--gold); background: rgba(201, 162, 39, 0.14); }
+.shop-why { color: var(--dim); font-size: 12px; }
+.shop-goods .shop-row { flex-wrap: nowrap; align-items: center; padding: 8px 0; }
+.shop-info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.shop-goods .shop-desc { line-height: 1.5; }
+.shop-row .btn { flex: 0 0 auto; min-width: 88px; min-height: 40px; }
+.shop-empty { color: var(--dim); font-size: 13px; }
 .say { margin: 10px 0 0; font-size: 13px; color: var(--gold); }
 .status { margin: 6px 0; width: 100%; }
 .status-row { margin: 2px 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
@@ -1347,6 +1410,16 @@ body {
 .walk-marker.v-rainbow svg { animation: roam-hue 6s linear infinite; }
 .walk-marker-core { fill: #fff; }
 @keyframes roam-hue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+/* A THING TO PICK UP (2026-10-07): smaller, dimmer and slower than a
+   find's glint — something noticed in passing, never a lit-up floor. */
+.roam-sign.g-pickup {
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  background: radial-gradient(circle, rgba(255, 252, 235, 0.9) 0 14%, rgba(255, 238, 190, 0.45) 34%, transparent 66%);
+  animation: roam-pickup-glint 4.2s ease-in-out infinite;
+}
+@keyframes roam-pickup-glint { 0%, 100% { opacity: 0.25; transform: scale(0.7); } 55% { opacity: 0.75; transform: scale(1); } }
 .roam-sign.g-rare {
   background: radial-gradient(circle, #fff6d0 0 12%, rgba(255, 200, 70, 0.85) 30%, rgba(255, 170, 0, 0.3) 52%, transparent 70%);
 }
@@ -1404,6 +1477,29 @@ body {
   25% { opacity: 0.9; }
   100% { opacity: 0; transform: translate(var(--dx), -30px); }
 }
+/* WHAT WAS PICKED UP: a short line low in the middle, gone by itself —
+   clear of the words at the top, the once-notices over them, the doors
+   at the bottom left and 調べる at the bottom right. */
+.walk-got {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 14px;
+  border: 1px solid rgba(240, 226, 190, 0.55);
+  border-radius: 999px;
+  background: rgba(14, 12, 20, 0.82);
+  color: #fdf6e3;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: walk-got-in 2.6s ease both;
+}
+.walk-got.special { color: #ffe39a; border-color: rgba(255, 200, 80, 0.7); }
+@keyframes walk-got-in { 0% { opacity: 0; transform: translate(-50%, 6px); } 10%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .walk-caption.g-rare { color: #ffe39a; box-shadow: inset 0 0 0 1px rgba(255, 200, 80, 0.55); }
 .walk-caption.g-rainbow {
   border: 1px solid transparent;
@@ -1532,7 +1628,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .walk-marker svg, .roam-sign, .roam-sign::before, .roam-prize, .amb { animation: none !important; }
+  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .walk-marker svg, .roam-sign, .roam-sign::before, .roam-prize, .amb, .walk-got { animation: none !important; }
   .roam-mote { display: none; }
   .roam-flash { animation-duration: 0.4s !important; }
   .walk-tap-ring { animation: walk-tap-still 0.5s linear forwards !important; }

@@ -14,7 +14,13 @@ import {
   type EquipmentTable,
   type OwnedTable,
 } from './equipmentState';
-import { readRareFinds, readVisits, type RareFindTable, type VisitTable } from './explorationState';
+import {
+  readPickupsTaken,
+  readRareFinds,
+  readVisits,
+  type RareFindTable,
+  type VisitTable,
+} from './explorationState';
 import { advanceStage, arcOpen, readSekiryugaStage, type SekiryugaStage } from './storyArc';
 import { readReadMarks, withMarks } from './readMarks';
 import {
@@ -303,6 +309,8 @@ const OWNED_EQUIPMENT_KEY = 'owned_equipment';
  * visits, so no schema version moved.
  */
 const RARE_FINDS_KEY = 'explorationRareFinds';
+/** The fixed pickups taken (explorationState `readPickupsTaken`). */
+const PICKUPS_KEY = 'explorationPickups';
 const VISITS_KEY = 'explorationVisits';
 /**
  * THE FIRST BOSS ROUTE: the furthest stage this world has reached on it —
@@ -567,6 +575,7 @@ export class World {
   private ownedEquipment: OwnedTable;
   private unlockedBgm: BattleBgmId[];
   private rareFinds: RareFindTable;
+  private pickupsTaken: string[];
   private visits: VisitTable;
   private sekiryugaStage: SekiryugaStage;
   private readMarks: Set<string>;
@@ -588,6 +597,7 @@ export class World {
     this.heroNamed = fields.heroNamed;
     this.unlockedBgm = fields.unlockedBgm;
     this.rareFinds = fields.rareFinds;
+    this.pickupsTaken = fields.pickupsTaken;
     this.visits = fields.visits;
     this.sekiryugaStage = fields.sekiryugaStage;
     this.readMarkList = fields.readMarks;
@@ -1181,6 +1191,47 @@ export class World {
     this.ownedEquipment = owned;
     this.emit();
     return true;
+  }
+
+  // ---- THINGS TO PICK UP (2026-10-07) ----
+
+  /** The fixed pickups taken in this world, by id. */
+  getTakenPickups(): readonly string[] {
+    return this.pickupsTaken;
+  }
+
+  /** Whether this pickup has been taken in this world. */
+  isPickupTaken(pickupId: string): boolean {
+    return this.pickupsTaken.includes(pickupId);
+  }
+
+  /**
+   * TAKING WHAT IS IN A PICKUP: the mark that it is gone and the thing
+   * into the bag, in ONE COMMIT — a crash between them can neither leave
+   * it marked with nothing held nor hand it over twice. Returns how many
+   * went in the bag; nought, with nothing written, when it was already
+   * taken, the thing is not in the catalogue, or there is no room for all
+   * of it (then it stays where it is, to come back for).
+   */
+  async claimPickup(pickupId: string, itemId: string, quantity: number): Promise<number> {
+    const def = itemDef(itemId);
+    const want = Math.floor(quantity);
+    if (!pickupId || this.pickupsTaken.includes(pickupId) || !def) return 0;
+    if (!Number.isFinite(want) || want <= 0) return 0;
+    if (roomFor(this.inventory, def) < want) return 0;
+    const bag = addToBag(this.inventory, def, want);
+    if (bag.moved !== want) return 0;
+    const taken = [...this.pickupsTaken, pickupId];
+    await this.store.commit({
+      putState: [
+        { key: PICKUPS_KEY, value: taken },
+        { key: INVENTORY_KEY, value: bag.inventory },
+      ],
+    });
+    this.pickupsTaken = taken;
+    this.inventory = bag.inventory;
+    this.emit();
+    return want;
   }
 
   private async writeParty(next: StoredParty): Promise<void> {
@@ -2598,6 +2649,7 @@ export class World {
     this.unlockedBgm = [...INITIAL_UNLOCKED_BATTLE_BGM];
     // And it has been nowhere and found nothing.
     this.rareFinds = {};
+    this.pickupsTaken = [];
     this.visits = {};
     this.sekiryugaStage = 'NONE';
     this.readMarkList = [];
@@ -2659,6 +2711,7 @@ export class World {
     // The rows went with the clear above; memory follows them, so the
     // screen never shows a find the save no longer has.
     this.rareFinds = {};
+    this.pickupsTaken = [];
     this.visits = {};
     this.sekiryugaStage = 'NONE';
     this.readMarkList = [];
@@ -2790,6 +2843,7 @@ interface WorldFields {
   equipmentStarted: boolean;
   unlockedBgm: BattleBgmId[];
   rareFinds: RareFindTable;
+  pickupsTaken: string[];
   visits: VisitTable;
   sekiryugaStage: SekiryugaStage;
   readMarks: string[];
@@ -2932,6 +2986,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readUnlockedBgm(value));
     case RARE_FINDS_KEY:
       return settle(readRareFinds(value));
+    case PICKUPS_KEY:
+      return settle(readPickupsTaken(value));
     case VISITS_KEY:
       return settle(readVisits(value));
     case SEKIRYUGA_ARC_KEY:
@@ -3021,6 +3077,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       equipmentStarted: byKey.get(EQUIPMENT_KEY) !== undefined,
       unlockedBgm: take(UNLOCKED_BGM_KEY, readUnlockedBgm(byKey.get(UNLOCKED_BGM_KEY))),
       rareFinds: take(RARE_FINDS_KEY, readRareFinds(byKey.get(RARE_FINDS_KEY))),
+      pickupsTaken: take(PICKUPS_KEY, readPickupsTaken(byKey.get(PICKUPS_KEY))),
       visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
       sekiryugaStage: take(SEKIRYUGA_ARC_KEY, readSekiryugaStage(byKey.get(SEKIRYUGA_ARC_KEY))),
       readMarks: take(READ_MARKS_KEY, readReadMarks(byKey.get(READ_MARKS_KEY))),

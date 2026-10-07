@@ -17,7 +17,7 @@ export interface P {
 }
 
 export interface RoamThing {
-  kind: 'point' | 'find';
+  kind: 'point' | 'find' | 'pickup';
   id: string;
   stand: P;
   mark: P;
@@ -92,7 +92,10 @@ export async function goTo(page: Page, id: string) {
 /** A spot on open floor at height y, out of notice of every thing there. */
 export async function openFloor(page: Page, y: number, xs = [0.62, 0.7, 0.55, 0.78, 0.48, 0.85, 0.4, 0.3]): Promise<P> {
   const ts = await things(page);
-  const p = xs.map((x) => ({ x, y })).find((q) => ts.every((t) => dist(q, t.stand) > 0.2));
+  // A pickup shows its 「！」 only when stood at, and is walked to only by touching its glint.
+  const p = xs
+    .map((x) => ({ x, y }))
+    .find((q) => ts.every((t) => (t.kind === 'pickup' ? dist(q, t.stand) > 0.06 && dist(q, t.mark) > 0.05 : dist(q, t.stand) > 0.2)));
   expect(p, `open floor at ${y}`).toBeTruthy();
   return p!;
 }
