@@ -125,7 +125,7 @@ test('NORMAL, then golden, then the rainbow: each its own look, and 《星紋の
     '欠けた星の紋様が刻まれた古い剣。長い眠りから目覚めたように、刃に淡い光が宿っている。',
   );
   await expect(page.getByTestId('walk-prize-unsaved')).toHaveCount(0);
-  // Its numbers are not shown anywhere: they are not in effect.
+  // The find card is the story, not the numbers (the equipment list shows those).
   await expect(page.getByTestId('walk-prize')).not.toContainText(/攻撃|\+2|1\.25|先手/);
   await expect(page.getByTestId(`walk-marker-${rainbow.id}`)).toHaveCount(0);
   await expect(scene(page)).toHaveAttribute('data-rainbow', 'taken');
@@ -141,14 +141,14 @@ test('NORMAL, then golden, then the rainbow: each its own look, and 《星紋の
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  // 7. Still held — and it can be put on (and its numbers are not on the list as if they applied).
+  // 7. Still held — and it can be put on. Its +2 is in effect (2026-10-07), so the list says so.
   await page.getByTestId('status-button').click();
   await page.getByTestId('status-to-equipment').click();
   await page.getByTestId('equip-slot-WEAPON').click();
   const row = page.getByTestId('equip-choice-weapon/star_crest_relic_sword');
   await expect(row).toBeEnabled();
   await expect(row).toContainText('星紋の遺剣');
-  await expect(row).toContainText('攻撃 +0');
+  await expect(row).toContainText('攻撃 +2');
   await row.click();
   await expect(page.getByTestId('equip-weapon-name')).toHaveText('星紋の遺剣');
   await expect(page.getByTestId('equip-description')).toContainText('欠けた星の紋様');

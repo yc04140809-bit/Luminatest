@@ -7,8 +7,9 @@ import { throughTheOpening } from './opening';
  *   アルデン村 → 酒場へ入る → 背景 → マスター → 会話 → もどる
  *
  * Three layers (room, master, words), the tavern's own music, the
- * master whole on every phone size, and nothing in the save changed by
- * any of it.
+ * master whole on every phone size — and the save changed by one thing
+ * only: his first meeting, marked once in readMarks (`talk:GRAVE_MEETING`,
+ * 2026-10-07), so he introduces himself once in a save.
  */
 
 async function freshApp(page: Page) {
@@ -71,6 +72,29 @@ async function everythingSaved(page: Page) {
   });
 }
 
+type Saved = Awaited<ReturnType<typeof everythingSaved>>;
+const isReadMarks = (row: unknown) => (row as { key?: unknown })?.key === 'readMarks';
+
+/** The readMarks row's value, wherever it is kept; undefined when there is none. */
+function readMarksOf(saved: Saved): unknown {
+  for (const db of Object.values(saved.idb))
+    for (const rows of Object.values(db)) {
+      const row = rows.find(isReadMarks);
+      if (row) return (row as { value: unknown }).value;
+    }
+  return undefined;
+}
+
+/** Everything kept, but the readMarks row. */
+function withoutReadMarks(saved: Saved): Saved {
+  const idb: Saved['idb'] = {};
+  for (const [name, db] of Object.entries(saved.idb)) {
+    idb[name] = {};
+    for (const [store, rows] of Object.entries(db)) idb[name][store] = rows.filter((r) => !isReadMarks(r));
+  }
+  return { ...saved, idb };
+}
+
 /** Reads a talk to its end; returns every line shown, in order. */
 async function readTalk(page: Page): Promise<string[]> {
   const seen: string[] = [];
@@ -86,7 +110,7 @@ async function readTalk(page: Page): Promise<string[]> {
   return seen;
 }
 
-test('village → tavern → the room, the master, a talk → back to the village, and the save untouched', async ({
+test('village → tavern → the room, the master, a talk → back to the village, and the save changed only by his meeting', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -140,9 +164,13 @@ test('village → tavern → the room, the master, a talk → back to the villag
   await expect(page.getByTestId('tavern-screen')).toHaveCount(0);
   await expect.poll(async () => (await music(page)).current).toBe('ALDEN_VILLAGE');
 
-  // NOTHING WAS RECORDED: every store and localStorage, row for row.
+  // ONE THING WAS RECORDED — his meeting, in readMarks — and nothing else:
+  // every other store, row and localStorage key, row for row.
   await page.waitForTimeout(500);
-  expect(await everythingSaved(page)).toEqual(before);
+  const after = await everythingSaved(page);
+  expect(readMarksOf(after)).toEqual(['talk:GRAVE_MEETING']);
+  expect(readMarksOf(before)).toBeUndefined();
+  expect(withoutReadMarks(after)).toEqual(withoutReadMarks(before));
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-empty')).toBeVisible();
   expect(errors).toEqual([]);
@@ -224,4 +252,66 @@ test('walking out and in again opens on the room', async ({ page }) => {
   await expect(page.getByTestId('explore-button')).toBeVisible();
   await page.getByTestId('tavern-button').click();
   await expect(page.getByTestId('tavern-description')).toHaveText('旅人と噂の集まる酒場。');
+});
+
+// ---------------- his meeting, once in a save (2026-10-07) ----------------
+
+const FIRST_LINE = '扉を押すと、煮込みと安い酒の匂いがした。';
+const GREETING = '「また来たな。そこ空いてるぞ。」';
+
+async function firstLineOfTalk(page: Page) {
+  await page.getByTestId('tavern-talk').click();
+  return page.getByTestId('tavern-line').textContent();
+}
+
+test('his meeting happens once in a new save: not again on walking back in, not again after a restart', async ({
+  page,
+}) => {
+  await freshApp(page);
+  await intoTheVillage(page);
+  await page.getByTestId('tavern-button').click();
+  const meeting = await readTalk(page);
+  expect(meeting[0]).toBe(FIRST_LINE);
+  expect(meeting).toContain('「グレイヴだ。ここの主人をやってる。」');
+  await page.getByTestId('tavern-leave').click();
+
+  // In again: he does not introduce himself.
+  await page.getByTestId('tavern-button').click();
+  const again = await readTalk(page);
+  expect(again[0]).toBe(GREETING);
+  expect(again.join('')).not.toContain('グレイヴだ。ここの主人をやってる。');
+  await page.getByTestId('tavern-leave').click();
+
+  // The app closed and opened: still his greeting.
+  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual(['talk:GRAVE_MEETING']);
+  await page.goto('/');
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await page.getByTestId('tavern-button').click();
+  const after = await readTalk(page);
+  expect(after[0]).toBe(GREETING);
+  expect(after.join('')).not.toContain('グレイヴだ。ここの主人をやってる。');
+});
+
+test('a save from before the mark (no readMarks row) opens, and meets him once', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await freshApp(page);
+  await intoTheVillage(page);
+  // A save from an earlier build: the row is not there at all.
+  await page.waitForTimeout(300);
+  expect(readMarksOf(await everythingSaved(page))).toBeUndefined();
+  await page.goto('/');
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await page.getByTestId('tavern-button').click();
+  const meeting = await readTalk(page);
+  expect(meeting[0]).toBe(FIRST_LINE);
+  await page.getByTestId('tavern-leave').click();
+  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual(['talk:GRAVE_MEETING']);
+  await page.goto('/');
+  await page.getByTestId('continue-button').click();
+  await page.getByTestId('tavern-button').click();
+  expect(await firstLineOfTalk(page)).toBe(GREETING);
+  expect(errors).toEqual([]);
 });

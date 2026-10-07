@@ -22,6 +22,7 @@ import {
 } from '@mugen/content/characters/battleProfiles';
 import { statusArtOf } from '@mugen/content/characters/characterAppearance';
 import { weaponDefOf } from '@mugen/content/equipment/equipment';
+import { skillPowerText, skillReuseText, skillsOf } from '@mugen/content/skills/heroSkills';
 import { presentationOf } from '@mugen/content/characters/characterPresentation';
 import { heroNameLength } from '@mugen/core/world/heroName';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
@@ -48,11 +49,12 @@ import { newEquipmentIds } from './equipment';
  * name. The core has none of them, so they are absent — not 「0」, not
  * 「—」, not 「未実装」. They join the list on the day they are real.
  *
- * NOTHING HERE PRETENDS TO WORK. スキル, 装備, ストーリー, プロフィール
- * and スキン are named because the reference names them, and they are
- * rendered as plain text with no handler, no button and no press
- * state, so a player cannot mistake them for a door. The one live
- * entry is ステータス, which is this screen.
+ * NOTHING HERE PRETENDS TO WORK. ストーリー, プロフィール and スキン are
+ * named because the reference names them, and they are rendered as
+ * plain text with no handler, no button and no press state, so a player
+ * cannot mistake them for a door. The live entries are ステータス (this
+ * screen), 装備 (its own screen) and スキル (2026-10-07: what each of them
+ * knows, in this same middle column — see `SkillList`).
  */
 interface Props {
   world: World;
@@ -61,7 +63,8 @@ interface Props {
 }
 
 /**
- * Named in the reference, and not built.
+ * Named in the reference. 装備 and スキル are built (each gets its frame
+ * and handler where the menu is drawn); ストーリー is not.
  *
  * 装備 is deliberately NOT repeated below: the reference puts it in
  * both places, and two entries for one unbuilt screen is worse than
@@ -69,6 +72,62 @@ interface Props {
  */
 const MENU_SOON = ['スキル', '装備', 'ストーリー'] as const;
 const DETAIL_SOON = ['プロフィール', 'スキン'] as const;
+
+/** A skill's NEW (the same mark the battle's skill tray clears on use). */
+const skillMark = (id: string) => `skill:${id}`;
+
+/** Whether he knows a skill nobody has looked at yet (in a fight or here). */
+function unreadSkills(world: World): boolean {
+  return skillsOf('hero').some((k) => !world.isRead(skillMark(k.id)));
+}
+
+/**
+ * スキル — WHAT THEY KNOW. A closed row per skill; tapping it shows what
+ * it does (from the skill's own numbers, so the words cannot drift from
+ * the fight) and that is looking at it: only then is its NEW cleared.
+ * Opening this list clears nothing. Somebody who knows none: 未習得.
+ */
+function SkillList({ world, characterId }: { world: World; characterId: string }) {
+  const skills = skillsOf(characterId);
+  const [open, setOpen] = useState<string | null>(null);
+  if (skills.length === 0) {
+    return (
+      <p className="st-style-note" data-testid="status-skills-none">
+        未習得
+      </p>
+    );
+  }
+  return (
+    <div className="st-skills" data-testid="status-skill-list">
+      {skills.map((skill) => {
+        const shown = open === skill.id;
+        return (
+          <button
+            key={skill.id}
+            className={`st-skill${shown ? ' open' : ''}`}
+            data-testid={`status-skill-${skill.id}`}
+            aria-expanded={shown}
+            onClick={() => {
+              setOpen((now) => (now === skill.id ? null : skill.id));
+              void world.markRead([skillMark(skill.id)]).catch(() => {});
+            }}
+          >
+            <b>
+              {skill.name}
+              <NewBadge show={!world.isRead(skillMark(skill.id))} testId={`status-skill-${skill.id}-new`} />
+            </b>
+            {shown && (
+              <span className="st-skill-detail" data-testid={`status-skill-${skill.id}-detail`}>
+                <span data-testid={`status-skill-${skill.id}-power`}>威力：{skillPowerText(skill)}</span>
+                <span data-testid={`status-skill-${skill.id}-reuse`}>再使用：{skillReuseText(skill)}</span>
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 interface Row {
   key: string;
@@ -81,6 +140,8 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
   // `hero`; only the word shown changes.
   const party = activeParty({ hero: world.getHeroName() });
   const [at, setAt] = useState(0);
+  // Which entry of the menu is open: this screen's own, or スキル.
+  const [view, setView] = useState<'STATUS' | 'SKILLS'>('STATUS');
   const who = party[Math.min(at, party.length - 1)];
   const profile = battleProfileOf(who.id);
   const says = presentationOf(who.id);
@@ -191,9 +252,15 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
 
       <div className="st-body">
         <nav className="st-menu">
-          <span className="st-menu-item on" aria-current="page">
-            ステータス
-          </span>
+          {view === 'STATUS' ? (
+            <span className="st-menu-item on" aria-current="page">
+              ステータス
+            </span>
+          ) : (
+            <button className="st-menu-item live" data-testid="status-to-status" onClick={() => setView('STATUS')}>
+              ステータス
+            </button>
+          )}
           {/* NOT BUTTONS. No handler, no press state, no cursor — the
               reference names them, and naming is all this build may
               honestly do. */}
@@ -210,6 +277,23 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
                 {label}
                 <NewBadge show={newEquipmentIds(world).length > 0} testId="status-equipment-new" />
               </button>
+            ) : label === 'スキル' ? (
+              view === 'SKILLS' ? (
+                <span className="st-menu-item on" key={label} aria-current="page" data-testid="status-to-skills">
+                  {label}
+                  <NewBadge show={unreadSkills(world)} testId="status-skills-new" />
+                </span>
+              ) : (
+                <button
+                  className="st-menu-item live"
+                  key={label}
+                  data-testid="status-to-skills"
+                  onClick={() => setView('SKILLS')}
+                >
+                  {label}
+                  <NewBadge show={unreadSkills(world)} testId="status-skills-new" />
+                </button>
+              )
             ) : (
               <span
                 className="st-menu-item soon"
@@ -235,59 +319,68 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
             </b>
             {says && <i>{says.roman}</i>}
           </p>
-          {/* 肩書き is absent until the author writes one. */}
-          {says?.epithet && <p className="st-epithet">{says.epithet}</p>}
-          {/* Shown whole. On a short handset the column scrolls
-              rather than cutting this, or anything below it. */}
-          {(says?.quote || says?.intro) && (
-            <div className="st-prose">
-              {says?.quote && <p className="st-quote">{says.quote}</p>}
-              {says?.intro && <p className="st-intro">{says.intro}</p>}
-            </div>
-          )}
+          {view === 'SKILLS' ? (
+            <>
+              <p className="st-skills-head">スキル</p>
+              <SkillList key={who.id} world={world} characterId={who.id} />
+            </>
+          ) : (
+            <>
+              {/* 肩書き is absent until the author writes one. */}
+              {says?.epithet && <p className="st-epithet">{says.epithet}</p>}
+              {/* Shown whole. On a short handset the column scrolls
+                  rather than cutting this, or anything below it. */}
+              {(says?.quote || says?.intro) && (
+                <div className="st-prose">
+                  {says?.quote && <p className="st-quote">{says.quote}</p>}
+                  {says?.intro && <p className="st-intro">{says.intro}</p>}
+                </div>
+              )}
 
-          <div className="st-level">
-            <span className="st-level-label">LEVEL</span>
-            <b data-testid="status-level">{progress.level}</b>
-            <s>/ {MAX_LEVEL}</s>
-            <span className="st-next">
-              NEXT <b data-testid="status-next">{toNext === null ? '（最大）' : String(toNext)}</b>
-            </span>
-          </div>
-          <div className="st-bar" aria-hidden="true">
-            <i style={{ width: `${(filled * 100).toFixed(1)}%` }} />
-          </div>
+              <div className="st-level">
+                <span className="st-level-label">LEVEL</span>
+                <b data-testid="status-level">{progress.level}</b>
+                <s>/ {MAX_LEVEL}</s>
+                <span className="st-next">
+                  NEXT <b data-testid="status-next">{toNext === null ? '（最大）' : String(toNext)}</b>
+                </span>
+              </div>
+              <div className="st-bar" aria-hidden="true">
+                <i style={{ width: `${(filled * 100).toFixed(1)}%` }} />
+              </div>
 
-          <dl className="st-rows">
-            {rows.map((row) => (
-              <div className="st-row" key={row.key}>
-                <dt>{row.label}</dt>
-                <dd data-testid={`status-${row.key}`}>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
+              <dl className="st-rows">
+                {rows.map((row) => (
+                  <div className="st-row" key={row.key}>
+                    <dt>{row.label}</dt>
+                    <dd data-testid={`status-${row.key}`}>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
 
-          {equippedWeapon && (
-            <div className="st-marks">
-              <div className="st-mark">
-                <span>装備</span>
-                <b data-testid="status-equipped">{equippedWeapon.name}</b>
-              </div>
-            </div>
+              {equippedWeapon && (
+                <div className="st-marks">
+                  <div className="st-mark">
+                    <span>装備</span>
+                    <b data-testid="status-equipped">{equippedWeapon.name}</b>
+                  </div>
+                </div>
+              )}
+              {profile && (
+                <div className="st-marks">
+                  <div className="st-mark">
+                    <span>武器種</span>
+                    <b data-testid="status-weapon">{weaponLabelOf(profile)}</b>
+                  </div>
+                  <div className="st-mark">
+                    <span>戦闘スタイル</span>
+                    <b data-testid="status-style">{battleStyleLabelOf(profile)}</b>
+                  </div>
+                </div>
+              )}
+              {says?.styleNote && <p className="st-style-note">{says.styleNote}</p>}
+            </>
           )}
-          {profile && (
-            <div className="st-marks">
-              <div className="st-mark">
-                <span>武器種</span>
-                <b data-testid="status-weapon">{weaponLabelOf(profile)}</b>
-              </div>
-              <div className="st-mark">
-                <span>戦闘スタイル</span>
-                <b data-testid="status-style">{battleStyleLabelOf(profile)}</b>
-              </div>
-            </div>
-          )}
-          {says?.styleNote && <p className="st-style-note">{says.styleNote}</p>}
         </div>
       </div>
 

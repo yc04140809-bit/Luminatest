@@ -105,7 +105,7 @@ test('P0: the first visit with a rumour heard — his meeting, then 「そうい
   await freshVillage(page);
   await pastGald(page);
   await hearTheShopRumor(page);
-  // Never in the tavern this session: the door opens on his introduction.
+  // Never met in this save: the door opens on his introduction.
   await page.getByTestId('tavern-button').click();
   const lines = await readTavern(page);
   const at = (t: string) => lines.findIndex((l) => l.includes(t));
@@ -120,7 +120,7 @@ test('P0: the first visit with a rumour heard — his meeting, then 「そうい
   await expect(page.getByTestId('tavern-line')).toHaveText('「また来たな。そこ空いてるぞ。」');
 });
 
-test('P0: met him first this session — the story alone, no bridge', async ({ page }) => {
+test('P0: met him first in this save — the story alone, no bridge', async ({ page }) => {
   await freshVillage(page);
   await pastGald(page);
   await page.getByTestId('tavern-button').click();
@@ -146,8 +146,11 @@ test('P1: after セキリュウガ, the master — once; and nothing verdict-lik
       '「お前らが見たもんは、お前らが覚えてりゃいい。」',
     ]),
   );
-  // His meeting came first (a new session), the bridge between.
-  expect(lines.indexOf('「……で。遺跡、行ってきたんだろ。」')).toBeGreaterThan(0);
+  // His story was told in this save (the stage says so), so he has been met:
+  // no introduction, and the talk starts on itself, without a bridge.
+  expect(lines[0]).toBe('グレイヴは、拭いていたグラスをそっと置いた。');
+  expect(lines.join('')).not.toContain('グレイヴだ。ここの主人をやってる。');
+  expect(lines).not.toContain('「……で。遺跡、行ってきたんだろ。」');
   expect(lines.join('')).not.toMatch(/ありがとう|悪い奴|退治|死/);
   await expect.poll(() => world<boolean>(page, `(w) => w.isRead('talk:GRAVE_AFTER_SEKIRYUGA')`)).toBe(true);
   // Out and in again: nothing starts by itself.

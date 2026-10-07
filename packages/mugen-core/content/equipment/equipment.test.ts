@@ -4,7 +4,9 @@ import {
   INITIAL_EQUIPMENT,
   OPERABLE_SLOTS,
   WEAPON_DEFS,
+  appliedOnly,
   hasNoCorrection,
+  weaponInBattle,
   weaponDefOf,
 } from './equipment';
 import { attackKindOf, canEquip, equippableWeapons, weaponTypeOf } from './equipResolve';
@@ -106,14 +108,14 @@ describe('what somebody is carrying', () => {
   });
 
   /**
-   * THE CORRECTION IS ZERO AND MUST STAY ZERO until the battle reads
-   * it. A number on the screen that the fight ignores is the screen
-   * lying, so this is enforced rather than remembered.
+   * ONLY WHAT THE BATTLE APPLIES MAY BE WRITTEN. Attack is read by the
+   * fight (2026-10-07); magic is not, so it must stay zero. Every weapon
+   * but the found one carries nothing at all.
    */
-  it('carries no correction at all yet', () => {
+  it('carries only corrections the battle applies, and only the found sword has one', () => {
     for (const def of Object.values(WEAPON_DEFS)) {
-      expect(hasNoCorrection(def), def.equipmentId).toBe(true);
-      expect(def.effect).toEqual({ attack: 0, magic: 0 });
+      expect(appliedOnly(def), def.equipmentId).toBe(true);
+      expect(hasNoCorrection(def), def.equipmentId).toBe(def.equipmentId !== 'weapon/star_crest_relic_sword');
     }
   });
 
@@ -205,18 +207,25 @@ describe('《星紋の遺剣》 — the ruins’ once-in-a-world find', () => {
     expect(Object.values(INITIAL_EQUIPMENT).flatMap((s) => Object.values(s))).not.toContain(sword.equipmentId);
   });
 
-  it('its strength is written down but NOT in effect: the correction stays zero', () => {
-    expect(sword.effect).toEqual({ attack: 0, magic: 0 });
-    expect(hasNoCorrection(sword)).toBe(true);
-    expect(sword.planned).toEqual({
-      attack: 2,
-      ability: {
-        id: 'FIRST_FLASH',
-        name: '先手の一閃',
-        description: 'HP満タンのとき、戦闘の最初の一撃だけ威力1.25倍。',
-        trigger: 'FULL_HP_FIRST_STRIKE',
-        multiplier: 1.25,
-      },
+  it('its strength is in effect: attack +2 and 先手の一閃 ×1.25', () => {
+    expect(sword.effect).toEqual({ attack: 2, magic: 0 });
+    expect(hasNoCorrection(sword)).toBe(false);
+    expect(sword.ability).toEqual({
+      id: 'FIRST_FLASH',
+      name: '先手の一閃',
+      description: 'HP満タンのとき、戦闘の最初の一撃だけ威力1.25倍。',
+      trigger: 'FULL_HP_FIRST_STRIKE',
+      multiplier: 1.25,
     });
+  });
+
+  it('weaponInBattle: what a held weapon brings to a fight', () => {
+    expect(weaponInBattle(sword.equipmentId)).toEqual({
+      attack: 2,
+      firstStrike: { name: '先手の一閃', multiplier: 1.25 },
+    });
+    expect(weaponInBattle('weapon/worn_long_sword')).toEqual({ attack: 0, firstStrike: null });
+    expect(weaponInBattle(null)).toEqual({ attack: 0, firstStrike: null });
+    expect(weaponInBattle('weapon/nobody_knows')).toEqual({ attack: 0, firstStrike: null });
   });
 });

@@ -20,6 +20,7 @@ import { readReadMarks, withMarks } from './readMarks';
 import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
+  weaponInBattle,
   type EquipmentSlot,
 } from '../../content/equipment/equipment';
 import { canEquip } from '../../content/equipment/equipResolve';
@@ -791,9 +792,25 @@ export class World {
 
   // ---- WHAT THE PARTY HAS LEFT ----
 
-  /** The ceilings, which come from the levels and are never stored. */
+  /**
+   * The ceilings, which come from the levels and are never stored — and
+   * his swing, with what his weapon adds to both ends while he holds it
+   * (`effect.attack`; 0 for every weapon but a found one). The battle
+   * builds its fighters from this, so the screens and the fight agree.
+   */
   getPartyStats(): PartyStats {
-    return statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
+    const stats = statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
+    const { attack } = weaponInBattle(this.getEquipped('hero', 'WEAPON'));
+    if (attack === 0) return stats;
+    return { ...stats, attackMin: stats.attackMin + attack, attackMax: stats.attackMax + attack };
+  }
+
+  /**
+   * His weapon's first-strike ability for the next fight, while he holds
+   * a weapon that has one. Null otherwise.
+   */
+  getHeroFirstStrike(): { name: string; multiplier: number } | null {
+    return weaponInBattle(this.getEquipped('hero', 'WEAPON')).firstStrike;
   }
 
   /** Who this world's condition is kept for. Two today. */

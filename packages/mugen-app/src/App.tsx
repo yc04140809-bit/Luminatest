@@ -52,6 +52,7 @@ import { PrologueScreen } from './ui/prologue';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
+import { GRAVE_MEETING_MARK, hasMetGrave } from '@mugen/content/talk/graveTalks';
 import { stageReached } from '@mugen/core/world/storyArc';
 
 /** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
@@ -138,9 +139,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * not grow. While it is open the flow is still on HOME, and もどる
    * (or Android's back) closes it to exactly where the player was.
    *
-   * `tavernMet` is whether the master has been talked to THIS SESSION.
-   * It decides only which of his lines are read and is never saved:
-   * the tavern records nothing in the world.
+   * WHETHER HE HAS BEEN MET IS THE SAVE'S (2026-10-07): his first meeting
+   * is marked in readMarks (`talk:GRAVE_MEETING`) when it is read to its
+   * end, so it plays once in a save — never again on walking back in or
+   * after a restart. `tavernMet` only covers the moment between the end of
+   * the meeting and that mark being written.
    */
   const [tavern, setTavern] = useState(false);
   const [tavernMet, setTavernMet] = useState(false);
@@ -617,8 +620,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       if (tavern) {
         return (
           <TavernScreen
-            metBefore={tavernMet}
-            onMet={() => setTavernMet(true)}
+            metBefore={tavernMet || hasMetGrave((id) => world.isRead(id), world.getSekiryugaStage())}
+            onMet={() => {
+              setTavernMet(true);
+              void world.markRead([GRAVE_MEETING_MARK]).catch(() => {});
+            }}
             onLeave={() => setTavern(false)}
             heroName={world.getHeroName()}
             arc={{

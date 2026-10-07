@@ -27,7 +27,6 @@ import { ARCANA_DEFS } from '@mugen/content/arcana/arcanaDefs';
 import { itemDef } from '@mugen/content/economy/itemDefs';
 import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
 import type { LocationId } from '@mugen/content/locations/locationVisuals';
-import { statsForLevels } from '@mugen/core/progression/levelStats';
 import type { AppliedReward } from '@mugen/core/progression/battleReward';
 import type { World } from '@mugen/core/world/world';
 import type { BattleBackgroundKey } from '@mugen/assets/keys';
@@ -112,17 +111,21 @@ export function BattleScreen({
     (cb) => world.subscribe(cb),
     () => world.getVersion(),
   );
-  const [battle, setBattle] = useState<BattleState>(() =>
-    createBattle(spec, undefined, {
-      stats: statsForLevels(world.getLevel('hero'), world.getLevel('kaos')),
+  const [battle, setBattle] = useState<BattleState>(() => {
+    const firstStrike = world.getHeroFirstStrike();
+    return createBattle(spec, undefined, {
+      // Levels, and what his held weapon adds to his swing.
+      stats: world.getPartyStats(),
       condition: world.getBattleCondition(),
+      // His held weapon's first-strike (星紋の遺剣's 先手の一閃), if any.
+      ...(firstStrike ? { firstStrike } : {}),
       /**
        * WHETHER SHE HAS WOKEN, ASKED OF THE WORLD — the core's own
        * reading of what the world remembers, as the Artifact asks it.
        */
       magicUnlocked: kaosHasAwakened(world.getKnownEvents().map((e) => e.type)),
-    }),
-  );
+    });
+  });
 
   // HOW FAST IT IS WATCHED — this fight only, starting at ×1, as in the
   // Artifact. It changes the showing, never the fighting.

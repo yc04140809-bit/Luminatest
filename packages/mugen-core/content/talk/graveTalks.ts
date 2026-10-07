@@ -18,7 +18,7 @@ import {
 
 /** What his queue reads of the world. */
 export interface GraveTalkContext {
-  /** Talked to him already this session (his meeting is not owed). */
+  /** Met him already in this save (his meeting is not owed) — see `hasMetGrave`. */
   met: boolean;
   /** The first boss route has begun (after Gald, any answer). */
   arcOpen: boolean;
@@ -33,6 +33,22 @@ export const GRAVE_AFTER_SEKIRYUGA_ID = 'GRAVE_AFTER_SEKIRYUGA';
 
 /** His meeting's place in the queue — the App supplies its words. */
 export const GRAVE_MEETING_PRIORITY = 100;
+
+/**
+ * HIS MEETING, ONCE IN A SAVE (2026-10-07): marked in readMarks when it has
+ * been read to its end, and never owed again — not on walking back in, not
+ * after the app is closed and opened.
+ */
+export const GRAVE_MEETING_MARK = `talk:${GRAVE_MEETING_ID}`;
+
+/**
+ * Whether this save has met him. The mark — or, for a save from before the
+ * mark existed (no `readMarks` row at all reads as nothing read), his
+ * story already told: it is only ever told with or after his meeting.
+ */
+export function hasMetGrave(isRead: (id: string) => boolean, stage: SekiryugaStage): boolean {
+  return isRead(GRAVE_MEETING_MARK) || stageReached(stage, 'TOLD');
+}
 
 export const GRAVE_STORY_TALKS: readonly TalkEvent<GraveTalkContext>[] = [
   {

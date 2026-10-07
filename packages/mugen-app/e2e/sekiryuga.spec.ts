@@ -132,7 +132,7 @@ async function hearTheShopRumor(page: Page) {
 
 async function hearTheMaster(page: Page) {
   await page.getByTestId('tavern-button').click();
-  // It starts as the door opens — his first meeting this session, then the story (uxRound.spec).
+  // It starts as the door opens — his first meeting in this save, then the story (uxRound.spec).
   await expect(page.getByTestId('tavern-line')).toHaveText('扉を押すと、煮込みと安い酒の匂いがした。');
   const lines = await readTavern(page);
   expect(lines).toContain('グラスを拭いていたグレイヴの手が、止まった。');
@@ -221,7 +221,7 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
   await pastGald(page);
   await hearTheShopRumor(page);
   await page.getByTestId('tavern-button').click();
-  // It starts by itself: his first meeting this session, then the story.
+  // It starts by itself: his first meeting in this save, then the story.
   await expect(page.getByTestId('tavern-line')).toHaveText('扉を押すと、煮込みと安い酒の匂いがした。');
   // The room, the master and the box are where they always are.
   for (const id of ['tavern-room', 'tavern-master', 'tavern-words']) await expect(page.getByTestId(id)).toBeVisible();

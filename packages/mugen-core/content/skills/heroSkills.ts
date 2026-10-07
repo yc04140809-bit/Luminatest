@@ -18,3 +18,24 @@ export const SHUNDAN: HeroSkillSpec = {
 
 /** What he knows from the first fight on. */
 export const HERO_STARTING_SKILLS: readonly HeroSkillSpec[] = [SHUNDAN];
+
+/**
+ * Who knows which skills. Only he has any so far (from the first fight);
+ * anybody else knows none — the status screen says 未習得.
+ */
+export function skillsOf(characterId: string): readonly HeroSkillSpec[] {
+  return characterId === 'hero' ? HERO_STARTING_SKILLS : [];
+}
+
+/** 「通常攻撃の2倍」 — worked out from the skill's own power, never written twice. */
+export function skillPowerText(skill: HeroSkillSpec): string {
+  return `通常攻撃の${Number(skill.power.toFixed(2))}倍`;
+}
+
+/**
+ * 「3ターンに1回」 — from its cooldown, which counts the turn it is used on
+ * (skillReadyIn): used on turn 1, ready again on turn 4.
+ */
+export function skillReuseText(skill: HeroSkillSpec): string {
+  return skill.cooldown <= 1 ? '毎ターン' : `${skill.cooldown}ターンに1回`;
+}

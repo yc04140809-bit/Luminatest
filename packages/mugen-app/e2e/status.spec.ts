@@ -10,10 +10,10 @@ import { throughTheOpening } from './opening';
  * do not exist in this build, so they are absent — not 「0」, not 「—」,
  * not 「未実装」. A placeholder is a number nobody chose.
  *
- * WHAT DOES NOT PRETEND TO WORK. スキル, 装備, ストーリー, プロフィール
- * and スキン are named because the reference names them. None may be a
- * button, carry a handler, or look pressable: a door that opens onto
- * nothing is worse than no door.
+ * WHAT DOES NOT PRETEND TO WORK. ストーリー, プロフィール and スキン are
+ * named because the reference names them. None may be a button, carry a
+ * handler, or look pressable: a door that opens onto nothing is worse
+ * than no door. (装備 and, since 2026-10-07, スキル are built.)
  *
  * WHERE THE PICTURE IS. It has an area of its own that the UI never
  * writes into, it keeps its own shape, and nothing is cropped off it.
@@ -99,10 +99,12 @@ test('says nothing about stats and equipment this build does not have', async ({
 test('names the screens that do not exist without offering them', async ({ page }) => {
   await openStatus(page);
 
-  // 装備 IS a screen now, so it is no longer in this list — it gained
-  // its frame and its handler at the same moment, which is the rule
-  // this file exists to hold. It is covered by `equipment.spec.ts`.
-  for (const label of ['スキル', 'ストーリー']) {
+  // 装備 and スキル ARE built now, so they are no longer in this list —
+  // each gained its frame and its handler at the same moment, which is
+  // the rule this file exists to hold. 装備 is covered by
+  // `equipment.spec.ts`, スキル below.
+  await expect(page.getByTestId('status-menu-soon-スキル')).toHaveCount(0);
+  for (const label of ['ストーリー']) {
     const item = page.getByTestId(`status-menu-soon-${label}`);
     await expect(item).toBeVisible();
     // A span, not a button, and nothing a screen reader will call
@@ -124,11 +126,11 @@ test('names the screens that do not exist without offering them', async ({ page 
   await expect(equip).toHaveJSProperty('tagName', 'BUTTON');
   await expect(equip).toBeEnabled();
 
-  // And it is the ONLY one the menu has gained: the controls on this
-  // screen are the two tabs, 装備, and the way out.
+  // And they are the ONLY ones the menu has gained: the controls on this
+  // screen are the two tabs, 装備, スキル, and the way out.
   const buttons = await page.locator('.status-screen button').allInnerTexts();
-  expect(new Set(buttons.map((b) => b.trim()))).toEqual(
-    new Set(['主人公', 'ケイオス', '装備', 'もどる']),
+  expect(new Set(buttons.map((b) => b.replace(/\s*NEW$/, '').trim()))).toEqual(
+    new Set(['主人公', 'ケイオス', '装備', 'スキル', 'もどる']),
   );
 });
 
@@ -309,4 +311,55 @@ test('the middle column scrolls with the wheel (a finger), down to what was hidd
   expect(styleBottom).toBeLessThanOrEqual(footTop);
   // The page itself did not move: the foot and the picture are where they were.
   expect(await page.evaluate(() => document.documentElement.scrollTop)).toBe(0);
+});
+
+// ---------------- スキル (2026-10-07) ----------------
+
+test('スキル: 《瞬断》 with what it does, from the skill’s own numbers; 未習得 for somebody who knows none', async ({
+  page,
+}) => {
+  await openStatus(page);
+  const menu = page.getByTestId('status-to-skills');
+  await expect(menu).toHaveJSProperty('tagName', 'BUTTON');
+  await menu.click();
+  // His: 瞬断, closed until tapped.
+  const row = page.getByTestId('status-skill-shundan');
+  await expect(row).toContainText('瞬断');
+  await expect(page.getByTestId('status-skill-shundan-detail')).toHaveCount(0);
+  await row.click();
+  await expect(page.getByTestId('status-skill-shundan-power')).toHaveText('威力：通常攻撃の2倍');
+  await expect(page.getByTestId('status-skill-shundan-reuse')).toHaveText('再使用：3ターンに1回');
+  await expect(page.getByTestId('status-skills-none')).toHaveCount(0);
+  // Hers: none.
+  await page.getByTestId('status-tab-kaos').click();
+  await expect(page.getByTestId('status-skills-none')).toHaveText('未習得');
+  await expect(page.getByTestId('status-skill-shundan')).toHaveCount(0);
+  // Back to the status itself.
+  await page.getByTestId('status-to-status').click();
+  await expect(page.getByTestId('status-level')).toBeVisible();
+});
+
+test('スキル: NEW until the skill itself is looked at — opening the list clears nothing, and it stays read', async ({
+  page,
+}) => {
+  await openStatus(page);
+  const marks = () =>
+    page.evaluate(() => (window as unknown as { __mugenWorld: { isRead(id: string): boolean } }).__mugenWorld.isRead('skill:shundan'));
+  await expect(page.getByTestId('status-skills-new')).toBeVisible();
+  // Opening the list: still NEW, on the menu and on the row.
+  await page.getByTestId('status-to-skills').click();
+  await expect(page.getByTestId('status-skills-new')).toBeVisible();
+  await expect(page.getByTestId('status-skill-shundan-new')).toBeVisible();
+  await page.waitForTimeout(300);
+  expect(await marks()).toBe(false);
+  // Looking at it: read.
+  await page.getByTestId('status-skill-shundan').click();
+  await expect(page.getByTestId('status-skill-shundan-new')).toHaveCount(0);
+  await expect(page.getByTestId('status-skills-new')).toHaveCount(0);
+  await expect.poll(marks).toBe(true);
+  // And still read after a restart (the same mark the fight's skill tray reads).
+  await page.goto('/');
+  await page.getByTestId('continue-button').click();
+  await page.getByTestId('status-button').click();
+  await expect(page.getByTestId('status-skills-new')).toHaveCount(0);
 });

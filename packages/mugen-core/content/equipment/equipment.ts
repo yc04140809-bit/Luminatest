@@ -43,46 +43,38 @@ export const SLOT_LABELS: Record<EquipmentSlot, string> = {
 };
 
 /**
- * What a piece of equipment could do, when anything is allowed to.
+ * What a piece of equipment does in a fight, as numbers.
  *
- * ZERO TODAY, EVERY FIELD, AND DELIBERATELY. The shape exists so that
- * a corrective weapon is a data change rather than a migration — but
- * the battle does not read this yet, and until it does a non-zero
- * value would put a number on the screen that the fight ignores.
- * Showing a correction that does not apply is the screen lying, so the
- * guard below refuses to let one be written.
+ * ZERO FOR EVERYTHING BUT WHAT THE BATTLE ACTUALLY APPLIES. Since
+ * 2026-10-07 the battle reads `attack` (through `World.getPartyStats`,
+ * added to both ends of the hero's swing) — and nothing else. A
+ * non-zero field the fight ignores would put a number on the screen
+ * that is not true, so the guard below (`appliedOnly`) refuses one.
  */
 export interface EquipmentEffect {
-  /** Added to both ends of the attack range. */
+  /** Added to both ends of the attack range. Applied while it is held. */
   attack: number;
-  /** For the day 魔力 exists. It does not. */
+  /** For the day 魔力 exists. It does not, so this stays 0. */
   magic: number;
 }
 
 export const NO_EFFECT: EquipmentEffect = { attack: 0, magic: 0 };
 
 /**
- * WHAT A PIECE IS MEANT TO DO ONE DAY — written down, NOT IN EFFECT.
+ * A WEAPON'S OWN ABILITY — applied by the battle while it is held.
  *
- * Kept apart from `effect` on purpose: `effect` is what the battle
- * would apply and must stay zero until the battle reads it (see
- * `hasNoCorrection`), while this is the design for when it does. No
- * screen shows it and no fight reads it; wiring it in is a separate
- * piece of work that moves these numbers into `effect` and the guard
- * with them.
+ * One kind so far: the battle's first blow, struck at full HP, times
+ * `multiplier` (the last multiplier on that blow). Spent by the hero's
+ * first swing — plain or a skill — whether it applied or not, so it can
+ * never come twice in one fight.
  */
-export interface PlannedTraits {
-  /** The attack it is designed to add, once corrections apply. */
-  attack: number;
-  /** Its own ability, once abilities exist in the battle. */
-  ability?: {
-    id: string;
-    name: string;
-    description: string;
-    /** HP full, the battle's first blow only: that blow times `multiplier`. */
-    trigger: 'FULL_HP_FIRST_STRIKE';
-    multiplier: number;
-  };
+export interface WeaponAbility {
+  id: string;
+  name: string;
+  description: string;
+  /** HP full, the battle's first blow only: that blow times `multiplier`. */
+  trigger: 'FULL_HP_FIRST_STRIKE';
+  multiplier: number;
 }
 
 interface EquipmentBase {
@@ -98,8 +90,8 @@ interface EquipmentBase {
    * anybody has come across it.
    */
   foundOnly?: boolean;
-  /** The design for later — never shown, never applied. See `PlannedTraits`. */
-  planned?: PlannedTraits;
+  /** Its own ability, applied in battle while it is held. See `WeaponAbility`. */
+  ability?: WeaponAbility;
 }
 
 /**
@@ -166,9 +158,8 @@ export const WEAPON_DEFS: Record<string, WeaponDefinition> = {
     effect: NO_EFFECT,
   },
   // 古代遺跡の虹の発見 — once in a world, found walking the ruins
-  // (content/exploration/ruinsWalk.ts). Its strength is designed and
-  // written down (`planned`), and is NOT applied: the battle does not
-  // read equipment yet, so today it fights exactly like any long sword.
+  // (content/exploration/ruinsWalk.ts). Applied in battle while held
+  // (2026-10-07): +2 to both ends of the hero's swing, and 先手の一閃.
   'weapon/star_crest_relic_sword': {
     equipmentId: 'weapon/star_crest_relic_sword',
     name: '星紋の遺剣',
@@ -176,17 +167,14 @@ export const WEAPON_DEFS: Record<string, WeaponDefinition> = {
     attackKind: 'PHYSICAL',
     weaponType: 'LONG_SWORD',
     description: '欠けた星の紋様が刻まれた古い剣。長い眠りから目覚めたように、刃に淡い光が宿っている。',
-    effect: NO_EFFECT,
+    effect: { attack: 2, magic: 0 },
     foundOnly: true,
-    planned: {
-      attack: 2,
-      ability: {
-        id: 'FIRST_FLASH',
-        name: '先手の一閃',
-        description: 'HP満タンのとき、戦闘の最初の一撃だけ威力1.25倍。',
-        trigger: 'FULL_HP_FIRST_STRIKE',
-        multiplier: 1.25,
-      },
+    ability: {
+      id: 'FIRST_FLASH',
+      name: '先手の一閃',
+      description: 'HP満タンのとき、戦闘の最初の一撃だけ威力1.25倍。',
+      trigger: 'FULL_HP_FIRST_STRIKE',
+      multiplier: 1.25,
     },
   },
 };
@@ -214,13 +202,35 @@ export function equipmentDefOf(equipmentId: string): EquipmentDef | null {
 }
 
 /**
- * NOT ONE PIECE OF EQUIPMENT MAY CARRY A NUMBER YET.
+ * ONLY WHAT THE BATTLE APPLIES MAY BE WRITTEN.
  *
- * Enforced rather than asked for: the battle does not read `effect`,
- * so anything non-zero would be displayed and ignored. A test calls
- * this; the day the correction is wired in, this goes and the test
- * changes with it.
+ * `attack` is read by the fight; `magic` is not (there is no 魔力), so a
+ * non-zero `magic` would be displayed and ignored. A test calls this on
+ * every definition.
  */
+export function appliedOnly(def: EquipmentDef): boolean {
+  return def.effect.magic === 0 && Number.isInteger(def.effect.attack) && def.effect.attack >= 0;
+}
+
+/** No correction at all — what every weapon but a found one is. */
 export function hasNoCorrection(def: EquipmentDef): boolean {
-  return def.effect.attack === 0 && def.effect.magic === 0;
+  return def.effect.attack === 0 && def.effect.magic === 0 && !def.ability;
+}
+
+/**
+ * WHAT A HELD WEAPON BRINGS TO A FIGHT: its attack, and its first-strike
+ * ability when it has one. Nothing held, or an id nobody knows, brings
+ * nothing.
+ */
+export function weaponInBattle(equipmentId: string | null): {
+  attack: number;
+  firstStrike: { name: string; multiplier: number } | null;
+} {
+  const def = equipmentId ? weaponDefOf(equipmentId) : null;
+  if (!def) return { attack: 0, firstStrike: null };
+  const ability = def.ability?.trigger === 'FULL_HP_FIRST_STRIKE' ? def.ability : null;
+  return {
+    attack: def.effect.attack,
+    firstStrike: ability ? { name: ability.name, multiplier: ability.multiplier } : null,
+  };
 }

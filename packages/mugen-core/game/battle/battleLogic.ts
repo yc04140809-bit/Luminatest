@@ -454,6 +454,21 @@ export interface BattleState {
    * before skills existed. Readiness is worked out from it (skillReadyIn).
    */
   skillUsedAt?: Readonly<Record<string, number>>;
+  /**
+   * HIS WEAPON'S FIRST-STRIKE ABILITY (BattleOptions.firstStrike) — absent
+   * in every fight he brought none to. Null once his first swing has been
+   * made, whether it applied or not, so it never comes twice.
+   */
+  firstStrike?: FirstStrike | null;
+}
+
+/**
+ * A blow-once ability: his first swing of the fight, made at full HP,
+ * times `multiplier` (the last multiplier on that blow).
+ */
+export interface FirstStrike {
+  name: string;
+  multiplier: number;
 }
 
 /** Random source, injectable for deterministic tests. Returns [0, 1). */
@@ -546,6 +561,11 @@ export interface BattleOptions {
    * maximum is except through `stats`, and it should not start.
    */
   condition?: { hp: number; mp: number };
+  /**
+   * What his held weapon does to his first swing (World.getHeroFirstStrike).
+   * Absent: the state has no such field and every swing is as it was.
+   */
+  firstStrike?: FirstStrike | null;
 }
 
 export function createBattle(
@@ -605,6 +625,7 @@ export function createBattle(
     wardName: null,
     log: [spec.appearLine ?? `${spec.name}が現れた！`],
     outcome: 'ONGOING',
+    ...(options.firstStrike ? { firstStrike: { ...options.firstStrike } } : {}),
     ...(spec.moves
       ? {
           enemyMoves: spec.moves,
@@ -880,6 +901,8 @@ function swing(
   const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
   // What this creature thinks of a sword. Most think nothing.
   const affinity = affinityMultiplier(state.enemyAffinity, 'PHYSICAL');
+  // His weapon's first-strike: the first swing only, and only at full HP.
+  const flash = state.firstStrike && state.playerHp >= state.playerMaxHp ? state.firstStrike : null;
   const dmg = applyDamage(roll(state.playerAttackMin, state.playerAttackMax, rng), [
     pull(state, 'playerAttack'),
     pull(state, 'enemyDamageTaken'),
@@ -890,6 +913,8 @@ function swing(
     wasIn?.damageTaken ?? 1,
     affinity,
     ...(skill ? [skill.power] : []),
+    // Last: the final multiplier on the blow.
+    ...(flash ? [flash.multiplier] : []),
   ]);
   const enemyHp = Math.max(0, state.enemyHp - dmg);
   // Its footing, taken by the blow. A blow that lands on a guard takes
@@ -904,8 +929,10 @@ function swing(
     enemyPoise: footing.poise,
     enemyStaggerTurns: footing.staggerTurns,
     ...(skill ? { skillUsedAt: { ...state.skillUsedAt, [skill.id]: state.turnsTaken + 1 } } : {}),
+    ...(state.firstStrike ? { firstStrike: null } : {}),
     log: [
       ...state.log,
+      ...(flash ? [`《${flash.name}》！`] : []),
       guarded
         ? `${skill ? `《${skill.name}》` : '攻撃'}！ ${state.enemySkill!.name}に阻まれ、${dmg}のダメージ。`
         : `${skill ? `《${skill.name}》` : '攻撃'}！ ${state.enemyName}に${dmg}のダメージ。`,

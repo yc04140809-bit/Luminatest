@@ -693,6 +693,47 @@ body {
 .eq-row u { text-decoration: none; flex: 1; }
 .eq-row s { text-decoration: none; font-size: 9px; color: var(--st-dim); }
 
+/* ── スキル (2026-10-07): the same middle column, a closed row per skill
+   in the 装備 rows' touch size; tapping it shows what it does. */
+.st-skills-head {
+  margin: 4px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--st-dim);
+}
+.st-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.st-skill {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 9px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--st-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.st-skill b {
+  font-weight: 400;
+  font-size: clamp(11px, 3.6vh, 13px);
+}
+.st-skill-detail {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(9.5px, 3.2vh, 11px);
+  color: var(--st-ink);
+}
+
 /* A menu entry that IS a door gets a real tap target. */
 .st-menu-item.live {
   appearance: none;

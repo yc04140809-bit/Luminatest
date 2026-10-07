@@ -29,16 +29,17 @@ import { tavernArt, type TavernArt } from '../assets/tavern';
  * WHAT HE SAYS IS THE CONTENT'S, WORD FOR WORD. The first talk of a
  * visit to the App is the Artifact's own first meeting with Grave;
  * every talk after it is his ordinary greeting. Which of the two is
- * decided by `metBefore`, which the caller holds for the session —
- * NOT the world.
+ * decided by `metBefore`: since 2026-10-07 the caller reads it from the
+ * save (readMarks `talk:GRAVE_MEETING`), so he introduces himself once in
+ * a save, and `onMet` is where it gets written.
  *
  * THE FIRST BOSS ROUTE (content/story/sekiryugaArc) adds words and their
- * order, and nothing to the room, the master or the box (docs/APP_TAVERN.md
- * stays as it was): once the route has begun, his ordinary talk ends on
- * his rumour; walking in after any rumour — or reading his to its end —
- * starts his story, which opens the ruins. The ONLY things this screen
- * records are those two steps of the route, through `arc` — never WORLD
- * MEMORY, never anything else in the save.
+ * order, and nothing to the room, the master or the box (docs/APP_TAVERN.md):
+ * once the route has begun, his ordinary talk ends on his rumour; walking
+ * in after any rumour — or reading his to its end — starts his story,
+ * which opens the ruins. The ONLY things this screen records are his
+ * meeting (`onMet`), those two steps of the route and one-time talks
+ * heard, through `arc` — never WORLD MEMORY, never anything else.
  */
 
 const lineOf = (eventId: string): readonly DialogueLine[] =>
@@ -120,9 +121,9 @@ export function TavernScreen({
   arc,
   heroName = '',
 }: {
-  /** Whether he has already been talked to this session. */
+  /** Whether this save has already met him (his introduction is not owed). */
   metBefore: boolean;
-  /** Told when the first talk has been read to its end. */
+  /** Told when the first talk has been read to its end (the caller saves it). */
   onMet: () => void;
   onLeave: () => void;
   /**
