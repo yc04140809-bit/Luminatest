@@ -1550,6 +1550,8 @@ body {
   animation: walk-got-in 2.6s ease both;
 }
 .walk-got.special { color: #ffe39a; border-color: rgba(255, 200, 80, 0.7); }
+/* Drawn by the shared notice host (common/NoticeHost), over whatever screen: fixed. */
+.walk-got.notice-bottom { position: fixed; z-index: 50; }
 @keyframes walk-got-in { 0% { opacity: 0; transform: translate(-50%, 6px); } 10%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
 .walk-caption.g-rare { color: #ffe39a; box-shadow: inset 0 0 0 1px rgba(255, 200, 80, 0.55); }
 .walk-caption.g-rainbow {

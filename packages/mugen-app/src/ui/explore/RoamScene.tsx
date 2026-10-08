@@ -23,6 +23,7 @@ import { PointMarker } from './PointMarker';
 import { DEPTH, PAN, markTipY } from './walkPath';
 import { weaponDefOf } from '@mugen/content/equipment/equipment';
 import { itemDef } from '@mugen/content/economy/itemDefs';
+import { notices } from '../common/noticeQueue';
 import {
   FIND_MEMORY,
   FIND_WAIT_MS,
@@ -160,8 +161,9 @@ export interface PickupKeeper {
 /** How near its glint a touch must be to walk to a pickup. */
 const PICKUP_SNAP = 0.045;
 
-/** How long the notice of what was picked up stays. */
-const GOT_MS = 2600;
+/** How long the notice of what was picked up stays: an ordinary find, and a rare one. */
+const GOT_MS = 2200;
+const GOT_SPECIAL_MS = 2600;
 
 /** Without a save: nothing is kept, and the rainbow may still be seen. */
 const SESSION_ONLY: RoamKeeper = {
@@ -311,13 +313,6 @@ export function RoamScene({
   const pickups: readonly WalkPickup[] = pickupKeeper ? (roam.pickups ?? []) : [];
   const [taken, setTaken] = useState<ReadonlySet<string>>(() => new Set(pickupKeeper?.taken ?? []));
   const takingPickup = useRef(false);
-  // The short notice of what was picked up.
-  const [got, setGot] = useState<{ text: string; special: boolean; n: number } | null>(null);
-  useEffect(() => {
-    if (!got) return;
-    const t = window.setTimeout(() => setGot(null), GOT_MS);
-    return () => window.clearTimeout(t);
-  }, [got]);
 
   const things: Thing[] = useMemo(
     () => [
@@ -643,7 +638,20 @@ export function RoamScene({
         setCaptionGrade(special ? 'RARE' : 'NORMAL');
         setCaption(pickup.line);
         setTaken((t) => new Set(t).add(pickup.id));
-        setGot((was) => ({ text: gotText, special, n: (was?.n ?? 0) + 1 }));
+        // The short notice of what was got — through the shared queue (one at
+        // a time; the same thing again before it shows is counted together).
+        notices.push({
+          type: 'pickup',
+          message: gotText,
+          priority: special ? 'NORMAL' : 'LOW',
+          duration: special ? GOT_SPECIAL_MS : GOT_MS,
+          look: 'bottom',
+          testId: 'walk-got',
+          special,
+          merge: special
+            ? undefined
+            : { key: `got:${roll.itemId}`, count: roll.quantity, format: (n) => `${name} ×${n} を手に入れた` },
+        });
       };
       if (!pickupKeeper) return;
       void pickupKeeper
@@ -835,17 +843,6 @@ export function RoamScene({
           aria-live="polite"
         >
           {caption}
-        </p>
-      )}
-      {got && (
-        <p
-          key={`got-${got.n}`}
-          className={`walk-got${got.special ? ' special' : ''}`}
-          data-testid="walk-got"
-          data-special={got.special ? 'yes' : 'no'}
-          role="status"
-        >
-          {got.text}
         </p>
       )}
       <div className="walk-events" data-testid="walk-events">

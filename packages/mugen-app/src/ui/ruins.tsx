@@ -113,6 +113,8 @@ export function RuinsWalkScreen({
               text="新しい目的地が追加されました"
               show={deepNew}
               testId="destination-notice"
+              type="destination"
+              priority="HIGH"
             />
           </>
         )

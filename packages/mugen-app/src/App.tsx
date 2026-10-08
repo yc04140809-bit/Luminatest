@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { GameFlow } from '@mugen/core/flow/gameFlow';
 import type { World } from '@mugen/core/world/world';
 import { resumeAreaOf } from '@mugen/core/world/world';
@@ -63,6 +63,8 @@ const AUTO_NOTICE = 'note:auto_battle';
 const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
 import { RumorScreen, rumorsOf } from './ui/rumors';
 import { OnceNotice } from './ui/common/OnceNotice';
+import { NoticeHost } from './ui/common/NoticeHost';
+import { notices } from './ui/common/noticeQueue';
 import { newEquipmentIds } from './ui/equipment';
 import { memoryMark } from './ui/memory';
 import {
@@ -188,6 +190,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // what was asked for — the two differ exactly when something is
     // wrong, which is when it matters.
     (window as unknown as { __mugenAudio?: typeof audioManager }).__mugenAudio = audioManager;
+    // And the shared notice queue, so a test can say several things at once.
+    (window as unknown as { __mugenNotices?: typeof notices }).__mugenNotices = notices;
     return () => {
       delete (window as unknown as { __mugenWorld?: World }).__mugenWorld;
       delete (window as unknown as { __mugenAudio?: typeof audioManager }).__mugenAudio;
@@ -554,6 +558,26 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     [flow, world],
   );
 
+  // THE SHARED NOTICES (common/noticeQueue): drawn once, over whatever is on
+  // screen, and dropped when the screen (or a door off it) changes — as each
+  // screen's own notices always were.
+  const noticeScope = [
+    state.screen,
+    naming ? 'naming' : '',
+    equipment ? 'equipment' : '',
+    tavern ? 'tavern' : '',
+    bakery ? 'bakery' : '',
+    rumors ? 'rumors' : '',
+    ruins ?? '',
+  ].join(':');
+  return (
+    <>
+      {screenFor()}
+      <NoticeHost key={noticeScope} />
+    </>
+  );
+
+  function screenFor(): ReactNode {
   switch (state.screen) {
     case 'THEME_CHOICE':
     case 'TITLE':
@@ -676,6 +700,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               text="AUTO戦闘が使用可能になりました。"
               show={autoOpen}
               testId="auto-notice"
+              type="unlock"
             />
           }
           resting={resting}
@@ -785,6 +810,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               text="新しい目的地が追加されました"
               show={stageReached(stage, 'TOLD') && !world.isRead(RUINS_DESTINATION)}
               testId="destination-notice"
+              type="destination"
+              priority="HIGH"
             />
           }
           onRuins={() => {
@@ -947,6 +974,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               text="AUTO戦闘が使用可能になりました。"
               show={autoOpen}
               testId="auto-notice"
+              type="unlock"
             />
           }
           onHome={() => {
@@ -994,5 +1022,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       );
     default:
       return <div className="screen">（この画面はApp Alphaにはまだありません）</div>;
+  }
   }
 }

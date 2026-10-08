@@ -41,6 +41,9 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 未来 CG（ガルド） | `futureCg`（TIME SHIFT は選んだ未来の 1 枚だけ・4 ルート、場所に入ったらその場所の CG・4 ルート、横画面 5 サイズで CG が欠けず「つづける」が画面内）、App 単体 `futureVision.test.ts`・`eventCg.test.ts` | 高さの低い画面（640×300）では TIME SHIFT の本文だけが縦スクロールし、「つづける」は常に画面内 |
 | ステータス画面 | `regression`、`status`（11 本、Android 横画面 6 サイズでのスクロール含む・スキル欄（《瞬断》の威力と再使用・ケイオスは未習得・NEW は開いただけでは消えず、スキルを開いて確認した時に消える））、`equipment`、core `heroSkills.test.ts` | |
 | 星紋の遺剣（戦闘） | core `relicSword.test.ts`（未装備・装備・装備解除後・+2・先手の一閃 ×1.25・1 回だけで二重にかからない・HP 満タンでない時はかからない・《瞬断》と重なる時は ×2 の後に ×1.25・無い戦闘の状態は以前と同じ）、`equipment.test.ts`、`exploreRareFinds`（装備一覧に「攻撃 +2」） | 内容は `docs/UX_EARLY_GAME.md`「実装メイン⑥ PHASE 1」 |
+| AUTO の薬草（HP 35% 以下） | core `autoHeal.test.ts`（満タン・35% ちょうど／超え・薬草 0 個・回復しない道具だけ・回復魔法が先・MP 不足なら薬草・傷の大きさで薬草／上薬草・戦闘終了後は使わない）、`autoHeal`（4 本：HP 20・MP 0 で薬草を飲む → 1 個減ってセーブ → 勝利後も → 再起動後も同じ数・MP があれば魔法が先で薬草は減らない・薬草 0 個でも止まらず戦い続ける・満タンでは使わない） | 内容は `docs/AUTO_NOTICE_LOWSCREEN.md` |
+| 共通通知キュー | App 単体 `noticeQueue.test.ts`（8 本：1 件・同時 2／3 件は優先度順→来た順・重要＋アイテムは重要が先・表示中は割り込まない・後から来たものは先に待っていたものを追い越さない・常に 1 件だけ・同じ種類の合算（薬草 ×3）・同じ id は 1 回／clear）、`notices`（5 本：1 件・同時 2／3 件が順番に 1 件ずつ・表示中に来たものは待つ・薬草 ×3 の合算・森の拾得通知もキュー経由で、森を出たら待っていた分は捨てる）、既存の `uxRound`・`items`・`exploreRuins`（通知の文言・testid は以前のまま） | 同時に 2 件以上が画面に出ないこと |
+| 低画面の戦闘 UI（640×300 など） | `lowScreen`（11 本：640×300・720×360・800×360 でセキリュウガの HP 枠が下半身・味方・コマンドに重ならず名前が切れない・モスラビットは足元のまま・敵名／HP／味方 HP／ログ／BOSS／TURN ORDER／コマンドが 10px 以上で画面内・コマンドの高さ 44px 以上・TURN ORDER の顔 5 つ・844×390 は以前のまま・640×300 で通知が画面内）、既存の `battleStage`・`sekiryuga`（横画面 5 サイズ） | 高さ 360px 以下だけ。実機で文字の読みやすさを確認 |
 | NPC DEPLOY プレビュー | `forgeImport`（取り込み・差分・実機確認） | 書き込み先は content（セーブではない） |
 | NPC DEPLOY 検証 | `forgeImport`「A2 / A6…」「C7 / D4 / D6…」（事前検証 PASS/WARNING/ERROR を含む）、core `forge/preflight.test.ts`・`forge/validate.test.ts` | |
 

@@ -226,6 +226,11 @@ function steppedStyle(slot: PrototypeSlot, phase: CameraPhase, step: { inset: nu
 const PLATE_HANG = 0.14;
 /** And the least room, in pixels, kept between it and the commands. */
 const PLATE_CLEAR = 4;
+/** A short screen (実装メイン⑥, 640×300 and the like): one where a plate
+ *  kept clear of the commands may land on the feet it hangs under. */
+const SHORT_SCREEN = '(max-height: 360px)';
+/** The gap, in pixels, between a fighter and a plate stood beside it. */
+const PLATE_BESIDE_GAP = 6;
 
 export function BattleStage({
   battle,
@@ -463,7 +468,8 @@ export function BattleStage({
 
   // WHERE ITS HEALTH HANGS: under its feet, measured off the drawing.
   const enemyHome = PROTOTYPE_PLACEMENTS[enemySlot];
-  const [enemyBox, setEnemyBox] = useState<{ mid: number; foot: number } | null>(null);
+  const [enemyBox, setEnemyBox] = useState<{ mid: number; foot: number; beside?: number } | null>(null);
+  const plateRef = useRef<HTMLDivElement>(null);
   const plateAt = enemyBox ?? {
     mid: enemyHome.inset + enemyStep.inset + 0.07,
     foot: enemyHome.bottom + enemyStep.bottom,
@@ -477,7 +483,8 @@ export function BattleStage({
       const s = stageEl.getBoundingClientRect();
       const a = actor.getBoundingClientRect();
       if (s.width <= 0 || s.height <= 0) return;
-      let foot = (s.bottom - a.bottom) / s.height;
+      const ownFoot = (s.bottom - a.bottom) / s.height;
+      let foot = ownFoot;
       // A fighter stood nearer (`presence`) keeps its plate under its feet
       // — unless that would put it into the commands (or the 「アルカナ
       // 準備中」 line over them) on a short screen: then the plate rises
@@ -488,7 +495,29 @@ export function BattleStage({
           .filter((top): top is number => top !== undefined && top > 0);
         if (tops.length > 0) foot = Math.max(foot, PLATE_HANG + (s.bottom - Math.min(...tops) + PLATE_CLEAR) / s.height);
       }
-      setEnemyBox({ mid: (a.left + a.width / 2 - s.left) / s.width, foot });
+      // On a short screen the plate, lifted clear of the commands, can come
+      // up over the lower half of a big fighter. Then — and only if there
+      // is room — it stands beside it instead, at the same height: the
+      // fighter keeps its size, the plate its own, nobody is covered.
+      // Measured off whoever is drawn, so it is no one fighter's rule; a
+      // plate hanging where it always hangs (a little over the ground at
+      // its feet) stays there.
+      const plate = plateRef.current;
+      let beside: number | undefined;
+      if (plate && foot > ownFoot + 0.001 && window.matchMedia?.(SHORT_SCREEN).matches) {
+        const tag = plate.querySelector<HTMLElement>('.bx-boss-tag');
+        const bottomPx = s.bottom - Math.max(0, foot - PLATE_HANG) * s.height;
+        const topPx = bottomPx - plate.offsetHeight - (tag ? tag.offsetHeight + 2 : 0);
+        if (topPx < a.bottom - 1) {
+          const left = a.right + PLATE_BESIDE_GAP;
+          const right = left + plate.offsetWidth;
+          const inTheWay = ['.bp-hero', '.bp-kaos']
+            .map((q) => stageEl.querySelector(q)?.getBoundingClientRect())
+            .some((o) => o && o.width > 0 && o.left < right && left < o.right && o.top < bottomPx && topPx < o.bottom);
+          if (!inTheWay && right <= s.right) beside = (left - s.left) / s.width;
+        }
+      }
+      setEnemyBox({ mid: (a.left + a.width / 2 - s.left) / s.width, foot, beside });
     };
     read();
     const observer = new ResizeObserver(read);
@@ -710,10 +739,12 @@ export function BattleStage({
 
         {/* Its health, under its feet — and following it down. */}
         <div
-          className="bx-enemy-plate"
+          ref={plateRef}
+          className={enemyBox?.beside !== undefined ? 'bx-enemy-plate beside' : 'bx-enemy-plate'}
           data-testid="bp-enemy-hp"
+          data-place={enemyBox?.beside !== undefined ? 'beside' : 'under'}
           style={{
-            left: `${plateAt.mid * 100}%`,
+            left: `${(enemyBox?.beside ?? plateAt.mid) * 100}%`,
             bottom: `${Math.max(0, (plateAt.foot - PLATE_HANG) * 100)}%`,
           }}
         >

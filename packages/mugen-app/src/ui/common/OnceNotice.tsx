@@ -1,17 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { World } from '@mugen/core/world/world';
-
-/** How long a notice stays, at its own pace (not the fight's speed). */
-export const NOTICE_MS = 2800;
+import { notices, type NoticePriority } from './noticeQueue';
 
 /**
  * A SHORT NOTICE, ONCE A WORLD — 「AUTO戦闘が使用可能になりました。」,
  * 「新しい目的地が追加されました」.
  *
- * Shown the first time `show` is true for this world, for a moment, and
- * then never again: being shown is being seen, so its read mark (`mark`,
- * core/world/readMarks.ts) is written as it appears. Nothing waits on it
- * and nothing is pressed to close it.
+ * Queued the first time `show` is true for this world (common queue,
+ * noticeQueue.ts — shown alone, in its turn, at the top), and never again:
+ * being queued is being seen, so its read mark (`mark`, core/world/
+ * readMarks.ts) is written then. Nothing waits on it and nothing is pressed
+ * to close it. Draws nothing itself (NoticeHost does).
  */
 export function OnceNotice({
   world,
@@ -19,28 +18,21 @@ export function OnceNotice({
   text,
   show = true,
   testId,
+  type = 'system',
+  priority = 'NORMAL',
 }: {
   world: World;
   mark: string;
   text: string;
   show?: boolean;
   testId?: string;
+  type?: string;
+  priority?: NoticePriority;
 }) {
-  const [visible, setVisible] = useState(false);
   useEffect(() => {
     if (!show || world.isRead(mark)) return;
-    setVisible(true);
+    notices.push({ id: `once:${mark}`, type, message: text, priority, look: 'top', testId });
     void world.markRead([mark]).catch(() => {});
   }, [show]);
-  useEffect(() => {
-    if (!visible) return;
-    const t = window.setTimeout(() => setVisible(false), NOTICE_MS);
-    return () => window.clearTimeout(t);
-  }, [visible]);
-  if (!visible) return null;
-  return (
-    <p className="once-notice" role="status" data-testid={testId}>
-      {text}
-    </p>
-  );
+  return null;
 }

@@ -13,6 +13,7 @@ import {
 } from '@mugen/game/battle/battleLogic';
 import type { EnemySpec } from '@mugen/game/battle/battleLogic';
 import { decideTurn, magicBlocked } from '@mugen/game/battle/magicChoice';
+import { autoHealPlan } from '@mugen/game/battle/autoHeal';
 import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
 import {
   DEFAULT_BATTLE_SPEED,
@@ -307,7 +308,8 @@ export function BattleScreen({
   /**
    * AUTO — open once Gald's fight is behind the player (`autoAvailable`).
    * Each turn, once the last one has been shown: brace if the creature is
-   * gathering itself (its roar), else the core's own AUTO brain
+   * gathering itself (its roar); else, hurt to 35%, mend (core/autoHeal —
+   * her spell, else 薬草／上薬草 from the bag); else the core's own AUTO brain
    * (`decideTurn`, the Artifact's) — and a swing becomes 《瞬断》 whenever
    * it has come round. Never through her awakening. Off clears the timer
    * and nothing else, so the next tap is a hand-played turn.
@@ -317,6 +319,11 @@ export function BattleScreen({
     if (!auto || !idle || battle.awakeningLines.length > 0) return;
     const t = window.setTimeout(() => {
       if (battle.enemyCharging) return onCommand('DEFEND');
+      // Hurt (35% or less): her mending spell if she can, else a herb from
+      // the bag — through the same path as a tapped one (one fewer, saved).
+      const heal = autoHealPlan(battle, spells, world.getInventory(), itemDef);
+      if (heal?.kind === 'MAGIC') return cast(heal.magicId);
+      if (heal?.kind === 'ITEM') return drink(heal.itemId);
       const plan = decideTurn(battle, spells);
       if (plan.action === 'MAGIC' && plan.magicId) return cast(plan.magicId);
       if (plan.action === 'GUARD') return onCommand('DEFEND');

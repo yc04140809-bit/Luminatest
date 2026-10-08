@@ -147,3 +147,38 @@
 @media (prefers-reduced-motion: reduce) {
   .bp-frost { animation: none; opacity: 0.6; }
 }
+
+/* ---- A short screen (実装メイン⑥, 640×300 and the like) ----
+   App only. Nobody is drawn smaller and no button moves: the words that
+   have to be read in the middle of a fight — its name and health, the
+   party's health, the turn order's heading, the commands — are kept at
+   10px or more, and the turn order is drawn a little tighter to make
+   the room. */
+.bp-field .bx-enemy-plate.beside {
+  /* Stood beside a big fighter instead of under it: its left edge is
+     where it is placed, not its middle (BattleStage). */
+  transform: none;
+}
+@media (max-height: 360px) {
+  .bx-enemy-name { font-size: 11px; }
+  .bx-enemy-read { font-size: 10px; }
+  .bx-boss-tag { font-size: 10px; line-height: 1.3; }
+  .bx-enemy-head { left: 21%; right: 9%; gap: 3px; }
+  .bx-enemy-name { letter-spacing: -0.02em; }
+  .bx-member-read,
+  .bx-member.acting .bx-member-read {
+    font-size: 10px;
+    letter-spacing: -0.06em;
+    word-spacing: -3px;
+  }
+  .bx-turns { padding: 1px 6px 2px; }
+  .bx-tc .bx-turns .bx-panel-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-indent: 0.12em;
+  }
+  .bx-turn-line { gap: 6px; margin: 0; }
+  .bp-cmd-jp { font-size: 10.5px; letter-spacing: 0; }
+  .bp-cmd-en { font-size: 7.5px; letter-spacing: 0.06em; text-indent: 0.06em; }
+  .bp-cmd-spent { font-size: 10px; }
+}
