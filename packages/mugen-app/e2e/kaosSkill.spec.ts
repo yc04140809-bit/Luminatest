@@ -94,7 +94,7 @@ for (const motion of ['no-preference', 'reduce'] as const)
   test.describe(`motion: ${motion}`, () => {
     test.use({ reducedMotion: motion });
 
-    test('from the DEBUG panel: her cut-in, 双極臨界, 界核崩壊, the burst — and nothing left', async ({ page }) => {
+    test('from the DEBUG panel: her cut-in 「双極臨界」, then 双極臨界, 界核崩壊, the burst — and nothing left', async ({ page }) => {
       await page.goto('/?preview=battle');
       await readyToAct(page);
       const hpBefore = await enemyHp(page);
@@ -106,8 +106,9 @@ for (const motion of ['no-preference', 'reduce'] as const)
       await leftNothing(page);
       const f = await stop(page);
 
-      // Her cut-in first (v18's sample), then her.
-      const cut = f.findIndex((x) => x.cutIn === '双極崩界');
+      // Her cut-in first, under her skill's own name (the author's 双極臨界, not v18's 双極崩界), then her.
+      expect(f.some((x) => x.cutIn === '双極崩界')).toBe(false);
+      const cut = f.findIndex((x) => x.cutIn === '双極臨界');
       const in_ = f.findIndex((x) => x.step !== '');
       expect(cut).toBeGreaterThanOrEqual(0);
       expect(in_).toBeGreaterThan(cut);

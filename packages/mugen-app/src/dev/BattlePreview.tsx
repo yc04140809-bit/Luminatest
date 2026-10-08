@@ -43,7 +43,7 @@ import { audioManager } from '../platform/audio';
 import { useZeroDirector } from './hero/useZeroDirector';
 import { zeroPlan } from './hero/zeroTiming';
 import { useKaosDirector } from './kaos/useKaosDirector';
-import { kaosPlan } from './kaos/kaosTiming';
+import { KAOS_SKILL_NAME, kaosPlan } from './kaos/kaosTiming';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — for checking how a fight LOOKS.
@@ -556,15 +556,25 @@ interface PartDirector {
   scene: FieldScene | null;
 }
 const sampleOf = (id: string) => CUT_IN_SAMPLES.find((c) => c.id === id)!;
+/**
+ * HER SKILL'S CUT-IN: v18's chaos sample under the skill's own name —
+ * 「双極臨界」, the author's (2026-10-08: the cut-in's name comes first,
+ * over v18's provisional 双極崩界, which stays on the v18 sample row).
+ */
+const KAOS_SKILL_CUT_IN: CutInSample = {
+  id: 'kaos-skill',
+  label: 'ケイオス（双極臨界）',
+  spec: { ...sampleOf('chaos').spec, name: KAOS_SKILL_NAME, sub: '演出見本（本編未接続）' },
+};
 const SCENE_PARTS: readonly ScenePart[] = [
   {
     id: 'kaos',
-    heading: 'ケイオスのスキル「双極臨界 → 界核崩壊」（演出見本・本編未接続）',
-    button: '▶ ケイオスのスキルを再生',
+    heading: `ケイオスのスキル「${KAOS_SKILL_NAME}」（演出見本・本編未接続）`,
+    button: `▶ ${KAOS_SKILL_NAME}を再生`,
     chip: 'ケイオス',
-    cutIn: sampleOf('chaos'),
+    cutIn: KAOS_SKILL_CUT_IN,
     flow: '主人公の位置に詠唱中のケイオス → 双極臨界（手の魔法陣が光り、敵を金の光条と青い輪の封印が囲む）→ 界核崩壊（封印が内側へ崩れ、暗い核と菱形）→ 光の炸裂 → 帰還。',
-    withheld: 'ダメージ数字は出ません（本編の技ではないため）。技名は演出テストの表示名です。',
+    withheld: 'ダメージ数字は出ません（本編の技ではないため）。技名「双極臨界」は作者指定、「界核崩壊」は後半の表示名です。',
     ms: (at) => kaosPlan(at).end,
   },
   {

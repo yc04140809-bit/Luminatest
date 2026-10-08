@@ -62,5 +62,8 @@ export function kaosPlan(speed: BattleSpeed): KaosPlan {
   return { ms, critical, collapse, burst, recover, end: recover + ms.RECOVER };
 }
 
+/** Her skill's name — the author's: the cut-in says it (2026-10-08). */
+export const KAOS_SKILL_NAME = '双極臨界';
+
 /** The names the corner chip gives each half, as the motion test shows them. */
-export const KAOS_PHASE_NAMES = { critical: '双極臨界', collapse: '界核崩壊' } as const;
+export const KAOS_PHASE_NAMES = { critical: KAOS_SKILL_NAME, collapse: '界核崩壊' } as const;
