@@ -168,9 +168,15 @@
   .bx-member-read,
   .bx-member.acting .bx-member-read {
     font-size: 10px;
-    letter-spacing: -0.06em;
+    /* Inside the round frame at 10px: proportional figures (a 1 is
+       narrow) and a little less width, not a smaller size. */
+    font-variant-numeric: proportional-nums;
+    letter-spacing: -0.08em;
     word-spacing: -3px;
+    bottom: 6px;
+    transform: translateX(-50%) scaleX(0.78);
   }
+  .bx-member-read b { margin: 0 -0.5px; opacity: 0.9; }
   .bx-turns { padding: 1px 6px 2px; }
   .bx-tc .bx-turns .bx-panel-label {
     font-size: 10px;

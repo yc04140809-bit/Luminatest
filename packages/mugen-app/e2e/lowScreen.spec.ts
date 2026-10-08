@@ -3,10 +3,11 @@ import { throughTheOpening } from './opening';
 
 /**
  * 低画面UI (実装メイン⑥, 2026-10-08): on a short phone held sideways
- * (640×300 and the like) a big fighter's health plate stands beside it
- * rather than over its feet, the words a fight is read by are 10px or
- * more, and nothing a player taps has moved or shrunk. The usual sizes
- * are as they were (battleStage.spec, sekiryuga.spec).
+ * (640×300 and the like) the words a fight is read by are 10px or more,
+ * the party's health stays inside its round frame, and nothing a player
+ * taps has moved or shrunk. At every size, a health plate that would
+ * cover the fighter it belongs to stands beside it instead (a big one,
+ * セキリュウガ); one that does not (モスラビット) stays under its feet.
  */
 
 const SHORT = [
@@ -64,11 +65,6 @@ for (const size of SHORT) {
       expect(cut).toBe(false);
     });
 
-    test('a creature that is not stood nearer: its plate under its feet, as always', async ({ page }) => {
-      await open(page, 'rabbit');
-      await expect(page.getByTestId('bp-enemy-hp')).toHaveAttribute('data-place', 'under');
-    });
-
     test('the words read in a fight are 10px or more and on the screen; the commands keep their size', async ({ page }) => {
       await open(page, 'sekiryuga');
       for (const id of ['bp-enemy-name', 'bp-enemy-read', 'bp-player-hp', 'bp-message-lead', 'bp-boss-tag']) {
@@ -107,17 +103,53 @@ for (const size of SHORT) {
         expect(b.x + b.width, id).toBeLessThanOrEqual(size.width + 1);
         expect(b.y + b.height, id).toBeLessThanOrEqual(size.height + 1);
       }
+      // The party's health inside its round frame (the hero's, whose numbers are widest).
+      const face = (await page.locator('.bx-member').first().locator('.bx-face').boundingBox())!;
+      const read = await boxOf(page, 'bp-player-hp');
+      expect(read.x).toBeGreaterThanOrEqual(face.x - 0.5);
+      expect(read.x + read.width).toBeLessThanOrEqual(face.x + face.width + 0.5);
       // The turn order keeps every face it showed.
       expect(await page.getByTestId('bx-turn-order').locator('.bx-turn').count()).toBeGreaterThanOrEqual(5);
     });
   });
 }
 
+const EVERY = [...SHORT, { width: 844, height: 390 }, { width: 915, height: 412 }];
+/** Where the plate's frame begins in its picture (BattleStage PLATE_INK_TOP). */
+const INK_TOP = 0.24;
+
+for (const size of EVERY) {
+  test.describe(`${size.width}x${size.height}: where the plate hangs`, () => {
+    test.use({ viewport: size });
+
+    test('セキリュウガ: neither its plate nor its BOSS badge on its drawing; clear of the party, the commands and the edge', async ({
+      page,
+    }) => {
+      await open(page, 'sekiryuga');
+      const art = await boxOf(page, 'bp-enemy-art');
+      const plate = await boxOf(page, 'bp-enemy-hp');
+      const frame = { x: plate.x, y: plate.y + plate.height * INK_TOP, width: plate.width, height: plate.height * (1 - INK_TOP) };
+      const tag = await boxOf(page, 'bp-boss-tag');
+      const inset = (b: Box) => ({ x: b.x + 1, y: b.y + 1, width: b.width - 2, height: b.height - 2 });
+      expect(overlaps(inset(frame), art), 'frame').toBe(false);
+      expect(overlaps(inset(tag), art), 'badge').toBe(false);
+      for (const id of ['bp-hero-art', 'bp-kaos-art', 'bp-commands', 'bx-party']) {
+        expect(overlaps(inset(frame), await boxOf(page, id)), id).toBe(false);
+      }
+      expect(plate.x + plate.width).toBeLessThanOrEqual(size.width + 1);
+    });
+
+    test('モスラビット: its plate under its feet, not moved', async ({ page }) => {
+      await open(page, 'rabbit');
+      await expect(page.getByTestId('bp-enemy-hp')).toHaveAttribute('data-place', 'under');
+    });
+  });
+}
+
 test.describe('844x390 (the usual size)', () => {
   test.use({ viewport: { width: 844, height: 390 } });
-  test('the plate hangs under its feet as before, at the sizes it was made for', async ({ page }) => {
+  test('the words keep the sizes they were made at', async ({ page }) => {
     await open(page, 'sekiryuga');
-    await expect(page.getByTestId('bp-enemy-hp')).toHaveAttribute('data-place', 'under');
     expect(await fontPx(page, 'bp-enemy-name')).toBe(9);
   });
 });

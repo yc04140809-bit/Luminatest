@@ -1720,6 +1720,32 @@ body {
   transition: opacity 1.2s ease;
 }
 .seal-dark-kaos { opacity: 0.6; }
+.seal-dark-glance { opacity: 0.85; }
+/* THE FIRST TIME BACK (ruins.tsx SekiryugaRevisitScreen): at the very end
+   Kaos alone looks back at it — her own drawing, turned towards it
+   (mirrored on screen, never edited), for a held moment. */
+/* Her silence needs no room: the words shrink to it, and she stands clear
+   between them and it. */
+.screen.seal.revisit[data-glance='yes'] .seal-words { width: auto; }
+.revisit-kaos {
+  position: absolute;
+  z-index: 2;
+  left: 29%;
+  bottom: 0;
+  height: 66%;
+  width: auto;
+  max-width: 26%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  transform: scaleX(-1);
+  filter: brightness(0.8);
+  pointer-events: none;
+  animation: revisit-glance 0.9s ease-out both;
+}
+@keyframes revisit-glance {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .seal-dark-quiet,
 .seal-dark-there { opacity: 1; }
 .screen.seal[data-shake='yes'] .seal-painting { animation: seal-shake 0.5s ease-in-out 2; }
@@ -1805,7 +1831,8 @@ body {
 .seal-hold { letter-spacing: 0.4em; opacity: 0.7; }
 @media (prefers-reduced-motion: reduce) {
   .screen.seal[data-shake='yes'] .seal-painting,
-  .seal-entrance { animation: none; }
+  .seal-entrance,
+  .revisit-kaos { animation: none; }
 }
 
 /* ── NEW: something here not yet looked at (ui/common/NewBadge) ──

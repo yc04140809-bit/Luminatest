@@ -17,11 +17,13 @@
 //   ROUTE_HEARD   once a rumour of the ruins has been heard (stage RUMOR+)
 //   RUINS_OPEN    once the ruins are on the map (stage TOLD+)
 //   AFTER_BOSS    once セキリュウガ has been brought to a stop (BEATEN+)
+//   RUINS_CRY     once the first time back at the ruins has been seen and a
+//                 night slept in the village after it (sekiryugaArc RUINS_CRY_MARK)
 
 import { stageReached, type SekiryugaStage } from '../../core/world/storyArc';
 
 export type RumorCategory = 'PERSON' | 'PLACE' | 'MONSTER' | 'ITEM' | 'EVENT' | 'TRIVIA';
-export type RumorWhen = 'ALWAYS' | 'AFTER_GALD' | 'ROUTE_HEARD' | 'RUINS_OPEN' | 'AFTER_BOSS';
+export type RumorWhen = 'ALWAYS' | 'AFTER_GALD' | 'ROUTE_HEARD' | 'RUINS_OPEN' | 'AFTER_BOSS' | 'RUINS_CRY';
 
 export const RUMOR_CATEGORY_LABEL: Record<RumorCategory, string> = {
   PERSON: '人物',
@@ -60,6 +62,13 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
     when: 'ROUTE_HEARD',
   },
   { id: 'RUINS_QUIET', category: 'PLACE', title: '静かな遺跡', text: '遺跡の方、ここ何日かは静かなもんだ。', when: 'AFTER_BOSS' },
+  {
+    id: 'RUINS_CRY',
+    category: 'PLACE',
+    title: '遺跡の奥の鳴き声',
+    text: '遺跡の近くを通った旅人が、奥から小さな鳴き声を聞いたらしい。',
+    when: 'RUINS_CRY',
+  },
 
   // ---- 魔物 ----
   { id: 'MOSS_RABBIT_HIDES', category: 'MONSTER', title: 'モスラビット', text: '森のモスラビットは、追いかけると苔に潜って隠れるらしい。', when: 'ALWAYS' },
@@ -87,7 +96,12 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
 ];
 
 /** Which rumours the village has for this world, in the order written. */
-export function rumorsFor(facts: { arcOpen: boolean; stage: SekiryugaStage }): VillageRumor[] {
+export function rumorsFor(facts: {
+  arcOpen: boolean;
+  stage: SekiryugaStage;
+  /** The cry from the ruins has been heard of (sekiryugaArc `RUINS_CRY_MARK`). */
+  ruinsCry?: boolean;
+}): VillageRumor[] {
   const holds = (when: RumorWhen): boolean => {
     switch (when) {
       case 'ALWAYS':
@@ -100,6 +114,8 @@ export function rumorsFor(facts: { arcOpen: boolean; stage: SekiryugaStage }): V
         return facts.arcOpen && stageReached(facts.stage, 'TOLD');
       case 'AFTER_BOSS':
         return facts.arcOpen && stageReached(facts.stage, 'BEATEN');
+      case 'RUINS_CRY':
+        return facts.arcOpen && stageReached(facts.stage, 'SETTLED') && facts.ruinsCry === true;
     }
   };
   return VILLAGE_RUMORS.filter((r) => holds(r.when));

@@ -238,6 +238,58 @@ export const SEKIRYUGA_AFTERMATH: readonly DialogueLine[] = [
   { speaker: HERO, text: '……。' },
 ];
 
+// ---- 撃破後の再訪 (実装メイン⑥ 2026-10-08) -----------------------------
+
+/**
+ * A beat of the revisit: a line, and — when it changes — which way it is
+ * looking (`look`), or Kaos's one look back at it (`glance`).
+ */
+export type RevisitBeat = DialogueLine & { look?: 'party' | 'deeper'; glance?: true };
+
+/**
+ * THE FIRST TIME BACK, after it was brought to a stop: it is still there,
+ * it does not come at them, and it is looking past them, deeper in. Light
+ * between the two of them — and at the very end she alone looks back at
+ * it, and says nothing. NOTHING IS EXPLAINED: not what the ruins are, not
+ * what it watches, not what she knows. Once in a world
+ * (`SEKIRYUGA_REVISIT_MARK`); never a fight.
+ */
+export const SEKIRYUGA_REVISIT: readonly RevisitBeat[] = [
+  { speaker: HERO, text: '……いた。', look: 'deeper' },
+  { speaker: KAOS, text: 'いるね。' },
+  { speaker: HERO, text: '襲ってこないな。' },
+  { speaker: null, text: '少し、間があった。' },
+  { speaker: HERO, text: 'さっきまで、あんなに殺気立ってたのに。' },
+  { speaker: null, text: `${SEKIRYUGA_NAME}は、一度だけこちらを見た。`, look: 'party' },
+  { speaker: null, text: 'そしてまた、遺跡の奥へ目を戻した。', look: 'deeper' },
+  { speaker: HERO, text: '……奥ばっかり見てるな。' },
+  { speaker: KAOS, text: 'うん。' },
+  { speaker: HERO, text: '何かあるのか？' },
+  { speaker: null, text: '少し、間があった。' },
+  { speaker: KAOS, text: 'さあ？' },
+  { speaker: HERO, text: 'またそれか。' },
+  { speaker: KAOS, text: '便利でしょ♪' },
+  { speaker: HERO, text: '便利な言葉として使うな。' },
+  { speaker: KAOS, text: '…………。', glance: true },
+];
+
+/** Seen to its end, once in a world (core/world/readMarks.ts `event:`). */
+export const SEKIRYUGA_REVISIT_MARK = 'event:SEKIRYUGA_REVISIT';
+
+/** Every time after: only this, as it is — and a word if it is looked at. */
+export const SEKIRYUGA_STILL_LINE = `${SEKIRYUGA_NAME}は、遺跡の奥を見ている。`;
+export const SEKIRYUGA_STILL_LOOKS: readonly DialogueLine[] = [
+  { speaker: HERO, text: '……まだ、ここにいる。' },
+  { speaker: HERO, text: '相変わらず奥を見てるな。' },
+];
+
+/**
+ * THE NEXT THREAD: once the revisit has been seen and they have slept a
+ * night in the village after it, Alden has heard of a faint cry from the
+ * ruins (villageRumors `RUINS_CRY`). Set by resting — no count of days.
+ */
+export const RUINS_CRY_MARK = 'event:RUINS_CRY';
+
 // ---- 古代遺跡の「昔ここで誰かが戦った」痕跡 (§10) -------------------------
 
 /**

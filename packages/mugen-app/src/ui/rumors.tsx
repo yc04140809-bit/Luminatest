@@ -7,6 +7,7 @@ import {
   type RumorCategory,
   type VillageRumor,
 } from '@mugen/content/story/villageRumors';
+import { RUINS_CRY_MARK } from '@mugen/content/story/sekiryugaArc';
 import { NewBadge } from './common/NewBadge';
 
 /**
@@ -23,7 +24,11 @@ const ORDER: readonly RumorCategory[] = ['PERSON', 'PLACE', 'MONSTER', 'ITEM', '
 
 /** The rumours this world has, and how many are not yet read. */
 export function rumorsOf(world: World): { rumors: VillageRumor[]; unread: number } {
-  const rumors = rumorsFor({ arcOpen: world.isSekiryugaArcOpen(), stage: world.getSekiryugaStage() });
+  const rumors = rumorsFor({
+    arcOpen: world.isSekiryugaArcOpen(),
+    stage: world.getSekiryugaStage(),
+    ruinsCry: world.isRead(RUINS_CRY_MARK),
+  });
   return { rumors, unread: rumors.filter((r) => !world.isRead(rumorMark(r.id))).length };
 }
 

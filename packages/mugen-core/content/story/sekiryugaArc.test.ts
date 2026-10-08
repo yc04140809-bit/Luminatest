@@ -6,10 +6,16 @@ import {
   SEKIRYUGA_AFTERMATH,
   SEKIRYUGA_APPROACH_KAOS,
   SEKIRYUGA_APPROACH_SIGNS,
+  RUINS_CRY_MARK,
+  SEKIRYUGA_REVISIT,
+  SEKIRYUGA_REVISIT_MARK,
   SEKIRYUGA_RUMORS,
+  SEKIRYUGA_STILL_LINE,
+  SEKIRYUGA_STILL_LOOKS,
   SEKIRYUGA_TAVERN_EVENT,
   TAVERN_PAST_HINT,
 } from './sekiryugaArc';
+import { isMarkId } from '../../core/world/readMarks';
 import { RUINS_WALK } from '../exploration/ruinsWalk';
 
 /**
@@ -25,6 +31,9 @@ const everything = [
   ...SEKIRYUGA_APPROACH_KAOS,
   ...SEKIRYUGA_AFTERMATH,
   ...RUINS_PAST_BATTLE_TRACES,
+  ...SEKIRYUGA_REVISIT,
+  { text: SEKIRYUGA_STILL_LINE },
+  ...SEKIRYUGA_STILL_LOOKS,
 ];
 
 describe('the rumours', () => {
@@ -151,5 +160,54 @@ describe('the ruins’ traces of an old fight', () => {
   it('never name the tavern’s master', () => {
     const said = all(RUINS_PAST_BATTLE_TRACES);
     expect(said).not.toMatch(/グレイヴ|マスター|酒場/);
+  });
+});
+
+describe('the first time back (実装メイン⑥ 2026-10-08)', () => {
+  const revisit = [...SEKIRYUGA_REVISIT, { text: SEKIRYUGA_STILL_LINE }, ...SEKIRYUGA_STILL_LOOKS];
+
+  it('is the author’s exchange, in order, short', () => {
+    const said = SEKIRYUGA_REVISIT.filter((b) => b.speaker !== null).map((b) => b.text);
+    expect(said).toEqual([
+      '……いた。',
+      'いるね。',
+      '襲ってこないな。',
+      'さっきまで、あんなに殺気立ってたのに。',
+      '……奥ばっかり見てるな。',
+      'うん。',
+      '何かあるのか？',
+      'さあ？',
+      'またそれか。',
+      '便利でしょ♪',
+      '便利な言葉として使うな。',
+      '…………。',
+    ]);
+    expect(SEKIRYUGA_REVISIT.length).toBeLessThanOrEqual(18);
+  });
+
+  it('it looks at them once, then deeper again — and she alone looks back at it, silent, last', () => {
+    const looks = SEKIRYUGA_REVISIT.filter((b) => b.look).map((b) => b.look);
+    expect(looks).toEqual(['deeper', 'party', 'deeper']);
+    const last = SEKIRYUGA_REVISIT[SEKIRYUGA_REVISIT.length - 1];
+    expect(last).toMatchObject({ speaker: 'ケイオス', glance: true, text: '…………。' });
+    expect(SEKIRYUGA_REVISIT.filter((b) => b.glance)).toHaveLength(1);
+  });
+
+  it('answers nothing: not the ruins, not what it guards, not a young one, not her past, not WORLD MEMORY', () => {
+    expect(all(revisit)).not.toMatch(
+      /この遺跡は昔|守って|守る|幼体|卵|子供|AI|知ってる|知っている|古代兵器|ロストテクノロジー|WORLD MEMORY|封印/,
+    );
+  });
+
+  it('afterwards, only how it is: a short word when looked at', () => {
+    expect(SEKIRYUGA_STILL_LINE).toBe('セキリュウガは、遺跡の奥を見ている。');
+    expect(SEKIRYUGA_STILL_LOOKS.map((l) => l.text)).toEqual(['……まだ、ここにいる。', '相変わらず奥を見てるな。']);
+    expect(SEKIRYUGA_STILL_LOOKS.every((l) => l.speaker === HERO_SPEAKER)).toBe(true);
+  });
+
+  it('is kept as read marks, the one store behind every once', () => {
+    expect(isMarkId(SEKIRYUGA_REVISIT_MARK)).toBe(true);
+    expect(isMarkId(RUINS_CRY_MARK)).toBe(true);
+    expect(SEKIRYUGA_REVISIT_MARK).not.toBe(RUINS_CRY_MARK);
   });
 });

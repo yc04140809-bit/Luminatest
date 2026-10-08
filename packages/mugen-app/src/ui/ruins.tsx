@@ -8,12 +8,16 @@ import {
   SEKIRYUGA_APPROACH_KAOS,
   SEKIRYUGA_APPROACH_SIGNS,
   SEKIRYUGA_ENTRANCE_LINE,
+  SEKIRYUGA_REVISIT,
+  SEKIRYUGA_STILL_LINE,
+  SEKIRYUGA_STILL_LOOKS,
 } from '@mugen/content/story/sekiryugaArc';
 import { SEKIRYUGA_NAME } from '@mugen/content/enemies/sekiryugaBattle';
 import { RoamScene, type RoamKeeper, type RoamMemory } from './explore/RoamScene';
 import { pickupKeeper } from './explore/pickupKeeper';
 import { walkPainting } from '../assets/walk';
 import { battleEnemyArt } from './battle/battleArt';
+import { portraitArt } from '../assets/portraits';
 import { playSfx } from '../platform/audio';
 import { NewBadge } from './common/NewBadge';
 import { OnceNotice } from './common/OnceNotice';
@@ -34,13 +38,16 @@ export const SEAL_DESTINATION = 'dest:SEKIRYUGA_SEAL';
  *               rumble, and then it is there — its name, and it
  *   aftermath   after the fight: it is not dead, and it is not looking at
  *               them (content/story/sekiryugaArc)
+ *   revisit     the first time back after that (once in a world): still
+ *               there, not coming at them, looking deeper in
+ *   still       every time after: only that, and a word if looked at
  *
  * The fight itself is the ordinary battle screen; this file only leads up
  * to it and away from it.
  */
 
 /** Which part of the ruins is showing. */
-export type RuinsPhase = 'walk' | 'approach' | 'aftermath';
+export type RuinsPhase = 'walk' | 'approach' | 'aftermath' | 'revisit' | 'still';
 
 /** What the save keeps of walking the ruins — visits, and the rainbow find. */
 export function ruinsKeeper(world: World): RoamKeeper {
@@ -64,7 +71,7 @@ export function RuinsWalkScreen({
 }: {
   world: World;
   /** Whether the way deeper is open, and what it leads to. Null: no door. */
-  deep: 'APPROACH' | 'AFTERMATH' | null;
+  deep: 'APPROACH' | 'AFTERMATH' | 'STILL' | null;
   onDeep: () => void;
   onLeave: () => void;
   memory?: { current: RoamMemory | null };
@@ -77,7 +84,8 @@ export function RuinsWalkScreen({
   const keeper = useMemo(() => ruinsKeeper(world), []);
   // Its pickups, read as the walk opens (taken ones stay taken).
   const pickups = useMemo(() => pickupKeeper(world), []);
-  const deepNew = !!deep && !world.isRead(SEAL_DESTINATION);
+  // Back to where it stays (STILL) is not somewhere new.
+  const deepNew = !!deep && deep !== 'STILL' && !world.isRead(SEAL_DESTINATION);
   return (
     <RoamScene
       scene={RUINS_WALK}
@@ -147,13 +155,14 @@ function useRuinsPainting(): string | null {
  * faces right; mirrored on screen, never edited). `stopped`: brought to a
  * stop — lowered and dimmed, there being no drawing of it down.
  */
-function Figure({ toward, stopped = false }: { toward: boolean; stopped?: boolean }) {
+function Figure({ toward, stopped = false, src }: { toward: boolean; stopped?: boolean; src?: string | null }) {
   const art = battleEnemyArt('sekiryuga', 'front');
-  if (!art.asset) return null;
+  const shownSrc = src ?? art.asset?.src;
+  if (!shownSrc) return null;
   return (
     <img
       className={`seal-figure${toward ? ' toward' : ''}${stopped ? ' stopped' : ''}`}
-      src={art.asset.src}
+      src={shownSrc}
       alt={SEKIRYUGA_NAME}
       data-testid="seal-figure"
       data-facing={toward ? 'party' : 'away'}
@@ -299,6 +308,113 @@ export function SekiryugaAftermathScreen({ heroName, onDone }: { heroName: strin
         >
           {last ? 'もどる' : 'つぎへ'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * セキリュウガ AS IT STAYS, after the fight — down, resting, watching the
+ * depths. No such drawing has been delivered: until one is, the fight's own
+ * (null here falls back to battleArt). The day it arrives, naming the file
+ * here is the whole change; no screen below moves.
+ */
+const SEKIRYUGA_AT_REST: string | null = null;
+
+/** How long her silence holds before the way back is offered. */
+export const REVISIT_GLANCE_MS = 1400;
+
+/**
+ * THE FIRST TIME BACK (content/story/sekiryugaArc SEKIRYUGA_REVISIT). Still
+ * there; it does not come at them and offers no fight — it looks at them
+ * once and goes back to looking deeper. Light between the two of them, and
+ * last, Kaos alone looking back at it, silent, for a moment longer than a
+ * line. `onDone` is when it has been seen to its end (the App keeps it).
+ */
+export function SekiryugaRevisitScreen({ heroName, onDone }: { heroName: string; onDone: () => void }) {
+  const painting = useRuinsPainting();
+  const [at, setAt] = useState(0);
+  const [kaos, setKaos] = useState<string | null>(null);
+  const [held, setHeld] = useState(false);
+  useEffect(() => {
+    let gone = false;
+    // Her own field drawing, turned towards it; a drawing made for this
+    // look, when there is one, is a change of this line only.
+    void portraitArt('kaos').then((src) => !gone && setKaos(src));
+    return () => {
+      gone = true;
+    };
+  }, []);
+  const beat = SEKIRYUGA_REVISIT[at];
+  const line = shown(beat, heroName);
+  const last = at >= SEKIRYUGA_REVISIT.length - 1;
+  // Which way it is looking: the last beat that said so.
+  const look = SEKIRYUGA_REVISIT.slice(0, at + 1).reduce<'party' | 'deeper'>((now, b) => b.look ?? now, 'deeper');
+  const glance = !!beat.glance;
+  // Her silence is held: the way on comes only after it.
+  useEffect(() => {
+    if (!glance) return;
+    setHeld(true);
+    const t = window.setTimeout(() => setHeld(false), REVISIT_GLANCE_MS);
+    return () => window.clearTimeout(t);
+  }, [glance]);
+  return (
+    <div className="screen seal revisit" data-testid="seal-revisit" data-at={at} data-glance={glance ? 'yes' : 'no'}>
+      {painting && <img className="seal-painting" src={painting} alt="" aria-hidden="true" />}
+      <div className={`seal-dark ${glance ? 'seal-dark-glance' : 'seal-dark-kaos'}`} aria-hidden="true" />
+      <div className="seal-entrance after">
+        <Figure toward={look === 'party'} src={SEKIRYUGA_AT_REST} />
+      </div>
+      {glance && kaos && (
+        <img className="revisit-kaos" src={kaos} alt="ケイオス" data-testid="revisit-kaos" aria-hidden="true" />
+      )}
+      <div className="seal-words">
+        {line.speaker && <p className="speaker">{line.speaker}</p>}
+        <p className="line" data-testid="seal-line">
+          {line.speaker ? `「${line.text}」` : line.text}
+        </p>
+        <button
+          className="btn primary"
+          data-testid="seal-next"
+          disabled={held}
+          style={held ? { visibility: 'hidden' } : undefined}
+          onClick={() => (last ? onDone() : setAt(at + 1))}
+        >
+          {last ? 'もどる' : 'つぎへ'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * EVERY TIME AFTER: it is there, looking deeper in, and that is all. No
+ * fight and no command for one; looked at, the hero says a few words.
+ */
+export function SekiryugaStillScreen({ heroName, onLeave }: { heroName: string; onLeave: () => void }) {
+  const painting = useRuinsPainting();
+  const [looked, setLooked] = useState(-1);
+  const said = looked >= 0 ? shown(SEKIRYUGA_STILL_LOOKS[looked % SEKIRYUGA_STILL_LOOKS.length], heroName) : null;
+  return (
+    <div className="screen seal" data-testid="seal-still">
+      {painting && <img className="seal-painting" src={painting} alt="" aria-hidden="true" />}
+      <div className="seal-dark seal-dark-kaos" aria-hidden="true" />
+      <div className="seal-entrance after">
+        <Figure toward={false} src={SEKIRYUGA_AT_REST} />
+      </div>
+      <div className="seal-words">
+        {said?.speaker && <p className="speaker">{said.speaker}</p>}
+        <p className="line" data-testid="seal-line">
+          {said ? `「${said.text}」` : SEKIRYUGA_STILL_LINE}
+        </p>
+        <div className="actions">
+          <button className="btn primary" data-testid="still-look" onClick={() => setLooked(looked + 1)}>
+            調べる
+          </button>
+          <button className="btn" data-testid="still-leave" onClick={onLeave}>
+            もどる
+          </button>
+        </div>
       </div>
     </div>
   );

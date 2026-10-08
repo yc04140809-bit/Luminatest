@@ -51,7 +51,7 @@ import type { RoamMemory } from './ui/explore/RoamScene';
 import { PrologueScreen } from './ui/prologue';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
-import { SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
+import { RUINS_CRY_MARK, SEKIRYUGA_REVISIT_MARK, SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
 import { GRAVE_MEETING_MARK, hasMetGrave } from '@mugen/content/talk/graveTalks';
 import { pickupKeeper } from './ui/explore/pickupKeeper';
 import { stageReached } from '@mugen/core/world/storyArc';
@@ -71,6 +71,8 @@ import {
   RuinsWalkScreen,
   SealApproachScreen,
   SekiryugaAftermathScreen,
+  SekiryugaRevisitScreen,
+  SekiryugaStillScreen,
   type RuinsPhase,
 } from './ui/ruins';
 
@@ -710,6 +712,14 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             void world
               .advanceDay()
               .then(() => world.restoreParty())
+              // A night in the village after the first time back at the
+              // ruins: the next morning, the cry from the ruins is talked
+              // about (噂話). Once; nothing else about the night changes.
+              .then(() =>
+                world.isRead(SEKIRYUGA_REVISIT_MARK) && !world.isRead(RUINS_CRY_MARK)
+                  ? world.markRead([RUINS_CRY_MARK])
+                  : undefined,
+              )
               .catch((e) => console.error('The night did not pass', e))
               .finally(() => setResting(false));
           }}
@@ -777,12 +787,42 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           />
         );
       }
+      if (ruins === 'revisit') {
+        return (
+          <SekiryugaRevisitScreen
+            heroName={world.getHeroName()}
+            onDone={() => {
+              void world
+                .markRead([SEKIRYUGA_REVISIT_MARK])
+                .catch((e) => console.error('Failed to keep what was seen', e))
+                .finally(() => {
+                  resumeRuins.current = false;
+                  setRuins('walk');
+                });
+            }}
+          />
+        );
+      }
+      if (ruins === 'still') {
+        return (
+          <SekiryugaStillScreen
+            heroName={world.getHeroName()}
+            onLeave={() => {
+              resumeRuins.current = true;
+              setRuins('walk');
+            }}
+          />
+        );
+      }
       if (ruins === 'walk') {
+        // After it was brought to a stop and that was seen: where it stays,
+        // once the first time back has been seen. Never a fight again.
+        const still = stage === 'SETTLED' && world.isRead(SEKIRYUGA_REVISIT_MARK);
         return (
           <RuinsWalkScreen
             world={world}
-            deep={stage === 'TOLD' ? 'APPROACH' : stage === 'BEATEN' ? 'AFTERMATH' : null}
-            onDeep={() => setRuins(stage === 'BEATEN' ? 'aftermath' : 'approach')}
+            deep={stage === 'TOLD' ? 'APPROACH' : stage === 'BEATEN' ? 'AFTERMATH' : still ? 'STILL' : null}
+            onDeep={() => setRuins(stage === 'BEATEN' ? 'aftermath' : still ? 'still' : 'approach')}
             onLeave={() => {
               resumeRuins.current = false;
               setRuins(null);
@@ -817,7 +857,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onRuins={() => {
             void world.markRead([RUINS_DESTINATION]).catch(() => {});
             resumeRuins.current = false;
-            setRuins('walk');
+            // The first time back after セキリュウガ was brought to a stop
+            // and that was seen: it is still there (once in a world).
+            setRuins(stage === 'SETTLED' && !world.isRead(SEKIRYUGA_REVISIT_MARK) ? 'revisit' : 'walk');
           }}
         />
       );

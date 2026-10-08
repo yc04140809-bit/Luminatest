@@ -8,6 +8,8 @@
 //   memory:<id>  a WORLD MEMORY entry looked at
 //   note:<id>    a one-time notice seen (「AUTO戦闘が使用可能になりました。」)
 //   talk:<id>    a one-time talk heard to its end
+//   event:<id>   a one-time scene seen to its end, or a thing that happened
+//                in the world after one (the first time back at the ruins)
 //
 // A thing is NEW while it exists for this world and its id is not here.
 // Opening a menu writes nothing: an id is added only when the thing itself

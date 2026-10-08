@@ -43,3 +43,21 @@ describe('the village’s rumours', () => {
     expect(rumorMark('X')).toBe('rumor:X');
   });
 });
+
+describe('the cry from the ruins (実装メイン⑥ 2026-10-08)', () => {
+  const has = (f: Parameters<typeof rumorsFor>[0]) => rumorsFor(f).some((r) => r.id === 'RUINS_CRY');
+
+  it('only once it is settled, the first time back seen and a night slept after it', () => {
+    expect(has({ arcOpen: true, stage: 'SETTLED' })).toBe(false);
+    expect(has({ arcOpen: true, stage: 'SETTLED', ruinsCry: false })).toBe(false);
+    expect(has({ arcOpen: true, stage: 'BEATEN', ruinsCry: true })).toBe(false);
+    expect(has({ arcOpen: false, stage: 'SETTLED', ruinsCry: true })).toBe(false);
+    expect(has({ arcOpen: true, stage: 'SETTLED', ruinsCry: true })).toBe(true);
+  });
+
+  it('a small cry, and no more: not a young one, an egg, or its child', () => {
+    const cry = VILLAGE_RUMORS.find((r) => r.id === 'RUINS_CRY')!;
+    expect(cry.text).toBe('遺跡の近くを通った旅人が、奥から小さな鳴き声を聞いたらしい。');
+    expect(`${cry.title}${cry.text}`).not.toMatch(/幼体|卵|子供|子ども|セキリュウガ/);
+  });
+});

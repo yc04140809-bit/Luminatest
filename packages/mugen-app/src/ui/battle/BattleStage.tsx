@@ -226,9 +226,9 @@ function steppedStyle(slot: PrototypeSlot, phase: CameraPhase, step: { inset: nu
 const PLATE_HANG = 0.14;
 /** And the least room, in pixels, kept between it and the commands. */
 const PLATE_CLEAR = 4;
-/** A short screen (実装メイン⑥, 640×300 and the like): one where a plate
- *  kept clear of the commands may land on the feet it hangs under. */
-const SHORT_SCREEN = '(max-height: 360px)';
+/** Where the plate's frame begins, as a share of its height: above it the
+ *  picture is clear but for the small ornament at its left end. */
+const PLATE_INK_TOP = 0.24;
 /** The gap, in pixels, between a fighter and a plate stood beside it. */
 const PLATE_BESIDE_GAP = 6;
 
@@ -483,8 +483,7 @@ export function BattleStage({
       const s = stageEl.getBoundingClientRect();
       const a = actor.getBoundingClientRect();
       if (s.width <= 0 || s.height <= 0) return;
-      const ownFoot = (s.bottom - a.bottom) / s.height;
-      let foot = ownFoot;
+      let foot = (s.bottom - a.bottom) / s.height;
       // A fighter stood nearer (`presence`) keeps its plate under its feet
       // — unless that would put it into the commands (or the 「アルカナ
       // 準備中」 line over them) on a short screen: then the plate rises
@@ -495,26 +494,48 @@ export function BattleStage({
           .filter((top): top is number => top !== undefined && top > 0);
         if (tops.length > 0) foot = Math.max(foot, PLATE_HANG + (s.bottom - Math.min(...tops) + PLATE_CLEAR) / s.height);
       }
-      // On a short screen the plate, lifted clear of the commands, can come
-      // up over the lower half of a big fighter. Then — and only if there
-      // is room — it stands beside it instead, at the same height: the
-      // fighter keeps its size, the plate its own, nobody is covered.
-      // Measured off whoever is drawn, so it is no one fighter's rule; a
-      // plate hanging where it always hangs (a little over the ground at
-      // its feet) stays there.
+      // WHERE IT HANGS COVERS THE FIGHTER? Then — and only if there is
+      // room — it stands beside it instead, at the same height: the fighter
+      // keeps its size, the plate its own, nobody is covered. Judged by
+      // what is drawn, at any screen size: the plate's frame (not the clear
+      // top of its picture) and the BOSS badge over it, against the
+      // fighter's drawing. A plate that only hangs near the feet stays
+      // where it is; no fighter is named here.
       const plate = plateRef.current;
       let beside: number | undefined;
-      if (plate && foot > ownFoot + 0.001 && window.matchMedia?.(SHORT_SCREEN).matches) {
-        const tag = plate.querySelector<HTMLElement>('.bx-boss-tag');
+      if (plate) {
+        const mid = a.left + a.width / 2;
         const bottomPx = s.bottom - Math.max(0, foot - PLATE_HANG) * s.height;
-        const topPx = bottomPx - plate.offsetHeight - (tag ? tag.offsetHeight + 2 : 0);
-        if (topPx < a.bottom - 1) {
+        const w = plate.offsetWidth;
+        const h = plate.offsetHeight;
+        // The badge, where it sits on the plate as drawn now.
+        const pr = plate.getBoundingClientRect();
+        const tr = plate.querySelector('.bx-boss-tag')?.getBoundingClientRect();
+        const ink = (left: number) => [
+          { left, right: left + w, top: bottomPx - h * (1 - PLATE_INK_TOP), bottom: bottomPx },
+          ...(tr
+            ? [
+                {
+                  left: left + tr.left - pr.left,
+                  right: left + tr.right - pr.left,
+                  top: bottomPx - h + tr.top - pr.top,
+                  bottom: bottomPx - h + tr.bottom - pr.top,
+                },
+              ]
+            : []),
+        ];
+        type Box = { left: number; right: number; top: number; bottom: number };
+        const meets = (p: Box, o: Box) => p.left < o.right - 1 && o.left < p.right - 1 && p.top < o.bottom - 1 && o.top < p.bottom - 1;
+        if (ink(mid - w / 2).some((p) => meets(p, a))) {
           const left = a.right + PLATE_BESIDE_GAP;
-          const right = left + plate.offsetWidth;
-          const inTheWay = ['.bp-hero', '.bp-kaos']
-            .map((q) => stageEl.querySelector(q)?.getBoundingClientRect())
-            .some((o) => o && o.width > 0 && o.left < right && left < o.right && o.top < bottomPx && topPx < o.bottom);
-          if (!inTheWay && right <= s.right) beside = (left - s.left) / s.width;
+          const others = [
+            ...['.bp-hero', '.bp-kaos'].map((q) => stageEl.querySelector(q)),
+            ...['bp-commands', 'bp-arcana-locked', 'bx-party'].map((id) => document.querySelector(`[data-testid="${id}"]`)),
+          ]
+            .map((el) => el?.getBoundingClientRect())
+            .filter((o): o is DOMRect => !!o && o.width > 0 && o.height > 0);
+          const clear = ink(left).every((p) => p.right <= s.right && others.every((o) => !meets(p, o)));
+          if (clear) beside = (left - s.left) / s.width;
         }
       }
       setEnemyBox({ mid: (a.left + a.width / 2 - s.left) / s.width, foot, beside });
