@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * NAMING — asked once, on the way out of the opening.
@@ -51,6 +51,7 @@ test('asks after the opening and before the village, then keeps the name', async
 
   await page.getByTestId('naming-input').fill('レイ');
   await page.getByTestId('naming-confirm').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   await openStatus(page);
@@ -76,6 +77,7 @@ test('will not take a name that is only space, in either width', async ({ page }
   await input.fill('  レイ  ');
   await expect(confirm).toBeEnabled();
   await confirm.click();
+  await pastTheIntro(page);
   await openStatus(page);
   // EXACTLY, so the trimming is what is being tested and not a
   // substring that would pass either way.
@@ -87,6 +89,7 @@ test('lets them keep the default, and records that as chosen', async ({ page }) 
   await toNaming(page);
 
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
   await openStatus(page);
   await expect(page.getByTestId('status-name-text')).toHaveText('主人公');
@@ -97,6 +100,7 @@ test('survives a restart, and CONTINUE never asks again', async ({ page }) => {
   await toNaming(page);
   await page.getByTestId('naming-input').fill('リナ');
   await page.getByTestId('naming-confirm').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   // Closing the game with nothing done but the naming, which is the

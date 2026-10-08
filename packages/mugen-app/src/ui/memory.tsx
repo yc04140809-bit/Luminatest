@@ -5,6 +5,8 @@ import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
 import { UNKNOWN_CONTINUATION_TEXT } from '@mugen/content/archive/galdChapters';
 import { Place } from './screens';
 import { NewBadge } from './common/NewBadge';
+import { IntroScreen } from './intro';
+import { OPENING_INTRO_RECALL } from '@mugen/content/story/openingIntro';
 
 /** The read mark a WORLD MEMORY entry is cleared with. */
 export const memoryMark = (eventId: string): string => `memory:${eventId}`;
@@ -111,6 +113,14 @@ export function ArchiveScreen({ world, onBack }: { world: World; onBack: () => v
   const entries = world.getLifeArchive();
   const [openId, setOpenId] = useState<string | null>(null);
   const open = entries.find((e) => e.characterId === openId) ?? null;
+  // 回想: scenes seen again. For now only the way into Alden, for anyone
+  // who has come that far (named) — seen again, it changes nothing.
+  const [recalling, setRecalling] = useState(false);
+  const canRecall = world.hasNamedHero();
+
+  if (recalling) {
+    return <IntroScreen heroName={world.getHeroName()} recall onDone={() => setRecalling(false)} />;
+  }
 
   if (open) {
     return (
@@ -161,6 +171,18 @@ export function ArchiveScreen({ world, onBack }: { world: World; onBack: () => v
               </li>
             ))}
           </ul>
+        )}
+        {canRecall && (
+          <section className="archive-recall" data-testid="archive-recall">
+            <h2 className="rumor-category">回想</h2>
+            <button
+              className="btn"
+              data-testid={`recall-${OPENING_INTRO_RECALL.id}`}
+              onClick={() => setRecalling(true)}
+            >
+              {OPENING_INTRO_RECALL.title}
+            </button>
+          </section>
         )}
         <button className="btn primary" data-testid="archive-back" onClick={onBack}>
           もどる

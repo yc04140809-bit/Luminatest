@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { enemyHp, readyToAct } from './battle';
 
 /**
@@ -123,6 +123,7 @@ test('in a real fight, a press where 攻撃 is while the bag is open closes the 
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();

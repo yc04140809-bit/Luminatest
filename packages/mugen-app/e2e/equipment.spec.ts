@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * EQUIPMENT — what is held, what may be held, and that it survives.
@@ -32,6 +32,7 @@ async function intoTheVillage(page: Page) {
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 

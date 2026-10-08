@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightUntil, readyToAct } from './battle';
 import { settled } from './roam';
 
@@ -46,6 +46,7 @@ async function freshVillage(page: Page) {
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 

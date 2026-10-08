@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enemyHp, readyToAct } from './battle';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * HIS 零閃・天衝, IN THE DEBUG PREVIEW (STEP 9).
@@ -255,6 +255,7 @@ test("the game's own fight never plays it", async ({ page }) => {
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();

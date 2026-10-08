@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enemyHp, fightToResult, readyToAct, throughTheAwakening } from './battle';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * THE DEBUG BATTLE PREVIEW — for watching a move again and again.
@@ -142,6 +142,7 @@ test('a real save is exactly as it was after the preview: rows, memory, rewards,
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();

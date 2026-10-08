@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { fightToResult } from './battle';
 
 /**
@@ -55,6 +55,7 @@ test('the greenwood\'s fight is fought on FOREST, and it leaves with the fight',
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
 

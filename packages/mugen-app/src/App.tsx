@@ -29,6 +29,8 @@ import { BakeryScreen } from './ui/bakery';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
+import { IntroScreen } from './ui/intro';
+import { OPENING_INTRO_MARK } from '@mugen/content/story/openingIntro';
 import { EquipmentScreen } from './ui/equipment';
 import { useSceneBgm } from './ui/audio/useSceneBgm';
 import { audioManager } from './platform/audio';
@@ -128,6 +130,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    */
   const [kaosArrived, setKaosArrived] = useState(false);
   const [namingBusy, setNamingBusy] = useState(false);
+  /**
+   * 第0話 — the way into Alden, between the name and the village (ui/intro).
+   * Held here for the same reason naming is: not a `Screen` of the shared
+   * union, and never reached by 「つづきから」.
+   */
+  const [intro, setIntro] = useState(false);
   /**
    * EQUIPMENT IS A LEAF OF STATUS, not a screen of its own.
    *
@@ -240,7 +248,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   }, [ruins, hushed]);
 
   useAndroidBackButton(() => {
-    if (naming) return;
+    // Nor walking out of the way in: SKIP is how it is left early.
+    if (naming || intro) return;
     // Back out of equipment to status first, not out to the village.
     if (state.screen === 'STATUS' && equipment) {
       setEquipment(false);
@@ -566,6 +575,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const noticeScope = [
     state.screen,
     naming ? 'naming' : '',
+    intro ? 'intro' : '',
     equipment ? 'equipment' : '',
     tavern ? 'tavern' : '',
     bakery ? 'bakery' : '',
@@ -634,6 +644,24 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                 .finally(() => {
                   setNaming(false);
                   setNamingBusy(false);
+                  setIntro(true);
+                });
+            }}
+          />
+        );
+      }
+      if (intro) {
+        return (
+          <IntroScreen
+            heroName={world.getHeroName()}
+            // SEEN OR SKIPPED, ONE WAY OUT: the same mark and the same
+            // village, so skipping can never leave the world different.
+            onDone={() => {
+              void world
+                .markRead([OPENING_INTRO_MARK])
+                .catch((e) => console.error('Failed to keep the way in', e))
+                .finally(() => {
+                  setIntro(false);
                   flow.goTo('HOME');
                 });
             }}

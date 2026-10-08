@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, watchTheIntro } from './opening';
 import { fightToResult, fightUntil, readyToAct, throughTheAwakening } from './battle';
 
 /**
@@ -47,6 +47,10 @@ test('start to finish on one save, and all of it still there after a restart', a
   await throughTheOpening(page);
   await page.getByTestId('naming-input').fill('レイ');
   await page.getByTestId('naming-confirm').click();
+
+  // 第0話 — the way into Alden, seen to its end: she has his name.
+  const intro = await watchTheIntro(page);
+  expect(intro).toContain('「よろしくね、レイ♪」');
 
   // 村.
   await expect(page.getByTestId('world-clock')).toBeVisible();

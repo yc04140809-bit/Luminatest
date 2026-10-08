@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { fightUntil } from './battle';
 
 /**
@@ -131,6 +131,7 @@ test('plays the right piece on every screen, one at a time', async ({ page }) =>
   await throughTheOpening(page);
   await expectPlaying(page, 'KAOS_EVENT');
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
 
   // ALDEN_HOME — the house plays the village's theme.
   await expectPlaying(page, 'ALDEN_VILLAGE');
@@ -229,6 +230,7 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
 
   // LOCKED: an ordinary fight has one piece and nothing to switch.
   await toTheRabbit(page);
@@ -275,6 +277,7 @@ test('the boss piece is unlocked by beating Gald, in that save only', async ({ p
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await toTheRabbit(page);
   await expectPlaying(page, 'NORMAL_BATTLE');
   await expect(page.getByTestId('bp-bgm-cycle')).toHaveCount(0);
@@ -293,6 +296,7 @@ test('an older save that beat Gald and answered gets ♪ back when it is opened'
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await toTheMap(page);
   await page.getByTestId('forest-button').click();
   await beatGald(page);
@@ -360,6 +364,7 @@ test('plays the boss piece for Gald, and her piece after', async ({ page }) => {
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('gald-button').click();

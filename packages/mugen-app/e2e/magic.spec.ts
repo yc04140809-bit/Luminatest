@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { MAGIC_DEFS } from '../../mugen-core/content/magic/magicDefs';
 import { enemyHp, fightUntil, readyToAct, throughTheAwakening } from './battle';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * HER SPELLS, SHOWN IN FULL (STEP C) — in the debug preview and in the
@@ -278,6 +278,7 @@ test("in the game's own fight with Gald, her spells are shown in full and the fi
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('gald-button').click();
@@ -407,6 +408,7 @@ test("all five of her spells in the game's own fights, and a clean next fight af
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('gald-button').click();

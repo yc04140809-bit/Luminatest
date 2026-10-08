@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { fightUntil, readyToAct, throughTheAwakening } from './battle';
 
 /**
@@ -39,6 +39,7 @@ async function intoTheVillage(page: Page) {
   // Naming sits between the opening and the village now. Taking the
   // default keeps every test in this file about what it was about.
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 

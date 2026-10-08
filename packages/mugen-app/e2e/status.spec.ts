@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * THE STATUS SCREEN, built to the author's two reference images.
@@ -40,6 +40,7 @@ async function intoTheVillage(page: Page) {
   // Naming now sits between the opening and the village. Taking the
   // default, so what this file asserts stays about the status screen.
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * THE SAME GAME, DRIVEN WITH A FINGER.
@@ -71,6 +71,7 @@ async function intoTheVillageByTouch(page: Page) {
   await page.getByTestId('naming-input').tap();
   await page.getByTestId('naming-input').fill('ケイオス師匠');
   await page.getByTestId('naming-confirm').tap();
+  await pastTheIntro(page, { tap: true });
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 

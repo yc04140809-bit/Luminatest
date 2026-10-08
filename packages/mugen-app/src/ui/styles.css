@@ -2225,3 +2225,67 @@ body {
   .pp-exp { display: none; }
   .pp-name { min-width: 0; }
 }
+
+/* ---- 第0話 — the way into Alden (ui/intro.tsx) ---- */
+.intro { display: contents; }
+/* Lines break where they were written, not mid-word. */
+.intro .stage-line { white-space: pre-line; }
+.intro-dark { background: #000; animation: intro-dark-in 0.6s ease-out both; }
+@keyframes intro-dark-in { from { opacity: 0; } to { opacity: 1; } }
+/* Her one moment: the road goes dim around her and she is not lit. */
+.intro-still .stage-backdrop { opacity: 0.16; transition: opacity 0.8s ease; }
+.intro-still .stage-figure { filter: brightness(0.72) saturate(0.8); transition: filter 0.8s ease; }
+.intro-skip {
+  position: fixed;
+  z-index: 40;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  min-width: 64px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border: 1px solid rgba(220, 192, 132, 0.8);
+  border-radius: 999px;
+  background: rgba(16, 14, 22, 0.72);
+  color: #fdf3dc;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+.intro-ask {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(6, 5, 10, 0.6);
+}
+.intro-ask-card {
+  max-width: min(92vw, 440px);
+  padding: 14px 18px;
+  border-radius: 10px;
+  text-align: center;
+}
+.intro-ask-q { margin: 0 0 6px; font-size: 15px; }
+.intro-ask-note { margin: 0 0 12px; font-size: 12px; opacity: 0.8; }
+.intro-ask-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.intro-arrival {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #000;
+  color: #f4e6d0;
+  cursor: pointer;
+  animation: intro-arrive 2.6s ease-in-out both;
+}
+.intro-arrival-title { margin: 0; font-size: clamp(26px, 8vh, 42px); letter-spacing: 0.32em; text-indent: 0.32em; }
+.intro-arrival-place { margin: 0; font-size: clamp(12px, 3.6vh, 16px); letter-spacing: 0.5em; text-indent: 0.5em; color: #d9b871; }
+@keyframes intro-arrive {
+  0% { opacity: 0; }
+  20%, 78% { opacity: 1; }
+  100% { opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-dark, .intro-arrival { animation: none; }
+}

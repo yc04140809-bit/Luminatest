@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { command, readyToAct } from './battle';
 import { goTo, hero, settled, things, touch } from './roam';
 
@@ -50,6 +50,7 @@ async function freshForest(page: Page) {
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
   await page.evaluate(() => (window as unknown as W).__mugenWorld.addItem('FOREST_HERB', 2));
   await page.getByTestId('explore-button').click();

@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 import { fightUntil } from './battle';
 
 /**
@@ -135,6 +135,7 @@ for (const size of SIZES) {
       await page.getByTestId('start-button').click();
       await throughTheOpening(page);
       await page.getByTestId('naming-default').click();
+      await pastTheIntro(page);
       await expect(page.getByTestId('world-clock')).toBeVisible();
 
       await page.getByTestId('explore-button').click();

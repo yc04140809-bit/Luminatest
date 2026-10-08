@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * CHARACTER FORGE → MUGEN ZERO, on the screen (debug builds only).
@@ -371,6 +371,7 @@ test('実機確認（RIZEL）: 11 items across the phone procedure — empty sav
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
   await page.goto('/');
   await page.getByTestId('continue-button').click();

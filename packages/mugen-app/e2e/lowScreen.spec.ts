@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * 低画面UI (実装メイン⑥, 2026-10-08): on a short phone held sideways
@@ -174,6 +174,7 @@ test.describe('640x300: a notice', () => {
     await page.getByTestId('start-button').click();
     await throughTheOpening(page);
     await page.getByTestId('naming-default').click();
+    await pastTheIntro(page);
     await expect(page.getByTestId('world-clock')).toBeVisible();
     for (const look of ['top', 'bottom']) {
       await page.evaluate(

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { enemyHp, fightToResult, readyToAct } from './battle';
-import { throughTheOpening } from './opening';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * HIS 攻撃, WITH THE SWORD SEEN (STEP D) — in the debug preview.
@@ -199,6 +199,7 @@ test("the game's own fight draws it now — his 攻撃 walks, swings and comes b
   await page.getByTestId('start-button').click();
   await throughTheOpening(page);
   await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();

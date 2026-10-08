@@ -20,6 +20,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | ゲーム開始 | `regression`、`loop`「the whole loop…」 | 初回は「はじめる」だけ、再起動後は「つづきから」 |
 | OP | `regression`、`scenes`「the prologue is the world alone, then Kaos…」、`music`（曲） | |
 | 名前入力 | `regression`、`naming`（4 本：入力・空白拒否・既定名・再起動） | |
+| 第0話 導入イベント（名前決定 → ケイオス初対面 → MUGEN ZERO / ALDEN VILLAGE） | `intro`（7 本：暗転 → 声だけ → 登場 → 心の声 → 「？？？」から名前を名乗ってケイオス → 名前を呼ぶ → タイトル → 村・再起動後は再生しない、一瞬の沈黙（暗くなる・ボタンが出るまで待つ・元の表情へ）、SKIP の確認・note の文・戻る・スキップする、見た場合とスキップした場合でセーブ全行が一致、人生の記録 → 回想（再視聴でセーブ不変）、640×300 / 844×390 で画面内）、`regression`（導入を最後まで読む）、core `openingIntro.test.ts` | 内容は `docs/OPENING_INTRO.md`。他の e2e は SKIP で村へ |
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」、`uxRound`（横画面 5 サイズで「噂話」まで画面内） | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。高さ 420px 以下ではボタンと間隔を詰めて、9 つの選択肢すべてを画面内に収める（2026-10-07。以前は 640×300 で 2 段目がはみ出していた） |
 | 序盤UX（酒場の初訪問順・《瞬断》・AUTO 解禁・BOSS カットイン・戦闘後の酒場・目的地通知・噂話・NEW） | `uxRound`（15 本）、core `talkQueue.test.ts`・`readMarks.test.ts`・`villageRumors.test.ts`・`sekiryugaBattle.test.ts` | 内容は `docs/UX_EARLY_GAME.md` |
 | 酒場 | `tavern`（9 本：村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブは初対面の既読 `talk:GRAVE_MEETING` 1 行以外不変、横画面 5 サイズでマスターが切れない、初対面は新規セーブで 1 回だけ（再入店・再起動後は自己紹介しない）、`readMarks` の無い既存セーブ）、core `graveTalks.test.ts` | 初対面はセーブ単位で 1 回（2026-10-07 改定、`docs/APP_TAVERN.md`） |
