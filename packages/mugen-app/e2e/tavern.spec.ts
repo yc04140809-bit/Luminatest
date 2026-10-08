@@ -96,6 +96,29 @@ function withoutReadMarks(saved: Saved): Saved {
   return { ...saved, idb };
 }
 
+/** What the way into Alden left read, before anything in the village (event:OPENING_INTRO, intro.spec). */
+const INTRO = 'event:OPENING_INTRO';
+
+/** A save from a build before readMarks: the row taken out, as it never was. */
+async function withoutTheReadMarksRow(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('mugen-zero-app');
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const tx = req.result.transaction('world_state', 'readwrite');
+          tx.objectStore('world_state').delete('readMarks');
+          tx.oncomplete = () => {
+            req.result.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+  );
+}
+
 /** Reads a talk to its end; returns every line shown, in order. */
 async function readTalk(page: Page): Promise<string[]> {
   const seen: string[] = [];
@@ -166,11 +189,12 @@ test('village → tavern → the room, the master, a talk → back to the villag
   await expect.poll(async () => (await music(page)).current).toBe('ALDEN_VILLAGE');
 
   // ONE THING WAS RECORDED — his meeting, in readMarks — and nothing else:
-  // every other store, row and localStorage key, row for row.
+  // every other store, row and localStorage key, row for row. (The way into
+  // Alden was already read before the village.)
   await page.waitForTimeout(500);
   const after = await everythingSaved(page);
-  expect(readMarksOf(after)).toEqual(['talk:GRAVE_MEETING']);
-  expect(readMarksOf(before)).toBeUndefined();
+  expect(readMarksOf(after)).toEqual([INTRO, 'talk:GRAVE_MEETING']);
+  expect(readMarksOf(before)).toEqual([INTRO]);
   expect(withoutReadMarks(after)).toEqual(withoutReadMarks(before));
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-empty')).toBeVisible();
@@ -284,7 +308,7 @@ test('his meeting happens once in a new save: not again on walking back in, not 
   await page.getByTestId('tavern-leave').click();
 
   // The app closed and opened: still his greeting.
-  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual(['talk:GRAVE_MEETING']);
+  await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual([INTRO, 'talk:GRAVE_MEETING']);
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
@@ -301,6 +325,7 @@ test('a save from before the mark (no readMarks row) opens, and meets him once',
   await intoTheVillage(page);
   // A save from an earlier build: the row is not there at all.
   await page.waitForTimeout(300);
+  await withoutTheReadMarksRow(page);
   expect(readMarksOf(await everythingSaved(page))).toBeUndefined();
   await page.goto('/');
   await page.getByTestId('continue-button').click();
