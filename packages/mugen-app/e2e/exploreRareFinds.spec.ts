@@ -79,10 +79,15 @@ test('NORMAL, then golden, then the rainbow: each its own look, and 《星紋の
   expect(before.explorationRareFinds).toBeUndefined();
   expect(before.explorationVisits).toBeUndefined();
 
-  // 1. NORMAL: the red 「！」, a plain line.
-  await openRuins(page);
-  const normal = (await firstFind(page))!;
-  expect(normal.grade).toBe('NORMAL');
+  // 1. NORMAL: the red 「！」, a plain line. Each find is golden one time in
+  // twelve (roam.test), so the ruins are opened again until one is plain.
+  let normal: RoamThing | undefined;
+  for (let i = 0; i < 6 && !normal; i++) {
+    await openRuins(page);
+    normal = await firstFind(page, 'NORMAL');
+  }
+  expect(normal?.grade).toBe('NORMAL');
+  if (!normal) return;
   await goTo(page, normal.id);
   await expect(page.getByTestId(`walk-marker-${normal.id}`)).toHaveAttribute('data-variant', 'normal');
   await page.getByTestId('walk-look').click();
