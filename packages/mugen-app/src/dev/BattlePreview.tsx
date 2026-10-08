@@ -42,6 +42,8 @@ import { ariaPlan } from './aria/ariaTiming';
 import { audioManager } from '../platform/audio';
 import { useZeroDirector } from './hero/useZeroDirector';
 import { zeroPlan } from './hero/zeroTiming';
+import { useKaosDirector } from './kaos/useKaosDirector';
+import { kaosPlan } from './kaos/kaosTiming';
 
 /**
  * THE BATTLE SCREEN, ON ITS OWN — for checking how a fight LOOKS.
@@ -94,6 +96,7 @@ import { zeroPlan } from './hero/zeroTiming';
  *                                (bare: without her cut-in first)
  *   &aria=1 / &aria=bare         Aria's blue-rose arrow once on opening
  *   &zero=1 / &zero=bare         his 零閃・天衝 once on opening
+ *   &kaos=1 / &kaos=bare         Kaos's skill (双極臨界 → 界核崩壊) once on opening
  *
  * LEVI'S PHANTOM SPEARS (STEP 5). A showing part and nothing more
  * (./levi): she steps in, six phantom spears form round the creature and
@@ -198,14 +201,16 @@ export function BattlePreview({ params }: { params: URLSearchParams }) {
   const [lastCutIn, setLastCutIn] = useState<{ ms: number; speed: BattleSpeed; tier: CutInTier } | null>(
     null,
   );
-  // THE SHOWING PARTS (Levi, Aria, his 零閃・天衝), played from the panel —
+  // THE SHOWING PARTS (Kaos, Levi, Aria, his 零閃・天衝), played from the panel —
   // each on the shared scene clock (ui/battle/scene/useScenePlayer).
   const parts: Record<ScenePartId, PartDirector> = {
+    kaos: useKaosDirector(speed, director),
     levi: useLeviDirector(speed, director),
     aria: useAriaDirector(speed, director),
     zero: useZeroDirector(speed, director),
   };
   const [partCutIn, setPartCutIn] = useState<Record<ScenePartId, boolean>>(() => ({
+    kaos: params.get('kaos') !== 'bare',
     levi: params.get('levi') !== 'bare',
     aria: params.get('aria') !== 'bare',
     zero: params.get('zero') !== 'bare',
@@ -529,7 +534,7 @@ interface CutInControls {
  * 零閃・天衝, which is confirmed). One row here is one section of the panel
  * and one `&<id>=1|bare` in the URL.
  */
-type ScenePartId = 'levi' | 'aria' | 'zero';
+type ScenePartId = 'kaos' | 'levi' | 'aria' | 'zero';
 interface ScenePart {
   id: ScenePartId;
   heading: string;
@@ -552,6 +557,16 @@ interface PartDirector {
 }
 const sampleOf = (id: string) => CUT_IN_SAMPLES.find((c) => c.id === id)!;
 const SCENE_PARTS: readonly ScenePart[] = [
+  {
+    id: 'kaos',
+    heading: 'ケイオスのスキル「双極臨界 → 界核崩壊」（演出見本・本編未接続）',
+    button: '▶ ケイオスのスキルを再生',
+    chip: 'ケイオス',
+    cutIn: sampleOf('chaos'),
+    flow: '主人公の位置に詠唱中のケイオス → 双極臨界（手の魔法陣が光り、敵を金の光条と青い輪の封印が囲む）→ 界核崩壊（封印が内側へ崩れ、暗い核と菱形）→ 光の炸裂 → 帰還。',
+    withheld: 'ダメージ数字は出ません（本編の技ではないため）。技名は演出テストの表示名です。',
+    ms: (at) => kaosPlan(at).end,
+  },
   {
     id: 'levi',
     heading: 'レヴィ「幻影槍6本」（演出見本・本編未接続）',

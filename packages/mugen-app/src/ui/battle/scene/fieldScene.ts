@@ -10,7 +10,7 @@
 // the fight under it is not touched.
 //
 // Today only the debug preview plays them (src/dev/levi — STEP 5,
-// src/dev/aria — STEP 7, src/dev/hero — STEP 9); the game's own fights
+// src/dev/aria — STEP 7, src/dev/hero — STEP 9, src/dev/kaos); the game's own fights
 // pass none.
 
 import type { ReactNode } from 'react';
