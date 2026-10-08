@@ -175,9 +175,14 @@ test('NORMAL, then golden, then the rainbow: each its own look, and 《星紋の
   // And nothing it was not meant to touch has moved.
   const after = await savedRows(page);
   for (const key of Object.keys(before)) {
-    if (['owned_equipment', 'character_equipment', 'session', 'explorationVisits'].includes(key)) continue;
+    if (['owned_equipment', 'character_equipment', 'session', 'explorationVisits', 'readMarks'].includes(key)) continue;
     expect(after[key], key).toEqual(before[key]);
   }
+  // What was read: only the sword, looked at in 装備 (its NEW) — nothing else added.
+  const added = ((after.readMarks as string[] | undefined) ?? []).filter(
+    (m) => !((before.readMarks as string[] | undefined) ?? []).includes(m),
+  );
+  expect(added).toEqual(['equip:weapon/star_crest_relic_sword']);
 });
 
 test('the third find of a visit makes it a real visit, counted once in the save', async ({ page }) => {
