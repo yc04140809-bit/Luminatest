@@ -47,7 +47,7 @@ test('the shops from the square: 道具屋 in and back, パン屋, 月灯りの�
   page.on('pageerror', (e) => errors.push(String(e)));
   await freshVillage(page);
   const captions = await page.locator('.pp-menu .pp-caption').allTextContents();
-  expect(captions).toEqual(['店舗', '村のこと', '記録', 'ふたりのこと']);
+  expect(captions).toEqual(['店舗', '村のこと', '記録', 'パーティ']);
   const shops = page.locator('.pp-group').first().locator('.pp-item');
   expect(await shops.allTextContents()).toEqual(['月灯りの酒場', 'パン屋', 'アルデン道具屋']);
 

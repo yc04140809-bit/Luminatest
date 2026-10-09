@@ -311,7 +311,8 @@ export function AldenScreen({
             </MenuItem>
           </div>
           <div className="pp-group">
-            <p className="pp-caption">ふたりのこと</p>
+            {/* パーティ, not ふたりのこと: there will be more of them (the author, 2026-10-10). */}
+            <p className="pp-caption">パーティ</p>
             <MenuItem testId="status-button" onClick={onStatus}>
               ステータス
               <NewBadge show={news.status} testId="status-new" />
