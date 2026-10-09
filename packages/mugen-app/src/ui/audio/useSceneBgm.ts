@@ -15,11 +15,18 @@
 import { useEffect } from 'react';
 import { audioManager } from '../../platform/audio';
 import { bgmForScene, type SceneCue } from '@mugen/content/audio/sceneBgm';
+import type { BgmId } from '@mugen/assets';
 
-export function useSceneBgm(cue: SceneCue, hush = false): void {
+/**
+ * Plays what the scene asks for, and says what that is (for the MUSIC
+ * ARCHIVE, which keeps what has been heard). `chosen` is a piece picked
+ * from the bard's archive in the tavern: it plays in place of the room's
+ * own until it is cleared (酒場ハブ化 Phase 1).
+ */
+export function useSceneBgm(cue: SceneCue, hush = false, chosen: BgmId | null = null): BgmId | null {
   // HUSHED: the music let down for a moment the scene holds its breath in
   // (the way in to セキリュウガ), whatever the place would play.
-  const want = hush ? null : bgmForScene(cue);
+  const want = hush ? null : (chosen ?? bgmForScene(cue));
 
   // A phone makes no sound until the person has touched it, and the
   // touch that counts is ANY touch. Whatever the game has asked for by
@@ -36,4 +43,6 @@ export function useSceneBgm(cue: SceneCue, hush = false): void {
     }
     audioManager.playBgm(want);
   }, [want, hush]);
+
+  return want;
 }

@@ -96,6 +96,28 @@ function withoutReadMarks(saved: Saved): Saved {
   return { ...saved, idb };
 }
 
+/** One world_state row's value, wherever it is kept; undefined when there is none. */
+function rowOf(saved: Saved, key: string): unknown {
+  for (const db of Object.values(saved.idb))
+    for (const rows of Object.values(db)) {
+      const row = rows.find((r) => (r as { key?: unknown })?.key === key);
+      if (row) return (row as { value: unknown }).value;
+    }
+  return undefined;
+}
+
+/** Everything kept, but the readMarks row and this one. */
+function without(saved: Saved, key: string): Saved {
+  const rest = withoutReadMarks(saved);
+  const idb: Saved['idb'] = {};
+  for (const [name, db] of Object.entries(rest.idb)) {
+    idb[name] = {};
+    for (const [store, rows] of Object.entries(db))
+      idb[name][store] = rows.filter((r) => (r as { key?: unknown })?.key !== key);
+  }
+  return { ...rest, idb };
+}
+
 /** What the way into Alden left read, before anything in the village (event:OPENING_INTRO, intro.spec). */
 const INTRO = 'event:OPENING_INTRO';
 
@@ -188,14 +210,16 @@ test('village → tavern → the room, the master, a talk → back to the villag
   await expect(page.getByTestId('tavern-screen')).toHaveCount(0);
   await expect.poll(async () => (await music(page)).current).toBe('ALDEN_VILLAGE');
 
-  // ONE THING WAS RECORDED — his meeting, in readMarks — and nothing else:
-  // every other store, row and localStorage key, row for row. (The way into
-  // Alden was already read before the village.)
+  // TWO THINGS WERE RECORDED — his meeting, in readMarks, and the tavern's
+  // piece heard for the first time (musicUnlocks, the bard's MUSIC ARCHIVE,
+  // 2026-10-09) — and nothing else: every other store, row and localStorage
+  // key, row for row. (The way into Alden was already read before the village.)
   await page.waitForTimeout(500);
   const after = await everythingSaved(page);
   expect(readMarksOf(after)).toEqual([INTRO, 'talk:GRAVE_MEETING']);
   expect(readMarksOf(before)).toEqual([INTRO]);
-  expect(withoutReadMarks(after)).toEqual(withoutReadMarks(before));
+  expect(rowOf(after, 'musicUnlocks')).toEqual([...((rowOf(before, 'musicUnlocks') as string[]) ?? []), 'TAVERN']);
+  expect(without(after, 'musicUnlocks')).toEqual(without(before, 'musicUnlocks'));
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-empty')).toBeVisible();
   expect(errors).toEqual([]);

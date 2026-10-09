@@ -20,6 +20,8 @@ import {
 import { guestLabelOf, guestLines, type TavernGuestId, type TavernGuestTalk } from '@mugen/content/talk/tavernGuests';
 import { tavernArt, type TavernArt } from '../assets/tavern';
 import { tavernGuestArt } from '../assets/tavernGuests';
+import { tavernTrade } from '@mugen/content/economy/tavernTrades';
+import { MusicArchivePanel, TradePanel, type TavernHub } from './tavernHub';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -47,6 +49,11 @@ import { tavernGuestArt } from '../assets/tavernGuests';
  * tavernGuests), talked to with 「客と話す」. While they speak their
  * silhouette stands where the master stood — one figure at a time, the
  * same box — and he is back when they are done. Nothing is recorded.
+ *
+ * 酒場ハブ化 Phase 1 (2026-10-09): after a stranger's words, what they
+ * offer (`role`): a swap (TRADE / RARE_TRADE) or the bard's MUSIC ARCHIVE
+ * (BARD), in this same box with their silhouette still up (tavernHub.tsx,
+ * through `hub`). 「もどる」／「やめる」 and the master is back.
  */
 
 const lineOf = (eventId: string): readonly DialogueLine[] =>
@@ -128,6 +135,7 @@ export function TavernScreen({
   arc,
   heroName = '',
   guest = null,
+  hub,
 }: {
   /** Whether this save has already met him (his introduction is not owed). */
   metBefore: boolean;
@@ -151,6 +159,8 @@ export function TavernScreen({
   heroName?: string;
   /** Tonight's stranger (酒場の客). Absent: nobody but the master. */
   guest?: TavernGuestTalk | null;
+  /** What a stranger's swap and the bard's archive need (酒場ハブ化). Absent: words only. */
+  hub?: TavernHub;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
   /**
@@ -176,6 +186,9 @@ export function TavernScreen({
   const [talk, setTalk] = useState<{ lines: readonly DialogueLine[]; rumor: boolean; guest?: TavernGuestId } | null>(
     null,
   );
+  // What the stranger offers after their words, open in the box.
+  const [panel, setPanel] = useState<'TRADE' | 'ARCHIVE' | null>(null);
+  const trade = guest ? tavernTrade(guest.tradeId) : null;
   // Tonight's stranger's silhouette, fetched as the door opens.
   const [guestSrc, setGuestSrc] = useState<string | null>(null);
   const [guestFailed, setGuestFailed] = useState(false);
@@ -244,7 +257,12 @@ export function TavernScreen({
       return;
     }
     // A stranger's talk is theirs alone: it meets nobody and opens nothing.
-    if (talk?.guest) return setTalk(null);
+    if (talk?.guest) {
+      setTalk(null);
+      if (hub && trade && (guest?.role === 'TRADE' || guest?.role === 'RARE_TRADE')) setPanel('TRADE');
+      else if (hub && guest?.role === 'BARD') setPanel('ARCHIVE');
+      return;
+    }
     if (!metBefore) onMet();
     if (talk?.rumor) {
       // His own rumour was the first: no need to walk out and in again —
@@ -271,17 +289,17 @@ export function TavernScreen({
           onError={() => setFailed((f) => ({ ...f, room: true }))}
         />
       )}
-      {talk?.guest && guestSrc && !guestFailed ? (
+      {(talk?.guest || panel) && guest && guestSrc && !guestFailed ? (
         <img
           className="tavern-master tavern-guest"
           src={guestSrc}
           alt={guest ? guestLabelOf(guest) : ''}
           data-testid="tavern-guest"
-          data-guest={talk.guest}
+          data-guest={guest.guest}
           onError={() => setGuestFailed(true)}
         />
       ) : null}
-      {art.master && !failed.master && !talk?.guest && (
+      {art.master && !failed.master && !talk?.guest && !panel && (
         <img
           className="tavern-master"
           src={art.master}
@@ -292,7 +310,13 @@ export function TavernScreen({
       )}
       <div className="tavern-words" data-testid="tavern-words">
         <h1 className="place">{locationNameOf(TAVERN_ID)}</h1>
-        {line ? (
+        {panel && hub && guest ? (
+          panel === 'TRADE' && trade ? (
+            <TradePanel trade={trade} speaker={guestLabelOf(guest)} hub={hub} onClose={() => setPanel(null)} />
+          ) : (
+            <MusicArchivePanel speaker={guestLabelOf(guest)} hub={hub} onClose={() => setPanel(null)} />
+          )
+        ) : line ? (
           <>
             {line.speaker && <p className="speaker">{line.speaker}</p>}
             <p className="line" data-testid="tavern-line">
@@ -307,9 +331,18 @@ export function TavernScreen({
             <p className="line" data-testid="tavern-description">
               {description}
             </p>
+            {guest && (
+              <p className="tavern-tonight" data-testid="tavern-tonight" data-guest={guest.guest}>
+                {guest.role === 'RARE_TRADE'
+                  ? '今夜は、見慣れない客がいる。'
+                  : guest.role === 'BARD'
+                    ? '今夜は、吟遊詩人が来ている。'
+                    : `今夜の客：${guestLabelOf(guest)}`}
+              </p>
+            )}
             <div className="actions">
               <button className="btn primary" data-testid="tavern-talk" onClick={begin}>
-                話す
+                {guest ? 'マスターと話す' : '話す'}
               </button>
               {guest && (
                 <button className="btn" data-testid="tavern-guest-talk" data-guest={guest.guest} onClick={beginGuest}>

@@ -46,6 +46,13 @@ export interface SceneCue {
    * choice in it and a first-ever fight both amount to.
    */
   battleBgmId?: BgmId | null;
+  /**
+   * THE VILLAGE'S CHOSEN PIECE (酒場ハブ化 Phase 1, the bard's archive):
+   * played in Alden's ordinary places in place of its own. Never at an
+   * event, a fight, the look ahead or the future site. Absent or null:
+   * the village's own piece, as always (the Artifact never passes one).
+   */
+  villageBgmId?: BgmId | null;
 }
 
 /** The places that are the greenwood rather than Alden. */
@@ -127,7 +134,9 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     case 'TALK_SPOT':
     case 'FUTURE_SITE':
       if (locationId === 'MOONLIGHT_TAVERN') return 'TAVERN';
-      return locationId && IN_THE_FOREST.has(locationId) ? 'GREENWOOD_FOREST' : 'ALDEN_VILLAGE';
+      if (locationId && IN_THE_FOREST.has(locationId)) return 'GREENWOOD_FOREST';
+      // A talk spot in Alden (the bakery) is the village; the future site is not.
+      return screen === 'TALK_SPOT' ? (cue.villageBgmId ?? 'ALDEN_VILLAGE') : 'ALDEN_VILLAGE';
 
     /**
      * ALDEN, ONE PIECE: the house (ALDEN_HOME), every page read from
@@ -155,6 +164,8 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     case 'SETTINGS':
     case 'EXPLORE':
     case 'ITEM_SHOP':
+      return cue.villageBgmId ?? 'ALDEN_VILLAGE';
+    // Kaos's look ahead is hers: never the chosen piece.
     case 'TIME_SHIFT':
       return 'ALDEN_VILLAGE';
 

@@ -35,6 +35,17 @@ import {
   type BreadFreshness,
 } from '../economy/bread';
 import {
+  NO_TRADES,
+  readMusicUnlocks,
+  readTavernTrades,
+  readVillageBgm,
+  type TavernTradesRow,
+} from './tavernState';
+import type { BgmId } from '@mugen/assets';
+import { MUSIC_ARCHIVE_IDS, isArchivedPiece } from '../../content/audio/musicArchive';
+import type { TavernTrade } from '../../content/economy/tavernTrades';
+import { GRAVE_MEETING_MARK } from '../../content/talk/graveTalks';
+import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
   weaponInBattle,
@@ -338,6 +349,14 @@ const READ_MARKS_KEY = 'readMarks';
 const BREAD_FRESHNESS_KEY = 'breadFreshness';
 const BREAD_BUFF_KEY = 'breadBuff';
 /**
+ * 酒場ハブ化 Phase 1 (2026-10-09, core/world/tavernState.ts): the swaps made
+ * tonight, the music heard, and the village's chosen piece. Absent reads
+ * as none, none and its own — no schema version moved.
+ */
+const TAVERN_TRADES_KEY = 'tavernTrades';
+const MUSIC_UNLOCKS_KEY = 'musicUnlocks';
+const VILLAGE_BGM_KEY = 'villageBgm';
+/**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
  * PROGRESS, NOT PREFERENCE, which is why it is here and not in
@@ -600,6 +619,11 @@ export class World {
   private readMarkList: string[];
   private breadFreshness: BreadFreshness;
   private breadBuff: BreadBuff | null;
+  private tavernTrades: TavernTradesRow;
+  private musicUnlocks: BgmId[];
+  private villageBgm: BgmId | null;
+  /** The music writes, one after another (see `markMusicHeard`). */
+  private musicQueue: Promise<unknown> = Promise.resolve();
   /** The read-mark writes, one after another (see `markRead`). */
   private readMarkQueue: Promise<unknown> = Promise.resolve();
 
@@ -624,6 +648,9 @@ export class World {
     this.readMarks = new Set(fields.readMarks);
     this.breadFreshness = fields.breadFreshness;
     this.breadBuff = fields.breadBuff;
+    this.tavernTrades = fields.tavernTrades;
+    this.musicUnlocks = fields.musicUnlocks;
+    this.villageBgm = fields.villageBgm;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1367,6 +1394,109 @@ export class World {
     this.breadFreshness = older;
     this.breadBuff = null;
     this.emit();
+  }
+
+  // ── THE TAVERN (酒場ハブ化 Phase 1, 2026-10-09) ────────────────────
+  //
+  // Swaps with tonight's stranger, the music the game has played, and the
+  // piece the village plays (core/world/tavernState.ts).
+
+  /** The swaps already made on this (absolute) day. */
+  getTradesDone(day: number): readonly string[] {
+    return this.tavernTrades.day === day ? this.tavernTrades.done : [];
+  }
+
+  /**
+   * ONE SWAP WITH TONIGHT'S STRANGER: what they want out of the bag, what
+   * they give in — and the night's record — in one commit, or nothing.
+   * Once per swap per day: the strangers change with a night's rest, so
+   * one while they are in. Refused, touching nothing, when it is already
+   * made tonight, the bag is short, or what they give will not fit.
+   */
+  async tradeItems(trade: TavernTrade, day: number): Promise<TradeOutcome> {
+    if (this.getTradesDone(day).includes(trade.id)) return 'DONE';
+    let bag = this.inventory;
+    for (const line of trade.give) {
+      const def = itemDef(line.itemId);
+      if (!def || def.isKeyItem) return 'SHORT';
+      const taken = removeFromBag(bag, line.itemId, line.quantity);
+      if (taken.moved !== line.quantity) return 'SHORT';
+      bag = taken.inventory;
+    }
+    for (const line of trade.get) {
+      const def = itemDef(line.itemId);
+      if (!def || def.isKeyItem) return 'FULL';
+      if (roomFor(bag, def) < line.quantity) return 'FULL';
+      const added = addToBag(bag, def, line.quantity);
+      if (added.moved !== line.quantity) return 'FULL';
+      bag = added.inventory;
+    }
+    const record: TavernTradesRow = { day, done: [...this.getTradesDone(day), trade.id] };
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: bag },
+        { key: TAVERN_TRADES_KEY, value: record },
+      ],
+    });
+    this.inventory = bag;
+    this.tavernTrades = record;
+    this.emit();
+    return 'OK';
+  }
+
+  /**
+   * THE MUSIC THIS WORLD HAS HEARD, in the archive's order: what the game
+   * has recorded playing, and — for a save from before it recorded any —
+   * what the save shows was certainly played: a named hero came through
+   * the title, the opening, Kaos and into the village; his first talk
+   * with Grave was in the tavern; a fight in the forest was in the
+   * forest; Gald's piece won is Gald's piece heard. Nothing else is
+   * guessed (the ordinary fight's piece is recorded the next time).
+   */
+  getHeardMusic(): BgmId[] {
+    const heard = new Set<BgmId>(this.musicUnlocks);
+    if (this.heroNamed) for (const id of ['TITLE_MAIN', 'OPENING', 'KAOS_EVENT', 'ALDEN_VILLAGE'] as const) heard.add(id);
+    if (this.readMarks.has(GRAVE_MEETING_MARK)) heard.add('TAVERN');
+    if (Object.keys(this.enemyProgress).length > 0 || this.pickupsTaken.some((p) => p.startsWith('forest_'))) {
+      heard.add('GREENWOOD_FOREST');
+    }
+    for (const id of this.unlockedBgm) if (!(INITIAL_UNLOCKED_BATTLE_BGM as readonly string[]).includes(id)) heard.add(id);
+    return MUSIC_ARCHIVE_IDS.filter((id) => heard.has(id));
+  }
+
+  /**
+   * A piece the game has just played. Writes only the first time; one
+   * write at a time, so two pieces in quick succession are both kept.
+   */
+  markMusicHeard(id: string): Promise<boolean> {
+    const run = this.musicQueue.then(async () => {
+      // Already known — recorded, or certain from the save — writes nothing.
+      if (!isArchivedPiece(id) || this.getHeardMusic().includes(id)) return false;
+      const next = [...this.musicUnlocks, id];
+      await this.store.commit({ putState: [{ key: MUSIC_UNLOCKS_KEY, value: next }] });
+      this.musicUnlocks = next;
+      this.emit();
+      return true;
+    });
+    this.musicQueue = run.catch(() => false);
+    return run;
+  }
+
+  /** The piece Alden's ordinary places play, or null for its own. */
+  getVillageBgm(): BgmId | null {
+    return this.villageBgm;
+  }
+
+  /** Sets it to a piece heard (or back to its own with null). */
+  async setVillageBgm(id: BgmId | null): Promise<boolean> {
+    if (id !== null && !this.getHeardMusic().includes(id)) return false;
+    // Its own piece chosen is the same as none chosen.
+    const next = id === 'ALDEN_VILLAGE' ? null : id;
+    if (next === this.villageBgm) return true;
+    await this.store.commit({ putState: [{ key: VILLAGE_BGM_KEY, value: next }] });
+    this.villageBgm = next;
+    this.emit();
+    return true;
   }
 
   /**
@@ -2767,6 +2897,9 @@ export class World {
     this.readMarks = new Set();
     this.breadFreshness = NO_BREAD;
     this.breadBuff = null;
+    this.tavernTrades = NO_TRADES;
+    this.musicUnlocks = [];
+    this.villageBgm = null;
     this.emit();
   }
 
@@ -2804,6 +2937,9 @@ export class World {
       { key: CLAIMED_REWARDS_KEY, value: this.claimedRewards },
       // The loaves in the bag stay, and so does how old they are.
       { key: BREAD_FRESHNESS_KEY, value: this.getBreadFreshness() },
+      // The music heard and the village's piece are the player's, like the bag.
+      { key: MUSIC_UNLOCKS_KEY, value: this.musicUnlocks },
+      { key: VILLAGE_BGM_KEY, value: this.villageBgm },
     ];
     await this.store.clearAll();
     // Written back in one commit, immediately: a crash between the
@@ -2833,6 +2969,7 @@ export class World {
     this.readMarks = new Set();
     this.breadFreshness = this.getBreadFreshness();
     this.breadBuff = null;
+    this.tavernTrades = NO_TRADES;
     this.emit();
   }
 }
@@ -2849,6 +2986,9 @@ const BACKUP_META_KEY = 'worldBackup';
  * tool that does not exist yet, or for somebody reporting a bug.
  */
 const DAMAGED_META_KEY = 'worldDamaged';
+
+/** How a swap at the tavern went. */
+export type TradeOutcome = 'OK' | 'SHORT' | 'FULL' | 'DONE';
 
 /** What eating a loaf did (パン屋 MVP). */
 export interface BreadEatResult {
@@ -2978,6 +3118,9 @@ interface WorldFields {
   readMarks: string[];
   breadFreshness: BreadFreshness;
   breadBuff: BreadBuff | null;
+  tavernTrades: TavernTradesRow;
+  musicUnlocks: BgmId[];
+  villageBgm: BgmId | null;
 }
 
 /** What reading a save had to say about it. */
@@ -3129,6 +3272,12 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readBreadFreshness(value));
     case BREAD_BUFF_KEY:
       return settle(readBreadBuff(value));
+    case TAVERN_TRADES_KEY:
+      return settle(readTavernTrades(value));
+    case MUSIC_UNLOCKS_KEY:
+      return settle(readMusicUnlocks(value));
+    case VILLAGE_BGM_KEY:
+      return settle(readVillageBgm(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -3218,6 +3367,9 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       readMarks: take(READ_MARKS_KEY, readReadMarks(byKey.get(READ_MARKS_KEY))),
       breadFreshness: take(BREAD_FRESHNESS_KEY, readBreadFreshness(byKey.get(BREAD_FRESHNESS_KEY))),
       breadBuff: take(BREAD_BUFF_KEY, readBreadBuff(byKey.get(BREAD_BUFF_KEY))),
+      tavernTrades: take(TAVERN_TRADES_KEY, readTavernTrades(byKey.get(TAVERN_TRADES_KEY))),
+      musicUnlocks: take(MUSIC_UNLOCKS_KEY, readMusicUnlocks(byKey.get(MUSIC_UNLOCKS_KEY))),
+      villageBgm: take(VILLAGE_BGM_KEY, readVillageBgm(byKey.get(VILLAGE_BGM_KEY))),
     },
     repairedKeys,
     unreadableKeys,

@@ -1147,7 +1147,39 @@ body {
    Three choices in the box: side by side, each its share. */
 .tavern-guest { filter: drop-shadow(0 0 14px rgba(255, 236, 200, 0.22)); }
 .tavern-words .actions { flex-wrap: nowrap; width: 100%; }
-.tavern-words .actions .btn { flex: 1 1 0; min-width: 0; padding-inline: 8px; }
+.tavern-words .actions .btn { flex: 1 1 0; min-width: 0; padding-inline: 4px; font-size: 13px; letter-spacing: 0.02em; white-space: nowrap; }
+@media (max-width: 700px) {
+  .tavern-words .actions .btn { font-size: 12px; letter-spacing: 0; }
+}
+/* 酒場ハブ化 Phase 1: tonight's guest said under the room's line; the swap
+   and the bard's archive in the same box, which never runs off a low
+   screen (the archive's list scrolls; the way back stays). */
+.screen.tavern { height: 100vh; height: 100dvh; min-height: 0; }
+.tavern-words { min-height: 0; overflow-y: auto; }
+.tavern-tonight { margin: 0; color: var(--gold); font-size: 12px; letter-spacing: 0.06em; }
+.tavern-panel { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; gap: 2px; width: 100%; min-height: 0; }
+.tavern-panel .speaker { margin: 0; }
+.tavern-panel-say { margin: 2px 0; }
+.tavern-trade-title,
+.tavern-archive-title { margin: 2px 0 0; color: var(--gold); font-size: 12px; letter-spacing: 0.12em; }
+.tavern-trade-side { margin: 0; font-size: 13px; }
+.tavern-trade-label { color: var(--dim); }
+.tavern-trade-held { color: var(--dim); font-size: 12px; }
+.tavern-archive-list { flex: 1 1 auto; list-style: none; margin: 2px 0 4px; padding: 0; width: 100%; min-height: 72px; overflow-y: auto; border-bottom: 1px solid var(--line); }
+.screen.tavern:has(.tavern-archive) .tavern-words { overflow-y: hidden; }
+.tavern-archive-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid var(--line); }
+.tavern-archive-row.on .tavern-piece-name { color: var(--gold); }
+.tavern-piece-name { flex: 1 1 auto; min-width: 0; text-align: left; font-size: 13px; letter-spacing: 0.04em; }
+.tavern-piece-heard { margin-left: 8px; color: var(--dim); font-size: 11px; }
+.tavern-archive-row .btn { flex: 0 0 auto; min-width: 64px; min-height: 36px; padding: 4px 10px; }
+.tavern-village-bgm { margin: 0; color: var(--dim); font-size: 12px; }
+@media (max-height: 340px) {
+  .tavern-words { padding: 8px 12px; gap: 2px; }
+  .tavern-words .place { margin: 0; font-size: 16px; }
+  .tavern-words .line { margin: 2px 0; }
+  .tavern-words .actions { margin-top: 2px; }
+  .tavern-words .actions .btn { min-height: 40px; padding-block: 6px; }
+}
 
 /* ── TIME SHIFT, the beat she shows: つづける always on screen ──
    The stage is held to the screen's height instead of growing with the

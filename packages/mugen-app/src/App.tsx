@@ -27,6 +27,7 @@ import { FutureSiteScreen } from './ui/futureSite';
 import { TavernScreen } from './ui/tavern';
 import { tonightsGuestTalk } from '@mugen/content/talk/tavernGuests';
 import { toAbsoluteDay } from '@mugen/core/time/calendar';
+import type { BgmId } from '@mugen/assets';
 import { BakeryScreen } from './ui/bakery';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
@@ -161,6 +162,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * the meeting and that mark being written.
    */
   const [tavern, setTavern] = useState(false);
+  /** The bard's pick, playing in the tavern until the player walks out (酒場ハブ化). */
+  const [bardPiece, setBardPiece] = useState<BgmId | null>(null);
+  useEffect(() => {
+    if (!tavern) setBardPiece(null);
+  }, [tavern]);
   const [tavernMet, setTavernMet] = useState(false);
   /**
    * パン屋 — the same kind of door off the village as the tavern, held
@@ -418,7 +424,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * talk spots that need it are not in the App, and the future site is
    * the bakery in Alden, which null already answers correctly.
    */
-  useSceneBgm({
+  const playingBgm = useSceneBgm({
     // THE APP HAS NO THEME-CHOICE SCREEN. The flow starts on
     // THEME_CHOICE and the App draws the title for it, so to the player
     // it IS the title — and the map says THEME_CHOICE is silent, which
@@ -443,10 +449,18 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     locationId: tavern ? 'MOONLIGHT_TAVERN' : bakery ? 'ALDEN_BAKERY' : null,
     kaosSpeaking: state.screen === 'PROLOGUE' && kaosArrived,
     battleBgmId,
+    // The piece the bard's archive set for the village (Alden's ordinary places only).
+    villageBgmId: world.getVillageBgm(),
   },
   // Let down on the way in to セキリュウガ, and held off after its fight: what is
   // seen then is seen in quiet.
-  state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath'));
+  state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath'),
+  // A piece picked from the bard's archive, while still in the tavern.
+  tavern ? bardPiece : null);
+  // THE MUSIC ARCHIVE keeps what the game has played (once each).
+  useEffect(() => {
+    if (playingBgm) void world.markMusicHeard(playingBgm).catch(() => {});
+  }, [playingBgm, world]);
 
   /**
    * IS THE ONE LOOK AHEAD STILL OWED?
@@ -685,6 +699,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             onLeave={() => setTavern(false)}
             heroName={world.getHeroName()}
             guest={tonightsGuestTalk(toAbsoluteDay(world.getClock()))}
+            hub={{
+              held: (id) => world.getItemCount(id),
+              traded: (id) => world.getTradesDone(toAbsoluteDay(world.getClock())).includes(id),
+              trade: (t) => world.tradeItems(t, toAbsoluteDay(world.getClock())),
+              heard: world.getHeardMusic(),
+              playing: bardPiece,
+              play: setBardPiece,
+              villageBgm: world.getVillageBgm(),
+              setVillageBgm: (id) => world.setVillageBgm(id),
+            }}
             arc={{
               open: world.isSekiryugaArcOpen(),
               stage: world.getSekiryugaStage(),
