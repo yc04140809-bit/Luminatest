@@ -136,6 +136,8 @@ test('the switch: Lina by default, the owner, back to Lina — their talks never
   await page.getByTestId('bakery-who-owner').click();
   await expect(page.getByTestId('bakery-who-owner')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('bakery-buy')).toHaveCount(0);
+  // Said as him, standing there — and Lina's tab as the shop.
+  await expect(page.getByTestId('bakery-description')).toHaveText('パン屋の主人。素材や焼き方に詳しい。');
   await page.getByTestId('bakery-talk').click();
   await expect(page.locator('.bakery-words .speaker')).toHaveText('パン屋の主人');
   const owner = await readTalk(page);
@@ -143,6 +145,7 @@ test('the switch: Lina by default, the owner, back to Lina — their talks never
 
   // Back to Lina: one short line now — the first talk is not replayed.
   await page.getByTestId('bakery-who-lina').click();
+  await expect(page.getByTestId('bakery-description')).toHaveText('リナの父が営むパン屋。焼きたてのパンの匂いがする。');
   await page.getByTestId('bakery-talk').click();
   await expect(page.locator('.bakery-words .speaker')).toHaveText('リナ');
   const again = await readTalk(page);

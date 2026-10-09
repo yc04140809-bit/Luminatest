@@ -35,7 +35,9 @@ export const TAVERN_TRADES: readonly TavernTrade[] = [
   { id: 'TRADE_NUTS_FOR_MANA_HERB', give: [{ itemId: 'FOREST_NUT', quantity: 2 }], get: [{ itemId: 'MANA_HERB', quantity: 1 }] },
   { id: 'TRADE_ORE_FOR_COIN', give: [{ itemId: 'IRON_ORE', quantity: 2 }], get: [{ itemId: 'OLD_COIN', quantity: 1 }] },
   { id: 'TRADE_SHARDS_FOR_WATER', give: [{ itemId: 'MANA_SHARD', quantity: 2 }], get: [{ itemId: 'MANA_WATER', quantity: 1 }] },
-  // ── the hooded guest: what the shops do not sell, and a use for what only sells ──
+  // ── the hooded guest: what the shops do not sell, for what only sells — and a
+  //    little in the player's favour (worth nearly double what goes), where the
+  //    ordinary swaps are about even ──
   {
     id: 'RARE_RELICS_FOR_SHARD',
     give: [
@@ -47,7 +49,8 @@ export const TAVERN_TRADES: readonly TavernTrade[] = [
   },
   {
     id: 'RARE_COINS_FOR_SHARD',
-    give: [{ itemId: 'OLD_COIN', quantity: 2 }],
+    // One coin is enough: a little in the player's favour, on purpose.
+    give: [{ itemId: 'OLD_COIN', quantity: 1 }],
     get: [{ itemId: 'MANA_SHARD', quantity: 1 }],
     rare: true,
   },

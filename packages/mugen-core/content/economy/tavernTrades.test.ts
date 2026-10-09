@@ -42,6 +42,15 @@ describe('the swaps', () => {
     for (const t of rare) for (const l of t.get) expect(itemDef(l.itemId)!.sources ?? []).not.toContain('SHOP');
   });
 
+  it('the hooded guest’s are a little in the player’s favour — better than every ordinary swap', () => {
+    const ratio = (t: (typeof TAVERN_TRADES)[number]) => worth(t.get) / worth(t.give);
+    const ordinaryBest = Math.max(...TAVERN_TRADES.filter((t) => !t.rare).map(ratio));
+    for (const t of TAVERN_TRADES.filter((t) => t.rare)) {
+      expect(ratio(t), t.id).toBeGreaterThan(1.5);
+      expect(ratio(t), t.id).toBeGreaterThan(ordinaryBest);
+    }
+  });
+
   it('are found by id', () => {
     expect(tavernTrade('TRADE_ORE_FOR_COIN')?.get[0].itemId).toBe('OLD_COIN');
     expect(tavernTrade('NOPE')).toBeNull();

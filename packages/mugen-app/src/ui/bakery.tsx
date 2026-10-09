@@ -10,6 +10,7 @@ import {
   BAKERY_LINA_FULL,
   BAKERY_LINA_SHORT,
   BAKERY_LINA_SOLD,
+  BAKERY_OWNER_DESCRIPTION,
   BAKERY_OWNER_HINTS,
   BAKERY_PEOPLE,
   type BakeryPerson,
@@ -258,7 +259,7 @@ export function BakeryScreen({
             ) : (
               <>
                 <p className="line" data-testid="bakery-description">
-                  {BAKERY_SHOP_DESCRIPTION}
+                  {who === 'OWNER' ? BAKERY_OWNER_DESCRIPTION : BAKERY_SHOP_DESCRIPTION}
                 </p>
                 <div className="actions">
                   <button className="btn primary" data-testid="bakery-talk" onClick={talk}>

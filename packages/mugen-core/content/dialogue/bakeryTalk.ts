@@ -54,6 +54,12 @@ export const BAKERY_LINA_SHORT = 'あ……LUMIがちょっと足りないみた
 /** Lina, when the basket is full. */
 export const BAKERY_LINA_FULL = 'もう持ちきれないよ？';
 
+/**
+ * What is said of the shop with the owner chosen: him, as he stands there
+ * (not the shop told about him in the third person). No name, no age.
+ */
+export const BAKERY_OWNER_DESCRIPTION = 'パン屋の主人。素材や焼き方に詳しい。';
+
 /** The owner — a hint about makings, one a talk, in turn. */
 export const BAKERY_OWNER_HINTS: readonly DialogueLine[] = [
   { speaker: O, text: '木の実なら、グリーンウッドの森で見つかる。' },

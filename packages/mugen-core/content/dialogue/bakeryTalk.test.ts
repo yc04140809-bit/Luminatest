@@ -7,6 +7,7 @@ import {
   BAKERY_LINA_FULL,
   BAKERY_LINA_SHORT,
   BAKERY_LINA_SOLD,
+  BAKERY_OWNER_DESCRIPTION,
   BAKERY_OWNER_HINTS,
   BAKERY_PEOPLE,
 } from './bakeryTalk';
@@ -52,6 +53,13 @@ describe('who says what', () => {
       '今ちょっと不安になったぞ。',
     ]);
     expect(BAKERY_LINA_FIRST_MARK.startsWith('talk:')).toBe(true);
+  });
+});
+
+describe('with the owner chosen', () => {
+  it('the shop is said as him, standing there — not as “Lina’s father’s shop”', () => {
+    expect(BAKERY_OWNER_DESCRIPTION).toBe('パン屋の主人。素材や焼き方に詳しい。');
+    expect(BAKERY_OWNER_DESCRIPTION).not.toMatch(/リナの父|ガルド|歳/);
   });
 });
 
