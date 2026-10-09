@@ -189,6 +189,7 @@ export function AldenScreen({
   onStatus,
   onTavern,
   onBakery,
+  onShop,
   resting,
   onRest,
   onRumors,
@@ -211,6 +212,11 @@ export function AldenScreen({
   onTavern: () => void;
   /** パン屋 — Lina's father's shop, a door off the village like the tavern. */
   onBakery: () => void;
+  /**
+   * アルデン道具屋 — ミレイ's shop, a door off the village like the other two
+   * (2026-10-10: the region map is for going out, not for shops).
+   */
+  onShop: () => void;
   onBag: () => void;
   onMemory: () => void;
   onArchive: () => void;
@@ -236,7 +242,8 @@ export function AldenScreen({
         </>
       }
     >
-      {/* The two of them: who, how far along, how they are. The rest is ステータス's. */}
+      {/* The two of them: who, their level, how they are — ready or not. EXP is
+          ステータス's and the fight's to show (2026-10-10), not the square's. */}
       <div className="pp-party" data-testid="status-panel">
         {(
           [
@@ -252,9 +259,6 @@ export function AldenScreen({
               <span className="pp-level" data-testid={`status-${id}-level`}>
                 Lv.{progress.level}
               </span>
-              <span className="pp-exp" data-testid={`status-${id}-exp`}>
-                EXP {progress.totalExp}
-              </span>
               {them && (
                 <span className="pp-bars" data-testid={`party-${id}`}>
                   HP {them.currentHp}/{them.maxHp}　MP {them.currentMp}/{them.maxMp}
@@ -269,15 +273,23 @@ export function AldenScreen({
           アルデン地方を探索する
           <NewBadge show={news.explore} testId="explore-new" />
         </MenuItem>
+        {/* 2026-10-10: the village's doors together — the three shops first,
+            then the village's own, what is kept, and the two of them. */}
         <div className="pp-columns">
           <div className="pp-group">
-            <p className="pp-caption">出かける</p>
+            <p className="pp-caption">店舗</p>
             <MenuItem testId="tavern-button" onClick={onTavern}>
               月灯りの酒場
             </MenuItem>
             <MenuItem testId="bakery-button" onClick={onBakery}>
               パン屋
             </MenuItem>
+            <MenuItem testId="shop-button" onClick={onShop}>
+              アルデン道具屋
+            </MenuItem>
+          </div>
+          <div className="pp-group">
+            <p className="pp-caption">村のこと</p>
             {onRumors && (
               <MenuItem testId="rumor-button" onClick={onRumors}>
                 噂話
@@ -289,6 +301,16 @@ export function AldenScreen({
             </MenuItem>
           </div>
           <div className="pp-group">
+            <p className="pp-caption">記録</p>
+            <MenuItem testId="memory-button" onClick={onMemory}>
+              世界の記憶
+              <NewBadge show={news.memory} testId="memory-new" />
+            </MenuItem>
+            <MenuItem testId="archive-button" onClick={onArchive}>
+              人生の記録
+            </MenuItem>
+          </div>
+          <div className="pp-group">
             <p className="pp-caption">ふたりのこと</p>
             <MenuItem testId="status-button" onClick={onStatus}>
               ステータス
@@ -296,13 +318,6 @@ export function AldenScreen({
             </MenuItem>
             <MenuItem testId="bag-button" onClick={onBag}>
               持ち物
-            </MenuItem>
-            <MenuItem testId="memory-button" onClick={onMemory}>
-              世界の記憶
-              <NewBadge show={news.memory} testId="memory-new" />
-            </MenuItem>
-            <MenuItem testId="archive-button" onClick={onArchive}>
-              人生の記録
             </MenuItem>
           </div>
         </div>
@@ -316,15 +331,15 @@ export function AldenScreen({
  * THE MAP — アルデン地方.
  *
  * This is what the shared flow table has always meant by EXPLORE: the
- * outdoors, with the shop as "a door off the village square" and the
- * forest as somewhere to walk to. Phase 1 pointed EXPLORE straight at
+ * outdoors — the forest and what lies beyond the village. (Since
+ * 2026-10-10 the shop is a door off the village like the tavern and the
+ * bakery, so this screen is only for going out.) Phase 1 pointed EXPLORE straight at
  * the forest, which worked while there was nothing else out here and
  * stopped working the moment there was a shop — the table says
  * ITEM_SHOP is reached from EXPLORE, and it was right.
  */
 export function MapScreen({
   places,
-  onShop,
   onForest,
   onPlaces,
   onHome,
@@ -339,7 +354,6 @@ export function MapScreen({
    * only needs to know whether the door is worth drawing.
    */
   places: number;
-  onShop: () => void;
   onForest: () => void;
   onPlaces: () => void;
   onHome: () => void;
@@ -373,9 +387,6 @@ export function MapScreen({
             <NewBadge show={ruinsNew} testId="ruins-new" />
           </MenuItem>
         )}
-        <MenuItem testId="shop-button" onClick={onShop}>
-          アルデン道具屋
-        </MenuItem>
         {places > 0 && (
           <MenuItem testId="places-button" onClick={onPlaces}>
             気になる場所（{places}）

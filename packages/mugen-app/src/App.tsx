@@ -174,6 +174,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    */
   const [bakery, setBakery] = useState(false);
   /**
+   * アルデン道具屋 — a door off the village like the tavern and the bakery
+   * (2026-10-10): the same shop screen, reached from the square rather than
+   * from the region map. Nothing about the shop itself changed.
+   */
+  const [shop, setShop] = useState(false);
+  /**
    * 古代遺跡 — A DOOR OFF THE MAP, held here for the reason the tavern is:
    * `Screen` is shared with the Artifact and may not grow. While it is
    * open the flow is on EXPLORE (the boss's fight goes through BATTLE and
@@ -246,6 +252,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useEffect(() => {
     if (state.screen !== 'HOME' && rumors) setRumors(false);
   }, [state.screen, rumors]);
+  useEffect(() => {
+    if (state.screen !== 'HOME' && shop) setShop(false);
+  }, [state.screen, shop]);
   // The ruins are a leaf of the map — kept through the boss's fight, closed anywhere else.
   useEffect(() => {
     if (ruins && state.screen !== 'EXPLORE' && state.screen !== 'BATTLE') setRuins(null);
@@ -271,6 +280,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     // And out of the bakery the same way.
     if (state.screen === 'HOME' && bakery) {
       setBakery(false);
+      return;
+    }
+    // And out of the shop.
+    if (state.screen === 'HOME' && shop) {
+      setShop(false);
       return;
     }
     // And out of 噂話.
@@ -595,6 +609,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     equipment ? 'equipment' : '',
     tavern ? 'tavern' : '',
     bakery ? 'bakery' : '',
+    shop ? 'shop' : '',
     rumors ? 'rumors' : '',
     ruins ?? '',
   ].join(':');
@@ -721,6 +736,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         );
       }
       if (rumors) return <RumorScreen world={world} onLeave={() => setRumors(false)} />;
+      if (shop) {
+        return (
+          <ItemShopScreen
+            world={world}
+            onLeave={() => setShop(false)}
+            rumor={rumorSaid() ? SEKIRYUGA_RUMORS.SHOP : null}
+            onRumor={heardRumor}
+          />
+        );
+      }
       if (bakery) {
         return (
           <BakeryScreen
@@ -741,6 +766,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onStatus={() => flow.goTo('STATUS')}
           onTavern={() => setTavern(true)}
           onBakery={() => setBakery(true)}
+          onShop={() => setShop(true)}
           onRumors={() => setRumors(true)}
           news={{
             explore: stageReached(world.getSekiryugaStage(), 'TOLD') && !world.isRead(RUINS_DESTINATION),
@@ -894,7 +920,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         <MapScreen
           // Opened by what the player decided, not by this screen.
           places={world.getOpenFutureSites().length}
-          onShop={() => flow.goTo('ITEM_SHOP')}
           onForest={() => flow.goTo('GREENWOOD')}
           onPlaces={() => flow.goTo('FUTURE_SITE')}
           onHome={() => flow.goTo('HOME')}

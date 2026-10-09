@@ -80,7 +80,7 @@ test('the shop takes LUMI and the bag shows what it bought', async ({ page }) =>
 
   const before = numberIn(await page.getByTestId('lumi').textContent(), 'LUMI');
 
-  await page.getByTestId('explore-button').click();
+  // The shop is a door off the village (2026-10-10).
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
 
@@ -103,7 +103,6 @@ test('the shop takes LUMI and the bag shows what it bought', async ({ page }) =>
   expect(numberIn(await page.getByTestId('shop-lumi').textContent(), 'LUMI')).toBe(before - price);
 
   await page.getByTestId('shop-leave').click();
-  await page.getByTestId('back-to-village').click();
 
   // BAG: name, count, description, and — because they are unhurt — the
   // reason it cannot be drunk rather than a button that does nothing.
@@ -121,7 +120,6 @@ test('a herb drunk in a fight puts health back, and is gone afterwards', async (
   await intoTheVillage(page);
   await earn(page, 40);
 
-  await page.getByTestId('explore-button').click();
   await page.getByTestId('shop-button').click();
   const heldBefore = numberIn(await page.getByTestId('shop-held-FOREST_HERB').textContent(), '所持');
   await page.getByTestId('shop-buy-FOREST_HERB').click();
@@ -130,6 +128,7 @@ test('a herb drunk in a fight puts health back, and is gone afterwards', async (
     .toBe(heldBefore + 1);
   await page.getByTestId('shop-leave').click();
 
+  await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();
 
@@ -222,7 +221,6 @@ test('everything earned and bought survives a restart', async ({ page }) => {
   await intoTheVillage(page);
   await earn(page, 40);
 
-  await page.getByTestId('explore-button').click();
   await page.getByTestId('shop-button').click();
   const water = numberIn(await page.getByTestId('shop-held-MANA_WATER').textContent(), '所持');
   await page.getByTestId('shop-buy-MANA_WATER').click();
@@ -230,12 +228,12 @@ test('everything earned and bought survives a restart', async ({ page }) => {
     .poll(async () => numberIn(await page.getByTestId('shop-held-MANA_WATER').textContent(), '所持'))
     .toBe(water + 1);
   await page.getByTestId('shop-leave').click();
-  await page.getByTestId('back-to-village').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   const lumi = numberIn(await page.getByTestId('lumi').textContent(), 'LUMI');
   const level = await page.getByTestId('status-hero-level').textContent();
-  const exp = await page.getByTestId('status-hero-exp').textContent();
+  // EXP is no longer on the square (2026-10-10): read it from the world.
+  const exp = await page.evaluate(() => (window as unknown as { __mugenWorld: { getProgress(id: string): { totalExp: number } } }).__mugenWorld.getProgress('hero').totalExp);
   const hero = await page.getByTestId('party-hero').textContent();
 
   await page.reload();
@@ -248,7 +246,9 @@ test('everything earned and bought survives a restart', async ({ page }) => {
 
   expect(numberIn(await page.getByTestId('lumi').textContent(), 'LUMI')).toBe(lumi);
   await expect(page.getByTestId('status-hero-level')).toHaveText(level!);
-  await expect(page.getByTestId('status-hero-exp')).toHaveText(exp!);
+  expect(
+    await page.evaluate(() => (window as unknown as { __mugenWorld: { getProgress(id: string): { totalExp: number } } }).__mugenWorld.getProgress('hero').totalExp),
+  ).toBe(exp);
   await expect(page.getByTestId('party-hero')).toHaveText(hero!);
 
   await page.getByTestId('bag-button').click();

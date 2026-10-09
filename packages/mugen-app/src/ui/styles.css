@@ -2309,7 +2309,8 @@ body {
 /* A narrow page: each of them on one line — the experience is ステータス's to show. */
 @media (max-width: 720px) {
   .pp-member { flex-wrap: nowrap; gap: 0 8px; white-space: nowrap; }
-  .pp-exp { display: none; }
+  /* 2026-10-10: three shops in a column — each name on one line. */
+  .pp-item { letter-spacing: 0.02em; white-space: nowrap; }
   .pp-name { min-width: 0; }
 }
 

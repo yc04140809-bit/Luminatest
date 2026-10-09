@@ -123,12 +123,11 @@ async function readSeal(page: Page): Promise<string[]> {
 }
 
 async function hearTheShopRumor(page: Page) {
-  await page.getByTestId('explore-button').click();
+  // The shop is a door off the village (2026-10-10).
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-keeper-line')).toContainText('地面が揺れた');
   await expect.poll(() => stage(page)).toBe('RUMOR');
   await page.getByTestId('shop-leave').click();
-  await page.getByTestId('back-to-village').click();
 }
 
 async function hearTheMaster(page: Page) {
@@ -217,6 +216,7 @@ test('before Gald: no rumour anywhere, the master as he always was, and no ruins
   await page.getByTestId('tavern-leave').click();
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('ruins-button')).toHaveCount(0);
+  await page.getByTestId('back-to-village').click();
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-keeper-line')).toHaveCount(0);
   expect(await stage(page)).toBe('NONE');

@@ -202,7 +202,7 @@ test('the ruins: 「古代の破片」を見つけた — found a little apart, 
   await page.getByTestId('bag-back').click();
 
   // At the shop: the coin sells, the fragment does not.
-  await page.getByTestId('explore-button').click();
+  // The shop is a door off the village (2026-10-10).
   await page.getByTestId('shop-button').click();
   await page.getByTestId('shop-tab-sell').click();
   await expect(page.getByTestId('shop-sell-refused-ANCIENT_SHARD')).toHaveText('売れない');
@@ -227,7 +227,7 @@ test('the shop: 買う — LUMI down, one more held; too little LUMI says so; ke
   await freshVillage(page);
   await world(page, `(w) => w.spendLumi(w.getLumi())`);
   await world(page, `(w) => w.addLumi(50)`);
-  await page.getByTestId('explore-button').click();
+  // The shop is a door off the village (2026-10-10).
   await page.getByTestId('shop-button').click();
   // ミレイ behind the counter (npcTouch.spec).
   await expect(page.getByTestId('shop-greeting')).toContainText('ミレイ「');
@@ -266,7 +266,7 @@ test('the sell list: what is held, and nothing below nought', async ({ page }) =
   await freshVillage(page);
   await world(page, `(w) => w.addItem('IRON_ORE', 1)`);
   await world(page, `(w) => w.addItem('MANA_SHARD', 1)`);
-  await page.getByTestId('explore-button').click();
+  // The shop is a door off the village (2026-10-10).
   await page.getByTestId('shop-button').click();
   await page.getByTestId('shop-tab-sell').click();
   const lumi = await world<number>(page, `(w) => w.getLumi()`);

@@ -33,7 +33,6 @@ async function intoTheShop(page: Page) {
   await page.getByTestId('naming-default').click();
   await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await page.getByTestId('explore-button').click();
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
   await expect

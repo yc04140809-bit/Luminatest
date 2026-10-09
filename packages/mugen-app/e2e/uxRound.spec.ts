@@ -77,11 +77,10 @@ async function readTavern(page: Page): Promise<string[]> {
 }
 
 async function hearTheShopRumor(page: Page) {
-  await page.getByTestId('explore-button').click();
+  // The shop is a door off the village (2026-10-10).
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-keeper-line')).toBeVisible();
   await page.getByTestId('shop-leave').click();
-  await page.getByTestId('back-to-village').click();
 }
 
 /**
