@@ -75,6 +75,29 @@ async function everythingSaved(page: Page) {
   });
 }
 
+type Saved = Awaited<ReturnType<typeof everythingSaved>>;
+const isReadMarks = (row: unknown) => (row as { key?: unknown })?.key === 'readMarks';
+
+/** The readMarks row's value, wherever it is kept; undefined when there is none. */
+function readMarksOf(saved: Saved): unknown {
+  for (const db of Object.values(saved.idb))
+    for (const rows of Object.values(db)) {
+      const row = rows.find(isReadMarks);
+      if (row) return (row as { value: unknown }).value;
+    }
+  return undefined;
+}
+
+/** Everything kept, but the readMarks row. */
+function withoutReadMarks(saved: Saved): Saved {
+  const idb: Saved['idb'] = {};
+  for (const [name, db] of Object.entries(saved.idb)) {
+    idb[name] = {};
+    for (const [store, rows] of Object.entries(db)) idb[name][store] = rows.filter((r) => !isReadMarks(r));
+  }
+  return { ...saved, idb };
+}
+
 const LAYERS = ['bakery-room', 'bakery-owner', 'bakery-lina'] as const;
 
 async function loaded(page: Page) {
@@ -130,7 +153,7 @@ async function person(page: Page, id: string) {
   });
 }
 
-test('village → bakery → the shop, the owner and Lina, a talk → back to the village, and the save untouched', async ({
+test('village → bakery → the shop, the owner and Lina, Lina’s first talk → back to the village, and only that talk recorded', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -161,7 +184,9 @@ test('village → bakery → the shop, the owner and Lina, a talk → back to th
   // The village's music, still the same piece: walking in is not a change of scene.
   expect((await music(page)).current).toBe('ALDEN_VILLAGE');
 
-  // The talk, as the content wrote it, and back to the shop.
+  // Lina first, without being asked (パン屋 MVP): her first talk, as the
+  // author wrote it, and back to the shop.
+  await expect(page.getByTestId('bakery-who-lina')).toHaveAttribute('aria-selected', 'true');
   await page.getByTestId('bakery-talk').click();
   const seen: string[] = [];
   for (let i = 0; i < 10; i++) {
@@ -172,10 +197,14 @@ test('village → bakery → the shop, the owner and Lina, a talk → back to th
     if (done) break;
   }
   expect(seen).toEqual([
-    '「いらっしゃい。焼きたてなら、ちょうど今できたところだ。」',
-    '「こんにちは！ 私、リナ。ここはお父さんのお店なの。」',
-    '「まだまだ手伝いってところだがな。」',
-    '「もう、ちゃんと働いてるもん！」',
+    '「いらっしゃい！」',
+    '「今日も焼きたてだよ！」',
+    '「いい匂いだな。」',
+    '「でしょ？」',
+    '「ちゃんと旅にも持っていけるよ！」',
+    '「ちゃんと？」',
+    '「……ちゃんと！」',
+    '「今ちょっと不安になったぞ。」',
   ]);
   await expect(page.getByTestId('bakery-talk')).toBeVisible();
 
@@ -185,9 +214,12 @@ test('village → bakery → the shop, the owner and Lina, a talk → back to th
   await expect(page.getByTestId('bakery-screen')).toHaveCount(0);
   expect((await music(page)).current).toBe('ALDEN_VILLAGE');
 
-  // NOTHING WAS RECORDED.
+  // ONE THING WAS RECORDED — Lina's first talk, read to its end, in
+  // readMarks — and nothing else, row for row.
   await page.waitForTimeout(500);
-  expect(await everythingSaved(page)).toEqual(before);
+  const after = await everythingSaved(page);
+  expect(readMarksOf(after)).toEqual([...((readMarksOf(before) as string[]) ?? []), 'talk:BAKERY_LINA_FIRST']);
+  expect(withoutReadMarks(after)).toEqual(withoutReadMarks(before));
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-empty')).toBeVisible();
   expect(errors).toEqual([]);

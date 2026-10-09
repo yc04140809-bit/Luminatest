@@ -26,8 +26,13 @@
 | 人物 | 既存の `bakery-owner-fullbody.png`（1086×1448）・`lina-fullbody.png`（1254×1254）を加工なしで使用 | `mugen-assets/files/characters/` |
 | 表示 | 2 人とも `object-fit: contain`・足元基準。大きさは `min(100vh, 48vw)` を単位に主人 0.94・リナ 0.78。リナは主人の左手前 | `src/ui/styles.css` `.bakery-*` |
 | BGM | アルデン村の曲のまま（`TALK_SPOT` ＋ `ALDEN_BAKERY` → `ALDEN_VILLAGE`。同じ曲なので途切れない） | `sceneBgm.ts` は変更なし |
-| 会話 | 主人とリナの紹介 4 行だけ。物語・将来・ガルド・四択には触れない。世界には何も記録しない | `mugen-core/content/dialogue/bakeryShop.ts` |
+| 会話 | （2026-10-09 から）切替 [リナ][主人]、入店時は毎回リナ。リナ＝初回会話（世界で 1 回、既読 `talk:BAKERY_LINA_FIRST`）→ 以後は短い 1 行、主人＝素材のヒント（＋セキリュウガ編の噂）。物語・将来・ガルド・四択には触れない | `mugen-core/content/dialogue/bakeryTalk.ts` |
+| 買う | リナの「買う」でパン 4 種（`docs/BAKERY_BREAD.md`） | `mugen-core/content/economy/breads.ts` |
 
 ## 回帰テスト
 
-`e2e/bakery.spec.ts`（6 本）、`e2e/futureCg.spec.ts`（一覧のパン屋の文）、App 単体 `src/ui/futureSite.test.ts`（App と Artifact の文が独立していること）。Android の戻るボタンはネイティブ専用でブラウザから押せないため、実機で確認する（酒場と同じ処理経路）。
+`e2e/bakery.spec.ts`（6 本）、`e2e/bread.spec.ts`（6 本、パン屋 MVP）、`e2e/futureCg.spec.ts`（一覧のパン屋の文）、App 単体 `src/ui/futureSite.test.ts`（App と Artifact の文が独立していること）。Android の戻るボタンはネイティブ専用でブラウザから押せないため、実機で確認する（酒場と同じ処理経路）。
+
+## パン屋 MVP（2026-10-09）
+
+パンの購入・持ち物・食べる・期限・切替 UI は `docs/BAKERY_BREAD.md`。以前の「主人とリナの紹介 4 行」（`bakeryShop.ts`）は画面では使わなくなり、リナの初回会話に置き換えた。

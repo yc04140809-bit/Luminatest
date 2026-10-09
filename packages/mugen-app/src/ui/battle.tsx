@@ -9,8 +9,10 @@ import {
   skillReadyIn,
   refuseItem,
   useItem,
+  NO_MODIFIERS,
   type BattleState,
 } from '@mugen/game/battle/battleLogic';
+import { breadInBattle } from '@mugen/core/economy/bread';
 import type { EnemySpec } from '@mugen/game/battle/battleLogic';
 import { decideTurn, magicBlocked } from '@mugen/game/battle/magicChoice';
 import { autoHealPlan } from '@mugen/game/battle/autoHeal';
@@ -114,10 +116,20 @@ export function BattleScreen({
   );
   const [battle, setBattle] = useState<BattleState>(() => {
     const firstStrike = world.getHeroFirstStrike();
-    return createBattle(spec, undefined, {
+    // A LOAF'S LIFT (パン屋 MVP), until the next night's rest: a twentieth
+    // less taken, or a twentieth more health or magic. Nothing else moves.
+    const base = world.getPartyStats();
+    const bread = breadInBattle(world.getBreadBuff(), base);
+    // The longer bar comes filled by what it added; what the fight leaves is
+    // written back within the ordinary bar, as always.
+    const left = world.getBattleCondition();
+    return createBattle(spec, bread.damageTaken === 1 ? undefined : { ...NO_MODIFIERS, playerDamageTaken: bread.damageTaken }, {
       // Levels, and what his held weapon adds to his swing.
-      stats: world.getPartyStats(),
-      condition: world.getBattleCondition(),
+      stats: bread.stats,
+      condition: {
+        hp: left.hp + (bread.stats.maxHp - base.maxHp),
+        mp: left.mp + (bread.stats.maxMp - base.maxMp),
+      },
       // His held weapon's first-strike (星紋の遺剣's 先手の一閃), if any.
       ...(firstStrike ? { firstStrike } : {}),
       /**
@@ -152,7 +164,11 @@ export function BattleScreen({
   const drunk = useRef(new Map<string, number>());
 
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
-  const carried = world.getInventory().filter((stack) => itemDef(stack.itemId)?.use);
+  // Bread is eaten on the road, not in a fight (パン屋 MVP): not in the tray.
+  const carried = world.getInventory().filter((stack) => {
+    const def = itemDef(stack.itemId);
+    return !!def?.use && !def.bread;
+  });
   const reading = arcanaReading(ARCANA_DEFS, world.getArcanaRecords());
   const memoryLines = world.getKnownEvents().map((e) => memoryEventLabel(e));
 

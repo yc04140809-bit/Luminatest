@@ -16,6 +16,7 @@
 // migration and the shop all read this list.
 
 import { DEFAULT_MAX_STACK, type ItemDef } from '../../core/economy/items';
+import { BREAD_DEFS } from './breads';
 
 export const ITEM_DEFS: readonly ItemDef[] = [
   {
@@ -237,6 +238,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     sources: ['RUINS'],
     tags: ['LORE', 'RUINS'],
   },
+  // パン屋 MVP (2026-10-09): Lina's four loaves (breads.ts).
+  ...BREAD_DEFS,
 ];
 
 const BY_ID = new Map(ITEM_DEFS.map((def) => [def.itemId, def]));

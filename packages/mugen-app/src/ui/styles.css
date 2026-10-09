@@ -101,6 +101,8 @@ body {
 .bag-desc,
 .shop-desc { flex-basis: 100%; color: var(--dim); font-size: 12px; line-height: 1.6; }
 .bag-reason { color: var(--dim); font-size: 12px; }
+.bag-fresh { color: var(--gold); font-size: 12px; }
+.bag-bread-buff { margin: 0 0 2px; color: var(--ink); font-size: 12px; text-align: left; }
 
 /* THE BAG AND THE SHOP AS A PAGE THAT FITS (2026-10-07): the list scrolls
    in the middle, the way out always on screen — a landscape phone is
@@ -1180,6 +1182,10 @@ body {
    father, over the empty edge of his picture, never over his face. */
 .screen.bakery {
   --bakery-u: min(100vh, 48vw);
+  /* Never taller than the phone: the words scroll inside, the shop stays put. */
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   align-items: flex-start;
   justify-content: flex-end;
   padding-left: max(16px, env(safe-area-inset-left));
@@ -1226,6 +1232,46 @@ body {
   background: rgba(11, 11, 18, 0.78);
 }
 .bakery-words .line { max-width: 40ch; }
+/* パン屋 MVP (2026-10-09): who you talk to, and Lina's bread. The box
+   never runs off a low screen: the list scrolls, the way back stays. */
+.bakery-words { min-height: 0; overflow-y: auto; }
+.bakery-words .actions { flex-wrap: nowrap; width: 100%; }
+.bakery-words .actions .btn { flex: 1 1 0; min-width: 0; padding-inline: 8px; }
+.bakery-who { justify-content: center; }
+@media (max-height: 340px) {
+  .bakery-words { padding: 8px 12px; gap: 2px; }
+  .bakery-words .place { margin: 0; font-size: 16px; }
+  .bakery-words .line { margin: 2px 0; }
+  .bakery-words .actions { margin-top: 2px; }
+  .bakery-words .actions .btn { min-height: 40px; padding-block: 6px; }
+  .bakery-who .shop-tab { min-height: 30px; }
+}
+.bakery-shop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+}
+.bakery-say { margin: 0; font-size: 13px; }
+.bakery-shop .purse { margin: 0; }
+.bakery-list {
+  margin: 0;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.bakery-list .shop-row { flex-wrap: nowrap; align-items: center; gap: 6px; padding: 4px 0; }
+.bakery-list .shop-row .btn { min-width: 60px; min-height: 34px; padding: 4px 10px; }
+.bakery-list .shop-info { gap: 0 8px; line-height: 1.35; }
+.bakery-list .shop-name { font-size: 14px; }
+.bakery-line2 { display: flex; flex-wrap: wrap; gap: 0 8px; flex-basis: 100%; }
+.bakery-list .shop-held,
+.bakery-list .shop-why,
+.bakery-effect,
+.bakery-keeps { color: var(--dim); font-size: 11px; }
+.bakery-list .shop-held { color: var(--gold); }
 
 /* ── A PLACE, WALKED (ui/explore/WalkScene) ──
    One screen, right to left. Every layer is absolutely placed and slid
@@ -2069,6 +2115,8 @@ body {
 .paper .bag-count,
 .paper-panel .shop-price,
 .paper-panel .shop-held { color: var(--p-gold-ink); }
+.paper .bag-fresh { color: var(--p-gold-ink); }
+.paper .bag-bread-buff { color: var(--p-ink); }
 .paper .bag-category,
 .paper .bag-desc,
 .paper .bag-reason,

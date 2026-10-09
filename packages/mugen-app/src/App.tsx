@@ -697,6 +697,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       if (bakery) {
         return (
           <BakeryScreen
+            world={world}
             onLeave={() => setBakery(false)}
             rumor={rumorSaid() ? SEKIRYUGA_RUMORS.BAKERY : null}
             onRumor={heardRumor}
@@ -740,6 +741,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             void world
               .advanceDay()
               .then(() => world.restoreParty())
+              // A night's rest ages every loaf by one and ends a loaf's lift (パン屋 MVP).
+              .then(() => world.restBread())
               // A night in the village after the first time back at the
               // ruins: the next morning, the cry from the ruins is talked
               // about (噂話). Once; nothing else about the night changes.

@@ -10,8 +10,10 @@
 // anybody's bag: change a sell price and every save in existence is
 // already correct, because no save has ever recorded a price.
 
+import type { BreadSpec } from './bread';
+
 /**
- * The four kinds of thing, and no more yet.
+ * The four kinds of thing, and no more yet (and FOOD, 2026-10-09).
  *
  * KEY_ITEM is a category AND a flag on the definition, which looks
  * like a duplicate and is not: the category is what a bag SORTS by,
@@ -20,13 +22,15 @@
  * MATERIAL with the flag set, and a key item in a bag that has not
  * grown a KEY tab yet still cannot be sold.
  */
-export type ItemCategory = 'CONSUMABLE' | 'MATERIAL' | 'KEY_ITEM' | 'OTHER';
+export type ItemCategory = 'CONSUMABLE' | 'MATERIAL' | 'KEY_ITEM' | 'OTHER' | 'FOOD';
 
 export const ITEM_CATEGORIES: readonly ItemCategory[] = [
   'CONSUMABLE',
   'MATERIAL',
   'KEY_ITEM',
   'OTHER',
+  // パン屋 MVP (2026-10-09): bread — eaten on the road, goes stale with rest.
+  'FOOD',
 ];
 
 /** A thing that exists in the world. Content, never save data. */
@@ -81,6 +85,13 @@ export interface ItemDef {
    * 'LORE'. Nothing reads them yet.
    */
   tags?: readonly string[];
+  /**
+   * A LOAF (パン屋 MVP, 2026-10-09): the lift eating it gives and how many
+   * nights' rest it keeps (core/economy/bread.ts). Present only on FOOD.
+   * A thing with this is eaten through the world's `eatBread`, never the
+   * ordinary use path, and never by AUTO.
+   */
+  bread?: BreadSpec;
 }
 
 /**
@@ -162,6 +173,8 @@ export function categoryLabel(category: ItemCategory): string {
       return '大切なもの';
     case 'OTHER':
       return 'その他';
+    case 'FOOD':
+      return 'パン';
   }
 }
 

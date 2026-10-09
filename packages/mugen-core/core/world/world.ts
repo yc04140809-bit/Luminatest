@@ -24,6 +24,17 @@ import {
 import { advanceStage, arcOpen, readSekiryugaStage, type SekiryugaStage } from './storyArc';
 import { readReadMarks, withMarks } from './readMarks';
 import {
+  addLoaves,
+  afterRest,
+  eatOne,
+  readBreadBuff,
+  readBreadFreshness,
+  reconcileFreshness,
+  NO_BREAD,
+  type BreadBuff,
+  type BreadFreshness,
+} from '../economy/bread';
+import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
   weaponInBattle,
@@ -320,6 +331,13 @@ const SEKIRYUGA_ARC_KEY = 'sekiryugaArc';
 /** What the player has actually looked at — every NEW (see `readMarks.ts`). Absent reads as nothing read. */
 const READ_MARKS_KEY = 'readMarks';
 /**
+ * パン屋 MVP (2026-10-09): how many nights each loaf in the bag has left,
+ * and the one lift in effect (core/economy/bread.ts). Absent reads as no
+ * bread and no lift, so no schema version moved.
+ */
+const BREAD_FRESHNESS_KEY = 'breadFreshness';
+const BREAD_BUFF_KEY = 'breadBuff';
+/**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
  * PROGRESS, NOT PREFERENCE, which is why it is here and not in
@@ -580,6 +598,8 @@ export class World {
   private sekiryugaStage: SekiryugaStage;
   private readMarks: Set<string>;
   private readMarkList: string[];
+  private breadFreshness: BreadFreshness;
+  private breadBuff: BreadBuff | null;
   /** The read-mark writes, one after another (see `markRead`). */
   private readMarkQueue: Promise<unknown> = Promise.resolve();
 
@@ -602,6 +622,8 @@ export class World {
     this.sekiryugaStage = fields.sekiryugaStage;
     this.readMarkList = fields.readMarks;
     this.readMarks = new Set(fields.readMarks);
+    this.breadFreshness = fields.breadFreshness;
+    this.breadBuff = fields.breadBuff;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1267,6 +1289,86 @@ export class World {
     this.emit();
   }
 
+  // ── BREAD (パン屋 MVP, 2026-10-09) ─────────────────────────────────
+  //
+  // A loaf is an ordinary thing in the bag; what it has besides is its age
+  // and the lift eating it gives (core/economy/bread.ts). The ages are
+  // always read MATCHED TO THE BAG, so a loaf that left the bag some other
+  // way is forgotten and one that arrived some other way is fresh.
+
+  /** For each kind of bread in the bag, the nights each loaf has left. */
+  getBreadFreshness(): BreadFreshness {
+    return reconcileFreshness(this.breadFreshness, this.inventory, (id) => itemDef(id)?.bread);
+  }
+
+  /** The lift from the last loaf eaten, until the next night's rest. */
+  getBreadBuff(): BreadBuff | null {
+    return this.breadBuff;
+  }
+
+  /**
+   * ONE LOAF EATEN, out of a fight: the front rank's health back by the
+   * loaf's amount (as far as it goes — a loaf is eaten for its lift too, so
+   * being whole does not refuse it), its lift in place of any before it,
+   * one fewer in the bag. One commit. Refused, touching nothing, when there
+   * is none or every one left has gone stale.
+   */
+  async eatBread(itemId: string): Promise<BreadEatResult> {
+    const def = itemDef(itemId);
+    const name = def?.name ?? itemId;
+    if (!def?.bread || !def.use) return { ok: false, refusal: 'NONE_LEFT', name, given: 0, buff: this.breadBuff };
+    if (countInBag(this.inventory, itemId) <= 0) {
+      return { ok: false, refusal: 'NONE_LEFT', name, given: 0, buff: this.breadBuff };
+    }
+    const fresh = eatOne(this.getBreadFreshness(), itemId);
+    if (!fresh) return { ok: false, refusal: 'STALE', name, given: 0, buff: this.breadBuff };
+    const taken = removeFromBag(this.inventory, itemId, 1);
+    if (taken.moved === 0) return { ok: false, refusal: 'NONE_LEFT', name, given: 0, buff: this.breadBuff };
+
+    const party = this.getPartyCondition();
+    const front = party[BATTLE_HP_HOLDER];
+    const given = front ? Math.max(0, Math.min(def.use.amount, front.maxHp - front.currentHp)) : 0;
+    const next: StoredParty | null =
+      front && given > 0
+        ? { ...toStored(party), [BATTLE_HP_HOLDER]: { hp: front.currentHp + given, mp: front.currentMp } }
+        : null;
+    const buff: BreadBuff = { itemId, buffType: def.bread.buffType, buffValue: def.bread.buffValue };
+    await this.store.commit({
+      putState: [
+        { key: INVENTORY_KEY, value: taken.inventory },
+        { key: BREAD_FRESHNESS_KEY, value: fresh },
+        { key: BREAD_BUFF_KEY, value: buff },
+        ...(next ? [{ key: CONDITION_KEY, value: next }] : []),
+      ],
+    });
+    this.inventory = taken.inventory;
+    this.breadFreshness = fresh;
+    this.breadBuff = buff;
+    if (next) this.condition = next;
+    this.emit();
+    return { ok: true, refusal: null, name, given, buff };
+  }
+
+  /**
+   * A NIGHT'S REST, for the bread: every loaf a night older, and the lift
+   * over. Writes only when there is bread or a lift to change.
+   */
+  async restBread(): Promise<void> {
+    const now = this.getBreadFreshness();
+    const older = afterRest(now);
+    const changed = JSON.stringify(older) !== JSON.stringify(this.breadFreshness) || this.breadBuff !== null;
+    if (!changed) return;
+    await this.store.commit({
+      putState: [
+        { key: BREAD_FRESHNESS_KEY, value: older },
+        { key: BREAD_BUFF_KEY, value: null },
+      ],
+    });
+    this.breadFreshness = older;
+    this.breadBuff = null;
+    this.emit();
+  }
+
   /**
    * USING SOMETHING OUT OF THE BAG, OUTSIDE A FIGHT.
    *
@@ -1292,6 +1394,8 @@ export class World {
     const held = countInBag(this.inventory, itemId);
     const nobody = { ok: false, given: 0, stat: 'HP' as const, held };
     if (!def?.use) return { ...nobody, refusal: 'NONE_LEFT', name: itemId, targetId: targetId ?? '' };
+    // A loaf is eaten (`eatBread`), never used: its age and its lift go with it.
+    if (def.bread) return { ...nobody, refusal: 'NONE_LEFT', name: def.name, targetId: targetId ?? '' };
 
     const on = targetId ?? (def.use.kind === 'HEAL' ? BATTLE_HP_HOLDER : BATTLE_MP_HOLDER);
     const party = this.getPartyCondition();
@@ -2562,14 +2666,21 @@ export class World {
     if (purse === null) return false;
     const bag = addToBag(this.inventory, def, want);
     if (bag.moved !== want) return false;
+    // A LOAF IS BOUGHT FRESH (パン屋 MVP): its nights go in the same commit
+    // as the loaf and the money, so none of the three can land alone.
+    const fresh = def.bread
+      ? addLoaves(this.getBreadFreshness(), def.itemId, want, def.bread.freshness)
+      : null;
     await this.store.commit({
       putState: [
         { key: INVENTORY_KEY, value: bag.inventory },
         { key: LUMI_KEY, value: purse },
+        ...(fresh ? [{ key: BREAD_FRESHNESS_KEY, value: fresh }] : []),
       ],
     });
     this.inventory = bag.inventory;
     this.lumi = purse;
+    if (fresh) this.breadFreshness = fresh;
     this.emit();
     return true;
   }
@@ -2654,6 +2765,8 @@ export class World {
     this.sekiryugaStage = 'NONE';
     this.readMarkList = [];
     this.readMarks = new Set();
+    this.breadFreshness = NO_BREAD;
+    this.breadBuff = null;
     this.emit();
   }
 
@@ -2689,6 +2802,8 @@ export class World {
       { key: LUMI_KEY, value: this.lumi },
       { key: PROGRESSION_KEY, value: this.progression },
       { key: CLAIMED_REWARDS_KEY, value: this.claimedRewards },
+      // The loaves in the bag stay, and so does how old they are.
+      { key: BREAD_FRESHNESS_KEY, value: this.getBreadFreshness() },
     ];
     await this.store.clearAll();
     // Written back in one commit, immediately: a crash between the
@@ -2716,6 +2831,8 @@ export class World {
     this.sekiryugaStage = 'NONE';
     this.readMarkList = [];
     this.readMarks = new Set();
+    this.breadFreshness = this.getBreadFreshness();
+    this.breadBuff = null;
     this.emit();
   }
 }
@@ -2732,6 +2849,18 @@ const BACKUP_META_KEY = 'worldBackup';
  * tool that does not exist yet, or for somebody reporting a bug.
  */
 const DAMAGED_META_KEY = 'worldDamaged';
+
+/** What eating a loaf did (パン屋 MVP). */
+export interface BreadEatResult {
+  ok: boolean;
+  /** NONE_LEFT: none in the bag. STALE: every one left has gone stale. */
+  refusal: 'NONE_LEFT' | 'STALE' | null;
+  name: string;
+  /** Health given back to the front rank (nought when already whole). */
+  given: number;
+  /** The lift now in effect. */
+  buff: BreadBuff | null;
+}
 
 /** What using something out of the bag did, or why it did not. */
 export interface BagUseResult {
@@ -2847,6 +2976,8 @@ interface WorldFields {
   visits: VisitTable;
   sekiryugaStage: SekiryugaStage;
   readMarks: string[];
+  breadFreshness: BreadFreshness;
+  breadBuff: BreadBuff | null;
 }
 
 /** What reading a save had to say about it. */
@@ -2994,6 +3125,10 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readSekiryugaStage(value));
     case READ_MARKS_KEY:
       return settle(readReadMarks(value));
+    case BREAD_FRESHNESS_KEY:
+      return settle(readBreadFreshness(value));
+    case BREAD_BUFF_KEY:
+      return settle(readBreadBuff(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -3081,6 +3216,8 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
       sekiryugaStage: take(SEKIRYUGA_ARC_KEY, readSekiryugaStage(byKey.get(SEKIRYUGA_ARC_KEY))),
       readMarks: take(READ_MARKS_KEY, readReadMarks(byKey.get(READ_MARKS_KEY))),
+      breadFreshness: take(BREAD_FRESHNESS_KEY, readBreadFreshness(byKey.get(BREAD_FRESHNESS_KEY))),
+      breadBuff: take(BREAD_BUFF_KEY, readBreadBuff(byKey.get(BREAD_BUFF_KEY))),
     },
     repairedKeys,
     unreadableKeys,

@@ -51,7 +51,8 @@ export function autoHealPlan(
     .map((row) => ({ row, def: itemDefOf(row.itemId) }))
     .filter(
       (x): x is { row: (typeof bag)[number]; def: ItemDef } =>
-        !!x.def?.use && x.def.use.kind === 'HEAL' && x.def.use.amount > 0 && refuseItem(state, x.def.use, x.row.quantity) === null,
+        // Never a loaf: bread is the player's own choice (パン屋 MVP).
+        !!x.def?.use && !x.def.bread && x.def.use.kind === 'HEAL' && x.def.use.amount > 0 && refuseItem(state, x.def.use, x.row.quantity) === null,
     )
     .sort((a, b) => a.def.use!.amount - b.def.use!.amount);
   if (herbs.length === 0) return null;

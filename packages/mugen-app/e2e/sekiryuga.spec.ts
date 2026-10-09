@@ -174,8 +174,9 @@ for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
     await page.getByTestId('explore-button').click();
     await expect(page.getByTestId('ruins-button')).toHaveCount(0);
     await page.getByTestId('back-to-village').click();
-    // The bakery's owner, after the usual lines: his one rumour. Nothing about Lina or Gald.
+    // The bakery's owner (the switch to 主人), after his hint: his one rumour. Nothing about Lina or Gald.
     await page.getByTestId('bakery-button').click();
+    await page.getByTestId('bakery-who-owner').click();
     await page.getByTestId('bakery-talk').click();
     const said: string[] = [];
     for (let i = 0; i < 10; i++) {
@@ -196,13 +197,17 @@ for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
 test('before Gald: no rumour anywhere, the master as he always was, and no ruins on the map', async ({ page }) => {
   await freshVillage(page);
   await page.getByTestId('bakery-button').click();
-  await page.getByTestId('bakery-talk').click();
-  for (let i = 0; i < 10; i++) {
-    expect(await page.getByTestId('bakery-line').textContent()).not.toContain('遺跡');
-    const next = page.getByTestId('bakery-next');
-    const done = (await next.textContent()) === 'もどる';
-    await next.click();
-    if (done) break;
+  // Lina, and her father (パン屋 MVP): neither has a rumour yet.
+  for (const who of ['bakery-who-lina', 'bakery-who-owner']) {
+    await page.getByTestId(who).click();
+    await page.getByTestId('bakery-talk').click();
+    for (let i = 0; i < 10; i++) {
+      expect(await page.getByTestId('bakery-line').textContent()).not.toContain('遺跡');
+      const next = page.getByTestId('bakery-next');
+      const done = (await next.textContent()) === 'もどる';
+      await next.click();
+      if (done) break;
+    }
   }
   await page.getByTestId('bakery-leave').click();
   await page.getByTestId('tavern-button').click();

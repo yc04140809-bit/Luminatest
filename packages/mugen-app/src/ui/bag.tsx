@@ -4,6 +4,7 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { categoryLabel, type ItemDef, type ItemStack } from '@mugen/core/economy/items';
 import { itemRefusalLine, refuseUse } from '@mugen/game/battle/battleLogic';
 import { BATTLE_HP_HOLDER, BATTLE_MP_HOLDER } from '@mugen/core/party/condition';
+import { breadBuffLabel, loavesOf } from '@mugen/core/economy/bread';
 
 /**
  * THE BAG — what is being carried, and whether it can be used here.
@@ -25,10 +26,12 @@ import { BATTLE_HP_HOLDER, BATTLE_MP_HOLDER } from '@mugen/core/party/condition'
  * to sell or keep for later), 大事なもの (never sold — the key-item flag).
  * Within a shelf, the order things were first picked up.
  */
-export type BagGroup = 'RECOVERY' | 'MATERIAL' | 'KEY';
+export type BagGroup = 'RECOVERY' | 'BREAD' | 'MATERIAL' | 'KEY';
 
 export const BAG_GROUPS: readonly { id: BagGroup; label: string }[] = [
   { id: 'RECOVERY', label: '回復' },
+  // パン屋 MVP (2026-10-09): Lina's bread — eaten here, goes stale with rest.
+  { id: 'BREAD', label: 'パン' },
   { id: 'MATERIAL', label: '素材' },
   { id: 'KEY', label: '大事なもの' },
 ];
@@ -36,6 +39,7 @@ export const BAG_GROUPS: readonly { id: BagGroup; label: string }[] = [
 export function bagGroupOf(def: ItemDef): BagGroup {
   if (def.isKeyItem || def.category === 'KEY_ITEM') return 'KEY';
   if (def.category === 'CONSUMABLE') return 'RECOVERY';
+  if (def.bread || def.category === 'FOOD') return 'BREAD';
   return 'MATERIAL';
 }
 
@@ -45,6 +49,32 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
 
   const party = world.getPartyCondition();
   const bag = world.getInventory();
+  const fresh = world.getBreadFreshness();
+  const buff = world.getBreadBuff();
+
+  /**
+   * ONE LOAF EATEN (パン屋 MVP): `world.eatBread` — the health, the lift,
+   * one fewer and its age, in one commit. Eaten for its lift too, so being
+   * whole does not refuse it; a stale loaf is never offered.
+   */
+  const eat = (itemId: string) => {
+    if (busy) return;
+    setBusy(true);
+    void world
+      .eatBread(itemId)
+      .then((r) => {
+        const def = itemDef(itemId);
+        setSaid(
+          r.ok && r.buff
+            ? `${def?.use?.line ?? `${r.name}を食べた。`}${r.given > 0 ? `HPが${r.given}回復した。` : ''}${breadBuffLabel(r.buff.buffType, r.buff.buffValue)}（次の休息まで）`
+            : r.refusal === 'STALE'
+              ? `${r.name}は期限切れで食べられない。`
+              : `${r.name}は持っていない。`,
+        );
+      })
+      .catch(() => setSaid('食べられなかった。'))
+      .finally(() => setBusy(false));
+  };
 
   /**
    * Who an item would go to, and what state they are in.
@@ -103,10 +133,56 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
           return (
             <section className="bag-group" key={group.id} data-testid={`bag-group-${group.id}`}>
               <h2 className="bag-group-title">{group.label}</h2>
+              {group.id === 'BREAD' && (
+                <p className="bag-bread-buff" data-testid="bag-bread-buff">
+                  {buff
+                    ? `パンの効果：${breadBuffLabel(buff.buffType, buff.buffValue)}（次の休息まで）`
+                    : 'パンの効果：なし'}
+                </p>
+              )}
               <ul className="bag-list">
                 {rows.map((stack) => {
                   const def = itemDef(stack.itemId);
                   if (!def) return null;
+                  if (def.bread) {
+                    const loaves = loavesOf(fresh, stack.itemId);
+                    return (
+                      <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
+                        <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
+                          {def.name}
+                        </span>
+                        <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
+                          ×{stack.quantity}
+                        </span>
+                        <span className="bag-category">{categoryLabel(def.category)}</span>
+                        <span className="bag-fresh" data-testid={`bag-fresh-${stack.itemId}`}>
+                          {[
+                            loaves.fresh > 0 ? `あと休息${loaves.soonest}回` : '',
+                            loaves.stale > 0 ? `【期限切れ】×${loaves.stale}` : '',
+                          ]
+                            .filter(Boolean)
+                            .join('　')}
+                        </span>
+                        <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
+                          {def.description}
+                        </span>
+                        {loaves.fresh > 0 ? (
+                          <button
+                            className="btn"
+                            data-testid={`bag-eat-${stack.itemId}`}
+                            disabled={busy}
+                            onClick={() => eat(stack.itemId)}
+                          >
+                            食べる
+                          </button>
+                        ) : (
+                          <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
+                            期限切れで食べられない。
+                          </span>
+                        )}
+                      </li>
+                    );
+                  }
                   const where = situationFor(def);
                   // No `use` block at all is a thing that is carried and not
                   // drunk — the acorn. That is not a refusal, so it is not
