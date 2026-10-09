@@ -11,6 +11,11 @@ describe('the archive', () => {
     for (const p of MUSIC_ARCHIVE) expect(BGM_ASSETS[p.id], p.id).not.toBeNull();
   });
 
+  it('names her CHAOS (混沌), never KAOS', () => {
+    expect(MUSIC_ARCHIVE.find((p) => p.id === 'KAOS_EVENT')?.title).toBe('CHAOS');
+    for (const p of MUSIC_ARCHIVE) expect(p.title).not.toMatch(/KAOS/i);
+  });
+
   it('shows only what has been heard, in the game’s order', () => {
     expect(heardPieces([])).toEqual([]);
     expect(heardPieces(['TAVERN', 'OPENING', 'NOT_A_PIECE']).map((p) => p.id)).toEqual(['OPENING', 'TAVERN']);

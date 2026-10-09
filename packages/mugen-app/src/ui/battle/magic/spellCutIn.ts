@@ -30,7 +30,8 @@ interface SpellCutInArt {
 }
 
 /** Kaos, casting: kaos-cast.png, v18's Kaos colours. */
-const KAOS_CASTING: SpellCutInArt = { art: kaosCast, theme: 'chaos', word: 'KAOS' };
+// ケイオス in letters is CHAOS (混沌 — the author, 2026-10-09), never KAOS.
+const KAOS_CASTING: SpellCutInArt = { art: kaosCast, theme: 'chaos', word: 'CHAOS' };
 
 /** Spell id → the cut-in it plays. Absent: no cut-in (未接続). */
 export const SPELL_CUT_INS: Readonly<Record<string, SpellCutInArt>> = {

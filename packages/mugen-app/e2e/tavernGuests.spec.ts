@@ -354,7 +354,7 @@ test('a piece for the village: Alden’s ordinary places play it, kept across a 
   await expect(page.getByTestId('tavern-set-village')).toHaveCount(0);
   await page.getByTestId('tavern-play-KAOS_EVENT').click();
   await page.getByTestId('tavern-set-village').click();
-  await expect(page.getByTestId('tavern-village-bgm')).toHaveText('村のBGM：KAOS');
+  await expect(page.getByTestId('tavern-village-bgm')).toHaveText('村のBGM：CHAOS');
   await expect(page.getByTestId('tavern-set-village')).toHaveCount(0);
   await page.getByTestId('tavern-panel-close').click();
   await page.getByTestId('tavern-leave').click();

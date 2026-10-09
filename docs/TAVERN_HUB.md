@@ -59,7 +59,7 @@
 |---|---|---|
 | `TITLE_MAIN` | MUGEN ZERO | タイトル |
 | `OPENING` | OPENING | はじまり |
-| `KAOS_EVENT` | KAOS | ケイオスの場面 |
+| `KAOS_EVENT` | CHAOS | ケイオスの場面 |
 | `ALDEN_VILLAGE` | ALDEN VILLAGE | アルデン村 |
 | `TAVERN` | MOONLIGHT TAVERN | 月灯りの酒場 |
 | `GREENWOOD_FOREST` | GREENWOOD FOREST | グリーンウッドの森（古代遺跡もこの曲） |

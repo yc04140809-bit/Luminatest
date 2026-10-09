@@ -98,3 +98,16 @@ describe('the steps after her cut-in', () => {
     }
   });
 });
+
+describe('her name on the cut-in', () => {
+  it('is CHAOS (混沌), never KAOS — the big word and the small line', () => {
+    for (const def of MAGIC_DEFS) {
+      const spec = spellCutIn(def);
+      if (!spec) continue;
+      expect(spec.word, def.id).toBe('CHAOS');
+      expect(spec.kicker, def.id).toMatch(/^CHAOS · /);
+      expect(`${spec.word}${spec.kicker}`).not.toMatch(/KAOS/);
+    }
+    expect(Object.values(SPELL_CUT_INS).every((c) => c.word === 'CHAOS')).toBe(true);
+  });
+});

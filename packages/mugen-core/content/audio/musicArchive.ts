@@ -25,7 +25,8 @@ export interface ArchivedPiece {
 export const MUSIC_ARCHIVE: readonly ArchivedPiece[] = [
   { id: 'TITLE_MAIN', title: 'MUGEN ZERO', heard: 'タイトル' },
   { id: 'OPENING', title: 'OPENING', heard: 'はじまり' },
-  { id: 'KAOS_EVENT', title: 'KAOS', heard: 'ケイオス' },
+  // ケイオス in letters is CHAOS (混沌), never KAOS (the author, 2026-10-09).
+  { id: 'KAOS_EVENT', title: 'CHAOS', heard: 'ケイオス' },
   { id: 'ALDEN_VILLAGE', title: 'ALDEN VILLAGE', heard: 'アルデン村' },
   { id: 'TAVERN', title: 'MOONLIGHT TAVERN', heard: '月灯りの酒場' },
   { id: 'GREENWOOD_FOREST', title: 'GREENWOOD FOREST', heard: 'グリーンウッドの森' },
