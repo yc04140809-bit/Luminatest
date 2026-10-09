@@ -17,7 +17,9 @@ import {
   GRAVE_STORY_TALKS,
   type GraveTalkContext,
 } from '@mugen/content/talk/graveTalks';
+import { guestLabelOf, guestLines, type TavernGuestId, type TavernGuestTalk } from '@mugen/content/talk/tavernGuests';
 import { tavernArt, type TavernArt } from '../assets/tavern';
+import { tavernGuestArt } from '../assets/tavernGuests';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -40,6 +42,11 @@ import { tavernArt, type TavernArt } from '../assets/tavern';
  * which opens the ruins. The ONLY things this screen records are his
  * meeting (`onMet`), those two steps of the route and one-time talks
  * heard, through `arc` — never WORLD MEMORY, never anything else.
+ *
+ * 酒場の客 (2026-10-09): tonight's stranger (`guest`, content/talk/
+ * tavernGuests), talked to with 「客と話す」. While they speak their
+ * silhouette stands where the master stood — one figure at a time, the
+ * same box — and he is back when they are done. Nothing is recorded.
  */
 
 const lineOf = (eventId: string): readonly DialogueLine[] =>
@@ -120,6 +127,7 @@ export function TavernScreen({
   onLeave,
   arc,
   heroName = '',
+  guest = null,
 }: {
   /** Whether this save has already met him (his introduction is not owed). */
   metBefore: boolean;
@@ -141,6 +149,8 @@ export function TavernScreen({
   };
   /** What the hero is called, for the lines they speak in his story. */
   heroName?: string;
+  /** Tonight's stranger (酒場の客). Absent: nobody but the master. */
+  guest?: TavernGuestTalk | null;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
   /**
@@ -163,7 +173,22 @@ export function TavernScreen({
   const [steps, setSteps] = useState<readonly TalkStep[] | null>(() => (startsOnEntry(owed) ? sitting(owed) : null));
   const [stepAt, setStepAt] = useState(0);
   // An ordinary talk on screen (ending on his rumour or not), outside a sitting.
-  const [talk, setTalk] = useState<{ lines: readonly DialogueLine[]; rumor: boolean } | null>(null);
+  const [talk, setTalk] = useState<{ lines: readonly DialogueLine[]; rumor: boolean; guest?: TavernGuestId } | null>(
+    null,
+  );
+  // Tonight's stranger's silhouette, fetched as the door opens.
+  const [guestSrc, setGuestSrc] = useState<string | null>(null);
+  const [guestFailed, setGuestFailed] = useState(false);
+  useEffect(() => {
+    if (!guest) return;
+    let gone = false;
+    void tavernGuestArt(guest.guest).then((src) => {
+      if (!gone) setGuestSrc(src);
+    });
+    return () => {
+      gone = true;
+    };
+  }, [guest?.guest]);
   const [at, setAt] = useState(0);
   // Pictures that fail to load are dropped; the words never wait for art.
   const [failed, setFailed] = useState<{ room?: boolean; master?: boolean }>({});
@@ -191,6 +216,12 @@ export function TavernScreen({
     setAt(0);
     setTalk({ lines, rumor });
   };
+  /** Tonight's stranger: their few lines, their silhouette. Records nothing. */
+  const beginGuest = () => {
+    if (!guest) return;
+    setAt(0);
+    setTalk({ lines: guestLines(guest), rumor: false, guest: guest.guest });
+  };
   /** One step of a sitting read to its end: what it means for the world. */
   const finished = (id: string) => {
     if (id === GRAVE_MEETING_ID) onMet();
@@ -212,6 +243,8 @@ export function TavernScreen({
       setSteps(null);
       return;
     }
+    // A stranger's talk is theirs alone: it meets nobody and opens nothing.
+    if (talk?.guest) return setTalk(null);
     if (!metBefore) onMet();
     if (talk?.rumor) {
       // His own rumour was the first: no need to walk out and in again —
@@ -238,7 +271,17 @@ export function TavernScreen({
           onError={() => setFailed((f) => ({ ...f, room: true }))}
         />
       )}
-      {art.master && !failed.master && (
+      {talk?.guest && guestSrc && !guestFailed ? (
+        <img
+          className="tavern-master tavern-guest"
+          src={guestSrc}
+          alt={guest ? guestLabelOf(guest) : ''}
+          data-testid="tavern-guest"
+          data-guest={talk.guest}
+          onError={() => setGuestFailed(true)}
+        />
+      ) : null}
+      {art.master && !failed.master && !talk?.guest && (
         <img
           className="tavern-master"
           src={art.master}
@@ -268,6 +311,11 @@ export function TavernScreen({
               <button className="btn primary" data-testid="tavern-talk" onClick={begin}>
                 話す
               </button>
+              {guest && (
+                <button className="btn" data-testid="tavern-guest-talk" data-guest={guest.guest} onClick={beginGuest}>
+                  客と話す
+                </button>
+              )}
               <button className="btn" data-testid="tavern-leave" onClick={onLeave}>
                 店を出る
               </button>

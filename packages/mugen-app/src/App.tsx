@@ -25,6 +25,8 @@ import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
 import { TavernScreen } from './ui/tavern';
+import { tonightsGuestTalk } from '@mugen/content/talk/tavernGuests';
+import { toAbsoluteDay } from '@mugen/core/time/calendar';
 import { BakeryScreen } from './ui/bakery';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
@@ -682,6 +684,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             }}
             onLeave={() => setTavern(false)}
             heroName={world.getHeroName()}
+            guest={tonightsGuestTalk(toAbsoluteDay(world.getClock()))}
             arc={{
               open: world.isSekiryugaArcOpen(),
               stage: world.getSekiryugaStage(),

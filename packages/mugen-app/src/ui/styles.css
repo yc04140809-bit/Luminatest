@@ -1141,6 +1141,13 @@ body {
   background: rgba(11, 11, 18, 0.78);
 }
 .tavern-words .line { max-width: 40ch; }
+/* 酒場の客 (2026-10-09): tonight's stranger stands in the master's box
+   (same place, same size, one figure at a time) — the silhouette as
+   delivered, with a faint light behind it so it reads on the dark room.
+   Three choices in the box: side by side, each its share. */
+.tavern-guest { filter: drop-shadow(0 0 14px rgba(255, 236, 200, 0.22)); }
+.tavern-words .actions { flex-wrap: nowrap; width: 100%; }
+.tavern-words .actions .btn { flex: 1 1 0; min-width: 0; padding-inline: 8px; }
 
 /* ── TIME SHIFT, the beat she shows: つづける always on screen ──
    The stage is held to the screen's height instead of growing with the

@@ -286,7 +286,9 @@ test('the rose over the field, and its small roses on the party', async ({ page 
 
 test('stopped part-way by 「もう一度」, it is gone at once', async ({ page }) => {
   await page.goto('/?preview=battle&aria=bare');
-  await expect(page.getByTestId('aria-figure')).toHaveAttribute('data-step', 'draw', { timeout: 5000 });
+  // Part-way: drawing her bow, or the arrow away (before the rose). Either —
+  // a cold page can stall past the 600ms draw and show the shot first.
+  await expect(page.getByTestId('aria-figure')).toHaveAttribute('data-step', /^(draw|shot)$/, { timeout: 5000 });
   await openPanel(page);
   await page.getByTestId('debug-replay').click();
   await leftNothing(page);
