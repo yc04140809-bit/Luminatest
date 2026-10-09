@@ -36,7 +36,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 逃走 | `escape`（森が戦闘前と同じ：立ち位置・調べ済み・小発見・一言、HP/MP・薬草・EXP・LUMI が戦闘前のまま、逃走音、地図から入り直すと最初から、ガルド戦には逃走が無い） | |
 | 戦闘の効果音（App） | `battleSounds`（斬撃 → 命中の順・ピッチの揺らぎ、モンスター＝重い打撃、ガルド＝ナイフ・ボスヒット・被弾、撃破、彗星撃／癒しの光／星光弾の各段、ゼロ・レヴィ・アリアの必殺技の段、×2 でレヴィの槍が半分）、App 単体 `battleSounds.test.ts`、core `sfxTuning.test.ts`・`sfxFiles.test.ts`。割り当て表は `docs/BATTLE_SE.md` | 実際の音量・聞こえ方は実機で確認。Artifact には効果音が入らないこと（`check-build-audio`） |
 | 勝利 | `regression`、`loop`（経験値・LUMI・レベル・アイテム名）、`attack`「beaten, it goes down…」 | |
-| DEBUG 演出見本（ケイオスのスキル・レヴィ・アリア・零閃） | `kaosSkill`（6 本：カットイン → 双極臨界 → 界核崩壊 → 炸裂 → 何も残らない・ケイオスが 2 人にならない・HP 不変・kaos-cast.png をそのまま・×2・本編には出ない）、`levi`・`aria`・`zero`、App 単体 `kaosTiming.test.ts` ほか | 内容は `docs/APP_BATTLE_SCREEN.md` |
+| DEBUG 演出見本（ケイオス「双極崩界」v19・レヴィ・アリア・零閃） | `kaosSkill`（7 本：カットイン「双極崩界」→ 双極臨界（オーラ）→ 術式固定 → 界核崩壊（爆発・閃光）→ 何も残らない・ケイオスが 2 人にならない・HP 不変・v19 の基準時間・爆発は敵の中心で衝撃波 5・破片 36・数字なし・kaos-cast.png をそのまま・×2 でも爆発 1.8 秒以上・本編には出ない）、`levi`・`aria`・`zero`、App 単体 `kaosTiming.test.ts` ほか | 内容は `docs/APP_BATTLE_SCREEN.md` |
 | CUT-IN | `regression`（本編）、`magic`（本編の全 5 魔法）、`cutin`（DEBUG プレビュー） | |
 | 四択 | `regression`、`gald`（4 択の表示・1 回限り・再起動後も保持） | 4 つのうち本編で通すのは SPARE。残り 3 つの結果は core の単体テスト |
 | WORLD MEMORY 保存 | `regression`、`memory`（記録の中身・日付・場所・人物・重み、再起動） | |

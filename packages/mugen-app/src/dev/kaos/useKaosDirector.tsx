@@ -1,4 +1,4 @@
-// PLAYING KAOS'S SKILL — debug preview only.
+// PLAYING KAOS'S 双極崩界 (v19) — debug preview only.
 //
 // Optionally her cut-in first (the v18 sample), then every step of
 // KaosScene on its own clock (kaosTiming.ts), handed to the battle screen
@@ -34,9 +34,9 @@ export function useKaosDirector(speed: BattleSpeed, cutIns: CutInDirector): Kaos
       return {
         start: { plan, step: 'enter' },
         cues: [
-          { at: plan.critical, change: (n) => ({ ...n, step: 'critical' }) },
-          { at: plan.collapse, change: (n) => ({ ...n, step: 'collapse' }) },
-          { at: plan.burst, change: (n) => ({ ...n, step: 'burst' }) },
+          { at: plan.channel, change: (n) => ({ ...n, step: 'channel' }) },
+          { at: plan.lock, change: (n) => ({ ...n, step: 'lock' }) },
+          { at: plan.blast, change: (n) => ({ ...n, step: 'blast' }) },
           { at: plan.recover, change: (n) => ({ ...n, step: 'recover' }) },
         ],
         end: plan.end,
@@ -52,7 +52,9 @@ export function useKaosDirector(speed: BattleSpeed, cutIns: CutInDirector): Kaos
           name: 'kaos',
           step: now.step,
           heroAside: now.step !== 'recover',
-          enemy: now.step === 'collapse' ? 'drawn' : now.step === 'burst' ? 'struck' : undefined,
+          enemy: now.step === 'lock' ? 'drawn' : now.step === 'blast' ? 'struck' : undefined,
+          // The blast's and the lock's lengths, for the field's own rules (the shake, the creature).
+          vars: () => ({ '--magic-ms': `${now.plan.ms.BLAST}ms`, '--lock-ms': `${now.plan.ms.LOCK}ms` }),
           field: (marks) => <KaosFigure marks={marks} step={now.step} plan={now.plan} />,
           over: (marks) => <KaosOver marks={marks} step={now.step} plan={now.plan} />,
         }

@@ -556,25 +556,15 @@ interface PartDirector {
   scene: FieldScene | null;
 }
 const sampleOf = (id: string) => CUT_IN_SAMPLES.find((c) => c.id === id)!;
-/**
- * HER SKILL'S CUT-IN: v18's chaos sample under the skill's own name —
- * 「双極臨界」, the author's (2026-10-08: the cut-in's name comes first,
- * over v18's provisional 双極崩界, which stays on the v18 sample row).
- */
-const KAOS_SKILL_CUT_IN: CutInSample = {
-  id: 'kaos-skill',
-  label: 'ケイオス（双極臨界）',
-  spec: { ...sampleOf('chaos').spec, name: KAOS_SKILL_NAME, sub: '演出見本（本編未接続）' },
-};
 const SCENE_PARTS: readonly ScenePart[] = [
   {
     id: 'kaos',
-    heading: `ケイオスのスキル「${KAOS_SKILL_NAME}」（演出見本・本編未接続）`,
+    heading: `ケイオス「${KAOS_SKILL_NAME}」強化版 v19（演出見本・本編未接続）`,
     button: `▶ ${KAOS_SKILL_NAME}を再生`,
     chip: 'ケイオス',
-    cutIn: KAOS_SKILL_CUT_IN,
-    flow: '主人公の位置に詠唱中のケイオス → 双極臨界（手の魔法陣が光り、敵を金の光条と青い輪の封印が囲む）→ 界核崩壊（封印が内側へ崩れ、暗い核と菱形）→ 光の炸裂 → 帰還。',
-    withheld: 'ダメージ数字は出ません（本編の技ではないため）。技名「双極臨界」は作者指定、「界核崩壊」は後半の表示名です。',
+    cutIn: sampleOf('chaos'),
+    flow: '主人公の位置にケイオス → 双極臨界（金と青の双極オーラが拡大）→ 敵中心へ術式固定・光と粒子を一点へ吸収 → 界核崩壊（暗転と静止 → 白金の閃光 → 敵中心から金青の大爆発・5重衝撃波・36破片）→ 残光を残して帰還。',
+    withheld: 'ダメージ数字（v19 の仮数値「38」）は出ません。効果音・空間亀裂（Canvas）は未受領のため入っていません。',
     ms: (at) => kaosPlan(at).end,
   },
   {

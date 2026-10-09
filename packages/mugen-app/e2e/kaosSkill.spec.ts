@@ -3,25 +3,26 @@ import { enemyHp, readyToAct } from './battle';
 import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
- * KAOS'S SKILL, IN THE DEBUG PREVIEW (2026-10-08).
+ * KAOS'S 双極崩界 (v19), IN THE DEBUG PREVIEW (2026-10-09).
  *
  * A showing part beside Levi's, Aria's and his, joined to no skill of the
- * game's — the author's motion test for her スキル (CHAOS): she steps in
- * where he stood, casting; 「双極臨界」, a seal of gold rays and a blue ring
- * round the creature; 「界核崩壊」, the seal falls into a dark core; it breaks
- * in light. Checked: the order and the two names, her picture as delivered,
- * one of her on the field at a time, the fight under it untouched (no
- * number, no health), nothing left after, ×2 — and that the game's own
- * fight never plays it.
+ * game's — the author's v19 (KAOS_ULTIMATE_V19_HANDOFF.md): her cut-in
+ * 「双極崩界」; she steps in where he stood; 双極臨界, the gold-and-blue aura
+ * round her; the working fixed on the creature's centre; 界核崩壊, the dark,
+ * the flash, the blast from its centre with five shockwaves and 36
+ * fragments; back. Checked: the order, the names, the v19 base times, her
+ * picture as delivered, one of her on the field at a time, the fight under
+ * it untouched (no number, no health), nothing left after, ×2 (the blast at
+ * least 1.8s) — and that the game's own fight never plays it.
  */
 
 interface Frame {
   t: number;
   step: string;
   phase: string;
-  seal: string;
-  core: boolean;
-  burst: boolean;
+  aura: string;
+  effect: string;
+  flash: boolean;
   cutIn: string;
   heroAside: boolean;
   fieldKaosShown: boolean;
@@ -43,9 +44,9 @@ async function record(page: Page) {
         t: Math.round(performance.now() - t0),
         step: figure?.dataset.step ?? '',
         phase: document.querySelector('[data-testid="kaos-phase"]')?.textContent ?? '',
-        seal: document.querySelector<HTMLElement>('[data-testid="kaos-seal"]')?.dataset.step ?? '',
-        core: !!document.querySelector('[data-testid="kaos-core"]'),
-        burst: !!document.querySelector('[data-testid="kaos-burst"]'),
+        aura: document.querySelector<HTMLElement>('[data-testid="kaos-aura"]')?.className ?? '',
+        effect: document.querySelector<HTMLElement>('[data-testid="kaos-effect"]')?.dataset.state ?? '',
+        flash: !!document.querySelector('[data-testid="kaos-flash"].is-active'),
         cutIn: document.querySelector('[data-testid="cut-in-name"]')?.textContent ?? '',
         heroAside: !!document.querySelector('.bp-hero.aside'),
         fieldKaosShown: !!fieldKaos && parseFloat(getComputedStyle(fieldKaos).opacity) > 0.5,
@@ -94,7 +95,7 @@ for (const motion of ['no-preference', 'reduce'] as const)
   test.describe(`motion: ${motion}`, () => {
     test.use({ reducedMotion: motion });
 
-    test('from the DEBUG panel: her cut-in 「双極臨界」, then 双極臨界, 界核崩壊, the burst — and nothing left', async ({ page }) => {
+    test('from the DEBUG panel: her cut-in 「双極崩界」, 双極臨界, the working fixed, 界核崩壊 — and nothing left', async ({ page }) => {
       await page.goto('/?preview=battle');
       await readyToAct(page);
       const hpBefore = await enemyHp(page);
@@ -102,26 +103,31 @@ for (const motion of ['no-preference', 'reduce'] as const)
       await record(page);
       await page.getByTestId('debug-kaos').click();
       await expect(page.getByTestId('kaos-figure')).toBeVisible({ timeout: 6000 });
-      await expect(page.getByTestId('kaos-figure')).toHaveCount(0, { timeout: 10_000 });
+      await expect(page.getByTestId('kaos-figure')).toHaveCount(0, { timeout: 16_000 });
       await leftNothing(page);
       const f = await stop(page);
 
-      // Her cut-in first, under her skill's own name (the author's 双極臨界, not v18's 双極崩界), then her.
-      expect(f.some((x) => x.cutIn === '双極崩界')).toBe(false);
-      const cut = f.findIndex((x) => x.cutIn === '双極臨界');
+      // Her cut-in first, 「双極崩界」 (v19), then her.
+      expect(f.some((x) => x.cutIn === '双極臨界')).toBe(false);
+      const cut = f.findIndex((x) => x.cutIn === '双極崩界');
       const in_ = f.findIndex((x) => x.step !== '');
       expect(cut).toBeGreaterThanOrEqual(0);
       expect(in_).toBeGreaterThan(cut);
-      // Her steps, in order.
-      expect(order(f.map((x) => x.step).filter(Boolean))).toEqual(['enter', 'critical', 'collapse', 'burst', 'recover']);
+      // Her steps, in order — v19's enter, channel, lock, blast, recover.
+      expect(order(f.map((x) => x.step).filter(Boolean))).toEqual(['enter', 'channel', 'lock', 'blast', 'recover']);
       // The two names in the corner, in order.
       expect(order(f.map((x) => x.phase).filter(Boolean))).toEqual(['双極臨界', '界核崩壊']);
-      // The seal closes in 双極臨界 and falls in 界核崩壊; the core, then the burst.
-      expect(f.some((x) => x.step === 'critical' && x.seal === 'critical')).toBe(true);
-      expect(f.some((x) => x.step === 'collapse' && x.seal === 'collapse' && x.core)).toBe(true);
-      expect(f.some((x) => x.step === 'burst' && x.burst)).toBe(true);
+      // The aura round her in 双極臨界, charged when the working is fixed.
+      expect(f.some((x) => x.step === 'channel' && x.aura.includes('is-active') && !x.aura.includes('is-charged'))).toBe(true);
+      expect(f.some((x) => x.step === 'lock' && x.aura.includes('is-charged'))).toBe(true);
+      // The working fixed on the creature, then the blast and the flash.
+      expect(order(f.map((x) => x.effect).filter((e) => e && e !== 'off'))).toEqual(['locked', 'blast']);
+      expect(f.some((x) => x.step === 'blast' && x.flash)).toBe(true);
+      // About as long as v19's base times (180 + 1700 + 720 + 2800 + 850).
+      const on = f.filter((x) => x.step !== '');
+      expect(on[on.length - 1].t - on[0].t).toBeGreaterThan(5400);
       // He steps aside for her; and she is on the field once — her place in the party empty while she casts.
-      const during = f.filter((x) => ['critical', 'collapse', 'burst'].includes(x.step));
+      const during = f.filter((x) => ['channel', 'lock', 'blast'].includes(x.step));
       expect(during.every((x) => x.heroAside)).toBe(true);
       expect(during.every((x) => !x.fieldKaosShown)).toBe(true);
       // The creature drawn in, then struck — and the fight under it untouched.
@@ -155,6 +161,21 @@ test('her picture as delivered: kaos-cast.png, whole, not mirrored, on the scree
   expect(b.x + b.width).toBeLessThanOrEqual(vp.width + 1);
 });
 
+test('the blast is fixed on the creature’s centre: five shockwaves, 36 fragments, no number', async ({ page }) => {
+  await page.goto('/?preview=battle&debug=0&kaos=bare');
+  const effect = page.getByTestId('kaos-effect');
+  await expect(effect).toHaveAttribute('data-state', 'blast', { timeout: 8000 });
+  await expect(page.getByTestId('kaos-shockwave')).toHaveCount(5);
+  await expect(page.getByTestId('kaos-fragment')).toHaveCount(36);
+  const at = await effect.boundingBox();
+  const art = (await page.getByTestId('bp-enemy-art').boundingBox())!;
+  expect(Math.abs(at!.x - (art.x + art.width / 2))).toBeLessThan(art.width * 0.2);
+  expect(at!.y).toBeGreaterThan(art.y);
+  expect(at!.y).toBeLessThan(art.y + art.height);
+  // v19's stand-in 「38」 is not drawn.
+  expect(await page.locator('.ks-over').textContent()).not.toMatch(/\d/);
+});
+
 test('×2: quicker, and still every part of it', async ({ page }) => {
   const time = async (speed: 1 | 2) => {
     await page.goto('/?preview=battle');
@@ -166,19 +187,22 @@ test('×2: quicker, and still every part of it', async ({ page }) => {
     await record(page);
     await page.getByTestId('debug-kaos').click();
     await expect(page.getByTestId('kaos-figure')).toBeVisible();
-    await expect(page.getByTestId('kaos-figure')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByTestId('kaos-figure')).toHaveCount(0, { timeout: 16_000 });
     const f = await stop(page);
     const on = f.filter((x) => x.step !== '');
-    expect(order(on.map((x) => x.step))).toEqual(['enter', 'critical', 'collapse', 'burst', 'recover']);
+    expect(order(on.map((x) => x.step))).toEqual(['enter', 'channel', 'lock', 'blast', 'recover']);
     await leftNothing(page);
-    return on[on.length - 1].t - on[0].t;
+    const first = (step: string) => on.find((x) => x.step === step)!.t;
+    return { whole: on[on.length - 1].t - on[0].t, blast: first('recover') - first('blast') };
   };
   const slow = await time(1);
   const fast = await time(2);
-  expect(slow).toBeGreaterThan(2400);
-  expect(slow).toBeLessThan(4200);
-  expect(fast).toBeLessThan(slow);
-  expect(fast).toBeGreaterThanOrEqual(1700);
+  expect(slow.whole).toBeGreaterThan(5400);
+  expect(slow.whole).toBeLessThan(7600);
+  expect(fast.whole).toBeLessThan(slow.whole);
+  // v19: at ×2 the blast still keeps at least 1.8s.
+  expect(fast.blast).toBeGreaterThanOrEqual(1750);
+  expect(fast.whole).toBeGreaterThanOrEqual(3200);
 });
 
 test('the game’s own fight never plays it', async ({ page }) => {
@@ -201,6 +225,6 @@ test('the game’s own fight never plays it', async ({ page }) => {
   }
   await readyToAct(page);
   const f = await stop(page);
-  expect(f.some((x) => x.step !== '' || x.phase !== '' || x.seal !== '' || x.core || x.burst)).toBe(false);
+  expect(f.some((x) => x.step !== '' || x.phase !== '' || x.aura !== '' || x.effect !== '' || x.flash)).toBe(false);
   await expect(page.getByTestId('debug-kaos')).toHaveCount(0);
 });
