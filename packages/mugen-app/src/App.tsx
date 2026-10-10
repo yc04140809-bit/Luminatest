@@ -98,6 +98,21 @@ import {
  * the whole claim Phase 1 is making, and it is checkable by reading
  * the imports at the top of every file here.
  */
+
+/**
+ * WHICH OF THE APP'S FIGHTS IS ON — one value, set at the door walked
+ * through. It decides who stands there and how the screen is set; it
+ * decides nothing about the world.
+ *
+ *   WILD        the forest's ordinary fight (モスラビット)
+ *   GALD        the story's fight, from the road to the four answers
+ *   SEKIRYUGA   the first boss route's fight, in the ruins
+ *
+ * A fight added later (the raid, a new creature) is a new value here.
+ * Pinned in e2e/battleKinds.spec.ts.
+ */
+type BattleKind = 'WILD' | 'GALD' | 'SEKIRYUGA';
+
 export default function App() {
   const [ready, setReady] = useState<{ flow: GameFlow; world: World; saving: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -383,10 +398,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * The shared flow table has one BATTLE screen and is right to: what
    * differs is who is standing there. This is the App's note of which
    * door was walked through, and it decides nothing about the world.
+   * One value, set at each door (see `BattleKind`).
    */
-  const story = useRef(false);
-  /** And whether it is セキリュウガ's — the first boss route's fight, in the ruins. */
-  const boss = useRef(false);
+  const battleKind = useRef<BattleKind>('WILD');
   // THE RUINS' WALK, kept the same way across the way in and the fight.
   const ruinsWalk = useRef<RoamMemory | null>(null);
   const resumeRuins = useRef(false);
@@ -398,7 +412,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
 
   const [chosenBgm, setChosenBgm] = useState(battleBgmChoice);
   const unlockedBgm = world.getUnlockedBattleBgm();
-  const fightKey = story.current ? 'GALD' : boss.current ? 'SEKIRYUGA' : null;
+  const fightKey = battleKind.current === 'WILD' ? null : battleKind.current;
   const battleBgmId = battleBgmFor(fightKey, chosenBgm, unlockedBgm);
   /**
    * THE ♪ CONTROL, only where there is something to choose: not in a
@@ -423,8 +437,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * Artifact plays by — so the App and the Artifact cannot disagree
    * about what a place sounds like.
    *
-   * THE FIGHT THAT MATTERS BRINGS ITS OWN MUSIC. `story` marks the Gald
-   * sequence from the road to the four answers, and `battleBgmFor`
+   * THE FIGHT THAT MATTERS BRINGS ITS OWN MUSIC. `battleKind` GALD marks
+   * the Gald sequence from the road to the four answers, and `battleBgmFor`
    * turns that into BOSS_BATTLE whatever anybody chose — which is why
    * the result screen after his fight keeps the boss piece rather than
    * dropping back to the ordinary one mid-scene.
@@ -852,8 +866,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             heroName={world.getHeroName()}
             onHush={setHushed}
             onFight={() => {
-              story.current = false;
-              boss.current = true;
+              battleKind.current = 'SEKIRYUGA';
               fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               // The map cannot reach a fight directly; through the
               // forest's screen in one handler, so it is never drawn.
@@ -995,14 +1008,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           pickupKeeper={pickupKeeper(world)}
           onGald={() => {
             resumeForest.current = false;
-            story.current = true;
-            boss.current = false;
+            battleKind.current = 'GALD';
             flow.goTo('ENCOUNTER');
           }}
           onFight={() => {
             resumeForest.current = false;
-            story.current = false;
-            boss.current = false;
+            battleKind.current = 'WILD';
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             flow.goTo('BATTLE');
           }}
@@ -1017,7 +1028,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     case 'ENCOUNTER':
       return <GaldEncounterScreen onBattle={() => flow.goTo('BATTLE')} />;
     case 'BATTLE':
-      if (boss.current) {
+      if (battleKind.current === 'SEKIRYUGA') {
         return (
           <BattleScreen
             key="sekiryuga"
@@ -1051,17 +1062,18 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           />
         );
       }
+      const gald = battleKind.current === 'GALD';
       return (
         <BattleScreen
           // One screen, two fights, and the numbers are the only
           // difference between them. Both specs are content.
-          key={story.current ? 'gald' : 'rabbit'}
-          spec={story.current ? GALD_BATTLE : specOf(MOSS_RABBIT)}
+          key={gald ? 'gald' : 'rabbit'}
+          spec={gald ? GALD_BATTLE : specOf(MOSS_RABBIT)}
           // How they are drawn, as the Artifact draws the same two: Gald
           // is a person at arm's length who speaks when beaten; the
           // rabbit a creature up the path, with its own line.
           opponent={
-            story.current
+            gald
               ? {
                   artId: 'gald',
                   stands: 'NEAR',
@@ -1071,11 +1083,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           }
           locationId="GREENWOOD_FOREST"
           world={world}
-          onWon={story.current ? wonTheStory : won}
+          onWon={gald ? wonTheStory : won}
           // 逃げる: back into the forest as it was before the fight. Not
           // from the story's fight — Gald's is faced, not fled.
           onEscape={
-            story.current
+            gald
               ? undefined
               : () => {
                   resumeForest.current = true;
@@ -1084,7 +1096,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           }
           music={music}
           // AUTO, once Gald's fight is behind them — never in his own fight.
-          autoAvailable={autoOpen && !story.current}
+          autoAvailable={autoOpen && !gald}
           // Both of the App's fights are in the greenwood; the ground is
           // the place's, as content says.
           background={battleBackgroundFor('GREENWOOD_FOREST')}
