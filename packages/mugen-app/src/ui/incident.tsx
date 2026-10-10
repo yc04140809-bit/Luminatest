@@ -11,13 +11,15 @@ import { INCIDENT_KAOS_TALKS, incidentKaosMark, incidentKaosOwed } from '@mugen/
  * with 「つぎへ」. It stops nothing — every way on the map stays where it
  * was — and it is heard when read to its end (readMarks
  * `talk:INCIDENT_KAOS_<phase>`); left half-read, it is there next time.
- * One phase at a time: the lowest reached and not yet heard.
+ * One phase at a time: the lowest reached and not yet heard — and one per
+ * setting out (the next waits for the next time they head out).
  */
 export function KaosAside({ world }: { world: World }) {
   const owed = incidentKaosOwed(world.getIncidentPhase(), (m) => world.isRead(m));
   const [at, setAt] = useState(0);
   const [heard, setHeard] = useState<number | null>(null);
-  if (owed === null || heard === owed) return null;
+  // One word per setting out: once one is heard, the next waits for the next time.
+  if (owed === null || heard !== null) return null;
   const lines = INCIDENT_KAOS_TALKS[owed];
   const line = lines[Math.min(at, lines.length - 1)];
   const last = at >= lines.length - 1;

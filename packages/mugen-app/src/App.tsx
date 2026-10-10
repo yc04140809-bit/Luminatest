@@ -524,8 +524,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     world.isSekiryugaArcOpen() && !stageReached(world.getSekiryugaStage(), 'BEATEN');
   const heardRumor = () => {
     void world.advanceSekiryugaArc('RUMOR').catch(() => {});
-    // The ruins' rumour heard over a counter: an important rumour (once).
-    void world.addIncident('RUMOR', 'SEKIRYUGA_ROUTE').catch(() => {});
   };
 
   /**

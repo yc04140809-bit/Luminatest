@@ -9,10 +9,14 @@ import { readyToAct } from './battle';
  *   平常 → 小さな違和感 → 明確な異変 → 襲撃直前（そこで止まる）
  *
  * A hidden point moved by doing things (a walk out, a fight won, a first
- * place, an important rumour, a rest after a day out — each only so often),
- * and its phase, shown only through what is already there: the rumours (and
- * their NEW), a word from Kaos at the foot of the region map, Grave from
- * phase 2. Nothing starts at phase 3. All kept across a restart.
+ * place, a rest after a day out — each only so often), and its phase, shown
+ * only through what is already there: the rumours (and their NEW), a word
+ * from Kaos at the foot of the region map, Grave from phase 2. Nothing
+ * starts at phase 3. All kept across a restart.
+ *
+ * 作者判断 2026-10-10: nothing counts until セキリュウガ's part is over
+ * (SETTLED), and reading a rumour is never a step — the player acts, the
+ * world moves, and the rumours change to show it.
  */
 
 type DevWorld = {
@@ -20,7 +24,10 @@ type DevWorld = {
   getIncidentPhase(): number;
   addIncident(kind: string, id?: string): Promise<boolean>;
   isRead(id: string): boolean;
+  markRead(ids: string[]): Promise<unknown>;
   recordGaldLifeChoice(c: string): Promise<unknown>;
+  advanceSekiryugaArc(s: string): Promise<boolean>;
+  getSekiryugaStage(): string;
 };
 const world = <T,>(page: Page, src: string) =>
   page.evaluate(
@@ -50,6 +57,44 @@ async function freshVillage(page: Page) {
   await page.getByTestId('naming-default').click();
   await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
+}
+
+/**
+ * セキリュウガ'S PART OVER, from wherever the village is: Gald answered, the
+ * one look ahead seen, the route moved to SETTLED (walked for real in
+ * sekiryuga.spec). Grave's word after it is marked heard, and every rumour
+ * there is now marked read — so what turns up NEW after this is the
+ * incident's alone.
+ */
+async function toSettled(page: Page) {
+  await world(page, `(w) => w.recordGaldLifeChoice('SPARE')`);
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('future-vision')).toBeVisible();
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  for (const s of ['RUMOR', 'TOLD', 'BEATEN', 'SETTLED']) await world(page, `(w) => w.advanceSekiryugaArc('${s}')`);
+  expect(await world<string>(page, `(w) => w.getSekiryugaStage()`)).toBe('SETTLED');
+  await page.getByTestId('rumor-button').click();
+  const ids = await page.locator('[data-testid^="rumor-"]').evaluateAll((els) =>
+    els
+      .map((e) => e.getAttribute('data-testid')!)
+      .filter((id) => !/^rumor-(screen|list|leave|group-.*)$/.test(id) && !/-(text|new)$/.test(id))
+      .map((id) => `rumor:${id.slice('rumor-'.length)}`),
+  );
+  await page.getByTestId('rumor-leave').click();
+  await world(page, `(w) => w.markRead(${JSON.stringify([...ids, 'talk:GRAVE_AFTER_SEKIRYUGA'])})`);
+  await expect(page.getByTestId('rumor-new')).toHaveCount(0);
+}
+
+/** A village where the incident counts: fresh, then セキリュウガ's part over. */
+async function settledVillage(page: Page) {
+  await freshVillage(page);
+  await toSettled(page);
 }
 
 async function restart(page: Page) {
@@ -91,16 +136,27 @@ const incidentRumors = async (page: Page) => {
 
 test.describe.configure({ timeout: 240_000 });
 
-test('at first, peace: nothing said; the point moves with what is done — and not by doing the same again', async ({ page }) => {
+test('before セキリュウガ’s part is over nothing counts; after it, the point moves with what is done — and not by doing the same again', async ({
+  page,
+}) => {
   await freshVillage(page);
   expect(await point(page)).toBe(0);
   expect(await incidentRumors(page)).toEqual([]);
+  // Before: the forest walked, a rest after it — nothing moves (the signs belong after the peak).
+  await walkTheForest(page);
+  await page.getByTestId('back-to-village').click();
+  await rest(page);
+  expect(await point(page)).toBe(0);
+  expect(await phase(page)).toBe(0);
+
+  await toSettled(page);
+  expect(await point(page)).toBe(0);
   // Resting in the village with nothing done moves nothing.
   await rest(page);
   await rest(page);
   expect(await point(page)).toBe(0);
 
-  // The forest, for the first time: a place (+1); leaving it, a walk out finished (+1).
+  // The forest, the first time since (+1 as a place); leaving it, a walk out finished (+1).
   await walkTheForest(page);
   await expect.poll(() => point(page)).toBe(2);
   // Again the same day: neither counts again.
@@ -123,13 +179,27 @@ test('at first, peace: nothing said; the point moves with what is done — and n
 });
 
 test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」 at the foot of the map — once', async ({ page }) => {
-  await freshVillage(page);
+  await settledVillage(page);
   await world(page, `async (w) => { await w.addIncident('WIN'); await w.addIncident('EXPLORE'); await w.addIncident('PLACE', 'X'); }`);
   expect(await phase(page)).toBe(1);
   await expect(page.getByTestId('rumor-new')).toBeVisible();
   const ids = await incidentRumors(page);
   expect(ids).toEqual(expect.arrayContaining(['rumor-INC_BEASTS_RESTLESS', 'rumor-INC_NO_TRAVELERS']));
   expect(ids).not.toContain('rumor-INC_FLEEING_MERCHANT');
+  // Reading them is not a step: every one read, and the point where it was.
+  const before = await point(page);
+  await page.getByTestId('rumor-button').click();
+  for (const id of ids) {
+    await page.getByTestId(id).scrollIntoViewIfNeeded();
+    await page.getByTestId(id).click();
+    await expect(page.getByTestId(`${id}-text`)).toBeVisible();
+  }
+  await page.getByTestId('rumor-leave').click();
+  await expect(page.getByTestId('rumor-new')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect(await point(page)).toBe(before);
+  expect(await phase(page)).toBe(1);
+  expect(await incidentRumors(page)).not.toContain('rumor-INC_FLEEING_MERCHANT');
 
   // Kaos, as they set out — the ways out still where they were.
   await page.getByTestId('explore-button').click();
@@ -156,7 +226,7 @@ test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」
 });
 
 test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。」, and Grave once in place of his greeting', async ({ page }) => {
-  await freshVillage(page);
+  await settledVillage(page);
   // Grave met first (his meeting is never replaced).
   await page.getByTestId('tavern-button').click();
   await page.getByTestId('tavern-talk').click();
@@ -175,6 +245,9 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('kaos-aside')).toHaveAttribute('data-phase', '1');
   while ((await page.getByTestId('kaos-aside').count()) > 0) await page.getByTestId('kaos-aside-next').click();
+  // One word per setting out: phase 2's does not follow on in the same visit.
+  await page.waitForTimeout(400);
+  await expect(page.getByTestId('kaos-aside')).toHaveCount(0);
   await page.getByTestId('back-to-village').click();
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('kaos-aside')).toHaveAttribute('data-phase', '2');
@@ -204,7 +277,7 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
 test('phase 3: “something is close” — and nothing starts; the village, the shops and the way out as they were, after a restart too', async ({
   page,
 }) => {
-  await freshVillage(page);
+  await settledVillage(page);
   for (let i = 0; i < 10; i++) await world(page, `(w) => w.addIncident('PLACE', 'P${i}')`);
   expect(await phase(page)).toBe(3);
   const ids = await incidentRumors(page);
@@ -239,7 +312,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}×${h}: Kaos’s word on the map — the ways out on screen, her box and つぎへ within reach`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
-    await freshVillage(page);
+    await settledVillage(page);
     for (let i = 0; i < 10; i++) await world(page, `(w) => w.addIncident('PLACE', 'P${i}')`);
     await world(page, `(w) => w.markRead(['talk:INCIDENT_KAOS_1', 'talk:INCIDENT_KAOS_2'])`);
     await page.getByTestId('explore-button').click();

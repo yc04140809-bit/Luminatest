@@ -165,8 +165,5 @@ export function rumorsFor(facts: {
   return VILLAGE_RUMORS.filter((r) => holds(r.when));
 }
 
-/** Whether reading it for the first time is a step toward ALDEN INCIDENT (anything not everyday talk). */
-export const isImportantRumor = (r: VillageRumor): boolean => r.when !== 'ALWAYS';
-
 /** The read mark a rumour is cleared with (core/world/readMarks.ts). */
 export const rumorMark = (id: string): string => `rumor:${id}`;

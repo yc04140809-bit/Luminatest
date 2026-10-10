@@ -47,6 +47,7 @@ import type { TavernTrade } from '../../content/economy/tavernTrades';
 import {
   NO_INCIDENT,
   countIncident,
+  incidentCounting,
   readIncident,
   type IncidentKind,
   type IncidentPhase,
@@ -1516,11 +1517,14 @@ export class World {
 
   /**
    * Something done in the world. Writes only when it counts (see
-   * aldenIncident.ts for what counts and how often); one write at a time.
+   * aldenIncident.ts for what counts and how often — and nothing before
+   * セキリュウガ's part is over); one write at a time.
    * The day is read when it runs.
    */
   addIncident(kind: IncidentKind, id?: string): Promise<boolean> {
     const run = this.incidentQueue.then(async () => {
+      // Nothing counts until セキリュウガ's part is over (read when it runs).
+      if (!incidentCounting(this.sekiryugaStage)) return false;
       const next = countIncident(this.incident, kind, toAbsoluteDay(this.clock), id);
       if (!next) return false;
       await this.store.commit({ putState: [{ key: INCIDENT_KEY, value: next }] });
