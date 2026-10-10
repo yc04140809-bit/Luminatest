@@ -54,6 +54,14 @@ import {
   type IncidentRow,
 } from './aldenIncident';
 import { GRAVE_MEETING_MARK } from '../../content/talk/graveTalks';
+import { NO_DAILY_SCENE, readDailyScene, type DailySceneRow } from './dailySceneState';
+import {
+  dailySceneAt,
+  dailySceneMark,
+  type DailyScene,
+  type DailySceneId,
+  type DailyScenePlace,
+} from '../../content/story/dailyScenes';
 import {
   INITIAL_EQUIPMENT,
   weaponDefOf,
@@ -371,6 +379,11 @@ const VILLAGE_BGM_KEY = 'villageBgm';
  */
 const INCIDENT_KEY = 'aldenIncident';
 /**
+ * 襲撃前の日常 (2026-10-10, core/world/dailySceneState.ts): the day the last
+ * small scene was seen. Absent reads as none yet — no schema moved.
+ */
+const DAILY_SCENE_KEY = 'dailyScene';
+/**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
  * PROGRESS, NOT PREFERENCE, which is why it is here and not in
@@ -637,6 +650,7 @@ export class World {
   private musicUnlocks: BgmId[];
   private villageBgm: BgmId | null;
   private incident: IncidentRow;
+  private dailyScene: DailySceneRow;
   /** The incident writes, one after another (see `addIncident`). */
   private incidentQueue: Promise<unknown> = Promise.resolve();
   /** The music writes, one after another (see `markMusicHeard`). */
@@ -669,6 +683,7 @@ export class World {
     this.musicUnlocks = fields.musicUnlocks;
     this.villageBgm = fields.villageBgm;
     this.incident = fields.incident;
+    this.dailyScene = fields.dailyScene;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1533,6 +1548,52 @@ export class World {
       return true;
     });
     this.incidentQueue = run.catch(() => false);
+    return run;
+  }
+
+  /**
+   * THE VILLAGE'S SMALL THINGS (content/story/dailyScenes.ts): the one that
+   * happens at this place now, if any — after セキリュウガ's part, one a day,
+   * each once in a world. Reading it pays nothing and moves nothing.
+   */
+  getDailyScene(place: DailyScenePlace): DailyScene | null {
+    return dailySceneAt(place, {
+      stage: this.sekiryugaStage,
+      phase: this.incident.aldenIncidentPhase,
+      day: toAbsoluteDay(this.clock),
+      lastDay: this.dailyScene.lastDay,
+      isRead: (mark) => this.readMarks.has(mark),
+    });
+  }
+
+  /** The day the last small scene was seen to its end, or null. */
+  getDailySceneDay(): number | null {
+    return this.dailyScene.lastDay;
+  }
+
+  /**
+   * A small scene seen to its end: marked read, and today is its day — in one
+   * commit, in turn with the other read marks (see `markRead`).
+   */
+  finishDailyScene(id: DailySceneId): Promise<boolean> {
+    const run = this.readMarkQueue.then(async () => {
+      const mark = dailySceneMark(id);
+      if (this.readMarks.has(mark)) return false;
+      const marks = withMarks(this.readMarkList, [mark]);
+      const row: DailySceneRow = { lastDay: toAbsoluteDay(this.clock) };
+      await this.store.commit({
+        putState: [
+          { key: READ_MARKS_KEY, value: marks },
+          { key: DAILY_SCENE_KEY, value: row },
+        ],
+      });
+      this.readMarkList = marks;
+      this.readMarks = new Set(marks);
+      this.dailyScene = row;
+      this.emit();
+      return true;
+    });
+    this.readMarkQueue = run.catch(() => false);
     return run;
   }
 
@@ -2955,6 +3016,7 @@ export class World {
     this.musicUnlocks = [];
     this.villageBgm = null;
     this.incident = NO_INCIDENT;
+    this.dailyScene = NO_DAILY_SCENE;
     this.emit();
   }
 
@@ -3026,6 +3088,7 @@ export class World {
     this.breadBuff = null;
     this.tavernTrades = NO_TRADES;
     this.incident = NO_INCIDENT;
+    this.dailyScene = NO_DAILY_SCENE;
     this.emit();
   }
 }
@@ -3178,6 +3241,7 @@ interface WorldFields {
   musicUnlocks: BgmId[];
   villageBgm: BgmId | null;
   incident: IncidentRow;
+  dailyScene: DailySceneRow;
 }
 
 /** What reading a save had to say about it. */
@@ -3337,6 +3401,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readVillageBgm(value));
     case INCIDENT_KEY:
       return settle(readIncident(value));
+    case DAILY_SCENE_KEY:
+      return settle(readDailyScene(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -3430,6 +3496,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       musicUnlocks: take(MUSIC_UNLOCKS_KEY, readMusicUnlocks(byKey.get(MUSIC_UNLOCKS_KEY))),
       villageBgm: take(VILLAGE_BGM_KEY, readVillageBgm(byKey.get(VILLAGE_BGM_KEY))),
       incident: take(INCIDENT_KEY, readIncident(byKey.get(INCIDENT_KEY))),
+      dailyScene: take(DAILY_SCENE_KEY, readDailyScene(byKey.get(DAILY_SCENE_KEY))),
     },
     repairedKeys,
     unreadableKeys,

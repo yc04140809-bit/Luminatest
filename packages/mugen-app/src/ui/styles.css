@@ -2409,3 +2409,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .intro-dark, .intro-arrival { animation: none; }
 }
+
+/* 襲撃前の日常 (2026-10-10): something small in the village — on the square as
+   they come back in (the same box as Kaos's word on the map), and over the
+   tool shop's counter (the line, then つぎへ, in the keeper's place). */
+.daily-aside { margin-top: 8px; }
+.shop-daily { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.shop-daily .btn { min-height: 32px; padding: 2px 14px; font-size: 12px; }

@@ -68,6 +68,7 @@ const AUTO_NOTICE = 'note:auto_battle';
 const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
 import { RumorScreen, rumorsOf } from './ui/rumors';
 import { KaosAside } from './ui/incident';
+import { DailyAside } from './ui/daily';
 import { INCIDENT_GRAVE_FROM, INCIDENT_GRAVE_MARK, INCIDENT_GRAVE_TALK } from '@mugen/content/story/aldenIncident';
 import { OnceNotice } from './ui/common/OnceNotice';
 import { NoticeHost } from './ui/common/NoticeHost';
@@ -185,6 +186,12 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     if (!tavern) setBardPiece(null);
   }, [tavern]);
   const [tavernMet, setTavernMet] = useState(false);
+  /**
+   * BACK INTO THE VILLAGE FROM OUTSIDE (the region map's 「村へもどる」) —
+   * where one of the village's small things may be happening (襲撃前の日常,
+   * content/story/dailyScenes.ts). Cleared on setting out again.
+   */
+  const [homecoming, setHomecoming] = useState(false);
   /**
    * パン屋 — the same kind of door off the village as the tavern, held
    * here for the same reason, and recording nothing in the world.
@@ -534,6 +541,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    */
   const autoOpen = world.getGaldLifeChoice() !== null;
 
+  /** The village's small thing happening now, if any (after セキリュウガ, one a day). */
+  const villageScene = world.getDailyScene('VILLAGE');
+
   const rumorSaid = () =>
     world.isSekiryugaArcOpen() && !stageReached(world.getSekiryugaStage(), 'BEATEN');
   const heardRumor = () => {
@@ -738,6 +748,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                 ? { lines: INCIDENT_GRAVE_TALK, onHeard: () => void world.markRead([INCIDENT_GRAVE_MARK]).catch(() => {}) }
                 : null
             }
+            dailyTalk={(() => {
+              const scene = world.getDailyScene('TAVERN');
+              return scene ? { lines: scene.lines, onHeard: () => void world.finishDailyScene(scene.id).catch(() => {}) } : null;
+            })()}
             hub={{
               held: (id) => world.getItemCount(id),
               traded: (id) => world.getTradesDone(toAbsoluteDay(world.getClock())).includes(id),
@@ -783,7 +797,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       return (
         <AldenScreen
           world={world}
-          onExplore={() => flow.goTo('EXPLORE')}
+          onExplore={() => {
+            setHomecoming(false);
+            flow.goTo('EXPLORE');
+          }}
           onBag={() => flow.goTo('BAG')}
           onMemory={() => flow.goTo('WORLD_MEMORY')}
           onArchive={() => flow.goTo('ARCHIVE')}
@@ -799,17 +816,21 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             status: newEquipmentIds(world).length > 0,
           }}
           notice={
-            // Said at the end of Gald's part of the story (CHOICE_RESULT);
-            // here only for a world that got past it before it was said
-            // (a save from an earlier build). Never tied to TIME SHIFT.
-            <OnceNotice
-              world={world}
-              mark={AUTO_NOTICE}
-              text="AUTO戦闘が使用可能になりました。"
-              show={autoOpen}
-              testId="auto-notice"
-              type="unlock"
-            />
+            <>
+              {/* Said at the end of Gald's part of the story (CHOICE_RESULT);
+                  here only for a world that got past it before it was said
+                  (a save from an earlier build). Never tied to TIME SHIFT. */}
+              <OnceNotice
+                world={world}
+                mark={AUTO_NOTICE}
+                text="AUTO戦闘が使用可能になりました。"
+                show={autoOpen}
+                testId="auto-notice"
+                type="unlock"
+              />
+              {/* 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ). */}
+              {homecoming && villageScene && <DailyAside key={villageScene.id} world={world} scene={villageScene} />}
+            </>
           }
           resting={resting}
           onRest={() => {
@@ -955,7 +976,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // Kaos senses something, once per phase, as they set out.
           aside={<KaosAside world={world} />}
           onPlaces={() => flow.goTo('FUTURE_SITE')}
-          onHome={() => flow.goTo('HOME')}
+          onHome={() => {
+            // Back into the village from outside: where a small thing may happen.
+            setHomecoming(true);
+            flow.goTo('HOME');
+          }}
           // Opened by the tavern's master telling what was sealed there.
           ruins={stageReached(stage, 'TOLD')}
           ruinsNew={stageReached(stage, 'TOLD') && !world.isRead(RUINS_DESTINATION)}

@@ -24,6 +24,9 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」、`uxRound`（横画面 5 サイズで「噂話」まで画面内） | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。高さ 420px 以下ではボタンと間隔を詰めて、9 つの選択肢すべてを画面内に収める（2026-10-07。以前は 640×300 で 2 段目がはみ出していた） |
 | 序盤UX（酒場の初訪問順・《瞬断》・AUTO 解禁・BOSS カットイン・戦闘後の酒場・目的地通知・噂話・NEW） | `uxRound`（15 本）、core `talkQueue.test.ts`・`readMarks.test.ts`・`villageRumors.test.ts`・`sekiryugaBattle.test.ts` | 内容は `docs/UX_EARLY_GAME.md` |
 | ALDEN INCIDENT 予兆フェーズ | `aldenIncident`（6 本：セキリュウガ編の後からだけ数える・噂を読んでも増えない・平常・行動で加算・重複なし・休息の連打で増えない・PHASE 1〜3 の噂と NEW・ケイオスの一言（地方画面、出かけるたびに 1 つずつ）・グレイヴ 1 回・PHASE 3 でも何も始まらない・再起動後も保持・844×390 / 640×300）、core `aldenIncident.test.ts` | 内容は `docs/ALDEN_INCIDENT.md`。襲撃本編は未実装 |
+| 襲撃前の日常（5本） | `dailyScenes`（5 本：セキリュウガ前は出ない・村へ戻った時のケイオス 1 回・1 日 1 本・再起動後も同じ・翌日リナ・ミレイの表情と途中でやめた時・主人・グレイヴ・予兆ポイントが動かない・844×390 / 640×300）、core `dailyScenes.test.ts` | 内容は `docs/DAILY_SCENES.md`。常設ボタンなし |
+| App の3つの戦闘（固定） | `battleKinds`（4 本：モスラビット（ガルド前・後）・ガルド・セキリュウガの名前／BOSS／逃げる／AUTO／♪／背景／場所／BGM／HP、逃げた後・勝った後・負けた後の行き先） | `BattleKind` 整理の前に固定（2026-10-10） |
+| 通常敵3種の受け皿 | core `enemySlots.test.ts`（名前・ID は null・役割を戦闘の言葉で・まだどこにも出ない・content/forge に書かない） | 内容は `docs/ENEMY_SLOTS.md` |
 | 探索素材 → 村施設連携（用途ヒント・パン屋主人の反応） | `materials`（4 本：拾得通知は従来どおり・持ち物の用途ヒント・主人の反応は世界で 1 回ずつ（再起動後も繰り返さない）・古代の破片は売れない／交換に出ない・鉄鉱石は売れる・酒場の交換、640×300）、core `materialUses.test.ts` | 内容は `docs/MATERIAL_USES.md` |
 | 村メニュー（店舗のまとまり・道具屋の入口・EXP 非表示） | `villageMenu`（8 本：村から道具屋へ直接 → 村へ、パン屋・酒場、地方画面に道具屋なし・森へ行ける、EXP なし・Lv./HP/MP あり、横画面 5 サイズ） | 内容は `docs/VILLAGE_MENU.md` |
 | 酒場 | `tavern`（9 本：村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブは初対面の既読 `talk:GRAVE_MEETING` 1 行以外不変、横画面 5 サイズでマスターが切れない、初対面は新規セーブで 1 回だけ（再入店・再起動後は自己紹介しない）、`readMarks` の無い既存セーブ）、core `graveTalks.test.ts` | 初対面はセーブ単位で 1 回（2026-10-07 改定、`docs/APP_TAVERN.md`） |

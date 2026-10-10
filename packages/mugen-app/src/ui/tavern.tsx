@@ -137,6 +137,7 @@ export function TavernScreen({
   guest = null,
   hub,
   incidentTalk = null,
+  dailyTalk = null,
 }: {
   /** Whether this save has already met him (his introduction is not owed). */
   metBefore: boolean;
@@ -168,6 +169,12 @@ export function TavernScreen({
    * meeting, his rumour or his story). `onHeard` when read to its end.
    */
   incidentTalk?: { lines: readonly DialogueLine[]; onHeard: () => void } | null;
+  /**
+   * 襲撃前の日常 (2026-10-10): something small happening today — in place of
+   * his plain greeting too, after the incident's word if both are owed.
+   * `onHeard` when read to its end.
+   */
+  dailyTalk?: { lines: readonly DialogueLine[]; onHeard: () => void } | null;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
   /**
@@ -195,6 +202,7 @@ export function TavernScreen({
     rumor: boolean;
     guest?: TavernGuestId;
     incident?: boolean;
+    daily?: boolean;
   } | null>(
     null,
   );
@@ -245,6 +253,10 @@ export function TavernScreen({
       setTalk({ lines: incidentTalk.lines, rumor: false, incident: true });
       return;
     }
+    if (dailyTalk && metBefore && lines === base) {
+      setTalk({ lines: dailyTalk.lines, rumor: false, daily: true });
+      return;
+    }
     setTalk({ lines, rumor });
   };
   /** Tonight's stranger: their few lines, their silhouette. Records nothing. */
@@ -283,6 +295,10 @@ export function TavernScreen({
     }
     if (talk?.incident) {
       incidentTalk?.onHeard();
+      return setTalk(null);
+    }
+    if (talk?.daily) {
+      dailyTalk?.onHeard();
       return setTalk(null);
     }
     if (!metBefore) onMet();

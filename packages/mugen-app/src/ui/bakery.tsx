@@ -37,7 +37,8 @@ import { bakeryArt, type BakeryArt } from '../assets/bakery';
  *
  *   リナ  sells the bread (買う) and chats: her first talk once in a world
  *         (`talk:BAKERY_LINA_FIRST`, marked when read to its end), then one
- *         short line, in turn.
+ *         short line, in turn — or, on a day it happens, something small
+ *         (襲撃前の日常, content/story/dailyScenes.ts).
  *   主人  a word on what is carried (a forest nut, something holding magic
  *         — once each in a world, readMarks), else a hint about where makings
  *         are found, in turn — and, once the
@@ -109,6 +110,12 @@ export function BakeryScreen({
         });
         return;
       }
+      // Something small happening today (襲撃前の日常), in place of her short line.
+      const scene = world.getDailyScene('BAKERY_LINA');
+      if (scene) {
+        setTalking({ lines: scene.lines, onEnd: () => void world.finishDailyScene(scene.id).catch(() => {}) });
+        return;
+      }
       const again = BAKERY_LINA_AGAIN[turns.LINA++ % BAKERY_LINA_AGAIN.length];
       setTalking({ lines: [again] });
       return;
@@ -122,6 +129,13 @@ export function BakeryScreen({
       },
       (mark) => world.isRead(mark),
     );
+    // Something small happening today (襲撃前の日常), in place of his hint — never
+    // in place of a word on what is carried, or of his rumour.
+    const scene = !notice && !rumor ? world.getDailyScene('BAKERY_OWNER') : null;
+    if (scene) {
+      setTalking({ lines: scene.lines, onEnd: () => void world.finishDailyScene(scene.id).catch(() => {}) });
+      return;
+    }
     const said = notice ? notice.lines : [BAKERY_OWNER_HINTS[turns.OWNER++ % BAKERY_OWNER_HINTS.length]];
     const noticed = notice ? () => void world.markRead([notice.mark]).catch(() => {}) : undefined;
     setTalking({

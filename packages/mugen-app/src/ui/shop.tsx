@@ -4,6 +4,7 @@ import type { DialogueLine } from '@mugen/content/dialogue/prologue';
 import { ALDEN_SHOP_NAME, ALDEN_SHOPKEEPER, ALDEN_TOOL_SHOP_OFFERS } from '@mugen/content/economy/aldenShop';
 import { buyPriceOf, inStock, sellPriceOf } from '@mugen/core/economy/shop';
 import { itemDef } from '@mugen/content/economy/itemDefs';
+import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
@@ -57,6 +58,21 @@ export function ItemShopScreen({
   onRumor?: () => void;
 }) {
   const [said, setSaid] = useState<string | null>(null);
+  /**
+   * 襲撃前の日常 (2026-10-10): something small happening today, over the
+   * counter as the door opens — never in place of her rumour. Read with
+   * 「つぎへ」; seen when read to its end (left half way, it is there next time).
+   */
+  const [scene] = useState(() => (rumor ? null : world.getDailyScene('SHOP')));
+  const [sceneAt, setSceneAt] = useState(0);
+  const [sceneDone, setSceneDone] = useState(false);
+  const sceneLine = scene && !sceneDone ? scene.lines[sceneAt] : null;
+  const sceneNext = () => {
+    if (!scene) return;
+    if (sceneAt < scene.lines.length - 1) return setSceneAt((n) => n + 1);
+    setSceneDone(true);
+    void world.finishDailyScene(scene.id).catch(() => {});
+  };
   const [tab, setTab] = useState<'BUY' | 'SELL'>('BUY');
   useEffect(() => {
     if (rumor) onRumor?.();
@@ -101,6 +117,8 @@ export function ItemShopScreen({
   // The greeting is already on screen: the first tap says something else.
   const lastLine = useRef<string | null>(ALDEN_SHOPKEEPER.greeting);
   const touchHer = () => {
+    // While something small is being told, she is telling it.
+    if (sceneLine) return;
     const now = performance.now();
     if (now - lastTapAt.current < TOUCH_TIMING.cooldownMs) return;
     lastTapAt.current = now;
@@ -131,7 +149,9 @@ export function ItemShopScreen({
       window.clearTimeout(quiet);
     };
   }, [touch]);
-  const drawn = mireiFace(art.mirei, face);
+  // Her face on the scene's line, while one is told; else the ordinary or a touch's.
+  const shownFace: NpcExpression = sceneLine ? (sceneLine.face ?? SHOP_MIREI.baseExpression) : face;
+  const drawn = mireiFace(art.mirei, shownFace);
   const px = (r: { left: number; bottom: number; width: number; height: number }) => ({
     left: r.left,
     bottom: r.bottom,
@@ -188,7 +208,7 @@ export function ItemShopScreen({
           style={px(stage.mirei)}
           className="shop-keeper-figure"
           data-testid="shop-keeper-touch"
-          data-expression={face}
+          data-expression={shownFace}
           data-taps={touch?.n ?? taps.current}
           aria-label={`${SHOP_MIREI.name}に話しかける`}
           onClick={touchHer}
@@ -220,7 +240,18 @@ export function ItemShopScreen({
       <div className="shop-side paper-panel" style={{ marginLeft: stage.width + 12 }}>
         <div className="shop-keeper-area" data-testid="shop-keeper-area" data-keeper={ALDEN_SHOPKEEPER.id}>
           <h1 className="place">{ALDEN_SHOP_NAME}</h1>
-          {touch ? (
+          {sceneLine ? (
+            <div className="shop-daily" data-testid="shop-daily" data-scene={scene?.id}>
+              <p className="say shop-keeper" data-testid="shop-daily-line">
+                {sceneLine.speaker
+                  ? `${sceneLine.speaker === HERO_SPEAKER ? world.getHeroName() : sceneLine.speaker}「${sceneLine.text}」`
+                  : sceneLine.text}
+              </p>
+              <button className="btn" data-testid="shop-daily-next" onClick={sceneNext}>
+                {scene && sceneAt >= scene.lines.length - 1 ? 'とじる' : 'つぎへ'}
+              </button>
+            </div>
+          ) : touch ? (
             <p
               className="shop-greeting shop-touch-line"
               data-testid="shop-touch-line"
