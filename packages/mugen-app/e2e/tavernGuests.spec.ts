@@ -146,6 +146,7 @@ test('tonight’s stranger: their silhouette in the master’s place, their labe
   await expect(figure).toHaveAttribute('data-guest', 'tavern_guest_male');
   await expect(page.getByTestId('tavern-master')).toHaveCount(0);
   // As delivered: the file, its own shape, on a transparent ground, in the master's box.
+  await expect.poll(() => figure.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
   const seen = await figure.evaluate((i: HTMLImageElement) => ({
     src: decodeURIComponent(i.currentSrc || i.src),
     natural: [i.naturalWidth, i.naturalHeight],

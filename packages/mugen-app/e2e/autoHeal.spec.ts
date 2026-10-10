@@ -85,9 +85,13 @@ test('AUTO, hurt: drinks a herb (one fewer, saved), wins, and the count holds af
   // A herb is drunk by itself — the bag in the save, one fewer.
   await expect.poll(() => savedHerbs(page, 'FOREST_HERB'), { timeout: 30_000 }).toBeLessThan(2);
   await expect(page.getByTestId('result-exp')).toBeVisible({ timeout: 120_000 });
+  // The moss rabbit always leaves a herb (enemyRewards): 2 held − at least
+  // one drunk + 1 won. (Asserting “fewer than 2” only held when AUTO happened
+  // to need two — on a light-hitting fight it needed one, and failed.)
+  await expect(page.getByTestId('result-items')).toContainText('薬草');
   const after = await savedHerbs(page, 'FOREST_HERB');
-  expect(after).toBeLessThan(2);
-  expect(after).toBeGreaterThanOrEqual(0);
+  expect(after).toBeLessThanOrEqual(2);
+  expect(after).toBeGreaterThanOrEqual(1);
   // After a restart: the same.
   await page.goto('/');
   await page.getByTestId('continue-button').click();
