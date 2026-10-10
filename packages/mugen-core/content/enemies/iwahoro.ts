@@ -24,8 +24,8 @@
 //                  paralysis wait for a battle that knows them
 //   巣の防衛       cornered, it hits harder
 //
-// It is not drawn yet for the battle screen: the placeholder stands in until
-// its transparent PNG is delivered (FORGE's concept picture is not used).
+// Its battle drawing is the transparent PNG the author delivered, placed as
+// delivered (mugen-app/src/ui/battle/battleArt.ts).
 
 import type { EnemySpeciesDef } from './species';
 import type { DialogueLine } from '../dialogue/prologue';

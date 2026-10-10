@@ -67,7 +67,7 @@
 ## 4. 画像
 
 - 戦闘用の背景透過 PNG はまだ無い。**仮素材扱い**（`battleArt.ts` の空の項目 `kokemaru`。今は placeholder）。
-- 受け取った画像（白背景・不透明）は切り抜かない。PNG が届いたら `mugen-assets/files/enemies/` に届いたまま置き、`kokemaru` の項目に `front` と切り抜き範囲を足すだけ。
+- 受け取った画像（白背景・不透明。2回目に受け取ったものも同じファイル）は切り抜かない。PNG が届いたら `mugen-assets/files/enemies/` に届いたまま置き、`kokemaru` の項目に `front` と切り抜き範囲を足すだけ。
 
 ## 5. FORGE 側で確認してほしいこと（意図的なら変更不要）
 

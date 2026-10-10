@@ -25,6 +25,7 @@ import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
 import sekiryuga from '@mugen/assets/files/enemies/sekiryuga.png';
 import fuumimi from '@mugen/assets/files/enemies/fuumimi.png';
 import hyourei from '@mugen/assets/files/enemies/hyourei.png';
+import iwahoro from '@mugen/assets/files/enemies/iwahoro.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -177,14 +178,30 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
     },
   },
   /**
-   * PROVISIONAL — NO DRAWING YET: イワホロ (FORGE MON-000009) and コケマル
-   * (FORGE MON-000010). Fought and
-   * shown with the placeholder (CharacterArt) until its transparent PNG made
-   * for the battle screen is delivered; FORGE's reference picture is not cut
-   * out and used. When it arrives: place it under mugen-assets/files/enemies/
-   * as delivered, import it above, give this entry its `front` and box.
+   * イワホロ (FORGE MON-000009) — its drawing, delivered 2026-10-10 as a
+   * transparent PNG and placed as delivered. One drawing: standing (floating),
+   * as フウミミ and ヒョウレイ.
    */
-  iwahoro: { id: 'iwahoro', label: 'イワホロ', states: {} },
+  iwahoro: {
+    id: 'iwahoro',
+    label: 'イワホロ',
+    states: {
+      front: {
+        src: iwahoro,
+        box: { fileW: 1536, fileH: 1024, x: 34, y: 16, width: 1492, height: 988 },
+        face: { fileW: 1536, fileH: 1024, x: 1290, y: 350, width: 220, height: 220 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * PROVISIONAL — NO DRAWING YET: コケマル (FORGE MON-000010). Fought and
+   * shown with the placeholder (CharacterArt) until a transparent PNG for the
+   * battle screen is delivered. The picture received so far has an opaque
+   * white ground (no transparency); it is not cut out here. When a
+   * transparent one arrives: place it under mugen-assets/files/enemies/ as
+   * delivered, import it above, give this entry its `front` and box.
+   */
   kokemaru: { id: 'kokemaru', label: 'コケマル', states: {} },
   /**
    * The small フウミミ the one individual shields — the same drawing, shown
