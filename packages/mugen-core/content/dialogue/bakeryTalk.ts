@@ -67,6 +67,51 @@ export const BAKERY_OWNER_HINTS: readonly DialogueLine[] = [
   { speaker: O, text: '硬焼きは、水を少なくしてじっくり焼くんだ。旅の腹持ちが違う。' },
 ];
 
+/**
+ * THE OWNER NOTICES WHAT IS CARRIED (素材→村施設連携, 2026-10-10): with a
+ * forest nut in the bag, or something holding magic, his talk is about that
+ * — once each in a world (readMarks `talk:`), the first that applies, in
+ * place of his hint that time. A small discovery, not a recipe: no new bread,
+ * nothing crafted.
+ */
+export interface OwnerNotice {
+  id: string;
+  /** readMarks id, written when read to its end. */
+  mark: string;
+  /** Whether what is carried calls for it. */
+  when: (carried: { held: (itemId: string) => number; tagged: (tag: string) => boolean }) => boolean;
+  lines: readonly DialogueLine[];
+}
+
+export const BAKERY_OWNER_NOTICES: readonly OwnerNotice[] = [
+  {
+    id: 'NUT',
+    mark: 'talk:BAKERY_OWNER_NUT',
+    when: (c) => c.held('FOREST_NUT') > 0,
+    lines: [
+      { speaker: O, text: 'お、それは森の木の実だな。' },
+      { speaker: O, text: 'パンにも使えるぞ。うちの木の実パンも、それと同じ実だ。' },
+    ],
+  },
+  {
+    id: 'MAGIC',
+    mark: 'talk:BAKERY_OWNER_MAGIC',
+    when: (c) => c.tagged('magic'),
+    lines: [
+      { speaker: O, text: '……魔力を含んだ素材を持ってるな。' },
+      { speaker: O, text: 'そういうのは、普通の生地じゃ扱いにくい。' },
+    ],
+  },
+];
+
+/** The owner's notice this talk, if any: the first that applies and is not yet read. */
+export function ownerNoticeFor(
+  carried: { held: (itemId: string) => number; tagged: (tag: string) => boolean },
+  isRead: (mark: string) => boolean,
+): OwnerNotice | null {
+  return BAKERY_OWNER_NOTICES.find((n) => !isRead(n.mark) && n.when(carried)) ?? null;
+}
+
 /** The two at the counter, for the switch. */
 export const BAKERY_PEOPLE = [
   { id: 'LINA', name: L },

@@ -102,6 +102,8 @@ body {
 .shop-desc { flex-basis: 100%; color: var(--dim); font-size: 12px; line-height: 1.6; }
 .bag-reason { color: var(--dim); font-size: 12px; }
 .bag-fresh { color: var(--gold); font-size: 12px; }
+.bag-hint { flex-basis: 100%; margin-top: -6px; color: var(--gold); font-size: 12px; line-height: 1.5; }
+.bag-hint::before { content: '◇ '; opacity: 0.7; }
 .bag-bread-buff { margin: 0 0 2px; color: var(--ink); font-size: 12px; text-align: left; }
 
 /* THE BAG AND THE SHOP AS A PAGE THAT FITS (2026-10-07): the list scrolls
@@ -2155,6 +2157,7 @@ body {
 .paper-panel .shop-price,
 .paper-panel .shop-held { color: var(--p-gold-ink); }
 .paper .bag-fresh { color: var(--p-gold-ink); }
+.paper .bag-hint { color: var(--p-gold-ink); }
 .paper .bag-bread-buff { color: var(--p-ink); }
 .paper .bag-category,
 .paper .bag-desc,

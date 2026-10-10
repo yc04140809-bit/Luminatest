@@ -201,6 +201,12 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
                       <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
                         {def.description}
                       </span>
+                      {/* What it might be for — a nudge, never the answer (2026-10-10). */}
+                      {def.useHint && (
+                        <span className="bag-hint" data-testid={`bag-hint-${stack.itemId}`}>
+                          {def.useHint}
+                        </span>
+                      )}
                       {usableHere ? (
                         <button
                           className="btn"

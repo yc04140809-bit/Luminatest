@@ -92,7 +92,23 @@ export interface ItemDef {
    * ordinary use path, and never by AUTO.
    */
   bread?: BreadSpec;
+  /**
+   * A HINT AT WHAT IT MIGHT BE FOR (素材→村施設連携, 2026-10-10), shown under
+   * the description in the bag. A nudge, never the answer: 「パンの材料にも
+   * なりそうだ。」, not "take it to the baker". Absent for things whose use
+   * is plain (a herb heals).
+   */
+  useHint?: string;
+  /**
+   * WHAT KIND OF MAKING IT IS, for the recipes to come (the bakery's
+   * mixing, later): fruit, herb, magic, mineral, ancient. Read today only
+   * by the baker noticing what is carried; never a fixed effect.
+   */
+  ingredientTags?: readonly IngredientTag[];
 }
+
+/** The kinds of making a thing can be (room for more). */
+export type IngredientTag = 'fruit' | 'herb' | 'magic' | 'mineral' | 'ancient';
 
 /**
  * How rare a thing is. COMMON is the default; RARE is shown a little

@@ -54,6 +54,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
       line: '薬草を使った。青い匂いが立つ。',
     },
     sources: ['SHOP', 'FOREST', 'RUINS'],
+    ingredientTags: ['herb'],
   },
   /**
    * 魔力水 — the second thing a turn can be spent on.
@@ -90,6 +91,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
       line: '魔力水を飲んだ。頭の奥が冷たくなる。',
     },
     sources: ['SHOP'],
+    ingredientTags: ['magic'],
   },
   {
     itemId: 'OLD_ARROWHEAD',
@@ -152,6 +154,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     },
     rarity: 'UNCOMMON',
     sources: ['SHOP'],
+    ingredientTags: ['herb'],
   },
   /**
    * 魔力草 — the herb for magic: 12 MP, between bracing (8) and a flask
@@ -172,6 +175,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
       line: '魔力草を噛んだ。頭の奥がすっと冴える。',
     },
     sources: ['SHOP', 'FOREST'],
+    useHint: '魔力を含んでいる。ただの草としては扱えなさそうだ。',
+    ingredientTags: ['herb', 'magic'],
   },
   {
     itemId: 'OLD_COIN',
@@ -185,6 +190,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     rarity: 'UNCOMMON',
     sources: ['RUINS'],
     tags: ['RUINS', 'HISTORY'],
+    useHint: '集めている者がいるかもしれない。',
   },
   {
     itemId: 'IRON_ORE',
@@ -196,6 +202,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     isKeyItem: false,
     sources: ['FOREST', 'RUINS'],
     tags: ['ORE'],
+    useHint: '加工に使えそうな鉱石。',
+    ingredientTags: ['mineral'],
   },
   {
     itemId: 'MANA_SHARD',
@@ -208,6 +216,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     rarity: 'RARE',
     sources: ['FOREST', 'RUINS'],
     tags: ['MAGIC'],
+    useHint: '微かな魔力を残している。何かに使えないだろうか。',
+    ingredientTags: ['magic', 'mineral'],
   },
   {
     itemId: 'FOREST_NUT',
@@ -221,6 +231,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     isKeyItem: false,
     sources: ['FOREST'],
     tags: ['FOOD'],
+    useHint: 'パンの材料にもなりそうだ。',
+    ingredientTags: ['fruit'],
   },
   /**
    * 古代の破片 — WHAT IT IS IS NOT SAID. Kept for the ruins' story to
@@ -237,6 +249,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     rarity: 'RARE',
     sources: ['RUINS'],
     tags: ['LORE', 'RUINS'],
+    useHint: '用途不明。古代遺跡と関係がありそうだ。',
+    ingredientTags: ['ancient'],
   },
   // パン屋 MVP (2026-10-09): Lina's four loaves (breads.ts).
   ...BREAD_DEFS,

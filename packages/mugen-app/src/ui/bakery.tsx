@@ -12,6 +12,7 @@ import {
   BAKERY_LINA_SOLD,
   BAKERY_OWNER_DESCRIPTION,
   BAKERY_OWNER_HINTS,
+  ownerNoticeFor,
   BAKERY_PEOPLE,
   type BakeryPerson,
 } from '@mugen/content/dialogue/bakeryTalk';
@@ -37,7 +38,9 @@ import { bakeryArt, type BakeryArt } from '../assets/bakery';
  *   リナ  sells the bread (買う) and chats: her first talk once in a world
  *         (`talk:BAKERY_LINA_FIRST`, marked when read to its end), then one
  *         short line, in turn.
- *   主人  a hint about where makings are found, in turn — and, once the
+ *   主人  a word on what is carried (a forest nut, something holding magic
+ *         — once each in a world, readMarks), else a hint about where makings
+ *         are found, in turn — and, once the
  *         first boss route has begun, his one rumour after it
  *         (content/story/sekiryugaArc), heard through `onRumor`.
  *
@@ -110,8 +113,24 @@ export function BakeryScreen({
       setTalking({ lines: [again] });
       return;
     }
-    const hint = BAKERY_OWNER_HINTS[turns.OWNER++ % BAKERY_OWNER_HINTS.length];
-    setTalking(rumor ? { lines: [hint, rumor], onEnd: onRumor } : { lines: [hint] });
+    // What is carried first (once each in a world), else his hint in turn.
+    const notice = ownerNoticeFor(
+      {
+        held: (id) => world.getItemCount(id),
+        tagged: (tag) =>
+          world.getInventory().some((s) => s.quantity > 0 && (itemDef(s.itemId)?.ingredientTags ?? []).some((t) => t === tag)),
+      },
+      (mark) => world.isRead(mark),
+    );
+    const said = notice ? notice.lines : [BAKERY_OWNER_HINTS[turns.OWNER++ % BAKERY_OWNER_HINTS.length]];
+    const noticed = notice ? () => void world.markRead([notice.mark]).catch(() => {}) : undefined;
+    setTalking({
+      lines: rumor ? [...said, rumor] : said,
+      onEnd: () => {
+        noticed?.();
+        if (rumor) onRumor?.();
+      },
+    });
   };
   const next = () => {
     if (!last) return setAt((n) => n + 1);
