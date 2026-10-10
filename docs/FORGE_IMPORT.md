@@ -514,3 +514,11 @@ REL-000001 の確定、importance の推測拡張、personality／values／desir
   - 0.1 のまま更新することもできる（2026-10-10 の確認モードでは「更新候補」、ERROR なし。「送出版 0.1 が登録済みの 0.1-r2 より新しくない」の WARNING だけ）。
 - **更新時に一緒に直すもの**：`content/forge/rizel.test.ts` は旧プロフィールの中身（送出 hash、性格、適性、older_adult、REL-000001）を固定している。新しい正本の中身で固定し直す（テストを弱めるのではなく、正本の差し替えに合わせる）。`forgeVocabularyAdapter.test.ts`・`forgeStatus.test.ts` の older_adult・REL-000001 は、テスト内で作った値の検査なので変更不要。
 - 配置・イベント案は `docs/FORGE_DEPLOY_REVIEW_RIZEL_FUUMIMI.md`。
+
+## 14. 2026-10-10 作者決定：モンスターの ID と保留項目
+
+- モンスターに NPC_ID を付けない。MON-XXXXXX（種族）・IND-XXXXXXXX（個体）・NPC_ID（人間などの NPC）は、それぞれの意味のまま保つ。変換・擬似 NPC_ID は作らない（`docs/WORLD_LIFE_ENTITY_REF.md`）。
+- 凍結中の取込基盤は、この決定だけでは変えない。NPC_ID なしのモンスター採用に正式対応させるのは、作者の指示があってから。
+- **保留項目：MON-000001 ヌマワタリ**（2026-10-04 に NPC_ID `NUMAWATARI` で採用済み）。取込基盤の対応後に取り消し、MON-000001 を正本として NPC_ID なしで採用し直す（作者決定 B）。本編に出す前に行う。第1章の作業は止めない。
+- **再送出待ち**：HUM-000001 リゼル 0.1-r3（§13）、MON-000002 フウミミの新版（承認済みビジュアルに身体構造を合わせたもの。項目は `docs/RIZEL_FUUMIMI.md` §0）。届いたら既存の手順で取り込む。
+- それまで、フウミミ（MON-000002）・ヒョウレイ（MON-000008）はセキリュウガ（MON-000007）と同じく **ID の参照だけ**で使い、`content/forge` には入れない。
