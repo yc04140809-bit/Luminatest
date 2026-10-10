@@ -28,6 +28,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | App の3つの戦闘（固定） | `battleKinds`（4 本：モスラビット（ガルド前・後）・ガルド・セキリュウガの名前／BOSS／逃げる／AUTO／♪／背景／場所／BGM／HP、逃げた後・勝った後・負けた後の行き先） | `BattleKind` 整理の前に固定（2026-10-10） |
 | 通常敵3種の受け皿 | core `enemySlots.test.ts`（名前・ID は null・役割を戦闘の言葉で・まだどこにも出ない・content/forge に書かない） | 内容は `docs/ENEMY_SLOTS.md` |
 | リゼル・フウミミ | `rizelFuumimi`（2 本：リゼル3場面とガルドの答えへの反応、フウミミの出る条件・遭遇・逃走・勝利後の場面・四択・WORLD MEMORY は答えの時だけ・薬草・森から消える・翌日以降の猟師の話・再起動後）、core `fuumimi.test.ts`・`dailyScenes.test.ts` | 内容は `docs/RIZEL_FUUMIMI.md` |
+| 森の通常エンカウント | `wildForest`（2 本：ヒョウレイは噂の後・予兆ポイント 8 から、初回だけ短い台詞・BOSS ではない・2回目は通常戦闘・勝利と報酬・モスラビットも出る、フウミミの種族は特定個体に答えた後・初回の台詞・通常戦闘は WORLD MEMORY に書かない）、core `encounters.test.ts` | 内容は `docs/MONSTER_INTRODUCTION.md`。出る敵は `__mugenEncounterRoll`（DEV のみ）で固定して検査 |
 | 探索素材 → 村施設連携（用途ヒント・パン屋主人の反応） | `materials`（4 本：拾得通知は従来どおり・持ち物の用途ヒント・主人の反応は世界で 1 回ずつ（再起動後も繰り返さない）・古代の破片は売れない／交換に出ない・鉄鉱石は売れる・酒場の交換、640×300）、core `materialUses.test.ts` | 内容は `docs/MATERIAL_USES.md` |
 | 村メニュー（店舗のまとまり・道具屋の入口・EXP 非表示） | `villageMenu`（8 本：村から道具屋へ直接 → 村へ、パン屋・酒場、地方画面に道具屋なし・森へ行ける、EXP なし・Lv./HP/MP あり、横画面 5 サイズ） | 内容は `docs/VILLAGE_MENU.md` |
 | 酒場 | `tavern`（9 本：村 → 酒場 → 背景・マスター・BGM・会話 → 村、セーブは初対面の既読 `talk:GRAVE_MEETING` 1 行以外不変、横画面 5 サイズでマスターが切れない、初対面は新規セーブで 1 回だけ（再入店・再起動後は自己紹介しない）、`readMarks` の無い既存セーブ）、core `graveTalks.test.ts` | 初対面はセーブ単位で 1 回（2026-10-07 改定、`docs/APP_TAVERN.md`） |

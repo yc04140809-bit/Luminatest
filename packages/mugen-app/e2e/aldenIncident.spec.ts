@@ -297,6 +297,8 @@ test('phase 3: “something is close” — and nothing starts; the village, the
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await settled(page);
+  // The undergrowth's creature fixed to the rabbit (from 8 points ヒョウレイ can come too — encounters.ts).
+  await page.evaluate(() => ((window as unknown as { __mugenEncounterRoll?: number }).__mugenEncounterRoll = 0));
   await page.getByTestId('encounter-button').click();
   await readyToAct(page);
   await page.goto('/');

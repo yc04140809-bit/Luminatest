@@ -16,9 +16,10 @@ import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviou
 import type { EnemyAffinity } from '../../game/battle/damageType';
 import type { LifeChoiceId } from '../../core/flow/types';
 import { FUUMIMI, FUUMIMI_INDIVIDUAL_ID } from './fuumimi';
+import { HYOUREI } from './hyourei';
 import type { DialogueLine } from '../dialogue/prologue';
 
-export type SpeciesId = 'moss_rabbit' | 'fuumimi';
+export type SpeciesId = 'moss_rabbit' | 'fuumimi' | 'hyourei';
 
 export interface SpeciesSkill {
   name: string;
@@ -246,6 +247,7 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
 export const ENEMY_SPECIES: Record<SpeciesId, EnemySpeciesDef> = {
   moss_rabbit: MOSS_RABBIT,
   fuumimi: FUUMIMI,
+  hyourei: HYOUREI,
 };
 
 /**

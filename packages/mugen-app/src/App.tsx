@@ -4,7 +4,6 @@ import type { World } from '@mugen/core/world/world';
 import { resumeAreaOf } from '@mugen/core/world/world';
 import { NOTHING_APPLIED, NO_REWARD, type AppliedReward } from '@mugen/core/progression/battleReward';
 import { rewardForSpecies } from '@mugen/content/progression/enemyRewards';
-import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { openAppWorld } from './platform/save';
 import {
   AldenScreen,
@@ -70,9 +69,12 @@ import { RumorScreen, rumorsOf } from './ui/rumors';
 import { KaosAside } from './ui/incident';
 import { DailyAside } from './ui/daily';
 import { CreatureEncounterScreen, CreatureLifeChoiceScreen } from './ui/creatureChoice';
+import { FIRST_SIGHT, firstSightMark, wildSpeciesFor } from '@mugen/content/enemies/encounters';
+import { ENEMY_SPECIES, type SpeciesId } from '@mugen/content/enemies/species';
 import {
   FUUMIMI,
   FUUMIMI_ENCOUNTER_LINES,
+  FUUMIMI_INDIVIDUAL_DEFEATED,
   FUUMIMI_INDIVIDUAL_ID,
   answerFuumimi,
   fuumimiWaiting,
@@ -202,6 +204,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * content/story/dailyScenes.ts). Cleared on setting out again.
    */
   const [homecoming, setHomecoming] = useState(false);
+  /**
+   * WHO CAME OUT OF THE UNDERGROWTH — the forest's ordinary fight's creature,
+   * rolled as the player steps toward it (content/enemies/encounters.ts).
+   */
+  const wildSpecies = useRef<SpeciesId>('moss_rabbit');
   /** フウミミ beaten: the four answers are on screen (over the BATTLE screen) until they are given. */
   const [creatureMet, setCreatureMet] = useState(false);
   /**
@@ -630,7 +637,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       void world
         .setBattleCondition(final)
         .then(() =>
-          world.applyBattleReward(fight.current, rewardForSpecies(MOSS_RABBIT.speciesId) ?? NO_REWARD),
+          world.applyBattleReward(fight.current, rewardForSpecies(wildSpecies.current) ?? NO_REWARD),
         )
         .then((paid) => setWinnings(paid))
         // ALDEN INCIDENT: a fight won is a step (once a day).
@@ -1063,7 +1070,22 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onFight={() => {
             resumeForest.current = false;
             battleKind.current = 'WILD';
+            // Which creature: the forest's table, by a roll (a test may fix the roll, DEV only).
+            const fixed = import.meta.env.DEV
+              ? (window as unknown as { __mugenEncounterRoll?: number }).__mugenEncounterRoll
+              : undefined;
+            const species = wildSpeciesFor(
+              {
+                stage: world.getSekiryugaStage(),
+                point: world.getIncidentPoint(),
+                fuumimiAnswered: world.getFuumimiAnswer() !== null,
+              },
+              typeof fixed === 'number' ? fixed : Math.random(),
+            );
+            wildSpecies.current = species;
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            // The first time a new kind is met: a few lines first (once); after that, straight in.
+            if (FIRST_SIGHT[species] && !world.isRead(firstSightMark(species))) return flow.goTo('ENCOUNTER');
             flow.goTo('BATTLE');
           }}
           onLeave={() => {
@@ -1075,6 +1097,19 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         />
       );
     case 'ENCOUNTER':
+      if (battleKind.current === 'WILD') {
+        const species = wildSpecies.current;
+        return (
+          <CreatureEncounterScreen
+            lines={FIRST_SIGHT[species] ?? []}
+            heroName={world.getHeroName()}
+            onBattle={() => {
+              void world.markRead([firstSightMark(species)]).catch(() => {});
+              flow.goTo('BATTLE');
+            }}
+          />
+        );
+      }
       if (battleKind.current === 'FUUMIMI') {
         return (
           <CreatureEncounterScreen
@@ -1110,7 +1145,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           <BattleScreen
             key="fuumimi"
             spec={specOf(FUUMIMI)}
-            opponent={{ artId: 'fuumimi', stands: 'FAR', defeated: { text: FUUMIMI.defeatedText } }}
+            opponent={{ artId: 'fuumimi', stands: 'FAR', defeated: { text: FUUMIMI_INDIVIDUAL_DEFEATED } }}
             locationId="GREENWOOD_FOREST"
             world={world}
             onWon={(final) => {
@@ -1173,12 +1208,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         );
       }
       const gald = battleKind.current === 'GALD';
+      const creature = ENEMY_SPECIES[wildSpecies.current];
       return (
         <BattleScreen
-          // One screen, two fights, and the numbers are the only
-          // difference between them. Both specs are content.
-          key={gald ? 'gald' : 'rabbit'}
-          spec={gald ? GALD_BATTLE : specOf(MOSS_RABBIT)}
+          // One screen, Gald's fight and the forest's, and the numbers are
+          // the only difference between them. Every spec is content.
+          key={gald ? 'gald' : creature.speciesId === 'moss_rabbit' ? 'rabbit' : creature.speciesId}
+          spec={gald ? GALD_BATTLE : specOf(creature)}
           // How they are drawn, as the Artifact draws the same two: Gald
           // is a person at arm's length who speaks when beaten; the
           // rabbit a creature up the path, with its own line.
@@ -1189,7 +1225,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                   stands: 'NEAR',
                   defeated: { speaker: GALD_BATTLE.name, text: GALD_DEFEATED_LINES[0].text },
                 }
-              : { artId: 'moss_rabbit', stands: 'FAR', defeated: { text: MOSS_RABBIT.defeatedText } }
+              : { artId: creature.speciesId, stands: 'FAR', defeated: { text: creature.defeatedText } }
           }
           locationId="GREENWOOD_FOREST"
           world={world}

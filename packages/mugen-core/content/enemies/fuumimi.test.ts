@@ -7,7 +7,7 @@ import { specOf } from '../../game/battle/enemySpec';
 import { statsForLevels } from '../../core/progression/levelStats';
 import { MAGIC_DEFS } from '../magic/magicDefs';
 import { SHUNDAN } from '../skills/heroSkills';
-import { FUUMIMI, FUUMIMI_ANSWER_NOW, answerFuumimi, FUUMIMI_CHARACTER_ID, FUUMIMI_INDIVIDUAL_ID, fuumimiWaiting } from './fuumimi';
+import { FUUMIMI, FUUMIMI_ANSWER_NOW, FUUMIMI_INDIVIDUAL_DEFEATED, answerFuumimi, FUUMIMI_CHARACTER_ID, FUUMIMI_INDIVIDUAL_ID, fuumimiWaiting } from './fuumimi';
 import { ENEMY_SPECIES, MOSS_RABBIT, individualName, speciesOfIndividual } from './species';
 import { rewardForSpecies } from '../progression/enemyRewards';
 import { memoryEventLabel } from '../events/creatureLifeChoice';
@@ -75,8 +75,10 @@ describe('who it is', () => {
     expect(all).not.toContain('IND-43452DFD');
   });
 
-  it('its fight pays nothing (as Gald’s does not): what it leaves is the four answers’', () => {
-    expect(rewardForSpecies('fuumimi')).toBeNull();
+  it('the species and the one individual are two things: the kind is priced for ordinary fights (the individual’s fight pays nothing — the App gives it none)', () => {
+    expect(rewardForSpecies('fuumimi')).toMatchObject({ exp: 22, lumi: 12 });
+    expect(FUUMIMI.defeatedText).not.toBe(FUUMIMI_INDIVIDUAL_DEFEATED);
+    expect(FUUMIMI_INDIVIDUAL_DEFEATED).toContain('翅を広げたまま');
   });
 });
 

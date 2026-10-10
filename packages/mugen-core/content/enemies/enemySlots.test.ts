@@ -36,8 +36,8 @@ describe('the three slots', () => {
     expect(shell.needs).toEqual([]);
   });
 
-  it('none is fought yet: no species stands in a slot (フウミミ, FORGE MON-000002, is its own creature, not one of the three)', () => {
-    expect(Object.keys(ENEMY_SPECIES)).toEqual(['moss_rabbit', 'fuumimi']);
+  it('none is fought yet: no species stands in a slot (フウミミ MON-000002 and ヒョウレイ MON-000008 are FORGE’s own creatures, not the three)', () => {
+    expect(Object.keys(ENEMY_SPECIES)).toEqual(['moss_rabbit', 'fuumimi', 'hyourei']);
     for (const s of ENEMY_SLOTS) {
       expect(Object.keys(ENEMY_SPECIES)).not.toContain(s.slotId.toLowerCase());
       expect(s.name).toBeNull();

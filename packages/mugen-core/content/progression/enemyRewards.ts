@@ -44,9 +44,25 @@ export const ENEMY_REWARDS = {
     lumi: 9,
     items: [{ itemId: 'FOREST_HERB', quantity: 1 }],
   },
-  // フウミミ is not priced: it is met once, as somebody, and its fight pays
-  // nothing, as Gald's does not. What it leaves is the four answers'
-  // (content/enemies/fuumimi.ts).
+  /**
+   * フウミミ, as a kind met in the forest (the one individual's fight pays
+   * nothing, as Gald's does not — the App gives it no reward). A longer fight
+   * than the rabbit, so a little more; it carries things, so a nut.
+   */
+  fuumimi: {
+    exp: 22,
+    lumi: 12,
+    items: [{ itemId: 'FOREST_NUT', quantity: 1 }],
+  },
+  /**
+   * ヒョウレイ: about as long as フウミミ. Nothing in the bag — its feathers are
+   * light, not a thing to sell (no new material, 作者判断: no crafting creep).
+   */
+  hyourei: {
+    exp: 24,
+    lumi: 14,
+    items: [],
+  },
 } satisfies Partial<Record<SpeciesId, BattleReward>>;
 
 /** What this species is worth, or nothing for one nobody has priced. */

@@ -1,5 +1,11 @@
 // フウミミ — FORGE MON-000002, the individual IND-43452DFD (作者判断 2026-10-10).
 //
+// THE SPECIES AND THE ONE INDIVIDUAL ARE TWO THINGS (作者判断 2026-10-10):
+// MON-000002 is フウミミ, a kind of creature that lives in the forest and is
+// met there in ordinary fights (content/enemies/encounters.ts) once the one
+// below has been answered; IND-43452DFD is the particular one the story is
+// about, met once. That one's event happens once; the species does not end.
+//
 // The first creature in MUGEN ZERO met as SOMEBODY from the start: one
 // individual, at the forest's edge, once — after セキリュウガ's part is
 // over and the signs have begun. It goes at the player; beaten, it turns out
@@ -41,6 +47,8 @@ import type { LifeChoiceId } from '../../core/flow/types';
 export const FUUMIMI_CHARACTER_ID = 'MON-000002';
 /** FORGE's individual ID — kept as it is, never turned into an NPC_ID. */
 export const FUUMIMI_INDIVIDUAL_ID = 'IND-43452DFD';
+/** How the one individual goes down — still shielding what is behind it (the species' own line is plainer). */
+export const FUUMIMI_INDIVIDUAL_DEFEATED = 'フウミミは地面に降り、それでも翅を広げたまま動かない。';
 
 export const FUUMIMI: EnemySpeciesDef = {
   speciesId: 'fuumimi',
@@ -81,7 +89,7 @@ export const FUUMIMI: EnemySpeciesDef = {
     line: 'フウミミの擬態！ 姿がまわりの景色に溶けて、刃先がそれる。',
   },
   appearLine: '翅の音がした。目で追うより先に、それはもう目の前にいた。',
-  defeatedText: 'フウミミは地面に降り、それでも翅を広げたまま動かない。',
+  defeatedText: 'フウミミは翅をたたみ、茂みの奥へ逃げていった。',
   individual: {
     scene: [
       { speaker: null, text: 'フウミミが膝を折った。それでも、背中の向こうを隠すように翅を広げている。' },

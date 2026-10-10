@@ -90,7 +90,7 @@ export type BattleCommand = 'ATTACK' | 'SKILL' | 'DEFEND' | 'ARCANA';
 
 export interface BattleOpponentView {
   /** Whose drawings: a creature's id, or 'gald' for a person. */
-  artId: 'moss_rabbit' | 'gald' | 'sekiryuga' | 'fuumimi';
+  artId: 'moss_rabbit' | 'gald' | 'sekiryuga' | 'fuumimi' | 'hyourei';
   /**
    * A boss: its name is marked BOSS on its plate, and its hits and fall
    * are the heavier sounds. Absent: Gald's fight is the boss fight.
