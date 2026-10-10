@@ -23,6 +23,8 @@ import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
 import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
 import sekiryuga from '@mugen/assets/files/enemies/sekiryuga.png';
+import fuumimi from '@mugen/assets/files/enemies/fuumimi.png';
+import hyourei from '@mugen/assets/files/enemies/hyourei.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -144,20 +146,60 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
     },
   },
   /**
-   * PROVISIONAL — NO DRAWING YET (作者 2026-10-10). フウミミ (FORGE
-   * MON-000002), ヒョウレイ (MON-000008), and the small フウミミ the one
-   * individual shields. Until their transparent PNGs made for the battle
-   * screen are delivered, they are fought and shown with the placeholder
-   * (CharacterArt), exactly as an absent entry would be. FORGE's reference
-   * pictures and character sheets are NOT cut out and used here.
-   *
-   * When a PNG arrives: place it under mugen-assets/files/enemies/ as
-   * delivered, import it above, and give the entry its `front` (and `down`
-   * if drawn) with the box measured — nothing else changes.
+   * フウミミ (FORGE MON-000002) and ヒョウレイ (MON-000008) — their battle
+   * drawings, delivered 2026-10-10 as transparent PNGs made for the battle
+   * screen and placed as delivered (FORGE's reference sheets are not used).
+   * One drawing each: standing. No drawing of them brought down, so at
+   * nought they stay this drawing, as セキリュウガ does.
    */
-  fuumimi: { id: 'fuumimi', label: 'フウミミ', states: {} },
-  hyourei: { id: 'hyourei', label: 'ヒョウレイ', states: {} },
-  fuumimi_young: { id: 'fuumimi_young', label: '小さなフウミミ', states: {} },
+  fuumimi: {
+    id: 'fuumimi',
+    label: 'フウミミ',
+    states: {
+      front: {
+        src: fuumimi,
+        box: { fileW: 1254, fileH: 1254, x: 15, y: 22, width: 1225, height: 1217 },
+        face: { fileW: 1254, fileH: 1254, x: 840, y: 270, width: 220, height: 220 },
+        facing: 'right',
+      },
+    },
+  },
+  hyourei: {
+    id: 'hyourei',
+    label: 'ヒョウレイ',
+    states: {
+      front: {
+        src: hyourei,
+        box: { fileW: 1448, fileH: 1086, x: 9, y: 0, width: 1431, height: 1080 },
+        face: { fileW: 1448, fileH: 1086, x: 1100, y: 220, width: 170, height: 170 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * PROVISIONAL — NO DRAWING YET: イワホロ (FORGE MON-000009). Fought and
+   * shown with the placeholder (CharacterArt) until its transparent PNG made
+   * for the battle screen is delivered; FORGE's reference picture is not cut
+   * out and used. When it arrives: place it under mugen-assets/files/enemies/
+   * as delivered, import it above, give this entry its `front` and box.
+   */
+  iwahoro: { id: 'iwahoro', label: 'イワホロ', states: {} },
+  /**
+   * The small フウミミ the one individual shields — the same drawing, shown
+   * small (the author, 2026-10-10: 「そのまま小さくでもいい」). How small is
+   * the scene's to say (ui/creatureChoice.tsx), not a second file.
+   */
+  fuumimi_young: {
+    id: 'fuumimi_young',
+    label: '小さなフウミミ',
+    states: {
+      front: {
+        src: fuumimi,
+        box: { fileW: 1254, fileH: 1254, x: 15, y: 22, width: 1225, height: 1217 },
+        facing: 'right',
+      },
+    },
+  },
 };
 
 /**

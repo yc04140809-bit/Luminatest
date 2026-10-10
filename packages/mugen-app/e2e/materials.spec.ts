@@ -118,6 +118,8 @@ test('something holding magic: the baker says so once — not again after a rest
   // Both carried: the nut first, then the magic, then his hints.
   expect((await ownerTalk(page))[0]).toBe('「お、それは森の木の実だな。」');
   expect(await ownerTalk(page)).toEqual(['「……魔力を含んだ素材を持ってるな。」', '「そういうのは、普通の生地じゃ扱いにくい。」']);
+  // Heard, and written down, before the game is closed.
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('talk:BAKERY_OWNER_MAGIC')`)).toBe(true);
   await restart(page);
   await page.getByTestId('bakery-button').click();
   const after = await ownerTalk(page);
@@ -147,7 +149,8 @@ test('the hints in the bag, and the ancient fragment: kept, a hint, never sold �
   await expect(page.getByTestId('shop-sell-refused-ANCIENT_SHARD')).toHaveText('売れない');
   await expect(page.getByTestId('shop-sell-ANCIENT_SHARD')).toHaveCount(0);
   await page.getByTestId('shop-sell-IRON_ORE').click();
-  expect(await world<number>(page, `(w) => w.getItemCount('IRON_ORE')`)).toBe(1);
+  // The sale is written, then read back.
+  await expect.poll(() => world<number>(page, `(w) => w.getItemCount('IRON_ORE')`)).toBe(1);
   await page.getByTestId('shop-leave').click();
 
   // The tavern, night 1: ore for a coin — and the fragment is never asked for.

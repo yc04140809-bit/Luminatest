@@ -198,6 +198,13 @@ test('shows the picture whole, at its own shape, never stretched', async ({ page
     await expect
       .poll(async () => img.evaluate((e: HTMLImageElement) => e.naturalWidth), { timeout: 15_000 })
       .toBeGreaterThan(0);
+    // And the one on screen now, styled — a picture replaced mid-switch has
+    // no computed style while it is being swapped out.
+    await expect
+      .poll(async () => img.evaluate((e: HTMLImageElement) => (e.isConnected ? getComputedStyle(e).objectFit : '')), {
+        timeout: 15_000,
+      })
+      .toBe('contain');
     const fit = await img.evaluate((e: HTMLImageElement) => {
       const box = e.getBoundingClientRect();
       const style = getComputedStyle(e);

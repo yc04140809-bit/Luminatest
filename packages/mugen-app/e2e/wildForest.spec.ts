@@ -103,7 +103,8 @@ test('ヒョウレイ: not before it is talked of; a little after, met in the fo
   await expect(page.getByTestId('rumor-INC_SHINING_WINGS')).toBeVisible();
   await page.getByTestId('rumor-leave').click();
   await intoTheForest(page);
-  await roll(page, 0.99);
+  // 0.7 is ヒョウレイ’s share once it is open (モスラビット 6・ヒョウレイ 2・イワホロ 2); before, it falls on the rabbit.
+  await roll(page, 0.7);
   await page.getByTestId('encounter-button').click();
   await readyToAct(page);
   await expect(page.getByTestId('bp-enemy-name')).toHaveText('モスラビット');
@@ -112,7 +113,7 @@ test('ヒョウレイ: not before it is talked of; a little after, met in the fo
 
   // Two steps on: it can come out of the undergrowth.
   await toPoint(page, 8);
-  await roll(page, 0.99);
+  await roll(page, 0.7);
   await page.getByTestId('encounter-button').click();
   const lines = await firstSight(page);
   expect(lines.at(-1)).toBe('「……あれが、噂の子かな。気をつけて、すごく速いよ。」');
@@ -173,4 +174,45 @@ test('フウミミ: its kind joins the forest’s fights once the one individual
   expect((await world<{ choice: string }>(page, `(w) => w.getFuumimiAnswer()`)).choice).toBe('SPARE');
   // The individual is not offered again.
   await expect(page.getByTestId('fuumimi-button')).toHaveCount(0);
+});
+
+test('イワホロ: not in the signs’ first phase; from the second, met in the forest — a few lines the first time, then an ordinary fight, not a boss', async ({
+  page,
+}) => {
+  await settledVillage(page);
+  await toPoint(page, 4);
+  await intoTheForest(page);
+  // Before the second phase (going into the forest is itself a step): only the rabbit, whatever the roll.
+  expect(await world<number>(page, `(w) => w.getIncidentPoint()`)).toBeLessThan(6);
+  await roll(page, 0.99);
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('モスラビット');
+  await page.getByTestId('bp-escape').click();
+  await settled(page);
+
+  await toPoint(page, 6);
+  await roll(page, 0.99);
+  await page.getByTestId('encounter-button').click();
+  const lines = await firstSight(page);
+  expect(lines.at(-1)).toBe('「……石じゃない。生きてる。来るよ！」');
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('イワホロ');
+  await expect(page.getByTestId('bp-boss-tag')).toHaveCount(0);
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('note:FIRST_SIGHT_iwahoro')`)).toBe(true);
+  const memory = (await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length;
+  await fightToResult(page);
+  await expect(page.getByTestId('result-exp')).toContainText('20');
+  await page.getByTestId('result-done').click();
+  await expect(page.getByTestId('walk-scene')).toHaveAttribute('data-place', 'GREENWOOD_FOREST');
+  await expect(page.getByTestId('creature-life-choice-screen')).toHaveCount(0);
+  expect((await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length).toBe(memory);
+
+  // The second time: straight into an ordinary fight.
+  await settled(page);
+  await roll(page, 0.99);
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(page.getByTestId('creature-encounter')).toHaveCount(0);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('イワホロ');
 });

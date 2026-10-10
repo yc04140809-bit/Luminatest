@@ -63,6 +63,15 @@ export const ENEMY_REWARDS = {
     lumi: 14,
     items: [],
   },
+  /**
+   * イワホロ: a little longer than the rabbit. It carries the forest's plants
+   * about (FORGE: 植物の媒介者), so a herb — no new material.
+   */
+  iwahoro: {
+    exp: 20,
+    lumi: 11,
+    items: [{ itemId: 'FOREST_HERB', quantity: 1 }],
+  },
 } satisfies Partial<Record<SpeciesId, BattleReward>>;
 
 /** What this species is worth, or nothing for one nobody has priced. */

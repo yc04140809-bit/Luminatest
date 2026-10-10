@@ -5,7 +5,8 @@ import { createBattle, playerAttack, playerSkill, skillReadyIn, type EnemySpec }
 import { specOf } from '../../game/battle/enemySpec';
 import { statsForLevels } from '../../core/progression/levelStats';
 import { SHUNDAN } from '../skills/heroSkills';
-import { FIRST_SIGHT, GREENWOOD_ENCOUNTERS, HYOUREI_MET_FROM_POINT, firstSightMark, wildOpenIn, wildSpeciesFor, type WildFacts } from './encounters';
+import { FIRST_SIGHT, GREENWOOD_ENCOUNTERS, HYOUREI_MET_FROM_POINT, IWAHORO_MET_FROM_POINT, firstSightMark, wildOpenIn, wildSpeciesFor, type WildFacts } from './encounters';
+import { IWAHORO, IWAHORO_CHARACTER_ID, IWAHORO_FORGE_INDIVIDUAL_ID } from './iwahoro';
 import { HYOUREI, HYOUREI_CHARACTER_ID, HYOUREI_FORGE_INDIVIDUAL_ID } from './hyourei';
 import { ENEMY_SPECIES, MOSS_RABBIT } from './species';
 import { rewardForSpecies } from '../progression/enemyRewards';
@@ -26,21 +27,24 @@ describe('who is met, and from when', () => {
     const rumour = VILLAGE_RUMORS.find((r) => r.id === 'INC_SHINING_WINGS')!;
     expect(rumour.when).toBe('INCIDENT_2');
     expect(HYOUREI_MET_FROM_POINT).toBeGreaterThan(INCIDENT_PHASE_AT[2]);
-    expect(open(f({ point: INCIDENT_PHASE_AT[2] }))).toEqual(['moss_rabbit']);
-    expect(open(f({ point: HYOUREI_MET_FROM_POINT }))).toEqual(['moss_rabbit', 'hyourei']);
-    expect(open(f({ point: 12, fuumimiAnswered: true }))).toEqual(['moss_rabbit', 'fuumimi', 'hyourei']);
+    // イワホロ from the signs' second phase; ヒョウレイ two steps on.
+    expect(IWAHORO_MET_FROM_POINT).toBe(INCIDENT_PHASE_AT[2]);
+    expect(open(f({ point: INCIDENT_PHASE_AT[2] - 1 }))).toEqual(['moss_rabbit']);
+    expect(open(f({ point: INCIDENT_PHASE_AT[2] }))).toEqual(['moss_rabbit', 'iwahoro']);
+    expect(open(f({ point: HYOUREI_MET_FROM_POINT }))).toEqual(['moss_rabbit', 'hyourei', 'iwahoro']);
+    expect(open(f({ point: 12, fuumimiAnswered: true }))).toEqual(['moss_rabbit', 'fuumimi', 'hyourei', 'iwahoro']);
     // Not before セキリュウガ's part, whatever the point.
     expect(open(f({ stage: 'BEATEN', point: 20 }))).toEqual(['moss_rabbit']);
   });
 
-  it('the rabbit stays the commonest: with all three, 6 in 10 of the forest’s fights', () => {
+  it('the rabbit stays the commonest: with all four, half of the forest’s fights (6 : 2 : 2 : 2)', () => {
     const all = f({ point: 12, fuumimiAnswered: true });
     const count: Record<string, number> = {};
-    for (let i = 0; i < 1000; i++) {
-      const s = wildSpeciesFor(all, i / 1000);
+    for (let i = 0; i < 1200; i++) {
+      const s = wildSpeciesFor(all, i / 1200);
       count[s] = (count[s] ?? 0) + 1;
     }
-    expect(count).toEqual({ moss_rabbit: 600, fuumimi: 200, hyourei: 200 });
+    expect(count).toEqual({ moss_rabbit: 600, fuumimi: 200, hyourei: 200, iwahoro: 200 });
     // Before any of them: always the rabbit, whatever the roll.
     for (const roll of [0, 0.5, 0.999]) expect(wildSpeciesFor(f(), roll)).toBe('moss_rabbit');
     expect(GREENWOOD_ENCOUNTERS.every((e) => ENEMY_SPECIES[e.speciesId])).toBe(true);
@@ -48,7 +52,7 @@ describe('who is met, and from when', () => {
 
   it('every one met in an ordinary fight is priced; a few lines the first time for the new kinds, under their own note', () => {
     for (const e of GREENWOOD_ENCOUNTERS) expect(rewardForSpecies(e.speciesId)?.exp, e.speciesId).toBeGreaterThan(0);
-    expect(Object.keys(FIRST_SIGHT).sort()).toEqual(['fuumimi', 'hyourei']);
+    expect(Object.keys(FIRST_SIGHT).sort()).toEqual(['fuumimi', 'hyourei', 'iwahoro']);
     expect(firstSightMark('hyourei')).toBe('note:FIRST_SIGHT_hyourei');
   });
 });
@@ -108,5 +112,65 @@ describe('ヒョウレイ (FORGE MON-000008): an ordinary creature, not a boss a
     expect(hyourei.turns).toBeGreaterThan(rabbit.turns);
     expect(hyourei.turns).toBeLessThan(fuumimi.turns);
     expect(hyourei.win).toBeGreaterThanOrEqual(0.99);
+  });
+});
+
+describe('イワホロ (FORGE MON-000009): an ordinary creature — steady, aggressive, the forest’s hardest hitter', () => {
+  it('FORGE’s IDs, referenced only; the individual FORGE sent is kept aside', () => {
+    expect(IWAHORO_CHARACTER_ID).toBe('MON-000009');
+    expect(IWAHORO_FORGE_INDIVIDUAL_ID).toBe('IND-E32B5633');
+    expect(JSON.stringify(IWAHORO)).not.toContain('IND-E32B5633');
+    const forge = join(__dirname, '..', 'forge');
+    const all = readdirSync(forge, { recursive: true })
+      .map(String)
+      .filter((p) => /\.(ts|json)$/.test(p) && !p.endsWith('.test.ts'))
+      .map((p) => readFileSync(join(forge, p), 'utf8'))
+      .join('\n');
+    expect(all).not.toContain('MON-000009');
+  });
+
+  it('吸収 and a rare 高速移動 (no poison, paralysis or earth — the battle has none); 強い光を嫌う read as weak to her star; cornered, it hits harder', () => {
+    expect(IWAHORO.attackName).toBe('吸収');
+    expect(IWAHORO.skill.name).toBe('高速移動');
+    expect(IWAHORO.skill.chance).toBeLessThan(HYOUREI.skill.chance);
+    expect(JSON.stringify(IWAHORO)).not.toMatch(/麻痺|毒/);
+    expect(IWAHORO.affinity?.elementWeakness?.STAR).toBeGreaterThan(0);
+    expect(IWAHORO.phases?.[0]).toMatchObject({ id: 'NEST', attack: 1.4 });
+    expect(IWAHORO.defeatedText).not.toMatch(/死|息絶/);
+  });
+
+  it('measured (2000 seeded fights, Lv2, blade and 《瞬断》): about as long as the rabbit, but it hurts the most', () => {
+    const seeded = (a: number) => () => {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const measure = (spec: EnemySpec) => {
+      let turns = 0;
+      let hurt = 0;
+      let won = 0;
+      for (let i = 1; i <= 2000; i++) {
+        const rng = seeded(i);
+        let s = createBattle(spec, undefined, { stats: statsForLevels(2, 2), magicUnlocked: true });
+        let t = 0;
+        while (s.outcome === 'ONGOING' && t < 80) {
+          t++;
+          s = skillReadyIn(s, SHUNDAN) === 0 ? playerSkill(s, SHUNDAN, rng) : playerAttack(s, rng);
+        }
+        turns += t;
+        hurt += s.playerMaxHp - s.playerHp;
+        if (s.outcome === 'VICTORY') won++;
+      }
+      return { turns: turns / 2000, hurt: hurt / 2000, win: won / 2000 };
+    };
+    const rabbit = measure(specOf(MOSS_RABBIT));
+    const iwahoro = measure(specOf(IWAHORO));
+    const others = ['fuumimi', 'hyourei'].map((id) => measure(specOf(ENEMY_SPECIES[id as 'fuumimi'])));
+    expect(iwahoro.turns).toBeGreaterThanOrEqual(rabbit.turns);
+    expect(iwahoro.turns).toBeLessThan(others[0].turns);
+    for (const o of [rabbit, ...others]) expect(iwahoro.hurt).toBeGreaterThan(o.hurt);
+    expect(iwahoro.win).toBeGreaterThanOrEqual(0.99);
   });
 });

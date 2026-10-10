@@ -1132,8 +1132,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               species={FUUMIMI}
               individualId={FUUMIMI_INDIVIDUAL_ID}
               heroName={world.getHeroName()}
-              // The small one it shielded — its transparent PNG is to come (ui/battle/battleArt.ts).
-              sceneArt={{ id: 'fuumimi_young', alt: '小さなフウミミ' }}
+              // The small one it shielded — the same drawing, shown small (ui/battle/battleArt.ts).
+              sceneArt={{ id: 'fuumimi_young', alt: '小さなフウミミ', small: true }}
               onChoose={(choice) => answerFuumimi(world, choice)}
               onDone={() => {
                 setCreatureMet(false);

@@ -3,20 +3,32 @@ import { readFileSync } from 'node:fs';
 import { battleEnemyArt } from './battleArt';
 
 /**
- * PROVISIONAL ART (作者 2026-10-10): フウミミ, ヒョウレイ and the small フウミミ
- * have no battle PNG yet. They show the placeholder until their transparent
- * PNGs made for the battle screen arrive — FORGE's reference pictures are not
- * cut out and used. When one arrives, its entry gets a `front`; this test is
- * then updated to say so.
+ * THE FORGE CREATURES' BATTLE DRAWINGS (作者 2026-10-10).
+ *
+ * フウミミ and ヒョウレイ: their transparent PNGs made for the battle screen,
+ * placed as delivered. The small フウミミ is the same drawing, shown small.
+ * イワホロ: not drawn yet — the placeholder until its PNG arrives (then this
+ * test moves it to the drawn list). FORGE's reference pictures and sheets are
+ * never cut out and used.
  */
-describe('creatures still waiting for their battle drawings', () => {
-  it('fought and shown with the placeholder for now — every state', () => {
-    for (const id of ['fuumimi', 'hyourei', 'fuumimi_young']) {
-      for (const state of ['front', 'down', 'portrait'] as const) {
-        const art = battleEnemyArt(id, state);
-        expect(art.placeholder, `${id} ${state}`).toBe(true);
-        expect(art.asset).toBeNull();
-      }
+describe('the FORGE creatures, as the battle draws them', () => {
+  it('フウミミ, ヒョウレイ and the small フウミミ: drawn, from their own delivered files', () => {
+    for (const [id, file] of [
+      ['fuumimi', 'fuumimi.png'],
+      ['hyourei', 'hyourei.png'],
+      ['fuumimi_young', 'fuumimi.png'],
+    ] as const) {
+      const art = battleEnemyArt(id, 'front');
+      expect(art.placeholder, id).toBe(false);
+      expect(art.asset?.src, id).toContain(file);
+    }
+  });
+
+  it('イワホロ: still the placeholder, in every state', () => {
+    for (const state of ['front', 'down', 'portrait'] as const) {
+      const art = battleEnemyArt('iwahoro', state);
+      expect(art.placeholder, state).toBe(true);
+      expect(art.asset).toBeNull();
     }
   });
 

@@ -73,6 +73,10 @@ export interface StagePicture {
   src: string;
   alt: string;
   testId: string;
+  /** A cut-out drawing (a creature), standing in the scene — not a framed painting. */
+  cutout?: boolean;
+  /** …and drawn small (the small フウミミ: the same drawing, smaller). */
+  small?: boolean;
 }
 
 export function Stage({
@@ -137,7 +141,7 @@ export function Stage({
       )}
       {showPicture && (
         <img
-          className="stage-figure stage-picture"
+          className={`stage-figure stage-picture${picture.cutout ? ' stage-cutout' : ''}${picture.small ? ' stage-cutout-small' : ''}`}
           src={picture.src}
           alt={picture.alt}
           data-testid={picture.testId}

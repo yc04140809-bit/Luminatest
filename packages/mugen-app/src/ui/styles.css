@@ -2419,3 +2419,15 @@ body {
 /* A face beside the line, when one is delivered (assets/dailyFaces.ts). */
 .daily-aside:has(.daily-face) { grid-template-columns: auto 1fr auto; grid-template-areas: 'face who next' 'face line next'; }
 .daily-face { grid-area: face; width: 40px; height: 40px; object-fit: cover; object-position: top; border-radius: 2px; }
+
+/* A creature's cut-out drawing standing in a scene (its four answers, ui/creatureChoice.tsx):
+   no frame — it is a creature, not a painting — feet on the ground. */
+.stage-picture.stage-cutout {
+  top: auto;
+  bottom: 4%;
+  height: min(78%, 78vh);
+  border-radius: 0;
+  box-shadow: none;
+}
+/* …and the small one it shields: the same drawing, a third the height. */
+.stage-picture.stage-cutout-small { height: min(30%, 30vh); bottom: 8%; }
