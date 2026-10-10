@@ -31,12 +31,34 @@ interface Frame {
   enemyHp: string;
 }
 
+/**
+ * Her steps as the page commits them — every change to her `data-step`,
+ * timed, whether or not a frame was painted for it. The frames below are
+ * sampled once per animation frame, and on a busy machine frames can be
+ * starved for longer than a step lasts (her recover, 850ms, was missed that
+ * way in full runs); the order and the timings are read from this instead.
+ */
+interface StepMark {
+  t: number;
+  step: string;
+}
+
 async function record(page: Page) {
   await page.evaluate(() => {
-    const w = window as unknown as { __frames: Frame[]; __on: boolean };
+    const w = window as unknown as { __frames: Frame[]; __on: boolean; __steps: StepMark[]; __watch?: MutationObserver };
     w.__frames = [];
     w.__on = true;
+    w.__steps = [];
     const t0 = performance.now();
+    const note = () => {
+      const step = document.querySelector<HTMLElement>('[data-testid="kaos-figure"]')?.dataset.step ?? '';
+      if (w.__steps.length === 0 ? step !== '' : w.__steps[w.__steps.length - 1].step !== step) {
+        w.__steps.push({ t: Math.round(performance.now() - t0), step });
+      }
+    };
+    w.__watch?.disconnect();
+    w.__watch = new MutationObserver(note);
+    w.__watch.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-step'] });
     const tick = () => {
       const figure = document.querySelector<HTMLElement>('[data-testid="kaos-figure"]');
       const fieldKaos = document.querySelector<HTMLElement>('.bp-kaos');
@@ -74,6 +96,18 @@ async function stop(page: Page): Promise<Frame[]> {
   );
 }
 
+/** Her steps, in order, with when each began; the last mark (step '') is when she was gone. */
+async function stepsOf(page: Page): Promise<StepMark[]> {
+  return page.evaluate(() => {
+    const w = window as unknown as { __steps: StepMark[]; __watch?: MutationObserver };
+    w.__watch?.disconnect();
+    return w.__steps;
+  });
+}
+const stepNames = (marks: StepMark[]) => marks.map((m) => m.step).filter(Boolean);
+/** From her stepping in to her being gone. */
+const lasting = (marks: StepMark[]) => marks[marks.length - 1].t - marks[0].t;
+
 async function openPanel(page: Page) {
   const button = page.getByTestId('debug-kaos');
   if (!(await button.isVisible())) await page.getByTestId('debug-toggle').click();
@@ -106,6 +140,7 @@ for (const motion of ['no-preference', 'reduce'] as const)
       await expect(page.getByTestId('kaos-figure')).toHaveCount(0, { timeout: 16_000 });
       await leftNothing(page);
       const f = await stop(page);
+      const marks = await stepsOf(page);
 
       // Her cut-in first, 「双極崩界」 (v19), then her.
       expect(f.some((x) => x.cutIn === '双極臨界')).toBe(false);
@@ -113,8 +148,9 @@ for (const motion of ['no-preference', 'reduce'] as const)
       const in_ = f.findIndex((x) => x.step !== '');
       expect(cut).toBeGreaterThanOrEqual(0);
       expect(in_).toBeGreaterThan(cut);
-      // Her steps, in order — v19's enter, channel, lock, blast, recover.
-      expect(order(f.map((x) => x.step).filter(Boolean))).toEqual(['enter', 'channel', 'lock', 'blast', 'recover']);
+      // Her steps, in order — v19's enter, channel, lock, blast, recover — and then gone.
+      expect(stepNames(marks)).toEqual(['enter', 'channel', 'lock', 'blast', 'recover']);
+      expect(marks[marks.length - 1].step).toBe('');
       // The two names in the corner, in order.
       expect(order(f.map((x) => x.phase).filter(Boolean))).toEqual(['双極臨界', '界核崩壊']);
       // The aura round her in 双極臨界, charged when the working is fixed.
@@ -124,8 +160,7 @@ for (const motion of ['no-preference', 'reduce'] as const)
       expect(order(f.map((x) => x.effect).filter((e) => e && e !== 'off'))).toEqual(['locked', 'blast']);
       expect(f.some((x) => x.step === 'blast' && x.flash)).toBe(true);
       // About as long as v19's base times (180 + 1700 + 720 + 2800 + 850).
-      const on = f.filter((x) => x.step !== '');
-      expect(on[on.length - 1].t - on[0].t).toBeGreaterThan(5400);
+      expect(lasting(marks)).toBeGreaterThan(5400);
       // He steps aside for her; and she is on the field once — her place in the party empty while she casts.
       const during = f.filter((x) => ['channel', 'lock', 'blast'].includes(x.step));
       expect(during.every((x) => x.heroAside)).toBe(true);
@@ -188,12 +223,13 @@ test('×2: quicker, and still every part of it', async ({ page }) => {
     await page.getByTestId('debug-kaos').click();
     await expect(page.getByTestId('kaos-figure')).toBeVisible();
     await expect(page.getByTestId('kaos-figure')).toHaveCount(0, { timeout: 16_000 });
-    const f = await stop(page);
-    const on = f.filter((x) => x.step !== '');
-    expect(order(on.map((x) => x.step))).toEqual(['enter', 'channel', 'lock', 'blast', 'recover']);
+    await stop(page);
+    const marks = await stepsOf(page);
+    expect(stepNames(marks)).toEqual(['enter', 'channel', 'lock', 'blast', 'recover']);
+    expect(marks[marks.length - 1].step).toBe('');
     await leftNothing(page);
-    const first = (step: string) => on.find((x) => x.step === step)!.t;
-    return { whole: on[on.length - 1].t - on[0].t, blast: first('recover') - first('blast') };
+    const first = (step: string) => marks.find((m) => m.step === step)!.t;
+    return { whole: lasting(marks), blast: first('recover') - first('blast') };
   };
   const slow = await time(1);
   const fast = await time(2);
