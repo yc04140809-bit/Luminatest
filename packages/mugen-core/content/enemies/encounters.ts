@@ -13,15 +13,18 @@
 //   ヒョウレイ    a little after it is first talked about: the rumour comes
 //                 with the signs' second phase (6 points); it is met from 8,
 //                 two steps of the player's on — never by reading the rumour
+//   コケマル      from the signs' third phase (10 points), when the forest's
+//                 creatures are said to be running from something and stray
+//                 nearer the village than they should
 //
-// The rabbit stays the commonest; the two newer ones are rarer and longer
-// fights. Which one comes is a roll the caller makes (0 ≤ roll < 1).
+// The rabbit stays the commonest; the newer ones are rarer. Which one comes is a roll the caller makes (0 ≤ roll < 1).
 
 import type { SekiryugaStage } from '../../core/world/storyArc';
 import type { DialogueLine } from '../dialogue/prologue';
 import type { SpeciesId } from './species';
 import { HYOUREI_FIRST_SIGHT } from './hyourei';
 import { IWAHORO_FIRST_SIGHT } from './iwahoro';
+import { KOKEMARU_FIRST_SIGHT } from './kokemaru';
 
 export interface WildFacts {
   stage: SekiryugaStage;
@@ -35,6 +38,8 @@ export interface WildFacts {
 export const HYOUREI_MET_FROM_POINT = 8;
 /** イワホロ is met from this point on (the signs' second phase). */
 export const IWAHORO_MET_FROM_POINT = 6;
+/** コケマル is met from this point on (the signs' third phase). */
+export const KOKEMARU_MET_FROM_POINT = 10;
 
 export interface WildEntry {
   speciesId: SpeciesId;
@@ -48,6 +53,7 @@ export const GREENWOOD_ENCOUNTERS: readonly WildEntry[] = [
   { speciesId: 'fuumimi', weight: 2, opens: (f) => f.fuumimiAnswered },
   { speciesId: 'hyourei', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= HYOUREI_MET_FROM_POINT },
   { speciesId: 'iwahoro', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= IWAHORO_MET_FROM_POINT },
+  { speciesId: 'kokemaru', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= KOKEMARU_MET_FROM_POINT },
 ];
 
 /** The creatures that can be met in the forest now. */
@@ -71,6 +77,7 @@ export function wildSpeciesFor(facts: WildFacts, roll: number): SpeciesId {
 export const FIRST_SIGHT: Partial<Record<SpeciesId, readonly DialogueLine[]>> = {
   hyourei: HYOUREI_FIRST_SIGHT,
   iwahoro: IWAHORO_FIRST_SIGHT,
+  kokemaru: KOKEMARU_FIRST_SIGHT,
   fuumimi: [
     { speaker: null, text: '翅の音。あの時と同じ姿の生き物が、茂みから飛び出してきた。' },
     { speaker: 'ケイオス', text: '……別の子だね。この子は、ただ気が立ってるだけみたい。' },

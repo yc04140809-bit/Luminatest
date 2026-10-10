@@ -72,6 +72,17 @@ export const ENEMY_REWARDS = {
     lumi: 11,
     items: [{ itemId: 'FOREST_HERB', quantity: 1 }],
   },
+  /**
+   * コケマル: the shortest fight in the forest, but it hits hard for its
+   * length. It picks up what catches its eye (FORGE: 収集), so what it drops
+   * is something it had picked up — a round acorn, worth nothing to a shop
+   * (no new material).
+   */
+  kokemaru: {
+    exp: 18,
+    lumi: 10,
+    items: [{ itemId: 'ROUND_ACORN', quantity: 1 }],
+  },
 } satisfies Partial<Record<SpeciesId, BattleReward>>;
 
 /** What this species is worth, or nothing for one nobody has priced. */

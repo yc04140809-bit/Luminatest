@@ -7,8 +7,8 @@ import { battleEnemyArt } from './battleArt';
  *
  * フウミミ and ヒョウレイ: their transparent PNGs made for the battle screen,
  * placed as delivered. The small フウミミ is the same drawing, shown small.
- * イワホロ: not drawn yet — the placeholder until its PNG arrives (then this
- * test moves it to the drawn list). FORGE's reference pictures and sheets are
+ * イワホロ and コケマル: not drawn yet — the placeholder until their PNGs arrive
+ * (then this test moves them to the drawn list). FORGE's reference pictures and sheets are
  * never cut out and used.
  */
 describe('the FORGE creatures, as the battle draws them', () => {
@@ -24,11 +24,13 @@ describe('the FORGE creatures, as the battle draws them', () => {
     }
   });
 
-  it('イワホロ: still the placeholder, in every state', () => {
-    for (const state of ['front', 'down', 'portrait'] as const) {
-      const art = battleEnemyArt('iwahoro', state);
-      expect(art.placeholder, state).toBe(true);
-      expect(art.asset).toBeNull();
+  it('イワホロ and コケマル: still the placeholder, in every state', () => {
+    for (const id of ['iwahoro', 'kokemaru'] as const) {
+      for (const state of ['front', 'down', 'portrait'] as const) {
+        const art = battleEnemyArt(id, state);
+        expect(art.placeholder, `${id} ${state}`).toBe(true);
+        expect(art.asset).toBeNull();
+      }
     }
   });
 

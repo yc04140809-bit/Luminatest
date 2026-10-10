@@ -18,9 +18,10 @@ import type { LifeChoiceId } from '../../core/flow/types';
 import { FUUMIMI, FUUMIMI_INDIVIDUAL_ID } from './fuumimi';
 import { HYOUREI } from './hyourei';
 import { IWAHORO } from './iwahoro';
+import { KOKEMARU } from './kokemaru';
 import type { DialogueLine } from '../dialogue/prologue';
 
-export type SpeciesId = 'moss_rabbit' | 'fuumimi' | 'hyourei' | 'iwahoro';
+export type SpeciesId = 'moss_rabbit' | 'fuumimi' | 'hyourei' | 'iwahoro' | 'kokemaru';
 
 export interface SpeciesSkill {
   name: string;
@@ -250,6 +251,7 @@ export const ENEMY_SPECIES: Record<SpeciesId, EnemySpeciesDef> = {
   fuumimi: FUUMIMI,
   hyourei: HYOUREI,
   iwahoro: IWAHORO,
+  kokemaru: KOKEMARU,
 };
 
 /**

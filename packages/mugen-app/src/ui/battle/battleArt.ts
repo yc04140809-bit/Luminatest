@@ -177,13 +177,15 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
     },
   },
   /**
-   * PROVISIONAL — NO DRAWING YET: イワホロ (FORGE MON-000009). Fought and
+   * PROVISIONAL — NO DRAWING YET: イワホロ (FORGE MON-000009) and コケマル
+   * (FORGE MON-000010). Fought and
    * shown with the placeholder (CharacterArt) until its transparent PNG made
    * for the battle screen is delivered; FORGE's reference picture is not cut
    * out and used. When it arrives: place it under mugen-assets/files/enemies/
    * as delivered, import it above, give this entry its `front` and box.
    */
   iwahoro: { id: 'iwahoro', label: 'イワホロ', states: {} },
+  kokemaru: { id: 'kokemaru', label: 'コケマル', states: {} },
   /**
    * The small フウミミ the one individual shields — the same drawing, shown
    * small (the author, 2026-10-10: 「そのまま小さくでもいい」). How small is

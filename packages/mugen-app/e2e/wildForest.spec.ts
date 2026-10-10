@@ -216,3 +216,45 @@ test('イワホロ: not in the signs’ first phase; from the second, met in the
   await expect(page.getByTestId('creature-encounter')).toHaveCount(0);
   await expect(page.getByTestId('bp-enemy-name')).toHaveText('イワホロ');
 });
+
+test('コケマル: not before the signs’ third phase; from it, met in the forest — a few lines the first time, then an ordinary fight, not a boss', async ({
+  page,
+}) => {
+  await settledVillage(page);
+  await toPoint(page, 8);
+  await intoTheForest(page);
+  // Before the third phase (going into the forest is itself a step): the top of the roll is イワホロ’s, not yet コケマル’s.
+  expect(await world<number>(page, `(w) => w.getIncidentPoint()`)).toBeLessThan(10);
+  await roll(page, 0.99);
+  await page.getByTestId('encounter-button').click();
+  await firstSight(page);
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('イワホロ');
+  await page.getByTestId('bp-escape').click();
+  await settled(page);
+
+  await toPoint(page, 10);
+  await roll(page, 0.99);
+  await page.getByTestId('encounter-button').click();
+  const lines = await firstSight(page);
+  expect(lines.at(-1)).toBe('「……かわいい顔してるけど、あれ、投げてくるよ！」');
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('コケマル');
+  await expect(page.getByTestId('bp-boss-tag')).toHaveCount(0);
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('note:FIRST_SIGHT_kokemaru')`)).toBe(true);
+  const memory = (await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length;
+  await fightToResult(page);
+  await expect(page.getByTestId('result-exp')).toContainText('18');
+  await page.getByTestId('result-done').click();
+  await expect(page.getByTestId('walk-scene')).toHaveAttribute('data-place', 'GREENWOOD_FOREST');
+  await expect(page.getByTestId('creature-life-choice-screen')).toHaveCount(0);
+  expect((await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length).toBe(memory);
+
+  // The second time: straight into an ordinary fight.
+  await settled(page);
+  await roll(page, 0.99);
+  await page.getByTestId('encounter-button').click();
+  await readyToAct(page);
+  await expect(page.getByTestId('creature-encounter')).toHaveCount(0);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('コケマル');
+});
