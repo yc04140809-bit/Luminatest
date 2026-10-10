@@ -7,18 +7,18 @@ import { battleEnemyArt } from './battleArt';
  *
  * フウミミ and ヒョウレイ: their transparent PNGs made for the battle screen,
  * placed as delivered. The small フウミミ is the same drawing, shown small.
- * イワホロ: its transparent PNG, placed as delivered. コケマル: not drawn yet —
- * the placeholder until a transparent PNG arrives (the picture so far has an
- * opaque white ground; then this test moves it to the drawn list). FORGE's reference pictures and sheets are
- * never cut out and used.
+ * イワホロ and コケマル: their transparent PNGs, placed as delivered (コケマル's
+ * first picture, with an opaque white ground, was never used). FORGE's
+ * reference pictures and sheets are never cut out and used.
  */
 describe('the FORGE creatures, as the battle draws them', () => {
-  it('フウミミ, ヒョウレイ, the small フウミミ and イワホロ: drawn, from their own delivered files', () => {
+  it('フウミミ, ヒョウレイ, the small フウミミ, イワホロ and コケマル: drawn, from their own delivered files', () => {
     for (const [id, file] of [
       ['fuumimi', 'fuumimi.png'],
       ['hyourei', 'hyourei.png'],
       ['fuumimi_young', 'fuumimi.png'],
       ['iwahoro', 'iwahoro.png'],
+      ['kokemaru', 'kokemaru.png'],
     ] as const) {
       const art = battleEnemyArt(id, 'front');
       expect(art.placeholder, id).toBe(false);
@@ -26,13 +26,11 @@ describe('the FORGE creatures, as the battle draws them', () => {
     }
   });
 
-  it('コケマル: still the placeholder, in every state', () => {
-    for (const id of ['kokemaru'] as const) {
-      for (const state of ['front', 'down', 'portrait'] as const) {
-        const art = battleEnemyArt(id, state);
-        expect(art.placeholder, `${id} ${state}`).toBe(true);
-        expect(art.asset).toBeNull();
-      }
+  it('a creature not drawn yet (the next one FORGE sends, before its PNG) is the placeholder in every state — never a broken picture', () => {
+    for (const state of ['front', 'down', 'portrait'] as const) {
+      const art = battleEnemyArt('not_drawn_yet', state);
+      expect(art.placeholder, state).toBe(true);
+      expect(art.asset).toBeNull();
     }
   });
 

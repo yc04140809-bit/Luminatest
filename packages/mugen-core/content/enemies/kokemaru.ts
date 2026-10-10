@@ -31,8 +31,8 @@
 //   《高速移動》・毒付与   not used: ヒョウレイ's is the forest's quick one,
 //                  and poison waits for a battle that knows it
 //
-// It is not drawn yet for the battle screen: the placeholder stands in until
-// its transparent PNG is delivered (FORGE's concept picture is not used).
+// Its battle drawing is the transparent PNG the author delivered, placed as
+// delivered (mugen-app/src/ui/battle/battleArt.ts).
 
 import type { EnemySpeciesDef } from './species';
 import type { DialogueLine } from '../dialogue/prologue';

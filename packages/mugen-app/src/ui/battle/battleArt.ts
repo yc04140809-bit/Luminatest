@@ -26,6 +26,7 @@ import sekiryuga from '@mugen/assets/files/enemies/sekiryuga.png';
 import fuumimi from '@mugen/assets/files/enemies/fuumimi.png';
 import hyourei from '@mugen/assets/files/enemies/hyourei.png';
 import iwahoro from '@mugen/assets/files/enemies/iwahoro.png';
+import kokemaru from '@mugen/assets/files/enemies/kokemaru.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -195,14 +196,22 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
     },
   },
   /**
-   * PROVISIONAL — NO DRAWING YET: コケマル (FORGE MON-000010). Fought and
-   * shown with the placeholder (CharacterArt) until a transparent PNG for the
-   * battle screen is delivered. The picture received so far has an opaque
-   * white ground (no transparency); it is not cut out here. When a
-   * transparent one arrives: place it under mugen-assets/files/enemies/ as
-   * delivered, import it above, give this entry its `front` and box.
+   * コケマル (FORGE MON-000010) — its drawing, delivered 2026-10-10 as a
+   * transparent PNG and placed as delivered (the earlier picture, with an
+   * opaque white ground, was never used). One drawing: standing.
    */
-  kokemaru: { id: 'kokemaru', label: 'コケマル', states: {} },
+  kokemaru: {
+    id: 'kokemaru',
+    label: 'コケマル',
+    states: {
+      front: {
+        src: kokemaru,
+        box: { fileW: 1536, fileH: 1024, x: 13, y: 12, width: 1512, height: 1001 },
+        face: { fileW: 1536, fileH: 1024, x: 1210, y: 260, width: 240, height: 240 },
+        facing: 'right',
+      },
+    },
+  },
   /**
    * The small フウミミ the one individual shields — the same drawing, shown
    * small (the author, 2026-10-10: 「そのまま小さくでもいい」). How small is
