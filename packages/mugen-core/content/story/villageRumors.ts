@@ -123,6 +123,8 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
   { id: 'INC_FLEEING_MERCHANT', category: 'EVENT', title: '逃げてきた商人', text: '森から逃げてきた商人がいたらしい。', when: 'INCIDENT_2' },
   { id: 'INC_METAL_NIGHT', category: 'PLACE', title: '夜の金属音', text: '夜になると、遠くで金属みたいな音がするんだと。', when: 'INCIDENT_2' },
   { id: 'INC_FIGURES', category: 'MONSTER', title: '人影', text: '魔物だけじゃない。人影を見たって話もある。', when: 'INCIDENT_2' },
+  // ヒョウレイ (FORGE MON-000008, 作者判断 2026-10-10): only this, before the raid — seen, never met, never named.
+  { id: 'INC_SHINING_WINGS', category: 'MONSTER', title: '水辺の獣', text: '森の奥の水辺で、光る翼の獣を見たって。こっちを見ても、逃げなかったらしい。', when: 'INCIDENT_2' },
   { id: 'INC_RABBITS_BITE', category: 'MONSTER', title: '気の立ったモスラビット', text: '近ごろのモスラビットは気が立ってる。何かに怯えてるみたいだって、猟師が言ってた。', when: 'INCIDENT_2' },
   // PHASE 3: 襲撃直前（「何かが近い」まで）
   { id: 'INC_TAKE_CARE', category: 'EVENT', title: '村の外', text: '村の外に出るなら気をつけろ。', when: 'INCIDENT_3' },

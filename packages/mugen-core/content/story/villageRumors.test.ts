@@ -60,4 +60,11 @@ describe('the cry from the ruins (実装メイン⑥ 2026-10-08)', () => {
     expect(cry.text).toBe('遺跡の近くを通った旅人が、奥から小さな鳴き声を聞いたらしい。');
     expect(`${cry.title}${cry.text}`).not.toMatch(/幼体|卵|子供|子ども|セキリュウガ/);
   });
+  it('ヒョウレイ (MON-000008) before the raid: one rumour, from the signs’ second phase — seen, not met, not named', () => {
+    const shining = VILLAGE_RUMORS.filter((r) => r.text.includes('光る翼'));
+    expect(shining.map((r) => [r.id, r.when])).toEqual([['INC_SHINING_WINGS', 'INCIDENT_2']]);
+    expect(JSON.stringify(VILLAGE_RUMORS)).not.toContain('ヒョウレイ');
+    expect(rumorsFor({ arcOpen: true, stage: 'SETTLED', incidentPhase: 1 }).map((r) => r.id)).not.toContain('INC_SHINING_WINGS');
+    expect(rumorsFor({ arcOpen: true, stage: 'SETTLED', incidentPhase: 2 }).map((r) => r.id)).toContain('INC_SHINING_WINGS');
+  });
 });
