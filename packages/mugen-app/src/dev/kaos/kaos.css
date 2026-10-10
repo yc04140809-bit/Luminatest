@@ -35,12 +35,15 @@
 }
 
 /* She is the one casting: her place in the party is empty while she does
-   (she stands where he stood), and she is back in it after. */
+   (she stands where he stood), and she is back in it after. Gone at once as
+   she steps in — a fade there could still be showing her when the casting
+   began on a busy phone, two of her on the field — and back with a fade. */
 .bp-stage[data-scene='kaos'] .bp-kaos {
   transition: opacity 200ms ease;
 }
 .bp-stage[data-scene='kaos']:not([data-scene-step='recover']) .bp-kaos {
   opacity: 0;
+  transition: none;
 }
 
 /* The creature: drawn toward the point as the working is fixed, struck
