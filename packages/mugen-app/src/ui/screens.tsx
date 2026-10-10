@@ -284,8 +284,11 @@ export function AldenScreen({
             <MenuItem testId="bakery-button" onClick={onBakery}>
               パン屋
             </MenuItem>
+            {/* 「道具屋」 on the square, so the three shops keep one line and one
+                rhythm on a phone (the author, 2026-10-10); inside, the shop is
+                still アルデン道具屋 (ALDEN_SHOP_NAME). */}
             <MenuItem testId="shop-button" onClick={onShop}>
-              アルデン道具屋
+              道具屋
             </MenuItem>
           </div>
           <div className="pp-group">

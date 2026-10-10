@@ -4,7 +4,7 @@ import { throughTheOpening, pastTheIntro } from './opening';
 /**
  * アルデン村メニュー整理＋パーティ表示簡素化 (2026-10-10).
  *
- *   村 → 店舗（月灯りの酒場・パン屋・アルデン道具屋）→ 村
+ *   村 → 店舗（月灯りの酒場・パン屋・道具屋）→ 村
  *   村 → アルデン地方（行き先だけ：森・遺跡…・村へ）
  *
  * The shop is a door off the village like the tavern and the bakery; the
@@ -49,11 +49,13 @@ test('the shops from the square: 道具屋 in and back, パン屋, 月灯りの�
   const captions = await page.locator('.pp-menu .pp-caption').allTextContents();
   expect(captions).toEqual(['店舗', '村のこと', '記録', 'パーティ']);
   const shops = page.locator('.pp-group').first().locator('.pp-item');
-  expect(await shops.allTextContents()).toEqual(['月灯りの酒場', 'パン屋', 'アルデン道具屋']);
+  expect(await shops.allTextContents()).toEqual(['月灯りの酒場', 'パン屋', '道具屋']);
 
   // 道具屋: ミレイ's shop, as it always was — and back to the square.
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
+  // Inside, its full name as always: 「道具屋」 is only the square's short label.
+  await expect(page.getByTestId('shop-keeper-area').locator('h1')).toHaveText('アルデン道具屋');
   await expect(page.getByTestId('shop-greeting')).toContainText('ミレイ「');
   await expect(page.getByTestId('shop-tab-buy')).toBeVisible();
   await expect(page.getByTestId('shop-tab-sell')).toBeVisible();
