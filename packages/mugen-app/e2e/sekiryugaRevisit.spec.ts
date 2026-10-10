@@ -228,8 +228,17 @@ test('the cry from the ruins: heard of after a night in the village following th
   await cry.click();
   await expect(page.getByTestId('rumor-RUINS_CRY-text')).toContainText('遺跡の近くを通った旅人が、奥から小さな鳴き声を聞いたらしい。');
   await expect(cry).toHaveAttribute('data-new', 'no');
+  // What else is new can only be ALDEN INCIDENT's first signs (2026-10-10):
+  // the ruins walked, the walk finished and the night slept are its first
+  // three steps — phase 1. Nothing but those.
+  const stillNew = await page
+    .getByTestId('rumor-list')
+    .locator('[data-testid^="rumor-"][data-new="yes"]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')!));
+  expect(stillNew.every((id) => id.startsWith('rumor-INC_'))).toBe(true);
+  expect(await world<number>(page, `(w) => w.getIncidentPhase()`)).toBe(stillNew.length > 0 ? 1 : 0);
   await page.getByTestId('rumor-leave').click();
-  await expect(page.getByTestId('rumor-new')).toHaveCount(0);
+  if (stillNew.length === 0) await expect(page.getByTestId('rumor-new')).toHaveCount(0);
 
   // Kept across a restart, and only once.
   await page.reload();
