@@ -28,6 +28,13 @@
 - 既存2本の文章は Artifact と同じ（`content/` を共有）。Artifact は変更していない。
 - 既存の小さな場面全26本の棚卸しは `docs/EXPERIENCE_EVENTS_INVENTORY.md`。
 
+## 追加（2026-10-10 作者判断）
+
+- **リゼル**（FORGE HUM-000001）：村へ戻った時に「木剣」→「ガルドへの答えへの反応」（答えに合う1本だけ）→「手当て」（予兆フェーズ1）。`docs/RIZEL_FUUMIMI.md` §1。
+- **フウミミの後日談**：フウミミに答えた翌日以降、村へ戻った時に猟師の話（答えごとに4種）。`docs/RIZEL_FUUMIMI.md` §2。
+- 条件を2つ足した：`after`（この場面を見た後だけ）、`gald`／`fuumimi`（その答えの世界だけ。フウミミは答えた日の翌日以降）。
+- 村の枠に、話し手の顔を後から差し込める（`mugen-app/src/assets/dailyFaces.ts`。今は無し）。
+
 ## コード
 
 - 内容と出る条件：`mugen-core/content/story/dailyScenes.ts`（`DAILY_SCENES`、`dailySceneAt`）

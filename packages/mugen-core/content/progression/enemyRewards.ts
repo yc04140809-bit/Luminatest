@@ -23,7 +23,7 @@ import type { SpeciesId } from '../enemies/species';
  * is a fact about the ECONOMY, which is rebalanced on a different day
  * by somebody thinking about different things.
  */
-export const ENEMY_REWARDS: Record<SpeciesId, BattleReward> = {
+export const ENEMY_REWARDS = {
   /**
    * The creature a player learns the battle on, so it pays like one:
    * enough that the first fight visibly does something, little enough
@@ -44,9 +44,12 @@ export const ENEMY_REWARDS: Record<SpeciesId, BattleReward> = {
     lumi: 9,
     items: [{ itemId: 'FOREST_HERB', quantity: 1 }],
   },
-};
+  // フウミミ is not priced: it is met once, as somebody, and its fight pays
+  // nothing, as Gald's does not. What it leaves is the four answers'
+  // (content/enemies/fuumimi.ts).
+} satisfies Partial<Record<SpeciesId, BattleReward>>;
 
 /** What this species is worth, or nothing for one nobody has priced. */
 export function rewardForSpecies(speciesId: string): BattleReward | null {
-  return ENEMY_REWARDS[speciesId as SpeciesId] ?? null;
+  return (ENEMY_REWARDS as Partial<Record<string, BattleReward>>)[speciesId] ?? null;
 }

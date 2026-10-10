@@ -412,6 +412,8 @@ export function MapScreen({
 
 export function GreenwoodScreen({
   galdWaiting,
+  fuumimiWaiting = false,
+  onFuumimi,
   known,
   day,
   onGald,
@@ -433,6 +435,13 @@ export function GreenwoodScreen({
    * guarded.
    */
   galdWaiting: boolean;
+  /**
+   * フウミミ at the forest's edge (content/enemies/fuumimi.ts fuumimiWaiting):
+   * asked of the world by the caller, like him — once it has been answered,
+   * it is not offered again.
+   */
+  fuumimiWaiting?: boolean;
+  onFuumimi?: () => void;
   /** What the player knows happened (`getKnownEvents`), for what the forest notices. */
   known: readonly string[];
   /** Which day of the world it is. */
@@ -468,6 +477,11 @@ export function GreenwoodScreen({
           {galdWaiting && (
             <button className="btn walk-event primary" data-testid="gald-button" onClick={onGald}>
               人影がこちらを見ている
+            </button>
+          )}
+          {fuumimiWaiting && onFuumimi && (
+            <button className="btn walk-event primary" data-testid="fuumimi-button" onClick={onFuumimi}>
+              翅の音が、近くで止まった
             </button>
           )}
           <button className="btn walk-event" data-testid="encounter-button" onClick={onFight}>

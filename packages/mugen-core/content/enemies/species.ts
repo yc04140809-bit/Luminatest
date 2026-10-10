@@ -15,9 +15,10 @@ import { starAffinity } from '../../game/battle/damageType';
 import type { EnemyPhase, EnemyPoiseSpec } from '../../game/battle/enemyBehaviour';
 import type { EnemyAffinity } from '../../game/battle/damageType';
 import type { LifeChoiceId } from '../../core/flow/types';
+import { FUUMIMI, FUUMIMI_INDIVIDUAL_ID } from './fuumimi';
 import type { DialogueLine } from '../dialogue/prologue';
 
-export type SpeciesId = 'moss_rabbit';
+export type SpeciesId = 'moss_rabbit' | 'fuumimi';
 
 export interface SpeciesSkill {
   name: string;
@@ -244,6 +245,16 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
 
 export const ENEMY_SPECIES: Record<SpeciesId, EnemySpeciesDef> = {
   moss_rabbit: MOSS_RABBIT,
+  fuumimi: FUUMIMI,
+};
+
+/**
+ * INDIVIDUALS WHO ARRIVE WITH A NAME OF THEIR OWN — FORGE's individual IDs,
+ * kept exactly as FORGE wrote them (never minted, never turned into an
+ * NPC_ID), with the species each belongs to.
+ */
+export const FIXED_INDIVIDUALS: Readonly<Record<string, SpeciesId>> = {
+  [FUUMIMI_INDIVIDUAL_ID]: 'fuumimi',
 };
 
 /**
@@ -255,6 +266,8 @@ export const ENEMY_SPECIES: Record<SpeciesId, EnemySpeciesDef> = {
  * a lookup table having survived alongside it.
  */
 export function speciesOfIndividual(individualId: string): EnemySpeciesDef | null {
+  const fixed = FIXED_INDIVIDUALS[individualId];
+  if (fixed) return ENEMY_SPECIES[fixed];
   const speciesId = individualId.replace(/_\d+$/, '');
   return (ENEMY_SPECIES as Record<string, EnemySpeciesDef>)[speciesId] ?? null;
 }

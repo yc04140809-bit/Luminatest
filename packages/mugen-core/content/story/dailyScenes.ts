@@ -27,6 +27,7 @@ import type { DialogueLine } from '../dialogue/prologue';
 import type { IncidentPhase } from '../../core/world/aldenIncident';
 import type { SekiryugaStage } from '../../core/world/storyArc';
 import type { NpcExpression } from '../../core/npc/touchReaction';
+import type { LifeChoiceId } from '../../core/flow/types';
 import { ALDEN_EXPERIENCE_EVENTS } from '../experience/aldenExperience';
 import { HERO_SPEAKER } from './sekiryugaArc';
 
@@ -38,7 +39,22 @@ export interface DailySceneLine extends DialogueLine {
   face?: NpcExpression;
 }
 
-export type DailySceneId = 'KAOS_DETOUR' | 'LINA_BURNT_BREAD' | 'OWNER_KILN' | 'GRAVE_GREATSWORD' | 'MIREI_TRAVELERS';
+export type DailySceneId =
+  | 'KAOS_DETOUR'
+  | 'LINA_BURNT_BREAD'
+  | 'OWNER_KILN'
+  | 'GRAVE_GREATSWORD'
+  | 'MIREI_TRAVELERS'
+  | 'RIZEL_WOODEN_SWORD'
+  | 'RIZEL_FIRST_AID'
+  | 'RIZEL_ON_GALD_KILL'
+  | 'RIZEL_ON_GALD_SPARE'
+  | 'RIZEL_ON_GALD_HELP'
+  | 'RIZEL_ON_GALD_CAPTURE'
+  | 'FUUMIMI_AFTER_KILL'
+  | 'FUUMIMI_AFTER_SPARE'
+  | 'FUUMIMI_AFTER_HELP'
+  | 'FUUMIMI_AFTER_CAPTURE';
 
 export interface DailyScene {
   id: DailySceneId;
@@ -48,12 +64,19 @@ export interface DailyScene {
   lines: readonly DailySceneLine[];
   /** The talk-spot event it is taken from, when it is not new. */
   takenFrom?: string;
+  /** Only once this one has been seen (someone met before they speak again). */
+  after?: DailySceneId;
+  /** Only in a world where Gald was answered this way. */
+  gald?: LifeChoiceId;
+  /** Only once フウミミ was answered this way — and not on the day it was. */
+  fuumimi?: LifeChoiceId;
 }
 
 const KAOS = 'ケイオス';
 const LINA = 'リナ';
 const OWNER = '主人';
 const MIREI = 'ミレイ';
+const RIZEL = 'リゼル';
 
 /** An event written for the talk spots, as a scene: its lines, then her remark (if it has one). */
 function fromTalkSpot(eventId: string): readonly DailySceneLine[] {
@@ -71,6 +94,59 @@ export const DAILY_SCENES: readonly DailyScene[] = [
     takenFrom: 'ALDEN_KAOS_DETOUR',
     lines: fromTalkSpot('ALDEN_KAOS_DETOUR'),
   },
+  // ---- フウミミ (FORGE MON-000002 / IND-43452DFD): what follows each answer ----
+  // News brought back by the hunter, a day or more after. Each answer is
+  // followed by something different — what became of the small one, where
+  // they are, whether it fears people — and none says which was right.
+  ...(
+    [
+      [
+        'KILL',
+        [
+          { speaker: '猟師', text: '森の入口でな、翅のある小さいのが、ひとりでうろついてた。' },
+          { speaker: '猟師', text: '親とはぐれたのかね。……ああいうのは、長くはもたねぇ。' },
+          { speaker: KAOS, text: '……。' },
+        ],
+      ],
+      [
+        'SPARE',
+        [
+          { speaker: '猟師', text: '森の奥で、翅のある生き物を二匹見たぞ。' },
+          { speaker: '猟師', text: 'こっちに気づいたら、小さい方を隠すようにして、もっと奥へ行っちまった。' },
+          { speaker: KAOS, text: '……ちゃんと、隠してるんだね。' },
+        ],
+      ],
+      [
+        'HELP',
+        [
+          { speaker: '猟師', text: '森の入口に、変わった生き物が居ついてるらしい。' },
+          { speaker: '猟師', text: '人を見ても逃げねぇんだと。妙な話だ。' },
+          { speaker: KAOS, text: '……人を、怖がってないのかな。' },
+        ],
+      ],
+      [
+        'CAPTURE',
+        [
+          { speaker: '猟師', text: 'この前の生き物な、街から来た商人が買っていったよ。' },
+          { speaker: '猟師', text: '都市の方じゃ、ああいうのが高く売れるらしい。もとはそっちの生き物だとさ。' },
+          { speaker: KAOS, text: '……小さい方は？' },
+          { speaker: '猟師', text: 'さあな。森に残ったんじゃねぇか。' },
+        ],
+      ],
+    ] as const
+  ).map(
+    ([choice, said]): DailyScene => ({
+      id: `FUUMIMI_AFTER_${choice}`,
+      place: 'VILLAGE',
+      from: 0,
+      fuumimi: choice,
+      lines: [
+        { speaker: null, text: '森から戻った猟師が、井戸のそばで足を止めた。' },
+        ...said,
+        { speaker: null, text: '猟師はそれだけ言うと、獲物を担ぎ直して家の方へ歩いていった。' },
+      ],
+    }),
+  ),
   {
     id: 'LINA_BURNT_BREAD',
     place: 'BAKERY_LINA',
@@ -118,6 +194,92 @@ export const DAILY_SCENES: readonly DailyScene[] = [
       { speaker: MIREI, text: 'や、やめてよ。商売よ、商売。', face: 'SHY' },
     ],
   },
+  // ---- リゼル（FORGE HUM-000001, 2026-10-10 作者判断）----
+  // A young woman of the village who wants to be someone who can protect
+  // people, and swings a wooden sword badly. Two ordinary scenes, and one
+  // that answers what was done about Gald — from her own values (she will
+  // not forgive a crime; she forgives people quickly; she distrusts those
+  // in power), never as the right answer. Nothing here tells her of the
+  // magic and healing she has in her and does not know about.
+  {
+    id: 'RIZEL_WOODEN_SWORD',
+    place: 'VILLAGE',
+    from: 0,
+    lines: [
+      { speaker: null, text: '村はずれで、誰かが木剣を振っている。' },
+      { speaker: null, text: '振るたびに、剣先が少しずつぶれていく。' },
+      { speaker: '？？？', text: '……。' },
+      { speaker: '？？？', text: '……笑わないでよ。' },
+      { speaker: HERO_SPEAKER, text: '笑ってない。' },
+      { speaker: '？？？', text: '私だって、誰かを守れるくらいにはなりたいの。' },
+      { speaker: HERO_SPEAKER, text: '……名前は？' },
+      { speaker: RIZEL, text: 'リゼル。……覚えなくていい。' },
+      { speaker: KAOS, text: '……ねえ、その手――' },
+      { speaker: KAOS, text: 'ううん。なんでもない♪' },
+    ],
+  },
+  ...(
+    [
+      [
+        'KILL',
+        [
+          { speaker: RIZEL, text: '森の盗賊……もういないんだって。' },
+          { speaker: RIZEL, text: '許せない人だった。それは、変わらない。' },
+          { speaker: RIZEL, text: '……なのに、すっきりしないの。どうしてだろ。' },
+        ],
+      ],
+      [
+        'SPARE',
+        [
+          { speaker: RIZEL, text: '森の盗賊、見逃したって聞いた。' },
+          { speaker: RIZEL, text: '私は、ああいうのは許せない。どこかで誰かが泣いてるはずだから。' },
+          { speaker: RIZEL, text: '……でも、あなたがそうしたなら、何か理由があったんでしょ。' },
+        ],
+      ],
+      [
+        'HELP',
+        [
+          { speaker: RIZEL, text: '盗賊の手当てをしたって、本当？' },
+          { speaker: RIZEL, text: '私なら、しない。……たぶん。' },
+          { speaker: RIZEL, text: '怪我してる人を見たら体が動いちゃうのは、分からなくもないけど。' },
+        ],
+      ],
+      [
+        'CAPTURE',
+        [
+          { speaker: RIZEL, text: '盗賊、衛兵に引き渡したんだ。' },
+          { speaker: RIZEL, text: '罪は、償うべきだと思う。' },
+          { speaker: RIZEL, text: 'でも……あの人たちがちゃんと裁くかは、分からない。偉い人って、そういうところがあるから。' },
+        ],
+      ],
+    ] as const
+  ).map(
+    ([choice, said]): DailyScene => ({
+      id: `RIZEL_ON_GALD_${choice}`,
+      place: 'VILLAGE',
+      from: 0,
+      after: 'RIZEL_WOODEN_SWORD',
+      gald: choice,
+      lines: [
+        { speaker: null, text: '井戸のそばで、リゼルが水桶を下ろした。' },
+        ...said,
+        { speaker: null, text: 'リゼルはそれ以上何も言わずに、桶を担ぎ直して行った。' },
+      ],
+    }),
+  ),
+  {
+    id: 'RIZEL_FIRST_AID',
+    place: 'VILLAGE',
+    from: 1,
+    after: 'RIZEL_WOODEN_SWORD',
+    lines: [
+      { speaker: null, text: '坂の下で、子どもが膝をすりむいて泣いている。' },
+      { speaker: null, text: 'リゼルが黙ってしゃがみ、布を巻いていく。' },
+      { speaker: '子ども', text: '……リゼル姉ちゃん、手当てだけは上手いよな。' },
+      { speaker: RIZEL, text: 'だけ、は余計。' },
+      { speaker: null, text: '巻き終えた布は、驚くほどきれいだった。' },
+    ],
+  },
 ];
 
 /** readMarks id for a scene (read to its end). */
@@ -131,6 +293,10 @@ export interface DailySceneFacts {
   /** The day the last one was seen to its end, or null. */
   lastDay: number | null;
   isRead: (mark: string) => boolean;
+  /** What was decided about Gald (null: nothing yet). */
+  galdChoice?: LifeChoiceId | null;
+  /** What was decided about フウミミ, and on which day (absolute), if anything. */
+  fuumimi?: { choice: LifeChoiceId; day: number } | null;
 }
 
 /** The scene that happens here now, if any: after セキリュウガ, one a day, each once. */
@@ -138,6 +304,14 @@ export function dailySceneAt(place: DailyScenePlace, facts: DailySceneFacts): Da
   if (facts.stage !== 'SETTLED') return null;
   if (facts.lastDay === facts.day) return null;
   return (
-    DAILY_SCENES.find((s) => s.place === place && s.from <= facts.phase && !facts.isRead(dailySceneMark(s.id))) ?? null
+    DAILY_SCENES.find(
+      (s) =>
+        s.place === place &&
+        s.from <= facts.phase &&
+        !facts.isRead(dailySceneMark(s.id)) &&
+        (!s.after || facts.isRead(dailySceneMark(s.after))) &&
+        (!s.gald || s.gald === (facts.galdChoice ?? null)) &&
+        (!s.fuumimi || (facts.fuumimi?.choice === s.fuumimi && facts.day > facts.fuumimi.day)),
+    ) ?? null
   );
 }

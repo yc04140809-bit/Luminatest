@@ -32,13 +32,24 @@ describe('the five', () => {
   it('who, where, and from which phase of the signs', () => {
     expect(DAILY_SCENES.map((s) => [s.id, s.place, s.from])).toEqual([
       ['KAOS_DETOUR', 'VILLAGE', 0],
+      ['FUUMIMI_AFTER_KILL', 'VILLAGE', 0],
+      ['FUUMIMI_AFTER_SPARE', 'VILLAGE', 0],
+      ['FUUMIMI_AFTER_HELP', 'VILLAGE', 0],
+      ['FUUMIMI_AFTER_CAPTURE', 'VILLAGE', 0],
       ['LINA_BURNT_BREAD', 'BAKERY_LINA', 0],
       ['OWNER_KILN', 'BAKERY_OWNER', 1],
       ['GRAVE_GREATSWORD', 'TAVERN', 2],
       ['MIREI_TRAVELERS', 'SHOP', 1],
+      ['RIZEL_WOODEN_SWORD', 'VILLAGE', 0],
+      ['RIZEL_ON_GALD_KILL', 'VILLAGE', 0],
+      ['RIZEL_ON_GALD_SPARE', 'VILLAGE', 0],
+      ['RIZEL_ON_GALD_HELP', 'VILLAGE', 0],
+      ['RIZEL_ON_GALD_CAPTURE', 'VILLAGE', 0],
+      ['RIZEL_FIRST_AID', 'VILLAGE', 1],
     ]);
+    // Half a minute or so each: five lines at least, ten at most.
     for (const s of DAILY_SCENES) {
-      expect(s.lines.length).toBeGreaterThanOrEqual(6);
+      expect(s.lines.length).toBeGreaterThanOrEqual(5);
       expect(s.lines.length).toBeLessThanOrEqual(10);
     }
   });
@@ -60,6 +71,64 @@ describe('the five', () => {
     const lina = DAILY_SCENES.find((s) => s.id === 'LINA_BURNT_BREAD')!;
     const text = lina.lines.map((l) => l.text).join('');
     expect(text).not.toMatch(/ガルド|将来|大人になったら/);
+  });
+});
+
+describe('リゼル (HUM-000001): two ordinary scenes, and one answering what was done about Gald', () => {
+  const rizel = (id: string) => DAILY_SCENES.find((s) => s.id === id)!;
+  it('met with the wooden sword first; the rest wait until she has been', () => {
+    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR')]);
+    const f = (over: Partial<DailySceneFacts> = {}) => facts({ isRead: (m) => seen.has(m), galdChoice: 'SPARE', phase: 1, ...over });
+    expect(dailySceneAt('VILLAGE', f())?.id).toBe('RIZEL_WOODEN_SWORD');
+    seen.add(dailySceneMark('RIZEL_WOODEN_SWORD'));
+    expect(dailySceneAt('VILLAGE', f())?.id).toBe('RIZEL_ON_GALD_SPARE');
+    seen.add(dailySceneMark('RIZEL_ON_GALD_SPARE'));
+    expect(dailySceneAt('VILLAGE', f())?.id).toBe('RIZEL_FIRST_AID');
+    // First aid waits for the signs (phase 1).
+    expect(dailySceneAt('VILLAGE', f({ phase: 0 }))).toBeNull();
+  });
+
+  it('the answer about Gald: only the one matching this world, and none without an answer', () => {
+    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR'), dailySceneMark('RIZEL_WOODEN_SWORD')]);
+    for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
+      expect(dailySceneAt('VILLAGE', facts({ isRead: (m) => seen.has(m), galdChoice: choice }))?.id).toBe(`RIZEL_ON_GALD_${choice}`);
+    }
+    expect(dailySceneAt('VILLAGE', facts({ isRead: (m) => seen.has(m), galdChoice: null }))).toBeNull();
+  });
+
+  it('she reacts from her own values — never naming a right or wrong answer, never praising, never telling what she has in her', () => {
+    for (const s of DAILY_SCENES.filter((x) => x.id.startsWith('RIZEL_'))) {
+      const text = s.lines.map((l) => l.text).join('');
+      expect(text).not.toMatch(/正しい|正解|間違|よくやった|偉い(?!人)|えらい|魔法|回復|治癒|才能/);
+    }
+    // The four answers, each its own: one line of hers each differs.
+    const middles = (['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const).map((c) => rizel(`RIZEL_ON_GALD_${c}`).lines[2].text);
+    expect(new Set(middles).size).toBe(4);
+    // Her name only once she gives it.
+    const sword = rizel('RIZEL_WOODEN_SWORD').lines;
+    const named = sword.findIndex((l) => l.speaker === 'リゼル');
+    expect(sword.slice(0, named).every((l) => l.speaker !== 'リゼル')).toBe(true);
+    expect(sword[named].text).toContain('リゼル');
+  });
+});
+
+describe('フウミミ (MON-000002 / IND-43452DFD): what follows each answer, a day or more after', () => {
+  const seen = new Set<string>([dailySceneMark('KAOS_DETOUR')]);
+  it('only the one for the answer given, and not on the day it was given', () => {
+    for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
+      const f = (day: number) => facts({ day, isRead: (m) => seen.has(m), fuumimi: { choice, day: 10 } });
+      expect(dailySceneAt('VILLAGE', f(10))?.id).not.toMatch(/^FUUMIMI/);
+      expect(dailySceneAt('VILLAGE', f(11))?.id).toBe(`FUUMIMI_AFTER_${choice}`);
+    }
+    expect(dailySceneAt('VILLAGE', facts({ day: 11, isRead: (m) => seen.has(m), fuumimi: null }))?.id).toBe('RIZEL_WOODEN_SWORD');
+  });
+
+  it('each answer is followed by something different, and none is called right or wrong', () => {
+    const after = (['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const).map((c) =>
+      DAILY_SCENES.find((s) => s.id === `FUUMIMI_AFTER_${c}`)!.lines.map((l) => l.text).join(''),
+    );
+    expect(new Set(after).size).toBe(4);
+    for (const text of after) expect(text).not.toMatch(/正しい|正解|間違|よかった|ひどい|かわいそう/);
   });
 });
 
@@ -116,10 +185,10 @@ describe('in a world', () => {
     expect(again.getDailySceneDay()).toBe(w.getDailySceneDay());
     expect(again.getDailyScene('VILLAGE')).toBeNull();
     expect(again.getDailyScene('BAKERY_LINA')).toBeNull();
-    // Tomorrow, Lina's.
+    // Tomorrow, Lina's — or, on coming back into the village, Rizel's (whichever comes first).
     await again.advanceDay();
     expect(again.getDailyScene('BAKERY_LINA')?.id).toBe('LINA_BURNT_BREAD');
-    expect(again.getDailyScene('VILLAGE')).toBeNull();
+    expect(again.getDailyScene('VILLAGE')?.id).toBe('RIZEL_WOODEN_SWORD');
     expect(again.getSaveHealth().version).toBe(SAVE_VERSION);
     expect(SAVE_VERSION).toBe(3);
     await again.resetWorld();

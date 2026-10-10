@@ -141,7 +141,11 @@ import {
   type Rng,
   type StoryTriggerConfig,
 } from '../enemies/enemyEncounters';
-import { CREATURE_LIFE_CHOICE_EVENT_TYPE } from '../../content/events/creatureLifeChoice';
+import {
+  CREATURE_LIFE_CHOICE_EVENT_TYPE,
+  CREATURE_LIFE_CHOICE_TYPE_TO_CHOICE,
+} from '../../content/events/creatureLifeChoice';
+import { FUUMIMI_INDIVIDUAL_ID } from '../../content/enemies/fuumimi';
 import {
   applyArcanaConditions,
   emptyArcanaRecord,
@@ -1563,7 +1567,17 @@ export class World {
       day: toAbsoluteDay(this.clock),
       lastDay: this.dailyScene.lastDay,
       isRead: (mark) => this.readMarks.has(mark),
+      galdChoice: this.getGaldLifeChoice(),
+      fuumimi: this.getFuumimiAnswer(),
     });
+  }
+
+  /** What was decided about フウミミ (IND-43452DFD), and on which absolute day — or null. */
+  getFuumimiAnswer(): { choice: LifeChoiceId; day: number } | null {
+    const event = this.events.find((e) => e.id === `evt_creature_life_choice_${FUUMIMI_INDIVIDUAL_ID}`);
+    const choice = event ? (CREATURE_LIFE_CHOICE_TYPE_TO_CHOICE as Record<string, LifeChoiceId>)[event.type] : undefined;
+    if (!event || !choice) return null;
+    return { choice, day: toAbsoluteDay({ worldYear: event.worldYear, worldDay: event.worldDay }) };
   }
 
   /** The day the last small scene was seen to its end, or null. */
@@ -2217,6 +2231,32 @@ export class World {
   getEnemyIndividual(individualId: string): EnemyIndividual | null {
     const found = this.enemyIndividuals.find((one) => one.individualId === individualId);
     return found ? { ...found } : null;
+  }
+
+  /**
+   * SOMEBODY MET WHO ALREADY HAS A NAME — an individual FORGE sent with its
+   * own ID (content/enemies/species.ts FIXED_INDIVIDUALS), kept as it is.
+   * Written once, when they are first met; met again, nothing changes.
+   * Nothing goes into WORLD MEMORY here: what is decided about them does
+   * (`recordCreatureLifeChoice`).
+   */
+  async meetFixedIndividual(individualId: string, speciesId: string): Promise<EnemyIndividual> {
+    const known = this.enemyIndividuals.find((one) => one.individualId === individualId);
+    if (known) return { ...known };
+    const individual: EnemyIndividual = {
+      individualId,
+      speciesId,
+      status: 'alive',
+      relationship: 'unknown',
+      firstMetYear: this.clock.worldYear,
+      lastMetYear: this.clock.worldYear,
+      reunionAvailable: false,
+    };
+    const next = [...this.enemyIndividuals, individual];
+    await this.store.commit({ putState: [{ key: ENEMY_INDIVIDUALS_KEY, value: next }] });
+    this.enemyIndividuals = next;
+    this.emit();
+    return { ...individual };
   }
 
   /**

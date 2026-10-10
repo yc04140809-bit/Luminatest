@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ENEMY_SLOTS, affinityFieldsFor } from './enemySlots';
-import { MOSS_RABBIT } from './species';
+import { ENEMY_SPECIES, MOSS_RABBIT } from './species';
 
 /** Three ordinary enemies to come (作者判断 2026-10-10): roles only — FORGE names them. */
 
@@ -36,10 +36,13 @@ describe('the three slots', () => {
     expect(shell.needs).toEqual([]);
   });
 
-  it('none is fought yet: the moss rabbit is still the only ordinary enemy', () => {
+  it('none is fought yet: no species stands in a slot (フウミミ, FORGE MON-000002, is its own creature, not one of the three)', () => {
+    expect(Object.keys(ENEMY_SPECIES)).toEqual(['moss_rabbit', 'fuumimi']);
+    for (const s of ENEMY_SLOTS) {
+      expect(Object.keys(ENEMY_SPECIES)).not.toContain(s.slotId.toLowerCase());
+      expect(s.name).toBeNull();
+    }
     expect(MOSS_RABBIT.speciesId).toBe('moss_rabbit');
-    const species = readFileSync(join(__dirname, 'species.ts'), 'utf8');
-    expect(species).toMatch(/export type SpeciesId = 'moss_rabbit';/);
   });
 
   it('nothing written into content/forge for them', () => {

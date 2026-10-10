@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import type { DailyScene } from '@mugen/content/story/dailyScenes';
+import { dailyFaceFor } from '../assets/dailyFaces';
 
 /**
  * 襲撃前の日常 — A SMALL THING IN THE VILLAGE, as they come back into it
@@ -18,6 +19,8 @@ export function DailyAside({ world, scene }: { world: World; scene: DailyScene }
   const line = scene.lines[Math.min(at, scene.lines.length - 1)];
   const last = at >= scene.lines.length - 1;
   const speaker = line.speaker === HERO_SPEAKER ? world.getHeroName() : line.speaker;
+  // A face beside the line, once one is delivered for whoever speaks (assets/dailyFaces.ts).
+  const face = dailyFaceFor(line.speaker);
   const next = () => {
     if (!last) return setAt((n) => n + 1);
     setDone(true);
@@ -25,6 +28,7 @@ export function DailyAside({ world, scene }: { world: World; scene: DailyScene }
   };
   return (
     <div className="kaos-aside daily-aside" data-testid="daily-scene" data-scene={scene.id}>
+      {face && <img className="daily-face" src={face} alt={speaker ?? ''} data-testid="daily-face" />}
       {speaker && <p className="kaos-aside-speaker">{speaker}</p>}
       <p className="kaos-aside-line" data-testid="daily-line">
         {speaker ? `「${line.text}」` : line.text}

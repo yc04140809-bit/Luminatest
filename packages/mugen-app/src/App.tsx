@@ -69,6 +69,14 @@ const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
 import { RumorScreen, rumorsOf } from './ui/rumors';
 import { KaosAside } from './ui/incident';
 import { DailyAside } from './ui/daily';
+import { CreatureEncounterScreen, CreatureLifeChoiceScreen } from './ui/creatureChoice';
+import {
+  FUUMIMI,
+  FUUMIMI_ENCOUNTER_LINES,
+  FUUMIMI_INDIVIDUAL_ID,
+  answerFuumimi,
+  fuumimiWaiting,
+} from '@mugen/content/enemies/fuumimi';
 import { INCIDENT_GRAVE_FROM, INCIDENT_GRAVE_MARK, INCIDENT_GRAVE_TALK } from '@mugen/content/story/aldenIncident';
 import { OnceNotice } from './ui/common/OnceNotice';
 import { NoticeHost } from './ui/common/NoticeHost';
@@ -108,11 +116,13 @@ import {
  *   WILD        the forest's ordinary fight (モスラビット)
  *   GALD        the story's fight, from the road to the four answers
  *   SEKIRYUGA   the first boss route's fight, in the ruins
+ *   FUUMIMI     フウミミ at the forest's edge — met once, as somebody (FORGE
+ *               MON-000002 / IND-43452DFD); the four answers after it
  *
  * A fight added later (the raid, a new creature) is a new value here.
  * Pinned in e2e/battleKinds.spec.ts.
  */
-type BattleKind = 'WILD' | 'GALD' | 'SEKIRYUGA';
+type BattleKind = 'WILD' | 'GALD' | 'SEKIRYUGA' | 'FUUMIMI';
 
 export default function App() {
   const [ready, setReady] = useState<{ flow: GameFlow; world: World; saving: boolean } | null>(null);
@@ -192,6 +202,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * content/story/dailyScenes.ts). Cleared on setting out again.
    */
   const [homecoming, setHomecoming] = useState(false);
+  /** フウミミ beaten: the four answers are on screen (over the BATTLE screen) until they are given. */
+  const [creatureMet, setCreatureMet] = useState(false);
   /**
    * パン屋 — the same kind of door off the village as the tavern, held
    * here for the same reason, and recording nothing in the world.
@@ -419,7 +431,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
 
   const [chosenBgm, setChosenBgm] = useState(battleBgmChoice);
   const unlockedBgm = world.getUnlockedBattleBgm();
-  const fightKey = battleKind.current === 'WILD' ? null : battleKind.current;
+  // Its own piece only for the story's fights; フウミミ's is fought to what was chosen, like the forest's.
+  const fightKey = battleKind.current === 'GALD' || battleKind.current === 'SEKIRYUGA' ? battleKind.current : null;
   const battleBgmId = battleBgmFor(fightKey, chosenBgm, unlockedBgm);
   /**
    * THE ♪ CONTROL, only where there is something to choose: not in a
@@ -1024,6 +1037,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // Once one of the four answers is on disk this is false for
           // good, which is what makes the encounter unrepeatable.
           galdWaiting={world.getGaldLifeChoice() === null}
+          // フウミミ, once — after セキリュウガ's part, from the signs' first phase, until answered.
+          fuumimiWaiting={fuumimiWaiting({
+            stage: world.getSekiryugaStage(),
+            phase: world.getIncidentPhase(),
+            answered: world.getFuumimiAnswer() !== null,
+          })}
+          onFuumimi={() => {
+            resumeForest.current = false;
+            battleKind.current = 'FUUMIMI';
+            flow.goTo('ENCOUNTER');
+          }}
           // Read, never written: what the forest notices depends on it.
           known={world.getKnownEvents().map((e) => e.type)}
           day={world.getClock().worldDay}
@@ -1051,8 +1075,69 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         />
       );
     case 'ENCOUNTER':
+      if (battleKind.current === 'FUUMIMI') {
+        return (
+          <CreatureEncounterScreen
+            lines={FUUMIMI_ENCOUNTER_LINES}
+            heroName={world.getHeroName()}
+            onBattle={() => {
+              fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+              flow.goTo('BATTLE');
+            }}
+          />
+        );
+      }
       return <GaldEncounterScreen onBattle={() => flow.goTo('BATTLE')} />;
     case 'BATTLE':
+      if (battleKind.current === 'FUUMIMI') {
+        // Beaten: why it fought, and the four answers — then back into the forest.
+        if (creatureMet) {
+          return (
+            <CreatureLifeChoiceScreen
+              species={FUUMIMI}
+              individualId={FUUMIMI_INDIVIDUAL_ID}
+              heroName={world.getHeroName()}
+              onChoose={(choice) => answerFuumimi(world, choice)}
+              onDone={() => {
+                setCreatureMet(false);
+                battleKind.current = 'WILD';
+                flow.goTo('GREENWOOD');
+              }}
+            />
+          );
+        }
+        return (
+          <BattleScreen
+            key="fuumimi"
+            spec={specOf(FUUMIMI)}
+            opponent={{ artId: 'fuumimi', stands: 'FAR', defeated: { text: FUUMIMI.defeatedText } }}
+            locationId="GREENWOOD_FOREST"
+            world={world}
+            onWon={(final) => {
+              void world
+                .setBattleCondition(final)
+                .then(() => world.meetFixedIndividual(FUUMIMI_INDIVIDUAL_ID, FUUMIMI.speciesId))
+                // ALDEN INCIDENT: a fight won is a step (once a day).
+                .then(() => world.addIncident('WIN'))
+                .catch((e) => console.error('Failed to record フウミミ met', e))
+                .finally(() => setCreatureMet(true));
+            }}
+            // 逃げる: back into the forest as it was; it is still there next time.
+            onEscape={() => {
+              resumeForest.current = true;
+              battleKind.current = 'WILD';
+              flow.goTo('GREENWOOD');
+            }}
+            music={music}
+            autoAvailable={autoOpen}
+            background={battleBackgroundFor('GREENWOOD_FOREST')}
+            onLost={() => {
+              battleKind.current = 'WILD';
+              void world.restoreParty().finally(() => flow.goTo('HOME'));
+            }}
+          />
+        );
+      }
       if (battleKind.current === 'SEKIRYUGA') {
         return (
           <BattleScreen
