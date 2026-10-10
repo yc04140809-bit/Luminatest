@@ -143,6 +143,21 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
       },
     },
   },
+  /**
+   * PROVISIONAL — NO DRAWING YET (作者 2026-10-10). フウミミ (FORGE
+   * MON-000002), ヒョウレイ (MON-000008), and the small フウミミ the one
+   * individual shields. Until their transparent PNGs made for the battle
+   * screen are delivered, they are fought and shown with the placeholder
+   * (CharacterArt), exactly as an absent entry would be. FORGE's reference
+   * pictures and character sheets are NOT cut out and used here.
+   *
+   * When a PNG arrives: place it under mugen-assets/files/enemies/ as
+   * delivered, import it above, and give the entry its `front` (and `down`
+   * if drawn) with the box measured — nothing else changes.
+   */
+  fuumimi: { id: 'fuumimi', label: 'フウミミ', states: {} },
+  hyourei: { id: 'hyourei', label: 'ヒョウレイ', states: {} },
+  fuumimi_young: { id: 'fuumimi_young', label: '小さなフウミミ', states: {} },
 };
 
 /**

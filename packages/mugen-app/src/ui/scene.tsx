@@ -165,6 +165,7 @@ export function StagedLines({
   doneLabel,
   onLine,
   onDone,
+  picture = null,
 }: {
   lines: readonly DialogueLine[];
   backdrop: Backdrop;
@@ -178,6 +179,8 @@ export function StagedLines({
   /** Told which line is up, including the first. */
   onLine?: (line: DialogueLine) => void;
   onDone: () => void;
+  /** A picture shown where no one of the party is speaking (a creature, a thing) — optional. */
+  picture?: StagePicture | null;
 }) {
   const [at, setAt] = useState(0);
   const line = lines[at];
@@ -187,7 +190,7 @@ export function StagedLines({
     // Only when the line changes.
   }, [at]);
   return (
-    <Stage backdrop={backdrop} figure={figureFor(line)} side={side} testId={testId}>
+    <Stage backdrop={backdrop} figure={figureFor(line)} picture={picture} side={side} testId={testId}>
       {title && <h1 className="place">{title}</h1>}
       {line.speaker && <p className="speaker stage-speaker">{line.speaker}</p>}
       <p className="line stage-line" data-testid={lineTestId}>

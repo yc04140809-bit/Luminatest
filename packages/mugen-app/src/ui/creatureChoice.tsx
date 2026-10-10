@@ -25,6 +25,13 @@ function portraitOf(species: EnemySpeciesDef): StagePicture | null {
   return src ? { src, alt: species.name, testId: 'creature-portrait' } : null;
 }
 
+/** What is seen while the reason is told (the small one it shielded), once drawn; until then, words only. */
+function scenePictureOf(artId: string | undefined, alt: string): StagePicture | null {
+  if (!artId) return null;
+  const src = battleEnemyArt(artId, 'front').asset?.src ?? null;
+  return src ? { src, alt, testId: 'creature-scene-picture' } : null;
+}
+
 /** Before the fight: a few lines in the forest, then 「戦う」. */
 export function CreatureEncounterScreen({
   lines,
@@ -62,10 +69,13 @@ export function CreatureLifeChoiceScreen({
   heroName,
   onChoose,
   onDone,
+  sceneArt,
 }: {
   species: EnemySpeciesDef;
   individualId: string;
   heroName: string;
+  /** The art id of what is seen while the reason is told (e.g. 'fuumimi_young'); placeholder-free until drawn. */
+  sceneArt?: { id: string; alt: string };
   onChoose: (choice: LifeChoiceId) => Promise<void>;
   onDone: () => void;
 }) {
@@ -104,6 +114,7 @@ export function CreatureLifeChoiceScreen({
         nextTestId="creature-scene-next"
         doneLabel="つぎへ"
         onDone={() => setPhase('CHOICE')}
+        picture={scenePictureOf(sceneArt?.id, sceneArt?.alt ?? '')}
       />
     );
   }
