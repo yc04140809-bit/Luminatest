@@ -4,6 +4,7 @@ import {
   RUMOR_CATEGORY_LABEL,
   rumorMark,
   rumorsFor,
+  isImportantRumor,
   type RumorCategory,
   type VillageRumor,
 } from '@mugen/content/story/villageRumors';
@@ -28,6 +29,7 @@ export function rumorsOf(world: World): { rumors: VillageRumor[]; unread: number
     arcOpen: world.isSekiryugaArcOpen(),
     stage: world.getSekiryugaStage(),
     ruinsCry: world.isRead(RUINS_CRY_MARK),
+    incidentPhase: world.getIncidentPhase(),
   });
   return { rumors, unread: rumors.filter((r) => !world.isRead(rumorMark(r.id))).length };
 }
@@ -38,6 +40,10 @@ export function RumorScreen({ world, onLeave }: { world: World; onLeave: () => v
 
   const read = (rumor: VillageRumor) => {
     setOpen((now) => (now === rumor.id ? null : rumor.id));
+    // An important rumour read for the first time: a step toward ALDEN INCIDENT.
+    if (isImportantRumor(rumor) && !world.isRead(rumorMark(rumor.id))) {
+      void world.addIncident('RUMOR', rumor.id).catch(() => {});
+    }
     void world.markRead([rumorMark(rumor.id)]).catch(() => {});
   };
 

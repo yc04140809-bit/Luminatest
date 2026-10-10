@@ -2317,6 +2317,35 @@ body {
   .pp-name { min-width: 0; }
 }
 
+/* ALDEN INCIDENT (2026-10-10): Kaos senses something — a small box at the
+   foot of the region map's page, under every way on; read with つぎへ. */
+.kaos-aside {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'who next' 'line next';
+  align-items: center;
+  gap: 2px 10px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--p-gold);
+  background: rgba(178, 145, 79, 0.08);
+}
+.kaos-aside-speaker { grid-area: who; margin: 0; color: var(--p-gold-ink); font-size: 12px; letter-spacing: 0.1em; white-space: nowrap; }
+.kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--p-serif); font-size: 13px; line-height: 1.5; }
+.kaos-aside-next {
+  grid-area: next;
+  appearance: none;
+  min-height: 32px;
+  padding: 2px 10px;
+  border: 1px solid var(--p-gold-soft);
+  border-radius: 2px;
+  background: none;
+  color: var(--p-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 /* ---- 第0話 — the way into Alden (ui/intro.tsx) ---- */
 .intro { display: contents; }
 /* Lines break where they were written, not mid-word. */

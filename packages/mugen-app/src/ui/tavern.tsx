@@ -136,6 +136,7 @@ export function TavernScreen({
   heroName = '',
   guest = null,
   hub,
+  incidentTalk = null,
 }: {
   /** Whether this save has already met him (his introduction is not owed). */
   metBefore: boolean;
@@ -161,6 +162,12 @@ export function TavernScreen({
   guest?: TavernGuestTalk | null;
   /** What a stranger's swap and the bard's archive need (酒場ハブ化). Absent: words only. */
   hub?: TavernHub;
+  /**
+   * ALDEN INCIDENT (2026-10-10): his word that the forest is too quiet — once,
+   * from phase 2, in place of his plain greeting (never in place of his
+   * meeting, his rumour or his story). `onHeard` when read to its end.
+   */
+  incidentTalk?: { lines: readonly DialogueLine[]; onHeard: () => void } | null;
 }) {
   const [art, setArt] = useState<TavernArt>({ room: null, master: null });
   /**
@@ -183,7 +190,12 @@ export function TavernScreen({
   const [steps, setSteps] = useState<readonly TalkStep[] | null>(() => (startsOnEntry(owed) ? sitting(owed) : null));
   const [stepAt, setStepAt] = useState(0);
   // An ordinary talk on screen (ending on his rumour or not), outside a sitting.
-  const [talk, setTalk] = useState<{ lines: readonly DialogueLine[]; rumor: boolean; guest?: TavernGuestId } | null>(
+  const [talk, setTalk] = useState<{
+    lines: readonly DialogueLine[];
+    rumor: boolean;
+    guest?: TavernGuestId;
+    incident?: boolean;
+  } | null>(
     null,
   );
   // What the stranger offers after their words, open in the box.
@@ -225,8 +237,14 @@ export function TavernScreen({
   const description = LOCATIONS.find((l) => l.id === TAVERN_ID)?.description ?? '';
 
   const begin = () => {
-    const { lines, rumor } = tavernTalkLines(metBefore ? TAVERN_GREETING_LINES : TAVERN_MEETING_LINES, arc);
+    const base = metBefore ? TAVERN_GREETING_LINES : TAVERN_MEETING_LINES;
+    const { lines, rumor } = tavernTalkLines(base, arc);
     setAt(0);
+    // His plain greeting only (met, nothing of the route in it): the incident's word instead, once.
+    if (incidentTalk && metBefore && lines === base) {
+      setTalk({ lines: incidentTalk.lines, rumor: false, incident: true });
+      return;
+    }
     setTalk({ lines, rumor });
   };
   /** Tonight's stranger: their few lines, their silhouette. Records nothing. */
@@ -262,6 +280,10 @@ export function TavernScreen({
       if (hub && trade && (guest?.role === 'TRADE' || guest?.role === 'RARE_TRADE')) setPanel('TRADE');
       else if (hub && guest?.role === 'BARD') setPanel('ARCHIVE');
       return;
+    }
+    if (talk?.incident) {
+      incidentTalk?.onHeard();
+      return setTalk(null);
     }
     if (!metBefore) onMet();
     if (talk?.rumor) {

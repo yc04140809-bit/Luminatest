@@ -44,6 +44,14 @@ import {
 import type { BgmId } from '@mugen/assets';
 import { MUSIC_ARCHIVE_IDS, isArchivedPiece } from '../../content/audio/musicArchive';
 import type { TavernTrade } from '../../content/economy/tavernTrades';
+import {
+  NO_INCIDENT,
+  countIncident,
+  readIncident,
+  type IncidentKind,
+  type IncidentPhase,
+  type IncidentRow,
+} from './aldenIncident';
 import { GRAVE_MEETING_MARK } from '../../content/talk/graveTalks';
 import {
   INITIAL_EQUIPMENT,
@@ -357,6 +365,11 @@ const TAVERN_TRADES_KEY = 'tavernTrades';
 const MUSIC_UNLOCKS_KEY = 'musicUnlocks';
 const VILLAGE_BGM_KEY = 'villageBgm';
 /**
+ * ALDEN INCIDENT (予兆フェーズ, 2026-10-10, core/world/aldenIncident.ts): the
+ * hidden point and its phase. Absent reads as 0 / phase 0 — no schema moved.
+ */
+const INCIDENT_KEY = 'aldenIncident';
+/**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
  * PROGRESS, NOT PREFERENCE, which is why it is here and not in
@@ -622,6 +635,9 @@ export class World {
   private tavernTrades: TavernTradesRow;
   private musicUnlocks: BgmId[];
   private villageBgm: BgmId | null;
+  private incident: IncidentRow;
+  /** The incident writes, one after another (see `addIncident`). */
+  private incidentQueue: Promise<unknown> = Promise.resolve();
   /** The music writes, one after another (see `markMusicHeard`). */
   private musicQueue: Promise<unknown> = Promise.resolve();
   /** The read-mark writes, one after another (see `markRead`). */
@@ -651,6 +667,7 @@ export class World {
     this.tavernTrades = fields.tavernTrades;
     this.musicUnlocks = fields.musicUnlocks;
     this.villageBgm = fields.villageBgm;
+    this.incident = fields.incident;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1479,6 +1496,39 @@ export class World {
       return true;
     });
     this.musicQueue = run.catch(() => false);
+    return run;
+  }
+
+  // ── ALDEN INCIDENT (予兆フェーズ, 2026-10-10) ───────────────────────
+  //
+  // A hidden point moved by what the player does, and the phase it reads as
+  // (core/world/aldenIncident.ts). Nothing here starts anything.
+
+  /** The hidden point (never shown). */
+  getIncidentPoint(): number {
+    return this.incident.aldenIncidentPoint;
+  }
+
+  /** The phase it reads as: 0 平常, 1 違和感, 2 異変, 3 直前. */
+  getIncidentPhase(): IncidentPhase {
+    return this.incident.aldenIncidentPhase;
+  }
+
+  /**
+   * Something done in the world. Writes only when it counts (see
+   * aldenIncident.ts for what counts and how often); one write at a time.
+   * The day is read when it runs.
+   */
+  addIncident(kind: IncidentKind, id?: string): Promise<boolean> {
+    const run = this.incidentQueue.then(async () => {
+      const next = countIncident(this.incident, kind, toAbsoluteDay(this.clock), id);
+      if (!next) return false;
+      await this.store.commit({ putState: [{ key: INCIDENT_KEY, value: next }] });
+      this.incident = next;
+      this.emit();
+      return true;
+    });
+    this.incidentQueue = run.catch(() => false);
     return run;
   }
 
@@ -2900,6 +2950,7 @@ export class World {
     this.tavernTrades = NO_TRADES;
     this.musicUnlocks = [];
     this.villageBgm = null;
+    this.incident = NO_INCIDENT;
     this.emit();
   }
 
@@ -2970,6 +3021,7 @@ export class World {
     this.breadFreshness = this.getBreadFreshness();
     this.breadBuff = null;
     this.tavernTrades = NO_TRADES;
+    this.incident = NO_INCIDENT;
     this.emit();
   }
 }
@@ -3121,6 +3173,7 @@ interface WorldFields {
   tavernTrades: TavernTradesRow;
   musicUnlocks: BgmId[];
   villageBgm: BgmId | null;
+  incident: IncidentRow;
 }
 
 /** What reading a save had to say about it. */
@@ -3278,6 +3331,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readMusicUnlocks(value));
     case VILLAGE_BGM_KEY:
       return settle(readVillageBgm(value));
+    case INCIDENT_KEY:
+      return settle(readIncident(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -3370,6 +3425,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       tavernTrades: take(TAVERN_TRADES_KEY, readTavernTrades(byKey.get(TAVERN_TRADES_KEY))),
       musicUnlocks: take(MUSIC_UNLOCKS_KEY, readMusicUnlocks(byKey.get(MUSIC_UNLOCKS_KEY))),
       villageBgm: take(VILLAGE_BGM_KEY, readVillageBgm(byKey.get(VILLAGE_BGM_KEY))),
+      incident: take(INCIDENT_KEY, readIncident(byKey.get(INCIDENT_KEY))),
     },
     repairedKeys,
     unreadableKeys,

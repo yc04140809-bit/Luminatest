@@ -351,6 +351,7 @@ export function MapScreen({
   onRuins,
   ruinsNew = false,
   notice,
+  aside,
 }: {
   /**
    * How many places the world has opened because of what the player
@@ -371,6 +372,8 @@ export function MapScreen({
   ruinsNew?: boolean;
   /** A notice over the map (「新しい目的地が追加されました」). */
   notice?: ReactNode;
+  /** A word at the foot of the page as they set out (ALDEN INCIDENT: Kaos senses something). */
+  aside?: ReactNode;
 }) {
   return (
     <PanelPlace area="ALDEN" title="アルデン地方">
@@ -401,6 +404,7 @@ export function MapScreen({
           村へもどる
         </MenuItem>
       </nav>
+      {aside}
       {notice}
     </PanelPlace>
   );

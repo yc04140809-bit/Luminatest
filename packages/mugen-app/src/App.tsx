@@ -67,6 +67,8 @@ const AUTO_NOTICE = 'note:auto_battle';
 /** 古代遺跡 on the map, as a destination (core/world/readMarks.ts `dest:`). */
 const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
 import { RumorScreen, rumorsOf } from './ui/rumors';
+import { KaosAside } from './ui/incident';
+import { INCIDENT_GRAVE_FROM, INCIDENT_GRAVE_MARK, INCIDENT_GRAVE_TALK } from '@mugen/content/story/aldenIncident';
 import { OnceNotice } from './ui/common/OnceNotice';
 import { NoticeHost } from './ui/common/NoticeHost';
 import { notices } from './ui/common/noticeQueue';
@@ -522,6 +524,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     world.isSekiryugaArcOpen() && !stageReached(world.getSekiryugaStage(), 'BEATEN');
   const heardRumor = () => {
     void world.advanceSekiryugaArc('RUMOR').catch(() => {});
+    // The ruins' rumour heard over a counter: an important rumour (once).
+    void world.addIncident('RUMOR', 'SEKIRYUGA_ROUTE').catch(() => {});
   };
 
   /**
@@ -573,6 +577,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         .setBattleCondition(final)
         .catch((e) => console.error('Failed to carry the wounds out', e))
         .then(() => world.advanceSekiryugaArc('BEATEN'))
+        .then(() => world.addIncident('WIN'))
         .catch((e) => console.error('Failed to record the boss stopped', e))
         .finally(() => {
           // BATTLE cannot reach the map directly; through the forest's
@@ -593,6 +598,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           world.applyBattleReward(fight.current, rewardForSpecies(MOSS_RABBIT.speciesId) ?? NO_REWARD),
         )
         .then((paid) => setWinnings(paid))
+        // ALDEN INCIDENT: a fight won is a step (once a day).
+        .then(() => world.addIncident('WIN'))
         .catch((e) => console.error('Failed to record the victory', e))
         .finally(() => flow.goTo('BATTLE_RESULT'));
     },
@@ -714,6 +721,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             onLeave={() => setTavern(false)}
             heroName={world.getHeroName()}
             guest={tonightsGuestTalk(toAbsoluteDay(world.getClock()))}
+            incidentTalk={
+              world.getIncidentPhase() >= INCIDENT_GRAVE_FROM && !world.isRead(INCIDENT_GRAVE_MARK)
+                ? { lines: INCIDENT_GRAVE_TALK, onHeard: () => void world.markRead([INCIDENT_GRAVE_MARK]).catch(() => {}) }
+                : null
+            }
             hub={{
               held: (id) => world.getItemCount(id),
               traded: (id) => world.getTradesDone(toAbsoluteDay(world.getClock())).includes(id),
@@ -796,6 +808,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               .then(() => world.restoreParty())
               // A night's rest ages every loaf by one and ends a loaf's lift (パン屋 MVP).
               .then(() => world.restBread())
+              // ALDEN INCIDENT: a night's rest after a day out is a step.
+              .then(() => world.addIncident('REST'))
               // A night in the village after the first time back at the
               // ruins: the next morning, the cry from the ruins is talked
               // about (噂話). Once; nothing else about the night changes.
@@ -910,6 +924,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             onLeave={() => {
               resumeRuins.current = false;
               setRuins(null);
+              // A walk out finished (once a day).
+              void world.addIncident('EXPLORE').catch(() => {});
             }}
             memory={ruinsWalk}
             resume={resumeRuins.current}
@@ -920,7 +936,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         <MapScreen
           // Opened by what the player decided, not by this screen.
           places={world.getOpenFutureSites().length}
-          onForest={() => flow.goTo('GREENWOOD')}
+          onForest={() => {
+            // The forest walked for the first time is a step (once ever).
+            void world.addIncident('PLACE', 'GREENWOOD_FOREST').catch(() => {});
+            flow.goTo('GREENWOOD');
+          }}
+          // Kaos senses something, once per phase, as they set out.
+          aside={<KaosAside world={world} />}
           onPlaces={() => flow.goTo('FUTURE_SITE')}
           onHome={() => flow.goTo('HOME')}
           // Opened by the tavern's master telling what was sealed there.
@@ -939,6 +961,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           }
           onRuins={() => {
             void world.markRead([RUINS_DESTINATION]).catch(() => {});
+            void world.addIncident('PLACE', 'ANCIENT_RUINS').catch(() => {});
             resumeRuins.current = false;
             // The first time back after セキリュウガ was brought to a stop
             // and that was seen: it is still there (once in a world).
@@ -987,6 +1010,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           }}
           onLeave={() => {
             resumeForest.current = false;
+            // A walk out finished (once a day).
+            void world.addIncident('EXPLORE').catch(() => {});
             flow.goTo('EXPLORE');
           }}
         />
