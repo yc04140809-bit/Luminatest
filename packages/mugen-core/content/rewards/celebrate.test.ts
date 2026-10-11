@@ -39,10 +39,10 @@ describe('ハイタッチ: which moments are worth it', () => {
   });
 
   it("Grave's handwork: the first time only", () => {
-    const c = celebrationForCraft('CRAFT_IRON_CHARM', '鉄の護符', true)!;
+    const c = celebrationForCraft('CRAFT_IRON_CHARM', '鉄の腕輪', true)!;
     expect(c.title).toBe('クラフト成功！');
-    expect(c.subtitle).toBe('鉄の護符を作成した');
-    expect(celebrationForCraft('CRAFT_IRON_CHARM', '鉄の護符', false)).toBeNull();
+    expect(c.subtitle).toBe('鉄の腕輪を作成した');
+    expect(celebrationForCraft('CRAFT_IRON_CHARM', '鉄の腕輪', false)).toBeNull();
   });
 
   it('a first sight: 「新しい発見！」, once', () => {

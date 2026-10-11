@@ -35,6 +35,7 @@ test('clock, age and events survive a full browser restart after a TIME SHIFT', 
     await result.click();
     await result.click();
     await result.click();
+    await result.click();
     await page.getByTestId('choice-recorded-screen').waitFor();
     await page.getByTestId('return-home-button').click();
 

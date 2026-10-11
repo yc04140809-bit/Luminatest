@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { MUSIC_ARCHIVE, heardPieces, isArchivedPiece } from './musicArchive';
 import { BGM_ASSETS } from '@mugen/assets/music';
+import { APP_BGM_ASSETS } from '@mugen/assets/appMusic';
 import { bgmForScene } from './sceneBgm';
 
 /** MUSIC ARCHIVE (2026-10-09): only pieces the game has, only once heard. */
 
 describe('the archive', () => {
   it('lists every piece the game really has, once, and nothing else', () => {
-    expect(MUSIC_ARCHIVE.map((p) => p.id).sort()).toEqual(Object.keys(BGM_ASSETS).sort());
-    for (const p of MUSIC_ARCHIVE) expect(BGM_ASSETS[p.id], p.id).not.toBeNull();
+    // Every piece with a file (the App's own included, appMusic.ts); RESULT_BOSS has none yet, so it is not listed.
+    const withAFile = (Object.keys(BGM_ASSETS) as (keyof typeof BGM_ASSETS)[]).filter((id) => (APP_BGM_ASSETS[id] ?? BGM_ASSETS[id]) !== null && (APP_BGM_ASSETS[id] ?? BGM_ASSETS[id]) !== undefined);
+    expect(MUSIC_ARCHIVE.map((p) => p.id).sort()).toEqual(withAFile.sort());
+    expect(MUSIC_ARCHIVE.map((p) => p.id)).not.toContain('RESULT_BOSS');
   });
 
   it('names her CHAOS (混沌), never KAOS', () => {

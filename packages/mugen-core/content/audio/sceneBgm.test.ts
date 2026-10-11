@@ -186,7 +186,8 @@ describe('the mapping as a whole', () => {
    * plays, and this pair of tests is what would catch that.
    */
   it('uses every piece a scene can reach', () => {
-    const chosenByTheFight = new Set(['BOSS_BATTLE']);
+    // Brought by a fight or a creature (battleBgm.ts), not by a scene.
+    const chosenByTheFight = new Set(['BOSS_BATTLE', 'SEKIRYUGA_BATTLE', 'SPECIAL_BATTLE', 'NORMAL_BATTLE_2']);
     const reached = new Set(
       [
         at('TITLE'),
@@ -197,6 +198,8 @@ describe('the mapping as a whole', () => {
         at('TALK_SPOT', { locationId: 'MOONLIGHT_TAVERN' }),
         at('GREENWOOD'),
         at('BATTLE'),
+        at('BATTLE_RESULT', { result: 'NORMAL' }),
+        at('BATTLE_RESULT', { result: 'BOSS' }),
       ].map(bgmForScene),
     );
     const sceneReachable = Object.keys(BGM_ASSETS).filter((id) => !chosenByTheFight.has(id));
@@ -281,5 +284,16 @@ describe('the piece a fight is fought to', () => {
     expect(bgmForScene(at('TALK_SPOT', { ...chosen, locationId: 'MOONLIGHT_TAVERN' }))).toBe(
       'TAVERN',
     );
+  });
+});
+
+describe('the winnings\' own piece (2026-10-11)', () => {
+  it('an ordinary fight\'s winnings to RESULT_NORMAL, a boss\'s to RESULT_BOSS; told nothing (the Artifact), the fight\'s piece carries on', () => {
+    expect(bgmForScene({ screen: 'BATTLE_RESULT', locationId: null, result: 'NORMAL' })).toBe('RESULT_NORMAL');
+    expect(bgmForScene({ screen: 'BATTLE_RESULT', locationId: null, result: 'BOSS' })).toBe('RESULT_BOSS');
+    expect(bgmForScene({ screen: 'BATTLE_RESULT', locationId: null, battleBgmId: 'BOSS_BATTLE' })).toBe('BOSS_BATTLE');
+    // Never anywhere but the winnings.
+    expect(bgmForScene({ screen: 'BATTLE', locationId: null, result: 'NORMAL' })).not.toBe('RESULT_NORMAL');
+    expect(bgmForScene({ screen: 'HOME', locationId: null, result: 'NORMAL' })).not.toBe('RESULT_NORMAL');
   });
 });

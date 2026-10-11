@@ -84,7 +84,8 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.getByTestId('choice-SPARE').click();
     const result = page.getByTestId('choice-result-dialogue');
     await expect(result).toBeVisible();
-    await expect(page.getByText('俺はお前を殺そうとしたんだぞ。')).toBeVisible();
+    await expect(page.getByText('……俺は、お前を襲ったんだぞ。')).toBeVisible();
+    await result.click();
     await result.click();
     await result.click();
     await result.click();

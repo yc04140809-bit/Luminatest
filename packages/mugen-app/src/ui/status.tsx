@@ -27,6 +27,7 @@ import { presentationOf } from '@mugen/content/characters/characterPresentation'
 import { statSheetOf } from '@mugen/content/characters/characterStats';
 import { heroNameLength } from '@mugen/core/world/heroName';
 import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits';
+import { PortraitZoom, ZoomButton } from './common/PortraitZoom';
 import { NewBadge } from './common/NewBadge';
 import { newEquipmentIds } from './equipment';
 
@@ -136,7 +137,11 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
   const says = presentationOf(who.id);
   const art = statusArtOf(who.id);
   const kind = art?.kind ?? 'PORTRAIT';
-  const [picture, setPicture] = useState<string | null>(null);
+  // Whose picture it is, too: on switching, the last one's is never shown under the next one's name.
+  const [shownPicture, setPicture] = useState<{ id: string; src: string } | null>(null);
+  const picture = shownPicture && shownPicture.id === who.id ? shownPicture.src : null;
+  // The full-length picture, large, over everything (common/PortraitZoom).
+  const [zoomed, setZoomed] = useState(false);
 
   /**
    * The picture for whoever is being looked at NOW. `alive` rather than a
@@ -150,7 +155,7 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
     if (!isPortraitKey(key)) return;
     const load = kind === 'VISUAL' ? statusVisualArt : portraitArt;
     void load(key).then((src) => {
-      if (alive) setPicture(src);
+      if (alive) setPicture(src ? { id: who.id, src } : null);
     });
     return () => {
       alive = false;
@@ -215,6 +220,8 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
       <div className="st-visual" aria-hidden="true">
         {picture && <img src={picture} alt="" data-testid={`status-portrait-${who.id}`} />}
       </div>
+      {picture && <ZoomButton testId="status-zoom" label={`${who.label}の立ち絵を拡大`} onClick={() => setZoomed(true)} />}
+      {zoomed && picture && <PortraitZoom src={picture} name={who.label} onClose={() => setZoomed(false)} />}
 
       <div className="st-head">
         <p className="st-wordmark">

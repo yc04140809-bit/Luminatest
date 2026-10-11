@@ -238,6 +238,9 @@ export function TavernScreen({
   // What the stranger offers after their words, open in the box.
   // (or Grave's handwork, 2026-10-11: his own, at the counter)
   const [panel, setPanel] = useState<'TRADE' | 'ARCHIVE' | 'CRAFT' | null>(null);
+  // グレイヴと話す (2026-10-11): once met, 「マスターと話す」 opens his own small menu —
+  // 話を聞く / 加工を頼む / やめる — so his handwork is asked of him, not a door of its own.
+  const [masterMenu, setMasterMenu] = useState(false);
   const trade = guest ? tavernTrade(guest.tradeId) : null;
   // Tonight's stranger's silhouette, fetched as the door opens.
   const [guestSrc, setGuestSrc] = useState<string | null>(null);
@@ -405,6 +408,42 @@ export function TavernScreen({
               {closes ? 'もどる' : 'つぎへ'}
             </button>
           </>
+        ) : masterMenu ? (
+          <div className="tavern-panel tavern-master-menu" data-testid="tavern-master-menu">
+            <p className="speaker">グレイヴ</p>
+            <p className="line tavern-panel-say">「どうした。」</p>
+            <div className="actions">
+              <button
+                className="btn primary"
+                data-testid="tavern-master-listen"
+                onClick={() => {
+                  setMasterMenu(false);
+                  begin();
+                }}
+              >
+                話を聞く
+                <NewBadge
+                  show={masterHasNews({ metBefore, arc, incident: !!incidentTalk, daily: !!dailyTalk })}
+                  testId="tavern-master-listen-new"
+                />
+              </button>
+              {hub?.craft && (
+                <button
+                  className="btn"
+                  data-testid="tavern-craft-open"
+                  onClick={() => {
+                    setMasterMenu(false);
+                    setPanel('CRAFT');
+                  }}
+                >
+                  加工を頼む
+                </button>
+              )}
+              <button className="btn" data-testid="tavern-master-back" onClick={() => setMasterMenu(false)}>
+                やめる
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             <p className="line" data-testid="tavern-description">
@@ -420,7 +459,7 @@ export function TavernScreen({
               </p>
             )}
             <div className="actions">
-              <button className="btn primary" data-testid="tavern-talk" onClick={begin}>
+              <button className="btn primary" data-testid="tavern-talk" onClick={() => (metBefore ? setMasterMenu(true) : begin())}>
                 {guest ? 'マスターと話す' : '話す'}
                 <NewBadge
                   show={masterHasNews({ metBefore, arc, incident: !!incidentTalk, daily: !!dailyTalk })}
@@ -432,11 +471,7 @@ export function TavernScreen({
                   客と話す
                 </button>
               )}
-              {metBefore && hub?.craft && (
-                <button className="btn" data-testid="tavern-craft-open" onClick={() => setPanel('CRAFT')}>
-                  加工を頼む
-                </button>
-              )}
+
               <button className="btn" data-testid="tavern-leave" onClick={onLeave}>
                 店を出る
               </button>

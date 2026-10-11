@@ -53,6 +53,12 @@ export interface SceneCue {
    * the village's own piece, as always (the Artifact never passes one).
    */
   villageBgmId?: BgmId | null;
+  /**
+   * THE WINNINGS' OWN PIECE (2026-10-11, App only): which result this is —
+   * an ordinary fight's or a boss's. Absent (the Artifact): the fight's
+   * piece carries on over its winnings, as it always did.
+   */
+  result?: 'NORMAL' | 'BOSS' | null;
 }
 
 /** The places that are the greenwood rather than Alden. */
@@ -119,6 +125,10 @@ export function bgmForScene(cue: SceneCue): BgmId | null {
     // is not one — so the honest answer is "the fight is not over
     // yet", which is also how it feels.
     case 'BATTLE_RESULT':
+      // Its own piece now, where the caller says which result it is (the App).
+      // (The fight itself shares these lines: only the winnings screen.)
+      if (screen === 'BATTLE_RESULT' && cue.result === 'BOSS') return 'RESULT_BOSS';
+      if (screen === 'BATTLE_RESULT' && cue.result === 'NORMAL') return 'RESULT_NORMAL';
       // Whichever piece the fight resolved to — the caller passes
       // `battleBgmFor(...)` (forced boss piece, else the ♪ choice if
       // unlocked, else the default). Anything else falls back here.

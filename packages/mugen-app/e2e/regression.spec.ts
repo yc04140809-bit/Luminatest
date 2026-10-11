@@ -104,7 +104,7 @@ test('start to finish on one save, and all of it still there after a restart', a
   await expect(page.getByTestId('choice-result')).toHaveAttribute('data-choice', 'SPARE');
 
   // TIME SHIFT 特殊イベント — she asks, shows, brings them back.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }

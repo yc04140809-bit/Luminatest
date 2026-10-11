@@ -30,6 +30,7 @@ test('causality chain and character state survive a full browser restart', async
     await result.click();
     await result.click();
     await result.click();
+    await result.click();
     await page.getByTestId('choice-recorded-screen').waitFor();
     await page.getByTestId('return-home-button').click();
     await advanceDays(page, 3);

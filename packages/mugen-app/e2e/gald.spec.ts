@@ -143,7 +143,7 @@ test('the four answers are offered, and only once per world', async ({ page }) =
 
   await page.getByTestId('choice-SPARE').click();
   await expect(page.getByTestId('choice-result')).toHaveAttribute('data-choice', 'SPARE');
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }
@@ -167,7 +167,7 @@ test('the answer, and what it unlocked, survive a restart', async ({ page }) => 
   await meetGald(page);
   await beatGald(page);
   await page.getByTestId('choice-SPARE').click();
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }

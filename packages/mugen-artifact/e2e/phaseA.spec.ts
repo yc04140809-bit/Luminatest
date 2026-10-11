@@ -63,10 +63,11 @@ test('Phase A vertical flow: title to life choice', async ({ page }) => {
   await expect(page.getByText('彼の人生を、どうしますか？')).toBeVisible();
   await page.getByTestId('choice-SPARE').click();
 
-  // Aftermath dialogue (SPARE = 3 lines), then recorded screen, then HOME.
+  // Aftermath dialogue (SPARE = 4 lines), then recorded screen, then HOME.
   const result = page.getByTestId('choice-result-dialogue');
   await expect(result).toBeVisible();
-  await expect(page.getByText('俺はお前を殺そうとしたんだぞ。')).toBeVisible();
+  await expect(page.getByText('……俺は、お前を襲ったんだぞ。')).toBeVisible();
+  await result.click();
   await result.click();
   await result.click();
   await result.click();

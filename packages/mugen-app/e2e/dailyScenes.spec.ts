@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
@@ -260,7 +261,7 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
   await rest(page);
   const atTavern = await point();
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   const sword = await readThrough(page, 'tavern-line', 'tavern-next');
   expect(sword[0]).toBe('壁に、両手剣が一振り掛けてある。');
   expect(sword).toContain('「重いぞ。今の俺じゃ、もう振れねぇ。」');

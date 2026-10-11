@@ -80,7 +80,23 @@ export type BgmId =
    * today. A fight that matters sounds different from a fight that
    * happens, and which fights those are is `FORCED_BATTLE_BGM`.
    */
-  | 'BOSS_BATTLE';
+  | 'BOSS_BATTLE'
+  /**
+   * APP ONLY (2026-10-11) — their files are named in appMusic.ts, which only
+   * the App reads; here they are empty, so the Artifact neither bundles nor
+   * plays them.
+   *
+   *   RESULT_NORMAL     the winnings counted up after a fight (Victory's Clear Dawn)
+   *   RESULT_BOSS       the same after a boss — no file yet; the App falls back to RESULT_NORMAL
+   *   SEKIRYUGA_BATTLE  セキリュウガ's fight (BOSS戦闘)
+   *   SPECIAL_BATTLE    a fight with somebody in particular, フウミミ's (狩りの鼓動)
+   *   NORMAL_BATTLE_2   the forest's newer creatures' ordinary fights (通常戦闘曲②)
+   */
+  | 'RESULT_NORMAL'
+  | 'RESULT_BOSS'
+  | 'SEKIRYUGA_BATTLE'
+  | 'SPECIAL_BATTLE'
+  | 'NORMAL_BATTLE_2';
 
 export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 
@@ -93,6 +109,12 @@ export const BGM_ASSETS: Record<BgmId, string | null> = {
   GREENWOOD_FOREST: bgmGreenwoodForest,
   NORMAL_BATTLE: bgmNormalBattle,
   BOSS_BATTLE: bgmBossBattle,
+  // The App's own (appMusic.ts).
+  RESULT_NORMAL: null,
+  RESULT_BOSS: null,
+  SEKIRYUGA_BATTLE: null,
+  SPECIAL_BATTLE: null,
+  NORMAL_BATTLE_2: null,
 };
 
 /**

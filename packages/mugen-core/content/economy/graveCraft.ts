@@ -45,13 +45,13 @@ export const GRAVE_CRAFTS: readonly GraveCraft[] = [
   },
   {
     id: 'CRAFT_IRON_CHARM',
-    name: '鉄の護符',
+    name: '鉄の腕輪',
     give: [{ itemId: 'IRON_ORE', quantity: 3 }],
     // Not an equipment slot (the accessory slots are not operable yet, and a
     // real smith will make those): carried in the bag, it puts +1 on his
     // swing — one, however many are made (it is made once).
     get: { itemId: 'IRON_CHARM', quantity: 1 },
-    note: '鉄を打って護符にする。持っているだけで、剣にほんの少し力が乗る。',
+    note: '鉄を打って腕輪にする。持っているだけで、剣にほんの少し力が乗る。',
     once: true,
   },
 ];

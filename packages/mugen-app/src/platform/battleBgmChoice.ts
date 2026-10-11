@@ -32,9 +32,19 @@ export function battleBgmChoice(): BattleBgmId {
 /** Remembered for next time. Failing to store it is not worth an error. */
 export function setBattleBgmChoice(id: BattleBgmId): void {
   try {
-    if (id === DEFAULT_BATTLE_BGM) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, id);
+    // Kept even when it is the default (2026-10-11): choosing the first piece
+    // with ♪ is a choice, and outranks a creature's own (WILD_BATTLE_BGM).
+    localStorage.setItem(KEY, id);
   } catch {
     /* blocked storage: the choice lasts this session */
+  }
+}
+
+/** Whether the player has chosen a piece at all (not the default left as it was). */
+export function hasBattleBgmChoice(): boolean {
+  try {
+    return isBattleBgm(localStorage.getItem(KEY));
+  } catch {
+    return false;
   }
 }

@@ -21,7 +21,7 @@ import {
   type RareFindTable,
   type VisitTable,
 } from './explorationState';
-import { advanceStage, arcOpen, readSekiryugaStage, type SekiryugaStage } from './storyArc';
+import { advanceStage, arcOpen, readSekiryugaStage, stageReached, type SekiryugaStage } from './storyArc';
 import { readReadMarks, withMarks } from './readMarks';
 import {
   addLoaves,
@@ -380,7 +380,7 @@ const BREAD_BUFF_KEY = 'breadBuff';
 const TAVERN_TRADES_KEY = 'tavernTrades';
 /** When each pickup that grows back was last taken (core/world/pickupRegrowth.ts), 2026-10-11. */
 const REGROWTH_KEY = 'pickupRegrowth';
-/** 鉄の護符: carried, +1 on his swing (content/economy/graveCraft.ts). */
+/** 鉄の腕輪 (was 鉄の護符; id IRON_CHARM kept for saves): carried, +1 on his swing (content/economy/graveCraft.ts). */
 const IRON_CHARM_ID = 'IRON_CHARM';
 const IRON_CHARM_ATTACK = 1;
 const MUSIC_UNLOCKS_KEY = 'musicUnlocks';
@@ -906,7 +906,7 @@ export class World {
    */
   getPartyStats(): PartyStats {
     const stats = statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
-    // 鉄の護符 (グレイヴの加工, 2026-10-11): carried, a little more on his swing — one, however many.
+    // 鉄の腕輪 (グレイヴの加工, 2026-10-11): carried, a little more on his swing — one, however many.
     const attack = weaponInBattle(this.getEquipped('hero', 'WEAPON')).attack + (this.getItemCount(IRON_CHARM_ID) > 0 ? IRON_CHARM_ATTACK : 0);
     if (attack === 0) return stats;
     return { ...stats, attackMin: stats.attackMin + attack, attackMax: stats.attackMax + attack };
@@ -1111,8 +1111,12 @@ export class World {
    * already holds the piece, or holds no proof, writes nothing.
    */
   private async recoverEarnedBattleBgm(): Promise<void> {
-    if (!this.getGaldLifeChoice()) return;
-    await this.unlockBattleBgm(FORCED_BATTLE_BGM.GALD);
+    if (this.getGaldLifeChoice()) await this.unlockBattleBgm(FORCED_BATTLE_BGM.GALD);
+    // 2026-10-11, the same from the same kind of proof: セキリュウガ stopped
+    // (the arc past BEATEN), and フウミミ answered (its four-way answer, asked
+    // only after a won fight).
+    if (stageReached(this.sekiryugaStage, 'BEATEN')) await this.unlockBattleBgm(FORCED_BATTLE_BGM.SEKIRYUGA);
+    if (this.getFuumimiAnswer()) await this.unlockBattleBgm(FORCED_BATTLE_BGM.FUUMIMI);
   }
 
   /**

@@ -442,7 +442,7 @@ test("all five of her spells in the game's own fights, and a clean next fight af
     },
   );
   await page.getByTestId('choice-SPARE').click();
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     if (
       await page
         .getByTestId('future-vision')

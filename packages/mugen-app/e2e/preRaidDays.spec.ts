@@ -116,7 +116,7 @@ test('✉ アルデン通信: brought on coming back, NEW; 読む opens it there
   await expect(page.getByTestId('shop-screen')).toBeVisible();
 });
 
-test('the forest grows back: the herbs two days on — and Kaos says so on coming back (once a day, no NEW); nothing said when nothing is true', async ({
+test('the forest grows back: the herbs two days on — and Kaos says so on coming back (once a day, no NEW)', async ({
   page,
 }) => {
   await freshVillage(page);
@@ -133,8 +133,9 @@ test('the forest grows back: the herbs two days on — and Kaos says so on comin
   await page.getByTestId('leave-forest').click();
   await page.getByTestId('back-to-village').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  // Nothing grown back yet, nothing in the bag for Grave: her word has nothing to say.
-  await expect(page.getByTestId('kaos-nudge')).toHaveCount(0);
+  // Nothing grown back yet; the purse empty — her word is that (状況別の会話, 2026-10-11), and that is the day's.
+  await expect(page.getByTestId('kaos-nudge')).toHaveAttribute('data-nudge', 'POOR_1');
+  while (await page.getByTestId('kaos-nudge').isVisible().catch(() => false)) await page.getByTestId('kaos-nudge-next').click();
 
   // Two nights on.
   await world(page, `(w) => w.advanceDays(2)`);
@@ -170,6 +171,7 @@ test("Grave's handwork: three things, as the bag allows; the charm once, +1 on h
   await world(page, `(w) => w.addItem('FOREST_HERB', 6)`);
   const attack = await world<number>(page, `(w) => w.getPartyStats().attackMin`);
   await page.getByTestId('tavern-button').click();
+  await page.getByTestId('tavern-talk').click();
   await page.getByTestId('tavern-craft-open').click();
   await expect(page.getByTestId('tavern-craft-say')).toContainText('本職の鍛冶屋の真似事はできねぇが');
   // Short of mana herbs: that one cannot be asked.
@@ -182,7 +184,7 @@ test("Grave's handwork: three things, as the bag allows; the charm once, +1 on h
   await expect(pop).toBeVisible();
   await expect(pop).toHaveAttribute('data-kind', 'CRAFT');
   await expect(page.getByTestId('celebrate-title')).toHaveText('クラフト成功！');
-  await expect(page.getByTestId('celebrate-sub')).toHaveText('鉄の護符を作成した');
+  await expect(page.getByTestId('celebrate-sub')).toHaveText('鉄の腕輪を作成した');
   await expect(page.getByTestId('celebrate-art')).toBeVisible();
   // It takes no touch, and is gone in a second or two.
   await expect(pop).toHaveCSS('pointer-events', 'none');
@@ -204,7 +206,7 @@ test("Grave's handwork: three things, as the bag allows; the charm once, +1 on h
   await expect(pop).toHaveCount(0);
   expect(await world<number>(page, `(w) => w.getItemCount('FINE_HERB')`)).toBe(2);
   // Each moment asked for once: the two firsts (a first item at the same moment is folded in).
-  expect((await celebrated(page)).filter((c) => c.kind === 'CRAFT').map((c) => c.subtitle)).toEqual(['鉄の護符を作成した', '上薬草を作成した']);
+  expect((await celebrated(page)).filter((c) => c.kind === 'CRAFT').map((c) => c.subtitle)).toEqual(['鉄の腕輪を作成した', '上薬草を作成した']);
   await page.getByTestId('tavern-panel-close').click();
   await page.getByTestId('tavern-leave').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();

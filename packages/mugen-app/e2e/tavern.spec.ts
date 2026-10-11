@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
@@ -144,7 +145,7 @@ async function withoutTheReadMarksRow(page: Page) {
 /** Reads a talk to its end; returns every line shown, in order. */
 async function readTalk(page: Page): Promise<string[]> {
   const seen: string[] = [];
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   for (let i = 0; i < 20; i++) {
     seen.push((await page.getByTestId('tavern-line').textContent()) ?? '');
     const next = page.getByTestId('tavern-next');
@@ -291,7 +292,7 @@ test('walking out and in again opens on the room', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   await expect(page.getByTestId('tavern-line')).toBeVisible();
   // Read to the end, out by the door, and in again.
   while (await page.getByTestId('tavern-next').isVisible().catch(() => false)) {
@@ -309,7 +310,7 @@ const FIRST_LINE = '扉を押すと、煮込みと安い酒の匂いがした。
 const GREETING = '「また来たな。そこ空いてるぞ。」';
 
 async function firstLineOfTalk(page: Page) {
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   return page.getByTestId('tavern-line').textContent();
 }
 

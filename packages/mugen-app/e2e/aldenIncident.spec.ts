@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { settled } from './roam';
 import { readyToAct } from './battle';
@@ -244,7 +245,7 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
   await settledVillage(page);
   // Grave met first (his meeting is never replaced).
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   for (let i = 0; i < 30; i++) {
     const next = page.getByTestId('tavern-next');
     if (!(await next.isVisible().catch(() => false))) break;
@@ -271,7 +272,7 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
 
   // Grave: the forest is too quiet — once.
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   const grave: string[] = [];
   for (let i = 0; i < 6; i++) {
     grave.push((await page.getByTestId('tavern-line').textContent()) ?? '');
@@ -285,7 +286,7 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
     '「静かな方がいいんじゃないのか？」',
     '「森ってのはな。うるせぇくらいが普通なんだよ。」',
   ]);
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   await expect(page.getByTestId('tavern-line')).not.toHaveText('「最近、森が静かすぎる。」');
 });
 

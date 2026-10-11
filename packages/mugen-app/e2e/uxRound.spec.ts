@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightUntil, readyToAct } from './battle';
 import { settled } from './roam';
@@ -116,7 +117,7 @@ test('P0: the first visit with a rumour heard — his meeting, then 「そうい
   expect(lines[lines.length - 1]).toBe('古代遺跡へ行けるようになった。');
   await expect.poll(() => world<string>(page, `(w) => w.getSekiryugaStage()`)).toBe('TOLD');
   // Met now: his ordinary greeting next, no second introduction.
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   await expect(page.getByTestId('tavern-line')).toHaveText('「また来たな。そこ空いてるぞ。」');
 });
 
@@ -124,7 +125,7 @@ test('P0: met him first in this save — the story alone, no bridge', async ({ p
   await freshVillage(page);
   await pastGald(page);
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   // His meeting (ending on his rumour) and the story straight after.
   const lines = await readTavern(page);
   expect(lines.join('')).not.toContain('お前ら、遺跡の話は聞いたか');

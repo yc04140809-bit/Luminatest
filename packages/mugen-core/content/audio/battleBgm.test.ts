@@ -11,13 +11,14 @@ import {
   moreThanOneBattleBgm,
   nextBattleBgm,
   unlockedBattleBgm,
+  WILD_BATTLE_BGM,
 } from './battleBgm';
 
 const BOTH = ['NORMAL_BATTLE', 'BOSS_BATTLE'] as const;
 
 describe('which piece a fight is fought to', () => {
-  it('knows the two pieces, and starts with only the ordinary one', () => {
-    expect(BATTLE_BGM_IDS).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+  it("knows the pieces (the App's own since 2026-10-11), and starts with only the ordinary one", () => {
+    expect(BATTLE_BGM_IDS).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE', 'SEKIRYUGA_BATTLE', 'SPECIAL_BATTLE', 'NORMAL_BATTLE_2']);
     expect(DEFAULT_BATTLE_BGM).toBe('NORMAL_BATTLE');
     expect(INITIAL_UNLOCKED_BATTLE_BGM).toEqual(['NORMAL_BATTLE']);
   });
@@ -102,5 +103,26 @@ describe('which piece a fight is fought to', () => {
     expect(unlockedBattleBgm(['nonsense'])).toEqual(['NORMAL_BATTLE']);
     expect(isBattleBgm('BOSS_BATTLE')).toBe(true);
     expect(isBattleBgm('OPENING')).toBe(false);
+  });
+});
+
+describe('the App\'s own fighting pieces (2026-10-11)', () => {
+  it('セキリュウガ brings BOSS戦②, フウミミ met as somebody 狩りの鼓動 — whatever was chosen', () => {
+    expect(FORCED_BATTLE_BGM.SEKIRYUGA).toBe('SEKIRYUGA_BATTLE');
+    expect(FORCED_BATTLE_BGM.FUUMIMI).toBe('SPECIAL_BATTLE');
+    expect(battleBgmFor('SEKIRYUGA', 'NORMAL_BATTLE', BATTLE_BGM_IDS)).toBe('SEKIRYUGA_BATTLE');
+    expect(battleBgmFor('FUUMIMI', 'BOSS_BATTLE', BATTLE_BGM_IDS)).toBe('SPECIAL_BATTLE');
+    expect(FORCED_BATTLE_BGM.GALD).toBe('BOSS_BATTLE');
+  });
+
+  it('the forest\'s newer creatures have the second ordinary piece; モスラビット none of its own', () => {
+    for (const id of ['hyourei', 'iwahoro', 'kokemaru', 'fuumimi']) expect(WILD_BATTLE_BGM[id], id).toBe('NORMAL_BATTLE_2');
+    expect(WILD_BATTLE_BGM.moss_rabbit).toBeUndefined();
+  });
+
+  it('none of them is in a world from the start, and the Artifact\'s ring is as it was', () => {
+    expect(unlockedBattleBgm(undefined)).toEqual(['NORMAL_BATTLE']);
+    expect(unlockedBattleBgm(BOTH)).toEqual(['NORMAL_BATTLE', 'BOSS_BATTLE']);
+    expect(nextBattleBgm('BOSS_BATTLE', BOTH)).toBe('NORMAL_BATTLE');
   });
 });

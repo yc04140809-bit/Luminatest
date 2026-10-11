@@ -39,12 +39,14 @@ import { useSceneBgm } from './ui/audio/useSceneBgm';
 import { audioManager } from './platform/audio';
 import {
   FORCED_BATTLE_BGM,
+  WILD_BATTLE_BGM,
   battleBgmFor,
   battleBgmLabel,
   canChooseBattleBgm,
   nextBattleBgm,
+  type BattleBgmId,
 } from '@mugen/content/audio/battleBgm';
-import { battleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
+import { battleBgmChoice, hasBattleBgmChoice, setBattleBgmChoice } from './platform/battleBgmChoice';
 import { DebugEntry } from './dev/DebugEntry';
 import { backTargetFor, exitNativeApp, useAndroidBackButton } from './platform/androidBack';
 import {
@@ -72,7 +74,7 @@ import { DailyAside } from './ui/daily';
 import { BanterAside } from './ui/kaosBanter';
 import { banterFor } from './ui/banterRoll';
 import { NewsAside, newsFor } from './ui/aldenNews';
-import { NudgeAside, pickNudge } from './ui/kaosNudge';
+import { NudgeAside, homecomingTalk, newTalkMemo, settingOutSaid, settingOutTalk } from './ui/kaosNudge';
 import type { VillageRumor } from '@mugen/content/story/villageRumors';
 import type { KaosNudge } from '@mugen/content/story/kaosNudges';
 import type { KaosBanter } from '@mugen/content/story/kaosBanter';
@@ -228,7 +230,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const [homeNews, setHomeNews] = useState<VillageRumor | null>(null);
   // ケイオスの軽い誘い: when nothing else is said on coming back — at most once a day (ui/kaosNudge).
   const [homeNudge, setHomeNudge] = useState<KaosNudge | null>(null);
-  const lastNudge = useRef<{ day: number; id: string | null }>({ day: -1, id: null });
+  // 状況別の会話 (2026-10-11): what was said lately, today's comings and goings (ui/kaosNudge, nothing saved).
+  const talkMemo = useRef(newTalkMemo());
   /**
    * WHO CAME OUT OF THE UNDERGROWTH — the forest's ordinary fight's creature,
    * rolled as the player steps toward it (content/enemies/encounters.ts).
@@ -461,11 +464,20 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const forestWalk = useRef<RoamMemory | null>(null);
   const resumeForest = useRef(false);
 
-  const [chosenBgm, setChosenBgm] = useState(battleBgmChoice);
+  // What the player chose with ♪, or null for nothing chosen (then a creature may bring its own).
+  const [chosenBgm, setChosenBgm] = useState<BattleBgmId | null>(() => (hasBattleBgmChoice() ? battleBgmChoice() : null));
   const unlockedBgm = world.getUnlockedBattleBgm();
-  // Its own piece only for the story's fights; フウミミ's is fought to what was chosen, like the forest's.
-  const fightKey = battleKind.current === 'GALD' || battleKind.current === 'SEKIRYUGA' ? battleKind.current : null;
-  const battleBgmId = battleBgmFor(fightKey, chosenBgm, unlockedBgm);
+  // Its own piece for the story's fights, and (2026-10-11) for フウミミ met as somebody (狩りの鼓動).
+  const fightKey =
+    battleKind.current === 'GALD' || battleKind.current === 'SEKIRYUGA' || battleKind.current === 'FUUMIMI'
+      ? battleKind.current
+      : null;
+  // An ordinary fight with nothing chosen: the creature's own piece, if it has one (通常戦闘曲②, 2026-10-11).
+  const wildOwn = battleKind.current === 'WILD' ? (WILD_BATTLE_BGM[wildSpecies.current] ?? null) : null;
+  const battleBgmId = fightKey || chosenBgm ? battleBgmFor(fightKey, chosenBgm, unlockedBgm) : (wildOwn ?? battleBgmFor(null, null, unlockedBgm));
+  // The piece this fight is fought to, for the win that makes it theirs.
+  const fightBgm = useRef(battleBgmId);
+  fightBgm.current = battleBgmId;
   /**
    * THE ♪ CONTROL, only where there is something to choose: not in a
    * fight that brought its own music, and not while this save has won
@@ -533,6 +545,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     battleBgmId,
     // The piece the bard's archive set for the village (Alden's ordinary places only).
     villageBgmId: world.getVillageBgm(),
+    // The winnings' own piece (2026-10-11): only the forest's ordinary fights count winnings up today.
+    result: 'NORMAL',
   },
   // Let down on the way in to セキリュウガ, and held off after its fight: what is
   // seen then is seen in quiet.
@@ -644,6 +658,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         .setBattleCondition(final)
         .catch((e) => console.error('Failed to carry the wounds out', e))
         .then(() => world.advanceSekiryugaArc('BEATEN'))
+        // Its piece becomes theirs to choose, as Gald's did (2026-10-11).
+        .then(() => world.unlockBattleBgm(FORCED_BATTLE_BGM.SEKIRYUGA))
         .then(() => world.addIncident('WIN'))
         .catch((e) => console.error('Failed to record the boss stopped', e))
         .finally(() => {
@@ -661,12 +677,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const resultCelebrate = useRef<(() => void) | null>(null);
   const won = useCallback(
     (final: { hp: number; mp: number }) => {
+      // A close call (HP at 20% or under): Kaos may say so as they come back in (状況別の会話).
+      const most = world.getPartyCondition().hero?.maxHp ?? 0;
+      if (most > 0 && final.hp <= most * 0.2) talkMemo.current.reckless = true;
       const reward = rewardForSpecies(wildSpecies.current) ?? NO_REWARD;
       // How many of each were held before: a thing already held is not a first.
       const before = new Map(reward.items.map((s) => [s.itemId, world.getItemCount(s.itemId)]));
       void world
         .setBattleCondition(final)
         .then(() => world.applyBattleReward(fight.current, reward))
+        // Won to a piece not yet theirs (a creature's own): now it is (no write when it already is).
+        .then((paid) => world.unlockBattleBgm(fightBgm.current).then(() => paid))
         .then((paid) => {
           setWinnings(paid);
           resultCelebrate.current = () =>
@@ -878,7 +899,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onMemory={() => flow.goTo('WORLD_MEMORY')}
           onArchive={() => flow.goTo('ARCHIVE')}
           onStatus={() => flow.goTo('STATUS')}
-          onTavern={() => setTavern(true)}
+          onTavern={() => {
+            // Remembered for her 「昨日も行った。」 (状況別の会話).
+            talkMemo.current.tavernDays = [...talkMemo.current.tavernDays.slice(-6), toAbsoluteDay(world.getClock())];
+            setTavern(true);
+          }}
           onBakery={() => setBakery(true)}
           onShop={() => setShop(true)}
           onRumors={() => setRumors(true)}
@@ -1072,7 +1097,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             flow.goTo('GREENWOOD');
           }}
           // Kaos senses something, once per phase, as they set out.
-          aside={<KaosAside world={world} />}
+          aside={
+            <KaosAside
+              world={world}
+              talk={() => settingOutTalk(world, talkMemo.current)}
+              onTalk={(t) => settingOutSaid(world, talkMemo.current, t)}
+            />
+          }
           onPlaces={() => flow.goTo('FUTURE_SITE')}
           onHome={() => {
             // Back into the village from outside: where a small thing may happen.
@@ -1082,11 +1113,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             const news = newsFor(world);
             setHomeBanter(banter);
             setHomeNews(news);
-            // Her word only when nothing else is said, and once a day at most.
-            const today = toAbsoluteDay(world.getClock());
-            const nudge = !daily && !banter && !news && lastNudge.current.day !== today ? pickNudge(world, lastNudge.current.id) : null;
-            if (nudge) lastNudge.current = { day: today, id: nudge.id };
-            setHomeNudge(nudge);
+            // Her word only when nothing else is said, and once a day at most (状況別の会話 included).
+            setHomeNudge(homecomingTalk(world, talkMemo.current, !daily && !banter && !news));
             flow.goTo('HOME');
           }}
           // Opened by the tavern's master telling what was sealed there.
@@ -1149,7 +1177,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           memory={forestWalk}
           resume={resumeForest.current}
           // Read as the walk opens; taking one writes it (ui/explore/pickupKeeper).
-          pickupKeeper={pickupKeeper(world)}
+          pickupKeeper={pickupKeeper(world, { onLucky: () => (talkMemo.current.lucky = true) })}
           onGald={() => {
             resumeForest.current = false;
             battleKind.current = 'GALD';
@@ -1248,6 +1276,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               void world
                 .setBattleCondition(final)
                 .then(() => world.meetFixedIndividual(FUUMIMI_INDIVIDUAL_ID, FUUMIMI.speciesId))
+                // Its piece becomes theirs to choose (2026-10-11).
+                .then(() => world.unlockBattleBgm(FORCED_BATTLE_BGM.FUUMIMI))
                 // ALDEN INCIDENT: a fight won is a step (once a day).
                 .then(() => world.addIncident('WIN'))
                 .catch((e) => console.error('Failed to record フウミミ met', e))
@@ -1264,6 +1294,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             background={battleBackgroundFor('GREENWOOD_FOREST')}
             onLost={() => {
               battleKind.current = 'WILD';
+              talkMemo.current.reckless = true;
               void world.restoreParty().finally(() => flow.goTo('HOME'));
             }}
           />
@@ -1295,6 +1326,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             autoAvailable={autoOpen}
             background="RUINS"
             onLost={() => {
+              talkMemo.current.reckless = true;
               void world.restoreParty().finally(() => {
                 setRuins(null);
                 flow.goTo('HOME');
@@ -1346,6 +1378,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             // Carried home and put back on their feet, exactly as in
             // the Artifact: losing once must not make losing again
             // unavoidable.
+            talkMemo.current.reckless = true;
             void world.restoreParty().finally(() => flow.goTo('HOME'));
           }}
         />

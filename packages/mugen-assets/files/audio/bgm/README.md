@@ -24,6 +24,12 @@ licence to honour and no credit owed to anybody else — which is worth
 writing down, because the question will be asked again the next time a
 file arrives.
 
+The App's own pieces (the winnings, セキリュウガ, フウミミ, the newer
+creatures) and the pieces not used yet (a castle, the church, chapter 1's
+last boss) are in `../bgm-app/` — see its README. They are kept out of this
+folder because the Artifact's build check expects every file here in its
+build.
+
 They were identified by the TITLE TAG INSIDE EACH FILE, not by its
 name: the names they arrived under were mangled in transit and five of
 the six were indistinguishable from one another. The tags are recorded

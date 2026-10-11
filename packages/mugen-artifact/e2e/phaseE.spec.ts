@@ -19,6 +19,7 @@ async function spareGaldAndReturnHome(page: Page) {
   await result.click();
   await result.click();
   await result.click();
+  await result.click();
   await page.getByTestId('choice-recorded-screen').waitFor();
   await page.getByTestId('return-home-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();

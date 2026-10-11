@@ -34,7 +34,15 @@ import type { BgmId } from '@mugen/assets';
  * compile time: the default below cannot become `BgmId | undefined`
  * because somebody emptied the list.
  */
-export const BATTLE_BGM_IDS = ['NORMAL_BATTLE', 'BOSS_BATTLE'] as const satisfies readonly BgmId[];
+export const BATTLE_BGM_IDS = [
+  'NORMAL_BATTLE',
+  'BOSS_BATTLE',
+  // App only (2026-10-11): セキリュウガ's own, and a fight with somebody in particular (フウミミ).
+  'SEKIRYUGA_BATTLE',
+  'SPECIAL_BATTLE',
+  // The forest's newer creatures' ordinary piece (App only, 2026-10-11).
+  'NORMAL_BATTLE_2',
+] as const satisfies readonly BgmId[];
 
 export type BattleBgmId = (typeof BATTLE_BGM_IDS)[number];
 
@@ -60,8 +68,10 @@ export const INITIAL_UNLOCKED_BATTLE_BGM: readonly BattleBgmId[] = [DEFAULT_BATT
  */
 export const FORCED_BATTLE_BGM: Record<string, BattleBgmId> = {
   GALD: 'BOSS_BATTLE',
-  // The first boss route's セキリュウガ (App only): the same boss piece.
-  SEKIRYUGA: 'BOSS_BATTLE',
+  // The first boss route's セキリュウガ (App only): its own piece since 2026-10-11 (BOSS戦②).
+  SEKIRYUGA: 'SEKIRYUGA_BATTLE',
+  // フウミミ at the forest's edge, met as somebody (App only): 狩りの鼓動 (2026-10-11).
+  FUUMIMI: 'SPECIAL_BATTLE',
 };
 
 /** Whether this is one of them — the guard a stored choice goes through. */
@@ -155,3 +165,16 @@ export function canChooseBattleBgm(
   if (enemyKey && FORCED_BATTLE_BGM[enemyKey]) return false;
   return moreThanOneBattleBgm(unlocked);
 }
+
+/**
+ * AN ORDINARY FIGHT'S OWN PIECE, BY WHO CAME OUT (App only, 2026-10-11:
+ * 通常戦闘曲②). The forest's newer creatures fight to the second ordinary
+ * piece; モスラビット to the first. Only when the player has not chosen a
+ * piece with ♪ — a choice is a choice. Keyed by species id.
+ */
+export const WILD_BATTLE_BGM: Readonly<Record<string, BattleBgmId>> = {
+  hyourei: 'NORMAL_BATTLE_2',
+  iwahoro: 'NORMAL_BATTLE_2',
+  kokemaru: 'NORMAL_BATTLE_2',
+  fuumimi: 'NORMAL_BATTLE_2',
+};

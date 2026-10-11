@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { World } from "@mugen/core/world/world";
 import { HERO_SPEAKER } from "@mugen/content/story/sekiryugaArc";
 import {
@@ -11,6 +11,8 @@ import { kaosFaceOf } from "@mugen/content/characters/kaosFaces";
 import { TalkStage, stageAt } from "./talkStage";
 import { BanterAside } from "./kaosBanter";
 import { banterFor } from "./banterRoll";
+import { NudgeAside } from "./kaosNudge";
+import type { KaosNudge } from "@mugen/content/story/kaosNudges";
 
 /**
  * ALDEN INCIDENT — KAOS SENSES SOMETHING (予兆フェーズ, 2026-10-10).
@@ -25,7 +27,17 @@ import { banterFor } from "./banterRoll";
  * One phase at a time: the lowest reached and not yet heard — and one per
  * setting out (the next waits for the next time they head out).
  */
-export function KaosAside({ world }: { world: World }) {
+export function KaosAside({
+  world,
+  talk: situational,
+  onTalk,
+}: {
+  world: World;
+  /** 状況別の会話 as they set out (2026-10-11): asked once, only when nothing else is said. */
+  talk?: () => KaosNudge | null;
+  /** That word, shown (noted by the caller: once a day). */
+  onTalk?: (talk: KaosNudge) => void;
+}) {
   const owed = incidentKaosOwed(world.getIncidentPhase(), (m) =>
     world.isRead(m),
   );
@@ -35,8 +47,22 @@ export function KaosAside({ world }: { world: World }) {
   const [banter] = useState(() =>
     owed === null ? banterFor(world, "SETTING_OUT") : null,
   );
+  // Nothing of the story and no exchange: now and then, her word on how they are (hurt, low on magic, which way).
+  const [talk] = useState(() =>
+    owed === null && banter === null ? (situational?.() ?? null) : null,
+  );
+  const [talkDone, setTalkDone] = useState(false);
+  useEffect(() => {
+    if (talk) onTalk?.(talk);
+    // Once, as it is shown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   if (owed === null && heard === null)
-    return banter ? <BanterAside world={world} banter={banter} /> : null;
+    return banter ? (
+      <BanterAside world={world} banter={banter} />
+    ) : talk && !talkDone ? (
+      <NudgeAside world={world} nudge={talk} onDone={() => setTalkDone(true)} />
+    ) : null;
   // One word per setting out: once one is heard, the next waits for the next time.
   if (owed === null || heard !== null) return null;
   const lines = INCIDENT_KAOS_TALKS[owed];

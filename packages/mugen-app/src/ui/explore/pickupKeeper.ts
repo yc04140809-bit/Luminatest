@@ -12,7 +12,7 @@ import { celebrateDiscovery, celebrateGain } from '../celebrate/celebrateWorld';
  * (content/exploration/regrowth.ts), and the two of them high-fiving when
  * what was got or seen is a first (ui/celebrate).
  */
-export function pickupKeeper(world: World): PickupKeeper {
+export function pickupKeeper(world: World, hooks: { onLucky?: () => void } = {}): PickupKeeper {
   return {
     taken: new Set(world.getTakenPickups()),
     take: async (pickupId, itemId, quantity) => {
@@ -31,6 +31,10 @@ export function pickupKeeper(world: World): PickupKeeper {
     // Grown back: what it holds now (only once taken before; else as the first time).
     regrownItems: (pickupId) => (world.hasEverTakenPickup(pickupId) ? (regrowthOf(pickupId)?.items ?? null) : null),
     // A golden find seen for the first time.
-    found: (findId, label) => celebrateDiscovery(world, findId, label),
+    found: (findId, label) => {
+      celebrateDiscovery(world, findId, label);
+      // A golden find today: Kaos may say so as they come back in (状況別の会話).
+      hooks.onLucky?.();
+    },
   };
 }

@@ -303,7 +303,7 @@ test('an older save that beat Gald and answered gets ♪ back when it is opened'
   await page.getByTestId('choice-SPARE').click();
   await expect(page.getByTestId('choice-result')).toHaveAttribute('data-choice', 'SPARE');
   // And on through the look ahead, back to the world, as a player would.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     if (await page.getByTestId('future-vision').isVisible().catch(() => false)) break;
     await page.getByTestId('choice-result-next').click();
   }

@@ -32,6 +32,11 @@
 | `GREENWOOD_FOREST` | 森林探索のテーマ | `greenwood-forest.mp3` | `GREENWOOD`, `ENCOUNTER`, 森の `TALK_SPOT` / `FUTURE_SITE` |
 | `NORMAL_BATTLE` | 通常戦闘① | `normal-battle.mp3` | `BATTLE`, `BATTLE_RESULT`（初期状態・選んだとき） |
 | `BOSS_BATTLE` | 勇敢 | `boss-battle.mp3` | ガルド戦（固定・♪なし）。ガルドに勝った後は ♪ で通常戦闘でも選べる |
+| `SEKIRYUGA_BATTLE` | BOSS戦闘（BOSS戦②） | `sekiryuga-battle.mp3`（App のみ） | セキリュウガ戦（固定・♪なし）。勝った後は ♪ で選べる（2026-10-11） |
+| `SPECIAL_BATTLE` | 狩りの鼓動 | `special-battle.mp3`（App のみ） | フウミミ（個体）戦など特殊な戦闘（固定・♪なし）。勝った後は ♪ で選べる |
+| `NORMAL_BATTLE_2` | 通常戦闘曲② | `normal-battle-2.mp3`（App のみ） | ヒョウレイ・イワホロ・コケマル・フウミミ（通常）との通常戦闘（♪ で選んでいない時）。勝つと ♪ で選べる |
+| `RESULT_NORMAL` | Victory's Clear Dawn | `result-victory.mp3`（App のみ） | `BATTLE_RESULT`（通常戦闘の報酬画面）。閉じると元の曲へ |
+| `RESULT_BOSS` | （未着） | — | ボス戦の報酬画面用の枠。今はボス戦に報酬画面が無く、曲が届くまでは `RESULT_NORMAL` を借りる |
 
 テーマ曲をフルで流す「聴く」は BGM ではなく別枠（`MUSIC_ASSETS.OPENING_THEME`
 ＝ `opening.mp3`、1回だけ再生）。Artifact版のタイトル前の画面だけにあります。
@@ -78,3 +83,10 @@
 ## 村 BGM 変更（酒場ハブ化 Phase 1、2026-10-09）
 
 吟遊詩人の MUSIC ARCHIVE で、聞いたことのある曲を「村の BGM」に設定できる（セーブ `villageBgm`）。設定曲が流れるのは家・家から開くページ・地図（EXPLORE）・道具屋・パン屋だけ。TIME_SHIFT・未来の場所・酒場・森・戦闘・ケイオスの場面は表の曲のまま。未設定なら表のとおり。Artifact は設定を持たないので変わらない。詳細は `docs/TAVERN_HUB.md`。
+
+## App 専用の曲・リザルト曲（2026-10-11）
+
+- 新しい曲は **App だけ** に入れています（`mugen-assets/src/appMusic.ts`）。共有の `music.ts` では枠だけ（null）なので、Artifact版には入らず鳴りもしません。
+- 曲の差し替えは「ファイルを `files/audio/bgm-app` に置く → `appMusic.ts` で import して枠に入れる」だけです（`files/audio/bgm` は Artifact版と共有で、Artifact のビルド確認がそこの全ファイルを求めるため、App 専用・未使用の曲は `bgm-app` に分けています）。
+- リザルト画面：戦闘勝利 → `RESULT_NORMAL` に切り替え → 報酬確認 → 「つぎへ」で森（`GREENWOOD_FOREST`）へ戻る。1曲ずつ切り替わり、二重再生しません（`preRaidUx` で確認）。倍速・AUTO とは関係しません。
+- 届いていて、まだ組み込んでいない曲：`royal-castle.mp3`（西洋王城の威儀）、`church-hymn.mp3`（厳かな協会の歌）、`chapter1-final-boss.mp3`（立ち向かう背中・1章最後のボス）。使う場所ができた時に import します（import するまで APK の容量は増えません）。

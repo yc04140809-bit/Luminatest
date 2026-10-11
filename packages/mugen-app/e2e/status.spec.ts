@@ -117,9 +117,12 @@ test('the pages along the foot: ステータス, プロフィール, 装備, ス
   await expect(equip).toBeEnabled();
   // The page open is marked, not offered; the controls are the tabs, the pages and the way out.
   await expect(page.getByTestId('status-to-status')).toHaveAttribute('aria-current', 'page');
-  const buttons = await page.locator('.status-screen button').allInnerTexts();
+  // (The magnifier is an icon: read by its label — 2026-10-11, 全身立ち絵の拡大.)
+  const buttons = await page
+    .locator('.status-screen button')
+    .evaluateAll((els) => els.map((e) => (e as HTMLElement).innerText.trim() || e.getAttribute('aria-label') || ''));
   expect(new Set(buttons.map((b) => b.replace(/\s*NEW$/, '').trim()))).toEqual(
-    new Set(['主人公', 'ケイオス', 'プロフィール', '装備', 'スキル', 'もどる']),
+    new Set(['主人公', 'ケイオス', 'プロフィール', '装備', 'スキル', 'もどる', '主人公の立ち絵を拡大']),
   );
   // プロフィール: who they are, in their words — and back to the numbers.
   await page.getByTestId('status-to-profile').click();

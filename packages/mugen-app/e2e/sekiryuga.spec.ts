@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightUntil, readyToAct } from './battle';
 import { goTo, hero, openFloor, scale, settled, touch } from './roam';
@@ -210,7 +211,7 @@ test('before Gald: no rumour anywhere, the master as he always was, and no ruins
   }
   await page.getByTestId('bakery-leave').click();
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   const lines = await readTavern(page);
   expect(lines.join('')).not.toContain('遺跡');
   await page.getByTestId('tavern-leave').click();
@@ -245,7 +246,7 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
   expect(rest.join('')).not.toContain('{HERO}');
   await expect.poll(() => stage(page)).toBe('TOLD');
   // Told once: the next talk is his greeting, ending on a word of caution.
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   const again = await readTavern(page);
   expect(again.join('')).not.toContain('セキリュウガ');
   expect(again.join('')).not.toContain('めぼしい話は入ってきてねぇ');
@@ -258,7 +259,7 @@ test('the first rumour from the master himself: his story follows straight on, n
   await freshVillage(page);
   await pastGald(page);
   await page.getByTestId('tavern-button').click();
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   const seen: string[] = [];
   for (let i = 0; i < 20; i++) {
     const line = (await page.getByTestId('tavern-line').textContent()) ?? '';

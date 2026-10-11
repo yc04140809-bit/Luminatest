@@ -33,7 +33,10 @@ export const LIFE_CHOICE_OPTIONS: LifeChoiceOption[] = [
 // Immediate aftermath lines shown on the choice result screen.
 export const CHOICE_RESULT_LINES: Record<LifeChoiceId, DialogueLine[]> = {
   SPARE: [
-    { speaker: '盗賊', text: '俺はお前を殺そうとしたんだぞ。' },
+    // He came for their money, not their lives (「命までは取らねぇ」): what he did
+    // was attack them, and that is what he says (作者指示 2026-10-11).
+    { speaker: '盗賊', text: '……俺は、お前を襲ったんだぞ。' },
+    { speaker: '盗賊', text: 'それでも見逃すのか？' },
     { speaker: '盗賊', text: '……馬鹿じゃねぇのか。' },
     { speaker: null, text: '男は森の奥へと消えていった。' },
   ],

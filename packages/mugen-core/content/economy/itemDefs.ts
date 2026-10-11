@@ -257,7 +257,7 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     ingredientTags: ['ancient'],
   },
   /**
-   * 鉄の護符 — GRAVE'S HANDWORK (襲撃前の日々, 2026-10-11): three ore made
+   * 鉄の腕輪 — GRAVE'S HANDWORK (襲撃前の日々, 2026-10-11): three ore made
    * into one small charm at the tavern (content/economy/graveCraft.ts).
    * Carried, not worn — the accessory slots are not open yet — and while
    * one is in the bag the sword carries a little more (attack +1,
@@ -265,10 +265,10 @@ export const ITEM_DEFS: readonly ItemDef[] = [
    */
   {
     itemId: 'IRON_CHARM',
-    name: '鉄の護符',
+    name: '鉄の腕輪',
     category: 'OTHER',
     maxStack: 1,
-    description: 'グレイヴが打った素朴な護符。持っているだけで、剣にほんの少し力が乗る。',
+    description: 'グレイヴが打った素朴な腕輪。持っているだけで、剣を振る腕にほんの少し力が乗る。',
     sellPrice: 0,
     isKeyItem: false,
     rarity: 'UNCOMMON',

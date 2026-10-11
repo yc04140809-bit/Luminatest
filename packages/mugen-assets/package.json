@@ -9,6 +9,7 @@
     "./files/*": "./files/*",
     "./sfx": "./src/sfx.ts",
     "./music": "./src/music.ts",
+    "./appMusic": "./src/appMusic.ts",
     "./battleBackgrounds": "./src/battleBackgrounds.ts"
   }
 }

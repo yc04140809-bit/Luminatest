@@ -31,6 +31,16 @@ import {
 // The delivered sound files, read from the folder they were put in.
 // The artifact aliases this module to an empty one; see sfxNone.ts.
 import { SFX_FILES } from '@mugen/assets/sfx';
+// The App's own pieces (the winnings, セキリュウガ, フウミミ), 2026-10-11.
+import { APP_BGM_ASSETS, APP_BGM_FALLBACK } from '@mugen/assets/appMusic';
+
+/** A piece's file: the App's own first, then the shared table, then the piece it borrows. */
+function bgmSrc(id: BgmId): string | null {
+  const own = APP_BGM_ASSETS[id] ?? BGM_ASSETS[id];
+  if (own) return own;
+  const borrowed = APP_BGM_FALLBACK[id];
+  return borrowed ? (APP_BGM_ASSETS[borrowed] ?? BGM_ASSETS[borrowed]) : null;
+}
 import { SFX_TUNING, sfxRateFor, sfxRingMs, sfxSourceOf } from '@mugen/content/audio/sfxTuning';
 
 /** How loud a sound plays relative to the SFX slider: its tuning, else the shared table. */
@@ -553,7 +563,7 @@ export class AudioManager {
       }, OPENING_START_DELAY_MS);
       return;
     }
-    const src = BGM_ASSETS[id];
+    const src = bgmSrc(id);
     // Whatever was playing stops either way: a scene with no music yet
     // is SILENT, not "the last room, still going".
     this.retireCurrentBgm(fade && !!src);

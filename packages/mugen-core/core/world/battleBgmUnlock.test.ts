@@ -4,6 +4,7 @@ import { World } from './world';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { INITIAL_EQUIPMENT } from '../../content/equipment/equipment';
 import { DEFAULT_HERO_NAME } from './heroName';
+import { GALD_FUTURE_VISION_ID } from '../../content/events/galdLifeChoice';
 
 /**
  * A PIECE OF MUSIC WON IS A FACT ABOUT ONE WORLD.
@@ -129,5 +130,32 @@ describe('a save that beat Gald before saves kept his music', () => {
     const opened = await open(name);
     await opened.resetWorld();
     expect((await open(name)).getUnlockedBattleBgm()).toEqual(['NORMAL_BATTLE']);
+  });
+});
+
+describe('the App\'s own pieces, won (2026-10-11)', () => {
+  it('a world past セキリュウガ, or with フウミミ answered, has their pieces back on opening', async () => {
+    const name = `bgm-recover-new-${Math.random().toString(36).slice(2)}`;
+    const world = await World.open(new IdbMemoryStore(name));
+    // The route opens once Gald is answered and the look ahead seen.
+    await world.recordGaldLifeChoice('SPARE');
+    await world.markExperienceSeen(GALD_FUTURE_VISION_ID);
+    for (const s of ['RUMOR', 'TOLD', 'BEATEN'] as const) await world.advanceSekiryugaArc(s);
+    expect(world.getSekiryugaStage()).toBe('BEATEN');
+    expect(world.getUnlockedBattleBgm()).not.toContain('SEKIRYUGA_BATTLE');
+    const reopened = await World.open(new IdbMemoryStore(name));
+    expect(reopened.getUnlockedBattleBgm()).toContain('SEKIRYUGA_BATTLE');
+    expect(reopened.getUnlockedBattleBgm()).not.toContain('SPECIAL_BATTLE');
+  });
+
+  it('a world short of セキリュウガ stays as it was', async () => {
+    const name = `bgm-recover-none-${Math.random().toString(36).slice(2)}`;
+    const world = await World.open(new IdbMemoryStore(name));
+    await world.recordGaldLifeChoice('SPARE');
+    await world.markExperienceSeen(GALD_FUTURE_VISION_ID);
+    await world.advanceSekiryugaArc('RUMOR');
+    expect(world.getSekiryugaStage()).toBe('RUMOR');
+    const reopened = await World.open(new IdbMemoryStore(name));
+    expect(reopened.getUnlockedBattleBgm()).not.toContain('SEKIRYUGA_BATTLE');
   });
 });

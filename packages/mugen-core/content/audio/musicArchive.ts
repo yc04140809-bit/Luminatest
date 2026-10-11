@@ -32,6 +32,11 @@ export const MUSIC_ARCHIVE: readonly ArchivedPiece[] = [
   { id: 'GREENWOOD_FOREST', title: 'GREENWOOD FOREST', heard: 'グリーンウッドの森' },
   { id: 'NORMAL_BATTLE', title: 'BATTLE', heard: '戦闘' },
   { id: 'BOSS_BATTLE', title: 'BOSS', heard: '強敵との戦い' },
+  // 2026-10-11: the winnings, セキリュウガ, フウミミ (App only).
+  { id: 'RESULT_NORMAL', title: "VICTORY'S CLEAR DAWN", heard: '勝利のあと' },
+  { id: 'SEKIRYUGA_BATTLE', title: 'BOSS II', heard: 'セキリュウガ' },
+  { id: 'SPECIAL_BATTLE', title: 'HUNT', heard: 'フウミミ' },
+  { id: 'NORMAL_BATTLE_2', title: 'BATTLE II', heard: '森の戦い' },
 ];
 
 export const MUSIC_ARCHIVE_IDS: readonly BgmId[] = MUSIC_ARCHIVE.map((p) => p.id);

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
@@ -174,7 +175,7 @@ test('tonight’s stranger: their silhouette in the master’s place, their labe
   await expect(page.getByTestId('tavern-master')).toBeVisible();
   await page.waitForTimeout(300);
   expect(await savedRows(page)).toEqual(before);
-  await page.getByTestId('tavern-talk').click();
+  await talkToMaster(page);
   const meeting: string[] = [];
   for (let i = 0; i < 30; i++) {
     meeting.push((await page.getByTestId('tavern-line').textContent()) ?? '');
