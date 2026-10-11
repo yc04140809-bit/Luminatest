@@ -2332,8 +2332,8 @@ body {
 }
 /* On the region map it comes first, under the title (2026-10-11). */
 .kaos-aside.incident-aside { margin: 0 0 6px; }
-.kaos-aside-speaker .new-badge { margin-left: 6px; }
-.kaos-aside-speaker { grid-area: who; margin: 0; color: var(--p-gold-ink); font-size: 12px; letter-spacing: 0.1em; white-space: nowrap; }
+.kaos-aside-head { grid-area: who; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.kaos-aside-speaker { margin: 0; color: var(--p-gold-ink); font-size: 12px; letter-spacing: 0.1em; white-space: nowrap; }
 .kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--p-serif); font-size: 13px; line-height: 1.5; }
 .kaos-aside-next {
   grid-area: next;
@@ -2416,7 +2416,7 @@ body {
 /* 襲撃前の日常 (2026-10-10): something small in the village — on the square as
    they come back in (the same box as Kaos's word on the map), and over the
    tool shop's counter (the line, then つぎへ, in the keeper's place). */
-.daily-aside { margin-top: 8px; }
+.daily-aside { margin: 0 0 6px; }
 .shop-daily { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .shop-daily .btn { min-height: 32px; padding: 2px 14px; font-size: 12px; }
 /* A face beside the line, when one is delivered (assets/dailyFaces.ts). */

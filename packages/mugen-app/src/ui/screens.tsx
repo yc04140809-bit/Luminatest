@@ -195,8 +195,15 @@ export function AldenScreen({
   onRumors,
   news = {},
   notice,
+  happening,
 }: {
   world: World;
+  /**
+   * A small thing happening in the village as they come back (襲撃前の日常,
+   * ui/daily) — first on the page, under the title (2026-10-11: at the foot
+   * it went unnoticed).
+   */
+  happening?: ReactNode;
   /** 噂話 — what the village is talking about (ui/rumors). Absent: no button. */
   onRumors?: () => void;
   /**
@@ -242,6 +249,7 @@ export function AldenScreen({
         </>
       }
     >
+      {happening}
       {/* The two of them: who, their level, how they are — ready or not. EXP is
           ステータス's and the fight's to show (2026-10-10), not the square's. */}
       <div className="pp-party" data-testid="status-panel">

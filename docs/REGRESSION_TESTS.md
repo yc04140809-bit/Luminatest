@@ -24,7 +24,7 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」、`uxRound`（横画面 5 サイズで「噂話」まで画面内） | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。高さ 420px 以下ではボタンと間隔を詰めて、9 つの選択肢すべてを画面内に収める（2026-10-07。以前は 640×300 で 2 段目がはみ出していた） |
 | 序盤UX（酒場の初訪問順・《瞬断》・AUTO 解禁・BOSS カットイン・戦闘後の酒場・目的地通知・噂話・NEW） | `uxRound`（15 本）、core `talkQueue.test.ts`・`readMarks.test.ts`・`villageRumors.test.ts`・`sekiryugaBattle.test.ts` | 内容は `docs/UX_EARLY_GAME.md` |
 | ALDEN INCIDENT 予兆フェーズ | `aldenIncident`（6 本：ケイオスの予感の会話は地図の画面のいちばん上・NEW 付き（2026-10-11）・セキリュウガ編の後からだけ数える・噂を読んでも増えない・平常・行動で加算・重複なし・休息の連打で増えない・PHASE 1〜3 の噂と NEW・ケイオスの一言（地方画面、出かけるたびに 1 つずつ）・グレイヴ 1 回・PHASE 3 でも何も始まらない・再起動後も保持・844×390 / 640×300）、core `aldenIncident.test.ts` | 内容は `docs/ALDEN_INCIDENT.md`。襲撃本編は未実装 |
-| 襲撃前の日常（5本） | `dailyScenes`（5 本：セキリュウガ前は出ない・村へ戻った時のケイオス 1 回・1 日 1 本・再起動後も同じ・翌日リナ・ミレイの表情と途中でやめた時・主人・グレイヴ・予兆ポイントが動かない・844×390 / 640×300）、core `dailyScenes.test.ts` | 内容は `docs/DAILY_SCENES.md`。常設ボタンなし |
+| 襲撃前の日常（5本） | `dailyScenes`（5 本：村の小さな出来事は村の画面のいちばん上・NEW 付き（2026-10-11）・セキリュウガ前は出ない・村へ戻った時のケイオス 1 回・1 日 1 本・再起動後も同じ・翌日リナ・ミレイの表情と途中でやめた時・主人・グレイヴ・予兆ポイントが動かない・844×390 / 640×300）、core `dailyScenes.test.ts` | 内容は `docs/DAILY_SCENES.md`。常設ボタンなし |
 | App の3つの戦闘（固定） | `battleKinds`（4 本：モスラビット（ガルド前・後）・ガルド・セキリュウガの名前／BOSS／逃げる／AUTO／♪／背景／場所／BGM／HP、逃げた後・勝った後・負けた後の行き先） | `BattleKind` 整理の前に固定（2026-10-10） |
 | 通常敵3種の受け皿 | core `enemySlots.test.ts`（名前・ID は null・役割を戦闘の言葉で・まだどこにも出ない・content/forge に書かない） | 内容は `docs/ENEMY_SLOTS.md` |
 | リゼル・フウミミ | `rizelFuumimi`（2 本：リゼル3場面とガルドの答えへの反応、フウミミの出る条件・遭遇・逃走・勝利後の場面・四択・WORLD MEMORY は答えの時だけ・薬草・森から消える・翌日以降の猟師の話・再起動後）、core `fuumimi.test.ts`・`dailyScenes.test.ts` | 内容は `docs/RIZEL_FUUMIMI.md` |

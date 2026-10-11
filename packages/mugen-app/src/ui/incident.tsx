@@ -35,10 +35,10 @@ export function KaosAside({ world }: { world: World }) {
   };
   return (
     <div className="kaos-aside incident-aside" data-testid="kaos-aside" data-phase={owed}>
-      <p className="kaos-aside-speaker">
-        {speaker}
+      <div className="kaos-aside-head">
+        <p className="kaos-aside-speaker">{speaker}</p>
         <NewBadge testId="kaos-aside-new" />
-      </p>
+      </div>
       <p className="kaos-aside-line" data-testid="kaos-aside-line">
         「{line.text}」
       </p>

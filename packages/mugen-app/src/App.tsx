@@ -848,10 +848,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                 testId="auto-notice"
                 type="unlock"
               />
-              {/* 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ). */}
-              {homecoming && villageScene && <DailyAside key={villageScene.id} world={world} scene={villageScene} />}
             </>
           }
+          // 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ) — at the top.
+          happening={homecoming && villageScene ? <DailyAside key={villageScene.id} world={world} scene={villageScene} /> : null}
           resting={resting}
           onRest={() => {
             if (resting) return;

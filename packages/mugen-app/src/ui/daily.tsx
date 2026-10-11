@@ -3,11 +3,13 @@ import type { World } from '@mugen/core/world/world';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import type { DailyScene } from '@mugen/content/story/dailyScenes';
 import { dailyFaceFor } from '../assets/dailyFaces';
+import { NewBadge } from './common/NewBadge';
 
 /**
  * 襲撃前の日常 — A SMALL THING IN THE VILLAGE, as they come back into it
  * (content/story/dailyScenes.ts). The same small box as Kaos's word on the
- * region map, at the foot of the square, read with 「つぎへ」. Not a button
+ * region map, at the TOP of the square under the title and marked NEW until
+ * read (2026-10-11: at the foot it went unnoticed), read with 「つぎへ」. Not a button
  * and not a list: it is there when it happens, and gone once read. It stops
  * nothing — every door on the square stays where it was — and it is seen
  * when read to its end; left half way, it is there next time.
@@ -29,7 +31,10 @@ export function DailyAside({ world, scene }: { world: World; scene: DailyScene }
   return (
     <div className="kaos-aside daily-aside" data-testid="daily-scene" data-scene={scene.id}>
       {face && <img className="daily-face" src={face} alt={speaker ?? ''} data-testid="daily-face" />}
-      {speaker && <p className="kaos-aside-speaker">{speaker}</p>}
+      <div className="kaos-aside-head">
+        {speaker && <p className="kaos-aside-speaker">{speaker}</p>}
+        <NewBadge testId="daily-new" />
+      </div>
       <p className="kaos-aside-line" data-testid="daily-line">
         {speaker ? `「${line.text}」` : line.text}
       </p>

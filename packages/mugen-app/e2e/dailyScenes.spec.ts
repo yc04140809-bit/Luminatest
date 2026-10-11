@@ -145,6 +145,11 @@ test('after it: Kaos on the steps as they come back — once; one a day; tomorro
   const before = await what(page);
   await outAndBack(page);
   await expect(page.getByTestId('daily-scene')).toHaveAttribute('data-scene', 'KAOS_DETOUR');
+  // First on the page, over the two of them and every door (2026-10-11: at the foot it went unnoticed) — and marked NEW.
+  await expect(page.getByTestId('daily-new')).toBeVisible();
+  const sceneBox = (await page.getByTestId('daily-scene').boundingBox())!;
+  const partyBox = (await page.getByTestId('status-panel').boundingBox())!;
+  expect(sceneBox.y + sceneBox.height).toBeLessThanOrEqual(partyBox.y + 1);
   // Every door on the square still there while it is told.
   for (const id of ['tavern-button', 'bakery-button', 'shop-button', 'rest-button', 'explore-button']) {
     await expect(page.getByTestId(id)).toBeEnabled();
