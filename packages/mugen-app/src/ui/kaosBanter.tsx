@@ -1,32 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { kaosFaceOf, type KaosFace } from '@mugen/content/characters/kaosFaces';
 import { banterMark, type KaosBanter } from '@mugen/content/story/kaosBanter';
-import { kaosFaceSrc } from '../assets/kaosFaces';
 import { NewBadge } from './common/NewBadge';
-
-/** Her face beside her line, once its picture (or the nearest) is delivered; nothing until then. */
-export function KaosFace({ face }: { face: KaosFace | null }) {
-  const [src, setSrc] = useState<{ face: KaosFace; src: string | null } | null>(null);
-  useEffect(() => {
-    if (!face) return;
-    let gone = false;
-    void kaosFaceSrc(face).then((s) => !gone && setSrc({ face, src: s }));
-    return () => {
-      gone = true;
-    };
-  }, [face]);
-  if (!face || !src || src.face !== face || !src.src) return null;
-  return <img className="daily-face kaos-face" src={src.src} alt="ケイオス" data-testid="kaos-face" data-face={face} />;
-}
+import { TalkStage } from './talkStage';
 
 /**
  * 主人公×ケイオス — ONE SHORT EXCHANGE, at the top of the page (作者指示
  * 2026-10-11): the same small box as her word on the map, NEW while it is
- * told (each is said once), her face beside each of her lines, read with
+ * told (each is said once), the two of them side by side over the painting
+ * with her face on each of her lines (ui/talkStage), read with
  * 「つぎへ」. It stops nothing. Read to its end, it is heard for good.
  */
+/** Her face as it last was before this line (the hero speaking: she keeps her look). */
+function lastFace(banter: KaosBanter, at: number): KaosFace {
+  for (let i = at; i >= 0; i--) {
+    const f = kaosFaceOf(banter.lines[i]);
+    if (f) return f;
+  }
+  return kaosFaceOf(banter.lines.find((l) => l.speaker === 'ケイオス') ?? { speaker: null }) ?? 'NORMAL';
+}
+
 export function BanterAside({ world, banter }: { world: World; banter: KaosBanter }) {
   const [at, setAt] = useState(0);
   const [done, setDone] = useState(false);
@@ -47,7 +42,7 @@ export function BanterAside({ world, banter }: { world: World; banter: KaosBante
       data-banter={banter.id}
       data-kaos-face={face ?? ''}
     >
-      <KaosFace face={face} />
+      <TalkStage speaking={line.speaker === HERO_SPEAKER ? 'HERO' : face ? 'KAOS' : null} kaosFace={face ?? lastFace(banter, at)} />
       <div className="kaos-aside-head">
         {speaker && <p className="kaos-aside-speaker">{speaker}</p>}
         <NewBadge testId="kaos-banter-new" />

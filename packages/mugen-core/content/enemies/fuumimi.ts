@@ -95,8 +95,8 @@ export const FUUMIMI: EnemySpeciesDef = {
       { speaker: null, text: 'フウミミが膝を折った。それでも、背中の向こうを隠すように翅を広げている。' },
       { speaker: null, text: '翅の陰で、小さな同じ生き物が震えていた。' },
       { speaker: '{HERO}', text: '……何だ？' },
-      { speaker: 'ケイオス', text: 'この子……。' },
-      { speaker: 'ケイオス', text: 'わたしたちを襲いたかったわけじゃ、ないのかもしれないね。' },
+      { speaker: 'ケイオス', text: 'この子……。', kaosFace: 'SAD' },
+      { speaker: 'ケイオス', text: 'わたしたちを襲いたかったわけじゃ、ないのかもしれないね。', kaosFace: 'SAD' },
     ],
     prompt: 'この生き物の人生を、どうしますか？',
     options: [
@@ -118,7 +118,7 @@ export const FUUMIMI: EnemySpeciesDef = {
 export const FUUMIMI_ENCOUNTER_LINES: readonly DialogueLine[] = [
   { speaker: null, text: '森の入口の茂みが、かすかに鳴った。' },
   { speaker: null, text: '翅のある小さな生き物が、こちらを睨んでいる。この辺りでは見ない姿だ。' },
-  { speaker: 'ケイオス', text: '……気が立ってる。来るよ！' },
+  { speaker: 'ケイオス', text: '……気が立ってる。来るよ！', kaosFace: 'SERIOUS' },
 ];
 
 /**

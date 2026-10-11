@@ -208,6 +208,10 @@ test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」
   await expect(aside).toHaveAttribute('data-phase', '1');
   // First on the page, over every way on (2026-10-11: at the foot it went unnoticed) — and marked NEW.
   await expect(page.getByTestId('kaos-aside-new')).toBeVisible();
+  // Her face as the line names it, and the two of them side by side while she talks (2026-10-11).
+  await expect(aside).toHaveAttribute('data-kaos-face', 'SURPRISED');
+  await expect(page.getByTestId('talk-stage')).toHaveAttribute('data-speaking', 'KAOS');
+  await expect(page.getByTestId('talk-bust-kaos')).toBeVisible();
   const asideBox = (await aside.boundingBox())!;
   const forestBox = (await page.getByTestId('forest-button').boundingBox())!;
   expect(asideBox.y + asideBox.height).toBeLessThanOrEqual(forestBox.y + 1);

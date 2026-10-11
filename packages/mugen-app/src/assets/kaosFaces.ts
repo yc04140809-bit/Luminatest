@@ -33,7 +33,7 @@ const STAND_IN: Partial<Record<KaosFace, KaosFace>> = {
 };
 
 /** The part of each delivered bust that is her (above the sample dialogue box drawn on it). */
-export const KAOS_FACE_BOX = { fileW: 1122, fileH: 1402, x: 0, y: 0, width: 1122, height: 1050 } as const;
+export const KAOS_FACE_BOX = { fileW: 1122, fileH: 1402, x: 0, y: 0, width: 1122, height: 1040 } as const;
 
 /** Which face actually answers for `face`: itself or the nearest delivered, else a stand-in; null when none. */
 export function kaosFaceDrawn(

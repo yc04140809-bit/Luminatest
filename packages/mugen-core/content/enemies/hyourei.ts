@@ -66,7 +66,7 @@ export const HYOUREI: EnemySpeciesDef = {
     scene: [
       { speaker: null, text: 'ヒョウレイは逃げずに、こちらをじっと見ている。' },
       { speaker: null, text: '翼の光が、呼吸に合わせてゆっくりと明滅している。' },
-      { speaker: 'ケイオス', text: '……この子、さっきから一度も本気で来てない。' },
+      { speaker: 'ケイオス', text: '……この子、さっきから一度も本気で来てない。', kaosFace: 'TROUBLED' },
     ],
     prompt: 'この生き物の人生を、どうしますか？',
     options: [
@@ -88,5 +88,5 @@ export const HYOUREI: EnemySpeciesDef = {
 export const HYOUREI_FIRST_SIGHT: readonly DialogueLine[] = [
   { speaker: null, text: '水辺の方から、冷たい風が吹いた。' },
   { speaker: null, text: '光る翼の獣が、木々の間に浮かんでいる。噂の通りの姿だ。' },
-  { speaker: 'ケイオス', text: '……あれが、噂の子かな。気をつけて、すごく速いよ。' },
+  { speaker: 'ケイオス', text: '……あれが、噂の子かな。気をつけて、すごく速いよ。', kaosFace: 'SERIOUS' },
 ];

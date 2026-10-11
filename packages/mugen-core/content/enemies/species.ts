@@ -228,7 +228,7 @@ export const MOSS_RABBIT: EnemySpeciesDef = {
     scene: [
       { speaker: null, text: '伏せたモスラビットの後ろ足に、古い蔓がきつく巻きついている。' },
       { speaker: null, text: '逃げようとして、逃げきれなかったのだと分かる。' },
-      { speaker: 'ケイオス', text: '……この子、ずっとここにいたのかな。' },
+      { speaker: 'ケイオス', text: '……この子、ずっとここにいたのかな。', kaosFace: 'SAD' },
     ],
     prompt: 'この子を、どうしますか？',
     options: [

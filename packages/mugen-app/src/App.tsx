@@ -69,6 +69,9 @@ const RUINS_DESTINATION = 'dest:ANCIENT_RUINS';
 import { RumorScreen, rumorsOf } from './ui/rumors';
 import { KaosAside } from './ui/incident';
 import { DailyAside } from './ui/daily';
+import { BanterAside } from './ui/kaosBanter';
+import { banterFor } from './ui/banterRoll';
+import type { KaosBanter } from '@mugen/content/story/kaosBanter';
 import { CreatureEncounterScreen, CreatureLifeChoiceScreen } from './ui/creatureChoice';
 import { firstSightLines, firstSightMark, wildSpeciesFor } from '@mugen/content/enemies/encounters';
 import { ENEMY_SPECIES, type SpeciesId } from '@mugen/content/enemies/species';
@@ -205,6 +208,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * content/story/dailyScenes.ts). Cleared on setting out again.
    */
   const [homecoming, setHomecoming] = useState(false);
+  // One of their short exchanges as they come back in — decided once per coming back (ui/banterRoll).
+  const [homeBanter, setHomeBanter] = useState<KaosBanter | null>(null);
   /**
    * WHO CAME OUT OF THE UNDERGROWTH — the forest's ordinary fight's creature,
    * rolled as the player steps toward it (content/enemies/encounters.ts).
@@ -861,7 +866,14 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             </>
           }
           // 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ) — at the top.
-          happening={homecoming && villageScene ? <DailyAside key={villageScene.id} world={world} scene={villageScene} /> : null}
+          happening={
+            homecoming && villageScene ? (
+              <DailyAside key={villageScene.id} world={world} scene={villageScene} />
+            ) : homecoming && homeBanter ? (
+              // Nothing small happening today: now and then, one of their short exchanges.
+              <BanterAside key={homeBanter.id} world={world} banter={homeBanter} />
+            ) : null
+          }
           resting={resting}
           onRest={() => {
             if (resting) return;
@@ -1009,6 +1021,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onHome={() => {
             // Back into the village from outside: where a small thing may happen.
             setHomecoming(true);
+            setHomeBanter(world.getDailyScene('VILLAGE') ? null : banterFor(world, 'HOMECOMING'));
             flow.goTo('HOME');
           }}
           // Opened by the tavern's master telling what was sealed there.

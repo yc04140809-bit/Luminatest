@@ -78,7 +78,7 @@ export const IWAHORO: EnemySpeciesDef = {
   individual: {
     scene: [
       { speaker: null, text: 'イワホロの殻の隙間から、細い根が垂れている。ひどく痩せているのが分かる。' },
-      { speaker: 'ケイオス', text: '……お腹、空いてたのかな。' },
+      { speaker: 'ケイオス', text: '……お腹、空いてたのかな。', kaosFace: 'SAD' },
     ],
     prompt: 'この生き物の人生を、どうしますか？',
     options: [
@@ -100,5 +100,5 @@ export const IWAHORO: EnemySpeciesDef = {
 export const IWAHORO_FIRST_SIGHT: readonly DialogueLine[] = [
   { speaker: null, text: '苔むした石だと思ったものが、ゆっくりと宙に浮いた。' },
   { speaker: null, text: '大きな眼が一つ、こちらを見ている。' },
-  { speaker: 'ケイオス', text: '……石じゃない。生きてる。来るよ！' },
+  { speaker: 'ケイオス', text: '……石じゃない。生きてる。来るよ！', kaosFace: 'SURPRISED' },
 ];

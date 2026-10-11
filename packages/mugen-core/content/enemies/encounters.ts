@@ -90,7 +90,7 @@ export const FIRST_SIGHT: Partial<Record<SpeciesId, readonly DialogueLine[]>> = 
   kokemaru: KOKEMARU_FIRST_SIGHT,
   fuumimi: [
     { speaker: null, text: '翅の音。あの時と同じ姿の生き物が、茂みから飛び出してきた。' },
-    { speaker: 'ケイオス', text: '……別の子だね。この子は、ただ気が立ってるだけみたい。' },
+    { speaker: 'ケイオス', text: '……別の子だね。この子は、ただ気が立ってるだけみたい。', kaosFace: 'TROUBLED' },
   ],
 };
 
@@ -101,7 +101,7 @@ export const FIRST_SIGHT: Partial<Record<SpeciesId, readonly DialogueLine[]>> = 
  */
 export const FUUMIMI_FIRST_SIGHT_UNMET: readonly DialogueLine[] = [
   { speaker: null, text: '翅の音。見たことのない生き物が、茂みから飛び出してきた。' },
-  { speaker: 'ケイオス', text: '……初めて見る子だね。体が硬そう。気をつけて！' },
+  { speaker: 'ケイオス', text: '……初めて見る子だね。体が硬そう。気をつけて！', kaosFace: 'SURPRISED' },
 ];
 
 /**

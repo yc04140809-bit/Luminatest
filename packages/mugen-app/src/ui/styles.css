@@ -2457,3 +2457,41 @@ body {
     pointer-events: none;
   }
 }
+
+/* 主人公×ケイオス (2026-10-11): the two of them side by side over the place's
+   painting while a short exchange is told in the box at the top of the page —
+   the hero on the left, Kaos on the right by the page; the one speaking in
+   full light, the other dimmed (ui/talkStage.tsx). */
+.talk-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: max(300px, min(48%, 460px));
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.talk-bust {
+  position: absolute;
+  bottom: 0;
+  width: 56%;
+  filter: brightness(0.5) saturate(0.75);
+  transition: filter 0.2s ease, transform 0.2s ease;
+  z-index: 1;
+}
+.talk-bust.on { filter: none; transform: translateY(-1.5%) scale(1.03); z-index: 2; }
+.talk-bust-hero { left: 0; transform-origin: bottom left; }
+.talk-bust-kaos { right: 0; transform-origin: bottom right; }
+.talk-bust-frame { position: relative; width: 100%; overflow: hidden; }
+.talk-bust-frame img { position: absolute; max-width: none; }
+/* His picture is cut from a larger one: its cut edges fade instead of ending in a line. */
+.talk-bust-hero .talk-bust-frame {
+  -webkit-mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%);
+  mask-composite: intersect;
+}
+@media (prefers-reduced-motion: reduce) {
+  .talk-bust { transition: none; }
+}

@@ -1,3 +1,5 @@
+import type { KaosFace } from '../characters/kaosFaces';
+
 // Prologue + Kaos introduction lines (spec section 9).
 
 export interface DialogueLine {
@@ -16,6 +18,12 @@ export interface DialogueLine {
    * why the opening needs no marking to come out right.
    */
   tense?: boolean;
+  /**
+   * HER FACE ON THIS LINE, when she speaks it (表情差分, 2026-10-11): a
+   * feeling, not a file — content/characters/kaosFaces.ts. Absent: NORMAL,
+   * or SERIOUS when `tense`.
+   */
+  kaosFace?: KaosFace;
 }
 
 export const PROLOGUE_LINES: DialogueLine[] = [

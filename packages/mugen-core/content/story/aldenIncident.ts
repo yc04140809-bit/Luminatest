@@ -19,21 +19,21 @@ const GRAVE = 'グレイヴ';
 /** Kaos senses something — once per phase, as they set out. */
 export const INCIDENT_KAOS_TALKS: Readonly<Record<1 | 2 | 3, readonly DialogueLine[]>> = {
   1: [
-    { speaker: KAOS, text: '……ん？' },
+    { speaker: KAOS, text: '……ん？', kaosFace: 'SURPRISED' },
     { speaker: HERO, text: 'どうした？' },
-    { speaker: KAOS, text: 'ううん。なんでもない♪' },
+    { speaker: KAOS, text: 'ううん。なんでもない♪', kaosFace: 'SMILE' },
   ],
   2: [
-    { speaker: KAOS, text: '……この感じ。' },
+    { speaker: KAOS, text: '……この感じ。', kaosFace: 'SERIOUS' },
     { speaker: HERO, text: 'また何か分かるのか？' },
-    { speaker: KAOS, text: '分かんないから困ってるの。' },
+    { speaker: KAOS, text: '分かんないから困ってるの。', kaosFace: 'PUKU' },
   ],
   3: [
-    { speaker: KAOS, text: 'しばらく、村から遠くへ行かない方がいいかも。' },
+    { speaker: KAOS, text: 'しばらく、村から遠くへ行かない方がいいかも。', kaosFace: 'SERIOUS' },
     { speaker: HERO, text: '理由は？' },
-    { speaker: KAOS, text: '勘。' },
+    { speaker: KAOS, text: '勘。', kaosFace: 'NORMAL' },
     { speaker: HERO, text: '雑だな。' },
-    { speaker: KAOS, text: '神様の勘を舐めないでよ。' },
+    { speaker: KAOS, text: '神様の勘を舐めないでよ。', kaosFace: 'ANGRY' },
   ],
 };
 

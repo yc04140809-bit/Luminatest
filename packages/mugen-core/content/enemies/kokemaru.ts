@@ -83,7 +83,7 @@ export const KOKEMARU: EnemySpeciesDef = {
   individual: {
     scene: [
       { speaker: null, text: 'コケマルの口もとから、つやのある丸いどんぐりがこぼれ落ちた。' },
-      { speaker: 'ケイオス', text: '……集めてたのかな。大事そうにしてる。' },
+      { speaker: 'ケイオス', text: '……集めてたのかな。大事そうにしてる。', kaosFace: 'SAD' },
     ],
     prompt: 'この生き物の人生を、どうしますか？',
     options: [
@@ -105,5 +105,5 @@ export const KOKEMARU: EnemySpeciesDef = {
 export const KOKEMARU_FIRST_SIGHT: readonly DialogueLine[] = [
   { speaker: null, text: '苔の塊だと思ったものが、くねりと動いた。' },
   { speaker: null, text: '丸い眼が、興味深そうにこちらを見ている。その口に、小石をくわえていた。' },
-  { speaker: 'ケイオス', text: '……かわいい顔してるけど、あれ、投げてくるよ！' },
+  { speaker: 'ケイオス', text: '……かわいい顔してるけど、あれ、投げてくるよ！', kaosFace: 'SURPRISED' },
 ];

@@ -19,7 +19,8 @@ import { KAOS_FACE_BOX, kaosFaceSrc } from '../assets/kaosFaces';
 
 const HERO_BUST = {
   load: async () => (await import('@mugen/assets/files/characters/hero/hero-battle-idle.png')).default,
-  box: { fileW: 1024, fileH: 1536, x: 60, y: 120, width: 900, height: 720 },
+  // Head and shoulders, turned to face her.
+  box: { fileW: 1024, fileH: 1536, x: 150, y: 60, width: 560, height: 670 },
   mirror: true,
 };
 

@@ -21,7 +21,6 @@
 // again and again (「……またここ？」) is a `when` on `forestVisits`.
 
 import type { DialogueLine } from '../dialogue/prologue';
-import type { KaosFace } from '../characters/kaosFaces';
 import type { SekiryugaStage } from '../../core/world/storyArc';
 import type { IncidentPhase } from '../../core/world/aldenIncident';
 import { HERO_SPEAKER } from './sekiryugaArc';
@@ -29,7 +28,8 @@ import { HERO_SPEAKER } from './sekiryugaArc';
 const KAOS = 'ケイオス';
 const HERO = HERO_SPEAKER;
 
-export type BanterLine = DialogueLine & { kaosFace?: KaosFace };
+/** A line of an exchange (DialogueLine, with her face on hers). */
+export type BanterLine = DialogueLine;
 
 /** Where one may be said: setting out (the region map), or coming back into the village. */
 export type BanterPlace = 'SETTING_OUT' | 'HOMECOMING';
