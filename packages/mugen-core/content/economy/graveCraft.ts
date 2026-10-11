@@ -7,13 +7,14 @@
 // early, never required, nothing that outclasses what a smith will make.
 //
 // Each is made as often as the materials allow (the bag is the limit),
-// except the charm: one is enough, and it is made once.
+// except the charm: one is enough, and it is made once (while one is carried).
 
 import type { TradeLine } from './tavernTrades';
 
-export type CraftOutput =
-  | { kind: 'ITEM'; itemId: string; quantity: number }
-  | { kind: 'EQUIPMENT'; equipmentId: string };
+export interface CraftOutput {
+  itemId: string;
+  quantity: number;
+}
 
 export interface GraveCraft {
   id: string;
@@ -23,6 +24,8 @@ export interface GraveCraft {
   get: CraftOutput;
   /** One line on what it is for. */
   note: string;
+  /** Made once: not again while one is carried. */
+  once?: boolean;
 }
 
 export const GRAVE_CRAFTS: readonly GraveCraft[] = [
@@ -30,22 +33,26 @@ export const GRAVE_CRAFTS: readonly GraveCraft[] = [
     id: 'CRAFT_HERB_BUNDLE',
     name: '薬草束',
     give: [{ itemId: 'FOREST_HERB', quantity: 3 }],
-    get: { kind: 'ITEM', itemId: 'FINE_HERB', quantity: 1 },
+    get: { itemId: 'FINE_HERB', quantity: 1 },
     note: '薬草をまとめて煎じる。上薬草になる。',
   },
   {
     id: 'CRAFT_MANA_DROP',
     name: '魔力の雫',
     give: [{ itemId: 'MANA_HERB', quantity: 2 }],
-    get: { kind: 'ITEM', itemId: 'MANA_WATER', quantity: 1 },
+    get: { itemId: 'MANA_WATER', quantity: 1 },
     note: '魔力草を搾って澄ませる。魔力水になる。',
   },
   {
     id: 'CRAFT_IRON_CHARM',
     name: '鉄の護符',
     give: [{ itemId: 'IRON_ORE', quantity: 3 }],
-    get: { kind: 'EQUIPMENT', equipmentId: 'accessory/iron_charm' },
-    note: '鉄を打って護符にする。身につけると、剣にほんの少し力が乗る。',
+    // Not an equipment slot (the accessory slots are not operable yet, and a
+    // real smith will make those): carried in the bag, it puts +1 on his
+    // swing — one, however many are made (it is made once).
+    get: { itemId: 'IRON_CHARM', quantity: 1 },
+    note: '鉄を打って護符にする。持っているだけで、剣にほんの少し力が乗る。',
+    once: true,
   },
 ];
 

@@ -9,17 +9,24 @@
 // regrowth day counts from the day the row is first written. SAVE_VERSION
 // stays 3.
 
+import type { ReadRow } from './saveRead';
+
 export type RegrowthRow = Readonly<Record<string, number>>;
 
 /** Repairs the row from the save: whole-number days only, by pickup id. */
-export function readRegrowth(raw: unknown): RegrowthRow {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+export function readRegrowth(raw: unknown): ReadRow<RegrowthRow> {
+  if (raw === undefined || raw === null) return { value: {}, health: 'ok' };
+  if (typeof raw !== 'object' || Array.isArray(raw)) return { value: {}, health: 'repaired' };
   const out: Record<string, number> = {};
+  let dropped = false;
   for (const [id, day] of Object.entries(raw as Record<string, unknown>)) {
-    const n = Math.floor(Number(day));
-    if (id && Number.isFinite(n) && n >= 0) out[id] = n;
+    const n = typeof day === 'number' ? Math.floor(day) : NaN;
+    if (id && Number.isFinite(n) && n >= 0) {
+      out[id] = n;
+      if (n !== day) dropped = true;
+    } else dropped = true;
   }
-  return out;
+  return { value: out, health: dropped ? 'repaired' : 'ok' };
 }
 
 /**

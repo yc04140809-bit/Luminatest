@@ -44,6 +44,9 @@ import {
 import type { BgmId } from '@mugen/assets';
 import { MUSIC_ARCHIVE_IDS, isArchivedPiece } from '../../content/audio/musicArchive';
 import type { TavernTrade } from '../../content/economy/tavernTrades';
+import { readRegrowth, pickupThere, type RegrowthRow } from './pickupRegrowth';
+import { PICKUP_REGROWTH, regrowthOf } from '../../content/exploration/regrowth';
+import type { GraveCraft } from '../../content/economy/graveCraft';
 import {
   NO_INCIDENT,
   countIncident,
@@ -375,6 +378,11 @@ const BREAD_BUFF_KEY = 'breadBuff';
  * as none, none and its own — no schema version moved.
  */
 const TAVERN_TRADES_KEY = 'tavernTrades';
+/** When each pickup that grows back was last taken (core/world/pickupRegrowth.ts), 2026-10-11. */
+const REGROWTH_KEY = 'pickupRegrowth';
+/** 鉄の護符: carried, +1 on his swing (content/economy/graveCraft.ts). */
+const IRON_CHARM_ID = 'IRON_CHARM';
+const IRON_CHARM_ATTACK = 1;
 const MUSIC_UNLOCKS_KEY = 'musicUnlocks';
 const VILLAGE_BGM_KEY = 'villageBgm';
 /**
@@ -651,6 +659,7 @@ export class World {
   private breadFreshness: BreadFreshness;
   private breadBuff: BreadBuff | null;
   private tavernTrades: TavernTradesRow;
+  private pickupRegrowth: RegrowthRow;
   private musicUnlocks: BgmId[];
   private villageBgm: BgmId | null;
   private incident: IncidentRow;
@@ -684,6 +693,7 @@ export class World {
     this.breadFreshness = fields.breadFreshness;
     this.breadBuff = fields.breadBuff;
     this.tavernTrades = fields.tavernTrades;
+    this.pickupRegrowth = fields.pickupRegrowth;
     this.musicUnlocks = fields.musicUnlocks;
     this.villageBgm = fields.villageBgm;
     this.incident = fields.incident;
@@ -896,7 +906,8 @@ export class World {
    */
   getPartyStats(): PartyStats {
     const stats = statsForLevels(this.getLevel('hero'), this.getLevel('kaos'));
-    const { attack } = weaponInBattle(this.getEquipped('hero', 'WEAPON'));
+    // 鉄の護符 (グレイヴの加工, 2026-10-11): carried, a little more on his swing — one, however many.
+    const attack = weaponInBattle(this.getEquipped('hero', 'WEAPON')).attack + (this.getItemCount(IRON_CHARM_ID) > 0 ? IRON_CHARM_ATTACK : 0);
     if (attack === 0) return stats;
     return { ...stats, attackMin: stats.attackMin + attack, attackMax: stats.attackMax + attack };
   }
@@ -1281,14 +1292,35 @@ export class World {
 
   // ---- THINGS TO PICK UP (2026-10-07) ----
 
-  /** The fixed pickups taken in this world, by id. */
+  /**
+   * The fixed pickups gone from the floor today, by id: those taken, less
+   * the few that have grown back since (content/exploration/regrowth.ts,
+   * 2026-10-11).
+   */
   getTakenPickups(): readonly string[] {
-    return this.pickupsTaken;
+    return this.pickupsTaken.filter((id) => !this.regrown(id));
   }
 
-  /** Whether this pickup has been taken in this world. */
+  /** Whether this pickup is gone from the floor today. */
   isPickupTaken(pickupId: string): boolean {
+    return this.pickupsTaken.includes(pickupId) && !this.regrown(pickupId);
+  }
+
+  /** Whether this pickup has ever been taken in this world (grown back or not). */
+  hasEverTakenPickup(pickupId: string): boolean {
     return this.pickupsTaken.includes(pickupId);
+  }
+
+  /** Taken once, grows back, and has: there to take again today. */
+  private regrown(pickupId: string): boolean {
+    const rule = regrowthOf(pickupId);
+    if (!rule || !this.pickupsTaken.includes(pickupId)) return false;
+    return pickupThere(pickupId, this.pickupsTaken, this.pickupRegrowth, toAbsoluteDay(this.clock), rule.days);
+  }
+
+  /** Whether anything in the forest has grown back since it was taken (for Kaos's word). */
+  hasRegrownPickup(): boolean {
+    return Object.keys(PICKUP_REGROWTH).some((id) => this.regrown(id));
   }
 
   /**
@@ -1302,19 +1334,25 @@ export class World {
   async claimPickup(pickupId: string, itemId: string, quantity: number): Promise<number> {
     const def = itemDef(itemId);
     const want = Math.floor(quantity);
-    if (!pickupId || this.pickupsTaken.includes(pickupId) || !def) return 0;
+    if (!pickupId || this.isPickupTaken(pickupId) || !def) return 0;
     if (!Number.isFinite(want) || want <= 0) return 0;
     if (roomFor(this.inventory, def) < want) return 0;
     const bag = addToBag(this.inventory, def, want);
     if (bag.moved !== want) return 0;
-    const taken = [...this.pickupsTaken, pickupId];
+    const taken = this.pickupsTaken.includes(pickupId) ? this.pickupsTaken : [...this.pickupsTaken, pickupId];
+    // One that grows back: the day it was taken, so it can be there again some days on.
+    const regrowth = regrowthOf(pickupId)
+      ? { ...this.pickupRegrowth, [pickupId]: toAbsoluteDay(this.clock) }
+      : this.pickupRegrowth;
     await this.store.commit({
       putState: [
         { key: PICKUPS_KEY, value: taken },
         { key: INVENTORY_KEY, value: bag.inventory },
+        ...(regrowth !== this.pickupRegrowth ? [{ key: REGROWTH_KEY, value: regrowth }] : []),
       ],
     });
     this.pickupsTaken = taken;
+    this.pickupRegrowth = regrowth;
     this.inventory = bag.inventory;
     this.emit();
     return want;
@@ -1441,6 +1479,32 @@ export class World {
   /** The swaps already made on this (absolute) day. */
   getTradesDone(day: number): readonly string[] {
     return this.tavernTrades.day === day ? this.tavernTrades.done : [];
+  }
+
+  /**
+   * グレイヴの簡単な加工 (2026-10-11): the materials out of the bag and the
+   * thing in, in ONE COMMIT. As often as the bag allows; the charm only
+   * while none is carried. Nothing else is written (no point, no memory).
+   */
+  async craftAtTavern(craft: GraveCraft): Promise<'OK' | 'SHORT' | 'FULL' | 'OWNED'> {
+    if (craft.once && this.getItemCount(craft.get.itemId) > 0) return 'OWNED';
+    let bag = this.inventory;
+    for (const line of craft.give) {
+      const def = itemDef(line.itemId);
+      if (!def || def.isKeyItem) return 'SHORT';
+      const taken = removeFromBag(bag, line.itemId, line.quantity);
+      if (taken.moved !== line.quantity) return 'SHORT';
+      bag = taken.inventory;
+    }
+    const def = itemDef(craft.get.itemId);
+    if (!def || roomFor(bag, def) < craft.get.quantity) return 'FULL';
+    const added = addToBag(bag, def, craft.get.quantity);
+    if (added.moved !== craft.get.quantity) return 'FULL';
+    bag = added.inventory;
+    await this.store.commit({ putState: [{ key: INVENTORY_KEY, value: bag }] });
+    this.inventory = bag;
+    this.emit();
+    return 'OK';
   }
 
   /**
@@ -3053,6 +3117,7 @@ export class World {
     this.breadFreshness = NO_BREAD;
     this.breadBuff = null;
     this.tavernTrades = NO_TRADES;
+    this.pickupRegrowth = {};
     this.musicUnlocks = [];
     this.villageBgm = null;
     this.incident = NO_INCIDENT;
@@ -3127,6 +3192,7 @@ export class World {
     this.breadFreshness = this.getBreadFreshness();
     this.breadBuff = null;
     this.tavernTrades = NO_TRADES;
+    this.pickupRegrowth = {};
     this.incident = NO_INCIDENT;
     this.dailyScene = NO_DAILY_SCENE;
     this.emit();
@@ -3278,6 +3344,7 @@ interface WorldFields {
   breadFreshness: BreadFreshness;
   breadBuff: BreadBuff | null;
   tavernTrades: TavernTradesRow;
+  pickupRegrowth: RegrowthRow;
   musicUnlocks: BgmId[];
   villageBgm: BgmId | null;
   incident: IncidentRow;
@@ -3433,6 +3500,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readBreadFreshness(value));
     case BREAD_BUFF_KEY:
       return settle(readBreadBuff(value));
+    case REGROWTH_KEY:
+      return settle(readRegrowth(value));
     case TAVERN_TRADES_KEY:
       return settle(readTavernTrades(value));
     case MUSIC_UNLOCKS_KEY:
@@ -3533,6 +3602,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       breadFreshness: take(BREAD_FRESHNESS_KEY, readBreadFreshness(byKey.get(BREAD_FRESHNESS_KEY))),
       breadBuff: take(BREAD_BUFF_KEY, readBreadBuff(byKey.get(BREAD_BUFF_KEY))),
       tavernTrades: take(TAVERN_TRADES_KEY, readTavernTrades(byKey.get(TAVERN_TRADES_KEY))),
+      pickupRegrowth: take(REGROWTH_KEY, readRegrowth(byKey.get(REGROWTH_KEY))),
       musicUnlocks: take(MUSIC_UNLOCKS_KEY, readMusicUnlocks(byKey.get(MUSIC_UNLOCKS_KEY))),
       villageBgm: take(VILLAGE_BGM_KEY, readVillageBgm(byKey.get(VILLAGE_BGM_KEY))),
       incident: take(INCIDENT_KEY, readIncident(byKey.get(INCIDENT_KEY))),

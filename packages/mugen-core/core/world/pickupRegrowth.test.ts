@@ -33,8 +33,9 @@ describe('things that grow back (2026-10-11)', () => {
   });
 
   it('the row from a save is repaired, never trusted', () => {
-    expect(readRegrowth(null)).toEqual({});
-    expect(readRegrowth([1, 2])).toEqual({});
-    expect(readRegrowth({ a: 3, b: 'x', c: -1, d: 2.7 })).toEqual({ a: 3, d: 2 });
+    expect(readRegrowth(null)).toEqual({ value: {}, health: 'ok' });
+    expect(readRegrowth([1, 2])).toEqual({ value: {}, health: 'repaired' });
+    expect(readRegrowth({ a: 3, b: 'x', c: -1, d: 2.7 })).toEqual({ value: { a: 3, d: 2 }, health: 'repaired' });
+    expect(readRegrowth({ a: 3 })).toEqual({ value: { a: 3 }, health: 'ok' });
   });
 });

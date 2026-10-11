@@ -1176,6 +1176,17 @@ body {
 .tavern-archive-row.on .tavern-piece-name { color: var(--gold); }
 .tavern-piece-name { flex: 1 1 auto; min-width: 0; text-align: left; font-size: 13px; letter-spacing: 0.04em; }
 .tavern-piece-heard { margin-left: 8px; color: var(--dim); font-size: 11px; }
+/* グレイヴの簡単な加工 (2026-10-11): three rows that scroll inside the box; もどる always there. */
+.tavern-craft-list { flex: 1 1 auto; list-style: none; margin: 2px 0 4px; padding: 0; width: 100%; min-height: 72px; overflow-y: auto; border-bottom: 1px solid var(--line); }
+.screen.tavern:has(.tavern-craft) .tavern-words { overflow-y: hidden; }
+.tavern-craft-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid var(--line); }
+.tavern-craft-what { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; text-align: left; }
+.tavern-craft-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.tavern-craft-name { font-size: 13px; letter-spacing: 0.04em; }
+.tavern-craft-needs { font-size: 12px; }
+.tavern-craft-note { color: var(--dim); font-size: 11px; line-height: 1.35; }
+.tavern-craft-row .btn { min-height: 34px; }
+.tavern-craft-row .btn { flex: 0 0 auto; min-width: 72px; }
 .tavern-archive-row .btn { flex: 0 0 auto; min-width: 64px; min-height: 36px; padding: 4px 10px; }
 .tavern-village-bgm { margin: 0; color: var(--dim); font-size: 12px; }
 @media (max-height: 340px) {
@@ -2420,6 +2431,10 @@ body {
    they come back in (the same box as Kaos's word on the map), and over the
    tool shop's counter (the line, then つぎへ, in the keeper's place). */
 .daily-aside { margin: 0 0 6px; }
+/* ✉ アルデン通信 (ui/aldenNews.tsx): 読む／あとで stacked at the side; the text opens under the title. */
+.news-aside .news-actions { grid-area: next; display: flex; flex-direction: column; gap: 4px; }
+.news-aside .news-text { display: block; margin-top: 2px; font-size: 12px; }
+.news-aside .news-later { color: var(--p-ink-soft, var(--p-ink)); opacity: 0.8; }
 .shop-daily { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .shop-daily .btn { min-height: 32px; padding: 2px 14px; font-size: 12px; }
 /* A face beside the line, when one is delivered (assets/dailyFaces.ts). */
@@ -2625,4 +2640,108 @@ body {
   .st-v2 .st-head { padding-top: 6px; }
   .st-v2 .st-tab { min-height: 30px; padding: 4px 14px; }
   .st-nav-item, .st-v2 .st-back { min-height: 34px; }
+}
+
+/* ── ハイタッチ (ui/celebrate) — the two of them, glad, for a moment ──
+   A little above the middle; the picture large, the heading over it, the
+   small line under it. Takes no touch. 0.15s in (a small pop), held, 0.3s
+   out; a faint gold flash once. Fits 640×300: the picture by the height. */
+.celebrate {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  top: 46%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: celebrate-pop 1500ms ease-out both;
+}
+.celebrate-flash {
+  position: fixed;
+  inset: -50vh -50vw;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 46%, rgba(255, 226, 150, 0.32), rgba(255, 226, 150, 0) 42%);
+  animation: celebrate-flash 600ms ease-out both;
+}
+.celebrate-art {
+  display: block;
+  height: min(38vh, 38dvh, 230px);
+  /* The words sit a little onto the picture's clear edges: one stamp, not three pieces. */
+  margin: -8px 0 -10px;
+  width: auto;
+  max-width: 82vw;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+  animation: celebrate-hop 520ms ease-out 120ms both;
+}
+.celebrate-title {
+  margin: 0;
+  padding: 3px 16px;
+  border: 1px solid rgba(240, 206, 120, 0.9);
+  border-radius: 999px;
+  background: rgba(22, 16, 28, 0.88);
+  color: #ffe9a8;
+  font-size: clamp(15px, 5.4vh, 20px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(255, 210, 110, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 1;
+}
+.celebrate-sub {
+  margin: 0;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(16, 14, 22, 0.8);
+  color: #fdf3dc;
+  font-size: clamp(11px, 3.8vh, 13px);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+@keyframes celebrate-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.82); }
+  10% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  16% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -54%) scale(0.98); }
+}
+@keyframes celebrate-hop {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-6%); }
+  100% { transform: translateY(0); }
+}
+@keyframes celebrate-flash {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* A short screen (640×300): the words beside the picture, so it fits in the
+   middle between the place's line at the top and what was got at the foot. */
+@media (max-height: 340px) {
+  .celebrate {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas: 'art title' 'art sub';
+    align-items: center;
+    gap: 4px 4px;
+    top: 45%;
+  }
+  .celebrate-art { grid-area: art; height: min(36vh, 110px); margin: 0; }
+  .celebrate-title { grid-area: title; align-self: end; justify-self: start; }
+  .celebrate-sub { grid-area: sub; align-self: start; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celebrate { animation: celebrate-fade 1500ms linear both; }
+  .celebrate-art, .celebrate-flash { animation: none; }
+  .celebrate-flash { display: none; }
+}
+@keyframes celebrate-fade {
+  0%, 100% { opacity: 0; }
+  10%, 80% { opacity: 1; }
 }

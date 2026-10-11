@@ -214,6 +214,8 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     sellPrice: 30,
     isKeyItem: false,
     rarity: 'RARE',
+    // A treat each time it turns up (ハイタッチ, 2026-10-11).
+    isRareRewardEffect: true,
     sources: ['FOREST', 'RUINS'],
     tags: ['MAGIC'],
     useHint: '微かな魔力を残している。何かに使えないだろうか。',
@@ -247,10 +249,31 @@ export const ITEM_DEFS: readonly ItemDef[] = [
     sellPrice: 0,
     isKeyItem: true,
     rarity: 'RARE',
+    // A treat each time it turns up (ハイタッチ, 2026-10-11).
+    isRareRewardEffect: true,
     sources: ['RUINS'],
     tags: ['LORE', 'RUINS'],
     useHint: '用途不明。古代遺跡と関係がありそうだ。',
     ingredientTags: ['ancient'],
+  },
+  /**
+   * 鉄の護符 — GRAVE'S HANDWORK (襲撃前の日々, 2026-10-11): three ore made
+   * into one small charm at the tavern (content/economy/graveCraft.ts).
+   * Carried, not worn — the accessory slots are not open yet — and while
+   * one is in the bag the sword carries a little more (attack +1,
+   * core/world/world.ts getPartyStats). One only; never sold.
+   */
+  {
+    itemId: 'IRON_CHARM',
+    name: '鉄の護符',
+    category: 'OTHER',
+    maxStack: 1,
+    description: 'グレイヴが打った素朴な護符。持っているだけで、剣にほんの少し力が乗る。',
+    sellPrice: 0,
+    isKeyItem: false,
+    rarity: 'UNCOMMON',
+    tags: ['CRAFT'],
+    useHint: '持っているだけで攻撃力+1。',
   },
   // パン屋 MVP (2026-10-09): Lina's four loaves (breads.ts).
   ...BREAD_DEFS,

@@ -21,7 +21,7 @@ import { guestLabelOf, guestLines, type TavernGuestId, type TavernGuestTalk } fr
 import { tavernArt, type TavernArt } from '../assets/tavern';
 import { tavernGuestArt } from '../assets/tavernGuests';
 import { tavernTrade } from '@mugen/content/economy/tavernTrades';
-import { MusicArchivePanel, TradePanel, type TavernHub } from './tavernHub';
+import { CraftPanel, MusicArchivePanel, TradePanel, type TavernHub } from './tavernHub';
 import { NewBadge } from './common/NewBadge';
 
 /**
@@ -236,7 +236,8 @@ export function TavernScreen({
     null,
   );
   // What the stranger offers after their words, open in the box.
-  const [panel, setPanel] = useState<'TRADE' | 'ARCHIVE' | null>(null);
+  // (or Grave's handwork, 2026-10-11: his own, at the counter)
+  const [panel, setPanel] = useState<'TRADE' | 'ARCHIVE' | 'CRAFT' | null>(null);
   const trade = guest ? tavernTrade(guest.tradeId) : null;
   // Tonight's stranger's silhouette, fetched as the door opens.
   const [guestSrc, setGuestSrc] = useState<string | null>(null);
@@ -358,7 +359,7 @@ export function TavernScreen({
           onError={() => setFailed((f) => ({ ...f, room: true }))}
         />
       )}
-      {(talk?.guest || panel) && guest && guestSrc && !guestFailed ? (
+      {(talk?.guest || (panel && panel !== 'CRAFT')) && guest && guestSrc && !guestFailed ? (
         <img
           className="tavern-master tavern-guest"
           src={guestSrc}
@@ -368,7 +369,7 @@ export function TavernScreen({
           onError={() => setGuestFailed(true)}
         />
       ) : null}
-      {art.master && !failed.master && !talk?.guest && !panel && (
+      {art.master && !failed.master && !talk?.guest && (!panel || panel === 'CRAFT') && (
         <img
           className="tavern-master"
           src={art.master}
@@ -379,7 +380,9 @@ export function TavernScreen({
       )}
       <div className="tavern-words" data-testid="tavern-words">
         <h1 className="place">{locationNameOf(TAVERN_ID)}</h1>
-        {panel && hub && guest ? (
+        {panel === 'CRAFT' && hub ? (
+          <CraftPanel speaker="グレイヴ" hub={hub} onClose={() => setPanel(null)} />
+        ) : panel && hub && guest ? (
           panel === 'TRADE' && trade ? (
             <TradePanel trade={trade} speaker={guestLabelOf(guest)} hub={hub} onClose={() => setPanel(null)} />
           ) : (
@@ -427,6 +430,11 @@ export function TavernScreen({
               {guest && (
                 <button className="btn" data-testid="tavern-guest-talk" data-guest={guest.guest} onClick={beginGuest}>
                   客と話す
+                </button>
+              )}
+              {metBefore && hub?.craft && (
+                <button className="btn" data-testid="tavern-craft-open" onClick={() => setPanel('CRAFT')}>
+                  加工を頼む
                 </button>
               )}
               <button className="btn" data-testid="tavern-leave" onClick={onLeave}>

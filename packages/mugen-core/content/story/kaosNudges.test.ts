@@ -57,7 +57,7 @@ describe('Grave’s handwork (2026-10-11)', () => {
         expect(itemDef(g.itemId), c.id).not.toBeNull();
         expect(['ANCIENT_SHARD', 'OLD_COIN']).not.toContain(g.itemId);
       }
-      if (c.get.kind === 'ITEM') expect(itemDef(c.get.itemId)).not.toBeNull();
+      expect(itemDef(c.get.itemId), c.id).not.toBeNull();
     }
     expect(GRAVE_CRAFT_WORDS.open).toContain('鍛冶屋');
   });

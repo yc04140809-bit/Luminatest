@@ -10,6 +10,8 @@
 //   talk:<id>    a one-time talk heard to its end
 //   event:<id>   a one-time scene seen to its end, or a thing that happened
 //                in the world after one (the first time back at the ruins)
+//   celebrated:<id>  a thing first had, a handwork first made, a thing first
+//                seen — the two of them high-fived once (content/rewards/celebrate.ts)
 //
 // A thing is NEW while it exists for this world and its id is not here.
 // Opening a menu writes nothing: an id is added only when the thing itself

@@ -71,6 +71,10 @@ import { KaosAside } from './ui/incident';
 import { DailyAside } from './ui/daily';
 import { BanterAside } from './ui/kaosBanter';
 import { banterFor } from './ui/banterRoll';
+import { NewsAside, newsFor } from './ui/aldenNews';
+import { NudgeAside, pickNudge } from './ui/kaosNudge';
+import type { VillageRumor } from '@mugen/content/story/villageRumors';
+import type { KaosNudge } from '@mugen/content/story/kaosNudges';
 import type { KaosBanter } from '@mugen/content/story/kaosBanter';
 import { CreatureEncounterScreen, CreatureLifeChoiceScreen } from './ui/creatureChoice';
 import { firstSightLines, firstSightMark, wildSpeciesFor } from '@mugen/content/enemies/encounters';
@@ -86,6 +90,11 @@ import {
 import { INCIDENT_GRAVE_FROM, INCIDENT_GRAVE_MARK, INCIDENT_GRAVE_TALK } from '@mugen/content/story/aldenIncident';
 import { OnceNotice } from './ui/common/OnceNotice';
 import { NoticeHost } from './ui/common/NoticeHost';
+import { itemDef } from '@mugen/content/economy/itemDefs';
+import { CelebrateHost } from './ui/celebrate/RewardCelebratePopup';
+import { WhenShown } from './ui/celebrate/WhenShown';
+import { celebrateCraft, celebrateDiscovery, celebrateGain } from './ui/celebrate/celebrateWorld';
+import { celebrateArtSrc } from './assets/celebrateArt';
 import { notices } from './ui/common/noticeQueue';
 import { newEquipmentIds } from './ui/equipment';
 import { memoryMark } from './ui/memory';
@@ -157,6 +166,11 @@ export default function App() {
 function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: boolean }) {
   // Asked once, on the way out of the opening. See `case 'PROLOGUE'`.
   const [naming, setNaming] = useState(false);
+  // The high-five picture, loaded and decoded a little after start, so the first one is not late.
+  useEffect(() => {
+    const t = window.setTimeout(() => void celebrateArtSrc('HITOUCH'), 3000);
+    return () => window.clearTimeout(t);
+  }, []);
   /**
    * WHETHER SHE HAS ARRIVED IN THE PROLOGUE — the one fact the music
    * needs that the flow does not hold. The prologue is two scenes on
@@ -210,6 +224,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const [homecoming, setHomecoming] = useState(false);
   // One of their short exchanges as they come back in — decided once per coming back (ui/banterRoll).
   const [homeBanter, setHomeBanter] = useState<KaosBanter | null>(null);
+  // ✉ アルデン通信: one rumour not yet read, brought to them on coming back or waking (ui/aldenNews).
+  const [homeNews, setHomeNews] = useState<VillageRumor | null>(null);
+  // ケイオスの軽い誘い: when nothing else is said on coming back — at most once a day (ui/kaosNudge).
+  const [homeNudge, setHomeNudge] = useState<KaosNudge | null>(null);
+  const lastNudge = useRef<{ day: number; id: string | null }>({ day: -1, id: null });
   /**
    * WHO CAME OUT OF THE UNDERGROWTH — the forest's ordinary fight's creature,
    * rolled as the player steps toward it (content/enemies/encounters.ts).
@@ -638,14 +657,21 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     [flow, world],
   );
 
+  /** What the result screen celebrates as it is shown (a first drop, a treat — ハイタッチ). */
+  const resultCelebrate = useRef<(() => void) | null>(null);
   const won = useCallback(
     (final: { hp: number; mp: number }) => {
+      const reward = rewardForSpecies(wildSpecies.current) ?? NO_REWARD;
+      // How many of each were held before: a thing already held is not a first.
+      const before = new Map(reward.items.map((s) => [s.itemId, world.getItemCount(s.itemId)]));
       void world
         .setBattleCondition(final)
-        .then(() =>
-          world.applyBattleReward(fight.current, rewardForSpecies(wildSpecies.current) ?? NO_REWARD),
-        )
-        .then((paid) => setWinnings(paid))
+        .then(() => world.applyBattleReward(fight.current, reward))
+        .then((paid) => {
+          setWinnings(paid);
+          resultCelebrate.current = () =>
+            paid.items.forEach((s) => celebrateGain(world, s.itemId, before.get(s.itemId) ?? 0));
+        })
         // ALDEN INCIDENT: a fight won is a step (once a day).
         .then(() => world.addIncident('WIN'))
         .catch((e) => console.error('Failed to record the victory', e))
@@ -672,6 +698,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     <>
       {screenFor()}
       <NoticeHost key={noticeScope} />
+      {/* ハイタッチ: a first find, a rare one, a first handwork — over whatever is on screen, gone with it. */}
+      <CelebrateHost key={noticeScope} />
     </>
   );
 
@@ -781,12 +809,28 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             hub={{
               held: (id) => world.getItemCount(id),
               traded: (id) => world.getTradesDone(toAbsoluteDay(world.getClock())).includes(id),
-              trade: (t) => world.tradeItems(t, toAbsoluteDay(world.getClock())),
+              trade: async (t) => {
+                const before = new Map(t.get.map((l) => [l.itemId, world.getItemCount(l.itemId)]));
+                const r = await world.tradeItems(t, toAbsoluteDay(world.getClock()));
+                // A thing never had before, from a stranger: a moment (ハイタッチ).
+                if (r === 'OK') t.get.forEach((l) => celebrateGain(world, l.itemId, before.get(l.itemId) ?? 0));
+                return r;
+              },
               heard: world.getHeardMusic(),
               playing: bardPiece,
               play: setBardPiece,
               villageBgm: world.getVillageBgm(),
               setVillageBgm: (id) => world.setVillageBgm(id),
+              // グレイヴの簡単な加工: the first of each is a moment (ハイタッチ).
+              craft: async (c) => {
+                const before = world.getItemCount(c.get.itemId);
+                const r = await world.craftAtTavern(c);
+                if (r === 'OK') {
+                  celebrateCraft(world, c.id, itemDef(c.get.itemId)?.name ?? c.name);
+                  celebrateGain(world, c.get.itemId, before);
+                }
+                return r;
+              },
             }}
             arc={{
               open: world.isSekiryugaArcOpen(),
@@ -825,6 +869,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           world={world}
           onExplore={() => {
             setHomecoming(false);
+            setHomeNews(null);
+            setHomeNudge(null);
             flow.goTo('EXPLORE');
           }}
           onBag={() => flow.goTo('BAG')}
@@ -867,12 +913,19 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           }
           // 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ) — at the top.
           happening={
-            homecoming && villageScene ? (
-              <DailyAside key={villageScene.id} world={world} scene={villageScene} />
-            ) : homecoming && homeBanter ? (
-              // Nothing small happening today: now and then, one of their short exchanges.
-              <BanterAside key={homeBanter.id} world={world} banter={homeBanter} />
-            ) : null
+            <>
+              {/* ✉ アルデン通信: something talked about, not yet read — first, small. */}
+              {homeNews && <NewsAside key={homeNews.id} world={world} rumor={homeNews} onDone={() => setHomeNews(null)} />}
+              {homecoming && villageScene ? (
+                <DailyAside key={villageScene.id} world={world} scene={villageScene} />
+              ) : homecoming && homeBanter ? (
+                // Nothing small happening today: now and then, one of their short exchanges.
+                <BanterAside key={homeBanter.id} world={world} banter={homeBanter} />
+              ) : homecoming && homeNudge ? (
+                // Nothing else said at all: now and then, her word on what could be done today.
+                <NudgeAside key={homeNudge.id} world={world} nudge={homeNudge} onDone={() => setHomeNudge(null)} />
+              ) : null}
+            </>
           }
           resting={resting}
           onRest={() => {
@@ -893,6 +946,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                   ? world.markRead([RUINS_CRY_MARK])
                   : undefined,
               )
+              // Morning: anything the village is talking about, brought to them (✉ アルデン通信).
+              .then(() => setHomeNews(newsFor(world)))
               .catch((e) => console.error('The night did not pass', e))
               .finally(() => setResting(false));
           }}
@@ -1021,7 +1076,16 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onHome={() => {
             // Back into the village from outside: where a small thing may happen.
             setHomecoming(true);
-            setHomeBanter(world.getDailyScene('VILLAGE') ? null : banterFor(world, 'HOMECOMING'));
+            const daily = world.getDailyScene('VILLAGE');
+            const banter = daily ? null : banterFor(world, 'HOMECOMING');
+            const news = newsFor(world);
+            setHomeBanter(banter);
+            setHomeNews(news);
+            // Her word only when nothing else is said, and once a day at most.
+            const today = toAbsoluteDay(world.getClock());
+            const nudge = !daily && !banter && !news && lastNudge.current.day !== today ? pickNudge(world, lastNudge.current.id) : null;
+            if (nudge) lastNudge.current = { day: today, id: nudge.id };
+            setHomeNudge(nudge);
             flow.goTo('HOME');
           }}
           // Opened by the tavern's master telling what was sealed there.
@@ -1124,6 +1188,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       if (battleKind.current === 'WILD') {
         const species = wildSpecies.current;
         return (
+          <>
+          {/* A new kind met for the first time: 「新しい発見！」 (ハイタッチ, once). */}
+          <WhenShown run={() => celebrateDiscovery(world, `SPECIES_${species}`, ENEMY_SPECIES[species].name)} />
           <CreatureEncounterScreen
             lines={firstSightLines(species, { fuumimiAnswered: world.getFuumimiAnswer() !== null }) ?? []}
             heroName={world.getHeroName()}
@@ -1132,6 +1199,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               flow.goTo('BATTLE');
             }}
           />
+          </>
         );
       }
       if (battleKind.current === 'FUUMIMI') {
@@ -1344,6 +1412,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       );
     case 'BATTLE_RESULT':
       return (
+        <>
+        <WhenShown
+          run={() => {
+            resultCelebrate.current?.();
+            resultCelebrate.current = null;
+          }}
+        />
         <ResultScreen
           reward={winnings ?? NOTHING_APPLIED}
           onDone={() => {
@@ -1352,6 +1427,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             flow.goTo('GREENWOOD');
           }}
         />
+        </>
       );
     default:
       return <div className="screen">（この画面はApp Alphaにはまだありません）</div>;

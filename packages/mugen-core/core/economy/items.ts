@@ -105,6 +105,12 @@ export interface ItemDef {
    * by the baker noticing what is carried; never a fixed effect.
    */
   ingredientTags?: readonly IngredientTag[];
+  /**
+   * ハイタッチ (2026-10-11): the two of them celebrate EVERY time one is got,
+   * not only the first (content/rewards/celebrate.ts). For the few things
+   * that are a small treat each time; absent, only the first one is.
+   */
+  isRareRewardEffect?: boolean;
 }
 
 /** The kinds of making a thing can be (room for more). */

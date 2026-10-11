@@ -7,6 +7,7 @@ import {
   pointsFor,
   rollPickup,
   type PaintingPoint,
+  type PickupRoll,
   type WalkDiscovery,
   type WalkPickup,
   type WalkRoam,
@@ -161,6 +162,13 @@ export interface PickupKeeper {
    * found — nothing is marked taken. Resolves with how many went in.
    */
   give?(itemId: string, quantity: number): Promise<number>;
+  /**
+   * What a pickup that has grown back holds (2026-10-11), or null: as the
+   * first time.
+   */
+  regrownItems?(pickupId: string): readonly PickupRoll[] | null;
+  /** A golden find looked at (2026-10-11): the keeper decides if it is a first. */
+  found?(findId: string, label: string): void;
 }
 
 /** How near its glint a touch must be to walk to a pickup. */
@@ -629,7 +637,9 @@ export function RoamScene({
       const pickup = pickups.find((p) => p.id === thing.id);
       if (!pickup || takingPickup.current) return;
       takingPickup.current = true;
-      const roll = rollPickup(pickup);
+      // Grown back (2026-10-11): what it holds now, which may differ from the first time.
+      const regrown = pickupKeeper?.regrownItems?.(pickup.id);
+      const roll = rollPickup(regrown && regrown.length > 0 ? { ...pickup, items: regrown } : pickup);
       const def = itemDef(roll.itemId);
       const name = def?.name ?? roll.itemId;
       // Something with a meaning is FOUND, a little apart; the rest is got.
@@ -701,6 +711,8 @@ export function RoamScene({
     // short notice of what was got — as a pickup's is. A full bag keeps the
     // line and says so.
     const reward = thing.grade === 'RARE' ? found?.reward : undefined;
+    // A golden find seen for the first time is a moment (ハイタッチ, 2026-10-11).
+    if (thing.grade === 'RARE') pickupKeeper?.found?.(thing.id, thing.label);
     if (reward && pickupKeeper?.give) {
       const def = itemDef(reward.itemId);
       const name = def?.name ?? reward.itemId;

@@ -43,6 +43,8 @@ export const SFX_IDS = [
   'ui_menu_close',
   'ui_tap',
   'ui_memory_open',
+  // ハイタッチ (2026-10-11): a first find, a rare one, a first handwork — one short bright ring.
+  'ui_celebrate',
   // ---- EXPLORATION: the forest answering back ----
   'explore_found',
   'explore_event_start',

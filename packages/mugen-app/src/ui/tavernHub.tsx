@@ -4,6 +4,7 @@ import type { TradeOutcome } from '@mugen/core/world/world';
 import { itemDef } from '@mugen/content/economy/itemDefs';
 import { TRADE_WORDS, type TavernTrade, type TradeLine } from '@mugen/content/economy/tavernTrades';
 import { BARD_WORDS, MUSIC_ARCHIVE, heardPieces } from '@mugen/content/audio/musicArchive';
+import { GRAVE_CRAFTS, GRAVE_CRAFT_WORDS, type GraveCraft } from '@mugen/content/economy/graveCraft';
 
 /**
  * 酒場ハブ化 Phase 1 (2026-10-09) — WHAT TONIGHT'S STRANGER OFFERS after
@@ -28,7 +29,14 @@ export interface TavernHub {
   /** The village's chosen piece (null: its own). */
   villageBgm: BgmId | null;
   setVillageBgm: (id: BgmId | null) => Promise<boolean>;
+  /**
+   * グレイヴの簡単な加工 (2026-10-11): one handwork made — the materials out,
+   * the thing in, one commit (World.craftAtTavern). Absent: no such door.
+   */
+  craft?: (craft: GraveCraft) => Promise<CraftOutcome>;
 }
+
+export type CraftOutcome = 'OK' | 'SHORT' | 'FULL' | 'OWNED';
 
 const nameOf = (itemId: string) => itemDef(itemId)?.name ?? itemId;
 const titleOf = (id: BgmId | null) => MUSIC_ARCHIVE.find((p) => p.id === id)?.title ?? '';
@@ -166,6 +174,94 @@ export function MusicArchivePanel({ speaker, hub, onClose }: { speaker: string; 
             元に戻す
           </button>
         )}
+        <button className="btn" data-testid="tavern-panel-close" onClick={onClose}>
+          もどる
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 【簡単な加工】 — GRAVE'S HANDWORK (襲撃前の日々, 2026-10-11): three small
+ * things from what the forest gives, made by his own hand at the counter —
+ * 「本職の鍛冶屋の真似事はできねぇが」. Each row: what it takes (and how many
+ * are held), what it makes, 頼む. Made as often as the bag allows; the
+ * charm once (while one is carried).
+ */
+export function CraftPanel({ speaker, hub, onClose }: { speaker: string; hub: TavernHub; onClose: () => void }) {
+  const [said, setSaid] = useState<string>(GRAVE_CRAFT_WORDS.open);
+  const [busy, setBusy] = useState(false);
+  // Re-drawn after each making (the bag changed).
+  const [, setMade] = useState(0);
+  const craft = hub.craft;
+  if (!craft) return null;
+
+  const make = (c: GraveCraft) => {
+    if (busy) return;
+    setBusy(true);
+    void craft(c)
+      .then((r) => {
+        setSaid(
+          r === 'OK'
+            ? GRAVE_CRAFT_WORDS.done
+            : r === 'SHORT'
+              ? GRAVE_CRAFT_WORDS.short
+              : r === 'FULL'
+                ? GRAVE_CRAFT_WORDS.full
+                : GRAVE_CRAFT_WORDS.owned,
+        );
+        setMade((n) => n + 1);
+      })
+      .catch(() => setSaid(GRAVE_CRAFT_WORDS.short))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="tavern-panel tavern-craft" data-testid="tavern-craft">
+      <p className="speaker">{speaker}</p>
+      <p className="line tavern-panel-say" data-testid="tavern-craft-say">
+        「{said}」
+      </p>
+      <p className="tavern-trade-title">【簡単な加工】</p>
+      <ul className="tavern-craft-list">
+        {GRAVE_CRAFTS.map((c) => {
+          const owned = !!c.once && hub.held(c.get.itemId) > 0;
+          const enough = c.give.every((l) => hub.held(l.itemId) >= l.quantity);
+          return (
+            <li key={c.id} className="tavern-craft-row" data-testid={`craft-${c.id}`} data-ready={enough && !owned ? 'yes' : 'no'}>
+              <span className="tavern-craft-what">
+                <span className="tavern-craft-head">
+                <span className="tavern-craft-name">
+                  {nameOf(c.get.itemId)}
+                  {c.get.quantity > 1 && ` ×${c.get.quantity}`}
+                </span>
+                <span className="tavern-craft-needs" data-testid={`craft-${c.id}-needs`}>
+                  {'← '}
+                  {c.give.map((l, i) => (
+                    <span key={l.itemId}>
+                      {i > 0 && '、'}
+                      {nameOf(l.itemId)} ×{l.quantity}
+                      <span className="tavern-trade-held">（所持 {hub.held(l.itemId)}）</span>
+                    </span>
+                  ))}
+                </span>
+                </span>
+                <span className="tavern-craft-note">{c.note}</span>
+              </span>
+              <button
+                className="btn"
+                data-testid={`craft-${c.id}-do`}
+                disabled={busy || owned || !enough}
+                onClick={() => make(c)}
+              >
+                {owned ? '作成済み' : '頼む'}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="actions">
         <button className="btn" data-testid="tavern-panel-close" onClick={onClose}>
           もどる
         </button>

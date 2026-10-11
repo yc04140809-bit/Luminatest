@@ -104,6 +104,11 @@ export const SFX_TUNING: Partial<Record<SfxId, SfxTuning>> = {
   // The low rumble in the quiet before it (the earth spell's quake, lower and shorter).
   story_rumble: { source: 'battle_magic_earth', gain: 0.75, maxMs: 3200 },
 
+  // ---- the two of them, glad (ハイタッチ, 2026-10-11) ----
+  // No file of its own yet: the holy spell's shimmer, higher and cut short —
+  // a ring, not a spell. Its own file, when delivered, replaces this line.
+  ui_celebrate: { source: 'battle_magic_holy', gain: 0.42, rate: 1.2, maxMs: 520 },
+
   // ---- ambience (loops; no player for them yet) ----
   // Set to sit under the music: the delivered levels run −20 to −27 dB.
   explore_ambient_snow_mountain: { gain: 0.55 },
