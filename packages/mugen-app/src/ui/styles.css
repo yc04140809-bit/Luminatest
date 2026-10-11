@@ -2488,3 +2488,35 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .talk-bust { transition: none; }
 }
+
+/* The line under the two of them (2026-10-11): a dark glass box across the
+   bottom of the stage, the name, NEW and つぎへ in it — read with the faces. */
+.talk-box {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 3;
+  pointer-events: auto;
+}
+.talk-box .kaos-aside {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(231, 210, 156, 0.75);
+  border-left: 3px solid #e7d29c;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(28, 24, 36, 0.78), rgba(18, 15, 24, 0.9));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+.talk-box .kaos-aside-speaker { color: #f0d995; }
+.talk-box .kaos-aside-line { color: #fbf6ea; font-size: 14px; }
+.talk-box .kaos-aside-next {
+  color: #fbf6ea;
+  border-color: rgba(231, 210, 156, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+}
+@media (max-height: 340px) {
+  .talk-box .kaos-aside { padding: 5px 10px; }
+  .talk-box .kaos-aside-line { font-size: 13px; line-height: 1.4; }
+}

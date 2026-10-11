@@ -2,8 +2,8 @@ import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
- * 主人公×ケイオス (作者指示 2026-10-11): their short exchanges, at the top of
- * the page with NEW, the two of them side by side over the painting (the one
+ * 主人公×ケイオス (作者指示 2026-10-11): their short exchanges, under the two
+ * of them with NEW, the two of them side by side over the painting (the one
  * speaking in full light, her face as her line names it), each said once.
  * Whether one is said is a roll; the DEV server says none unless a test sets
  * `__mugenBanterRoll` (0: said).
@@ -51,7 +51,7 @@ async function readThrough(page: Page) {
   return seen;
 }
 
-test('setting out: one of their exchanges at the top with NEW, the two side by side — whoever speaks in the light, her face as written; once only', async ({
+test('setting out: one of their exchanges under the two of them with NEW, the two side by side — whoever speaks in the light, her face as written; once only', async ({
   page,
 }) => {
   await freshVillage(page);
@@ -60,10 +60,15 @@ test('setting out: one of their exchanges at the top with NEW, the two side by s
   const box = page.getByTestId('kaos-banter');
   await expect(box).toHaveAttribute('data-banter', 'WHICH_WAY');
   await expect(page.getByTestId('kaos-banter-new')).toBeVisible();
-  // First on the page, over every way on.
-  const b = (await box.boundingBox())!;
-  const forest = (await page.getByTestId('forest-button').boundingBox())!;
-  expect(b.y + b.height).toBeLessThanOrEqual(forest.y + 1);
+  // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
+  {
+    const lineBox = (await box.boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const vh = page.viewportSize()!.height;
+    expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
+    expect(lineBox.y).toBeGreaterThan(vh / 2);
+    expect(lineBox.y + lineBox.height).toBeLessThanOrEqual(vh);
+  }
   // The two of them over the painting, left of the page.
   await expect(page.getByTestId('talk-bust-kaos')).toBeVisible();
   await expect(page.getByTestId('talk-bust-hero')).toBeVisible();
@@ -93,7 +98,7 @@ test('setting out: one of their exchanges at the top with NEW, the two side by s
   await expect(page.getByTestId('kaos-banter')).toHaveCount(0);
 });
 
-test('coming back into the village: 「ただいまー。」 at the top of the square, NEW, the two side by side; and with the roll against it, nothing', async ({
+test('coming back into the village: 「ただいまー。」 under the two of them, NEW, the two side by side; and with the roll against it, nothing', async ({
   page,
 }) => {
   await freshVillage(page);
@@ -114,9 +119,15 @@ test('coming back into the village: 「ただいまー。」 at the top of the s
   const box = page.getByTestId('kaos-banter');
   await expect(box).toHaveAttribute('data-banter', 'TADAIMA');
   await expect(page.getByTestId('kaos-banter-new')).toBeVisible();
-  const b = (await box.boundingBox())!;
-  const party = (await page.getByTestId('status-panel').boundingBox())!;
-  expect(b.y + b.height).toBeLessThanOrEqual(party.y + 1);
+  // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
+  {
+    const lineBox = (await box.boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const vh = page.viewportSize()!.height;
+    expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
+    expect(lineBox.y).toBeGreaterThan(vh / 2);
+    expect(lineBox.y + lineBox.height).toBeLessThanOrEqual(vh);
+  }
   await expect(page.getByTestId('talk-stage')).toHaveAttribute('data-speaking', 'KAOS');
   const seen = await readThrough(page);
   expect(seen.map((s) => s.said)).toEqual(['「ただいまー。」', '「誰に言ってるんだ。」', '「村に。」']);

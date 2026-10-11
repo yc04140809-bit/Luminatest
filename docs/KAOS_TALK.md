@@ -9,19 +9,19 @@
 
 | | 表情 | 画像（2026-10-11 受領） |
 |---|---|---|
-| 01 | NORMAL 通常 | 未着。届くまでは SMILE で代わりに表示 |
+| 01 | NORMAL 通常 | `kaos-face-normal.png`（2回目の3枚目） |
 | 02 | SMILE 優しい笑顔 | `kaos-face-smile.png`（6枚目） |
 | 03 | PUKU プク顔 | `kaos-face-puku.png`（4枚目） |
 | 04 | SURPRISED 驚き | `kaos-face-surprised.png`（2枚目） |
-| 05 | TROUBLED 困り顔・呆れ | 未着（NORMAL へ） |
-| 06 | SERIOUS 真剣・警戒 | 未着。届くまでは SURPRISED で代わりに表示 |
+| 05 | TROUBLED 困り顔・呆れ | `kaos-face-troubled.png`（2回目の2枚目） |
+| 06 | SERIOUS 真剣・警戒 | `kaos-face-serious.png`（2回目の1枚目） |
 | 07 | LAUGH 楽しそうに笑う | 未着（SMILE へ） |
 | 08 | DOYA 得意げ | `kaos-face-doya.png`（1枚目） |
 | 09 | BLUSH 照れ | 未着（SMILE へ） |
 | 10 | SAD しんみり | `kaos-face-sad.png`（3枚目） |
 | 11 | ANGRY 怒り（追加） | `kaos-face-angry.png`（5枚目） |
 
-- 届いた画像は、1バイトも変えずに `mugen-assets/files/characters/kaos/` に置いた。画像の下部に見本の会話枠が描かれているので、**ファイルは切らず、表示の時だけ枠より上を見せる**（`KAOS_FACE_BOX`）。
+- 届いた画像は、1バイトも変えずに `mugen-assets/files/characters/kaos/` に置いた。最初の6枚は下部に見本の会話枠が描かれているので、**ファイルは切らず、表示の時だけ枠より上を見せる**。後の3枚（NORMAL・SERIOUS・TROUBLED）は枠が無く大きさも違うので、表情ごとに見せる範囲を持ち、どの表情でも同じ大きさに見えるように合わせた（`assets/kaosFaces.ts`）。
 - 画像が無い表情は、近い表情へ順に下がる（例：LAUGH → SMILE → NORMAL）。画像が届いたら `assets/kaosFaces.ts` に1行足すだけ。台詞は変えない。
 - 割り当て（何枚目がどの表情か）は ZERO の読み取り。違えば `assets/kaosFaces.ts` の対応を入れ替えるだけ。
 
@@ -44,7 +44,7 @@
 
 ## 2. 2人が左右に並ぶ（テイルズ風。`mugen-app/src/ui/talkStage.tsx`）
 
-画面上部の会話の枠で2人が話している間、左側の風景の上に2人が並ぶ。
+2人が話している間、左側の風景の上に2人が並び、**セリフはその下（左下）の枠**に出る（作者 2026-10-11「セリフ左下の画像下の方が読みやすい」）。顔とセリフを一緒に読める。右のページのボタンは会話中も元の位置のまま。2人以外が話す場面（リゼル・ミレイなど）は、今まで通り画面上部に出す。
 
 - 主人公は左で右向き、ケイオスは右（ページのそば）。
 - 話している方は明るく、少し手前に出る。もう一方は暗くなる。

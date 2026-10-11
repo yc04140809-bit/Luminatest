@@ -206,15 +206,21 @@ test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」
   await expect(page.getByTestId('forest-button')).toBeVisible();
   const aside = page.getByTestId('kaos-aside');
   await expect(aside).toHaveAttribute('data-phase', '1');
-  // First on the page, over every way on (2026-10-11: at the foot it went unnoticed) — and marked NEW.
+  // Marked NEW (2026-10-11: at the foot of the page it went unnoticed).
   await expect(page.getByTestId('kaos-aside-new')).toBeVisible();
   // Her face as the line names it, and the two of them side by side while she talks (2026-10-11).
   await expect(aside).toHaveAttribute('data-kaos-face', 'SURPRISED');
   await expect(page.getByTestId('talk-stage')).toHaveAttribute('data-speaking', 'KAOS');
   await expect(page.getByTestId('talk-bust-kaos')).toBeVisible();
-  const asideBox = (await aside.boundingBox())!;
-  const forestBox = (await page.getByTestId('forest-button').boundingBox())!;
-  expect(asideBox.y + asideBox.height).toBeLessThanOrEqual(forestBox.y + 1);
+  // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
+  {
+    const lineBox = (await aside.boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const vh = page.viewportSize()!.height;
+    expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
+    expect(lineBox.y).toBeGreaterThan(vh / 2);
+    expect(lineBox.y + lineBox.height).toBeLessThanOrEqual(vh);
+  }
   const said: string[] = [];
   for (let i = 0; i < 6; i++) {
     said.push((await page.getByTestId('kaos-aside-line').textContent()) ?? '');
