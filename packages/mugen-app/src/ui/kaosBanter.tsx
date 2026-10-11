@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
-import { kaosFaceOf, type KaosFace } from '@mugen/content/characters/kaosFaces';
+import { kaosFaceOf } from '@mugen/content/characters/kaosFaces';
 import { banterMark, type KaosBanter } from '@mugen/content/story/kaosBanter';
 import { NewBadge } from './common/NewBadge';
-import { TalkStage } from './talkStage';
+import { TalkStage, stageAt } from './talkStage';
 
 /**
  * 主人公×ケイオス — ONE SHORT EXCHANGE, at the top of the page (作者指示
@@ -13,15 +13,6 @@ import { TalkStage } from './talkStage';
  * with her face on each of her lines (ui/talkStage), read with
  * 「つぎへ」. It stops nothing. Read to its end, it is heard for good.
  */
-/** Her face as it last was before this line (the hero speaking: she keeps her look). */
-function lastFace(banter: KaosBanter, at: number): KaosFace {
-  for (let i = at; i >= 0; i--) {
-    const f = kaosFaceOf(banter.lines[i]);
-    if (f) return f;
-  }
-  return kaosFaceOf(banter.lines.find((l) => l.speaker === 'ケイオス') ?? { speaker: null }) ?? 'NORMAL';
-}
-
 export function BanterAside({ world, banter }: { world: World; banter: KaosBanter }) {
   const [at, setAt] = useState(0);
   const [done, setDone] = useState(false);
@@ -42,7 +33,7 @@ export function BanterAside({ world, banter }: { world: World; banter: KaosBante
       data-banter={banter.id}
       data-kaos-face={face ?? ''}
     >
-      <TalkStage speaking={line.speaker === HERO_SPEAKER ? 'HERO' : face ? 'KAOS' : null} kaosFace={face ?? lastFace(banter, at)} />
+      <TalkStage {...stageAt(banter.lines, at)} />
       <div className="kaos-aside-head">
         {speaker && <p className="kaos-aside-speaker">{speaker}</p>}
         <NewBadge testId="kaos-banter-new" />

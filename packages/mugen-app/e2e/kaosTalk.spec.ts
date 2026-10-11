@@ -37,13 +37,14 @@ const isRead = (page: Page, id: string) =>
   page.evaluate((m) => (window as unknown as { __mugenWorld: { isRead(x: string): boolean } }).__mugenWorld.isRead(m), id);
 
 async function readThrough(page: Page) {
-  const seen: { said: string; speaking: string; face: string }[] = [];
+  const seen: { said: string; speaking: string; face: string; hero: string }[] = [];
   for (let i = 0; i < 6; i++) {
     if (!(await page.getByTestId('kaos-banter').isVisible().catch(() => false))) break;
     seen.push({
       said: ((await page.getByTestId('kaos-banter-line').textContent()) ?? '').trim(),
       speaking: (await page.getByTestId('talk-stage').getAttribute('data-speaking')) ?? '',
       face: (await page.getByTestId('kaos-banter').getAttribute('data-kaos-face')) ?? '',
+      hero: (await page.getByTestId('talk-bust-hero').getAttribute('data-face').catch(() => '')) ?? '',
     });
     await page.getByTestId('kaos-banter-next').click();
   }
@@ -77,6 +78,8 @@ test('setting out: one of their exchanges at the top with NEW, the two side by s
   expect(seen.map((s) => s.said)).toEqual(['「ねえ、今日はどっち行く？」', '「森かな。」', '「じゃあ、迷子にならないようにね。」', '「それはこっちの台詞だ。」']);
   expect(seen.map((s) => s.speaking)).toEqual(['KAOS', 'HERO', 'KAOS', 'HERO']);
   expect(seen.map((s) => s.face)).toEqual(['SMILE', '', 'DOYA', '']);
+  // His face too, line by line: his first before he speaks, then as written.
+  expect(seen.map((s) => s.hero)).toEqual(['NORMAL', 'NORMAL', 'NORMAL', 'SMILE']);
   await expect(box).toHaveCount(0);
   await expect(page.getByTestId('talk-stage')).toHaveCount(0);
   await expect.poll(() => isRead(page, 'talk:BANTER_WHICH_WAY')).toBe(true);

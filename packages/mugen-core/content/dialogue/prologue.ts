@@ -1,4 +1,5 @@
 import type { KaosFace } from '../characters/kaosFaces';
+import type { HeroFace } from '../characters/heroFaces';
 
 // Prologue + Kaos introduction lines (spec section 9).
 
@@ -24,6 +25,8 @@ export interface DialogueLine {
    * or SERIOUS when `tense`.
    */
   kaosFace?: KaosFace;
+  /** HIS FACE ON THIS LINE, when the hero speaks it (2026-10-11): content/characters/heroFaces.ts. Absent: NORMAL. */
+  heroFace?: HeroFace;
 }
 
 export const PROLOGUE_LINES: DialogueLine[] = [

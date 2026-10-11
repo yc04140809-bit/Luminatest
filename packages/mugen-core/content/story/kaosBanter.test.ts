@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BANTER_CHANCE, KAOS_BANTERS, banterAt, banterMark, type BanterFacts } from './kaosBanter';
 import { KAOS_FACES } from '../characters/kaosFaces';
+import { HERO_FACES } from '../characters/heroFaces';
 import { HERO_SPEAKER } from './sekiryugaArc';
 
 /** 主人公×ケイオス — short exchanges (作者指示 2026-10-11). */
@@ -34,6 +35,10 @@ describe('what they are', () => {
     // PUKU is not on every other line.
     const all = KAOS_BANTERS.flatMap((b) => b.lines.filter((l) => l.speaker === 'ケイオス'));
     expect(all.filter((l) => l.kaosFace === 'PUKU').length).toBeLessThan(all.length / 3);
+  });
+
+  it('every line of his names a face too, from his', () => {
+    for (const b of KAOS_BANTERS) for (const l of b.lines.filter((x) => x.speaker === HERO_SPEAKER)) expect(HERO_FACES, `${b.id}: ${l.text}`).toContain(l.heroFace);
   });
 
   it('both places have some, and they move nothing (no reward, no memory: only lines)', () => {

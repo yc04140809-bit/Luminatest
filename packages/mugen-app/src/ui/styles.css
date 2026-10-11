@@ -2485,13 +2485,6 @@ body {
 .talk-bust-kaos { right: 0; transform-origin: bottom right; }
 .talk-bust-frame { position: relative; width: 100%; overflow: hidden; }
 .talk-bust-frame img { position: absolute; max-width: none; }
-/* His picture is cut from a larger one: its cut edges fade instead of ending in a line. */
-.talk-bust-hero .talk-bust-frame {
-  -webkit-mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, #000 0, #000 82%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 6%);
-  mask-composite: intersect;
-}
 @media (prefers-reduced-motion: reduce) {
   .talk-bust { transition: none; }
 }

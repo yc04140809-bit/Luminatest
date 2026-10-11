@@ -4,7 +4,7 @@ import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { INCIDENT_KAOS_TALKS, incidentKaosMark, incidentKaosOwed } from '@mugen/content/story/aldenIncident';
 import { NewBadge } from './common/NewBadge';
 import { kaosFaceOf } from '@mugen/content/characters/kaosFaces';
-import { TalkStage } from './talkStage';
+import { TalkStage, stageAt } from './talkStage';
 import { BanterAside } from './kaosBanter';
 import { banterFor } from './banterRoll';
 
@@ -44,7 +44,7 @@ export function KaosAside({ world }: { world: World }) {
   return (
     <div className="kaos-aside incident-aside" data-testid="kaos-aside" data-phase={owed} data-kaos-face={face ?? ''}>
       {/* The two of them side by side over the painting while she talks (ui/talkStage). */}
-      <TalkStage speaking={line.speaker === HERO_SPEAKER ? 'HERO' : face ? 'KAOS' : null} kaosFace={face ?? 'NORMAL'} />
+      <TalkStage {...stageAt(lines, at)} />
       <div className="kaos-aside-head">
         <p className="kaos-aside-speaker">{speaker}</p>
         <NewBadge testId="kaos-aside-new" />

@@ -20,19 +20,19 @@ const GRAVE = 'グレイヴ';
 export const INCIDENT_KAOS_TALKS: Readonly<Record<1 | 2 | 3, readonly DialogueLine[]>> = {
   1: [
     { speaker: KAOS, text: '……ん？', kaosFace: 'SURPRISED' },
-    { speaker: HERO, text: 'どうした？' },
+    { speaker: HERO, text: 'どうした？', heroFace: 'SURPRISED' },
     { speaker: KAOS, text: 'ううん。なんでもない♪', kaosFace: 'SMILE' },
   ],
   2: [
     { speaker: KAOS, text: '……この感じ。', kaosFace: 'SERIOUS' },
-    { speaker: HERO, text: 'また何か分かるのか？' },
+    { speaker: HERO, text: 'また何か分かるのか？', heroFace: 'NORMAL' },
     { speaker: KAOS, text: '分かんないから困ってるの。', kaosFace: 'PUKU' },
   ],
   3: [
     { speaker: KAOS, text: 'しばらく、村から遠くへ行かない方がいいかも。', kaosFace: 'SERIOUS' },
-    { speaker: HERO, text: '理由は？' },
+    { speaker: HERO, text: '理由は？', heroFace: 'SERIOUS' },
     { speaker: KAOS, text: '勘。', kaosFace: 'NORMAL' },
-    { speaker: HERO, text: '雑だな。' },
+    { speaker: HERO, text: '雑だな。', heroFace: 'TROUBLED' },
     { speaker: KAOS, text: '神様の勘を舐めないでよ。', kaosFace: 'ANGRY' },
   ],
 };

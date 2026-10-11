@@ -65,9 +65,9 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     place: 'SETTING_OUT',
     lines: [
       { speaker: KAOS, text: 'ねえ、今日はどっち行く？', kaosFace: 'SMILE' },
-      { speaker: HERO, text: '森かな。' },
+      { speaker: HERO, text: '森かな。', heroFace: 'NORMAL' },
       { speaker: KAOS, text: 'じゃあ、迷子にならないようにね。', kaosFace: 'DOYA' },
-      { speaker: HERO, text: 'それはこっちの台詞だ。' },
+      { speaker: HERO, text: 'それはこっちの台詞だ。', heroFace: 'SMILE' },
     ],
   },
   {
@@ -75,9 +75,9 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     place: 'SETTING_OUT',
     when: (f) => f.day >= 2,
     lines: [
-      { speaker: HERO, text: 'さっき、何て言ってた？' },
+      { speaker: HERO, text: 'さっき、何て言ってた？', heroFace: 'NORMAL' },
       { speaker: KAOS, text: '……。', kaosFace: 'PUKU' },
-      { speaker: HERO, text: 'ケイオス？' },
+      { speaker: HERO, text: 'ケイオス？', heroFace: 'SURPRISED' },
       { speaker: KAOS, text: 'もう知らない。', kaosFace: 'PUKU' },
     ],
   },
@@ -87,7 +87,7 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     when: (f) => f.forestVisits >= 3,
     lines: [
       { speaker: KAOS, text: '……また森？', kaosFace: 'TROUBLED' },
-      { speaker: HERO, text: '何かある気がする。' },
+      { speaker: HERO, text: '何かある気がする。', heroFace: 'NORMAL' },
       { speaker: KAOS, text: 'その勘、この前も聞いたよ。', kaosFace: 'PUKU' },
     ],
   },
@@ -96,9 +96,9 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     place: 'SETTING_OUT',
     when: (f) => f.stage === 'SETTLED',
     lines: [
-      { speaker: HERO, text: '強そうなのが出たら、どうする？' },
+      { speaker: HERO, text: '強そうなのが出たら、どうする？', heroFace: 'NORMAL' },
       { speaker: KAOS, text: '見た目で決めるのは危ないよ。', kaosFace: 'SERIOUS' },
-      { speaker: HERO, text: 'それ、お前が言う？' },
+      { speaker: HERO, text: 'それ、お前が言う？', heroFace: 'TROUBLED' },
       { speaker: KAOS, text: '……どういう意味？', kaosFace: 'PUKU' },
     ],
   },
@@ -107,9 +107,9 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     place: 'SETTING_OUT',
     when: (f) => f.day >= 3,
     lines: [
-      { speaker: HERO, text: 'この前は、助かった。' },
+      { speaker: HERO, text: 'この前は、助かった。', heroFace: 'SMILE' },
       { speaker: KAOS, text: 'えへへ。もっと褒めてもいいよ？', kaosFace: 'BLUSH' },
-      { speaker: HERO, text: '調子に乗るな。' },
+      { speaker: HERO, text: '調子に乗るな。', heroFace: 'POUT' },
       { speaker: KAOS, text: '乗ってないよー。', kaosFace: 'LAUGH' },
     ],
   },
@@ -120,9 +120,9 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     when: (f) => f.phase >= 2,
     lines: [
       { speaker: KAOS, text: '……待って。', kaosFace: 'SERIOUS' },
-      { speaker: HERO, text: 'どうした？' },
+      { speaker: HERO, text: 'どうした？', heroFace: 'SERIOUS' },
       { speaker: KAOS, text: '風の匂いが、いつもと違う。……気をつけてね。', kaosFace: 'SERIOUS' },
-      { speaker: HERO, text: '分かった。お前もな。' },
+      { speaker: HERO, text: '分かった。お前もな。', heroFace: 'SERIOUS' },
     ],
   },
   // ---- coming back into the village ----
@@ -131,7 +131,7 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     place: 'HOMECOMING',
     lines: [
       { speaker: KAOS, text: 'ただいまー。', kaosFace: 'SMILE' },
-      { speaker: HERO, text: '誰に言ってるんだ。' },
+      { speaker: HERO, text: '誰に言ってるんだ。', heroFace: 'TROUBLED' },
       { speaker: KAOS, text: '村に。', kaosFace: 'DOYA' },
     ],
   },
@@ -140,7 +140,7 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     place: 'HOMECOMING',
     lines: [
       { speaker: KAOS, text: 'パンのいい匂いがする……。', kaosFace: 'SMILE' },
-      { speaker: HERO, text: 'さっき食べただろ。' },
+      { speaker: HERO, text: 'さっき食べただろ。', heroFace: 'TROUBLED' },
       { speaker: KAOS, text: 'それとこれとは別なの。', kaosFace: 'PUKU' },
     ],
   },
@@ -151,9 +151,9 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     when: (f) => f.day >= 2,
     lines: [
       { speaker: KAOS, text: '疲れてない？', kaosFace: 'NORMAL' },
-      { speaker: HERO, text: '平気だ。' },
+      { speaker: HERO, text: '平気だ。', heroFace: 'NORMAL' },
       { speaker: KAOS, text: '……そういう時ほど、無理してるんだよ。', kaosFace: 'SAD' },
-      { speaker: HERO, text: '分かった分かった。今日は休む。' },
+      { speaker: HERO, text: '分かった分かった。今日は休む。', heroFace: 'SMILE' },
     ],
   },
   {
@@ -162,7 +162,7 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     when: (f) => f.forestVisits >= 1,
     lines: [
       { speaker: KAOS, text: '森にあった変な形の石、覚えてる？', kaosFace: 'TROUBLED' },
-      { speaker: HERO, text: '触ってみればよかったな。' },
+      { speaker: HERO, text: '触ってみればよかったな。', heroFace: 'SMILE' },
       { speaker: KAOS, text: 'なんで！？', kaosFace: 'SURPRISED' },
     ],
   },
@@ -172,7 +172,7 @@ export const KAOS_BANTERS: readonly KaosBanter[] = [
     when: (f) => f.stage === 'SETTLED',
     lines: [
       { speaker: KAOS, text: '村の人たち、ちょっと元気になったね。', kaosFace: 'SMILE' },
-      { speaker: HERO, text: 'そうか？' },
+      { speaker: HERO, text: 'そうか？', heroFace: 'NORMAL' },
       { speaker: KAOS, text: 'うん。……よかった。', kaosFace: 'SAD' },
     ],
   },
