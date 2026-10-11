@@ -2330,6 +2330,9 @@ body {
   border-left: 2px solid var(--p-gold);
   background: rgba(178, 145, 79, 0.08);
 }
+/* On the region map it comes first, under the title (2026-10-11). */
+.kaos-aside.incident-aside { margin: 0 0 6px; }
+.kaos-aside-speaker .new-badge { margin-left: 6px; }
 .kaos-aside-speaker { grid-area: who; margin: 0; color: var(--p-gold-ink); font-size: 12px; letter-spacing: 0.1em; white-space: nowrap; }
 .kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--p-serif); font-size: 13px; line-height: 1.5; }
 .kaos-aside-next {

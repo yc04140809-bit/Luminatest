@@ -44,6 +44,7 @@ import {
 import { arcanaReading } from './battle/arcanaDepth';
 import { playSfx } from '../platform/audio';
 import { bossCutInFor } from './battle/cutin/bossCutIn';
+import { skillBeatsSpell } from './battle/autoSkill';
 
 /** AUTO's breath between one shown turn and the next, at ×1 — the Artifact's. */
 const AUTO_GAP_MS = 550;
@@ -327,7 +328,8 @@ export function BattleScreen({
    * gathering itself (its roar); else, hurt to 35%, mend (core/autoHeal —
    * her spell, else 薬草／上薬草 from the bag); else the core's own AUTO brain
    * (`decideTurn`, the Artifact's) — and a swing becomes 《瞬断》 whenever
-   * it has come round. Never through her awakening. Off clears the timer
+   * it has come round, as does a damage spell that 《瞬断》 would match
+   * (2026-10-11, ui/battle/autoSkill). Never through her awakening. Off clears the timer
    * and nothing else, so the next tap is a hand-played turn.
    */
   const [auto, setAuto] = useState(false);
@@ -341,9 +343,14 @@ export function BattleScreen({
       if (heal?.kind === 'MAGIC') return cast(heal.magicId);
       if (heal?.kind === 'ITEM') return drink(heal.itemId);
       const plan = decideTurn(battle, spells);
-      if (plan.action === 'MAGIC' && plan.magicId) return cast(plan.magicId);
-      if (plan.action === 'GUARD') return onCommand('DEFEND');
       const ready = HERO_STARTING_SKILLS.find((k) => skillReadyIn(battle, k) === 0);
+      if (plan.action === 'MAGIC' && plan.magicId) {
+        // His skill, come round, before a spell that would hurt no more (ui/battle/autoSkill).
+        const spell = spells.find((m) => m.id === plan.magicId);
+        if (ready && spell && skillBeatsSpell(battle, spell, ready)) return swingSkill(ready.id);
+        return cast(plan.magicId);
+      }
+      if (plan.action === 'GUARD') return onCommand('DEFEND');
       if (ready) return swingSkill(ready.id);
       return onCommand('ATTACK');
     }, beatMs(AUTO_GAP_MS, speed));

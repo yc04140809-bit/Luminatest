@@ -372,11 +372,12 @@ export function MapScreen({
   ruinsNew?: boolean;
   /** A notice over the map (「新しい目的地が追加されました」). */
   notice?: ReactNode;
-  /** A word at the foot of the page as they set out (ALDEN INCIDENT: Kaos senses something). */
+  /** A word at the top of the page as they set out (ALDEN INCIDENT: Kaos senses something) — first, where it is seen (2026-10-11). */
   aside?: ReactNode;
 }) {
   return (
     <PanelPlace area="ALDEN" title="アルデン地方">
+      {aside}
       <nav className="pp-menu" aria-label="アルデン地方">
         <p className="pp-caption">行き先</p>
         <MenuItem testId="forest-button" primary onClick={onForest}>
@@ -404,7 +405,6 @@ export function MapScreen({
           村へもどる
         </MenuItem>
       </nav>
-      {aside}
       {notice}
     </PanelPlace>
   );

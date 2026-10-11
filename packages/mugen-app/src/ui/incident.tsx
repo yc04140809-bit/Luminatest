@@ -2,12 +2,15 @@ import { useState } from 'react';
 import type { World } from '@mugen/core/world/world';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { INCIDENT_KAOS_TALKS, incidentKaosMark, incidentKaosOwed } from '@mugen/content/story/aldenIncident';
+import { NewBadge } from './common/NewBadge';
 
 /**
  * ALDEN INCIDENT — KAOS SENSES SOMETHING (予兆フェーズ, 2026-10-10).
  *
  * As they set out (the region map), once per phase reached: a few lines
- * between her and the hero in a small box at the foot of the page, read
+ * between her and the hero in a small box at the TOP of the page, under the
+ * title and over every way on, marked NEW until heard (2026-10-11: at the
+ * foot it went unnoticed), read
  * with 「つぎへ」. It stops nothing — every way on the map stays where it
  * was — and it is heard when read to its end (readMarks
  * `talk:INCIDENT_KAOS_<phase>`); left half-read, it is there next time.
@@ -31,8 +34,11 @@ export function KaosAside({ world }: { world: World }) {
     void world.markRead([incidentKaosMark(owed)]).catch(() => {});
   };
   return (
-    <div className="kaos-aside" data-testid="kaos-aside" data-phase={owed}>
-      <p className="kaos-aside-speaker">{speaker}</p>
+    <div className="kaos-aside incident-aside" data-testid="kaos-aside" data-phase={owed}>
+      <p className="kaos-aside-speaker">
+        {speaker}
+        <NewBadge testId="kaos-aside-new" />
+      </p>
       <p className="kaos-aside-line" data-testid="kaos-aside-line">
         「{line.text}」
       </p>

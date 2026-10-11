@@ -206,6 +206,11 @@ test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」
   await expect(page.getByTestId('forest-button')).toBeVisible();
   const aside = page.getByTestId('kaos-aside');
   await expect(aside).toHaveAttribute('data-phase', '1');
+  // First on the page, over every way on (2026-10-11: at the foot it went unnoticed) — and marked NEW.
+  await expect(page.getByTestId('kaos-aside-new')).toBeVisible();
+  const asideBox = (await aside.boundingBox())!;
+  const forestBox = (await page.getByTestId('forest-button').boundingBox())!;
+  expect(asideBox.y + asideBox.height).toBeLessThanOrEqual(forestBox.y + 1);
   const said: string[] = [];
   for (let i = 0; i < 6; i++) {
     said.push((await page.getByTestId('kaos-aside-line').textContent()) ?? '');
