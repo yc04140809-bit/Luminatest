@@ -76,63 +76,58 @@ test('shows what the world knows, for whoever is actually in the party', async (
   await expect(page.getByTestId('status-style')).toHaveText('近接攻撃 / オールラウンダー');
 });
 
-test('says nothing about stats and equipment this build does not have', async ({ page }) => {
+test('shows the six numbers for each of them — HP, MP, 攻撃力 the battle’s, 防御力・魔力・素早さ their own (作者指示 2026-10-11)', async ({ page }) => {
   await openStatus(page);
-
-  const screen = page.getByTestId('status-screen');
-  for (const absent of ['防御力', '魔力', '素早さ', '未実装']) {
-    await expect(screen, `${absent} must not appear at all`).not.toContainText(absent);
-  }
-  // Not even as an empty row. Checked where VALUES live rather than
-  // across the screen, because the author's own prose contains an
-  // em dash and that is writing, not a placeholder.
-  const values = await page
-    .locator('.st-rows dd, .st-mark b, .st-level b')
-    .allInnerTexts();
-  expect(values.length).toBeGreaterThan(0);
+  const six = async () => ({
+    hp: await page.getByTestId('status-hp').textContent(),
+    mp: await page.getByTestId('status-mp').textContent(),
+    attack: await page.getByTestId('status-attack-range').textContent(),
+    defense: await page.getByTestId('status-defense').textContent(),
+    magic: await page.getByTestId('status-magic').textContent(),
+    speed: await page.getByTestId('status-speed').textContent(),
+  });
+  // HP and MP as they were (作者判断: unchanged for now); his 攻撃力 the battle's.
+  expect(await six()).toEqual({ hp: '100 / 100', mp: '48 / 48', attack: '8〜12', defense: '12', magic: '8', speed: '10' });
+  await page.getByTestId('status-tab-kaos').click();
+  await expect(page.getByTestId('status-name-text')).toHaveText('ケイオス');
+  // Hers: a low swing, low defence, far more magic, quicker.
+  expect(await six()).toEqual({ hp: '100 / 100', mp: '48 / 48', attack: '4〜6', defense: '7', magic: '20', speed: '14' });
+  // Labels in order, and no placeholder anywhere a value lives.
+  expect(await page.locator('.st-rows dt').allInnerTexts()).toEqual(['HP', 'MP', '攻撃力', '防御力', '魔力', '素早さ']);
+  const values = await page.locator('.st-rows dd, .st-mark b, .st-level b').allInnerTexts();
   for (const v of values) {
     expect(v.trim()).not.toBe('—');
     expect(v.trim()).not.toBe('0');
     expect(v).not.toContain('未実装');
   }
+  await expect(page.getByTestId('status-screen')).not.toContainText('未実装');
 });
 
-test('names the screens that do not exist without offering them', async ({ page }) => {
+test('the pages along the foot: ステータス, プロフィール, 装備, スキル are doors; ストーリー and スキン are named, never offered', async ({ page }) => {
   await openStatus(page);
-
-  // 装備 and スキル ARE built now, so they are no longer in this list —
-  // each gained its frame and its handler at the same moment, which is
-  // the rule this file exists to hold. 装備 is covered by
-  // `equipment.spec.ts`, スキル below.
-  await expect(page.getByTestId('status-menu-soon-スキル')).toHaveCount(0);
-  for (const label of ['ストーリー']) {
-    const item = page.getByTestId(`status-menu-soon-${label}`);
+  for (const label of ['ストーリー', 'スキン']) {
+    const item = page.getByTestId(label === 'ストーリー' ? `status-menu-soon-${label}` : `status-detail-soon-${label}`);
     await expect(item).toBeVisible();
-    // A span, not a button, and nothing a screen reader will call
-    // operable either.
+    // A span, not a button, and nothing a screen reader will call operable.
     await expect(item).toHaveJSProperty('tagName', 'SPAN');
     await expect(item).toHaveAttribute('aria-disabled', 'true');
   }
-  for (const label of ['プロフィール', 'スキン']) {
-    const item = page.getByTestId(`status-detail-soon-${label}`);
-    await expect(item).toBeVisible();
-    await expect(item).toHaveJSProperty('tagName', 'SPAN');
-    await expect(item).toHaveAttribute('aria-disabled', 'true');
-  }
-  // 装備 is in the menu and NOT repeated below: the reference puts it
-  // in both places, and two entries for one unbuilt screen is worse.
-  await expect(page.getByTestId('status-detail-soon-装備')).toHaveCount(0);
-  // 装備 is a real control and says so.
   const equip = page.getByTestId('status-to-equipment');
   await expect(equip).toHaveJSProperty('tagName', 'BUTTON');
   await expect(equip).toBeEnabled();
-
-  // And they are the ONLY ones the menu has gained: the controls on this
-  // screen are the two tabs, 装備, スキル, and the way out.
+  // The page open is marked, not offered; the controls are the tabs, the pages and the way out.
+  await expect(page.getByTestId('status-to-status')).toHaveAttribute('aria-current', 'page');
   const buttons = await page.locator('.status-screen button').allInnerTexts();
   expect(new Set(buttons.map((b) => b.replace(/\s*NEW$/, '').trim()))).toEqual(
-    new Set(['主人公', 'ケイオス', '装備', 'スキル', 'もどる']),
+    new Set(['主人公', 'ケイオス', 'プロフィール', '装備', 'スキル', 'もどる']),
   );
+  // プロフィール: who they are, in their words — and back to the numbers.
+  await page.getByTestId('status-to-profile').click();
+  await expect(page.getByTestId('status-profile')).toContainText('それでも、俺は進む。');
+  await expect(page.getByTestId('status-profile')).toContainText('確かな剣技と、揺るがない意志で戦う。');
+  await expect(page.getByTestId('status-hp')).toHaveCount(0);
+  await page.getByTestId('status-to-status').click();
+  await expect(page.getByTestId('status-hp')).toHaveText('100 / 100');
 });
 
 test('switches between the two people who are here, and invents nobody else', async ({ page }) => {
@@ -158,80 +153,59 @@ test('switches between the two people who are here, and invents nobody else', as
     .not.toBe(before);
 });
 
-test('lays the three columns out to the ratios the spec gives', async ({ page }) => {
+test('two columns and a foot: who they are on the left, the picture on the right, the pages under both — nothing over her', async ({ page }) => {
   await openStatus(page);
-
-  const w = 844;
-  const cols = await page.evaluate(() => {
-    const box = (s: string) => document.querySelector(s)!.getBoundingClientRect();
-    return {
-      menu: box('.st-menu').width,
-      info: box('.st-info').width,
-      visual: box('.st-visual').width,
-      visualRight: window.innerWidth - box('.st-visual').right,
-      visualHeight: box('.st-visual').height,
-      infoRight: box('.st-info').right,
-      visualLeft: box('.st-visual').left,
-    };
-  });
-  expect(cols.menu / w).toBeGreaterThanOrEqual(0.16);
-  expect(cols.menu / w).toBeLessThanOrEqual(0.2);
-  expect(cols.info / w).toBeGreaterThanOrEqual(0.39);
-  expect(cols.info / w).toBeLessThanOrEqual(0.44);
-  expect(cols.visual / w).toBeGreaterThanOrEqual(0.36);
-  expect(cols.visual / w).toBeLessThanOrEqual(0.43);
-  expect(cols.visualRight).toBe(0);
-  expect(cols.visualHeight).toBe(390);
-  // NO TEXT OVER HER FACE OR HER WINGS. The middle column stops
-  // before the picture's area starts, rather than being trusted to.
-  expect(cols.infoRight).toBeLessThanOrEqual(cols.visualLeft + 1);
+  for (const [w, h] of [[844, 390], [640, 300], [915, 412]]) {
+    await page.setViewportSize({ width: w, height: h });
+    const at = `${w}x${h}`;
+    const cols = await page.evaluate(() => {
+      const box = (s: string) => document.querySelector(s)!.getBoundingClientRect();
+      return {
+        info: box('.st-info'),
+        visual: box('.st-visual'),
+        foot: box('.st-foot'),
+        menu: document.querySelector('.st-menu') !== null,
+      };
+    });
+    expect(cols.menu, at).toBe(false);
+    expect(cols.visual.width / w, at).toBeGreaterThanOrEqual(0.4);
+    expect(cols.visual.width / w, at).toBeLessThanOrEqual(0.47);
+    expect(Math.round(w - cols.visual.right), at).toBe(0);
+    expect(Math.round(cols.visual.height), at).toBe(h);
+    // NO TEXT OVER HER: the column stops before the picture starts.
+    expect(cols.info.right, at).toBeLessThanOrEqual(cols.visual.left + 1);
+    // The foot under the column, never over it, at the very bottom.
+    expect(cols.foot.top, at).toBeGreaterThanOrEqual(cols.info.bottom - 1);
+    expect(Math.round(cols.foot.bottom), at).toBe(h);
+  }
 });
 
-test('shows the picture whole, at its own shape, never stretched', async ({ page }) => {
+test('shows the picture large, at its own shape, never stretched — the head at the top, the face not small', async ({ page }) => {
   await openStatus(page);
 
   const check = async (whose: string) => {
-    // THIS person's picture, decoded — not the one before a tab switch,
-    // which can still be on screen for a moment while the next loads.
     const img = page.getByTestId(`status-portrait-${whose}`);
     await expect(img).toBeVisible();
     await expect
       .poll(async () => img.evaluate((e: HTMLImageElement) => e.naturalWidth), { timeout: 15_000 })
       .toBeGreaterThan(0);
-    // And the one on screen now, styled — a picture replaced mid-switch has
-    // no computed style while it is being swapped out.
-    await expect
-      .poll(async () => img.evaluate((e: HTMLImageElement) => (e.isConnected ? getComputedStyle(e).objectFit : '')), {
-        timeout: 15_000,
-      })
-      .toBe('contain');
     const fit = await img.evaluate((e: HTMLImageElement) => {
       const box = e.getBoundingClientRect();
-      const style = getComputedStyle(e);
-      // The element fills its area; `contain` decides what is painted
-      // inside it. That painted rect is what must keep the picture's
-      // shape — a forced fit crops a face or distorts a wing.
-      const ratio = e.naturalWidth / e.naturalHeight;
-      const drawnH = Math.min(box.height, box.width / ratio);
+      const area = e.parentElement!.getBoundingClientRect();
       return {
-        fit: style.objectFit,
-        drawnW: drawnH * ratio,
-        drawnH,
-        boxW: box.width,
-        boxH: box.height,
-        inside: box.right <= window.innerWidth + 1 && box.bottom <= window.innerHeight + 1,
+        natural: e.naturalWidth / e.naturalHeight,
+        drawn: box.width / box.height,
+        top: box.top - area.top,
+        tall: box.height / area.height,
+        centre: box.left + box.width / 2 - (area.left + area.width / 2),
       };
     });
-    expect(fit.fit, whose).toBe('contain');
-    // Nothing cut off any edge: the drawn rect fits inside the area.
-    expect(fit.drawnW, whose).toBeLessThanOrEqual(fit.boxW + 1);
-    expect(fit.drawnH, whose).toBeLessThanOrEqual(fit.boxH + 1);
-    // And it reaches one pair of edges, so it is not shrunk for no reason.
-    expect(
-      Math.abs(fit.drawnH - fit.boxH) < 1 || Math.abs(fit.drawnW - fit.boxW) < 1,
-      whose,
-    ).toBe(true);
-    expect(fit.inside, whose).toBe(true);
+    // Its own shape, never stretched.
+    expect(Math.abs(fit.drawn - fit.natural), whose).toBeLessThan(0.01);
+    // Large: taller than the screen, the head at the top, centred in its area.
+    expect(Math.abs(fit.top), whose).toBeLessThan(1);
+    expect(fit.tall, whose).toBeGreaterThanOrEqual(1.3);
+    expect(Math.abs(fit.centre), whose).toBeLessThan(2);
   };
 
   await check('hero');
@@ -302,7 +276,8 @@ test('scrolls the middle column to its last line, on any height, and nothing els
       expect(m.page, at).toBe(0);
     }
   }
-  await page.setViewportSize({ width: 720, height: 320 });
+  // On the shortest floor her column has more than it can show at once: it scrolls.
+  await page.setViewportSize({ width: 640, height: 300 });
   expect((await measure()).scrolls).toBe(true);
   // Everything that was below 装備 on the handset is in the column.
   await expect(page.getByTestId('status-scroll')).toContainText('武器種');

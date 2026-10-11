@@ -2520,3 +2520,109 @@ body {
   .talk-box .kaos-aside { padding: 5px 10px; }
   .talk-box .kaos-aside-line { font-size: 13px; line-height: 1.4; }
 }
+
+/* ── STATUS v2 (作者指示 2026-10-11: キャラクターそのものを好きになる画面) ──
+   Two columns now: who they are on the left (scrolls), the picture large on
+   the right; the pages of them (ステータス・プロフィール・装備・スキル・
+   ストーリー) along the foot, under both. Scoped to `.st-v2` so the
+   equipment screen, which shares the older classes, is untouched. */
+.status-screen.st-v2 {
+  --st-visual-w: 44vw;
+  /* The screen is exactly what is seen (dvh), never taller — so the foot
+     and the column's last line are never below the visible area. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+.st-v2 .st-visual {
+  bottom: 0;
+  align-items: flex-start;
+}
+/* Large and never stretched: its own shape, the head at the top, a little
+   taller than the screen so the face is not small; the lower legs fall off. */
+.st-v2 .st-visual img {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: auto;
+  max-width: none;
+  height: 148%;
+  object-fit: contain;
+  transform: translateX(-50%);
+}
+.st-v2 .st-body {
+  padding: 4px 12px 0;
+  padding-right: calc(var(--st-visual-w) + 10px);
+}
+.st-v2 .st-scroll {
+  padding-bottom: 10px;
+}
+.st-v2 .st-one-line {
+  margin: 2px 0 4px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+/* Six numbers in two columns: label, value, label, value. */
+.st-v2 .st-six {
+  grid-template-columns: auto 1fr auto 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+}
+.st-v2 .st-six dd { font-variant-numeric: tabular-nums; }
+.st-v2 .st-marks { margin-top: 6px; }
+/* The foot runs under both columns, over the picture's lower part. */
+.st-v2 .st-foot {
+  padding: 5px 12px max(8px, env(safe-area-inset-bottom));
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.9) 30%, rgba(242, 235, 221, 0.97) 100%);
+  z-index: 2;
+}
+.st-v2 .st-back { min-width: 100px; padding: 8px 14px; }
+.st-nav {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.st-nav-item {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: none;
+  color: var(--st-ink);
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.st-nav-item.live {
+  border-color: var(--st-gold-soft);
+  background: rgba(255, 255, 255, 0.7);
+}
+.st-nav-item.on {
+  color: #f7f1e2;
+  border-color: #a5873f;
+  background: linear-gradient(180deg, #6d5a34, #40351f);
+}
+.st-nav-item.soon {
+  color: #8a7f6b;
+  cursor: default;
+  user-select: none;
+}
+@media (max-width: 720px) {
+  .st-v2 .st-foot { padding-left: 8px; padding-right: 8px; gap: 6px; }
+  .st-v2 .st-back { min-width: 64px; padding: 6px 10px; letter-spacing: 0.08em; }
+  .st-nav { gap: 2px; }
+  .st-nav-item { padding: 5px 6px; font-size: 11.5px; letter-spacing: 0.02em; }
+}
+@media (max-height: 340px) {
+  .st-v2 .st-head { padding-top: 6px; }
+  .st-v2 .st-tab { min-height: 30px; padding: 4px 14px; }
+  .st-nav-item, .st-v2 .st-back { min-height: 34px; }
+}
