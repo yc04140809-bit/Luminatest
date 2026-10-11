@@ -697,9 +697,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   return (
     <>
       {screenFor()}
-      <NoticeHost key={noticeScope} />
-      {/* ハイタッチ: a first find, a rare one, a first handwork — over whatever is on screen, gone with it. */}
-      <CelebrateHost key={noticeScope} />
+      <NoticeHost key={`notice:${noticeScope}`} />
+      {/* ハイタッチ: a first find, a rare one, a first handwork — over whatever is on screen, gone with it.
+          Its own key: two siblings with one key are not both remounted when the screen changes. */}
+      <CelebrateHost key={`celebrate:${noticeScope}`} />
     </>
   );
 
