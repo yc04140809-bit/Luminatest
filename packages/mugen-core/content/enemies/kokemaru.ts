@@ -25,9 +25,10 @@
 //   defense 0.42   no resistance; its footing breaks easily (poise 4)
 //   《地形同化》   it melts into the moss for a blow; curled up and hiding
 //                  more once it is hurt (眠ると身体が丸く収まる)
-//   闇に弱い・強い光を嫌う   the battle has no darkness; and its own second
-//                  element is light, so the star is NOT made a weakness
-//                  (kept by FORGE only; the author's to confirm)
+//   闇に弱い       the battle has no darkness; kept by FORGE only
+//   強い光を嫌う   a trait of how it lives, not of itself a weakness
+//                  (作者判断 2026-10-11); its own second element is light,
+//                  so it has none — the star is plain
 //   《高速移動》・毒付与   not used: ヒョウレイ's is the forest's quick one,
 //                  and poison waits for a battle that knows it
 //

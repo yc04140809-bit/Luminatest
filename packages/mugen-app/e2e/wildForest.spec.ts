@@ -258,3 +258,38 @@ test('コケマル: not before the signs’ third phase; from it, met in the for
   await expect(page.getByTestId('creature-encounter')).toHaveCount(0);
   await expect(page.getByTestId('bp-enemy-name')).toHaveText('コケマル');
 });
+
+test('フウミミ: never answered, its kind is met anyway from 12 points — other first lines; the one individual still waits, met as “the one seen in the forest”, and nothing is written into WORLD MEMORY', async ({
+  page,
+}) => {
+  await settledVillage(page);
+  await toPoint(page, 12);
+  await intoTheForest(page);
+  expect(await world<{ choice: string } | null>(page, `(w) => w.getFuumimiAnswer()`)).toBeNull();
+  const memory = (await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length;
+  // 0.5 is フウミミ’s share (モスラビット 6・フウミミ 2・ヒョウレイ 2・イワホロ 2・コケマル 2).
+  await roll(page, 0.5);
+  await page.getByTestId('encounter-button').click();
+  const lines = await firstSight(page);
+  expect(lines[0]).toBe('翅の音。見たことのない生き物が、茂みから飛び出してきた。');
+  expect(lines.join('')).not.toContain('あの時');
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('フウミミ');
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('note:FIRST_SIGHT_fuumimi')`)).toBe(true);
+  await page.getByTestId('bp-escape').click();
+  await settled(page);
+
+  // The one individual is still at the forest's edge — and is met as the one seen in the forest.
+  await expect(page.getByTestId('fuumimi-button')).toBeVisible();
+  await page.getByTestId('fuumimi-button').click();
+  const before = await firstSight(page);
+  expect(before.join('')).toContain('森の奥で見かけた、あの生き物と同じ姿');
+  expect(before.join('')).not.toContain('この辺りでは見ない姿');
+  await readyToAct(page);
+  await expect(page.getByTestId('bp-enemy-name')).toHaveText('フウミミ');
+  await page.getByTestId('bp-escape').click();
+  await settled(page);
+  await expect(page.getByTestId('fuumimi-button')).toBeVisible();
+  expect(await world<{ choice: string } | null>(page, `(w) => w.getFuumimiAnswer()`)).toBeNull();
+  expect((await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length).toBe(memory);
+});

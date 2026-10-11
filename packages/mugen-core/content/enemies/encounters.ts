@@ -7,7 +7,11 @@
 //
 //   モスラビット  always
 //   フウミミ      once the one individual (IND-43452DFD) has been answered —
-//                 its kind is first met as that one, then as itself
+//                 its kind is first met as that one, then as itself; or, if
+//                 the one has never been answered, from 12 points anyway
+//                 (作者判断 2026-10-11, A: a player who never stops at the
+//                 forest's edge still meets the kind). The one's story stays
+//                 waiting until it is answered, and stays once.
 //   イワホロ      from the signs' second phase (6 points): hungry, bolder,
 //                 nearer the edge than it should be
 //   ヒョウレイ    a little after it is first talked about: the rumour comes
@@ -40,6 +44,8 @@ export const HYOUREI_MET_FROM_POINT = 8;
 export const IWAHORO_MET_FROM_POINT = 6;
 /** コケマル is met from this point on (the signs' third phase). */
 export const KOKEMARU_MET_FROM_POINT = 10;
+/** フウミミ's kind is met from this point on even if its one individual was never answered. */
+export const FUUMIMI_KIND_FROM_POINT = 12;
 
 export interface WildEntry {
   speciesId: SpeciesId;
@@ -50,7 +56,11 @@ export interface WildEntry {
 
 export const GREENWOOD_ENCOUNTERS: readonly WildEntry[] = [
   { speciesId: 'moss_rabbit', weight: 6, opens: () => true },
-  { speciesId: 'fuumimi', weight: 2, opens: (f) => f.fuumimiAnswered },
+  {
+    speciesId: 'fuumimi',
+    weight: 2,
+    opens: (f) => f.fuumimiAnswered || (f.stage === 'SETTLED' && f.point >= FUUMIMI_KIND_FROM_POINT),
+  },
   { speciesId: 'hyourei', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= HYOUREI_MET_FROM_POINT },
   { speciesId: 'iwahoro', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= IWAHORO_MET_FROM_POINT },
   { speciesId: 'kokemaru', weight: 2, opens: (f) => f.stage === 'SETTLED' && f.point >= KOKEMARU_MET_FROM_POINT },
@@ -83,6 +93,26 @@ export const FIRST_SIGHT: Partial<Record<SpeciesId, readonly DialogueLine[]>> = 
     { speaker: 'ケイオス', text: '……別の子だね。この子は、ただ気が立ってるだけみたい。' },
   ],
 };
+
+/**
+ * フウミミ's first sight when its one individual has NOT been answered (met
+ * from 12 points anyway): nothing of "the same as that time" — there was no
+ * that time.
+ */
+export const FUUMIMI_FIRST_SIGHT_UNMET: readonly DialogueLine[] = [
+  { speaker: null, text: '翅の音。見たことのない生き物が、茂みから飛び出してきた。' },
+  { speaker: 'ケイオス', text: '……初めて見る子だね。体が硬そう。気をつけて！' },
+];
+
+/**
+ * The lines for the first time a kind is met in an ordinary fight, or null
+ * for a kind with none (the rabbit). フウミミ's depend on whether its one
+ * individual has been answered.
+ */
+export function firstSightLines(speciesId: SpeciesId, facts: { fuumimiAnswered: boolean }): readonly DialogueLine[] | null {
+  if (speciesId === 'fuumimi' && !facts.fuumimiAnswered) return FUUMIMI_FIRST_SIGHT_UNMET;
+  return FIRST_SIGHT[speciesId] ?? null;
+}
 
 /** readMarks id: the first sight of a kind, seen. */
 export const firstSightMark = (speciesId: SpeciesId): string => `note:FIRST_SIGHT_${speciesId}`;

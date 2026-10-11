@@ -5,11 +5,12 @@ import { createBattle, playerAttack, playerSkill, skillReadyIn, type EnemySpec }
 import { specOf } from '../../game/battle/enemySpec';
 import { statsForLevels } from '../../core/progression/levelStats';
 import { SHUNDAN } from '../skills/heroSkills';
-import { FIRST_SIGHT, GREENWOOD_ENCOUNTERS, HYOUREI_MET_FROM_POINT, IWAHORO_MET_FROM_POINT, KOKEMARU_MET_FROM_POINT, firstSightMark, wildOpenIn, wildSpeciesFor, type WildFacts } from './encounters';
+import { FIRST_SIGHT, GREENWOOD_ENCOUNTERS, FUUMIMI_FIRST_SIGHT_UNMET, FUUMIMI_KIND_FROM_POINT, HYOUREI_MET_FROM_POINT, IWAHORO_MET_FROM_POINT, KOKEMARU_MET_FROM_POINT, firstSightLines, firstSightMark, wildOpenIn, wildSpeciesFor, type WildFacts } from './encounters';
 import { IWAHORO, IWAHORO_CHARACTER_ID, IWAHORO_FORGE_INDIVIDUAL_ID } from './iwahoro';
 import { KOKEMARU, KOKEMARU_CHARACTER_ID, KOKEMARU_FORGE_INDIVIDUAL_ID } from './kokemaru';
 import { HYOUREI, HYOUREI_CHARACTER_ID, HYOUREI_FORGE_INDIVIDUAL_ID } from './hyourei';
 import { ENEMY_SPECIES, MOSS_RABBIT } from './species';
+import { FUUMIMI_ENCOUNTER_LINES, fuumimiEncounterLines } from './fuumimi';
 import { rewardForSpecies } from '../progression/enemyRewards';
 import { INCIDENT_PHASE_AT } from '../../core/world/aldenIncident';
 import { VILLAGE_RUMORS } from '../story/villageRumors';
@@ -135,7 +136,7 @@ describe('イワホロ (FORGE MON-000009): an ordinary creature — steady, aggr
     expect(all).not.toContain('MON-000009');
   });
 
-  it('吸収 and a rare 高速移動 (no poison, paralysis or earth — the battle has none); 強い光を嫌う read as weak to her star; cornered, it hits harder', () => {
+  it('吸収 and a rare 高速移動 (no poison, paralysis or earth — the battle has none); its own weakness to her star (強い光を嫌う is how it lives, not of itself a weakness); cornered, it hits harder', () => {
     expect(IWAHORO.attackName).toBe('吸収');
     expect(IWAHORO.skill.name).toBe('高速移動');
     expect(IWAHORO.skill.chance).toBeLessThan(HYOUREI.skill.chance);
@@ -195,7 +196,7 @@ describe('コケマル (FORGE MON-000010): an ordinary creature — quick, curio
     expect(all).not.toContain('MON-000010');
   });
 
-  it('投石 and 地形同化 (no 高速移動 — ヒョウレイ’s — and no poison); no weakness made from 強い光を嫌う, its own second element being light; curled up and hiding more once hurt', () => {
+  it('投石 and 地形同化 (no 高速移動 — ヒョウレイ’s — and no poison); no weakness (強い光を嫌う is how it lives; its own second element is light); curled up and hiding more once hurt', () => {
     expect(KOKEMARU.attackName).toBe('投石');
     expect(KOKEMARU.skill.name).toBe('地形同化');
     expect(JSON.stringify(KOKEMARU)).not.toMatch(/高速移動|毒/);
@@ -241,5 +242,35 @@ describe('コケマル (FORGE MON-000010): an ordinary creature — quick, curio
     expect(kokemaru.hurt).toBeGreaterThan(rabbit.hurt);
     expect(kokemaru.hurt / kokemaru.turns).toBeGreaterThan(rabbit.hurt / rabbit.turns);
     expect(kokemaru.win).toBeGreaterThanOrEqual(0.99);
+  });
+});
+
+describe('フウミミ’s kind, if its one individual is never answered (作者判断 2026-10-11, A)', () => {
+  it('from 12 points the kind is met anyway — after セキリュウガ’s part only; before 12, still only once answered', () => {
+    expect(FUUMIMI_KIND_FROM_POINT).toBe(12);
+    expect(open(f({ point: 11 }))).not.toContain('fuumimi');
+    expect(open(f({ point: 12 }))).toEqual(['moss_rabbit', 'fuumimi', 'hyourei', 'iwahoro', 'kokemaru']);
+    expect(open(f({ stage: 'BEATEN', point: 20 }))).toEqual(['moss_rabbit']);
+    // Answered early: as before, whatever the point.
+    expect(open(f({ point: 0, fuumimiAnswered: true }))).toEqual(['moss_rabbit', 'fuumimi']);
+  });
+
+  it('the first sight then says nothing of "the same as that time" — there was no that time; answered, it does', () => {
+    const unmet = firstSightLines('fuumimi', { fuumimiAnswered: false })!;
+    expect(unmet).toBe(FUUMIMI_FIRST_SIGHT_UNMET);
+    expect(unmet[0].text).toBe('翅の音。見たことのない生き物が、茂みから飛び出してきた。');
+    expect(unmet.map((l) => l.text).join('')).not.toContain('あの時');
+    expect(firstSightLines('fuumimi', { fuumimiAnswered: true })![0].text).toContain('あの時と同じ姿');
+    // The others are as they were; the rabbit has none.
+    expect(firstSightLines('hyourei', { fuumimiAnswered: false })).toBe(FIRST_SIGHT.hyourei);
+    expect(firstSightLines('moss_rabbit', { fuumimiAnswered: false })).toBeNull();
+  });
+
+  it('the one individual, met after its kind: not "a shape not seen around here" but the one seen in the forest', () => {
+    expect(fuumimiEncounterLines(false)).toBe(FUUMIMI_ENCOUNTER_LINES);
+    const seen = fuumimiEncounterLines(true).map((l) => l.text);
+    expect(seen.join('')).not.toContain('この辺りでは見ない姿');
+    expect(seen[1]).toContain('森の奥で見かけた、あの生き物と同じ姿');
+    expect(seen.at(-1)).toBe(FUUMIMI_ENCOUNTER_LINES.at(-1)!.text);
   });
 });

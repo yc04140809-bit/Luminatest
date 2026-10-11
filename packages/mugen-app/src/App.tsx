@@ -69,11 +69,11 @@ import { RumorScreen, rumorsOf } from './ui/rumors';
 import { KaosAside } from './ui/incident';
 import { DailyAside } from './ui/daily';
 import { CreatureEncounterScreen, CreatureLifeChoiceScreen } from './ui/creatureChoice';
-import { FIRST_SIGHT, firstSightMark, wildSpeciesFor } from '@mugen/content/enemies/encounters';
+import { firstSightLines, firstSightMark, wildSpeciesFor } from '@mugen/content/enemies/encounters';
 import { ENEMY_SPECIES, type SpeciesId } from '@mugen/content/enemies/species';
 import {
   FUUMIMI,
-  FUUMIMI_ENCOUNTER_LINES,
+  fuumimiEncounterLines,
   FUUMIMI_INDIVIDUAL_DEFEATED,
   FUUMIMI_INDIVIDUAL_ID,
   answerFuumimi,
@@ -1085,7 +1085,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             wildSpecies.current = species;
             fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             // The first time a new kind is met: a few lines first (once); after that, straight in.
-            if (FIRST_SIGHT[species] && !world.isRead(firstSightMark(species))) return flow.goTo('ENCOUNTER');
+            const sight = firstSightLines(species, { fuumimiAnswered: world.getFuumimiAnswer() !== null });
+            if (sight && !world.isRead(firstSightMark(species))) return flow.goTo('ENCOUNTER');
             flow.goTo('BATTLE');
           }}
           onLeave={() => {
@@ -1101,7 +1102,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         const species = wildSpecies.current;
         return (
           <CreatureEncounterScreen
-            lines={FIRST_SIGHT[species] ?? []}
+            lines={firstSightLines(species, { fuumimiAnswered: world.getFuumimiAnswer() !== null }) ?? []}
             heroName={world.getHeroName()}
             onBattle={() => {
               void world.markRead([firstSightMark(species)]).catch(() => {});
@@ -1113,7 +1114,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       if (battleKind.current === 'FUUMIMI') {
         return (
           <CreatureEncounterScreen
-            lines={FUUMIMI_ENCOUNTER_LINES}
+            // Its kind already met in the forest (from 12 points, before this one was answered): said so.
+            lines={fuumimiEncounterLines(world.isRead(firstSightMark('fuumimi')))}
             heroName={world.getHeroName()}
             onBattle={() => {
               fight.current = `fight-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

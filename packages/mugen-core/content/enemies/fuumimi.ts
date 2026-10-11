@@ -121,6 +121,22 @@ export const FUUMIMI_ENCOUNTER_LINES: readonly DialogueLine[] = [
   { speaker: 'ケイオス', text: '……気が立ってる。来るよ！' },
 ];
 
+/**
+ * The same, when its kind has already been met in the forest (from 12
+ * points, before this one was answered — 作者判断 2026-10-11): not "a shape
+ * not seen around here", but the one seen there.
+ */
+export const FUUMIMI_ENCOUNTER_LINES_KIND_SEEN: readonly DialogueLine[] = [
+  FUUMIMI_ENCOUNTER_LINES[0],
+  { speaker: null, text: '翅のある小さな生き物が、こちらを睨んでいる。森の奥で見かけた、あの生き物と同じ姿だ。' },
+  FUUMIMI_ENCOUNTER_LINES[2],
+];
+
+/** Which lines open the one individual's encounter: whether its kind has been met already. */
+export function fuumimiEncounterLines(kindSeen: boolean): readonly DialogueLine[] {
+  return kindSeen ? FUUMIMI_ENCOUNTER_LINES_KIND_SEEN : FUUMIMI_ENCOUNTER_LINES;
+}
+
 /** What each answer leaves right away (the rest comes later, or never). */
 export const FUUMIMI_ANSWER_NOW = {
   /** Something of the light inside it. */

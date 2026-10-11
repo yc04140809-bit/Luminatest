@@ -17,8 +17,9 @@
 //
 //   physical 0.42  吸収: its blow (as damage — there is no draining yet)
 //   magic 0.50 · defense 0.44 · speed 0.54   an even, steady creature
-//   強い光を嫌う   read as: Kaos's star goes in hard (star WEAK) — the one
-//                  light the battle has (an interpretation; the author's to confirm)
+//   強い光を嫌う   a trait of how it lives (twilight, shade), not of itself a
+//                  weakness (作者判断 2026-10-11). In battle イワホロ is
+//                  given its own: Kaos's star goes in hard (star WEAK)
 //   土に弱い       the battle has no earth; kept by FORGE only
 //   《高速移動》   rarely (ヒョウレイ's is its own, and often); poison and
 //                  paralysis wait for a battle that knows them
