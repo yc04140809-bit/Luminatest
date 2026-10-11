@@ -9,6 +9,8 @@ import { SHOP_MIREI, TOUCH_TIMING } from '@mugen/content/npc/shopMirei';
 import { pickTouchReaction, type NpcExpression, type TouchReaction } from '@mugen/core/npc/touchReaction';
 import { SEKIRYUGA_STAGES } from '@mugen/core/world/storyArc';
 import { mireiFace, shopArt, shopStage, type ShopArt } from '../assets/shop';
+import { NewBadge } from './common/NewBadge';
+import { rumorUnheard } from './talkNews';
 
 /**
  * THE DOOR AT ALDEN.
@@ -73,6 +75,8 @@ export function ItemShopScreen({
     setSceneDone(true);
     void world.finishDailyScene(scene.id).catch(() => {});
   };
+  // Her rumour is new only if it had not been heard anywhere as the door opened (it is heard by being shown).
+  const [rumorNew] = useState(() => !!rumor && rumorUnheard(world));
   const [tab, setTab] = useState<'BUY' | 'SELL'>('BUY');
   useEffect(() => {
     if (rumor) onRumor?.();
@@ -242,6 +246,8 @@ export function ItemShopScreen({
           <h1 className="place">{ALDEN_SHOP_NAME}</h1>
           {sceneLine ? (
             <div className="shop-daily" data-testid="shop-daily" data-scene={scene?.id}>
+              {/* Not her everyday line: NEW while it is told (2026-10-11). */}
+              <NewBadge testId="shop-daily-new" />
               <p className="say shop-keeper" data-testid="shop-daily-line">
                 {sceneLine.speaker
                   ? `${sceneLine.speaker === HERO_SPEAKER ? world.getHeroName() : sceneLine.speaker}「${sceneLine.text}」`
@@ -263,6 +269,7 @@ export function ItemShopScreen({
             </p>
           ) : rumor ? (
             <p className="say shop-keeper" data-testid="shop-keeper-line">
+              <NewBadge show={rumorNew} testId="shop-rumor-new" />
               {rumor.speaker}「{rumor.text.replace(/\n/g, '')}」
             </p>
           ) : (

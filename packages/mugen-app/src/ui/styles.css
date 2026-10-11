@@ -270,6 +270,9 @@ body {
    time passed at all — not how prettily. */
 .seasons { letter-spacing: 0.3em; color: var(--dim); font-size: 12px; margin: 0 0 6px; }
 .speaker { color: var(--gold); font-size: 12px; margin: 10px 0 4px; }
+/* A speaker with NEW beside it: a line that is not the ordinary talk (2026-10-11). */
+.talk-head { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px; min-height: 16px; }
+.talk-head .speaker { margin: 0; }
 .line.dim { color: var(--dim); font-size: 12px; }
 
 /* STATUS — one person at a time: who they are, what they are worth,
@@ -2434,3 +2437,23 @@ body {
 }
 /* …and the small one it shields: the same drawing, a third the height. */
 .stage-picture.stage-cutout-small { height: min(30%, 30vh); bottom: 8%; }
+
+/* A village door with NEW beside it (2026-10-11): its name stays on one line. */
+.pp-item:has(.new-badge) { letter-spacing: 0.02em; white-space: nowrap; }
+.pp-item .new-badge { flex-shrink: 0; }
+/* A narrow page: the door's NEW as a small tag on its top-right corner, so a
+   long name (月灯りの酒場) and its NEW both stay inside its own column. */
+@media (max-width: 720px) {
+  .pp-group .pp-item:has(.new-badge) { position: relative; overflow: visible; }
+  .pp-group .pp-item .new-badge {
+    position: absolute;
+    top: -5px;
+    right: 0;
+    margin: 0;
+    padding: 0 3px;
+    font-size: 8px;
+    line-height: 11px;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+  }
+}

@@ -23,7 +23,8 @@ import { specOf } from '@mugen/game/battle/enemySpec';
 import { ItemShopScreen } from './ui/shop';
 import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
-import { TavernScreen } from './ui/tavern';
+import { TavernScreen, tavernHasNews } from './ui/tavern';
+import { bakeryHasNews, shopHasNews } from './ui/talkNews';
 import { tonightsGuestTalk } from '@mugen/content/talk/tavernGuests';
 import { toAbsoluteDay } from '@mugen/core/time/calendar';
 import type { BgmId } from '@mugen/assets';
@@ -834,6 +835,15 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             rumors: rumorsOf(world).unread > 0,
             memory: world.getKnownEvents().some((e) => !world.isRead(memoryMark(e.id))),
             status: newEquipmentIds(world).length > 0,
+            // A talk that is not the everyday one waits inside (作者 2026-10-11).
+            tavern: tavernHasNews({
+              metBefore: tavernMet || hasMetGrave((id) => world.isRead(id), world.getSekiryugaStage()),
+              arc: { open: world.isSekiryugaArcOpen(), stage: world.getSekiryugaStage(), heard: (id) => world.isRead(`talk:${id}`) },
+              incident: world.getIncidentPhase() >= INCIDENT_GRAVE_FROM && !world.isRead(INCIDENT_GRAVE_MARK),
+              daily: world.getDailyScene('TAVERN') !== null,
+            }),
+            bakery: bakeryHasNews(world),
+            shop: shopHasNews(world),
           }}
           notice={
             <>

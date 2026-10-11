@@ -22,6 +22,7 @@ import { tavernArt, type TavernArt } from '../assets/tavern';
 import { tavernGuestArt } from '../assets/tavernGuests';
 import { tavernTrade } from '@mugen/content/economy/tavernTrades';
 import { MusicArchivePanel, TradePanel, type TavernHub } from './tavernHub';
+import { NewBadge } from './common/NewBadge';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -128,6 +129,32 @@ function shown(line: DialogueLine, heroName: string): DialogueLine {
 
 const TAVERN_ID = 'MOONLIGHT_TAVERN';
 
+/**
+ * NEW FOR WHAT IS NOT HIS ORDINARY GREETING (作者 2026-10-11: 「いつもの会話
+ * じゃない場面は絶対new付けて」). What the master has waiting, asked of the
+ * same facts the screen asks: his first meeting, the incident's word, today's
+ * small thing, his rumour. The guest's few lines are an ordinary night's.
+ */
+export interface TavernNewsContext {
+  metBefore: boolean;
+  arc?: { open: boolean; stage: SekiryugaStage; heard: (id: string) => boolean };
+  incident: boolean;
+  daily: boolean;
+}
+
+/** 「話す」 holds something other than his greeting. */
+export function masterHasNews(c: TavernNewsContext): boolean {
+  if (!c.metBefore || c.incident || c.daily) return true;
+  return tavernTalkLines(TAVERN_GREETING_LINES, c.arc).rumor;
+}
+
+/** The village's door to the tavern: that, or a story owed (it starts as the door opens). */
+export function tavernHasNews(c: TavernNewsContext): boolean {
+  if (masterHasNews(c)) return true;
+  if (!c.arc) return false;
+  return dueTalks([graveMeeting, ...GRAVE_STORY_TALKS], { met: c.metBefore, arcOpen: c.arc.open, stage: c.arc.stage, heard: c.arc.heard }).length > 0;
+}
+
 export function TavernScreen({
   metBefore,
   onMet,
@@ -203,6 +230,8 @@ export function TavernScreen({
     guest?: TavernGuestId;
     incident?: boolean;
     daily?: boolean;
+    /** His first meeting, asked for with 「話す」. */
+    first?: boolean;
   } | null>(
     null,
   );
@@ -242,6 +271,8 @@ export function TavernScreen({
   const last = !!talking && at >= talking.length - 1;
   // The last line of the last step closes; a rumour's last line goes on into his story.
   const closes = last && (steps ? stepAt >= steps.length - 1 : !talk?.rumor);
+  // Not his ordinary greeting, nor a guest's lines: marked NEW while it is told.
+  const special = !!steps || !!talk?.incident || !!talk?.daily || !!talk?.rumor || !!talk?.first;
   const description = LOCATIONS.find((l) => l.id === TAVERN_ID)?.description ?? '';
 
   const begin = () => {
@@ -257,7 +288,7 @@ export function TavernScreen({
       setTalk({ lines: dailyTalk.lines, rumor: false, daily: true });
       return;
     }
-    setTalk({ lines, rumor });
+    setTalk({ lines, rumor, first: !metBefore });
   };
   /** Tonight's stranger: their few lines, their silhouette. Records nothing. */
   const beginGuest = () => {
@@ -356,7 +387,14 @@ export function TavernScreen({
           )
         ) : line ? (
           <>
-            {line.speaker && <p className="speaker">{line.speaker}</p>}
+            {special ? (
+              <div className="talk-head">
+                {line.speaker && <p className="speaker">{line.speaker}</p>}
+                <NewBadge testId="tavern-line-new" />
+              </div>
+            ) : (
+              line.speaker && <p className="speaker">{line.speaker}</p>
+            )}
             <p className="line" data-testid="tavern-line">
               {line.speaker ? `「${line.text}」` : line.text}
             </p>
@@ -381,6 +419,10 @@ export function TavernScreen({
             <div className="actions">
               <button className="btn primary" data-testid="tavern-talk" onClick={begin}>
                 {guest ? 'マスターと話す' : '話す'}
+                <NewBadge
+                  show={masterHasNews({ metBefore, arc, incident: !!incidentTalk, daily: !!dailyTalk })}
+                  testId="tavern-talk-new"
+                />
               </button>
               {guest && (
                 <button className="btn" data-testid="tavern-guest-talk" data-guest={guest.guest} onClick={beginGuest}>

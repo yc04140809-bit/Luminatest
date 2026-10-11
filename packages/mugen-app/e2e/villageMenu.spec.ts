@@ -49,7 +49,20 @@ test('the shops from the square: 道具屋 in and back, パン屋, 月灯りの�
   const captions = await page.locator('.pp-menu .pp-caption').allTextContents();
   expect(captions).toEqual(['店舗', '村のこと', '記録', 'パーティ']);
   const shops = page.locator('.pp-group').first().locator('.pp-item');
-  expect(await shops.allTextContents()).toEqual(['月灯りの酒場', 'パン屋', '道具屋']);
+  // The labels (a NEW beside one is not part of its name).
+  expect(
+    await shops.evaluateAll((els) =>
+      els.map((el) => {
+        const copy = el.cloneNode(true) as HTMLElement;
+        copy.querySelectorAll('.new-badge').forEach((b) => b.remove());
+        return (copy.textContent ?? '').trim();
+      }),
+    ),
+  ).toEqual(['月灯りの酒場', 'パン屋', '道具屋']);
+  // A fresh village: the master and リナ not met yet — not the everyday talk, so NEW (2026-10-11); nothing waits at the tool shop.
+  await expect(page.getByTestId('tavern-new')).toBeVisible();
+  await expect(page.getByTestId('bakery-new')).toBeVisible();
+  await expect(page.getByTestId('shop-new')).toHaveCount(0);
 
   // 道具屋: ミレイ's shop, as it always was — and back to the square.
   await page.getByTestId('shop-button').click();

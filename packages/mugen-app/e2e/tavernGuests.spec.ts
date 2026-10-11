@@ -132,7 +132,10 @@ test('tonight’s stranger: their silhouette in the master’s place, their labe
   await freshVillage(page);
   await page.getByTestId('tavern-button').click();
   await expect(page.getByTestId('tavern-master')).toBeVisible();
-  await expect(page.getByTestId('tavern-talk')).toHaveText('マスターと話す');
+  // Its label; and, the master not met yet, NEW beside it (not the everyday talk, 2026-10-11) — none on the guest's.
+  await expect(page.getByTestId('tavern-talk')).toHaveText(/^マスターと話す(NEW)?$/);
+  await expect(page.getByTestId('tavern-talk-new')).toBeVisible();
+  await expect(page.getByTestId('tavern-guest-talk').locator('.new-badge')).toHaveCount(0);
   await expect(page.getByTestId('tavern-tonight')).toHaveText('今夜の客：旅人');
   const masterBox = (await page.getByTestId('tavern-master').boundingBox())!;
   await page.waitForTimeout(500);

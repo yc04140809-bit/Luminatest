@@ -211,7 +211,16 @@ export function AldenScreen({
    * caller from the world; a menu opened is not a thing looked at, so these
    * clear only as the things inside are.
    */
-  news?: { explore?: boolean; rumors?: boolean; memory?: boolean; status?: boolean };
+  news?: {
+    explore?: boolean;
+    rumors?: boolean;
+    memory?: boolean;
+    status?: boolean;
+    /** A talk that is not the everyday one waits inside (2026-10-11, ui/talkNews). */
+    tavern?: boolean;
+    bakery?: boolean;
+    shop?: boolean;
+  };
   /** A notice over the village (「AUTO戦闘が使用可能になりました。」). */
   notice?: ReactNode;
   onExplore: () => void;
@@ -288,15 +297,18 @@ export function AldenScreen({
             <p className="pp-caption">店舗</p>
             <MenuItem testId="tavern-button" onClick={onTavern}>
               月灯りの酒場
+              <NewBadge show={news.tavern} testId="tavern-new" />
             </MenuItem>
             <MenuItem testId="bakery-button" onClick={onBakery}>
               パン屋
+              <NewBadge show={news.bakery} testId="bakery-new" />
             </MenuItem>
             {/* 「道具屋」 on the square, so the three shops keep one line and one
                 rhythm on a phone (the author, 2026-10-10); inside, the shop is
                 still アルデン道具屋 (ALDEN_SHOP_NAME). */}
             <MenuItem testId="shop-button" onClick={onShop}>
               道具屋
+              <NewBadge show={news.shop} testId="shop-new" />
             </MenuItem>
           </div>
           <div className="pp-group">
@@ -485,11 +497,13 @@ export function GreenwoodScreen({
           {galdWaiting && (
             <button className="btn walk-event primary" data-testid="gald-button" onClick={onGald}>
               人影がこちらを見ている
+              <NewBadge testId="gald-new" />
             </button>
           )}
           {fuumimiWaiting && onFuumimi && (
             <button className="btn walk-event primary" data-testid="fuumimi-button" onClick={onFuumimi}>
               翅の音が、近くで止まった
+              <NewBadge testId="fuumimi-new" />
             </button>
           )}
           <button className="btn walk-event" data-testid="encounter-button" onClick={onFight}>

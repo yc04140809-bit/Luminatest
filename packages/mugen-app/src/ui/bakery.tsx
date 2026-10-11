@@ -22,6 +22,8 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { buyPriceOf } from '@mugen/core/economy/shop';
 import { breadBuffLabel } from '@mugen/core/economy/bread';
 import { bakeryArt, type BakeryArt } from '../assets/bakery';
+import { NewBadge } from './common/NewBadge';
+import { linaHasNews, ownerHasNews, rumorUnheard } from './talkNews';
 
 /**
  * アルデン村のパン屋 — THE APP'S BAKERY.
@@ -75,7 +77,8 @@ export function BakeryScreen({
 }) {
   const [art, setArt] = useState<BakeryArt>({ room: null, owner: null, lina: null });
   const [who, setWho] = useState<BakeryPerson>('LINA');
-  const [talking, setTalking] = useState<{ lines: readonly DialogueLine[]; onEnd?: () => void } | null>(null);
+  // `special`: not the everyday line (a first meeting, today's small thing, a word on what is carried, the rumour) — NEW while told.
+  const [talking, setTalking] = useState<{ lines: readonly DialogueLine[]; onEnd?: () => void; special?: boolean } | null>(null);
   const [at, setAt] = useState(0);
   const [buying, setBuying] = useState(false);
   const [linaSays, setLinaSays] = useState<string>(BAKERY_LINA_AGAIN[0].text);
@@ -107,13 +110,14 @@ export function BakeryScreen({
         setTalking({
           lines: BAKERY_LINA_FIRST,
           onEnd: () => void world.markRead([BAKERY_LINA_FIRST_MARK]).catch(() => {}),
+          special: true,
         });
         return;
       }
       // Something small happening today (襲撃前の日常), in place of her short line.
       const scene = world.getDailyScene('BAKERY_LINA');
       if (scene) {
-        setTalking({ lines: scene.lines, onEnd: () => void world.finishDailyScene(scene.id).catch(() => {}) });
+        setTalking({ lines: scene.lines, onEnd: () => void world.finishDailyScene(scene.id).catch(() => {}), special: true });
         return;
       }
       const again = BAKERY_LINA_AGAIN[turns.LINA++ % BAKERY_LINA_AGAIN.length];
@@ -133,13 +137,16 @@ export function BakeryScreen({
     // in place of a word on what is carried, or of his rumour.
     const scene = !notice && !rumor ? world.getDailyScene('BAKERY_OWNER') : null;
     if (scene) {
-      setTalking({ lines: scene.lines, onEnd: () => void world.finishDailyScene(scene.id).catch(() => {}) });
+      setTalking({ lines: scene.lines, onEnd: () => void world.finishDailyScene(scene.id).catch(() => {}), special: true });
       return;
     }
     const said = notice ? notice.lines : [BAKERY_OWNER_HINTS[turns.OWNER++ % BAKERY_OWNER_HINTS.length]];
     const noticed = notice ? () => void world.markRead([notice.mark]).catch(() => {}) : undefined;
+    // The rumour counts as new only while it has not been heard anywhere.
+    const rumorNew = !!rumor && rumorUnheard(world);
     setTalking({
       lines: rumor ? [...said, rumor] : said,
+      special: !!notice || rumorNew,
       onEnd: () => {
         noticed?.();
         if (rumor) onRumor?.();
@@ -209,7 +216,14 @@ export function BakeryScreen({
         <h1 className="place">パン屋</h1>
         {line ? (
           <>
-            {line.speaker && <p className="speaker">{line.speaker}</p>}
+            {talking?.special ? (
+              <div className="talk-head">
+                {line.speaker && <p className="speaker">{line.speaker}</p>}
+                <NewBadge testId="bakery-line-new" />
+              </div>
+            ) : (
+              line.speaker && <p className="speaker">{line.speaker}</p>
+            )}
             <p className="line" data-testid="bakery-line">
               {line.speaker ? `「${line.text}」` : line.text}
             </p>
@@ -230,6 +244,10 @@ export function BakeryScreen({
                   onClick={() => switchTo(p.id)}
                 >
                   {p.name}
+                  <NewBadge
+                    show={p.id === 'LINA' ? linaHasNews(world) : ownerHasNews(world)}
+                    testId={`bakery-who-${p.id.toLowerCase()}-new`}
+                  />
                 </button>
               ))}
             </div>
@@ -297,6 +315,7 @@ export function BakeryScreen({
                 <div className="actions">
                   <button className="btn primary" data-testid="bakery-talk" onClick={talk}>
                     話す
+                    <NewBadge show={who === 'LINA' ? linaHasNews(world) : ownerHasNews(world)} testId="bakery-talk-new" />
                   </button>
                   {who === 'LINA' && (
                     <button

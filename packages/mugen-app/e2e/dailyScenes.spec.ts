@@ -205,9 +205,11 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
   const point = () => world<number>(page, `(w) => w.getIncidentPoint()`);
   const atShop = await point();
 
-  // The shop: over the counter as the door opens. Left half way…
+  // The shop: over the counter as the door opens — NEW on its door from the square, and on the scene (2026-10-11). Left half way…
+  await expect(page.getByTestId('shop-new')).toBeVisible();
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-daily')).toHaveAttribute('data-scene', 'MIREI_TRAVELERS');
+  await expect(page.getByTestId('shop-daily-new')).toBeVisible();
   await expect(page.getByTestId('shop-daily-line')).toHaveText('棚に、旅支度の包みがいくつも積まれたままになっている。');
   await page.getByTestId('shop-daily-next').click();
   await expect(page.getByTestId('shop-daily-line')).toHaveText('ミレイ「……また余っちゃった。」');
@@ -229,13 +231,18 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
   await expect(page.getByTestId('shop-greeting')).toBeVisible();
   await expect(page.getByTestId('shop-keeper-touch')).toHaveAttribute('data-expression', 'NORMAL');
   await page.getByTestId('shop-leave').click();
+  // Read: no NEW on its door any more.
+  await expect(page.getByTestId('shop-new')).toHaveCount(0);
   // Small things move nothing.
   expect(await point()).toBe(atShop);
 
   // The next day, the owner's kiln (in place of his hint).
   await rest(page);
   const atBakery = await point();
+  // NEW on the bakery's door, and on the owner inside (his kiln is not his everyday hint).
+  await expect(page.getByTestId('bakery-new')).toBeVisible();
   await page.getByTestId('bakery-button').click();
+  await expect(page.getByTestId('bakery-who-owner-new')).toBeVisible();
   const kiln = await talkTo(page, 'owner');
   expect(kiln[0]).toBe('夜明け前。パン屋の裏で、主人が窯に火を入れている。');
   expect(kiln.at(-1)).toBe('火が、ゆっくりと赤くなっていく。');
