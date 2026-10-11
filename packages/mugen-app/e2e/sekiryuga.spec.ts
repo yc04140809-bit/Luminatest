@@ -358,7 +358,8 @@ test('the way in, セキリュウガ, and after: not killed — and not looking 
   await expect(page.getByTestId('bp-boss-tag')).toHaveText('BOSS');
   await expect(page.getByTestId('bp-enemy-name')).toHaveText('セキリュウガ');
   await expect(page.getByTestId('bp-enemy-read')).toContainText('170');
-  await expect.poll(() => music(page)).toBe('BOSS_BATTLE');
+  // Its own piece since 2026-10-11 (BOSS戦②).
+  await expect.poll(() => music(page)).toBe('SEKIRYUGA_BATTLE');
   await expect(page.getByTestId('bx-place')).toContainText('古代遺跡');
   // ⑥ BOSS戦 — a few turns in.
   await command(page, 'bp-attack');

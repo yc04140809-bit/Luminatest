@@ -223,7 +223,7 @@ test('セキリュウガ: BOSS, in the ruins; 逃げる back to the ruins; a los
     bgmCycle: false,
     ground: 'RUINS',
     place: 'ANCIENT RUINS古代遺跡',
-    music: 'BOSS_BATTLE',
+    music: 'SEKIRYUGA_BATTLE', // its own piece since 2026-10-11 (BOSS戦②)
     health: 170,
   });
   await page.getByTestId('bp-escape').click();
