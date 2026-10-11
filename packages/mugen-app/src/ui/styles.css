@@ -2643,14 +2643,16 @@ body {
 }
 
 /* ── ハイタッチ (ui/celebrate) — the two of them, glad, for a moment ──
-   A little above the middle; the picture large, the heading over it, the
-   small line under it. Takes no touch. 0.15s in (a small pop), held, 0.3s
-   out; a faint gold flash once. Fits 640×300: the picture by the height. */
+   Just above the middle; the picture BIG (作者 2026-10-11: 「もっと大きくていい、
+   おめでとうって意味だし」), the heading over it, the small line under it. It
+   lies over the place's own words for a moment — it takes no touch and is
+   gone in a second and a half. 0.15s in (a small pop), held, 0.3s out; a
+   faint gold flash once. Fits 640×300: the words beside it there. */
 .celebrate {
   position: fixed;
   z-index: 60;
   left: 50%;
-  top: 46%;
+  top: 48%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2662,12 +2664,12 @@ body {
   position: fixed;
   inset: -50vh -50vw;
   z-index: -1;
-  background: radial-gradient(circle at 50% 46%, rgba(255, 226, 150, 0.32), rgba(255, 226, 150, 0) 42%);
+  background: radial-gradient(circle at 50% 48%, rgba(255, 226, 150, 0.36), rgba(255, 226, 150, 0) 48%);
   animation: celebrate-flash 600ms ease-out both;
 }
 .celebrate-art {
   display: block;
-  height: min(38vh, 38dvh, 230px);
+  height: min(62vh, 62dvh, 380px);
   /* The words sit a little onto the picture's clear edges: one stamp, not three pieces. */
   margin: -8px 0 -10px;
   width: auto;
@@ -2721,8 +2723,8 @@ body {
   25% { opacity: 1; }
   100% { opacity: 0; }
 }
-/* A short screen (640×300): the words beside the picture, so it fits in the
-   middle between the place's line at the top and what was got at the foot. */
+/* A short screen (640×300): the words beside the picture, so the picture
+   can still be big and the whole stays on the screen. */
 @media (max-height: 340px) {
   .celebrate {
     display: grid;
@@ -2730,9 +2732,9 @@ body {
     grid-template-areas: 'art title' 'art sub';
     align-items: center;
     gap: 4px 4px;
-    top: 45%;
+    top: 48%;
   }
-  .celebrate-art { grid-area: art; height: min(36vh, 110px); margin: 0; }
+  .celebrate-art { grid-area: art; height: min(72vh, 230px); margin: 0; }
   .celebrate-title { grid-area: title; align-self: end; justify-self: start; }
   .celebrate-sub { grid-area: sub; align-self: start; justify-self: start; }
 }
