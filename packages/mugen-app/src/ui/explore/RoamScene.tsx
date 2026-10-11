@@ -156,6 +156,11 @@ export interface RoamKeeper {
 export interface PickupKeeper {
   taken: ReadonlySet<string>;
   take(pickupId: string, itemId: string, quantity: number): Promise<number>;
+  /**
+   * A golden find's thing, into the bag (2026-10-11): as often as one is
+   * found — nothing is marked taken. Resolves with how many went in.
+   */
+  give?(itemId: string, quantity: number): Promise<number>;
 }
 
 /** How near its glint a touch must be to walk to a pickup. */
@@ -439,8 +444,11 @@ export function RoamScene({
     const number = findsThisVisit.current + 1;
     const rainbowOpen = !!roam.rainbow && !rainbowTakenNow.current && !rainbowSeen.current;
     let grade = rollGrade(keeper.visitsBefore, number, rainbowOpen);
-    if (forceGrade === 'RAINBOW' && rainbowOpen) grade = 'RAINBOW';
-    else if (forceGrade === 'RARE' && grade !== 'RAINBOW') grade = 'RARE';
+    // A test may make finds golden in the real game (DEV only), as it fixes the encounter roll.
+    const devGrade = import.meta.env.DEV ? (window as unknown as { __mugenFindGrade?: string }).__mugenFindGrade : undefined;
+    const force = forceGrade ?? (devGrade === 'RARE' ? 'RARE' : undefined);
+    if (force === 'RAINBOW' && rainbowOpen) grade = 'RAINBOW';
+    else if (force === 'RARE' && grade !== 'RAINBOW') grade = 'RARE';
     const waiting = current.map((f) => f.find.id);
     const find: WalkDiscovery | null =
       grade === 'RAINBOW' && roam.rainbow
@@ -669,6 +677,7 @@ export function RoamScene({
     }
     walkedForFind.current = 0;
     findAt.current = performance.now();
+    const found = findsNow.current.find((x) => x.find.id === thing.id)?.find;
     setFinds(findsNow.current.filter((x) => x.find.id !== thing.id));
     if (thing.grade === 'RAINBOW') {
       // THE ONCE-IN-A-WORLD FIND: marked taken at once, so nothing can
@@ -688,6 +697,33 @@ export function RoamScene({
     playSfx(thing.grade === 'RARE' ? 'explore_rare_found' : 'explore_found');
     setCaptionGrade(thing.grade);
     setCaption(thing.text);
+    // A golden find that holds something (2026-10-11): into the bag, and the
+    // short notice of what was got — as a pickup's is. A full bag keeps the
+    // line and says so.
+    const reward = thing.grade === 'RARE' ? found?.reward : undefined;
+    if (reward && pickupKeeper?.give) {
+      const def = itemDef(reward.itemId);
+      const name = def?.name ?? reward.itemId;
+      const quantity = reward.quantity ?? 1;
+      void pickupKeeper
+        .give(reward.itemId, quantity)
+        .catch(() => 0)
+        .then((moved) => {
+          if (moved <= 0) {
+            setCaption(`${thing.text}\n${name}を見つけたが、これ以上は持てない。`);
+            return;
+          }
+          notices.push({
+            type: 'pickup',
+            message: `${name} ×${moved} を手に入れた`,
+            priority: 'LOW',
+            duration: GOT_MS,
+            look: 'bottom',
+            testId: 'walk-got',
+            merge: { key: `got:${reward.itemId}`, count: moved, format: (n) => `${name} ×${n} を手に入れた` },
+          });
+        });
+    }
   };
 
   // ---- the party, drawn ----

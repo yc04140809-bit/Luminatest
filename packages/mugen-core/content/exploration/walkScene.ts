@@ -124,9 +124,9 @@ export interface WalkDiscovery {
   label: string;
   text: string;
   /**
-   * FOR LATER, UNUSED TODAY: a real thing to hand over (a material, a
-   * collectible, something to sell). Nothing reads it yet — a find
-   * gives nothing until the bag is ready to take it.
+   * A real thing to hand over (a material, a collectible, something to
+   * sell) — read for GOLDEN finds only (2026-10-11): looked at, it goes into
+   * the bag. An ordinary find still gives nothing.
    */
   reward?: DiscoveryReward;
   /**
@@ -141,7 +141,8 @@ export interface WalkDiscovery {
  * HOW RARE A FIND IS.
  *
  *   NORMAL   the small finds: a flower, a feather, a puddle.
- *   RARE     golden: an old coin, a fragment of ore — less often.
+ *   RARE     golden: an old coin, a fragment of ore — less often; most
+ *            hand the thing over (`reward`, 2026-10-11).
  *   RAINBOW  once in a world per place: a real thing, kept in the save.
  *   SPECIAL  for later — a travelling merchant, a hidden somebody, old
  *            letters, a strange sky. Named so the shape has room; there
@@ -149,7 +150,7 @@ export interface WalkDiscovery {
  */
 export type DiscoveryGrade = 'NORMAL' | 'RARE' | 'RAINBOW' | 'SPECIAL';
 
-/** What a find might one day hand over. Shape only: nothing gives one yet. */
+/** What a golden find hands over, into the bag (2026-10-11). */
 export interface DiscoveryReward {
   kind: 'MATERIAL' | 'COLLECTIBLE' | 'VALUABLE';
   itemId: string;

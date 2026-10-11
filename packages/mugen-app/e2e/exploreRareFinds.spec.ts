@@ -94,7 +94,8 @@ test('NORMAL, then golden, then the rainbow: each its own look, and 《星紋の
   await page.getByTestId('walk-look').click();
   await expect(page.getByTestId('walk-caption')).toHaveAttribute('data-grade', 'NORMAL');
 
-  // 2. RARE: a golden glint and a golden 「！」; a line, nothing handed over.
+  // 2. RARE: a golden glint and a golden 「！」; a line — and nothing handed over in the DEBUG walk,
+  // which has no bag (in the game, most golden finds hand a material over: wildForest/goldenFinds).
   await openRuins(page, 'RARE');
   const rare = (await firstFind(page, 'RARE'))!;
   expect(rare).toBeTruthy();

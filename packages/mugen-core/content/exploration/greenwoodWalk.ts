@@ -175,5 +175,15 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       { id: 'ROUND_PEBBLE', label: '丸い小石', text: '水に磨かれたような、丸い小石が落ちている。' },
       { id: 'DEER_TRACKS', label: '鹿の足跡', text: '鹿の足跡が、水辺の方へ続いている。' },
     ],
+    // GOLDEN (2026-10-11, 作者判断 A): now and then, something worth carrying
+    // home — a material already in the catalogue, into the bag. Plants,
+    // water and an old arrowhead; no person, and no new material.
+    rareDiscoveries: [
+      { id: 'HERB_PATCH', label: '薬草の群れ', text: '香りの強い薬草が、群れになって生えている。', reward: { kind: 'MATERIAL', itemId: 'FINE_HERB', quantity: 1 } },
+      { id: 'GLOWING_DEW', label: '光る露', text: '葉の先に、淡く光る露をつけた草がある。', reward: { kind: 'MATERIAL', itemId: 'MANA_HERB', quantity: 1 } },
+      { id: 'NUT_CACHE', label: '木のうろ', text: '木のうろに、木の実がたくさん詰まっている。', reward: { kind: 'MATERIAL', itemId: 'FOREST_NUT', quantity: 2 } },
+      { id: 'CLEAR_SPRING', label: '湧き水', text: '岩の割れ目から、澄んだ水がわき出ている。', reward: { kind: 'MATERIAL', itemId: 'MANA_WATER', quantity: 1 } },
+      { id: 'TRUNK_ARROWHEAD', label: '古い矢じり', text: '古い矢じりが、木の幹に刺さったままになっている。', reward: { kind: 'COLLECTIBLE', itemId: 'OLD_ARROWHEAD', quantity: 1 } },
+    ],
   },
 };

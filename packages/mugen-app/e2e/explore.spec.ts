@@ -220,7 +220,8 @@ test('walking, stopping and looking write nothing; the save and WORLD MEMORY are
     await goTo(page, id);
     await look(page);
   }
-  const f = (await things(page)).find((t) => t.kind === 'find');
+  // An ordinary find: a golden one hands a material into the bag (2026-10-11, wildForest's golden-finds test).
+  const f = (await things(page)).find((t) => t.kind === 'find' && t.grade === 'NORMAL');
   if (f) {
     await goTo(page, f.id);
     await look(page);

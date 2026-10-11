@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
-import { settled } from './roam';
+import { goTo, settled, things } from './roam';
 import { readyToAct, fightToResult } from './battle';
 
 /**
@@ -292,4 +292,23 @@ test('フウミミ: never answered, its kind is met anyway from 12 points — ot
   await expect(page.getByTestId('fuumimi-button')).toBeVisible();
   expect(await world<{ choice: string } | null>(page, `(w) => w.getFuumimiAnswer()`)).toBeNull();
   expect((await world<{ id: string }[]>(page, `(w) => w.getKnownEvents()`)).length).toBe(memory);
+});
+
+test('the forest’s golden finds (作者判断 A, 2026-10-11): one looked at hands a material over — into the bag, with the short notice of what was got', async ({
+  page,
+}) => {
+  await settledVillage(page);
+  // Every find golden for this test (DEV only), as the encounter roll is fixed elsewhere.
+  await page.evaluate(() => ((window as unknown as { __mugenFindGrade?: string }).__mugenFindGrade = 'RARE'));
+  const GOLDEN_ITEMS = ['FINE_HERB', 'MANA_HERB', 'FOREST_NUT', 'MANA_WATER', 'OLD_ARROWHEAD'];
+  const held = () => world<number>(page, `(w) => ${JSON.stringify(GOLDEN_ITEMS)}.reduce((n, id) => n + w.getItemCount(id), 0)`);
+  const before = await held();
+  await intoTheForest(page);
+  await expect.poll(async () => (await things(page)).some((t) => t.kind === 'find' && t.grade === 'RARE'), { timeout: 20_000 }).toBe(true);
+  const golden = (await things(page)).find((t) => t.kind === 'find' && t.grade === 'RARE')!;
+  await goTo(page, golden.id);
+  await page.getByTestId('walk-look').click();
+  await expect(page.getByTestId('walk-caption')).toHaveAttribute('data-grade', 'RARE');
+  await expect(page.getByTestId('walk-got')).toContainText('を手に入れた');
+  await expect.poll(held).toBeGreaterThan(before);
 });

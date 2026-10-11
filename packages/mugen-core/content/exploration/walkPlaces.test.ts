@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { itemDef } from '../economy/itemDefs';
 import { WALK_PLACES, WALK_PLACE_IDS } from './walkPlaces';
 import { RUINS_WALK } from './ruinsWalk';
 import { GREENWOOD_WALK } from './greenwoodWalk';
@@ -108,13 +109,24 @@ describe('古代遺跡, walked about in — small finds', () => {
     expect(Math.max(...xs)).toBeGreaterThan(0.8);
   });
 
-  it('the forest is walked about in too — with small finds of its own, and no golden or rainbow ones yet', () => {
+  it('the forest is walked about in too — with small finds of its own, golden ones that hand a material over (2026-10-11), and no rainbow one yet', () => {
     const roam = GREENWOOD_WALK.roam!;
     expect(roam.floor.length).toBeGreaterThanOrEqual(3);
     expect(roam.far).toBeLessThan(roam.near);
     expect(roam.discoveries.length).toBeGreaterThanOrEqual(10);
     expect(new Set(roam.discoveries.map((d) => d.id)).size).toBe(roam.discoveries.length);
-    expect(roam.rareDiscoveries).toBeUndefined();
+    // Golden: each hands over a material already in the catalogue — never a key, never the rare shard.
+    expect(roam.rareDiscoveries!.length).toBeGreaterThanOrEqual(4);
+    for (const d of roam.rareDiscoveries!) {
+      const def = itemDef(d.reward!.itemId);
+      expect(def, d.id).not.toBeNull();
+      expect(def!.isKeyItem ?? false, d.id).toBe(false);
+      expect(def!.rarity, d.id).not.toBe('RARE');
+      expect(d.reward!.quantity ?? 1, d.id).toBeGreaterThan(0);
+    }
+    const ids = [...roam.discoveries, ...roam.rareDiscoveries!].map((d) => d.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(roam.rareDiscoveries!.map((d) => d.text + d.label).join('\n')).not.toMatch(/ガルド|盗賊|人影|誰か|一人|男/);
     expect(roam.rainbow).toBeUndefined();
     // Its small finds are plants, animals and weather — never a person,
     // and nothing that speaks for the man in the road.

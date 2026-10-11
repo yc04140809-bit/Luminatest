@@ -163,8 +163,8 @@ export function standBeside(p: PaintingPoint, floor: readonly PaintingPoint[]): 
 // rarely — a little less rarely each real visit, and certain on the
 // eighth, so nobody walks for ever and never sees it. Once taken, never.
 
-/** A golden find, per find. */
-export const RARE_CHANCE = 0.08;
+/** A golden find, per find (0.08 until 2026-10-11, when golden finds began to hand things over — 作者判断 A). */
+export const RARE_CHANCE = 0.15;
 /** The rainbow find, per find, per real visit: visit n gives n × this … */
 export const RAINBOW_STEP = 0.003;
 /** … up to this. */

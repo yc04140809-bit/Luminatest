@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { itemDef } from '@mugen/content/economy/itemDefs';
 import { RUINS_WALK } from '@mugen/content/exploration/ruinsWalk';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 import {
@@ -196,8 +197,11 @@ describe('how rare a find is', () => {
     expect(roam.rareDiscoveries!.map((d) => d.text)).toEqual(
       expect.arrayContaining(['古いコインが落ちている。', '珍しい鉱石の欠片を見つけた。', '古びた金具が土に埋もれている。']),
     );
-    // A golden find is a line for now: it hands nothing over.
-    for (const d of roam.rareDiscoveries!) expect(d.reward).toBeUndefined();
+    // A golden find hands a material already in the catalogue over (2026-10-11) — the glass bead stays a sight.
+    for (const d of roam.rareDiscoveries!) {
+      if (d.id === 'GLASS_BEAD') expect(d.reward).toBeUndefined();
+      else expect(itemDef(d.reward!.itemId), d.id).not.toBeNull();
+    }
     expect(roam.rainbow).toEqual({ id: 'STAR_CREST_RELIC_SWORD', label: '虹色の光', equipmentId: 'weapon/star_crest_relic_sword' });
     const ids = [...roam.discoveries, ...roam.rareDiscoveries!].map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);

@@ -152,13 +152,14 @@ export const RUINS_WALK: WalkSceneDef = {
       // seat. Whose, nothing says (content/story/sekiryugaArc.ts).
       ...RUINS_PAST_BATTLE_TRACES,
     ],
-    // GOLDEN: rarer, and only a line for now — nothing is handed over
-    // (each could carry a `reward` the day the bag can take one).
+    // GOLDEN: rarer — and, from 2026-10-11 (作者判断 A), most hand over a
+    // material already in the catalogue, into the bag (no new material).
+    // The glass bead stays a sight.
     rareDiscoveries: [
-      { id: 'OLD_COIN', label: '古いコイン', text: '古いコインが落ちている。' },
-      { id: 'ORE_SHARD', label: '鉱石の欠片', text: '珍しい鉱石の欠片を見つけた。' },
-      { id: 'OLD_FITTING', label: '古びた金具', text: '古びた金具が土に埋もれている。' },
-      { id: 'GOLD_CLASP', label: '金の留め具', text: '金色の小さな留め具が、石のすき間で光っている。' },
+      { id: 'OLD_COIN', label: '古いコイン', text: '古いコインが落ちている。', reward: { kind: 'VALUABLE', itemId: 'OLD_COIN', quantity: 1 } },
+      { id: 'ORE_SHARD', label: '鉱石の欠片', text: '珍しい鉱石の欠片を見つけた。', reward: { kind: 'MATERIAL', itemId: 'IRON_ORE', quantity: 1 } },
+      { id: 'OLD_FITTING', label: '古びた金具', text: '古びた金具が土に埋もれている。', reward: { kind: 'MATERIAL', itemId: 'BROKEN_CLASP', quantity: 1 } },
+      { id: 'GOLD_CLASP', label: '金の留め具', text: '金色の小さな留め具が、石のすき間で光っている。', reward: { kind: 'MATERIAL', itemId: 'BROKEN_CLASP', quantity: 1 } },
       { id: 'GLASS_BEAD', label: '硝子玉', text: '色の褪せた硝子玉が、陽を受けてきらめいている。' },
     ],
     // ONCE IN A WORLD: 《星紋の遺剣》.
