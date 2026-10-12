@@ -42,6 +42,20 @@ if (
   );
 } else if (
   (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('preview') === 'party'
+) {
+  // `?preview=party` — the party fight (主人公・ケイオス・グレイヴ, each their
+  // own HP and turn) on its own (src/dev/PartyBattlePreview.tsx). Debug
+  // builds only, the same compile-time way.
+  void import('./dev/PartyBattlePreview').then(({ PartyBattlePreview }) =>
+    root.render(
+      <StrictMode>
+        <PartyBattlePreview params={params} />
+      </StrictMode>,
+    ),
+  );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
   params.get('preview') === 'walk'
 ) {
   // `?preview=walk&place=ANCIENT_RUINS` — a place walked on its own

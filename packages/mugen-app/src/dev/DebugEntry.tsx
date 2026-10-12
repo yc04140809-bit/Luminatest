@@ -24,6 +24,13 @@ export function DebugEntry() {
       }}
     >
       <button
+        data-testid="debug-party-preview"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=party`)}
+        style={DOOR}
+      >
+        3人戦闘
+      </button>
+      <button
         data-testid="debug-battle-preview"
         onClick={() => window.location.assign(`${window.location.pathname}?preview=battle`)}
         style={DOOR}

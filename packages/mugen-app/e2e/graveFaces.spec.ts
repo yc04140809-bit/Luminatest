@@ -77,7 +77,11 @@ async function readAllRumours(page: Page) {
   for (let i = 0; i < 40; i++) {
     const row = page.locator('[data-testid^="rumor-"][data-new="yes"]').first();
     if ((await row.count()) === 0) break;
-    await row.click();
+    // By its own id: once read it stops matching the query above, a moment after the click.
+    const id = await row.getAttribute('data-testid');
+    if (!id) break;
+    await page.getByTestId(id).click();
+    await expect(page.getByTestId(id)).toHaveAttribute('data-new', 'no');
   }
   await page.getByTestId('rumor-leave').click();
 }
