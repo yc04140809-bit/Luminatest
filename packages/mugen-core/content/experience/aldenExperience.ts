@@ -125,7 +125,7 @@ const TAVERN_FIRST_VISIT: TalkEventDef = {
       { speaker: 'マスター', text: 'グレイヴだ。ここの主人をやってる。' },
       { speaker: 'グレイヴ', text: 'この店は、何を探す人でも歓迎だ。' },
       { speaker: 'グレイヴ', text: '酒でも飲んで、ゆっくりしていきな。' },
-      { speaker: 'グレイヴ', text: '……噂なら、タダってわけにはいかねぇがな。' },
+      { speaker: 'グレイヴ', text: '……噂なら、タダってわけにはいかねぇがな。', graveFace: 'GRIN' },
       { speaker: null, text: 'そう言って、彼は笑った。' },
     ],
   },
@@ -158,11 +158,11 @@ const TAVERN_GREATSWORD: TalkEventDef = {
       { speaker: null, text: '壁に、両手剣が一振り掛けてある。' },
       { speaker: null, text: '飾りではない。刃こぼれが、いくつも埋めた跡ごと残っている。' },
       { speaker: null, text: '柄の革は、握られ続けて黒く光っていた。' },
-      { speaker: 'グレイヴ', text: '……それが気になるか。' },
+      { speaker: 'グレイヴ', text: '……それが気になるか。', graveFace: 'SERIOUS' },
       { speaker: null, text: 'グレイヴはグラスを拭く手を止めなかった。' },
-      { speaker: 'グレイヴ', text: '重いぞ。今の俺じゃ、もう振れねぇ。' },
+      { speaker: 'グレイヴ', text: '重いぞ。今の俺じゃ、もう振れねぇ。', graveFace: 'SAD' },
       { speaker: null, text: 'あなたは、いつ振っていたのかを訊かなかった。' },
-      { speaker: 'グレイヴ', text: '……賢いな、あんた。' },
+      { speaker: 'グレイヴ', text: '……賢いな、あんた。', graveFace: 'GRIN' },
     ],
     kaosLine: '「あの人ね。……訊かれるのを、待ってると思う。」',
   },
@@ -188,8 +188,8 @@ const TAVERN_STEW: TalkEventDef = {
     lines: [
       { speaker: 'グレイヴ', text: '今日のシチューはやめとけ。' },
       { speaker: null, text: '厨房の方から、焦げた匂いがしている。' },
-      { speaker: 'グレイヴ', text: '俺が焦がした。' },
-      { speaker: 'グレイヴ', text: '……剣より鍋のほうが難しいんだよ、これが。' },
+      { speaker: 'グレイヴ', text: '俺が焦がした。', graveFace: 'TROUBLED' },
+      { speaker: 'グレイヴ', text: '……剣より鍋のほうが難しいんだよ、これが。', graveFace: 'LAUGH' },
     ],
   },
   dna: {
@@ -213,7 +213,7 @@ const TAVERN_REVISIT_A: TalkEventDef = {
   priority: 6,
   content: {
     lines: [
-      { speaker: 'グレイヴ', text: 'また来たな。いつもの席、空いてるぞ。' },
+      { speaker: 'グレイヴ', text: 'また来たな。いつもの席、空いてるぞ。', graveFace: 'GRIN' },
       { speaker: null, text: 'いつもの席、と言われるほど通った覚えはない。' },
     ],
   },

@@ -1,5 +1,6 @@
 import type { KaosFace } from '../characters/kaosFaces';
 import type { HeroFace } from '../characters/heroFaces';
+import type { GraveFace } from '../characters/graveFaces';
 
 // Prologue + Kaos introduction lines (spec section 9).
 
@@ -27,6 +28,8 @@ export interface DialogueLine {
   kaosFace?: KaosFace;
   /** HIS FACE ON THIS LINE, when the hero speaks it (2026-10-11): content/characters/heroFaces.ts. Absent: NORMAL. */
   heroFace?: HeroFace;
+  /** グレイヴ's face on a line he speaks (content/characters/graveFaces.ts); absent is NORMAL. */
+  graveFace?: GraveFace;
 }
 
 export const PROLOGUE_LINES: DialogueLine[] = [

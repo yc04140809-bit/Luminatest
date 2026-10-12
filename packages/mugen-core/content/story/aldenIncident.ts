@@ -48,9 +48,9 @@ export function incidentKaosOwed(phase: IncidentPhase, isRead: (mark: string) =>
 
 /** Grave, from phase 2 — once, in place of his greeting. He knows less than she does. */
 export const INCIDENT_GRAVE_TALK: readonly DialogueLine[] = [
-  { speaker: GRAVE, text: '最近、森が静かすぎる。' },
+  { speaker: GRAVE, text: '最近、森が静かすぎる。', graveFace: 'SERIOUS' },
   { speaker: HERO, text: '静かな方がいいんじゃないのか？' },
-  { speaker: GRAVE, text: '森ってのはな。うるせぇくらいが普通なんだよ。' },
+  { speaker: GRAVE, text: '森ってのはな。うるせぇくらいが普通なんだよ。', graveFace: 'SERIOUS' },
 ];
 export const INCIDENT_GRAVE_ID = 'INCIDENT_GRAVE_QUIET';
 export const INCIDENT_GRAVE_MARK = `talk:${INCIDENT_GRAVE_ID}`;

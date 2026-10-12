@@ -18,6 +18,7 @@ import kaosBattleDefault from '@mugen/assets/files/characters/kaos/kaos-battle-d
 import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
 import kaosAwaken from '@mugen/assets/files/characters/kaos/kaos-awaken.png';
 import galdBattleIdle from '@mugen/assets/files/characters/gald/gald-battle-idle.png';
+import graveBattleIdle from '@mugen/assets/files/characters/grave/grave-battle-idle.png';
 import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage.png';
 import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
@@ -55,7 +56,7 @@ import {
 } from '@mugen/core/art/artStates';
 
 /** The people who can stand on the App's battlefield. */
-const PARTY: Record<'hero' | 'kaos' | 'gald', ArtSet<PartyArtState>> = {
+const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave', ArtSet<PartyArtState>> = {
   hero: {
     id: 'hero',
     label: 'あなた',
@@ -87,6 +88,23 @@ const PARTY: Record<'hero' | 'kaos' | 'gald', ArtSet<PartyArtState>> = {
         src: kaosAwaken,
         facing: 'left',
         face: { fileW: 1024, fileH: 1536, x: 470, y: 195, width: 180, height: 180 },
+      },
+    },
+  },
+  /**
+   * グレイヴ — his official battle drawing (2026-10-12): the great sword held
+   * in both hands, facing left (toward the creature, as the hero and Kaos do),
+   * transparent, placed as delivered. For his time fighting beside them (the
+   * fight with ヴァルシール, to come); no fight stands him on the field yet.
+   */
+  grave: {
+    id: 'grave',
+    label: 'グレイヴ',
+    states: {
+      battle_idle: {
+        src: graveBattleIdle,
+        facing: 'left',
+        face: { fileW: 1536, fileH: 1024, x: 985, y: 130, width: 175, height: 175 },
       },
     },
   },

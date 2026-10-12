@@ -84,3 +84,13 @@ describe('battle art', () => {
     }
   });
 });
+
+describe('グレイヴの戦闘立ち絵 (2026-10-12)', () => {
+  it('registered as delivered: facing left, as the hero and Kaos', async () => {
+    const { battlePartyArt } = await import('./battleArt');
+    const art = battlePartyArt('grave', 'battle_idle');
+    expect(art.placeholder).toBe(false);
+    expect(art.asset?.src).toContain('grave-battle-idle');
+    expect(art.asset?.facing).toBe('left');
+  });
+});

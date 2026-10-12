@@ -5,6 +5,7 @@ import { itemDef } from '@mugen/content/economy/itemDefs';
 import { TRADE_WORDS, type TavernTrade, type TradeLine } from '@mugen/content/economy/tavernTrades';
 import { BARD_WORDS, MUSIC_ARCHIVE, heardPieces } from '@mugen/content/audio/musicArchive';
 import { GRAVE_CRAFTS, GRAVE_CRAFT_WORDS, type GraveCraft } from '@mugen/content/economy/graveCraft';
+import type { GraveFace } from '@mugen/content/characters/graveFaces';
 
 /**
  * 酒場ハブ化 Phase 1 (2026-10-09) — WHAT TONIGHT'S STRANGER OFFERS after
@@ -189,7 +190,18 @@ export function MusicArchivePanel({ speaker, hub, onClose }: { speaker: string; 
  * are held), what it makes, 頼む. Made as often as the bag allows; the
  * charm once (while one is carried).
  */
-export function CraftPanel({ speaker, hub, onClose }: { speaker: string; hub: TavernHub; onClose: () => void }) {
+export function CraftPanel({
+  speaker,
+  hub,
+  onClose,
+  onFace,
+}: {
+  speaker: string;
+  hub: TavernHub;
+  onClose: () => void;
+  /** His face for what he just said (2026-10-12): made — a laugh; short or full — at a loss; made already — a grin. */
+  onFace?: (face: GraveFace) => void;
+}) {
   const [said, setSaid] = useState<string>(GRAVE_CRAFT_WORDS.open);
   const [busy, setBusy] = useState(false);
   // Re-drawn after each making (the bag changed).
@@ -202,6 +214,7 @@ export function CraftPanel({ speaker, hub, onClose }: { speaker: string; hub: Ta
     setBusy(true);
     void craft(c)
       .then((r) => {
+        onFace?.(r === 'OK' ? 'LAUGH' : r === 'OWNED' ? 'GRIN' : 'TROUBLED');
         setSaid(
           r === 'OK'
             ? GRAVE_CRAFT_WORDS.done

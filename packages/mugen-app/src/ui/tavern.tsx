@@ -23,6 +23,8 @@ import { tavernGuestArt } from '../assets/tavernGuests';
 import { tavernTrade } from '@mugen/content/economy/tavernTrades';
 import { CraftPanel, MusicArchivePanel, TradePanel, type TavernHub } from './tavernHub';
 import { NewBadge } from './common/NewBadge';
+import { graveFaceOf, type GraveFace } from '@mugen/content/characters/graveFaces';
+import { graveFaceSrc } from '../assets/graveFaces';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -272,6 +274,29 @@ export function TavernScreen({
   const talking = steps ? steps[stepAt].lines : (talk?.lines ?? null);
   const raw = talking?.[at];
   const line = raw ? shown(raw, heroName) : undefined;
+  // グレイヴの表情 (2026-10-12): while he speaks — a line of his, his small menu, his handwork —
+  // he is drawn with the face the line names (NORMAL when it names none), in place of his standing figure.
+  const [craftFace, setCraftFace] = useState<GraveFace>('NORMAL');
+  const graveFace: GraveFace | null = raw
+    ? graveFaceOf(raw)
+    : masterMenu
+      ? 'NORMAL'
+      : panel === 'CRAFT'
+        ? craftFace
+        : null;
+  const [faceShown, setFaceShown] = useState<{ face: GraveFace; src: string } | null>(null);
+  useEffect(() => {
+    if (!graveFace) return;
+    let gone = false;
+    void graveFaceSrc(graveFace).then((src) => {
+      if (!gone && src) setFaceShown({ face: graveFace, src });
+    });
+    return () => {
+      gone = true;
+    };
+  }, [graveFace]);
+  // The face only once it has loaded (the standing figure until then), and only while he speaks.
+  const masterFace = graveFace && faceShown ? faceShown : null;
   const last = !!talking && at >= talking.length - 1;
   // The last line of the last step closes; a rumour's last line goes on into his story.
   const closes = last && (steps ? stepAt >= steps.length - 1 : !talk?.rumor);
@@ -374,17 +399,26 @@ export function TavernScreen({
       ) : null}
       {art.master && !failed.master && !talk?.guest && (!panel || panel === 'CRAFT') && (
         <img
-          className="tavern-master"
-          src={art.master}
+          className={masterFace ? 'tavern-master face' : 'tavern-master'}
+          src={masterFace ? masterFace.src : art.master}
           alt="酒場のマスター"
           data-testid="tavern-master"
+          data-face={masterFace ? graveFace ?? 'NORMAL' : ''}
           onError={() => setFailed((f) => ({ ...f, master: true }))}
         />
       )}
       <div className="tavern-words" data-testid="tavern-words">
         <h1 className="place">{locationNameOf(TAVERN_ID)}</h1>
         {panel === 'CRAFT' && hub ? (
-          <CraftPanel speaker="グレイヴ" hub={hub} onClose={() => setPanel(null)} />
+          <CraftPanel
+            speaker="グレイヴ"
+            hub={hub}
+            onFace={setCraftFace}
+            onClose={() => {
+              setCraftFace('NORMAL');
+              setPanel(null);
+            }}
+          />
         ) : panel && hub && guest ? (
           panel === 'TRADE' && trade ? (
             <TradePanel trade={trade} speaker={guestLabelOf(guest)} hub={hub} onClose={() => setPanel(null)} />
