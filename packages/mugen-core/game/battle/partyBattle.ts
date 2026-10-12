@@ -216,7 +216,16 @@ export type PartyEnemyInput = EnemySpec & {
   speed?: number;
   breakMax?: number;
   onBreak?: PartyEnemy['onBreak'];
+  /**
+   * How big it is on the battle screen — staging only, the fight never
+   * reads it. 'GIANT' (ヴァルシール; later a dragon, a great machine…) is
+   * drawn across the left of the screen and the party drawn smaller.
+   */
+  battleScale?: BattleScale;
 };
+
+/** How big a creature stands on the battle screen (staging only). */
+export type BattleScale = 'NORMAL' | 'GIANT';
 
 export function createPartyBattle(specs: readonly PartyMemberSpec[], enemy: PartyEnemyInput): PartyBattleState {
   const members: PartyMember[] = specs.map((s) => {

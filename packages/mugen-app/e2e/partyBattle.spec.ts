@@ -45,6 +45,7 @@ for (const size of [
       'pb-turn-order',
       'pb-enemy-plate',
       'pb-cmd-attack',
+      'pb-cmd-skills',
       'pb-cmd-magic',
       'pb-cmd-defend',
       'pb-auto',
@@ -85,9 +86,10 @@ test('each their own turn: Kaos casts (her MP), the creature strikes ONE of them
   await turnOf(page, 'hero');
   const struck = (await Promise.all(['hero', 'kaos', 'grave'].map((id) => hp(page, id)))).filter((v, i) => v < [100, 100, 180][i]);
   expect(struck).toHaveLength(1);
-  // The hero: 《瞬断》.
-  await expect(page.getByTestId('pb-cmd-magic')).toHaveCount(0);
+  // The hero: 《瞬断》, from スキル in the cross (no magic: 魔法 is there, closed).
+  await expect(page.getByTestId('pb-cmd-magic')).toBeDisabled();
   const beforeHero = await enemyHp(page);
+  await page.getByTestId('pb-cmd-skills').click();
   await page.getByTestId('pb-cmd-skill-shundan').click();
   await expect.poll(() => enemyHp(page)).toBeLessThan(beforeHero);
   // Grave: a swing.
@@ -147,16 +149,17 @@ for (const size of [
     await expect(page.getByTestId('pb-enemy-plate')).toContainText('ヴァルシール');
     await expect(gauge(page)).toHaveAttribute('data-max', '4');
     await expect(gauge(page)).toHaveAttribute('data-current', '4');
-    // Kaos: 星癒の羽 is in her まほう, aimed like a heal. MP 8.
-    await page.getByTestId('pb-cmd-magic').click();
+    // Kaos: 星癒の羽 is in her スキル, aimed like a heal. MP 8.
+    await page.getByTestId('pb-cmd-skills').click();
     await page.getByTestId('pb-cmd-tech-star_feather').click();
     await expect(page.getByText('誰に？')).toBeVisible();
     await page.getByTestId('pb-target-hero').click();
     expect(await mp(page)).toBe(40);
     await expect(page.getByTestId('pb-status-hero-regen')).toHaveText('星癒 3T');
     await onScreen(page, 'pb-status-hero-regen');
-    // The hero: his own commands; 月影の構え; at the end of his turn the feathers heal him (+20).
+    // The hero: the same cross, his スキル (《瞬断》, 月影の構え); at the end of his turn the feathers heal him (+20).
     await turnOf(page, 'hero');
+    await page.getByTestId('pb-cmd-skills').click();
     for (const id of ['pb-cmd-attack', 'pb-cmd-skill-shundan', 'pb-cmd-tech-moon_guard', 'pb-cmd-defend']) await onScreen(page, id);
     const before = await memberHp(page, 'hero');
     await page.getByTestId('pb-cmd-tech-moon_guard').click();
@@ -167,7 +170,8 @@ for (const size of [
     await expect(page.getByTestId('pb-tech-name')).toHaveText('月影の構え');
     // Grave: 重撃・豪断 breaks it.
     await turnOf(page, 'grave');
-    await expect(page.getByTestId('pb-cmd-magic')).toHaveCount(0);
+    await expect(page.getByTestId('pb-cmd-magic')).toBeDisabled();
+    await page.getByTestId('pb-cmd-skills').click();
     await onScreen(page, 'pb-cmd-tech-goudan');
     const hpBefore = await enemyHp(page);
     await page.getByTestId('pb-cmd-tech-goudan').click();
@@ -212,3 +216,56 @@ test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK com
   await expect(page.getByTestId('pb-result')).toBeVisible({ timeout: 120_000 });
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY');
 });
+
+// THE LAYOUT (作者指示 2026-10-12, UI 修正): the creature left, the party
+// right as a triangle (never a row), the command cross top right, everyone's
+// HP bottom right; a GIANT (ヴァルシール) big on the left with the party
+// drawn smaller.
+type Box = { x: number; y: number; width: number; height: number };
+const box = async (page: Page, id: string) => (await page.getByTestId(id).boundingBox()) as Box;
+const apart = (a: Box, b: Box) => a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1 || a.y + a.height <= b.y + 1 || b.y + b.height <= a.y + 1;
+
+for (const size of [
+  { width: 640, height: 300 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${size.width}×${size.height}: the party a triangle on the right, clear of the command cross and the HP; a giant drawn big, the party smaller`, async ({ page }) => {
+    await page.setViewportSize(size);
+    const heights: Record<string, number> = {};
+    for (const [query, scale] of [
+      ['enemy=sekiryuga', 'NORMAL'],
+      ['', 'GIANT'],
+    ] as const) {
+      await page.goto(`/?preview=party${query ? `&${query}` : ''}`);
+      await turnOf(page, 'kaos');
+      await expect(screen(page)).toHaveAttribute('data-scale', scale);
+      await page.waitForTimeout(300);
+      const [hero, kaos, grave, foe, cross, hp] = await Promise.all(
+        ['pb-figure-hero', 'pb-figure-kaos', 'pb-figure-grave', 'pb-enemy-art', 'pb-commands', 'pb-members'].map((id) => box(page, id)),
+      );
+      // The creature on the left, all three of the party right of it.
+      for (const who of [hero, kaos, grave]) expect(who.x + who.width / 2).toBeGreaterThan(foe.x + foe.width / 2);
+      // (Grave's drawing is wide — the great sword held out toward the creature — so his box's middle sits a little left of his body.)
+      for (const who of [hero, kaos, grave]) expect(who.x + who.width / 2).toBeGreaterThan(size.width * 0.4);
+      for (const who of [hero, kaos, grave]) expect(who.x + who.width).toBeGreaterThan(size.width * 0.55);
+      // A triangle: Kaos at the apex (her feet higher than both), Grave toward the creature, the hero right.
+      expect(kaos.y + kaos.height).toBeLessThan(Math.min(hero.y + hero.height, grave.y + grave.height) - 10);
+      expect(grave.x + grave.width / 2).toBeLessThan(hero.x + hero.width / 2);
+      // Clear of the command cross and of the HP.
+      for (const who of [hero, kaos, grave]) {
+        expect(apart(who, cross)).toBe(true);
+        expect(apart(who, hp)).toBe(true);
+      }
+      await onScreen(page, 'pb-commands');
+      await onScreen(page, 'pb-members');
+      await onScreen(page, 'pb-enemy-plate');
+      await onScreen(page, 'pb-break-gauge');
+      heights[`${scale}-hero`] = hero.height;
+      heights[`${scale}-foe`] = foe.height;
+    }
+    // The giant: most of the screen's height; the party drawn smaller than in a normal fight.
+    expect(heights['GIANT-foe']).toBeGreaterThan(size.height * 0.85);
+    expect(heights['GIANT-foe']).toBeGreaterThan(heights['NORMAL-foe'] * 1.6);
+    expect(heights['GIANT-hero']).toBeLessThan(heights['NORMAL-hero'] * 0.65);
+  });
+}

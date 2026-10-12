@@ -12,6 +12,7 @@
 //   blow 14–20    about 11–17 through the hero's guard: it is felt, a heal is wanted
 //   speed 11      after Kaos (14), before the hero (10) and Grave (8)
 //   footing 12    broken about every two or three rounds with Grave in it
+//   GIANT         drawn large across the left; the party small on the right
 
 import type { PartyEnemyInput } from '../../game/battle/partyBattle';
 
@@ -26,4 +27,6 @@ export const VALSHEEL_FORM1_PROVISIONAL: PartyEnemyInput = {
   appearLine: `${VALSHEEL_NAME}が、行く手を塞いだ。`,
   speed: 11,
   breakMax: 12,
+  // A giant: the screen gives it the left of the field and draws the party small.
+  battleScale: 'GIANT',
 };
