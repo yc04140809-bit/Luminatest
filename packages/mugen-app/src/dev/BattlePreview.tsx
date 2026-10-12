@@ -85,6 +85,10 @@ import { KAOS_SKILL_NAME, kaosPlan } from './kaos/kaosTiming';
  *                                Gald, as in the Artifact's real fights.
  *                                It is only drawn: escape is not built.
  *   &debug=0                     hide the DEBUG panel (for screenshots)
+ *   &presence=S,X,Y              try a creature's staging (BATTLE_PRESENCE): drawn
+ *                                S times its height, X further in, Y further
+ *                                down the field — e.g. &enemy=sekiryuga&presence=2.2,0,-0.1
+ *                                for a large creature reaching the top of the screen
  *   &cutin=chaos|hero|levi|aria  play that sample cut-in once on opening
  *   &spell=starlight_bolt|…      cast that spell of hers once on opening
  *                                (the moss rabbit, she awake, full MP)
@@ -158,6 +162,8 @@ interface Setup {
   hurt: boolean;
   /** His 攻撃 drawn with the sword's trail and bite (STEP D). */
   slash: boolean;
+  /** `&presence=S,X,Y`: a creature's staging to try (a large creature, ヌマワタリ's size…). */
+  presence?: { scale: number; inset: number; bottom: number };
 }
 
 function setupFrom(params: URLSearchParams): Setup {
@@ -176,7 +182,13 @@ function setupFrom(params: URLSearchParams): Setup {
     escape: params.has('escape') ? params.get('escape') === '1' : null,
     hurt: params.get('hurt') === '1',
     slash: params.get('slash') !== '0',
+    presence: presenceFrom(params.get('presence')),
   };
+}
+
+function presenceFrom(raw: string | null): Setup['presence'] {
+  const n = (raw ?? '').split(',').map(Number);
+  return n.length === 3 && n.every(Number.isFinite) && n[0] > 0 ? { scale: n[0], inset: n[1], bottom: n[2] } : undefined;
 }
 
 export function BattlePreview({ params }: { params: URLSearchParams }) {
@@ -394,11 +406,12 @@ function PreviewFight({
   const theatre = useBattleTheatre(speed, { slash: setup.slash });
   const forced: EnemyAction | null = setup.answer === 'CORE' ? null : setup.answer;
 
-  const opponent: BattleOpponentView = setup.gald
+  const chosen: BattleOpponentView = setup.gald
     ? { artId: 'gald', stands: 'NEAR', defeated: { speaker: GALD_BATTLE.name, text: GALD_DEFEATED_LINES[0].text } }
     : setup.boss
       ? { artId: 'sekiryuga', stands: 'NEAR', boss: true, defeated: { text: `${SEKIRYUGA_BATTLE.name}は膝をつき、動きを止めた。` } }
       : { artId: 'moss_rabbit', stands: 'FAR', defeated: { text: MOSS_RABBIT.defeatedText } };
+  const opponent: BattleOpponentView = setup.presence ? { ...chosen, presence: setup.presence } : chosen;
   const spells = availableMagic(MAGIC_DEFS, { awakened: battle.magicUnlocked });
   // A cut-in on screen is a turn being shown: no command until it is over.
   const idle = battle.outcome === 'ONGOING' && !theatre.playing && !cinematicPlaying;

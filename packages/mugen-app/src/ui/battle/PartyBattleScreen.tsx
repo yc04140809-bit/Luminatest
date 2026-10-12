@@ -29,6 +29,9 @@ import { battleBackgroundArt } from '../../assets/battleBackground';
 import { playSfx } from '../../platform/audio';
 import { CageIcon, SparkIcon, SwordIcon } from './BattleIcons';
 import { BATTLE_UI_FRAMES } from './battleArt';
+import { WorldMemoryPanel } from './BattleHud';
+import { memoryRows } from './battleHud';
+import './battle.generated.css';
 import { STAGE_ENEMY_SCALE, partyPlaces, spotStyle, stageFor } from './partyStage';
 import './partyBattle.css';
 
@@ -50,7 +53,7 @@ import './partyBattle.css';
  *   bottom right  everyone's HP, small and always there; Kaos's MP under
  *                 hers (never a toggle); what is on each of them
  *                 (「月影 2T」「星癒 3T」)
- *   bottom left   AUTO and ×2
+ *   bottom left   WORLD MEMORY (as in every fight, 2026-10-12), AUTO and ×2
  *
  * A GIANT (`battleScale: 'GIANT'` on the creature — ヴァルシール) takes the
  * left of the screen at full height and the party is drawn small, together
@@ -87,6 +90,8 @@ export interface PartyBattleProps {
   onEnd: (result: { outcome: 'VICTORY' | 'DEFEAT'; members: readonly PartyMember[] }) => void;
   /** The dice, for a test. */
   rng?: () => number;
+  /** WORLD MEMORY, bottom left: what the world remembers, and how deep (absent: nothing yet). */
+  memory?: { lines: readonly string[]; depth: number };
 }
 
 const ENEMY_TURN_MS = 700;
@@ -144,7 +149,7 @@ function Bar({ value, max, kind }: { value: number; max: number; kind: 'hp' | 'm
   );
 }
 
-export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng }: PartyBattleProps) {
+export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory }: PartyBattleProps) {
   const dice = rng ?? Math.random;
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
   const [auto, setAuto] = useState(false);
@@ -274,7 +279,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       data-round={state.round}
       data-broken={broken ? 'yes' : 'no'}
       data-scale={giant ? 'GIANT' : 'NORMAL'}
-      style={{ ['--pb-diamond' as string]: `url(${BATTLE_UI_FRAMES.commandDiamond})` }}
+      style={{
+        ['--pb-diamond' as string]: `url(${BATTLE_UI_FRAMES.commandDiamond})`,
+        ['--ui-memory' as string]: `url(${BATTLE_UI_FRAMES.memoryPanel})`,
+        ['--ui-memory-star' as string]: `url(${BATTLE_UI_FRAMES.memoryStar})`,
+      }}
     >
       {bg && <img className="pb-bg" src={bg} alt="" aria-hidden="true" />}
 
@@ -483,7 +492,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </div>
       )}
 
-      {/* BOTTOM LEFT — AUTO and ×2. */}
+      {/* BOTTOM LEFT — WORLD MEMORY, the same panel as every fight's. */}
+      <div className="pb-memory bp-hud">
+        <WorldMemoryPanel rows={memoryRows(memory?.lines ?? [])} depth={memory?.depth ?? 0} compact />
+      </div>
+
+      {/* BOTTOM LEFT, beside it — AUTO and ×2. */}
       {state.outcome === 'ONGOING' && (
         <div className="pb-chips">
           {autoAvailable && (

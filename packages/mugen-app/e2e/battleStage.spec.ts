@@ -128,3 +128,49 @@ test('touches no world: a fight played here opens no save at all', async ({ page
   await page.getByTestId('bp-auto').click();
   await expect(page.getByTestId('bp-auto')).toHaveAttribute('aria-pressed', 'true');
 });
+
+// WORLD MEMORY BOTTOM LEFT, THE TOP LEFT OPEN (作者指示 2026-10-12, every
+// fight): the top left belongs to the creature — its head, a large one's
+// shoulders — and WORLD MEMORY sits bottom left beside the commands,
+// touching none of them.
+type Box = { x: number; y: number; width: number; height: number };
+const apart = (a: Box, b: Box) => a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1 || a.y + a.height <= b.y + 1 || b.y + b.height <= a.y + 1;
+
+for (const size of [
+  { width: 640, height: 300 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${size.width}x${size.height}: WORLD MEMORY bottom left, clear of every command; nothing of the HUD in the top left`, async ({ page }) => {
+    await page.setViewportSize(size);
+    for (const query of ['&debug=0', '&debug=0&enemy=sekiryuga&magic=1', '&debug=0&enemy=gald']) {
+      await open(page, query);
+      const memory = (await page.getByTestId('bx-world-memory').boundingBox())!;
+      // Bottom left: its foot in the bottom tenth, on the left of the screen.
+      expect(memory.y + memory.height, query).toBeGreaterThan(size.height * 0.9);
+      expect(memory.y, query).toBeGreaterThan(size.height * 0.5);
+      expect(memory.x + memory.width, query).toBeLessThan(size.width * 0.3);
+      for (const id of ['bp-commands', 'bp-arcana-locked', 'bp-auto', 'bp-speed', 'bp-escape']) {
+        const other = page.getByTestId(id);
+        if ((await other.count()) === 0) continue;
+        expect(apart(memory, (await other.first().boundingBox())!), `${query} ${id}`).toBe(true);
+      }
+      // The top left is open: no panel of the HUD reaches into it.
+      const corner = { x: 0, y: 0, width: size.width * 0.3, height: size.height * 0.4 };
+      for (const id of ['bx-world-memory', 'bx-turn-order', 'bx-place', 'bp-message', 'bx-party', 'bp-commands', 'bp-modes']) {
+        const b = await page.getByTestId(id).first().boundingBox();
+        if (b) expect(apart(b, corner), `${query} ${id}`).toBe(true);
+      }
+    }
+  });
+}
+
+test('a large creature (its staging, `&presence`) is drawn up to the top of the screen, the top left clear for it', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 300 });
+  await open(page, '&debug=0&enemy=sekiryuga');
+  const usual = (await page.getByTestId('bp-enemy-art').boundingBox())!;
+  await open(page, '&debug=0&enemy=sekiryuga&presence=2.3,0,-0.12');
+  const large = (await page.getByTestId('bp-enemy-art').boundingBox())!;
+  expect(large.height).toBeGreaterThan(usual.height * 1.6);
+  expect(large.y).toBeLessThan(300 * 0.12);
+  expect(large.x + large.width / 2).toBeLessThan(320);
+});

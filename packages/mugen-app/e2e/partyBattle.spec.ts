@@ -269,3 +269,22 @@ for (const size of [
     expect(heights['GIANT-hero']).toBeLessThan(heights['NORMAL-hero'] * 0.65);
   });
 }
+
+test('WORLD MEMORY bottom left in the party fight too, AUTO and ×2 beside it, the creature\'s plate top left', async ({ page }) => {
+  for (const size of [
+    { width: 640, height: 300 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(size);
+    await page.goto('/?preview=party');
+    await turnOf(page, 'kaos');
+    const memory = await box(page, 'bx-world-memory');
+    expect(memory.y + memory.height).toBeGreaterThan(size.height * 0.9);
+    expect(memory.x + memory.width).toBeLessThan(size.width * 0.3);
+    for (const id of ['pb-auto', 'pb-speed', 'pb-members', 'pb-commands']) expect(apart(memory, await box(page, id)), id).toBe(true);
+    await onScreen(page, 'bx-world-memory');
+    const plate = await box(page, 'pb-enemy-plate');
+    expect(plate.y).toBeLessThan(size.height * 0.1);
+    expect(plate.x).toBeLessThan(size.width * 0.1);
+  }
+});

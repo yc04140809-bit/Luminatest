@@ -169,7 +169,7 @@
   z-index: 5;
   top: max(6px, env(safe-area-inset-top));
   left: var(--pb-edge);
-  width: min(29vw, 230px);
+  width: min(26vw, 210px);
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
@@ -373,11 +373,35 @@
 }
 .pb-result b { font-size: 16px; color: #f3d27a; }
 
-/* ── bottom left: AUTO, ×2 ── */
+/* ── bottom left: WORLD MEMORY (every fight's panel), then AUTO, ×2 ── */
+.screen.pb-screen {
+  /* The battle screen's palette, which the panel is drawn in. */
+  --bx-navy: rgba(10, 22, 51, 0.88);
+  --bx-navy-deep: rgba(5, 11, 28, 0.94);
+  --bx-gold: #d9b871;
+  --bx-gold-lit: #f3e2b6;
+  --bx-gold-line: rgba(217, 184, 113, 0.5);
+  --bx-gold-hair: rgba(243, 226, 182, 0.16);
+  --bx-star: #9fd0ff;
+  --bx-ink: #f4efe3;
+  --bx-ink-dim: rgba(244, 239, 227, 0.66);
+  /* The panel's own width (battle.generated.css, .bx-memory-compact). */
+  --pb-memory-w: clamp(104px, calc(100vw * 0.152), 138px);
+}
+.pb-screen .pb-memory.bp-hud {
+  position: absolute;
+  inset: auto auto max(6px, env(safe-area-inset-bottom)) var(--pb-edge);
+  z-index: 6;
+  display: block;
+  padding: 0;
+  pointer-events: auto;
+  font-family: inherit;
+}
+.pb-screen .pb-memory .bx-memory-compact.open { position: relative; z-index: 7; }
 .pb-chips {
   position: absolute;
   z-index: 6;
-  left: var(--pb-edge);
+  left: calc(var(--pb-edge) + var(--pb-memory-w) + 6px);
   bottom: max(6px, env(safe-area-inset-bottom));
   display: flex;
   gap: 5px;

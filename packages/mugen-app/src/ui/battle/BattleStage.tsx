@@ -489,7 +489,7 @@ export function BattleStage({
       // 準備中」 line over them) on a short screen: then the plate rises
       // just enough to clear them, over its feet. Nobody else is moved.
       if (presence) {
-        const tops = ['bp-arcana-locked', 'bp-commands']
+        const tops = ['bp-arcana-locked', 'bp-commands', 'bx-world-memory']
           .map((id) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect().top)
           .filter((top): top is number => top !== undefined && top > 0);
         if (tops.length > 0) foot = Math.max(foot, PLATE_HANG + (s.bottom - Math.min(...tops) + PLATE_CLEAR) / s.height);
@@ -530,7 +530,7 @@ export function BattleStage({
           const left = a.right + PLATE_BESIDE_GAP;
           const others = [
             ...['.bp-hero', '.bp-kaos'].map((q) => stageEl.querySelector(q)),
-            ...['bp-commands', 'bp-arcana-locked', 'bx-party'].map((id) => document.querySelector(`[data-testid="${id}"]`)),
+            ...['bp-commands', 'bp-arcana-locked', 'bx-party', 'bx-world-memory'].map((id) => document.querySelector(`[data-testid="${id}"]`)),
           ]
             .map((el) => el?.getBoundingClientRect())
             .filter((o): o is DOMRect => !!o && o.width > 0 && o.height > 0);
@@ -808,7 +808,11 @@ export function BattleStage({
           } as CSSProperties
         }
       >
-        <div className="bx-corner bx-tl">
+        {/* WORLD MEMORY — bottom left, beside the commands (作者指示
+            2026-10-12: the top left belongs to the creature now — its head,
+            a giant's shoulders, a boss's moment — in every fight). The top
+            left corner is left empty on purpose. */}
+        <div className="bx-corner bx-bl">
           <WorldMemoryPanel rows={memoryRows(memoryLines)} depth={memoryDepth} compact />
         </div>
 

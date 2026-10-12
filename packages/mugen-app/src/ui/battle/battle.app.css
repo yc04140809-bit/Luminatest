@@ -188,3 +188,39 @@
   .bp-cmd-en { font-size: 7.5px; letter-spacing: 0.06em; text-indent: 0.06em; }
   .bp-cmd-spent { font-size: 10px; }
 }
+
+/* ---- WORLD MEMORY, BOTTOM LEFT (作者指示 2026-10-12, every fight) ----
+   App only. The top left is the creature's now: its head, a giant's
+   shoulders, a boss's moment reach the top of the screen. WORLD MEMORY
+   keeps its own compact panel and design and sits in the bottom left
+   corner, and the commands (and everything the dock carries above them:
+   the trays, 「アルカナ 準備中」) start just right of it, so nothing
+   overlaps. It dims with the reading during a blow, as it did up top. */
+.bx-bl {
+  grid-area: 3 / 1;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+.bx-corner.bx-bl {
+  opacity: var(--ui-reading, 1);
+  transition: opacity 0.34s ease;
+}
+.bp-hud[data-stagecraft='ATTACK'] .bx-corner.bx-bl,
+.bp-hud[data-stagecraft='CUT_IN'] .bx-corner.bx-bl {
+  transition: opacity 0.12s ease;
+}
+/* Opened, it grows up over the field rather than into the commands. */
+.bx-bl .bx-memory-compact.open {
+  position: relative;
+  z-index: 3;
+}
+.bp-field .bp-dock {
+  /* The screen's 10px margin + WORLD MEMORY's own width + a gap. The
+     width is the panel's (battle.generated.css, .bx-memory-compact). */
+  padding-left: calc(10px + clamp(104px, calc(var(--stage-w, 100vw) * 0.152), 138px) + 8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bx-corner.bx-bl {
+    transition: none;
+  }
+}

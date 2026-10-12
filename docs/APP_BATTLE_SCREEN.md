@@ -3,6 +3,26 @@
 状態（2026-09-26）：**本編の戦闘に接続済み。** 実際の戦闘（森のモスラビット戦・ガルド戦）は
 この画面で行われる。カットイン・個別スキル演出・ケイオス介入・逃走・AUTO は未実装（次の工程）。
 
+## WORLD MEMORY を左下へ・上端を戦闘表示に開放（2026-10-12、全戦闘共通）
+
+作者指示：左上〜画面最上部を敵の表示（頭部・大型敵の上半身・ボス演出）に使えるよう、WORLD MEMORY を全戦闘で左下へ移した。
+
+- **対象**：App の全戦闘（通常戦闘・ガルド戦・セキリュウガ戦・フウミミなど `BattleStage` を使うもの全部）と、3人戦闘（`PartyBattleScreen`、ヴァルシール戦）。
+- **WORLD MEMORY**：今までと同じ小さいパネル（同じ枠・同じ文字・タップで開く）を左下に置いた。開くと上へ伸びる。攻撃の間は今までどおり少し薄くなる。
+- **コマンド**：左下の WORLD MEMORY のすぐ右から並ぶ（攻撃・魔法・スキル・アイテム・防御・アルカナ、上に出る「アルカナ 準備中」やスキル／アイテム一覧も同じく右へ）。AUTO・×2・ESCAPE は右下のまま。
+- **左上は空き**：何も置かない。TURN ORDER・ダンジョン名・メッセージは上中央のまま。敵の HP は今までどおり敵の足元（大きな敵で足元がコマンドに掛かる時は、既存の仕組みでコマンドの上へ持ち上がる。WORLD MEMORY もこの判定に入れた）。
+- **3人戦闘**：左下に WORLD MEMORY、その右に AUTO・×2。敵の名前・HP・BREAK の札は左上（幅を少し細くして、ヴァルシールの頭に掛からないようにした）。
+- 変更は App 側だけ：`src/ui/battle/BattleStage.tsx`（WORLD MEMORY の置き場所）、`src/ui/battle/battle.app.css`（左下の位置・コマンドの開始位置）、`PartyBattleScreen.tsx` / `partyBattle.css`。Artifact と同じでなければならないファイル（`BattleHud.tsx`・`formation.ts`・`battle.generated.css` など）は変えていない。
+
+### 大型敵の表示調整（敵ごと）
+
+- 通常の戦闘（`BattleStage`）：`src/ui/battle/battleArt.ts` の `BATTLE_PRESENCE` に敵の絵の id で1行足す。
+  `{ scale: 何倍の高さで描くか, inset: 左端からさらに内側へ（画面幅の割合）, bottom: 足元をさらに下へ（画面の高さの割合、マイナスで下へ） }`。
+  例：セキリュウガは `{ scale: 1.2, inset: 0.05, bottom: -0.05 }`。ヌマワタリなどの大型モンスターも、App に戦闘を入れる時にここへ1行足せば大きく描ける（左上が空いたので、上端まで伸ばしても UI と重ならない）。
+  1回の戦闘だけ変えたい時は、戦闘側から `opponent.presence` で渡す（こちらが優先）。
+- DEBUG 戦闘プレビューで試す：`?preview=battle&enemy=sekiryuga&presence=2.3,0,-0.12`（2.3倍・内側へ 0・足元を 0.12 下へ）。上端近くまで届く大きさを確認できる。
+- 3人戦闘：敵の数値に `battleScale: 'GIANT'` で巨大ボス表示（左を高さいっぱい・味方を縮小）。細かい位置は `src/ui/battle/partyStage.ts` の表、通常表示で小さく見せたい敵は同じファイルの `STAGE_ENEMY_SCALE`。
+
 ## 本編接続（2026-09-26）
 
 - `mugen-app/src/ui/battle.tsx` の `BattleScreen` は、**戦闘の進め方はそのまま**
