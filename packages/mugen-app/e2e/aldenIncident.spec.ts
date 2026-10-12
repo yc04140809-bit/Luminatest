@@ -13,7 +13,8 @@ import { readyToAct } from './battle';
  * place, a rest after a day out — each only so often), and its phase, shown
  * only through what is already there: the rumours (and their NEW), a word
  * from Kaos at the foot of the region map, Grave from phase 2. Nothing
- * starts at phase 3. All kept across a restart.
+ * starts at phase 3 until a rest in the village or coming back into it — that
+ * night is the night before (第1章終盤, e2e/finale.spec.ts). All kept across a restart.
  *
  * 作者判断 2026-10-10: nothing counts until セキリュウガ's part is over
  * (SETTLED), and reading a rumour is never a step — the player acts, the
@@ -290,7 +291,7 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
   await expect(page.getByTestId('tavern-line')).not.toHaveText('「最近、森が静かすぎる。」');
 });
 
-test('phase 3: “something is close” — and nothing starts; the village, the shops and the way out as they were, after a restart too', async ({
+test('phase 3: “something is close” — and nothing starts while they are out and about; after a restart still phase 3, and coming back in is the night before (第1章終盤)', async ({
   page,
 }) => {
   await settledVillage(page);
@@ -318,10 +319,14 @@ test('phase 3: “something is close” — and nothing starts; the village, the
   await page.getByTestId('encounter-button').click();
   await readyToAct(page);
   await page.goto('/');
-  await restart(page);
+  // 作者指示 2026-10-12（遺跡最奥→襲撃→草原誘導→ヴァルシール戦 接続）: at phase 3, a rest — or coming
+  // back into the village — is the night before. Opened again out on the map (where they were): still phase 3.
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('back-to-village')).toBeVisible();
   expect(await phase(page)).toBe(3);
   expect(await point(page)).toBeGreaterThanOrEqual(10);
-  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await page.getByTestId('back-to-village').click();
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'EVE');
 });
 
 for (const [w, h] of [
