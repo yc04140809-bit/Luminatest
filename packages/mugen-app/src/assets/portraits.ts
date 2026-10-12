@@ -17,10 +17,10 @@
 // `SkinDefinition` — and not one screen has to change.
 //
 // WHAT THESE FILES MUST BE is `docs/PORTRAIT_MASTER.md`: one canvas,
-// one baseline, for every character. Neither of today's two meets it
+// one baseline, for every character. None of today's meets it
 // yet; `npm run check:portraits` says exactly how far off each one is.
 
-export type PortraitKey = 'hero' | 'kaos';
+export type PortraitKey = 'hero' | 'kaos' | 'aria' | 'levi';
 
 /**
  * TWO REGISTRIES, because they are two different kinds of file.
@@ -35,6 +35,10 @@ const VISUALS: Partial<Record<PortraitKey, () => Promise<string>>> = {
     (await import('@mugen/assets/files/characters/hero/hero-status-visual.png')).default,
   kaos: async () =>
     (await import('@mugen/assets/files/characters/kaos/kaos-status-visual.png')).default,
+  aria: async () =>
+    (await import('@mugen/assets/files/characters/aria/aria-status-visual.png')).default,
+  levi: async () =>
+    (await import('@mugen/assets/files/characters/levi/levi-status-visual.png')).default,
 };
 
 const PORTRAITS: Record<PortraitKey, () => Promise<string>> = {
@@ -42,6 +46,10 @@ const PORTRAITS: Record<PortraitKey, () => Promise<string>> = {
     (await import('@mugen/assets/files/characters/hero/hero-battle-idle.png')).default,
   kaos: async () =>
     (await import('@mugen/assets/files/characters/kaos/kaos-battle-default.png')).default,
+  aria: async () =>
+    (await import('@mugen/assets/files/characters/aria/aria-battle.png')).default,
+  levi: async () =>
+    (await import('@mugen/assets/files/characters/levi/levi-battle.png')).default,
 };
 
 export function isPortraitKey(key: string): key is PortraitKey {

@@ -19,8 +19,8 @@ describe('how somebody looks, kept apart from what they are', () => {
   });
 
   it('says nothing about somebody it has never heard of', () => {
-    expect(appearanceOf('levi')).toBeNull();
-    expect(statusPortraitKeyOf('levi')).toBeNull();
+    expect(appearanceOf('nobody')).toBeNull();
+    expect(statusPortraitKeyOf('nobody')).toBeNull();
   });
 
   /**
@@ -127,6 +127,16 @@ describe('how somebody looks, kept apart from what they are', () => {
   it('versions the art so replacing a file need not rename its id', () => {
     for (const skin of Object.values(SKIN_DEFINITIONS satisfies Record<string, SkinDefinition>)) {
       expect(skin.version).toBeGreaterThanOrEqual(1);
+    }
+  });
+});
+
+describe('アリア・レヴィの見た目 (正式加入前提 2026-10-12)', () => {
+  it('each has a finished status rectangle and a cut-out, by their own key', () => {
+    for (const id of ['aria', 'levi']) {
+      expect(statusArtOf(id)).toEqual({ key: id, kind: 'VISUAL' });
+      expect(statusPortraitKeyOf(id)).toBe(id);
+      expect(skinOf(id)?.availability).toBe('DEFAULT');
     }
   });
 });

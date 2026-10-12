@@ -31,10 +31,14 @@ function pngSize(path) {
 const MASTERS = [
   ['hero', 'hero/hero-battle-idle.png'],
   ['kaos', 'kaos/kaos-battle-default.png'],
+  ['aria', 'aria/aria-battle.png'],
+  ['levi', 'levi/levi-battle.png'],
 ];
 const VISUALS = [
   ['hero', 'hero/hero-status-visual.png'],
   ['kaos', 'kaos/kaos-status-visual.png'],
+  ['aria', 'aria/aria-status-visual.png'],
+  ['levi', 'levi/levi-status-visual.png'],
 ];
 
 let bad = 0;

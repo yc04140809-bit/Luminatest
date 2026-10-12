@@ -102,11 +102,31 @@ export const SKIN_DEFINITIONS: Record<string, SkinDefinition> = {
     availability: 'DEFAULT',
     version: 1,
   },
+  // アリア・レヴィ (2026-10-12): they join at the end of chapter 1. Their
+  // status rectangles are as delivered; the cut-out is the battle drawing.
+  'aria/default': {
+    skinId: 'aria/default',
+    characterId: 'aria',
+    displayName: '既定',
+    assetRefs: { statusVisual: 'aria', statusPortrait: 'aria' },
+    availability: 'DEFAULT',
+    version: 1,
+  },
+  'levi/default': {
+    skinId: 'levi/default',
+    characterId: 'levi',
+    displayName: '既定',
+    assetRefs: { statusVisual: 'levi', statusPortrait: 'levi' },
+    availability: 'DEFAULT',
+    version: 1,
+  },
 };
 
 export const CHARACTER_APPEARANCES: Record<string, CharacterAppearance> = {
   hero: { characterId: 'hero', defaultSkinId: 'hero/default', selectedSkinId: null },
   kaos: { characterId: 'kaos', defaultSkinId: 'kaos/default', selectedSkinId: null },
+  aria: { characterId: 'aria', defaultSkinId: 'aria/default', selectedSkinId: null },
+  levi: { characterId: 'levi', defaultSkinId: 'levi/default', selectedSkinId: null },
 };
 
 export function appearanceOf(characterId: string): CharacterAppearance | null {
