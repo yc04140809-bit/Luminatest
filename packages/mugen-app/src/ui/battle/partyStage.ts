@@ -4,14 +4,17 @@
 // on the right of the field, laid along the ground's depth rather than
 // across the screen:
 //
-//                        BACK          (far: up the path)
-//              MID_LOWER       MID_UPPER
-//   FRONT                                (near: toward the creature)
+//                    MID_UPPER            (far: up the path)
+//        FRONT                    BACK
+//                    MID_LOWER            (near: the camera)
+//   (the creature's side)          (the party's side)
 //
-//   FRONT      nearest the creature and the camera: lowest, largest
-//   MID_LOWER  the middle rank, its near side (toward the creature)
-//   MID_UPPER  the middle rank, its far side (toward the party's edge)
-//   BACK       furthest up the path: highest ground line, smallest
+// A CROSS ON THE GROUND, seen from above and in front: the middle column's
+// two stand one behind the other (MID_UPPER further up the path, so higher
+// on the glass and smaller; MID_LOWER nearest the camera, so lowest and
+// largest), and FRONT and BACK stand either side of the cross's middle on
+// the same ground line — FRONT toward the creature, BACK toward the party's
+// own edge.
 //
 // Further back is further UP THE GROUND, never up in the air: every place
 // is where the FEET stand (`x` the foot's place across, `bottom` the ground
@@ -73,10 +76,10 @@ export const PARTY_STAGES: Readonly<Record<BattleScale, PartyStage>> = {
   NORMAL: {
     enemy: { left: 0.05, bottom: 0.2, height: 0.44, maxWidth: 0.36 },
     cross: {
-      FRONT: { x: 0.49, bottom: 0.07, height: 0.42, depth: 4 },
-      MID_LOWER: { x: 0.645, bottom: 0.15, height: 0.39, depth: 3 },
-      MID_UPPER: { x: 0.735, bottom: 0.19, height: 0.37, depth: 2 },
-      BACK: { x: 0.7, bottom: 0.33, height: 0.35, depth: 1 },
+      MID_UPPER: { x: 0.575, bottom: 0.4, height: 0.33, depth: 1 },
+      FRONT: { x: 0.435, bottom: 0.22, height: 0.39, depth: 2 },
+      BACK: { x: 0.7, bottom: 0.22, height: 0.39, depth: 2 },
+      MID_LOWER: { x: 0.575, bottom: 0.03, height: 0.44, depth: 3 },
     },
   },
   GIANT: {
@@ -85,10 +88,10 @@ export const PARTY_STAGES: Readonly<Record<BattleScale, PartyStage>> = {
     // of the turn order.
     enemy: { left: -0.08, bottom: -0.13, height: 1.14, maxWidth: 0.56 },
     cross: {
-      FRONT: { x: 0.55, bottom: 0.06, height: 0.34, depth: 4 },
-      MID_LOWER: { x: 0.67, bottom: 0.14, height: 0.315, depth: 3 },
-      MID_UPPER: { x: 0.745, bottom: 0.18, height: 0.3, depth: 2 },
-      BACK: { x: 0.72, bottom: 0.3, height: 0.28, depth: 1 },
+      MID_UPPER: { x: 0.61, bottom: 0.39, height: 0.27, depth: 1 },
+      FRONT: { x: 0.495, bottom: 0.22, height: 0.315, depth: 2 },
+      BACK: { x: 0.715, bottom: 0.22, height: 0.315, depth: 2 },
+      MID_LOWER: { x: 0.61, bottom: 0.04, height: 0.355, depth: 3 },
     },
   },
 };
@@ -105,6 +108,17 @@ export const DEFAULT_FORMATION: Readonly<Partial<Record<CrossSlot, string>>> = {
  * drawings are not centred on the person (Grave's great sword reaches out to
  * the left of him). The shadow is drawn there and the place's `x` is there.
  */
+/**
+ * HOW TALL EACH ONE IS DRAWN against the place's height: the drawings are
+ * not to one scale (Kaos's hair and wings fill hers to the top; the hero's
+ * sword is held low), so a person's own size is set here, once.
+ */
+export const FIGURE_SCALE: Partial<Record<string, number>> = {
+  grave: 1.0,
+  hero: 1.0,
+  kaos: 0.88,
+};
+
 export const FOOT_AT: Partial<Record<string, number>> = {
   grave: 0.6,
   hero: 0.5,
@@ -181,13 +195,13 @@ export function enemyStyle(spot: EnemySpot): Record<string, string | number> {
  * A member's place as the style their figure is given: its left edge at the
  * feet, pulled back by where the feet are in the drawing (`--pb-foot`).
  */
-export function footStyle(spot: FootSpot, foot: number): Record<string, string | number> {
+export function footStyle(spot: FootSpot, foot: number, scale = 1): Record<string, string | number> {
   return {
     left: pct(spot.x),
     bottom: pct(spot.bottom),
-    height: pct(spot.height),
+    height: pct(spot.height * scale),
     zIndex: 2 + spot.depth,
     ['--pb-foot' as string]: String(foot),
-    ['--pb-h' as string]: String(spot.height),
+    ['--pb-h' as string]: String(spot.height * scale),
   };
 }

@@ -220,10 +220,11 @@ test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK com
 // THE LAYOUT, FIXED (作者指示 2026-10-12, 固定方針): the creature's name, HP
 // and BREAK top left; the TURN ORDER and the place top centre; the party's
 // cards top right; WORLD MEMORY bottom left; the command cross bottom right.
-// The party right, in a cross of four fixed places along the ground —
-// FRONT グレイヴ, MID_LOWER 主人公, BACK ケイオス, MID_UPPER empty (a mark on
-// the ground) — every one on the ground with a shadow, front lowest and
-// largest, back highest up the path and smallest. A GIANT drawn bigger than
+// The party right, in a CROSS of four fixed places on the ground — FRONT
+// グレイヴ toward the creature and BACK ケイオス toward the party's edge on one
+// ground line, the middle column between them: MID_LOWER 主人公 nearest the
+// camera (lowest, largest), MID_UPPER up the path (empty: a mark on the
+// ground) — every one standing on the ground with a shadow. A GIANT drawn bigger than
 // the screen, the party a little smaller (not tiny); the UI exactly where it
 // is in a normal fight.
 type Box = { x: number; y: number; width: number; height: number };
@@ -257,15 +258,24 @@ for (const size of [
       const b = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await box(page, id)] as const)));
       seen[`${scale}:${query}`] = b;
       const [hero, kaos, grave] = [b['pb-figure-hero'], b['pb-figure-kaos'], b['pb-figure-grave']];
-      // Front to back along the ground: the feet higher up the path, the drawing smaller.
-      expect(feet(grave)).toBeGreaterThan(feet(hero) + 8);
-      expect(feet(hero)).toBeGreaterThan(feet(kaos) + 8);
-      expect(hero.height / grave.height).toBeGreaterThan(0.88);
-      expect(hero.height / grave.height).toBeLessThan(0.97);
-      expect(kaos.height / grave.height).toBeGreaterThan(0.78);
-      expect(kaos.height / grave.height).toBeLessThan(0.9);
-      // On the ground: the back rank's feet are in the lower part of the screen, not in the air.
-      expect(feet(kaos)).toBeGreaterThan(size.height * 0.6);
+      const empty = await box(page, 'pb-slot-empty-MID_UPPER');
+      // Where the feet are (partyStage FOOT_AT: グレイヴ 0.6, 主人公 0.5, ケイオス 0.52 of the drawing).
+      const footX = { grave: grave.x + grave.width * 0.6, hero: hero.x + hero.width * 0.5, kaos: kaos.x + kaos.width * 0.52 };
+      const emptyMid = { x: empty.x + empty.width / 2, y: empty.y + empty.height / 2 };
+      // The cross: FRONT and BACK on one ground line either side; the middle column between them.
+      expect(Math.abs(feet(grave) - feet(kaos))).toBeLessThan(size.height * 0.03);
+      expect(footX.grave).toBeLessThan(footX.hero - size.width * 0.08);
+      expect(footX.kaos).toBeGreaterThan(footX.hero + size.width * 0.08);
+      expect(Math.abs(emptyMid.x - footX.hero)).toBeLessThan(size.width * 0.02);
+      // The middle column: MID_LOWER nearest the camera (below the line), MID_UPPER up the path (above it).
+      expect(feet(hero)).toBeGreaterThan(feet(grave) + size.height * 0.1);
+      expect(emptyMid.y).toBeLessThan(feet(grave) - size.height * 0.1);
+      // Nearer is larger: the hero (nearest) taller than グレイヴ on the line; ケイオス her own size on it.
+      expect(hero.height).toBeGreaterThan(grave.height * 1.05);
+      expect(kaos.height / grave.height).toBeGreaterThan(0.8);
+      expect(kaos.height / grave.height).toBeLessThan(0.95);
+      // On the ground: every one's feet in the lower part of the screen, not in the air.
+      for (const who of [hero, kaos, grave]) expect(feet(who)).toBeGreaterThan(size.height * 0.6);
       // The UI's places.
       const plate = b['pb-enemy-plate'];
       expect(plate.x).toBeLessThan(size.width * 0.05);

@@ -32,7 +32,7 @@ import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
 import { memoryRows } from './battleHud';
 import './battle.generated.css';
-import { CROSS_SLOTS, FOOT_AT, enemySpot, enemyStyle, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
+import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemySpot, enemyStyle, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
 import './partyBattle.css';
 
 /**
@@ -328,7 +328,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               className={`pb-figure${m.down ? ' down' : ''}${actor === m.id ? ' acting' : ''}${m.guardTurns > 0 ? ' guard' : ''}${m.regenTurns > 0 ? ' regen' : ''}`}
               data-testid={`pb-figure-${m.id}`}
               data-slot={spot.slot}
-              style={footStyle(spot, FOOT_AT[m.id] ?? 0.5)}
+              style={footStyle(spot, FOOT_AT[m.id] ?? 0.5, FIGURE_SCALE[m.id] ?? 1)}
             >
               <span className="pb-shadow" aria-hidden="true" />
               {art.party[m.id]?.src && <img src={art.party[m.id].src!} alt={m.name} />}

@@ -499,7 +499,7 @@
 
 /* A short screen (640×300): a step tighter. */
 @media (max-height: 340px) {
-  .screen.pb-screen { --pb-dia: 52px; }
+  .screen.pb-screen { --pb-dia: 50px; }
   .pb-face { width: 20px; height: 20px; }
   .pb-face.acting { width: 26px; height: 26px; }
   .pb-log { -webkit-line-clamp: 1; font-size: 11px; }

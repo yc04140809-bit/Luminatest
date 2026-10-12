@@ -105,7 +105,7 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave', ArtSet<PartyArtState>> =
       battle_idle: {
         src: graveBattleIdle,
         facing: 'left',
-        face: { fileW: 1536, fileH: 1024, x: 985, y: 130, width: 175, height: 175 },
+        face: { fileW: 1536, fileH: 1024, x: 868, y: 58, width: 180, height: 180 },
       },
     },
   },
