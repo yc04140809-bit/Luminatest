@@ -68,3 +68,34 @@ describe('the cry from the ruins (実装メイン⑥ 2026-10-08)', () => {
     expect(rumorsFor({ arcOpen: true, stage: 'SETTLED', incidentPhase: 2 }).map((r) => r.id)).toContain('INC_SHINING_WINGS');
   });
 });
+
+describe('第1章終盤の伏線 F0・F1 (2026-10-12)', () => {
+  const ids = ['INC_NO_BIRDS', 'INC_LOW_HUM', 'INC_TWO_TRAVELERS', 'INC_SEARCHING', 'INC_ASKED_RUINS', 'INC_GROUND_SHAKE', 'INC_STILL_NOON'];
+  const found = ids.map((id) => VILLAGE_RUMORS.find((r) => r.id === id)!);
+
+  it('all there, each in its phase — never before the signs begin', () => {
+    expect(found.every(Boolean)).toBe(true);
+    expect(found.map((r) => r.when)).toEqual(['INCIDENT_2', 'INCIDENT_2', 'INCIDENT_1', 'INCIDENT_2', 'INCIDENT_2', 'INCIDENT_3', 'INCIDENT_3']);
+    const before = rumorsFor({ arcOpen: true, stage: 'SETTLED', incidentPhase: 0 }).map((r) => r.id);
+    for (const id of ids) expect(before).not.toContain(id);
+    const heaviest = rumorsFor({ arcOpen: true, stage: 'SETTLED', incidentPhase: 3 }).map((r) => r.id);
+    for (const id of ids) expect(heaviest).toContain(id);
+  });
+
+  it('signs only: no raid foretold, no death, no names, no ヴァルシール', () => {
+    const all = found.map((r) => `${r.title}${r.text}`).join('\n');
+    expect(all).not.toMatch(/襲|死|殺|亡|ヴァルシール|アリア|レヴィ|封印/);
+  });
+
+  it('the travellers: a bow and a long spear, and nothing of who they are', () => {
+    const two = found[2];
+    expect(two.text).toMatch(/弓/);
+    expect(two.text).toMatch(/槍/);
+  });
+
+  it('the one who asked the way: not said to be the tavern\'s hooded guest, nor not', () => {
+    const asked = found[4];
+    expect(asked.text).toMatch(/フード/);
+    expect(asked.text).not.toMatch(/同じ|違う|怪しい客/);
+  });
+});

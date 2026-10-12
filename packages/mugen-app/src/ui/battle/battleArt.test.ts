@@ -95,6 +95,22 @@ describe('グレイヴの戦闘立ち絵 (2026-10-12)', () => {
   });
 });
 
+describe('アリア・レヴィの戦闘立ち絵 (正式加入前提 2026-10-12)', () => {
+  it('registered for the release: facing left, a face box inside the drawing', async () => {
+    const { battlePartyArt } = await import('./battleArt');
+    for (const id of ['aria', 'levi'] as const) {
+      const art = battlePartyArt(id, 'battle_idle');
+      expect(art.placeholder).toBe(false);
+      expect(art.asset?.src).toContain(`${id}-battle`);
+      expect(art.asset?.facing).toBe('left');
+      const face = art.asset?.face;
+      expect(face).toBeDefined();
+      expect(face!.x + face!.width).toBeLessThanOrEqual(face!.fileW);
+      expect(face!.y + face!.height).toBeLessThanOrEqual(face!.fileH);
+    }
+  });
+});
+
 describe('ヴァルシール第2形態の基準素材 (作者採用 2026-10-12)', () => {
   it('registered as delivered: the base drawing, facing right toward the party, its box the whole drawing', async () => {
     const { battleEnemyArt } = await import('./battleArt');

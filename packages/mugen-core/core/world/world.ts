@@ -22,6 +22,7 @@ import {
   type VisitTable,
 } from './explorationState';
 import { advanceStage, arcOpen, readSekiryugaStage, stageReached, type SekiryugaStage } from './storyArc';
+import { advanceFinale, readFinaleStage, type FinaleStage } from './chapterFinale';
 import { readReadMarks, withMarks } from './readMarks';
 import {
   addLoaves,
@@ -363,6 +364,11 @@ const VISITS_KEY = 'explorationVisits';
  * see `storyArc.ts`. Absent reads as NONE, so no schema version moved.
  */
 const SEKIRYUGA_ARC_KEY = 'sekiryugaArc';
+/**
+ * 第1章終盤: the furthest stage reached — see `chapterFinale.ts`. Absent
+ * reads as NONE, so no schema version moved.
+ */
+const FINALE_KEY = 'chapter1Finale';
 /** What the player has actually looked at — every NEW (see `readMarks.ts`). Absent reads as nothing read. */
 const READ_MARKS_KEY = 'readMarks';
 /**
@@ -654,6 +660,7 @@ export class World {
   private pickupsTaken: string[];
   private visits: VisitTable;
   private sekiryugaStage: SekiryugaStage;
+  private finaleStage: FinaleStage;
   private readMarks: Set<string>;
   private readMarkList: string[];
   private breadFreshness: BreadFreshness;
@@ -688,6 +695,7 @@ export class World {
     this.pickupsTaken = fields.pickupsTaken;
     this.visits = fields.visits;
     this.sekiryugaStage = fields.sekiryugaStage;
+    this.finaleStage = fields.finaleStage;
     this.readMarkList = fields.readMarks;
     this.readMarks = new Set(fields.readMarks);
     this.breadFreshness = fields.breadFreshness;
@@ -1211,6 +1219,21 @@ export class World {
     if (next === this.sekiryugaStage) return false;
     await this.store.commit({ putState: [{ key: SEKIRYUGA_ARC_KEY, value: next }] });
     this.sekiryugaStage = next;
+    this.emit();
+    return true;
+  }
+
+  /** 第1章終盤: how far this world has got (`chapterFinale.ts`). */
+  getFinaleStage(): FinaleStage {
+    return this.finaleStage;
+  }
+
+  /** Moves the finale on to `stage`. Forward only: a stage already passed writes nothing and returns false. */
+  async advanceFinaleStage(stage: FinaleStage): Promise<boolean> {
+    const next = advanceFinale(this.finaleStage, stage);
+    if (next === this.finaleStage) return false;
+    await this.store.commit({ putState: [{ key: FINALE_KEY, value: next }] });
+    this.finaleStage = next;
     this.emit();
     return true;
   }
@@ -3116,6 +3139,7 @@ export class World {
     this.pickupsTaken = [];
     this.visits = {};
     this.sekiryugaStage = 'NONE';
+    this.finaleStage = 'NONE';
     this.readMarkList = [];
     this.readMarks = new Set();
     this.breadFreshness = NO_BREAD;
@@ -3191,6 +3215,7 @@ export class World {
     this.pickupsTaken = [];
     this.visits = {};
     this.sekiryugaStage = 'NONE';
+    this.finaleStage = 'NONE';
     this.readMarkList = [];
     this.readMarks = new Set();
     this.breadFreshness = this.getBreadFreshness();
@@ -3344,6 +3369,7 @@ interface WorldFields {
   pickupsTaken: string[];
   visits: VisitTable;
   sekiryugaStage: SekiryugaStage;
+  finaleStage: FinaleStage;
   readMarks: string[];
   breadFreshness: BreadFreshness;
   breadBuff: BreadBuff | null;
@@ -3498,6 +3524,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readVisits(value));
     case SEKIRYUGA_ARC_KEY:
       return settle(readSekiryugaStage(value));
+    case FINALE_KEY:
+      return settle(readFinaleStage(value));
     case READ_MARKS_KEY:
       return settle(readReadMarks(value));
     case BREAD_FRESHNESS_KEY:
@@ -3602,6 +3630,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       pickupsTaken: take(PICKUPS_KEY, readPickupsTaken(byKey.get(PICKUPS_KEY))),
       visits: take(VISITS_KEY, readVisits(byKey.get(VISITS_KEY))),
       sekiryugaStage: take(SEKIRYUGA_ARC_KEY, readSekiryugaStage(byKey.get(SEKIRYUGA_ARC_KEY))),
+      finaleStage: take(FINALE_KEY, readFinaleStage(byKey.get(FINALE_KEY))),
       readMarks: take(READ_MARKS_KEY, readReadMarks(byKey.get(READ_MARKS_KEY))),
       breadFreshness: take(BREAD_FRESHNESS_KEY, readBreadFreshness(byKey.get(BREAD_FRESHNESS_KEY))),
       breadBuff: take(BREAD_BUFF_KEY, readBreadBuff(byKey.get(BREAD_BUFF_KEY))),

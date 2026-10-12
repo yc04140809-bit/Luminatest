@@ -113,6 +113,14 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
   { id: 'TAVERN_CHAIR', category: 'TRIVIA', title: '酒場の椅子', text: '酒場の奥の椅子、座るとちょっと傾いてるって話だ。', when: 'ALWAYS' },
   { id: 'BAKERY_MORNING', category: 'TRIVIA', title: '朝のパン屋', text: '朝、パン屋の前を通ると、つい足が止まるらしい。', when: 'ALWAYS' },
   { id: 'NAPPING_CAT', category: 'TRIVIA', title: '昼寝の猫', text: '村のどこかに、昼寝ばかりしてる猫がいるらしい。飼い主は誰も知らない。', when: 'ALWAYS' },
+  // More of the everyday (2026-10-12), so the signs and the travellers below stay the smaller part.
+  { id: 'WELL_ROPE', category: 'TRIVIA', title: '井戸の縄', text: '井戸の縄、そろそろ替え時らしい。誰が替えるかで、毎年もめるんだと。', when: 'ALWAYS' },
+  { id: 'LOST_HAT', category: 'TRIVIA', title: '風と帽子', text: '風の強い日に、帽子が三つも屋根に乗ったらしい。全部、同じ家の屋根だ。', when: 'ALWAYS' },
+  { id: 'GOOSE', category: 'TRIVIA', title: '見張りのガチョウ', text: '見張り番より、隣の家のガチョウの方がよっぽど早く気づくって話だ。', when: 'ALWAYS' },
+  { id: 'BEAN_SOUP', category: 'TRIVIA', title: '豆のスープ', text: '豆のスープは二日目がうまい。……と、毎回言いながら初日に全部食べるやつがいる。', when: 'ALWAYS' },
+  { id: 'SIGNPOST', category: 'PLACE', title: '傾いた道しるべ', text: '村の入口の道しるべ、ちょっと傾いてる。直すと、なぜか次の日また傾いてる。', when: 'ALWAYS' },
+  { id: 'STARS', category: 'TRIVIA', title: '星の数', text: '裏の丘で寝転ぶと、星が数えきれないくらい見えるらしい。数えたやつはいない。', when: 'ALWAYS' },
+  { id: 'BROOM', category: 'TRIVIA', title: '道具屋のほうき', text: '道具屋のほうき、売り物なのか店の掃除用なのか、誰にも分からないらしい。', when: 'ALWAYS' },
 
   // ---- 予兆（ALDEN INCIDENT, 2026-10-10）— 誰も「村が襲われる」とは言わない ----
   // PHASE 1: 小さな違和感
@@ -126,7 +134,17 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
   // ヒョウレイ (FORGE MON-000008, 作者判断 2026-10-10): only this, before the raid — seen, never met, never named.
   { id: 'INC_SHINING_WINGS', category: 'MONSTER', title: '水辺の獣', text: '森の奥の水辺で、光る翼の獣を見たって。こっちを見ても、逃げなかったらしい。', when: 'INCIDENT_2' },
   { id: 'INC_RABBITS_BITE', category: 'MONSTER', title: '気の立ったモスラビット', text: '近ごろのモスラビットは気が立ってる。何かに怯えてるみたいだって、猟師が言ってた。', when: 'INCIDENT_2' },
+  // 2026-10-12 第1章終盤の前兆：鳥・低い音（遺跡の方）— 誰も「襲われる」とは言わない。
+  { id: 'INC_NO_BIRDS', category: 'PLACE', title: '鳥の声', text: '今朝は、鳥の声がしなかったな。', when: 'INCIDENT_2' },
+  { id: 'INC_LOW_HUM', category: 'PLACE', title: '低い音', text: '遺跡の方から、低い音がするって。地面の下から響いてくるみたいな。', when: 'INCIDENT_2' },
+  // 見慣れない旅人（アリア・レヴィの伏線）— 名前も、何者かも言わない。
+  { id: 'INC_TWO_TRAVELERS', category: 'PERSON', title: '見慣れない二人連れ', text: '見慣れない二人連れが、村の外れを通っていったらしい。片方は弓、片方は長い槍を担いでたって。', from: '見張り', when: 'INCIDENT_1' },
+  { id: 'INC_SEARCHING', category: 'PERSON', title: '調べている者', text: '森の様子を、ずっと調べて回ってる旅人がいるんだと。……何を探してるんだか。', from: '猟師', when: 'INCIDENT_2' },
+  // 遺跡への道を聞いた客（フードの男の伏線）— 酒場の「怪しい客」と同じ人かは、ぼかす。
+  { id: 'INC_ASKED_RUINS', category: 'PERSON', title: '道を聞いた客', text: 'フードを深くかぶった客が、遺跡への道を聞いていったらしい。酒場でたまに見る人だったかって？ ……顔が見えなかったからなあ。', when: 'INCIDENT_2' },
   // PHASE 3: 襲撃直前（「何かが近い」まで）
+  { id: 'INC_GROUND_SHAKE', category: 'EVENT', title: '地面の揺れ', text: 'ゆうべ、地面が揺れなかったか？ ……気のせいならいいけどな。', when: 'INCIDENT_3' },
+  { id: 'INC_STILL_NOON', category: 'PLACE', title: '昼の静けさ', text: '昼間なのに、森がしんとしてる。夜でもないのに、だぞ。', when: 'INCIDENT_3' },
   { id: 'INC_TAKE_CARE', category: 'EVENT', title: '村の外', text: '村の外に出るなら気をつけろ。', when: 'INCIDENT_3' },
   { id: 'INC_BAD_FEELING', category: 'EVENT', title: '嫌な感じ', text: '……嫌な感じがするな。', when: 'INCIDENT_3' },
   { id: 'INC_RUNNING_FROM', category: 'MONSTER', title: '森の奴ら', text: '森の奴ら、何かから逃げてるんじゃないか？', when: 'INCIDENT_3' },

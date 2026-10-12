@@ -46,6 +46,8 @@ describe('the five', () => {
       ['RIZEL_ON_GALD_HELP', 'VILLAGE', 0],
       ['RIZEL_ON_GALD_CAPTURE', 'VILLAGE', 0],
       ['RIZEL_FIRST_AID', 'VILLAGE', 1],
+      // 第1章終盤の伏線 (2026-10-12): Kaos looks at the sky once — after Rizel's.
+      ['KAOS_SKY', 'VILLAGE', 2],
     ]);
     // Half a minute or so each: five lines at least, ten at most.
     for (const s of DAILY_SCENES) {

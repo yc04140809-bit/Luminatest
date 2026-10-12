@@ -19,6 +19,8 @@ import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
 import kaosAwaken from '@mugen/assets/files/characters/kaos/kaos-awaken.png';
 import galdBattleIdle from '@mugen/assets/files/characters/gald/gald-battle-idle.png';
 import graveBattleIdle from '@mugen/assets/files/characters/grave/grave-battle-idle.png';
+import ariaBattle from '@mugen/assets/files/characters/aria/aria-battle.png';
+import leviBattle from '@mugen/assets/files/characters/levi/levi-battle.png';
 import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage.png';
 import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
@@ -58,7 +60,7 @@ import {
 } from '@mugen/core/art/artStates';
 
 /** The people who can stand on the App's battlefield. */
-const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave', ArtSet<PartyArtState>> = {
+const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet<PartyArtState>> = {
   hero: {
     id: 'hero',
     label: 'あなた',
@@ -107,6 +109,35 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave', ArtSet<PartyArtState>> =
         src: graveBattleIdle,
         facing: 'left',
         face: { fileW: 1536, fileH: 1024, x: 868, y: 58, width: 180, height: 180 },
+      },
+    },
+  },
+  /**
+   * アリア / レヴィ — they join the party at the end of chapter 1 (作者決定
+   * 2026-10-12: 正式加入前提), so their battle drawings ship in the release
+   * from here (the DEBUG scenes used them alone until now). Both facing left,
+   * toward the creature, placed as delivered. No fight stands them on the
+   * field yet.
+   */
+  aria: {
+    id: 'aria',
+    label: 'アリア',
+    states: {
+      battle_idle: {
+        src: ariaBattle,
+        facing: 'left',
+        face: { fileW: 1024, fileH: 1536, x: 480, y: 370, width: 140, height: 140 },
+      },
+    },
+  },
+  levi: {
+    id: 'levi',
+    label: 'レヴィ',
+    states: {
+      battle_idle: {
+        src: leviBattle,
+        facing: 'left',
+        face: { fileW: 1536, fileH: 1024, x: 930, y: 115, width: 140, height: 140 },
       },
     },
   },

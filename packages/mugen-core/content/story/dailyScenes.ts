@@ -45,6 +45,7 @@ export type DailySceneId =
   | 'OWNER_KILN'
   | 'GRAVE_GREATSWORD'
   | 'MIREI_TRAVELERS'
+  | 'KAOS_SKY'
   | 'RIZEL_WOODEN_SWORD'
   | 'RIZEL_FIRST_AID'
   | 'RIZEL_ON_GALD_KILL'
@@ -278,6 +279,22 @@ export const DAILY_SCENES: readonly DailyScene[] = [
       { speaker: '子ども', text: '……リゼル姉ちゃん、手当てだけは上手いよな。' },
       { speaker: RIZEL, text: 'だけ、は余計。' },
       { speaker: null, text: '巻き終えた布は、驚くほどきれいだった。' },
+    ],
+  },
+  // ---- 第1章終盤の伏線（2026-10-12）— ケイオスが一度だけ空を見る ----
+  // アリアとレヴィのことを、名前を出さずに。予兆が明確になってから、リゼル
+  // の場面のあと。説明はしない。
+  {
+    id: 'KAOS_SKY',
+    place: 'VILLAGE',
+    from: 2,
+    after: 'RIZEL_FIRST_AID',
+    lines: [
+      { speaker: null, text: 'ケイオスが、足を止めて空を見ている。' },
+      { speaker: '{HERO}', text: 'どうした？' },
+      { speaker: KAOS, text: '……あの子たち、元気かな。', kaosFace: 'TROUBLED' },
+      { speaker: '{HERO}', text: 'あの子たち？' },
+      { speaker: KAOS, text: 'ううん。なんでもない♪', kaosFace: 'SMILE' },
     ],
   },
 ];
