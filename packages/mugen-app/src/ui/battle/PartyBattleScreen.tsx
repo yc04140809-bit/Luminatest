@@ -15,6 +15,7 @@ import {
   partyAutoAction,
   partySkillReady,
   regenTargetable,
+  tauntOf,
   isBroken,
   techUsable,
   upcomingTurns,
@@ -133,7 +134,8 @@ const SHAKE_MS = 450;
 /** What is on a member, short, for under their name. */
 function statusChips(m: PartyMember): { key: string; label: string; title: string }[] {
   const out: { key: string; label: string; title: string }[] = [];
-  if (m.guardTurns > 0) out.push({ key: 'guard', label: `月影 ${m.guardTurns}T`, title: `月影の構え 残り${m.guardTurns}T` });
+  // 月影の構え: its guard, and the blows drawn to him (注目) — one chip; a separate 「注目」 chip can be added here when a taunt stands on its own.
+  if (m.guardTurns > 0) out.push({ key: 'guard', label: `月影 ${m.guardTurns}T`, title: `月影の構え 残り${m.guardTurns}T（注目：敵の単体攻撃を引きつける）` });
   if (m.regenTurns > 0) out.push({ key: 'regen', label: `星癒 ${m.regenTurns}T`, title: `星癒の羽 残り${m.regenTurns}T` });
   return out;
 }
@@ -711,6 +713,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               data-max={m.maxHp}
               data-down={m.down ? 'yes' : 'no'}
               data-acting={actor === m.id ? 'yes' : 'no'}
+              data-taunt={tauntOf(m) > 0 ? 'yes' : 'no'}
             >
               <Face src={face.src} box={face.face} testId={`pb-member-${m.id}-face`} actor={m.id} acting={false} />
               <span className="pb-member-body">

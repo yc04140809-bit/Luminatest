@@ -7,6 +7,8 @@ import {
   autoTarget,
   cooldownLeft,
   regenTargetable,
+  singleTarget,
+  tauntOf,
   techUsable,
   enemyById,
   enemyIdAt,
@@ -297,6 +299,63 @@ describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BR
       expect(memberById(s, 'hero')!.down).toBe(true);
       expect(memberById(s, 'hero')!.guardTurns).toBe(0);
       expect(s.last!.counter).toBeUndefined();
+    });
+
+    it('draws the single blows to him (85%): a die that would pick Kaos picks him; the rest of the die picks among all', () => {
+      const before = guarded();
+      expect(tauntOf(memberById(before, 'hero')!)).toBe(0.85);
+      // Die 0.5 — without the guard, the second of three: Kaos. With it: him.
+      const s = enemyAct(before, seq(0.5, 0.5, 0.9, 0));
+      expect(s.last).toMatchObject({ target: 'hero' });
+      expect(enemyAct(before, seq(0.84, 0.5, 0.9, 0)).last).toMatchObject({ target: 'hero' });
+      // Past 0.85, the rest of the die among all three: (0.9 − 0.85) / 0.15 = 1/3 → the second, Kaos.
+      expect(enemyAct(before, seq(0.9, 0.5, 0.9, 0)).last).toMatchObject({ target: 'kaos' });
+      // Over every die: about 90% at him (85% + a third of the rest).
+      const standing = before.members.filter((m) => !m.down);
+      let at = 0;
+      for (let i = 0; i < 1000; i++) if (singleTarget(standing, (i + 0.5) / 1000).id === 'hero') at++;
+      expect(at / 1000).toBeGreaterThan(0.88);
+      expect(at / 1000).toBeLessThan(0.92);
+    });
+
+    it('drawn to him, he takes it through his guard, slips it or not, and answers (the counter)', () => {
+      const before = guarded();
+      const hp = memberById(before, 'hero')!.hp;
+      const s = enemyAct(before, seq(0.5, 0.5, 0.9, 0));
+      // 20 − ⌊40 × 1.3 / 4⌋ = 7; the counter 0.8 × 8 = 6.
+      expect(memberById(s, 'hero')!.hp).toBe(hp - 7);
+      expect(s.last).toMatchObject({ target: 'hero', amount: 7, counter: 6 });
+      const miss = enemyAct(before, seq(0.5, 0.5, 0.1, 0));
+      expect(miss.last).toMatchObject({ target: 'hero', missed: true, counter: 6 });
+    });
+
+    it('not a blow at all of them; not once he is down; not once it has run out', () => {
+      const before = guarded();
+      const all = enemyAct(before, seq(0.5), { type: 'PHYSICAL', area: 'ALL' });
+      expect(all.last).toMatchObject({ target: 'ALL' });
+      expect(all.members.every((m) => m.hp < m.maxHp)).toBe(true);
+      // Down: the others, as ever.
+      const weak = thickHero().map((m) => (m.id === 'hero' ? { ...m, hp: 3 } : m));
+      let s = enemyAct(guarded(weak), seq(0, 0.5, 0.9));
+      expect(memberById(s, 'hero')!.down).toBe(true);
+      expect(tauntOf(memberById(s, 'hero')!)).toBe(0);
+      s = enemyAct(untilTurnOf(s, ENEMY_ID), seq(0.3, 0.5));
+      expect(s.last!.target).not.toBe('hero');
+      // Run out (two of his turns): a die of 0.5 picks the second of three again — Kaos.
+      let t = guarded();
+      t = untilTurnOf(partyAct(untilTurnOf(t, 'hero'), { kind: 'DEFEND' }), 'hero');
+      t = untilTurnOf(partyAct(t, { kind: 'DEFEND' }), ENEMY_ID);
+      expect(memberById(t, 'hero')!.guardTurns).toBe(0);
+      expect(tauntOf(memberById(t, 'hero')!)).toBe(0);
+      expect(enemyAct(t, seq(0.5, 0.5)).last).toMatchObject({ target: 'kaos' });
+    });
+
+    it('taken by AUTO, it draws the blows all the same', () => {
+      const hurt = untilTurnOf(createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 50 } : m)), tough), 'hero');
+      const a = partyAutoAction(hurt)!;
+      expect(a).toEqual({ kind: 'TECH', techId: 'moon_guard' });
+      const s = untilTurnOf(partyAct(hurt, a), ENEMY_ID);
+      expect(enemyAct(s, seq(0.5, 0.5, 0.9, 0)).last).toMatchObject({ target: 'hero' });
     });
   });
 

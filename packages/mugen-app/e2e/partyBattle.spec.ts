@@ -166,6 +166,9 @@ for (const size of [
     await expect.poll(() => memberHp(page, 'hero')).toBe(Math.min(100, before + 20));
     await expect(page.getByTestId('pb-float-regen-hero')).toHaveText('+20 HP');
     await expect(page.getByTestId('pb-status-hero-guard')).toHaveText('月影 2T');
+    // 月影の構え draws the creature's single blows to him (注目).
+    await expect(page.getByTestId('pb-member-hero')).toHaveAttribute('data-taunt', 'yes');
+    await expect(page.getByTestId('pb-member-kaos')).toHaveAttribute('data-taunt', 'no');
     await expect(page.getByTestId('pb-status-hero-regen')).toHaveText('星癒 2T');
     await expect(page.getByTestId('pb-tech-name')).toHaveText('月影の構え');
     // Grave: 重撃・豪断 breaks it.

@@ -120,7 +120,38 @@ export interface PartyTechnique {
 }
 
 /** 月影の構え: what it does while it lasts. */
-export const MOON_GUARD = { defenseUp: 0.3, evasion: 0.25, counter: 0.8 } as const;
+/**
+ * `taunt`: while it is up, a creature's blow at ONE of them is drawn to him
+ * this often (the rest of the time it is aimed as ever, among all of them).
+ * Never a blow at all of them; gone when he is down or it runs out.
+ */
+export const MOON_GUARD = { defenseUp: 0.3, evasion: 0.25, counter: 0.8, taunt: 0.85 } as const;
+
+/**
+ * How strongly a member draws a creature's single blows right now (0: not at
+ * all) — 月影の構え while it lasts; the one place a later 挑発 or 注目 adds
+ * to. A state of the moment, never a lasting hate.
+ */
+export function tauntOf(member: PartyMember): number {
+  return !member.down && member.guardTurns > 0 ? MOON_GUARD.taunt : 0;
+}
+
+/**
+ * Who a creature's single blow is aimed at, from one die: the one drawing it
+ * (the strongest taunt, if any) for the first `taunt` of the die, else among
+ * all of them standing, evenly, by the rest of it. With no one drawing it,
+ * the die picks among them as it always has.
+ */
+export function singleTarget(standing: readonly PartyMember[], r: number): PartyMember {
+  const drawer = [...standing].sort((a, b) => tauntOf(b) - tauntOf(a))[0];
+  const pull = drawer ? tauntOf(drawer) : 0;
+  if (pull > 0) {
+    if (r < pull) return drawer;
+    const rest = (r - pull) / (1 - pull);
+    return standing[Math.min(standing.length - 1, Math.floor(rest * standing.length))];
+  }
+  return standing[Math.min(standing.length - 1, Math.floor(r * standing.length))];
+}
 /** 星癒の羽: a tenth of their most HP, and half her 魔力, each turn. */
 export const REGEN_SHARE = 0.1;
 export const REGEN_MAGIC = 0.5;
@@ -706,7 +737,8 @@ function breakLine(hit: { broke: boolean; name: string }): string[] {
  * The creature's turn. BROKEN: it loses the turn (one of two), and stands
  * again — its footing whole — once both are spent. Else its blow at one of
  * them still standing (`strike` says what kind of blow; an ordinary one is
- * physical, at one). 月影の構え on him: a quarter of blows miss, the rest
+ * physical, at one). 月影の構え on him: a single blow is drawn to him (85%),
+ * a quarter of the blows at him miss, the rest
  * reach him through a guard 30% thicker, and a physical blow at him alone is
  * answered — once a turn — at 0.8 of his swing.
  */
@@ -728,7 +760,8 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen
   const standing = state.members.filter((m) => !m.down);
   if (standing.length === 0) return settle(state);
   const strike = chosen ?? chooseStrike(foe, rng);
-  const targets = strike.area === 'ALL' ? standing : [standing[Math.min(standing.length - 1, Math.floor(rng() * standing.length))]];
+  // A blow at all of them is at all of them; a blow at one is drawn by 月影の構え (singleTarget).
+  const targets = strike.area === 'ALL' ? standing : [singleTarget(standing, rng())];
   let next = state;
   const said: string[] = [];
   let beat: PartyBeat | null = null;
