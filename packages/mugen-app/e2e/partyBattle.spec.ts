@@ -217,28 +217,29 @@ test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK com
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY');
 });
 
-// THE LAYOUT (作者指示 2026-10-12): the creature left; the party right,
-// standing on the ground in a diagonal up the path — グレイヴ in front
-// (lowest, nearest the creature, largest), the hero in the middle, Kaos at
-// the back (highest ground line, toward the party's side, smallest), never a
-// row or a column; the command cross top right and the party's HP under it on
-// the right edge, the bottom right left to the field; a GIANT drawn bigger
-// than the screen, the party a little smaller (not tiny), the reading and the
-// commands exactly where they are in a normal fight.
+// THE LAYOUT, FIXED (作者指示 2026-10-12, 固定方針): the creature's name, HP
+// and BREAK top left; the TURN ORDER and the place top centre; the party's
+// cards top right; WORLD MEMORY bottom left; the command cross bottom right.
+// The party right, in a cross of four fixed places along the ground —
+// FRONT グレイヴ, MID_LOWER 主人公, BACK ケイオス, MID_UPPER empty (a mark on
+// the ground) — every one on the ground with a shadow, front lowest and
+// largest, back highest up the path and smallest. A GIANT drawn bigger than
+// the screen, the party a little smaller (not tiny); the UI exactly where it
+// is in a normal fight.
 type Box = { x: number; y: number; width: number; height: number };
 const box = async (page: Page, id: string) => (await page.getByTestId(id).boundingBox()) as Box;
 const apart = (a: Box, b: Box) => a.x + a.width <= b.x + 1 || b.x + b.width <= a.x + 1 || a.y + a.height <= b.y + 1 || b.y + b.height <= a.y + 1;
 const feet = (b: Box) => b.y + b.height;
-const mid = (b: Box) => b.x + b.width / 2;
 
 for (const size of [
   { width: 640, height: 300 },
   { width: 844, height: 390 },
 ]) {
-  test(`at ${size.width}×${size.height}: front グレイヴ, middle 主人公, back ケイオス — a diagonal on the ground; the HP on the right edge, the bottom right open; a giant big, the party a little smaller; the same UI`, async ({ page }) => {
+  test(`at ${size.width}×${size.height}: the fixed layout — plate top left, turn order top centre, party top right, WORLD MEMORY bottom left, command cross bottom right; the party a cross on the ground; a giant big; the same UI`, async ({ page }) => {
     await page.setViewportSize(size);
     const seen: Record<string, Record<string, Box>> = {};
     for (const [query, scale] of [
+      ['enemy=moss_rabbit', 'NORMAL'],
       ['enemy=sekiryuga', 'NORMAL'],
       ['', 'GIANT'],
     ] as const) {
@@ -246,43 +247,57 @@ for (const size of [
       await turnOf(page, 'kaos');
       await expect(screen(page)).toHaveAttribute('data-scale', scale);
       await page.waitForTimeout(300);
+      // The four places: who is in which, and the empty one marked on the ground.
+      await expect(page.getByTestId('pb-figure-grave')).toHaveAttribute('data-slot', 'FRONT');
+      await expect(page.getByTestId('pb-figure-hero')).toHaveAttribute('data-slot', 'MID_LOWER');
+      await expect(page.getByTestId('pb-figure-kaos')).toHaveAttribute('data-slot', 'BACK');
+      await expect(page.getByTestId('pb-slot-empty-MID_UPPER')).toHaveCount(1);
+      for (const id of ['hero', 'kaos', 'grave']) await expect(page.getByTestId(`pb-figure-${id}`).locator('.pb-shadow')).toHaveCount(1);
       const ids = ['pb-figure-hero', 'pb-figure-kaos', 'pb-figure-grave', 'pb-enemy-art', 'pb-commands', 'pb-members', 'pb-enemy-plate', 'pb-turn-order', 'bx-world-memory'];
       const b = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await box(page, id)] as const)));
-      seen[scale] = b;
-      const [hero, kaos, grave, foe] = [b['pb-figure-hero'], b['pb-figure-kaos'], b['pb-figure-grave'], b['pb-enemy-art']];
-      // The creature left of all of them.
-      for (const who of [hero, kaos, grave]) expect(mid(who)).toBeGreaterThan(mid(foe));
-      // Front to back, up the path: the feet higher on the glass (further away), further right, the drawing smaller.
+      seen[`${scale}:${query}`] = b;
+      const [hero, kaos, grave] = [b['pb-figure-hero'], b['pb-figure-kaos'], b['pb-figure-grave']];
+      // Front to back along the ground: the feet higher up the path, the drawing smaller.
       expect(feet(grave)).toBeGreaterThan(feet(hero) + 8);
       expect(feet(hero)).toBeGreaterThan(feet(kaos) + 8);
-      expect(hero.x + hero.width).toBeGreaterThan(grave.x + grave.width);
-      expect(kaos.x + kaos.width).toBeGreaterThan(hero.x + hero.width);
       expect(hero.height / grave.height).toBeGreaterThan(0.88);
       expect(hero.height / grave.height).toBeLessThan(0.97);
       expect(kaos.height / grave.height).toBeGreaterThan(0.78);
       expect(kaos.height / grave.height).toBeLessThan(0.9);
-      // On the ground: even the back rank's feet are in the lower part of the screen (not in the air).
-      expect(feet(kaos)).toBeGreaterThan(size.height * 0.62);
-      // The party clear of the command cross and of the HP.
+      // On the ground: the back rank's feet are in the lower part of the screen, not in the air.
+      expect(feet(kaos)).toBeGreaterThan(size.height * 0.6);
+      // The UI's places.
+      const plate = b['pb-enemy-plate'];
+      expect(plate.x).toBeLessThan(size.width * 0.05);
+      expect(plate.y).toBeLessThan(size.height * 0.05);
+      const turn = b['pb-turn-order'];
+      expect(Math.abs(turn.x + turn.width / 2 - size.width / 2)).toBeLessThan(size.width * 0.08);
+      const cards = b['pb-members'];
+      expect(cards.x + cards.width).toBeGreaterThan(size.width * 0.96);
+      expect(cards.y).toBeLessThan(size.height * 0.05);
+      const cross = b['pb-commands'];
+      expect(cross.x + cross.width).toBeGreaterThan(size.width * 0.96);
+      expect(cross.y + cross.height).toBeGreaterThan(size.height * 0.95);
+      const memory = b['bx-world-memory'];
+      expect(memory.x).toBeLessThan(size.width * 0.05);
+      expect(memory.y + memory.height).toBeGreaterThan(size.height * 0.95);
+      // The party clear of the cross and of the cards.
       for (const who of [hero, kaos, grave]) {
-        expect(apart(who, b['pb-commands'])).toBe(true);
-        expect(apart(who, b['pb-members'])).toBe(true);
+        expect(apart(who, cross)).toBe(true);
+        expect(apart(who, cards)).toBe(true);
       }
-      // The HP on the right edge under the cross; the bottom right corner is the field's.
-      const hp = b['pb-members'];
-      expect(hp.x + hp.width).toBeGreaterThan(size.width * 0.95);
-      expect(hp.y).toBeGreaterThan(b['pb-commands'].y + b['pb-commands'].height - 1);
-      expect(hp.y + hp.height).toBeLessThan(size.height * 0.88);
       for (const id of ['pb-commands', 'pb-members', 'pb-enemy-plate', 'pb-break-gauge', 'bx-world-memory']) await onScreen(page, id);
     }
-    // The same reading and commands in both: nothing of the UI moved for the giant.
+    // The same UI in every one of them: nothing moved for the giant.
+    const normal = seen['NORMAL:enemy=sekiryuga'];
+    const giant = seen['GIANT:'];
     for (const id of ['pb-commands', 'pb-members', 'pb-enemy-plate', 'pb-turn-order', 'bx-world-memory']) {
-      expect(Math.abs(seen.GIANT[id].x - seen.NORMAL[id].x), id).toBeLessThan(2);
-      expect(Math.abs(seen.GIANT[id].y - seen.NORMAL[id].y), id).toBeLessThan(2);
+      expect(Math.abs(giant[id].x - normal[id].x), id).toBeLessThan(2);
+      expect(Math.abs(giant[id].y - normal[id].y), id).toBeLessThan(2);
     }
     // The giant: taller than the screen; the party a little smaller, not tiny.
-    expect(seen.GIANT['pb-enemy-art'].height).toBeGreaterThan(size.height);
-    const ratio = seen.GIANT['pb-figure-grave'].height / seen.NORMAL['pb-figure-grave'].height;
+    expect(giant['pb-enemy-art'].height).toBeGreaterThan(size.height);
+    const ratio = giant['pb-figure-grave'].height / normal['pb-figure-grave'].height;
     expect(ratio).toBeGreaterThan(0.7);
     expect(ratio).toBeLessThan(0.9);
   });

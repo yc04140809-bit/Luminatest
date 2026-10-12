@@ -15,7 +15,7 @@
   font-size: 13px;
   --pb-edge: max(8px, env(safe-area-inset-left));
   --pb-edge-r: max(8px, env(safe-area-inset-right));
-  --pb-dia: 58px;
+  --pb-dia: 64px;
 }
 .pb-bg {
   position: absolute;
@@ -45,13 +45,57 @@
 .pb-foe.acting img { filter: drop-shadow(0 0 8px rgba(230, 110, 90, 0.8)); }
 .pb-foe.broken img { filter: saturate(0.6) brightness(0.85) drop-shadow(0 0 6px rgba(255, 179, 71, 0.7)); }
 .pb-foe.shake img { animation: pb-foe-shake 450ms ease-out; }
-.pb-figure { position: absolute; transition: transform 200ms ease, filter 200ms ease, opacity 200ms ease; transform-origin: bottom center; }
-.pb-figure img { height: 100%; width: auto; display: block; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
-.pb-figure.acting { transform: translateY(-3%) scale(1.05); }
+.pb-figure {
+  position: absolute;
+  /* Its left edge is at the feet (partyStage `x`), pulled back by where the
+     feet are in the drawing. */
+  transform: translateX(calc(var(--pb-foot, 0.5) * -100%));
+  transform-origin: calc(var(--pb-foot, 0.5) * 100%) bottom;
+  transition: transform 200ms ease, filter 200ms ease, opacity 200ms ease;
+}
+.pb-figure img { position: relative; height: 100%; width: auto; display: block; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure.acting { transform: translateX(calc(var(--pb-foot, 0.5) * -100%)) translateY(-2%) scale(1.04); }
+/* On the ground: a shadow under the feet. */
+.pb-shadow {
+  position: absolute;
+  left: calc(var(--pb-foot, 0.5) * 100%);
+  bottom: 0;
+  width: calc(var(--pb-h, 0.4) * 100vh * 0.46);
+  height: calc(var(--pb-h, 0.4) * 100vh * 0.1);
+  transform: translate(-50%, 45%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.28) 60%, rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+/* An empty place in the cross: a mark on the ground. */
+.pb-slot-mark {
+  position: absolute;
+  z-index: 2;
+  width: calc(var(--pb-h, 0.4) * 100vh * 0.62);
+  height: calc(var(--pb-h, 0.4) * 100vh * 0.2);
+  transform: translate(-50%, 50%);
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px rgba(255, 240, 200, 0.7));
+}
+.pb-slot-mark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 34' preserveAspectRatio='none'%3E%3Cpolygon points='50,1 99,17 50,33 1,17' fill='rgba(255,248,225,0.2)' stroke='rgba(255,248,225,0.95)' stroke-width='1.6' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.pb-slot-mark::after {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: rgba(255, 250, 230, 0.95);
+}
 .pb-figure.guard img { filter: drop-shadow(0 0 6px rgba(150, 190, 255, 0.85)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
 .pb-figure.regen img { filter: drop-shadow(0 0 6px rgba(160, 255, 190, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
 .pb-figure.guard.regen img { filter: drop-shadow(0 0 5px rgba(150, 190, 255, 0.85)) drop-shadow(0 0 9px rgba(160, 255, 190, 0.6)); }
-.pb-figure.down { filter: grayscale(1) brightness(0.5); opacity: 0.6; transform: translateY(5%); }
+.pb-figure.down { filter: grayscale(1) brightness(0.5); opacity: 0.6; }
 
 .pb-float {
   position: absolute;
@@ -266,7 +310,7 @@
 .pb-commands {
   position: absolute;
   z-index: 6;
-  top: max(4px, env(safe-area-inset-top));
+  bottom: max(4px, env(safe-area-inset-bottom));
   right: var(--pb-edge-r);
 }
 .pb-cross {
@@ -330,7 +374,7 @@
 /* A list beside the cross: スキル, 魔法, 「誰に？」. */
 .pb-list {
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   right: calc(100% + 4px);
   display: flex;
   flex-direction: column;
@@ -364,7 +408,7 @@
 .pb-result {
   position: absolute;
   z-index: 6;
-  top: max(8px, env(safe-area-inset-top));
+  bottom: max(8px, env(safe-area-inset-bottom));
   right: var(--pb-edge-r);
   display: flex;
   align-items: center;
@@ -409,37 +453,40 @@
 .pb-chip { min-height: 30px; min-width: 44px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(231, 210, 156, 0.55); background: rgba(20, 16, 26, 0.8); color: #cfc3a5; font: inherit; font-size: 11px; letter-spacing: 0.06em; cursor: pointer; }
 .pb-chip.on { color: #1a1408; background: #f3d27a; border-color: #f3d27a; }
 
-/* ── right edge, under the cross: everyone's HP, one small card each ──
-   Not the bottom right: that is the field's (the party stands there). */
+/* ── top right: the party, one card each, down the edge ── */
 .pb-members {
   position: absolute;
   z-index: 5;
   right: var(--pb-edge-r);
-  top: calc(max(4px, env(safe-area-inset-top)) + var(--pb-dia) * 2.6 + 4px);
-  width: 118px;
+  top: max(4px, env(safe-area-inset-top));
+  width: 128px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 3px 4px;
+  gap: 3px;
+  padding: 0;
+  background: none;
+  border: 0;
 }
 .pb-member {
   display: grid;
   grid-template-columns: auto 1fr;
-  align-items: start;
-  column-gap: 5px;
-  padding: 2px 3px;
-  border-radius: 3px;
-  border: 1px solid transparent;
+  align-items: center;
+  column-gap: 6px;
+  padding: 3px 6px 3px 3px;
+  border-radius: 4px;
+  border: 1px solid rgba(231, 210, 156, 0.4);
+  background: rgba(11, 11, 18, 0.74);
 }
-.pb-member > .pb-face { width: 22px; height: 22px; margin-top: 1px; opacity: 1; }
-.pb-member.acting { border-color: rgba(243, 210, 122, 0.8); background: rgba(243, 210, 122, 0.1); }
+.pb-member > .pb-face { width: 26px; height: 26px; border-radius: 4px; opacity: 1; }
+.pb-member.acting { border-color: #f3d27a; box-shadow: 0 0 6px rgba(243, 210, 122, 0.5); }
 .pb-member.down { opacity: 0.55; }
-.pb-member.aimable { border-color: rgba(155, 227, 122, 0.6); }
+.pb-member.aimable { border-color: rgba(155, 227, 122, 0.8); }
 .pb-member-body { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
-.pb-member-name { font-size: 10px; color: #e7d29c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
-.pb-member-name i { font-style: normal; color: #f3d27a; margin-right: 2px; font-size: 8px; }
+/* The name is for reading aloud: the face says who it is. */
+.pb-member-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .pb-member .pb-num { line-height: 1.15; }
-.pb-member .pb-bar { height: 3px; }
+.pb-member .pb-bar { height: 4px; }
+.pb-member .pb-bar.mp { height: 3px; }
 .pb-down { color: #e88; font-size: 11px; }
 .pb-status { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 1px; line-height: 1; }
 .pb-status-chip { font-size: 9px; padding: 1px 3px; border-radius: 3px; white-space: nowrap; background: rgba(150, 190, 255, 0.22); color: #cfe0ff; }
@@ -452,13 +499,13 @@
 
 /* A short screen (640×300): a step tighter. */
 @media (max-height: 340px) {
-  .screen.pb-screen { --pb-dia: 46px; }
+  .screen.pb-screen { --pb-dia: 52px; }
   .pb-face { width: 20px; height: 20px; }
   .pb-face.acting { width: 26px; height: 26px; }
   .pb-log { -webkit-line-clamp: 1; font-size: 11px; }
-  .pb-members { width: 112px; gap: 1px; padding: 2px 3px; }
-  .pb-member { padding: 1px 2px; }
-  .pb-member > .pb-face { width: 20px; height: 20px; }
+  .pb-members { width: 118px; gap: 2px; }
+  .pb-member { padding: 2px 5px 2px 2px; column-gap: 5px; }
+  .pb-member > .pb-face { width: 22px; height: 22px; }
   .pb-num { font-size: 11px; }
   .pb-num.mp { font-size: 10px; }
   .pb-dia-jp { font-size: 11px; }

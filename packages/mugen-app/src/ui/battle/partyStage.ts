@@ -1,49 +1,53 @@
 // WHERE EVERYONE STANDS IN THE PARTY FIGHT (PartyBattleScreen), 2026-10-12.
 //
-// The same picture as every fight in the game: the creature on the LEFT,
-// the party on the RIGHT, standing ON THE GROUND and INTO it — a diagonal
-// up the path, the way formation.ts stands the two of them in the ordinary
-// fight. The front rank is lowest on the screen, nearest the creature and
-// a little larger; the rank behind stands further up the path (further
-// away, so higher on the glass and smaller) and further toward the party's
-// own side. Further back is NEVER "higher in the air": every slot's
-// `bottom` is a ground line, and the drawing's feet are on it.
+// THE PARTY STANDS IN A CROSS OF FOUR FIXED PLACES (作者指示 2026-10-12, 固定方針),
+// on the right of the field, laid along the ground's depth rather than
+// across the screen:
 //
-// SLOTS, NOT PEOPLE. A slot is a place on the ground — front, middle, back
-// (and a fourth, for a party of four: アリア, レヴィ…). Who stands in which
-// is the fight's formation (`formation`, front to back), defaulting to
-// FORMATION below. A party of one, two, three or four reads its row.
+//                        BACK          (far: up the path)
+//              MID_LOWER       MID_UPPER
+//   FRONT                                (near: toward the creature)
 //
-// TWO STAGINGS, chosen by the creature (`battleScale` on its spec), and
-// ONLY the drawing changes between them — the reading, the commands and
-// where they sit are the same in every fight:
+//   FRONT      nearest the creature and the camera: lowest, largest
+//   MID_LOWER  the middle rank, its near side (toward the creature)
+//   MID_UPPER  the middle rank, its far side (toward the party's edge)
+//   BACK       furthest up the path: highest ground line, smallest
 //
-//   NORMAL  the party at fight size, the creature about their size (its own
+// Further back is further UP THE GROUND, never up in the air: every place
+// is where the FEET stand (`x` the foot's place across, `bottom` the ground
+// line), and a shadow is drawn there. The four places are always the same;
+// who is in which is the fight's formation — now グレイヴ in front, the
+// hero mid-lower, Kaos at the back and mid-upper empty; アリア, レヴィ take
+// places in this same cross when they come.
+//
+// TWO STAGINGS, chosen by the creature (`battleScale` on its spec), and ONLY
+// the drawing changes between them — the reading and the controls sit
+// exactly where they sit in every fight:
+//
+//   NORMAL  the party at fight size; the creature about their size (its own
 //           BATTLE_PRESENCE / STAGE_ENEMY_SCALE applied, as in the ordinary
 //           fight).
-//   GIANT   the creature drawn bigger than the screen — its head may reach
-//           past the top and its feet past the bottom (ヴァルシール; later a
-//           dragon, a great machine) — and the party drawn a little smaller
-//           (about four fifths), in the same diagonal.
+//   GIANT   the creature drawn bigger than the screen on the left (ヴァルシール;
+//           later ヌマワタリ, a dragon, a great machine); the party a little
+//           smaller (about four fifths), the cross and its depth kept.
 //
-// Every number is a share of the screen (the field is the whole of it):
-// `right` / `left` in from that edge (the drawing's box), `bottom` up from
-// the foot of the screen to its feet, `height` how tall the drawing is.
-// What the party keeps clear of: the command cross top right and the
-// party's health under it on the right edge. Tuned on 640×300 and 844×390
-// screenshots, to be moved here — and only here — after seeing it on a
-// phone.
+// Every number is a share of the screen (the field is the whole of it).
+// What the party keeps clear of: the party's health top right, the command
+// cross with AUTO / ×2 bottom right. Tuned on 640×300 and 844×390
+// screenshots — moved here, and only here, after seeing it on a phone.
 
 import type { BattleScale } from '@mugen/game/battle/partyBattle';
 import { BATTLE_PRESENCE } from './battleArt';
 
-/** One place on the field. */
-export interface StageSpot {
-  /** In from the right edge (the party's side), as a share of the width. */
-  right?: number;
-  /** In from the left edge (the creature's side), as a share of the width. */
-  left?: number;
-  /** The ground line the feet stand on, up from the foot of the screen (a share of its height). */
+/** The four places of the party's cross. */
+export type CrossSlot = 'FRONT' | 'MID_UPPER' | 'MID_LOWER' | 'BACK';
+export const CROSS_SLOTS: readonly CrossSlot[] = ['FRONT', 'MID_UPPER', 'MID_LOWER', 'BACK'];
+
+/** Where someone's feet are. */
+export interface FootSpot {
+  /** Across, from the left edge, as a share of the width: where the feet are. */
+  x: number;
+  /** The ground line, up from the foot of the screen, as a share of its height. */
   bottom: number;
   /** How tall the drawing is, as a share of the screen's height. */
   height: number;
@@ -51,79 +55,91 @@ export interface StageSpot {
   depth: number;
 }
 
-export interface PartyStage {
-  /** The creature. `maxWidth` stops a wide drawing running into the party. */
-  enemy: StageSpot & { maxWidth: number };
-  /**
-   * The party's slots, by how many there are: front first, then each rank
-   * behind it (further up the path, toward the party's own side, smaller).
-   */
-  slots: Readonly<Record<1 | 2 | 3 | 4, readonly StageSpot[]>>;
+/** The creature's place: its drawing's left edge, ground line and height. */
+export interface EnemySpot {
+  left: number;
+  bottom: number;
+  height: number;
+  /** Stops a wide drawing running into the party. */
+  maxWidth: number;
 }
 
-/** The ranks of the ordinary staging. */
-const RANKS = {
-  front: { right: 0.4, bottom: 0.07, height: 0.44, depth: 4 },
-  middle: { right: 0.28, bottom: 0.18, height: 0.41, depth: 3 },
-  back: { right: 0.215, bottom: 0.3, height: 0.36, depth: 2 },
-  /** A fourth: further toward the creature and a step up the path. */
-  flank: { right: 0.47, bottom: 0.24, height: 0.37, depth: 1 },
-} as const satisfies Record<string, StageSpot>;
-
-/**
- * A GIANT's party: a little smaller (never tiny — it is the creature that is
- * made bigger), in the same diagonal, a step toward the party's side so the
- * creature has the left half.
- */
-const GIANT_RANKS = {
-  front: { right: 0.42, bottom: 0.06, height: 0.35, depth: 4 },
-  middle: { right: 0.3, bottom: 0.17, height: 0.33, depth: 3 },
-  back: { right: 0.215, bottom: 0.29, height: 0.29, depth: 2 },
-  flank: { right: 0.46, bottom: 0.25, height: 0.3, depth: 1 },
-} as const satisfies Record<string, StageSpot>;
-
-type Ranks = Record<'front' | 'middle' | 'back' | 'flank', StageSpot>;
-const slotsOf = (r: Ranks): PartyStage['slots'] => ({
-  1: [r.middle],
-  2: [r.front, r.back],
-  3: [r.front, r.middle, r.back],
-  4: [r.front, r.middle, r.back, r.flank],
-});
+export interface PartyStage {
+  enemy: EnemySpot;
+  cross: Readonly<Record<CrossSlot, FootSpot>>;
+}
 
 export const PARTY_STAGES: Readonly<Record<BattleScale, PartyStage>> = {
   NORMAL: {
-    enemy: { left: 0.05, bottom: 0.2, height: 0.44, maxWidth: 0.36, depth: 1 },
-    slots: slotsOf(RANKS),
+    enemy: { left: 0.05, bottom: 0.2, height: 0.44, maxWidth: 0.36 },
+    cross: {
+      FRONT: { x: 0.49, bottom: 0.07, height: 0.42, depth: 4 },
+      MID_LOWER: { x: 0.645, bottom: 0.15, height: 0.39, depth: 3 },
+      MID_UPPER: { x: 0.735, bottom: 0.19, height: 0.37, depth: 2 },
+      BACK: { x: 0.7, bottom: 0.33, height: 0.35, depth: 1 },
+    },
   },
   GIANT: {
     // Bigger than the screen: its feet past the bottom and its back past the
-    // left edge, its head (top right of the drawing) clear of the creature's
-    // plate and of the turn order.
-    enemy: { left: -0.08, bottom: -0.13, height: 1.14, maxWidth: 0.56, depth: 1 },
-    slots: slotsOf(GIANT_RANKS),
+    // left edge, its head (top right of the drawing) clear of its plate and
+    // of the turn order.
+    enemy: { left: -0.08, bottom: -0.13, height: 1.14, maxWidth: 0.56 },
+    cross: {
+      FRONT: { x: 0.55, bottom: 0.06, height: 0.34, depth: 4 },
+      MID_LOWER: { x: 0.67, bottom: 0.14, height: 0.315, depth: 3 },
+      MID_UPPER: { x: 0.745, bottom: 0.18, height: 0.3, depth: 2 },
+      BACK: { x: 0.72, bottom: 0.3, height: 0.28, depth: 1 },
+    },
   },
 };
 
+/** Who is in which place when the fight does not say (2026-10-12). */
+export const DEFAULT_FORMATION: Readonly<Partial<Record<CrossSlot, string>>> = {
+  FRONT: 'grave',
+  MID_LOWER: 'hero',
+  BACK: 'kaos',
+};
+
 /**
- * Front to back, when the fight does not say: グレイヴ in front (the heavy
- * blade), the hero in the middle, Kaos at the back (2026-10-12). Anyone
- * else after them, in the order they come.
+ * WHERE THE FEET ARE IN EACH DRAWING, across it (a share of its width): the
+ * drawings are not centred on the person (Grave's great sword reaches out to
+ * the left of him). The shadow is drawn there and the place's `x` is there.
  */
-export const FORMATION: readonly string[] = ['grave', 'hero', 'kaos'];
+export const FOOT_AT: Partial<Record<string, number>> = {
+  grave: 0.6,
+  hero: 0.5,
+  kaos: 0.52,
+};
 
 export function stageFor(scale: BattleScale | undefined): PartyStage {
   return PARTY_STAGES[scale ?? 'NORMAL'];
 }
 
-/** Each member's slot, by id: `formation` front to back, then anyone not in it. */
-export function partyPlaces(ids: readonly string[], stage: PartyStage, formation: readonly string[] = FORMATION): Record<string, StageSpot> {
-  const ordered = [...formation.filter((id) => ids.includes(id)), ...ids.filter((id) => !formation.includes(id))];
-  const n = Math.min(4, Math.max(1, ordered.length)) as 1 | 2 | 3 | 4;
-  const slots = stage.slots[n];
-  const out: Record<string, StageSpot> = {};
-  ordered.slice(0, slots.length).forEach((id, i) => {
-    out[id] = slots[i];
-  });
+/**
+ * Each member's place, by id: the formation's (slot → id), then anyone not
+ * in it in the empty places, in CROSS_SLOTS order. Four places; a fifth is
+ * not drawn.
+ */
+export function partyPlaces(
+  ids: readonly string[],
+  stage: PartyStage,
+  formation: Readonly<Partial<Record<CrossSlot, string>>> = DEFAULT_FORMATION,
+): Record<string, FootSpot & { slot: CrossSlot }> {
+  const out: Record<string, FootSpot & { slot: CrossSlot }> = {};
+  const taken = new Set<CrossSlot>();
+  for (const slot of CROSS_SLOTS) {
+    const id = formation[slot];
+    if (id && ids.includes(id) && !out[id]) {
+      out[id] = { ...stage.cross[slot], slot };
+      taken.add(slot);
+    }
+  }
+  const free = CROSS_SLOTS.filter((s) => !taken.has(s));
+  for (const id of ids.filter((i) => !out[i])) {
+    const slot = free.shift();
+    if (!slot) break;
+    out[id] = { ...stage.cross[slot], slot };
+  }
   return out;
 }
 
@@ -136,32 +152,42 @@ export const STAGE_ENEMY_SCALE: Partial<Record<string, number>> = {
 };
 
 /**
- * The creature's place in this staging with its own staging applied — the
- * SAME table the ordinary fight reads (battleArt's BATTLE_PRESENCE: `scale`
- * times as tall, `inset` further in, `bottom` further down), so a large
- * creature (セキリュウガ, ヌマワタリ…) is set up once for both kinds of fight.
- * A GIANT's place is its own and is used as it stands.
+ * The creature's place with its own staging applied — the SAME table the
+ * ordinary fight reads (battleArt's BATTLE_PRESENCE: `scale` times as tall,
+ * `inset` further in, `bottom` further down), so a large creature (セキリュウガ,
+ * ヌマワタリ…) is set up once for both kinds of fight. A GIANT's place is its
+ * own and is used as it stands.
  */
-export function enemySpot(stage: PartyStage, scale: BattleScale | undefined, artId: string): PartyStage['enemy'] {
+export function enemySpot(stage: PartyStage, scale: BattleScale | undefined, artId: string): EnemySpot {
   if ((scale ?? 'NORMAL') === 'GIANT') return stage.enemy;
   const presence = BATTLE_PRESENCE[artId];
   const small = STAGE_ENEMY_SCALE[artId] ?? 1;
   return {
     ...stage.enemy,
-    left: (stage.enemy.left ?? 0) + (presence?.inset ?? 0),
+    left: stage.enemy.left + (presence?.inset ?? 0),
     bottom: stage.enemy.bottom + (presence?.bottom ?? 0),
     height: stage.enemy.height * small * (presence?.scale ?? 1),
   };
 }
 
-/** A place as the style a drawing is given. */
-export function spotStyle(spot: StageSpot): Record<string, string | number> {
-  const pct = (v: number) => `${Number((v * 100).toFixed(3))}%`;
+const pct = (v: number) => `${Number((v * 100).toFixed(3))}%`;
+
+/** The creature's place as the style its drawing is given. */
+export function enemyStyle(spot: EnemySpot): Record<string, string | number> {
+  return { left: pct(spot.left), bottom: pct(spot.bottom), height: pct(spot.height), maxWidth: pct(spot.maxWidth), zIndex: 1 };
+}
+
+/**
+ * A member's place as the style their figure is given: its left edge at the
+ * feet, pulled back by where the feet are in the drawing (`--pb-foot`).
+ */
+export function footStyle(spot: FootSpot, foot: number): Record<string, string | number> {
   return {
-    ...(spot.right !== undefined ? { right: pct(spot.right) } : {}),
-    ...(spot.left !== undefined ? { left: pct(spot.left) } : {}),
+    left: pct(spot.x),
     bottom: pct(spot.bottom),
     height: pct(spot.height),
-    zIndex: spot.depth,
+    zIndex: 2 + spot.depth,
+    ['--pb-foot' as string]: String(foot),
+    ['--pb-h' as string]: String(spot.height),
   };
 }

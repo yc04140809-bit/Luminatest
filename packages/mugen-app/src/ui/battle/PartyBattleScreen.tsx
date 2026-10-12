@@ -32,35 +32,35 @@ import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
 import { memoryRows } from './battleHud';
 import './battle.generated.css';
-import { enemySpot, partyPlaces, spotStyle, stageFor } from './partyStage';
+import { CROSS_SLOTS, FOOT_AT, enemySpot, enemyStyle, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
 import './partyBattle.css';
 
 /**
  * THE PARTY FIGHT'S SCREEN (戦闘方式 B, 2026-10-12): everyone their own
  * health and their own turn (game/battle/partyBattle.ts).
  *
- * THE SAME PICTURE AS EVERY FIGHT IN THE GAME (作者指示 2026-10-12, UI 修正):
+ * THE SAME PICTURE AS EVERY FIGHT IN THE GAME (作者指示 2026-10-12, 固定方針):
  * the field is the whole screen; the creature on the LEFT, the party on the
- * RIGHT standing on the ground in a diagonal up the path — front, middle,
- * back (partyStage.ts: slots, never a row or a column); the reading kept to
- * the edges, the SAME in every fight of this kind:
+ * RIGHT standing in a CROSS of four fixed places laid along the ground
+ * (partyStage.ts — front, mid-upper, mid-lower, back; every one on the
+ * ground, with a shadow; an empty place shows as a mark on the ground). The
+ * reading and the controls are in the same places in every fight of this
+ * kind, a giant's included:
  *
+ *   top left      the creature's name, HP, BREAK gauge and state (防御DOWN)
  *   top centre    the TURN ORDER, the place, the last line said
- *   top left      the creature's name, HP and BREAK gauge, together
- *   top right     the COMMAND CROSS — 攻撃 / スキル / 魔法 / 防御 around the
- *                 face of whoever is acting; only what is in it changes
- *                 from one member to the next. A list (スキル, 魔法, 「誰に？」)
- *                 opens beside it.
- *   right edge    under the cross: everyone's HP, one small card each (face,
- *                 name, HP — and MP for one who has magic), always there;
- *                 what is on each of them (「月影 2T」「星癒 3T」). The bottom
- *                 right is left to the field (2026-10-12: the party is not
- *                 pushed about to make room for a panel). Room for four.
- *   bottom left   WORLD MEMORY (as in every fight), AUTO and ×2
+ *   top right     the party, one card each, down the edge: face, HP and its
+ *                 bar — MP too for one who has magic — and what is on them
+ *                 (「月影 2T」「星癒 3T」). Room for four.
+ *   bottom left   WORLD MEMORY (as in every fight), then AUTO and ×2
+ *   bottom right  the COMMAND CROSS — 攻撃 up, スキル left, 魔法 right, 防御
+ *                 down, the face of whoever is acting in the middle; only
+ *                 what is in it changes from one member to the next. A list
+ *                 (スキル, 魔法, 「誰に？」) opens beside it.
  *
  * A GIANT (`battleScale: 'GIANT'` on the creature — ヴァルシール) is drawn
- * bigger than the screen and the party a little smaller in the same
- * diagonal; nothing of the reading or the commands moves.
+ * bigger than the screen and the party a little smaller in the same cross;
+ * nothing of the reading or the controls moves.
  *
  * THEIR TECHNIQUES AND BREAK (通常スキル3種): every technique is in the
  * スキル list (星癒の羽 then asks 「誰に？」). MISS, the counter and the heal
@@ -97,8 +97,8 @@ export interface PartyBattleProps {
   memory?: { lines: readonly string[]; depth: number };
   /** Where the fight is, under the TURN ORDER (as every fight shows it). */
   place?: { mark: string; name: string };
-  /** Who stands where, front to back (absent: partyStage's FORMATION — グレイヴ, 主人公, ケイオス). */
-  formation?: readonly string[];
+  /** Who stands in which place of the cross (absent: partyStage's DEFAULT_FORMATION — グレイヴ front, 主人公 mid-lower, ケイオス back). */
+  formation?: Readonly<Partial<Record<CrossSlot, string>>>;
 }
 
 const ENEMY_TURN_MS = 700;
@@ -299,7 +299,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         <div
           className={`pb-foe${actor === ENEMY_ID ? ' acting' : ''}${broken ? ' broken' : ''}${shaking ? ' shake' : ''}`}
           data-testid="pb-foe"
-          style={{ ...spotStyle(foeSpot), maxWidth: `${foeSpot.maxWidth * 100}%` }}
+          style={enemyStyle(foeSpot)}
         >
           {art.enemy.src && <img src={art.enemy.src} alt={state.enemy.name} data-testid="pb-enemy-art" />}
           {broken && (
@@ -327,8 +327,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               key={m.id}
               className={`pb-figure${m.down ? ' down' : ''}${actor === m.id ? ' acting' : ''}${m.guardTurns > 0 ? ' guard' : ''}${m.regenTurns > 0 ? ' regen' : ''}`}
               data-testid={`pb-figure-${m.id}`}
-              style={spotStyle(spot)}
+              data-slot={spot.slot}
+              style={footStyle(spot, FOOT_AT[m.id] ?? 0.5)}
             >
+              <span className="pb-shadow" aria-hidden="true" />
               {art.party[m.id]?.src && <img src={art.party[m.id].src!} alt={m.name} />}
               {last && last.target === m.id && last.amount > 0 && (
                 <span key={lastKey} className={`pb-float${last.kind === 'MEND' ? ' heal' : ''}`}>
@@ -353,6 +355,16 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             </div>
           );
         })}
+        {/* An empty place in the cross: a mark on the ground, where the next one will stand. */}
+        {CROSS_SLOTS.filter((slot) => !Object.values(places).some((p) => p.slot === slot)).map((slot) => (
+          <span
+            key={slot}
+            className="pb-slot-mark"
+            data-testid={`pb-slot-empty-${slot}`}
+            aria-hidden="true"
+            style={{ left: `${stage.cross[slot].x * 100}%`, bottom: `${stage.cross[slot].bottom * 100}%`, ['--pb-h' as string]: String(stage.cross[slot].height) }}
+          />
+        ))}
         {flashName && (
           <span key={`n${lastKey}`} className="pb-tech-name" data-testid="pb-tech-name">
             {flashName}
@@ -409,7 +421,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </p>
       </div>
 
-      {/* TOP RIGHT — the command cross; a list opens beside it. */}
+      {/* BOTTOM RIGHT — the command cross; a list opens beside it. */}
       {state.outcome !== 'ONGOING' ? (
         <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
           <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
@@ -436,12 +448,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                 {acting.name}
               </b>
             )}
-            <button className="pb-dia up" data-testid="pb-cmd-skills" disabled={!playerInput || skills.length + techs.length === 0} onClick={() => toggle('SKILL')} aria-pressed={menu === 'SKILL'}>
+            <button className="pb-dia left" data-testid="pb-cmd-skills" disabled={!playerInput || skills.length + techs.length === 0} onClick={() => toggle('SKILL')} aria-pressed={menu === 'SKILL'}>
               <span className="pb-dia-plate" aria-hidden="true" />
               <SparkIcon size={13} className="pb-dia-mark" />
               <span className="pb-dia-jp">スキル</span>
             </button>
-            <button className="pb-dia left" data-testid="pb-cmd-attack" disabled={!playerInput} onClick={() => act({ kind: 'ATTACK' })}>
+            <button className="pb-dia up" data-testid="pb-cmd-attack" disabled={!playerInput} onClick={() => act({ kind: 'ATTACK' })}>
               <span className="pb-dia-plate" aria-hidden="true" />
               <SwordIcon size={13} className="pb-dia-mark" />
               <span className="pb-dia-jp">攻撃</span>
@@ -524,7 +536,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </div>
       )}
 
-      {/* RIGHT EDGE, under the cross — everyone's HP, one small card each. */}
+      {/* TOP RIGHT — the party, one card each, down the edge. */}
       <div className="pb-members" data-testid="pb-members" data-size={state.members.length}>
         {state.members.map((m) => {
           const face = faceOf(m.id);
@@ -541,10 +553,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             >
               <Face src={face.src} box={face.face} testId={`pb-member-${m.id}-face`} actor={m.id} acting={false} />
               <span className="pb-member-body">
-                <span className="pb-member-name">
-                  {actor === m.id && <i aria-hidden="true">▶</i>}
-                  {m.name}
-                </span>
+                <span className="pb-member-name">{m.name}</span>
                 {m.down ? (
                   <span className="pb-down" data-testid={`pb-member-${m.id}-down`}>
                     戦闘不能
