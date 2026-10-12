@@ -13,10 +13,22 @@
   object-fit: cover;
   z-index: 0;
 }
+/*
+ * How much of the waking creature is shown (content/story/chapter1Finale
+ * FinaleFrame): closer first, each frame centred on a part of the delivered
+ * picture (event-valsheel-awakening.png, 1672×941) and drawn larger, never
+ * re-cut. From the eye on, the hooded figure (the picture's left quarter) is
+ * out of the frame. Moving from one to the next is eased.
+ */
+.finale-backdrop { transition: transform 0.9s ease; }
+.finale-backdrop[data-frame='EYE'] { transform-origin: 80% 30%; transform: scale(3.4); }
+.finale-backdrop[data-frame='HEAD'] { transform-origin: 79% 34%; transform: scale(2.4); }
+.finale-backdrop[data-frame='PAW'] { transform-origin: 62% 80%; transform: scale(2); }
+.finale-backdrop[data-frame='UPPER'] { transform-origin: 100% 40%; transform: scale(1.45); }
+@media (prefers-reduced-motion: reduce) { .finale-backdrop { transition: none; } }
+
 /* The night before: the village in the dark. */
 .finale-night .finale-backdrop { filter: brightness(0.35) saturate(0.6) hue-rotate(200deg); }
-/* The raid: the village under smoke and fire. */
-.finale-raid .finale-backdrop { filter: brightness(0.6) sepia(0.5) saturate(1.8) hue-rotate(-25deg); }
 .finale-box {
   position: absolute;
   z-index: 1;

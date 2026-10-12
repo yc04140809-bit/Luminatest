@@ -4,10 +4,14 @@ import {
   FINALE_SCENES,
   FINALE_SCENE_BGM,
   finaleBackdrop,
+  finaleFrame,
+  type FinaleBackdrop,
+  type FinaleFrame,
   type FinaleSceneId,
 } from '@mugen/content/story/chapter1Finale';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
-import { finaleBeat, type FinaleFight, type FinaleStage } from '@mugen/core/world/chapterFinale';
+import { carriedInto } from '@mugen/content/characters/partyMembers';
+import { finaleBeat, finaleReached, type FinaleFight, type FinaleStage } from '@mugen/core/world/chapterFinale';
 import type { PartyEnemyInput, PartyMember, PartyMemberSpec } from '@mugen/game/battle/partyBattle';
 import type { BgmId } from '@mugen/assets';
 import { finaleBackdropSrc } from '../assets/finaleArt';
@@ -16,7 +20,7 @@ import { PartyBattleScreen } from './battle/PartyBattleScreen';
 import './finale.css';
 
 /**
- * 第1章終盤 — THE FINALE, PLAYED (2026-10-12, 手順3: 最低限の演出で最後まで通す).
+ * 第1章終盤 — THE FINALE, PLAYED (2026-10-12: 最低限の演出で最初から最後まで通す).
  *
  * The stage the world has reached says what comes next (core/world/
  * chapterFinale `finaleBeat`): its scenes, read one line at a time over
@@ -24,16 +28,23 @@ import './finale.css';
  * stage on — written before the next beat begins, so closing the game
  * anywhere resumes at the beat it was in, never further back than that.
  *
+ *   the first form's HP at nought   the fight stops; the shell breaks (a
+ *                  short scene); the second form, the same creature, with
+ *                  fresh health — and the party as the first form left them
  *   a fight lost   the party is put back on its feet and the beat is played
- *                  again from its first scene (the scene just before the
- *                  fight) — never the whole morning
- *   a fight not written yet (the second form, 手順4・5)
- *                  the beat is not begun: 「つづく」, and back to the title
+ *                  again from its first scene — for the first form, the few
+ *                  words on the grassland (never the raid again); for the
+ *                  second, the shell breaking
+ *   `until`        a stage not written past yet (the village after the stop,
+ *                  手順6): 「つづく」, and back to the title
  *
  * World-free: whoever shows it says how a stage is kept (`onReach`), who
  * fights (`party`), and what a lost fight costs (`onLost`); the DEBUG preview
  * shows the same thing with nothing kept.
  */
+
+/** What the finale wants to hear: a piece, nothing at all, or the place's own (null). */
+export type FinaleMusic = BgmId | 'HUSH' | null;
 
 export interface FinaleRunProps {
   /** Where the world is now. */
@@ -41,17 +52,18 @@ export interface FinaleRunProps {
   heroName: string;
   /** The fights that are written, by name. A beat whose fight is missing is not begun. */
   fights: Partial<Record<FinaleFight, { spec: PartyEnemyInput; artId: string }>>;
-  /** The party, as they stand now (asked each time a fight begins). */
+  /** The party, as they stand now (asked when a fight begins that does not follow straight on from another). */
   party: () => readonly PartyMemberSpec[];
   autoAvailable: boolean;
+  /** Played up to here for now: once the stage reaches it, 「つづく」. */
+  until?: FinaleStage;
   /** Keep a stage reached; the next beat waits for it. */
   onReach: (stage: FinaleStage) => Promise<unknown>;
   /** A fight won: how the party came out of it (wounds carried). */
   onWon?: (members: readonly PartyMember[]) => Promise<unknown>;
   /** A fight lost: put them back on their feet. */
   onLost: () => Promise<unknown>;
-  /** The music the finale wants now (null: the place's own). */
-  onMusic: (bgm: BgmId | null) => void;
+  onMusic: (music: FinaleMusic) => void;
   /** 「つづく」 read: the finale is left for now. */
   onPause: () => void;
 }
@@ -62,7 +74,8 @@ type Phase =
   | { kind: 'PAUSE' };
 
 /** What the stage leads to, and whether it can be played yet. */
-function playable(stage: FinaleStage, fights: FinaleRunProps['fights']) {
+function playable(stage: FinaleStage, fights: FinaleRunProps['fights'], until: FinaleStage | undefined) {
+  if (until && finaleReached(stage, until)) return null;
   const beat = finaleBeat(stage);
   // Not begun: nothing left, a beat the player chooses (旅立つ) or the end screen (手順6), a fight not written yet.
   if (!beat || beat.trigger === 'DEPART' || beat.then === 'END_SCREEN') return null;
@@ -70,15 +83,17 @@ function playable(stage: FinaleStage, fights: FinaleRunProps['fights']) {
   return beat;
 }
 
-export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable, onReach, onWon, onLost, onMusic, onPause }: FinaleRunProps) {
+export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable, until, onReach, onWon, onLost, onMusic, onPause }: FinaleRunProps) {
   const [stage, setStage] = useState<FinaleStage>(from);
-  const beat = useMemo(() => playable(stage, fights), [stage, fights]);
-  const [phase, setPhase] = useState<Phase>(() => (playable(from, fights) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' }));
+  const beat = useMemo(() => playable(stage, fights, until), [stage, fights, until]);
+  const [phase, setPhase] = useState<Phase>(() => (playable(from, fights, until) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' }));
   const [busy, setBusy] = useState(false);
   const round = useRef(0);
+  /** How the last fight left them, while the next follows straight on (the first form to the second). */
+  const carried = useRef<readonly PartyMember[] | null>(null);
 
   const sceneId: FinaleSceneId | null = phase.kind === 'SCENES' && beat ? beat.scenes[phase.scene] : null;
-  const music: BgmId | null =
+  const music: FinaleMusic =
     phase.kind === 'FIGHT' ? FINALE_FIGHT_BGM : sceneId ? (FINALE_SCENE_BGM[sceneId] ?? null) : null;
   useEffect(() => {
     onMusic(music);
@@ -92,7 +107,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       .finally(() => {
         setBusy(false);
         setStage(next);
-        setPhase(playable(next, fights) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' });
+        setPhase(playable(next, fights, until) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' });
       });
   };
 
@@ -109,11 +124,14 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
   }
 
   if (phase.kind === 'FIGHT') {
-    const foe = fights[beat.then as FinaleFight]!;
+    const which = beat.then as FinaleFight;
+    const foe = fights[which]!;
+    // The second form follows the first straight on: the party as it left them.
+    const members = which === 'VALSHEEL_FORM2' && carried.current ? carriedInto(party(), carried.current) : party();
     return (
       <PartyBattleScreen
         key={`finale-fight-${phase.round}`}
-        members={party()}
+        members={members}
         enemy={foe.spec}
         enemyArtId={foe.artId}
         background="GRASSLAND"
@@ -121,12 +139,14 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
         autoAvailable={autoAvailable}
         onEnd={(r) => {
           if (r.outcome === 'VICTORY') {
+            carried.current = which === 'VALSHEEL_FORM1' ? r.members : null;
             void (onWon ? onWon(r.members) : Promise.resolve())
               .catch((e) => console.error('Failed to carry the wounds out', e))
               .finally(() => reach(beat.reaches));
             return;
           }
           // Lost (it cannot be fled): on their feet again, and the beat from its first scene.
+          carried.current = null;
           void onLost()
             .catch((e) => console.error('Failed to put them on their feet', e))
             .finally(() => setPhase({ kind: 'SCENES', scene: 0, line: 0 }));
@@ -154,7 +174,8 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
     <FinaleScene
       sceneId={scene.id}
       backdrop={finaleBackdrop(scene, phase.line)}
-      mood={scene.id === 'EVE' ? 'night' : scene.id === 'RAID' || scene.id === 'VILLAGE_MIREI' ? 'raid' : null}
+      frame={finaleFrame(scene, phase.line)}
+      mood={scene.id === 'EVE' ? 'night' : null}
       speaker={speaker}
       text={line.text}
       at={phase.line}
@@ -168,6 +189,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
 function FinaleScene({
   sceneId,
   backdrop,
+  frame,
   mood,
   speaker,
   text,
@@ -176,8 +198,9 @@ function FinaleScene({
   onNext,
 }: {
   sceneId: FinaleSceneId;
-  backdrop: Parameters<typeof finaleBackdropSrc>[0];
-  mood: 'night' | 'raid' | null;
+  backdrop: FinaleBackdrop;
+  frame: FinaleFrame | null;
+  mood: 'night' | null;
   speaker: string | null;
   text: string;
   at: number;
@@ -191,9 +214,19 @@ function FinaleScene({
       data-testid="finale-scene"
       data-scene={sceneId}
       data-backdrop={backdrop}
+      data-frame={frame ?? 'ALL'}
       data-at={at}
     >
-      {src && <img className="finale-backdrop" src={src} alt="" aria-hidden="true" data-testid="finale-backdrop" />}
+      {src && (
+        <img
+          className="finale-backdrop"
+          src={src}
+          alt=""
+          aria-hidden="true"
+          data-testid="finale-backdrop"
+          data-frame={frame ?? 'ALL'}
+        />
+      )}
       <div className="finale-box" onClick={onNext}>
         {speaker && <p className="finale-speaker">{speaker}</p>}
         <p className="finale-line" data-testid="finale-line">

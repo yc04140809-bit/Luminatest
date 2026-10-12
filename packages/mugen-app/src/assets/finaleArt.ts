@@ -13,8 +13,10 @@ import type { FinaleBackdrop } from '@mugen/content/story/chapter1Finale';
  *   RUINS_UNSEALING   the hooded figure at the device (blue)
  *   RUINS_REFUSED     the second stage refused (red)
  *   VALSHEEL_AWAKENING  the creature waking, the figure before it
+ *   DARK              no picture: the screen black
  */
-const LOADERS: Record<FinaleBackdrop, () => Promise<string>> = {
+const LOADERS: Record<FinaleBackdrop, () => Promise<string | null>> = {
+  DARK: async () => null,
   HOME: async () => (await import('@mugen/assets/files/backgrounds/location-alden-village.webp')).default,
   VILLAGE: async () => (await import('@mugen/assets/files/backgrounds/location-alden-village.webp')).default,
   VILLAGE_BROKEN: async () => (await import('@mugen/assets/files/backgrounds/location-alden-village-broken.png')).default,

@@ -115,7 +115,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
           </button>
         ))}
         <button className="btn" data-testid="pb-select-finale" onClick={() => window.location.assign(`${window.location.pathname}?preview=finale`)}>
-          第1章終盤（遺跡〜襲撃〜第1形態）
+          第1章終盤（遺跡〜襲撃〜ヴァルシール戦）
         </button>
         <button className="btn" onClick={() => window.location.assign(window.location.pathname)}>
           タイトルへ

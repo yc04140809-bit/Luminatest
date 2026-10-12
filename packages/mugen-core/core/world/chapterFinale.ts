@@ -4,16 +4,25 @@
 // (storyArc.ts): the furthest stage reached, forward only. A save from
 // before has no row, which reads as NONE. SAVE_VERSION does not move.
 //
-//   NONE        not begun
-//   EVE         the night before has been seen (it comes at a rest once the
-//               signs are at their heaviest, PHASE 3)
-//   RAID        the morning has been seen to its end — the ruins, the raid,
-//               the lure to the grassland: they stand before the first form
-//   FORM1_WON   the first form brought down (its HP at nought — not a BREAK)
-//   STOPPED     the second form brought to a stop, and what followed seen up
-//               to Aria and Levi joining
+//   NONE        not begun (襲撃開始前)
+//   EVE         the night before has been seen (it comes at a rest — or on
+//               coming back into the village — once the signs are at their
+//               heaviest, PHASE 3)
+//   RAID        the ruins' depths, the morning and the raid seen (襲撃発生済み)
+//   LURED       the lure to the grassland seen, and the village meanwhile
+//               (草原誘導済み): what comes next is the talk before the fight,
+//               and a lost fight starts again from there
+//   FORM1_WON   the first form brought down — its HP at nought, not a BREAK
+//               (第2形態移行済み)
+//   FORM2_WON   the second form brought down (戦闘終了済み)
+//   STOPPED     what followed seen: the finishers, the stop, the return, up to
+//               Aria and Levi joining
 //   REBUILDING  the first days of rebuilding seen
 //   ENDED       the departure and CHAPTER 1 END seen
+//
+// LURED and FORM2_WON were put in between on 2026-10-12 (作者指示「遺跡最奥→
+// 襲撃→草原誘導→ヴァルシール戦 接続」, 保存する区切り). A word written before
+// still reads as itself.
 //
 // WHAT EACH STAGE MEANS for the rest of the game is decided here, once
 // (`finaleWorld`), so no screen works it out for itself: whether the village
@@ -27,7 +36,7 @@
 import type { IncidentPhase } from './aldenIncident';
 import type { FinaleSceneId } from '../../content/story/chapter1Finale';
 
-export const FINALE_STAGES = ['NONE', 'EVE', 'RAID', 'FORM1_WON', 'STOPPED', 'REBUILDING', 'ENDED'] as const;
+export const FINALE_STAGES = ['NONE', 'EVE', 'RAID', 'LURED', 'FORM1_WON', 'FORM2_WON', 'STOPPED', 'REBUILDING', 'ENDED'] as const;
 export type FinaleStage = (typeof FINALE_STAGES)[number];
 
 const rank = (stage: FinaleStage): number => FINALE_STAGES.indexOf(stage);
@@ -86,16 +95,23 @@ export function finaleBeat(stage: FinaleStage): FinaleBeat | null {
     case 'NONE':
       return { trigger: 'REST', scenes: ['EVE'], then: null, reaches: 'EVE' };
     case 'EVE':
-      return { trigger: 'AUTO', scenes: ['RUINS_SEAL', 'MORNING', 'RAID', 'LURE'], then: null, reaches: 'RAID' };
+      return { trigger: 'AUTO', scenes: ['RUINS_SEAL', 'MORNING', 'RAID'], then: null, reaches: 'RAID' };
     case 'RAID':
-      // The village's first moment is told before the fight — and again
-      // after a lost fight, with the grassland's few words.
-      return { trigger: 'AUTO', scenes: ['VILLAGE_MIREI', 'FORM1_START'], then: 'VALSHEEL_FORM1', reaches: 'FORM1_WON' };
+      return { trigger: 'AUTO', scenes: ['LURE', 'VILLAGE_MIREI'], then: null, reaches: 'LURED' };
+    case 'LURED':
+      // The few words on the grassland, then the fight — and, after a lost
+      // fight, these words again (never the raid again).
+      return { trigger: 'AUTO', scenes: ['FORM1_START'], then: 'VALSHEEL_FORM1', reaches: 'FORM1_WON' };
     case 'FORM1_WON':
-      return { trigger: 'AUTO', scenes: ['VILLAGE_RIZEL', 'SHELL_BREAK'], then: 'VALSHEEL_FORM2', reaches: 'STOPPED' };
+      // The fight stops; the shell breaks; the same creature fights on (the
+      // party as the first form left them).
+      return { trigger: 'AUTO', scenes: ['SHELL_BREAK'], then: 'VALSHEEL_FORM2', reaches: 'FORM2_WON' };
+    case 'FORM2_WON':
+      // The finishers, the stop, the village meanwhile, the return, who
+      // stays, who comes.
+      return { trigger: 'AUTO', scenes: AFTER_FORM2_SCENES, then: null, reaches: 'STOPPED' };
     case 'STOPPED':
-      // Shown once the second form is stopped: the bakery, the stop, the
-      // return, who stays, who comes. Then the first days of rebuilding.
+      // The first days of rebuilding.
       return { trigger: 'AUTO', scenes: ['REBUILD'], then: null, reaches: 'REBUILDING' };
     case 'REBUILDING':
       // The village being rebuilt can be walked first; leaving is the player's choice.
@@ -105,11 +121,11 @@ export function finaleBeat(stage: FinaleStage): FinaleBeat | null {
   }
 }
 
-/** The scenes seen when the second form is stopped, before the stage reads STOPPED. */
-export const AFTER_FORM2_SCENES: readonly FinaleSceneId[] = ['VILLAGE_BAKERY', 'STOPPED', 'RETURN', 'KAOS_STAYS', 'GRAVE_STAYS', 'ARIA_LEVI'];
-
-/** Within the second form's fight: the finishers are let loose (Kaos's first, then the hero's). */
+/** The second form's HP at nought: the finishers are let loose (Kaos's first, then the hero's). */
 export const FORM2_FINISHER_SCENES: readonly FinaleSceneId[] = ['KAOS_FINISHER', 'HERO_FINISHER'];
+
+/** What is seen once the second form is brought down, before the stage reads STOPPED. */
+export const AFTER_FORM2_SCENES: readonly FinaleSceneId[] = [...FORM2_FINISHER_SCENES, 'STOPPED', 'VILLAGE_BAKERY', 'RETURN', 'KAOS_STAYS', 'GRAVE_STAYS', 'ARIA_LEVI'];
 
 /** What the finale's stage means for the rest of the game. */
 export interface FinaleWorld {

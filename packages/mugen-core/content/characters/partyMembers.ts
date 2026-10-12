@@ -100,3 +100,18 @@ export function heroAndKaos(f: PartyFacts): PartyMemberSpec[] {
     },
   ];
 }
+
+/**
+ * THE PARTY AS ONE FIGHT LEFT THEM, FOR THE NEXT — ヴァルシール's first form to
+ * its second (作者指示 2026-10-12: 戦闘を一度停止 → 第2形態 → 戦闘継続). Health
+ * and magic carry; anyone down gets back up with 1 (the fight goes on, it is
+ * not lost); waits and what was on them start fresh. Someone not in `after`
+ * comes as `specs` has them.
+ */
+export function carriedInto(specs: readonly PartyMemberSpec[], after: readonly { id: string; hp: number; mp: number }[]): PartyMemberSpec[] {
+  return specs.map((s) => {
+    const m = after.find((x) => x.id === s.id);
+    return m ? { ...s, hp: Math.max(1, m.hp), mp: m.mp } : s;
+  });
+}
+

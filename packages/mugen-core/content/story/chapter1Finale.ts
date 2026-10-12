@@ -61,6 +61,8 @@ export interface FinaleLine extends DialogueLine {
   leviFace?: LeviFace;
   /** From this line on, the picture behind the words (until the next line that names one). */
   cg?: FinaleBackdrop;
+  /** From this line on, how much of the picture is shown (until the picture changes or another is named). */
+  frame?: FinaleFrame;
 }
 
 /** Every scene of the finale, by id, in the order they are played. */
@@ -72,7 +74,6 @@ export const FINALE_SCENE_IDS = [
   'LURE',
   'VILLAGE_MIREI',
   'FORM1_START',
-  'VILLAGE_RIZEL',
   'SHELL_BREAK',
   'KAOS_FINISHER',
   'HERO_FINISHER',
@@ -95,7 +96,15 @@ export type FinalePlace = 'HOME' | 'RUINS_DEPTHS' | 'VILLAGE' | 'VILLAGE_BROKEN'
  * hooded figure at the device (blue), the second stage refused (red), the
  * creature waking with him before it, and the empty room (the place's own).
  */
-export type FinaleCg = 'RUINS_UNSEALING' | 'RUINS_REFUSED' | 'VALSHEEL_AWAKENING';
+export type FinaleCg = 'DARK' | 'RUINS_UNSEALING' | 'RUINS_REFUSED' | 'VALSHEEL_AWAKENING';
+
+/**
+ * HOW MUCH OF A PICTURE IS SHOWN (作者指示: いきなり完成状態で出さない) — the
+ * waking creature, closer first: its eye, its head, a foreleg breaking the
+ * floor, its upper body (the figure gone from the frame by then). Held until
+ * the picture changes or another frame is named; absent, the whole picture.
+ */
+export type FinaleFrame = 'EYE' | 'HEAD' | 'PAW' | 'UPPER';
 
 /** What is behind the words: a place's own picture, or one of the scene pictures. */
 export type FinaleBackdrop = FinalePlace | FinaleCg;
@@ -123,90 +132,114 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   ]),
 
   // ---- F3 遺跡の最奥（主人公は不在）------------------------------------------
+  // 作者指示 2026-10-12「遺跡最奥→襲撃→草原誘導→ヴァルシール戦 接続」: 暗転 → 最奥 →
+  // 第一封鎖は成功に見える → 第二封鎖で装置が赤く異常 → 封印床の亀裂 → 目が灯る →
+  // フードの男は完全起動の前に退く → 頭・前脚・上半身と段階的にせり上がり完全起動 →
+  // 侵入者を探し、村の人々の気配を「侵入者」と誤認して村の方角へ。
+  // フードの男は冷静なまま、明らかに想定外。説明はしない。
   RUINS_SEAL: scene('RUINS_SEAL', 'RUINS_DEPTHS', [
-    { speaker: null, text: '同じ夜。古代遺跡の、さらに奥。' },
-    { speaker: null, text: '誰も入ったことのないはずの部屋に、灯りがひとつ。' },
-    { speaker: null, text: '黒いフードの人影が、古い装置に手を置いている。', cg: 'RUINS_UNSEALING' },
-    { speaker: null, text: '装置の光が、ひとつ、またひとつと灯っていく。' },
-    { speaker: HOODED, text: '……第一段階。' },
-    { speaker: null, text: '低い音。部屋の奥で、巨大な何かが身じろぎした。' },
-    { speaker: HOODED, text: '……次だ。' },
+    { speaker: null, text: '同じ夜。古代遺跡の、さらに奥。', cg: 'DARK' },
+    { speaker: null, text: '誰も入ったことのないはずの部屋に、灯りがひとつ。', cg: 'RUINS_DEPTHS' },
+    { speaker: null, text: '黒いフードの人影が、古い封印装置の前に立っている。', cg: 'RUINS_UNSEALING' },
+    { speaker: null, text: '青白い光が、ひとつ、またひとつと灯っていく。' },
+    { speaker: HOODED, text: '……第一封鎖、解除。' },
+    { speaker: null, text: '光が、静かに落ち着いた。うまくいったように見えた。' },
+    { speaker: HOODED, text: '次だ。' },
     { speaker: null, text: '装置が、赤く光った。', cg: 'RUINS_REFUSED' },
-    { speaker: null, text: '耳の奥を刺すような音。光が乱れ、明滅する。' },
+    { speaker: null, text: '低い機械音。石の割れる音。耳の奥を刺すような、古い警告の響き。' },
     { speaker: HOODED, text: '……違う。' },
-    { speaker: HOODED, text: '第二段階が、拒絶された……？' },
-    { speaker: null, text: `闇の奥で、${V}の目が灯った。`, cg: 'VALSHEEL_AWAKENING' },
-    { speaker: null, text: 'それは、フードの人影を見なかった。' },
-    { speaker: null, text: '壁の向こう――遠く、村のある方角を見ていた。' },
-    { speaker: HOODED, text: '……これは、予定にないな。' },
-    { speaker: null, text: '人影は、それ以上何も言わず、闇に溶けるように消えた。', cg: 'RUINS_DEPTHS' },
+    { speaker: null, text: '床の封印紋に、赤金の亀裂が走る。' },
+    { speaker: HOODED, text: '第二封鎖が……逆流している？' },
+    { speaker: null, text: '地の底から、振動が突き上げてくる。' },
+    { speaker: HOODED, text: '……まずい。' },
+    { speaker: null, text: '亀裂の奥で、巨大な目が灯った。', cg: 'VALSHEEL_AWAKENING', frame: 'EYE' },
+    { speaker: null, text: '人影が、一歩、後ろへ下がる。' },
+    { speaker: HOODED, text: 'まだ起きるはずじゃなかった。' },
+    { speaker: null, text: '人影は、それ以上何も言わず、舞い上がる砂煙の中へ消えた。' },
+    { speaker: null, text: '封印床が割れ、巨大な頭部がせり上がる。', frame: 'HEAD' },
+    { speaker: null, text: '石と金の前脚が、封印床を踏み破った。', frame: 'PAW' },
+    { speaker: null, text: '外殻をまとった上半身が、ゆっくりと起き上がる。', frame: 'UPPER' },
+    { speaker: null, text: `封殻機兵 ${V}――完全起動。` },
+    { speaker: null, text: 'それは、侵入者の姿を探した。そこにはもう、誰もいない。' },
+    { speaker: null, text: '壁の向こう、遠く――村のある方角に、たくさんの人の気配がある。' },
+    { speaker: null, text: '乱れた目が、それを「侵入者」と見なした。' },
+    { speaker: null, text: '巨体が、ゆっくりと村の方角へ向きを変えた。', cg: 'RUINS_DEPTHS' },
   ]),
 
-  // ---- F4 異変の朝（村）------------------------------------------------------
+  // ---- F4 異変の朝・接近（村）--------------------------------------------------
   MORNING: scene('MORNING', 'VILLAGE', [
     { speaker: null, text: '翌朝。' },
-    { speaker: null, text: '地面が、揺れた。' },
-    { speaker: null, text: 'もう一度。今度は、もっと大きく。' },
-    { speaker: WATCH, text: 'おい……森の方だ！ 木が、倒れてく！' },
-    { speaker: VILLAGER, text: '何だ、あれ……！' },
-    { speaker: KAOS, text: '……来た。', kaosFace: 'SERIOUS', tense: true },
-    { speaker: HERO, text: '何が！？' },
-    { speaker: GRAVE, text: '話は後だ。', graveFace: 'SERIOUS' },
+    { speaker: null, text: '遠くから、低い振動が伝わってくる。' },
+    { speaker: null, text: '森の鳥が、一斉に飛び立った。' },
+    { speaker: VILLAGER, text: 'な、何だ……？' },
+    { speaker: null, text: '地面が揺れ、軒先から埃がぱらぱらと落ちる。' },
+    { speaker: KAOS, text: '……来る。', kaosFace: 'SERIOUS', tense: true },
+    { speaker: HERO, text: '……遺跡の方だ。', heroFace: 'SERIOUS' },
+    { speaker: null, text: '森の向こうに、巨大な影が立ち上がった。' },
+    { speaker: WATCH, text: 'おい……森の木が、倒れてく！' },
+    { speaker: GRAVE, text: '下がってろ。……でけぇのが来るぞ。', graveFace: 'SERIOUS', tense: true },
     { speaker: null, text: 'グレイヴが、酒場の壁から古い両手剣を下ろした。' },
   ]),
 
-  // ---- F5 アルデン襲撃（村）---------------------------------------------------
-  RAID: scene('RAID', 'VILLAGE', [
-    { speaker: null, text: `村の柵を踏み砕いて、${V}が現れた。` },
-    { speaker: null, text: '石と金属でできた、巨大な獣。' },
-    { speaker: null, text: '尾のひと振りで、納屋の屋根が吹き飛んだ。' },
+  // ---- F5 アルデン襲撃（村・半壊）------------------------------------------------
+  // 全壊させない。屋根・柵・看板・窓・小さな火・瓦礫まで。死者・死体・死を示す台詞は無い。
+  // 村の人々も自分たちの村を守る（ミレイ・リゼル・パン屋親子）。
+  RAID: scene('RAID', 'VILLAGE_BROKEN', [
+    { speaker: null, text: `柵を踏み砕いて、${V}が村へ踏み込んだ。` },
+    { speaker: null, text: '尾のひと振りで、納屋の屋根が崩れ落ちる。' },
+    { speaker: null, text: '看板が折れ、窓が割れる。どこかで、小さく火の手が上がった。' },
     { speaker: VILLAGER, text: '逃げろ！ 家から出ろ！' },
-    { speaker: null, text: 'どこかで、火の手が上がる。' },
+    { speaker: MIREI, text: 'こっち！ 道を空けて！', face: 'ANGRY' },
+    { speaker: RIZEL, text: '歩ける人は、動けない人を手伝って！' },
+    { speaker: OWNER, text: 'リナ、離れるな！' },
+    { speaker: LINA, text: 'うん！' },
     { speaker: HERO, text: 'あいつ……何がしたいんだ！？' },
-    { speaker: KAOS, text: '……怒ってない。', kaosFace: 'SERIOUS', tense: true },
-    { speaker: KAOS, text: '探してる。何かを、ここにあると思ってる。' },
-    { speaker: GRAVE, text: 'どっちでも同じだ。このままじゃ村が持たねぇ！', graveFace: 'ANGRY', tense: true },
-    { speaker: HERO, text: '……ここで戦っちゃだめだ。', heroFace: 'SERIOUS', tense: true },
-    { speaker: HERO, text: '村から引き離す。草原まで。' },
-    { speaker: GRAVE, text: '……へっ。悪くねぇ。', graveFace: 'GRIN' },
-    { speaker: KAOS, text: '了解。こっちを見させればいいんだね。', kaosFace: 'SERIOUS' },
+    { speaker: KAOS, text: '……怒ってない。探してる。', kaosFace: 'SERIOUS', tense: true },
+    { speaker: KAOS, text: 'たぶん、ここにいるみんなを「侵入者」だと思ってる。' },
+    { speaker: GRAVE, text: 'ここでやり合ったら村がもたねぇ！', graveFace: 'ANGRY', tense: true },
+    { speaker: HERO, text: '外へ引きつける。', heroFace: 'SERIOUS', tense: true },
+    { speaker: KAOS, text: '草原なら被害を抑えられる。', kaosFace: 'SERIOUS' },
+    { speaker: GRAVE, text: '決まりだ。引っ張るぞ！', graveFace: 'GRIN', tense: true },
   ]),
 
   // ---- F6 草原へ誘導（街道）---------------------------------------------------
+  // ケイオスの光は小さく（MP は使わない）。村へ戻りかけたのを、主人公とグレイヴが引き戻す。
   LURE: scene('LURE', 'ROAD', [
     { speaker: KAOS, text: 'こっちだよ！', tense: true },
-    { speaker: null, text: `ケイオスの光が、${V}の顔をかすめた。` },
+    { speaker: null, text: `ケイオスの小さな光が、${V}の目の前ではじけた。` },
     { speaker: null, text: '巨大な頭が、ゆっくりとこちらを向く。' },
     { speaker: GRAVE, text: '来やがった。走れ！', graveFace: 'SERIOUS' },
-    { speaker: null, text: '三人は村の外へ。街道を抜け、開けた草原へ。' },
-    { speaker: null, text: '地響きが、すぐ後ろを追ってくる。' },
+    { speaker: null, text: '三人は村の外へ。地響きが、すぐ後ろを追ってくる。' },
+    { speaker: null, text: `街道の途中で、${V}の足が止まった。頭が、村の方へ戻りかける。` },
+    { speaker: HERO, text: 'そっちじゃない！', heroFace: 'ANGRY', tense: true },
+    { speaker: null, text: '投げた石が、外殻に当たって乾いた音を立てた。' },
+    { speaker: GRAVE, text: 'おら、こっちだデカブツ！', graveFace: 'GRIN', tense: true },
+    { speaker: null, text: '赤い目が、再び三人を捉えた。' },
+    { speaker: null, text: '街道を抜け、開けた草原へ。' },
   ]),
 
-  // ---- F7a 村側：ミレイ（戦闘の前に差し込む）----------------------------------
-  VILLAGE_MIREI: scene('VILLAGE_MIREI', 'VILLAGE', [
+  // ---- F7 村側：その間の村（石の倉庫）---------------------------------------------
+  VILLAGE_MIREI: scene('VILLAGE_MIREI', 'VILLAGE_BROKEN', [
     { speaker: null, text: 'そのころ、村では――' },
     { speaker: MIREI, text: '広場はだめ！ 井戸の裏、石の倉庫に！', face: 'ANGRY' },
     { speaker: VILLAGER, text: 'ミレイさん、足をやられた人が……！' },
     { speaker: MIREI, text: '店の棚の包帯、全部出して。旅支度の包みも開けていいから。' },
     { speaker: MIREI, text: '……作っておいて、よかった。', face: 'SAD' },
-  ]),
-
-  // ---- F8 草原決戦の前 ---------------------------------------------------------
-  FORM1_START: scene('FORM1_START', 'GRASSLAND', [
-    { speaker: null, text: '草原。村は、もう見えない。' },
-    { speaker: null, text: `${V}が、三人の前で足を止めた。` },
-    { speaker: GRAVE, text: 'ここなら、誰も巻き込まねぇ。', graveFace: 'SERIOUS' },
-    { speaker: HERO, text: 'ああ。――行くぞ！', heroFace: 'SERIOUS', tense: true },
-  ]),
-
-  // ---- F7b 村側：リゼル（第1形態の後に差し込む）--------------------------------
-  VILLAGE_RIZEL: scene('VILLAGE_RIZEL', 'VILLAGE', [
-    { speaker: null, text: '石の倉庫の中。' },
     { speaker: CHILD, text: '……こわい。' },
     { speaker: RIZEL, text: '大丈夫。ここは、ちゃんと守られてる。' },
     { speaker: RIZEL, text: 'おばあちゃん、腕、見せて。……うん、きつく巻くね。' },
     { speaker: VILLAGER, text: 'リゼルちゃん、あんた、手が震えて……' },
     { speaker: RIZEL, text: '震えてても、巻ける。' },
+  ]),
+
+  // ---- F8 草原決戦の前（ここで敗北からの再開地点）--------------------------------
+  FORM1_START: scene('FORM1_START', 'GRASSLAND', [
+    { speaker: null, text: '草原。村は、もう見えない。' },
+    { speaker: null, text: `${V}が、三人の前で足を止めた。` },
+    { speaker: GRAVE, text: 'ここなら好きに暴れられる。', graveFace: 'GRIN' },
+    { speaker: KAOS, text: '好きに暴れさせる気はないけどね。', kaosFace: 'SERIOUS' },
+    { speaker: HERO, text: '止める。', heroFace: 'SERIOUS', tense: true },
+    { speaker: GRAVE, text: 'おう。', graveFace: 'SERIOUS' },
   ]),
 
   // ---- F9 外殻破壊 → 第2形態（第1形態の HP が 0）--------------------------------
@@ -221,9 +254,10 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: KAOS, text: '……これが、本当の姿。', kaosFace: 'SURPRISED', tense: true },
   ]),
 
-  // ---- F10 必殺技の解放（第2形態戦の途中）--------------------------------------
+  // ---- F10 必殺技の解放（第2形態の HP が 0 になった後のとどめ）--------------------------------------
   KAOS_FINISHER: scene('KAOS_FINISHER', 'GRASSLAND', [
-    { speaker: KAOS, text: '……このままじゃ、押し切れない。', kaosFace: 'SERIOUS', tense: true },
+    { speaker: null, text: `砕けかけた${V}が、それでも立ち上がる。` },
+    { speaker: KAOS, text: '……このままじゃ、止まらない。', kaosFace: 'SERIOUS', tense: true },
     { speaker: KAOS, text: 'かなり魔力を使うけど――仕方ないよね。' },
     { speaker: KAOS, text: '下がってて。本気、出すから。', tense: true },
   ]),
@@ -341,6 +375,16 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   ]),
 };
 
+/** How much of the picture behind line `at` is shown: the last frame named since the picture last changed, or null (all of it). */
+export function finaleFrame(scene: FinaleScene, at: number): FinaleFrame | null {
+  for (let i = Math.min(at, scene.lines.length - 1); i >= 0; i--) {
+    const l = scene.lines[i];
+    if (l.frame) return l.frame;
+    if (l.cg) return null;
+  }
+  return null;
+}
+
 /** The picture behind line `at` of a scene: the last one named at or before it, else the place's own. */
 export function finaleBackdrop(scene: FinaleScene, at: number): FinaleBackdrop {
   for (let i = Math.min(at, scene.lines.length - 1); i >= 0; i--) {
@@ -354,20 +398,21 @@ export function finaleBackdrop(scene: FinaleScene, at: number): FinaleBackdrop {
  * THE MUSIC OF EACH SCENE (作者決定 2026-10-12): the ruins' depths and the
  * hooded figure — 厳かな協会の歌 (church-hymn); from the morning's first
  * quake to the grassland and its fight — 立ち向かう背中 (chapter1-final-boss).
- * Null: the place plays its own (the night before, at home). What follows
- * the second form (the broken village, the rebuilding) is decided with it.
+ * Null: the place plays its own (the night before, at home; what follows the
+ * stop — the village's piece, for now). HUSH: no music (the stop itself).
  */
-export const FINALE_SCENE_BGM: Readonly<Partial<Record<FinaleSceneId, 'CHURCH_HYMN' | 'CHAPTER1_FINAL_BOSS'>>> = {
+export const FINALE_SCENE_BGM: Readonly<Partial<Record<FinaleSceneId, 'CHURCH_HYMN' | 'CHAPTER1_FINAL_BOSS' | 'HUSH'>>> = {
   RUINS_SEAL: 'CHURCH_HYMN',
   MORNING: 'CHAPTER1_FINAL_BOSS',
   RAID: 'CHAPTER1_FINAL_BOSS',
   LURE: 'CHAPTER1_FINAL_BOSS',
   VILLAGE_MIREI: 'CHAPTER1_FINAL_BOSS',
   FORM1_START: 'CHAPTER1_FINAL_BOSS',
-  VILLAGE_RIZEL: 'CHAPTER1_FINAL_BOSS',
   SHELL_BREAK: 'CHAPTER1_FINAL_BOSS',
   KAOS_FINISHER: 'CHAPTER1_FINAL_BOSS',
   HERO_FINISHER: 'CHAPTER1_FINAL_BOSS',
+  // It stops: the music lets go. Then the village's own, quietly (暫定 — 作者 2026-10-12「静かな既存曲（暫定可）」).
+  STOPPED: 'HUSH',
 };
 
 /** The finale's fights are fought to 立ち向かう背中. */

@@ -62,14 +62,14 @@ import { RUINS_CRY_MARK, SEKIRYUGA_REVISIT_MARK, SEKIRYUGA_RUMORS } from '@mugen
 import { GRAVE_MEETING_MARK, hasMetGrave } from '@mugen/content/talk/graveTalks';
 import { pickupKeeper } from './ui/explore/pickupKeeper';
 import { stageReached } from '@mugen/core/world/storyArc';
-import { eveDue, finaleWorld } from '@mugen/core/world/chapterFinale';
-import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
+import { eveDue, finaleReached } from '@mugen/core/world/chapterFinale';
+import { VALSHEEL_FORM1_PROVISIONAL, VALSHEEL_FORM2_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
 import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
 import { availableMagic } from '@mugen/core/magic/magic';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { kaosHasAwakened } from '@mugen/core/magic/awakened';
-import { FinaleRun } from './ui/finale';
+import { FinaleRun, type FinaleMusic } from './ui/finale';
 
 /** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
 const AUTO_NOTICE = 'note:auto_battle';
@@ -278,7 +278,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
    * ordinary village is drawn. Its music, while it wants its own.
    */
   const [finale, setFinale] = useState(false);
-  const [finaleBgm, setFinaleBgm] = useState<BgmId | null>(null);
+  const [finaleBgm, setFinaleBgm] = useState<FinaleMusic>(null);
   useEffect(() => {
     if (!finale) setFinaleBgm(null);
   }, [finale]);
@@ -572,9 +572,10 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   },
   // Let down on the way in to セキリュウガ, and held off after its fight: what is
   // seen then is seen in quiet.
-  state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath'),
+  // And in the finale, where it asks for quiet (ヴァルシール coming to a stop).
+  (state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath')) || (finale && finaleBgm === 'HUSH'),
   // A piece picked from the bard's archive, while still in the tavern; the finale's own, while it wants one.
-  tavern ? bardPiece : finale ? finaleBgm : null);
+  tavern ? bardPiece : finale && finaleBgm !== 'HUSH' ? finaleBgm : null);
   // THE MUSIC ARCHIVE keeps what the game has played (once each).
   useEffect(() => {
     if (playingBgm) void world.markMusicHeard(playingBgm).catch(() => {});
@@ -766,8 +767,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             onContinue={() => {
               if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
               flow.goTo('HOME');
-              // INSIDE THE FINALE: back to the beat it was in (nothing of the village between).
-              if (finaleWorld(world.getFinaleStage()).inSequence) {
+              // INSIDE THE FINALE (or past what is written of it): back to the beat it was in — nothing of the village between.
+              if (finaleReached(world.getFinaleStage(), 'EVE')) {
                 setFinale(true);
                 return;
               }
@@ -837,22 +838,25 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       );
     case 'HOME':
       if (finale) {
+        // A test may make ヴァルシール quick to beat (DEV only).
+        const quick = <T extends { hp: number }>(spec: T): T => {
+          const hp = import.meta.env.DEV ? (window as unknown as { __mugenFinaleFoeHp?: number }).__mugenFinaleFoeHp : undefined;
+          return typeof hp === 'number' ? { ...spec, hp } : spec;
+        };
         return (
           <FinaleRun
             stage={world.getFinaleStage()}
             heroName={world.getHeroName()}
             fights={{
-              VALSHEEL_FORM1: {
-                // A test may make it quick to beat (DEV only).
-                spec: (() => {
-                  const hp = import.meta.env.DEV ? (window as unknown as { __mugenFinaleFoeHp?: number }).__mugenFinaleFoeHp : undefined;
-                  return typeof hp === 'number' ? { ...VALSHEEL_FORM1_PROVISIONAL, hp } : VALSHEEL_FORM1_PROVISIONAL;
-                })(),
-                artId: 'valsheel',
-              },
+              VALSHEEL_FORM1: { spec: quick(VALSHEEL_FORM1_PROVISIONAL), artId: 'valsheel' },
+              VALSHEEL_FORM2: { spec: quick(VALSHEEL_FORM2_PROVISIONAL), artId: 'valsheel_form2' },
             }}
+            // Written up to the stop and what follows it (to Aria and Levi); the village after is 手順6.
+            until="STOPPED"
             party={() => {
               const stats = world.getPartyStats();
+              // A test may send them in on their last legs (DEV only), to see a lost fight.
+              const legs = import.meta.env.DEV ? (window as unknown as { __mugenFinalePartyHp?: number }).__mugenFinalePartyHp : undefined;
               return [
                 ...heroAndKaos({
                   heroName: world.getHeroName(),
@@ -864,7 +868,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                   kaosMagic: availableMagic(MAGIC_DEFS, { awakened: kaosHasAwakened(world.getKnownEvents().map((e) => e.type)) }),
                 }),
                 GRAVE_GUEST,
-              ];
+              ].map((m) => (typeof legs === 'number' ? { ...m, hp: legs } : m));
             }}
             autoAvailable={autoOpen}
             onReach={(stage) => world.advanceFinaleStage(stage)}
@@ -1193,6 +1197,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             // Her word only when nothing else is said, and once a day at most (状況別の会話 included).
             setHomeNudge(homecomingTalk(world, talkMemo.current, !daily && !banter && !news));
             flow.goTo('HOME');
+            // 第1章終盤: the signs at their heaviest — coming back in, that night is the night before.
+            if (eveDue({ phase: world.getIncidentPhase(), stage: world.getFinaleStage() })) setFinale(true);
           }}
           // Opened by the tavern's master telling what was sealed there.
           ruins={stageReached(stage, 'TOLD')}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER1_END, FINALE_FIGHT_BGM, FINALE_SCENES, FINALE_SCENE_BGM, FINALE_SCENE_IDS, FINALE_SPEAKERS, finaleBackdrop, type FinaleLine } from './chapter1Finale';
-import { AFTER_FORM2_SCENES, FORM2_FINISHER_SCENES, finaleBeat, FINALE_STAGES } from '../../core/world/chapterFinale';
+import { CHAPTER1_END, FINALE_FIGHT_BGM, FINALE_SCENES, FINALE_SCENE_BGM, FINALE_SCENE_IDS, FINALE_SPEAKERS, finaleBackdrop, finaleFrame, type FinaleLine } from './chapter1Finale';
+import { finaleBeat, FINALE_STAGES } from '../../core/world/chapterFinale';
 import { KAOS_FACES } from '../characters/kaosFaces';
 import { GRAVE_FACES } from '../characters/graveFaces';
 import { HERO_FACES } from '../characters/heroFaces';
@@ -28,25 +28,41 @@ describe('第1章終盤 — the script (作者指示 2026-10-12)', () => {
     expect(FINALE_SCENES.RAID.lines.map((l) => l.text).join('\n')).toContain('怒ってない');
   });
 
-  it('the hooded man: the first unsealing works, the second is refused, he leaves — unexplained, not killed, not named as the tavern\'s guest', () => {
-    const ruins = FINALE_SCENES.RUINS_SEAL.lines.map((l) => l.text).join('\n');
-    expect(ruins).toContain('第一段階');
-    expect(ruins).toContain('第二段階が、拒絶された');
-    expect(ruins).toContain('消えた');
+  it('the hooded man: the first lock opens, the second flows back, he leaves before it is fully awake — unexplained, not killed, not named as the tavern\'s guest', () => {
+    const lines = FINALE_SCENES.RUINS_SEAL.lines;
+    const ruins = lines.map((l) => l.text).join('\n');
     const his = said(FINALE_SPEAKERS.HOODED);
-    expect(his.split('\n').length).toBeLessThanOrEqual(5);
+    // 作者指示 2026-10-12: these, and the one telling word (「まだ起きるはずじゃなかった。」) — nothing more.
+    expect(his.split('\n')).toEqual(['……第一封鎖、解除。', '次だ。', '……違う。', '第二封鎖が……逆流している？', '……まずい。', 'まだ起きるはずじゃなかった。']);
+    expect(ruins).toContain('消えた');
+    // He is gone before it is fully awake.
+    const gone = lines.findIndex((l) => l.text.includes('消えた'));
+    const awake = lines.findIndex((l) => l.text.includes('完全起動'));
+    expect(gone).toBeGreaterThan(0);
+    expect(awake).toBeGreaterThan(gone);
     for (const word of ['酒場', '客', '目的', '計画']) expect(ruins, word).not.toContain(word);
     // It does not look at him: it looks toward the village.
     expect(ruins).toContain('村のある方角');
   });
 
-  it('the hero decides where to fight (out of the village); the village fights its own way too (Mirei, Rizel, the bakery)', () => {
-    expect(said(FINALE_SPEAKERS.HERO)).toContain('ここで戦っちゃだめだ');
-    expect(said(FINALE_SPEAKERS.HERO)).toContain('草原');
+  it('Grave decides not to fight in the village; out to the grassland; the village fights its own way too (Mirei, Rizel, the bakery)', () => {
+    const raid = FINALE_SCENES.RAID.lines;
+    const said3 = (who: string, t: string) => raid.some((l) => l.speaker === who && l.text === t);
+    expect(said3(FINALE_SPEAKERS.GRAVE, 'ここでやり合ったら村がもたねぇ！')).toBe(true);
+    expect(said3(FINALE_SPEAKERS.HERO, '外へ引きつける。')).toBe(true);
+    expect(said3(FINALE_SPEAKERS.KAOS, '草原なら被害を抑えられる。')).toBe(true);
+    expect(said3(FINALE_SPEAKERS.GRAVE, '決まりだ。引っ張るぞ！')).toBe(true);
+    // In the raid itself, the village moves too.
+    expect(said3(FINALE_SPEAKERS.MIREI, 'こっち！ 道を空けて！')).toBe(true);
+    expect(said3(FINALE_SPEAKERS.RIZEL, '歩ける人は、動けない人を手伝って！')).toBe(true);
+    expect(said3(FINALE_SPEAKERS.OWNER, 'リナ、離れるな！')).toBe(true);
+    expect(said3(FINALE_SPEAKERS.LINA, 'うん！')).toBe(true);
     expect(said(FINALE_SPEAKERS.MIREI)).toContain('包帯');
     expect(said(FINALE_SPEAKERS.RIZEL)).toContain('巻');
     expect(said(FINALE_SPEAKERS.LINA) + said(FINALE_SPEAKERS.OWNER)).toContain('火');
-    for (const id of ['VILLAGE_MIREI', 'VILLAGE_RIZEL', 'VILLAGE_BAKERY'] as const) expect(FINALE_SCENES[id].place).toBe('VILLAGE');
+    // The raid is in the half-broken village (not destroyed): its own picture.
+    expect(FINALE_SCENES.RAID.place).toBe('VILLAGE_BROKEN');
+    expect(FINALE_SCENES.RAID.lines.map((l) => l.text).join('')).not.toMatch(/全滅|消え去|跡形/);
   });
 
   it('Kaos stays (mending, watching it) and cannot fight; Grave stays because he has something to protect; Kaos is quietly hurt', () => {
@@ -94,7 +110,6 @@ describe('第1章終盤 — the script (作者指示 2026-10-12)', () => {
       const beat = finaleBeat(stage);
       if (!beat) continue;
       played.push(...beat.scenes);
-      if (beat.then === 'VALSHEEL_FORM2') played.push(...FORM2_FINISHER_SCENES, ...AFTER_FORM2_SCENES);
     }
     expect([...played].sort()).toEqual([...FINALE_SCENE_IDS].sort());
     expect(new Set(played).size).toBe(played.length);
@@ -102,18 +117,31 @@ describe('第1章終盤 — the script (作者指示 2026-10-12)', () => {
 });
 
 describe('第1章終盤 手順3 — 絵と音 (2026-10-12)', () => {
-  it('the ruins’ depths: the empty room, the figure at the device, the refusal, the waking, the empty room again', () => {
+  it('the ruins’ depths (作者指示 2026-10-12): dark, the room, the figure at the device (blue), the refusal (red), the waking — shown a little at a time — then the empty room', () => {
     const ruins = FINALE_SCENES.RUINS_SEAL;
     const order: string[] = [];
+    const frames: string[] = [];
     ruins.lines.forEach((_, i) => {
       const b = finaleBackdrop(ruins, i);
       if (order[order.length - 1] !== b) order.push(b);
+      const f = finaleFrame(ruins, i);
+      if (f && frames[frames.length - 1] !== f) frames.push(f);
     });
-    expect(order).toEqual(['RUINS_DEPTHS', 'RUINS_UNSEALING', 'RUINS_REFUSED', 'VALSHEEL_AWAKENING', 'RUINS_DEPTHS']);
-    // The refusal from 「装置が、赤く光った」; the waking from its eyes lighting — and he is still there for 「予定にないな」.
+    expect(order).toEqual(['DARK', 'RUINS_DEPTHS', 'RUINS_UNSEALING', 'RUINS_REFUSED', 'VALSHEEL_AWAKENING', 'RUINS_DEPTHS']);
+    // Never the whole creature at once: its eye, its head, a foreleg, its upper body.
+    expect(frames).toEqual(['EYE', 'HEAD', 'PAW', 'UPPER']);
+    // The refusal from 「装置が、赤く光った」.
     expect(ruins.lines.findIndex((l) => l.cg === 'RUINS_REFUSED')).toBe(ruins.lines.findIndex((l) => l.text === '装置が、赤く光った。'));
-    const plan = ruins.lines.findIndex((l) => l.text === '……これは、予定にないな。');
-    expect(finaleBackdrop(ruins, plan)).toBe('VALSHEEL_AWAKENING');
+    // He sees its eye light, steps back, and is gone while only its eye is shown (his figure is out of the frame after).
+    const gone = ruins.lines.findIndex((l) => l.text.includes('消えた'));
+    expect(finaleFrame(ruins, gone)).toBe('EYE');
+    // Its name in full once it is fully awake; it takes the village’s people for intruders.
+    const text = ruins.lines.map((l) => l.text).join('\n');
+    expect(text).toContain('封殻機兵');
+    expect(text).toContain('侵入者');
+    expect(text).toContain('村のある方角');
+    // A frame ends with its picture.
+    expect(finaleFrame(ruins, ruins.lines.length - 1)).toBeNull();
   });
 
   it('a scene with no picture named is its place', () => {
@@ -123,6 +151,9 @@ describe('第1章終盤 手順3 — 絵と音 (2026-10-12)', () => {
 
   it('music: the hymn in the ruins, 立ち向かう背中 from the quake to the fight, the village’s own the night before', () => {
     expect(FINALE_SCENE_BGM.EVE).toBeUndefined();
+    // The stop lets the music go; what follows is the village's own for now.
+    expect(FINALE_SCENE_BGM.STOPPED).toBe('HUSH');
+    expect(FINALE_SCENE_BGM.RETURN).toBeUndefined();
     expect(FINALE_SCENE_BGM.RUINS_SEAL).toBe('CHURCH_HYMN');
     for (const id of ['MORNING', 'RAID', 'LURE', 'VILLAGE_MIREI', 'FORM1_START'] as const) expect(FINALE_SCENE_BGM[id]).toBe('CHAPTER1_FINAL_BOSS');
     expect(FINALE_FIGHT_BGM).toBe('CHAPTER1_FINAL_BOSS');

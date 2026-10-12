@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
 import { World } from './world';
 import { IdbMemoryStore } from '../memory/idbStore';
-import { advanceFinale, eveDue, finaleBeat, finaleReached, finaleWorld, readFinaleStage, FINALE_STAGES } from './chapterFinale';
+import { AFTER_FORM2_SCENES, advanceFinale, eveDue, finaleBeat, finaleReached, finaleWorld, readFinaleStage, FINALE_STAGES } from './chapterFinale';
 
 describe('第1章終盤 — the stage (2026-10-12)', () => {
   it('forward only; a stage from a save repaired if it is not one this build knows', () => {
@@ -23,11 +23,14 @@ describe('第1章終盤 — the stage (2026-10-12)', () => {
     expect(finaleBeat('NONE')).toMatchObject({ trigger: 'REST', scenes: ['EVE'], reaches: 'EVE' });
   });
 
-  it('the beats: the morning in one go; each form after its village moment; the second form only after the first is down (not on a BREAK)', () => {
-    expect(finaleBeat('EVE')).toMatchObject({ trigger: 'AUTO', scenes: ['RUINS_SEAL', 'MORNING', 'RAID', 'LURE'], then: null, reaches: 'RAID' });
-    // A lost fight replays from here: Mirei's moment and the grassland's few words, not the morning.
-    expect(finaleBeat('RAID')).toMatchObject({ scenes: ['VILLAGE_MIREI', 'FORM1_START'], then: 'VALSHEEL_FORM1', reaches: 'FORM1_WON' });
-    expect(finaleBeat('FORM1_WON')).toMatchObject({ scenes: ['VILLAGE_RIZEL', 'SHELL_BREAK'], then: 'VALSHEEL_FORM2', reaches: 'STOPPED' });
+  it('the beats (作者指示 2026-10-12): ruins→raid; the lure; the fight from the grassland’s words; the second form only after the first is down (not on a BREAK)', () => {
+    expect(finaleBeat('EVE')).toMatchObject({ trigger: 'AUTO', scenes: ['RUINS_SEAL', 'MORNING', 'RAID'], then: null, reaches: 'RAID' });
+    expect(finaleBeat('RAID')).toMatchObject({ trigger: 'AUTO', scenes: ['LURE', 'VILLAGE_MIREI'], then: null, reaches: 'LURED' });
+    // A lost fight replays from here: the grassland's few words, never the raid.
+    expect(finaleBeat('LURED')).toMatchObject({ scenes: ['FORM1_START'], then: 'VALSHEEL_FORM1', reaches: 'FORM1_WON' });
+    expect(finaleBeat('FORM1_WON')).toMatchObject({ scenes: ['SHELL_BREAK'], then: 'VALSHEEL_FORM2', reaches: 'FORM2_WON' });
+    expect(finaleBeat('FORM2_WON')).toMatchObject({ trigger: 'AUTO', scenes: AFTER_FORM2_SCENES, then: null, reaches: 'STOPPED' });
+    expect(AFTER_FORM2_SCENES.slice(0, 3)).toEqual(['KAOS_FINISHER', 'HERO_FINISHER', 'STOPPED']);
     expect(finaleBeat('STOPPED')).toMatchObject({ trigger: 'AUTO', scenes: ['REBUILD'], reaches: 'REBUILDING' });
     // Leaving is the player's choice, from the village being rebuilt.
     expect(finaleBeat('REBUILDING')).toMatchObject({ trigger: 'DEPART', scenes: ['DEPARTURE'], then: 'END_SCREEN', reaches: 'ENDED' });
@@ -37,7 +40,7 @@ describe('第1章終盤 — the stage (2026-10-12)', () => {
   it('what each stage means: the road shut from the night before; the village broken, Kaos staying and the oven cracked from the stop on; after the end the village only', () => {
     const before = finaleWorld('NONE');
     expect(before).toMatchObject({ inSequence: false, villageBroken: false, kaosTravels: true, roadOpen: true, bakeryBakes: true, graveAtTavern: true, departure: 'NONE' });
-    for (const stage of ['EVE', 'RAID', 'FORM1_WON'] as const) {
+    for (const stage of ['EVE', 'RAID', 'LURED', 'FORM1_WON', 'FORM2_WON'] as const) {
       expect(finaleWorld(stage)).toMatchObject({ inSequence: true, roadOpen: false, graveAtTavern: false, villageBroken: false, kaosTravels: true });
     }
     for (const stage of ['STOPPED', 'REBUILDING', 'ENDED'] as const) {
@@ -46,6 +49,11 @@ describe('第1章終盤 — the stage (2026-10-12)', () => {
     expect(finaleWorld('REBUILDING').departure).toBe('DEPART');
     expect(finaleWorld('ENDED').departure).toBe('NOT_YET');
     expect(FINALE_STAGES.at(-1)).toBe('ENDED');
+  });
+
+  it('the saved points, in order (作者指示: 襲撃開始前・襲撃発生済み・草原誘導済み・第2形態移行済み・戦闘終了済み); a word written before them still reads as itself', () => {
+    expect(FINALE_STAGES).toEqual(['NONE', 'EVE', 'RAID', 'LURED', 'FORM1_WON', 'FORM2_WON', 'STOPPED', 'REBUILDING', 'ENDED']);
+    for (const old of ['NONE', 'EVE', 'RAID', 'FORM1_WON', 'STOPPED', 'REBUILDING', 'ENDED']) expect(readFinaleStage(old)).toEqual({ value: old, health: 'ok' });
   });
 });
 

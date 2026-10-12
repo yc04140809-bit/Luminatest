@@ -204,7 +204,7 @@ describe('the mapping as a whole', () => {
       ].map(bgmForScene),
     );
     // Brought by the chapter-1 finale's own table (content/story/chapter1Finale.ts), not by a place.
-    const chosenByTheFinale = new Set<string>([...Object.values(FINALE_SCENE_BGM), FINALE_FIGHT_BGM]);
+    const chosenByTheFinale = new Set<string>([...Object.values(FINALE_SCENE_BGM).filter((b) => b !== 'HUSH'), FINALE_FIGHT_BGM]);
     expect([...chosenByTheFinale].sort()).toEqual(['CHAPTER1_FINAL_BOSS', 'CHURCH_HYMN']);
     const sceneReachable = Object.keys(BGM_ASSETS).filter((id) => !chosenByTheFight.has(id) && !chosenByTheFinale.has(id));
     expect(reached).toEqual(new Set(sceneReachable));

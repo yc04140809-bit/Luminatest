@@ -49,3 +49,43 @@ export const VALSHEEL_FORM1_PROVISIONAL: PartyEnemyInput = {
   // A giant: the screen gives it the left of the field and draws the party small.
   battleScale: 'GIANT',
 };
+
+/** What it is called in full (作者指示 2026-10-12): 封殻機兵 ヴァルシール — an ancient seal-keeping machine. */
+export const VALSHEEL_TITLE = '封殻機兵';
+
+// ヴァルシール（第2形態） — PROVISIONAL NUMBERS (2026-10-12, 作者指示「第1形態
+// HP0で第2形態へ」). The same creature, its shell broken: the core and the
+// machinery inside laid bare. The fight stops when the first form's HP is
+// nought, the shell breaks, and the fight goes on against this — the party as
+// the first form left them (nobody healed by the change).
+//
+//   HP 360        fresh health — less than the first form's, the shell gone
+//   guard 20%     less left to take the blows (BREAK still takes it off)
+//   blow 23–29    harder: nothing held back now
+//   コア照射        a quarter of its turns: 1.8× at one of them
+//   光翼の旋風      about one turn in seven: 1.0× at all of them
+//   speed 12      a little quicker than before (still after Kaos)
+//   footing 12    BREAK a little sooner
+//
+// MEASURED (valsheelBattle.test.ts, 200 fights with seeded dice that cover the
+// whole range): AUTO from level one, the first form then the second straight
+// on — won about 96 times in 100, with about half their health left; every
+// loss in the second form.
+export const VALSHEEL_FORM2_PROVISIONAL: PartyEnemyInput = {
+  name: VALSHEEL_NAME,
+  hp: 360,
+  attackMin: 23,
+  attackMax: 29,
+  attackName: '光刃の一閃',
+  appearLine: `${VALSHEEL_NAME}が、翼を広げた。`,
+  speed: 12,
+  breakMax: 12,
+  guard: 0.2,
+  partyMoves: {
+    heavy: { name: 'コア照射', power: 1.8, chance: 0.25 },
+    sweep: { name: '光翼の旋風', power: 1.0, chance: 0.15 },
+  },
+  boss: true,
+  battleScale: 'GIANT',
+  artId: 'valsheel_form2',
+};
