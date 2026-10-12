@@ -514,3 +514,57 @@
   .pb-break-flash { font-size: 42px; }
   .pb-tech-name { font-size: 13px; }
 }
+
+/* ── two or three creatures (2026-10-12, 複数敵) ── */
+.pb-foe.down { opacity: 0; transition: opacity 700ms ease; pointer-events: none; }
+.pb-foe.focus img { filter: drop-shadow(0 0 6px rgba(255, 211, 107, 0.75)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.aimable { cursor: pointer; }
+.pb-foe.aimable img { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.aimable.focus img { filter: drop-shadow(0 0 8px rgba(255, 211, 107, 0.95)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+/* ▼ over the one in focus. */
+.pb-foe-mark {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translate(-50%, -100%);
+  color: #ffd36b;
+  font-size: 13px;
+  text-shadow: 0 0 4px #000;
+  pointer-events: none;
+  animation: pb-bob 900ms ease-in-out infinite alternate;
+}
+@keyframes pb-bob { from { margin-top: 0; } to { margin-top: -3px; } }
+/* Each one's own small HP and footing, under its feet. */
+.pb-foe-mini {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translate(-50%, 70%);
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px 4px 2px;
+  border-radius: 3px;
+  background: rgba(11, 11, 18, 0.72);
+  pointer-events: none;
+}
+.pb-foe-mini i { font-style: normal; font-size: 8px; line-height: 1.1; color: #f4ead2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-foe-mini .pb-bar { height: 3px; }
+.pb-foe-mini .pb-bar-fill { background: linear-gradient(90deg, #c4473f, #ec8a5a); }
+.pb-foe-mini-break { display: block; height: 2px; border-radius: 1px; background: linear-gradient(90deg, #d8a03c, #ffd36b); }
+.pb-foe-mini-break.broken { background: linear-gradient(90deg, #ff6a3d, #ffb347); animation: pb-pulse 700ms ease-in-out infinite alternate; }
+/* A creature's letter on its face in the turn order (two of one name). */
+.pb-face-tag {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 2px;
+  border-radius: 2px;
+  color: #1a1408;
+  background: #f3d27a;
+}
+.pb-list-btn small.hp { color: #ec8a5a; }
+.pb-list-btn.focus { border-color: #ffd36b; }

@@ -163,6 +163,54 @@ export function partyPlaces(
  */
 export const STAGE_ENEMY_SCALE: Partial<Record<string, number>> = {
   moss_rabbit: 0.6,
+  kokemaru: 0.62,
+  hyourei: 0.66,
+  iwahoro: 0.78,
+};
+
+/**
+ * TWO OR THREE CREATURES (2026-10-12, 複数敵): where each stands, by how many
+ * there are — on the left and up the path (as the ordinary fight stands its
+ * creature), into the ground like the party: the first nearest the camera
+ * and the party (lowest, largest), the others further up the path (higher on
+ * the glass, smaller), spread so no one stands in front of another's face;
+ * all of them short of グレイヴ's blade, above WORLD MEMORY and AUTO, under
+ * the creature's plate. `x` is the middle of the feet across
+ * the screen, `bottom` the ground line, `scale` times the creature's own
+ * NORMAL height. One creature stands where a fight of one has it.
+ */
+export interface EnemySlot {
+  x: number;
+  bottom: number;
+  scale: number;
+  depth: number;
+}
+export const ENEMY_SLOTS: Readonly<Record<2 | 3, readonly EnemySlot[]>> = {
+  2: [
+    { x: 0.22, bottom: 0.27, scale: 0.8, depth: 3 },
+    { x: 0.085, bottom: 0.45, scale: 0.68, depth: 2 },
+  ],
+  3: [
+    { x: 0.23, bottom: 0.27, scale: 0.72, depth: 4 },
+    { x: 0.08, bottom: 0.4, scale: 0.62, depth: 3 },
+    { x: 0.21, bottom: 0.54, scale: 0.52, depth: 2 },
+  ],
+};
+
+/**
+ * A CREATURE'S STAGING IN THE PARTY FIGHT ONLY, where it differs from the
+ * ordinary fight's (BATTLE_PRESENCE) — same shape: `scale` times as tall,
+ * `inset` added to its distance from the left edge (negative: nearer the
+ * edge), `bottom` added to its ground line (positive: further up the path,
+ * i.e. further back).
+ *
+ * セキリュウガ (作者 2026-10-12): in the ordinary fight it stands a step
+ * nearer (1.2×); against three, グレイヴ's great sword reached it. So here it
+ * is drawn larger and further back — up the path and toward the edge — and
+ * the blade stops short of it.
+ */
+export const PARTY_PRESENCE: Partial<Record<string, { scale: number; inset: number; bottom: number }>> = {
+  sekiryuga: { scale: 1.32, inset: -0.035, bottom: 0.05 },
 };
 
 /**
@@ -174,7 +222,7 @@ export const STAGE_ENEMY_SCALE: Partial<Record<string, number>> = {
  */
 export function enemySpot(stage: PartyStage, scale: BattleScale | undefined, artId: string): EnemySpot {
   if ((scale ?? 'NORMAL') === 'GIANT') return stage.enemy;
-  const presence = BATTLE_PRESENCE[artId];
+  const presence = PARTY_PRESENCE[artId] ?? BATTLE_PRESENCE[artId];
   const small = STAGE_ENEMY_SCALE[artId] ?? 1;
   return {
     ...stage.enemy,
@@ -204,4 +252,29 @@ export function footStyle(spot: FootSpot, foot: number, scale = 1): Record<strin
     ['--pb-foot' as string]: String(foot),
     ['--pb-h' as string]: String(spot.height * scale),
   };
+}
+
+/**
+ * Every creature's place, as the style its drawing is given, in the fight's
+ * order. One: its own place (enemySpot). Two or three: ENEMY_SLOTS, each at
+ * its own height (its art's STAGE_ENEMY_SCALE and BATTLE_PRESENCE scale, as a
+ * fight of one draws it) times the slot's.
+ */
+export function enemyPlaces(stage: PartyStage, scale: BattleScale | undefined, artIds: readonly string[]): { style: Record<string, string | number> }[] {
+  if (artIds.length <= 1) return [{ style: enemyStyle(enemySpot(stage, scale, artIds[0] ?? '')) }];
+  const slots = ENEMY_SLOTS[artIds.length >= 3 ? 3 : 2];
+  return artIds.map((artId, i) => {
+    const slot = slots[Math.min(i, slots.length - 1)];
+    const own = enemySpot(PARTY_STAGES.NORMAL, 'NORMAL', artId).height;
+    return {
+      style: {
+        left: pct(slot.x),
+        bottom: pct(slot.bottom),
+        height: pct(own * slot.scale),
+        maxWidth: pct(0.24),
+        zIndex: slot.depth,
+        transform: 'translateX(-50%)',
+      },
+    };
+  });
 }

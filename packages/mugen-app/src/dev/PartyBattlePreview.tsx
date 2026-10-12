@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { specOf } from '@mugen/game/battle/enemySpec';
 import { availableMagic } from '@mugen/core/magic/magic';
-import { MOSS_RABBIT } from '@mugen/content/enemies/species';
+import { MOSS_RABBIT, type EnemySpeciesDef } from '@mugen/content/enemies/species';
+import { IWAHORO } from '@mugen/content/enemies/iwahoro';
+import { KOKEMARU } from '@mugen/content/enemies/kokemaru';
+import { HYOUREI } from '@mugen/content/enemies/hyourei';
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
 import type { PartyEnemyInput } from '@mugen/game/battle/partyBattle';
@@ -22,6 +25,13 @@ import { audioManager } from '../platform/audio';
  *   &enemy=moss_rabbit             vs the forest's moss rabbit
  *   &hurt=1                        the hero and Grave start hurt (for the heals)
  *   &footing=N                     the creature's BREAK footing is N (to see BREAK at once)
+ *   &enemies=2                     two creatures: イワホロ and コケマル (複数敵, 2026-10-12)
+ *   &enemies=3                     three: イワホロ, コケマル and ヒョウレイ
+ *   &weak=1                        (with &enemies) the creatures start at an eighth of their health
+ *
+ * THE SEVERAL CREATURES' NUMBERS are the forest's own (their species), their
+ * footing twice their poise and their speed set to fall between the party's —
+ * provisional, for trying the system; not a balance.
  *
  * Reads and writes nothing of the world: level-1 numbers, Kaos awake (her
  * spells), Grave as he comes for a while (provisional). ヴァルシール's own
@@ -38,6 +48,29 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
         ? { spec: SEKIRYUGA_BATTLE, art: 'sekiryuga' }
         : { spec: VALSHEEL_FORM1_PROVISIONAL, art: 'valsheel' };
   const enemy = footing > 0 ? { ...foe.spec, breakMax: Math.floor(footing) } : foe.spec;
+  const count = Number(params.get('enemies'));
+  const weak = params.get('weak') === '1';
+  const several: PartyEnemyInput[] | null =
+    count >= 2
+      ? (
+          [
+            [IWAHORO, 'iwahoro', 12],
+            [KOKEMARU, 'kokemaru', 9],
+            [HYOUREI, 'hyourei', 7],
+          ] as const
+        )
+          .slice(0, Math.min(3, count))
+          .map(([species, art, speed]: readonly [EnemySpeciesDef, string, number]) => {
+            const spec = specOf(species);
+            return {
+              ...spec,
+              hp: weak ? Math.ceil(spec.hp / 8) : spec.hp,
+              speed,
+              breakMax: footing > 0 ? Math.floor(footing) : Math.max(2, (species.poise?.max ?? 3) * 2),
+              artId: art,
+            };
+          })
+      : null;
   const hurt = params.get('hurt') === '1';
   const members = useMemo(
     () => [
@@ -86,7 +119,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
     <PartyBattleScreen
       key={round}
       members={members}
-      enemy={enemy}
+      enemy={several ?? enemy}
       enemyArtId={foe.art}
       background={battleBackgroundFor('GREENWOOD_FOREST')}
       place={{ mark: 'GREENWOOD FOREST', name: locationNameOf('GREENWOOD_FOREST') }}

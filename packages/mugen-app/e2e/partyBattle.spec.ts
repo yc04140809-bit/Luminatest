@@ -210,8 +210,9 @@ test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK com
   await turnOf(page, 'kaos');
   await page.getByTestId('pb-speed').click();
   await page.getByTestId('pb-auto').click();
-  // Kaos lays 星癒の羽 on the one under 70% (both are; the lowest share first).
-  await expect(page.getByTestId('pb-status-grave-regen').or(page.getByTestId('pb-status-hero-regen')).first()).toBeVisible({ timeout: 10_000 });
+  // A technique is used (グレイヴ's 重撃・豪断 on his first turn, at the least; who 星癒の羽 goes to
+  // depends on the dice under these blows — its rule is the unit tests').
+  await expect(page.getByTestId('pb-tech-name')).toBeVisible({ timeout: 30_000 });
   await expect(screen(page)).toHaveAttribute('data-broken', 'yes', { timeout: 60_000 });
   await expect(page.getByTestId('pb-result')).toBeVisible({ timeout: 120_000 });
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY');
@@ -330,4 +331,128 @@ test('WORLD MEMORY bottom left in the party fight too, AUTO and ×2 beside it, t
     expect(plate.y).toBeLessThan(size.height * 0.1);
     expect(plate.x).toBeLessThan(size.width * 0.1);
   }
+});
+
+// SEVERAL CREATURES (2026-10-12, 複数敵): two and three, through the debug door
+// (`&enemies=2|3`). Each its own place on the left (a diagonal into the
+// ground), its own HP and footing, its own turn; 攻撃 asks 「どれを？」; one down
+// and the fight goes on.
+const foeBox = (page: Page, id: string) => box(page, `pb-foe-${id}`);
+const foeHp = async (page: Page, id: string) => Number(await page.getByTestId(`pb-foe-${id}`).getAttribute('data-hp'));
+
+for (const size of [
+  { width: 640, height: 300 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${size.width}×${size.height}: two and three creatures stand on the left in a diagonal, each its own HP, footing and turn; the UI where it always is`, async ({ page }) => {
+    await page.setViewportSize(size);
+    for (const n of [2, 3]) {
+      await page.goto(`/?preview=party&enemies=${n}`);
+      await turnOf(page, 'kaos');
+      await page.waitForTimeout(300);
+      const ids = ['enemy', 'enemy-2', 'enemy-3'].slice(0, n);
+      const boxes = await Promise.all(ids.map((id) => foeBox(page, id)));
+      // On the left, in front of the party; each one's own place: no two at the same ground line or the same spot.
+      const hero = await box(page, 'pb-figure-hero');
+      for (const b of boxes) expect(b.x + b.width / 2).toBeLessThan(hero.x);
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          expect(Math.abs(feet(boxes[i]) - feet(boxes[j])), `${ids[i]} / ${ids[j]}`).toBeGreaterThan(size.height * 0.08);
+        }
+      }
+      // The first is the nearest (lowest, the largest).
+      for (const b of boxes.slice(1)) {
+        expect(feet(boxes[0])).toBeGreaterThan(feet(b));
+        expect(boxes[0].height).toBeGreaterThan(b.height);
+      }
+      // Each its own small HP; each its own face in the TURN ORDER.
+      for (const id of ids) await expect(page.getByTestId(`pb-foe-${id}`).getByTestId('pb-foe-mini')).toBeVisible();
+      const turnActors = await page.locator('[data-testid^="pb-turn-slot-"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-actor')));
+      for (const id of ids.slice(0, 2)) expect(turnActors).toContain(id);
+      // The UI where it always is, clear of the creatures.
+      for (const id of ['pb-enemy-plate', 'pb-commands', 'pb-members', 'bx-world-memory', 'pb-turn-order']) await onScreen(page, id);
+      const memory = await box(page, 'bx-world-memory');
+      const plate = await box(page, 'pb-enemy-plate');
+      for (const b of boxes) {
+        expect(apart(b, memory)).toBe(true);
+        expect(apart(b, plate)).toBe(true);
+      }
+    }
+  });
+}
+
+test('攻撃 → 「どれを？」 → the second creature: only it is hurt; the plate shows it; もどる goes back', async ({ page }) => {
+  await page.goto('/?preview=party&enemies=2');
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-cmd-defend').click();
+  await turnOf(page, 'hero');
+  const a = await foeHp(page, 'enemy');
+  const b = await foeHp(page, 'enemy-2');
+  await page.getByTestId('pb-cmd-attack').click();
+  await expect(page.getByText('どれを？')).toBeVisible();
+  await page.getByTestId('pb-cmd-back').click();
+  await expect(page.getByText('どれを？')).toHaveCount(0);
+  await page.getByTestId('pb-cmd-attack').click();
+  await page.getByTestId('pb-target-enemy-enemy-2').click();
+  await expect.poll(() => foeHp(page, 'enemy-2')).toBeLessThan(b);
+  expect(await foeHp(page, 'enemy')).toBe(a);
+  await expect(page.getByTestId('pb-enemy-plate')).toHaveAttribute('data-focus', 'enemy-2');
+  await expect(page.getByTestId('pb-enemy-plate')).toContainText('コケマル');
+  // Tapping a creature on the field also aims (Grave's 重撃・豪断 at the first).
+  await turnOf(page, 'grave');
+  const a2 = await foeHp(page, 'enemy');
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-goudan').click();
+  await page.getByTestId('pb-foe-enemy').click();
+  await expect.poll(() => foeHp(page, 'enemy')).toBeLessThan(a2);
+});
+
+test('one creature down: out of the TURN ORDER and the targets, the fight goes on; the last one down is the victory', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?preview=party&enemies=2&weak=1');
+  await turnOf(page, 'kaos');
+  // Kaos's 彗星撃 (20) at コケマル (an eighth of 80 = 10).
+  await page.getByTestId('pb-cmd-magic').click();
+  await page.getByTestId('pb-magic-comet_strike').click();
+  await page.getByTestId('pb-target-enemy-enemy-2').click();
+  await expect(page.getByTestId('pb-foe-enemy-2')).toHaveAttribute('data-down', 'yes');
+  await expect(screen(page)).toHaveAttribute('data-outcome', 'ONGOING');
+  const turnActors = await page.locator('[data-testid^="pb-turn-slot-"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-actor')));
+  expect(turnActors).not.toContain('enemy-2');
+  // With one left, 攻撃 asks nothing.
+  await turnOf(page, 'hero');
+  await page.getByTestId('pb-cmd-attack').click();
+  await expect(page.getByText('どれを？')).toHaveCount(0);
+  await expect(screen(page)).not.toHaveAttribute('data-actor', 'hero');
+  // AUTO finishes it.
+  await page.getByTestId('pb-speed').click();
+  await page.getByTestId('pb-auto').click();
+  await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 60_000 });
+});
+
+test('BREAK is each creature\'s own: one broken (「BREAK中」 at its feet), the other not', async ({ page }) => {
+  await page.goto('/?preview=party&enemies=2&footing=4');
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-cmd-defend').click();
+  await turnOf(page, 'hero');
+  await page.getByTestId('pb-cmd-defend').click();
+  await turnOf(page, 'grave');
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-goudan').click();
+  await page.getByTestId('pb-target-enemy-enemy-2').click();
+  await expect(page.getByTestId('pb-foe-enemy-2')).toHaveAttribute('data-broken', 'yes');
+  await expect(page.getByTestId('pb-foe-enemy')).toHaveAttribute('data-broken', 'no');
+  await expect(page.getByTestId('pb-foe-enemy-2').getByTestId('pb-enemy-broken')).toHaveText('BREAK中');
+  await expect(page.getByTestId('pb-foe-enemy').getByTestId('pb-enemy-broken')).toHaveCount(0);
+  await expect(page.getByTestId('pb-break-badge')).toBeVisible();
+});
+
+test('AUTO at ×2 fights three creatures to the end', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.goto('/?preview=party&enemies=3');
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-speed').click();
+  await page.getByTestId('pb-auto').click();
+  await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 140_000 });
+  for (const id of ['enemy', 'enemy-2', 'enemy-3']) await expect(page.getByTestId(`pb-foe-${id}`)).toHaveAttribute('data-down', 'yes');
 });

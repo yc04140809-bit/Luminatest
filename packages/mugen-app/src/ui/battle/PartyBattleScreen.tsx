@@ -5,7 +5,11 @@ import {
   createPartyBattle,
   currentActor,
   enemyAct,
+  enemyById,
+  enemyTarget,
+  isEnemyId,
   memberById,
+  standingEnemies,
   partyAct,
   partyAutoAction,
   partySkillReady,
@@ -15,6 +19,7 @@ import {
   type PartyAction,
   type PartyBattleState,
   type PartyBeat,
+  type PartyEnemy,
   type PartyEnemyInput,
   type PartyMember,
   type PartyMemberSpec,
@@ -32,7 +37,7 @@ import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
 import { memoryRows } from './battleHud';
 import './battle.generated.css';
-import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemySpot, enemyStyle, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
+import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
 import './partyBattle.css';
 
 /**
@@ -62,6 +67,15 @@ import './partyBattle.css';
  * bigger than the screen and the party a little smaller in the same cross;
  * nothing of the reading or the controls moves.
  *
+ * TWO OR THREE CREATURES (2026-10-12, 複数敵): they stand on the left in a
+ * diagonal into the ground (partyStage's enemy places), each with a small
+ * HP bar and its footing under its feet; the top-left plate shows the one in
+ * FOCUS (tap a creature to look at it; the one last aimed at stays in
+ * focus), marked ▼ on the field. 攻撃, a skill, a damage spell and 重撃・豪断
+ * then ask 「どれを？」 — a creature from the list, or tapped on the field.
+ * Each creature has its own face in the TURN ORDER. With one creature,
+ * nothing is asked and the screen is as it was.
+ *
  * THEIR TECHNIQUES AND BREAK (通常スキル3種): every technique is in the
  * スキル list (星癒の羽 then asks 「誰に？」). MISS, the counter and the heal
  * over time float where they happen; a technique's name flashes as it is
@@ -84,8 +98,9 @@ export function playBreakSfx() {
 
 export interface PartyBattleProps {
   members: readonly PartyMemberSpec[];
-  enemy: PartyEnemyInput;
-  /** The creature's drawing (battleArt's enemy id). */
+  /** The creature, or two or three (each may carry its own `artId`). */
+  enemy: PartyEnemyInput | readonly PartyEnemyInput[];
+  /** The creature's drawing (battleArt's enemy id) — for any that carries none. */
   enemyArtId: string;
   background?: BattleBackgroundKey | null;
   autoAvailable?: boolean;
@@ -131,7 +146,7 @@ function sfxOf(beat: PartyBeat | null, tech?: PartyTechnique): SfxId {
 }
 
 /** A head cut from a drawing by its face box, in a round frame. */
-function Face({ src, box, testId, actor, acting }: { src: string | null; box?: ArtBox; testId: string; actor: string; acting: boolean }) {
+function Face({ src, box, testId, actor, acting, tag }: { src: string | null; box?: ArtBox; testId: string; actor: string; acting: boolean; tag?: string }) {
   const style = box
     ? {
         width: `${(box.fileW / box.width) * 100}%`,
@@ -141,8 +156,9 @@ function Face({ src, box, testId, actor, acting }: { src: string | null; box?: A
       }
     : undefined;
   return (
-    <div className={`pb-face${acting ? ' acting' : ''}${actor === ENEMY_ID ? ' foe' : ''}`} data-testid={testId} data-actor={actor}>
+    <div className={`pb-face${acting ? ' acting' : ''}${isEnemyId(actor) ? ' foe' : ''}`} data-testid={testId} data-actor={actor}>
       {src && <img src={src} alt="" aria-hidden="true" style={style} />}
+      {tag && <b className="pb-face-tag">{tag}</b>}
     </div>
   );
 }
@@ -161,13 +177,17 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
   const [auto, setAuto] = useState(false);
   const [fast, setFast] = useState(false);
-  const [menu, setMenu] = useState<'COMMANDS' | 'SKILL' | 'MAGIC' | 'TARGET'>('COMMANDS');
+  const [menu, setMenu] = useState<'COMMANDS' | 'SKILL' | 'MAGIC' | 'TARGET' | 'ENEMY'>('COMMANDS');
+  /** 「どれを？」: what will be done to the creature chosen, and the menu it came from. */
+  const [pending, setPending] = useState<{ make: (target: string) => PartyAction; from: 'COMMANDS' | 'SKILL' | 'MAGIC' } | null>(null);
+  /** The creature the plate shows (and ▼ marks): the one tapped or last aimed at. */
+  const [focus, setFocus] = useState<string>(ENEMY_ID);
   const [aiming, setAiming] = useState<{ spell: MagicDef } | { tech: PartyTechnique } | null>(null);
   const [shaking, setShaking] = useState(false);
   const [bg, setBg] = useState<string | null>(null);
   const ended = useRef(false);
   const actor = currentActor(state);
-  const acting = actor && actor !== ENEMY_ID ? memberById(state, actor) : undefined;
+  const acting = actor && !isEnemyId(actor) ? memberById(state, actor) : undefined;
 
   useEffect(() => {
     if (!background) return;
@@ -178,18 +198,28 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     };
   }, [background]);
 
-  const stage = stageFor(enemy.battleScale);
+  const inputs: readonly PartyEnemyInput[] = Array.isArray(enemy) ? enemy : [enemy as PartyEnemyInput];
+  const many = inputs.length > 1;
+  // One giant alone takes the GIANT staging; a fight of several is drawn as an ordinary one.
+  const scale = !many ? inputs[0].battleScale : undefined;
+  const stage = stageFor(scale);
   const places = useMemo(() => partyPlaces(members.map((m) => m.id), stage, formation), [members, stage, formation]);
-  const foeSpot = enemySpot(stage, enemy.battleScale, enemyArtId);
+  const artIds = useMemo(() => inputs.map((e) => e.artId ?? enemyArtId), [inputs, enemyArtId]);
+  const foeSpots = enemyPlaces(stage, scale, artIds);
   const art = useMemo(() => {
     const party: Record<string, { src: string | null; face?: ArtBox }> = {};
     for (const m of members) {
       const a = battlePartyArt(m.id as BattlePartyId, 'battle_idle').asset;
       party[m.id] = { src: a?.src ?? null, face: a?.face };
     }
-    const foe = battleEnemyArt(enemyArtId, 'front').asset;
-    return { party, enemy: { src: foe?.src ?? null, face: foe?.face } };
-  }, [members, enemyArtId]);
+    const foes: Record<string, { src: string | null; face?: ArtBox }> = {};
+    state.enemies.forEach((e, i) => {
+      const a = battleEnemyArt(artIds[i], 'front').asset;
+      foes[e.id] = { src: a?.src ?? null, face: a?.face };
+    });
+    return { party, foes };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [members, artIds]);
 
   const act = (action: PartyAction) => {
     const next = partyAct(state, action, dice);
@@ -197,8 +227,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     const tech = action.kind === 'TECH' ? acting?.techniques?.find((t) => t.id === action.techId) : undefined;
     playSfx(sfxOf(next.last, tech));
     if (next.last?.regen) playSfx('battle_heal');
+    if (next.last && isEnemyId(next.last.target)) setFocus(next.last.target);
     setMenu('COMMANDS');
     setAiming(null);
+    setPending(null);
     setState(next);
   };
 
@@ -214,8 +246,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // The creature's turn, and AUTO's: played after a breath (halved at ×2).
   useEffect(() => {
     if (state.outcome !== 'ONGOING' || !actor) return;
-    const ms = (actor === ENEMY_ID ? ENEMY_TURN_MS : AUTO_TURN_MS) / (fast ? 2 : 1) + (state.last?.broke ? BREAK_PAUSE_MS : 0);
-    if (actor === ENEMY_ID) {
+    const ms = (isEnemyId(actor) ? ENEMY_TURN_MS : AUTO_TURN_MS) / (fast ? 2 : 1) + (state.last?.broke ? BREAK_PAUSE_MS : 0);
+    if (isEnemyId(actor)) {
       const t = window.setTimeout(() => {
         const next = enemyAct(state, dice);
         if (next === state) return;
@@ -242,7 +274,29 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   }, [state.outcome]);
 
   const order = upcomingTurns(state, 5);
-  const faceOf = (id: string) => (id === ENEMY_ID ? art.enemy : (art.party[id] ?? { src: null }));
+  const faceOf = (id: string) => (isEnemyId(id) ? (art.foes[id] ?? { src: null }) : (art.party[id] ?? { src: null }));
+  /** A creature's letter (A, B, C) when two of one name are in the fight. */
+  const tagOf = (id: string) => {
+    const e = isEnemyId(id) ? enemyById(state, id) : undefined;
+    const m = e && /[A-Z]$/.exec(e.name);
+    return m ? m[0] : undefined;
+  };
+  // The plate's creature: the one in focus if it is standing, else the first standing.
+  const focused: PartyEnemy = enemyTarget(state, focus) ?? standingEnemies(state)[0] ?? state.enemy;
+  /** Aimed at a creature: asked 「どれを？」 when more than one stands; else straight to it. */
+  const aimEnemy = (make: (target: string) => PartyAction, from: 'COMMANDS' | 'SKILL' | 'MAGIC') => {
+    const standing = standingEnemies(state);
+    if (standing.length <= 1) {
+      act(make(standing[0]?.id ?? ENEMY_ID));
+      return;
+    }
+    setPending({ make, from });
+    setMenu('ENEMY');
+  };
+  const chooseEnemy = (id: string) => {
+    if (!pending || !enemyTarget(state, id)) return;
+    act(pending.make(id));
+  };
   const last = state.last;
   const lastKey = state.log.length;
   const spells = acting ? (acting.magic ?? []).filter((m) => m.effect === 'DAMAGE' || m.effect === 'MEND') : [];
@@ -255,12 +309,16 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       setMenu('TARGET');
       return;
     }
-    act({ kind: 'MAGIC', magicId: spell.id });
+    aimEnemy((target) => ({ kind: 'MAGIC', magicId: spell.id, target }), 'MAGIC');
   };
   const pickTech = (tech: PartyTechnique) => {
     if (tech.target === 'ALLY') {
       setAiming({ tech });
       setMenu('TARGET');
+      return;
+    }
+    if (tech.target === 'ENEMY') {
+      aimEnemy((target) => ({ kind: 'TECH', techId: tech.id, target }), 'SKILL');
       return;
     }
     act({ kind: 'TECH', techId: tech.id });
@@ -269,11 +327,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     if (!aiming) return;
     act('spell' in aiming ? { kind: 'MAGIC', magicId: aiming.spell.id, target: id } : { kind: 'TECH', techId: aiming.tech.id, target: id });
   };
-  const broken = isBroken(state.enemy);
+  const broken = isBroken(focused);
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING';
-  const giant = (enemy.battleScale ?? 'NORMAL') === 'GIANT';
+  const giant = (scale ?? 'NORMAL') === 'GIANT';
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
 
@@ -296,29 +354,60 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
 
       {/* THE FIELD — the creature left, the party right (a triangle). */}
       <div className="pb-field">
-        <div
-          className={`pb-foe${actor === ENEMY_ID ? ' acting' : ''}${broken ? ' broken' : ''}${shaking ? ' shake' : ''}`}
-          data-testid="pb-foe"
-          style={enemyStyle(foeSpot)}
-        >
-          {art.enemy.src && <img src={art.enemy.src} alt={state.enemy.name} data-testid="pb-enemy-art" />}
-          {broken && (
-            <span className="pb-foe-broken" data-testid="pb-enemy-broken">
-              BREAK中
-            </span>
-          )}
-          {last && last.target === ENEMY_ID && last.amount > 0 && (
-            <span key={lastKey} className="pb-float">
-              {last.amount}
-            </span>
-          )}
-          {last?.counter !== undefined && (
-            <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter">
-              <small>反撃</small>
-              {last.counter}
-            </span>
-          )}
-        </div>
+        {state.enemies.map((e, i) => {
+          const spot = foeSpots[i];
+          const eBroken = isBroken(e);
+          const struck = !!last?.broke && last.target === e.id;
+          const isFocus = many && e.id === focused.id && !e.down;
+          return (
+            <div
+              key={e.id}
+              className={`pb-foe${actor === e.id ? ' acting' : ''}${eBroken ? ' broken' : ''}${struck && shaking ? ' shake' : ''}${e.down ? ' down' : ''}${isFocus ? ' focus' : ''}${menu === 'ENEMY' && !e.down ? ' aimable' : ''}`}
+              data-testid={many ? `pb-foe-${e.id}` : 'pb-foe'}
+              data-enemy={e.id}
+              data-hp={e.hp}
+              data-down={e.down ? 'yes' : 'no'}
+              data-broken={eBroken ? 'yes' : 'no'}
+              data-focus={isFocus ? 'yes' : 'no'}
+              style={spot.style}
+              onClick={() => {
+                if (e.down) return;
+                setFocus(e.id);
+                if (menu === 'ENEMY') chooseEnemy(e.id);
+              }}
+            >
+              {art.foes[e.id]?.src && <img src={art.foes[e.id].src!} alt={e.name} data-testid="pb-enemy-art" />}
+              {isFocus && (
+                <span className="pb-foe-mark" aria-hidden="true">
+                  ▼
+                </span>
+              )}
+              {many && !e.down && (
+                <span className="pb-foe-mini" data-testid="pb-foe-mini">
+                  <i>{e.name}</i>
+                  <Bar value={e.hp} max={e.maxHp} kind="hp" />
+                  <span className={`pb-foe-mini-break${eBroken ? ' broken' : ''}`} style={{ width: `${eBroken ? 100 : (e.breakCurrent / e.breakMax) * 100}%` }} />
+                </span>
+              )}
+              {eBroken && !e.down && (
+                <span className="pb-foe-broken" data-testid="pb-enemy-broken">
+                  BREAK中
+                </span>
+              )}
+              {last && last.target === e.id && last.amount > 0 && (
+                <span key={lastKey} className="pb-float">
+                  {last.amount}
+                </span>
+              )}
+              {last?.counter !== undefined && last.actor === e.id && (
+                <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter">
+                  <small>反撃</small>
+                  {last.counter}
+                </span>
+              )}
+            </div>
+          );
+        })}
         {state.members.map((m) => {
           const spot = places[m.id];
           if (!spot) return null;
@@ -378,26 +467,26 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       </div>
 
       {/* TOP LEFT — the creature: name, HP, BREAK, together. */}
-      <div className="pb-enemy-plate" data-testid="pb-enemy-plate">
-        <span className="pb-enemy-name">{state.enemy.name}</span>
-        <span className="pb-num" data-testid="pb-enemy-hp" data-hp={state.enemy.hp}>
-          {state.enemy.hp}/{state.enemy.maxHp}
+      <div className="pb-enemy-plate" data-testid="pb-enemy-plate" data-focus={focused.id}>
+        <span className="pb-enemy-name">{focused.name}</span>
+        <span className="pb-num" data-testid="pb-enemy-hp" data-hp={focused.hp}>
+          {focused.hp}/{focused.maxHp}
         </span>
-        <Bar value={state.enemy.hp} max={state.enemy.maxHp} kind="hp" />
+        <Bar value={focused.hp} max={focused.maxHp} kind="hp" />
         <span className={`pb-break-label${broken ? ' on' : ''}`}>BREAK</span>
         <div
           className={`pb-break-gauge${broken ? ' broken' : ''}`}
           data-testid="pb-break-gauge"
-          data-current={state.enemy.breakCurrent}
-          data-max={state.enemy.breakMax}
-          aria-label={`BREAK ${state.enemy.breakCurrent}/${state.enemy.breakMax}`}
-          style={{ ['--pb-segs' as string]: state.enemy.breakMax }}
+          data-current={focused.breakCurrent}
+          data-max={focused.breakMax}
+          aria-label={`BREAK ${focused.breakCurrent}/${focused.breakMax}`}
+          style={{ ['--pb-segs' as string]: focused.breakMax }}
         >
-          <div className="pb-break-fill" style={{ width: `${broken ? 100 : (state.enemy.breakCurrent / state.enemy.breakMax) * 100}%` }} />
+          <div className="pb-break-fill" style={{ width: `${broken ? 100 : (focused.breakCurrent / focused.breakMax) * 100}%` }} />
         </div>
         {broken && (
-          <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={state.enemy.breakTurns}>
-            防御DOWN 残り{state.enemy.breakTurns}T
+          <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={focused.breakTurns}>
+            防御DOWN 残り{focused.breakTurns}T
           </span>
         )}
       </div>
@@ -407,7 +496,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         <div className="pb-order" data-testid="pb-turn-order" aria-label="TURN ORDER">
           <span className="pb-order-label">TURN</span>
           {order.map((id, i) => (
-            <Face key={`${state.round}-${state.at}-${i}`} src={faceOf(id).src} box={faceOf(id).face} testId={`pb-turn-slot-${i}`} actor={id} acting={i === 0} />
+            <Face key={`${state.round}-${state.at}-${i}`} src={faceOf(id).src} box={faceOf(id).face} testId={`pb-turn-slot-${i}`} actor={id} acting={i === 0} tag={tagOf(id)} />
           ))}
         </div>
         {place && (
@@ -453,7 +542,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               <SparkIcon size={13} className="pb-dia-mark" />
               <span className="pb-dia-jp">スキル</span>
             </button>
-            <button className="pb-dia up" data-testid="pb-cmd-attack" disabled={!playerInput} onClick={() => act({ kind: 'ATTACK' })}>
+            <button className="pb-dia up" data-testid="pb-cmd-attack" disabled={!playerInput} onClick={() => aimEnemy((target) => ({ kind: 'ATTACK', target }), 'COMMANDS')}>
               <span className="pb-dia-plate" aria-hidden="true" />
               <SwordIcon size={13} className="pb-dia-mark" />
               <span className="pb-dia-jp">攻撃</span>
@@ -474,7 +563,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               {menu === 'SKILL' && (
                 <>
                   {skills.map((sk) => (
-                    <button key={sk.id} className="pb-list-btn" data-testid={`pb-cmd-skill-${sk.id}`} disabled={!partySkillReady(acting!, sk)} onClick={() => act({ kind: 'SKILL', skillId: sk.id })}>
+                    <button key={sk.id} className="pb-list-btn" data-testid={`pb-cmd-skill-${sk.id}`} disabled={!partySkillReady(acting!, sk)} onClick={() => aimEnemy((target) => ({ kind: 'SKILL', skillId: sk.id, target }), 'SKILL')}>
                       {sk.name}
                     </button>
                   ))}
@@ -505,10 +594,36 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                     ))}
                 </>
               )}
+              {menu === 'ENEMY' && pending && (
+                <>
+                  <span className="pb-ask">どれを？</span>
+                  {standingEnemies(state).map((e) => (
+                    <button
+                      key={e.id}
+                      className={`pb-list-btn${e.id === focused.id ? ' focus' : ''}`}
+                      data-testid={`pb-target-enemy-${e.id}`}
+                      onClick={() => chooseEnemy(e.id)}
+                      onPointerEnter={() => setFocus(e.id)}
+                    >
+                      {e.name}
+                      <small className="hp">
+                        {e.hp}/{e.maxHp}
+                      </small>
+                    </button>
+                  ))}
+                </>
+              )}
               <button
                 className="pb-list-btn back"
                 data-testid="pb-cmd-back"
-                onClick={() => setMenu(menu === 'TARGET' ? (aiming && 'spell' in aiming ? 'MAGIC' : 'SKILL') : 'COMMANDS')}
+                onClick={() => {
+                  if (menu === 'ENEMY') {
+                    setMenu(pending?.from ?? 'COMMANDS');
+                    setPending(null);
+                    return;
+                  }
+                  setMenu(menu === 'TARGET' ? (aiming && 'spell' in aiming ? 'MAGIC' : 'SKILL') : 'COMMANDS');
+                }}
               >
                 もどる
               </button>
