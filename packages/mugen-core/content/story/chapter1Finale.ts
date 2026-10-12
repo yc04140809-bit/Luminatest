@@ -35,6 +35,7 @@ import type { NpcExpression } from '../../core/npc/touchReaction';
 import { HERO_SPEAKER } from './sekiryugaArc';
 import { BAKERY_OWNER } from '../characters/bakeryOwner';
 import { VALSHEEL_NAME } from '../enemies/valsheelBattle';
+import { ARIA_SPEAKER, LEVI_SPEAKER, type AriaFace, type LeviFace } from '../characters/companionFaces';
 
 const HERO = HERO_SPEAKER;
 const KAOS = 'ケイオス';
@@ -47,13 +48,17 @@ const HOODED = 'フードの男';
 const WATCH = '見張り';
 const VILLAGER = '村人';
 const CHILD = '子ども';
-const ARIA = 'アリア';
-const LEVI = 'レヴィ';
+const ARIA = ARIA_SPEAKER;
+const LEVI = LEVI_SPEAKER;
 const V = VALSHEEL_NAME;
 
 /** A line of the finale: a dialogue line, and Mirei's face when she speaks it. */
 export interface FinaleLine extends DialogueLine {
   face?: NpcExpression;
+  /** アリア's face on her line (companionFaces.ts). */
+  ariaFace?: AriaFace;
+  /** レヴィ's face on her line (companionFaces.ts). */
+  leviFace?: LeviFace;
 }
 
 /** Every scene of the finale, by id, in the order they are played. */
@@ -280,19 +285,19 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   ARIA_LEVI: scene('ARIA_LEVI', 'VILLAGE_BROKEN', [
     { speaker: null, text: '村の外れに、見慣れない二人が立っていた。' },
     { speaker: KAOS, text: '……え。', kaosFace: 'SURPRISED' },
-    { speaker: ARIA, text: '久しぶりね、ケイオス。' },
+    { speaker: ARIA, text: '久しぶりね、ケイオス。', ariaFace: 'SMILE' },
     { speaker: LEVI, text: '派手にやられたな。' },
     { speaker: KAOS, text: 'アリア……レヴィ……！ なんで、ここに。', kaosFace: 'SURPRISED' },
     { speaker: ARIA, text: 'しばらく前から、このあたりの異変を調べていたの。' },
-    { speaker: LEVI, text: 'で、来てみたらこれだ。' },
+    { speaker: LEVI, text: 'で、来てみたらこれだ。', leviFace: 'ANGRY' },
     { speaker: null, text: '二人の目が、主人公に向いた。値踏みするような目だった。' },
-    { speaker: ARIA, text: '……この人間が、あなたの言っていた人？' },
+    { speaker: ARIA, text: '……この人間が、あなたの言っていた人？', ariaFace: 'TROUBLED' },
     { speaker: KAOS, text: 'うん。' },
     { speaker: ARIA, text: 'そう。' },
     { speaker: ARIA, text: 'ケイオスが動けないなら、代わりに私たちが行く。この件の真相も、追わなきゃいけないし。' },
     { speaker: LEVI, text: 'それに――こいつを一人で放っておくと、ろくなことにならなそうだ。' },
     { speaker: HERO, text: '……一緒に来てくれるのか？' },
-    { speaker: ARIA, text: '勘違いしないで。人間を信用したわけじゃない。' },
+    { speaker: ARIA, text: '勘違いしないで。人間を信用したわけじゃない。', ariaFace: 'TROUBLED' },
     { speaker: ARIA, text: 'ケイオスが信じたものを、自分の目で確かめたいだけ。' },
     { speaker: LEVI, text: 'そういうこった。よろしくな、人間。' },
   ]),

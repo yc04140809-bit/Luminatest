@@ -4,6 +4,7 @@ import { AFTER_FORM2_SCENES, FORM2_FINISHER_SCENES, finaleBeat, FINALE_STAGES } 
 import { KAOS_FACES } from '../characters/kaosFaces';
 import { GRAVE_FACES } from '../characters/graveFaces';
 import { HERO_FACES } from '../characters/heroFaces';
+import { ARIA_FACES, LEVI_FACES, ARIA_SPEAKER, LEVI_SPEAKER } from '../characters/companionFaces';
 
 const all: FinaleLine[] = FINALE_SCENE_IDS.flatMap((id) => [...FINALE_SCENES[id].lines]);
 const text = [...all.map((l) => l.text), ...CHAPTER1_END.lines].join('\n');
@@ -82,6 +83,8 @@ describe('第1章終盤 — the script (作者指示 2026-10-12)', () => {
       if (l.kaosFace) expect(KAOS_FACES).toContain(l.kaosFace);
       if (l.graveFace) expect(GRAVE_FACES).toContain(l.graveFace);
       if (l.heroFace) expect(HERO_FACES).toContain(l.heroFace);
+      if (l.ariaFace) expect([ARIA_FACES, l.speaker]).toEqual([expect.arrayContaining([l.ariaFace]), ARIA_SPEAKER]);
+      if (l.leviFace) expect([LEVI_FACES, l.speaker]).toEqual([expect.arrayContaining([l.leviFace]), LEVI_SPEAKER]);
     }
   });
 
