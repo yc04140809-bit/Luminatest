@@ -52,7 +52,7 @@ const ARIA = ARIA_SPEAKER;
 const LEVI = LEVI_SPEAKER;
 const V = VALSHEEL_NAME;
 
-/** A line of the finale: a dialogue line, and Mirei's face when she speaks it. */
+/** A line of the finale: a dialogue line, and Mirei's or Rizel's face when she speaks it. */
 export interface FinaleLine extends DialogueLine {
   face?: NpcExpression;
   /** アリア's face on her line (companionFaces.ts). */
@@ -190,7 +190,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: null, text: '看板が折れ、窓が割れる。どこかで、小さく火の手が上がった。' },
     { speaker: VILLAGER, text: '逃げろ！ 家から出ろ！' },
     { speaker: MIREI, text: 'こっち！ 道を空けて！', face: 'ANGRY' },
-    { speaker: RIZEL, text: '歩ける人は、動けない人を手伝って！' },
+    { speaker: RIZEL, text: '歩ける人は、動けない人を手伝って！', face: 'SAD' },
     { speaker: OWNER, text: 'リナ、離れるな！' },
     { speaker: LINA, text: 'うん！' },
     { speaker: HERO, text: 'あいつ……何がしたいんだ！？' },
@@ -229,7 +229,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: RIZEL, text: '大丈夫。ここは、ちゃんと守られてる。' },
     { speaker: RIZEL, text: 'おばあちゃん、腕、見せて。……うん、きつく巻くね。' },
     { speaker: VILLAGER, text: 'リゼルちゃん、あんた、手が震えて……' },
-    { speaker: RIZEL, text: '震えてても、巻ける。' },
+    { speaker: RIZEL, text: '震えてても、巻ける。', face: 'SAD' },
   ]),
 
   // ---- F8 草原決戦の前（ここで敗北からの再開地点）--------------------------------
@@ -357,7 +357,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: LINA, text: 'パン、焼けないけど、硬いのならあるよ！ みんな食べて！' },
     { speaker: null, text: 'ケイオスが手をかざすと、崩れかけた壁が、ゆっくりと形を取り戻していく。' },
     { speaker: null, text: '全部ではない。焼けた跡は、そのまま残る。' },
-    { speaker: RIZEL, text: '……元通りには、ならないね。' },
+    { speaker: RIZEL, text: '……元通りには、ならないね。', face: 'SAD' },
     { speaker: OWNER, text: 'ならなくていい。新しく作るんだ。' },
   ]),
 

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { World } from "@mugen/core/world/world";
 import { HERO_SPEAKER } from "@mugen/content/story/sekiryugaArc";
 import type { DailyScene } from "@mugen/content/story/dailyScenes";
 import { dailyFaceFor } from "../assets/dailyFaces";
+import type { FaceBox } from "../assets/kaosFaces";
 import { NewBadge } from "./common/NewBadge";
 import { TalkStage, stageAt } from "./talkStage";
 
@@ -24,13 +25,23 @@ export function DailyAside({
 }) {
   const [at, setAt] = useState(0);
   const [done, setDone] = useState(false);
-  if (done) return null;
   const line = scene.lines[Math.min(at, scene.lines.length - 1)];
+  // A face beside the line, for whoever speaks and has one (assets/dailyFaces.ts) — fetched when needed.
+  const want = dailyFaceFor(line);
+  const [shown, setShown] = useState<{ key: string; src: string; box: FaceBox } | null>(null);
+  useEffect(() => {
+    if (!want) return;
+    let gone = false;
+    void want.load().then((p) => !gone && p && setShown({ key: want.key, ...p }));
+    return () => {
+      gone = true;
+    };
+  }, [want?.key]);
+  if (done) return null;
+  const face = want && shown?.key === want.key ? shown : null;
   const last = at >= scene.lines.length - 1;
   const speaker =
     line.speaker === HERO_SPEAKER ? world.getHeroName() : line.speaker;
-  // A face beside the line, once one is delivered for whoever speaks (assets/dailyFaces.ts).
-  const face = dailyFaceFor(line.speaker);
   // Only the two of them (and narration): they stand side by side while it is told (ui/talkStage).
   const twoOfThem = scene.lines.every(
     (l) =>
@@ -50,12 +61,18 @@ export function DailyAside({
       data-scene={scene.id}
     >
       {face && (
-        <img
-          className="daily-face"
-          src={face}
-          alt={speaker ?? ""}
-          data-testid="daily-face"
-        />
+        <div className="daily-face" data-testid="daily-face" data-face={face.key} aria-hidden="true">
+          <img
+            src={face.src}
+            alt=""
+            style={{
+              width: `${(face.box.fileW / face.box.width) * 100}%`,
+              height: `${(face.box.fileH / face.box.height) * 100}%`,
+              left: `${(-face.box.x / face.box.width) * 100}%`,
+              top: `${(-face.box.y / face.box.height) * 100}%`,
+            }}
+          />
+        </div>
       )}
       <div className="kaos-aside-head">
         {speaker && <p className="kaos-aside-speaker">{speaker}</p>}

@@ -15,11 +15,12 @@ describe('第1章終盤の顔表示 (作者指示 2026-10-12)', () => {
     expect(finaleFaceFor(at('ARIA_LEVI', '派手にやられたな。'))?.key).toBe('levi:NORMAL');
   });
 
-  it('the village: Mirei by her line’s face; the baker and Lina their one face; Rizel (no picture yet) and narration none', () => {
+  it('the village: Mirei and Rizel by their line’s face; the baker and Lina their one face; narration none', () => {
     expect(finaleFaceFor(at('RAID', 'こっち！ 道を空けて！'))?.key).toBe('mirei:ANGRY');
     expect(finaleFaceFor(at('RAID', 'リナ、離れるな！'))?.key).toBe('owner:NORMAL');
     expect(finaleFaceFor(at('RAID', 'うん！'))?.key).toBe('lina:NORMAL');
-    expect(finaleFaceFor(at('RAID', '歩ける人は、動けない人を手伝って！'))).toBeNull();
+    expect(finaleFaceFor(at('RAID', '歩ける人は、動けない人を手伝って！'))?.key).toBe('rizel:SAD');
+    expect(finaleFaceFor(at('VILLAGE_MIREI', '大丈夫。ここは、ちゃんと守られてる。'))?.key).toBe('rizel:NORMAL');
     expect(finaleFaceFor(FINALE_SCENES.RAID.lines[0])).toBeNull();
   });
 

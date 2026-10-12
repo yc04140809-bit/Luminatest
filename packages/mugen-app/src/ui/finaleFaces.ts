@@ -12,6 +12,7 @@ import { graveFaceSrc } from '../assets/graveFaces';
 import { ariaFaceSrc, leviFaceSrc } from '../assets/companionFaces';
 import { mireiFace, shopArt } from '../assets/shop';
 import { bakeryArt } from '../assets/bakery';
+import { dailyFaceFor } from '../assets/dailyFaces';
 
 /**
  * WHO IS SPEAKING, AS A FACE (作者指示 2026-10-12「会話画面での顔表示追加」):
@@ -22,8 +23,9 @@ import { bakeryArt } from '../assets/bakery';
  *
  *   ケイオス・主人公・グレイヴ・アリア・レヴィ  their face pictures (the faces they have)
  *   ミレイ        the shop's pictures of her, by the line's face
+ *   リゼル        her face pictures, by the line's face (2026-10-12)
  *   パン屋の主人・リナ  their whole-figure pictures, at the head (one face each, for now)
- *   リゼル・ほか   no picture yet: the name alone
+ *   ほか           no picture yet: the name alone
  */
 
 /** A face to draw: which (for caching and tests), and how to get it. */
@@ -73,6 +75,8 @@ export function finaleFaceFor(line: DialogueLine & { face?: NpcExpression; ariaF
     const face = line.face ?? 'NORMAL';
     return { key: `mirei:${face}`, load: () => shopArt().then((a) => withBox(MIREI_HEAD)(mireiFace(a.mirei, face).src)) };
   }
+  const rizel = dailyFaceFor(line);
+  if (rizel) return rizel;
   if (line.speaker === BAKERY_OWNER.name) return { key: 'owner:NORMAL', load: () => bakeryArt().then((a) => withBox(OWNER_HEAD)(a.owner)) };
   if (line.speaker === LINA_SPEAKER) return { key: 'lina:NORMAL', load: () => bakeryArt().then((a) => withBox(LINA_HEAD)(a.lina)) };
   return null;

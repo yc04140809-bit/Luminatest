@@ -80,6 +80,7 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
   const scene = page.getByTestId('finale-scene');
   const next = page.getByTestId('finale-next');
   let last = '';
+  let clickedAt = 0;
   for (let i = 0; i < 600; i++) {
     if (!(await scene.isVisible().catch(() => false))) break;
     const id = (await scene.getAttribute('data-scene').catch(() => null)) ?? '';
@@ -87,12 +88,22 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
     const key = `${id}:${await scene.getAttribute('data-at').catch(() => '')}`;
     // Between one line and the next (a stage being kept): wait for it.
     if (key === last || !(await next.isEnabled().catch(() => false))) {
+      // A tap that did not land (the line still there a second later, the button free): tap again.
+      if (key === last && Date.now() - clickedAt > 2_000 && (await next.isEnabled().catch(() => false))) {
+        // …only if it is still the very same line, read again right before the tap.
+        const now = `${await scene.getAttribute('data-scene').catch(() => '')}:${await scene.getAttribute('data-at').catch(() => '')}`;
+        if (now === last) {
+          clickedAt = Date.now();
+          await next.click({ timeout: 5_000 }).catch(() => {});
+        }
+      }
       await page.waitForTimeout(50);
       continue;
     }
     last = key;
     if (seen[seen.length - 1] !== id) seen.push(id);
     words.push((await page.getByTestId('finale-line').textContent()) ?? '');
+    clickedAt = Date.now();
     await next.click({ timeout: 5_000 }).catch(() => {});
   }
   return seen;
@@ -124,6 +135,7 @@ test('PHASE 3: the rest is the night before — ruins, raid, lure, the grassland
   const frames: string[] = [];
   const hooded: string[] = [];
   for (let i = 0; i < 60 && (await scene.getAttribute('data-scene')) === 'RUINS_SEAL'; i++) {
+    const at = (await scene.getAttribute('data-at')) ?? '';
     const b = (await scene.getAttribute('data-backdrop')) ?? '';
     const f = (await scene.getAttribute('data-frame')) ?? '';
     if (pictures[pictures.length - 1] !== b) pictures.push(b);
@@ -132,6 +144,10 @@ test('PHASE 3: the rest is the night before — ruins, raid, lure, the grassland
     words.push(line);
     if ((await speakerNow(page)) === 'フードの男') hooded.push(line);
     await page.getByTestId('finale-next').click();
+    // The next line drawn (or the next scene) before it is read — never two lines on one look.
+    await expect
+      .poll(async () => ((await scene.getAttribute('data-scene')) === 'RUINS_SEAL' ? await scene.getAttribute('data-at') : 'next'))
+      .not.toBe(at);
   }
   expect(pictures).toEqual(['DARK', 'RUINS_DEPTHS', 'RUINS_UNSEALING', 'RUINS_REFUSED', 'VALSHEEL_AWAKENING', 'RUINS_DEPTHS']);
   expect(frames).toEqual(['EYE', 'HEAD', 'PAW', 'UPPER']);
@@ -295,7 +311,7 @@ async function readUntil(page: Page, text: string) {
   throw new Error(`never reached ${text}`);
 }
 
-test('faces above the words: the line’s face for the five and Mirei, the baker and Lina; none for narration or Rizel (no picture yet); the broken village for the fire', async ({ page }) => {
+test('faces above the words: the line’s face for the five and Mirei, the baker and Lina; Rizel’s too; none for narration; the broken village for the fire', async ({ page }) => {
   test.setTimeout(120_000);
   const face = page.getByTestId('finale-face');
   await page.goto('/?preview=finale&from=NONE');
@@ -308,7 +324,7 @@ test('faces above the words: the line’s face for the five and Mirei, the baker
   await readUntil(page, '「こっち！ 道を空けて！」');
   await expect(face).toHaveAttribute('data-face', 'mirei:ANGRY');
   await readUntil(page, '「歩ける人は、動けない人を手伝って！」');
-  await expect(face).toHaveCount(0);
+  await expect(face).toHaveAttribute('data-face', 'rizel:SAD');
   await readUntil(page, '「リナ、離れるな！」');
   await expect(face).toHaveAttribute('data-face', 'owner:NORMAL');
   await readUntil(page, '「うん！」');

@@ -81,11 +81,13 @@ test('each their own turn: Kaos casts (her MP), the creature strikes ONE of them
   await page.getByTestId('pb-magic-starlight_bolt').click();
   await expect.poll(() => enemyHp(page)).toBeLessThan(before);
   expect(await mp(page)).toBe(42);
-  // The creature: one of them is struck, no more.
+  // The creature: one of them is struck, no more — unless it used its sweep (旋尾薙ぎ, about one turn
+  // in eight: valsheelBattle.ts), which strikes all three and says so.
   await turnOf(page, 'enemy');
   await turnOf(page, 'hero');
   const struck = (await Promise.all(['hero', 'kaos', 'grave'].map((id) => hp(page, id)))).filter((v, i) => v < [100, 100, 180][i]);
-  expect(struck).toHaveLength(1);
+  if (struck.length === 3) await expect(page.getByTestId('pb-log')).toContainText('旋尾薙ぎ');
+  else expect(struck).toHaveLength(1);
   // The hero: 《瞬断》, from スキル in the cross (no magic: 魔法 is there, closed).
   await expect(page.getByTestId('pb-cmd-magic')).toBeDisabled();
   const beforeHero = await enemyHp(page);

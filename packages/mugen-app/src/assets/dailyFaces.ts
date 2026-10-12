@@ -1,12 +1,24 @@
+import type { NpcExpression } from '@mugen/core/npc/touchReaction';
+import type { FaceBox } from './kaosFaces';
+import { RIZEL_HEAD, rizelFaceDrawn, rizelFaceSrc } from './rizelFaces';
+
 /**
  * 襲撃前の日常 — A FACE BESIDE A SMALL SCENE'S LINE, by who is speaking
- * (ui/daily.tsx). None has been delivered yet: リゼル's portrait is to come
- * (作者判断 2026-10-10 — the scenes do not wait for pictures). When one
- * arrives, it is one import and one line here, and the box shows it; until
- * then the box is words only, exactly as now.
+ * (ui/daily.tsx). リゼル's arrived 2026-10-12 (assets/rizelFaces.ts): her line's
+ * face (NORMAL where it names none). Someone with no picture yet: words only.
  */
-const FACES: Readonly<Record<string, string>> = {};
+export interface DailyFace {
+  /** Who and which face, e.g. "rizel:NORMAL". */
+  key: string;
+  load: () => Promise<{ src: string; box: FaceBox } | null>;
+}
 
-export function dailyFaceFor(speaker: string | null): string | null {
-  return speaker ? (FACES[speaker] ?? null) : null;
+export const RIZEL_SPEAKER = 'リゼル';
+
+export function dailyFaceFor(line: { speaker: string | null; face?: NpcExpression }): DailyFace | null {
+  if (line.speaker === RIZEL_SPEAKER) {
+    const face = rizelFaceDrawn(line.face ?? 'NORMAL');
+    return { key: `rizel:${face}`, load: () => rizelFaceSrc(face).then((src) => (src ? { src, box: RIZEL_HEAD } : null)) };
+  }
+  return null;
 }

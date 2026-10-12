@@ -226,7 +226,7 @@ export const DAILY_SCENES: readonly DailyScene[] = [
         [
           { speaker: RIZEL, text: '森の盗賊……もういないんだって。' },
           { speaker: RIZEL, text: '許せない人だった。それは、変わらない。' },
-          { speaker: RIZEL, text: '……なのに、すっきりしないの。どうしてだろ。' },
+          { speaker: RIZEL, text: '……なのに、すっきりしないの。どうしてだろ。', face: 'SAD' },
         ],
       ],
       [
@@ -240,7 +240,7 @@ export const DAILY_SCENES: readonly DailyScene[] = [
       [
         'HELP',
         [
-          { speaker: RIZEL, text: '盗賊の手当てをしたって、本当？' },
+          { speaker: RIZEL, text: '盗賊の手当てをしたって、本当？', face: 'AMAZED' },
           { speaker: RIZEL, text: '私なら、しない。……たぶん。' },
           { speaker: RIZEL, text: '怪我してる人を見たら体が動いちゃうのは、分からなくもないけど。' },
         ],
@@ -250,7 +250,7 @@ export const DAILY_SCENES: readonly DailyScene[] = [
         [
           { speaker: RIZEL, text: '盗賊、衛兵に引き渡したんだ。' },
           { speaker: RIZEL, text: '罪は、償うべきだと思う。' },
-          { speaker: RIZEL, text: 'でも……あの人たちがちゃんと裁くかは、分からない。偉い人って、そういうところがあるから。' },
+          { speaker: RIZEL, text: 'でも……あの人たちがちゃんと裁くかは、分からない。偉い人って、そういうところがあるから。', face: 'SAD' },
         ],
       ],
     ] as const
@@ -277,7 +277,7 @@ export const DAILY_SCENES: readonly DailyScene[] = [
       { speaker: null, text: '坂の下で、子どもが膝をすりむいて泣いている。' },
       { speaker: null, text: 'リゼルが黙ってしゃがみ、布を巻いていく。' },
       { speaker: '子ども', text: '……リゼル姉ちゃん、手当てだけは上手いよな。' },
-      { speaker: RIZEL, text: 'だけ、は余計。' },
+      { speaker: RIZEL, text: 'だけ、は余計。', face: 'HAPPY' },
       { speaker: null, text: '巻き終えた布は、驚くほどきれいだった。' },
     ],
   },

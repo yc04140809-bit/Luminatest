@@ -97,6 +97,8 @@ async function readThrough(page: Page, line: string, next: string): Promise<{ wh
       .getByTestId(line)
       .evaluate((el) => el.parentElement?.querySelector('.kaos-aside-speaker, .stage-speaker')?.textContent?.trim() ?? '');
     seen.push({ who, said: ((await page.getByTestId(line).textContent()) ?? '').trim() });
+    // Her face beside her lines (2026-10-12: リゼルの表情差分).
+    if (who === 'リゼル') await expect(page.getByTestId('daily-face')).toHaveAttribute('data-face', /^rizel:/);
     await page.getByTestId(next).click();
   }
   return seen;
