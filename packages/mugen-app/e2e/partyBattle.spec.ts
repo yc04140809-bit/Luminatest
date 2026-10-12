@@ -456,3 +456,11 @@ test('AUTO at ×2 fights three creatures to the end', async ({ page }) => {
   await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'VICTORY', { timeout: 140_000 });
   for (const id of ['enemy', 'enemy-2', 'enemy-3']) await expect(page.getByTestId(`pb-foe-${id}`)).toHaveAttribute('data-down', 'yes');
 });
+
+test('the DEBUG door\'s chooser: 敵1体 / セキリュウガ / 敵2体 / 敵3体', async ({ page }) => {
+  await page.goto('/?preview=party&enemy=select');
+  for (const id of ['pb-select-1', 'pb-select-sekiryuga', 'pb-select-2', 'pb-select-3']) await expect(page.getByTestId(id)).toBeVisible();
+  await page.getByTestId('pb-select-3').click();
+  await expect(page.getByTestId('pb-foe-enemy-3')).toBeVisible();
+  await expect(screen(page)).toHaveAttribute('data-actor', 'kaos');
+});

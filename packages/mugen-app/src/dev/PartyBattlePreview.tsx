@@ -20,6 +20,8 @@ import { audioManager } from '../platform/audio';
  * THE PARTY FIGHT, TRIED ON ITS OWN (戦闘方式 B, 2026-10-12) — debug builds
  * only, from the title's DEBUG chip (「3人戦闘」) or by URL:
  *
+ *   ?preview=party&enemy=select    the chooser the DEBUG door opens: 敵1体（ヴァルシール /
+ *                                  セキリュウガ）, 敵2体, 敵3体
  *   ?preview=party                 主人公・ケイオス・グレイヴ vs ヴァルシール（第1形態, 仮の数値）
  *   &enemy=sekiryuga               vs セキリュウガ (its numbers)
  *   &enemy=moss_rabbit             vs the forest's moss rabbit
@@ -95,6 +97,29 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
     audioManager.playBgm('BOSS_BATTLE');
   }, []);
   const [ended, setEnded] = useState<string | null>(null);
+  if (which === 'select') {
+    const go = (q: string) => window.location.assign(`${window.location.pathname}?preview=party${q}`);
+    return (
+      <div className="screen" data-testid="pb-preview-select">
+        <h2 style={{ margin: 0 }}>3人戦闘</h2>
+        {(
+          [
+            ['', '敵1体（ヴァルシール・巨大）', 'pb-select-1'],
+            ['&enemy=sekiryuga', '敵1体（セキリュウガ）', 'pb-select-sekiryuga'],
+            ['&enemies=2', '敵2体（イワホロ・コケマル）', 'pb-select-2'],
+            ['&enemies=3', '敵3体（イワホロ・コケマル・ヒョウレイ）', 'pb-select-3'],
+          ] as const
+        ).map(([q, label, id]) => (
+          <button key={id} className="btn" data-testid={id} onClick={() => go(q)}>
+            {label}
+          </button>
+        ))}
+        <button className="btn" onClick={() => window.location.assign(window.location.pathname)}>
+          タイトルへ
+        </button>
+      </div>
+    );
+  }
   if (ended) {
     return (
       <div className="screen" data-testid="pb-preview-ended">

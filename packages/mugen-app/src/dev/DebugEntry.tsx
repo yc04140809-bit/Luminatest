@@ -20,31 +20,15 @@ export function DebugEntry() {
         bottom: 'calc(8px + env(safe-area-inset-bottom))',
         zIndex: 1000,
         display: 'flex',
-        flexWrap: 'wrap',
-        maxWidth: 'calc(100vw - 16px)',
         gap: 8,
       }}
     >
       <button
         data-testid="debug-party-preview"
-        onClick={() => window.location.assign(`${window.location.pathname}?preview=party`)}
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=party&enemy=select`)}
         style={DOOR}
       >
         3人戦闘
-      </button>
-      <button
-        data-testid="debug-party-preview-2"
-        onClick={() => window.location.assign(`${window.location.pathname}?preview=party&enemies=2`)}
-        style={DOOR}
-      >
-        3人戦闘（敵2体）
-      </button>
-      <button
-        data-testid="debug-party-preview-3"
-        onClick={() => window.location.assign(`${window.location.pathname}?preview=party&enemies=3`)}
-        style={DOOR}
-      >
-        3人戦闘（敵3体）
       </button>
       <button
         data-testid="debug-battle-preview"
