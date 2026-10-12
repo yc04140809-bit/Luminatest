@@ -5,7 +5,7 @@
 #   - ゲームはリリース用のビルド（npm run build）。DEBUG ボタン・DEBUG メニュー・
 #     ?preview= などの開発用の入口・テスト用フックは、ビルドの段階で入らない
 #     （check:release で確認し、入っていたら失敗する）。
-#   - Android はリリース扱い（デバッグ不可）の build type `tester`。
+#   - Android はリリース扱い（デバッグ不可）の build type `beta`（Android は test で始まる名前を使えない）。
 #   - 固定の鍵で署名する。鍵はリポジトリに置かず、Secrets から書き出す:
 #       MUGEN_TESTER_KEYSTORE_B64       鍵ファイル（PKCS12）を base64 にしたもの
 #       MUGEN_TESTER_KEYSTORE_PASSWORD  そのパスワード
@@ -115,12 +115,12 @@ jobs:
           MUGEN_VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleTester --no-daemon --stacktrace
+          ./gradlew assembleBeta --no-daemon --stacktrace
 
       # 署名が固定の鍵であること、デバッグ不可であることを確かめ、中身を記録する。
       - name: Verify the APK
         run: |
-          APK=$(ls packages/mugen-app/android/app/build/outputs/apk/tester/*.apk | head -n1)
+          APK=$(ls packages/mugen-app/android/app/build/outputs/apk/beta/*.apk | head -n1)
           SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           BT="$SDK/build-tools/36.0.0"
           "$BT/apksigner" verify --print-certs "$APK" | tee "$RUNNER_TEMP/certs.txt"

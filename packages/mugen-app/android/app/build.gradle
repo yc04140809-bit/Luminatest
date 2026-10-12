@@ -27,7 +27,7 @@ android {
      */
     signingConfigs {
         if (System.getenv("MUGEN_TESTER_KEYSTORE")) {
-            tester {
+            beta {
                 storeFile file(System.getenv("MUGEN_TESTER_KEYSTORE"))
                 storePassword System.getenv("MUGEN_TESTER_KEYSTORE_PASSWORD")
                 keyAlias "mugen-tester"
@@ -41,19 +41,20 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         /*
-         * テスター版: a release build (not debuggable, the web game built
+         * テスター版 (build type `beta`): a release build (not debuggable, the web game built
          * without its debug tools), signed with the fixed key, under its own
          * application id and name so it sits beside the development build on
          * one handset — each with its own save.
          */
-        tester {
+        // Named `beta`: Android refuses build types whose names begin with "test".
+        beta {
             initWith release
             matchingFallbacks = ['release']
             applicationIdSuffix ".tester"
             versionNameSuffix "-tester"
             debuggable false
             if (System.getenv("MUGEN_TESTER_KEYSTORE")) {
-                signingConfig signingConfigs.tester
+                signingConfig signingConfigs.beta
             }
         }
     }

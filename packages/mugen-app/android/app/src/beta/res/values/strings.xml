@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<!-- テスター版の名前（build type `tester` だけが使う。開発版は main のまま）。 -->
+<!-- テスター版の名前（build type `beta`（テスター版）だけが使う。開発版は main のまま）。 -->
 <resources>
     <string name="app_name">MUGEN ZERO テスト版</string>
     <string name="title_activity_main">MUGEN ZERO テスト版</string>
