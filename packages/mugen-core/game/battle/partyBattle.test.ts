@@ -771,7 +771,7 @@ describe('a creature\'s guard, its moves, a boss; ヴァルシール第1形態',
   it('a boss is marked (its fight is not fled); an ordinary creature is not', () => {
     expect(createPartyBattle(party(), { ...shelled, boss: true }).enemy.boss).toBe(true);
     expect(createPartyBattle(party(), shelled).enemy.boss).toBe(false);
-    expect(createPartyBattle(party(), VALSHEEL_FORM1_PROVISIONAL).enemy).toMatchObject({ boss: true, guard: 0.45, breakMax: 13, maxHp: 440 });
+    expect(createPartyBattle(party(), VALSHEEL_FORM1_PROVISIONAL).enemy).toMatchObject({ boss: true, guard: 0.45, breakMax: 13, maxHp: 500 });
   });
 
   it('ヴァルシール第1形態 against the three at level one: AUTO (BREAK) wins sooner and whole; only swinging is slower and costs more', () => {

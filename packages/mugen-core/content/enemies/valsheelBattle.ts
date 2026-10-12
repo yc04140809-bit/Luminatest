@@ -8,7 +8,7 @@
 // `onBreak` (game/battle/partyBattle.ts) when that is written.
 //
 // THE NUMBERS (仮値 — 2026-10-12 調整「BREAKを使わないと効率が悪い」):
-//   HP 440        a little more than before (420)
+//   HP 500        a little more than before (420 → 440 → 500, 作者指示 2026-10-12「少し手応えを」)
 //   guard 45%     its shell takes 45% off every blow while it stands — gone
 //                 while it is BROKEN, when it takes 1.4× instead (so a blow
 //                 lands about 2.5 times as hard broken as standing)
@@ -33,7 +33,7 @@ export const VALSHEEL_NAME = 'ヴァルシール';
 
 export const VALSHEEL_FORM1_PROVISIONAL: PartyEnemyInput = {
   name: VALSHEEL_NAME,
-  hp: 440,
+  hp: 500,
   attackMin: 19,
   attackMax: 25,
   attackName: '甲殻の一撃',
@@ -59,7 +59,7 @@ export const VALSHEEL_TITLE = '封殻機兵';
 // nought, the shell breaks, and the fight goes on against this — the party as
 // the first form left them (nobody healed by the change).
 //
-//   HP 360        fresh health — less than the first form's, the shell gone
+//   HP 420        fresh health — less than the first form's, the shell gone (360 → 420, 作者指示 2026-10-12)
 //   guard 20%     less left to take the blows (BREAK still takes it off)
 //   blow 23–29    harder: nothing held back now
 //   コア照射        a quarter of its turns: 1.8× at one of them
@@ -70,10 +70,11 @@ export const VALSHEEL_TITLE = '封殻機兵';
 // MEASURED (valsheelBattle.test.ts, 200 fights with seeded dice that cover the
 // whole range): AUTO from level one, the first form then the second straight
 // on — won about 96 times in 100, with about half their health left; every
-// loss in the second form.
+// loss in the second form. With 500 / 420 (2026-10-12) the two take about 30
+// rounds together (27 before) — a little more to get through, the same odds.
 export const VALSHEEL_FORM2_PROVISIONAL: PartyEnemyInput = {
   name: VALSHEEL_NAME,
-  hp: 360,
+  hp: 420,
   attackMin: 23,
   attackMax: 29,
   attackName: '光刃の一閃',

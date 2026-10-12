@@ -268,7 +268,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   ]),
 
   // ---- F7c 村側：パン屋親子と村人（第2形態の後に差し込む）------------------------
-  VILLAGE_BAKERY: scene('VILLAGE_BAKERY', 'VILLAGE', [
+  VILLAGE_BAKERY: scene('VILLAGE_BAKERY', 'VILLAGE_BROKEN', [
     { speaker: null, text: '村の通り。' },
     { speaker: VILLAGER, text: '水だ！ 桶を回せ！' },
     { speaker: LINA, text: 'お父さん、こっちの火、消えたよ！' },

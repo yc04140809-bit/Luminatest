@@ -267,6 +267,7 @@ for (const [w, h] of [
   test(`${w}×${h}: the words and つぎへ on screen; the second form’s fight with every control on screen`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await page.goto('/?preview=finale&from=FORM1_WON');
+    await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'SHELL_BREAK');
     const box = (await page.getByTestId('finale-next').boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(h);
     expect(box.x + box.width).toBeLessThanOrEqual(w);
@@ -280,6 +281,66 @@ for (const [w, h] of [
     }
   });
 }
+
+/** Reads on until the line on screen is `text` (as shown, 「」 and all). */
+async function readUntil(page: Page, text: string) {
+  for (let i = 0; i < 300; i++) {
+    if (((await page.getByTestId('finale-line').textContent()) ?? '') === text) return;
+    if (!(await page.getByTestId('finale-next').isEnabled().catch(() => false))) {
+      await page.waitForTimeout(50);
+      continue;
+    }
+    await page.getByTestId('finale-next').click({ timeout: 5_000 }).catch(() => {});
+  }
+  throw new Error(`never reached ${text}`);
+}
+
+test('faces above the words: the line’s face for the five and Mirei, the baker and Lina; none for narration or Rizel (no picture yet); the broken village for the fire', async ({ page }) => {
+  test.setTimeout(120_000);
+  const face = page.getByTestId('finale-face');
+  await page.goto('/?preview=finale&from=NONE');
+  await readUntil(page, '「……ねえ。」');
+  await expect(face).toHaveAttribute('data-face', 'kaos:SERIOUS');
+  await readUntil(page, '「ん？」');
+  await expect(face).toHaveAttribute('data-face', 'hero:NORMAL');
+  await readUntil(page, '少しの間。');
+  await expect(face).toHaveCount(0);
+  await readUntil(page, '「こっち！ 道を空けて！」');
+  await expect(face).toHaveAttribute('data-face', 'mirei:ANGRY');
+  await readUntil(page, '「歩ける人は、動けない人を手伝って！」');
+  await expect(face).toHaveCount(0);
+  await readUntil(page, '「リナ、離れるな！」');
+  await expect(face).toHaveAttribute('data-face', 'owner:NORMAL');
+  await readUntil(page, '「うん！」');
+  await expect(face).toHaveAttribute('data-face', 'lina:NORMAL');
+  await readUntil(page, '「ここでやり合ったら村がもたねぇ！」');
+  await expect(face).toHaveAttribute('data-face', 'grave:ANGRY');
+
+  // After the stop: the village's bucket line in the broken village; Aria and Levi with their faces.
+  await page.goto('/?preview=finale&from=FORM2_WON');
+  await readUntil(page, '「水だ！ 桶を回せ！」');
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-backdrop', 'VILLAGE_BROKEN');
+  await readUntil(page, '「久しぶりね、ケイオス。」');
+  await expect(face).toHaveAttribute('data-face', 'aria:SMILE');
+  await readUntil(page, '「派手にやられたな。」');
+  await expect(face).toHaveAttribute('data-face', 'levi:NORMAL');
+  await readUntil(page, '「で、来てみたらこれだ。」');
+  await expect(face).toHaveAttribute('data-face', 'levi:ANGRY');
+  await readUntil(page, '「……この人間が、あなたの言っていた人？」');
+  await expect(face).toHaveAttribute('data-face', 'aria:TROUBLED');
+});
+
+test('ヴァルシール: the first form has 500 HP, the second 420 (作者指示 2026-10-12: 少し手応えを)', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/?preview=finale&from=LURED');
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'FORM1_START');
+  await readWhile(page, ['FORM1_START']);
+  await expect(page.getByTestId('pb-enemy-hp')).toHaveAttribute('data-hp', '500');
+  await page.goto('/?preview=finale&from=FORM1_WON');
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'SHELL_BREAK');
+  await readWhile(page, ['SHELL_BREAK']);
+  await expect(page.getByTestId('pb-enemy-hp')).toHaveAttribute('data-hp', '420');
+});
 
 test('DEBUG: 第1章終盤 from the 3人戦闘 chooser — nothing kept', async ({ page }) => {
   await page.goto('/?preview=party&enemy=select');

@@ -159,3 +159,18 @@ describe('第1章終盤 手順3 — 絵と音 (2026-10-12)', () => {
     expect(FINALE_FIGHT_BGM).toBe('CHAPTER1_FINAL_BOSS');
   });
 });
+
+describe('第1章終盤 — 半壊の文脈では通常の村を使わない (作者指示 2026-10-12)', () => {
+  it('every village scene that speaks of fire, water buckets, rubble, smoke, shelter or running is drawn in the broken village', () => {
+    const signs = /火|桶|瓦礫|煙|避難|倉庫|逃げろ|崩れ|包帯|手当/;
+    for (const id of FINALE_SCENE_IDS) {
+      const scene = FINALE_SCENES[id];
+      if (scene.place !== 'VILLAGE' && scene.place !== 'VILLAGE_BROKEN') continue;
+      const words = scene.lines.map((l) => l.text).join('\n');
+      if (signs.test(words)) expect(scene.place, id).toBe('VILLAGE_BROKEN');
+    }
+    expect(FINALE_SCENES.VILLAGE_BAKERY.place).toBe('VILLAGE_BROKEN');
+    // The morning, before the raid: still the village as it was.
+    expect(FINALE_SCENES.MORNING.place).toBe('VILLAGE');
+  });
+});

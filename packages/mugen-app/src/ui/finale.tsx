@@ -11,10 +11,13 @@ import {
 } from '@mugen/content/story/chapter1Finale';
 import { HERO_SPEAKER } from '@mugen/content/story/sekiryugaArc';
 import { carriedInto } from '@mugen/content/characters/partyMembers';
+import { KAOS_MP_REGEN, mpAfterRecovery } from '@mugen/content/characters/kaosMpRegen';
 import { finaleBeat, finaleReached, type FinaleFight, type FinaleStage } from '@mugen/core/world/chapterFinale';
 import type { PartyEnemyInput, PartyMember, PartyMemberSpec } from '@mugen/game/battle/partyBattle';
 import type { BgmId } from '@mugen/assets';
 import { finaleBackdropSrc } from '../assets/finaleArt';
+import type { FaceBox } from '../assets/kaosFaces';
+import { finaleFaceFor, type FinaleFace } from './finaleFaces';
 import { usePicture } from './scene';
 import { PartyBattleScreen } from './battle/PartyBattleScreen';
 import './finale.css';
@@ -126,8 +129,14 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
   if (phase.kind === 'FIGHT') {
     const which = beat.then as FinaleFight;
     const foe = fights[which]!;
-    // The second form follows the first straight on: the party as it left them.
-    const members = which === 'VALSHEEL_FORM2' && carried.current ? carriedInto(party(), carried.current) : party();
+    // The second form follows the first straight on: the party as it left them — and, in the breath
+    // while the shell breaks, a little of Kaos's magic back (KAOS_MP_REGEN.BETWEEN_FORMS).
+    const members =
+      which === 'VALSHEEL_FORM2' && carried.current
+        ? carriedInto(party(), carried.current).map((m) =>
+            m.id === 'kaos' ? { ...m, mp: mpAfterRecovery(m.mp ?? m.maxMp, m.maxMp, KAOS_MP_REGEN.BETWEEN_FORMS) } : m,
+          )
+        : party();
     return (
       <PartyBattleScreen
         key={`finale-fight-${phase.round}`}
@@ -176,6 +185,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       backdrop={finaleBackdrop(scene, phase.line)}
       frame={finaleFrame(scene, phase.line)}
       mood={scene.id === 'EVE' ? 'night' : null}
+      face={finaleFaceFor(line)}
       speaker={speaker}
       text={line.text}
       at={phase.line}
@@ -191,6 +201,7 @@ function FinaleScene({
   backdrop,
   frame,
   mood,
+  face,
   speaker,
   text,
   at,
@@ -201,6 +212,7 @@ function FinaleScene({
   backdrop: FinaleBackdrop;
   frame: FinaleFrame | null;
   mood: 'night' | null;
+  face: FinaleFace | null;
   speaker: string | null;
   text: string;
   at: number;
@@ -208,6 +220,7 @@ function FinaleScene({
   onNext: () => void;
 }) {
   const src = usePicture(() => finaleBackdropSrc(backdrop), `finale:${backdrop}`);
+  const shown = useFace(face);
   return (
     <div
       className={`screen finale${mood ? ` finale-${mood}` : ''}`}
@@ -228,6 +241,11 @@ function FinaleScene({
         />
       )}
       <div className="finale-box" onClick={onNext}>
+        {shown && (
+          <div className="finale-face" data-testid="finale-face" data-face={shown.key} aria-hidden="true">
+            <img src={shown.src} alt="" style={windowOn(shown.box)} />
+          </div>
+        )}
         {speaker && <p className="finale-speaker">{speaker}</p>}
         <p className="finale-line" data-testid="finale-line">
           {speaker ? `「${text}」` : text}
@@ -247,3 +265,32 @@ function FinaleScene({
     </div>
   );
 }
+
+/** The speaker's face, once fetched — only while it is still the one asked for. */
+function useFace(face: FinaleFace | null): { key: string; src: string; box: FaceBox } | null {
+  const [got, setGot] = useState<{ key: string; src: string; box: FaceBox } | null>(null);
+  const key = face?.key ?? null;
+  useEffect(() => {
+    if (!face) return;
+    let gone = false;
+    void face.load().then((p) => {
+      if (!gone && p) setGot({ key: face.key, ...p });
+    });
+    return () => {
+      gone = true;
+    };
+    // `key` says which face; the object itself is new on every line.
+  }, [key]);
+  return got && got.key === key ? got : null;
+}
+
+/** The picture placed so only `box` of it shows in its square frame. */
+function windowOn(box: FaceBox): Record<string, string> {
+  return {
+    width: `${(box.fileW / box.width) * 100}%`,
+    height: `${(box.fileH / box.height) * 100}%`,
+    left: `${(-box.x / box.width) * 100}%`,
+    top: `${(-box.y / box.height) * 100}%`,
+  };
+}
+

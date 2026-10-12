@@ -70,6 +70,7 @@ import { availableMagic } from '@mugen/core/magic/magic';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { kaosHasAwakened } from '@mugen/core/magic/awakened';
 import { FinaleRun, type FinaleMusic } from './ui/finale';
+import { KAOS_MP_REGEN } from '@mugen/content/characters/kaosMpRegen';
 
 /** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
 const AUTO_NOTICE = 'note:auto_battle';
@@ -871,7 +872,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               ].map((m) => (typeof legs === 'number' ? { ...m, hp: legs } : m));
             }}
             autoAvailable={autoOpen}
-            onReach={(stage) => world.advanceFinaleStage(stage)}
+            // Each point reached: kept — and a little of her magic back (KAOS_MP_REGEN).
+            onReach={(stage) => world.advanceFinaleStage(stage).then(() => world.recoverKaosMp(KAOS_MP_REGEN.STORY_STEP))}
             onWon={(members) => {
               const hero = members.find((m) => m.id === 'hero');
               const kaos = members.find((m) => m.id === 'kaos');
@@ -1189,6 +1191,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onHome={() => {
             // Back into the village from outside: where a small thing may happen.
             setHomecoming(true);
+            // A little of her magic back on coming home (KAOS_MP_REGEN; the night's rest fills her).
+            void world.recoverKaosMp(KAOS_MP_REGEN.HOMECOMING).catch(() => {});
             const daily = world.getDailyScene('VILLAGE');
             const banter = daily ? null : banterFor(world, 'HOMECOMING');
             const news = newsFor(world);

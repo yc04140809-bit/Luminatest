@@ -1007,6 +1007,20 @@ export class World {
     });
   }
 
+  /**
+   * ケイオスの MP、少しだけ戻る (作者指示 2026-10-12「MP 自然回復」): `share` of her
+   * most (rounded up), never past it. Small on purpose — the night's rest is
+   * what fills her; this only keeps a long day from feeling unfair. How much
+   * was given (0 when she is full).
+   */
+  async recoverKaosMp(share: number): Promise<number> {
+    const kaos = this.getCharacterCondition(BATTLE_MP_HOLDER);
+    const gain = Math.min(kaos.maxMp - kaos.currentMp, Math.ceil(kaos.maxMp * share));
+    if (gain <= 0) return 0;
+    await this.setCharacterCondition(BATTLE_MP_HOLDER, { hp: kaos.currentHp, mp: kaos.currentMp + gain });
+    return gain;
+  }
+
   /** One person's, by id. For the developer panel and for tests. */
   async setCharacterCondition(
     characterId: string,
