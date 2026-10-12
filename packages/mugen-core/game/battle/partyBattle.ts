@@ -17,11 +17,15 @@
 //   - 身構える (DEFEND) halves the next blow to that member until their next
 //     turn, and gathers a little magic for one who has any (8, as ever).
 //
-// Deliberately small for now: the creature's ordinary blow only (no moves,
-// poise, phases or skills here yet), Kaos's damage and mending spells, the
-// hero's 《瞬断》, and AUTO's plain judgement. BREAK, skills of their own
-// (月影の構え, 星癒の羽, 重撃・豪断), items and revival come next — each is a
-// new action kind here, and nothing above changes for it.
+// THEIR TECHNIQUES (2026-10-12, 通常スキル3種): the hero's 月影の構え (guard,
+// evasion and a counter, two of his turns), Kaos's 星癒の羽 (a heal over
+// three of the target's turns), Grave's 重撃・豪断 (a heavy blow that breaks
+// footing). And BREAK: every blow wears the creature's footing (`breakPower`);
+// at nought it is BROKEN — it loses its next two turns and takes 1.4× — and
+// then stands again, its footing whole. A creature may carry its own BREAK
+// event (`onBreak`: ヴァルシール's shell, later).
+//
+// Still not here: the creature's moves, items, revival, finishers.
 //
 // Pure: a state in, a state out, the dice passed in.
 
@@ -56,7 +60,50 @@ export interface PartyMemberSpec {
   skills?: readonly HeroSkillSpec[];
   /** Their spells (Kaos's) — only damage and mending are used here yet. */
   magic?: readonly MagicDef[];
+  /** Their own techniques in this kind of fight (月影の構え, 星癒の羽, 重撃・豪断). */
+  techniques?: readonly PartyTechnique[];
+  /** Their magic power (the status screen's 魔力): what 星癒の羽 adds. */
+  magicPower?: number;
+  /** How much their ordinary blow wears a creature's footing (1 if absent). */
+  breakPower?: number;
 }
+
+/**
+ * A technique of the party fight. One shape for all of them, told apart by
+ * `kind`; each new one is a kind here and a case in `partyAct`.
+ */
+export interface PartyTechnique {
+  id: string;
+  name: string;
+  kind: 'MOON_GUARD' | 'REGEN' | 'HEAVY';
+  mpCost: number;
+  /** Who it is aimed at: themself, one of the party, or the creature. */
+  target: 'SELF' | 'ALLY' | 'ENEMY';
+  /** HEAVY: times an ordinary blow. */
+  power?: number;
+  /** HEAVY: how much it wears the creature's footing. */
+  breakPower?: number;
+  /** MOON_GUARD / REGEN: how many of the target's turns it lasts. */
+  turns?: number;
+}
+
+/** 月影の構え: what it does while it lasts. */
+export const MOON_GUARD = { defenseUp: 0.3, evasion: 0.25, counter: 0.8 } as const;
+/** 星癒の羽: a tenth of their most HP, and half her 魔力, each turn. */
+export const REGEN_SHARE = 0.1;
+export const REGEN_MAGIC = 0.5;
+/** BROKEN: it takes this much more, for as long as it lasts. */
+export const BROKEN_TAKEN = 1.4;
+/** BROKEN: how many of its own turns it loses. */
+export const BREAK_TURNS = 2;
+/** A creature's footing when its content gives none. */
+export const DEFAULT_BREAK_MAX = 10;
+/** Kaos's damage spells wear footing like a blow. */
+export const SPELL_BREAK_POWER = 1;
+/** 《瞬断》 wears it a little more than a swing. */
+export const SKILL_BREAK_POWER = 2;
+/** A counter wears it as a swing. */
+export const COUNTER_BREAK_POWER = 1;
 
 export interface PartyMember extends PartyMemberSpec {
   hp: number;
@@ -67,6 +114,13 @@ export interface PartyMember extends PartyMemberSpec {
   turns: number;
   /** When each skill was last used, as `turns` just after. */
   skillUsedAt: Readonly<Record<string, number>>;
+  /** 月影の構え: how many more of their turns it lasts (0: none). */
+  guardTurns: number;
+  /** Whether their counter has been spent this creature turn. */
+  counterUsed: boolean;
+  /** 星癒の羽 on them: turns left, and how much each heals. */
+  regenTurns: number;
+  regenAmount: number;
 }
 
 export interface PartyEnemy {
@@ -78,16 +132,40 @@ export interface PartyEnemy {
   attackName: string | null;
   speed: number;
   affinity: EnemyAffinity | null;
+  /** Its footing: whole, and what is left of it. */
+  breakMax: number;
+  breakCurrent: number;
+  /** BROKEN: how many more of its turns it loses (0: standing). */
+  breakTurns: number;
+  /** How many times it has been broken this fight. */
+  breaks: number;
+  /**
+   * ITS OWN BREAK, if it has one (ヴァルシール's shell, later): called the
+   * moment it is broken, with whether it is the first time; returns the fight
+   * as it should go on.
+   */
+  onBreak?: (state: PartyBattleState, first: boolean) => PartyBattleState;
 }
+
+/** Whether it is broken now. */
+export const isBroken = (enemy: PartyEnemy) => enemy.breakTurns > 0;
 
 /** What just happened, for the screen to play. */
 export interface PartyBeat {
   actor: string;
-  kind: 'ATTACK' | 'SKILL' | 'MAGIC' | 'MEND' | 'DEFEND' | 'ENEMY_ATTACK';
+  kind: 'ATTACK' | 'SKILL' | 'MAGIC' | 'MEND' | 'DEFEND' | 'ENEMY_ATTACK' | 'TECH' | 'ENEMY_BROKEN';
   target: string;
   amount: number;
   read: AffinityRead;
   name?: string;
+  /** The creature was broken by this. */
+  broke?: boolean;
+  /** The creature's blow missed (月影の構え). */
+  missed?: boolean;
+  /** The hero answered with his counter, for this much. */
+  counter?: number;
+  /** 星癒の羽 healed the one whose turn it was, at its end. */
+  regen?: { target: string; amount: number };
 }
 
 export interface PartyBattleState {
@@ -107,7 +185,15 @@ export type PartyAction =
   | { kind: 'ATTACK' }
   | { kind: 'SKILL'; skillId: string }
   | { kind: 'MAGIC'; magicId: string; target?: string }
+  | { kind: 'TECH'; techId: string; target?: string }
   | { kind: 'DEFEND' };
+
+/** What the creature's blow is (for the counter's rules): kind and reach. */
+export interface EnemyStrike {
+  type: 'PHYSICAL' | 'MAGIC';
+  area: 'ONE' | 'ALL';
+}
+export const ORDINARY_STRIKE: EnemyStrike = { type: 'PHYSICAL', area: 'ONE' };
 
 export type Rng = () => number;
 
@@ -125,10 +211,14 @@ export function roundOrder(members: readonly PartyMember[], enemy: PartyEnemy): 
   return actors.sort((a, b) => b.speed - a.speed || a.rank - b.rank).map((a) => a.id);
 }
 
-export function createPartyBattle(
-  specs: readonly PartyMemberSpec[],
-  enemy: EnemySpec & { speed?: number },
-): PartyBattleState {
+/** A creature for the party fight: its spec, and what the party fight adds. */
+export type PartyEnemyInput = EnemySpec & {
+  speed?: number;
+  breakMax?: number;
+  onBreak?: PartyEnemy['onBreak'];
+};
+
+export function createPartyBattle(specs: readonly PartyMemberSpec[], enemy: PartyEnemyInput): PartyBattleState {
   const members: PartyMember[] = specs.map((s) => {
     const hp = Math.max(0, Math.min(s.maxHp, Math.floor(s.hp ?? s.maxHp)));
     return {
@@ -139,6 +229,10 @@ export function createPartyBattle(
       defending: false,
       turns: 0,
       skillUsedAt: {},
+      guardTurns: 0,
+      counterUsed: false,
+      regenTurns: 0,
+      regenAmount: 0,
     };
   });
   const foe: PartyEnemy = {
@@ -150,6 +244,11 @@ export function createPartyBattle(
     attackName: enemy.attackName ?? null,
     speed: enemy.speed ?? DEFAULT_ENEMY_SPEED,
     affinity: enemy.affinity ?? null,
+    breakMax: Math.max(1, enemy.breakMax ?? DEFAULT_BREAK_MAX),
+    breakCurrent: Math.max(1, enemy.breakMax ?? DEFAULT_BREAK_MAX),
+    breakTurns: 0,
+    breaks: 0,
+    onBreak: enemy.onBreak,
   };
   const state: PartyBattleState = {
     members,
@@ -214,12 +313,20 @@ function settle(state: PartyBattleState): PartyBattleState {
   return state;
 }
 
-/** At the start of someone's turn: their guard drops (it lasted until now). */
+/**
+ * At the start of someone's turn: their 身構える drops (it lasted until now),
+ * and 月影の構え counts one of its turns down. At the start of the creature's:
+ * every counter is ready again (one per creature turn).
+ */
 function startTurn(state: PartyBattleState): PartyBattleState {
   const id = currentActor(state);
-  if (!id || id === ENEMY_ID) return state;
-  return withMember(state, id, (m) => (m.defending ? { ...m, defending: false } : m));
+  if (!id) return state;
+  if (id === ENEMY_ID) return { ...state, members: state.members.map((m) => (m.counterUsed ? { ...m, counterUsed: false } : m)) };
+  return withMember(state, id, (m) => ({ ...m, defending: false, guardTurns: Math.max(0, m.guardTurns - 1) }));
 }
+
+/** Down: whatever was on them goes (guard, counter, the heal over time). */
+const fallen = (m: PartyMember): PartyMember => ({ ...m, hp: 0, down: true, defending: false, guardTurns: 0, counterUsed: false, regenTurns: 0, regenAmount: 0 });
 
 /** On to the next one standing; a new round (order worked out afresh) when the round is done. */
 function advance(state: PartyBattleState): PartyBattleState {
@@ -238,8 +345,50 @@ function advance(state: PartyBattleState): PartyBattleState {
   return startTurn({ ...state, order, at, round });
 }
 
-function hitEnemy(state: PartyBattleState, amount: number): PartyBattleState {
-  return { ...state, enemy: { ...state.enemy, hp: Math.max(0, state.enemy.hp - amount) } };
+/**
+ * A blow landing on the creature: `base` as worked out, 1.4× while it is
+ * broken; its footing worn by `breakPower` (not while broken). At nought it
+ * is BROKEN — its own event, if it has one, runs then. Returns the fight and
+ * what landed.
+ */
+function strikeEnemy(state: PartyBattleState, base: number, breakPower: number): { state: PartyBattleState; amount: number; broke: boolean } {
+  const broken = isBroken(state.enemy);
+  const amount = Math.max(1, Math.round(base * (broken ? BROKEN_TAKEN : 1)));
+  const hp = Math.max(0, state.enemy.hp - amount);
+  if (broken || hp <= 0) return { state: { ...state, enemy: { ...state.enemy, hp } }, amount, broke: false };
+  const left = state.enemy.breakCurrent - Math.max(0, breakPower);
+  if (left > 0) return { state: { ...state, enemy: { ...state.enemy, hp, breakCurrent: left } }, amount, broke: false };
+  const first = state.enemy.breaks === 0;
+  let next: PartyBattleState = {
+    ...state,
+    enemy: { ...state.enemy, hp, breakCurrent: 0, breakTurns: BREAK_TURNS, breaks: state.enemy.breaks + 1 },
+  };
+  next = { ...next, log: [...next.log, `BREAK!! ${state.enemy.name}の体勢が崩れた。`] };
+  if (state.enemy.onBreak) next = state.enemy.onBreak(next, first);
+  return { state: next, amount, broke: true };
+}
+
+/** The member's own turn is over: 星癒の羽 on them heals once. */
+function endOwnTurn(state: PartyBattleState, id: string): PartyBattleState {
+  const m = memberById(state, id);
+  if (!m || m.down || m.regenTurns <= 0) return state;
+  const amount = Math.min(m.regenAmount, m.maxHp - m.hp);
+  const next = withMember(state, id, (x) => ({ ...x, hp: x.hp + amount, regenTurns: x.regenTurns - 1, regenAmount: x.regenTurns - 1 > 0 ? x.regenAmount : 0 }));
+  return {
+    ...next,
+    log: [...next.log, `星癒の羽が${m.name}を癒した（+${amount}）。`],
+    last: next.last ? { ...next.last, regen: { target: id, amount } } : next.last,
+  };
+}
+
+/** 星癒の羽's heal per turn, for this target from this caster. */
+export function regenAmountFor(target: PartyMemberSpec, caster: PartyMemberSpec): number {
+  return Math.max(1, Math.round(target.maxHp * REGEN_SHARE + (caster.magicPower ?? 0) * REGEN_MAGIC));
+}
+
+/** Whether a member can use this technique now (alive, MP enough). */
+export function techUsable(member: PartyMember, tech: PartyTechnique): boolean {
+  return !member.down && member.mp >= tech.mpCost;
 }
 
 /**
@@ -251,15 +400,16 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
   const me = id && id !== ENEMY_ID ? memberById(state, id) : undefined;
   if (!me || me.down) return state;
   let next: PartyBattleState | null = null;
+  /** 星癒の羽 laid on herself this turn: it starts healing at the end of her NEXT turn. */
+  let laidOnSelf = false;
   switch (action.kind) {
     case 'ATTACK': {
       const m = affinityMultiplier(state.enemy.affinity, 'PHYSICAL');
-      const amount = Math.max(1, Math.round(roll(me.attackMin, me.attackMax, rng) * m));
-      next = hitEnemy(state, amount);
+      const hit = strikeEnemy(state, roll(me.attackMin, me.attackMax, rng) * m, me.breakPower ?? 1);
       next = {
-        ...next,
-        log: [...next.log, `${me.name}の攻撃！ ${state.enemy.name}に${amount}のダメージ。`],
-        last: { actor: me.id, kind: 'ATTACK', target: ENEMY_ID, amount, read: readAffinity(m) },
+        ...hit.state,
+        log: [...withoutBreakLine(hit.state.log, hit.broke), `${me.name}の攻撃！ ${state.enemy.name}に${hit.amount}のダメージ。`, ...breakLine(hit)],
+        last: { actor: me.id, kind: 'ATTACK', target: ENEMY_ID, amount: hit.amount, read: readAffinity(m), broke: hit.broke },
       };
       break;
     }
@@ -267,13 +417,12 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
       const skill = me.skills?.find((s) => s.id === action.skillId);
       if (!skill || !partySkillReady(me, skill)) return state;
       const m = affinityMultiplier(state.enemy.affinity, 'PHYSICAL');
-      const amount = Math.max(1, Math.round(roll(me.attackMin, me.attackMax, rng) * skill.power * m));
-      next = hitEnemy(state, amount);
-      next = withMember(next, me.id, (x) => ({ ...x, skillUsedAt: { ...x.skillUsedAt, [skill.id]: x.turns } }));
+      const hit = strikeEnemy(state, roll(me.attackMin, me.attackMax, rng) * skill.power * m, SKILL_BREAK_POWER);
+      next = withMember(hit.state, me.id, (x) => ({ ...x, skillUsedAt: { ...x.skillUsedAt, [skill.id]: x.turns } }));
       next = {
         ...next,
-        log: [...next.log, `${me.name}の《${skill.name}》！ ${state.enemy.name}に${amount}のダメージ。`],
-        last: { actor: me.id, kind: 'SKILL', target: ENEMY_ID, amount, read: readAffinity(m), name: skill.name },
+        log: [...withoutBreakLine(next.log, hit.broke), `${me.name}の《${skill.name}》！ ${state.enemy.name}に${hit.amount}のダメージ。`, ...breakLine(hit)],
+        last: { actor: me.id, kind: 'SKILL', target: ENEMY_ID, amount: hit.amount, read: readAffinity(m), name: skill.name, broke: hit.broke },
       };
       break;
     }
@@ -293,13 +442,47 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
         };
       } else {
         const m = affinityMultiplier(state.enemy.affinity, spell.type, spell.element);
-        const amount = Math.max(1, Math.round(spell.power * m));
-        next = withMember(state, me.id, (x) => ({ ...x, mp: x.mp - spell.mpCost }));
-        next = hitEnemy(next, amount);
+        const paid = withMember(state, me.id, (x) => ({ ...x, mp: x.mp - spell.mpCost }));
+        const hit = strikeEnemy(paid, spell.power * m, SPELL_BREAK_POWER);
+        next = {
+          ...hit.state,
+          log: [...withoutBreakLine(hit.state.log, hit.broke), `${me.name}の《${spell.name}》！ ${state.enemy.name}に${hit.amount}のダメージ。`, ...breakLine(hit)],
+          last: { actor: me.id, kind: 'MAGIC', target: ENEMY_ID, amount: hit.amount, read: readAffinity(m), name: spell.name, broke: hit.broke },
+        };
+      }
+      break;
+    }
+    case 'TECH': {
+      const tech = me.techniques?.find((t) => t.id === action.techId);
+      if (!tech || !techUsable(me, tech)) return state;
+      const paid = withMember(state, me.id, (x) => ({ ...x, mp: x.mp - tech.mpCost }));
+      if (tech.kind === 'MOON_GUARD') {
+        // Used again: back to its full length (not stacked).
+        next = withMember(paid, me.id, (x) => ({ ...x, guardTurns: tech.turns ?? 2, counterUsed: false }));
         next = {
           ...next,
-          log: [...next.log, `${me.name}の《${spell.name}》！ ${state.enemy.name}に${amount}のダメージ。`],
-          last: { actor: me.id, kind: 'MAGIC', target: ENEMY_ID, amount, read: readAffinity(m), name: spell.name },
+          log: [...next.log, `${me.name}は《${tech.name}》をとった。`],
+          last: { actor: me.id, kind: 'TECH', target: me.id, amount: 0, read: 'PLAIN', name: tech.name },
+        };
+      } else if (tech.kind === 'REGEN') {
+        const target = memberById(paid, action.target ?? me.id);
+        if (!target || target.down) return state;
+        const amount = regenAmountFor(target, me);
+        // On them already: back to its full length (not stacked).
+        next = withMember(paid, target.id, (x) => ({ ...x, regenTurns: tech.turns ?? 3, regenAmount: amount }));
+        laidOnSelf = target.id === me.id;
+        next = {
+          ...next,
+          log: [...next.log, `${me.name}の《${tech.name}》！ ${target.name}を星の羽が包んだ。`],
+          last: { actor: me.id, kind: 'TECH', target: target.id, amount: 0, read: 'PLAIN', name: tech.name },
+        };
+      } else {
+        const m = affinityMultiplier(state.enemy.affinity, 'PHYSICAL');
+        const hit = strikeEnemy(paid, roll(me.attackMin, me.attackMax, rng) * (tech.power ?? 1.6) * m, tech.breakPower ?? 4);
+        next = {
+          ...hit.state,
+          log: [...withoutBreakLine(hit.state.log, hit.broke), `${me.name}の《${tech.name}》！ ${state.enemy.name}に${hit.amount}のダメージ。`, ...breakLine(hit)],
+          last: { actor: me.id, kind: 'TECH', target: ENEMY_ID, amount: hit.amount, read: readAffinity(m), name: tech.name, broke: hit.broke },
         };
       }
       break;
@@ -315,48 +498,122 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
     }
   }
   next = withMember(next!, me.id, (x) => ({ ...x, turns: x.turns + 1 }));
+  if (!laidOnSelf) next = endOwnTurn(next, me.id);
   return advance(settle(next));
 }
 
-/** The creature's turn: its ordinary blow at one of them still standing. */
-export function enemyAct(state: PartyBattleState, rng: Rng = Math.random): PartyBattleState {
+/** The BREAK line goes after the blow that caused it, not before. */
+function withoutBreakLine(log: readonly string[], broke: boolean): string[] {
+  if (!broke) return [...log];
+  const i = log.length - 1;
+  return log[i]?.startsWith('BREAK!!') ? log.slice(0, i) : [...log];
+}
+function breakLine(hit: { broke: boolean; state: PartyBattleState }): string[] {
+  return hit.broke ? [`BREAK!! ${hit.state.enemy.name}の体勢が崩れた。`] : [];
+}
+
+/**
+ * The creature's turn. BROKEN: it loses the turn (one of two), and stands
+ * again — its footing whole — once both are spent. Else its blow at one of
+ * them still standing (`strike` says what kind of blow; an ordinary one is
+ * physical, at one). 月影の構え on him: a quarter of blows miss, the rest
+ * reach him through a guard 30% thicker, and a physical blow at him alone is
+ * answered — once a turn — at 0.8 of his swing.
+ */
+export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, strike: EnemyStrike = ORDINARY_STRIKE): PartyBattleState {
   if (currentActor(state) !== ENEMY_ID) return state;
+  if (isBroken(state.enemy)) {
+    const left = state.enemy.breakTurns - 1;
+    const stands = left <= 0;
+    const next: PartyBattleState = {
+      ...state,
+      enemy: { ...state.enemy, breakTurns: Math.max(0, left), breakCurrent: stands ? state.enemy.breakMax : 0 },
+      log: [...state.log, stands ? `${state.enemy.name}は体勢を立て直した。` : `${state.enemy.name}はBREAK中、動けない。`],
+      last: { actor: ENEMY_ID, kind: 'ENEMY_BROKEN', target: ENEMY_ID, amount: 0, read: 'PLAIN' },
+    };
+    return advance(next);
+  }
   const standing = state.members.filter((m) => !m.down);
   if (standing.length === 0) return settle(state);
-  const target = standing[Math.min(standing.length - 1, Math.floor(rng() * standing.length))];
-  const raw = roll(state.enemy.attackMin, state.enemy.attackMax, rng);
-  const cut = Math.max(1, raw - Math.floor(target.defense / 4));
-  const amount = target.defending ? Math.max(1, Math.floor(cut / 2)) : cut;
-  let next = withMember(state, target.id, (x) => {
-    const hp = Math.max(0, x.hp - amount);
-    return { ...x, hp, down: hp <= 0 };
-  });
-  const fell = memberById(next, target.id)!.down;
+  const targets = strike.area === 'ALL' ? standing : [standing[Math.min(standing.length - 1, Math.floor(rng() * standing.length))]];
+  let next = state;
+  const said: string[] = [];
+  let beat: PartyBeat | null = null;
   const how = state.enemy.attackName ? `${state.enemy.name}の${state.enemy.attackName}！` : `${state.enemy.name}の攻撃！`;
-  next = {
-    ...next,
-    log: [...next.log, `${how} ${target.name}に${amount}のダメージ。${fell ? `${target.name}は倒れた。` : ''}`],
-    last: { actor: ENEMY_ID, kind: 'ENEMY_ATTACK', target: target.id, amount, read: 'PLAIN' },
-  };
+  for (const target of targets) {
+    const guarded = target.guardTurns > 0;
+    const raw = roll(state.enemy.attackMin, state.enemy.attackMax, rng);
+    if (guarded && rng() < MOON_GUARD.evasion) {
+      said.push(`${target.name}は攻撃を受け流した。MISS`);
+      beat = { actor: ENEMY_ID, kind: 'ENEMY_ATTACK', target: target.id, amount: 0, read: 'PLAIN', missed: true };
+    } else {
+      const defense = guarded ? target.defense * (1 + MOON_GUARD.defenseUp) : target.defense;
+      const cut = Math.max(1, raw - Math.floor(defense / 4));
+      const amount = target.defending ? Math.max(1, Math.floor(cut / 2)) : cut;
+      next = withMember(next, target.id, (x) => {
+        const hp = Math.max(0, x.hp - amount);
+        return hp <= 0 ? fallen(x) : { ...x, hp };
+      });
+      const fell = memberById(next, target.id)!.down;
+      said.push(`${target.name}に${amount}のダメージ。${fell ? `${target.name}は倒れた。` : ''}`);
+      beat = { actor: ENEMY_ID, kind: 'ENEMY_ATTACK', target: targets.length > 1 ? 'ALL' : target.id, amount, read: 'PLAIN' };
+    }
+    // The counter: his guard up, still standing, a physical blow at him alone, once a turn.
+    const after = memberById(next, target.id)!;
+    if (guarded && !after.down && !after.counterUsed && strike.type === 'PHYSICAL' && strike.area === 'ONE') {
+      const m = affinityMultiplier(next.enemy.affinity, 'PHYSICAL');
+      const hit = strikeEnemy(next, roll(after.attackMin, after.attackMax, rng) * MOON_GUARD.counter * m, COUNTER_BREAK_POWER);
+      next = withMember(hit.state, target.id, (x) => ({ ...x, counterUsed: true }));
+      next = { ...next, log: withoutBreakLine(next.log, hit.broke) };
+      said.push(`${target.name}の反撃！ ${state.enemy.name}に${hit.amount}のダメージ。`, ...breakLine(hit));
+      beat = { ...beat!, counter: hit.amount, broke: hit.broke };
+    }
+  }
+  next = { ...next, log: [...next.log, `${how} ${said.join(' ')}`], last: beat };
   return advance(settle(next));
 }
 
 /** HP at or under this share of its most counts as low, for AUTO's mending. */
 export const AUTO_MEND_AT = 0.4;
+/** Under this share, AUTO lays 星癒の羽 on one who has none. */
+export const AUTO_REGEN_UNDER = 0.7;
+/** At or under this share, the hero takes 月影の構え (if it is not already up). */
+export const AUTO_GUARD_AT = 0.5;
 
 /**
- * AUTO, for the member whose turn it is: mend the lowest of them if one is
- * low and it can be paid for; else the strongest damage spell they can pay
- * for, if stronger than a swing; else a skill that is ready; else a swing.
+ * AUTO, for the member whose turn it is:
+ *   - a heal now if one of them is low (癒しの光);
+ *   - 星癒の羽 on the lowest under 70% with none on them (never on one whole);
+ *   - the hero: 月影の構え when he is at half or under and it is not up
+ *     (never every turn); else 《瞬断》 when ready; else a swing;
+ *   - Grave: 重撃・豪断 when the creature is broken, or its footing would
+ *     break with it, or every other turn of his; else a swing;
+ *   - Kaos: her strongest damage spell if better than a swing; else a swing.
  */
 export function partyAutoAction(state: PartyBattleState): PartyAction | null {
   const id = currentActor(state);
   const me = id && id !== ENEMY_ID ? memberById(state, id) : undefined;
   if (!me) return null;
   const spells = castable(me);
+  const techs = (me.techniques ?? []).filter((t) => techUsable(me, t));
+  const standing = state.members.filter((m) => !m.down);
   const mend = spells.filter((s) => s.effect === 'MEND').sort((a, b) => b.power - a.power)[0];
-  const low = state.members.filter((m) => !m.down && m.hp <= m.maxHp * AUTO_MEND_AT).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+  const low = standing.filter((m) => m.hp <= m.maxHp * AUTO_MEND_AT).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
   if (mend && low) return { kind: 'MAGIC', magicId: mend.id, target: low.id };
+  const regen = techs.find((t) => t.kind === 'REGEN');
+  if (regen) {
+    const wants = standing
+      .filter((m) => m.hp < m.maxHp * AUTO_REGEN_UNDER && m.regenTurns === 0)
+      .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+    if (wants) return { kind: 'TECH', techId: regen.id, target: wants.id };
+  }
+  const guard = techs.find((t) => t.kind === 'MOON_GUARD');
+  if (guard && me.guardTurns === 0 && me.hp <= me.maxHp * AUTO_GUARD_AT) return { kind: 'TECH', techId: guard.id };
+  const heavy = techs.find((t) => t.kind === 'HEAVY');
+  if (heavy) {
+    const finishing = !isBroken(state.enemy) && state.enemy.breakCurrent <= (heavy.breakPower ?? 4);
+    if (isBroken(state.enemy) || finishing || me.turns % 2 === 0) return { kind: 'TECH', techId: heavy.id };
+  }
   const swing = (me.attackMin + me.attackMax) / 2;
   const blast = spells
     .filter((s) => s.effect === 'DAMAGE')

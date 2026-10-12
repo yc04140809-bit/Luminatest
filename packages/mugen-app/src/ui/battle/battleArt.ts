@@ -28,6 +28,7 @@ import fuumimi from '@mugen/assets/files/enemies/fuumimi.png';
 import hyourei from '@mugen/assets/files/enemies/hyourei.png';
 import iwahoro from '@mugen/assets/files/enemies/iwahoro.png';
 import kokemaru from '@mugen/assets/files/enemies/kokemaru.png';
+import valsheelForm1 from '@mugen/assets/files/enemies/valsheel-form1.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -218,6 +219,23 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
    * transparent PNG and placed as delivered (the earlier picture, with an
    * opaque white ground, was never used). One drawing: standing.
    */
+  /**
+   * ヴァルシール, its first form (2026-10-12) — the armoured sphinx, as
+   * delivered (transparent, facing right toward the party). For the party
+   * fight (its shell to be broken later); no story fight stands it yet.
+   */
+  valsheel: {
+    id: 'valsheel',
+    label: 'ヴァルシール',
+    states: {
+      front: {
+        src: valsheelForm1,
+        box: { fileW: 1122, fileH: 1402, x: 17, y: 44, width: 1105, height: 1323 },
+        face: { fileW: 1122, fileH: 1402, x: 880, y: 250, width: 200, height: 200 },
+        facing: 'right',
+      },
+    },
+  },
   kokemaru: {
     id: 'kokemaru',
     label: 'コケマル',

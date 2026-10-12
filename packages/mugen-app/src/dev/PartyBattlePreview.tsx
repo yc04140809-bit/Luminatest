@@ -3,6 +3,8 @@ import { specOf } from '@mugen/game/battle/enemySpec';
 import { availableMagic } from '@mugen/core/magic/magic';
 import { MOSS_RABBIT } from '@mugen/content/enemies/species';
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
+import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
+import type { PartyEnemyInput } from '@mugen/game/battle/partyBattle';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
@@ -14,9 +16,11 @@ import { audioManager } from '../platform/audio';
  * THE PARTY FIGHT, TRIED ON ITS OWN (戦闘方式 B, 2026-10-12) — debug builds
  * only, from the title's DEBUG chip (「3人戦闘」) or by URL:
  *
- *   ?preview=party                 主人公・ケイオス・グレイヴ vs セキリュウガ (its numbers)
+ *   ?preview=party                 主人公・ケイオス・グレイヴ vs ヴァルシール（第1形態, 仮の数値）
+ *   &enemy=sekiryuga               vs セキリュウガ (its numbers)
  *   &enemy=moss_rabbit             vs the forest's moss rabbit
  *   &hurt=1                        the hero and Grave start hurt (for the heals)
+ *   &footing=N                     the creature's BREAK footing is N (to see BREAK at once)
  *
  * Reads and writes nothing of the world: level-1 numbers, Kaos awake (her
  * spells), Grave as he comes for a while (provisional). ヴァルシール's own
@@ -24,7 +28,15 @@ import { audioManager } from '../platform/audio';
  */
 export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
   const [round, setRound] = useState(0);
-  const rabbit = params.get('enemy') === 'moss_rabbit';
+  const which = params.get('enemy');
+  const footing = Number(params.get('footing'));
+  const foe: { spec: PartyEnemyInput; art: string } =
+    which === 'moss_rabbit'
+      ? { spec: specOf(MOSS_RABBIT), art: 'moss_rabbit' }
+      : which === 'sekiryuga'
+        ? { spec: SEKIRYUGA_BATTLE, art: 'sekiryuga' }
+        : { spec: VALSHEEL_FORM1_PROVISIONAL, art: 'valsheel' };
+  const enemy = footing > 0 ? { ...foe.spec, breakMax: Math.floor(footing) } : foe.spec;
   const hurt = params.get('hurt') === '1';
   const members = useMemo(
     () => [
@@ -73,8 +85,8 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
     <PartyBattleScreen
       key={round}
       members={members}
-      enemy={rabbit ? specOf(MOSS_RABBIT) : SEKIRYUGA_BATTLE}
-      enemyArtId={rabbit ? 'moss_rabbit' : 'sekiryuga'}
+      enemy={enemy}
+      enemyArtId={foe.art}
       background={battleBackgroundFor('GREENWOOD_FOREST')}
       onEnd={(r) => setEnded(r.outcome)}
     />

@@ -9,14 +9,19 @@ import {
   partyAct,
   partyAutoAction,
   partySkillReady,
+  isBroken,
+  techUsable,
   upcomingTurns,
   type PartyAction,
   type PartyBattleState,
+  type PartyBeat,
+  type PartyEnemyInput,
   type PartyMember,
   type PartyMemberSpec,
+  type PartyTechnique,
 } from '@mugen/game/battle/partyBattle';
-import type { EnemySpec } from '@mugen/game/battle/battleLogic';
 import type { MagicDef } from '@mugen/core/magic/magic';
+import type { SfxId } from '@mugen/content/audio/sfx';
 import type { BattleBackgroundKey } from '@mugen/assets/keys';
 import type { ArtBox } from '@mugen/core/art/artStates';
 import { battleEnemyArt, battlePartyArt, type BattlePartyId } from './battleArt';
@@ -41,13 +46,31 @@ import './partyBattle.css';
  *            always (a thin bar and the number, never a toggle that
  *            changes while it is being read); the one acting marked.
  *
- * AUTO and ×2 sit with the commands. Nothing here is saved: whoever starts
- * the fight decides what its end means (`onEnd`).
+ * AUTO and ×2 sit beside the last line said. Nothing here is saved: whoever
+ * starts the fight decides what its end means (`onEnd`).
+ *
+ * THEIR TECHNIQUES AND BREAK (通常スキル3種, 2026-10-12): the hero's 月影の構え
+ * and Grave's 重撃・豪断 are commands of their own; Kaos's 星癒の羽 is in her
+ * まほう, aimed like a heal. What is on each of them shows under their name
+ * (「月影 2T」「星癒 3T」); MISS, the counter and the heal over time float
+ * where they happen; a technique's name flashes as it is used. The
+ * creature's footing is the thin gauge under its HP; broken, 「BREAK!!」
+ * fills the middle of the screen, the screen shakes, and 「BREAK中 防御DOWN」
+ * stays on its plate for as long as it lasts.
  */
+
+/**
+ * BREAK's sound — the one place to change it when its own SE comes
+ * (an existing one stands in until then).
+ */
+export const BREAK_SFX: SfxId = 'battle_critical';
+export function playBreakSfx() {
+  playSfx(BREAK_SFX);
+}
 
 export interface PartyBattleProps {
   members: readonly PartyMemberSpec[];
-  enemy: EnemySpec & { speed?: number };
+  enemy: PartyEnemyInput;
   /** The creature's drawing (battleArt's enemy id). */
   enemyArtId: string;
   background?: BattleBackgroundKey | null;
@@ -60,6 +83,32 @@ export interface PartyBattleProps {
 
 const ENEMY_TURN_MS = 700;
 const AUTO_TURN_MS = 450;
+/** A breath more after a BREAK, for 「BREAK!!」 to be seen. */
+const BREAK_PAUSE_MS = 700;
+const SHAKE_MS = 450;
+
+/** What is on a member, short, for under their name. */
+function statusChips(m: PartyMember): { key: string; label: string; title: string }[] {
+  const out: { key: string; label: string; title: string }[] = [];
+  if (m.guardTurns > 0) out.push({ key: 'guard', label: `月影 ${m.guardTurns}T`, title: `月影の構え 残り${m.guardTurns}T` });
+  if (m.regenTurns > 0) out.push({ key: 'regen', label: `星癒 ${m.regenTurns}T`, title: `星癒の羽 残り${m.regenTurns}T` });
+  return out;
+}
+
+/** The sound of what a member just did. */
+function sfxOf(beat: PartyBeat | null, tech?: PartyTechnique): SfxId {
+  if (!beat) return 'battle_attack_slash';
+  if (beat.kind === 'MEND') return 'battle_heal';
+  if (beat.kind === 'MAGIC') return 'magic_cast';
+  if (beat.kind === 'DEFEND') return 'battle_guard';
+  if (beat.kind === 'TECH') {
+    if (tech?.kind === 'MOON_GUARD') return 'battle_buff';
+    if (tech?.kind === 'REGEN') return 'battle_heal';
+    return 'battle_attack_heavy_weapon';
+  }
+  if (beat.kind === 'SKILL') return 'battle_skill_slash';
+  return 'battle_attack_slash';
+}
 
 /** A head cut from a drawing by its face box, in a round frame. */
 function Face({ src, box, testId, actor, acting }: { src: string | null; box?: ArtBox; testId: string; actor: string; acting: boolean }) {
@@ -93,7 +142,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [auto, setAuto] = useState(false);
   const [fast, setFast] = useState(false);
   const [menu, setMenu] = useState<'COMMANDS' | 'MAGIC' | 'TARGET'>('COMMANDS');
-  const [aiming, setAiming] = useState<MagicDef | null>(null);
+  const [aiming, setAiming] = useState<{ spell: MagicDef } | { tech: PartyTechnique } | null>(null);
+  const [shaking, setShaking] = useState(false);
   const [bg, setBg] = useState<string | null>(null);
   const ended = useRef(false);
   const actor = currentActor(state);
@@ -121,27 +171,36 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const act = (action: PartyAction) => {
     const next = partyAct(state, action, dice);
     if (next === state) return;
-    const beat = next.last;
-    if (beat?.kind === 'MEND') playSfx('battle_heal');
-    else if (beat?.kind === 'MAGIC') playSfx('magic_cast');
-    else if (beat?.kind === 'DEFEND') playSfx('battle_guard');
-    else playSfx('battle_attack_slash');
+    const tech = action.kind === 'TECH' ? acting?.techniques?.find((t) => t.id === action.techId) : undefined;
+    playSfx(sfxOf(next.last, tech));
+    if (next.last?.regen) playSfx('battle_heal');
     setMenu('COMMANDS');
     setAiming(null);
     setState(next);
   };
 
+  // BREAK: its sound, and the screen shakes a moment.
+  useEffect(() => {
+    if (!state.last?.broke) return;
+    playBreakSfx();
+    setShaking(true);
+    const t = window.setTimeout(() => setShaking(false), SHAKE_MS);
+    return () => window.clearTimeout(t);
+  }, [state.log.length, state.last?.broke]);
+
   // The creature's turn, and AUTO's: played after a breath (halved at ×2).
   useEffect(() => {
     if (state.outcome !== 'ONGOING' || !actor) return;
-    const ms = (actor === ENEMY_ID ? ENEMY_TURN_MS : AUTO_TURN_MS) / (fast ? 2 : 1);
+    const ms = (actor === ENEMY_ID ? ENEMY_TURN_MS : AUTO_TURN_MS) / (fast ? 2 : 1) + (state.last?.broke ? BREAK_PAUSE_MS : 0);
     if (actor === ENEMY_ID) {
       const t = window.setTimeout(() => {
-        setState((s) => {
-          const next = enemyAct(s, dice);
-          if (next !== s) playSfx('battle_damage');
-          return next;
-        });
+        const next = enemyAct(state, dice);
+        if (next === state) return;
+        const beat = next.last;
+        if (beat?.missed) playSfx('battle_evade');
+        else if (beat?.kind === 'ENEMY_ATTACK') playSfx('battle_damage');
+        if (beat?.counter) playSfx('battle_attack_slash');
+        setState(next);
       }, ms);
       return () => window.clearTimeout(t);
     }
@@ -165,21 +224,42 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const lastKey = state.log.length;
   const spells = acting ? (acting.magic ?? []).filter((m) => m.effect === 'DAMAGE' || m.effect === 'MEND') : [];
   const canCast = acting ? castable(acting) : [];
+  // A technique aimed at one of the party goes in the まほう list (星癒の羽);
+  // the others are commands of their own (月影の構え, 重撃・豪断).
+  const techs = acting?.techniques ?? [];
+  const allyTechs = techs.filter((t) => t.target === 'ALLY');
+  const ownTechs = techs.filter((t) => t.target !== 'ALLY');
   const pickSpell = (spell: MagicDef) => {
     if (spell.effect === 'MEND') {
-      setAiming(spell);
+      setAiming({ spell });
       setMenu('TARGET');
       return;
     }
     act({ kind: 'MAGIC', magicId: spell.id });
   };
+  const pickTech = (tech: PartyTechnique) => {
+    if (tech.target === 'ALLY') {
+      setAiming({ tech });
+      setMenu('TARGET');
+      return;
+    }
+    act({ kind: 'TECH', techId: tech.id });
+  };
+  const aimAt = (id: string) => {
+    if (!aiming) return;
+    act('spell' in aiming ? { kind: 'MAGIC', magicId: aiming.spell.id, target: id } : { kind: 'TECH', techId: aiming.tech.id, target: id });
+  };
+  const broken = isBroken(state.enemy);
+  // A technique's or skill's name, flashed as it is used.
+  const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING';
 
   return (
     <div
-      className="screen pb-screen"
+      className={`screen pb-screen${shaking ? ' shake' : ''}`}
       data-testid="pb-screen"
       data-actor={actor ?? ''}
+      data-broken={broken ? 'yes' : 'no'}
       data-outcome={state.outcome}
       data-round={state.round}
     >
@@ -199,30 +279,86 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           <span className="pb-num" data-testid="pb-enemy-hp" data-hp={state.enemy.hp}>
             {state.enemy.hp}/{state.enemy.maxHp}
           </span>
+          <span className={`pb-break-label${broken ? ' on' : ''}`}>BREAK</span>
+          <div
+            className={`pb-break-gauge${broken ? ' broken' : ''}`}
+            data-testid="pb-break-gauge"
+            data-current={state.enemy.breakCurrent}
+            data-max={state.enemy.breakMax}
+            aria-label={`BREAK ${state.enemy.breakCurrent}/${state.enemy.breakMax}`}
+            style={{ ['--pb-segs' as string]: state.enemy.breakMax }}
+          >
+            <div className="pb-break-fill" style={{ width: `${broken ? 100 : (state.enemy.breakCurrent / state.enemy.breakMax) * 100}%` }} />
+          </div>
+          {broken ? (
+            <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={state.enemy.breakTurns}>
+              防御DOWN 残り{state.enemy.breakTurns}T
+            </span>
+          ) : (
+            <span className="pb-num pb-break-num">
+              {state.enemy.breakCurrent}/{state.enemy.breakMax}
+            </span>
+          )}
         </div>
       </div>
 
       {/* MIDDLE — the creature left, the party right. */}
       <div className="pb-field">
-        <div className={`pb-foe${actor === ENEMY_ID ? ' acting' : ''}`}>
+        <div className={`pb-foe${actor === ENEMY_ID ? ' acting' : ''}${broken ? ' broken' : ''}${shaking ? ' shake' : ''}`}>
           {art.enemy.src && <img src={art.enemy.src} alt={state.enemy.name} data-testid="pb-enemy-art" />}
+          {broken && (
+            <span className="pb-foe-broken" data-testid="pb-enemy-broken">
+              BREAK中
+            </span>
+          )}
           {last && last.target === ENEMY_ID && last.amount > 0 && (
             <span key={lastKey} className="pb-float">
               {last.amount}
             </span>
           )}
+          {last?.counter !== undefined && (
+            <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter">
+              <small>反撃</small>
+              {last.counter}
+            </span>
+          )}
         </div>
+        {flashName && (
+          <span key={`n${lastKey}`} className="pb-tech-name" data-testid="pb-tech-name">
+            {flashName}
+          </span>
+        )}
+        {last?.broke && (
+          <span key={`b${lastKey}`} className="pb-break-flash" data-testid="pb-break-flash" aria-hidden="true">
+            BREAK!!
+          </span>
+        )}
         <div className="pb-party">
           {state.members.map((m, i) => (
             <div
               key={m.id}
-              className={`pb-figure pb-figure-${i}${m.down ? ' down' : ''}${actor === m.id ? ' acting' : ''}`}
+              className={`pb-figure pb-figure-${i}${m.down ? ' down' : ''}${actor === m.id ? ' acting' : ''}${m.guardTurns > 0 ? ' guard' : ''}${m.regenTurns > 0 ? ' regen' : ''}`}
               data-testid={`pb-figure-${m.id}`}
             >
               {art.party[m.id]?.src && <img src={art.party[m.id].src!} alt={m.name} />}
               {last && last.target === m.id && last.amount > 0 && (
                 <span key={lastKey} className={`pb-float${last.kind === 'MEND' ? ' heal' : ''}`}>
                   {last.kind === 'MEND' ? `+${last.amount}` : last.amount}
+                </span>
+              )}
+              {last?.missed && last.target === m.id && (
+                <span key={`m${lastKey}`} className="pb-float miss" data-testid="pb-float-miss">
+                  MISS
+                </span>
+              )}
+              {last?.counter !== undefined && last.target === m.id && (
+                <span key={`k${lastKey}`} className="pb-float tag">
+                  COUNTER
+                </span>
+              )}
+              {last?.regen && last.regen.target === m.id && last.regen.amount > 0 && (
+                <span key={`r${lastKey}`} className="pb-float heal low" data-testid={`pb-float-regen-${m.id}`}>
+                  +{last.regen.amount} HP
                 </span>
               )}
             </div>
@@ -233,9 +369,23 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       {/* BOTTOM — what was said and what to do; everyone's health. */}
       <div className="pb-bottom">
         <div className="pb-act">
-          <p className="pb-log" data-testid="pb-log" role="status">
-            {state.log[state.log.length - 1]}
-          </p>
+          <div className="pb-act-head">
+            <p className="pb-log" data-testid="pb-log" role="status">
+              {state.log[state.log.length - 1]}
+            </p>
+            {state.outcome === 'ONGOING' && (
+              <span className="pb-chips">
+                {autoAvailable && (
+                  <button className={`pb-chip${auto ? ' on' : ''}`} data-testid="pb-auto" aria-pressed={auto} onClick={() => setAuto((a) => !a)}>
+                    AUTO
+                  </button>
+                )}
+                <button className={`pb-chip${fast ? ' on' : ''}`} data-testid="pb-speed" aria-pressed={fast} onClick={() => setFast((f) => !f)}>
+                  ×2
+                </button>
+              </span>
+            )}
+          </div>
           {state.outcome !== 'ONGOING' ? (
             <div className="pb-result" data-testid="pb-result" data-outcome={state.outcome}>
               <b>{state.outcome === 'VICTORY' ? '勝利！' : '敗北……'}</b>
@@ -270,7 +420,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                       {s.name}
                     </button>
                   ))}
-                  {spells.length > 0 && (
+                  {ownTechs.map((t) => (
+                    <button
+                      key={t.id}
+                      className="pb-cmd tech"
+                      data-testid={`pb-cmd-tech-${t.id}`}
+                      disabled={!techUsable(acting!, t)}
+                      onClick={() => pickTech(t)}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                  {(spells.length > 0 || allyTechs.length > 0) && (
                     <button className="pb-cmd" data-testid="pb-cmd-magic" onClick={() => setMenu('MAGIC')}>
                       まほう
                     </button>
@@ -294,6 +455,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                       <small>{s.mpCost}</small>
                     </button>
                   ))}
+                  {allyTechs.map((t) => (
+                    <button
+                      key={t.id}
+                      className="pb-cmd tech"
+                      data-testid={`pb-cmd-tech-${t.id}`}
+                      disabled={!techUsable(acting!, t)}
+                      onClick={() => pickTech(t)}
+                    >
+                      {t.name}
+                      <small>{t.mpCost}</small>
+                    </button>
+                  ))}
                   <button className="pb-cmd back" data-testid="pb-cmd-back" onClick={() => setMenu('COMMANDS')}>
                     もどる
                   </button>
@@ -309,7 +482,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                         key={m.id}
                         className="pb-cmd"
                         data-testid={`pb-target-${m.id}`}
-                        onClick={() => act({ kind: 'MAGIC', magicId: aiming.id, target: m.id })}
+                        onClick={() => aimAt(m.id)}
                       >
                         {m.name}
                       </button>
@@ -319,16 +492,6 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   </button>
                 </>
               )}
-              <span className="pb-chips">
-                {autoAvailable && (
-                  <button className={`pb-chip${auto ? ' on' : ''}`} data-testid="pb-auto" aria-pressed={auto} onClick={() => setAuto((a) => !a)}>
-                    AUTO
-                  </button>
-                )}
-                <button className={`pb-chip${fast ? ' on' : ''}`} data-testid="pb-speed" aria-pressed={fast} onClick={() => setFast((f) => !f)}>
-                  ×2
-                </button>
-              </span>
             </div>
           )}
         </div>
@@ -351,6 +514,15 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               <span className="pb-member-bars">
                 <Bar value={m.hp} max={m.maxHp} kind="hp" />
                 {m.maxMp > 0 && <Bar value={m.mp} max={m.maxMp} kind="mp" />}
+                {statusChips(m).length > 0 && (
+                  <span className="pb-status" data-testid={`pb-status-${m.id}`}>
+                    {statusChips(m).map((c) => (
+                      <span key={c.key} className={`pb-status-chip ${c.key}`} data-testid={`pb-status-${m.id}-${c.key}`} title={c.title}>
+                        {c.label}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </span>
               <span className="pb-member-nums">
                 {m.down ? (

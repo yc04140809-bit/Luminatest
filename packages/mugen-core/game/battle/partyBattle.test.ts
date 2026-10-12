@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   AUTO_MEND_AT,
+  AUTO_REGEN_UNDER,
+  BREAK_TURNS,
+  BROKEN_TAKEN,
+  isBroken,
   DEFEND_MP,
   ENEMY_ID,
   castable,
@@ -14,6 +18,7 @@ import {
   roundOrder,
   upcomingTurns,
   type PartyBattleState,
+  type PartyEnemy,
   type PartyMemberSpec,
 } from './partyBattle';
 import { GRAVE_GUEST, heroAndKaos } from '../../content/characters/partyMembers';
@@ -22,6 +27,11 @@ import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { SEKIRYUGA_BATTLE } from '../../content/enemies/sekiryugaBattle';
 
 const fixed = (v: number) => () => v;
+/** The dice, one after another (the last repeated). */
+const seq = (...vs: number[]) => {
+  let i = 0;
+  return () => vs[Math.min(i++, vs.length - 1)];
+};
 const party = (): PartyMemberSpec[] => [
   ...heroAndKaos({
     heroName: '主人公',
@@ -162,8 +172,12 @@ describe('the party fight (戦闘方式 B, 2026-10-12)', () => {
     expect(partyAutoAction(fine)).not.toMatchObject({ magicId: 'mending_light' });
     const heroTurn = untilTurnOf(fine, 'hero');
     expect(partyAutoAction(heroTurn)).toEqual({ kind: 'SKILL', skillId: 'shundan' });
+    // Grave (通常スキル3種): 重撃・豪断 on his first turn, a swing on the next
+    // (the footing still far from breaking).
     const graveTurn = untilTurnOf(fine, 'grave');
-    expect(partyAutoAction(graveTurn)).toEqual({ kind: 'ATTACK' });
+    expect(partyAutoAction(graveTurn)).toEqual({ kind: 'TECH', techId: 'goudan' });
+    const graveNext = untilTurnOf(partyAct(graveTurn, { kind: 'DEFEND' }), 'grave');
+    expect(partyAutoAction(graveNext)).toEqual({ kind: 'ATTACK' });
   });
 
   it('a whole fight against セキリュウガ\'s numbers comes to an end, every turn a standing one\'s', () => {
@@ -183,5 +197,272 @@ describe('the party fight (戦闘方式 B, 2026-10-12)', () => {
     const members = s.members.map((m) => (m.id === 'kaos' ? { ...m, down: true } : m));
     expect(roundOrder(members, s.enemy)).toEqual([ENEMY_ID, 'hero', 'grave']);
     expect(roundOrder(s.members, { ...s.enemy, hp: 0 })).toEqual(['kaos', 'hero', 'grave']);
+  });
+});
+
+// 通常スキル3種 + BREAK (2026-10-12).
+describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BREAK', () => {
+  // A creature fast enough to go first? No: Kaos 14, creature 12, hero 10, Grave 8.
+  const tough = { ...foe, hp: 999, attackMin: 20, attackMax: 20, breakMax: 12 };
+  /** Hero with a thick hide, so 30% more of it shows. */
+  const thickHero = () => party().map((m) => (m.id === 'hero' ? { ...m, defense: 40 } : m));
+  /** On to the hero's turn, he takes 月影の構え, on to the creature's. */
+  const guarded = (specs = thickHero(), enemy: typeof tough = tough) => {
+    let s = untilTurnOf(createPartyBattle(specs, enemy), 'hero');
+    s = partyAct(s, { kind: 'TECH', techId: 'moon_guard' });
+    return untilTurnOf(s, ENEMY_ID);
+  };
+
+  describe('月影の構え (the hero)', () => {
+    it('lasts two of his turns; taken again, it is back at two (not stacked)', () => {
+      let s = untilTurnOf(createPartyBattle(party(), tough), 'hero');
+      s = partyAct(s, { kind: 'TECH', techId: 'moon_guard' });
+      expect(memberById(s, 'hero')!.guardTurns).toBe(2);
+      expect(s.last).toMatchObject({ actor: 'hero', kind: 'TECH', name: '月影の構え' });
+      s = untilTurnOf(s, 'hero');
+      expect(memberById(s, 'hero')!.guardTurns).toBe(1);
+      s = partyAct(s, { kind: 'TECH', techId: 'moon_guard' });
+      expect(memberById(s, 'hero')!.guardTurns).toBe(2);
+      s = untilTurnOf(partyAct(untilTurnOf(s, 'hero'), { kind: 'DEFEND' }), 'hero');
+      expect(memberById(s, 'hero')!.guardTurns).toBe(0);
+    });
+
+    it('his guard 30% thicker against a blow that lands', () => {
+      // rng 0: the first standing, the hero.
+      const before = guarded();
+      const hp = memberById(before, 'hero')!.hp;
+      const s = enemyAct(before, seq(0, 0.5, 0.9, 0));
+      // 20 − ⌊40×1.3/4⌋ = 20 − 13 = 7 (without it: 20 − 10 = 10).
+      expect(memberById(s, 'hero')!.hp).toBe(hp - 7);
+      const plain = enemyAct(untilTurnOf(createPartyBattle(thickHero(), tough), ENEMY_ID), seq(0, 0.5));
+      expect(memberById(plain, 'hero')!.hp).toBe(100 - 10);
+    });
+
+    it('a quarter of blows miss (MISS) — and he answers even a blow he slipped', () => {
+      const before = guarded();
+      const s = enemyAct(before, seq(0, 0.5, 0.1, 0));
+      expect(memberById(s, 'hero')!.hp).toBe(memberById(before, 'hero')!.hp);
+      expect(s.last).toMatchObject({ target: 'hero', amount: 0, missed: true });
+      // The counter: 0.8 × his swing (8 at rng 0) = 6.
+      expect(s.last!.counter).toBe(6);
+      expect(s.log.at(-1)).toContain('MISS');
+      expect(s.log.at(-1)).toContain('反撃');
+    });
+
+    it('counters a physical blow at him alone at 0.8 of his swing, once a creature turn', () => {
+      const before = guarded();
+      const s = enemyAct(before, seq(0, 0.5, 0.9, 0));
+      expect(s.last).toMatchObject({ target: 'hero', amount: 7, counter: 6 });
+      expect(s.enemy.hp).toBe(before.enemy.hp - 6);
+      expect(memberById(s, 'hero')!.counterUsed).toBe(true);
+      // Ready again on the creature's next turn.
+      const again = untilTurnOf(s, ENEMY_ID);
+      expect(memberById(again, 'hero')!.counterUsed).toBe(false);
+    });
+
+    it('no counter to magic, nor to a blow at all of them', () => {
+      const before = guarded();
+      const magic = enemyAct(before, seq(0, 0.5, 0.9, 0), { type: 'MAGIC', area: 'ONE' });
+      expect(magic.last!.counter).toBeUndefined();
+      expect(magic.enemy.hp).toBe(before.enemy.hp);
+      const all = enemyAct(before, seq(0.5, 0.9, 0.5, 0.9, 0.5, 0.9), { type: 'PHYSICAL', area: 'ALL' });
+      expect(all.enemy.hp).toBe(before.enemy.hp);
+      expect(all.last).toMatchObject({ target: 'ALL' });
+      expect(all.members.every((m) => m.hp < m.maxHp)).toBe(true);
+    });
+
+    it('gone when he goes down', () => {
+      const weak = thickHero().map((m) => (m.id === 'hero' ? { ...m, hp: 3 } : m));
+      const s = enemyAct(guarded(weak), seq(0, 0.5, 0.9));
+      expect(memberById(s, 'hero')!.down).toBe(true);
+      expect(memberById(s, 'hero')!.guardTurns).toBe(0);
+      expect(s.last!.counter).toBeUndefined();
+    });
+  });
+
+  describe('星癒の羽 (Kaos)', () => {
+    const hurtGrave = () => party().map((m) => (m.id === 'grave' ? { ...m, hp: 100 } : m));
+
+    it('MP 8; at the end of the target\'s own turn, 10% of their most HP and half her 魔力; three turns', () => {
+      let s = createPartyBattle(hurtGrave(), tough);
+      s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'grave' });
+      expect(memberById(s, 'kaos')!.mp).toBe(48 - 8);
+      // 180 × 0.1 + 20 × 0.5 = 28.
+      expect(memberById(s, 'grave')).toMatchObject({ regenTurns: 3, regenAmount: 28, hp: 100 });
+      s = untilTurnOf(s, 'grave');
+      s = partyAct(s, { kind: 'DEFEND' });
+      expect(memberById(s, 'grave')).toMatchObject({ hp: 128, regenTurns: 2 });
+      expect(s.log.some((l) => l.includes('星癒の羽') && l.includes('+28'))).toBe(true);
+      s = partyAct(untilTurnOf(s, 'grave'), { kind: 'DEFEND' });
+      s = partyAct(untilTurnOf(s, 'grave'), { kind: 'DEFEND' });
+      expect(memberById(s, 'grave')).toMatchObject({ hp: 180, regenTurns: 0, regenAmount: 0 });
+    });
+
+    it('never past their most; the heal shows on the beat (+XX)', () => {
+      let s = createPartyBattle(party().map((m) => (m.id === 'grave' ? { ...m, hp: 170 } : m)), tough);
+      s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'grave' });
+      s = partyAct(untilTurnOf(s, 'grave'), { kind: 'DEFEND' });
+      expect(memberById(s, 'grave')!.hp).toBe(180);
+      expect(s.last!.regen).toEqual({ target: 'grave', amount: 10 });
+    });
+
+    it('on herself too (from her next turn); laid again, back at three', () => {
+      let s = createPartyBattle(party().map((m) => (m.id === 'kaos' ? { ...m, hp: 50 } : m)), tough);
+      s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'kaos' });
+      // 100 × 0.1 + 10 = 20 — not on the turn she lays it.
+      expect(memberById(s, 'kaos')).toMatchObject({ hp: 50, regenTurns: 3, regenAmount: 20 });
+      s = partyAct(untilTurnOf(s, 'kaos'), { kind: 'DEFEND' });
+      expect(memberById(s, 'kaos')).toMatchObject({ hp: 50 + 20, regenTurns: 2 });
+      s = partyAct(untilTurnOf(s, 'kaos'), { kind: 'TECH', techId: 'star_feather', target: 'kaos' });
+      expect(memberById(s, 'kaos')!.regenTurns).toBe(3);
+    });
+
+    it('not on one who is down; not without the MP; gone when they go down', () => {
+      const s = createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 0 } : m)), tough);
+      expect(partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'hero' })).toBe(s);
+      const dry = createPartyBattle(party().map((m) => (m.id === 'kaos' ? { ...m, mp: 7 } : m)), tough);
+      expect(partyAct(dry, { kind: 'TECH', techId: 'star_feather', target: 'grave' })).toBe(dry);
+      let f = createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 5 } : m)), tough);
+      f = partyAct(f, { kind: 'TECH', techId: 'star_feather', target: 'hero' });
+      expect(memberById(f, 'hero')!.regenTurns).toBe(3);
+      f = enemyAct(f, seq(0, 0.5));
+      expect(memberById(f, 'hero')).toMatchObject({ down: true, regenTurns: 0, regenAmount: 0 });
+    });
+  });
+
+  describe('重撃・豪断 (Grave)', () => {
+    it('1.6× his swing, no MP, and it wears the footing by 4 (his swing: 2)', () => {
+      let s = untilTurnOf(createPartyBattle(party(), tough), 'grave');
+      const hp = s.enemy.hp;
+      s = partyAct(s, { kind: 'TECH', techId: 'goudan' }, fixed(0));
+      // 14 × 1.6 = 22.4 → 22.
+      expect(s.enemy.hp).toBe(hp - 22);
+      expect(s.enemy.breakCurrent).toBe(12 - 4);
+      expect(memberById(s, 'grave')!.mp).toBe(0);
+      expect(s.last).toMatchObject({ actor: 'grave', kind: 'TECH', name: '重撃・豪断', amount: 22 });
+      s = partyAct(untilTurnOf(s, 'grave'), { kind: 'ATTACK' }, fixed(0));
+      expect(s.enemy.breakCurrent).toBe(12 - 4 - 2);
+    });
+
+    it('the hero\'s swing and Kaos\'s spell wear it by 1 each', () => {
+      let s = createPartyBattle(party(), tough);
+      const bolt = castable(memberById(s, 'kaos')!).find((m) => m.effect === 'DAMAGE')!;
+      s = partyAct(s, { kind: 'MAGIC', magicId: bolt.id });
+      expect(s.enemy.breakCurrent).toBe(11);
+      s = partyAct(untilTurnOf(s, 'hero'), { kind: 'ATTACK' }, fixed(0));
+      expect(s.enemy.breakCurrent).toBe(10);
+    });
+  });
+
+  describe('BREAK', () => {
+    const brittle = { ...tough, breakMax: 4 };
+    const broken = () => partyAct(untilTurnOf(createPartyBattle(party(), brittle), 'grave'), { kind: 'TECH', techId: 'goudan' }, fixed(0));
+
+    it('at nought: BROKEN — BREAK!! in the log, after the blow', () => {
+      const s = broken();
+      expect(isBroken(s.enemy)).toBe(true);
+      expect(s.enemy).toMatchObject({ breakCurrent: 0, breakTurns: BREAK_TURNS, breaks: 1 });
+      expect(s.last).toMatchObject({ broke: true });
+      expect(s.log.at(-1)).toContain('BREAK!!');
+      expect(s.log.at(-2)).toContain('重撃・豪断');
+    });
+
+    it('it loses its next two turns, then stands, its footing whole', () => {
+      let s = untilTurnOf(broken(), ENEMY_ID);
+      const hps = s.members.map((m) => m.hp);
+      s = enemyAct(s, fixed(0));
+      expect(s.members.map((m) => m.hp)).toEqual(hps);
+      expect(s.last).toMatchObject({ kind: 'ENEMY_BROKEN' });
+      expect(s.log.at(-1)).toContain('BREAK中');
+      expect(s.enemy.breakTurns).toBe(1);
+      s = enemyAct(untilTurnOf(s, ENEMY_ID), fixed(0));
+      expect(s.members.map((m) => m.hp)).toEqual(hps);
+      expect(s.enemy).toMatchObject({ breakTurns: 0, breakCurrent: 4 });
+      expect(s.log.at(-1)).toContain('体勢を立て直した');
+      // Standing again: its next turn is a blow.
+      s = enemyAct(untilTurnOf(s, ENEMY_ID), fixed(0));
+      expect(s.last).toMatchObject({ kind: 'ENEMY_ATTACK' });
+    });
+
+    it('while broken it takes 1.4× — and its footing is not worn', () => {
+      let s = untilTurnOf(broken(), 'kaos');
+      s = partyAct(s, { kind: 'DEFEND' });
+      s = untilTurnOf(s, 'hero');
+      const hp = s.enemy.hp;
+      s = partyAct(s, { kind: 'ATTACK' }, fixed(0));
+      // 8 × 1.4 = 11.2 → 11.
+      expect(s.enemy.hp).toBe(hp - Math.round(8 * BROKEN_TAKEN));
+      expect(s.enemy.breakCurrent).toBe(0);
+    });
+
+    it('the creature\'s own BREAK event runs, told whether it is the first', () => {
+      const seen: boolean[] = [];
+      const onBreak = (st: PartyBattleState, first: boolean) => {
+        seen.push(first);
+        return { ...st, log: [...st.log, first ? '外殻にひびが入った。' : '……'] };
+      };
+      let s = partyAct(untilTurnOf(createPartyBattle(party(), { ...brittle, onBreak }), 'grave'), { kind: 'TECH', techId: 'goudan' }, fixed(0));
+      expect(seen).toEqual([true]);
+      expect(s.log.some((l) => l === '外殻にひびが入った。')).toBe(true);
+      // Stood again, broken a second time.
+      for (let i = 0; i < 40 && s.enemy.breaks < 2 && s.outcome === 'ONGOING'; i++) {
+        s = currentActor(s) === ENEMY_ID ? enemyAct(s, fixed(0.99)) : partyAct(s, currentActor(s) === 'grave' ? { kind: 'TECH', techId: 'goudan' } : { kind: 'DEFEND' }, fixed(0));
+      }
+      expect(seen).toEqual([true, false]);
+    });
+
+    it('a counter can break it too', () => {
+      const thin = { ...tough, breakMax: 1 };
+      const s = enemyAct(guarded(thickHero(), thin), seq(0, 0.5, 0.9, 0));
+      expect(s.last).toMatchObject({ counter: 6, broke: true });
+      expect(isBroken(s.enemy)).toBe(true);
+    });
+  });
+
+  describe('AUTO', () => {
+    it('Kaos lays 星癒の羽 on the lowest under 70% who has none — never on one whole, not without MP', () => {
+      const low = Math.floor(180 * AUTO_REGEN_UNDER) - 1;
+      const s = createPartyBattle(party().map((m) => (m.id === 'grave' ? { ...m, hp: low } : m)), tough);
+      expect(partyAutoAction(s)).toEqual({ kind: 'TECH', techId: 'star_feather', target: 'grave' });
+      const whole = createPartyBattle(party(), tough);
+      expect(partyAutoAction(whole)).not.toMatchObject({ techId: 'star_feather' });
+      const dry = createPartyBattle(party().map((m) => (m.id === 'grave' ? { ...m, hp: low } : m.id === 'kaos' ? { ...m, mp: 7 } : m)), tough);
+      expect(partyAutoAction(dry)).not.toMatchObject({ techId: 'star_feather' });
+      // Already on him: not again.
+      const laid = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'grave' });
+      expect(partyAutoAction(untilTurnOf(laid, 'kaos'))).not.toMatchObject({ techId: 'star_feather' });
+    });
+
+    it('the hero takes 月影の構え at half or under — and not again while it is up', () => {
+      const s = untilTurnOf(createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 50 } : m)), tough), 'hero');
+      expect(partyAutoAction(s)).toEqual({ kind: 'TECH', techId: 'moon_guard' });
+      const up = untilTurnOf(partyAct(s, { kind: 'TECH', techId: 'moon_guard' }), 'hero');
+      expect(memberById(up, 'hero')!.guardTurns).toBe(1);
+      expect(partyAutoAction(up)).not.toMatchObject({ techId: 'moon_guard' });
+      const fine = untilTurnOf(createPartyBattle(party(), tough), 'hero');
+      expect(partyAutoAction(fine)).not.toMatchObject({ techId: 'moon_guard' });
+    });
+
+    it('Grave: 重撃・豪断 when it would break the footing, or the creature is broken', () => {
+      let s = untilTurnOf(createPartyBattle(party(), tough), 'grave');
+      s = partyAct(s, { kind: 'DEFEND' }); // his turns: 1 (odd)
+      s = untilTurnOf(s, 'grave');
+      expect(partyAutoAction(s)).toEqual({ kind: 'ATTACK' });
+      const near: PartyEnemy = { ...s.enemy, breakCurrent: 4 };
+      expect(partyAutoAction({ ...s, enemy: near })).toEqual({ kind: 'TECH', techId: 'goudan' });
+      const down: PartyEnemy = { ...s.enemy, breakCurrent: 0, breakTurns: 1 };
+      expect(partyAutoAction({ ...s, enemy: down })).toEqual({ kind: 'TECH', techId: 'goudan' });
+    });
+
+    it('a whole AUTO fight with BREAK in it still comes to an end', () => {
+      let s = createPartyBattle(party(), { ...SEKIRYUGA_BATTLE, breakMax: 10 });
+      let r = 0.61;
+      const rng = () => (r = (r * 9301 + 49297) % 233280 / 233280);
+      for (let i = 0; i < 400 && s.outcome === 'ONGOING'; i++) {
+        s = currentActor(s) === ENEMY_ID ? enemyAct(s, rng) : partyAct(s, partyAutoAction(s)!, rng);
+      }
+      expect(s.outcome).not.toBe('ONGOING');
+      expect(s.enemy.breaks).toBeGreaterThan(0);
+    });
   });
 });
