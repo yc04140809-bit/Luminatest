@@ -402,7 +402,8 @@
 .pb-list-btn.tech { border-color: rgba(150, 190, 255, 0.75); }
 .pb-list-btn.primary { border-color: #f3d27a; }
 .pb-list-btn.back { justify-content: center; color: #cfc3a5; font-size: 12px; min-height: 26px; }
-.pb-list-btn:disabled { opacity: 0.4; cursor: default; }
+.pb-list-btn:disabled { cursor: default; color: #8a8070; border-color: rgba(231, 210, 156, 0.25); background: rgba(30, 26, 34, 0.9); }
+.pb-list-btn:disabled small { opacity: 0.6; }
 .pb-ask { font-size: 12px; color: #e7d29c; padding: 0 4px; }
 
 .pb-result {
@@ -568,3 +569,8 @@
 }
 .pb-list-btn small.hp { color: #ec8a5a; }
 .pb-list-btn.focus { border-color: #ffd36b; }
+
+/* ── skills waiting; ESCAPE (2026-10-12, 戦闘ルール整理) ── */
+.pb-list-btn small.wait { color: #f3d27a; font-size: 10px; }
+.pb-list-btn:disabled small.wait { opacity: 1; color: #f3d27a; }
+.pb-chip.no { color: #9a8f78; border-color: rgba(231, 210, 156, 0.25); font-size: 10px; cursor: default; }

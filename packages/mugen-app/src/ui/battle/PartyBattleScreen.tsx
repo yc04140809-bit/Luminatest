@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ENEMY_ID,
   castable,
+  cooldownLeft,
   createPartyBattle,
   currentActor,
   enemyAct,
@@ -13,6 +14,7 @@ import {
   partyAct,
   partyAutoAction,
   partySkillReady,
+  regenTargetable,
   isBroken,
   techUsable,
   upcomingTurns,
@@ -57,7 +59,8 @@ import './partyBattle.css';
  *   top right     the party, one card each, down the edge: face, HP and its
  *                 bar — MP too for one who has magic — and what is on them
  *                 (「月影 2T」「星癒 3T」). Room for four.
- *   bottom left   WORLD MEMORY (as in every fight), then AUTO and ×2
+ *   bottom left   WORLD MEMORY (as in every fight), then AUTO, ×2 and ESCAPE
+ *                 (「逃走不可」 against a boss — ヴァルシール, セキリュウガ)
  *   bottom right  the COMMAND CROSS — 攻撃 up, スキル left, 魔法 right, 防御
  *                 down, the face of whoever is acting in the middle; only
  *                 what is in it changes from one member to the next. A list
@@ -83,8 +86,13 @@ import './partyBattle.css';
  * shakes, and 「BREAK中」 stays at the creature's feet and 防御DOWN on its
  * plate for as long as it lasts.
  *
+ * SKILLS AND MAGIC (2026-10-12, 戦闘ルール整理): the スキル list is the
+ * member's own skills — no MP, each waiting a number of their turns after use;
+ * one waiting stays in the list, greyed, with 「あとNT」. The 魔法 list is the
+ * spells, paid in MP. 星癒の羽 cannot be laid on one who has it (「星癒中」).
+ *
  * Nothing here is saved: whoever starts the fight decides what its end
- * means (`onEnd`).
+ * means (`onEnd`) — won, lost, or fled (ESCAPE).
  */
 
 /**
@@ -105,7 +113,7 @@ export interface PartyBattleProps {
   background?: BattleBackgroundKey | null;
   autoAvailable?: boolean;
   /** The fight is over and its result read: who won, and how they stand. */
-  onEnd: (result: { outcome: 'VICTORY' | 'DEFEAT'; members: readonly PartyMember[] }) => void;
+  onEnd: (result: { outcome: 'VICTORY' | 'DEFEAT' | 'ESCAPE'; members: readonly PartyMember[] }) => void;
   /** The dice, for a test. */
   rng?: () => number;
   /** WORLD MEMORY, bottom left: what the world remembers, and how deep (absent: nothing yet). */
@@ -170,6 +178,15 @@ function Bar({ value, max, kind }: { value: number; max: number; kind: 'hp' | 'm
       <div className="pb-bar-fill" style={{ width: `${share * 100}%` }} />
     </div>
   );
+}
+
+/** A skill's wait, in the list: 「あとNT」 while it cools down; nothing when it is ready. */
+function Wait({ left }: { left: number }) {
+  return left > 0 ? (
+    <small className="wait" data-testid="pb-wait" data-left={left}>
+      あと{left}T
+    </small>
+  ) : null;
 }
 
 export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory, place, formation }: PartyBattleProps) {
@@ -332,6 +349,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING';
   const giant = (scale ?? 'NORMAL') === 'GIANT';
+  const bossFight = state.enemies.some((e) => e.boss);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
 
@@ -565,12 +583,14 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   {skills.map((sk) => (
                     <button key={sk.id} className="pb-list-btn" data-testid={`pb-cmd-skill-${sk.id}`} disabled={!partySkillReady(acting!, sk)} onClick={() => aimEnemy((target) => ({ kind: 'SKILL', skillId: sk.id, target }), 'SKILL')}>
                       {sk.name}
+                      <Wait left={cooldownLeft(acting!, sk.id, sk.cooldown)} />
                     </button>
                   ))}
                   {techs.map((t) => (
                     <button key={t.id} className="pb-list-btn tech" data-testid={`pb-cmd-tech-${t.id}`} disabled={!techUsable(acting!, t)} onClick={() => pickTech(t)}>
                       {t.name}
                       {t.mpCost > 0 && <small>MP{t.mpCost}</small>}
+                      <Wait left={cooldownLeft(acting!, t.id, t.cooldown ?? 0)} />
                     </button>
                   ))}
                 </>
@@ -587,11 +607,16 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   <span className="pb-ask">誰に？</span>
                   {state.members
                     .filter((m) => !m.down)
-                    .map((m) => (
-                      <button key={m.id} className="pb-list-btn" data-testid={`pb-target-${m.id}`} onClick={() => aimAt(m.id)}>
-                        {m.name}
-                      </button>
-                    ))}
+                    .map((m) => {
+                      // 星癒の羽 is not laid on one who has it.
+                      const laid = 'tech' in aiming && aiming.tech.kind === 'REGEN' && !regenTargetable(m);
+                      return (
+                        <button key={m.id} className="pb-list-btn" data-testid={`pb-target-${m.id}`} disabled={laid} onClick={() => aimAt(m.id)}>
+                          {m.name}
+                          {laid && <small className="wait">星癒中</small>}
+                        </button>
+                      );
+                    })}
                 </>
               )}
               {menu === 'ENEMY' && pending && (
@@ -648,6 +673,27 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           <button className={`pb-chip${fast ? ' on' : ''}`} data-testid="pb-speed" aria-pressed={fast} onClick={() => setFast((f) => !f)}>
             ×2
           </button>
+          {/* ESCAPE from an ordinary fight; a boss's is not fled. */}
+          {bossFight ? (
+            <button className="pb-chip no" data-testid="pb-escape" data-escape="no" disabled>
+              逃走不可
+            </button>
+          ) : (
+            <button
+              className="pb-chip"
+              data-testid="pb-escape"
+              data-escape="yes"
+              disabled={!playerInput}
+              onClick={() => {
+                if (ended.current) return;
+                ended.current = true;
+                playSfx('battle_escape');
+                onEnd({ outcome: 'ESCAPE', members: state.members });
+              }}
+            >
+              ESCAPE
+            </button>
+          )}
         </div>
       )}
 

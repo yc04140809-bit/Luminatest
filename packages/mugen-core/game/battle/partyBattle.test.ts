@@ -5,6 +5,9 @@ import {
   BREAK_TURNS,
   BROKEN_TAKEN,
   autoTarget,
+  cooldownLeft,
+  regenTargetable,
+  techUsable,
   enemyById,
   enemyIdAt,
   isBroken,
@@ -30,6 +33,7 @@ import { GRAVE_GUEST, heroAndKaos } from '../../content/characters/partyMembers'
 import { HERO_STARTING_SKILLS } from '../../content/skills/heroSkills';
 import { MAGIC_DEFS } from '../../content/magic/magicDefs';
 import { SEKIRYUGA_BATTLE } from '../../content/enemies/sekiryugaBattle';
+import { VALSHEEL_FORM1_PROVISIONAL } from '../../content/enemies/valsheelBattle';
 
 const fixed = (v: number) => () => v;
 /** The dice, one after another (the last repeated). */
@@ -177,11 +181,10 @@ describe('the party fight (戦闘方式 B, 2026-10-12)', () => {
     expect(partyAutoAction(fine)).not.toMatchObject({ magicId: 'mending_light' });
     const heroTurn = untilTurnOf(fine, 'hero');
     expect(partyAutoAction(heroTurn)).toEqual({ kind: 'SKILL', skillId: 'shundan' });
-    // Grave (通常スキル3種): 重撃・豪断 on his first turn, a swing on the next
-    // (the footing still far from breaking).
+    // Grave: 重撃・豪断 when it is ready; while it waits (3 of his turns), a swing.
     const graveTurn = untilTurnOf(fine, 'grave');
     expect(partyAutoAction(graveTurn)).toEqual({ kind: 'TECH', techId: 'goudan' });
-    const graveNext = untilTurnOf(partyAct(graveTurn, { kind: 'DEFEND' }), 'grave');
+    const graveNext = untilTurnOf(partyAct(graveTurn, { kind: 'TECH', techId: 'goudan' }), 'grave');
     expect(partyAutoAction(graveNext)).toEqual({ kind: 'ATTACK' });
   });
 
@@ -219,17 +222,29 @@ describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BR
   };
 
   describe('月影の構え (the hero)', () => {
-    it('lasts two of his turns; taken again, it is back at two (not stacked)', () => {
+    it('lasts two of his turns; a skill (no MP) that waits 4 of his turns — not every turn', () => {
       let s = untilTurnOf(createPartyBattle(party(), tough), 'hero');
       s = partyAct(s, { kind: 'TECH', techId: 'moon_guard' });
       expect(memberById(s, 'hero')!.guardTurns).toBe(2);
       expect(s.last).toMatchObject({ actor: 'hero', kind: 'TECH', name: '月影の構え' });
+      const tech = memberById(s, 'hero')!.techniques![0];
+      expect(tech.mpCost).toBe(0);
+      expect(cooldownLeft(memberById(s, 'hero')!, 'moon_guard', 4)).toBe(3);
       s = untilTurnOf(s, 'hero');
       expect(memberById(s, 'hero')!.guardTurns).toBe(1);
+      // Waiting: refused.
+      expect(techUsable(memberById(s, 'hero')!, tech)).toBe(false);
+      expect(partyAct(s, { kind: 'TECH', techId: 'moon_guard' })).toBe(s);
+      s = untilTurnOf(partyAct(s, { kind: 'DEFEND' }), 'hero');
+      expect(memberById(s, 'hero')!.guardTurns).toBe(0);
+      expect(cooldownLeft(memberById(s, 'hero')!, 'moon_guard', 4)).toBe(2);
+      s = untilTurnOf(partyAct(s, { kind: 'DEFEND' }), 'hero');
+      expect(cooldownLeft(memberById(s, 'hero')!, 'moon_guard', 4)).toBe(1);
+      s = untilTurnOf(partyAct(s, { kind: 'DEFEND' }), 'hero');
+      // Ready on the fourth turn after.
+      expect(cooldownLeft(memberById(s, 'hero')!, 'moon_guard', 4)).toBe(0);
       s = partyAct(s, { kind: 'TECH', techId: 'moon_guard' });
       expect(memberById(s, 'hero')!.guardTurns).toBe(2);
-      s = untilTurnOf(partyAct(untilTurnOf(s, 'hero'), { kind: 'DEFEND' }), 'hero');
-      expect(memberById(s, 'hero')!.guardTurns).toBe(0);
     });
 
     it('his guard 30% thicker against a blow that lands', () => {
@@ -288,10 +303,10 @@ describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BR
   describe('星癒の羽 (Kaos)', () => {
     const hurtGrave = () => party().map((m) => (m.id === 'grave' ? { ...m, hp: 100 } : m));
 
-    it('MP 8; at the end of the target\'s own turn, 10% of their most HP and half her 魔力; three turns', () => {
+    it('a skill: no MP; at the end of the target\'s own turn, 10% of their most HP and half her 魔力; three turns', () => {
       let s = createPartyBattle(hurtGrave(), tough);
       s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'grave' });
-      expect(memberById(s, 'kaos')!.mp).toBe(48 - 8);
+      expect(memberById(s, 'kaos')!.mp).toBe(48);
       // 180 × 0.1 + 20 × 0.5 = 28.
       expect(memberById(s, 'grave')).toMatchObject({ regenTurns: 3, regenAmount: 28, hp: 100 });
       s = untilTurnOf(s, 'grave');
@@ -311,22 +326,41 @@ describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BR
       expect(s.last!.regen).toEqual({ target: 'grave', amount: 10 });
     });
 
-    it('on herself too (from her next turn); laid again, back at three', () => {
+    it('on herself too (from her next turn); then it waits 5 of her turns — 4 left right after', () => {
       let s = createPartyBattle(party().map((m) => (m.id === 'kaos' ? { ...m, hp: 50 } : m)), tough);
       s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'kaos' });
       // 100 × 0.1 + 10 = 20 — not on the turn she lays it.
       expect(memberById(s, 'kaos')).toMatchObject({ hp: 50, regenTurns: 3, regenAmount: 20 });
+      expect(cooldownLeft(memberById(s, 'kaos')!, 'star_feather', 5)).toBe(4);
       s = partyAct(untilTurnOf(s, 'kaos'), { kind: 'DEFEND' });
       expect(memberById(s, 'kaos')).toMatchObject({ hp: 50 + 20, regenTurns: 2 });
-      s = partyAct(untilTurnOf(s, 'kaos'), { kind: 'TECH', techId: 'star_feather', target: 'kaos' });
+      // Waiting (and not on one who has it): refused.
+      const t = untilTurnOf(s, 'kaos');
+      expect(partyAct(t, { kind: 'TECH', techId: 'star_feather', target: 'grave' })).toBe(t);
+      for (let i = 0; i < 3; i++) s = partyAct(untilTurnOf(s, 'kaos'), { kind: 'DEFEND' });
+      s = untilTurnOf(s, 'kaos');
+      expect(cooldownLeft(memberById(s, 'kaos')!, 'star_feather', 5)).toBe(0);
+      expect(memberById(s, 'kaos')!.regenTurns).toBe(0);
+      s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'kaos' });
       expect(memberById(s, 'kaos')!.regenTurns).toBe(3);
     });
 
-    it('not on one who is down; not without the MP; gone when they go down', () => {
+    it('not laid on one who has it already (no stacking, no renewing)', () => {
+      let s = createPartyBattle(hurtGrave(), tough);
+      s = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'grave' });
+      // Its wait done by hand, the target still under it: refused all the same.
+      const ready = { ...s, members: s.members.map((m) => (m.id === 'kaos' ? { ...m, skillUsedAt: {} } : m)) };
+      const t = untilTurnOf(ready, 'kaos');
+      expect(memberById(t, 'grave')!.regenTurns).toBeGreaterThan(0);
+      expect(regenTargetable(memberById(t, 'grave')!)).toBe(false);
+      expect(partyAct(t, { kind: 'TECH', techId: 'star_feather', target: 'grave' })).toBe(t);
+    });
+
+    it('not on one who is down; with no MP at all it is still hers; gone when they go down', () => {
       const s = createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 0 } : m)), tough);
       expect(partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'hero' })).toBe(s);
-      const dry = createPartyBattle(party().map((m) => (m.id === 'kaos' ? { ...m, mp: 7 } : m)), tough);
-      expect(partyAct(dry, { kind: 'TECH', techId: 'star_feather', target: 'grave' })).toBe(dry);
+      const dry = createPartyBattle(party().map((m) => (m.id === 'kaos' ? { ...m, mp: 0 } : m.id === 'grave' ? { ...m, hp: 100 } : m)), tough);
+      expect(memberById(partyAct(dry, { kind: 'TECH', techId: 'star_feather', target: 'grave' }), 'grave')!.regenTurns).toBe(3);
       let f = createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 5 } : m)), tough);
       f = partyAct(f, { kind: 'TECH', techId: 'star_feather', target: 'hero' });
       expect(memberById(f, 'hero')!.regenTurns).toBe(3);
@@ -409,9 +443,12 @@ describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BR
       let s = partyAct(untilTurnOf(createPartyBattle(party(), { ...brittle, onBreak }), 'grave'), { kind: 'TECH', techId: 'goudan' }, fixed(0));
       expect(seen).toEqual([true]);
       expect(s.log.some((l) => l === '外殻にひびが入った。')).toBe(true);
-      // Stood again, broken a second time.
-      for (let i = 0; i < 40 && s.enemy.breaks < 2 && s.outcome === 'ONGOING'; i++) {
-        s = currentActor(s) === ENEMY_ID ? enemyAct(s, fixed(0.99)) : partyAct(s, currentActor(s) === 'grave' ? { kind: 'TECH', techId: 'goudan' } : { kind: 'DEFEND' }, fixed(0));
+      // Stood again, broken a second time (豪断 when it is ready, else a swing).
+      for (let i = 0; i < 60 && s.enemy.breaks < 2 && s.outcome === 'ONGOING'; i++) {
+        const id = currentActor(s)!;
+        const grave = id === 'grave' ? memberById(s, 'grave')! : undefined;
+        const goudan = grave && techUsable(grave, grave.techniques![0]);
+        s = id === ENEMY_ID ? enemyAct(s, fixed(0.99)) : partyAct(s, grave ? (goudan ? { kind: 'TECH', techId: 'goudan' } : { kind: 'ATTACK' }) : { kind: 'DEFEND' }, fixed(0));
       }
       expect(seen).toEqual([true, false]);
     });
@@ -425,38 +462,56 @@ describe('the party fight: 月影の構え, 星癒の羽, 重撃・豪断 and BR
   });
 
   describe('AUTO', () => {
-    it('Kaos lays 星癒の羽 on the lowest under 70% who has none — never on one whole, not without MP', () => {
+    it('Kaos lays 星癒の羽 on the lowest under 70% who has none — never on one whole, not while it waits', () => {
       const low = Math.floor(180 * AUTO_REGEN_UNDER) - 1;
       const s = createPartyBattle(party().map((m) => (m.id === 'grave' ? { ...m, hp: low } : m)), tough);
       expect(partyAutoAction(s)).toEqual({ kind: 'TECH', techId: 'star_feather', target: 'grave' });
       const whole = createPartyBattle(party(), tough);
       expect(partyAutoAction(whole)).not.toMatchObject({ techId: 'star_feather' });
-      const dry = createPartyBattle(party().map((m) => (m.id === 'grave' ? { ...m, hp: low } : m.id === 'kaos' ? { ...m, mp: 7 } : m)), tough);
-      expect(partyAutoAction(dry)).not.toMatchObject({ techId: 'star_feather' });
-      // Already on him: not again.
+      // With no MP, still hers (a skill).
+      const dry = createPartyBattle(party().map((m) => (m.id === 'grave' ? { ...m, hp: low } : m.id === 'kaos' ? { ...m, mp: 0 } : m)), tough);
+      expect(partyAutoAction(dry)).toEqual({ kind: 'TECH', techId: 'star_feather', target: 'grave' });
+      // Laid, then waiting: not again — and the hero under 70% does not get it while it waits.
       const laid = partyAct(s, { kind: 'TECH', techId: 'star_feather', target: 'grave' });
-      expect(partyAutoAction(untilTurnOf(laid, 'kaos'))).not.toMatchObject({ techId: 'star_feather' });
+      const next = untilTurnOf(laid, 'kaos');
+      const hurtHero = { ...next, members: next.members.map((m) => (m.id === 'hero' ? { ...m, hp: 50 } : m)) };
+      expect(partyAutoAction(hurtHero)).not.toMatchObject({ techId: 'star_feather' });
     });
 
-    it('the hero takes 月影の構え at half or under — and not again while it is up', () => {
+    it('the hero takes 月影の構え at half or under (70% facing a harder blow) — not while it is up or waiting', () => {
       const s = untilTurnOf(createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 50 } : m)), tough), 'hero');
       expect(partyAutoAction(s)).toEqual({ kind: 'TECH', techId: 'moon_guard' });
       const up = untilTurnOf(partyAct(s, { kind: 'TECH', techId: 'moon_guard' }), 'hero');
       expect(memberById(up, 'hero')!.guardTurns).toBe(1);
       expect(partyAutoAction(up)).not.toMatchObject({ techId: 'moon_guard' });
+      // Its effect over, its wait not: still not.
+      const after = untilTurnOf(partyAct(up, { kind: 'DEFEND' }), 'hero');
+      expect(memberById(after, 'hero')!.guardTurns).toBe(0);
+      expect(partyAutoAction(after)).not.toMatchObject({ techId: 'moon_guard' });
       const fine = untilTurnOf(createPartyBattle(party(), tough), 'hero');
       expect(partyAutoAction(fine)).not.toMatchObject({ techId: 'moon_guard' });
+      // Facing a creature with a harder blow: at 70%.
+      const wary = untilTurnOf(
+        createPartyBattle(party().map((m) => (m.id === 'hero' ? { ...m, hp: 68 } : m)), { ...tough, partyMoves: { heavy: { name: '重い一撃', power: 1.6, chance: 0.3 } } }),
+        'hero',
+      );
+      expect(partyAutoAction(wary)).toEqual({ kind: 'TECH', techId: 'moon_guard' });
     });
 
-    it('Grave: 重撃・豪断 when it would break the footing, or the creature is broken', () => {
-      let s = untilTurnOf(createPartyBattle(party(), tough), 'grave');
-      s = partyAct(s, { kind: 'DEFEND' }); // his turns: 1 (odd)
+    it('Grave: 重撃・豪断 whenever it is ready (even at a full footing); a swing while it waits', () => {
+      let s = untilTurnOf(createPartyBattle(party(), { ...tough, breakMax: 30 }), 'grave');
+      expect(partyAutoAction(s)).toEqual({ kind: 'TECH', techId: 'goudan' });
+      s = partyAct(s, { kind: 'TECH', techId: 'goudan' }, fixed(0));
+      expect(cooldownLeft(memberById(s, 'grave')!, 'goudan', 3)).toBe(2);
       s = untilTurnOf(s, 'grave');
       expect(partyAutoAction(s)).toEqual({ kind: 'ATTACK' });
+      // Even with the creature about to break or broken, not while it waits.
       const near: PartyEnemy = { ...s.enemy, breakCurrent: 4 };
-      expect(partyAutoAction({ ...s, enemy: near, enemies: [near] })).toEqual({ kind: 'TECH', techId: 'goudan' });
-      const down: PartyEnemy = { ...s.enemy, breakCurrent: 0, breakTurns: 1 };
-      expect(partyAutoAction({ ...s, enemy: down, enemies: [down] })).toEqual({ kind: 'TECH', techId: 'goudan' });
+      expect(partyAutoAction({ ...s, enemy: near, enemies: [near] })).toEqual({ kind: 'ATTACK' });
+      s = untilTurnOf(partyAct(s, { kind: 'ATTACK' }, fixed(0)), 'grave');
+      s = untilTurnOf(partyAct(s, { kind: 'ATTACK' }, fixed(0)), 'grave');
+      expect(cooldownLeft(memberById(s, 'grave')!, 'goudan', 3)).toBe(0);
+      expect(partyAutoAction(s)).toEqual({ kind: 'TECH', techId: 'goudan' });
     });
 
     it('a whole AUTO fight with BREAK in it still comes to an end', () => {
@@ -615,3 +670,75 @@ function withEnemiesHp(s: PartyBattleState, hps: number[]): PartyBattleState {
   const enemies = s.enemies.map((e, i) => ({ ...e, hp: hps[i] ?? e.hp }));
   return { ...s, enemies, enemy: enemies[0] };
 }
+
+// 戦闘ルール整理 + ヴァルシール第1形態 (2026-10-12).
+describe('a creature\'s guard, its moves, a boss; ヴァルシール第1形態', () => {
+  const shelled = { name: '甲殻の獣', hp: 500, attackMin: 10, attackMax: 10, speed: 12, breakMax: 4, guard: 0.45 };
+
+  it('its guard takes its share off while it stands; broken, the guard is gone and it takes 1.4×', () => {
+    let s = untilTurnOf(createPartyBattle(party(), shelled), 'hero');
+    s = partyAct(s, { kind: 'ATTACK' }, fixed(0));
+    // 8 × (1 − 0.45) = 4.4 → 4.
+    expect(s.enemy.hp).toBe(500 - 4);
+    s = partyAct(untilTurnOf(s, 'grave'), { kind: 'TECH', techId: 'goudan' }, fixed(0));
+    // 14 × 1.6 × 0.55 = 12.3 → 12, and it breaks (footing 4).
+    expect(s.enemy.hp).toBe(500 - 4 - 12);
+    expect(isBroken(s.enemy)).toBe(true);
+    s = partyAct(untilTurnOf(s, 'hero'), { kind: 'ATTACK' }, fixed(0));
+    // Broken: 8 × 1.4 = 11.2 → 11 — more than twice the standing blow.
+    expect(s.enemy.hp).toBe(500 - 4 - 12 - 11);
+  });
+
+  it('its moves: the harder blow at one, the sweep at all (by its own die); none, and no die is spent on choosing', () => {
+    const moves = { heavy: { name: '甲殻穿ち', power: 1.6, chance: 0.25 }, sweep: { name: '旋尾薙ぎ', power: 0.8, chance: 0.12 } };
+    const base = untilTurnOf(createPartyBattle(party(), { ...shelled, attackMin: 20, attackMax: 20, partyMoves: moves }), ENEMY_ID);
+    // Die 0.05 (< 0.12): the sweep, at all of them: 20 × 0.8 = 16 each, less their defense.
+    const sweep = enemyAct(base, seq(0.05, 0.5));
+    expect(sweep.last).toMatchObject({ target: 'ALL' });
+    expect(sweep.log.at(-1)).toContain('旋尾薙ぎ');
+    expect(sweep.members.every((m) => m.hp < m.maxHp)).toBe(true);
+    // Die 0.2 (< 0.37): the harder blow at one: 20 × 1.6 = 32, less the hero's 3.
+    const heavy = enemyAct(base, seq(0.2, 0, 0.5));
+    expect(heavy.log.at(-1)).toContain('甲殻穿ち');
+    expect(heavy.last).toMatchObject({ target: 'hero', amount: 32 - 3 });
+    // Die 0.9: its ordinary blow.
+    const plain = enemyAct(base, seq(0.9, 0, 0.5));
+    expect(plain.last).toMatchObject({ target: 'hero', amount: 20 - 3 });
+    // No moves: the first die picks the target, as ever.
+    const none = enemyAct(untilTurnOf(createPartyBattle(party(), { ...shelled, attackMin: 20, attackMax: 20 }), ENEMY_ID), seq(0, 0.5));
+    expect(none.last).toMatchObject({ target: 'hero', amount: 17 });
+  });
+
+  it('a boss is marked (its fight is not fled); an ordinary creature is not', () => {
+    expect(createPartyBattle(party(), { ...shelled, boss: true }).enemy.boss).toBe(true);
+    expect(createPartyBattle(party(), shelled).enemy.boss).toBe(false);
+    expect(createPartyBattle(party(), VALSHEEL_FORM1_PROVISIONAL).enemy).toMatchObject({ boss: true, guard: 0.45, breakMax: 13, maxHp: 440 });
+  });
+
+  it('ヴァルシール第1形態 against the three at level one: AUTO (BREAK) wins sooner and whole; only swinging is slower and costs more', () => {
+    const lv1 = () => party().map((m) => (m.id === 'kaos' ? { ...m, magic: MAGIC_DEFS.filter((d) => d.effect === 'DAMAGE' || d.effect === 'MEND') } : m));
+    const swingOnly = (st: PartyBattleState) => {
+      const a = partyAutoAction(st)!;
+      return a.kind === 'MAGIC' && a.target && !isEnemyId(a.target) ? a : ({ kind: 'ATTACK' } as const);
+    };
+    const play = (pick: (st: PartyBattleState) => ReturnType<typeof partyAutoAction>, seed: number) => {
+      let s = createPartyBattle(lv1(), VALSHEEL_FORM1_PROVISIONAL);
+      let r = seed;
+      const rng = () => (r = (r * 9301 + 49297) % 233280 / 233280);
+      for (let i = 0; i < 2000 && s.outcome === 'ONGOING'; i++) s = isEnemyId(currentActor(s)) ? enemyAct(s, rng) : partyAct(s, pick(s)!, rng);
+      const left = s.members.reduce((n, m) => n + m.hp / m.maxHp, 0) / 3;
+      return { won: s.outcome === 'VICTORY', rounds: s.round, left };
+    };
+    const seeds = Array.from({ length: 40 }, (_, i) => 0.013 + i * 0.0241);
+    const auto = seeds.map((x) => play(partyAutoAction, x));
+    const swing = seeds.map((x) => play(swingOnly, x));
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(auto.every((f) => f.won)).toBe(true);
+    // Not over in a handful of rounds, nor dragging on.
+    expect(mean(auto.map((f) => f.rounds))).toBeGreaterThan(10);
+    expect(mean(auto.map((f) => f.rounds))).toBeLessThan(20);
+    // Only swinging: slower, and they come out of it worse.
+    expect(mean(swing.map((f) => f.rounds))).toBeGreaterThan(mean(auto.map((f) => f.rounds)) * 1.15);
+    expect(mean(swing.map((f) => f.left))).toBeLessThan(mean(auto.map((f) => f.left)) - 0.15);
+  });
+});

@@ -149,12 +149,12 @@ for (const size of [
     await expect(page.getByTestId('pb-enemy-plate')).toContainText('ヴァルシール');
     await expect(gauge(page)).toHaveAttribute('data-max', '4');
     await expect(gauge(page)).toHaveAttribute('data-current', '4');
-    // Kaos: 星癒の羽 is in her スキル, aimed like a heal. MP 8.
+    // Kaos: 星癒の羽 is in her スキル (a skill: no MP), aimed like a heal.
     await page.getByTestId('pb-cmd-skills').click();
     await page.getByTestId('pb-cmd-tech-star_feather').click();
     await expect(page.getByText('誰に？')).toBeVisible();
     await page.getByTestId('pb-target-hero').click();
-    expect(await mp(page)).toBe(40);
+    expect(await mp(page)).toBe(48);
     await expect(page.getByTestId('pb-status-hero-regen')).toHaveText('星癒 3T');
     await onScreen(page, 'pb-status-hero-regen');
     // The hero: the same cross, his スキル (《瞬断》, 月影の構え); at the end of his turn the feathers heal him (+20).
@@ -463,4 +463,75 @@ test('the DEBUG door\'s chooser: 敵1体 / セキリュウガ / 敵2体 / 敵3�
   await page.getByTestId('pb-select-3').click();
   await expect(page.getByTestId('pb-foe-enemy-3')).toBeVisible();
   await expect(screen(page)).toHaveAttribute('data-actor', 'kaos');
+});
+
+
+// 戦闘ルール整理 (2026-10-12): ESCAPE from an ordinary fight, 「逃走不可」 against
+// a boss; skills (no MP) waiting their turns, 「あとNT」 in the list; 星癒の羽
+// not laid on one who has it.
+test('ESCAPE: an ordinary fight can be fled (one creature, or several); a boss\'s cannot — 「逃走不可」', async ({ page }) => {
+  for (const q of ['&enemy=moss_rabbit', '&enemies=2']) {
+    await page.goto(`/?preview=party${q}`);
+    await turnOf(page, 'kaos');
+    await expect(page.getByTestId('pb-escape')).toHaveAttribute('data-escape', 'yes');
+    await expect(page.getByTestId('pb-escape')).toBeEnabled();
+    await onScreen(page, 'pb-escape');
+  }
+  await page.getByTestId('pb-escape').click();
+  await expect(page.getByTestId('pb-preview-ended')).toContainText('逃げ出しました');
+  for (const q of ['', '&enemy=sekiryuga']) {
+    await page.goto(`/?preview=party${q}`);
+    await turnOf(page, 'kaos');
+    await expect(page.getByTestId('pb-escape')).toHaveAttribute('data-escape', 'no');
+    await expect(page.getByTestId('pb-escape')).toBeDisabled();
+    await expect(page.getByTestId('pb-escape')).toHaveText('逃走不可');
+  }
+});
+
+for (const size of [
+  { width: 640, height: 300 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${size.width}×${size.height}: a skill used waits — greyed in the list with 「あとNT」, MP untouched`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto('/?preview=party&enemy=moss_rabbit&hurt=1');
+    await turnOf(page, 'kaos');
+    // 星癒の羽 on the hero (MP untouched).
+    await page.getByTestId('pb-cmd-skills').click();
+    await page.getByTestId('pb-cmd-tech-star_feather').click();
+    await page.getByTestId('pb-target-hero').click();
+    expect(await mp(page)).toBe(48);
+    // Grave: 重撃・豪断, then it waits: next turn 「あと2T」, greyed.
+    await turnOf(page, 'hero');
+    await page.getByTestId('pb-cmd-defend').click();
+    await turnOf(page, 'grave');
+    await page.getByTestId('pb-cmd-skills').click();
+    await page.getByTestId('pb-cmd-tech-goudan').click();
+    // Kaos again: 星癒の羽 waits (あと4T), greyed but still there.
+    await turnOf(page, 'kaos');
+    await page.getByTestId('pb-cmd-skills').click();
+    await expect(page.getByTestId('pb-cmd-tech-star_feather')).toBeDisabled();
+    await expect(page.getByTestId('pb-cmd-tech-star_feather').getByTestId('pb-wait')).toHaveText('あと4T');
+    await onScreen(page, 'pb-cmd-tech-star_feather');
+    await page.getByTestId('pb-cmd-back').click();
+    await page.getByTestId('pb-cmd-defend').click();
+    await turnOf(page, 'hero');
+    await page.getByTestId('pb-cmd-defend').click();
+    await turnOf(page, 'grave');
+    await page.getByTestId('pb-cmd-skills').click();
+    await expect(page.getByTestId('pb-cmd-tech-goudan')).toBeDisabled();
+    await expect(page.getByTestId('pb-cmd-tech-goudan').getByTestId('pb-wait')).toHaveText('あと2T');
+  });
+}
+
+test('星癒の羽 on グレイヴ: 「星癒 3T」 on his card, Kaos\'s MP untouched', async ({ page }) => {
+  // (Not laying it on one who has it is the core's rule — partyBattle.test.ts. With its wait of
+  // five of her turns longer than its three, the screen's 「星癒中」 cannot come up yet.)
+  await page.goto('/?preview=party&enemy=moss_rabbit&hurt=1');
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-star_feather').click();
+  await page.getByTestId('pb-target-grave').click();
+  await expect(page.getByTestId('pb-status-grave-regen')).toHaveText('星癒 3T');
+  expect(await mp(page)).toBe(48);
 });

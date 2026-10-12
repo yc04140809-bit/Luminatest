@@ -34,8 +34,18 @@
 // goes on until every one of them is. One creature is simply a fight of one:
 // its id is ENEMY_ID and `state.enemy` is it.
 //
-// Still not here: the creatures' moves, items, revival, finishers, blows at
-// all of them.
+// MAGIC AND SKILLS, KEPT APART (2026-10-12, 戦闘ルール整理): a spell costs
+// MP and can be cast as long as there is MP; a skill (月影の構え, 星癒の羽,
+// 重撃・豪断, 《瞬断》) costs nothing and is a member's own, used and then
+// cooling down for a number of their own turns (`cooldown`). 星癒の羽 is not
+// laid on one who already has it.
+//
+// A CREATURE'S OWN WEIGHT: `guard` — the share of a blow it shrugs off while
+// it stands (a shelled one: ヴァルシール), gone while it is BROKEN, which is
+// when 1.4× lands instead; `moves` — its harder blow at one of them and,
+// rarely, a sweep at all of them; `boss` — a fight not to be fled.
+//
+// Still not here: items, revival, finishers.
 //
 // Pure: a state in, a state out, the dice passed in.
 
@@ -101,6 +111,12 @@ export interface PartyTechnique {
   breakPower?: number;
   /** MOON_GUARD / REGEN: how many of the target's turns it lasts. */
   turns?: number;
+  /**
+   * A skill's wait: used on one of the member's own turns, it is ready again
+   * this many of their turns later (5: used, four turns without it, ready on
+   * the fifth). Absent or 0: no wait.
+   */
+  cooldown?: number;
 }
 
 /** 月影の構え: what it does while it lasts. */
@@ -148,6 +164,12 @@ export interface PartyEnemy {
   battleScale?: BattleScale;
   /** How much AUTO wants it down first, beside its health (0 if absent: ordinary). */
   danger: number;
+  /** The share of a blow it shrugs off while it stands (0: none); gone while it is broken. */
+  guard: number;
+  /** Its harder blow at one of them, and its sweep at all of them (rare), if it has them. */
+  moves: { heavy?: PartyEnemyMove; sweep?: PartyEnemyMove };
+  /** A boss: its fight is not fled. */
+  boss: boolean;
   /** At nought: out of the order and no longer a target. */
   down: boolean;
   name: string;
@@ -222,10 +244,21 @@ export type PartyAction =
   | { kind: 'TECH'; techId: string; target?: string }
   | { kind: 'DEFEND' };
 
-/** What the creature's blow is (for the counter's rules): kind and reach. */
+/** What the creature's blow is (for the counter's rules): kind and reach — and, for a move, its name and weight. */
 export interface EnemyStrike {
   type: 'PHYSICAL' | 'MAGIC';
   area: 'ONE' | 'ALL';
+  /** Times its ordinary blow (absent: 1). */
+  power?: number;
+  /** The move's name, said in the log (absent: its ordinary blow's). */
+  name?: string;
+}
+
+/** A creature's move beyond its ordinary blow: its name, weight and how often (a share of its turns). */
+export interface PartyEnemyMove {
+  name: string;
+  power: number;
+  chance: number;
 }
 export const ORDINARY_STRIKE: EnemyStrike = { type: 'PHYSICAL', area: 'ONE' };
 
@@ -259,6 +292,12 @@ export type PartyEnemyInput = EnemySpec & {
   artId?: string;
   /** How much AUTO wants it down first (0: ordinary; a dangerous one higher). */
   danger?: number;
+  /** The share of a blow it shrugs off while it stands (0–0.8; absent: none). */
+  guard?: number;
+  /** Its harder blow at one of them and its sweep at all of them (the party fight's own, beside the spec's `moves`). */
+  partyMoves?: { heavy?: PartyEnemyMove; sweep?: PartyEnemyMove };
+  /** A boss: not to be fled. */
+  boss?: boolean;
   /**
    * How big it is on the battle screen — staging only, the fight never
    * reads it. 'GIANT' (ヴァルシール; later a dragon, a great machine…) is
@@ -288,6 +327,9 @@ function foeOf(input: PartyEnemyInput, i: number, name: string): PartyEnemy {
     artId: input.artId,
     battleScale: input.battleScale,
     danger: input.danger ?? 0,
+    guard: Math.max(0, Math.min(0.8, input.guard ?? 0)),
+    moves: input.partyMoves ?? {},
+    boss: !!input.boss,
     down: input.hp <= 0,
     name,
     hp: input.hp,
@@ -479,7 +521,8 @@ function advance(state: PartyBattleState): PartyBattleState {
 function strikeEnemy(state: PartyBattleState, targetId: string, base: number, breakPower: number): { state: PartyBattleState; amount: number; broke: boolean; name: string } {
   const foe = enemyById(state, targetId)!;
   const broken = isBroken(foe);
-  const amount = Math.max(1, Math.round(base * (broken ? BROKEN_TAKEN : 1)));
+  // Standing, its guard takes its share off; broken, the guard is gone and it takes 1.4×.
+  const amount = Math.max(1, Math.round(base * (broken ? BROKEN_TAKEN : 1 - foe.guard)));
   const hp = Math.max(0, foe.hp - amount);
   if (broken || hp <= 0) return { state: withEnemy(state, foe.id, (e) => ({ ...e, hp })), amount, broke: false, name: foe.name };
   const left = foe.breakCurrent - Math.max(0, breakPower);
@@ -509,9 +552,25 @@ export function regenAmountFor(target: PartyMemberSpec, caster: PartyMemberSpec)
   return Math.max(1, Math.round(target.maxHp * REGEN_SHARE + (caster.magicPower ?? 0) * REGEN_MAGIC));
 }
 
-/** Whether a member can use this technique now (alive, MP enough). */
+/**
+ * How many more of a member's own turns before a skill or technique of
+ * theirs can be used again (0: ready). Counted from the turn it was used:
+ * with a wait of 5, it reads 4 right after, then 3, 2, 1, and it is ready.
+ */
+export function cooldownLeft(member: PartyMember, id: string, cooldown: number): number {
+  const used = member.skillUsedAt[id];
+  if (used === undefined || cooldown <= 0) return 0;
+  return Math.max(0, cooldown - (member.turns - used));
+}
+
+/** Whether a member can use this technique now (standing, MP enough, its wait over). */
 export function techUsable(member: PartyMember, tech: PartyTechnique): boolean {
-  return !member.down && member.mp >= tech.mpCost;
+  return !member.down && member.mp >= tech.mpCost && cooldownLeft(member, tech.id, tech.cooldown ?? 0) === 0;
+}
+
+/** Whether 星癒の羽 (or any heal over time) can be laid on this one: standing, and none on them already. */
+export function regenTargetable(member: PartyMember): boolean {
+  return !member.down && member.regenTurns <= 0;
 }
 
 /**
@@ -583,7 +642,8 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
     case 'TECH': {
       const tech = me.techniques?.find((t) => t.id === action.techId);
       if (!tech || !techUsable(me, tech)) return state;
-      const paid = withMember(state, me.id, (x) => ({ ...x, mp: x.mp - tech.mpCost }));
+      // Paid, and its wait begins (counted from this turn).
+      const paid = withMember(state, me.id, (x) => ({ ...x, mp: x.mp - tech.mpCost, skillUsedAt: { ...x.skillUsedAt, [tech.id]: x.turns } }));
       if (tech.kind === 'MOON_GUARD') {
         // Used again: back to its full length (not stacked).
         next = withMember(paid, me.id, (x) => ({ ...x, guardTurns: tech.turns ?? 2, counterUsed: false }));
@@ -594,9 +654,9 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
         };
       } else if (tech.kind === 'REGEN') {
         const target = memberById(paid, action.target ?? me.id);
-        if (!target || target.down) return state;
+        // Not on one who is down, nor on one who has it already (not stacked, not renewed).
+        if (!target || !regenTargetable(target)) return state;
         const amount = regenAmountFor(target, me);
-        // On them already: back to its full length (not stacked).
         next = withMember(paid, target.id, (x) => ({ ...x, regenTurns: tech.turns ?? 3, regenAmount: amount }));
         laidOnSelf = target.id === me.id;
         next = {
@@ -650,7 +710,7 @@ function breakLine(hit: { broke: boolean; name: string }): string[] {
  * reach him through a guard 30% thicker, and a physical blow at him alone is
  * answered — once a turn — at 0.8 of his swing.
  */
-export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, strike: EnemyStrike = ORDINARY_STRIKE): PartyBattleState {
+export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen?: EnemyStrike): PartyBattleState {
   const actorId = currentActor(state);
   const foe = isEnemyId(actorId) ? enemyTarget(state, actorId!) : undefined;
   if (!foe) return state;
@@ -667,14 +727,16 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, strike
   }
   const standing = state.members.filter((m) => !m.down);
   if (standing.length === 0) return settle(state);
+  const strike = chosen ?? chooseStrike(foe, rng);
   const targets = strike.area === 'ALL' ? standing : [standing[Math.min(standing.length - 1, Math.floor(rng() * standing.length))]];
   let next = state;
   const said: string[] = [];
   let beat: PartyBeat | null = null;
-  const how = foe.attackName ? `${foe.name}の${foe.attackName}！` : `${foe.name}の攻撃！`;
+  const blowName = strike.name ?? foe.attackName;
+  const how = blowName ? `${foe.name}の${blowName}！` : `${foe.name}の攻撃！`;
   for (const target of targets) {
     const guarded = target.guardTurns > 0;
-    const raw = roll(foe.attackMin, foe.attackMax, rng);
+    const raw = Math.round(roll(foe.attackMin, foe.attackMax, rng) * (strike.power ?? 1));
     if (guarded && rng() < MOON_GUARD.evasion) {
       said.push(`${target.name}は攻撃を受け流した。MISS`);
       beat = { actor: foe.id, kind: 'ENEMY_ATTACK', target: target.id, amount: 0, read: 'PLAIN', missed: true };
@@ -705,12 +767,28 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, strike
   return advance(settle(next));
 }
 
+/**
+ * What a creature does on its turn, when the caller does not say: its sweep
+ * at all of them (rarely), its harder blow at one, or its ordinary blow. One
+ * die for the choice, and only for a creature that has moves.
+ */
+function chooseStrike(foe: PartyEnemy, rng: Rng): EnemyStrike {
+  const { heavy, sweep } = foe.moves;
+  if (!heavy && !sweep) return ORDINARY_STRIKE;
+  const r = rng();
+  if (sweep && r < sweep.chance) return { type: 'PHYSICAL', area: 'ALL', power: sweep.power, name: sweep.name };
+  if (heavy && r < (sweep?.chance ?? 0) + heavy.chance) return { type: 'PHYSICAL', area: 'ONE', power: heavy.power, name: heavy.name };
+  return ORDINARY_STRIKE;
+}
+
 /** HP at or under this share of its most counts as low, for AUTO's mending. */
 export const AUTO_MEND_AT = 0.4;
 /** Under this share, AUTO lays 星癒の羽 on one who has none. */
 export const AUTO_REGEN_UNDER = 0.7;
-/** At or under this share, the hero takes 月影の構え (if it is not already up). */
+/** At or under this share, the hero takes 月影の構え (if it is not already up and is ready). */
 export const AUTO_GUARD_AT = 0.5;
+/** Facing a creature with a harder blow, he takes it sooner: at or under this share. */
+export const AUTO_GUARD_WARY_AT = 0.7;
 
 /**
  * WHO AUTO AIMS AT, among the creatures standing, for a blow wearing their
@@ -739,10 +817,12 @@ export function autoTarget(state: PartyBattleState, breakPower: number): PartyEn
  * AUTO, for the member whose turn it is:
  *   - a heal now if one of them is low (癒しの光);
  *   - 星癒の羽 on the lowest under 70% with none on them (never on one whole);
- *   - the hero: 月影の構え when he is at half or under and it is not up
- *     (never every turn); else 《瞬断》 when ready; else a swing;
- *   - Grave: 重撃・豪断 when a creature is broken, or one's footing would
- *     break with it, or every other turn of his; else a swing;
+ *   - the hero: 月影の構え when it is ready (its wait over), not up, and he is
+ *     at half or under — or at 70% or under facing a creature with a harder
+ *     blow; else 《瞬断》 when ready; else a swing;
+ *   - Grave: 重撃・豪断 whenever it is ready (its wait is what spaces it),
+ *     aimed at the one it would break, else a broken one, else as autoTarget;
+ *     else a swing;
  *   - Kaos: her strongest damage spell if better than a swing; else a swing.
  * With more than one creature standing, a blow names its target
  * (`autoTarget`); with one, it is aimed at that one and names none.
@@ -765,19 +845,15 @@ export function partyAutoAction(state: PartyBattleState): PartyAction | null {
     if (wants) return { kind: 'TECH', techId: regen.id, target: wants.id };
   }
   const guard = techs.find((t) => t.kind === 'MOON_GUARD');
-  if (guard && me.guardTurns === 0 && me.hp <= me.maxHp * AUTO_GUARD_AT) return { kind: 'TECH', techId: guard.id };
+  const wary = standingEnemies(state).some((e) => !!e.moves.heavy);
+  if (guard && me.guardTurns === 0 && me.hp <= me.maxHp * (wary ? AUTO_GUARD_WARY_AT : AUTO_GUARD_AT)) return { kind: 'TECH', techId: guard.id };
   const several = standingEnemies(state).length > 1;
   const aim = (breakPower: number) => {
     const foe = autoTarget(state, breakPower);
     return several && foe ? { target: foe.id } : {};
   };
   const heavy = techs.find((t) => t.kind === 'HEAVY');
-  if (heavy) {
-    const bp = heavy.breakPower ?? 4;
-    const foe = autoTarget(state, bp);
-    const worth = !!foe && (isBroken(foe) || foe.breakCurrent <= bp);
-    if (worth || me.turns % 2 === 0) return { kind: 'TECH', techId: heavy.id, ...aim(bp) };
-  }
+  if (heavy) return { kind: 'TECH', techId: heavy.id, ...aim(heavy.breakPower ?? 4) };
   const swing = (me.attackMin + me.attackMax) / 2;
   const spellFoe = autoTarget(state, SPELL_BREAK_POWER);
   const blast = spells

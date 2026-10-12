@@ -10,9 +10,13 @@
 //             (a heavy blade: his swing wears a creature's footing twice as much)
 //
 // THEIR TECHNIQUES (通常スキル3種, 2026-10-12) — one each, no finishers yet:
-//   主人公    月影の構え  guard +30%, evasion 25%, a counter at 0.8 — 2 turns, no MP
-//   ケイオス  星癒の羽    a heal at the end of the target's own turn — 3 turns, MP 8
-//   グレイヴ  重撃・豪断  1.6× a swing, BREAK 4 — no MP, no cooldown (as yet)
+//   主人公    月影の構え  guard +30%, evasion 25%, a counter at 0.8 — 2 turns; wait 4
+//   ケイオス  星癒の羽    a heal at the end of the target's own turn — 3 turns; wait 5
+//   グレイヴ  重撃・豪断  1.6× a swing, BREAK 4; wait 3
+//
+// All three are SKILLS (2026-10-12, 戦闘ルール整理): no MP, each with its wait
+// (`cooldown`, in the user's own turns). MP is for spells — 癒しの光 heals now
+// for MP 12; 星癒の羽 heals over three turns for nothing, and then waits.
 
 import type { PartyMemberSpec, PartyTechnique } from '../../game/battle/partyBattle';
 import type { HeroSkillSpec } from '../../game/battle/battleLogic';
@@ -21,11 +25,11 @@ import { SHOWN_ONLY_STATS } from './characterStats';
 import { GRAVE_SPEAKER } from './graveFaces';
 
 /** 主人公: 月影の構え — he takes the blow on his blade and answers it. */
-export const MOON_GUARD_TECH: PartyTechnique = { id: 'moon_guard', name: '月影の構え', kind: 'MOON_GUARD', mpCost: 0, target: 'SELF', turns: 2 };
+export const MOON_GUARD_TECH: PartyTechnique = { id: 'moon_guard', name: '月影の構え', kind: 'MOON_GUARD', mpCost: 0, target: 'SELF', turns: 2, cooldown: 4 };
 /** ケイオス: 星癒の羽 — star feathers on one of them, healing at the end of their turns. */
-export const STAR_FEATHER: PartyTechnique = { id: 'star_feather', name: '星癒の羽', kind: 'REGEN', mpCost: 8, target: 'ALLY', turns: 3 };
+export const STAR_FEATHER: PartyTechnique = { id: 'star_feather', name: '星癒の羽', kind: 'REGEN', mpCost: 0, target: 'ALLY', turns: 3, cooldown: 5 };
 /** グレイヴ: 重撃・豪断 — the heavy blade's whole weight; it breaks a creature's footing. */
-export const GOUDAN: PartyTechnique = { id: 'goudan', name: '重撃・豪断', kind: 'HEAVY', mpCost: 0, target: 'ENEMY', power: 1.6, breakPower: 4 };
+export const GOUDAN: PartyTechnique = { id: 'goudan', name: '重撃・豪断', kind: 'HEAVY', mpCost: 0, target: 'ENEMY', power: 1.6, breakPower: 4, cooldown: 3 };
 
 /** グレイヴ, beside them for a while. Provisional numbers (作者 2026-10-12: 仮値でよい). */
 export const GRAVE_GUEST: PartyMemberSpec = {

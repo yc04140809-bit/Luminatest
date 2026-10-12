@@ -47,7 +47,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
     which === 'moss_rabbit'
       ? { spec: specOf(MOSS_RABBIT), art: 'moss_rabbit' }
       : which === 'sekiryuga'
-        ? { spec: SEKIRYUGA_BATTLE, art: 'sekiryuga' }
+        ? { spec: { ...SEKIRYUGA_BATTLE, boss: true }, art: 'sekiryuga' }
         : { spec: VALSHEEL_FORM1_PROVISIONAL, art: 'valsheel' };
   const enemy = footing > 0 ? { ...foe.spec, breakMax: Math.floor(footing) } : foe.spec;
   const count = Number(params.get('enemies'));
@@ -123,7 +123,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
   if (ended) {
     return (
       <div className="screen" data-testid="pb-preview-ended">
-        <p>{ended === 'VICTORY' ? '勝利しました。' : '敗北しました。'}</p>
+        <p>{ended === 'VICTORY' ? '勝利しました。' : ended === 'ESCAPE' ? '逃げ出しました。' : '敗北しました。'}</p>
         <button
           className="btn primary"
           data-testid="pb-preview-again"
