@@ -88,6 +88,7 @@
 | 立ち絵 | フードの男（シルエット可） | 中 | 酒場の「怪しい客」のシルエット（既存）を流用（同一人物かは明かさない） |
 | 一枚絵 | 遺跡最奥で封印を解くローブの男 | — | **受領済み** `events/event-ruins-unsealing.png`（1672×941、そのまま配置）。F3 で使う（手順3で画面に接続） |
 | 一枚絵 | 第二段階の解除が拒絶され、退避する直前のフードの男（赤い暴走） | — | **受領済み** `events/event-ruins-unsealing-refused.png`（1672×941、そのまま配置）。F3 の「装置が、赤く光った」〜「……これは、予定にないな」で使う（手順3で画面に接続） |
+| 一枚絵 | 覚醒直後のヴァルシール（崩れる封印の中で身を起こす。手前にフードの男） | — | **受領済み** `events/event-valsheel-awakening.png`（1672×941、そのまま配置）。F3 の「低い音。部屋の奥で、巨大な何かが身じろぎした」〜「それは、フードの人影を見なかった。壁の向こう――遠く、村のある方角を見ていた」で使う（手順3で画面に接続） |
 | ステータス画面 | アリア・レヴィのステータス画面の立ち絵 | — | **受領済み** `characters/aria/aria-status-visual.png`・`characters/levi/levi-status-visual.png`（各 1024×1536、そのまま配置）。見た目の登録（characterAppearance・portraits）済みで、リリースに入る |
 | 背景 | **半壊したアルデン村** | 高（F12〜F16） | **受領済み** `backgrounds/location-alden-village-broken.png`（1024×1536、そのまま配置） |
 | 背景 | 遺跡最奥（封印装置の部屋） | 中 | **受領済み** `backgrounds/location-ruins-depths.png`（1672×941、そのまま配置。BGM は church-hymn） |
