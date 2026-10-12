@@ -59,6 +59,8 @@ export interface FinaleLine extends DialogueLine {
   ariaFace?: AriaFace;
   /** レヴィ's face on her line (companionFaces.ts). */
   leviFace?: LeviFace;
+  /** From this line on, the picture behind the words (until the next line that names one). */
+  cg?: FinaleBackdrop;
 }
 
 /** Every scene of the finale, by id, in the order they are played. */
@@ -88,6 +90,16 @@ export type FinaleSceneId = (typeof FINALE_SCENE_IDS)[number];
 /** Where a scene is played (its background and music are the App's to choose from this). */
 export type FinalePlace = 'HOME' | 'RUINS_DEPTHS' | 'VILLAGE' | 'VILLAGE_BROKEN' | 'ROAD' | 'GRASSLAND';
 
+/**
+ * THE PICTURES OF THE RUINS' DEPTHS (作者 2026-10-12, as delivered): the
+ * hooded figure at the device (blue), the second stage refused (red), the
+ * creature waking with him before it, and the empty room (the place's own).
+ */
+export type FinaleCg = 'RUINS_UNSEALING' | 'RUINS_REFUSED' | 'VALSHEEL_AWAKENING';
+
+/** What is behind the words: a place's own picture, or one of the scene pictures. */
+export type FinaleBackdrop = FinalePlace | FinaleCg;
+
 export interface FinaleScene {
   id: FinaleSceneId;
   place: FinalePlace;
@@ -114,20 +126,20 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   RUINS_SEAL: scene('RUINS_SEAL', 'RUINS_DEPTHS', [
     { speaker: null, text: '同じ夜。古代遺跡の、さらに奥。' },
     { speaker: null, text: '誰も入ったことのないはずの部屋に、灯りがひとつ。' },
-    { speaker: null, text: '黒いフードの人影が、古い装置に手を置いている。' },
+    { speaker: null, text: '黒いフードの人影が、古い装置に手を置いている。', cg: 'RUINS_UNSEALING' },
     { speaker: null, text: '装置の光が、ひとつ、またひとつと灯っていく。' },
     { speaker: HOODED, text: '……第一段階。' },
     { speaker: null, text: '低い音。部屋の奥で、巨大な何かが身じろぎした。' },
     { speaker: HOODED, text: '……次だ。' },
-    { speaker: null, text: '装置が、赤く光った。' },
+    { speaker: null, text: '装置が、赤く光った。', cg: 'RUINS_REFUSED' },
     { speaker: null, text: '耳の奥を刺すような音。光が乱れ、明滅する。' },
     { speaker: HOODED, text: '……違う。' },
     { speaker: HOODED, text: '第二段階が、拒絶された……？' },
-    { speaker: null, text: `闇の奥で、${V}の目が灯った。` },
+    { speaker: null, text: `闇の奥で、${V}の目が灯った。`, cg: 'VALSHEEL_AWAKENING' },
     { speaker: null, text: 'それは、フードの人影を見なかった。' },
     { speaker: null, text: '壁の向こう――遠く、村のある方角を見ていた。' },
     { speaker: HOODED, text: '……これは、予定にないな。' },
-    { speaker: null, text: '人影は、それ以上何も言わず、闇に溶けるように消えた。' },
+    { speaker: null, text: '人影は、それ以上何も言わず、闇に溶けるように消えた。', cg: 'RUINS_DEPTHS' },
   ]),
 
   // ---- F4 異変の朝（村）------------------------------------------------------
@@ -328,6 +340,38 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: null, text: '槌の音を背に、三人は歩き出した。' },
   ]),
 };
+
+/** The picture behind line `at` of a scene: the last one named at or before it, else the place's own. */
+export function finaleBackdrop(scene: FinaleScene, at: number): FinaleBackdrop {
+  for (let i = Math.min(at, scene.lines.length - 1); i >= 0; i--) {
+    const cg = scene.lines[i].cg;
+    if (cg) return cg;
+  }
+  return scene.place;
+}
+
+/**
+ * THE MUSIC OF EACH SCENE (作者決定 2026-10-12): the ruins' depths and the
+ * hooded figure — 厳かな協会の歌 (church-hymn); from the morning's first
+ * quake to the grassland and its fight — 立ち向かう背中 (chapter1-final-boss).
+ * Null: the place plays its own (the night before, at home). What follows
+ * the second form (the broken village, the rebuilding) is decided with it.
+ */
+export const FINALE_SCENE_BGM: Readonly<Partial<Record<FinaleSceneId, 'CHURCH_HYMN' | 'CHAPTER1_FINAL_BOSS'>>> = {
+  RUINS_SEAL: 'CHURCH_HYMN',
+  MORNING: 'CHAPTER1_FINAL_BOSS',
+  RAID: 'CHAPTER1_FINAL_BOSS',
+  LURE: 'CHAPTER1_FINAL_BOSS',
+  VILLAGE_MIREI: 'CHAPTER1_FINAL_BOSS',
+  FORM1_START: 'CHAPTER1_FINAL_BOSS',
+  VILLAGE_RIZEL: 'CHAPTER1_FINAL_BOSS',
+  SHELL_BREAK: 'CHAPTER1_FINAL_BOSS',
+  KAOS_FINISHER: 'CHAPTER1_FINAL_BOSS',
+  HERO_FINISHER: 'CHAPTER1_FINAL_BOSS',
+};
+
+/** The finale's fights are fought to 立ち向かう背中. */
+export const FINALE_FIGHT_BGM = 'CHAPTER1_FINAL_BOSS' as const;
 
 /** The chapter's last words, on the end screen. */
 export const CHAPTER1_END = {

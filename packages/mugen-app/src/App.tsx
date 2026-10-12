@@ -62,6 +62,14 @@ import { RUINS_CRY_MARK, SEKIRYUGA_REVISIT_MARK, SEKIRYUGA_RUMORS } from '@mugen
 import { GRAVE_MEETING_MARK, hasMetGrave } from '@mugen/content/talk/graveTalks';
 import { pickupKeeper } from './ui/explore/pickupKeeper';
 import { stageReached } from '@mugen/core/world/storyArc';
+import { eveDue, finaleWorld } from '@mugen/core/world/chapterFinale';
+import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
+import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
+import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
+import { availableMagic } from '@mugen/core/magic/magic';
+import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
+import { kaosHasAwakened } from '@mugen/core/magic/awakened';
+import { FinaleRun } from './ui/finale';
 
 /** The one-time notice that AUTO is open (core/world/readMarks.ts `note:`). */
 const AUTO_NOTICE = 'note:auto_battle';
@@ -262,6 +270,18 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const [rumors, setRumors] = useState(false);
   /** The music let down, on the way in — from her 「……止まって。」 to the fight. */
   const [hushed, setHushed] = useState(false);
+  /**
+   * 第1章終盤 — THE FINALE, held over the village (HOME) the way the tavern
+   * is, for the same reason (`Screen` is shared with the Artifact). Begun by
+   * the night's rest that brings the night before (eveDue), or by
+   * 「つづきから」 into a world inside it; while it is on, nothing of the
+   * ordinary village is drawn. Its music, while it wants its own.
+   */
+  const [finale, setFinale] = useState(false);
+  const [finaleBgm, setFinaleBgm] = useState<BgmId | null>(null);
+  useEffect(() => {
+    if (!finale) setFinaleBgm(null);
+  }, [finale]);
   const state = useSyncExternalStore(
     (cb) => flow.subscribe(cb),
     () => flow.getState(),
@@ -338,6 +358,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   useAndroidBackButton(() => {
     // Nor walking out of the way in: SKIP is how it is left early.
     if (naming || intro) return;
+    // Nor out of the finale: it is read (and fought) to its end.
+    if (finale) return;
     // Back out of equipment to status first, not out to the village.
     if (state.screen === 'STATUS' && equipment) {
       setEquipment(false);
@@ -551,8 +573,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   // Let down on the way in to セキリュウガ, and held off after its fight: what is
   // seen then is seen in quiet.
   state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath'),
-  // A piece picked from the bard's archive, while still in the tavern.
-  tavern ? bardPiece : null);
+  // A piece picked from the bard's archive, while still in the tavern; the finale's own, while it wants one.
+  tavern ? bardPiece : finale ? finaleBgm : null);
   // THE MUSIC ARCHIVE keeps what the game has played (once each).
   useEffect(() => {
     if (playingBgm) void world.markMusicHeard(playingBgm).catch(() => {});
@@ -714,6 +736,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
     shop ? 'shop' : '',
     rumors ? 'rumors' : '',
     ruins ?? '',
+    finale ? 'finale' : '',
   ].join(':');
   return (
     <>
@@ -743,6 +766,11 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             onContinue={() => {
               if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
               flow.goTo('HOME');
+              // INSIDE THE FINALE: back to the beat it was in (nothing of the village between).
+              if (finaleWorld(world.getFinaleStage()).inSequence) {
+                setFinale(true);
+                return;
+              }
               // AN UNFINISHED LOOK AHEAD IS RESUMED, and it comes first:
               // the four answers are already saved, so the player is
               // never asked to decide again — only to finish seeing.
@@ -808,6 +836,50 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         <PrologueScreen onKaosArrives={() => setKaosArrived(true)} onDone={() => setNaming(true)} />
       );
     case 'HOME':
+      if (finale) {
+        return (
+          <FinaleRun
+            stage={world.getFinaleStage()}
+            heroName={world.getHeroName()}
+            fights={{
+              VALSHEEL_FORM1: {
+                // A test may make it quick to beat (DEV only).
+                spec: (() => {
+                  const hp = import.meta.env.DEV ? (window as unknown as { __mugenFinaleFoeHp?: number }).__mugenFinaleFoeHp : undefined;
+                  return typeof hp === 'number' ? { ...VALSHEEL_FORM1_PROVISIONAL, hp } : VALSHEEL_FORM1_PROVISIONAL;
+                })(),
+                artId: 'valsheel',
+              },
+            }}
+            party={() => {
+              const stats = world.getPartyStats();
+              return [
+                ...heroAndKaos({
+                  heroName: world.getHeroName(),
+                  heroLevel: world.getLevel('hero'),
+                  kaosLevel: world.getLevel('kaos'),
+                  condition: { hero: world.getCharacterCondition('hero'), kaos: world.getCharacterCondition('kaos') },
+                  heroAttack: { min: stats.attackMin, max: stats.attackMax },
+                  heroSkills: HERO_STARTING_SKILLS,
+                  kaosMagic: availableMagic(MAGIC_DEFS, { awakened: kaosHasAwakened(world.getKnownEvents().map((e) => e.type)) }),
+                }),
+                GRAVE_GUEST,
+              ];
+            }}
+            autoAvailable={autoOpen}
+            onReach={(stage) => world.advanceFinaleStage(stage)}
+            onWon={(members) => {
+              const hero = members.find((m) => m.id === 'hero');
+              const kaos = members.find((m) => m.id === 'kaos');
+              return world.setBattleCondition({ hp: Math.max(1, hero?.hp ?? 1), mp: kaos?.mp ?? 0 });
+            }}
+            onLost={() => world.restoreParty()}
+            onMusic={setFinaleBgm}
+            // Left for now (the rest is not written yet): back to the title, by starting the page again.
+            onPause={() => window.location.reload()}
+          />
+        );
+      }
       if (tavern) {
         return (
           <TavernScreen
@@ -972,8 +1044,13 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                   ? world.markRead([RUINS_CRY_MARK])
                   : undefined,
               )
-              // Morning: anything the village is talking about, brought to them (✉ アルデン通信).
-              .then(() => setHomeNews(newsFor(world)))
+              // 第1章終盤: the signs at their heaviest — this night is the night before.
+              // Otherwise, morning: anything the village is talking about (✉ アルデン通信).
+              .then(() =>
+                eveDue({ phase: world.getIncidentPhase(), stage: world.getFinaleStage() })
+                  ? setFinale(true)
+                  : setHomeNews(newsFor(world)),
+              )
               .catch((e) => console.error('The night did not pass', e))
               .finally(() => setResting(false));
           }}

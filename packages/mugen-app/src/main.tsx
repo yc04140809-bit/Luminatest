@@ -56,6 +56,19 @@ if (
   );
 } else if (
   (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('preview') === 'finale'
+) {
+  // `?preview=finale` — 第1章終盤 on its own (src/dev/FinalePreview.tsx),
+  // nothing kept. Debug builds only, the same compile-time way.
+  void import('./dev/FinalePreview').then(({ FinalePreview }) =>
+    root.render(
+      <StrictMode>
+        <FinalePreview params={params} />
+      </StrictMode>,
+    ),
+  );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
   params.get('preview') === 'walk'
 ) {
   // `?preview=walk&place=ANCIENT_RUINS` — a place walked on its own

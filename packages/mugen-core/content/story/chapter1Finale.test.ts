@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER1_END, FINALE_SCENES, FINALE_SCENE_IDS, FINALE_SPEAKERS, type FinaleLine } from './chapter1Finale';
+import { CHAPTER1_END, FINALE_FIGHT_BGM, FINALE_SCENES, FINALE_SCENE_BGM, FINALE_SCENE_IDS, FINALE_SPEAKERS, finaleBackdrop, type FinaleLine } from './chapter1Finale';
 import { AFTER_FORM2_SCENES, FORM2_FINISHER_SCENES, finaleBeat, FINALE_STAGES } from '../../core/world/chapterFinale';
 import { KAOS_FACES } from '../characters/kaosFaces';
 import { GRAVE_FACES } from '../characters/graveFaces';
@@ -98,5 +98,33 @@ describe('第1章終盤 — the script (作者指示 2026-10-12)', () => {
     }
     expect([...played].sort()).toEqual([...FINALE_SCENE_IDS].sort());
     expect(new Set(played).size).toBe(played.length);
+  });
+});
+
+describe('第1章終盤 手順3 — 絵と音 (2026-10-12)', () => {
+  it('the ruins’ depths: the empty room, the figure at the device, the refusal, the waking, the empty room again', () => {
+    const ruins = FINALE_SCENES.RUINS_SEAL;
+    const order: string[] = [];
+    ruins.lines.forEach((_, i) => {
+      const b = finaleBackdrop(ruins, i);
+      if (order[order.length - 1] !== b) order.push(b);
+    });
+    expect(order).toEqual(['RUINS_DEPTHS', 'RUINS_UNSEALING', 'RUINS_REFUSED', 'VALSHEEL_AWAKENING', 'RUINS_DEPTHS']);
+    // The refusal from 「装置が、赤く光った」; the waking from its eyes lighting — and he is still there for 「予定にないな」.
+    expect(ruins.lines.findIndex((l) => l.cg === 'RUINS_REFUSED')).toBe(ruins.lines.findIndex((l) => l.text === '装置が、赤く光った。'));
+    const plan = ruins.lines.findIndex((l) => l.text === '……これは、予定にないな。');
+    expect(finaleBackdrop(ruins, plan)).toBe('VALSHEEL_AWAKENING');
+  });
+
+  it('a scene with no picture named is its place', () => {
+    expect(finaleBackdrop(FINALE_SCENES.EVE, 0)).toBe('HOME');
+    expect(finaleBackdrop(FINALE_SCENES.LURE, 3)).toBe(FINALE_SCENES.LURE.place);
+  });
+
+  it('music: the hymn in the ruins, 立ち向かう背中 from the quake to the fight, the village’s own the night before', () => {
+    expect(FINALE_SCENE_BGM.EVE).toBeUndefined();
+    expect(FINALE_SCENE_BGM.RUINS_SEAL).toBe('CHURCH_HYMN');
+    for (const id of ['MORNING', 'RAID', 'LURE', 'VILLAGE_MIREI', 'FORM1_START'] as const) expect(FINALE_SCENE_BGM[id]).toBe('CHAPTER1_FINAL_BOSS');
+    expect(FINALE_FIGHT_BGM).toBe('CHAPTER1_FINAL_BOSS');
   });
 });

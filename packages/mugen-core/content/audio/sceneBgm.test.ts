@@ -3,6 +3,7 @@ import { bgmForScene, type SceneCue } from './sceneBgm';
 import { BGM_ASSETS } from '@mugen/assets';
 import type { Screen } from '../../core/flow/types';
 import { DEFAULT_BATTLE_BGM } from './battleBgm';
+import { FINALE_FIGHT_BGM, FINALE_SCENE_BGM } from '../story/chapter1Finale';
 
 const at = (screen: Screen, rest: Partial<SceneCue> = {}): SceneCue => ({
   screen,
@@ -202,7 +203,10 @@ describe('the mapping as a whole', () => {
         at('BATTLE_RESULT', { result: 'BOSS' }),
       ].map(bgmForScene),
     );
-    const sceneReachable = Object.keys(BGM_ASSETS).filter((id) => !chosenByTheFight.has(id));
+    // Brought by the chapter-1 finale's own table (content/story/chapter1Finale.ts), not by a place.
+    const chosenByTheFinale = new Set<string>([...Object.values(FINALE_SCENE_BGM), FINALE_FIGHT_BGM]);
+    expect([...chosenByTheFinale].sort()).toEqual(['CHAPTER1_FINAL_BOSS', 'CHURCH_HYMN']);
+    const sceneReachable = Object.keys(BGM_ASSETS).filter((id) => !chosenByTheFight.has(id) && !chosenByTheFinale.has(id));
     expect(reached).toEqual(new Set(sceneReachable));
   });
 

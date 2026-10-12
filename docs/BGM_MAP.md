@@ -89,4 +89,5 @@
 - 新しい曲は **App だけ** に入れています（`mugen-assets/src/appMusic.ts`）。共有の `music.ts` では枠だけ（null）なので、Artifact版には入らず鳴りもしません。
 - 曲の差し替えは「ファイルを `files/audio/bgm-app` に置く → `appMusic.ts` で import して枠に入れる」だけです（`files/audio/bgm` は Artifact版と共有で、Artifact のビルド確認がそこの全ファイルを求めるため、App 専用・未使用の曲は `bgm-app` に分けています）。
 - リザルト画面：戦闘勝利 → `RESULT_NORMAL` に切り替え → 報酬確認 → 「つぎへ」で森（`GREENWOOD_FOREST`）へ戻る。1曲ずつ切り替わり、二重再生しません（`preRaidUx` で確認）。倍速・AUTO とは関係しません。
-- 届いていて、まだ組み込んでいない曲：`royal-castle.mp3`（西洋王城の威儀）、`church-hymn.mp3`（厳かな協会の歌）、`chapter1-final-boss.mp3`（立ち向かう背中・1章最後のボス）。使う場所ができた時に import します（import するまで APK の容量は増えません）。
+- 届いていて、まだ組み込んでいない曲：`royal-castle.mp3`（西洋王城の威儀）。使う場所ができた時に import します（import するまで APK の容量は増えません）。
+- 第1章終盤（2026-10-12、App のみ）：`CHURCH_HYMN`（`church-hymn.mp3`・厳かな協会の歌）＝遺跡の最奥でフードの男が封印を解く場面。`CHAPTER1_FINAL_BOSS`（`chapter1-final-boss.mp3`・立ち向かう背中）＝翌朝の地響きから襲撃・草原への誘導・ヴァルシール戦まで。前夜（家）は村の曲のまま。場面ごとの割り当ては `content/story/chapter1Finale.ts` の `FINALE_SCENE_BGM`。復興・旅立ちの曲は手順6で決める。

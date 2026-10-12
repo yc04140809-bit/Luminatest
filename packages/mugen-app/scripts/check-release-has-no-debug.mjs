@@ -40,6 +40,8 @@ const MARKERS = [
   'debug-forge-import',
   'forge-import',
   'MUGEN ZEROへ受け入れました',
+  // 第1章終盤 on its own (src/dev/FinalePreview.tsx).
+  'pb-select-finale',
 ];
 
 /** Every source file under a folder. */

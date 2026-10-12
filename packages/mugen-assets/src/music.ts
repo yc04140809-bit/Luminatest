@@ -91,12 +91,16 @@ export type BgmId =
    *   SEKIRYUGA_BATTLE  セキリュウガ's fight (BOSS戦闘)
    *   SPECIAL_BATTLE    a fight with somebody in particular, フウミミ's (狩りの鼓動)
    *   NORMAL_BATTLE_2   the forest's newer creatures' ordinary fights (通常戦闘曲②)
+   *   CHURCH_HYMN       chapter 1's end: the ruins' depths and the hooded figure (厳かな協会の歌, 2026-10-12)
+   *   CHAPTER1_FINAL_BOSS  chapter 1's end: the raid, the grassland, ヴァルシール (立ち向かう背中, 2026-10-12)
    */
   | 'RESULT_NORMAL'
   | 'RESULT_BOSS'
   | 'SEKIRYUGA_BATTLE'
   | 'SPECIAL_BATTLE'
-  | 'NORMAL_BATTLE_2';
+  | 'NORMAL_BATTLE_2'
+  | 'CHURCH_HYMN'
+  | 'CHAPTER1_FINAL_BOSS';
 
 export type SeId = 'select' | 'memory' | 'timeshift' | 'reunion';
 
@@ -115,6 +119,8 @@ export const BGM_ASSETS: Record<BgmId, string | null> = {
   SEKIRYUGA_BATTLE: null,
   SPECIAL_BATTLE: null,
   NORMAL_BATTLE_2: null,
+  CHURCH_HYMN: null,
+  CHAPTER1_FINAL_BOSS: null,
 };
 
 /**

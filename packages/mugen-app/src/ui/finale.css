@@ -1,0 +1,42 @@
+/* ---- 第1章終盤 (ui/finale.tsx): a line over its picture ---- */
+.screen.finale {
+  position: fixed;
+  inset: 0;
+  background: #05060a;
+  padding: 0;
+}
+.finale-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+/* The night before: the village in the dark. */
+.finale-night .finale-backdrop { filter: brightness(0.35) saturate(0.6) hue-rotate(200deg); }
+/* The raid: the village under smoke and fire. */
+.finale-raid .finale-backdrop { filter: brightness(0.6) sepia(0.5) saturate(1.8) hue-rotate(-25deg); }
+.finale-box {
+  position: absolute;
+  z-index: 1;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  padding: 10px 14px 10px;
+  min-height: 24%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(224, 184, 74, 0.55);
+  border-radius: 10px;
+  background: rgba(8, 8, 14, 0.82);
+  color: #f3ead6;
+}
+.finale-speaker { margin: 0; font-size: 13px; color: #e0b84a; }
+.finale-line { margin: 0; font-size: clamp(14px, 4.4vh, 17px); line-height: 1.6; flex: 1; }
+.finale-next { align-self: flex-end; }
+
+.finale-pause { background: #05060a; color: #f3ead6; text-align: center; }
+.finale-pause-title { margin: 0; font-size: clamp(24px, 8vh, 36px); letter-spacing: 0.4em; text-indent: 0.4em; }
+.finale-pause-note { margin: 0; font-size: 13px; opacity: 0.85; }

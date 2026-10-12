@@ -15,12 +15,17 @@ import bgmResultVictory from '../files/audio/bgm-app/result-victory.mp3';
 import bgmSekiryugaBattle from '../files/audio/bgm-app/sekiryuga-battle.mp3';
 import bgmSpecialBattle from '../files/audio/bgm-app/special-battle.mp3';
 import bgmNormalBattle2 from '../files/audio/bgm-app/normal-battle-2.mp3';
+// 第1章終盤 (2026-10-12): the ruins' depths, and the raid to ヴァルシール.
+import bgmChurchHymn from '../files/audio/bgm-app/church-hymn.mp3';
+import bgmChapter1FinalBoss from '../files/audio/bgm-app/chapter1-final-boss.mp3';
 
 export const APP_BGM_ASSETS: Partial<Record<BgmId, string>> = {
   RESULT_NORMAL: bgmResultVictory,
   SEKIRYUGA_BATTLE: bgmSekiryugaBattle,
   SPECIAL_BATTLE: bgmSpecialBattle,
   NORMAL_BATTLE_2: bgmNormalBattle2,
+  CHURCH_HYMN: bgmChurchHymn,
+  CHAPTER1_FINAL_BOSS: bgmChapter1FinalBoss,
 };
 
 /**

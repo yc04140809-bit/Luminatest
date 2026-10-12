@@ -37,6 +37,9 @@ export const MUSIC_ARCHIVE: readonly ArchivedPiece[] = [
   { id: 'SEKIRYUGA_BATTLE', title: 'BOSS II', heard: 'セキリュウガ' },
   { id: 'SPECIAL_BATTLE', title: 'HUNT', heard: 'フウミミ' },
   { id: 'NORMAL_BATTLE_2', title: 'BATTLE II', heard: '森の戦い' },
+  // 2026-10-12: chapter 1's end (App only).
+  { id: 'CHURCH_HYMN', title: 'HYMN', heard: '遺跡の最奥' },
+  { id: 'CHAPTER1_FINAL_BOSS', title: 'STAND AND FACE', heard: 'ヴァルシール' },
 ];
 
 export const MUSIC_ARCHIVE_IDS: readonly BgmId[] = MUSIC_ARCHIVE.map((p) => p.id);
