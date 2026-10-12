@@ -225,7 +225,7 @@
   top: max(6px, env(safe-area-inset-top));
   left: 50%;
   transform: translateX(-50%);
-  width: min(40vw, 330px);
+  width: min(34vw, 300px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -409,48 +409,56 @@
 .pb-chip { min-height: 30px; min-width: 44px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(231, 210, 156, 0.55); background: rgba(20, 16, 26, 0.8); color: #cfc3a5; font: inherit; font-size: 11px; letter-spacing: 0.06em; cursor: pointer; }
 .pb-chip.on { color: #1a1408; background: #f3d27a; border-color: #f3d27a; }
 
-/* ── bottom right: everyone's HP ── */
+/* ── right edge, under the cross: everyone's HP, one small card each ──
+   Not the bottom right: that is the field's (the party stands there). */
 .pb-members {
   position: absolute;
   z-index: 5;
   right: var(--pb-edge-r);
-  bottom: max(6px, env(safe-area-inset-bottom));
-  width: 182px;
+  top: calc(max(4px, env(safe-area-inset-top)) + var(--pb-dia) * 2.6 + 4px);
+  width: 118px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 4px 6px;
+  padding: 3px 4px;
 }
 .pb-member {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  column-gap: 6px;
-  padding: 1px 3px;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: 5px;
+  padding: 2px 3px;
   border-radius: 3px;
   border: 1px solid transparent;
 }
+.pb-member > .pb-face { width: 22px; height: 22px; margin-top: 1px; opacity: 1; }
 .pb-member.acting { border-color: rgba(243, 210, 122, 0.8); background: rgba(243, 210, 122, 0.1); }
 .pb-member.down { opacity: 0.55; }
 .pb-member.aimable { border-color: rgba(155, 227, 122, 0.6); }
-.pb-member-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
-.pb-member-name i { font-style: normal; color: #f3d27a; margin-right: 2px; font-size: 9px; }
-.pb-member-bars { min-width: 0; }
-.pb-member .pb-num { justify-self: end; line-height: 1.2; }
-.pb-member .pb-num.mp { line-height: 1.1; }
-.pb-down { color: #e88; font-size: 11px; justify-self: end; }
-.pb-status { grid-column: 1 / -1; display: flex; gap: 3px; margin-top: 1px; line-height: 1; }
-.pb-status-chip { font-size: 9px; padding: 1px 4px; border-radius: 3px; white-space: nowrap; background: rgba(150, 190, 255, 0.22); color: #cfe0ff; }
+.pb-member-body { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.pb-member-name { font-size: 10px; color: #e7d29c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+.pb-member-name i { font-style: normal; color: #f3d27a; margin-right: 2px; font-size: 8px; }
+.pb-member .pb-num { line-height: 1.15; }
+.pb-member .pb-bar { height: 3px; }
+.pb-down { color: #e88; font-size: 11px; }
+.pb-status { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 1px; line-height: 1; }
+.pb-status-chip { font-size: 9px; padding: 1px 3px; border-radius: 3px; white-space: nowrap; background: rgba(150, 190, 255, 0.22); color: #cfe0ff; }
 .pb-status-chip.regen { background: rgba(160, 255, 190, 0.2); color: #c9ffd0; }
+
+/* The place, under the turn order (as in every fight). */
+.pb-place { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; padding: 1px 8px; border-radius: 3px; background: rgba(11, 11, 18, 0.55); line-height: 1.2; }
+.pb-place b { font-size: 8px; letter-spacing: 0.16em; color: #e7d29c; font-weight: 600; }
+.pb-place i { font-size: 10px; font-style: normal; color: #f4ead2; }
 
 /* A short screen (640×300): a step tighter. */
 @media (max-height: 340px) {
-  .screen.pb-screen { --pb-dia: 50px; }
+  .screen.pb-screen { --pb-dia: 46px; }
   .pb-face { width: 20px; height: 20px; }
   .pb-face.acting { width: 26px; height: 26px; }
   .pb-log { -webkit-line-clamp: 1; font-size: 11px; }
-  .pb-members { width: 168px; padding: 3px 5px; gap: 1px; }
-  .pb-member-name { font-size: 11px; }
+  .pb-members { width: 112px; gap: 1px; padding: 2px 3px; }
+  .pb-member { padding: 1px 2px; }
+  .pb-member > .pb-face { width: 20px; height: 20px; }
   .pb-num { font-size: 11px; }
   .pb-num.mp { font-size: 10px; }
   .pb-dia-jp { font-size: 11px; }

@@ -9,6 +9,7 @@ import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
+import { locationNameOf } from '@mugen/content/locations/alden';
 import { PartyBattleScreen } from '../ui/battle/PartyBattleScreen';
 import { audioManager } from '../platform/audio';
 
@@ -88,6 +89,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
       enemy={enemy}
       enemyArtId={foe.art}
       background={battleBackgroundFor('GREENWOOD_FOREST')}
+      place={{ mark: 'GREENWOOD FOREST', name: locationNameOf('GREENWOOD_FOREST') }}
       onEnd={(r) => setEnded(r.outcome)}
     />
   );

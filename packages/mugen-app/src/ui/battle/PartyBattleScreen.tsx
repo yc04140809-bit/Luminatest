@@ -32,7 +32,7 @@ import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
 import { memoryRows } from './battleHud';
 import './battle.generated.css';
-import { STAGE_ENEMY_SCALE, partyPlaces, spotStyle, stageFor } from './partyStage';
+import { enemySpot, partyPlaces, spotStyle, stageFor } from './partyStage';
 import './partyBattle.css';
 
 /**
@@ -41,23 +41,26 @@ import './partyBattle.css';
  *
  * THE SAME PICTURE AS EVERY FIGHT IN THE GAME (作者指示 2026-10-12, UI 修正):
  * the field is the whole screen; the creature on the LEFT, the party on the
- * RIGHT standing as a triangle (partyStage.ts — never a row); the reading
- * kept to the edges:
+ * RIGHT standing on the ground in a diagonal up the path — front, middle,
+ * back (partyStage.ts: slots, never a row or a column); the reading kept to
+ * the edges, the SAME in every fight of this kind:
  *
- *   top centre    the TURN ORDER, and under it the last line said
+ *   top centre    the TURN ORDER, the place, the last line said
  *   top left      the creature's name, HP and BREAK gauge, together
  *   top right     the COMMAND CROSS — 攻撃 / スキル / 魔法 / 防御 around the
  *                 face of whoever is acting; only what is in it changes
  *                 from one member to the next. A list (スキル, 魔法, 「誰に？」)
  *                 opens beside it.
- *   bottom right  everyone's HP, small and always there; Kaos's MP under
- *                 hers (never a toggle); what is on each of them
- *                 (「月影 2T」「星癒 3T」)
- *   bottom left   WORLD MEMORY (as in every fight, 2026-10-12), AUTO and ×2
+ *   right edge    under the cross: everyone's HP, one small card each (face,
+ *                 name, HP — and MP for one who has magic), always there;
+ *                 what is on each of them (「月影 2T」「星癒 3T」). The bottom
+ *                 right is left to the field (2026-10-12: the party is not
+ *                 pushed about to make room for a panel). Room for four.
+ *   bottom left   WORLD MEMORY (as in every fight), AUTO and ×2
  *
- * A GIANT (`battleScale: 'GIANT'` on the creature — ヴァルシール) takes the
- * left of the screen at full height and the party is drawn small, together
- * on the right, still a triangle (partyStage.ts's GIANT staging).
+ * A GIANT (`battleScale: 'GIANT'` on the creature — ヴァルシール) is drawn
+ * bigger than the screen and the party a little smaller in the same
+ * diagonal; nothing of the reading or the commands moves.
  *
  * THEIR TECHNIQUES AND BREAK (通常スキル3種): every technique is in the
  * スキル list (星癒の羽 then asks 「誰に？」). MISS, the counter and the heal
@@ -92,6 +95,10 @@ export interface PartyBattleProps {
   rng?: () => number;
   /** WORLD MEMORY, bottom left: what the world remembers, and how deep (absent: nothing yet). */
   memory?: { lines: readonly string[]; depth: number };
+  /** Where the fight is, under the TURN ORDER (as every fight shows it). */
+  place?: { mark: string; name: string };
+  /** Who stands where, front to back (absent: partyStage's FORMATION — グレイヴ, 主人公, ケイオス). */
+  formation?: readonly string[];
 }
 
 const ENEMY_TURN_MS = 700;
@@ -149,7 +156,7 @@ function Bar({ value, max, kind }: { value: number; max: number; kind: 'hp' | 'm
   );
 }
 
-export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory }: PartyBattleProps) {
+export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory, place, formation }: PartyBattleProps) {
   const dice = rng ?? Math.random;
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
   const [auto, setAuto] = useState(false);
@@ -172,7 +179,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   }, [background]);
 
   const stage = stageFor(enemy.battleScale);
-  const places = useMemo(() => partyPlaces(members.map((m) => m.id), stage), [members, stage]);
+  const places = useMemo(() => partyPlaces(members.map((m) => m.id), stage, formation), [members, stage, formation]);
+  const foeSpot = enemySpot(stage, enemy.battleScale, enemyArtId);
   const art = useMemo(() => {
     const party: Record<string, { src: string | null; face?: ArtBox }> = {};
     for (const m of members) {
@@ -266,7 +274,6 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING';
   const giant = (enemy.battleScale ?? 'NORMAL') === 'GIANT';
-  const enemyScale = giant ? 1 : (STAGE_ENEMY_SCALE[enemyArtId] ?? 1);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
 
@@ -292,7 +299,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         <div
           className={`pb-foe${actor === ENEMY_ID ? ' acting' : ''}${broken ? ' broken' : ''}${shaking ? ' shake' : ''}`}
           data-testid="pb-foe"
-          style={{ ...spotStyle(stage.enemy, enemyScale), maxWidth: `${stage.enemy.maxWidth * 100}%` }}
+          style={{ ...spotStyle(foeSpot), maxWidth: `${foeSpot.maxWidth * 100}%` }}
         >
           {art.enemy.src && <img src={art.enemy.src} alt={state.enemy.name} data-testid="pb-enemy-art" />}
           {broken && (
@@ -391,6 +398,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             <Face key={`${state.round}-${state.at}-${i}`} src={faceOf(id).src} box={faceOf(id).face} testId={`pb-turn-slot-${i}`} actor={id} acting={i === 0} />
           ))}
         </div>
+        {place && (
+          <div className="pb-place" data-testid="pb-place">
+            <b>{place.mark}</b>
+            <i>{place.name}</i>
+          </div>
+        )}
         <p className="pb-log" data-testid="pb-log" role="status">
           {state.log[state.log.length - 1]}
         </p>
@@ -511,53 +524,58 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </div>
       )}
 
-      {/* BOTTOM RIGHT — everyone's HP, small and always there. */}
-      <div className="pb-members" data-testid="pb-members">
-        {state.members.map((m) => (
-          <div
-            key={m.id}
-            className={`pb-member${actor === m.id ? ' acting' : ''}${m.down ? ' down' : ''}${menu === 'TARGET' && !m.down ? ' aimable' : ''}`}
-            data-testid={`pb-member-${m.id}`}
-            data-hp={m.hp}
-            data-max={m.maxHp}
-            data-down={m.down ? 'yes' : 'no'}
-            data-acting={actor === m.id ? 'yes' : 'no'}
-          >
-            <span className="pb-member-name">
-              {actor === m.id && <i aria-hidden="true">▶</i>}
-              {m.name}
-            </span>
-            {m.down ? (
-              <span className="pb-down" data-testid={`pb-member-${m.id}-down`}>
-                戦闘不能
-              </span>
-            ) : (
-              <span className="pb-num">
-                <small>HP</small> {m.hp}/{m.maxHp}
-              </span>
-            )}
-            <span className="pb-member-bars">
-              <Bar value={m.hp} max={m.maxHp} kind="hp" />
-              {m.maxMp > 0 && <Bar value={m.mp} max={m.maxMp} kind="mp" />}
-            </span>
-            {m.maxMp > 0 ? (
-              <span className="pb-num mp" data-testid={`pb-member-${m.id}-mp`} data-mp={m.mp}>
-                MP {m.mp}/{m.maxMp}
-              </span>
-            ) : (
-              <span />
-            )}
-            {statusChips(m).length > 0 && (
-              <span className="pb-status" data-testid={`pb-status-${m.id}`}>
-                {statusChips(m).map((c) => (
-                  <span key={c.key} className={`pb-status-chip ${c.key}`} data-testid={`pb-status-${m.id}-${c.key}`} title={c.title}>
-                    {c.label}
+      {/* RIGHT EDGE, under the cross — everyone's HP, one small card each. */}
+      <div className="pb-members" data-testid="pb-members" data-size={state.members.length}>
+        {state.members.map((m) => {
+          const face = faceOf(m.id);
+          const chips = statusChips(m);
+          return (
+            <div
+              key={m.id}
+              className={`pb-member${actor === m.id ? ' acting' : ''}${m.down ? ' down' : ''}${menu === 'TARGET' && !m.down ? ' aimable' : ''}`}
+              data-testid={`pb-member-${m.id}`}
+              data-hp={m.hp}
+              data-max={m.maxHp}
+              data-down={m.down ? 'yes' : 'no'}
+              data-acting={actor === m.id ? 'yes' : 'no'}
+            >
+              <Face src={face.src} box={face.face} testId={`pb-member-${m.id}-face`} actor={m.id} acting={false} />
+              <span className="pb-member-body">
+                <span className="pb-member-name">
+                  {actor === m.id && <i aria-hidden="true">▶</i>}
+                  {m.name}
+                </span>
+                {m.down ? (
+                  <span className="pb-down" data-testid={`pb-member-${m.id}-down`}>
+                    戦闘不能
                   </span>
-                ))}
+                ) : (
+                  <span className="pb-num">
+                    <small>HP</small> {m.hp}/{m.maxHp}
+                  </span>
+                )}
+                <Bar value={m.hp} max={m.maxHp} kind="hp" />
+                {m.maxMp > 0 && (
+                  <>
+                    <span className="pb-num mp" data-testid={`pb-member-${m.id}-mp`} data-mp={m.mp}>
+                      MP {m.mp}/{m.maxMp}
+                    </span>
+                    <Bar value={m.mp} max={m.maxMp} kind="mp" />
+                  </>
+                )}
+                {chips.length > 0 && (
+                  <span className="pb-status" data-testid={`pb-status-${m.id}`}>
+                    {chips.map((c) => (
+                      <span key={c.key} className={`pb-status-chip ${c.key}`} data-testid={`pb-status-${m.id}-${c.key}`} title={c.title}>
+                        {c.label}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </span>
-            )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
