@@ -515,7 +515,8 @@ for (const [w, h] of [
     for (let i = 0; i < 3; i++) await command(page, 'bp-attack');
     await readyToAct(page);
     const tell = await boxOf('bp-enemy-tell');
-    const panel = await page.locator('.bx-tl > *').first().boundingBox();
+    // (WORLD MEMORY is bottom left since 2026-10-12 — every fight; found by its own id.)
+    const panel = await page.getByTestId('bx-world-memory').boundingBox();
     const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
       a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
     expect(overlaps(tell, panel!)).toBe(false);
