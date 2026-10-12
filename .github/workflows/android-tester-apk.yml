@@ -1,0 +1,146 @@
+# MUGEN ZERO — テスター版 APK（App版、2026-10-12）
+#
+# ごく少人数のテスターに、実際のプレイヤーに近い状態で第1章を遊んでもらうための APK。
+#
+#   - ゲームはリリース用のビルド（npm run build）。DEBUG ボタン・DEBUG メニュー・
+#     ?preview= などの開発用の入口・テスト用フックは、ビルドの段階で入らない
+#     （check:release で確認し、入っていたら失敗する）。
+#   - Android はリリース扱い（デバッグ不可）の build type `tester`。
+#   - 固定の鍵で署名する。鍵はリポジトリに置かず、Secrets から書き出す:
+#       MUGEN_TESTER_KEYSTORE_B64       鍵ファイル（PKCS12）を base64 にしたもの
+#       MUGEN_TESTER_KEYSTORE_PASSWORD  そのパスワード
+#     同じ鍵なので、新しい版を上書きインストールでき、セーブは残る。
+#   - アプリIDは com.mugenzero.app.tester（名前「MUGEN ZERO テスト版」）。
+#     開発版と並べて入れられ、セーブも別。
+#
+# 手動でだけ動く（全テスト通過を確認してから実行する）。push では動かない。
+# 受け取り方: この実行結果の Artifacts から mugen-zero-tester-apk をダウンロードし、
+# 中の APK を Google ドライブで限定共有する。
+name: Android Tester APK (App)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: android-tester-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  tester-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # ブラウザは要らない。Playwrightのダウンロードを止めて数分節約する。
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      # Capacitor 8 のテンプレートは Java 21 / AGP 8.13 / compileSdk 36。
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # `packages` の既定値は `tools platform-tools` だが、`tools` は
+          # 廃止済みで cmdline-tools 16 のリポジトリには存在しない。
+          # action はそれを入れようとして
+          #   Warning: Failed to find package 'tools'
+          #   Error: sdkmanager failed with exit code 1
+          # で落ちる。ここではライセンス承諾だけを任せ、必要なものは
+          # 次の step で明示的に入れる。
+          packages: ''
+
+      # AGP 8.13 / compileSdk 36 に必要な2つだけ。バージョンを固定するのは、
+      # 取得に失敗したときログにパッケージ名がそのまま出るようにするため。
+      - name: SDK packages
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort -r | head -n1)"
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $SDK"
+            exit 1
+          fi
+          echo "using $SDKMANAGER"
+          "$SDKMANAGER" --install "platforms;android-36" "build-tools;36.0.0"
+
+      # 鍵が無ければ、署名なしの APK を作らずにここで止める。
+      - name: Tester signing key
+        env:
+          KEY_B64: ${{ secrets.MUGEN_TESTER_KEYSTORE_B64 }}
+          KEY_PASSWORD: ${{ secrets.MUGEN_TESTER_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEY_B64" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Secrets MUGEN_TESTER_KEYSTORE_B64 / MUGEN_TESTER_KEYSTORE_PASSWORD が未登録です。"
+            exit 1
+          fi
+          echo "$KEY_B64" | base64 -d > "$RUNNER_TEMP/mugen-tester.p12"
+          echo "MUGEN_TESTER_KEYSTORE=$RUNNER_TEMP/mugen-tester.p12" >> "$GITHUB_ENV"
+
+      # リリース用ビルドにデバッグ用の道具が入らないことの確認（入っていたら失敗）。
+      - name: Release build has no debug tools
+        run: npm run check:release -w @mugen/app
+
+      # ゲーム本体: リリース用のビルド（デバッグ用の道具なし）。
+      - name: Build the web game (release)
+        run: npm run build -w @mugen/app
+
+      - name: Capacitor sync
+        working-directory: packages/mugen-app
+        run: npx cap sync android
+
+      - name: Assemble tester APK
+        working-directory: packages/mugen-app/android
+        env:
+          MUGEN_TESTER_KEYSTORE_PASSWORD: ${{ secrets.MUGEN_TESTER_KEYSTORE_PASSWORD }}
+          MUGEN_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleTester --no-daemon --stacktrace
+
+      # 署名が固定の鍵であること、デバッグ不可であることを確かめ、中身を記録する。
+      - name: Verify the APK
+        run: |
+          APK=$(ls packages/mugen-app/android/app/build/outputs/apk/tester/*.apk | head -n1)
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BT="$SDK/build-tools/36.0.0"
+          "$BT/apksigner" verify --print-certs "$APK" | tee "$RUNNER_TEMP/certs.txt"
+          if grep -q "Android Debug" "$RUNNER_TEMP/certs.txt"; then
+            echo "::error::debug 鍵で署名されています"; exit 1
+          fi
+          if "$BT/aapt" dump badging "$APK" | grep -q "application-debuggable"; then
+            echo "::error::デバッグ可能な APK です"; exit 1
+          fi
+          "$BT/aapt" dump badging "$APK" | grep -E "^package:|application-label:"
+          mkdir -p out
+          cp "$APK" "out/MUGEN-ZERO-tester-${{ github.run_number }}.apk"
+          ls -l out
+          echo "commit: ${{ github.sha }}"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mugen-zero-tester-apk
+          path: out/*.apk
+          if-no-files-found: error
+          # 受け取ったら Google ドライブへ移すので、長く置かない。
+          retention-days: 3

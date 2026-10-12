@@ -7,7 +7,8 @@ android {
         applicationId "com.mugenzero.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // The tester build passes its own (the workflow's run number), so each new one installs over the last.
+        versionCode((System.getenv("MUGEN_VERSION_CODE") ?: "1").toInteger())
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -16,10 +17,44 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    /*
+     * THE TESTER BUILD's KEY (2026-10-12, 作者指示: テスター版 APK を固定署名で).
+     * One fixed key, kept OUT of the repository: the workflow writes it from
+     * the repository's secrets (MUGEN_TESTER_KEYSTORE_B64 / _PASSWORD) and
+     * passes where it is. The same key every time, so a new tester build
+     * installs over the last and the save stays. Absent (any other build),
+     * nothing here applies.
+     */
+    signingConfigs {
+        if (System.getenv("MUGEN_TESTER_KEYSTORE")) {
+            tester {
+                storeFile file(System.getenv("MUGEN_TESTER_KEYSTORE"))
+                storePassword System.getenv("MUGEN_TESTER_KEYSTORE_PASSWORD")
+                keyAlias "mugen-tester"
+                keyPassword System.getenv("MUGEN_TESTER_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        /*
+         * テスター版: a release build (not debuggable, the web game built
+         * without its debug tools), signed with the fixed key, under its own
+         * application id and name so it sits beside the development build on
+         * one handset — each with its own save.
+         */
+        tester {
+            initWith release
+            matchingFallbacks = ['release']
+            applicationIdSuffix ".tester"
+            versionNameSuffix "-tester"
+            debuggable false
+            if (System.getenv("MUGEN_TESTER_KEYSTORE")) {
+                signingConfig signingConfigs.tester
+            }
         }
     }
 }
