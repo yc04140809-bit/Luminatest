@@ -29,6 +29,7 @@ import hyourei from '@mugen/assets/files/enemies/hyourei.png';
 import iwahoro from '@mugen/assets/files/enemies/iwahoro.png';
 import kokemaru from '@mugen/assets/files/enemies/kokemaru.png';
 import valsheelForm1 from '@mugen/assets/files/enemies/valsheel-form1.png';
+import valsheelForm2 from '@mugen/assets/files/enemies/valsheel-form2.png';
 import uiAutoOn from '@mugen/assets/files/ui/battle/chip-auto-on.png';
 import uiAutoOff from '@mugen/assets/files/ui/battle/chip-auto-off.png';
 import uiSpeedOn from '@mugen/assets/files/ui/battle/chip-x2-on.png';
@@ -232,6 +233,26 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
         src: valsheelForm1,
         box: { fileW: 1122, fileH: 1402, x: 17, y: 44, width: 1105, height: 1323 },
         face: { fileW: 1122, fileH: 1402, x: 880, y: 250, width: 200, height: 200 },
+        facing: 'right',
+      },
+    },
+  },
+  /**
+   * ヴァルシール, its second form (作者採用 2026-10-12) — the machine angel its
+   * broken shell lays bare: white, black and gold armour, the great wings,
+   * the glowing core in its chest, the floating shards and rings of light.
+   * The base drawing, as delivered (transparent, facing right toward the
+   * party, whole). Registered only: no fight stands it yet — its place and
+   * size in the fight are set when the first form's BREAK leads into it.
+   */
+  valsheel_form2: {
+    id: 'valsheel_form2',
+    label: 'ヴァルシール（第2形態）',
+    states: {
+      front: {
+        src: valsheelForm2,
+        box: { fileW: 1086, fileH: 1448, x: 7, y: 0, width: 1074, height: 1448 },
+        face: { fileW: 1086, fileH: 1448, x: 655, y: 225, width: 140, height: 140 },
         facing: 'right',
       },
     },

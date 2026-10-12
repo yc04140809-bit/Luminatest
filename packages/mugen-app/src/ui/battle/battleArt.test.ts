@@ -94,3 +94,14 @@ describe('グレイヴの戦闘立ち絵 (2026-10-12)', () => {
     expect(art.asset?.facing).toBe('left');
   });
 });
+
+describe('ヴァルシール第2形態の基準素材 (作者採用 2026-10-12)', () => {
+  it('registered as delivered: the base drawing, facing right toward the party, its box the whole drawing', async () => {
+    const { battleEnemyArt } = await import('./battleArt');
+    const art = battleEnemyArt('valsheel_form2', 'front');
+    expect(art.placeholder).toBe(false);
+    expect(art.asset?.src).toContain('valsheel-form2');
+    expect(art.asset?.facing).toBe('right');
+    expect(art.asset?.box).toMatchObject({ fileW: 1086, fileH: 1448 });
+  });
+});
