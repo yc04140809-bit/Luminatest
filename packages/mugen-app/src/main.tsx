@@ -6,6 +6,11 @@ import App from './App';
 import '@fontsource/noto-serif-jp/latin-400.css';
 import '@fontsource/noto-serif-jp/japanese-400.css';
 import './ui/styles.css';
+import { UI_SKIN } from './assets/uiSkin';
+import { kitRootVars } from './ui/kit/skin';
+
+// The delivered UI pictures (ui/kit), for every stylesheet: --sk-<part>-<state>.
+for (const [name, value] of Object.entries(kitRootVars(UI_SKIN))) document.documentElement.style.setProperty(name, value);
 
 const root = createRoot(document.getElementById('root')!);
 const params = new URLSearchParams(window.location.search);

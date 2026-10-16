@@ -26,6 +26,10 @@ export const KIT_PARTS_LIST = [
   'listRow',
   'backButton',
   'confirmButton',
+  // The sheet's small frames (a turn's face, a round chip, a command): drawn whole, never stretched.
+  'frameSquare',
+  'frameRound',
+  'frameDiamond',
 ] as const;
 export type KitPart = (typeof KIT_PARTS_LIST)[number];
 
@@ -80,6 +84,9 @@ export const KIT_PARTS: Readonly<Record<KitPart, KitPartSpec>> = {
   listRow: { slice: ins(20, 44), scale: 0.45, padX: 4, padY: 4, minHeight: 40, fg: '#1d2448', fgSelected: '#ffffff' },
   backButton: { slice: ins(32, 64), scale: 0.35, padX: 4, padY: 2, minHeight: 36 },
   confirmButton: { slice: ins(32, 64), scale: 0.35, padX: 4, padY: 2, minHeight: 40 },
+  frameSquare: { slice: ins(30, 30), scale: 0.3, padX: 0, padY: 0, minHeight: 24 },
+  frameRound: { slice: ins(36, 36), scale: 0.3, padX: 0, padY: 0, minHeight: 36 },
+  frameDiamond: { slice: ins(40, 30), scale: 0.3, padX: 0, padY: 0, minHeight: 40 },
 };
 
 /** The delivered pictures: part → state → URL. */
@@ -144,4 +151,22 @@ export function kitStyle(part: KitPart, images: KitImages): { skinned: boolean; 
   // Disabled with no picture of its own: the usual one, dimmed.
   vars['--kit-disabled-opacity'] = pics.disabled ? '1' : '0.5';
   return { skinned: !!normal, vars };
+}
+
+/**
+ * Every delivered picture as a CSS variable on the page's root, for stylesheets of screens that are
+ * not built from the kit's components (the battle HUD, which is the Artifact's markup):
+ * `--sk-<part>-<state>` (a url, each state falling back to normal), `--sk-<part>-slice`,
+ * `--sk-<part>-edge`. A part with no picture has none of them.
+ */
+export function kitRootVars(images: KitImages): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of KIT_PARTS_LIST) {
+    const { skinned, vars } = kitStyle(part, images);
+    if (!skinned) continue;
+    for (const state of KIT_STATES) out[`--sk-${part}-${state}`] = vars[`--kit-img-${state}`];
+    out[`--sk-${part}-slice`] = vars['--kit-slice'];
+    out[`--sk-${part}-edge`] = vars['--kit-edge'];
+  }
+  return out;
 }

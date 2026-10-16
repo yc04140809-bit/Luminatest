@@ -224,3 +224,152 @@
     transition: none;
   }
 }
+
+/* ==== THE DELIVERED CRYSTAL PLATES ON THE BATTLE HUD (作者 UI統一指示書 2026-10-16) ====
+   App only (the Artifact's markup and generated rules are untouched): the plates are the delivered
+   pictures (ui/kit; --sk-* on :root, ui-sheet-v1), 9-sliced so their cut corners never stretch; the
+   small frames are drawn whole. CSS supplies only what the pictures do not have: the gauges' fill,
+   the glow of what is acting or chosen, a passing sheen, the press. Every rule falls back to the
+   old look if a picture is missing (the var is then unset). */
+.bp-field {
+  --mz-text-main: #f2f5ff;
+  --mz-text-sub: #b9c4e6;
+  --mz-glow: rgba(150, 205, 255, 0.75);
+  --mz-hp-a: #ff6a5a;
+  --mz-hp-b: #b3142a;
+  --mz-mp-a: #9fd2ff;
+  --mz-mp-b: #6a4cff;
+}
+
+/* A plate: the picture is the frame, its middle the fill. */
+.bp-field .bx-enemy-plate,
+.bp-field .bx-memory,
+.bp-field .bp-message,
+.bp-field .bx-turns,
+.bp-field .bx-party,
+.bp-field .bx-place {
+  border-style: solid;
+  border-color: transparent;
+  border-radius: 0;
+  background: none;
+  clip-path: none;
+  filter: none;
+}
+.bp-field .bx-party::before { display: none; }
+
+/* Enemy HP: the wide plate. */
+.bp-field .bx-enemy-plate {
+  background-image: none;
+  border-width: var(--sk-panel-edge, 0);
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--sk-panel-edge, 0) stretch;
+  padding: 0 4px;
+  aspect-ratio: auto;
+  min-height: 40px;
+}
+/* Inside it: the name and the count over the bar, laid out in the plate (the old picture had
+   places drawn for them; this one has a plain middle). The name wraps rather than being cut. */
+.bp-field .bx-enemy-plate { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.bp-field .bx-enemy-head { position: static; height: auto; inset: auto; }
+.bp-field .bx-enemy-name { overflow: visible; white-space: normal; text-overflow: clip; }
+.bp-field .bx-enemy-plate .bx-meter { position: static; height: 7px; inset: auto; }
+
+/* The party (top right) and WORLD MEMORY: the same plate. */
+.bp-field .bx-party,
+.bp-field .bx-memory {
+  border-width: var(--sk-panel-edge, 0);
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--sk-panel-edge, 0) stretch;
+}
+.bp-field .bx-party { padding: 2px; }
+/* The words of the moment: the thin plate with its cut ends. */
+.bp-field .bp-message,
+.bp-field .bx-place {
+  border-width: 6px 15px;
+  border-image: var(--sk-placeLabel-normal, none) var(--sk-placeLabel-slice, 0) fill / 6px 15px stretch;
+  opacity: 1;
+}
+/* TURN ORDER: the plate, each face in the square frame; who acts lit. */
+.bp-field .bx-turns {
+  /* A thinner edge than the other plates: the strip must keep the top left of the field open. */
+  border-width: 7px 11px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 7px 11px stretch;
+  padding: 0 2px 1px;
+}
+.bp-field .bx-face-frame {
+  background-image: var(--sk-frameSquare-normal, var(--ui-turn-slot));
+  background-size: 100% 100%;
+}
+.bp-field .bx-turn.acting .bx-face-frame { filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.bp-field .bx-turn.acting { opacity: 1; }
+
+/* The gauges: a dark crystal rail, the fill flowing inside it. */
+.bp-field .bx-meter-track {
+  background: linear-gradient(180deg, rgba(4, 8, 22, 0.92), rgba(16, 24, 52, 0.92));
+  border: 1px solid rgba(214, 224, 255, 0.7);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.bp-field .bx-meter-fill {
+  background-image: linear-gradient(180deg, var(--mz-hp-a), var(--mz-hp-b));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.bp-field .bx-meter.mp .bx-meter-fill { background-image: linear-gradient(180deg, var(--mz-mp-a), var(--mz-mp-b)); }
+.bp-field .bx-meter.enemy-hp .bx-meter-fill { background-image: linear-gradient(180deg, var(--mz-hp-a), var(--mz-hp-b)); }
+
+/* Commands: the diamond frame, whole, over a dark crystal inside so the word reads on any ground
+   (the inside cut to the diamond, the frame drawn over it); chosen or pressed, it lights and sinks. */
+.bp-field .bp-cmd-plate { background: none; isolation: isolate; }
+.bp-field .bp-cmd-plate::before,
+.bp-field .bp-cmd-plate::after { content: ''; position: absolute; pointer-events: none; }
+.bp-field .bp-cmd-plate::before {
+  inset: 12% 14%;
+  background: linear-gradient(180deg, rgba(14, 24, 58, 0.92), rgba(5, 10, 28, 0.95));
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.bp-field .bp-cmd-plate::after {
+  inset: 0;
+  background: var(--sk-frameDiamond-normal, var(--ui-diamond)) center / 100% 100% no-repeat;
+}
+/* The word and mark over the frame, never under its tips — and outlined dark, so a word reaching the
+   frame's bright edge still reads (アイテム / アルカナ are as wide as the diamond's middle). */
+.bp-field .bp-cmd-mark, .bp-field .bp-cmd-jp, .bp-field .bp-cmd-en { position: relative; z-index: 1; }
+.bp-field .bp-cmd-jp, .bp-field .bp-cmd-en {
+  text-shadow: 0 0 2px #000, 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px #000;
+}
+.bp-field .bp-cmd.open .bp-cmd-plate { filter: drop-shadow(0 0 5px var(--mz-glow)) brightness(1.12); }
+.bp-field .bp-cmd:active .bp-cmd-plate { transform: scale(0.98); filter: brightness(1.25); }
+.bp-field .bp-cmd.open { transform: scale(1.02); }
+
+/* AUTO / 倍速 / ESCAPE: the round frame, the words shown in it (they were part of the old pictures). */
+.bp-field .bp-mode {
+  background:
+    var(--sk-frameRound-normal, none) center / 100% 100% no-repeat,
+    radial-gradient(circle closest-side, rgba(10, 18, 44, 0.9) 82%, rgba(10, 18, 44, 0) 86%) center / 78% 78% no-repeat;
+  aspect-ratio: 112 / 124;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--mz-text-main);
+}
+.bp-field .bp-mode .bp-mode-en,
+.bp-field .bp-mode .bp-mode-jp {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: nowrap;
+  line-height: 1.1;
+  text-shadow: 0 0 2px #000, 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px #000;
+}
+.bp-field .bp-mode .bp-mode-en { font-size: 8.5px; letter-spacing: 0.06em; font-weight: 700; }
+.bp-field .bp-mode .bp-mode-jp { font-size: 9px; color: var(--mz-text-sub); }
+.bp-field .bp-mode.on { filter: drop-shadow(0 0 5px var(--mz-glow)); }
+.bp-field .bp-mode.on .bp-mode-en { color: #cfeaff; }
+.bp-field .bp-mode:active { transform: scale(0.98); filter: brightness(1.25); }
+
+/* A passing sheen, once, on what has just been chosen (never looping). */
+@keyframes mz-sheen { from { background-position: -120% 0; } to { background-position: 220% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bp-field .bp-cmd.open { transform: none; }
+}

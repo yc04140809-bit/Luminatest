@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync } from 'node:fs';
-import { KIT_PARTS, KIT_PARTS_LIST, kitFileKey, kitImagesFrom, kitStyle } from './skin';
+import { KIT_PARTS, KIT_PARTS_LIST, kitFileKey, kitImagesFrom, kitRootVars, kitStyle } from './skin';
 
 /** UI 素材の受け皿 (2026-10-16): a picture put in the folder by name is used, as the sound folder does. */
 describe('the receiving end for delivered UI pictures', () => {
@@ -41,5 +41,14 @@ describe('the receiving end for delivered UI pictures', () => {
       expect(spec.padX, part).toBeGreaterThanOrEqual(0);
       expect(Object.keys(spec)).not.toContain('height');
     }
+  });
+
+  it('for stylesheets not built from the parts (the battle HUD): every delivered picture as a root variable', () => {
+    const vars = kitRootVars({ panel: { normal: 'p.png' }, frameRound: { normal: 'r.png', active: 'ra.png' } });
+    expect(vars['--sk-panel-normal']).toBe('url("p.png")');
+    expect(vars['--sk-panel-hover']).toBe('url("p.png")');
+    expect(vars['--sk-frameRound-active']).toBe('url("ra.png")');
+    expect(vars['--sk-panel-slice']).toMatch(/^\d+ \d+ \d+ \d+$/);
+    expect(vars['--sk-menuButton-normal']).toBeUndefined();
   });
 });
