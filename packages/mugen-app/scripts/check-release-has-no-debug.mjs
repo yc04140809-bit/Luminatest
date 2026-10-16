@@ -44,6 +44,8 @@ const MARKERS = [
   'pb-select-finale',
   // The opening's SKIP (src/ui/opening.tsx): debug builds only.
   'opening-debug-skip',
+  // The shared parts' preview (src/dev/KitPreview.tsx).
+  'kit-preview',
 ];
 
 /** Every source file under a folder. */

@@ -9,6 +9,8 @@ import {
 } from '@mugen/content/locations/aldenVillageMap';
 import { ALDEN_DIORAMA, type DioramaBox, type VillageDiorama } from '../assets/villageDiorama';
 import { NewBadge } from './common/NewBadge';
+import { KitButton, KitPanel } from './kit/Kit';
+import { villagePortrait } from '../assets/villagePortraits';
 import { usePicture } from './scene';
 import './village.css';
 
@@ -48,6 +50,7 @@ export function VillageScreen({
   objective,
   presence,
   ruinsOpen,
+  graveMet = false,
   news = {},
   happening,
   notice,
@@ -71,6 +74,8 @@ export function VillageScreen({
   presence: Partial<Record<VillageSpotId, readonly VillagePerson[]>>;
   /** 遺跡への道 open (the master has told what was sealed there). */
   ruinsOpen: boolean;
+  /** The master met (named グレイヴ in the panel). */
+  graveMet?: boolean;
   news?: VillageNews;
   /** A small thing happening as they come back in (ui/daily and the like) — first on the left. */
   happening?: ReactNode;
@@ -96,6 +101,8 @@ export function VillageScreen({
   const party = world.getPartyCondition();
   const src = usePicture(diorama.load, `diorama:${diorama.crop.x},${diorama.crop.y}:${diorama.fileW}`);
   const spot = chosen ? VILLAGE_SPOTS.find((s) => s.id === chosen)! : null;
+  const who = villagePortrait(chosen, graveMet);
+  const whoSrc = usePicture(who.load, `who:${who.key}`);
 
   const tap = (s: VillageSpot) => {
     if (s.id === 'road_forest' || (s.id === 'road_ruins' && ruinsOpen)) return onRoad();
@@ -111,16 +118,42 @@ export function VillageScreen({
 
   return (
     <div className="screen village" data-testid="village-screen">
-      {/* ---- left: who is there, and what can be done ---- */}
+      {/* ---- left: who is there, and what can be done (左会話パネル) ---- */}
       <aside className="vg-side" aria-label="会話">
-        <header className="vg-head">
-          <p className="vg-clock" data-testid="world-clock">
-            {clock.worldYear}年目 {clock.worldDay}日目
+        {/* The person (half the panel, the face kept in view), the name in the band. */}
+        <KitPanel
+          part="talkPanelHead"
+          as="div"
+          className="vg-who"
+          testId="village-who"
+          data={{ who: who.key }}
+          portrait={whoSrc && <img src={whoSrc} alt="" draggable={false} style={{ objectPosition: who.focus, transform: `scale(${who.zoom})`, transformOrigin: who.focus }} data-testid="village-portrait" />}
+          band={
+            <span className="vg-who-name">
+              <b>{who.name}</b>
+              {who.role && <small>{who.role}</small>}
+            </span>
+          }
+        />
+        <KitPanel part="talkPanel" as="div" className="vg-body">
+        {happening}
+        {spot ? (
+          <PlaceCard
+            spot={spot}
+            people={presence[spot.id] ?? []}
+            ruinsOpen={ruinsOpen}
+            resting={resting}
+            onRest={onRest}
+            onTavern={onTavern}
+            onBakery={onBakery}
+            onShop={onShop}
+            onClose={() => setChosen(null)}
+          />
+        ) : (
+          <p className="vg-hint" data-testid="village-hint">
+            村の場所をタップすると、そこにいる人と、できることが表示されます。
           </p>
-          <p className="vg-purse" data-testid="lumi">
-            LUMI {world.getLumi()}
-          </p>
-        </header>
+        )}
         {/* The two of them: who, their level, how they are. */}
         <div className="vg-party" data-testid="status-panel">
           {(
@@ -146,25 +179,8 @@ export function VillageScreen({
             );
           })}
         </div>
-        {happening}
-        {spot ? (
-          <PlaceCard
-            spot={spot}
-            people={presence[spot.id] ?? []}
-            ruinsOpen={ruinsOpen}
-            resting={resting}
-            onRest={onRest}
-            onTavern={onTavern}
-            onBakery={onBakery}
-            onShop={onShop}
-            onClose={() => setChosen(null)}
-          />
-        ) : (
-          <p className="vg-hint" data-testid="village-hint">
-            村の場所をタップすると、そこにいる人と、できることが表示されます。
-          </p>
-        )}
         {notice}
+        </KitPanel>
       </aside>
 
       {/* ---- right: the village from above ---- */}
@@ -188,39 +204,67 @@ export function VillageScreen({
               }}
             />
           )}
-          <div className="vg-crystal vg-title" style={cover(diorama.title)}>
-            <b>アルデン村</b>
+          <KitPanel part="panel" as="div" className="vg-title" style={cover(diorama.title)} heading="アルデン村">
             <small>ALDEN VILLAGE</small>
-          </div>
-          <div className="vg-crystal vg-objective" style={{ ...cover(diorama.objective), left: 'auto', right: pct(100 - diorama.objective.x - diorama.objective.w) }} data-testid="next-objective">
-            <small>次の目的</small>
-            <span data-testid="next-objective-text">{objective}</span>
-          </div>
+            {/* The day and the purse, with the village's name. */}
+            <span className="vg-head">
+              <span className="vg-clock" data-testid="world-clock">
+                {clock.worldYear}年目 {clock.worldDay}日目
+              </span>
+              <span className="vg-purse" data-testid="lumi">
+                LUMI {world.getLumi()}
+              </span>
+            </span>
+          </KitPanel>
+          {/* 次の目的: held to its box's right edge, growing leftward with its words. */}
+          <KitPanel
+            part="objective"
+            as="div"
+            className="vg-objective"
+            style={{ ...cover(diorama.objective), left: 'auto', right: pct(100 - diorama.objective.x - diorama.objective.w) }}
+            testId="next-objective"
+            heading="次の目的"
+          >
+            <span data-testid="next-objective-text" data-kit-text="">
+              {objective}
+            </span>
+          </KitPanel>
           {VILLAGE_SPOTS.map((s) => {
             const box = diorama.spots[s.id];
             const shut = s.id === 'road_ruins' && !ruinsOpen;
             const m = mark(s);
             const people = presence[s.id] ?? [];
             return (
-              <div key={s.id} className={`vg-spot-wrap${chosen === s.id ? ' is-chosen' : ''}`} style={{ left: pct(box.x), top: pct(box.y), width: pct(box.w) }}>
-                <button
-                  className={`vg-crystal vg-spot vg-k-${s.kind.toLowerCase()}${chosen === s.id ? ' is-chosen' : ''}${shut ? ' is-shut' : ''}`}
+              <div key={s.id} className="vg-spot-wrap" style={{ left: pct(box.x), top: pct(box.y), minWidth: pct(box.w) }}>
+                <KitButton
+                  part="placeLabel"
+                  className={`vg-spot vg-k-${s.kind.toLowerCase()}`}
                   style={{ minHeight: `${box.h}cqh` }}
-                  data-testid={s.id === 'road_forest' ? 'explore-button' : `spot-${s.id}`}
-                  data-spot={s.id}
-                  aria-pressed={chosen === s.id}
-                  data-shut={shut ? 'yes' : undefined}
+                  testId={s.id === 'road_forest' ? 'explore-button' : `spot-${s.id}`}
+                  data={{ spot: s.id, shut: shut ? 'yes' : undefined }}
+                  selected={chosen === s.id}
+                  dim={shut}
+                  label={
+                    s.kind === 'ROAD' ? (
+                      // A road breaks, if it must, only after 「への」: 森への｜道 →
+                      <>
+                        {s.label.replace(/道$/, '')}
+                        <wbr />
+                        道{'\u00a0'}→
+                      </>
+                    ) : (
+                      s.label
+                    )
+                  }
+                  badge={
+                    m && (
+                      <i className="vg-mark" data-testid={m.testId} aria-label="新着">
+                        {m.sign}
+                      </i>
+                    )
+                  }
                   onClick={() => tap(s)}
-                >
-                  <SpotIcon id={s.id} />
-                  <span className="vg-spot-label">{s.label}</span>
-                  {s.kind === 'ROAD' && <span className="vg-arrow" aria-hidden="true">→</span>}
-                  {m && (
-                    <i className="vg-mark" data-testid={m.testId} aria-label="新着">
-                      {m.sign}
-                    </i>
-                  )}
-                </button>
+                />
                 {people.length > 0 && (
                   <p className="vg-names" data-testid={`spot-${s.id}-people`}>
                     {people.slice(0, VILLAGE_NAMES_SHOWN).map((p) => (
@@ -239,25 +283,19 @@ export function VillageScreen({
         </div>
       </section>
 
-      {/* ---- below: the five ---- */}
+      {/* ---- below: the five (下部5ボタン) ---- */}
       <nav className="vg-menu" aria-label="メニュー">
-        <MenuButton testId="status-button" icon="status" label="ステータス" en="STATUS" onClick={onStatus}>
-          <NewBadge show={news.status} testId="status-new" />
-        </MenuButton>
-        <MenuButton testId="rumor-button" icon="rumor" label="噂話" en="RUMOR" onClick={onRumors}>
-          <NewBadge show={news.rumors} testId="rumor-new" />
-        </MenuButton>
-        <MenuButton testId="bag-button" icon="bag" label="持ち物" en="ITEM" onClick={onBag} />
-        <MenuButton testId="memory-button" icon="world" label="世界の記憶" en="WORLD" onClick={onMemory}>
-          <NewBadge show={news.memory} testId="memory-new" />
-        </MenuButton>
-        <MenuButton testId="archive-button" icon="archive" label="人生の記録" en="ARCHIVE" onClick={onArchive} />
+        <KitButton part="menuButton" testId="status-button" label={<>ステー<wbr />タス</>} sub="STATUS" onClick={onStatus} badge={<NewBadge show={news.status} testId="status-new" />} />
+        <KitButton part="menuButton" testId="rumor-button" label="噂話" sub="RUMOR" onClick={onRumors} badge={<NewBadge show={news.rumors} testId="rumor-new" />} />
+        <KitButton part="menuButton" testId="bag-button" label="持ち物" sub="ITEM" onClick={onBag} />
+        <KitButton part="menuButton" testId="memory-button" label={<>世界の<wbr />記憶</>} sub="WORLD" onClick={onMemory} badge={<NewBadge show={news.memory} testId="memory-new" />} />
+        <KitButton part="menuButton" testId="archive-button" label={<>人生の<wbr />記録</>} sub="ARCHIVE" onClick={onArchive} />
       </nav>
     </div>
   );
 }
 
-/** A place chosen on the village: who is there, and its doors. */
+/** A place chosen on the village: who is there, and its doors (一覧行, as the base image's choices). */
 function PlaceCard({
   spot,
   people,
@@ -282,31 +320,24 @@ function PlaceCard({
   const doors: ReactNode =
     spot.id === 'tavern' ? (
       <>
-        <PlaceDoor testId="tavern-button" onClick={onTavern}>
-          酒場に入る
-        </PlaceDoor>
-        <PlaceDoor testId="rest-button" disabled={resting} onClick={onRest}>
-          休息する
-        </PlaceDoor>
+        <KitButton part="listRow" className="vg-door" testId="tavern-button" label="酒場に入る" onClick={onTavern} />
+        <KitButton part="listRow" className="vg-door" testId="rest-button" label="休息する" disabled={resting} onClick={onRest} />
       </>
     ) : spot.id === 'bakery' ? (
-      <PlaceDoor testId="bakery-button" onClick={onBakery}>
-        パン屋に入る
-      </PlaceDoor>
+      <KitButton part="listRow" className="vg-door" testId="bakery-button" label="パン屋に入る" onClick={onBakery} />
     ) : spot.id === 'shop' ? (
-      <PlaceDoor testId="shop-button" onClick={onShop}>
-        道具屋に入る
-      </PlaceDoor>
+      <KitButton part="listRow" className="vg-door" testId="shop-button" label="道具屋に入る" onClick={onShop} />
     ) : null;
   return (
-    <section className="vg-crystal vg-card" data-testid="place-card" data-spot={spot.id}>
+    <section className="vg-card" data-testid="place-card" data-spot={spot.id}>
       <header className="vg-card-head">
-        <SpotIcon id={spot.id} />
-        <h2 className="vg-card-title">{spot.label}</h2>
-        <button className="vg-card-close" data-testid="place-close" aria-label="閉じる" onClick={onClose}>
-          ×
-        </button>
+        <h2 className="vg-card-title" data-kit-text="">
+          {spot.label}
+        </h2>
+        <KitButton part="backButton" className="vg-card-close" testId="place-close" ariaLabel="閉じる" label="とじる" onClick={onClose} />
       </header>
+      {/* The doors first, so they are in view; then who is there. */}
+      {doors && <div className="vg-card-doors">{doors}</div>}
       {people.length > 0 ? (
         <ul className="vg-card-people" data-testid="place-people">
           {people.map((p) => (
@@ -318,174 +349,10 @@ function PlaceCard({
           {spot.id === 'road_ruins' && !ruinsOpen ? 'いまは、まだ行く用がない。' : 'いまは、訪ねる用はない。'}
         </p>
       )}
-      {doors && <div className="vg-card-doors">{doors}</div>}
     </section>
-  );
-}
-
-function PlaceDoor({
-  testId,
-  disabled,
-  onClick,
-  children,
-}: {
-  testId: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button className="vg-door" data-testid={testId} disabled={disabled} onClick={onClick}>
-      <span className="vg-door-gem" aria-hidden="true">
-        ◆
-      </span>
-      {children}
-    </button>
-  );
-}
-
-function MenuButton({
-  testId,
-  icon,
-  label,
-  en,
-  onClick,
-  children,
-}: {
-  testId: string;
-  icon: MenuIconId;
-  label: string;
-  en: string;
-  onClick: () => void;
-  children?: ReactNode;
-}) {
-  return (
-    <button className="vg-crystal vg-menu-button" data-testid={testId} onClick={onClick}>
-      <MenuIcon id={icon} />
-      <span className="vg-menu-label">{label}</span>
-      <small className="vg-menu-en">{en}</small>
-      {children}
-    </button>
   );
 }
 
 const pct = (v: number) => `${v}%`;
 /** At least over the box (what is painted there is covered), wider if its words need it. */
 const cover = (b: DioramaBox) => ({ left: pct(b.x), top: pct(b.y), minWidth: pct(b.w), minHeight: pct(b.h) });
-
-// ---- small line icons (inline, no library) ----
-
-const svg = (children: ReactNode) => (
-  <svg className="vg-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-    {children}
-  </svg>
-);
-
-function SpotIcon({ id }: { id: VillageSpotId }) {
-  switch (id) {
-    case 'church':
-      return svg(
-        <>
-          <path d="M12 2v4M10 4h4" />
-          <path d="M7 21V11l5-4 5 4v10" />
-          <path d="M4 21v-6l3-2M20 21v-6l-3-2M3 21h18" />
-          <path d="M11 21v-4h2v4" />
-        </>,
-      );
-    case 'shop':
-      return svg(
-        <>
-          <path d="M5 8h14l-1 13H6L5 8z" />
-          <path d="M9 10V6a3 3 0 0 1 6 0v4" />
-        </>,
-      );
-    case 'bakery':
-      return svg(
-        <>
-          <path d="M4 14c0-4 4-7 8-7s8 3 8 7c0 2-1 3-3 3H7c-2 0-3-1-3-3z" />
-          <path d="M9 9l1 5M12 8v6M15 9l-1 5" />
-        </>,
-      );
-    case 'tavern':
-      return svg(
-        <>
-          <path d="M6 7h10v12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V7z" />
-          <path d="M16 10h2a2 2 0 0 1 0 4h-2" />
-          <path d="M6 5c1-1 2-1 3 0s2 1 3 0 2-1 3 0" />
-        </>,
-      );
-    case 'plaza':
-      return svg(
-        <>
-          <path d="M12 2l2 8 8 2-8 2-2 8-2-8-8-2 8-2z" />
-          <circle cx="12" cy="12" r="2" />
-        </>,
-      );
-    case 'road_forest':
-      return svg(
-        <>
-          <path d="M8 3l-4 7h2l-3 5h10l-3-5h2z" />
-          <path d="M8 15v6" />
-          <path d="M17 6l-3 5h2l-2 4h6l-2-4h2z" />
-          <path d="M17 15v6" />
-        </>,
-      );
-    case 'road_ruins':
-      return svg(
-        <>
-          <path d="M12 3l6 9-6 9-6-9z" />
-          <path d="M12 8l3 4-3 4-3-4z" />
-        </>,
-      );
-    default:
-      return svg(
-        <>
-          <path d="M3 11l9-7 9 7" />
-          <path d="M5 10v10h14V10" />
-          <path d="M10 20v-6h4v6" />
-        </>,
-      );
-  }
-}
-
-type MenuIconId = 'status' | 'rumor' | 'bag' | 'world' | 'archive';
-
-function MenuIcon({ id }: { id: MenuIconId }) {
-  switch (id) {
-    case 'status':
-      return svg(
-        <>
-          <circle cx="12" cy="7" r="4" />
-          <path d="M4 21c1-5 4-7 8-7s7 2 8 7" />
-        </>,
-      );
-    case 'rumor':
-      return svg(
-        <>
-          <path d="M4 5h16v10H9l-5 4V5z" />
-          <path d="M8 10h.01M12 10h.01M16 10h.01" />
-        </>,
-      );
-    case 'bag':
-      return svg(
-        <>
-          <path d="M5 9h14l-1 12H6L5 9z" />
-          <path d="M9 9V6a3 3 0 0 1 6 0v3" />
-        </>,
-      );
-    case 'world':
-      return svg(
-        <>
-          <path d="M12 2l5 6-5 14-5-14z" />
-          <path d="M7 8h10M12 2v20" />
-        </>,
-      );
-    case 'archive':
-      return svg(
-        <>
-          <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
-          <path d="M5 17a3 3 0 0 1 3-3h11M9 8h6" />
-        </>,
-      );
-  }
-}

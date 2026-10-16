@@ -972,6 +972,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             tavernGuest: guestLabelOf(tonightsGuestTalk(toAbsoluteDay(world.getClock()))),
           })}
           ruinsOpen={stageReached(world.getSekiryugaStage(), 'TOLD')}
+          graveMet={tavernMet || hasMetGrave((id) => world.isRead(id), world.getSekiryugaStage())}
           onRoad={() => {
             setHomecoming(false);
             setHomeNews(null);

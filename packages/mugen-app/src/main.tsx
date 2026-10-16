@@ -81,6 +81,20 @@ if (
       </StrictMode>,
     ),
   );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('preview') === 'kit'
+) {
+  // `?preview=kit` — every shared UI part in every state, short and long
+  // words (src/dev/KitPreview.tsx): where delivered UI pictures are first
+  // laid out. Debug builds only, the same compile-time way.
+  void import('./dev/KitPreview').then(({ KitPreview }) =>
+    root.render(
+      <StrictMode>
+        <KitPreview />
+      </StrictMode>,
+    ),
+  );
 } else {
   root.render(
     <StrictMode>

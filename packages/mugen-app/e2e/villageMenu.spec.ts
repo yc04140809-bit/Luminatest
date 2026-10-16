@@ -44,7 +44,7 @@ async function music(page: Page): Promise<string | null> {
 }
 
 const labelOf = (page: Page, id: string) =>
-  page.getByTestId(id).locator('.vg-spot-label').textContent();
+  page.getByTestId(id).locator('.kit-text').textContent();
 
 test('the village from above: its places by name — three houses, two roads out, no sea; the five below, no クエスト or セーブ', async ({ page }) => {
   const errors: string[] = [];
@@ -61,15 +61,15 @@ test('the village from above: its places by name — three houses, two roads out
     ['spot-house_01', '民家'],
     ['spot-house_02', '民家'],
     ['spot-house_03', '民家'],
-    ['explore-button', '森への道'],
-    ['spot-road_ruins', '遺跡への道'],
+    ['explore-button', '森への道\u00a0→'],
+    ['spot-road_ruins', '遺跡への道\u00a0→'],
   ] as const) {
     expect(await labelOf(page, id), id).toBe(label);
   }
   await expect(page.locator('.vg-spot.vg-k-house')).toHaveCount(3);
   await expect(page.getByTestId('village-screen')).not.toContainText('海');
   // The five, in order; nothing else down there.
-  expect(await page.locator('.vg-menu .vg-menu-label').allTextContents()).toEqual(['ステータス', '噂話', '持ち物', '世界の記憶', '人生の記録']);
+  expect(await page.locator('.vg-menu .kit-text').allTextContents()).toEqual(['ステータス', '噂話', '持ち物', '世界の記憶', '人生の記録']);
   await expect(page.getByTestId('village-screen')).not.toContainText('クエスト');
   await expect(page.getByTestId('village-screen')).not.toContainText('セーブ');
   // 次の目的, top right.

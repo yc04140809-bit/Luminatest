@@ -1,10 +1,7 @@
-/* ---- アルデン村の縮図 (ui/village.tsx) — PREMIUM CRYSTAL: navy, black, silver, gold; a little blue and violet ---- */
+/* ---- アルデン村の縮図 (ui/village.tsx) — LAYOUT ONLY ----
+   The look of the parts (buttons, labels, panels) is the shared kit's (ui/kit), which takes the
+   delivered UI pictures; nothing here decorates. 作者 2026-10-16: the final look waits for them. */
 .screen.village {
-  --vg-navy: #0c1430;
-  --vg-ink: #1b2246;
-  --vg-silver: rgba(226, 233, 255, 0.82);
-  --vg-gold: #d9b45a;
-  --vg-glow: rgba(150, 205, 255, 0.85);
   position: fixed;
   inset: 0;
   padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
@@ -18,86 +15,50 @@
   align-content: stretch;
   justify-content: stretch;
   gap: 6px;
-  background: radial-gradient(120% 140% at 70% 0%, #1e2b5c 0%, var(--vg-navy) 55%, #05080f 100%);
-  color: #f2f5ff;
+  background: #101218;
+  color: #f2f2f2;
   overflow: hidden;
 }
 
-/* A cut of crystal: dark glass, a silver edge, the corners cut, a sheen that only catches the light. */
-.vg-crystal {
-  position: relative;
-  background: linear-gradient(135deg, rgba(16, 24, 58, 0.94), rgba(30, 38, 84, 0.9));
-  border: 1px solid var(--vg-silver);
-  color: #f4f6ff;
-}
-.vg-crystal::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(115deg, transparent 38%, rgba(190, 210, 255, 0.18) 48%, rgba(220, 190, 255, 0.12) 52%, transparent 62%);
-  opacity: 0.9;
-}
-
-/* ---- left ---- */
+/* ---- left (左会話パネル): the person above, half; the words below, half ---- */
 .vg-side {
   grid-area: side;
+  position: relative;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+}
+.kit.vg-who { min-height: 0; }
+.vg-who-name { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.vg-who-name b { font-size: 16px; letter-spacing: 0.1em; }
+.vg-who-name small { font-size: 11px; opacity: 0.85; }
+.kit.vg-body {
   min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px;
-  border-radius: 10px;
-  background: linear-gradient(160deg, rgba(244, 247, 255, 0.97), rgba(222, 230, 252, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 0 0 1px rgba(150, 170, 230, 0.55), inset 0 0 18px rgba(170, 190, 255, 0.35);
-  color: var(--vg-ink);
 }
-.vg-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 0; }
-.vg-head p { margin: 0; font-size: 13px; letter-spacing: 0.04em; }
-.vg-purse { color: #8a6a1c; font-weight: 600; }
-.vg-party { display: grid; gap: 2px; padding: 4px 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(160, 175, 230, 0.5); }
-.vg-member { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font-size: 13px; line-height: 1.45; }
+.vg-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: max(11px, 1.3cqw); margin-top: 2px; }
+.vg-party { display: grid; gap: 2px; }
+.vg-member { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; font-size: 12px; line-height: 1.4; }
 .vg-name { font-weight: 700; }
-.vg-level { color: #4a5596; }
-.vg-bars { color: #2c3566; font-variant-numeric: tabular-nums; }
-.vg-hint { margin: 2px 2px 0; font-size: 13px; line-height: 1.6; color: #4a5385; }
+.vg-bars { font-variant-numeric: tabular-nums; }
+.vg-hint { margin: 2px 0 0; font-size: 13px; line-height: 1.6; opacity: 0.85; }
 
-.vg-card {
-  border-radius: 8px;
-  padding: 8px 10px 10px;
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.92), rgba(226, 234, 255, 0.92));
-  border-color: rgba(140, 160, 225, 0.8);
-  color: var(--vg-ink);
-}
-.vg-card-head { display: flex; align-items: center; gap: 6px; }
-.vg-card-head .vg-icon { width: 20px; height: 20px; color: #4b5ab0; }
-.vg-card-title { margin: 0; flex: 1; font-size: 17px; letter-spacing: 0.08em; }
-.vg-card-close { border: 0; background: transparent; font-size: 18px; line-height: 1; color: #5a6396; padding: 2px 6px; cursor: pointer; }
-.vg-card-people { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
-.vg-card-people li { font-size: 14px; padding: 1px 8px; border-radius: 10px; background: rgba(60, 76, 150, 0.1); border: 1px solid rgba(90, 105, 180, 0.35); }
-.vg-card-empty { margin: 6px 0 0; font-size: 13px; color: #5a6396; }
-.vg-card-doors { display: grid; gap: 6px; margin-top: 8px; position: relative; z-index: 1; }
-.vg-door {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(120, 140, 220, 0.85);
-  background: linear-gradient(120deg, rgba(64, 86, 190, 0.92), rgba(48, 62, 150, 0.92));
-  color: #fff;
-  font-size: 15px;
-  letter-spacing: 0.06em;
-  text-align: left;
-  cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-.vg-door:disabled { opacity: 0.5; cursor: default; }
-.vg-door:active:not(:disabled) { transform: translateY(1px); }
-.vg-door-gem { color: #cfe4ff; font-size: 11px; }
+.vg-card-head { display: flex; align-items: flex-start; gap: 6px; }
+.vg-card-title { margin: 0; flex: 1; min-width: 0; font-size: 16px; overflow-wrap: anywhere; align-self: center; }
+.kit.vg-card-close { flex: none; font-size: 13px; }
+.vg-card-people { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 14px; }
+.vg-card-empty { margin: 6px 0 0; font-size: 13px; opacity: 0.85; }
+.vg-card-doors { display: grid; gap: 4px; margin-top: 4px; }
+.kit.vg-door { width: 100%; font-size: 15px; }
+
+/* While the two of them talk (ui/talkStage): over this panel, the words across their feet. */
+.vg-side > .talk-stage { right: 0; }
+.vg-side > .talk-stage .talk-bust { width: 60%; }
+.vg-side > .talk-stage .talk-box { left: 6px; right: 6px; bottom: 6px; }
 
 /* ---- right: the village ---- */
 .vg-map {
@@ -105,9 +66,7 @@
   position: relative;
   min-height: 0;
   overflow: hidden;
-  border-radius: 10px;
-  border: 1px solid rgba(220, 230, 255, 0.55);
-  background: #101a33;
+  background: #0c0e14;
   container-type: size;
 }
 /* The cut picture across the whole width, held to the top: on a wide screen its foot is cut off (the
@@ -123,126 +82,54 @@
 }
 .vg-picture { position: absolute; max-width: none; height: auto; display: block; user-select: none; pointer-events: none; }
 
-.vg-title, .vg-objective {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 0 1.2cqw;
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%);
-}
-.vg-title, .vg-objective { white-space: nowrap; }
-.vg-objective { max-width: 62%; }
-.vg-objective span { overflow: hidden; text-overflow: ellipsis; }
-.vg-title b { font-size: max(14px, 2.6cqw); letter-spacing: 0.12em; font-weight: 600; }
-.vg-title small { font-size: max(8px, 1cqw); letter-spacing: 0.3em; color: #c8d2f5; }
-.vg-objective { clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%); padding-left: 2cqw; }
-.vg-objective small { font-size: max(10px, 1.3cqw); color: #c8d2f5; letter-spacing: 0.1em; }
-.vg-objective span { font-size: max(11.5px, 1.7cqw); line-height: 1.35; }
+/* The village's name and 次の目的: over their boxes, growing with their words (up to a share of the width). */
+.kit.vg-title, .kit.vg-objective { position: absolute; display: flex; flex-direction: column; justify-content: center; max-width: 62%; }
+.vg-title .kit-heading { font-size: max(14px, 2.4cqw); margin: 0; }
+.vg-title small { font-size: max(8px, 1cqw); letter-spacing: 0.3em; opacity: 0.8; }
+.vg-objective .kit-heading { font-size: max(10px, 1.3cqw); margin: 0; font-weight: 400; opacity: 0.8; }
+.vg-objective [data-kit-text] { font-size: max(11.5px, 1.7cqw); }
 
-.vg-spot-wrap { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.vg-spot {
-  z-index: 2;
-  width: 100%;
-  min-height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5em;
-  padding: 2px 12px;
-  font: inherit;
-  font-size: max(12px, 1.95cqw);
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-  cursor: pointer;
-  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
-  transition: transform 0.18s ease, background 0.25s ease;
-}
-.vg-spot .vg-icon { width: 1.25em; height: 1.25em; flex: none; color: #e8eeff; }
-.vg-arrow { color: #e8eeff; }
-.vg-spot.is-chosen {
-  transform: scale(1.02);
-  border-color: #cfeaff;
-  background:
-    linear-gradient(120deg, rgba(120, 170, 255, 0.34), rgba(196, 150, 255, 0.22) 45%, rgba(140, 230, 255, 0.3)),
-    linear-gradient(135deg, rgba(20, 32, 80, 0.9), rgba(36, 50, 110, 0.85));
-}
-.vg-spot-wrap.is-chosen { filter: drop-shadow(0 0 5px var(--vg-glow)) drop-shadow(0 0 1px #fff); z-index: 2; }
-/* Not open yet: dark glass, the words dimmed (never see-through: the provisional picture has words of its own under it). */
-.vg-spot.is-shut { color: rgba(236, 240, 255, 0.5); background: linear-gradient(135deg, rgba(12, 16, 36, 0.97), rgba(22, 26, 52, 0.96)); border-color: rgba(200, 210, 240, 0.45); }
-.vg-spot.is-shut .vg-icon, .vg-spot.is-shut .vg-arrow { color: rgba(236, 240, 255, 0.4); }
+/* A place: its label over the box (wider if its words need it, two lines past a share of the width), who is there under it. */
+.vg-spot-wrap { position: absolute; max-width: 40%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.kit.vg-spot { z-index: 2; width: 100%; font-size: max(12px, 1.95cqw); }
 .vg-mark {
   font-style: normal;
   display: inline-grid;
   place-items: center;
-  min-width: 1.3em;
-  height: 1.3em;
-  margin-left: 0.1em;
+  min-width: 1.4em;
+  height: 1.4em;
   border-radius: 50%;
-  background: var(--vg-gold);
+  background: #e8c35a;
   color: #2a1d00;
-  font-size: 0.8em;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0;
-  animation: vg-pulse 2.4s ease-in-out infinite;
 }
-@keyframes vg-pulse { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
-
 .vg-names { position: relative; z-index: 1; margin: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 3px; pointer-events: none; }
 .vg-person {
   font-size: max(10.5px, 1.45cqw);
   line-height: 1.35;
   padding: 0 6px;
   border-radius: 8px;
-  background: rgba(8, 12, 30, 0.72);
-  border: 1px solid rgba(210, 222, 255, 0.45);
-  color: #f6f8ff;
+  background: rgba(8, 10, 16, 0.78);
+  color: #f6f6f6;
   white-space: nowrap;
 }
-.vg-more { color: var(--vg-gold); }
 
-/* ---- below: the five ---- */
+/* ---- below: the five (下部5ボタン) ---- */
 .vg-menu { grid-area: menu; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.vg-menu-button {
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto auto;
-  justify-content: center;
-  align-items: center;
-  column-gap: 6px;
-  min-height: 46px;
-  padding: 4px 4px;
-  border-radius: 10px;
-  font: inherit;
-  cursor: pointer;
+.vg-menu > .kit { width: 100%; font-size: 14px; }
+/* The five's words break only where marked (世界の｜記憶), unless a word is wider than its button. */
+.vg-menu .kit-text { word-break: keep-all; }
+.vg-menu > .kit[data-skinned] { border-left-width: 13px; border-right-width: 13px; }
+@media (max-width: 700px) {
+  .vg-menu > .kit { font-size: 12.5px; }
+  /* Narrow: the frame's ends drawn a little smaller, so the words keep the room. */
+  .vg-menu > .kit[data-skinned] { border-left-width: 10px; border-right-width: 10px; }
 }
-.vg-menu-button .vg-icon { grid-row: 1 / span 2; width: 20px; height: 20px; color: #dbe6ff; }
-.vg-menu-label { font-size: 14px; letter-spacing: 0.06em; white-space: nowrap; }
-.vg-menu-en { font-size: 8.5px; letter-spacing: 0.24em; color: #aeb9e0; }
-.vg-menu-button .new-badge { position: absolute; top: -4px; right: 4px; z-index: 1; }
-.vg-menu-button:active { transform: translateY(1px); }
-
 @media (max-height: 340px) {
-  .vg-menu-button { min-height: 40px; grid-template-columns: auto; grid-template-rows: auto; }
-  .vg-menu-button .vg-icon, .vg-menu-en { display: none; }
+  .vg-menu > .kit .kit-sub { display: none; }
   .vg-member { font-size: 12px; }
 }
-@media (max-width: 700px) {
-  .vg-menu-label { font-size: 12.5px; letter-spacing: 0.02em; }
-  .vg-menu-button .vg-icon { width: 17px; height: 17px; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .vg-mark { animation: none; }
-  .vg-spot { transition: none; }
-}
-
-/* The two of them while a short exchange is told (ui/talkStage, 2026-10-11): over the left panel — this
-   screen's conversation area — side by side, the words in the box across their feet. */
-.vg-side { position: relative; }
-.vg-side > .talk-stage {
-  right: 0;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(225, 233, 255, 0.35), rgba(18, 24, 60, 0.55));
-}
-.vg-side > .talk-stage .talk-bust { width: 60%; }
-.vg-side > .talk-stage .talk-box { left: 6px; right: 6px; bottom: 6px; }
+/* A place's mark sits off its label's corner, clear of the words. */
+.kit.vg-spot .kit-badge { top: -9px; right: -9px; }
+.kit.vg-spot .kit-text { word-break: keep-all; }
