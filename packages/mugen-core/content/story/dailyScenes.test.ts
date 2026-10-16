@@ -48,6 +48,8 @@ describe('the five', () => {
       ['RIZEL_FIRST_AID', 'VILLAGE', 1],
       // 第1章終盤の伏線 (2026-10-12): Kaos looks at the sky once — after Rizel's.
       ['KAOS_SKY', 'VILLAGE', 2],
+      // バルド (2026-10-16): last, so it only takes a day nothing else here wants.
+      ['BALDO_FIRST_MEETING', 'VILLAGE', 0],
     ]);
     // Half a minute or so each: five lines at least, ten at most.
     for (const s of DAILY_SCENES) {
@@ -79,7 +81,8 @@ describe('the five', () => {
 describe('リゼル (HUM-000001): two ordinary scenes, and one answering what was done about Gald', () => {
   const rizel = (id: string) => DAILY_SCENES.find((s) => s.id === id)!;
   it('met with the wooden sword first; the rest wait until she has been', () => {
-    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR')]);
+    // (バルド's meeting, which also follows hers, counted as seen: this is about hers.)
+    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR'), dailySceneMark('BALDO_FIRST_MEETING')]);
     const f = (over: Partial<DailySceneFacts> = {}) => facts({ isRead: (m) => seen.has(m), galdChoice: 'SPARE', phase: 1, ...over });
     expect(dailySceneAt('VILLAGE', f())?.id).toBe('RIZEL_WOODEN_SWORD');
     seen.add(dailySceneMark('RIZEL_WOODEN_SWORD'));
@@ -91,7 +94,7 @@ describe('リゼル (HUM-000001): two ordinary scenes, and one answering what wa
   });
 
   it('the answer about Gald: only the one matching this world, and none without an answer', () => {
-    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR'), dailySceneMark('RIZEL_WOODEN_SWORD')]);
+    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR'), dailySceneMark('RIZEL_WOODEN_SWORD'), dailySceneMark('BALDO_FIRST_MEETING')]);
     for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
       expect(dailySceneAt('VILLAGE', facts({ isRead: (m) => seen.has(m), galdChoice: choice }))?.id).toBe(`RIZEL_ON_GALD_${choice}`);
     }
@@ -111,6 +114,44 @@ describe('リゼル (HUM-000001): two ordinary scenes, and one answering what wa
     const named = sword.findIndex((l) => l.speaker === 'リゼル');
     expect(sword.slice(0, named).every((l) => l.speaker !== 'リゼル')).toBe(true);
     expect(sword[named].text).toContain('リゼル');
+  });
+});
+
+describe('バルド (作者 PROFILE Ver.1.0, 2026-10-16): met once, teasing リゼル — nothing more yet', () => {
+  const baldo = DAILY_SCENES.find((s) => s.id === 'BALDO_FIRST_MEETING')!;
+  it('only once リゼル is known, and only on a day no other village scene wants', () => {
+    const seen = new Set<string>([dailySceneMark('KAOS_DETOUR')]);
+    const f = (over: Partial<DailySceneFacts> = {}) => facts({ isRead: (m) => seen.has(m), galdChoice: 'SPARE', phase: 2, ...over });
+    // Not before her: her wooden sword is first.
+    expect(dailySceneAt('VILLAGE', f())?.id).toBe('RIZEL_WOODEN_SWORD');
+    seen.add(dailySceneMark('RIZEL_WOODEN_SWORD'));
+    // Everything already here keeps its day: her answer, her first aid, Kaos and the sky — then him.
+    for (const id of ['RIZEL_ON_GALD_SPARE', 'RIZEL_FIRST_AID', 'KAOS_SKY'] as const) {
+      expect(dailySceneAt('VILLAGE', f())?.id).toBe(id);
+      seen.add(dailySceneMark(id));
+    }
+    expect(dailySceneAt('VILLAGE', f())?.id).toBe('BALDO_FIRST_MEETING');
+    // From the very start of the everyday too, once she is known and there is nothing else.
+    expect(dailySceneAt('VILLAGE', f({ phase: 0, galdChoice: null }))?.id).toBe('BALDO_FIRST_MEETING');
+    // Once.
+    seen.add(dailySceneMark('BALDO_FIRST_MEETING'));
+    expect(dailySceneAt('VILLAGE', f())).toBeNull();
+  });
+
+  it('his face on his own lines; unnamed until she says his name', () => {
+    const his = baldo.lines.filter((l) => l.speaker === 'バルド');
+    expect(his.length).toBeGreaterThan(0);
+    const first = baldo.lines.findIndex((l) => l.speaker === 'バルド');
+    const named = baldo.lines.findIndex((l) => l.speaker === 'リゼル' && l.text.includes('バルド'));
+    expect(named).toBeGreaterThan(-1);
+    expect(named).toBeLessThan(first);
+    for (const l of baldo.lines.slice(0, named)) expect(l.speaker).not.toBe('バルド');
+    expect(new Set(his.map((l) => l.face ?? 'NORMAL'))).toEqual(new Set(['NORMAL', 'SMILE_EYES_CLOSED', 'ANGRY']));
+  });
+
+  it('not yet (作者判断 2026-10-16): no gift for the sword seen or hinted, no エルナ, no Gald, no raid', () => {
+    const text = baldo.lines.map((l) => l.text).join('');
+    expect(text).not.toMatch(/才能|向いて|筋がいい|素質|エルナ|ガルド|盗賊|襲撃|治療/);
   });
 });
 

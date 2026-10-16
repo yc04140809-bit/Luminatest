@@ -108,6 +108,17 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     artId: null,
     aliases: [],
   },
+  // The merchant house's son, リゼル's classmate (作者 NPC CHARACTER PROFILE
+  // Ver.1.0, 2026-10-16; docs/BALDO.md). Met in one small village scene so far.
+  {
+    npcId: 'BALDO',
+    displayName: 'バルド',
+    kind: 'PERSON',
+    region: ALDEN,
+    standing: 'ORDINARY',
+    artId: null,
+    aliases: [],
+  },
   {
     npcId: 'ALDEN_VILLAGE',
     displayName: 'アルデン村',

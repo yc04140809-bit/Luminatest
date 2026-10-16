@@ -35,6 +35,11 @@
 - 条件を2つ足した：`after`（この場面を見た後だけ）、`gald`／`fuumimi`（その答えの世界だけ。フウミミは答えた日の翌日以降）。
 - 村の枠に、話し手の顔を後から差し込める（`mugen-app/src/assets/dailyFaces.ts`。今は無し）。
 
+## 追加（2026-10-16 作者判断）
+
+- **バルド**（商会の息子・リゼルの同級生）：リゼルの「木剣」の後、村へ戻った時に初対面の1本 `BALDO_FIRST_MEETING`。
+  一覧の最後に置いたので、その日ほかの村の場面が無い日だけ出る（既存の場面の日はずれない）。村の枠に顔が出る。`docs/BALDO.md`。
+
 ## コード
 
 - 内容と出る条件：`mugen-core/content/story/dailyScenes.ts`（`DAILY_SCENES`、`dailySceneAt`）

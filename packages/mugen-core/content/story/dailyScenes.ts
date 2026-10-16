@@ -35,7 +35,7 @@ import { HERO_SPEAKER } from './sekiryugaArc';
 export type DailyScenePlace = 'VILLAGE' | 'BAKERY_LINA' | 'BAKERY_OWNER' | 'TAVERN' | 'SHOP';
 
 export interface DailySceneLine extends DialogueLine {
-  /** Mirei's face on this line (the shop draws her); absent, her ordinary one. */
+  /** The speaker's face on this line (ミレイ in the shop; リゼル, バルド in the village); absent, their ordinary one. */
   face?: NpcExpression;
 }
 
@@ -46,6 +46,7 @@ export type DailySceneId =
   | 'GRAVE_GREATSWORD'
   | 'MIREI_TRAVELERS'
   | 'KAOS_SKY'
+  | 'BALDO_FIRST_MEETING'
   | 'RIZEL_WOODEN_SWORD'
   | 'RIZEL_FIRST_AID'
   | 'RIZEL_ON_GALD_KILL'
@@ -78,6 +79,7 @@ const LINA = 'リナ';
 const OWNER = '主人';
 const MIREI = 'ミレイ';
 const RIZEL = 'リゼル';
+const BALDO = 'バルド';
 
 /** An event written for the talk spots, as a scene: its lines, then her remark (if it has one). */
 function fromTalkSpot(eventId: string): readonly DailySceneLine[] {
@@ -295,6 +297,32 @@ export const DAILY_SCENES: readonly DailyScene[] = [
       { speaker: KAOS, text: '……あの子たち、元気かな。', kaosFace: 'TROUBLED' },
       { speaker: '{HERO}', text: 'あの子たち？' },
       { speaker: KAOS, text: 'ううん。なんでもない♪', kaosFace: 'SMILE' },
+    ],
+  },
+  // ---- バルド（作者 NPC CHARACTER PROFILE Ver.1.0, 2026-10-16; docs/BALDO.md）----
+  // The merchant house's son, リゼル's classmate: light words over the
+  // feeling of having no gift for the trade he is to inherit, and envy of
+  // someone who has a thing to be lost in. First met teasing her practice,
+  // once リゼル is known. LAST in the list on purpose: it takes a day no
+  // other village scene wants, so nothing already here moves.
+  // NOT YET (作者判断 2026-10-16): his gift for the sword (HIDDEN SEED) —
+  // nobody here sees it or hints at it — エルナ, the raid.
+  {
+    id: 'BALDO_FIRST_MEETING',
+    place: 'VILLAGE',
+    from: 0,
+    after: 'RIZEL_WOODEN_SWORD',
+    lines: [
+      { speaker: null, text: '村はずれでリゼルが木剣を振っていると、仕立てのいい服の青年が通りかかった。' },
+      { speaker: '？？？', text: 'おやおや。夜中だけじゃなく、昼間もやってるのか。' },
+      { speaker: RIZEL, text: '……バルド。見物なら、よそでやって。' },
+      { speaker: BALDO, text: 'まさか。剣じゃ腹はふくれないぞって、親切に教えてやってるんだ。', face: 'SMILE_EYES_CLOSED' },
+      { speaker: BALDO, text: '……で、そっちは？ 商会のバルドだ。用があるなら、親父に言ってくれ。' },
+      { speaker: RIZEL, text: '跡取りでしょ。自分で売ればいいのに。' },
+      { speaker: BALDO, text: '……うるさいな。', face: 'ANGRY' },
+      { speaker: null, text: 'バルドは肩をすくめて戻っていった。一度だけ、リゼルの木剣を振り返って。' },
+      { speaker: KAOS, text: '……素直じゃないね、あの人。' },
+      { speaker: RIZEL, text: '昔からああなの。……気にしないで。' },
     ],
   },
 ];

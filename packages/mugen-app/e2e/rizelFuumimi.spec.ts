@@ -99,6 +99,8 @@ async function readThrough(page: Page, line: string, next: string): Promise<{ wh
     seen.push({ who, said: ((await page.getByTestId(line).textContent()) ?? '').trim() });
     // Her face beside her lines (2026-10-12: リゼルの表情差分).
     if (who === 'リゼル') await expect(page.getByTestId('daily-face')).toHaveAttribute('data-face', /^rizel:/);
+    // And his beside his (2026-10-16: バルドの表情差分).
+    if (who === 'バルド') await expect(page.getByTestId('daily-face')).toHaveAttribute('data-face', /^baldo:/);
     await page.getByTestId(next).click();
   }
   return seen;
@@ -116,7 +118,7 @@ const toPhase1 = (page: Page) =>
 
 test.describe.configure({ timeout: 240_000 });
 
-test('リゼル: the wooden sword (her name only once she gives it), then her answer to what was done about Gald, then first aid — a day each', async ({
+test('リゼル: the wooden sword (her name only once she gives it), then her answer to what was done about Gald, then バルド, then first aid — a day each', async ({
   page,
 }) => {
   await settledVillage(page, 'CAPTURE');
@@ -134,6 +136,15 @@ test('リゼル: the wooden sword (her name only once she gives it), then her an
   const gald = (await readThrough(page, 'daily-line', 'daily-next')).map((l) => l.said);
   expect(gald).toContain('「罪は、償うべきだと思う。」');
   expect(gald.join('')).not.toMatch(/正しい|正解|間違/);
+
+  // The next day, nothing else wanting it: バルド (2026-10-16), teasing her — his name once she says it, his faces.
+  await rest(page);
+  await outAndBack(page);
+  await expect(page.getByTestId('daily-scene')).toHaveAttribute('data-scene', 'BALDO_FIRST_MEETING');
+  const baldo = await readThrough(page, 'daily-line', 'daily-next');
+  expect(baldo.findIndex((l) => l.who === 'バルド')).toBeGreaterThan(baldo.findIndex((l) => l.said.includes('……バルド。')));
+  expect(baldo.map((l) => l.said)).toContain('「……うるさいな。」');
+  expect(baldo.at(-1)?.said).toBe('「昔からああなの。……気にしないで。」');
 
   // First aid waits for the signs; then it comes.
   await rest(page);
