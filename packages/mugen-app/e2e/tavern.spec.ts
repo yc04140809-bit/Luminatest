@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * 月灯りの酒場 — THE APP'S TAVERN.
@@ -169,7 +170,7 @@ test('village → tavern → the room, the master, a talk → back to the villag
   const before = await everythingSaved(page);
 
   // 酒場へ入る.
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await expect(page.getByTestId('tavern-screen')).toBeVisible();
   await expect(page.getByTestId('tavern-screen').locator('h1')).toHaveText('月灯りの酒場');
 
@@ -239,7 +240,7 @@ for (const [w, h] of [
     await page.setViewportSize({ width: w, height: h });
     await freshApp(page);
     await intoTheVillage(page);
-    await page.getByTestId('tavern-button').click();
+    await (await placeButton(page, 'tavern-button')).click();
     const master = page.getByTestId('tavern-master');
     await expect
       .poll(() => master.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
@@ -291,7 +292,7 @@ for (const [w, h] of [
 test('walking out and in again opens on the room', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   await expect(page.getByTestId('tavern-line')).toBeVisible();
   // Read to the end, out by the door, and in again.
@@ -300,7 +301,7 @@ test('walking out and in again opens on the room', async ({ page }) => {
   }
   await page.getByTestId('tavern-leave').click();
   await expect(page.getByTestId('explore-button')).toBeVisible();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await expect(page.getByTestId('tavern-description')).toHaveText('旅人と噂の集まる酒場。');
 });
 
@@ -319,14 +320,14 @@ test('his meeting happens once in a new save: not again on walking back in, not 
 }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const meeting = await readTalk(page);
   expect(meeting[0]).toBe(FIRST_LINE);
   expect(meeting).toContain('「グレイヴだ。ここの主人をやってる。」');
   await page.getByTestId('tavern-leave').click();
 
   // In again: he does not introduce himself.
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const again = await readTalk(page);
   expect(again[0]).toBe(GREETING);
   expect(again.join('')).not.toContain('グレイヴだ。ここの主人をやってる。');
@@ -337,7 +338,7 @@ test('his meeting happens once in a new save: not again on walking back in, not 
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const after = await readTalk(page);
   expect(after[0]).toBe(GREETING);
   expect(after.join('')).not.toContain('グレイヴだ。ここの主人をやってる。');
@@ -355,14 +356,14 @@ test('a save from before the mark (no readMarks row) opens, and meets him once',
   await page.goto('/');
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const meeting = await readTalk(page);
   expect(meeting[0]).toBe(FIRST_LINE);
   await page.getByTestId('tavern-leave').click();
   await expect.poll(async () => readMarksOf(await everythingSaved(page))).toEqual(['talk:GRAVE_MEETING']);
   await page.goto('/');
   await page.getByTestId('continue-button').click();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   expect(await firstLineOfTalk(page)).toBe(GREETING);
   expect(errors).toEqual([]);
 });

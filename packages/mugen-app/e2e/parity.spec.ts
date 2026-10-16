@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightToResult, readyToAct } from './battle';
+import { placeButton } from './village';
 
 /**
  * THE WALK THE ROUND WAS ASKED FOR, END TO END.
@@ -68,7 +69,7 @@ async function earn(page: Page, until: number) {
     await expect(page.getByTestId('world-clock')).toBeVisible();
     // A fight leaves wounds, and a wounded party cannot test "the herb
     // refuses when there is nothing to heal". Resting is the village's.
-    await page.getByTestId('rest-button').click();
+    await (await placeButton(page, 'rest-button')).click();
   }
   throw new Error('could not earn enough LUMI to shop');
 }
@@ -81,7 +82,7 @@ test('the shop takes LUMI and the bag shows what it bought', async ({ page }) =>
   const before = numberIn(await page.getByTestId('lumi').textContent(), 'LUMI');
 
   // The shop is a door off the village (2026-10-10).
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
 
   // THE PRICE IS THE OFFER'S, not this test's: read it off the board
@@ -120,7 +121,7 @@ test('a herb drunk in a fight puts health back, and is gone afterwards', async (
   await intoTheVillage(page);
   await earn(page, 40);
 
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   const heldBefore = numberIn(await page.getByTestId('shop-held-FOREST_HERB').textContent(), '所持');
   await page.getByTestId('shop-buy-FOREST_HERB').click();
   await expect
@@ -221,7 +222,7 @@ test('everything earned and bought survives a restart', async ({ page }) => {
   await intoTheVillage(page);
   await earn(page, 40);
 
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   const water = numberIn(await page.getByTestId('shop-held-MANA_WATER').textContent(), '所持');
   await page.getByTestId('shop-buy-MANA_WATER').click();
   await expect

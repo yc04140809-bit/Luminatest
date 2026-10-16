@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * 第1章終盤 (2026-10-12, 作者指示「遺跡最奥→襲撃→草原誘導→ヴァルシール戦 接続」):
@@ -135,7 +136,7 @@ test('PHASE 3: the rest is the night before — ruins, raid, lure, the grassland
   expect(await stage(page)).toBe('NONE');
   const words: string[] = [];
 
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   const scene = page.getByTestId('finale-scene');
   await expect(scene).toHaveAttribute('data-scene', 'EVE');
   await expect(page.getByTestId('finale-line')).toHaveText('その夜は、風がなかった。');
@@ -200,7 +201,7 @@ test('the first form at nought: the shell breaks, the second form (the party car
   test.setTimeout(240_000);
   await heaviestVillage(page);
   await page.evaluate(() => ((window as unknown as { __mugenFinaleFoeHp?: number }).__mugenFinaleFoeHp = 1));
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'EVE');
   const words: string[] = [];
   expect(await readWhile(page, ['EVE', 'RUINS_SEAL', 'MORNING', 'RAID', 'LURE', 'VILLAGE_MIREI', 'FORM1_START'], words)).toEqual([
@@ -257,7 +258,7 @@ test('the first form lost: on their feet again, from the grassland’s words —
   test.setTimeout(180_000);
   await heaviestVillage(page);
   await page.evaluate(() => ((window as unknown as { __mugenFinalePartyHp?: number }).__mugenFinalePartyHp = 1));
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'EVE');
   await readWhile(page, ['EVE', 'RUINS_SEAL', 'MORNING', 'RAID', 'LURE', 'VILLAGE_MIREI', 'FORM1_START']);
   await expect(page.getByTestId('pb-screen')).toBeVisible();
@@ -285,7 +286,7 @@ test('before PHASE 3 a rest is only a rest', async ({ page }) => {
   await heaviestVillage(page, 0);
   expect(await world<number>(page, `(w) => w.getIncidentPhase()`)).toBeLessThan(3);
   const day = await page.getByTestId('world-clock').textContent();
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
   await expect(page.getByTestId('finale-scene')).toHaveCount(0);
   expect(await stage(page)).toBe('NONE');

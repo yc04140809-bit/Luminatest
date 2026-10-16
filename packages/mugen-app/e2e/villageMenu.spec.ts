@@ -1,16 +1,17 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
- * アルデン村メニュー整理＋パーティ表示簡素化 (2026-10-10).
+ * アルデン村の縮図 (作者「アルデン村メニュー画面 改修指示書」2026-10-16; was the list
+ * of place names of 2026-10-10).
  *
- *   村 → 店舗（月灯りの酒場・パン屋・道具屋）→ 村
- *   村 → アルデン地方（行き先だけ：森・遺跡…・村へ）
+ *   left, a third    the two of them, what is happening, the place chosen
+ *   right            the village from above: its places as labels, who is in each
+ *   below the right  ステータス・噂話・持ち物・世界の記憶・人生の記録 (no クエスト, no セーブ)
  *
- * The shop is a door off the village like the tavern and the bakery; the
- * region map is for going out and has no shop on it. The square shows the
- * two of them as Lv., HP and MP — no EXP. On a low phone the way out and
- * the three shops are on screen without scrolling; the rest can scroll.
+ * Every door is still there: a shop's, and 休息する at the inn-tavern, once its
+ * place is tapped; the roads out open the region map, which is for going out.
  */
 
 async function freshVillage(page: Page) {
@@ -42,72 +43,149 @@ async function music(page: Page): Promise<string | null> {
   });
 }
 
-test('the shops from the square: 道具屋 in and back, パン屋, 月灯りの酒場 — all doors of the village', async ({ page }) => {
+const labelOf = (page: Page, id: string) =>
+  page.getByTestId(id).locator('.vg-spot-label').textContent();
+
+test('the village from above: its places by name — three houses, two roads out, no sea; the five below, no クエスト or セーブ', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await freshVillage(page);
-  const captions = await page.locator('.pp-menu .pp-caption').allTextContents();
-  expect(captions).toEqual(['店舗', '村のこと', '記録', 'パーティ']);
-  const shops = page.locator('.pp-group').first().locator('.pp-item');
-  // The labels (a NEW beside one is not part of its name).
-  expect(
-    await shops.evaluateAll((els) =>
-      els.map((el) => {
-        const copy = el.cloneNode(true) as HTMLElement;
-        copy.querySelectorAll('.new-badge').forEach((b) => b.remove());
-        return (copy.textContent ?? '').trim();
-      }),
-    ),
-  ).toEqual(['月灯りの酒場', 'パン屋', '道具屋']);
-  // A fresh village: the master and リナ not met yet — not the everyday talk, so NEW (2026-10-11); nothing waits at the tool shop.
+  await expect(page.getByTestId('village-screen')).toBeVisible();
+  await expect(page.getByTestId('village-picture')).toBeVisible();
+  for (const [id, label] of [
+    ['spot-church', '教会'],
+    ['spot-shop', '道具屋'],
+    ['spot-bakery', 'パン屋'],
+    ['spot-tavern', '宿酒場'],
+    ['spot-plaza', '中央広場'],
+    ['spot-house_01', '民家'],
+    ['spot-house_02', '民家'],
+    ['spot-house_03', '民家'],
+    ['explore-button', '森への道'],
+    ['spot-road_ruins', '遺跡への道'],
+  ] as const) {
+    expect(await labelOf(page, id), id).toBe(label);
+  }
+  await expect(page.locator('.vg-spot.vg-k-house')).toHaveCount(3);
+  await expect(page.getByTestId('village-screen')).not.toContainText('海');
+  // The five, in order; nothing else down there.
+  expect(await page.locator('.vg-menu .vg-menu-label').allTextContents()).toEqual(['ステータス', '噂話', '持ち物', '世界の記憶', '人生の記録']);
+  await expect(page.getByTestId('village-screen')).not.toContainText('クエスト');
+  await expect(page.getByTestId('village-screen')).not.toContainText('セーブ');
+  // 次の目的, top right.
+  await expect(page.getByTestId('next-objective')).toContainText('次の目的');
+  await expect(page.getByTestId('next-objective-text')).not.toBeEmpty();
+  expect(errors).toEqual([]);
+});
+
+test('who is where, worked out: リナ and her father at the bakery, ミレイ at the shop, the master and tonight’s stranger at the inn — nobody else placed', async ({ page }) => {
+  await freshVillage(page);
+  await expect(page.getByTestId('spot-bakery-people')).toHaveText(/リナ.*主人/);
+  await expect(page.getByTestId('spot-shop-people')).toHaveText('ミレイ');
+  await expect(page.getByTestId('spot-tavern-people')).toContainText('マスター');
+  // Nowhere else anybody (リゼル, バルド: no settled place yet).
+  for (const id of ['church', 'plaza', 'house_01', 'house_02', 'house_03']) await expect(page.getByTestId(`spot-${id}-people`)).toHaveCount(0);
+  await expect(page.getByTestId('village-map')).not.toContainText('リゼル');
+  await expect(page.getByTestId('village-map')).not.toContainText('バルド');
+  // Met (his first meeting read), he is グレイヴ.
+  await page.evaluate(() => (window as unknown as { __mugenWorld: { markRead(ids: string[]): Promise<unknown> } }).__mugenWorld.markRead(['talk:GRAVE_MEETING']));
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('spot-tavern-people')).toContainText('グレイヴ');
+});
+
+test('a place tapped: on the left, who is there and its doors — the shops in and back, the inn’s rest; tapped again, gone', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await freshVillage(page);
+  await expect(page.getByTestId('place-card')).toHaveCount(0);
+  // A fresh village: the master and リナ not met yet — not the everyday talk, so marked; nothing waits at the tool shop.
   await expect(page.getByTestId('tavern-new')).toBeVisible();
   await expect(page.getByTestId('bakery-new')).toBeVisible();
   await expect(page.getByTestId('shop-new')).toHaveCount(0);
 
-  // 道具屋: ミレイ's shop, as it always was — and back to the square.
+  await page.getByTestId('spot-shop').click();
+  await expect(page.getByTestId('spot-shop')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('place-card')).toHaveAttribute('data-spot', 'shop');
+  await expect(page.getByTestId('place-people')).toHaveText('ミレイ');
   await page.getByTestId('shop-button').click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
-  // Inside, its full name as always: 「道具屋」 is only the square's short label.
   await expect(page.getByTestId('shop-keeper-area').locator('h1')).toHaveText('アルデン道具屋');
-  await expect(page.getByTestId('shop-greeting')).toContainText('ミレイ「');
-  await expect(page.getByTestId('shop-tab-buy')).toBeVisible();
-  await expect(page.getByTestId('shop-tab-sell')).toBeVisible();
   expect(await music(page)).toBe('ALDEN_VILLAGE');
   await page.getByTestId('shop-leave').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await expect(page.getByTestId('shop-screen')).toHaveCount(0);
 
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await expect(page.getByTestId('bakery-screen')).toBeVisible();
   await page.getByTestId('bakery-leave').click();
-  await page.getByTestId('tavern-button').click();
-  await expect(page.getByTestId('tavern-screen')).toBeVisible();
-  await page.getByTestId('tavern-leave').click();
-  await expect(page.getByTestId('world-clock')).toBeVisible();
+
+  // The inn-tavern: in, and a night's rest.
+  await page.getByTestId('spot-tavern').click();
+  await expect(page.getByTestId('place-card')).toHaveAttribute('data-spot', 'tavern');
+  await expect(page.getByTestId('tavern-button')).toBeVisible();
+  const day = await page.getByTestId('world-clock').textContent();
+  await page.getByTestId('rest-button').click();
+  await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
+  await expect(page.getByTestId('rest-button')).toBeEnabled();
+
+  // A place with nothing to do: who is there (nobody known), no door.
+  await page.getByTestId('spot-church').click();
+  await expect(page.getByTestId('place-card')).toHaveAttribute('data-spot', 'church');
+  await expect(page.getByTestId('place-nobody')).toBeVisible();
+  await expect(page.locator('.vg-door')).toHaveCount(0);
+  // Tapped again: the card is gone.
+  await page.getByTestId('spot-church').click();
+  await expect(page.getByTestId('place-card')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('the region map is for going out: no shop on it, the forest still there, and back to the village', async ({ page }) => {
+test('the roads out: 森への道 opens the region map (the forest, and back); 遺跡への道 dark until the ruins are open, then to the same map', async ({ page }) => {
   await freshVillage(page);
+  // Not yet: dark, and no way through.
+  await expect(page.getByTestId('spot-road_ruins')).toHaveAttribute('data-shut', 'yes');
+  await page.getByTestId('spot-road_ruins').click();
+  await expect(page.getByTestId('place-card')).toHaveAttribute('data-spot', 'road_ruins');
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('forest-button')).toBeVisible();
   await expect(page.getByTestId('shop-button')).toHaveCount(0);
-  await expect(page.locator('.pp-menu')).not.toContainText('道具屋');
   await page.getByTestId('forest-button').click();
   await expect(page.getByTestId('walk-scene')).toHaveAttribute('data-place', 'GREENWOOD_FOREST');
   await page.getByTestId('leave-forest').click();
   await page.getByTestId('back-to-village').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  // And on the square, the shop once — not twice.
-  await expect(page.getByTestId('shop-button')).toHaveCount(1);
+
+  // The master has told what was sealed there: the road lit, marked, and to the map with the ruins on it.
+  await page.evaluate(async () => {
+    const w = (window as unknown as { __mugenWorld: { recordGaldLifeChoice(c: string): Promise<unknown>; markExperienceSeen(id: string): Promise<unknown>; advanceSekiryugaArc(s: string): Promise<boolean> } }).__mugenWorld;
+    await w.recordGaldLifeChoice('SPARE');
+  });
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('future-vision')).toBeVisible();
+  for (let i = 0; i < 6; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  for (const s of ['RUMOR', 'TOLD']) {
+    await page.evaluate((st) => (window as unknown as { __mugenWorld: { advanceSekiryugaArc(s: string): Promise<boolean> } }).__mugenWorld.advanceSekiryugaArc(st), s);
+  }
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('spot-road_ruins')).not.toHaveAttribute('data-shut', 'yes');
+  await expect(page.getByTestId('explore-new')).toBeVisible();
+  await expect(page.getByTestId('next-objective-text')).toHaveText('遺跡への道を調べよう');
+  await page.getByTestId('spot-road_ruins').click();
+  await expect(page.getByTestId('ruins-button')).toBeVisible();
 });
 
-test('the two of them on the square: Lv., HP and MP — no EXP', async ({ page }) => {
+test('the two of them on the left: Lv., HP and MP — no EXP', async ({ page }) => {
   await freshVillage(page);
   const panel = page.getByTestId('status-panel');
   await expect(panel).not.toContainText('EXP');
-  await expect(page.getByTestId('status-hero-exp')).toHaveCount(0);
-  await expect(page.getByTestId('status-kaos-exp')).toHaveCount(0);
   for (const id of ['hero', 'kaos']) {
     await expect(page.getByTestId(`status-${id}-level`)).toHaveText(/^Lv\.\d+$/);
     await expect(page.getByTestId(`party-${id}`)).toHaveText(/^HP \d+\/\d+　MP \d+\/\d+$/);
@@ -122,36 +200,38 @@ for (const [w, h] of [
   [640, 360],
   [640, 300],
 ] as const) {
-  test(`${w}×${h}: the way out and the three shops on screen; everything else within a scroll; nothing off the side`, async ({
-    page,
-  }) => {
+  test(`${w}×${h}: the village a good part of the screen; every label and the five on screen and readable; nothing off the side`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await freshVillage(page);
-    for (const id of ['explore-button', 'tavern-button', 'bakery-button', 'shop-button', 'rumor-button']) {
+    const map = (await page.getByTestId('village-map').boundingBox())!;
+    const side = (await page.locator('.vg-side').boundingBox())!;
+    // The village takes most of the width (about two thirds).
+    expect(map.width).toBeGreaterThan(w * 0.5);
+    expect(side.width).toBeLessThan(w * 0.45);
+    const onScreen = async (id: string) => {
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.y, id).toBeGreaterThanOrEqual(0);
       expect(b.y + b.height, id).toBeLessThanOrEqual(h + 1);
+      expect(b.x, id).toBeGreaterThanOrEqual(0);
       expect(b.x + b.width, id).toBeLessThanOrEqual(w + 1);
+      return b;
+    };
+    for (const id of ['spot-church', 'spot-shop', 'spot-bakery', 'spot-tavern', 'spot-plaza', 'spot-house_01', 'spot-house_02', 'spot-house_03', 'explore-button', 'spot-road_ruins', 'next-objective']) {
+      const b = await onScreen(id);
+      expect(b.height, id).toBeGreaterThanOrEqual(16);
     }
-    for (const id of ['rest-button', 'memory-button', 'archive-button', 'status-button', 'bag-button']) {
-      const el = page.getByTestId(id);
-      await el.scrollIntoViewIfNeeded();
-      const b = (await el.boundingBox())!;
-      expect(b.y, id).toBeGreaterThanOrEqual(0);
-      expect(b.y + b.height, id).toBeLessThanOrEqual(h + 1);
-      expect(b.x + b.width, id).toBeLessThanOrEqual(w + 1);
+    for (const id of ['status-button', 'rumor-button', 'bag-button', 'memory-button', 'archive-button']) {
+      const b = await onScreen(id);
+      expect(b.height, id).toBeGreaterThanOrEqual(36);
     }
-    // Every door's name on one line: no taller than 月灯りの酒場's.
-    const one = (await page.getByTestId('tavern-button').boundingBox())!.height;
-    for (const id of ['shop-button', 'bakery-button', 'memory-button', 'archive-button']) {
-      expect((await page.getByTestId(id).boundingBox())!.height, id).toBeLessThanOrEqual(one + 1);
-    }
-    // Each of them on one line.
-    for (const id of ['status-hero', 'status-kaos']) {
-      const b = (await page.getByTestId(id).boundingBox())!;
-      expect(b.height, id).toBeLessThan(26);
-    }
-    // And the shop is reachable from here at this size.
+    // The labels are read, not squinted at.
+    const size = await page.getByTestId('spot-tavern').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    expect(size).toBeGreaterThanOrEqual(12);
+    // No page scroll sideways.
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(w + 1);
+    // A shop reachable from here at this size.
+    await page.getByTestId('spot-shop').click();
+    await onScreen('shop-button');
     await page.getByTestId('shop-button').click();
     await expect(page.getByTestId('shop-leave')).toBeInViewport();
   });

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * 襲撃前の日常 (2026-10-10): small things that happen in the village — not a
@@ -96,9 +97,9 @@ async function outAndBack(page: Page) {
 
 async function rest(page: Page) {
   const day = await page.getByTestId('world-clock').textContent();
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
-  await expect(page.getByTestId('rest-button')).toBeEnabled();
+  await expect((await placeButton(page, 'rest-button'))).toBeEnabled();
 }
 
 /** Reads a box to its end with its own button; returns every line shown. */
@@ -132,7 +133,7 @@ test('before セキリュウガ’s part is over, nothing: no box on coming back
   await onTheRoute(page, 'TOLD');
   await outAndBack(page);
   await expect(page.getByTestId('daily-scene')).toHaveCount(0);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   const said = await talkTo(page, 'lina');
   expect(said).toHaveLength(1);
   expect(said[0]).not.toContain('焼き損じ');
@@ -152,14 +153,14 @@ test('after it: Kaos on the steps as they come back — once; one a day; tomorro
   // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
   {
     const lineBox = (await page.getByTestId('daily-scene').boundingBox())!;
-    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').or(page.getByTestId('village-area')).boundingBox())!;
     const vh = page.viewportSize()!.height;
     expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
     expect(lineBox.y).toBeGreaterThan(vh / 2);
     expect(lineBox.y + lineBox.height).toBeLessThanOrEqual(vh);
   }
-  // Every door on the square still there while it is told.
-  for (const id of ['tavern-button', 'bakery-button', 'shop-button', 'rest-button', 'explore-button']) {
+  // Every place on the village still there while it is told (its doors are a tap away: ui/village, 2026-10-16).
+  for (const id of ['spot-tavern', 'spot-bakery', 'spot-shop', 'explore-button']) {
     await expect(page.getByTestId(id)).toBeEnabled();
   }
   expect(await readThrough(page, 'daily-line', 'daily-next')).toEqual(KAOS_DETOUR);
@@ -168,7 +169,7 @@ test('after it: Kaos on the steps as they come back — once; one a day; tomorro
   expect(await what(page)).toEqual(before);
 
   // One a day: Lina's waits, and out and back again shows nothing.
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   const today = await talkTo(page, 'lina');
   expect(today).toHaveLength(1);
   await page.getByTestId('bakery-leave').click();
@@ -188,7 +189,7 @@ test('after it: Kaos on the steps as they come back — once; one a day; tomorro
   await rest(page);
   const lumi = await world<number>(page, `(w) => w.getLumi()`);
   const bag = await world<string>(page, `(w) => JSON.stringify(w.getInventory())`);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   const loaf = await talkTo(page, 'lina');
   expect(loaf[0]).toBe('「あっ、ちょうどいいところに！」');
   expect(loaf).toContain('端が少し焦げている。でも、まだ温かい。');
@@ -215,7 +216,7 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
 
   // The shop: over the counter as the door opens — NEW on its door from the square, and on the scene (2026-10-11). Left half way…
   await expect(page.getByTestId('shop-new')).toBeVisible();
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-daily')).toHaveAttribute('data-scene', 'MIREI_TRAVELERS');
   await expect(page.getByTestId('shop-daily-new')).toBeVisible();
   await expect(page.getByTestId('shop-daily-line')).toHaveText('棚に、旅支度の包みがいくつも積まれたままになっている。');
@@ -224,7 +225,7 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
   await expect(page.getByTestId('shop-keeper-touch')).toHaveAttribute('data-expression', 'SAD');
   await page.getByTestId('shop-leave').click();
   // …it is there again, from its start.
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-daily-line')).toHaveText('棚に、旅支度の包みがいくつも積まれたままになっている。');
   const mirei: string[] = [];
   for (let i = 0; i < 10; i++) {
@@ -249,7 +250,7 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
   const atBakery = await point();
   // NEW on the bakery's door, and on the owner inside (his kiln is not his everyday hint).
   await expect(page.getByTestId('bakery-new')).toBeVisible();
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await expect(page.getByTestId('bakery-who-owner-new')).toBeVisible();
   const kiln = await talkTo(page, 'owner');
   expect(kiln[0]).toBe('夜明け前。パン屋の裏で、主人が窯に火を入れている。');
@@ -260,7 +261,7 @@ test('as the signs go on: Mirei over the counter (her face with it; left half wa
   // The next, Grave's sword (in place of his greeting) — word for word, her remark last.
   await rest(page);
   const atTavern = await point();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   const sword = await readThrough(page, 'tavern-line', 'tavern-next');
   expect(sword[0]).toBe('壁に、両手剣が一振り掛けてある。');

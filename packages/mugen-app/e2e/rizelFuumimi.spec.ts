@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { settled } from './roam';
 import { readyToAct, fightUntil } from './battle';
+import { placeButton } from './village';
 
 /**
  * リゼル (FORGE HUM-000001) and フウミミ (FORGE MON-000002 / IND-43452DFD),
@@ -83,9 +84,9 @@ async function outAndBack(page: Page) {
 
 async function rest(page: Page) {
   const day = await page.getByTestId('world-clock').textContent();
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
-  await expect(page.getByTestId('rest-button')).toBeEnabled();
+  await expect((await placeButton(page, 'rest-button'))).toBeEnabled();
 }
 
 async function readThrough(page: Page, line: string, next: string): Promise<{ who: string; said: string }[]> {

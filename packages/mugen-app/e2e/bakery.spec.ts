@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * パン屋 — THE APP'S BAKERY, as it is today.
@@ -164,7 +165,7 @@ test('village → bakery → the shop, the owner and Lina, Lina’s first talk �
   await page.waitForTimeout(500);
   const before = await everythingSaved(page);
 
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await expect(page.getByTestId('bakery-screen')).toBeVisible();
   await expect(page.getByTestId('bakery-screen').locator('h1')).toHaveText('パン屋');
   // Today's shop, said plainly: nothing here hints at Gald's future.
@@ -238,7 +239,7 @@ for (const [w, h] of [
     await page.setViewportSize({ width: w, height: h });
     await freshApp(page);
     await intoTheVillage(page);
-    await page.getByTestId('bakery-button').click();
+    await (await placeButton(page, 'bakery-button')).click();
     await loaded(page);
 
     // The shop covers the whole screen.

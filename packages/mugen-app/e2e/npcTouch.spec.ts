@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * NPCタッチ反応システム PHASE 1 (2026-10-07): ミレイ, behind the counter at
@@ -33,7 +34,7 @@ async function intoTheShop(page: Page) {
   await page.getByTestId('naming-default').click();
   await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
   await expect
     .poll(() => page.getByTestId('shop-keeper-image').evaluate((i: HTMLImageElement) => (i.complete ? i.naturalWidth : 0)))

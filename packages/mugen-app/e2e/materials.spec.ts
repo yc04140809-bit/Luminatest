@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { goTo, settled } from './roam';
+import { placeButton } from './village';
 
 /**
  * 探索素材 → 村施設連携 Phase 1 (2026-10-10):
@@ -98,7 +99,7 @@ test('picked up in the forest: no answer given there; in the bag, a hint — the
   await page.getByTestId('bag-back').click();
 
   // The baker: his word on it, once.
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   expect(await ownerTalk(page)).toEqual(['「お、それは森の木の実だな。」', '「パンにも使えるぞ。うちの木の実パンも、それと同じ実だ。」']);
   await expect.poll(() => world<boolean>(page, `(w) => w.isRead('talk:BAKERY_OWNER_NUT')`)).toBe(true);
   // Next time, his hint as before.
@@ -114,14 +115,14 @@ test('something holding magic: the baker says so once — not again after a rest
   await freshVillage(page);
   await world(page, `(w) => w.addItem('MANA_HERB', 1)`);
   await world(page, `(w) => w.addItem('FOREST_NUT', 1)`);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   // Both carried: the nut first, then the magic, then his hints.
   expect((await ownerTalk(page))[0]).toBe('「お、それは森の木の実だな。」');
   expect(await ownerTalk(page)).toEqual(['「……魔力を含んだ素材を持ってるな。」', '「そういうのは、普通の生地じゃ扱いにくい。」']);
   // Heard, and written down, before the game is closed.
   await expect.poll(() => world<boolean>(page, `(w) => w.isRead('talk:BAKERY_OWNER_MAGIC')`)).toBe(true);
   await restart(page);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   const after = await ownerTalk(page);
   expect(after).toHaveLength(1);
   expect(after[0]).not.toMatch(/木の実だな|魔力を含んだ素材を持って/);
@@ -144,7 +145,7 @@ test('the hints in the bag, and the ancient fragment: kept, a hint, never sold �
   await page.getByTestId('bag-back').click();
 
   // The shop: the ore sells; the fragment does not.
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await page.getByTestId('shop-tab-sell').click();
   await expect(page.getByTestId('shop-sell-refused-ANCIENT_SHARD')).toHaveText('売れない');
   await expect(page.getByTestId('shop-sell-ANCIENT_SHARD')).toHaveCount(0);
@@ -155,7 +156,7 @@ test('the hints in the bag, and the ancient fragment: kept, a hint, never sold �
 
   // The tavern, night 1: ore for a coin — and the fragment is never asked for.
   await world(page, `(w) => w.addItem('IRON_ORE', 1)`);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await page.getByTestId('tavern-guest-talk').click();
   for (let i = 0; i < 6; i++) {
     const next = page.getByTestId('tavern-next');
@@ -180,7 +181,7 @@ test('640×300: the bag’s hints and the baker’s word are read on screen', as
   await expect(hint).toBeInViewport();
   await expect(page.getByTestId('bag-back')).toBeInViewport();
   await page.getByTestId('bag-back').click();
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await page.getByTestId('bakery-who-owner').click();
   await page.getByTestId('bakery-talk').click();
   await expect(page.getByTestId('bakery-line')).toBeInViewport();

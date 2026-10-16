@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { goTo, settled, things } from './roam';
+import { placeButton } from './village';
 
 /**
  * 探索アイテム＋道具屋基盤 (2026-10-07):
@@ -203,7 +204,7 @@ test('the ruins: 「古代の破片」を見つけた — found a little apart, 
 
   // At the shop: the coin sells, the fragment does not.
   // The shop is a door off the village (2026-10-10).
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await page.getByTestId('shop-tab-sell').click();
   await expect(page.getByTestId('shop-sell-refused-ANCIENT_SHARD')).toHaveText('売れない');
   await expect(page.getByTestId('shop-sell-ANCIENT_SHARD')).toHaveCount(0);
@@ -228,7 +229,7 @@ test('the shop: 買う — LUMI down, one more held; too little LUMI says so; ke
   await world(page, `(w) => w.spendLumi(w.getLumi())`);
   await world(page, `(w) => w.addLumi(50)`);
   // The shop is a door off the village (2026-10-10).
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   // ミレイ behind the counter (npcTouch.spec).
   await expect(page.getByTestId('shop-greeting')).toContainText('ミレイ「');
   await expect(page.getByTestId('shop-keeper-area')).toHaveAttribute('data-keeper', 'shop_mirei');
@@ -267,7 +268,7 @@ test('the sell list: what is held, and nothing below nought', async ({ page }) =
   await world(page, `(w) => w.addItem('IRON_ORE', 1)`);
   await world(page, `(w) => w.addItem('MANA_SHARD', 1)`);
   // The shop is a door off the village (2026-10-10).
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await page.getByTestId('shop-tab-sell').click();
   const lumi = await world<number>(page, `(w) => w.getLumi()`);
   await page.getByTestId('shop-sell-IRON_ORE').click();

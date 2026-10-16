@@ -110,7 +110,8 @@ export function TalkStage({
   const [host, setHost] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
     setHost(
-      (anchor.current?.closest(".place-panel") as HTMLElement | null) ?? null,
+      // A place's painting (`.place-panel`), or the village's conversation area (ui/village, 2026-10-16).
+      (anchor.current?.closest(".place-panel, .vg-side") as HTMLElement | null) ?? null,
     );
   }, []);
   // Her face changes line by line; the last one stays while the next loads.

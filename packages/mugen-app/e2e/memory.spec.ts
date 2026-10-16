@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { fightUntil } from './battle';
+import { placeButton } from './village';
 
 /**
  * WHAT THE PLAYER CAN SAY THEY KNOW, AND WHEN.
@@ -86,7 +87,7 @@ async function decideGald(
 
 /** Sleep until the world has had time to get on with it. */
 async function restUntilDay(page: Page, day: number) {
-  const rest = page.getByTestId('rest-button');
+  const rest = (await placeButton(page, 'rest-button'));
   const dayNow = async () =>
     Number((await page.getByTestId('world-clock').textContent())?.match(/(\d+)日目/)?.[1] ?? 0);
   for (let i = 0; i < 200 && (await dayNow()) < day; i++) {
@@ -218,7 +219,7 @@ test('nights counted through the UI are never lost or doubled', async ({ page })
    * walks the real UI as fast as it will go and checks the arithmetic
    * survives it.
    */
-  const rest = page.getByTestId('rest-button');
+  const rest = (await placeButton(page, 'rest-button'));
   const dayNow = async () =>
     Number((await page.getByTestId('world-clock').textContent())?.match(/(\d+)日目/)?.[1] ?? 0);
 

@@ -3,6 +3,7 @@ import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { settled } from './roam';
 import { readyToAct } from './battle';
+import { placeButton } from './village';
 
 /**
  * ALDEN INCIDENT 予兆フェーズ (2026-10-10):
@@ -113,9 +114,9 @@ async function restart(page: Page) {
 
 async function rest(page: Page) {
   const day = await page.getByTestId('world-clock').textContent();
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
-  await expect(page.getByTestId('rest-button')).toBeEnabled();
+  await expect((await placeButton(page, 'rest-button'))).toBeEnabled();
 }
 
 /** Out to the forest and back: first time a place, then a walk out finished. */
@@ -217,7 +218,7 @@ test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」
   // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
   {
     const lineBox = (await aside.boundingBox())!;
-    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').or(page.getByTestId('village-area')).boundingBox())!;
     const vh = page.viewportSize()!.height;
     expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
     expect(lineBox.y).toBeGreaterThan(vh / 2);
@@ -245,7 +246,7 @@ test('phase 1: small signs in the rumours (NEW), and Kaos’s 「……ん？」
 test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。」, and Grave once in place of his greeting', async ({ page }) => {
   await settledVillage(page);
   // Grave met first (his meeting is never replaced).
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   for (let i = 0; i < 30; i++) {
     const next = page.getByTestId('tavern-next');
@@ -272,7 +273,7 @@ test('phase 2: plain trouble — more rumours, Kaos’s 「……この感じ。
   await page.getByTestId('back-to-village').click();
 
   // Grave: the forest is too quiet — once.
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   const grave: string[] = [];
   for (let i = 0; i < 6; i++) {

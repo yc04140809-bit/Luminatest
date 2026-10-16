@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { settled } from './roam';
+import { placeButton } from './village';
 
 /**
  * セキリュウガ戦後・遺跡再訪 (実装メイン⑥, 2026-10-08): the first time back
@@ -201,8 +202,8 @@ test('the cry from the ruins: heard of after a night in the village following th
   await everyRumorRead();
 
   // A night before the first time back: nothing new.
-  await page.getByTestId('rest-button').click();
-  await expect(page.getByTestId('rest-button')).toBeEnabled();
+  await (await placeButton(page, 'rest-button')).click();
+  await expect((await placeButton(page, 'rest-button'))).toBeEnabled();
   await expect(page.getByTestId('rumor-new')).toHaveCount(0);
   expect(await world<boolean>(page, `(w) => w.isRead('${CRY}')`)).toBe(false);
 
@@ -214,7 +215,7 @@ test('the cry from the ruins: heard of after a night in the village following th
   await page.getByTestId('back-to-village').click();
   // …home, and not yet: it is talked about after a night.
   await expect(page.getByTestId('rumor-new')).toHaveCount(0);
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('rumor-new')).toBeVisible();
   await expect.poll(() => world<boolean>(page, `(w) => w.isRead('${CRY}')`)).toBe(true);
 

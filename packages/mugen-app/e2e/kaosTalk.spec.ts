@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * 主人公×ケイオス (作者指示 2026-10-11): their short exchanges, under the two
@@ -63,7 +64,7 @@ test('setting out: one of their exchanges under the two of them with NEW, the tw
   // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
   {
     const lineBox = (await box.boundingBox())!;
-    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').or(page.getByTestId('village-area')).boundingBox())!;
     const vh = page.viewportSize()!.height;
     expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
     expect(lineBox.y).toBeGreaterThan(vh / 2);
@@ -74,7 +75,7 @@ test('setting out: one of their exchanges under the two of them with NEW, the tw
   await expect(page.getByTestId('talk-bust-hero')).toBeVisible();
   const kaos = (await page.getByTestId('talk-bust-kaos').boundingBox())!;
   const hero = (await page.getByTestId('talk-bust-hero').boundingBox())!;
-  const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+  const pageBox = (await page.getByTestId('place-page').or(page.getByTestId('village-area')).boundingBox())!;
   expect(hero.x).toBeLessThan(kaos.x);
   expect(kaos.x).toBeLessThan(pageBox.x);
   await expect(page.getByTestId('talk-bust-kaos')).toHaveAttribute('data-face', 'SMILE');
@@ -122,7 +123,7 @@ test('coming back into the village: 「ただいまー。」 under the two of th
   // Under the two of them, on the painting's side (2026-10-11: 「セリフ左下の画像下の方が読みやすい」): left of the page, at the foot of the screen.
   {
     const lineBox = (await box.boundingBox())!;
-    const pageBox = (await page.getByTestId('place-page').boundingBox())!;
+    const pageBox = (await page.getByTestId('place-page').or(page.getByTestId('village-area')).boundingBox())!;
     const vh = page.viewportSize()!.height;
     expect(lineBox.x + lineBox.width).toBeLessThanOrEqual(pageBox.x + 1);
     expect(lineBox.y).toBeGreaterThan(vh / 2);
@@ -134,6 +135,6 @@ test('coming back into the village: 「ただいまー。」 under the two of th
   expect(seen.map((s) => s.face)).toEqual(['SMILE', '', 'DOYA']);
   await expect(box).toHaveCount(0);
   // Every door of the square there and working.
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
 });

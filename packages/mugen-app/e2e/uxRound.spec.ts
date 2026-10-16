@@ -3,6 +3,7 @@ import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightUntil, readyToAct } from './battle';
 import { settled } from './roam';
+import { placeButton } from './village';
 
 /**
  * セキリュウガ戦後＋序盤UX (2026-10-07):
@@ -79,7 +80,7 @@ async function readTavern(page: Page): Promise<string[]> {
 
 async function hearTheShopRumor(page: Page) {
   // The shop is a door off the village (2026-10-10).
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-keeper-line')).toBeVisible();
   await page.getByTestId('shop-leave').click();
 }
@@ -107,7 +108,7 @@ test('P0: the first visit with a rumour heard — his meeting, then 「そうい
   await pastGald(page);
   await hearTheShopRumor(page);
   // Never met in this save: the door opens on his introduction.
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const lines = await readTavern(page);
   const at = (t: string) => lines.findIndex((l) => l.includes(t));
   expect(lines[0]).toBe('扉を押すと、煮込みと安い酒の匂いがした。');
@@ -124,7 +125,7 @@ test('P0: the first visit with a rumour heard — his meeting, then 「そうい
 test('P0: met him first in this save — the story alone, no bridge', async ({ page }) => {
   await freshVillage(page);
   await pastGald(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   // His meeting (ending on his rumour) and the story straight after.
   const lines = await readTavern(page);
@@ -138,7 +139,7 @@ test('P1: after セキリュウガ, the master — once; and nothing verdict-lik
   await freshVillage(page);
   await pastGald(page);
   await world(page, `(w) => w.advanceSekiryugaArc('SETTLED')`);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const lines = await readTavern(page);
   expect(lines).toEqual(
     expect.arrayContaining([
@@ -156,7 +157,7 @@ test('P1: after セキリュウガ, the master — once; and nothing verdict-lik
   await expect.poll(() => world<boolean>(page, `(w) => w.isRead('talk:GRAVE_AFTER_SEKIRYUGA')`)).toBe(true);
   // Out and in again: nothing starts by itself.
   await page.getByTestId('tavern-leave').click();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await expect(page.getByTestId('tavern-description')).toBeVisible();
 });
 

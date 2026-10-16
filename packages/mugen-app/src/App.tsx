@@ -6,12 +6,12 @@ import { NOTHING_APPLIED, NO_REWARD, type AppliedReward } from '@mugen/core/prog
 import { rewardForSpecies } from '@mugen/content/progression/enemyRewards';
 import { openAppWorld } from './platform/save';
 import {
-  AldenScreen,
   GreenwoodScreen,
   MapScreen,
   TitleScreen,
 } from './ui/screens';
 import { BagScreen } from './ui/bag';
+import { VillageScreen } from './ui/village';
 import {
   ChoiceResultScreen,
   GaldEncounterScreen,
@@ -25,7 +25,8 @@ import { ArchiveScreen, WorldMemoryScreen } from './ui/memory';
 import { FutureSiteScreen } from './ui/futureSite';
 import { TavernScreen, tavernHasNews } from './ui/tavern';
 import { bakeryHasNews, shopHasNews } from './ui/talkNews';
-import { tonightsGuestTalk } from '@mugen/content/talk/tavernGuests';
+import { guestLabelOf, tonightsGuestTalk } from '@mugen/content/talk/tavernGuests';
+import { nextObjective, villagePresence } from '@mugen/content/locations/aldenVillageMap';
 import { toAbsoluteDay } from '@mugen/core/time/calendar';
 import type { BgmId } from '@mugen/assets';
 import { BakeryScreen } from './ui/bakery';
@@ -956,9 +957,22 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
         );
       }
       return (
-        <AldenScreen
+        // アルデン村の縮図 (作者 改修指示書 2026-10-16): the village from above — who is
+        // where (worked out, never kept), its places' doors on the left, the roads out to the map.
+        <VillageScreen
           world={world}
-          onExplore={() => {
+          objective={nextObjective({
+            galdDecided: world.getGaldLifeChoice() !== null,
+            arcOpen: world.isSekiryugaArcOpen(),
+            stage: world.getSekiryugaStage(),
+            phase: world.getIncidentPhase(),
+          })}
+          presence={villagePresence({
+            graveMet: tavernMet || hasMetGrave((id) => world.isRead(id), world.getSekiryugaStage()),
+            tavernGuest: guestLabelOf(tonightsGuestTalk(toAbsoluteDay(world.getClock()))),
+          })}
+          ruinsOpen={stageReached(world.getSekiryugaStage(), 'TOLD')}
+          onRoad={() => {
             setHomecoming(false);
             setHomeNews(null);
             setHomeNudge(null);

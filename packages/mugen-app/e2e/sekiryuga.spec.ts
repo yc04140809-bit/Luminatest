@@ -3,6 +3,7 @@ import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightUntil, readyToAct } from './battle';
 import { goTo, hero, openFloor, scale, settled, touch } from './roam';
+import { placeButton } from './village';
 
 /**
  * THE FIRST BOSS ROUTE —
@@ -125,14 +126,14 @@ async function readSeal(page: Page): Promise<string[]> {
 
 async function hearTheShopRumor(page: Page) {
   // The shop is a door off the village (2026-10-10).
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-keeper-line')).toContainText('地面が揺れた');
   await expect.poll(() => stage(page)).toBe('RUMOR');
   await page.getByTestId('shop-leave').click();
 }
 
 async function hearTheMaster(page: Page) {
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   // It starts as the door opens — his first meeting in this save, then the story (uxRound.spec).
   await expect(page.getByTestId('tavern-line')).toHaveText('扉を押すと、煮込みと安い酒の匂いがした。');
   const lines = await readTavern(page);
@@ -175,7 +176,7 @@ for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
     await expect(page.getByTestId('ruins-button')).toHaveCount(0);
     await page.getByTestId('back-to-village').click();
     // The bakery's owner (the switch to 主人), after his hint: his one rumour. Nothing about Lina or Gald.
-    await page.getByTestId('bakery-button').click();
+    await (await placeButton(page, 'bakery-button')).click();
     await page.getByTestId('bakery-who-owner').click();
     await page.getByTestId('bakery-talk').click();
     const said: string[] = [];
@@ -196,7 +197,7 @@ for (const choice of ['KILL', 'SPARE', 'HELP', 'CAPTURE'] as const) {
 
 test('before Gald: no rumour anywhere, the master as he always was, and no ruins on the map', async ({ page }) => {
   await freshVillage(page);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   // Lina, and her father (パン屋 MVP): neither has a rumour yet.
   for (const who of ['bakery-who-lina', 'bakery-who-owner']) {
     await page.getByTestId(who).click();
@@ -210,7 +211,7 @@ test('before Gald: no rumour anywhere, the master as he always was, and no ruins
     }
   }
   await page.getByTestId('bakery-leave').click();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   const lines = await readTavern(page);
   expect(lines.join('')).not.toContain('遺跡');
@@ -218,7 +219,7 @@ test('before Gald: no rumour anywhere, the master as he always was, and no ruins
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('ruins-button')).toHaveCount(0);
   await page.getByTestId('back-to-village').click();
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-keeper-line')).toHaveCount(0);
   expect(await stage(page)).toBe('NONE');
 });
@@ -227,7 +228,7 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
   await freshVillage(page);
   await pastGald(page);
   await hearTheShopRumor(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   // It starts by itself: his first meeting in this save, then the story.
   await expect(page.getByTestId('tavern-line')).toHaveText('扉を押すと、煮込みと安い酒の匂いがした。');
   // The room, the master and the box are where they always are.
@@ -258,7 +259,7 @@ test('a rumour heard at the shop: walking into the tavern starts the master’s 
 test('the first rumour from the master himself: his story follows straight on, no walking out and in', async ({ page }) => {
   await freshVillage(page);
   await pastGald(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await talkToMaster(page);
   const seen: string[] = [];
   for (let i = 0; i < 20; i++) {
@@ -460,7 +461,7 @@ for (const [w, h] of [
     await freshVillage(page);
     await pastGald(page);
     await hearTheShopRumor(page);
-    await page.getByTestId('tavern-button').click();
+    await (await placeButton(page, 'tavern-button')).click();
     const inside = async (id: string) => {
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.x, id).toBeGreaterThanOrEqual(0);

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * 酒場の客 — SILHOUETTE STRANGERS, AND WHAT THEY OFFER (2026-10-09).
@@ -114,14 +115,14 @@ async function closePanel(page: Page) {
 async function nextNight(page: Page) {
   await page.getByTestId('tavern-leave').click();
   const day = await page.getByTestId('world-clock').textContent();
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
-  await expect(page.getByTestId('rest-button')).toBeEnabled();
-  await page.getByTestId('tavern-button').click();
+  await expect((await placeButton(page, 'rest-button'))).toBeEnabled();
+  await (await placeButton(page, 'tavern-button')).click();
 }
 
 async function toNight(page: Page, day: number) {
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   for (let d = 1; d < day; d++) await nextNight(page);
 }
 
@@ -131,7 +132,7 @@ test('tonight’s stranger: their silhouette in the master’s place, their labe
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await freshVillage(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await expect(page.getByTestId('tavern-master')).toBeVisible();
   // Its label; and, the master not met yet, NEW beside it (not the everyday talk, 2026-10-11) — none on the guest's.
   await expect(page.getByTestId('tavern-talk')).toHaveText(/^マスターと話す(NEW)?$/);
@@ -191,7 +192,7 @@ test('tonight’s stranger: their silhouette in the master’s place, their labe
 test('本日の客: a different stranger each night, each with their part — and, one night in seven, the hooded one', async ({ page }) => {
   test.setTimeout(150_000);
   await freshVillage(page);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   const nights: { guest: string | null; speaker: string; first: string; offer: string }[] = [];
   for (let day = 1; day <= 7; day++) {
     if (day > 1) await nextNight(page);
@@ -228,7 +229,7 @@ test('a swap: too little says so and changes nothing; enough — given and taken
 }) => {
   await freshVillage(page);
   await world(page, `(w) => w.addItem('IRON_ORE', 1)`);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await page.getByTestId('tavern-guest-talk').click();
   await readGuest(page);
   await expect(page.getByTestId('tavern-trade-give')).toHaveText('渡す：鉄鉱石 ×2（所持 1）');
@@ -261,7 +262,7 @@ test('a swap: too little says so and changes nothing; enough — given and taken
   expect(rows.tavernTrades).toEqual({ day: 1, done: ['TRADE_ORE_FOR_COIN'] });
   expect(await world<number>(page, `(w) => w.getItemCount('OLD_COIN')`)).toBe(1);
   expect(await world<number>(page, `(w) => w.getItemCount('IRON_ORE')`)).toBe(2);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await page.getByTestId('tavern-guest-talk').click();
   await readGuest(page);
   await expect(page.getByTestId('tavern-trade-do')).toBeDisabled();
@@ -327,7 +328,7 @@ test('the bard’s MUSIC ARCHIVE: only what has been heard; a piece plays in the
   await page.getByTestId('tavern-leave').click();
   await expect.poll(() => music(page)).toBe('ALDEN_VILLAGE');
   // In again: the tavern's own.
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await expect.poll(() => music(page)).toBe('TAVERN');
 
   // The forest, once: then it is in the archive.
@@ -337,7 +338,7 @@ test('the bard’s MUSIC ARCHIVE: only what has been heard; a piece plays in the
   await expect.poll(() => music(page)).toBe('GREENWOOD_FOREST');
   await page.getByTestId('leave-forest').click();
   await page.getByTestId('back-to-village').click();
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await page.getByTestId('tavern-guest-talk').click();
   await readGuest(page);
   await expect(page.getByTestId('tavern-piece-GREENWOOD_FOREST')).toBeVisible();
@@ -365,7 +366,7 @@ test('a piece for the village: Alden’s ordinary places play it, kept across a 
   await page.getByTestId('tavern-leave').click();
   // The village, and the bakery in it.
   await expect.poll(() => music(page)).toBe('KAOS_EVENT');
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   expect(await music(page)).toBe('KAOS_EVENT');
   await page.getByTestId('bakery-leave').click();
 
@@ -408,7 +409,7 @@ for (const [w, h] of [
     test.setTimeout(150_000);
     await page.setViewportSize({ width: w, height: h });
     await freshVillage(page);
-    await page.getByTestId('tavern-button').click();
+    await (await placeButton(page, 'tavern-button')).click();
     const onScreen = async (id: string) => {
       const el = page.getByTestId(id).first();
       await el.scrollIntoViewIfNeeded();

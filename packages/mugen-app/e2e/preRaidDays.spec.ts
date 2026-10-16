@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { goTo, settled, things } from './roam';
+import { placeButton } from './village';
 
 /**
  * 襲撃前の日々 (作者指示 2026-10-11): 待たされ感・探索動機・噂導線 —
@@ -116,7 +117,7 @@ test('✉ アルデン通信: brought on coming back, NEW; 読む opens it there
   await outAndBack(page);
   await expect(card).not.toHaveAttribute('data-rumor', next);
   // Every door of the square still there and working.
-  await page.getByTestId('shop-button').click();
+  await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
 });
 
@@ -174,7 +175,7 @@ test("Grave's handwork: three things, as the bag allows; the charm once, +1 on h
   await world(page, `(w) => w.addItem('IRON_ORE', 3)`);
   await world(page, `(w) => w.addItem('FOREST_HERB', 6)`);
   const attack = await world<number>(page, `(w) => w.getPartyStats().attackMin`);
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await page.getByTestId('tavern-talk').click();
   await page.getByTestId('tavern-craft-open').click();
   await expect(page.getByTestId('tavern-craft-say')).toContainText('本職の鍛冶屋の真似事はできねぇが');

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { goTo, settled, things } from './roam';
+import { placeButton } from './village';
 
 /**
  * グレイヴの表情差分 (作者指示 2026-10-12): while he speaks in the tavern —
@@ -102,7 +103,7 @@ for (const size of [
     await freshVillage(page);
     await world(page, `(w) => w.markRead(['talk:GRAVE_MEETING'])`);
     await world(page, `(w) => w.addItem('IRON_ORE', 3)`);
-    await page.getByTestId('tavern-button').click();
+    await (await placeButton(page, 'tavern-button')).click();
     // Not speaking: the standing figure.
     await expect(master(page)).toHaveAttribute('data-face', '');
     await expect(master(page)).toHaveAttribute('src', /tavern-master-standing/);

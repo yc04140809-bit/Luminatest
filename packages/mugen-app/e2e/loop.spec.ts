@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { fightToResult } from './battle';
+import { placeButton } from './village';
 
 /**
  * THE ONE LOOP APP ALPHA EXISTS TO PROVE.
@@ -123,7 +124,7 @@ test('a night’s rest puts them back, and the day moves', async ({ page }) => {
   await page.getByTestId('back-to-village').click();
 
   const full = numberIn(await page.getByTestId('party-hero').textContent(), 'HP');
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
   await expect
     .poll(async () => numberIn(await page.getByTestId('party-hero').textContent(), 'HP'))

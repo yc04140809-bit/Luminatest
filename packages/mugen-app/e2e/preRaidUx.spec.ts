@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { goTo, settled, things } from './roam';
+import { placeButton } from './village';
 
 /**
  * 襲撃前の体験改善 ①〜⑤ (作者指示 2026-10-11) — in this file:
@@ -127,7 +128,7 @@ test('① the tavern at 640×300: three doors at the top; Grave\'s menu — 話�
   await page.setViewportSize({ width: 640, height: 300 });
   await freshVillage(page);
   // Not met yet: 「マスターと話す」 is his meeting, as always — no menu.
-  await page.getByTestId('tavern-button').click();
+  await (await placeButton(page, 'tavern-button')).click();
   await expect(page.getByTestId('tavern-craft-open')).toHaveCount(0);
   await page.getByTestId('tavern-talk').click();
   await expect(page.getByTestId('tavern-line')).toBeVisible();

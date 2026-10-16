@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { MAGIC_DEFS } from '../../mugen-core/content/magic/magicDefs';
 import { enemyHp, fightUntil, readyToAct, throughTheAwakening } from './battle';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * HER SPELLS, SHOWN IN FULL (STEP C) — in the debug preview and in the
@@ -466,7 +467,7 @@ test("all five of her spells in the game's own fights, and a clean next fight af
   await expect(page.getByTestId('world-clock')).toBeVisible();
 
   // A night's rest, then the other two against a moss rabbit.
-  await page.getByTestId('rest-button').click();
+  await (await placeButton(page, 'rest-button')).click();
   await page.getByTestId('explore-button').click();
   await page.getByTestId('forest-button').click();
   await page.getByTestId('encounter-button').click();

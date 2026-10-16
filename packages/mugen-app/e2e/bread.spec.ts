@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { throughTheOpening, pastTheIntro } from './opening';
+import { placeButton } from './village';
 
 /**
  * パン屋 MVP (2026-10-09):
@@ -102,7 +103,7 @@ async function readTalk(page: Page): Promise<string[]> {
 }
 
 async function rest(page: Page) {
-  const button = page.getByTestId('rest-button');
+  const button = (await placeButton(page, 'rest-button'));
   const day = await page.getByTestId('world-clock').textContent();
   await button.click();
   await expect(page.getByTestId('world-clock')).not.toHaveText(day ?? '');
@@ -113,7 +114,7 @@ test('the switch: Lina by default, the owner, back to Lina — their talks never
   page,
 }) => {
   await freshVillage(page);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await expect(page.getByTestId('bakery-who-lina')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('bakery-who-owner')).toHaveAttribute('aria-selected', 'false');
   await expect(page.getByTestId('bakery-buy')).toBeVisible();
@@ -156,7 +157,7 @@ test('the switch: Lina by default, the owner, back to Lina — their talks never
   await page.getByTestId('bakery-who-owner').click();
   await page.getByTestId('bakery-leave').click();
   await restart(page);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await expect(page.getByTestId('bakery-who-lina')).toHaveAttribute('aria-selected', 'true');
   await page.getByTestId('bakery-talk').click();
   expect(await readTalk(page)).toHaveLength(1);
@@ -169,7 +170,7 @@ test('buying: the four loaves, LUMI down, one more held, its nights — a short 
 }) => {
   await freshVillage(page);
   await withLumi(page, 30);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await page.getByTestId('bakery-buy').click();
   await expect(page.getByTestId('bakery-lumi')).toHaveText('LUMI 30');
   for (const [id, price, effect, keeps] of [
@@ -209,7 +210,7 @@ test('eating: health back, the lift, one fewer — a second loaf replaces the li
 }) => {
   await freshVillage(page);
   await withLumi(page, 100);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await page.getByTestId('bakery-buy').click();
   await page.getByTestId('bakery-buy-FRESH_BREAD').click();
   await expect(page.getByTestId('bakery-held-FRESH_BREAD')).toHaveText('所持 1');
@@ -258,7 +259,7 @@ test('keeping: set when bought, one fewer each rest, stale at nought — kept bu
 }) => {
   await freshVillage(page);
   await withLumi(page, 100);
-  await page.getByTestId('bakery-button').click();
+  await (await placeButton(page, 'bakery-button')).click();
   await page.getByTestId('bakery-buy').click();
   await page.getByTestId('bakery-buy-FRESH_BREAD').click();
   await expect(page.getByTestId('bakery-held-FRESH_BREAD')).toHaveText('所持 1');
@@ -298,7 +299,7 @@ for (const [w, h] of [
   test(`${w}×${h}: the switch, the four loaves and the way back all on screen`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await freshVillage(page);
-    await page.getByTestId('bakery-button').click();
+    await (await placeButton(page, 'bakery-button')).click();
     for (const id of ['bakery-who-lina', 'bakery-who-owner', 'bakery-talk', 'bakery-buy', 'bakery-leave']) {
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.y + b.height, id).toBeLessThanOrEqual(h);
