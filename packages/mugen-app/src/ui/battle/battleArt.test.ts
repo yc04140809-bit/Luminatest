@@ -15,10 +15,24 @@ import {
 const file = (src: string | null | undefined) =>
   src ? decodeURIComponent(src).split('/').pop()!.replace(/\?.*$/, '') : null;
 
-/** Same drawing, same state it resolved to, same face and box. */
+/**
+ * Same state it resolved to, and the same drawing, face and box — except where the App already has
+ * the battle drawing of 2026-10-16 (作者「戦闘画面キャラクター差し替え」, `*-battle-v2.png`) and the
+ * Artifact does not yet: then the same person, facing the same way, the face box inside the drawing.
+ */
 function same<S extends string>(mine: ResolvedArt<S>, theirs: ResolvedArt<S>) {
   expect(mine.state).toBe(theirs.state);
-  expect(file(mine.asset?.src)).toBe(file(theirs.asset?.src));
+  const m = file(mine.asset?.src);
+  if (m?.endsWith('-battle-v2.png')) {
+    expect(file(theirs.asset?.src)?.split('-')[0]).toBe(m.split('-')[0]);
+    expect(mine.asset?.facing).toEqual(theirs.asset?.facing);
+    const face = mine.asset?.face;
+    expect(face).toBeDefined();
+    expect(face!.x + face!.width).toBeLessThanOrEqual(face!.fileW);
+    expect(face!.y + face!.height).toBeLessThanOrEqual(face!.fileH);
+    return;
+  }
+  expect(m).toBe(file(theirs.asset?.src));
   expect(mine.asset?.face).toEqual(theirs.asset?.face);
   expect(mine.asset?.box).toEqual(theirs.asset?.box);
   expect(mine.asset?.facing).toEqual(theirs.asset?.facing);
@@ -90,7 +104,7 @@ describe('グレイヴの戦闘立ち絵 (2026-10-12)', () => {
     const { battlePartyArt } = await import('./battleArt');
     const art = battlePartyArt('grave', 'battle_idle');
     expect(art.placeholder).toBe(false);
-    expect(art.asset?.src).toContain('grave-battle-idle');
+    expect(art.asset?.src).toContain('grave-battle-v2');
     expect(art.asset?.facing).toBe('left');
   });
 });

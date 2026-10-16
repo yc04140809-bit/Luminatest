@@ -6,6 +6,11 @@
 // once grew by 30 MB of art it never showed. So the App names each file
 // the battle screen uses, one import per file, and nothing else.
 //
+// THE BATTLE DRAWINGS OF 2026-10-16 (作者「戦闘画面キャラクター差し替え」): the App's ordinary
+// stance for 主人公・ケイオス・ガルド・グレイヴ・アリア・レヴィ is the new drawing (`*-battle-v2.png`);
+// the Artifact keeps the earlier ones until it is updated. Every other state (her casting and
+// higher form, Gald struck and down) is still the shared drawing.
+//
 // WHICH DRAWING A STATE IS stays the core's: the entries below carry
 // the same facing and face boxes as the shared art table, and are
 // resolved through the same fallback chains (`partyChainFor`,
@@ -13,14 +18,15 @@
 // Artifact's own answer, file and metadata, so the two screens cannot
 // draw somebody differently.
 
-import heroBattleIdle from '@mugen/assets/files/characters/hero/hero-battle-idle.png';
-import kaosBattleDefault from '@mugen/assets/files/characters/kaos/kaos-battle-default.png';
 import kaosCast from '@mugen/assets/files/characters/kaos/kaos-cast.png';
 import kaosAwaken from '@mugen/assets/files/characters/kaos/kaos-awaken.png';
-import galdBattleIdle from '@mugen/assets/files/characters/gald/gald-battle-idle.png';
-import graveBattleIdle from '@mugen/assets/files/characters/grave/grave-battle-idle.png';
-import ariaBattle from '@mugen/assets/files/characters/aria/aria-battle.png';
-import leviBattle from '@mugen/assets/files/characters/levi/levi-battle.png';
+// The battle drawings of 2026-10-16 (作者「戦闘画面キャラクター差し替え」), placed as delivered.
+import heroBattleV2 from '@mugen/assets/files/characters/hero/hero-battle-v2.png';
+import kaosBattleV2 from '@mugen/assets/files/characters/kaos/kaos-battle-v2.png';
+import galdBattleV2 from '@mugen/assets/files/characters/gald/gald-battle-v2.png';
+import graveBattleV2 from '@mugen/assets/files/characters/grave/grave-battle-v2.png';
+import ariaBattleV2 from '@mugen/assets/files/characters/aria/aria-battle-v2.png';
+import leviBattleV2 from '@mugen/assets/files/characters/levi/levi-battle-v2.png';
 import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage.png';
 import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
@@ -66,9 +72,9 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet
     label: 'あなた',
     states: {
       battle_idle: {
-        src: heroBattleIdle,
+        src: heroBattleV2,
         facing: 'left',
-        face: { fileW: 1024, fileH: 1536, x: 300, y: 235, width: 195, height: 195 },
+        face: { fileW: 1086, fileH: 1448, x: 255, y: 160, width: 180, height: 180 },
       },
     },
   },
@@ -77,9 +83,9 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet
     label: 'ケイオス',
     states: {
       battle_idle: {
-        src: kaosBattleDefault,
+        src: kaosBattleV2,
         facing: 'left',
-        face: { fileW: 1145, fileH: 1374, x: 478, y: 120, width: 180, height: 180 },
+        face: { fileW: 1145, fileH: 1374, x: 470, y: 95, width: 180, height: 180 },
       },
       /** Casting — for the length of a spell. */
       battle_cast: {
@@ -106,9 +112,9 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet
     label: 'グレイヴ',
     states: {
       battle_idle: {
-        src: graveBattleIdle,
+        src: graveBattleV2,
         facing: 'left',
-        face: { fileW: 1536, fileH: 1024, x: 868, y: 58, width: 180, height: 180 },
+        face: { fileW: 1086, fileH: 1448, x: 530, y: 310, width: 170, height: 170 },
       },
     },
   },
@@ -124,9 +130,9 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet
     label: 'アリア',
     states: {
       battle_idle: {
-        src: ariaBattle,
+        src: ariaBattleV2,
         facing: 'left',
-        face: { fileW: 1024, fileH: 1536, x: 480, y: 370, width: 140, height: 140 },
+        face: { fileW: 1024, fileH: 1536, x: 470, y: 290, width: 150, height: 150 },
       },
     },
   },
@@ -135,9 +141,9 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet
     label: 'レヴィ',
     states: {
       battle_idle: {
-        src: leviBattle,
+        src: leviBattleV2,
         facing: 'left',
-        face: { fileW: 1536, fileH: 1024, x: 930, y: 115, width: 140, height: 140 },
+        face: { fileW: 1122, fileH: 1402, x: 630, y: 270, width: 150, height: 150 },
       },
     },
   },
@@ -146,9 +152,9 @@ const PARTY: Record<'hero' | 'kaos' | 'gald' | 'grave' | 'aria' | 'levi', ArtSet
     label: '盗賊ガルド',
     states: {
       battle_idle: {
-        src: galdBattleIdle,
+        src: galdBattleV2,
         facing: 'right',
-        face: { fileW: 1536, fileH: 1024, x: 1105, y: 175, width: 190, height: 190 },
+        face: { fileW: 1122, fileH: 1402, x: 815, y: 215, width: 170, height: 170 },
       },
       /** Struck. */
       battle_damage: { src: galdBattleDamage },
