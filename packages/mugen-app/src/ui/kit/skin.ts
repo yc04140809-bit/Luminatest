@@ -80,8 +80,9 @@ export const KIT_PARTS: Readonly<Record<KitPart, KitPartSpec>> = {
   // 左会話パネル, in two (作者 2026-10-16: 人物と文章で半々): the head — the picture's top with its
   // light area stretched for the person and its band kept for the name — and the body under it.
   talkPanelHead: { slice: { top: 90, right: 60, bottom: 77, left: 60 }, scale: 0.42, padX: 0, padY: 0, minHeight: 90, band: 77 },
-  talkPanel: { slice: { top: 8, right: 60, bottom: 90, left: 60 }, scale: 0.42, padX: 6, padY: 4, minHeight: 80, fg: '#1d2448' },
-  objective: { slice: ins(40, 50), scale: 0.3, padX: 6, padY: 2, minHeight: 36 },
+  // Its edge drawn a little finer than the head's, so the words have the room (作者 2026-10-16: 読める・見切れない).
+  talkPanel: { slice: { top: 8, right: 60, bottom: 90, left: 60 }, scale: 0.34, padX: 10, padY: 8, minHeight: 80, fg: '#1d2448' },
+  objective: { slice: ins(40, 50), scale: 0.3, padX: 8, padY: 5, minHeight: 40 },
   panel: { slice: ins(44, 70), scale: 0.3, padX: 6, padY: 2, minHeight: 40 },
   listRow: { slice: ins(20, 44), scale: 0.45, padX: 4, padY: 4, minHeight: 40, fg: '#1d2448', fgSelected: '#ffffff' },
   backButton: { slice: ins(32, 64), scale: 0.35, padX: 4, padY: 2, minHeight: 36 },
@@ -144,7 +145,8 @@ export function kitStyle(part: KitPart, images: KitImages): { skinned: boolean; 
   if (normal) {
     vars['--kit-slice'] = `${spec.slice.top} ${spec.slice.right} ${spec.slice.bottom} ${spec.slice.left}`;
     vars['--kit-edge'] = insetsPx(edge);
-    if (spec.fg) vars['--kit-fg'] = spec.fg;
+    // Every part its own colour of words — never the one of the part it sits in (a dark button in a light panel).
+    vars['--kit-fg'] = spec.fg ?? '#f4f6ff';
     if (spec.band) vars['--kit-band-h'] = px(Math.round(spec.band * k));
     vars['--kit-edge-t'] = px(edge.top);
     vars['--kit-edge-r'] = px(edge.right);

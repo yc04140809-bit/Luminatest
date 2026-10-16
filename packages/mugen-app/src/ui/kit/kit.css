@@ -81,6 +81,8 @@
    the padding box, inside the frame's edge: the band is reached below it, in the bottom edge itself.) */
 .kit-portrait { position: relative; height: 100%; min-height: 80px; overflow: hidden; }
 .kit[data-skinned] > .kit-portrait {
+  /* Inside the frame, never taller than it: the name's band below stays clear on a short panel. */
+  min-height: 0;
   position: absolute;
   top: calc(var(--kit-edge-t) * -0.3);
   left: calc(var(--kit-edge-l) * -0.3);

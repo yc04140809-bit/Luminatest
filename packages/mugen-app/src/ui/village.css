@@ -26,7 +26,8 @@
   position: relative;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  /* The person a little under half, the words a little over (作者 2026-10-16: 余白・見切れない). */
+  grid-template-rows: minmax(96px, 0.75fr) minmax(0, 1fr);
   gap: 0;
 }
 .kit.vg-who { min-height: 0; }
@@ -35,25 +36,63 @@
 .vg-who-name small { font-size: 11px; opacity: 0.85; }
 .kit.vg-body {
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
+/* The words: they scroll (never cut) when the place chosen has more than the room. */
+.vg-body-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Room under the last line, and a fade there: more below shows as more, never as a line cut in half. */
+  padding: 2px 2px 14px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+}
 .vg-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: max(11px, 1.3cqw); margin-top: 2px; }
-.vg-party { display: grid; gap: 2px; }
-.vg-member { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; font-size: 12px; line-height: 1.4; }
+/* The two of them: at the panel's foot, always whole — a name, its Lv., then HP and MP on one line. */
+.vg-party {
+  flex: none;
+  display: grid;
+  gap: 1px;
+  padding: 5px 2px 0;
+  border-top: 1px solid rgba(29, 36, 72, 0.25);
+}
+.vg-member {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  column-gap: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
 .vg-name { font-weight: 700; }
-.vg-bars { font-variant-numeric: tabular-nums; }
-.vg-hint { margin: 2px 0 0; font-size: 13px; line-height: 1.6; opacity: 0.85; }
+.vg-level { opacity: 0.8; }
+.vg-bars { font-variant-numeric: tabular-nums; justify-self: end; }
+.vg-hint { margin: 2px 0 0; font-size: 13px; line-height: 1.65; opacity: 0.9; }
 
-.vg-card-head { display: flex; align-items: flex-start; gap: 6px; }
-.vg-card-title { margin: 0; flex: 1; min-width: 0; font-size: 16px; overflow-wrap: anywhere; align-self: center; }
-.kit.vg-card-close { flex: none; font-size: 13px; }
-.vg-card-people { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 14px; }
-.vg-card-empty { margin: 6px 0 0; font-size: 13px; opacity: 0.85; }
-.vg-card-doors { display: grid; gap: 4px; margin-top: 4px; }
-.kit.vg-door { width: 100%; font-size: 15px; }
+.vg-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; }
+.vg-card-title { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+/* とじる: the back plate drawn smaller, its ends in proportion (never squeezed). */
+.kit.vg-card-close { font-size: 12.5px; min-height: 28px; padding: 0 2px; }
+.kit.vg-card-close[data-skinned] { border-width: 7px 14px; }
+.vg-card-people { list-style: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-wrap: wrap; gap: 0 8px; font-size: 12.5px; line-height: 1.3; opacity: 0.9; }
+.vg-card-head .kit.vg-card-close { grid-column: 3; }
+.vg-card-empty { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }
+/* The doors: side by side where there are two and the panel is wide enough (the inn: 入る・休息する),
+   each row drawn a little smaller in proportion; one door, the whole width. */
+.vg-card-doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 4px; margin-top: 6px; }
+.kit.vg-door { width: 100%; min-height: 36px; font-size: 14px; font-weight: 700; padding: 0 2px; }
+.kit.vg-door[data-skinned] { border-width: 6px 13px; }
+.kit.vg-door .kit-text { white-space: nowrap; }
 
 /* While the two of them talk (ui/talkStage, the panel layout): the panel is theirs — its own one-person
    face is put away, so the same person is never shown twice. A place tapped meanwhile shows its card over them. */
@@ -93,12 +132,13 @@
 .kit.vg-title, .kit.vg-objective { position: absolute; display: flex; flex-direction: column; justify-content: center; max-width: 62%; }
 .vg-title .kit-heading { font-size: max(14px, 2.4cqw); margin: 0; }
 .vg-title small { font-size: max(8px, 1cqw); letter-spacing: 0.3em; opacity: 0.8; }
-.vg-objective .kit-heading { font-size: max(10px, 1.3cqw); margin: 0; font-weight: 400; opacity: 0.8; }
-.vg-objective [data-kit-text] { font-size: max(11.5px, 1.7cqw); }
+.vg-objective .kit-heading { font-size: max(10px, 1.3cqw); margin: 0 0 2px; font-weight: 400; opacity: 0.8; }
+.vg-objective [data-kit-text] { font-size: max(11.5px, 1.7cqw); line-height: 1.4; }
 
-/* A place: its label over the box (wider if its words need it, two lines past a share of the width), who is there under it. */
+/* A place: its label over the box (wider if its words need it), who is there as the label's second line. */
 .vg-spot-wrap { position: absolute; max-width: 40%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.kit.vg-spot { z-index: 2; width: 100%; font-size: max(12px, 1.95cqw); }
+.kit.vg-spot { z-index: 2; width: 100%; font-size: max(12px, 1.95cqw); line-height: 1.25; }
+.kit.vg-spot .kit-text { white-space: nowrap; }
 .vg-mark {
   font-style: normal;
   display: inline-grid;
@@ -111,32 +151,48 @@
   font-size: 11px;
   font-weight: 700;
 }
-.vg-names { position: relative; z-index: 1; margin: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 3px; pointer-events: none; }
-.vg-person {
-  font-size: max(10.5px, 1.45cqw);
-  line-height: 1.35;
-  padding: 0 6px;
-  border-radius: 8px;
-  background: rgba(8, 10, 16, 0.78);
-  color: #f6f6f6;
-  white-space: nowrap;
+.kit.vg-spot .kit-sub {
+  font-size: max(10.5px, 1.4cqw);
+  letter-spacing: 0.02em;
+  opacity: 1;
+  line-height: 1.2;
+  color: #d6e4ff;
 }
+.vg-names { display: inline; white-space: nowrap; }
+.vg-person { white-space: nowrap; }
 
-/* ---- below: the five (下部5ボタン) ---- */
-.vg-menu { grid-area: menu; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-.vg-menu > .kit { width: 100%; font-size: 14px; }
-/* The five's words break only where marked (世界の｜記憶), unless a word is wider than its button. */
-.vg-menu .kit-text { word-break: keep-all; }
-.vg-menu > .kit[data-skinned] { border-left-width: 13px; border-right-width: 13px; }
-@media (max-width: 700px) {
-  .vg-menu > .kit { font-size: 12.5px; }
-  /* Narrow: the frame's ends drawn a little smaller, so the words keep the room. */
-  .vg-menu > .kit[data-skinned] { border-left-width: 10px; border-right-width: 10px; }
+/* ---- below: the five (下部5ボタン) ----
+   Each word on one line, never broken inside (作者 2026-10-16: ステー｜タス はしない), the frame's ends at
+   their own size: the words' size follows the buttons' width (five characters between the ends), 11–14px;
+   where the five would be too narrow even so, they take the whole width (below). */
+.vg-menu { grid-area: menu; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; container-type: inline-size; }
+.vg-menu > .kit { width: 100%; font-size: clamp(11px, calc(((100cqw - 24px) / 5 - 38px) / 5.2), 14px); line-height: 1.2; }
+.kit.vg-menu-btn .kit-text, .vg-menu .kit-text { word-break: keep-all; white-space: nowrap; letter-spacing: 0.02em; }
+.vg-menu .kit-sub { font-size: 8.5px; letter-spacing: 0.16em; }
+/* Narrow (a 640-wide phone): the five across the whole foot, under the panel too, so each is wide enough. */
+@media (max-width: 720px) {
+  .screen.village {
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: 'side map' 'menu menu';
+  }
+  /* The labels first: who is there is read on the place's card (tapped), not on the small map. */
+  .kit.vg-spot .kit-sub { display: none; }
 }
 @media (max-height: 340px) {
+  /* A very short screen: the person a little smaller, so the words keep some room. */
+  .vg-side { grid-template-rows: minmax(84px, 0.6fr) minmax(0, 1fr); }
   .vg-menu > .kit .kit-sub { display: none; }
-  .vg-member { font-size: 12px; }
+  .vg-member { font-size: 11px; column-gap: 4px; }
+  .vg-hint { font-size: 12px; line-height: 1.5; }
 }
 /* A place's mark sits off its label's corner, clear of the words. */
 .kit.vg-spot .kit-badge { top: -9px; right: -9px; }
 .kit.vg-spot .kit-text { word-break: keep-all; }
+/* The five's NEW on the button's top-right corner, clear of its word. */
+/* (Absolute inside the frame: the frame's edge is added back, so it sits on the outer corner.) */
+.vg-menu .kit-badge { top: calc(var(--kit-edge-t, 0px) * -1 - 4px); right: calc(var(--kit-edge-r, 0px) * -1 - 2px); }
+.vg-menu .kit-badge .new-badge { margin: 0; }
+/* A very short screen: the person's face kept in the small head (the picture shown from a little lower). */
+@media (max-height: 340px) {
+  .vg-who .kit-portrait img { object-position: 50% 22% !important; transform-origin: 50% 22% !important; }
+}

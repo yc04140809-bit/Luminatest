@@ -136,6 +136,8 @@ export function VillageScreen({
           }
         />
         <KitPanel part="talkPanel" as="div" className="vg-body">
+        {/* The words (what happens, the place chosen) scroll if they must; the two of them below never do. */}
+        <div className="vg-body-scroll">
         {happening}
         {spot ? (
           <PlaceCard
@@ -154,7 +156,9 @@ export function VillageScreen({
             村の場所をタップすると、そこにいる人と、できることが表示されます。
           </p>
         )}
-        {/* The two of them: who, their level, how they are. */}
+        {notice}
+        </div>
+        {/* The two of them: who, their level, how they are — always in view, at the panel's foot. */}
         <div className="vg-party" data-testid="status-panel">
           {(
             [
@@ -179,7 +183,6 @@ export function VillageScreen({
             );
           })}
         </div>
-        {notice}
         </KitPanel>
       </aside>
 
@@ -234,8 +237,15 @@ export function VillageScreen({
             const shut = s.id === 'road_ruins' && !ruinsOpen;
             const m = mark(s);
             const people = presence[s.id] ?? [];
+            // A place at the right edge grows leftward (its words never pushed against the edge).
+            const atRight = box.x + box.w > 80;
             return (
-              <div key={s.id} className="vg-spot-wrap" style={{ left: pct(box.x), top: pct(box.y), minWidth: pct(box.w) }}>
+              <div
+                key={s.id}
+                className="vg-spot-wrap"
+                data-anchor={atRight ? 'right' : 'left'}
+                style={atRight ? { right: pct(100 - box.x - box.w), top: pct(box.y), minWidth: pct(box.w) } : { left: pct(box.x), top: pct(box.y), minWidth: pct(box.w) }}
+              >
                 <KitButton
                   part="placeLabel"
                   className={`vg-spot vg-k-${s.kind.toLowerCase()}`}
@@ -256,6 +266,21 @@ export function VillageScreen({
                       s.label
                     )
                   }
+                  // Who is there, on the label itself as its second line (作者 2026-10-16: 人物名が
+                  // ラベルや背景と重ならないように) — one plate per place, never a name floating over another.
+                  sub={
+                    people.length > 0 ? (
+                      <span className="vg-names" data-testid={`spot-${s.id}-people`}>
+                        {people.slice(0, VILLAGE_NAMES_SHOWN).map((p, i) => (
+                          <span key={p.name} className="vg-person">
+                            {i > 0 && '・'}
+                            {p.name}
+                          </span>
+                        ))}
+                        {people.length > VILLAGE_NAMES_SHOWN && <span className="vg-person vg-more">＋{people.length - VILLAGE_NAMES_SHOWN}</span>}
+                      </span>
+                    ) : undefined
+                  }
                   badge={
                     m && (
                       <i className="vg-mark" data-testid={m.testId} aria-label="新着">
@@ -265,18 +290,6 @@ export function VillageScreen({
                   }
                   onClick={() => tap(s)}
                 />
-                {people.length > 0 && (
-                  <p className="vg-names" data-testid={`spot-${s.id}-people`}>
-                    {people.slice(0, VILLAGE_NAMES_SHOWN).map((p) => (
-                      <span key={p.name} className="vg-person">
-                        {p.name}
-                      </span>
-                    ))}
-                    {people.length > VILLAGE_NAMES_SHOWN && (
-                      <span className="vg-person vg-more">+{people.length - VILLAGE_NAMES_SHOWN}</span>
-                    )}
-                  </p>
-                )}
               </div>
             );
           })}
@@ -285,7 +298,7 @@ export function VillageScreen({
 
       {/* ---- below: the five (下部5ボタン) ---- */}
       <nav className="vg-menu" aria-label="メニュー">
-        <KitButton part="menuButton" testId="status-button" label={<>ステー<wbr />タス</>} sub="STATUS" onClick={onStatus} badge={<NewBadge show={news.status} testId="status-new" />} />
+        <KitButton part="menuButton" testId="status-button" label="ステータス" sub="STATUS" onClick={onStatus} badge={<NewBadge show={news.status} testId="status-new" />} />
         <KitButton part="menuButton" testId="rumor-button" label="噂話" sub="RUMOR" onClick={onRumors} badge={<NewBadge show={news.rumors} testId="rumor-new" />} />
         <KitButton part="menuButton" testId="bag-button" label="持ち物" sub="ITEM" onClick={onBag} />
         <KitButton part="menuButton" testId="memory-button" label={<>世界の<wbr />記憶</>} sub="WORLD" onClick={onMemory} badge={<NewBadge show={news.memory} testId="memory-new" />} />
@@ -330,25 +343,26 @@ function PlaceCard({
     ) : null;
   return (
     <section className="vg-card" data-testid="place-card" data-spot={spot.id}>
+      {/* The place's name, who is there beside it, and the way to close — one line; then the doors. */}
       <header className="vg-card-head">
         <h2 className="vg-card-title" data-kit-text="">
           {spot.label}
         </h2>
+        {people.length > 0 && (
+          <ul className="vg-card-people" data-testid="place-people">
+            {people.map((p) => (
+              <li key={p.name}>{p.name}</li>
+            ))}
+          </ul>
+        )}
         <KitButton part="backButton" className="vg-card-close" testId="place-close" ariaLabel="閉じる" label="とじる" onClick={onClose} />
       </header>
-      {/* The doors first, so they are in view; then who is there. */}
-      {doors && <div className="vg-card-doors">{doors}</div>}
-      {people.length > 0 ? (
-        <ul className="vg-card-people" data-testid="place-people">
-          {people.map((p) => (
-            <li key={p.name}>{p.name}</li>
-          ))}
-        </ul>
-      ) : (
+      {people.length === 0 && (
         <p className="vg-card-empty" data-testid="place-nobody">
           {spot.id === 'road_ruins' && !ruinsOpen ? 'いまは、まだ行く用がない。' : 'いまは、訪ねる用はない。'}
         </p>
       )}
+      {doors && <div className="vg-card-doors">{doors}</div>}
     </section>
   );
 }
