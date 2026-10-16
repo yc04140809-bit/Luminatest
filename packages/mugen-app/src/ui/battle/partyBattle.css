@@ -574,3 +574,288 @@
 .pb-list-btn small.wait { color: #f3d27a; font-size: 10px; }
 .pb-list-btn:disabled small.wait { opacity: 1; color: #f3d27a; }
 .pb-chip.no { color: #9a8f78; border-color: rgba(231, 210, 156, 0.25); font-size: 10px; cursor: default; }
+
+/* ==== 共通クリスタルUI (作者 2026-10-16「TIGS向け UI統一」、戦闘UI 5項目) ====
+   The party fight wears the same delivered pieces as every fight (ui-sheet-v1, `--sk-*` on :root):
+   the panel plate, the label plate, the square / round / diamond frames, the confirm plate — each
+   9-sliced or drawn whole at its own shape. CSS only colours what lies between: the gauges' fill,
+   the glow of who acts, each one's own colour on their frame. */
+.screen.pb-screen {
+  --mz-glow: rgba(176, 214, 255, 0.85);
+  --mz-hp-a: #ff8a74;
+  --mz-hp-b: #c8242c;
+  --mz-mp-a: #9fd2ff;
+  --mz-mp-b: #6a4cff;
+}
+/* The plates. */
+.pb-screen .pb-enemy-plate,
+.pb-screen .pb-member,
+.pb-screen .pb-list,
+.pb-screen .pb-result,
+.pb-screen .pb-order {
+  border-style: solid;
+  border-color: transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.pb-screen .pb-enemy-plate,
+.pb-screen .pb-list,
+.pb-screen .pb-result {
+  border-width: 9px 14px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 9px 14px stretch;
+}
+.pb-screen .pb-enemy-plate { padding: 0 2px 1px; }
+.pb-screen .pb-list { padding: 1px; }
+.pb-screen .pb-member {
+  border-width: 5px 9px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 5px 9px stretch;
+  padding: 1px 1px 1px 0;
+}
+.pb-screen .pb-member.acting { border-color: transparent; box-shadow: none; filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.pb-screen .pb-member.aimable { border-color: transparent; filter: drop-shadow(0 0 4px rgba(155, 227, 122, 0.9)); }
+.pb-screen .pb-order {
+  border-width: 5px 10px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 5px 10px stretch;
+  padding: 0 2px;
+}
+.pb-screen .pb-log,
+.pb-screen .pb-place {
+  border: solid transparent;
+  border-width: 5px 14px;
+  border-radius: 0;
+  border-image: var(--sk-placeLabel-normal, none) var(--sk-placeLabel-slice, 0) fill / 5px 14px stretch;
+  background: none;
+  padding: 0 2px;
+}
+/* Faces: the small square frame over each. */
+.pb-screen .pb-face { border: 0; border-radius: 0; background: radial-gradient(circle at 50% 35%, #2a3466, #0c1024); }
+.pb-screen .pb-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--sk-frameSquare-normal, none) center / 100% 100% no-repeat;
+}
+.pb-screen .pb-face.acting { border: 0; box-shadow: none; filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.pb-screen .pb-face.foe::after { filter: hue-rotate(-150deg) saturate(1.6); }
+
+/* Commands: the diamond frame at its own shape over a dark diamond inside. */
+.pb-screen .pb-dia-plate { background: none; isolation: isolate; }
+.pb-screen .pb-dia-plate::before,
+.pb-screen .pb-dia-plate::after { content: ''; position: absolute; pointer-events: none; }
+.pb-screen .pb-dia-plate::before {
+  inset: 12% 21%;
+  background: linear-gradient(180deg, rgba(14, 24, 58, 0.94), rgba(5, 10, 28, 0.96));
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.pb-screen .pb-dia-plate::after { inset: 0; background: var(--sk-frameDiamond-normal, var(--pb-diamond)) center / contain no-repeat; }
+.pb-screen .pb-dia-jp { text-shadow: 0 0 2px #000, 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px #000; }
+.pb-screen .pb-dia-mark { color: #cfe4ff; }
+.pb-screen .pb-dia[aria-pressed='true'] .pb-dia-plate,
+.pb-screen .pb-dia:active .pb-dia-plate { filter: drop-shadow(0 0 5px var(--mz-glow)) brightness(1.15); }
+.pb-screen .pb-dia:active { transform: translate(-50%, -50%) scale(0.98); }
+
+/* The list beside the cross: the confirm plate per row. */
+.pb-screen .pb-list-btn {
+  border: solid transparent;
+  border-width: 7px 13px;
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-normal, none) var(--sk-confirmButton-slice, 0) fill / 7px 13px stretch;
+  background: none;
+  padding: 0 2px;
+  color: #f2f5ff;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
+}
+.pb-screen .pb-list-btn:hover:not(:disabled) { border-image-source: var(--sk-confirmButton-hover, var(--sk-confirmButton-normal)); }
+.pb-screen .pb-list-btn:disabled { border-image-source: var(--sk-confirmButton-disabled, var(--sk-confirmButton-normal)); background: none; color: #b9bfd6; }
+.pb-screen .pb-list-btn.focus { filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.pb-screen .pb-list-btn:active:not(:disabled) { transform: scale(0.98); }
+
+/* AUTO / ×2 / ESCAPE: the round frame. */
+.pb-screen .pb-chip {
+  width: 46px;
+  min-width: 0;
+  height: auto;
+  aspect-ratio: 112 / 124;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 0;
+  background:
+    var(--sk-frameRound-normal, none) center / 100% 100% no-repeat,
+    radial-gradient(circle closest-side, rgba(10, 18, 44, 0.92) 82%, rgba(10, 18, 44, 0) 86%) center / 78% 78% no-repeat;
+  color: #e6ecff;
+  font-size: 9px;
+  line-height: 1.05;
+  white-space: normal;
+  text-shadow: 0 0 2px #000, 0 1px 2px #000;
+}
+.pb-screen .pb-chip.on { background: var(--sk-frameRound-normal, none) center / 100% 100% no-repeat, radial-gradient(circle closest-side, rgba(40, 70, 140, 0.95) 82%, rgba(10, 18, 44, 0) 86%) center / 78% 78% no-repeat; color: #fff; filter: drop-shadow(0 0 5px var(--mz-glow)); border: 0; }
+.pb-screen .pb-chip.no { color: #9aa2c0; border: 0; font-size: 9px; }
+.pb-screen .pb-chip:active:not(:disabled) { transform: scale(0.98); }
+
+/* Gauges: a dark crystal rail, the fill flowing inside. */
+.pb-screen .pb-bar,
+.pb-screen .pb-break-gauge {
+  background: linear-gradient(180deg, rgba(4, 8, 22, 0.92), rgba(16, 24, 52, 0.92));
+  border: 1px solid rgba(214, 224, 255, 0.6);
+  border-radius: 2px;
+}
+.pb-screen .pb-bar-fill,
+.pb-screen .pb-enemy-plate .pb-bar-fill,
+.pb-screen .pb-foe-mini .pb-bar-fill { background: linear-gradient(180deg, var(--mz-hp-a), var(--mz-hp-b)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.pb-screen .pb-bar.mp .pb-bar-fill { background: linear-gradient(180deg, var(--mz-mp-a), var(--mz-mp-b)); }
+
+/* 1. HP の赤い残像: under the fill; stays a moment where it was, then follows it down. */
+.pb-bar-trail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(180deg, #ffd9cc, #ff6a52);
+  opacity: 0.9;
+  transition: width 0.55s ease-out 0.38s;
+}
+
+/* 3. TURN ORDER: who acts in full light (a sheen passes once); the next a little darker; then darker. */
+.pb-screen .pb-order > .pb-face:not(.acting) { opacity: 0.5; }
+.pb-screen .pb-order > .pb-face.acting + .pb-face { opacity: 0.88; }
+.pb-screen .pb-order > .pb-face.acting + .pb-face + .pb-face { opacity: 0.68; }
+.pb-screen .pb-order > .pb-face:not(.acting) img { filter: brightness(0.85) saturate(0.8); }
+.pb-screen .pb-face.acting::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 35%, rgba(255, 255, 255, 0.6) 50%, rgba(190, 220, 255, 0.35) 56%, transparent 68%) 0 0 / 300% 100% no-repeat;
+  animation: pb-sheen-once 0.55s ease-out 0.05s 1 both;
+}
+@keyframes pb-sheen-once { from { background-position: 100% 0; opacity: 1; } to { background-position: 0 0; opacity: 0; } }
+
+/* 4. A boss's plate: the same plate heavier, black and gold inside, a hairline of red; a little wider. */
+.pb-screen .pb-enemy-plate[data-boss] {
+  width: min(30vw, 240px);
+  border-width: 13px 20px;
+  border-image-width: 13px 20px;
+  isolation: isolate;
+  filter: drop-shadow(0 0 6px rgba(226, 70, 56, 0.32));
+}
+.pb-screen .pb-enemy-plate[data-boss]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(58, 42, 12, 0.55), rgba(8, 6, 2, 0.6));
+  border: 1px solid rgba(232, 78, 62, 0.75);
+  box-shadow: inset 0 0 6px rgba(232, 78, 62, 0.35), inset 0 1px 0 rgba(242, 208, 128, 0.45);
+}
+
+/* 5. Each one's own colour, only on the frame's light and a hairline (the shape is everyone's). */
+.pb-screen [data-actor='hero'] { --acc: #e0343f; --acc-2: #1a0608; }
+.pb-screen [data-actor='kaos'] { --acc: #eef2ff; --acc-2: #c9a24a; }
+.pb-screen [data-actor='grave'] { --acc: #4f86e8; --acc-2: #d9b44a; }
+.pb-screen [data-actor='aria'] { --acc: #34c8b6; --acc-2: #ffffff; }
+.pb-screen [data-actor='levi'] { --acc: #c9a24a; --acc-2: #3f6fe0; }
+.pb-screen .pb-face[data-actor]::after { filter: drop-shadow(0 0 0.6px var(--acc-2, transparent)) drop-shadow(0 0 2px var(--acc, transparent)); }
+.pb-screen .pb-face.foe[data-actor]::after { filter: hue-rotate(-150deg) saturate(1.6); }
+.pb-screen .pb-member { position: relative; isolation: isolate; }
+/* A hairline of their colour down the card's inner edge (over the plate's inside, under the words). */
+.pb-screen .pb-member[data-actor]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  width: 2px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--acc, transparent), var(--acc-2, transparent));
+  box-shadow: 0 0 4px var(--acc, transparent);
+}
+
+/* 2. BREAK: the crystal plate behind the word lights, cracks in two and flies apart, the sheet's own
+      crystal pieces scattering; the word holds, then all of it is gone (about a second). */
+.pb-screen .pb-break-flash {
+  width: min(52vw, 380px);
+  height: 74px;
+  display: grid;
+  place-items: center;
+  font-size: inherit;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  animation: none;
+}
+.pb-break-plate {
+  position: absolute;
+  inset: 0;
+  border: solid transparent;
+  border-width: 14px 22px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 14px 22px stretch;
+  animation: pb-plate-in 1100ms ease-out both;
+}
+.pb-break-plate::after {
+  content: '';
+  position: absolute;
+  inset: -14px -22px;
+  background: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, 0.75) 47%, rgba(170, 220, 255, 0.55) 51%, rgba(255, 180, 236, 0.4) 55%, transparent 64%) 0 0 / 300% 100% no-repeat;
+  animation: pb-break-sheen 1100ms ease-out both;
+}
+.pb-break-plate.half-a { clip-path: polygon(0 0, 53% 0, 47% 34%, 55% 58%, 48% 100%, 0 100%); --away: translate(-16%, 7%) rotate(-7deg); }
+.pb-break-plate.half-b { clip-path: polygon(53% 0, 100% 0, 100% 100%, 48% 100%, 55% 58%, 47% 34%); --away: translate(16%, -6%) rotate(6deg); }
+@keyframes pb-plate-in {
+  0% { opacity: 0; transform: scale(1.18); filter: brightness(2.2); }
+  16% { opacity: 1; transform: scale(1); filter: brightness(1.6); }
+  34% { opacity: 1; transform: none; filter: brightness(1); }
+  100% { opacity: 0; transform: var(--away); filter: brightness(0.9); }
+}
+@keyframes pb-break-sheen { 0%, 22% { background-position: 100% 0; opacity: 0; } 26% { opacity: 1; } 52% { background-position: 0 0; opacity: 0; } 100% { opacity: 0; } }
+.pb-shard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 44px;
+  margin: -22px 0 0 -14px;
+  background: var(--sk-decor-shard, none) center / contain no-repeat;
+  filter: brightness(1.25) drop-shadow(0 0 4px rgba(200, 230, 255, 0.95)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+  opacity: 0;
+  animation: pb-shard-fly 1100ms ease-out both;
+}
+.pb-shard.spark { width: 26px; height: 26px; margin: -13px 0 0 -13px; background-image: var(--sk-decor-spark, none); }
+@keyframes pb-shard-fly {
+  0%, 30% { opacity: 0; transform: translate(0, 0) rotate(0) scale(0.6); }
+  35% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1.05); }
+}
+.pb-break-word {
+  position: relative;
+  z-index: 2;
+  font-size: 46px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: #fff6e2;
+  -webkit-text-stroke: 2px #b8381f;
+  text-shadow: 0 0 10px rgba(255, 140, 50, 0.9), 0 3px 0 #6d1d10;
+  animation: pb-break-flash-word 1100ms ease-out both;
+}
+@keyframes pb-break-flash-word {
+  0%, 8% { opacity: 0; transform: scale(2); }
+  22% { opacity: 1; transform: scale(0.94); }
+  32% { transform: scale(1.04); }
+  78% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+@media (max-height: 340px) {
+  .pb-screen .pb-break-flash { height: 58px; }
+  .pb-break-word { font-size: 36px; }
+  .pb-screen .pb-chip { width: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-bar-trail { transition: none; }
+  .pb-screen .pb-face.acting::before { animation: none; opacity: 0; }
+  .pb-shard { display: none; }
+  .pb-break-plate.half-a, .pb-break-plate.half-b { --away: none; }
+}

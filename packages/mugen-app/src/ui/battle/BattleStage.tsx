@@ -53,6 +53,7 @@ function toldParts(line: string): [string, string] {
 const TOLD_MS = 3200;
 const TOLD_FLOOR_MS = 2200;
 import { AwakeningScene } from './AwakeningScene';
+import { useMeterTrails } from './meterTrail';
 import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
   AS_PERSON,
@@ -470,6 +471,9 @@ export function BattleStage({
   const enemyHome = PROTOTYPE_PLACEMENTS[enemySlot];
   const [enemyBox, setEnemyBox] = useState<{ mid: number; foot: number; beside?: number } | null>(null);
   const plateRef = useRef<HTMLDivElement>(null);
+  // The meters' red trail (meterTrail.ts): the HUD's own markup is the Artifact's, so it is kept in step from here.
+  const hudRef = useRef<HTMLDivElement>(null);
+  useMeterTrails(hudRef);
   const plateAt = enemyBox ?? {
     mid: enemyHome.inset + enemyStep.inset + 0.07,
     foot: enemyHome.bottom + enemyStep.bottom,
@@ -590,6 +594,7 @@ export function BattleStage({
 
   return (
     <div
+      ref={hudRef}
       className="screen bp-screen bp-field"
       data-testid={testId}
       data-stagecraft={stagecraft}
@@ -763,6 +768,7 @@ export function BattleStage({
           ref={plateRef}
           className={enemyBox?.beside !== undefined ? 'bx-enemy-plate beside' : 'bx-enemy-plate'}
           data-testid="bp-enemy-hp"
+          data-boss={boss && opponent.boss ? 'yes' : undefined}
           data-place={enemyBox?.beside !== undefined ? 'beside' : 'under'}
           style={{
             left: `${(enemyBox?.beside ?? plateAt.mid) * 100}%`,

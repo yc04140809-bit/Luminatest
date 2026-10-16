@@ -177,10 +177,27 @@ function Bar({ value, max, kind }: { value: number; max: number; kind: 'hp' | 'm
   const share = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   return (
     <div className={`pb-bar ${kind}`} aria-hidden="true">
+      {/* HP's red trail (作者 2026-10-16): stays a moment where it was, then follows the fill down. */}
+      {kind === 'hp' && <div className="pb-bar-trail" style={{ width: `${share * 100}%` }} />}
       <div className="pb-bar-fill" style={{ width: `${share * 100}%` }} />
     </div>
   );
 }
+
+/**
+ * BREAK's breaking crystal (作者 2026-10-16): where each piece of the sheet's crystal flies as the
+ * plate behind 「BREAK!!」 splits — direction (px), turn (deg), which piece. Fixed, so it is the same
+ * every time.
+ */
+const BREAK_SHARDS: readonly { dx: number; dy: number; rot: number; spark?: boolean }[] = [
+  { dx: -150, dy: -60, rot: -140 },
+  { dx: -110, dy: 55, rot: 120, spark: true },
+  { dx: -60, dy: -85, rot: -60, spark: true },
+  { dx: 70, dy: -80, rot: 90 },
+  { dx: 140, dy: -35, rot: 160, spark: true },
+  { dx: 120, dy: 65, rot: -110 },
+  { dx: 20, dy: 90, rot: 45, spark: true },
+];
 
 /** A skill's wait, in the list: 「あとNT」 while it cools down; nothing when it is ready. */
 function Wait({ left }: { left: number }) {
@@ -481,13 +498,23 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         )}
         {last?.broke && (
           <span key={`b${lastKey}`} className="pb-break-flash" data-testid="pb-break-flash" aria-hidden="true">
-            BREAK!!
+            {/* The crystal plate behind the word cracks in two, its pieces flying (the sheet's own crystal). */}
+            <span className="pb-break-plate half-a" />
+            <span className="pb-break-plate half-b" />
+            {BREAK_SHARDS.map((k, i) => (
+              <i
+                key={i}
+                className={`pb-shard${k.spark ? ' spark' : ''}`}
+                style={{ ['--dx' as string]: `${k.dx}px`, ['--dy' as string]: `${k.dy}px`, ['--rot' as string]: `${k.rot}deg` }}
+              />
+            ))}
+            <b className="pb-break-word">BREAK!!</b>
           </span>
         )}
       </div>
 
       {/* TOP LEFT — the creature: name, HP, BREAK, together. */}
-      <div className="pb-enemy-plate" data-testid="pb-enemy-plate" data-focus={focused.id}>
+      <div className="pb-enemy-plate" data-testid="pb-enemy-plate" data-focus={focused.id} data-boss={focused.boss ? 'yes' : undefined}>
         <span className="pb-enemy-name">{focused.name}</span>
         <span className="pb-num" data-testid="pb-enemy-hp" data-hp={focused.hp}>
           {focused.hp}/{focused.maxHp}
@@ -709,6 +736,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               key={m.id}
               className={`pb-member${actor === m.id ? ' acting' : ''}${m.down ? ' down' : ''}${menu === 'TARGET' && !m.down ? ' aimable' : ''}`}
               data-testid={`pb-member-${m.id}`}
+              data-actor={m.id}
               data-hp={m.hp}
               data-max={m.maxHp}
               data-down={m.down ? 'yes' : 'no'}

@@ -329,13 +329,14 @@
 .bp-field .bp-cmd-plate::before,
 .bp-field .bp-cmd-plate::after { content: ''; position: absolute; pointer-events: none; }
 .bp-field .bp-cmd-plate::before {
-  inset: 12% 14%;
+  inset: 12% 21%;
   background: linear-gradient(180deg, rgba(14, 24, 58, 0.92), rgba(5, 10, 28, 0.95));
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
 .bp-field .bp-cmd-plate::after {
   inset: 0;
-  background: var(--sk-frameDiamond-normal, var(--ui-diamond)) center / 100% 100% no-repeat;
+  /* At its own shape (contain): the frame is never stretched to the square it sits in. */
+  background: var(--sk-frameDiamond-normal, var(--ui-diamond)) center / contain no-repeat;
 }
 /* The word and mark over the frame, never under its tips — and outlined dark, so a word reaching the
    frame's bright edge still reads (アイテム / アルカナ are as wide as the diamond's middle). */
@@ -380,4 +381,86 @@
 @keyframes mz-sheen { from { background-position: -120% 0; } to { background-position: 220% 0; } }
 @media (prefers-reduced-motion: reduce) {
   .bp-field .bp-cmd.open { transform: none; }
+}
+
+/* ==== 戦闘UI 5項目 (作者 2026-10-16: 残像・BREAK・TURN ORDER の段階・ボスの重いプレート・キャラ差し色) ====
+   The shapes are still the sheet's; these add only a colour, a line, a faint light. BREAK is the
+   party fight's (partyBattle.css). */
+
+/* 1. HP の赤い残像: the track keeps `--trail` (meterTrail.ts); when the fill drops, this stays a
+      moment where it was, then follows it down. Under the fill, so it shows only what was lost. */
+.bp-field .bx-meter.hp .bx-meter-track::before,
+.bp-field .bx-meter.enemy-hp .bx-meter-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, #ffd9cc, #ff6a52);
+  opacity: 0.9;
+  clip-path: inset(0 calc(100% - var(--trail, 100%)) 0 0);
+  transition: clip-path 0.55s ease-out 0.38s;
+}
+/* The ring's HP in the HP colour, its trail a ring under it. */
+.bp-field .bx-ring-lit.hp { stroke: #ef5a48; filter: drop-shadow(0 0 2px rgba(239, 90, 72, 0.55)); }
+.bp-field .bx-ring-trail.hp {
+  fill: none;
+  stroke: #ffd2c4;
+  stroke-width: 2.4;
+  opacity: 0.85;
+  transition: stroke-dasharray 0.55s ease-out 0.38s;
+}
+
+/* 3. TURN ORDER: who acts in full light (a sheen passes once); the next a little darker; then darker. */
+.bp-field .bx-turn.acting ~ .bx-turn { opacity: 0.5; }
+.bp-field .bx-turn.acting ~ .bx-turn .bx-face-art { filter: brightness(0.78) saturate(0.7); }
+.bp-field .bx-turn.acting + .bx-turn + .bx-turn { opacity: 0.68; }
+.bp-field .bx-turn.acting + .bx-turn + .bx-turn .bx-face-art { filter: brightness(0.86) saturate(0.8); }
+.bp-field .bx-turn.acting + .bx-turn { opacity: 0.88; }
+.bp-field .bx-turn.acting + .bx-turn .bx-face-art { filter: brightness(0.95) saturate(0.92); }
+.bp-field .bx-turn.acting .bx-face::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 35%, rgba(255, 255, 255, 0.6) 50%, rgba(190, 220, 255, 0.35) 56%, transparent 68%) 0 0 / 300% 100% no-repeat;
+  animation: mz-sheen-once 0.55s ease-out 0.05s 1 both;
+}
+@keyframes mz-sheen-once { from { background-position: 100% 0; opacity: 1; } to { background-position: 0 0; opacity: 0; } }
+
+/* 4. A boss's plate: the same plate drawn heavier, black and gold inside, a hairline of red. */
+.bp-field .bx-enemy-plate[data-boss] {
+  border-width: 16px 26px;
+  border-image-width: 16px 26px;
+  isolation: isolate;
+  filter: drop-shadow(0 0 6px rgba(226, 70, 56, 0.32));
+}
+/* Over the plate's own inside, under the words: black and gold, and the red hairline round it. */
+.bp-field .bx-enemy-plate[data-boss]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(58, 42, 12, 0.55), rgba(8, 6, 2, 0.6));
+  border: 1px solid rgba(232, 78, 62, 0.75);
+  box-shadow: inset 0 0 6px rgba(232, 78, 62, 0.35), inset 0 1px 0 rgba(242, 208, 128, 0.45);
+}
+
+/* 5. Each one's own colour — only the frame's light (UI統一指示書 §12): the shape is everyone's. */
+.bp-field [data-actor='hero'], .bp-field [data-testid='bx-member-hero'] { --acc: #e0343f; --acc-2: #1a0608; }
+.bp-field [data-actor='kaos'], .bp-field [data-testid='bx-member-kaos'] { --acc: #eef2ff; --acc-2: #c9a24a; }
+.bp-field [data-actor='grave'] { --acc: #4f86e8; --acc-2: #d9b44a; }
+.bp-field [data-actor='aria'] { --acc: #34c8b6; --acc-2: #ffffff; }
+.bp-field [data-actor='levi'] { --acc: #c9a24a; --acc-2: #3f6fe0; }
+.bp-field .bx-turn[data-actor] .bx-face-frame,
+.bp-field .bx-member[data-testid] .bx-face-frame {
+  filter: drop-shadow(0 0 0.6px var(--acc-2, transparent)) drop-shadow(0 0 2px var(--acc, transparent));
+}
+.bp-field .bx-turn.acting[data-actor] .bx-face-frame {
+  filter: drop-shadow(0 0 0.8px var(--acc-2, transparent)) drop-shadow(0 0 4px var(--acc, var(--mz-glow))) brightness(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-field .bx-turn.acting .bx-face::before { animation: none; opacity: 0; }
+  .bp-field .bx-meter-track::before, .bp-field .bx-ring-trail.hp { transition: none; }
 }
