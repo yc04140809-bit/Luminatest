@@ -1,7 +1,8 @@
 # ガルド初回イベント 5ルート正式仕様 Ver.1.0（作者、2026-10-16）
 
-> 状態：**仕様の登録のみ。未実装。** 実装はパン屋ルートのみ（PoC）、着手前にパン屋ルート例外の
-> 具体的な条件・EventRule を作者に確認してから（下の「実装前に確認すること」）。
+> 状態：**仕様の登録のみ。未実装。** 作業順（作者 2026-10-16）：①ステータス画面の実機確認 ②2人会話レイアウト ③戦闘UIの未実装5項目
+> ④他画面へのクリスタルUI展開 ⑤**ガルド「パン屋ルート」PoC** ⑥5ルート全体の実装。UI 改善と本編を一度に大きく触らず、作業単位ごとにテスト・push。
+> 関連：`docs/NPC_CHARACTER_BASE.md`・`docs/WORLD_MEMORY_SYSTEM.md`・`docs/HIDDEN_SEED_SYSTEM.md`。
 
 ## 目的
 
@@ -134,11 +135,104 @@ NPC はプレイヤーの選択結果を見せるためだけの存在ではな�
   パン屋ルートの例外は **別の ID / EventRule** でのみ、かつ「治療する」を選び・パン屋ルートに入り・必要な WORLD MEMORY / 関係 / ルートの状態が揃った時だけ。
 - 共通のリナの場面は書き換えない。リナの将来を固定しない。治療所ルートや他ルートに流用しない。
 
-## 実装前に確認すること（作者確認待ち）
+## パン屋ルート PoC の範囲（作者決定、2026-10-16）
 
-パン屋ルート例外の具体的な条件と EventRule：
+- 5ルート全体の本実装はまだ開始しない。「治療する」から派生するパン屋ルートのみを PoC として先行検証する。
+- 今回実装する範囲：**ガルド → リナを助ける → リゼルがガルドを見る目を変える → ガルドの妹エルナの事情を知る → その後の人生連鎖**、という因果連鎖のみ。
+- 治療所ルートを含む他4ルートは補完・実装しない。パン屋ルートと治療所ルートの最終的な分岐条件も、5ルート本実装時に改めて決める。
+- **エルナ**はパン屋ルートの因果連鎖に必要なので登場対象。**バルドは今回の PoC に関係させない**（実行フロー STEP A7〜A8 のバルド・商会の部分は PoC に入れない）。
+- 既存の WorldMemory／NpcState／Relationship／HiddenSeed／LifeTick／EventRule の構造を可能な限り維持する（このリポジトリでは `core/life` の人生エンジン、`docs/WORLD_LIFE_LINK_DESIGN.md`）。
 
-1. パン屋ルート / 治療所ルートを分ける「世界の因果」は何で決まるか（例：負傷時にリナが居合わせたか、リゼルの治療の場所、日数）。
-2. 例外の場面（リナがガルドを父へ紹介する等）が起きる条件：必要な WORLD MEMORY・関係値・経過日数。
-3. 例外の場面の ID と一覧（どの場面を何本、どの順に）。
-4. エルナ・バルド（商会の支援）をこの PoC で登場させるか、名前だけ触れるか。
+### PoC 着手時に確かめること
+
+1. PoC では「治療する」の後をパン屋ルートに入れる（治療所ルートは作らない）——その入り方（最終的な分岐条件ではない、PoC 用の入口）。
+2. バルドを使わずに、エルナの事情を知った後の「その後の人生連鎖」をどこまで見せるか（例：リナの父の働き口・ガルドが働き始める・3年後の一場面）。
+3. リナ例外の場面の ID と本数（共通のリナの場面は書き換えない）。
+
+---
+
+## WORLD MEMORY 実行フロー Ver.1.0（作者、2026-10-16）
+
+初回選択は「5種類のエンディング」ではなく、世界に最初の状態変化を起こす「分岐点」。
+選択 → WORLD MEMORY 更新 → NPC ごとの認識・感情変化 → 新しいイベント条件成立 → NPC 自身が次の選択 → 別の NPC へ影響 → NEW SEED 発生 → 時間経過 → さらに人生が変化。これを5ルート共通構造とする。
+
+### 共通スタート地点
+
+対象 NPC：ガルド・リゼル・リナ・バルド・エルナ・衛兵・リナの父。
+初期 WORLD FACT：GARDO_IS_THIEF／ELNA_IS_SICK／GARDO_STEALS_FOR_ELNA ＝ true、RIZEL・LINA・BALDO・GUARD_KNOWS_GARDO_REASON ＝ false。
+初期状態例：ガルド alive・guilt 高・hope 低・村への信頼 低／リゼル THIEF_EQUALS_EVIL 高／リナ→ガルドの信頼 0／バルド 剣の種 DORMANT／エルナ 重い病状／衛兵→ガルドの疑い 高。
+
+### 初回選択
+
+PLAYER_CHOICE：GARDO_FIRST_DECISION。A 助ける（パン屋方向）／B 治療所方向／C 捕縛／D 見逃す・追放／E とどめを刺す。確定した選択は通常操作では変更不可（locked）。
+
+### ROUTE A パン屋ルート（テーマ：相手を知ることで、見え方は変わる）
+
+- **A1** ガルド生存。GARDO_FIRST_DECISION ＝ MERCY_OR_SUPPORT、ACTIVE_SEED ＋ GARDO_SECOND_CHANCE。
+- **A2** 後日、森でリナが魔物に襲われる（条件：ガルド・リナ生存、GARDO_SECOND_CHANCE）。EVENT GARDO_SAVES_LINA：FACT GARDO_SAVED_LINA、リナ→ガルド trust↑↑↑ affection↑ fear↓↓、
+  リゼルの MEMORY SAW_GARDO_SAVE_LINA、BELIEF THIEF_EQUALS_EVIL↓・PEOPLE_ARE_COMPLEX↑。NEW SEED：RIZEL_QUESTIONS_GARDO／LINA_WANTS_TO_REPAY_GARDO。
+- **A3** ガルド負傷、リゼルが治療（RIZEL_TREATS_GARDO）：リゼル→ガルド understanding↑ suspicion↓、ガルド→リゼル trust↑。この時点でリゼルはガルドを完全には信用しない。
+- **A4** リナ「お父さんに会ってほしい」。NEW SEED：GARDO_MEETS_BAKER。
+- **A5** リナの父とガルドが会う。ガルドがエルナについて話す。FACT OPEN：GARDO_STEALS_FOR_ELNA（リナ・リゼル・パン屋が知る）。
+  リゼルの MEMORY GARDO_REASON_REVEALED、BELIEF THIEF_EQUALS_EVIL↓↓・UNDERSTANDING_BEFORE_JUDGMENT↑。
+- **A6** リナの父：治療費全額は出せないが「ここで働くなら給料を多めに出す」。プレイヤーではなく**ガルド自身が選択**（ACCEPT_WORK、成立条件：hope ＞ 最低値、エルナに金が要る）。
+  結果：occupation BAKERY_WORKER、location ALDEN_VILLAGE。NEW SEED：GARDO_WORKS_BAKERY／VILLAGE_SEES_GARDO_WORK／GARDO_REDEMPTION_PROCESS。
+- **A7** リゼルがバルドへ話す ／ **A8** バルドが家族へ相談（自動的に金を出さない。バルド自身が初めて自分の意志で提案）→ 治療費前貸し・一部支援・治療先紹介 → NEW SEED ELNA_TREATMENT。
+  **（今回の PoC には入れない：作者 2026-10-16）**
+- **A9** エルナ治療。成功時 health RECOVERING。NEW SEED：ELNA_MOVES_TO_ALDEN／ELNA_MEETS_LINA／ELNA_NEW_LIFE。
+- **A10** エルナとリナが出会う。リナ↔エルナ friendship↑。14歳同士の新しい人生が始まる。
+
+### ROUTE B 治療所ルート（テーマ：人間性は、言葉より行動に現れる）— 今回は実装しない
+
+B1 負傷・治療所へ（GARDO_CLINIC_STAY）／B2 治療所の雑務を自主的に手伝う（荷物運び・水汲み・患者搬送・修理・危険な作業・子供の世話。善人アピールをしない）、村人の信頼がゆっくり上がる／
+B3 リゼルの違和感「盗賊なのに、なぜここまで人を助ける？」（RIZEL_INVESTIGATES_GARDO）／B4 背景判明（ガルドは簡単には話したがらない。誇り・恥・罪悪感で会話が変わる）／
+B5 村人側から「妹を助けたい」が自然に生まれる（主人公が命令しない。VILLAGE_TRUST_GARDO と KNOWN_ELNA_SICK が閾値以上 → COMMUNITY_SUPPORT_ELNA）／
+B6 エルナ治療、回復後に治療所を訪れる（ELNA_HELPS_CLINIC）／B7 エルナが患者の変化に異常に早く気付く → ELNA_HEALING_CARE DORMANT → NOTICED（治療師確定ではない）→ RIZEL_TEACHES_ELNA。
+
+### ROUTE C 捕縛・衛兵ルート（テーマ：過去と、次に何を選ぶかは別）— 今回は実装しない
+
+C1 捕縛（DETAINED、衛兵→ガルド trust 極低・suspicion 極高）／C2 監視・移送・労役の期間、少しずつ会話（まだ仲良くならない）／C3 リナが魔物の群れに襲われ、衛兵が救援するが苦戦／
+C4 ガルドに逃走機会（ESCAPE／HELP／HESITATE をガルド自身が判断。人格条件が成立していれば HELP）／C5 共闘（GARDO_COULD_HAVE_ESCAPED、GARDO_CHOSE_TO_HELP、衛兵 trust↑↑↑ respect↑↑ suspicion↓↓）／
+C6 衛兵は罪を帳消しにしない（CRIME_MUST_BE_JUDGED は残る、GARDO_IS_ONLY_A_CRIMINAL↓——この矛盾を保持）／C7 リナも感謝。NEW SEED：GUARD_GARDO_BOND／GARDO_EARNS_REDUCED_RESTRICTION／LINA_GARDO_CONNECTION。
+将来、村襲撃で、かつて自分を捕らえた衛兵と背中合わせで戦う（長時間後の BLOOM）。
+
+### ROUTE D 見逃し／追放ルート（テーマ：誰も見ていなくても、人は選ぶ）— 今回は実装しない
+
+D1 殺さない・捕まえない・村にも残さない（OUTSIDE_ALDEN、WANDERING、GARDO_ALONE）／D2 しばらく本編から消える（WORLD MEMORY 上では人生が続いている）／
+D3 別地域で商会の馬車が襲われる（盗賊・魔物・元盗賊仲間）／D4 誰も監視していない中でガルド自身が選ぶ（無視・奪う側へ戻る・助ける。正式主要パターンは助ける）／
+D5 商会側と接点（GARDO_SAVED_MERCHANTS、GARDO_BALDO_CONNECTION、MERCHANTS_OWE_GARDO）／D6 「なぜそこまで金が必要なんだ？」からエルナの存在へ。このルートでは、リゼルが最初にガルドの人生を動かしていない。
+
+### ROUTE E とどめを刺す／死亡ルート（テーマ：その人が死んでも、生きた影響は消えない）— 今回は実装しない
+
+E1 GARDO_KILLED_BY_PLAYER（BAD END 表示なし。事実を記録）／E2 遺品（妹からの手紙・薬・治療費のメモ・少額の金・妹のための品）で背景が判明／
+E3 リゼルが知る（LEARNS_TRUTH_AFTER_GARDO_DEATH、THIEF_EQUALS_EVIL↓↓・JUDGE_ONLY_WHAT_I_SEE↓・UNDERSTAND_BEFORE_JUDGMENT↑↑、regret・confusion・sadness）／
+E4 エルナ探索（FIND_ELNA。リゼル・バルド・リナ・衛兵・村人が動く）／E5 エルナ発見。兄の死をいつ知るかもイベント（grief・guilt・love・anger を同時に）／
+E6 周囲がエルナを治療（「ガルドを殺したから妹も死ぬ」という単純な罰にはしない。ガルドはその姿を見ることがない）／E7 3年後 TIME SHIFT：ガルドの墓のみ（供え物が一つある程度。他 NPC の未来は説明しない）。
+LEGACY SEEDS：ELNA_NEW_LIFE／RIZEL_CHANGED_WORLDVIEW／GARDO_GRAVE／VILLAGE_MEMORY_OF_GARDO／E8 現在へ帰還後も人生の連鎖は続く。
+
+### 3年後 TIME SHIFT（5ルート共通方針）
+
+TIME SHIFT は「未来の正解発表」ではない。「選択のあとにも人生がある」ことを体験させる。
+パン屋：パン屋で働くガルドなど人生の一場面／治療所：人を助けるガルド・治療所との関係／捕縛：衛兵との関係変化を示す一場面／見逃し：村外で生きるガルド／死亡：墓のみ。全ルートとも「3年後 END」ではない。
+
+### 共通する人物でも人生を同一化しない／CAUSAL LINK
+
+同じ「エルナ治療成功」でも原因が違う（A：バルド・商会経由／B：村・治療所経由／C：衛兵・リナ等の関係から別支援／D：商会との直接関係／E：亡きガルドの意思を知った周囲の人物たち）。
+だからその後の人間関係も違う。WORLD MEMORY に残る歴史が違う（例 A：GARDO_SAVED_LINA → LINA_INTRODUCED_BAKER → RIZEL_LEARNED_TRUTH → RIZEL_TOLD_BALDO → BALDO_TOLD_FAMILY → MERCHANT_SUPPORT → ELNA_TREATMENT）。
+
+### 後の村襲撃への接続
+
+村襲撃はガルド編の重要な BLOOM イベント候補。パン屋：リナ一家を守る／治療所：負傷者搬送・治療所防衛／捕縛：衛兵と共闘／見逃し：村へ戻ってくる可能性／死亡：ガルド不在だが、変化した人物が穴を埋める
+（バルドがリゼルを守る、リゼルが治癒へ覚醒、エルナが治療補助、リナが村人同士を繋ぐ）。過去の小さな SEED が一斉に BLOOM する。
+
+### 実装時に避けること
+
+選択A＝固定未来A／好感度だけですべて決定／死亡＝BAD END／才能開花＝GOOD END／NPC が主人公の命令だけで行動／3年後をエンディング扱い／全部の因果をプレイヤーへ説明／正解を UI で表示。
+
+### TIGS 用最小完成形
+
+ガルド初回選択 → WORLD MEMORY 保存 → 1ルートを高品質で試遊可能 → TIME SHIFT → 3年後 → 別 NPC への影響を確認できる。
+展示資料で「この最初の選択だけでも5つの人生方向が存在する」ことを紹介。試遊者へ「5種類の結末があります」とは言わない。伝えるのは「あなたが見たのは、この人の人生の一つの可能性です。」
+
+ガルドを救うゲームではない。ガルドを殺さないゲームでもない。ガルドという一人の人間との出会いが、周囲の人生をどう変えていくのかを見るゲーム。
+プレイヤーが作るのは答えではない。可能性。その可能性から、NPC 自身がまた選ぶ。攻略できるのは戦闘。人生は攻略できない。
