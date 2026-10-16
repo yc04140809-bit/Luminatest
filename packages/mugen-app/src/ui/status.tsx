@@ -30,6 +30,9 @@ import { isPortraitKey, portraitArt, statusVisualArt } from '../assets/portraits
 import { PortraitZoom, ZoomButton } from './common/PortraitZoom';
 import { NewBadge } from './common/NewBadge';
 import { newEquipmentIds } from './equipment';
+import { CrystalButton, CrystalFrame, CrystalHeader, CrystalIconFrame, CrystalListRow, CrystalPanel, CrystalTab } from './kit/Crystal';
+import { CharacterArt } from './art/CharacterArt';
+import { battlePartyArt, type BattlePartyId } from './battle/battleArt';
 
 /**
  * THE STATUS SCREEN — built to the author's two reference images.
@@ -92,11 +95,13 @@ function SkillList({ world, characterId }: { world: World; characterId: string }
       {skills.map((skill) => {
         const shown = open === skill.id;
         return (
-          <button
+          <CrystalListRow
             key={skill.id}
+            press
+            selected={shown}
             className={`st-skill${shown ? ' open' : ''}`}
-            data-testid={`status-skill-${skill.id}`}
-            aria-expanded={shown}
+            testId={`status-skill-${skill.id}`}
+            attrs={{ 'aria-expanded': shown }}
             onClick={() => {
               setOpen((now) => (now === skill.id ? null : skill.id));
               void world.markRead([skillMark(skill.id)]).catch(() => {});
@@ -112,7 +117,7 @@ function SkillList({ world, characterId }: { world: World; characterId: string }
                 <span data-testid={`status-skill-${skill.id}-reuse`}>再使用：{skillReuseText(skill)}</span>
               </span>
             )}
-          </button>
+          </CrystalListRow>
         );
       })}
     </div>
@@ -123,6 +128,22 @@ interface Row {
   key: string;
   label: string;
   value: string;
+}
+
+/** Whose tab it is, at a glance: their face in the sheet's small square frame (キャラクターアイコン). */
+function TabFace({ id, label }: { id: string; label: string }) {
+  let art;
+  try {
+    art = battlePartyArt(id as BattlePartyId, 'battle_idle');
+  } catch {
+    return null;
+  }
+  if (!art || art.placeholder || !art.asset) return null;
+  return (
+    <CrystalIconFrame shape="square" size={26} className="st-tab-face">
+      <CharacterArt art={art} height={18} className="st-tab-face-art" label={label} bust />
+    </CrystalIconFrame>
+  );
 }
 
 export function StatusScreen({ world, onBack, onEquipment }: Props) {
@@ -201,15 +222,15 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
   /** A page of the foot's own: the one open is marked, the others are doors. */
   const page = (id: 'STATUS' | 'PROFILE' | 'SKILLS', label: string, testId: string, badge?: React.ReactNode) =>
     view === id ? (
-      <span className="st-nav-item on" aria-current="page" data-testid={testId}>
+      <CrystalTab as="span" selected className="st-nav-item on" attrs={{ 'aria-current': 'page' }} testId={testId}>
         {label}
         {badge}
-      </span>
+      </CrystalTab>
     ) : (
-      <button className="st-nav-item live" data-testid={testId} onClick={() => setView(id)}>
+      <CrystalTab as="button" className="st-nav-item live" testId={testId} onClick={() => setView(id)}>
         {label}
         {badge}
-      </button>
+      </CrystalTab>
     );
 
   return (
@@ -219,6 +240,8 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
           stays big; what falls below the screen is the lower legs. */}
       <div className="st-visual" aria-hidden="true">
         {picture && <img src={picture} alt="" data-testid={`status-portrait-${who.id}`} />}
+        {/* 大きい縦長フレーム: the sheet's tall frame round her, a border only. */}
+        <CrystalFrame className="st-frame" />
       </div>
       {picture && <ZoomButton testId="status-zoom" label={`${who.label}の立ち絵を拡大`} onClick={() => setZoomed(true)} />}
       {zoomed && picture && <PortraitZoom src={picture} name={who.label} onClose={() => setZoomed(false)} />}
@@ -232,16 +255,18 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
         {party.length > 1 && (
           <div className="st-tabs" role="tablist">
             {party.map((member, i) => (
-              <button
+              <CrystalTab
+                as="button"
                 className={i === at ? 'st-tab on' : 'st-tab'}
                 key={member.id}
-                role="tab"
-                aria-selected={i === at}
-                data-testid={`status-tab-${member.id}`}
+                selected={i === at}
+                attrs={{ role: 'tab', 'aria-selected': i === at }}
+                testId={`status-tab-${member.id}`}
                 onClick={() => setAt(i)}
               >
-                {member.label}
-              </button>
+                <TabFace id={member.id} label={member.label} />
+                <span className="st-tab-name">{member.label}</span>
+              </CrystalTab>
             ))}
           </div>
         )}
@@ -249,7 +274,7 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
 
       <div className="st-body">
         <div className="st-info st-scroll" data-testid="status-scroll">
-          <p className="st-name" data-testid="status-name">
+          <CrystalHeader as="p" className="st-name" testId="status-name">
             <b
               data-testid="status-name-text"
               style={nameScale < 1 ? { fontSize: `${(nameScale * 100).toFixed(0)}%` } : undefined}
@@ -257,25 +282,25 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
               {who.label}
             </b>
             {says && <i>{says.roman}</i>}
-          </p>
+          </CrystalHeader>
           {says?.epithet && (
             <p className="st-epithet" data-testid="status-epithet">
               {says.epithet}
             </p>
           )}
           {view === 'SKILLS' ? (
-            <>
+            <CrystalPanel as="div" className="st-panel">
               <p className="st-skills-head">スキル</p>
               <SkillList key={who.id} world={world} characterId={who.id} />
-            </>
+            </CrystalPanel>
           ) : view === 'PROFILE' ? (
-            <div className="st-prose" data-testid="status-profile">
+            <CrystalPanel as="div" className="st-prose st-panel" testId="status-profile">
               {says?.quote && <p className="st-quote">{says.quote}</p>}
               {says?.intro && <p className="st-intro">{says.intro}</p>}
               {says?.styleNote && <p className="st-style-note">{says.styleNote}</p>}
-            </div>
+            </CrystalPanel>
           ) : (
-            <>
+            <CrystalPanel as="div" className="st-panel">
               {/* Their own short line (作者指示 §6): one per character, from the data. */}
               {says?.quote && (
                 <p className="st-quote st-one-line" data-testid="status-quote">
@@ -296,34 +321,34 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
 
               <dl className="st-rows st-six">
                 {rows.map((row) => (
-                  <div className="st-row" key={row.key}>
+                  <CrystalListRow className="st-row" key={row.key}>
                     <dt>{row.label}</dt>
                     <dd data-testid={`status-${row.key}`}>{row.value}</dd>
-                  </div>
+                  </CrystalListRow>
                 ))}
               </dl>
 
               <div className="st-marks">
                 {equippedWeapon && (
-                  <div className="st-mark">
+                  <CrystalListRow className="st-mark">
                     <span>装備</span>
                     <b data-testid="status-equipped">{equippedWeapon.name}</b>
-                  </div>
+                  </CrystalListRow>
                 )}
                 {profile && (
                   <>
-                    <div className="st-mark">
+                    <CrystalListRow className="st-mark">
                       <span>武器種</span>
                       <b data-testid="status-weapon">{weaponLabelOf(profile)}</b>
-                    </div>
-                    <div className="st-mark">
+                    </CrystalListRow>
+                    <CrystalListRow className="st-mark">
                       <span>戦闘スタイル</span>
                       <b data-testid="status-style">{battleStyleLabelOf(profile)}</b>
-                    </div>
+                    </CrystalListRow>
                   </>
                 )}
               </div>
-            </>
+            </CrystalPanel>
           )}
         </div>
       </div>
@@ -331,27 +356,27 @@ export function StatusScreen({ world, onBack, onEquipment }: Props) {
       {/* THE FOOT: the way out, and the pages of them. Laid out BELOW the
           column, never over it (the column scrolls to its last line above it). */}
       <div className="st-foot">
-        <button className="st-back" data-testid="status-back" onClick={onBack}>
-          もどる
-        </button>
+        <CrystalButton kind="back" className="st-back" testId="status-back" onClick={onBack} label="もどる" />
         <nav className="st-nav" aria-label="ステータス">
           {page('STATUS', 'ステータス', 'status-to-status')}
           {page('PROFILE', 'プロフィール', 'status-to-profile')}
-          <button className="st-nav-item live" data-testid="status-to-equipment" onClick={onEquipment}>
+          <CrystalTab as="button" className="st-nav-item live" testId="status-to-equipment" onClick={onEquipment}>
             装備
             <NewBadge show={newEquipmentIds(world).length > 0} testId="status-equipment-new" />
-          </button>
+          </CrystalTab>
           {page('SKILLS', 'スキル', 'status-to-skills', <NewBadge show={unreadSkills(world)} testId="status-skills-new" />)}
           {/* NOT BUTTONS: named, never offered, until they exist. */}
           {(['ストーリー', 'スキン'] as const).map((label) => (
-            <span
+            <CrystalTab
+              as="span"
+              dim
               className="st-nav-item soon"
               key={label}
-              aria-disabled="true"
-              data-testid={label === 'ストーリー' ? `status-menu-soon-${label}` : `status-detail-soon-${label}`}
+              attrs={{ 'aria-disabled': 'true' }}
+              testId={label === 'ストーリー' ? `status-menu-soon-${label}` : `status-detail-soon-${label}`}
             >
               {label}
-            </span>
+            </CrystalTab>
           ))}
         </nav>
       </div>

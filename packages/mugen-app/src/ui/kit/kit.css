@@ -62,6 +62,18 @@
 .kit:not([data-skinned])[data-selected] { border-color: #fff; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6); }
 .kit-button[data-dim] .kit-words, .kit-button[data-dim] .kit-icon { opacity: 0.5; }
 
+/* CHOSEN, the same everywhere (UI統一指示書 §22): a faint pale-blue light round the edge. */
+.kit[data-skinned][data-selected] {
+  filter: drop-shadow(0 0 3px rgba(180, 216, 255, 0.85)) brightness(1.08);
+}
+/* PRESSED (§23): sinks a little, for a moment. */
+.kit-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .kit-button:active:not(:disabled) { transform: none; }
+}
+
 /* A frame. */
 .kit-panel { display: block; text-align: left; }
 

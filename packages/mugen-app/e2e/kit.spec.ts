@@ -65,3 +65,56 @@ test('the village uses the parts: none of its words cut at 640×300', async ({ p
   await expect(page.locator('[data-kit="placeLabel"]')).toHaveCount(10);
   expect(await noneCut(page)).toEqual([]);
 });
+
+/** Every piece of text inside a part lies inside it (measured on the words themselves), and none is ellipsised. */
+async function wordsInsideParts(page: Page, scope: string) {
+  return page.evaluate((sel) => {
+    const bad: string[] = [];
+    for (const part of Array.from(document.querySelectorAll<HTMLElement>(`${sel} .kit`))) {
+      if (getComputedStyle(part).display === 'none') continue;
+      const b = part.getBoundingClientRect();
+      const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const text = (n.textContent ?? '').trim();
+        if (!text) continue;
+        const r = document.createRange();
+        r.selectNodeContents(n);
+        const a = r.getBoundingClientRect();
+        if (a.width === 0) continue;
+        if (a.left < b.left - 1 || a.right > b.right + 1 || a.top < b.top - 1 || a.bottom > b.bottom + 1) bad.push(`outside its part: ${text}`);
+        if (getComputedStyle(n.parentElement!).textOverflow === 'ellipsis') bad.push(`ellipsis: ${text}`);
+      }
+    }
+    return bad;
+  }, scope);
+}
+
+test('the status screen uses the crystal parts: none of its words cut, on every page, at 844×390 and 640×300', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto('/');
+  await page.evaluate(async () => {
+    await Promise.all(((await indexedDB.databases?.()) ?? []).map((d) => new Promise((r) => { if (!d.name) return r(null); const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = () => r(null); })));
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('opening-debug-skip').click();
+  await page.getByTestId('naming-default').click();
+  await expect(page.getByTestId('village-screen')).toBeVisible();
+  await page.getByTestId('status-button').click();
+  await expect(page.getByTestId('status-screen')).toBeVisible();
+  // The parts are the delivered ones: the frame round her, the panel, the rows, the buttons.
+  await expect(page.locator('.status-screen .crystal-frame')).toHaveCount(1);
+  await expect(page.locator('.status-screen [data-kit="panel"]')).toHaveCount(1);
+  await expect(page.locator('.status-screen [data-kit="listRow"]').first()).toBeVisible();
+  for (const [w, h] of [[844, 390], [640, 300]] as const) {
+    await page.setViewportSize({ width: w, height: h });
+    for (const to of ['status-to-status', 'status-to-profile', 'status-to-skills']) {
+      await page.getByTestId(to).click();
+      expect(await wordsInsideParts(page, '.status-screen'), `${w}×${h} ${to}`).toEqual([]);
+    }
+    await page.getByTestId('status-tab-kaos').click();
+    await page.getByTestId('status-to-status').click();
+    expect(await wordsInsideParts(page, '.status-screen'), `${w}×${h} kaos`).toEqual([]);
+    await page.getByTestId('status-tab-hero').click();
+  }
+});

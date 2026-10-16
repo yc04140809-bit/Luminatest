@@ -39,7 +39,7 @@ Claude Code 側では新しい形や装飾を作らない。部品は「素材�
   下部5ボタン＝上段4つ（通常・hover・押下・無効）、施設ラベル＝2段目（通常・選択中・無効）、
   汎用パネル＝3段目の大、次の目的＝3段目の中、一覧行＝4〜6段目（通常・選択中・無効）、
   決定／戻る＝左下3つ（通常・hover・無効）、左会話パネル＝左の大きい枠を帯の下で上下2枚に分けたもの。
-- 右下の小さな枠（四角・丸・ひし形）と飾りはまだ使っていない（アイコン枠などの用途が決まったら）。
+- 右下の小さな枠（四角・丸・ひし形）は戦闘画面とアイコン枠で使用。左の大きい縦長枠は丸ごと `frameTall` としても切り出した（立ち絵の枠）。右下の飾りはまだ使っていない。
 
 ## 使っている画面
 
@@ -48,7 +48,31 @@ Claude Code 側では新しい形や装飾を作らない。部品は「素材�
   App の `ui/battle/battle.app.css` だけで素材に差し替えた（`--sk-*` 変数、`kitRootVars`、`main.tsx` で配る）。
   敵HP・パーティ・WORLD MEMORY・TURN ORDER の台＝汎用パネル、メッセージ・場所名＝施設ラベル型、TURN ORDER の顔＝四角枠、
   コマンド＝ひし形枠（内側に暗い下地）、AUTO／倍速／ESCAPE＝丸枠（文字を表示）。HP／MP バーの中身・選択中の光・押した時の沈みは CSS。
-- まだ：3人戦闘（第1章終盤）、ステータス・噂話・持ち物・世界の記憶・人生の記録・店。通常戦闘の確認後に同じ素材で展開する。
+- **ステータス画面**（2026-10-16、作者「クリスタルUI素材を共通UIキットとして転用」の優先1）：機能・情報量・縦スクロールはそのまま、見た目だけ置換。
+  立ち絵＝大きい縦長フレーム（`CrystalFrame`、枠だけ・中は立ち絵）、名前＝`CrystalHeader`、各ページ（ステータス／プロフィール／スキル）＝`CrystalPanel`（横長大）、
+  6つの数値・装備・武器種・戦闘スタイル・スキル＝`CrystalListRow`、人物タブ・下のページ＝決定ボタン型（`CrystalTab`、開いているページは選択中の光、
+  ストーリー・スキンは無効の画像）、もどる＝`CrystalButton kind="back"`、人物タブの顔＝`CrystalIconFrame`（四角）。背景は濃紺に（明るい大聖堂の色だった）。
+  装備画面は旧クラスを共有しているが `.st-v2` に限定したので変わっていない。
+- まだ：3人戦闘（第1章終盤）、道具屋・酒場・パン屋・持ち物・噂話・世界の記憶・人生の記録（ステータスの確認後、この順に同じ部品で展開）。
+
+## 共通クリスタル部品（`mugen-app/src/ui/kit/Crystal.tsx`）
+
+画面はこの部品の組み合わせで作る（画面ごとに似た枠・ボタン・CSS を新しく作らない）。どれもシートの切り出しを 9スライスで描き、
+四隅と端の結晶は伸ばさず中央の平らな部分だけ伸ばす。小さい枠は自分の縦横比のまま丸ごと（`background-size: 100% 100%` は縦横比が同じ時だけ）。
+
+| 部品 | 素材 | 用途 |
+|---|---|---|
+| `CrystalFrame` | frameTall（左の大きい縦長枠、枠のみ） | 立ち絵・プロフィール |
+| `CrystalPanel` size large / medium | panel / objective | 本文・詳細・一覧のまとまり |
+| `CrystalHeader` | placeLabel | タイトル・名前の札 |
+| `CrystalButton` kind confirm / back / menu | confirmButton / backButton / menuButton | 決定・入る・ページ／戻る／村の下の5つ |
+| `CrystalTab` | confirmButton（要素と属性は画面が決める） | 人物タブ・開いているページ・未実装のページ |
+| `CrystalListRow` | listRow | 一覧の1行（数値・装備・スキル・商品・噂） |
+| `CrystalIconFrame` shape square / round / diamond | frameSquare / frameRound / frameDiamond | アイコン・顔 |
+| `CrystalLocationLabel` | placeLabel | 地図の場所ラベル |
+
+- 選択中（全画面共通）：外周の淡い青白い光（`kit.css`、`[data-selected]`）。押した時：0.98倍に一瞬沈む。
+- 下地は `KitBox`（どの要素でも部品として描く）・`KitButton`・`KitPanel`（`Kit.tsx`）。
 
 ## テスト
 

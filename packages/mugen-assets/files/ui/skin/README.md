@@ -14,6 +14,8 @@
 | listRow | 一覧の1行 |
 | backButton | 戻る／とじる |
 | confirmButton | 決定・入る・休息するなど |
+| frameSquare / frameRound / frameDiamond | 小さな枠（顔・アイコン・戦闘のコマンドなど）。伸ばさず丸ごと |
+| frameTall | 大きい縦長の枠（立ち絵）。枠だけ描き、中は立ち絵 |
 
 | 状態 | いつ |
 |---|---|

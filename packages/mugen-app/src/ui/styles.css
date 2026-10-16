@@ -2649,6 +2649,163 @@ body {
   .st-nav-item, .st-v2 .st-back { min-height: 34px; }
 }
 
+/* ── STATUS in the shared crystal UI (作者 2026-10-16「クリスタルUI素材を共通UIキットとして転用」) ──
+   Only the look changes: what is shown, where, and the column's scroll are the same. Every frame,
+   plate, row and button is a delivered piece (ui/kit/Crystal.tsx), 9-sliced so its crystal corners
+   never stretch; this block only colours the room between them and puts the words in them.
+   Scoped to `.st-v2`: the equipment screen, which shares the older classes, is untouched. */
+.status-screen.st-v2 {
+  --st-ink: #eef1ff;
+  --st-dim: #b3bbdc;
+  --st-gold: #e5cb91;
+  --st-gold-soft: rgba(229, 203, 145, 0.35);
+  /* The foot's height: the tall frame ends above it, so its lower corners are never under the buttons. */
+  --st-foot-h: 54px;
+  background: radial-gradient(120% 130% at 72% -12%, #2c3670 0%, #151b3a 46%, #090c1a 100%);
+}
+/* 大きい縦長フレーム round the picture: the frame over her edges, her inside it; nothing of her below it. */
+.st-v2 .st-visual {
+  background:
+    radial-gradient(70% 60% at 55% 28%, rgba(150, 182, 255, 0.24), rgba(150, 182, 255, 0) 75%),
+    linear-gradient(180deg, #172044, #0b0f22);
+  clip-path: inset(0 0 var(--st-foot-h) 0);
+}
+.st-v2 .st-frame { inset: 0 0 var(--st-foot-h) 0; z-index: 1; }
+
+/* The tabs: the confirm plate, each with its face in the small square frame. */
+.st-v2 .st-tab.kit {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 2px;
+  background: none;
+  color: var(--st-ink);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  border-left-width: 12px;
+  border-right-width: 12px;
+  /* As wide as its name (a long name grows it, up to half the row, and only then wraps). */
+  flex: none;
+  max-width: calc(50% - 4px);
+}
+.st-v2 .st-tabs { flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
+.st-v2 .st-tab-name { word-break: keep-all; overflow-wrap: anywhere; }
+.st-tab-face-art { width: 100% !important; height: 100% !important; background-size: cover; }
+.st-v2 .st-tab:not(.on) { opacity: 0.82; }
+
+/* The name on its plate (CrystalHeader), the epithet under it. */
+.st-v2 .st-name.kit {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  min-height: 0;
+  padding: 1px 6px 2px;
+  border-left-width: 15px;
+  border-right-width: 15px;
+}
+.st-v2 .st-epithet { margin: 2px 0 2px 6px; }
+
+/* Each page of them in the wide dark panel. */
+.st-v2 .st-panel.kit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 2px 4px 4px;
+  color: var(--st-ink);
+}
+.st-v2 .st-quote,
+.st-v2 .st-intro,
+.st-v2 .st-style-note { color: var(--st-ink); }
+.st-v2 .st-intro,
+.st-v2 .st-style-note { color: var(--st-dim); }
+.st-v2 .st-bar { height: 4px; background: rgba(8, 12, 30, 0.75); box-shadow: inset 0 0 0 1px rgba(200, 214, 255, 0.35); }
+.st-v2 .st-bar i { background: linear-gradient(90deg, #8fb8ff, #e8f1ff); }
+
+/* The six numbers: a row each (CrystalListRow), two columns. */
+.st-v2 .st-six {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 6px;
+}
+.st-v2 .st-rows .st-row.kit {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+  padding: 1px 2px;
+  border-width: 6px 14px;
+}
+.st-v2 .st-row dt { color: #141a3a; font-size: 11.5px; letter-spacing: 0.08em; padding-left: 4px; }
+.st-v2 .st-row dd { color: #0d1230; white-space: nowrap; padding-right: 2px; }
+
+/* 装備・武器種・戦闘スタイル: rows too, the long one wrapping rather than being cut. */
+.st-v2 .st-marks { display: grid; grid-template-columns: 1fr; gap: 3px; }
+.st-v2 .st-mark.kit {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-height: 0;
+  padding: 1px 2px;
+  border-width: 6px 14px;
+  background: none;
+  white-space: normal;
+}
+.st-v2 .st-mark span { color: #141a3a; padding-left: 4px; }
+.st-v2 .st-mark b { color: #141a3a; overflow-wrap: anywhere; }
+
+/* スキル: a row each; open, it says what it does. */
+.st-v2 .st-skill.kit {
+  min-height: 38px;
+  padding: 2px 4px;
+  border-width: 8px 16px;
+  background: none;
+  color: var(--kit-fg);
+}
+.st-v2 .st-skill.kit[data-selected] { color: var(--kit-fg-selected, #fff); }
+.st-v2 .st-skill-detail { color: inherit; }
+
+/* The foot: the way out (戻る) and the pages (the confirm plate; the one open lit). */
+.st-v2 .st-foot {
+  min-height: var(--st-foot-h);
+  box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(9, 12, 26, 0) 0, rgba(9, 12, 26, 0.85) 35%, #090c1a 100%);
+}
+.st-v2 .st-back.kit {
+  min-width: 108px;
+  min-height: 40px;
+  padding: 0 6px;
+  background: none;
+  color: var(--st-ink);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  border-left-width: 16px;
+  border-right-width: 16px;
+}
+.st-v2 .st-nav-item.kit {
+  min-height: 38px;
+  padding: 0 2px;
+  background: none;
+  color: var(--st-ink);
+  border-left-width: 12px;
+  border-right-width: 12px;
+}
+.st-v2 .st-nav-item.soon.kit { color: var(--st-dim); cursor: default; }
+@media (max-width: 720px) {
+  .st-v2 .st-tab.kit { font-size: 12px; letter-spacing: 0.02em; gap: 4px; }
+  .st-v2 .st-tab-face { --ci-w: 21px !important; }
+  .st-v2 .st-head { gap: 8px; }
+  .st-v2 .st-back.kit { min-width: 100px; border-left-width: 12px; border-right-width: 12px; }
+  .st-v2 .st-nav-item.kit { padding: 0; border-left-width: 9px; border-right-width: 9px; font-size: 11px; }
+}
+@media (max-height: 340px) {
+  .status-screen.st-v2 { --st-foot-h: 50px; }
+  .st-v2 .st-tab.kit { min-height: 32px; }
+  .st-v2 .st-nav-item.kit { min-height: 34px; }
+}
+
 /* ── ハイタッチ (ui/celebrate) — the two of them, glad, for a moment ──
    Just above the middle; the picture BIG (作者 2026-10-11: 「もっと大きくていい、
    おめでとうって意味だし」), the heading over it, the small line under it. It

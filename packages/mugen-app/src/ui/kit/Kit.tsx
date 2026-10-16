@@ -29,6 +29,54 @@ function partProps(part: KitPart, images: KitImages, style?: CSSProperties) {
   };
 }
 
+/**
+ * Any element drawn as a part, holding whatever it is given — for the screens whose markup is their
+ * own (a tab, a page marked current, a row that opens). `as` is the element; `attrs` its own
+ * attributes (role, aria-*); `press` makes it behave and look like a press (hover, active).
+ */
+export function KitBox({
+  part,
+  as: Tag = 'div',
+  press,
+  selected,
+  dim,
+  onClick,
+  testId,
+  className = '',
+  style,
+  images = UI_SKIN,
+  attrs,
+  children,
+}: {
+  part: KitPart;
+  as?: 'div' | 'span' | 'button' | 'section' | 'p';
+  press?: boolean;
+  selected?: boolean;
+  dim?: boolean;
+  onClick?: () => void;
+  testId?: string;
+  className?: string;
+  style?: CSSProperties;
+  images?: KitImages;
+  attrs?: Record<string, string | boolean | undefined>;
+  children?: ReactNode;
+}) {
+  return (
+    <Tag
+      {...(Tag === 'button' ? { type: 'button' as const } : {})}
+      className={`kit${press ? ' kit-button' : ' kit-panel'} ${className}`.trim()}
+      {...partProps(part, images, style)}
+      data-selected={selected ? 'yes' : undefined}
+      data-dim={dim ? 'yes' : undefined}
+      data-testid={testId}
+      onClick={onClick}
+      {...attrs}
+    >
+      {children}
+    </Tag>
+  );
+}
+
 export function KitButton({
   part,
   label,

@@ -30,6 +30,8 @@ export const KIT_PARTS_LIST = [
   'frameSquare',
   'frameRound',
   'frameDiamond',
+  // The sheet's tall frame, whole (大きい縦長フレーム): drawn as a border only — a picture shows inside it.
+  'frameTall',
 ] as const;
 export type KitPart = (typeof KIT_PARTS_LIST)[number];
 
@@ -87,6 +89,8 @@ export const KIT_PARTS: Readonly<Record<KitPart, KitPartSpec>> = {
   frameSquare: { slice: ins(30, 30), scale: 0.3, padX: 0, padY: 0, minHeight: 24 },
   frameRound: { slice: ins(36, 36), scale: 0.3, padX: 0, padY: 0, minHeight: 36 },
   frameDiamond: { slice: ins(40, 30), scale: 0.3, padX: 0, padY: 0, minHeight: 40 },
+  // Its corners (the star top left, the leaves bottom right) kept whole; only the straight edges stretch.
+  frameTall: { slice: { top: 90, right: 60, bottom: 90, left: 60 }, scale: 0.42, padX: 0, padY: 0, minHeight: 120 },
 };
 
 /** The delivered pictures: part → state → URL. */
