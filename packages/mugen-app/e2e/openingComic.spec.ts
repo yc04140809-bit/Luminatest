@@ -38,19 +38,27 @@ async function tapThrough(page: Page): Promise<{ image: string; kind: string; ta
   for (let i = 0; i < 400; i++) {
     if (await page.getByTestId('naming-screen').isVisible().catch(() => false)) break;
     const c = comic(page);
-    const image = (await c.getAttribute('data-image').catch(() => null)) ?? '';
-    const kind = (await c.getAttribute('data-kind').catch(() => null)) ?? '';
-    if (!image) continue;
+    // The page as it is, read in one go: a page that goes on by itself may be gone between two reads.
+    const now = await page
+      .evaluate(() => {
+        const el = document.querySelector('[data-testid="opening-comic"]');
+        return el
+          ? { image: el.getAttribute('data-image') ?? '', kind: el.getAttribute('data-kind') ?? '', waiting: el.getAttribute('data-waiting'), choice: el.getAttribute('data-choice'), step: el.getAttribute('data-step') }
+          : null;
+      })
+      .catch(() => null);
+    if (!now || !now.image) continue;
+    const { image, kind } = now;
     if (seen.at(-1)?.image !== image) seen.push({ image, kind, tapped: false });
-    if (kind === 'CHOICE' && (await c.getAttribute('data-choice')) === 'ASK') {
+    if (kind === 'CHOICE' && now.choice === 'ASK') {
       await page.getByTestId('opening-choice-CRYING').click();
       continue;
     }
-    if ((await c.getAttribute('data-waiting').catch(() => 'no')) !== 'yes') {
+    if (now.waiting !== 'yes') {
       await page.waitForTimeout(40);
       continue;
     }
-    const step = await c.getAttribute('data-step');
+    const step = now.step;
     await c.click({ position: { x: 20, y: 20 } }).catch(() => {});
     seen.at(-1)!.tapped = true;
     // One tap, one page: wait for it to move (or for the name).

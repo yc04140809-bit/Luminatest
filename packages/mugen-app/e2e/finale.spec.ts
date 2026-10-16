@@ -75,6 +75,22 @@ async function heaviestVillage(page: Page, places = 10) {
 }
 
 /** Reads scenes while they are among `scenes`, collecting their words (each line once). */
+/**
+ * つぎへ, pressed only if the line on screen is still `want` (scene:line) — looked at and pressed in one go
+ * in the page, so a press can never land on a line other than the one just read (a line was seen skipped
+ * when a press arrived late, 2026-10-16). Gives back whether it was pressed.
+ */
+const tapLine = (page: Page, want: string) =>
+  page
+    .evaluate((w) => {
+      const s = document.querySelector('[data-testid="finale-scene"]');
+      const b = document.querySelector<HTMLButtonElement>('[data-testid="finale-next"]');
+      if (!s || !b || b.disabled || `${s.getAttribute('data-scene')}:${s.getAttribute('data-at')}` !== w) return false;
+      b.click();
+      return true;
+    }, want)
+    .catch(() => false);
+
 async function readWhile(page: Page, scenes: readonly string[], words: string[] = []): Promise<string[]> {
   const seen: string[] = [];
   const scene = page.getByTestId('finale-scene');
@@ -92,16 +108,9 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
     if (key === last || !(await next.isEnabled().catch(() => false))) {
       // A tap that did not land (the line still there a second later, the button free): tap again.
       if (key === last && Date.now() - clickedAt > 2_000 && (await next.isEnabled().catch(() => false))) {
-        // …only if it is still the very same line: looked at and tapped in one go in the page, so a
-        // scene that changes in between is never tapped past.
+        // …only if it is still the very same line.
         clickedAt = Date.now();
-        await page
-          .evaluate((want) => {
-            const s = document.querySelector('[data-testid="finale-scene"]');
-            const b = document.querySelector<HTMLButtonElement>('[data-testid="finale-next"]');
-            if (s && b && !b.disabled && `${s.getAttribute('data-scene')}:${s.getAttribute('data-at')}` === want) b.click();
-          }, last)
-          .catch(() => {});
+        await tapLine(page, last);
       }
       await page.waitForTimeout(50);
       continue;
@@ -110,7 +119,7 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
     if (seen[seen.length - 1] !== id) seen.push(id);
     words.push((await page.getByTestId('finale-line').textContent({ timeout: 1_000 }).catch(() => null)) ?? '');
     clickedAt = Date.now();
-    await next.click({ timeout: 5_000 }).catch(() => {});
+    await tapLine(page, key);
   }
   return seen;
 }
@@ -149,7 +158,7 @@ test('PHASE 3: the rest is the night before — ruins, raid, lure, the grassland
     const line = (await page.getByTestId('finale-line').textContent()) ?? '';
     words.push(line);
     if ((await speakerNow(page)) === 'フードの男') hooded.push(line);
-    await page.getByTestId('finale-next').click();
+    await expect.poll(() => tapLine(page, `RUINS_SEAL:${at}`)).toBe(true);
     // The next line drawn (or the next scene) before it is read — never two lines on one look.
     await expect
       .poll(async () => ((await scene.getAttribute('data-scene')) === 'RUINS_SEAL' ? await scene.getAttribute('data-at') : 'next'))
