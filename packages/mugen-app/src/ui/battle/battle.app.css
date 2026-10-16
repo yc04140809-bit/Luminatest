@@ -280,6 +280,14 @@
   border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--sk-panel-edge, 0) stretch;
 }
 .bp-field .bx-party { padding: 2px; }
+/* WORLD MEMORY keeps the room its words had: the plate's edge drawn thin (as TURN ORDER's). Its label
+   is set a little closer and goes onto two lines (WORLD / MEMORY) where the panel is too narrow for
+   one — at 640×300 it is — rather than running under the plate's edge. */
+.bp-field .bx-memory {
+  border-width: 8px 11px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 8px 11px stretch;
+}
+.bp-field .bx-memory .bx-panel-label { letter-spacing: 0.12em; text-indent: 0.12em; white-space: normal; line-height: 1.15; }
 /* The words of the moment: the thin plate with its cut ends. */
 .bp-field .bp-message,
 .bp-field .bx-place {
