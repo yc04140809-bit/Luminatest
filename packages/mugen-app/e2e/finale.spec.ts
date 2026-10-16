@@ -83,9 +83,11 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
   let clickedAt = 0;
   for (let i = 0; i < 600; i++) {
     if (!(await scene.isVisible().catch(() => false))) break;
-    const id = (await scene.getAttribute('data-scene').catch(() => null)) ?? '';
+    // Read with a short wait: the scene may be gone the moment after it was seen (the last line
+    // taken, the pause or a fight next), and an attribute read would otherwise wait for it for good.
+    const id = (await scene.getAttribute('data-scene', { timeout: 1_000 }).catch(() => null)) ?? '';
     if (!scenes.includes(id)) break;
-    const key = `${id}:${await scene.getAttribute('data-at').catch(() => '')}`;
+    const key = `${id}:${await scene.getAttribute('data-at', { timeout: 1_000 }).catch(() => '')}`;
     // Between one line and the next (a stage being kept): wait for it.
     if (key === last || !(await next.isEnabled().catch(() => false))) {
       // A tap that did not land (the line still there a second later, the button free): tap again.
@@ -106,7 +108,7 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
     }
     last = key;
     if (seen[seen.length - 1] !== id) seen.push(id);
-    words.push((await page.getByTestId('finale-line').textContent()) ?? '');
+    words.push((await page.getByTestId('finale-line').textContent({ timeout: 1_000 }).catch(() => null)) ?? '');
     clickedAt = Date.now();
     await next.click({ timeout: 5_000 }).catch(() => {});
   }
