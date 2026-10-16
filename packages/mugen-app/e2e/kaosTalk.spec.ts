@@ -138,3 +138,48 @@ test('coming back into the village: 「ただいまー。」 under the two of th
   await (await placeButton(page, 'shop-button')).click();
   await expect(page.getByTestId('shop-screen')).toBeVisible();
 });
+
+test('in the village the two of them take the whole left panel: its one-person face put away (never her twice), both large, left and right, whoever speaks lit; afterwards the face is back', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await freshVillage(page);
+  await expect(page.getByTestId('village-who')).toBeVisible();
+  await roll(page, 0);
+  await page.getByTestId('explore-button').click();
+  while (await page.getByTestId('kaos-banter').isVisible().catch(() => false)) await page.getByTestId('kaos-banter-next').click();
+  await page.getByTestId('back-to-village').click();
+  await expect(page.getByTestId('kaos-banter')).toHaveAttribute('data-banter', 'TADAIMA');
+  const stage = page.getByTestId('talk-stage');
+  await expect(stage).toHaveAttribute('data-layout', 'panel');
+  // The panel's own one-person face is put away while they talk.
+  await expect(page.getByTestId('village-who')).toBeHidden();
+  await expect(page.locator('.vg-side')).toHaveAttribute('data-talk-duo', 'on');
+  await expect(page.getByTestId('talk-bust-hero')).toBeVisible();
+  await expect(page.getByTestId('talk-bust-kaos')).toBeVisible();
+  const panel = (await page.locator('.vg-side').boundingBox())!;
+  const hero = (await page.getByTestId('talk-bust-hero').boundingBox())!;
+  const kaos = (await page.getByTestId('talk-bust-kaos').boundingBox())!;
+  const words = (await page.getByTestId('kaos-banter').boundingBox())!;
+  // Left and right, each large: more than half the panel wide, their heads inside the panel's top.
+  expect(hero.x + hero.width / 2).toBeLessThan(kaos.x + kaos.width / 2);
+  for (const b of [hero, kaos]) {
+    expect(b.width).toBeGreaterThan(panel.width * 0.5);
+    expect(b.y).toBeGreaterThanOrEqual(panel.y);
+    expect(b.y).toBeLessThan(panel.y + panel.height * 0.25);
+  }
+  // The words under them, inside the panel, not squeezed.
+  expect(words.y + words.height).toBeLessThanOrEqual(panel.y + panel.height);
+  expect(words.height).toBeGreaterThanOrEqual(40);
+  // Whoever speaks is lit: her first, then him.
+  await expect(page.locator('.talk-bust-kaos')).toHaveClass(/\bon\b/);
+  await expect(page.locator('.talk-bust-hero')).not.toHaveClass(/\bon\b/);
+  await page.getByTestId('kaos-banter-next').click();
+  await expect(page.locator('.talk-bust-hero')).toHaveClass(/\bon\b/);
+  await expect(page.locator('.talk-bust-kaos')).not.toHaveClass(/\bon\b/);
+  // Read to the end: the panel's own face again.
+  while (await page.getByTestId('kaos-banter').isVisible().catch(() => false)) await page.getByTestId('kaos-banter-next').click();
+  await expect(stage).toHaveCount(0);
+  await expect(page.getByTestId('village-who')).toBeVisible();
+  await expect(page.locator('.vg-side')).not.toHaveAttribute('data-talk-duo', 'on');
+});

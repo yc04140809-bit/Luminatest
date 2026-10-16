@@ -2543,6 +2543,58 @@ body {
   .talk-box .kaos-aside-line { font-size: 13px; line-height: 1.4; }
 }
 
+/* ── 2人会話・パネル (ui/talkStage, data-layout="panel"; 作者 2026-10-16) ──
+   In a conversation panel that names itself a talk host, the two of them take the whole panel:
+   left and right, as large as the panel allows, the words under them (never squeezed: the box
+   keeps its own height and the two stand in what is left). Whoever speaks is in the light and a
+   little forward; the other dimmed. The sheet's tall frame round it all. One layout for every
+   panel that tells a two-person exchange. In the scene layout the pair is not a box of its own. */
+.talk-pair { display: contents; }
+.talk-stage[data-layout='panel'] {
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(90% 55% at 50% 32%, rgba(150, 182, 255, 0.3), rgba(150, 182, 255, 0) 72%),
+    linear-gradient(180deg, #1b2452 0%, #111739 62%, #0a0e24 100%);
+}
+.talk-stage[data-layout='panel'] .talk-pair {
+  display: block;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 14px 0 0;
+  container-type: size;
+  overflow: hidden;
+}
+/* Each as wide as the panel allows (overlapping a little in the middle), or as the height allows:
+   the head never leaves the top. Standing just behind the top of the words. */
+.talk-stage[data-layout='panel'] .talk-bust {
+  --duo-sink: 20px;
+  bottom: calc(var(--duo-sink) * -1);
+  width: min(66%, calc((100cqh + var(--duo-sink)) * 0.68));
+  filter: brightness(0.55) saturate(0.8);
+}
+.talk-stage[data-layout='panel'] .talk-bust.on { filter: none; }
+/* Their outer shoulders may pass the panel's edge (cut there), so the two faces stay well apart. */
+.talk-stage[data-layout='panel'] .talk-bust-hero { left: auto; right: 41%; }
+.talk-stage[data-layout='panel'] .talk-bust-kaos { right: auto; left: 41%; }
+.talk-stage[data-layout='panel'] .talk-box {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  margin: 0 12px 12px;
+}
+/* The frame's edge drawn thin here, so the two and the words keep the room. */
+.talk-stage .talk-frame {
+  z-index: 4;
+  border-width: 18px 12px;
+  border-image-width: 18px 12px;
+}
+
 /* ── STATUS v2 (作者指示 2026-10-11: キャラクターそのものを好きになる画面) ──
    Two columns now: who they are on the left (scrolls), the picture large on
    the right; the pages of them (ステータス・プロフィール・装備・スキル・

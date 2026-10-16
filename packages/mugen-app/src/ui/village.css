@@ -55,10 +55,17 @@
 .vg-card-doors { display: grid; gap: 4px; margin-top: 4px; }
 .kit.vg-door { width: 100%; font-size: 15px; }
 
-/* While the two of them talk (ui/talkStage): over this panel, the words across their feet. */
-.vg-side > .talk-stage { right: 0; }
-.vg-side > .talk-stage .talk-bust { width: 60%; }
-.vg-side > .talk-stage .talk-box { left: 6px; right: 6px; bottom: 6px; }
+/* While the two of them talk (ui/talkStage, the panel layout): the panel is theirs — its own one-person
+   face is put away, so the same person is never shown twice. A place tapped meanwhile shows its card over them. */
+.vg-side[data-talk-duo] > .vg-who { visibility: hidden; }
+.vg-side[data-talk-duo] .vg-card {
+  position: relative;
+  z-index: 3;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(10, 14, 34, 0.94);
+  color: #f2f5ff;
+}
 
 /* ---- right: the village ---- */
 .vg-map {

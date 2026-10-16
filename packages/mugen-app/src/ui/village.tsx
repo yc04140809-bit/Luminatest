@@ -119,7 +119,7 @@ export function VillageScreen({
   return (
     <div className="screen village" data-testid="village-screen">
       {/* ---- left: who is there, and what can be done (左会話パネル) ---- */}
-      <aside className="vg-side" aria-label="会話">
+      <aside className="vg-side" aria-label="会話" data-talk-layout="panel">
         {/* The person (half the panel, the face kept in view), the name in the band. */}
         <KitPanel
           part="talkPanelHead"

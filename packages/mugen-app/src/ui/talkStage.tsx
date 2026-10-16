@@ -12,6 +12,7 @@ import type { DialogueLine } from "@mugen/content/dialogue/prologue";
 import { kaosFacePicture, type FaceBox } from "../assets/kaosFaces";
 import { HERO_FACE_BOX, heroFaceSrc } from "../assets/heroFaces";
 import type { HeroFace } from "@mugen/content/characters/heroFaces";
+import { CrystalFrame } from "./kit/Crystal";
 
 /**
  * THE TWO OF THEM, SIDE BY SIDE, WHILE THEY TALK (作者 2026-10-11: 「会話時
@@ -27,7 +28,22 @@ import type { HeroFace } from "@mugen/content/characters/heroFaces";
  *
  * The hero with the face his line names (assets/heroFaces.ts, 2026-10-11);
  * when he is not the one speaking, the face he last had.
+ *
+ * TWO LAYOUTS, chosen by where it is told:
+ *   scene  over a place's painting (`.place-panel`), as above.
+ *   panel  in a conversation panel that names itself a talk host with
+ *          `data-talk-layout="panel"` (the village's left panel, 2026-10-16:
+ *          作者「2人会話の時は上部の1人用顔枠を非表示にして、左パネル全体を使って
+ *          2人を大きく並べる」). While they talk the panel is theirs: the host is
+ *          marked `data-talk-duo` so it can put away its own one-person face, the
+ *          two stand left and right, large (each shown from the middle of their
+ *          picture, so the faces are big in a narrow panel), the words under
+ *          them. Any other panel that tells a two-person exchange takes the same
+ *          layout by naming itself the same way; nothing here knows which panel.
  */
+
+/** In the panel layout each is shown from the middle of their picture: this share of its width. */
+const PANEL_CROP = 0.64;
 
 type Box = FaceBox;
 
@@ -110,10 +126,24 @@ export function TalkStage({
   const [host, setHost] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
     setHost(
-      // A place's painting (`.place-panel`), or the village's conversation area (ui/village, 2026-10-16).
-      (anchor.current?.closest(".place-panel, .vg-side") as HTMLElement | null) ?? null,
+      // A place's painting (`.place-panel`), or a panel that names itself a talk host (the village's left panel).
+      (anchor.current?.closest(".place-panel, [data-talk-layout]") as HTMLElement | null) ?? null,
     );
   }, []);
+  const layout = host?.dataset.talkLayout === "panel" ? "panel" : "scene";
+  // While they talk, the panel says so: it puts its own one-person face away (its stylesheet's business).
+  useLayoutEffect(() => {
+    if (!host || layout !== "panel") return;
+    host.dataset.talkDuo = "on";
+    return () => {
+      delete host.dataset.talkDuo;
+    };
+  }, [host, layout]);
+  /** The panel layout shows the middle of each picture (the face larger); the scene, the whole box. */
+  const crop = (b: FaceBox): FaceBox =>
+    layout === "panel"
+      ? { ...b, x: b.x + (b.width * (1 - PANEL_CROP)) / 2, width: b.width * PANEL_CROP }
+      : b;
   // Her face changes line by line; the last one stays while the next loads.
   const [kaosPic, setKaosPic] = useState<{
     face: KaosFace;
@@ -145,14 +175,16 @@ export function TalkStage({
             className="talk-stage"
             data-testid="talk-stage"
             data-speaking={speaking ?? "NONE"}
+            data-layout={layout}
           >
+            <div className="talk-pair">
             {shownHero && (
               <div
                 className={`talk-bust talk-bust-hero${speaking === "HERO" ? " on" : ""}`}
               >
                 <Bust
                   src={shownHero}
-                  box={HERO_FACE_BOX}
+                  box={crop(HERO_FACE_BOX)}
                   testId="talk-bust-hero"
                   face={heroFace}
                 />
@@ -164,13 +196,15 @@ export function TalkStage({
               >
                 <Bust
                   src={kaosPic.src}
-                  box={kaosPic.box}
+                  box={crop(kaosPic.box)}
                   testId="talk-bust-kaos"
                   face={kaosFace}
                 />
               </div>
             )}
+            </div>
             {box && <div className="talk-box">{box}</div>}
+            {layout === "panel" && <CrystalFrame className="talk-frame" />}
           </div>,
           host,
         )}
