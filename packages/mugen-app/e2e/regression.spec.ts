@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { throughTheOpening, watchTheIntro } from './opening';
+import { throughTheOpening } from './opening';
 import { fightToResult, fightUntil, readyToAct, throughTheAwakening } from './battle';
 
 /**
@@ -48,9 +48,8 @@ test('start to finish on one save, and all of it still there after a restart', a
   await page.getByTestId('naming-input').fill('レイ');
   await page.getByTestId('naming-confirm').click();
 
-  // 第0話 — the way into Alden, seen to its end: she has his name.
-  const intro = await watchTheIntro(page);
-  expect(intro).toContain('「よろしくね、レイ♪」');
+  // Straight on to Alden (作者決定 2026-10-16): no 第0話 on a new game — it is in 回想.
+  await expect(page.getByTestId('intro')).toHaveCount(0);
 
   // 村.
   await expect(page.getByTestId('world-clock')).toBeVisible();

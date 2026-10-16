@@ -119,8 +119,8 @@ function without(saved: Saved, key: string): Saved {
   return { ...rest, idb };
 }
 
-/** What the way into Alden left read, before anything in the village (event:OPENING_INTRO, intro.spec). */
-const INTRO = 'event:OPENING_INTRO';
+/** What the way into Alden left read, before anything in the village (the opening, event:OPENING_COMIC — openingComic.spec). */
+const INTRO = 'event:OPENING_COMIC';
 
 /** A save from a build before readMarks: the row taken out, as it never was. */
 async function withoutTheReadMarksRow(page: Page) {

@@ -43,5 +43,4 @@
 
 - 文：`mugen-core/content/story/openingIntro.ts`（`OPENING_INTRO`・SKIP の文・`INTRO_NOTE_URL`・`OPENING_INTRO_MARK`・回想の題）
 - 画面：`mugen-app/src/ui/intro.tsx`（`IntroScreen`）、つなぎ：`App.tsx`（名前決定の後）、回想：`src/ui/memory.tsx`
-- テスト：core `openingIntro.test.ts`、e2e `intro.spec.ts`。他の e2e は名前決定の後に `intoTheVillage`（SKIP で村へ）、
-  通しの `regression.spec.ts` だけは導入を最後まで読む（`watchTheIntro`）。
+- テスト：core `openingIntro.test.ts`、e2e `intro.spec.ts`（回想から最後まで読む `watchTheIntro`）。

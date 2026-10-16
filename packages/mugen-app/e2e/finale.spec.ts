@@ -90,12 +90,16 @@ async function readWhile(page: Page, scenes: readonly string[], words: string[] 
     if (key === last || !(await next.isEnabled().catch(() => false))) {
       // A tap that did not land (the line still there a second later, the button free): tap again.
       if (key === last && Date.now() - clickedAt > 2_000 && (await next.isEnabled().catch(() => false))) {
-        // …only if it is still the very same line, read again right before the tap.
-        const now = `${await scene.getAttribute('data-scene').catch(() => '')}:${await scene.getAttribute('data-at').catch(() => '')}`;
-        if (now === last) {
-          clickedAt = Date.now();
-          await next.click({ timeout: 5_000 }).catch(() => {});
-        }
+        // …only if it is still the very same line: looked at and tapped in one go in the page, so a
+        // scene that changes in between is never tapped past.
+        clickedAt = Date.now();
+        await page
+          .evaluate((want) => {
+            const s = document.querySelector('[data-testid="finale-scene"]');
+            const b = document.querySelector<HTMLButtonElement>('[data-testid="finale-next"]');
+            if (s && b && !b.disabled && `${s.getAttribute('data-scene')}:${s.getAttribute('data-at')}` === want) b.click();
+          }, last)
+          .catch(() => {});
       }
       await page.waitForTimeout(50);
       continue;
