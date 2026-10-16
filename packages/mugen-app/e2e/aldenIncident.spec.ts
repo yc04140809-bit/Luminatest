@@ -308,8 +308,8 @@ test('phase 3: “something is close” — and nothing starts while they are ou
   await expect(page.getByTestId('rumor-screen')).not.toContainText(/襲われる|襲撃/);
   await page.getByTestId('rumor-leave').click();
 
-  // Nothing starts: the square, its doors, the map, a fight — as ever.
-  for (const id of ['tavern-button', 'bakery-button', 'shop-button', 'rest-button', 'explore-button']) {
+  // Nothing starts: the village's places (their doors a tap away: ui/village, 2026-10-16), the map, a fight — as ever.
+  for (const id of ['spot-tavern', 'spot-bakery', 'spot-shop', 'explore-button']) {
     await expect(page.getByTestId(id)).toBeEnabled();
   }
   await page.getByTestId('explore-button').click();
