@@ -120,13 +120,10 @@ test('plays the right piece on every screen, one at a time', async ({ page }) =>
     }),
   ).toMatch(/^title-main.*\.mp3$/);
 
-  // OPENING — the world, alone: a different piece, the title's stopped.
+  // THE OPENING (触る漫画形式, 2026-10-16) is hers from its first page: her
+  // piece, the title's stopped — held through the naming that follows.
   await page.getByTestId('start-button').click();
-  await expectPlaying(page, 'OPENING');
-  // …and she arrives: her piece, as in the Artifact, held through the
-  // naming that follows her.
-  await page.getByTestId('opening-next').click();
-  await expect(page.getByTestId('stage-figure')).toHaveAttribute('data-who', 'kaos');
+  await expect(page.getByTestId('opening-comic')).toBeVisible();
   await expectPlaying(page, 'KAOS_EVENT');
   await throughTheOpening(page);
   await expectPlaying(page, 'KAOS_EVENT');

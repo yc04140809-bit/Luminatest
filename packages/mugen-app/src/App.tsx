@@ -32,8 +32,7 @@ import { BakeryScreen } from './ui/bakery';
 import { FutureVisionScreen } from './ui/futureVision';
 import { StatusScreen } from './ui/status';
 import { NamingScreen } from './ui/naming';
-import { IntroScreen } from './ui/intro';
-import { OPENING_INTRO_MARK } from '@mugen/content/story/openingIntro';
+import { OPENING_COMIC_MARK, type OpeningMusic } from '@mugen/content/story/openingComic';
 import { EquipmentScreen } from './ui/equipment';
 import { useSceneBgm } from './ui/audio/useSceneBgm';
 import { audioManager } from './platform/audio';
@@ -55,7 +54,7 @@ import {
 } from '@mugen/content/events/galdLifeChoice';
 import { BattleScreen, ResultScreen } from './ui/battle';
 import type { RoamMemory } from './ui/explore/RoamScene';
-import { PrologueScreen } from './ui/prologue';
+import { OpeningScreen } from './ui/opening';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { RUINS_CRY_MARK, SEKIRYUGA_REVISIT_MARK, SEKIRYUGA_RUMORS } from '@mugen/content/story/sekiryugaArc';
@@ -193,11 +192,15 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const [kaosArrived, setKaosArrived] = useState(false);
   const [namingBusy, setNamingBusy] = useState(false);
   /**
-   * 第0話 — the way into Alden, between the name and the village (ui/intro).
-   * Held here for the same reason naming is: not a `Screen` of the shared
-   * union, and never reached by 「つづきから」.
+   * 触る漫画形式のオープニング (2026-10-16): the music let go at the power off
+   * (until the funny face). The rest of what it asks — turned down for the
+   * flashes — is done on the piece playing (audioManager.duckBgm).
    */
-  const [intro, setIntro] = useState(false);
+  const [openingHush, setOpeningHush] = useState(false);
+  const openingMusic = useCallback((music: OpeningMusic) => {
+    setOpeningHush(music === 'STOP');
+    audioManager.duckBgm(music === 'DIM' ? 0.35 : 1);
+  }, []);
   /**
    * EQUIPMENT IS A LEAF OF STATUS, not a screen of its own.
    *
@@ -358,7 +361,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
 
   useAndroidBackButton(() => {
     // Nor walking out of the way in: SKIP is how it is left early.
-    if (naming || intro) return;
+    if (naming) return;
     // Nor out of the finale: it is read (and fought) to its end.
     if (finale) return;
     // Back out of equipment to status first, not out to the village.
@@ -574,7 +577,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   // Let down on the way in to セキリュウガ, and held off after its fight: what is
   // seen then is seen in quiet.
   // And in the finale, where it asks for quiet (ヴァルシール coming to a stop).
-  (state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath')) || (finale && finaleBgm === 'HUSH'),
+  // And at the opening's power off (プツン), until the funny face.
+  (state.screen === 'EXPLORE' && ((ruins === 'approach' && hushed) || ruins === 'aftermath')) || (finale && finaleBgm === 'HUSH') || (state.screen === 'PROLOGUE' && openingHush),
   // A piece picked from the bard's archive, while still in the tavern; the finale's own, while it wants one.
   tavern ? bardPiece : finale && finaleBgm !== 'HUSH' ? finaleBgm : null);
   // THE MUSIC ARCHIVE keeps what the game has played (once each).
@@ -731,7 +735,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
   const noticeScope = [
     state.screen,
     naming ? 'naming' : '',
-    intro ? 'intro' : '',
     equipment ? 'equipment' : '',
     tavern ? 'tavern' : '',
     bakery ? 'bakery' : '',
@@ -763,6 +766,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             saving={saving}
             onStart={() => {
               if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
+              // The opening is hers from its first page: her piece, held through the naming after it.
+              setKaosArrived(true);
               flow.goTo('PROLOGUE');
             }}
             onContinue={() => {
@@ -805,38 +810,24 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               // SAVED BEFORE THE VILLAGE IS SHOWN. A name confirmed and
               // then lost to a crash on the way in would be asked for
               // again, and the second asking is the bug.
+              // Then the opening is kept as seen (触る漫画形式のオープニング → 名前 →
+              // アルデン村, 作者決定 2026-10-16), and the village.
               void world
                 .setHeroName(name)
+                .then(() => world.markRead([OPENING_COMIC_MARK]))
+                .catch((e) => console.error('Failed to keep the name or the opening', e))
                 .finally(() => {
                   setNaming(false);
                   setNamingBusy(false);
-                  setIntro(true);
-                });
-            }}
-          />
-        );
-      }
-      if (intro) {
-        return (
-          <IntroScreen
-            heroName={world.getHeroName()}
-            // SEEN OR SKIPPED, ONE WAY OUT: the same mark and the same
-            // village, so skipping can never leave the world different.
-            onDone={() => {
-              void world
-                .markRead([OPENING_INTRO_MARK])
-                .catch((e) => console.error('Failed to keep the way in', e))
-                .finally(() => {
-                  setIntro(false);
                   flow.goTo('HOME');
                 });
             }}
           />
         );
       }
-      return (
-        <PrologueScreen onKaosArrives={() => setKaosArrived(true)} onDone={() => setNaming(true)} />
-      );
+      // THE OPENING (作者指示 2026-10-16), tapped through; then the name. The old
+      // prologue and 第0話 are not played on a new game (第0話 stays in 回想).
+      return <OpeningScreen onMusic={openingMusic} onDone={() => setNaming(true)} />;
     case 'HOME':
       if (finale) {
         // A test may make ヴァルシール quick to beat (DEV only).

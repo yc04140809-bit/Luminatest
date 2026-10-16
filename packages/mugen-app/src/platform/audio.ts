@@ -209,6 +209,16 @@ export class AudioManager {
   }
 
   /**
+   * THE MUSIC TURNED DOWN FOR A MOMENT (the opening's flashes and 「じゃ。」,
+   * 2026-10-16): the piece playing now, at `share` of its level — the
+   * player's own volume untouched. 1 brings it back. Only the piece now
+   * sounding; a piece started later plays at its level.
+   */
+  duckBgm(share: number): void {
+    if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(this.bgmVolume * clampVolume(share));
+  }
+
+  /**
    * The four buses as they actually come out, MASTER already folded in.
    *
    * For looking at — a settings screen showing what a slider will do,

@@ -18,9 +18,9 @@ App の e2e は `packages/mugen-app` で `npx playwright test --config playwrigh
 | 項目 | 自動テスト | 備考 |
 |---|---|---|
 | ゲーム開始 | `regression`、`loop`「the whole loop…」 | 初回は「はじめる」だけ、再起動後は「つづきから」 |
-| OP | `regression`、`scenes`「the prologue is the world alone, then Kaos…」、`music`（曲） | |
+| OP（触る漫画形式のオープニング） | `openingComic`（5 本：TAP で全 30 枚を順番どおり・ノイズ／ガルド／プツンは自動・名前 → 村・既読 `event:OPENING_COMIC`・つづきからで再生しない、連打は 1 ページ、HOLD の待ち・プツンで無音・変顔で曲が戻る、844×390 / 640×300 の三択）、`scenes`「the opening: each page drawn whole on black…」、`music`（曲）、core `openingComic.test.ts` | 内容は `docs/OPENING_COMIC.md`。他の e2e は DEBUG の SKIP で名前入力へ |
 | 名前入力 | `regression`、`naming`（4 本：入力・空白拒否・既定名・再起動） | |
-| 第0話 導入イベント（名前決定 → ケイオス初対面 → MUGEN ZERO / ALDEN VILLAGE） | `intro`（7 本：暗転 → 声だけ → 登場 → 心の声 → 「？？？」から名前を名乗ってケイオス → 名前を呼ぶ → タイトル → 村・再起動後は再生しない、一瞬の沈黙（暗くなる・ボタンが出るまで待つ・元の表情へ）、SKIP の確認・note の文・戻る・スキップする、見た場合とスキップした場合でセーブ全行が一致、人生の記録 → 回想（再視聴でセーブ不変）、640×300 / 844×390 で画面内）、`regression`（導入を最後まで読む）、core `openingIntro.test.ts` | 内容は `docs/OPENING_INTRO.md`。他の e2e は SKIP で村へ |
+| 第0話 導入イベント（2026-10-16 から回想のみ。新規開始では再生しない） | `intro`（7 本：暗転 → 声だけ → 登場 → 心の声 → 「？？？」から名前を名乗ってケイオス → 名前を呼ぶ → タイトル → 村・再起動後は再生しない、一瞬の沈黙（暗くなる・ボタンが出るまで待つ・元の表情へ）、SKIP の確認・note の文・戻る・スキップする、見た場合とスキップした場合でセーブ全行が一致、人生の記録 → 回想（再視聴でセーブ不変）、640×300 / 844×390 で画面内）、`regression`（導入を最後まで読む）、core `openingIntro.test.ts` | 内容は `docs/OPENING_INTRO.md`。他の e2e は SKIP で村へ |
 | 村 | `regression`、`loop`、`parity`「the shop takes LUMI…」、`uxRound`（横画面 5 サイズで「噂話」まで画面内） | 選択肢の配色（アイボリー＋ゴールド＋茶）は見た目だけで、e2e は機能のみ確認。高さ 420px 以下ではボタンと間隔を詰めて、9 つの選択肢すべてを画面内に収める（2026-10-07。以前は 640×300 で 2 段目がはみ出していた） |
 | 序盤UX（酒場の初訪問順・《瞬断》・AUTO 解禁・BOSS カットイン・戦闘後の酒場・目的地通知・噂話・NEW） | `uxRound`（15 本）、core `talkQueue.test.ts`・`readMarks.test.ts`・`villageRumors.test.ts`・`sekiryugaBattle.test.ts` | 内容は `docs/UX_EARLY_GAME.md` |
 | ALDEN INCIDENT 予兆フェーズ | `aldenIncident`（6 本：ケイオスの予感の会話は地図の画面のいちばん上・NEW 付き（2026-10-11）・セキリュウガ編の後からだけ数える・噂を読んでも増えない・平常・行動で加算・重複なし・休息の連打で増えない・PHASE 1〜3 の噂と NEW・ケイオスの一言（地方画面、出かけるたびに 1 つずつ）・グレイヴ 1 回・PHASE 3 でも何も始まらない・再起動後も保持・844×390 / 640×300）、core `aldenIncident.test.ts` | 内容は `docs/ALDEN_INCIDENT.md`。襲撃本編は未実装 |

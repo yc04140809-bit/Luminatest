@@ -92,40 +92,24 @@ for (const size of SIZES) {
       await expect(page.getByTestId('start-button')).toBeVisible();
     });
 
-    test('the prologue is the world alone, then Kaos in front of the key visual', async ({ page }) => {
+    // 作者決定 2026-10-16: the old prologue (the world, then Kaos before the key visual)
+    // gives way to the tapped opening (e2e/openingComic.spec.ts); on screen, its page.
+    test('the opening: each page drawn whole on black, nothing written over it; then the name', async ({ page }) => {
       await fresh(page);
       await page.getByTestId('start-button').click();
-
-      // THE WORLD — the canon line, on black, with nobody drawn.
-      const line = page.getByTestId('opening-line');
-      await expect(line).toHaveText('あなたが忘れても、\n世界は覚えている。', { useInnerText: true });
-      await expect(page.getByTestId('stage-figure')).toHaveCount(0);
-
-      // HER — every one of her six lines with her standing there.
-      await page.getByTestId('opening-next').click();
-      const lines: string[] = [];
-      for (let i = 0; i < 10; i++) {
-        if (await page.getByTestId('naming-default').isVisible().catch(() => false)) break;
-        const her = page.getByTestId('stage-figure');
-        await expect(her).toHaveAttribute('data-who', 'kaos');
-        expect(await picture(her)).toMatch(/^kaos-talk-default.*\.png$/);
-        await staysOutOfTheWay(page, her, size);
-        expect(await picture(page.getByTestId('stage-backdrop'))).toMatch(/^title-kaos-keyvisual/);
-        await expect(page.locator('.stage-speaker')).toHaveText('ケイオス');
-        lines.push((await line.textContent()) ?? '');
-        await page.getByTestId('opening-next').click();
-      }
-      // The Artifact's words, all of them, in order — nothing written
-      // for the App and nothing left out.
-      expect(lines).toEqual([
-        '「やっと来た。」',
-        '「……え？ 誰かって？」',
-        '「女神。」',
-        '「…………たぶん。」',
-        '「ひとつだけ覚えておいて。」',
-        '「この世界で出会う人には、みんな続きがあるから。」',
-      ]);
-      // And then the hero is asked their name.
+      const comic = page.getByTestId('opening-comic');
+      await expect(comic).toHaveAttribute('data-image', 'op_01_intro_comic');
+      const pic = page.getByTestId('opening-picture');
+      await expect(pic).toBeVisible();
+      const box = (await pic.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(-1);
+      expect(box.y).toBeGreaterThanOrEqual(-1);
+      expect(box.x + box.width).toBeLessThanOrEqual(size.width + 1);
+      expect(box.y + box.height).toBeLessThanOrEqual(size.height + 1);
+      // As large as the screen allows (one side meets it).
+      expect(Math.max(box.width / size.width, box.height / size.height)).toBeGreaterThan(0.97);
+      await expect(page.locator('.opening-comic .line, .opening-comic .speaker')).toHaveCount(0);
+      await page.getByTestId('opening-debug-skip').click();
       await expect(page.getByTestId('naming-default')).toBeVisible();
     });
 

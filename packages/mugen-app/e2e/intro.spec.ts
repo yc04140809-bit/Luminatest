@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { throughTheOpening, pastTheIntro, watchTheIntro } from './opening';
+import { throughTheOpening, watchTheIntro } from './opening';
 
 /**
  * 第0話 — THE WAY INTO ALDEN (2026-10-08): after the name, a moment of dark,
@@ -34,6 +34,18 @@ async function named(page: Page, name: string) {
   await page.getByTestId('naming-confirm').click();
 }
 
+/**
+ * 第0話 FROM 回想 (作者決定 2026-10-16: a new game is the opening → the name →
+ * the village; 第0話 is no longer played on the way in, and stays in 回想).
+ */
+async function inRecall(page: Page, name = 'レイ') {
+  await fresh(page);
+  await named(page, name);
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await page.getByTestId('archive-button').click();
+  await page.getByTestId('recall-OPENING_INTRO').click();
+}
+
 /** Every row of the save, as stored. */
 async function savedRows(page: Page): Promise<Record<string, unknown>> {
   return page.evaluate(
@@ -57,10 +69,9 @@ async function savedRows(page: Page): Promise<Record<string, unknown>> {
 
 test.describe.configure({ timeout: 120_000 });
 
-test('after the name: the dark, the road, a stranger, her name, his — then the card, then the village', async ({ page }) => {
-  await fresh(page);
-  await named(page, 'レイ');
-  // Not the village yet: the dark first, with SKIP already there.
+test('第0話 in 回想: the dark, the road, a stranger, her name, his — then back to the archive', async ({ page }) => {
+  await inRecall(page);
+  // The dark first, with SKIP already there.
   await expect(page.getByTestId('intro')).toHaveAttribute('data-phase', 'dark');
   await expect(page.getByTestId('intro-skip')).toBeVisible();
   await expect(page.getByTestId('world-clock')).toHaveCount(0);
@@ -75,7 +86,7 @@ test('after the name: the dark, the road, a stranger, her name, his — then the
   const seen: { line: string; speaker: string; figure: boolean; skip: boolean }[] = [];
   const next = page.getByTestId('intro-next');
   for (let i = 0; i < 60; i++) {
-    if (await page.getByTestId('intro-arrival').isVisible()) break;
+    if (await page.getByTestId('archive-screen').isVisible()) break;
     await expect(next).toHaveCSS('visibility', 'visible', { timeout: 5000 });
     seen.push(
       await page.evaluate(() => ({
@@ -107,11 +118,9 @@ test('after the name: the dark, the road, a stranger, her name, his — then the
   // Nothing about who she is, or the world before.
   expect(lines.join('')).not.toMatch(/ルシファー|AI|戦争|女神|正体/);
 
-  // The card, then the village.
-  await expect(page.getByTestId('intro-arrival')).toContainText('MUGEN ZERO');
-  await expect(page.getByTestId('intro-arrival')).toContainText('ALDEN VILLAGE');
-  await expect(page.getByTestId('intro-skip')).toHaveCount(0);
-  await expect(page.getByTestId('world-clock')).toBeVisible({ timeout: 6000 });
+  // In 回想 there is no card: straight back to the archive.
+  await expect(page.getByTestId('archive-screen')).toBeVisible();
+  await expect(page.getByTestId('intro-arrival')).toHaveCount(0);
 
   // Once: after a restart, つづきから goes straight to the village.
   await page.reload();
@@ -121,8 +130,7 @@ test('after the name: the dark, the road, a stranger, her name, his — then the
 });
 
 test('her one moment: not lit, and held — the way on comes only after it', async ({ page }) => {
-  await fresh(page);
-  await named(page, 'レイ');
+  await inRecall(page);
   const next = page.getByTestId('intro-next');
   await expect(next).toBeVisible({ timeout: 5000 });
   for (let i = 0; i < 60; i++) {
@@ -140,9 +148,8 @@ test('her one moment: not lit, and held — the way on comes only after it', asy
   await expect(page.getByTestId('intro-line')).toHaveText('「ほら、行こ♪」');
 });
 
-test('SKIP asks first, with the note line; 戻る goes on where it was; スキップする arrives', async ({ page }) => {
-  await fresh(page);
-  await named(page, 'レイ');
+test('SKIP asks first, with the note line; 戻る goes on where it was; スキップする goes back', async ({ page }) => {
+  await inRecall(page);
   const next = page.getByTestId('intro-next');
   await expect(next).toBeVisible({ timeout: 5000 });
   await next.click();
@@ -161,33 +168,27 @@ test('SKIP asks first, with the note line; 戻る goes on where it was; スキ�
 
   await page.getByTestId('intro-skip').click();
   await page.getByTestId('intro-skip-yes').click();
-  await expect(page.getByTestId('intro-arrival')).toBeVisible();
-  await expect(page.getByTestId('world-clock')).toBeVisible({ timeout: 6000 });
+  await expect(page.getByTestId('archive-screen')).toBeVisible();
 });
 
-test('skipped or seen, the world is left exactly the same', async ({ page }) => {
+test('a new game: the opening, the name, then the village — no 第0話 on the way; the opening kept as seen', async ({ page }) => {
   await fresh(page);
   await named(page, 'レイ');
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  await expect(page.getByTestId('intro')).toHaveCount(0);
+  const rows = await savedRows(page);
+  expect(JSON.stringify(rows)).toContain('レイ');
+  expect(JSON.stringify(rows.readMarks)).toContain('event:OPENING_COMIC');
+  // Read to its end from 回想, it leaves the world exactly as it was.
+  await page.getByTestId('archive-button').click();
+  await page.getByTestId('recall-OPENING_INTRO').click();
   await watchTheIntro(page);
-  await expect(page.getByTestId('world-clock')).toBeVisible();
-  const seen = await savedRows(page);
-
-  await fresh(page);
-  await named(page, 'レイ');
-  // Skipped from the very first moment, in the dark.
-  await pastTheIntro(page);
-  await expect(page.getByTestId('world-clock')).toBeVisible();
-  const skipped = await savedRows(page);
-
-  expect(skipped).toEqual(seen);
-  expect(seen.heroName ?? seen.hero_name ?? JSON.stringify(seen)).toContain('レイ');
-  expect(JSON.stringify(seen.readMarks)).toContain('event:OPENING_INTRO');
+  expect(await savedRows(page)).toEqual(rows);
 });
 
 test('人生の記録 → 回想: seen again, skippable straight back, changing nothing', async ({ page }) => {
   await fresh(page);
   await page.getByTestId('naming-default').click();
-  await pastTheIntro(page);
   await expect(page.getByTestId('world-clock')).toBeVisible();
   const before = await savedRows(page);
 
@@ -219,8 +220,7 @@ for (const size of [
   test.describe(`${size.width}x${size.height}`, () => {
     test.use({ viewport: size });
     test('SKIP, the words, the button and the question all on the screen', async ({ page }) => {
-      await fresh(page);
-      await named(page, 'レイ');
+      await inRecall(page);
       await expect(page.getByTestId('intro-next')).toBeVisible({ timeout: 5000 });
       const inside = async (id: string) => {
         const b = (await page.getByTestId(id).boundingBox())!;
