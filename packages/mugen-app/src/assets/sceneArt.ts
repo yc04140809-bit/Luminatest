@@ -30,9 +30,9 @@ const PARTY: Record<SceneCharacter, Partial<Record<PartyArtState, Loader>>> = {
       (await import('@mugen/assets/files/characters/kaos/kaos-talk-rinsen.png')).default,
   },
   gald: {
-    /** Standing in the road, knives out. */
+    /** Standing in the road, knives out (redrawn 2026-10-16, App only — the Artifact keeps the first). */
     fullbody: async () =>
-      (await import('@mugen/assets/files/characters/gald/gald-ready.png')).default,
+      (await import('@mugen/assets/files/characters/gald/gald-ready-v2.png')).default,
     /** On one knee, beaten. */
     portrait: async () =>
       (await import('@mugen/assets/files/characters/gald/gald-defeated.png')).default,

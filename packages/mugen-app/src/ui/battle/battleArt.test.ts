@@ -19,6 +19,7 @@ const file = (src: string | null | undefined) =>
  * Same state it resolved to, and the same drawing, face and box — except where the App already has
  * the battle drawing of 2026-10-16 (作者「戦闘画面キャラクター差し替え」, `*-battle-v2.png`) and the
  * Artifact does not yet: then the same person, facing the same way, the face box inside the drawing.
+ * A drawing redrawn under its own name (`<name>-v2.png`): the Artifact's `<name>.png`.
  */
 function same<S extends string>(mine: ResolvedArt<S>, theirs: ResolvedArt<S>) {
   expect(mine.state).toBe(theirs.state);
@@ -30,6 +31,13 @@ function same<S extends string>(mine: ResolvedArt<S>, theirs: ResolvedArt<S>) {
     expect(face).toBeDefined();
     expect(face!.x + face!.width).toBeLessThanOrEqual(face!.fileW);
     expect(face!.y + face!.height).toBeLessThanOrEqual(face!.fileH);
+    return;
+  }
+  // A drawing the App has redrawn (作者 2026-10-16「ガルド素材既存分と差し替え」, `<name>-v2.png`): the
+  // Artifact's own drawing by the same name, the same way round.
+  if (m?.endsWith('-v2.png')) {
+    expect(m.replace(/-v2\.png$/, '.png')).toBe(file(theirs.asset?.src));
+    expect(mine.asset?.facing).toEqual(theirs.asset?.facing);
     return;
   }
   expect(m).toBe(file(theirs.asset?.src));

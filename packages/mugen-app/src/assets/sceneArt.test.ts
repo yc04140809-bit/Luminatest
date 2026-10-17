@@ -28,7 +28,8 @@ describe('scene art', () => {
     it(`${who} ${state} is the Artifact's picture`, async () => {
       const mine = await sceneArt(who, state);
       expect(mine).not.toBeNull();
-      expect(file(mine)).toBe(file(partyArtFor(who, state).asset?.src));
+      // The App's redrawn picture (`<name>-v2.png`, 作者 2026-10-16) stands for the Artifact's `<name>.png`.
+      expect(file(mine)?.replace(/-v2\.png$/, '.png')).toBe(file(partyArtFor(who, state).asset?.src));
     });
   }
 

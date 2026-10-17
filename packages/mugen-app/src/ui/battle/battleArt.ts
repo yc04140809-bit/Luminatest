@@ -27,7 +27,8 @@ import galdBattleV2 from '@mugen/assets/files/characters/gald/gald-battle-v2.png
 import graveBattleV2 from '@mugen/assets/files/characters/grave/grave-battle-v2.png';
 import ariaBattleV2 from '@mugen/assets/files/characters/aria/aria-battle-v2.png';
 import leviBattleV2 from '@mugen/assets/files/characters/levi/levi-battle-v2.png';
-import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage.png';
+// 作者 2026-10-16「ガルド素材既存分と差し替え」: the struck pose redrawn (App only; the Artifact keeps the first).
+import galdBattleDamage from '@mugen/assets/files/characters/gald/gald-battle-damage-v2.png';
 import galdBattleDown from '@mugen/assets/files/characters/gald/gald-battle-down.png';
 import mossRabbit from '@mugen/assets/files/enemies/moss-rabbit.png';
 import mossRabbitDown from '@mugen/assets/files/enemies/moss-rabbit-down.png';
