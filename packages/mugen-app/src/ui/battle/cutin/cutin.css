@@ -23,7 +23,8 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
+  /* A technique's name is read in a moment: the game's sans (作者 2026-10-17). */
+  font-family: var(--font-ui);
 }
 
 .ci-veil,

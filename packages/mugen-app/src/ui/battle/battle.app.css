@@ -20,7 +20,8 @@
 
 /* The Artifact's page font and ink, which its battle rules inherit. */
 .bp-screen {
-  font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif;
+  /* The game's sans (作者 2026-10-17: 戦闘中は可読性最優先、装飾フォントを使わない). */
+  font-family: var(--font-ui);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
 }
@@ -342,7 +343,7 @@
    frame's bright edge still reads (アイテム / アルカナ are as wide as the diamond's middle). */
 .bp-field .bp-cmd-mark, .bp-field .bp-cmd-jp, .bp-field .bp-cmd-en { position: relative; z-index: 1; }
 .bp-field .bp-cmd-jp, .bp-field .bp-cmd-en {
-  text-shadow: 0 0 2px #000, 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px #000;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .bp-field .bp-cmd.open .bp-cmd-plate { filter: drop-shadow(0 0 5px var(--mz-glow)) brightness(1.12); }
 .bp-field .bp-cmd:active .bp-cmd-plate { transform: scale(0.98); filter: brightness(1.25); }
@@ -369,7 +370,7 @@
   clip-path: none;
   white-space: nowrap;
   line-height: 1.1;
-  text-shadow: 0 0 2px #000, 0 0 3px rgba(0, 0, 0, 0.95), 0 1px 2px #000;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .bp-field .bp-mode .bp-mode-en { font-size: 8.5px; letter-spacing: 0.06em; font-weight: 700; }
 .bp-field .bp-mode .bp-mode-jp { font-size: 9px; color: var(--mz-text-sub); }
@@ -464,3 +465,14 @@
   .bp-field .bx-turn.acting .bx-face::before { animation: none; opacity: 0; }
   .bp-field .bx-meter-track::before, .bp-field .bx-ring-trail.hp { transition: none; }
 }
+
+/* Numbers on the HUD in the sans at 600, of one width (作者 2026-10-17). */
+.bp-field .bx-meter-num,
+.bp-field .bx-member-read,
+.bp-field .bx-enemy-read,
+.bp-field .bx-memory-count {
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight);
+  font-variant-numeric: tabular-nums;
+}
+.bp-field .bp-cmd-jp { font-weight: var(--text-ui-weight); }

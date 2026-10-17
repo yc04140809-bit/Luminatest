@@ -2,6 +2,29 @@
    The look is temporary and is meant to be replaced; what it must do
    today is be legible on a phone and not pretend to be finished. */
 :root {
+  /* ── 文字 (作者 2026-10-17「アプリ全体フォント統一」): one set of tokens for every screen.
+     Titles, chapter and place names in the serif (物語性); everything read, pressed or counted in
+     the sans (可読性). Self-hosted Noto (docs/FONTS.md), imported once in main.tsx. */
+  --font-display: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
+  --font-body: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+  --font-ui: var(--font-body);
+  --font-number: var(--font-body);
+  --text-title-size: clamp(22px, 7vh, 30px);
+  --text-heading-size: clamp(17px, 5.2vh, 22px);
+  --text-body-size: clamp(14px, 4vh, 16px);
+  --text-small-size: 12px;
+  --text-en-size: 10px;
+  --text-title-weight: 400;
+  --text-body-weight: 400;
+  --text-ui-weight: 500;
+  --text-strong-weight: 600;
+  --text-number-weight: 600;
+  --line-height-title: 1.2;
+  --line-height-body: 1.6;
+  --line-height-ui: 1.3;
+  --text-main: #f2f4f8;
+  --text-sub: #bfc7d5;
+  --text-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35);
   --ink: #e9e6f0;
   --dim: #9a94ab;
   --line: #3a3550;
@@ -15,8 +38,10 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-family: var(--font-body);
+  font-weight: var(--text-body-weight);
   -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
 }
 .screen {
   position: relative;
@@ -323,8 +348,7 @@ body {
      system serifs an Android or an iOS handset already has, so the
      shape is right even in the moment before the file arrives — and
      stays right if it never does. */
-  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP',
-    serif;
+  font-family: var(--font-body);
   /* Light from the upper right, where the visual is. */
   background:
     radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--st-paper) 42%, var(--st-paper-2) 100%);
@@ -887,7 +911,7 @@ body {
   gap: 0;
   padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
   color: var(--st-ink);
-  font-family: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
+  font-family: var(--font-body);
   background:
     radial-gradient(120% 130% at 50% -20%, #ffffff 0%, var(--st-paper) 44%, var(--st-paper-2) 100%);
 }
@@ -2092,14 +2116,13 @@ body {
   --p-gold: #b2914f;
   --p-gold-ink: #8a6a2c;
   --p-gold-soft: rgba(178, 145, 79, 0.34);
-  --p-serif: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
 }
 .paper {
   /* Its own stacking context, so a place's picture (z-index -1) sits on
      the paper rather than behind it. */
   isolation: isolate;
   color: var(--p-ink);
-  font-family: var(--p-serif);
+  font-family: var(--font-body);
   background: radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--p-paper) 42%, var(--p-paper-2) 100%);
 }
 /* A place's picture, softened into the paper: still there, never a dark wall. */
@@ -2120,7 +2143,7 @@ body {
 .paper-sheet .status { width: auto; }
 .paper-panel {
   color: var(--p-ink);
-  font-family: var(--p-serif);
+  font-family: var(--font-body);
   background: linear-gradient(90deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.9) 22px, rgba(242, 235, 221, 0.94) 100%);
   box-shadow: inset 1px 0 0 var(--p-gold-soft);
 }
@@ -2155,7 +2178,7 @@ body {
   border-radius: 4px;
   background: linear-gradient(180deg, rgba(250, 247, 239, 0.96), rgba(236, 227, 210, 0.94));
   color: var(--p-ink);
-  font-family: var(--p-serif);
+  font-family: var(--font-body);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 4px rgba(64, 55, 43, 0.22);
 }
 .paper .btn.primary,
@@ -2200,7 +2223,7 @@ body {
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.55);
   color: var(--p-dim);
-  font-family: var(--p-serif);
+  font-family: var(--font-body);
 }
 .paper-panel .shop-tab.on {
   border-color: #a5873f;
@@ -2295,7 +2318,7 @@ body {
   background: none;
   color: var(--p-ink);
   font: inherit;
-  font-family: var(--p-serif);
+  font-family: var(--font-body);
   font-size: 14px;
   letter-spacing: 0.1em;
   text-align: left;
@@ -2359,7 +2382,7 @@ body {
 .kaos-aside.incident-aside { margin: 0 0 6px; }
 .kaos-aside-head { grid-area: who; display: flex; align-items: center; gap: 6px; min-width: 0; }
 .kaos-aside-speaker { margin: 0; color: var(--p-gold-ink); font-size: 12px; letter-spacing: 0.1em; white-space: nowrap; }
-.kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--p-serif); font-size: 13px; line-height: 1.5; }
+.kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--font-body); font-size: 13px; line-height: 1.5; }
 .kaos-aside-next {
   grid-area: next;
   appearance: none;
@@ -3041,3 +3064,113 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .portrait-zoom { animation: none; }
 }
+
+/* ══ 文字の役割 (作者 2026-10-17「アプリ全体フォント統一・可読性改善」) ══════════════════════════════
+   Typography only: no box is moved. The serif carries the titles (the story's voice); the sans carries
+   what is read, pressed and counted. English is a quiet ornament under the Japanese, never above it.
+   Shadows only where the ground is busy, and weak. */
+
+/* Titles — screen, chapter and place names, the logo, BATTLE RESULT. */
+.place,
+.logo,
+.st-wordmark b,
+.naming-wordmark b,
+.vg-title .kit-heading {
+  font-family: var(--font-display);
+  font-weight: var(--text-title-weight);
+  line-height: var(--line-height-title);
+}
+.place { font-size: max(18px, min(var(--text-heading-size), 20px)); }
+
+/* What is read: lines, prose, hints — the sans at 400, a comfortable leading. */
+.line, .log,
+.st-quote, .st-intro, .st-style-note,
+.vg-hint,
+.kaos-aside-line,
+.rumor-text, .memory-text {
+  font-family: var(--font-body);
+  font-weight: var(--text-body-weight);
+}
+.line { font-size: 15px; line-height: var(--line-height-body); }
+.kaos-aside-line { font-size: 14px; line-height: 1.55; }
+/* Who speaks: a step above the words, at 600. */
+.speaker,
+.kaos-aside-speaker,
+.talk-who,
+.vg-who-name b {
+  font-weight: var(--text-strong-weight);
+}
+.speaker { font-size: 13px; }
+
+/* What is pressed: the sans at 500, centred. */
+.btn,
+.kit-button,
+.st-nav-item,
+.st-tab,
+.pb-list-btn,
+.pb-chip,
+.pp-item {
+  font-family: var(--font-ui);
+  font-weight: var(--text-ui-weight);
+}
+.btn { line-height: var(--line-height-ui); }
+
+/* What is counted: the sans at 600, figures of one width. */
+.vg-bars,
+.vg-level,
+.st-level b,
+.st-next b,
+.st-six dd,
+.pb-num,
+.bx-meter-num,
+.lumi, .vg-purse,
+.shop-price, .bag-count {
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Names in a list (an item, a person, a skill): the sans at 500. */
+.st-name b,
+.st-skill b,
+.vg-card-title,
+.vg-name,
+.bag-group-title,
+.bag-name,
+.shop-name,
+.rumor-category,
+.rumor-title,
+.memory-label,
+.tavern-archive-title,
+.tavern-craft-name {
+  font-family: var(--font-ui);
+  font-weight: var(--text-ui-weight);
+}
+.st-name b { font-weight: var(--text-strong-weight); }
+
+/* English under or beside the Japanese: smaller, spaced, quieter. */
+.kit-sub,
+.st-wordmark i,
+.st-level-label,
+.vg-title small,
+.bp-cmd-en,
+.bp-mode-jp {
+  letter-spacing: 0.12em;
+  opacity: 0.72;
+}
+
+/* Descriptions in a list: the sans at 400, a reading leading. */
+.shop-desc, .bag-desc, .bag-hint, .memory-meta, .rumor-from, .tavern-craft-note, .bakery-effect {
+  font-family: var(--font-body);
+  font-weight: var(--text-body-weight);
+  line-height: 1.45;
+}
+/* BATTLE RESULT: what was won, as figures to be read at a glance. */
+.result .row {
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  line-height: var(--line-height-ui);
+}
+.result .place { font-size: var(--text-title-size); letter-spacing: 0.14em; }

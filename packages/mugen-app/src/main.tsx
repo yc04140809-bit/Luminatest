@@ -5,6 +5,17 @@ import App from './App';
 // 2026-10-07 — ui/styles.css 「THE PAPER THEME」). Self-hosted, OFL 1.1.
 import '@fontsource/noto-serif-jp/latin-400.css';
 import '@fontsource/noto-serif-jp/japanese-400.css';
+// The game's two faces of type (docs/FONTS.md), self-hosted so the Android build carries them:
+// Noto Sans JP 400/500/600 for everything read, pressed and counted; Noto Serif JP 400 for titles.
+// An @font-face downloads nothing until a glyph uses it.
+import '@fontsource/noto-sans-jp/japanese-400.css';
+import '@fontsource/noto-sans-jp/latin-400.css';
+import '@fontsource/noto-sans-jp/japanese-500.css';
+import '@fontsource/noto-sans-jp/latin-500.css';
+import '@fontsource/noto-sans-jp/japanese-600.css';
+import '@fontsource/noto-sans-jp/latin-600.css';
+import '@fontsource/noto-serif-jp/latin-400.css';
+import '@fontsource/noto-serif-jp/japanese-400.css';
 import './ui/styles.css';
 import { UI_SKIN, decorRootVars } from './assets/uiSkin';
 import { kitRootVars } from './ui/kit/skin';
