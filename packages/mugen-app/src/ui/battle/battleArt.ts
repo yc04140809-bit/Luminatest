@@ -336,9 +336,42 @@ const ENEMIES: Record<string, ArtSet<EnemyArtState>> = {
  * (its plate still under its feet, lifted only where a short screen
  * would put it into the commands — BattleStage).
  */
-export const BATTLE_PRESENCE: Partial<Record<string, { scale: number; inset: number; bottom: number }>> = {
+export interface BattlePresence {
+  /** How much larger than its world size it is drawn (shape kept). */
+  scale: number;
+  /** Its own step off the slot: further in from the edge, and further down the field (nearer). */
+  inset: number;
+  bottom: number;
+  /** A pose whose drawing is a different file and needs its own number (kneeling, fallen). */
+  stateScale?: Partial<Record<string, number>>;
+}
+
+/**
+ * 人型敵の基準 — HOW A PERSON FOUGHT AS AN ENEMY IS SHOWN (作者 2026-10-16: 「ガルドが小さい。
+ * 人型の小型敵ではなく、序盤の印象に残る相手として」).
+ *
+ * A person in the enemy's place stands a step nearer than a creature does and is drawn so their
+ * HEAD is a little larger than the hero's (about 1.1×) — the same measure the party is sized by
+ * (spriteFrames: by head, not canvas), so a crouched or a standing drawing comes out the same man.
+ * Whole: head and feet on the screen, feet on the ground (the slot's ground line). Any person fought
+ * later takes this, with only their own drawing's numbers.
+ */
+export const HUMANOID_ENEMY_STEP = { inset: 0.04, bottom: -0.07 } as const;
+
+export const BATTLE_PRESENCE: Partial<Record<string, BattlePresence>> = {
   sekiryuga: { scale: 1.2, inset: 0.05, bottom: -0.05 },
+  // ガルド: the core sizes him for the Artifact's wide lunge drawing (0.44 of the stage); the App draws
+  // his portrait-shaped battle drawing (gald-battle-v2), where that came out a small man far up the
+  // path — under the moss rabbit's weight. ×1.7 and the humanoid step put his head at about 1.1× the
+  // hero's. Struck and fallen are older, wider files already at a man's size: a little only.
+  gald: { scale: 1.7, ...HUMANOID_ENEMY_STEP, stateScale: { battle_damage: 1.12, battle_down: 1.1 } },
 };
+
+/** The scale a presence gives a pose. */
+export function presenceScale(presence: BattlePresence | undefined, state: string | null): number {
+  if (!presence) return 1;
+  return (state ? presence.stateScale?.[state] : undefined) ?? presence.scale;
+}
 
 export type BattlePartyId = keyof typeof PARTY;
 

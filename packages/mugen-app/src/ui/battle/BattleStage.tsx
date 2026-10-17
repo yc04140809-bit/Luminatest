@@ -58,6 +58,7 @@ import { HIT_FX_FLOOR_MS, HIT_FX_MS, theatreVars } from './battleTheatre';
 import {
   AS_PERSON,
   BATTLE_PRESENCE,
+  presenceScale,
   BATTLE_UI_FRAMES,
   DOWN_POSE,
   battleEnemyArt,
@@ -104,7 +105,7 @@ export interface BattleOpponentView {
    * further in from its edge and `bottom` further down the field (shares
    * of the field), nearer the camera. Absent: exactly its slot.
    */
-  presence?: { scale: number; inset: number; bottom: number };
+  presence?: { scale: number; inset: number; bottom: number; stateScale?: Partial<Record<string, number>> };
   /** A creature stands up the path (FAR); a person at arm's length (NEAR). */
   stands: 'FAR' | 'NEAR';
   /** What is said over it once it is beaten, and by whom (a person only). */
@@ -336,7 +337,7 @@ export function BattleStage({
     Math.round(spriteHeight(id, state, stageH) * FIELD_FIGURE_SCALE * depthScale(ground));
   const heights = {
     enemy: Math.round(
-      figure(opponent.artId, enemyShown.state, PROTOTYPE_PLACEMENTS[enemySlot].bottom) * (presence?.scale ?? 1),
+      figure(opponent.artId, enemyShown.state, PROTOTYPE_PLACEMENTS[enemySlot].bottom) * presenceScale(presence, enemyShown.state),
     ),
     hero: figure('hero', heroShown.state, PROTOTYPE_PLACEMENTS.hero.bottom),
     kaos: figure('kaos', kaosShown.state, PROTOTYPE_PLACEMENTS.kaos.bottom),
