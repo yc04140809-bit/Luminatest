@@ -476,3 +476,8 @@
   font-variant-numeric: tabular-nums;
 }
 .bp-field .bp-cmd-jp { font-weight: var(--text-ui-weight); }
+
+/* ケイオス's wings open behind her drawing (ui/fx/special, z-index -1): her place holds them, not the field's back. */
+.bp-field .bp-kaos { isolation: isolate; }
+/* Her drawing is bigger in a fight of one: the wings a little narrower, so they stay on the screen. */
+.bp-field .bp-kaos .sx-back.kaos_twin_wings, .bp-field .bp-kaos .sx-back.kaos_twin_wings_light { height: 165%; top: 38%; }

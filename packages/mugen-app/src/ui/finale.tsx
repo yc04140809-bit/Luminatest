@@ -25,6 +25,9 @@ import { finaleFaceFor, type FinaleFace } from './finaleFaces';
 import { usePicture } from './scene';
 import { PartyBattleScreen } from './battle/PartyBattleScreen';
 import { screenShake } from './fx/screenShake';
+import { camera } from './fx/camera';
+import { SpecialFx } from './fx/special/SpecialFx';
+import { MOMENT_SPECIAL_FX, SPECIAL_FX, type SpecialEffectType } from './fx/special/specialFx';
 import { audioManager, playSfx } from '../platform/audio';
 import { playAmbience, stopAmbience } from '../platform/ambience';
 import './finale.css';
@@ -80,6 +83,9 @@ export interface FinaleRunProps {
 
 /** The breath before a fight (作者「無料強化メモ②」: 戦闘前 0.5秒 → ボスBGM → 戦闘): the music held low, then the fight. */
 export const FIGHT_BREATH_MS = 500;
+/** A line's own effect (FinaleLine `fx`) → the character's effect it plays (ui/fx/special). */
+const FINALE_FX: Record<'ZERO_TENSHOU', SpecialEffectType> = { ZERO_TENSHOU: MOMENT_SPECIAL_FX.zeroTenshou[0] };
+
 /** How low the music goes: DROP (and a hushed line) almost to nothing; DIP a little. */
 const MUSIC_SHARE = { DROP: 0.12, DIP: 0.5 } as const;
 
@@ -212,6 +218,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       music={finaleMusicAt(scene, phase.line)}
       pause={line.pause ?? 0}
       se={line.se ?? null}
+      fx={line.fx ? FINALE_FX[line.fx] : null}
       ambience={FINALE_PLACE_AMBIENCE[scene.place]}
       at={phase.line}
       busy={busy}
@@ -234,6 +241,7 @@ function FinaleScene({
   music,
   pause,
   se,
+  fx,
   ambience,
   at,
   busy,
@@ -256,6 +264,8 @@ function FinaleScene({
   pause: number;
   /** A sound as the line comes up. */
   se: SfxId | null;
+  /** A character's own effect over the picture (its shake and sound wait for it to land). */
+  fx: SpecialEffectType | null;
   /** The place's own air under the words. */
   ambience: FinaleAmbience | null;
   at: number;
@@ -265,13 +275,19 @@ function FinaleScene({
   const src = usePicture(() => finaleBackdropSrc(backdrop), `finale:${backdrop}`);
   const shown = useFace(face);
   const root = useRef<HTMLDivElement>(null);
-  // The line's jolt, once, as it comes up — the picture only; the words hold still.
+  // The line's jolt and sound, once, as it comes up — the picture only; the words hold still. With an
+  // effect of its own (零閃・天衝): the camera leans in at once, and the jolt and the sounds wait for
+  // the cut to land.
   useEffect(() => {
-    if (shake) void screenShake(shake, root.current ?? undefined);
-  }, [sceneId, at]);
-  // The line's sound, once, as it comes up (an off-screen crash, a machine waking).
-  useEffect(() => {
-    if (se) playSfx(se);
+    const at0 = root.current ?? undefined;
+    const lands = fx ? SPECIAL_FX[fx].impact : 0;
+    if (fx) void camera({ kind: 'PUSH_IN', strength: 'small' }, at0);
+    const t = window.setTimeout(() => {
+      if (shake) void screenShake(shake, at0);
+      const sounds = new Set<SfxId>([...(fx ? (SPECIAL_FX[fx].sfx ?? []) : []), ...(se ? [se] : [])]);
+      sounds.forEach((id) => playSfx(id));
+    }, lands);
+    return () => window.clearTimeout(t);
   }, [sceneId, at]);
   // The music falling away (a hushed line; a DROP or a DIP until the scene ends) — eased, and back after.
   const share = hush ? MUSIC_SHARE.DROP : music ? MUSIC_SHARE[music] : 1;
@@ -310,6 +326,7 @@ function FinaleScene({
             data-frame={frame ?? 'ALL'}
           />
         )}
+        {fx && <SpecialFx key={`${sceneId}:${at}`} type={fx} />}
       </div>
       <div className="finale-box" onClick={onNext}>
         {shown && (

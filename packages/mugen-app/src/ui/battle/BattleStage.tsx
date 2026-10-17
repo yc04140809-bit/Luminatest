@@ -34,6 +34,8 @@ import { MagicTray } from './MagicTray';
 import { ItemTray } from './ItemTray';
 import { BattlePicker } from './BattlePicker';
 import { SpellFx, type SpellFxView } from './magic/SpellFx';
+import { SpecialFx } from '../fx/special/SpecialFx';
+import type { SpecialEffectType } from '../fx/special/specialFx';
 import { SwordSlash, type SlashView } from './slash/SwordSlash';
 import type { ReachView } from './battleTheatre';
 import type { FieldBox, FieldMarks, FieldScene } from './scene/fieldScene';
@@ -182,6 +184,8 @@ export interface BattleStageProps {
   cinematic?: ReactNode;
   /** Her aura or a spell's landing, while one shows (`useBattleTheatre().spell`). */
   spell?: SpellFxView | null;
+  /** ケイオス's wings behind her, while they show (`useBattleTheatre().wings`; ui/fx/special). */
+  wings?: { id: number; type: SpecialEffectType } | null;
   /** His sword's trail and bite, while a swing shows (`useBattleTheatre().slash`). */
   slash?: SlashView | null;
   /**
@@ -254,6 +258,7 @@ export function BattleStage({
   onAwakeningDone,
   cinematic,
   spell = null,
+  wings = null,
   slash = null,
   swordplay = false,
   reach = null,
@@ -697,6 +702,8 @@ export function BattleStage({
           style={cameraStyle('kaos', camera)}
         >
           <span className="bp-shadow" aria-hidden="true" />
+          {/* Her wings open behind her (her drawing over them). */}
+          {wings && <SpecialFx key={`wings-${wings.id}`} type={wings.type} />}
           <CharacterArt
             art={kaosShown}
             height={heights.kaos}

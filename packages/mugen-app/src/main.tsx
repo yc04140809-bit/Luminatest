@@ -119,6 +119,19 @@ if (
       </StrictMode>,
     ),
   );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('preview') === 'fx'
+) {
+  // `?preview=fx` — each character's own effects, one button each (src/dev/FxPreview.tsx): グレイヴ's
+  // 重撃・豪断, the hero's red moon, ケイオス's wings. Debug builds only, the same compile-time way.
+  void import('./dev/FxPreview').then(({ FxPreview }) =>
+    root.render(
+      <StrictMode>
+        <FxPreview params={params} />
+      </StrictMode>,
+    ),
+  );
 } else {
   root.render(
     <StrictMode>

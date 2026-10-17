@@ -79,7 +79,8 @@ test.describe('with motion', () => {
     await page.getByTestId('pb-cmd-skills').click();
     await page.getByTestId('pb-cmd-tech-goudan').click();
     await expect(page.getByTestId('pb-screen')).toHaveAttribute('data-broken', 'yes');
-    await expect.poll(async () => (await shakes(page)).length).toBeGreaterThanOrEqual(2);
+    await expect(page.getByTestId('pb-break-flash')).toBeVisible();
+    await expect.poll(async () => (await shakes(page)).length).toBeGreaterThanOrEqual(4);
     const got = await shakes(page);
     // The field and the painting — medium (200ms), and nothing else on screen.
     expect(new Set(got.map((s) => s.who))).toEqual(new Set(['field', 'backdrop']));
@@ -88,8 +89,9 @@ test.describe('with motion', () => {
       expect(Math.max(...s.xs.map(Math.abs))).toBeLessThanOrEqual(10);
       expect(s.xs[s.xs.length - 1]).toBe(0);
     }
-    // One BREAK, one jolt (重撃・豪断 does not jolt it a second time).
-    expect(got.filter((s) => s.who === 'field')).toHaveLength(1);
+    // 重撃・豪断 that breaks it (作者 2026-10-17 グレイヴ専用演出): the 重撃's own jolt as it falls, then
+    // the BREAK's — two, both medium; the 豪断's large jolt gives way to the BREAK's.
+    await expect.poll(async () => (await shakes(page)).filter((s) => s.who === 'field').length).toBe(2);
     await page.waitForTimeout(500);
     expect(await atRest(page, '.pb-field')).toBe(true);
     expect(await atRest(page, '.pb-bg')).toBe(true);

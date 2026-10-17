@@ -41,10 +41,10 @@
 /* ── the field ── */
 .pb-field { position: absolute; inset: 0; z-index: 1; }
 .pb-foe { position: absolute; display: flex; align-items: flex-end; justify-content: flex-start; }
-.pb-foe img { height: 100%; width: auto; max-width: 100%; object-fit: contain; object-position: bottom left; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
-.pb-foe.acting img { filter: drop-shadow(0 0 8px rgba(230, 110, 90, 0.8)); }
-.pb-foe.broken img { filter: saturate(0.6) brightness(0.85) drop-shadow(0 0 6px rgba(255, 179, 71, 0.7)); }
-.pb-foe.shake img { animation: pb-foe-shake 450ms ease-out; }
+.pb-foe > img { height: 100%; width: auto; max-width: 100%; object-fit: contain; object-position: bottom left; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.acting > img { filter: drop-shadow(0 0 8px rgba(230, 110, 90, 0.8)); }
+.pb-foe.broken > img { filter: saturate(0.6) brightness(0.85) drop-shadow(0 0 6px rgba(255, 179, 71, 0.7)); }
+.pb-foe.shake > img { animation: pb-foe-shake 450ms ease-out; }
 .pb-figure {
   position: absolute;
   /* Its left edge is at the feet (partyStage `x`), pulled back by where the
@@ -53,7 +53,7 @@
   transform-origin: calc(var(--pb-foot, 0.5) * 100%) bottom;
   transition: transform 200ms ease, filter 200ms ease, opacity 200ms ease;
 }
-.pb-figure img { position: relative; height: 100%; width: auto; display: block; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure > img { position: relative; height: 100%; width: auto; display: block; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
 .pb-figure.acting { transform: translateX(calc(var(--pb-foot, 0.5) * -100%)) translateY(-2%) scale(1.04); }
 /* On the ground: a shadow under the feet. */
 .pb-shadow {
@@ -92,9 +92,10 @@
   font-size: 12px;
   color: rgba(255, 250, 230, 0.95);
 }
-.pb-figure.guard img { filter: drop-shadow(0 0 6px rgba(150, 190, 255, 0.85)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
-.pb-figure.regen img { filter: drop-shadow(0 0 6px rgba(160, 255, 190, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
-.pb-figure.guard.regen img { filter: drop-shadow(0 0 5px rgba(150, 190, 255, 0.85)) drop-shadow(0 0 9px rgba(160, 255, 190, 0.6)); }
+/* 月影の構え: his own red-black (作者 2026-10-17 主人公専用演出), not a cold blue. */
+.pb-figure.guard > img { filter: drop-shadow(0 0 5px rgba(200, 20, 40, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure.regen > img { filter: drop-shadow(0 0 6px rgba(160, 255, 190, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure.guard.regen > img { filter: drop-shadow(0 0 5px rgba(200, 20, 40, 0.8)) drop-shadow(0 0 9px rgba(160, 255, 190, 0.6)); }
 .pb-figure.down { filter: grayscale(1) brightness(0.5); opacity: 0.6; }
 
 .pb-float {
@@ -511,10 +512,10 @@
 
 /* ── two or three creatures (2026-10-12, 複数敵) ── */
 .pb-foe.down { opacity: 0; transition: opacity 700ms ease; pointer-events: none; }
-.pb-foe.focus img { filter: drop-shadow(0 0 6px rgba(255, 211, 107, 0.75)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.focus > img { filter: drop-shadow(0 0 6px rgba(255, 211, 107, 0.75)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
 .pb-foe.aimable { cursor: pointer; }
-.pb-foe.aimable img { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
-.pb-foe.aimable.focus img { filter: drop-shadow(0 0 8px rgba(255, 211, 107, 0.95)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.aimable > img { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.aimable.focus > img { filter: drop-shadow(0 0 8px rgba(255, 211, 107, 0.95)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
 /* ▼ over the one in focus. */
 .pb-foe-mark {
   position: absolute;
@@ -929,20 +930,7 @@
     radial-gradient(ellipse 3px 7px at 52% 58%, rgba(255, 255, 255, 0.9), transparent 70%);
 }
 .pb-hit.feather::after { border-radius: 50%; background: radial-gradient(closest-side, rgba(170, 255, 200, 0.35), transparent); }
-/* 月影の構え: a pale blue ring as the guard comes up (his afterimage beside it). */
-.pb-hit.guard::before { border-radius: 50%; border: 2px solid rgba(160, 200, 255, 0.95); box-shadow: 0 0 12px rgba(150, 190, 255, 0.8), inset 0 0 10px rgba(150, 190, 255, 0.6); }
-.pb-hit.guard { animation: pb-hit-guard 620ms ease-out both; }
-.pb-figure img.pb-afterimage {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: auto;
-  opacity: 0;
-  filter: brightness(1.6) saturate(0.2) drop-shadow(0 0 6px rgba(150, 190, 255, 0.9));
-  pointer-events: none;
-  animation: pb-afterimage 520ms ease-out both;
-}
+/* 月影の構え's own look (moon arc, stance, dodge, counter) is the hero's red moon: ui/fx/special. */
 /* A spell's circle at the caster's feet: drawn, turning, gone. */
 .pb-cast {
   position: absolute;
@@ -964,13 +952,10 @@
 @keyframes pb-hit-ring { 0% { opacity: 0.9; transform: scale(0.3); } 100% { opacity: 0; transform: scale(1.4); } }
 @keyframes pb-hit-soft { 0% { opacity: 0; transform: translateY(8px) scale(0.8); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px) scale(1.1); } }
 @keyframes pb-hit-feather { 0% { opacity: 0; transform: translateY(14px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px); } }
-@keyframes pb-hit-guard { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.3); } }
-@keyframes pb-afterimage { 0% { opacity: 0.55; transform: translateX(0); } 100% { opacity: 0; transform: translateX(14px); } }
 @keyframes pb-cast { 0% { opacity: 0; transform: translate(-50%, 45%) scale(0.5) rotate(0deg); } 30% { opacity: 1; transform: translate(-50%, 45%) scale(1); } 100% { opacity: 0; transform: translate(-50%, 45%) scale(1.1); } }
 @keyframes pb-hit-fade { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
 /* Less motion asked for: the flashes only fade — nothing grows, flies or drifts. */
 @media (prefers-reduced-motion: reduce) {
-  .pb-hit, .pb-hit.slash, .pb-hit.skill, .pb-hit.claw, .pb-hit.counter, .pb-hit.mend, .pb-hit.feather, .pb-hit.guard, .pb-cast, .pb-float.big, .pb-float.weak { animation-name: pb-hit-fade; }
+  .pb-hit, .pb-hit.slash, .pb-hit.skill, .pb-hit.claw, .pb-hit.counter, .pb-hit.mend, .pb-hit.feather, .pb-cast, .pb-float.big, .pb-float.weak { animation-name: pb-hit-fade; }
   .pb-hit::after { animation: none !important; }
-  .pb-figure img.pb-afterimage { display: none; }
 }

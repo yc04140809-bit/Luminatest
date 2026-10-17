@@ -385,6 +385,7 @@ export function BattleScreen({
       items={{ bag: carried, onUse: drink }}
       onAwakeningDone={() => setBattle((b) => clearAwakeningLines(b))}
       spell={theatre.spell}
+      wings={theatre.wings}
       cinematic={theatre.cinematic}
       slash={theatre.slash}
       swordplay

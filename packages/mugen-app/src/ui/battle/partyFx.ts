@@ -4,6 +4,7 @@ import type { SfxId } from '@mugen/content/audio/sfx';
 import type { CameraDir, CameraMove } from '../fx/camera';
 import { CAMERA_COMBOS, personaOf } from '../fx/camera';
 import type { ShakeLevel } from '../fx/screenShake';
+import { MOMENT_SPECIAL_FX, specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
 
 /**
  * WHAT EACH BLOW OF THE PARTY FIGHT LOOKS LIKE (作者「魔法・スキル・戦闘エフェクト強化」
@@ -28,14 +29,35 @@ import type { ShakeLevel } from '../fx/screenShake';
  * forget: the fight's turns never wait on it, and at ×2 it is all halved.
  * A BREAK is played by the screen itself after the blow's hold (hit → stop →
  * SE → shake → BREAK!! → it reels), so a breaking blow has no shake here.
+ *
+ * THE CHARACTERS' OWN (作者 2026-10-17; ui/fx/special): a skill flagged in
+ * SKILL_SPECIAL_FX plays its own effects (`special`) instead of the common
+ * flash — グレイヴ's 重撃・豪断 as two blows (the downward 重撃, a hold and
+ * a jolt — `stages` — then the cleave of 豪断), 主人公's red moon on 《瞬断》,
+ * 月影の構え, its dodge and its counter, ケイオス's wings behind her. A long
+ * one asks the next turn to wait a little (`hold`), so it is seen whole.
  */
 
 export type HitFlash = 'slash' | 'skill' | 'heavy' | 'magic' | 'mend' | 'feather' | 'guard' | 'counter' | 'claw' | 'crush';
 export type NumberTier = 'big' | 'weak' | 'resisted';
 export type MagicColour = 'star' | 'fire' | 'ice' | 'thunder' | 'plain';
 
+/** A blow before the last one (重撃 before 豪断): its own hold, jolt and reeling. */
+export interface FxStage {
+  at: number;
+  hitStop: number;
+  shake?: ShakeLevel;
+  reel?: { on: string; px: number; down: number };
+}
+
 export interface BeatFx {
   camera?: (CameraMove & { wait?: number })[];
+  /** The characters' own effects, each on someone (an id), from `at` ms. */
+  special?: { type: SpecialEffectType; on: string; at: number }[];
+  /** Blows before the last (`impact` is the last). */
+  stages?: FxStage[];
+  /** How much longer (ms) the next turn waits, for a long one to be seen whole. */
+  hold?: number;
   tempo: number;
   impact: number;
   flash?: { kind: HitFlash; on: string; colour?: MagicColour };
@@ -49,10 +71,15 @@ export interface BeatFx {
   number?: NumberTier;
 }
 
-/** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms). */
-export const HIT_STOPS = { light: 40, skill: 65, heavy: 100, finisher: 130 } as const;
+/** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms; グレイヴ: 重撃 80〜120 / 豪断 100〜140). */
+export const HIT_STOPS = { light: 40, skill: 65, heavy: 100, finisher: 130, goudan: 120 } as const;
+
+/** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
+export const GRAVE_CHAIN = { juugeki: 120, charge: 300, goudan: 460, hold: 450 } as const;
 
 export interface BeatContext {
+  /** The id of the skill, technique or spell used (the flag's key — SKILL_SPECIAL_FX). */
+  skillId?: string;
   tech?: PartyTechnique;
   spell?: MagicDef;
   /** A creature as big as the screen (ヴァルシール): it barely moves for a small blow. */
@@ -109,7 +136,21 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
         reel: reel(4),
         number: numberTier(beat, ctx),
       };
-    case 'SKILL':
+    case 'SKILL': {
+      const own = specialFxOf(ctx.skillId);
+      if (own.length > 0) {
+        // 主人公's red moon (《瞬断》): the crescent cut instead of the common one.
+        return {
+          tempo,
+          camera: [kick('small')],
+          special: own.map((type) => ({ type, on: beat.target, at: 0 })),
+          impact: 110,
+          hitStop: HIT_STOPS.skill,
+          sfx: [],
+          reel: reel(6),
+          number: numberTier(beat, ctx),
+        };
+      }
       return {
         tempo,
         camera: [kick('small')],
@@ -120,6 +161,7 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
         reel: reel(6),
         number: numberTier(beat, ctx),
       };
+    }
     case 'MAGIC': {
       const colour = COLOUR[ctx.spell?.element ?? ''] ?? 'plain';
       // ケイオス's way: the camera leans in on her as she casts, and snaps in at it landing.
@@ -127,6 +169,8 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
         tempo,
         camera: [{ kind: 'PUSH_IN', strength: 'small', at: ctx.actorAt }],
         cast: { on: beat.actor, colour },
+        // ケイオス's wings, for the spells that have them, open behind her as she begins.
+        special: specialFxOf(ctx.skillId).map((type) => ({ type, on: beat.actor, at: 0 })),
         impact: 260,
         flash: { kind: 'magic', on: beat.target, colour },
         hitStop: HIT_STOPS.skill,
@@ -141,9 +185,38 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
       return { ...none, flash: { kind: 'mend', on: beat.target }, cast: { on: beat.actor, colour: 'star' } };
     case 'TECH': {
       const kind = ctx.tech?.kind;
-      if (kind === 'MOON_GUARD') return { ...none, flash: { kind: 'guard', on: beat.target } };
+      // 月影の構え: the moon arc behind him, his blade's line held — quiet, but not nothing.
+      if (kind === 'MOON_GUARD') return { ...none, special: specialFxOf(ctx.skillId ?? 'moon_guard').map((type) => ({ type, on: beat.target, at: 0 })) };
       // 星癒の羽: soft, no jolt, no hold — feathers.
       if (kind === 'REGEN') return { ...none, flash: { kind: 'feather', on: beat.target } };
+      const own = specialFxOf(ctx.skillId);
+      if (own.includes('grave_juugeki') && own.includes('grave_goudan')) {
+        // グレイヴ's 重撃・豪断: the camera leans in; the 重撃 falls straight down (a hold, a jolt, the
+        // creature sinks); the blade gathers its lightning, the camera kicks, the 豪断 cleaves
+        // across (a longer hold, the snap in, a large jolt, the creature thrown a little aside).
+        const c = GRAVE_CHAIN;
+        return {
+          tempo,
+          camera: [
+            { kind: 'PUSH_IN', strength: 'small', at: ctx.actorAt },
+            { kind: 'KICK', dir: 'left', strength: 'medium' },
+          ],
+          special: [
+            { type: 'grave_juugeki', on: beat.target, at: c.juugeki },
+            { type: 'grave_goudan_charge', on: beat.actor, at: c.charge },
+            { type: 'grave_goudan', on: beat.target, at: c.goudan },
+          ],
+          stages: [{ at: c.juugeki + 60, hitStop: HIT_STOPS.heavy, shake: 'medium', reel: { on: beat.target, px: 0, down: ctx.giant ? 2 : 6 } }],
+          impact: c.goudan + 50,
+          hitStop: HIT_STOPS.goudan,
+          sfx: [],
+          after: { kind: 'IMPACT_ZOOM', strength: 'small', at: ctx.targetAt },
+          shake: beat.broke ? undefined : 'large',
+          reel: ctx.giant ? { on: beat.target, px: 2, down: 0 } : { on: beat.target, px: 8, down: 0 },
+          number: numberTier(beat, ctx, true),
+          hold: c.hold,
+        };
+      }
       // 重撃・豪断: the camera leans in (the wind-up), the blow lands, the field holds, then the
       // camera is thrown back, the field jolts, the creature sinks.
       return {
@@ -160,7 +233,8 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
       };
     }
     case 'ENEMY_ATTACK': {
-      if (missed) return { ...none, camera: [kick('small')] };
+      // 月影の構え's dodge: his outline left where he was.
+      if (missed) return { ...none, camera: [kick('small')], special: MOMENT_SPECIAL_FX.evade.map((type) => ({ type, on: beat.target, at: 40 })) };
       const heavy = !!beat.name && beat.name === ctx.moves?.heavy;
       const sweep = !!beat.name && beat.name === ctx.moves?.sweep;
       if (heavy && ctx.giant) {
@@ -205,11 +279,16 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
 
 /** 月影の構え's counter: after the creature's blow, his answer — a white cut, a hold, a kick toward it. */
 export function counterFx(beat: PartyBeat, ctx: Pick<BeatContext, 'giant'>): BeatFx {
+  // His waiting moon let go (behind him), flying at the creature as a crescent cut.
+  const [release, slash] = MOMENT_SPECIAL_FX.counter;
   return {
     tempo: personaOf('hero').tempo,
     camera: [{ kind: 'KICK', dir: 'left', strength: 'small', wait: 260 }],
-    impact: 300,
-    flash: { kind: 'counter', on: beat.actor },
+    special: [
+      { type: release, on: beat.target, at: 200 },
+      { type: slash, on: beat.actor, at: 240 },
+    ],
+    impact: 330,
     hitStop: HIT_STOPS.skill,
     sfx: ['battle_hit'],
     reel: ctx.giant ? undefined : { on: beat.actor, px: 5, down: 0 },

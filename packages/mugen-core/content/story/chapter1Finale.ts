@@ -85,6 +85,12 @@ export interface FinaleLine extends DialogueLine {
    * DIP — a little lower (before a finisher); BACK — as it was.
    */
   music?: 'DROP' | 'DIP' | 'BACK';
+  /**
+   * A character's own effect over the picture as this line comes up (作者 2026-10-17 主人公専用演出):
+   * ZERO_TENSHOU — 零閃・天衝, his red moon: it goes still and dark, a thin arc, the crescent, the cut
+   * up through it. The line's shake and sound wait for the cut to land.
+   */
+  fx?: 'ZERO_TENSHOU';
 }
 
 /** Every scene of the finale, by id, in the order they are played. */
@@ -303,7 +309,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   // ---- F11 機能停止（破壊しない）----------------------------------------------
   STOPPED: scene('STOPPED', 'GRASSLAND', [
     // 零閃・天衝が着弾した直後から。
-    { speaker: null, text: '金色の光が、ゆっくりと弱まっていく。', shake: 'large', se: 'battle_finisher_hit' },
+    { speaker: null, text: '金色の光が、ゆっくりと弱まっていく。', shake: 'large', se: 'battle_finisher_hit', fx: 'ZERO_TENSHOU', pause: 1000 },
     { speaker: null, text: `${V}は膝をつき、翼をたたんだ。` },
     { speaker: null, text: '胸の光が、静かに消えた。', pause: 800 },
     { speaker: HERO, text: '……止まった、のか。', pause: 1000 },

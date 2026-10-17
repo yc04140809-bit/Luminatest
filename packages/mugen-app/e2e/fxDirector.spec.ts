@@ -141,7 +141,7 @@ test('less motion asked for (as the suite runs): the camera does not move', asyn
   expect(await everything(page)).toEqual([]);
 });
 
-test('each blow its own flash where it lands: a white cut, the heavy burst (and its big number), Kaos\'s circle and colour, 月影\'s ring, the feathers', async ({ page }) => {
+test('each blow its own flash where it lands: a white cut, Kaos\'s circle and colour, the feathers; the big number on 重撃・豪断', async ({ page }) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 844, height: 390 });
   await page.goto('/?preview=party&hurt=1&footing=40');
@@ -154,7 +154,6 @@ test('each blow its own flash where it lands: a white cut, the heavy burst (and 
   await turnOf(page, 'grave');
   await page.getByTestId('pb-cmd-skills').click();
   await page.getByTestId('pb-cmd-tech-goudan').click();
-  await expect(page.getByTestId('pb-foe').locator('[data-testid="pb-hit"][data-kind="heavy"]')).toHaveCount(1);
   await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).toHaveAttribute('data-tier', 'big');
 
   await turnOf(page, 'kaos');
@@ -164,12 +163,6 @@ test('each blow its own flash where it lands: a white cut, the heavy burst (and 
   await expect(page.getByTestId('pb-figure-grave').locator('[data-testid="pb-hit"][data-kind="feather"]')).toHaveCount(1);
   // Feathers: no jolt, no camera — and nothing that cuts.
   await expect(hit('slash')).toHaveCount(0);
-
-  await turnOf(page, 'hero');
-  await page.getByTestId('pb-cmd-skills').click();
-  await page.getByTestId('pb-cmd-tech-moon_guard').click();
-  await expect(page.getByTestId('pb-figure-hero').locator('[data-testid="pb-hit"][data-kind="guard"]')).toHaveCount(1);
-  await expect(page.getByTestId('pb-figure-hero').getByTestId('pb-afterimage')).toHaveCount(1);
 
   await turnOf(page, 'kaos');
   await page.getByTestId('pb-cmd-magic').click();

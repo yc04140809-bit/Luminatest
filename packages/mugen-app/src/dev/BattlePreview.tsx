@@ -507,6 +507,7 @@ function PreviewFight({
       }}
       cinematic={theatre.cinematic ?? cinematic}
       spell={theatre.spell}
+      wings={theatre.wings}
       slash={theatre.slash}
       swordplay={setup.slash}
       reach={theatre.reach}

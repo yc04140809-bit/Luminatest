@@ -233,6 +233,14 @@ describe('the 間, the sounds and the music of the finale (作者「無料強化
     expect(FINALE_PLACE_AMBIENCE.HOME).toBeNull();
   });
 
+  it('零閃・天衝 is the hero\'s, played over the picture as the stop begins (its cut first, then the words)', () => {
+    const l = line('STOPPED', '金色の光が、ゆっくりと弱まっていく。');
+    expect(l.fx).toBe('ZERO_TENSHOU');
+    expect(l.pause).toBeGreaterThanOrEqual(800);
+    // Nowhere else: no other line plays it, and no one else's scene has it.
+    expect(all.filter((x) => x.fx)).toHaveLength(1);
+  });
+
   it('a BACK ends a DROP within the scene', () => {
     const scene = { id: 'EVE' as const, place: 'HOME' as const, lines: [{ speaker: null, text: 'a', music: 'DROP' as const }, { speaker: null, text: 'b' }, { speaker: null, text: 'c', music: 'BACK' as const }] };
     expect([0, 1, 2].map((i) => finaleMusicAt(scene, i))).toEqual(['DROP', 'DROP', null]);

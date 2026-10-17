@@ -1,0 +1,31 @@
+/**
+ * THE PICTURES OF THE CHARACTERS' OWN EFFECTS (作者 2026-10-17: グレイヴ／主人公／ケイオス 専用演出).
+ *
+ * One line per picture, and nothing else: change the file here (a better
+ * PNG or WebP with a transparent background, the whole effect inside its
+ * frame) and every place that plays it plays the new one. The parts that
+ * have no picture yet — the cleave's arc, the ground's crack, the shards,
+ * the thin sparks, the stance's moon arc, the afterglow — are drawn in CSS
+ * (specialFx.css) and can be given a picture the same way later.
+ *
+ *   graveImpact     グレイヴ: the blue-gold blow falling and the ground breaking under it (重撃)
+ *   heroCrescent    主人公: the red-black crescent cut (零閃・天衝, 《瞬断》, the counter)
+ *   heroTwelve      主人公: twelve blades opening from one point (多方向斬撃 — a sample for now)
+ *   heroHiganbana   主人公: the red spider lily opening (彼岸花 — a sample for now)
+ *   kaosWings       ケイオス: the twin wings, black-gold and silver-white, behind her (its edge faded out)
+ */
+import graveImpact from '@mugen/assets/files/effects/grave-heavy-impact.webp';
+import heroCrescent from '@mugen/assets/files/effects/hero-redmoon-crescent.webp';
+import heroTwelve from '@mugen/assets/files/effects/hero-twelve-blades.webp';
+import heroHiganbana from '@mugen/assets/files/effects/hero-higanbana.webp';
+import kaosWings from '@mugen/assets/files/effects/kaos-twin-wings.webp';
+
+export const SPECIAL_FX_ART = {
+  graveImpact,
+  heroCrescent,
+  heroTwelve,
+  heroHiganbana,
+  kaosWings,
+} as const;
+
+export type SpecialFxArtKey = keyof typeof SPECIAL_FX_ART;

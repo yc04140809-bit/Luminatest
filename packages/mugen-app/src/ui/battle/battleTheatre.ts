@@ -26,6 +26,7 @@ import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
 import { SPELL_CONTACT_AT, spellDamage, spellShowOf, spellStepMs } from './magic/spellShow';
 import type { SpellFxView } from './magic/SpellFx';
+import { specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
 import type { SlashView } from './slash/SwordSlash';
 import type { CutInSpec } from './cutin/CutIn';
 import { REACH_CONTACT_AT, reachMs, slashMs } from './slash/slashTiming';
@@ -70,6 +71,8 @@ export const CONTACT_AT = 0.4;
 export const REACTION_LAG_MS = 45;
 /** How long a said line holds before getting out of the way. */
 export const SAY_HOLD_MS = 2000;
+/** ケイオス's wings, before the spell goes on (作者: カットイン後 0.15〜0.25秒の溜め). */
+export const WINGS_BREATH_MS = 200;
 
 /**
  * THE APP'S OWN BEATS, held as long as one of the Artifact's (whose table
@@ -157,6 +160,8 @@ export interface Theatre {
   playSpell: (before: BattleState, next: BattleState, spell: MagicDef, onLanded?: () => void) => void;
   /** Her aura or the spell's landing, while one is showing. */
   spell: SpellFxView | null;
+  /** ケイオス's wings behind her, for a spell flagged for them (ui/fx/special), from her cut-in's end. */
+  wings: { id: number; type: SpecialEffectType } | null;
   /**
    * THE STATE TO DRAW UNTIL A SPELL LANDS. A spell is decided at once and
    * shown over seconds; until it lands the health bars, the knock-down
@@ -206,6 +211,8 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
   const timers = useRef<number[]>([]);
   const blowId = useRef(0);
   const [spell, setSpell] = useState<SpellFxView | null>(null);
+  /** ケイオス's wings behind her, while they show (ui/fx/special — the spells flagged for them). */
+  const [wings, setWings] = useState<{ id: number; type: SpecialEffectType } | null>(null);
   const [holding, setHolding] = useState<BattleState | null>(null);
   const [slash, setSlash] = useState<SlashView | null>(null);
   const [reach, setReach] = useState<ReachView | null>(null);
@@ -248,6 +255,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     cutIns.stop();
     setBlows([]);
     setSpell(null);
+    setWings(null);
     setHolding(null);
     setSlash(null);
     setReach(null);
@@ -407,8 +415,13 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     setCamera('IDLE');
     setPlaying(true);
 
+    // 1½. Her wings (作者 2026-10-17 ケイオス専用演出): for a spell flagged for them, the cut-in over,
+    //     the twin wings open behind her — a breath (WINGS_BREATH_MS) — and then the spell.
+    const own = specialFxOf(def.id).find((t) => t.startsWith('kaos_'));
+    const breath = own ? visualMs(WINGS_BREATH_MS, speed, WINGS_BREATH_MS / 2) : 0;
+
     // 2–4, once her cut-in is over (or at once, for a spell that has none).
-    const afterCutIn = () => {
+    const afterWings = () => {
       // 2. She channels: her casting pose, and the aura round her.
       setBeat('MAGIC');
       setSpell({ id: mine, kind: show.kind, lands: show.lands, phase: 'channel', ms: channel });
@@ -433,6 +446,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
 
       // 4. The landing clears, and the creature answers as it always does.
       later(() => setSpell(null), channel + impact);
+      later(() => setWings(null), channel + impact);
       const over = playAnswer(next, channel + impact);
       later(() => setPlaying(false), over);
     };
@@ -440,6 +454,11 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     // 1. Her cut-in, with the spell's own name. Stopped — by a newer turn
     //    or by the screen going — and nothing after it happens. A spell
     //    with no cut-in in the table (spellCutIn.ts) goes straight on.
+    const afterCutIn = () => {
+      if (!own) return afterWings();
+      setWings({ id: mine, type: own });
+      later(afterWings, breath);
+    };
     const cutIn = spellCutIn(def);
     if (!cutIn) {
       afterCutIn();
@@ -459,6 +478,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     playTurn,
     playSpell,
     spell,
+    wings,
     holding,
     cinematic: cutIns.element,
     slash,

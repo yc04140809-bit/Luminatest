@@ -67,14 +67,16 @@ describe('beatFx', () => {
     expect(fx.sfx).toContain('battle_magic_fire');
   });
 
-  it('星癒の羽 and 月影の構え: no camera, no hold, no jolt — feathers; the guard\'s ring', () => {
+  it('星癒の羽 and 月影の構え: no camera, no hold, no jolt — feathers; his moon arc (the hero\'s own)', () => {
     const feather = beatFx(beat({ actor: 'kaos', kind: 'TECH', target: 'grave', amount: 0 }), ctx({ tech: tech('REGEN') }));
     expect(feather.flash).toEqual({ kind: 'feather', on: 'grave' });
     expect(feather.camera).toBeUndefined();
     expect(feather.hitStop).toBe(0);
-    const guard = beatFx(beat({ kind: 'TECH', target: 'hero', amount: 0 }), ctx({ tech: tech('MOON_GUARD') }));
-    expect(guard.flash?.kind).toBe('guard');
+    const guard = beatFx(beat({ kind: 'TECH', target: 'hero', amount: 0 }), ctx({ tech: tech('MOON_GUARD'), skillId: 'moon_guard' }));
+    expect(guard.special).toEqual([{ type: 'protagonist_counter_moon', on: 'hero', at: 0 }]);
+    expect(guard.camera).toBeUndefined();
     expect(guard.shake).toBeUndefined();
+    expect(guard.hitStop).toBe(0);
   });
 
   it('a giant\'s heavy blow: the camera draws back, then is thrown at the party; a large jolt', () => {
@@ -86,9 +88,12 @@ describe('beatFx', () => {
     expect(beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', name: '光翼の旋風' }), ctx({ giant: true, moves: { heavy: 'コア照射', sweep: '光翼の旋風' } })).shake).toBe('medium');
   });
 
-  it('the counter: after the creature\'s blow, a white cut on it, a hold, a kick toward it', () => {
+  it('the counter: after the creature\'s blow, his waiting moon let go — a crescent cut on it, a hold, a kick toward it', () => {
     const fx = counterFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', counter: 9 }), { giant: false });
-    expect(fx.flash).toEqual({ kind: 'counter', on: 'enemy' });
+    expect(fx.special).toEqual([
+      { type: 'protagonist_counter_release', on: 'hero', at: 200 },
+      { type: 'protagonist_counter_slash', on: 'enemy', at: 240 },
+    ]);
     expect(fx.camera?.[0]).toMatchObject({ kind: 'KICK', dir: 'left' });
     expect(fx.hitStop).toBe(HIT_STOPS.skill);
   });
@@ -100,5 +105,53 @@ describe('numberTier', () => {
     expect(numberTier(beat({ read: 'RESISTED' }), { targetMaxHp: 500 })).toBe('resisted');
     expect(numberTier(beat({ amount: 80 }), { targetMaxHp: 500 })).toBe('big');
     expect(numberTier(beat({ amount: 10 }), { targetMaxHp: 500 })).toBeUndefined();
+  });
+});
+
+describe('the characters\' own (作者 2026-10-17)', () => {
+  it('グレイヴ\'s 重撃・豪断: the 重撃 falls (its own hold and medium jolt, the creature sinking), the blade gathers, the 豪断 cleaves (a longer hold, a large jolt, thrown aside); the next turn waits for it', () => {
+    const fx = beatFx(beat({ actor: 'grave', kind: 'TECH', name: '重撃・豪断', amount: 30 }), ctx({ tech: tech('HEAVY'), skillId: 'goudan' }));
+    expect(fx.special?.map((s) => [s.type, s.on])).toEqual([
+      ['grave_juugeki', 'enemy'],
+      ['grave_goudan_charge', 'grave'],
+      ['grave_goudan', 'enemy'],
+    ]);
+    expect(fx.stages).toHaveLength(1);
+    expect(fx.stages![0]).toMatchObject({ hitStop: HIT_STOPS.heavy, shake: 'medium' });
+    expect(fx.stages![0].reel?.down).toBeGreaterThan(0);
+    expect(fx.stages![0].at).toBeLessThan(fx.impact);
+    expect(fx.hitStop).toBe(HIT_STOPS.goudan);
+    expect(fx.hitStop).toBeGreaterThanOrEqual(100);
+    expect(fx.hitStop).toBeLessThanOrEqual(140);
+    expect(fx.shake).toBe('large');
+    expect(fx.reel?.px).toBeGreaterThan(0);
+    expect(fx.camera?.map((m) => m.kind)).toEqual(['PUSH_IN', 'KICK']);
+    expect(fx.hold).toBeGreaterThan(0);
+    // No common flash: his own effects only.
+    expect(fx.flash).toBeUndefined();
+    // ヴァルシール: barely moved.
+    const giant = beatFx(beat({ actor: 'grave', kind: 'TECH', amount: 30 }), ctx({ tech: tech('HEAVY'), skillId: 'goudan', giant: true }));
+    expect(giant.reel?.px).toBeLessThanOrEqual(2);
+    expect(giant.stages![0].reel?.down).toBeLessThanOrEqual(2);
+  });
+
+  it('《瞬断》: the hero\'s red moon instead of the common cut; not グレイヴ\'s', () => {
+    const fx = beatFx(beat({ kind: 'SKILL', name: '瞬断' }), ctx({ skillId: 'shundan' }));
+    expect(fx.special).toEqual([{ type: 'protagonist_redmoon_slash', on: 'enemy', at: 0 }]);
+    expect(fx.flash).toBeUndefined();
+    expect(fx.hitStop).toBe(HIT_STOPS.skill);
+  });
+
+  it('月影の構え\'s dodge: his outline left behind', () => {
+    const fx = beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', missed: true, amount: 0 }), ctx());
+    expect(fx.special?.[0]).toMatchObject({ type: 'protagonist_evade', on: 'hero' });
+  });
+
+  it('ケイオス\'s 彗星撃: the wings open behind her as she begins; her spell goes on as before', () => {
+    const fx = beatFx(beat({ actor: 'kaos', kind: 'MAGIC', name: '彗星撃' }), ctx({ skillId: 'comet_strike', spell: { element: 'STAR' } as MagicDef }));
+    expect(fx.special).toEqual([{ type: 'kaos_twin_wings', on: 'kaos', at: 0 }]);
+    expect(fx.flash?.kind).toBe('magic');
+    // A spell with no wings of its own: none.
+    expect(beatFx(beat({ actor: 'kaos', kind: 'MAGIC' }), ctx({ skillId: 'not_flagged' })).special).toEqual([]);
   });
 });
