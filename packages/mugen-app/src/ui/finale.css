@@ -5,6 +5,8 @@
   background: #05060a;
   padding: 0;
 }
+/* The picture's layer (what a SCREEN SHAKE moves); the picture fills it as it filled the screen. */
+.finale-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
 .finale-backdrop {
   position: absolute;
   inset: 0;

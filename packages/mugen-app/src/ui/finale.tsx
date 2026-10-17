@@ -20,6 +20,8 @@ import type { FaceBox } from '../assets/kaosFaces';
 import { finaleFaceFor, type FinaleFace } from './finaleFaces';
 import { usePicture } from './scene';
 import { PartyBattleScreen } from './battle/PartyBattleScreen';
+import { screenShake } from './fx/screenShake';
+import { audioManager } from '../platform/audio';
 import './finale.css';
 
 /**
@@ -188,6 +190,8 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       face={finaleFaceFor(line)}
       speaker={speaker}
       text={line.text}
+      shake={line.shake ?? null}
+      hush={line.hush === true}
       at={phase.line}
       busy={busy}
       onNext={next}
@@ -204,6 +208,8 @@ function FinaleScene({
   face,
   speaker,
   text,
+  shake,
+  hush,
   at,
   busy,
   onNext,
@@ -215,14 +221,30 @@ function FinaleScene({
   face: FinaleFace | null;
   speaker: string | null;
   text: string;
+  /** The picture's jolt as this line comes up (SCREEN SHAKE), or none. */
+  shake: 'small' | 'medium' | 'large' | null;
+  /** The music almost gone while this line is up. */
+  hush: boolean;
   at: number;
   busy: boolean;
   onNext: () => void;
 }) {
   const src = usePicture(() => finaleBackdropSrc(backdrop), `finale:${backdrop}`);
   const shown = useFace(face);
+  const root = useRef<HTMLDivElement>(null);
+  // The line's jolt, once, as it comes up — the picture only; the words hold still.
+  useEffect(() => {
+    if (shake) void screenShake(shake, root.current ?? undefined);
+  }, [sceneId, at]);
+  // The breath before something wakes: the piece playing drops almost to nothing, and comes back after.
+  useEffect(() => {
+    if (!hush) return;
+    audioManager.duckBgm(0.12);
+    return () => audioManager.duckBgm(1);
+  }, [hush, sceneId, at]);
   return (
     <div
+      ref={root}
       className={`screen finale${mood ? ` finale-${mood}` : ''}`}
       data-testid="finale-scene"
       data-scene={sceneId}
@@ -230,16 +252,20 @@ function FinaleScene({
       data-frame={frame ?? 'ALL'}
       data-at={at}
     >
-      {src && (
-        <img
-          className="finale-backdrop"
-          src={src}
-          alt=""
-          aria-hidden="true"
-          data-testid="finale-backdrop"
-          data-frame={frame ?? 'ALL'}
-        />
-      )}
+      {/* The picture's own layer — always there, so a jolt has something to move even while a new
+          picture is still coming (the words, outside it, never move). */}
+      <div className="finale-stage" data-shake-layer="backdrop" aria-hidden="true">
+        {src && (
+          <img
+            className="finale-backdrop"
+            src={src}
+            alt=""
+            aria-hidden="true"
+            data-testid="finale-backdrop"
+            data-frame={frame ?? 'ALL'}
+          />
+        )}
+      </div>
       <div className="finale-box" onClick={onNext}>
         {shown && (
           <div className="finale-face" data-testid="finale-face" data-face={shown.key} aria-hidden="true">

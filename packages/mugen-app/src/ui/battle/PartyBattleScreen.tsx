@@ -35,6 +35,7 @@ import type { ArtBox } from '@mugen/core/art/artStates';
 import { battleEnemyArt, battlePartyArt, type BattlePartyId } from './battleArt';
 import { battleBackgroundArt } from '../../assets/battleBackground';
 import { playSfx } from '../../platform/audio';
+import { hitStop, screenShake, type ShakeLevel } from '../fx/screenShake';
 import { CageIcon, SparkIcon, SwordIcon } from './BattleIcons';
 import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
@@ -130,6 +131,8 @@ const AUTO_TURN_MS = 450;
 /** A breath more after a BREAK, for 「BREAK!!」 to be seen. */
 const BREAK_PAUSE_MS = 700;
 const SHAKE_MS = 450;
+/** BREAK's hit-stop: the field holds this long before it jolts (作者: 50〜100ms から). */
+const BREAK_HIT_STOP_MS = 70;
 
 /** What is on a member, short, for under their name. */
 function statusChips(m: PartyMember): { key: string; label: string; title: string }[] {
@@ -222,6 +225,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [shaking, setShaking] = useState(false);
   const [bg, setBg] = useState<string | null>(null);
   const ended = useRef(false);
+  /** The screen, so a shake moves this fight's field and painting (ui/fx/screenShake) and nothing else. */
+  const root = useRef<HTMLDivElement>(null);
+  const shake = (level: ShakeLevel) => void screenShake(level, root.current ?? undefined);
   const actor = currentActor(state);
   const acting = actor && !isEnemyId(actor) ? memberById(state, actor) : undefined;
 
@@ -264,16 +270,20 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     playSfx(sfxOf(next.last, tech));
     if (next.last?.regen) playSfx('battle_heal');
     if (next.last && isEnemyId(next.last.target)) setFocus(next.last.target);
+    // 重撃・豪断 landing: the field jolts (a BREAK it causes jolts on its own, below).
+    if (tech?.kind === 'HEAVY' && next.last && !next.last.missed && !next.last.broke) shake('medium');
     setMenu('COMMANDS');
     setAiming(null);
     setPending(null);
     setState(next);
   };
 
-  // BREAK: its sound, and the screen shakes a moment.
+  // BREAK: its sound; the field holds a breath (hit-stop), then jolts — and 「BREAK!!」 with it.
   useEffect(() => {
     if (!state.last?.broke) return;
     playBreakSfx();
+    const at = root.current ?? undefined;
+    void hitStop(BREAK_HIT_STOP_MS, at).then(() => screenShake('medium', at));
     setShaking(true);
     const t = window.setTimeout(() => setShaking(false), SHAKE_MS);
     return () => window.clearTimeout(t);
@@ -290,6 +300,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         const beat = next.last;
         if (beat?.missed) playSfx('battle_evade');
         else if (beat?.kind === 'ENEMY_ATTACK') playSfx('battle_damage');
+        // Its big blows (a named move): the harder one at one of them, the sweep at all of them.
+        if (beat?.kind === 'ENEMY_ATTACK' && !beat.missed && beat.name) {
+          const moves = enemyById(next, beat.actor)?.moves;
+          if (moves?.heavy?.name === beat.name) shake(scale === 'GIANT' ? 'large' : 'medium');
+          else if (moves?.sweep?.name === beat.name) shake('medium');
+        }
         if (beat?.counter) playSfx('battle_attack_slash');
         setState(next);
       }, ms);
@@ -374,6 +390,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
 
   return (
     <div
+      ref={root}
       className={`screen pb-screen${shaking ? ' shake' : ''}${giant ? ' giant' : ''}`}
       data-testid="pb-screen"
       data-actor={actor ?? ''}
@@ -387,10 +404,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         ['--ui-memory-star' as string]: `url(${BATTLE_UI_FRAMES.memoryStar})`,
       }}
     >
-      {bg && <img className="pb-bg" src={bg} alt="" aria-hidden="true" />}
+      {bg && <img className="pb-bg" src={bg} alt="" aria-hidden="true" data-shake-layer="backdrop" />}
 
       {/* THE FIELD — the creature left, the party right (a triangle). */}
-      <div className="pb-field">
+      <div className="pb-field" data-shake-layer="field">
         {state.enemies.map((e, i) => {
           const spot = foeSpots[i];
           const eBroken = isBroken(e);

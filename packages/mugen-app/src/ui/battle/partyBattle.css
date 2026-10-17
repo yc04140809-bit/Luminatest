@@ -149,15 +149,8 @@
   55% { transform: translateX(-4px); }
   75% { transform: translateX(3px); }
 }
-/* The screen shakes a moment when it breaks. */
-.screen.pb-screen.shake .pb-field { animation: pb-screen-shake 450ms ease-out; }
-@keyframes pb-screen-shake {
-  0%, 100% { transform: translate(0, 0); }
-  20% { transform: translate(-5px, 2px); }
-  40% { transform: translate(5px, -2px); }
-  60% { transform: translate(-3px, 1px); }
-  80% { transform: translate(2px, -1px); }
-}
+/* The field's jolt when it breaks is the shared SCREEN SHAKE now (ui/fx/screenShake.ts, medium, after a
+   hit-stop) — the field and the painting move, the HUD holds still. The creature's own recoil stays here. */
 /* 「BREAK!!」, big, in the middle. */
 .pb-break-flash {
   position: absolute;

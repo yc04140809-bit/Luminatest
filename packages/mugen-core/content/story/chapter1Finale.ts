@@ -63,6 +63,13 @@ export interface FinaleLine extends DialogueLine {
   cg?: FinaleBackdrop;
   /** From this line on, how much of the picture is shown (until the picture changes or another is named). */
   frame?: FinaleFrame;
+  /**
+   * The picture jolts as this line comes up (SCREEN SHAKE, 作者 2026-10-17): small / medium / large.
+   * Only the picture moves — the words hold still. Used sparingly, and heavier as a thing gets worse.
+   */
+  shake?: 'small' | 'medium' | 'large';
+  /** The music drops almost to nothing while this line is up — the breath before something wakes. */
+  hush?: true;
 }
 
 /** Every scene of the finale, by id, in the order they are played. */
@@ -145,21 +152,21 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: HOODED, text: '……第一封鎖、解除。' },
     { speaker: null, text: '光が、静かに落ち着いた。うまくいったように見えた。' },
     { speaker: HOODED, text: '次だ。' },
-    { speaker: null, text: '装置が、赤く光った。', cg: 'RUINS_REFUSED' },
+    { speaker: null, text: '装置が、赤く光った。', cg: 'RUINS_REFUSED', shake: 'small' },
     { speaker: null, text: '低い機械音。石の割れる音。耳の奥を刺すような、古い警告の響き。' },
     { speaker: HOODED, text: '……違う。' },
     { speaker: null, text: '床の封印紋に、赤金の亀裂が走る。' },
     { speaker: HOODED, text: '第二封鎖が……逆流している？' },
-    { speaker: null, text: '地の底から、振動が突き上げてくる。' },
+    { speaker: null, text: '地の底から、振動が突き上げてくる。', shake: 'medium' },
     { speaker: HOODED, text: '……まずい。' },
-    { speaker: null, text: '亀裂の奥で、巨大な目が灯った。', cg: 'VALSHEEL_AWAKENING', frame: 'EYE' },
+    { speaker: null, text: '亀裂の奥で、巨大な目が灯った。', cg: 'VALSHEEL_AWAKENING', frame: 'EYE', hush: true, shake: 'small' },
     { speaker: null, text: '人影が、一歩、後ろへ下がる。' },
     { speaker: HOODED, text: 'まだ起きるはずじゃなかった。' },
     { speaker: null, text: '人影は、それ以上何も言わず、舞い上がる砂煙の中へ消えた。' },
     { speaker: null, text: '封印床が割れ、巨大な頭部がせり上がる。', frame: 'HEAD' },
-    { speaker: null, text: '石と金の前脚が、封印床を踏み破った。', frame: 'PAW' },
+    { speaker: null, text: '石と金の前脚が、封印床を踏み破った。', frame: 'PAW', shake: 'medium' },
     { speaker: null, text: '外殻をまとった上半身が、ゆっくりと起き上がる。', frame: 'UPPER' },
-    { speaker: null, text: `封殻機兵 ${V}――完全起動。` },
+    { speaker: null, text: `封殻機兵 ${V}――完全起動。`, shake: 'large' },
     { speaker: null, text: 'それは、侵入者の姿を探した。そこにはもう、誰もいない。' },
     { speaker: null, text: '壁の向こう、遠く――村のある方角に、たくさんの人の気配がある。' },
     { speaker: null, text: '乱れた目が、それを「侵入者」と見なした。' },
@@ -172,7 +179,7 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: null, text: '遠くから、低い振動が伝わってくる。' },
     { speaker: null, text: '森の鳥が、一斉に飛び立った。' },
     { speaker: VILLAGER, text: 'な、何だ……？' },
-    { speaker: null, text: '地面が揺れ、軒先から埃がぱらぱらと落ちる。' },
+    { speaker: null, text: '地面が揺れ、軒先から埃がぱらぱらと落ちる。', shake: 'small' },
     { speaker: KAOS, text: '……来る。', kaosFace: 'SERIOUS', tense: true },
     { speaker: HERO, text: '……遺跡の方だ。', heroFace: 'SERIOUS' },
     { speaker: null, text: '森の向こうに、巨大な影が立ち上がった。' },
@@ -246,10 +253,10 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   SHELL_BREAK: scene('SHELL_BREAK', 'GRASSLAND', [
     { speaker: null, text: `${V}の動きが、止まった。` },
     { speaker: HERO, text: '……やったか？' },
-    { speaker: null, text: '外殻に、ひびが走る。' },
+    { speaker: null, text: '外殻に、ひびが走る。', shake: 'small' },
     { speaker: null, text: 'ひびの奥から、金色の光が漏れ出した。' },
     { speaker: GRAVE, text: '下がれ！', graveFace: 'SURPRISED', tense: true },
-    { speaker: null, text: '外殻が砕け散る。' },
+    { speaker: null, text: '外殻が砕け散る。', shake: 'large' },
     { speaker: null, text: '中から現れたのは――翼を広げた、白と金の機械の天使。' },
     { speaker: KAOS, text: '……これが、本当の姿。', kaosFace: 'SURPRISED', tense: true },
   ]),
@@ -262,7 +269,8 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: KAOS, text: '下がってて。本気、出すから。', tense: true },
   ]),
   HERO_FINISHER: scene('HERO_FINISHER', 'GRASSLAND', [
-    { speaker: null, text: '剣が、熱を帯びた。' },
+    // ケイオスの一撃が着弾した直後から。
+    { speaker: null, text: '剣が、熱を帯びた。', shake: 'large' },
     { speaker: HERO, text: '……まだだ。', heroFace: 'SERIOUS', tense: true },
     { speaker: HERO, text: 'ここで、終わらせる！', tense: true },
   ]),
@@ -279,7 +287,8 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
 
   // ---- F11 機能停止（破壊しない）----------------------------------------------
   STOPPED: scene('STOPPED', 'GRASSLAND', [
-    { speaker: null, text: '金色の光が、ゆっくりと弱まっていく。' },
+    // 零閃・天衝が着弾した直後から。
+    { speaker: null, text: '金色の光が、ゆっくりと弱まっていく。', shake: 'large' },
     { speaker: null, text: `${V}は膝をつき、翼をたたんだ。` },
     { speaker: null, text: '胸の光が、静かに消えた。' },
     { speaker: HERO, text: '……止まった、のか。' },
