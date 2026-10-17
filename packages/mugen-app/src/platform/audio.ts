@@ -215,7 +215,35 @@ export class AudioManager {
    * sounding; a piece started later plays at its level.
    */
   duckBgm(share: number): void {
+    this.endDuckFade();
     if (this.bgm && !this.bgmFade) this.bgm.volume = clampVolume(this.bgmVolume * clampVolume(share));
+  }
+
+  private duckFade: ReturnType<typeof setInterval> | null = null;
+  private endDuckFade(): void {
+    if (this.duckFade) clearInterval(this.duckFade);
+    this.duckFade = null;
+  }
+
+  /**
+   * THE SAME, GRADUALLY (作者「無料強化メモ②」: BGMが引く): the piece now sounding eased to
+   * `share` of its level over `ms` — a scene's music falling away before something wakes, and
+   * coming back. A crossfade or a new piece takes it over (the new piece at its own level).
+   */
+  duckBgmTo(share: number, ms = 600): void {
+    this.endDuckFade();
+    const el = this.bgm;
+    if (!el || this.bgmFade || this.bgmVolume <= 0 || ms <= 0) return this.duckBgm(share);
+    const from = clampVolume(el.volume / this.bgmVolume);
+    const to = clampVolume(share);
+    const steps = Math.max(1, Math.round(ms / 40));
+    let i = 0;
+    this.duckFade = setInterval(() => {
+      i++;
+      if (this.bgm !== el || this.bgmFade) return this.endDuckFade();
+      el.volume = clampVolume(this.bgmVolume * (from + (to - from) * Math.min(1, i / steps)));
+      if (i >= steps) this.endDuckFade();
+    }, 40);
   }
 
   /**

@@ -27,7 +27,7 @@
 ```ts
 import { screenShake, hitStop, setScreenShake } from './fx/screenShake';
 screenShake('small' | 'medium' | 'large', root?);  // root を省略すると document
-hitStop(70, root?);                                 // 層の中のアニメーションを一瞬止める（最大100ms）
+hitStop(70, root?);                                 // 層の中のアニメーションを一瞬止める（最大150ms：必殺の段まで）
 setScreenShake('on' | 'weak' | 'off');              // 1ヶ所で切り替え（weak は振れ幅半分）
 ```
 
@@ -38,15 +38,15 @@ setScreenShake('on' | 'weak' | 'off');              // 1ヶ所で切り替え（
 
 | 場面 | 揺れ |
 |---|---|
-| 3人戦闘：BREAK!! | 命中 → ヒットストップ 70ms → `medium`（BREAK!! の表示もそこから） |
+| 3人戦闘：BREAK!! | 命中 → ヒットストップ 90ms → SE → `medium` → BREAK!! → 敵リアクション（2026-10-17 メモ③の順） |
 | 3人戦闘：グレイヴ「重撃・豪断」命中 | `medium`（BREAK になった時は BREAK の揺れだけ） |
 | 3人戦闘：ヴァルシールの重い一撃（甲殻穿ち／コア照射） | 巨大な敵は `large`、それ以外は `medium` |
 | 3人戦闘：薙ぎ払い（旋尾薙ぎ／光翼の旋風） | `medium` |
 | 遺跡の最奥：装置が赤く光る | `small` |
 | 〃 地の底から振動が突き上げる | `medium` |
-| 〃 巨大な目が灯る | 音楽をほぼ無音に落とす（その一行の間）＋ `small` |
+| 〃 巨大な目が灯る | `small`（音楽は「装置が赤く光った」から引いたまま — CAMERA_DIRECTOR.md） |
 | 〃 前脚が封印床を踏み破る | `medium` |
-| 〃 封殻機兵ヴァルシール――完全起動 | `large`（音楽が戻る） |
+| 〃 封殻機兵ヴァルシール――完全起動 | `large` ＋ 起動音（battle_boss_emerge） |
 | 異変の朝：地面が揺れる | `small` |
 | 外殻破壊：ひびが走る → 外殻が砕け散る | `small` → `large` |
 | 必殺技：ケイオスの一撃の着弾（主人公の場面の最初の行） | `large` |
@@ -60,4 +60,4 @@ setScreenShake('on' | 'weak' | 'off');              // 1ヶ所で切り替え（
 - 通常戦闘（1対1）：揺れなし（BREAK は3人戦闘のみ）。
 - DEBUG 演出見本（零閃・天衝／ケイオスの必殺技の動く見本）：それぞれ専用の揺れを持っているので変えていない。ゲーム本編の必殺技は終盤の行で揺らす。
 - 遺跡へ向かう道の封印の揺れ（`seal-shake`）：既存のまま。
-- 新しい効果音（低い起動音など）は追加していない。
+- 効果音・台詞の間・BGMの引き・環境音・カメラは `docs/CAMERA_DIRECTOR.md`（2026-10-17 メモ②〜⑤）。

@@ -35,7 +35,9 @@ import type { ArtBox } from '@mugen/core/art/artStates';
 import { battleEnemyArt, battlePartyArt, type BattlePartyId } from './battleArt';
 import { battleBackgroundArt } from '../../assets/battleBackground';
 import { playSfx } from '../../platform/audio';
-import { hitStop, screenShake, type ShakeLevel } from '../fx/screenShake';
+import { hitStop, screenShake, shakeAllowed } from '../fx/screenShake';
+import { CAMERA_COMBOS, camera, cameraSequence } from '../fx/camera';
+import { beatFx, counterFx, type BeatContext, type BeatFx } from './partyFx';
 import { CageIcon, SparkIcon, SwordIcon } from './BattleIcons';
 import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
@@ -131,8 +133,10 @@ const AUTO_TURN_MS = 450;
 /** A breath more after a BREAK, for 「BREAK!!」 to be seen. */
 const BREAK_PAUSE_MS = 700;
 const SHAKE_MS = 450;
-/** BREAK's hit-stop: the field holds this long before it jolts (作者: 50〜100ms から). */
-const BREAK_HIT_STOP_MS = 70;
+/** BREAK's hit-stop: the field holds this long at the blow before it jolts (作者: 重攻撃 80〜120ms). */
+const BREAK_HIT_STOP_MS = 90;
+/** After 「BREAK!!」, a moment before the creature reels (作者: …→ BREAK!! → 敵リアクション). */
+const BREAK_REEL_MS = 90;
 
 /** What is on a member, short, for under their name. */
 function statusChips(m: PartyMember): { key: string; label: string; title: string }[] {
@@ -202,6 +206,27 @@ const BREAK_SHARDS: readonly { dx: number; dy: number; rot: number; spark?: bool
   { dx: 20, dy: 90, rot: 45, spark: true },
 ];
 
+/** Which beat is the last one: the log's length (each beat says at least one line). */
+const lastKeyOf = (state: PartyBattleState) => state.log.length;
+
+/**
+ * The one struck reels (作者: 敵の被弾リアクション): its drawing pushed away from the blow and back —
+ * `away` -1 to the left (a creature, struck from the party's side), 1 to the right — and sunk
+ * `down` px under a heavy one. On `transform`, so the field's shake (`translate`) is not touched.
+ */
+function reelOf(root: HTMLElement, reel: { on: string; px: number; down: number }, away: -1 | 1, speed: number) {
+  const img = root.querySelector<HTMLElement>(isEnemyId(reel.on) ? `[data-enemy="${reel.on}"] img` : `[data-testid="pb-figure-${reel.on}"] img`);
+  if (!img || typeof img.animate !== 'function' || !shakeAllowed()) return;
+  img.animate(
+    [
+      { transform: 'translate(0, 0)', easing: 'cubic-bezier(0.15, 0.85, 0.3, 1)' },
+      { transform: `translate(${away * reel.px}px, ${reel.down}px)`, offset: 0.3, easing: 'ease-in-out' },
+      { transform: 'translate(0, 0)' },
+    ],
+    { duration: Math.round((reel.down > 0 ? 320 : 200) * speed), fill: 'none' },
+  );
+}
+
 /** A skill's wait, in the list: 「あとNT」 while it cools down; nothing when it is ready. */
 function Wait({ left }: { left: number }) {
   return left > 0 ? (
@@ -223,11 +248,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [focus, setFocus] = useState<string>(ENEMY_ID);
   const [aiming, setAiming] = useState<{ spell: MagicDef } | { tech: PartyTechnique } | null>(null);
   const [shaking, setShaking] = useState(false);
+  /** The beat whose 「BREAK!!」 is up — shown once its blow has held (hit → stop → SE → shake → BREAK!!). */
+  const [breakShown, setBreakShown] = useState(-1);
   const [bg, setBg] = useState<string | null>(null);
   const ended = useRef(false);
-  /** The screen, so a shake moves this fight's field and painting (ui/fx/screenShake) and nothing else. */
+  /** The screen, so a shake or the camera moves this fight's field and painting (ui/fx) and nothing else. */
   const root = useRef<HTMLDivElement>(null);
-  const shake = (level: ShakeLevel) => void screenShake(level, root.current ?? undefined);
   const actor = currentActor(state);
   const acting = actor && !isEnemyId(actor) ? memberById(state, actor) : undefined;
 
@@ -245,6 +271,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // One giant alone takes the GIANT staging; a fight of several is drawn as an ordinary one.
   const scale = !many ? inputs[0].battleScale : undefined;
   const stage = stageFor(scale);
+  const giant = (scale ?? 'NORMAL') === 'GIANT';
   const places = useMemo(() => partyPlaces(members.map((m) => m.id), stage, formation), [members, stage, formation]);
   const artIds = useMemo(() => inputs.map((e) => e.artId ?? enemyArtId), [inputs, enemyArtId]);
   const foeSpots = enemyPlaces(stage, scale, artIds);
@@ -270,24 +297,50 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     playSfx(sfxOf(next.last, tech));
     if (next.last?.regen) playSfx('battle_heal');
     if (next.last && isEnemyId(next.last.target)) setFocus(next.last.target);
-    // 重撃・豪断 landing: the field jolts (a BREAK it causes jolts on its own, below).
-    if (tech?.kind === 'HEAVY' && next.last && !next.last.missed && !next.last.broke) shake('medium');
     setMenu('COMMANDS');
     setAiming(null);
     setPending(null);
     setState(next);
   };
 
-  // BREAK: its sound; the field holds a breath (hit-stop), then jolts — and 「BREAK!!」 with it.
+  // EACH BLOW, PLAYED (partyFx): the camera first, then at the blow its flash and layered sound, the
+  // hold (hit-stop), and after it the shake, the camera's answer, the one struck reeling. A BREAK:
+  // the hold, then its sound, the shake, the camera onto it, 「BREAK!!」, and the creature reels.
+  // Nothing here holds up the fight; a beat that follows cuts the rest short.
   useEffect(() => {
-    if (!state.last?.broke) return;
-    playBreakSfx();
-    const at = root.current ?? undefined;
-    void hitStop(BREAK_HIT_STOP_MS, at).then(() => screenShake('medium', at));
-    setShaking(true);
-    const t = window.setTimeout(() => setShaking(false), SHAKE_MS);
-    return () => window.clearTimeout(t);
-  }, [state.log.length, state.last?.broke]);
+    const beat = state.last;
+    const at = root.current;
+    if (!beat || !at) return;
+    const speed = fast ? 0.5 : 1;
+    const timers: number[] = [];
+    const later = (ms: number, f: () => void) => timers.push(window.setTimeout(() => at.isConnected && f(), ms));
+    const ctx = beatContext(beat, true);
+    const play = (p: BeatFx, breaks: boolean) => {
+      if (p.camera) void cameraSequence(p.camera, at, { tempo: p.tempo * speed });
+      later(p.impact * speed, () => {
+        for (const id of p.sfx) playSfx(id);
+        void hitStop((breaks ? BREAK_HIT_STOP_MS : p.hitStop) * speed, at).then(() => {
+          if (!at.isConnected) return;
+          if (breaks) {
+            playBreakSfx();
+            void screenShake('medium', at);
+            void cameraSequence(CAMERA_COMBOS.BREAK_FOCUS(ctx.targetAt), at, { tempo: speed });
+            setBreakShown(lastKey);
+            later(BREAK_REEL_MS * speed, () => setShaking(true));
+            later((BREAK_REEL_MS + SHAKE_MS) * speed, () => setShaking(false));
+            return;
+          }
+          if (p.after) void camera(p.after, at, p.tempo * speed);
+          if (p.shake) void screenShake(p.shake, at);
+          if (p.reel) reelOf(at, p.reel, isEnemyId(p.reel.on) ? -1 : 1, speed);
+        });
+      });
+    };
+    play(beatFx(beat, ctx), !!beat.broke);
+    if (beat.counter !== undefined) play(counterFx(beat, ctx), false);
+    return () => timers.forEach((t) => window.clearTimeout(t));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastKeyOf(state)]);
 
   // The creature's turn, and AUTO's: played after a breath (halved at ×2).
   useEffect(() => {
@@ -300,12 +353,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         const beat = next.last;
         if (beat?.missed) playSfx('battle_evade');
         else if (beat?.kind === 'ENEMY_ATTACK') playSfx('battle_damage');
-        // Its big blows (a named move): the harder one at one of them, the sweep at all of them.
-        if (beat?.kind === 'ENEMY_ATTACK' && !beat.missed && beat.name) {
-          const moves = enemyById(next, beat.actor)?.moves;
-          if (moves?.heavy?.name === beat.name) shake(scale === 'GIANT' ? 'large' : 'medium');
-          else if (moves?.sweep?.name === beat.name) shake('medium');
-        }
+        // Its big blows (a named move) shake and move the camera — partyFx, played above.
         if (beat?.counter) playSfx('battle_attack_slash');
         setState(next);
       }, ms);
@@ -350,7 +398,48 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     act(pending.make(id));
   };
   const last = state.last;
-  const lastKey = state.log.length;
+  const lastKey = lastKeyOf(state);
+  /** What the beat needs to be played: what was used, how big the one struck is, where they stand. */
+  function beatContext(beat: PartyBeat, measure: boolean): BeatContext {
+    const doer = isEnemyId(beat.actor) ? undefined : memberById(state, beat.actor);
+    const foe = isEnemyId(beat.actor) ? enemyById(state, beat.actor) : undefined;
+    const struck = isEnemyId(beat.target) ? enemyById(state, beat.target) : memberById(state, beat.target);
+    const where = (id: string) => {
+      const el = measure ? root.current?.querySelector(isEnemyId(id) ? `[data-enemy="${id}"]` : `[data-testid="pb-figure-${id}"]`) : null;
+      const box = root.current?.getBoundingClientRect();
+      if (!el || !box || box.width === 0) return isEnemyId(id) ? 0.25 : 0.7;
+      const r = el.getBoundingClientRect();
+      return (r.left + r.width / 2 - box.left) / box.width;
+    };
+    return {
+      tech: beat.kind === 'TECH' ? doer?.techniques?.find((t) => t.name === beat.name) : undefined,
+      spell: beat.kind === 'MAGIC' || beat.kind === 'MEND' ? doer?.magic?.find((m) => m.name === beat.name) : undefined,
+      giant,
+      targetMaxHp: struck?.maxHp ?? 0,
+      moves: foe ? { heavy: foe.moves.heavy?.name, sweep: foe.moves.sweep?.name } : undefined,
+      targetAt: where(beat.target),
+      actorAt: where(beat.actor),
+      actorArt: foe ? artIds[state.enemies.findIndex((e) => e.id === foe.id)] : undefined,
+    };
+  }
+  // The beat's flashes, numbers and circle, as drawn (where they stand is only for the camera).
+  const fx = last ? beatFx(last, beatContext(last, false)) : null;
+  const counter = last && last.counter !== undefined ? counterFx(last, { giant }) : null;
+  const fxSpeed = fast ? 0.5 : 1;
+  /** When something of this beat shows: at its blow (a CSS delay, so nothing waits in JavaScript). */
+  const impactStyle = (p: BeatFx | null) => ({ ['--pb-impact' as string]: `${Math.round((p?.impact ?? 0) * fxSpeed)}ms` });
+  const flash = (on: string, p: BeatFx | null) =>
+    p?.flash && p.flash.on === on ? (
+      <span
+        key={`fx${lastKey}${p === counter ? 'c' : ''}`}
+        className={`pb-hit ${p.flash.kind}${p.flash.colour ? ` ${p.flash.colour}` : ''}`}
+        data-testid="pb-hit"
+        data-kind={p.flash.kind}
+        aria-hidden="true"
+        style={impactStyle(p)}
+      />
+    ) : null;
+  const tierOf = (p: BeatFx | null) => (p?.number ? ` ${p.number}` : '');
   const spells = acting ? (acting.magic ?? []).filter((m) => m.effect === 'DAMAGE' || m.effect === 'MEND') : [];
   const canCast = acting ? castable(acting) : [];
   const skills = acting?.skills ?? [];
@@ -383,7 +472,6 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING';
-  const giant = (scale ?? 'NORMAL') === 'GIANT';
   const bossFight = state.enemies.some((e) => e.boss);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
@@ -431,6 +519,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               }}
             >
               {art.foes[e.id]?.src && <img src={art.foes[e.id].src!} alt={e.name} data-testid="pb-enemy-art" />}
+              {flash(e.id, fx)}
+              {flash(e.id, counter)}
               {isFocus && (
                 <span className="pb-foe-mark" aria-hidden="true">
                   ▼
@@ -449,12 +539,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                 </span>
               )}
               {last && last.target === e.id && last.amount > 0 && (
-                <span key={lastKey} className="pb-float">
+                <span key={lastKey} className={`pb-float${tierOf(fx)}`} data-testid="pb-float" data-tier={fx?.number ?? 'plain'} style={impactStyle(fx)}>
                   {last.amount}
                 </span>
               )}
               {last?.counter !== undefined && last.actor === e.id && (
-                <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter">
+                <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter" style={impactStyle(counter)}>
                   <small>反撃</small>
                   {last.counter}
                 </span>
@@ -474,9 +564,22 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               style={footStyle(spot, FOOT_AT[m.id] ?? 0.5, FIGURE_SCALE[m.id] ?? 1)}
             >
               <span className="pb-shadow" aria-hidden="true" />
+              {/* 月影の構え: an afterimage of him, left where he stood as the guard comes up. */}
+              {fx?.flash?.kind === 'guard' && fx.flash.on === m.id && art.party[m.id]?.src && (
+                <img key={`a${lastKey}`} className="pb-afterimage" src={art.party[m.id].src!} alt="" aria-hidden="true" data-testid="pb-afterimage" />
+              )}
               {art.party[m.id]?.src && <img src={art.party[m.id].src!} alt={m.name} />}
+              {/* A spell's circle at the caster's feet. */}
+              {fx?.cast?.on === m.id && <span key={`s${lastKey}`} className={`pb-cast ${fx.cast.colour}`} data-testid="pb-cast" aria-hidden="true" />}
+              {flash(m.id, fx)}
               {last && last.target === m.id && last.amount > 0 && (
-                <span key={lastKey} className={`pb-float${last.kind === 'MEND' ? ' heal' : ''}`}>
+                <span
+                  key={lastKey}
+                  className={`pb-float${last.kind === 'MEND' ? ' heal' : tierOf(fx)}`}
+                  data-testid="pb-float"
+                  data-tier={last.kind === 'MEND' ? 'heal' : (fx?.number ?? 'plain')}
+                  style={impactStyle(fx)}
+                >
                   {last.kind === 'MEND' ? `+${last.amount}` : last.amount}
                 </span>
               )}
@@ -513,7 +616,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             {flashName}
           </span>
         )}
-        {last?.broke && (
+        {last?.broke && breakShown === lastKey && (
           <span key={`b${lastKey}`} className="pb-break-flash" data-testid="pb-break-flash" aria-hidden="true">
             {/* The crystal plate behind the word cracks in two, its pieces flying (the sheet's own crystal). */}
             <span className="pb-break-plate half-a" />

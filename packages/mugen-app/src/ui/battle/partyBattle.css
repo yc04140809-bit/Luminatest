@@ -852,3 +852,125 @@
   .pb-shard { display: none; }
   .pb-break-plate.half-a, .pb-break-plate.half-b { --away: none; }
 }
+
+/* ── EACH BLOW (作者「魔法・スキル・戦闘エフェクト強化」2026-10-17; partyFx.ts) ──
+   Small and short, CSS only: what flashes where a blow lands, a spell's circle, 月影's afterimage, the
+   numbers by weight. Each waits for its blow (--pb-impact, set per beat) and is gone by itself. */
+.pb-float { animation-delay: var(--pb-impact, 0ms); }
+/* The numbers by weight: big; WEAK (orange, says so); resisted (smaller, dull). */
+.pb-float.big { font-size: 30px; color: #fff7d6; text-shadow: 0 0 6px #000, 0 3px 0 #b2402f, 0 0 14px rgba(255, 150, 60, 0.75); animation-name: pb-float-big; }
+.pb-float.weak { font-size: 27px; color: #ffcf6b; text-shadow: 0 0 5px #000, 0 2px 0 #a8461a; animation-name: pb-float-big; }
+.pb-float.weak::before { content: 'WEAK'; display: block; font-size: 11px; letter-spacing: 0.14em; text-align: center; color: #ffe2a0; }
+.pb-float.resisted { font-size: 17px; color: #c9c9d2; text-shadow: 0 0 4px #000, 0 2px 0 #4a4a58; }
+.giant .pb-figure .pb-float.big, .giant .pb-figure .pb-float.weak { font-size: 21px; }
+@keyframes pb-float-big {
+  0% { opacity: 0; transform: translate(-50%, 4px) scale(1.5); }
+  14% { opacity: 1; transform: translate(-50%, 0) scale(0.95); }
+  24% { transform: translate(-50%, -2px) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -20px) scale(1); }
+}
+
+.pb-hit {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  z-index: 7;
+  pointer-events: none;
+  --c: 255, 255, 255;
+  animation: pb-hit-burst 260ms ease-out both;
+  animation-delay: var(--pb-impact, 0ms);
+}
+.pb-foe .pb-hit { left: 46%; top: 50%; }
+.giant .pb-foe .pb-hit { left: 66%; top: 44%; width: 170px; height: 170px; margin: -85px 0 0 -85px; }
+.pb-hit::before,
+.pb-hit::after { content: ''; position: absolute; inset: 0; }
+/* The ordinary blow: a white cut across. */
+.pb-hit.slash::before { background: linear-gradient(-32deg, transparent 46%, rgba(255, 255, 255, 0.95) 49.5%, rgba(255, 255, 255, 0.95) 50.5%, transparent 54%); }
+.pb-hit.slash { animation-name: pb-hit-cut; }
+/* A skill (《瞬断》): two cuts, crossing, a cold edge. */
+.pb-hit.skill::before { background: linear-gradient(-32deg, transparent 45%, rgba(220, 245, 255, 1) 49.5%, rgba(220, 245, 255, 1) 50.5%, transparent 55%); }
+.pb-hit.skill::after { background: linear-gradient(28deg, transparent 46%, rgba(180, 225, 255, 0.85) 49.6%, rgba(180, 225, 255, 0.85) 50.4%, transparent 54%); }
+.pb-hit.skill { animation-name: pb-hit-cut; animation-duration: 320ms; filter: drop-shadow(0 0 6px rgba(150, 210, 255, 0.9)); }
+/* 重撃・豪断 / the counter: a burst, and a ring going out. */
+.pb-hit.heavy { --c: 255, 196, 120; }
+.pb-hit.heavy::before, .pb-hit.crush::before { border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(var(--c), 0.75) 40%, rgba(var(--c), 0) 72%); }
+.pb-hit.heavy::after, .pb-hit.crush::after, .pb-hit.magic::after { border-radius: 50%; border: 3px solid rgba(var(--c), 0.9); animation: pb-hit-ring 340ms ease-out both; animation-delay: inherit; }
+.pb-hit.heavy { animation-duration: 340ms; }
+/* A creature's blow on one of the party: red claws; its big blows a red burst. */
+.pb-hit.claw::before { background: repeating-linear-gradient(-58deg, transparent 0 18px, rgba(255, 90, 70, 0.9) 18px 21px, transparent 21px 38px); clip-path: inset(18% 18% 18% 18%); }
+.pb-hit.claw { width: 90px; height: 90px; margin: -45px 0 0 -45px; animation-name: pb-hit-cut; }
+.pb-hit.crush { --c: 255, 80, 60; animation-duration: 340ms; }
+/* The counter: a white cut on the creature, gold sparks at its edge. */
+.pb-hit.counter::before { background: linear-gradient(32deg, transparent 46%, #fff 49.5%, #fff 50.5%, transparent 54%); }
+.pb-hit.counter::after { background: radial-gradient(circle at 30% 40%, #ffd36b 0 2px, transparent 3px), radial-gradient(circle at 70% 62%, #ffd36b 0 2px, transparent 3px), radial-gradient(circle at 58% 28%, #fff1c2 0 1.5px, transparent 2.5px); }
+.pb-hit.counter { animation-name: pb-hit-cut; }
+/* A spell landing: its colour, a glow and a ring (星 gold, 炎 red-orange, 氷 pale blue, 雷 yellow). */
+.pb-hit.magic::before { border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.9), rgba(var(--c), 0.7) 45%, rgba(var(--c), 0) 75%); }
+.pb-hit.magic { animation-duration: 360ms; }
+.pb-hit.star, .pb-cast.star { --c: 255, 214, 120; }
+.pb-hit.fire, .pb-cast.fire { --c: 255, 110, 50; }
+.pb-hit.ice, .pb-cast.ice { --c: 150, 215, 255; }
+.pb-hit.thunder, .pb-cast.thunder { --c: 255, 240, 110; }
+.pb-hit.plain, .pb-cast.plain { --c: 200, 170, 255; }
+/* A mending spell: a soft green light, rising. */
+.pb-hit.mend::before { border-radius: 50%; background: radial-gradient(closest-side, rgba(200, 255, 210, 0.7), rgba(120, 230, 150, 0.25) 60%, transparent); }
+.pb-hit.mend { animation: pb-hit-soft 700ms ease-out both; }
+/* 星癒の羽: a few soft feathers drifting up — gentle, nothing that cuts (アリアのものとは混ぜない). */
+.pb-hit.feather { width: 110px; height: 150px; margin: -75px 0 0 -55px; animation: pb-hit-feather 1100ms ease-out both; }
+.pb-hit.feather::before {
+  background:
+    radial-gradient(ellipse 5px 10px at 22% 70%, rgba(235, 255, 240, 0.95), transparent 70%),
+    radial-gradient(ellipse 4px 9px at 64% 82%, rgba(210, 255, 225, 0.9), transparent 70%),
+    radial-gradient(ellipse 5px 11px at 80% 46%, rgba(255, 255, 235, 0.9), transparent 70%),
+    radial-gradient(ellipse 4px 8px at 40% 30%, rgba(220, 255, 230, 0.85), transparent 70%),
+    radial-gradient(ellipse 3px 7px at 52% 58%, rgba(255, 255, 255, 0.9), transparent 70%);
+}
+.pb-hit.feather::after { border-radius: 50%; background: radial-gradient(closest-side, rgba(170, 255, 200, 0.35), transparent); }
+/* 月影の構え: a pale blue ring as the guard comes up (his afterimage beside it). */
+.pb-hit.guard::before { border-radius: 50%; border: 2px solid rgba(160, 200, 255, 0.95); box-shadow: 0 0 12px rgba(150, 190, 255, 0.8), inset 0 0 10px rgba(150, 190, 255, 0.6); }
+.pb-hit.guard { animation: pb-hit-guard 620ms ease-out both; }
+.pb-figure img.pb-afterimage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: auto;
+  opacity: 0;
+  filter: brightness(1.6) saturate(0.2) drop-shadow(0 0 6px rgba(150, 190, 255, 0.9));
+  pointer-events: none;
+  animation: pb-afterimage 520ms ease-out both;
+}
+/* A spell's circle at the caster's feet: drawn, turning, gone. */
+.pb-cast {
+  position: absolute;
+  left: calc(var(--pb-foot, 0.5) * 100%);
+  bottom: 0;
+  width: 150%;
+  aspect-ratio: 3 / 1;
+  transform: translate(-50%, 45%);
+  border-radius: 50%;
+  border: 3px solid rgba(var(--c), 1);
+  box-shadow: 0 0 14px rgba(var(--c), 0.9), inset 0 0 14px rgba(var(--c), 0.7);
+  background: radial-gradient(closest-side, rgba(var(--c), 0.4), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  animation: pb-cast 520ms ease-out both;
+}
+@keyframes pb-hit-burst { 0% { opacity: 0; transform: scale(0.4); } 25% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.25); } }
+@keyframes pb-hit-cut { 0% { opacity: 0; transform: scaleX(0.2); } 30% { opacity: 1; transform: scaleX(1.1); } 100% { opacity: 0; transform: scaleX(1.2); } }
+@keyframes pb-hit-ring { 0% { opacity: 0.9; transform: scale(0.3); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes pb-hit-soft { 0% { opacity: 0; transform: translateY(8px) scale(0.8); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px) scale(1.1); } }
+@keyframes pb-hit-feather { 0% { opacity: 0; transform: translateY(14px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px); } }
+@keyframes pb-hit-guard { 0% { opacity: 0; transform: scale(0.6); } 30% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.3); } }
+@keyframes pb-afterimage { 0% { opacity: 0.55; transform: translateX(0); } 100% { opacity: 0; transform: translateX(14px); } }
+@keyframes pb-cast { 0% { opacity: 0; transform: translate(-50%, 45%) scale(0.5) rotate(0deg); } 30% { opacity: 1; transform: translate(-50%, 45%) scale(1); } 100% { opacity: 0; transform: translate(-50%, 45%) scale(1.1); } }
+@keyframes pb-hit-fade { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+/* Less motion asked for: the flashes only fade — nothing grows, flies or drifts. */
+@media (prefers-reduced-motion: reduce) {
+  .pb-hit, .pb-hit.slash, .pb-hit.skill, .pb-hit.claw, .pb-hit.counter, .pb-hit.mend, .pb-hit.feather, .pb-hit.guard, .pb-cast, .pb-float.big, .pb-float.weak { animation-name: pb-hit-fade; }
+  .pb-hit::after { animation: none !important; }
+  .pb-figure img.pb-afterimage { display: none; }
+}

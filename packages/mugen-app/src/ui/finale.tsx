@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FINALE_FIGHT_BGM,
+  FINALE_PLACE_AMBIENCE,
   FINALE_SCENES,
   FINALE_SCENE_BGM,
   finaleBackdrop,
   finaleFrame,
+  finaleMusicAt,
+  type FinaleAmbience,
   type FinaleBackdrop,
   type FinaleFrame,
   type FinaleSceneId,
@@ -15,13 +18,15 @@ import { KAOS_MP_REGEN, mpAfterRecovery } from '@mugen/content/characters/kaosMp
 import { finaleBeat, finaleReached, type FinaleFight, type FinaleStage } from '@mugen/core/world/chapterFinale';
 import type { PartyEnemyInput, PartyMember, PartyMemberSpec } from '@mugen/game/battle/partyBattle';
 import type { BgmId } from '@mugen/assets';
+import type { SfxId } from '@mugen/content/audio/sfx';
 import { finaleBackdropSrc } from '../assets/finaleArt';
 import type { FaceBox } from '../assets/kaosFaces';
 import { finaleFaceFor, type FinaleFace } from './finaleFaces';
 import { usePicture } from './scene';
 import { PartyBattleScreen } from './battle/PartyBattleScreen';
 import { screenShake } from './fx/screenShake';
-import { audioManager } from '../platform/audio';
+import { audioManager, playSfx } from '../platform/audio';
+import { playAmbience, stopAmbience } from '../platform/ambience';
 import './finale.css';
 
 /**
@@ -73,6 +78,11 @@ export interface FinaleRunProps {
   onPause: () => void;
 }
 
+/** The breath before a fight (作者「無料強化メモ②」: 戦闘前 0.5秒 → ボスBGM → 戦闘): the music held low, then the fight. */
+export const FIGHT_BREATH_MS = 500;
+/** How low the music goes: DROP (and a hushed line) almost to nothing; DIP a little. */
+const MUSIC_SHARE = { DROP: 0.12, DIP: 0.5 } as const;
+
 type Phase =
   | { kind: 'SCENES'; scene: number; line: number }
   | { kind: 'FIGHT'; round: number }
@@ -93,6 +103,8 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
   const beat = useMemo(() => playable(stage, fights, until), [stage, fights, until]);
   const [phase, setPhase] = useState<Phase>(() => (playable(from, fights, until) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' }));
   const [busy, setBusy] = useState(false);
+  /** The fight (by its round) whose breath before it is still being held. */
+  const [breath, setBreath] = useState<number | null>(null);
   const round = useRef(0);
   /** How the last fight left them, while the next follows straight on (the first form to the second). */
   const carried = useRef<readonly PartyMember[] | null>(null);
@@ -126,6 +138,10 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
         </button>
       </div>
     );
+  }
+
+  if (phase.kind === 'FIGHT' && breath === phase.round) {
+    return <FightBreath onDone={() => setBreath(null)} />;
   }
 
   if (phase.kind === 'FIGHT') {
@@ -176,6 +192,7 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
     if (!lastScene) return setPhase({ kind: 'SCENES', scene: phase.scene + 1, line: 0 });
     if (beat.then && beat.then !== 'END_SCREEN') {
       round.current += 1;
+      setBreath(round.current);
       return setPhase({ kind: 'FIGHT', round: round.current });
     }
     reach(beat.reaches);
@@ -192,6 +209,10 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
       text={line.text}
       shake={line.shake ?? null}
       hush={line.hush === true}
+      music={finaleMusicAt(scene, phase.line)}
+      pause={line.pause ?? 0}
+      se={line.se ?? null}
+      ambience={FINALE_PLACE_AMBIENCE[scene.place]}
       at={phase.line}
       busy={busy}
       onNext={next}
@@ -210,6 +231,10 @@ function FinaleScene({
   text,
   shake,
   hush,
+  music,
+  pause,
+  se,
+  ambience,
   at,
   busy,
   onNext,
@@ -225,6 +250,14 @@ function FinaleScene({
   shake: 'small' | 'medium' | 'large' | null;
   /** The music almost gone while this line is up. */
   hush: boolean;
+  /** The music from a line before, until the scene ends (DROP / DIP), or as it is (null). */
+  music: 'DROP' | 'DIP' | null;
+  /** The 間 before the words (ms): the name and face first. */
+  pause: number;
+  /** A sound as the line comes up. */
+  se: SfxId | null;
+  /** The place's own air under the words. */
+  ambience: FinaleAmbience | null;
   at: number;
   busy: boolean;
   onNext: () => void;
@@ -236,12 +269,22 @@ function FinaleScene({
   useEffect(() => {
     if (shake) void screenShake(shake, root.current ?? undefined);
   }, [sceneId, at]);
-  // The breath before something wakes: the piece playing drops almost to nothing, and comes back after.
+  // The line's sound, once, as it comes up (an off-screen crash, a machine waking).
   useEffect(() => {
-    if (!hush) return;
-    audioManager.duckBgm(0.12);
-    return () => audioManager.duckBgm(1);
-  }, [hush, sceneId, at]);
+    if (se) playSfx(se);
+  }, [sceneId, at]);
+  // The music falling away (a hushed line; a DROP or a DIP until the scene ends) — eased, and back after.
+  const share = hush ? MUSIC_SHARE.DROP : music ? MUSIC_SHARE[music] : 1;
+  useEffect(() => {
+    if (share >= 1) return;
+    audioManager.duckBgmTo(share, 700);
+    return () => audioManager.duckBgmTo(1, 400);
+  }, [share]);
+  // The place's own air, low, for as long as the scenes go on here; gone with them.
+  useEffect(() => {
+    playAmbience(ambience);
+  }, [ambience]);
+  useEffect(() => () => stopAmbience(), []);
   return (
     <div
       ref={root}
@@ -251,6 +294,8 @@ function FinaleScene({
       data-backdrop={backdrop}
       data-frame={frame ?? 'ALL'}
       data-at={at}
+      data-ambience={ambience ?? 'NONE'}
+      data-music={hush ? 'DROP' : (music ?? 'AS_IS')}
     >
       {/* The picture's own layer — always there, so a jolt has something to move even while a new
           picture is still coming (the words, outside it, never move). */}
@@ -273,7 +318,14 @@ function FinaleScene({
           </div>
         )}
         {speaker && <p className="finale-speaker">{speaker}</p>}
-        <p className="finale-line" data-testid="finale-line">
+        {/* The 間: the words come up `pause` after the name and the face (CSS — つぎへ never waits). */}
+        <p
+          key={`${sceneId}:${at}`}
+          className={`finale-line${pause > 0 ? ' paused' : ''}`}
+          data-testid="finale-line"
+          data-pause={pause}
+          style={pause > 0 ? { ['--finale-pause' as string]: `${pause}ms` } : undefined}
+        >
           {speaker ? `「${text}」` : text}
         </p>
         <button
@@ -320,3 +372,16 @@ function windowOn(box: FaceBox): Record<string, string> {
   };
 }
 
+
+/** The breath before a fight: the scene gone, the music held low a moment, then the fight. */
+function FightBreath({ onDone }: { onDone: () => void }) {
+  useEffect(() => {
+    audioManager.duckBgm(MUSIC_SHARE.DROP);
+    const t = window.setTimeout(onDone, FIGHT_BREATH_MS);
+    return () => {
+      window.clearTimeout(t);
+      audioManager.duckBgmTo(1, 300);
+    };
+  }, []);
+  return <div className="screen finale finale-breath" data-testid="finale-breath" aria-hidden="true" />;
+}

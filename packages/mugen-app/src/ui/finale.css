@@ -68,3 +68,13 @@
 .finale-pause { background: #05060a; color: #f3ead6; text-align: center; }
 .finale-pause-title { margin: 0; font-size: clamp(24px, 8vh, 36px); letter-spacing: 0.4em; text-indent: 0.4em; }
 .finale-pause-note { margin: 0; font-size: 13px; opacity: 0.85; }
+
+/* THE 間 (作者「無料強化メモ②」): the name and face first, the words after (--finale-pause). Nothing waits on it. */
+.finale-line.paused { animation: finale-words-in 240ms ease-out both; animation-delay: var(--finale-pause, 0ms); }
+@keyframes finale-words-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .finale-line.paused { animation-name: finale-words-fade; }
+}
+@keyframes finale-words-fade { from { opacity: 0; } to { opacity: 1; } }
+/* The breath before a fight: dark, a moment. */
+.finale-breath { background: #050508; }

@@ -31,6 +31,7 @@
 // The script is provisional: lines are the author's to change.
 
 import type { DialogueLine } from '../dialogue/prologue';
+import type { SfxId } from '../audio/sfx';
 import type { NpcExpression } from '../../core/npc/touchReaction';
 import { HERO_SPEAKER } from './sekiryugaArc';
 import { BAKERY_OWNER } from '../characters/bakeryOwner';
@@ -70,6 +71,20 @@ export interface FinaleLine extends DialogueLine {
   shake?: 'small' | 'medium' | 'large';
   /** The music drops almost to nothing while this line is up — the breath before something wakes. */
   hush?: true;
+  /**
+   * THE 間 (作者「無料強化メモ②」2026-10-17): this long (ms) before the words come up — the
+   * speaker's name and face first, then what they say. Light 200–400, felt 500–800, lingering
+   * 800–1500. Nothing waits on it: つぎへ goes on at once, as ever.
+   */
+  pause?: number;
+  /** A sound as this line comes up (an off-screen crash, a machine waking) — the SFX vocabulary. */
+  se?: SfxId;
+  /**
+   * The music, from this line until the scene ends or another line says otherwise: DROP — it
+   * falls away to almost nothing (silence before something wakes, the breath before a fight);
+   * DIP — a little lower (before a finisher); BACK — as it was.
+   */
+  music?: 'DROP' | 'DIP' | 'BACK';
 }
 
 /** Every scene of the finale, by id, in the order they are played. */
@@ -134,8 +149,8 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: KAOS, text: 'キミは、自分が一番いいと思うことをして。' },
     { speaker: HERO, text: '何かって、何だよ。' },
     { speaker: KAOS, text: 'わかんない。わかんないから言ってるの。', kaosFace: 'TROUBLED' },
-    { speaker: null, text: '少しの間。' },
-    { speaker: KAOS, text: '……なんてね。おやすみ♪', kaosFace: 'SMILE' },
+    { speaker: null, text: '少しの間。', pause: 800 },
+    { speaker: KAOS, text: '……なんてね。おやすみ♪', kaosFace: 'SMILE', pause: 500 },
   ]),
 
   // ---- F3 遺跡の最奥（主人公は不在）------------------------------------------
@@ -152,35 +167,35 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: HOODED, text: '……第一封鎖、解除。' },
     { speaker: null, text: '光が、静かに落ち着いた。うまくいったように見えた。' },
     { speaker: HOODED, text: '次だ。' },
-    { speaker: null, text: '装置が、赤く光った。', cg: 'RUINS_REFUSED', shake: 'small' },
-    { speaker: null, text: '低い機械音。石の割れる音。耳の奥を刺すような、古い警告の響き。' },
-    { speaker: HOODED, text: '……違う。' },
-    { speaker: null, text: '床の封印紋に、赤金の亀裂が走る。' },
+    { speaker: null, text: '装置が、赤く光った。', cg: 'RUINS_REFUSED', shake: 'small', music: 'DROP' },
+    { speaker: null, text: '低い機械音。石の割れる音。耳の奥を刺すような、古い警告の響き。', se: 'story_rumble' },
+    { speaker: HOODED, text: '……違う。', pause: 500 },
+    { speaker: null, text: '床の封印紋に、赤金の亀裂が走る。', pause: 700 },
     { speaker: HOODED, text: '第二封鎖が……逆流している？' },
     { speaker: null, text: '地の底から、振動が突き上げてくる。', shake: 'medium' },
     { speaker: HOODED, text: '……まずい。' },
-    { speaker: null, text: '亀裂の奥で、巨大な目が灯った。', cg: 'VALSHEEL_AWAKENING', frame: 'EYE', hush: true, shake: 'small' },
+    { speaker: null, text: '亀裂の奥で、巨大な目が灯った。', cg: 'VALSHEEL_AWAKENING', frame: 'EYE', hush: true, shake: 'small', pause: 700 },
     { speaker: null, text: '人影が、一歩、後ろへ下がる。' },
     { speaker: HOODED, text: 'まだ起きるはずじゃなかった。' },
     { speaker: null, text: '人影は、それ以上何も言わず、舞い上がる砂煙の中へ消えた。' },
     { speaker: null, text: '封印床が割れ、巨大な頭部がせり上がる。', frame: 'HEAD' },
-    { speaker: null, text: '石と金の前脚が、封印床を踏み破った。', frame: 'PAW', shake: 'medium' },
+    { speaker: null, text: '石と金の前脚が、封印床を踏み破った。', frame: 'PAW', shake: 'medium', se: 'battle_attack_heavy_strike' },
     { speaker: null, text: '外殻をまとった上半身が、ゆっくりと起き上がる。', frame: 'UPPER' },
-    { speaker: null, text: `封殻機兵 ${V}――完全起動。`, shake: 'large' },
+    { speaker: null, text: `封殻機兵 ${V}――完全起動。`, shake: 'large', se: 'battle_boss_emerge' },
     { speaker: null, text: 'それは、侵入者の姿を探した。そこにはもう、誰もいない。' },
     { speaker: null, text: '壁の向こう、遠く――村のある方角に、たくさんの人の気配がある。' },
-    { speaker: null, text: '乱れた目が、それを「侵入者」と見なした。' },
+    { speaker: null, text: '乱れた目が、それを「侵入者」と見なした。', pause: 500 },
     { speaker: null, text: '巨体が、ゆっくりと村の方角へ向きを変えた。', cg: 'RUINS_DEPTHS' },
   ]),
 
   // ---- F4 異変の朝・接近（村）--------------------------------------------------
   MORNING: scene('MORNING', 'VILLAGE', [
     { speaker: null, text: '翌朝。' },
-    { speaker: null, text: '遠くから、低い振動が伝わってくる。' },
+    { speaker: null, text: '遠くから、低い振動が伝わってくる。', se: 'story_rumble' },
     { speaker: null, text: '森の鳥が、一斉に飛び立った。' },
     { speaker: VILLAGER, text: 'な、何だ……？' },
     { speaker: null, text: '地面が揺れ、軒先から埃がぱらぱらと落ちる。', shake: 'small' },
-    { speaker: KAOS, text: '……来る。', kaosFace: 'SERIOUS', tense: true },
+    { speaker: KAOS, text: '……来る。', kaosFace: 'SERIOUS', tense: true, pause: 400 },
     { speaker: HERO, text: '……遺跡の方だ。', heroFace: 'SERIOUS' },
     { speaker: null, text: '森の向こうに、巨大な影が立ち上がった。' },
     { speaker: WATCH, text: 'おい……森の木が、倒れてく！' },
@@ -192,16 +207,16 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   // 全壊させない。屋根・柵・看板・窓・小さな火・瓦礫まで。死者・死体・死を示す台詞は無い。
   // 村の人々も自分たちの村を守る（ミレイ・リゼル・パン屋親子）。
   RAID: scene('RAID', 'VILLAGE_BROKEN', [
-    { speaker: null, text: `柵を踏み砕いて、${V}が村へ踏み込んだ。` },
-    { speaker: null, text: '尾のひと振りで、納屋の屋根が崩れ落ちる。' },
-    { speaker: null, text: '看板が折れ、窓が割れる。どこかで、小さく火の手が上がった。' },
+    { speaker: null, text: `柵を踏み砕いて、${V}が村へ踏み込んだ。`, se: 'battle_attack_heavy_strike', shake: 'medium' },
+    { speaker: null, text: '尾のひと振りで、納屋の屋根が崩れ落ちる。', se: 'battle_hit_heavy', shake: 'small' },
+    { speaker: null, text: '看板が折れ、窓が割れる。どこかで、小さく火の手が上がった。', se: 'battle_magic_fire' },
     { speaker: VILLAGER, text: '逃げろ！ 家から出ろ！' },
     { speaker: MIREI, text: 'こっち！ 道を空けて！', face: 'ANGRY' },
     { speaker: RIZEL, text: '歩ける人は、動けない人を手伝って！', face: 'SAD' },
     { speaker: OWNER, text: 'リナ、離れるな！' },
     { speaker: LINA, text: 'うん！' },
     { speaker: HERO, text: 'あいつ……何がしたいんだ！？' },
-    { speaker: KAOS, text: '……怒ってない。探してる。', kaosFace: 'SERIOUS', tense: true },
+    { speaker: KAOS, text: '……怒ってない。探してる。', kaosFace: 'SERIOUS', tense: true, pause: 500 },
     { speaker: KAOS, text: 'たぶん、ここにいるみんなを「侵入者」だと思ってる。' },
     { speaker: GRAVE, text: 'ここでやり合ったら村がもたねぇ！', graveFace: 'ANGRY', tense: true },
     { speaker: HERO, text: '外へ引きつける。', heroFace: 'SERIOUS', tense: true },
@@ -245,18 +260,18 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: null, text: `${V}が、三人の前で足を止めた。` },
     { speaker: GRAVE, text: 'ここなら好きに暴れられる。', graveFace: 'GRIN' },
     { speaker: KAOS, text: '好きに暴れさせる気はないけどね。', kaosFace: 'SERIOUS' },
-    { speaker: HERO, text: '止める。', heroFace: 'SERIOUS', tense: true },
-    { speaker: GRAVE, text: 'おう。', graveFace: 'SERIOUS' },
+    { speaker: HERO, text: '止める。', heroFace: 'SERIOUS', tense: true, music: 'DROP', pause: 300 },
+    { speaker: GRAVE, text: 'おう。', graveFace: 'SERIOUS', pause: 500 },
   ]),
 
   // ---- F9 外殻破壊 → 第2形態（第1形態の HP が 0）--------------------------------
   SHELL_BREAK: scene('SHELL_BREAK', 'GRASSLAND', [
     { speaker: null, text: `${V}の動きが、止まった。` },
-    { speaker: HERO, text: '……やったか？' },
+    { speaker: HERO, text: '……やったか？', pause: 400 },
     { speaker: null, text: '外殻に、ひびが走る。', shake: 'small' },
     { speaker: null, text: 'ひびの奥から、金色の光が漏れ出した。' },
     { speaker: GRAVE, text: '下がれ！', graveFace: 'SURPRISED', tense: true },
-    { speaker: null, text: '外殻が砕け散る。', shake: 'large' },
+    { speaker: null, text: '外殻が砕け散る。', shake: 'large', se: 'battle_finisher_hit' },
     { speaker: null, text: '中から現れたのは――翼を広げた、白と金の機械の天使。' },
     { speaker: KAOS, text: '……これが、本当の姿。', kaosFace: 'SURPRISED', tense: true },
   ]),
@@ -266,13 +281,13 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: null, text: `砕けかけた${V}が、それでも立ち上がる。` },
     { speaker: KAOS, text: '……このままじゃ、止まらない。', kaosFace: 'SERIOUS', tense: true },
     { speaker: KAOS, text: 'かなり魔力を使うけど――仕方ないよね。' },
-    { speaker: KAOS, text: '下がってて。本気、出すから。', tense: true },
+    { speaker: KAOS, text: '下がってて。本気、出すから。', tense: true, music: 'DIP', pause: 400 },
   ]),
   HERO_FINISHER: scene('HERO_FINISHER', 'GRASSLAND', [
     // ケイオスの一撃が着弾した直後から。
-    { speaker: null, text: '剣が、熱を帯びた。', shake: 'large' },
+    { speaker: null, text: '剣が、熱を帯びた。', shake: 'large', se: 'battle_charge_aura' },
     { speaker: HERO, text: '……まだだ。', heroFace: 'SERIOUS', tense: true },
-    { speaker: HERO, text: 'ここで、終わらせる！', tense: true },
+    { speaker: HERO, text: 'ここで、終わらせる！', tense: true, music: 'DIP' },
   ]),
 
   // ---- F7c 村側：パン屋親子と村人（第2形態の後に差し込む）------------------------
@@ -288,12 +303,12 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   // ---- F11 機能停止（破壊しない）----------------------------------------------
   STOPPED: scene('STOPPED', 'GRASSLAND', [
     // 零閃・天衝が着弾した直後から。
-    { speaker: null, text: '金色の光が、ゆっくりと弱まっていく。', shake: 'large' },
+    { speaker: null, text: '金色の光が、ゆっくりと弱まっていく。', shake: 'large', se: 'battle_finisher_hit' },
     { speaker: null, text: `${V}は膝をつき、翼をたたんだ。` },
-    { speaker: null, text: '胸の光が、静かに消えた。' },
-    { speaker: HERO, text: '……止まった、のか。' },
+    { speaker: null, text: '胸の光が、静かに消えた。', pause: 800 },
+    { speaker: HERO, text: '……止まった、のか。', pause: 1000 },
     { speaker: KAOS, text: 'うん。壊れてはいない。眠っただけ。', kaosFace: 'SERIOUS' },
-    { speaker: GRAVE, text: 'こいつ……最後まで、村の方を見てやがった。', graveFace: 'TROUBLED' },
+    { speaker: GRAVE, text: 'こいつ……最後まで、村の方を見てやがった。', graveFace: 'TROUBLED', pause: 500 },
     { speaker: KAOS, text: '……守るために作られた子なんだと思う。たぶん、ずっと昔に。' },
   ]),
 
@@ -303,14 +318,14 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: null, text: '柵は倒れ、屋根の落ちた家がいくつもある。' },
     { speaker: MIREI, text: 'あ……！ 戻ってきた！', face: 'AMAZED' },
     { speaker: HERO, text: 'みんなは！？' },
-    { speaker: MIREI, text: '……全員、いる。怪我した人はいるけど。みんな、生きてる。', face: 'SAD' },
+    { speaker: MIREI, text: '……全員、いる。怪我した人はいるけど。みんな、生きてる。', face: 'SAD', pause: 600 },
     { speaker: RIZEL, text: '手当ては済んだ。……ちゃんと、数えた。' },
     { speaker: LINA, text: 'よかった……ほんとに、よかった……！' },
-    { speaker: null, text: '誰かが、声を上げて泣き出した。つられて、何人も。' },
-    { speaker: null, text: 'それから、みんな黙って、壊れた村を見た。' },
+    { speaker: null, text: '誰かが、声を上げて泣き出した。つられて、何人も。', pause: 500 },
+    { speaker: null, text: 'それから、みんな黙って、壊れた村を見た。', pause: 800 },
     { speaker: OWNER, text: '……窯が、割れちまった。' },
     { speaker: LINA, text: 'お父さん……。' },
-    { speaker: OWNER, text: 'いい。窯はまた積める。……積めるさ。' },
+    { speaker: OWNER, text: 'いい。窯はまた積める。……積めるさ。', pause: 500 },
   ]),
 
   // ---- F13 ケイオスの判断 -------------------------------------------------------
@@ -322,8 +337,8 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
     { speaker: KAOS, text: 'だから、しばらく村から離れられない。', kaosFace: 'SAD' },
     { speaker: KAOS, text: '魔力も、全部こっちに回すことになるから……戦うのも、無理。' },
     { speaker: HERO, text: '……そうか。' },
-    { speaker: KAOS, text: '……せっかく、一緒に旅できると思ったのにな。', kaosFace: 'SAD' },
-    { speaker: null, text: 'ケイオスは笑おうとして、うまく笑えなかった。' },
+    { speaker: KAOS, text: '……せっかく、一緒に旅できると思ったのにな。', kaosFace: 'SAD', pause: 600 },
+    { speaker: null, text: 'ケイオスは笑おうとして、うまく笑えなかった。', pause: 800 },
   ]),
 
   // ---- F13 グレイヴの判断 -------------------------------------------------------
@@ -339,13 +354,13 @@ export const FINALE_SCENES: Readonly<Record<FinaleSceneId, FinaleScene>> = {
   // ---- F14 アリア・レヴィ ------------------------------------------------------
   ARIA_LEVI: scene('ARIA_LEVI', 'VILLAGE_BROKEN', [
     { speaker: null, text: '村の外れに、見慣れない二人が立っていた。' },
-    { speaker: KAOS, text: '……え。', kaosFace: 'SURPRISED' },
+    { speaker: KAOS, text: '……え。', kaosFace: 'SURPRISED', pause: 400 },
     { speaker: ARIA, text: '久しぶりね、ケイオス。', ariaFace: 'SMILE' },
     { speaker: LEVI, text: '派手にやられたな。' },
-    { speaker: KAOS, text: 'アリア……レヴィ……！ なんで、ここに。', kaosFace: 'SURPRISED' },
+    { speaker: KAOS, text: 'アリア……レヴィ……！ なんで、ここに。', kaosFace: 'SURPRISED', pause: 300 },
     { speaker: ARIA, text: 'しばらく前から、このあたりの異変を調べていたの。' },
     { speaker: LEVI, text: 'で、来てみたらこれだ。', leviFace: 'ANGRY' },
-    { speaker: null, text: '二人の目が、主人公に向いた。値踏みするような目だった。' },
+    { speaker: null, text: '二人の目が、主人公に向いた。値踏みするような目だった。', pause: 500 },
     { speaker: ARIA, text: '……この人間が、あなたの言っていた人？', ariaFace: 'TROUBLED' },
     { speaker: KAOS, text: 'うん。' },
     { speaker: ARIA, text: 'そう。' },
@@ -402,6 +417,32 @@ export function finaleBackdrop(scene: FinaleScene, at: number): FinaleBackdrop {
   }
   return scene.place;
 }
+
+/** The music as line `at` of a scene is up (作者「無料強化メモ②」): the last DROP / DIP said at or before it, unless a BACK came after (null: as it is). */
+export function finaleMusicAt(scene: FinaleScene, at: number): 'DROP' | 'DIP' | null {
+  for (let i = Math.min(at, scene.lines.length - 1); i >= 0; i--) {
+    const m = scene.lines[i].music;
+    if (m) return m === 'BACK' ? null : m;
+  }
+  return null;
+}
+
+/**
+ * EACH PLACE'S OWN AIR (作者「無料強化メモ②」環境SE — 小さく): under the words, low, looped,
+ * gone when the scene or the fight takes over. WIND — the grassland and the road (the
+ * delivered strong-wind loop, quiet); HUM — the ruins' depths, a low machine hum; FIRE — the
+ * half-ruined village, small fires crackling. Null: nothing (the night with no wind; the
+ * morning village, whose birds have no sound yet).
+ */
+export type FinaleAmbience = 'WIND' | 'HUM' | 'FIRE';
+export const FINALE_PLACE_AMBIENCE: Readonly<Record<FinalePlace, FinaleAmbience | null>> = {
+  HOME: null,
+  VILLAGE: null,
+  RUINS_DEPTHS: 'HUM',
+  VILLAGE_BROKEN: 'FIRE',
+  ROAD: 'WIND',
+  GRASSLAND: 'WIND',
+};
 
 /**
  * THE MUSIC OF EACH SCENE (作者決定 2026-10-12): the ruins' depths and the

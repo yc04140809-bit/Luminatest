@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTER1_END, FINALE_FIGHT_BGM, FINALE_SCENES, FINALE_SCENE_BGM, FINALE_SCENE_IDS, FINALE_SPEAKERS, finaleBackdrop, finaleFrame, type FinaleLine } from './chapter1Finale';
+import { CHAPTER1_END, FINALE_FIGHT_BGM, FINALE_PLACE_AMBIENCE, FINALE_SCENES, FINALE_SCENE_BGM, FINALE_SCENE_IDS, FINALE_SPEAKERS, finaleBackdrop, finaleFrame, finaleMusicAt, type FinaleLine } from './chapter1Finale';
+import { SFX_IDS } from '../audio/sfx';
 import { finaleBeat, FINALE_STAGES } from '../../core/world/chapterFinale';
 import { KAOS_FACES } from '../characters/kaosFaces';
 import { GRAVE_FACES } from '../characters/graveFaces';
@@ -172,5 +173,68 @@ describe('第1章終盤 — 半壊の文脈では通常の村を使わない (�
     expect(FINALE_SCENES.VILLAGE_BAKERY.place).toBe('VILLAGE_BROKEN');
     // The morning, before the raid: still the village as it was.
     expect(FINALE_SCENES.MORNING.place).toBe('VILLAGE');
+  });
+});
+
+describe('the 間, the sounds and the music of the finale (作者「無料強化メモ②」2026-10-17)', () => {
+  const line = (scene: keyof typeof FINALE_SCENES, has: string) => FINALE_SCENES[scene].lines.find((l) => l.text.includes(has))!;
+
+  it('every 間 is one of the author\'s three — light 200–400, felt 500–800, lingering 800–1500ms', () => {
+    const pauses = all.filter((l) => l.pause !== undefined).map((l) => l.pause!);
+    expect(pauses.length).toBeGreaterThan(10);
+    for (const p of pauses) {
+      expect(p).toBeGreaterThanOrEqual(200);
+      expect(p).toBeLessThanOrEqual(1500);
+    }
+  });
+
+  it('every sound is a real one of the vocabulary', () => {
+    for (const l of all.filter((x) => x.se)) expect(SFX_IDS as readonly string[]).toContain(l.se);
+  });
+
+  it('ヴァルシール wakes in the author\'s order: red light (the music falls away) → a low machine sound → 「……違う。」 → 0.7s → the eye → the paw → fully awake, with its sound', () => {
+    const s = FINALE_SCENES.RUINS_SEAL;
+    const at = (has: string) => s.lines.findIndex((l) => l.text.includes(has));
+    expect(line('RUINS_SEAL', '装置が、赤く光った。').music).toBe('DROP');
+    expect(finaleMusicAt(s, at('装置が、赤く光った。') - 1)).toBeNull();
+    // From the red light on, the hymn is gone — to the end of the scene.
+    for (let i = at('装置が、赤く光った。'); i < s.lines.length; i++) expect(finaleMusicAt(s, i)).toBe('DROP');
+    expect(line('RUINS_SEAL', '低い機械音').se).toBe('story_rumble');
+    expect(line('RUINS_SEAL', '床の封印紋').pause).toBe(700);
+    expect(line('RUINS_SEAL', '巨大な目が灯った').pause).toBe(700);
+    expect(line('RUINS_SEAL', '完全起動').se).toBe('battle_boss_emerge');
+    expect(at('低い機械音')).toBeLessThan(at('……違う。'));
+    expect(at('……違う。')).toBeLessThan(at('巨大な目'));
+  });
+
+  it('before the fight on the grassland the music falls away (「止める。」), a breath on 「おう。」; the finishers dip it a little', () => {
+    expect(line('FORM1_START', '止める。').music).toBe('DROP');
+    expect(line('FORM1_START', 'おう。').pause).toBe(500);
+    expect(line('KAOS_FINISHER', '本気、出すから').music).toBe('DIP');
+    expect(line('HERO_FINISHER', 'ここで、終わらせる').music).toBe('DIP');
+  });
+
+  it('after the stop: no music, and the words that linger wait for it', () => {
+    expect(FINALE_SCENE_BGM.STOPPED).toBe('HUSH');
+    expect(line('STOPPED', '……止まった、のか。').pause).toBe(1000);
+  });
+
+  it('the raid is heard as much as seen: the fence, the barn roof, the fire', () => {
+    expect(line('RAID', '柵を踏み砕いて').se).toBeDefined();
+    expect(line('RAID', '納屋の屋根').se).toBeDefined();
+    expect(line('RAID', '火の手').se).toBeDefined();
+  });
+
+  it('each place its own air, low: wind on the grassland and the road, a hum in the depths, fire in the broken village, nothing on the windless night', () => {
+    expect(FINALE_PLACE_AMBIENCE.GRASSLAND).toBe('WIND');
+    expect(FINALE_PLACE_AMBIENCE.ROAD).toBe('WIND');
+    expect(FINALE_PLACE_AMBIENCE.RUINS_DEPTHS).toBe('HUM');
+    expect(FINALE_PLACE_AMBIENCE.VILLAGE_BROKEN).toBe('FIRE');
+    expect(FINALE_PLACE_AMBIENCE.HOME).toBeNull();
+  });
+
+  it('a BACK ends a DROP within the scene', () => {
+    const scene = { id: 'EVE' as const, place: 'HOME' as const, lines: [{ speaker: null, text: 'a', music: 'DROP' as const }, { speaker: null, text: 'b' }, { speaker: null, text: 'c', music: 'BACK' as const }] };
+    expect([0, 1, 2].map((i) => finaleMusicAt(scene, i))).toEqual(['DROP', 'DROP', null]);
   });
 });

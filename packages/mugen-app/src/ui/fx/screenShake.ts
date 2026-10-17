@@ -40,8 +40,8 @@ export const SHAKE_PATTERNS: Readonly<Record<ShakeLevel, { ms: number; path: rea
 
 /** How much a painting grows while it moves, so its edges stay off screen. */
 const BACKDROP_GROW: Readonly<Record<ShakeLevel, number>> = { small: 1.02, medium: 1.03, large: 1.045 };
-/** The longest a hit-stop may hold (作者: 50〜100ms から). */
-export const HIT_STOP_MAX_MS = 100;
+/** The longest a hit-stop may hold (作者: 50〜100ms から; a finisher's up to 150 — 「魔法・スキル・戦闘エフェクト強化」). */
+export const HIT_STOP_MAX_MS = 150;
 
 let setting: ShakeSetting = 'on';
 
