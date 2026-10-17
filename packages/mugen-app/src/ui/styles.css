@@ -1051,13 +1051,10 @@ body {
 /* Gald beaten is a whole painting on black, not a cut-out: its edges
    are feathered into the forest so it reads as him, not as a box. */
 .stage-figure[data-who="gald"][data-state="portrait"] {
-  /* Larger beside the four answers (作者 2026-10-16: 選択直前に印象が弱くならないように). */
+  /* Larger beside the four answers (作者 2026-10-16: 選択直前に印象が弱くならないように). The drawing is a
+     cut-out now (gald-defeated-v2): no feathering, his knees and the blood on the ground on the ground line. */
   height: 96%;
   bottom: 2%;
-  /* closest-side: 100% is the picture's own edge, so every edge ends
-     fully transparent and no trace of the black rectangle is left. */
-  -webkit-mask-image: radial-gradient(closest-side, #000 58%, transparent 100%);
-  mask-image: radial-gradient(closest-side, #000 58%, transparent 100%);
 }
 /* A narrower screen: the answers come nearer to him, so he keeps his former size there (never under a button). */
 @media (max-width: 720px) {

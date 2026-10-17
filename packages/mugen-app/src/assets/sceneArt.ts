@@ -33,9 +33,10 @@ const PARTY: Record<SceneCharacter, Partial<Record<PartyArtState, Loader>>> = {
     /** Standing in the road, knives out (redrawn 2026-10-16, App only — the Artifact keeps the first). */
     fullbody: async () =>
       (await import('@mugen/assets/files/characters/gald/gald-ready-v2.png')).default,
-    /** On one knee, beaten. */
+    /** On one knee, beaten, beside the four answers — redrawn 2026-10-16 as a cut-out (作者「ガルドの膝を付く絵は
+     *  四択の時に使う絵」; App only, the Artifact keeps the painting on black). */
     portrait: async () =>
-      (await import('@mugen/assets/files/characters/gald/gald-defeated.png')).default,
+      (await import('@mugen/assets/files/characters/gald/gald-defeated-v2.png')).default,
   },
 };
 
