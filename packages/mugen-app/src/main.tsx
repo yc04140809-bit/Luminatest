@@ -17,6 +17,8 @@ import '@fontsource/noto-sans-jp/latin-600.css';
 import '@fontsource/noto-serif-jp/latin-400.css';
 import '@fontsource/noto-serif-jp/japanese-400.css';
 import './ui/styles.css';
+// The old shared classes (paper theme, plain buttons, a scene's words, lists) in the crystal UI — after styles.css.
+import './ui/kit/crystalTheme.css';
 
 // Asked for at once, not when the first glyph meets them: every screen uses them, and a screen laid out
 // in a fallback font and then reflowed when the real one swaps in moves its words under a finger.
