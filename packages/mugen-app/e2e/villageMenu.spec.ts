@@ -8,7 +8,7 @@ import { placeButton } from './village';
  *
  *   left, a third    the two of them, what is happening, the place chosen
  *   right            the village from above: its places as labels, who is in each
- *   below the right  ステータス・噂話・持ち物・世界の記憶・人生の記録 (no クエスト, no セーブ)
+ *   below the right  ステータス・噂話・持ち物・世界記憶・人生記録 (no クエスト, no セーブ; short, one line each — 2026-10-17)
  *
  * Every door is still there: a shop's, and 休息する at the inn-tavern, once its
  * place is tapped; the roads out open the region map, which is for going out.
@@ -69,7 +69,7 @@ test('the village from above: its places by name — three houses, two roads out
   await expect(page.locator('.vg-spot.vg-k-house')).toHaveCount(3);
   await expect(page.getByTestId('village-screen')).not.toContainText('海');
   // The five, in order; nothing else down there.
-  expect(await page.locator('.vg-menu .kit-text').allTextContents()).toEqual(['ステータス', '噂話', '持ち物', '世界の記憶', '人生の記録']);
+  expect(await page.locator('.vg-menu .kit-text').allTextContents()).toEqual(['ステータス', '噂話', '持ち物', '世界記憶', '人生記録']);
   await expect(page.getByTestId('village-screen')).not.toContainText('クエスト');
   await expect(page.getByTestId('village-screen')).not.toContainText('セーブ');
   // 次の目的, top right.

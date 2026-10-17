@@ -296,13 +296,13 @@ export function VillageScreen({
         </div>
       </section>
 
-      {/* ---- below: the five (下部5ボタン) ---- */}
+      {/* ---- below: the five (下部5ボタン). Short words (作者 2026-10-17: 世界記憶・人生記録), each one line. ---- */}
       <nav className="vg-menu" aria-label="メニュー">
         <KitButton part="menuButton" testId="status-button" label="ステータス" sub="STATUS" onClick={onStatus} badge={<NewBadge show={news.status} testId="status-new" />} />
         <KitButton part="menuButton" testId="rumor-button" label="噂話" sub="RUMOR" onClick={onRumors} badge={<NewBadge show={news.rumors} testId="rumor-new" />} />
         <KitButton part="menuButton" testId="bag-button" label="持ち物" sub="ITEM" onClick={onBag} />
-        <KitButton part="menuButton" testId="memory-button" label={<>世界の<wbr />記憶</>} sub="WORLD" onClick={onMemory} badge={<NewBadge show={news.memory} testId="memory-new" />} />
-        <KitButton part="menuButton" testId="archive-button" label={<>人生の<wbr />記録</>} sub="ARCHIVE" onClick={onArchive} />
+        <KitButton part="menuButton" testId="memory-button" label="世界記憶" sub="WORLD MEMORY" onClick={onMemory} badge={<NewBadge show={news.memory} testId="memory-new" />} />
+        <KitButton part="menuButton" testId="archive-button" label="人生記録" sub="LIFE RECORD" onClick={onArchive} />
       </nav>
     </div>
   );

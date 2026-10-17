@@ -75,7 +75,8 @@ const ins = (top: number, side: number): KitInsets => ({ top, right: side, botto
  * drawn. A part with no picture yet falls back to the plain stand-in with the same room and height.
  */
 export const KIT_PARTS: Readonly<Record<KitPart, KitPartSpec>> = {
-  menuButton: { slice: ins(48, 76), scale: 0.22, padX: 2, padY: 2, minHeight: 46 },
+  // The village's five: a little lower (作者 2026-10-17), the frame drawn smaller all round — corners in proportion.
+  menuButton: { slice: ins(48, 76), scale: 0.18, padX: 2, padY: 0, minHeight: 36 },
   placeLabel: { slice: ins(26, 62), scale: 0.24, padX: 2, padY: 0, minHeight: 24 },
   // 左会話パネル, in two (作者 2026-10-16: 人物と文章で半々): the head — the picture's top with its
   // light area stretched for the person and its band kept for the name — and the body under it.

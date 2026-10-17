@@ -166,9 +166,17 @@
    their own size: the words' size follows the buttons' width (five characters between the ends), 11–14px;
    where the five would be too narrow even so, they take the whole width (below). */
 .vg-menu { grid-area: menu; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; container-type: inline-size; }
-.vg-menu > .kit { width: 100%; font-size: clamp(11px, calc(((100cqw - 24px) / 5 - 38px) / 5.2), 14px); line-height: 1.2; }
+.vg-menu > .kit { width: 100%; font-size: clamp(12px, calc(((100cqw - 24px) / 5 - 32px) / 5.2), 15px); line-height: 1.1; }
+.vg-menu .kit-words { gap: 1px; }
 .kit.vg-menu-btn .kit-text, .vg-menu .kit-text { word-break: keep-all; white-space: nowrap; letter-spacing: 0.02em; }
-.vg-menu .kit-sub { font-size: 8.5px; letter-spacing: 0.16em; }
+/* The English under it: smaller, quieter, one line (WORLD MEMORY fits the button's width). */
+.vg-menu .kit-sub {
+  font-size: clamp(7px, calc(((100cqw - 24px) / 5 - 32px) / 8.2), 9px);
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  white-space: nowrap;
+  opacity: 0.7;
+}
 /* Narrow (a 640-wide phone): the five across the whole foot, under the panel too, so each is wide enough. */
 @media (max-width: 720px) {
   .screen.village {
