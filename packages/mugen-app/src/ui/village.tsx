@@ -188,6 +188,9 @@ export function VillageScreen({
 
       {/* ---- right: the village from above ---- */}
       <section className="vg-map" aria-label="アルデン村" data-testid="village-area">
+        {/* The village scrolls up and down (作者 2026-10-17: 縮図エリアだけ縦スクロール) — its picture, its places and
+            who is in them move together; a taller picture (the village grown) is simply more to scroll. */}
+        <div className="vg-scroll" data-testid="village-scroll">
         <div
           className="vg-stage"
           style={{ ['--vg-ratio' as string]: String(diorama.crop.w / diorama.crop.h) }}
@@ -207,31 +210,6 @@ export function VillageScreen({
               }}
             />
           )}
-          <KitPanel part="panel" as="div" className="vg-title" style={cover(diorama.title)} heading="アルデン村">
-            <small>ALDEN VILLAGE</small>
-            {/* The day and the purse, with the village's name. */}
-            <span className="vg-head">
-              <span className="vg-clock" data-testid="world-clock">
-                {clock.worldYear}年目 {clock.worldDay}日目
-              </span>
-              <span className="vg-purse" data-testid="lumi">
-                LUMI {world.getLumi()}
-              </span>
-            </span>
-          </KitPanel>
-          {/* 次の目的: held to its box's right edge, growing leftward with its words. */}
-          <KitPanel
-            part="objective"
-            as="div"
-            className="vg-objective"
-            style={{ ...cover(diorama.objective), left: 'auto', right: pct(100 - diorama.objective.x - diorama.objective.w) }}
-            testId="next-objective"
-            heading="次の目的"
-          >
-            <span data-testid="next-objective-text" data-kit-text="">
-              {objective}
-            </span>
-          </KitPanel>
           {VILLAGE_SPOTS.map((s) => {
             const box = diorama.spots[s.id];
             const shut = s.id === 'road_ruins' && !ruinsOpen;
@@ -293,6 +271,36 @@ export function VillageScreen({
               </div>
             );
           })}
+        </div>
+        </div>
+        {/* The village's name and 次の目的 stay where they are while it scrolls: laid over the top of the same
+            box as the picture (its coordinates are the picture's). */}
+        <div className="vg-hud" style={{ ['--vg-ratio' as string]: String(diorama.crop.w / diorama.crop.h) }}>
+            <KitPanel part="panel" as="div" className="vg-title" style={cover(diorama.title)} heading="アルデン村">
+              <small>ALDEN VILLAGE</small>
+              {/* The day and the purse, with the village's name. */}
+              <span className="vg-head">
+                <span className="vg-clock" data-testid="world-clock">
+                  {clock.worldYear}年目 {clock.worldDay}日目
+                </span>
+                <span className="vg-purse" data-testid="lumi">
+                  LUMI {world.getLumi()}
+                </span>
+              </span>
+            </KitPanel>
+            {/* 次の目的: held to its box's right edge, growing leftward with its words. */}
+            <KitPanel
+              part="objective"
+              as="div"
+              className="vg-objective"
+              style={{ ...cover(diorama.objective), left: 'auto', right: pct(100 - diorama.objective.x - diorama.objective.w) }}
+              testId="next-objective"
+              heading="次の目的"
+            >
+              <span data-testid="next-objective-text" data-kit-text="">
+                {objective}
+              </span>
+            </KitPanel>
         </div>
       </section>
 

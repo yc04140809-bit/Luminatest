@@ -236,3 +236,27 @@ for (const [w, h] of [
     await expect(page.getByTestId('shop-leave')).toBeInViewport();
   });
 }
+
+test('844×390: only the village scrolls — the panel, the five, its name and 次の目的 stay; a place scrolled to is tapped true', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await freshVillage(page);
+  const scroller = page.getByTestId('village-scroll');
+  const before = {
+    objective: (await page.getByTestId('next-objective').boundingBox())!,
+    side: (await page.locator('.vg-side').boundingBox())!,
+    menu: (await page.getByTestId('status-button').boundingBox())!,
+  };
+  // There is more village than screen, and it is reached by scrolling the village only.
+  expect(await scroller.evaluate((e) => e.scrollHeight - e.clientHeight)).toBeGreaterThan(0);
+  await scroller.evaluate((e) => e.scrollTo(0, e.scrollHeight));
+  await expect.poll(() => scroller.evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => document.documentElement.scrollTop)).toBe(0);
+  expect((await page.getByTestId('next-objective').boundingBox())!.y).toBe(before.objective.y);
+  expect((await page.locator('.vg-side').boundingBox())!.y).toBe(before.side.y);
+  expect((await page.getByTestId('status-button').boundingBox())!.y).toBe(before.menu.y);
+  // The lowest house, after scrolling: on screen, and its own card when tapped.
+  const house = (await page.getByTestId('spot-house_03').boundingBox())!;
+  expect(house.y + house.height).toBeLessThanOrEqual(before.menu.y);
+  await page.getByTestId('spot-house_03').click();
+  await expect(page.getByTestId('place-card')).toHaveAttribute('data-spot', 'house_03');
+});

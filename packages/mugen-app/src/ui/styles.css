@@ -2745,9 +2745,10 @@ body {
   background:
     radial-gradient(70% 60% at 55% 28%, rgba(150, 182, 255, 0.24), rgba(150, 182, 255, 0) 75%),
     linear-gradient(180deg, #172044, #0b0f22);
-  clip-path: inset(0 0 var(--st-foot-h) 0);
 }
-.st-v2 .st-frame { inset: 0 0 var(--st-foot-h) 0; z-index: 1; }
+/* The frame as tall as the picture shown (作者 2026-10-17: 立ち絵フレームを下まで延長) — the whole of her inside
+   one frame, corners kept (9-slice), only the straight edges longer. The foot's buttons lie over its lower edge. */
+.st-v2 .st-frame { inset: 0; z-index: 1; }
 
 /* The tabs: the confirm plate, each with its face in the small square frame. */
 .st-v2 .st-tab.kit {
@@ -2814,8 +2815,12 @@ body {
   padding: 1px 2px;
   border-width: 6px 14px;
 }
-.st-v2 .st-row dt { color: #141a3a; font-size: 11.5px; letter-spacing: 0.08em; padding-left: 4px; }
-.st-v2 .st-row dd { color: #0d1230; white-space: nowrap; padding-right: 2px; }
+.st-v2 .st-row dt { color: #a9b7d6; font-size: 11.5px; letter-spacing: 0.08em; padding-left: 4px; }
+.st-v2 .st-row dd { color: #f3f6ff; font-weight: 600; white-space: nowrap; padding-right: 2px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+/* The rows of numbers on the sheet's darker row (作者 2026-10-17: 数値を白〜白銀に、背景に埋もれないように):
+   the label a quiet blue-grey, the figure silver-white. Same shape, the row's darker picture. */
+.st-v2 .st-rows .st-row.kit[data-skinned],
+.st-v2 .st-mark.kit[data-skinned] { border-image-source: var(--kit-img-selected); }
 
 /* 装備・武器種・戦闘スタイル: rows too, the long one wrapping rather than being cut. */
 .st-v2 .st-marks { display: grid; grid-template-columns: 1fr; gap: 3px; }
@@ -2830,8 +2835,11 @@ body {
   background: none;
   white-space: normal;
 }
-.st-v2 .st-mark span { color: #141a3a; padding-left: 4px; }
-.st-v2 .st-mark b { color: #141a3a; overflow-wrap: anywhere; }
+.st-v2 .st-mark span { color: #a9b7d6; padding-left: 4px; }
+.st-v2 .st-mark b { color: #f3f6ff; font-weight: 600; overflow-wrap: anywhere; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+/* LEVEL and NEXT: the figures silver-white too. */
+.st-v2 .st-level b, .st-v2 .st-next b { color: #f3f6ff; font-weight: 600; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.st-v2 .st-level-label, .st-v2 .st-next { color: #a9b7d6; }
 
 /* スキル: a row each; open, it says what it does. */
 .st-v2 .st-skill.kit {
@@ -2848,7 +2856,8 @@ body {
 .st-v2 .st-foot {
   min-height: var(--st-foot-h);
   box-sizing: border-box;
-  background: linear-gradient(180deg, rgba(9, 12, 26, 0) 0, rgba(9, 12, 26, 0.85) 35%, #090c1a 100%);
+  /* Dark under the left column only: over the picture the frame's lower edge shows round the buttons. */
+  background: linear-gradient(180deg, rgba(9, 12, 26, 0) 0, rgba(9, 12, 26, 0.85) 35%, #090c1a 100%) left / calc(100% - var(--st-visual-w)) 100% no-repeat;
 }
 .st-v2 .st-back.kit {
   min-width: 108px;
