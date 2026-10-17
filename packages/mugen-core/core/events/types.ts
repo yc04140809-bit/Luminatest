@@ -18,6 +18,12 @@ export interface LifeEventDef {
   requiredMemory: MemoryEventType;
   /** Days that must have elapsed since the required memory occurred. */
   minElapsedDays: number;
+  /**
+   * A life that went another way: if any of these happened first — by the
+   * day this one would — this one never does. (A man who stayed to carry a
+   * girl home does not also walk out onto the road.) Absent: nothing stops it.
+   */
+  unless?: readonly MemoryEventType[];
   /** Phase C: all life events fire at most once per world. */
   once: true;
   location: string;

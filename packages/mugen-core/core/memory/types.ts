@@ -31,7 +31,29 @@ export type LifeEventType =
   | 'GALD_WORKS_FOR_ALDEN'
   // KILL — the man's own time stopped; the world's did not.
   | 'GALD_IS_BURIED'
-  | 'GALD_GRAVE_TENDED';
+  | 'GALD_GRAVE_TENDED'
+  | OffScreenLifeEventType;
+
+/**
+ * OFF-SCREEN LIFE (docs/OFF_SCREEN_LIFE_SYSTEM.md, 2026-10-17): what people
+ * do with one another while the player is somewhere else — world truth
+ * the player does not see happen, and may hear of afterwards (or never).
+ * The PLAYER is never an actor on these, so none of them is player
+ * knowledge until something the player reads tells them
+ * (core/world/playerKnowledge.ts).
+ *
+ * HELP — the bakery route (PoC, docs/GALD_FIVE_ROUTES.md ROUTE A, without
+ * バルド): he saves リナ, リゼル sees it and tends him, the bakery hears
+ * why he stole, he chooses the work offered, and what follows reaches
+ * people who were never in the forest.
+ */
+export type OffScreenLifeEventType =
+  | 'GALD_SAVES_LINA'
+  | 'RIZEL_TENDS_GALD'
+  | 'GALD_TELLS_OF_ELNA'
+  | 'GALD_TAKES_BAKERY_WORK'
+  | 'LINA_WRITES_TO_ELNA'
+  | 'RIZEL_SPEAKS_FOR_GALD';
 
 /**
  * Events the player takes part in outside the first-encounter choice.

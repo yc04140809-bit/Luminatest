@@ -1342,6 +1342,8 @@ body {
   min-height: 0;
 }
 .bakery-say { margin: 0; font-size: 13px; }
+/* パン屋ルート: the man at the back, seen (not told who) — a quiet line under the shop's. */
+.bakery-sight { margin: 0; font-size: 12px; color: var(--text-sub, #bfc7d5); }
 .bakery-shop .purse { margin: 0; }
 .bakery-list {
   margin: 0;

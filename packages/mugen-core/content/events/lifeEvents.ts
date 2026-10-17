@@ -87,6 +87,11 @@ export const GALD_WALKS_THE_ROAD_DEF: LifeEventDef = {
   eventId: 'evt_gald_walks_the_road',
   requiredMemory: 'PLAYER_HELPED_GALD',
   minElapsedDays: 3,
+  // The bakery route (content/events/offScreenLife.ts, PoC 2026-10-17): a
+  // man who stayed at the forest edge and stood in front of リナ did not
+  // walk out onto the road. The look ahead (TIME SHIFT) still shows this
+  // road — it reads these chains as they were, without the route.
+  unless: ['GALD_SAVES_LINA'],
   once: true,
   location: 'GREENWOOD_FOREST',
   actors: ['GALD'],

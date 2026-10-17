@@ -399,3 +399,28 @@
 .paper .bag-row .bag-desc,
 .paper .bag-row .bag-reason,
 .paper .memory-row .memory-meta { color: #d3dbf4; }
+
+/* ── WORLD MEMORY and the life record, once they hold more than a screen (the bakery route lists up to
+   seven): the panel at most as tall as the screen, the title and もどる on it, the list scrolling inside.
+   A row's NEW sits at its start, not stretched across it. */
+.screen.paper:has(.memory-screen) { height: 100vh; height: 100dvh; min-height: 0; }
+.paper-sheet:has(> .memory-screen) { max-height: 100%; min-height: 0; }
+.memory-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+}
+.memory-screen > .memory-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 4px 0 6px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.memory-screen > .btn { flex: none; }
+.memory-row > .new-badge { align-self: flex-start; margin-left: 0; }
+/* The plate's right-hand crystal reaches a little inside: a record's small line (type, place, who) keeps
+   clear of it rather than running under it. */
+.memory-row, .paper .memory-row { padding-right: 16px; }

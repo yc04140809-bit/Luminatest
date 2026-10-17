@@ -50,6 +50,12 @@ describe('the five', () => {
       ['KAOS_SKY', 'VILLAGE', 2],
       // バルド (2026-10-16): last, so it only takes a day nothing else here wants.
       ['BALDO_FIRST_MEETING', 'VILLAGE', 0],
+      // パン屋ルート (OFF-SCREEN LIFE PoC, 2026-10-17): told afterwards, each only once
+      // it happened (`truth`) and only where Gald was bandaged — after everything above.
+      ['LINA_AFTER_THE_FOREST_EDGE', 'BAKERY_LINA', 0],
+      ['RIZEL_SAW_THE_FOREST_EDGE', 'VILLAGE', 0],
+      ['OWNER_ON_THE_NEW_HAND', 'BAKERY_OWNER', 0],
+      ['LINA_LETTER_TO_ELNA', 'BAKERY_LINA', 0],
     ]);
     // Half a minute or so each: five lines at least, ten at most.
     for (const s of DAILY_SCENES) {

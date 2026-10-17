@@ -28,6 +28,7 @@ import type { IncidentPhase } from '../../core/world/aldenIncident';
 import type { SekiryugaStage } from '../../core/world/storyArc';
 import type { NpcExpression } from '../../core/npc/touchReaction';
 import type { LifeChoiceId } from '../../core/flow/types';
+import type { MemoryEventType } from '../../core/memory/types';
 import { ALDEN_EXPERIENCE_EVENTS } from '../experience/aldenExperience';
 import { HERO_SPEAKER } from './sekiryugaArc';
 
@@ -56,7 +57,11 @@ export type DailySceneId =
   | 'FUUMIMI_AFTER_KILL'
   | 'FUUMIMI_AFTER_SPARE'
   | 'FUUMIMI_AFTER_HELP'
-  | 'FUUMIMI_AFTER_CAPTURE';
+  | 'FUUMIMI_AFTER_CAPTURE'
+  | 'LINA_AFTER_THE_FOREST_EDGE'
+  | 'RIZEL_SAW_THE_FOREST_EDGE'
+  | 'OWNER_ON_THE_NEW_HAND'
+  | 'LINA_LETTER_TO_ELNA';
 
 export interface DailyScene {
   id: DailySceneId;
@@ -72,6 +77,14 @@ export interface DailyScene {
   gald?: LifeChoiceId;
   /** Only once フウミミ was answered this way — and not on the day it was. */
   fuumimi?: LifeChoiceId;
+  /**
+   * Only once this has happened in the world (WORLD TRUTH) — somebody telling
+   * the player about something that happened where they were not
+   * (OFF-SCREEN LIFE, content/events/offScreenLife.ts).
+   */
+  truth?: MemoryEventType;
+  /** What the player comes to know from it, read to its end (PLAYER KNOWLEDGE fact ids). */
+  reveals?: readonly string[];
 }
 
 const KAOS = 'ケイオス';
@@ -325,6 +338,88 @@ export const DAILY_SCENES: readonly DailyScene[] = [
       { speaker: RIZEL, text: '昔からああなの。……気にしないで。' },
     ],
   },
+  // ---- パン屋ルート — what happened while the player was elsewhere ----
+  // (OFF-SCREEN LIFE PoC, 作者 2026-10-17; content/events/offScreenLife.ts)
+  // The player was not at the forest edge, nor at the bakery's table. These
+  // are people telling them afterwards, each only in a world where it really
+  // happened (`truth`), and only in one where Gald was bandaged (`gald`).
+  // THE ONE EXCEPTION TO リナ'S RULE (docs/GALD_FIVE_ROUTES.md 実装方針): her
+  // ordinary scenes above never touch Gald; these two are separate scenes,
+  // only on this route, and neither says what she will become. バルド is in
+  // none of them. LAST in the list, so nothing already here moves.
+  {
+    id: 'LINA_AFTER_THE_FOREST_EDGE',
+    place: 'BAKERY_LINA',
+    from: 0,
+    gald: 'HELP',
+    truth: 'GALD_SAVES_LINA',
+    reveals: ['GALD_SAVED_LINA'],
+    lines: [
+      { speaker: null, text: 'リナの腕に、白い布が巻かれている。' },
+      { speaker: LINA, text: 'あ……これ？ たいしたことないの。' },
+      { speaker: LINA, text: 'この前の夕方ね、お父さんに頼まれて、森の入口までコケモモを摘みに行ったの。' },
+      { speaker: LINA, text: 'そしたら茂みから魔物が出てきて……もう駄目だって思った。' },
+      { speaker: LINA, text: 'でも、知らない男の人が前に立ってくれたの。体じゅう包帯だらけだったのに。' },
+      { speaker: HERO_SPEAKER, text: '……包帯だらけ？' },
+      { speaker: LINA, text: 'うん。その人の方がずっとひどい怪我だったのに、「下がってろ」って。' },
+      { speaker: KAOS, text: '……包帯、ね。' },
+      { speaker: LINA, text: 'ちゃんとお礼、言えてないんだ。……言いたいな。' },
+    ],
+  },
+  {
+    id: 'RIZEL_SAW_THE_FOREST_EDGE',
+    place: 'VILLAGE',
+    from: 0,
+    gald: 'HELP',
+    after: 'RIZEL_ON_GALD_HELP',
+    truth: 'RIZEL_TENDS_GALD',
+    reveals: ['GALD_SAVED_LINA', 'RIZEL_TENDED_GALD'],
+    lines: [
+      { speaker: null, text: '井戸のそばで、リゼルが自分の手のひらを見ている。' },
+      { speaker: RIZEL, text: '……ねえ。森の盗賊。あなたが手当てした人。' },
+      { speaker: RIZEL, text: 'あの人、まだこの辺りにいたの。森の入口でリナが魔物に襲われたとき――' },
+      { speaker: RIZEL, text: '傷だらけのまま、リナの前に立ってた。私、薬草を採りに行ってて……全部、見てたの。' },
+      { speaker: RIZEL, text: '開いた傷、私が縛った。……盗賊の手当てなんてしないって、言ったのにね。', face: 'SAD' },
+      { speaker: RIZEL, text: '許したわけじゃない。でも……私、あの人の何を知ってたんだろう。' },
+      { speaker: null, text: 'リゼルは桶を持ち上げかけて、もう一度だけ森の方を見た。' },
+    ],
+  },
+  {
+    id: 'OWNER_ON_THE_NEW_HAND',
+    place: 'BAKERY_OWNER',
+    from: 0,
+    gald: 'HELP',
+    truth: 'GALD_TAKES_BAKERY_WORK',
+    reveals: ['GALD_STOLE_FOR_ELNA', 'GALD_WORKS_AT_BAKERY'],
+    lines: [
+      { speaker: null, text: '店の奥で、大柄な男が黙々と粉袋を運んでいる。主人が、それを顎で示した。' },
+      { speaker: OWNER, text: '……あいつか。娘の恩人だ。' },
+      { speaker: OWNER, text: '妹がいるんだとさ。エルナっていう、リナと同い年の。重い病で、薬代がいる。' },
+      { speaker: OWNER, text: 'それで森で、人の物を盗んでた。……本人がそう言った。言い訳はしなかったよ。' },
+      { speaker: OWNER, text: '治療費を全部出してやれるほど、うちは裕福じゃねぇ。だが、ここで働くなら給金は多めに出す。そう言ったら――' },
+      { speaker: OWNER, text: '少し黙って、それから「やる」とだけ言った。' },
+      { speaker: KAOS, text: '……自分で、決めたんだね。' },
+      { speaker: OWNER, text: '村の連中の目は、まだ冷てぇがな。それは、あいつが自分で背負うもんだ。' },
+    ],
+  },
+  {
+    id: 'LINA_LETTER_TO_ELNA',
+    place: 'BAKERY_LINA',
+    from: 0,
+    gald: 'HELP',
+    after: 'LINA_AFTER_THE_FOREST_EDGE',
+    truth: 'LINA_WRITES_TO_ELNA',
+    reveals: ['LINA_WROTE_TO_ELNA'],
+    lines: [
+      { speaker: null, text: 'リナが、封をした手紙を胸に抱えている。' },
+      { speaker: LINA, text: 'これね、エルナって子に書いたの。会ったこと、ないんだけど。' },
+      { speaker: LINA, text: '店の奥の人の妹さん。私と同い年なんだって。' },
+      { speaker: LINA, text: 'ずっと寝てるって聞いたから……少しでも、楽しいこと書けたらなって。' },
+      { speaker: HERO_SPEAKER, text: '何を書いたんだ？' },
+      { speaker: LINA, text: 'ないしょ！ ……パンの話とか、村の話とか。' },
+      { speaker: LINA, text: '返事、来るといいな。' },
+    ],
+  },
 ];
 
 /** readMarks id for a scene (read to its end). */
@@ -342,6 +437,8 @@ export interface DailySceneFacts {
   galdChoice?: LifeChoiceId | null;
   /** What was decided about フウミミ, and on which day (absolute), if anything. */
   fuumimi?: { choice: LifeChoiceId; day: number } | null;
+  /** Whether this has happened in the world (WORLD TRUTH); absent, nothing off screen has. */
+  isTrue?: (type: MemoryEventType) => boolean;
 }
 
 /** The scene that happens here now, if any: after セキリュウガ, one a day, each once. */
@@ -356,7 +453,8 @@ export function dailySceneAt(place: DailyScenePlace, facts: DailySceneFacts): Da
         !facts.isRead(dailySceneMark(s.id)) &&
         (!s.after || facts.isRead(dailySceneMark(s.after))) &&
         (!s.gald || s.gald === (facts.galdChoice ?? null)) &&
-        (!s.fuumimi || (facts.fuumimi?.choice === s.fuumimi && facts.day > facts.fuumimi.day)),
+        (!s.fuumimi || (facts.fuumimi?.choice === s.fuumimi && facts.day > facts.fuumimi.day)) &&
+        (!s.truth || facts.isTrue?.(s.truth) === true),
     ) ?? null
   );
 }

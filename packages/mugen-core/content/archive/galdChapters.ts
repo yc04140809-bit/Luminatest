@@ -75,6 +75,39 @@ export const GALD_LIFE_CHAPTERS: Partial<Record<MemoryEventType, GaldChapterDef>
     summary: '三年後。街道の小さな救護所で、あなたは彼と再会した。',
   },
 
+  // HELP — the bakery route (OFF-SCREEN LIFE PoC, 2026-10-17). Each of these
+  // happened where the player was not; a chapter appears only once somebody
+  // has told them the whole of it (core/world/playerKnowledge.ts).
+  GALD_SAVES_LINA: {
+    id: 'GALD_CH_SAVED_LINA',
+    title: '森の入口で',
+    summary: '傷の癒えきらないまま、彼は魔物に襲われたリナの前に立った。あなたはその場にいなかった。',
+  },
+  RIZEL_TENDS_GALD: {
+    id: 'GALD_CH_TENDED',
+    title: '縛り直された傷',
+    summary: '開いた傷を縛ったのは、盗賊は許せないと言っていたリゼルだった。',
+  },
+  GALD_TELLS_OF_ELNA: {
+    id: 'GALD_CH_REASON',
+    title: '盗んだ理由',
+    summary: 'パン屋の食卓で、彼は病気の妹エルナのことを話した。言い訳はしなかった。',
+  },
+  GALD_TAKES_BAKERY_WORK: {
+    id: 'GALD_CH_BAKERY_HAND',
+    title: '店の奥の男',
+    summary: 'リナの父の申し出を、彼は自分で選んだ。パン屋の奥で粉袋を運ぶ日々が始まった。',
+  },
+  LINA_WRITES_TO_ELNA: {
+    id: 'GALD_CH_LETTER',
+    title: '預かった手紙',
+    summary: 'リナがまだ会ったことのない妹へ書いた手紙を、彼は預かった。',
+  },
+  RIZEL_SPEAKS_FOR_GALD: {
+    id: 'GALD_CH_SPOKEN_FOR',
+    title: 'パン屋の前で',
+    summary: '見張り番が彼を疑ったとき、リゼルが自分の見たことを話した。疑いが消えたわけではない。',
+  },
   // CAPTURE
   GALD_STANDS_TRIAL: {
     id: 'GALD_CH_TRIAL',

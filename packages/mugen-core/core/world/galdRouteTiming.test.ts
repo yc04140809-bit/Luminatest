@@ -44,10 +44,18 @@ const ROUTES: Route[] = [
     ],
   },
   {
+    // THE BAKERY ROUTE (PoC, 作者 2026-10-17; content/events/offScreenLife.ts),
+    // off screen, a night at a time. It USED TO BE the road: [4,
+    // GALD_WALKS_THE_ROAD], [124, GALD_BECOMES_HEALER] — which now gives way
+    // once he has saved リナ, and which the look ahead (TIME SHIFT) still shows.
     choice: 'HELP',
     chain: [
-      [4, 'GALD_WALKS_THE_ROAD'],
-      [124, 'GALD_BECOMES_HEALER'],
+      [2, 'GALD_SAVES_LINA'],
+      [2, 'RIZEL_TENDS_GALD'],
+      [3, 'GALD_TELLS_OF_ELNA'],
+      [4, 'GALD_TAKES_BAKERY_WORK'],
+      [5, 'LINA_WRITES_TO_ELNA'],
+      [6, 'RIZEL_SPEAKS_FOR_GALD'],
     ],
   },
   {

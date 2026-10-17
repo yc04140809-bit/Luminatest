@@ -72,7 +72,7 @@ export function WorldMemoryScreen({ world, onBack }: { world: World; onBack: () 
   const events = world.getKnownEvents();
   return (
     <Place area="ALDEN" title="世界の記憶">
-      <div data-testid="world-memory-screen">
+      <div className="memory-screen" data-testid="world-memory-screen">
         <p className="memory-count" data-testid="memory-count">
           {events.length} 件
         </p>
@@ -125,7 +125,7 @@ export function ArchiveScreen({ world, onBack }: { world: World; onBack: () => v
   if (open) {
     return (
       <Place area="ALDEN" title={open.displayName}>
-        <div data-testid="archive-detail" data-character={open.characterId}>
+        <div className="memory-screen" data-testid="archive-detail" data-character={open.characterId}>
           <ul className="memory-list">
             {open.chapters.map((chapter) => (
               <li className="memory-row" key={chapter.id} data-testid={`chapter-${chapter.id}`}>
@@ -152,7 +152,7 @@ export function ArchiveScreen({ world, onBack }: { world: World; onBack: () => v
 
   return (
     <Place area="ALDEN" title="人生の記録">
-      <div data-testid="archive-screen">
+      <div className="memory-screen" data-testid="archive-screen">
         {entries.length === 0 ? (
           <p className="line" data-testid="archive-empty">
             まだ、誰の人生も知らない。

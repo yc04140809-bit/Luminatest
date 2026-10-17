@@ -119,6 +119,19 @@ export const NPC_REGISTRY: readonly NpcRegistryEntry[] = [
     artId: null,
     aliases: [],
   },
+  // Gald's sister, fourteen and sick (docs/GALD_FIVE_ROUTES.md 共通背景).
+  // On the bakery route (OFF-SCREEN LIFE PoC, 2026-10-17) only as somebody
+  // spoken of and written to; where she lives and what becomes of her are
+  // not decided. Not from CHARACTER FORGE.
+  {
+    npcId: 'ELNA',
+    displayName: 'エルナ',
+    kind: 'PERSON',
+    region: ALDEN,
+    standing: 'ORDINARY',
+    artId: null,
+    aliases: [],
+  },
   {
     npcId: 'ALDEN_VILLAGE',
     displayName: 'アルデン村',

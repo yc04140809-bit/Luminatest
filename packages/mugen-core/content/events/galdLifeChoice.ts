@@ -75,6 +75,14 @@ export const MEMORY_EVENT_LABEL: Record<
   GALD_STANDS_TRIAL: '捕らえられた男が、アルデンで裁きを受けた',
   GALD_COMPLETES_SENTENCE: '男は、科された務めを終えた',
   GALD_WORKS_FOR_ALDEN: '男は、村の仕事で日銭を稼ぐようになった',
+  // HELP — the bakery route, off screen (content/events/offScreenLife.ts).
+  // Listed only once the player has heard of it (core/world/playerKnowledge.ts).
+  GALD_SAVES_LINA: '森の入口で、あの男がリナを庇った',
+  RIZEL_TENDS_GALD: 'リゼルが、あの男の傷を手当てした',
+  GALD_TELLS_OF_ELNA: 'パン屋の食卓で、男は盗んだ理由を語った',
+  GALD_TAKES_BAKERY_WORK: '男は、パン屋で働くことを選んだ',
+  LINA_WRITES_TO_ELNA: 'リナが、まだ会ったことのない少女に手紙を書いた',
+  RIZEL_SPEAKS_FOR_GALD: 'リゼルが、見張り番の前で男のことを話した',
   GALD_IS_BURIED: '森の外れに、小さな石が積まれた',
   GALD_GRAVE_TENDED: '誰かが、その石積みに花を置いていく',
   PLAYER_REUNITED_WITH_GALD: 'パン屋で、あの盗賊と再会した',

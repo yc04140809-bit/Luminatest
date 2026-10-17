@@ -23,6 +23,7 @@ import { buyPriceOf } from '@mugen/core/economy/shop';
 import { breadBuffLabel } from '@mugen/core/economy/bread';
 import { bakeryArt, type BakeryArt } from '../assets/bakery';
 import { NewBadge } from './common/NewBadge';
+import { BAKERY_NEW_HAND_SIGHT } from '@mugen/content/events/offScreenLife';
 import { linaHasNews, ownerHasNews, rumorUnheard } from './talkNews';
 
 /**
@@ -95,6 +96,13 @@ export function BakeryScreen({
       gone = true;
     };
   }, []);
+
+  // パン屋ルート (OFF-SCREEN LIFE PoC): once he works here, the man at the back
+  // is there to be seen — and seen, he is known of (not who; PLAYER KNOWLEDGE).
+  const newHand = world.hasEventOfType(BAKERY_NEW_HAND_SIGHT.truth);
+  useEffect(() => {
+    if (newHand) void world.learnFacts([BAKERY_NEW_HAND_SIGHT.fact], BAKERY_NEW_HAND_SIGHT.via).catch(() => {});
+  }, [world, newHand]);
 
   const hero = world.getHeroName();
   const named = (s: string) => s.split(BAKERY_HERO).join(hero);
@@ -312,6 +320,11 @@ export function BakeryScreen({
                 <p className="line" data-testid="bakery-description">
                   {who === 'OWNER' ? BAKERY_OWNER_DESCRIPTION : BAKERY_SHOP_DESCRIPTION}
                 </p>
+                {newHand && who !== 'OWNER' && (
+                  <p className="line bakery-sight" data-testid="bakery-new-hand">
+                    {BAKERY_NEW_HAND_SIGHT.line}
+                  </p>
+                )}
                 <div className="actions">
                   <button className="btn primary" data-testid="bakery-talk" onClick={talk}>
                     話す

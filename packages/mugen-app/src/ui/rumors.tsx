@@ -29,6 +29,7 @@ export function rumorsOf(world: World): { rumors: VillageRumor[]; unread: number
     stage: world.getSekiryugaStage(),
     ruinsCry: world.isRead(RUINS_CRY_MARK),
     incidentPhase: world.getIncidentPhase(),
+    isTrue: (type) => world.hasEventOfType(type),
   });
   return { rumors, unread: rumors.filter((r) => !world.isRead(rumorMark(r.id))).length };
 }
@@ -40,6 +41,8 @@ export function RumorScreen({ world, onLeave }: { world: World; onLeave: () => v
   const read = (rumor: VillageRumor) => {
     setOpen((now) => (now === rumor.id ? null : rumor.id));
     void world.markRead([rumorMark(rumor.id)]).catch(() => {});
+    // Talk about something done where the player was not: opened, it is what they know of it.
+    if (rumor.reveals) void world.learnFacts(rumor.reveals, rumorMark(rumor.id)).catch(() => {});
   };
 
   return (

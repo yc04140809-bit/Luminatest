@@ -60,6 +60,7 @@ import {
 import { GRAVE_MEETING_MARK } from '../../content/talk/graveTalks';
 import { NO_DAILY_SCENE, readDailyScene, type DailySceneRow } from './dailySceneState';
 import {
+  DAILY_SCENES,
   dailySceneAt,
   dailySceneMark,
   type DailyScene,
@@ -125,6 +126,8 @@ import {
   GALD_FUTURE_VISION_ID,
 } from '../../content/events/galdLifeChoice';
 import { LIFE_EVENT_DEFS } from '../../content/events/lifeEvents';
+import { LIFE_TICK_DEFS, OFF_SCREEN_FACTS } from '../../content/events/offScreenLife';
+import { knownTruths, learnable, readPlayerKnowledge, type PlayerKnowledgeRow } from './playerKnowledge';
 import {
   FUTURE_SITE_DEFS,
   FUTURE_DISCOVERY_TYPES,
@@ -402,6 +405,12 @@ const INCIDENT_KEY = 'aldenIncident';
  */
 const DAILY_SCENE_KEY = 'dailyScene';
 /**
+ * PLAYER KNOWLEDGE (OFF-SCREEN LIFE, 2026-10-17): what the player has been
+ * told of what happened where they were not — see `playerKnowledge.ts`.
+ * Absent reads as knowing none of it, so no schema version moved.
+ */
+const PLAYER_KNOWLEDGE_KEY = 'playerKnowledge';
+/**
  * WHICH FIGHTING MUSIC THIS WORLD HAS WON.
  *
  * PROGRESS, NOT PREFERENCE, which is why it is here and not in
@@ -671,6 +680,7 @@ export class World {
   private villageBgm: BgmId | null;
   private incident: IncidentRow;
   private dailyScene: DailySceneRow;
+  private playerKnowledge: PlayerKnowledgeRow;
   /** The incident writes, one after another (see `addIncident`). */
   private incidentQueue: Promise<unknown> = Promise.resolve();
   /** The music writes, one after another (see `markMusicHeard`). */
@@ -706,6 +716,7 @@ export class World {
     this.villageBgm = fields.villageBgm;
     this.incident = fields.incident;
     this.dailyScene = fields.dailyScene;
+    this.playerKnowledge = fields.playerKnowledge;
     // A WORLD THAT PREDATES EQUIPMENT GETS ITS STARTING KIT. Held in
     // memory only: nothing is written until the player actually
     // changes something, so opening an old save does not rewrite it.
@@ -1674,6 +1685,7 @@ export class World {
       isRead: (mark) => this.readMarks.has(mark),
       galdChoice: this.getGaldLifeChoice(),
       fuumimi: this.getFuumimiAnswer(),
+      isTrue: (type) => this.hasEventOfType(type),
     });
   }
 
@@ -1700,20 +1712,64 @@ export class World {
       if (this.readMarks.has(mark)) return false;
       const marks = withMarks(this.readMarkList, [mark]);
       const row: DailySceneRow = { lastDay: toAbsoluteDay(this.clock) };
+      // What the scene told them of the world, learned with it (PLAYER KNOWLEDGE).
+      const knowledge = this.withLearned(DAILY_SCENES.find((s) => s.id === id)?.reveals ?? [], mark);
       await this.store.commit({
         putState: [
           { key: READ_MARKS_KEY, value: marks },
           { key: DAILY_SCENE_KEY, value: row },
+          ...(knowledge ? [{ key: PLAYER_KNOWLEDGE_KEY, value: knowledge }] : []),
         ],
       });
       this.readMarkList = marks;
       this.readMarks = new Set(marks);
       this.dailyScene = row;
+      if (knowledge) this.playerKnowledge = knowledge;
       this.emit();
       return true;
     });
     this.readMarkQueue = run.catch(() => false);
     return run;
+  }
+
+  // ---- PLAYER KNOWLEDGE (OFF-SCREEN LIFE, 2026-10-17; playerKnowledge.ts) ----
+
+  /** Whether the player has been told this (a fact id of content/events/offScreenLife.ts). */
+  knows(factId: string): boolean {
+    return this.playerKnowledge[factId] !== undefined;
+  }
+
+  /** Everything the player has been told of what happened where they were not — apart from WORLD TRUTH (`getEvents`). */
+  getPlayerKnowledge(): PlayerKnowledgeRow {
+    return { ...this.playerKnowledge };
+  }
+
+  /**
+   * The player has just been told these — by `via`, what they read or saw
+   * (`rumor:<id>`, `seen:<place>`, `talk:<id>`). Only facts already true in
+   * the world are learned; the rest are ignored, never stored in advance.
+   * Returns the ids newly learned. In turn with the read marks.
+   */
+  learnFacts(factIds: readonly string[], via: string): Promise<string[]> {
+    const run = this.readMarkQueue.then(async () => {
+      const before = this.playerKnowledge;
+      const next = this.withLearned(factIds, via);
+      if (!next) return [];
+      await this.store.commit({ putState: [{ key: PLAYER_KNOWLEDGE_KEY, value: next }] });
+      this.playerKnowledge = next;
+      this.emit();
+      return Object.keys(next).filter((id) => !before[id]);
+    });
+    this.readMarkQueue = run.then(() => false).catch(() => false);
+    return run;
+  }
+
+  /** The knowledge row with these learned, or null when nothing in it changes. */
+  private withLearned(factIds: readonly string[], via: string): PlayerKnowledgeRow | null {
+    const fresh = learnable(factIds, OFF_SCREEN_FACTS, this.playerKnowledge, (type) => this.hasEventOfType(type));
+    if (fresh.length === 0) return null;
+    const day = toAbsoluteDay(this.clock);
+    return { ...this.playerKnowledge, ...Object.fromEntries(fresh.map((id) => [id, { day, via }])) };
   }
 
   /** The piece Alden's ordinary places play, or null for its own. */
@@ -1940,11 +1996,15 @@ export class World {
     // one moment only: when they go to the place the world put on the map
     // and see for themselves.
     const discovered = this.hasDiscoveredGaldFuture();
+    // And what happened where they were not, once somebody has told them
+    // the whole of it (PLAYER KNOWLEDGE, OFF-SCREEN LIFE 2026-10-17).
+    const told = knownTruths(OFF_SCREEN_FACTS, this.playerKnowledge);
     return this.getEvents().filter(
       (e) =>
         e.actors.includes('PLAYER') ||
         e.type === 'WORLD_TIME_SHIFTED' ||
-        (discovered && e.actors.includes('GALD')),
+        (discovered && e.actors.includes('GALD')) ||
+        told.has(e.type),
     );
   }
 
@@ -1986,7 +2046,11 @@ export class World {
   previewLifeEvents(years: number): MemoryEvent[] {
     if (!Number.isInteger(years) || years <= 0) return [];
     return resolveDueLifeEvents(
-      LIFE_EVENT_DEFS,
+      // The four answers' chains as they were written, without the
+      // off-screen lives and without what gives way to them: the look ahead
+      // is the old picture of the answer (TIME SHIFT unchanged, 作者
+      // 2026-10-16), not a reading of what has happened since.
+      LIFE_EVENT_DEFS.map(({ unless: _unless, ...def }) => def),
       this.events,
       addYears(this.clock, years),
       // A fixed stamp: a preview is not a moment, and handing back
@@ -2176,7 +2240,10 @@ export class World {
    * swallows in-between history.
    */
   private resolveLifeEvents(atClock: WorldClock): ResolvedLifeEvent[] {
-    return resolveDueLifeEvents(LIFE_EVENT_DEFS, this.events, atClock);
+    // THE LIFE TICK (docs/OFF_SCREEN_LIFE_SYSTEM.md §20): only when story
+    // time passes — a night, or a shift — every life in the world, the
+    // off-screen ones included (content/events/offScreenLife.ts).
+    return resolveDueLifeEvents(LIFE_TICK_DEFS, this.events, atClock);
   }
 
   /** Applies life-event character effects; returns the new map + changed ids. */
@@ -3164,6 +3231,7 @@ export class World {
     this.villageBgm = null;
     this.incident = NO_INCIDENT;
     this.dailyScene = NO_DAILY_SCENE;
+    this.playerKnowledge = {};
     this.emit();
   }
 
@@ -3238,6 +3306,7 @@ export class World {
     this.pickupRegrowth = {};
     this.incident = NO_INCIDENT;
     this.dailyScene = NO_DAILY_SCENE;
+    this.playerKnowledge = {};
     this.emit();
   }
 }
@@ -3393,6 +3462,7 @@ interface WorldFields {
   villageBgm: BgmId | null;
   incident: IncidentRow;
   dailyScene: DailySceneRow;
+  playerKnowledge: PlayerKnowledgeRow;
 }
 
 /** What reading a save had to say about it. */
@@ -3558,6 +3628,8 @@ function repairSavedRow(key: string, value: unknown): { value: unknown; changed:
       return settle(readIncident(value));
     case DAILY_SCENE_KEY:
       return settle(readDailyScene(value));
+    case PLAYER_KNOWLEDGE_KEY:
+      return settle(readPlayerKnowledge(value));
     case SESSION_KEY: {
       // The one row where being wrong costs nothing: the worst a
       // damaged session can do is put the player in the village.
@@ -3654,6 +3726,7 @@ function readWorldRows(rows: readonly WorldStateRow[]): ReadWorld {
       villageBgm: take(VILLAGE_BGM_KEY, readVillageBgm(byKey.get(VILLAGE_BGM_KEY))),
       incident: take(INCIDENT_KEY, readIncident(byKey.get(INCIDENT_KEY))),
       dailyScene: take(DAILY_SCENE_KEY, readDailyScene(byKey.get(DAILY_SCENE_KEY))),
+      playerKnowledge: take(PLAYER_KNOWLEDGE_KEY, readPlayerKnowledge(byKey.get(PLAYER_KNOWLEDGE_KEY))),
     },
     repairedKeys,
     unreadableKeys,

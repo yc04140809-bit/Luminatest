@@ -24,6 +24,12 @@ import type { SeedKindDef, WorldActionDef } from '../../core/life/defs';
 import type { NpcCore, WorldBloomDef } from '../../core/life/types';
 import { forgeCores, forgeWorldPeople } from '../forge/forgeContent';
 import {
+  BAKERY_ROUTE_ACTIONS,
+  BAKERY_ROUTE_CORES,
+  BAKERY_ROUTE_SEED_KINDS,
+  ELNA,
+} from './bakeryRouteLife';
+import {
   ALDEN_ACTIONS,
   ALDEN_BLOOMS,
   ALDEN_CORES,
@@ -261,16 +267,24 @@ function joined<T extends { id: string } | { type: string } | { npcId: string }>
 
 /** Everything, in the shape the engine takes it. */
 export const MUGEN_WORLD_RULES = {
-  actions: joined<WorldActionDef>('ACTION', ALDEN_ACTIONS, GALD_ACTIONS, CROSSING_ACTIONS),
-  kinds: joined<SeedKindDef>('SEED KIND', ALDEN_SEED_KINDS, GALD_SEED_KINDS, CROSSING_SEED_KINDS),
+  actions: joined<WorldActionDef>('ACTION', ALDEN_ACTIONS, GALD_ACTIONS, CROSSING_ACTIONS, BAKERY_ROUTE_ACTIONS),
+  kinds: joined<SeedKindDef>(
+    'SEED KIND',
+    ALDEN_SEED_KINDS,
+    GALD_SEED_KINDS,
+    CROSSING_SEED_KINDS,
+    BAKERY_ROUTE_SEED_KINDS,
+  ),
   cores: joined<NpcCore>(
     'NPC',
     ALDEN_CORES,
     GALD_CORES,
     [BAKERY_OWNER_CORE, NEL_CORE],
+    // The bakery route's (OFF-SCREEN LIFE PoC, 2026-10-17): エルナ.
+    BAKERY_ROUTE_CORES,
     // Characters adopted from CHARACTER FORGE (content/forge) that have no
     // hand-written core — people in the world like anybody else.
-    forgeCores([...ALDEN_CORES, ...GALD_CORES, BAKERY_OWNER_CORE, NEL_CORE]),
+    forgeCores([...ALDEN_CORES, ...GALD_CORES, BAKERY_OWNER_CORE, NEL_CORE, ...BAKERY_ROUTE_CORES]),
   ),
   blooms: joined<WorldBloomDef>('BLOOM', ALDEN_BLOOMS, GALD_BLOOMS, CROSSING_BLOOMS),
   crossings: WORLD_CROSSINGS,
@@ -312,6 +326,8 @@ const HAND_WORLD_PEOPLE: readonly WorldPerson[] = [
   { npcId: 'alden_marta', name: 'マルタ（リナの母）', region: ALDEN_REGION, standing: 'ORDINARY' },
   { npcId: ALDEN_VILLAGE_ACTOR, name: 'アルデン村そのもの', region: ALDEN_REGION, standing: 'PLACE' },
   { npcId: NEL, name: 'ネル（港町の荷運び）', region: PORT_REGION, standing: 'ORDINARY' },
+  // Where she lives is not decided beyond 'not in the village yet'.
+  { npcId: ELNA, name: 'エルナ（ガルドの妹）', region: ALDEN_REGION, standing: 'ORDINARY' },
 ];
 
 /** The hand-written roster, and every character adopted from CHARACTER FORGE not already on it. */

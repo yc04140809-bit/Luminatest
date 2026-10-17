@@ -145,7 +145,11 @@ for (const { choice, file } of ROUTES) {
   });
 }
 
-for (const { choice, file, site } of ROUTES) {
+// HELP's place (the waystation) belonged to the road, which since the bakery
+// route (OFF-SCREEN LIFE PoC, 2026-10-17) gives way once he has saved リナ:
+// its look ahead still shows the healer (above), but no place opens. What
+// happens instead is offScreenLife.spec.ts; the test below holds the change.
+for (const { choice, file, site } of ROUTES.filter((r) => r.choice !== 'HELP')) {
   test(`the place, ${choice}: ${site} shows ${file} once the player is inside`, async ({ page }) => {
     test.slow();
     await freshVillage(page);
@@ -229,3 +233,28 @@ for (const [w, h] of [
     await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'BACK');
   });
 }
+
+test('the place, HELP: no place opens — the road gave way to the bakery route, off screen', async ({ page }) => {
+  test.slow();
+  await freshVillage(page);
+  await answerAndContinue(page, 'HELP');
+  for (let i = 0; i < 4; i++) {
+    if (await page.getByTestId('future-vision-done').isVisible().catch(() => false)) break;
+    await page.getByTestId('future-vision-next').click();
+  }
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  // Long past the day the road's place used to open (day 124).
+  const after = await page.evaluate(async () => {
+    const w = (window as unknown as { __mugenWorld: DevWorld }).__mugenWorld;
+    for (let i = 0; i < 130; i++) await w.advanceDay();
+    return { sites: w.getOpenFutureSites().length, events: w.getEvents().map((e) => e.type) };
+  });
+  expect(after.sites).toBe(0);
+  expect(after.events).toContain('GALD_TAKES_BAKERY_WORK');
+  expect(after.events).not.toContain('GALD_WALKS_THE_ROAD');
+  // And the region map has no place to list.
+  await page.getByTestId('explore-button').click();
+  await expect(page.getByTestId('forest-button')).toBeVisible();
+  await expect(page.getByTestId('places-button')).toHaveCount(0);
+});

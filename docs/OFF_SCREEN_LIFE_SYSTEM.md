@@ -1,6 +1,6 @@
 # OFF-SCREEN LIFE SYSTEM — 主人公が見ていない間も続くNPC人生システム Ver.1.0（作者、2026-10-17）
 
-> 状態：**仕様の登録のみ。未実装。** `docs/WORLD_MEMORY_SYSTEM.md`・`docs/HIDDEN_SEED_SYSTEM.md`・`docs/GALD_FIVE_ROUTES.md` と同じ扱い。
+> 状態：**最小部分を実装（2026-10-17、ガルド・パン屋ルート PoC。末尾「PoC 実装」）。それ以外は未実装。** `docs/WORLD_MEMORY_SYSTEM.md`・`docs/HIDDEN_SEED_SYSTEM.md`・`docs/GALD_FIVE_ROUTES.md` と同じ扱い。
 > 既存の WorldMemory／NpcState／Relationship／HiddenSeed／LifeTick／EventRule の構造を可能な限り維持して取り込む
 > （このリポジトリでは `core/life` の人生エンジン、`docs/WORLD_LIFE_LINK_DESIGN.md`）。FORGE 側データは参照のみ。
 > 取り込みは「ガルド・パン屋ルート PoC」（作業順 5）から必要な分だけ。ただし今回の PoC にバルドは関係させない（作者 2026-10-16）。
@@ -92,3 +92,21 @@ AI を導入しても完全自由行動はさせない。WORLD MEMORY・PERSONAL
 主人公不在＝停止にしない。しかし主人公不在＝完全ランダムにもしない。NPC はその人物の人生に沿って動く。
 重要イベントには原因がある。人間関係には時間が必要。出来事には記憶が残り、その記憶が次の選択を変える。
 世界は主人公を待っていない。だからこそ、戻ってきた時に「時間が流れていた」と感じられる。あなたが見ていない間も、その人の人生は続いている。
+
+---
+
+## PoC 実装（2026-10-17、作者指示：LIFE TICK／不在時の NPC 同士の出来事／WORLD TRUTH と PLAYER KNOWLEDGE の分離）
+
+| 仕様 | 実装 |
+|---|---|
+| LIFE TICK（§20） | 物語時間が進む時だけ：宿で休む夜（`World.advanceDay`）。既存の人生 resolver（`core/events/eventEngine.ts`）で、四択の連鎖と不在時の出来事を一緒に解く（`LIFE_TICK_DEFS`）。見るだけ・画面を開くだけでは何も起きない。自由な TIME SHIFT・リアル時間はなし |
+| OFF-SCREEN EVENT（§3–4） | `content/events/offScreenLife.ts`：パン屋ルートの6つ（RELATIONSHIP／GROWTH／BRANCH）。actors に PLAYER なし＝`playerObserved: false`。誰の選択か（`decidedBy`）と NEW SEED 名も持つ |
+| NPC 自身の選択（§6） | パン屋で働く＝ガルド、手紙＝リナ、見張り番の前で話す＝リゼル。プレイヤーの選択肢ではない |
+| 波及（§7・§24） | リナの父・エルナ・見張り番（森にいなかった人）へ。人生エンジンが同じ出来事を読み、各人に種を残す（`content/world/bakeryRouteLife.ts`。関係・感情は保存せず毎回読む） |
+| WORLD TRUTH／PLAYER KNOWLEDGE（§13） | 事実＝世界の出来事（`getEvents`）。知識＝新しい行 `playerKnowledge`（`core/world/playerKnowledge.ts`）：知った事実・日・経路（`talk:`／`rumor:`／`seen:`）。**起きていないことは知れない**。全部を知った事実だけが世界の記憶・人生の記録に載る。一部だけ（「パン屋に新しい働き手」）は載らない |
+| 知る方法（§11） | 会話（リナ・主人）、第三者（リゼル）、環境（パン屋の店の奥）、噂（噂話・アルデン通信）、世界の記憶、人生の記録。知らないまま終わる出来事もある |
+| CRITICAL（§17–18） | なし（死亡・離別などは起こさない） |
+| バルド | 関係させない（テストで確認） |
+
+詳細は `docs/GALD_FIVE_ROUTES.md`「パン屋ルート PoC 実装」。
+

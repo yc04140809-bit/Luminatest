@@ -22,8 +22,13 @@
 //   INCIDENT_1–3  once ALDEN INCIDENT has reached that phase (core/world/
 //                 aldenIncident.ts) — the signs before trouble: nobody says
 //                 the village will be attacked (2026-10-10)
+//   TRUTH         once `truth` has happened in the world — the village
+//                 talking about something done where the player was not
+//                 (OFF-SCREEN LIFE, content/events/offScreenLife.ts). Opened,
+//                 it is what the player knows of it (`reveals`, PLAYER KNOWLEDGE).
 
 import { stageReached, type SekiryugaStage } from '../../core/world/storyArc';
+import type { MemoryEventType } from '../../core/memory/types';
 
 export type RumorCategory = 'PERSON' | 'PLACE' | 'MONSTER' | 'ITEM' | 'EVENT' | 'TRIVIA';
 export type RumorWhen =
@@ -35,7 +40,8 @@ export type RumorWhen =
   | 'RUINS_CRY'
   | 'INCIDENT_1'
   | 'INCIDENT_2'
-  | 'INCIDENT_3';
+  | 'INCIDENT_3'
+  | 'TRUTH';
 
 export const RUMOR_CATEGORY_LABEL: Record<RumorCategory, string> = {
   PERSON: '人物',
@@ -55,6 +61,10 @@ export interface VillageRumor {
   /** Who was heard saying it, when that matters. */
   from?: string;
   when: RumorWhen;
+  /** TRUTH: the fact of the world it is talk about. */
+  truth?: MemoryEventType;
+  /** What the player comes to know by opening it (PLAYER KNOWLEDGE fact ids). */
+  reveals?: readonly string[];
 }
 
 export const VILLAGE_RUMORS: readonly VillageRumor[] = [
@@ -121,6 +131,9 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
   { id: 'SIGNPOST', category: 'PLACE', title: '傾いた道しるべ', text: '村の入口の道しるべ、ちょっと傾いてる。直すと、なぜか次の日また傾いてる。', when: 'ALWAYS' },
   { id: 'STARS', category: 'TRIVIA', title: '星の数', text: '裏の丘で寝転ぶと、星が数えきれないくらい見えるらしい。数えたやつはいない。', when: 'ALWAYS' },
   { id: 'BROOM', category: 'TRIVIA', title: '道具屋のほうき', text: '道具屋のほうき、売り物なのか店の掃除用なのか、誰にも分からないらしい。', when: 'ALWAYS' },
+  // Two more of the everyday (2026-10-17), for the two the bakery route added below.
+  { id: 'CHURCH_BELL', category: 'TRIVIA', title: '教会の鐘', text: '教会の鐘、晴れた日だけちょっと高く聞こえるんだと。', when: 'ALWAYS' },
+  { id: 'MUDDY_BOOTS', category: 'TRIVIA', title: '泥だらけの靴', text: '雨の次の日は、村じゅうの戸口に泥だらけの靴が並ぶらしい。', when: 'ALWAYS' },
 
   // ---- 予兆（ALDEN INCIDENT, 2026-10-10）— 誰も「村が襲われる」とは言わない ----
   // PHASE 1: 小さな違和感
@@ -148,6 +161,28 @@ export const VILLAGE_RUMORS: readonly VillageRumor[] = [
   { id: 'INC_TAKE_CARE', category: 'EVENT', title: '村の外', text: '村の外に出るなら気をつけろ。', when: 'INCIDENT_3' },
   { id: 'INC_BAD_FEELING', category: 'EVENT', title: '嫌な感じ', text: '……嫌な感じがするな。', when: 'INCIDENT_3' },
   { id: 'INC_RUNNING_FROM', category: 'MONSTER', title: '森の奴ら', text: '森の奴ら、何かから逃げてるんじゃないか？', when: 'INCIDENT_3' },
+
+  // ---- パン屋ルート（OFF-SCREEN LIFE PoC, 2026-10-17）— 主人公のいない所で起きたことを、村が話す ----
+  // Only in a world where it happened. Talk, not canon: the first does not
+  // say who the man is; the second does not say the guard was persuaded.
+  {
+    id: 'BAKERY_NEW_HAND',
+    category: 'PERSON',
+    title: 'パン屋の新しい働き手',
+    text: 'パン屋に、見慣れない大男が入ったらしい。愛想はないけど、粉袋を三つまとめて担ぐんだと。',
+    when: 'TRUTH',
+    truth: 'GALD_TAKES_BAKERY_WORK',
+    reveals: ['NEW_HAND_AT_BAKERY'],
+  },
+  {
+    id: 'RIZEL_AND_THE_GUARD',
+    category: 'EVENT',
+    title: 'パン屋の前の言い合い',
+    text: '見張り番とリゼルが、パン屋の前で言い合ってたらしい。……あのリゼルが、元盗賊の肩を持ったんだと。見張り番の方は、納得してない顔だったってさ。',
+    when: 'TRUTH',
+    truth: 'RIZEL_SPEAKS_FOR_GALD',
+    reveals: ['RIZEL_SPOKE_FOR_GALD'],
+  },
 ];
 
 /** Which rumours the village has for this world, in the order written. */
@@ -158,6 +193,8 @@ export function rumorsFor(facts: {
   ruinsCry?: boolean;
   /** ALDEN INCIDENT's phase (core/world/aldenIncident.ts); absent reads as 0. */
   incidentPhase?: number;
+  /** Whether this has happened in the world (WORLD TRUTH); absent, nothing off screen has. */
+  isTrue?: (type: MemoryEventType) => boolean;
 }): VillageRumor[] {
   const phase = facts.incidentPhase ?? 0;
   const holds = (when: RumorWhen): boolean => {
@@ -180,9 +217,13 @@ export function rumorsFor(facts: {
         return phase >= 2;
       case 'INCIDENT_3':
         return phase >= 3;
+      case 'TRUTH':
+        return false; // read with the rumour's own `truth`, below
     }
   };
-  return VILLAGE_RUMORS.filter((r) => holds(r.when));
+  return VILLAGE_RUMORS.filter((r) =>
+    r.when === 'TRUTH' ? !!r.truth && facts.isTrue?.(r.truth) === true : holds(r.when),
+  );
 }
 
 /** The read mark a rumour is cleared with (core/world/readMarks.ts). */

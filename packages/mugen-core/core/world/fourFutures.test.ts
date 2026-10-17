@@ -10,6 +10,11 @@ import { EVENT_CG_KEYS } from '@mugen/assets/keys';
 
 // GALD FOUR FUTURES: every one of the four choices leaves something in the
 // world three years later, and no route can ever see another route's.
+//
+// HELP, SINCE THE BAKERY ROUTE (PoC, 2026-10-17; content/events/offScreenLife.ts):
+// its three years are the bakery route — off screen, with no place put on
+// the map yet — and the road it used to take (the waystation) gives way to
+// it. The look ahead still shows the road; that is offScreenLife.test.ts.
 
 let dbCounter = 0;
 const freshDbName = () => `four-futures-${++dbCounter}`;
@@ -20,8 +25,11 @@ interface RouteSpec {
   root: MemoryEventType;
   /** The route's own chain, in causal order. */
   chain: MemoryEventType[];
-  siteId: string;
-  discovery: MemoryEventType;
+  /** What caused each link, when the chain is not a single line (default: the one before). */
+  causes?: MemoryEventType[];
+  /** The place the world puts on the map, and its discovery — null: none yet (the bakery route). */
+  siteId: string | null;
+  discovery: MemoryEventType | null;
   /** Gald's occupation once the chain has run (unchanged for the dead). */
   occupation: string;
   alive: boolean;
@@ -40,10 +48,25 @@ const ROUTES: RouteSpec[] = [
   {
     choice: 'HELP',
     root: 'PLAYER_HELPED_GALD',
-    chain: ['GALD_WALKS_THE_ROAD', 'GALD_BECOMES_HEALER'],
-    siteId: 'GREENWOOD_WAYSTATION',
-    discovery: 'PLAYER_MET_GALD_ON_THE_ROAD',
-    occupation: 'ROADSIDE_HEALER',
+    chain: [
+      'GALD_SAVES_LINA',
+      'RIZEL_TENDS_GALD',
+      'GALD_TELLS_OF_ELNA',
+      'GALD_TAKES_BAKERY_WORK',
+      'LINA_WRITES_TO_ELNA',
+      'RIZEL_SPEAKS_FOR_GALD',
+    ],
+    causes: [
+      'PLAYER_HELPED_GALD',
+      'GALD_SAVES_LINA',
+      'RIZEL_TENDS_GALD',
+      'GALD_TELLS_OF_ELNA',
+      'GALD_TAKES_BAKERY_WORK',
+      'GALD_TAKES_BAKERY_WORK',
+    ],
+    siteId: null,
+    discovery: null,
+    occupation: 'BAKERY_HAND',
     alive: true,
   },
   {
@@ -68,6 +91,12 @@ const ROUTES: RouteSpec[] = [
 ];
 
 const ALL_CHAIN_TYPES = ROUTES.flatMap((r) => r.chain);
+/** The routes that put a place on the map (all but the bakery route, for now). */
+const SITE_ROUTES = ROUTES.filter(
+  (r): r is RouteSpec & { siteId: string; discovery: MemoryEventType } => r.siteId !== null,
+);
+/** HELP's old road, which the bakery route takes the place of. */
+const GAVE_WAY: MemoryEventType[] = ['GALD_WALKS_THE_ROAD', 'GALD_BECOMES_HEALER'];
 
 async function threeYearsAfter(choice: LifeChoiceId, dbName = freshDbName()): Promise<World> {
   const world = await openWorld(dbName);
@@ -85,7 +114,7 @@ describe('four futures — each choice leaves its own three years behind', () =>
       expect(byType[type], `${type} should have fired`).toBeDefined();
     }
     // Every link names the fact that caused it, back to the player's choice.
-    const causes = [route.root, ...route.chain.slice(0, -1)];
+    const causes = route.causes ?? [route.root, ...route.chain.slice(0, -1)];
     route.chain.forEach((type, i) => {
       expect(byType[type].causedBy).toEqual([causes[i]]);
     });
@@ -99,12 +128,12 @@ describe('four futures — each choice leaves its own three years behind', () =>
 
   it.each(ROUTES)('$choice: no other route leaks in', async (route) => {
     const world = await threeYearsAfter(route.choice);
-    const foreign = ALL_CHAIN_TYPES.filter((t) => !route.chain.includes(t));
+    const foreign = [...ALL_CHAIN_TYPES, ...GAVE_WAY].filter((t) => !route.chain.includes(t));
     for (const type of foreign) {
       expect(world.hasEventOfType(type), `${type} must not exist on ${route.choice}`).toBe(false);
     }
-    // Only this route's site is on the map.
-    expect(world.getOpenFutureSites().map((s) => s.def.id)).toEqual([route.siteId]);
+    // Only this route's site is on the map (none, on the bakery route).
+    expect(world.getOpenFutureSites().map((s) => s.def.id)).toEqual(route.siteId ? [route.siteId] : []);
   });
 
   it.each(ROUTES)('$choice: CHARACTER STATE ends where the route says', async (route) => {
@@ -128,7 +157,7 @@ describe('four futures — each choice leaves its own three years behind', () =>
 });
 
 describe('four futures — discovery belongs to the player', () => {
-  it.each(ROUTES)('$choice: the site is 「？？？」 until the player goes', async (route) => {
+  it.each(SITE_ROUTES)('$choice: the site is 「？？？」 until the player goes', async (route) => {
     const world = await threeYearsAfter(route.choice);
     const [site] = world.getOpenFutureSites();
     expect(site.discovered).toBe(false);
@@ -140,7 +169,7 @@ describe('four futures — discovery belongs to the player', () => {
     expect(world.getLifeArchive()[0].hasUnknownContinuation).toBe(true);
   });
 
-  it.each(ROUTES)('$choice: visiting writes the discovery and opens the record', async (route) => {
+  it.each(SITE_ROUTES)('$choice: visiting writes the discovery and opens the record', async (route) => {
     const world = await threeYearsAfter(route.choice);
     const event = await world.recordFutureSiteDiscovery(route.siteId);
 
@@ -158,7 +187,7 @@ describe('four futures — discovery belongs to the player', () => {
     expect(entry.chapters[entry.chapters.length - 1].id).toBe('GALD_CH_REUNION');
   });
 
-  it.each(ROUTES)('$choice: a second visit records nothing new', async (route) => {
+  it.each(SITE_ROUTES)('$choice: a second visit records nothing new', async (route) => {
     const world = await threeYearsAfter(route.choice);
     const first = await world.recordFutureSiteDiscovery(route.siteId);
     const second = await world.recordFutureSiteDiscovery(route.siteId);
@@ -211,7 +240,7 @@ describe('four futures — nothing fires twice', () => {
     expect(after).toEqual(route.chain.map(() => 1));
   });
 
-  it.each(ROUTES)('$choice: the discovery survives a reopen', async (route) => {
+  it.each(SITE_ROUTES)('$choice: the discovery survives a reopen', async (route) => {
     const dbName = freshDbName();
     const world = await threeYearsAfter(route.choice, dbName);
     await world.recordFutureSiteDiscovery(route.siteId);

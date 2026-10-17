@@ -36,6 +36,8 @@ export function NewsAside({ world, rumor, onDone }: { world: World; rumor: Villa
   const read = () => {
     setOpen(true);
     void world.markRead([rumorMark(rumor.id)]).catch(() => {});
+    // Read here as in 噂話: what it tells of the world, the player now knows (PLAYER KNOWLEDGE).
+    if (rumor.reveals) void world.learnFacts(rumor.reveals, rumorMark(rumor.id)).catch(() => {});
   };
   // Read meanwhile in 噂話: nothing to bring.
   if (!open && world.isRead(rumorMark(rumor.id))) return null;
