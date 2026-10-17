@@ -1,0 +1,80 @@
+/* ---- 第1章終盤 (ui/finale.tsx): a line over its picture ---- */
+.screen.finale {
+  position: fixed;
+  inset: 0;
+  background: #05060a;
+  padding: 0;
+}
+/* The picture's layer (what a SCREEN SHAKE moves); the picture fills it as it filled the screen. */
+.finale-stage { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+.finale-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+/*
+ * How much of the waking creature is shown (content/story/chapter1Finale
+ * FinaleFrame): closer first, each frame centred on a part of the delivered
+ * picture (event-valsheel-awakening.png, 1672×941) and drawn larger, never
+ * re-cut. From the eye on, the hooded figure (the picture's left quarter) is
+ * out of the frame. Moving from one to the next is eased.
+ */
+.finale-backdrop { transition: transform 0.9s ease; }
+.finale-backdrop[data-frame='EYE'] { transform-origin: 80% 30%; transform: scale(3.4); }
+.finale-backdrop[data-frame='HEAD'] { transform-origin: 79% 34%; transform: scale(2.4); }
+.finale-backdrop[data-frame='PAW'] { transform-origin: 62% 80%; transform: scale(2); }
+.finale-backdrop[data-frame='UPPER'] { transform-origin: 100% 40%; transform: scale(1.45); }
+@media (prefers-reduced-motion: reduce) { .finale-backdrop { transition: none; } }
+
+/* The night before: the village in the dark. */
+.finale-night .finale-backdrop { filter: brightness(0.35) saturate(0.6) hue-rotate(200deg); }
+.finale-box {
+  position: absolute;
+  z-index: 1;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  padding: 10px 14px 10px;
+  min-height: 24%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(224, 184, 74, 0.55);
+  border-radius: 10px;
+  background: rgba(8, 8, 14, 0.82);
+  color: #f3ead6;
+}
+/* The speaker's face, just above the words, at their left (作者指示 2026-10-12). */
+.finale-face {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  width: clamp(72px, 30vh, 150px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid rgba(224, 184, 74, 0.7);
+  border-radius: 10px;
+  background: rgba(8, 8, 14, 0.7);
+  pointer-events: none;
+}
+.finale-face img { position: absolute; max-width: none; }
+.finale-speaker { margin: 0; font-size: 13px; color: #e0b84a; }
+.finale-line { margin: 0; font-size: clamp(14px, 4.4vh, 17px); line-height: 1.6; flex: 1; }
+.finale-next { align-self: flex-end; }
+
+.finale-pause { background: #05060a; color: #f3ead6; text-align: center; }
+.finale-pause-title { margin: 0; font-size: clamp(24px, 8vh, 36px); letter-spacing: 0.4em; text-indent: 0.4em; }
+.finale-pause-note { margin: 0; font-size: 13px; opacity: 0.85; }
+
+/* THE 間 (作者「無料強化メモ②」): the name and face first, the words after (--finale-pause). Nothing waits on it. */
+.finale-line.paused { animation: finale-words-in 240ms ease-out both; animation-delay: var(--finale-pause, 0ms); }
+@keyframes finale-words-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .finale-line.paused { animation-name: finale-words-fade; }
+}
+@keyframes finale-words-fade { from { opacity: 0; } to { opacity: 1; } }
+/* The breath before a fight: dark, a moment. */
+.finale-breath { background: #050508; }

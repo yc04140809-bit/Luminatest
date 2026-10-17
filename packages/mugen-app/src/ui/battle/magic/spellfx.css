@@ -1,0 +1,452 @@
+/* HER SPELLS, WHILE THEY HAPPEN — the aura round her, and the landing.
+
+   The aura is v18's `.caster-aura` (双極崩界): a bloom of gold and blue,
+   two counter-turning sigil rings, a gold ring and a blue ring, and motes
+   rising — the same pieces, colours and curves, sized to the phone's
+   height rather than to v18's own stage. The landings follow v18's rule
+   that a spell happens AT its target: rings and a burst at the creature
+   for the two that hurt (small for the bolt, big for the comet, which
+   also falls from above), and three gentle shapes for the ones that do
+   not. Every animation lasts `--fx-step`, the step's own length, so ×2
+   shortens them with the step and never below its floor.
+
+   Class names carry `sfx-` so nothing here meets the Artifact's sheet. */
+
+.sfx {
+  --fx-step: 800ms;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---- THE AURA (v18 .caster-aura) ---- */
+
+.sfx-aura {
+  position: absolute;
+  width: 62vh;
+  height: 62vh;
+  transform: translate(-50%, -50%);
+  animation: sfx-aura-arrive var(--fx-step) cubic-bezier(.18,.72,.18,1) both;
+}
+.sfx-aura > * {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+.sfx-aura-domain {
+  width: 150%;
+  height: 120%;
+  margin: -60% 0 0 -75%;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at center, rgba(255, 241, 190, 0.23) 0 6%, transparent 28%),
+    radial-gradient(ellipse at 37% 51%, rgba(255, 185, 56, 0.32), transparent 42%),
+    radial-gradient(ellipse at 64% 49%, rgba(55, 153, 255, 0.4), transparent 43%),
+    radial-gradient(ellipse at center, rgba(51, 19, 82, 0.38), transparent 70%);
+  filter: blur(7px) saturate(1.3);
+  mix-blend-mode: screen;
+  animation: sfx-aura-bloom var(--fx-step) ease-out both;
+}
+.sfx-aura-field {
+  width: 96%;
+  height: 84%;
+  margin: -42% 0 0 -48%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 36% 49%, rgba(255, 191, 55, 0.5), transparent 34%),
+    radial-gradient(circle at 66% 48%, rgba(54, 164, 255, 0.55), transparent 35%),
+    radial-gradient(circle, rgba(255, 255, 245, 0.34), transparent 65%);
+  box-shadow:
+    0 0 38px 14px rgba(255, 215, 123, 0.28),
+    0 0 76px 28px rgba(62, 146, 255, 0.26);
+  filter: blur(3px) saturate(1.18);
+  /* Drawn OVER her (effects sit above the people), where v18 drew it
+     behind: kept thin in the middle so she is still plainly there. */
+  opacity: 0.32;
+  -webkit-mask: radial-gradient(circle, transparent 0 30%, #000 62%);
+  mask: radial-gradient(circle, transparent 0 30%, #000 62%);
+}
+.sfx-aura-sigil {
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 10deg,
+    rgba(255, 225, 146, 0.9) 0deg 2deg,
+    transparent 2deg 24deg,
+    rgba(101, 200, 255, 0.88) 24deg 26deg,
+    transparent 26deg 45deg
+  );
+  filter: drop-shadow(0 0 8px rgba(130, 196, 255, 0.72));
+  -webkit-mask: radial-gradient(circle, transparent 0 57%, #000 58% 60%, transparent 61% 69%, #000 70% 72%, transparent 73%);
+  mask: radial-gradient(circle, transparent 0 57%, #000 58% 60%, transparent 61% 69%, #000 70% 72%, transparent 73%);
+}
+.sfx-aura-sigil-outer {
+  width: 110%;
+  height: 110%;
+  margin: -55% 0 0 -55%;
+  animation: sfx-sigil-outer var(--fx-step) cubic-bezier(.18,.72,.2,1) both;
+}
+.sfx-aura-sigil-inner {
+  width: 80%;
+  height: 80%;
+  margin: -40% 0 0 -40%;
+  background: repeating-conic-gradient(
+    from -8deg,
+    rgba(108, 202, 255, 0.94) 0deg 3deg,
+    transparent 3deg 28deg,
+    rgba(255, 222, 132, 0.9) 28deg 30deg,
+    transparent 30deg 60deg
+  );
+  animation: sfx-sigil-inner var(--fx-step) cubic-bezier(.18,.72,.2,1) both;
+}
+.sfx-aura-ring {
+  width: 100%;
+  height: 72%;
+  margin: -36% 0 0 -50%;
+  border: 3px solid transparent;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 9px currentColor);
+}
+.sfx-aura-ring-gold {
+  color: #ffd26f;
+  border-top-color: currentColor;
+  border-left-color: rgba(255, 210, 111, 0.72);
+  animation: sfx-ring-gold var(--fx-step) cubic-bezier(.2,.8,.2,1) both;
+}
+.sfx-aura-ring-blue {
+  width: 90%;
+  height: 86%;
+  margin: -43% 0 0 -45%;
+  color: #70cfff;
+  border-right-color: currentColor;
+  border-bottom-color: rgba(92, 124, 255, 0.82);
+  animation: sfx-ring-blue var(--fx-step) cubic-bezier(.2,.8,.2,1) both;
+}
+.sfx-aura-motes {
+  width: 100%;
+  height: 100%;
+  margin: -50% 0 0 -50%;
+}
+.sfx-aura-motes i {
+  position: absolute;
+  left: calc(14% + var(--i) * 6.4%);
+  bottom: 18%;
+  width: 4px;
+  height: 11px;
+  border-radius: 999px;
+  background: #ffd36d;
+  box-shadow: 0 0 8px 2px currentColor;
+  color: #ffd36d;
+  opacity: 0;
+  animation: sfx-mote calc(var(--fx-step) * 0.8) ease-out both;
+  animation-delay: calc(var(--fx-step) * var(--d));
+}
+.sfx-aura-motes i:nth-child(even) { background: #75d3ff; color: #75d3ff; }
+.sfx-aura-motes i:nth-child(1)  { --i: 0;  --d: 0.02; }
+.sfx-aura-motes i:nth-child(2)  { --i: 1;  --d: 0.12; }
+.sfx-aura-motes i:nth-child(3)  { --i: 2;  --d: 0.06; }
+.sfx-aura-motes i:nth-child(4)  { --i: 3;  --d: 0.16; }
+.sfx-aura-motes i:nth-child(5)  { --i: 4;  --d: 0.09; }
+.sfx-aura-motes i:nth-child(6)  { --i: 5;  --d: 0.19; }
+.sfx-aura-motes i:nth-child(7)  { --i: 6;  --d: 0.04; }
+.sfx-aura-motes i:nth-child(8)  { --i: 7;  --d: 0.14; }
+.sfx-aura-motes i:nth-child(9)  { --i: 8;  --d: 0.08; }
+.sfx-aura-motes i:nth-child(10) { --i: 9;  --d: 0.18; }
+.sfx-aura-motes i:nth-child(11) { --i: 10; --d: 0.11; }
+.sfx-aura-motes i:nth-child(12) { --i: 11; --d: 0.03; }
+
+@keyframes sfx-aura-arrive {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.36); }
+  18% { opacity: 0.72; transform: translate(-50%, -50%) scale(0.71); }
+  66% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes sfx-aura-bloom {
+  0% { opacity: 0; transform: scale(0.42); }
+  28% { opacity: 0.4; }
+  72%, 100% { opacity: 0.62; transform: scale(1.06); }
+}
+@keyframes sfx-sigil-outer {
+  0% { opacity: 0; transform: rotate(-72deg) scale(0.4); }
+  26% { opacity: 0.9; }
+  100% { opacity: 0.78; transform: rotate(146deg) scale(1.02); }
+}
+@keyframes sfx-sigil-inner {
+  0% { opacity: 0; transform: rotate(64deg) scale(0.32); }
+  31% { opacity: 1; }
+  100% { opacity: 0.86; transform: rotate(-194deg) scale(1.08); }
+}
+@keyframes sfx-ring-gold {
+  0% { opacity: 0; transform: rotate(-120deg) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0.9; transform: rotate(160deg) scale(1); }
+}
+@keyframes sfx-ring-blue {
+  0% { opacity: 0; transform: rotate(140deg) scale(0.46); }
+  34% { opacity: 1; }
+  100% { opacity: 0.9; transform: rotate(-150deg) scale(1.02); }
+}
+@keyframes sfx-mote {
+  0% { opacity: 0; transform: translateY(0) scale(0.2); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-26vh) scale(1); }
+}
+
+/* ---- THE LANDING: shared pieces ---- */
+
+.sfx-land {
+  position: absolute;
+  width: 40vh;
+  height: 40vh;
+  transform: translate(-50%, -50%);
+}
+.sfx-land > * {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  opacity: 0;
+}
+.sfx-glow {
+  width: 100%;
+  height: 100%;
+  margin: -50% 0 0 -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 252, 232, 0.95) 0 8%, rgba(255, 206, 102, 0.55) 22%, rgba(84, 170, 255, 0.35) 42%, transparent 66%);
+  mix-blend-mode: screen;
+  animation: sfx-glow var(--fx-step) ease-out both;
+}
+.sfx-ring {
+  width: 70%;
+  height: 70%;
+  margin: -35% 0 0 -35%;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 224, 146, 0.95);
+  box-shadow: 0 0 18px 4px rgba(120, 196, 255, 0.7), inset 0 0 14px rgba(255, 224, 146, 0.6);
+  animation: sfx-ring var(--fx-step) cubic-bezier(.2,.8,.2,1) both;
+}
+.sfx-ring-two {
+  border-color: rgba(112, 207, 255, 0.95);
+  animation-delay: calc(var(--fx-step) * 0.12);
+}
+.sfx-core {
+  width: 22%;
+  height: 22%;
+  margin: -11% 0 0 -11%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 30%, rgba(255, 215, 120, 0.9) 50%, transparent 72%);
+  box-shadow: 0 0 30px 12px rgba(255, 236, 180, 0.8);
+  animation: sfx-core var(--fx-step) ease-out both;
+}
+.sfx-cross {
+  width: 120%;
+  height: 5px;
+  margin: -2px 0 0 -60%;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent, #ffd36f 30%, #fff 50%, #78d4ff 70%, transparent);
+  box-shadow: 0 0 17px 5px rgba(225, 239, 255, 0.58);
+  animation: sfx-cross var(--fx-step) ease-out both;
+}
+.sfx-column {
+  width: 34%;
+  height: 160%;
+  margin: -150% 0 0 -17%;
+  background: linear-gradient(180deg, transparent, rgba(93, 188, 255, 0.3) 30%, #fffef0 88%, rgba(255, 197, 72, 0.4));
+  filter: blur(6px);
+  transform-origin: 50% 100%;
+}
+.sfx-sparks {
+  width: 100%;
+  height: 100%;
+  margin: -50% 0 0 -50%;
+}
+.sfx-sparks i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: #fff4c8;
+  box-shadow: 0 0 8px 2px rgba(255, 214, 120, 0.9);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+  animation: sfx-spark var(--fx-step) cubic-bezier(.15,.7,.2,1) both;
+}
+.sfx-sparks i:nth-child(even) { background: #dff4ff; box-shadow: 0 0 8px 2px rgba(110, 200, 255, 0.9); }
+.sfx-sparks i:nth-child(1)  { --sx: -44%; --sy: -30%; }
+.sfx-sparks i:nth-child(2)  { --sx: -30%; --sy: 38%; }
+.sfx-sparks i:nth-child(3)  { --sx: -12%; --sy: -48%; }
+.sfx-sparks i:nth-child(4)  { --sx: 8%;   --sy: 46%; }
+.sfx-sparks i:nth-child(5)  { --sx: 26%;  --sy: -40%; }
+.sfx-sparks i:nth-child(6)  { --sx: 42%;  --sy: 26%; }
+.sfx-sparks i:nth-child(7)  { --sx: 48%;  --sy: -8%; }
+.sfx-sparks i:nth-child(8)  { --sx: -48%; --sy: 6%; }
+.sfx-sparks i:nth-child(9)  { --sx: 18%;  --sy: 12%; }
+.sfx-sparks i:nth-child(10) { --sx: -20%; --sy: -14%; }
+
+@keyframes sfx-glow {
+  0% { opacity: 0; transform: scale(0.3); }
+  22% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+@keyframes sfx-ring {
+  0%, 12% { opacity: 0; transform: scale(0.2); }
+  26% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@keyframes sfx-core {
+  0%, 16% { opacity: 0; transform: scale(0.2); }
+  26% { opacity: 1; transform: scale(1.4); }
+  60% { opacity: 0.8; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes sfx-cross {
+  0%, 18% { opacity: 0; transform: rotate(-12deg) scaleX(0.1); }
+  30% { opacity: 1; transform: rotate(-12deg) scaleX(1.1); }
+  100% { opacity: 0; transform: rotate(-12deg) scaleX(1.3); }
+}
+@keyframes sfx-spark {
+  0%, 20% { opacity: 0; transform: translate(-50%, -50%) rotate(45deg) scale(0.4); }
+  32% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--sx) * 2), calc(-50% + var(--sy) * 2)) rotate(225deg) scale(1); }
+}
+
+/* ---- 星光弾 (BOLT): small, sharp, one ring ---- */
+
+.sfx-bolt { width: 30vh; height: 30vh; }
+.sfx-bolt .sfx-ring-two,
+.sfx-bolt .sfx-column { display: none; }
+
+/* ---- 彗星撃 (COMET): falls from above, big, two rings, a flash ---- */
+
+.sfx-comet { width: 56vh; height: 56vh; }
+.sfx-comet .sfx-column {
+  animation: sfx-comet-fall var(--fx-step) cubic-bezier(.5,0,.8,.4) both;
+}
+.sfx-comet .sfx-glow {
+  background: radial-gradient(circle, #fff 0 10%, rgba(255, 206, 102, 0.7) 24%, rgba(84, 170, 255, 0.45) 44%, transparent 68%);
+}
+@keyframes sfx-comet-fall {
+  0% { opacity: 0; transform: translateY(-40vh) scaleY(0.6); }
+  8% { opacity: 1; }
+  24% { opacity: 1; transform: translateY(0) scaleY(1); }
+  40%, 100% { opacity: 0; transform: translateY(0) scaleY(0.2); }
+}
+
+/* ---- 癒しの光 (MEND): a soft light rising through him ---- */
+
+.sfx-mend .sfx-cross,
+.sfx-mend .sfx-core { display: none; }
+.sfx-mend .sfx-glow {
+  background: radial-gradient(circle, rgba(255, 255, 236, 0.8) 0 10%, rgba(176, 240, 186, 0.55) 30%, rgba(255, 226, 150, 0.3) 48%, transparent 66%);
+  animation-duration: calc(var(--fx-step) * 1);
+}
+.sfx-mend .sfx-ring { border-color: rgba(190, 248, 196, 0.9); box-shadow: 0 0 18px 4px rgba(170, 240, 180, 0.6); }
+.sfx-mend .sfx-ring-two { border-color: rgba(255, 232, 160, 0.9); }
+.sfx-mend .sfx-column {
+  margin: -110% 0 0 -17%;
+  height: 140%;
+  background: linear-gradient(0deg, transparent, rgba(190, 248, 196, 0.5) 30%, rgba(255, 255, 240, 0.8) 60%, transparent);
+  animation: sfx-rise var(--fx-step) ease-out both;
+}
+.sfx-mend .sfx-sparks i { background: #eaffe6; box-shadow: 0 0 8px 2px rgba(170, 240, 180, 0.9); animation-name: sfx-float; }
+@keyframes sfx-rise {
+  0% { opacity: 0; transform: scaleY(0.2); }
+  30% { opacity: 0.9; transform: scaleY(1); }
+  100% { opacity: 0; transform: scaleY(1.1); }
+}
+@keyframes sfx-float {
+  0%, 10% { opacity: 0; transform: translate(-50%, 0) scale(0.4); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--sx)), -20vh) scale(1); }
+}
+
+/* ---- 星盾 (WARD): a thin membrane of light round him ---- */
+
+.sfx-ward .sfx-cross,
+.sfx-ward .sfx-column,
+.sfx-ward .sfx-sparks { display: none; }
+.sfx-ward { width: 50vh; height: 60vh; }
+.sfx-ward .sfx-ring {
+  width: 80%;
+  height: 90%;
+  margin: -45% 0 0 -40%;
+  border-width: 2px;
+  border-color: rgba(255, 230, 160, 0.95);
+  background: radial-gradient(ellipse, transparent 55%, rgba(150, 210, 255, 0.28) 78%, rgba(255, 236, 180, 0.35));
+  animation: sfx-membrane var(--fx-step) cubic-bezier(.2,.8,.2,1) both;
+}
+.sfx-ward .sfx-ring-two {
+  width: 70%;
+  height: 80%;
+  margin: -40% 0 0 -35%;
+  border-color: rgba(120, 200, 255, 0.9);
+  background: none;
+}
+.sfx-ward .sfx-core { display: none; }
+@keyframes sfx-membrane {
+  0% { opacity: 0; transform: scale(0.6); }
+  28% { opacity: 1; transform: scale(1.04); }
+  70% { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+
+/* ---- 星霞 (HAZE): star-mist drifting across its eyes ---- */
+
+.sfx-haze { width: 52vh; height: 36vh; }
+.sfx-haze .sfx-ring,
+.sfx-haze .sfx-cross,
+.sfx-haze .sfx-column,
+.sfx-haze .sfx-core { display: none; }
+.sfx-haze .sfx-glow {
+  border-radius: 40%;
+  /* Drawn over, not screened in: on the bright forest a screened pale
+     mist is no mist at all. */
+  mix-blend-mode: normal;
+  background:
+    radial-gradient(ellipse at 30% 50%, rgba(150, 160, 235, 0.72), transparent 52%),
+    radial-gradient(ellipse at 68% 46%, rgba(206, 196, 255, 0.66), transparent 52%),
+    radial-gradient(ellipse at 50% 62%, rgba(92, 110, 210, 0.55), transparent 62%);
+  filter: blur(6px);
+  animation: sfx-drift var(--fx-step) ease-in-out both;
+}
+.sfx-haze .sfx-sparks i {
+  width: 5px;
+  height: 5px;
+  background: #fffbe6;
+  box-shadow: 0 0 10px 3px rgba(190, 200, 255, 0.95);
+  animation-name: sfx-twinkle;
+}
+@keyframes sfx-drift {
+  0% { opacity: 0; transform: translateX(-30%) scaleX(0.6); }
+  30% { opacity: 1; transform: translateX(0) scaleX(1); }
+  75% { opacity: 0.85; transform: translateX(8%) scaleX(1.05); }
+  100% { opacity: 0; transform: translateX(16%) scaleX(1.1); }
+}
+@keyframes sfx-twinkle {
+  0%, 15% { opacity: 0; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy) * 0.5)) scale(0.3); }
+  40% { opacity: 1; transform: translate(calc(-50% + var(--sx)), calc(-50% + var(--sy) * 0.5)) scale(1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--sx) * 1.2), calc(-50% + var(--sy) * 0.5)) scale(0.6); }
+}
+
+/* ---- LESS MOTION: shown still, for the same time ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .sfx *,
+  .sfx *::before,
+  .sfx *::after {
+    animation: none !important;
+  }
+  .sfx-land > .sfx-glow,
+  .sfx-land > .sfx-ring:not(.sfx-ring-two) { opacity: 0.85; }
+  .sfx-aura { transform: translate(-50%, -50%); }
+  .sfx-aura-motes { display: none; }
+}
+:root[data-reduced-motion='on'] .sfx *,
+:root[data-reduced-motion='on'] .sfx *::before,
+:root[data-reduced-motion='on'] .sfx *::after {
+  animation: none !important;
+}
+:root[data-reduced-motion='on'] .sfx-land > .sfx-glow,
+:root[data-reduced-motion='on'] .sfx-land > .sfx-ring:not(.sfx-ring-two) { opacity: 0.85; }
+:root[data-reduced-motion='on'] .sfx-aura-motes { display: none; }

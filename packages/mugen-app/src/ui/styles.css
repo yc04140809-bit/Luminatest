@@ -1,0 +1,3184 @@
+/* APP ALPHA — deliberately plain.
+   The look is temporary and is meant to be replaced; what it must do
+   today is be legible on a phone and not pretend to be finished. */
+:root {
+  /* ── 文字 (作者 2026-10-17「アプリ全体フォント統一」): one set of tokens for every screen.
+     Titles, chapter and place names in the serif (物語性); everything read, pressed or counted in
+     the sans (可読性). Self-hosted Noto (docs/FONTS.md), imported once in main.tsx. */
+  --font-display: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif CJK JP', serif;
+  --font-body: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+  --font-ui: var(--font-body);
+  --font-number: var(--font-body);
+  --text-title-size: clamp(22px, 7vh, 30px);
+  --text-heading-size: clamp(17px, 5.2vh, 22px);
+  --text-body-size: clamp(14px, 4vh, 16px);
+  --text-small-size: 12px;
+  --text-en-size: 10px;
+  --text-title-weight: 400;
+  --text-body-weight: 400;
+  --text-ui-weight: 500;
+  --text-strong-weight: 600;
+  --text-number-weight: 600;
+  --line-height-title: 1.2;
+  --line-height-body: 1.6;
+  --line-height-ui: 1.3;
+  --text-main: #f2f4f8;
+  --text-sub: #bfc7d5;
+  --text-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --ink: #e9e6f0;
+  --dim: #9a94ab;
+  --line: #3a3550;
+  --gold: #c9a227;
+  --danger: #c8524a;
+  --bg: #0b0b12;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: var(--text-body-weight);
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
+}
+.screen {
+  position: relative;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+.backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+  z-index: -1;
+}
+.logo { margin: 0; font-size: 28px; letter-spacing: 0.22em; }
+.sub { margin: 0 0 14px; font-size: 12px; letter-spacing: 0.3em; color: var(--dim); }
+.place { margin: 0 0 4px; font-size: 18px; letter-spacing: 0.12em; }
+.clock, .purse, .bar, .row { margin: 0; font-size: 13px; letter-spacing: 0.06em; }
+.party { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 12px; color: var(--dim); }
+.line, .log {
+  margin: 6px 0;
+  max-width: 34ch;
+  font-size: 14px;
+  line-height: 1.9;
+  text-align: center;
+}
+.log { min-height: 3.6em; color: var(--dim); }
+.row.level { color: var(--gold); }
+.warn { margin: 8px 0 0; font-size: 12px; color: var(--danger); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+.btn {
+  appearance: none;
+  min-height: 44px;
+  min-width: 128px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+.btn.primary { border-color: var(--gold); color: var(--gold); }
+.btn:disabled { opacity: 0.45; }
+
+/* アルデン村の選択肢 — the status screen's palette: now the paper theme's
+   buttons (「THE PAPER THEME」 below), as on every paper screen. */
+.screen[data-area="ALDEN"] .actions .btn:focus-visible {
+  outline: 2px solid #b2914f;
+  outline-offset: 2px;
+}
+
+/* THE BAG, THE BOARD AND THE NUMBERS.
+   One row per thing, readable at phone width: the name and the count
+   on the first line, what it is and whether it can be used under it. */
+.bag-list,
+.shop-list { list-style: none; margin: 10px 0; padding: 0; width: 100%; }
+.bag-row,
+.shop-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.bag-name,
+.shop-name { font-size: 15px; }
+.bag-count,
+.shop-price,
+.shop-held { color: var(--gold); font-size: 13px; }
+.bag-category { color: var(--dim); font-size: 12px; }
+.bag-desc,
+.shop-desc { flex-basis: 100%; color: var(--dim); font-size: 12px; line-height: 1.6; }
+.bag-reason { color: var(--dim); font-size: 12px; }
+.bag-fresh { color: var(--gold); font-size: 12px; }
+.bag-hint { flex-basis: 100%; margin-top: -6px; color: var(--gold); font-size: 12px; line-height: 1.5; }
+.bag-hint::before { content: '◇ '; opacity: 0.7; }
+.bag-bread-buff { margin: 0 0 2px; color: var(--ink); font-size: 12px; text-align: left; }
+
+/* THE BAG AND THE SHOP AS A PAGE THAT FITS (2026-10-07): the list scrolls
+   in the middle, the way out always on screen — a landscape phone is
+   390px tall and a bag now holds more than four things. */
+.screen.bag,
+.screen.shop {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.bag-shelves,
+.shop-goods {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(680px, 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.bag-shelves .bag-list,
+.shop-goods .shop-list { margin: 0 0 6px; }
+.bag-group-title {
+  margin: 6px 0 2px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-align: left;
+}
+/* The keeper's place (a placeholder today), then the counter. */
+.shop-keeper-area { width: min(680px, 100%); text-align: center; }
+.shop-greeting { margin: 0; font-size: 13px; color: var(--ink); }
+.shop-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: min(680px, 100%);
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.shop-tabs { display: flex; gap: 6px; }
+.shop-tab {
+  min-width: 72px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+.shop-tab.on { color: var(--ink); border-color: var(--gold); background: rgba(201, 162, 39, 0.14); }
+.shop-why { color: var(--dim); font-size: 12px; }
+.shop-goods .shop-row { flex-wrap: nowrap; align-items: center; padding: 8px 0; }
+.shop-info { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.shop-goods .shop-desc { line-height: 1.5; }
+.shop-row .btn { flex: 0 0 auto; min-width: 88px; min-height: 40px; }
+.shop-empty { color: var(--dim); font-size: 13px; }
+
+/* ── ミレイ, BEHIND THE COUNTER (NPCタッチ反応, 2026-10-07) ──
+   Three layers, as the tavern: the empty shop over the whole screen, ミレイ
+   standing in it, and the counter in front of her on the bottom edge at
+   the left (sizes and places from `shopStage`, assets/shop.ts). Every
+   picture is the file as delivered, drawn at its own shape. The shop
+   itself is on the right, on a dark panel over the room. */
+.screen.shop {
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding-bottom: 0;
+}
+.shop-room {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+.shop-stage {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: max(8px, env(safe-area-inset-left));
+  z-index: 1;
+}
+.shop-keeper-figure {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.shop-keeper-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+  user-select: none;
+}
+/* In front of her, and not in the way of touching her: the counter as
+   painted, across the bottom of the screen. */
+.shop-counter-art {
+  position: absolute;
+  z-index: 2;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+.shop-keeper-img { transform-origin: 50% 100%; }
+.shop-side {
+  position: relative;
+  z-index: 3;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* The full height and out to the right edge, over the screen's own padding. */
+  margin: calc(-1 * max(16px, env(safe-area-inset-top))) calc(-1 * max(16px, env(safe-area-inset-right))) 0 0;
+  padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) 14px;
+  background: linear-gradient(90deg, rgba(11, 11, 18, 0.55), rgba(11, 11, 18, 0.86) 18%);
+}
+.shop-touch-line { color: #f3e6c8; }
+.say { margin: 10px 0 0; font-size: 13px; color: var(--gold); }
+.status { margin: 6px 0; width: 100%; }
+.status-row { margin: 2px 0; font-size: 12px; color: var(--dim); line-height: 1.7; }
+.actions.magic .btn,
+.actions.items .btn { min-width: 0; font-size: 13px; }
+
+/* WORLD MEMORY / ARCHIVE — a record, read as a list.
+   Deliberately plain: the round it was built in asked for "readable"
+   rather than "designed", and a record has to survive being long. */
+.memory-list { list-style: none; margin: 10px 0; padding: 0; width: 100%; }
+.memory-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+.memory-when { color: var(--gold); font-size: 12px; }
+.memory-label { font-size: 14px; line-height: 1.6; }
+.memory-meta { color: var(--dim); font-size: 11px; line-height: 1.6; word-break: break-all; }
+.memory-count { color: var(--dim); font-size: 12px; margin: 0; }
+
+/* THE ONE TIME SHIFT. Quiet on purpose: the seasons are a line of
+   text, not an animation, because what the beat has to land is that
+   time passed at all — not how prettily. */
+.seasons { letter-spacing: 0.3em; color: var(--dim); font-size: 12px; margin: 0 0 6px; }
+.speaker { color: var(--gold); font-size: 12px; margin: 10px 0 4px; }
+/* A speaker with NEW beside it: a line that is not the ordinary talk (2026-10-11). */
+.talk-head { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px; min-height: 16px; }
+.talk-head .speaker { margin: 0; }
+.line.dim { color: var(--dim); font-size: 12px; }
+
+/* STATUS — one person at a time: who they are, what they are worth,
+   and the picture of them.
+
+   The composition is the art direction's: people across the top, the
+   figure at full height on the RIGHT, the numbers reading down the
+   left. It is still App Alpha's plain palette — what is being followed
+   here is the LAYOUT, not the finished ornament. */
+/* A DEFINITE HEIGHT, not `min-height`. The standing figure is taller
+   than a landscape phone, and `max-height: 100%` on it means nothing
+   unless every box above it is allowed to be SHORTER than its content.
+   With `min-height` the picture pushed the screen past the viewport and
+   the page scrolled — measured at 844x390: 184px of overflow. */
+/* ══ STATUS — the author's two reference images, built.
+   A menu down the left, who they are in the middle, the main visual
+   filling the right. Pale gold and ivory: this one screen carries the
+   bright cathedral on its own while the rest of the app stays dark, so
+   every colour it needs is declared here and nowhere else. */
+.status-screen {
+  /* THE THREE COLUMNS, as fractions OF THE SCREEN — which is why
+     they are `vw` and not `%`. A percentage inside `.st-body` is a
+     percentage of what is left after the visual, so `18%` there came
+     out as 10% of the screen when measured; `vw` means what the spec
+     means. Visual 41, menu 18, and the middle takes the 41 that is
+     left.
+     The delivered picture is 941x1672 and is shown `contain`, so at
+     844x390 it draws 219 wide inside a 346 area — the rest is the
+     gradient below, NEVER a second copy of her to fill the gap. */
+  --st-visual-w: 40vw;
+  --st-menu-w: 17vw;
+
+  --st-paper: #f7f3ea;
+  --st-paper-2: #ece3d2;
+  --st-ink: #40372b;
+  --st-dim: #8a7f6b;
+  --st-gold: #b2914f;
+  --st-gold-soft: rgba(178, 145, 79, 0.34);
+
+  height: 100%;
+  min-height: 0;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  color: var(--st-ink);
+  /* 明朝 for this screen and this screen only. The fallbacks are the
+     system serifs an Android or an iOS handset already has, so the
+     shape is right even in the moment before the file arrives — and
+     stays right if it never does. */
+  font-family: var(--font-body);
+  /* Light from the upper right, where the visual is. */
+  background:
+    radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--st-paper) 42%, var(--st-paper-2) 100%);
+}
+
+/* ── THE MAIN VISUAL ──────────────────────────────────────────────
+   The UI stays out of this box and the picture never leaves it. */
+.st-visual {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--st-visual-w);
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* The leftover area, pitched at the picture's own pale gold so the
+     rectangle's edge stops announcing itself. This is the DISPLAY
+     side doing the blending — the file itself is never touched. */
+  background:
+    radial-gradient(78% 66% at 58% 32%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 74%),
+    linear-gradient(90deg, rgba(251, 247, 239, 0) 0%, rgba(251, 247, 239, 0.75) 26%, #f6f1e6 100%);
+}
+/* CONTAIN, NEVER COVER, NEVER STRETCHED. A forced fit crops a face or
+   distorts a wing, and this screen exists to show her properly. */
+.st-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  /* A few pixels of softening at the very edges, well clear of her —
+     enough to lose the hard rectangle, not enough to cut anything. */
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14%, #000 94%, transparent 100%);
+}
+
+/* ── TOP: wordmark and who you are looking at ─────────────────── */
+.st-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px 0;
+  padding-right: calc(var(--st-visual-w) + 10px);
+}
+.st-wordmark {
+  margin: 0;
+  line-height: 1.05;
+}
+.st-wordmark b {
+  display: block;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: var(--st-gold);
+}
+.st-wordmark i {
+  display: block;
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: 0.4em;
+  color: var(--st-dim);
+  margin-top: 2px;
+}
+.st-tabs {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+/* A REAL CONTROL, so it gets a real tap target. */
+.st-tab {
+  appearance: none;
+  min-height: 34px;
+  min-width: 96px;
+  padding: 7px 18px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--st-dim);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+}
+.st-tab.on {
+  color: #f7f1e2;
+  border-color: #a5873f;
+  background: linear-gradient(180deg, #6d5a34, #40351f);
+}
+
+/* ── MIDDLE: menu, then the person ────────────────────────────── */
+.st-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  padding: 8px 12px 0;
+  padding-right: calc(var(--st-visual-w) + 10px);
+}
+.st-menu {
+  flex: 0 0 var(--st-menu-w);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.st-menu-item {
+  padding: 8px 10px;
+  border-radius: 2px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--st-dim);
+  white-space: nowrap;
+}
+.st-menu-item.on {
+  color: #f7f1e2;
+  background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.6));
+  border: 1px solid #a5873f;
+}
+/* LEGIBLE, BUT STILL NOT A CONTROL.
+   At 0.42 they were ghosts — unreadable on a handset in daylight, and
+   that is a different fault from looking unavailable. Darkened until
+   they can actually be read. They still have no hover, no cursor, no
+   press and no border: a screen that does not exist must never look
+   like a door that does, and the day it exists it gains the frame and
+   the handler together. */
+.st-menu-item.soon,
+.st-detail.soon {
+  color: #7d735f;
+  opacity: 1;
+  cursor: default;
+  user-select: none;
+}
+
+.st-info {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+/* THE BODY SCROLLS; NOTHING IN IT IS CUT.
+   Clipping to fit hid what was below 装備 on a real handset (the author,
+   2026-09-29), so the middle column scrolls instead and every child
+   keeps its full height. Only this column moves: the menu, the picture
+   and the foot stay where they are. The foot is laid out BELOW this
+   box, not over it — its height and the safe area are already taken
+   off — and the padding keeps the last line clear of its edge. */
+.st-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--st-gold-soft) transparent;
+}
+.st-scroll > * {
+  flex-shrink: 0;
+}
+.st-scroll .st-style-note {
+  flex-shrink: 0;
+  overflow: visible;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.st-prose {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.st-name {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+}
+.st-name b {
+  font-weight: 400;
+}
+.st-name i {
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--st-gold);
+}
+.st-epithet {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--st-dim);
+}
+.st-quote,
+.st-intro,
+.st-style-note {
+  margin: 0;
+  font-size: clamp(8.5px, 2.5vh, 9.5px);
+  line-height: 1.55;
+  color: #5d5445;
+}
+.st-intro {
+  color: var(--st-dim);
+}
+.st-style-note {
+  /* Gives way after the prose, before anything with a number in it,
+     and fades rather than being sliced for the same reason. */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 10px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 10px), transparent 100%);
+  margin-top: 2px;
+  color: var(--st-dim);
+}
+.st-level {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--st-dim);
+}
+.st-level b {
+  font-size: clamp(17px, 5.8vh, 22px);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--st-ink);
+}
+.st-level s {
+  text-decoration: none;
+  font-size: 11px;
+}
+.st-next {
+  margin-left: auto;
+  letter-spacing: 0.12em;
+}
+.st-next b {
+  font-size: 13px;
+  color: var(--st-gold);
+}
+/* `levelBand`, never a second sum done here. */
+.st-bar {
+  flex: 0 0 auto;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(140, 122, 88, 0.18);
+  overflow: hidden;
+}
+.st-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #8e7338, #d9c290);
+}
+.st-rows {
+  flex: 0 0 auto;
+  margin: 4px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 16px;
+  font-size: 12px;
+  line-height: clamp(1.25, 4vh, 1.5);
+}
+.st-rows .st-row {
+  display: contents;
+}
+.st-rows dt {
+  color: var(--st-dim);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+}
+.st-rows dd {
+  margin: 0;
+  font-size: 13px;
+}
+/* A kind of weapon and a way of fighting: two marks, not two stats. */
+.st-marks {
+  flex: 0 0 auto;
+  margin-top: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  /* Both marks, or the screen is lying about what somebody fights
+     with. They are allowed to get small; they are not allowed to go. */
+  min-width: 0;
+}
+.st-mark {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 9px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  /* 「近接攻撃 / オールラウンダー」 is long enough to wrap the row onto
+     a second line, and on a very short screen that second line falls
+     off. Shrinking with the height keeps both marks on one row. */
+  font-size: clamp(8.5px, 2.8vh, 10px);
+  white-space: nowrap;
+}
+.st-mark span {
+  color: var(--st-dim);
+  letter-spacing: 0.1em;
+}
+/* THE ORNAMENT GOES BEFORE THE FACT DOES.
+   Below about 315px of height the two marks wrap onto a second row —
+   「近接攻撃 / オールラウンダー」 is long — and that second row was
+   falling off the bottom: measured, 50px of chrome for 38px of text.
+   So on a screen that short the frames are dropped and they become
+   plain aligned rows, which is the spec's own order: spacing and
+   decoration give way, the information does not. No real handset is
+   this short; this is the floor holding. */
+@media (max-height: 315px) {
+  .st-marks {
+    margin-top: 3px;
+    gap: 0;
+    flex-direction: column;
+  }
+  .st-mark {
+    padding: 0;
+    border: 0;
+    background: none;
+    gap: 10px;
+  }
+  .st-mark span {
+    min-width: 56px;
+  }
+}
+.st-mark b {
+  /* 400 only: shipping a second weight would be another 1.36MB for one
+     line, and a synthesised bold on a 明朝 looks like a mistake.
+     Emphasis here is size and colour. */
+  font-weight: 400;
+  font-size: clamp(10px, 3.3vh, 12px);
+}
+
+/* ── BOTTOM: the way out, and what is coming ──────────────────── */
+.st-foot {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px max(10px, env(safe-area-inset-bottom));
+  padding-right: calc(var(--st-visual-w) + 10px);
+}
+/* A REAL CONTROL, and the only one besides the tabs. 44px tall so a
+   thumb can find it on a handset. */
+.st-back {
+  appearance: none;
+  min-height: 40px;
+  min-width: 118px;
+  padding: 9px 22px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--st-ink);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+}
+.st-details {
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+}
+.st-detail {
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  color: var(--st-dim);
+}
+
+/* ── 装備枠。ステータス画面の .st-mark と同じ質感で、行として並ぶ。 */
+.eq-slots {
+  flex: 0 0 auto;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eq-slot {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--st-ink);
+  font: inherit;
+  font-size: clamp(9px, 3vh, 10.5px);
+  text-align: left;
+}
+.eq-slot.open {
+  border-color: #a5873f;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 0 0 1px rgba(178, 145, 79, 0.25);
+}
+/* NOT A CONTROL. No frame, no background, no handler — the same line
+   the left menu holds for a screen that does not exist yet. */
+.eq-slot.soon {
+  border-color: transparent;
+  background: none;
+  color: rgba(125, 115, 95, 0.45);
+  min-height: 0;
+  padding: 2px 9px;
+  cursor: default;
+  user-select: none;
+}
+.eq-slot u {
+  text-decoration: none;
+  color: var(--st-dim);
+  letter-spacing: 0.06em;
+  flex: 0 0 66px;
+  white-space: nowrap;
+}
+.eq-slot.soon u { color: inherit; }
+.eq-slot b {
+  font-weight: 400;
+  font-size: clamp(10px, 3.4vh, 12px);
+  letter-spacing: 0.04em;
+}
+.eq-kind {
+  margin-left: auto;
+  font-size: clamp(8px, 2.6vh, 9px);
+  color: var(--st-dim);
+  letter-spacing: 0.1em;
+}
+.eq-slot s { text-decoration: none; font-size: 10px; color: var(--st-gold); }
+
+/* ── もちもの。説明文と入れ替わりで出る。 */
+.eq-pick {
+  flex: 1 1 auto;
+  min-height: 0;
+  /* SCROLLS RATHER THAN CLIPS. A list whose later entries cannot be
+     reached is not a list — and this is the one interaction on the
+     screen, so it must survive a bag with ten swords in it. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.8);
+}
+.eq-pick > p {
+  margin: 0 0 4px;
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--st-dim);
+}
+.eq-row {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  /* A FINGER, NOT A CURSOR. Measured under touch emulation these were
+     28px tall — fine for a mouse, small for a thumb on a moving bus.
+     The list scrolls, so height costs nothing but scrolling. */
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--st-ink);
+  font: inherit;
+  font-size: clamp(9.5px, 3.2vh, 11px);
+  text-align: left;
+}
+.eq-row.on {
+  background: linear-gradient(90deg, rgba(178, 145, 79, 0.22), rgba(178, 145, 79, 0.06));
+}
+.eq-row:disabled { opacity: 0.45; }
+.eq-row em { font-style: normal; font-size: 9px; color: var(--st-gold); min-width: 42px; }
+.eq-row u { text-decoration: none; flex: 1; }
+.eq-row s { text-decoration: none; font-size: 9px; color: var(--st-dim); }
+
+/* ── スキル (2026-10-07): the same middle column, a closed row per skill
+   in the 装備 rows' touch size; tapping it shows what it does. */
+.st-skills-head {
+  margin: 4px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--st-dim);
+}
+.st-skills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.st-skill {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 9px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--st-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.st-skill b {
+  font-weight: 400;
+  font-size: clamp(11px, 3.6vh, 13px);
+}
+.st-skill-detail {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(9.5px, 3.2vh, 11px);
+  color: var(--st-ink);
+}
+
+/* A menu entry that IS a door gets a real tap target. */
+.st-menu-item.live {
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: #7d735f;
+  text-align: left;
+  min-height: 30px;
+  cursor: pointer;
+}
+
+/* ══ NAMING — asked once, between the opening and the village.
+   THE SAME WORLD AS THE STATUS SCREEN. It used to be App Alpha's plain
+   dark, which made the first thing a player is ever asked look like a
+   form that happens to come before the game. Ivory, pale gold and the
+   same 明朝: this is the game, from the first question. */
+.naming-screen {
+  --st-paper: #f7f3ea;
+  --st-paper-2: #ece3d2;
+  --st-ink: #40372b;
+  --st-dim: #8a7f6b;
+  --st-gold: #b2914f;
+  --st-gold-soft: rgba(178, 145, 79, 0.34);
+
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+  padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
+  color: var(--st-ink);
+  font-family: var(--font-body);
+  background:
+    radial-gradient(120% 130% at 50% -20%, #ffffff 0%, var(--st-paper) 44%, var(--st-paper-2) 100%);
+}
+.naming-wordmark {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: 16px;
+  margin: 0;
+  line-height: 1.05;
+  text-align: left;
+}
+.naming-wordmark b {
+  display: block;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  color: var(--st-gold);
+}
+.naming-wordmark i {
+  display: block;
+  font-style: normal;
+  font-size: 6.5px;
+  letter-spacing: 0.4em;
+  color: var(--st-dim);
+  margin-top: 2px;
+}
+.naming-title {
+  margin: 0;
+  font-size: clamp(18px, 6vh, 23px);
+  letter-spacing: 0.34em;
+  /* The letter-spacing is on the right of the last glyph too, which
+     shifts the word off centre. Push it back by half. */
+  text-indent: 0.34em;
+}
+.naming-title::after {
+  content: '';
+  display: block;
+  width: 58px;
+  height: 1px;
+  margin: 8px auto 0;
+  background: linear-gradient(90deg, transparent, var(--st-gold), transparent);
+}
+.naming-ask {
+  margin: 10px 0 0;
+  font-size: clamp(10px, 3.4vh, 12.5px);
+  letter-spacing: 0.08em;
+  color: #5d5445;
+}
+.naming-input {
+  width: min(300px, 74vw);
+  min-height: 44px;
+  margin-top: clamp(8px, 3vh, 16px);
+  padding: 9px 16px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--st-ink);
+  font: inherit;
+  font-size: 19px;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.naming-input:focus {
+  outline: none;
+  border-color: var(--st-gold);
+  box-shadow: 0 0 0 1px rgba(178, 145, 79, 0.3);
+}
+.naming-input::placeholder {
+  color: rgba(138, 127, 107, 0.7);
+  letter-spacing: 0.12em;
+}
+.naming-count {
+  margin: 7px 0 0;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--st-dim);
+}
+.naming-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: clamp(10px, 3.6vh, 18px);
+}
+/* Both are real controls, so both get a real tap target. */
+.naming-confirm,
+.naming-keep {
+  appearance: none;
+  min-height: 42px;
+  min-width: 124px;
+  padding: 10px 22px;
+  border: 1px solid var(--st-gold-soft);
+  border-radius: 2px;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  background: rgba(255, 255, 255, 0.66);
+  color: var(--st-ink);
+}
+.naming-confirm {
+  color: #f7f1e2;
+  border-color: #a5873f;
+  background: linear-gradient(180deg, #6d5a34, #40351f);
+}
+.naming-confirm:disabled {
+  color: rgba(247, 241, 226, 0.55);
+  background: linear-gradient(180deg, #a49881, #7c735f);
+  border-color: rgba(165, 135, 63, 0.4);
+}
+
+/* ── STAGES: a backdrop, one standing figure, the words beside it ──
+   Landscape only, so the figure gets the screen's full height on one
+   side and the words the other; nothing is ever laid over a face. */
+.stage-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.32;
+  z-index: 0;
+}
+/* The key visual is a white picture: held far back, so meeting her is
+   stepping into the image the title showed, not reading over it. */
+.stage-backdrop.key-visual { opacity: 0.16; }
+.stage-figure {
+  position: absolute;
+  bottom: 0;
+  height: 96%;
+  max-width: 44%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+.stage-left .stage-figure { left: 3%; }
+.stage-right .stage-figure { right: 3%; }
+/* Gald beaten is a whole painting on black, not a cut-out: its edges
+   are feathered into the forest so it reads as him, not as a box. */
+.stage-figure[data-who="gald"][data-state="portrait"] {
+  /* Larger beside the four answers (作者 2026-10-16: 選択直前に印象が弱くならないように). The drawing is a
+     cut-out now (gald-defeated-v2): no feathering, his knees and the blood on the ground on the ground line. */
+  height: 96%;
+  bottom: 2%;
+}
+/* A narrower screen: the answers come nearer to him, so he keeps his former size there (never under a button). */
+@media (max-width: 720px) {
+  .stage-figure[data-who="gald"][data-state="portrait"] { height: 86%; bottom: 7%; }
+}
+.stage-words {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+.stage.has-figure .stage-words { width: 54%; }
+.stage-left.has-figure .stage-words { align-self: flex-end; }
+.stage-right.has-figure .stage-words { align-self: flex-start; }
+.stage-speaker { margin: 0; }
+.stage-line { margin: 2px 0; }
+/* A whole illustration in the figure's place — a future seen, a place
+   found. All four are 2:3, so at this height the picture sets its own
+   width and the box is exactly the picture: whole, never cropped or
+   stretched, with a frame so it reads as a painting, not a cut-out.
+   Sized against the VIEWPORT, not the stage: where the words are taller
+   than the screen (640×300) the stage grows past it, and a picture sized
+   to the stage would run off the bottom. Anchored from the top so it is
+   whole on screen before anything is scrolled. */
+.stage-picture {
+  top: min(4%, 4vh);
+  bottom: auto;
+  height: min(92%, 92vh);
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(201, 162, 39, 0.45), 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+/* The world, alone, before anybody speaks. */
+.stage-monologue { background: #000; }
+.line.monologue {
+  white-space: pre-line;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  line-height: 2.1;
+  max-width: none;
+}
+/* The four answers, two by two, so they fit beside him. */
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  max-width: 420px;
+}
+.choice-grid .btn { width: 100%; }
+
+/* ── THE TITLE'S KEY VISUAL, beside the name ── */
+.title-key {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  aspect-ratio: 1;
+  max-width: 50vw;
+  object-fit: cover;
+  -webkit-mask-image: linear-gradient(90deg, #000 72%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 72%, transparent 100%);
+  z-index: 0;
+}
+.screen.title.has-key { padding-left: calc(min(100vh, 50vw) + 16px); }
+.screen.title.has-key > :not(.title-key) { position: relative; z-index: 1; }
+
+/* ── 月灯りの酒場: THREE LAYERS — the room, the master, the words ──
+   The master is a separate cut-out, never painted into the room. He
+   keeps his own shape (contain, never stretched), is centred in his
+   box, stands on its bottom edge with a little floor under his boots,
+   and his box is tall enough for his whole head and both feet. */
+.screen.tavern {
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+.tavern-room {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.tavern-master {
+  position: absolute;
+  /* 10%, not flush right: the room's near chair sits at 59–80% across
+     the screen (the room is always fitted by width on a landscape
+     phone, so that holds at every size). Flush right put his boot on
+     the chair's corner; here his legs stand in front of it, and his
+     elbow still clears the words on a 640-wide screen. */
+  right: max(10%, env(safe-area-inset-right));
+  bottom: 2%;
+  width: 36%;
+  height: 94%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+/* グレイヴの表情 (2026-10-12): while he speaks, his upper body with the line's face —
+   in the standing figure's box, its own shape, the waist at the box's foot. */
+.tavern-master.face {
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+.tavern-words {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 56%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 11, 18, 0.78);
+}
+.tavern-words .line { max-width: 40ch; }
+/* 酒場の客 (2026-10-09): tonight's stranger stands in the master's box
+   (same place, same size, one figure at a time) — the silhouette as
+   delivered, with a faint light behind it so it reads on the dark room.
+   Three choices in the box: side by side, each its share. */
+.tavern-guest { filter: drop-shadow(0 0 14px rgba(255, 236, 200, 0.22)); }
+.tavern-words .actions { flex-wrap: nowrap; width: 100%; }
+.tavern-words .actions .btn { flex: 1 1 0; min-width: 0; padding-inline: 4px; font-size: 13px; letter-spacing: 0.02em; white-space: nowrap; }
+@media (max-width: 700px) {
+  .tavern-words .actions .btn { font-size: 12px; letter-spacing: 0; }
+}
+/* 酒場ハブ化 Phase 1: tonight's guest said under the room's line; the swap
+   and the bard's archive in the same box, which never runs off a low
+   screen (the archive's list scrolls; the way back stays). */
+.screen.tavern { height: 100vh; height: 100dvh; min-height: 0; }
+.tavern-words { min-height: 0; overflow-y: auto; }
+.tavern-tonight { margin: 0; color: var(--gold); font-size: 12px; letter-spacing: 0.06em; }
+.tavern-panel { display: flex; flex: 1 1 auto; flex-direction: column; align-items: center; gap: 2px; width: 100%; min-height: 0; }
+.tavern-panel .speaker { margin: 0; }
+.tavern-panel-say { margin: 2px 0; }
+.tavern-trade-title,
+.tavern-archive-title { margin: 2px 0 0; color: var(--gold); font-size: 12px; letter-spacing: 0.12em; }
+.tavern-trade-side { margin: 0; font-size: 13px; }
+.tavern-trade-label { color: var(--dim); }
+.tavern-trade-held { color: var(--dim); font-size: 12px; }
+.tavern-archive-list { flex: 1 1 auto; list-style: none; margin: 2px 0 4px; padding: 0; width: 100%; min-height: 72px; overflow-y: auto; border-bottom: 1px solid var(--line); }
+.screen.tavern:has(.tavern-archive) .tavern-words { overflow-y: hidden; }
+.tavern-archive-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid var(--line); }
+.tavern-archive-row.on .tavern-piece-name { color: var(--gold); }
+.tavern-piece-name { flex: 1 1 auto; min-width: 0; text-align: left; font-size: 13px; letter-spacing: 0.04em; }
+.tavern-piece-heard { margin-left: 8px; color: var(--dim); font-size: 11px; }
+/* グレイヴの簡単な加工 (2026-10-11): three rows that scroll inside the box; もどる always there. */
+.tavern-craft-list { flex: 1 1 auto; list-style: none; margin: 2px 0 4px; padding: 0; width: 100%; min-height: 72px; overflow-y: auto; border-bottom: 1px solid var(--line); }
+.screen.tavern:has(.tavern-craft) .tavern-words { overflow-y: hidden; }
+.tavern-craft-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; border-top: 1px solid var(--line); }
+.tavern-craft-what { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; text-align: left; }
+.tavern-craft-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.tavern-craft-name { font-size: 13px; letter-spacing: 0.04em; }
+.tavern-craft-needs { font-size: 12px; }
+.tavern-craft-note { color: var(--dim); font-size: 11px; line-height: 1.35; }
+.tavern-craft-row .btn { min-height: 34px; }
+.tavern-craft-row .btn { flex: 0 0 auto; min-width: 72px; }
+.tavern-archive-row .btn { flex: 0 0 auto; min-width: 64px; min-height: 36px; padding: 4px 10px; }
+.tavern-village-bgm { margin: 0; color: var(--dim); font-size: 12px; }
+@media (max-height: 340px) {
+  .tavern-words { padding: 8px 12px; gap: 2px; }
+  .tavern-words .place { margin: 0; font-size: 16px; }
+  .tavern-words .line { margin: 2px 0; }
+  .tavern-words .actions { margin-top: 2px; }
+  .tavern-words .actions .btn { min-height: 40px; padding-block: 6px; }
+}
+
+/* ── TIME SHIFT, the beat she shows: つづける always on screen ──
+   The stage is held to the screen's height instead of growing with the
+   words; the words shrink into their own scrolling column and the
+   button sits under it, never past the bottom edge. Only this beat. */
+.stage.vision-see {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+.vision-see .stage-words {
+  max-height: 100%;
+  min-height: 0;
+}
+.vision-see-words {
+  /* The same column as before — shrink-wrapped, centred by the stage,
+     lines and button flush left — only now it may not outgrow the screen. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-height: 100%;
+  min-height: 0;
+}
+.vision-see-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.vision-see-words > .btn { flex: none; margin-top: 8px; }
+
+/* ── パン屋: the tavern's three layers, with two people ──
+   The shop, then the owner and Lina, then the words. Both portraits keep
+   their own shape (contain, never stretched), stand on the floor with a
+   little under their feet, and are sized from one unit so they stay in
+   proportion to each other: the unit is the screen's height, or less on
+   a narrow screen, where two people beside the words would not fit.
+   Lina — the shorter of the two — stands a little in front of her
+   father, over the empty edge of his picture, never over his face. */
+.screen.bakery {
+  --bakery-u: min(100vh, 48vw);
+  /* Never taller than the phone: the words scroll inside, the shop stays put. */
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+.bakery-room {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+.bakery-owner,
+.bakery-lina {
+  position: absolute;
+  bottom: 2%;
+  width: auto;
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+}
+.bakery-owner {
+  right: max(1%, env(safe-area-inset-right));
+  height: calc(var(--bakery-u) * 0.94);
+  z-index: 1;
+}
+.bakery-lina {
+  right: calc(max(1%, env(safe-area-inset-right)) + var(--bakery-u) * 0.4);
+  height: calc(var(--bakery-u) * 0.78);
+  z-index: 2;
+}
+.bakery-words {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 50%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 11, 18, 0.78);
+}
+.bakery-words .line { max-width: 40ch; }
+/* パン屋 MVP (2026-10-09): who you talk to, and Lina's bread. The box
+   never runs off a low screen: the list scrolls, the way back stays. */
+.bakery-words { min-height: 0; overflow-y: auto; }
+.bakery-words .actions { flex-wrap: nowrap; width: 100%; }
+.bakery-words .actions .btn { flex: 1 1 0; min-width: 0; padding-inline: 8px; }
+.bakery-who { justify-content: center; }
+@media (max-height: 340px) {
+  .bakery-words { padding: 8px 12px; gap: 2px; }
+  .bakery-words .place { margin: 0; font-size: 16px; }
+  .bakery-words .line { margin: 2px 0; }
+  .bakery-words .actions { margin-top: 2px; }
+  .bakery-words .actions .btn { min-height: 40px; padding-block: 6px; }
+  .bakery-who .shop-tab { min-height: 30px; }
+}
+.bakery-shop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+}
+.bakery-say { margin: 0; font-size: 13px; }
+/* パン屋ルート: the man at the back, seen (not told who) — a quiet line under the shop's. */
+.bakery-sight { margin: 0; font-size: 12px; color: var(--text-sub, #bfc7d5); }
+.bakery-shop .purse { margin: 0; }
+.bakery-list {
+  margin: 0;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.bakery-list .shop-row { flex-wrap: nowrap; align-items: center; gap: 6px; padding: 4px 0; }
+.bakery-list .shop-row .btn { min-width: 60px; min-height: 34px; padding: 4px 10px; }
+.bakery-list .shop-info { gap: 0 8px; line-height: 1.35; }
+.bakery-list .shop-name { font-size: 14px; }
+.bakery-line2 { display: flex; flex-wrap: wrap; gap: 0 8px; flex-basis: 100%; }
+.bakery-list .shop-held,
+.bakery-list .shop-why,
+.bakery-effect,
+.bakery-keeps { color: var(--dim); font-size: 11px; }
+.bakery-list .shop-held { color: var(--gold); }
+
+/* ── A PLACE, WALKED (ui/explore/WalkScene) ──
+   One screen, right to left. Every layer is absolutely placed and slid
+   by the walk; only the controls sit still. */
+.screen.walk {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #0d150f;
+  touch-action: manipulation;
+}
+.walk-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  will-change: transform;
+  pointer-events: none;
+}
+.walk-painting { z-index: 0; }
+.walk-painting-img { position: absolute; left: 0; display: block; max-width: none; }
+/* Light through the canopy, a little farther off than the ground. */
+.walk-light {
+  z-index: 1;
+  width: 120%;
+  background:
+    linear-gradient(105deg, transparent 18%, rgba(255, 236, 170, 0.16) 22%, transparent 27%),
+    linear-gradient(105deg, transparent 38%, rgba(255, 236, 170, 0.12) 41%, transparent 46%),
+    linear-gradient(105deg, transparent 60%, rgba(255, 236, 170, 0.1) 63%, transparent 67%);
+  mix-blend-mode: screen;
+  animation: walk-light-breathe 9s ease-in-out infinite alternate;
+}
+@keyframes walk-light-breathe { from { opacity: 0.55; } to { opacity: 1; } }
+/* Mist along the water, drifting on its own. */
+.walk-mist {
+  z-index: 1;
+  width: 140%;
+  background: radial-gradient(ellipse 60% 14% at 50% 52%, rgba(220, 235, 240, 0.22), transparent 70%),
+    radial-gradient(ellipse 40% 10% at 15% 56%, rgba(220, 235, 240, 0.16), transparent 70%);
+  animation: walk-mist-drift 26s linear infinite alternate;
+}
+@keyframes walk-mist-drift { from { margin-left: -4%; } to { margin-left: 4%; } }
+.walk-figure {
+  position: absolute;
+  width: auto;
+  transform: translateX(-50%);
+  filter: brightness(0.22) saturate(0) blur(0.6px);
+  opacity: 0.8;
+  animation: walk-figure-sway 5s ease-in-out infinite alternate;
+}
+@keyframes walk-figure-sway { from { transform: translateX(-50%) rotate(-0.6deg); } to { transform: translateX(-50%) rotate(0.6deg); } }
+/* Something in reach: a soft glint on the thing itself, never a beacon. */
+.walk-point {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 248, 220, 1) 0 16%, rgba(255, 232, 160, 0.45) 38%, transparent 70%);
+  animation: walk-point-glint 1.8s ease-in-out infinite;
+}
+/* Its brightness is how near the party is (set inline): nothing from
+   afar, faint as they come close, full beside it. The pulse is slow and
+   small — a breath, not a blink. */
+.walk-point {
+  transition: opacity 0.25s linear;
+  animation-duration: 2.8s;
+  /* A faint dark edge, so the light still reads on pale stone or sand;
+     on dark ground it is invisible. */
+  filter: drop-shadow(0 0 2px rgba(20, 14, 6, 0.55));
+}
+.walk-point.is-looked { animation: none; }
+@keyframes walk-point-glint { 0%, 100% { transform: scale(0.85); } 50% { transform: scale(1.08); } }
+
+.walk-party { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.walk-sprite { position: absolute; }
+.walk-sprite img { position: absolute; transform-origin: 0 0; max-width: none; image-rendering: auto; }
+
+.amb { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
+.amb-bird { position: absolute; left: 105%; animation: amb-fly linear infinite; }
+.amb-bird svg { display: block; overflow: visible; }
+.amb-wing { fill: rgba(22, 26, 24, 0.7); animation: amb-flap 0.18s ease-in-out infinite alternate; transform-origin: 50% 55%; }
+@keyframes amb-fly { from { left: 105%; } to { left: -10%; } }
+@keyframes amb-flap { from { transform: scaleY(1); } to { transform: scaleY(0.35); } }
+.amb-leaf { position: absolute; top: -6%; width: 9px; height: 5px; border-radius: 9px 0; opacity: 0; animation: amb-fall linear infinite; }
+.amb-leaf-gold { background: rgba(214, 170, 74, 0.85); }
+.amb-leaf-green { background: rgba(120, 160, 70, 0.85); }
+@keyframes amb-fall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.9; }
+  90% { opacity: 0.8; }
+  100% { transform: translate(var(--drift), 105vh) rotate(540deg); opacity: 0; }
+}
+.amb-mote { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: rgba(255, 244, 200, 0.9); box-shadow: 0 0 6px rgba(255, 236, 170, 0.9); opacity: 0; animation: amb-rise ease-in-out infinite; }
+@keyframes amb-rise { 0% { transform: translate(0, 0); opacity: 0; } 30% { opacity: 0.8; } 100% { transform: translate(10px, -40px); opacity: 0; } }
+
+/* The nearest leaves: dark, soft, low, and fastest of all. */
+.walk-near { z-index: 4; }
+.walk-near-foliage { position: absolute; left: 0; bottom: -2%; width: 100%; height: 22%; filter: blur(2.5px); }
+.walk-near-clump path { fill: rgba(8, 20, 12, 0.88); }
+
+/* The controls: the name, what is noticed, the place's doors, the walk. */
+.walk-top {
+  position: absolute;
+  z-index: 5;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.walk-title { margin: 0; font-size: 15px; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85); }
+.walk-leave {
+  pointer-events: auto;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid rgba(233, 230, 240, 0.25);
+  border-radius: 18px;
+  background: rgba(11, 11, 18, 0.55);
+  color: var(--ink);
+  font-size: 12px;
+}
+.walk-caption {
+  position: absolute;
+  z-index: 5;
+  top: calc(max(8px, env(safe-area-inset-top)) + 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(70%, 34em);
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(11, 11, 18, 0.62);
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+  /* A point may say two short lines; they break where they were written. */
+  white-space: pre-line;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.walk-events {
+  position: absolute;
+  z-index: 5;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  /* Room is left on the right for 調べる and the two steps. */
+  max-width: calc(100% - 250px);
+}
+.walk-event { min-width: 0; min-height: 40px; padding: 6px 12px; font-size: 13px; white-space: nowrap; background: rgba(11, 11, 18, 0.7); }
+@media (max-height: 330px) {
+  .walk-event, .walk-look { font-size: 12px; padding: 6px 10px; }
+}
+.walk-controls {
+  position: absolute;
+  z-index: 5;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.walk-look { min-width: 0; min-height: 40px; padding: 6px 14px; font-size: 13px; background: rgba(11, 11, 18, 0.7); }
+/* 「！」 — the guide to a thing that can be looked at. Bold, red-orange,
+   a white edge and a dark shadow, so it reads on any ground; it stands on
+   the thing (bottom tip at the point) and breathes slowly. */
+.walk-marker {
+  position: absolute;
+  width: clamp(16px, 5.4vh, 24px);
+  height: clamp(27px, 9vh, 40px);
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.45));
+  animation: walk-marker-breathe 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+.walk-marker svg { display: block; overflow: visible; }
+.walk-marker-bar, .walk-marker-dot {
+  fill: #e8462a;
+  stroke: #fff;
+  stroke-width: 2.6;
+  paint-order: stroke;
+}
+.walk-marker.is-here .walk-marker-bar, .walk-marker.is-here .walk-marker-dot { fill: #ff5230; }
+/* Already read: still there, quieter — where one has been stays plain. */
+.walk-marker.is-looked { animation: none; opacity: 0.55; }
+.walk-marker.is-looked .walk-marker-bar, .walk-marker.is-looked .walk-marker-dot { fill: #9a6a5e; }
+@keyframes walk-marker-breathe {
+  0%, 100% { transform: translate(-50%, -100%) scale(1); }
+  50% { transform: translate(-50%, -100%) scale(1.12); }
+}
+/* THE WALK ABOUT (RoamScene). The 「！」 ride over the party, so nobody
+   stands in front of one. */
+.roam-marks { z-index: 3; }
+/* A small find waiting on the floor: a faint glint seen from anywhere —
+   the hint that something is there, before its 「！」 when near. */
+.roam-sign {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffdf0 0 12%, rgba(255, 240, 180, 0.75) 30%, rgba(255, 226, 140, 0.25) 52%, transparent 70%);
+  filter: drop-shadow(0 0 2px rgba(20, 14, 6, 0.7));
+  animation: roam-sign-twinkle 2.6s ease-in-out infinite;
+}
+@keyframes roam-sign-twinkle { 0%, 100% { opacity: 0.55; transform: scale(0.75); } 50% { opacity: 1; transform: scale(1.1); } }
+/* FINDS BY RARITY. Gold: the same 「！」 and glint in gold. Rainbow: a
+   small glint in slowly turning colour with a few faint motes rising,
+   and up close a four-pointed star instead of a 「！」 — a find of
+   another kind at a glance, never loud enough to take over the place. */
+.walk-marker.v-rare .walk-marker-bar, .walk-marker.v-rare .walk-marker-dot { fill: #f2b52c; }
+.walk-marker.v-rare.is-here .walk-marker-bar, .walk-marker.v-rare.is-here .walk-marker-dot { fill: #ffc94a; }
+.walk-marker.v-rare { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 5px rgba(255, 196, 60, 0.6)); }
+.walk-marker.v-rainbow {
+  width: clamp(26px, 8.5vh, 36px);
+  height: clamp(26px, 8.5vh, 36px);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.55));
+  animation: walk-marker-breathe 3s ease-in-out infinite;
+}
+.walk-marker-star { stroke: #fff; stroke-width: 2.4; paint-order: stroke; stroke-linejoin: round; }
+.walk-marker.v-rainbow svg { animation: roam-hue 6s linear infinite; }
+.walk-marker-core { fill: #fff; }
+@keyframes roam-hue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
+/* A THING TO PICK UP (2026-10-07): smaller, dimmer and slower than a
+   find's glint — something noticed in passing, never a lit-up floor. */
+.roam-sign.g-pickup {
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  background: radial-gradient(circle, rgba(255, 252, 235, 0.9) 0 14%, rgba(255, 238, 190, 0.45) 34%, transparent 66%);
+  animation: roam-pickup-glint 4.2s ease-in-out infinite;
+}
+@keyframes roam-pickup-glint { 0%, 100% { opacity: 0.25; transform: scale(0.7); } 55% { opacity: 0.75; transform: scale(1); } }
+.roam-sign.g-rare {
+  background: radial-gradient(circle, #fff6d0 0 12%, rgba(255, 200, 70, 0.85) 30%, rgba(255, 170, 0, 0.3) 52%, transparent 70%);
+}
+.roam-sign.g-rainbow {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  background: none;
+  filter: drop-shadow(0 0 2px rgba(20, 14, 6, 0.7));
+  animation: roam-rainbow-pulse 3.4s ease-in-out infinite;
+}
+/* The colour itself, turning slowly; masked soft at the edge. Its own
+   layer, so the mask never swallows the halo or the motes. */
+.roam-sign.g-rainbow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #fff 0 15%, transparent 17%),
+    conic-gradient(from 0deg, #ff6b8b, #ffd25e, #7cf0a8, #6fb8ff, #c58bff, #ff6b8b);
+  -webkit-mask-image: radial-gradient(circle, #000 36%, rgba(0, 0, 0, 0.6) 52%, transparent 70%);
+  mask-image: radial-gradient(circle, #000 36%, rgba(0, 0, 0, 0.6) 52%, transparent 70%);
+  animation: roam-hue 7s linear infinite;
+}
+/* A faint halo, so it reads on pale stone as well as in shade. */
+.roam-sign.g-rainbow::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.12) 45%, transparent 68%);
+}
+@keyframes roam-rainbow-pulse { 0%, 100% { opacity: 0.75; transform: scale(0.86); } 50% { opacity: 1; transform: scale(1.1); } }
+.roam-mote {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 1;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px #fff, 0 0 7px rgba(190, 160, 255, 0.9);
+  opacity: 0;
+  animation: roam-mote-rise 3.6s ease-out infinite;
+}
+.roam-mote.m0 { --dx: -9px; animation-delay: 0s; }
+.roam-mote.m1 { --dx: 7px; animation-delay: 0.9s; }
+.roam-mote.m2 { --dx: -3px; animation-delay: 1.8s; }
+.roam-mote.m3 { --dx: 11px; animation-delay: 2.7s; }
+@keyframes roam-mote-rise {
+  0% { opacity: 0; transform: translate(0, 0); }
+  25% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(var(--dx), -30px); }
+}
+/* WHAT WAS PICKED UP: a short line low in the middle, gone by itself —
+   clear of the words at the top, the once-notices over them, the doors
+   at the bottom left and 調べる at the bottom right. */
+.walk-got {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 74px);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 5px 14px;
+  border: 1px solid rgba(240, 226, 190, 0.55);
+  border-radius: 999px;
+  background: rgba(14, 12, 20, 0.82);
+  color: #fdf6e3;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: walk-got-in 2.6s ease both;
+}
+.walk-got.special { color: #ffe39a; border-color: rgba(255, 200, 80, 0.7); }
+/* Drawn by the shared notice host (common/NoticeHost), over whatever screen: fixed. */
+.walk-got.notice-bottom { position: fixed; z-index: 50; }
+@keyframes walk-got-in { 0% { opacity: 0; transform: translate(-50%, 6px); } 10%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+.walk-caption.g-rare { color: #ffe39a; box-shadow: inset 0 0 0 1px rgba(255, 200, 80, 0.55); }
+.walk-caption.g-rainbow {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(rgba(11, 11, 18, 0.72), rgba(11, 11, 18, 0.72)) padding-box,
+    linear-gradient(90deg, #ff6b8b, #ffd25e, #7cf0a8, #6fb8ff, #c58bff) border-box;
+}
+/* The moment it is taken: one soft flash of colour over everything, then gone. */
+.roam-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 107, 139, 0.5), rgba(255, 210, 94, 0.5), rgba(124, 240, 168, 0.5), rgba(111, 184, 255, 0.5), rgba(197, 139, 255, 0.5));
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: roam-flash 0.9s ease-out forwards;
+}
+@keyframes roam-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+.roam-prize {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 82vw);
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 12px 20px 14px;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background:
+    linear-gradient(rgba(14, 14, 22, 0.93), rgba(14, 14, 22, 0.93)) padding-box,
+    linear-gradient(120deg, #ff6b8b, #ffd25e, #7cf0a8, #6fb8ff, #c58bff) border-box;
+  text-align: center;
+  animation: roam-prize-in 0.45s ease-out 0.25s both;
+}
+@keyframes roam-prize-in { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+.roam-prize p { margin: 0; }
+.roam-prize-kind { font-size: 11px; letter-spacing: 0.2em; color: #d9d2ff; }
+.roam-prize-name { margin-top: 4px !important; font-size: 19px; font-weight: 700; color: #fff4d6; text-shadow: 0 0 10px rgba(255, 230, 160, 0.5); }
+.roam-prize-text { margin-top: 8px !important; font-size: 12.5px; line-height: 1.75; color: #ece8f4; }
+.roam-prize-line { display: block; }
+.roam-prize-got { margin-top: 8px !important; font-size: 11.5px; color: #b9b3c9; }
+.roam-prize-note { margin-top: 4px !important; font-size: 11px; color: #ffb3a1; }
+.roam-prize-close { margin-top: 10px; min-height: 36px; padding: 6px 22px; font-size: 13px; }
+/* Where the ground was touched: a small ring that opens and fades. */
+.walk-tap-ring {
+  position: absolute;
+  z-index: 5;
+  width: 30px;
+  height: 30px;
+  margin: -15px 0 0 -15px;
+  border: 2px solid rgba(255, 248, 225, 0.95);
+  border-radius: 50%;
+  /* A dark edge either side, so it reads on pale stone and sand too. */
+  box-shadow: 0 0 0 1px rgba(30, 20, 8, 0.45), inset 0 0 0 1px rgba(30, 20, 8, 0.35), 0 0 8px rgba(30, 20, 8, 0.35);
+  pointer-events: none;
+  animation: walk-tap 0.7s ease-out forwards;
+}
+@keyframes walk-tap-still { from { opacity: 0.9; } to { opacity: 0; } }
+@keyframes walk-tap { 0% { transform: scale(0.45); opacity: 1; } 45% { opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
+/* Until the first touch: how to walk, said once, quietly. */
+.walk-hint {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 52px);
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 14px;
+  background: rgba(11, 11, 18, 0.6);
+  color: rgba(233, 230, 240, 0.85);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Quiet moments, one at a time: a leaf passing, the light shifting, a
+   bird's shadow far off. Each plays once (about 4s) and is gone. */
+.amb-moment { z-index: 3; }
+.amb-moment-leaf {
+  position: absolute;
+  top: 34%;
+  left: 104%;
+  width: 10px;
+  height: 6px;
+  border-radius: 10px 0;
+  background: rgba(196, 164, 82, 0.85);
+  animation: amb-leaf-pass 4s ease-in-out forwards;
+}
+@keyframes amb-leaf-pass {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.9; }
+  50% { transform: translate(-55vw, 24px) rotate(200deg); }
+  90% { opacity: 0.8; }
+  100% { transform: translate(-112vw, 6px) rotate(380deg); opacity: 0; }
+}
+.amb-moment-light {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 45% 60% at 40% 30%, rgba(255, 238, 180, 0.16), transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: amb-light-shift 4s ease-in-out forwards;
+}
+@keyframes amb-light-shift { 0% { opacity: 0; } 45% { opacity: 1; } 100% { opacity: 0; } }
+.amb-moment-bird {
+  position: absolute;
+  top: 7%;
+  left: -6%;
+  filter: blur(0.6px);
+  opacity: 0;
+  animation: amb-bird-shadow 1.8s linear forwards;
+}
+.amb-moment-bird svg { animation: amb-flap 0.16s ease-in-out infinite alternate; transform-origin: 50% 55%; }
+.amb-moment-bird path, .amb-moment-bird ellipse { fill: rgba(14, 18, 16, 0.55); }
+@keyframes amb-bird-shadow {
+  0% { transform: translateX(0); opacity: 0; }
+  15% { opacity: 0.8; }
+  85% { opacity: 0.6; }
+  100% { transform: translateX(110vw); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walk-light, .walk-mist, .walk-figure, .walk-point, .walk-marker, .walk-marker svg, .roam-sign, .roam-sign::before, .roam-prize, .amb, .walk-got { animation: none !important; }
+  .roam-mote { display: none; }
+  .roam-flash { animation-duration: 0.4s !important; }
+  .walk-tap-ring { animation: walk-tap-still 0.5s linear forwards !important; }
+  .amb { display: none; }
+}
+
+/* ── 古代遺跡の奥 — the way in to セキリュウガ, and after ──
+   The ruins' painting under a darkness that deepens step by step; the
+   words in the tavern's box, bottom left; セキリュウガ (its delivered
+   drawing, whole) and its name card on the right. */
+.screen.seal {
+  position: relative;
+  overflow: hidden;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: #0b0a10;
+}
+.seal-painting {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  z-index: 0;
+}
+.seal-dark {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(ellipse at 70% 60%, rgba(8, 6, 12, 0.45), rgba(8, 6, 12, 0.92));
+  opacity: 0.35;
+  transition: opacity 1.2s ease;
+}
+.seal-dark-kaos { opacity: 0.6; }
+.seal-dark-glance { opacity: 0.85; }
+/* THE FIRST TIME BACK (ruins.tsx SekiryugaRevisitScreen): at the very end
+   Kaos alone looks back at it — her own drawing, turned towards it
+   (mirrored on screen, never edited), for a held moment. */
+/* Her silence needs no room: the words shrink to it, and she stands clear
+   between them and it. */
+.screen.seal.revisit[data-glance='yes'] .seal-words { width: auto; }
+.revisit-kaos {
+  position: absolute;
+  z-index: 2;
+  left: 29%;
+  bottom: 0;
+  height: 66%;
+  width: auto;
+  max-width: 26%;
+  object-fit: contain;
+  object-position: 50% 100%;
+  transform: scaleX(-1);
+  filter: brightness(0.8);
+  pointer-events: none;
+  animation: revisit-glance 0.9s ease-out both;
+}
+@keyframes revisit-glance {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.seal-dark-quiet,
+.seal-dark-there { opacity: 1; }
+.screen.seal[data-shake='yes'] .seal-painting { animation: seal-shake 0.5s ease-in-out 2; }
+@keyframes seal-shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-3px, 1px); }
+  50% { transform: translate(2px, -1px); }
+  75% { transform: translate(-1px, 2px); }
+}
+.seal-entrance {
+  position: absolute;
+  z-index: 2;
+  right: max(4%, env(safe-area-inset-right));
+  bottom: 6%;
+  width: 40%;
+  height: 78%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  animation: seal-rise 1.4s ease-out both;
+}
+.seal-entrance.after { animation: none; }
+@keyframes seal-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.seal-figure {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  /* The delivered drawing, whole and at its own shape. */
+  object-fit: contain;
+  object-position: 50% 100%;
+  filter: drop-shadow(0 0 16px rgba(120, 170, 230, 0.45));
+  transition: transform 0.6s ease, filter 0.6s ease, opacity 0.6s ease;
+}
+/* Turned to face the party: the drawing faces right, so it is mirrored on screen. */
+.seal-figure.toward { transform: scaleX(-1); }
+.seal-figure.stopped { filter: brightness(0.55) saturate(0.7); opacity: 0.9; }
+.seal-figure.toward.stopped { transform: scaleX(-1) translateY(6%); }
+.seal-name {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+.seal-name i {
+  padding: 0 6px;
+  border-radius: 2px;
+  background: #8e2a1f;
+  color: #fff3e0;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+.seal-name b {
+  color: #f4e6d0;
+  font-size: clamp(22px, 6vh, 34px);
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 10px rgba(170, 40, 30, 0.8), 0 2px 4px #000;
+}
+.seal-words {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 56%;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(11, 11, 18, 0.8);
+}
+.seal-words .line { max-width: 40ch; white-space: pre-line; }
+.seal-hold { letter-spacing: 0.4em; opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) {
+  .screen.seal[data-shake='yes'] .seal-painting,
+  .seal-entrance,
+  .revisit-kaos { animation: none; }
+}
+
+/* ── NEW: something here not yet looked at (ui/common/NewBadge) ──
+   Small, red, readable on ivory buttons and dark panels alike: its own
+   red ground and a light rim, never just red text. */
+.new-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 240, 220, 0.9);
+  border-radius: 3px;
+  background: #c8281e;
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 14px;
+  vertical-align: middle;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* ── A notice, once (ui/common/OnceNotice) — top centre, out of the way ── */
+.once-notice {
+  position: fixed;
+  z-index: 50;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid rgba(220, 192, 132, 0.85);
+  border-radius: 999px;
+  background: rgba(16, 14, 22, 0.9);
+  color: #fdf3dc;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  animation: once-notice 2800ms ease both;
+  pointer-events: none;
+}
+@keyframes once-notice {
+  0% { opacity: 0; transform: translate(-50%, -8px); }
+  10%, 85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -4px); }
+}
+
+/* ── A destination just added: a few slow glows, then as it always is ──
+   Three pulses and no more (never a permanent blink). A dark ring under a
+   light one, so it reads on the forest's greens and the ruins' stone. */
+.pulse-new {
+  animation: pulse-new 1.3s ease-in-out 3;
+}
+@keyframes pulse-new {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0), 0 0 0 0 rgba(255, 233, 170, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(20, 14, 6, 0.65), 0 0 18px 6px rgba(255, 228, 150, 0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-new { animation: none; box-shadow: 0 0 0 2px rgba(255, 228, 150, 0.9); }
+  .once-notice { animation: none; }
+}
+
+/* ── 噂話 (ui/rumors) — a list that scrolls; the button always on screen ── */
+.screen.rumors {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  justify-content: flex-start;
+}
+.rumor-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: min(680px, 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.rumor-group { margin-bottom: 10px; }
+.rumor-category {
+  margin: 4px 0;
+  color: var(--gold, #c9a961);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.rumor-row {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.rumor-row.open { background: rgba(255, 255, 255, 0.04); }
+.rumor-title { font-size: 14px; }
+.rumor-text {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.92;
+}
+.rumor-from {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ── THE VILLAGE ON A SHORT LANDSCAPE SCREEN ──
+   Nine doors no longer fit in two rows of full-size buttons under the
+   status lines on a 300–420px-high phone: the last row went off the
+   bottom, out of reach. Below 420px high the buttons and the gaps
+   tighten (the same buttons, the same colours) so every door stays on
+   screen. Taller screens are exactly as before. */
+@media (max-height: 420px) {
+  .screen[data-area="ALDEN"] { gap: 4px; }
+  .screen[data-area="ALDEN"] .paper-sheet { gap: 3px; padding: 6px 14px 8px; }
+  .screen[data-area="ALDEN"] .status { margin: 2px 0; }
+  .screen[data-area="ALDEN"] .actions { gap: 6px; margin-top: 2px; }
+  .screen[data-area="ALDEN"] .actions .btn {
+    min-height: 34px;
+    min-width: 100px;
+    padding: 5px 12px;
+    font-size: 13px;
+  }
+}
+
+/* ══ THE PAPER THEME (2026-10-07) ══
+   ステータス's palette, app-wide, at the author's request: 「ステータス画面の
+   色使いで統一して欲しい。右半分黒とかネイビー背景のままだと制作途中感と古臭い
+   感じがする」. Ivory paper lit from the upper right, a quiet brown ink, gold
+   for what matters, 明朝. `.paper` is a whole screen in it (the village and
+   its doors, the bag, the rumours, a fight's result); `.paper-panel` is a
+   panel in it over a painted room (the shop). Only colours, type and
+   edges — sizes, order and what anything does are as they were. */
+:root {
+  --p-paper: #f7f3ea;
+  --p-paper-2: #ece3d2;
+  --p-ink: #40372b;
+  --p-dim: #8a7f6b;
+  --p-gold: #b2914f;
+  --p-gold-ink: #8a6a2c;
+  --p-gold-soft: rgba(178, 145, 79, 0.34);
+}
+.paper {
+  /* Its own stacking context, so a place's picture (z-index -1) sits on
+     the paper rather than behind it. */
+  isolation: isolate;
+  color: var(--p-ink);
+  font-family: var(--font-body);
+  background: radial-gradient(118% 132% at 72% -18%, #ffffff 0%, var(--p-paper) 42%, var(--p-paper-2) 100%);
+}
+/* A place's picture, softened into the paper: still there, never a dark wall. */
+.paper .backdrop { opacity: 0.55; filter: sepia(0.15); }
+/* The place's words and doors, on a sheet of paper over it. */
+.paper-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: min(780px, 100%);
+  padding: 12px 22px 16px;
+  border: 1px solid var(--p-gold-soft);
+  border-radius: 4px;
+  background: radial-gradient(118% 132% at 72% -18%, rgba(255, 255, 255, 0.95) 0%, rgba(247, 243, 234, 0.93) 42%, rgba(236, 227, 210, 0.92) 100%);
+  box-shadow: 0 4px 18px rgba(64, 55, 43, 0.28);
+}
+.paper-sheet .status { width: auto; }
+.paper-panel {
+  color: var(--p-ink);
+  font-family: var(--font-body);
+  background: linear-gradient(90deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.9) 22px, rgba(242, 235, 221, 0.94) 100%);
+  box-shadow: inset 1px 0 0 var(--p-gold-soft);
+}
+.paper .place,
+.paper-panel .place {
+  color: var(--p-ink);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+}
+.paper .clock,
+.paper .purse,
+.paper-panel .purse { color: var(--p-gold-ink); }
+.paper .status-row,
+.paper .line,
+.paper .log,
+.paper .memory-count,
+.paper .memory-meta { color: var(--p-dim); }
+.paper .line { color: var(--p-ink); }
+.paper .row { color: var(--p-ink); }
+.paper .row.level,
+.paper .say,
+.paper-panel .say,
+.paper .memory-when,
+.paper .bag-group-title,
+.paper .rumor-category { color: var(--p-gold-ink); }
+.paper .warn { color: #a3413a; }
+
+/* Buttons: the village's ivory, everywhere on paper. */
+.paper .btn,
+.paper-panel .btn {
+  border: 1px solid rgba(178, 145, 79, 0.6);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(250, 247, 239, 0.96), rgba(236, 227, 210, 0.94));
+  color: var(--p-ink);
+  font-family: var(--font-body);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 4px rgba(64, 55, 43, 0.22);
+}
+.paper .btn.primary,
+.paper-panel .btn.primary {
+  border: 1.5px solid var(--p-gold);
+  background: linear-gradient(180deg, rgba(247, 236, 205, 0.98), rgba(229, 210, 162, 0.95));
+  color: #5a4320;
+}
+.paper .btn:active:not(:disabled),
+.paper-panel .btn:active:not(:disabled) {
+  background: linear-gradient(180deg, rgba(236, 227, 210, 0.98), rgba(222, 208, 180, 0.95));
+}
+.paper .btn:disabled,
+.paper-panel .btn:disabled { opacity: 0.5; }
+
+/* Lists: gold hairlines, brown ink, gold for counts and prices. */
+.paper .bag-row,
+.paper .memory-row,
+.paper .rumor-row,
+.paper-panel .shop-row { border-top-color: var(--p-gold-soft); }
+.paper .rumor-row { color: var(--p-ink); }
+.paper .rumor-row.open { background: rgba(178, 145, 79, 0.08); }
+.paper .bag-count,
+.paper-panel .shop-price,
+.paper-panel .shop-held { color: var(--p-gold-ink); }
+.paper .bag-fresh { color: var(--p-gold-ink); }
+.paper .bag-hint { color: var(--p-gold-ink); }
+.paper .bag-bread-buff { color: var(--p-ink); }
+.paper .bag-category,
+.paper .bag-desc,
+.paper .bag-reason,
+.paper-panel .shop-desc,
+.paper-panel .shop-why,
+.paper-panel .shop-empty { color: var(--p-dim); }
+.paper-panel .shop-greeting,
+.paper-panel .shop-touch-line,
+.paper-panel .shop-keeper { color: var(--p-ink); }
+.paper-panel .shop-counter { border-color: var(--p-gold-soft); }
+/* 買う／売る: as ステータス's menu — the chosen one dark gold, the other paper. */
+.paper-panel .shop-tab {
+  border: 1px solid var(--p-gold-soft);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--p-dim);
+  font-family: var(--font-body);
+}
+.paper-panel .shop-tab.on {
+  border-color: #a5873f;
+  background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.75));
+  color: #f7f1e2;
+}
+
+/* ══ A PLACE AS A PICTURE AND A PAGE (アルデン村・アルデン地方, 2026-10-07) ══
+   「アルデン村のメニューUIももっとスッキリ」: the shape of ステータス and the
+   shop — the place's painting on the left, clear, and a page of paper on
+   the right with the title, the date and the purse, the two of them in a
+   line each, and the menu as words with a small gold mark rather than a
+   wall of boxes. */
+.screen.place-panel {
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+}
+.place-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+.place-page {
+  position: relative;
+  z-index: 1;
+  width: min(48%, 460px);
+  min-width: 300px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: max(12px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) 30px;
+  overflow-y: auto;
+  background: linear-gradient(90deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.92) 26px, rgba(242, 235, 221, 0.95) 100%);
+}
+.pp-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--p-gold-soft);
+}
+.pp-head .place { margin: 0; font-size: 22px; letter-spacing: 0.22em; }
+.pp-aside { text-align: right; }
+.pp-aside .clock,
+.pp-aside .purse { margin: 0; font-size: 12px; line-height: 1.5; letter-spacing: 0.08em; }
+.pp-aside .clock { color: var(--p-dim); }
+.pp-party { display: flex; flex-direction: column; gap: 2px; }
+.pp-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--p-dim);
+}
+.pp-name { min-width: 4.5em; font-weight: 400; font-size: 14px; color: var(--p-ink); letter-spacing: 0.08em; }
+.pp-level { color: var(--p-gold-ink); }
+.pp-bars { color: var(--p-ink); }
+.pp-menu { display: flex; flex-direction: column; gap: 2px; }
+.pp-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.pp-group { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pp-caption {
+  margin: 6px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  color: var(--p-dim);
+}
+.pp-item {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(178, 145, 79, 0.18);
+  border-radius: 0;
+  background: none;
+  color: var(--p-ink);
+  font: inherit;
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pp-item::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--p-gold);
+  transform: rotate(45deg);
+}
+.pp-item-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.pp-item:active:not(:disabled) { background: rgba(178, 145, 79, 0.12); }
+.pp-item:focus-visible { outline: 2px solid var(--p-gold); outline-offset: -2px; }
+.pp-item:disabled { opacity: 0.45; cursor: default; }
+/* The way onward: ステータス's chosen-item gold. */
+.pp-item.primary {
+  min-height: 40px;
+  margin: 2px 0 4px;
+  border: 1px solid #a5873f;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #6d5a34, rgba(64, 53, 31, 0.78));
+  color: #f7f1e2;
+  font-size: 15px;
+}
+.pp-item.primary::before { border-color: #e7d29c; }
+.pp-item.primary:active:not(:disabled) { background: linear-gradient(90deg, #5b4a2a, rgba(52, 43, 25, 0.85)); }
+/* A short screen: the same page, a little tighter. */
+@media (max-height: 340px) {
+  .place-page { gap: 4px; }
+  .pp-head .place { font-size: 18px; }
+  .pp-item { min-height: 28px; padding: 2px 8px; font-size: 13px; }
+  .pp-item.primary { min-height: 32px; margin: 1px 0 2px; }
+  .pp-caption { margin: 3px 0 1px; }
+}
+/* A narrow page: each of them on one line — the experience is ステータス's to show. */
+@media (max-width: 720px) {
+  .pp-member { flex-wrap: nowrap; gap: 0 8px; white-space: nowrap; }
+  /* 2026-10-10: three shops in a column — each name on one line. */
+  .pp-item { letter-spacing: 0.02em; white-space: nowrap; }
+  .pp-name { min-width: 0; }
+}
+
+/* ALDEN INCIDENT (2026-10-10): Kaos senses something — a small box at the
+   foot of the region map's page, under every way on; read with つぎへ. */
+.kaos-aside {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'who next' 'line next';
+  align-items: center;
+  gap: 2px 10px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--p-gold);
+  background: rgba(178, 145, 79, 0.08);
+}
+/* On the region map it comes first, under the title (2026-10-11). */
+.kaos-aside.incident-aside { margin: 0 0 6px; }
+.kaos-aside-head { grid-area: who; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.kaos-aside-speaker { margin: 0; color: var(--p-gold-ink); font-size: 12px; letter-spacing: 0.1em; white-space: nowrap; }
+.kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--font-body); font-size: 13px; line-height: 1.5; }
+.kaos-aside-next {
+  grid-area: next;
+  appearance: none;
+  min-height: 32px;
+  padding: 2px 10px;
+  border: 1px solid var(--p-gold-soft);
+  border-radius: 2px;
+  background: none;
+  color: var(--p-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ---- 第0話 — the way into Alden (ui/intro.tsx) ---- */
+.intro { display: contents; }
+/* Lines break where they were written, not mid-word. */
+.intro .stage-line { white-space: pre-line; }
+.intro-dark { background: #000; animation: intro-dark-in 0.6s ease-out both; }
+@keyframes intro-dark-in { from { opacity: 0; } to { opacity: 1; } }
+/* Her one moment: the road goes dim around her and she is not lit. */
+.intro-still .stage-backdrop { opacity: 0.16; transition: opacity 0.8s ease; }
+.intro-still .stage-figure { filter: brightness(0.72) saturate(0.8); transition: filter 0.8s ease; }
+.intro-skip {
+  position: fixed;
+  z-index: 40;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  min-width: 64px;
+  min-height: 36px;
+  padding: 4px 14px;
+  border: 1px solid rgba(220, 192, 132, 0.8);
+  border-radius: 999px;
+  background: rgba(16, 14, 22, 0.72);
+  color: #fdf3dc;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+.intro-ask {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(6, 5, 10, 0.6);
+}
+.intro-ask-card {
+  max-width: min(92vw, 440px);
+  padding: 14px 18px;
+  border-radius: 10px;
+  text-align: center;
+}
+.intro-ask-q { margin: 0 0 6px; font-size: 15px; }
+.intro-ask-note { margin: 0 0 12px; font-size: 12px; opacity: 0.8; }
+.intro-ask-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.intro-arrival {
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #000;
+  color: #f4e6d0;
+  cursor: pointer;
+  animation: intro-arrive 2.6s ease-in-out both;
+}
+.intro-arrival-title { margin: 0; font-size: clamp(26px, 8vh, 42px); letter-spacing: 0.32em; text-indent: 0.32em; }
+.intro-arrival-place { margin: 0; font-size: clamp(12px, 3.6vh, 16px); letter-spacing: 0.5em; text-indent: 0.5em; color: #d9b871; }
+@keyframes intro-arrive {
+  0% { opacity: 0; }
+  20%, 78% { opacity: 1; }
+  100% { opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro-dark, .intro-arrival { animation: none; }
+}
+
+/* 襲撃前の日常 (2026-10-10): something small in the village — on the square as
+   they come back in (the same box as Kaos's word on the map), and over the
+   tool shop's counter (the line, then つぎへ, in the keeper's place). */
+.daily-aside { margin: 0 0 6px; }
+/* ✉ アルデン通信 (ui/aldenNews.tsx): 読む／あとで stacked at the side; the text opens under the title. */
+.news-aside .news-actions { grid-area: next; display: flex; flex-direction: column; gap: 4px; }
+.news-aside .news-text { display: block; margin-top: 2px; font-size: 12px; }
+.news-aside .news-later { color: var(--p-ink-soft, var(--p-ink)); opacity: 0.8; }
+.shop-daily { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.shop-daily .btn { min-height: 32px; padding: 2px 14px; font-size: 12px; }
+/* A face beside the line, when one is delivered (assets/dailyFaces.ts). */
+.daily-aside:has(.daily-face) { grid-template-columns: auto 1fr auto; grid-template-areas: 'face who next' 'face line next'; }
+.daily-face { grid-area: face; width: 48px; height: 48px; position: relative; overflow: hidden; border-radius: 4px; border: 1px solid rgba(224, 184, 74, 0.6); }
+.daily-face img { position: absolute; max-width: none; }
+
+/* A creature's cut-out drawing standing in a scene (its four answers, ui/creatureChoice.tsx):
+   no frame — it is a creature, not a painting — feet on the ground. */
+.stage-picture.stage-cutout {
+  top: auto;
+  bottom: 4%;
+  height: min(78%, 78vh);
+  border-radius: 0;
+  box-shadow: none;
+}
+/* …and the small one it shields: the same drawing, a third the height. */
+.stage-picture.stage-cutout-small { height: min(30%, 30vh); bottom: 8%; }
+
+/* A village door with NEW beside it (2026-10-11): its name stays on one line. */
+.pp-item:has(.new-badge) { letter-spacing: 0.02em; white-space: nowrap; }
+.pp-item .new-badge { flex-shrink: 0; }
+/* A narrow page: the door's NEW as a small tag on its top-right corner, so a
+   long name (月灯りの酒場) and its NEW both stay inside its own column. */
+@media (max-width: 720px) {
+  .pp-group .pp-item:has(.new-badge) { position: relative; overflow: visible; }
+  .pp-group .pp-item .new-badge {
+    position: absolute;
+    top: -5px;
+    right: 0;
+    margin: 0;
+    padding: 0 3px;
+    font-size: 8px;
+    line-height: 11px;
+    letter-spacing: 0.02em;
+    pointer-events: none;
+  }
+}
+
+/* 主人公×ケイオス (2026-10-11): the two of them side by side over the place's
+   painting while a short exchange is told in the box at the top of the page —
+   the hero on the left, Kaos on the right by the page; the one speaking in
+   full light, the other dimmed (ui/talkStage.tsx). */
+.talk-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  right: max(300px, min(48%, 460px));
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.talk-bust {
+  position: absolute;
+  bottom: 0;
+  width: 56%;
+  filter: brightness(0.5) saturate(0.75);
+  transition: filter 0.2s ease, transform 0.2s ease;
+  z-index: 1;
+}
+.talk-bust.on { filter: none; transform: translateY(-1.5%) scale(1.03); z-index: 2; }
+.talk-bust-hero { left: 0; transform-origin: bottom left; }
+.talk-bust-kaos { right: 0; transform-origin: bottom right; }
+.talk-bust-frame { position: relative; width: 100%; overflow: hidden; }
+.talk-bust-frame img { position: absolute; max-width: none; }
+@media (prefers-reduced-motion: reduce) {
+  .talk-bust { transition: none; }
+}
+
+/* The line under the two of them (2026-10-11): a dark glass box across the
+   bottom of the stage, the name, NEW and つぎへ in it — read with the faces. */
+.talk-box {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 3;
+  pointer-events: auto;
+}
+.talk-box .kaos-aside {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(231, 210, 156, 0.75);
+  border-left: 3px solid #e7d29c;
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(28, 24, 36, 0.78), rgba(18, 15, 24, 0.9));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+.talk-box .kaos-aside-speaker { color: #f0d995; }
+.talk-box .kaos-aside-line { color: #fbf6ea; font-size: 14px; }
+.talk-box .kaos-aside-next {
+  color: #fbf6ea;
+  border-color: rgba(231, 210, 156, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+}
+@media (max-height: 340px) {
+  .talk-box .kaos-aside { padding: 5px 10px; }
+  .talk-box .kaos-aside-line { font-size: 13px; line-height: 1.4; }
+}
+
+/* ── 2人会話・パネル (ui/talkStage, data-layout="panel"; 作者 2026-10-16) ──
+   In a conversation panel that names itself a talk host, the two of them take the whole panel:
+   left and right, as large as the panel allows, the words under them (never squeezed: the box
+   keeps its own height and the two stand in what is left). Whoever speaks is in the light and a
+   little forward; the other dimmed. The sheet's tall frame round it all. One layout for every
+   panel that tells a two-person exchange. In the scene layout the pair is not a box of its own. */
+.talk-pair { display: contents; }
+.talk-stage[data-layout='panel'] {
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(90% 55% at 50% 32%, rgba(150, 182, 255, 0.3), rgba(150, 182, 255, 0) 72%),
+    linear-gradient(180deg, #1b2452 0%, #111739 62%, #0a0e24 100%);
+}
+.talk-stage[data-layout='panel'] .talk-pair {
+  display: block;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 14px 0 0;
+  container-type: size;
+  overflow: hidden;
+}
+/* Each as wide as the panel allows (overlapping a little in the middle), or as the height allows:
+   the head never leaves the top. Standing just behind the top of the words. */
+.talk-stage[data-layout='panel'] .talk-bust {
+  --duo-sink: 20px;
+  bottom: calc(var(--duo-sink) * -1);
+  width: min(66%, calc((100cqh + var(--duo-sink)) * 0.68));
+  filter: brightness(0.55) saturate(0.8);
+}
+.talk-stage[data-layout='panel'] .talk-bust.on { filter: none; }
+/* Their outer shoulders may pass the panel's edge (cut there), so the two faces stay well apart. */
+.talk-stage[data-layout='panel'] .talk-bust-hero { left: auto; right: 41%; }
+.talk-stage[data-layout='panel'] .talk-bust-kaos { right: auto; left: 41%; }
+.talk-stage[data-layout='panel'] .talk-box {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex: none;
+  margin: 0 12px 12px;
+}
+/* The frame's edge drawn thin here, so the two and the words keep the room. */
+.talk-stage .talk-frame {
+  z-index: 4;
+  border-width: 18px 12px;
+  border-image-width: 18px 12px;
+}
+
+/* ── STATUS v2 (作者指示 2026-10-11: キャラクターそのものを好きになる画面) ──
+   Two columns now: who they are on the left (scrolls), the picture large on
+   the right; the pages of them (ステータス・プロフィール・装備・スキル・
+   ストーリー) along the foot, under both. Scoped to `.st-v2` so the
+   equipment screen, which shares the older classes, is untouched. */
+.status-screen.st-v2 {
+  --st-visual-w: 44vw;
+  /* The screen is exactly what is seen (dvh), never taller — so the foot
+     and the column's last line are never below the visible area. */
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+.st-v2 .st-visual {
+  bottom: 0;
+  align-items: flex-start;
+}
+/* Large and never stretched: its own shape, the head at the top, a little
+   taller than the screen so the face is not small; the lower legs fall off. */
+.st-v2 .st-visual img {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: auto;
+  max-width: none;
+  height: 148%;
+  object-fit: contain;
+  transform: translateX(-50%);
+}
+.st-v2 .st-body {
+  padding: 4px 12px 0;
+  padding-right: calc(var(--st-visual-w) + 10px);
+}
+.st-v2 .st-scroll {
+  padding-bottom: 10px;
+}
+.st-v2 .st-one-line {
+  margin: 2px 0 4px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+/* Six numbers in two columns: label, value, label, value. */
+.st-v2 .st-six {
+  grid-template-columns: auto 1fr auto 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+}
+.st-v2 .st-six dd { font-variant-numeric: tabular-nums; }
+.st-v2 .st-marks { margin-top: 6px; }
+/* The foot runs under both columns, over the picture's lower part. */
+.st-v2 .st-foot {
+  padding: 5px 12px max(8px, env(safe-area-inset-bottom));
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(247, 243, 234, 0) 0, rgba(247, 243, 234, 0.9) 30%, rgba(242, 235, 221, 0.97) 100%);
+  z-index: 2;
+}
+.st-v2 .st-back { min-width: 100px; padding: 8px 14px; }
+.st-nav {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.st-nav-item {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: none;
+  color: var(--st-ink);
+  font: inherit;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.st-nav-item.live {
+  border-color: var(--st-gold-soft);
+  background: rgba(255, 255, 255, 0.7);
+}
+.st-nav-item.on {
+  color: #f7f1e2;
+  border-color: #a5873f;
+  background: linear-gradient(180deg, #6d5a34, #40351f);
+}
+.st-nav-item.soon {
+  color: #8a7f6b;
+  cursor: default;
+  user-select: none;
+}
+@media (max-width: 720px) {
+  .st-v2 .st-foot { padding-left: 8px; padding-right: 8px; gap: 6px; }
+  .st-v2 .st-back { min-width: 64px; padding: 6px 10px; letter-spacing: 0.08em; }
+  .st-nav { gap: 2px; }
+  .st-nav-item { padding: 5px 6px; font-size: 11.5px; letter-spacing: 0.02em; }
+}
+@media (max-height: 340px) {
+  .st-v2 .st-head { padding-top: 6px; }
+  .st-v2 .st-tab { min-height: 30px; padding: 4px 14px; }
+  .st-nav-item, .st-v2 .st-back { min-height: 34px; }
+}
+
+/* ── STATUS in the shared crystal UI (作者 2026-10-16「クリスタルUI素材を共通UIキットとして転用」) ──
+   Only the look changes: what is shown, where, and the column's scroll are the same. Every frame,
+   plate, row and button is a delivered piece (ui/kit/Crystal.tsx), 9-sliced so its crystal corners
+   never stretch; this block only colours the room between them and puts the words in them.
+   Scoped to `.st-v2`: the equipment screen, which shares the older classes, is untouched. */
+.status-screen.st-v2 {
+  --st-ink: #eef1ff;
+  --st-dim: #b3bbdc;
+  --st-gold: #e5cb91;
+  --st-gold-soft: rgba(229, 203, 145, 0.35);
+  /* The foot's height: the tall frame ends above it, so its lower corners are never under the buttons. */
+  --st-foot-h: 54px;
+  background: radial-gradient(120% 130% at 72% -12%, #2c3670 0%, #151b3a 46%, #090c1a 100%);
+}
+/* 大きい縦長フレーム round the picture: the frame over her edges, her inside it; nothing of her below it. */
+.st-v2 .st-visual {
+  background:
+    radial-gradient(70% 60% at 55% 28%, rgba(150, 182, 255, 0.24), rgba(150, 182, 255, 0) 75%),
+    linear-gradient(180deg, #172044, #0b0f22);
+}
+/* The frame as tall as the picture shown (作者 2026-10-17: 立ち絵フレームを下まで延長) — the whole of her inside
+   one frame, corners kept (9-slice), only the straight edges longer. The foot's buttons lie over its lower edge. */
+.st-v2 .st-frame { inset: 0; z-index: 1; }
+
+/* The tabs: the confirm plate, each with its face in the small square frame. */
+.st-v2 .st-tab.kit {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 2px;
+  background: none;
+  color: var(--st-ink);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  border-left-width: 12px;
+  border-right-width: 12px;
+  /* As wide as its name (a long name grows it, up to half the row, and only then wraps). */
+  flex: none;
+  max-width: calc(50% - 4px);
+}
+.st-v2 .st-tabs { flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
+.st-v2 .st-tab-name { word-break: keep-all; overflow-wrap: anywhere; }
+.st-tab-face-art { width: 100% !important; height: 100% !important; background-size: cover; }
+.st-v2 .st-tab:not(.on) { opacity: 0.82; }
+
+/* The name on its plate (CrystalHeader), the epithet under it. */
+.st-v2 .st-name.kit {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  min-height: 0;
+  padding: 1px 6px 2px;
+  border-left-width: 15px;
+  border-right-width: 15px;
+}
+.st-v2 .st-epithet { margin: 2px 0 2px 6px; }
+
+/* Each page of them in the wide dark panel. */
+.st-v2 .st-panel.kit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 2px 4px 4px;
+  color: var(--st-ink);
+}
+.st-v2 .st-quote,
+.st-v2 .st-intro,
+.st-v2 .st-style-note { color: var(--st-ink); }
+.st-v2 .st-intro,
+.st-v2 .st-style-note { color: var(--st-dim); }
+.st-v2 .st-bar { height: 4px; background: rgba(8, 12, 30, 0.75); box-shadow: inset 0 0 0 1px rgba(200, 214, 255, 0.35); }
+.st-v2 .st-bar i { background: linear-gradient(90deg, #8fb8ff, #e8f1ff); }
+
+/* The six numbers: a row each (CrystalListRow), two columns. */
+.st-v2 .st-six {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 6px;
+}
+.st-v2 .st-rows .st-row.kit {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 0;
+  padding: 1px 2px;
+  border-width: 6px 14px;
+}
+.st-v2 .st-row dt { color: #a9b7d6; font-size: 11.5px; letter-spacing: 0.08em; padding-left: 4px; }
+.st-v2 .st-row dd { color: #f3f6ff; font-weight: 600; white-space: nowrap; padding-right: 2px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+/* The rows of numbers on the sheet's darker row (作者 2026-10-17: 数値を白〜白銀に、背景に埋もれないように):
+   the label a quiet blue-grey, the figure silver-white. Same shape, the row's darker picture. */
+.st-v2 .st-rows .st-row.kit[data-skinned],
+.st-v2 .st-mark.kit[data-skinned] { border-image-source: var(--kit-img-selected); }
+
+/* 装備・武器種・戦闘スタイル: rows too, the long one wrapping rather than being cut. */
+.st-v2 .st-marks { display: grid; grid-template-columns: 1fr; gap: 3px; }
+.st-v2 .st-mark.kit {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-height: 0;
+  padding: 1px 2px;
+  border-width: 6px 14px;
+  background: none;
+  white-space: normal;
+}
+.st-v2 .st-mark span { color: #a9b7d6; padding-left: 4px; }
+.st-v2 .st-mark b { color: #f3f6ff; font-weight: 600; overflow-wrap: anywhere; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+/* LEVEL and NEXT: the figures silver-white too. */
+.st-v2 .st-level b, .st-v2 .st-next b { color: #f3f6ff; font-weight: 600; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); }
+.st-v2 .st-level-label, .st-v2 .st-next { color: #a9b7d6; }
+
+/* スキル: a row each; open, it says what it does. */
+.st-v2 .st-skill.kit {
+  min-height: 38px;
+  padding: 2px 4px;
+  border-width: 8px 16px;
+  background: none;
+  color: var(--kit-fg);
+}
+.st-v2 .st-skill.kit[data-selected] { color: var(--kit-fg-selected, #fff); }
+.st-v2 .st-skill-detail { color: inherit; }
+
+/* The foot: the way out (戻る) and the pages (the confirm plate; the one open lit). */
+.st-v2 .st-foot {
+  min-height: var(--st-foot-h);
+  box-sizing: border-box;
+  /* Dark under the left column only: over the picture the frame's lower edge shows round the buttons. */
+  background: linear-gradient(180deg, rgba(9, 12, 26, 0) 0, rgba(9, 12, 26, 0.85) 35%, #090c1a 100%) left / calc(100% - var(--st-visual-w)) 100% no-repeat;
+}
+.st-v2 .st-back.kit {
+  min-width: 108px;
+  min-height: 40px;
+  padding: 0 6px;
+  background: none;
+  color: var(--st-ink);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  border-left-width: 16px;
+  border-right-width: 16px;
+}
+.st-v2 .st-nav-item.kit {
+  min-height: 38px;
+  padding: 0 2px;
+  background: none;
+  color: var(--st-ink);
+  border-left-width: 12px;
+  border-right-width: 12px;
+}
+.st-v2 .st-nav-item.soon.kit { color: var(--st-dim); cursor: default; }
+@media (max-width: 720px) {
+  .st-v2 .st-tab.kit { font-size: 12px; letter-spacing: 0.02em; gap: 4px; }
+  .st-v2 .st-tab-face { --ci-w: 21px !important; }
+  .st-v2 .st-head { gap: 8px; }
+  .st-v2 .st-back.kit { min-width: 100px; border-left-width: 12px; border-right-width: 12px; }
+  .st-v2 .st-nav-item.kit { padding: 0; border-left-width: 9px; border-right-width: 9px; font-size: 11px; }
+}
+@media (max-height: 340px) {
+  .status-screen.st-v2 { --st-foot-h: 50px; }
+  .st-v2 .st-tab.kit { min-height: 32px; }
+  .st-v2 .st-nav-item.kit { min-height: 34px; }
+}
+
+/* ── ハイタッチ (ui/celebrate) — the two of them, glad, for a moment ──
+   Just above the middle; the picture BIG (作者 2026-10-11: 「もっと大きくていい、
+   おめでとうって意味だし」), the heading over it, the small line under it. It
+   lies over the place's own words for a moment — it takes no touch and is
+   gone in a second and a half. 0.15s in (a small pop), held, 0.3s out; a
+   faint gold flash once. Fits 640×300: the words beside it there. */
+.celebrate {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  top: 48%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: celebrate-pop 1500ms ease-out both;
+}
+.celebrate-flash {
+  position: fixed;
+  inset: -50vh -50vw;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 48%, rgba(255, 226, 150, 0.36), rgba(255, 226, 150, 0) 48%);
+  animation: celebrate-flash 600ms ease-out both;
+}
+.celebrate-art {
+  display: block;
+  height: min(62vh, 62dvh, 380px);
+  /* The words sit a little onto the picture's clear edges: one stamp, not three pieces. */
+  margin: -8px 0 -10px;
+  width: auto;
+  max-width: 82vw;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+  animation: celebrate-hop 520ms ease-out 120ms both;
+}
+.celebrate-title {
+  margin: 0;
+  padding: 3px 16px;
+  border: 1px solid rgba(240, 206, 120, 0.9);
+  border-radius: 999px;
+  background: rgba(22, 16, 28, 0.88);
+  color: #ffe9a8;
+  font-size: clamp(15px, 5.4vh, 20px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(255, 210, 110, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  position: relative;
+  z-index: 1;
+}
+.celebrate-sub {
+  margin: 0;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(16, 14, 22, 0.8);
+  color: #fdf3dc;
+  font-size: clamp(11px, 3.8vh, 13px);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+@keyframes celebrate-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.82); }
+  10% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  16% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -54%) scale(0.98); }
+}
+@keyframes celebrate-hop {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-6%); }
+  100% { transform: translateY(0); }
+}
+@keyframes celebrate-flash {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  100% { opacity: 0; }
+}
+/* A short screen (640×300): the words beside the picture, so the picture
+   can still be big and the whole stays on the screen. */
+@media (max-height: 340px) {
+  .celebrate {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-areas: 'art title' 'art sub';
+    align-items: center;
+    gap: 4px 4px;
+    top: 48%;
+  }
+  .celebrate-art { grid-area: art; height: min(72vh, 230px); margin: 0; }
+  .celebrate-title { grid-area: title; align-self: end; justify-self: start; }
+  .celebrate-sub { grid-area: sub; align-self: start; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .celebrate { animation: celebrate-fade 1500ms linear both; }
+  .celebrate-art, .celebrate-flash { animation: none; }
+  .celebrate-flash { display: none; }
+}
+@keyframes celebrate-fade {
+  0%, 100% { opacity: 0; }
+  10%, 80% { opacity: 1; }
+}
+
+/* ── 立ち絵の拡大 (ui/common/PortraitZoom) — the whole picture, large ──
+   The screen dims; the picture as tall as the screen, whole, its own shape.
+   A touch anywhere closes it. The magnifier sits at the picture's top corner. */
+.zoom-button {
+  position: absolute;
+  z-index: 5;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(231, 210, 156, 0.8);
+  border-radius: 999px;
+  background: rgba(20, 16, 26, 0.62);
+  color: #f3e3b6;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.zoom-button:active { transform: scale(0.94); }
+.portrait-zoom {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 6, 12, 0.88);
+  animation: portrait-zoom-in 180ms ease-out both;
+  cursor: zoom-out;
+}
+.portrait-zoom-img {
+  display: block;
+  height: calc(100dvh - 12px);
+  width: auto;
+  max-width: calc(100vw - 24px);
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.6));
+}
+.portrait-zoom-name {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  margin: 0;
+  color: #f3e3b6;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+.portrait-zoom-close {
+  position: absolute;
+  top: max(6px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(231, 210, 156, 0.7);
+  border-radius: 999px;
+  background: rgba(20, 16, 26, 0.7);
+  color: #f3e3b6;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+@keyframes portrait-zoom-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .portrait-zoom { animation: none; }
+}
+
+/* ══ 文字の役割 (作者 2026-10-17「アプリ全体フォント統一・可読性改善」) ══════════════════════════════
+   Typography only: no box is moved. The serif carries the titles (the story's voice); the sans carries
+   what is read, pressed and counted. English is a quiet ornament under the Japanese, never above it.
+   Shadows only where the ground is busy, and weak. */
+
+/* Titles — screen, chapter and place names, the logo, BATTLE RESULT. */
+.place,
+.logo,
+.st-wordmark b,
+.naming-wordmark b,
+.vg-title .kit-heading {
+  font-family: var(--font-display);
+  font-weight: var(--text-title-weight);
+  line-height: var(--line-height-title);
+}
+.place { font-size: max(18px, min(var(--text-heading-size), 20px)); }
+
+/* What is read: lines, prose, hints — the sans at 400, a comfortable leading. */
+.line, .log,
+.st-quote, .st-intro, .st-style-note,
+.vg-hint,
+.kaos-aside-line,
+.rumor-text, .memory-text {
+  font-family: var(--font-body);
+  font-weight: var(--text-body-weight);
+}
+.line { font-size: 15px; line-height: var(--line-height-body); }
+.kaos-aside-line { font-size: 14px; line-height: 1.55; }
+/* Who speaks: a step above the words, at 600. */
+.speaker,
+.kaos-aside-speaker,
+.talk-who,
+.vg-who-name b {
+  font-weight: var(--text-strong-weight);
+}
+.speaker { font-size: 13px; }
+
+/* What is pressed: the sans at 500, centred. */
+.btn,
+.kit-button,
+.st-nav-item,
+.st-tab,
+.pb-list-btn,
+.pb-chip,
+.pp-item {
+  font-family: var(--font-ui);
+  font-weight: var(--text-ui-weight);
+}
+.btn { line-height: var(--line-height-ui); }
+
+/* What is counted: the sans at 600, figures of one width. */
+.vg-bars,
+.vg-level,
+.st-level b,
+.st-next b,
+.st-six dd,
+.pb-num,
+.bx-meter-num,
+.lumi, .vg-purse,
+.shop-price, .bag-count {
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Names in a list (an item, a person, a skill): the sans at 500. */
+.st-name b,
+.st-skill b,
+.vg-card-title,
+.vg-name,
+.bag-group-title,
+.bag-name,
+.shop-name,
+.rumor-category,
+.rumor-title,
+.memory-label,
+.tavern-archive-title,
+.tavern-craft-name {
+  font-family: var(--font-ui);
+  font-weight: var(--text-ui-weight);
+}
+.st-name b { font-weight: var(--text-strong-weight); }
+
+/* English under or beside the Japanese: smaller, spaced, quieter. */
+.kit-sub,
+.st-wordmark i,
+.st-level-label,
+.vg-title small,
+.bp-cmd-en,
+.bp-mode-jp {
+  letter-spacing: 0.12em;
+  opacity: 0.72;
+}
+
+/* Descriptions in a list: the sans at 400, a reading leading. */
+.shop-desc, .bag-desc, .bag-hint, .memory-meta, .rumor-from, .tavern-craft-note, .bakery-effect {
+  font-family: var(--font-body);
+  font-weight: var(--text-body-weight);
+  line-height: 1.45;
+}
+/* BATTLE RESULT: what was won, as figures to be read at a glance. */
+.result .row {
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  line-height: var(--line-height-ui);
+}
+.result .place { font-size: var(--text-title-size); letter-spacing: 0.14em; }

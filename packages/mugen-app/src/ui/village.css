@@ -1,0 +1,232 @@
+/* ---- アルデン村の縮図 (ui/village.tsx) — LAYOUT ONLY ----
+   The look of the parts (buttons, labels, panels) is the shared kit's (ui/kit), which takes the
+   delivered UI pictures; nothing here decorates. 作者 2026-10-16: the final look waits for them. */
+.screen.village {
+  position: fixed;
+  inset: 0;
+  padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom))
+    max(6px, env(safe-area-inset-left));
+  display: grid;
+  grid-template-columns: minmax(236px, 1fr) 2fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'side map' 'side menu';
+  align-items: stretch;
+  justify-items: stretch;
+  align-content: stretch;
+  justify-content: stretch;
+  gap: 6px;
+  background: #101218;
+  color: #f2f2f2;
+  overflow: hidden;
+}
+
+/* ---- left (左会話パネル): the person above, half; the words below, half ---- */
+.vg-side {
+  grid-area: side;
+  position: relative;
+  min-height: 0;
+  display: grid;
+  /* The person a little under half, the words a little over (作者 2026-10-16: 余白・見切れない). */
+  grid-template-rows: minmax(96px, 0.75fr) minmax(0, 1fr);
+  gap: 0;
+}
+.kit.vg-who { min-height: 0; }
+.vg-who-name { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.vg-who-name b { font-size: 16px; letter-spacing: 0.1em; }
+.vg-who-name small { font-size: 11px; opacity: 0.85; }
+.kit.vg-body {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* The words: they scroll (never cut) when the place chosen has more than the room. */
+.vg-body-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Room under the last line, and a fade there: more below shows as more, never as a line cut in half. */
+  padding: 2px 2px 14px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent);
+}
+.vg-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: max(11px, 1.3cqw); margin-top: 2px; }
+/* The two of them: at the panel's foot, always whole — a name, its Lv., then HP and MP on one line. */
+.vg-party {
+  flex: none;
+  display: grid;
+  gap: 1px;
+  padding: 5px 2px 0;
+  border-top: 1px solid rgba(29, 36, 72, 0.25);
+}
+.vg-member {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  column-gap: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+.vg-name { font-weight: 700; }
+.vg-level { opacity: 0.8; }
+.vg-bars { font-variant-numeric: tabular-nums; justify-self: end; }
+.vg-hint { margin: 2px 0 0; font-size: 13px; line-height: 1.65; opacity: 0.9; }
+
+.vg-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; }
+.vg-card-title { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+/* とじる: the back plate drawn smaller, its ends in proportion (never squeezed). */
+.kit.vg-card-close { font-size: 12.5px; min-height: 28px; padding: 0 2px; }
+.kit.vg-card-close[data-skinned] { border-width: 7px 14px; }
+.vg-card-people { list-style: none; margin: 0; padding: 0; min-width: 0; display: flex; flex-wrap: wrap; gap: 0 8px; font-size: 12.5px; line-height: 1.3; opacity: 0.9; }
+.vg-card-head .kit.vg-card-close { grid-column: 3; }
+.vg-card-empty { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }
+/* The doors: side by side where there are two and the panel is wide enough (the inn: 入る・休息する),
+   each row drawn a little smaller in proportion; one door, the whole width. */
+.vg-card-doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 4px; margin-top: 6px; }
+.kit.vg-door { width: 100%; min-height: 36px; font-size: 14px; font-weight: 700; padding: 0 2px; }
+.kit.vg-door[data-skinned] { border-width: 6px 13px; }
+.kit.vg-door .kit-text { white-space: nowrap; }
+
+/* While the two of them talk (ui/talkStage, the panel layout): the panel is theirs — its own one-person
+   face is put away, so the same person is never shown twice. A place tapped meanwhile shows its card over them. */
+.vg-side[data-talk-duo] > .vg-who { visibility: hidden; }
+.vg-side[data-talk-duo] .vg-card {
+  position: relative;
+  z-index: 3;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(10, 14, 34, 0.94);
+  color: #f2f5ff;
+}
+
+/* ---- right: the village ---- */
+.vg-map {
+  grid-area: map;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: #0c0e14;
+  container-type: size;
+}
+/* The scroller: only the village moves, up and down by a finger; the bar thin and quiet. */
+.vg-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200, 214, 255, 0.35) transparent;
+}
+.vg-scroll::-webkit-scrollbar { width: 4px; }
+.vg-scroll::-webkit-scrollbar-thumb { background: rgba(200, 214, 255, 0.35); border-radius: 2px; }
+/* Over the scroller's top, the same box as the picture: the name and 次の目的 held still. */
+.vg-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: var(--vg-ratio);
+  container-type: size;
+  pointer-events: none;
+  z-index: 3;
+}
+.vg-hud > * { pointer-events: auto; }
+/* The cut picture across the whole width, held to the top: whatever is below the screen is scrolled to;
+   on a squarer screen there is a little dark under it — never a place cut off the side. */
+.vg-stage {
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  aspect-ratio: var(--vg-ratio);
+  overflow: hidden;
+  container-type: size;
+}
+.vg-picture { position: absolute; max-width: none; height: auto; display: block; user-select: none; pointer-events: none; }
+
+/* The village's name and 次の目的: over their boxes, growing with their words (up to a share of the width). */
+.kit.vg-title, .kit.vg-objective { position: absolute; display: flex; flex-direction: column; justify-content: center; max-width: 62%; }
+.vg-title .kit-heading { font-size: max(14px, 2.4cqw); margin: 0; }
+.vg-title small { font-size: max(8px, 1cqw); letter-spacing: 0.3em; opacity: 0.8; }
+.vg-objective .kit-heading { font-size: max(10px, 1.3cqw); margin: 0 0 2px; font-weight: 400; opacity: 0.8; }
+.vg-objective [data-kit-text] { font-size: max(11.5px, 1.7cqw); line-height: 1.4; }
+
+/* A place: its label over the box (wider if its words need it), who is there as the label's second line. */
+.vg-spot-wrap { position: absolute; max-width: 40%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.kit.vg-spot { z-index: 2; width: 100%; font-size: max(12px, 1.95cqw); line-height: 1.25; }
+.kit.vg-spot .kit-text { white-space: nowrap; }
+.vg-mark {
+  font-style: normal;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background: #e8c35a;
+  color: #2a1d00;
+  font-size: 11px;
+  font-weight: 700;
+}
+.kit.vg-spot .kit-sub {
+  font-size: max(10.5px, 1.4cqw);
+  letter-spacing: 0.02em;
+  opacity: 1;
+  line-height: 1.2;
+  color: #d6e4ff;
+}
+.vg-names { display: inline; white-space: nowrap; }
+.vg-person { white-space: nowrap; }
+
+/* ---- below: the five (下部5ボタン) ----
+   Each word on one line, never broken inside (作者 2026-10-16: ステー｜タス はしない), the frame's ends at
+   their own size: the words' size follows the buttons' width (five characters between the ends), 11–14px;
+   where the five would be too narrow even so, they take the whole width (below). */
+.vg-menu { grid-area: menu; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; container-type: inline-size; }
+.vg-menu > .kit { width: 100%; font-size: clamp(12px, calc(((100cqw - 24px) / 5 - 32px) / 5.2), 15px); line-height: 1.1; }
+.vg-menu .kit-words { gap: 1px; }
+.kit.vg-menu-btn .kit-text, .vg-menu .kit-text { word-break: keep-all; white-space: nowrap; letter-spacing: 0.02em; }
+/* The English under it: smaller, quieter, one line (WORLD MEMORY fits the button's width). */
+.vg-menu .kit-sub {
+  font-size: clamp(7px, calc(((100cqw - 24px) / 5 - 32px) / 8.2), 9px);
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+/* Narrow (a 640-wide phone): the five across the whole foot, under the panel too, so each is wide enough. */
+@media (max-width: 720px) {
+  .screen.village {
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: 'side map' 'menu menu';
+  }
+  /* The labels first: who is there is read on the place's card (tapped), not on the small map. */
+  .kit.vg-spot .kit-sub { display: none; }
+}
+@media (max-height: 340px) {
+  /* A very short screen: the person a little smaller, so the words keep some room. */
+  .vg-side { grid-template-rows: minmax(84px, 0.6fr) minmax(0, 1fr); }
+  .vg-menu > .kit .kit-sub { display: none; }
+  .vg-member { font-size: 11px; column-gap: 4px; }
+  .vg-hint { font-size: 12px; line-height: 1.5; }
+}
+/* A place's mark sits off its label's corner, clear of the words. */
+.kit.vg-spot .kit-badge { top: -9px; right: -9px; }
+.kit.vg-spot .kit-text { word-break: keep-all; }
+/* The five's NEW on the button's top-right corner, clear of its word. */
+/* (Absolute inside the frame: the frame's edge is added back, so it sits on the outer corner.) */
+.vg-menu .kit-badge { top: calc(var(--kit-edge-t, 0px) * -1 - 4px); right: calc(var(--kit-edge-r, 0px) * -1 - 2px); }
+.vg-menu .kit-badge .new-badge { margin: 0; }
+/* A very short screen: the person's face kept in the small head (the picture shown from a little lower). */
+@media (max-height: 340px) {
+  .vg-who .kit-portrait img { object-position: 50% 22% !important; transform-origin: 50% 22% !important; }
+}

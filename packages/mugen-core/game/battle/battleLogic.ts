@@ -1,0 +1,1557 @@
+// Simple turn-based battle logic. Pure functions, no React / Phaser.
+// v0.1 keeps battle intentionally minimal: attack / defend only.
+
+import { affinityMultiplier, readAffinity, type EnemyAffinity } from './damageType';
+import { BASE_STATS, type PartyStats } from '../../core/progression/levelStats';
+import { usableIn, type ItemUse } from '../../core/economy/items';
+import {
+  isBoosting,
+  isMending,
+  isWarding,
+  type BoostStat,
+  type MagicDef,
+} from '../../core/magic/magic';
+import {
+  hitPoise,
+  phaseAt,
+  phaseChanged,
+  recoverPoise,
+  type EnemyPhase,
+  type EnemyPoiseSpec,
+} from './enemyBehaviour';
+
+export type BattleOutcome = 'ONGOING' | 'VICTORY' | 'DEFEAT';
+
+/**
+ * What the enemy just did, for the screen to play.
+ *
+ * The logic decides; the picture follows. Nothing here knows what a
+ * leaf tackle looks like, and nothing in the screen decides whether one
+ * happened.
+ */
+export type EnemyAction = 'NONE' | 'ATTACK' | 'SKILL';
+
+/** One enemy's numbers and its one trick. Content supplies both. */
+export interface EnemySkillSpec {
+  name: string;
+  /** How many of the player's blows it softens. */
+  turns: number;
+  /** What fraction of a blow still lands while it holds. */
+  damageTaken: number;
+  /** How likely it is to use it on a turn it could. */
+  chance: number;
+  /** Turns before it may be used again. */
+  cooldown: number;
+  /** A hard ceiling per battle, so it can never stall a fight. */
+  maxUses: number;
+  /** Shown when it goes up. */
+  line: string;
+}
+
+/**
+ * Everything outside the two fighters that changes what a blow is worth.
+ *
+ * One number per direction of harm, all of them multipliers, all of them
+ * 1 when nobody has done anything. Kaos helping from the back of the
+ * field is the only thing that sets them today; whatever helps or
+ * hinders later sets the same four, and no damage code has to learn
+ * about it.
+ */
+export interface BattleModifiers {
+  /** What the player's blows are multiplied by. */
+  playerAttack: number;
+  /** What lands on the player, after their own guard. */
+  playerDamageTaken: number;
+  /** What the enemy's blows are multiplied by. */
+  enemyAttack: number;
+  /** What lands on the enemy — its defence, read from the other side. */
+  enemyDamageTaken: number;
+}
+
+/** Nobody has done anything. */
+export const NO_MODIFIERS: BattleModifiers = {
+  playerAttack: 1,
+  playerDamageTaken: 1,
+  enemyAttack: 1,
+  enemyDamageTaken: 1,
+};
+
+/**
+ * A blow, after everything that touches it.
+ *
+ * Multiplied in a stated order and floored at one: a fight where an
+ * attack lands for nothing is worse than a fight that is too easy, and
+ * a stack of modifiers must never reach zero, go negative, or produce a
+ * number that is not a number.
+ */
+function applyDamage(raw: number, multipliers: number[]): number {
+  let value = raw;
+  for (const m of multipliers) value *= Number.isFinite(m) && m > 0 ? m : 1;
+  return Math.max(1, Math.ceil(value));
+}
+
+/**
+ * ONE OF THOSE FOUR NUMBERS, WITH HER HAND ON IT.
+ *
+ * A buff is not a status effect. There is no register of conditions, no
+ * stack of icons, no per-turn tick that has to be remembered in five
+ * places — there is a list of things she has done, each of which says
+ * which of the four multipliers it moves and until when.
+ *
+ * `until` is a turn count rather than a countdown, and that is the
+ * whole trick: nothing has to decrement it, so there is no code path
+ * that can forget to. A boost is live while the fight has not yet
+ * reached that turn, and the fight reaching it is the boost ending.
+ * Two things fall out of that for free — a fight state that is copied,
+ * replayed or rewound carries its boosts correctly, and a battle that
+ * ends mid-buff leaves nothing behind to clean up.
+ */
+export interface ActiveBoost {
+  stat: BoostStat;
+  factor: number;
+  /** The value of `turnsTaken` at which it is over. */
+  until: number;
+  /** What to call it where the player can read it. */
+  name: string;
+  /** Whether it was meant to help or to hinder. For the log line only. */
+  kind: 'BUFF' | 'DEBUFF';
+}
+
+/**
+ * How far the whole stack of them may move one number.
+ *
+ * The battle owns this, not the spell, for the same reason it owns the
+ * ward ceiling: content must not be able to write a fight that is over
+ * before it starts. Three buffs on one number reach this and stop.
+ */
+export const BOOST_MIN = 0.5;
+export const BOOST_MAX = 2;
+
+/** Whether this one is still standing at this point in the fight. */
+function boostLive(boost: ActiveBoost, turnsTaken: number): boolean {
+  return turnsTaken < boost.until;
+}
+
+/**
+ * One of the four multipliers, with everything leaning on it.
+ *
+ * The base — whatever came from outside the fight — times whatever she
+ * has done to it. Every place that used to read `state.modifiers.x`
+ * reads this instead, which is why a buff needed no new arithmetic
+ * anywhere: there was already exactly one number per blow per source,
+ * and this is it.
+ *
+ * The ceiling is on HER SIDE OF THE MULTIPLICATION only, and that
+ * distinction matters. What comes in from outside the fight is the
+ * world's business — a story beat that says this fight is three times
+ * as dangerous is allowed to say so — and clamping it here would have
+ * been this function quietly overruling the thing that set it. What is
+ * clamped is the stack of spells, because that is the part content can
+ * grow without limit. A fight with no boosts in it therefore returns
+ * exactly what `state.modifiers.x` always returned, to the bit.
+ */
+export function pull(state: BattleState, stat: BoostStat): number {
+  let leaning = 1;
+  for (const boost of state.boosts) {
+    if (boostLive(boost, state.turnsTaken)) leaning *= boost.factor;
+  }
+  return state.modifiers[stat] * Math.min(BOOST_MAX, Math.max(BOOST_MIN, leaning));
+}
+
+/**
+ * Whether something of hers is already leaning on this number.
+ *
+ * Asked by AUTO before it spends a turn on a support spell: two spells
+ * pushing the same multiplier is most of a turn thrown away, and an
+ * unattended player that re-casts a shield every four turns is the
+ * thing this question exists to prevent.
+ */
+export function boostHeld(state: BattleState, stat: BoostStat): boolean {
+  return state.boosts.some((boost) => boost.stat === stat && boostLive(boost, state.turnsTaken));
+}
+
+/** The ones still standing, so the list cannot grow across a long fight. */
+export function liveBoosts(state: BattleState): ActiveBoost[] {
+  return state.boosts.filter((boost) => boostLive(boost, state.turnsTaken));
+}
+
+/**
+ * A CREATURE WITH MORE THAN ONE WAY TO HIT — a boss.
+ *
+ * Optional, and absent from every fight there was before it: a creature
+ * without it chooses exactly as it always did, consuming the same dice in
+ * the same order. With it, each of its turns is one of three things —
+ *
+ *   its ordinary blow   (`attackName`, `attackMin`–`attackMax`)
+ *   a harder one        (`heavy`), sometimes, instead
+ *   the gathering       (`charge`): a turn with no blow at all, said out
+ *                       loud, and on its NEXT turn the blow it gathered
+ *                       for (`charge.release`). The saying is the tell:
+ *                       one turn's warning to brace (身構える halves it,
+ *                       as it halves anything).
+ *
+ * Nothing new in how a blow is worked out: a move's `power` is one more
+ * multiplier in the same list every blow already goes through.
+ */
+export interface EnemyMoveSet {
+  /** A harder blow, thrown instead of the ordinary one this often. */
+  heavy: { name: string; power: number; chance: number };
+  charge: {
+    /** What the gathering is called. */
+    name: string;
+    /** Said as it gathers — the tell. */
+    line: string;
+    /** How likely it is to gather on a turn it may. A phase's `skillChance` overrides it. */
+    chance: number;
+    /** Its turns before it may gather again, counted from the release. */
+    cooldown: number;
+    /** Its turns at the start of a fight before it may gather at all. */
+    firstAfter: number;
+    /** The blow it gathered for. */
+    release: { name: string; power: number };
+  };
+  /**
+   * ITS ONE GREAT MOVE, once a fight: the first of its turns after it is
+   * hurt to `atOrBelow` of its health, whatever the dice. No warning turn —
+   * the screen gives it its own cut-in instead — and one blow that reaches
+   * both of them (the party shares its health, so it is one blow, said as
+   * reaching both). Bracing halves it, as it halves anything.
+   */
+  signature?: { name: string; atOrBelow: number; power: number; line: string };
+}
+
+/** Which of its moves the creature just made, for the screen to play. */
+export type EnemyMoveKind = 'BLOW' | 'HEAVY' | 'CHARGE' | 'RELEASE' | 'SIGNATURE';
+
+/**
+ * ONE OF HIS SWORD'S MOVES — a hero skill. No MP: what it costs is time,
+ * `cooldown` turns from one use to the next (a cooldown of 3 is usable
+ * every third turn). `power` is one more multiplier on his swing, in the
+ * same list every swing goes through.
+ */
+export interface HeroSkillSpec {
+  id: string;
+  name: string;
+  power: number;
+  cooldown: number;
+}
+
+export interface EnemySpec {
+  name: string;
+  hp: number;
+  attackMin: number;
+  attackMax: number;
+  /** What its ordinary attack is called. */
+  attackName?: string;
+  skill?: EnemySkillSpec;
+  /** First line of the log, if it has one of its own. */
+  appearLine?: string;
+  /**
+   * Its footing, if this one has any. A creature with none fights
+   * exactly as everything did before poise existed.
+   */
+  poise?: EnemyPoiseSpec;
+  /** How it changes as it is hurt, if it changes at all. */
+  phases?: readonly EnemyPhase[];
+  /**
+   * What it is tough against and what it is soft against. Absent for
+   * anything that simply takes what it is given.
+   */
+  affinity?: EnemyAffinity;
+  /**
+   * The fight in which she first reaches past what she was doing.
+   *
+   * Content, not code: WHICH fight, WHEN in it, and WHAT is said are
+   * all here, so the beat can be moved, retimed or rewritten without
+   * touching the battle. Absent for every other fight, which is most
+   * of them.
+   */
+  awakening?: MagicAwakening;
+  /** More than one way to hit, if this one has them. See `EnemyMoveSet`. */
+  moves?: EnemyMoveSet;
+}
+
+/**
+ * The moment Kaos stops standing at the back of the field.
+ *
+ * Two ways to reach it and the earlier one wins: after so many of the
+ * player's turns, or once the thing they are fighting is hurt past some
+ * share of its health. Two, because a player who is winning fast and a
+ * player who is grinding should both get there — neither should finish
+ * the fight without having been offered the thing the fight exists to
+ * teach.
+ */
+/** What the log says about the awakening when a fight does not say it itself. */
+export const AWAKENING_RECORD = '《魔法》が使えるようになった。';
+
+export interface MagicAwakening {
+  /** After this many of the player's turns. */
+  afterTurns: number;
+  /**
+   * The single line left in the battle log once the scene has been
+   * read. Content, like the lines themselves, so a fight can word it
+   * its own way; omitted, it is the plain one below.
+   */
+  record?: string;
+  /** Or once the enemy is at or below this share of its health. */
+  atOrBelowHp: number;
+  /**
+   * What is said, in order. Placeholder text is expected and fine — it
+   * is data, and replacing it is replacing this array.
+   */
+  lines: readonly { speaker: string | null; text: string }[];
+}
+
+export interface BattleState {
+  playerHp: number;
+  playerMaxHp: number;
+  enemyHp: number;
+  enemyMaxHp: number;
+  enemyName: string;
+  enemyAttackMin: number;
+  enemyAttackMax: number;
+  enemyAttackName: string | null;
+  enemySkill: EnemySkillSpec | null;
+  /** Player blows still softened by the skill. */
+  enemyGuardTurns: number;
+  /** Turns before the skill may be used again. */
+  enemySkillCooldown: number;
+  enemySkillUses: number;
+  /** What the enemy did on its last turn, for the screen to play. */
+  lastEnemyAction: EnemyAction;
+  /**
+   * What the creature's last blow actually cost, after guarding and
+   * after a ward.
+   *
+   * REPORTED, not recomputed. The number was already worked out here —
+   * it is the one in the log line — and the screen needs it to float
+   * it off the wound. Without this the screen would have to take the
+   * difference in health, which is the same number only while nothing
+   * else touched the player's health in the same turn: a spell that
+   * mends and is then answered does, and the floating number would
+   * quietly understate the blow.
+   *
+   * Nought whenever the last thing the creature did was not a blow, so
+   * the field never describes a turn it did not happen in.
+   */
+  lastEnemyDamage: number;
+  /**
+   * Its footing, and what happens when it runs out.
+   *
+   * The middle of a fight needs something to aim at that is not "keep
+   * pressing attack until the bar empties". Null for a creature that
+   * has none, and then nothing below it happens at all.
+   */
+  enemyPoiseSpec: EnemyPoiseSpec | null;
+  enemyPoise: number;
+  enemyMaxPoise: number;
+  /** Turns it is off balance for. While above zero it does not act. */
+  enemyStaggerTurns: number;
+  /** Which of its phases it is in, by id. Null while it is still itself. */
+  enemyPhaseId: string | null;
+  /** Its phases, in the order they are entered. */
+  enemyPhases: readonly EnemyPhase[] | null;
+  /** What it is tough and soft against. Null for most creatures. */
+  enemyAffinity: EnemyAffinity | null;
+  /**
+   * What Kaos has left to spend.
+   *
+   * There is no way to get it back inside a fight, and that is the
+   * whole of the resource for now: a spell is one of a handful of
+   * things she can do today, so casting one is a decision rather than a
+   * button that is always right.
+   */
+  playerMp: number;
+  playerMaxMp: number;
+  /**
+   * What a swing rolls between, this fight.
+   *
+   * ON THE STATE rather than read from a constant at the moment of the
+   * blow, because a fight is a thing that was started with somebody's
+   * numbers: levelling up between one turn and the next is not a thing
+   * that happens, and a swing that quietly got stronger halfway
+   * through would be impossible to reason about afterwards.
+   */
+  playerAttackMin: number;
+  playerAttackMax: number;
+  /** How many turns the player has taken. The awakening counts them. */
+  turnsTaken: number;
+  /**
+   * Whether she has reached past what she was doing, in THIS fight.
+   *
+   * A fight she starts already able to (because she did it in an
+   * earlier one) begins with this true; the fight where it happens
+   * begins false and turns true partway through.
+   */
+  magicUnlocked: boolean;
+  /**
+   * The lines of the moment it happened, once, for the screen to play.
+   *
+   * Emptied by the screen when it has shown them, so a re-render cannot
+   * show them twice.
+   */
+  awakeningLines: readonly { speaker: string | null; text: string }[];
+  /** The beat this fight is carrying, if it carries one. */
+  awakening: MagicAwakening | null;
+  /**
+   * What the player's last action was worth against this creature —
+   * whether it minded, shrugged, or neither. For the log line, and for
+   * an AUTO brain that has to learn the same thing by trying.
+   */
+  lastHitRead: 'WEAK' | 'RESISTED' | 'PLAIN';
+  /**
+   * What is helping or hindering, for this battle only. Held here so it
+   * lives and dies with the fight and cannot leak into the next one.
+   */
+  modifiers: BattleModifiers;
+  /**
+   * What she has leaned on, and until when.
+   *
+   * Empty for every fight nobody has cast a support spell in, which is
+   * every fight the game had before this existed — so a battle with no
+   * buffs in it multiplies by exactly what it always multiplied by.
+   */
+  boosts: readonly ActiveBoost[];
+  /**
+   * What the next blow to reach the player is cut by, once.
+   *
+   * Zero when there is nothing. Unlike the modifiers above it is spent
+   * rather than held: one hit, and it is gone — which is what keeps a
+   * thing that arrives for free from competing with 《身構える》, a
+   * choice the player makes every turn at the cost of their turn.
+   */
+  wardCut: number;
+  /**
+   * How many more blows it has left in it.
+   *
+   * Spent by blows that LAND, not by turns: a creature that spends its
+   * turn hiding has not used anything up. One is what a favour arriving
+   * on its own is worth, and it is what the field was doing before it
+   * could count — everything below falls out of that as the one-blow
+   * case.
+   */
+  wardTurns: number;
+  /** What to call it in the log when it goes. Null when there is none. */
+  wardName: string | null;
+  log: string[];
+  outcome: BattleOutcome;
+  /**
+   * ONLY FOR A CREATURE WITH MOVES (see `EnemyMoveSet`) — absent from
+   * every other fight's state, so those states are exactly what they were.
+   */
+  enemyMoves?: EnemyMoveSet;
+  /** It gathered last turn: its next turn is the release. */
+  enemyCharging?: boolean;
+  /** Its turns before it may gather again. */
+  enemyChargeCooldown?: number;
+  /** Which move it made on its last turn. Null when it made none. */
+  lastEnemyMove?: EnemyMoveKind | null;
+  /** Its great move has been used in this fight. */
+  enemySignatureUsed?: boolean;
+  /**
+   * WHEN HIS SKILLS WERE LAST USED, as `turnsTaken` just after — absent in
+   * any fight he has not used one in, which is every fight there was
+   * before skills existed. Readiness is worked out from it (skillReadyIn).
+   */
+  skillUsedAt?: Readonly<Record<string, number>>;
+  /**
+   * HIS WEAPON'S FIRST-STRIKE ABILITY (BattleOptions.firstStrike) — absent
+   * in every fight he brought none to. Null once his first swing has been
+   * made, whether it applied or not, so it never comes twice.
+   */
+  firstStrike?: FirstStrike | null;
+}
+
+/**
+ * A blow-once ability: his first swing of the fight, made at full HP,
+ * times `multiplier` (the last multiplier on that blow).
+ */
+export interface FirstStrike {
+  name: string;
+  multiplier: number;
+}
+
+/** Random source, injectable for deterministic tests. Returns [0, 1). */
+export type Rng = () => number;
+
+/**
+ * WHAT A SWING IS WORTH BEFORE ANYBODY HAS LEVELLED.
+ *
+ * Exported so the growth curve can be checked against it rather than
+ * repeating it: two copies of a load-bearing number drift, and every
+ * fight in the game was tuned against these.
+ */
+export const PLAYER_ATK_MIN_BASE = 8;
+export const PLAYER_ATK_MAX_BASE = 12;
+/**
+ * The hard ceiling on any one-blow ward, wherever it came from.
+ *
+ * The battle owns this, not the thing that grants it: content must not
+ * be able to hand out a 90% ward by writing a bigger number, because
+ * the two things that already soften a blow are a spent turn and a
+ * favour from Kaos, and nothing free may quietly outclass them.
+ */
+const WARD_MAX_CUT = 0.35;
+
+/** What a summoned memory's green is called, wherever it is said. */
+const ARCANA_WARD_NAME = '森の加護';
+
+/**
+ * What Kaos has to spend in one fight.
+ *
+ * Enough for eight casts of the one spell she has, in a fight that
+ * lasts a little over twenty turns — so a player can learn what magic
+ * is for by using it, and still cannot answer every turn with it. There
+ * is nothing that gives it back mid-fight yet, and adding one is a
+ * design decision rather than an oversight to fix.
+ */
+export const PLAYER_MAX_MP = 48;
+
+/**
+ * What bracing is worth, besides the blow it softens.
+ *
+ * 身構える was a losing move and the simulation said so out loud: a
+ * player who braced every fifth turn won Gald one time in seven, because
+ * halving one blow never pays for a turn not spent hurting him. A
+ * defensive action that is always wrong is not a choice, it is a trap
+ * with a button.
+ *
+ * So bracing is now the other half of having two people. He covers;
+ * she uses the moment to gather. It is the only way her magic comes
+ * back inside a fight, which means the fight has a rhythm — press,
+ * cover, spend — instead of one right answer repeated.
+ */
+export const GUARD_MP_GAIN = 8;
+
+/** The numbers a plain named enemy fights with — Gald's, historically. */
+const DEFAULT_ENEMY: Omit<EnemySpec, 'name'> = { hp: 30, attackMin: 3, attackMax: 6 };
+
+/**
+ * Everything about the fight that comes from OUTSIDE the fight.
+ *
+ * One field so far. It is an options bag rather than a positional
+ * argument because the next one will be too, and because
+ * `createBattle(spec, mods, true)` is a line nobody can read.
+ */
+export interface BattleOptions {
+  /**
+   * Whether Kaos can already do this — decided by the world, not by
+   * the battle. The fight that carries the awakening ignores it.
+   */
+  magicUnlocked?: boolean;
+  /**
+   * What the party brings to this fight, once their levels are counted.
+   *
+   * Handed IN rather than read here, for the same reason as the line
+   * above: how strong somebody is is the world's business, and a
+   * battle that looked levels up itself could not be tested without
+   * one. Absent means level one, which is exactly the four numbers
+   * this file used to hard-code.
+   */
+  stats?: PartyStats;
+  /**
+   * What the party walked in with.
+   *
+   * ABSENT MEANS WHOLE, which is what every fight was before this
+   * existed and what most fights still are. A wound carried in is the
+   * price of a wound being carried OUT, and the free way back to full
+   * is a night's rest — so nobody can be stranded by it.
+   *
+   * Clamped by the caller, not here: this file has never known what a
+   * maximum is except through `stats`, and it should not start.
+   */
+  condition?: { hp: number; mp: number };
+  /**
+   * What his held weapon does to his first swing (World.getHeroFirstStrike).
+   * Absent: the state has no such field and every swing is as it was.
+   */
+  firstStrike?: FirstStrike | null;
+}
+
+export function createBattle(
+  enemy: string | EnemySpec,
+  modifiers: BattleModifiers = NO_MODIFIERS,
+  options: BattleOptions = {},
+): BattleState {
+  const spec: EnemySpec = typeof enemy === 'string' ? { name: enemy, ...DEFAULT_ENEMY } : enemy;
+  const stats = options.stats ?? BASE_STATS;
+  // Whole unless the world says otherwise, and never more than the
+  // party can hold: a saved condition from before a level was lost
+  // must not become a bigger health bar than the level allows.
+  const startHp = Math.max(1, Math.min(stats.maxHp, options.condition?.hp ?? stats.maxHp));
+  const startMp = Math.max(0, Math.min(stats.maxMp, options.condition?.mp ?? stats.maxMp));
+  return {
+    // Raised from 40 with the tempo retune. Forty was two or three of a
+    // bandit's blows, which is why every fight had to be over in two or
+    // three of the player's — the health bar was what made a fight
+    // short, not the enemy's. Everything that heals or protects is
+    // written as a share of this, so the retune is one number.
+    playerHp: startHp,
+    playerMaxHp: stats.maxHp,
+    enemyHp: spec.hp,
+    enemyMaxHp: spec.hp,
+    enemyName: spec.name,
+    enemyAttackMin: spec.attackMin,
+    enemyAttackMax: spec.attackMax,
+    enemyAttackName: spec.attackName ?? null,
+    enemySkill: spec.skill ?? null,
+    enemyGuardTurns: 0,
+    enemySkillCooldown: 0,
+    enemySkillUses: 0,
+    lastEnemyAction: 'NONE',
+    lastEnemyDamage: 0,
+    enemyPoiseSpec: spec.poise ?? null,
+    enemyPoise: spec.poise?.max ?? 0,
+    enemyMaxPoise: spec.poise?.max ?? 0,
+    enemyStaggerTurns: 0,
+    enemyPhaseId: null,
+    enemyPhases: spec.phases ?? null,
+    enemyAffinity: spec.affinity ?? null,
+    playerMp: startMp,
+    playerMaxMp: stats.maxMp,
+    playerAttackMin: stats.attackMin,
+    playerAttackMax: stats.attackMax,
+    turnsTaken: 0,
+    // A fight that carries the awakening beat starts before it; every
+    // other fight starts after whatever the world has already decided.
+    magicUnlocked: spec.awakening ? false : (options.magicUnlocked ?? false),
+    awakeningLines: [],
+    awakening: spec.awakening ?? null,
+    lastHitRead: 'PLAIN',
+    modifiers: { ...modifiers },
+    boosts: [],
+    wardCut: 0,
+    wardTurns: 0,
+    wardName: null,
+    log: [spec.appearLine ?? `${spec.name}が現れた！`],
+    outcome: 'ONGOING',
+    ...(options.firstStrike ? { firstStrike: { ...options.firstStrike } } : {}),
+    ...(spec.moves
+      ? {
+          enemyMoves: spec.moves,
+          enemyCharging: false,
+          enemyChargeCooldown: spec.moves.charge.firstAfter,
+          lastEnemyMove: null,
+        }
+      : {}),
+  };
+}
+
+function roll(min: number, max: number, rng: Rng): number {
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+/**
+ * The enemy's turn: hide, or come at you.
+ *
+ * The one rule beyond the dice is that a fight must keep moving. The
+ * skill cannot be used while it is already up, cannot be used again for
+ * a few turns, and cannot be used more than a set number of times in
+ * one battle — so an animal that protects itself never turns into a
+ * wall the player cannot get past.
+ */
+function enemyTurn(
+  state: BattleState,
+  defending: boolean,
+  rng: Rng,
+  forced: EnemyAction | null = null,
+): BattleState {
+  if (state.enemyHp <= 0) return state;
+
+  // Off balance: its turn goes on getting its footing back. This is what
+  // makes breaking a guard worth doing rather than a turn thrown away —
+  // the reward is the creature's next move, not a bigger number.
+  if (state.enemyStaggerTurns > 0) {
+    const back = recoverPoise(state.enemyPoiseSpec, state.enemyPoise, state.enemyStaggerTurns);
+    return {
+      ...state,
+      enemyPoise: back.poise,
+      enemyStaggerTurns: back.staggerTurns,
+      enemySkillCooldown: Math.max(0, state.enemySkillCooldown - 1),
+      lastEnemyAction: 'NONE',
+    lastEnemyDamage: 0,
+      ...(state.enemyMoves ? { lastEnemyMove: null } : {}),
+      log: back.recovered && state.enemyPoiseSpec
+        ? [...state.log, state.enemyPoiseSpec.recoverLine]
+        : state.log,
+    };
+  }
+
+  const phase = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
+  const cooldown = Math.max(0, state.enemySkillCooldown - 1);
+  if (state.enemyMoves) return movesTurn(state, state.enemyMoves, defending, rng, forced, phase, cooldown);
+  const skill = state.enemySkill;
+  const mayHide =
+    skill !== null &&
+    cooldown === 0 &&
+    state.enemyGuardTurns === 0 &&
+    state.enemySkillUses < skill.maxUses;
+  const skillChance = phase?.skillChance ?? skill?.chance ?? 0;
+  const hides =
+    forced === 'SKILL' ? mayHide : forced === 'ATTACK' ? false : mayHide && rng() < skillChance;
+
+  if (hides && skill) {
+    return {
+      ...state,
+      enemyGuardTurns: skill.turns,
+      enemySkillCooldown: skill.cooldown,
+      enemySkillUses: state.enemySkillUses + 1,
+      lastEnemyAction: 'SKILL',
+      lastEnemyDamage: 0,
+      log: [...state.log, skill.line],
+    };
+  }
+
+  return landBlow(state, defending, rng, phase, cooldown, null);
+}
+
+/**
+ * ONE BLOW REACHING THE PLAYER — the ordinary one, or a move's.
+ *
+ * `move` null is the creature's ordinary blow, worked out exactly as it
+ * always was (no extra multiplier, the same dice). A move adds its
+ * `power` to the same list and its own name to the log.
+ */
+function landBlow(
+  state: BattleState,
+  defending: boolean,
+  rng: Rng,
+  phase: EnemyPhase | null,
+  cooldown: number,
+  move: { name: string; power: number; kind: EnemyMoveKind } | null,
+): BattleState {
+  // What reaches the player, in this order and no other: what it can
+  // hit for, what Kaos took off it, what she put between them, whether
+  // he braced, and last whatever a summoned memory left behind.
+  // Everything is a multiplier, so 「身構える」 and 《ケイオスの守護》
+  // stack rather than one cancelling the other — and the result can
+  // still never be less than one.
+  const warded = state.wardCut > 0;
+  const struck = applyDamage(roll(state.enemyAttackMin, state.enemyAttackMax, rng), [
+    pull(state, 'enemyAttack'),
+    pull(state, 'playerDamageTaken'),
+    // What being hurt has made of it. A creature that fights harder as
+    // it is cornered is the difference between a health bar and an
+    // animal that does not want to die.
+    phase?.attack ?? 1,
+    defending ? 0.5 : 1,
+    ...(move ? [move.power] : []),
+  ]);
+  // The ward is taken off, not multiplied in — and it always takes at
+  // least one point. A fifth off a blow of four is 3.2, which rounds
+  // back up to four, and a protection that measurably does nothing is
+  // exactly the problem this whole feature exists to fix. Subtracting
+  // keeps it honest at the numbers a small animal actually hits for,
+  // and the floor of one keeps a blow from ever landing for nothing.
+  const soften = warded ? Math.max(1, Math.round(struck * state.wardCut)) : 0;
+  const dmg = Math.max(1, struck - soften);
+  const playerHp = Math.max(0, state.playerHp - dmg);
+  const named = move ? move.name : state.enemyAttackName;
+  const said = named ? `${state.enemyName}の${named}` : `${state.enemyName}の攻撃`;
+  // Said before the blow, not after: the last line of the log is what
+  // the screen shows, and what the player needs to read there is the
+  // damage. Spent whether it saved much or little — it was one blow's
+  // worth of green, and the blow has happened.
+  // One blow off it. A ward worth one blow — every ward there was
+  // before a spell could grant one — reaches nought here and behaves
+  // exactly as it always did.
+  const wardLeft = warded ? Math.max(0, state.wardTurns - 1) : state.wardTurns;
+  const wardGone = warded && wardLeft === 0;
+  const log = [
+    ...state.log,
+    // Said when it actually goes, not every time it works: a line that
+    // appears on all four blows of a shield is a line nobody reads.
+    ...(wardGone ? [`《${state.wardName ?? ARCANA_WARD_NAME}》が、そっと解けた。`] : []),
+    defending ? `${said}。防御して${dmg}のダメージ。` : `${said}！ ${dmg}のダメージ。`,
+  ];
+  const outcome: BattleOutcome = playerHp <= 0 ? 'DEFEAT' : state.outcome;
+  return {
+    ...state,
+    playerHp,
+    enemySkillCooldown: cooldown,
+    lastEnemyAction: 'ATTACK',
+    lastEnemyDamage: dmg,
+    wardCut: wardLeft > 0 ? state.wardCut : 0,
+    wardTurns: wardLeft,
+    wardName: wardLeft > 0 ? state.wardName : null,
+    log,
+    outcome,
+    ...(state.enemyMoves ? { lastEnemyMove: move?.kind ?? 'BLOW' } : {}),
+  };
+}
+
+
+/**
+ * A TURN FOR A CREATURE WITH MOVES. See `EnemyMoveSet`.
+ *
+ *   gathered last turn  → the release, whatever the dice say
+ *   may gather          → gathers, this often (no blow; the tell is said)
+ *   otherwise           → the harder blow this often, else the ordinary one
+ *
+ * Forced like any other turn, for the previews and the tests: 'SKILL' is
+ * the gathering (when it may), 'ATTACK' the ordinary blow.
+ */
+function movesTurn(
+  state: BattleState,
+  moves: EnemyMoveSet,
+  defending: boolean,
+  rng: Rng,
+  forced: EnemyAction | null,
+  phase: EnemyPhase | null,
+  cooldown: number,
+): BattleState {
+  if (state.enemyCharging) {
+    const released = landBlow(state, defending, rng, phase, cooldown, {
+      name: moves.charge.release.name,
+      power: moves.charge.release.power,
+      kind: 'RELEASE',
+    });
+    return { ...released, enemyCharging: false, enemyChargeCooldown: moves.charge.cooldown };
+  }
+  const chargeCooldown = Math.max(0, (state.enemyChargeCooldown ?? 0) - 1);
+  const signature = moves.signature;
+  if (
+    signature &&
+    !state.enemySignatureUsed &&
+    state.enemyMaxHp > 0 &&
+    state.enemyHp / state.enemyMaxHp <= signature.atOrBelow
+  ) {
+    const struck = landBlow(
+      { ...state, enemyChargeCooldown: chargeCooldown, log: [...state.log, signature.line] },
+      defending,
+      rng,
+      phase,
+      cooldown,
+      { name: `《${signature.name}》`, power: signature.power, kind: 'SIGNATURE' },
+    );
+    return { ...struck, enemySignatureUsed: true };
+  }
+  const mayGather = (state.enemyChargeCooldown ?? 0) === 0;
+  const gatherChance = phase?.skillChance ?? moves.charge.chance;
+  const gathers =
+    forced === 'SKILL' ? mayGather : forced === 'ATTACK' ? false : mayGather && rng() < gatherChance;
+  if (gathers) {
+    return {
+      ...state,
+      enemySkillCooldown: cooldown,
+      enemyCharging: true,
+      enemyChargeCooldown: chargeCooldown,
+      // Reported as its trick, so a screen that knows nothing of moves
+      // still sees "it did something that was not a blow".
+      lastEnemyAction: 'SKILL',
+      lastEnemyDamage: 0,
+      lastEnemyMove: 'CHARGE',
+      log: [...state.log, moves.charge.line],
+    };
+  }
+  const heavy = forced !== 'ATTACK' && rng() < moves.heavy.chance;
+  const struck = landBlow(
+    { ...state, enemyChargeCooldown: chargeCooldown },
+    defending,
+    rng,
+    phase,
+    cooldown,
+    heavy ? { name: moves.heavy.name, power: moves.heavy.power, kind: 'HEAVY' } : null,
+  );
+  return struck;
+}
+
+export function playerAttack(
+  state: BattleState,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  return swing(state, rng, forcedEnemyAction, null);
+}
+
+/** How many turns until his skill may be used again; 0 is now. */
+export function skillReadyIn(state: BattleState, skill: HeroSkillSpec): number {
+  const usedAt = state.skillUsedAt?.[skill.id];
+  if (usedAt === undefined) return 0;
+  return Math.max(0, usedAt + skill.cooldown - 1 - state.turnsTaken);
+}
+
+/**
+ * ONE OF HIS SKILLS: his swing, made harder by the skill's power, and then
+ * the creature's turn as after any swing. Refused (the state as it was)
+ * while it is not ready or the fight is over.
+ */
+export function playerSkill(
+  state: BattleState,
+  skill: HeroSkillSpec,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (state.outcome !== 'ONGOING' || skillReadyIn(state, skill) > 0) return state;
+  return swing(state, rng, forcedEnemyAction, skill);
+}
+
+/** His swing — plain (`skill` null, exactly as 攻撃 always was) or a skill's. */
+function swing(
+  state: BattleState,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+  skill: HeroSkillSpec | null,
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  // Whatever the enemy put between itself and the blow, it is worn
+  // through by taking one.
+  const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
+  const staggered = state.enemyStaggerTurns > 0;
+  const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
+  // What this creature thinks of a sword. Most think nothing.
+  const affinity = affinityMultiplier(state.enemyAffinity, 'PHYSICAL');
+  // His weapon's first-strike: the first swing only, and only at full HP.
+  const flash = state.firstStrike && state.playerHp >= state.playerMaxHp ? state.firstStrike : null;
+  const dmg = applyDamage(roll(state.playerAttackMin, state.playerAttackMax, rng), [
+    pull(state, 'playerAttack'),
+    pull(state, 'enemyDamageTaken'),
+    guarded ? state.enemySkill!.damageTaken : 1,
+    // Off balance and open. This is the reward for having broken it.
+    staggered ? (state.enemyPoiseSpec?.staggerDamageTaken ?? 1) : 1,
+    // Some creatures get harder to hurt as they get serious.
+    wasIn?.damageTaken ?? 1,
+    affinity,
+    ...(skill ? [skill.power] : []),
+    // Last: the final multiplier on the blow.
+    ...(flash ? [flash.multiplier] : []),
+  ]);
+  const enemyHp = Math.max(0, state.enemyHp - dmg);
+  // Its footing, taken by the blow. A blow that lands on a guard takes
+  // more of it: breaking the guard is the point of hitting it.
+  const footing = hitPoise(state.enemyPoiseSpec, state.enemyPoise, state.enemyStaggerTurns, guarded);
+  let next: BattleState = {
+    ...state,
+    enemyHp,
+    turnsTaken: state.turnsTaken + 1,
+    lastHitRead: readAffinity(affinity),
+    enemyGuardTurns: footing.broke ? 0 : Math.max(0, state.enemyGuardTurns - 1),
+    enemyPoise: footing.poise,
+    enemyStaggerTurns: footing.staggerTurns,
+    ...(skill ? { skillUsedAt: { ...state.skillUsedAt, [skill.id]: state.turnsTaken + 1 } } : {}),
+    ...(state.firstStrike ? { firstStrike: null } : {}),
+    log: [
+      ...state.log,
+      ...(flash ? [`《${flash.name}》！`] : []),
+      guarded
+        ? `${skill ? `《${skill.name}》` : '攻撃'}！ ${state.enemySkill!.name}に阻まれ、${dmg}のダメージ。`
+        : `${skill ? `《${skill.name}》` : '攻撃'}！ ${state.enemyName}に${dmg}のダメージ。`,
+      // Losing its footing is a moment, so it gets its own line rather
+      // than being buried in the damage number.
+      ...(footing.broke && state.enemyPoiseSpec ? [state.enemyPoiseSpec.breakLine] : []),
+    ],
+  };
+  if (enemyHp <= 0) {
+    // 敵HP0では倒さない。人生選択（LIFE CHOICE）へ委ねる。
+    return { ...next, outcome: 'VICTORY', log: [...next.log, `${state.enemyName}は膝をついた……。`] };
+  }
+  // Crossed into something else on the way down. Said once, before its
+  // turn, because what it does next is what the line is about.
+  const nowIn = phaseAt(next.enemyPhases, next.enemyHp, next.enemyMaxHp);
+  if (phaseChanged(wasIn, nowIn) && nowIn) {
+    next = { ...next, enemyPhaseId: nowIn.id, log: [...next.log, nowIn.line] };
+  }
+  next = awaken(next);
+  next = enemyTurn(next, false, rng, forcedEnemyAction);
+  return next;
+}
+
+/**
+ * The moment she reaches past what she was doing.
+ *
+ * Checked after the player's action and before the creature's, because
+ * what she says belongs to the pause between the two. It happens once:
+ * the flag is what stops it, not a count, so healing the enemy back
+ * over the threshold cannot make her do it again.
+ */
+function awaken(state: BattleState): BattleState {
+  const beat = state.awakening;
+  if (!beat || state.magicUnlocked || state.outcome !== 'ONGOING') return state;
+  const hurtEnough = state.enemyMaxHp > 0 && state.enemyHp / state.enemyMaxHp <= beat.atOrBelowHp;
+  const longEnough = state.turnsTaken >= beat.afterTurns;
+  if (!hurtEnough && !longEnough) return state;
+  return {
+    ...state,
+    magicUnlocked: true,
+    // Handed to the screen to play as a scene, and NOT written into the
+    // log yet. The log sits behind the scene and is readable while it
+    // plays, so copying the lines in here printed the last one — the one
+    // that says what just happened — before the player had tapped
+    // through to it. The log gets its one-line record when the scene is
+    // over, in clearAwakeningLines.
+    awakeningLines: beat.lines,
+  };
+}
+
+/**
+ * Kaos casts, and that is the player's action for this turn.
+ *
+ * The one rule this whole feature is built around: it does NOT come on
+ * top of a swing. The player has one action and this is it — which is
+ * what makes "who should do this one" a question rather than a formality.
+ */
+export function castMagic(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  if (!state.magicUnlocked) return state;
+  if (state.playerMp < magic.mpCost) return state;
+
+  // Neither of hers that is aimed at your own side is a blow with the
+  // sign flipped: nothing is struck, nothing loses its footing, and no
+  // creature has an opinion about them. They take the turn and the
+  // creature answers, which is the only thing all three have in common.
+  if (isMending(magic)) return castMending(state, magic, rng, forcedEnemyAction);
+  if (isWarding(magic)) return castWarding(state, magic, rng, forcedEnemyAction);
+  if (isBoosting(magic)) return castBoost(state, magic, rng, forcedEnemyAction);
+
+  const guarded = state.enemyGuardTurns > 0 && state.enemySkill !== null;
+  const staggered = state.enemyStaggerTurns > 0;
+  const wasIn = phaseAt(state.enemyPhases, state.enemyHp, state.enemyMaxHp);
+  const affinity = affinityMultiplier(state.enemyAffinity, magic.type, magic.element);
+  const dmg = applyDamage(magic.power, [
+    pull(state, 'enemyDamageTaken'),
+    // A raised guard stops a blow. Whether it stops a spell is the
+    // spell's business, and hers it does not — which is the reason to
+    // ever cast one at something that has no opinion about magic.
+    guarded && magic.blockedByGuard ? state.enemySkill!.damageTaken : 1,
+    staggered ? (state.enemyPoiseSpec?.staggerDamageTaken ?? 1) : 1,
+    wasIn?.damageTaken ?? 1,
+    affinity,
+  ]);
+  const enemyHp = Math.max(0, state.enemyHp - dmg);
+  // Light does not knock anybody over. A spell that costs no footing
+  // takes none, and breaking a guard stays the sword's job.
+  const footing =
+    magic.poiseCost > 0
+      ? hitPoise(state.enemyPoiseSpec, state.enemyPoise, state.enemyStaggerTurns, guarded)
+      : { poise: state.enemyPoise, staggerTurns: state.enemyStaggerTurns, broke: false };
+
+  const read = readAffinity(affinity);
+  let next: BattleState = {
+    ...state,
+    enemyHp,
+    playerMp: state.playerMp - magic.mpCost,
+    turnsTaken: state.turnsTaken + 1,
+    lastHitRead: read,
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    enemyPoise: footing.poise,
+    enemyStaggerTurns: footing.staggerTurns,
+    log: [
+      ...state.log,
+      magic.line,
+      `《${magic.name}》！ ${state.enemyName}に${dmg}のダメージ。` +
+        (read === 'WEAK' ? ' 効果は絶大だ！' : read === 'RESISTED' ? ' 手ごたえが薄い。' : ''),
+      ...(footing.broke && state.enemyPoiseSpec ? [state.enemyPoiseSpec.breakLine] : []),
+    ],
+  };
+  if (enemyHp <= 0) {
+    return { ...next, outcome: 'VICTORY', log: [...next.log, `${state.enemyName}は膝をついた……。`] };
+  }
+  const nowIn = phaseAt(next.enemyPhases, next.enemyHp, next.enemyMaxHp);
+  if (phaseChanged(wasIn, nowIn) && nowIn) {
+    next = { ...next, enemyPhaseId: nowIn.id, log: [...next.log, nowIn.line] };
+  }
+  next = awaken(next);
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * Her hands rather than her fingertips.
+ *
+ * Health where there is room for it, and an honest line where there is
+ * not: a player who spent twelve of their power and their whole turn
+ * on a full health bar is owed being told so, not left wondering
+ * whether the button worked. Same reasoning as `healPlayer`, which is
+ * the summon's version of this and deliberately does NOT take the turn.
+ *
+ * The creature's guard ticks down because a turn passed, and its
+ * footing is untouched because nothing hit it.
+ */
+function castMending(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+): BattleState {
+  const healed = Math.min(magic.power, state.playerMaxHp - state.playerHp);
+  const next = awaken({
+    ...state,
+    playerHp: state.playerHp + healed,
+    playerMp: state.playerMp - magic.mpCost,
+    turnsTaken: state.turnsTaken + 1,
+    // `lastHitRead` is deliberately left as it was. Nothing was struck,
+    // so there is no reading to report, and 《身構える》 leaves it alone
+    // for the same reason.
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      magic.line,
+      healed > 0
+        ? `《${magic.name}》！ HPが${healed}回復した。`
+        : `《${magic.name}》……HPはもう満ちている。`,
+    ],
+  });
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * Her hand on one of the numbers, for a few turns.
+ *
+ * The third thing she can do with a turn that is not a blow, and the
+ * one that makes her a support rather than a second sword: it does
+ * nothing at all this turn and changes every turn after it. Which is
+ * also why it is only worth casting in a fight that is going to last —
+ * exactly the judgement the player should be making.
+ *
+ * A spell written as a boost with no boost on it takes the turn and the
+ * power and changes nothing, rather than throwing: content being wrong
+ * must not be able to end a fight in an error dialog.
+ */
+function castBoost(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+): BattleState {
+  const turnsTaken = state.turnsTaken + 1;
+  const boost = magic.boost;
+  // Measured from AFTER this turn, so a three-turn boost is live for
+  // the creature's reply to this cast and the two player turns that
+  // follow — which is what a player counting on their fingers expects.
+  const added: ActiveBoost[] = boost
+    ? [
+        {
+          stat: boost.stat,
+          factor: boost.factor,
+          until: turnsTaken + Math.max(1, Math.floor(boost.turns)),
+          name: magic.name,
+          kind: magic.effect === 'BUFF' ? 'BUFF' : 'DEBUFF',
+        },
+      ]
+    : [];
+  const next = awaken({
+    ...state,
+    playerMp: state.playerMp - magic.mpCost,
+    turnsTaken,
+    // Dropping the spent ones here is the only pruning there is: a
+    // fight that never casts one never grows the list, and one that
+    // casts twenty holds at most the live ones.
+    boosts: [...liveBoosts({ ...state, turnsTaken }), ...added],
+    // Nothing was struck, so the last thing struck is not news.
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      magic.line,
+      boost
+        ? `《${magic.name}》！ ${boostLine(magic, boost.turns)}`
+        : `《${magic.name}》……何も起こらなかった。`,
+    ],
+  });
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * What the player is told a boost did, in the words of the thing it
+ * moved.
+ *
+ * Read off `stat` rather than written into each spell, so a second
+ * spell that lowers the creature's attack says the same sentence as the
+ * first and nobody has to keep two strings in agreement.
+ */
+function boostLine(magic: MagicDef, turns: number): string {
+  const up = (magic.boost?.factor ?? 1) > 1;
+  const held = `（${Math.max(1, Math.floor(turns))}ターン）`;
+  switch (magic.boost?.stat) {
+    case 'playerAttack':
+      return `${up ? '攻撃力が上がった' : '攻撃力が下がった'}。${held}`;
+    case 'playerDamageTaken':
+      return `${up ? '受けるダメージが増えた' : '身が軽くなった'}。${held}`;
+    case 'enemyAttack':
+      return `${up ? '敵の攻撃が鋭くなった' : '敵の攻撃が鈍った'}。${held}`;
+    case 'enemyDamageTaken':
+      return `${up ? '敵の守りが緩んだ' : '敵の守りが固くなった'}。${held}`;
+    default:
+      return `${held}`;
+  }
+}
+
+/**
+ * Something between the party and what is coming.
+ *
+ * Set up before the blow rather than answered after it, which is the
+ * whole of why this is not the mending spell wearing a different name.
+ * The creature answers this turn like it answers any other, so the
+ * shield is already up when its reply lands — the first of the blows it
+ * was bought for.
+ *
+ * `grantWard` has the last word on how thick it is: the battle holds a
+ * ceiling on any one ward and content asks rather than tells.
+ */
+function castWarding(
+  state: BattleState,
+  magic: MagicDef,
+  rng: Rng,
+  forcedEnemyAction: EnemyAction | null,
+): BattleState {
+  const ward = magic.ward ?? { cut: 0, blows: 1 };
+  const shielded = grantWard(
+    {
+      ...state,
+      playerMp: state.playerMp - magic.mpCost,
+      turnsTaken: state.turnsTaken + 1,
+      // Nothing was struck, so the last thing struck is not news.
+      enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    },
+    ward.cut,
+    magic.line,
+    { blows: ward.blows, name: magic.name },
+  );
+  return enemyTurn(awaken(shielded), false, rng, forcedEnemyAction);
+}
+
+/** The screen has played the awakening scene; it must not play twice. */
+export function clearAwakeningLines(state: BattleState): BattleState {
+  if (state.awakeningLines.length === 0) return state;
+  // One line, now that the scene has been read, so a player who taps
+  // through it quickly can still find out what changed.
+  return {
+    ...state,
+    awakeningLines: [],
+    log: [...state.log, state.awakening?.record ?? AWAKENING_RECORD],
+  };
+}
+
+export function playerDefend(
+  state: BattleState,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  const gathered = Math.min(state.playerMaxMp, state.playerMp + GUARD_MP_GAIN);
+  const gained = gathered - state.playerMp;
+  const next = awaken({
+    ...state,
+    playerMp: gathered,
+    turnsTaken: state.turnsTaken + 1,
+    log: [
+      ...state.log,
+      '身構えた。',
+      // Only said when it did something. A line that appears every
+      // turn saying "nothing happened" is noise.
+      ...(gained > 0 ? [`ケイオスが息を整えた。MPが${gained}回復。`] : []),
+    ],
+  });
+  return enemyTurn(next, true, rng, forcedEnemyAction);
+}
+
+/**
+ * WHY SOMETHING IN THE BAG CANNOT BE USED RIGHT NOW.
+ *
+ * A reason rather than a boolean, and that is the whole point: a
+ * button that is simply not there teaches a player nothing, and one
+ * that is greyed out with no explanation teaches them that the game is
+ * broken. Every refusal here is something the screen can say out loud.
+ *
+ * Null means it can be used.
+ */
+export type ItemRefusal =
+  | 'FIGHT_OVER'
+  | 'NOT_IN_A_FIGHT'
+  | 'NOT_IN_THE_FIELD'
+  | 'NONE_LEFT'
+  | 'ALREADY_WELL'
+  | 'ALREADY_FULL'
+  /** Aimed at somebody who is not in the party. */
+  | 'NO_SUCH_TARGET';
+
+/**
+ * EVERYTHING A REFUSAL NEEDS TO KNOW, wherever it is being asked.
+ *
+ * The same question is now asked in two places — the tray in a fight
+ * and the bag on the road — and both must get the same answer for the
+ * same reason. So the rule takes a description of the situation rather
+ * than a battle: what the party has left, what their ceilings are, and
+ * where they are standing.
+ */
+export interface UseSituation {
+  place: 'BATTLE' | 'FIELD';
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
+  /** BATTLE only: the fight has already been decided. */
+  settled?: boolean;
+}
+
+export function refuseUse(
+  where: UseSituation,
+  use: ItemUse,
+  held: number,
+): ItemRefusal | null {
+  if (held <= 0) return 'NONE_LEFT';
+  if (!usableIn(use.where, where.place)) {
+    return where.place === 'BATTLE' ? 'NOT_IN_THE_FIELD' : 'NOT_IN_A_FIGHT';
+  }
+  if (where.place === 'BATTLE' && where.settled) return 'FIGHT_OVER';
+  // Spending something on a gap that is not there is not a decision,
+  // it is a mistake the game let the player make. Both kinds refuse
+  // the same way and for the same reason, in a fight and out of one.
+  if (use.kind === 'HEAL' && where.hp >= where.maxHp) return 'ALREADY_WELL';
+  if (use.kind === 'RESTORE_MP' && where.mp >= where.maxMp) return 'ALREADY_FULL';
+  return null;
+}
+
+/** The same question, asked of a fight. */
+export function refuseItem(
+  state: BattleState | null,
+  use: ItemUse,
+  held: number,
+): ItemRefusal | null {
+  if (!state) {
+    // No fight and nothing else known: only the two answers that can
+    // be given without a party to look at.
+    if (held <= 0) return 'NONE_LEFT';
+    return usableIn(use.where, 'FIELD') ? null : 'NOT_IN_A_FIGHT';
+  }
+  return refuseUse(
+    {
+      place: 'BATTLE',
+      hp: state.playerHp,
+      maxHp: state.playerMaxHp,
+      mp: state.playerMp,
+      maxMp: state.playerMaxMp,
+      settled: state.outcome !== 'ONGOING',
+    },
+    use,
+    held,
+  );
+}
+
+/**
+ * WHAT A USE PUTS BACK, worked out once for both places.
+ *
+ * The bag on the road and the tray in a fight must agree to the
+ * number, so neither of them owns the arithmetic: this does, and both
+ * ask it.
+ */
+export function useYield(
+  use: ItemUse,
+  where: Pick<UseSituation, 'hp' | 'maxHp' | 'mp' | 'maxMp'>,
+): { given: number; stat: 'HP' | 'MP' } {
+  const room = use.kind === 'HEAL' ? where.maxHp - where.hp : where.maxMp - where.mp;
+  return {
+    given: Math.max(0, Math.min(use.amount, room)),
+    stat: use.kind === 'HEAL' ? 'HP' : 'MP',
+  };
+}
+
+/** What to tell the player, in their own language. */
+export function itemRefusalLine(refusal: ItemRefusal, itemName: string): string {
+  switch (refusal) {
+    case 'NONE_LEFT':
+      return `${itemName}は もう持っていない。`;
+    case 'NOT_IN_A_FIGHT':
+      return `${itemName}は 戦いの中でしか使えない。`;
+    case 'NOT_IN_THE_FIELD':
+      return `${itemName}は 戦いの中では使えない。`;
+    case 'ALREADY_WELL':
+      return '傷はない。';
+    case 'ALREADY_FULL':
+      return '魔力は満ちている。';
+    case 'NO_SUCH_TARGET':
+      return 'その相手には使えない。';
+    case 'FIGHT_OVER':
+      return 'もう戦いは終わっている。';
+  }
+}
+
+/**
+ * Using something out of the bag, which IS the turn.
+ *
+ * The same shape as casting and as bracing, and deliberately so: it
+ * ends the player's action and hands the creature its own. A game
+ * where drinking a potion is free is a game where the answer to being
+ * hurt is always "drink a potion", and the fight stops being a
+ * sequence of decisions.
+ *
+ * It does NOT take the item out of the bag — the bag belongs to the
+ * world and this file has never touched it. The caller spends it, and
+ * the caller is the one that can refuse.
+ */
+export function useItem(
+  state: BattleState,
+  use: ItemUse,
+  rng: Rng = Math.random,
+  forcedEnemyAction: EnemyAction | null = null,
+): BattleState {
+  if (refuseItem(state, use, 1) !== null) return state;
+  // The arithmetic is shared with the bag on the road, so the two
+  // places can never disagree about what a herb is worth.
+  const { given, stat } = useYield(use, {
+    hp: state.playerHp,
+    maxHp: state.playerMaxHp,
+    mp: state.playerMp,
+    maxMp: state.playerMaxMp,
+  });
+  const next = awaken({
+    ...state,
+    playerHp: use.kind === 'HEAL' ? state.playerHp + given : state.playerHp,
+    playerMp: use.kind === 'RESTORE_MP' ? state.playerMp + given : state.playerMp,
+    turnsTaken: state.turnsTaken + 1,
+    // Nothing was struck, so there is no reading to report — the same
+    // reason 《身構える》 and her mending both leave it alone.
+    enemyGuardTurns: Math.max(0, state.enemyGuardTurns - 1),
+    log: [
+      ...state.log,
+      use.line,
+      // The refusal above means this is all but always the first
+      // branch. The second is here because "it did nothing" is still a
+      // thing that happened, and silence would read as a bug.
+      given > 0 ? `${stat}が${given}回復した。` : `${stat}はもう満ちている。`,
+    ],
+  });
+  return enemyTurn(next, false, rng, forcedEnemyAction);
+}
+
+/**
+ * Something put health back into the player, without taking a turn.
+ *
+ * Kept separate from the two commands on purpose: a summoned ARCANA
+ * arrives, does one thing and goes, and it is not the player spending
+ * their turn — the creature's move is not skipped for it, and a fight
+ * that is already over is not reopened by it.
+ *
+ * Healing at full health is not an error and not a refusal: it is a
+ * thing that happened and did nothing, and the log says so, because a
+ * player who spent their one summon on it deserves to be told rather
+ * than left wondering whether the button worked.
+ */
+export function healPlayer(state: BattleState, amount: number, line?: string): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  const asked = Number.isFinite(amount) ? Math.max(0, Math.floor(amount)) : 0;
+  const healed = Math.min(asked, state.playerMaxHp - state.playerHp);
+  const log = [...state.log];
+  if (line) log.push(line);
+  log.push(healed > 0 ? `HPが${healed}回復した。` : 'HPはもう満ちている。');
+  return { ...state, playerHp: state.playerHp + healed, log };
+}
+
+/**
+ * Something left a little green behind, to take the edge off one blow.
+ *
+ * Capped hard, and spent on the first hit that lands. It is not a
+ * shield and must never read as one: 《身構える》 costs the player
+ * their turn and halves a blow, and 《ケイオスの守護》 is her own
+ * favour — a thing that arrives on its own and asks nothing must be
+ * worth clearly less than either.
+ */
+export function grantWard(
+  state: BattleState,
+  cut: number,
+  line?: string,
+  /**
+   * How many blows, and what it is called. Left out, it is one blow of
+   * the green a summoned memory leaves — which is every ward that
+   * existed before a spell could grant one.
+   */
+  worth: { blows?: number; name?: string } = {},
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  const asked = Number.isFinite(cut) ? cut : 0;
+  const wardCut = Math.min(WARD_MAX_CUT, Math.max(0, asked));
+  const blows = Math.max(1, Math.floor(worth.blows ?? 1));
+  const name = worth.name ?? ARCANA_WARD_NAME;
+  const log = [...state.log];
+  if (line) log.push(line);
+  // Never silent, even when it changes nothing worth a number: the
+  // player watched something arrive, and being told nothing is what
+  // made the old version of this feel like a bug.
+  log.push(wardCut > 0 ? `《${name}》を得た。` : 'なにも起こらなかった。');
+  if (wardCut <= 0) return { ...state, log };
+  // The better of the two, kept whole: a thinner ward must not shorten
+  // a thicker one and a shorter one must not thin it.
+  const keepNew = wardCut >= state.wardCut;
+  return {
+    ...state,
+    wardCut: Math.max(state.wardCut, wardCut),
+    wardTurns: keepNew ? blows : Math.max(state.wardTurns, blows),
+    wardName: keepNew ? name : state.wardName,
+    log,
+  };
+}
+
+/**
+ * One thing with two faces: health where there is room for it, and a
+ * little cover where there is not.
+ *
+ * This is the whole answer to "a summon at the start of a fight heals
+ * a player who is not hurt, and so does nothing". It is not a second
+ * ability and not a consolation prize — it is the same green, doing
+ * the only thing left for it to do. Which face the player gets is
+ * decided here rather than in the screen, so it is one rule with one
+ * test rather than a branch drawn twice.
+ */
+export function mendPlayer(
+  state: BattleState,
+  effect: { heal: number; ward: number },
+  line?: string,
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  const hurt = state.playerHp < state.playerMaxHp;
+  return hurt
+    ? healPlayer(state, effect.heal, line)
+    : grantWard(state, effect.ward, line);
+}
+
+/**
+ * Something enormous hits every enemy at once.
+ *
+ * "Every" is the point of this function existing. A battle today holds
+ * exactly one creature, so the loop below is a loop over one — but the
+ * notion of hitting all of them lives here, in one place, rather than
+ * being spelled `state.enemyHp -= n` at the call site. When the state
+ * grows a list of enemies, this is the only body that changes and
+ * every caller keeps working.
+ *
+ * The knock-down rule is untouched: an enemy brought to zero by this
+ * is VICTORY, exactly as it is when the player does it, which means
+ * it goes down and the four answers are asked in the ordinary way.
+ * Nothing here decides anybody's fate.
+ */
+export function strikeAllEnemies(
+  state: BattleState,
+  amount: number,
+  line?: string,
+): BattleState {
+  if (state.outcome !== 'ONGOING') return state;
+  const asked = Number.isFinite(amount) ? Math.max(1, Math.floor(amount)) : 1;
+  const log = [...state.log];
+  if (line) log.push(line);
+
+  let next: BattleState = { ...state, log };
+  for (const target of everyEnemy(next)) {
+    const hp = Math.max(0, target.hp - asked);
+    const dealt = target.hp - hp;
+    next = setEnemyHp(next, hp);
+    next.log.push(`${target.name}に${dealt}のダメージ。`);
+    if (hp <= 0) {
+      // 敵HP0では倒さない。人生選択（MUGEN CHOICE）へ委ねる。
+      next = { ...next, outcome: 'VICTORY' };
+      next.log.push(`${target.name}は膝をついた……。`);
+    }
+  }
+  return next;
+}
+
+/** Everyone on the other side. One of them, for now. */
+function everyEnemy(state: BattleState): { name: string; hp: number }[] {
+  return [{ name: state.enemyName, hp: state.enemyHp }];
+}
+
+function setEnemyHp(state: BattleState, hp: number): BattleState {
+  return { ...state, enemyHp: hp };
+}

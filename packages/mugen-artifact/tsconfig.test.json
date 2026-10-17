@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": [
+      "node"
+    ],
+    "composite": false
+  },
+  "include": [
+    "src",
+    "e2e",
+    "../mugen-core/core",
+    "../mugen-core/game",
+    "../mugen-core/content",
+    "../mugen-assets/src"
+  ],
+  "exclude": []
+}

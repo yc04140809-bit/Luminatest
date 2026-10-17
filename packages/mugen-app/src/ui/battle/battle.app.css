@@ -1,0 +1,478 @@
+/* THE APP'S SIDE OF THE ARTIFACT'S BATTLE STYLESHEET.
+
+   battle.generated.css is the Artifact's own rules, untouched. These are
+   the few things the Artifact gets from its page and the App's page does
+   not give the same way — and nothing else. Each one is the Artifact's
+   value, restated for the one screen that needs it. */
+
+/* The App's generic .screen pads and centres its children; the
+   Artifact's .screen is a bare full-size column. The battlefield is
+   laid out edge to edge in its own coordinates, so it takes the
+   Artifact's. */
+.screen.bp-screen {
+  padding: 0;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+/* The Artifact's page font and ink, which its battle rules inherit. */
+.bp-screen {
+  /* The game's sans (作者 2026-10-17: 戦闘中は可読性最優先、装飾フォントを使わない). */
+  font-family: var(--font-ui);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+.bp-screen * {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- A BOSS (セキリュウガ): its plate, its roar, its warning ----
+   App only. The roar is a beat with no blow in it — it rears back and
+   the air around it glows — and from then until it lets go a red 「！」
+   stands over it: the next blow is the one worth bracing for. */
+.bx-boss-tag {
+  /* Over the name, not beside it: the plate's head has no room to spare. */
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 2px);
+  padding: 0 4px;
+  border-radius: 2px;
+  background: #8e2a1f;
+  color: #fff3e0;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+.bp-enemy.roar { animation: bp-roar var(--bp-hide, 0.56s) ease-out; }
+@keyframes bp-roar {
+  0% { transform: translateX(0) scale(1); }
+  25% { transform: translateX(6px) scale(1.06); }
+  45% { transform: translateX(-4px) scale(1.04); }
+  65% { transform: translateX(3px) scale(1.05); }
+  100% { transform: translateX(0) scale(1); }
+}
+.bp-enemy.charging .bp-art,
+.bp-enemy.roar .bp-art {
+  filter: drop-shadow(0 0 10px rgba(214, 64, 40, 0.85)) drop-shadow(0 0 22px rgba(214, 64, 40, 0.45));
+}
+.bp-tell {
+  /* Beside its head on the party's side, not over it: the WORLD MEMORY
+     panel sits above a boss stood near the top-left corner. */
+  position: absolute;
+  left: 92%;
+  top: 4%;
+  transform: translateX(-50%);
+  z-index: 3;
+  /* A badge, so it reads on its own red glow and on any ground. */
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff3e0;
+  border-radius: 50%;
+  background: #d8322a;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 22px;
+  text-align: center;
+  box-shadow: 0 0 8px rgba(216, 50, 42, 0.9), 0 2px 6px rgba(0, 0, 0, 0.6);
+  animation: bp-tell 0.8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes bp-tell {
+  from { transform: translateX(-50%) translateY(0) scale(1); }
+  to { transform: translateX(-50%) translateY(-4px) scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-enemy.roar, .bp-tell { animation: none; }
+}
+
+/* At nought a boss with no drawing of it brought down (セキリュウガ) sinks and
+   dims instead of the creatures' squash — its delivered drawing is never
+   stretched. */
+.bp-enemy.falling.boss-kneel { animation: bp-kneel var(--bp-fall, 0.34s) ease-in forwards; }
+@keyframes bp-kneel {
+  0% { transform: translateY(0); filter: none; }
+  100% { transform: translateY(12px); filter: brightness(0.6) saturate(0.7); }
+}
+
+/* ---- His skills (《瞬断》) in the skill tray, and NEW on the command ---- */
+.bp-cmd { position: relative; }
+.bp-cmd .new-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  margin: 0;
+  z-index: 2;
+}
+.bp-skill-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(201, 169, 97, 0.6);
+  border-radius: 6px;
+  background: rgba(18, 16, 26, 0.86);
+  color: #fdf6e6;
+  text-align: left;
+  cursor: pointer;
+}
+.bp-skill-row:disabled { opacity: 0.55; cursor: default; }
+.bp-skill-name { font-size: 14px; letter-spacing: 0.06em; }
+.bp-skill-note { grid-column: 1; font-size: 11px; opacity: 0.8; }
+.bp-skill-ready { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 11px; color: #ffe2a0; }
+.bp-skill-row[data-ready='no'] .bp-skill-ready { color: #c9c2b4; }
+
+/* ---- A boss's great move: ice over the field (《氷晶咆哮》) ---- */
+.bp-frost {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 70% 60%, rgba(196, 232, 255, 0.55), transparent 60%),
+    linear-gradient(180deg, rgba(150, 205, 255, 0.28), rgba(225, 245, 255, 0.4));
+  mix-blend-mode: screen;
+  animation: bp-frost 900ms ease-out both;
+}
+@keyframes bp-frost {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-frost { animation: none; opacity: 0.6; }
+}
+
+/* ---- A short screen (実装メイン⑥, 640×300 and the like) ----
+   App only. Nobody is drawn smaller and no button moves: the words that
+   have to be read in the middle of a fight — its name and health, the
+   party's health, the turn order's heading, the commands — are kept at
+   10px or more, and the turn order is drawn a little tighter to make
+   the room. */
+.bp-field .bx-enemy-plate.beside {
+  /* Stood beside a big fighter instead of under it: its left edge is
+     where it is placed, not its middle (BattleStage). */
+  transform: none;
+}
+@media (max-height: 360px) {
+  .bx-enemy-name { font-size: 11px; }
+  .bx-enemy-read { font-size: 10px; }
+  .bx-boss-tag { font-size: 10px; line-height: 1.3; }
+  .bx-enemy-head { left: 21%; right: 9%; gap: 3px; }
+  .bx-enemy-name { letter-spacing: -0.02em; }
+  .bx-member-read,
+  .bx-member.acting .bx-member-read {
+    font-size: 10px;
+    /* Inside the round frame at 10px: proportional figures (a 1 is
+       narrow) and a little less width, not a smaller size. */
+    font-variant-numeric: proportional-nums;
+    letter-spacing: -0.08em;
+    word-spacing: -3px;
+    bottom: 6px;
+    transform: translateX(-50%) scaleX(0.78);
+  }
+  .bx-member-read b { margin: 0 -0.5px; opacity: 0.9; }
+  .bx-turns { padding: 1px 6px 2px; }
+  .bx-tc .bx-turns .bx-panel-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-indent: 0.12em;
+  }
+  .bx-turn-line { gap: 6px; margin: 0; }
+  .bp-cmd-jp { font-size: 10.5px; letter-spacing: 0; }
+  .bp-cmd-en { font-size: 7.5px; letter-spacing: 0.06em; text-indent: 0.06em; }
+  .bp-cmd-spent { font-size: 10px; }
+}
+
+/* ---- WORLD MEMORY, BOTTOM LEFT (作者指示 2026-10-12, every fight) ----
+   App only. The top left is the creature's now: its head, a giant's
+   shoulders, a boss's moment reach the top of the screen. WORLD MEMORY
+   keeps its own compact panel and design and sits in the bottom left
+   corner, and the commands (and everything the dock carries above them:
+   the trays, 「アルカナ 準備中」) start just right of it, so nothing
+   overlaps. It dims with the reading during a blow, as it did up top. */
+.bx-bl {
+  grid-area: 3 / 1;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+.bx-corner.bx-bl {
+  opacity: var(--ui-reading, 1);
+  transition: opacity 0.34s ease;
+}
+.bp-hud[data-stagecraft='ATTACK'] .bx-corner.bx-bl,
+.bp-hud[data-stagecraft='CUT_IN'] .bx-corner.bx-bl {
+  transition: opacity 0.12s ease;
+}
+/* Opened, it grows up over the field rather than into the commands. */
+.bx-bl .bx-memory-compact.open {
+  position: relative;
+  z-index: 3;
+}
+.bp-field .bp-dock {
+  /* The screen's 10px margin + WORLD MEMORY's own width + a gap. The
+     width is the panel's (battle.generated.css, .bx-memory-compact). */
+  padding-left: calc(10px + clamp(104px, calc(var(--stage-w, 100vw) * 0.152), 138px) + 8px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bx-corner.bx-bl {
+    transition: none;
+  }
+}
+
+/* ==== THE DELIVERED CRYSTAL PLATES ON THE BATTLE HUD (作者 UI統一指示書 2026-10-16) ====
+   App only (the Artifact's markup and generated rules are untouched): the plates are the delivered
+   pictures (ui/kit; --sk-* on :root, ui-sheet-v1), 9-sliced so their cut corners never stretch; the
+   small frames are drawn whole. CSS supplies only what the pictures do not have: the gauges' fill,
+   the glow of what is acting or chosen, a passing sheen, the press. Every rule falls back to the
+   old look if a picture is missing (the var is then unset). */
+.bp-field {
+  --mz-text-main: #f2f5ff;
+  --mz-text-sub: #b9c4e6;
+  --mz-glow: rgba(150, 205, 255, 0.75);
+  --mz-hp-a: #ff6a5a;
+  --mz-hp-b: #b3142a;
+  --mz-mp-a: #9fd2ff;
+  --mz-mp-b: #6a4cff;
+}
+
+/* A plate: the picture is the frame, its middle the fill. */
+.bp-field .bx-enemy-plate,
+.bp-field .bx-memory,
+.bp-field .bp-message,
+.bp-field .bx-turns,
+.bp-field .bx-party,
+.bp-field .bx-place {
+  border-style: solid;
+  border-color: transparent;
+  border-radius: 0;
+  background: none;
+  clip-path: none;
+  filter: none;
+}
+.bp-field .bx-party::before { display: none; }
+
+/* Enemy HP: the wide plate. */
+.bp-field .bx-enemy-plate {
+  background-image: none;
+  border-width: var(--sk-panel-edge, 0);
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--sk-panel-edge, 0) stretch;
+  padding: 0 4px;
+  aspect-ratio: auto;
+  min-height: 40px;
+}
+/* Inside it: the name and the count over the bar, laid out in the plate (the old picture had
+   places drawn for them; this one has a plain middle). The name wraps rather than being cut. */
+.bp-field .bx-enemy-plate { display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.bp-field .bx-enemy-head { position: static; height: auto; inset: auto; }
+.bp-field .bx-enemy-name { overflow: visible; white-space: normal; text-overflow: clip; }
+.bp-field .bx-enemy-plate .bx-meter { position: static; height: 7px; inset: auto; }
+
+/* The party (top right) and WORLD MEMORY: the same plate. */
+.bp-field .bx-party,
+.bp-field .bx-memory {
+  border-width: var(--sk-panel-edge, 0);
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--sk-panel-edge, 0) stretch;
+}
+.bp-field .bx-party { padding: 2px; }
+/* WORLD MEMORY keeps the room its words had: the plate's edge drawn thin (as TURN ORDER's). Its label
+   is set a little closer and goes onto two lines (WORLD / MEMORY) where the panel is too narrow for
+   one — at 640×300 it is — rather than running under the plate's edge. */
+.bp-field .bx-memory {
+  border-width: 8px 11px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 8px 11px stretch;
+}
+.bp-field .bx-memory .bx-panel-label { letter-spacing: 0.12em; text-indent: 0.12em; white-space: normal; line-height: 1.15; }
+/* The words of the moment: the thin plate with its cut ends. */
+.bp-field .bp-message,
+.bp-field .bx-place {
+  border-width: 6px 15px;
+  border-image: var(--sk-placeLabel-normal, none) var(--sk-placeLabel-slice, 0) fill / 6px 15px stretch;
+  opacity: 1;
+}
+/* TURN ORDER: the plate, each face in the square frame; who acts lit. */
+.bp-field .bx-turns {
+  /* A thinner edge than the other plates: the strip must keep the top left of the field open. */
+  border-width: 7px 11px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 7px 11px stretch;
+  padding: 0 2px 1px;
+}
+.bp-field .bx-face-frame {
+  background-image: var(--sk-frameSquare-normal, var(--ui-turn-slot));
+  background-size: 100% 100%;
+}
+.bp-field .bx-turn.acting .bx-face-frame { filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.bp-field .bx-turn.acting { opacity: 1; }
+
+/* The gauges: a dark crystal rail, the fill flowing inside it. */
+.bp-field .bx-meter-track {
+  background: linear-gradient(180deg, rgba(4, 8, 22, 0.92), rgba(16, 24, 52, 0.92));
+  border: 1px solid rgba(214, 224, 255, 0.7);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.bp-field .bx-meter-fill {
+  background-image: linear-gradient(180deg, var(--mz-hp-a), var(--mz-hp-b));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.bp-field .bx-meter.mp .bx-meter-fill { background-image: linear-gradient(180deg, var(--mz-mp-a), var(--mz-mp-b)); }
+.bp-field .bx-meter.enemy-hp .bx-meter-fill { background-image: linear-gradient(180deg, var(--mz-hp-a), var(--mz-hp-b)); }
+
+/* Commands: the diamond frame, whole, over a dark crystal inside so the word reads on any ground
+   (the inside cut to the diamond, the frame drawn over it); chosen or pressed, it lights and sinks. */
+.bp-field .bp-cmd-plate { background: none; isolation: isolate; }
+.bp-field .bp-cmd-plate::before,
+.bp-field .bp-cmd-plate::after { content: ''; position: absolute; pointer-events: none; }
+.bp-field .bp-cmd-plate::before {
+  inset: 12% 21%;
+  background: linear-gradient(180deg, rgba(14, 24, 58, 0.92), rgba(5, 10, 28, 0.95));
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.bp-field .bp-cmd-plate::after {
+  inset: 0;
+  /* At its own shape (contain): the frame is never stretched to the square it sits in. */
+  background: var(--sk-frameDiamond-normal, var(--ui-diamond)) center / contain no-repeat;
+}
+/* The word and mark over the frame, never under its tips — and outlined dark, so a word reaching the
+   frame's bright edge still reads (アイテム / アルカナ are as wide as the diamond's middle). */
+.bp-field .bp-cmd-mark, .bp-field .bp-cmd-jp, .bp-field .bp-cmd-en { position: relative; z-index: 1; }
+.bp-field .bp-cmd-jp, .bp-field .bp-cmd-en {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.bp-field .bp-cmd.open .bp-cmd-plate { filter: drop-shadow(0 0 5px var(--mz-glow)) brightness(1.12); }
+.bp-field .bp-cmd:active .bp-cmd-plate { transform: scale(0.98); filter: brightness(1.25); }
+.bp-field .bp-cmd.open { transform: scale(1.02); }
+
+/* AUTO / 倍速 / ESCAPE: the round frame, the words shown in it (they were part of the old pictures). */
+.bp-field .bp-mode {
+  background:
+    var(--sk-frameRound-normal, none) center / 100% 100% no-repeat,
+    radial-gradient(circle closest-side, rgba(10, 18, 44, 0.9) 82%, rgba(10, 18, 44, 0) 86%) center / 78% 78% no-repeat;
+  aspect-ratio: 112 / 124;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--mz-text-main);
+}
+.bp-field .bp-mode .bp-mode-en,
+.bp-field .bp-mode .bp-mode-jp {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  white-space: nowrap;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.bp-field .bp-mode .bp-mode-en { font-size: 8.5px; letter-spacing: 0.06em; font-weight: 700; }
+.bp-field .bp-mode .bp-mode-jp { font-size: 9px; color: var(--mz-text-sub); }
+.bp-field .bp-mode.on { filter: drop-shadow(0 0 5px var(--mz-glow)); }
+.bp-field .bp-mode.on .bp-mode-en { color: #cfeaff; }
+.bp-field .bp-mode:active { transform: scale(0.98); filter: brightness(1.25); }
+
+/* A passing sheen, once, on what has just been chosen (never looping). */
+@keyframes mz-sheen { from { background-position: -120% 0; } to { background-position: 220% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .bp-field .bp-cmd.open { transform: none; }
+}
+
+/* ==== 戦闘UI 5項目 (作者 2026-10-16: 残像・BREAK・TURN ORDER の段階・ボスの重いプレート・キャラ差し色) ====
+   The shapes are still the sheet's; these add only a colour, a line, a faint light. BREAK is the
+   party fight's (partyBattle.css). */
+
+/* 1. HP の赤い残像: the track keeps `--trail` (meterTrail.ts); when the fill drops, this stays a
+      moment where it was, then follows it down. Under the fill, so it shows only what was lost. */
+.bp-field .bx-meter.hp .bx-meter-track::before,
+.bp-field .bx-meter.enemy-hp .bx-meter-track::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, #ffd9cc, #ff6a52);
+  opacity: 0.9;
+  clip-path: inset(0 calc(100% - var(--trail, 100%)) 0 0);
+  transition: clip-path 0.55s ease-out 0.38s;
+}
+/* The ring's HP in the HP colour, its trail a ring under it. */
+.bp-field .bx-ring-lit.hp { stroke: #ef5a48; filter: drop-shadow(0 0 2px rgba(239, 90, 72, 0.55)); }
+.bp-field .bx-ring-trail.hp {
+  fill: none;
+  stroke: #ffd2c4;
+  stroke-width: 2.4;
+  opacity: 0.85;
+  transition: stroke-dasharray 0.55s ease-out 0.38s;
+}
+
+/* 3. TURN ORDER: who acts in full light (a sheen passes once); the next a little darker; then darker. */
+.bp-field .bx-turn.acting ~ .bx-turn { opacity: 0.5; }
+.bp-field .bx-turn.acting ~ .bx-turn .bx-face-art { filter: brightness(0.78) saturate(0.7); }
+.bp-field .bx-turn.acting + .bx-turn + .bx-turn { opacity: 0.68; }
+.bp-field .bx-turn.acting + .bx-turn + .bx-turn .bx-face-art { filter: brightness(0.86) saturate(0.8); }
+.bp-field .bx-turn.acting + .bx-turn { opacity: 0.88; }
+.bp-field .bx-turn.acting + .bx-turn .bx-face-art { filter: brightness(0.95) saturate(0.92); }
+.bp-field .bx-turn.acting .bx-face::before {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 35%, rgba(255, 255, 255, 0.6) 50%, rgba(190, 220, 255, 0.35) 56%, transparent 68%) 0 0 / 300% 100% no-repeat;
+  animation: mz-sheen-once 0.55s ease-out 0.05s 1 both;
+}
+@keyframes mz-sheen-once { from { background-position: 100% 0; opacity: 1; } to { background-position: 0 0; opacity: 0; } }
+
+/* 4. A boss's plate: the same plate drawn heavier, black and gold inside, a hairline of red. */
+.bp-field .bx-enemy-plate[data-boss] {
+  border-width: 16px 26px;
+  border-image-width: 16px 26px;
+  isolation: isolate;
+  filter: drop-shadow(0 0 6px rgba(226, 70, 56, 0.32));
+}
+/* Over the plate's own inside, under the words: black and gold, and the red hairline round it. */
+.bp-field .bx-enemy-plate[data-boss]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(58, 42, 12, 0.55), rgba(8, 6, 2, 0.6));
+  border: 1px solid rgba(232, 78, 62, 0.75);
+  box-shadow: inset 0 0 6px rgba(232, 78, 62, 0.35), inset 0 1px 0 rgba(242, 208, 128, 0.45);
+}
+
+/* 5. Each one's own colour — only the frame's light (UI統一指示書 §12): the shape is everyone's. */
+.bp-field [data-actor='hero'], .bp-field [data-testid='bx-member-hero'] { --acc: #e0343f; --acc-2: #1a0608; }
+.bp-field [data-actor='kaos'], .bp-field [data-testid='bx-member-kaos'] { --acc: #eef2ff; --acc-2: #c9a24a; }
+.bp-field [data-actor='grave'] { --acc: #4f86e8; --acc-2: #d9b44a; }
+.bp-field [data-actor='aria'] { --acc: #34c8b6; --acc-2: #ffffff; }
+.bp-field [data-actor='levi'] { --acc: #c9a24a; --acc-2: #3f6fe0; }
+.bp-field .bx-turn[data-actor] .bx-face-frame,
+.bp-field .bx-member[data-testid] .bx-face-frame {
+  filter: drop-shadow(0 0 0.6px var(--acc-2, transparent)) drop-shadow(0 0 2px var(--acc, transparent));
+}
+.bp-field .bx-turn.acting[data-actor] .bx-face-frame {
+  filter: drop-shadow(0 0 0.8px var(--acc-2, transparent)) drop-shadow(0 0 4px var(--acc, var(--mz-glow))) brightness(1.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-field .bx-turn.acting .bx-face::before { animation: none; opacity: 0; }
+  .bp-field .bx-meter-track::before, .bp-field .bx-ring-trail.hp { transition: none; }
+}
+
+/* Numbers on the HUD in the sans at 600, of one width (作者 2026-10-17). */
+.bp-field .bx-meter-num,
+.bp-field .bx-member-read,
+.bp-field .bx-enemy-read,
+.bp-field .bx-memory-count {
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight);
+  font-variant-numeric: tabular-nums;
+}
+.bp-field .bp-cmd-jp { font-weight: var(--text-ui-weight); }

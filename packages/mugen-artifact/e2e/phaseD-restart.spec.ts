@@ -1,0 +1,77 @@
+import { test, expect, chromium, type BrowserContext, pageOf } from './fixtures';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  devTimeShift,
+  enterDevAdmin,
+  playToLifeChoice,
+  readMemoryEvents,
+  readWorldStateValue,
+} from './helpers';
+
+const BASE = 'http://localhost:5173';
+
+function launch(userDataDir: string): Promise<BrowserContext> {
+  return chromium.launchPersistentContext(userDataDir, {
+    executablePath: '/opt/pw-browsers/chromium',
+    // Landscape, like the rest of the suite: the game has no portrait layout.
+    viewport: { width: 844, height: 390 },
+  });
+}
+
+// Phase D completion: SPARE -> TIME SHIFT +3y -> full browser restart ->
+// clock, Gald's age and every event restored.
+test('clock, age and events survive a full browser restart after a TIME SHIFT', async () => {
+  const userDataDir = mkdtempSync(join(tmpdir(), 'mugen-zero-profile-'));
+  try {
+    // --- Session 1: spare Gald, shift 3 years, close the browser. ---
+    let context = await launch(userDataDir);
+    let page = await pageOf(context);
+    await playToLifeChoice(page, BASE);
+    await page.getByTestId('choice-SPARE').click();
+    const result = page.getByTestId('choice-result-dialogue');
+    await expect(result).toBeVisible();
+    await result.click();
+    await result.click();
+    await result.click();
+    await result.click();
+    await page.getByTestId('choice-recorded-screen').waitFor();
+    await page.getByTestId('return-home-button').click();
+
+    await devTimeShift(page);
+    await expect(page.getByTestId('world-clock')).toHaveText('4年目 1日目');
+    await context.close(); // full browser shutdown
+
+    // --- Session 2: relaunch and verify everything was restored. ---
+    context = await launch(userDataDir);
+    page = await pageOf(context);
+    await page.goto(`${BASE}/`);
+
+    const events = await readMemoryEvents(page);
+    expect(events.map((e) => e.type).sort()).toEqual([
+      'GALD_ARRIVES_IN_ALDEN',
+      'GALD_BECOMES_BAKER',
+      'GALD_LEAVES_BANDITS',
+      'PLAYER_SPARED_GALD',
+      'WORLD_TIME_SHIFTED',
+    ]);
+    expect(await readWorldStateValue(page, 'world_clock')).toEqual({ worldYear: 4, worldDay: 1 });
+    const gald = (await readWorldStateValue(page, 'character_GALD')) as {
+      age: number;
+      occupation: string;
+    };
+    expect(gald.age).toBe(30);
+    expect(gald.occupation).toBe('BAKER');
+
+    // The game agrees with the DB.
+    await page.getByTestId('continue-button').click();
+    await expect(page.getByTestId('world-clock')).toHaveText('4年目 1日目');
+    await enterDevAdmin(page);
+    await expect(page.getByTestId('dev-gald')).toContainText('age: 30');
+
+    await context.close();
+  } finally {
+    rmSync(userDataDir, { recursive: true, force: true });
+  }
+});

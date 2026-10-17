@@ -1,0 +1,212 @@
+// MUGEN CORE — WORLD MEMORY types.
+// MEMORY_EVENT is an immutable fact of the past (world truth).
+// It must never be edited to reflect "current" state — that belongs
+// to CHARACTER_STATE (src/core/characters).
+
+export type EventImportance = 'CRITICAL' | 'MAJOR' | 'NORMAL' | 'AMBIENT';
+
+/** The four canonical outcomes of Gald's first-encounter life choice. */
+export type GaldLifeChoiceEventType =
+  | 'PLAYER_KILLED_GALD'
+  | 'PLAYER_SPARED_GALD'
+  | 'PLAYER_HELPED_GALD'
+  | 'PLAYER_CAPTURED_GALD';
+
+/**
+ * Life events produced by the EVENT ENGINE.
+ * One chain per life choice — the four are mutually exclusive because
+ * their root causes are (only one first-encounter outcome can exist).
+ */
+export type LifeEventType =
+  // SPARE — a life let go finds another one.
+  | 'GALD_LEAVES_BANDITS'
+  | 'GALD_ARRIVES_IN_ALDEN'
+  | 'GALD_BECOMES_BAKER'
+  // HELP — a hand offered is a hand passed on.
+  | 'GALD_WALKS_THE_ROAD'
+  | 'GALD_BECOMES_HEALER'
+  // CAPTURE — the life that follows being held to account.
+  | 'GALD_STANDS_TRIAL'
+  | 'GALD_COMPLETES_SENTENCE'
+  | 'GALD_WORKS_FOR_ALDEN'
+  // KILL — the man's own time stopped; the world's did not.
+  | 'GALD_IS_BURIED'
+  | 'GALD_GRAVE_TENDED'
+  | OffScreenLifeEventType;
+
+/**
+ * OFF-SCREEN LIFE (docs/OFF_SCREEN_LIFE_SYSTEM.md, 2026-10-17): what people
+ * do with one another while the player is somewhere else — world truth
+ * the player does not see happen, and may hear of afterwards (or never).
+ * The PLAYER is never an actor on these, so none of them is player
+ * knowledge until something the player reads tells them
+ * (core/world/playerKnowledge.ts).
+ *
+ * HELP — the bakery route (PoC, docs/GALD_FIVE_ROUTES.md ROUTE A, without
+ * バルド): he saves リナ, リゼル sees it and tends him, the bakery hears
+ * why he stole, he chooses the work offered, and what follows reaches
+ * people who were never in the forest.
+ */
+export type OffScreenLifeEventType =
+  | 'GALD_SAVES_LINA'
+  | 'RIZEL_TENDS_GALD'
+  | 'GALD_TELLS_OF_ELNA'
+  | 'GALD_TAKES_BAKERY_WORK'
+  | 'LINA_WRITES_TO_ELNA'
+  | 'RIZEL_SPEAKS_FOR_GALD';
+
+/**
+ * Events the player takes part in outside the first-encounter choice.
+ * One per route: the moment the player finds, with their own feet, what
+ * became of the choice they made three years ago.
+ */
+export type PlayerEventType =
+  | 'PLAYER_REUNITED_WITH_GALD'
+  | 'PLAYER_MET_GALD_ON_THE_ROAD'
+  | 'PLAYER_MET_GALD_IN_ALDEN'
+  | 'PLAYER_FOUND_GALD_GRAVE';
+
+/**
+ * The four answers, given to a creature rather than to a man.
+ *
+ * Most of what lives in the world is a species and leaves no mark: a
+ * moss rabbit fought on the path is not a fact the world keeps. These
+ * exist for the rare one that turned out to have a life the player
+ * could change, and the actor on the event is that individual's id.
+ *
+ * One set of four for every creature there will ever be, rather than
+ * four more types per species: what was decided is the fact, and who it
+ * was decided about is the actor.
+ */
+export type CreatureLifeChoiceEventType =
+  | 'PLAYER_KILLED_CREATURE'
+  | 'PLAYER_SPARED_CREATURE'
+  | 'PLAYER_HELPED_CREATURE'
+  | 'PLAYER_CAPTURED_CREATURE';
+
+/** World-scale events (large passages of time, …). */
+export type WorldEventType = 'WORLD_TIME_SHIFTED';
+
+/**
+ * LEGACY, READ ONLY: a character arriving from CHARACTER FORGE, and a
+ * later send of them being accepted.
+ *
+ * Written only by the debug build of 2026-09-27 (commit e180a76), which
+ * kept imported characters in the save. That was the wrong place: an
+ * adopted character is CONTENT, the same for every player
+ * (core/forge/content.ts), and nothing writes these any more. They stay
+ * in the union so a save that build touched still reads — and, as then,
+ * they are not progress (`hasProgress`), not player knowledge
+ * (`getKnownEvents`), and not read by the WORLD LIFE ENGINE
+ * (`canonAsWorldMemories`).
+ */
+export type ForgeEventType = 'CHARACTER_IMPORTED_FROM_FORGE' | 'CHARACTER_UPDATED_FROM_FORGE';
+
+export const FORGE_EVENT_TYPES: readonly ForgeEventType[] = [
+  'CHARACTER_IMPORTED_FROM_FORGE',
+  'CHARACTER_UPDATED_FROM_FORGE',
+];
+
+export function isForgeEventType(type: string): type is ForgeEventType {
+  return (FORGE_EVENT_TYPES as readonly string[]).includes(type);
+}
+
+export type MemoryEventType =
+  | GaldLifeChoiceEventType
+  | LifeEventType
+  | PlayerEventType
+  | CreatureLifeChoiceEventType
+  | WorldEventType
+  | ForgeEventType;
+
+export interface MemoryEvent {
+  id: string;
+  type: MemoryEventType;
+  worldYear: number;
+  worldDay: number;
+  location: string;
+  actors: string[];
+  importance: EventImportance;
+  /** Real-world ISO timestamp of when the event was recorded. */
+  createdAt: string;
+  /**
+   * Event types of the past facts that caused this event
+   * (e.g. GALD_LEAVES_BANDITS is causedBy ['PLAYER_SPARED_GALD']).
+   * Absent on player-originated root events.
+   */
+  causedBy?: MemoryEventType[];
+  /** WORLD_TIME_SHIFTED only: where the shift started. */
+  from?: { worldYear: number; worldDay: number };
+  /** WORLD_TIME_SHIFTED only: where the shift landed. */
+  to?: { worldYear: number; worldDay: number };
+  /** WORLD_TIME_SHIFTED only: whole years skipped. */
+  yearsElapsed?: number;
+  /** FORGE events only: which send of which character was taken in. */
+  forge?: {
+    source: 'MUGEN_CHARACTER_FORGE';
+    characterId: string;
+    deployedVersion: string;
+    deployedAt: string;
+    payloadHash: string;
+    importId: string;
+    canonStatus: 'CANON';
+  };
+}
+
+/** Current world state persisted alongside history (clock, character states). */
+export interface WorldStateRow {
+  key: string;
+  value: unknown;
+}
+
+/**
+ * Storage abstraction for WORLD MEMORY.
+ * UI and Phaser must never touch this directly — only WorldMemory does.
+ */
+export interface MemoryEventStore {
+  init(): Promise<void>;
+  getAll(): Promise<MemoryEvent[]>;
+  /**
+   * Adds a new event. Rejects if an event with the same id already exists
+   * (write-once history: important past facts are never overwritten).
+   * Resolves only after the write is durably committed.
+   */
+  add(event: MemoryEvent): Promise<void>;
+  /**
+   * Atomically commits new events, current-state rows, and (DEV tooling
+   * only) event deletions in ONE transaction: either everything is written
+   * or nothing is. A duplicate event id aborts the whole commit (write-once
+   * history still holds). deleteEventIds exists solely for the dev-admin
+   * RESET SCENARIO path — gameplay code must never delete history.
+   */
+  commit(changes: {
+    addEvents?: MemoryEvent[];
+    putState?: WorldStateRow[];
+    deleteEventIds?: string[];
+  }): Promise<void>;
+  /** Reads one current-state row (world clock, character state, …). */
+  getStateValue(key: string): Promise<unknown | undefined>;
+  /**
+   * Every current-state row at once.
+   *
+   * For the two jobs that are about the SAVE rather than about the
+   * world: bringing an old save up to this version, and taking a copy
+   * of one that loaded cleanly. Both need to see rows they do not
+   * understand — a row from a newer build must survive a round trip
+   * through an older one — so neither can work key by key.
+   */
+  getAllState(): Promise<WorldStateRow[]>;
+  /**
+   * Reads and writes the save's own bookkeeping: its version, its
+   * backup, the note left behind when a damaged save was recovered.
+   *
+   * Kept apart from world_state on purpose. This is what the save says
+   * about ITSELF, and mixing it in with the world would mean a backup
+   * containing a copy of a backup.
+   */
+  getMeta(key: string): Promise<unknown | undefined>;
+  setMeta(key: string, value: unknown): Promise<void>;
+  /** Deletes all saved world data (NEW GAME / RESET WORLD). */
+  clearAll(): Promise<void>;
+  close(): void;
+}

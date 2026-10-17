@@ -1,0 +1,222 @@
+// WHAT A THING IS, AND WHAT HOLDING IT MEANS.
+//
+// Two shapes, and the split between them is the whole design: an
+// ItemDef is a fact about the WORLD — what a herb is, what it is worth
+// — and an ItemStack is a fact about the PLAYER — that they have four
+// of them. The first is content and never saved; the second is save
+// data and holds nothing but an id and a count.
+//
+// That is what lets the catalogue be rebalanced without rewriting
+// anybody's bag: change a sell price and every save in existence is
+// already correct, because no save has ever recorded a price.
+
+import type { BreadSpec } from './bread';
+
+/**
+ * The four kinds of thing, and no more yet (and FOOD, 2026-10-09).
+ *
+ * KEY_ITEM is a category AND a flag on the definition, which looks
+ * like a duplicate and is not: the category is what a bag SORTS by,
+ * and `isKeyItem` is what the shop, the sell list and any future
+ * discard REFUSE by. A material that must never be sold would be a
+ * MATERIAL with the flag set, and a key item in a bag that has not
+ * grown a KEY tab yet still cannot be sold.
+ */
+export type ItemCategory = 'CONSUMABLE' | 'MATERIAL' | 'KEY_ITEM' | 'OTHER' | 'FOOD';
+
+export const ITEM_CATEGORIES: readonly ItemCategory[] = [
+  'CONSUMABLE',
+  'MATERIAL',
+  'KEY_ITEM',
+  'OTHER',
+  // パン屋 MVP (2026-10-09): bread — eaten on the road, goes stale with rest.
+  'FOOD',
+];
+
+/** A thing that exists in the world. Content, never save data. */
+export interface ItemDef {
+  itemId: string;
+  name: string;
+  category: ItemCategory;
+  /**
+   * How many of it fit in one row of the bag.
+   *
+   * A cap rather than a rule about rows: the bag keeps ONE row per
+   * item, so this is how many of the thing a player may hold at all.
+   * Beyond it a pickup is refused and the caller is told how many it
+   * could take, which is what lets a screen say 「持ちきれない」 rather
+   * than silently swallowing a find.
+   */
+  maxStack: number;
+  /** Two lines at most: this is read standing up, in a forest. */
+  description: string;
+  /**
+   * What the shop pays for one, in LUMI.
+   *
+   * Nought means the shop will not take it — an honest answer for a
+   * pretty acorn — and that is different from a key item, which the
+   * shop will not take because it must not.
+   */
+  sellPrice: number;
+  /** Story matter. Never sold, never dropped. */
+  isKeyItem: boolean;
+  /**
+   * What happens when it is used, or absent for a thing that is not
+   * for using.
+   *
+   * A pretty acorn and an old arrowhead have no `use` and that is not
+   * an oversight: most of what a player picks up is material, and a
+   * bag where everything is a button is a bag with no decisions in it.
+   */
+  use?: ItemUse;
+  /**
+   * HOW RARE IT IS (2026-10-07). Absent reads as COMMON. Says how a find
+   * of it is shown — a rare one a little apart — and nothing about price.
+   */
+  rarity?: ItemRarity;
+  /**
+   * WHERE IT COMES FROM, as kinds of place (shop, a forest floor, ruins…).
+   * Information for screens and later rounds; nothing hands an item out
+   * because of this list — the shop's board and a place's pickups do that.
+   */
+  sources?: readonly ItemSourceKind[];
+  /**
+   * Free labels for later rounds (a recipe, a gift, a quest), e.g. 'FOOD',
+   * 'LORE'. Nothing reads them yet.
+   */
+  tags?: readonly string[];
+  /**
+   * A LOAF (パン屋 MVP, 2026-10-09): the lift eating it gives and how many
+   * nights' rest it keeps (core/economy/bread.ts). Present only on FOOD.
+   * A thing with this is eaten through the world's `eatBread`, never the
+   * ordinary use path, and never by AUTO.
+   */
+  bread?: BreadSpec;
+  /**
+   * A HINT AT WHAT IT MIGHT BE FOR (素材→村施設連携, 2026-10-10), shown under
+   * the description in the bag. A nudge, never the answer: 「パンの材料にも
+   * なりそうだ。」, not "take it to the baker". Absent for things whose use
+   * is plain (a herb heals).
+   */
+  useHint?: string;
+  /**
+   * WHAT KIND OF MAKING IT IS, for the recipes to come (the bakery's
+   * mixing, later): fruit, herb, magic, mineral, ancient. Read today only
+   * by the baker noticing what is carried; never a fixed effect.
+   */
+  ingredientTags?: readonly IngredientTag[];
+  /**
+   * ハイタッチ (2026-10-11): the two of them celebrate EVERY time one is got,
+   * not only the first (content/rewards/celebrate.ts). For the few things
+   * that are a small treat each time; absent, only the first one is.
+   */
+  isRareRewardEffect?: boolean;
+}
+
+/** The kinds of making a thing can be (room for more). */
+export type IngredientTag = 'fruit' | 'herb' | 'magic' | 'mineral' | 'ancient';
+
+/**
+ * How rare a thing is. COMMON is the default; RARE is shown a little
+ * apart when found (never a gacha flash).
+ */
+export type ItemRarity = 'COMMON' | 'UNCOMMON' | 'RARE';
+
+/** Where things come from. Room for more (an enemy, a chest, a person). */
+export type ItemSourceKind = 'SHOP' | 'FOREST' | 'RUINS' | 'BATTLE';
+
+/** Its rarity, absent read as COMMON. */
+export function rarityOf(def: ItemDef): ItemRarity {
+  return def.rarity ?? 'COMMON';
+}
+
+/**
+ * WHAT USING SOMETHING DOES.
+ *
+ * A KIND and an AMOUNT rather than a loose `heal?: number`, because
+ * the second kind has arrived and cost nothing to add: everything that
+ * reads this switches on `kind`, so a third — something that cures,
+ * something that wards, something that is only read — is a new case in
+ * three places and no change anywhere else.
+ *
+ * `where` is the refusal the player is most likely to meet, so it is a
+ * field rather than a rule buried in a screen: a thing usable only in
+ * a fight says so, and a screen outside a fight can say WHY the button
+ * is not there rather than simply not drawing it.
+ */
+export interface ItemUse {
+  kind: ItemUseKind;
+  /** How much, flat. Never a share of a maximum — see the item defs. */
+  amount: number;
+  where: ItemUseWhere;
+  /** Said in the log as it is used, before what it did. */
+  line: string;
+}
+
+/**
+ * WHERE A THING CAN BE USED.
+ *
+ * The fourth answer — a thing that cannot be used at all — is not in
+ * here on purpose: it is the ABSENCE of a `use`. An acorn with
+ * `where: 'NOWHERE'` would be a thing that claims to do something and
+ * then refuses, and every screen would have to know the difference
+ * between "no use" and "a use that never applies". One of those is a
+ * fact about the item; the other is a rule dressed up as one.
+ */
+export type ItemUseWhere = 'BATTLE_ONLY' | 'FIELD_ONLY' | 'BOTH';
+
+/** Whether this use applies where the player currently is. */
+export function usableIn(where: ItemUseWhere, place: 'BATTLE' | 'FIELD'): boolean {
+  if (where === 'BOTH') return true;
+  return place === 'BATTLE' ? where === 'BATTLE_ONLY' : where === 'FIELD_ONLY';
+}
+
+export type ItemUseKind = 'HEAL' | 'RESTORE_MP';
+
+/** What the thing this use puts back is called, on a screen. */
+export function useStatLabel(kind: ItemUseKind): string {
+  return kind === 'HEAL' ? 'HP' : 'MP';
+}
+
+/**
+ * What a category is called in front of a player.
+ *
+ * ONE PLACE, because a bag that calls something 消耗品 and a shop that
+ * calls the same thing 消費アイテム is a game that looks like it was
+ * written by two people who never met.
+ */
+export function categoryLabel(category: ItemCategory): string {
+  switch (category) {
+    case 'CONSUMABLE':
+      return '消耗品';
+    case 'MATERIAL':
+      return '素材';
+    case 'KEY_ITEM':
+      return '大切なもの';
+    case 'OTHER':
+      return 'その他';
+    case 'FOOD':
+      return 'パン';
+  }
+}
+
+/** How many of one thing the player is holding. Save data. */
+export interface ItemStack {
+  itemId: string;
+  quantity: number;
+}
+
+/**
+ * The bag: one row per item, in the order they were first acquired.
+ *
+ * An ARRAY rather than a map, because the order is worth keeping — a
+ * bag screen that reshuffled itself every time something was picked up
+ * would be a bag nobody could learn — and because it serialises to
+ * JSON as itself, with no keys to escape.
+ */
+export type Inventory = readonly ItemStack[];
+
+export const EMPTY_INVENTORY: Inventory = [];
+
+/** What a bag row may hold when nothing says otherwise. */
+export const DEFAULT_MAX_STACK = 99;

@@ -1,0 +1,104 @@
+import { describe, expect, it } from 'vitest';
+import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
+import type { MagicDef } from '@mugen/core/magic/magic';
+import { HIT_STOP_MAX_MS } from '../fx/screenShake';
+import { HIT_STOPS, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+
+// What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
+
+const beat = (b: Partial<PartyBeat>): PartyBeat => ({ actor: 'hero', kind: 'ATTACK', target: 'enemy', amount: 10, read: 'PLAIN', ...b });
+const ctx = (c: Partial<BeatContext> = {}): BeatContext => ({ giant: false, targetMaxHp: 500, targetAt: 0.2, actorAt: 0.7, ...c });
+const tech = (kind: PartyTechnique['kind']): PartyTechnique => ({ id: kind, name: kind, kind, mpCost: 0, target: kind === 'HEAVY' ? 'ENEMY' : 'SELF' });
+
+describe('the hit-stops (作者: 軽 30〜50 / スキル 50〜80 / 重 80〜120 / 必殺 100〜150ms)', () => {
+  it('each in its band, and none past the cap', () => {
+    const bands = { light: [30, 50], skill: [50, 80], heavy: [80, 120], finisher: [100, 150] } as const;
+    for (const [k, [lo, hi]] of Object.entries(bands)) {
+      const v = HIT_STOPS[k as keyof typeof HIT_STOPS];
+      expect(v).toBeGreaterThanOrEqual(lo);
+      expect(v).toBeLessThanOrEqual(hi);
+      expect(v).toBeLessThanOrEqual(HIT_STOP_MAX_MS);
+    }
+  });
+});
+
+describe('beatFx', () => {
+  it('the ordinary blow: a small KICK toward the creatures (left), a white cut, a light hold', () => {
+    const fx = beatFx(beat({}), ctx());
+    expect(fx.camera).toEqual([{ kind: 'KICK', dir: 'left', strength: 'small' }]);
+    expect(fx.flash).toEqual({ kind: 'slash', on: 'enemy' });
+    expect(fx.hitStop).toBe(HIT_STOPS.light);
+    expect(fx.shake).toBeUndefined();
+    // 主人公 sharp: his tempo under 1.
+    expect(fx.tempo).toBeLessThan(1);
+  });
+
+  it('a creature\'s blow kicks the other way (right), with red claws', () => {
+    const fx = beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero' }), ctx({ targetMaxHp: 100 }));
+    expect(fx.camera?.[0]).toMatchObject({ kind: 'KICK', dir: 'right' });
+    expect(fx.flash?.kind).toBe('claw');
+  });
+
+  it('重撃・豪断: a lean in first, a heavy hold at the blow, then the camera thrown back, a medium jolt, the creature sinking', () => {
+    const fx = beatFx(beat({ actor: 'grave', kind: 'TECH', name: '重撃・豪断', amount: 30 }), ctx({ tech: tech('HEAVY') }));
+    expect(fx.camera?.[0].kind).toBe('PUSH_IN');
+    expect(fx.hitStop).toBe(HIT_STOPS.heavy);
+    expect(fx.after?.kind).toBe('RECOIL');
+    expect(fx.shake).toBe('medium');
+    expect(fx.reel?.down).toBeGreaterThan(0);
+    expect(fx.number).toBe('big');
+    expect(fx.impact).toBeGreaterThan(fx.camera ? 100 : 0);
+    // Breaking it: the BREAK is played after the hold — no shake of its own here.
+    expect(beatFx(beat({ actor: 'grave', kind: 'TECH', broke: true }), ctx({ tech: tech('HEAVY') })).shake).toBeUndefined();
+  });
+
+  it('ヴァルシール barely moves for a small blow; a heavy one moves it a little', () => {
+    expect(beatFx(beat({}), ctx({ giant: true })).reel).toBeUndefined();
+    expect(beatFx(beat({ actor: 'grave', kind: 'TECH' }), ctx({ giant: true, tech: tech('HEAVY') })).reel?.px).toBeLessThanOrEqual(2);
+  });
+
+  it('ケイオス\'s spell: the camera leans in on her, her circle, the spell\'s own colour where it lands, a snap in', () => {
+    const fire = { element: 'FIRE' } as MagicDef;
+    const fx = beatFx(beat({ actor: 'kaos', kind: 'MAGIC', name: 'x' }), ctx({ spell: fire }));
+    expect(fx.camera?.[0]).toMatchObject({ kind: 'PUSH_IN', at: 0.7 });
+    expect(fx.cast).toEqual({ on: 'kaos', colour: 'fire' });
+    expect(fx.flash).toMatchObject({ kind: 'magic', colour: 'fire' });
+    expect(fx.after?.kind).toBe('IMPACT_ZOOM');
+    expect(fx.sfx).toContain('battle_magic_fire');
+  });
+
+  it('星癒の羽 and 月影の構え: no camera, no hold, no jolt — feathers; the guard\'s ring', () => {
+    const feather = beatFx(beat({ actor: 'kaos', kind: 'TECH', target: 'grave', amount: 0 }), ctx({ tech: tech('REGEN') }));
+    expect(feather.flash).toEqual({ kind: 'feather', on: 'grave' });
+    expect(feather.camera).toBeUndefined();
+    expect(feather.hitStop).toBe(0);
+    const guard = beatFx(beat({ kind: 'TECH', target: 'hero', amount: 0 }), ctx({ tech: tech('MOON_GUARD') }));
+    expect(guard.flash?.kind).toBe('guard');
+    expect(guard.shake).toBeUndefined();
+  });
+
+  it('a giant\'s heavy blow: the camera draws back, then is thrown at the party; a large jolt', () => {
+    const fx = beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', name: 'コア照射' }), ctx({ giant: true, moves: { heavy: 'コア照射', sweep: '光翼の旋風' }, actorArt: 'valsheel' }));
+    expect(fx.camera?.map((m) => m.kind)).toEqual(['PULL_BACK', 'KICK']);
+    expect(fx.shake).toBe('large');
+    // ヴァルシール is slow.
+    expect(fx.tempo).toBeGreaterThan(1);
+    expect(beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', name: '光翼の旋風' }), ctx({ giant: true, moves: { heavy: 'コア照射', sweep: '光翼の旋風' } })).shake).toBe('medium');
+  });
+
+  it('the counter: after the creature\'s blow, a white cut on it, a hold, a kick toward it', () => {
+    const fx = counterFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', counter: 9 }), { giant: false });
+    expect(fx.flash).toEqual({ kind: 'counter', on: 'enemy' });
+    expect(fx.camera?.[0]).toMatchObject({ kind: 'KICK', dir: 'left' });
+    expect(fx.hitStop).toBe(HIT_STOPS.skill);
+  });
+});
+
+describe('numberTier', () => {
+  it('WEAK and resisted say so; a big share of its health reads big; else plain', () => {
+    expect(numberTier(beat({ read: 'WEAK' }), { targetMaxHp: 500 })).toBe('weak');
+    expect(numberTier(beat({ read: 'RESISTED' }), { targetMaxHp: 500 })).toBe('resisted');
+    expect(numberTier(beat({ amount: 80 }), { targetMaxHp: 500 })).toBe('big');
+    expect(numberTier(beat({ amount: 10 }), { targetMaxHp: 500 })).toBeUndefined();
+  });
+});
