@@ -30,6 +30,9 @@
 /* The words: wrap where they must (Japanese breaks between characters, kinsoku kept), never clipped. */
 .kit-words { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .kit-text, .kit-sub, .kit-heading {
+  /* Proportional punctuation for the parts' short labels: brackets and kana set close, as UI type is
+     (Noto Sans JP's full-width brackets otherwise push a long label past a narrow part). */
+  font-feature-settings: 'palt';
   white-space: normal;
   overflow-wrap: anywhere;
   line-break: strict;

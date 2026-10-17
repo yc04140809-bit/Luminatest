@@ -17,6 +17,12 @@ import '@fontsource/noto-sans-jp/latin-600.css';
 import '@fontsource/noto-serif-jp/latin-400.css';
 import '@fontsource/noto-serif-jp/japanese-400.css';
 import './ui/styles.css';
+
+// Asked for at once, not when the first glyph meets them: every screen uses them, and a screen laid out
+// in a fallback font and then reflowed when the real one swaps in moves its words under a finger.
+for (const face of ['400 1em "Noto Sans JP"', '500 1em "Noto Sans JP"', '600 1em "Noto Sans JP"', '400 1em "Noto Serif JP"']) {
+  void document.fonts?.load(face, 'あ漢A').catch(() => {});
+}
 import { UI_SKIN, decorRootVars } from './assets/uiSkin';
 import { kitRootVars } from './ui/kit/skin';
 
