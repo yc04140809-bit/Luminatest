@@ -117,35 +117,79 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
 
   return (
     <div className="screen bag paper" data-testid="bag-screen">
-      <h1 className="place">持ち物</h1>
-      {bag.length === 0 && (
-        <p className="line" data-testid="bag-empty">
-          なにも持っていない。
-        </p>
-      )}
-      <div className="bag-shelves" data-testid="bag-shelves">
-        {BAG_GROUPS.map((group) => {
-          const rows = bag.filter((stack: ItemStack) => {
-            const def = itemDef(stack.itemId);
-            return !!def && bagGroupOf(def) === group.id;
-          });
-          if (rows.length === 0) return null;
-          return (
-            <section className="bag-group" key={group.id} data-testid={`bag-group-${group.id}`}>
-              <h2 className="bag-group-title">{group.label}</h2>
-              {group.id === 'BREAD' && (
-                <p className="bag-bread-buff" data-testid="bag-bread-buff">
-                  {buff
-                    ? `パンの効果：${breadBuffLabel(buff.buffType, buff.buffValue)}（次の休息まで）`
-                    : 'パンの効果：なし'}
-                </p>
-              )}
-              <ul className="bag-list">
-                {rows.map((stack) => {
-                  const def = itemDef(stack.itemId);
-                  if (!def) return null;
-                  if (def.bread) {
-                    const loaves = loavesOf(fresh, stack.itemId);
+      <div className="paper-sheet bag-sheet">
+        <h1 className="place">持ち物</h1>
+        {bag.length === 0 && (
+          <p className="line" data-testid="bag-empty">
+            なにも持っていない。
+          </p>
+        )}
+        <div className="bag-shelves" data-testid="bag-shelves">
+          {BAG_GROUPS.map((group) => {
+            const rows = bag.filter((stack: ItemStack) => {
+              const def = itemDef(stack.itemId);
+              return !!def && bagGroupOf(def) === group.id;
+            });
+            if (rows.length === 0) return null;
+            return (
+              <section className="bag-group" key={group.id} data-testid={`bag-group-${group.id}`}>
+                <h2 className="bag-group-title">{group.label}</h2>
+                {group.id === 'BREAD' && (
+                  <p className="bag-bread-buff" data-testid="bag-bread-buff">
+                    {buff
+                      ? `パンの効果：${breadBuffLabel(buff.buffType, buff.buffValue)}（次の休息まで）`
+                      : 'パンの効果：なし'}
+                  </p>
+                )}
+                <ul className="bag-list">
+                  {rows.map((stack) => {
+                    const def = itemDef(stack.itemId);
+                    if (!def) return null;
+                    if (def.bread) {
+                      const loaves = loavesOf(fresh, stack.itemId);
+                      return (
+                        <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
+                          <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
+                            {def.name}
+                          </span>
+                          <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
+                            ×{stack.quantity}
+                          </span>
+                          <span className="bag-category">{categoryLabel(def.category)}</span>
+                          <span className="bag-fresh" data-testid={`bag-fresh-${stack.itemId}`}>
+                            {[
+                              loaves.fresh > 0 ? `あと休息${loaves.soonest}回` : '',
+                              loaves.stale > 0 ? `【期限切れ】×${loaves.stale}` : '',
+                            ]
+                              .filter(Boolean)
+                              .join('　')}
+                          </span>
+                          <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
+                            {def.description}
+                          </span>
+                          {loaves.fresh > 0 ? (
+                            <button
+                              className="btn"
+                              data-testid={`bag-eat-${stack.itemId}`}
+                              disabled={busy}
+                              onClick={() => eat(stack.itemId)}
+                            >
+                              食べる
+                            </button>
+                          ) : (
+                            <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
+                              期限切れで食べられない。
+                            </span>
+                          )}
+                        </li>
+                      );
+                    }
+                    const where = situationFor(def);
+                    // No `use` block at all is a thing that is carried and not
+                    // drunk — the acorn. That is not a refusal, so it is not
+                    // phrased as one.
+                    const refusal = def.use && where ? refuseUse(where, def.use, stack.quantity) : null;
+                    const usableHere = Boolean(def.use) && where !== null && refusal === null;
                     return (
                       <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
                         <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
@@ -155,90 +199,48 @@ export function BagScreen({ world, onBack }: { world: World; onBack: () => void 
                           ×{stack.quantity}
                         </span>
                         <span className="bag-category">{categoryLabel(def.category)}</span>
-                        <span className="bag-fresh" data-testid={`bag-fresh-${stack.itemId}`}>
-                          {[
-                            loaves.fresh > 0 ? `あと休息${loaves.soonest}回` : '',
-                            loaves.stale > 0 ? `【期限切れ】×${loaves.stale}` : '',
-                          ]
-                            .filter(Boolean)
-                            .join('　')}
-                        </span>
                         <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
                           {def.description}
                         </span>
-                        {loaves.fresh > 0 ? (
+                        {/* What it might be for — a nudge, never the answer (2026-10-10). */}
+                        {def.useHint && (
+                          <span className="bag-hint" data-testid={`bag-hint-${stack.itemId}`}>
+                            {def.useHint}
+                          </span>
+                        )}
+                        {usableHere ? (
                           <button
                             className="btn"
-                            data-testid={`bag-eat-${stack.itemId}`}
+                            data-testid={`bag-use-${stack.itemId}`}
                             disabled={busy}
-                            onClick={() => eat(stack.itemId)}
+                            onClick={() => use(stack.itemId)}
                           >
-                            食べる
+                            使う
                           </button>
                         ) : (
                           <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
-                            期限切れで食べられない。
+                            {def.use && where
+                              ? itemRefusalLine(refusal!, def.name)
+                              : 'ここでは使えない。'}
                           </span>
                         )}
                       </li>
                     );
-                  }
-                  const where = situationFor(def);
-                  // No `use` block at all is a thing that is carried and not
-                  // drunk — the acorn. That is not a refusal, so it is not
-                  // phrased as one.
-                  const refusal = def.use && where ? refuseUse(where, def.use, stack.quantity) : null;
-                  const usableHere = Boolean(def.use) && where !== null && refusal === null;
-                  return (
-                    <li className="bag-row" key={stack.itemId} data-testid={`bag-row-${stack.itemId}`}>
-                      <span className="bag-name" data-testid={`bag-name-${stack.itemId}`}>
-                        {def.name}
-                      </span>
-                      <span className="bag-count" data-testid={`bag-count-${stack.itemId}`}>
-                        ×{stack.quantity}
-                      </span>
-                      <span className="bag-category">{categoryLabel(def.category)}</span>
-                      <span className="bag-desc" data-testid={`bag-desc-${stack.itemId}`}>
-                        {def.description}
-                      </span>
-                      {/* What it might be for — a nudge, never the answer (2026-10-10). */}
-                      {def.useHint && (
-                        <span className="bag-hint" data-testid={`bag-hint-${stack.itemId}`}>
-                          {def.useHint}
-                        </span>
-                      )}
-                      {usableHere ? (
-                        <button
-                          className="btn"
-                          data-testid={`bag-use-${stack.itemId}`}
-                          disabled={busy}
-                          onClick={() => use(stack.itemId)}
-                        >
-                          使う
-                        </button>
-                      ) : (
-                        <span className="bag-reason" data-testid={`bag-reason-${stack.itemId}`}>
-                          {def.use && where
-                            ? itemRefusalLine(refusal!, def.name)
-                            : 'ここでは使えない。'}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          );
-        })}
+                  })}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+        {said && (
+          <p className="say" data-testid="bag-message">
+            {said}
+          </p>
+        )}
+        <button className="btn primary" data-testid="bag-back" onClick={onBack}>
+          もどる
+        </button>
       </div>
-      {said && (
-        <p className="say" data-testid="bag-message">
-          {said}
-        </p>
-      )}
-      <button className="btn primary" data-testid="bag-back" onClick={onBack}>
-        もどる
-      </button>
     </div>
   );
 }

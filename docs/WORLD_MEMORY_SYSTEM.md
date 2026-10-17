@@ -4,6 +4,7 @@
 > LifeTick／EventRule の構造を可能な限り維持する。このリポジトリでの対応する既存の仕組みは
 > `docs/WORLD_LIFE_LINK_DESIGN.md`（`core/life` の NpcCore・SEED→GROWTH→VINE→BLOOM、`core/narrative`、world の出来事・既読）。
 > 取り込みは「ガルド・パン屋ルート PoC」（作業順 5）から、必要な分だけ。
+> 主人公不在の間の出来事（OFF-SCREEN EVENT・LIFE TICK・WORLD TRUTH／PLAYER KNOWLEDGE の分離）は `docs/OFF_SCREEN_LIFE_SYSTEM.md`（2026-10-17、仕様の登録のみ）。
 
 ## 0. 目的
 

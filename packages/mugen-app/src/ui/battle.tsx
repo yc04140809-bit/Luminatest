@@ -419,26 +419,28 @@ export function ResultScreen({
 }) {
   return (
     <div className="screen result paper">
-      <h1 className="place">BATTLE RESULT</h1>
-      <p className="row" data-testid="result-exp">
-        EXP +{reward.exp}
-      </p>
-      <p className="row" data-testid="result-lumi">
-        LUMI +{reward.lumi}
-      </p>
-      <p className="row" data-testid="result-items">
-        {reward.items.length === 0
-          ? 'ITEM なし'
-          : reward.items.map((i) => `${itemDef(i.itemId)?.name ?? i.itemId} ×${i.quantity}`).join(' / ')}
-      </p>
-      {reward.levels.length > 0 && (
-        <p className="row level" data-testid="result-levels">
-          {reward.levels.map((l) => `${l.label} Lv.${l.from} → Lv.${l.to}`).join(' / ')}
+      <div className="paper-sheet result-sheet">
+        <h1 className="place">BATTLE RESULT</h1>
+        <p className="row" data-testid="result-exp">
+          EXP +{reward.exp}
         </p>
-      )}
-      <button className="btn primary" data-testid="result-done" onClick={onDone}>
-        もどる
-      </button>
+        <p className="row" data-testid="result-lumi">
+          LUMI +{reward.lumi}
+        </p>
+        <p className="row" data-testid="result-items">
+          {reward.items.length === 0
+            ? 'ITEM なし'
+            : reward.items.map((i) => `${itemDef(i.itemId)?.name ?? i.itemId} ×${i.quantity}`).join(' / ')}
+        </p>
+        {reward.levels.length > 0 && (
+          <p className="row level" data-testid="result-levels">
+            {reward.levels.map((l) => `${l.label} Lv.${l.from} → Lv.${l.to}`).join(' / ')}
+          </p>
+        )}
+        <button className="btn primary" data-testid="result-done" onClick={onDone}>
+          もどる
+        </button>
+      </div>
     </div>
   );
 }

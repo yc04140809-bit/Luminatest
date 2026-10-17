@@ -2,6 +2,7 @@
 
 > 状態：**仕様の登録のみ。未実装。** 既存の HiddenSeed／人生エンジンの種（`core/life`、`docs/WORLD_LIFE_LINK_DESIGN.md`）の構造を保って取り込む。
 > TIGS BUILD の対象はバルド・エルナ・リゼル・ガルド程度。ただし今回のガルド PoC にバルドは関係させない（作者 2026-10-16）。
+> 2026-10-17 に同じ Ver.1.0 を再受領（内容の差分なし）。主人公不在の間に才能が NOTICED へ進む例は `docs/OFF_SCREEN_LIFE_SYSTEM.md`。
 
 ## 0–2. HIDDEN SEED とは／考え方／最重要思想
 
