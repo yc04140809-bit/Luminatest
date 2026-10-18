@@ -26,19 +26,26 @@ const PAINTINGS: Record<WalkPlaceId, () => Promise<{ default: string }>> = {
   SEASHORE: () => import('@mugen/assets/files/backgrounds/battle/beach.png'),
 };
 
-const paintings = new Map<WalkPlaceId, Promise<string | null>>();
+/** A walk's own painting, when it is not its place's usual one (WalkSceneDef `painting`). */
+const OWN_PAINTINGS: Record<'RUINS_PATH', () => Promise<{ default: string }>> = {
+  // 作者 2026-10-17: the ruins' road and side steps — the painting its grid image was drawn over.
+  RUINS_PATH: () => import('@mugen/assets/files/backgrounds/walk-ruins-path.webp'),
+};
 
-/** The painting a place is walked across. Cached; null if it will not load. */
-export function walkPainting(place: WalkPlaceId): Promise<string | null> {
-  const already = paintings.get(place);
+const paintings = new Map<string, Promise<string | null>>();
+
+/** The painting a place is walked across (or a walk's own). Cached; null if it will not load. */
+export function walkPainting(place: WalkPlaceId, own?: 'RUINS_PATH'): Promise<string | null> {
+  const key = own ?? place;
+  const already = paintings.get(key);
   if (already) return already;
-  const loading = PAINTINGS[place]()
+  const loading = (own ? OWN_PAINTINGS[own] : PAINTINGS[place])()
     .then((m) => m.default)
     .catch((e) => {
       console.warn(`Could not load the painting for ${place}`, e);
       return null;
     });
-  paintings.set(place, loading);
+  paintings.set(key, loading);
   return loading;
 }
 
@@ -71,6 +78,9 @@ export function walkerSprites(): Promise<Walkers | null> {
         [set.hero, set.kaos].flatMap((c) => [c.frames.left.idle, ...c.frames.left.walk].map((f) => f.url)),
       );
       await Promise.all([...urls].map(preload));
+      // The other ways they face (front, back, right — 4方向) come after, without holding anyone up.
+      for (const c of [set.hero, set.kaos])
+        for (const d of ['front', 'back', 'right'] as const) for (const f of [c.frames[d].idle, ...c.frames[d].walk]) void preload(f.url);
       return set;
     })
     .catch((e) => {

@@ -123,9 +123,9 @@ test.describe('with motion', () => {
     expect(await onlyTheWorld(page)).toBe(true);
     // No move longer than the longest (a giant's draw back, slowed) — at ×2 they are halved.
     expect(Math.max(...got.map((m) => m.ms))).toBeLessThanOrEqual(640);
-    await page.waitForTimeout(800);
-    expect(await atRest(page, '.pb-field')).toBe(true);
-    expect(await atRest(page, '.pb-bg')).toBe(true);
+    // Back at rest once the last blow's moves are over (they never pile up, so this comes soon).
+    await expect.poll(() => atRest(page, '.pb-field'), { timeout: 2_000 }).toBe(true);
+    await expect.poll(() => atRest(page, '.pb-bg'), { timeout: 2_000 }).toBe(true);
   });
 });
 

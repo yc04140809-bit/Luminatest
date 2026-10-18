@@ -166,3 +166,156 @@ export const RUINS_WALK: WalkSceneDef = {
     rainbow: { id: 'STAR_CREST_RELIC_SWORD', label: '虹色の光', equipmentId: 'weapon/star_crest_relic_sword' },
   },
 };
+
+/** The paved road (緑 MAIN), from the author's grid image of the ruins (2026-10-17). */
+const RUINS_MAIN = [
+        { x: 0.179, y: 0.71 },
+        { x: 0.269, y: 0.691 },
+        { x: 0.383, y: 0.65 },
+        { x: 0.455, y: 0.622 },
+        { x: 0.514, y: 0.595 },
+        { x: 0.553, y: 0.555 },
+        { x: 0.598, y: 0.537 },
+        { x: 0.658, y: 0.499 },
+        { x: 0.712, y: 0.468 },
+        { x: 0.769, y: 0.425 },
+        { x: 0.781, y: 0.351 },
+        { x: 0.791, y: 0.308 },
+        { x: 0.861, y: 0.303 },
+        { x: 0.882, y: 0.372 },
+        { x: 0.864, y: 0.468 },
+        { x: 0.855, y: 0.502 },
+        { x: 0.785, y: 0.553 },
+        { x: 0.779, y: 0.582 },
+        { x: 0.807, y: 0.646 },
+        { x: 0.861, y: 0.664 },
+        { x: 1.0, y: 0.68 },
+        { x: 1.0, y: 1.0 },
+        { x: 0.556, y: 1.0 },
+        { x: 0.538, y: 0.946 },
+        { x: 0.434, y: 0.903 },
+        { x: 0.413, y: 0.82 },
+        { x: 0.359, y: 0.749 },
+        { x: 0.251, y: 0.735 },
+] as const;
+
+/** The old steps on the left up to the small arch (黄 SIDE). */
+const RUINS_SIDE_STEPS = [
+        { x: 0.057, y: 0.356 },
+        { x: 0.179, y: 0.374 },
+        { x: 0.263, y: 0.395 },
+        { x: 0.299, y: 0.468 },
+        { x: 0.335, y: 0.553 },
+        { x: 0.362, y: 0.6 },
+        { x: 0.389, y: 0.654 },
+        { x: 0.269, y: 0.693 },
+        { x: 0.251, y: 0.661 },
+        { x: 0.197, y: 0.597 },
+        { x: 0.167, y: 0.533 },
+        { x: 0.144, y: 0.48 },
+        { x: 0.096, y: 0.438 },
+        { x: 0.06, y: 0.395 },
+] as const;
+
+/**
+ * 古代遺跡, ITS GROUND TOLD APART — the PoC of 作者「探索画面仕様 更新指示」(2026-10-17).
+ *
+ * The same painting, read as the author's grid image draws it: the paved road (緑 MAIN) from
+ * the front up to the far steps on the right; the old steps on the left (黄 SIDE) climbing to
+ * the small arch — a way off the road, with something to find; everything else (赤) not walked:
+ * the rubble at the front, the low walls, the cliffs and the distance. The three things to look
+ * at stand where the grid's blue marks are (the arch at the top of the side steps, the carved
+ * stone beside them, the fallen pillar on the right), with the arch, the banner and the steps of
+ * old kept as they were — every id, pickup and find the same; only where they stand moves, onto
+ * the ground.
+ *
+ * DEBUG only, for now (`?preview=walk&place=ANCIENT_RUINS&areas=1`): RUINS_WALK above is what the
+ * game walks, untouched, until this is decided. Then it is one line to swap.
+ */
+export const RUINS_WALK_AREAS_POC: WalkSceneDef = {
+  ...RUINS_WALK,
+  // The painting the grid image was drawn over (delivered with it), not the ruins' battle background.
+  painting: 'RUINS_PATH',
+  // Its road runs from the front to steps high on the right: the screen looks at its middle.
+  framing: 0.45,
+  points: [
+    {
+      id: 'STONE_ARCH',
+      label: '石造りのアーチ',
+      at: { x: 0.17, y: 0.39 },
+      marker: { x: 0.144, y: 0.33 },
+      stand: { x: 0.19, y: 0.39 },
+      lines: [{ text: '欠けた石のアーチが、遠い山々を切り取っている。' }],
+    },
+    {
+      id: 'OLD_BANNER',
+      label: '古い旗',
+      at: { x: 0.74, y: 0.46 },
+      // Under the banners on the pillars to the right of the far steps.
+      marker: { x: 0.715, y: 0.21 },
+      stand: { x: 0.748, y: 0.468 },
+      lines: [{ text: '色褪せた旗が、風に小さく揺れている。' }],
+    },
+    {
+      id: 'BROKEN_STEPS',
+      label: '崩れた石段',
+      at: { x: 0.23, y: 0.52 },
+      marker: { x: 0.18, y: 0.47 },
+      stand: { x: 0.25, y: 0.53 },
+      lines: [{ text: '崩れた石段に、白い花が根を張っている。' }],
+    },
+    {
+      id: 'CARVED_STONE',
+      label: '刻まれた石',
+      at: { x: 0.35, y: 0.6 },
+      marker: { x: 0.378, y: 0.5 },
+      stand: { x: 0.353, y: 0.611 },
+      lines: [{ text: '倒れかけた石の面に、細かな模様が刻まれている。' }],
+    },
+    {
+      id: 'FALLEN_PILLAR',
+      label: '倒れた柱',
+      at: { x: 0.8, y: 0.66 },
+      marker: { x: 0.921, y: 0.51 },
+      stand: { x: 0.8, y: 0.66 },
+      lines: [{ text: '倒れた柱の端に、丸い紋様が残っている。' }],
+    },
+  ],
+  roam: {
+    ...RUINS_WALK.roam!,
+    // The outline of old, kept for anything that still reads it: the road's.
+    floor: RUINS_MAIN,
+    areas: {
+      main: [RUINS_MAIN],
+      side: [
+        {
+          outline: RUINS_SIDE_STEPS,
+          enter: '崩れた石段が、上の小さなアーチへ続いている。',
+        },
+      ],
+    },
+    // The road climbs far back to the steps: walkers there are drawn much smaller.
+    far: 0.33,
+    near: 0.72,
+    farScale: 0.55,
+    start: { x: 0.76, y: 0.62 },
+    pickups: [
+      { ...RUINS_WALK.roam!.pickups![0], at: { x: 0.538, y: 0.638 } },
+      { ...RUINS_WALK.roam!.pickups![1], at: { x: 0.86, y: 0.7 } },
+      // Two of the four up the side steps: off the way is where things are.
+      { ...RUINS_WALK.roam!.pickups![2], at: { x: 0.12, y: 0.404 } },
+      { ...RUINS_WALK.roam!.pickups![3], at: { x: 0.227, y: 0.611 } },
+    ],
+    spots: [
+      { x: 0.45, y: 0.66 },
+      { x: 0.6, y: 0.62 },
+      { x: 0.7, y: 0.57 },
+      { x: 0.78, y: 0.52 },
+      { x: 0.65, y: 0.7 },
+      { x: 0.33, y: 0.7 },
+      { x: 0.2, y: 0.46 },
+      { x: 0.28, y: 0.55 },
+      { x: 0.83, y: 0.4 },
+    ],
+  },
+};

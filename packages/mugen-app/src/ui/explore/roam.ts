@@ -85,10 +85,10 @@ export function toFloor(p: PaintingPoint, floor: readonly PaintingPoint[]): Pain
   return { x: best.x + (mid.x - best.x) * step, y: best.y + (mid.y - best.y) * step };
 }
 
-/** How big a walker is drawn standing at painting height `y`: smaller farther back. */
-export function depthScale(y: number, far: number, near: number): number {
+/** How big a walker is drawn standing at painting height `y`: smaller farther back (`farScale` at `far`, absent FAR_SCALE). */
+export function depthScale(y: number, far: number, near: number, farScale: number = FAR_SCALE): number {
   const k = Math.max(0, Math.min(1, (y - far) / (near - far)));
-  return FAR_SCALE + (1 - FAR_SCALE) * k;
+  return farScale + (1 - farScale) * k;
 }
 
 /**

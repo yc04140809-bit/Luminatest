@@ -19,6 +19,7 @@ import { walkerSprites, walkPainting, type WalkPlaceId, type Walkers } from '../
 import { playSfx } from '../../platform/audio';
 import { sceneArt } from '../../assets/sceneArt';
 import { WalkSprite } from './WalkSprite';
+import { groundOf } from './walkArea';
 import { Ambience, Moment, pickAmbience, pickMoment, type MomentKind } from './Ambience';
 import { PointMarker } from './PointMarker';
 import { DEPTH, PAN, markTipY } from './walkPath';
@@ -43,9 +44,8 @@ import {
   depthScale,
   dist,
   pickFind,
+  onFloor,
   pickSpot,
-  standBeside,
-  toFloor,
 } from './roam';
 
 /**
@@ -87,6 +87,8 @@ const HERO_SOURCE_HEIGHT = 169;
 const KAOS_HEIGHT = 0.376;
 /** No walker stands lower on the screen than this share of its height: the controls are below. */
 const LOWEST_FEET = 0.9;
+/** The ring at a walker's feet: this share of their drawn height across (探索用キャラ表示ルール). */
+const FOOT_RING_K = 0.55;
 /** … and never into the strip the place's own doors take along the bottom (in px). */
 const DOORS_BAND = 64;
 /** Walking this far again since the last line brings the next one. */
@@ -227,6 +229,7 @@ export function RoamScene({
   memory,
   resume = false,
   pickupKeeper,
+  showAreas = false,
 }: {
   scene: WalkSceneDef;
   roam: WalkRoam;
@@ -249,6 +252,8 @@ export function RoamScene({
   resume?: boolean;
   /** The save's side of the place's pickups. Absent (no save): no pickups are shown. */
   pickupKeeper?: PickupKeeper;
+  /** DEBUG: draw the place's ground by kind (緑 MAIN, 黄 SIDE) over the painting, to check it against its grid image. */
+  showAreas?: boolean;
 }) {
   // A walk picked up where it was left: no walking in, everything as it stood.
   const was = resume ? (memory?.current ?? null) : null;
@@ -289,6 +294,9 @@ export function RoamScene({
   const [frame, setFrame] = useState(0);
   const [facing, setFacing] = useState<'left' | 'right'>(was?.facing ?? 'left');
   const [kaosFacing, setKaosFacing] = useState<'left' | 'right'>(was?.kaosFacing ?? 'left');
+  /** Facing into the picture (back), out of it (front), or across (side — then `facing` says which way). */
+  const [lean, setLean] = useState<'side' | 'back' | 'front'>('side');
+  const [kaosLean, setKaosLean] = useState<'side' | 'back' | 'front'>('side');
   const walking = target !== null;
   // How far walked since a find last turned up or was read, and since the last line.
   const walkedForFind = useRef(0);
@@ -326,6 +334,17 @@ export function RoamScene({
   const pickups: readonly WalkPickup[] = pickupKeeper ? (roam.pickups ?? []) : [];
   const [taken, setTaken] = useState<ReadonlySet<string>>(() => new Set(pickupKeeper?.taken ?? []));
   const takingPickup = useRef(false);
+  /**
+   * THE GROUND (walkArea.ts): a place with areas (作者 2026-10-17) is walked on them and around what
+   * is in the way; one without is walked on its one floor in a straight line, exactly as before.
+   */
+  const ground = useMemo(() => groundOf(roam), [roam]);
+  /** Where to stand to look at something on the ground: a little to its right. */
+  const beside = (p: PaintingPoint) => ground.to({ x: p.x + 0.05, y: p.y });
+  /** The turning points still to walk to, the last being where the walk ends. */
+  const route = useRef<PaintingPoint[]>([]);
+  /** The 寄り道 stepped into this visit (their noticed line said once). */
+  const sidesSeen = useRef<Set<number>>(new Set());
 
   const things: Thing[] = useMemo(
     () => [
@@ -336,7 +355,7 @@ export function RoamScene({
           kind: 'point' as const,
           grade: 'NORMAL' as const,
           label: p.label,
-          stand: toFloor(p.stand ?? p.at, roam.floor),
+          stand: ground.to(p.stand ?? p.at),
           mark: markerAt(p),
           text: pointLine(p, view) ?? '',
         })),
@@ -345,7 +364,7 @@ export function RoamScene({
         kind: 'find' as const,
         grade,
         label: find.label,
-        stand: standBeside(roam.spots[spot], roam.floor),
+        stand: beside(roam.spots[spot]),
         mark: roam.spots[spot],
         text: find.text,
       })),
@@ -356,7 +375,7 @@ export function RoamScene({
           kind: 'pickup' as const,
           grade: 'NORMAL' as const,
           label: p.label,
-          stand: standBeside(p.at, roam.floor),
+          stand: beside(p.at),
           mark: p.at,
           text: p.line,
         })),
@@ -395,7 +414,7 @@ export function RoamScene({
   const [moment, setMoment] = useState<{ kind: MomentKind; n: number } | null>(null);
   const restingAtThing = useRef(false);
   restingAtThing.current = !!atThing;
-  const [ring, setRing] = useState<{ x: number; y: number; n: number } | null>(null);
+  const [ring, setRing] = useState<{ x: number; y: number; n: number; blocked?: boolean } | null>(null);
   const [tapped, setTapped] = useState(was?.tapped ?? false);
 
   // Keep whoever holds the walk up to date with where it has got to —
@@ -433,7 +452,7 @@ export function RoamScene({
 
   useEffect(() => {
     let gone = false;
-    void walkPainting(place).then((src) => !gone && setPainting(src));
+    void walkPainting(place, scene.painting).then((src) => !gone && setPainting(src));
     void walkerSprites().then((x) => !gone && setWalkers(x));
     if (figures.some((f) => f.id === 'GALD')) void sceneArt('gald', 'fullbody').then((src) => !gone && setFigureArt(src));
     return () => {
@@ -465,7 +484,7 @@ export function RoamScene({
     if (!find) return;
     if (grade === 'RARE' && !roam.rareDiscoveries?.length) grade = 'NORMAL';
     const avoid = [
-      ...points.filter((p) => !read.has(p.id)).map((p) => toFloor(p.stand ?? p.at, roam.floor)),
+      ...points.filter((p) => !read.has(p.id)).map((p) => ground.to(p.stand ?? p.at)),
       ...current.map((f) => roam.spots[f.spot]),
     ];
     const spot = pickSpot(roam.spots, heroNow.current, avoid, [...recentSpots.current, ...current.map((f) => f.spot)]);
@@ -490,7 +509,7 @@ export function RoamScene({
       const from = heroNow.current;
       heroNow.current = target;
       const behind = { x: target.x + (target.x < from.x ? KAOS_GAP : -KAOS_GAP), y: target.y };
-      trail.current = [toFloor(behind, roam.floor), target];
+      trail.current = [ground.to(behind), target];
       walkedForFind.current += dist(from, target);
       walkedForWords.current += dist(from, target);
       if (Math.abs(target.x - from.x) > 1e-4) setFacing(target.x < from.x ? 'left' : 'right');
@@ -517,14 +536,24 @@ export function RoamScene({
         setFrame((f) => f + 1);
       }
       const from = heroNow.current;
-      const scale = depthScale(from.y, roam.far, roam.near);
+      const scale = depthScale(from.y, roam.far, roam.near, roam.farScale);
+      // Toward the next turning point of the way (around what is in the way), the last being the target.
+      const goal = route.current.length > 1 ? route.current[0] : target;
       // In screen pixels, so a step back into the picture is the same pace as one across.
-      const dx = (target.x - from.x) * paintW;
-      const dy = (target.y - from.y) * paintH;
+      const dx = (goal.x - from.x) * paintW;
+      const dy = (goal.y - from.y) * paintH;
       const left = Math.hypot(dx, dy);
       const stride = WALK_SPEED * w * scale * dt;
-      const done = left <= stride || left < 0.5;
-      const next = done ? target : { x: from.x + (dx / left) * (stride / paintW), y: from.y + (dy / left) * (stride / paintH) };
+      const reached = left <= stride || left < 0.5;
+      if (reached && goal !== target) route.current.shift();
+      const done = reached && goal === target;
+      const next = reached ? goal : { x: from.x + (dx / left) * (stride / paintW), y: from.y + (dy / left) * (stride / paintH) };
+      // Which way he faces: across (left / right), or into the picture (back) or out of it (front)
+      // when the way runs mostly up or down the screen (探索用キャラ表示ルール: 4方向).
+      if (!reached) {
+        if (Math.abs(dx) > 0.5) setFacing(dx < 0 ? 'left' : 'right');
+        setLean(Math.abs(dy) > Math.abs(dx) * 1.2 ? (dy < 0 ? 'back' : 'front') : 'side');
+      }
       const moved = dist(from, next);
       heroNow.current = next;
       walkedForFind.current += moved;
@@ -536,6 +565,11 @@ export function RoamScene({
       } else tr[tr.length - 1] = next;
       const k = alongTrail(tr, KAOS_GAP);
       if (Math.abs(k.x - kaosNow.current.x) > 1e-4) setKaosFacing(k.x < kaosNow.current.x ? 'left' : 'right');
+      {
+        const kdx = (k.x - kaosNow.current.x) * paintW;
+        const kdy = (k.y - kaosNow.current.y) * paintH;
+        if (Math.hypot(kdx, kdy) > 0.05) setKaosLean(Math.abs(kdy) > Math.abs(kdx) * 1.2 ? (kdy < 0 ? 'back' : 'front') : 'side');
+      }
       kaosNow.current = k;
       setKaos(k);
       setHero(next);
@@ -553,8 +587,17 @@ export function RoamScene({
   useEffect(() => {
     if (!arrived) return;
     if (arrivals <= 1 && findsNow.current.length === 0) turnUp();
-    if (atThing) {
-      playSfx('explore_marker');
+    // Stepped off the way into a 寄り道 for the first time this visit: what is noticed there.
+    const sides = roam.areas?.side ?? [];
+    const sideAt = sides.findIndex((sd) => onFloor(heroNow.current, sd.outline));
+    const enters = sideAt >= 0 && !sidesSeen.current.has(sideAt) ? sides[sideAt].enter : undefined;
+    if (sideAt >= 0) sidesSeen.current.add(sideAt);
+    if (atThing) playSfx('explore_marker');
+    if (enters) {
+      setCaptionGrade('NORMAL');
+      setCaption(enters);
+    } else if (atThing) {
+      // Beside something: its 「！」 says enough.
     } else if (walkedForWords.current >= SAY_WALK && ambient.length > 0) {
       walkedForWords.current = 0;
       setCaption(ambient[said.current % ambient.length]);
@@ -614,7 +657,9 @@ export function RoamScene({
     const sx = e.clientX - box.left;
     const sy = e.clientY - box.top;
     const touched = { x: (sx - camX) / paintW, y: (sy - paintTop) / paintH };
-    let to = toFloor({ x: touched.x, y: Math.min(touched.y, lowest) }, roam.floor);
+    // Not ground (赤: a wall, a cliff, the distance): walked to the nearest ground, and the touch says so.
+    const offGround = !ground.on(touched);
+    let to = ground.to({ x: touched.x, y: Math.min(touched.y, lowest) });
     // A pickup is walked to when its own glint is touched, not the ground near it.
     const meant = things
       .map((t) => ({
@@ -625,8 +670,9 @@ export function RoamScene({
       .sort((a, b) => a.d - b.d)[0];
     if (meant) to = meant.t.stand;
     setTapped(true);
-    setRing((r) => ({ x: sx, y: sy, n: (r?.n ?? 0) + 1 }));
+    setRing((r) => ({ x: sx, y: sy, n: (r?.n ?? 0) + 1, blocked: offGround }));
     if (dist(to, heroNow.current) < 1e-4) return;
+    route.current = ground.path(heroNow.current, to);
     setTarget(to);
   };
 
@@ -739,9 +785,9 @@ export function RoamScene({
   };
 
   // ---- the party, drawn ----
-  const heroScale = ((HERO_HEIGHT * h) / HERO_SOURCE_HEIGHT) * depthScale(hero.y, roam.far, roam.near);
+  const heroScale = ((HERO_HEIGHT * h) / HERO_SOURCE_HEIGHT) * depthScale(hero.y, roam.far, roam.near, roam.farScale);
   const kaosScale = walkers
-    ? ((KAOS_HEIGHT * h) / walkers.kaos.referencePixels) * depthScale(kaos.y, roam.far, roam.near)
+    ? ((KAOS_HEIGHT * h) / walkers.kaos.referencePixels) * depthScale(kaos.y, roam.far, roam.near, roam.farScale)
     : 1;
   const pick = (frames: { idle: SpriteFrame; walk: readonly SpriteFrame[] }, offset: number) =>
     walking && frames.walk.length > 0
@@ -760,9 +806,9 @@ export function RoamScene({
       data-mode="roam"
       data-walking={walking ? 'yes' : 'no'}
       data-hero={fmt(hero)}
-      data-scale={depthScale(hero.y, roam.far, roam.near).toFixed(3)}
+      data-scale={depthScale(hero.y, roam.far, roam.near, roam.farScale).toFixed(3)}
       data-kaos={fmt(kaos)}
-      data-kaos-scale={depthScale(kaos.y, roam.far, roam.near).toFixed(3)}
+      data-kaos-scale={depthScale(kaos.y, roam.far, roam.near, roam.farScale).toFixed(3)}
       data-view={`${camX.toFixed(2)},${paintW.toFixed(2)},${paintTop.toFixed(2)},${paintH.toFixed(2)}`}
       data-things={things.map((t) => `${t.kind}:${t.id}:${fmt(t.stand)}:${fmt(t.mark)}:${t.grade}`).join(' ')}
       data-rainbow={rainbowTaken ? 'taken' : 'open'}
@@ -771,6 +817,8 @@ export function RoamScene({
       data-read={[...read].join(' ')}
       data-ambient={picked.join(',')}
       data-moment={moment?.kind ?? ''}
+      data-zone={ground.kind(hero) ?? 'NONE'}
+      data-areas={roam.areas ? 'yes' : 'no'}
       onPointerDown={onGround}
     >
       {/* THE PAINTING, with a faint glint wherever a small find is waiting. */}
@@ -814,6 +862,20 @@ export function RoamScene({
             {grade === 'RAINBOW' && [0, 1, 2, 3].map((i) => <i key={i} className={`roam-mote m${i}`} />)}
           </span>
         ))}
+        {/* DEBUG: the ground by kind, to set against the place's grid image. */}
+        {showAreas && roam.areas && (
+          <svg className="roam-areas" data-testid="walk-areas" width={paintW} height={paintH} style={{ position: 'absolute', left: 0, top: paintTop, pointerEvents: 'none' }} viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+            {roam.areas.main.map((o, i) => (
+              <polygon key={`m${i}`} points={o.map((q) => `${q.x},${q.y}`).join(' ')} fill="rgba(60,220,90,.28)" stroke="#3cdc5a" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            ))}
+            {(roam.areas.side ?? []).map((sd, i) => (
+              <polygon key={`s${i}`} points={sd.outline.map((q) => `${q.x},${q.y}`).join(' ')} fill="rgba(255,220,60,.3)" stroke="#ffdc3c" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            ))}
+            {(roam.areas.blocked ?? []).map((o, i) => (
+              <polygon key={`b${i}`} points={o.map((q) => `${q.x},${q.y}`).join(' ')} fill="rgba(255,60,60,.35)" stroke="#ff3c3c" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+        )}
         {/* A pickup: a fainter glint, slower — noticed, not announced. */}
         {pickups
           .filter((p) => !taken.has(p.id))
@@ -831,29 +893,47 @@ export function RoamScene({
       <div className="walk-layer walk-light" style={{ transform: `translateX(${camX * DEPTH.light}px)` }} aria-hidden="true" />
       <div className="walk-layer walk-mist" style={{ transform: `translateX(${camX * DEPTH.mist}px)` }} aria-hidden="true" />
 
-      {/* THE PARTY: whoever stands nearer is drawn over the other. */}
+      {/* THE PARTY: whoever stands nearer is drawn over the other. Each with a soft aura and a faint
+          ring at the feet (作者「探索用キャラクター表示ルール」: 見失わないための補助 — not an effect):
+          the one played a little stronger, the ring brighter beside something to look at, and both
+          quieter while a line is read or something is being got. */}
       {walkers && (
-        <div className="walk-party" data-testid="walk-party">
+        <div className={`walk-party${caption || prize ? ' quiet' : ''}`} data-testid="walk-party">
           <div style={{ position: 'absolute', inset: 0, zIndex: Math.round(kaosAt.y) }}>
+            <span
+              className="walk-foot-ring aura-kaos"
+              data-testid="walk-ring-kaos"
+              style={{ left: kaosAt.x, top: kaosAt.y, width: FOOT_RING_K * KAOS_HEIGHT * h * depthScale(kaos.y, roam.far, roam.near, roam.farScale) }}
+              aria-hidden="true"
+            />
             <WalkSprite
-              frame={pick(walkers.kaos.frames[kaosFacing], 2)}
+              frame={pick(walkers.kaos.frames[kaosLean === 'side' ? kaosFacing : kaosLean], 2)}
               scale={kaosScale}
               feetX={kaosAt.x}
               feetY={kaosAt.y}
               bob={bob(2)}
               testId="walk-kaos"
               alt="ケイオス"
+              className="walk-aura aura-kaos"
             />
           </div>
           <div style={{ position: 'absolute', inset: 0, zIndex: Math.round(heroAt.y) + 1 }}>
+            <span
+              className={`walk-foot-ring aura-hero lead${atThing ? ' at-thing' : ''}`}
+              data-testid="walk-ring-hero"
+              data-state={atThing ? 'at-thing' : 'walk'}
+              style={{ left: heroAt.x, top: heroAt.y, width: FOOT_RING_K * HERO_HEIGHT * h * depthScale(hero.y, roam.far, roam.near, roam.farScale) }}
+              aria-hidden="true"
+            />
             <WalkSprite
-              frame={pick(walkers.hero.frames[facing], 0)}
+              frame={pick(walkers.hero.frames[lean === 'side' ? facing : lean], 0)}
               scale={heroScale}
               feetX={heroAt.x}
               feetY={heroAt.y}
               bob={bob(0)}
               testId="walk-hero"
               alt="主人公"
+              className={`walk-aura aura-hero lead${atThing ? ' at-thing' : ''}`}
             />
           </div>
         </div>
@@ -899,8 +979,9 @@ export function RoamScene({
       {ring && (
         <span
           key={`ring-${ring.n}`}
-          className="walk-tap-ring"
+          className={`walk-tap-ring${ring.blocked ? ' blocked' : ''}`}
           data-testid="walk-tap-ring"
+          data-blocked={ring.blocked ? 'yes' : 'no'}
           style={{ left: ring.x, top: ring.y }}
           aria-hidden="true"
         />

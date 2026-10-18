@@ -108,9 +108,10 @@ test.describe('with motion', () => {
     const got = await shakes(page);
     expect(got.length).toBeGreaterThan(0);
     expect(got.every((s) => s.who === 'field' || s.who === 'backdrop')).toBe(true);
-    await page.waitForTimeout(500);
-    expect(await atRest(page, '.pb-field')).toBe(true);
-    expect(await atRest(page, '.pb-bg')).toBe(true);
+    // Back at rest once the last blow's moves are over — a 重撃・豪断 that wins the fight is still
+    // finishing its camera for a moment after the result shows (2026-10-18: a fixed 500ms raced it).
+    await expect.poll(() => atRest(page, '.pb-field'), { timeout: 2_000 }).toBe(true);
+    await expect.poll(() => atRest(page, '.pb-bg'), { timeout: 2_000 }).toBe(true);
   });
 
   test('ヴァルシール wakes by degrees: small, medium, small (the eye, the music held back), medium, then large — only the picture moves', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { RUINS_WALK } from '@mugen/content/exploration/ruinsWalk';
+import { RUINS_WALK, RUINS_WALK_AREAS_POC } from '@mugen/content/exploration/ruinsWalk';
 import type { WalkSceneDef } from '@mugen/content/exploration/walkScene';
 import type { WalkPlaceId } from '@mugen/content/exploration/walkPlaces';
 import { World } from '@mugen/core/world/world';
@@ -65,7 +65,9 @@ function keeperFor(world: World | null, place: string): RoamKeeper {
 
 export function WalkPreview({ params }: { params: URLSearchParams }) {
   const id = (params.get('place') ?? 'ANCIENT_RUINS') as WalkPlaceId;
-  const scene = PREVIEWABLE[id] ?? RUINS_WALK;
+  // `&areas=1` (the ruins): the PoC of its ground told apart (作者 2026-10-17); `&zones=1` draws it.
+  const scene = id === 'ANCIENT_RUINS' && params.get('areas') === '1' ? RUINS_WALK_AREAS_POC : (PREVIEWABLE[id] ?? RUINS_WALK);
+  const showAreas = params.get('zones') === '1';
   const view = useMemo(() => ({ known: new Set<string>(), day: 1 }), []);
   const find = params.get('find');
   const forceGrade = find === 'RAINBOW' || find === 'RARE' ? find : undefined;
@@ -94,6 +96,7 @@ export function WalkPreview({ params }: { params: URLSearchParams }) {
         leaveTestId="walk-preview-leave"
         keeper={keeper}
         forceGrade={forceGrade}
+        showAreas={showAreas}
       />
     );
   }

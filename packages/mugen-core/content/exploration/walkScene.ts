@@ -104,6 +104,12 @@ export interface WalkSceneDef {
   framing?: number;
   /** Walked about in two dimensions, with small finds turning up (see `WalkRoam`). */
   roam?: WalkRoam;
+  /**
+   * Its own painting, when it is not the place's usual one (the App names the file): RUINS_PATH —
+   * the ruins' road to the far steps, with the old steps on the left (作者 2026-10-17, the grid
+   * image's painting). Absent: the place's painting.
+   */
+  painting?: 'RUINS_PATH';
 }
 
 /** A point in a painting, as fractions of its width and height. */
@@ -189,6 +195,18 @@ export interface WalkRoam {
    */
   far: number;
   near: number;
+  /**
+   * THE FLOOR TOLD APART (作者「探索画面仕様 更新指示」2026-10-17) — optional. When a place has
+   * areas, they are its ground and `floor` is only its outline of old: MAIN (緑) the way on,
+   * SIDE (黄) off the way, everything else blocked (赤), as the place's grid image draws it.
+   * The walk goes AROUND what is in the way. Without areas, `floor` is walked as ever.
+   */
+  areas?: WalkAreas;
+  /**
+   * A walker's size at `far` (1 at `near`) — absent: 0.8. A place whose ground runs far back into
+   * the picture (a road climbing to distant steps) draws its walkers smaller there.
+   */
+  farScale?: number;
   /** Where the party stops after walking in from the right. */
   start: PaintingPoint;
   /** Spots on the floor where a small find may turn up, one at a time. */
@@ -205,6 +223,31 @@ export interface WalkRoam {
    * is taken once in a world (`explorationPickups`) and never comes back.
    */
   pickups?: readonly WalkPickup[];
+}
+
+/**
+ * A PLACE'S GROUND, BY KIND (作者 2026-10-17): outlines in painting fractions.
+ *
+ *   main     緑 通常歩行 — the way on, walked freely, the road to the next place
+ *   side     黄 寄り道 — off the way: a gap in the rubble, a side path, a ruined room;
+ *            where finds, pickups and traces may lie. `enter` is what is noticed on first
+ *            stepping in (once a visit) — only what the painting shows
+ *   blocked  赤 cut out of main or side (a boulder standing in the road); anything outside
+ *            main and side is blocked already
+ *
+ * The things to look at (青 調べポイント) are not areas: they are the place's `points`,
+ * pickups and finds, as ever — each stood beside on the ground.
+ */
+export interface WalkAreas {
+  main: readonly (readonly PaintingPoint[])[];
+  side?: readonly WalkSideArea[];
+  blocked?: readonly (readonly PaintingPoint[])[];
+}
+
+/** One 寄り道 area, with what is noticed on first stepping in. */
+export interface WalkSideArea {
+  outline: readonly PaintingPoint[];
+  enter?: string;
 }
 
 /**

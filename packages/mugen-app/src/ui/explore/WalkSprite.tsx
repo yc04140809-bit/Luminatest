@@ -17,6 +17,7 @@ export function WalkSprite({
   testId,
   alt,
   bob = 0,
+  className,
 }: {
   frame: SpriteFrame;
   /** Screen pixels per source pixel, before the frame's own correction. */
@@ -27,6 +28,8 @@ export function WalkSprite({
   alt: string;
   /** Pixels lifted off the ground this moment — the step. */
   bob?: number;
+  /** More classes (the explorer's aura — styles.css `.walk-aura`). */
+  className?: string;
 }) {
   const s = scale * (frame.scale ?? 1);
   const rect = frame.rect;
@@ -39,7 +42,7 @@ export function WalkSprite({
       : undefined;
   return (
     <div
-      className="walk-sprite"
+      className={className ? `walk-sprite ${className}` : 'walk-sprite'}
       data-testid={testId}
       data-frame={frame.url + (rect ? `#${rect.x}` : '')}
       role="img"
