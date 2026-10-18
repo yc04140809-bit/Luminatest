@@ -6,6 +6,9 @@
 // delivered drafts onto one canvas per character: the same size, the same ground line, the figure the
 // same height in every frame, so nothing jumps when a frame changes or someone turns.
 //
+// Kaos is the revised four-view sheet (front, left, back, right — 作者 2026-10-18, redrawn to the
+// hero's proportions).
+//
 // What was done to the delivered pixels, and nothing more (docs/EXPLORER_MINI_STATUE.md §3):
 //   - the hero's sheet had the soft glow, the sparkles and the gold ring at his feet painted in; those
 //     are taken out here (the game draws its own aura and ring, with states), the figure untouched;
@@ -74,9 +77,10 @@ export const MINI_STATUE_SPRITES: Record<ExplorationCharacterId, ExplorationSpri
   },
   KAOS: {
     id: 'kaos-mini',
-    // Her height head to sole, the hair curl above it left out (as before: a flourish, not her size) —
-    // the curl is about a thirtieth of the 340 drawn.
-    referencePixels: 330,
+    // What the scene's size for her (a little under his) measures. Crown to sole she is 305 of the 340
+    // drawn (the curl above takes the rest), his crown to sole is 324 of his 340 (his spikes the rest):
+    // 320 keeps her crown-to-sole at 94% of his, as it always was (0.376 against 0.4).
+    referencePixels: 320,
     frames: {
       front: { idle: kaos(kaosFrontIdle), walk: [] },
       back: { idle: kaos(kaosBackIdle), walk: [] },
