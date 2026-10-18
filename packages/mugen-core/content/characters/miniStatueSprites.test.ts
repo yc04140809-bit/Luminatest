@@ -47,10 +47,9 @@ describe('the explorers as mini statues', () => {
     });
   }
 
-  it('the hero walks with four frames front, back and left; facing right with the one drawing delivered', () => {
-    const f = MINI_STATUE_SPRITES.HERO.frames;
-    for (const d of ['front', 'back', 'left'] as const) expect(f[d].walk).toHaveLength(4);
-    expect(f.right.walk).toHaveLength(1);
+  it('standing drawings for now, both of them, one per direction — the walk comes as its own drawings', () => {
+    for (const id of ['HERO', 'KAOS'] as const)
+      for (const d of DIRECTIONS) expect(MINI_STATUE_SPRITES[id].frames[d].walk, `${id} ${d}`).toHaveLength(0);
   });
 
   it('her height leaves out the curl of hair above it (as before: a flourish, not her size)', () => {

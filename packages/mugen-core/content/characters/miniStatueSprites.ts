@@ -6,38 +6,23 @@
 // delivered drafts onto one canvas per character: the same size, the same ground line, the figure the
 // same height in every frame, so nothing jumps when a frame changes or someone turns.
 //
-// Kaos is the revised four-view sheet (front, left, back, right — 作者 2026-10-18, redrawn to the
-// hero's proportions).
+// Both are the revised four-view sheets (front, left, back, right — 作者 2026-10-18): Kaos redrawn to
+// the hero's proportions, then the hero redrawn to match her (his sword left off for exploring).
 //
-// What was done to the delivered pixels, and nothing more (docs/EXPLORER_MINI_STATUE.md §3):
-//   - the hero's sheet had the soft glow, the sparkles and the gold ring at his feet painted in; those
-//     are taken out here (the game draws its own aura and ring, with states), the figure untouched;
+// What was done to the delivered pixels, and nothing more (docs/EXPLORER_MINI_STATUE.md §5):
+//   - each figure is cut out on its own (a neighbour's edge never comes with it), the faint pink rim the
+//     painting left around his hair taken off;
 //   - each figure is scaled to one height and set on the ground line, between its boots.
 // Nothing is mirrored: the hero's mark under his left eye and Kaos's two different wings would swap.
 //
-// WAITING ON ART — said here so it is not mistaken for a decision:
-//   - the hero facing right has one walking drawing (the delivered right-facing pose), not a cycle;
-//     he steps with it and the scene's bob;
-//   - Kaos has standing drawings only (front, left, back, right): she is moved with the bob, not
-//     animated. A walk cycle per direction drops in here and nothing else changes.
+// WAITING ON ART — said here so it is not mistaken for a decision: both have standing drawings only, and
+// are moved with the scene's bob (a little higher than with a cycle), not animated. The walking drawings
+// drop in as `walk` frames, on the same canvas, and nothing else changes.
 
 import heroBackIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-back-idle.webp';
-import heroBackWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk1.webp';
-import heroBackWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk2.webp';
-import heroBackWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk3.webp';
-import heroBackWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk4.webp';
 import heroFrontIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-front-idle.webp';
-import heroFrontWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk1.webp';
-import heroFrontWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk2.webp';
-import heroFrontWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk3.webp';
-import heroFrontWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk4.webp';
 import heroLeftIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-left-idle.webp';
-import heroLeftWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk1.webp';
-import heroLeftWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk2.webp';
-import heroLeftWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk3.webp';
-import heroLeftWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk4.webp';
 import heroRightIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-right-idle.webp';
-import heroRightWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-right-walk1.webp';
 import kaosBackIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-idle.webp';
 import kaosFrontIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-idle.webp';
 import kaosLeftIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-idle.webp';
@@ -59,20 +44,12 @@ export const MINI_STATUE_SPRITES: Record<ExplorationCharacterId, ExplorationSpri
     id: 'hero-mini',
     // His height, crown of the hair to sole, in every frame.
     referencePixels: 340,
+    // Standing drawings only for now (the walk is coming as its own drawings): he steps with the bob.
     frames: {
-      front: {
-        idle: hero(heroFrontIdle),
-        walk: [hero(heroFrontWalk1), hero(heroFrontWalk2), hero(heroFrontWalk3), hero(heroFrontWalk4)],
-      },
-      back: {
-        idle: hero(heroBackIdle),
-        walk: [hero(heroBackWalk1), hero(heroBackWalk2), hero(heroBackWalk3), hero(heroBackWalk4)],
-      },
-      left: {
-        idle: hero(heroLeftIdle),
-        walk: [hero(heroLeftWalk1), hero(heroLeftWalk2), hero(heroLeftWalk3), hero(heroLeftWalk4)],
-      },
-      right: { idle: hero(heroRightIdle), walk: [hero(heroRightWalk1)] },
+      front: { idle: hero(heroFrontIdle), walk: [] },
+      back: { idle: hero(heroBackIdle), walk: [] },
+      left: { idle: hero(heroLeftIdle), walk: [] },
+      right: { idle: hero(heroRightIdle), walk: [] },
     },
   },
   KAOS: {

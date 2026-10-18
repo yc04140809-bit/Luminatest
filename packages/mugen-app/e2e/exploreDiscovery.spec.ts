@@ -185,13 +185,15 @@ test.describe('the place moving on its own', () => {
     await settled(page);
     for (const k of ['DUST_LIGHT', 'STONE_DUST', 'DRAFT']) {
       await page.evaluate((k) => (window as unknown as { __mugenGust: (k: string) => void }).__mugenGust(k), k);
-      await expect(page.locator(`[data-gust="${k}"]`)).toBeAttached();
+      // (one may have come on its own as well)
+      await expect(page.locator(`[data-gust="${k}"]`).first()).toBeAttached();
     }
     await page.goto('/?preview=walk&place=GREENWOOD_FOREST');
     await settled(page);
     for (const k of ['SUNBEAM', 'LEAF_DRIFT', 'BUGS']) {
       await page.evaluate((k) => (window as unknown as { __mugenGust: (k: string) => void }).__mugenGust(k), k);
-      await expect(page.locator(`[data-gust="${k}"]`)).toBeAttached();
+      // (one may have come on its own as well)
+      await expect(page.locator(`[data-gust="${k}"]`).first()).toBeAttached();
     }
   });
 });
