@@ -3190,9 +3190,11 @@ body {
    while a line is read or something is got. */
 .walk-aura.aura-hero, .walk-foot-ring.aura-hero { --aura: 220, 236, 255; }
 .walk-aura.aura-kaos, .walk-foot-ring.aura-kaos { --aura: 255, 246, 222; }
-.walk-aura img { filter: drop-shadow(0 0 1.5px rgba(var(--aura), 0.75)) drop-shadow(0 0 5px rgba(var(--aura), 0.35)); transition: filter 0.3s ease; }
-.walk-aura.lead img { filter: drop-shadow(0 0 1.8px rgba(var(--aura), 0.9)) drop-shadow(0 0 7px rgba(var(--aura), 0.45)); }
-.walk-party.quiet .walk-aura img { filter: drop-shadow(0 0 1.2px rgba(var(--aura), 0.45)) drop-shadow(0 0 4px rgba(var(--aura), 0.2)); }
+/* --aura-u: one screen pixel in the art's own pixels, a little more the smaller the walker is drawn
+   (WalkSprite) — so the aura is the same on screen whatever the art's size, and stronger far back. */
+.walk-aura img { filter: drop-shadow(0 0 calc(1.5px * var(--aura-u, 1)) rgba(var(--aura), 0.75)) drop-shadow(0 0 calc(5px * var(--aura-u, 1)) rgba(var(--aura), 0.35)); transition: filter 0.3s ease; }
+.walk-aura.lead img { filter: drop-shadow(0 0 calc(1.8px * var(--aura-u, 1)) rgba(var(--aura), 0.9)) drop-shadow(0 0 calc(7px * var(--aura-u, 1)) rgba(var(--aura), 0.45)); }
+.walk-party.quiet .walk-aura img { filter: drop-shadow(0 0 calc(1.2px * var(--aura-u, 1)) rgba(var(--aura), 0.45)) drop-shadow(0 0 calc(4px * var(--aura-u, 1)) rgba(var(--aura), 0.2)); }
 .walk-foot-ring {
   position: absolute;
   aspect-ratio: 3.2 / 1;
@@ -3212,4 +3214,65 @@ body {
 .walk-tap-ring.blocked::after { transform: rotate(-45deg); }
 @media (prefers-reduced-motion: reduce) {
   .walk-foot-ring.at-thing { animation: none; }
+}
+
+
+/* ── THINGS DISCOVERED (作者「探索ポイント発見演出強化」2026-10-18; DiscoveryMarker.tsx) ──
+   Told apart by shape, movement and glow as well as colour. Faint from afar (.g-cue), swelling and
+   sparkling the moment first noticed (.fresh), then a quiet float. */
+.disc-marker {
+  position: absolute;
+  width: clamp(22px, 7.4vh, 32px);
+  height: clamp(26px, 8.8vh, 38px);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  --c: 120, 185, 255;
+  --glow: 0.5;
+}
+.disc-shape { position: absolute; inset: 0; display: block; transform-origin: 50% 100%; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 calc(6px * var(--glow) + 2px) rgba(var(--c), calc(var(--glow) + 0.2))); animation: disc-float 2.6s ease-in-out infinite alternate; }
+.disc-shape svg { display: block; overflow: visible; }
+.disc-fill { fill: rgb(var(--c)); stroke: #fff; stroke-width: 2.2; paint-order: stroke; stroke-linejoin: round; }
+.disc-core { fill: #fff; }
+.disc-facet { fill: none; stroke: rgba(255, 255, 255, 0.75); stroke-width: 1.2; }
+.disc-handle { stroke: #fff; stroke-width: 5; stroke-linecap: round; }
+.disc-ring { fill: rgba(var(--c), 0.18); stroke: rgba(255, 255, 255, 0.9); stroke-width: 2; }
+.disc-marker.cue-look { --c: 90, 160, 255; }
+.disc-marker.cue-find { --c: 235, 245, 255; }
+.disc-marker.cue-gather { --c: 255, 196, 64; }
+.disc-marker.cue-rare { --c: 255, 205, 70; --glow: 0.75; }
+.disc-marker.cue-rainbow { --c: 255, 255, 255; --glow: 0.95; width: clamp(26px, 8.5vh, 36px); height: clamp(26px, 8.5vh, 36px); }
+.disc-marker.cue-rainbow svg { animation: roam-hue 6s linear infinite; }
+.disc-marker.cue-event { --c: 255, 140, 40; }
+.disc-marker.cue-memory { --c: 196, 170, 255; --glow: 0.8; }
+/* Each its own movement: the crystal breathes, the event mark rocks, WORLD MEMORY glows slow and deep. */
+.disc-marker.cue-gather .disc-shape { animation: disc-breathe 2.4s ease-in-out infinite; }
+.disc-marker.cue-event .disc-shape { animation: disc-rock 2.2s ease-in-out infinite; }
+.disc-marker.cue-memory .disc-shape { animation: disc-deep 3.2s ease-in-out infinite; }
+.disc-marker.is-here { --glow: 0.9; }
+.disc-marker.is-here .disc-shape { scale: 1.08; }
+/* Just noticed: 90% ↔ 110% a few times, brighter, with a flash and sparks. */
+.disc-marker.fresh { --glow: 1; }
+.disc-marker.fresh .disc-shape { animation: disc-swell 0.85s ease-in-out 3; }
+.disc-burst { position: absolute; left: 50%; top: 55%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(var(--c), 0.6) 45%, transparent 75%); animation: disc-burst 0.6s ease-out both; }
+.disc-sparks { position: absolute; left: 50%; top: 55%; width: 0; height: 0; }
+.disc-sparks b { position: absolute; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(var(--c), 1); animation: disc-spark 0.75s ease-out both; }
+.disc-marker.cue-memory.fresh::before { content: ''; position: absolute; left: 50%; top: 50%; width: 260px; height: 180px; margin: -90px 0 0 -130px; border-radius: 50%; background: radial-gradient(closest-side, rgba(220, 205, 255, 0.35), transparent 70%); animation: disc-burst 1.1s ease-out both; pointer-events: none; }
+@keyframes disc-float { from { translate: 0 0; } to { translate: 0 -3px; } }
+@keyframes disc-breathe { 0%, 100% { scale: 0.94; } 50% { scale: 1.04; } }
+@keyframes disc-rock { 0%, 100% { rotate: -7deg; } 50% { rotate: 7deg; } }
+@keyframes disc-deep { 0%, 100% { opacity: 0.85; scale: 0.97; } 50% { opacity: 1; scale: 1.03; } }
+@keyframes disc-swell { 0%, 100% { scale: 0.9; } 50% { scale: 1.1; } }
+@keyframes disc-burst { 0% { opacity: 0; transform: scale(0.3); } 25% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes disc-spark { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-26px); } }
+/* From afar: a faint mark of the kind's colour, slow to twinkle — there, not the answer. */
+.roam-sign.g-cue { width: 14px; height: 14px; margin: -7px 0 0 -7px; --c: 120, 185, 255; background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0 16%, rgba(var(--c), 0.55) 36%, transparent 70%); animation: roam-cue-faint 3.6s ease-in-out infinite; }
+.roam-sign.g-cue.g-event { --c: 255, 150, 60; }
+.roam-sign.g-cue.g-memory { --c: 200, 175, 255; }
+.roam-sign.g-cue.seen { animation: none; opacity: 0.4; }
+.roam-sign.g-pickup.g-gather { background: radial-gradient(circle, rgba(255, 250, 225, 0.95) 0 14%, rgba(255, 200, 80, 0.55) 36%, transparent 66%); }
+@keyframes roam-cue-faint { 0%, 100% { opacity: 0.18; transform: scale(0.75); } 55% { opacity: 0.5; transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .disc-shape, .disc-marker.fresh .disc-shape, .disc-marker.cue-gather .disc-shape, .disc-marker.cue-event .disc-shape, .disc-marker.cue-memory .disc-shape { animation: none; }
+  .disc-sparks { display: none; }
+  .roam-sign.g-cue { animation: none; opacity: 0.35; }
 }

@@ -27,15 +27,18 @@ const PAINTINGS: Record<WalkPlaceId, () => Promise<{ default: string }>> = {
 };
 
 /** A walk's own painting, when it is not its place's usual one (WalkSceneDef `painting`). */
-const OWN_PAINTINGS: Record<'RUINS_PATH', () => Promise<{ default: string }>> = {
+const OWN_PAINTINGS: Record<OwnPainting, () => Promise<{ default: string }>> = {
   // 作者 2026-10-17: the ruins' road and side steps — the painting its grid image was drawn over.
   RUINS_PATH: () => import('@mugen/assets/files/backgrounds/walk-ruins-path.webp'),
+  // 作者 2026-10-18: the open grassland with the stream, the old signpost and the great tree (1462 × 1076).
+  GRASSLAND_RIVER: () => import('@mugen/assets/files/backgrounds/walk-grassland-river.webp'),
 };
+type OwnPainting = 'RUINS_PATH' | 'GRASSLAND_RIVER';
 
 const paintings = new Map<string, Promise<string | null>>();
 
 /** The painting a place is walked across (or a walk's own). Cached; null if it will not load. */
-export function walkPainting(place: WalkPlaceId, own?: 'RUINS_PATH'): Promise<string | null> {
+export function walkPainting(place: WalkPlaceId, own?: OwnPainting): Promise<string | null> {
   const key = own ?? place;
   const already = paintings.get(key);
   if (already) return already;

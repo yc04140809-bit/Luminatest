@@ -56,8 +56,9 @@ function floorGround(floor: readonly PaintingPoint[]): Ground {
 /** Which kind of ground a point is, by the areas (blocked cut-outs first). */
 export function areaKind(p: PaintingPoint, areas: WalkAreas): AreaKind | null {
   if ((areas.blocked ?? []).some((b) => onFloor(p, b))) return null;
-  if (areas.main.some((m) => onFloor(p, m))) return 'MAIN';
+  // A 寄り道 may lie inside the meadow (the flowers by the stream): the nearer, smaller one wins.
   if ((areas.side ?? []).some((s) => onFloor(p, s.outline))) return 'SIDE';
+  if (areas.main.some((m) => onFloor(p, m))) return 'MAIN';
   return null;
 }
 

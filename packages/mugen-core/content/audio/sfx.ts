@@ -54,6 +54,15 @@ export const SFX_IDS = [
   // own moment, so the rare ones never sound like the everyday one.
   'explore_rare_found',
   'explore_rainbow_found',
+  // THE MOMENT A THING IS FIRST NOTICED (作者 2026-10-18 探索ポイント発見演出): one short sound per
+  // kind, so a player hears "something is there" and looks round — a quiet click for a thing to
+  // look at, a soft crystal for one to gather, a higher ring for a rare one, an event's own, and a
+  // ringing, echoing one for WORLD MEMORY. Each borrows a delivered file until its own comes.
+  'explore_notice_look',
+  'explore_notice_gather',
+  'explore_notice_rare',
+  'explore_notice_event',
+  'explore_notice_memory',
   // ---- BATTLE ----
   'battle_start',
   // ONE PER WEAPON, not one per character. Two people holding long

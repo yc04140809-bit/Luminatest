@@ -22,6 +22,8 @@ import { WalkSprite } from './WalkSprite';
 import { groundOf } from './walkArea';
 import { Ambience, Moment, pickAmbience, pickMoment, type MomentKind } from './Ambience';
 import { PointMarker } from './PointMarker';
+import { DiscoveryMarker } from './DiscoveryMarker';
+import type { SfxId } from '@mugen/content/audio/sfx';
 import { DEPTH, PAN, markTipY } from './walkPath';
 import { weaponDefOf } from '@mugen/content/equipment/equipment';
 import { itemDef } from '@mugen/content/economy/itemDefs';
@@ -87,8 +89,14 @@ const HERO_SOURCE_HEIGHT = 169;
 const KAOS_HEIGHT = 0.376;
 /** No walker stands lower on the screen than this share of its height: the controls are below. */
 const LOWEST_FEET = 0.9;
-/** The ring at a walker's feet: this share of their drawn height across (探索用キャラ表示ルール). */
+/** The ring at a walker's feet: this share of their drawn height across (探索用キャラ表示ルール) … */
 const FOOT_RING_K = 0.55;
+/** … and never narrower than this, however far back they stand (作者 2026-10-18: 足元リングの最低サイズ). */
+const FOOT_RING_MIN_PX = 34;
+/** How much stronger the aura grows as a walker is drawn smaller (作者: 輪郭発光は相対的に少し強く). */
+const AURA_FAR_BOOST = 1.6;
+/** Where on the screen the party is kept, top to bottom, when the camera follows them up and down. */
+const FOLLOW_AT = 0.62;
 /** … and never into the strip the place's own doors take along the bottom (in px). */
 const DOORS_BAND = 64;
 /** Walking this far again since the last line brings the next one. */
@@ -115,10 +123,47 @@ function shuffle<T>(xs: readonly T[]): T[] {
   return out;
 }
 
+/**
+ * WHAT KIND OF THING IT IS, to be told apart by shape, movement and sound as well as colour
+ * (作者 2026-10-18 探索ポイント発見演出): LOOK 調べ · GATHER 採取 · FIND a small find · RARE a golden
+ * find · RAINBOW the once-in-a-world one · EVENT イベント · MEMORY WORLD MEMORY.
+ */
+export type Cue = 'LOOK' | 'GATHER' | 'FIND' | 'RARE' | 'RAINBOW' | 'EVENT' | 'MEMORY';
+
+/** The sound of a thing first noticed, by its kind. */
+const NOTICE_SFX: Record<Cue, SfxId> = {
+  LOOK: 'explore_notice_look',
+  FIND: 'explore_notice_look',
+  GATHER: 'explore_notice_gather',
+  RARE: 'explore_notice_rare',
+  RAINBOW: 'explore_notice_rare',
+  EVENT: 'explore_notice_event',
+  MEMORY: 'explore_notice_memory',
+};
+/** Which first-noticed thing is heard when several are noticed at once: the most notable. */
+const CUE_WEIGHT: Record<Cue, number> = { RAINBOW: 6, MEMORY: 5, RARE: 4, EVENT: 3, GATHER: 2, LOOK: 1, FIND: 0 };
+/** How long a thing just noticed swells and sparkles before it settles (作者: 過剰なアニメーションを続けない). */
+const FRESH_MS = 2600;
+
+let vibrateOnDiscovery = true;
+/** The light buzz as a thing is first noticed — a switch for a settings screen. */
+export function setDiscoveryVibration(on: boolean): void {
+  vibrateOnDiscovery = on;
+}
+function buzz(cue: Cue) {
+  if (!vibrateOnDiscovery) return;
+  try {
+    navigator.vibrate?.(cue === 'RAINBOW' || cue === 'MEMORY' ? [14, 50, 14] : 12);
+  } catch {
+    // A device without it: nothing.
+  }
+}
+
 /** Something that can be looked at right now: one of the place's own, a small find, or a pickup. */
 interface Thing {
   id: string;
   kind: 'point' | 'find' | 'pickup';
+  cue: Cue;
   /** How rare a find is; the place's own things are NORMAL. */
   grade: FindGrade;
   label: string;
@@ -209,6 +254,8 @@ export interface RoamMemory {
   findsThisVisit: number;
   visitCounted: boolean;
   rainbowSeen: boolean;
+  /** What has been first noticed this visit (a place that shows its discoveries). */
+  discovered?: string[];
   said: number;
   caption: string | null;
   captionGrade: FindGrade;
@@ -269,14 +316,8 @@ export function RoamScene({
 
   // ---- where everything is drawn ----
   const paintW = w * (1 + PAN);
-  const paintH = paintW / (1672 / 941);
-  const paintTop = (h - paintH) * Math.min(1, Math.max(0, scene.framing ?? 1));
-  /**
-   * The lowest painting height a walker may stand at on this screen —
-   * higher still where the place has its own doors along the bottom
-   * (the forest's), so nobody ever walks behind them.
-   */
-  const lowest = ((events ? Math.min(LOWEST_FEET * h, h - DOORS_BAND) : LOWEST_FEET * h) - paintTop) / paintH;
+  // A painting of its own shape (the grassland's is nearly 4:3); the usual one is 1672 × 941.
+  const paintH = paintW / (scene.paintingAspect ?? 1672 / 941);
 
   // ---- the walk ----
   // In from the right edge, at the height of where they stop.
@@ -298,6 +339,20 @@ export function RoamScene({
   const [lean, setLean] = useState<'side' | 'back' | 'front'>('side');
   const [kaosLean, setKaosLean] = useState<'side' | 'back' | 'front'>('side');
   const walking = target !== null;
+  /**
+   * Which part of the painting the screen shows, top to bottom: fixed by the place's framing — or,
+   * for a painting much taller than the screen walked far back into (`followY`, the grassland),
+   * following the party up and down, the party a little below the middle.
+   */
+  const paintTop = scene.followY
+    ? Math.min(0, Math.max(h - paintH, h * FOLLOW_AT - hero.y * paintH))
+    : (h - paintH) * Math.min(1, Math.max(0, scene.framing ?? 1));
+  /**
+   * The lowest painting height a walker may stand at on this screen —
+   * higher still where the place has its own doors along the bottom
+   * (the forest's), so nobody ever walks behind them.
+   */
+  const lowest = ((events ? Math.min(LOWEST_FEET * h, h - DOORS_BAND) : LOWEST_FEET * h) - paintTop) / paintH;
   // How far walked since a find last turned up or was read, and since the last line.
   const walkedForFind = useRef(0);
   const walkedForWords = useRef(Infinity);
@@ -306,6 +361,8 @@ export function RoamScene({
   const [arrivals, setArrivals] = useState(0);
 
   // ---- what is there ----
+  /** Whether this place shows its discoveries (faint from afar, swelling near, a flash and a sound when first noticed). */
+  const fxOn = !!scene.discoveryFx;
   const points = useMemo(() => pointsFor(scene, view), [scene]);
   const [read, setRead] = useState<ReadonlySet<string>>(() => new Set(was?.read ?? []));
   const [finds, setFindsState] = useState<readonly Find[]>(was?.finds ?? []);
@@ -353,6 +410,7 @@ export function RoamScene({
         .map((p) => ({
           id: p.id,
           kind: 'point' as const,
+          cue: (p.kind ?? 'LOOK') as Cue,
           grade: 'NORMAL' as const,
           label: p.label,
           stand: ground.to(p.stand ?? p.at),
@@ -362,6 +420,7 @@ export function RoamScene({
       ...finds.map(({ find, spot, grade }) => ({
         id: find.id,
         kind: 'find' as const,
+        cue: (grade === 'RAINBOW' ? 'RAINBOW' : grade === 'RARE' ? 'RARE' : 'FIND') as Cue,
         grade,
         label: find.label,
         stand: beside(roam.spots[spot]),
@@ -373,6 +432,7 @@ export function RoamScene({
         .map((p) => ({
           id: p.id,
           kind: 'pickup' as const,
+          cue: 'GATHER' as Cue,
           grade: 'NORMAL' as const,
           label: p.label,
           stand: beside(p.at),
@@ -385,7 +445,13 @@ export function RoamScene({
   // In notice: what is near, and never more than the nearest two at once.
   // A pickup is noticed by its own faint glint, and shows its 「！」 only
   // once the party stands at it — so it never crowds the place's own things.
-  const noticed = [
+  const noticed = fxOn
+    ? // A place that shows its discoveries (作者 2026-10-18): a thing to gather is noticed as the others are.
+      things
+        .filter((t) => dist(hero, t.stand) < NOTICE)
+        .sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))
+        .slice(0, MAX_NOTICED + 1)
+    : [
     ...things
       .filter((t) => t.kind !== 'pickup' && dist(hero, t.stand) < NOTICE)
       .sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))
@@ -395,6 +461,33 @@ export function RoamScene({
       .sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))
       .slice(0, 1),
   ];
+  // ---- discovering (作者 2026-10-18 探索ポイント発見演出) ----
+  // The moment a thing is first noticed this visit: it flashes and sparkles and swells a while, its
+  // kind's sound is heard (the most notable, when several at once) and the phone buzzes lightly;
+  // then it settles to a quiet float. Only on a place that shows its discoveries.
+  const discoveredNow = useRef<Set<string>>(new Set(was?.discovered ?? []));
+  const [fresh, setFresh] = useState<ReadonlySet<string>>(() => new Set());
+  const noticedKey = noticed.map((t) => t.id).join(' ');
+  useEffect(() => {
+    if (!fxOn) return;
+    const first = noticed.filter((t) => !discoveredNow.current.has(t.id));
+    if (first.length === 0) return;
+    for (const t of first) discoveredNow.current.add(t.id);
+    const loudest = [...first].sort((a, b) => CUE_WEIGHT[b.cue] - CUE_WEIGHT[a.cue])[0];
+    playSfx(NOTICE_SFX[loudest.cue]);
+    buzz(loudest.cue);
+    if (import.meta.env.DEV) {
+      // For the tests: every thing first noticed, and the sound it was heard with.
+      const w = window as unknown as { __mugenNoticed?: { id: string; cue: Cue; sfx: string }[] };
+      for (const t of first) (w.__mugenNoticed ??= []).push({ id: t.id, cue: t.cue, sfx: t === loudest ? NOTICE_SFX[t.cue] : '' });
+    }
+    setFresh((f) => new Set([...f, ...first.map((t) => t.id)]));
+    const ids = first.map((t) => t.id);
+    const timer = window.setTimeout(() => setFresh((f) => new Set([...f].filter((id) => !ids.includes(id)))), FRESH_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noticedKey]);
+
   const atThing: Thing | null = !walking && arrived
     ? (noticed.filter((t) => dist(hero, t.stand) < REACH).sort((a, b) => dist(hero, a.stand) - dist(hero, b.stand))[0] ?? null)
     : null;
@@ -433,6 +526,7 @@ export function RoamScene({
       findsThisVisit: findsThisVisit.current,
       visitCounted: visitCounted.current,
       rainbowSeen: rainbowSeen.current,
+      discovered: [...discoveredNow.current],
       said: said.current,
       caption,
       captionGrade,
@@ -785,6 +879,9 @@ export function RoamScene({
   };
 
   // ---- the party, drawn ----
+  // How near each stands (1 at the front, `farScale` far back): their size follows it smoothly.
+  const heroDepth = depthScale(hero.y, roam.far, roam.near, roam.farScale);
+  const kaosDepth = depthScale(kaos.y, roam.far, roam.near, roam.farScale);
   const heroScale = ((HERO_HEIGHT * h) / HERO_SOURCE_HEIGHT) * depthScale(hero.y, roam.far, roam.near, roam.farScale);
   const kaosScale = walkers
     ? ((KAOS_HEIGHT * h) / walkers.kaos.referencePixels) * depthScale(kaos.y, roam.far, roam.near, roam.farScale)
@@ -882,12 +979,26 @@ export function RoamScene({
           .map((p) => (
             <span
               key={`pickup-${p.id}`}
-              className="roam-sign g-pickup"
+              className={`roam-sign g-pickup${fxOn ? ' g-gather' : ''}`}
               data-testid={`walk-pickup-${p.id}`}
               style={{ left: p.at.x * paintW, top: paintTop + p.at.y * paintH }}
               aria-hidden="true"
             />
           ))}
+        {/* 未発見・遠距離 (作者 2026-10-18): the place's own things are faintly there from afar — never
+            loud, never the answer — and a little plainer once noticed. */}
+        {fxOn &&
+          things
+            .filter((t) => t.kind === 'point' && !noticed.some((n) => n.id === t.id))
+            .map((t) => (
+              <span
+                key={`hint-${t.id}`}
+                className={`roam-sign g-cue g-${t.cue.toLowerCase()}${discoveredNow.current.has(t.id) ? ' seen' : ''}`}
+                data-testid={`walk-hint-${t.id}`}
+                style={{ left: t.mark.x * paintW, top: paintTop + t.mark.y * paintH }}
+                aria-hidden="true"
+              />
+            ))}
       </div>
 
       <div className="walk-layer walk-light" style={{ transform: `translateX(${camX * DEPTH.light}px)` }} aria-hidden="true" />
@@ -903,7 +1014,7 @@ export function RoamScene({
             <span
               className="walk-foot-ring aura-kaos"
               data-testid="walk-ring-kaos"
-              style={{ left: kaosAt.x, top: kaosAt.y, width: FOOT_RING_K * KAOS_HEIGHT * h * depthScale(kaos.y, roam.far, roam.near, roam.farScale) }}
+              style={{ left: kaosAt.x, top: kaosAt.y, width: Math.max(FOOT_RING_MIN_PX, FOOT_RING_K * KAOS_HEIGHT * h * kaosDepth) }}
               aria-hidden="true"
             />
             <WalkSprite
@@ -915,6 +1026,7 @@ export function RoamScene({
               testId="walk-kaos"
               alt="ケイオス"
               className="walk-aura aura-kaos"
+              auraBoost={1 + (1 - kaosDepth) * AURA_FAR_BOOST}
             />
           </div>
           <div style={{ position: 'absolute', inset: 0, zIndex: Math.round(heroAt.y) + 1 }}>
@@ -922,7 +1034,7 @@ export function RoamScene({
               className={`walk-foot-ring aura-hero lead${atThing ? ' at-thing' : ''}`}
               data-testid="walk-ring-hero"
               data-state={atThing ? 'at-thing' : 'walk'}
-              style={{ left: heroAt.x, top: heroAt.y, width: FOOT_RING_K * HERO_HEIGHT * h * depthScale(hero.y, roam.far, roam.near, roam.farScale) }}
+              style={{ left: heroAt.x, top: heroAt.y, width: Math.max(FOOT_RING_MIN_PX, FOOT_RING_K * HERO_HEIGHT * h * heroDepth) }}
               aria-hidden="true"
             />
             <WalkSprite
@@ -934,6 +1046,7 @@ export function RoamScene({
               testId="walk-hero"
               alt="主人公"
               className={`walk-aura aura-hero lead${atThing ? ' at-thing' : ''}`}
+              auraBoost={1 + (1 - heroDepth) * AURA_FAR_BOOST}
             />
           </div>
         </div>
@@ -941,7 +1054,18 @@ export function RoamScene({
 
       {/* 「！」 — only on what is near, over the party so nobody stands in front of it. */}
       <div className="walk-layer roam-marks" style={{ width: paintW, transform: `translateX(${camX}px)` }}>
-        {noticed.map((t) => (
+        {noticed.map((t) =>
+          fxOn ? (
+            <DiscoveryMarker
+              key={`marker-${t.id}`}
+              left={t.mark.x * paintW}
+              top={markTipY(paintTop + t.mark.y * paintH, h, wordsEnd)}
+              state={atThing?.id === t.id ? 'here' : 'near'}
+              cue={t.cue}
+              fresh={fresh.has(t.id)}
+              testId={`walk-marker-${t.id}`}
+            />
+          ) : (
           <PointMarker
             key={`marker-${t.id}`}
             left={t.mark.x * paintW}
@@ -950,7 +1074,8 @@ export function RoamScene({
             variant={t.grade === 'RAINBOW' ? 'rainbow' : t.grade === 'RARE' ? 'rare' : 'normal'}
             testId={`walk-marker-${t.id}`}
           />
-        ))}
+          ),
+        )}
       </div>
 
       <Ambience picked={picked} />

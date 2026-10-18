@@ -18,6 +18,7 @@ export function WalkSprite({
   alt,
   bob = 0,
   className,
+  auraBoost = 1,
 }: {
   frame: SpriteFrame;
   /** Screen pixels per source pixel, before the frame's own correction. */
@@ -30,6 +31,8 @@ export function WalkSprite({
   bob?: number;
   /** More classes (the explorer's aura — styles.css `.walk-aura`). */
   className?: string;
+  /** How much stronger the aura is than its size alone would make it (stronger far back — 作者 2026-10-18). */
+  auraBoost?: number;
 }) {
   const s = scale * (frame.scale ?? 1);
   const rect = frame.rect;
@@ -53,6 +56,9 @@ export function WalkSprite({
         width: box?.width,
         height: box?.height,
         overflow: 'hidden',
+        // The aura's size in the picture's own pixels: the same on screen whatever the art's scale,
+        // and a little stronger the smaller the walker is drawn.
+        ['--aura-u' as string]: (auraBoost / s).toFixed(3),
       }}
     >
       <img

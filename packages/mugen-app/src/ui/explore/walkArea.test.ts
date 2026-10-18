@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 import { RUINS_WALK, RUINS_WALK_AREAS_POC } from '@mugen/content/exploration/ruinsWalk';
+import { GRASSLAND_WALK_POC } from '@mugen/content/exploration/grasslandWalk';
 import type { WalkAreas } from '@mugen/content/exploration/walkScene';
 import { areaKind, clearLine, groundOf } from './walkArea';
-import { onFloor, toFloor } from './roam';
+import { depthScale, onFloor, toFloor } from './roam';
 
 // The ground told apart (作者「探索画面仕様 更新指示」2026-10-17): MAIN 緑, SIDE 黄, the rest 赤.
 
@@ -112,5 +113,51 @@ describe('the ruins PoC (RUINS_WALK_AREAS_POC — DEBUG `&areas=1`)', () => {
 
   it('the rubble at the front, the low walls and the distance are not ground', () => {
     for (const p of [{ x: 0.1, y: 0.85 }, { x: 0.45, y: 0.25 }, { x: 0.6, y: 0.4 }, { x: 0.95, y: 0.35 }]) expect(g.on(p), JSON.stringify(p)).toBe(false);
+  });
+});
+
+describe('the grassland PoC (GRASSLAND_WALK_POC — 遠近スケール and 探索ポイント発見演出, 作者 2026-10-18)', () => {
+  const scene = GRASSLAND_WALK_POC;
+  const roam = scene.roam!;
+  const g = groundOf(roam);
+
+  it('its own painting, its own shape (1462 × 1076), the camera following up and down, discoveries shown', () => {
+    expect(scene.painting).toBe('GRASSLAND_RIVER');
+    expect(scene.paintingAspect).toBeCloseTo(1462 / 1076, 5);
+    expect(scene.followY).toBe(true);
+    expect(scene.discoveryFx).toBe(true);
+  });
+
+  it('far back smaller, smoothly (作者: 手前100% · 中景80〜85% · 奥60〜70% · 下限55〜60%)', () => {
+    const at = (y: number) => depthScale(y, roam.far, roam.near, roam.farScale);
+    expect(at(roam.near)).toBe(1);
+    expect(at(1)).toBe(1);
+    expect(at((roam.far + roam.near) / 2)).toBeGreaterThanOrEqual(0.78);
+    expect(at((roam.far + roam.near) / 2)).toBeLessThanOrEqual(0.85);
+    expect(at(roam.far)).toBeGreaterThanOrEqual(0.55);
+    expect(at(roam.far)).toBeLessThanOrEqual(0.7);
+    expect(at(0)).toBe(at(roam.far));
+    // No jump anywhere: a step of 1% of the painting changes the size by under 1%.
+    for (let y = 0; y < 1; y += 0.01) expect(Math.abs(at(y + 0.01) - at(y))).toBeLessThan(0.01);
+  });
+
+  it('the grid image\'s marks: two to look at, one event, four to gather — each stood beside on the ground', () => {
+    const kinds = scene.points.map((p) => p.kind ?? 'LOOK').sort();
+    expect(kinds).toEqual(['EVENT', 'LOOK', 'LOOK']);
+    expect(roam.pickups).toHaveLength(4);
+    expect(g.on(roam.start)).toBe(true);
+    for (const p of scene.points) expect(g.on(p.stand!), p.id).toBe(true);
+    for (const p of roam.pickups!) expect(g.on(p.at), p.id).toBe(true);
+    roam.spots.forEach((s, i) => expect(g.on(s), `spot ${i}`).toBe(true));
+  });
+
+  it('off the way (黄): the hill under the great tree, the ruins on the right hill, the flowers, the roadside — the flowers inside the meadow still count as 寄り道', () => {
+    expect(roam.areas!.side).toHaveLength(4);
+    const flowers = roam.pickups!.find((p) => p.id === 'grass_pickup_004')!;
+    expect(g.kind(flowers.at)).toBe('SIDE');
+    expect(g.kind(roam.start)).toBe('MAIN');
+    // The stream and the flowers in front are not walked.
+    expect(g.on({ x: 0.15, y: 0.6 })).toBe(false);
+    expect(g.on({ x: 0.1, y: 0.9 })).toBe(false);
   });
 });

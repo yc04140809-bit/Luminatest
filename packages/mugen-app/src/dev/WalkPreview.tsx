@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RUINS_WALK, RUINS_WALK_AREAS_POC } from '@mugen/content/exploration/ruinsWalk';
+import { GRASSLAND_WALK_POC } from '@mugen/content/exploration/grasslandWalk';
 import type { WalkSceneDef } from '@mugen/content/exploration/walkScene';
 import type { WalkPlaceId } from '@mugen/content/exploration/walkPlaces';
 import { World } from '@mugen/core/world/world';
 import { IdbMemoryStore } from '@mugen/core/memory/idbStore';
 import { WalkScene } from '../ui/explore/WalkScene';
-import { RoamScene, type RoamKeeper } from '../ui/explore/RoamScene';
+import { RoamScene, type PickupKeeper, type RoamKeeper } from '../ui/explore/RoamScene';
 import { APP_DB_NAME } from '../platform/save';
 
 /**
@@ -31,7 +32,12 @@ import { APP_DB_NAME } from '../platform/save';
  */
 const PREVIEWABLE: Partial<Record<WalkPlaceId, WalkSceneDef>> = {
   ANCIENT_RUINS: RUINS_WALK,
+  // 作者 2026-10-18: the grassland's PoC — 遠近スケール and 探索ポイント発見演出.
+  GRASSLAND: GRASSLAND_WALK_POC,
 };
+
+/** Pickups that keep nothing (the DEBUG walk): taken for this visit only, into no bag. */
+const SESSION_PICKUPS: PickupKeeper = { taken: new Set(), take: async (_id, _item, quantity) => quantity };
 
 /**
  * This phone's save, if it has one with anything in it — opened without
@@ -97,6 +103,7 @@ export function WalkPreview({ params }: { params: URLSearchParams }) {
         keeper={keeper}
         forceGrade={forceGrade}
         showAreas={showAreas}
+        pickupKeeper={scene.discoveryFx ? SESSION_PICKUPS : undefined}
       />
     );
   }

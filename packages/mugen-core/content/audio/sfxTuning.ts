@@ -108,6 +108,13 @@ export const SFX_TUNING: Partial<Record<SfxId, SfxTuning>> = {
   // No file of its own yet: the holy spell's shimmer, higher and cut short —
   // a ring, not a spell. Its own file, when delivered, replaces this line.
   ui_celebrate: { source: 'battle_magic_holy', gain: 0.42, rate: 1.2, maxMs: 520 },
+  // The moment a thing is first noticed (2026-10-18) — short, quiet, each its own; borrowed until
+  // its own file comes (drop explore_notice_*.mp3 into the folder and it is used instead).
+  explore_notice_look: { source: 'battle_guard', gain: 0.32, rate: 1.2, maxMs: 220 },
+  explore_notice_gather: { source: 'battle_magic_ice', gain: 0.38, rate: 1.15, maxMs: 380 },
+  explore_notice_rare: { source: 'battle_magic_holy', gain: 0.5, rate: 1.2, maxMs: 560 },
+  explore_notice_event: { source: 'battle_charge_aura', gain: 0.4, rate: 1.1, maxMs: 520 },
+  explore_notice_memory: { source: 'battle_magic_wind', gain: 0.45, rate: 0.9, maxMs: 1000 },
 
   // ---- ambience (loops; no player for them yet) ----
   // Set to sit under the music: the delivered levels run −20 to −27 dB.

@@ -56,6 +56,12 @@ export interface WalkPoint {
    */
   stand?: { x: number; y: number };
   /**
+   * WHAT KIND OF THING IT IS (作者「探索ポイント発見演出強化」2026-10-18), told apart by shape,
+   * movement and sound as well as colour on a place that shows its discoveries (`discoveryFx`):
+   * LOOK (absent) 調べポイント · EVENT イベントポイント · MEMORY WORLD MEMORY に関わるもの.
+   */
+  kind?: 'LOOK' | 'EVENT' | 'MEMORY';
+  /**
    * What looking at it says. The first line whose condition holds wins,
    * so put the most particular first and an unconditional one last.
    */
@@ -109,7 +115,21 @@ export interface WalkSceneDef {
    * the ruins' road to the far steps, with the old steps on the left (作者 2026-10-17, the grid
    * image's painting). Absent: the place's painting.
    */
-  painting?: 'RUINS_PATH';
+  painting?: 'RUINS_PATH' | 'GRASSLAND_RIVER';
+  /** Its painting's width over its height, when not the usual 1672 × 941 (the grassland's is 1462 × 1076). */
+  paintingAspect?: number;
+  /**
+   * The camera follows the party up and down too, not only across — for a painting much taller
+   * than the screen, walked from its front far back into it (the grassland).
+   */
+  followY?: boolean;
+  /**
+   * SHOWS ITS DISCOVERIES (作者 2026-10-18 探索ポイント発見演出強化): its things are faintly there
+   * from afar, swell and float as the party comes near, and the moment one is first noticed it
+   * flashes, sparkles and sounds — each kind its own shape, movement and sound. A PoC on the
+   * grassland first; a place without it shows its things as before.
+   */
+  discoveryFx?: true;
 }
 
 /** A point in a painting, as fractions of its width and height. */
