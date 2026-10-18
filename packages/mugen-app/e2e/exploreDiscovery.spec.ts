@@ -22,6 +22,20 @@ async function openGrassland(page: Page) {
     .toBe(true);
 }
 
+test('on a phone: the title\'s DEBUG doors open the grassland PoC (and the ruins\' areas PoC), the row sliding sideways rather than off the screen', async ({ page }) => {
+  await page.goto('/');
+  const door = page.getByTestId('debug-walk-grassland');
+  const vw = page.viewportSize()!.width;
+  const box = (await door.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(vw);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(vw);
+  await expect(page.getByTestId('debug-walk-ruins-areas')).toBeAttached();
+  await expect(page.getByTestId('debug-fx-preview')).toBeAttached();
+  await door.click();
+  await expect(scene(page)).toHaveAttribute('data-place', 'GRASSLAND');
+  expect(decodeURIComponent((await page.getByTestId('walk-painting').getAttribute('src')) ?? '')).toContain('walk-grassland-river');
+});
+
 test('its painting at its own shape, the camera following the party up the meadow to the great tree; smaller far back, smoothly', async ({ page }) => {
   test.setTimeout(90_000);
   await openGrassland(page);

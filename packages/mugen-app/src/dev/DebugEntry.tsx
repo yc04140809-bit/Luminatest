@@ -18,11 +18,36 @@ export function DebugEntry() {
         position: 'fixed',
         left: 'calc(8px + env(safe-area-inset-left))',
         bottom: 'calc(8px + env(safe-area-inset-bottom))',
+        right: 'calc(8px + env(safe-area-inset-right))',
         zIndex: 1000,
         display: 'flex',
         gap: 8,
+        // More doors than a phone is wide: the row slides sideways.
+        overflowX: 'auto',
       }}
     >
+      {/* The PoCs waiting on the author's eye (docs/EXPLORATION_DISCOVERY.md, EXPLORATION_AREAS.md, CHARACTER_FX.md). */}
+      <button
+        data-testid="debug-walk-grassland"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=walk&place=GRASSLAND`)}
+        style={DOOR}
+      >
+        探索PoC（草原・遠近と発見演出）
+      </button>
+      <button
+        data-testid="debug-walk-ruins-areas"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=walk&place=ANCIENT_RUINS&areas=1`)}
+        style={DOOR}
+      >
+        探索PoC（遺跡・歩行範囲）
+      </button>
+      <button
+        data-testid="debug-fx-preview"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=fx`)}
+        style={DOOR}
+      >
+        キャラ演出見本
+      </button>
       <button
         data-testid="debug-party-preview"
         onClick={() => window.location.assign(`${window.location.pathname}?preview=party&enemy=select`)}
@@ -71,6 +96,8 @@ export function DebugEntry() {
 }
 
 const DOOR = {
+  flex: 'none',
+  whiteSpace: 'nowrap',
   minHeight: 36,
   padding: '4px 12px',
   border: '1px solid #e0b84a',
