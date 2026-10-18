@@ -118,7 +118,21 @@ export const GRASSLAND_WALK_POC: WalkSceneDef = {
     { text: '遠くで、水の流れる音がする。' },
     { text: '大きな木の葉が、さわさわと鳴っている。' },
   ],
-  ambience: ['BIRDS', 'LEAVES'],
+  // Birds over the meadow; no leaves falling out of an open sky. The meadow's own small moves are the gusts.
+  ambience: ['BIRDS'],
+  gusts: {
+    kinds: ['WIND', 'PETALS', 'FLUFF', 'DUST'],
+    // The pool below the falls, where the light catches.
+    water: [
+      { x: 0.05, y: 0.58 },
+      { x: 0.12, y: 0.6 },
+      { x: 0.2, y: 0.548 },
+      { x: 0.27, y: 0.562 },
+      { x: 0.33, y: 0.538 },
+      { x: 0.09, y: 0.635 },
+      { x: 0.18, y: 0.618 },
+    ],
+  },
   roam: {
     // The outline of old, kept for anything that still reads it: the meadow's.
     floor: MEADOW,

@@ -74,9 +74,11 @@ function preload(url: string): Promise<void> {
  * have arrived, so nobody walks in as a blank and pops into view.
  */
 export function walkerSprites(): Promise<Walkers | null> {
-  walkers ??= import('@mugen/content/characters/explorationSprites')
+  walkers ??= import('@mugen/content/characters/miniStatueSprites')
     .then(async (m) => {
-      const set = { hero: m.EXPLORATION_SPRITES.HERO, kaos: m.EXPLORATION_SPRITES.KAOS };
+      // The mini statues (作者 2026-10-18: 最新の探索キャラクター素材へ差し替え) — the old forest frames stay
+      // only for the Artifact's own forest.
+      const set = { hero: m.MINI_STATUE_SPRITES.HERO, kaos: m.MINI_STATUE_SPRITES.KAOS };
       const urls = new Set(
         [set.hero, set.kaos].flatMap((c) => [c.frames.left.idle, ...c.frames.left.walk].map((f) => f.url)),
       );

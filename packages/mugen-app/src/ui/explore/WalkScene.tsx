@@ -50,8 +50,6 @@ const FRAME_MS = 140;
 const FEET_Y = 0.8;
 /** The hero's height, head to sole, as a share of the screen's height. */
 const HERO_HEIGHT = 0.4;
-/** The hero's head-to-sole in his own frame's pixels (sole at 177, crown near 8). */
-const HERO_SOURCE_HEIGHT = 169;
 /** Kaos is drawn a little smaller than him, as she is in the Artifact's forest. */
 const KAOS_HEIGHT = 0.376;
 /** How far behind him (to his right) she walks, as a share of the screen's height. */
@@ -316,7 +314,8 @@ export function WalkScene({
 
   const heroFeetX = (heroX(t) + entering * 0.3) * w;
   const feetY = FEET_Y * h;
-  const heroScale = (HERO_HEIGHT * h) / HERO_SOURCE_HEIGHT;
+  // His height in his own frames' pixels is the art's (the mini statues: 340, crown to sole).
+  const heroScale = walkers ? (HERO_HEIGHT * h) / walkers.hero.referencePixels : 1;
   const kaosScale = walkers ? (KAOS_HEIGHT * h) / walkers.kaos.referencePixels : 1;
   const moving = walking || entering > 0;
   const pick = (frames: { idle: SpriteFrame; walk: readonly SpriteFrame[] }, offset: number) =>

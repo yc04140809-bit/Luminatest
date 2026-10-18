@@ -86,6 +86,8 @@ export const GREENWOOD_WALK: WalkSceneDef = {
     { text: '森は、前より少し静かになった気がする。', when: AFTER_THE_ANSWER },
   ],
   ambience: ['BIRDS', 'LEAVES', 'MOTES'],
+  // Now and then, over the leaves already falling: a few let go together, the light sways, small insects.
+  gusts: { kinds: ['LEAF_DRIFT', 'SUNBEAM', 'BUGS'] },
   // The man in the road, seen from a long way off — until he is not.
   figures: [{ id: 'GALD', at: { x: 0.3, y: 0.56 }, when: BEFORE_THE_ANSWER }],
   // The clearing's floor sits in the lower middle of the painting: look a

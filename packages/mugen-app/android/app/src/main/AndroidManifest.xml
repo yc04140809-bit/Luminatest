@@ -39,4 +39,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The light buzz as a thing is first noticed while exploring (src/platform/haptics.ts). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

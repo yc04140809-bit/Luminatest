@@ -23,6 +23,9 @@ import { groundOf } from './walkArea';
 import { Ambience, Moment, pickAmbience, pickMoment, type MomentKind } from './Ambience';
 import { PointMarker } from './PointMarker';
 import { DiscoveryMarker } from './DiscoveryMarker';
+import { Gusts } from './Gusts';
+import { buzz } from '../../platform/haptics';
+import { explorePref, setExplorePref } from '../../platform/explorePrefs';
 import type { SfxId } from '@mugen/content/audio/sfx';
 import { DEPTH, PAN, markTipY } from './walkPath';
 import { weaponDefOf } from '@mugen/content/equipment/equipment';
@@ -83,8 +86,6 @@ const WALK_SPEED = 0.3;
 const FRAME_MS = 140;
 /** The hero's height at the nearest floor, as a share of the screen's height. */
 const HERO_HEIGHT = 0.4;
-/** The hero's head-to-sole in his own frame's pixels (sole at 177, crown near 8). */
-const HERO_SOURCE_HEIGHT = 169;
 /** Kaos is drawn a little smaller than him. */
 const KAOS_HEIGHT = 0.376;
 /** No walker stands lower on the screen than this share of its height: the controls are below. */
@@ -144,20 +145,13 @@ const NOTICE_SFX: Record<Cue, SfxId> = {
 const CUE_WEIGHT: Record<Cue, number> = { RAINBOW: 6, MEMORY: 5, RARE: 4, EVENT: 3, GATHER: 2, LOOK: 1, FIND: 0 };
 /** How long a thing just noticed swells and sparkles before it settles (作者: 過剰なアニメーションを続けない). */
 const FRESH_MS = 2600;
+/** A faint mark's strength far off and close by, and how far (in painting widths) it starts to come up. */
+const HINT_FAR = 0.14;
+const HINT_NEAR = 0.6;
+const HINT_REACH = 0.55;
 
-let vibrateOnDiscovery = true;
-/** The light buzz as a thing is first noticed — a switch for a settings screen. */
-export function setDiscoveryVibration(on: boolean): void {
-  vibrateOnDiscovery = on;
-}
-function buzz(cue: Cue) {
-  if (!vibrateOnDiscovery) return;
-  try {
-    navigator.vibrate?.(cue === 'RAINBOW' || cue === 'MEMORY' ? [14, 50, 14] : 12);
-  } catch {
-    // A device without it: nothing.
-  }
-}
+/** The kinds that buzz a little firmer when first noticed (作者 2026-10-18: レア発見は少しだけ強く). */
+const FIRM_BUZZ: ReadonlySet<Cue> = new Set<Cue>(['RARE', 'RAINBOW', 'MEMORY']);
 
 /** Something that can be looked at right now: one of the place's own, a small find, or a pickup. */
 interface Thing {
@@ -475,11 +469,19 @@ export function RoamScene({
     for (const t of first) discoveredNow.current.add(t.id);
     const loudest = [...first].sort((a, b) => CUE_WEIGHT[b.cue] - CUE_WEIGHT[a.cue])[0];
     playSfx(NOTICE_SFX[loudest.cue]);
-    buzz(loudest.cue);
+    // The player's switch (探索の設定), read as it happens; off is silent in the hand too.
+    const strength = explorePref('vibration') ? (FIRM_BUZZ.has(loudest.cue) ? 'rare' : 'light') : null;
+    if (strength) buzz(strength);
     if (import.meta.env.DEV) {
-      // For the tests: every thing first noticed, and the sound it was heard with.
-      const w = window as unknown as { __mugenNoticed?: { id: string; cue: Cue; sfx: string }[] };
-      for (const t of first) (w.__mugenNoticed ??= []).push({ id: t.id, cue: t.cue, sfx: t === loudest ? NOTICE_SFX[t.cue] : '' });
+      // For the tests: every thing first noticed, the sound it was heard with, and the buzz.
+      const w = window as unknown as { __mugenNoticed?: { id: string; cue: Cue; sfx: string; buzz: string }[] };
+      for (const t of first)
+        (w.__mugenNoticed ??= []).push({
+          id: t.id,
+          cue: t.cue,
+          sfx: t === loudest ? NOTICE_SFX[t.cue] : '',
+          buzz: t === loudest ? (strength ?? 'off') : '',
+        });
     }
     setFresh((f) => new Set([...f, ...first.map((t) => t.id)]));
     const ids = first.map((t) => t.id);
@@ -503,7 +505,12 @@ export function RoamScene({
     const at = host.current?.getBoundingClientRect().top ?? 0;
     setWordsEnd(el ? Math.ceil(el.getBoundingClientRect().bottom - at) + 4 : 0);
   }, [caption, size]);
-  const picked = useMemo(() => (calm ? [] : pickAmbience(scene.ambience)), [scene, calm]);
+  // 探索の設定 (作者 2026-10-18): the place's small moves can be switched off; so can the buzz.
+  const [ambienceOn, setAmbienceOn] = useState(() => explorePref('ambience'));
+  const [vibrationOn, setVibrationOn] = useState(() => explorePref('vibration'));
+  const [prefsOpen, setPrefsOpen] = useState(false);
+  const still = calm || !ambienceOn;
+  const picked = useMemo(() => (still ? [] : pickAmbience(scene.ambience)), [scene, still]);
   const [moment, setMoment] = useState<{ kind: MomentKind; n: number } | null>(null);
   const restingAtThing = useRef(false);
   restingAtThing.current = !!atThing;
@@ -711,7 +718,7 @@ export function RoamScene({
   }, [arrivals]);
 
   useEffect(() => {
-    if (calm) return;
+    if (still) return;
     let timer = 0;
     let clear = 0;
     const between = ([lo, hi]: [number, number]) => lo + Math.random() * (hi - lo);
@@ -729,13 +736,17 @@ export function RoamScene({
     return () => {
       window.clearTimeout(timer);
       window.clearTimeout(clear);
+      setMoment(null);
     };
-  }, [calm]);
+  }, [still]);
 
   // The camera keeps him near the middle, within the painting.
   const heroPx = hero.x * paintW;
   const camX = Math.min(0, Math.max(w - paintW, w / 2 - heroPx));
   const toScreen = (p: PaintingPoint) => ({ x: p.x * paintW + camX, y: paintTop + p.y * paintH });
+  /** How plainly a faint mark shows (作者 2026-10-18: 未発見は薄く、近づくほど見える): from barely there to plain. */
+  const nearness = (p: PaintingPoint) =>
+    ({ ['--o' as string]: (HINT_FAR + (HINT_NEAR - HINT_FAR) * Math.max(0, 1 - dist(hero, p) / HINT_REACH)).toFixed(2) }) as React.CSSProperties;
 
   /**
    * A TOUCH ON THE PLACE: walk there. Controls are their own. A touch on
@@ -882,7 +893,10 @@ export function RoamScene({
   // How near each stands (1 at the front, `farScale` far back): their size follows it smoothly.
   const heroDepth = depthScale(hero.y, roam.far, roam.near, roam.farScale);
   const kaosDepth = depthScale(kaos.y, roam.far, roam.near, roam.farScale);
-  const heroScale = ((HERO_HEIGHT * h) / HERO_SOURCE_HEIGHT) * depthScale(hero.y, roam.far, roam.near, roam.farScale);
+  // His height in his own frames' pixels is the art's (the mini statues: 340, crown to sole).
+  const heroScale = walkers
+    ? ((HERO_HEIGHT * h) / walkers.hero.referencePixels) * depthScale(hero.y, roam.far, roam.near, roam.farScale)
+    : 1;
   const kaosScale = walkers
     ? ((KAOS_HEIGHT * h) / walkers.kaos.referencePixels) * depthScale(kaos.y, roam.far, roam.near, roam.farScale)
     : 1;
@@ -890,7 +904,12 @@ export function RoamScene({
     walking && frames.walk.length > 0
       ? frames.walk[(((frame + offset) % frames.walk.length) + frames.walk.length) % frames.walk.length]
       : frames.idle;
-  const bob = (offset: number) => (walking && !calm ? Math.abs(Math.sin(((frame + offset) * Math.PI) / 2)) * h * 0.008 : 0);
+  // The step. A direction with no walking cycle drawn yet (Kaos; the hero facing right) steps a little
+  // higher, so they are seen to walk rather than slide.
+  const bob = (offset: number, frames?: { walk: readonly SpriteFrame[] }) =>
+    walking && !calm
+      ? Math.abs(Math.sin(((frame + offset) * Math.PI) / 2)) * h * 0.008 * (frames && frames.walk.length < 2 ? 1.8 : 1)
+      : 0;
   const heroAt = toScreen(hero);
   const kaosAt = toScreen(kaos);
 
@@ -946,6 +965,10 @@ export function RoamScene({
               }}
             />
           ))}
+        {/* The place moving on its own now and then (環境アニメーション) — behind everyone, never a thing. */}
+        {!still && scene.gusts && (
+          <Gusts gusts={scene.gusts} camX={camX} w={w} h={h} paintW={paintW} paintH={paintH} paintTop={paintTop} />
+        )}
         {finds.map(({ find, spot, grade }) => (
           <span
             key={`sign-${find.id}`}
@@ -981,7 +1004,7 @@ export function RoamScene({
               key={`pickup-${p.id}`}
               className={`roam-sign g-pickup${fxOn ? ' g-gather' : ''}`}
               data-testid={`walk-pickup-${p.id}`}
-              style={{ left: p.at.x * paintW, top: paintTop + p.at.y * paintH }}
+              style={{ left: p.at.x * paintW, top: paintTop + p.at.y * paintH, ...(fxOn ? nearness(p.at) : {}) }}
               aria-hidden="true"
             />
           ))}
@@ -995,7 +1018,7 @@ export function RoamScene({
                 key={`hint-${t.id}`}
                 className={`roam-sign g-cue g-${t.cue.toLowerCase()}${discoveredNow.current.has(t.id) ? ' seen' : ''}`}
                 data-testid={`walk-hint-${t.id}`}
-                style={{ left: t.mark.x * paintW, top: paintTop + t.mark.y * paintH }}
+                style={{ left: t.mark.x * paintW, top: paintTop + t.mark.y * paintH, ...nearness(t.stand) }}
                 aria-hidden="true"
               />
             ))}
@@ -1022,7 +1045,7 @@ export function RoamScene({
               scale={kaosScale}
               feetX={kaosAt.x}
               feetY={kaosAt.y}
-              bob={bob(2)}
+              bob={bob(2, walkers.kaos.frames[kaosLean === 'side' ? kaosFacing : kaosLean])}
               testId="walk-kaos"
               alt="ケイオス"
               className="walk-aura aura-kaos"
@@ -1042,7 +1065,7 @@ export function RoamScene({
               scale={heroScale}
               feetX={heroAt.x}
               feetY={heroAt.y}
-              bob={bob(0)}
+              bob={bob(0, walkers.hero.frames[lean === 'side' ? facing : lean])}
               testId="walk-hero"
               alt="主人公"
               className={`walk-aura aura-hero lead${atThing ? ' at-thing' : ''}`}
@@ -1086,7 +1109,38 @@ export function RoamScene({
         <button className="walk-leave" data-testid={leaveTestId} onClick={onLeave}>
           {leaveLabel}
         </button>
+        {/* 探索の設定 — on the places trying the new feel (PoC), for now. */}
+        {fxOn && (
+          <button className="walk-prefs-open" data-testid="walk-prefs-open" aria-expanded={prefsOpen} onClick={() => setPrefsOpen((o) => !o)}>
+            設定
+          </button>
+        )}
       </div>
+      {fxOn && prefsOpen && (
+        <div className="walk-prefs" data-testid="walk-prefs" data-no-walk>
+          <button
+            data-testid="walk-pref-vibration"
+            aria-pressed={vibrationOn}
+            onClick={() => {
+              setExplorePref('vibration', !vibrationOn);
+              setVibrationOn(!vibrationOn);
+              if (!vibrationOn) buzz('light');
+            }}
+          >
+            振動 {vibrationOn ? 'ON' : 'OFF'}
+          </button>
+          <button
+            data-testid="walk-pref-ambience"
+            aria-pressed={ambienceOn}
+            onClick={() => {
+              setExplorePref('ambience', !ambienceOn);
+              setAmbienceOn(!ambienceOn);
+            }}
+          >
+            環境演出 {ambienceOn ? 'ON' : 'OFF'}
+          </button>
+        </div>
+      )}
       {caption && (
         <p
           ref={captionEl}

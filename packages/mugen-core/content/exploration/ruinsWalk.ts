@@ -238,6 +238,11 @@ export const RUINS_WALK_AREAS_POC: WalkSceneDef = {
   painting: 'RUINS_PATH',
   // Its road runs from the front to steps high on the right: the screen looks at its middle.
   framing: 0.45,
+  // Its things shown as the grassland's are (作者 2026-10-18 改善指示書: 草原PoCと遺跡PoCで確認) —
+  // faint from afar, a light flash and buzz when first noticed. The game's ruins keep their 「！」.
+  discoveryFx: true,
+  // Quieter than the meadow: dust in the light, a trickle of stone, a draught through the walls.
+  gusts: { kinds: ['DUST_LIGHT', 'STONE_DUST', 'DRAFT'] },
   points: [
     {
       id: 'STONE_ARCH',

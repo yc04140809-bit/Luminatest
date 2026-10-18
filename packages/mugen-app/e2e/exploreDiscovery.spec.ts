@@ -10,7 +10,7 @@ import { goTo, hero, settled, things, touch } from './roam';
  */
 
 const scene = (page: Page) => page.getByTestId('walk-scene');
-type Noticed = { id: string; cue: string; sfx: string };
+type Noticed = { id: string; cue: string; sfx: string; buzz: string };
 const noticedLog = (page: Page) => page.evaluate(() => ((window as unknown as { __mugenNoticed?: Noticed[] }).__mugenNoticed ?? []).slice());
 
 async function openGrassland(page: Page) {
@@ -128,3 +128,125 @@ test('the places of old are not changed: the forest and the ruins show their 「
   expect(await page.locator('.disc-marker').count()).toBe(0);
   expect(await page.locator('.roam-sign.g-cue').count()).toBe(0);
 });
+
+// ── 改善指示書 (作者「探索システムPoC 改善指示書」2026-10-18) ──
+
+test('the buzz: on by default, light when an ordinary thing is first noticed; switched off in 設定, none — and the walk goes on', async ({ page }) => {
+  test.setTimeout(90_000);
+  await openGrassland(page);
+  const sign = (await things(page)).find((t) => t.id === 'OLD_SIGNPOST')!;
+  await touch(page, { x: sign.stand.x + 0.06, y: sign.stand.y + 0.03 });
+  await expect(page.getByTestId('walk-marker-OLD_SIGNPOST')).toHaveAttribute('data-fresh', 'yes');
+  // Felt once for that moment, with the most notable thing then noticed (a plain one here: light).
+  const felt = (await noticedLog(page)).filter((n) => n.sfx);
+  expect(felt.map((n) => n.buzz)).toEqual(felt.map(() => 'light'));
+  // 設定 → 振動 OFF: remembered on this device.
+  await page.getByTestId('walk-prefs-open').click();
+  await expect(page.getByTestId('walk-pref-vibration')).toHaveText('振動 ON');
+  await page.getByTestId('walk-pref-vibration').click();
+  await expect(page.getByTestId('walk-pref-vibration')).toHaveText('振動 OFF');
+  expect(await page.evaluate(() => localStorage.getItem('mugen-explore-vibration'))).toBe('off');
+  // The next first-noticed thing is heard, not felt.
+  await goTo(page, 'ROADSIDE_MARK');
+  await expect(page.getByTestId('walk-marker-ROADSIDE_MARK')).toBeAttached();
+  const road = (await noticedLog(page)).filter((n) => n.sfx);
+  expect(road[road.length - 1].buzz).toBe('off');
+  // Back on, for whoever comes next.
+  await page.getByTestId('walk-pref-vibration').click();
+  await expect(page.getByTestId('walk-pref-vibration')).toHaveText('振動 ON');
+});
+
+test.describe('the place moving on its own', () => {
+  test.use({ reducedMotion: 'no-preference' });
+
+  test('now and then a small move — wind, petals, fluff, dust — behind the party, never to be touched; switched off in 設定, nothing', async ({ page }) => {
+    test.setTimeout(90_000);
+    await openGrassland(page);
+    const gusts = page.getByTestId('walk-gusts');
+    // The stream's light is there all along; the rest come one at a time, on their own.
+    expect(await page.locator('.gust-water').count()).toBeGreaterThan(3);
+    await expect(gusts).not.toHaveAttribute('data-live', '', { timeout: 15_000 });
+    expect((await gusts.getAttribute('data-live'))!.split(',').every((k) => ['WIND', 'PETALS', 'FLUFF', 'DUST'].includes(k))).toBe(true);
+    // Drawn in the painting, under the party and the marks; nothing in it takes a touch.
+    expect(await gusts.evaluate((el) => !!el.closest('.walk-painting') && getComputedStyle(el).pointerEvents === 'none')).toBe(true);
+    // 環境演出 OFF: gone, and the birds with it.
+    await page.getByTestId('walk-prefs-open').click();
+    await page.getByTestId('walk-pref-ambience').click();
+    await expect(page.getByTestId('walk-pref-ambience')).toHaveText('環境演出 OFF');
+    await expect(gusts).toHaveCount(0);
+    await expect(page.getByTestId('ambient-birds')).toHaveCount(0);
+    await page.getByTestId('walk-pref-ambience').click();
+    await expect(gusts).toHaveCount(1);
+  });
+
+  test('the ruins are quieter (dust in the light, stone dust, a draught) and the forest has its own (leaves, the light, insects)', async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto('/?preview=walk&place=ANCIENT_RUINS&areas=1');
+    await settled(page);
+    for (const k of ['DUST_LIGHT', 'STONE_DUST', 'DRAFT']) {
+      await page.evaluate((k) => (window as unknown as { __mugenGust: (k: string) => void }).__mugenGust(k), k);
+      await expect(page.locator(`[data-gust="${k}"]`)).toBeAttached();
+    }
+    await page.goto('/?preview=walk&place=GREENWOOD_FOREST');
+    await settled(page);
+    for (const k of ['SUNBEAM', 'LEAF_DRIFT', 'BUGS']) {
+      await page.evaluate((k) => (window as unknown as { __mugenGust: (k: string) => void }).__mugenGust(k), k);
+      await expect(page.locator(`[data-gust="${k}"]`)).toBeAttached();
+    }
+  });
+});
+
+test('the explorers are the mini statues — the hero and Kaos both, every way they face; the old forest frames are not drawn', async ({ page }) => {
+  test.setTimeout(90_000);
+  await openGrassland(page);
+  const frame = (who: string) => page.getByTestId(`walk-${who}`).getAttribute('data-frame');
+  expect(await frame('hero')).toContain('hero-mini');
+  expect(await frame('kaos')).toContain('kaos-mini');
+  for (const p of [{ x: 0.45, y: 0.82 }, { x: 0.62, y: 0.82 }, { x: 0.6, y: 0.6 }, { x: 0.62, y: 0.8 }]) {
+    await touch(page, p);
+    expect(await frame('hero')).toContain('hero-mini');
+    expect(await frame('kaos')).toContain('kaos-mini');
+  }
+});
+
+test('a faint mark comes up as the party comes near it (未発見は薄く、近づくほど見える)', async ({ page }) => {
+  test.setTimeout(90_000);
+  await openGrassland(page);
+  const o = () => page.getByTestId('walk-hint-RIVERSIDE').evaluate((el) => Number(getComputedStyle(el).getPropertyValue('--o')));
+  const far = await o();
+  const river = (await things(page)).find((t) => t.id === 'RIVERSIDE')!;
+  await touch(page, { x: river.stand.x + 0.2, y: river.stand.y + 0.06 });
+  const nearer = await o();
+  expect(far).toBeLessThan(0.35);
+  expect(nearer).toBeGreaterThan(far);
+});
+
+test('the ruins PoC shows its things the same way (faint, then a mark of its kind), and the ruins of the game keep their 「！」', async ({ page }) => {
+  await page.goto('/?preview=walk&place=ANCIENT_RUINS&areas=1');
+  await settled(page);
+  expect(await page.locator('.roam-sign.g-cue').count()).toBeGreaterThan(0);
+  await goTo(page, 'STONE_ARCH');
+  await expect(page.getByTestId('walk-marker-STONE_ARCH')).toHaveAttribute('data-cue', 'LOOK');
+});
+
+for (const [w, h] of [[844, 390], [640, 300]] as const) {
+  test(`${w}×${h}: 設定 and its switches on screen, clear of the way out and the title`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await openGrassland(page);
+    await page.getByTestId('walk-prefs-open').click();
+    const boxes = await Promise.all(
+      ['walk-preview-leave', 'walk-prefs-open', 'walk-pref-vibration', 'walk-pref-ambience'].map(async (id) => (await page.getByTestId(id).boundingBox())!),
+    );
+    for (const b of boxes) {
+      expect(b.x).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width).toBeLessThanOrEqual(w);
+      expect(b.y + b.height).toBeLessThanOrEqual(h);
+    }
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const [a, b] = [boxes[i], boxes[j]];
+        const apart = a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+        expect(apart, `${i} / ${j}`).toBe(true);
+      }
+  });
+}

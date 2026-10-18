@@ -77,6 +77,37 @@ export interface WalkPoint {
 /** The ambient things a place can do, drawn by the App. */
 export type WalkAmbience = 'BIRDS' | 'LEAVES' | 'MOTES';
 
+/**
+ * THE SMALL MOVES A PLACE MAKES NOW AND THEN (作者「探索システムPoC 改善指示書」2026-10-18 環境アニメーション):
+ * not shown, felt — one at a time, every few seconds to a dozen, light and brief, never in front of
+ * the party and never looking like something to touch.
+ *
+ *   草原  WIND a breath of wind running over the grass · PETALS a few petals carried across ·
+ *         FLUFF seed-fluff drifting up · DUST a puff of dust off the path
+ *   森    LEAF_DRIFT a few leaves let go and drift down · SUNBEAM the light through the leaves sways ·
+ *         BUGS a few tiny insects
+ *   遺跡  DUST_LIGHT dust turning in a shaft of light · STONE_DUST a trickle of stone dust from above ·
+ *         DRAFT a draught through the broken walls, carrying pale specks
+ */
+export type WalkGust =
+  | 'WIND'
+  | 'PETALS'
+  | 'FLUFF'
+  | 'DUST'
+  | 'LEAF_DRIFT'
+  | 'SUNBEAM'
+  | 'BUGS'
+  | 'DUST_LIGHT'
+  | 'STONE_DUST'
+  | 'DRAFT';
+
+export interface WalkGusts {
+  /** Which may come, one picked each time. */
+  kinds: readonly WalkGust[];
+  /** Where water catches the light, in the painting's fractions: a few streaks shimmer there, always (the stream). */
+  water?: readonly PaintingPoint[];
+}
+
 /** A figure seen in the distance, while a condition holds. */
 export interface WalkFigure {
   id: string;
@@ -130,6 +161,8 @@ export interface WalkSceneDef {
    * grassland first; a place without it shows its things as before.
    */
   discoveryFx?: true;
+  /** Its small moves now and then (see `WalkGust`). Absent: none beyond `ambience`. */
+  gusts?: WalkGusts;
 }
 
 /** A point in a painting, as fractions of its width and height. */

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RUINS_WALK, RUINS_WALK_AREAS_POC } from '@mugen/content/exploration/ruinsWalk';
 import { GRASSLAND_WALK_POC } from '@mugen/content/exploration/grasslandWalk';
+import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
 import type { WalkSceneDef } from '@mugen/content/exploration/walkScene';
 import type { WalkPlaceId } from '@mugen/content/exploration/walkPlaces';
 import { World } from '@mugen/core/world/world';
@@ -34,6 +35,8 @@ const PREVIEWABLE: Partial<Record<WalkPlaceId, WalkSceneDef>> = {
   ANCIENT_RUINS: RUINS_WALK,
   // 作者 2026-10-18: the grassland's PoC — 遠近スケール and 探索ポイント発見演出.
   GRASSLAND: GRASSLAND_WALK_POC,
+  // 作者 2026-10-18 改善指示書: the forest's small moves (falling leaves, the light swaying), checked on a phone.
+  GREENWOOD_FOREST: GREENWOOD_WALK,
 };
 
 /** Pickups that keep nothing (the DEBUG walk): taken for this visit only, into no bag. */

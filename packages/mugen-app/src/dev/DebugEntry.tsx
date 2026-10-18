@@ -42,6 +42,13 @@ export function DebugEntry() {
         探索PoC（遺跡・歩行範囲）
       </button>
       <button
+        data-testid="debug-walk-forest"
+        onClick={() => window.location.assign(`${window.location.pathname}?preview=walk&place=GREENWOOD_FOREST`)}
+        style={DOOR}
+      >
+        探索（森・環境演出）
+      </button>
+      <button
         data-testid="debug-fx-preview"
         onClick={() => window.location.assign(`${window.location.pathname}?preview=fx`)}
         style={DOOR}

@@ -126,7 +126,7 @@ jobs:
       # Fail here instead, where the reason is written down.
       - name: Check the native modules are where Gradle expects
         run: |
-          for d in node_modules/@capacitor/android/capacitor node_modules/@capacitor/app/android; do
+          for d in node_modules/@capacitor/android/capacitor node_modules/@capacitor/app/android node_modules/@capacitor/haptics/android; do
             if [ ! -d "$d" ]; then
               echo "::error::$d is missing. capacitor.settings.gradle resolves the native"
               echo "::error::projects from the workspace root; npm must hoist @capacitor/* there."
