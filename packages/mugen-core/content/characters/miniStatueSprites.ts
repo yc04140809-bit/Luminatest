@@ -15,14 +15,30 @@
 //   - each figure is scaled to one height and set on the ground line, between its boots.
 // Nothing is mirrored: the hero's mark under his left eye and Kaos's two different wings would swap.
 //
-// WAITING ON ART — said here so it is not mistaken for a decision: both have standing drawings only, and
-// are moved with the scene's bob (a little higher than with a cycle), not animated. The walking drawings
-// drop in as `walk` frames, on the same canvas, and nothing else changes.
+// The hero walks with four drawn steps each way. WAITING ON ART — said here so it is not mistaken for a
+// decision: Kaos has standing drawings only, and is moved with the scene's bob (a little higher than
+// with a cycle), not animated. Her walking drawings drop in as `walk` frames, on the same canvas.
 
 import heroBackIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-back-idle.webp';
 import heroFrontIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-front-idle.webp';
 import heroLeftIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-left-idle.webp';
 import heroRightIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-right-idle.webp';
+import heroBackWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk1.webp';
+import heroBackWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk2.webp';
+import heroBackWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk3.webp';
+import heroBackWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-back-walk4.webp';
+import heroFrontWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk1.webp';
+import heroFrontWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk2.webp';
+import heroFrontWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk3.webp';
+import heroFrontWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-front-walk4.webp';
+import heroLeftWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk1.webp';
+import heroLeftWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk2.webp';
+import heroLeftWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk3.webp';
+import heroLeftWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-left-walk4.webp';
+import heroRightWalk1 from '@mugen/assets/files/characters/hero/explore/hero-mini-right-walk1.webp';
+import heroRightWalk2 from '@mugen/assets/files/characters/hero/explore/hero-mini-right-walk2.webp';
+import heroRightWalk3 from '@mugen/assets/files/characters/hero/explore/hero-mini-right-walk3.webp';
+import heroRightWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-right-walk4.webp';
 import kaosBackIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-idle.webp';
 import kaosFrontIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-idle.webp';
 import kaosLeftIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-idle.webp';
@@ -44,12 +60,12 @@ export const MINI_STATUE_SPRITES: Record<ExplorationCharacterId, ExplorationSpri
     id: 'hero-mini',
     // His height, crown of the hair to sole, in every frame.
     referencePixels: 340,
-    // Standing drawings only for now (the walk is coming as its own drawings): he steps with the bob.
+    // Standing, and four steps each way (drawn to the standing sheet's proportions).
     frames: {
-      front: { idle: hero(heroFrontIdle), walk: [] },
-      back: { idle: hero(heroBackIdle), walk: [] },
-      left: { idle: hero(heroLeftIdle), walk: [] },
-      right: { idle: hero(heroRightIdle), walk: [] },
+      front: { idle: hero(heroFrontIdle), walk: [hero(heroFrontWalk1), hero(heroFrontWalk2), hero(heroFrontWalk3), hero(heroFrontWalk4)] },
+      back: { idle: hero(heroBackIdle), walk: [hero(heroBackWalk1), hero(heroBackWalk2), hero(heroBackWalk3), hero(heroBackWalk4)] },
+      left: { idle: hero(heroLeftIdle), walk: [hero(heroLeftWalk1), hero(heroLeftWalk2), hero(heroLeftWalk3), hero(heroLeftWalk4)] },
+      right: { idle: hero(heroRightIdle), walk: [hero(heroRightWalk1), hero(heroRightWalk2), hero(heroRightWalk3), hero(heroRightWalk4)] },
     },
   },
   KAOS: {
