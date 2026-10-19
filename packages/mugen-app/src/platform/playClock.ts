@@ -66,3 +66,12 @@ export function sinceStart(times: PlayTimes, mark: PlayMark): string | null {
   const seconds = Math.round((at - start) / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
+
+/** Forgets the play's times (the save was thrown away: src/dev/ResetSave.tsx). */
+export function resetPlayClock(): void {
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    // Nothing kept, nothing to forget.
+  }
+}

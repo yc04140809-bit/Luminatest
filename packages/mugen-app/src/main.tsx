@@ -55,6 +55,20 @@ if (
   );
 } else if (
   (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('tool') === 'reset'
+) {
+  // `?tool=reset` — throws this device's save away, on a second press, so a
+  // phone can play from はじめる again (src/dev/ResetSave.tsx). Its own page,
+  // so no open world holds the database. Debug builds only, compile time.
+  void import('./dev/ResetSave').then(({ ResetSave }) =>
+    root.render(
+      <StrictMode>
+        <ResetSave />
+      </StrictMode>,
+    ),
+  );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
   params.get('tool') === 'chain'
 ) {
   // `?tool=chain` — the bakery route's causal chain read off this device's

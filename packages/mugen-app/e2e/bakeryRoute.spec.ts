@@ -203,3 +203,55 @@ test('the DEBUG chain view, before the nights: what the next step waits for, and
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('future-vision')).toBeVisible();
 });
+
+test('the DEBUG chain view lists any answer\'s chain: SPARE, a few nights on', async ({ page }) => {
+  await freshApp(page);
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
+  await page.evaluate(async () => {
+    const w = (window as unknown as { __mugenWorld: { recordGaldLifeChoice(c: string): Promise<unknown>; markExperienceSeen(id: string): Promise<void>; advanceDay(): Promise<unknown> } }).__mugenWorld;
+    await w.recordGaldLifeChoice('SPARE');
+    await w.markExperienceSeen('evt_kaos_future_vision');
+    for (let i = 0; i < 3; i++) await w.advanceDay();
+  });
+  await page.goto('/?tool=chain');
+  await expect(page.getByTestId('chain-panel-choice')).toHaveText('SPARE');
+  // He left the bandits on day 4 — listed, though it is not the bakery route.
+  await expect(page.getByTestId('chain-truth-GALD_LEAVES_BANDITS')).toContainText('Y1D4');
+  await expect(page.getByTestId('chain-next-none')).toContainText('「治療する」');
+  // What is still to come within three years.
+  await expect(page.getByTestId('chain-future-GALD_BECOMES_BAKER')).toBeVisible();
+});
+
+test('DEBUG: the save can be thrown away from the title (second press only), and はじめる comes back', async ({ page }) => {
+  await freshApp(page);
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
+  await page.evaluate(async () => {
+    await (window as unknown as { __mugenWorld: { recordGaldLifeChoice(c: string): Promise<unknown> } }).__mugenWorld.recordGaldLifeChoice('SPARE');
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('continue-button')).toBeVisible();
+  await expect(page.getByTestId('start-button')).toHaveCount(0);
+
+  // やめる leaves it alone.
+  await page.getByTestId('debug-reset-save').click();
+  await page.getByTestId('reset-save-cancel').click();
+  await expect(page.getByTestId('continue-button')).toBeVisible();
+
+  // One press only arms it; the second deletes.
+  await page.getByTestId('debug-reset-save').click();
+  await page.getByTestId('reset-save-confirm').click();
+  await expect(page.getByTestId('reset-save-done')).toHaveCount(0);
+  await expect(page.getByTestId('reset-save-confirm')).toHaveText('本当に消す（もう一度押す）');
+  await page.getByTestId('reset-save-confirm').click();
+  await expect(page.getByTestId('reset-save-done')).toBeVisible();
+  expect(await page.evaluate(() => window.localStorage.getItem('mugen.playClock'))).toBeNull();
+  await page.getByTestId('reset-save-title').click();
+  await expect(page.getByTestId('start-button')).toBeVisible();
+  await expect(page.getByTestId('continue-button')).toHaveCount(0);
+});

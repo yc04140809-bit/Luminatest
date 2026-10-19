@@ -8,7 +8,8 @@
  *
  * Among the doors: the battle preview, which reads and writes nothing of the
  * world; the bakery route's causal chain (`?tool=chain`), which only reads
- * the save; and the CHARACTER FORGE import (`?tool=forge-import`), which
+ * the save; throwing the save away (`?tool=reset`, on a second press); and
+ * the CHARACTER FORGE import (`?tool=forge-import`), which
  * registers characters into this device's save — only after the author
  * has checked each one and pressed 登録.
  */
@@ -34,6 +35,14 @@ export function DebugEntry() {
         style={DOOR}
       >
         パン屋ルート因果連鎖・経過時間
+      </button>
+      {/* With a save the title offers only つづきから: this is how a phone plays from the start again. */}
+      <button
+        data-testid="debug-reset-save"
+        onClick={() => window.location.assign(`${window.location.pathname}?tool=reset`)}
+        style={DOOR}
+      >
+        DEBUG セーブを消す（最初から）
       </button>
       {/* The PoCs waiting on the author's eye (docs/EXPLORATION_DISCOVERY.md, EXPLORATION_AREAS.md, CHARACTER_FX.md). */}
       <button
