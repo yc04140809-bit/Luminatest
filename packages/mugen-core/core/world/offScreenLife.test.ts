@@ -33,8 +33,10 @@ import { SAVE_VERSION } from './saveSchema';
  *      learned → it reaches people who were never there
  *   3. WORLD TRUTH and PLAYER KNOWLEDGE held apart: it happened, and the
  *      player knows only what somebody told them — afterwards
- * and what it must not do: involve バルド, add a free TIME SHIFT, change
- * the look ahead, or move the save's version.
+ * and what it must not do: involve バルド, add a free TIME SHIFT, or move
+ * the save's version. (TIGS2027 STEP ① made the look ahead read this same
+ * chain, and made each step wait for what the last left in somebody —
+ * core/world/bakeryChain.test.ts.)
  */
 
 let dbCounter = 0;
@@ -45,9 +47,12 @@ const ROUTE: OffScreenLifeEventType[] = [
   'GALD_SAVES_LINA',
   'RIZEL_TENDS_GALD',
   'GALD_TELLS_OF_ELNA',
+  'RIZEL_OFFERS_TO_SEE_ELNA',
+  'VILLAGE_HEARS_OF_GALD',
+  'RIZEL_SPEAKS_FOR_GALD',
+  'BAKER_OFFERS_WORK',
   'GALD_TAKES_BAKERY_WORK',
   'LINA_WRITES_TO_ELNA',
-  'RIZEL_SPEAKS_FOR_GALD',
 ];
 const routeEvents = (world: World) => world.getEvents().filter((e) => (ROUTE as string[]).includes(e.type));
 const day = (e: { worldYear: number; worldDay: number }) => (e.worldYear - 1) * 365 + e.worldDay;
@@ -76,20 +81,16 @@ describe('1. the LIFE TICK: only when story time passes', () => {
     for (let n = 0; n < 6; n++) byNight.push((await world.advanceDay()).map((e) => e.type));
     expect(byNight).toEqual([
       ['GALD_SAVES_LINA', 'RIZEL_TENDS_GALD'],
-      ['GALD_TELLS_OF_ELNA'],
+      ['GALD_TELLS_OF_ELNA', 'RIZEL_OFFERS_TO_SEE_ELNA'],
+      ['VILLAGE_HEARS_OF_GALD', 'RIZEL_SPEAKS_FOR_GALD', 'BAKER_OFFERS_WORK'],
       ['GALD_TAKES_BAKERY_WORK'],
       ['LINA_WRITES_TO_ELNA'],
-      ['RIZEL_SPEAKS_FOR_GALD'],
       [],
     ]);
     // Each caused by the one before it, back to the player's answer.
-    const by = Object.fromEntries(routeEvents(world).map((e) => [e.type, e]));
-    expect(by.GALD_SAVES_LINA.causedBy).toEqual(['PLAYER_HELPED_GALD']);
-    expect(by.RIZEL_TENDS_GALD.causedBy).toEqual(['GALD_SAVES_LINA']);
-    expect(by.GALD_TELLS_OF_ELNA.causedBy).toEqual(['RIZEL_TENDS_GALD']);
-    expect(by.GALD_TAKES_BAKERY_WORK.causedBy).toEqual(['GALD_TELLS_OF_ELNA']);
-    expect(by.LINA_WRITES_TO_ELNA.causedBy).toEqual(['GALD_TAKES_BAKERY_WORK']);
-    expect(by.RIZEL_SPEAKS_FOR_GALD.causedBy).toEqual(['GALD_TAKES_BAKERY_WORK']);
+    const events = routeEvents(world);
+    expect(events.map((e) => e.type)).toEqual(ROUTE);
+    events.forEach((e, i) => expect(e.causedBy, e.type).toEqual([i === 0 ? 'PLAYER_HELPED_GALD' : ROUTE[i - 1]]));
   });
 
   it('several nights at once, or a shift, write the same history on the same days', async () => {
@@ -109,6 +110,9 @@ describe('1. the LIFE TICK: only when story time passes', () => {
     await world.advanceDay();
     expect(world.getCharacter('GALD')).toMatchObject({ location: 'ALDEN_VILLAGE', occupation: 'BANDIT' });
     await world.advanceDays(2);
+    // Offered, not yet taken: the work is his decision, the night after.
+    expect(world.getCharacter('GALD')).toMatchObject({ location: 'ALDEN_VILLAGE', occupation: 'BANDIT' });
+    await world.advanceDay();
     expect(world.getCharacter('GALD')).toMatchObject({ location: 'ALDEN_VILLAGE', occupation: 'BAKERY_HAND' });
   });
 });
@@ -167,7 +171,7 @@ describe('2. people, among themselves, where the player is not', () => {
   });
 });
 
-describe('the road gives way; the look ahead does not change', () => {
+describe('the road gives way; the look ahead shows the same route', () => {
   it('once he has saved her he does not also walk out onto the road', async () => {
     const world = await helped();
     await world.advanceDays(200);
@@ -176,14 +180,18 @@ describe('the road gives way; the look ahead does not change', () => {
     expect(world.getOpenFutureSites()).toEqual([]);
   });
 
-  it('TIME SHIFT shows the same picture of HELP as before the route existed — before and after the nights', async () => {
+  it('TIME SHIFT shows the bakery route the nights will live, and writes nothing (STEP ①)', async () => {
     const world = await helped();
-    const before = world.previewLifeEvents(3).map((e) => e.type);
-    expect(before).toEqual(['GALD_WALKS_THE_ROAD', 'GALD_BECOMES_HEALER']);
+    const before = world.previewLifeEvents(3);
+    expect(before.map((e) => e.type)).toEqual(ROUTE);
+    expect(before.map((e) => e.type)).not.toContain('GALD_WALKS_THE_ROAD');
+    // A look ahead writes nothing.
+    expect(routeEvents(world)).toEqual([]);
+    // And the nights then live exactly that, on the same days.
     await world.advanceDays(6);
-    expect(world.previewLifeEvents(3).map((e) => e.type)).toEqual(before);
-    // And a look ahead writes nothing.
-    expect(world.hasEventOfType('GALD_WALKS_THE_ROAD')).toBe(false);
+    expect(routeEvents(world).map((e) => [e.type, day(e)])).toEqual(before.map((e) => [e.type, day(e)]));
+    // With all of it behind the world, there is nothing left to show of it.
+    expect(world.previewLifeEvents(3)).toEqual([]);
   });
 
   it('a world that had already taken the road (a save from before the route) keeps it', () => {
@@ -215,7 +223,7 @@ describe('3. WORLD TRUTH and PLAYER KNOWLEDGE, apart', () => {
   it('it happened, and the player knows nothing of it until told', async () => {
     const world = await helped();
     await world.advanceDays(6);
-    expect(routeEvents(world)).toHaveLength(6);
+    expect(routeEvents(world)).toHaveLength(ROUTE.length);
     expect(world.getKnownEvents().map((e) => e.type)).toEqual(['PLAYER_HELPED_GALD']);
     expect(world.getPlayerKnowledge()).toEqual({});
     expect(world.getLifeArchive()[0].chapters.map((c) => c.id)).toEqual(['GALD_CH_FIRST_ENCOUNTER']);
@@ -242,7 +250,7 @@ describe('3. WORLD TRUTH and PLAYER KNOWLEDGE, apart', () => {
     expect(world.getLifeArchive()[0].chapters.map((c) => c.id)).toEqual(['GALD_CH_FIRST_ENCOUNTER', 'GALD_CH_BAKERY_HAND']);
     // Dated the day it happened, not the day it was heard.
     const told = world.getKnownEvents().find((e) => e.type === 'GALD_TAKES_BAKERY_WORK')!;
-    expect(day(told)).toBe(4);
+    expect(day(told)).toBe(5);
     expect(world.getPlayerKnowledge().GALD_WORKS_AT_BAKERY).toEqual({ day: 7, via: 'talk:DAILY_OWNER_ON_THE_NEW_HAND' });
   });
 
@@ -275,8 +283,15 @@ describe('3. WORLD TRUTH and PLAYER KNOWLEDGE, apart', () => {
       expect(ROUTE as MemoryEventType[]).toContain(fact.truth);
       if (fact.listsEvent) expect(GALD_LIFE_CHAPTERS[fact.truth], fact.id).toBeDefined();
     }
-    // Every route event can be told whole by something.
-    for (const type of ROUTE) expect(OFF_SCREEN_FACTS.some((f) => f.truth === type && f.listsEvent)).toBe(true);
+    // Every route event can be told whole by something — except STEP ①'s three,
+    // which nothing tells yet: their scenes and words are the author's to
+    // write (要判断), so the player never hears of them and WORLD MEMORY never
+    // lists them. They are world truth all the same.
+    const UNTOLD = ['RIZEL_OFFERS_TO_SEE_ELNA', 'VILLAGE_HEARS_OF_GALD', 'BAKER_OFFERS_WORK'];
+    for (const type of ROUTE) {
+      expect(OFF_SCREEN_FACTS.some((f) => f.truth === type && f.listsEvent), type).toBe(!UNTOLD.includes(type));
+      expect(GALD_LIFE_CHAPTERS[type] !== undefined, type).toBe(!UNTOLD.includes(type));
+    }
   });
 });
 

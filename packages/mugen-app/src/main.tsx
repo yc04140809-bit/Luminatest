@@ -55,6 +55,20 @@ if (
   );
 } else if (
   (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
+  params.get('tool') === 'chain'
+) {
+  // `?tool=chain` — the bakery route's causal chain read off this device's
+  // save, and the play's stopwatch (src/dev/ChainPanel.tsx, TIGS2027 STEP ①).
+  // Writes nothing. Debug builds only, the same compile-time way.
+  void import('./dev/ChainPanel').then(({ ChainPanel }) =>
+    root.render(
+      <StrictMode>
+        <ChainPanel />
+      </StrictMode>,
+    ),
+  );
+} else if (
+  (import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1') &&
   params.get('preview') === 'battle'
 ) {
   void import('./dev/BattlePreview').then(({ BattlePreview }) =>

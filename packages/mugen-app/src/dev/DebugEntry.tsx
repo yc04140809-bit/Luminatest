@@ -6,8 +6,9 @@
  * and the debug APK. A release build never draws it, and the check is
  * compile time, so it is not in a release bundle at all.
  *
- * Two doors: the battle preview, which reads and writes nothing of the
- * world, and the CHARACTER FORGE import (`?tool=forge-import`), which
+ * Among the doors: the battle preview, which reads and writes nothing of the
+ * world; the bakery route's causal chain (`?tool=chain`), which only reads
+ * the save; and the CHARACTER FORGE import (`?tool=forge-import`), which
  * registers characters into this device's save — only after the author
  * has checked each one and pressed 登録.
  */
@@ -26,6 +27,14 @@ export function DebugEntry() {
         overflowX: 'auto',
       }}
     >
+      {/* TIGS2027 STEP ①: the bakery route's chain and the play's time to the look ahead (src/dev/ChainPanel.tsx). */}
+      <button
+        data-testid="debug-chain"
+        onClick={() => window.location.assign(`${window.location.pathname}?tool=chain`)}
+        style={DOOR}
+      >
+        パン屋ルート因果連鎖・経過時間
+      </button>
       {/* The PoCs waiting on the author's eye (docs/EXPLORATION_DISCOVERY.md, EXPLORATION_AREAS.md, CHARACTER_FX.md). */}
       <button
         data-testid="debug-walk-grassland"

@@ -24,6 +24,16 @@ export interface LifeEventDef {
    * girl home does not also walk out onto the road.) Absent: nothing stops it.
    */
   unless?: readonly MemoryEventType[];
+  /**
+   * WHAT HAS TO BE TRUE OF THE PEOPLE, not only that time has passed: the id
+   * of a world-life bloom (core/life, WorldBloomDef) that must be a candidate
+   * on the day this would happen. The bloom asks about seeds an earlier event
+   * planted in somebody — so A happening changes B, and only a changed B can
+   * do the next thing (TIGS2027 STEP ①, 2026-10-19). The resolver is told how
+   * to ask (`BloomPossible`); asked nothing, an event with a condition never
+   * happens. Absent: requiredMemory and the wait are the whole condition.
+   */
+  bloom?: string;
   /** Phase C: all life events fire at most once per world. */
   once: true;
   location: string;

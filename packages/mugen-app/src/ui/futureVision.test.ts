@@ -19,7 +19,8 @@ const openWorld = () => World.open(new IdbMemoryStore(`vision-cg-${++n}`));
 
 const EXPECTED: Record<LifeChoiceId, string> = {
   SPARE: 'GALD_BAKER',
-  HELP: 'GALD_HEALER',
+  // The bakery route (TIGS2027 STEP ①): the road no longer comes in the look ahead.
+  HELP: 'GALD_BAKER',
   CAPTURE: 'GALD_WORKER',
   KILL: 'GALD_GRAVE',
 };
@@ -46,5 +47,14 @@ describe('the look ahead shows one picture — the chosen route’s', () => {
     const fake = (type: string) => ({ type }) as unknown as Parameters<typeof visionCgOf>[0][number];
     expect(visionCgOf([fake('GALD_BECOMES_BAKER'), fake('GALD_BECOMES_HEALER')])).toBeNull();
     expect(visionCgOf([fake('GALD_BECOMES_BAKER')])?.key).toBe('GALD_BAKER');
+  });
+
+  it('the bakery route shows its picture without the list; the other answers keep theirs', async () => {
+    const help = await openWorld();
+    await help.recordGaldLifeChoice('HELP');
+    expect(visionCgOf(help.previewLifeEvents(GALD_FUTURE_VISION_YEARS))).toMatchObject({ key: 'GALD_BAKER', log: false });
+    const spare = await openWorld();
+    await spare.recordGaldLifeChoice('SPARE');
+    expect(visionCgOf(spare.previewLifeEvents(GALD_FUTURE_VISION_YEARS))).toMatchObject({ key: 'GALD_BAKER', log: true });
   });
 });

@@ -9,6 +9,7 @@ import {
 } from '@mugen/content/dialogue/galdEncounter';
 import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
 import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
+import { OFF_SCREEN_VISIONS } from '@mugen/content/events/offScreenLife';
 import type { EventCgKey } from '@mugen/assets/keys';
 import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
@@ -49,12 +50,28 @@ const HER = kaosFigureFor({ speaker: 'ケイオス', text: '' });
  * is in this preview is the future being shown. Exactly one, or no
  * picture at all: this never guesses, never offers the others, and
  * never lets the player pick.
+ *
+ * A route lived off screen has no place on the map; its picture is named
+ * by the event it shows (OFF_SCREEN_VISIONS — the bakery route, TIGS2027
+ * STEP ①), and it is shown without the list (`log: false`).
  */
-export function visionCgOf(future: readonly MemoryEvent[]): { key: EventCgKey; alt: string } | null {
-  const types = new Set(future.map((e) => e.type));
-  const sites = FUTURE_SITE_DEFS.filter((d) => d.eventCg && types.has(d.requiredMemory));
-  if (sites.length !== 1 || !sites[0].eventCg) return null;
-  return { key: sites[0].eventCg, alt: sites[0].eventCgAlt };
+export function visionCgOf(
+  future: readonly MemoryEvent[],
+): { key: EventCgKey; alt: string; log: boolean } | null {
+  const types = new Set<string>(future.map((e) => e.type));
+  const pictures = [
+    ...FUTURE_SITE_DEFS.filter((d) => d.eventCg && types.has(d.requiredMemory)).map((d) => ({
+      key: d.eventCg!,
+      alt: d.eventCgAlt,
+      log: true,
+    })),
+    ...OFF_SCREEN_VISIONS.filter((v) => types.has(v.shows)).map((v) => ({
+      key: v.eventCg,
+      alt: v.eventCgAlt,
+      log: v.log,
+    })),
+  ];
+  return pictures.length === 1 ? pictures[0] : null;
 }
 
 function Lines({ lines }: { lines: readonly DialogueLine[] }) {
@@ -114,13 +131,17 @@ export function FutureVisionScreen({
             <p className="line" data-testid="future-vision-years">
               ――{GALD_FUTURE_VISION_YEARS}年後。
             </p>
-            <ul className="memory-list" data-testid="future-vision-list">
-              {future.map((event) => (
-                <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
-                  <span className="memory-label">{memoryEventLabel(event)}</span>
-                </li>
-              ))}
-            </ul>
+            {/* The bakery route shows no list: the picture is the three years
+                (OFF_SCREEN_VISIONS). The other answers keep theirs. */}
+            {vision?.log === false ? null : (
+              <ul className="memory-list" data-testid="future-vision-list">
+                {future.map((event) => (
+                  <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
+                    <span className="memory-label">{memoryEventLabel(event)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {/* ONE future, not the future — she says so herself. */}
             <p className="speaker">ケイオス</p>
             <p className="line" data-testid="future-vision-one">

@@ -170,7 +170,15 @@ test('days later: a man at the back of the bakery (seen, not who), the village t
   await helpedAndSettled(page);
   for (let n = 0; n < 6; n++) await rest(page);
   expect(await truth(page)).toEqual(
-    expect.arrayContaining(['GALD_TELLS_OF_ELNA', 'GALD_TAKES_BAKERY_WORK', 'LINA_WRITES_TO_ELNA', 'RIZEL_SPEAKS_FOR_GALD']),
+    expect.arrayContaining([
+      'GALD_TELLS_OF_ELNA',
+      'RIZEL_OFFERS_TO_SEE_ELNA',
+      'VILLAGE_HEARS_OF_GALD',
+      'RIZEL_SPEAKS_FOR_GALD',
+      'BAKER_OFFERS_WORK',
+      'GALD_TAKES_BAKERY_WORK',
+      'LINA_WRITES_TO_ELNA',
+    ]),
   );
   expect(await truth(page)).not.toContain('GALD_WALKS_THE_ROAD');
 
@@ -218,7 +226,8 @@ for (const size of [
     await page.setViewportSize(size);
     await freshVillage(page);
     await helpedAndSettled(page);
-    for (let n = 0; n < 3; n++) await rest(page);
+    // He takes the work on the fourth night (TIGS2027 STEP ①: offered first).
+    for (let n = 0; n < 4; n++) await rest(page);
     await (await placeButton(page, 'bakery-button')).click();
     const sight = page.getByTestId('bakery-new-hand');
     await expect(sight).toBeVisible();

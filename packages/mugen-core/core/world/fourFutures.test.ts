@@ -14,7 +14,7 @@ import { EVENT_CG_KEYS } from '@mugen/assets/keys';
 // HELP, SINCE THE BAKERY ROUTE (PoC, 2026-10-17; content/events/offScreenLife.ts):
 // its three years are the bakery route — off screen, with no place put on
 // the map yet — and the road it used to take (the waystation) gives way to
-// it. The look ahead still shows the road; that is offScreenLife.test.ts.
+// it. The look ahead shows the same bakery route (TIGS2027 STEP ①).
 
 let dbCounter = 0;
 const freshDbName = () => `four-futures-${++dbCounter}`;
@@ -52,18 +52,14 @@ const ROUTES: RouteSpec[] = [
       'GALD_SAVES_LINA',
       'RIZEL_TENDS_GALD',
       'GALD_TELLS_OF_ELNA',
+      'RIZEL_OFFERS_TO_SEE_ELNA',
+      'VILLAGE_HEARS_OF_GALD',
+      'RIZEL_SPEAKS_FOR_GALD',
+      'BAKER_OFFERS_WORK',
       'GALD_TAKES_BAKERY_WORK',
       'LINA_WRITES_TO_ELNA',
-      'RIZEL_SPEAKS_FOR_GALD',
     ],
-    causes: [
-      'PLAYER_HELPED_GALD',
-      'GALD_SAVES_LINA',
-      'RIZEL_TENDS_GALD',
-      'GALD_TELLS_OF_ELNA',
-      'GALD_TAKES_BAKERY_WORK',
-      'GALD_TAKES_BAKERY_WORK',
-    ],
+    // One line since TIGS2027 STEP ①: each step follows from the one before.
     siteId: null,
     discovery: null,
     occupation: 'BAKERY_HAND',

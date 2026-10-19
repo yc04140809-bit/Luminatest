@@ -110,6 +110,7 @@ import {
 } from './saveRead';
 import type { CharacterState } from '../characters/types';
 import { resolveDueLifeEvents, type ResolvedLifeEvent } from '../events/eventEngine';
+import { bloomPossible } from '../life/worldReading';
 import { buildGaldLifeArchive, type LifeArchiveEntry } from '../archive/lifeArchive';
 import {
   type WorldClock,
@@ -125,7 +126,6 @@ import {
   GALD_LIFE_CHOICE_STATE_EFFECTS,
   GALD_FUTURE_VISION_ID,
 } from '../../content/events/galdLifeChoice';
-import { LIFE_EVENT_DEFS } from '../../content/events/lifeEvents';
 import { LIFE_TICK_DEFS, OFF_SCREEN_FACTS } from '../../content/events/offScreenLife';
 import { knownTruths, learnable, readPlayerKnowledge, type PlayerKnowledgeRow } from './playerKnowledge';
 import {
@@ -2044,19 +2044,38 @@ export class World {
    * in this world it has not.
    */
   previewLifeEvents(years: number): MemoryEvent[] {
+    return this.previewResolved(years).map((r) => r.event);
+  }
+
+  /**
+   * WHO THEY WOULD BE BY THEN — the same look ahead, as people rather than
+   * events: every character with the preview's effects applied (where he
+   * lives, what he does). Ages are not moved: three years looked at are not
+   * three years lived. Pure, like previewLifeEvents.
+   */
+  previewCharacterStates(years: number): Record<string, CharacterState> {
+    return this.applyCharacterEffects(this.characters, this.previewResolved(years)).characters;
+  }
+
+  /**
+   * The look ahead reads EXACTLY what the nights resolve (LIFE_TICK_DEFS,
+   * with `unless` and the people's readiness): what Kaos shows after HELP is
+   * the bakery route this world would live, not an older picture of the
+   * answer (TIGS2027 STEP ①, 2026-10-19 — it replaces 作者 2026-10-16's
+   * "TIME SHIFT unchanged", which held while the route was a PoC). The other
+   * three answers' chains have no conditions and read as they always did.
+   */
+  private previewResolved(years: number): ResolvedLifeEvent[] {
     if (!Number.isInteger(years) || years <= 0) return [];
     return resolveDueLifeEvents(
-      // The four answers' chains as they were written, without the
-      // off-screen lives and without what gives way to them: the look ahead
-      // is the old picture of the answer (TIME SHIFT unchanged, 作者
-      // 2026-10-16), not a reading of what has happened since.
-      LIFE_EVENT_DEFS.map(({ unless: _unless, ...def }) => def),
+      LIFE_TICK_DEFS,
       this.events,
       addYears(this.clock, years),
       // A fixed stamp: a preview is not a moment, and handing back
       // `new Date()` would make two identical looks compare unequal.
       () => PREVIEW_TIMESTAMP,
-    ).map((r) => r.event);
+      bloomPossible,
+    );
   }
 
   /** Whether the player has been to this particular place. */
@@ -2243,7 +2262,8 @@ export class World {
     // THE LIFE TICK (docs/OFF_SCREEN_LIFE_SYSTEM.md §20): only when story
     // time passes — a night, or a shift — every life in the world, the
     // off-screen ones included (content/events/offScreenLife.ts).
-    return resolveDueLifeEvents(LIFE_TICK_DEFS, this.events, atClock);
+    // Whether the people are ready is read off the same facts (core/life).
+    return resolveDueLifeEvents(LIFE_TICK_DEFS, this.events, atClock, undefined, bloomPossible);
   }
 
   /** Applies life-event character effects; returns the new map + changed ids. */

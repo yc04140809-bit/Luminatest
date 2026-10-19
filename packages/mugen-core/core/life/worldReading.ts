@@ -20,6 +20,7 @@ import {
   type WorldLifeRules,
 } from './engine';
 import type { WorldLifeState } from './types';
+import { checkBloom, type BloomCheck } from './bloom';
 import { GREENWOOD_PRELUDE } from '../../content/world/galdLife';
 import { MUGEN_WORLD_RULES } from '../../content/world/mugenWorld';
 
@@ -70,4 +71,42 @@ function laterOf(a: WorldClock, b: WorldClock): WorldClock {
   if (b.worldYear > a.worldYear) return b;
   if (b.worldYear === a.worldYear && b.worldDay > a.worldDay) return b;
   return a;
+}
+
+/**
+ * WHETHER PEOPLE ARE READY FOR SOMETHING, on one day (core/events
+ * `BloomPossible`, TIGS2027 STEP ①).
+ *
+ * The question an off-screen life event asks before it can happen — リゼル
+ * can only bind his wounds once what she saw at the forest edge has taken in
+ * her — answered by the same reading of the same facts as everything else:
+ * the events up to that day, read as of that day, and the bloom checked
+ * against it. An id nobody wrote is never ready.
+ */
+export function bloomPossible(
+  bloomId: string,
+  events: readonly MemoryEvent[],
+  at: WorldClock,
+): boolean {
+  return bloomCheckAt(bloomId, events, at)?.met ?? false;
+}
+
+/** The whole check, reasons included, for a developer asking why not. */
+export function bloomCheckAt(
+  bloomId: string,
+  events: readonly MemoryEvent[],
+  at: WorldClock,
+): BloomCheck | null {
+  const def = WORLD_LIFE_RULES.blooms.find((bloom) => bloom.id === bloomId);
+  if (!def) return null;
+  const state = readWorldLife(events, at);
+  return checkBloom(def, {
+    defs: WORLD_LIFE_RULES.blooms,
+    seeds: state.seeds,
+    vines: state.vines,
+    kinds: WORLD_LIFE_RULES.kinds,
+    cores: WORLD_LIFE_RULES.cores,
+    now: state.now,
+    since: state.memories[0]?.time ?? state.now,
+  });
 }

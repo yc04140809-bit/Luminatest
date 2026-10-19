@@ -18,7 +18,8 @@ import { throughTheOpening, pastTheIntro } from './opening';
 type Route = 'SPARE' | 'HELP' | 'CAPTURE' | 'KILL';
 const ROUTES: { choice: Route; file: string; site: string }[] = [
   { choice: 'SPARE', file: 'gald-baker', site: 'ALDEN_BAKERY' },
-  { choice: 'HELP', file: 'gald-healer', site: 'GREENWOOD_WAYSTATION' },
+  // The bakery route (TIGS2027 STEP ①): the look ahead shows him at the bakery.
+  { choice: 'HELP', file: 'gald-baker', site: 'GREENWOOD_WAYSTATION' },
   { choice: 'CAPTURE', file: 'gald-worker', site: 'ALDEN_WORKYARD' },
   { choice: 'KILL', file: 'event-gald-grave', site: 'GREENWOOD_GRAVE' },
 ];
@@ -115,6 +116,8 @@ for (const { choice, file } of ROUTES) {
     expect(cg.src).toContain(file);
     expectWhole(cg);
     expect(await page.locator('img[data-testid$="-cg"]').count()).toBe(1);
+    // The bakery route is the picture and her line — no list of what happened.
+    await expect(page.getByTestId('future-vision-list')).toHaveCount(choice === 'HELP' ? 0 : 1);
     // The words beside it are on screen and clear of it.
     for (const id of ['future-vision-years', 'future-vision-one', 'future-vision-next']) {
       const b = (await page.getByTestId(id).boundingBox())!;
@@ -147,8 +150,8 @@ for (const { choice, file } of ROUTES) {
 
 // HELP's place (the waystation) belonged to the road, which since the bakery
 // route (OFF-SCREEN LIFE PoC, 2026-10-17) gives way once he has saved リナ:
-// its look ahead still shows the healer (above), but no place opens. What
-// happens instead is offScreenLife.spec.ts; the test below holds the change.
+// its look ahead shows the bakery (above, TIGS2027 STEP ①), and no place
+// opens. What happens instead is offScreenLife.spec.ts; the test below holds it.
 for (const { choice, file, site } of ROUTES.filter((r) => r.choice !== 'HELP')) {
   test(`the place, ${choice}: ${site} shows ${file} once the player is inside`, async ({ page }) => {
     test.slow();
@@ -258,3 +261,34 @@ test('the place, HELP: no place opens — the road gave way to the bakery route,
   await expect(page.getByTestId('forest-button')).toBeVisible();
   await expect(page.getByTestId('places-button')).toHaveCount(0);
 });
+
+// TIGS2027 STEP ①: the bakery route's three years, on the exhibition tablet
+// (10〜11", landscape) and on the phone sizes — the picture whole, 「3年後」 and
+// her line readable beside it, no list, つづける on screen.
+for (const [w, h] of [
+  [1280, 800],
+  [1340, 800],
+  [844, 390],
+  [640, 300],
+] as const) {
+  test(`${w}×${h}: HELP's three years — the bakery picture, the years, her line, and nothing listed`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await freshVillage(page);
+    await answerAndContinue(page, 'HELP');
+    await page.getByTestId('future-vision-next').click();
+    const cg = await drawn(page, 'future-vision-cg');
+    expect(cg.src).toContain('gald-baker');
+    expectWhole(cg);
+    await expect(page.getByTestId('future-vision-list')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="vision-"]')).toHaveCount(0);
+    await expect(page.getByTestId('future-vision-years')).toHaveText('――3年後。');
+    const next = (await page.getByTestId('future-vision-next').boundingBox())!;
+    expect(next.y + next.height).toBeLessThanOrEqual(h);
+    for (const id of ['future-vision-years', 'future-vision-one']) {
+      const b = (await page.getByTestId(id).boundingBox())!;
+      expect(b.x, id).toBeGreaterThanOrEqual(cg.right - 1);
+      expect(b.y + b.height, id).toBeLessThanOrEqual(next.y + 1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(h);
+  });
+}

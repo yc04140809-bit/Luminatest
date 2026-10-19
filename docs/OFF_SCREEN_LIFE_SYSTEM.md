@@ -1,6 +1,6 @@
 # OFF-SCREEN LIFE SYSTEM — 主人公が見ていない間も続くNPC人生システム Ver.1.0（作者、2026-10-17）
 
-> 状態：**最小部分を実装（2026-10-17、ガルド・パン屋ルート PoC。末尾「PoC 実装」）。それ以外は未実装。** `docs/WORLD_MEMORY_SYSTEM.md`・`docs/HIDDEN_SEED_SYSTEM.md`・`docs/GALD_FIVE_ROUTES.md` と同じ扱い。
+> 状態：**最小部分を実装（2026-10-17、ガルド・パン屋ルート PoC。2026-10-19 STEP ① で完成品質化。末尾「PoC 実装」「STEP ①」）。それ以外は未実装。** `docs/WORLD_MEMORY_SYSTEM.md`・`docs/HIDDEN_SEED_SYSTEM.md`・`docs/GALD_FIVE_ROUTES.md` と同じ扱い。
 > 既存の WorldMemory／NpcState／Relationship／HiddenSeed／LifeTick／EventRule の構造を可能な限り維持して取り込む
 > （このリポジトリでは `core/life` の人生エンジン、`docs/WORLD_LIFE_LINK_DESIGN.md`）。FORGE 側データは参照のみ。
 > 取り込みは「ガルド・パン屋ルート PoC」（作業順 5）から必要な分だけ。ただし今回の PoC にバルドは関係させない（作者 2026-10-16）。
@@ -109,4 +109,11 @@ AI を導入しても完全自由行動はさせない。WORLD MEMORY・PERSONAL
 | バルド | 関係させない（テストで確認） |
 
 詳細は `docs/GALD_FIVE_ROUTES.md`「パン屋ルート PoC 実装」。
+
+## STEP ① 完成品質化（2026-10-19、TIGS2027）
+
+- 出来事に「人が変わっていること」の条件を付けた（`LifeEventDef.bloom`：人生エンジンの BLOOM を、その日までの出来事で判定）。前の出来事がその人に残した種で、次の出来事の条件が成り立つ。
+- パン屋ルートは9つの出来事（新しく3つ：リゼルがエルナを診ると申し出る／村へ話が伝わる／リナの父が働き口を申し出る）。
+- TIME SHIFT（§28）は夜と同じ連鎖を読み、パン屋ルートの3年後を一度だけ見せる。自由な TIME SHIFT は今も無い。
+- 詳細・要判断は `docs/GALD_FIVE_ROUTES.md`「パン屋ルート STEP ① 完成品質化」。
 

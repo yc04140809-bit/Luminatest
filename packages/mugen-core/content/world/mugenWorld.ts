@@ -25,6 +25,7 @@ import type { NpcCore, WorldBloomDef } from '../../core/life/types';
 import { forgeCores, forgeWorldPeople } from '../forge/forgeContent';
 import {
   BAKERY_ROUTE_ACTIONS,
+  BAKERY_ROUTE_BLOOMS,
   BAKERY_ROUTE_CORES,
   BAKERY_ROUTE_SEED_KINDS,
   ELNA,
@@ -286,7 +287,7 @@ export const MUGEN_WORLD_RULES = {
     // hand-written core — people in the world like anybody else.
     forgeCores([...ALDEN_CORES, ...GALD_CORES, BAKERY_OWNER_CORE, NEL_CORE, ...BAKERY_ROUTE_CORES]),
   ),
-  blooms: joined<WorldBloomDef>('BLOOM', ALDEN_BLOOMS, GALD_BLOOMS, CROSSING_BLOOMS),
+  blooms: joined<WorldBloomDef>('BLOOM', ALDEN_BLOOMS, GALD_BLOOMS, CROSSING_BLOOMS, BAKERY_ROUTE_BLOOMS),
   crossings: WORLD_CROSSINGS,
 };
 

@@ -104,6 +104,7 @@ import { NoticeHost } from './ui/common/NoticeHost';
 import { itemDef } from '@mugen/content/economy/itemDefs';
 import { CelebrateHost } from './ui/celebrate/RewardCelebratePopup';
 import { WhenShown } from './ui/celebrate/WhenShown';
+import { markPlay } from './platform/playClock';
 import { celebrateCraft, celebrateDiscovery, celebrateGain } from './ui/celebrate/celebrateWorld';
 import { celebrateArtSrc } from './assets/celebrateArt';
 import { notices } from './ui/common/noticeQueue';
@@ -769,6 +770,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               if (state.screen === 'THEME_CHOICE') flow.goTo('TITLE');
               // The opening is hers from its first page: her piece, held through the naming after it.
               setKaosArrived(true);
+              // The play's stopwatch starts here (read only by the debug panel).
+              markPlay('START');
               flow.goTo('PROLOGUE');
             }}
             onContinue={() => {
@@ -1484,6 +1487,7 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
             // database has confirmed the write, so a choice the player
             // made can never be a choice the world does not hold.
             await world.recordGaldLifeChoice(choice);
+            markPlay('CHOICE');
             flow.chooseGaldLife(choice);
           }}
         />
@@ -1523,6 +1527,8 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       );
     case 'TIME_SHIFT':
       return (
+        <>
+        <WhenShown run={() => markPlay('VISION')} />
         <FutureVisionScreen
           // PURE. Reads the chain forward from a date this world has
           // not reached and commits nothing.
@@ -1530,12 +1536,14 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           onDone={() => {
             // Marked seen only now, and the screen waits for the write
             // before leaving: closing the app mid-vision leaves it owed.
+            markPlay('BACK');
             void world
               .markExperienceSeen(GALD_FUTURE_VISION_ID)
               .catch((e) => console.error('Could not remember the vision', e))
               .finally(() => flow.goTo('HOME'));
           }}
         />
+        </>
       );
     case 'BATTLE_RESULT':
       return (

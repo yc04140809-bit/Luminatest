@@ -51,11 +51,17 @@ describe('looking three years ahead', () => {
 
     // It really did look at something.
     expect(future.length, 'his life goes somewhere').toBeGreaterThan(0);
-    // And it is HIS life on THIS route — every previewed event is
-    // caused by the answer the player actually gave.
+    // And it is HIS life on THIS route — every previewed event follows,
+    // link by link, from the answer the player actually gave. (Since
+    // TIGS2027 STEP ① not every link has him in it: the village hearing of
+    // him is the baker and the village.)
+    const answer = world.getEvents()[0].type;
+    const followed = new Set<string>([answer]);
     for (const event of future) {
-      expect(event.actors, event.type).toContain('GALD');
+      expect(event.causedBy?.every((c) => followed.has(c)), event.type).toBe(true);
+      followed.add(event.type);
     }
+    expect(future.some((e) => e.actors.includes('GALD'))).toBe(true);
 
     expect(photograph(world), 'the world is untouched').toEqual(before);
     // Including on disk: a preview that wrote nothing cannot have

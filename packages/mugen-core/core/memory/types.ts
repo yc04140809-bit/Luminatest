@@ -51,6 +51,11 @@ export type OffScreenLifeEventType =
   | 'GALD_SAVES_LINA'
   | 'RIZEL_TENDS_GALD'
   | 'GALD_TELLS_OF_ELNA'
+  // TIGS2027 STEP ① (2026-10-19): the chance リゼル gives エルナ, the village
+  // hearing it another way, and the bakery's offer — each needs the last.
+  | 'RIZEL_OFFERS_TO_SEE_ELNA'
+  | 'VILLAGE_HEARS_OF_GALD'
+  | 'BAKER_OFFERS_WORK'
   | 'GALD_TAKES_BAKERY_WORK'
   | 'LINA_WRITES_TO_ELNA'
   | 'RIZEL_SPEAKS_FOR_GALD';

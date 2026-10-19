@@ -80,6 +80,12 @@ export const MEMORY_EVENT_LABEL: Record<
   GALD_SAVES_LINA: '森の入口で、あの男がリナを庇った',
   RIZEL_TENDS_GALD: 'リゼルが、あの男の傷を手当てした',
   GALD_TELLS_OF_ELNA: 'パン屋の食卓で、男は盗んだ理由を語った',
+  // 仮（TIGS2027 STEP ①、要判断）: none of these three is ever told to the
+  // player (no OFF_SCREEN_FACTS), so WORLD MEMORY never lists them — the
+  // words are for a developer's screen until the author writes their own.
+  RIZEL_OFFERS_TO_SEE_ELNA: 'リゼルが、エルナを診ると申し出た',
+  VILLAGE_HEARS_OF_GALD: 'パン屋から、あの男の話が村へ広まった',
+  BAKER_OFFERS_WORK: 'リナの父が、男に働き口を申し出た',
   GALD_TAKES_BAKERY_WORK: '男は、パン屋で働くことを選んだ',
   LINA_WRITES_TO_ELNA: 'リナが、まだ会ったことのない少女に手紙を書いた',
   RIZEL_SPEAKS_FOR_GALD: 'リゼルが、見張り番の前で男のことを話した',
