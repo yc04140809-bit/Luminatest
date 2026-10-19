@@ -2650,11 +2650,6 @@ body {
   margin: 0 12px 12px;
 }
 /* The frame's edge drawn thin here, so the two and the words keep the room. */
-.talk-stage .talk-frame {
-  z-index: 4;
-  border-width: 18px 12px;
-  border-image-width: 18px 12px;
-}
 
 /* ── STATUS v2 (作者指示 2026-10-11: キャラクターそのものを好きになる画面) ──
    Two columns now: who they are on the left (scrolls), the picture large on

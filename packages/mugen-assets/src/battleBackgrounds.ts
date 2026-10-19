@@ -1,7 +1,9 @@
 // THE BATTLE BACKGROUNDS, FETCHED ONE AT A TIME.
 //
 // Six landscape paintings, ~20 MB between them, delivered 2026-09-25 and
-// kept exactly as delivered (1672x941 PNG, no re-encoding).
+// kept exactly as delivered (1672x941 PNG, no re-encoding). The forest's was
+// replaced on 2026-10-19 (作者: a glade with a fallen log, an old tree and the
+// falls beyond; 1672x941, WebP); the old file stays in the repository.
 //
 // A MODULE OF ITS OWN, NOT THE MANIFEST, for the reason music.ts is one:
 // whatever the manifest names ships in every build that imports it, and
@@ -16,8 +18,8 @@
 import type { BattleBackgroundKey } from './keys';
 
 export const BATTLE_BACKGROUND_FILES: Record<BattleBackgroundKey, () => Promise<string>> = {
-  /** 森全般 — trees, moss, an old stone gate and steps. */
-  FOREST: async () => (await import('../files/backgrounds/battle/forest.png')).default,
+  /** 森全般 — a glade: an old tree, a fallen log, the falls and a far castle (作者 2026-10-19). */
+  FOREST: async () => (await import('../files/backgrounds/battle/forest-glade.webp')).default,
   /** 遺跡全般 — a paved court among ruined arches, blue banners. */
   RUINS: async () => (await import('../files/backgrounds/battle/ruins.png')).default,
   /** 沼・湿地帯 — flooded paving, reeds, hanging moss. */

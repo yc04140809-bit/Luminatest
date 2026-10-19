@@ -95,7 +95,15 @@ export async function openFloor(page: Page, y: number, xs = [0.62, 0.7, 0.55, 0.
   // A pickup shows its 「！」 only when stood at, and is walked to only by touching its glint.
   const p = xs
     .map((x) => ({ x, y }))
-    .find((q) => ts.every((t) => (t.kind === 'pickup' ? dist(q, t.stand) > 0.06 && dist(q, t.mark) > 0.05 : dist(q, t.stand) > 0.2)));
+    .find((q) =>
+      ts.every((t) =>
+        t.kind === 'pickup'
+          ? dist(q, t.stand) > 0.06 && dist(q, t.mark) > 0.05
+          : // A small find only matters to a touch that would be taken for it (SNAP 0.08); one lying
+            // about is no reason to rule a whole height out.
+            dist(q, t.stand) > (t.kind === 'find' ? 0.1 : 0.2),
+      ),
+    );
   expect(p, `open floor at ${y}`).toBeTruthy();
   return p!;
 }

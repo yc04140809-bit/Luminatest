@@ -34,7 +34,15 @@ describe('areaKind', () => {
 
 describe('groundOf', () => {
   it('without areas: the one floor, walked in a straight line — exactly as before', () => {
-    const roam = GREENWOOD_WALK.roam!;
+    // The forest's old floor (it is told apart into areas since 2026-10-19).
+    const roam = {
+      floor: [
+        { x: 0.03, y: 0.66 }, { x: 0.12, y: 0.62 }, { x: 0.22, y: 0.575 }, { x: 0.4, y: 0.555 }, { x: 0.55, y: 0.56 },
+        { x: 0.75, y: 0.56 }, { x: 0.88, y: 0.575 }, { x: 0.97, y: 0.6 }, { x: 0.97, y: 0.84 }, { x: 0.04, y: 0.84 },
+      ],
+      start: { x: 0.84, y: 0.66 },
+      spots: [{ x: 0.08, y: 0.68 }, { x: 0.3, y: 0.64 }, { x: 0.5, y: 0.6 }, { x: 0.9, y: 0.66 }],
+    };
     const g = groundOf(roam);
     for (const p of [{ x: 0.5, y: 0.1 }, { x: 0.02, y: 0.99 }, roam.start, ...roam.spots]) {
       expect(g.to(p)).toEqual(toFloor(p, roam.floor));
@@ -73,10 +81,14 @@ describe('the ruins PoC (RUINS_WALK_AREAS_POC — DEBUG `&areas=1`)', () => {
   const roam = RUINS_WALK_AREAS_POC.roam!;
   const g = groundOf(roam);
 
-  it('the ruins the game walks are untouched (one floor, no areas, its own painting)', () => {
-    expect(RUINS_WALK.roam!.areas).toBeUndefined();
-    expect(RUINS_WALK.painting).toBeUndefined();
-    expect(RUINS_WALK_AREAS_POC.painting).toBe('RUINS_PATH');
+  it('the ruins the game walks are this painting and its ground now (作者 2026-10-19) — with the game\'s 「！」, not the PoC\'s effects', () => {
+    expect(RUINS_WALK.painting).toBe('RUINS_PATH');
+    expect(RUINS_WALK.roam).toBe(RUINS_WALK_AREAS_POC.roam);
+    expect(RUINS_WALK.discoveryFx).toBeUndefined();
+    expect(RUINS_WALK.gusts).toBeUndefined();
+    expect(RUINS_WALK_AREAS_POC.discoveryFx).toBe(true);
+    // The PoC's two new things are not in the game until their words are the author's.
+    expect(RUINS_WALK.points.map((p) => p.id)).toEqual(['STONE_ARCH', 'OLD_BANNER', 'BROKEN_STEPS']);
   });
 
   it('keeps every thing of the old: the same points, pickups (ids and contents) and finds — only where they stand moves', () => {

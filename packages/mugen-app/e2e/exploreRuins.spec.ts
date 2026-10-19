@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { marksClear } from './walk';
-import { dist, goTo, hero, kaos, noticed, openFloor, scale, settled, things, touch } from './roam';
+import { dist, goTo, hero, kaos, noticed, onScreen, openFloor, scale, settled, things, touch } from './roam';
 
 /**
  * 古代遺跡 (working title), WALKED ABOUT IN — the walk in two dimensions.
@@ -41,7 +41,8 @@ test('the title’s DEBUG doors include the ruins, and it opens the walk there',
   await page.getByTestId('debug-walk-ruins').click();
   await expect(scene(page)).toHaveAttribute('data-place', 'ANCIENT_RUINS');
   await expect(scene(page).locator('h1')).toHaveText('古代遺跡');
-  expect(decodeURIComponent((await page.getByTestId('walk-painting').getAttribute('src')) ?? '')).toContain('battle/ruins.png');
+  // The adopted painting, its road and the old steps (作者 2026-10-19).
+  expect(decodeURIComponent((await page.getByTestId('walk-painting').getAttribute('src')) ?? '')).toContain('walk-ruins-path');
 });
 
 test('a touch on the floor walks there — forward out of the picture and back into it, smaller the farther back', async ({
@@ -51,8 +52,15 @@ test('a touch on the floor walks there — forward out of the picture and back i
   page.on('pageerror', (e) => errors.push(String(e)));
   await openRuins(page);
   await expect(page.getByTestId('walk-hint')).toHaveText('地面をタップして歩く');
-  // Forward, to the front of the floor.
-  const front = await openFloor(page, 0.66);
+  // Forward, to the front of the road.
+  // (A small find lying about can rule a height out: try a few.)
+  let front: Awaited<ReturnType<typeof openFloor>> | undefined;
+  for (const y of [0.73, 0.71, 0.69]) {
+    front = await openFloor(page, y, [0.5, 0.46, 0.55, 0.6, 0.42, 0.65]).catch(() => undefined);
+    if (front) break;
+  }
+  expect(front, 'open floor at the front').toBeTruthy();
+  front = front!;
   await touch(page, front);
   await expect(page.getByTestId('walk-hint')).toHaveCount(0);
   const atFront = await hero(page);
@@ -62,7 +70,7 @@ test('a touch on the floor walks there — forward out of the picture and back i
   const frontTall = await height(page, 'walk-hero');
   const frontFeet = (await page.getByTestId('walk-hero').boundingBox())!;
   // Back, into the picture: higher on the screen and smaller.
-  const back = await openFloor(page, 0.545);
+  const back = await openFloor(page, 0.62, [0.5, 0.48]);
   await touch(page, back);
   const atBack = await hero(page);
   expect(atBack.y).toBeLessThan(atFront.y - 0.08);
@@ -86,16 +94,16 @@ test('a touch on the floor walks there — forward out of the picture and back i
 
 test('walls, pillars and sky are not floor: a touch there walks to the floor nearest it', async ({ page }) => {
   await openRuins(page);
-  // High on the right: the parapet, the drop and the mountains beyond.
-  await touch(page, { x: 0.78, y: 0.25 });
+  // High on the right: the pillars and the sky beyond the far steps.
+  await touch(page, { x: 0.95, y: 0.15 });
   const p = await hero(page);
-  expect(p.y).toBeGreaterThan(0.53);
-  expect(p.y).toBeLessThan(0.58);
-  // High on the left: the steps and the ivy.
-  await touch(page, { x: 0.3, y: 0.2 });
+  expect(p.y).toBeGreaterThan(0.25);
+  await expect(scene(page)).not.toHaveAttribute('data-zone', 'NONE');
+  // High in the middle: the low walls and the mountains.
+  await touch(page, { x: 0.45, y: 0.2 });
   const q = await hero(page);
-  expect(q.y).toBeGreaterThan(0.46);
-  expect(q.y).toBeLessThan(0.52);
+  expect(q.y).toBeGreaterThan(0.3);
+  await expect(scene(page)).not.toHaveAttribute('data-zone', 'NONE');
 });
 
 test('「！」 only near a thing: none from the start, it appears coming close, 調べる beside it, and once read it is gone for good', async ({
@@ -107,14 +115,18 @@ test('「！」 only near a thing: none from the start, it appears coming close,
   for (const id of ['STONE_ARCH', 'OLD_BANNER', 'BROKEN_STEPS']) await expect(mark(id)).toHaveCount(0);
   // Coming near the arch: its 「！」 appears; not yet 調べる.
   const arch = (await things(page)).find((t) => t.id === 'STONE_ARCH')!;
-  await touch(page, { x: arch.stand.x + 0.1, y: arch.stand.y + 0.05 });
+  // From its left, up the old steps (the steps' own thing lies below and to the right of it):
+  // in notice of the arch, clear of where a touch would take it. Down to the steps' own thing
+  // first, so the view has come round to the left end of the steps.
+  await goTo(page, 'BROKEN_STEPS');
+  await touch(page, { x: 0.062, y: 0.385 });
   await expect(mark('STONE_ARCH')).toBeVisible();
   await expect(mark('STONE_ARCH')).toHaveAttribute('data-state', 'near');
   await expect(page.getByTestId('walk-look')).toHaveCount(0);
   // It stands on the arch, above where it is looked at from.
   const m = (await mark('STONE_ARCH').boundingBox())!;
-  const feet = (await page.getByTestId('walk-hero').boundingBox())!;
-  expect(m.y + m.height).toBeLessThan(feet.y + feet.height - 30);
+  const standOnScreen = await onScreen(page, arch.stand);
+  expect(m.y + m.height).toBeLessThan(standOnScreen.y);
   // Beside it.
   await goTo(page, 'STONE_ARCH');
   await expect(mark('STONE_ARCH')).toHaveAttribute('data-state', 'here');
@@ -125,7 +137,7 @@ test('「！」 only near a thing: none from the start, it appears coming close,
   await expect(mark('STONE_ARCH')).toHaveCount(0);
   await expect(page.getByTestId('walk-look')).toHaveCount(0);
   // Walking away and back does not bring it back.
-  await touch(page, await openFloor(page, 0.66));
+  await touch(page, await openFloor(page, 0.66, [0.55, 0.62, 0.7, 0.45, 0.78]));
   await touch(page, arch.stand);
   await expect(mark('STONE_ARCH')).toHaveCount(0);
   // (A small find may lie near enough to be in reach; the arch never is again.)

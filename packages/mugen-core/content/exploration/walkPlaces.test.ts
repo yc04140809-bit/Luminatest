@@ -105,7 +105,8 @@ describe('古代遺跡, walked about in — small finds', () => {
     expect(roam.far).toBeLessThan(roam.near);
     expect(roam.spots.length).toBeGreaterThanOrEqual(8);
     const xs = roam.spots.map((s) => s.x);
-    expect(Math.min(...xs)).toBeLessThan(0.2);
+    // From the road's lower left (the adopted painting's ground begins there) to its right.
+    expect(Math.min(...xs)).toBeLessThan(0.25);
     expect(Math.max(...xs)).toBeGreaterThan(0.8);
   });
 

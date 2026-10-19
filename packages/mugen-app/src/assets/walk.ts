@@ -32,8 +32,10 @@ const OWN_PAINTINGS: Record<OwnPainting, () => Promise<{ default: string }>> = {
   RUINS_PATH: () => import('@mugen/assets/files/backgrounds/walk-ruins-path.webp'),
   // 作者 2026-10-18: the open grassland with the stream, the old signpost and the great tree (1462 × 1076).
   GRASSLAND_RIVER: () => import('@mugen/assets/files/backgrounds/walk-grassland-river.webp'),
+  // 作者 2026-10-19: the forest's road among mossy ruins, the bridge over the falls (1672 × 941, with its grid image).
+  GREENWOOD_RUINS: () => import('@mugen/assets/files/backgrounds/walk-greenwood-ruins.webp'),
 };
-type OwnPainting = 'RUINS_PATH' | 'GRASSLAND_RIVER';
+type OwnPainting = 'RUINS_PATH' | 'GRASSLAND_RIVER' | 'GREENWOOD_RUINS';
 
 const paintings = new Map<string, Promise<string | null>>();
 

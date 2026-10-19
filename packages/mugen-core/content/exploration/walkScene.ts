@@ -144,9 +144,10 @@ export interface WalkSceneDef {
   /**
    * Its own painting, when it is not the place's usual one (the App names the file): RUINS_PATH —
    * the ruins' road to the far steps, with the old steps on the left (作者 2026-10-17, the grid
-   * image's painting). Absent: the place's painting.
+   * image's painting); GREENWOOD_RUINS — the forest's mossy ruins, its road and the bridge over the
+   * falls (作者 2026-10-19, with its grid image). Absent: the place's painting.
    */
-  painting?: 'RUINS_PATH' | 'GRASSLAND_RIVER';
+  painting?: 'RUINS_PATH' | 'GRASSLAND_RIVER' | 'GREENWOOD_RUINS';
   /** Its painting's width over its height, when not the usual 1672 × 941 (the grassland's is 1462 × 1076). */
   paintingAspect?: number;
   /**

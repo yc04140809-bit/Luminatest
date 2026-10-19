@@ -20,14 +20,14 @@ async function openPoC(page: Page, extra = '') {
     .toBe(true);
 }
 
-test('its own painting (the grid image\'s), the party on the road (MAIN), the old ruins walk untouched', async ({ page }) => {
+test('its own painting (the grid image\'s), the party on the road (MAIN) — and since 2026-10-19 the game\'s ruins walk it too', async ({ page }) => {
   await openPoC(page);
   expect(decodeURIComponent((await page.getByTestId('walk-painting').getAttribute('src')) ?? '')).toContain('walk-ruins-path');
   await expect(scene(page)).toHaveAttribute('data-zone', 'MAIN');
-  // Without `areas=1`: the ruins as the game walks them.
+  // Without `areas=1`: the ruins as the game walks them — the same painting and ground.
   await page.goto('/?preview=walk&place=ANCIENT_RUINS');
-  await expect(scene(page)).toHaveAttribute('data-areas', 'no');
-  expect(decodeURIComponent((await page.getByTestId('walk-painting').getAttribute('src')) ?? '')).toContain('battle/ruins.png');
+  await expect(scene(page)).toHaveAttribute('data-areas', 'yes');
+  expect(decodeURIComponent((await page.getByTestId('walk-painting').getAttribute('src')) ?? '')).toContain('walk-ruins-path');
 });
 
 test('up the road to the far steps: smaller there, facing away; then round the rubble onto the side steps (SIDE), where something is noticed', async ({ page }) => {

@@ -94,7 +94,8 @@ test('the forest is walked about in like the ruins: forward and back into the pi
   await intoTheVillage(page);
   await intoTheForest(page);
   await expect(page.getByTestId('walk-hint')).toHaveText('地面をタップして歩く');
-  const front = await openFloor(page, 0.76, [0.8, 0.88, 0.7, 0.45]);
+  // Down on the bank by the falls, then back up on the road (the adopted painting, 2026-10-19).
+  const front = await openFloor(page, 0.8, [0.83, 0.82, 0.84]);
   await touch(page, front);
   const atFront = await hero(page);
   const frontScale = await scale(page);
@@ -104,7 +105,7 @@ test('the forest is walked about in like the ruins: forward and back into the pi
     return (await page.getByTestId('walk-hero').boundingBox())!.height;
   };
   const frontBox = { height: await tall() };
-  const back = await openFloor(page, 0.58, [0.8, 0.88, 0.7, 0.6]);
+  const back = await openFloor(page, 0.62, [0.86, 0.88, 0.84]);
   await touch(page, back);
   const atBack = await hero(page);
   expect(atBack.y).toBeLessThan(atFront.y - 0.1);
@@ -115,9 +116,9 @@ test('the forest is walked about in like the ruins: forward and back into the pi
   expect(await tall()).toBeLessThan(frontBox.height * 0.93);
   expect(dist(await kaos(page), atBack)).toBeLessThan(0.08);
   expect(Math.abs((await scale(page, 'kaos')) - backScale)).toBeLessThan(0.08);
-  // The trees, the water and the sky are not floor.
+  // The trees, the ruined walls and the sky are not floor.
   await touch(page, { x: 0.6, y: 0.2 });
-  expect((await hero(page)).y).toBeGreaterThan(0.55);
+  expect((await hero(page)).y).toBeGreaterThan(0.45);
   expect(errors).toEqual([]);
 });
 
@@ -128,7 +129,8 @@ test('「！」 only up close, 調べる beside it, the line, and then the 「�
   const mark = page.getByTestId('walk-marker-PUDDLE');
   for (const id of ['PUDDLE', 'FRESH_FOOTPRINTS', 'FALLEN_LOG', 'OLD_TREE']) await expect(page.getByTestId(`walk-marker-${id}`)).toHaveCount(0);
   const puddle = (await things(page)).find((t) => t.id === 'PUDDLE')!;
-  await touch(page, await inNoticeOf(page, 'PUDDLE'));
+  // From the road above it (below it are the forest's doors).
+  await touch(page, { x: 0.55, y: 0.6 });
   await expect(mark).toHaveAttribute('data-state', 'near');
   await expect(page.locator('[data-testid="walk-look"][data-point="PUDDLE"]')).toHaveCount(0);
   await goTo(page, 'PUDDLE');
@@ -136,7 +138,9 @@ test('「！」 only up close, 調べる beside it, the line, and then the 「�
   await look(page);
   await expect(page.getByTestId('walk-caption')).toHaveText('水たまりに、木漏れ日が揺れている。');
   await expect(mark).toHaveCount(0);
-  await touch(page, await openFloor(page, 0.62, [0.3, 0.45, 0.85]));
+  // Away along the road to its right end (a small find lying about can rule a spot out: try two heights).
+  const away = (await openFloor(page, 0.62, [0.85, 0.88]).catch(() => undefined)) ?? (await openFloor(page, 0.66, [0.9, 0.88]));
+  await touch(page, away);
   await touch(page, puddle.stand);
   await expect(mark).toHaveCount(0);
   await expect(page.locator('[data-testid="walk-look"][data-point="PUDDLE"]')).toHaveCount(0);

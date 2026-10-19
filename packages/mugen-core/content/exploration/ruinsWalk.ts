@@ -16,7 +16,8 @@ import type { WalkSceneDef } from './walkScene';
 import { WALK_PLACES } from './walkPlaces';
 import { RUINS_PAST_BATTLE_TRACES } from '../story/sekiryugaArc';
 
-export const RUINS_WALK: WalkSceneDef = {
+/** The ruins as first walked: the battle painting and its open floor (until 2026-10-19). */
+const RUINS_WALK_ON_THE_OLD_PAINTING: WalkSceneDef = {
   id: 'ANCIENT_RUINS',
   title: WALK_PLACES.ANCIENT_RUINS.title,
   // Its arches, banners and mountains stand in the upper half of the
@@ -229,11 +230,11 @@ const RUINS_SIDE_STEPS = [
  * old kept as they were — every id, pickup and find the same; only where they stand moves, onto
  * the ground.
  *
- * DEBUG only, for now (`?preview=walk&place=ANCIENT_RUINS&areas=1`): RUINS_WALK above is what the
- * game walks, untouched, until this is decided. Then it is one line to swap.
+ * Shown on its own at `?preview=walk&place=ANCIENT_RUINS&areas=1` (with the discovery effects);
+ * since 2026-10-19 it is also what the game walks (RUINS_WALK, below).
  */
 export const RUINS_WALK_AREAS_POC: WalkSceneDef = {
-  ...RUINS_WALK,
+  ...RUINS_WALK_ON_THE_OLD_PAINTING,
   // The painting the grid image was drawn over (delivered with it), not the ruins' battle background.
   painting: 'RUINS_PATH',
   // Its road runs from the front to steps high on the right: the screen looks at its middle.
@@ -256,17 +257,19 @@ export const RUINS_WALK_AREAS_POC: WalkSceneDef = {
       id: 'OLD_BANNER',
       label: '古い旗',
       at: { x: 0.74, y: 0.46 },
-      // Under the banners on the pillars to the right of the far steps.
-      marker: { x: 0.715, y: 0.21 },
+      // On the banner's pillar to the right of the far steps — low enough to stay clear of the
+      // buttons along the top of the screen.
+      marker: { x: 0.745, y: 0.34 },
       stand: { x: 0.748, y: 0.468 },
       lines: [{ text: '色褪せた旗が、風に小さく揺れている。' }],
     },
     {
       id: 'BROKEN_STEPS',
       label: '崩れた石段',
-      at: { x: 0.23, y: 0.52 },
-      marker: { x: 0.18, y: 0.47 },
-      stand: { x: 0.25, y: 0.53 },
+      // Lower down the old steps, clear of the arch above (one 「！」 at a time).
+      at: { x: 0.28, y: 0.58 },
+      marker: { x: 0.25, y: 0.53 },
+      stand: { x: 0.3, y: 0.6 },
       lines: [{ text: '崩れた石段に、白い花が根を張っている。' }],
     },
     {
@@ -287,7 +290,7 @@ export const RUINS_WALK_AREAS_POC: WalkSceneDef = {
     },
   ],
   roam: {
-    ...RUINS_WALK.roam!,
+    ...RUINS_WALK_ON_THE_OLD_PAINTING.roam!,
     // The outline of old, kept for anything that still reads it: the road's.
     floor: RUINS_MAIN,
     areas: {
@@ -303,24 +306,44 @@ export const RUINS_WALK_AREAS_POC: WalkSceneDef = {
     far: 0.33,
     near: 0.72,
     farScale: 0.55,
-    start: { x: 0.76, y: 0.62 },
+    // In from the lower right of the road, out of notice of the banner up by the far steps.
+    start: { x: 0.75, y: 0.8 },
     pickups: [
-      { ...RUINS_WALK.roam!.pickups![0], at: { x: 0.538, y: 0.638 } },
-      { ...RUINS_WALK.roam!.pickups![1], at: { x: 0.86, y: 0.7 } },
+      { ...RUINS_WALK_ON_THE_OLD_PAINTING.roam!.pickups![0], at: { x: 0.538, y: 0.638 } },
+      // On the open road, clear of the 調べる button at the lower right of a small screen.
+      { ...RUINS_WALK_ON_THE_OLD_PAINTING.roam!.pickups![1], at: { x: 0.7, y: 0.6 } },
       // Two of the four up the side steps: off the way is where things are.
-      { ...RUINS_WALK.roam!.pickups![2], at: { x: 0.12, y: 0.404 } },
-      { ...RUINS_WALK.roam!.pickups![3], at: { x: 0.227, y: 0.611 } },
+      { ...RUINS_WALK_ON_THE_OLD_PAINTING.roam!.pickups![2], at: { x: 0.27, y: 0.45 } },
+      { ...RUINS_WALK_ON_THE_OLD_PAINTING.roam!.pickups![3], at: { x: 0.33, y: 0.6 } },
     ],
+    // Spread along the whole road, from the far steps to its lower left, and up the old steps:
+    // a find turns up somewhere else each time, wherever the party stands.
     spots: [
-      { x: 0.45, y: 0.66 },
-      { x: 0.6, y: 0.62 },
-      { x: 0.7, y: 0.57 },
-      { x: 0.78, y: 0.52 },
-      { x: 0.65, y: 0.7 },
-      { x: 0.33, y: 0.7 },
-      { x: 0.2, y: 0.46 },
-      { x: 0.28, y: 0.55 },
       { x: 0.83, y: 0.4 },
+      { x: 0.82, y: 0.33 },
+      { x: 0.62, y: 0.56 },
+      { x: 0.6, y: 0.62 },
+      { x: 0.68, y: 0.7 },
+      { x: 0.45, y: 0.66 },
+      { x: 0.38, y: 0.7 },
+      { x: 0.22, y: 0.712 },
+      { x: 0.2, y: 0.55 },
     ],
   },
+};
+
+/**
+ * 古代遺跡 AS THE GAME WALKS IT (作者 2026-10-19: 採用済みの新しい遺跡の探索マップを本編へ).
+ *
+ * The adopted painting and the ground read off its grid image, above — the same three things to look
+ * at, the same things to pick up and find, each where it stands on this painting. Only the painting and its ground change:
+ * the game's ruins keep their 「！」 and their stillness (the discovery effects and the gusts stay the
+ * PoC's, for the author to adopt separately).
+ */
+const { discoveryFx: _shownLikeTheMeadow, gusts: _itsGusts, ...ON_THE_ADOPTED_PAINTING } = RUINS_WALK_AREAS_POC;
+/** The PoC's two new things (the carved stone, the fallen pillar): their words are not the author's yet (要判断). */
+const NOT_YET_IN_THE_GAME = ['CARVED_STONE', 'FALLEN_PILLAR'];
+export const RUINS_WALK: WalkSceneDef = {
+  ...ON_THE_ADOPTED_PAINTING,
+  points: ON_THE_ADOPTED_PAINTING.points.filter((p) => !NOT_YET_IN_THE_GAME.includes(p.id)),
 };

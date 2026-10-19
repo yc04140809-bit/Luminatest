@@ -12,7 +12,6 @@ import type { DialogueLine } from "@mugen/content/dialogue/prologue";
 import { kaosFacePicture, type FaceBox } from "../assets/kaosFaces";
 import { HERO_FACE_BOX, heroFaceSrc } from "../assets/heroFaces";
 import type { HeroFace } from "@mugen/content/characters/heroFaces";
-import { CrystalFrame } from "./kit/Crystal";
 
 /**
  * THE TWO OF THEM, SIDE BY SIDE, WHILE THEY TALK (作者 2026-10-11: 「会話時
@@ -204,7 +203,8 @@ export function TalkStage({
             )}
             </div>
             {box && <div className="talk-box">{box}</div>}
-            {layout === "panel" && <CrystalFrame className="talk-frame" />}
+            {/* No frame around the two of them (作者 2026-10-19: 顔グラ周囲の装飾フレームは不要) — the faces stand
+                bare; the line's own box, the name and つぎへ stay. */}
           </div>,
           host,
         )}

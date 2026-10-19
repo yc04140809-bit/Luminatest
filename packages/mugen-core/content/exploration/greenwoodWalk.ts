@@ -7,6 +7,12 @@
 // the bare earth of the path, fresh footprints while there is somebody
 // out there to have made them.
 //
+// THE PAINTING (作者 2026-10-19): the forest's road among mossy ruins, the bridge
+// over the falls — delivered with its grid image, as the ruins' was. Where one can
+// walk is read off that grid (緑 the road, 黄 four ways off it, the rest not walked);
+// the forest's own things stand on its blue, purple and orange marks. Their words
+// are the ones they always had — none was written for this painting (要判断).
+//
 // THE WORDS ONLY NOTICE. Nothing here explains the forest or decides
 // anything about anybody. The one thing that changes is the one the
 // world already says changes: once the player has given Gald one of the
@@ -28,6 +34,124 @@ const GALD_ANSWERED: readonly MemoryEventType[] = [
 const BEFORE_THE_ANSWER: WalkCondition = { kind: 'NOT_KNOWN', types: GALD_ANSWERED };
 const AFTER_THE_ANSWER: WalkCondition = { kind: 'KNOWN', types: GALD_ANSWERED };
 
+/** The road (緑 MAIN), from the author's grid image of the forest (2026-10-19). */
+const FOREST_ROAD = [
+  { x: 0.359, y: 0.472 },
+  { x: 0.414, y: 0.528 },
+  { x: 0.422, y: 0.514 },
+  { x: 0.453, y: 0.528 },
+  { x: 0.461, y: 0.5 },
+  { x: 0.492, y: 0.486 },
+  { x: 0.523, y: 0.528 },
+  { x: 0.539, y: 0.5 },
+  { x: 0.594, y: 0.5 },
+  { x: 0.617, y: 0.569 },
+  { x: 0.664, y: 0.556 },
+  { x: 0.688, y: 0.583 },
+  { x: 0.75, y: 0.569 },
+  { x: 0.766, y: 0.597 },
+  { x: 0.797, y: 0.569 },
+  { x: 0.805, y: 0.597 },
+  { x: 0.883, y: 0.611 },
+  { x: 0.898, y: 0.653 },
+  { x: 0.93, y: 0.667 },
+  { x: 0.93, y: 0.708 },
+  { x: 0.898, y: 0.722 },
+  { x: 0.875, y: 0.694 },
+  { x: 0.789, y: 0.708 },
+  { x: 0.758, y: 0.667 },
+  { x: 0.703, y: 0.667 },
+  { x: 0.703, y: 0.653 },
+  { x: 0.625, y: 0.681 },
+  { x: 0.594, y: 0.625 },
+  { x: 0.562, y: 0.625 },
+  { x: 0.531, y: 0.667 },
+  { x: 0.5, y: 0.583 },
+  { x: 0.461, y: 0.583 },
+  { x: 0.445, y: 0.625 },
+  { x: 0.43, y: 0.597 },
+  { x: 0.422, y: 0.611 },
+  { x: 0.383, y: 0.597 },
+  { x: 0.367, y: 0.639 },
+  { x: 0.391, y: 0.694 },
+  { x: 0.344, y: 0.764 },
+  { x: 0.312, y: 0.708 },
+  { x: 0.273, y: 0.722 },
+  { x: 0.266, y: 0.694 },
+  { x: 0.305, y: 0.625 },
+  { x: 0.305, y: 0.569 },
+  { x: 0.281, y: 0.528 },
+  { x: 0.312, y: 0.486 },
+  { x: 0.344, y: 0.5 },
+] as const;
+
+/**
+ * The four ways off it (黄 SIDE): up the left past the old stonework to the
+ * great tree, down to the rocks at the lower left, up to the right, and down
+ * past the bridge to the bank of the falls.
+ */
+const FOREST_WAYS_OFF = [
+  [
+    { x: 0.17, y: 0.26 },
+    { x: 0.27, y: 0.265 },
+    { x: 0.285, y: 0.28 },
+    { x: 0.29, y: 0.4 },
+    { x: 0.32, y: 0.42 },
+    { x: 0.355, y: 0.43 },
+    { x: 0.362, y: 0.47 },
+    { x: 0.36, y: 0.505 },
+    { x: 0.3, y: 0.505 },
+    { x: 0.295, y: 0.45 },
+    { x: 0.265, y: 0.42 },
+    { x: 0.26, y: 0.3 },
+    { x: 0.17, y: 0.3 },
+  ],
+  [
+    { x: 0.208, y: 0.665 },
+    { x: 0.247, y: 0.642 },
+    { x: 0.3, y: 0.648 },
+    { x: 0.339, y: 0.671 },
+    { x: 0.39, y: 0.712 },
+    { x: 0.45, y: 0.729 },
+    { x: 0.45, y: 0.746 },
+    { x: 0.384, y: 0.752 },
+    { x: 0.339, y: 0.717 },
+    { x: 0.3, y: 0.73 },
+    { x: 0.286, y: 0.775 },
+    { x: 0.273, y: 0.856 },
+    { x: 0.195, y: 0.856 },
+    { x: 0.189, y: 0.752 },
+    { x: 0.208, y: 0.717 },
+  ],
+  [
+    { x: 0.72, y: 0.5 },
+    { x: 0.745, y: 0.49 },
+    { x: 0.75, y: 0.475 },
+    { x: 0.79, y: 0.475 },
+    { x: 0.8, y: 0.5 },
+    { x: 0.815, y: 0.51 },
+    { x: 0.815, y: 0.57 },
+    { x: 0.8, y: 0.6 },
+    { x: 0.73, y: 0.6 },
+    { x: 0.715, y: 0.57 },
+  ],
+  [
+    { x: 0.6, y: 0.665 },
+    { x: 0.86, y: 0.665 },
+    { x: 0.865, y: 0.7 },
+    { x: 0.86, y: 0.79 },
+    { x: 0.855, y: 0.84 },
+    { x: 0.8, y: 0.845 },
+    { x: 0.79, y: 0.8 },
+    { x: 0.78, y: 0.73 },
+    { x: 0.75, y: 0.71 },
+    { x: 0.66, y: 0.71 },
+    { x: 0.655, y: 0.725 },
+    { x: 0.615, y: 0.725 },
+    { x: 0.6, y: 0.7 },
+  ],
+] as const;
+
 export const GREENWOOD_WALK: WalkSceneDef = {
   id: 'GREENWOOD_FOREST',
   title: 'グリーンウッドの森',
@@ -35,11 +159,11 @@ export const GREENWOOD_WALK: WalkSceneDef = {
     {
       id: 'PUDDLE',
       label: '水たまり',
-      at: { x: 0.72, y: 0.7 },
-      // Looked at from its left: the party comes in from the right and
-      // must walk to it, not arrive on top of it.
-      stand: { x: 0.68, y: 0.72 },
-      marker: { x: 0.75, y: 0.68 },
+      // The blue mark under the bridge: the water below it, looked at from the
+      // way off the road on the bridge's left.
+      at: { x: 0.709, y: 0.747 },
+      stand: { x: 0.63, y: 0.715 },
+      marker: { x: 0.709, y: 0.72 },
       lines: [{ text: '水たまりに、木漏れ日が揺れている。' }],
     },
     {
@@ -49,19 +173,19 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       // the road is still out there, and gone once the four answers are.
       id: 'FRESH_FOOTPRINTS',
       label: '新しい足跡',
-      at: { x: 0.55, y: 0.74 },
-      stand: { x: 0.6, y: 0.74 },
+      // The grid's orange mark (an event: 伏線), on the road.
+      at: { x: 0.363, y: 0.567 },
+      stand: { x: 0.385, y: 0.575 },
       when: BEFORE_THE_ANSWER,
       lines: [{ text: '湿った土に、まだ新しい足跡が残っている。\n一人分だ。村とは逆方向へ続いている。' }],
     },
     {
       id: 'FALLEN_LOG',
       label: '倒れた丸太',
-      at: { x: 0.36, y: 0.52 },
-      // On the log's near edge: the top of it is up under the words.
-      marker: { x: 0.36, y: 0.56 },
-      // On the earth in front of it: the log itself lies beyond the floor.
-      stand: { x: 0.41, y: 0.585 },
+      // The blue mark at the road's left end.
+      at: { x: 0.314, y: 0.561 },
+      marker: { x: 0.314, y: 0.53 },
+      stand: { x: 0.335, y: 0.575 },
       lines: [
         { text: '丸太の苔が、誰かに踏まれて剥げている。', when: BEFORE_THE_ANSWER },
         { text: '剥げていた苔が、また丸太を覆いはじめている。', when: AFTER_THE_ANSWER },
@@ -70,10 +194,10 @@ export const GREENWOOD_WALK: WalkSceneDef = {
     {
       id: 'OLD_TREE',
       label: '古い大樹',
-      at: { x: 0.14, y: 0.46 },
-      // At the roots, where the footprints are.
-      marker: { x: 0.14, y: 0.58 },
-      stand: { x: 0.19, y: 0.6 },
+      // The blue mark up the way off to the left, under the great tree.
+      at: { x: 0.291, y: 0.402 },
+      marker: { x: 0.291, y: 0.37 },
+      stand: { x: 0.3, y: 0.43 },
       lines: [{ text: '木の根元に、小さな足跡が残っている。' }],
     },
   ],
@@ -89,32 +213,30 @@ export const GREENWOOD_WALK: WalkSceneDef = {
   // Now and then, over the leaves already falling: a few let go together, the light sways, small insects.
   gusts: { kinds: ['LEAF_DRIFT', 'SUNBEAM', 'BUGS'] },
   // The man in the road, seen from a long way off — until he is not.
-  figures: [{ id: 'GALD', at: { x: 0.3, y: 0.56 }, when: BEFORE_THE_ANSWER }],
-  // The clearing's floor sits in the lower middle of the painting: look a
-  // little higher than its bottom edge, so a walker at the back of it is
-  // still whole on the screen.
-  framing: 0.6,
+  figures: [{ id: 'GALD', at: { x: 0.66, y: 0.565 }, when: BEFORE_THE_ANSWER }],
+  painting: 'GREENWOOD_RUINS',
+  // The ways off the road climb into the upper half and drop below it to the
+  // falls: the camera follows the party up and down (as the grassland's does),
+  // so a walker up by the great tree is whole and one down by the falls stays
+  // above the forest's doors. `framing` is where it looks before anyone moves.
+  followY: true,
+  framing: 0.5,
   // WALKED ABOUT IN, as the ruins are: the open clearing, from the logs
   // and the water's edge at the back to the dark roots and rocks at the
   // front — not the trees, the water or the undergrowth.
   roam: {
-    floor: [
-      { x: 0.03, y: 0.66 },
-      { x: 0.12, y: 0.62 },
-      { x: 0.22, y: 0.575 },
-      { x: 0.4, y: 0.555 },
-      { x: 0.55, y: 0.56 },
-      { x: 0.75, y: 0.56 },
-      { x: 0.88, y: 0.575 },
-      { x: 0.97, y: 0.6 },
-      { x: 0.97, y: 0.84 },
-      { x: 0.04, y: 0.84 },
-    ],
-    far: 0.56,
-    near: 0.78,
-    start: { x: 0.84, y: 0.66 },
-    // Never low on the floor: the forest's two doors sit along the
-    // bottom of the screen, and a find under them could not be reached.
+    // The outline of old, kept for anything that still reads it: the road's.
+    floor: FOREST_ROAD,
+    areas: {
+      main: [FOREST_ROAD],
+      // No words on stepping in: none were written for this painting.
+      side: FOREST_WAYS_OFF.map((outline) => ({ outline })),
+    },
+    far: 0.3,
+    near: 0.8,
+    // Up the ways off the road, walkers are drawn smaller.
+    farScale: 0.62,
+    start: { x: 0.91, y: 0.69 },
     // THINGS TO PICK UP — three, so a walk now and then turns up something
     // to carry home, never a floor of glints. Out of sight of where the
     // party walks in (further in, to the left), and clear of the forest's
@@ -123,7 +245,8 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       {
         id: 'forest_pickup_001',
         label: '草むら',
-        at: { x: 0.25, y: 0.595 },
+        // The purple marks (採取): the way off on the right…
+        at: { x: 0.757, y: 0.494 },
         line: '草むらをかき分けると、香りの強い草が生えていた。',
         items: [
           { itemId: 'FOREST_HERB', quantity: 1, weight: 65 },
@@ -133,14 +256,16 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       {
         id: 'forest_pickup_002',
         label: '木の根元',
-        at: { x: 0.16, y: 0.71 },
+        // …up the way off on the left, below the great tree's roots…
+        at: { x: 0.21, y: 0.275 },
         line: '木の根元に、固い木の実がいくつも落ちていた。',
         items: [{ itemId: 'FOREST_NUT', quantity: 2 }],
       },
       {
         id: 'forest_pickup_003',
         label: '岩陰',
-        at: { x: 0.41, y: 0.71 },
+        // …and among the rocks of the way off at the lower left.
+        at: { x: 0.231, y: 0.771 },
         line: '岩の陰に、何か光るものが挟まっていた。',
         items: [
           { itemId: 'IRON_ORE', quantity: 1, weight: 85 },
@@ -149,16 +274,15 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       },
     ],
     spots: [
-      { x: 0.08, y: 0.68 },
-      { x: 0.24, y: 0.72 },
-      { x: 0.3, y: 0.64 },
-      { x: 0.34, y: 0.72 },
-      { x: 0.47, y: 0.7 },
-      { x: 0.5, y: 0.6 },
-      { x: 0.58, y: 0.6 },
-      { x: 0.75, y: 0.59 },
-      { x: 0.86, y: 0.72 },
-      { x: 0.9, y: 0.66 },
+      { x: 0.48, y: 0.53 },
+      { x: 0.56, y: 0.59 },
+      { x: 0.52, y: 0.56 },
+      { x: 0.6, y: 0.55 },
+      { x: 0.7, y: 0.62 },
+      { x: 0.84, y: 0.66 },
+      { x: 0.33, y: 0.72 },
+      { x: 0.76, y: 0.585 },
+      { x: 0.85, y: 0.69 },
     ],
     // SMALL THINGS IN A FOREST. Plants, animals, the weather — never a
     // person: who has been walking here is the footprints' to say, and
@@ -189,3 +313,4 @@ export const GREENWOOD_WALK: WalkSceneDef = {
     ],
   },
 };
+

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { GREENWOOD_WALK } from '@mugen/content/exploration/greenwoodWalk';
+import type { WalkPoint } from '@mugen/content/exploration/walkScene';
+
+/**
+ * THE ONE-WAY WALK (WalkScene), on things of its own. The game walks the forest and the ruins in two
+ * dimensions (RoamScene, since 2026-10-19 on their adopted paintings), so their things no longer stand
+ * in a row for this walk; these are where the forest's stood when it was walked this way.
+ */
+const pt = (id: string, x: number, y: number): WalkPoint => ({ id, label: id, at: { x, y }, lines: [] });
+const GREENWOOD_WALK = {
+  points: [pt('PUDDLE', 0.72, 0.7), pt('FRESH_FOOTPRINTS', 0.55, 0.74), pt('FALLEN_LOG', 0.36, 0.52), pt('OLD_TREE', 0.14, 0.46)],
+};
+const RUINS_ROW = { points: [pt('STONE_ARCH', 0.5, 0.42), pt('OLD_BANNER', 0.3, 0.47), pt('BROKEN_STEPS', 0.12, 0.44)] };
 import { DEPTH, HERO_END, HERO_START, STOP_GAP, heroX, layerShift, nextStop, paintingX, stopFor, stopsFor } from './walkPath';
 
 describe('the walk, as arithmetic', () => {
@@ -56,9 +67,9 @@ describe('a thing ahead is noticed only when near', () => {
 describe('between two things, nothing glints', () => {
   it('neighbouring things in the forest are further apart than both their glints together', async () => {
     const { APPROACH } = await import('./walkPath');
-    for (const world of [[], ['PLAYER_SPARED_GALD']]) {
-      const { pointsFor } = await import('@mugen/content/exploration/walkScene');
-      const xs = pointsFor(GREENWOOD_WALK, { known: new Set(world), day: 1 }).map((p) => stopFor(p.at.x)).sort((a, b) => a - b);
+    // With the footprints there, and without them.
+    for (const points of [GREENWOOD_WALK.points, GREENWOOD_WALK.points.filter((p) => p.id !== 'FRESH_FOOTPRINTS')]) {
+      const xs = points.map((p) => stopFor(p.at.x)).sort((a, b) => a - b);
       for (let i = 1; i < xs.length; i++) expect(xs[i] - xs[i - 1]).toBeGreaterThan(2 * APPROACH);
     }
   });
@@ -67,8 +78,7 @@ describe('between two things, nothing glints', () => {
 describe('古代遺跡 on the same walk', () => {
   it('every thing is reachable, and no two glints overlap', async () => {
     const { APPROACH } = await import('./walkPath');
-    const { RUINS_WALK } = await import('@mugen/content/exploration/ruinsWalk');
-    const ts = RUINS_WALK.points.map((p) => stopFor(p.at.x)).sort((a, b) => a - b);
+    const ts = RUINS_ROW.points.map((p) => stopFor(p.at.x)).sort((a, b) => a - b);
     for (const t of ts) {
       expect(t).toBeGreaterThan(0);
       expect(t).toBeLessThanOrEqual(1);

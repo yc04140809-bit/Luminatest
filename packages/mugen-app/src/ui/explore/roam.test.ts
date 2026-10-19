@@ -16,6 +16,7 @@ import {
   standBeside,
   toFloor,
 } from './roam';
+import { groundOf } from './walkArea';
 
 const roam = RUINS_WALK.roam!;
 const square = [
@@ -117,19 +118,23 @@ describe('small finds', () => {
   });
 
   it('every spot can be stood beside, on the floor', () => {
-    for (const s of roam.spots) {
-      const at = standBeside(s, roam.floor);
-      expect(onFloor(at, roam.floor)).toBe(true);
+    for (const s of [{ x: 0.3, y: 0.6 }, { x: 0.79, y: 0.52 }, { x: 0.5, y: 0.88 }]) {
+      const at = standBeside(s, square);
+      expect(onFloor(at, square)).toBe(true);
       expect(dist(at, s)).toBeLessThan(NOTICE);
     }
+    // A place whose ground is told apart (the ruins, the forest): every spot is on it already.
+    const g = groundOf(roam);
+    for (const s of roam.spots) expect(g.on(s), JSON.stringify(s)).toBe(true);
   });
 });
 
 describe('the ruins, walked about in', () => {
-  it('the start, every spot and where each thing is looked from are on the floor', () => {
-    expect(onFloor(roam.start, roam.floor)).toBe(true);
-    for (const s of roam.spots) expect(onFloor(s, roam.floor)).toBe(true);
-    for (const p of RUINS_WALK.points) expect(onFloor(toFloor(p.stand!, roam.floor), roam.floor), p.id).toBe(true);
+  it('the start, every spot and where each thing is looked from are on the ground (the road or a way off it)', () => {
+    const g = groundOf(roam);
+    expect(g.on(roam.start)).toBe(true);
+    for (const s of roam.spots) expect(g.on(s)).toBe(true);
+    for (const p of RUINS_WALK.points) expect(g.on(p.stand!), p.id).toBe(true);
   });
 
   it('nothing is noticed from where they first stand: the walk comes first', () => {
@@ -211,10 +216,11 @@ describe('how rare a find is', () => {
 describe('グリーンウッドの森, walked about in the same way', () => {
   const forest = GREENWOOD_WALK.roam!;
 
-  it('the start, every spot and where each thing is looked from are on the floor', () => {
-    expect(onFloor(forest.start, forest.floor)).toBe(true);
-    for (const s of forest.spots) expect(onFloor(s, forest.floor)).toBe(true);
-    for (const p of GREENWOOD_WALK.points) expect(onFloor(toFloor(p.stand!, forest.floor), forest.floor), p.id).toBe(true);
+  it('the start, every spot and where each thing is looked from are on the ground (the road or a way off it)', () => {
+    const g = groundOf(forest);
+    expect(g.on(forest.start)).toBe(true);
+    for (const s of forest.spots) expect(g.on(s), JSON.stringify(s)).toBe(true);
+    for (const p of GREENWOOD_WALK.points) expect(g.on(p.stand!), p.id).toBe(true);
   });
 
   it('nothing is noticed from where they first stand', () => {

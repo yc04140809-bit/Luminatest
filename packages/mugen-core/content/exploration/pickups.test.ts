@@ -40,7 +40,10 @@ describe('things to pick up', () => {
       for (const p of pickups) {
         expect(p.label, p.id).not.toBe('');
         expect(p.line, p.id).not.toBe('');
-        expect(onFloor(p.at, scene.roam!.floor), p.id).toBe(true);
+        // On the ground: the floor, or — where the place tells its ground apart — the road or a way off it.
+        const areas = scene.roam!.areas;
+        const ground = areas ? [...areas.main, ...(areas.side ?? []).map((s) => s.outline)] : [scene.roam!.floor];
+        expect(ground.some((outline) => onFloor(p.at, outline)), p.id).toBe(true);
         // Looked into from a little to its right, and not where they walk in to
         // (its 「！」 shows only once standing at it).
         const start = scene.roam!.start;
