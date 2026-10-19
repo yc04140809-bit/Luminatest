@@ -150,7 +150,18 @@ test('はじめから to the three years and back: the bakery route, once, and t
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toBeVisible();
   await expect(page.getByTestId('future-vision')).toHaveCount(0);
-  expect((await dev<string[]>(page, `(w) => w.getEvents().map((e) => e.type)`)).filter((t) => ROUTE.includes(t))).toEqual(ROUTE);
+  // The save hands back one day's events in its own order; what holds is
+  // that every step is there, once, each still caused by the one before.
+  const reopened = await dev<{ type: string; causedBy?: string[] }[]>(
+    page,
+    `(w) => w.getEvents().map((e) => ({ type: e.type, causedBy: e.causedBy }))`,
+  );
+  const steps = reopened.filter((e) => ROUTE.includes(e.type));
+  expect(steps.map((e) => e.type).sort()).toEqual([...ROUTE].sort());
+  for (const e of steps) {
+    const i = ROUTE.indexOf(e.type);
+    expect(e.causedBy, e.type).toEqual([i === 0 ? 'PLAYER_HELPED_GALD' : ROUTE[i - 1]]);
+  }
   expect(errors).toEqual([]);
 
   // The author's view (DEBUG builds): the chain as lived, and the stopwatch.
