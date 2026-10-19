@@ -15,9 +15,8 @@
 //   - each figure is scaled to one height and set on the ground line, between its boots.
 // Nothing is mirrored: the hero's mark under his left eye and Kaos's two different wings would swap.
 //
-// The hero walks with four drawn steps each way. WAITING ON ART — said here so it is not mistaken for a
-// decision: Kaos has standing drawings only, and is moved with the scene's bob (a little higher than
-// with a cycle), not animated. Her walking drawings drop in as `walk` frames, on the same canvas.
+// Both walk with four drawn steps each way. Kaos's walk was drawn on white and is cut out of it here
+// (the white joined to the edge of each cell taken away, and the grid's dividing lines with it).
 
 import heroBackIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-back-idle.webp';
 import heroFrontIdle from '@mugen/assets/files/characters/hero/explore/hero-mini-front-idle.webp';
@@ -41,8 +40,22 @@ import heroRightWalk3 from '@mugen/assets/files/characters/hero/explore/hero-min
 import heroRightWalk4 from '@mugen/assets/files/characters/hero/explore/hero-mini-right-walk4.webp';
 import kaosBackIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-idle.webp';
 import kaosFrontIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-idle.webp';
-import kaosLeftIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-idle.webp';
-import kaosRightIdle from '@mugen/assets/files/characters/kaos/explore/kaos-mini-right-idle.webp';
+import kaosBackWalk1 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-walk1.webp';
+import kaosBackWalk2 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-walk2.webp';
+import kaosBackWalk3 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-walk3.webp';
+import kaosBackWalk4 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-back-walk4.webp';
+import kaosFrontWalk1 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-walk1.webp';
+import kaosFrontWalk2 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-walk2.webp';
+import kaosFrontWalk3 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-walk3.webp';
+import kaosFrontWalk4 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-front-walk4.webp';
+import kaosLeftWalk1 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-walk1.webp';
+import kaosLeftWalk2 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-walk2.webp';
+import kaosLeftWalk3 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-walk3.webp';
+import kaosLeftWalk4 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-left-walk4.webp';
+import kaosRightWalk1 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-right-walk1.webp';
+import kaosRightWalk2 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-right-walk2.webp';
+import kaosRightWalk3 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-right-walk3.webp';
+import kaosRightWalk4 from '@mugen/assets/files/characters/kaos/explore/kaos-mini-right-walk4.webp';
 import type { ExplorationCharacterId, ExplorationSpriteSet, SpriteFrame } from './explorationSprites';
 
 /** The hero's canvas: 380 × 360, his soles on y 354, the middle between his boots on x 190. */
@@ -74,11 +87,14 @@ export const MINI_STATUE_SPRITES: Record<ExplorationCharacterId, ExplorationSpri
     // drawn (the curl above takes the rest), his crown to sole is 324 of his 340 (his spikes the rest):
     // 320 keeps her crown-to-sole at 94% of his, as it always was (0.376 against 0.4).
     referencePixels: 320,
+    // Standing front and back from the four-view sheet; facing left or right she stands in her own
+    // walk's quietest step, because the sheet's side views have her eyes the wrong way round (facing
+    // left the viewer sees her left side: the blue eye; facing right, the gold) and the walk's are right.
     frames: {
-      front: { idle: kaos(kaosFrontIdle), walk: [] },
-      back: { idle: kaos(kaosBackIdle), walk: [] },
-      left: { idle: kaos(kaosLeftIdle), walk: [] },
-      right: { idle: kaos(kaosRightIdle), walk: [] },
+      front: { idle: kaos(kaosFrontIdle), walk: [kaos(kaosFrontWalk1), kaos(kaosFrontWalk2), kaos(kaosFrontWalk3), kaos(kaosFrontWalk4)] },
+      back: { idle: kaos(kaosBackIdle), walk: [kaos(kaosBackWalk1), kaos(kaosBackWalk2), kaos(kaosBackWalk3), kaos(kaosBackWalk4)] },
+      left: { idle: kaos(kaosLeftWalk2), walk: [kaos(kaosLeftWalk1), kaos(kaosLeftWalk2), kaos(kaosLeftWalk3), kaos(kaosLeftWalk4)] },
+      right: { idle: kaos(kaosRightWalk4), walk: [kaos(kaosRightWalk1), kaos(kaosRightWalk2), kaos(kaosRightWalk3), kaos(kaosRightWalk4)] },
     },
   },
 };
