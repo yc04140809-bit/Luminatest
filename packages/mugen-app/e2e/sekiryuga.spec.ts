@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { talkToMaster } from './tavernTalk';
 import { throughTheOpening, pastTheIntro } from './opening';
 import { command, fightUntil, readyToAct } from './battle';
-import { goTo, hero, openFloor, scale, settled, touch } from './roam';
+import { dist, goTo, hero, openFloor, scale, settled, things, touch } from './roam';
 import { placeButton } from './village';
 
 /**
@@ -284,10 +284,29 @@ test('the ruins from the map: the walk as the debug door has it — and the way 
   await intoTheRuins(page);
   await expect(page.locator('.walk-title')).toHaveText('古代遺跡');
   // A floor tap walks them; further back is smaller.
-  const near = await openFloor(page, 0.64);
+  // The road's front, then further up it (the adopted painting, 2026-10-19).
+  let near: Awaited<ReturnType<typeof openFloor>> | undefined;
+  for (const y of [0.73, 0.71, 0.69]) {
+    near = await openFloor(page, y, [0.5, 0.46, 0.55, 0.6, 0.42, 0.65]).catch(() => undefined);
+    if (near) break;
+  }
+  expect(near).toBeTruthy();
+  near = near!;
   await touch(page, near);
   const s1 = await scale(page);
-  const far = await openFloor(page, 0.5);
+  // (Up the road from there, clear of where a touch would be taken for anything lying about.)
+  const lying = await things(page);
+  const far = [
+    { x: 0.55, y: 0.6 },
+    { x: 0.45, y: 0.64 },
+    { x: 0.7, y: 0.66 },
+    { x: 0.4, y: 0.66 },
+    { x: 0.5, y: 0.67 },
+    { x: 0.62, y: 0.68 },
+  ].find((q) =>
+    lying.every((t) => (t.kind === 'pickup' ? dist(q, t.mark) > 0.06 : dist(q, t.stand) > 0.09 && dist(q, t.mark) > 0.09)),
+  )!;
+  expect(far).toBeTruthy();
   await touch(page, far);
   expect(await scale(page)).toBeLessThan(s1);
   expect((await hero(page)).y).toBeLessThan(near.y);
@@ -411,7 +430,9 @@ test('「無理なら逃げろ」: fleeing セキリュウガ puts them back in 
   await hearTheShopRumor(page);
   await hearTheMaster(page);
   await intoTheRuins(page);
-  const near = await openFloor(page, 0.62);
+  const near =
+    (await openFloor(page, 0.62, [0.5, 0.48, 0.52]).catch(() => undefined)) ??
+    (await openFloor(page, 0.73, [0.5, 0.46, 0.55, 0.6, 0.42, 0.65]));
   await touch(page, near);
   const stood = await hero(page);
   await toTheEntrance(page);

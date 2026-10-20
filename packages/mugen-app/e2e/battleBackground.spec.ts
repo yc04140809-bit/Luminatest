@@ -65,7 +65,7 @@ test('the greenwood\'s fight is fought on FOREST, and it leaves with the fight',
   await page.getByTestId('encounter-button').click();
   const bg = page.getByTestId('bp-battle-bg');
   await expect(bg).toHaveAttribute('data-background', 'FOREST');
-  expect(await painting(bg)).toMatch(/^forest.*\.png$/);
+  expect(await painting(bg)).toMatch(/^forest.*\.(png|webp)$/);
   // Behind the fight, never over it.
   await onTop(page, page.getByTestId('bp-attack'));
   await onTop(page, page.getByTestId('bp-defend'));
@@ -79,7 +79,7 @@ test('the greenwood\'s fight is fought on FOREST, and it leaves with the fight',
   // And there again for the next one.
   await page.getByTestId('encounter-button').click();
   await expect(page.getByTestId('bp-battle-bg')).toHaveAttribute('data-background', 'FOREST');
-  expect(await painting(page.getByTestId('bp-battle-bg'))).toMatch(/^forest.*\.png$/);
+  expect(await painting(page.getByTestId('bp-battle-bg'))).toMatch(/^forest.*\.(png|webp)$/);
 });
 
 for (const key of ['FOREST', 'RUINS', 'SWAMP', 'CITY', 'BEACH', 'GRASSLAND']) {
@@ -87,7 +87,7 @@ for (const key of ['FOREST', 'RUINS', 'SWAMP', 'CITY', 'BEACH', 'GRASSLAND']) {
     await page.goto(`/?preview=battle&bg=${key}`);
     const bg = page.getByTestId('bp-battle-bg');
     await expect(bg).toHaveAttribute('data-background', key);
-    expect(await painting(bg)).toMatch(new RegExp(`^${key.toLowerCase()}.*\\.png$`));
+    expect(await painting(bg)).toMatch(new RegExp(`^${key.toLowerCase()}.*\\.(png|webp)$`));
     // It fills the field and no more.
     const box = (await bg.boundingBox())!;
     const view = page.viewportSize()!;
