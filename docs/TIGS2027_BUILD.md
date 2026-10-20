@@ -93,3 +93,52 @@ TIGS までに、新しい大規模システムは増やさない。
 | 試遊版の英語字幕の受け皿 | §5 第2段階 | 文言は作者側で確定したものを入れる |
 | 10〜11インチ横画面での表示確認 | §6 | 今の確認サイズ（844×390、640×300 など）に、タブレットの比率（例：1280×800、1340×800）を足す |
 | 試遊の道筋を時間で確かめる e2e | §1 | 15分を超えないこと、目標7〜10分 |
+
+---
+
+## 選考資料 P4：「条件 → 行動」の実例（正本、作者 2026-10-20）
+
+P4 では、選択した瞬間に次のイベントへ固定分岐するのではなく、**WORLD MEMORY・人物の中の変化・時間などの条件を経て NPC EVENT が成立する**ことの証拠として、パン屋ルートの最初の2歩を使う。
+**実コードにある条件だけで書く。** 未実装の条件や架空の数値は足さない。「リナが危険な状況にいる」は出来事の説明（物語の描写）であって EventRule の条件ではないので、条件としては書かない。
+
+### 資料に載せる流れ（人が読める形）
+
+【プレイヤーの選択】ガルドの傷を治療した
+　↓ WORLD MEMORY に残る
+【人物の中に残った変化】ガルドに「借りを返さねばならない」という種（HIDDEN SEED）が生まれ、育つ
+　↓ さらに、実際の EventRule の条件として
+　・「治療した」が WORLD MEMORY にある
+　・1晩たっている
+　・ガルドがまだ街道へ出ていない
+　・「借りを返さねばならない」の種が育っている
+　↓
+【NPC EVENT】翌晩、森の入口でガルドがリナを庇う
+　↓
+【別人物への波及】それを見ていたリゼルに「あの人は、ただの盗賊じゃないのかもしれない」という変化が残る
+　↓ その変化が次の条件になり
+【NPC EVENT】リゼルがガルドの傷を手当てする
+
+短い説明文の形：「選択が WORLD MEMORY に残る」＋「その経験から人物の中に種が育つ」＋「時間などの条件がそろう」→「NPC が自分で行動する」。
+
+### 各行とコードの対応（確認用。資料には載せない）
+
+| 資料の行 | コード | 場所 |
+|---|---|---|
+| ガルドの傷を治療した | WORLD MEMORY の出来事 `PLAYER_HELPED_GALD`（書き換え不可、1世界に1つ） | `content/events/galdLifeChoice.ts` |
+| 「借りを返さねばならない」が生まれ、育つ | 人生エンジンの行い `PLAYER_HELPED_GALD` → 種 `GALD_REDEMPTION`（強さ 0.9、ガルド本人へ） | `content/world/galdLife.ts` |
+| 「治療した」が WORLD MEMORY にある | `GALD_SAVES_LINA_DEF.requiredMemory: 'PLAYER_HELPED_GALD'` | `content/events/offScreenLife.ts` |
+| 1晩たっている | `minElapsedDays: 1` | 同上 |
+| まだ街道へ出ていない | `unless: ['GALD_WALKS_THE_ROAD']`（「街道へ出た」という出来事が無いこと） | 同上 |
+| 種が育っている | `bloom: 'GALD_WOULD_STAND_FOR_SOMEONE'` ＝ ガルドの `GALD_REDEMPTION` が GROWING 以上 | `content/world/bakeryRouteLife.ts` |
+| 森の入口で、ガルドがリナを庇う | 出来事 `GALD_SAVES_LINA`（記録場所 `GREENWOOD_FOREST`、行った人 ガルド／相手 リナ／見ていた人 リゼル） | `content/events/offScreenLife.ts` |
+| リゼルに「ただの盗賊じゃないのかも」が残る | 行い `GALD_SAVES_LINA` → 種 `SEEN_DIFFERENTLY`（見ていた人へ） | `content/world/bakeryRouteLife.ts` |
+| その変化が次の条件になり、リゼルが手当てする | `RIZEL_TENDS_GALD_DEF`：`requiredMemory: 'GALD_SAVES_LINA'`、`minElapsedDays: 0`、`bloom: 'RIZEL_SEES_GALD_DIFFERENTLY'` ＝ リゼルの `SEEN_DIFFERENTLY` が DORMANT 以上 | `content/events/offScreenLife.ts`、`content/world/bakeryRouteLife.ts` |
+
+条件を1つずつ外すと出来事が起きないことは `packages/mugen-core/core/world/p4Example.test.ts` が確かめている。
+
+### 書き方の注意（コードと食い違わないために）
+
+- **場所は条件ではない。** 「森の入口で」は出来事が記録される場所であって、成立の条件ではない。条件にあるのは「まだ街道へ出ていない」（その出来事が無いこと）。資料で「時間・場所などの条件」と書くなら「時間などの条件」とするか、「まだ街道へ出ていない」をそのまま書く。
+- **数値は資料に出さない。** 0.9 や GROWING は確認用。資料では「育つ」「残る」と書く。
+- **「借りを返さねばならない」はガルド本人が感じている種**（開発画面の表示 FELT）。「本人も気付いていない」とは書かない。
+- **リゼルに変化が残るのは、その場で見ていたから**（見ていた人に届く行い）。見ていなかった世界では手当ては起きない（同テスト）。
