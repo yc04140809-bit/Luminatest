@@ -159,6 +159,42 @@ test('リゼル: the wooden sword (her name only once she gives it), then her an
   expect(aid).toContain('「だけ、は余計。」');
 });
 
+// 作者 2026-10-20 (「リゼルの会話縦読みで縦2行でめちゃくちゃ読みにくい」): in the village's left panel her
+// words run across the box's whole width — never a column of a few characters between her face and
+// つぎへ — and the box, つぎへ with it, is in view without scrolling, the news under it.
+for (const [w, h] of [
+  [844, 390],
+  [640, 300],
+] as const) {
+  test(`${w}×${h}: her words across the left panel, not squeezed beside her face`, async ({ page }) => {
+    await page.setViewportSize({ width: w, height: h });
+    await settledVillage(page, 'CAPTURE');
+    await outAndBack(page);
+    await expect(page.getByTestId('daily-scene')).toHaveAttribute('data-scene', 'RIZEL_WOODEN_SWORD');
+    for (let i = 0; i < 20; i++) {
+      const speaker = page.locator('[data-testid=daily-scene] .kaos-aside-speaker');
+      if ((await speaker.count()) > 0 && (await speaker.textContent()) === 'リゼル') break;
+      await page.getByTestId('daily-next').click();
+    }
+    await expect(page.getByTestId('daily-face')).toBeVisible();
+    await page.evaluate(() => document.querySelector('.vg-body-scroll')?.scrollTo(0, 0));
+    const box = (await page.getByTestId('daily-scene').boundingBox())!;
+    const line = (await page.getByTestId('daily-line').boundingBox())!;
+    const face = (await page.getByTestId('daily-face').boundingBox())!;
+    const next = (await page.getByTestId('daily-next').boundingBox())!;
+    const speaker = (await page.locator('[data-testid=daily-scene] .kaos-aside-speaker').boundingBox())!;
+    const scroller = (await page.locator('.vg-body-scroll').boundingBox())!;
+    // The words under the face, the box's whole width.
+    expect(line.y).toBeGreaterThanOrEqual(face.y + face.height - 1);
+    expect(line.width).toBeGreaterThan(box.width * 0.8);
+    // つぎへ never over her name.
+    expect(speaker.x + speaker.width).toBeLessThanOrEqual(next.x + 1);
+    // The whole box in the panel as it is, nothing to scroll for.
+    expect(box.y).toBeGreaterThanOrEqual(scroller.y - 1);
+    expect(next.y + next.height).toBeLessThanOrEqual(scroller.y + scroller.height);
+  });
+}
+
 test('フウミミ: not before the signs; then once at the forest’s edge — flee and it is still there; beaten, the small one, the four answers', async ({
   page,
 }) => {

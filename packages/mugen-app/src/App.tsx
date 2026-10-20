@@ -1027,8 +1027,6 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
           // 襲撃前の日常: something small, as they come back in (one a day, after セキリュウガ) — at the top.
           happening={
             <>
-              {/* ✉ アルデン通信: something talked about, not yet read — first, small. */}
-              {homeNews && <NewsAside key={homeNews.id} world={world} rumor={homeNews} onDone={() => setHomeNews(null)} />}
               {homecoming && villageScene ? (
                 <DailyAside key={villageScene.id} world={world} scene={villageScene} />
               ) : homecoming && homeBanter ? (
@@ -1038,6 +1036,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
                 // Nothing else said at all: now and then, her word on what could be done today.
                 <NudgeAside key={homeNudge.id} world={world} nudge={homeNudge} onDone={() => setHomeNudge(null)} />
               ) : null}
+              {/* ✉ アルデン通信: something talked about, not yet read — small, under what is being said
+                  (作者 2026-10-20: the words first, never pushed below the fold on a small screen). */}
+              {homeNews && <NewsAside key={homeNews.id} world={world} rumor={homeNews} onDone={() => setHomeNews(null)} />}
             </>
           }
           resting={resting}

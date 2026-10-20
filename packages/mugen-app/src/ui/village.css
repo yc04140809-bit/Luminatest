@@ -106,6 +106,11 @@
   color: #f2f5ff;
 }
 
+/* Someone speaking in the panel (作者 2026-10-20: 左の会話が読みにくい): the person above steps back
+   to a strip, so the words have the room — read across the panel's width, a size up. */
+.vg-side:has(.vg-body-scroll .kaos-aside) { grid-template-rows: minmax(64px, 0.36fr) minmax(0, 1fr); }
+.vg-body-scroll .kaos-aside-line { font-size: 15px; line-height: 1.6; }
+
 /* ---- right: the village ---- */
 .vg-map {
   grid-area: map;
@@ -218,6 +223,19 @@
   .vg-menu > .kit .kit-sub { display: none; }
   .vg-member { font-size: 11px; column-gap: 4px; }
   .vg-hint { font-size: 12px; line-height: 1.5; }
+  .vg-side:has(.vg-body-scroll .kaos-aside) { grid-template-rows: minmax(76px, 0.3fr) minmax(0, 1fr); }
+  /* No room for both: the two's HP and MP wait at the foot until the words are read. */
+  .vg-side:has(.vg-body-scroll .kaos-aside) .vg-party { display: none; }
+  .vg-body-scroll .kaos-aside-line { font-size: 14px; line-height: 1.45; }
+  .vg-body-scroll .kaos-aside { padding: 4px 8px; gap: 2px 8px; }
+  .vg-body-scroll .daily-face { width: 32px; height: 32px; }
+  /* Too short for a row of its own: つぎへ beside the name, the words still the whole width under them. */
+  .vg-body-scroll .kaos-aside:not(.news-aside) { grid-template-areas: 'who next' 'line line'; }
+  .vg-body-scroll .daily-aside:has(.daily-face) { grid-template-areas: 'face who next' 'line line line'; }
+  /* つぎへ drawn a little smaller, its ends in proportion (as とじる on a place's card). */
+  .vg-body-scroll .kaos-aside:not(.news-aside) .kaos-aside-next { --cr-btn-edge: 7px 14px; min-height: 28px; margin-top: 0; padding-inline: 2px; }
+  /* The name never under つぎへ: NEW goes under the name when the two do not fit side by side. */
+  .vg-body-scroll .kaos-aside-head { flex-wrap: wrap; gap: 0 6px; }
 }
 /* A place's mark sits off its label's corner, clear of the words. */
 .kit.vg-spot .kit-badge { top: -9px; right: -9px; }

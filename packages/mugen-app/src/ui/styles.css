@@ -2400,10 +2400,13 @@ body {
 
 /* ALDEN INCIDENT (2026-10-10): Kaos senses something — a small box at the
    foot of the region map's page, under every way on; read with つぎへ. */
+/* 作者 2026-10-20 (左の会話が縦2行で読めない): the words take the box's whole width under
+   the name, and つぎへ sits under them at the right — never a column of two characters
+   squeezed between a face and a button. (The two of them's box keeps its own, .talk-box below.) */
 .kaos-aside {
   display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas: 'who next' 'line next';
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'who who' 'line line' '. next';
   align-items: center;
   gap: 2px 10px;
   margin-top: 4px;
@@ -2418,6 +2421,9 @@ body {
 .kaos-aside-line { grid-area: line; margin: 0; color: var(--p-ink); font-family: var(--font-body); font-size: 13px; line-height: 1.5; }
 .kaos-aside-next {
   grid-area: next;
+  justify-self: end;
+  margin-top: 2px;
+  white-space: nowrap;
   appearance: none;
   min-height: 32px;
   padding: 2px 10px;
@@ -2499,14 +2505,15 @@ body {
    tool shop's counter (the line, then つぎへ, in the keeper's place). */
 .daily-aside { margin: 0 0 6px; }
 /* ✉ アルデン通信 (ui/aldenNews.tsx): 読む／あとで stacked at the side; the text opens under the title. */
-.news-aside .news-actions { grid-area: next; display: flex; flex-direction: column; gap: 4px; }
+.news-aside .news-actions { grid-area: next; grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 6px; }
+.news-aside .news-actions .kaos-aside-next { margin-top: 2px; }
 .news-aside .news-text { display: block; margin-top: 2px; font-size: 12px; }
 .news-aside .news-later { color: var(--p-ink-soft, var(--p-ink)); opacity: 0.8; }
 .shop-daily { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .shop-daily .btn { min-height: 32px; padding: 2px 14px; font-size: 12px; }
 /* A face beside the line, when one is delivered (assets/dailyFaces.ts). */
-.daily-aside:has(.daily-face) { grid-template-columns: auto 1fr auto; grid-template-areas: 'face who next' 'face line next'; }
-.daily-face { grid-area: face; width: 48px; height: 48px; position: relative; overflow: hidden; border-radius: 4px; border: 1px solid rgba(224, 184, 74, 0.6); }
+.daily-aside:has(.daily-face) { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'face who who' 'line line line' '. . next'; }
+.daily-face { grid-area: face; width: 40px; height: 40px; position: relative; overflow: hidden; border-radius: 4px; border: 1px solid rgba(224, 184, 74, 0.6); }
 .daily-face img { position: absolute; max-width: none; }
 
 /* A creature's cut-out drawing standing in a scene (its four answers, ui/creatureChoice.tsx):
@@ -2592,6 +2599,14 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(2px);
 }
+/* Across the whole stage's foot (not a panel) there is width enough: the words beside つぎへ, as before. */
+.talk-stage:not([data-layout='panel']) .talk-box .kaos-aside { grid-template-columns: 1fr auto; grid-template-areas: 'who next' 'line next'; }
+.talk-stage:not([data-layout='panel']) .talk-box .kaos-aside-next { justify-self: auto; margin-top: 0; }
+.talk-stage:not([data-layout='panel']) .talk-box .daily-aside:has(.daily-face) {
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: 'face who next' 'face line next';
+}
+.talk-stage:not([data-layout='panel']) .talk-box .daily-face { width: 48px; height: 48px; }
 .talk-box .kaos-aside-speaker { color: #f0d995; }
 .talk-box .kaos-aside-line { color: #fbf6ea; font-size: 14px; }
 .talk-box .kaos-aside-next {
