@@ -360,7 +360,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     const later = (ms: number, f: () => void) => timers.push(window.setTimeout(() => at.isConnected && f(), ms));
     const ctx = beatContext(beat, true);
     const play = (p: BeatFx, breaks: boolean) => {
-      if (p.camera) void cameraSequence(p.camera, at, { tempo: p.tempo * speed });
+      // A TRACK is timed to the blow, which waits only on the speed — never on a character's tempo.
+      if (p.camera) void cameraSequence(p.camera, at, { tempo: p.camera[0]?.kind === 'TRACK' ? speed : p.tempo * speed });
       // A hold freezes what is drawn (the effects' CSS, the camera) but not the clock: a moment after
       // one comes that much later on screen, so it is waited for here too.
       const holds = shakeAllowed() ? (p.stages ?? []) : [];
@@ -387,7 +388,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           if (breaks) {
             playBreakSfx();
             void screenShake('medium', at);
-            void cameraSequence(CAMERA_COMBOS.BREAK_FOCUS(ctx.targetAt), at, { tempo: speed });
+            // Onto the one broken — unless a TRACK is already on it (which this would cut short).
+            if (p.camera?.[0]?.kind !== 'TRACK') void cameraSequence(CAMERA_COMBOS.BREAK_FOCUS(ctx.targetAt), at, { tempo: speed });
             setBreakShown(lastKey);
             later(BREAK_REEL_MS * speed, () => setShaking(true));
             later((BREAK_REEL_MS + SHAKE_MS) * speed, () => setShaking(false));
@@ -488,6 +490,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       targetAt: where(beat.target),
       actorAt: where(beat.actor),
       actorArt: foe ? artIds[state.enemies.findIndex((e) => e.id === foe.id)] : undefined,
+      // Played a cut-in first (the same tables `act` asks): its camera follows it (partyFx TRACK).
+      cutIn: beat.kind === 'MAGIC' ? !!(spell && spellCutIn(spell)) : !!skillCutIn(tech ?? skill),
     };
   }
   // The beat's flashes, numbers and circle, as drawn (where they stand is only for the camera).

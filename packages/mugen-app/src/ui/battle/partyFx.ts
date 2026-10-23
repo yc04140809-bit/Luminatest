@@ -1,7 +1,7 @@
 import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import type { SfxId } from '@mugen/content/audio/sfx';
-import type { CameraDir, CameraMove } from '../fx/camera';
+import type { CameraDir, CameraMove, CameraStrength } from '../fx/camera';
 import { personaOf } from '../fx/camera';
 import type { ShakeLevel } from '../fx/screenShake';
 import { MOMENT_SPECIAL_FX, specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
@@ -103,6 +103,8 @@ export interface BeatContext {
   actorAt: number;
   /** The creature acting (its own camera way), when it is a creature. */
   actorArt?: string;
+  /** The move played a cut-in first (cutin/skillCutIn, magic/spellCutIn): its camera follows it — TRACK. */
+  cutIn?: boolean;
 }
 
 const COLOUR: Record<string, MagicColour> = { STAR: 'star', FIRE: 'fire', ICE: 'ice', THUNDER: 'thunder' };
@@ -122,7 +124,23 @@ export function numberTier(beat: PartyBeat, ctx: Pick<BeatContext, 'targetMaxHp'
   return undefined;
 }
 
+/** How hard the camera follows each kind of cut-in move (TRACK). */
+const TRACK_STRENGTH: Partial<Record<PartyBeat['kind'], CameraStrength>> = { MAGIC: 'medium', SKILL: 'medium', TECH: 'large' };
+
+/**
+ * A move that played a cut-in has its camera FOLLOW it (作者 2026-10-23 — FF Resonance's way, for the
+ * cut-in moves only): lean in on the one acting, swing at the one struck, held, the KICK at the blow,
+ * back to the wide picture (ui/fx/camera TRACK). It stands for the move's whole camera — the lean and
+ * kick it had, and the snap in after (which would cancel it) — the rest of the plan as it was.
+ */
 export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
+  const plan = plainBeatFx(beat, ctx);
+  const strength = TRACK_STRENGTH[beat.kind];
+  if (!ctx.cutIn || !strength || beat.missed || !plan.camera) return plan;
+  return { ...plan, camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: plan.impact, strength }], after: undefined };
+}
+
+function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const persona = personaOf(ctx.actorArt ?? beat.actor);
   const tempo = persona.tempo;
   const none: BeatFx = { tempo, impact: 0, hitStop: 0, sfx: [] };

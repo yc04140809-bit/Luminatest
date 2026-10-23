@@ -23,7 +23,11 @@ import { beatMs, visualMs, type BattleSpeed } from '@mugen/game/battle/battleSpe
 import { CAMERA_GLIDE_MS, swingCues, type CameraPhase } from './battleCamera';
 import { endBlow, landBlow, type Blow } from './blows';
 import { useCutInDirector } from './cutin/CutIn';
-import { camera as cameraMove, type CameraStrength } from '../fx/camera';
+import { camera as cameraMove, moveMs, type CameraStrength } from '../fx/camera';
+
+/** Where he and the creature stand across the stage (0 left – 1 right), for the camera's TRACK. */
+const HERO_AT = 0.72;
+const ENEMY_AT = 0.3;
 import { spellCutIn } from './magic/spellCutIn';
 import { SPELL_CONTACT_AT, spellDamage, spellShowOf, spellStepMs } from './magic/spellShow';
 import type { SpellFxView } from './magic/SpellFx';
@@ -197,6 +201,8 @@ export interface TurnExtras {
    * of the turn as it would have been. Stopped by a newer turn, nothing after it happens.
    */
   skillCutIn?: CutInSpec;
+  /** It played a cut-in: the camera follows the swing (TRACK) — set by playTurn, not by callers. */
+  follow?: boolean;
 }
 
 export interface TheatreOptions {
@@ -248,8 +254,21 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
    * none; the reference video jolts the whole picture as a blow lands — ui/fx/camera KICK): toward
    * the side struck — left onto the creature, right onto him. Off where motion is (camera.ts).
    */
-  const kick = (on: 'enemy' | 'hero', strength: CameraStrength) =>
+  const kick = (on: 'enemy' | 'hero', strength: CameraStrength) => {
+    // A TRACK under way has its own jolt at the blow; a KICK now would cut it short.
+    if (performance.now() < trackUntil.current) return;
     void cameraMove({ kind: 'KICK', dir: on === 'enemy' ? 'left' : 'right', strength }, document, 1 / speed);
+  };
+  /**
+   * A MOVE WITH A CUT-IN, FOLLOWED (作者 2026-10-23 — FF Resonance's way; ui/fx/camera TRACK): a lean in
+   * on him, a swing at the creature, held, the jolt at the blow (`impact` ms from now), back.
+   */
+  const trackUntil = useRef(0);
+  const track = (impact: number) => {
+    const move = { kind: 'TRACK' as const, from: HERO_AT, to: ENEMY_AT, impact, strength: 'medium' as const };
+    trackUntil.current = performance.now() + moveMs(move);
+    void cameraMove(move, document);
+  };
 
   const strike = (on: 'enemy' | 'hero', amount: number, after = 0) => {
     const contact = after + Math.round(beatLength(on === 'enemy' ? 'STRIKE' : 'TACKLE', speed) * CONTACT_AT);
@@ -298,7 +317,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
    * and only then its answer. The number is still the core's, landing
    * the moment the blade arrives.
    */
-  const playSwing = (before: BattleState, next: BattleState, skill = false): number => {
+  const playSwing = (before: BattleState, next: BattleState, skill = false, follow = false): number => {
     const id = showing.current;
     setSkillSwing(skill);
     const ms = {
@@ -315,6 +334,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     const recoverAt = strikeAt + ms.strike + ms.hold;
     const returnAt = recoverAt + ms.recover;
     const homeAt = returnAt + ms.back;
+    if (follow) track(contactAt);
 
     setCamera('IDLE');
     setReach({ id, phase: 'approach', ms: ms.approach });
@@ -365,7 +385,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
       setPlaying(true);
       void cutIns.play(cut).then((ended) => {
         if (ended !== 'done' || showing.current !== mine) return;
-        playTurnNow(before, next, kind, rest);
+        playTurnNow(before, next, kind, { ...rest, follow: true });
       });
       return;
     }
@@ -379,7 +399,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
       // HIS TURN FIRST, WITH NO ANSWER IN IT; then its cut-in; then its answer.
       const mine = showing.current;
       const quiet: BattleState = { ...next, lastEnemyAction: 'NONE' };
-      const end = swings ? playSwing(before, quiet, extra.skill) : playPlain(before, quiet, kind);
+      const end = swings ? playSwing(before, quiet, extra.skill, extra.follow) : playPlain(before, quiet, kind);
       later(() => {
         setPlaying(true);
         void cutIns.play(cutIn).then((ended) => {
@@ -393,7 +413,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
       return;
     }
     if (swings) {
-      playSwing(before, next, extra.skill);
+      playSwing(before, next, extra.skill, extra.follow);
       return;
     }
     playPlain(before, next, kind);
@@ -485,7 +505,9 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     // 1. Her cut-in, with the spell's own name. Stopped — by a newer turn
     //    or by the screen going — and nothing after it happens. A spell
     //    with no cut-in in the table (spellCutIn.ts) goes straight on.
-    const afterCutIn = () => {
+    const afterCutIn = (followed = false) => {
+      // Her cut-in played: the camera follows the spell to its landing (TRACK) — one that hurts.
+      if (followed && show.hurts) track(breath + channel + Math.round(impact * SPELL_CONTACT_AT));
       if (!own) return afterWings();
       setWings({ id: mine, type: own });
       later(afterWings, breath);
@@ -497,7 +519,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     }
     void cutIns.play(cutIn).then((ended) => {
       if (ended !== 'done' || showing.current !== mine) return;
-      afterCutIn();
+      afterCutIn(true);
     });
   };
 

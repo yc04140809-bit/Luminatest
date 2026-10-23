@@ -6,6 +6,8 @@ import {
   KICK,
   KICK_MIN_MS,
   KICK_PEAK_AT,
+  TRACK,
+  TRACK_MS,
   PULL_BACK,
   PUSH_IN,
   RECOIL,
@@ -98,6 +100,43 @@ describe('cameraKeyframes', () => {
     // A medium one leans in a touch at the peak; a small one does not.
     expect(pose(right[1])[2]).toBeGreaterThan(1);
     expect(pose(cameraKeyframes({ kind: 'KICK', dir: 'right', strength: 'small' }).frames[1])[2]).toBe(1);
+  });
+
+  it('TRACK (FF Resonance\'s way, cut-in moves): leans in on the one acting, swings at the one struck and holds there through the blow, jolts at it, then home', () => {
+    const move: CameraMove = { kind: 'TRACK', from: 0.75, to: 0.2, impact: 500, strength: 'medium' };
+    const { ms, frames, origin } = cameraKeyframes(move);
+    const p = frames.map(pose);
+    const offsets = frames.map((f) => Number(f.offset));
+    // In order, from rest to rest; as long as the blow, its hold and the way back.
+    for (let i = 1; i < offsets.length; i++) expect(offsets[i]).toBeGreaterThan(offsets[i - 1]);
+    expect(p[0]).toEqual([0, 0, 1]);
+    expect(p[p.length - 1]).toEqual([0, 0, 1]);
+    expect(ms).toBe(500 + TRACK_MS.hold + TRACK_MS.back);
+    // The lean: a little toward him on the right (the picture left), nearer.
+    expect(p[1][1]).toBeLessThan(0);
+    expect(p[1][2]).toBeGreaterThan(1);
+    // The swing: toward the creature on the left (the picture right), by TRACK's share, nearest — held to the blow.
+    const aim = (0.5 - 0.2) * 2 * TRACK.medium.pct;
+    expect(p[2][1]).toBeCloseTo(aim, 1);
+    expect(p[2][2]).toBe(TRACK.medium.zoom);
+    expect(p[3][1]).toBeCloseTo(aim, 1);
+    expect(offsets[3] * ms).toBeCloseTo(500, 0);
+    // The jolt at the blow: a KICK's worth, the way the blow goes (left), then back to the hold.
+    expect(p[4][1]).toBeCloseTo(aim - KICK.medium.pct, 1);
+    expect(p[5][1]).toBeCloseTo(aim, 1);
+    // Zoomed on the one struck.
+    expect(origin).toBe(0.2);
+    // A painting goes half as far, grown to hide its edges.
+    const bg = cameraKeyframes(move, { backdrop: true }).frames.map(pose);
+    expect(bg[2][1]).toBeCloseTo(aim / 2, 1);
+    expect(bg[2][2]).toBeGreaterThanOrEqual(1 + aim / 100);
+  });
+
+  it('TRACK on a quick blow still leans, swings and then holds — never out of order', () => {
+    for (const impact of [80, 150, 260]) {
+      const offsets = cameraKeyframes({ kind: 'TRACK', from: 0.7, to: 0.25, impact }).frames.map((f) => Number(f.offset));
+      for (let i = 1; i < offsets.length; i++) expect(offsets[i], `impact ${impact}`).toBeGreaterThan(offsets[i - 1]);
+    }
   });
 
   it('RECOIL is thrown back the other way from the blow', () => {

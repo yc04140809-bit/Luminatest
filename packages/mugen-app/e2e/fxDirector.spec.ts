@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { readyToAct } from './battle';
+import { throughTheOpening, pastTheIntro } from './opening';
 
 /**
  * THE CAMERA, EACH BLOW, AND THE FINALE'S 間 (作者「無料強化メモ②③」「CAMERA KICK」
@@ -90,7 +92,7 @@ test.describe('with motion', () => {
     expect(await atRest(page, '.pb-bg')).toBe(true);
   });
 
-  test('重撃・豪断: the camera leans in (PUSH-IN), then is thrown back (RECOIL) at the blow; a BREAK snaps onto the creature (FOCUS)', async ({ page }) => {
+  test('重撃・豪断 (a cut-in move — 作者 2026-10-23): its camera FOLLOWS it — one TRACK, leaning in on him, swung at the creature and held, jolted at the blow, home again; a BREAK leaves it be', async ({ page }) => {
     test.setTimeout(60_000);
     await recordCamera(page);
     await page.setViewportSize({ width: 844, height: 390 });
@@ -100,20 +102,26 @@ test.describe('with motion', () => {
     await page.getByTestId('pb-cmd-skills').click();
     await page.getByTestId('pb-cmd-tech-goudan').click();
     await expect(page.getByTestId('pb-break-flash')).toBeVisible();
-    await expect.poll(async () => (await moves(page)).filter((m) => m.who === 'field').length).toBeGreaterThanOrEqual(2);
+    await expect.poll(async () => (await moves(page)).filter((m) => m.who === 'field').length).toBeGreaterThanOrEqual(1);
     const field = (await moves(page)).filter((m) => m.who === 'field');
-    // First the lean in: nearer (scale up to 1.01–1.05), no sideways.
-    expect(Math.max(...field[0].scales)).toBeGreaterThanOrEqual(1.01);
-    expect(Math.max(...field[0].scales)).toBeLessThanOrEqual(1.05);
-    // Then the BREAK's focus: toward the creature on the left (the picture moves right), nearer.
-    const focus = field[field.length - 1];
-    expect(Math.max(...focus.xs)).toBeGreaterThan(0);
-    expect(Math.max(...focus.scales)).toBeGreaterThan(1);
-    await page.waitForTimeout(900);
+    // One move only (the BREAK's focus would cut it short, so it is not played).
+    expect(field).toHaveLength(1);
+    const [track] = field;
+    // A lean toward him first (he stands near the middle, so hardly sideways — nearer, though), then
+    // swung at the creature on the left (the picture right) by LARGE (9% at most), nearer (to 1.08) — and home.
+    expect(track.xs[1]).toBeLessThan(Math.max(...track.xs));
+    expect(track.scales[1]).toBeGreaterThan(1);
+    expect(Math.max(...track.xs)).toBeGreaterThan(3);
+    expect(Math.max(...track.xs)).toBeLessThanOrEqual(9);
+    expect(Math.max(...track.scales)).toBeGreaterThan(1.05);
+    expect(Math.max(...track.scales)).toBeLessThanOrEqual(1.08);
+    expect(track.xs[track.xs.length - 1]).toBe(0);
+    expect(track.scales[track.scales.length - 1]).toBe(1);
+    await page.waitForTimeout(1400);
     expect(await atRest(page, '.pb-field')).toBe(true);
   });
 
-  test('ケイオスの魔法 (TIGS CAMERA KICK): her cut-in, then a small KICK toward the creature (left) as the spell flies — not a lean in — and the snap in where it lands', async ({ page }) => {
+  test('ケイオスの魔法 (a cut-in move — 作者 2026-10-23): her cut-in, then the camera FOLLOWS the spell — leaning in on her, swung at the creature (the picture right) and held, home again', async ({ page }) => {
     test.setTimeout(60_000);
     await recordCamera(page);
     await page.setViewportSize({ width: 844, height: 390 });
@@ -127,14 +135,16 @@ test.describe('with motion', () => {
     await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'yes');
     await expect(page.getByTestId('pb-figure-kaos').getByTestId('pb-cast')).toHaveCount(1, { timeout: 10_000 });
     await expect.poll(async () => (await moves(page)).filter((m) => m.who === 'field').length).toBeGreaterThanOrEqual(1);
-    const kick = (await moves(page)).find((m) => m.who === 'field')!;
-    // One way (left), SMALL (1.6% of the width), at the same distance throughout — no lean in.
-    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-1.5);
-    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-2);
-    expect(kick.scales.every((z) => z === 1)).toBe(true);
-    expect(kick.xs[kick.xs.length - 1]).toBe(0);
+    const track = (await moves(page)).find((m) => m.who === 'field')!;
+    // MEDIUM: swung up to 7% at the creature, nearer (to 1.06); a lean toward her first; home at the end.
+    expect(Math.min(...track.xs)).toBeLessThan(0);
+    expect(Math.max(...track.xs)).toBeGreaterThan(2);
+    expect(Math.max(...track.xs)).toBeLessThanOrEqual(7);
+    expect(Math.max(...track.scales)).toBeGreaterThan(1.03);
+    expect(Math.max(...track.scales)).toBeLessThanOrEqual(1.06);
+    expect(track.xs[track.xs.length - 1]).toBe(0);
     expect(await onlyTheWorld(page)).toBe(true);
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(1400);
     expect(await atRest(page, '.pb-field')).toBe(true);
   });
 
@@ -184,6 +194,39 @@ test.describe('with motion', () => {
     expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-2);
     expect(Math.min(...kick.scales)).toBeGreaterThanOrEqual(1);
     expect(kick.xs[kick.xs.length - 1]).toBe(0);
+    expect(await onlyTheWorld(page)).toBe(true);
+  });
+
+  test('the ordinary fight\'s 《瞬断》 (a cut-in move): after its cut-in the camera FOLLOWS the swing — one TRACK at the creature (the picture right), home again — not a KICK', async ({ page }) => {
+    test.setTimeout(120_000);
+    await recordCamera(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    // The game's own forest fight (the preview has no skill tray).
+    await page.goto('/');
+    await page.evaluate(async () => {
+      for (const d of (await indexedDB.databases?.()) ?? []) if (d.name) indexedDB.deleteDatabase(d.name);
+    });
+    await page.reload();
+    await page.getByTestId('start-button').click();
+    await throughTheOpening(page);
+    await page.getByTestId('naming-default').click();
+    await pastTheIntro(page);
+    await page.getByTestId('explore-button').click();
+    await page.getByTestId('forest-button').click();
+    await page.getByTestId('encounter-button').click();
+    await readyToAct(page);
+    await clear(page);
+    await page.getByTestId('bp-skill').click();
+    await page.getByTestId('skill-shundan').click();
+    await expect(page.getByTestId('bp-cinematic')).toBeVisible();
+    await expect.poll(async () => (await moves(page)).length, { timeout: 8_000 }).toBeGreaterThanOrEqual(1);
+    const [track] = await moves(page);
+    expect(track.who).toBe('backdrop');
+    // The stage as a painting: half the swing (MEDIUM 7% → 3.5% at most), toward the creature on the left.
+    expect(Math.max(...track.xs)).toBeGreaterThan(1);
+    expect(Math.max(...track.xs)).toBeLessThanOrEqual(4);
+    expect(Math.max(...track.scales)).toBeGreaterThan(1);
+    expect(track.xs[track.xs.length - 1]).toBe(0);
     expect(await onlyTheWorld(page)).toBe(true);
   });
 

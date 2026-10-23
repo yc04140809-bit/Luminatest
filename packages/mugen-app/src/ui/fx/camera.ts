@@ -15,6 +15,10 @@
  *   FOCUS        leans toward one point of the field           (attacker focus, the one broken)
  *   SNAP         from the one acting to the one it is aimed at, fast
  *   RECOIL       the camera thrown back the other way a little  4 / 6 / 8px
+ *   TRACK        a skill with a cut-in, followed (FF Resonance's way, 作者 2026-10-23): a lean in on
+ *                the one acting, a swing at the one struck (fast, easing out), held — the KICK at the
+ *                blow — then back to the wide picture in ~¼s. One move, so the blow's jolt never
+ *                cancels the swing.
  *
  * WHAT MOVES: the same marked layers as the shake (`data-shake-layer`) — the
  * field, its painting, a scene's picture — never the HUD. A painting moves
@@ -46,7 +50,9 @@ export type CameraMove =
   | { kind: 'PULL_BACK'; strength?: CameraStrength }
   | { kind: 'FOCUS'; at: number; strength?: CameraStrength }
   | { kind: 'SNAP'; from: number; to: number; strength?: CameraStrength }
-  | { kind: 'RECOIL'; dir: CameraDir; strength?: CameraStrength };
+  | { kind: 'RECOIL'; dir: CameraDir; strength?: CameraStrength }
+  /** `from` / `to`: where the one acting and the one struck stand (0 left – 1 right); `impact`: ms to the blow. */
+  | { kind: 'TRACK'; from: number; to: number; impact: number; strength?: CameraStrength };
 
 /** A character's way with the camera (作者: キャラ別カメラ個性) — `tempo` stretches every move (below 1: sharper). */
 export interface CameraPersona {
@@ -126,6 +132,19 @@ export const RECOIL: Readonly<Record<CameraStrength, { px: number; ms: number }>
   large: { px: 8, ms: 150 },
 };
 
+/**
+ * TRACK (作者 2026-10-23, from FF Resonance's battle: lean in on the caster, then the camera swung at
+ * the target by ~17% of the width and held, the blow, then back in ~¼s). Kept smaller than FF's — a
+ * single painting, not a 3D field: `pct` toward the one struck, `zoom` at the swing.
+ */
+export const TRACK: Readonly<Record<CameraStrength, { pct: number; zoom: number }>> = {
+  small: { pct: 5, zoom: 1.04 },
+  medium: { pct: 7, zoom: 1.06 },
+  large: { pct: 9, zoom: 1.08 },
+};
+/** TRACK's beats (ms): the lean in, the swing's longest, the jolt at the blow, the hold after it, the way back. */
+export const TRACK_MS = { lean: 200, swing: 300, jolt: 90, hold: 240, back: 260 } as const;
+
 /** Fast out; and the soft way back. */
 const OUT = 'cubic-bezier(0.15, 0.85, 0.3, 1)';
 const BACK = 'cubic-bezier(0.35, 0, 0.25, 1)';
@@ -202,6 +221,37 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
       const shift = (0.5 - clamp01(move.at)) * 2 * pct * k;
       const z = 1 + (scale - 1) * k;
       return { ms, origin: move.at, poses: [REST(0, OUT), { px: 0, pct: shift, scale: z, offset: 0.35 }, { px: 0, pct: shift, scale: z, offset: 0.7, easing: BACK }, REST(1)] };
+    }
+    case 'TRACK': {
+      const { pct, zoom } = TRACK[s];
+      const toward = (x: number, amp: number) => (0.5 - clamp01(x)) * 2 * amp * k;
+      const z = 1 + (zoom - 1) * k;
+      // When each beat is (ms from the start): the lean, the swing (ending a little before the blow),
+      // the blow, its jolt and settle, the hold, and home.
+      const lean = Math.min(TRACK_MS.lean, Math.max(60, move.impact * 0.35));
+      const swung = Math.max(lean + 120, Math.min(move.impact - 40, lean + TRACK_MS.swing));
+      const blow = Math.max(move.impact, swung + 20);
+      const held = blow + TRACK_MS.hold;
+      const ms = held + TRACK_MS.back;
+      const at = (t: number) => t / ms;
+      const aim = toward(move.to, pct);
+      // The jolt at the blow: a KICK's worth, the way the blow goes (toward the side struck).
+      const jolt = (move.to < 0.5 ? -1 : 1) * KICK[s].pct * k;
+      const hold = (offset: number, easing?: string): Pose => ({ px: 0, pct: aim, scale: z, offset, easing });
+      return {
+        ms,
+        origin: move.to,
+        poses: [
+          REST(0, 'cubic-bezier(0.3, 0, 0.3, 1)'),
+          { px: 0, pct: toward(move.from, 1.2), scale: 1 + (z - 1) / 2, offset: at(lean), easing: OUT },
+          hold(at(swung), 'linear'),
+          hold(at(blow), 'linear'),
+          { px: 0, pct: aim + jolt, scale: z, offset: at(blow + 30), easing: 'linear' },
+          hold(at(blow + TRACK_MS.jolt), 'linear'),
+          hold(at(held), 'cubic-bezier(0.5, 0, 0.2, 1)'),
+          REST(1),
+        ],
+      };
     }
     case 'SNAP': {
       const { pct, ms } = SNAP[s];

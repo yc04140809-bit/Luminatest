@@ -200,3 +200,33 @@ describe('CAMERA KICK, in its place (作者 TIGS「CAMERA KICK」: KICK → 技�
     }
   });
 });
+
+describe('a cut-in move\'s camera follows it — TRACK (作者 2026-10-23, FF Resonance\'s way)', () => {
+  const kaosSpell = beat({ actor: 'kaos', kind: 'MAGIC', name: 'x' });
+  const fire = { element: 'FIRE' } as MagicDef;
+
+  it('ケイオス\'s spell, 《瞬断》, 重撃・豪断 with a cut-in: one TRACK from the one acting to the one struck, timed to the blow, nothing after it', () => {
+    const cases = [
+      [kaosSpell, ctx({ spell: fire, cutIn: true }), 'medium'],
+      [beat({ kind: 'SKILL', name: '瞬断' }), ctx({ skillId: 'shundan', cutIn: true }), 'medium'],
+      [beat({ actor: 'grave', kind: 'TECH', name: '重撃・豪断', amount: 30 }), ctx({ tech: tech('HEAVY'), skillId: 'goudan', cutIn: true }), 'large'],
+    ] as const;
+    for (const [b, c, strength] of cases) {
+      const fx = beatFx(b, c);
+      expect(fx.camera).toEqual([{ kind: 'TRACK', from: c.actorAt, to: c.targetAt, impact: fx.impact, strength }]);
+      expect(fx.after).toBeUndefined();
+      // The rest of the plan as it was: the hold, the flash or its own effects, the jolt after.
+      const plain = beatFx(b, { ...c, cutIn: false });
+      expect(fx.hitStop).toBe(plain.hitStop);
+      expect(fx.shake).toBe(plain.shake);
+      expect(fx.special).toEqual(plain.special);
+    }
+  });
+
+  it('without a cut-in, a plain attack, a miss or a heal: the camera as it was', () => {
+    expect(beatFx(kaosSpell, ctx({ spell: fire })).camera?.[0].kind).toBe('KICK');
+    expect(beatFx(beat({}), ctx({ cutIn: true })).camera?.[0].kind).toBe('KICK');
+    expect(beatFx(beat({ kind: 'SKILL', missed: true }), ctx({ cutIn: true })).camera?.[0]?.kind).not.toBe('TRACK');
+    expect(beatFx(beat({ actor: 'kaos', kind: 'MEND', target: 'grave' }), ctx({ cutIn: true })).camera).toBeUndefined();
+  });
+});

@@ -92,9 +92,9 @@ test.describe('with motion', () => {
     // 重撃・豪断 that breaks it (作者 2026-10-17 グレイヴ専用演出): the 重撃's own jolt as it falls, then
     // the BREAK's — two, both medium; the 豪断's large jolt gives way to the BREAK's.
     await expect.poll(async () => (await shakes(page)).filter((s) => s.who === 'field').length).toBe(2);
-    await page.waitForTimeout(500);
-    expect(await atRest(page, '.pb-field')).toBe(true);
-    expect(await atRest(page, '.pb-bg')).toBe(true);
+    // All back after — the move's camera (a TRACK since 2026-10-23, the cut-in move followed) included.
+    await expect.poll(() => atRest(page, '.pb-field'), { timeout: 3_000 }).toBe(true);
+    await expect.poll(() => atRest(page, '.pb-bg'), { timeout: 3_000 }).toBe(true);
     for (const hud of ['.pb-top', '.pb-enemy-plate', '.pb-commands']) expect(await atRest(page, hud), hud).toBe(true);
   });
 
