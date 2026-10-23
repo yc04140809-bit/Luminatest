@@ -8,6 +8,7 @@ import {
   REACH,
   SNAP,
   alongTrail,
+  findBuzz,
   findJolt,
   joltDue,
   JOLT_GAP_MS,
@@ -243,6 +244,13 @@ describe('a find\'s small jolt (TIGS 2026-10-23)', () => {
     expect(findJolt('NORMAL')).toBeNull();
     expect(findJolt('RARE')).toBe('tiny');
     expect(findJolt('RAINBOW')).toBe('small');
+  });
+
+  it('the same finds buzz in the hand: none for an ordinary one, light for gold, firmer for the rainbow', () => {
+    expect(findBuzz('NORMAL')).toBeNull();
+    expect(findBuzz('RARE')).toBe('light');
+    expect(findBuzz('RAINBOW')).toBe('rare');
+    for (const g of ['NORMAL', 'RARE', 'RAINBOW'] as const) expect(findBuzz(g) === null).toBe(findJolt(g) === null);
   });
 
   it('never two close together', () => {

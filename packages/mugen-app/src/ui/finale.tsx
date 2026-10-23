@@ -338,7 +338,10 @@ function FinaleScene({
       <div className="finale-box" onClick={onNext}>
         {shown && (
           <div className="finale-face" data-testid="finale-face" data-face={shown.key} aria-hidden="true">
-            <img src={shown.src} alt="" style={windowOn(shown.box)} />
+            {/* The face inside the frame's window only (as the kit's CrystalIcon): never under or past its edge. */}
+            <div className="finale-face-inside" data-testid="finale-face-inside">
+              <img src={shown.src} alt="" style={windowOn(shown.box)} />
+            </div>
           </div>
         )}
         {speaker && <p className="finale-speaker">{speaker}</p>}

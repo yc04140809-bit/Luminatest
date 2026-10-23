@@ -46,6 +46,7 @@ import {
   VISIT_COUNTS_AT,
   alongTrail,
   rollGrade,
+  findBuzz,
   findJolt,
   joltDue,
   type FindGrade,
@@ -310,6 +311,10 @@ export function RoamScene({
     if (!level || !host.current || !joltDue(now, lastJolt.current)) return;
     lastJolt.current = now;
     void screenShake(level, host.current);
+    // And in the hand (its own switch, 探索の設定 — not the motion one): the jolt alone was all a
+    // phone felt (作者 実機 2026-10-23).
+    const strength = findBuzz(grade);
+    if (strength && explorePref('vibration')) buzz(strength);
   };
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [painting, setPainting] = useState<string | null>(null);

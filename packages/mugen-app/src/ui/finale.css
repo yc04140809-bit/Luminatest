@@ -54,12 +54,13 @@
   bottom: calc(100% + 6px);
   width: clamp(72px, 30vh, 150px);
   aspect-ratio: 1;
-  overflow: hidden;
   border: 1px solid rgba(224, 184, 74, 0.7);
   border-radius: 10px;
   background: rgba(8, 8, 14, 0.7);
   pointer-events: none;
 }
+/* The window the face is seen through (the crystal theme narrows it to the frame's inside). */
+.finale-face-inside { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .finale-face img { position: absolute; max-width: none; }
 .finale-speaker { margin: 0; font-size: 13px; color: #e0b84a; }
 .finale-line { margin: 0; font-size: clamp(14px, 4.4vh, 17px); line-height: 1.6; flex: 1; }

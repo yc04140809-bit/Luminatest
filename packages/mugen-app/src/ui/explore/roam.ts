@@ -221,6 +221,16 @@ export function findJolt(grade: FindGrade): 'tiny' | 'small' | null {
   return null;
 }
 
+/**
+ * The buzz in the hand that goes with a find's jolt (作者 実機 2026-10-23: 揺れはあるが振動が無い):
+ * the rainbow a little firmer, gold a light one, an ordinary find none — the same finds that jolt.
+ */
+export function findBuzz(grade: FindGrade): 'light' | 'rare' | null {
+  if (grade === 'RAINBOW') return 'rare';
+  if (grade === 'RARE') return 'light';
+  return null;
+}
+
 /** Two jolts at least this far apart; one sooner is let go. */
 export const JOLT_GAP_MS = 1200;
 
