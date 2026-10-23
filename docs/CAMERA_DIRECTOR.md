@@ -17,7 +17,7 @@
 | KICK | SMALL 8px/120ms・MEDIUM 13px/180ms・LARGE 20px/250ms | 攻撃の瞬間（味方は左＝敵側へ、敵は右＝味方側へ） |
 | PUSH-IN | 拡大 1.015／1.03／1.05 | 重い一撃の溜め、魔法の詠唱（使う人に寄る） |
 | IMPACT ZOOM | 1.02／1.03／1.045（素早く寄って戻る） | 魔法の着弾 |
-| PULL-BACK | 0.99／0.98／0.97（戦場だけ。背景は縮めない） | 巨大な敵の大技の前 |
+| PULL-BACK | 0.99／0.98／0.97（戦場だけ。背景は縮めない） | （2026-10-23 からいまの戦闘では未使用。API は残す） |
 | FOCUS | 一点へ寄せる（画面幅の 2〜4.5%）＋少し拡大 | BREAK（壊れた敵へ） |
 | SNAP | 行動者 → 対象へ素早く | レヴィの型（いまは戦闘に未登場） |
 | RECOIL | 4／6／8px、打った方向の逆へ | 豪断の命中後 |
@@ -26,25 +26,43 @@
 - **動くのは世界の層だけ**（`data-shake-layer`：戦場とその背景、イベントの絵）。HP・MP・TURN ORDER・コマンド・WORLD MEMORY・会話の文字は動かない。
 - 背景は半分だけ動き（奥にあるので）、動いた分だけ拡大して端を見せない（640×300 でも）。縮むことはない。
 - 速く出て、なめらかに戻る（ease-out → ソフトな戻り）。終わると何も残らない。同じ層へ新しい動きが来たら前の動きと置き換わる（積み重ならない・×2/AUTO でもずれない）。
-- 順番（メモ④）：**KICK → 攻撃 → 命中 → HIT STOP → SHAKE**。
+- 順番（メモ④）：**KICK → 攻撃 → 命中 → HIT STOP → SHAKE**。各行動の最後の KICK の山（動きの30%地点）が命中より前に来ることを ×1・×2 の両方でユニットテストが確かめる（`partyFx.test.ts`、`sequenceTimes`）。
+- **×2**：他の動きは半分の時間になるが、KICK だけは `KICK_MIN_MS`（90ms・約5フレーム）より短くしない（×2 で「クイッ」が1フレームの跳びにならないように。TIGS CAMERA KICK §17）。
 - 複合演出 `CAMERA_COMBOS`：DOUBLE_PUNCH（小→中の2連KICK）、BREAK_FOCUS、PULL_RUSH（引いてから突っ込む）。`cameraSequence` で順に再生（他の動きが来たら残りは打ち切り）。
 - キャラ別の個性 `CAMERA_PERSONA`（tempo＝速さの倍率）：主人公 0.85（鋭い）、ケイオス 1（詠唱で寄る）、グレイヴ 1.15（溜めて重い）、アリア 1.25（なめらか）、レヴィ 0.8（素早いSNAP）、ヴァルシール 1.3（遅く大きい）。
 - `setCameraMotion('on' | 'weak' | 'off')` で1か所で切り替え。端末が「視差効果を減らす」を求めている時は常に動かない（e2e もこの設定）。
+
+## TIGS 無料強化メモ④ CAMERA KICK（2026-10-23）で見直したところ
+
+メモ④（10-17）と同じ内容の指示書が届いたので、実装済みの KICK を指示書の場面ごとに照合し、ずれていたところだけ直した（新しい仕組みは作っていない）。
+
+| 場面（指示書の優先順） | 直す前 | いま |
+|---|---|---|
+| 1 主人公 零閃・天衝（第1章終盤のイベント） | 行の表示と同時に PUSH-IN、命中で SHAKE | 一瞬の静止（100ms）→ KICK MEDIUM（左）→ 斬撃 → 命中で SE → HIT STOP 100ms → SHAKE large（`finale.tsx` の `FX_KICK_AT`／`FX_HIT_STOP_MS`）。イベントの絵は背景扱いなので半分の距離（約6.5px） |
+| 2 ケイオスの通常魔法 | PUSH-IN（寄る） | カットイン → 魔法陣 → KICK SMALL → 着弾 → IMPACT ZOOM ＋ SHAKE small |
+| 2 双極臨界／界核崩壊 | DEBUG の演出見本だけにある（本編の戦闘に未登場） | 変更なし |
+| 3 グレイヴ 重撃・豪断 | PUSH-IN → KICK MEDIUM → 豪断 | 変更なし（指示書どおり） |
+| 4 ヴァルシールの大技 | PULL-BACK → KICK LARGE（KICK が命中より**後**になっていた） | KICK SMALL → 溜め → KICK MEDIUM → 命中 → SHAKE large |
+| 5 BREAK 直前の強攻撃 | KICK SMALL | BREAK させる通常攻撃・スキルは KICK MEDIUM |
+| 6 ボス形態変化 | イベントの行ごとの SHAKE | 変更なし（どの行で KICK させるかは作者判断） |
+| ×2 | 全部半分（小 KICK は約51ms） | KICK だけ最短 90ms |
+
+単体の戦闘画面（`battle.tsx`／`BattleStage`：草原の魔物・赤竜牙など）には CAMERA KICK も SCREEN SHAKE も入っていない（別の構造。今回は触っていない）。
 
 ## 3人戦闘の一撃ごと（`src/ui/battle/partyFx.ts`）
 
 | 行動 | カメラ | 命中フラッシュ | ヒットストップ | 揺れ／その後 |
 |---|---|---|---|---|
-| 通常攻撃 | KICK SMALL | 白い斬線 | 40ms（軽） | 敵が少しのけぞる（ヴァルシールは動かない） |
-| 《瞬断》（スキル） | KICK SMALL | 主人公専用（赤黒の三日月） | 65ms（スキル） | のけぞり |
+| 通常攻撃 | KICK SMALL（BREAK させる一撃は MEDIUM） | 白い斬線 | 40ms（軽） | 敵が少しのけぞる（ヴァルシールは動かない） |
+| 《瞬断》（スキル） | KICK SMALL（BREAK させる一撃は MEDIUM） | 主人公専用（赤黒の三日月） | 65ms（スキル） | のけぞり |
 | 重撃・豪断 | PUSH-IN → KICK | グレイヴ専用（重撃 → 豪断の2段：青金の雷・地割れ・斬撃軌跡）— `docs/CHARACTER_FX.md` | 100ms ＋ 120ms | SHAKE medium → IMPACT ZOOM ＋ SHAKE large、敵が沈む → 弾かれる |
-| ケイオスの攻撃魔法 | PUSH-IN（ケイオスへ） | 足元に魔法陣 → 着弾に属性色の光と輪（星＝金・炎＝赤橙・氷＝淡青・雷＝黄） | 65ms | IMPACT ZOOM ＋ SHAKE small |
+| ケイオスの攻撃魔法 | カットイン → 魔法陣 → 60ms 後に KICK SMALL（敵側へ） | 足元に魔法陣 → 着弾に属性色の光と輪（星＝金・炎＝赤橙・氷＝淡青・雷＝黄） | 65ms | IMPACT ZOOM ＋ SHAKE small |
 | ケイオスの回復魔法 | なし | 柔らかい緑の光 | なし | なし |
 | 星癒の羽 | なし | 柔らかい羽が数枚ふわっと昇る（斬撃的な表現なし・アリアとは混ぜない） | なし | なし |
 | 月影の構え | なし | 主人公専用（赤黒の月弧・刃筋の線・構え中の弧）— `docs/CHARACTER_FX.md` | なし | なし |
 | 反撃（月影） | 敵の攻撃の後に KICK SMALL | 主人公専用（待機の月弧が三日月の斬撃になって飛ぶ） | 65ms | のけぞり |
 | 敵の通常攻撃 | KICK SMALL（右へ） | 赤い爪痕 | 40ms | — |
-| 敵の大技（巨大） | PULL-BACK → KICK LARGE | 赤い爆光 | 100ms | SHAKE large |
+| 敵の大技（巨大・ヴァルシール） | KICK SMALL（自分の側＝左へ引き込む）→ 80ms の溜め → KICK MEDIUM（味方側＝右へ）。どちらも命中より前 | 赤い爆光 | 100ms | SHAKE large |
 | 敵の大技・薙ぎ払い | KICK MEDIUM | 赤い爆光 | 100ms | SHAKE medium |
 | BREAK!! | FOCUS（敵へ） | — | 90ms | 命中 → 停止 → SE → SHAKE medium → BREAK!! → 敵のリアクション |
 

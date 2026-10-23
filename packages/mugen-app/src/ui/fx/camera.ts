@@ -23,6 +23,8 @@
  * Every move goes fast out and comes back smoothly (ease-out, then a soft
  * return), leaves nothing behind (no fill), and a new move on a layer
  * replaces the one running there — nothing piles up, at ×2 or with AUTO.
+ * At ×2 a KICK is never shorter than KICK_MIN_MS, so it still reads as a
+ * 「クイッ」 rather than a one-frame jump (作者 TIGS「CAMERA KICK」 §17).
  *
  * OFF IN ONE PLACE: `setCameraMotion('off' | 'weak' | 'on')`, and always off
  * for a device that asks for less motion (as the e2e suite runs).
@@ -69,6 +71,8 @@ export const KICK: Readonly<Record<CameraStrength, { px: number; ms: number }>> 
   medium: { px: 13, ms: 180 },
   large: { px: 20, ms: 250 },
 };
+/** The shortest a KICK may be, whatever the tempo (×2 halves the rest): about five frames. */
+export const KICK_MIN_MS = 90;
 export const PUSH_IN: Readonly<Record<CameraStrength, { scale: number; ms: number }>> = {
   small: { scale: 1.015, ms: 360 },
   medium: { scale: 1.03, ms: 460 },
@@ -205,6 +209,28 @@ export function cameraKeyframes(move: CameraMove, opts: { weak?: boolean; backdr
   return { ms, frames, origin };
 }
 
+/** How long a move takes (ms) at `tempo` — a KICK never under KICK_MIN_MS. */
+export function moveMs(move: CameraMove, tempo = 1): number {
+  const base = posesOf(move, 1).ms;
+  const ms = Math.round(base * tempo);
+  return move.kind === 'KICK' ? Math.max(ms, Math.min(KICK_MIN_MS, base)) : ms;
+}
+
+/**
+ * When each move of a sequence starts and is back (ms from its start), as
+ * cameraSequence plays it (pure) — so a plan can be checked: the KICK comes
+ * before the blow (作者: KICK → 技発動 → 命中 → HIT STOP → SHAKE).
+ */
+export function sequenceTimes(steps: readonly (CameraMove & { wait?: number })[], tempo = 1): { kind: CameraMove['kind']; start: number; end: number }[] {
+  let t = 0;
+  return steps.map((step) => {
+    t += step.wait ?? 0;
+    const start = t;
+    t += moveMs(step, tempo);
+    return { kind: step.kind, start, end: t };
+  });
+}
+
 /** The move running on each layer now, so a new one replaces it. */
 const running = new WeakMap<Element, Animation>();
 /** Raised by every move and sequence: a sequence whose turn has passed stops. */
@@ -219,10 +245,10 @@ function play(move: CameraMove, root: ParentNode, tempo: number): Promise<void> 
     const backdrop = h.dataset?.shakeLayer === 'backdrop';
     // A painting never draws back with the field: PULL-BACK leaves it be.
     if (backdrop && move.kind === 'PULL_BACK') continue;
-    const { ms, frames, origin } = cameraKeyframes(move, { weak, backdrop });
+    const { frames, origin } = cameraKeyframes(move, { weak, backdrop });
     running.get(el)?.cancel();
     if (h.style) h.style.transformOrigin = origin === undefined ? '' : `${round(clamp01(origin) * 100, 1)}% 60%`;
-    const anim = h.animate(frames, { duration: Math.round(ms * tempo), fill: 'none' });
+    const anim = h.animate(frames, { duration: moveMs(move, tempo), fill: 'none' });
     running.set(el, anim);
     done.push(
       anim.finished

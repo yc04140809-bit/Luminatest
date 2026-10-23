@@ -205,3 +205,27 @@ export function rollGrade(
   }
   return rnd() < RARE_CHANCE ? 'RARE' : 'NORMAL';
 }
+
+// ---- a find's small jolt (TIGS 2026-10-23) ----
+//
+// Only the moments worth it, never constantly: a golden find a small 「クイッ」,
+// the once-in-a-world find a little more (with its flash); an ordinary find
+// or a thing looked at, nothing. Never two close together, and nothing at all
+// where shaking is off (screenShake: the switch, and a device asking for less
+// motion).
+
+/** The jolt a find taken gives the walk, or none. */
+export function findJolt(grade: FindGrade): 'tiny' | 'small' | null {
+  if (grade === 'RAINBOW') return 'small';
+  if (grade === 'RARE') return 'tiny';
+  return null;
+}
+
+/** Two jolts at least this far apart; one sooner is let go. */
+export const JOLT_GAP_MS = 1200;
+
+/** Whether a jolt now is far enough from the last one (`last` null: none yet). */
+export function joltDue(now: number, last: number | null): boolean {
+  return last === null || now - last >= JOLT_GAP_MS;
+}
+

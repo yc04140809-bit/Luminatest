@@ -4,6 +4,7 @@ import {
   CAMERA_PERSONA,
   IMPACT_ZOOM,
   KICK,
+  KICK_MIN_MS,
   PULL_BACK,
   PUSH_IN,
   RECOIL,
@@ -11,6 +12,8 @@ import {
   cameraKeyframes,
   cameraSequence,
   getCameraMotion,
+  moveMs,
+  sequenceTimes,
   setCameraMotion,
   type CameraMove,
   type CameraStrength,
@@ -181,6 +184,28 @@ describe('camera', () => {
     const field = fakeEl('field');
     await camera({ kind: 'KICK', dir: 'right', strength: 'large' }, fakeRoot([field.el]), 1.3);
     expect(field.anims[0].opts.duration).toBe(325);
+  });
+
+  it('at ×2 a KICK stays a 「クイッ」 — never under KICK_MIN_MS — while the rest still halve (作者 TIGS §17)', async () => {
+    allow(false);
+    const field = fakeEl('field');
+    await camera({ kind: 'KICK', dir: 'left', strength: 'small' }, fakeRoot([field.el]), 0.85 * 0.5);
+    expect(field.anims[0].opts.duration).toBe(KICK_MIN_MS);
+    expect(moveMs({ kind: 'KICK', dir: 'left', strength: 'large' }, 0.5)).toBe(125);
+    expect(moveMs({ kind: 'PUSH_IN', strength: 'small' }, 0.5)).toBe(180);
+    expect(moveMs({ kind: 'KICK', dir: 'left', strength: 'small' }, 1)).toBe(KICK.small.ms);
+  });
+
+  it('sequenceTimes: each move\'s start and end as a sequence plays them (waits, then durations)', () => {
+    expect(
+      sequenceTimes([
+        { kind: 'KICK', dir: 'left', strength: 'small' },
+        { kind: 'KICK', dir: 'right', strength: 'medium', wait: 80 },
+      ]),
+    ).toEqual([
+      { kind: 'KICK', start: 0, end: 120 },
+      { kind: 'KICK', start: 200, end: 380 },
+    ]);
   });
 
   it('a sequence plays its moves in order', async () => {

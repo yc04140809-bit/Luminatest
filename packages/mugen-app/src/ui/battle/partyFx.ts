@@ -2,7 +2,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import type { SfxId } from '@mugen/content/audio/sfx';
 import type { CameraDir, CameraMove } from '../fx/camera';
-import { CAMERA_COMBOS, personaOf } from '../fx/camera';
+import { personaOf } from '../fx/camera';
 import type { ShakeLevel } from '../fx/screenShake';
 import { MOMENT_SPECIAL_FX, specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
 
@@ -13,7 +13,7 @@ import { MOMENT_SPECIAL_FX, specialFxOf, type SpecialEffectType } from '../fx/sp
  *
  *   camera   what the camera does first (ui/fx/camera) — a KICK toward the one
  *            struck (the party strikes LEFT, a creature RIGHT), a lean in
- *            before a heavy blow, a draw back before a giant's
+ *            before a heavy blow, a giant's drawn in and then thrown (TIGS)
  *   impact   when the blow lands (ms after the beat), for the flash, the
  *            hit-stop, the layered sound and the shake to wait for
  *   flash    what flashes where it lands (white slash, heavy burst, a spell's
@@ -74,6 +74,15 @@ export interface BeatFx {
 /** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms; グレイヴ: 重撃 80〜120 / 豪断 100〜140). */
 export const HIT_STOPS = { light: 40, skill: 65, heavy: 100, finisher: 130, goudan: 120 } as const;
 
+/** ケイオス's spell: how long (ms) her circle shows before the camera kicks with the spell. */
+export const SPELL_KICK_AT = 60;
+
+/** A giant's big blow: drawn in a little, a gathering, then thrown at the party. Not light — ヴァルシール is slow. */
+export const GIANT_WINDUP: (CameraMove & { wait?: number })[] = [
+  { kind: 'KICK', dir: 'left', strength: 'small' },
+  { kind: 'KICK', dir: 'right', strength: 'medium', wait: 80 },
+];
+
 /** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
 export const GRAVE_CHAIN = { juugeki: 120, charge: 300, goudan: 460, hold: 450 } as const;
 
@@ -122,13 +131,15 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const toward: CameraDir = beat.kind === 'ENEMY_ATTACK' ? 'right' : 'left';
   const kick = (strength: 'small' | 'medium' | 'large'): CameraMove & { wait?: number } =>
     persona.lead === 'SNAP' ? { kind: 'SNAP', from: ctx.actorAt, to: ctx.targetAt, strength } : { kind: 'KICK', dir: toward, strength };
+  // A blow that is about to BREAK the creature kicks harder (作者 TIGS「CAMERA KICK」: BREAK直前の強攻撃).
+  const lead = beat.broke ? 'medium' : 'small';
   const reel = (px: number, down = 0) => (ctx.giant ? (px >= 6 ? { on: beat.target, px: 2, down: Math.min(down, 2) } : undefined) : { on: beat.target, px, down });
 
   switch (beat.kind) {
     case 'ATTACK':
       return {
         tempo,
-        camera: [kick('small')],
+        camera: [kick(lead)],
         impact: 40,
         flash: { kind: 'slash', on: beat.target },
         hitStop: HIT_STOPS.light,
@@ -142,7 +153,7 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
         // 主人公's red moon (《瞬断》): the crescent cut instead of the common one.
         return {
           tempo,
-          camera: [kick('small')],
+          camera: [kick(lead)],
           special: own.map((type) => ({ type, on: beat.target, at: 0 })),
           impact: 110,
           hitStop: HIT_STOPS.skill,
@@ -153,7 +164,7 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
       }
       return {
         tempo,
-        camera: [kick('small')],
+        camera: [kick(lead)],
         impact: 50,
         flash: { kind: 'skill', on: beat.target },
         hitStop: HIT_STOPS.skill,
@@ -164,10 +175,11 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
     }
     case 'MAGIC': {
       const colour = COLOUR[ctx.spell?.element ?? ''] ?? 'plain';
-      // ケイオス's way: the camera leans in on her as she casts, and snaps in at it landing.
+      // ケイオス's spell (作者 TIGS「CAMERA KICK」: 魔法陣 → KICK SMALL → 発射 → 着弾 → SHAKE): her circle
+      // first, then the camera kicks as it flies, and snaps in at it landing.
       return {
         tempo,
-        camera: [{ kind: 'PUSH_IN', strength: 'small', at: ctx.actorAt }],
+        camera: [{ kind: 'KICK', dir: toward, strength: 'small', wait: SPELL_KICK_AT }],
         cast: { on: beat.actor, colour },
         // ケイオス's wings, for the spells that have them, open behind her as she begins.
         special: specialFxOf(ctx.skillId).map((type) => ({ type, on: beat.actor, at: 0 })),
@@ -238,10 +250,11 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
       const heavy = !!beat.name && beat.name === ctx.moves?.heavy;
       const sweep = !!beat.name && beat.name === ctx.moves?.sweep;
       if (heavy && ctx.giant) {
-        // A giant's big blow: the camera draws back, then is thrown at those it rushes.
+        // A giant's big blow (作者 TIGS「CAMERA KICK」 ヴァルシール): a small kick toward its own side (drawn
+        // in), the gathering, then a medium kick at those it rushes — both before the blow lands.
         return {
           tempo,
-          camera: CAMERA_COMBOS.PULL_RUSH('right'),
+          camera: GIANT_WINDUP,
           impact: 420,
           flash: { kind: 'crush', on: beat.target },
           hitStop: HIT_STOPS.heavy,

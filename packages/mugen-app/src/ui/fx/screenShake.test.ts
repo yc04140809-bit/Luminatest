@@ -15,6 +15,17 @@ import {
 
 const px = (t: string) => t.split(' ').map((v) => Number.parseFloat(v));
 
+describe('the tiny jolt (a golden find in a walk, TIGS 2026-10-23)', () => {
+  it('is the lightest: shorter and closer than small, sideways only, ending where it began', () => {
+    const tiny = shakeKeyframes('tiny').map((f) => px(f.translate as string));
+    expect(SHAKE_PATTERNS.tiny.ms).toBeLessThan(SHAKE_PATTERNS.small.ms);
+    expect(tiny[0]).toEqual([0, 0]);
+    expect(tiny[tiny.length - 1]).toEqual([0, 0]);
+    expect(Math.max(...tiny.map(([x]) => Math.abs(x)))).toBeLessThanOrEqual(2);
+    expect(tiny.every(([, y]) => y === 0)).toBe(true);
+  });
+});
+
 describe('the three weights', () => {
   it('are short: small 120–150ms, medium 180–220ms, large 250–350ms', () => {
     expect(SHAKE_PATTERNS.small.ms).toBeGreaterThanOrEqual(120);

@@ -24,8 +24,8 @@ import type { FaceBox } from '../assets/kaosFaces';
 import { finaleFaceFor, type FinaleFace } from './finaleFaces';
 import { usePicture } from './scene';
 import { PartyBattleScreen } from './battle/PartyBattleScreen';
-import { screenShake } from './fx/screenShake';
-import { camera } from './fx/camera';
+import { hitStop, screenShake } from './fx/screenShake';
+import { cameraSequence } from './fx/camera';
 import { SpecialFx } from './fx/special/SpecialFx';
 import { MOMENT_SPECIAL_FX, SPECIAL_FX, type SpecialEffectType } from './fx/special/specialFx';
 import { audioManager, playSfx } from '../platform/audio';
@@ -83,6 +83,10 @@ export interface FinaleRunProps {
 
 /** The breath before a fight (作者「無料強化メモ②」: 戦闘前 0.5秒 → ボスBGM → 戦闘): the music held low, then the fight. */
 export const FIGHT_BREATH_MS = 500;
+/** A line's own effect: the still beat before the camera kicks with the blade (ms), and the hold at the cut (作者: 必殺 100〜150ms). */
+export const FX_KICK_AT = 100;
+export const FX_HIT_STOP_MS = 100;
+
 /** A line's own effect (FinaleLine `fx`) → the character's effect it plays (ui/fx/special). */
 const FINALE_FX: Record<'ZERO_TENSHOU', SpecialEffectType> = { ZERO_TENSHOU: MOMENT_SPECIAL_FX.zeroTenshou[0] };
 
@@ -276,16 +280,19 @@ function FinaleScene({
   const shown = useFace(face);
   const root = useRef<HTMLDivElement>(null);
   // The line's jolt and sound, once, as it comes up — the picture only; the words hold still. With an
-  // effect of its own (零閃・天衝): the camera leans in at once, and the jolt and the sounds wait for
-  // the cut to land.
+  // effect of its own (零閃・天衝 — 作者 TIGS「CAMERA KICK」: 構え → KICK MEDIUM → 斬撃 → 命中 → HIT STOP
+  // → SHAKE): a beat of stillness, the camera kicks as the blade moves, the cut lands with its
+  // sounds, the picture holds, and then it jolts.
   useEffect(() => {
     const at0 = root.current ?? undefined;
     const lands = fx ? SPECIAL_FX[fx].impact : 0;
-    if (fx) void camera({ kind: 'PUSH_IN', strength: 'small' }, at0);
+    if (fx) void cameraSequence([{ kind: 'KICK', dir: 'left', strength: 'medium', wait: FX_KICK_AT }], at0);
     const t = window.setTimeout(() => {
-      if (shake) void screenShake(shake, at0);
       const sounds = new Set<SfxId>([...(fx ? (SPECIAL_FX[fx].sfx ?? []) : []), ...(se ? [se] : [])]);
       sounds.forEach((id) => playSfx(id));
+      void hitStop(fx ? FX_HIT_STOP_MS : 0, at0).then(() => {
+        if (shake) void screenShake(shake, at0);
+      });
     }, lands);
     return () => window.clearTimeout(t);
   }, [sceneId, at]);

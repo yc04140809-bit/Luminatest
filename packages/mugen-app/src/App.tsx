@@ -831,7 +831,17 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
       }
       // THE OPENING (作者指示 2026-10-16), tapped through; then the name. The old
       // prologue and 第0話 are not played on a new game (第0話 stays in 回想).
-      return <OpeningScreen onMusic={openingMusic} onDone={() => setNaming(true)} />;
+      return (
+        <OpeningScreen
+          onMusic={openingMusic}
+          onDone={() => {
+            // Whatever the music was doing when it ended (a DEBUG skip mid-dim or at the power off),
+            // the naming hears it whole — in play it already came back at 「行ってらっしゃい♪」.
+            openingMusic('RESUME');
+            setNaming(true);
+          }}
+        />
+      );
     case 'HOME':
       if (finale) {
         // A test may make ヴァルシール quick to beat (DEV only).

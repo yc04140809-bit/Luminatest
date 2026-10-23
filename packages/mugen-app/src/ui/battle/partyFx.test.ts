@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
-import { HIT_STOPS, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { KICK, sequenceTimes } from '../fx/camera';
+import { HIT_STOPS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
 
@@ -57,10 +58,10 @@ describe('beatFx', () => {
     expect(beatFx(beat({ actor: 'grave', kind: 'TECH' }), ctx({ giant: true, tech: tech('HEAVY') })).reel?.px).toBeLessThanOrEqual(2);
   });
 
-  it('ケイオス\'s spell: the camera leans in on her, her circle, the spell\'s own colour where it lands, a snap in', () => {
+  it('ケイオス\'s spell: her circle first, a small KICK toward the creatures as it flies, the spell\'s own colour where it lands, a snap in', () => {
     const fire = { element: 'FIRE' } as MagicDef;
     const fx = beatFx(beat({ actor: 'kaos', kind: 'MAGIC', name: 'x' }), ctx({ spell: fire }));
-    expect(fx.camera?.[0]).toMatchObject({ kind: 'PUSH_IN', at: 0.7 });
+    expect(fx.camera).toEqual([{ kind: 'KICK', dir: 'left', strength: 'small', wait: SPELL_KICK_AT }]);
     expect(fx.cast).toEqual({ on: 'kaos', colour: 'fire' });
     expect(fx.flash).toMatchObject({ kind: 'magic', colour: 'fire' });
     expect(fx.after?.kind).toBe('IMPACT_ZOOM');
@@ -79,9 +80,13 @@ describe('beatFx', () => {
     expect(guard.hitStop).toBe(0);
   });
 
-  it('a giant\'s heavy blow: the camera draws back, then is thrown at the party; a large jolt', () => {
+  it('a giant\'s heavy blow: a small kick toward its own side, a gathering, a medium kick at the party; a large jolt', () => {
     const fx = beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', name: 'コア照射' }), ctx({ giant: true, moves: { heavy: 'コア照射', sweep: '光翼の旋風' }, actorArt: 'valsheel' }));
-    expect(fx.camera?.map((m) => m.kind)).toEqual(['PULL_BACK', 'KICK']);
+    expect(fx.camera?.map((m) => [m.kind, 'dir' in m && m.dir, m.strength])).toEqual([
+      ['KICK', 'left', 'small'],
+      ['KICK', 'right', 'medium'],
+    ]);
+    expect(fx.camera?.[1].wait).toBeGreaterThan(0);
     expect(fx.shake).toBe('large');
     // ヴァルシール is slow.
     expect(fx.tempo).toBeGreaterThan(1);
@@ -153,5 +158,45 @@ describe('the characters\' own (作者 2026-10-17)', () => {
     expect(fx.flash?.kind).toBe('magic');
     // A spell with no wings of its own: none.
     expect(beatFx(beat({ actor: 'kaos', kind: 'MAGIC' }), ctx({ skillId: 'not_flagged' })).special).toEqual([]);
+  });
+});
+
+describe('CAMERA KICK, in its place (作者 TIGS「CAMERA KICK」: KICK → 技発動 → 命中 → HIT STOP → SHAKE)', () => {
+  const ONE_FRAME = 1000 / 60;
+  const giantCtx = ctx({ giant: true, moves: { heavy: 'コア照射', sweep: '光翼の旋風' }, actorArt: 'valsheel' });
+  const plans = {
+    'the ordinary blow': beatFx(beat({}), ctx()),
+    '《瞬断》': beatFx(beat({ kind: 'SKILL', name: '瞬断' }), ctx({ skillId: 'shundan' })),
+    'ケイオス\'s spell': beatFx(beat({ actor: 'kaos', kind: 'MAGIC', name: 'x' }), ctx({ spell: { element: 'FIRE' } as MagicDef })),
+    '重撃・豪断': beatFx(beat({ actor: 'grave', kind: 'TECH', name: '重撃・豪断', amount: 30 }), ctx({ tech: tech('HEAVY'), skillId: 'goudan' })),
+    'ヴァルシール\'s big blow': beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', name: 'コア照射' }), giantCtx),
+    'a creature\'s heavy blow': beatFx(beat({ actor: 'enemy', kind: 'ENEMY_ATTACK', target: 'hero', name: 'コア照射' }), ctx({ moves: { heavy: 'コア照射' } })),
+  };
+
+  it.each(Object.entries(plans))('%s: the last KICK peaks before the blow lands — at ×1 and at ×2', (_name, fx) => {
+    for (const speed of [1, 0.5]) {
+      const times = sequenceTimes(fx.camera ?? [], fx.tempo * speed);
+      const kicks = times.filter((t) => t.kind === 'KICK');
+      expect(kicks.length).toBeGreaterThan(0);
+      const last = kicks[kicks.length - 1];
+      // KICK's peak is 30% in (camera.ts); the blow lands at `impact`, halved at ×2. A light blow
+      // lands almost at once, so its kick (kept to KICK_MIN_MS at ×2) may peak with it — within a frame.
+      expect(last.start + (last.end - last.start) * 0.3).toBeLessThanOrEqual(fx.impact * speed + ONE_FRAME);
+    }
+  });
+
+  it('a blow that is about to BREAK the creature kicks harder (medium); one that is not, small', () => {
+    expect(beatFx(beat({ broke: true }), ctx()).camera?.[0]).toMatchObject({ kind: 'KICK', strength: 'medium' });
+    expect(beatFx(beat({ kind: 'SKILL', broke: true }), ctx()).camera?.[0]).toMatchObject({ kind: 'KICK', strength: 'medium' });
+    expect(beatFx(beat({}), ctx()).camera?.[0]).toMatchObject({ kind: 'KICK', strength: 'small' });
+  });
+
+  it('feathers, 月影の構え and a heal never move the camera; nobody\'s ordinary blow kicks harder than small', () => {
+    expect(beatFx(beat({ kind: 'MEND', target: 'grave' }), ctx()).camera).toBeUndefined();
+    expect(beatFx(beat({ actor: 'kaos', kind: 'TECH', target: 'grave', amount: 0 }), ctx({ tech: tech('REGEN') })).camera).toBeUndefined();
+    for (const actor of ['hero', 'grave', 'kaos']) {
+      const m = beatFx(beat({ actor }), ctx()).camera?.[0];
+      expect(m && 'strength' in m ? KICK[m.strength!].px : 0).toBeLessThanOrEqual(KICK.small.px);
+    }
   });
 });

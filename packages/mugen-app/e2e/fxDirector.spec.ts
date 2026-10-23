@@ -111,6 +111,61 @@ test.describe('with motion', () => {
     expect(await atRest(page, '.pb-field')).toBe(true);
   });
 
+  test('ケイオスの魔法 (TIGS CAMERA KICK): her cut-in, then a small KICK toward the creature (left) as the spell flies — not a lean in — and the snap in where it lands', async ({ page }) => {
+    test.setTimeout(60_000);
+    await recordCamera(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.goto('/?preview=party&footing=40');
+    await turnOf(page, 'kaos');
+    await clear(page);
+    await page.getByTestId('pb-cmd-magic').click();
+    await page.locator('[data-testid^="pb-magic-"]:not([disabled])').first().click();
+    // Her cut-in first (the same as the ordinary fight's), the commands held while it plays.
+    await expect(page.getByTestId('pb-cinematic')).toBeVisible();
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'yes');
+    await expect(page.getByTestId('pb-figure-kaos').getByTestId('pb-cast')).toHaveCount(1, { timeout: 10_000 });
+    await expect.poll(async () => (await moves(page)).filter((m) => m.who === 'field').length).toBeGreaterThanOrEqual(1);
+    const kick = (await moves(page)).find((m) => m.who === 'field')!;
+    // One way (left), SMALL (6–10px), at the same distance throughout — no lean in.
+    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-6);
+    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-10);
+    expect(kick.scales.every((z) => z === 1)).toBe(true);
+    expect(kick.xs[kick.xs.length - 1]).toBe(0);
+    expect(await onlyTheWorld(page)).toBe(true);
+    await page.waitForTimeout(900);
+    expect(await atRest(page, '.pb-field')).toBe(true);
+  });
+
+  test('零閃・天衝 (TIGS CAMERA KICK): a beat of stillness, then the picture kicks once (left, MEDIUM — half as far, a painting) and comes back', async ({ page }) => {
+    test.setTimeout(60_000);
+    await recordCamera(page);
+    await page.setViewportSize({ width: 640, height: 300 });
+    await page.goto('/?preview=finale&from=FORM2_WON');
+    const on = page.getByTestId('finale-scene');
+    for (let i = 0; i < 20 && (await on.getAttribute('data-scene')) !== 'STOPPED'; i++) {
+      const key = `${await on.getAttribute('data-scene')}:${await on.getAttribute('data-at')}`;
+      await clear(page);
+      await page.getByTestId('finale-next').click();
+      await expect.poll(async () => `${await on.getAttribute('data-scene')}:${await on.getAttribute('data-at')}`).not.toBe(key);
+    }
+    await expect(on).toHaveAttribute('data-scene', 'STOPPED');
+    await expect.poll(async () => (await moves(page)).length).toBeGreaterThanOrEqual(1);
+    const got = await moves(page);
+    expect(got).toHaveLength(1);
+    const [kick] = got;
+    expect(kick.who).toBe('backdrop');
+    // MEDIUM is 10–16px; a painting goes half as far.
+    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-5);
+    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-8);
+    expect(Math.max(...kick.xs)).toBe(0);
+    expect(kick.ms).toBeLessThanOrEqual(220);
+    // It grows just enough to hide its edges, never shrinks.
+    expect(Math.min(...kick.scales)).toBeGreaterThanOrEqual(1);
+    // Back at rest once the cut has landed, held and jolted (its shake, on `translate`, is not the camera's).
+    await page.waitForTimeout(1200);
+    expect(await atRest(page, '.finale-stage')).toBe(true);
+  });
+
   test('AUTO at ×2: the camera never piles up — everything back at rest, the fight won', async ({ page }) => {
     test.setTimeout(120_000);
     await recordCamera(page);

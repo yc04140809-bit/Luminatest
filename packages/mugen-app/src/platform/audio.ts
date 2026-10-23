@@ -158,6 +158,13 @@ export class AudioManager {
   private openingFade: ReturnType<typeof setInterval> | null = null;
   /** Called once when the theme stops, however it stopped. */
   private openingDone: (() => void) | null = null;
+  /**
+   * THE OPENING PIECE LET GO FOR A MOMENT (the opening's power off, until the
+   * funny face — App's hush): when it is asked for again it comes straight
+   * back, without the beat of quiet its first start waits (TIGS 2026-10-23:
+   * the power off is the quiet; another second after it was a gap).
+   */
+  private openingLetGo = false;
   private watchingVisibility = false;
 
   /**
@@ -591,7 +598,9 @@ export class AudioManager {
      * being asked for NOW rather than replaying what was asked for
      * then.
      */
-    if (wait && id === 'OPENING') {
+    const backAfterHush = this.openingLetGo;
+    this.openingLetGo = false;
+    if (wait && id === 'OPENING' && !backAfterHush) {
       this.retireCurrentBgm(false);
       this.bgmDelay = setTimeout(() => {
         this.bgmDelay = null;
@@ -696,6 +705,7 @@ export class AudioManager {
    * the scene's piece back in as any other change would.
    */
   fadeOutBgm(): void {
+    this.openingLetGo = this.currentBgmId === 'OPENING';
     if (this.currentBgmId) this.previousBgmId = this.currentBgmId;
     this.currentBgmId = null;
     if (this.bgmDelay) {

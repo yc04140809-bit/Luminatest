@@ -25,6 +25,7 @@ import { PointMarker } from './PointMarker';
 import { DiscoveryMarker } from './DiscoveryMarker';
 import { Gusts } from './Gusts';
 import { buzz } from '../../platform/haptics';
+import { screenShake } from '../fx/screenShake';
 import { explorePref, setExplorePref } from '../../platform/explorePrefs';
 import type { SfxId } from '@mugen/content/audio/sfx';
 import { DEPTH, PAN, markTipY } from './walkPath';
@@ -45,6 +46,8 @@ import {
   VISIT_COUNTS_AT,
   alongTrail,
   rollGrade,
+  findJolt,
+  joltDue,
   type FindGrade,
   depthScale,
   dist,
@@ -299,6 +302,15 @@ export function RoamScene({
   // A walk picked up where it was left: no walking in, everything as it stood.
   const was = resume ? (memory?.current ?? null) : null;
   const host = useRef<HTMLDivElement>(null);
+  /** When the last find's jolt was (findJolt): never two close together. */
+  const lastJolt = useRef<number | null>(null);
+  const joltFor = (grade: FindGrade) => {
+    const level = findJolt(grade);
+    const now = performance.now();
+    if (!level || !host.current || !joltDue(now, lastJolt.current)) return;
+    lastJolt.current = now;
+    void screenShake(level, host.current);
+  };
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const [painting, setPainting] = useState<string | null>(null);
   const [walkers, setWalkers] = useState<Walkers | null>(null);
@@ -804,6 +816,8 @@ export function RoamScene({
           return;
         }
         playSfx(special ? 'explore_rare_found' : 'explore_found');
+        // A rare thing or a key one picked up: the golden find's small jolt.
+        if (special) joltFor('RARE');
         setCaptionGrade(special ? 'RARE' : 'NORMAL');
         setCaption(pickup.line);
         setTaken((t) => new Set(t).add(pickup.id));
@@ -851,11 +865,13 @@ export function RoamScene({
       setCaptionGrade('RAINBOW');
       setCaption(`${name}を手に入れた。`);
       setPrize((was) => ({ name, description: def?.description ?? '', kept: keeper.keeps, n: (was?.n ?? 0) + 1 }));
+      joltFor('RAINBOW');
       void keeper.takeRainbow();
       return;
     }
     recentFinds.current = [...recentFinds.current.filter((id) => id !== thing.id), thing.id].slice(-FIND_MEMORY);
     playSfx(thing.grade === 'RARE' ? 'explore_rare_found' : 'explore_found');
+    joltFor(thing.grade);
     setCaptionGrade(thing.grade);
     setCaption(thing.text);
     // A golden find that holds something (2026-10-11): into the bag, and the
@@ -938,7 +954,7 @@ export function RoamScene({
       onPointerDown={onGround}
     >
       {/* THE PAINTING, with a faint glint wherever a small find is waiting. */}
-      <div className="walk-layer walk-painting" style={{ width: paintW, transform: `translateX(${camX}px)` }}>
+      <div className="walk-layer walk-painting" data-shake-layer="field" style={{ width: paintW, transform: `translateX(${camX}px)` }}>
         {painting && (
           <img
             className="walk-painting-img"

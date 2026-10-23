@@ -1,8 +1,10 @@
 /**
  * SCREEN SHAKE — the short jolt of a heavy moment (作者「臨場感強化：汎用 SCREEN SHAKE」2026-10-17).
  *
- * One call, three weights, anywhere — a fight or a scene:
+ * One call, four weights, anywhere — a fight, a scene or a walk:
  *
+ *   screenShake('tiny')    a small 「クイッ」 — a golden find   ~120ms  ±2px
+ *                          in a walk (TIGS 2026-10-23)
  *   screenShake('small')   a heavier blow, a tremor        ~140ms  ±4px
  *   screenShake('medium')  BREAK, 重撃・豪断, a big hit      ~200ms  ±6px, 1px of height
  *   screenShake('large')   waking, the shell breaking,       ~300ms  ±10px, 2px of height
@@ -28,18 +30,19 @@
  * switch later; nothing else needs to know.
  */
 
-export type ShakeLevel = 'small' | 'medium' | 'large';
+export type ShakeLevel = 'tiny' | 'small' | 'medium' | 'large';
 export type ShakeSetting = 'on' | 'weak' | 'off';
 
 /** Each weight: how long, and where it goes (x, y px), evenly spaced, from rest back to rest. */
 export const SHAKE_PATTERNS: Readonly<Record<ShakeLevel, { ms: number; path: readonly (readonly [number, number])[] }>> = {
+  tiny: { ms: 120, path: [[0, 0], [-2, 0], [2, 0], [0, 0]] },
   small: { ms: 140, path: [[0, 0], [-4, 0], [4, 0], [-2, 0], [0, 0]] },
   medium: { ms: 200, path: [[0, 0], [-6, 1], [6, -1], [-4, 1], [3, 0], [0, 0]] },
   large: { ms: 300, path: [[0, 0], [-10, 2], [9, -2], [-7, 2], [5, -1], [-3, 1], [0, 0]] },
 };
 
 /** How much a painting grows while it moves, so its edges stay off screen. */
-const BACKDROP_GROW: Readonly<Record<ShakeLevel, number>> = { small: 1.02, medium: 1.03, large: 1.045 };
+const BACKDROP_GROW: Readonly<Record<ShakeLevel, number>> = { tiny: 1.01, small: 1.02, medium: 1.03, large: 1.045 };
 /** The longest a hit-stop may hold (作者: 50〜100ms から; a finisher's up to 150 — 「魔法・スキル・戦闘エフェクト強化」). */
 export const HIT_STOP_MAX_MS = 150;
 

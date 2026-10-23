@@ -8,6 +8,9 @@ import {
   REACH,
   SNAP,
   alongTrail,
+  findJolt,
+  joltDue,
+  JOLT_GAP_MS,
   depthScale,
   dist,
   onFloor,
@@ -234,3 +237,18 @@ describe('グリーンウッドの森, walked about in the same way', () => {
     }
   });
 });
+
+describe('a find\'s small jolt (TIGS 2026-10-23)', () => {
+  it('only for the finds worth it: none for an ordinary one, a tiny one for gold, a little more for the rainbow', () => {
+    expect(findJolt('NORMAL')).toBeNull();
+    expect(findJolt('RARE')).toBe('tiny');
+    expect(findJolt('RAINBOW')).toBe('small');
+  });
+
+  it('never two close together', () => {
+    expect(joltDue(1000, null)).toBe(true);
+    expect(joltDue(1000 + JOLT_GAP_MS - 1, 1000)).toBe(false);
+    expect(joltDue(1000 + JOLT_GAP_MS, 1000)).toBe(true);
+  });
+});
+

@@ -44,7 +44,10 @@ import { CageIcon, SparkIcon, SwordIcon } from './BattleIcons';
 import { BATTLE_UI_FRAMES } from './battleArt';
 import { WorldMemoryPanel } from './BattleHud';
 import { memoryRows } from './battleHud';
+import { useCutInDirector } from './cutin/CutIn';
+import { spellCutIn } from './magic/spellCutIn';
 import './battle.generated.css';
+import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
 import './partyBattle.css';
 
@@ -292,9 +295,28 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, artIds]);
 
+  // HER SPELLS' CUT-INS (TIGS 2026-10-23: they played in the ordinary fight and not in this one —
+  // the three-person fight never had the cut-in layer). The same table and the same part as the
+  // ordinary fight (magic/spellCutIn.ts, cutin/CutIn.tsx): a spell listed there shows it first,
+  // then the blow; a spell not listed, a skill, an attack go straight on as before.
+  const cutIns = useCutInDirector(fast ? 2 : 1);
   const act = (action: PartyAction) => {
+    if (cutIns.playing) return;
     const next = partyAct(state, action, dice);
     if (next === state) return;
+    const spell = action.kind === 'MAGIC' ? acting?.magic?.find((m) => m.id === action.magicId) : undefined;
+    const cut = spell ? spellCutIn(spell) : null;
+    if (cut) {
+      setMenu('COMMANDS');
+      setAiming(null);
+      setPending(null);
+      void cutIns.play(cut).then(() => land(next, action));
+      return;
+    }
+    land(next, action);
+  };
+  /** The action's result on screen: its sound, its target in focus, and the state moved on. */
+  const land = (next: PartyBattleState, action: PartyAction) => {
     const tech = action.kind === 'TECH' ? acting?.techniques?.find((t) => t.id === action.techId) : undefined;
     playSfx(sfxOf(next.last, tech));
     if (next.last?.regen) playSfx('battle_heal');
@@ -506,7 +528,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const broken = isBroken(focused);
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
-  const playerInput = !!acting && !auto && state.outcome === 'ONGOING';
+  const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
   const bossFight = state.enemies.some((e) => e.boss);
   const toggle = (m: 'SKILL' | 'MAGIC') => setMenu((was) => (was === m ? 'COMMANDS' : m));
   const actingFace = acting ? faceOf(acting.id) : null;
@@ -933,6 +955,13 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           );
         })}
       </div>
+
+      {/* A CUT-IN, over the fight and its HUD; it takes every press while it plays. */}
+      {cutIns.element && (
+        <div className="bp-cinematic" data-testid="pb-cinematic">
+          {cutIns.element}
+        </div>
+      )}
     </div>
   );
 }
