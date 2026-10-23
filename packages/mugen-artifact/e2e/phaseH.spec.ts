@@ -45,28 +45,34 @@ function readFeedback(page: Page): Promise<StoredFeedback[]> {
   );
 }
 
+/**
+ * Choice → three years → the discovery → Kaos's close. Played through 捕らえる
+ * (the workyard): since 2026-10-20 見逃す leaves nowhere to find him (ROUTE D),
+ * so the bakery reunion this used to play is gone.
+ */
 async function completeCoreExperience(page: Page) {
   await playToLifeChoice(page);
-  await page.getByTestId('choice-SPARE').click();
+  await page.getByTestId('choice-CAPTURE').click();
   const result = page.getByTestId('choice-result-dialogue');
   await expect(result).toBeVisible();
-  await result.click();
-  await result.click();
-  await result.click();
-  await result.click();
-  await page.getByTestId('choice-recorded-screen').waitFor();
+  const recorded = page.getByTestId('choice-recorded-screen');
+  for (let i = 0; i < 8 && !(await recorded.isVisible().catch(() => false)); i++) await result.click();
+  await recorded.waitFor();
   await page.getByTestId('return-home-button').click();
 
   await advanceDays(page, 3);
   await devTimeShift(page);
 
   await page.getByTestId('explore-button').click();
-  await page.getByTestId('location-ALDEN_BAKERY').click();
-  const scene = page.getByTestId('bakery-first-visit');
+  await page.getByTestId('location-ALDEN_WORKYARD').click();
+  const scene = page.getByTestId('workyard-first-visit');
+  const done = page.getByTestId('workyard-reunion-done');
   await expect(scene).toBeVisible();
-  for (let i = 0; i < 8; i++) await scene.click();
-  await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('bakery-leave').click();
+  for (let i = 0; i < 30 && !(await done.isVisible().catch(() => false)); i++) {
+    if (await scene.isVisible().catch(() => false)) await scene.click();
+  }
+  await expect(done).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('workyard-leave').click();
   const ending = page.getByTestId('ending-kaos');
   await expect(ending).toBeVisible();
   for (let i = 0; i < 4; i++) await ending.click();
@@ -132,7 +138,7 @@ test('the tester can hand their answers back, because nothing else can', async (
 
   const text = await page.evaluate(() => navigator.clipboard.readText());
   expect(text).toContain('MUGEN ZERO PLAYTEST');
-  expect(text).toContain('route: SPARE');
+  expect(text).toContain('route: CAPTURE');
   expect(text).toContain('再会でびっくりした。');
   expect(text).toContain('再会に意味を感じた: 4');
   // The text on screen is the same text, for a browser that refuses the
@@ -165,7 +171,7 @@ test('survey is offered only after the life choice, saves locally, and shows onc
   const feedback = await readFeedback(page);
   expect(feedback).toHaveLength(1);
   expect(feedback[0]).toMatchObject({
-    route: 'SPARE',
+    route: 'CAPTURE',
     continueInterest: 5,
     galdFutureInterest: 4,
     reunionRecognition: 'IMMEDIATE',
@@ -192,11 +198,11 @@ test('survey is offered only after the life choice, saves locally, and shows onc
       }),
   );
   expect(eventTypes.sort()).toEqual([
-    'GALD_ARRIVES_IN_ALDEN',
-    'GALD_BECOMES_BAKER',
-    'GALD_LEAVES_BANDITS',
-    'PLAYER_REUNITED_WITH_GALD',
-    'PLAYER_SPARED_GALD',
+    'GALD_COMPLETES_SENTENCE',
+    'GALD_STANDS_TRIAL',
+    'GALD_WORKS_FOR_ALDEN',
+    'PLAYER_CAPTURED_GALD',
+    'PLAYER_MET_GALD_IN_ALDEN',
     'WORLD_TIME_SHIFTED',
   ]);
 
@@ -324,7 +330,8 @@ for (const size of [
     for (let i = 0; i < 6; i++) await kaos.click();
 
     await enterDevAdmin(page);
-    await page.getByTestId('preset-REUNITED').click();
+    await page.getByTestId('preset-CAPTURE_3Y').click();
+    await expect(page.getByTestId('dev-clock')).toContainText('4年目');
     await page.getByTestId('dev-admin-back').click();
 
     await page.getByTestId('archive-button').click();
@@ -354,7 +361,8 @@ for (const size of [
     await noOverflow();
     await page.getByTestId('q4-4').click();
     await page.getByTestId('q5-4').click();
-    await page.getByTestId('q6-REUNION').click();
+    // Three years on, the workyard not yet found: the reunion is not offered (no spoilers).
+    await page.getByTestId('q6-LIFE_CHOICE').click();
     await page.getByTestId('survey-next').click();
     await noOverflow();
     await page.getByTestId('q7-4').click();

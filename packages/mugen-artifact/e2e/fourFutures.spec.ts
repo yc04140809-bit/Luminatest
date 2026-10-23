@@ -2,11 +2,17 @@ import { test, expect, type Page } from './fixtures';
 import { readMemoryEvents, enterDevAdmin, intoTheVillage } from './helpers';
 
 // GALD FOUR FUTURES: whichever of the four choices the player made, three
-// years later the world holds something they can go and find — and it is
-// never another route's something.
+// years later the world holds what that choice left — and it is never
+// another route's something. Three of them leave a place to go and find;
+// 見逃す (ROUTE D since 2026-10-20, 作者) leaves none: 「見逃した世界では、
+// ガルドは村には残らない」 — he is outside the village, his trade undecided,
+// and there is nowhere on the map to find him (its own test, below).
+// 治療する has been the bakery route since the PoC (2026-10-19, docs/
+// GALD_FIVE_ROUTES.md): the old road → waystation chain no longer happens,
+// and this build has no place on the map for it yet (its own test, below).
 
 interface Route {
-  choice: 'KILL' | 'SPARE' | 'HELP' | 'CAPTURE';
+  choice: 'KILL' | 'CAPTURE';
   preset: string;
   /** The place the choice put on the map. */
   siteId: string;
@@ -28,32 +34,6 @@ interface Route {
 }
 
 const ROUTES: Route[] = [
-  {
-    choice: 'SPARE',
-    preset: 'SPARE_3Y',
-    siteId: 'ALDEN_BAKERY',
-    scene: 'bakery',
-    chain: ['GALD_LEAVES_BANDITS', 'GALD_ARRIVES_IN_ALDEN', 'GALD_BECOMES_BAKER'],
-    discovery: 'PLAYER_REUNITED_WITH_GALD',
-    knownName: 'パン屋',
-    sceneProof: '……見るな。',
-    kaosProof: '続き、あったでしょ',
-    chapterCount: 5,
-    cg: 'gald-baker',
-  },
-  {
-    choice: 'HELP',
-    preset: 'HELP_3Y',
-    siteId: 'GREENWOOD_WAYSTATION',
-    scene: 'waystation',
-    chain: ['GALD_WALKS_THE_ROAD', 'GALD_BECOMES_HEALER'],
-    discovery: 'PLAYER_MET_GALD_ON_THE_ROAD',
-    knownName: '街道の救護所',
-    sceneProof: 'なんで俺を治した？',
-    kaosProof: '優しさって、不思議だね',
-    chapterCount: 4,
-    cg: 'gald-healer',
-  },
   {
     choice: 'CAPTURE',
     preset: 'CAPTURE_3Y',
@@ -82,7 +62,26 @@ const ROUTES: Route[] = [
   },
 ];
 
-const ALL_CHAIN_TYPES = ROUTES.flatMap((r) => r.chain);
+/** 見逃す's chain now (ROUTE D), and the retired one (見逃す → アルデン → パン屋) no world may hold. */
+const SPARE_CHAIN = ['GALD_LEAVES_BANDITS', 'GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA'];
+const RETIRED_SPARE_CHAIN = ['GALD_ARRIVES_IN_ALDEN', 'GALD_BECOMES_BAKER', 'PLAYER_REUNITED_WITH_GALD'];
+/** 治療する now: the bakery route (WORLD TRUTH, the player away). */
+const HELP_CHAIN = [
+  'GALD_SAVES_LINA',
+  'RIZEL_TENDS_GALD',
+  'GALD_TELLS_OF_ELNA',
+  'RIZEL_OFFERS_TO_SEE_ELNA',
+  'VILLAGE_HEARS_OF_GALD',
+  'RIZEL_SPEAKS_FOR_GALD',
+  'BAKER_OFFERS_WORK',
+  'GALD_TAKES_BAKERY_WORK',
+  'LINA_WRITES_TO_ELNA',
+];
+/** The road → waystation chain 治療する used to start (`unless` GALD_SAVES_LINA now). */
+const OLD_HELP_CHAIN = ['GALD_WALKS_THE_ROAD', 'GALD_BECOMES_HEALER', 'PLAYER_MET_GALD_ON_THE_ROAD'];
+const ALL_CHAIN_TYPES = [...ROUTES.flatMap((r) => r.chain), ...SPARE_CHAIN, ...RETIRED_SPARE_CHAIN, ...HELP_CHAIN, ...OLD_HELP_CHAIN];
+/** Every place a route can put on the map — the bakery's reunion and the waystation included, which no route reaches now. */
+const ALL_SITES = [...ROUTES.map((r) => r.siteId), 'ALDEN_BAKERY', 'GREENWOOD_WAYSTATION'];
 
 /** Builds a three-years-later world through the dev admin (official APIs). */
 async function buildWorld(page: Page, preset: string) {
@@ -154,8 +153,8 @@ for (const route of ROUTES) {
     await expect(card).not.toContainText('ガルド');
     await expect(card).not.toContainText(route.knownName);
     // No other route's place exists in this world.
-    for (const other of ROUTES.filter((r) => r.siteId !== route.siteId)) {
-      await expect(page.getByTestId(`location-${other.siteId}`)).toHaveCount(0);
+    for (const other of ALL_SITES.filter((id) => id !== route.siteId)) {
+      await expect(page.getByTestId(`location-${other}`)).toHaveCount(0);
     }
 
     // --- The discovery itself ---
@@ -166,12 +165,6 @@ for (const route of ROUTES) {
     expect(cgSeen.some((src) => src.includes(route.cg))).toBe(true);
     for (const other of ROUTES.filter((r) => r.cg !== route.cg)) {
       expect(cgSeen.some((src) => src.includes(other.cg))).toBe(false);
-    }
-    if (route.choice === 'HELP') {
-      // The one optional reply: flavour, never canon.
-      await expect(page.getByTestId('waystation-reply')).toBeVisible();
-      await page.getByTestId('waystation-reply-DONT_KNOW').click();
-      await playScene(page, 'waystation-after-reply');
     }
     const done = page.getByTestId(`${route.scene}-reunion-done`);
     await expect(done).toBeVisible({ timeout: 10_000 });
@@ -217,10 +210,6 @@ for (const route of ROUTES) {
     await page.getByTestId('explore-button').click();
     await page.getByTestId(`location-${route.siteId}`).click();
     await playScene(page, `${route.scene}-first-visit`);
-    if (route.choice === 'HELP') {
-      await page.getByTestId('waystation-reply-SILENT').click();
-      await playScene(page, 'waystation-after-reply');
-    }
     await expect(page.getByTestId(`${route.scene}-reunion-done`)).toBeVisible({ timeout: 10_000 });
     await page.getByTestId(`${route.scene}-leave`).click();
     const ending = page.getByTestId('ending-kaos');
@@ -252,10 +241,6 @@ for (const route of ROUTES) {
     await page.getByTestId('explore-button').click();
     await page.getByTestId(`location-${route.siteId}`).click();
     await playScene(page, `${route.scene}-first-visit`);
-    if (route.choice === 'HELP') {
-      await page.getByTestId('waystation-reply-COULD_NOT_LEAVE').click();
-      await playScene(page, 'waystation-after-reply');
-    }
     await expect(page.getByTestId(`${route.scene}-reunion-done`)).toBeVisible({ timeout: 10_000 });
     await page.getByTestId(`${route.scene}-leave`).click();
     const ending = page.getByTestId('ending-kaos');
@@ -269,6 +254,44 @@ for (const route of ROUTES) {
     await expect(page.getByTestId('q1-5')).toBeVisible();
   });
 }
+
+test('SPARE (ROUTE D): three years on he is outside the village, his trade undecided — nowhere on the map to find him, no bakery, no reunion', async ({
+  page,
+}) => {
+  await buildWorld(page, 'SPARE_3Y');
+
+  // The archive knows nothing, as on every route.
+  await page.getByTestId('archive-button').click();
+  await page.getByTestId('archive-entry-GALD').click();
+  await expect(page.getByTestId('archive-unknown')).toBeVisible();
+  await page.getByTestId('archive-detail-back').click();
+  await page.getByTestId('archive-back').click();
+
+  // No place of any route is on the map — not his bakery, not anyone's.
+  await page.getByTestId('explore-button').click();
+  await expect(page.getByTestId('location-GREENWOOD_FOREST')).toBeVisible();
+  for (const site of ALL_SITES) await expect(page.getByTestId(`location-${site}`)).toHaveCount(0);
+
+  // WORLD MEMORY holds ROUTE D, caused by the choice — and nothing of the retired chain or another route.
+  const events = await readMemoryEvents(page);
+  const types = events.map((e) => e.type);
+  for (const type of SPARE_CHAIN) expect(types.filter((t) => t === type)).toHaveLength(1);
+  for (const foreign of ALL_CHAIN_TYPES.filter((t) => !SPARE_CHAIN.includes(t))) expect(types).not.toContain(foreign);
+});
+
+test('HELP (the bakery route): three years on, WORLD MEMORY holds his night at the forest edge and the bakery — never the road or the waystation; nothing on the map yet', async ({
+  page,
+}) => {
+  await buildWorld(page, 'HELP_3Y');
+
+  await page.getByTestId('explore-button').click();
+  await expect(page.getByTestId('location-GREENWOOD_FOREST')).toBeVisible();
+  for (const site of ALL_SITES) await expect(page.getByTestId(`location-${site}`)).toHaveCount(0);
+
+  const types = (await readMemoryEvents(page)).map((e) => e.type);
+  for (const type of HELP_CHAIN) expect(types.filter((t) => t === type)).toHaveLength(1);
+  for (const foreign of ALL_CHAIN_TYPES.filter((t) => !HELP_CHAIN.includes(t))) expect(types).not.toContain(foreign);
+});
 
 test('a picture that will not load never stops the world from recording', async ({ page }) => {
   // Art is presentation. Block every event CG and play the KILL route:

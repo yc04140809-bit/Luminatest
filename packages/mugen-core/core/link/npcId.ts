@@ -100,8 +100,11 @@ export function registryProblems(entries: readonly NpcRegistryEntry[]): string[]
 export function unresolvedIds(
   refs: readonly { id: string; where: string }[],
   entries: readonly NpcRegistryEntry[],
+  /** Ids that are allowed without being anybody: anonymous groups (content/people/anonymousGroups.ts). */
+  allowed: readonly string[] = [],
 ): string[] {
   return refs
+    .filter((ref) => !allowed.includes(ref.id))
     .filter((ref) => resolveNpcId(ref.id, entries) === null)
     .map((ref) => `${ref.id} (in ${ref.where}) is not in the registry`);
 }

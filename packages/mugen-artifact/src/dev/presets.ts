@@ -10,10 +10,9 @@ export type PresetId =
   | 'SPARE'
   | 'SPARE_2D'
   | 'SPARE_3D'
-  | 'ARRIVED'
-  | 'PRE_BAKER'
+  | 'SPARE_5D'
+  | 'SPARE_6D'
   | 'SPARE_3Y'
-  | 'REUNITED'
   | 'KILL'
   | 'KILL_3Y'
   | 'HELP'
@@ -89,47 +88,40 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
       await world.advanceDays(3);
     },
   },
+  // 見逃す is ROUTE D since 2026-10-20 (作者): he leaves the bandits and does
+  // not stay near the village; outside it he helps a trading house's people
+  // (day 6), who learn of his sister. The Ver0.1 presets that walked the
+  // retired chain (ARRIVED アルデン到着後, PRE_BAKER パン屋化直前, REUNITED
+  // 再会後) are gone: no world takes that chain now, and ROUTE D has no reunion.
   {
-    id: 'ARRIVED',
-    label: 'アルデン到着後',
+    id: 'SPARE_5D',
+    label: 'SPARE + 5 DAYS（村の外・商会の件の前日）',
     run: async (world, options) => {
-      // spare day1 -> leaves day4 -> arrives day34.
+      // spare day1 -> leaves day4 -> the merchants on day 6; stop on day 5.
       await wipe(world, options);
       await world.recordGaldLifeChoice('SPARE');
-      await world.advanceDays(33);
+      await world.advanceDays(4);
     },
   },
   {
-    id: 'PRE_BAKER',
-    label: 'パン屋化直前',
+    id: 'SPARE_6D',
+    label: 'SPARE + 6 DAYS（村の外で商会を助けた後）',
     run: async (world, options) => {
-      // Baker becomes due on day 94; stop on day 93.
       await wipe(world, options);
       await world.recordGaldLifeChoice('SPARE');
-      await world.advanceDays(92);
+      await world.advanceDays(5);
     },
   },
   {
     id: 'SPARE_3Y',
-    label: 'SPARE+3年（パン屋/未再会）',
+    label: 'SPARE+3年（村の外/職業未確定）',
     run: async (world, options) => {
       // Canonical causal chain: spare -> 3 days -> leaves bandits ->
-      // time shift (catch-up fires arrives + baker) -> age update.
+      // time shift (catch-up fires the merchants, and what they learn).
       await wipe(world, options);
       await world.recordGaldLifeChoice('SPARE');
       await world.advanceDays(3);
       await world.timeShift(3);
-    },
-  },
-  {
-    id: 'REUNITED',
-    label: '再会後',
-    run: async (world, options) => {
-      await wipe(world, options);
-      await world.recordGaldLifeChoice('SPARE');
-      await world.advanceDays(3);
-      await world.timeShift(3);
-      await world.recordGaldReunion();
     },
   },
   {
@@ -159,7 +151,7 @@ export const SCENARIO_PRESETS: ScenarioPreset[] = [
   },
   {
     id: 'HELP_3Y',
-    label: 'HELP+3年（救護人/未再会）',
+    label: 'HELP+3年（パン屋手伝い/未再会）',
     run: async (world, options) => {
       await wipe(world, options);
       await world.recordGaldLifeChoice('HELP');

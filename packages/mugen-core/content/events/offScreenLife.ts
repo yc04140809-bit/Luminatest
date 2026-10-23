@@ -69,6 +69,7 @@ import type { MemoryEvent, MemoryEventType, OffScreenLifeEventType } from '../..
 import type { KnowableFact } from '../../core/world/playerKnowledge';
 import type { EventCgKey } from '@mugen/assets/keys';
 import { LIFE_EVENT_DEFS } from './lifeEvents';
+import { GALD_SPARE_ROUTE_DEFS } from './spareRouteLife';
 
 /**
  * The night after he was bandaged. He has not gone far — a man with his
@@ -279,8 +280,12 @@ export const GALD_BAKERY_ROUTE_DEFS: readonly LifeEventDef[] = [
   LINA_WRITES_TO_ELNA_DEF,
 ];
 
-/** Every off-screen life in the world (one chain, for now). */
-export const OFF_SCREEN_LIFE_DEFS: readonly LifeEventDef[] = [...GALD_BAKERY_ROUTE_DEFS];
+/**
+ * Every off-screen life in the world: the bakery route (HELP) and the let-go
+ * world's (SPARE, content/events/spareRouteLife.ts). Rooted in answers that
+ * cannot both exist, so the two never meet in one world.
+ */
+export const OFF_SCREEN_LIFE_DEFS: readonly LifeEventDef[] = [...GALD_BAKERY_ROUTE_DEFS, ...GALD_SPARE_ROUTE_DEFS];
 
 /**
  * WHAT THE LIFE TICK RESOLVES: every life in the world, each night — the
@@ -423,6 +428,28 @@ export const OFF_SCREEN_EVENT_INFO: Readonly<Record<OffScreenLifeEventType, OffS
     newSeeds: ['ELNA_MEETS_LINA'],
     chainCode: 'LINA_WROTE_TO_ELNA',
     links: [{ kind: 'HELPED', from: ['LINA'], to: 'ELNA' }],
+  },
+  // SPARE — the let-go world (ROUTE D; the spec's names where it gives them).
+  GALD_SAVES_MERCHANTS: {
+    type: 'GALD_SAVES_MERCHANTS',
+    level: 'BRANCH',
+    playerObserved: false,
+    decidedBy: 'GALD',
+    newSeeds: ['MERCHANTS_OWE_GARDO'],
+    chainCode: 'GARDO_SAVED_MERCHANTS',
+    links: [
+      { kind: 'HELPED', from: ['GALD'], to: 'MERCHANT_CARAVAN' },
+      { kind: 'VIEW_CHANGED', from: ['MERCHANT_CARAVAN'], to: 'GALD' },
+    ],
+  },
+  MERCHANTS_LEARN_OF_ELNA: {
+    type: 'MERCHANTS_LEARN_OF_ELNA',
+    level: 'RELATIONSHIP',
+    playerObserved: false,
+    decidedBy: 'MERCHANT_CARAVAN',
+    newSeeds: ['KNOWS_OF_ELNA'],
+    chainCode: 'MERCHANTS_LEARNED_OF_ELNA',
+    links: [{ kind: 'LEARNED_CIRCUMSTANCES', from: ['MERCHANT_CARAVAN'], to: 'ELNA' }],
   },
 };
 

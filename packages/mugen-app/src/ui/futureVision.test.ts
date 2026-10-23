@@ -4,7 +4,7 @@ import { World } from '@mugen/core/world/world';
 import { IdbMemoryStore } from '@mugen/core/memory/idbStore';
 import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
 import type { LifeChoiceId } from '@mugen/core/flow/types';
-import { visionCgOf } from './futureVision';
+import { visionCgOf, visionListOf } from './futureVision';
 
 /**
  * THE PICTURE IN THE LOOK AHEAD IS THE PLAYER'S OWN FUTURE.
@@ -17,8 +17,10 @@ import { visionCgOf } from './futureVision';
 let n = 0;
 const openWorld = () => World.open(new IdbMemoryStore(`vision-cg-${++n}`));
 
-const EXPECTED: Record<LifeChoiceId, string> = {
-  SPARE: 'GALD_BAKER',
+const EXPECTED: Record<LifeChoiceId, string | undefined> = {
+  // ROUTE D (作者 2026-10-20): outside the village, and there is no picture of
+  // that yet — none is borrowed in its place.
+  SPARE: undefined,
   // The bakery route (TIGS2027 STEP ①): the road no longer comes in the look ahead.
   HELP: 'GALD_BAKER',
   CAPTURE: 'GALD_WORKER',
@@ -26,8 +28,8 @@ const EXPECTED: Record<LifeChoiceId, string> = {
 };
 
 describe('the look ahead shows one picture — the chosen route’s', () => {
-  for (const [choice, key] of Object.entries(EXPECTED) as [LifeChoiceId, string][]) {
-    it(`${choice} → ${key}, and only that`, async () => {
+  for (const [choice, key] of Object.entries(EXPECTED) as [LifeChoiceId, string | undefined][]) {
+    it(`${choice} → ${key ?? 'no picture'}, and only that`, async () => {
       const world = await openWorld();
       await world.recordGaldLifeChoice(choice);
       const before = world.getEvents().length;
@@ -53,8 +55,17 @@ describe('the look ahead shows one picture — the chosen route’s', () => {
     const help = await openWorld();
     await help.recordGaldLifeChoice('HELP');
     expect(visionCgOf(help.previewLifeEvents(GALD_FUTURE_VISION_YEARS))).toMatchObject({ key: 'GALD_BAKER', log: false });
+    const capture = await openWorld();
+    await capture.recordGaldLifeChoice('CAPTURE');
+    expect(visionCgOf(capture.previewLifeEvents(GALD_FUTURE_VISION_YEARS))).toMatchObject({ key: 'GALD_WORKER', log: true });
+  });
+
+  it('見逃す: no picture, and the list says only that he left — the merchants are not narrated', async () => {
     const spare = await openWorld();
     await spare.recordGaldLifeChoice('SPARE');
-    expect(visionCgOf(spare.previewLifeEvents(GALD_FUTURE_VISION_YEARS))).toMatchObject({ key: 'GALD_BAKER', log: true });
+    const future = spare.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
+    expect(future.map((e) => e.type)).toContain('GALD_SAVES_MERCHANTS');
+    expect(visionCgOf(future)).toBeNull();
+    expect(visionListOf(future).map((e) => e.type)).toEqual(['GALD_LEAVES_BANDITS']);
   });
 });

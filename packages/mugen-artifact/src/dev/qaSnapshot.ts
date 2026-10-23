@@ -12,15 +12,20 @@ import { ALDEN_EXPERIENCE_EVENTS } from '@mugen/content/experience/aldenExperien
 import { ALDEN_NARRATIVE_SEEDS } from '@mugen/content/narrative/aldenSeeds';
 import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
 import { LIFE_EVENT_DEFS } from '@mugen/content/events/lifeEvents';
+import { GALD_SPARE_ROUTE_DEFS } from '@mugen/content/events/spareRouteLife';
 import { VISUAL_CHANGES } from '@mugen/content/qa/visualChanges';
 import type { QaBuildInfo, QaInput, QaViewport } from '@mugen/core/qa/types';
 
 declare const __BUILD_COMMIT__: string;
 declare const __BUILD_TIME__: string;
 
-/** The four routes, by the world fact each one produces. */
+/**
+ * The four routes, by the world fact each one produces. 見逃す leaves nowhere
+ * to find him (ROUTE D: 「ガルドは村には残らない」) — its check passes when no
+ * future site is on its chain.
+ */
 const ROUTE_MEMORIES = [
-  { route: 'SPARE', choice: 'PLAYER_SPARED_GALD', memory: 'GALD_LEAVES_BANDITS' },
+  { route: 'SPARE', choice: 'PLAYER_SPARED_GALD', memory: 'GALD_LEAVES_BANDITS', findable: false },
   { route: 'HELP', choice: 'PLAYER_HELPED_GALD', memory: 'GALD_WALKS_THE_ROAD' },
   { route: 'CAPTURE', choice: 'PLAYER_CAPTURED_GALD', memory: 'GALD_STANDS_TRIAL' },
   { route: 'KILL', choice: 'PLAYER_KILLED_GALD', memory: 'GALD_IS_BURIED' },
@@ -78,7 +83,7 @@ export function collectQaInput(world: World): QaInput {
       seedDefs: ALDEN_NARRATIVE_SEEDS,
       seeds: world.getNarrativeSeeds(),
       routeMemories: ROUTE_MEMORIES.map((r) => ({ ...r })),
-      lifeEventChain: LIFE_EVENT_DEFS.map((d) => ({
+      lifeEventChain: [...LIFE_EVENT_DEFS, ...GALD_SPARE_ROUTE_DEFS].map((d) => ({
         type: d.type,
         requiredMemory: d.requiredMemory,
       })),

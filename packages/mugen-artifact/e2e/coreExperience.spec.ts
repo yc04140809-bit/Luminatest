@@ -34,6 +34,10 @@ async function advanceDays(page: Page, n: number) {
  * THE game: one uninterrupted run of the MUGEN ZERO core loop on a phone
  * viewport, ending in a full browser restart that must restore the life
  * the player collected.
+ *
+ * Played through 捕らえる (CAPTURE): since 2026-10-20 見逃す leaves nowhere to
+ * find him (ROUTE D: 「ガルドは村には残らない」), so the loop that ends in a
+ * reunion runs through a route that still has one — the workyard.
  */
 test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — across a restart', async () => {
   const userDataDir = mkdtempSync(join(tmpdir(), 'mugen-zero-core-'));
@@ -76,21 +80,18 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
       page.getByTestId('life-choice-screen').isVisible().catch(() => false),
     );
 
-    // --- LIFE CHOICE: SPARE, and WORLD MEMORY records it ---
+    // --- LIFE CHOICE: CAPTURE, and WORLD MEMORY records it ---
     await expect(page.getByTestId('life-choice-screen')).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText('彼の人生を、どうしますか？')).toBeVisible();
-    await page.getByTestId('choice-SPARE').click();
+    await page.getByTestId('choice-CAPTURE').click();
     const result = page.getByTestId('choice-result-dialogue');
     await expect(result).toBeVisible();
-    await expect(page.getByText('……俺は、お前を襲ったんだぞ。')).toBeVisible();
-    await result.click();
-    await result.click();
-    await result.click();
-    await result.click();
-    await expect(page.getByTestId('choice-recorded-screen')).toBeVisible();
-    await expect(page.getByTestId('recorded-event-type')).toHaveText('PLAYER_SPARED_GALD');
+    const recorded = page.getByTestId('choice-recorded-screen');
+    for (let i = 0; i < 8 && !(await recorded.isVisible().catch(() => false)); i++) await result.click();
+    await expect(recorded).toBeVisible();
+    await expect(page.getByTestId('recorded-event-type')).toHaveText('PLAYER_CAPTURED_GALD');
     await page.getByTestId('return-home-button').click();
 
     // --- Time passes: three days, then three years ---
@@ -105,30 +106,31 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.getByTestId('archive-button').click();
     await page.getByTestId('archive-entry-GALD').click();
     const archiveBefore = await page.getByTestId('archive-detail').innerText();
-    expect(archiveBefore).not.toContain('パン');
+    expect(archiveBefore).not.toContain('作業場');
     expect(archiveBefore).toContain('まだ知らない人生がある。');
     await page.getByTestId('archive-detail-back').click();
     await page.getByTestId('archive-back').click();
 
-    // --- Discovery: an unfamiliar shop, entered by choice ---
+    // --- Discovery: an unfamiliar place, entered by choice (and no bakery of his: that chain is retired) ---
     await page.getByTestId('explore-button').click();
-    const bakery = page.getByTestId('location-ALDEN_BAKERY');
-    await expect(bakery).toContainText('？？？');
-    await bakery.click();
+    await expect(page.getByTestId('location-ALDEN_BAKERY')).toHaveCount(0);
+    const workyard = page.getByTestId('location-ALDEN_WORKYARD');
+    await expect(workyard).toContainText('？？？');
+    await workyard.click();
 
-    // --- 「……見るな。」 ---
-    const scene = page.getByTestId('bakery-first-visit');
+    // --- 「捕まったから、逃げられなかった。」 ---
+    const scene = page.getByTestId('workyard-first-visit');
+    const done = page.getByTestId('workyard-reunion-done');
     await expect(scene).toBeVisible();
-    for (let i = 0; i < 5; i++) await scene.click();
-    await expect(page.getByText('……見るな。')).toBeVisible();
-    await scene.click();
-    await scene.click();
-    await scene.click();
-    await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText('「……続き、あったでしょ？」')).toBeVisible();
-    await page.getByTestId('bakery-leave').click();
+    let heard = false;
+    for (let i = 0; i < 30 && !(await done.isVisible().catch(() => false)); i++) {
+      if (await page.getByText('捕まったから、逃げられなかった。').isVisible().catch(() => false)) heard = true;
+      if (await scene.isVisible().catch(() => false)) await scene.click();
+    }
+    expect(heard).toBe(true);
+    await expect(done).toBeVisible({ timeout: 10_000 });
+    await expect(done).toContainText('自由にすることだけが、救うことじゃない');
+    await page.getByTestId('workyard-leave').click();
 
     // --- The playtest arc closes in world terms ---
     const ending = page.getByTestId('ending-kaos');
@@ -138,13 +140,15 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await expect(page.getByTestId('ending-screen')).toBeVisible();
     await page.getByTestId('ending-keep-playing').click();
 
-    // --- Revisit is an ordinary bakery ---
+    // --- Revisit is an ordinary place ---
     await page.getByTestId('explore-button').click();
-    await page.getByTestId('location-ALDEN_BAKERY').click();
-    await expect(page.getByText('今日は何だ。')).toBeVisible();
-    await expect(page.getByText('……見るな。')).toHaveCount(0);
-    await page.getByTestId('bakery-revisit').click();
-    await page.getByTestId('bakery-leave').click();
+    await page.getByTestId('location-ALDEN_WORKYARD').click();
+    const revisit = page.getByTestId('workyard-revisit');
+    await expect(revisit).toBeVisible();
+    for (let i = 0; i < 12 && (await revisit.isVisible().catch(() => false)); i++) await revisit.click();
+    await expect(page.getByTestId('workyard-revisit-done')).toContainText('石を積む音が、まだ続いている。');
+    await expect(page.getByText('捕まったから、逃げられなかった。')).toHaveCount(0);
+    await page.getByTestId('workyard-leave').click();
     await page.locator('.screen-footer .btn').click(); // back to HOME
 
     // --- LIFE ARCHIVE: the whole life, five chapters ---
@@ -152,7 +156,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.getByTestId('archive-entry-GALD').click();
     await expect(page.getByTestId('archive-detail')).toContainText('ガルド の人生');
     await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
-    await expect(page.getByTestId('archive-chapter-GALD_CH_REUNION')).toContainText('……見るな。');
+    await expect(page.getByTestId('archive-chapter-GALD_CH_TRIAL')).toBeVisible();
     await context.close(); // FULL browser shutdown
 
     // --- Restart: the collected life is still there ---
@@ -165,9 +169,7 @@ test('CORE EXPERIENCE: meet, choose, wait, discover, reunite, remember — acros
     await page.getByTestId('archive-button').click();
     await page.getByTestId('archive-entry-GALD').click();
     await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
-    await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText(
-      '1年目 94日目',
-    );
+    await expect(page.getByTestId('archive-chapter-GALD_CH_VILLAGE_WORK')).toBeVisible();
     await expect(page.getByTestId('archive-unknown')).toHaveCount(0);
 
     await context.close();

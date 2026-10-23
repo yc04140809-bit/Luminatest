@@ -7,9 +7,9 @@ import {
   readMemoryEvents,
 } from './helpers';
 
-// PHASE E acceptance: the spared bandit's life continues off-screen, the
-// player discovers the new bakery through ordinary exploration — never a
-// notification — and the reunion is recorded only when it actually happens.
+// PHASE E acceptance: the spared bandit's life continues off-screen and is
+// never announced (since 2026-10-20 it leaves nowhere in the village to find
+// him — ROUTE D); a reunion is recorded only when it actually happens.
 
 async function spareGaldAndReturnHome(page: Page) {
   await playToLifeChoice(page);
@@ -29,13 +29,16 @@ async function timeShift3y(page: Page) {
   await devTimeShift(page);
 }
 
-test('the first reunion: spare, let life move on, discover the bakery, 「……見るな。」', async ({
+// Since 2026-10-20 見逃す is ROUTE D (作者): 「見逃した世界では、ガルドは村には残らない」.
+// His life still goes on off-screen and is still never announced — but there
+// is no bakery to discover and no reunion to record. (The reunion itself is
+// played on the routes that leave a place: e2e/fourFutures.spec.ts.)
+test('SPARE (ROUTE D): his life moves on off-screen, never announced — and nowhere in the village to find him', async ({
   page,
 }) => {
   await spareGaldAndReturnHome(page);
   await advanceDays(page, 3); // GALD_LEAVES_BANDITS fires off-screen
 
-  // No bakery yet — and no spoilers anywhere.
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('location-ALDEN_BAKERY')).toHaveCount(0);
   await page.locator('.screen-footer .btn').click(); // もどる
@@ -43,83 +46,32 @@ test('the first reunion: spare, let life move on, discover the bakery, 「……
   await timeShift3y(page);
   await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
 
-  // Still no announcement: the player-facing memory shows nothing about
-  // the bakery or Gald's new life.
+  // No announcement: the player-facing memory shows nothing of his life.
   await page.getByTestId('world-memory-button').click();
-  await expect(page.getByTestId('memory-event-GALD_BECOMES_BAKER')).toHaveCount(0);
-  await expect(page.getByTestId('memory-event-GALD_LEAVES_BANDITS')).toHaveCount(0);
+  for (const type of ['GALD_LEAVES_BANDITS', 'GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA', 'GALD_BECOMES_BAKER']) {
+    await expect(page.getByTestId(`memory-event-${type}`)).toHaveCount(0);
+  }
   await page.getByTestId('world-memory-back').click();
 
-  // Ordinary exploration: something new stands where the empty shop was.
+  // Ordinary exploration finds nothing of his: no bakery, no place of any route.
   await page.getByTestId('explore-button').click();
-  const bakeryCard = page.getByTestId('location-ALDEN_BAKERY');
-  await expect(bakeryCard).toBeVisible();
-  await expect(bakeryCard).toContainText('？？？');
-  await expect(bakeryCard).not.toContainText('パン屋');
-  await expect(bakeryCard).not.toContainText('ガルド');
+  await expect(page.getByTestId('location-GREENWOOD_FOREST')).toBeVisible();
+  for (const site of ['ALDEN_BAKERY', 'GREENWOOD_WAYSTATION', 'ALDEN_WORKYARD', 'GREENWOOD_GRAVE']) {
+    await expect(page.getByTestId(`location-${site}`)).toHaveCount(0);
+  }
 
-  // Enter. The discovery is the player's.
-  await bakeryCard.click();
-  const scene = page.getByTestId('bakery-first-visit');
-  await expect(scene).toBeVisible();
-  await expect(page.getByText('焼きたてのパンの匂いがする。')).toBeVisible();
-  await scene.click(); // 男がパンを運んでくる
-  await scene.click(); // いらっしゃ――
-  await scene.click(); // 動きが止まる
-  await scene.click(); // …………
-  await scene.click();
-  await expect(page.getByText('……見るな。')).toBeVisible();
-  await scene.click(); // ガルド？
-  await scene.click(); // その名前を、店で呼ぶな。
-  await scene.click();
-
-  // Kaos gets one quiet line — after the discovery, never before.
-  await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText('「……続き、あったでしょ？」')).toBeVisible();
-
-  // The reunion is now world truth, caused by the bakery.
-  let events = await readMemoryEvents(page);
-  const reunions = events.filter((e) => e.type === 'PLAYER_REUNITED_WITH_GALD');
-  expect(reunions).toHaveLength(1);
-  expect((reunions[0] as { causedBy?: string[] }).causedBy).toEqual(['GALD_BECOMES_BAKER']);
-  expect(reunions[0].location).toBe('ALDEN_BAKERY');
-  expect(reunions[0].actors).toEqual(['PLAYER', 'GALD']);
-
-  await page.getByTestId('bakery-leave').click();
-
-  // The first reunion closes with Kaos, then back into the world.
-  const ending = page.getByTestId('ending-kaos');
-  await expect(ending).toBeVisible();
-  for (let i = 0; i < 4; i++) await ending.click();
-  await expect(page.getByTestId('ending-screen')).toBeVisible();
-  await page.getByTestId('ending-keep-playing').click();
-
-  // Discovered: the card now reads パン屋.
-  await page.getByTestId('explore-button').click();
-  await expect(page.getByTestId('location-ALDEN_BAKERY')).toContainText('パン屋');
-
-  // Revisit: an ordinary shop, no replayed reunion.
-  await page.getByTestId('location-ALDEN_BAKERY').click();
-  const revisit = page.getByTestId('bakery-revisit');
-  await expect(revisit).toBeVisible();
-  await expect(page.getByText('今日は何だ。')).toBeVisible();
-  await expect(page.getByText('……見るな。')).toHaveCount(0);
-  await revisit.click();
-  await page.getByTestId('bakery-leave').click();
-
-  events = await readMemoryEvents(page);
-  expect(events.filter((e) => e.type === 'PLAYER_REUNITED_WITH_GALD')).toHaveLength(1);
-
-  // After the reunion the player's memory view finally shows his story.
-  await page.locator('.screen-footer .btn').click(); // もどる to HOME
-  await page.getByTestId('world-memory-button').click();
-  await expect(page.getByTestId('memory-event-GALD_BECOMES_BAKER')).toBeVisible();
-  await expect(page.getByTestId('memory-event-PLAYER_REUNITED_WITH_GALD')).toBeVisible();
-  // The player sees the cause in words; the event id lives in the DB
-  // (asserted above) and in the dev admin.
-  await expect(page.getByTestId('caused-by-PLAYER_REUNITED_WITH_GALD')).toContainText(
-    '男は、パン屋として生き始めた',
-  );
+  // World truth: ROUTE D happened, caused by the choice; the retired chain and a reunion never did.
+  const events = await readMemoryEvents(page);
+  const types = events.map((e) => e.type);
+  for (const type of ['GALD_LEAVES_BANDITS', 'GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA']) {
+    expect(types.filter((t) => t === type)).toHaveLength(1);
+  }
+  expect((events.find((e) => e.type === 'GALD_LEAVES_BANDITS') as { causedBy?: string[] }).causedBy).toEqual([
+    'PLAYER_SPARED_GALD',
+  ]);
+  for (const type of ['GALD_ARRIVES_IN_ALDEN', 'GALD_BECOMES_BAKER', 'PLAYER_REUNITED_WITH_GALD']) {
+    expect(types).not.toContain(type);
+  }
 });
 
 test('KILL world: three years later there is no bakery and no living Gald', async ({ page }) => {

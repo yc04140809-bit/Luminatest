@@ -3,6 +3,13 @@ import { describe, it, expect } from 'vitest';
 import { World } from '../world/world';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { buildGaldLifeArchive } from './lifeArchive';
+import { openSaveThatLivedTheRetiredSpareChain } from '../world/retiredSpareChain.testkit';
+
+// The bakery of his own (the Ver0.1 SPARE chain) was retired by ROUTE D
+// (作者 2026-10-20). The record must still read a save that lived it — so
+// the reunion cases below are fed exactly such a save.
+const livedTheRetiredChain = () =>
+  openSaveThatLivedTheRetiredSpareChain(`archive-test-${++dbCounter}`, { shifted: true });
 
 let dbCounter = 0;
 async function openWorld(dbName = `archive-test-${++dbCounter}`): Promise<World> {
@@ -50,9 +57,7 @@ describe('LIFE ARCHIVE projection', () => {
   });
 
   it('a 3-year TIME SHIFT (baker in truth, undiscovered) still reveals nothing', async () => {
-    const world = await openWorld();
-    await world.recordGaldLifeChoice('SPARE');
-    await world.timeShift(3);
+    const world = await livedTheRetiredChain();
     expect(world.isBakeryOpen()).toBe(true); // truth: he bakes
 
     const [entry] = world.getLifeArchive();
@@ -69,10 +74,7 @@ describe('LIFE ARCHIVE projection', () => {
   });
 
   it('the reunion reveals the whole life as one connected record', async () => {
-    const world = await openWorld();
-    await world.recordGaldLifeChoice('SPARE');
-    await world.advanceDays(3);
-    await world.timeShift(3);
+    const world = await livedTheRetiredChain();
     await world.recordGaldReunion();
 
     const [entry] = world.getLifeArchive();
@@ -82,7 +84,7 @@ describe('LIFE ARCHIVE projection', () => {
       ['GALD_CH_LEFT_FOREST', 1, 4],
       ['GALD_CH_ARRIVED', 1, 34],
       ['GALD_CH_NEW_WORK', 1, 94],
-      ['GALD_CH_REUNION', 4, 4],
+      ['GALD_CH_REUNION', 4, 94],
     ]);
     expect(entry.chapters.map((c) => c.sourceEventTypes[0])).toEqual([
       'PLAYER_SPARED_GALD',
@@ -95,9 +97,7 @@ describe('LIFE ARCHIVE projection', () => {
   });
 
   it('the projection is stable: repeated reads are identical, no duplication', async () => {
-    const world = await openWorld();
-    await world.recordGaldLifeChoice('SPARE');
-    await world.timeShift(3);
+    const world = await livedTheRetiredChain();
     await world.recordGaldReunion();
     const first = world.getLifeArchive();
     const second = world.getLifeArchive();
@@ -107,10 +107,7 @@ describe('LIFE ARCHIVE projection', () => {
 
   it('a reopened world (restart) restores the identical record', async () => {
     const dbName = `archive-test-${++dbCounter}`;
-    const world = await World.open(new IdbMemoryStore(dbName));
-    await world.recordGaldLifeChoice('SPARE');
-    await world.advanceDays(3);
-    await world.timeShift(3);
+    const world = await openSaveThatLivedTheRetiredSpareChain(dbName, { shifted: true });
     await world.recordGaldReunion();
     const before = world.getLifeArchive();
 
@@ -119,18 +116,14 @@ describe('LIFE ARCHIVE projection', () => {
   });
 
   it('RESET WORLD empties the archive', async () => {
-    const world = await openWorld();
-    await world.recordGaldLifeChoice('SPARE');
-    await world.timeShift(3);
+    const world = await livedTheRetiredChain();
     await world.recordGaldReunion();
     await world.resetWorld();
     expect(world.getLifeArchive()).toEqual([]);
   });
 
   it('RESET SCENARIO removes the Gald record while keeping world history', async () => {
-    const world = await openWorld();
-    await world.recordGaldLifeChoice('SPARE');
-    await world.timeShift(3);
+    const world = await livedTheRetiredChain();
     await world.recordGaldReunion();
     await world.devResetGaldScenario();
     expect(world.getLifeArchive()).toEqual([]);
@@ -174,9 +167,7 @@ describe('LIFE ARCHIVE projection', () => {
   });
 
   it('fed the FULL truth (dev admin), the same projection yields the complete canon', async () => {
-    const world = await openWorld();
-    await world.recordGaldLifeChoice('SPARE');
-    await world.timeShift(3);
+    const world = await livedTheRetiredChain();
     // Player view: 1 chapter. Truth view: 4 chapters (no reunion yet).
     expect(world.getLifeArchive()[0].chapters).toHaveLength(1);
     const truth = buildGaldLifeArchive(world.getEvents())!;

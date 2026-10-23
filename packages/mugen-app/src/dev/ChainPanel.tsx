@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { World } from '@mugen/core/world/world';
 import { IdbMemoryStore } from '@mugen/core/memory/idbStore';
+import { MemoryOnlyStore } from '@mugen/core/memory/memoryOnlyStore';
 import { bloomCheckAt, readWorldLife, WORLD_LIFE_RULES } from '@mugen/core/life/worldReading';
-import { traceNpc } from '@mugen/core/life/engine';
+import { seedsOf, traceNpc } from '@mugen/core/life/engine';
+import { addYears } from '@mugen/core/time/calendar';
+import type { LifeChoiceId } from '@mugen/core/flow/types';
+import type { LifeEventDef } from '@mugen/core/events/types';
+import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
+import { GALD_SPARE_ROUTE_DEFS } from '@mugen/content/events/spareRouteLife';
 import type { BloomCheck } from '@mugen/core/life/bloom';
 import type { MemoryEvent, OffScreenLifeEventType } from '@mugen/core/memory/types';
 import {
@@ -16,11 +22,14 @@ import { APP_DB_NAME } from '../platform/save';
 import { playTimes, sinceStart } from '../platform/playClock';
 
 /**
- * GALD'S LIFE CHAIN — THE BAKERY ROUTE'S ABOVE ALL — FOR THE AUTHOR, DEBUG BUILDS ONLY
- * (`?tool=chain`, the title's DEBUG door; TIGS2027 STEP ①).
+ * GALD'S LIFE CHAIN — FOR THE AUTHOR, DEBUG BUILDS ONLY (`?tool=chain`, the
+ * title's DEBUG door; TIGS2027 STEP ① and the second proving route).
  *
- * Whichever of the four answers was given, its chain is listed; the bakery
- * route (HELP) also says what its next step waits for.
+ * Whichever of the four answers was given, its chain is listed; the two
+ * routes lived off screen — the bakery (HELP) and the let-go world (SPARE,
+ * ROUTE D) — also say what their next step waits for. And, whatever this
+ * phone's save, the two side by side: 治療する and 見逃す, each worked out in
+ * a fresh world of its own (nothing written), for the TIGS comparison.
  *
  * Reads this phone's save and writes nothing: what has happened (WORLD
  * TRUTH, with the day and what it followed from), what the next step is
@@ -30,7 +39,13 @@ import { playTimes, sinceStart } from '../platform/playClock';
  * nothing of it is ever drawn in play.
  */
 
-const PEOPLE = ['GALD', 'LINA', 'RIZEL', 'ELNA', 'BAKERY_OWNER', 'ALDEN_GUARD', 'ALDEN_VILLAGE'];
+const PEOPLE = ['GALD', 'LINA', 'RIZEL', 'ELNA', 'BAKERY_OWNER', 'ALDEN_GUARD', 'ALDEN_VILLAGE', 'MERCHANT_CARAVAN'];
+
+/** The off-screen route each answer lives, where it has one. */
+const ROUTE_DEFS: Partial<Record<LifeChoiceId, readonly LifeEventDef[]>> = {
+  HELP: GALD_BAKERY_ROUTE_DEFS,
+  SPARE: GALD_SPARE_ROUTE_DEFS,
+};
 
 /** One life event as this panel lists it: the bakery route's under its DEV name, the rest under their own. */
 interface Step {
@@ -84,8 +99,10 @@ async function readSave(): Promise<Reading | null> {
   const events = world.getEvents();
   const clock = world.getClock();
   const happened = new Set(events.map((e) => e.type));
-  const onRoute = world.getGaldLifeChoice() === 'HELP';
-  const nextDef = onRoute ? GALD_BAKERY_ROUTE_DEFS.find((d) => !happened.has(d.type)) : undefined;
+  const choice = world.getGaldLifeChoice();
+  const routeDefs = choice ? ROUTE_DEFS[choice] : undefined;
+  const onRoute = routeDefs !== undefined;
+  const nextDef = routeDefs?.find((d) => !happened.has(d.type));
   const future = world.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
   const gald = world.previewCharacterStates(GALD_FUTURE_VISION_YEARS).GALD;
   const life = readWorldLife(events, clock);
@@ -105,6 +122,100 @@ async function readSave(): Promise<Reading | null> {
 }
 
 const at = (s: Step) => `Y${s.worldYear}D${s.worldDay}`;
+
+/** One answer, worked out in a world of its own: what TIGS compares. */
+interface RouteReading {
+  choice: LifeChoiceId;
+  memory: { type: string; label: string }[];
+  npcEvents: { code: string; label: string; at: string }[];
+  galdSeeds: string[];
+  future: string;
+  /** Each route's first condition, asked of this world — met or not, and why. */
+  checks: { bloom: string; met: boolean; missing: string[] }[];
+}
+
+const FIRST_CONDITIONS = ['GALD_WOULD_STAND_FOR_SOMEONE', 'GALD_CHOOSES_WITH_NOBODY_WATCHING'];
+
+async function readRoute(choice: LifeChoiceId): Promise<RouteReading> {
+  const world = await World.open(new MemoryOnlyStore());
+  await world.recordGaldLifeChoice(choice);
+  const ahead = world.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
+  const all = [...world.getEvents(), ...ahead];
+  const gald = world.previewCharacterStates(GALD_FUTURE_VISION_YEARS).GALD;
+  const end = addYears(world.getClock(), GALD_FUTURE_VISION_YEARS);
+  const life = readWorldLife(all, end);
+  // Asked on the day each route's first step falls due or later (Y1D6), of what had happened by then.
+  const day6 = { worldYear: 1, worldDay: 6 };
+  const upTo6 = all.filter((e) => e.worldYear === 1 && e.worldDay <= 6);
+  return {
+    choice,
+    memory: all.map((e) => ({ type: e.type, label: memoryEventLabel(e) })),
+    npcEvents: lifeSteps(ahead)
+      .filter((s) => s.type in OFF_SCREEN_EVENT_INFO)
+      .map((s) => ({ code: s.code, label: memoryEventLabel(ahead.find((e) => e.type === s.type)!), at: at(s) })),
+    galdSeeds: seedsOf(life, WORLD_LIFE_RULES, 'GALD').map(
+      (seed) => `${seed.type}（${WORLD_LIFE_RULES.kinds.find((k) => k.type === seed.type)?.label ?? ''}）`,
+    ),
+    future: gald ? `${gald.location} / ${gald.occupation}` : '—',
+    checks: FIRST_CONDITIONS.map((bloom) => {
+      const check = bloomCheckAt(bloom, upTo6, day6);
+      return { bloom, met: check?.met ?? false, missing: check?.reasons.filter((r) => !r.met).map((r) => r.requirement) ?? [] };
+    }),
+  };
+}
+
+const CHOICE_NAME: Partial<Record<LifeChoiceId, string>> = { HELP: '治療する', SPARE: '見逃す' };
+
+function Compare() {
+  const [rows, setRows] = useState<RouteReading[] | null>(null);
+  useEffect(() => {
+    Promise.all([readRoute('HELP'), readRoute('SPARE')])
+      .then(setRows)
+      .catch((e) => console.warn('The comparison could not be worked out', e));
+  }, []);
+  if (!rows) return <p style={DIM}>計算中…</p>;
+  return (
+    <div data-testid="chain-compare" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      {rows.map((r) => (
+        <div key={r.choice} data-testid={`chain-compare-${r.choice}`} style={CARD}>
+          <h3 style={{ ...H2, marginTop: 0 }}>{CHOICE_NAME[r.choice]}</h3>
+          <div>CHOICE: <b>{r.choice}</b></div>
+          <div style={LABEL}>WORLD MEMORY（3年ぶん・書き込まない）</div>
+          <ol style={{ margin: 0, paddingLeft: 20 }}>
+            {r.memory.map((m) => (
+              <li key={m.type} data-testid={`chain-compare-${r.choice}-memory-${m.type}`}>
+                {m.label} <span style={DIM}>{m.type}</span>
+              </li>
+            ))}
+          </ol>
+          <div style={LABEL}>NPC EVENTS</div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {r.npcEvents.map((n) => (
+              <li key={n.code} data-testid={`chain-compare-${r.choice}-npc-${n.code}`}>
+                <b>{n.code}</b> <span style={DIM}>{n.at}</span> {n.label}
+              </li>
+            ))}
+          </ul>
+          <div style={LABEL}>ガルドの中に残ったもの（種）</div>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
+            {r.galdSeeds.map((seed) => (
+              <li key={seed}>{seed}</li>
+            ))}
+          </ul>
+          <div style={LABEL}>最初の条件（同じ規則を、この世界に問う）</div>
+          {r.checks.map((c) => (
+            <div key={c.bloom} style={{ color: c.met ? '#9fe0a0' : '#ffb38a' }}>
+              {c.met ? '✓ 成立' : '· 不成立'} {c.bloom}
+              {c.missing.length > 0 && <span style={DIM}>（{c.missing.join('、')}）</span>}
+            </div>
+          ))}
+          <div style={LABEL}>3 YEARS LATER</div>
+          <b data-testid={`chain-compare-${r.choice}-future`}>{r.future}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function Chain({ steps, testId, empty }: { steps: Step[]; testId: string; empty: string }) {
   if (steps.length === 0) return <p style={DIM}>{empty}</p>;
@@ -136,7 +247,7 @@ export function ChainPanel() {
 
   return (
     <div data-testid="chain-panel" style={PAGE}>
-      <h1 style={{ fontSize: 16, margin: '0 0 8px' }}>DEBUG ガルドの人生の連鎖（パン屋ルート＝治療する）</h1>
+      <h1 style={{ fontSize: 16, margin: '0 0 8px' }}>DEBUG ガルドの人生の連鎖（治療する＝パン屋／見逃す＝村の外）</h1>
       <button style={BACK} onClick={() => window.location.assign(window.location.pathname)}>
         タイトルへ
       </button>
@@ -146,6 +257,9 @@ export function ChainPanel() {
         四択まで {sinceStart(times, 'CHOICE') ?? '—'} ／ TIME SHIFT まで {sinceStart(times, 'VISION') ?? '—'} ／
         現在へもどる {sinceStart(times, 'BACK') ?? '—'}
       </p>
+
+      <h2 style={H2}>治療する／見逃す の比較（TIGS用・それぞれ新しい世界で3年を計算・書き込まない）</h2>
+      <Compare />
 
       {reading === 'loading' && <p>読み込み中…</p>}
       {reading === null && <p>この端末にセーブがありません。</p>}
@@ -160,9 +274,9 @@ export function ChainPanel() {
 
           <h2 style={H2}>次の一歩が待っているもの</h2>
           {reading.next === 'NOT_THIS_ROUTE' ? (
-            <p style={DIM} data-testid="chain-next-none">（パン屋ルートは「治療する」を選んだ世界だけで進む）</p>
+            <p style={DIM} data-testid="chain-next-none">（主人公のいない場所で進む連鎖は「治療する」「見逃す」の世界だけ）</p>
           ) : reading.next === 'ALL_DONE' ? (
-            <p style={DIM} data-testid="chain-next-none">（パン屋ルートはもう全部起きた）</p>
+            <p style={DIM} data-testid="chain-next-none">（この世界の連鎖はもう全部起きた）</p>
           ) : (
             <div data-testid="chain-next">
               <b>{reading.next.type}</b>
@@ -203,6 +317,14 @@ const PAGE = {
 } as const;
 const H2 = { fontSize: 13, margin: '14px 0 4px', color: '#ffd76a' } as const;
 const DIM = { color: '#b9a98a' } as const;
+const LABEL = { marginTop: 8, color: '#ffd76a', fontSize: 11 } as const;
+const CARD = {
+  flex: '1 1 300px',
+  minWidth: 0,
+  padding: '8px 10px',
+  border: '1px solid rgba(224, 184, 74, 0.5)',
+  borderRadius: 6,
+} as const;
 const PRE = { whiteSpace: 'pre-wrap', margin: '4px 0', font: '11px/1.4 ui-monospace, monospace' } as const;
 const BACK = {
   minHeight: 32,

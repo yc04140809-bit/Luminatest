@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { World } from './world';
+import { openSaveThatLivedTheRetiredSpareChain } from './retiredSpareChain.testkit';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { GALD_FUTURE_VISION_ID, GALD_FUTURE_VISION_YEARS } from '../../content/events/galdLifeChoice';
 import type { LifeChoiceId } from '../flow/types';
@@ -102,7 +103,7 @@ describe('looking three years ahead', () => {
     const world = await openWorld(dbName);
     await world.recordGaldLifeChoice('SPARE');
     const shown = world.previewLifeEvents(3).map((e) => e.type);
-    expect(shown).toContain('GALD_BECOMES_BAKER');
+    expect(shown).toContain('MERCHANTS_LEARN_OF_ELNA');
 
     // Seen on a screen; not a thing that happened.
     for (const type of shown) {
@@ -168,12 +169,8 @@ describe('a save from the build that really did spend the years', () => {
    * migrated, and it must not be offered a look at three years ahead,
    * which for it would be both empty and untrue.
    */
-  const legacy = async (dbName: string) => {
-    const world = await openWorld(dbName);
-    await world.recordGaldLifeChoice('SPARE');
-    await world.timeShift(3); // what the old build did
-    return world;
-  };
+  // What the old build did: the old chain, then three real years on the clock.
+  const legacy = (dbName: string) => openSaveThatLivedTheRetiredSpareChain(dbName, { shifted: true });
 
   it('is left exactly as it was — nothing rewound, nothing rewritten', async () => {
     const dbName = freshDbName();
@@ -229,11 +226,11 @@ describe('looking again cannot leave a mark', () => {
     world.previewLifeEvents(GALD_FUTURE_VISION_YEARS);
     await world.markExperienceSeen(GALD_FUTURE_VISION_ID);
 
-    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
-    await world.advanceDays(93); // day 94
-    expect(world.hasEventOfType('GALD_BECOMES_BAKER'), 'it happens when it was always going to').toBe(
+    expect(world.hasEventOfType('GALD_SAVES_MERCHANTS')).toBe(false);
+    await world.advanceDays(5); // day 6
+    expect(world.hasEventOfType('GALD_SAVES_MERCHANTS'), 'it happens when it was always going to').toBe(
       true,
     );
-    expect(world.getClock().worldDay).toBe(94);
+    expect(world.getClock().worldDay).toBe(6);
   });
 });

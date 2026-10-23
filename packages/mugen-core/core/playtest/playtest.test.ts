@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { World } from '../world/world';
+import { openSaveThatLivedTheRetiredSpareChain } from '../world/retiredSpareChain.testkit';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { IdbFeedbackStore } from './idbFeedbackStore';
 import {
@@ -194,8 +195,8 @@ describe('survey availability and spoiler safety', () => {
   });
 
   it('hides the bakery even when the world truth already has one', async () => {
-    const world = await setupWorld(nextDbName(), 'SPARE');
-    await world.timeShift(3);
+    // A save that lived the retired SPARE chain (ROUTE D, 2026-10-20): the bakery is in its truth.
+    const world = await openSaveThatLivedTheRetiredSpareChain(nextDbName(), { shifted: true });
     expect(world.isBakeryOpen()).toBe(true); // truth says yes…
     expect(availableMemorableMoments(world)).not.toContain('BAKERY'); // …player doesn't know
     await world.recordGaldReunion();

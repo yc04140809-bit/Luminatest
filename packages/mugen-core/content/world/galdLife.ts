@@ -133,10 +133,10 @@ export const GALD_ACTIONS: readonly WorldActionDef[] = [
     reaches: 'WITNESSES',
   },
   {
-    // Canon puts him in Alden on the SPARE route and on no other. Read
-    // here so that 《村へ戻る》 below is a real future somebody can
-    // reach rather than a decoration — it is simply not reachable
-    // along the route this round demonstrates.
+    // The retired Ver0.1 SPARE chain put him in Alden (ROUTE D, 2026-10-20,
+    // does not: the let-go man stays outside the village). Still read, so a
+    // save that lived it reads the same; no new world reaches it, so
+    // 《村へ戻る》 below is a possibility nothing written now leads to.
     id: 'GALD_ARRIVES_IN_ALDEN',
     plants: 'GALD_ROOTS_IN_ALDEN',
     // Large, because of what it is to a man with nowhere: somewhere

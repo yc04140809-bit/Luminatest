@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import { World } from './world';
+import { openSaveThatLivedTheRetiredSpareChain } from './retiredSpareChain.testkit';
 import { IdbMemoryStore } from '../memory/idbStore';
 import { ALDEN_EXPERIENCE_EVENTS } from '../../content/experience/aldenExperience';
 import { locationsWithSomethingNew } from '../experience/experienceEngine';
@@ -105,9 +106,8 @@ describe('experience state', () => {
 
   it('a save written before this feature existed simply has nothing seen', async () => {
     const dbName = freshDbName();
-    const old = await openWorld(dbName);
-    await old.recordGaldLifeChoice('SPARE');
-    await old.timeShift(3);
+    // (A save that lived the retired SPARE chain, with the bakery open.)
+    await openSaveThatLivedTheRetiredSpareChain(dbName, { shifted: true });
     // Reopened by the new build: no experience key in the store at all.
     const reopened = await openWorld(dbName);
     expect(reopened.hasSeenExperience('MOONLIGHT_TAVERN_FIRST_VISIT')).toBe(false);

@@ -309,19 +309,21 @@ function routeChecks(input: QaInput): QaCheck[] {
   const { routeMemories, lifeEventChain } = input.registry;
   const out: QaCheck[] = [];
 
-  for (const { route, choice, memory } of routeMemories) {
+  for (const { route, choice, memory, findable = true } of routeMemories) {
     const reached = reachableMemories(choice, lifeEventChain);
     const site = input.world.futureSites.find((s) => reached.has(s.requiredMemory));
-    const ok = reached.has(memory) && !!site;
+    const ok = reached.has(memory) && (findable ? !!site : !site);
     out.push(
       check(
         `ROUTE_WIRING_${route}`,
         ROUTES,
         ok,
-        `${choice} → ${[...reached].filter((m) => m !== choice).join(' → ')} → ${site?.id}`,
+        `${choice} → ${[...reached].filter((m) => m !== choice).join(' → ')} → ${findable ? site?.id : 'no future site (by design: nowhere to find him)'}`,
         !reached.has(memory)
           ? `${choice} never produces ${memory}: the route stops before anyone can hear about it`
-          : `${choice} leads nowhere findable: no future site on this route`,
+          : findable
+            ? `${choice} leads nowhere findable: no future site on this route`
+            : `${choice} leads to ${site?.id}, but this route leaves nowhere to find him`,
         'walked the life-event chain from the choice and looked for a site at the end',
       ),
     );

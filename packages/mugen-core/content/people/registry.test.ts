@@ -19,6 +19,7 @@ import { GREENWOOD_EXPERIENCE_EVENTS } from '../experience/greenwoodExperience';
 import { ALDEN_NARRATIVE_SEEDS } from '../narrative/aldenSeeds';
 import { PARTY_ART } from '../art/partyArt';
 import { ENEMY_ART } from '../art/enemyArt';
+import { ANONYMOUS_GROUPS } from './anonymousGroups';
 
 type Ref = { id: string; where: string };
 
@@ -112,7 +113,19 @@ describe('the registry of who exists', () => {
   });
 
   it('means somebody by every id the content uses — none points at nobody', () => {
-    expect(unresolvedIds(contentReferences(), ALL_NPCS)).toEqual([]);
+    // Anonymous groups (the merchants of ROUTE D) are allowed as groups, not as people.
+    expect(unresolvedIds(contentReferences(), ALL_NPCS, ANONYMOUS_GROUPS.map((g) => g.id))).toEqual([]);
+  });
+
+  it('keeps anonymous groups out of the registry of named people, and uses every one of them', () => {
+    const refs = contentReferences().map((ref) => ref.id);
+    for (const group of ANONYMOUS_GROUPS) {
+      expect(registryEntry(group.id), group.id).toBeNull();
+      expect(personEntry(group.id), group.id).toBeNull();
+      expect(refs, group.id).toContain(group.id);
+    }
+    // And without the allowance, the check does see them — it is not looking away.
+    expect(unresolvedIds(contentReferences(), ALL_NPCS).join('\n')).toMatch(/MERCHANT_CARAVAN/);
   });
 
   it('agrees with WORLD_PEOPLE on where everybody belongs and how much the story is about them', () => {

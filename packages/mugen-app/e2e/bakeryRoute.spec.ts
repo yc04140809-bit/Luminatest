@@ -220,9 +220,12 @@ test('the DEBUG chain view lists any answer\'s chain: SPARE, a few nights on', a
   await expect(page.getByTestId('chain-panel-choice')).toHaveText('SPARE');
   // He left the bandits on day 4 — listed, though it is not the bakery route.
   await expect(page.getByTestId('chain-truth-GALD_LEAVES_BANDITS')).toContainText('Y1D4');
-  await expect(page.getByTestId('chain-next-none')).toContainText('「治療する」');
-  // What is still to come within three years.
-  await expect(page.getByTestId('chain-future-GALD_BECOMES_BAKER')).toBeVisible();
+  // The let-go world's next step (ROUTE D), and what it waits for in him.
+  await expect(page.getByTestId('chain-next')).toContainText('GALD_SAVES_MERCHANTS');
+  await expect(page.getByTestId('chain-next')).toContainText('NOBODY_WATCHING');
+  // What is still to come within three years — outside the village, not at the bakery.
+  await expect(page.getByTestId('chain-future-GARDO_SAVED_MERCHANTS')).toBeVisible();
+  await expect(page.getByTestId('chain-panel-future-gald')).toHaveText('OUTSIDE_ALDEN / NONE');
 });
 
 test('DEBUG: the save can be thrown away from the title (second press only), and はじめる comes back', async ({ page }) => {

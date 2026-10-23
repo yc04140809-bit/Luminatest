@@ -141,66 +141,42 @@ test('the archive holds one chapter and admits there is more', async ({ page }) 
   await expect(page.getByTestId('archive-unknown')).toHaveText('まだ知らない人生がある。');
 });
 
-test('going to the place is what turns his life into something known', async ({ page }) => {
+test('見逃す: his life goes on off screen, and nothing of it reaches the player (ROUTE D)', async ({ page }) => {
   test.slow();
   await freshApp(page);
   await intoTheVillage(page);
-  // DECLINED THE SHIFT ON PURPOSE. This is the ordinary-time route:
-  // no TIME SHIFT anywhere in it, the world getting on with his life
-  // one night at a time. It stays because the game must not require
-  // the shift to reach his future.
+  // The ordinary-time route: no TIME SHIFT, the world getting on with his
+  // life one night at a time.
   await decideGald(page, 'SPARE');
 
-  // THE WORLD GETS ON WITH IT OFF SCREEN. He leaves the bandits on day
-  // 4, reaches Alden on 34 and is baking by 94 — none of which the
-  // player knows, because none of it happened in front of them.
-  await restUntilDay(page, 94);
+  // THE WORLD GETS ON WITH IT OFF SCREEN (作者 2026-10-20). He leaves the
+  // bandits on day 4; outside the village, with nobody watching, he helps
+  // a trading house's people on day 6, and they learn of his sister.
+  await restUntilDay(page, 7);
+  const truth = await page.evaluate(() =>
+    (window as unknown as { __mugenWorld: { getEvents(): { type: string }[] } }).__mugenWorld
+      .getEvents()
+      .map((e) => e.type),
+  );
+  expect(truth).toEqual(
+    expect.arrayContaining(['PLAYER_SPARED_GALD', 'GALD_LEAVES_BANDITS', 'GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA']),
+  );
+  expect(truth).not.toContain('GALD_ARRIVES_IN_ALDEN');
 
+  // None of which the player knows: nothing happened in front of them, and nobody tells them.
   await page.getByTestId('memory-button').click();
   await expect(page.getByTestId('memory-count'), 'still only their own decision').toHaveText('1 件');
+  await expect(page.getByTestId('memory-GALD_SAVES_MERCHANTS')).toHaveCount(0);
   await page.getByTestId('memory-back').click();
 
-  // The map now has somewhere worth going.
+  // And no place opens on the map: he is not in the village.
   await page.getByTestId('explore-button').click();
-  await page.getByTestId('places-button').click();
-  await page.getByTestId('future-site-ALDEN_BAKERY').click();
-  await expect(page.getByTestId('future-site-seen')).toBeVisible();
-  await page.getByTestId('future-site-done').click();
+  await expect(page.getByTestId('places-button')).toHaveCount(0);
   await page.getByTestId('back-to-village').click();
 
-  // And now the whole chain is his life as they know it.
-  await page.getByTestId('memory-button').click();
-  for (const type of [
-    'PLAYER_SPARED_GALD',
-    'GALD_LEAVES_BANDITS',
-    'GALD_ARRIVES_IN_ALDEN',
-    'GALD_BECOMES_BAKER',
-    'PLAYER_REUNITED_WITH_GALD',
-  ]) {
-    await expect(page.getByTestId(`memory-${type}`), type).toBeVisible();
-  }
-  await expect(page.getByTestId('memory-label-GALD_BECOMES_BAKER')).toHaveText(
-    '男は、パン屋として生き始めた',
-  );
-  await page.getByTestId('memory-back').click();
-
-  // The archive fills in with him, and stops saying it does not know.
+  // The archive still says there is more it does not know.
   await page.getByTestId('archive-button').click();
-  // He has a name now, and five chapters instead of one.
-  await expect(page.getByTestId('archive-entry-GALD')).toContainText('ガルド');
-  await expect(page.getByTestId('archive-entry-GALD')).toContainText('5章');
-  await page.getByTestId('archive-entry-GALD').click();
-  await expect(page.getByTestId('archive-unknown')).toHaveCount(0);
-
-  // SURVIVES A RESTART, which is the whole reason it is a record.
-  await page.reload();
-  await page.getByTestId('continue-button').click();
-  if (await page.getByTestId('back-to-village').isVisible().catch(() => false)) {
-    await page.getByTestId('back-to-village').click();
-  }
-  await page.getByTestId('memory-button').click();
-  await expect(page.getByTestId('memory-GALD_BECOMES_BAKER')).toBeVisible();
-  await expect(page.getByTestId('memory-PLAYER_REUNITED_WITH_GALD')).toBeVisible();
+  await expect(page.getByTestId('archive-entry-GALD')).toContainText('1章');
 });
 
 test('nights counted through the UI are never lost or doubled', async ({ page }) => {
@@ -255,11 +231,11 @@ test('the look ahead costs the world nothing', async ({ page }) => {
   await expect(page.getByTestId('memory-count')).toHaveText('1 件');
   await expect(page.getByTestId('memory-PLAYER_SPARED_GALD')).toBeVisible();
   await expect(page.getByTestId('memory-WORLD_TIME_SHIFTED')).toHaveCount(0);
-  await expect(page.getByTestId('memory-GALD_BECOMES_BAKER')).toHaveCount(0);
+  await expect(page.getByTestId('memory-GALD_SAVES_MERCHANTS')).toHaveCount(0);
   await expect(page.getByTestId('memory-GALD_LEAVES_BANDITS')).toHaveCount(0);
   await page.getByTestId('memory-back').click();
 
-  // The bakery is still years away, because those years did not happen.
+  // No place on the map, because nothing she showed happened.
   await page.getByTestId('explore-button').click();
   await expect(page.getByTestId('places-button')).toHaveCount(0);
 });
@@ -271,8 +247,9 @@ test('what she shows is the route the player chose', async ({ page }) => {
   // His life on THIS route, in the words WORLD MEMORY would use if it
   // ever did happen.
   await expect(page.getByTestId('vision-GALD_LEAVES_BANDITS')).toBeVisible();
-  await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toBeVisible();
-  await expect(page.getByTestId('future-vision-list')).toContainText('パン屋として生き始めた');
+  // (ROUTE D: what he does outside the village is not narrated, and there is no bakery.)
+  await expect(page.getByTestId('vision-GALD_SAVES_MERCHANTS')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision-list')).not.toContainText('パン屋');
   // And not another route's.
   await expect(page.getByTestId('vision-GALD_IS_BURIED')).toHaveCount(0);
 });
@@ -338,12 +315,13 @@ test('the line about him moving is not said over his grave', async ({ page }) =>
 test('and it IS said where he is alive', async ({ page }) => {
   await freshApp(page);
   await intoTheVillage(page);
-  await decideGald(page, 'SPARE', 'LOOK');
+  await decideGald(page, 'CAPTURE', 'LOOK');
   // The same beat on a route where he lives shows a life being lived,
   // so the KILL case above is a difference in his future and not a
-  // broken screen.
-  await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toBeVisible();
-  await expect(page.getByTestId('future-vision')).toContainText('パン屋');
+  // broken screen. (CAPTURE: SPARE's look ahead, since ROUTE D, says only
+  // that he left — what he does outside the village is not narrated.)
+  await expect(page.getByTestId('vision-GALD_WORKS_FOR_ALDEN')).toBeVisible();
+  await expect(page.getByTestId('future-vision')).toContainText('村の仕事');
   await expect(page.getByTestId('vision-GALD_IS_BURIED')).toHaveCount(0);
 });
 

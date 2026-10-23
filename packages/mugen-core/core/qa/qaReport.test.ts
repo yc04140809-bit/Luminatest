@@ -203,6 +203,23 @@ describe('QA REPORT — catching real mistakes', () => {
     expect(wiring?.detail).toContain('HE_LEFT');
   });
 
+  it('a route that leaves nowhere to find him (findable: false) passes with no site — and fails if one appears on its chain', () => {
+    const base = input();
+    const siteless = { route: 'SPARE', choice: 'HE_WAS_SPARED', memory: 'HE_LEFT', findable: false };
+    const clean = buildQaReport({ ...base, registry: { ...base.registry, routeMemories: [siteless] }, world: { ...base.world, futureSites: [] } });
+    const ok = clean.checks.find((c) => c.id === 'ROUTE_WIRING_SPARE');
+    expect(ok?.status).toBe('PASS');
+    expect(ok?.detail).toContain('no future site');
+    const found = buildQaReport({
+      ...base,
+      registry: { ...base.registry, routeMemories: [siteless] },
+      world: { ...base.world, futureSites: [{ id: 'BAKERY', requiredMemory: 'HE_LEFT', discoveryType: 'X', onMap: true, discovered: false }] },
+    });
+    const bad = found.checks.find((c) => c.id === 'ROUTE_WIRING_SPARE');
+    expect(bad?.status).toBe('FAIL');
+    expect(bad?.detail).toContain('BAKERY');
+  });
+
   it('follows a whole chain, not just its first link', () => {
     const base = input();
     const report = buildQaReport({

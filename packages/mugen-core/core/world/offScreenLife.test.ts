@@ -14,6 +14,13 @@ import {
   OFF_SCREEN_LIFE_DEFS,
 } from '../../content/events/offScreenLife';
 import { LIFE_EVENT_DEFS } from '../../content/events/lifeEvents';
+import { GALD_SPARE_ROUTE_DEFS } from '../../content/events/spareRouteLife';
+import {
+  SPARE_ROUTE_ACTIONS,
+  SPARE_ROUTE_BLOOMS,
+  SPARE_ROUTE_CORES,
+  SPARE_ROUTE_SEED_KINDS,
+} from '../../content/world/spareRouteLife';
 import { BAKERY_ROUTE_ACTIONS, BAKERY_ROUTE_CORES, BAKERY_ROUTE_SEED_KINDS } from '../../content/world/bakeryRouteLife';
 import { DAILY_SCENES, dailySceneMark } from '../../content/story/dailyScenes';
 import { VILLAGE_RUMORS, rumorsFor } from '../../content/story/villageRumors';
@@ -211,11 +218,14 @@ describe('the road gives way; the look ahead shows the same route', () => {
   });
 
   it('the four answers\' own chains are unchanged, the road aside', () => {
-    expect(LIFE_EVENT_DEFS).toHaveLength(10);
+    // Eight since ROUTE D (2026-10-20) retired SPARE's way to Alden and a bakery of his own.
+    expect(LIFE_EVENT_DEFS).toHaveLength(8);
+    expect(LIFE_EVENT_DEFS.map((d) => d.type)).not.toContain('GALD_ARRIVES_IN_ALDEN');
+    expect(LIFE_EVENT_DEFS.map((d) => d.type)).not.toContain('GALD_BECOMES_BAKER');
     expect(LIFE_EVENT_DEFS.filter((d) => d.unless).map((d) => [d.type, d.unless])).toEqual([
       ['GALD_WALKS_THE_ROAD', ['GALD_SAVES_LINA']],
     ]);
-    expect(LIFE_TICK_DEFS).toEqual([...LIFE_EVENT_DEFS, ...GALD_BAKERY_ROUTE_DEFS]);
+    expect(LIFE_TICK_DEFS).toEqual([...LIFE_EVENT_DEFS, ...GALD_BAKERY_ROUTE_DEFS, ...GALD_SPARE_ROUTE_DEFS]);
   });
 });
 
@@ -366,9 +376,11 @@ describe('how the player hears of it, afterwards', () => {
 
 describe('バルド is not part of it (作者 2026-10-16/17)', () => {
   it('in no event, seed, person, scene, rumour or chapter of the route', () => {
+    // The bakery route's own (the let-go world's anonymous merchants are a
+    // different route, and are checked below for バルド on their own).
     const text = JSON.stringify({
-      defs: OFF_SCREEN_LIFE_DEFS,
-      info: OFF_SCREEN_EVENT_INFO,
+      defs: GALD_BAKERY_ROUTE_DEFS,
+      info: ROUTE.map((t) => OFF_SCREEN_EVENT_INFO[t]),
       facts: OFF_SCREEN_FACTS,
       actions: BAKERY_ROUTE_ACTIONS,
       kinds: BAKERY_ROUTE_SEED_KINDS,
@@ -378,6 +390,18 @@ describe('バルド is not part of it (作者 2026-10-16/17)', () => {
       chapters: ROUTE.map((t) => GALD_LIFE_CHAPTERS[t]),
     });
     expect(text).not.toMatch(/BALDO|バルド|商会|MERCHANT/);
+  });
+
+  it('nor in the let-go world: its merchants are anonymous (作者 2026-10-20)', () => {
+    const text = JSON.stringify({
+      defs: GALD_SPARE_ROUTE_DEFS,
+      info: GALD_SPARE_ROUTE_DEFS.map((d) => OFF_SCREEN_EVENT_INFO[d.type as OffScreenLifeEventType]),
+      actions: SPARE_ROUTE_ACTIONS,
+      kinds: SPARE_ROUTE_SEED_KINDS,
+      cores: SPARE_ROUTE_CORES,
+      blooms: SPARE_ROUTE_BLOOMS,
+    });
+    expect(text).not.toMatch(/BALDO|バルド/);
   });
 
   it('and a whole run of the route leaves no mark on him', async () => {

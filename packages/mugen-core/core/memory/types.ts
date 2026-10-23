@@ -18,7 +18,8 @@ export type GaldLifeChoiceEventType =
  * their root causes are (only one first-encounter outcome can exist).
  */
 export type LifeEventType =
-  // SPARE — a life let go finds another one.
+  // SPARE — a life let go finds another one. (ARRIVES / BECOMES_BAKER: the
+  // retired Ver0.1 chain, kept so a save that lived them still reads them.)
   | 'GALD_LEAVES_BANDITS'
   | 'GALD_ARRIVES_IN_ALDEN'
   | 'GALD_BECOMES_BAKER'
@@ -58,7 +59,12 @@ export type OffScreenLifeEventType =
   | 'BAKER_OFFERS_WORK'
   | 'GALD_TAKES_BAKERY_WORK'
   | 'LINA_WRITES_TO_ELNA'
-  | 'RIZEL_SPEAKS_FOR_GALD';
+  | 'RIZEL_SPEAKS_FOR_GALD'
+  // SPARE — the let-go world (ROUTE D, TIGS2027 second proving route,
+  // 2026-10-20): outside the village, with nobody watching, he helps a
+  // trading house's people; they learn why he needs the money.
+  | 'GALD_SAVES_MERCHANTS'
+  | 'MERCHANTS_LEARN_OF_ELNA';
 
 /**
  * Events the player takes part in outside the first-encounter choice.

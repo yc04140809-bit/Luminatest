@@ -100,13 +100,14 @@ test('the guidance is for the first shift only', async ({ page }) => {
 
 test('✦ marks where something is waiting, and clears once it is met', async ({ page }) => {
   await newWorld(page);
-  await usePreset(page, 'SPARE_3Y');
+  // 捕らえる: a route that leaves a place to find (見逃す leaves none since 2026-10-20).
+  await usePreset(page, 'CAPTURE_3Y');
   await page.getByTestId('explore-button').click();
 
-  // The bakery is on the map and marked, still unnamed.
-  const bakery = page.getByTestId('location-ALDEN_BAKERY');
-  await expect(bakery).toContainText('？？？');
-  await expect(page.getByTestId('new-mark-ALDEN_BAKERY')).toBeVisible();
+  // The workyard is on the map and marked, still unnamed.
+  const workyard = page.getByTestId('location-ALDEN_WORKYARD');
+  await expect(workyard).toContainText('？？？');
+  await expect(page.getByTestId('new-mark-ALDEN_WORKYARD')).toBeVisible();
   // So is the tavern, which now has a rumour in it.
   await expect(page.getByTestId('new-mark-MOONLIGHT_TAVERN')).toBeVisible();
 
@@ -132,8 +133,8 @@ test('✦ marks where something is waiting, and clears once it is met', async ({
   expect(regular).toContain('また来たな');
   await page.getByTestId('talk-MOONLIGHT_TAVERN-leave').click();
 
-  // And the bakery is still waiting, untouched by any of that.
-  await expect(page.getByTestId('new-mark-ALDEN_BAKERY')).toBeVisible();
+  // And the workyard is still waiting, untouched by any of that.
+  await expect(page.getByTestId('new-mark-ALDEN_WORKYARD')).toBeVisible();
 });
 
 test('the rumour a world tells matches the life the player chose', async ({ page }) => {

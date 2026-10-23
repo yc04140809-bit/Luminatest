@@ -68,6 +68,7 @@ export const MEMORY_EVENT_LABEL: Record<
   PLAYER_HELPED_GALD: '森の盗賊の傷を治療した',
   PLAYER_CAPTURED_GALD: '森の盗賊を衛兵へ引き渡した',
   GALD_LEAVES_BANDITS: '森の盗賊が、盗賊団を離れた',
+  // The retired Ver0.1 SPARE chain (2026-10-20): for saves that already lived it.
   GALD_ARRIVES_IN_ALDEN: 'ひとりの男が、アルデンに流れ着いた',
   GALD_BECOMES_BAKER: '男は、パン屋として生き始めた',
   GALD_WALKS_THE_ROAD: '傷の癒えた男が、街道へ出た',
@@ -89,6 +90,10 @@ export const MEMORY_EVENT_LABEL: Record<
   GALD_TAKES_BAKERY_WORK: '男は、パン屋で働くことを選んだ',
   LINA_WRITES_TO_ELNA: 'リナが、まだ会ったことのない少女に手紙を書いた',
   RIZEL_SPEAKS_FOR_GALD: 'リゼルが、見張り番の前で男のことを話した',
+  // 仮 (TIGS2027 second proving route, 2026-10-20): never told to the player
+  // (no OFF_SCREEN_FACTS) — words for a developer's screen.
+  GALD_SAVES_MERCHANTS: '村の外で、男が襲われた商会の人々を助けた',
+  MERCHANTS_LEARN_OF_ELNA: '商会の人々が、男に病気の妹がいることを知った',
   GALD_IS_BURIED: '森の外れに、小さな石が積まれた',
   GALD_GRAVE_TENDED: '誰かが、その石積みに花を置いていく',
   PLAYER_REUNITED_WITH_GALD: 'パン屋で、あの盗賊と再会した',

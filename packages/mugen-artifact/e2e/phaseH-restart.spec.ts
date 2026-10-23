@@ -60,7 +60,9 @@ test('playtest feedback survives a full browser restart', async () => {
 
     // Reach the end state quickly through the admin (official APIs).
     await enterDevAdmin(page);
-    await page.getByTestId('preset-REUNITED').click();
+    // (捕らえる three years on — 見逃す's bakery reunion, the old REUNITED preset, is gone since 2026-10-20.)
+    await page.getByTestId('preset-CAPTURE_3Y').click();
+    await expect(page.getByTestId('dev-clock')).toContainText('4年目');
     await page.getByTestId('dev-admin-back').click();
 
     await page.getByTestId('archive-button').click();
@@ -78,7 +80,7 @@ test('playtest feedback survives a full browser restart', async () => {
     await page.getByTestId('survey-next').click();
     await page.getByTestId('q4-4').click();
     await page.getByTestId('q5-4').click();
-    await page.getByTestId('q6-REUNION').click();
+    await page.getByTestId('q6-LIFE_CHOICE').click();
     await page.getByTestId('survey-next').click();
     await page.getByTestId('q7-5').click();
     await page.getByTestId('q8-4').click();

@@ -36,7 +36,10 @@ async function closeArchive(page: Page) {
   await expect(page.getByTestId('world-clock')).toBeVisible();
 }
 
-test('the archive reveals Gald\'s life only through the player\'s own discovery', async ({
+// Since 2026-10-20 見逃す is ROUTE D (作者): it leaves nowhere to find him, so
+// on that route the archive never grows past what the player saw — and the
+// discovery that connects a record is played on 捕らえる (the workyard).
+test('SPARE (ROUTE D): the archive never spoils the life that went on without the player — not even 3 years on', async ({
   page,
 }) => {
   await spareGaldAndReturnHome(page);
@@ -59,25 +62,50 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
   await expect(page.getByTestId('archive-chapter-GALD_CH_LEFT_FOREST')).toHaveCount(0);
   await closeArchive(page);
 
-  // +3 years: baker in truth — still not a word of it in the archive.
+  // +3 years: outside the village in truth, the merchants helped — still not a word of it.
   await devTimeShift(page);
-
   await openGaldRecord(page);
   const detailText = await page.getByTestId('archive-detail').innerText();
   expect(detailText).not.toContain('パン');
   expect(detailText).not.toContain('アルデンへ');
   expect(detailText).not.toContain('森を去った');
+  expect(detailText).not.toContain('商会');
+  await expect(page.getByTestId('archive-unknown')).toBeVisible();
+  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(2);
+  await closeArchive(page);
+});
+
+test('the archive reveals Gald\'s life only through the player\'s own discovery (捕らえる: the workyard)', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByTestId('start-button').click();
+  await page.getByTestId('prologue-monologue').click();
+  const kaos = page.getByTestId('kaos-intro');
+  for (let i = 0; i < 6; i++) await kaos.click();
+  await enterDevAdmin(page);
+  await page.getByTestId('preset-CAPTURE_3Y').click();
+  await expect(page.getByTestId('dev-clock')).toContainText('4年目');
+  await page.getByTestId('dev-admin-back').click();
+
+  // Three years on in truth — and the archive knows only what the player saw.
+  await openGaldRecord(page);
+  await expect(page.getByTestId('archive-chapter-GALD_CH_FIRST_ENCOUNTER')).toContainText('捕らえた男');
+  await expect(page.getByTestId('archive-chapter-GALD_CH_TRIAL')).toHaveCount(0);
   await expect(page.getByTestId('archive-unknown')).toBeVisible();
   await closeArchive(page);
 
-  // The discovery itself: ??? shop -> reunion.
+  // The discovery itself: ??? place -> reunion.
   await page.getByTestId('explore-button').click();
-  await page.getByTestId('location-ALDEN_BAKERY').click();
-  const scene = page.getByTestId('bakery-first-visit');
+  await page.getByTestId('location-ALDEN_WORKYARD').click();
+  const scene = page.getByTestId('workyard-first-visit');
+  const done = page.getByTestId('workyard-reunion-done');
   await expect(scene).toBeVisible();
-  for (let i = 0; i < 8; i++) await scene.click();
-  await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({ timeout: 10_000 });
-  await page.getByTestId('bakery-leave').click();
+  for (let i = 0; i < 30 && !(await done.isVisible().catch(() => false)); i++) {
+    if (await scene.isVisible().catch(() => false)) await scene.click();
+  }
+  await expect(done).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('workyard-leave').click();
   const ending = page.getByTestId('ending-kaos');
   await expect(ending).toBeVisible();
   for (let i = 0; i < 4; i++) await ending.click();
@@ -86,17 +114,17 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
   // Now the life connects into one record, dated from the true history.
   await openGaldRecord(page);
   await expect(page.getByTestId('archive-detail')).toContainText('ガルド の人生');
-  await expect(page.getByTestId('archive-chapter-GALD_CH_LEFT_FOREST')).toContainText('1年目 4日目');
-  await expect(page.getByTestId('archive-chapter-GALD_CH_ARRIVED')).toContainText('1年目 34日目');
-  await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText('1年目 94日目');
-  await expect(page.getByTestId('archive-chapter-GALD_CH_REUNION')).toContainText('……見るな。');
-  await expect(page.getByTestId('archive-chapter-GALD_CH_REUNION')).toContainText('4年目 4日目');
+  await expect(page.getByTestId('archive-chapter-GALD_CH_TRIAL')).toContainText('1年目');
+  await expect(page.getByTestId('archive-chapter-GALD_CH_REUNION')).toContainText('4年目');
   await expect(page.getByTestId('archive-unknown')).toHaveCount(0);
+  const cards = page.getByTestId('archive-detail').locator('.location-card');
+  await expect(cards).toHaveCount(5);
+  const record = await cards.allInnerTexts();
   await closeArchive(page);
 
   // Reopening shows the identical record (no duplication).
   await openGaldRecord(page);
-  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
+  expect(await page.getByTestId('archive-detail').locator('.location-card').allInnerTexts()).toEqual(record);
   await closeArchive(page);
 
   // And a full page reload restores it unchanged.
@@ -104,8 +132,7 @@ test('the archive reveals Gald\'s life only through the player\'s own discovery'
   await page.getByTestId('continue-button').click();
   await intoTheVillage(page);
   await openGaldRecord(page);
-  await expect(page.getByTestId('archive-detail').locator('.location-card')).toHaveCount(5);
-  await expect(page.getByTestId('archive-chapter-GALD_CH_NEW_WORK')).toContainText('1年目 94日目');
+  expect(await page.getByTestId('archive-detail').locator('.location-card').allInnerTexts()).toEqual(record);
 });
 
 async function goHomeAndOpenAdmin(page: Page) {
@@ -161,10 +188,12 @@ test('dev admin shows the truth chapters with KNOWN/UNKNOWN state', async ({ pag
   await goHomeAndOpenAdmin(page);
   await page.getByTestId('preset-SPARE_3Y').click();
   await expect(page.getByTestId('dev-archive-GALD_CH_FIRST_ENCOUNTER')).toContainText('[KNOWN]');
-  await expect(page.getByTestId('dev-archive-GALD_CH_NEW_WORK')).toContainText('[UNKNOWN]');
-  await expect(page.getByTestId('dev-archive-GALD_CH_NEW_WORK')).toContainText(
-    'source: GALD_BECOMES_BAKER',
+  await expect(page.getByTestId('dev-archive-GALD_CH_LEFT_FOREST')).toContainText('[UNKNOWN]');
+  await expect(page.getByTestId('dev-archive-GALD_CH_LEFT_FOREST')).toContainText(
+    'source: GALD_LEAVES_BANDITS',
   );
+  // ROUTE D: no bakery chapter exists in this world's truth at all.
+  await expect(page.getByTestId('dev-archive-GALD_CH_NEW_WORK')).toHaveCount(0);
   await expect(page.getByTestId('dev-archive-unknown-state')).toContainText(
     'player view: 1 known chapter(s)',
   );

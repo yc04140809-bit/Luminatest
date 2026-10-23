@@ -33,6 +33,7 @@ import type {
   WorldVine,
 } from '@mugen/core/life/types';
 import type { WorldPerson } from '@mugen/content/world/mugenWorld';
+import { ANONYMOUS_GROUPS, isAnonymousGroup } from '@mugen/content/people/anonymousGroups';
 
 /**
  * The only kind of vine that is a line between two PEOPLE.
@@ -244,7 +245,9 @@ export function observeWorld(
   // an id showing up here is itself a finding (somebody in the world
   // the roster does not name), and `unlisted` reports it separately.
   const nameOf = (npcId: string) =>
-    roster.find((person) => person.npcId === npcId)?.name ?? npcId;
+    roster.find((person) => person.npcId === npcId)?.name ??
+    ANONYMOUS_GROUPS.find((group) => group.id === npcId)?.displayName ??
+    npcId;
 
   const here = roster.filter((person) => person.region === region);
   const people = here.map((person) =>
@@ -271,6 +274,10 @@ export function observeWorld(
   // cores would call the world complete while the person at the root of
   // its first seed was invisible. A DRAWN_TO target is a seed type
   // rather than a person and is deliberately not counted.
+  //
+  // An anonymous group (content/people/anonymousGroups.ts — the merchants of
+  // ROUTE D) is allowed as a group: nobody in it is a person the roster should
+  // name, so it is not a finding here.
   const named = new Set(roster.map((person) => person.npcId));
   const unlisted = [
     ...new Set(
@@ -281,7 +288,7 @@ export function observeWorld(
         ...state.vines
           .filter((vine) => vine.relationType === PERSONAL_VINE)
           .map((vine) => vine.target),
-      ].filter((id) => !named.has(id)),
+      ].filter((id) => !named.has(id) && !isAnonymousGroup(id)),
     ),
   ].sort();
 

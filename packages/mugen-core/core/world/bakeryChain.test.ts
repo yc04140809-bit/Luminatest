@@ -85,7 +85,7 @@ function history(
     importance: 'MAJOR',
     createdAt: 'x',
   };
-  const days: Record<OffScreenLifeEventType, number> = {
+  const days: Partial<Record<OffScreenLifeEventType, number>> = {
     GALD_SAVES_LINA: 2,
     RIZEL_TENDS_GALD: 2,
     GALD_TELLS_OF_ELNA: 3,
@@ -102,7 +102,7 @@ function history(
       id: def.eventId,
       type: def.type,
       worldYear: 1,
-      worldDay: days[def.type as OffScreenLifeEventType],
+      worldDay: days[def.type as OffScreenLifeEventType]!,
       location: def.location,
       actors: [...def.actors],
       importance: def.importance,
@@ -376,9 +376,11 @@ describe('8. the vision is a look, and the player comes back to the moment they 
 });
 
 describe('9. the other three answers are untouched', () => {
-  it('SPARE, CAPTURE and KILL look ahead and live exactly as they always did', async () => {
+  // SPARE is ROUTE D now (作者 2026-10-20: the let-go world, off screen);
+  // CAPTURE and KILL are as they always were. None of them reaches the bakery route.
+  it('SPARE, CAPTURE and KILL look ahead and live their own lives — never the bakery route', async () => {
     const expected = {
-      SPARE: ['GALD_LEAVES_BANDITS', 'GALD_ARRIVES_IN_ALDEN', 'GALD_BECOMES_BAKER'],
+      SPARE: ['GALD_LEAVES_BANDITS', 'GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA'],
       CAPTURE: ['GALD_STANDS_TRIAL', 'GALD_COMPLETES_SENTENCE', 'GALD_WORKS_FOR_ALDEN'],
       KILL: ['GALD_IS_BURIED', 'GALD_GRAVE_TENDED'],
     } as const;

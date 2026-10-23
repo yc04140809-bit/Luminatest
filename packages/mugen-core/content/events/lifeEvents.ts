@@ -4,7 +4,9 @@
 // is rooted in one of the four mutually exclusive first-encounter
 // outcomes, and the store allows only one of those per world.
 //
-//   SPARE   let go        -> leaves the bandits -> Alden -> bakery
+//   SPARE   let go        -> leaves the bandits, and does not stay near the
+//                            village (ROUTE D, 作者 2026-10-20 — what follows
+//                            is off screen: content/events/spareRouteLife.ts)
 //   HELP    treated       -> takes to the road  -> roadside healer
 //   CAPTURE handed over   -> trial -> sentence served -> works for Alden
 //   KILL    ended         -> buried at the forest edge -> the grave is tended
@@ -33,13 +35,22 @@ export const GALD_LEAVES_BANDITS_DEF: LifeEventDef = {
     {
       characterId: 'GALD',
       // Current state only — the past (that he WAS a bandit, and why he
-      // left) stays in WORLD MEMORY as events.
-      changes: { occupation: 'NONE', location: 'UNKNOWN' },
+      // left) stays in WORLD MEMORY as events. Outside the village (ROUTE D
+      // D1, 作者 2026-10-20: 見逃した世界では、ガルドは村には残らない);
+      // where exactly, and what he does there, is not decided.
+      changes: { occupation: 'NONE', location: 'OUTSIDE_ALDEN' },
     },
   ],
 };
 
 /**
+ * RETIRED (作者 2026-10-20). The first SPARE chain (Ver0.1) took him to
+ * Alden and a bakery of his own; ROUTE D, the author's, does not keep him
+ * in the village, and the bakery is the HELP route's. Neither step is in
+ * LIFE_EVENT_DEFS any more, so no world takes it from now on. The
+ * definitions stay so a save that already lived them still reads its own
+ * past (WORLD MEMORY is never rewritten).
+ *
  * A month of wandering after leaving the bandits, then Gald drifts into
  * Alden. His current location becomes the village; his occupation is
  * still nothing.
@@ -59,6 +70,8 @@ export const GALD_ARRIVES_IN_ALDEN_DEF: LifeEventDef = {
 };
 
 /**
+ * RETIRED with the step above (作者 2026-10-20).
+ *
  * Two months of odd jobs later, the old empty shop smells of bread.
  * Chained strictly off past facts — never off `worldYear >= N`.
  */
@@ -201,8 +214,6 @@ export const GALD_GRAVE_TENDED_DEF: LifeEventDef = {
 
 export const LIFE_EVENT_DEFS: readonly LifeEventDef[] = [
   GALD_LEAVES_BANDITS_DEF,
-  GALD_ARRIVES_IN_ALDEN_DEF,
-  GALD_BECOMES_BAKER_DEF,
   GALD_WALKS_THE_ROAD_DEF,
   GALD_BECOMES_HEALER_DEF,
   GALD_STANDS_TRIAL_DEF,

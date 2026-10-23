@@ -48,7 +48,8 @@ test('SPARE + 3 elapsed days causes GALD_LEAVES_BANDITS exactly once, and it sur
     location: string;
   };
   expect(gald.occupation).toBe('NONE');
-  expect(gald.location).toBe('UNKNOWN');
+  // ROUTE D (2026-10-20): he left the bandits and is outside the village (never near Alden).
+  expect(gald.location).toBe('OUTSIDE_ALDEN');
 
   // Full truth (causal chain, current state) lives in the DEV ADMIN viewer;
   // the player-facing WORLD MEMORY hides Gald's unwitnessed life.
@@ -73,7 +74,14 @@ test('SPARE + 3 elapsed days causes GALD_LEAVES_BANDITS exactly once, and it sur
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('world-clock')).toHaveText('1年目 7日目');
   events = await readMemoryEvents(page);
-  expect(events.map((e) => e.type).sort()).toEqual(['GALD_LEAVES_BANDITS', 'PLAYER_SPARED_GALD']);
+  // ROUTE D: two nights after leaving, outside the village he helped the merchants (day 6), and they
+  // learned of his sister — each once.
+  expect(events.map((e) => e.type).sort()).toEqual([
+    'GALD_LEAVES_BANDITS',
+    'GALD_SAVES_MERCHANTS',
+    'MERCHANTS_LEARN_OF_ELNA',
+    'PLAYER_SPARED_GALD',
+  ]);
   const galdAfter = (await readWorldStateValue(page, 'character_GALD')) as { occupation: string };
   expect(galdAfter.occupation).toBe('NONE');
 });

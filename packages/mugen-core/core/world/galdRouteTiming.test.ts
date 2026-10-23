@@ -36,11 +36,14 @@ interface Route {
 
 const ROUTES: Route[] = [
   {
+    // ROUTE D (作者 2026-10-20; content/events/spareRouteLife.ts). It USED TO
+    // BE [34, GALD_ARRIVES_IN_ALDEN], [94, GALD_BECOMES_BAKER] — retired: the
+    // let-go man does not stay near the village. The +2 nights are 仮.
     choice: 'SPARE',
     chain: [
       [4, 'GALD_LEAVES_BANDITS'],
-      [34, 'GALD_ARRIVES_IN_ALDEN'],
-      [94, 'GALD_BECOMES_BAKER'],
+      [6, 'GALD_SAVES_MERCHANTS'],
+      [6, 'MERCHANTS_LEARN_OF_ELNA'],
     ],
   },
   {
@@ -133,14 +136,14 @@ describe('what becomes of him, and when', () => {
     const dbName = freshDbName();
     const world = await openWorld(dbName);
     await world.recordGaldLifeChoice('SPARE');
-    await world.advanceDays(33); // day 34: he has reached Alden, not yet baking
-    expect(world.hasEventOfType('GALD_ARRIVES_IN_ALDEN')).toBe(true);
-    expect(world.hasEventOfType('GALD_BECOMES_BAKER')).toBe(false);
+    await world.advanceDays(4); // day 5: he has left the bandits, nothing more yet
+    expect(world.hasEventOfType('GALD_LEAVES_BANDITS')).toBe(true);
+    expect(world.hasEventOfType('GALD_SAVES_MERCHANTS')).toBe(false);
 
     const reopened = await openWorld(dbName);
-    expect(reopened.getClock().worldDay).toBe(34);
-    await reopened.advanceDays(60); // day 94
-    expect(reopened.hasEventOfType('GALD_BECOMES_BAKER'), 'the rest of his life still came').toBe(
+    expect(reopened.getClock().worldDay).toBe(5);
+    await reopened.advanceDays(1); // day 6
+    expect(reopened.hasEventOfType('GALD_SAVES_MERCHANTS'), 'the rest of his life still came').toBe(
       true,
     );
   });

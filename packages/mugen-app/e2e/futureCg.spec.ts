@@ -17,7 +17,9 @@ import { throughTheOpening, pastTheIntro } from './opening';
 
 type Route = 'SPARE' | 'HELP' | 'CAPTURE' | 'KILL';
 const ROUTES: { choice: Route; file: string; site: string }[] = [
-  { choice: 'SPARE', file: 'gald-baker', site: 'ALDEN_BAKERY' },
+  // SPARE (見逃す) is ROUTE D since 2026-10-20: outside the village, no
+  // picture yet and no place — its own test is below.
+  { choice: 'SPARE', file: '', site: '' },
   // The bakery route (TIGS2027 STEP ①): the look ahead shows him at the bakery.
   { choice: 'HELP', file: 'gald-baker', site: 'GREENWOOD_WAYSTATION' },
   { choice: 'CAPTURE', file: 'gald-worker', site: 'ALDEN_WORKYARD' },
@@ -95,7 +97,26 @@ function expectWhole(d: Awaited<ReturnType<typeof drawn>>) {
   expect(d.bottom).toBeLessThanOrEqual(d.vh);
 }
 
-for (const { choice, file } of ROUTES) {
+test('TIME SHIFT, SPARE: no picture is borrowed — her, 「3年後」, and only that he left', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await freshVillage(page);
+  await answerAndContinue(page, 'SPARE');
+  await page.getByTestId('future-vision-next').click();
+  await expect(page.getByTestId('future-vision')).toHaveAttribute('data-beat', 'SEE');
+  await expect(page.getByTestId('future-vision-cg')).toHaveCount(0);
+  await expect(page.getByTestId('future-vision-years')).toBeVisible();
+  // The list says he left the bandits; what he did with nobody watching is not narrated.
+  await expect(page.getByTestId('vision-GALD_LEAVES_BANDITS')).toBeVisible();
+  await expect(page.locator('[data-testid^="vision-"][data-testid*="MERCHANT"]')).toHaveCount(0);
+  await expect(page.getByTestId('vision-GALD_BECOMES_BAKER')).toHaveCount(0);
+  await page.getByTestId('future-vision-next').click();
+  await page.getByTestId('future-vision-done').click();
+  await expect(page.getByTestId('world-clock')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+for (const { choice, file } of ROUTES.filter((r) => r.choice !== 'SPARE')) {
   test(`TIME SHIFT, ${choice}: one picture — ${file} — and no other, and WORLD MEMORY untouched`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(String(e)));
@@ -152,7 +173,7 @@ for (const { choice, file } of ROUTES) {
 // route (OFF-SCREEN LIFE PoC, 2026-10-17) gives way once he has saved リナ:
 // its look ahead shows the bakery (above, TIGS2027 STEP ①), and no place
 // opens. What happens instead is offScreenLife.spec.ts; the test below holds it.
-for (const { choice, file, site } of ROUTES.filter((r) => r.choice !== 'HELP')) {
+for (const { choice, file, site } of ROUTES.filter((r) => r.site && r.choice !== 'HELP')) {
   test(`the place, ${choice}: ${site} shows ${file} once the player is inside`, async ({ page }) => {
     test.slow();
     await freshVillage(page);
@@ -207,7 +228,8 @@ for (const [w, h] of [
   test(`${w}×${h}: the look ahead's picture is whole, つづける on screen, the words readable`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: h });
     await freshVillage(page);
-    await answerAndContinue(page, 'SPARE');
+    // A look ahead with a picture and a list (SPARE's has no picture since ROUTE D).
+    await answerAndContinue(page, 'CAPTURE');
     await page.getByTestId('future-vision-next').click();
     const cg = await drawn(page, 'future-vision-cg');
     expectWhole(cg);
@@ -224,7 +246,7 @@ for (const [w, h] of [
 
     // Every line can be read: where it is, or scrolled to inside its own
     // column — and scrolling it never moves the button.
-    for (const id of ['future-vision-years', 'vision-GALD_BECOMES_BAKER', 'future-vision-one']) {
+    for (const id of ['future-vision-years', 'vision-GALD_WORKS_FOR_ALDEN', 'future-vision-one']) {
       await page.getByTestId(id).scrollIntoViewIfNeeded();
       const b = (await page.getByTestId(id).boundingBox())!;
       expect(b.x, id).toBeGreaterThanOrEqual(cg.right - 1);

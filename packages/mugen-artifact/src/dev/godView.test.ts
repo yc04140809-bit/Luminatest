@@ -217,6 +217,15 @@ describe('孤立NPC — the question this screen exists to answer', () => {
     expect(look().unlisted).toEqual([]);
   });
 
+  it('accepts an anonymous group as a group, not as somebody missing from the roster', () => {
+    // The merchants of ROUTE D (作者 2026-10-20) hold a core and seeds, and
+    // are named nowhere on purpose — allowed, while a real person missing
+    // from the roster is still reported (the KAOS case above).
+    expect(RULES.cores.map((core) => core.npcId)).toContain('MERCHANT_CARAVAN');
+    expect(WORLD_PEOPLE.map((p) => p.npcId)).not.toContain('MERCHANT_CARAVAN');
+    expect(look().unlisted).not.toContain('MERCHANT_CARAVAN');
+  });
+
   it('does not call a village lonely', () => {
     expect(isolatedPeople(look()).map((p) => p.npcId)).not.toContain('ALDEN_VILLAGE');
   });

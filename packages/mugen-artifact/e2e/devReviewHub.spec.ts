@@ -95,7 +95,10 @@ test('the report knows which world it is describing', async ({ page }) => {
 
   const text = await page.getByTestId('qa-report-text').inputValue();
   expect(text).toContain('Route: SPARE');
-  expect(text).toContain('ALDEN_BAKERY:ON MAP');
+  // ROUTE D (2026-10-20): 見逃す leaves no place on the map — not the bakery, not any.
+  expect(text).toContain('ALDEN_BAKERY:not yet');
+  expect(text).not.toContain('ON MAP');
+  expect(text).toContain('ROUTE_WIRING_SPARE');
   expect(text).toContain('4年目');
 });
 

@@ -117,3 +117,9 @@ AI を導入しても完全自由行動はさせない。WORLD MEMORY・PERSONAL
 - TIME SHIFT（§28）は夜と同じ連鎖を読み、パン屋ルートの3年後を一度だけ見せる。自由な TIME SHIFT は今も無い。
 - 詳細・要判断は `docs/GALD_FIVE_ROUTES.md`「パン屋ルート STEP ① 完成品質化」。
 
+## 第2の連鎖：見逃す（2026-10-20、TIGS2027 第2検証ルート）
+
+同じ LIFE TICK・同じ解決器・同じ「人の中にあるもの」の条件で、見逃した世界にだけ起きる2件：`GALD_SAVES_MERCHANTS`（村の外で、ガルドが襲われた商会の人々を助ける）と
+`MERCHANTS_LEARN_OF_ELNA`（商会の人々が妹の存在を知る）。商会の人々は匿名（`MERCHANT_CARAVAN`）。プレイヤーには伝わらない（OFF_SCREEN_FACTS なし）。
+`OFF_SCREEN_LIFE_DEFS` はパン屋ルートと見逃すルートの2本。根の答えが同時には存在しないので、一つの世界で混ざらない。詳細：`docs/GALD_FIVE_ROUTES.md`「見逃すルート 第2検証ルート」。
+

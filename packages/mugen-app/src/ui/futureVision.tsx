@@ -9,7 +9,7 @@ import {
 } from '@mugen/content/dialogue/galdEncounter';
 import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
 import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
-import { OFF_SCREEN_VISIONS } from '@mugen/content/events/offScreenLife';
+import { OFF_SCREEN_EVENT_INFO, OFF_SCREEN_VISIONS } from '@mugen/content/events/offScreenLife';
 import type { EventCgKey } from '@mugen/assets/keys';
 import { Stage, kaosFigureFor, usePicture } from './scene';
 import { eventCg } from '../assets/eventCg';
@@ -74,6 +74,19 @@ export function visionCgOf(
   return pictures.length === 1 ? pictures[0] : null;
 }
 
+/**
+ * WHAT THE LIST SAYS: the previewed events, less the off-screen lives.
+ *
+ * What people did with one another while the player was elsewhere is never
+ * narrated here — the bakery route shows no list at all, and the let-go
+ * world (ROUTE D, 2026-10-20) keeps its merchants and what they learned to
+ * itself: the player may hear of such things in the present, or never. So
+ * the 見逃す look ahead lists only his own leaving.
+ */
+export function visionListOf(future: readonly MemoryEvent[]): MemoryEvent[] {
+  return future.filter((event) => !(event.type in OFF_SCREEN_EVENT_INFO));
+}
+
 function Lines({ lines }: { lines: readonly DialogueLine[] }) {
   return (
     <>
@@ -135,7 +148,7 @@ export function FutureVisionScreen({
                 (OFF_SCREEN_VISIONS). The other answers keep theirs. */}
             {vision?.log === false ? null : (
               <ul className="memory-list" data-testid="future-vision-list">
-                {future.map((event) => (
+                {visionListOf(future).map((event) => (
                   <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
                     <span className="memory-label">{memoryEventLabel(event)}</span>
                   </li>

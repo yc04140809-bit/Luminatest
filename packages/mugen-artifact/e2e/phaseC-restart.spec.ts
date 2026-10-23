@@ -62,7 +62,8 @@ test('causality chain and character state survive a full browser restart', async
       location: string;
     };
     expect(gald.occupation).toBe('NONE');
-    expect(gald.location).toBe('UNKNOWN');
+    // ROUTE D (2026-10-20): he left the bandits and is outside the village (never near Alden).
+    expect(gald.location).toBe('OUTSIDE_ALDEN');
 
     // In-game view agrees, and advancing further never re-fires the event.
     await page.getByTestId('continue-button').click();

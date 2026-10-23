@@ -82,12 +82,16 @@ test('full Phase D arc: SPARE -> REST fires the event -> cancel keeps the world 
     occupation: string;
   };
   expect(gald.age).toBe(30);
-  expect(gald.occupation).toBe('BAKER'); // the chained life continued off-screen
+  // The chained life continued off-screen — ROUTE D (2026-10-20): outside the village, his trade undecided.
+  expect(gald.occupation).toBe('NONE');
+  events = await readMemoryEvents(page);
+  expect(events.filter((e) => e.type === 'GALD_SAVES_MERCHANTS')).toHaveLength(1);
 
   // The player-facing viewer shows the shift (witnessed), never the
   // undiscovered life; the aged state is checked via DB above.
   await page.getByTestId('world-memory-button').click();
   await expect(page.getByTestId('memory-event-WORLD_TIME_SHIFTED')).toBeVisible();
+  await expect(page.getByTestId('memory-event-GALD_SAVES_MERCHANTS')).toHaveCount(0);
   await expect(page.getByTestId('memory-event-GALD_BECOMES_BAKER')).toHaveCount(0);
 });
 
@@ -114,5 +118,6 @@ test('TIME SHIFT right after SPARE does not swallow GALD_LEAVES_BANDITS', async 
     occupation: string;
     location: string;
   };
-  expect(gald).toMatchObject({ age: 30, occupation: 'BAKER', location: 'ALDEN_VILLAGE' });
+  // ROUTE D: he does not stay near the village (never ALDEN_VILLAGE / BAKER now).
+  expect(gald).toMatchObject({ age: 30, occupation: 'NONE', location: 'OUTSIDE_ALDEN' });
 });

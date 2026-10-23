@@ -94,8 +94,12 @@ describe('time passes once per night asked for', () => {
     await world.recordGaldLifeChoice('SPARE');
     const fired = await world.advanceDays(40);
     expect(day(world)).toBe(41);
-    // Order preserved: he leaves the bandits before he reaches Alden.
-    expect(fired.map((e) => e.type)).toEqual(['GALD_LEAVES_BANDITS', 'GALD_ARRIVES_IN_ALDEN']);
+    // Order preserved: he leaves the bandits before he helps the merchants.
+    expect(fired.map((e) => e.type)).toEqual([
+      'GALD_LEAVES_BANDITS',
+      'GALD_SAVES_MERCHANTS',
+      'MERCHANTS_LEARN_OF_ELNA',
+    ]);
   });
 
   it('a shift and a night cannot interleave', async () => {

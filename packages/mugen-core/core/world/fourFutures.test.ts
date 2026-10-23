@@ -15,6 +15,12 @@ import { EVENT_CG_KEYS } from '@mugen/assets/keys';
 // its three years are the bakery route — off screen, with no place put on
 // the map yet — and the road it used to take (the waystation) gives way to
 // it. The look ahead shows the same bakery route (TIGS2027 STEP ①).
+//
+// SPARE, SINCE ROUTE D (作者 2026-10-20; content/events/spareRouteLife.ts):
+// he leaves the bandits and does not stay near the village; outside it, with
+// nobody watching, he helps a trading house's people, and they learn of his
+// sister. No place on the map, his trade undecided — and the Ver0.1 chain to
+// a bakery of his own (ARRIVES_IN_ALDEN → BECOMES_BAKER) is retired.
 
 let dbCounter = 0;
 const freshDbName = () => `four-futures-${++dbCounter}`;
@@ -32,6 +38,8 @@ interface RouteSpec {
   discovery: MemoryEventType | null;
   /** Gald's occupation once the chain has run (unchanged for the dead). */
   occupation: string;
+  /** Where he is once the chain has run, where the route says. */
+  location?: string;
   alive: boolean;
 }
 
@@ -39,10 +47,12 @@ const ROUTES: RouteSpec[] = [
   {
     choice: 'SPARE',
     root: 'PLAYER_SPARED_GALD',
-    chain: ['GALD_LEAVES_BANDITS', 'GALD_ARRIVES_IN_ALDEN', 'GALD_BECOMES_BAKER'],
-    siteId: 'ALDEN_BAKERY',
-    discovery: 'PLAYER_REUNITED_WITH_GALD',
-    occupation: 'BAKER',
+    chain: ['GALD_LEAVES_BANDITS', 'GALD_SAVES_MERCHANTS', 'MERCHANTS_LEARN_OF_ELNA'],
+    siteId: null,
+    discovery: null,
+    // Undecided (作者 2026-10-20): what he does outside the village is not written.
+    occupation: 'NONE',
+    location: 'OUTSIDE_ALDEN',
     alive: true,
   },
   {
@@ -91,8 +101,16 @@ const ALL_CHAIN_TYPES = ROUTES.flatMap((r) => r.chain);
 const SITE_ROUTES = ROUTES.filter(
   (r): r is RouteSpec & { siteId: string; discovery: MemoryEventType } => r.siteId !== null,
 );
-/** HELP's old road, which the bakery route takes the place of. */
-const GAVE_WAY: MemoryEventType[] = ['GALD_WALKS_THE_ROAD', 'GALD_BECOMES_HEALER'];
+/**
+ * HELP's old road, which the bakery route takes the place of — and SPARE's
+ * Ver0.1 way to a bakery of his own, retired by ROUTE D (2026-10-20).
+ */
+const GAVE_WAY: MemoryEventType[] = [
+  'GALD_WALKS_THE_ROAD',
+  'GALD_BECOMES_HEALER',
+  'GALD_ARRIVES_IN_ALDEN',
+  'GALD_BECOMES_BAKER',
+];
 
 async function threeYearsAfter(choice: LifeChoiceId, dbName = freshDbName()): Promise<World> {
   const world = await openWorld(dbName);
@@ -137,6 +155,7 @@ describe('four futures — each choice leaves its own three years behind', () =>
     const gald = world.getCharacter('GALD')!;
     expect(gald.alive).toBe(route.alive);
     expect(gald.occupation).toBe(route.occupation);
+    if (route.location) expect(gald.location).toBe(route.location);
     // The dead do not age; the living walk their three years.
     expect(gald.age).toBe(route.alive ? 30 : 27);
   });

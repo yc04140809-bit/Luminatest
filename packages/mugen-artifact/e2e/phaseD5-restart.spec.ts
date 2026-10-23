@@ -49,10 +49,11 @@ test('admin-built state survives a full browser restart and matches the game', a
     await page.goto(`${BASE}/`);
 
     const events = await readMemoryEvents(page);
+    // ROUTE D (2026-10-20): he leaves, and outside the village helps the merchants — no Alden, no bakery.
     expect(events.map((e) => e.type).sort()).toEqual([
-      'GALD_ARRIVES_IN_ALDEN',
-      'GALD_BECOMES_BAKER',
       'GALD_LEAVES_BANDITS',
+      'GALD_SAVES_MERCHANTS',
+      'MERCHANTS_LEARN_OF_ELNA',
       'PLAYER_SPARED_GALD',
       'WORLD_TIME_SHIFTED',
     ]);

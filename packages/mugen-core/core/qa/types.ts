@@ -80,7 +80,11 @@ export interface QaRegistrySnapshot {
    * fact it produces. The rest of each chain is walked through
    * lifeEventChain, so no route's shape is hard-coded here.
    */
-  routeMemories: readonly { route: string; choice: string; memory: string }[];
+  /**
+   * `findable: false` — a route whose canon leaves nowhere to find him (見逃す:
+   * 「ガルドは村には残らない」); it passes when NO future site is on its chain.
+   */
+  routeMemories: readonly { route: string; choice: string; memory: string; findable?: boolean }[];
   /** Life events as { produces, requires } — enough to walk a chain. */
   lifeEventChain: readonly { type: string; requiredMemory: string }[];
   locations: readonly string[];

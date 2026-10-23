@@ -61,26 +61,30 @@ test('the forest background is loaded as a texture', async ({ page }) => {
   expect(responses.length).toBeGreaterThan(0);
 });
 
-test('the reunion shows baker Gald, then closes with Kaos and offers the survey', async ({
+// Played through 捕らえる: since 2026-10-20 見逃す leaves nowhere to find him
+// (ROUTE D), so the bakery reunion this used to play is gone.
+test('the reunion shows Gald at his work, then closes with Kaos and offers the survey', async ({
   page,
 }) => {
-  await openAdminWithPreset(page, 'SPARE_3Y');
+  await openAdminWithPreset(page, 'CAPTURE_3Y');
 
   await page.getByTestId('explore-button').click();
-  await page.getByTestId('location-ALDEN_BAKERY').click();
+  await page.getByTestId('location-ALDEN_WORKYARD').click();
 
   // The reveal is carried by his art, not by a caption.
-  const scene = page.getByTestId('bakery-first-visit');
+  const scene = page.getByTestId('workyard-first-visit');
+  const done = page.getByTestId('workyard-reunion-done');
   await expect(scene).toBeVisible();
-  await expect(page.getByTestId('scene-portrait')).toBeVisible();
-  const art = await page.getByTestId('scene-portrait').getAttribute('src');
-  expect(art).toMatch(/gald-baker/);
-
-  for (let i = 0; i < 8; i++) await scene.click();
-  await expect(page.getByTestId('bakery-reunion-done')).toBeVisible({
-    timeout: 10_000,
-  });
-  await page.getByTestId('bakery-leave').click();
+  const arts: string[] = [];
+  for (let i = 0; i < 30 && !(await done.isVisible().catch(() => false)); i++) {
+    const src = await page.getByTestId('scene-portrait').getAttribute('src', { timeout: 500 }).catch(() => null);
+    if (src) arts.push(src);
+    if (await scene.isVisible().catch(() => false)) await scene.click();
+  }
+  expect(arts.some((a) => /gald-worker/.test(a))).toBe(true);
+  expect(arts.some((a) => /gald-baker/.test(a))).toBe(false);
+  await expect(done).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId('workyard-leave').click();
 
   // No dead end: Kaos closes the arc and hands over three clear choices.
   await walkThroughEnding(page);
@@ -109,12 +113,14 @@ test('the reunion shows baker Gald, then closes with Kaos and offers the survey'
 });
 
 test('もう少し世界を見る returns to HOME with the world untouched', async ({ page }) => {
-  await openAdminWithPreset(page, 'REUNITED');
+  await openAdminWithPreset(page, 'CAPTURE_3Y');
+  const clock = await page.getByTestId('world-clock').innerText();
+  expect(clock).toContain('4年目');
   await page.getByTestId('archive-button').click();
   await page.getByTestId('open-survey-button').click();
   await walkThroughEnding(page);
   await page.getByTestId('ending-keep-playing').click();
-  await expect(page.getByTestId('world-clock')).toHaveText('4年目 4日目');
+  await expect(page.getByTestId('world-clock')).toHaveText(clock);
 });
 
 for (const route of ['KILL', 'HELP', 'CAPTURE'] as const) {
@@ -167,7 +173,8 @@ for (const size of PHONES) {
     await page.getByTestId('leave-forest').click(); // leave the forest
     await page.locator('.screen-footer .btn').click(); // back to HOME
     await enterDevAdmin(page);
-    await page.getByTestId('preset-REUNITED').click();
+    await page.getByTestId('preset-CAPTURE_3Y').click();
+    await expect(page.getByTestId('dev-clock')).toContainText('4年目');
     await page.getByTestId('dev-admin-back').click();
     await page.getByTestId('archive-button').click();
     await page.getByTestId('open-survey-button').click();

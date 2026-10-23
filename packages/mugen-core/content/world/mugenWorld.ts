@@ -31,6 +31,12 @@ import {
   ELNA,
 } from './bakeryRouteLife';
 import {
+  SPARE_ROUTE_ACTIONS,
+  SPARE_ROUTE_BLOOMS,
+  SPARE_ROUTE_CORES,
+  SPARE_ROUTE_SEED_KINDS,
+} from './spareRouteLife';
+import {
   ALDEN_ACTIONS,
   ALDEN_BLOOMS,
   ALDEN_CORES,
@@ -268,13 +274,21 @@ function joined<T extends { id: string } | { type: string } | { npcId: string }>
 
 /** Everything, in the shape the engine takes it. */
 export const MUGEN_WORLD_RULES = {
-  actions: joined<WorldActionDef>('ACTION', ALDEN_ACTIONS, GALD_ACTIONS, CROSSING_ACTIONS, BAKERY_ROUTE_ACTIONS),
+  actions: joined<WorldActionDef>(
+    'ACTION',
+    ALDEN_ACTIONS,
+    GALD_ACTIONS,
+    CROSSING_ACTIONS,
+    BAKERY_ROUTE_ACTIONS,
+    SPARE_ROUTE_ACTIONS,
+  ),
   kinds: joined<SeedKindDef>(
     'SEED KIND',
     ALDEN_SEED_KINDS,
     GALD_SEED_KINDS,
     CROSSING_SEED_KINDS,
     BAKERY_ROUTE_SEED_KINDS,
+    SPARE_ROUTE_SEED_KINDS,
   ),
   cores: joined<NpcCore>(
     'NPC',
@@ -283,11 +297,20 @@ export const MUGEN_WORLD_RULES = {
     [BAKERY_OWNER_CORE, NEL_CORE],
     // The bakery route's (OFF-SCREEN LIFE PoC, 2026-10-17): エルナ.
     BAKERY_ROUTE_CORES,
+    // The let-go world's (ROUTE D, 2026-10-20): the merchants, nobody named.
+    SPARE_ROUTE_CORES,
     // Characters adopted from CHARACTER FORGE (content/forge) that have no
     // hand-written core — people in the world like anybody else.
-    forgeCores([...ALDEN_CORES, ...GALD_CORES, BAKERY_OWNER_CORE, NEL_CORE, ...BAKERY_ROUTE_CORES]),
+    forgeCores([...ALDEN_CORES, ...GALD_CORES, BAKERY_OWNER_CORE, NEL_CORE, ...BAKERY_ROUTE_CORES, ...SPARE_ROUTE_CORES]),
   ),
-  blooms: joined<WorldBloomDef>('BLOOM', ALDEN_BLOOMS, GALD_BLOOMS, CROSSING_BLOOMS, BAKERY_ROUTE_BLOOMS),
+  blooms: joined<WorldBloomDef>(
+    'BLOOM',
+    ALDEN_BLOOMS,
+    GALD_BLOOMS,
+    CROSSING_BLOOMS,
+    BAKERY_ROUTE_BLOOMS,
+    SPARE_ROUTE_BLOOMS,
+  ),
   crossings: WORLD_CROSSINGS,
 };
 

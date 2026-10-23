@@ -39,7 +39,8 @@ const openWorld = (dbName: string) => World.open(new IdbMemoryStore(dbName));
  * HELP opens none (the bakery route, off screen): the player is TOLD instead.
  */
 const ROUTES: Array<{ choice: LifeChoiceId; site: string | null; days: number; told?: string[] }> = [
-  { choice: 'SPARE', site: 'ALDEN_BAKERY', days: 94 },
+  // ROUTE D (2026-10-20): no place opens, and nobody tells them anything of it.
+  { choice: 'SPARE', site: null, days: 6 },
   // リナ tells them she was saved; a rumour of a new face at the bakery
   // (part of a fact: who, it does not say); nothing of the rest.
   { choice: 'HELP', site: null, days: 6, told: ['GALD_SAVED_LINA', 'NEW_HAND_AT_BAKERY'] },
@@ -132,8 +133,13 @@ describe('the player is told only what they have seen', () => {
         checkDisclosure(world, `${route.choice} after seeing`);
         expect(world.getKnownEvents().length, 'his life is theirs now').toBeGreaterThan(1);
         expect(world.getLifeArchive()[0]?.hasUnknownContinuation).toBe(false);
+      } else if (!route.told) {
+        // Nobody tells them: the let-go world (ROUTE D) has nothing for the
+        // player to hear, so they still know only their own decision.
+        expect(world.getKnownEvents(), 'still only their own decision').toHaveLength(1);
+        expect(world.getLifeArchive()[0]?.hasUnknownContinuation).toBe(true);
       } else {
-        await world.learnFacts(route.told ?? [], 'talk:TEST');
+        await world.learnFacts(route.told, 'talk:TEST');
         checkDisclosure(world, `${route.choice} after being told`);
         // Saved: listed. A new face at the bakery: known, and lists nothing.
         expect(world.getKnownEvents().map((e) => e.type)).toEqual(['PLAYER_HELPED_GALD', 'GALD_SAVES_LINA']);
