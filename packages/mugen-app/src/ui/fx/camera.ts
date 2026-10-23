@@ -16,9 +16,9 @@
  *   SNAP         from the one acting to the one it is aimed at, fast
  *   RECOIL       the camera thrown back the other way a little  4 / 6 / 8px
  *   TRACK        a skill with a cut-in, followed (FF Resonance's way, 作者 2026-10-23): a lean in on
- *                the one acting, a swing at the one struck (fast, easing out), held — the KICK at the
- *                blow — then back to the wide picture in ~¼s. One move, so the blow's jolt never
- *                cancels the swing.
+ *                the one acting, a WHIP at the one struck (a tenth of a second, past it and settled),
+ *                held — at the blow a punch in and a jolt — then back to the wide picture in ~¼s.
+ *                One move, so the blow's jolt never cancels the swing.
  *
  * WHAT MOVES: the same marked layers as the shake (`data-shake-layer`) — the
  * field, its painting, a scene's picture — never the HUD. A painting moves
@@ -134,16 +134,29 @@ export const RECOIL: Readonly<Record<CameraStrength, { px: number; ms: number }>
 
 /**
  * TRACK (作者 2026-10-23, from FF Resonance's battle: lean in on the caster, then the camera swung at
- * the target by ~17% of the width and held, the blow, then back in ~¼s). Kept smaller than FF's — a
- * single painting, not a 3D field: `pct` toward the one struck, `zoom` at the swing.
+ * the target by ~17% of the width and held, the blow, then back in ~¼s). `pct` toward the one struck,
+ * `zoom` once there, `punch` more at the blow.
+ *
+ * The first numbers (7–9%, a 0.3s glide) were seen on the phone and were not enough (実機 2026-10-24:
+ * 「確かに動いてるけど…カメラワークが‼️って感じではない」): a glide reads as drift. So now FF's way —
+ * a whip in about a tenth of a second, a little past the mark and settled, nearer, the camera already
+ * there when the blow lands; at the blow a punch in and a harder jolt. Still under FF's 17%: one
+ * painting, not a 3D field — further and its edge would want more growth than it has.
  */
-export const TRACK: Readonly<Record<CameraStrength, { pct: number; zoom: number }>> = {
-  small: { pct: 5, zoom: 1.04 },
-  medium: { pct: 7, zoom: 1.06 },
-  large: { pct: 9, zoom: 1.08 },
+export const TRACK: Readonly<Record<CameraStrength, { pct: number; zoom: number; punch: number }>> = {
+  small: { pct: 8, zoom: 1.07, punch: 0.03 },
+  medium: { pct: 11, zoom: 1.1, punch: 0.04 },
+  large: { pct: 14, zoom: 1.13, punch: 0.05 },
 };
-/** TRACK's beats (ms): the lean in, the swing's longest, the jolt at the blow, the hold after it, the way back. */
-export const TRACK_MS = { lean: 200, swing: 300, jolt: 90, hold: 240, back: 260 } as const;
+/**
+ * TRACK's beats (ms): the lean in (at most), the whip, its settle (from past the mark back onto it),
+ * how long before the blow it is there, the punch at the blow, the hold after it, the way back.
+ */
+export const TRACK_MS = { lean: 160, whip: 110, settle: 120, early: 40, punch: 150, hold: 200, back: 240 } as const;
+/** How far past the mark the whip carries (a share of the swing) before it settles. */
+export const TRACK_OVERSHOOT = 0.16;
+/** The jolt at the blow, against a KICK of the same strength. */
+export const TRACK_JOLT = 1.5;
 
 /** Fast out; and the soft way back. */
 const OUT = 'cubic-bezier(0.15, 0.85, 0.3, 1)';
@@ -223,32 +236,42 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
       return { ms, origin: move.at, poses: [REST(0, OUT), { px: 0, pct: shift, scale: z, offset: 0.35 }, { px: 0, pct: shift, scale: z, offset: 0.7, easing: BACK }, REST(1)] };
     }
     case 'TRACK': {
-      const { pct, zoom } = TRACK[s];
+      const { pct, zoom, punch } = TRACK[s];
       const toward = (x: number, amp: number) => (0.5 - clamp01(x)) * 2 * amp * k;
       const z = 1 + (zoom - 1) * k;
-      // When each beat is (ms from the start): the lean, the swing (ending a little before the blow),
-      // the blow, its jolt and settle, the hold, and home.
-      const lean = Math.min(TRACK_MS.lean, Math.max(60, move.impact * 0.35));
-      const swung = Math.max(lean + 120, Math.min(move.impact - 40, lean + TRACK_MS.swing));
-      const blow = Math.max(move.impact, swung + 20);
-      const held = blow + TRACK_MS.hold;
+      // When each beat is (ms from the start): the lean; the whip, timed to be settled TRACK_MS.early
+      // before the blow (never before the lean is done); the blow — later, if a quick one gave the whip
+      // no room — its punch, the hold, and home.
+      const lean = Math.min(TRACK_MS.lean, Math.max(60, move.impact * 0.3));
+      const whip = Math.max(lean + 20, move.impact - TRACK_MS.early - TRACK_MS.settle - TRACK_MS.whip);
+      const past = whip + TRACK_MS.whip;
+      const settled = past + TRACK_MS.settle;
+      const blow = Math.max(move.impact, settled + 10);
+      const punched = blow + TRACK_MS.punch;
+      const held = punched + TRACK_MS.hold;
       const ms = held + TRACK_MS.back;
       const at = (t: number) => t / ms;
       const aim = toward(move.to, pct);
-      // The jolt at the blow: a KICK's worth, the way the blow goes (toward the side struck).
-      const jolt = (move.to < 0.5 ? -1 : 1) * KICK[s].pct * k;
-      const hold = (offset: number, easing?: string): Pose => ({ px: 0, pct: aim, scale: z, offset, easing });
+      const lean0 = toward(move.from, 2);
+      // The jolt at the blow: harder than a KICK, the way the blow goes (toward the side struck).
+      const jolt = (move.to < 0.5 ? -1 : 1) * KICK[s].pct * TRACK_JOLT * k;
+      const zp = z + punch * k;
+      const there = (offset: number, easing?: string): Pose => ({ px: 0, pct: aim, scale: z, offset, easing });
       return {
         ms,
         origin: move.to,
         poses: [
           REST(0, 'cubic-bezier(0.3, 0, 0.3, 1)'),
-          { px: 0, pct: toward(move.from, 1.2), scale: 1 + (z - 1) / 2, offset: at(lean), easing: OUT },
-          hold(at(swung), 'linear'),
-          hold(at(blow), 'linear'),
-          { px: 0, pct: aim + jolt, scale: z, offset: at(blow + 30), easing: 'linear' },
-          hold(at(blow + TRACK_MS.jolt), 'linear'),
-          hold(at(held), 'cubic-bezier(0.5, 0, 0.2, 1)'),
+          { px: 0, pct: lean0, scale: 1 + (z - 1) * 0.4, offset: at(lean), easing: 'linear' },
+          // Held on the one acting until the whip — then fast out, past the mark, eased back onto it.
+          { px: 0, pct: lean0, scale: 1 + (z - 1) * 0.4, offset: at(whip), easing: 'cubic-bezier(0.1, 0.9, 0.2, 1)' },
+          { px: 0, pct: aim * (1 + TRACK_OVERSHOOT), scale: z, offset: at(past), easing: 'cubic-bezier(0.4, 0, 0.3, 1)' },
+          there(at(settled), 'linear'),
+          there(at(blow), 'linear'),
+          // The blow: snapped in and jolted in one frame or two, then eased back to the hold.
+          { px: 0, pct: aim + jolt, scale: zp, offset: at(blow + 35), easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+          there(at(punched), 'linear'),
+          there(at(held), 'cubic-bezier(0.5, 0, 0.2, 1)'),
           REST(1),
         ],
       };

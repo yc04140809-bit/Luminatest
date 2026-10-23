@@ -108,13 +108,14 @@ test.describe('with motion', () => {
     expect(field).toHaveLength(1);
     const [track] = field;
     // A lean toward him first (he stands near the middle, so hardly sideways — nearer, though), then
-    // swung at the creature on the left (the picture right) by LARGE (9% at most), nearer (to 1.08) — and home.
+    // WHIPPED at the creature on the left (the picture right) by LARGE (14%, a little past it at most),
+    // nearer (1.13, punched to 1.18 at the blow) — and home (実機 2026-10-24: 「‼️って感じではない」).
     expect(track.xs[1]).toBeLessThan(Math.max(...track.xs));
     expect(track.scales[1]).toBeGreaterThan(1);
-    expect(Math.max(...track.xs)).toBeGreaterThan(3);
-    expect(Math.max(...track.xs)).toBeLessThanOrEqual(9);
-    expect(Math.max(...track.scales)).toBeGreaterThan(1.05);
-    expect(Math.max(...track.scales)).toBeLessThanOrEqual(1.08);
+    expect(Math.max(...track.xs)).toBeGreaterThan(5);
+    expect(Math.max(...track.xs)).toBeLessThanOrEqual(14 * 1.16 + 0.1);
+    expect(Math.max(...track.scales)).toBeGreaterThan(1.12);
+    expect(Math.max(...track.scales)).toBeLessThanOrEqual(1.18);
     expect(track.xs[track.xs.length - 1]).toBe(0);
     expect(track.scales[track.scales.length - 1]).toBe(1);
     await page.waitForTimeout(1400);
@@ -136,12 +137,13 @@ test.describe('with motion', () => {
     await expect(page.getByTestId('pb-figure-kaos').getByTestId('pb-cast')).toHaveCount(1, { timeout: 10_000 });
     await expect.poll(async () => (await moves(page)).filter((m) => m.who === 'field').length).toBeGreaterThanOrEqual(1);
     const track = (await moves(page)).find((m) => m.who === 'field')!;
-    // MEDIUM: swung up to 7% at the creature, nearer (to 1.06); a lean toward her first; home at the end.
+    // MEDIUM: whipped up to 11% at the creature (a little past), nearer (1.10, 1.14 at the blow); a lean
+    // toward her first; home at the end.
     expect(Math.min(...track.xs)).toBeLessThan(0);
-    expect(Math.max(...track.xs)).toBeGreaterThan(2);
-    expect(Math.max(...track.xs)).toBeLessThanOrEqual(7);
-    expect(Math.max(...track.scales)).toBeGreaterThan(1.03);
-    expect(Math.max(...track.scales)).toBeLessThanOrEqual(1.06);
+    expect(Math.max(...track.xs)).toBeGreaterThan(4);
+    expect(Math.max(...track.xs)).toBeLessThanOrEqual(11 * 1.16 + 0.1);
+    expect(Math.max(...track.scales)).toBeGreaterThan(1.08);
+    expect(Math.max(...track.scales)).toBeLessThanOrEqual(1.14);
     expect(track.xs[track.xs.length - 1]).toBe(0);
     expect(await onlyTheWorld(page)).toBe(true);
     await page.waitForTimeout(1400);
@@ -222,7 +224,7 @@ test.describe('with motion', () => {
     await expect.poll(async () => (await moves(page)).length, { timeout: 8_000 }).toBeGreaterThanOrEqual(1);
     const [track] = await moves(page);
     expect(track.who).toBe('backdrop');
-    // The stage as a painting: half the swing (MEDIUM 7% → 3.5% at most), toward the creature on the left.
+    // The stage as a painting: half the swing (MEDIUM, him and it close together: 4.4% and a little past → 2.6% at most), toward the creature on the left.
     expect(Math.max(...track.xs)).toBeGreaterThan(1);
     expect(Math.max(...track.xs)).toBeLessThanOrEqual(4);
     expect(Math.max(...track.scales)).toBeGreaterThan(1);

@@ -1002,3 +1002,146 @@
   .pb-hit, .pb-hit.slash, .pb-hit.skill, .pb-hit.claw, .pb-hit.counter, .pb-hit.mend, .pb-hit.feather, .pb-cast, .pb-float.big, .pb-float.weak { animation-name: pb-hit-fade; }
   .pb-hit::after { animation: none !important; }
 }
+
+/* ── LOUDER (作者 実機 2026-10-24: 「ダメージ表記とBreak表示ももっと目立たせて」「画面全体をガラスを割った
+   みたいな表現」「COMBO表示」「カメラワークが‼️って感じではない」) ──
+   The numbers: bigger, heavier, a thick dark edge that reads on a pale creature, and a pop — in
+   big, a jump past and settled, held, then away. A move with a cut-in hits with the biggest. */
+.pb-float {
+  font-size: 30px;
+  font-weight: 900;
+  -webkit-text-stroke: 5px #1a0905;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #1a0905, 0 0 12px rgba(0, 0, 0, 0.55);
+  animation-name: pb-float-pop;
+  animation-duration: 1150ms;
+}
+.pb-float.big { font-size: 40px; color: #fff7d6; -webkit-text-stroke: 6px #5a1206; text-shadow: 0 3px 0 #5a1206, 0 0 16px rgba(255, 140, 50, 0.85); animation-name: pb-float-pop; }
+.pb-float.weak { font-size: 36px; -webkit-text-stroke: 5px #4a1a06; animation-name: pb-float-pop; }
+.pb-float.resisted { font-size: 24px; -webkit-text-stroke: 4px #22222c; }
+.pb-float.heal { -webkit-text-stroke: 5px #0d2c14; }
+.pb-float.heal.low { font-size: 18px; -webkit-text-stroke: 3px #0d2c14; }
+.pb-float.miss { font-size: 22px; -webkit-text-stroke: 4px #101a33; }
+.pb-float.tag, .pb-float.counter small, .pb-float.weak::before { -webkit-text-stroke: 3px #1a0905; }
+.pb-float.finisher {
+  font-size: 54px;
+  font-style: italic;
+  color: #fffaf0;
+  -webkit-text-stroke: 7px #6a0c04;
+  text-shadow: 0 4px 0 #3a0602, 0 0 22px rgba(255, 120, 40, 0.95), 0 0 42px rgba(255, 80, 20, 0.6);
+  animation-name: pb-float-finisher;
+  animation-duration: 1400ms;
+}
+.giant .pb-figure .pb-float { font-size: 22px; -webkit-text-stroke: 4px #1a0905; }
+.giant .pb-figure .pb-float.big, .giant .pb-figure .pb-float.weak { font-size: 28px; }
+@keyframes pb-float-pop {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(2.2); }
+  9% { opacity: 1; transform: translate(-50%, 0) scale(0.88); }
+  16% { transform: translate(-50%, -2px) scale(1.1); }
+  24% { transform: translate(-50%, -2px) scale(1); }
+  72% { opacity: 1; transform: translate(-50%, -6px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -24px) scale(0.96); }
+}
+@keyframes pb-float-finisher {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(3) rotate(-6deg); }
+  8% { opacity: 1; transform: translate(-50%, 0) scale(0.85) rotate(-4deg); }
+  15% { transform: translate(-50%, -3px) scale(1.14) rotate(-4deg); }
+  24% { transform: translate(-50%, -3px) scale(1) rotate(-4deg); }
+  76% { opacity: 1; transform: translate(-50%, -8px) scale(1) rotate(-4deg); }
+  100% { opacity: 0; transform: translate(-50%, -28px) scale(1.04) rotate(-4deg); }
+}
+@media (max-height: 340px) {
+  .pb-float { font-size: 25px; }
+  .pb-float.big { font-size: 33px; }
+  .pb-float.finisher { font-size: 44px; }
+}
+
+/* Speed lines rushing in on the one struck as the camera gets there (a move with a cut-in). Over the
+   field, under the HUD; not moved by the camera. */
+.pb-focus-lines {
+  position: absolute;
+  inset: -10%;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg at 34% 50%, rgba(255, 255, 255, 0.85) 0deg 0.8deg, transparent 0.8deg 5.5deg, rgba(255, 250, 235, 0.6) 5.5deg 6deg, transparent 6deg 11deg);
+  -webkit-mask-image: radial-gradient(ellipse 34% 40% at 34% 50%, transparent 55%, #000 100%);
+  mask-image: radial-gradient(ellipse 34% 40% at 34% 50%, transparent 55%, #000 100%);
+  opacity: 0;
+  animation: pb-focus-lines 420ms ease-out var(--pb-lines-at, 0ms) both;
+}
+@keyframes pb-focus-lines {
+  0% { opacity: 0; transform: scale(1.25); }
+  18% { opacity: 1; transform: scale(1); }
+  60% { opacity: 0.9; transform: scale(0.97) rotate(1.5deg); }
+  100% { opacity: 0; transform: scale(0.95) rotate(2deg); }
+}
+
+/* 「BREAK!!」: bigger, over everything (the glass included). */
+.pb-screen .pb-break-flash { z-index: 10; width: min(88vw, 660px); height: 108px; }
+.pb-break-word { font-size: 82px; -webkit-text-stroke: 3px #9e2a12; paint-order: stroke fill; text-shadow: 0 0 18px rgba(255, 140, 50, 0.95), 0 5px 0 #5a1208, 0 0 40px rgba(255, 90, 30, 0.6); }
+@media (max-height: 340px) {
+  .pb-screen .pb-break-flash { height: 80px; }
+  .pb-break-word { font-size: 60px; }
+}
+
+/* The glass: a white flash, the cracks out from the one broken, then the pieces fly and fall. */
+.pb-shatter { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+.pb-shatter-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 34% 46%, #fff, rgba(255, 245, 225, 0.75) 45%, rgba(255, 240, 220, 0.4)); opacity: 0; animation: pb-shatter-flash 260ms ease-out both; }
+@keyframes pb-shatter-flash { 0% { opacity: 0; } 18% { opacity: 0.85; } 100% { opacity: 0; } }
+.pb-shatter-cracks { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; animation: pb-shatter-cracks 700ms ease-out 50ms both; }
+.pb-shatter-cracks line { stroke: #fff; stroke-width: 1.6px; stroke-linecap: round; filter: drop-shadow(0 0 2px rgba(170, 220, 255, 0.95)); }
+@keyframes pb-shatter-cracks { 0% { opacity: 0; } 12% { opacity: 1; } 40% { opacity: 1; } 100% { opacity: 0; } }
+.pb-glass {
+  position: absolute;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.42), rgba(190, 222, 255, 0.16) 38%, rgba(255, 255, 255, 0.05) 56%, rgba(255, 236, 250, 0.3));
+  opacity: 0;
+  animation: pb-glass 1050ms cubic-bezier(0.45, 0, 0.85, 0.5) calc(60ms + var(--d, 0ms)) both;
+}
+@keyframes pb-glass {
+  0% { opacity: 0; transform: none; }
+  8% { opacity: 1; transform: none; }
+  24% { opacity: 1; transform: translate(calc(var(--dx) * 0.08), calc(var(--dy) * 0.02)) rotate(calc(var(--rot) * 0.06)); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.92); }
+}
+
+/* COMBO: down the left, under where a creature's number pops and over WORLD MEMORY. Through a BREAK it burns. */
+.pb-combo {
+  position: absolute;
+  left: calc(var(--pb-edge, 10px) + 4px);
+  top: 50%;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+  column-gap: 6px;
+  pointer-events: none;
+  font-style: italic;
+  line-height: 0.9;
+  color: #fff6dc;
+}
+.giant .pb-combo { left: 64px; }
+.pb-combo-n {
+  font-size: 46px;
+  font-weight: 900;
+  -webkit-text-stroke: 5px #1a0905;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #1a0905, 0 0 14px rgba(255, 200, 110, 0.7);
+  animation: pb-combo-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+.pb-combo-word { font-size: 17px; font-weight: 900; letter-spacing: 0.08em; color: #ffd36b; -webkit-text-stroke: 3px #1a0905; paint-order: stroke fill; padding-bottom: 6px; }
+.pb-combo-dmg { grid-column: 1 / -1; font-size: 12px; font-weight: 800; font-style: normal; letter-spacing: 0.06em; color: #f3e6c8; -webkit-text-stroke: 3px #1a0905; paint-order: stroke fill; margin-top: 2px; }
+.pb-combo.chain .pb-combo-n { color: #fff1c2; text-shadow: 0 3px 0 #5a1206, 0 0 16px rgba(255, 110, 40, 0.95), 0 0 30px rgba(255, 70, 20, 0.6); }
+.pb-combo.chain .pb-combo-word { color: #ff9a5a; }
+@keyframes pb-combo-pop { 0% { transform: scale(1.8); opacity: 0.4; } 60% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1); } }
+@media (max-height: 340px) {
+  .pb-combo { top: 47%; }
+  .pb-combo-n { font-size: 36px; }
+  .pb-combo-word { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-float, .pb-float.big, .pb-float.weak, .pb-float.finisher { animation-name: pb-hit-fade; }
+  .pb-focus-lines { animation-name: pb-hit-fade; }
+  .pb-glass { display: none; }
+  .pb-combo-n { animation: none; }
+}

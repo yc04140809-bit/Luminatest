@@ -47,6 +47,8 @@ import { memoryRows } from './battleHud';
 import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
 import { skillCutIn } from './cutin/skillCutIn';
+import { shatter } from './shatter';
+import { COMBO_SHOWN_FROM, NO_COMBO, comboAfter, type Combo } from './combo';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -267,6 +269,16 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [shaking, setShaking] = useState(false);
   /** The beat whose 「BREAK!!」 is up — shown once its blow has held (hit → stop → SE → shake → BREAK!!). */
   const [breakShown, setBreakShown] = useState(-1);
+  /** Where the one broken stands across the screen (0–1): the glass breaks from there. */
+  const [breakAt, setBreakAt] = useState(0.3);
+  /** COMBO as shown (it climbs at each blow as it lands), and as it stands after the last beat. */
+  const [combo, setCombo] = useState<Combo>(NO_COMBO);
+  const comboNow = useRef<Combo>(NO_COMBO);
+  /**
+   * The beat whose blow has landed: its number shows from then (作者 実機 2026-10-24: a CSS delay drifted
+   * from the blow, and the hold paused it — the number came after 「BREAK!!」, under the glass).
+   */
+  const [landed, setLanded] = useState(-1);
   const [bg, setBg] = useState<string | null>(null);
   const ended = useRef(false);
   /** The screen, so a shake or the camera moves this fight's field and painting (ui/fx) and nothing else. */
@@ -353,13 +365,21 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // Nothing here holds up the fight; a beat that follows cuts the rest short.
   useEffect(() => {
     const beat = state.last;
+    if (!beat) return;
+    // COMBO (combo.ts): where it stands after this beat, whatever is drawn.
+    const before = comboNow.current;
+    const plan = beatFx(beat, beatContext(beat, false));
+    const after = comboAfter(before, beat, 1 + (plan.stages?.length ?? 0));
+    comboNow.current = after;
     const at = root.current;
-    if (!beat || !at) return;
+    if (!at) return;
     const speed = fast ? 0.5 : 1;
     const timers: number[] = [];
     const later = (ms: number, f: () => void) => timers.push(window.setTimeout(() => at.isConnected && f(), ms));
     const ctx = beatContext(beat, true);
-    const play = (p: BeatFx, breaks: boolean) => {
+    /** What the count does as a beat's blows land: one more at each blow before the last; at the last, as it stands. */
+    type Count = { stage?: () => void; land: () => void };
+    const play = (p: BeatFx, breaks: boolean, count?: Count) => {
       // A TRACK is timed to the blow, which waits only on the speed — never on a character's tempo.
       if (p.camera) void cameraSequence(p.camera, at, { tempo: p.camera[0]?.kind === 'TRACK' ? speed : p.tempo * speed });
       // A hold freezes what is drawn (the effects' CSS, the camera) but not the clock: a moment after
@@ -374,6 +394,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       // The blows before the last (重撃 before 豪断): each its own hold, then its jolt and reeling.
       for (const st of p.stages ?? []) {
         later(when(st.at), () => {
+          count?.stage?.();
           void hitStop(st.hitStop * speed, at).then(() => {
             if (!at.isConnected) return;
             if (st.shake) void screenShake(st.shake, at);
@@ -382,6 +403,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         });
       }
       later(when(p.impact), () => {
+        count?.land();
         for (const id of p.sfx) playSfx(id);
         void hitStop((breaks ? BREAK_HIT_STOP_MS : p.hitStop) * speed, at).then(() => {
           if (!at.isConnected) return;
@@ -390,6 +412,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             void screenShake('medium', at);
             // Onto the one broken — unless a TRACK is already on it (which this would cut short).
             if (p.camera?.[0]?.kind !== 'TRACK') void cameraSequence(CAMERA_COMBOS.BREAK_FOCUS(ctx.targetAt), at, { tempo: speed });
+            setBreakAt(ctx.targetAt);
             setBreakShown(lastKey);
             later(BREAK_REEL_MS * speed, () => setShaking(true));
             later((BREAK_REEL_MS + SHAKE_MS) * speed, () => setShaking(false));
@@ -401,8 +424,18 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         });
       });
     };
-    play(beatFx(beat, ctx), !!beat.broke);
-    if (beat.counter !== undefined) play(counterFx(beat, ctx), false);
+    const climbs = after.hits > before.hits && !isEnemyId(beat.actor);
+    const counted = beat.counter !== undefined;
+    const key = lastKey;
+    play(beatFx(beat, ctx), !!beat.broke, {
+      stage: climbs ? () => setCombo((c) => ({ ...c, hits: c.hits + 1 })) : undefined,
+      land: () => {
+        setLanded(key);
+        if (climbs) setCombo(after);
+        else if (after !== before) setCombo(counted ? NO_COMBO : after);
+      },
+    });
+    if (counted) play(counterFx(beat, ctx), false, { land: () => setCombo(after) });
     return () => timers.forEach((t) => window.clearTimeout(t));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastKeyOf(state)]);
@@ -550,6 +583,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     act('spell' in aiming ? { kind: 'MAGIC', magicId: aiming.spell.id, target: id } : { kind: 'TECH', techId: aiming.tech.id, target: id });
   };
   const broken = isBroken(focused);
+  /** A move with a cut-in, followed by the camera (partyFx TRACK): its number and its focus lines are the big ones. */
+  const followed = fx?.camera?.[0]?.kind === 'TRACK';
+  /** A creature broken and not yet down: the party's moment, and COMBO says so. */
+  const chain = state.enemies.some((e) => isBroken(e) && !e.down);
+  const glass = useMemo(() => shatter(Math.round(breakAt * 1000) / 10, 46), [breakAt]);
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
@@ -620,8 +658,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   BREAK中
                 </span>
               )}
-              {last && last.target === e.id && last.amount > 0 && (
-                <span key={lastKey} className={`pb-float${tierOf(fx)}`} data-testid="pb-float" data-tier={fx?.number ?? 'plain'} style={impactStyle(fx)}>
+              {last && last.target === e.id && last.amount > 0 && landed === lastKey && (
+                <span key={lastKey} className={`pb-float${tierOf(fx)}${followed ? ' finisher' : ''}`} data-testid="pb-float" data-tier={fx?.number ?? 'plain'}>
                   {last.amount}
                 </span>
               )}
@@ -653,13 +691,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               {/* A spell's circle at the caster's feet. */}
               {fx?.cast?.on === m.id && <span key={`s${lastKey}`} className={`pb-cast ${fx.cast.colour}`} data-testid="pb-cast" aria-hidden="true" />}
               {flash(m.id, fx)}
-              {last && last.target === m.id && last.amount > 0 && (
+              {last && last.target === m.id && last.amount > 0 && landed === lastKey && (
                 <span
                   key={lastKey}
                   className={`pb-float${last.kind === 'MEND' ? ' heal' : tierOf(fx)}`}
                   data-testid="pb-float"
                   data-tier={last.kind === 'MEND' ? 'heal' : (fx?.number ?? 'plain')}
-                  style={impactStyle(fx)}
                 >
                   {last.kind === 'MEND' ? `+${last.amount}` : last.amount}
                 </span>
@@ -697,22 +734,79 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             {flashName}
           </span>
         )}
-        {last?.broke && breakShown === lastKey && (
-          <span key={`b${lastKey}`} className="pb-break-flash" data-testid="pb-break-flash" aria-hidden="true">
-            {/* The crystal plate behind the word cracks in two, its pieces flying (the sheet's own crystal). */}
-            <span className="pb-break-plate half-a" />
-            <span className="pb-break-plate half-b" />
-            {BREAK_SHARDS.map((k, i) => (
-              <i
-                key={i}
-                className={`pb-shard${k.spark ? ' spark' : ''}`}
-                style={{ ['--dx' as string]: `${k.dx}px`, ['--dy' as string]: `${k.dy}px`, ['--rot' as string]: `${k.rot}deg` }}
-              />
-            ))}
-            <b className="pb-break-word">BREAK!!</b>
-          </span>
-        )}
       </div>
+
+      {/* A MOVE WITH A CUT-IN (作者 実機 2026-10-24: 「カメラワークが‼️って感じではない」): as the camera
+          gets there and the blow lands, speed lines rush in on the one struck. */}
+      {followed && (
+        <span
+          key={`fl${lastKey}`}
+          className="pb-focus-lines"
+          data-testid="pb-focus-lines"
+          aria-hidden="true"
+          style={{ ['--pb-lines-at' as string]: `${Math.max(0, Math.round(((fx?.impact ?? 0) - 170) * fxSpeed))}ms` }}
+        />
+      )}
+
+      {/* BREAK — over the whole screen, not moved by the camera (作者 実機 2026-10-24: もっと目立たせて;
+          画面全体をガラスを割ったみたいに): a white flash, the glass cracking out from the one broken
+          and flying apart (shatter.ts), and 「BREAK!!」 on its crystal plate over it all. */}
+      {last?.broke && breakShown === lastKey && (
+        <span key={`g${lastKey}`} className="pb-shatter" data-testid="pb-shatter" aria-hidden="true">
+          <span className="pb-shatter-flash" />
+          <svg className="pb-shatter-cracks" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {glass.cracks.map((c, i) => (
+              <line key={i} x1={c.x1} y1={c.y1} x2={c.x2} y2={c.y2} vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+          {glass.shards.map((k, i) => (
+            <i
+              key={i}
+              className="pb-glass"
+              style={{
+                left: `${k.box.x}%`,
+                top: `${k.box.y}%`,
+                width: `${k.box.w}%`,
+                height: `${k.box.h}%`,
+                clipPath: `polygon(${k.local})`,
+                transformOrigin: `${k.ox}% ${k.oy}%`,
+                ['--dx' as string]: `${k.tx}%`,
+                ['--dy' as string]: `${k.ty}%`,
+                ['--rot' as string]: `${k.rot}deg`,
+                ['--d' as string]: `${k.delay}ms`,
+              }}
+            />
+          ))}
+        </span>
+      )}
+      {last?.broke && breakShown === lastKey && (
+        <span key={`b${lastKey}`} className="pb-break-flash" data-testid="pb-break-flash" aria-hidden="true">
+          {/* The crystal plate behind the word cracks in two, its pieces flying (the sheet's own crystal). */}
+          <span className="pb-break-plate half-a" />
+          <span className="pb-break-plate half-b" />
+          {BREAK_SHARDS.map((k, i) => (
+            <i
+              key={i}
+              className={`pb-shard${k.spark ? ' spark' : ''}`}
+              style={{ ['--dx' as string]: `${k.dx}px`, ['--dy' as string]: `${k.dy}px`, ['--rot' as string]: `${k.rot}deg` }}
+            />
+          ))}
+          <b className="pb-break-word">BREAK!!</b>
+        </span>
+      )}
+
+      {/* COMBO (combo.ts — 作者 実機 2026-10-24): the party's blows in a row; through a BREAK it climbs on. */}
+      {combo.hits >= COMBO_SHOWN_FROM && (
+        <div className={`pb-combo${chain ? ' chain' : ''}`} data-testid="pb-combo" data-hits={combo.hits} data-chain={chain ? 'yes' : 'no'}>
+          <b key={combo.hits} className="pb-combo-n">
+            {combo.hits}
+          </b>
+          <span className="pb-combo-word">COMBO</span>
+          <small className="pb-combo-dmg" data-testid="pb-combo-damage">
+            {combo.damage.toLocaleString('ja-JP')} DMG
+          </small>
+        </div>
+      )}
 
       {/* TOP LEFT — the creature: name, HP, BREAK, together. A giant's stands upright down the left edge
           (作者 実機 2026-10-23: 横長の枠は大きさの表現の邪魔で、第2形態の顔にもかかる — 左端に縦で). */}

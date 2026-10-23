@@ -209,6 +209,64 @@ for (const size of [
   });
 }
 
+// LOUDER (作者 実機 2026-10-24: 「ダメージ表記とBreak表示ももっと目立たせて」「画面全体をガラスを割ったみたいな
+// 表現」「COMBO表示もあった方がBreakして俺のターンが分かっていい」): a cut-in move's speed lines and its big
+// number; COMBO climbing with the party's blows (重撃・豪断 two), on through the creature's lost turns,
+// gone when it strikes; BREAK breaking the whole screen like glass.
+for (const size of [
+  { width: 640, height: 300 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${size.width}×${size.height}: a cut-in move's speed lines and big number; COMBO through a BREAK; the screen breaks like glass`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(size);
+    await page.goto('/?preview=party&hurt=1&footing=4');
+    // The order: Kaos, the creature, the hero, Grave. Kaos guards; it strikes.
+    await turnOf(page, 'kaos');
+    await page.getByTestId('pb-cmd-defend').click();
+    // The hero's 《瞬断》 (a cut-in): speed lines, and its number the biggest. One blow is not a combo yet.
+    await turnOf(page, 'hero');
+    await page.getByTestId('pb-cmd-skills').click();
+    await page.getByTestId('pb-cmd-skill-shundan').click();
+    await expect(page.getByTestId('pb-focus-lines')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).toHaveClass(/finisher/);
+    await expect(page.getByTestId('pb-combo')).toHaveCount(0);
+    // Grave's 重撃・豪断: two blows (3 COMBO), and BREAK — the glass, over the whole screen.
+    await turnOf(page, 'grave');
+    await page.getByTestId('pb-cmd-skills').click();
+    await page.getByTestId('pb-cmd-tech-goudan').click();
+    await expect(page.getByTestId('pb-shatter')).toBeVisible({ timeout: 15_000 });
+    const glass = (await page.getByTestId('pb-shatter').boundingBox())!;
+    expect(glass.width).toBeGreaterThanOrEqual(size.width - 1);
+    expect(glass.height).toBeGreaterThanOrEqual(size.height - 1);
+    await expect(page.getByTestId('pb-break-flash')).toHaveText('BREAK!!');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '3');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-chain', 'yes');
+    await onScreen(page, 'pb-combo');
+    const damage = Number(((await page.getByTestId('pb-combo-damage').textContent()) ?? '').replace(/\D/g, ''));
+    expect(damage).toBeGreaterThan(0);
+    // Kaos's attack: 4 — no speed lines, an ordinary number.
+    await turnOf(page, 'kaos');
+    await page.getByTestId('pb-cmd-attack').click();
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '4');
+    await expect(page.getByTestId('pb-focus-lines')).toHaveCount(0);
+    await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).not.toHaveClass(/finisher/);
+    // Its turn is lost (「BREAK中、動けない」): the count goes on, and climbs again.
+    await turnOf(page, 'hero');
+    await expect(page.getByTestId('pb-log')).toContainText('BREAK中');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '4');
+    await page.getByTestId('pb-cmd-attack').click();
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '5');
+    // It stands again and strikes: the count is gone.
+    for (let i = 0; i < 12 && (await page.getByTestId('pb-combo').count()) > 0; i++) {
+      await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+      if ((await page.getByTestId('pb-combo').count()) === 0) break;
+      await page.getByTestId('pb-cmd-defend').click();
+    }
+    await expect(page.getByTestId('pb-combo')).toHaveCount(0);
+  });
+}
+
 test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK comes, and it is won', async ({ page }) => {
   test.setTimeout(150_000);
   await page.goto('/?preview=party&hurt=1');

@@ -8,6 +8,8 @@ import {
   KICK_PEAK_AT,
   TRACK,
   TRACK_MS,
+  TRACK_OVERSHOOT,
+  TRACK_JOLT,
   PULL_BACK,
   PUSH_IN,
   RECOIL,
@@ -102,34 +104,41 @@ describe('cameraKeyframes', () => {
     expect(pose(cameraKeyframes({ kind: 'KICK', dir: 'right', strength: 'small' }).frames[1])[2]).toBe(1);
   });
 
-  it('TRACK (FF Resonance\'s way, cut-in moves): leans in on the one acting, swings at the one struck and holds there through the blow, jolts at it, then home', () => {
+  it('TRACK (FF Resonance\'s way, cut-in moves; 実機 2026-10-24 「‼️って感じではない」): leans in on the one acting, WHIPS at the one struck — past the mark and settled, there before the blow — punches in and jolts at it, then home', () => {
     const move: CameraMove = { kind: 'TRACK', from: 0.75, to: 0.2, impact: 500, strength: 'medium' };
     const { ms, frames, origin } = cameraKeyframes(move);
     const p = frames.map(pose);
-    const offsets = frames.map((f) => Number(f.offset));
-    // In order, from rest to rest; as long as the blow, its hold and the way back.
-    for (let i = 1; i < offsets.length; i++) expect(offsets[i]).toBeGreaterThan(offsets[i - 1]);
+    const t = frames.map((f) => Number(f.offset) * ms);
+    // In order, from rest to rest; as long as the blow, its punch, the hold and the way back.
+    for (let i = 1; i < t.length; i++) expect(t[i]).toBeGreaterThan(t[i - 1]);
     expect(p[0]).toEqual([0, 0, 1]);
     expect(p[p.length - 1]).toEqual([0, 0, 1]);
-    expect(ms).toBe(500 + TRACK_MS.hold + TRACK_MS.back);
-    // The lean: a little toward him on the right (the picture left), nearer.
+    expect(ms).toBe(500 + TRACK_MS.punch + TRACK_MS.hold + TRACK_MS.back);
+    // The lean: toward him on the right (the picture left), nearer — held there until the whip.
     expect(p[1][1]).toBeLessThan(0);
     expect(p[1][2]).toBeGreaterThan(1);
-    // The swing: toward the creature on the left (the picture right), by TRACK's share, nearest — held to the blow.
+    expect(p[2]).toEqual(p[1]);
+    // The whip: a tenth of a second, toward the creature on the left (the picture right), past the mark…
     const aim = (0.5 - 0.2) * 2 * TRACK.medium.pct;
-    expect(p[2][1]).toBeCloseTo(aim, 1);
-    expect(p[2][2]).toBe(TRACK.medium.zoom);
-    expect(p[3][1]).toBeCloseTo(aim, 1);
-    expect(offsets[3] * ms).toBeCloseTo(500, 0);
-    // The jolt at the blow: a KICK's worth, the way the blow goes (left), then back to the hold.
-    expect(p[4][1]).toBeCloseTo(aim - KICK.medium.pct, 1);
-    expect(p[5][1]).toBeCloseTo(aim, 1);
+    expect(t[3] - t[2]).toBe(TRACK_MS.whip);
+    expect(p[3][1]).toBeCloseTo(aim * (1 + TRACK_OVERSHOOT), 1);
+    expect(p[3][1]).toBeGreaterThan(aim);
+    expect(p[3][2]).toBe(TRACK.medium.zoom);
+    // …settled onto it, and there before the blow.
+    expect(p[4][1]).toBeCloseTo(aim, 1);
+    expect(t[4]).toBeCloseTo(500 - TRACK_MS.early, 0);
+    expect(t[5]).toBeCloseTo(500, 0);
+    // The blow: punched in and jolted the way it goes (left), harder than a KICK; then back to the hold.
+    expect(p[6][1]).toBeCloseTo(aim - KICK.medium.pct * TRACK_JOLT, 1);
+    expect(p[6][2]).toBeCloseTo(TRACK.medium.zoom + TRACK.medium.punch, 4);
+    expect(p[7][1]).toBeCloseTo(aim, 1);
+    expect(p[7][2]).toBe(TRACK.medium.zoom);
     // Zoomed on the one struck.
     expect(origin).toBe(0.2);
     // A painting goes half as far, grown to hide its edges.
     const bg = cameraKeyframes(move, { backdrop: true }).frames.map(pose);
-    expect(bg[2][1]).toBeCloseTo(aim / 2, 1);
-    expect(bg[2][2]).toBeGreaterThanOrEqual(1 + aim / 100);
+    expect(bg[4][1]).toBeCloseTo(aim / 2, 1);
+    expect(bg[4][2]).toBeGreaterThanOrEqual(1 + aim / 100);
   });
 
   it('TRACK on a quick blow still leans, swings and then holds — never out of order', () => {
