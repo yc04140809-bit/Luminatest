@@ -5,6 +5,7 @@ import {
   IMPACT_ZOOM,
   KICK,
   KICK_MIN_MS,
+  KICK_PEAK_AT,
   PULL_BACK,
   PUSH_IN,
   RECOIL,
@@ -32,15 +33,18 @@ function pose(f: Keyframe): [number, number, number] {
 const strengths: CameraStrength[] = ['small', 'medium', 'large'];
 
 describe('the numbers (作者 CAMERA KICK / DIRECTOR)', () => {
-  it('KICK: SMALL 6–10px 100–150ms, MEDIUM 10–16px 150–220ms, LARGE 16–24px 200–300ms', () => {
-    const want = { small: [6, 10, 100, 150], medium: [10, 16, 150, 220], large: [16, 24, 200, 300] } as const;
+  it('KICK as the reference video measures (実機 2026-10-23): 1.5–3% of the width, a peak about a frame in, gone within ~200ms; the lengths still the author\'s bands', () => {
+    const msBand = { small: [100, 150], medium: [150, 220], large: [200, 300] } as const;
     for (const s of strengths) {
-      const [lo, hi, msLo, msHi] = want[s];
-      expect(KICK[s].px).toBeGreaterThanOrEqual(lo);
-      expect(KICK[s].px).toBeLessThanOrEqual(hi);
-      expect(KICK[s].ms).toBeGreaterThanOrEqual(msLo);
-      expect(KICK[s].ms).toBeLessThanOrEqual(msHi);
+      expect(KICK[s].pct).toBeGreaterThanOrEqual(1.5);
+      expect(KICK[s].pct).toBeLessThanOrEqual(3);
+      expect(KICK[s].ms).toBeGreaterThanOrEqual(msBand[s][0]);
+      expect(KICK[s].ms).toBeLessThanOrEqual(msBand[s][1]);
+      // About one frame (33ms at 30fps) to the peak, as the video's.
+      expect(KICK[s].ms * KICK_PEAK_AT).toBeLessThanOrEqual(40);
     }
+    expect(KICK.small.pct).toBeLessThan(KICK.medium.pct);
+    expect(KICK.medium.pct).toBeLessThan(KICK.large.pct);
   });
 
   it('PUSH-IN 1.01–1.05, IMPACT ZOOM about 1.03, PULL-BACK 0.97–0.99, RECOIL 4–8px', () => {
@@ -79,13 +83,21 @@ describe('cameraKeyframes', () => {
     }
   });
 
-  it('KICK goes ONE way (the way asked), fast out (its peak early), and back', () => {
-    const left = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'medium' }).frames.map(pose);
-    expect(left.every(([px]) => px <= 0)).toBe(true);
-    expect(Math.min(...left.map(([px]) => px))).toBe(-13);
+  it('KICK jolts ONE way (the way asked) at once, snaps back, swings a little past, and rests — the video\'s 「カクッ」', () => {
+    const left = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'medium' }).frames;
+    const xs = left.map((f) => pose(f)[1]);
+    expect(Math.min(...xs)).toBe(-KICK.medium.pct);
+    expect(Number(left[1].offset)).toBe(KICK_PEAK_AT);
+    expect(xs[1]).toBe(-KICK.medium.pct);
+    // Past the other way, by a little only.
+    expect(Math.max(...xs)).toBeGreaterThan(0);
+    expect(Math.max(...xs)).toBeLessThan(KICK.medium.pct * 0.25);
+    expect(xs[xs.length - 1]).toBe(0);
     const right = cameraKeyframes({ kind: 'KICK', dir: 'right', strength: 'medium' }).frames;
-    expect(pose(right[1])[0]).toBe(13);
-    expect(Number(right[1].offset)).toBeLessThan(0.5);
+    expect(pose(right[1])[1]).toBe(KICK.medium.pct);
+    // A medium one leans in a touch at the peak; a small one does not.
+    expect(pose(right[1])[2]).toBeGreaterThan(1);
+    expect(pose(cameraKeyframes({ kind: 'KICK', dir: 'right', strength: 'small' }).frames[1])[2]).toBe(1);
   });
 
   it('RECOIL is thrown back the other way from the blow', () => {
@@ -93,12 +105,15 @@ describe('cameraKeyframes', () => {
     expect(Math.max(...f.map(([px]) => px))).toBe(8);
   });
 
-  it('a painting moves half as far, never shrinks, and grows enough to hide its edges', () => {
-    const field = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'large' }).frames.map(pose);
-    const bg = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'large' }, { backdrop: true }).frames.map(pose);
+  it('a painting moves half as far (as far on a KICK: the whole picture jolts), never shrinks, and grows enough to hide its edges', () => {
+    const field = cameraKeyframes({ kind: 'RECOIL', dir: 'left', strength: 'large' }).frames.map(pose);
+    const bg = cameraKeyframes({ kind: 'RECOIL', dir: 'left', strength: 'large' }, { backdrop: true }).frames.map(pose);
     expect(bg[1][0]).toBe(field[1][0] / 2);
-    // 10px across a 600px painting: at least 1 + 20/600.
-    expect(bg[1][2]).toBeGreaterThanOrEqual(1 + 20 / 600);
+    const kickField = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'large' }).frames.map(pose);
+    const kickBg = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'large' }, { backdrop: true }).frames.map(pose);
+    expect(kickBg[1][1]).toBe(kickField[1][1]);
+    // 3% each way uncovered: at least 1 + 6%.
+    expect(kickBg[1][2]).toBeGreaterThanOrEqual(1 + (2 * KICK.large.pct) / 100);
     for (const move of moves) {
       for (const [, , scale] of cameraKeyframes(move, { backdrop: true }).frames.map(pose)) expect(scale).toBeGreaterThanOrEqual(1);
     }
@@ -113,7 +128,7 @@ describe('cameraKeyframes', () => {
 
   it('weak goes half as far', () => {
     const f = cameraKeyframes({ kind: 'KICK', dir: 'left', strength: 'large' }, { weak: true }).frames.map(pose);
-    expect(f[1][0]).toBe(-10);
+    expect(f[1][1]).toBe(-KICK.large.pct / 2);
   });
 
   it('every character has their own tempo; ヴァルシール is the slowest, レヴィ the sharpest', () => {
@@ -155,7 +170,7 @@ describe('camera', () => {
     const field = fakeEl('field');
     const bg = fakeEl('backdrop');
     await camera({ kind: 'KICK', dir: 'left', strength: 'small' }, fakeRoot([field.el, bg.el]));
-    expect(field.anims[0].opts).toMatchObject({ duration: 120, fill: 'none' });
+    expect(field.anims[0].opts).toMatchObject({ duration: KICK.small.ms, fill: 'none' });
     expect(field.anims[0].frames.every((f) => 'transform' in f && !('translate' in f))).toBe(true);
     expect(bg.anims).toHaveLength(1);
   });
@@ -183,7 +198,7 @@ describe('camera', () => {
     allow(false);
     const field = fakeEl('field');
     await camera({ kind: 'KICK', dir: 'right', strength: 'large' }, fakeRoot([field.el]), 1.3);
-    expect(field.anims[0].opts.duration).toBe(325);
+    expect(field.anims[0].opts.duration).toBe(Math.round(KICK.large.ms * 1.3));
   });
 
   it('at ×2 a KICK stays a 「クイッ」 — never under KICK_MIN_MS — while the rest still halve (作者 TIGS §17)', async () => {
@@ -191,7 +206,7 @@ describe('camera', () => {
     const field = fakeEl('field');
     await camera({ kind: 'KICK', dir: 'left', strength: 'small' }, fakeRoot([field.el]), 0.85 * 0.5);
     expect(field.anims[0].opts.duration).toBe(KICK_MIN_MS);
-    expect(moveMs({ kind: 'KICK', dir: 'left', strength: 'large' }, 0.5)).toBe(125);
+    expect(moveMs({ kind: 'KICK', dir: 'left', strength: 'large' }, 0.5)).toBe(KICK.large.ms / 2);
     expect(moveMs({ kind: 'PUSH_IN', strength: 'small' }, 0.5)).toBe(180);
     expect(moveMs({ kind: 'KICK', dir: 'left', strength: 'small' }, 1)).toBe(KICK.small.ms);
   });
@@ -203,8 +218,8 @@ describe('camera', () => {
         { kind: 'KICK', dir: 'right', strength: 'medium', wait: 80 },
       ]),
     ).toEqual([
-      { kind: 'KICK', start: 0, end: 120 },
-      { kind: 'KICK', start: 200, end: 380 },
+      { kind: 'KICK', start: 0, end: KICK.small.ms },
+      { kind: 'KICK', start: KICK.small.ms + 80, end: KICK.small.ms + 80 + KICK.medium.ms },
     ]);
   });
 
@@ -214,7 +229,7 @@ describe('camera', () => {
     await cameraSequence(CAMERA_COMBOS.PULL_RUSH('right'), fakeRoot([field.el]));
     expect(field.anims).toHaveLength(2);
     expect(pose(field.anims[0].frames[1])[2]).toBeLessThan(1);
-    expect(pose(field.anims[1].frames[1])[0]).toBe(20);
+    expect(pose(field.anims[1].frames[1])[1]).toBe(KICK.large.pct);
   });
 
   it('off in one place, and off for a device that asks for less motion', async () => {

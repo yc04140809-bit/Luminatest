@@ -614,6 +614,9 @@ export function BattleStage({
       <div
         className={`bp-stage${blows.length > 0 ? ' kick' : ''}`}
         ref={stageRef}
+        // The whole picture is what the camera's 「クイッ」 moves (ui/fx/camera KICK, battleTheatre) —
+        // marked as a painting so it grows enough that no edge shows; the HUD is outside it.
+        data-shake-layer="backdrop"
         data-camera={camera}
         data-beat={beat}
         data-scene={sceneOn ? scene.name : undefined}

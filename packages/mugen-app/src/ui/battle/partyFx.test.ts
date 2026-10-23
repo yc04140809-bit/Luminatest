@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
-import { KICK, sequenceTimes } from '../fx/camera';
+import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
 import { HIT_STOPS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -179,9 +179,9 @@ describe('CAMERA KICK, in its place (作者 TIGS「CAMERA KICK」: KICK → 技�
       const kicks = times.filter((t) => t.kind === 'KICK');
       expect(kicks.length).toBeGreaterThan(0);
       const last = kicks[kicks.length - 1];
-      // KICK's peak is 30% in (camera.ts); the blow lands at `impact`, halved at ×2. A light blow
+      // KICK's peak is KICK_PEAK_AT in (camera.ts); the blow lands at `impact`, halved at ×2. A light blow
       // lands almost at once, so its kick (kept to KICK_MIN_MS at ×2) may peak with it — within a frame.
-      expect(last.start + (last.end - last.start) * 0.3).toBeLessThanOrEqual(fx.impact * speed + ONE_FRAME);
+      expect(last.start + (last.end - last.start) * KICK_PEAK_AT).toBeLessThanOrEqual(fx.impact * speed + ONE_FRAME);
     }
   });
 
@@ -196,7 +196,7 @@ describe('CAMERA KICK, in its place (作者 TIGS「CAMERA KICK」: KICK → 技�
     expect(beatFx(beat({ actor: 'kaos', kind: 'TECH', target: 'grave', amount: 0 }), ctx({ tech: tech('REGEN') })).camera).toBeUndefined();
     for (const actor of ['hero', 'grave', 'kaos']) {
       const m = beatFx(beat({ actor }), ctx()).camera?.[0];
-      expect(m && 'strength' in m ? KICK[m.strength!].px : 0).toBeLessThanOrEqual(KICK.small.px);
+      expect(m && 'strength' in m ? KICK[m.strength!].pct : 0).toBeLessThanOrEqual(KICK.small.pct);
     }
   });
 });

@@ -7,7 +7,8 @@
  * properties of a layer, the camera moves its `transform`, so one never
  * cancels the other.
  *
- *   KICK         a quick push one way and back                 SMALL 8px 120ms · MEDIUM 13px 180ms · LARGE 20px 250ms
+ *   KICK         a jolt one way, snapped back, a little past     SMALL 1.6% 130ms · MEDIUM 2.2% 160ms · LARGE 3% 200ms
+ *                (of the screen's width — 作者 実機 2026-10-23, from the reference video: see KICK)
  *   PUSH-IN      a slow lean in, a hold, back (a wind-up)      scale 1.015 / 1.03 / 1.05
  *   IMPACT ZOOM  a snap in at the blow, eased back             scale 1.02 / 1.03 / 1.045
  *   PULL-BACK    the camera draws back before something big    scale 0.99 / 0.98 / 0.97 (the field only)
@@ -17,8 +18,9 @@
  *
  * WHAT MOVES: the same marked layers as the shake (`data-shake-layer`) — the
  * field, its painting, a scene's picture — never the HUD. A painting moves
- * half as far (it is further away) and grows by just enough that its edge
- * never shows, and never shrinks: on PULL-BACK only the field draws back.
+ * half as far (it is further away) — except on a KICK, which jolts the whole
+ * picture — and grows by just enough that its edge never shows, and never
+ * shrinks: on PULL-BACK only the field draws back.
  *
  * Every move goes fast out and comes back smoothly (ease-out, then a soft
  * return), leaves nothing behind (no fill), and a new move on a layer
@@ -65,12 +67,31 @@ export const CAMERA_PERSONA: Readonly<Record<string, CameraPersona>> = {
 export const DEFAULT_PERSONA: CameraPersona = { tempo: 1, lead: 'KICK' };
 export const personaOf = (id: string): CameraPersona => CAMERA_PERSONA[id] ?? DEFAULT_PERSONA;
 
-/** KICK: how far (px) and how long (ms). 作者: SMALL 6〜10px/100〜150ms, MEDIUM 10〜16px/150〜220ms, LARGE 16〜24px/200〜300ms. */
-export const KICK: Readonly<Record<CameraStrength, { px: number; ms: number }>> = {
-  small: { px: 8, ms: 120 },
-  medium: { px: 13, ms: 180 },
-  large: { px: 20, ms: 250 },
+/**
+ * KICK: how far (a share of the screen's width, %) and how long (ms).
+ *
+ * The first numbers (作者 10-17: SMALL 6〜10px …, 「最初は小さめから実機確認する」) were not seen on
+ * the phone at all (実機 2026-10-23: 「どこにクイッが入ってたのかも分からない」). Measured from the
+ * author's reference video instead (screen-20261014-065549.mp4, 32fps): at a spell's landing and a
+ * beam's firing the whole picture jumps in ONE frame by 1.7–2.7% of its width, is back almost at
+ * once the next frame, swings a little past the other way, and is still within about 150ms —
+ * a 「カクッ」, not a glide. So: a share of the width (the same on every phone), a one-frame peak
+ * (KICK_PEAK_AT), and the small swing past (KICK_PATH).
+ */
+export const KICK: Readonly<Record<CameraStrength, { pct: number; ms: number; zoom: number }>> = {
+  small: { pct: 1.6, ms: 130, zoom: 1 },
+  medium: { pct: 2.2, ms: 160, zoom: 1.015 },
+  large: { pct: 3, ms: 200, zoom: 1.025 },
 };
+/** Where a KICK peaks (a share of its length) — about one frame in. */
+export const KICK_PEAK_AT = 0.18;
+/** The way back after the peak, as the video has it: [when, how far of the peak (signed)]. */
+export const KICK_PATH: readonly (readonly [number, number])[] = [
+  [KICK_PEAK_AT, 1],
+  [0.42, 0.12],
+  [0.64, -0.18],
+  [0.84, -0.06],
+];
 /** The shortest a KICK may be, whatever the tempo (×2 halves the rest): about five frames. */
 export const KICK_MIN_MS = 90;
 export const PUSH_IN: Readonly<Record<CameraStrength, { scale: number; ms: number }>> = {
@@ -144,8 +165,17 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
   const s = move.strength ?? 'small';
   switch (move.kind) {
     case 'KICK': {
-      const { px, ms } = KICK[s];
-      return { ms, poses: [REST(0, OUT), { px: sign(move.dir) * px * k, pct: 0, scale: 1, offset: 0.3, easing: BACK }, REST(1)] };
+      // Straight to the peak and back, segment by segment (linear: the snap is the point).
+      const { pct, ms, zoom } = KICK[s];
+      const peak = sign(move.dir) * pct * k;
+      return {
+        ms,
+        poses: [
+          REST(0, 'linear'),
+          ...KICK_PATH.map(([offset, share]): Pose => ({ px: 0, pct: peak * share, scale: share === 1 ? 1 + (zoom - 1) * k : 1, offset, easing: 'linear' })),
+          REST(1),
+        ],
+      };
     }
     case 'RECOIL': {
       // The camera thrown back: the other way from `dir` (the way the blow went).
@@ -185,17 +215,19 @@ const round = (n: number, places = 2) => Math.round(n * 10 ** places) / 10 ** pl
 
 /**
  * The keyframes of one move for one layer (pure). A painting (`backdrop`)
- * goes half as far, leans in half as much, never draws back, and grows by
- * what its move would otherwise uncover.
+ * goes half as far (as far, on a KICK), leans in half as much, never draws
+ * back, and grows by what its move would otherwise uncover.
  */
 export function cameraKeyframes(move: CameraMove, opts: { weak?: boolean; backdrop?: boolean } = {}): { ms: number; frames: Keyframe[]; origin?: number } {
   const k = opts.weak ? 0.5 : 1;
   const { ms, poses, origin } = posesOf(move, k);
+  // A KICK jolts the whole picture (the reference video): the painting as far as the field.
+  const depth = move.kind === 'KICK' ? 1 : 2;
   const frames = poses.map((p): Keyframe => {
     let { px, pct, scale } = p;
     if (opts.backdrop) {
-      px /= 2;
-      pct /= 2;
+      px /= depth;
+      pct /= depth;
       scale = Math.max(1, 1 + (scale - 1) / 2);
       // Grown by what the move uncovers (both edges), so no edge of the painting shows.
       scale *= 1 + (2 * Math.abs(px)) / NARROWEST + (2 * Math.abs(pct)) / 100;

@@ -23,6 +23,7 @@ import { beatMs, visualMs, type BattleSpeed } from '@mugen/game/battle/battleSpe
 import { CAMERA_GLIDE_MS, swingCues, type CameraPhase } from './battleCamera';
 import { endBlow, landBlow, type Blow } from './blows';
 import { useCutInDirector } from './cutin/CutIn';
+import { camera as cameraMove, type CameraStrength } from '../fx/camera';
 import { spellCutIn } from './magic/spellCutIn';
 import { SPELL_CONTACT_AT, spellDamage, spellShowOf, spellStepMs } from './magic/spellShow';
 import type { SpellFxView } from './magic/SpellFx';
@@ -242,9 +243,18 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
   };
 
   /** A blow landing, `after` ms from now, at the moment of contact. */
+  /**
+   * THE CAMERA'S 「クイッ」 at a blow landing (作者 実機 2026-10-23: the fights before ヴァルシール had
+   * none; the reference video jolts the whole picture as a blow lands — ui/fx/camera KICK): toward
+   * the side struck — left onto the creature, right onto him. Off where motion is (camera.ts).
+   */
+  const kick = (on: 'enemy' | 'hero', strength: CameraStrength) =>
+    void cameraMove({ kind: 'KICK', dir: on === 'enemy' ? 'left' : 'right', strength }, document, 1 / speed);
+
   const strike = (on: 'enemy' | 'hero', amount: number, after = 0) => {
     const contact = after + Math.round(beatLength(on === 'enemy' ? 'STRIKE' : 'TACKLE', speed) * CONTACT_AT);
     later(() => {
+      kick(on, 'small');
       blowId.current += 1;
       const mine = blowId.current;
       setBlows((live) => landBlow(live, { id: mine, on, amount }));
@@ -325,6 +335,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     }, strikeAt);
     // THE NUMBER IS THE CORE'S: what the enemy had, less what it has.
     later(() => {
+      kick('enemy', skill ? 'medium' : 'small');
       blowId.current += 1;
       const blow = blowId.current;
       setBlows((live) => landBlow(live, { id: blow, on: 'enemy', amount: Math.max(0, before.enemyHp - next.enemyHp) }));
@@ -455,6 +466,7 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
         const damage = spellDamage(before, next, show);
         if (show.hurts) {
           later(() => {
+            kick('enemy', 'small');
             blowId.current += 1;
             const id = blowId.current;
             setBlows((live) => landBlow(live, { id, on: 'enemy', amount: damage }));

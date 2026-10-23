@@ -74,13 +74,15 @@ test.describe('with motion', () => {
     expect(await onlyTheWorld(page)).toBe(true);
     const field = got.find((m) => m.who === 'field')!;
     const bg = got.find((m) => m.who === 'backdrop')!;
-    // One way (left), within SMALL (6–10px), fast (≤150ms — his tempo is sharp), back to rest.
-    expect(Math.min(...field.xs)).toBeLessThanOrEqual(-6);
-    expect(Math.min(...field.xs)).toBeGreaterThanOrEqual(-10);
-    expect(Math.max(...field.xs)).toBe(0);
+    // A jolt one way (left), SMALL (1.6% of the width — the reference video's), fast (≤150ms — his
+    // tempo is sharp), a little past the other way, back to rest. The whole picture: the painting as far.
+    expect(Math.min(...field.xs)).toBeLessThanOrEqual(-1.5);
+    expect(Math.min(...field.xs)).toBeGreaterThanOrEqual(-2);
+    expect(Math.max(...field.xs)).toBeGreaterThan(0);
+    expect(Math.max(...field.xs)).toBeLessThan(0.5);
     expect(field.ms).toBeLessThanOrEqual(150);
     expect(field.xs[field.xs.length - 1]).toBe(0);
-    expect(Math.min(...bg.xs)).toBe(Math.min(...field.xs) / 2);
+    expect(Math.min(...bg.xs)).toBe(Math.min(...field.xs));
     // The painting grows while it moves, never shrinks.
     expect(Math.min(...bg.scales)).toBeGreaterThanOrEqual(1);
     await page.waitForTimeout(500);
@@ -126,9 +128,9 @@ test.describe('with motion', () => {
     await expect(page.getByTestId('pb-figure-kaos').getByTestId('pb-cast')).toHaveCount(1, { timeout: 10_000 });
     await expect.poll(async () => (await moves(page)).filter((m) => m.who === 'field').length).toBeGreaterThanOrEqual(1);
     const kick = (await moves(page)).find((m) => m.who === 'field')!;
-    // One way (left), SMALL (6–10px), at the same distance throughout — no lean in.
-    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-6);
-    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-10);
+    // One way (left), SMALL (1.6% of the width), at the same distance throughout — no lean in.
+    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-1.5);
+    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-2);
     expect(kick.scales.every((z) => z === 1)).toBe(true);
     expect(kick.xs[kick.xs.length - 1]).toBe(0);
     expect(await onlyTheWorld(page)).toBe(true);
@@ -136,7 +138,7 @@ test.describe('with motion', () => {
     expect(await atRest(page, '.pb-field')).toBe(true);
   });
 
-  test('零閃・天衝 (TIGS CAMERA KICK): a beat of stillness, then the picture kicks once (left, MEDIUM — half as far, a painting) and comes back', async ({ page }) => {
+  test('零閃・天衝 (TIGS CAMERA KICK): a beat of stillness, then the picture kicks once (left, MEDIUM) and comes back', async ({ page }) => {
     test.setTimeout(60_000);
     await recordCamera(page);
     await page.setViewportSize({ width: 640, height: 300 });
@@ -154,16 +156,35 @@ test.describe('with motion', () => {
     expect(got).toHaveLength(1);
     const [kick] = got;
     expect(kick.who).toBe('backdrop');
-    // MEDIUM is 10–16px; a painting goes half as far.
-    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-5);
-    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-8);
-    expect(Math.max(...kick.xs)).toBe(0);
+    // MEDIUM is 2.2% of the width; a KICK moves the painting as far as the field (the whole picture).
+    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-2);
+    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-2.5);
+    expect(Math.max(...kick.xs)).toBeLessThan(0.6);
     expect(kick.ms).toBeLessThanOrEqual(220);
     // It grows just enough to hide its edges, never shrinks.
     expect(Math.min(...kick.scales)).toBeGreaterThanOrEqual(1);
     // Back at rest once the cut has landed, held and jolted (its shake, on `translate`, is not the camera's).
     await page.waitForTimeout(1200);
     expect(await atRest(page, '.finale-stage')).toBe(true);
+  });
+
+  test('the ordinary fight too (実機 2026-10-23: none before ヴァルシール): his blow landing jolts the whole picture left, as the reference video does; the HUD never moves', async ({ page }) => {
+    test.setTimeout(60_000);
+    await recordCamera(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.goto('/?preview=battle');
+    await expect(page.getByTestId('bp-attack')).toBeEnabled({ timeout: 15_000 });
+    await clear(page);
+    await page.getByTestId('bp-attack').click();
+    await expect.poll(async () => (await moves(page)).length, { timeout: 5_000 }).toBeGreaterThanOrEqual(1);
+    const [kick] = await moves(page);
+    // The stage itself (backdrop and everyone on it) — marked as a painting, so it grows to hide its edges.
+    expect(kick.who).toBe('backdrop');
+    expect(Math.min(...kick.xs)).toBeLessThanOrEqual(-1.5);
+    expect(Math.min(...kick.xs)).toBeGreaterThanOrEqual(-2);
+    expect(Math.min(...kick.scales)).toBeGreaterThanOrEqual(1);
+    expect(kick.xs[kick.xs.length - 1]).toBe(0);
+    expect(await onlyTheWorld(page)).toBe(true);
   });
 
   test('AUTO at ×2: the camera never piles up — everything back at rest, the fight won', async ({ page }) => {
