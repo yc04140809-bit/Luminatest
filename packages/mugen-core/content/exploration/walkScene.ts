@@ -185,8 +185,9 @@ export interface WalkDiscovery {
   text: string;
   /**
    * A real thing to hand over (a material, a collectible, something to
-   * sell) — read for GOLDEN finds only (2026-10-11): looked at, it goes into
-   * the bag. An ordinary find still gives nothing.
+   * sell) — looked at, it goes into the bag. Golden finds carry one
+   * (2026-10-11); an ordinary find may too, on a place that gives its
+   * floor's small things away (Greenwood, 作者 実機 2026-10-23).
    */
   reward?: DiscoveryReward;
   /**

@@ -44,6 +44,8 @@ const MARKERS = [
   'pb-select-finale',
   // The opening's SKIP (src/ui/opening.tsx): debug builds only.
   'opening-debug-skip',
+  // The walk's 「虹を出す」 (src/ui/explore/RoamScene.tsx): debug builds only.
+  'walk-debug-rainbow',
   // The shared parts' preview (src/dev/KitPreview.tsx).
   'kit-preview',
 ];

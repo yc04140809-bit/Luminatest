@@ -85,6 +85,9 @@ import {
  */
 
 /** Walking speed at the nearest floor, in screen widths a second; slower farther back. */
+/** The debug build's tools (a release build has none — scripts/check-release-has-no-debug.mjs). */
+const DEBUG_TOOLS = import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOLS === '1';
+
 const WALK_SPEED = 0.3;
 /** How long one walking frame is held. */
 const FRAME_MS = 140;
@@ -579,6 +582,21 @@ export function RoamScene({
   }, [place]);
 
   /**
+   * THE DEBUG BUILD'S 「虹を出す」 (作者 実機 2026-10-23: 虹は出るまで時間がかかりすぎて確認できない):
+   * the rainbow find turns up on the floor now — if this world has not taken it yet, and there is
+   * room for one more find. The debug build only; a release build has no such button.
+   */
+  const wantRainbow = useRef(false);
+  const debugRainbow = () => {
+    if (!roam.rainbow || rainbowTakenNow.current) return;
+    // Walked past this visit already: let it turn up again (the debug button's whole point).
+    rainbowSeen.current = false;
+    if (findsNow.current.length >= MAX_FINDS) setFinds(findsNow.current.slice(1));
+    wantRainbow.current = true;
+    turnUp();
+  };
+
+  /**
    * Put a new find somewhere else on the floor, if there is room for one:
    * how rare it is first, then which, then where. The third find of a
    * visit makes it a real visit, counted once.
@@ -591,7 +609,8 @@ export function RoamScene({
     let grade = rollGrade(keeper.visitsBefore, number, rainbowOpen);
     // A test may make finds golden in the real game (DEV only), as it fixes the encounter roll.
     const devGrade = import.meta.env.DEV ? (window as unknown as { __mugenFindGrade?: string }).__mugenFindGrade : undefined;
-    const force = forceGrade ?? (devGrade === 'RARE' ? 'RARE' : undefined);
+    const force = forceGrade ?? (wantRainbow.current ? 'RAINBOW' : undefined) ?? (devGrade === 'RARE' ? 'RARE' : undefined);
+    wantRainbow.current = false;
     if (force === 'RAINBOW' && rainbowOpen) grade = 'RAINBOW';
     else if (force === 'RARE' && grade !== 'RAINBOW') grade = 'RARE';
     const waiting = current.map((f) => f.find.id);
@@ -879,10 +898,10 @@ export function RoamScene({
     joltFor(thing.grade);
     setCaptionGrade(thing.grade);
     setCaption(thing.text);
-    // A golden find that holds something (2026-10-11): into the bag, and the
-    // short notice of what was got — as a pickup's is. A full bag keeps the
-    // line and says so.
-    const reward = thing.grade === 'RARE' ? found?.reward : undefined;
+    // A find that holds something — a golden one (2026-10-11), or an ordinary one where the place
+    // gives its floor's small things away (Greenwood, 作者 実機 2026-10-23): into the bag, and the
+    // short notice of what was got — as a pickup's is. A full bag keeps the line and says so.
+    const reward = found?.reward;
     // A golden find seen for the first time is a moment (ハイタッチ, 2026-10-11).
     if (thing.grade === 'RARE') pickupKeeper?.found?.(thing.id, thing.label);
     if (reward && pickupKeeper?.give) {
@@ -1130,6 +1149,11 @@ export function RoamScene({
         <button className="walk-leave" data-testid={leaveTestId} onClick={onLeave}>
           {leaveLabel}
         </button>
+        {DEBUG_TOOLS && roam.rainbow && !rainbowTaken && (
+          <button className="walk-debug-rainbow" data-testid="walk-debug-rainbow" data-no-walk onClick={debugRainbow}>
+            虹を出す（DEBUG）
+          </button>
+        )}
         {/* 探索の設定 — on the places trying the new feel (PoC), for now. */}
         {fxOn && (
           <button className="walk-prefs-open" data-testid="walk-prefs-open" aria-expanded={prefsOpen} onClick={() => setPrefsOpen((o) => !o)}>

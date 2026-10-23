@@ -97,3 +97,14 @@ test('the explorer kept in sight: a soft aura and a ring at the feet of each; th
   const feet: P = await hero(page);
   expect(feet.x).toBeGreaterThan(0);
 });
+
+// The debug build's 「虹を出す」 (作者 実機 2026-10-23: 虹は出るまで時間がかかって確認できない): the
+// rainbow find is put on the floor at once, while this world has not taken it.
+test('the debug 「虹を出す」: the rainbow find is on the floor at once', async ({ page }) => {
+  await page.goto('/?preview=walk&place=ANCIENT_RUINS');
+  const walk = page.getByTestId('walk-scene');
+  await expect(walk).toHaveAttribute('data-rainbow', 'open');
+  expect(await walk.getAttribute('data-things')).not.toContain(':RAINBOW');
+  await page.getByTestId('walk-debug-rainbow').click();
+  await expect(walk).toHaveAttribute('data-things', /find:STAR_CREST_RELIC_SWORD:[^ ]*:RAINBOW/);
+});

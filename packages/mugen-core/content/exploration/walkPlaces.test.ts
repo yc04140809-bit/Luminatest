@@ -3,6 +3,7 @@ import { itemDef } from '../economy/itemDefs';
 import { WALK_PLACES, WALK_PLACE_IDS } from './walkPlaces';
 import { RUINS_WALK } from './ruinsWalk';
 import { GREENWOOD_WALK } from './greenwoodWalk';
+import { FOREST_ITEM_IDS } from './forestFinds';
 import { ambientLinesFor, markerAt, pointLine, pointsFor } from './walkScene';
 
 const empty = { known: new Set<string>(), day: 1 };
@@ -108,6 +109,27 @@ describe('古代遺跡, walked about in — small finds', () => {
     // From the road's lower left (the adopted painting's ground begins there) to its right.
     expect(Math.min(...xs)).toBeLessThan(0.25);
     expect(Math.max(...xs)).toBeGreaterThan(0.8);
+  });
+
+  it('the forest gives some of its floor away to an ordinary look too (作者 実機 2026-10-23): its own floor things, nothing new, the rest still sights', () => {
+    const roam = GREENWOOD_WALK.roam!;
+    const giving = roam.discoveries.filter((d) => d.reward);
+    expect(giving.length).toBeGreaterThanOrEqual(4);
+    // Not every look: most stay something seen.
+    expect(giving.length).toBeLessThan(roam.discoveries.length / 2);
+    // Only the forest's own floor things (forestFinds) and its nut — never a key, never anything rare.
+    const floor = new Set([...FOREST_ITEM_IDS, 'FOREST_NUT']);
+    for (const d of giving) {
+      expect(floor.has(d.reward!.itemId), d.id).toBe(true);
+      const def = itemDef(d.reward!.itemId);
+      expect(def, d.id).not.toBeNull();
+      expect(def!.isKeyItem ?? false, d.id).toBe(false);
+      expect(def!.rarity, d.id).not.toBe('RARE');
+      expect(d.reward!.quantity ?? 1).toBe(1);
+    }
+    expect(giving.map((d) => d.text + d.label).join('\n')).not.toMatch(/ガルド|盗賊|人影|誰か|一人|男|手に入れた/);
+    // The ruins' and the meadow's ordinary finds still hand nothing over.
+    for (const other of [RUINS_WALK]) expect(other.roam!.discoveries.filter((d) => d.reward)).toEqual([]);
   });
 
   it('the forest is walked about in too — with small finds of its own, golden ones that hand a material over (2026-10-11), and no rainbow one yet', () => {

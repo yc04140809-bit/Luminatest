@@ -287,9 +287,14 @@ export const GREENWOOD_WALK: WalkSceneDef = {
     // SMALL THINGS IN A FOREST. Plants, animals, the weather — never a
     // person: who has been walking here is the footprints' to say, and
     // only while it is so.
+    //
+    // SOME OF THEM CAN BE CARRIED HOME (作者 実機 2026-10-23: 言葉だけだと「もう調べないでいいや」と
+    // 思う人が必ず居る): the forest's own floor things (forestFinds FOREST_ITEM_IDS — the herb, the
+    // acorn, the old clasp — and its nut), already in the catalogue, nothing new. With the golden
+    // ones, about one look in three hands something over; the rest stay something seen.
     discoveries: [
       { id: 'MUSHROOMS', label: '小さなきのこ', text: '倒れた枝の陰に、小さなきのこが並んで生えている。' },
-      { id: 'ACORN', label: 'どんぐり', text: 'どんぐりが一つ、苔の上に転がっている。' },
+      { id: 'ACORN', label: 'どんぐり', text: 'どんぐりが一つ、苔の上に転がっている。', reward: { kind: 'COLLECTIBLE', itemId: 'ROUND_ACORN', quantity: 1 } },
       { id: 'BLUE_FEATHER', label: '鳥の羽根', text: '青い小鳥の羽根が、一枚落ちている。' },
       { id: 'DEWY_WEB', label: '蜘蛛の巣', text: '枝の間に張られた蜘蛛の巣に、露が光っている。' },
       { id: 'CLOVER', label: 'クローバー', text: 'クローバーの群れの中に、四つ葉が一枚まじっている。' },
@@ -300,6 +305,9 @@ export const GREENWOOD_WALK: WalkSceneDef = {
       { id: 'LEAF_DRIFT', label: '落ち葉', text: '吹き寄せられた落ち葉が、柔らかく積もっている。' },
       { id: 'ROUND_PEBBLE', label: '丸い小石', text: '水に磨かれたような、丸い小石が落ちている。' },
       { id: 'DEER_TRACKS', label: '鹿の足跡', text: '鹿の足跡が、水辺の方へ続いている。' },
+      { id: 'WAYSIDE_HERB', label: '道ばたの草', text: '道ばたに、香りのいい草が生えている。', reward: { kind: 'MATERIAL', itemId: 'FOREST_HERB', quantity: 1 } },
+      { id: 'FALLEN_NUTS', label: '木の実', text: '大きな木の下に、固い木の実が落ちている。', reward: { kind: 'MATERIAL', itemId: 'FOREST_NUT', quantity: 1 } },
+      { id: 'RUSTY_CLASP', label: '錆びた留め金', text: '草の間に、錆びた留め金が落ちている。', reward: { kind: 'VALUABLE', itemId: 'BROKEN_CLASP', quantity: 1 } },
     ],
     // GOLDEN (2026-10-11, 作者判断 A): now and then, something worth carrying
     // home — a material already in the catalogue, into the bag. Plants,

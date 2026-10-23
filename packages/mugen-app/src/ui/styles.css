@@ -1492,6 +1492,18 @@ body {
   color: var(--ink);
   font-size: 12px;
 }
+/* The debug build's 「虹を出す」: a plain chip beside the way out, never in a release build. */
+.walk-debug-rainbow {
+  pointer-events: auto;
+  min-height: 30px;
+  margin-right: 6px;
+  padding: 4px 10px;
+  border: 1px dashed rgba(255, 210, 120, 0.7);
+  border-radius: 15px;
+  background: rgba(40, 24, 8, 0.6);
+  color: #ffd98a;
+  font-size: 11px;
+}
 /* 探索の設定 (作者 2026-10-18): a small chip under the way out, and its two switches. */
 .walk-prefs-open {
   position: absolute;
