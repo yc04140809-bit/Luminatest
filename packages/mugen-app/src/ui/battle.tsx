@@ -44,6 +44,8 @@ import {
 import { arcanaReading } from './battle/arcanaDepth';
 import { playSfx } from '../platform/audio';
 import { bossCutInFor } from './battle/cutin/bossCutIn';
+import { skillCutIn } from './battle/cutin/skillCutIn';
+import type { CutInSpec } from './battle/cutin/CutIn';
 import { skillBeatsSpell } from './battle/autoSkill';
 
 /** AUTO's breath between one shown turn and the next, at ×1 — the Artifact's. */
@@ -174,7 +176,7 @@ export function BattleScreen({
   const memoryLines = world.getKnownEvents().map((e) => memoryEventLabel(e));
 
   /** A turn the core has decided: kept, and shown. */
-  const turn = (next: BattleState, kind: TurnKind) => {
+  const turn = (next: BattleState, kind: TurnKind, skillCut?: CutInSpec | null) => {
     const before = battle;
     setBattle(next);
     if (next.outcome !== 'ONGOING' && !ended.current) {
@@ -182,7 +184,11 @@ export function BattleScreen({
     }
     // A boss's one great move gets its cut-in, between his turn and its answer.
     const cutIn = bossCutInFor(opponent.artId, next);
-    theatre.playTurn(before, next, kind, { skill: kind === 'SKILL', ...(cutIn ? { answerCutIn: cutIn } : {}) });
+    theatre.playTurn(before, next, kind, {
+      skill: kind === 'SKILL',
+      ...(cutIn ? { answerCutIn: cutIn } : {}),
+      ...(skillCut ? { skillCutIn: skillCut } : {}),
+    });
   };
 
   const idle = battle.outcome === 'ONGOING' && !busy && !theatre.playing;
@@ -207,7 +213,8 @@ export function BattleScreen({
     if (!skill || skillReadyIn(battle, skill) > 0) return;
     setSay(null);
     setTold(null);
-    turn(playerSkill(battle, skill), 'SKILL');
+    // His skill's cut-in first (作者 実機 2026-10-23 — cutin/skillCutIn.ts), then the swing.
+    turn(playerSkill(battle, skill), 'SKILL', skillCutIn(skill));
     void world.markRead([`skill:${id}`]).catch(() => {});
   };
 

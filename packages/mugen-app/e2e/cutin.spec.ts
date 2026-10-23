@@ -217,7 +217,7 @@ test('closing the preview in the middle of one leaves no error and nothing behin
 });
 
 // Her spells have cut-ins in the game's fight now (magic.spec). A swing
-// of the sword is not a skill and has none.
+// of the sword is not a skill and has none (his skill has: below).
 test("a sword swing in the game's own fight plays no cut-in", async ({ page }) => {
   await page.goto('/');
   await page.evaluate(async () => {
@@ -239,5 +239,32 @@ test("a sword swing in the game's own fight plays no cut-in", async ({ page }) =
   }
   await readyToAct(page);
   expect(await shown(page)).toEqual([]);
+  await expect(page.getByTestId('bp-cinematic')).toHaveCount(0);
+});
+
+// His skill has one now (作者 実機 2026-10-23: 通常のスキルにもカットイン — cutin/skillCutIn.ts): 《瞬断》
+// in the ordinary fight before ヴァルシール shows his cut-in with its name first, then the swing.
+test("his 《瞬断》 in the game's own fight: its cut-in first, with its name — then the fight is back", async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    for (const d of (await indexedDB.databases?.()) ?? [])
+      if (d.name) indexedDB.deleteDatabase(d.name);
+  });
+  await page.reload();
+  await page.getByTestId('start-button').click();
+  await throughTheOpening(page);
+  await page.getByTestId('naming-default').click();
+  await pastTheIntro(page);
+  await page.getByTestId('explore-button').click();
+  await page.getByTestId('forest-button').click();
+  await page.getByTestId('encounter-button').click();
+  await watch(page);
+  await readyToAct(page);
+  await page.getByTestId('bp-skill').click();
+  await page.getByTestId('skill-shundan').click();
+  await expect(page.getByTestId('bp-cinematic')).toBeVisible();
+  await expect(page.getByTestId('cut-in-name')).toHaveText('瞬断');
+  await readyToAct(page);
+  expect((await shown(page)).map((s) => s.name)).toEqual(['瞬断']);
   await expect(page.getByTestId('bp-cinematic')).toHaveCount(0);
 });

@@ -46,6 +46,7 @@ import { WorldMemoryPanel } from './BattleHud';
 import { memoryRows } from './battleHud';
 import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
+import { skillCutIn } from './cutin/skillCutIn';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -196,6 +197,17 @@ function Bar({ value, max, kind }: { value: number; max: number; kind: 'hp' | 'm
   );
 }
 
+/** A giant's HP, upright (its plate down the left edge): the fill and its red trail rise from the bottom. */
+function VBar({ value, max }: { value: number; max: number }) {
+  const share = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  return (
+    <div className="pb-bar hp upright" aria-hidden="true">
+      <div className="pb-bar-trail" style={{ height: `${share * 100}%` }} />
+      <div className="pb-bar-fill" style={{ height: `${share * 100}%` }} />
+    </div>
+  );
+}
+
 /**
  * BREAK's breaking crystal (作者 2026-10-16): where each piece of the sheet's crystal flies as the
  * plate behind 「BREAK!!」 splits — direction (px), turn (deg), which piece. Fixed, so it is the same
@@ -298,14 +310,22 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   // HER SPELLS' CUT-INS (TIGS 2026-10-23: they played in the ordinary fight and not in this one —
   // the three-person fight never had the cut-in layer). The same table and the same part as the
   // ordinary fight (magic/spellCutIn.ts, cutin/CutIn.tsx): a spell listed there shows it first,
-  // then the blow; a spell not listed, a skill, an attack go straight on as before.
+  // then the blow; a spell not listed, an attack go straight on as before. Their skills the same way
+  // (cutin/skillCutIn.ts).
   const cutIns = useCutInDirector(fast ? 2 : 1);
   const act = (action: PartyAction) => {
     if (cutIns.playing) return;
     const next = partyAct(state, action, dice);
     if (next === state) return;
     const spell = action.kind === 'MAGIC' ? acting?.magic?.find((m) => m.id === action.magicId) : undefined;
-    const cut = spell ? spellCutIn(spell) : null;
+    // Their skills too (作者 実機 2026-10-23): 《瞬断》, 重撃・豪断 — cutin/skillCutIn.ts.
+    const skill =
+      action.kind === 'SKILL'
+        ? acting?.skills?.find((k) => k.id === action.skillId)
+        : action.kind === 'TECH'
+          ? acting?.techniques?.find((t) => t.id === action.techId)
+          : undefined;
+    const cut = spell ? spellCutIn(spell) : skillCutIn(skill);
     if (cut) {
       setMenu('COMMANDS');
       setAiming(null);
@@ -690,8 +710,43 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         )}
       </div>
 
-      {/* TOP LEFT — the creature: name, HP, BREAK, together. */}
-      <div className="pb-enemy-plate" data-testid="pb-enemy-plate" data-focus={focused.id} data-boss={focused.boss ? 'yes' : undefined}>
+      {/* TOP LEFT — the creature: name, HP, BREAK, together. A giant's stands upright down the left edge
+          (作者 実機 2026-10-23: 横長の枠は大きさの表現の邪魔で、第2形態の顔にもかかる — 左端に縦で). */}
+      {giant ? (
+        <div
+          className="pb-enemy-plate upright"
+          data-testid="pb-enemy-plate"
+          data-layout="upright"
+          data-focus={focused.id}
+          data-boss={focused.boss ? 'yes' : undefined}
+        >
+          <span className="pb-enemy-name">{focused.name}</span>
+          <div className="pb-upright-gauges">
+            <VBar value={focused.hp} max={focused.maxHp} />
+            <div
+              className={`pb-break-gauge upright${broken ? ' broken' : ''}`}
+              data-testid="pb-break-gauge"
+              data-current={focused.breakCurrent}
+              data-max={focused.breakMax}
+              aria-label={`BREAK ${focused.breakCurrent}/${focused.breakMax}`}
+              style={{ ['--pb-segs' as string]: focused.breakMax }}
+            >
+              <div className="pb-break-fill" style={{ height: `${broken ? 100 : (focused.breakCurrent / focused.breakMax) * 100}%` }} />
+            </div>
+          </div>
+          <span className="pb-num" data-testid="pb-enemy-hp" data-hp={focused.hp}>
+            {focused.hp}
+            <small>/{focused.maxHp}</small>
+          </span>
+          <span className={`pb-break-label${broken ? ' on' : ''}`}>BREAK</span>
+          {broken && (
+            <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={focused.breakTurns}>
+              防御DOWN 残り{focused.breakTurns}T
+            </span>
+          )}
+        </div>
+      ) : (
+        <div className="pb-enemy-plate" data-testid="pb-enemy-plate" data-focus={focused.id} data-boss={focused.boss ? 'yes' : undefined}>
         <span className="pb-enemy-name">{focused.name}</span>
         <span className="pb-num" data-testid="pb-enemy-hp" data-hp={focused.hp}>
           {focused.hp}/{focused.maxHp}
@@ -714,6 +769,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           </span>
         )}
       </div>
+      )}
 
       {/* TOP CENTRE — the order of turns, and the last line said under it. */}
       <div className="pb-top">

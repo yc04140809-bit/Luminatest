@@ -540,3 +540,49 @@ test('星癒の羽 on グレイヴ: 「星癒 3T」 on his card, Kaos\'s MP unto
   await expect(page.getByTestId('pb-status-grave-regen')).toHaveText('星癒 3T');
   expect(await mp(page)).toBe(48);
 });
+
+// A GIANT's plate stands upright down the left edge (作者 実機 2026-10-23): the same corner, narrow and
+// tall, clear of WORLD MEMORY — and off the giant's head. A fight of several keeps the wide plate.
+test('a giant\'s plate stands upright down the left edge: narrow, tall, clear of WORLD MEMORY; others keep the wide one', async ({ page }) => {
+  for (const size of [
+    { width: 640, height: 300 },
+    { width: 844, height: 390 },
+  ]) {
+    await page.setViewportSize(size);
+    await page.goto('/?preview=party');
+    await turnOf(page, 'kaos');
+    const plate = page.getByTestId('pb-enemy-plate');
+    await expect(plate).toHaveAttribute('data-layout', 'upright');
+    await expect(plate).toContainText('ヴァルシール');
+    const b = await box(page, 'pb-enemy-plate');
+    expect(b.x).toBeLessThan(size.width * 0.05);
+    expect(b.y).toBeLessThan(size.height * 0.05);
+    expect(b.width).toBeLessThan(size.width * 0.09);
+    expect(b.height).toBeGreaterThan(size.height * 0.45);
+    expect(apart(b, await box(page, 'bx-world-memory'))).toBe(true);
+    await onScreen(page, 'pb-break-gauge');
+    await expect(page.getByTestId('pb-enemy-hp')).toContainText('500');
+  }
+  await page.goto('/?preview=party&enemies=2');
+  await turnOf(page, 'kaos');
+  await expect(page.getByTestId('pb-enemy-plate')).not.toHaveAttribute('data-layout', 'upright');
+});
+
+// Their skills' cut-ins (作者 実機 2026-10-23 — cutin/skillCutIn.ts): グレイヴ's 重撃・豪断 with its name
+// first, the commands held; then the blow.
+test('グレイヴ\'s 重撃・豪断: its cut-in with its name first, the commands held — then the blow', async ({ page }) => {
+  await page.goto('/?preview=party&footing=40');
+  // The round's order: ケイオス, the creature, 主人公, グレイヴ — the first two defend.
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-cmd-defend').click();
+  await turnOf(page, 'hero');
+  await page.getByTestId('pb-cmd-defend').click();
+  await turnOf(page, 'grave');
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-tech-goudan').click();
+  await expect(page.getByTestId('pb-cinematic')).toBeVisible();
+  await expect(page.getByTestId('cut-in-name')).toHaveText('重撃・豪断');
+  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'yes');
+  await expect(page.getByTestId('pb-cinematic')).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).toHaveAttribute('data-tier', 'big');
+});

@@ -191,6 +191,11 @@ export interface TurnExtras {
    * the creature answered.
    */
   answerCutIn?: CutInSpec;
+  /**
+   * HIS SKILL'S CUT-IN (《瞬断》 — cutin/skillCutIn.ts): played first, then his swing and the rest
+   * of the turn as it would have been. Stopped by a newer turn, nothing after it happens.
+   */
+  skillCutIn?: CutInSpec;
 }
 
 export interface TheatreOptions {
@@ -343,6 +348,20 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
 
   const playTurn = (before: BattleState, next: BattleState, kind: TurnKind, extra: TurnExtras = {}) => {
     clearStage();
+    if (extra.skillCutIn) {
+      const mine = showing.current;
+      const { skillCutIn: cut, ...rest } = extra;
+      setPlaying(true);
+      void cutIns.play(cut).then((ended) => {
+        if (ended !== 'done' || showing.current !== mine) return;
+        playTurnNow(before, next, kind, rest);
+      });
+      return;
+    }
+    playTurnNow(before, next, kind, extra);
+  };
+
+  const playTurnNow = (before: BattleState, next: BattleState, kind: TurnKind, extra: TurnExtras) => {
     const swings = (kind === 'ATTACK' || kind === 'SKILL') && options.slash;
     const cutIn = extra.answerCutIn;
     if (cutIn && answered(next)) {
