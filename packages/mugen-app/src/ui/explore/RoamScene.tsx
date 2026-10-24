@@ -90,7 +90,8 @@ const DEBUG_TOOLS = import.meta.env.DEV || import.meta.env.VITE_MUGEN_DEBUG_TOOL
 
 const WALK_SPEED = 0.3;
 /** How long one walking frame is held. */
-const FRAME_MS = 140;
+// A step every 150ms: the walk sprites' own gait (作者 2026-10-24 — their reference GIFs).
+const FRAME_MS = 150;
 /** The hero's height at the nearest floor, as a share of the screen's height. */
 const HERO_HEIGHT = 0.4;
 /** Kaos is drawn a little smaller than him. */

@@ -45,7 +45,8 @@ const WALK_SPEED = 0.34;
 /** How long the party takes to walk in from the right edge. */
 const ENTER_MS = 900;
 /** How long one walking frame is held. */
-const FRAME_MS = 140;
+// A step every 150ms: the walk sprites' own gait (作者 2026-10-24 — their reference GIFs).
+const FRAME_MS = 150;
 /** The ground the party walks on, as a share of the screen's height from the top. */
 const FEET_Y = 0.8;
 /** The hero's height, head to sole, as a share of the screen's height. */

@@ -47,6 +47,14 @@ describe('the explorers as mini statues', () => {
     });
   }
 
+  it('the walk sprites (作者 2026-10-24): standing every way is its own drawing — the walk\'s passing step, never another way\'s', () => {
+    for (const id of ['HERO', 'KAOS'] as const)
+      for (const d of DIRECTIONS) {
+        const { idle } = MINI_STATUE_SPRITES[id].frames[d];
+        expect(idle.url, `${id} ${d}`).toMatch(new RegExp(`-${d}-idle`));
+      }
+  });
+
   it('both walk with four drawn steps every way', () => {
     for (const id of ['HERO', 'KAOS'] as const)
       for (const d of DIRECTIONS) expect(MINI_STATUE_SPRITES[id].frames[d].walk, `${id} ${d}`).toHaveLength(4);
