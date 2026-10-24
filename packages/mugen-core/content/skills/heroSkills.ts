@@ -20,10 +20,11 @@ export const SHUNDAN: HeroSkillSpec = {
 };
 
 /**
- * 《彼岸花》 — HIS FINISHER (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」): in at the creature,
- * two quick cuts and a big third, the world goes still, a red spider lily opens — and the creature is
- * left SLOWED, so the party gets more turns in before it moves (in a BREAK, more of them before it
- * stands). Three strikes of their own (each COMBO's).
+ * 《彼岸花》 — HIS FINISHER (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」, then 最終仕様): he
+ * slides back and is gone, then among them — two quick cuts and a big third, the ground splits, the
+ * world goes still, red spider lilies open out of the cracks — and every creature standing is left
+ * SLOWED, so the party gets more turns in before they move (in a BREAK, more of them before it stands).
+ * At ALL of them: three strikes of their own on each (each COMBO's — three creatures, nine).
  *
  * PROVISIONAL NUMBERS (TIGS 前: no big damage — its worth is the three hits, the slowing and COMBO):
  * 2.4 × a swing in all — 0.72, 0.72 and the heaviest last, 0.96 (作者 第一案) — every fourth turn, each
@@ -42,8 +43,18 @@ export const HIGANBANA: HeroSkillSpec = {
   cuts: [0.72, 0.72, 0.96],
   cutBreakPower: 1,
   slows: true,
+  area: 'ALL',
   finisher: true,
 };
+
+/**
+ * His skills with 《彼岸花》 among them (first). One way in for whatever gives it him — the story
+ * (ヴァルシール's second form: ui/finale decides when) or a demo forcing it (the DEV preview's
+ * `&higanbana=1`; later a TIGS demo or PV) — so the two stay apart and the move stays the same.
+ */
+export function withHiganbana(skills: readonly HeroSkillSpec[]): HeroSkillSpec[] {
+  return [HIGANBANA, ...skills.filter((k) => k.id !== HIGANBANA.id)];
+}
 
 /** What he knows from the first fight on. */
 export const HERO_STARTING_SKILLS: readonly HeroSkillSpec[] = [SHUNDAN];

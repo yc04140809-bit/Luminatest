@@ -17,7 +17,7 @@ import { carriedInto } from '@mugen/content/characters/partyMembers';
 import { KAOS_MP_REGEN, mpAfterRecovery } from '@mugen/content/characters/kaosMpRegen';
 import { finaleBeat, finaleReached, type FinaleFight, type FinaleStage } from '@mugen/core/world/chapterFinale';
 import type { PartyEnemyInput, PartyMember, PartyMemberSpec } from '@mugen/game/battle/partyBattle';
-import { HIGANBANA } from '@mugen/content/skills/heroSkills';
+import { HIGANBANA, withHiganbana } from '@mugen/content/skills/heroSkills';
 import type { BgmId } from '@mugen/assets';
 import type { SfxId } from '@mugen/content/audio/sfx';
 import { finaleBackdropSrc } from '../assets/finaleArt';
@@ -60,9 +60,9 @@ import './finale.css';
 /** What the finale wants to hear: a piece, nothing at all, or the place's own (null). */
 export type FinaleMusic = BgmId | 'HUSH' | null;
 
-/** The party with 《彼岸花》 first among his skills (AUTO takes the first one ready). */
+/** The party with 《彼岸花》 among his skills — the story's unlock (heroSkills withHiganbana). */
 export function withFinisher(members: readonly PartyMemberSpec[]): PartyMemberSpec[] {
-  return members.map((m) => (m.id === 'hero' ? { ...m, skills: [HIGANBANA, ...(m.skills ?? []).filter((k) => k.id !== HIGANBANA.id)] } : m));
+  return members.map((m) => (m.id === 'hero' ? { ...m, skills: withHiganbana(m.skills ?? []) } : m));
 }
 
 export interface FinaleRunProps {

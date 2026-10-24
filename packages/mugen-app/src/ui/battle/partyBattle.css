@@ -1154,52 +1154,94 @@
 /* A deep step in (《瞬断》, 《彼岸花》): a red trail behind him while he moves. */
 .pb-figure[data-lunge='deep'] > img { filter: drop-shadow(18px 0 0 rgba(170, 0, 24, 0.35)) drop-shadow(34px 0 4px rgba(120, 0, 16, 0.22)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
 
-/* The world goes still: dark over everything but the lily, a moment — then back at once. */
-.pb-bloom { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+/* 《彼岸花》 (最終仕様 §7–9): the ground splits under them at the third cut, red light running in the cracks
+   (Grave's ground crack drawn the same way, in red); the world goes still and dark — the cracks glowing
+   through it — lilies open out of the cracks, a red veil and petals over the whole screen a moment, then
+   thinning at once. Over the field, not held by its hit-stop: its times are the screen's. */
+.pb-bloom { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
 .pb-bloom-dark {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at var(--bx) var(--by), rgba(40, 0, 6, 0.55), rgba(4, 0, 2, 0.88) 55%);
+  background: radial-gradient(ellipse at var(--bx) var(--by), rgba(40, 0, 6, 0.5), rgba(4, 0, 2, 0.88) 55%);
   opacity: 0;
   animation: pb-bloom-dark var(--bloom-ms) ease-out var(--bloom-at) both;
 }
-@keyframes pb-bloom-dark { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes pb-bloom-dark { 0% { opacity: 0; } 10% { opacity: 1; } 72% { opacity: 1; } 100% { opacity: 0; } }
+.pb-crack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0;
+  animation: pb-crack-life calc(var(--bloom-at) - var(--crack-at) + var(--bloom-ms)) linear var(--crack-at) both;
+}
+@keyframes pb-crack-life { 0% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+.pb-crack path { fill: none; stroke-linejoin: bevel; stroke-dasharray: 100; stroke-dashoffset: 100; }
+/* The red light: a wide haze along the crack, its dark cut, the bright line inside it. */
+.pb-crack-haze { stroke: rgba(255, 30, 50, 0.4); stroke-width: 14; stroke-linecap: round; filter: blur(3px); animation: pb-crack-run 300ms ease-out calc(var(--crack-at) + 60ms) both; }
+.pb-crack-cut { stroke: #140205; stroke-width: 6; animation: pb-crack-run 170ms cubic-bezier(0.2, 0.8, 0.3, 1) var(--crack-at) both; }
+.pb-crack-glow {
+  stroke: #ff3347;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 3px rgba(255, 40, 60, 0.95)) drop-shadow(0 0 8px rgba(200, 0, 24, 0.8));
+  animation:
+    pb-crack-run 240ms ease-out calc(var(--crack-at) + 50ms) both,
+    pb-crack-pulse calc(var(--bloom-at) - var(--crack-at) + var(--bloom-ms) * 0.4) ease-in-out calc(var(--crack-at) + 290ms) both;
+}
+@keyframes pb-crack-run { to { stroke-dashoffset: 0; } }
+@keyframes pb-crack-pulse { 0% { stroke: #ff3347; } 60% { stroke: #ff9a9a; stroke-width: 3.4; } 100% { stroke: #ff3347; } }
 .pb-bloom-lily {
   position: absolute;
-  left: var(--bx);
-  top: var(--by);
-  width: min(46vh, 220px);
+  width: calc(min(46vh, 220px) * var(--ls, 1));
   aspect-ratio: 1;
   object-fit: contain;
-  translate: -50% -50%;
+  translate: -50% -82%;
+  transform-origin: 50% 82%;
   filter: drop-shadow(0 0 14px rgba(255, 30, 50, 0.85));
   opacity: 0;
-  animation: pb-bloom-lily var(--bloom-ms) cubic-bezier(0.2, 0.8, 0.3, 1) var(--bloom-at) both;
+  animation: pb-bloom-lily calc(var(--bloom-ms) * (1 - var(--ld, 0))) cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--bloom-at) + var(--bloom-ms) * var(--ld, 0)) both;
 }
 @keyframes pb-bloom-lily {
-  0% { opacity: 0; transform: scale(0.25) rotate(-25deg); }
-  22% { opacity: 1; transform: scale(1.06) rotate(0deg); }
-  34% { transform: scale(1); }
-  75% { opacity: 1; transform: scale(1.04); }
-  100% { opacity: 0; transform: scale(1.12); }
+  0% { opacity: 0; transform: scale(0.08) rotate(var(--lt, 0deg)); }
+  8% { opacity: 1; }
+  26% { transform: scale(1.14) rotate(0deg); }
+  38% { transform: scale(1); }
+  76% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.1); }
 }
+.pb-bloom-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at var(--bx) var(--by), rgba(255, 60, 80, 0.12), rgba(170, 0, 22, 0.42) 70%);
+  opacity: 0;
+  animation: pb-bloom-veil calc(var(--bloom-ms) * 0.55) ease-out calc(var(--bloom-at) + var(--bloom-ms) * 0.34) both;
+}
+@keyframes pb-bloom-veil { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
 .pb-petal {
   position: absolute;
-  left: var(--bx);
-  top: var(--by);
-  width: 10px;
-  height: 6px;
-  margin: -3px 0 0 -5px;
+  width: 14px;
+  height: 8px;
+  margin: -4px 0 0 -7px;
   border-radius: 60% 40% 60% 40%;
   background: radial-gradient(circle at 30% 30%, #ff6a6a, #c2001b 70%);
   box-shadow: 0 0 4px rgba(255, 40, 60, 0.8);
   opacity: 0;
-  animation: pb-petal calc(var(--bloom-ms) * 1.3) ease-out calc(var(--bloom-at) + var(--bloom-ms) * var(--pd)) both;
+  animation: pb-petal calc(var(--bloom-ms) * 1.35) cubic-bezier(0.12, 0.7, 0.35, 1) calc(var(--bloom-at) + var(--bloom-ms) * var(--pd)) both;
 }
+/* Near the camera: big, a little soft, gone sooner — they cover the screen only for a moment. */
+.pb-petal.near { filter: blur(1px); animation-name: pb-petal-near; animation-duration: calc(var(--bloom-ms) * 0.9); }
 @keyframes pb-petal {
-  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
-  12% { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)); }
+  0% { opacity: 0; transform: translate(0, 0) rotate(0) scale(calc(var(--ps) * 0.4)); }
+  10% { opacity: 1; }
+  60% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(var(--ps)); }
+}
+@keyframes pb-petal-near {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0) scale(1); }
+  14% { opacity: 0.95; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(var(--ps)); }
 }
 
 /* SLOWED: said on it, and kept on its plate with how many of its turns are left. */
@@ -1213,7 +1255,7 @@
   animation-name: pb-float-pop;
   animation-duration: 1300ms;
 }
-.giant .pb-foe .pb-float.slow { top: 20%; left: 62%; }
+.giant .pb-foe .pb-float.slow { top: 24%; left: 74%; }
 .pb-slow-badge {
   font-size: 10px;
   font-weight: 800;
@@ -1264,5 +1306,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pb-bloom-lily, .pb-petal, .pb-combo-bonus, .pb-unlocked { animation-name: pb-hit-fade; }
-  .pb-petal { display: none; }
+  .pb-petal, .pb-bloom-veil { display: none; }
 }

@@ -316,6 +316,64 @@ for (const size of [
   });
 }
 
+// 最終仕様 (作者 2026-10-24): at all of them — three cuts on each, each one's own numbers, COMBO nine, every one slowed.
+test('《彼岸花》 at three creatures: three numbers on each adding up to what each lost, COMBO nine, the ground split under each, every one slowed', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto('/?preview=party&higanbana=1&enemies=3&footing=40');
+  for (let i = 0; i < 6 && (await screen(page).getAttribute('data-actor')) !== 'hero'; i++) {
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+    if ((await screen(page).getAttribute('data-actor')) === 'hero') break;
+    await page.getByTestId('pb-cmd-defend').click();
+    await page.waitForTimeout(300);
+  }
+  await turnOf(page, 'hero');
+  const ids = ['enemy', 'enemy-2', 'enemy-3'];
+  const hpOf = (id: string) => page.getByTestId(`pb-foe-${id}`).getAttribute('data-hp').then(Number);
+  const before = await Promise.all(ids.map(hpOf));
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-skill-higanbana').click();
+  await page.getByTestId('pb-foe-enemy-2').click();
+  await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.getByTestId('pb-bloom')).toHaveAttribute('data-spots', '3');
+  await expect(page.getByTestId('pb-crack').locator('g')).toHaveCount(3);
+  for (const [i, id] of ids.entries()) {
+    const foe = page.getByTestId(`pb-foe-${id}`);
+    await expect(foe.locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]')).toHaveCount(3, { timeout: 10_000 });
+    const nums = (await foe.locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]').allTextContents()).map(Number);
+    expect(nums.reduce((a, b) => a + b, 0)).toBe(before[i] - (await hpOf(id)));
+    await expect(foe.getByTestId('pb-float-slow')).toHaveText('SPEED DOWN');
+  }
+  await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '9');
+  await expect(page.getByTestId('pb-log')).toContainText('の動きが鈍った。（速度DOWN）');
+  // The next turn comes once he is home.
+  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+});
+
+// AUTO (§16–18): not the moment it is ready — against ヴァルシール, standing whole, his first turn is 《瞬断》; it
+// waits for BREAK (or the edge of it), and then it comes.
+test('AUTO keeps 《彼岸花》 for BREAK: his first turn against ヴァルシール is 《瞬断》, and 《彼岸花》 comes later in the fight', async ({ page }) => {
+  test.setTimeout(150_000);
+  // Every move's name as it flashes, in order.
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    (window as unknown as { __names: string[] }).__names = seen;
+    new MutationObserver(() => {
+      const el = document.querySelector('[data-testid="pb-tech-name"]');
+      const t = el?.textContent ?? '';
+      if (t && seen[seen.length - 1] !== t) seen.push(t);
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  await page.goto('/?preview=party&higanbana=1');
+  await turnOf(page, 'kaos');
+  await page.getByTestId('pb-speed').click();
+  await page.getByTestId('pb-auto').click();
+  const names = () => page.evaluate(() => (window as unknown as { __names: string[] }).__names.filter((n) => n === '瞬断' || n === '彼岸花'));
+  await expect.poll(names, { timeout: 30_000 }).toContain('瞬断');
+  expect((await names())[0]).toBe('瞬断');
+  await expect.poll(names, { timeout: 110_000 }).toContain('彼岸花');
+});
+
 test('《彼岸花》 brought it down part-way: the numbers that landed, the fight won — nothing breaks', async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto('/?preview=party&higanbana=1&weak=1&enemies=2');
@@ -330,8 +388,8 @@ test('《彼岸花》 brought it down part-way: the numbers that landed, the fig
   await page.getByTestId('pb-cmd-skill-higanbana').click();
   await page.getByTestId('pb-foe-enemy').click().catch(() => {});
   await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 15_000 });
-  // Whatever fell, the fight goes on (or is won) — the next turn comes.
-  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+  // Whatever fell, the fight goes on — the next turn comes — or (at all of them: both may fall) it is won.
+  await expect(page.getByTestId('pb-result').or(page.locator('[data-testid="pb-commands"][data-locked="no"]'))).toBeVisible({ timeout: 15_000 });
 });
 
 test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK comes, and it is won', async ({ page }) => {

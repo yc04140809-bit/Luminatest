@@ -81,13 +81,29 @@ export interface BeatFx {
    * HE STEPS IN (作者 2026-10-24 §23 — a long sword: into the creature's reach, the blow, back): out to
    * it by `out` ms, home again from `back`, taking `home`. Only the hero, only his own sword.
    */
-  lunge?: { out: number; back: number; home: number; deep?: boolean };
-  /** 《彼岸花》: the world goes still (dark) from `at` for `ms`, and the red spider lily opens on the one struck. */
+  lunge?: {
+    out: number;
+    back: number;
+    home: number;
+    deep?: boolean;
+    /**
+     * 《彼岸花》 (最終仕様 §3–4): before going in he is still until `poise`, then slides BACK and fades, gone
+     * by `fade`; unseen until `out`, when he is there — too fast to follow, not a spell's teleport.
+     */
+    vanish?: { poise: number; fade: number };
+    /** The last blow stepped into, further in, from this moment. */
+    stepAt?: number;
+  };
+  /** 《彼岸花》: the ground under them splits at `at`, red light running in the cracks. */
+  crack?: { at: number };
+  /** 《彼岸花》: the world goes still (dark) from `at` for `ms`, and red spider lilies open out of the cracks. */
   bloom?: { at: number; ms: number };
+  /** A move at all of them (《彼岸花》): the others struck besides `flash.on` — the last blow's flash and reeling on each. */
+  also?: readonly string[];
 }
 
 /** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms; グレイヴ: 重撃 80〜120 / 豪断 100〜140). */
-export const HIT_STOPS = { light: 40, skill: 65, heavy: 100, finisher: 130, goudan: 120 } as const;
+export const HIT_STOPS = { light: 40, skill: 65, heavy: 100, finisher: 130, goudan: 120, higanbana: 150 } as const;
 
 /** ケイオス's spell: how long (ms) her circle shows before the camera kicks with the spell. */
 export const SPELL_KICK_AT = 60;
@@ -114,17 +130,22 @@ export const SHUNDAN_CUTS = { lead: 260, land: 110, turns: [{ turn: -16 }, { fli
 export const LUNGE = {
   attack: { out: 170, linger: 90, home: 190 },
   shundan: { out: 140, linger: 80, home: 180 },
-  higanbana: { out: 200, home: 230 },
+  // 《彼岸花》: in unseen (HIGANBANA_FX — he vanishes and is there); only his way home is a step.
+  higanbana: { home: 240 },
 } as const;
 export const LUNGE_FLOOR_MS = 120;
 
 /**
- * 《彼岸花》 in time (ms from the beat, at ×1): in at it, two quick cuts (`quick` apart, never under the
- * multi-hit floor on screen), a breath, the big third; the world dark for `dark` (never under
- * BLOOM_FLOOR_MS on screen), the lily opening in it; then home. Each cut lands at the moon's own moment.
+ * 《彼岸花》 in time (ms, at ×1 — 作者 2026-10-24 最終仕様 §3): still a moment (`poise`); slides back, fading
+ * (`fade`); gone, a hush (`gone`); there among them — two quick cuts (`quick` apart, never under the
+ * multi-hit floor on screen), a breath, the big third stepped into; the ground splits (`crack` before
+ * the dark); the world dark for `dark`, lilies opening out of the cracks, petals over everything; home.
+ * Each cut lands at the moon's own moment (`land`). On screen never shorter than the floors (×2).
  */
-export const HIGANBANA_FX = { first: 230, quick: 170, breath: 90, land: 110, dark: 460, home: 230 } as const;
-export const BLOOM_FLOOR_MS = 320;
+export const HIGANBANA_FX = { poise: 110, fade: 250, gone: 130, quick: 170, breath: 90, land: 110, crack: 170, dark: 640 } as const;
+export const BLOOM_FLOOR_MS = 380;
+/** His slide back and the hush after it, on screen at least (×2 too): seen, not skipped. */
+export const VANISH_FLOOR_MS = { fade: 160, gone: 80 } as const;
 /** The three cuts' looks: small and nearly flat; the other way and steeper; big and near upright. */
 export const HIGANBANA_CUTS = [
   { turn: -10, scale: 0.8 },
@@ -437,10 +458,12 @@ export function counterFx(beat: PartyBeat, ctx: Pick<BeatContext, 'giant'>): Bea
 }
 
 /**
- * 《彼岸花》 (作者 2026-10-24): in at the creature fast; two quick cuts — small and flat, then the other
- * way — a light hold and a KICK's worth each; a breath; the big third, near upright, a white flash,
- * the finisher's hold, a heavy sound, the field jolted; the world goes dark and the red spider lily
- * opens on it, petals falling; home. A number at each cut (`amounts` — the fight's own three).
+ * 《彼岸花》 (作者 2026-10-24, 最終仕様 §3–9): a moment still; he slides back and fades out; a hush; he is
+ * among them — two quick cuts (small and flat, then the other way: a light hold each), a breath, the big
+ * third stepped into (near upright, a white flash, the long hold, a low heavy sound, the field jolted);
+ * the ground under them splits, red light in the cracks; dark, and red spider lilies open out of the
+ * cracks, petals over the whole screen; home. At all of them: each cut on every one standing.
+ * A number at each cut (`amounts` — the fight's own; the others' from the beat's `spread`).
  */
 function higanbanaFx(
   beat: PartyBeat,
@@ -453,33 +476,39 @@ function higanbanaFx(
   const speed = ctx.speed ?? 1;
   const atLeast = (ms: number, floor: number) => Math.max(ms, floor / speed);
   const h = HIGANBANA_FX;
-  const out = Math.round(atLeast(LUNGE.higanbana.out, LUNGE_FLOOR_MS));
+  const fade = h.poise + Math.round(atLeast(h.fade, VANISH_FLOOR_MS.fade));
+  const out = fade + Math.round(atLeast(h.gone, VANISH_FLOOR_MS.gone));
   const quick = Math.round(Math.max(h.quick, multiHitGap(speed) / speed));
-  const first = Math.max(h.first, out + 30);
+  const first = out + 10;
   const all = beat.hits ?? [beat.amount];
-  // The cuts that landed (one that brought it down ends it): the last of them is the big one.
-  const n = all.length;
-  const cuts = all.map((_, i) => (i < n - 1 ? first + i * quick : first + (n - 1) * quick + (n > 1 ? h.breath : 0)));
-  const looks = all.map((_, i) => (i === n - 1 ? HIGANBANA_CUTS[2] : HIGANBANA_CUTS[i % 2]));
+  const struck = beat.spread ?? [{ target: beat.target, hits: all }];
+  // The cuts that landed (one that brought them all down ends it): the last of them is the big one.
+  const n = Math.max(...struck.map((x) => x.hits.length));
+  const cuts = Array.from({ length: n }, (_, i) => (i < n - 1 ? first + i * quick : first + (n - 1) * quick + (n > 1 ? h.breath : 0)));
+  const looks = cuts.map((_, i) => (i === n - 1 ? HIGANBANA_CUTS[2] : HIGANBANA_CUTS[i % 2]));
   const impact = cuts[n - 1] + h.land;
   const dark = Math.round(atLeast(h.dark, BLOOM_FLOOR_MS));
-  const bloomAt = impact + 20;
-  const back = bloomAt + Math.round(dark * 0.6);
+  const bloomAt = impact + Math.round(atLeast(h.crack, 100));
+  const back = bloomAt + Math.round(dark * 0.7);
+  const home = Math.round(atLeast(LUNGE.higanbana.home, LUNGE_FLOOR_MS));
   return {
     tempo,
     camera: [kick(lead)],
-    special: cuts.map((at, i) => ({ type: 'protagonist_redmoon_slash' as const, on: beat.target, at, ...looks[i] })),
+    special: struck.flatMap((x) => x.hits.map((_, i) => ({ type: 'protagonist_redmoon_slash' as const, on: x.target, at: cuts[i], ...looks[i] }))),
     stages: cuts.slice(0, -1).map((at) => ({ at: at + h.land, hitStop: HIT_STOPS.light, reel: reel(3) })),
     impact,
     flash: { kind: 'heavy', on: beat.target },
-    hitStop: HIT_STOPS.finisher,
-    sfx: ['battle_finisher_hit'],
+    hitStop: HIT_STOPS.higanbana,
+    sfx: ['battle_finisher_hit', 'battle_hit_heavy'],
     shake: beat.broke ? undefined : 'medium',
     reel: reel(8),
     number: numberTier(beat, ctx, true),
     amounts: all,
-    lunge: { out, back, home: Math.round(atLeast(LUNGE.higanbana.home, LUNGE_FLOOR_MS)), deep: true },
+    lunge: { out, back, home, deep: true, vanish: { poise: h.poise, fade }, stepAt: cuts[n - 1] },
+    crack: { at: impact },
     bloom: { at: bloomAt, ms: dark },
-    hold: back - first + 200,
+    also: struck.filter((x) => x.target !== beat.target && x.hits.length > 0).map((x) => x.target),
+    // The next turn waits for him to be home (its own wait, 450–700ms, already counted).
+    hold: back + home + 250 - 450,
   };
 }

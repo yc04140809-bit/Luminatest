@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { HIGANBANA_CUTS, HIGANBANA_FX, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { HIGANBANA_CUTS, HIGANBANA_FX, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -173,7 +173,7 @@ describe('the characters\' own (作者 2026-10-17)', () => {
     expect(fx.lunge!.back).toBeGreaterThan(fx.impact);
   });
 
-  it('《彼岸花》: in fast, two small quick cuts, a breath, a big near-upright third — a white flash, the finisher\'s hold, a heavy sound — then the dark and the lily; a number at each of the fight\'s three', () => {
+  it('《彼岸花》 (最終仕様 §3–6): still, back and gone, a hush, there — two small quick cuts, a breath, a big near-upright third stepped into (a white flash, the long hold, a low heavy sound), the ground split, then the dark and the lilies; a number at each of the fight\'s three', () => {
     for (const speed of [1, 0.5]) {
       const fx = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 24, hits: [7, 7, 10], slowed: true }), ctx({ skillId: 'higanbana', speed }));
       const sp = fx.special!;
@@ -186,21 +186,50 @@ describe('the characters\' own (作者 2026-10-17)', () => {
       expect((sp[1].at - sp[0].at) * speed).toBeGreaterThanOrEqual(MULTI_HIT_GAP_FLOOR_MS);
       expect(fx.stages).toHaveLength(2);
       expect(fx.stages!.every((st) => st.hitStop === HIT_STOPS.light)).toBe(true);
-      expect(fx.hitStop).toBe(HIT_STOPS.finisher);
+      expect(fx.hitStop).toBe(HIT_STOPS.higanbana);
+      expect(fx.hitStop).toBeGreaterThan(HIT_STOPS.finisher);
       expect(fx.flash).toEqual({ kind: 'heavy', on: 'enemy' });
-      expect(fx.sfx).toEqual(['battle_finisher_hit']);
+      expect(fx.sfx).toEqual(['battle_finisher_hit', 'battle_hit_heavy']);
       expect(fx.amounts).toEqual([7, 7, 10]);
-      // The dark after the last cut, long enough to be seen at ×2; he comes home after it.
-      expect(fx.bloom!.at).toBeGreaterThan(fx.impact);
+      // Still, then back and fading, then a hush — each seen at ×2 too — and only then there, before the first cut.
+      const l = fx.lunge!;
+      expect(l.vanish!.poise).toBeGreaterThan(0);
+      expect((l.vanish!.fade - l.vanish!.poise) * speed).toBeGreaterThanOrEqual(VANISH_FLOOR_MS.fade);
+      expect((l.out - l.vanish!.fade) * speed).toBeGreaterThanOrEqual(VANISH_FLOOR_MS.gone);
+      expect(l.out).toBeLessThan(sp[0].at);
+      // The third stepped into; the ground splits as it lands; the dark after it, long enough at ×2; home after.
+      expect(l.stepAt).toBe(sp[2].at);
+      expect(fx.crack!.at).toBe(fx.impact);
+      expect(fx.bloom!.at).toBeGreaterThan(fx.crack!.at);
       expect(fx.bloom!.ms * speed).toBeGreaterThanOrEqual(BLOOM_FLOOR_MS);
-      expect(fx.lunge!.out).toBeLessThan(sp[0].at);
-      expect(fx.lunge!.back).toBeGreaterThan(fx.bloom!.at);
+      expect(l.back).toBeGreaterThan(fx.bloom!.at);
+      // The next turn waits until he is home.
+      expect(fx.hold! + 450).toBeGreaterThanOrEqual(l.back + l.home);
+      expect(fx.also).toEqual([]);
     }
     // Brought down by the second: the second is the big one, and there is no third.
     const short = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 14, hits: [7, 7] }), ctx({ skillId: 'higanbana' }));
     expect(short.special).toHaveLength(2);
     expect(short.special![1].scale).toBe(HIGANBANA_CUTS[2].scale);
     expect(HIGANBANA_FX.breath).toBeGreaterThan(0);
+  });
+
+  it('《彼岸花》 at all of them: each cut on every one (the one aimed at first), the others flashed and reeling too; one that fell takes no more', () => {
+    const spread = [
+      { target: 'enemy-2', hits: [7, 7, 10], broke: false, slowed: true },
+      { target: 'enemy', hits: [7, 7, 10], broke: false, slowed: true },
+      { target: 'enemy-3', hits: [7, 7], broke: false, slowed: false },
+    ];
+    const fx = beatFx(beat({ kind: 'SKILL', name: '彼岸花', target: 'enemy-2', amount: 62, hits: [7, 7, 10], spread }), ctx({ skillId: 'higanbana' }));
+    expect(fx.special).toHaveLength(8);
+    expect(fx.special!.filter((x) => x.on === 'enemy-3')).toHaveLength(2);
+    // The same three moments on each.
+    const on = (id: string) => fx.special!.filter((x) => x.on === id).map((x) => x.at);
+    expect(on('enemy')).toEqual(on('enemy-2'));
+    expect(fx.stages).toHaveLength(2);
+    expect(fx.flash).toEqual({ kind: 'heavy', on: 'enemy-2' });
+    expect(fx.also).toEqual(['enemy', 'enemy-3']);
+    expect(fx.amounts).toEqual([7, 7, 10]);
   });
 
   it('《瞬断》 at ×2: its cuts never closer than the floor on screen — three cuts, not one blur', () => {

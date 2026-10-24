@@ -369,7 +369,8 @@ export function RoamScene({
   const lowest = ((events ? Math.min(LOWEST_FEET * h, h - DOORS_BAND) : LOWEST_FEET * h) - paintTop) / paintH;
   // How far walked since a find last turned up or was read, and since the last line.
   const walkedForFind = useRef(0);
-  const walkedForWords = useRef(Infinity);
+  // Back from a fight (`was`): the line on screen is the one they left — nothing new said until they walk.
+  const walkedForWords = useRef(was ? 0 : Infinity);
   const findAt = useRef(0);
   // Bumped on every arrival, so what happens on arriving runs once each time.
   const [arrivals, setArrivals] = useState(0);

@@ -55,6 +55,7 @@ import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
 import { splitDamage } from './multiHit';
+import { higanbanaBloom, type BloomSpot } from './higanbanaBloom';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -156,17 +157,6 @@ const SHAKE_MS = 450;
 const COMBO_SHOWN_FROM = 2;
 /** 「《彼岸花》 解禁」 stays this long as the fight opens. */
 const UNLOCKED_MS = 2600;
-/** 《彼岸花》's petals: where each drifts from the lily (px), how far it turns, when it lets go (a share of the bloom). Fixed. */
-const PETALS: readonly { x: number; y: number; r: number; d: number }[] = [
-  { x: -70, y: 60, r: 220, d: 0.1 },
-  { x: -40, y: 90, r: -160, d: 0.25 },
-  { x: -10, y: 70, r: 300, d: 0.05 },
-  { x: 30, y: 95, r: -240, d: 0.3 },
-  { x: 60, y: 55, r: 180, d: 0.15 },
-  { x: 85, y: 85, r: -300, d: 0.35 },
-  { x: -95, y: 40, r: 260, d: 0.2 },
-  { x: 15, y: 40, r: -200, d: 0.4 },
-];
 
 /** BREAK's hit-stop: the field holds this long at the blow before it jolts (作者: 重攻撃 80〜120ms). */
 const BREAK_HIT_STOP_MS = 90;
@@ -289,7 +279,7 @@ function reelOf(root: HTMLElement, reel: { on: string; px: number; down: number 
  * `transform` (the field's shake keeps `translate`); held still by a hit-stop like everything drawn.
  * A deep one (《瞬断》, 《彼岸花》) leaves a red trail behind him while he moves.
  */
-function lungeOf(root: HTMLElement, target: string, lunge: { out: number; back: number; home: number; deep?: boolean }, speed: number, giant: boolean) {
+function lungeOf(root: HTMLElement, target: string, lunge: NonNullable<BeatFx['lunge']>, speed: number, giant: boolean) {
   const fig = root.querySelector<HTMLElement>('[data-testid="pb-figure-hero"]');
   const img = fig?.querySelector<HTMLElement>(':scope > img');
   const foe = root.querySelector<HTMLElement>(`[data-enemy="${target}"]`);
@@ -302,18 +292,43 @@ function lungeOf(root: HTMLElement, target: string, lunge: { out: number; back: 
   const dy = Math.round(Math.max(-h.height * 0.15, Math.min(h.height * 0.15, (f.bottom - h.bottom) * 0.35)));
   const total = lunge.back + lunge.home;
   const there = `translate(${dx}px, ${dy}px)`;
-  const anim = img.animate(
-    [
-      { transform: 'translate(0, 0)', easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' },
-      { transform: there, offset: lunge.out / total },
-      { transform: there, offset: lunge.back / total, easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
-      { transform: 'translate(0, 0)' },
-    ],
-    { duration: Math.round(total * speed), fill: 'none' },
-  );
+  const at = (ms: number) => Math.max(0, Math.min(1, ms / total));
+  // 《彼岸花》: still, then back and fading out, unseen, there; the last blow stepped into — further, but
+  // never past the giant's front nor the middle of an ordinary one (never into its drawing).
+  const deeper = lunge.stepAt === undefined ? dx : Math.round(Math.min(0, Math.max(dx - h.width * 0.18, (giant ? f.left + f.width * 0.64 : f.left + f.width * 0.5) - h.left)));
+  const step = `translate(${deeper}px, ${dy}px)`;
+  const keys: Keyframe[] = lunge.vanish
+    ? [
+        { transform: 'translate(0, 0)', opacity: 1 },
+        { transform: 'translate(0, 0)', opacity: 1, offset: at(lunge.vanish.poise), easing: 'cubic-bezier(0.3, 0, 0.2, 1)' },
+        { transform: `translate(${Math.round(h.width * 0.35)}px, 0)`, opacity: 0, offset: at(lunge.vanish.fade) },
+        { transform: there, opacity: 0, offset: at(lunge.out - 50) },
+        { transform: there, opacity: 1, offset: at(lunge.out) },
+        { transform: there, opacity: 1, offset: at(lunge.stepAt ?? lunge.back), easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' },
+        { transform: step, opacity: 1, offset: at((lunge.stepAt ?? lunge.back) + 70) },
+        { transform: step, opacity: 1, offset: at(lunge.back), easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: 'translate(0, 0)', opacity: 1 },
+      ]
+    : [
+        { transform: 'translate(0, 0)', easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' },
+        { transform: there, offset: lunge.out / total },
+        { transform: there, offset: lunge.back / total, easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+        { transform: 'translate(0, 0)' },
+      ];
+  const anim = img.animate(keys, { duration: Math.round(total * speed), fill: 'none' });
+  // Gone, his shadow goes with him.
+  const shadow = fig.querySelector<HTMLElement>(':scope > .pb-shadow');
+  if (lunge.vanish && shadow) {
+    shadow.animate(
+      [{ opacity: 1 }, { opacity: 1, offset: at(lunge.vanish.poise) }, { opacity: 0, offset: at(lunge.vanish.fade) }, { opacity: 0, offset: at(lunge.back) }, { opacity: 1 }],
+      { duration: Math.round(total * speed), fill: 'none' },
+    );
+  }
+  if (lunge.vanish) fig.dataset.vanish = 'yes';
   fig.dataset.lunge = lunge.deep ? 'deep' : 'yes';
   const done = () => {
     if (fig.dataset.lunge) delete fig.dataset.lunge;
+    if (fig.dataset.vanish) delete fig.dataset.vanish;
   };
   anim.finished.then(done, done);
 }
@@ -330,6 +345,13 @@ function Wait({ left }: { left: number }) {
 export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory, place, formation, newSkills, onSkillUsed, unlocked }: PartyBattleProps) {
   const dice = rng ?? Math.random;
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
+  // His finisher's lily, ready before it is wanted (a first decode mid-move is a dropped frame).
+  useEffect(() => {
+    if (!members.some((m) => m.skills?.some((k) => k.finisher))) return;
+    const lily = new Image();
+    lily.src = SPECIAL_FX_ART.heroHiganbana;
+    lily.decode?.().catch(() => undefined);
+  }, [members]);
   const [auto, setAuto] = useState(false);
   const [fast, setFast] = useState(false);
   const [menu, setMenu] = useState<'COMMANDS' | 'SKILL' | 'MAGIC' | 'TARGET' | 'ENEMY'>('COMMANDS');
@@ -347,7 +369,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const [combo, setCombo] = useState<PartyCombo>(NO_COMBO);
   const comboNow = useRef<PartyCombo>(NO_COMBO);
   /** 《彼岸花》's lily: the beat, where it opens (% of the screen), from when and for how long (ms, on screen). */
-  const [bloom, setBloom] = useState<{ key: number; x: number; y: number; at: number; ms: number } | null>(null);
+  /** 《彼岸花》: under whom the ground splits (the one aimed at first), when (screen ms), and the dark. */
+  const [bloom, setBloom] = useState<{ key: number; spots: BloomSpot[]; crackAt: number; at: number; ms: number } | null>(null);
   /** Skills still NEW (not yet used in this fight). */
   const [fresh, setFresh] = useState<readonly string[]>(newSkills ?? []);
   const [saying, setSaying] = useState(!!unlocked);
@@ -477,19 +500,45 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       const when = (t: number) => (t + holds.filter((st) => st.at < t).reduce((n, st) => n + st.hitStop, 0)) * speed;
       // His step in, and home (§23).
       if (p.lunge && beat.actor === 'hero' && isEnemyId(beat.target)) lungeOf(at, beat.target, p.lunge, speed, giant);
-      // 《彼岸花》: the world dark, the lily opening on the one struck — after the last cut's hold.
+      // 《彼岸花》: the ground splits under each one struck as the third cut lands; then the world dark, the
+      // lilies opening out of the cracks — after the last cut's hold.
       if (p.bloom && isEnemyId(beat.target)) {
         const box = at.getBoundingClientRect();
-        const el = at.querySelector<HTMLElement>(`[data-enemy="${beat.target}"] > img`) ?? at.querySelector<HTMLElement>(`[data-enemy="${beat.target}"]`);
-        const r = el?.getBoundingClientRect();
-        const x = r && box.width ? ((r.left + r.width * (giant ? 0.62 : 0.5) - box.left) / box.width) * 100 : 30;
-        const y = r && box.height ? ((r.top + r.height * (giant ? 0.5 : 0.45) - box.top) / box.height) * 100 : 45;
-        setBloom({ key: lastKey, x: Math.round(x), y: Math.round(Math.min(70, y)), at: Math.round(when(p.bloom.at) + p.hitStop * speed), ms: Math.round(p.bloom.ms * speed) });
+        const spots = [beat.target, ...(p.also ?? [])].flatMap((id): BloomSpot[] => {
+          const el = at.querySelector<HTMLElement>(`[data-enemy="${id}"] > img`) ?? at.querySelector<HTMLElement>(`[data-enemy="${id}"]`);
+          const r = el?.getBoundingClientRect();
+          if (!r || !box.width || !box.height) return [];
+          // At its feet — a giant's are below the screen: the ground before it, clear of the HUD along the bottom.
+          const x = ((r.left + r.width * (giant ? 0.62 : 0.5) - box.left) / box.width) * 100;
+          const y = ((r.bottom - r.height * 0.04 - box.top) / box.height) * 100;
+          return [
+            {
+              x: Math.round(giant ? Math.max(30, Math.min(55, x)) : x),
+              y: Math.round(giant ? 70 : Math.min(76, y)),
+              w: Math.round(Math.min(giant ? 46 : 24, (r.width / box.width) * 100)),
+            },
+          ];
+        });
+        // Drawn from the moment he is gone (nothing else moves then): a frame that draws it all is not
+        // spent as he begins to move. Its times count from there.
+        const from = Math.round(when(p.lunge?.vanish?.fade ?? 0));
+        const bloom = {
+          key: lastKey,
+          spots: spots.length > 0 ? spots : [{ x: 30, y: 70, w: 20 }],
+          crackAt: Math.round(when(p.crack?.at ?? p.impact)) - from,
+          at: Math.round(when(p.bloom.at) + p.hitStop * speed) - from,
+          ms: Math.round(p.bloom.ms * speed),
+        };
+        later(from, () => setBloom(bloom));
       }
-      // The characters' own effects: each one's sounds at its landing.
+      // The characters' own effects: each one's sounds at its landing — once for a moment, however many it falls on.
+      const heard = new Set<number>();
       for (const sp of p.special ?? []) {
         const spec = SPECIAL_FX[sp.type];
-        if (spec.sfx) later(when(sp.at + spec.impact), () => spec.sfx!.forEach((id) => playSfx(id)));
+        const t = sp.at + spec.impact;
+        if (!spec.sfx || heard.has(t)) continue;
+        heard.add(t);
+        later(when(t), () => spec.sfx!.forEach((id) => playSfx(id)));
       }
       // The blows before the last (重撃 before 豪断): each its own hold, then its jolt and reeling.
       for (const st of p.stages ?? []) {
@@ -521,16 +570,22 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           if (p.after) void camera(p.after, at, p.tempo * speed);
           if (p.shake) void screenShake(p.shake, at);
           if (p.reel) reelOf(at, p.reel, isEnemyId(p.reel.on) ? -1 : 1, speed);
+          // A move at all of them: the others reel too.
+          for (const id of p.also ?? []) if (p.reel) reelOf(at, { ...p.reel, on: id }, -1, speed);
         });
       });
     };
     const climbs = after.hits > before.hits && !isEnemyId(beat.actor);
     const counted = beat.counter !== undefined;
     const key = lastKey;
+    // How many strikes land at each cut: one, or — a move at all of them — one on each still standing.
+    const wave = (i: number) => (beat.spread ? beat.spread.filter((x) => x.hits.length > i).length : 1);
+    let waves = 0;
     play(beatFx(beat, ctx), !!beat.broke, {
       stage: () => {
+        const n = wave(waves++);
         setCutsIn((c) => ({ key, n: (c.key === key ? c.n : 0) + 1 }));
-        if (climbs) setCombo((c) => ({ ...c, hits: c.hits + 1 }));
+        if (climbs) setCombo((c) => ({ ...c, hits: c.hits + n }));
       },
       land: () => {
         setLanded(key);
@@ -641,7 +696,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** When something of this beat shows: at its blow (a CSS delay, so nothing waits in JavaScript). */
   const impactStyle = (p: BeatFx | null) => ({ ['--pb-impact' as string]: `${Math.round((p?.impact ?? 0) * fxSpeed)}ms` });
   const flash = (on: string, p: BeatFx | null) =>
-    p?.flash && p.flash.on === on ? (
+    p?.flash && (p.flash.on === on || p.also?.includes(on)) ? (
       <span
         key={`fx${lastKey}${p === counter ? 'c' : ''}`}
         className={`pb-hit ${p.flash.kind}${p.flash.colour ? ` ${p.flash.colour}` : ''}`}
@@ -699,6 +754,17 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const comboTier = Math.min(4, Math.floor(combo.hits / COMBO_STEP));
   /** The beat's amount as its cuts show it: three for 《瞬断》 (multiHit.ts), else the one. */
   const parts = last && fx?.amounts ? [...fx.amounts] : last && fx?.split ? splitDamage(last.amount, fx.split) : [last?.amount ?? 0];
+  /** A creature's numbers of this beat: the beat's own on the one aimed at; a move at all of them, each one's. */
+  const partsOn = (id: string): number[] | null => {
+    if (!last || last.amount <= 0) return null;
+    const mine = last.spread?.find((x) => x.target === id);
+    if (mine) return mine.hits.length > 0 ? [...mine.hits] : null;
+    return last.target === id ? parts : null;
+  };
+  /** How many cuts the beat has at most (the last of them shows when the blow has landed). */
+  const cutCount = last?.spread ? Math.max(1, ...last.spread.map((x) => x.hits.length)) : parts.length;
+  const slowedOn = (id: string) => !!last && (last.spread ? !!last.spread.find((x) => x.target === id)?.slowed : !!last.slowed && last.target === id);
+  const bloomArt = useMemo(() => (bloom ? higanbanaBloom(bloom.spots) : null), [bloom]);
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
@@ -771,28 +837,26 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               )}
               {/* A move of several cuts (《瞬断》): a number at each, adding up to the one amount (multiHit.ts);
                   the earlier ones a little aside, the last — the one amount's own testid — the biggest. */}
-              {last &&
-                last.target === e.id &&
-                last.amount > 0 &&
-                cutsIn.key === lastKey &&
-                parts.map((amount, i) => {
-                  const final = i === parts.length - 1;
-                  if (amount <= 0 || i >= cutsIn.n || (final && landed !== lastKey)) return null;
+              {cutsIn.key === lastKey &&
+                partsOn(e.id)?.map((amount, i, mine) => {
+                  const final = i === mine.length - 1;
+                  // The last cut of the move shows as the blow lands; one that fell earlier, at its own cut.
+                  if (amount <= 0 || i >= cutsIn.n || (i === cutCount - 1 && landed !== lastKey)) return null;
                   return (
                     <span
                       key={`${lastKey}-${i}`}
                       className={`pb-float${tierOf(fx)}${final && followed ? ' finisher' : ''}${final ? '' : ' cut'}`}
                       data-testid={final ? 'pb-float' : 'pb-float-cut'}
                       data-tier={fx?.number ?? 'plain'}
-                      data-cut={parts.length > 1 ? i + 1 : undefined}
-                      style={parts.length > 1 ? CUT_NUDGE[i % CUT_NUDGE.length] : undefined}
+                      data-cut={mine.length > 1 ? i + 1 : undefined}
+                      style={mine.length > 1 ? CUT_NUDGE[i % CUT_NUDGE.length] : undefined}
                     >
                       {amount}
                     </span>
                   );
                 })}
-              {/* SLOWED (《彼岸花》): said on it as the lily fades. */}
-              {last?.slowed && last.target === e.id && bloom?.key === lastKey && (
+              {/* SLOWED (《彼岸花》): said on each as the lilies fade. */}
+              {slowedOn(e.id) && bloom?.key === lastKey && (
                 <span
                   key={`sl${lastKey}`}
                   className="pb-float slow"
@@ -959,24 +1023,59 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         </div>
       )}
 
-      {/* 《彼岸花》: the world goes still and dark, the red spider lily opens on the one struck, petals fall. */}
-      {bloom && bloom.key === lastKey && (
+      {/* 《彼岸花》 (最終仕様 §7–9): the ground splits under them, red light running in the cracks; the world
+          goes still and dark, red spider lilies open out of the cracks, petals over the whole screen
+          (higanbanaBloom.ts) — covering it a moment, then thinning at once. */}
+      {bloom && bloomArt && bloom.key === lastKey && (
         <span
           key={`hb${lastKey}`}
           className="pb-bloom"
           data-testid="pb-bloom"
+          data-spots={bloom.spots.length}
           aria-hidden="true"
           style={{
+            ['--crack-at' as string]: `${bloom.crackAt}ms`,
             ['--bloom-at' as string]: `${bloom.at}ms`,
             ['--bloom-ms' as string]: `${bloom.ms}ms`,
-            ['--bx' as string]: `${bloom.x}%`,
-            ['--by' as string]: `${bloom.y}%`,
+            ['--bx' as string]: `${bloom.spots[0].x}%`,
+            ['--by' as string]: `${bloom.spots[0].y}%`,
           }}
         >
           <span className="pb-bloom-dark" />
-          <img className="pb-bloom-lily" src={SPECIAL_FX_ART.heroHiganbana} alt="" />
-          {PETALS.map((pt, i) => (
-            <i key={i} className="pb-petal" style={{ ['--px' as string]: `${pt.x}px`, ['--py' as string]: `${pt.y}px`, ['--pr' as string]: `${pt.r}deg`, ['--pd' as string]: pt.d }} />
+          <svg className="pb-crack" data-testid="pb-crack" viewBox="0 0 100 100" preserveAspectRatio="none">
+            {bloomArt.cracks.map((d, i) => (
+              <g key={i}>
+                <path className="pb-crack-haze" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
+                <path className="pb-crack-cut" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
+                <path className="pb-crack-glow" d={d} vectorEffect="non-scaling-stroke" pathLength={100} />
+              </g>
+            ))}
+          </svg>
+          {bloomArt.lilies.map((l, i) => (
+            <img
+              key={i}
+              className="pb-bloom-lily"
+              data-testid="pb-bloom-lily"
+              src={SPECIAL_FX_ART.heroHiganbana}
+              alt=""
+              style={{ left: `${l.x}%`, top: `${l.y}%`, ['--ls' as string]: l.size, ['--ld' as string]: l.delay, ['--lt' as string]: `${l.turn}deg` }}
+            />
+          ))}
+          <span className="pb-bloom-veil" />
+          {bloomArt.petals.map((pt, i) => (
+            <i
+              key={i}
+              className={`pb-petal${pt.scale >= 3 ? ' near' : ''}`}
+              style={{
+                left: `${pt.x}%`,
+                top: `${pt.y}%`,
+                ['--px' as string]: `${pt.dx}vw`,
+                ['--py' as string]: `${pt.dy}vh`,
+                ['--pr' as string]: `${pt.rot}deg`,
+                ['--ps' as string]: pt.scale,
+                ['--pd' as string]: pt.delay,
+              }}
+            />
           ))}
         </span>
       )}

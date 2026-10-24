@@ -12,7 +12,9 @@ import {
   enemyAct,
   isBroken,
   isEnemyId,
+  memberById,
   partyAct,
+  partySkillReady,
   partyAutoAction,
   roundOrder,
   speedOf,
@@ -126,12 +128,134 @@ describe('《彼岸花》', () => {
     expect(s.enemy.breakTurns).toBe(BREAK_TURNS);
   });
 
-  it('every fourth of his turns; AUTO uses it when it is ready (it is listed first)', () => {
-    let s = higanbana(createPartyBattle(party(), foe));
+  it('every fourth of his turns', () => {
+    let s = higanbana(createPartyBattle(party(), { ...foe, breakMax: 3 }));
     s = untilTurnOf(s, 'hero');
-    expect(partyAutoAction(s)?.kind === 'SKILL' && (partyAutoAction(s) as { skillId: string }).skillId).not.toBe('higanbana');
-    const fresh = untilTurnOf(createPartyBattle(party(), foe), 'hero');
-    expect(partyAutoAction(fresh)).toMatchObject({ kind: 'SKILL', skillId: 'higanbana' });
+    expect(partySkillReady(memberById(s, 'hero')!, HIGANBANA)).toBe(false);
+    expect(partyAct(s, { kind: 'SKILL', skillId: 'higanbana' }, fixed(0))).toBe(s);
+  });
+});
+
+// 最終仕様 (作者 2026-10-24「彼岸花 最終仕様 AUTO挙動 / COMBO / BREAK連携 調整指示書」): at all of them.
+describe('《彼岸花》 at every creature standing', () => {
+  const three = [foe, { ...foe, name: '二の敵' }, { ...foe, name: '三の敵' }];
+
+  it('three cuts on each: nine strikes, each worked out as against one (24 each, 72 in all), COMBO nine, every one slowed', () => {
+    const before = untilTurnOf(createPartyBattle(party(), three), 'hero');
+    const s = partyAct(before, { kind: 'SKILL', skillId: 'higanbana', target: 'enemy-2' }, fixed(0));
+    const beat = s.last!;
+    // The one aimed at first (its numbers are the beat's own), then the rest in their order.
+    expect(beat.target).toBe('enemy-2');
+    expect(beat.spread!.map((x) => x.target)).toEqual(['enemy-2', 'enemy', 'enemy-3']);
+    for (const x of beat.spread!) expect(x.hits).toEqual([7, 7, 10]);
+    expect(beat.hits).toEqual([7, 7, 10]);
+    expect(beat.amount).toBe(72);
+    for (const e of s.enemies) expect(before.enemies.find((b) => b.id === e.id)!.hp - e.hp).toBe(24);
+    expect(s.combo).toEqual({ hits: 9, damage: 72 });
+    for (const e of s.enemies) expect(e.slowTurns).toBe(SLOW_TURNS);
+    expect(beat.spread!.every((x) => x.slowed)).toBe(true);
+    expect(s.log.at(-2)).toBe('主人公の《彼岸花》！ 二の敵に7・7・10、試しの敵に7・7・10、三の敵に7・7・10のダメージ。');
+    expect(s.log.at(-1)).toBe('二の敵、試しの敵、三の敵の動きが鈍った。（速度DOWN）');
+  });
+
+  it('COMBO climbs strike by strike across them: from 10 the strikes after land 5% harder', () => {
+    const s0 = untilTurnOf(createPartyBattle(party(), three), 'hero');
+    const s = partyAct({ ...s0, combo: { hits: 8, damage: 0 } }, { kind: 'SKILL', skillId: 'higanbana' }, fixed(0));
+    // Cut 1 lands at COMBO 8, 9, 10 (the third creature's at 10: +5%); cuts 2 and 3 all at 11 or more.
+    expect(s.last!.spread!.map((x) => x.hits)).toEqual([
+      [7, Math.round(7.2 * 1.05), Math.round(9.6 * 1.05)],
+      [7, Math.round(7.2 * 1.05), Math.round(9.6 * 1.05)],
+      [Math.round(7.2 * 1.05), Math.round(7.2 * 1.05), Math.round(9.6 * 1.05)],
+    ]);
+    expect(s.combo.hits).toBe(17);
+  });
+
+  it('one brought down part-way drops out of the cuts (and is not slowed); the rest take all three', () => {
+    const s = higanbana(createPartyBattle(party(), [foe, { ...foe, name: '弱い敵', hp: 10 }]));
+    const [a, b] = s.last!.spread!;
+    expect(a.hits).toEqual([7, 7, 10]);
+    expect(b.hits).toEqual([7, 7]);
+    expect(b.slowed).toBe(false);
+    expect(s.enemies[1].down).toBe(true);
+    expect(s.combo.hits).toBe(5);
+  });
+
+  it('BREAKs each by its own footing, and each broken one takes 1.4× from then', () => {
+    const s = higanbana(createPartyBattle(party(), [{ ...foe, breakMax: 1 }, { ...foe, name: '堅い敵', breakMax: 99 }]));
+    const [a, b] = s.last!.spread!;
+    expect(a.broke).toBe(true);
+    expect(a.hits).toEqual([7, Math.round(7.2 * BROKEN_TAKEN), Math.round(9.6 * BROKEN_TAKEN)]);
+    expect(b.broke).toBe(false);
+    expect(b.hits).toEqual([7, 7, 10]);
+    expect(s.last!.broke).toBe(true);
+  });
+
+  it('against one creature it is the same move as before (three cuts on it)', () => {
+    const s = higanbana(createPartyBattle(party(), foe));
+    expect(s.last!.spread).toEqual([{ target: 'enemy', hits: [7, 7, 10], broke: false, slowed: true }]);
+    expect(s.combo.hits).toBe(3);
+  });
+});
+
+describe('AUTO and 《彼岸花》 (§16–20): kept for BREAK and COMBO, not fired the moment it is ready', () => {
+  const autoOf = (s: PartyBattleState) => partyAutoAction(untilTurnOf(s, 'hero'));
+  const usesIt = (s: PartyBattleState) => {
+    const a = autoOf(s);
+    return a?.kind === 'SKILL' && a.skillId === 'higanbana';
+  };
+  const brokenNow = (s: PartyBattleState, id = 'enemy') => ({ ...s, ...withBroken(s, id) });
+  function withBroken(s: PartyBattleState, id: string) {
+    const enemies = s.enemies.map((e) => (e.id === id ? { ...e, breakTurns: BREAK_TURNS, breakCurrent: 0 } : e));
+    return { enemies, enemy: enemies[0] };
+  }
+
+  it('one creature standing whole: kept back (《瞬断》 instead)', () => {
+    expect(autoOf(createPartyBattle(party(), foe))).toMatchObject({ kind: 'SKILL', skillId: 'shundan' });
+  });
+
+  it('first of all: the creature BROKEN', () => {
+    const s = untilTurnOf(createPartyBattle(party(), foe), 'hero');
+    expect(usesIt(brokenNow(s))).toBe(true);
+  });
+
+  it('BROKEN, before 月影の構え even when he is low — nothing can strike back while it is down', () => {
+    const s = untilTurnOf(createPartyBattle(party(), foe), 'hero');
+    const low = { ...s, members: s.members.map((m) => (m.id === 'hero' ? { ...m, hp: 20 } : m)) };
+    expect(partyAutoAction(brokenNow(low))).toMatchObject({ kind: 'SKILL', skillId: 'higanbana' });
+    // Standing, low: his guard first, as ever.
+    expect(partyAutoAction(low)).toMatchObject({ kind: 'TECH', techId: 'moon_guard' });
+  });
+
+  it('about to break: its footing no more than the three cuts wear (3)', () => {
+    expect(usesIt(createPartyBattle(party(), { ...foe, breakMax: 3 }))).toBe(true);
+    expect(usesIt(createPartyBattle(party(), { ...foe, breakMax: 4 }))).toBe(false);
+  });
+
+  it('several creatures not yet slowed: at all of them — aimed at the most dangerous', () => {
+    const s = createPartyBattle(party(), [foe, { ...foe, name: '危ない敵', danger: 5 }]);
+    expect(autoOf(s)).toMatchObject({ kind: 'SKILL', skillId: 'higanbana', target: 'enemy-2' });
+  });
+
+  it('not again on those it has slowed (and its wait is longer than the slowing)', () => {
+    const s = untilTurnOf(createPartyBattle(party(), [foe, { ...foe, name: '二の敵' }]), 'hero');
+    const slowed = { ...s, enemies: s.enemies.map((e) => ({ ...e, slowTurns: 2 })) };
+    const a = partyAutoAction(slowed);
+    expect(a?.kind === 'SKILL' && a.skillId).not.toBe('higanbana');
+    expect(HIGANBANA.cooldown).toBeGreaterThan(SLOW_TURNS);
+  });
+
+  it('only a weak one left (one swing finishes it): kept back, broken or not', () => {
+    const s = untilTurnOf(createPartyBattle(party(), { ...foe, hp: 10 }), 'hero');
+    expect(usesIt(s)).toBe(false);
+    expect(usesIt(brokenNow(s))).toBe(false);
+  });
+
+  it('ヴァルシール\'s second form: broken by Grave\'s 豪断, the hero\'s next turn is 《彼岸花》', () => {
+    let s = createPartyBattle(party(), VALSHEEL_FORM2_PROVISIONAL);
+    expect(usesIt(s)).toBe(false);
+    s = untilTurnOf(s, 'hero');
+    s = brokenNow(s);
+    expect(usesIt(s)).toBe(true);
   });
 });
 

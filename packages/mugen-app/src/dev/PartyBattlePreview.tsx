@@ -9,7 +9,7 @@ import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
 import type { PartyEnemyInput } from '@mugen/game/battle/partyBattle';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
-import { HERO_STARTING_SKILLS, HIGANBANA } from '@mugen/content/skills/heroSkills';
+import { HERO_STARTING_SKILLS, withHiganbana } from '@mugen/content/skills/heroSkills';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import { locationNameOf } from '@mugen/content/locations/alden';
@@ -88,7 +88,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
           kaos: { currentHp: 100, maxHp: 100, currentMp: 48, maxMp: 48 },
         },
         heroAttack: { min: 8, max: 12 },
-        heroSkills: finisher ? [HIGANBANA, ...HERO_STARTING_SKILLS] : HERO_STARTING_SKILLS,
+        heroSkills: finisher ? withHiganbana(HERO_STARTING_SKILLS) : HERO_STARTING_SKILLS,
         kaosMagic: availableMagic(MAGIC_DEFS, { awakened: true }),
       }),
       hurt ? { ...GRAVE_GUEST, hp: 60 } : GRAVE_GUEST,

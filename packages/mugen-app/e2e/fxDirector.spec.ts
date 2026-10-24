@@ -20,7 +20,7 @@ type Move = { who: string; ms: number; xs: number[]; scales: number[] };
 
 async function recordCamera(page: Page) {
   await page.addInitScript(() => {
-    const log: { who: string; ms: number; xs: number[]; scales: number[] }[] = [];
+    const log: { who: string; ms: number; xs: number[]; scales: number[]; ops: number[] }[] = [];
     (window as unknown as { __camera: typeof log }).__camera = log;
     const animate = Element.prototype.animate;
     Element.prototype.animate = function (frames, options) {
@@ -34,6 +34,7 @@ async function recordCamera(page: Page) {
           ms: typeof options === 'object' ? Number(options?.duration ?? 0) : Number(options ?? 0),
           xs: t.map((s) => Number(/translate\((-?[\d.]+)px/.exec(s)?.[1] ?? 0) + Number(/translateX\((-?[\d.]+)%/.exec(s)?.[1] ?? 0)),
           scales: t.map((s) => Number(/scale\(([\d.]+)\)/.exec(s)?.[1] ?? 1)),
+          ops: list.map((f) => Number((f as { opacity?: number }).opacity ?? 1)),
         });
       }
       return animate.call(this, frames, options);
@@ -258,23 +259,46 @@ test.describe('with motion', () => {
     expect((await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)).toHaveLength(0);
   });
 
-  test('《彼岸花》: in at it, the cuts, home after the lily — at ×2 still a step, not a jump', async ({ page }) => {
-    test.setTimeout(60_000);
-    await recordCamera(page);
-    await page.setViewportSize({ width: 844, height: 390 });
-    await page.goto('/?preview=party&higanbana=1&footing=40');
-    await page.getByTestId('pb-speed').click();
-    await turnOf(page, 'hero');
-    await clear(page);
-    await page.getByTestId('pb-cmd-skills').click();
-    await page.getByTestId('pb-cmd-skill-higanbana').click();
-    await expect.poll(async () => (await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40).length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
-    const step = (await everything(page)).find((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)!;
-    expect(step.xs[step.xs.length - 1]).toBe(0);
-    // ×2: out and home each never under 120ms on screen — the whole well over that.
-    expect(step.ms).toBeGreaterThanOrEqual(500);
-    await expect(page.getByTestId('pb-figure-hero')).toHaveAttribute('data-lunge', 'deep');
-  });
+  for (const fast of [false, true]) {
+    test(`《彼岸花》 at ${fast ? '×2' : '×1'} (最終仕様 §3–4): back and gone first, then at ヴァルシール's front — never into it — the third stepped into, and home`, async ({ page }) => {
+      test.setTimeout(60_000);
+      await recordCamera(page);
+      await page.setViewportSize({ width: 844, height: 390 });
+      await page.goto('/?preview=party&higanbana=1&footing=40');
+      if (fast) await page.getByTestId('pb-speed').click();
+      await turnOf(page, 'hero');
+      const hero = await page.getByTestId('pb-figure-hero').locator('img').boundingBox();
+      const giant = await page.getByTestId('pb-foe').locator('img').boundingBox();
+      await clear(page);
+      await page.getByTestId('pb-cmd-skills').click();
+      await page.getByTestId('pb-cmd-skill-higanbana').click();
+      await expect.poll(async () => (await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40).length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
+      const step = (await everything(page)).find((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)!;
+      const there = step.xs.findIndex((x) => x < -40);
+      // Back first (away from it, to the right), fading out — gone before he is there.
+      expect(Math.max(...step.xs.slice(0, there))).toBeGreaterThan(10);
+      expect(Math.min(...step.ops.slice(0, there + 1))).toBe(0);
+      // Seen again only once he is there.
+      const seen = step.ops.indexOf(1, there);
+      expect(seen).toBeGreaterThan(0);
+      expect(step.xs[seen]).toBe(step.xs[there]);
+      // There: the giant's front, never its drawing's left part — the third stepped into, further, still in front.
+      const far = Math.min(...step.xs);
+      expect(far).toBeLessThan(step.xs[there]);
+      expect(hero!.x + far).toBeGreaterThan(giant!.x + giant!.width * 0.5);
+      // Home, seen, at the end — a step, not a jump (×2 included).
+      expect(step.xs[step.xs.length - 1]).toBe(0);
+      expect(step.ops[step.ops.length - 1]).toBe(1);
+      expect(step.ms).toBeGreaterThanOrEqual(fast ? 700 : 1400);
+      await expect(page.getByTestId('pb-figure-hero')).toHaveAttribute('data-lunge', 'deep');
+      // The ground split under it, and the lilies.
+      await expect(page.getByTestId('pb-crack')).toHaveCount(1, { timeout: 5_000 });
+      await expect(page.getByTestId('pb-bloom-lily')).toHaveCount(5);
+      // Home again where he stood (his step over; a few px for his turn's highlight, gone now).
+      await expect.poll(() => page.getByTestId('pb-figure-hero').locator('img').evaluate((el) => el.getAnimations().length), { timeout: 8_000 }).toBe(0);
+      expect(Math.abs((await page.getByTestId('pb-figure-hero').locator('img').boundingBox())!.x - hero!.x)).toBeLessThan(8);
+    });
+  }
 
   test('AUTO at ×2: the camera never piles up — everything back at rest, the fight won', async ({ page }) => {
     test.setTimeout(120_000);

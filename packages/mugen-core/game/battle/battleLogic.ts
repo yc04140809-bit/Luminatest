@@ -248,9 +248,14 @@ export interface HeroSkillSpec {
   cutBreakPower?: number;
   /** Leaves the creature it struck slowed (SLOW_SPEED for SLOW_TURNS of its turns). */
   slows?: boolean;
+  /**
+   * Who it strikes: the one aimed at (absent, 'ONE'), or every creature standing ('ALL' — 《彼岸花》: each
+   * cut at each of them, the one aimed at first). Against one creature the two are the same.
+   */
+  area?: 'ONE' | 'ALL';
   /** A finisher (必殺技): its cut-in is the long one. Shown only. */
   finisher?: boolean;
-  // `hits`, `cuts`, `cutBreakPower` and `slows` are read by the party fight (partyBattle) — where 《彼岸花》 is,
+  // `hits`, `cuts`, `cutBreakPower`, `slows` and `area` are read by the party fight (partyBattle) — where 《彼岸花》 is,
   // for now (作者 2026-10-24: a limit of where it is built, not a rule that it belongs there). This fight does
   // not read them yet: it would deal `power` as one blow. Joined with the party fight's way of turns, the
   // same data serves both.
