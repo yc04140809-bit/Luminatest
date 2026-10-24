@@ -119,19 +119,20 @@ export async function goTo(page: Page, id: string) {
 export async function openFloor(page: Page, y: number, xs = [0.62, 0.7, 0.55, 0.78, 0.48, 0.85, 0.4, 0.3]): Promise<P> {
   const ts = await things(page);
   // A pickup shows its 「！」 only when stood at, and is walked to only by touching its glint.
-  const p = xs
-    .map((x) => ({ x, y }))
-    .find((q) =>
-      ts.every((t) =>
-        t.kind === 'pickup'
-          ? dist(q, t.stand) > 0.06 && dist(q, t.mark) > 0.05
-          : // A small find only matters to a touch that would be taken for it (SNAP 0.08); one lying
-            // about is no reason to rule a whole height out.
-            dist(q, t.stand) > (t.kind === 'find' ? 0.1 : 0.2),
-      ),
+  const clearOf = (q: P) =>
+    ts.every((t) =>
+      t.kind === 'pickup'
+        ? dist(q, t.stand) > 0.06 && dist(q, t.mark) > 0.05
+        : // A small find only matters to a touch that would be taken for it (SNAP 0.08); one lying
+          // about is no reason to rule a whole height out.
+          dist(q, t.stand) > (t.kind === 'find' ? 0.1 : 0.2),
     );
-  expect(p, `open floor at ${y}`).toBeTruthy();
-  return p!;
+  const p = xs.map((x) => ({ x, y })).find(clearOf);
+  // Every spot asked for has something lying near it (small finds turn up anywhere): further along the
+  // same height, in small steps, the first that is clear.
+  const along = p ?? Array.from({ length: 21 }, (_, i) => ({ x: 0.3 + i * 0.03, y })).find((q) => clearOf(q));
+  expect(along, `open floor at ${y}`).toBeTruthy();
+  return along!;
 }
 
 /**

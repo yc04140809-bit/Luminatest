@@ -224,8 +224,11 @@ test('walking, stopping and looking write nothing; the save and WORLD MEMORY are
     await goTo(page, id);
     await look(page);
   }
-  // An ordinary find: a golden one hands a material into the bag (2026-10-11, wildForest's golden-finds test).
-  const f = (await things(page)).find((t) => t.kind === 'find' && t.grade === 'NORMAL');
+  // An ordinary find that is only something seen: a golden one hands a material into the bag (2026-10-11,
+  // wildForest's golden-finds test), and since 2026-10-23 four ordinary ones carry something home too
+  // (greenwoodWalk: the acorn, the herb, the nuts, the clasp) — those write, so not those.
+  const carried = ['ACORN', 'WAYSIDE_HERB', 'FALLEN_NUTS', 'RUSTY_CLASP'];
+  const f = (await things(page)).find((t) => t.kind === 'find' && t.grade === 'NORMAL' && !carried.includes(t.id));
   if (f) {
     await goTo(page, f.id);
     await look(page);
