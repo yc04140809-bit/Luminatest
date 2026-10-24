@@ -1,0 +1,437 @@
+/* ══ 共通クリスタルテーマ — THE OLD SHARED CLASSES IN THE CRYSTAL UI (作者 2026-10-17
+   「未反映UIのクリスタル統一」「イベント会話UI 全面クリスタル統一」) ══════════════════════════════════
+   Every screen still built from the shared classes of the paper theme (`.paper`, `.paper-sheet`,
+   `.paper-panel`), the plain `.btn`, the story's words (`.stage-words`) and the lists (`.pp-item`,
+   `.rumor-row`, `.memory-row`, `.bag-row`) takes the delivered crystal pieces here, at once: the
+   region map, the bag, the rumours, WORLD MEMORY, the life record, a fight's result, every scene told
+   in lines (the forest, Gald's four answers and what follows, TIME SHIFT, 回想), the finale's words, the
+   shops' side panels. Loaded after styles.css. Only the look: no box is added, nothing moves, no
+   word changes. The pieces are the sheet's (ui-sheet-v1, `--sk-*` on :root), 9-sliced.
+
+   The parts it stands for (ui/kit/Crystal.tsx): CrystalPanel = the sheet / page / words plate;
+   CrystalButton = `.btn`; CrystalListRow = the list rows; CrystalChoiceCard = `.choice-grid .btn`. */
+
+/* The paper theme's own colours, turned to the crystal night: the old rules that read these tokens
+   (ink, dim, gold) now draw light words on dark crystal. */
+:root {
+  --p-paper: #1b2452;
+  --p-paper-2: #0a0e24;
+  --p-ink: #eef1ff;
+  --p-dim: #b3bbdc;
+  --p-gold: #e5cb91;
+  --p-gold-ink: #e5cb91;
+  --p-gold-soft: rgba(200, 214, 255, 0.28);
+  --cr-plate-edge: 13px 21px;
+  --cr-row-edge: 8px 18px;
+  --cr-btn-edge: 9px 18px;
+  --cr-glow: rgba(176, 214, 255, 0.85);
+}
+
+/* ── A whole screen (was ivory paper): the deep crystal night; a place's painting shows behind, dimmed. */
+.paper {
+  color: var(--p-ink);
+  background: radial-gradient(120% 130% at 72% -12%, #2c3670 0%, #151b3a 46%, #090c1a 100%);
+}
+.paper .backdrop { opacity: 0.38; filter: saturate(0.85) brightness(0.8); }
+
+/* ── CrystalPanel: the sheet on a screen, the words of a scene, the finale's words. */
+.paper-sheet,
+.stage-words,
+.finale-box {
+  border: solid transparent;
+  border-width: var(--cr-plate-edge);
+  border-radius: 0;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--cr-plate-edge) stretch;
+  background: none;
+  box-shadow: none;
+  color: var(--p-ink);
+}
+.paper-sheet { padding: 6px 12px 8px; }
+/* A scene's words: the plate a little finer, so a line and its buttons keep their room on a short screen. */
+.stage-words { --cr-plate-edge: 10px 17px; padding: 4px 10px 6px; }
+.finale-box { padding: 6px 12px; }
+
+/* ── A page beside a painting (the region map, a shop's side, the arrival's question): the panel plate
+   down the right, its left edge soft into the picture. */
+.paper-panel {
+  color: var(--p-ink);
+  background: linear-gradient(90deg, rgba(12, 16, 38, 0) 0, rgba(12, 16, 38, 0.84) 26px, rgba(10, 14, 34, 0.92) 100%);
+  box-shadow: inset 1px 0 0 rgba(200, 214, 255, 0.35);
+}
+.place-page.paper-panel {
+  background: linear-gradient(90deg, rgba(12, 16, 38, 0) 0, rgba(12, 16, 38, 0.8) 30px, rgba(10, 14, 34, 0.9) 100%);
+}
+.pp-head { border-bottom-color: rgba(200, 214, 255, 0.28); }
+
+/* ── CrystalButton: every plain button — つぎへ, 見る, もどる, 入る, 店を出る, 休息する … */
+/* (`.btn.primary` too: the old gold rule's `border` shorthand would otherwise clear the plate.) */
+.btn,
+.paper .btn,
+.paper-panel .btn,
+.btn.primary,
+.paper .btn.primary,
+.paper-panel .btn.primary {
+  border: solid transparent;
+  border-width: var(--cr-btn-edge);
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-normal, none) var(--sk-confirmButton-slice, 0) fill / var(--cr-btn-edge) stretch;
+  background: none;
+  box-shadow: none;
+  color: var(--text-main, #f2f4f8);
+  padding: 2px 8px;
+  text-shadow: var(--text-shadow-soft);
+}
+.btn:hover:not(:disabled) { border-image-source: var(--sk-confirmButton-hover, var(--sk-confirmButton-normal)); }
+.btn.primary,
+.paper .btn.primary,
+.paper-panel .btn.primary {
+  border-color: transparent;
+  background: none;
+  color: #ffffff;
+  filter: drop-shadow(0 0 3px var(--cr-glow));
+}
+.btn:active:not(:disabled),
+.paper .btn:active:not(:disabled),
+.paper-panel .btn:active:not(:disabled) {
+  background: none;
+  transform: scale(0.98);
+}
+.btn:disabled,
+.paper .btn:disabled,
+.paper-panel .btn:disabled {
+  border-image-source: var(--sk-confirmButton-disabled, var(--sk-confirmButton-normal));
+  opacity: 0.6;
+  filter: none;
+}
+
+/* ── CrystalChoiceCard: an answer that decides (Gald's four) — the same plate, one height for all four,
+   long words wrap rather than being cut; the one pressed lights. */
+.choice-grid { gap: 6px; }
+.choice-grid .btn {
+  min-height: 46px;
+  height: 100%;
+  white-space: normal;
+  line-height: 1.3;
+  font-weight: var(--text-ui-weight, 500);
+}
+.choice-grid .btn:hover:not(:disabled) { filter: drop-shadow(0 0 3px var(--cr-glow)); }
+
+/* ── CrystalListRow: a line of a list (a way to go, a rumour, a memory, a thing carried). The sheet's
+   darker row, light words on it; the one open, or the way onward, lit. */
+.pp-item,
+.rumor-row,
+.memory-row,
+.bag-row,
+.paper .rumor-row,
+.paper .memory-row,
+.paper .bag-row {
+  border: solid transparent;
+  border-width: var(--cr-row-edge);
+  border-radius: 0;
+  border-image: var(--sk-listRow-selected, none) var(--sk-listRow-slice, 0) fill / var(--cr-row-edge) stretch;
+  background: none;
+  color: var(--p-ink);
+  margin-top: 4px;
+}
+.pp-item { padding: 2px 6px; margin-top: 3px; }
+.pp-item::before { border-color: rgba(200, 214, 255, 0.7); }
+.pp-item.primary {
+  border: solid transparent;
+  border-width: var(--cr-row-edge);
+  border-radius: 0;
+  border-image: var(--sk-listRow-selected, none) var(--sk-listRow-slice, 0) fill / var(--cr-row-edge) stretch;
+  background: none;
+  color: #ffffff;
+  filter: drop-shadow(0 0 3px var(--cr-glow));
+}
+.pp-item.primary::before { border-color: #ffffff; }
+.pp-item:focus-visible { outline: 1px solid var(--cr-glow); outline-offset: -3px; }
+.pp-item:active:not(:disabled),
+.pp-item.primary:active:not(:disabled) { background: none; transform: scale(0.99); }
+.rumor-row, .paper .rumor-row { padding: 4px 8px; }
+.rumor-row.open, .paper .rumor-row.open { background: none; filter: drop-shadow(0 0 3px var(--cr-glow)); }
+.memory-row, .bag-row, .paper .memory-row, .paper .bag-row { padding: 4px 8px; }
+/* The small heading over a list (行き先・村, 人物・場所, 回想, a kind of thing carried): one crystal
+   sub-heading for all — a small silver diamond, the word, and a fine line fading out after it. */
+.pp-caption, .rumor-category, .bag-group-title, .paper .rumor-category, .paper .bag-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-sub, #bfc7d5);
+  letter-spacing: 0.12em;
+  text-align: left;
+}
+.pp-caption::before, .rumor-category::before, .bag-group-title::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  border: 1px solid rgba(214, 226, 255, 0.85);
+  background: rgba(176, 200, 255, 0.35);
+  box-shadow: 0 0 4px var(--cr-glow);
+  transform: rotate(45deg);
+}
+.pp-caption::after, .rumor-category::after, .bag-group-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(200, 214, 255, 0.5), rgba(200, 214, 255, 0));
+}
+
+/* ── The words on it: light, never brown; the gold kept only where it marked what matters. */
+.paper .line,
+.paper .row,
+.paper .memory-meta,
+.paper .rumor-row,
+.stage-words .line { color: var(--p-ink); }
+.paper .row.level,
+.paper .say,
+.paper-panel .say,
+.paper .memory-when { color: var(--p-gold); }
+.paper .warn { color: #ff9a8e; }
+
+/* ── The finale's words and its speaker's face: the same plate and the small square frame. */
+/* Drawn as the kit's CrystalIcon (crystal.css): the frame whole at its own shape (100:104), the face
+   and its dark ground only inside the frame's window — nothing under or past the crystal edge
+   (作者 実機 2026-10-23: 「はみ出てる」). The window is square (16% of the width on each side) so the
+   face is never stretched. A little larger than before, since the window is smaller than the frame. */
+.finale-face {
+  width: clamp(80px, 34vh, 168px);
+  aspect-ratio: 100 / 104;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+.finale-face-inside {
+  inset: 17.3% 16%;
+  border-radius: 0;
+  background: radial-gradient(circle at 50% 35%, #2a3466, #0c1024);
+}
+.finale-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--sk-frameSquare-normal, none) center / 100% 100% no-repeat;
+}
+.finale-speaker { color: #e5cb91; font-weight: var(--text-strong-weight, 600); }
+
+/* ── TIME SHIFT and 回想: the same crystal, a step darker and bluer — not another look. */
+.stage.vision-see .stage-words,
+.intro .stage-words { filter: brightness(0.95) hue-rotate(8deg); }
+
+/* ── A scene told in the dark before a fight with the dragon or the raid: the same plates, the outer
+   light held in (UI統一指示書: 赤い別UIへ飛ばさない). */
+.finale-night .finale-box { filter: brightness(0.92); }
+
+/* ── The words over a shop's room (the bakery, the tavern) and the seal's words: the same panel plate. */
+.tavern-words,
+.bakery-words,
+.seal-words {
+  border: solid transparent;
+  border-width: var(--cr-plate-edge);
+  border-radius: 0;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--cr-plate-edge) stretch;
+  background: none;
+  box-shadow: none;
+  padding: 4px 10px 6px;
+}
+
+/* ── CrystalTab: 買う／売る, whom to speak to at the bakery. The button plate; the one chosen lit, the
+   others held back. */
+.shop-tab,
+.paper-panel .shop-tab,
+.shop-tab.on,
+.paper-panel .shop-tab.on {
+  border: solid transparent;
+  border-width: var(--cr-btn-edge);
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-disabled, var(--sk-confirmButton-normal, none)) var(--sk-confirmButton-slice, 0) fill / var(--cr-btn-edge) stretch;
+  background: none;
+  color: var(--text-sub, #bfc7d5);
+  padding: 0 8px;
+  font-family: var(--font-ui);
+}
+.shop-tab.on,
+.paper-panel .shop-tab.on {
+  border-image-source: var(--sk-confirmButton-hover, var(--sk-confirmButton-normal));
+  color: #ffffff;
+  filter: drop-shadow(0 0 3px var(--cr-glow));
+}
+
+/* ── The small buttons over a walk and under a talk (もどる, 調べる, 見る, つぎへ): the same CrystalButton. */
+.walk-leave,
+.walk-event,
+.walk-look,
+.kaos-aside-next {
+  border: solid transparent;
+  border-width: var(--cr-btn-edge);
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-normal, none) var(--sk-confirmButton-slice, 0) fill / var(--cr-btn-edge) stretch;
+  background: none;
+  color: var(--text-main, #f2f4f8);
+  text-shadow: var(--text-shadow-soft);
+  padding-block: 0;
+}
+.walk-leave:hover,
+.walk-event:hover,
+.walk-look:hover,
+.kaos-aside-next:hover { border-image-source: var(--sk-confirmButton-hover, var(--sk-confirmButton-normal)); }
+.walk-leave:active,
+.walk-event:active,
+.walk-look:active,
+.kaos-aside-next:active { transform: scale(0.98); }
+
+/* ── NAMING: the first question, in the same night as the game after it (was ivory). */
+.naming-screen {
+  --st-paper: #1b2452;
+  --st-paper-2: #090c1a;
+  --st-ink: #eef1ff;
+  --st-dim: #b3bbdc;
+  --st-gold: #e5cb91;
+  --st-gold-soft: rgba(200, 214, 255, 0.28);
+  background: radial-gradient(120% 130% at 50% -20%, #2c3670 0%, #151b3a 46%, #090c1a 100%);
+}
+.naming-ask { color: var(--text-sub, #bfc7d5); }
+.naming-input {
+  border: solid transparent;
+  border-width: var(--cr-row-edge);
+  border-radius: 0;
+  border-image: var(--sk-listRow-selected, none) var(--sk-listRow-slice, 0) fill / var(--cr-row-edge) stretch;
+  background: none;
+  color: #ffffff;
+}
+.naming-input:focus { border-color: transparent; box-shadow: none; filter: drop-shadow(0 0 3px var(--cr-glow)); }
+.naming-input::placeholder { color: rgba(200, 210, 240, 0.6); }
+.naming-confirm,
+.naming-keep {
+  border: solid transparent;
+  border-width: var(--cr-btn-edge);
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-normal, none) var(--sk-confirmButton-slice, 0) fill / var(--cr-btn-edge) stretch;
+  background: none;
+  color: var(--text-main, #f2f4f8);
+  text-shadow: var(--text-shadow-soft);
+  padding-block: 0;
+}
+.naming-confirm { color: #ffffff; filter: drop-shadow(0 0 3px var(--cr-glow)); }
+.naming-confirm:disabled {
+  border-color: transparent;
+  background: none;
+  border-image-source: var(--sk-confirmButton-disabled, var(--sk-confirmButton-normal));
+  color: rgba(242, 244, 248, 0.6);
+  filter: none;
+}
+
+/* ── 第0話: SKIP and the card that asks — a CrystalButton and a CrystalPanel. */
+.intro-skip {
+  border: solid transparent;
+  border-width: var(--cr-btn-edge);
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-normal, none) var(--sk-confirmButton-slice, 0) fill / var(--cr-btn-edge) stretch;
+  background: none;
+  color: var(--text-main, #f2f4f8);
+  text-shadow: var(--text-shadow-soft);
+  padding-block: 0;
+}
+.intro-ask-card.paper-panel {
+  border: solid transparent;
+  border-width: var(--cr-plate-edge);
+  border-radius: 0;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / var(--cr-plate-edge) stretch;
+  background: none;
+  box-shadow: none;
+  padding: 6px 12px 8px;
+}
+
+/* A row of three or four doors in a shop's words (話す・買う・店を出る): the plate's ends a little
+   narrower, so a word of four letters stays on one line. */
+.tavern-words .actions .btn,
+.bakery-words .actions .btn {
+  --cr-btn-edge: 9px 12px;
+  padding-inline: 2px;
+  white-space: nowrap;
+}
+/* NEW on such a door sits on its corner, as on the village's buttons, so it takes no room from the word. */
+.tavern-words .actions .btn,
+.bakery-words .actions .btn { position: relative; overflow: visible; }
+.tavern-words .actions .btn .new-badge,
+.bakery-words .actions .btn .new-badge {
+  position: absolute;
+  top: -12px;
+  right: -8px;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* A narrow screen (640 wide): the plates' ends finer still, and a long door (マスターと話す) may take more
+   of the row than a short one (買う) — every word whole, on one line. */
+@media (max-width: 720px) {
+  .tavern-words,
+  .bakery-words { --cr-plate-edge: 9px 12px; padding-inline: 4px; }
+  .tavern-words .actions,
+  .bakery-words .actions { gap: 4px; }
+  .tavern-words .actions .btn,
+  .bakery-words .actions .btn {
+    --cr-btn-edge: 8px 8px;
+    flex: 1 1 auto;
+    padding-inline: 0;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+  .choice-grid .btn { --cr-btn-edge: 9px 10px; padding-inline: 2px; letter-spacing: 0; }
+}
+
+/* ── 持ち物 and BATTLE RESULT: on the same panel as WORLD MEMORY and the life record (CrystalPanel), the
+   title inside it. The bag's panel is as tall as what it holds, up to the screen; its shelves scroll inside
+   and もどる stays on it. A result's figures white to silver, the level-up too. */
+.screen.bag { justify-content: center; }
+.bag-sheet {
+  width: min(720px, 100%);
+  max-height: 100%;
+  min-height: 0;
+  gap: 4px;
+}
+.bag-sheet .bag-shelves { width: 100%; }
+.result-sheet { width: min(520px, 100%); gap: 4px; padding: 8px 22px 10px; }
+.paper .result-sheet .row,
+.paper .result-sheet .row.level {
+  margin: 0;
+  color: #eef2ff;
+  font-family: var(--font-number);
+  font-weight: var(--text-number-weight, 600);
+}
+.paper .result-sheet .row.level { color: #ffffff; text-shadow: 0 0 6px rgba(176, 214, 255, 0.6); }
+/* Nothing carried: the panel as narrow as WORLD MEMORY's, not a wide empty plate. */
+.bag-sheet:has([data-testid='bag-empty']) { width: min(460px, 100%); }
+/* The small words on a row (a thing's kind and what it does, why it can't be used): light enough on the
+   row's blue. */
+.paper .bag-row .bag-category,
+.paper .bag-row .bag-desc,
+.paper .bag-row .bag-reason,
+.paper .memory-row .memory-meta { color: #d3dbf4; }
+
+/* ── WORLD MEMORY and the life record, once they hold more than a screen (the bakery route lists up to
+   seven): the panel at most as tall as the screen, the title and もどる on it, the list scrolling inside.
+   A row's NEW sits at its start, not stretched across it. */
+.screen.paper:has(.memory-screen) { height: 100vh; height: 100dvh; min-height: 0; }
+.paper-sheet:has(> .memory-screen) { max-height: 100%; min-height: 0; }
+.memory-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+}
+.memory-screen > .memory-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 4px 0 6px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.memory-screen > .btn { flex: none; }
+.memory-row > .new-badge { align-self: flex-start; margin-left: 0; }
+/* The plate's right-hand crystal reaches a little inside: a record's small line (type, place, who) keeps
+   clear of it rather than running under it. */
+.memory-row, .paper .memory-row { padding-right: 16px; }

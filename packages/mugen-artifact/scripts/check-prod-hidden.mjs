@@ -1,0 +1,13 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await page.goto('http://localhost:4173/');
+await page.getByTestId('start-button').click();
+await page.getByTestId('prologue-monologue').click();
+const kaos = page.getByTestId('kaos-intro');
+for (let i = 0; i < 6; i++) await kaos.click();
+await page.getByTestId('world-clock').waitFor();
+const count = await page.getByTestId('dev-admin-entry').count();
+console.log('dev-admin-entry count in production build:', count);
+await browser.close();
+process.exit(count === 0 ? 0 : 1);

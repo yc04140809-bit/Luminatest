@@ -1,0 +1,195 @@
+import { useState } from 'react';
+import type { MemoryEvent } from '@mugen/core/memory/types';
+import type { DialogueLine } from '@mugen/content/dialogue/prologue';
+import { memoryEventLabel } from '@mugen/content/events/creatureLifeChoice';
+import {
+  FUTURE_VISION_INTRO_LINES,
+  FUTURE_VISION_RETURN_LINES,
+  FUTURE_VISION_SEEN_LINE,
+} from '@mugen/content/dialogue/galdEncounter';
+import { GALD_FUTURE_VISION_YEARS } from '@mugen/content/events/galdLifeChoice';
+import { FUTURE_SITE_DEFS } from '@mugen/content/world/futureSites';
+import { OFF_SCREEN_EVENT_INFO, OFF_SCREEN_VISIONS } from '@mugen/content/events/offScreenLife';
+import type { EventCgKey } from '@mugen/assets/keys';
+import { Stage, kaosFigureFor, usePicture } from './scene';
+import { eventCg } from '../assets/eventCg';
+
+/**
+ * She is the one talking through all three beats — asking, showing,
+ * bringing them back — so she stands there for all of it, drawn by
+ * the same rule as every other line of hers.
+ */
+const HER = kaosFigureFor({ speaker: 'ケイオス', text: '' });
+
+/**
+ * THREE YEARS LOOKED AT, NOT LIVED THROUGH.
+ *
+ * Kaos shows the player where the answer they have just given ends up,
+ * once, and then puts them back in the moment they gave it. The
+ * world's clock does not move, nobody ages, no quest advances and
+ * nothing she shows enters WORLD MEMORY — what is on this screen is a
+ * picture of one future, and the game is careful never to confuse it
+ * with one that happened.
+ *
+ * The events come from `world.previewLifeEvents`, which runs the same
+ * chain resolver the clock runs but against a date this world has not
+ * reached, and commits nothing. Their sentences are `memoryEventLabel`
+ * — the words WORLD MEMORY would use if these ever did happen. Her
+ * lines are content, written for this beat.
+ *
+ * Three beats, in the order the scene is specified: she asks, she
+ * shows, she brings them back.
+ */
+/**
+ * THE ONE PICTURE OF THE FUTURE SHE SHOWS — the player's own, and no other.
+ *
+ * Read off what is already defined, never chosen here: `future` is the
+ * chain previewed from the answer the player gave (`lifeEvents.ts`),
+ * and each future site names the life event it belongs to
+ * (`requiredMemory`) and its picture (`eventCg`). The site whose event
+ * is in this preview is the future being shown. Exactly one, or no
+ * picture at all: this never guesses, never offers the others, and
+ * never lets the player pick.
+ *
+ * A route lived off screen has no place on the map; its picture is named
+ * by the event it shows (OFF_SCREEN_VISIONS — the bakery route, TIGS2027
+ * STEP ①), and it is shown without the list (`log: false`).
+ */
+export function visionCgOf(
+  future: readonly MemoryEvent[],
+): { key: EventCgKey; alt: string; log: boolean } | null {
+  const types = new Set<string>(future.map((e) => e.type));
+  const pictures = [
+    ...FUTURE_SITE_DEFS.filter((d) => d.eventCg && types.has(d.requiredMemory)).map((d) => ({
+      key: d.eventCg!,
+      alt: d.eventCgAlt,
+      log: true,
+    })),
+    ...OFF_SCREEN_VISIONS.filter((v) => types.has(v.shows)).map((v) => ({
+      key: v.eventCg,
+      alt: v.eventCgAlt,
+      log: v.log,
+    })),
+  ];
+  return pictures.length === 1 ? pictures[0] : null;
+}
+
+/**
+ * WHAT THE LIST SAYS: the previewed events, less the off-screen lives.
+ *
+ * What people did with one another while the player was elsewhere is never
+ * narrated here — the bakery route shows no list at all, and the let-go
+ * world (ROUTE D, 2026-10-20) keeps its merchants and what they learned to
+ * itself: the player may hear of such things in the present, or never. So
+ * the 見逃す look ahead lists only his own leaving.
+ */
+export function visionListOf(future: readonly MemoryEvent[]): MemoryEvent[] {
+  return future.filter((event) => !(event.type in OFF_SCREEN_EVENT_INFO));
+}
+
+function Lines({ lines }: { lines: readonly DialogueLine[] }) {
+  return (
+    <>
+      {lines.map((line, i) => (
+        <p className="line" key={i}>
+          {line.speaker ? `${line.speaker}「${line.text}」` : line.text}
+        </p>
+      ))}
+    </>
+  );
+}
+
+export function FutureVisionScreen({
+  future,
+  onDone,
+}: {
+  /** What would become of him, previewed. Never written anywhere. */
+  future: readonly MemoryEvent[];
+  /** Marks the vision seen, then returns to the present. */
+  onDone: () => void;
+}) {
+  const [beat, setBeat] = useState<'ASK' | 'SEE' | 'BACK'>('ASK');
+  const [leaving, setLeaving] = useState(false);
+  const vision = visionCgOf(future);
+  const cg = usePicture(vision ? () => eventCg(vision.key) : null, `event-cg:${vision?.key ?? 'none'}`);
+
+  if (beat === 'ASK') {
+    return (
+      <Stage backdrop="ALDEN" figure={HER} side="left">
+        <div data-testid="future-vision" data-beat="ASK">
+          <Lines lines={FUTURE_VISION_INTRO_LINES} />
+          <button className="btn primary" data-testid="future-vision-next" onClick={() => setBeat('SEE')}>
+            見る
+          </button>
+        </div>
+      </Stage>
+    );
+  }
+
+  if (beat === 'SEE') {
+    // What she shows stands where she stood, for this one beat.
+    return (
+      <Stage
+        backdrop="ALDEN"
+        figure={vision ? null : HER}
+        picture={vision && cg ? { src: cg, alt: vision.alt, testId: 'future-vision-cg' } : null}
+        side="left"
+        // A LOW SCREEN NEVER HIDES THE WAY ON. The words scroll inside
+        // their own column if they must; つづける stays on screen.
+        className="vision-see"
+      >
+        <div data-testid="future-vision" data-beat="SEE" className="vision-see-words">
+          <div className="vision-see-body" data-testid="future-vision-body">
+            <p className="seasons">春 — 夏 — 秋 — 冬</p>
+            <p className="line" data-testid="future-vision-years">
+              ――{GALD_FUTURE_VISION_YEARS}年後。
+            </p>
+            {/* The bakery route shows no list: the picture is the three years
+                (OFF_SCREEN_VISIONS). The other answers keep theirs. */}
+            {vision?.log === false ? null : (
+              <ul className="memory-list" data-testid="future-vision-list">
+                {visionListOf(future).map((event) => (
+                  <li className="memory-row" key={event.id} data-testid={`vision-${event.type}`}>
+                    <span className="memory-label">{memoryEventLabel(event)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {/* ONE future, not the future — she says so herself. */}
+            <p className="speaker">ケイオス</p>
+            <p className="line" data-testid="future-vision-one">
+              「{FUTURE_VISION_SEEN_LINE}」
+            </p>
+          </div>
+          <button className="btn primary" data-testid="future-vision-next" onClick={() => setBeat('BACK')}>
+            つづける
+          </button>
+        </div>
+      </Stage>
+    );
+  }
+
+  return (
+    <Stage backdrop="ALDEN" figure={HER} side="left">
+      <div data-testid="future-vision" data-beat="BACK">
+        <div data-testid="future-vision-return">
+          <Lines lines={FUTURE_VISION_RETURN_LINES} />
+        </div>
+        <button
+          className="btn primary"
+          data-testid="future-vision-done"
+          disabled={leaving}
+          onClick={() => {
+            // ONLY WHEN THEY HAVE FINISHED LOOKING. Reaching the screen
+            // is not seeing it: if the app closes before this, the
+            // vision is still owed and is shown again.
+            setLeaving(true);
+            onDone();
+          }}
+        >
+          現在へもどる
+        </button>
+      </div>
+    </Stage>
+  );
+}

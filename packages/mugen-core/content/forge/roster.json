@@ -1,0 +1,257 @@
+{
+  "format": "mugen-zero.forge-roster",
+  "version": 1,
+  "characters": [
+    {
+      "characterId": "HUM-000001",
+      "npcId": "RIZEL",
+      "characterType": "human",
+      "encounterRole": null,
+      "region": null,
+      "lifeActor": true,
+      "payloadHash": "sha256:69c9e867e36b68867cc62275de6b812c40f9db2bcf9cc6530d522361c5403afb",
+      "sourceSchemaVersion": "1.0",
+      "deployedVersion": "0.1-r2",
+      "deployedAt": "2026-09-27T21:51:51.207Z",
+      "adoptedAt": "2026-09-27T22:48:16.488Z",
+      "lastImportedAt": "2026-09-27T22:48:16.488Z",
+      "lastImportId": "IMP-20260927T224816488Z-HUM-000001-69c9e867",
+      "previous": null,
+      "history": [
+        {
+          "importId": "IMP-20260927T224816488Z-HUM-000001-69c9e867",
+          "characterId": "HUM-000001",
+          "npcId": "RIZEL",
+          "payloadHash": "sha256:69c9e867e36b68867cc62275de6b812c40f9db2bcf9cc6530d522361c5403afb",
+          "sourceSchemaVersion": "1.0",
+          "deployedVersion": "0.1-r2",
+          "deployedAt": "2026-09-27T21:51:51.207Z",
+          "importedAt": "2026-09-27T22:48:16.488Z",
+          "result": "NEW",
+          "warnings": [
+            {
+              "code": "UNRESOLVED_REFERENCE",
+              "path": "relationshipRefs",
+              "message": "関係ID REL-000001 は本編にまだありません。関係は作らずに保留し、キャラクター本体は取り込みます。"
+            },
+            {
+              "code": "MISSING_ASSET",
+              "path": "assets",
+              "message": "画像 VIS-HUM-000001-001（HUM-000001_CONCEPT_001.webp）の実ファイルは本編に未登録です。メタ情報だけを保持します。"
+            },
+            {
+              "code": "NO_PRIMARY_ASSET",
+              "path": "assets",
+              "message": "primary: true の画像がありません。代表画像は未設定として扱います。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.importance",
+              "message": "UNMAPPED: profile.importance「重要」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「情に厚い」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「臆病」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「世話焼き」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「友情」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「平和」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「静かに暮らしたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「誰かに必要とされたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「commerce」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「social」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            }
+          ],
+          "snapshotRef": null
+        }
+      ]
+    },
+    {
+      "characterId": "HUM-000002",
+      "npcId": "EDDA",
+      "characterType": "human",
+      "encounterRole": null,
+      "region": null,
+      "lifeActor": true,
+      "payloadHash": "sha256:1037c00e4f0464be54f152d4a008799bac326b60bbbf1f309fed3e1cc09b37d9",
+      "sourceSchemaVersion": "1.0",
+      "deployedVersion": "0.1",
+      "deployedAt": "2026-09-29T16:52:45.329Z",
+      "adoptedAt": "2026-09-29T17:00:17.524Z",
+      "lastImportedAt": "2026-09-29T17:00:17.524Z",
+      "lastImportId": "IMP-20260929T170017524Z-HUM-000002-1037c00e",
+      "previous": null,
+      "history": [
+        {
+          "importId": "IMP-20260929T170017524Z-HUM-000002-1037c00e",
+          "characterId": "HUM-000002",
+          "npcId": "EDDA",
+          "payloadHash": "sha256:1037c00e4f0464be54f152d4a008799bac326b60bbbf1f309fed3e1cc09b37d9",
+          "sourceSchemaVersion": "1.0",
+          "deployedVersion": "0.1",
+          "deployedAt": "2026-09-29T16:52:45.329Z",
+          "importedAt": "2026-09-29T17:00:17.524Z",
+          "result": "NEW",
+          "warnings": [
+            {
+              "code": "MISSING_ASSET",
+              "path": "assets",
+              "message": "画像 VIS-HUM-000002-001（HUM-000002_CONCEPT_001.webp）の実ファイルは本編に未登録です。メタ情報だけを保持します。"
+            },
+            {
+              "code": "NO_PRIMARY_ASSET",
+              "path": "assets",
+              "message": "primary: true の画像がありません。代表画像は未設定として扱います。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「皮肉屋」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「頑固」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.personality",
+              "message": "UNMAPPED: profile.core.personality「短気」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「友情」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.values",
+              "message": "UNMAPPED: profile.core.values「強さ」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「故郷を守りたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.core.desires",
+              "message": "UNMAPPED: profile.core.desires「誰かを守れる人になりたい」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「commerce」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "aptitudes",
+              "message": "UNMAPPED: aptitudes「social」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "visualDiversity.ageGroup",
+              "message": "UNMAPPED: visualDiversity.ageGroup「elderly」— 警告判定用の年齢帯（child／teen／young_adult／adult／older_adult）にない値です。比較せず、そのまま保持します。"
+            }
+          ],
+          "snapshotRef": null
+        }
+      ]
+    },
+    {
+      "characterId": "MON-000001",
+      "npcId": "NUMAWATARI",
+      "characterType": "monster",
+      "encounterRole": "NORMAL",
+      "region": null,
+      "lifeActor": false,
+      "payloadHash": "sha256:839e333ba64fba5c1a2d6385a8e77bad1818b40d4ecec2805178f6dae1fa051d",
+      "sourceSchemaVersion": "1.0",
+      "deployedVersion": "0.1",
+      "deployedAt": "2026-10-04T06:17:03.968Z",
+      "adoptedAt": "2026-10-04T06:25:04.386Z",
+      "lastImportedAt": "2026-10-04T06:25:04.386Z",
+      "lastImportId": "IMP-20261004T062504386Z-MON-000001-839e333b",
+      "previous": null,
+      "history": [
+        {
+          "importId": "IMP-20261004T062504386Z-MON-000001-839e333b",
+          "characterId": "MON-000001",
+          "npcId": "NUMAWATARI",
+          "payloadHash": "sha256:839e333ba64fba5c1a2d6385a8e77bad1818b40d4ecec2805178f6dae1fa051d",
+          "sourceSchemaVersion": "1.0",
+          "deployedVersion": "0.1",
+          "deployedAt": "2026-10-04T06:17:03.968Z",
+          "importedAt": "2026-10-04T06:25:04.386Z",
+          "result": "NEW",
+          "warnings": [
+            {
+              "code": "MISSING_ASSET",
+              "path": "assets",
+              "message": "画像 VIS-MON-000001-001（MON-000001_CONCEPT_001.webp）の実ファイルは本編に未登録です。メタ情報だけを保持します。"
+            },
+            {
+              "code": "NO_PRIMARY_ASSET",
+              "path": "assets",
+              "message": "primary: true の画像がありません。代表画像は未設定として扱います。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.classification（種族分類）",
+              "message": "UNMAPPED: profile.classification（種族分類）「魔獣」— MUGEN ZERO にまだこの分類がありません。FORGE の値は保持し、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.activityTime（活動時間）",
+              "message": "UNMAPPED: profile.activityTime（活動時間）「薄明性」— MUGEN ZERO にまだこの分類がありません。FORGE の値は保持し、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "profile.habitat",
+              "message": "UNMAPPED: profile.habitat「沼地」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            },
+            {
+              "code": "UNMAPPED_VOCABULARY",
+              "path": "ecology.desire",
+              "message": "UNMAPPED: ecology.desire「安全な場所」— 対応表（forgeVocabularyAdapter）にありません。似た値へは変換せず、ゲームの定義には入れません。"
+            }
+          ],
+          "snapshotRef": null
+        }
+      ]
+    }
+  ]
+}

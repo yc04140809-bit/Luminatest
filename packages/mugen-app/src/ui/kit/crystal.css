@@ -1,0 +1,55 @@
+/* ---- MUGEN ZERO 共通クリスタルUI (ui/kit/Crystal.tsx) ----
+   The pieces are the delivered sheet's (ui-sheet-v1, via --sk-* on :root and the kit's --kit-*).
+   This file only places them and adds what a picture cannot: the chosen glow, the press. */
+
+/* The tall frame: a border only, its corners and ends kept whole; whatever it lies over shows inside. */
+.crystal-frame {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--sk-frameTall-edge, 0);
+  border-image: var(--sk-frameTall-normal, none) var(--sk-frameTall-slice, 0) / var(--sk-frameTall-edge, 0) stretch;
+}
+
+/* A small frame, drawn whole at its own shape (never stretched): what it holds is clipped inside. */
+.crystal-icon {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--ci-w, 32px);
+  aspect-ratio: 100 / 104;
+  vertical-align: middle;
+}
+.crystal-icon[data-shape='round'] { aspect-ratio: 112 / 124; }
+.crystal-icon[data-shape='diamond'] { aspect-ratio: 104 / 132; }
+.crystal-icon-inside {
+  position: absolute;
+  inset: 16%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 35%, #2a3466, #0c1024);
+}
+.crystal-icon[data-shape='round'] .crystal-icon-inside { border-radius: 50%; }
+.crystal-icon[data-shape='diamond'] .crystal-icon-inside { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.crystal-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--sk-frameSquare-normal, none) center / 100% 100% no-repeat;
+}
+.crystal-icon[data-shape='round']::after { background-image: var(--sk-frameRound-normal, none); }
+.crystal-icon[data-shape='diamond']::after { background-image: var(--sk-frameDiamond-normal, none); }
+
+/* The title / name plate: its words in the plate's middle, never cut. */
+.crystal-header {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  color: #f2f5ff;
+}

@@ -1,0 +1,1366 @@
+/* THE PARTY FIGHT (ui/battle/PartyBattleScreen.tsx, 2026-10-12).
+   The field is the whole screen — the creature left, the party right as a
+   triangle (partyStage.ts) — and the reading sits over its edges: the
+   creature's plate top left, the turn order and the last line top centre,
+   the command cross top right, everyone's HP bottom right, AUTO bottom
+   left. Sized for 640×300 first. */
+.screen.pb-screen {
+  position: fixed;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  background: #0b0b12;
+  color: #f4ead2;
+  font-size: 13px;
+  --pb-edge: max(8px, env(safe-area-inset-left));
+  --pb-edge-r: max(8px, env(safe-area-inset-right));
+  --pb-dia: 64px;
+}
+.pb-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  filter: brightness(0.86);
+}
+.pb-panel,
+.pb-enemy-plate,
+.pb-order,
+.pb-log,
+.pb-members,
+.pb-list,
+.pb-result {
+  background: rgba(11, 11, 18, 0.72);
+  border: 1px solid rgba(231, 210, 156, 0.38);
+  border-radius: 6px;
+}
+
+/* ── the field ── */
+.pb-field { position: absolute; inset: 0; z-index: 1; }
+.pb-foe { position: absolute; display: flex; align-items: flex-end; justify-content: flex-start; }
+.pb-foe > img { height: 100%; width: auto; max-width: 100%; object-fit: contain; object-position: bottom left; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.acting > img { filter: drop-shadow(0 0 8px rgba(230, 110, 90, 0.8)); }
+.pb-foe.broken > img { filter: saturate(0.6) brightness(0.85) drop-shadow(0 0 6px rgba(255, 179, 71, 0.7)); }
+.pb-foe.shake > img { animation: pb-foe-shake 450ms ease-out; }
+.pb-figure {
+  position: absolute;
+  /* Its left edge is at the feet (partyStage `x`), pulled back by where the
+     feet are in the drawing. */
+  transform: translateX(calc(var(--pb-foot, 0.5) * -100%));
+  transform-origin: calc(var(--pb-foot, 0.5) * 100%) bottom;
+  transition: transform 200ms ease, filter 200ms ease, opacity 200ms ease;
+}
+.pb-figure > img { position: relative; height: 100%; width: auto; display: block; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure.acting { transform: translateX(calc(var(--pb-foot, 0.5) * -100%)) translateY(-2%) scale(1.04); }
+/* On the ground: a shadow under the feet. */
+.pb-shadow {
+  position: absolute;
+  left: calc(var(--pb-foot, 0.5) * 100%);
+  bottom: 0;
+  width: calc(var(--pb-h, 0.4) * 100vh * 0.46);
+  height: calc(var(--pb-h, 0.4) * 100vh * 0.1);
+  transform: translate(-50%, 45%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.28) 60%, rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+/* An empty place in the cross: a mark on the ground. */
+.pb-slot-mark {
+  position: absolute;
+  z-index: 2;
+  width: calc(var(--pb-h, 0.4) * 100vh * 0.62);
+  height: calc(var(--pb-h, 0.4) * 100vh * 0.2);
+  transform: translate(-50%, 50%);
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px rgba(255, 240, 200, 0.7));
+}
+.pb-slot-mark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 34' preserveAspectRatio='none'%3E%3Cpolygon points='50,1 99,17 50,33 1,17' fill='rgba(255,248,225,0.2)' stroke='rgba(255,248,225,0.95)' stroke-width='1.6' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.pb-slot-mark::after {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: rgba(255, 250, 230, 0.95);
+}
+/* 月影の構え: his own red-black (作者 2026-10-17 主人公専用演出), not a cold blue. */
+.pb-figure.guard > img { filter: drop-shadow(0 0 5px rgba(200, 20, 40, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure.regen > img { filter: drop-shadow(0 0 6px rgba(160, 255, 190, 0.8)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+.pb-figure.guard.regen > img { filter: drop-shadow(0 0 5px rgba(200, 20, 40, 0.8)) drop-shadow(0 0 9px rgba(160, 255, 190, 0.6)); }
+.pb-figure.down { filter: grayscale(1) brightness(0.5); opacity: 0.6; }
+
+.pb-float {
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff3c4;
+  text-shadow: 0 0 4px #000, 0 2px 0 #b2402f;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 8;
+  animation: pb-float 900ms ease-out both;
+}
+.pb-float.heal { color: #c9ffd0; text-shadow: 0 0 4px #000, 0 2px 0 #2f8f45; }
+.pb-float.heal.low { top: 52%; font-size: 15px; }
+.pb-float.miss { color: #d8e6ff; font-size: 18px; letter-spacing: 0.08em; text-shadow: 0 0 4px #000, 0 2px 0 #3c5a9a; }
+.pb-float.tag { top: 6%; font-size: 12px; letter-spacing: 0.12em; color: #ffd36b; text-shadow: 0 0 4px #000; }
+.pb-float.counter { top: 14%; left: 60%; color: #ffd36b; }
+.pb-float.counter small { display: block; font-size: 11px; letter-spacing: 0.1em; text-align: center; }
+.giant .pb-figure .pb-float { font-size: 16px; }
+.giant .pb-figure .pb-float.heal.low { font-size: 12px; }
+@keyframes pb-float {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -18px); }
+}
+
+/* 「BREAK中」 at the creature's feet. */
+.pb-foe-broken {
+  position: absolute;
+  left: 50%;
+  bottom: 24%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffd36b;
+  background: rgba(11, 11, 18, 0.78);
+  border: 1px solid #ffb347;
+  border-radius: 3px;
+  padding: 0 7px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@keyframes pb-foe-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-6px) rotate(-1.2deg); }
+  35% { transform: translateX(6px) rotate(1.2deg); }
+  55% { transform: translateX(-4px); }
+  75% { transform: translateX(3px); }
+}
+/* The field's jolt when it breaks is the shared SCREEN SHAKE now (ui/fx/screenShake.ts, medium, after a
+   hit-stop) — the field and the painting move, the HUD holds still. The creature's own recoil stays here. */
+/* 「BREAK!!」, big, in the middle. */
+.pb-break-flash {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 9;
+  transform: translate(-50%, -50%);
+  font-size: 56px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: #fff1c2;
+  -webkit-text-stroke: 2px #b8381f;
+  text-shadow: 0 0 12px rgba(255, 140, 50, 0.95), 0 4px 0 #6d1d10;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pb-break-flash 1100ms ease-out both;
+}
+@keyframes pb-break-flash {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(2.2); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(0.92); }
+  30% { transform: translate(-50%, -50%) scale(1.04); }
+  75% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.08); }
+}
+/* A technique's name, a moment, in the middle of the field. */
+.pb-tech-name {
+  position: absolute;
+  left: 50%;
+  top: 27%;
+  z-index: 9;
+  transform: translateX(-50%);
+  padding: 2px 18px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #fff3c4;
+  background: linear-gradient(90deg, transparent, rgba(11, 11, 18, 0.85) 18%, rgba(11, 11, 18, 0.85) 82%, transparent);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: pb-tech-name 1200ms ease-out both;
+}
+@keyframes pb-tech-name {
+  0% { opacity: 0; transform: translate(-50%, -4px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── top left: the creature's name, HP, BREAK ── */
+.pb-enemy-plate {
+  position: absolute;
+  z-index: 5;
+  top: max(6px, env(safe-area-inset-top));
+  left: var(--pb-edge);
+  width: min(26vw, 210px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 2px;
+  padding: 4px 8px 5px;
+  border-color: rgba(230, 120, 110, 0.5);
+}
+.pb-enemy-name { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-enemy-plate .pb-num { justify-self: end; }
+.pb-enemy-plate > .pb-bar { grid-column: 1 / -1; }
+.pb-break-label { font-size: 9px; letter-spacing: 0.12em; color: #d9b98a; line-height: 1; }
+.pb-break-label.on { color: #ffd36b; text-shadow: 0 0 4px rgba(255, 190, 80, 0.9); }
+.pb-break-gauge { position: relative; height: 6px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.pb-break-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #d8a03c, #ffd36b); transition: width 240ms ease; }
+/* One mark per point of footing. */
+.pb-break-gauge::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(100% / var(--pb-segs, 10) - 1px), rgba(11, 11, 18, 0.85) calc(100% / var(--pb-segs, 10) - 1px), rgba(11, 11, 18, 0.85) calc(100% / var(--pb-segs, 10)));
+}
+.pb-break-gauge.broken .pb-break-fill { background: linear-gradient(90deg, #ff6a3d, #ffb347); animation: pb-pulse 700ms ease-in-out infinite alternate; }
+.pb-break-badge {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #1a1408;
+  background: #ffb347;
+  border-radius: 3px;
+  padding: 0 5px;
+  line-height: 1.5;
+}
+@keyframes pb-pulse { from { opacity: 0.65; } to { opacity: 1; } }
+
+/* ── bars and numbers ── */
+.pb-bar { position: relative; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.pb-bar.mp { height: 3px; margin-top: 1px; }
+.pb-bar-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #5fbf6e, #9be37a); transition: width 240ms ease; }
+.pb-enemy-plate .pb-bar { height: 6px; }
+.pb-enemy-plate .pb-bar-fill { background: linear-gradient(90deg, #c4473f, #ec8a5a); }
+.pb-bar.mp .pb-bar-fill { background: linear-gradient(90deg, #4f7fe0, #8bb6ff); }
+.pb-num { font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
+.pb-num small { font-size: 9px; color: #cfc3a5; letter-spacing: 0.06em; }
+.pb-num.mp { color: #a9c6ff; font-size: 11px; }
+
+/* ── top centre: the order, and the last line said ── */
+.pb-top {
+  position: absolute;
+  z-index: 5;
+  top: max(6px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(34vw, 300px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: none;
+}
+.pb-order { display: flex; align-items: center; gap: 4px; padding: 2px 8px 2px 6px; border-radius: 999px; }
+.pb-order-label { font-size: 9px; letter-spacing: 0.14em; color: #e7d29c; margin-right: 2px; }
+.pb-face {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(231, 210, 156, 0.6);
+  background: #1d1a24;
+  opacity: 0.82;
+  flex-shrink: 0;
+}
+.pb-face img { position: absolute; max-width: none; }
+.pb-face.foe { border-color: rgba(230, 120, 110, 0.85); }
+.pb-face.acting { width: 30px; height: 30px; opacity: 1; border: 2px solid #f3d27a; box-shadow: 0 0 6px rgba(243, 210, 122, 0.7); }
+.pb-log {
+  margin: 0;
+  max-width: 100%;
+  padding: 2px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ── top right: the command cross ── */
+.pb-commands {
+  position: absolute;
+  z-index: 6;
+  bottom: max(4px, env(safe-area-inset-bottom));
+  right: var(--pb-edge-r);
+}
+.pb-cross {
+  position: relative;
+  width: calc(var(--pb-dia) * 2.6);
+  height: calc(var(--pb-dia) * 2.6);
+}
+.pb-cross-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+}
+.pb-cross-hub .pb-face.acting { width: calc(var(--pb-dia) * 0.5); height: calc(var(--pb-dia) * 0.5); }
+/* Whose commands these are, in the cross's empty top-left corner. */
+.pb-who { position: absolute; left: 0; top: 2px; max-width: calc(var(--pb-dia) * 0.95); overflow: hidden; text-overflow: ellipsis; font-size: 10px; font-weight: 700; color: #f3d27a; white-space: nowrap; text-shadow: 0 0 3px #000, 0 0 3px #000; line-height: 1.1; pointer-events: none; }
+.pb-dia {
+  appearance: none;
+  position: absolute;
+  width: var(--pb-dia);
+  height: var(--pb-dia);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #f4ead2;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+.pb-dia.up { left: 50%; top: calc(var(--pb-dia) * 0.5); }
+.pb-dia.down { left: 50%; top: calc(100% - var(--pb-dia) * 0.5); }
+.pb-dia.left { left: calc(var(--pb-dia) * 0.5); top: 50%; }
+.pb-dia.right { left: calc(100% - var(--pb-dia) * 0.5); top: 50%; }
+.pb-dia-plate {
+  position: absolute;
+  inset: -6%;
+  background-image: var(--pb-diamond);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  transition: filter 0.16s ease;
+}
+.pb-dia-mark { position: relative; color: #f3d27a; margin-top: -2px; }
+.pb-dia-jp { position: relative; font-size: 12px; line-height: 1.1; white-space: nowrap; text-shadow: 0 0 3px #000; }
+.pb-dia[aria-pressed='true'] .pb-dia-plate,
+.pb-dia:active .pb-dia-plate { filter: brightness(1.4) drop-shadow(0 0 5px rgba(243, 210, 122, 0.8)); }
+.pb-dia:disabled { cursor: default; }
+.pb-dia:disabled .pb-dia-plate { filter: grayscale(0.7) brightness(0.55); }
+.pb-dia:disabled .pb-dia-jp,
+.pb-dia:disabled .pb-dia-mark { opacity: 0.45; }
+.pb-commands[data-locked='yes'] .pb-dia:disabled .pb-dia-plate { filter: grayscale(0.4) brightness(0.7); }
+
+/* A list beside the cross: スキル, 魔法, 「誰に？」. */
+.pb-list {
+  position: absolute;
+  bottom: 2px;
+  right: calc(100% + 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  min-width: 112px;
+}
+.pb-list-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid rgba(231, 210, 156, 0.6);
+  border-radius: 4px;
+  background: rgba(40, 32, 46, 0.94);
+  color: #f4ead2;
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pb-list-btn small { color: #a9c6ff; font-size: 10px; }
+.pb-list-btn.tech { border-color: rgba(150, 190, 255, 0.75); }
+.pb-list-btn.primary { border-color: #f3d27a; }
+.pb-list-btn.back { justify-content: center; color: #cfc3a5; font-size: 12px; min-height: 26px; }
+.pb-list-btn:disabled { cursor: default; color: #8a8070; border-color: rgba(231, 210, 156, 0.25); background: rgba(30, 26, 34, 0.9); }
+.pb-list-btn:disabled small { opacity: 0.6; }
+.pb-ask { font-size: 12px; color: #e7d29c; padding: 0 4px; }
+
+.pb-result {
+  position: absolute;
+  z-index: 6;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  right: var(--pb-edge-r);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+.pb-result b { font-size: 16px; color: #f3d27a; }
+
+/* ── bottom left: WORLD MEMORY (every fight's panel), then AUTO, ×2 ── */
+.screen.pb-screen {
+  /* The battle screen's palette, which the panel is drawn in. */
+  --bx-navy: rgba(10, 22, 51, 0.88);
+  --bx-navy-deep: rgba(5, 11, 28, 0.94);
+  --bx-gold: #d9b871;
+  --bx-gold-lit: #f3e2b6;
+  --bx-gold-line: rgba(217, 184, 113, 0.5);
+  --bx-gold-hair: rgba(243, 226, 182, 0.16);
+  --bx-star: #9fd0ff;
+  --bx-ink: #f4efe3;
+  --bx-ink-dim: rgba(244, 239, 227, 0.66);
+  /* The panel's own width (battle.generated.css, .bx-memory-compact). */
+  --pb-memory-w: clamp(104px, calc(100vw * 0.152), 138px);
+}
+.pb-screen .pb-memory.bp-hud {
+  position: absolute;
+  inset: auto auto max(6px, env(safe-area-inset-bottom)) var(--pb-edge);
+  z-index: 6;
+  display: block;
+  padding: 0;
+  pointer-events: auto;
+  font-family: inherit;
+}
+.pb-screen .pb-memory .bx-memory-compact.open { position: relative; z-index: 7; }
+.pb-chips {
+  position: absolute;
+  z-index: 6;
+  left: calc(var(--pb-edge) + var(--pb-memory-w) + 6px);
+  bottom: max(6px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 5px;
+}
+.pb-chip { min-height: 30px; min-width: 44px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(231, 210, 156, 0.55); background: rgba(20, 16, 26, 0.8); color: #cfc3a5; font: inherit; font-size: 11px; letter-spacing: 0.06em; cursor: pointer; }
+.pb-chip.on { color: #1a1408; background: #f3d27a; border-color: #f3d27a; }
+
+/* ── top right: the party, one card each, down the edge ── */
+.pb-members {
+  position: absolute;
+  z-index: 5;
+  right: var(--pb-edge-r);
+  top: max(4px, env(safe-area-inset-top));
+  width: 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.pb-member {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+  padding: 3px 6px 3px 3px;
+  border-radius: 4px;
+  border: 1px solid rgba(231, 210, 156, 0.4);
+  background: rgba(11, 11, 18, 0.74);
+}
+.pb-member > .pb-face { width: 26px; height: 26px; border-radius: 4px; opacity: 1; }
+.pb-member.acting { border-color: #f3d27a; box-shadow: 0 0 6px rgba(243, 210, 122, 0.5); }
+.pb-member.down { opacity: 0.55; }
+.pb-member.aimable { border-color: rgba(155, 227, 122, 0.8); }
+.pb-member-body { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+/* The name is for reading aloud: the face says who it is. */
+.pb-member-name { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pb-member .pb-num { line-height: 1.15; }
+.pb-member .pb-bar { height: 4px; }
+.pb-member .pb-bar.mp { height: 3px; }
+.pb-down { color: #e88; font-size: 11px; }
+.pb-status { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 1px; line-height: 1; }
+.pb-status-chip { font-size: 9px; padding: 1px 3px; border-radius: 3px; white-space: nowrap; background: rgba(150, 190, 255, 0.22); color: #cfe0ff; }
+.pb-status-chip.regen { background: rgba(160, 255, 190, 0.2); color: #c9ffd0; }
+
+/* The place, under the turn order (as in every fight). */
+.pb-place { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; padding: 1px 8px; border-radius: 3px; background: rgba(11, 11, 18, 0.55); line-height: 1.2; }
+.pb-place b { font-size: 8px; letter-spacing: 0.16em; color: #e7d29c; font-weight: 600; }
+.pb-place i { font-size: 10px; font-style: normal; color: #f4ead2; }
+
+/* A short screen (640×300): a step tighter. */
+@media (max-height: 340px) {
+  .screen.pb-screen { --pb-dia: 50px; }
+  .pb-face { width: 20px; height: 20px; }
+  .pb-face.acting { width: 26px; height: 26px; }
+  .pb-log { -webkit-line-clamp: 1; font-size: 11px; }
+  .pb-members { width: 118px; gap: 2px; }
+  .pb-member { padding: 2px 5px 2px 2px; column-gap: 5px; }
+  .pb-member > .pb-face { width: 22px; height: 22px; }
+  .pb-num { font-size: 11px; }
+  .pb-num.mp { font-size: 10px; }
+  .pb-dia-jp { font-size: 11px; }
+  .pb-list-btn { min-height: 28px; font-size: 12px; }
+  .pb-chip { min-height: 28px; }
+  .pb-break-flash { font-size: 42px; }
+  .pb-tech-name { font-size: 13px; }
+}
+
+/* ── two or three creatures (2026-10-12, 複数敵) ── */
+.pb-foe.down { opacity: 0; transition: opacity 700ms ease; pointer-events: none; }
+.pb-foe.focus > img { filter: drop-shadow(0 0 6px rgba(255, 211, 107, 0.75)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.aimable { cursor: pointer; }
+.pb-foe.aimable > img { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.7)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.pb-foe.aimable.focus > img { filter: drop-shadow(0 0 8px rgba(255, 211, 107, 0.95)) drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+/* ▼ over the one in focus. */
+.pb-foe-mark {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  transform: translate(-50%, -100%);
+  color: #ffd36b;
+  font-size: 13px;
+  text-shadow: 0 0 4px #000;
+  pointer-events: none;
+  animation: pb-bob 900ms ease-in-out infinite alternate;
+}
+@keyframes pb-bob { from { margin-top: 0; } to { margin-top: -3px; } }
+/* Each one's own small HP and footing, under its feet. */
+.pb-foe-mini {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translate(-50%, 70%);
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px 4px 2px;
+  border-radius: 3px;
+  background: rgba(11, 11, 18, 0.72);
+  pointer-events: none;
+}
+.pb-foe-mini i { font-style: normal; font-size: 8px; line-height: 1.1; color: #f4ead2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-foe-mini .pb-bar { height: 3px; }
+.pb-foe-mini .pb-bar-fill { background: linear-gradient(90deg, #c4473f, #ec8a5a); }
+.pb-foe-mini-break { display: block; height: 2px; border-radius: 1px; background: linear-gradient(90deg, #d8a03c, #ffd36b); }
+.pb-foe-mini-break.broken { background: linear-gradient(90deg, #ff6a3d, #ffb347); animation: pb-pulse 700ms ease-in-out infinite alternate; }
+/* A creature's letter on its face in the turn order (two of one name). */
+.pb-face-tag {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 2px;
+  border-radius: 2px;
+  color: #1a1408;
+  background: #f3d27a;
+}
+.pb-list-btn small.hp { color: #ec8a5a; }
+.pb-list-btn.focus { border-color: #ffd36b; }
+
+/* ── skills waiting; ESCAPE (2026-10-12, 戦闘ルール整理) ── */
+.pb-list-btn small.wait { color: #f3d27a; font-size: 10px; }
+.pb-list-btn:disabled small.wait { opacity: 1; color: #f3d27a; }
+.pb-chip.no { color: #9a8f78; border-color: rgba(231, 210, 156, 0.25); font-size: 10px; cursor: default; }
+
+/* ==== 共通クリスタルUI (作者 2026-10-16「TIGS向け UI統一」、戦闘UI 5項目) ====
+   The party fight wears the same delivered pieces as every fight (ui-sheet-v1, `--sk-*` on :root):
+   the panel plate, the label plate, the square / round / diamond frames, the confirm plate — each
+   9-sliced or drawn whole at its own shape. CSS only colours what lies between: the gauges' fill,
+   the glow of who acts, each one's own colour on their frame. */
+.screen.pb-screen {
+  --mz-glow: rgba(176, 214, 255, 0.85);
+  --mz-hp-a: #ff8a74;
+  --mz-hp-b: #c8242c;
+  --mz-mp-a: #9fd2ff;
+  --mz-mp-b: #6a4cff;
+}
+/* The plates. */
+.pb-screen .pb-enemy-plate,
+.pb-screen .pb-member,
+.pb-screen .pb-list,
+.pb-screen .pb-result,
+.pb-screen .pb-order {
+  border-style: solid;
+  border-color: transparent;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.pb-screen .pb-enemy-plate,
+.pb-screen .pb-list,
+.pb-screen .pb-result {
+  border-width: 9px 14px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 9px 14px stretch;
+}
+.pb-screen .pb-enemy-plate { padding: 0 2px 1px; }
+.pb-screen .pb-list { padding: 1px; }
+.pb-screen .pb-member {
+  border-width: 5px 9px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 5px 9px stretch;
+  padding: 1px 1px 1px 0;
+}
+.pb-screen .pb-member.acting { border-color: transparent; box-shadow: none; filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.pb-screen .pb-member.aimable { border-color: transparent; filter: drop-shadow(0 0 4px rgba(155, 227, 122, 0.9)); }
+.pb-screen .pb-order {
+  border-width: 5px 10px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 5px 10px stretch;
+  padding: 0 2px;
+}
+.pb-screen .pb-log,
+.pb-screen .pb-place {
+  border: solid transparent;
+  border-width: 5px 14px;
+  border-radius: 0;
+  border-image: var(--sk-placeLabel-normal, none) var(--sk-placeLabel-slice, 0) fill / 5px 14px stretch;
+  background: none;
+  padding: 0 2px;
+}
+/* Faces: the small square frame over each. */
+.pb-screen .pb-face { border: 0; border-radius: 0; background: radial-gradient(circle at 50% 35%, #2a3466, #0c1024); }
+.pb-screen .pb-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--sk-frameSquare-normal, none) center / 100% 100% no-repeat;
+}
+.pb-screen .pb-face.acting { border: 0; box-shadow: none; filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.pb-screen .pb-face.foe::after { filter: hue-rotate(-150deg) saturate(1.6); }
+
+/* Commands: the diamond frame at its own shape over a dark diamond inside. */
+.pb-screen .pb-dia-plate { background: none; isolation: isolate; }
+.pb-screen .pb-dia-plate::before,
+.pb-screen .pb-dia-plate::after { content: ''; position: absolute; pointer-events: none; }
+.pb-screen .pb-dia-plate::before {
+  inset: 12% 21%;
+  background: linear-gradient(180deg, rgba(14, 24, 58, 0.94), rgba(5, 10, 28, 0.96));
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.pb-screen .pb-dia-plate::after { inset: 0; background: var(--sk-frameDiamond-normal, var(--pb-diamond)) center / contain no-repeat; }
+.pb-screen .pb-dia-jp { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.pb-screen .pb-dia-mark { color: #cfe4ff; }
+.pb-screen .pb-dia[aria-pressed='true'] .pb-dia-plate,
+.pb-screen .pb-dia:active .pb-dia-plate { filter: drop-shadow(0 0 5px var(--mz-glow)) brightness(1.15); }
+.pb-screen .pb-dia:active { transform: translate(-50%, -50%) scale(0.98); }
+
+/* The list beside the cross: the confirm plate per row. */
+.pb-screen .pb-list-btn {
+  border: solid transparent;
+  border-width: 7px 13px;
+  border-radius: 0;
+  border-image: var(--sk-confirmButton-normal, none) var(--sk-confirmButton-slice, 0) fill / 7px 13px stretch;
+  background: none;
+  padding: 0 2px;
+  color: #f2f5ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.pb-screen .pb-list-btn:hover:not(:disabled) { border-image-source: var(--sk-confirmButton-hover, var(--sk-confirmButton-normal)); }
+.pb-screen .pb-list-btn:disabled { border-image-source: var(--sk-confirmButton-disabled, var(--sk-confirmButton-normal)); background: none; color: #b9bfd6; }
+.pb-screen .pb-list-btn.focus { filter: drop-shadow(0 0 4px var(--mz-glow)); }
+.pb-screen .pb-list-btn:active:not(:disabled) { transform: scale(0.98); }
+
+/* AUTO / ×2 / ESCAPE: the round frame. */
+.pb-screen .pb-chip {
+  width: 46px;
+  min-width: 0;
+  height: auto;
+  aspect-ratio: 112 / 124;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 0;
+  background:
+    var(--sk-frameRound-normal, none) center / 100% 100% no-repeat,
+    radial-gradient(circle closest-side, rgba(10, 18, 44, 0.92) 82%, rgba(10, 18, 44, 0) 86%) center / 78% 78% no-repeat;
+  color: #e6ecff;
+  font-size: 9px;
+  line-height: 1.05;
+  white-space: normal;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.pb-screen .pb-chip.on { background: var(--sk-frameRound-normal, none) center / 100% 100% no-repeat, radial-gradient(circle closest-side, rgba(40, 70, 140, 0.95) 82%, rgba(10, 18, 44, 0) 86%) center / 78% 78% no-repeat; color: #fff; filter: drop-shadow(0 0 5px var(--mz-glow)); border: 0; }
+.pb-screen .pb-chip.no { color: #9aa2c0; border: 0; font-size: 9px; }
+.pb-screen .pb-chip:active:not(:disabled) { transform: scale(0.98); }
+
+/* Gauges: a dark crystal rail, the fill flowing inside. */
+.pb-screen .pb-bar,
+.pb-screen .pb-break-gauge {
+  background: linear-gradient(180deg, rgba(4, 8, 22, 0.92), rgba(16, 24, 52, 0.92));
+  border: 1px solid rgba(214, 224, 255, 0.6);
+  border-radius: 2px;
+}
+.pb-screen .pb-bar-fill,
+.pb-screen .pb-enemy-plate .pb-bar-fill,
+.pb-screen .pb-foe-mini .pb-bar-fill { background: linear-gradient(180deg, var(--mz-hp-a), var(--mz-hp-b)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.pb-screen .pb-bar.mp .pb-bar-fill { background: linear-gradient(180deg, var(--mz-mp-a), var(--mz-mp-b)); }
+
+/* 1. HP の赤い残像: under the fill; stays a moment where it was, then follows it down. */
+.pb-bar-trail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(180deg, #ffd9cc, #ff6a52);
+  opacity: 0.9;
+  transition: width 0.55s ease-out 0.38s;
+}
+
+/* 3. TURN ORDER: who acts in full light (a sheen passes once); the next a little darker; then darker. */
+.pb-screen .pb-order > .pb-face:not(.acting) { opacity: 0.5; }
+.pb-screen .pb-order > .pb-face.acting + .pb-face { opacity: 0.88; }
+.pb-screen .pb-order > .pb-face.acting + .pb-face + .pb-face { opacity: 0.68; }
+.pb-screen .pb-order > .pb-face:not(.acting) img { filter: brightness(0.85) saturate(0.8); }
+.pb-screen .pb-face.acting::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 35%, rgba(255, 255, 255, 0.6) 50%, rgba(190, 220, 255, 0.35) 56%, transparent 68%) 0 0 / 300% 100% no-repeat;
+  animation: pb-sheen-once 0.55s ease-out 0.05s 1 both;
+}
+@keyframes pb-sheen-once { from { background-position: 100% 0; opacity: 1; } to { background-position: 0 0; opacity: 0; } }
+
+/* 4. A boss's plate: the same plate heavier, black and gold inside, a hairline of red; a little wider. */
+.pb-screen .pb-enemy-plate[data-boss] {
+  width: min(30vw, 240px);
+  border-width: 13px 20px;
+  border-image-width: 13px 20px;
+  isolation: isolate;
+  filter: drop-shadow(0 0 6px rgba(226, 70, 56, 0.32));
+}
+.pb-screen .pb-enemy-plate[data-boss]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(58, 42, 12, 0.55), rgba(8, 6, 2, 0.6));
+  border: 1px solid rgba(232, 78, 62, 0.75);
+  box-shadow: inset 0 0 6px rgba(232, 78, 62, 0.35), inset 0 1px 0 rgba(242, 208, 128, 0.45);
+}
+
+/* 4b. A GIANT's plate stands upright down the left edge (作者 実機 2026-10-23: 横長の枠は大きさの表現の
+   邪魔で、第2形態の顔にもかかる — 左端に縦で). Same corner, same plate and colours, narrow: the name
+   written down it, HP and BREAK as two rails rising from the bottom, the number under them. It stops
+   above WORLD MEMORY. */
+.pb-screen .pb-enemy-plate.upright,
+.pb-screen .pb-enemy-plate.upright[data-boss] {
+  width: auto;
+  min-width: 0;
+  bottom: calc(max(6px, env(safe-area-inset-bottom)) + clamp(76px, 25vh, 104px) + 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 0;
+  border-width: 14px 10px;
+  border-image-width: 14px 10px;
+}
+.pb-enemy-plate.upright .pb-enemy-name {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.06em;
+  font-size: clamp(11px, 3.6vh, 14px);
+  line-height: 1.1;
+  overflow: visible;
+}
+.pb-upright-gauges { flex: 1 1 auto; min-height: 24px; display: flex; gap: 3px; justify-content: center; }
+.pb-screen .pb-bar.upright { width: clamp(7px, 2.2vh, 10px); height: auto; }
+.pb-screen .pb-bar.upright .pb-bar-fill,
+.pb-screen .pb-bar.upright .pb-bar-trail { inset: auto 0 0 0; width: auto; }
+.pb-screen .pb-bar.upright .pb-bar-fill { transition: height 240ms ease; background: linear-gradient(90deg, var(--mz-hp-a), var(--mz-hp-b)); }
+.pb-screen .pb-bar.upright .pb-bar-trail { transition: height 0.55s ease-out 0.38s; }
+.pb-screen .pb-break-gauge.upright { width: clamp(4px, 1.4vh, 6px); height: auto; }
+.pb-break-gauge.upright .pb-break-fill { inset: auto 0 0 0; transition: height 240ms ease; background: linear-gradient(0deg, #d8a03c, #ffd36b); }
+.pb-break-gauge.upright.broken .pb-break-fill { background: linear-gradient(0deg, #ff6a3d, #ffb347); }
+.pb-break-gauge.upright::after {
+  background: repeating-linear-gradient(0deg, transparent 0, transparent calc(100% / var(--pb-segs, 10) - 1px), rgba(11, 11, 18, 0.85) calc(100% / var(--pb-segs, 10) - 1px), rgba(11, 11, 18, 0.85) calc(100% / var(--pb-segs, 10)));
+}
+.pb-enemy-plate.upright .pb-num { font-size: 11px; line-height: 1.05; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.pb-enemy-plate.upright .pb-num small { font-size: 8px; }
+.pb-enemy-plate.upright .pb-break-label { font-size: 7px; letter-spacing: 0.04em; }
+/* Its 防御DOWN beside it, out on the field's side, never under the rails. */
+.pb-enemy-plate.upright .pb-break-badge { position: absolute; left: calc(100% + 12px); top: 0; }
+
+/* 5. Each one's own colour, only on the frame's light and a hairline (the shape is everyone's). */
+.pb-screen [data-actor='hero'] { --acc: #e0343f; --acc-2: #1a0608; }
+.pb-screen [data-actor='kaos'] { --acc: #eef2ff; --acc-2: #c9a24a; }
+.pb-screen [data-actor='grave'] { --acc: #4f86e8; --acc-2: #d9b44a; }
+.pb-screen [data-actor='aria'] { --acc: #34c8b6; --acc-2: #ffffff; }
+.pb-screen [data-actor='levi'] { --acc: #c9a24a; --acc-2: #3f6fe0; }
+.pb-screen .pb-face[data-actor]::after { filter: drop-shadow(0 0 0.6px var(--acc-2, transparent)) drop-shadow(0 0 2px var(--acc, transparent)); }
+.pb-screen .pb-face.foe[data-actor]::after { filter: hue-rotate(-150deg) saturate(1.6); }
+.pb-screen .pb-member { position: relative; isolation: isolate; }
+/* A hairline of their colour down the card's inner edge (over the plate's inside, under the words). */
+.pb-screen .pb-member[data-actor]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  width: 2px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--acc, transparent), var(--acc-2, transparent));
+  box-shadow: 0 0 4px var(--acc, transparent);
+}
+
+/* 2. BREAK: the crystal plate behind the word lights, cracks in two and flies apart, the sheet's own
+      crystal pieces scattering; the word holds, then all of it is gone (about a second). */
+.pb-screen .pb-break-flash {
+  width: min(52vw, 380px);
+  height: 74px;
+  display: grid;
+  place-items: center;
+  font-size: inherit;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  animation: none;
+}
+.pb-break-plate {
+  position: absolute;
+  inset: 0;
+  border: solid transparent;
+  border-width: 14px 22px;
+  border-image: var(--sk-panel-normal, none) var(--sk-panel-slice, 0) fill / 14px 22px stretch;
+  animation: pb-plate-in 1100ms ease-out both;
+}
+.pb-break-plate::after {
+  content: '';
+  position: absolute;
+  inset: -14px -22px;
+  background: linear-gradient(110deg, transparent 38%, rgba(255, 255, 255, 0.75) 47%, rgba(170, 220, 255, 0.55) 51%, rgba(255, 180, 236, 0.4) 55%, transparent 64%) 0 0 / 300% 100% no-repeat;
+  animation: pb-break-sheen 1100ms ease-out both;
+}
+.pb-break-plate.half-a { clip-path: polygon(0 0, 53% 0, 47% 34%, 55% 58%, 48% 100%, 0 100%); --away: translate(-16%, 7%) rotate(-7deg); }
+.pb-break-plate.half-b { clip-path: polygon(53% 0, 100% 0, 100% 100%, 48% 100%, 55% 58%, 47% 34%); --away: translate(16%, -6%) rotate(6deg); }
+@keyframes pb-plate-in {
+  0% { opacity: 0; transform: scale(1.18); filter: brightness(2.2); }
+  16% { opacity: 1; transform: scale(1); filter: brightness(1.6); }
+  34% { opacity: 1; transform: none; filter: brightness(1); }
+  100% { opacity: 0; transform: var(--away); filter: brightness(0.9); }
+}
+@keyframes pb-break-sheen { 0%, 22% { background-position: 100% 0; opacity: 0; } 26% { opacity: 1; } 52% { background-position: 0 0; opacity: 0; } 100% { opacity: 0; } }
+.pb-shard {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 44px;
+  margin: -22px 0 0 -14px;
+  background: var(--sk-decor-shard, none) center / contain no-repeat;
+  filter: brightness(1.25) drop-shadow(0 0 4px rgba(200, 230, 255, 0.95)) drop-shadow(0 0 2px rgba(0, 0, 0, 0.6));
+  opacity: 0;
+  animation: pb-shard-fly 1100ms ease-out both;
+}
+.pb-shard.spark { width: 26px; height: 26px; margin: -13px 0 0 -13px; background-image: var(--sk-decor-spark, none); }
+@keyframes pb-shard-fly {
+  0%, 30% { opacity: 0; transform: translate(0, 0) rotate(0) scale(0.6); }
+  35% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1.05); }
+}
+.pb-break-word {
+  position: relative;
+  z-index: 2;
+  font-size: 46px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: #fff6e2;
+  -webkit-text-stroke: 2px #b8381f;
+  text-shadow: 0 0 10px rgba(255, 140, 50, 0.9), 0 3px 0 #6d1d10;
+  animation: pb-break-flash-word 1100ms ease-out both;
+}
+@keyframes pb-break-flash-word {
+  0%, 8% { opacity: 0; transform: scale(2); }
+  22% { opacity: 1; transform: scale(0.94); }
+  32% { transform: scale(1.04); }
+  78% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+@media (max-height: 340px) {
+  .pb-screen .pb-break-flash { height: 58px; }
+  .pb-break-word { font-size: 36px; }
+  .pb-screen .pb-chip { width: 42px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pb-bar-trail { transition: none; }
+  .pb-screen .pb-face.acting::before { animation: none; opacity: 0; }
+  .pb-shard { display: none; }
+  .pb-break-plate.half-a, .pb-break-plate.half-b { --away: none; }
+}
+
+/* ── EACH BLOW (作者「魔法・スキル・戦闘エフェクト強化」2026-10-17; partyFx.ts) ──
+   Small and short, CSS only: what flashes where a blow lands, a spell's circle, 月影's afterimage, the
+   numbers by weight. Each waits for its blow (--pb-impact, set per beat) and is gone by itself. */
+.pb-float { animation-delay: var(--pb-impact, 0ms); }
+/* The numbers by weight: big; WEAK (orange, says so); resisted (smaller, dull). */
+.pb-float.big { font-size: 30px; color: #fff7d6; text-shadow: 0 0 6px #000, 0 3px 0 #b2402f, 0 0 14px rgba(255, 150, 60, 0.75); animation-name: pb-float-big; }
+.pb-float.weak { font-size: 27px; color: #ffcf6b; text-shadow: 0 0 5px #000, 0 2px 0 #a8461a; animation-name: pb-float-big; }
+.pb-float.weak::before { content: 'WEAK'; display: block; font-size: 11px; letter-spacing: 0.14em; text-align: center; color: #ffe2a0; }
+.pb-float.resisted { font-size: 17px; color: #c9c9d2; text-shadow: 0 0 4px #000, 0 2px 0 #4a4a58; }
+.giant .pb-figure .pb-float.big, .giant .pb-figure .pb-float.weak { font-size: 21px; }
+@keyframes pb-float-big {
+  0% { opacity: 0; transform: translate(-50%, 4px) scale(1.5); }
+  14% { opacity: 1; transform: translate(-50%, 0) scale(0.95); }
+  24% { transform: translate(-50%, -2px) scale(1.05); }
+  100% { opacity: 0; transform: translate(-50%, -20px) scale(1); }
+}
+
+.pb-hit {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  z-index: 7;
+  pointer-events: none;
+  --c: 255, 255, 255;
+  animation: pb-hit-burst 260ms ease-out both;
+  animation-delay: var(--pb-impact, 0ms);
+}
+.pb-foe .pb-hit { left: 46%; top: 50%; }
+.giant .pb-foe .pb-hit { left: 66%; top: 44%; width: 170px; height: 170px; margin: -85px 0 0 -85px; }
+.pb-hit::before,
+.pb-hit::after { content: ''; position: absolute; inset: 0; }
+/* The ordinary blow: a white cut across. */
+.pb-hit.slash::before { background: linear-gradient(-32deg, transparent 46%, rgba(255, 255, 255, 0.95) 49.5%, rgba(255, 255, 255, 0.95) 50.5%, transparent 54%); }
+.pb-hit.slash { animation-name: pb-hit-cut; }
+/* A skill (《瞬断》): two cuts, crossing, a cold edge. */
+.pb-hit.skill::before { background: linear-gradient(-32deg, transparent 45%, rgba(220, 245, 255, 1) 49.5%, rgba(220, 245, 255, 1) 50.5%, transparent 55%); }
+.pb-hit.skill::after { background: linear-gradient(28deg, transparent 46%, rgba(180, 225, 255, 0.85) 49.6%, rgba(180, 225, 255, 0.85) 50.4%, transparent 54%); }
+.pb-hit.skill { animation-name: pb-hit-cut; animation-duration: 320ms; filter: drop-shadow(0 0 6px rgba(150, 210, 255, 0.9)); }
+/* 重撃・豪断 / the counter: a burst, and a ring going out. */
+.pb-hit.heavy { --c: 255, 196, 120; }
+.pb-hit.heavy::before, .pb-hit.crush::before { border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.95), rgba(var(--c), 0.75) 40%, rgba(var(--c), 0) 72%); }
+.pb-hit.heavy::after, .pb-hit.crush::after, .pb-hit.magic::after { border-radius: 50%; border: 3px solid rgba(var(--c), 0.9); animation: pb-hit-ring 340ms ease-out both; animation-delay: inherit; }
+.pb-hit.heavy { animation-duration: 340ms; }
+/* A creature's blow on one of the party: red claws; its big blows a red burst. */
+.pb-hit.claw::before { background: repeating-linear-gradient(-58deg, transparent 0 18px, rgba(255, 90, 70, 0.9) 18px 21px, transparent 21px 38px); clip-path: inset(18% 18% 18% 18%); }
+.pb-hit.claw { width: 90px; height: 90px; margin: -45px 0 0 -45px; animation-name: pb-hit-cut; }
+.pb-hit.crush { --c: 255, 80, 60; animation-duration: 340ms; }
+/* The counter: a white cut on the creature, gold sparks at its edge. */
+.pb-hit.counter::before { background: linear-gradient(32deg, transparent 46%, #fff 49.5%, #fff 50.5%, transparent 54%); }
+.pb-hit.counter::after { background: radial-gradient(circle at 30% 40%, #ffd36b 0 2px, transparent 3px), radial-gradient(circle at 70% 62%, #ffd36b 0 2px, transparent 3px), radial-gradient(circle at 58% 28%, #fff1c2 0 1.5px, transparent 2.5px); }
+.pb-hit.counter { animation-name: pb-hit-cut; }
+/* A spell landing: its colour, a glow and a ring (星 gold, 炎 red-orange, 氷 pale blue, 雷 yellow). */
+.pb-hit.magic::before { border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 255, 255, 0.9), rgba(var(--c), 0.7) 45%, rgba(var(--c), 0) 75%); }
+.pb-hit.magic { animation-duration: 360ms; }
+.pb-hit.star, .pb-cast.star { --c: 255, 214, 120; }
+.pb-hit.fire, .pb-cast.fire { --c: 255, 110, 50; }
+.pb-hit.ice, .pb-cast.ice { --c: 150, 215, 255; }
+.pb-hit.thunder, .pb-cast.thunder { --c: 255, 240, 110; }
+.pb-hit.plain, .pb-cast.plain { --c: 200, 170, 255; }
+/* A mending spell: a soft green light, rising. */
+.pb-hit.mend::before { border-radius: 50%; background: radial-gradient(closest-side, rgba(200, 255, 210, 0.7), rgba(120, 230, 150, 0.25) 60%, transparent); }
+.pb-hit.mend { animation: pb-hit-soft 700ms ease-out both; }
+/* 星癒の羽: a few soft feathers drifting up — gentle, nothing that cuts (アリアのものとは混ぜない). */
+.pb-hit.feather { width: 110px; height: 150px; margin: -75px 0 0 -55px; animation: pb-hit-feather 1100ms ease-out both; }
+.pb-hit.feather::before {
+  background:
+    radial-gradient(ellipse 5px 10px at 22% 70%, rgba(235, 255, 240, 0.95), transparent 70%),
+    radial-gradient(ellipse 4px 9px at 64% 82%, rgba(210, 255, 225, 0.9), transparent 70%),
+    radial-gradient(ellipse 5px 11px at 80% 46%, rgba(255, 255, 235, 0.9), transparent 70%),
+    radial-gradient(ellipse 4px 8px at 40% 30%, rgba(220, 255, 230, 0.85), transparent 70%),
+    radial-gradient(ellipse 3px 7px at 52% 58%, rgba(255, 255, 255, 0.9), transparent 70%);
+}
+.pb-hit.feather::after { border-radius: 50%; background: radial-gradient(closest-side, rgba(170, 255, 200, 0.35), transparent); }
+/* 月影の構え's own look (moon arc, stance, dodge, counter) is the hero's red moon: ui/fx/special. */
+/* A spell's circle at the caster's feet: drawn, turning, gone. */
+.pb-cast {
+  position: absolute;
+  left: calc(var(--pb-foot, 0.5) * 100%);
+  bottom: 0;
+  width: 150%;
+  aspect-ratio: 3 / 1;
+  transform: translate(-50%, 45%);
+  border-radius: 50%;
+  border: 3px solid rgba(var(--c), 1);
+  box-shadow: 0 0 14px rgba(var(--c), 0.9), inset 0 0 14px rgba(var(--c), 0.7);
+  background: radial-gradient(closest-side, rgba(var(--c), 0.4), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  animation: pb-cast 520ms ease-out both;
+}
+@keyframes pb-hit-burst { 0% { opacity: 0; transform: scale(0.4); } 25% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.25); } }
+@keyframes pb-hit-cut { 0% { opacity: 0; transform: scaleX(0.2); } 30% { opacity: 1; transform: scaleX(1.1); } 100% { opacity: 0; transform: scaleX(1.2); } }
+@keyframes pb-hit-ring { 0% { opacity: 0.9; transform: scale(0.3); } 100% { opacity: 0; transform: scale(1.4); } }
+@keyframes pb-hit-soft { 0% { opacity: 0; transform: translateY(8px) scale(0.8); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px) scale(1.1); } }
+@keyframes pb-hit-feather { 0% { opacity: 0; transform: translateY(14px); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px); } }
+@keyframes pb-cast { 0% { opacity: 0; transform: translate(-50%, 45%) scale(0.5) rotate(0deg); } 30% { opacity: 1; transform: translate(-50%, 45%) scale(1); } 100% { opacity: 0; transform: translate(-50%, 45%) scale(1.1); } }
+@keyframes pb-hit-fade { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+/* Less motion asked for: the flashes only fade — nothing grows, flies or drifts. */
+@media (prefers-reduced-motion: reduce) {
+  .pb-hit, .pb-hit.slash, .pb-hit.skill, .pb-hit.claw, .pb-hit.counter, .pb-hit.mend, .pb-hit.feather, .pb-cast, .pb-float.big, .pb-float.weak { animation-name: pb-hit-fade; }
+  .pb-hit::after { animation: none !important; }
+}
+
+/* ── LOUDER (作者 実機 2026-10-24: 「ダメージ表記とBreak表示ももっと目立たせて」「画面全体をガラスを割った
+   みたいな表現」「COMBO表示」「カメラワークが‼️って感じではない」) ──
+   The numbers: bigger, heavier, a thick dark edge that reads on a pale creature, and a pop — in
+   big, a jump past and settled, held, then away. A move with a cut-in hits with the biggest. */
+.pb-float {
+  font-size: 30px;
+  font-weight: 900;
+  -webkit-text-stroke: 5px #1a0905;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #1a0905, 0 0 12px rgba(0, 0, 0, 0.55);
+  animation-name: pb-float-pop;
+  animation-duration: 1150ms;
+}
+.pb-float.big { font-size: 40px; color: #fff7d6; -webkit-text-stroke: 6px #5a1206; text-shadow: 0 3px 0 #5a1206, 0 0 16px rgba(255, 140, 50, 0.85); animation-name: pb-float-pop; }
+.pb-float.weak { font-size: 36px; -webkit-text-stroke: 5px #4a1a06; animation-name: pb-float-pop; }
+.pb-float.resisted { font-size: 24px; -webkit-text-stroke: 4px #22222c; }
+.pb-float.heal { -webkit-text-stroke: 5px #0d2c14; }
+.pb-float.heal.low { font-size: 18px; -webkit-text-stroke: 3px #0d2c14; }
+.pb-float.miss { font-size: 22px; -webkit-text-stroke: 4px #101a33; }
+.pb-float.tag, .pb-float.counter small, .pb-float.weak::before { -webkit-text-stroke: 3px #1a0905; }
+.pb-float.finisher {
+  font-size: 54px;
+  font-style: italic;
+  color: #fffaf0;
+  -webkit-text-stroke: 7px #6a0c04;
+  text-shadow: 0 4px 0 #3a0602, 0 0 22px rgba(255, 120, 40, 0.95), 0 0 42px rgba(255, 80, 20, 0.6);
+  animation-name: pb-float-finisher;
+  animation-duration: 1400ms;
+}
+.giant .pb-figure .pb-float { font-size: 22px; -webkit-text-stroke: 4px #1a0905; }
+.giant .pb-figure .pb-float.big, .giant .pb-figure .pb-float.weak { font-size: 28px; }
+@keyframes pb-float-pop {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(2.2); }
+  9% { opacity: 1; transform: translate(-50%, 0) scale(0.88); }
+  16% { transform: translate(-50%, -2px) scale(1.1); }
+  24% { transform: translate(-50%, -2px) scale(1); }
+  72% { opacity: 1; transform: translate(-50%, -6px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -24px) scale(0.96); }
+}
+@keyframes pb-float-finisher {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(3) rotate(-6deg); }
+  8% { opacity: 1; transform: translate(-50%, 0) scale(0.85) rotate(-4deg); }
+  15% { transform: translate(-50%, -3px) scale(1.14) rotate(-4deg); }
+  24% { transform: translate(-50%, -3px) scale(1) rotate(-4deg); }
+  76% { opacity: 1; transform: translate(-50%, -8px) scale(1) rotate(-4deg); }
+  100% { opacity: 0; transform: translate(-50%, -28px) scale(1.04) rotate(-4deg); }
+}
+/* The earlier cuts of a move of several (《瞬断》): a size smaller than the last. */
+.pb-float.cut { font-size: 27px; }
+.giant .pb-figure .pb-float.cut { font-size: 20px; }
+@media (max-height: 340px) {
+  .pb-float { font-size: 25px; }
+  .pb-float.big { font-size: 33px; }
+  .pb-float.finisher { font-size: 44px; }
+  .pb-float.cut { font-size: 23px; }
+}
+
+/* Speed lines rushing in on the one struck as the camera gets there (a move with a cut-in). Over the
+   field, under the HUD; not moved by the camera. */
+.pb-focus-lines {
+  position: absolute;
+  inset: -10%;
+  z-index: 2;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg at 34% 50%, rgba(255, 255, 255, 0.85) 0deg 0.8deg, transparent 0.8deg 5.5deg, rgba(255, 250, 235, 0.6) 5.5deg 6deg, transparent 6deg 11deg);
+  -webkit-mask-image: radial-gradient(ellipse 34% 40% at 34% 50%, transparent 55%, #000 100%);
+  mask-image: radial-gradient(ellipse 34% 40% at 34% 50%, transparent 55%, #000 100%);
+  opacity: 0;
+  animation: pb-focus-lines 420ms ease-out var(--pb-lines-at, 0ms) both;
+}
+@keyframes pb-focus-lines {
+  0% { opacity: 0; transform: scale(1.25); }
+  18% { opacity: 1; transform: scale(1); }
+  60% { opacity: 0.9; transform: scale(0.97) rotate(1.5deg); }
+  100% { opacity: 0; transform: scale(0.95) rotate(2deg); }
+}
+
+/* 「BREAK!!」: bigger, over everything (the glass included). */
+.pb-screen .pb-break-flash { z-index: 10; width: min(88vw, 660px); height: 108px; }
+.pb-break-word { font-size: 82px; -webkit-text-stroke: 3px #9e2a12; paint-order: stroke fill; text-shadow: 0 0 18px rgba(255, 140, 50, 0.95), 0 5px 0 #5a1208, 0 0 40px rgba(255, 90, 30, 0.6); }
+@media (max-height: 340px) {
+  .pb-screen .pb-break-flash { height: 80px; }
+  .pb-break-word { font-size: 60px; }
+}
+
+/* The glass: a white flash, the cracks out from the one broken, then the pieces fly and fall. */
+.pb-shatter { position: absolute; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+.pb-shatter-flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 34% 46%, #fff, rgba(255, 245, 225, 0.75) 45%, rgba(255, 240, 220, 0.4)); opacity: 0; animation: pb-shatter-flash 260ms ease-out both; }
+@keyframes pb-shatter-flash { 0% { opacity: 0; } 18% { opacity: 0.85; } 100% { opacity: 0; } }
+.pb-shatter-cracks { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; animation: pb-shatter-cracks 700ms ease-out 50ms both; }
+.pb-shatter-cracks line { stroke: #fff; stroke-width: 1.6px; stroke-linecap: round; filter: drop-shadow(0 0 2px rgba(170, 220, 255, 0.95)); }
+@keyframes pb-shatter-cracks { 0% { opacity: 0; } 12% { opacity: 1; } 40% { opacity: 1; } 100% { opacity: 0; } }
+.pb-glass {
+  position: absolute;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.42), rgba(190, 222, 255, 0.16) 38%, rgba(255, 255, 255, 0.05) 56%, rgba(255, 236, 250, 0.3));
+  opacity: 0;
+  animation: pb-glass 1050ms cubic-bezier(0.45, 0, 0.85, 0.5) calc(60ms + var(--d, 0ms)) both;
+}
+@keyframes pb-glass {
+  0% { opacity: 0; transform: none; }
+  8% { opacity: 1; transform: none; }
+  24% { opacity: 1; transform: translate(calc(var(--dx) * 0.08), calc(var(--dy) * 0.02)) rotate(calc(var(--rot) * 0.06)); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(0.92); }
+}
+
+/* COMBO: down the left, under where a creature's number pops and over WORLD MEMORY. Through a BREAK it burns. */
+.pb-combo {
+  position: absolute;
+  left: calc(var(--pb-edge, 10px) + 4px);
+  top: 50%;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: end;
+  column-gap: 6px;
+  pointer-events: none;
+  font-style: italic;
+  line-height: 0.9;
+  color: #fff6dc;
+}
+.giant .pb-combo { left: 64px; }
+.pb-combo-n {
+  font-size: 46px;
+  font-weight: 900;
+  -webkit-text-stroke: 5px #1a0905;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #1a0905, 0 0 14px rgba(255, 200, 110, 0.7);
+  animation: pb-combo-pop 260ms cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+.pb-combo-word { font-size: 17px; font-weight: 900; letter-spacing: 0.08em; color: #ffd36b; -webkit-text-stroke: 3px #1a0905; paint-order: stroke fill; padding-bottom: 6px; }
+.pb-combo-dmg { grid-column: 1 / -1; font-size: 12px; font-weight: 800; font-style: normal; letter-spacing: 0.06em; color: #f3e6c8; -webkit-text-stroke: 3px #1a0905; paint-order: stroke fill; margin-top: 2px; }
+.pb-combo.chain .pb-combo-n { color: #fff1c2; text-shadow: 0 3px 0 #5a1206, 0 0 16px rgba(255, 110, 40, 0.95), 0 0 30px rgba(255, 70, 20, 0.6); }
+.pb-combo.chain .pb-combo-word { color: #ff9a5a; }
+@keyframes pb-combo-pop { 0% { transform: scale(1.8); opacity: 0.4; } 60% { transform: scale(0.94); opacity: 1; } 100% { transform: scale(1); } }
+@media (max-height: 340px) {
+  .pb-combo { top: 47%; }
+  .pb-combo-n { font-size: 36px; }
+  .pb-combo-word { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-float, .pb-float.big, .pb-float.weak, .pb-float.finisher { animation-name: pb-hit-fade; }
+  .pb-focus-lines { animation-name: pb-hit-fade; }
+  .pb-glass { display: none; }
+  .pb-combo-n { animation: none; }
+}
+
+/* ── 《彼岸花》 and the hero's step in (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」) ── */
+/* A deep step in (《瞬断》, 《彼岸花》): a red trail behind him while he moves. */
+.pb-figure[data-lunge='deep'] > img { filter: drop-shadow(18px 0 0 rgba(170, 0, 24, 0.35)) drop-shadow(34px 0 4px rgba(120, 0, 16, 0.22)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+
+/* 《彼岸花》 (最終仕様 §7–9): the ground splits under them at the third cut, red light running in the cracks
+   (Grave's ground crack drawn the same way, in red); the world goes still and dark — the cracks glowing
+   through it — lilies open out of the cracks, a red veil and petals over the whole screen a moment, then
+   thinning at once. Over the field, not held by its hit-stop: its times are the screen's. */
+.pb-bloom { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
+.pb-bloom-dark {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at var(--bx) var(--by), rgba(40, 0, 6, 0.5), rgba(4, 0, 2, 0.88) 55%);
+  opacity: 0;
+  animation: pb-bloom-dark var(--bloom-ms) ease-out var(--bloom-at) both;
+}
+@keyframes pb-bloom-dark { 0% { opacity: 0; } 10% { opacity: 1; } 72% { opacity: 1; } 100% { opacity: 0; } }
+.pb-crack {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0;
+  animation: pb-crack-life calc(var(--bloom-at) - var(--crack-at) + var(--bloom-ms)) linear var(--crack-at) both;
+}
+/* Hidden until it splits (the delay holds the first frame): then there at once. */
+@keyframes pb-crack-life { 0% { opacity: 0; } 0.5% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+.pb-crack path { fill: none; stroke-linejoin: bevel; stroke-dasharray: 100; stroke-dashoffset: 100; }
+/* The red light: a wide haze along the crack, its dark cut, the bright line inside it. */
+.pb-crack-haze { stroke: rgba(255, 30, 50, 0.4); stroke-width: 14; stroke-linecap: round; filter: blur(3px); animation: pb-crack-run 300ms ease-out calc(var(--crack-at) + 60ms) both; }
+.pb-crack-cut { stroke: #140205; stroke-width: 6; animation: pb-crack-run 170ms cubic-bezier(0.2, 0.8, 0.3, 1) var(--crack-at) both; }
+.pb-crack-glow {
+  stroke: #ff3347;
+  stroke-width: 2.4;
+  filter: drop-shadow(0 0 3px rgba(255, 40, 60, 0.95)) drop-shadow(0 0 8px rgba(200, 0, 24, 0.8));
+  animation:
+    pb-crack-run 240ms ease-out calc(var(--crack-at) + 50ms) both,
+    pb-crack-pulse calc(var(--bloom-at) - var(--crack-at) + var(--bloom-ms) * 0.4) ease-in-out calc(var(--crack-at) + 290ms) both;
+}
+@keyframes pb-crack-run { to { stroke-dashoffset: 0; } }
+@keyframes pb-crack-pulse { 0% { stroke: #ff3347; } 60% { stroke: #ff9a9a; stroke-width: 3.4; } 100% { stroke: #ff3347; } }
+.pb-bloom-lily {
+  position: absolute;
+  width: calc(min(46vh, 220px) * var(--ls, 1));
+  aspect-ratio: 1;
+  object-fit: contain;
+  translate: -50% -82%;
+  transform-origin: 50% 82%;
+  filter: drop-shadow(0 0 14px rgba(255, 30, 50, 0.85));
+  opacity: 0;
+  animation: pb-bloom-lily calc(var(--bloom-ms) * (1 - var(--ld, 0))) cubic-bezier(0.2, 0.8, 0.3, 1) calc(var(--bloom-at) + var(--bloom-ms) * var(--ld, 0)) both;
+}
+@keyframes pb-bloom-lily {
+  0% { opacity: 0; transform: scale(0.08) rotate(var(--lt, 0deg)); }
+  8% { opacity: 1; }
+  26% { transform: scale(1.14) rotate(0deg); }
+  38% { transform: scale(1); }
+  76% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.1); }
+}
+.pb-bloom-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at var(--bx) var(--by), rgba(255, 60, 80, 0.12), rgba(170, 0, 22, 0.42) 70%);
+  opacity: 0;
+  animation: pb-bloom-veil calc(var(--bloom-ms) * 0.55) ease-out calc(var(--bloom-at) + var(--bloom-ms) * 0.34) both;
+}
+@keyframes pb-bloom-veil { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+/* The petals (作者 2026-10-24 仕上げ): one picture, many of it, each its own size, way, turn and time —
+   far behind small and faint and slow; a few rising off the lilies; big and clear across the front. Only
+   transform and opacity move (light on a phone); gone with the bloom when it is over. */
+.pb-petal {
+  position: absolute;
+  width: var(--psz);
+  height: auto;
+  margin: calc(var(--psz) / -2) 0 0 calc(var(--psz) / -2);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: pb-petal calc(var(--bloom-ms) * var(--pdur)) cubic-bezier(0.12, 0.7, 0.35, 1) calc(var(--bloom-at) + var(--bloom-ms) * var(--pd)) both;
+}
+.pb-petal.rise { animation-name: pb-petal-rise; animation-timing-function: ease-out; }
+.pb-petal.front { animation-name: pb-petal-front; animation-timing-function: cubic-bezier(0.3, 0.1, 0.6, 0.9); }
+@keyframes pb-petal {
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)) scale(0.5); }
+  12% { opacity: var(--pa); }
+  65% { opacity: calc(var(--pa) * 0.8); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); }
+}
+@keyframes pb-petal-rise {
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)) scale(0.6); }
+  15% { opacity: var(--pa); }
+  50% { transform: translate(calc(var(--px) * -0.6), calc(var(--py) * 0.5)) rotate(calc((var(--pr0) + var(--pr)) / 2)) scale(0.9); }
+  80% { opacity: var(--pa); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); }
+}
+@keyframes pb-petal-front {
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)); }
+  8% { opacity: var(--pa); }
+  70% { opacity: var(--pa); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)); }
+}
+
+/* 《彼岸花》's trace while he is gone (仕上げ §2): a thin red line where he ran, and his blade's glint at
+   the creature's front — a flash just before he is seen there. */
+.pb-trace {
+  position: absolute;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), #ff2e44 18%, rgba(200, 0, 24, 0.6) 70%, transparent);
+  box-shadow: 0 0 6px rgba(255, 40, 60, 0.95), 0 0 14px rgba(200, 0, 24, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+}
+.pb-glint {
+  position: absolute;
+  width: 70px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #ffffff, rgba(255, 210, 210, 0.9) 45%, rgba(255, 40, 60, 0.5) 75%, transparent);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 18px rgba(255, 40, 60, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+}
+
+/* 《彼岸花》's numbers (仕上げ §7–10): the first two cuts' small and faint, quick, flowing away up and aside
+   (the second the other way); the third's the big one, in front of them and held longest. */
+.pb-float.cut.flow { font-size: 21px; animation-name: pb-float-flow; animation-duration: 640ms; z-index: 7; }
+.pb-float.cut.flow[data-cut='2'] { font-size: 23px; animation-name: pb-float-flow-2; animation-duration: 700ms; }
+.pb-float.stay { z-index: 12; animation-duration: 1750ms; }
+@keyframes pb-float-flow {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(1.5); }
+  12% { opacity: 0.85; transform: translate(-50%, 0) scale(1); }
+  55% { opacity: 0.75; }
+  100% { opacity: 0; transform: translate(-95%, -30px) scale(0.9); }
+}
+@keyframes pb-float-flow-2 {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(1.5); }
+  12% { opacity: 0.9; transform: translate(-50%, 0) scale(1); }
+  55% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(-5%, -34px) scale(0.92); }
+}
+@media (max-height: 340px) {
+  .pb-float.cut.flow { font-size: 18px; }
+  .pb-float.cut.flow[data-cut='2'] { font-size: 20px; }
+}
+
+/* SLOWED: said on it, and kept on its plate with how many of its turns are left. */
+.pb-float.slow {
+  top: 40%;
+  font-size: 15px;
+  font-style: italic;
+  letter-spacing: 0.1em;
+  color: #9fd2ff;
+  -webkit-text-stroke: 3px #0a1a33;
+  animation-name: pb-float-pop;
+  animation-duration: 1300ms;
+}
+.giant .pb-foe .pb-float.slow { top: 24%; left: 74%; }
+.pb-slow-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #9fd2ff;
+  background: rgba(8, 16, 34, 0.82);
+  border: 1px solid #5a8fd0;
+  border-radius: 3px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+/* COMBO's worth: from 10 a line of what it adds, and each step its own colour and a glow as it is reached. */
+.pb-combo-bonus {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 900;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  color: #ffe08a;
+  -webkit-text-stroke: 3px #1a0905;
+  paint-order: stroke fill;
+  animation: pb-combo-step 700ms ease-out both;
+}
+@keyframes pb-combo-step { 0% { opacity: 0; transform: scale(1.6); filter: brightness(2); } 30% { opacity: 1; transform: scale(1); } 100% { filter: brightness(1); } }
+.pb-combo.tier-1 .pb-combo-n { color: #fff3c4; }
+.pb-combo.tier-2 .pb-combo-n { color: #ffe08a; }
+.pb-combo.tier-3 .pb-combo-n { color: #ffbe6a; }
+.pb-combo.tier-4 .pb-combo-n { color: #ff8f5a; }
+
+/* 「必殺技 解禁 《彼岸花》」 as the fight opens, the first time. */
+.pb-unlocked {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  z-index: 9;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  padding: 8px 26px;
+  background: linear-gradient(90deg, transparent, rgba(30, 0, 6, 0.9) 18%, rgba(30, 0, 6, 0.9) 82%, transparent);
+  pointer-events: none;
+  animation: pb-unlocked 2600ms ease-out both;
+}
+.pb-unlocked small { font-size: 11px; letter-spacing: 0.3em; color: #ffb4b4; }
+.pb-unlocked b { font-size: 26px; font-weight: 900; letter-spacing: 0.08em; color: #fff0f0; text-shadow: 0 0 12px rgba(255, 40, 60, 0.9); }
+@keyframes pb-unlocked { 0% { opacity: 0; transform: scale(1.2); } 10% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-bloom-lily, .pb-petal, .pb-combo-bonus, .pb-unlocked { animation-name: pb-hit-fade; }
+  .pb-petal, .pb-bloom-veil, .pb-trace, .pb-glint { display: none; }
+}
