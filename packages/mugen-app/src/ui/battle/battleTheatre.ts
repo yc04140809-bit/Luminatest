@@ -35,6 +35,7 @@ import { specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
 import type { SlashView } from './slash/SwordSlash';
 import type { CutInSpec } from './cutin/CutIn';
 import { REACH_CONTACT_AT, reachMs, slashMs } from './slash/slashTiming';
+import { multiHitGap, multiHitOf, splitDamage, type CutBlow } from './multiHit';
 
 /** Where he is in the walk-and-swing of an enhanced 攻撃 (slash/reach.css). */
 export interface ReachView {
@@ -186,6 +187,12 @@ export interface Theatre {
   frost: number | null;
 }
 
+/** 《瞬断》's second and third cuts in the ordinary fight: backhanded, then down across. */
+const SHUNDAN_SLASH_TURNS: readonly { turn: number; flip?: boolean }[] = [
+  { turn: 22, flip: true },
+  { turn: -38 },
+];
+
 /** What a turn carries beyond its kind. */
 export interface TurnExtras {
   /** His swing is a skill's (《瞬断》): its own trail and sound. */
@@ -264,8 +271,8 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
    * on him, a swing at the creature, held, the jolt at the blow (`impact` ms from now), back.
    */
   const trackUntil = useRef(0);
-  const track = (impact: number) => {
-    const move = { kind: 'TRACK' as const, from: HERO_AT, to: ENEMY_AT, impact, strength: 'medium' as const };
+  const track = (impact: number, blows?: readonly number[]) => {
+    const move = { kind: 'TRACK' as const, from: HERO_AT, to: ENEMY_AT, impact, blows, strength: 'medium' as const };
     trackUntil.current = performance.now() + moveMs(move);
     void cameraMove(move, document);
   };
@@ -331,10 +338,17 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
     const windupAt = ms.approach;
     const strikeAt = windupAt + ms.windup;
     const contactAt = strikeAt + Math.round(ms.strike * REACH_CONTACT_AT);
-    const recoverAt = strikeAt + ms.strike + ms.hold;
+    // 《瞬断》, three cuts (作者 2026-10-24 A — multiHit.ts): the one amount the core decided, shown as
+    // three cuts landing a gap apart (never closer than its floor, ×2 too); he holds there for them.
+    const shares = skill ? multiHitOf('shundan') : null;
+    const amounts = splitDamage(Math.max(0, before.enemyHp - next.enemyHp), shares ?? [1]);
+    const gap = multiHitGap(1 / speed);
+    const cuts = amounts.map((_, i) => contactAt + i * gap);
+    const more = cuts[cuts.length - 1] - contactAt;
+    const recoverAt = strikeAt + ms.strike + ms.hold + more;
     const returnAt = recoverAt + ms.recover;
     const homeAt = returnAt + ms.back;
-    if (follow) track(contactAt);
+    if (follow) track(contactAt, shares ? cuts : undefined);
 
     setCamera('IDLE');
     setReach({ id, phase: 'approach', ms: ms.approach });
@@ -353,15 +367,26 @@ export function useBattleTheatre(speed: BattleSpeed, options: TheatreOptions = {
         skill,
       });
     }, strikeAt);
-    // THE NUMBER IS THE CORE'S: what the enemy had, less what it has.
-    later(() => {
-      kick('enemy', skill ? 'medium' : 'small');
-      blowId.current += 1;
-      const blow = blowId.current;
-      setBlows((live) => landBlow(live, { id: blow, on: 'enemy', amount: Math.max(0, before.enemyHp - next.enemyHp) }));
-      later(() => setBlows((live) => endBlow(live, blow)), beatLength('HURT', speed) + 260);
-    }, contactAt);
-    later(() => setSlash((now) => (now?.id === id ? null : now)), strikeAt + Math.max(slashMs('ARC', speed), contactAt - strikeAt + slashMs('BITE', speed)));
+    // THE NUMBER IS THE CORE'S: what the enemy had, less what it has — at each cut, its share.
+    cuts.forEach((at, i) => {
+      later(() => {
+        kick('enemy', skill ? 'medium' : 'small');
+        blowId.current += 1;
+        const blow = blowId.current;
+        const landed: CutBlow = { id: blow, on: 'enemy', amount: amounts[i], cut: shares ? i : undefined };
+        setBlows((live) => landBlow(live, landed));
+        later(() => setBlows((live) => endBlow(live, blow)), beatLength('HURT', speed) + 260);
+      }, at);
+    });
+    // The second and third cuts: the sword's trail again, its bite at its own cut, tilted its own way.
+    const bite = contactAt - strikeAt;
+    cuts.slice(1).forEach((at, n) => {
+      later(() => {
+        setSlash({ id: id + (n + 1) / 10, arcMs: slashMs('ARC', speed), biteMs: slashMs('BITE', speed), biteAt: bite, skill, ...SHUNDAN_SLASH_TURNS[n % SHUNDAN_SLASH_TURNS.length] });
+      }, at - bite);
+    });
+    const lastSlash = id + (cuts.length - 1) / 10;
+    later(() => setSlash((now) => (now?.id === lastSlash ? null : now)), cuts[cuts.length - 1] - bite + Math.max(slashMs('ARC', speed), bite + slashMs('BITE', speed)));
     later(() => setReach({ id, phase: 'recover', ms: ms.recover }), recoverAt);
     later(() => {
       setBeat('NONE');

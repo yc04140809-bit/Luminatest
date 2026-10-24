@@ -3,7 +3,8 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { HIT_STOPS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { HIT_STOPS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
 
@@ -140,11 +141,29 @@ describe('the characters\' own (作者 2026-10-17)', () => {
     expect(giant.stages![0].reel?.down).toBeLessThanOrEqual(2);
   });
 
-  it('《瞬断》: the hero\'s red moon instead of the common cut; not グレイヴ\'s', () => {
-    const fx = beatFx(beat({ kind: 'SKILL', name: '瞬断' }), ctx({ skillId: 'shundan' }));
-    expect(fx.special).toEqual([{ type: 'protagonist_redmoon_slash', on: 'enemy', at: 0 }]);
-    expect(fx.flash).toBeUndefined();
+  it('《瞬断》 (作者 2026-10-24 A): three cuts of the hero\'s red moon, each tilted its own way (the second backhanded); not グレイヴ\'s', () => {
+    const fx = beatFx(beat({ kind: 'SKILL', name: '瞬断', amount: 40 }), ctx({ skillId: 'shundan' }));
+    const at = [0, 1, 2].map((i) => SHUNDAN_CUTS.lead + i * MULTI_HIT_GAP_MS);
+    expect(fx.special).toEqual([
+      { type: 'protagonist_redmoon_slash', on: 'enemy', at: at[0], turn: -16 },
+      { type: 'protagonist_redmoon_slash', on: 'enemy', at: at[1], flip: true, turn: 18 },
+      { type: 'protagonist_redmoon_slash', on: 'enemy', at: at[2], turn: 40 },
+    ]);
+    // Three blows: the first two as stages (a light hold each), the last the skill's.
+    expect(fx.stages?.map((st) => st.at)).toEqual([at[0] + SHUNDAN_CUTS.land, at[1] + SHUNDAN_CUTS.land]);
+    expect(fx.stages?.every((st) => st.hitStop === HIT_STOPS.light)).toBe(true);
+    expect(fx.impact).toBe(at[2] + SHUNDAN_CUTS.land);
     expect(fx.hitStop).toBe(HIT_STOPS.skill);
+    expect(fx.split).toEqual([0.3, 0.3, 0.4]);
+    expect(fx.flash).toBeUndefined();
+    // The next turn waits for all three to be seen.
+    expect(fx.hold).toBe(at[2] - at[0]);
+  });
+
+  it('《瞬断》 at ×2: its cuts never closer than the floor on screen — three cuts, not one blur', () => {
+    const fx = beatFx(beat({ kind: 'SKILL', name: '瞬断' }), ctx({ skillId: 'shundan', speed: 0.5 }));
+    const blows = [...fx.stages!.map((st) => st.at), fx.impact];
+    for (let i = 1; i < blows.length; i++) expect((blows[i] - blows[i - 1]) * 0.5).toBeGreaterThanOrEqual(MULTI_HIT_GAP_FLOOR_MS);
   });
 
   it('月影の構え\'s dodge: his outline left behind', () => {
@@ -213,7 +232,9 @@ describe('a cut-in move\'s camera follows it — TRACK (作者 2026-10-23, FF Re
     ] as const;
     for (const [b, c, strength] of cases) {
       const fx = beatFx(b, c);
-      expect(fx.camera).toEqual([{ kind: 'TRACK', from: c.actorAt, to: c.targetAt, impact: fx.impact, strength }]);
+      // A move of several cuts (《瞬断》): there by the first, held through each (the last is the blow).
+      const several = fx.split ? { impact: fx.stages![0].at, blows: [...fx.stages!.map((st) => st.at), fx.impact] } : { impact: fx.impact, blows: undefined };
+      expect(fx.camera).toEqual([{ kind: 'TRACK', from: c.actorAt, to: c.targetAt, ...several, strength }]);
       expect(fx.after).toBeUndefined();
       // The rest of the plan as it was: the hold, the flash or its own effects, the jolt after.
       const plain = beatFx(b, { ...c, cutIn: false });

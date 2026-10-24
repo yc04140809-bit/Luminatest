@@ -51,8 +51,11 @@ export type CameraMove =
   | { kind: 'FOCUS'; at: number; strength?: CameraStrength }
   | { kind: 'SNAP'; from: number; to: number; strength?: CameraStrength }
   | { kind: 'RECOIL'; dir: CameraDir; strength?: CameraStrength }
-  /** `from` / `to`: where the one acting and the one struck stand (0 left – 1 right); `impact`: ms to the blow. */
-  | { kind: 'TRACK'; from: number; to: number; impact: number; strength?: CameraStrength };
+  /**
+   * `from` / `to`: where the one acting and the one struck stand (0 left – 1 right); `impact`: ms to the
+   * blow — the first, for a move of several (`blows`: when each lands, the first being `impact`).
+   */
+  | { kind: 'TRACK'; from: number; to: number; impact: number; blows?: readonly number[]; strength?: CameraStrength };
 
 /** A character's way with the camera (作者: キャラ別カメラ個性) — `tempo` stretches every move (below 1: sharper). */
 export interface CameraPersona {
@@ -247,7 +250,11 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
       const past = whip + TRACK_MS.whip;
       const settled = past + TRACK_MS.settle;
       const blow = Math.max(move.impact, settled + 10);
-      const punched = blow + TRACK_MS.punch;
+      // A move of several cuts (《瞬断》, 重撃・豪断): held on the one struck through all of them, a punch
+      // and a jolt at each — the earlier ones lighter, each over before the next lands.
+      const later = (move.blows ?? []).map((t) => t - move.impact + blow).filter((t) => t > blow + 60);
+      const all = [blow, ...later];
+      const punched = all[all.length - 1] + TRACK_MS.punch;
       const held = punched + TRACK_MS.hold;
       const ms = held + TRACK_MS.back;
       const at = (t: number) => t / ms;
@@ -255,8 +262,20 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
       const lean0 = toward(move.from, 2);
       // The jolt at the blow: harder than a KICK, the way the blow goes (toward the side struck).
       const jolt = (move.to < 0.5 ? -1 : 1) * KICK[s].pct * TRACK_JOLT * k;
-      const zp = z + punch * k;
-      const there = (offset: number, easing?: string): Pose => ({ px: 0, pct: aim, scale: z, offset, easing });
+      function there(offset: number, easing?: string): Pose {
+        return { px: 0, pct: aim, scale: z, offset, easing };
+      }
+      const punches = all.flatMap((t, i): Pose[] => {
+        const last = i === all.length - 1;
+        const share = last ? 1 : 0.6;
+        const until = last ? t + TRACK_MS.punch : Math.min(t + TRACK_MS.punch, all[i + 1] - 15);
+        return [
+          there(at(t), 'linear'),
+          // The blow: snapped in and jolted in one frame or two, then eased back to the hold.
+          { px: 0, pct: aim + jolt * share, scale: z + punch * k * share, offset: at(t + Math.min(35, (until - t) / 3)), easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
+          there(at(until), 'linear'),
+        ];
+      });
       return {
         ms,
         origin: move.to,
@@ -267,10 +286,7 @@ function posesOf(move: CameraMove, k: number): { ms: number; poses: Pose[]; orig
           { px: 0, pct: lean0, scale: 1 + (z - 1) * 0.4, offset: at(whip), easing: 'cubic-bezier(0.1, 0.9, 0.2, 1)' },
           { px: 0, pct: aim * (1 + TRACK_OVERSHOOT), scale: z, offset: at(past), easing: 'cubic-bezier(0.4, 0, 0.3, 1)' },
           there(at(settled), 'linear'),
-          there(at(blow), 'linear'),
-          // The blow: snapped in and jolted in one frame or two, then eased back to the hold.
-          { px: 0, pct: aim + jolt, scale: zp, offset: at(blow + 35), easing: 'cubic-bezier(0.2, 0.7, 0.3, 1)' },
-          there(at(punched), 'linear'),
+          ...punches,
           there(at(held), 'cubic-bezier(0.5, 0, 0.2, 1)'),
           REST(1),
         ],

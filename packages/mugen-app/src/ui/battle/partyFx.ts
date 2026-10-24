@@ -5,6 +5,7 @@ import type { CameraDir, CameraMove, CameraStrength } from '../fx/camera';
 import { personaOf } from '../fx/camera';
 import type { ShakeLevel } from '../fx/screenShake';
 import { MOMENT_SPECIAL_FX, specialFxOf, type SpecialEffectType } from '../fx/special/specialFx';
+import { multiHitGap, multiHitOf } from './multiHit';
 
 /**
  * WHAT EACH BLOW OF THE PARTY FIGHT LOOKS LIKE (作者「魔法・スキル・戦闘エフェクト強化」
@@ -52,8 +53,8 @@ export interface FxStage {
 
 export interface BeatFx {
   camera?: (CameraMove & { wait?: number })[];
-  /** The characters' own effects, each on someone (an id), from `at` ms. */
-  special?: { type: SpecialEffectType; on: string; at: number }[];
+  /** The characters' own effects, each on someone (an id), from `at` ms — turned the other way, tilted (deg). */
+  special?: { type: SpecialEffectType; on: string; at: number; flip?: boolean; turn?: number }[];
   /** Blows before the last (`impact` is the last). */
   stages?: FxStage[];
   /** How much longer (ms) the next turn waits, for a long one to be seen whole. */
@@ -69,6 +70,11 @@ export interface BeatFx {
   after?: CameraMove;
   reel?: { on: string; px: number; down: number };
   number?: NumberTier;
+  /**
+   * A move of several cuts (multiHit.ts — 《瞬断》 three): each cut's share of the amount. Its blows are
+   * the stages and the last (`impact`); the screen shows a number at each.
+   */
+  split?: readonly number[];
 }
 
 /** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms; グレイヴ: 重撃 80〜120 / 豪断 100〜140). */
@@ -82,6 +88,14 @@ export const GIANT_WINDUP: (CameraMove & { wait?: number })[] = [
   { kind: 'KICK', dir: 'left', strength: 'small' },
   { kind: 'KICK', dir: 'right', strength: 'medium', wait: 80 },
 ];
+
+/**
+ * 主人公's 《瞬断》, three cuts (作者 2026-10-24 A): the first cut starts this long into the beat — after its
+ * cut-in the camera wants that long to get there before the first lands (TRACK) — then one every
+ * multiHitGap; each is his red moon, tilted its own way (the second backhanded), and lands at the
+ * moon's own moment (SPECIAL_FX protagonist_redmoon_slash, 110ms).
+ */
+export const SHUNDAN_CUTS = { lead: 260, land: 110, turns: [{ turn: -16 }, { flip: true, turn: 18 }, { turn: 40 }] } as const;
 
 /** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
 export const GRAVE_CHAIN = { juugeki: 120, charge: 300, goudan: 460, hold: 450 } as const;
@@ -105,6 +119,8 @@ export interface BeatContext {
   actorArt?: string;
   /** The move played a cut-in first (cutin/skillCutIn, magic/spellCutIn): its camera follows it — TRACK. */
   cutIn?: boolean;
+  /** The fight's speed: 1, or 0.5 at ×2 — so a move of several cuts keeps them apart (multiHitGap). */
+  speed?: number;
 }
 
 const COLOUR: Record<string, MagicColour> = { STAR: 'star', FIRE: 'fire', ICE: 'ice', THUNDER: 'thunder' };
@@ -137,7 +153,10 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const plan = plainBeatFx(beat, ctx);
   const strength = TRACK_STRENGTH[beat.kind];
   if (!ctx.cutIn || !strength || beat.missed || !plan.camera) return plan;
-  return { ...plan, camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: plan.impact, strength }], after: undefined };
+  // A move of several cuts: there before the first, held through every one of them.
+  const first = plan.split ? plan.stages?.[0]?.at : undefined;
+  const blows = first === undefined ? undefined : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
+  return { ...plan, camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: first ?? plan.impact, blows, strength }], after: undefined };
 }
 
 function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
@@ -167,6 +186,28 @@ function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
       };
     case 'SKILL': {
       const own = specialFxOf(ctx.skillId);
+      const shares = multiHitOf(ctx.skillId);
+      if (own.length > 0 && shares) {
+        // 《瞬断》, three cuts: his red moon each time, tilted its own way; a light hold and a small reel at
+        // the first two, the skill's hold at the last. One amount, shown as three (multiHit.ts).
+        const speed = ctx.speed ?? 1;
+        const gap = multiHitGap(speed) / speed;
+        const c = SHUNDAN_CUTS;
+        const cuts = shares.map((_, i) => Math.round(c.lead + i * gap));
+        return {
+          tempo,
+          camera: [kick(lead)],
+          special: cuts.map((at, i) => ({ type: own[0], on: beat.target, at, ...c.turns[i % c.turns.length] })),
+          stages: cuts.slice(0, -1).map((at) => ({ at: at + c.land, hitStop: HIT_STOPS.light, reel: reel(4) })),
+          impact: cuts[cuts.length - 1] + c.land,
+          hitStop: HIT_STOPS.skill,
+          sfx: [],
+          reel: reel(7),
+          number: numberTier(beat, ctx),
+          split: shares,
+          hold: cuts[cuts.length - 1] - cuts[0],
+        };
+      }
       if (own.length > 0) {
         // 主人公's red moon (《瞬断》): the crescent cut instead of the common one.
         return {

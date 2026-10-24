@@ -1050,10 +1050,14 @@
   76% { opacity: 1; transform: translate(-50%, -8px) scale(1) rotate(-4deg); }
   100% { opacity: 0; transform: translate(-50%, -28px) scale(1.04) rotate(-4deg); }
 }
+/* The earlier cuts of a move of several (《瞬断》): a size smaller than the last. */
+.pb-float.cut { font-size: 27px; }
+.giant .pb-figure .pb-float.cut { font-size: 20px; }
 @media (max-height: 340px) {
   .pb-float { font-size: 25px; }
   .pb-float.big { font-size: 33px; }
   .pb-float.finisher { font-size: 44px; }
+  .pb-float.cut { font-size: 23px; }
 }
 
 /* Speed lines rushing in on the one struck as the camera gets there (a move with a cut-in). Over the

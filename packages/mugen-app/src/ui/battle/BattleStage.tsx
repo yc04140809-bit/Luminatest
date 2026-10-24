@@ -28,6 +28,7 @@ import { SWING_ROLES, cameraOffset, cameraStyle, type CameraPhase } from './batt
 import { FIELD_FIGURE_SCALE, PROTOTYPE_PLACEMENTS, depthScale, placementStyle, type PrototypeSlot } from './formation';
 import { stagecraftFor, stagecraftLevels } from './stagecraft';
 import { latestOn, motionSlot, type Blow } from './blows';
+import { cutOf } from './multiHit';
 import { HitFx } from './HitFx';
 import { useBattleSounds } from './battleSounds';
 import { MagicTray } from './MagicTray';
@@ -380,6 +381,12 @@ export function BattleStage({
   const stagecraft = stagecraftFor({ cutIn: false, hitting: blows.length > 0 });
   const levels = stagecraftLevels(stagecraft);
 
+  /**
+   * A cut of a move of several (《瞬断》's three): its number aside — low left, then right, the last above
+   * them — so the three never read as one number (7 7 10 side by side read 「107」).
+   */
+  const cutAside = (at: { x: number; y: number }, cut?: number) =>
+    cut === undefined ? at : { x: at.x + [-0.06, 0.05, -0.005][cut % 3], y: at.y + [-0.06, 0.02, 0.1][cut % 3] };
   const pointOf = (on: Blow['on']) => {
     const home = on === 'hero' ? PROTOTYPE_PLACEMENTS.hero : PROTOTYPE_PLACEMENTS[enemySlot];
     const step = on === 'enemy' ? enemyStep : { inset: 0, bottom: 0 };
@@ -639,7 +646,7 @@ export function BattleStage({
           <HitFx
             key={blow.id}
             fxKey={blow.id}
-            at={pointOf(blow.on)}
+            at={cutAside(pointOf(blow.on), cutOf(blow))}
             amount={blow.amount}
             ms={visualMs(HIT_FX_MS, speed, HIT_FX_FLOOR_MS)}
             facing={blow.on === 'enemy' ? 'left' : 'right'}

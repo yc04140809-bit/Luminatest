@@ -141,6 +141,28 @@ describe('cameraKeyframes', () => {
     expect(bg[4][2]).toBeGreaterThanOrEqual(1 + aim / 100);
   });
 
+  it('TRACK through a move of several cuts (《瞬断》 three): there before the first, held through all, a punch at each — the last the hardest — then home', () => {
+    const move: CameraMove = { kind: 'TRACK', from: 0.75, to: 0.25, impact: 400, blows: [400, 630, 860], strength: 'medium' };
+    const { ms, frames } = cameraKeyframes(move);
+    const p = frames.map(pose);
+    const t = frames.map((f) => Number(f.offset) * ms);
+    for (let i = 1; i < t.length; i++) expect(t[i]).toBeGreaterThan(t[i - 1]);
+    expect(ms).toBe(860 + TRACK_MS.punch + TRACK_MS.hold + TRACK_MS.back);
+    const aim = (0.5 - 0.25) * 2 * TRACK.medium.pct;
+    // A punch (nearer than the hold) at each cut, each starting from the hold.
+    const punches = p.map((q, i) => ({ q, at: t[i] })).filter(({ q }) => q[2] > TRACK.medium.zoom + 0.001);
+    expect(punches).toHaveLength(3);
+    for (const [i, cut] of [400, 630, 860].entries()) {
+      expect(punches[i].at).toBeGreaterThan(cut);
+      expect(punches[i].at).toBeLessThan(cut + 60);
+    }
+    expect(punches[2].q[2]).toBeGreaterThan(punches[0].q[2]);
+    expect(Math.abs(punches[2].q[1] - aim)).toBeGreaterThan(Math.abs(punches[0].q[1] - aim));
+    // Never back home between the cuts.
+    const between = p.filter((_, i) => t[i] > 400 && t[i] < 860);
+    for (const q of between) expect(q[2]).toBeGreaterThanOrEqual(TRACK.medium.zoom);
+  });
+
   it('TRACK on a quick blow still leans, swings and then holds — never out of order', () => {
     for (const impact of [80, 150, 260]) {
       const offsets = cameraKeyframes({ kind: 'TRACK', from: 0.7, to: 0.25, impact }).frames.map((f) => Number(f.offset));

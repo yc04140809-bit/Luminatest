@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   ENEMY_ID,
   castable,
@@ -49,6 +49,7 @@ import { spellCutIn } from './magic/spellCutIn';
 import { skillCutIn } from './cutin/skillCutIn';
 import { shatter } from './shatter';
 import { COMBO_SHOWN_FROM, NO_COMBO, comboAfter, type Combo } from './combo';
+import { splitDamage } from './multiHit';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -225,6 +226,16 @@ const BREAK_SHARDS: readonly { dx: number; dy: number; rot: number; spark?: bool
   { dx: 20, dy: 90, rot: 45, spark: true },
 ];
 
+/**
+ * Where each cut's number of a move of several stands: low left, then right, the last above them — so
+ * the three never sit in a row and read as one number (2 5 2 read 「252」).
+ */
+const CUT_NUDGE: readonly CSSProperties[] = [
+  { translate: '-56px 34px' },
+  { translate: '44px 4px' },
+  { translate: '0 -34px' },
+];
+
 /** Which beat is the last one: the log's length (each beat says at least one line). */
 const lastKeyOf = (state: PartyBattleState) => state.log.length;
 
@@ -279,6 +290,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
    * from the blow, and the hold paused it — the number came after 「BREAK!!」, under the glass).
    */
   const [landed, setLanded] = useState(-1);
+  /** How many of the beat's blows have landed (a move of several cuts shows a number at each). */
+  const [cutsIn, setCutsIn] = useState<{ key: number; n: number }>({ key: -1, n: 0 });
   const [bg, setBg] = useState<string | null>(null);
   const ended = useRef(false);
   /** The screen, so a shake or the camera moves this fight's field and painting (ui/fx) and nothing else. */
@@ -428,9 +441,13 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     const counted = beat.counter !== undefined;
     const key = lastKey;
     play(beatFx(beat, ctx), !!beat.broke, {
-      stage: climbs ? () => setCombo((c) => ({ ...c, hits: c.hits + 1 })) : undefined,
+      stage: () => {
+        setCutsIn((c) => ({ key, n: (c.key === key ? c.n : 0) + 1 }));
+        if (climbs) setCombo((c) => ({ ...c, hits: c.hits + 1 }));
+      },
       land: () => {
         setLanded(key);
+        setCutsIn({ key, n: Number.MAX_SAFE_INTEGER });
         if (climbs) setCombo(after);
         else if (after !== before) setCombo(counted ? NO_COMBO : after);
       },
@@ -525,6 +542,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       actorArt: foe ? artIds[state.enemies.findIndex((e) => e.id === foe.id)] : undefined,
       // Played a cut-in first (the same tables `act` asks): its camera follows it (partyFx TRACK).
       cutIn: beat.kind === 'MAGIC' ? !!(spell && spellCutIn(spell)) : !!skillCutIn(tech ?? skill),
+      speed: fast ? 0.5 : 1,
     };
   }
   // The beat's flashes, numbers and circle, as drawn (where they stand is only for the camera).
@@ -551,7 +569,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       (p?.special ?? [])
         .filter((sp) => sp.on === on)
         .map((sp, i) => (
-          <SpecialFx key={`sx${lastKey}-${n}-${i}`} type={sp.type} delay={sp.at * fxSpeed} k={fxSpeed} giant={foe && giant} figure={figure} />
+          <SpecialFx key={`sx${lastKey}-${n}-${i}`} type={sp.type} delay={sp.at * fxSpeed} k={fxSpeed} giant={foe && giant} flip={sp.flip} turn={sp.turn} figure={figure} />
         )),
     );
   const spells = acting ? (acting.magic ?? []).filter((m) => m.effect === 'DAMAGE' || m.effect === 'MEND') : [];
@@ -588,6 +606,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** A creature broken and not yet down: the party's moment, and COMBO says so. */
   const chain = state.enemies.some((e) => isBroken(e) && !e.down);
   const glass = useMemo(() => shatter(Math.round(breakAt * 1000) / 10, 46), [breakAt]);
+  /** The beat's amount as its cuts show it: three for 《瞬断》 (multiHit.ts), else the one. */
+  const parts = last && fx?.split ? splitDamage(last.amount, fx.split) : [last?.amount ?? 0];
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
@@ -658,11 +678,28 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   BREAK中
                 </span>
               )}
-              {last && last.target === e.id && last.amount > 0 && landed === lastKey && (
-                <span key={lastKey} className={`pb-float${tierOf(fx)}${followed ? ' finisher' : ''}`} data-testid="pb-float" data-tier={fx?.number ?? 'plain'}>
-                  {last.amount}
-                </span>
-              )}
+              {/* A move of several cuts (《瞬断》): a number at each, adding up to the one amount (multiHit.ts);
+                  the earlier ones a little aside, the last — the one amount's own testid — the biggest. */}
+              {last &&
+                last.target === e.id &&
+                last.amount > 0 &&
+                cutsIn.key === lastKey &&
+                parts.map((amount, i) => {
+                  const final = i === parts.length - 1;
+                  if (amount <= 0 || i >= cutsIn.n || (final && landed !== lastKey)) return null;
+                  return (
+                    <span
+                      key={`${lastKey}-${i}`}
+                      className={`pb-float${tierOf(fx)}${final && followed ? ' finisher' : ''}${final ? '' : ' cut'}`}
+                      data-testid={final ? 'pb-float' : 'pb-float-cut'}
+                      data-tier={fx?.number ?? 'plain'}
+                      data-cut={parts.length > 1 ? i + 1 : undefined}
+                      style={parts.length > 1 ? CUT_NUDGE[i % CUT_NUDGE.length] : undefined}
+                    >
+                      {amount}
+                    </span>
+                  );
+                })}
               {last?.counter !== undefined && last.actor === e.id && (
                 <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter" style={impactStyle(counter)}>
                   <small>反撃</small>

@@ -24,6 +24,9 @@ export interface SlashView {
   biteAt: number;
   /** One of his skills (《瞬断》): a second, crossing cut and a colder light. */
   skill?: boolean;
+  /** Tilted (deg) and turned the other way — 《瞬断》's second and third cuts, each its own. */
+  turn?: number;
+  flip?: boolean;
 }
 
 export function SwordSlash({ slash }: { slash: SlashView }) {
@@ -31,6 +34,8 @@ export function SwordSlash({ slash }: { slash: SlashView }) {
     '--slash-arc': `${slash.arcMs}ms`,
     '--slash-bite': `${slash.biteMs}ms`,
     '--slash-at': `${slash.biteAt}ms`,
+    ...(slash.turn ? { rotate: `${slash.turn}deg` } : {}),
+    ...(slash.flip ? { scale: '-1 1' } : {}),
   } as CSSProperties;
   return (
     <span
