@@ -232,6 +232,50 @@ test.describe('with motion', () => {
     expect(await onlyTheWorld(page)).toBe(true);
   });
 
+  test('HE STEPS IN (作者 2026-10-24 §23): his swing takes him to the front of ヴァルシール — never into it — and home; Grave and Kaos stay where they are', async ({ page }) => {
+    test.setTimeout(60_000);
+    await recordCamera(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.goto('/?preview=party');
+    await turnOf(page, 'hero');
+    const hero = await page.getByTestId('pb-figure-hero').locator('img').boundingBox();
+    const giant = await page.getByTestId('pb-foe').locator('img').boundingBox();
+    await clear(page);
+    await page.getByTestId('pb-cmd-attack').click();
+    await expect.poll(async () => (await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40).length).toBeGreaterThanOrEqual(1);
+    const step = (await everything(page)).find((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)!;
+    const far = Math.min(...step.xs);
+    // To the creature (left), stopping at its front — its drawing's left part never reached.
+    expect(hero!.x + far).toBeGreaterThan(giant!.x + giant!.width * 0.5);
+    // Home again, and not a jump: there and back takes a while.
+    expect(step.xs[step.xs.length - 1]).toBe(0);
+    expect(step.ms).toBeGreaterThanOrEqual(300);
+    // Grave's blow: no step.
+    await turnOf(page, 'grave');
+    await clear(page);
+    await page.getByTestId('pb-cmd-attack').click();
+    await page.waitForTimeout(800);
+    expect((await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)).toHaveLength(0);
+  });
+
+  test('《彼岸花》: in at it, the cuts, home after the lily — at ×2 still a step, not a jump', async ({ page }) => {
+    test.setTimeout(60_000);
+    await recordCamera(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await page.goto('/?preview=party&higanbana=1&footing=40');
+    await page.getByTestId('pb-speed').click();
+    await turnOf(page, 'hero');
+    await clear(page);
+    await page.getByTestId('pb-cmd-skills').click();
+    await page.getByTestId('pb-cmd-skill-higanbana').click();
+    await expect.poll(async () => (await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40).length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
+    const step = (await everything(page)).find((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)!;
+    expect(step.xs[step.xs.length - 1]).toBe(0);
+    // ×2: out and home each never under 120ms on screen — the whole well over that.
+    expect(step.ms).toBeGreaterThanOrEqual(500);
+    await expect(page.getByTestId('pb-figure-hero')).toHaveAttribute('data-lunge', 'deep');
+  });
+
   test('AUTO at ×2: the camera never piles up — everything back at rest, the fight won', async ({ page }) => {
     test.setTimeout(120_000);
     await recordCamera(page);

@@ -234,6 +234,26 @@ export interface HeroSkillSpec {
   name: string;
   power: number;
   cooldown: number;
+  /**
+   * How many blows the one strike is shown as — and counted as, for COMBO (《瞬断》 2). The fight still
+   * decides one strike and one amount.
+   */
+  hits?: number;
+  /**
+   * A move of several cuts, each its OWN strike: each one's multiple of a swing (《彼岸花》 0.72 / 0.72 /
+   * 0.96 — together its `power`, 2.4). Each wears the creature's footing by `cutBreakPower`; one that
+   * brings it down ends it.
+   */
+  cuts?: readonly number[];
+  cutBreakPower?: number;
+  /** Leaves the creature it struck slowed (SLOW_SPEED for SLOW_TURNS of its turns). */
+  slows?: boolean;
+  /** A finisher (必殺技): its cut-in is the long one. Shown only. */
+  finisher?: boolean;
+  // `hits`, `cuts`, `cutBreakPower` and `slows` are read by the party fight (partyBattle) — where 《彼岸花》 is,
+  // for now (作者 2026-10-24: a limit of where it is built, not a rule that it belongs there). This fight does
+  // not read them yet: it would deal `power` as one blow. Joined with the party fight's way of turns, the
+  // same data serves both.
 }
 
 export interface EnemySpec {

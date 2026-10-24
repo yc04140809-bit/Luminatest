@@ -21,6 +21,12 @@ describe('skillCutIn', () => {
     expect(skillCutIn(MOON_GUARD_TECH)).toBeNull();
     expect(skillCutIn({ id: 'nothing', name: '？' })).toBeNull();
     expect(skillCutIn(undefined)).toBeNull();
-    expect(Object.keys(SKILL_CUT_INS).sort()).toEqual(['goudan', 'shundan']);
+    expect(Object.keys(SKILL_CUT_INS).sort()).toEqual(['goudan', 'higanbana', 'shundan']);
+  });
+
+  it('《彼岸花》 (作者 2026-10-24): his drawing, his look — the finisher\'s long cut-in; 《瞬断》 an ordinary skill\'s', () => {
+    const cut = skillCutIn({ id: 'higanbana', name: '彼岸花' })!;
+    expect(cut).toMatchObject({ theme: 'hero', tier: 'FINISHER', name: '彼岸花', word: 'HIGANBANA' });
+    expect(skillCutIn({ id: 'shundan', name: '瞬断' })!.tier).toBe('SKILL');
   });
 });

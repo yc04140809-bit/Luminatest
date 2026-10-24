@@ -211,7 +211,7 @@ for (const size of [
 
 // LOUDER (作者 実機 2026-10-24: 「ダメージ表記とBreak表示ももっと目立たせて」「画面全体をガラスを割ったみたいな
 // 表現」「COMBO表示もあった方がBreakして俺のターンが分かっていい」): a cut-in move's speed lines and its big
-// number; COMBO climbing with the party's blows (《瞬断》 three, 重撃・豪断 two), on through the creature's lost turns,
+// number; COMBO climbing with the party's blows (《瞬断》 two, 重撃・豪断 two), on through the creature's lost turns,
 // gone when it strikes; BREAK breaking the whole screen like glass.
 for (const size of [
   { width: 640, height: 300 },
@@ -224,21 +224,21 @@ for (const size of [
     // The order: Kaos, the creature, the hero, Grave. Kaos guards; it strikes.
     await turnOf(page, 'kaos');
     await page.getByTestId('pb-cmd-defend').click();
-    // The hero's 《瞬断》 (a cut-in): speed lines; THREE cuts (作者 2026-10-24 A) — three numbers adding up to
-    // the one amount the fight dealt, the last the biggest — and COMBO three.
+    // The hero's 《瞬断》 (a cut-in): speed lines; two quick cuts (作者 2026-10-24) — two numbers adding up to
+    // the one amount the fight dealt, the last the bigger — and COMBO two.
     await turnOf(page, 'hero');
     const hpBefore = await enemyHp(page);
     await page.getByTestId('pb-cmd-skills').click();
     await page.getByTestId('pb-cmd-skill-shundan').click();
     await expect(page.getByTestId('pb-focus-lines')).toHaveCount(1, { timeout: 15_000 });
     await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).toHaveClass(/finisher/);
-    await expect(page.getByTestId('pb-foe').getByTestId('pb-float-cut')).toHaveCount(2);
-    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '3');
+    await expect(page.getByTestId('pb-foe').getByTestId('pb-float-cut')).toHaveCount(1);
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '2');
     const cuts = (await page.getByTestId('pb-foe').locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]').allTextContents()).map(Number);
-    expect(cuts).toHaveLength(3);
+    expect(cuts).toHaveLength(2);
     expect(cuts.reduce((a, b) => a + b, 0)).toBe(hpBefore - (await enemyHp(page)));
-    expect(cuts[2]).toBeGreaterThanOrEqual(Math.max(cuts[0], cuts[1]));
-    // Grave's 重撃・豪断: two blows (5 COMBO), and BREAK — the glass, over the whole screen.
+    expect(cuts[1]).toBeGreaterThanOrEqual(cuts[0]);
+    // Grave's 重撃・豪断: two blows (4 COMBO), and BREAK — the glass, over the whole screen.
     await turnOf(page, 'grave');
     await page.getByTestId('pb-cmd-skills').click();
     await page.getByTestId('pb-cmd-tech-goudan').click();
@@ -247,23 +247,23 @@ for (const size of [
     expect(glass.width).toBeGreaterThanOrEqual(size.width - 1);
     expect(glass.height).toBeGreaterThanOrEqual(size.height - 1);
     await expect(page.getByTestId('pb-break-flash')).toHaveText('BREAK!!');
-    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '5');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '4');
     await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-chain', 'yes');
     await onScreen(page, 'pb-combo');
     const damage = Number(((await page.getByTestId('pb-combo-damage').textContent()) ?? '').replace(/\D/g, ''));
     expect(damage).toBeGreaterThan(0);
-    // Kaos's attack: 6 — no speed lines, an ordinary number.
+    // Kaos's attack: 5 — no speed lines, an ordinary number.
     await turnOf(page, 'kaos');
     await page.getByTestId('pb-cmd-attack').click();
-    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '6');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '5');
     await expect(page.getByTestId('pb-focus-lines')).toHaveCount(0);
     await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).not.toHaveClass(/finisher/);
     // Its turn is lost (「BREAK中、動けない」): the count goes on, and climbs again.
     await turnOf(page, 'hero');
     await expect(page.getByTestId('pb-log')).toContainText('BREAK中');
-    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '6');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '5');
     await page.getByTestId('pb-cmd-attack').click();
-    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '7');
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '6');
     // It stands again and strikes: the count is gone.
     for (let i = 0; i < 12 && (await page.getByTestId('pb-combo').count()) > 0; i++) {
       await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
@@ -273,6 +273,66 @@ for (const size of [
     await expect(page.getByTestId('pb-combo')).toHaveCount(0);
   });
 }
+
+// 《彼岸花》 (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」): his finisher — three strikes of its own,
+// a number at each adding up to what it took, COMBO three, the dark and the lily, and the creature SLOWED:
+// on its plate, and behind the hero and Grave in the TURN ORDER.
+for (const size of [
+  { width: 640, height: 300 },
+  { width: 844, height: 390 },
+]) {
+  test(`at ${size.width}×${size.height}: 《彼岸花》 — three numbers, COMBO three, the dark and the lily, SLOWED (on its plate and in the TURN ORDER)`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(size);
+    await page.goto('/?preview=party&higanbana=1&footing=40');
+    // The order: Kaos, the creature, the hero, Grave. Kaos guards; it strikes; then him.
+    await turnOf(page, 'kaos');
+    await page.getByTestId('pb-cmd-defend').click();
+    await turnOf(page, 'hero');
+    await page.getByTestId('pb-cmd-skills').click();
+    // His finisher first among his skills; 《瞬断》 still there.
+    await expect(page.getByTestId('pb-list').locator('[data-testid^="pb-cmd-skill-"]').first()).toHaveAttribute('data-testid', 'pb-cmd-skill-higanbana');
+    await expect(page.getByTestId('pb-cmd-skill-shundan')).toBeVisible();
+    const hpBefore = await enemyHp(page);
+    await page.getByTestId('pb-cmd-skill-higanbana').click();
+    // The finisher's long cut-in.
+    await expect(page.getByTestId('cut-in')).toHaveAttribute('data-tier', 'FINISHER');
+    await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 15_000 });
+    await expect(page.getByTestId('pb-foe').getByTestId('pb-float-cut')).toHaveCount(2, { timeout: 10_000 });
+    await expect(page.getByTestId('pb-foe').getByTestId('pb-float')).toHaveCount(1);
+    const nums = (await page.getByTestId('pb-foe').locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]').allTextContents()).map(Number);
+    expect(nums).toHaveLength(3);
+    expect(nums.reduce((a, b) => a + b, 0)).toBe(hpBefore - (await enemyHp(page)));
+    await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '3');
+    await expect(page.getByTestId('pb-log')).toContainText('速度DOWN');
+    await expect(page.getByTestId('pb-slow-badge')).toHaveText('速度DOWN 残り3');
+    await onScreen(page, 'pb-slow-badge');
+    await expect(page.getByTestId('pb-foe').getByTestId('pb-float-slow')).toHaveText('SPEED DOWN');
+    // Slowed: in the coming turns it stands after the hero and Grave (as it did not: Kaos, it, him, Grave).
+    const ahead = await page.getByTestId('pb-turn-order').locator('[data-actor]').evaluateAll((els) => els.map((e) => e.getAttribute('data-actor')));
+    const next = ahead.slice(ahead.indexOf('kaos'));
+    expect(next.indexOf('enemy')).toBeGreaterThan(next.indexOf('hero'));
+    expect(next.indexOf('enemy')).toBeGreaterThan(next.indexOf('grave'));
+  });
+}
+
+test('《彼岸花》 brought it down part-way: the numbers that landed, the fight won — nothing breaks', async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto('/?preview=party&higanbana=1&weak=1&enemies=2');
+  for (let i = 0; i < 6 && (await screen(page).getAttribute('data-actor')) !== 'hero'; i++) {
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+    if ((await screen(page).getAttribute('data-actor')) === 'hero') break;
+    await page.getByTestId('pb-cmd-defend').click();
+    await page.waitForTimeout(300);
+  }
+  await turnOf(page, 'hero');
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-skill-higanbana').click();
+  await page.getByTestId('pb-foe-enemy').click().catch(() => {});
+  await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 15_000 });
+  // Whatever fell, the fight goes on (or is won) — the next turn comes.
+  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 15_000 });
+});
 
 test('AUTO at ×2 against ヴァルシール: the techniques are used, BREAK comes, and it is won', async ({ page }) => {
   test.setTimeout(150_000);

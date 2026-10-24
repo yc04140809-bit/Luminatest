@@ -9,7 +9,7 @@ import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
 import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
 import type { PartyEnemyInput } from '@mugen/game/battle/partyBattle';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
-import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
+import { HERO_STARTING_SKILLS, HIGANBANA } from '@mugen/content/skills/heroSkills';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
 import { battleBackgroundFor } from '@mugen/content/locations/battleBackgrounds';
 import { locationNameOf } from '@mugen/content/locations/alden';
@@ -27,6 +27,7 @@ import { audioManager } from '../platform/audio';
  *   &enemy=moss_rabbit             vs the forest's moss rabbit
  *   &hurt=1                        the hero and Grave start hurt (for the heals)
  *   &footing=N                     the creature's BREAK footing is N (to see BREAK at once)
+ *   &higanbana=1                   his finisher 《彼岸花》 among his skills (as in ヴァルシール's second form)
  *   &enemies=2                     two creatures: イワホロ and コケマル (複数敵, 2026-10-12)
  *   &enemies=3                     three: イワホロ, コケマル and ヒョウレイ
  *   &weak=1                        (with &enemies) the creatures start at an eighth of their health
@@ -74,6 +75,8 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
           })
       : null;
   const hurt = params.get('hurt') === '1';
+  // &higanbana=1: his finisher among his skills (first, as in ヴァルシール's second form — ui/finale withFinisher).
+  const finisher = params.get('higanbana') === '1';
   const members = useMemo(
     () => [
       ...heroAndKaos({
@@ -85,12 +88,12 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
           kaos: { currentHp: 100, maxHp: 100, currentMp: 48, maxMp: 48 },
         },
         heroAttack: { min: 8, max: 12 },
-        heroSkills: HERO_STARTING_SKILLS,
+        heroSkills: finisher ? [HIGANBANA, ...HERO_STARTING_SKILLS] : HERO_STARTING_SKILLS,
         kaosMagic: availableMagic(MAGIC_DEFS, { awakened: true }),
       }),
       hurt ? { ...GRAVE_GUEST, hp: 60 } : GRAVE_GUEST,
     ],
-    [hurt],
+    [hurt, finisher],
   );
   useEffect(() => {
     audioManager.listenForFirstGesture();

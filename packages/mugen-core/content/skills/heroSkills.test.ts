@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HERO_STARTING_SKILLS, SHUNDAN, skillPowerText, skillReuseText, skillsOf } from './heroSkills';
+import { HERO_STARTING_SKILLS, HIGANBANA, SHUNDAN, skillPowerText, skillReuseText, skillsOf } from './heroSkills';
 import { createBattle, playerAttack, playerSkill, skillReadyIn } from '../../game/battle/battleLogic';
 
 /**
@@ -13,8 +13,18 @@ describe('his skills, as the status screen tells them', () => {
     expect(skillReuseText(SHUNDAN)).toBe('3ターンに1回');
   });
 
-  it('the numbers themselves are unchanged (×2.0, cooldown 3)', () => {
-    expect(SHUNDAN).toEqual({ id: 'shundan', name: '瞬断', power: 2.0, cooldown: 3 });
+  it('the numbers themselves are unchanged (×2.0, cooldown 3) — in the party fight shown as two cuts, still one strike', () => {
+    expect(SHUNDAN).toEqual({ id: 'shundan', name: '瞬断', power: 2.0, cooldown: 3, hits: 2 });
+  });
+
+  it('《彼岸花》 (作者 2026-10-24): three cuts of their own adding up to 2.4 × a swing, every fourth turn, slowing — a finisher; not his from the start', () => {
+    // 2.4 × a swing in all: 0.72, 0.72 and the heaviest, the finishing third, 0.96 (作者 第一案).
+    expect(HIGANBANA).toMatchObject({ id: 'higanbana', name: '彼岸花', power: 2.4, cooldown: 4, cuts: [0.72, 0.72, 0.96], cutBreakPower: 1, slows: true, finisher: true });
+    expect(HIGANBANA.cuts!.reduce((a, b) => a + b, 0)).toBeCloseTo(HIGANBANA.power, 6);
+    expect(HIGANBANA.cuts![2]).toBeGreaterThan(HIGANBANA.cuts![0]);
+    expect(HERO_STARTING_SKILLS).not.toContain(HIGANBANA);
+    expect(skillPowerText(HIGANBANA)).toBe('通常攻撃の2.4倍');
+    expect(skillReuseText(HIGANBANA)).toBe('4ターンに1回');
   });
 
   it('「3ターンに1回」 is what the battle does: used on turn 1, ready again on turn 4', () => {

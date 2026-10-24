@@ -45,7 +45,14 @@
 // when 1.4× lands instead; `moves` — its harder blow at one of them and,
 // rarely, a sweep at all of them; `boss` — a fight not to be fled.
 //
-// Still not here: items, revival, finishers.
+// SLOWED, AND COMBO (作者 2026-10-24「彼岸花＋BREAK / COMBO戦術拡張」): 《彼岸花》 leaves the creature
+// slowed — its speed halved for its next three turns — so in the next round's order it falls behind
+// the party (no new speed system: the order is still worked out by speed each round), and in a BREAK
+// more of the party's turns come before it stands. COMBO is the party's blows in a row (a move of
+// several counts each; a creature acting ends it, a broken one's lost turn does not, 月影's counter
+// starts the next) — and from 10 it is worth more: +5% a step of ten, at most +20%.
+//
+// Still not here: items, revival.
 //
 // Pure: a state in, a state out, the dice passed in.
 
@@ -107,6 +114,8 @@ export interface PartyTechnique {
   target: 'SELF' | 'ALLY' | 'ENEMY';
   /** HEAVY: times an ordinary blow. */
   power?: number;
+  /** How many blows it is shown as — and counted as, for COMBO (重撃・豪断 2). One strike still. */
+  hits?: number;
   /** HEAVY: how much it wears the creature's footing. */
   breakPower?: number;
   /** MOON_GUARD / REGEN: how many of the target's turns it lasts. */
@@ -167,6 +176,26 @@ export const SPELL_BREAK_POWER = 1;
 export const SKILL_BREAK_POWER = 2;
 /** A counter wears it as a swing. */
 export const COUNTER_BREAK_POWER = 1;
+/** SLOWED (《彼岸花》): its speed this much of itself… */
+export const SLOW_SPEED = 0.5;
+/** …for this many of its own turns (a BREAK's two lost ones and one more). */
+export const SLOW_TURNS = 3;
+/** COMBO's worth: +5% for each full ten, at most +20% (作者 第一案: 10/20/30/40). */
+export const COMBO_STEP = 10;
+export const COMBO_STEP_BONUS = 0.05;
+export const COMBO_MAX_BONUS = 0.2;
+
+/** What the party's blows are worth at this COMBO (1 under 10; 1.05 from 10, … 1.2 from 40). */
+export function comboMultiplier(hits: number): number {
+  return 1 + Math.min(COMBO_MAX_BONUS, Math.floor(Math.max(0, hits) / COMBO_STEP) * COMBO_STEP_BONUS);
+}
+
+/** The party's blows in a row, and their damage together. */
+export interface PartyCombo {
+  hits: number;
+  damage: number;
+}
+export const NO_COMBO: PartyCombo = { hits: 0, damage: 0 };
 
 export interface PartyMember extends PartyMemberSpec {
   hp: number;
@@ -218,6 +247,8 @@ export interface PartyEnemy {
   breakTurns: number;
   /** How many times it has been broken this fight. */
   breaks: number;
+  /** SLOWED (《彼岸花》): how many more of its own turns its speed is SLOW_SPEED of itself (0: not). */
+  slowTurns: number;
   /**
    * ITS OWN BREAK, if it has one (ヴァルシール's shell, later): called the
    * moment it is broken, with whether it is the first time; returns the fight
@@ -245,6 +276,10 @@ export interface PartyBeat {
   counter?: number;
   /** 星癒の羽 healed the one whose turn it was, at its end. */
   regen?: { target: string; amount: number };
+  /** A move of several cuts (《彼岸花》): what each landed, in order (adding up to `amount`). */
+  hits?: readonly number[];
+  /** It left the creature slowed. */
+  slowed?: boolean;
 }
 
 export interface PartyBattleState {
@@ -261,6 +296,8 @@ export interface PartyBattleState {
   log: readonly string[];
   outcome: PartyOutcome;
   last: PartyBeat | null;
+  /** COMBO as it stands after the last beat. */
+  combo: PartyCombo;
 }
 
 /**
@@ -309,9 +346,14 @@ export function roundOrder(members: readonly PartyMember[], enemies: PartyEnemy 
   const foes = Array.isArray(enemies) ? enemies : [enemies as PartyEnemy];
   const actors = [
     ...members.filter((m) => !m.down).map((m, i) => ({ id: m.id, speed: m.speed, rank: i })),
-    ...foes.map((e, i) => ({ e, i })).filter(({ e }) => e.hp > 0 && !e.down).map(({ e, i }) => ({ id: e.id, speed: e.speed, rank: members.length + i })),
+    ...foes.map((e, i) => ({ e, i })).filter(({ e }) => e.hp > 0 && !e.down).map(({ e, i }) => ({ id: e.id, speed: speedOf(e), rank: members.length + i })),
   ];
   return actors.sort((a, b) => b.speed - a.speed || a.rank - b.rank).map((a) => a.id);
+}
+
+/** A creature's speed as the order reads it: halved while it is SLOWED. */
+export function speedOf(e: PartyEnemy): number {
+  return (e.slowTurns ?? 0) > 0 ? e.speed * SLOW_SPEED : e.speed;
 }
 
 /** A creature for the party fight: its spec, and what the party fight adds. */
@@ -374,6 +416,7 @@ function foeOf(input: PartyEnemyInput, i: number, name: string): PartyEnemy {
     breakCurrent: footing,
     breakTurns: 0,
     breaks: 0,
+    slowTurns: 0,
     onBreak: input.onBreak,
   };
 }
@@ -441,6 +484,7 @@ export function createPartyBattle(specs: readonly PartyMemberSpec[], enemyInput:
     log: [appear],
     outcome: 'ONGOING',
     last: null,
+    combo: NO_COMBO,
   };
   return startTurn(state);
 }
@@ -549,11 +593,18 @@ function advance(state: PartyBattleState): PartyBattleState {
  * BROKEN — its own event, if it has one, runs then. The others are untouched.
  * Returns the fight and what landed.
  */
-function strikeEnemy(state: PartyBattleState, targetId: string, base: number, breakPower: number): { state: PartyBattleState; amount: number; broke: boolean; name: string } {
+function strikeEnemy(
+  state: PartyBattleState,
+  targetId: string,
+  base: number,
+  breakPower: number,
+  combo = state.combo.hits,
+): { state: PartyBattleState; amount: number; broke: boolean; name: string } {
   const foe = enemyById(state, targetId)!;
   const broken = isBroken(foe);
-  // Standing, its guard takes its share off; broken, the guard is gone and it takes 1.4×.
-  const amount = Math.max(1, Math.round(base * (broken ? BROKEN_TAKEN : 1 - foe.guard)));
+  // Standing, its guard takes its share off; broken, the guard is gone and it takes 1.4×. COMBO as it
+  // stands before this blow adds its worth (comboMultiplier).
+  const amount = Math.max(1, Math.round(base * comboMultiplier(combo) * (broken ? BROKEN_TAKEN : 1 - foe.guard)));
   const hp = Math.max(0, foe.hp - amount);
   if (broken || hp <= 0) return { state: withEnemy(state, foe.id, (e) => ({ ...e, hp })), amount, broke: false, name: foe.name };
   const left = foe.breakCurrent - Math.max(0, breakPower);
@@ -633,6 +684,10 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
       const foe = enemyTarget(state, action.target);
       if (!skill || !partySkillReady(me, skill) || !foe) return state;
       const m = affinityMultiplier(foe.affinity, 'PHYSICAL');
+      if (skill.cuts && skill.cuts.length > 1) {
+        next = severalCuts(state, me, skill, foe, m, rng);
+        break;
+      }
       const hit = strikeEnemy(state, foe.id, roll(me.attackMin, me.attackMax, rng) * skill.power * m, SKILL_BREAK_POWER);
       next = withMember(hit.state, me.id, (x) => ({ ...x, skillUsedAt: { ...x.skillUsedAt, [skill.id]: x.turns } }));
       next = {
@@ -719,8 +774,63 @@ export function partyAct(state: PartyBattleState, action: PartyAction, rng: Rng 
     }
   }
   next = withMember(next!, me.id, (x) => ({ ...x, turns: x.turns + 1 }));
+  next = { ...next, combo: comboAfter(state.combo, next.last!, blowsOf(me, action, next.last!)) };
   if (!laidOnSelf) next = endOwnTurn(next, me.id);
   return advance(settle(next));
+}
+
+/** How many blows a member's beat counts as, for COMBO: a move's cuts landed, or what it is shown as. */
+function blowsOf(me: PartyMember, action: PartyAction, beat: PartyBeat): number {
+  if (beat.hits) return beat.hits.length;
+  if (action.kind === 'SKILL') return me.skills?.find((s) => s.id === action.skillId)?.hits ?? 1;
+  if (action.kind === 'TECH') return me.techniques?.find((t) => t.id === action.techId)?.hits ?? 1;
+  return 1;
+}
+
+/**
+ * COMBO after a beat: the party's blows on a creature add (each of a move of several); a creature
+ * acting ends it — but not a broken one losing its turn; 月影's counter on that turn starts the next.
+ */
+export function comboAfter(prev: PartyCombo, beat: PartyBeat, blows = 1): PartyCombo {
+  if (isEnemyId(beat.actor)) {
+    if (beat.kind === 'ENEMY_BROKEN') return prev;
+    return beat.counter !== undefined && beat.counter > 0 ? { hits: 1, damage: beat.counter } : NO_COMBO;
+  }
+  if (!isEnemyId(beat.target) || beat.amount <= 0 || beat.missed) return prev;
+  return { hits: prev.hits + Math.max(1, blows), damage: prev.damage + beat.amount };
+}
+
+/**
+ * A MOVE OF SEVERAL CUTS (《彼岸花》): each cut its own strike — its own multiple of a swing, its own roll,
+ * COMBO counting up as they land (each worth what COMBO is by then), each wearing footing by its
+ * own measure. One that brings the creature down ends it; one that BREAKs it lets the rest land at
+ * 1.4×. Then, if it still stands, it is SLOWED.
+ */
+function severalCuts(state: PartyBattleState, me: PartyMember, skill: HeroSkillSpec, foe: PartyEnemy, m: number, rng: Rng): PartyBattleState {
+  let s = withMember(state, me.id, (x) => ({ ...x, skillUsedAt: { ...x.skillUsedAt, [skill.id]: x.turns } }));
+  const hits: number[] = [];
+  let broke = false;
+  for (const share of skill.cuts!) {
+    if (!enemyTarget(s, foe.id)) break;
+    const hit = strikeEnemy(s, foe.id, roll(me.attackMin, me.attackMax, rng) * share * m, skill.cutBreakPower ?? 1, state.combo.hits + hits.length);
+    s = hit.state;
+    hits.push(hit.amount);
+    broke = broke || hit.broke;
+  }
+  const standing = !!enemyTarget(s, foe.id);
+  const slowed = !!skill.slows && standing;
+  if (slowed) s = withEnemy(s, foe.id, (e) => ({ ...e, slowTurns: SLOW_TURNS }));
+  const total = hits.reduce((a, b) => a + b, 0);
+  return {
+    ...s,
+    log: [
+      ...withoutBreakLine(s.log, broke),
+      `${me.name}の《${skill.name}》！ ${foe.name}に${hits.join('・')}のダメージ。`,
+      ...breakLine({ broke, name: foe.name }),
+      ...(slowed ? [`${foe.name}の動きが鈍った。（速度DOWN）`] : []),
+    ],
+    last: { actor: me.id, kind: 'SKILL', target: foe.id, amount: total, read: readAffinity(m), name: skill.name, broke, hits, slowed },
+  };
 }
 
 /** The BREAK line goes after the blow that caused it, not before. */
@@ -749,13 +859,13 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen
   if (isBroken(foe)) {
     const left = foe.breakTurns - 1;
     const stands = left <= 0;
-    let next = withEnemy(state, foe.id, (e) => ({ ...e, breakTurns: Math.max(0, left), breakCurrent: stands ? e.breakMax : 0 }));
+    let next = withEnemy(state, foe.id, (e) => ({ ...e, breakTurns: Math.max(0, left), breakCurrent: stands ? e.breakMax : 0, slowTurns: Math.max(0, e.slowTurns - 1) }));
     next = {
       ...next,
       log: [...next.log, stands ? `${foe.name}は体勢を立て直した。` : `${foe.name}はBREAK中、動けない。`],
       last: { actor: foe.id, kind: 'ENEMY_BROKEN', target: foe.id, amount: 0, read: 'PLAIN' },
     };
-    return advance(next);
+    return advance({ ...next, combo: comboAfter(state.combo, next.last!) });
   }
   const standing = state.members.filter((m) => !m.down);
   if (standing.length === 0) return settle(state);
@@ -789,14 +899,16 @@ export function enemyAct(state: PartyBattleState, rng: Rng = Math.random, chosen
     const after = memberById(next, target.id)!;
     if (guarded && !after.down && !after.counterUsed && strike.type === 'PHYSICAL' && strike.area === 'ONE' && enemyTarget(next, foe.id)) {
       const m = affinityMultiplier(foe.affinity, 'PHYSICAL');
-      const hit = strikeEnemy(next, foe.id, roll(after.attackMin, after.attackMax, rng) * MOON_GUARD.counter * m, COUNTER_BREAK_POWER);
+      // A new COMBO starts with it (the creature's own turn ended the last): worth nothing extra.
+      const hit = strikeEnemy(next, foe.id, roll(after.attackMin, after.attackMax, rng) * MOON_GUARD.counter * m, COUNTER_BREAK_POWER, 0);
       next = withMember(hit.state, target.id, (x) => ({ ...x, counterUsed: true }));
       next = { ...next, log: withoutBreakLine(next.log, hit.broke) };
       said.push(`${target.name}の反撃！ ${foe.name}に${hit.amount}のダメージ。`, ...breakLine(hit));
       beat = { ...beat!, counter: hit.amount, broke: hit.broke };
     }
   }
-  next = { ...next, log: [...next.log, `${how} ${said.join(' ')}`], last: beat };
+  next = withEnemy(next, foe.id, (e) => ({ ...e, slowTurns: Math.max(0, e.slowTurns - 1) }));
+  next = { ...next, log: [...next.log, `${how} ${said.join(' ')}`], last: beat, combo: comboAfter(state.combo, beat!) };
   return advance(settle(next));
 }
 

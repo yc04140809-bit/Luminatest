@@ -27,6 +27,8 @@ type DevWorld = {
   markRead(ids: string[]): Promise<unknown>;
   recordGaldLifeChoice(c: string): Promise<unknown>;
   advanceSekiryugaArc(s: string): Promise<boolean>;
+  advanceFinaleStage(s: string): Promise<boolean>;
+  isRead(id: string): boolean;
 };
 const world = <T,>(page: Page, src: string) =>
   page.evaluate(
@@ -252,6 +254,59 @@ test('the first form at nought: the shell breaks, the second form (the party car
   await page.getByTestId('continue-button').click();
   await expect(page.getByTestId('finale-pause')).toBeVisible();
   await expect(page.getByTestId('world-clock')).toHaveCount(0);
+});
+
+/** His turn in the party fight: the others guard until it comes. */
+async function untilHero(page: Page) {
+  const screen = page.getByTestId('pb-screen');
+  for (let i = 0; i < 8 && (await screen.getAttribute('data-actor')) !== 'hero'; i++) {
+    await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 20_000 });
+    if ((await screen.getAttribute('data-actor')) === 'hero') break;
+    await page.getByTestId('pb-cmd-defend').click();
+    await page.waitForTimeout(300);
+  }
+  await expect(screen).toHaveAttribute('data-actor', 'hero', { timeout: 20_000 });
+  await expect(page.getByTestId('pb-commands')).toHaveAttribute('data-locked', 'no', { timeout: 20_000 });
+}
+
+test('ヴァルシール\'s second form: 《彼岸花》 is his (作者 2026-10-24) — said learned the first time only; lost and fought again from the second form, and after a reload, still his', async ({ page }) => {
+  test.setTimeout(300_000);
+  await heaviestVillage(page);
+  for (const st of ['EVE', 'RAID', 'LURED', 'FORM1_WON']) expect(await world<boolean>(page, `(w) => w.advanceFinaleStage('${st}')`)).toBe(true);
+  // Saved at the second form: the game comes back to its words.
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'SHELL_BREAK');
+  // On their last legs, to see it lost.
+  await page.evaluate(() => ((window as unknown as { __mugenFinalePartyHp?: number }).__mugenFinalePartyHp = 1));
+  await readWhile(page, ['SHELL_BREAK']);
+  await expect(page.getByTestId('pb-screen')).toBeVisible();
+  await expect(page.getByTestId('pb-unlocked')).toContainText('《彼岸花》');
+  await expect.poll(() => world<boolean>(page, `(w) => w.isRead('skill:higanbana')`)).toBe(true);
+  await page.getByTestId('pb-auto').click();
+  await expect(page.getByTestId('pb-result')).toHaveAttribute('data-outcome', 'DEFEAT', { timeout: 90_000 });
+  await page.evaluate(() => delete (window as unknown as { __mugenFinalePartyHp?: number }).__mugenFinalePartyHp);
+  await page.getByTestId('pb-result-next').click();
+  // Lost: from the shell breaking again, the second form — not said again, still his.
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'SHELL_BREAK');
+  expect(await stage(page)).toBe('FORM1_WON');
+  await readWhile(page, ['SHELL_BREAK']);
+  await expect(page.getByTestId('pb-screen')).toBeVisible();
+  await expect(page.getByTestId('pb-unlocked')).toHaveCount(0);
+  await untilHero(page);
+  await page.getByTestId('pb-cmd-skills').click();
+  await expect(page.getByTestId('pb-cmd-skill-higanbana')).toBeVisible();
+  await expect(page.getByTestId('pb-cmd-skill-shundan')).toBeVisible();
+  // And after closing the game: still his, still not said again.
+  await page.reload();
+  await page.getByTestId('continue-button').click();
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'SHELL_BREAK');
+  await readWhile(page, ['SHELL_BREAK']);
+  await expect(page.getByTestId('pb-screen')).toBeVisible();
+  await expect(page.getByTestId('pb-unlocked')).toHaveCount(0);
+  await untilHero(page);
+  await page.getByTestId('pb-cmd-skills').click();
+  await expect(page.getByTestId('pb-cmd-skill-higanbana')).toBeEnabled();
 });
 
 test('the first form lost: on their feet again, from the grassland’s words — never the raid again; still LURED', async ({ page }) => {

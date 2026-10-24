@@ -64,6 +64,9 @@ import { pickupKeeper } from './ui/explore/pickupKeeper';
 import { stageReached } from '@mugen/core/world/storyArc';
 import { eveDue, finaleReached } from '@mugen/core/world/chapterFinale';
 import { VALSHEEL_FORM1_PROVISIONAL, VALSHEEL_FORM2_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
+
+/** 《彼岸花》 has been said learned (a read mark, kept with the save — no new save field). */
+const HIGANBANA_LEARNED_MARK = 'skill:higanbana';
 import { GRAVE_GUEST, heroAndKaos } from '@mugen/content/characters/partyMembers';
 import { HERO_STARTING_SKILLS } from '@mugen/content/skills/heroSkills';
 import { availableMagic } from '@mugen/core/magic/magic';
@@ -885,6 +888,9 @@ function Game({ flow, world, saving }: { flow: GameFlow; world: World; saving: b
               return world.setBattleCondition({ hp: Math.max(1, hero?.hp ?? 1), mp: kaos?.mp ?? 0 });
             }}
             onLost={() => world.restoreParty()}
+            // 《彼岸花》 said learned the first time the second form's fight opens; not again (read marks are kept).
+            unlockNew={!world.isRead(HIGANBANA_LEARNED_MARK)}
+            onUnlockSeen={() => void world.markRead([HIGANBANA_LEARNED_MARK]).catch(() => {})}
             onMusic={setFinaleBgm}
             // Left for now (the rest is not written yet): back to the title, by starting the page again.
             onPause={() => window.location.reload()}

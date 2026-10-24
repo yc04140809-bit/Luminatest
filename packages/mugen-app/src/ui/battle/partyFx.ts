@@ -53,8 +53,8 @@ export interface FxStage {
 
 export interface BeatFx {
   camera?: (CameraMove & { wait?: number })[];
-  /** The characters' own effects, each on someone (an id), from `at` ms — turned the other way, tilted (deg). */
-  special?: { type: SpecialEffectType; on: string; at: number; flip?: boolean; turn?: number }[];
+  /** The characters' own effects, each on someone (an id), from `at` ms — turned the other way, tilted (deg), bigger or smaller. */
+  special?: { type: SpecialEffectType; on: string; at: number; flip?: boolean; turn?: number; scale?: number }[];
   /** Blows before the last (`impact` is the last). */
   stages?: FxStage[];
   /** How much longer (ms) the next turn waits, for a long one to be seen whole. */
@@ -75,6 +75,15 @@ export interface BeatFx {
    * the stages and the last (`impact`); the screen shows a number at each.
    */
   split?: readonly number[];
+  /** A move of several strikes of its own (《彼岸花》): what each landed — a number at each. */
+  amounts?: readonly number[];
+  /**
+   * HE STEPS IN (作者 2026-10-24 §23 — a long sword: into the creature's reach, the blow, back): out to
+   * it by `out` ms, home again from `back`, taking `home`. Only the hero, only his own sword.
+   */
+  lunge?: { out: number; back: number; home: number; deep?: boolean };
+  /** 《彼岸花》: the world goes still (dark) from `at` for `ms`, and the red spider lily opens on the one struck. */
+  bloom?: { at: number; ms: number };
 }
 
 /** The hit-stops (作者: 軽攻撃 30〜50 / スキル 50〜80 / 重攻撃 80〜120 / 必殺 100〜150ms; グレイヴ: 重撃 80〜120 / 豪断 100〜140). */
@@ -90,12 +99,38 @@ export const GIANT_WINDUP: (CameraMove & { wait?: number })[] = [
 ];
 
 /**
- * 主人公's 《瞬断》, three cuts (作者 2026-10-24 A): the first cut starts this long into the beat — after its
- * cut-in the camera wants that long to get there before the first lands (TRACK) — then one every
- * multiHitGap; each is his red moon, tilted its own way (the second backhanded), and lands at the
- * moon's own moment (SPECIAL_FX protagonist_redmoon_slash, 110ms).
+ * 主人公's 《瞬断》, two quick cuts (作者 2026-10-24 — three until 《彼岸花》 took the three): the first cut
+ * starts this long into the beat — after its cut-in the camera wants that long to get there, and he
+ * is in at the creature by then — then the next a multiHitGap later; each is his red moon, tilted its
+ * own way (the second backhanded), landing at the moon's own moment (protagonist_redmoon_slash, 110ms).
  */
 export const SHUNDAN_CUTS = { lead: 260, land: 110, turns: [{ turn: -16 }, { flip: true, turn: 18 }, { turn: 40 }] } as const;
+
+/**
+ * HIS STEP IN (作者 2026-10-24 §23): the swing quick — in, the blow, a breath, home; 《瞬断》 quicker and
+ * deeper; 《彼岸花》 the fastest. Never closer than LUNGE_FLOOR_MS on screen (×2 included), so it is a
+ * step and not a jump.
+ */
+export const LUNGE = {
+  attack: { out: 170, linger: 90, home: 190 },
+  shundan: { out: 140, linger: 80, home: 180 },
+  higanbana: { out: 200, home: 230 },
+} as const;
+export const LUNGE_FLOOR_MS = 120;
+
+/**
+ * 《彼岸花》 in time (ms from the beat, at ×1): in at it, two quick cuts (`quick` apart, never under the
+ * multi-hit floor on screen), a breath, the big third; the world dark for `dark` (never under
+ * BLOOM_FLOOR_MS on screen), the lily opening in it; then home. Each cut lands at the moon's own moment.
+ */
+export const HIGANBANA_FX = { first: 230, quick: 170, breath: 90, land: 110, dark: 460, home: 230 } as const;
+export const BLOOM_FLOOR_MS = 320;
+/** The three cuts' looks: small and nearly flat; the other way and steeper; big and near upright. */
+export const HIGANBANA_CUTS = [
+  { turn: -10, scale: 0.8 },
+  { flip: true, turn: 24, scale: 0.85 },
+  { turn: 80, scale: 1.55 },
+] as const;
 
 /** グレイヴ's 重撃・豪断, in time (ms from the beat): the 重撃 falls, the blade gathers, the 豪断 cleaves. */
 export const GRAVE_CHAIN = { juugeki: 120, charge: 300, goudan: 460, hold: 450 } as const;
@@ -154,9 +189,12 @@ export function beatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const strength = TRACK_STRENGTH[beat.kind];
   if (!ctx.cutIn || !strength || beat.missed || !plan.camera) return plan;
   // A move of several cuts: there before the first, held through every one of them.
-  const first = plan.split ? plan.stages?.[0]?.at : undefined;
+  const several = !!(plan.split || plan.amounts);
+  const first = several ? plan.stages?.[0]?.at : undefined;
   const blows = first === undefined ? undefined : [...(plan.stages ?? []).map((st) => st.at), plan.impact];
-  return { ...plan, camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: first ?? plan.impact, blows, strength }], after: undefined };
+  // 《彼岸花》, a finisher: the camera follows it hardest.
+  const how: CameraStrength = plan.amounts ? 'large' : strength;
+  return { ...plan, camera: [{ kind: 'TRACK', from: ctx.actorAt, to: ctx.targetAt, impact: first ?? plan.impact, blows, strength: how }], after: undefined };
 }
 
 function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
@@ -172,8 +210,32 @@ function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
   const lead = beat.broke ? 'medium' : 'small';
   const reel = (px: number, down = 0) => (ctx.giant ? (px >= 6 ? { on: beat.target, px: 2, down: Math.min(down, 2) } : undefined) : { on: beat.target, px, down });
 
+  /** At this speed, never shorter on screen than `floor`. */
+  const atLeast = (ms: number, floor: number) => Math.max(ms, floor / (ctx.speed ?? 1));
+  const hero = beat.actor === 'hero';
+
   switch (beat.kind) {
     case 'ATTACK':
+      if (hero) {
+        // His swing: in at it, the blow, a breath, home (§23).
+        const l = LUNGE.attack;
+        const out = Math.round(atLeast(l.out, LUNGE_FLOOR_MS));
+        const impact = out + 40;
+        const back = impact + HIT_STOPS.light + l.linger;
+        return {
+          tempo,
+          // The KICK as he arrives (a sequence's wait is in screen time: the speed is applied here).
+          camera: [{ ...kick(lead), wait: Math.round(out * (ctx.speed ?? 1)) }],
+          impact,
+          flash: { kind: 'slash', on: beat.target },
+          hitStop: HIT_STOPS.light,
+          sfx: ['battle_hit'],
+          reel: reel(4),
+          number: numberTier(beat, ctx),
+          lunge: { out, back, home: Math.round(atLeast(l.home, LUNGE_FLOOR_MS)) },
+          hold: 120,
+        };
+      }
       return {
         tempo,
         camera: [kick(lead)],
@@ -187,6 +249,7 @@ function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
     case 'SKILL': {
       const own = specialFxOf(ctx.skillId);
       const shares = multiHitOf(ctx.skillId);
+      if (beat.hits && beat.hits.length > 0 && ctx.skillId === 'higanbana') return higanbanaFx(beat, ctx, tempo, lead, kick, reel);
       if (own.length > 0 && shares) {
         // 《瞬断》, three cuts: his red moon each time, tilted its own way; a light hold and a small reel at
         // the first two, the skill's hold at the last. One amount, shown as three (multiHit.ts).
@@ -194,18 +257,24 @@ function plainBeatFx(beat: PartyBeat, ctx: BeatContext): BeatFx {
         const gap = multiHitGap(speed) / speed;
         const c = SHUNDAN_CUTS;
         const cuts = shares.map((_, i) => Math.round(c.lead + i * gap));
+        const impact = cuts[cuts.length - 1] + c.land;
+        const l = LUNGE.shundan;
         return {
           tempo,
           camera: [kick(lead)],
           special: cuts.map((at, i) => ({ type: own[0], on: beat.target, at, ...c.turns[i % c.turns.length] })),
           stages: cuts.slice(0, -1).map((at) => ({ at: at + c.land, hitStop: HIT_STOPS.light, reel: reel(4) })),
-          impact: cuts[cuts.length - 1] + c.land,
+          impact,
           hitStop: HIT_STOPS.skill,
           sfx: [],
           reel: reel(7),
           number: numberTier(beat, ctx),
           split: shares,
-          hold: cuts[cuts.length - 1] - cuts[0],
+          // In deeper and quicker than his swing, the cuts, home (§23).
+          lunge: hero
+            ? { out: Math.round(atLeast(l.out, LUNGE_FLOOR_MS)), back: impact + HIT_STOPS.skill + l.linger, home: Math.round(atLeast(l.home, LUNGE_FLOOR_MS)), deep: true }
+            : undefined,
+          hold: cuts[cuts.length - 1] - cuts[0] + 150,
         };
       }
       if (own.length > 0) {
@@ -364,5 +433,53 @@ export function counterFx(beat: PartyBeat, ctx: Pick<BeatContext, 'giant'>): Bea
     hitStop: HIT_STOPS.skill,
     sfx: ['battle_hit'],
     reel: ctx.giant ? undefined : { on: beat.actor, px: 5, down: 0 },
+  };
+}
+
+/**
+ * 《彼岸花》 (作者 2026-10-24): in at the creature fast; two quick cuts — small and flat, then the other
+ * way — a light hold and a KICK's worth each; a breath; the big third, near upright, a white flash,
+ * the finisher's hold, a heavy sound, the field jolted; the world goes dark and the red spider lily
+ * opens on it, petals falling; home. A number at each cut (`amounts` — the fight's own three).
+ */
+function higanbanaFx(
+  beat: PartyBeat,
+  ctx: BeatContext,
+  tempo: number,
+  lead: CameraStrength,
+  kick: (strength: CameraStrength) => CameraMove & { wait?: number },
+  reel: (px: number, down?: number) => { on: string; px: number; down: number } | undefined,
+): BeatFx {
+  const speed = ctx.speed ?? 1;
+  const atLeast = (ms: number, floor: number) => Math.max(ms, floor / speed);
+  const h = HIGANBANA_FX;
+  const out = Math.round(atLeast(LUNGE.higanbana.out, LUNGE_FLOOR_MS));
+  const quick = Math.round(Math.max(h.quick, multiHitGap(speed) / speed));
+  const first = Math.max(h.first, out + 30);
+  const all = beat.hits ?? [beat.amount];
+  // The cuts that landed (one that brought it down ends it): the last of them is the big one.
+  const n = all.length;
+  const cuts = all.map((_, i) => (i < n - 1 ? first + i * quick : first + (n - 1) * quick + (n > 1 ? h.breath : 0)));
+  const looks = all.map((_, i) => (i === n - 1 ? HIGANBANA_CUTS[2] : HIGANBANA_CUTS[i % 2]));
+  const impact = cuts[n - 1] + h.land;
+  const dark = Math.round(atLeast(h.dark, BLOOM_FLOOR_MS));
+  const bloomAt = impact + 20;
+  const back = bloomAt + Math.round(dark * 0.6);
+  return {
+    tempo,
+    camera: [kick(lead)],
+    special: cuts.map((at, i) => ({ type: 'protagonist_redmoon_slash' as const, on: beat.target, at, ...looks[i] })),
+    stages: cuts.slice(0, -1).map((at) => ({ at: at + h.land, hitStop: HIT_STOPS.light, reel: reel(3) })),
+    impact,
+    flash: { kind: 'heavy', on: beat.target },
+    hitStop: HIT_STOPS.finisher,
+    sfx: ['battle_finisher_hit'],
+    shake: beat.broke ? undefined : 'medium',
+    reel: reel(8),
+    number: numberTier(beat, ctx, true),
+    amounts: all,
+    lunge: { out, back, home: Math.round(atLeast(LUNGE.higanbana.home, LUNGE_FLOOR_MS)), deep: true },
+    bloom: { at: bloomAt, ms: dark },
+    hold: back - first + 200,
   };
 }

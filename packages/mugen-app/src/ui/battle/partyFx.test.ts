@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { HIT_STOPS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { HIGANBANA_CUTS, HIGANBANA_FX, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -26,13 +26,27 @@ describe('the hit-stops (作者: 軽 30〜50 / スキル 50〜80 / 重 80〜120 
 
 describe('beatFx', () => {
   it('the ordinary blow: a small KICK toward the creatures (left), a white cut, a light hold', () => {
-    const fx = beatFx(beat({}), ctx());
+    const fx = beatFx(beat({ actor: 'kaos' }), ctx());
     expect(fx.camera).toEqual([{ kind: 'KICK', dir: 'left', strength: 'small' }]);
     expect(fx.flash).toEqual({ kind: 'slash', on: 'enemy' });
     expect(fx.hitStop).toBe(HIT_STOPS.light);
     expect(fx.shake).toBeUndefined();
     // 主人公 sharp: his tempo under 1.
-    expect(fx.tempo).toBeLessThan(1);
+    expect(beatFx(beat({}), ctx()).tempo).toBeLessThan(1);
+  });
+
+  it('his swing (作者 2026-10-24 §23): he steps in at it, the blow as he arrives (its KICK with it), a breath, home — never a jump, ×2 included', () => {
+    for (const speed of [1, 0.5]) {
+      const fx = beatFx(beat({}), ctx({ speed }));
+      const l = fx.lunge!;
+      expect(l.out * speed).toBeGreaterThanOrEqual(LUNGE_FLOOR_MS);
+      expect(l.home * speed).toBeGreaterThanOrEqual(LUNGE_FLOOR_MS);
+      expect(fx.impact).toBeGreaterThan(l.out);
+      expect(l.back).toBeGreaterThan(fx.impact + fx.hitStop);
+      expect(fx.camera).toEqual([{ kind: 'KICK', dir: 'left', strength: 'small', wait: Math.round(l.out * speed) }]);
+    }
+    // Only his own sword: Grave's and Kaos's blows do not step.
+    expect(beatFx(beat({ actor: 'grave' }), ctx()).lunge).toBeUndefined();
   });
 
   it('a creature\'s blow kicks the other way (right), with red claws', () => {
@@ -141,23 +155,52 @@ describe('the characters\' own (作者 2026-10-17)', () => {
     expect(giant.stages![0].reel?.down).toBeLessThanOrEqual(2);
   });
 
-  it('《瞬断》 (作者 2026-10-24 A): three cuts of the hero\'s red moon, each tilted its own way (the second backhanded); not グレイヴ\'s', () => {
+  it('《瞬断》 (作者 2026-10-24): two quick cuts of the hero\'s red moon, each tilted its own way (the second backhanded); he steps in deep and comes home; not グレイヴ\'s', () => {
     const fx = beatFx(beat({ kind: 'SKILL', name: '瞬断', amount: 40 }), ctx({ skillId: 'shundan' }));
-    const at = [0, 1, 2].map((i) => SHUNDAN_CUTS.lead + i * MULTI_HIT_GAP_MS);
+    const at = [0, 1].map((i) => SHUNDAN_CUTS.lead + i * MULTI_HIT_GAP_MS);
     expect(fx.special).toEqual([
       { type: 'protagonist_redmoon_slash', on: 'enemy', at: at[0], turn: -16 },
       { type: 'protagonist_redmoon_slash', on: 'enemy', at: at[1], flip: true, turn: 18 },
-      { type: 'protagonist_redmoon_slash', on: 'enemy', at: at[2], turn: 40 },
     ]);
-    // Three blows: the first two as stages (a light hold each), the last the skill's.
-    expect(fx.stages?.map((st) => st.at)).toEqual([at[0] + SHUNDAN_CUTS.land, at[1] + SHUNDAN_CUTS.land]);
+    expect(fx.stages?.map((st) => st.at)).toEqual([at[0] + SHUNDAN_CUTS.land]);
     expect(fx.stages?.every((st) => st.hitStop === HIT_STOPS.light)).toBe(true);
-    expect(fx.impact).toBe(at[2] + SHUNDAN_CUTS.land);
+    expect(fx.impact).toBe(at[1] + SHUNDAN_CUTS.land);
     expect(fx.hitStop).toBe(HIT_STOPS.skill);
-    expect(fx.split).toEqual([0.3, 0.3, 0.4]);
+    expect(fx.split).toEqual([0.45, 0.55]);
     expect(fx.flash).toBeUndefined();
-    // The next turn waits for all three to be seen.
-    expect(fx.hold).toBe(at[2] - at[0]);
+    expect(fx.lunge).toMatchObject({ deep: true });
+    expect(fx.lunge!.out).toBeLessThan(at[0]);
+    expect(fx.lunge!.back).toBeGreaterThan(fx.impact);
+  });
+
+  it('《彼岸花》: in fast, two small quick cuts, a breath, a big near-upright third — a white flash, the finisher\'s hold, a heavy sound — then the dark and the lily; a number at each of the fight\'s three', () => {
+    for (const speed of [1, 0.5]) {
+      const fx = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 24, hits: [7, 7, 10], slowed: true }), ctx({ skillId: 'higanbana', speed }));
+      const sp = fx.special!;
+      expect(sp.map((x) => x.type)).toEqual(['protagonist_redmoon_slash', 'protagonist_redmoon_slash', 'protagonist_redmoon_slash']);
+      expect(sp.map(({ turn, flip, scale }) => ({ turn, flip, scale }))).toEqual(HIGANBANA_CUTS.map((c) => ({ turn: c.turn, flip: 'flip' in c ? c.flip : undefined, scale: c.scale })));
+      // The third is the big one, and comes after a breath.
+      expect(sp[2].scale).toBeGreaterThan(sp[0].scale! * 1.5);
+      expect(sp[2].at - sp[1].at).toBeGreaterThan(sp[1].at - sp[0].at);
+      // Two quick cuts, never under the floor on screen.
+      expect((sp[1].at - sp[0].at) * speed).toBeGreaterThanOrEqual(MULTI_HIT_GAP_FLOOR_MS);
+      expect(fx.stages).toHaveLength(2);
+      expect(fx.stages!.every((st) => st.hitStop === HIT_STOPS.light)).toBe(true);
+      expect(fx.hitStop).toBe(HIT_STOPS.finisher);
+      expect(fx.flash).toEqual({ kind: 'heavy', on: 'enemy' });
+      expect(fx.sfx).toEqual(['battle_finisher_hit']);
+      expect(fx.amounts).toEqual([7, 7, 10]);
+      // The dark after the last cut, long enough to be seen at ×2; he comes home after it.
+      expect(fx.bloom!.at).toBeGreaterThan(fx.impact);
+      expect(fx.bloom!.ms * speed).toBeGreaterThanOrEqual(BLOOM_FLOOR_MS);
+      expect(fx.lunge!.out).toBeLessThan(sp[0].at);
+      expect(fx.lunge!.back).toBeGreaterThan(fx.bloom!.at);
+    }
+    // Brought down by the second: the second is the big one, and there is no third.
+    const short = beatFx(beat({ kind: 'SKILL', name: '彼岸花', amount: 14, hits: [7, 7] }), ctx({ skillId: 'higanbana' }));
+    expect(short.special).toHaveLength(2);
+    expect(short.special![1].scale).toBe(HIGANBANA_CUTS[2].scale);
+    expect(HIGANBANA_FX.breath).toBeGreaterThan(0);
   });
 
   it('《瞬断》 at ×2: its cuts never closer than the floor on screen — three cuts, not one blur', () => {
@@ -184,7 +227,7 @@ describe('CAMERA KICK, in its place (作者 TIGS「CAMERA KICK」: KICK → 技�
   const ONE_FRAME = 1000 / 60;
   const giantCtx = ctx({ giant: true, moves: { heavy: 'コア照射', sweep: '光翼の旋風' }, actorArt: 'valsheel' });
   const plans = {
-    'the ordinary blow': beatFx(beat({}), ctx()),
+    'the ordinary blow': beatFx(beat({ actor: 'kaos' }), ctx()),
     '《瞬断》': beatFx(beat({ kind: 'SKILL', name: '瞬断' }), ctx({ skillId: 'shundan' })),
     'ケイオス\'s spell': beatFx(beat({ actor: 'kaos', kind: 'MAGIC', name: 'x' }), ctx({ spell: { element: 'FIRE' } as MagicDef })),
     '重撃・豪断': beatFx(beat({ actor: 'grave', kind: 'TECH', name: '重撃・豪断', amount: 30 }), ctx({ tech: tech('HEAVY'), skillId: 'goudan' })),

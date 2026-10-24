@@ -17,6 +17,7 @@ import { carriedInto } from '@mugen/content/characters/partyMembers';
 import { KAOS_MP_REGEN, mpAfterRecovery } from '@mugen/content/characters/kaosMpRegen';
 import { finaleBeat, finaleReached, type FinaleFight, type FinaleStage } from '@mugen/core/world/chapterFinale';
 import type { PartyEnemyInput, PartyMember, PartyMemberSpec } from '@mugen/game/battle/partyBattle';
+import { HIGANBANA } from '@mugen/content/skills/heroSkills';
 import type { BgmId } from '@mugen/assets';
 import type { SfxId } from '@mugen/content/audio/sfx';
 import { finaleBackdropSrc } from '../assets/finaleArt';
@@ -59,6 +60,11 @@ import './finale.css';
 /** What the finale wants to hear: a piece, nothing at all, or the place's own (null). */
 export type FinaleMusic = BgmId | 'HUSH' | null;
 
+/** The party with 《彼岸花》 first among his skills (AUTO takes the first one ready). */
+export function withFinisher(members: readonly PartyMemberSpec[]): PartyMemberSpec[] {
+  return members.map((m) => (m.id === 'hero' ? { ...m, skills: [HIGANBANA, ...(m.skills ?? []).filter((k) => k.id !== HIGANBANA.id)] } : m));
+}
+
 export interface FinaleRunProps {
   /** Where the world is now. */
   stage: FinaleStage;
@@ -79,6 +85,9 @@ export interface FinaleRunProps {
   onMusic: (music: FinaleMusic) => void;
   /** 「つづく」 read: the finale is left for now. */
   onPause: () => void;
+  /** 《彼岸花》 not yet seen learned: said as the second form's fight opens (once — `onUnlockSeen` keeps it). */
+  unlockNew?: boolean;
+  onUnlockSeen?: () => void;
 }
 
 /** The breath before a fight (作者「無料強化メモ②」: 戦闘前 0.5秒 → ボスBGM → 戦闘): the music held low, then the fight. */
@@ -108,7 +117,7 @@ function playable(stage: FinaleStage, fights: FinaleRunProps['fights'], until: F
   return beat;
 }
 
-export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable, until, onReach, onWon, onLost, onMusic, onPause }: FinaleRunProps) {
+export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable, until, onReach, onWon, onLost, onMusic, onPause, unlockNew, onUnlockSeen }: FinaleRunProps) {
   const [stage, setStage] = useState<FinaleStage>(from);
   const beat = useMemo(() => playable(stage, fights, until), [stage, fights, until]);
   const [phase, setPhase] = useState<Phase>(() => (playable(from, fights, until) ? { kind: 'SCENES', scene: 0, line: 0 } : { kind: 'PAUSE' }));
@@ -118,6 +127,14 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
   const round = useRef(0);
   /** How the last fight left them, while the next follows straight on (the first form to the second). */
   const carried = useRef<readonly PartyMember[] | null>(null);
+  /** The fight round 《彼岸花》 is said learned in — once (a fight lost and fought again does not say it again). */
+  const toldIn = useRef<number | null>(null);
+  const secondForm = phase.kind === 'FIGHT' && beat?.then === 'VALSHEEL_FORM2';
+  if (secondForm && unlockNew && toldIn.current === null) toldIn.current = phase.round;
+  useEffect(() => {
+    if (secondForm && toldIn.current !== null) onUnlockSeen?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondForm]);
 
   const sceneId: FinaleSceneId | null = phase.kind === 'SCENES' && beat ? beat.scenes[phase.scene] : null;
   const music: FinaleMusic =
@@ -159,16 +176,23 @@ export function FinaleRun({ stage: from, heroName, fights, party, autoAvailable,
     const foe = fights[which]!;
     // The second form follows the first straight on: the party as it left them — and, in the breath
     // while the shell breaks, a little of Kaos's magic back (KAOS_MP_REGEN.BETWEEN_FORMS).
-    const members =
+    const carriedOn =
       which === 'VALSHEEL_FORM2' && carried.current
         ? carriedInto(party(), carried.current).map((m) =>
             m.id === 'kaos' ? { ...m, mp: mpAfterRecovery(m.mp ?? m.maxMp, m.maxMp, KAOS_MP_REGEN.BETWEEN_FORMS) } : m,
           )
         : party();
+    // HIS FINISHER (作者 2026-10-24): 《彼岸花》 is his in the second form's fight — straight on from the first
+    // or fought again after a loss (the stage stays FORM1_WON: no flag to keep); said the first time only.
+    const second = which === 'VALSHEEL_FORM2';
+    const members = second ? withFinisher(carriedOn) : carriedOn;
+    const sayIt = second && toldIn.current === phase.round;
     return (
       <PartyBattleScreen
         key={`finale-fight-${phase.round}`}
         members={members}
+        newSkills={sayIt ? [HIGANBANA.id] : undefined}
+        unlocked={sayIt ? HIGANBANA.name : undefined}
         enemy={foe.spec}
         enemyArtId={foe.artId}
         background="GRASSLAND"

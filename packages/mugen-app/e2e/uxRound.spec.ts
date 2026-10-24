@@ -175,8 +175,8 @@ test('P1: 《瞬断》 from the first fight — twice a swing, its own trail, ev
   await expect(page.getByTestId('skill-shundan')).toContainText('《瞬断》');
   await expect(page.getByTestId('skill-shundan-ready')).toHaveText('使える');
   await expect(page.getByTestId('skill-shundan-new')).toBeVisible();
-  // A slash with the skill's own cross-cut — three of them now (作者 2026-10-24 A): three cuts, three numbers
-  // adding up to what the creature lost, each its own.
+  // A slash with the skill's own cross-cut — two of them now (作者 2026-10-24: two quick cuts; the three are
+  // 《彼岸花》's): two numbers adding up to what the creature lost, each its own.
   await page.evaluate(() => {
     const seen: string[] = [];
     (window as unknown as { __cuts: string[] }).__cuts = seen;
@@ -196,10 +196,10 @@ test('P1: 《瞬断》 from the first fight — twice a swing, its own trail, ev
   const crossed = page.waitForSelector('[data-testid="sword-slash"][data-skill="yes"]', { state: 'attached', timeout: 15_000 });
   await page.getByTestId('skill-shundan').click();
   await crossed;
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __cuts: string[] }).__cuts.length), { timeout: 10_000 }).toBeGreaterThanOrEqual(3);
-  const cuts = (await page.evaluate(() => (window as unknown as { __cuts: string[] }).__cuts.slice(0, 3))).map(Number);
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __cuts: string[] }).__cuts.length), { timeout: 10_000 }).toBeGreaterThanOrEqual(2);
+  const cuts = (await page.evaluate(() => (window as unknown as { __cuts: string[] }).__cuts.slice(0, 2))).map(Number);
   expect(cuts.reduce((a, b) => a + b, 0)).toBe(hpBefore - (await enemyHp()));
-  expect(await page.evaluate(() => (window as unknown as { __slashes: Set<string> }).__slashes.size)).toBe(3);
+  expect(await page.evaluate(() => (window as unknown as { __slashes: Set<string> }).__slashes.size)).toBe(2);
   await readyToAct(page, 20_000);
   await expect(page.getByTestId('bp-skill-new')).toHaveCount(0);
   await page.getByTestId('bp-skill').click();

@@ -42,11 +42,11 @@ test('the hero: 《瞬断》 his red-black crescent on the creature; 月影の�
   await turnOf(page, 'hero');
   await page.getByTestId('pb-cmd-skills').click();
   await page.getByTestId('pb-cmd-skill-shundan').click();
-  // Three cuts (作者 2026-10-24 A), each his red moon, each tilted its own way.
-  await expect(sx(page, 'pb-foe', 'protagonist_redmoon_slash')).toHaveCount(3);
+  // Two quick cuts (作者 2026-10-24 — the three are 《彼岸花》's), each his red moon, each tilted its own way.
+  await expect(sx(page, 'pb-foe', 'protagonist_redmoon_slash')).toHaveCount(2);
   await expect(sx(page, 'pb-foe', 'protagonist_redmoon_slash').first().locator('img')).toHaveAttribute('src', /hero-redmoon-crescent/);
   const turns = await sx(page, 'pb-foe', 'protagonist_redmoon_slash').evaluateAll((els) => els.map((el) => (el as HTMLElement).style.rotate));
-  expect(new Set(turns).size).toBe(3);
+  expect(new Set(turns).size).toBe(2);
   await expect(page.locator('[data-testid="special-fx"][data-owner="grave"]')).toHaveCount(0);
 
   await turnOf(page, 'hero');

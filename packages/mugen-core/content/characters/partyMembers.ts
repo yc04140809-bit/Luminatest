@@ -29,7 +29,7 @@ export const MOON_GUARD_TECH: PartyTechnique = { id: 'moon_guard', name: '月影
 /** ケイオス: 星癒の羽 — star feathers on one of them, healing at the end of their turns. */
 export const STAR_FEATHER: PartyTechnique = { id: 'star_feather', name: '星癒の羽', kind: 'REGEN', mpCost: 0, target: 'ALLY', turns: 3, cooldown: 5 };
 /** グレイヴ: 重撃・豪断 — the heavy blade's whole weight; it breaks a creature's footing. */
-export const GOUDAN: PartyTechnique = { id: 'goudan', name: '重撃・豪断', kind: 'HEAVY', mpCost: 0, target: 'ENEMY', power: 1.6, breakPower: 4, cooldown: 3 };
+export const GOUDAN: PartyTechnique = { id: 'goudan', name: '重撃・豪断', kind: 'HEAVY', mpCost: 0, target: 'ENEMY', power: 1.6, breakPower: 4, cooldown: 3, hits: 2 };
 
 /** グレイヴ, beside them for a while. Provisional numbers (作者 2026-10-12: 仮値でよい). */
 export const GRAVE_GUEST: PartyMemberSpec = {

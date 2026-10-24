@@ -1,5 +1,6 @@
 /**
- * A MOVE OF SEVERAL CUTS (作者 2026-10-24, A: 「《瞬断》を3ヒット化し、総ダメージ量は現在と同じに」).
+ * A MOVE OF SEVERAL CUTS (作者 2026-10-24, A: 「《瞬断》を3ヒット化し、総ダメージ量は現在と同じに」; then two, once
+ * 《彼岸花》 took the three).
  *
  * Looks only. The fight decides one blow and one amount, as it always has (heroSkills SHUNDAN,
  * power 2.0); the screen shows that amount as three cuts, three numbers that add up to it, and
@@ -21,8 +22,9 @@ export const cutOf = (blow: Blow): number | undefined => (blow as CutBlow).cut;
 
 /** A move's cuts: each one's share of the whole (they add up to 1). */
 export const MULTI_HIT: Readonly<Record<string, readonly number[]>> = {
-  // 主人公 《瞬断》: three — the last the heaviest.
-  shundan: [0.3, 0.3, 0.4],
+  // 主人公 《瞬断》: two quick cuts, the second the heavier (作者 2026-10-24 — the three, the finish and the
+  // slowing are 《彼岸花》's now). As many as heroSkills SHUNDAN.hits (what COMBO counts).
+  shundan: [0.45, 0.55],
 };
 
 /** The shares of a move that cuts more than once, or null (one blow, as before). */

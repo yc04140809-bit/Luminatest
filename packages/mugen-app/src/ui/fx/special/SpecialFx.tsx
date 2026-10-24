@@ -13,7 +13,8 @@ import './specialFx.css';
  *   k       how fast: 1, or 0.5 at ×2
  *   giant   drawn bigger, for a creature the size of ヴァルシール
  *   flip    turned the other way (a blow from the left)
- *   turn    tilted (deg) — the same cut made again at another angle (《瞬断》's three)
+ *   turn    tilted (deg) — the same cut made again at another angle (《瞬断》's two, 《彼岸花》's three)
+ *   scale   bigger or smaller (《彼岸花》: two small quick cuts, a big third)
  *   figure  the drawing of the one it is on (the dodge's outline is made of it)
  */
 export function SpecialFx({
@@ -23,6 +24,7 @@ export function SpecialFx({
   giant = false,
   flip = false,
   turn = 0,
+  scale = 1,
   figure,
 }: {
   type: SpecialEffectType;
@@ -31,10 +33,11 @@ export function SpecialFx({
   giant?: boolean;
   flip?: boolean;
   turn?: number;
+  scale?: number;
   figure?: string | null;
 }) {
   const spec = SPECIAL_FX[type];
-  const style = { '--sx-delay': Math.round(delay), '--sx-k': k, '--sx-flip': flip ? -1 : 1, ...(turn ? { rotate: `${turn}deg` } : {}) } as CSSProperties;
+  const style = { '--sx-delay': Math.round(delay), '--sx-k': k, '--sx-flip': flip ? -1 : 1, ...(turn ? { rotate: `${turn}deg` } : {}), ...(scale !== 1 ? { scale: String(scale) } : {}) } as CSSProperties;
   return (
     <span
       className={`sx sx-${spec.anchor} sx-own-${spec.owner} ${type}${giant ? ' giant' : ''}`}

@@ -10,12 +10,14 @@
 //   主人公   《瞬断》      his battle drawing, his own look (red and black, ZERO)
 //   グレイヴ 重撃・豪断   his battle drawing, the blue-and-old-gold look (v18's Levi colours —
 //                          the nearest to his own blue and gold; there is no third look to make)
+//   主人公   《彼岸花》    his battle drawing, his own look — a finisher's long cut-in
 //
 // The name is the game's own (heroSkills / partyMembers), never a provisional one.
 
 import heroBattle from '@mugen/assets/files/characters/hero/hero-battle-v2.png';
 import graveBattle from '@mugen/assets/files/characters/grave/grave-battle-v2.png';
 import type { CutInSpec, CutInTheme } from './CutIn';
+import type { CutInTier } from './cutInTiming';
 
 interface SkillCutInArt {
   /** Whose picture, by file — shown in the table so nobody has to guess. */
@@ -25,15 +27,20 @@ interface SkillCutInArt {
   word: string;
   /** The small line over the name. */
   kicker: string;
+  /** A finisher (必殺技): the long cut-in (cutInTiming FINISHER). Absent: an ordinary skill's. */
+  tier?: CutInTier;
 }
 
 const HERO: SkillCutInArt = { art: heroBattle, theme: 'hero', word: 'ZERO', kicker: 'ZERO BLADE ARTS' };
 const GRAVE: SkillCutInArt = { art: graveBattle, theme: 'levi', word: 'GRAVE', kicker: 'GREATSWORD ARTS' };
+/** 《彼岸花》, his finisher (作者 2026-10-24): his own look, the long cut-in. */
+const HERO_FINISHER: SkillCutInArt = { ...HERO, word: 'HIGANBANA', kicker: 'ZERO BLADE ARTS — FINISHER', tier: 'FINISHER' };
 
 /** Skill id (heroSkills / a party technique) → the cut-in it plays. Absent: none. */
 export const SKILL_CUT_INS: Readonly<Record<string, SkillCutInArt>> = {
   shundan: HERO, // 《瞬断》
   goudan: GRAVE, // 重撃・豪断
+  higanbana: HERO_FINISHER, // 《彼岸花》
 };
 
 /** The cut-in for this skill, by its id and the name the game gives it, or null when it has none. */
@@ -42,7 +49,7 @@ export function skillCutIn(skill: { id: string; name: string } | undefined | nul
   if (!skill || !look) return null;
   return {
     theme: look.theme,
-    tier: 'SKILL',
+    tier: look.tier ?? 'SKILL',
     art: look.art,
     word: look.word,
     kicker: look.kicker,

@@ -1149,3 +1149,120 @@
   .pb-glass { display: none; }
   .pb-combo-n { animation: none; }
 }
+
+/* ── 《彼岸花》 and the hero's step in (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」) ── */
+/* A deep step in (《瞬断》, 《彼岸花》): a red trail behind him while he moves. */
+.pb-figure[data-lunge='deep'] > img { filter: drop-shadow(18px 0 0 rgba(170, 0, 24, 0.35)) drop-shadow(34px 0 4px rgba(120, 0, 16, 0.22)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5)); }
+
+/* The world goes still: dark over everything but the lily, a moment — then back at once. */
+.pb-bloom { position: absolute; inset: 0; z-index: 8; pointer-events: none; }
+.pb-bloom-dark {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at var(--bx) var(--by), rgba(40, 0, 6, 0.55), rgba(4, 0, 2, 0.88) 55%);
+  opacity: 0;
+  animation: pb-bloom-dark var(--bloom-ms) ease-out var(--bloom-at) both;
+}
+@keyframes pb-bloom-dark { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+.pb-bloom-lily {
+  position: absolute;
+  left: var(--bx);
+  top: var(--by);
+  width: min(46vh, 220px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  translate: -50% -50%;
+  filter: drop-shadow(0 0 14px rgba(255, 30, 50, 0.85));
+  opacity: 0;
+  animation: pb-bloom-lily var(--bloom-ms) cubic-bezier(0.2, 0.8, 0.3, 1) var(--bloom-at) both;
+}
+@keyframes pb-bloom-lily {
+  0% { opacity: 0; transform: scale(0.25) rotate(-25deg); }
+  22% { opacity: 1; transform: scale(1.06) rotate(0deg); }
+  34% { transform: scale(1); }
+  75% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+.pb-petal {
+  position: absolute;
+  left: var(--bx);
+  top: var(--by);
+  width: 10px;
+  height: 6px;
+  margin: -3px 0 0 -5px;
+  border-radius: 60% 40% 60% 40%;
+  background: radial-gradient(circle at 30% 30%, #ff6a6a, #c2001b 70%);
+  box-shadow: 0 0 4px rgba(255, 40, 60, 0.8);
+  opacity: 0;
+  animation: pb-petal calc(var(--bloom-ms) * 1.3) ease-out calc(var(--bloom-at) + var(--bloom-ms) * var(--pd)) both;
+}
+@keyframes pb-petal {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  12% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)); }
+}
+
+/* SLOWED: said on it, and kept on its plate with how many of its turns are left. */
+.pb-float.slow {
+  top: 40%;
+  font-size: 15px;
+  font-style: italic;
+  letter-spacing: 0.1em;
+  color: #9fd2ff;
+  -webkit-text-stroke: 3px #0a1a33;
+  animation-name: pb-float-pop;
+  animation-duration: 1300ms;
+}
+.giant .pb-foe .pb-float.slow { top: 20%; left: 62%; }
+.pb-slow-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #9fd2ff;
+  background: rgba(8, 16, 34, 0.82);
+  border: 1px solid #5a8fd0;
+  border-radius: 3px;
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+/* COMBO's worth: from 10 a line of what it adds, and each step its own colour and a glow as it is reached. */
+.pb-combo-bonus {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 900;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  color: #ffe08a;
+  -webkit-text-stroke: 3px #1a0905;
+  paint-order: stroke fill;
+  animation: pb-combo-step 700ms ease-out both;
+}
+@keyframes pb-combo-step { 0% { opacity: 0; transform: scale(1.6); filter: brightness(2); } 30% { opacity: 1; transform: scale(1); } 100% { filter: brightness(1); } }
+.pb-combo.tier-1 .pb-combo-n { color: #fff3c4; }
+.pb-combo.tier-2 .pb-combo-n { color: #ffe08a; }
+.pb-combo.tier-3 .pb-combo-n { color: #ffbe6a; }
+.pb-combo.tier-4 .pb-combo-n { color: #ff8f5a; }
+
+/* 「必殺技 解禁 《彼岸花》」 as the fight opens, the first time. */
+.pb-unlocked {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  z-index: 9;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  padding: 8px 26px;
+  background: linear-gradient(90deg, transparent, rgba(30, 0, 6, 0.9) 18%, rgba(30, 0, 6, 0.9) 82%, transparent);
+  pointer-events: none;
+  animation: pb-unlocked 2600ms ease-out both;
+}
+.pb-unlocked small { font-size: 11px; letter-spacing: 0.3em; color: #ffb4b4; }
+.pb-unlocked b { font-size: 26px; font-weight: 900; letter-spacing: 0.08em; color: #fff0f0; text-shadow: 0 0 12px rgba(255, 40, 60, 0.9); }
+@keyframes pb-unlocked { 0% { opacity: 0; transform: scale(1.2); } 10% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-bloom-lily, .pb-petal, .pb-combo-bonus, .pb-unlocked { animation-name: pb-hit-fade; }
+  .pb-petal { display: none; }
+}

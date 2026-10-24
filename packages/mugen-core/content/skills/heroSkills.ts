@@ -14,6 +14,35 @@ export const SHUNDAN: HeroSkillSpec = {
   name: '瞬断',
   power: 2.0,
   cooldown: 3,
+  // In the party fight: one strike shown as two quick cuts (作者 2026-10-24 — light, tempo; the
+  // three cuts, the finish and the slowing are 《彼岸花》's).
+  hits: 2,
+};
+
+/**
+ * 《彼岸花》 — HIS FINISHER (作者 2026-10-24「主人公必殺技『彼岸花』＋BREAK / COMBO戦術拡張」): in at the creature,
+ * two quick cuts and a big third, the world goes still, a red spider lily opens — and the creature is
+ * left SLOWED, so the party gets more turns in before it moves (in a BREAK, more of them before it
+ * stands). Three strikes of their own (each COMBO's).
+ *
+ * PROVISIONAL NUMBERS (TIGS 前: no big damage — its worth is the three hits, the slowing and COMBO):
+ * 2.4 × a swing in all — 0.72, 0.72 and the heaviest last, 0.96 (作者 第一案) — every fourth turn, each
+ * cut wearing footing by 1.
+ *
+ * Where it is: the party fight, for now — built there, as its turns are (a limit of where it is built,
+ * not a rule: joined with the ordinary fight, the same data serves both). Learned in the fight with
+ * ヴァルシール's second form (ui/finale — not a save flag: that fight is where he has it, lost and
+ * fought again included).
+ */
+export const HIGANBANA: HeroSkillSpec = {
+  id: 'higanbana',
+  name: '彼岸花',
+  power: 2.4,
+  cooldown: 4,
+  cuts: [0.72, 0.72, 0.96],
+  cutBreakPower: 1,
+  slows: true,
+  finisher: true,
 };
 
 /** What he knows from the first fight on. */

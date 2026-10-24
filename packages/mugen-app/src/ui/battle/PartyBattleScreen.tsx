@@ -27,6 +27,10 @@ import {
   type PartyMember,
   type PartyMemberSpec,
   type PartyTechnique,
+  type PartyCombo,
+  NO_COMBO,
+  comboMultiplier,
+  COMBO_STEP,
 } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import type { SfxId } from '@mugen/content/audio/sfx';
@@ -48,7 +52,8 @@ import { useCutInDirector } from './cutin/CutIn';
 import { spellCutIn } from './magic/spellCutIn';
 import { skillCutIn } from './cutin/skillCutIn';
 import { shatter } from './shatter';
-import { COMBO_SHOWN_FROM, NO_COMBO, comboAfter, type Combo } from './combo';
+import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
+import { NewBadge } from '../common/NewBadge';
 import { splitDamage } from './multiHit';
 import './battle.generated.css';
 import './battle.layers.css';
@@ -135,6 +140,11 @@ export interface PartyBattleProps {
   place?: { mark: string; name: string };
   /** Who stands in which place of the cross (absent: partyStage's DEFAULT_FORMATION — グレイヴ front, 主人公 mid-lower, ケイオス back). */
   formation?: Readonly<Partial<Record<CrossSlot, string>>>;
+  /** Skills new to them (NEW on the button until used — 《彼岸花》 learned in this fight); told when one is used. */
+  newSkills?: readonly string[];
+  onSkillUsed?: (id: string) => void;
+  /** Said once as the fight opens (「《彼岸花》 解禁」), the first time it is learned. */
+  unlocked?: string;
 }
 
 const ENEMY_TURN_MS = 700;
@@ -142,6 +152,22 @@ const AUTO_TURN_MS = 450;
 /** A breath more after a BREAK, for 「BREAK!!」 to be seen. */
 const BREAK_PAUSE_MS = 700;
 const SHAKE_MS = 450;
+/** COMBO is shown from this many (one blow is not a combo). */
+const COMBO_SHOWN_FROM = 2;
+/** 「《彼岸花》 解禁」 stays this long as the fight opens. */
+const UNLOCKED_MS = 2600;
+/** 《彼岸花》's petals: where each drifts from the lily (px), how far it turns, when it lets go (a share of the bloom). Fixed. */
+const PETALS: readonly { x: number; y: number; r: number; d: number }[] = [
+  { x: -70, y: 60, r: 220, d: 0.1 },
+  { x: -40, y: 90, r: -160, d: 0.25 },
+  { x: -10, y: 70, r: 300, d: 0.05 },
+  { x: 30, y: 95, r: -240, d: 0.3 },
+  { x: 60, y: 55, r: 180, d: 0.15 },
+  { x: 85, y: 85, r: -300, d: 0.35 },
+  { x: -95, y: 40, r: 260, d: 0.2 },
+  { x: 15, y: 40, r: -200, d: 0.4 },
+];
+
 /** BREAK's hit-stop: the field holds this long at the blow before it jolts (作者: 重攻撃 80〜120ms). */
 const BREAK_HIT_STOP_MS = 90;
 /** After 「BREAK!!」, a moment before the creature reels (作者: …→ BREAK!! → 敵リアクション). */
@@ -257,6 +283,41 @@ function reelOf(root: HTMLElement, reel: { on: string; px: number; down: number 
   );
 }
 
+/**
+ * HE STEPS IN (作者 2026-10-24 §23 — a long sword): his drawing to just short of the one struck — the
+ * front of a giant, never into it; beside an ordinary one, not over it — the blow, and home. On
+ * `transform` (the field's shake keeps `translate`); held still by a hit-stop like everything drawn.
+ * A deep one (《瞬断》, 《彼岸花》) leaves a red trail behind him while he moves.
+ */
+function lungeOf(root: HTMLElement, target: string, lunge: { out: number; back: number; home: number; deep?: boolean }, speed: number, giant: boolean) {
+  const fig = root.querySelector<HTMLElement>('[data-testid="pb-figure-hero"]');
+  const img = fig?.querySelector<HTMLElement>(':scope > img');
+  const foe = root.querySelector<HTMLElement>(`[data-enemy="${target}"]`);
+  if (!fig || !img || !foe || typeof img.animate !== 'function' || !shakeAllowed()) return;
+  const h = img.getBoundingClientRect();
+  const f = (foe.querySelector<HTMLElement>(':scope > img') ?? foe).getBoundingClientRect();
+  if (h.width === 0 || f.width === 0) return;
+  const stopX = giant ? f.left + f.width * 0.7 : f.right - f.width * 0.15;
+  const dx = Math.round(Math.min(0, stopX - h.left));
+  const dy = Math.round(Math.max(-h.height * 0.15, Math.min(h.height * 0.15, (f.bottom - h.bottom) * 0.35)));
+  const total = lunge.back + lunge.home;
+  const there = `translate(${dx}px, ${dy}px)`;
+  const anim = img.animate(
+    [
+      { transform: 'translate(0, 0)', easing: 'cubic-bezier(0.2, 0.9, 0.3, 1)' },
+      { transform: there, offset: lunge.out / total },
+      { transform: there, offset: lunge.back / total, easing: 'cubic-bezier(0.45, 0, 0.55, 1)' },
+      { transform: 'translate(0, 0)' },
+    ],
+    { duration: Math.round(total * speed), fill: 'none' },
+  );
+  fig.dataset.lunge = lunge.deep ? 'deep' : 'yes';
+  const done = () => {
+    if (fig.dataset.lunge) delete fig.dataset.lunge;
+  };
+  anim.finished.then(done, done);
+}
+
 /** A skill's wait, in the list: 「あとNT」 while it cools down; nothing when it is ready. */
 function Wait({ left }: { left: number }) {
   return left > 0 ? (
@@ -266,7 +327,7 @@ function Wait({ left }: { left: number }) {
   ) : null;
 }
 
-export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory, place, formation }: PartyBattleProps) {
+export function PartyBattleScreen({ members, enemy, enemyArtId, background = null, autoAvailable = true, onEnd, rng, memory, place, formation, newSkills, onSkillUsed, unlocked }: PartyBattleProps) {
   const dice = rng ?? Math.random;
   const [state, setState] = useState<PartyBattleState>(() => createPartyBattle(members, enemy));
   const [auto, setAuto] = useState(false);
@@ -283,8 +344,13 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** Where the one broken stands across the screen (0–1): the glass breaks from there. */
   const [breakAt, setBreakAt] = useState(0.3);
   /** COMBO as shown (it climbs at each blow as it lands), and as it stands after the last beat. */
-  const [combo, setCombo] = useState<Combo>(NO_COMBO);
-  const comboNow = useRef<Combo>(NO_COMBO);
+  const [combo, setCombo] = useState<PartyCombo>(NO_COMBO);
+  const comboNow = useRef<PartyCombo>(NO_COMBO);
+  /** 《彼岸花》's lily: the beat, where it opens (% of the screen), from when and for how long (ms, on screen). */
+  const [bloom, setBloom] = useState<{ key: number; x: number; y: number; at: number; ms: number } | null>(null);
+  /** Skills still NEW (not yet used in this fight). */
+  const [fresh, setFresh] = useState<readonly string[]>(newSkills ?? []);
+  const [saying, setSaying] = useState(!!unlocked);
   /**
    * The beat whose blow has landed: its number shows from then (作者 実機 2026-10-24: a CSS delay drifted
    * from the blow, and the hold paused it — the number came after 「BREAK!!」, under the glass).
@@ -298,6 +364,12 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const root = useRef<HTMLDivElement>(null);
   const actor = currentActor(state);
   const acting = actor && !isEnemyId(actor) ? memberById(state, actor) : undefined;
+
+  useEffect(() => {
+    if (!saying) return;
+    const t = window.setTimeout(() => setSaying(false), UNLOCKED_MS);
+    return () => window.clearTimeout(t);
+  }, [saying]);
 
   useEffect(() => {
     if (!background) return;
@@ -342,6 +414,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
     if (cutIns.playing) return;
     const next = partyAct(state, action, dice);
     if (next === state) return;
+    // A skill new to them, used: NEW is gone, and the game is told (it is not new again).
+    if (action.kind === 'SKILL' && fresh.includes(action.skillId)) {
+      setFresh((f) => f.filter((id) => id !== action.skillId));
+      onSkillUsed?.(action.skillId);
+    }
     const spell = action.kind === 'MAGIC' ? acting?.magic?.find((m) => m.id === action.magicId) : undefined;
     // Their skills too (作者 実機 2026-10-23): 《瞬断》, 重撃・豪断 — cutin/skillCutIn.ts.
     const skill =
@@ -379,10 +456,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   useEffect(() => {
     const beat = state.last;
     if (!beat) return;
-    // COMBO (combo.ts): where it stands after this beat, whatever is drawn.
+    // COMBO (the fight's own — partyBattle comboAfter): where it stands after this beat, whatever is drawn.
     const before = comboNow.current;
-    const plan = beatFx(beat, beatContext(beat, false));
-    const after = comboAfter(before, beat, 1 + (plan.stages?.length ?? 0));
+    const after = state.combo;
     comboNow.current = after;
     const at = root.current;
     if (!at) return;
@@ -399,6 +475,17 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       // one comes that much later on screen, so it is waited for here too.
       const holds = shakeAllowed() ? (p.stages ?? []) : [];
       const when = (t: number) => (t + holds.filter((st) => st.at < t).reduce((n, st) => n + st.hitStop, 0)) * speed;
+      // His step in, and home (§23).
+      if (p.lunge && beat.actor === 'hero' && isEnemyId(beat.target)) lungeOf(at, beat.target, p.lunge, speed, giant);
+      // 《彼岸花》: the world dark, the lily opening on the one struck — after the last cut's hold.
+      if (p.bloom && isEnemyId(beat.target)) {
+        const box = at.getBoundingClientRect();
+        const el = at.querySelector<HTMLElement>(`[data-enemy="${beat.target}"] > img`) ?? at.querySelector<HTMLElement>(`[data-enemy="${beat.target}"]`);
+        const r = el?.getBoundingClientRect();
+        const x = r && box.width ? ((r.left + r.width * (giant ? 0.62 : 0.5) - box.left) / box.width) * 100 : 30;
+        const y = r && box.height ? ((r.top + r.height * (giant ? 0.5 : 0.45) - box.top) / box.height) * 100 : 45;
+        setBloom({ key: lastKey, x: Math.round(x), y: Math.round(Math.min(70, y)), at: Math.round(when(p.bloom.at) + p.hitStop * speed), ms: Math.round(p.bloom.ms * speed) });
+      }
       // The characters' own effects: each one's sounds at its landing.
       for (const sp of p.special ?? []) {
         const spec = SPECIAL_FX[sp.type];
@@ -448,6 +535,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       land: () => {
         setLanded(key);
         setCutsIn({ key, n: Number.MAX_SAFE_INTEGER });
+        // A step of COMBO's worth reached (10, 20, 30, 40): a small sound with its glow.
+        if (climbs && Math.min(4, Math.floor(after.hits / COMBO_STEP)) > Math.min(4, Math.floor(before.hits / COMBO_STEP))) playSfx('battle_buff');
         if (climbs) setCombo(after);
         else if (after !== before) setCombo(counted ? NO_COMBO : after);
       },
@@ -569,7 +658,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
       (p?.special ?? [])
         .filter((sp) => sp.on === on)
         .map((sp, i) => (
-          <SpecialFx key={`sx${lastKey}-${n}-${i}`} type={sp.type} delay={sp.at * fxSpeed} k={fxSpeed} giant={foe && giant} flip={sp.flip} turn={sp.turn} figure={figure} />
+          <SpecialFx key={`sx${lastKey}-${n}-${i}`} type={sp.type} delay={sp.at * fxSpeed} k={fxSpeed} giant={foe && giant} flip={sp.flip} turn={sp.turn} scale={sp.scale} figure={figure} />
         )),
     );
   const spells = acting ? (acting.magic ?? []).filter((m) => m.effect === 'DAMAGE' || m.effect === 'MEND') : [];
@@ -606,8 +695,10 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   /** A creature broken and not yet down: the party's moment, and COMBO says so. */
   const chain = state.enemies.some((e) => isBroken(e) && !e.down);
   const glass = useMemo(() => shatter(Math.round(breakAt * 1000) / 10, 46), [breakAt]);
+  /** COMBO's step of worth: 0 under 10, then 1–4 (10, 20, 30, 40+). */
+  const comboTier = Math.min(4, Math.floor(combo.hits / COMBO_STEP));
   /** The beat's amount as its cuts show it: three for 《瞬断》 (multiHit.ts), else the one. */
-  const parts = last && fx?.split ? splitDamage(last.amount, fx.split) : [last?.amount ?? 0];
+  const parts = last && fx?.amounts ? [...fx.amounts] : last && fx?.split ? splitDamage(last.amount, fx.split) : [last?.amount ?? 0];
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
@@ -700,6 +791,17 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                     </span>
                   );
                 })}
+              {/* SLOWED (《彼岸花》): said on it as the lily fades. */}
+              {last?.slowed && last.target === e.id && bloom?.key === lastKey && (
+                <span
+                  key={`sl${lastKey}`}
+                  className="pb-float slow"
+                  data-testid="pb-float-slow"
+                  style={{ animationDelay: `${Math.round(bloom.at + bloom.ms * 0.55)}ms` }}
+                >
+                  SPEED DOWN
+                </span>
+              )}
               {last?.counter !== undefined && last.actor === e.id && (
                 <span key={`c${lastKey}`} className="pb-float counter" data-testid="pb-float-counter" style={impactStyle(counter)}>
                   <small>反撃</small>
@@ -834,7 +936,13 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
 
       {/* COMBO (combo.ts — 作者 実機 2026-10-24): the party's blows in a row; through a BREAK it climbs on. */}
       {combo.hits >= COMBO_SHOWN_FROM && (
-        <div className={`pb-combo${chain ? ' chain' : ''}`} data-testid="pb-combo" data-hits={combo.hits} data-chain={chain ? 'yes' : 'no'}>
+        <div
+          className={`pb-combo${chain ? ' chain' : ''} tier-${comboTier}`}
+          data-testid="pb-combo"
+          data-hits={combo.hits}
+          data-chain={chain ? 'yes' : 'no'}
+          data-tier={comboTier}
+        >
           <b key={combo.hits} className="pb-combo-n">
             {combo.hits}
           </b>
@@ -842,6 +950,42 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           <small className="pb-combo-dmg" data-testid="pb-combo-damage">
             {combo.damage.toLocaleString('ja-JP')} DMG
           </small>
+          {/* From 10, COMBO is worth more (partyBattle comboMultiplier): what it adds, and a glow at each step. */}
+          {comboTier > 0 && (
+            <small key={`t${comboTier}`} className="pb-combo-bonus" data-testid="pb-combo-bonus">
+              与ダメージ +{Math.round((comboMultiplier(combo.hits) - 1) * 100)}%
+            </small>
+          )}
+        </div>
+      )}
+
+      {/* 《彼岸花》: the world goes still and dark, the red spider lily opens on the one struck, petals fall. */}
+      {bloom && bloom.key === lastKey && (
+        <span
+          key={`hb${lastKey}`}
+          className="pb-bloom"
+          data-testid="pb-bloom"
+          aria-hidden="true"
+          style={{
+            ['--bloom-at' as string]: `${bloom.at}ms`,
+            ['--bloom-ms' as string]: `${bloom.ms}ms`,
+            ['--bx' as string]: `${bloom.x}%`,
+            ['--by' as string]: `${bloom.y}%`,
+          }}
+        >
+          <span className="pb-bloom-dark" />
+          <img className="pb-bloom-lily" src={SPECIAL_FX_ART.heroHiganbana} alt="" />
+          {PETALS.map((pt, i) => (
+            <i key={i} className="pb-petal" style={{ ['--px' as string]: `${pt.x}px`, ['--py' as string]: `${pt.y}px`, ['--pr' as string]: `${pt.r}deg`, ['--pd' as string]: pt.d }} />
+          ))}
+        </span>
+      )}
+
+      {/* Learned in this fight: said once as it opens. */}
+      {saying && unlocked && (
+        <div className="pb-unlocked" data-testid="pb-unlocked" role="status">
+          <small>必殺技 解禁</small>
+          <b>《{unlocked}》</b>
         </div>
       )}
 
@@ -879,6 +1023,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               防御DOWN 残り{focused.breakTurns}T
             </span>
           )}
+          {focused.slowTurns > 0 && (
+            <span className="pb-slow-badge" data-testid="pb-slow-badge" data-turns={focused.slowTurns}>
+              速度DOWN 残り{focused.slowTurns}
+            </span>
+          )}
         </div>
       ) : (
         <div className="pb-enemy-plate" data-testid="pb-enemy-plate" data-focus={focused.id} data-boss={focused.boss ? 'yes' : undefined}>
@@ -901,6 +1050,11 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
         {broken && (
           <span className="pb-break-badge" data-testid="pb-break-badge" data-turns={focused.breakTurns}>
             防御DOWN 残り{focused.breakTurns}T
+          </span>
+        )}
+        {focused.slowTurns > 0 && (
+          <span className="pb-slow-badge" data-testid="pb-slow-badge" data-turns={focused.slowTurns}>
+            速度DOWN 残り{focused.slowTurns}
           </span>
         )}
       </div>
@@ -980,6 +1134,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   {skills.map((sk) => (
                     <button key={sk.id} className="pb-list-btn" data-testid={`pb-cmd-skill-${sk.id}`} disabled={!partySkillReady(acting!, sk)} onClick={() => aimEnemy((target) => ({ kind: 'SKILL', skillId: sk.id, target }), 'SKILL')}>
                       {sk.name}
+                      {fresh.includes(sk.id) && <NewBadge testId={`pb-skill-new-${sk.id}`} />}
                       <Wait left={cooldownLeft(acting!, sk.id, sk.cooldown)} />
                     </button>
                   ))}
