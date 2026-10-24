@@ -93,6 +93,11 @@ export interface BeatFx {
     vanish?: { poise: number; fade: number };
     /** The last blow stepped into, further in, from this moment. */
     stepAt?: number;
+    /**
+     * 《彼岸花》 (仕上げ §1–2): the one trace of him while he is gone — a thin red line where he ran and his
+     * blade's glint at the creature's front, from `at` for `ms`, just before he is seen there.
+     */
+    trace?: { at: number; ms: number };
   };
   /** 《彼岸花》: the ground under them splits at `at`, red light running in the cracks. */
   crack?: { at: number };
@@ -142,10 +147,16 @@ export const LUNGE_FLOOR_MS = 120;
  * the dark); the world dark for `dark`, lilies opening out of the cracks, petals over everything; home.
  * Each cut lands at the moon's own moment (`land`). On screen never shorter than the floors (×2).
  */
-export const HIGANBANA_FX = { poise: 110, fade: 250, gone: 130, quick: 170, breath: 90, land: 110, crack: 170, dark: 640 } as const;
+export const HIGANBANA_FX = { poise: 110, fade: 250, gone: 170, quick: 170, breath: 90, land: 110, crack: 170, dark: 640 } as const;
 export const BLOOM_FLOOR_MS = 380;
 /** His slide back and the hush after it, on screen at least (×2 too): seen, not skipped. */
-export const VANISH_FLOOR_MS = { fade: 160, gone: 80 } as const;
+export const VANISH_FLOOR_MS = { fade: 160, gone: 110 } as const;
+/**
+ * The trace of him in the hush (仕上げ §2): it comes `lead` before he is seen and lasts `ms` — on screen
+ * never under the floors, so at ×2 it is still a flash and not nothing; the hush before it is kept.
+ */
+export const TRACE_MS = { lead: 90, ms: 160 } as const;
+export const TRACE_FLOOR_MS = { lead: 60, ms: 100 } as const;
 /** The three cuts' looks: small and nearly flat; the other way and steeper; big and near upright. */
 export const HIGANBANA_CUTS = [
   { turn: -10, scale: 0.8 },
@@ -478,6 +489,7 @@ function higanbanaFx(
   const h = HIGANBANA_FX;
   const fade = h.poise + Math.round(atLeast(h.fade, VANISH_FLOOR_MS.fade));
   const out = fade + Math.round(atLeast(h.gone, VANISH_FLOOR_MS.gone));
+  const trace = { at: out - Math.round(atLeast(TRACE_MS.lead, TRACE_FLOOR_MS.lead)), ms: Math.round(atLeast(TRACE_MS.ms, TRACE_FLOOR_MS.ms)) };
   const quick = Math.round(Math.max(h.quick, multiHitGap(speed) / speed));
   const first = out + 10;
   const all = beat.hits ?? [beat.amount];
@@ -504,7 +516,7 @@ function higanbanaFx(
     reel: reel(8),
     number: numberTier(beat, ctx, true),
     amounts: all,
-    lunge: { out, back, home, deep: true, vanish: { poise: h.poise, fade }, stepAt: cuts[n - 1] },
+    lunge: { out, back, home, deep: true, vanish: { poise: h.poise, fade }, stepAt: cuts[n - 1], trace },
     crack: { at: impact },
     bloom: { at: bloomAt, ms: dark },
     also: struck.filter((x) => x.target !== beat.target && x.hits.length > 0).map((x) => x.target),

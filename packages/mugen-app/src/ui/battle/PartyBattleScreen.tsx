@@ -55,7 +55,7 @@ import { shatter } from './shatter';
 import { SPECIAL_FX_ART } from '../fx/special/specialFxArt';
 import { NewBadge } from '../common/NewBadge';
 import { splitDamage } from './multiHit';
-import { higanbanaBloom, type BloomSpot } from './higanbanaBloom';
+import { higanbanaBloom, type BloomSpot, type Petal } from './higanbanaBloom';
 import './battle.generated.css';
 import './battle.layers.css';
 import { CROSS_SLOTS, FIGURE_SCALE, FOOT_AT, enemyPlaces, footStyle, partyPlaces, stageFor, type CrossSlot } from './partyStage';
@@ -325,6 +325,46 @@ function lungeOf(root: HTMLElement, target: string, lunge: NonNullable<BeatFx['l
     );
   }
   if (lunge.vanish) fig.dataset.vanish = 'yes';
+  // 《彼岸花》's trace in the hush (仕上げ §2): a thin red line where he ran — from where he stood to the
+  // creature's front, at his chest — and his blade's glint there; a flash, then gone (and taken away).
+  if (lunge.trace) {
+    const box = fig.getBoundingClientRect();
+    const chest = h.top + h.height * 0.36 - box.top;
+    const from = h.left + h.width * 0.5 - box.left;
+    const to = stopX - box.left;
+    const timing = { delay: Math.round(lunge.trace.at * speed), duration: Math.round(lunge.trace.ms * speed), fill: 'both' as const };
+    const line = document.createElement('i');
+    line.className = 'pb-trace';
+    line.setAttribute('data-testid', 'pb-trace');
+    Object.assign(line.style, { left: `${Math.round(to)}px`, top: `${Math.round(chest)}px`, width: `${Math.max(0, Math.round(from - to))}px` });
+    const glint = document.createElement('i');
+    glint.className = 'pb-glint';
+    glint.setAttribute('data-testid', 'pb-glint');
+    Object.assign(glint.style, { left: `${Math.round(to)}px`, top: `${Math.round(chest)}px` });
+    fig.append(line, glint);
+    const gone = [
+      line.animate(
+        [
+          { transform: 'scaleX(0)', opacity: 0, transformOrigin: '100% 50%' },
+          { transform: 'scaleX(1)', opacity: 1, transformOrigin: '100% 50%', offset: 0.35 },
+          { transform: 'scaleX(1)', opacity: 0, transformOrigin: '100% 50%' },
+        ],
+        timing,
+      ),
+      glint.animate(
+        [
+          { transform: 'translate(-50%, -50%) rotate(-28deg) scale(0.2, 1)', opacity: 0 },
+          { transform: 'translate(-50%, -50%) rotate(-28deg) scale(1.2, 1)', opacity: 1, offset: 0.45 },
+          { transform: 'translate(-50%, -50%) rotate(-28deg) scale(1.5, 0.6)', opacity: 0 },
+        ],
+        timing,
+      ),
+    ];
+    for (const [i, a] of gone.entries()) {
+      const el = i === 0 ? line : glint;
+      a.finished.then(() => el.remove(), () => el.remove());
+    }
+  }
   fig.dataset.lunge = lunge.deep ? 'deep' : 'yes';
   const done = () => {
     if (fig.dataset.lunge) delete fig.dataset.lunge;
@@ -530,6 +570,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
           ms: Math.round(p.bloom.ms * speed),
         };
         later(from, () => setBloom(bloom));
+        // Over — the dark gone, the last petal down, SPEED DOWN said: all of it taken away.
+        later(from + bloom.at + Math.round(bloom.ms * 0.55) + 1450, () => setBloom((b) => (b?.key === bloom.key ? null : b)));
       }
       // The characters' own effects: each one's sounds at its landing — once for a moment, however many it falls on.
       const heard = new Set<number>();
@@ -765,6 +807,32 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
   const cutCount = last?.spread ? Math.max(1, ...last.spread.map((x) => x.hits.length)) : parts.length;
   const slowedOn = (id: string) => !!last && (last.spread ? !!last.spread.find((x) => x.target === id)?.slowed : !!last.slowed && last.target === id);
   const bloomArt = useMemo(() => (bloom ? higanbanaBloom(bloom.spots) : null), [bloom]);
+  /** 《彼岸花》's petals of one layer, each the one picture at its own size, way, turn and time. */
+  const petalsOf = (layer: Petal['layer']) =>
+    bloomArt?.petals
+      .filter((pt) => pt.layer === layer)
+      .map((pt, i) => (
+        <img
+          key={`${layer}${i}`}
+          className={`pb-petal ${layer}`}
+          data-testid="pb-petal"
+          data-layer={layer}
+          src={SPECIAL_FX_ART.heroPetal}
+          alt=""
+          style={{
+            left: `${pt.x}%`,
+            top: `${pt.y}%`,
+            ['--psz' as string]: `${pt.size}px`,
+            ['--px' as string]: `${pt.dx}vw`,
+            ['--py' as string]: `${pt.dy}vh`,
+            ['--pr0' as string]: `${pt.rot0}deg`,
+            ['--pr' as string]: `${pt.rot}deg`,
+            ['--pa' as string]: pt.alpha,
+            ['--pd' as string]: pt.delay,
+            ['--pdur' as string]: pt.dur,
+          }}
+        />
+      ));
   // A technique's or skill's name, flashed as it is used.
   const flashName = last && (last.kind === 'TECH' || last.kind === 'SKILL') ? last.name : undefined;
   const playerInput = !!acting && !auto && state.outcome === 'ONGOING' && !cutIns.playing;
@@ -845,7 +913,7 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   return (
                     <span
                       key={`${lastKey}-${i}`}
-                      className={`pb-float${tierOf(fx)}${final && followed ? ' finisher' : ''}${final ? '' : ' cut'}`}
+                      className={`pb-float${tierOf(fx)}${final && followed ? ' finisher' : ''}${final ? (fx?.amounts ? ' stay' : '') : fx?.amounts ? ' cut flow' : ' cut'}`}
                       data-testid={final ? 'pb-float' : 'pb-float-cut'}
                       data-tier={fx?.number ?? 'plain'}
                       data-cut={mine.length > 1 ? i + 1 : undefined}
@@ -861,7 +929,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
                   key={`sl${lastKey}`}
                   className="pb-float slow"
                   data-testid="pb-float-slow"
-                  style={{ animationDelay: `${Math.round(bloom.at + bloom.ms * 0.55)}ms` }}
+                  // Several slowed, close together: each a step higher than the one before, never on top of another.
+                  style={{ animationDelay: `${Math.round(bloom.at + bloom.ms * 0.55)}ms`, translate: many ? `0 ${-18 * (i % 3)}px` : undefined }}
                 >
                   SPEED DOWN
                 </span>
@@ -1051,6 +1120,9 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
               </g>
             ))}
           </svg>
+          {/* The petals (作者 2026-10-24 仕上げ: one picture, many of it): far behind the lilies, a few rising off
+              them, big ones across the front. */}
+          {petalsOf('back')}
           {bloomArt.lilies.map((l, i) => (
             <img
               key={i}
@@ -1062,21 +1134,8 @@ export function PartyBattleScreen({ members, enemy, enemyArtId, background = nul
             />
           ))}
           <span className="pb-bloom-veil" />
-          {bloomArt.petals.map((pt, i) => (
-            <i
-              key={i}
-              className={`pb-petal${pt.scale >= 3 ? ' near' : ''}`}
-              style={{
-                left: `${pt.x}%`,
-                top: `${pt.y}%`,
-                ['--px' as string]: `${pt.dx}vw`,
-                ['--py' as string]: `${pt.dy}vh`,
-                ['--pr' as string]: `${pt.rot}deg`,
-                ['--ps' as string]: pt.scale,
-                ['--pd' as string]: pt.delay,
-              }}
-            />
-          ))}
+          {petalsOf('rise')}
+          {petalsOf('front')}
         </span>
       )}
 

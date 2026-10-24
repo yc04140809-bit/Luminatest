@@ -1176,7 +1176,8 @@
   opacity: 0;
   animation: pb-crack-life calc(var(--bloom-at) - var(--crack-at) + var(--bloom-ms)) linear var(--crack-at) both;
 }
-@keyframes pb-crack-life { 0% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+/* Hidden until it splits (the delay holds the first frame): then there at once. */
+@keyframes pb-crack-life { 0% { opacity: 0; } 0.5% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
 .pb-crack path { fill: none; stroke-linejoin: bevel; stroke-dasharray: 100; stroke-dashoffset: 100; }
 /* The red light: a wide haze along the crack, its dark cut, the bright line inside it. */
 .pb-crack-haze { stroke: rgba(255, 30, 50, 0.4); stroke-width: 14; stroke-linecap: round; filter: blur(3px); animation: pb-crack-run 300ms ease-out calc(var(--crack-at) + 60ms) both; }
@@ -1218,30 +1219,85 @@
   animation: pb-bloom-veil calc(var(--bloom-ms) * 0.55) ease-out calc(var(--bloom-at) + var(--bloom-ms) * 0.34) both;
 }
 @keyframes pb-bloom-veil { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+/* The petals (作者 2026-10-24 仕上げ): one picture, many of it, each its own size, way, turn and time —
+   far behind small and faint and slow; a few rising off the lilies; big and clear across the front. Only
+   transform and opacity move (light on a phone); gone with the bloom when it is over. */
 .pb-petal {
   position: absolute;
-  width: 14px;
-  height: 8px;
-  margin: -4px 0 0 -7px;
-  border-radius: 60% 40% 60% 40%;
-  background: radial-gradient(circle at 30% 30%, #ff6a6a, #c2001b 70%);
-  box-shadow: 0 0 4px rgba(255, 40, 60, 0.8);
+  width: var(--psz);
+  height: auto;
+  margin: calc(var(--psz) / -2) 0 0 calc(var(--psz) / -2);
   opacity: 0;
-  animation: pb-petal calc(var(--bloom-ms) * 1.35) cubic-bezier(0.12, 0.7, 0.35, 1) calc(var(--bloom-at) + var(--bloom-ms) * var(--pd)) both;
+  will-change: transform, opacity;
+  animation: pb-petal calc(var(--bloom-ms) * var(--pdur)) cubic-bezier(0.12, 0.7, 0.35, 1) calc(var(--bloom-at) + var(--bloom-ms) * var(--pd)) both;
 }
-/* Near the camera: big, a little soft, gone sooner — they cover the screen only for a moment. */
-.pb-petal.near { filter: blur(1px); animation-name: pb-petal-near; animation-duration: calc(var(--bloom-ms) * 0.9); }
+.pb-petal.rise { animation-name: pb-petal-rise; animation-timing-function: ease-out; }
+.pb-petal.front { animation-name: pb-petal-front; animation-timing-function: cubic-bezier(0.3, 0.1, 0.6, 0.9); }
 @keyframes pb-petal {
-  0% { opacity: 0; transform: translate(0, 0) rotate(0) scale(calc(var(--ps) * 0.4)); }
-  10% { opacity: 1; }
-  60% { opacity: 0.9; }
-  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(var(--ps)); }
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)) scale(0.5); }
+  12% { opacity: var(--pa); }
+  65% { opacity: calc(var(--pa) * 0.8); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); }
 }
-@keyframes pb-petal-near {
-  0% { opacity: 0; transform: translate(0, 0) rotate(0) scale(1); }
-  14% { opacity: 0.95; }
-  50% { opacity: 0.5; }
-  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(var(--ps)); }
+@keyframes pb-petal-rise {
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)) scale(0.6); }
+  15% { opacity: var(--pa); }
+  50% { transform: translate(calc(var(--px) * -0.6), calc(var(--py) * 0.5)) rotate(calc((var(--pr0) + var(--pr)) / 2)) scale(0.9); }
+  80% { opacity: var(--pa); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); }
+}
+@keyframes pb-petal-front {
+  0% { opacity: 0; transform: translate(0, 0) rotate(var(--pr0)); }
+  8% { opacity: var(--pa); }
+  70% { opacity: var(--pa); }
+  100% { opacity: 0; transform: translate(var(--px), var(--py)) rotate(var(--pr)); }
+}
+
+/* 《彼岸花》's trace while he is gone (仕上げ §2): a thin red line where he ran, and his blade's glint at
+   the creature's front — a flash just before he is seen there. */
+.pb-trace {
+  position: absolute;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.95), #ff2e44 18%, rgba(200, 0, 24, 0.6) 70%, transparent);
+  box-shadow: 0 0 6px rgba(255, 40, 60, 0.95), 0 0 14px rgba(200, 0, 24, 0.6);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+}
+.pb-glint {
+  position: absolute;
+  width: 70px;
+  height: 4px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #ffffff, rgba(255, 210, 210, 0.9) 45%, rgba(255, 40, 60, 0.5) 75%, transparent);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 18px rgba(255, 40, 60, 0.8);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+}
+
+/* 《彼岸花》's numbers (仕上げ §7–10): the first two cuts' small and faint, quick, flowing away up and aside
+   (the second the other way); the third's the big one, in front of them and held longest. */
+.pb-float.cut.flow { font-size: 21px; animation-name: pb-float-flow; animation-duration: 640ms; z-index: 7; }
+.pb-float.cut.flow[data-cut='2'] { font-size: 23px; animation-name: pb-float-flow-2; animation-duration: 700ms; }
+.pb-float.stay { z-index: 12; animation-duration: 1750ms; }
+@keyframes pb-float-flow {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(1.5); }
+  12% { opacity: 0.85; transform: translate(-50%, 0) scale(1); }
+  55% { opacity: 0.75; }
+  100% { opacity: 0; transform: translate(-95%, -30px) scale(0.9); }
+}
+@keyframes pb-float-flow-2 {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(1.5); }
+  12% { opacity: 0.9; transform: translate(-50%, 0) scale(1); }
+  55% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(-5%, -34px) scale(0.92); }
+}
+@media (max-height: 340px) {
+  .pb-float.cut.flow { font-size: 18px; }
+  .pb-float.cut.flow[data-cut='2'] { font-size: 20px; }
 }
 
 /* SLOWED: said on it, and kept on its plate with how many of its turns are left. */
@@ -1306,5 +1362,5 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pb-bloom-lily, .pb-petal, .pb-combo-bonus, .pb-unlocked { animation-name: pb-hit-fade; }
-  .pb-petal, .pb-bloom-veil { display: none; }
+  .pb-petal, .pb-bloom-veil, .pb-trace, .pb-glint { display: none; }
 }

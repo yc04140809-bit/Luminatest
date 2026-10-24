@@ -272,6 +272,9 @@ test.describe('with motion', () => {
       await clear(page);
       await page.getByTestId('pb-cmd-skills').click();
       await page.getByTestId('pb-cmd-skill-higanbana').click();
+      // The one trace of him while he is gone (仕上げ §2): a red line where he ran and his blade's glint.
+      await expect(page.getByTestId('pb-trace')).toHaveCount(1, { timeout: 10_000 });
+      await expect(page.getByTestId('pb-glint')).toHaveCount(1);
       await expect.poll(async () => (await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40).length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
       const step = (await everything(page)).find((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)!;
       const there = step.xs.findIndex((x) => x < -40);
@@ -294,6 +297,16 @@ test.describe('with motion', () => {
       // The ground split under it, and the lilies.
       await expect(page.getByTestId('pb-crack')).toHaveCount(1, { timeout: 5_000 });
       await expect(page.getByTestId('pb-bloom-lily')).toHaveCount(5);
+      // The petals: the one picture, many of it, in three layers (仕上げ §3–5).
+      const petals = page.getByTestId('pb-petal');
+      await expect(petals).toHaveCount(44);
+      expect(new Set(await petals.evaluateAll((els) => els.map((e) => (e as HTMLImageElement).src))).size).toBe(1);
+      expect(await petals.first().evaluate((e) => (e as HTMLImageElement).src)).toContain('hero-higanbana-petal');
+      for (const [layer, n] of [['back', 30], ['rise', 6], ['front', 8]] as const) await expect(page.locator(`[data-testid="pb-petal"][data-layer="${layer}"]`)).toHaveCount(n);
+      // The trace gone once it has flashed; everything of the bloom taken away once it is over.
+      await expect(page.getByTestId('pb-trace')).toHaveCount(0);
+      await expect(page.getByTestId('pb-bloom')).toHaveCount(0, { timeout: 8_000 });
+      await expect(page.getByTestId('pb-petal')).toHaveCount(0);
       // Home again where he stood (his step over; a few px for his turn's highlight, gone now).
       await expect.poll(() => page.getByTestId('pb-figure-hero').locator('img').evaluate((el) => el.getAnimations().length), { timeout: 8_000 }).toBe(0);
       expect(Math.abs((await page.getByTestId('pb-figure-hero').locator('img').boundingBox())!.x - hero!.x)).toBeLessThan(8);

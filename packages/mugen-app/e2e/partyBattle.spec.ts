@@ -342,6 +342,9 @@ test('《彼岸花》 at three creatures: three numbers on each adding up to wha
     await expect(foe.locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]')).toHaveCount(3, { timeout: 10_000 });
     const nums = (await foe.locator('[data-testid="pb-float-cut"], [data-testid="pb-float"]').allTextContents()).map(Number);
     expect(nums.reduce((a, b) => a + b, 0)).toBe(before[i] - (await hpOf(id)));
+    // 仕上げ §7–10: the first two cuts' flow away, small; the third's stays, in front.
+    await expect(foe.getByTestId('pb-float-cut').first()).toHaveClass(/\bflow\b/);
+    await expect(foe.getByTestId('pb-float')).toHaveClass(/\bstay\b/);
     await expect(foe.getByTestId('pb-float-slow')).toHaveText('SPEED DOWN');
   }
   await expect(page.getByTestId('pb-combo')).toHaveAttribute('data-hits', '9');

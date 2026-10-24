@@ -3,7 +3,7 @@ import type { PartyBeat, PartyTechnique } from '@mugen/game/battle/partyBattle';
 import type { MagicDef } from '@mugen/core/magic/magic';
 import { HIT_STOP_MAX_MS } from '../fx/screenShake';
 import { KICK, KICK_PEAK_AT, sequenceTimes } from '../fx/camera';
-import { HIGANBANA_CUTS, HIGANBANA_FX, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
+import { HIGANBANA_CUTS, HIGANBANA_FX, HIT_STOPS, LUNGE_FLOOR_MS, BLOOM_FLOOR_MS, VANISH_FLOOR_MS, TRACE_FLOOR_MS, SHUNDAN_CUTS, SPELL_KICK_AT, beatFx, counterFx, numberTier, type BeatContext } from './partyFx';
 import { MULTI_HIT_GAP_FLOOR_MS, MULTI_HIT_GAP_MS } from './multiHit';
 
 // What each blow of the party fight looks like (作者 2026-10-17: エフェクト強化 / CAMERA KICK / CAMERA DIRECTOR).
@@ -197,6 +197,13 @@ describe('the characters\' own (作者 2026-10-17)', () => {
       expect((l.vanish!.fade - l.vanish!.poise) * speed).toBeGreaterThanOrEqual(VANISH_FLOOR_MS.fade);
       expect((l.out - l.vanish!.fade) * speed).toBeGreaterThanOrEqual(VANISH_FLOOR_MS.gone);
       expect(l.out).toBeLessThan(sp[0].at);
+      // The one trace of him (仕上げ §2): after a hush, just before he is seen there, a flash — at ×2 too.
+      expect(l.trace!.at).toBeGreaterThan(l.vanish!.fade);
+      expect((l.trace!.at - l.vanish!.fade) * speed).toBeGreaterThanOrEqual(40);
+      expect(l.trace!.at).toBeLessThan(l.out);
+      expect(l.trace!.at + l.trace!.ms).toBeGreaterThan(l.out);
+      expect(l.trace!.ms * speed).toBeGreaterThanOrEqual(TRACE_FLOOR_MS.ms);
+      expect((l.out - l.trace!.at) * speed).toBeGreaterThanOrEqual(TRACE_FLOOR_MS.lead);
       // The third stepped into; the ground splits as it lands; the dark after it, long enough at ×2; home after.
       expect(l.stepAt).toBe(sp[2].at);
       expect(fx.crack!.at).toBe(fx.impact);
