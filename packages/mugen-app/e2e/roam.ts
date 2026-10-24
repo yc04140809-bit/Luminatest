@@ -80,11 +80,37 @@ export async function touch(page: Page, p: P, wait = true) {
   }
 }
 
-/** Walk to where a thing is looked at from (touching the thing itself, as a player would). */
+/** Whether a touch at this painting point would land on a button over the walk (an event, the way out). */
+async function underAButton(page: Page, p: P): Promise<boolean> {
+  const vp = page.viewportSize()!;
+  const s = await onScreen(page, p);
+  const at = [Math.min(vp.width - 4, Math.max(4, s.x)), Math.min(vp.height - 4, Math.max(4, s.y))];
+  return page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('button, a, [role="button"]'), at);
+}
+
+/** Beside a thing, still near enough that a touch there is taken for it (the walk snaps to a thing within 0.08). */
+const BESIDE: readonly (readonly [number, number])[] = [
+  [0, -0.06],
+  [0.05, -0.04],
+  [0.06, 0],
+  [0.04, -0.08],
+  [-0.05, -0.06],
+];
+
+/**
+ * Walk to where a thing is looked at from (touching the thing itself, as a player would). A thing
+ * that happens to lie under a button (a find appears anywhere — under 「人影がこちらを見ている」 the
+ * touch opened ガルド instead): touched just beside it, as a player would, clear of the button.
+ */
 export async function goTo(page: Page, id: string) {
   for (let i = 0; i < 3; i++) {
     const t = (await things(page)).find((x) => x.id === id)!;
-    await touch(page, t.mark);
+    let at: P = t.mark;
+    for (const [dx, dy] of [[0, 0] as const, ...BESIDE]) {
+      at = { x: t.mark.x + dx, y: t.mark.y + dy };
+      if (!(await underAButton(page, at))) break;
+    }
+    await touch(page, at);
     if (dist(await hero(page), t.stand) < 0.01) return;
   }
 }
