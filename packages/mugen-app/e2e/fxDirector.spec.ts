@@ -273,8 +273,10 @@ test.describe('with motion', () => {
       await page.getByTestId('pb-cmd-skills').click();
       await page.getByTestId('pb-cmd-skill-higanbana').click();
       // The one trace of him while he is gone (仕上げ §2): a red line where he ran and his blade's glint.
-      await expect(page.getByTestId('pb-trace')).toHaveCount(1, { timeout: 10_000 });
-      await expect(page.getByTestId('pb-glint')).toHaveCount(1);
+      // (Read together: at ×2 the flash is short, and both are gone the same moment.)
+      await expect
+        .poll(() => page.evaluate(() => !!document.querySelector('[data-testid="pb-trace"]') && !!document.querySelector('[data-testid="pb-glint"]')), { timeout: 10_000, intervals: [16] })
+        .toBe(true);
       await expect.poll(async () => (await everything(page)).filter((m) => m.who === 'drawing' && Math.min(...m.xs) < -40).length, { timeout: 10_000 }).toBeGreaterThanOrEqual(1);
       const step = (await everything(page)).find((m) => m.who === 'drawing' && Math.min(...m.xs) < -40)!;
       const there = step.xs.findIndex((x) => x < -40);

@@ -436,3 +436,32 @@ test('DEBUG: 第1章終盤 from the 3人戦闘 chooser — nothing kept', async 
   await page.goto('/?preview=finale&from=LURED&weak=1');
   await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'FORM1_START');
 });
+
+// 作者 2026-10-24: 「第2形態だけ試せないかな？」 — 《彼岸花》 without fighting (and maybe losing) the first form.
+test('DEBUG: ヴァルシール第2形態 straight from the 3人戦闘 chooser — the party whole, 《彼岸花》 his, and it works', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?preview=party&enemy=select');
+  await page.getByTestId('pb-select-valsheel2').click();
+  await expect(page.getByTestId('pb-screen')).toHaveAttribute('data-scale', 'GIANT');
+  // The second form: its own numbers (HP 420) and its own drawing.
+  await expect(page.getByTestId('pb-enemy-hp')).toHaveAttribute('data-hp', '420');
+  await expect(page.getByTestId('pb-enemy-art')).toHaveAttribute('src', /valsheel/);
+  await untilHero(page);
+  await page.getByTestId('pb-cmd-skills').click();
+  await page.getByTestId('pb-cmd-skill-higanbana').click();
+  await expect(page.getByTestId('pb-bloom')).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.getByTestId('pb-log')).toContainText('速度DOWN');
+});
+
+test('DEBUG: 第1章終盤 from the second form — the shell breaking, then the fight, 「《彼岸花》 解禁」 said', async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto('/?preview=party&enemy=select');
+  await page.getByTestId('pb-select-finale-form2').click();
+  await expect(page.getByTestId('finale-scene')).toHaveAttribute('data-scene', 'SHELL_BREAK');
+  await readWhile(page, ['SHELL_BREAK']);
+  await expect(page.getByTestId('pb-screen')).toBeVisible();
+  await expect(page.getByTestId('pb-unlocked')).toContainText('《彼岸花》');
+  await untilHero(page);
+  await page.getByTestId('pb-cmd-skills').click();
+  await expect(page.getByTestId('pb-cmd-skill-higanbana')).toBeEnabled();
+});

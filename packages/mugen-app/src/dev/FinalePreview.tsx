@@ -18,6 +18,9 @@ import { audioManager } from '../platform/audio';
  *                               the shell breaking / what follows the stop
  *   &weak=1                     both forms at 1 HP (to see what follows a win)
  *
+ * 《彼岸花》 is learned in the second form and said so as it opens — every time here, nothing being kept
+ * (&from=FORM1_WON goes straight to it: the DEBUG chooser's 「第2形態から」).
+ *
  * Reads and writes nothing of the world: the stage is kept in memory only,
  * the party at level one (as the 3人戦闘 preview has them).
  */
@@ -58,6 +61,8 @@ export function FinalePreview({ params }: { params: URLSearchParams }) {
       until="STOPPED"
       party={party}
       autoAvailable
+      // Nothing is kept here, so 「《彼岸花》 解禁」 is said each time the second form is reached (a demo's way).
+      unlockNew
       onReach={() => Promise.resolve()}
       onLost={() => Promise.resolve()}
       onMusic={setBgm}

@@ -6,7 +6,7 @@ import { IWAHORO } from '@mugen/content/enemies/iwahoro';
 import { KOKEMARU } from '@mugen/content/enemies/kokemaru';
 import { HYOUREI } from '@mugen/content/enemies/hyourei';
 import { SEKIRYUGA_BATTLE } from '@mugen/content/enemies/sekiryugaBattle';
-import { VALSHEEL_FORM1_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
+import { VALSHEEL_FORM1_PROVISIONAL, VALSHEEL_FORM2_PROVISIONAL } from '@mugen/content/enemies/valsheelBattle';
 import type { PartyEnemyInput } from '@mugen/game/battle/partyBattle';
 import { MAGIC_DEFS } from '@mugen/content/magic/magicDefs';
 import { HERO_STARTING_SKILLS, withHiganbana } from '@mugen/content/skills/heroSkills';
@@ -24,6 +24,8 @@ import { audioManager } from '../platform/audio';
  *                                  セキリュウガ）, 敵2体, 敵3体
  *   ?preview=party                 主人公・ケイオス・グレイヴ vs ヴァルシール（第1形態, 仮の数値）
  *   &enemy=sekiryuga               vs セキリュウガ (its numbers)
+ *   &enemy=valsheel2               vs ヴァルシール's second form, 《彼岸花》 his (作者 2026-10-24: to try his finisher
+ *                                  without fighting the first form first — the party whole, from the start)
  *   &enemy=moss_rabbit             vs the forest's moss rabbit
  *   &hurt=1                        the hero and Grave start hurt (for the heals)
  *   &footing=N                     the creature's BREAK footing is N (to see BREAK at once)
@@ -49,7 +51,9 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
       ? { spec: specOf(MOSS_RABBIT), art: 'moss_rabbit' }
       : which === 'sekiryuga'
         ? { spec: { ...SEKIRYUGA_BATTLE, boss: true }, art: 'sekiryuga' }
-        : { spec: VALSHEEL_FORM1_PROVISIONAL, art: 'valsheel' };
+        : which === 'valsheel2'
+          ? { spec: VALSHEEL_FORM2_PROVISIONAL, art: 'valsheel_form2' }
+          : { spec: VALSHEEL_FORM1_PROVISIONAL, art: 'valsheel' };
   const enemy = footing > 0 ? { ...foe.spec, breakMax: Math.floor(footing) } : foe.spec;
   const count = Number(params.get('enemies'));
   const weak = params.get('weak') === '1';
@@ -76,7 +80,8 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
       : null;
   const hurt = params.get('hurt') === '1';
   // &higanbana=1: his finisher among his skills (first, as in ヴァルシール's second form — ui/finale withFinisher).
-  const finisher = params.get('higanbana') === '1';
+  // The second form is where he has it — so there it is his without asking.
+  const finisher = params.get('higanbana') === '1' || which === 'valsheel2';
   const members = useMemo(
     () => [
       ...heroAndKaos({
@@ -108,6 +113,7 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
         {(
           [
             ['', '敵1体（ヴァルシール・巨大）', 'pb-select-1'],
+            ['&enemy=valsheel2', 'ヴァルシール第2形態（《彼岸花》あり）', 'pb-select-valsheel2'],
             ['&enemy=sekiryuga', '敵1体（セキリュウガ）', 'pb-select-sekiryuga'],
             ['&enemies=2', '敵2体（イワホロ・コケマル）', 'pb-select-2'],
             ['&enemies=3', '敵3体（イワホロ・コケマル・ヒョウレイ）', 'pb-select-3'],
@@ -119,6 +125,10 @@ export function PartyBattlePreview({ params }: { params: URLSearchParams }) {
         ))}
         <button className="btn" data-testid="pb-select-finale" onClick={() => window.location.assign(`${window.location.pathname}?preview=finale`)}>
           第1章終盤（遺跡〜襲撃〜ヴァルシール戦）
+        </button>
+        {/* The real way into the second form: the shell breaking, then the fight — 《彼岸花》 said learned as it opens. */}
+        <button className="btn" data-testid="pb-select-finale-form2" onClick={() => window.location.assign(`${window.location.pathname}?preview=finale&from=FORM1_WON`)}>
+          第1章終盤：第2形態から（《彼岸花》解禁演出つき）
         </button>
         <button className="btn" onClick={() => window.location.assign(window.location.pathname)}>
           タイトルへ
